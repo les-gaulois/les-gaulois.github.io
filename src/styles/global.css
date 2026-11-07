@@ -346,11 +346,16 @@ main .card:hover::before {
     border-color 0.15s,
     scale 0.12s;
 }
-.chip:hover {
+.chip:disabled,
+.field:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.chip:hover:where(:not(:disabled)) {
   color: #fff;
   border-color: #fff;
 }
-.chip:active {
+.chip:active:where(:not(:disabled)) {
   scale: 0.95;
 }
 .chip[aria-pressed="true"] {

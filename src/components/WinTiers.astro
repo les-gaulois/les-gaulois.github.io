@@ -1,0 +1,56 @@
+---
+import { clan } from "../../config/clan";
+import { loadMembers } from "../lib/data";
+import { fmtCount } from "../lib/format";
+import { tierRows, WIN_TIERS } from "../lib/paliers";
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const rows = tierRows(loadMembers()?.members ?? []);
+/** Au-delà, les pseudos d'un palier se replient : ils prendraient toute la page. */
+const OPEN_NAMES = 12;
+const profile = (publicId: string | null) => `${base}/membres/${encodeURIComponent(publicId ?? "")}`;
+---
+
+{
+  rows.length > 0 && (
+    <section class="stage stage-indigo reveal mb-6" aria-labelledby="tiers-title" data-testid="win-tiers">
+      <h2 id="tiers-title" class="section-title">Les paliers du clan</h2>
+      <p class="mt-4 max-w-3xl text-lg text-muted">
+        Chaque membre figure une seule fois, à son plus haut palier de victoires en équipe sous le tag. Un palier compte des victoires, donc d'abord des parties jouées : il ne dit pas qui joue le mieux.
+      </p>
+      <ul class="mt-6 space-y-3">
+        {rows.map((row) => (
+          <li class="panel grid gap-2 md:grid-cols-[13rem_1fr] md:gap-6" data-testid="win-tier">
+            <div>
+              <h3 class="tnum text-2xl" data-testid="win-tier-title">{fmtCount(row.wins, "victoire")}</h3>
+              <p class="tnum text-sm text-muted" data-testid="win-tier-count">{fmtCount(row.count, "membre")}</p>
+            </div>
+            <div class="min-w-0 text-sm">
+              {row.named.length > 0 && row.named.length <= OPEN_NAMES && (
+                <ul class="flex flex-wrap gap-x-4 gap-y-1">
+                  {row.named.map((m) => (
+                    <li class="min-w-0 [overflow-wrap:anywhere]"><a href={profile(m.publicId)}>{m.username}</a></li>
+                  ))}
+                </ul>
+              )}
+              {row.named.length > OPEN_NAMES && (
+                <details>
+                  <summary class="cursor-pointer font-semibold">Voir les {row.named.length} pseudos</summary>
+                  <ul class="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                    {row.named.map((m) => (
+                      <li class="min-w-0 [overflow-wrap:anywhere]"><a href={profile(m.publicId)}>{m.username}</a></li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+              {row.anonymous > 0 && <p class:list={["text-muted", row.named.length > 0 && "mt-1"]}>{row.named.length > 0 ? "Et " : ""}{fmtCount(row.anonymous, "membre")} sans pseudo public.</p>}
+            </div>
+          </li>
+        ))}
+      </ul>
+      <p class="mt-4 max-w-3xl text-sm text-muted">
+        Seuils choisis par le site, de {WIN_TIERS[0]} à {fmtCount(WIN_TIERS[WIN_TIERS.length - 1] ?? 0, "victoire")} : ils ne viennent pas du jeu. Parties publiques en équipe jouées avec le tag {clan.tag}, sans le classé, le FFA ni Humains contre Nations. Un membre sous le premier seuil n'apparaît pas ici.
+      </p>
+    </section>
+  )
+}

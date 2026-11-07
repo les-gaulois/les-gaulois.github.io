@@ -5,10 +5,11 @@ import MapNamesCredit from "../../components/MapNamesCredit.astro";
 import PageHeader from "../../components/PageHeader.astro";
 import { clan } from "../../../config/clan";
 import { loadMemberGames, loadMembers, loadMeta } from "../../lib/data";
-import { fmtDate, fmtInt, fmtPct } from "../../lib/format";
+import { fmtCount, fmtDate, fmtInt, fmtPct } from "../../lib/format";
 import { MAX_AGE_HOURS } from "../../lib/freshness";
 import { mapLabel } from "../../lib/map-names";
 import { gamesOf, rateOf, recentGamesTitle } from "../../lib/members";
+import { nextTier, tierOf } from "../../lib/paliers";
 import { formatLabel } from "../../lib/results";
 import type { StoredMember } from "../../lib/schemas";
 import { parisParts } from "../../lib/time";
@@ -29,6 +30,9 @@ const games = gamesOf(member);
 const rate = rateOf(member);
 const recent = loadMemberGames()[member.publicId ?? ""] ?? null;
 const recentTitle = recent && games ? recentGamesTitle(recent, games) : null;
+const wins = member.team?.wins ?? 0;
+const tier = tierOf(wins);
+const next = nextTier(wins);
 const joinedOn = parisParts(member.joinedAt).date;
 const ROLE = { leader: "Chef du clan", officer: "Officier du clan", member: null } as const;
 const RESULT = { victory: "Victoire", defeat: "Défaite" } as const;
@@ -70,8 +74,23 @@ const tiles = member.team
           </dl>
         )
       }
+      {
+        games !== null && games > 0 && (
+          <div class="mt-6 max-w-xl" data-testid="member-tier">
+            <p class="font-display text-xl font-bold">{tier === null ? "Pas encore de palier" : `Palier atteint : ${fmtCount(tier, "victoire")}`}</p>
+            {next ? (
+              <>
+                <p class="tnum mt-1 text-sm text-muted">Prochain palier : {fmtCount(next.wins, "victoire")}, encore {fmtInt(next.missing)}.</p>
+                <div class="meter mt-2" aria-hidden="true"><i style={{ "--v": `${((wins - next.from) / (next.wins - next.from)) * 100}%` }}></i></div>
+              </>
+            ) : (
+              <p class="mt-1 text-sm text-muted">C'est le dernier palier du site.</p>
+            )}
+          </div>
+        )
+      }
       <p class="mt-6 max-w-3xl text-sm text-muted">
-        Parties publiques en équipe jouées avec le tag {clan.tag}, sans le classé, le FFA ni Humains contre Nations.{games === 0 && " Cela ne veut pas dire que ce joueur est inactif."}
+        Parties publiques en équipe jouées avec le tag {clan.tag}, sans le classé, le FFA ni Humains contre Nations.{games === 0 && " Cela ne veut pas dire que ce joueur est inactif."}{games !== null && games > 0 && <> <a href={`${base}/membres`}>Les paliers</a> sont choisis par le site. Ils comptent des victoires, donc d'abord des parties jouées : ils ne disent pas qui joue le mieux.</>}
       </p>
     </section>
 
@@ -109,7 +128,7 @@ const tiles = member.team
                   </table>
                 </div>
               <p class="mt-4 max-w-3xl text-sm text-muted">
-                Relevé le {atDay(recent.readOn)}{recent.seen !== games && " : ses parties les plus récentes n'y sont pas encore"}. Le résultat est celui qu'OpenFront compte pour ce joueur : s'il quitte la partie avant la fin, une victoire de son équipe peut compter comme une défaite pour lui. La fiche n'affiche que le jour.{recent.recent.some((game) => game.date < joinedOn) && " Certaines parties sont antérieures à son arrivée dans la liste officielle."}
+                Relevé le {atDay(recent.readOn)}{recent.seen !== games && " : ses parties les plus récentes n'y sont pas encore"}. Le résultat est celui qu'OpenFront compte pour ce joueur : s'il quitte la partie avant la fin, une victoire de son équipe peut compter comme une défaite pour lui. La fiche n'affiche que le jour, mais la page <a href={`${base}/parties`}>Dernières parties</a> permet souvent de retrouver cette partie, avec son heure et son lien vers OpenFront.{recent.recent.some((game) => game.date < joinedOn) && " Certaines parties sont antérieures à son arrivée dans la liste officielle."}
               </p>
               <MapNamesCredit />
             </>

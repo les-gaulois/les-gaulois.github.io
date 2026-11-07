@@ -9,6 +9,7 @@ import { MAX_AGE_HOURS } from "../lib/freshness";
 import { HEATMAP_DAYS, bestSlots, buildHeatmap } from "../lib/sessions";
 import { WEEKDAYS_FR } from "../lib/time";
 
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const meta = loadMeta();
 const map = buildHeatmap(loadSessions(), meta.sessions.coveredUntil);
 const slots = bestSlots(map);
@@ -45,6 +46,7 @@ const tip = (d: number, h: number) => `${DAYS[d]} ${h} h : ${fmtInt(count(d, h))
           <p class="tnum text-sm text-muted">
             {fmtInt(map.total)} parties, du {fmtDay(map.from)} au {fmtDay(map.to)} ({HEATMAP_DAYS} jours). Parties publiques en équipe jouées avec le tag : ni FFA, ni classé, ni Humains contre Nations.
           </p>
+          <p class="mt-2 text-sm"><a href={`${base}/parties`}>Voir les dernières parties, une par une</a></p>
 
           <section class="mt-6" aria-labelledby="slots-title">
             <h2 id="slots-title" class="section-title">Meilleurs créneaux pour jouer ensemble</h2>

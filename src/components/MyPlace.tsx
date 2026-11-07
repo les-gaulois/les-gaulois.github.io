@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { fmtInt, fmtPct } from "../lib/format";
 import { gamesOf, placeOf, rateOf, suggestMembers } from "../lib/members";
+import { nextTier } from "../lib/paliers";
 import type { StoredMember, StoredMembers } from "../lib/schemas";
 
 type State = { status: "loading" } | { status: "error" } | { status: "ready"; data: StoredMembers };
@@ -26,6 +27,7 @@ function Result({ members, member }: { members: readonly StoredMember[]; member:
     );
   }
   const target = place.next?.team?.wins ?? place.wins;
+  const tier = nextTier(place.wins);
   return (
     <div class="mt-4 grid gap-4 sm:grid-cols-2" data-testid="my-place-result">
       <div>
@@ -35,6 +37,11 @@ function Result({ members, member }: { members: readonly StoredMember[]; member:
         <p class="tnum mt-2 text-sm">
           {fmtInt(place.wins)} victoires · {fmtInt(member.team?.losses ?? 0)} défaites · {fmtPct(rateOf(member))}
         </p>
+        {tier && (
+          <p class="tnum mt-1 text-sm text-muted" data-testid="my-place-tier">
+            Prochain palier : {fmtInt(tier.wins)} victoires, encore {fmtInt(tier.missing)}.
+          </p>
+        )}
       </div>
       <div>
         {place.next && place.missing !== null ? (

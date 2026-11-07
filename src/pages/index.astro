@@ -169,7 +169,10 @@ const gazette = gazetteEditions({ sessions, history: loadHistory(), territory: l
             <p class="mt-4 max-w-md text-lg text-muted">
               {fmtInt(recentWins)} victoires, soit {fmtPct(winRate(recentWins, recentGames))}. Parties publiques en équipe jouées avec le tag.
             </p>
-            <a href={`${base}/progression`} class="btn btn-ghost mt-6">Voir la progression</a>
+            <div class="mt-6 flex flex-wrap gap-3">
+              <a href={`${base}/progression`} class="btn btn-ghost">Voir la progression</a>
+              <a href={`${base}/parties`} class="btn btn-ghost">Voir les dernières parties</a>
+            </div>
           </div>
           <div class="panel">
             <div class="fx-bars flex h-44 items-end" aria-hidden="true" data-ripple-group>
