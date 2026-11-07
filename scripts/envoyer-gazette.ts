@@ -42,6 +42,14 @@ try {
     editions,
     unreadable: unreadableSessionFiles(),
     allTime: allTimePlayers(members),
+    // Chargé seulement au moment d'envoyer : si le dessin ne marche pas, le message part quand même, en texte.
+    renderImage: async (edition) => {
+      const { GazetteFonts, gazetteCard, gazetteImageAlt, renderGazetteCard } = await import("../src/lib/gazette-image");
+      const root = process.cwd();
+      const fonts = new GazetteFonts(root);
+      const allTime = allTimePlayers(members);
+      return { png: await renderGazetteCard(gazetteCard(edition, clan.tag, clan.links.site, allTime, fonts.width), fonts, root), alt: gazetteImageAlt(edition, clan.tag, allTime) };
+    },
     lastSent: lastSentEdition(readState()),
     tag: clan.tag,
     siteUrl: clan.links.site,

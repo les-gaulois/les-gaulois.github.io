@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { GazetteEdition } from "../../src/lib/gazette";
-import { editionToSend, escapeDiscord, gazettePayload, GazetteSendState, isWebhookUrl, lastSentEdition, MESSAGE_FORMAT, SEND_FROM_HOUR, sendLatestGazette, type SendDeps, WAIT_UNTIL_HOUR } from "../../src/lib/gazette-discord";
+import { editionToSend, escapeDiscord, gazettePayload, GazetteSendState, imagePayload, isWebhookUrl, lastSentEdition, MESSAGE_FORMAT, SEND_FROM_HOUR, sendLatestGazette, type SendDeps, WAIT_UNTIL_HOUR } from "../../src/lib/gazette-discord";
 import type { WeekPlayer } from "../../src/lib/week-players";
 
 const WEBHOOK = "https://discord.com/api/webhooks/123456789/abc-DEF_123";
@@ -67,6 +67,11 @@ describe("gazettePayload", () => {
     expect(field(edition({ standing: { start: null, end: snap("2026-11-08", null) } }), "Classement officiel")).toBe("**hors de la liste** le 8 nov., sur 90 jours glissants.");
   });
 
+  it("ne calcule pas d'écart depuis un relevé fait dans la journée", () => {
+    const end = { date: "2026-11-08", pixels: 400, rank: 4, final: true };
+    expect(field(edition({ territory: { start: { date: "2026-11-01", pixels: 300, rank: 5 }, end } }), "Carte des clans")).toBe("**4e** avec 400 pixels le 8 nov.");
+  });
+
   it("écrit la place, le territoire et son évolution, datée", () => {
     const reading = (date: string, pixels: number, rank: number | null = 4) => ({ date, pixels, rank, final: true });
     expect(field(edition({ territory: { start: reading("2026-11-01", 53077), end: reading("2026-11-08", 121976) } }), "Carte des clans")).toBe("**4e** avec 121 976 pixels le 8 nov., +68 899 depuis le 1 nov.");
@@ -127,6 +132,34 @@ describe("gazettePayload", () => {
       expect(f.value.length).toBeLessThanOrEqual(1024);
     }
     expect(JSON.stringify(embed).length).toBeLessThan(6000);
+  });
+});
+
+describe("imagePayload", () => {
+  const payload = (e: GazetteEdition = edition(), allTime: WeekPlayer[] = [{ id: "a", username: "Alpha", wins: 9, place: 1 }]) => imagePayload(e, "GAL", "https://les-gaulois.github.io/", "Description.", "gazette.png", allTime) as { content: string; avatar_url: string; allowed_mentions: unknown; attachments: unknown[]; components: unknown[] };
+
+  it("donne le titre, un lien sans aperçu en double, et ce que le podium compte", () => {
+    const { content } = payload();
+    const lines = content.replace(/[\s\u00a0\u202f]+/g, " ");
+    expect(lines).toContain("**La gazette de [GAL]** : semaine du 2 nov. au 8 nov. 2026");
+    expect(content).toContain("(<https://les-gaulois.github.io/gazette>)");
+    expect(content).toContain("-# Podium : victoires en équipe sous le tag, membres avec pseudo. Cela compte d'abord le temps de jeu, pas le niveau.");
+    expect(payload(edition({ players: [{ id: "a", username: "Alpha", wins: 3, place: 1 }] })).content).toContain("membres avec pseudo présents dès le lundi");
+  });
+
+  it("ne parle pas d'un podium quand il n'y en a pas", () => {
+    const { content } = payload(edition(), []);
+    expect(content).toContain("-# Données publiques d'OpenFront.");
+    expect(content).not.toContain("Podium");
+  });
+
+  it("ajoute un bouton vers la page, décrit l'image et interdit toute mention", () => {
+    expect(payload()).toMatchObject({
+      avatar_url: "https://les-gaulois.github.io/generated/icon-192.png",
+      allowed_mentions: { parse: [] },
+      attachments: [{ id: 0, filename: "gazette.png", description: "Description." }],
+      components: [{ type: 1, components: [{ type: 2, style: 5, label: "Voir toute la semaine", url: "https://les-gaulois.github.io/gazette" }] }],
+    });
   });
 });
 
@@ -218,7 +251,7 @@ describe("sendLatestGazette", () => {
   const setup = (over: Partial<SendDeps> = {}) => {
     const logs: string[] = [];
     const post = vi.fn(async () => new Response(null, { status: 204 }));
-    const deps: SendDeps = { webhook: WEBHOOK, editions: [ready()], unreadable: [], allTime: [], lastSent: null, tag: "GAL", siteUrl: "https://x.test", now: MONDAY_LATE, fetch: post as unknown as typeof fetch, log: (line) => logs.push(line), ...over };
+    const deps: SendDeps = { webhook: WEBHOOK, editions: [ready()], unreadable: [], allTime: [], renderImage: async () => ({ png: Uint8Array.of(137, 80, 78, 71), alt: "Description de l'image." }), lastSent: null, tag: "GAL", siteUrl: "https://x.test", now: MONDAY_LATE, fetch: post as unknown as typeof fetch, log: (line) => logs.push(line), ...over };
     return { deps, logs, post };
   };
   const noSecret = (logs: string[]) => {
@@ -243,7 +276,7 @@ describe("sendLatestGazette", () => {
   it("ignore une espace ou un retour à la ligne laissés autour du lien par un copier-coller", async () => {
     const { deps, post } = setup({ webhook: ` ${WEBHOOK}\n` });
     expect((await sendLatestGazette(deps)).status).toBe("sent");
-    expect((post.mock.calls[0] as unknown as [string])[0]).toBe(WEBHOOK);
+    expect((post.mock.calls[0] as unknown as [string])[0]).toBe(`${WEBHOOK}?with_components=true`);
   });
   it("refuse un lien qui n'est pas celui de Discord, sans l'écrire", async () => {
     const { deps, post, logs } = setup({ webhook: "https://exemple.test/abc-DEF_123" });
@@ -257,10 +290,60 @@ describe("sendLatestGazette", () => {
     expect(result).toEqual({ status: "sent", state: { lastSent: "2026-11-02", sentAt: MONDAY_LATE.toISOString(), format: MESSAGE_FORMAT } });
     expect(result.status === "sent" && GazetteSendState.safeParse(result.state).success).toBe(true);
     const [url, init] = post.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe(`${WEBHOOK}?with_components=true`);
+    expect(init.redirect).toBe("error");
+    // L'en-tête et sa frontière viennent de `fetch` : en poser un casserait l'envoi.
+    expect(init.headers).toBeUndefined();
+    const form = init.body as FormData;
+    const payload = JSON.parse(String(form.get("payload_json")));
+    expect(payload).toMatchObject({
+      allowed_mentions: { parse: [] },
+      attachments: [{ id: 0, filename: "gazette-2026-11-02.png", description: "Description de l'image." }],
+      components: [{ type: 1, components: [{ type: 2, style: 5, url: "https://x.test/gazette" }] }],
+    });
+    const file = form.get("files[0]") as File;
+    expect(file.name).toBe("gazette-2026-11-02.png");
+    expect(file.type).toBe("image/png");
+    expect([...new Uint8Array(await file.arrayBuffer())]).toEqual([137, 80, 78, 71]);
+    expect(post).toHaveBeenCalledTimes(1);
+    noSecret(logs);
+  });
+  it("si l'image ne se dessine pas, le message part quand même, en texte", async () => {
+    const { deps, post, logs } = setup({ renderImage: async () => { throw new Error("un caractère ne peut pas être dessiné"); } });
+    expect((await sendLatestGazette(deps)).status).toBe("sent");
+    const [url, init] = post.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe(WEBHOOK);
     expect(JSON.parse(String(init.body))).toMatchObject({ allowed_mentions: { parse: [] }, embeds: [{ title: "La gazette de [GAL]" }] });
     expect(init.redirect).toBe("error");
+    expect(logs.join(" ")).toContain("part en texte");
     noSecret(logs);
+  });
+  it.each([400, 403, 413])("si Discord refuse le format du message (%i), il le renvoie aussitôt en texte", async (status) => {
+    const answers = [new Response("non", { status }), new Response(null, { status: 204 })];
+    const post = vi.fn(async () => answers.shift()!);
+    const { deps, logs } = setup({ fetch: post as unknown as typeof fetch });
+    expect((await sendLatestGazette(deps)).status).toBe("sent");
+    expect(post).toHaveBeenCalledTimes(2);
+    expect((post.mock.calls[1] as unknown as [string])[0]).toBe(WEBHOOK);
+    noSecret(logs);
+  });
+  it.each([401, 404, 429])("un lien mort ou une limite (%i) n'envoie rien de plus dans ce passage", async (status) => {
+    const post = vi.fn(async () => new Response("non", { status }));
+    const { deps } = setup({ fetch: post as unknown as typeof fetch });
+    expect(await sendLatestGazette(deps)).toEqual({ status: "failed" });
+    expect(post).toHaveBeenCalledTimes(1);
+  });
+  it("si le texte est refusé aussi, rien n'est noté et le passage suivant réessaie", async () => {
+    const post = vi.fn(async () => new Response("non", { status: 400 }));
+    const { deps } = setup({ fetch: post as unknown as typeof fetch });
+    expect(await sendLatestGazette(deps)).toEqual({ status: "failed" });
+    expect(post).toHaveBeenCalledTimes(2);
+  });
+  it("une panne de Discord ne fait pas de second envoi dans le même passage", async () => {
+    const post = vi.fn(async () => new Response("panne", { status: 503 }));
+    const { deps } = setup({ fetch: post as unknown as typeof fetch });
+    expect(await sendLatestGazette(deps)).toEqual({ status: "failed" });
+    expect(post).toHaveBeenCalledTimes(1);
   });
   it("n'envoie rien si un mois de sessions est illisible : les totaux seraient faux", async () => {
     const { deps, post, logs } = setup({ unreadable: ["2026-11.json"] });
