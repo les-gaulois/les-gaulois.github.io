@@ -5,6 +5,7 @@
 import { fmtCount, fmtDate, fmtDay, fmtInt, fmtPct, fmtPoints, fmtRank, fmtScore } from "./format";
 import { clanRecords, type ClanRecords } from "./results";
 import type { TerritoryReading } from "./clanmap/days";
+import { namedWeekPlayers, type WeekPlayer, type WeekWinner } from "./week-players";
 import type { HistorySnapshot, StoredMembers, StoredSession } from "./schemas";
 import { winRate } from "./stats";
 import { addDays, mondayOf, parisParts } from "./time";
@@ -43,6 +44,8 @@ export interface GazetteEdition {
   territory: Evolution<TerritoryReading> | null;
   /** `null` : pas de liste de membres, liste antérieure à la fin de la semaine, ou semaine antérieure à la première arrivée connue. */
   arrivals: WeekArrivals | null;
+  /** Les membres avec pseudo qui ont le plus gagné cette semaine. `null` : pas de relevé de départ ou d'arrivée. */
+  players: WeekPlayer[] | null;
 }
 
 export interface GazetteSources {
@@ -50,6 +53,8 @@ export interface GazetteSources {
   history: readonly HistorySnapshot[];
   /** Les relevés du territoire : voir `territoryReadings`. */
   territory: readonly TerritoryReading[];
+  /** Les joueurs de chaque semaine, par son lundi : voir `src/lib/week-players.ts`. */
+  weekTops: Readonly<Record<string, readonly WeekWinner[]>>;
   members: StoredMembers | null;
   archiveStart: string;
   /** Dernier jour UTC définitif : le dimanche de Paris se termine avant la fin du dimanche UTC. */
@@ -67,7 +72,7 @@ function evolution<T extends { date: string }>(rows: readonly T[], from: string,
 const byDate = <T extends { date: string }>(rows: readonly T[]) => [...rows].sort((a, b) => a.date.localeCompare(b.date));
 
 /** Une édition par semaine complète couverte par l'archive, de la plus récente à la plus ancienne. */
-export function gazetteEditions({ sessions, history, territory, members, archiveStart, completeThrough }: GazetteSources): GazetteEdition[] {
+export function gazetteEditions({ sessions, history, territory, weekTops, members, archiveStart, completeThrough }: GazetteSources): GazetteEdition[] {
   if (!completeThrough) return [];
   const startMonday = mondayOf(archiveStart);
   const first = startMonday === archiveStart ? archiveStart : addDays(startMonday, 7);
@@ -109,6 +114,7 @@ export function gazetteEditions({ sessions, history, territory, members, archive
       standing: evolution(snapshots, from, to),
       territory: evolution(readings, from, to),
       arrivals: known ? { count: arrivals.length, named, anonymous: arrivals.length - named.length } : null,
+      players: namedWeekPlayers(weekTops[from], members),
     });
   }
   return editions;

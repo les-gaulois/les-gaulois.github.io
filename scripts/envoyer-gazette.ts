@@ -5,18 +5,19 @@
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { clan } from "../config/clan";
-import { loadHistory, loadMembers, loadMeta, loadSessions, loadTerritoryReadings, unreadableSessionFiles } from "../src/lib/data";
+import { loadHistory, loadMembers, loadMemberWeeks, loadMeta, loadSessions, loadTerritoryReadings, unreadableSessionFiles } from "../src/lib/data";
 import { gazetteEditions } from "../src/lib/gazette";
-import { GazetteSendState, sendLatestGazette } from "../src/lib/gazette-discord";
+import { GazetteSendState, lastSentEdition, sendLatestGazette } from "../src/lib/gazette-discord";
+import { allTimePlayers } from "../src/lib/week-players";
 
 const STATE_FILE = "data/gazette-envoi.json";
 
-function readLastSent(): string | null {
+function readState(): GazetteSendState | null {
   if (!existsSync(STATE_FILE)) return null;
   const parsed = GazetteSendState.safeParse(JSON.parse(readFileSync(STATE_FILE, "utf8")));
   // Un fichier illisible pourrait faire renvoyer une édition : mieux vaut ne rien envoyer et le signaler.
   if (!parsed.success) throw new Error(`${STATE_FILE} est invalide.`);
-  return parsed.data.lastSent;
+  return parsed.data;
 }
 
 const webhook = process.env["DISCORD_WEBHOOK_GAZETTE"];
@@ -26,11 +27,13 @@ if (!webhook) {
 }
 
 try {
+  const members = loadMembers();
   const editions = gazetteEditions({
     sessions: loadSessions(),
     history: loadHistory(),
     territory: loadTerritoryReadings(),
-    members: loadMembers(),
+    weekTops: loadMemberWeeks().tops,
+    members,
     archiveStart: clan.archiveStart,
     completeThrough: loadMeta().sessions.completeThrough,
   });
@@ -38,7 +41,8 @@ try {
     webhook,
     editions,
     unreadable: unreadableSessionFiles(),
-    lastSent: readLastSent(),
+    allTime: allTimePlayers(members),
+    lastSent: lastSentEdition(readState()),
     tag: clan.tag,
     siteUrl: clan.links.site,
     now: new Date(),

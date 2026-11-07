@@ -47,5 +47,11 @@ export function mondayOf(day: string): string {
   return addDays(day, -parisParts(`${day}T12:00:00.000Z`).weekday);
 }
 
+/** Le premier passage d'un lundi à Paris, d'après le dernier relevé réussi : les relevés qui glissent d'un jour à l'autre y prennent la photo de la fin de semaine. */
+export function isFirstOfMonday(lastAt: string | null, now: Date): boolean {
+  const { date, weekday } = parisParts(now);
+  return weekday === 0 && (lastAt === null || parisParts(lastAt).date !== date);
+}
+
 /** Noms des jours, lundi en premier, comme `ParisParts.weekday`. */
 export const WEEKDAYS_FR = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"] as const;

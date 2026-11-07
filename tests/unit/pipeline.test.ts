@@ -478,6 +478,63 @@ describe("runPipeline", () => {
     const storedPath = () => join(dir, "cache", "players.json");
     const stored = () => JSON.parse(readFileSync(storedPath(), "utf8"));
 
+    describe("relevés du lundi", () => {
+      const weeksPath = () => join(dir, "member-weeks.json");
+      const weeks = () => JSON.parse(readFileSync(weeksPath(), "utf8"));
+      /** La liste, avec les réponses exactes pour chaque joueur. */
+      const roster = (wins: Record<string, number>, anonymous = 5): Route =>
+        withMembers(
+          [...Object.entries(wins).map(([id, w]) => withRecord(id, id.toUpperCase(), w, 1)), withRecord("SECRET", null, anonymous, 1)],
+          answering(Object.fromEntries(Object.entries(wins).map(([id, w]) => [id, w + 1]))),
+        );
+      const memberListCalls = () => calls.filter((c) => c.includes("/members?")).length;
+      // Lundi 9 novembre, 0 h 53 à Paris. Le lundi suivant, à la même heure.
+      const MONDAY = "2026-11-08T23:53:00.000Z";
+      const NEXT_MONDAY = "2026-11-15T23:53:00.000Z";
+
+      it("prend le relevé du lundi, sans aucun anonyme, puis arrête les joueurs de la semaine au lundi suivant", async () => {
+        now = new Date(MONDAY);
+        await runPipeline(deps(roster({ id1: 10, id2: 20 })));
+        expect(weeks()).toEqual({ reading: { on: "2026-11-09", at: MONDAY, wins: { id1: 10, id2: 20 } }, tops: {} });
+        expect(readFileSync(weeksPath(), "utf8")).not.toContain("SECRET");
+
+        now = new Date(NEXT_MONDAY);
+        await runPipeline(deps(roster({ id1: 25, id2: 22 }, 900)));
+        expect(weeks().tops).toEqual({
+          "2026-11-09": [
+            { id: "id1", wins: 15 },
+            { id: "id2", wins: 2 },
+          ],
+        });
+        expect(weeks().reading.on).toBe("2026-11-16");
+      });
+
+      it("relit la liste au premier passage du lundi, moins de 20 h après la précédente, et une seule fois", async () => {
+        now = new Date("2026-11-08T14:00:00.000Z");
+        await runPipeline(deps(roster({ id1: 10 })));
+        expect(memberListCalls()).toBe(1);
+        expect(existsSync(weeksPath())).toBe(false);
+
+        now = new Date(MONDAY);
+        await runPipeline(deps(roster({ id1: 12 })));
+        expect(memberListCalls()).toBe(2);
+        expect(weeks().reading.wins).toEqual({ id1: 12 });
+
+        now = new Date("2026-11-09T00:53:00.000Z");
+        await runPipeline(deps(roster({ id1: 99 })));
+        expect(memberListCalls()).toBe(2);
+        expect(weeks().reading.wins).toEqual({ id1: 12 });
+      });
+
+      it("oublie aussi dans ces relevés un membre parti", async () => {
+        now = new Date(MONDAY);
+        await runPipeline(deps(roster({ id1: 10, id2: 20 })));
+        now = new Date("2026-11-09T22:00:00.000Z");
+        await runPipeline(deps(roster({ id1: 10 })));
+        expect(weeks().reading.wins).toEqual({ id1: 10 });
+      });
+    });
+
     it("garde les parties sous le tag d'un membre avec pseudo, sans aucun joueur, ni heure, ni nombre de parties hors du tag", async () => {
       const route = withMembers([withRecord("id1", "Alpha", 1, 1), withRecord("SECRET", null, 5, 5)], (url) => (url.pathname.endsWith("/player/id1/games") ? games([line(), line({ clanTag: null, map: "SansTag" }), line({ result: "defeat", map: "Asia" })]) : undefined));
       const { errors } = await runPipeline(deps(route));

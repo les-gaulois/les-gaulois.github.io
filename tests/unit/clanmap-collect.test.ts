@@ -256,6 +256,16 @@ describe("collecte de la carte", () => {
     expect(calls.length).toBeGreaterThan(0);
   });
 
+  it("refait le film au premier passage du lundi, pour la gazette du matin, et une seule fois", async () => {
+    // Dimanche 8 novembre, 15 h à Paris, puis lundi 9 à 0 h 53 : moins de 20 h plus tard.
+    now = new Date("2026-11-08T14:00:00.000Z");
+    await runClanMap(deps());
+    now = new Date("2026-11-08T23:53:00.000Z");
+    expect((await runClanMap(deps())).updated).toBe(true);
+    now = new Date("2026-11-09T00:53:00.000Z");
+    expect((await runClanMap(deps())).updated).toBe(false);
+  });
+
   it("le mode forcé ignore ce délai", async () => {
     await runClanMap(deps());
     now = new Date("2026-11-05T11:00:00.000Z");

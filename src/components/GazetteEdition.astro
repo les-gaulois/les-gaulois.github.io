@@ -1,6 +1,6 @@
 ---
 import { clan } from "../../config/clan";
-import { fmtCount, fmtDate, fmtDay, fmtInt, fmtPct } from "../lib/format";
+import { fmtCount, fmtDate, fmtDay, fmtInt, fmtPct, fmtRank } from "../lib/format";
 import { arrivalsGap, comparisonSentence, editionLead, type GazetteEdition, rankWords, standingDetails, standingGap, territoryDetails, territoryGap } from "../lib/gazette";
 
 interface Props {
@@ -12,7 +12,8 @@ interface Props {
   membersAt: string | null;
 }
 const { edition, firstStanding, firstTerritory, membersAt } = Astro.props;
-const { totals, highlights, standing, territory, arrivals } = edition;
+const { totals, highlights, standing, territory, arrivals, players } = edition;
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const members = standing?.end.membersTotal ?? null;
 const comparison = comparisonSentence(edition);
 const tiles = highlights
@@ -94,6 +95,31 @@ const tiles = highlights
       </section>
     )
   }
+
+  <section class="panel md:col-span-2 lg:col-span-3" data-testid="gazette-players">
+    <h3 class="text-xl">Le plus de victoires</h3>
+    {
+      players ? (
+        <>
+          <ol class="tnum mt-3 grid gap-x-6 gap-y-2 sm:grid-cols-3">
+            {players.map((p) => (
+              <li class="min-w-0 [overflow-wrap:anywhere]" data-testid="gazette-player">
+                <span class="text-muted">{fmtRank(p.place)}</span>{" "}
+                <a href={`${base}/membres/${encodeURIComponent(p.id)}`}>{p.username}</a>
+                <span class="block text-sm text-muted">{fmtCount(p.wins, "victoire")}</span>
+              </li>
+            ))}
+          </ol>
+          <p class="mt-3 text-xs text-muted">Victoires en équipe sous le tag, entre le relevé de ce lundi et celui du lundi suivant, parmi les membres avec pseudo présents dès ce lundi et encore dans le clan. Cela compte d'abord le temps de jeu : ce n'est pas un classement de niveau.</p>
+        </>
+      ) : (
+        <>
+          <p class="mt-2 font-display text-lg font-bold">Pas de données</p>
+          <p class="mt-1 text-sm text-muted">Pas de relevé de la liste des membres au début et à la fin de cette semaine, ou plus personne à citer.</p>
+        </>
+      )
+    }
+  </section>
 
   <section class="panel md:col-span-2 lg:col-span-3" data-testid="gazette-arrivals">
     <h3 class="text-xl">Les arrivées</h3>

@@ -17,7 +17,7 @@ import { analyzeTerritory, replayHistory, type EventLog } from "./replay";
 import { OFFICIAL_MAP, TERRAIN_ORIGIN, TERRAIN_PATH, countLand } from "./terrain";
 import { API_ORIGIN, ApiClient, markError, markOk, readJson, writeJson, type Deps } from "../pipeline";
 import { ApiClanCard, ApiClanMapHistory, ClanMapJournal, Meta, StoredClanMapFilm, emptyMeta } from "../schemas";
-import { parisParts } from "../time";
+import { isFirstOfMonday, parisParts } from "../time";
 
 const FILM_VERSION = 4;
 const SCALE = 2;
@@ -291,7 +291,8 @@ export async function runClanMap(deps: ClanMapDeps): Promise<ClanMapRun> {
   const meta = (await readJson(metaPath, Meta)) ?? emptyMeta();
   const last = meta.clanmap.lastSuccessAt ? Date.parse(meta.clanmap.lastSuccessAt) : 0;
   const recent = deps.now().getTime() - last < MIN_INTERVAL_MS;
-  if (!deps.force && recent && !(await filmIsOutdated(deps))) return { errors: [], updated: false };
+  // Le premier passage du lundi refait le film : la gazette du matin a ainsi le territoire exact de la fin du dimanche.
+  if (!deps.force && recent && !isFirstOfMonday(meta.clanmap.lastSuccessAt, deps.now()) && !(await filmIsOutdated(deps))) return { errors: [], updated: false };
 
   const at = deps.now().toISOString();
   const errors: string[] = [];

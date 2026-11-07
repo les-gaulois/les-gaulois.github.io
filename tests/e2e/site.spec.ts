@@ -3,7 +3,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { clan } from "../../config/clan";
 import { worldTerritory } from "../../src/lib/carte-monde";
-import { loadClanMapFilm, loadTerritoryReadings, loadGames, loadHistory, loadMemberGames, loadMembers, loadMeta, loadSessions } from "../../src/lib/data";
+import { loadClanMapFilm, loadTerritoryReadings, loadGames, loadHistory, loadMemberGames, loadMembers, loadMemberWeeks, loadMeta, loadSessions } from "../../src/lib/data";
 import { fmtCount, fmtGap, fmtRank, fmtScore } from "../../src/lib/format";
 import type { LeaderboardEntry } from "../../src/lib/schemas";
 import { withOfficialRanks } from "../../src/lib/stats";
@@ -475,7 +475,7 @@ test("sans son fichier, le journal garde ses premières lignes et le signale", a
 
 test("la gazette donne le bilan de la dernière semaine complète, et n'invente pas ce qui manque", async ({ page }) => {
   const history = loadHistory();
-  const editions = gazetteEditions({ sessions: loadSessions(), history, territory: loadTerritoryReadings(), members: loadMembers(), archiveStart: clan.archiveStart, completeThrough: loadMeta().sessions.completeThrough });
+  const editions = gazetteEditions({ sessions: loadSessions(), history, territory: loadTerritoryReadings(), weekTops: loadMemberWeeks().tops, members: loadMembers(), archiveStart: clan.archiveStart, completeThrough: loadMeta().sessions.completeThrough });
   const latest = editions[0];
   if (!latest) throw new Error("La gazette devrait avoir au moins une semaine complète.");
 
@@ -507,6 +507,15 @@ test("la gazette donne le bilan de la dernière semaine complète, et n'invente 
     for (const line of territoryDetails(latest.territory)) await expect(territory).toContainText(line);
   } else {
     await expect(territory).toContainText("Pas de données");
+  }
+  // Les joueurs de la semaine, ou « Pas de données » : jamais un classement inventé.
+  const players = block.getByTestId("gazette-players");
+  if (latest.players) {
+    await expect(players.getByTestId("gazette-player")).toHaveCount(latest.players.length);
+    await expect(players).toContainText(latest.players[0]!.username);
+    await expect(players).toContainText("d'abord le temps de jeu");
+  } else {
+    await expect(players).toContainText("Pas de données");
   }
   const arrivals = block.getByTestId("gazette-arrivals");
   if (latest.arrivals) {

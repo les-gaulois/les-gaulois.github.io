@@ -208,6 +208,25 @@ export type StoredMemberRecent = z.infer<typeof StoredMemberRecent>;
 export const StoredMemberGames = z.record(z.string().min(1), StoredMemberRecent);
 export type StoredMemberGames = z.infer<typeof StoredMemberGames>;
 
+/**
+ * Les relevés du lundi pour les joueurs de la semaine. Dans `data/`, car perdus ils ne se reliraient pas, et ces victoires
+ * sont déjà dans les anciennes versions de `data/members.json`.
+ * Clé : le `publicId` d'un membre avec pseudo. Un anonyme n'y figure jamais. Voir src/lib/week-players.ts.
+ */
+export const StoredMemberWeeks = z.object({
+  // Le dernier relevé d'un lundi : les victoires selon `stats.team`. `null` : aucun relevé pour l'instant.
+  reading: z
+    .object({
+      on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      at: isoDate,
+      wins: z.record(z.string().min(1), z.number().int().nonnegative()),
+    })
+    .nullable(),
+  // Clé : le lundi de la semaine.
+  tops: z.record(z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.array(z.object({ id: z.string().min(1), wins: z.number().int().positive() }))),
+});
+export type StoredMemberWeeks = z.infer<typeof StoredMemberWeeks>;
+
 export const HistorySnapshot = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   capturedAt: isoDate,

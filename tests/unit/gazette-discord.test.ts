@@ -3,7 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { GazetteEdition } from "../../src/lib/gazette";
-import { editionToSend, gazetteMessage, GazetteSendState, isWebhookUrl, SEND_FROM_HOUR, sendLatestGazette, type SendDeps, WAIT_UNTIL_HOUR } from "../../src/lib/gazette-discord";
+import { editionToSend, escapeDiscord, gazettePayload, GazetteSendState, isWebhookUrl, lastSentEdition, MESSAGE_FORMAT, SEND_FROM_HOUR, sendLatestGazette, type SendDeps, WAIT_UNTIL_HOUR } from "../../src/lib/gazette-discord";
+import type { WeekPlayer } from "../../src/lib/week-players";
 
 const WEBHOOK = "https://discord.com/api/webhooks/123456789/abc-DEF_123";
 const edition = (over: Partial<GazetteEdition> = {}): GazetteEdition => ({
@@ -15,6 +16,7 @@ const edition = (over: Partial<GazetteEdition> = {}): GazetteEdition => ({
   standing: null,
   territory: null,
   arrivals: null,
+  players: null,
   ...over,
 });
 // Le lundi suivant, à Paris : 9 h y font 8 h UTC en novembre.
@@ -25,39 +27,123 @@ const ARRIVALS = { count: 92, named: [], anonymous: 92 };
 const SUNDAY_END = { date: "2026-11-08", pixels: 121976, rank: 4, final: true };
 const ready = (over: Partial<GazetteEdition> = {}) => edition({ arrivals: ARRIVALS, territory: { start: null, end: SUNDAY_END }, ...over });
 
-describe("gazetteMessage", () => {
-  it("donne la semaine, les chiffres et le lien de la page", () => {
-    const text = gazetteMessage(edition(), "GAL", "https://les-gaulois.github.io/");
-    expect(text).toContain("**La gazette de [GAL] : semaine du 2 nov. au 8 nov. 2026**");
-    expect(text).toContain("671 parties et 269 victoires, soit 40,1 %.");
-    expect(text).toContain("La semaine d'avant : 616 parties, 35,2 %.");
-    expect(text.endsWith("https://les-gaulois.github.io/gazette")).toBe(true);
+describe("gazettePayload", () => {
+  const player = (username: string, wins: number, place: number): WeekPlayer => ({ id: username, username, wins, place });
+  const embedOf = (e: GazetteEdition, allTime: WeekPlayer[] = []) => gazettePayload(e, "GAL", "https://les-gaulois.github.io/", allTime).embeds[0]!;
+  /** Les nombres sont écrits avec une espace insécable. */
+  const plain = (text: string | undefined) => text?.replace(/[\u00a0\u202f]/g, " ");
+  const field = (e: GazetteEdition, name: string, allTime: WeekPlayer[] = []) => plain(embedOf(e, allTime).fields.find((f) => f.name === name)?.value);
+
+  it("donne le titre, la semaine et le lien de la page, sans texte à côté qui ferait un second aperçu", () => {
+    const payload = gazettePayload(edition(), "GAL", "https://les-gaulois.github.io/", []);
+    expect(payload).not.toHaveProperty("content");
+    expect(payload.embeds).toHaveLength(1);
+    expect(payload.embeds[0]).toMatchObject({ title: "La gazette de [GAL]", url: "https://les-gaulois.github.io/gazette" });
+    expect(plain(payload.embeds[0]?.description)).toBe("Semaine du 2 nov. au 8 nov. 2026");
+    expect(payload.avatar_url).toBe("https://les-gaulois.github.io/generated/icon-192.png");
   });
-  it("n'écrit ni territoire ni arrivées sans relevé : pas de données n'est pas zéro", () => {
-    const text = gazetteMessage(edition(), "GAL", "https://x.test");
-    expect(text).not.toContain("Carte des clans");
-    expect(text).not.toContain("Arrivées");
+
+  it("met les trois chiffres de la semaine en blocs côte à côte", () => {
+    const blocks = embedOf(edition()).fields.slice(0, 3);
+    expect(blocks.map((f) => [f.name, plain(f.value), f.inline])).toEqual([
+      ["Victoires", "**269**", true],
+      ["Parties", "**671**", true],
+      ["Taux de victoire", "**40,1 %**", true],
+    ]);
   });
-  it("écrit le territoire et son évolution, datés", () => {
-    const reading = (date: string, pixels: number) => ({ date, pixels, rank: 4, final: true });
-    const text = gazetteMessage(edition({ territory: { start: reading("2026-11-01", 53077), end: reading("2026-11-08", 121976) } }), "GAL", "https://x.test");
-    // Les nombres sont écrits avec une espace insécable.
-    expect(text.replace(/[\u00a0\u202f]/g, " ")).toContain("Carte des clans : 121 976 pixels le 8 nov., 4e sur la carte. 53 077 pixels le 1 nov., soit +68 899.");
+
+  it("compare à la semaine d'avant avec la phrase de la page", () => {
+    expect(field(edition(), "Évolution")).toBe("55 parties de plus que la semaine d'avant. Taux de victoire : +4,9 points.");
+    expect(field(edition({ previous: null }), "Évolution")).toBeUndefined();
   });
+
+  it("n'écrit ni classement, ni territoire, ni arrivées, ni joueurs sans relevé : pas de données n'est pas zéro", () => {
+    expect(embedOf(edition()).fields.map((f) => f.name)).toEqual(["Victoires", "Parties", "Taux de victoire", "Évolution"]);
+  });
+
+  it("donne le rang daté, et dit qu'il porte sur 90 jours", () => {
+    const snap = (date: string, rank: number | null) => ({ date, capturedAt: `${date}T10:00:00.000Z`, leaderboardEnd: `${date}T09:00:00.000Z`, clansListed: 100, rank, score: 100, games: 10, wins: 5, losses: 5, membersTotal: 700 });
+    expect(field(edition({ standing: { start: snap("2026-11-01", 3), end: snap("2026-11-08", 2) } }), "Classement officiel")).toBe("**2e** le 8 nov. (3e le 1 nov.), sur 90 jours glissants.");
+    expect(field(edition({ standing: { start: null, end: snap("2026-11-08", null) } }), "Classement officiel")).toBe("**hors de la liste** le 8 nov., sur 90 jours glissants.");
+  });
+
+  it("écrit la place, le territoire et son évolution, datée", () => {
+    const reading = (date: string, pixels: number, rank: number | null = 4) => ({ date, pixels, rank, final: true });
+    expect(field(edition({ territory: { start: reading("2026-11-01", 53077), end: reading("2026-11-08", 121976) } }), "Carte des clans")).toBe("**4e** avec 121 976 pixels le 8 nov., +68 899 depuis le 1 nov.");
+    expect(field(edition({ territory: { start: reading("2026-11-01", 500), end: reading("2026-11-08", 400) } }), "Carte des clans")).toBe("**4e** avec 400 pixels le 8 nov., −100 depuis le 1 nov.");
+    expect(field(edition({ territory: { start: null, end: reading("2026-11-08", 400, null) } }), "Carte des clans")).toBe("**400** pixels le 8 nov.");
+  });
+
   it("n'écrit pas un relevé fait dans la journée : la page le démentirait, et un message ne se corrige pas", () => {
-    const text = gazetteMessage(edition({ territory: { start: null, end: { date: "2026-11-08", pixels: 103121, rank: 5 } } }), "GAL", "https://x.test");
-    expect(text).not.toContain("Carte des clans");
-    expect(text).not.toContain("103");
+    expect(field(edition({ territory: { start: null, end: { date: "2026-11-08", pixels: 103121, rank: 5 } } }), "Carte des clans")).toBeUndefined();
   });
-  it("donne le nombre d'arrivées sans aucun pseudo", () => {
-    const text = gazetteMessage(edition({ arrivals: { count: 92, named: ["Secret.1234"], anonymous: 91 } }), "GAL", "https://x.test");
-    expect(text).toContain("Arrivées encore dans le clan : 92.");
-    expect(text).not.toContain("Secret.1234");
+
+  it("donne le nombre d'arrivées sans citer les arrivants", () => {
+    const e = edition({ arrivals: { count: 92, named: ["Secret.1234"], anonymous: 91 } });
+    expect(field(e, "Arrivées")).toBe("**92** encore dans le clan");
+    expect(JSON.stringify(gazettePayload(e, "GAL", "https://x.test", []))).not.toContain("Secret.1234");
   });
-  it("tient dans la limite de Discord", () => {
+
+  it("met en valeur les joueurs de la semaine, une même médaille pour une même place", () => {
+    const e = edition({ players: [player("Alpha", 33, 1), player("Beta", 33, 1), player("Gamma", 1, 3)] });
+    expect(field(e, "Le plus de victoires de la semaine")).toBe("🥇 **Alpha** : 33 victoires\n🥇 **Beta** : 33 victoires\n🥉 **Gamma** : 1 victoire\n*Cela compte d'abord le temps de jeu, pas le niveau.*");
+    expect(embedOf(e).footer.text).toContain("membres avec pseudo présents dès le lundi");
+  });
+
+  it("sans relevé pour cette semaine, cite les victoires depuis le début et le dit dans son titre", () => {
+    const allTime = [player("Alpha", 1807, 1)];
+    expect(field(edition(), "Le plus de victoires depuis le début", allTime)).toBe("🥇 **Alpha** : 1 807 victoires\n*Cela compte d'abord le temps de jeu, pas le niveau.*");
+    expect(field(edition(), "Le plus de victoires de la semaine", allTime)).toBeUndefined();
+    expect(embedOf(edition(), allTime).footer.text).not.toContain("dès le lundi");
+    expect(field(edition({ players: [player("Beta", 3, 1)] }), "Le plus de victoires depuis le début", allTime)).toBeUndefined();
+  });
+
+  it("n'écrit rien sur les joueurs s'il n'y a personne à citer", () => {
+    expect(embedOf(edition()).footer.text).toBe("Données publiques d'OpenFront.");
+  });
+
+  it("ne laisse aucun pseudo mettre le message en forme, y glisser un lien ou une mention", () => {
+    expect(escapeDiscord("**gras**")).toBe("\\*\\*gras\\*\\*");
+    expect(escapeDiscord("[clic](https://x.test)")).toBe("\\[clic\\]\\(https\\:\\/\\/x.test\\)");
+    expect(escapeDiscord("@everyone")).toBe("\\@everyone");
+    expect(escapeDiscord("<@123>")).toBe("\\<\\@123\\>");
+    expect(escapeDiscord("a\n# b")).toBe("a \\# b");
+    expect(escapeDiscord("Judom FR")).toBe("Judom FR");
+    expect(escapeDiscord("lesang2tmort.6392")).toBe("lesang2tmort.6392");
+  });
+
+  it("interdit toute mention, même si une valeur en contenait une", () => {
+    expect(gazettePayload(edition(), "GAL", "https://x.test", [])).toMatchObject({ allowed_mentions: { parse: [] } });
+  });
+
+  it("tient dans les limites de Discord, même avec le message le plus long", () => {
     const reading = SUNDAY_END;
-    const text = gazetteMessage(edition({ territory: { start: reading, end: reading }, arrivals: { count: 92, named: [], anonymous: 92 } }), "GAL", "https://les-gaulois.github.io");
-    expect(text.length).toBeLessThan(2000);
+    const long = "x".repeat(32);
+    const snap = { date: "2026-11-08", capturedAt: "2026-11-08T10:00:00.000Z", leaderboardEnd: "2026-11-08T09:00:00.000Z", clansListed: 100, rank: 2, score: 100, games: 10, wins: 5, losses: 5, membersTotal: 700 };
+    const embed = embedOf(edition({ standing: { start: snap, end: snap }, territory: { start: reading, end: reading }, arrivals: ARRIVALS, players: [1, 2, 3, 4, 5].map((n) => player(`${long}${n}`, 123456, 1)) }));
+    expect(embed.fields.length).toBeLessThanOrEqual(25);
+    for (const f of embed.fields) {
+      expect(f.name.length).toBeLessThanOrEqual(256);
+      expect(f.value.length).toBeLessThanOrEqual(1024);
+    }
+    expect(JSON.stringify(embed).length).toBeLessThan(6000);
+  });
+});
+
+describe("format du message", () => {
+  const state = (format?: number) => GazetteSendState.parse({ lastSent: "2026-10-26", sentAt: "2026-11-07T19:59:07.866Z", ...(format === undefined ? {} : { format }) });
+
+  it("relit une trace écrite avant les formats comme le tout premier", () => {
+    expect(state().format).toBe(1);
+  });
+
+  it("ne renvoie pas une édition déjà partie dans le format actuel", () => {
+    expect(lastSentEdition(state(MESSAGE_FORMAT))).toBe("2026-10-26");
+  });
+
+  it("renvoie une fois la dernière édition quand le format change, pour voir le résultat", () => {
+    expect(lastSentEdition(state())).toBeNull();
+    expect(lastSentEdition(null)).toBeNull();
   });
 });
 
@@ -132,7 +218,7 @@ describe("sendLatestGazette", () => {
   const setup = (over: Partial<SendDeps> = {}) => {
     const logs: string[] = [];
     const post = vi.fn(async () => new Response(null, { status: 204 }));
-    const deps: SendDeps = { webhook: WEBHOOK, editions: [ready()], unreadable: [], lastSent: null, tag: "GAL", siteUrl: "https://x.test", now: MONDAY_LATE, fetch: post as unknown as typeof fetch, log: (line) => logs.push(line), ...over };
+    const deps: SendDeps = { webhook: WEBHOOK, editions: [ready()], unreadable: [], allTime: [], lastSent: null, tag: "GAL", siteUrl: "https://x.test", now: MONDAY_LATE, fetch: post as unknown as typeof fetch, log: (line) => logs.push(line), ...over };
     return { deps, logs, post };
   };
   const noSecret = (logs: string[]) => {
@@ -168,11 +254,11 @@ describe("sendLatestGazette", () => {
   it("envoie la dernière édition sans permettre de mention, et retient son lundi", async () => {
     const { deps, post, logs } = setup();
     const result = await sendLatestGazette(deps);
-    expect(result).toEqual({ status: "sent", state: { lastSent: "2026-11-02", sentAt: MONDAY_LATE.toISOString() } });
+    expect(result).toEqual({ status: "sent", state: { lastSent: "2026-11-02", sentAt: MONDAY_LATE.toISOString(), format: MESSAGE_FORMAT } });
     expect(result.status === "sent" && GazetteSendState.safeParse(result.state).success).toBe(true);
     const [url, init] = post.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe(WEBHOOK);
-    expect(JSON.parse(String(init.body))).toMatchObject({ allowed_mentions: { parse: [] } });
+    expect(JSON.parse(String(init.body))).toMatchObject({ allowed_mentions: { parse: [] }, embeds: [{ title: "La gazette de [GAL]" }] });
     expect(init.redirect).toBe("error");
     noSecret(logs);
   });

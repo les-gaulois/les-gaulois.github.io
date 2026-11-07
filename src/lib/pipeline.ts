@@ -15,6 +15,7 @@ import {
   StoredGame,
   StoredGameFile,
   StoredMemberGames,
+  StoredMemberWeeks,
   StoredMemberRecent,
   StoredMembers,
   StoredSessionFile,
@@ -30,7 +31,8 @@ import { gamesOf, MEMBER_RECENT_GAMES, memberGamesUnderTag, toStoredMember } fro
 import { RANKED_MODES, rankedCounts } from "./ranked";
 import { mergeSessions } from "./sessions";
 import { findClan, withOfficialRanks } from "./stats";
-import { addDays, parisParts } from "./time";
+import { addDays, isFirstOfMonday, parisParts } from "./time";
+import { EMPTY_MEMBER_WEEKS, forgetInMemberWeeks, nextMemberWeeks } from "./week-players";
 
 export const API_ORIGIN = "https://api.openfront.io";
 export const API_BASE = `${API_ORIGIN}/public`;
@@ -291,6 +293,13 @@ async function dropDeletedMembers(api: ApiClient, deps: Deps, members: StoredMem
   return cleaned;
 }
 
+const memberWeeksFile = (deps: Deps) => join(deps.dataDir, "member-weeks.json");
+const readMemberWeeks = async (deps: Deps) => (await readJson(memberWeeksFile(deps), StoredMemberWeeks)) ?? EMPTY_MEMBER_WEEKS;
+
+async function writeMemberWeeks(deps: Deps, weeks: StoredMemberWeeks): Promise<void> {
+  await writeJson(memberWeeksFile(deps), weeks);
+}
+
 async function writeMemberGames(deps: Deps, players: ReadonlyMap<string, StoredMemberRecent>): Promise<void> {
   await mkdir(dirname(deps.memberGamesFile), { recursive: true });
   await writeJson(deps.memberGamesFile, Object.fromEntries(players));
@@ -305,7 +314,17 @@ async function forgetFormerMembers(deps: Deps, members: StoredMembers): Promise<
   const current = new Set(members.members.flatMap((m) => (m.username && m.publicId ? [m.publicId] : [])));
   const players = new Map(Object.entries(stored).filter(([id]) => current.has(id)));
   if (players.size !== Object.keys(stored).length) await writeMemberGames(deps, players);
+  const weeks = await readMemberWeeks(deps);
+  const kept = forgetInMemberWeeks(weeks, current);
+  if (kept !== weeks) await writeMemberWeeks(deps, kept);
   return players;
+}
+
+/** Le relevé du lundi, pour les joueurs de la semaine. Aucun appel à l'API : il part de la liste déjà relue. */
+async function noteMemberWeek(deps: Deps, members: StoredMembers): Promise<void> {
+  const weeks = await readMemberWeeks(deps);
+  const next = nextMemberWeeks(weeks, members);
+  if (next !== weeks) await writeMemberWeeks(deps, next);
 }
 
 /** Les dernières parties sous le tag des membres avec pseudo. Tant que ses parties selon `stats.team` ne bougent pas, un joueur n'est pas relu. Rien n'est écrit pour un anonyme. */
@@ -424,7 +443,7 @@ export async function runPipeline(deps: Deps): Promise<RunSummary> {
     }
 
     const lastMembers = meta.members.lastSuccessAt ? Date.parse(meta.members.lastSuccessAt) : 0;
-    if (deps.now().getTime() - lastMembers >= MEMBERS_MIN_INTERVAL_MS) {
+    if (deps.now().getTime() - lastMembers >= MEMBERS_MIN_INTERVAL_MS || isFirstOfMonday(meta.members.lastSuccessAt, deps.now())) {
       try {
         const total = await fetchMembers(api, deps, at);
         markOk(meta.members, at);
@@ -442,6 +461,7 @@ export async function runPipeline(deps: Deps): Promise<RunSummary> {
       await forgetFormerMembers(deps, members);
       if (clanExists) {
         members = await dropDeletedMembers(api, deps, members);
+        await noteMemberWeek(deps, members);
         const { read, left, unreadable } = await fetchMemberGames(api, deps, members);
         if (read > 0 || unreadable === 0) markOk(meta.memberGames, at);
         deps.log(`fiches des membres : ${read} lues, ${left} restent à lire`);

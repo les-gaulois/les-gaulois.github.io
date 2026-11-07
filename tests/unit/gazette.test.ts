@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { fmtPoints } from "../../src/lib/format";
 import { arrivalsGap, comparisonSentence, editionLead, endingOn, gazetteEditions, type GazetteSources, standingDetails, standingGap, standingSentence, territoryDetails, territoryGap, weekLabel } from "../../src/lib/gazette";
-import type { HistorySnapshot, StoredMember, StoredSession } from "../../src/lib/schemas";
+import type { HistorySnapshot, StoredMember, StoredMembers, StoredSession } from "../../src/lib/schemas";
 import { mondayOf } from "../../src/lib/time";
 
 function session(gameStart: string, over: Partial<StoredSession> = {}): StoredSession {
@@ -14,7 +14,7 @@ function member(joinedAt: string, username: string | null): StoredMember {
   return { role: "member", joinedAt, publicId: username, username, team: null };
 }
 // Le 7 novembre 2026 est un samedi. Le dernier dimanche définitif est le 1er : sa semaine commence le 26 octobre.
-const sources = (over: Partial<GazetteSources> = {}): GazetteSources => ({ sessions: [], history: [], territory: [], members: null, archiveStart: "2026-10-12", completeThrough: "2026-11-06", ...over });
+const sources = (over: Partial<GazetteSources> = {}): GazetteSources => ({ sessions: [], history: [], territory: [], weekTops: {}, members: null, archiveStart: "2026-10-12", completeThrough: "2026-11-06", ...over });
 
 describe("mondayOf", () => {
   it("donne le lundi de la semaine, le dimanche compris, même au changement d'heure", () => {
@@ -87,6 +87,23 @@ describe("gazetteEditions", () => {
       expect(highlights?.streak.wins).toBe(2);
       expect(highlights?.bestDay).toMatchObject({ date: "2026-10-27", wins: 2 });
       expect(highlights?.biggestGroup.players).toBe(2);
+    });
+  });
+
+  describe("les joueurs de la semaine", () => {
+    const named = (fetchedAt: string, ...names: string[]): StoredMembers => ({ fetchedAt, total: names.length, members: names.map((n) => ({ ...member("2026-05-03T00:00:00.000Z", n), team: { wins: 1, losses: 1 } })) });
+
+    it("donne à une édition les joueurs relevés sous son lundi, avec leur pseudo, et rien aux autres", () => {
+      const editions = gazetteEditions(sources({ weekTops: { "2026-10-26": [{ id: "Alpha", wins: 33 }] }, members: named("2026-11-07T05:00:00.000Z", "Alpha") }));
+      const [latest, before] = editions;
+      expect(latest?.from).toBe("2026-10-26");
+      expect(latest?.players).toEqual([{ id: "Alpha", username: "Alpha", wins: 33, place: 1 }]);
+      expect(before?.players).toBeNull();
+    });
+
+    it("n'en cite plus un qui a quitté le clan", () => {
+      const [latest] = gazetteEditions(sources({ weekTops: { "2026-10-26": [{ id: "Parti", wins: 33 }] }, members: named("2026-11-07T05:00:00.000Z", "Alpha") }));
+      expect(latest?.players).toBeNull();
     });
   });
 

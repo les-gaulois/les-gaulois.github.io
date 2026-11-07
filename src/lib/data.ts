@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { z } from "zod";
 import { dayRows, territoryReadings, type TerritoryReading } from "./clanmap/days";
+import { EMPTY_MEMBER_WEEKS } from "./week-players";
 import {
   Announcements,
   ClanMapJournal,
@@ -15,6 +16,7 @@ import {
   StoredGameFile,
   StoredLeaderboard,
   StoredMemberGames,
+  StoredMemberWeeks,
   StoredMembers,
   StoredRanked,
   StoredSessionFile,
@@ -54,6 +56,8 @@ export const loadRanked = () => read("data/ranked.json", StoredRanked);
 /** Hors de `data/` et de Git : les lignes de chaque joueur ne doivent pas rester pour toujours dans l'historique public. */
 export const MEMBER_GAMES_FILE = ".cache/member-games/players.json";
 export const loadMemberGames = () => read(MEMBER_GAMES_FILE, StoredMemberGames) ?? {};
+/** Les relevés du lundi : voir `src/lib/week-players.ts`. */
+export const loadMemberWeeks = () => read("data/member-weeks.json", StoredMemberWeeks) ?? EMPTY_MEMBER_WEEKS;
 export const loadClanMapFilm = () => read("data/clanmap/film.json", StoredClanMapFilm);
 export const loadClanMapJournal = () => read("data/clanmap/journal.json", ClanMapJournal) ?? [];
 /** Le territoire de GAL jour après jour, pour la gazette : voir `territoryReadings`. */
