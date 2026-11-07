@@ -1,9 +1,6 @@
 import LineChart from "./LineChart";
-import { fmtDay, fmtScore, NO_DATA } from "../lib/format";
+import { fmtDay, fmtGap, fmtRank, fmtScore, NO_DATA } from "../lib/format";
 import type { RivalSeries } from "../lib/rivals";
-
-const fmtGap = (n: number) => (n >= 0 ? `${fmtScore(n)} d'avance` : `${fmtScore(-n)} de retard`);
-const fmtRank = (n: number) => `${n}${n === 1 ? "er" : "e"}`;
 
 export default function RivalRace({ series }: { series: RivalSeries[] }) {
   const dates = series[0]?.points.map((p) => p.date) ?? [];

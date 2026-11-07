@@ -28,6 +28,8 @@ export const fmtDec1 = (n: number) => dec1.format(n);
 /** Un nombre et son nom, accordé : 1 partie, 2 parties. */
 export const fmtCount = (n: number, word: string) => `${int.format(n)} ${word}${n > 1 ? "s" : ""}`;
 export const fmtRank = (n: number) => `${n}${n === 1 ? "er" : "e"}`;
+/** Un écart de score, dit en toutes lettres : positif, le clan est devant. */
+export const fmtGap = (n: number) => (n >= 0 ? `${fmtScore(n)} d'avance` : `${fmtScore(-n)} de retard`);
 /** Un écart en points de pourcentage, toujours signé : 4,9 donne « +4,9 points ». Un écart qui s'arrondit à zéro n'a pas de signe négatif. */
 export function fmtPoints(n: number): string {
   const rounded = Math.round(n * 10) / 10;

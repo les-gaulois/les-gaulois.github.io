@@ -198,11 +198,11 @@ export default function ProgressCharts({ days, history }: Props) {
         </details>
       </section>
 
-      <h2 class="section-title mt-12">Au classement officiel</h2>
+      <h2 class="section-title mt-12">Relevés de chaque jour</h2>
       <p class="mt-2 max-w-3xl text-sm text-muted">
-        Relevés quotidiens du classement, sur sa fenêtre glissante de 90 jours. Ces valeurs ne se comparent donc pas aux parties par jour ci-dessus.
+        Le rang et le score viennent du classement officiel, sur sa fenêtre glissante de 90 jours : ils ne se comparent donc pas aux parties par jour ci-dessus. Le nombre de membres vient de la liste officielle du clan, anonymes compris. Ces trois mesures ne sont connues que depuis le premier relevé. Chaque courbe a sa propre échelle : le tableau donne les valeurs exactes.
       </p>
-      <div class="mt-4 grid gap-4 md:grid-cols-2">
+      <div class="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <LineChart
           title="Rang"
           invert
@@ -210,18 +210,20 @@ export default function ProgressCharts({ days, history }: Props) {
           format={(n) => `${n}${n === 1 ? "er" : "e"}`}
         />
         <LineChart title="Score" points={snaps.map((h) => ({ date: h.date, value: h.score }))} format={fmtScore} />
+        <LineChart title="Membres" points={snaps.map((h) => ({ date: h.date, value: h.membersTotal }))} format={fmtInt} />
       </div>
       {snaps.length > 0 && (
         <details class="mt-4">
           <summary class="cursor-pointer font-semibold">Voir le tableau des relevés</summary>
           <div class="mt-3 max-h-96 overflow-auto" tabIndex={0} aria-label="Tableau des relevés, zone défilante">
             <table class="data-table tnum w-full text-sm">
-              <caption class="sr-only">Rang et score relevés chaque jour</caption>
+              <caption class="sr-only">Rang, score et nombre de membres relevés chaque jour</caption>
               <thead>
                 <tr>
                   <th scope="col">Date</th>
                   <th scope="col" class="num">Rang</th>
                   <th scope="col" class="num">Score</th>
+                  <th scope="col" class="num">Membres</th>
                 </tr>
               </thead>
               <tbody>
@@ -230,6 +232,7 @@ export default function ProgressCharts({ days, history }: Props) {
                     <td>{fmtDay(h.date)}</td>
                     <td class="num">{h.rank === null ? "Hors classement" : h.rank}</td>
                     <td class="num">{fmtScore(h.score)}</td>
+                    <td class="num">{fmtInt(h.membersTotal)}</td>
                   </tr>
                 ))}
               </tbody>
