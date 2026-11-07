@@ -12,7 +12,7 @@ const ranked = loadRanked();
 
 {
   (ranked || meta.ranked.lastError) && (
-    <section class="stage stage-wine reveal mt-8" aria-labelledby="ranked-title" data-testid="ranked-block">
+    <section class="stage stage-wine reveal mt-6 scroll-mt-24" id="classe" aria-labelledby="ranked-title" data-testid="ranked-block">
       <h2 id="ranked-title" class="section-title">Membres présents au classé</h2>
       <p class="mt-4 max-w-3xl text-lg text-muted">
         Combien de membres de [{clan.tag}] figurent au classement officiel de chaque mode classé d'OpenFront. Ce classement est individuel et à part : il ne compte pas dans le score du clan, et il ne dit pas sous quel tag ces parties ont été jouées. Seuls les membres avec un pseudo public sont reconnus : ces nombres sont donc des minimums.

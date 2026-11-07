@@ -37,6 +37,8 @@ export function fmtPoints(n: number): string {
 }
 export const fmtMinutes = (seconds: number) => `${int.format(Math.round(seconds / 60))} min`;
 export const fmtDateTime = (iso: string) => dateTime.format(new Date(iso));
+/** Sans l'année, pour une partie récente : « 7 nov., 17:39 ». */
+export const fmtDayAndTime = (iso: string) => `${dayParis.format(new Date(iso))}, ${timeParis.format(new Date(iso))}`;
 export const fmtClock = (iso: string) => clock.format(new Date(iso));
 export const fmtDate = (iso: string) => dateOnly.format(new Date(iso));
 /** Une liste croissante en suites : 2, 3, 4 et 7 donnent « 2 à 4, 7 ». */

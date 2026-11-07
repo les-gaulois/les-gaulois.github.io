@@ -46,7 +46,7 @@ const sessions = loadSessions();
 
 ## Navigation
 
-Le tableau `nav` dans `src/layouts/Base.astro` alimente le menu desktop et le menu mobile. N'y ajouter une page que si elle s'adresse à tous les visiteurs, et garder sept entrées au plus : au-delà, le menu passe sous la largeur `lg`/`xl` et déborde. Une page secondaire se relie depuis la page qui la concerne ou depuis le pied de page.
+Le plan du site est dans `src/lib/nav.ts` : il alimente le menu, les onglets de chaque rubrique (`SectionNav.astro`) et le pied de page. Une nouvelle page rejoint d'abord une rubrique existante, comme onglet. Ne créer une rubrique que pour une question nouvelle du visiteur, et garder sept rubriques au plus : au-delà, le menu passe sous la largeur `lg`/`xl` et déborde. Un contenu n'a qu'une page : l'accueil résume et renvoie, il ne recopie pas. Détail : section « Organisation du site » de `docs/DESIGN.md`.
 
 ## Tests
 

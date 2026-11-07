@@ -1,4 +1,5 @@
 ---
+import ReadingNote from "./ReadingNote.astro";
 import { clan } from "../../config/clan";
 import { loadMeta, loadSessions } from "../lib/data";
 import { fmtCount, fmtDate, fmtInt, fmtPct } from "../lib/format";
@@ -41,9 +42,11 @@ const tiles = records
           ))
         }
       </dl>
-      <p class="mt-8 max-w-3xl text-sm text-muted">
+      <ReadingNote>
+        <p>
         Depuis le {start}, parties publiques en équipe jouées avec le tag, tous joueurs du clan confondus : une série mêle donc plusieurs groupes. Le jeu place tout un clan dans une seule équipe : le nombre de Gaulois d'une partie gagnée compte aussi ceux partis avant la fin. Une partie jouée seul contre des robots n'est pas comptée.
       </p>
+      </ReadingNote>
     </section>
   )
 }
@@ -82,9 +85,12 @@ const tiles = records
           ))
         }
       </div>
-      <p class="mt-4 max-w-3xl text-sm text-muted">
-        Sur {RESULTS_DAYS} jours, du {fmtDate(`${results.from}T12:00:00Z`)} au {fmtDate(`${results.to}T12:00:00Z`)}. Le hasard est la moyenne de 1 ÷ nombre d'équipes sur ces parties. C'est un repère, pas une preuve : le niveau des adversaires et le nombre de Gaulois dans la partie comptent aussi. Un format sous 30 parties sur cette période n'est pas affiché.
+      <p class="tnum mt-4 max-w-3xl text-sm text-muted" data-testid="format-period">Sur {RESULTS_DAYS} jours, du {fmtDate(`${results.from}T12:00:00Z`)} au {fmtDate(`${results.to}T12:00:00Z`)}.</p>
+      <ReadingNote>
+        <p>
+        Le hasard est la moyenne de 1 ÷ nombre d'équipes sur ces parties. C'est un repère, pas une preuve : le niveau des adversaires et le nombre de Gaulois dans la partie comptent aussi. Un format sous 30 parties sur cette période n'est pas affiché.
       </p>
+      </ReadingNote>
     </section>
   )
 }

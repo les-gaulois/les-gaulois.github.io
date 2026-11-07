@@ -5,6 +5,7 @@ import Empty from "../components/Empty.astro";
 import GamesJournal from "../components/GamesJournal.tsx";
 import MapNamesCredit from "../components/MapNamesCredit.astro";
 import PageHeader from "../components/PageHeader.astro";
+import ReadingNote from "../components/ReadingNote.astro";
 import { clan } from "../../config/clan";
 import { loadGames, loadLeaderboard, loadMeta, loadSessions } from "../lib/data";
 import { fmtInt } from "../lib/format";
@@ -40,23 +41,24 @@ const { rows, sides, coverage } = clanJournal({
       ) : (
         <>
           <GamesJournal client:load src={`${base}/parties.json`} initial={rows.slice(0, JOURNAL_FIRST_ROWS)} sides={sides} />
+          {!sides && (
+            <p class="mt-4 max-w-3xl font-semibold text-warn" role="status" data-testid="journal-clans-suspended">
+              Les autres clans ne sont plus affichés : trop de parties récentes contredisent le calcul de leurs équipes. Les règles du jeu ont peut-être changé.
+            </p>
+          )}
           <noscript><p class="card mt-4 p-4 text-sm text-muted">JavaScript est nécessaire pour les filtres et pour afficher plus de parties.</p></noscript>
-          <section class="mt-6 max-w-3xl space-y-2 text-sm text-muted" aria-label="Comment lire cette liste" data-testid="journal-notes">
+          {sides && <p class="mt-4 max-w-3xl text-sm text-muted" data-testid="journal-sides-note">« Contre » et « Avec » sont calculés avec la règle du jeu : l'API ne donne pas l'équipe des perdants.</p>}
+          <ReadingNote label="Comment lire cette liste">
             <p>Le résultat est celui qu'OpenFront compte pour le clan.</p>
             <p>« Gaulois » donne les joueurs du clan et ceux de la partie, tels qu'OpenFront les compte : un joueur parti très tôt peut ne pas y figurer.</p>
-            {
-              sides ? (
-                <p data-testid="journal-clans-note">
-                  « Autres clans » ne cite que les clans de la liste officielle, avec au moins {MIN_CLAN_PLAYERS} joueurs dans la partie, et leur nombre entre parenthèses. Les autres tags ne sont pas repris : chacun choisit le sien librement. L'API ne donne pas l'équipe des perdants : elle est calculée avec la règle du jeu, et rien n'est écrit si le calcul contredit le résultat officiel. Les <a href={`${base}/classement`}>face-à-face de la page Classement</a> utilisent ce calcul, mais ils ne gardent que les parties à {MIN_CLAN_PLAYERS} Gaulois ou plus, sur 90 jours : leurs chiffres ne sont pas ceux du filtre « Contre le clan ».
-                </p>
-              ) : (
-                <p class="font-semibold text-warn" role="status" data-testid="journal-clans-suspended">
-                  Les autres clans ne sont plus affichés : trop de parties récentes contredisent le calcul de leurs équipes. Les règles du jeu ont peut-être changé.
-                </p>
-              )
-            }
-            <p>« — » : le détail de cette partie n'est pas encore lu. C'est lui qui donne la carte, la durée et les autres clans. <span class="tnum" data-testid="journal-coverage">{coverage.read === coverage.total ? `Détail lu pour toutes les parties de cette période : ${fmtInt(coverage.total)}.` : `Détail lu pour ${fmtInt(coverage.read)} parties sur ${fmtInt(coverage.total)}.`}</span></p>
-          </section>
+            {sides && (
+              <p data-testid="journal-clans-note">
+                « Autres clans » ne cite que les clans de la liste officielle, avec au moins {MIN_CLAN_PLAYERS} joueurs dans la partie, et leur nombre entre parenthèses. Les autres tags ne sont pas repris : chacun choisit le sien librement. L'API ne donne pas l'équipe des perdants : elle est calculée avec la règle du jeu, et rien n'est écrit si le calcul contredit le résultat officiel. Les <a href={`${base}/rivaux`}>face-à-face de la page Nos rivaux</a> utilisent ce calcul, mais ils ne gardent que les parties à {MIN_CLAN_PLAYERS} Gaulois ou plus, sur 90 jours : leurs chiffres ne sont pas ceux du filtre « Contre le clan ».
+              </p>
+            )}
+            <p>« — » : le détail de cette partie n'est pas encore lu. C'est lui qui donne la carte, la durée et les autres clans.</p>
+          </ReadingNote>
+          <p class="tnum mt-2 text-sm text-muted" data-testid="journal-coverage">{coverage.read === coverage.total ? `Détail lu pour toutes les parties de cette période : ${fmtInt(coverage.total)}.` : `Détail lu pour ${fmtInt(coverage.read)} parties sur ${fmtInt(coverage.total)}.`}</p>
           <MapNamesCredit />
           <div class="mt-4">
             <p class="text-sm font-semibold text-muted">Le détail des parties</p>

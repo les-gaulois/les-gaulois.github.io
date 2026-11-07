@@ -12,13 +12,21 @@ import { editionLead, gazetteEditions, rankWords, standingDetails, territoryDeta
 import { clanJournal, JOURNAL_FIRST_ROWS, journalChoices, journalCount, NO_FILTER, replayUrl } from "../../src/lib/journal";
 import { gamesOf, recentGamesTitle } from "../../src/lib/members";
 import { mapLabel } from "../../src/lib/map-names";
+import { SECTIONS } from "../../src/lib/nav";
+import { objectiveFor } from "../../src/lib/clanmap/economy";
 import { nextTier, tierOf, tierRows } from "../../src/lib/paliers";
 
-const PAGES = ["/", "/classement", "/progression", "/membres", "/activite", "/carte", "/debuter", "/rejoindre", "/gazette", "/parties"];
+const PAGES = ["/", "/gazette", "/parties", "/classement", "/rivaux", "/progression", "/records", "/membres", "/carte", "/activite", "/debuter", "/outils", "/rejoindre"];
 const lb = JSON.parse(readFileSync("data/leaderboard.json", "utf8"));
 const members = JSON.parse(readFileSync("data/members.json", "utf8"));
 const gal = lb.clans.find((c: { clanTag: string }) => c.clanTag === "GAL");
 const digits = (s: string | null) => (s ?? "").replace(/\D/g, "");
+
+/** Ouvre tout ce qui est replié : ce contenu doit tenir les mêmes garanties que le reste. */
+const openFolds = (page: Page) =>
+  page.evaluate(() => {
+    for (const fold of document.querySelectorAll("details")) fold.open = true;
+  });
 
 /** Attend que les composants interactifs de la page aient démarré. */
 const hydrated = (page: Page) => page.waitForFunction(() => !document.querySelector("astro-island[ssr]"));
@@ -58,7 +66,7 @@ test("parcours principal", async ({ page }, testInfo) => {
 
   // Classement : navigation, ligne mise en évidence, recherche.
   if (mobile) await page.getByText("Menu", { exact: true }).click();
-  await page.getByRole("link", { name: "Classement", exact: true }).filter({ visible: true }).first().click();
+  await page.getByRole("link", { name: "Résultats", exact: true }).filter({ visible: true }).first().click();
   await expect(page).toHaveURL(/classement/);
   await hydrated(page);
   await expect(page.locator(".row-highlight").filter({ visible: true })).toContainText("[GAL]");
@@ -97,15 +105,20 @@ test("parcours principal", async ({ page }, testInfo) => {
   await expect(page.getByText("Ce sont des parties enregistrées, pas des joueurs connectés.")).toBeVisible();
   await expect(page.getByTestId("best-slot").first()).toBeVisible();
 
-  // Débuter : le calculateur réagit et ne dépend pas de la frontière.
+  // Guides : tout est dans la page, et le sommaire ouvre le chapitre visé.
   await page.goto("/debuter");
   await hydrated(page);
   await expect(page.getByTestId("guide-card")).toHaveCount(5);
   await expect(page.getByTestId("guide-chapter")).toHaveCount(11);
+  await page.getByRole("navigation", { name: "Chapitres du guide du clan" }).getByRole("link", { name: /Croissance/ }).click();
   await expect(page.getByTestId("growth-chart").locator("svg")).toBeVisible();
   await expect(page.getByText("Ce guide reste à rédiger")).toHaveCount(0);
   // Le wiki est sous CC BY-SA : sa mention ne doit pas disparaître de la page.
   await expect(page.getByTestId("guide-sources").getByRole("link", { name: "CC BY-SA 4.0" })).toBeVisible();
+
+  // Calculateur : il réagit et ne dépend pas de la frontière.
+  await page.goto("/outils");
+  await hydrated(page);
   await expect(page.getByText("Repère indicatif, pas une garantie.")).toBeVisible();
   const minimum = page.getByTestId("calc-minimum");
   await expect(minimum).not.toBeEmpty();
@@ -127,27 +140,245 @@ test("parcours principal", async ({ page }, testInfo) => {
 
 test("l'accueil n'affiche que des données collectées", async ({ page }) => {
   await page.goto("/");
-  const title = page.getByRole("heading", { name: /membres dans le clan/i });
-  expect(digits(await title.textContent())).toBe(String(members.total));
+  expect(digits(await page.getByTestId("home-members").textContent())).toBe(String(members.total));
+  // Sans annonce ni événement, le bloc n'existe pas : un visiteur n'a rien à y lire.
+  const news = [...JSON.parse(readFileSync("content/announcements.json", "utf8")), ...JSON.parse(readFileSync("content/events.json", "utf8"))];
+  if (news.length === 0) await expect(page.getByTestId("news-board")).toHaveCount(0);
+  await expect(page.getByTestId("home-slot").first()).toBeVisible();
+  await expect(page.getByTestId("home-games").locator("li")).toHaveCount(5);
+  // Les noms de cartes sont sous CC BY-SA : leur crédit accompagne chaque liste.
+  await expect(page.getByTestId("map-names-credit")).toBeVisible();
+
+  const clans = withOfficialRanks(lb.clans as LeaderboardEntry[]);
+  const me = clans.find((c) => c.clanTag === clan.tag);
+  const above = clans[(me?.rank ?? 2) - 2];
+  if (me && above) await expect(page.getByTestId("home-race")).toContainText(`${fmtScore(above.weightedWins - me.weightedWins)} de retard sur [${above.clanTag}]`);
+  const film = loadClanMapFilm();
+  const objective = objectiveFor(film?.standings ?? [], clan.tag);
+  if (objective?.above) await expect(page.getByTestId("home-objective")).toContainText(`dépasser [${objective.above.tag}]`);
+  await expect(page.getByRole("link", { name: "Lire les guides" })).toHaveAttribute("href", /\/debuter$/);
+});
+
+test("la page Membres présente l'encadrement, et chacun mène à sa fiche", async ({ page }) => {
+  await page.goto("/membres");
+  const block = page.getByTestId("command");
   const command = members.members.filter((m: { role: string }) => m.role !== "member");
-  await expect(page.getByRole("heading", { name: new RegExp(`Encadrement · ${command.length}`, "i") })).toBeVisible();
+  await expect(block.getByRole("heading", { name: `L'encadrement · ${command.length}` })).toBeVisible();
+  await expect(block.getByTestId("command-member")).toHaveCount(command.length);
   for (const m of command) {
-    if (m.username) await expect(page.getByText(m.username, { exact: true })).toBeVisible();
+    if (m.username) await expect(block.getByRole("link", { name: m.username, exact: true })).toHaveAttribute("href", new RegExp(`/membres/${m.publicId}$`));
   }
 });
 
-for (const path of ["/", "/rejoindre"]) {
-  test(`le bloc de jeu en groupe mène au Discord : ${path}`, async ({ page }) => {
-    await page.goto(path);
-    const block = page.getByTestId("group-play");
-    await expect(block.getByTestId("group-size").first()).toContainText("Seul sous le tag");
-    await expect(block.getByRole("link", { name: "Trouver un groupe sur Discord" })).toHaveAttribute("href", "https://discord.gg/cjUc42T7Y2");
-  });
-}
+test("le bloc de jeu en groupe mène au Discord", async ({ page }) => {
+  await page.goto("/activite");
+  const block = page.getByTestId("group-play");
+  await expect(block.getByTestId("group-size").first()).toContainText("Seul sous le tag");
+  await expect(block.getByRole("link", { name: "Trouver un groupe sur Discord" })).toHaveAttribute("href", "https://discord.gg/cjUc42T7Y2");
+});
 
-// Ces fichiers n'existent qu'après la première collecte : sans eux, rien ne doit s'afficher de faux.
-test("le classé ne publie que des décomptes, à part du classement des clans", async ({ page }) => {
+test("Rejoindre donne l'argument du jeu en groupe et renvoie vers son détail", async ({ page }) => {
+  await page.goto("/rejoindre");
+  await expect(page.getByTestId("group-play")).toHaveCount(0);
+  const line = page.getByTestId("join-group");
+  await expect(line).toContainText("Seul sous le tag");
+  await expect(line).toContainText("Un lien, pas une preuve");
+  await expect(line.getByRole("link")).toHaveAttribute("href", /\/activite$/);
+  await expect(page.getByTestId("join-guides").getByRole("link")).toHaveAttribute("href", /\/debuter$/);
+});
+
+test("les anciens liens vers le calculateur et les outils y mènent encore", async ({ page }) => {
+  await page.goto("/debuter#calculateur");
+  await expect(page).toHaveURL(/\/outils\/?#calculateur$/);
+  await expect(page.getByRole("heading", { name: "Troupes à envoyer contre un bot" })).toBeInViewport();
+  await page.goto("/debuter#outils-section");
+  await expect(page).toHaveURL(/\/outils\/?#outils-section$/);
+});
+
+test("le sommaire des guides rouvre un chapitre refermé", async ({ page }) => {
+  await page.goto("/debuter");
+  const link = page.getByRole("navigation", { name: "Chapitres du guide du clan" }).getByRole("link", { name: /Trains/ });
+  const chapter = page.getByTestId("guide-chapter").filter({ has: page.getByRole("heading", { name: /Trains/ }) });
+  await link.click();
+  await expect(chapter).toHaveAttribute("open", "");
+  await chapter.locator("summary").first().click();
+  await expect(chapter).not.toHaveAttribute("open", "");
+  await link.click();
+  await expect(chapter).toHaveAttribute("open", "");
+});
+
+test("ce qui change la lecture d'un chiffre reste visible, hors des précisions repliées", async ({ page }) => {
+  await page.goto("/membres");
+  await expect(page.getByTestId("members-scope")).toContainText("sans le classé");
+  await expect(page.getByTestId("members-scope")).toBeVisible();
+  await page.goto("/rivaux");
+  await expect(page.getByTestId("compare-rate-note")).toBeVisible();
+  await page.goto("/records");
+  await expect(page.getByTestId("format-period")).toBeVisible();
+  await page.goto("/parties");
+  await expect(page.getByTestId("journal-link-note")).toBeVisible();
+  await expect(page.getByTestId("journal-link-note")).toContainText("Rejoindre un salon privé");
+  await expect(page.getByTestId("journal-sides-note")).toBeVisible();
+});
+
+test("la carte World se trouve depuis la page Carte", async ({ page }) => {
+  await page.goto("/carte");
+  await expect(page.getByRole("link", { name: "La carte « World »", includeHidden: true })).toHaveAttribute("href", /\/carte-monde\/$/);
+});
+
+test.describe("le plan du site", () => {
+  test("chaque page appartient à une rubrique, et ses onglets y mènent", async ({ page }) => {
+    for (const section of SECTIONS) {
+      for (const target of section.pages) {
+        await page.goto(target.href);
+        const tabs = page.getByTestId("section-nav");
+        if (section.pages.length === 1) {
+          await expect(tabs).toHaveCount(0);
+          continue;
+        }
+        await expect(tabs.locator("a")).toHaveCount(section.pages.length);
+        await expect(tabs.getByRole("link", { name: target.label, exact: true })).toHaveAttribute("aria-current", "page");
+      }
+    }
+  });
+  test("une fiche de membre reste dans sa rubrique", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop", "Menu testé sur desktop.");
+    const member = members.members.find((m: { publicId: string | null }) => m.publicId);
+    await page.goto(`/membres/${member.publicId}`);
+    await expect(page.getByRole("navigation", { name: "Navigation principale" }).getByRole("link", { name: "Membres", exact: true })).toHaveAttribute("aria-current", "true");
+  });
+  test("passer d'un onglet à l'autre change de page sans repasser par le menu", async ({ page }) => {
+    await page.goto("/classement");
+    await page.getByTestId("section-nav").getByRole("link", { name: "Nos rivaux" }).click();
+    await expect(page).toHaveURL(/rivaux/);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Nos rivaux");
+  });
+  test("le pied de page donne le plan complet", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByTestId("footer-plan").locator("a")).toHaveCount(SECTIONS.flatMap((s) => s.pages).length);
+  });
+});
+
+test("le classement montre 25 clans d'abord, le reste à la demande, et la recherche voit tout", async ({ page }) => {
   await page.goto("/classement");
+  await hydrated(page);
+  const row = page.getByTestId("leaderboard-row").filter({ visible: true });
+  await expect(row).toHaveCount(25);
+  await expect(page.locator(".row-highlight").filter({ visible: true })).toContainText("[GAL]");
+  const more = page.getByTestId("leaderboard-more");
+  await more.locator("summary").click();
+  await expect(row).toHaveCount(lb.clans.length);
+  await more.locator("summary").click();
+
+  const last = lb.clans.at(-1).clanTag;
+  await page.getByLabel("Rechercher un clan").fill(last);
+  await expect(more).toHaveCount(0);
+  await expect(row.first()).toContainText(`[${last}]`);
+  // Tous les clans sont dans la page, même sans script.
+  const html = await (await page.request.get("/classement")).text();
+  expect(html).toContain(last);
+});
+
+test("au retour, l'accueil dit ce qui a changé, et rien à la première visite", async ({ page }) => {
+  await page.goto("/");
+  await hydrated(page);
+  await expect(page.getByTestId("since-visit")).toHaveCount(0);
+  // Comme si la visite précédente datait d'il y a longtemps, avec moins de parties.
+  await page.evaluate(() => {
+    const state = JSON.parse(localStorage.getItem("gal-visite") ?? "null");
+    const old = { ...state.latest, at: "2026-01-01T10:00:00.000Z", games: state.latest.games - 10, wins: state.latest.wins - 4, gazette: "2020-01-06" };
+    localStorage.setItem("gal-visite", JSON.stringify({ baseline: old, latest: old, since: "2026-01-01T10:05:00.000Z", seenAt: "2026-01-01T10:05:00.000Z" }));
+  });
+  await page.reload();
+  await hydrated(page);
+  const block = page.getByTestId("since-visit");
+  await expect(block.getByRole("heading")).toContainText("Depuis votre dernière visite, le 1 janv. 2026");
+  await expect(block.getByTestId("since-line").first()).toHaveText("10 parties de plus, dont 4 victoires.");
+  await expect(block.getByRole("link", { name: "Une nouvelle gazette est parue." })).toHaveAttribute("href", /\/gazette$/);
+  // Recharger la page ne fait pas perdre le résumé.
+  await page.reload();
+  await hydrated(page);
+  await expect(block.getByTestId("since-line").first()).toHaveText("10 parties de plus, dont 4 victoires.");
+});
+
+test("sans stockage dans le navigateur, l'accueil marche quand même", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "localStorage", { get: () => { throw new Error("stockage refusé"); } });
+  });
+  await page.goto("/");
+  await hydrated(page);
+  await expect(page.getByTestId("since-visit")).toHaveCount(0);
+  await expect(page.getByLabel("Votre pseudo dans le jeu")).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test("Ma place ne charge la liste qu'à la demande, et retient seulement le pseudo qu'on choisit", async ({ page }) => {
+  const calls: string[] = [];
+  page.on("request", (r) => {
+    if (r.url().includes("/data/members.json")) calls.push(r.url());
+  });
+  await page.goto("/");
+  await hydrated(page);
+  await page.waitForTimeout(300);
+  expect(calls).toEqual([]);
+
+  const named = members.members.find((m: { username: string | null; team: unknown }) => m.username && m.team);
+  const field = page.getByLabel("Votre pseudo dans le jeu");
+  const result = page.getByTestId("my-place-result");
+  await field.fill(named.username);
+  await expect(result).toContainText(named.username);
+  await expect(page.getByTestId("my-place-tier")).toContainText("Prochain palier");
+  await expect(result.getByRole("link", { name: named.username })).toHaveAttribute("href", new RegExp(`/membres/${named.publicId}$`));
+
+  // Chercher un pseudo ne le retient pas.
+  await page.reload();
+  await hydrated(page);
+  await expect(result).toHaveCount(0);
+
+  await field.fill(named.username);
+  await page.getByTestId("my-place-remember").click();
+  await expect(field).toHaveCount(0);
+  await expect(result).toContainText(named.username);
+  // Le bouton utilisé disparaît : le clavier reprend sur celui qui le remplace.
+  await expect(page.locator(":focus")).toHaveAttribute("data-testid", "my-place-forget");
+  await page.reload();
+  await hydrated(page);
+  await expect(result).toContainText(named.username);
+  await expect(field).toHaveCount(0);
+
+  await page.getByTestId("my-place-forget").click();
+  await expect(field).toBeVisible();
+  await expect(field).toBeFocused();
+  await page.reload();
+  await hydrated(page);
+  await expect(result).toHaveCount(0);
+});
+
+test("une liste vide ne fait pas perdre le pseudo retenu : pas de données n'est pas un départ", async ({ page }) => {
+  await page.route("**/data/members.json", (route) => route.fulfill({ json: { fetchedAt: "2026-11-07T10:00:00.000Z", total: 0, members: [] } }));
+  await page.goto("/");
+  await page.evaluate(() => localStorage.setItem("gal-moi", "un-membre"));
+  await page.reload();
+  await hydrated(page);
+  await expect(page.getByLabel("Votre pseudo dans le jeu")).toBeVisible();
+  await expect(page.getByTestId("my-place-gone")).toHaveCount(0);
+  expect(await page.evaluate(() => localStorage.getItem("gal-moi"))).toBe("un-membre");
+});
+
+test("un pseudo retenu qui n'est plus dans la liste publique n'est plus gardé", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => localStorage.setItem("gal-moi", "parti-du-clan"));
+  await page.reload();
+  await hydrated(page);
+  await expect(page.getByTestId("my-place-gone")).toBeVisible();
+  await expect(page.getByLabel("Votre pseudo dans le jeu")).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem("gal-moi"))).toBeNull();
+});
+
+test("le classé ne publie que des décomptes, à part du classement des clans", async ({ page }) => {
+  await page.goto("/membres");
   const block = page.getByTestId("ranked-block");
   const panels = block.getByTestId("ranked-mode");
   if (!existsSync("data/ranked.json")) {
@@ -170,7 +401,7 @@ test("le classé ne publie que des décomptes, à part du classement des clans",
 });
 
 test("la course avec les voisins part du premier relevé", async ({ page }) => {
-  await page.goto("/classement");
+  await page.goto("/rivaux");
   await hydrated(page);
   const race = page.getByTestId("rival-race");
   const me = lb.clans.indexOf(gal);
@@ -187,7 +418,7 @@ test("la course avec les voisins part du premier relevé", async ({ page }) => {
 });
 
 test("les résultats par format donnent le repère du hasard et les records", async ({ page }) => {
-  await page.goto("/progression");
+  await page.goto("/records");
   const formats = page.getByTestId("format-results");
   await expect(formats.getByTestId("format-row").first()).toContainText("au hasard");
   await expect(formats).toContainText("à 2 équipes, le hasard donne déjà 50 %");
@@ -197,7 +428,7 @@ test("les résultats par format donnent le repère du hasard et les records", as
 
 // Le détail des parties se lit petit à petit : tant qu'aucune carte ni aucun clan n'atteint son seuil, rien ne s'affiche.
 test("les résultats par carte de jeu se comparent aux habitudes du clan et disent ce qui est lu", async ({ page }) => {
-  await page.goto("/progression");
+  await page.goto("/records");
   const block = page.getByTestId("map-results");
   const results = mapResults(loadSessions(), loadGames(), loadMeta().sessions.coveredUntil);
   if (!results || results.rows.length === 0) {
@@ -221,7 +452,7 @@ test("les résultats par carte de jeu se comparent aux habitudes du clan et dise
 });
 
 test("les face-à-face reprennent les chiffres calculés, sans aucun joueur", async ({ page }) => {
-  await page.goto("/classement");
+  await page.goto("/rivaux");
   const block = page.getByTestId("face-offs");
   const panels = block.getByTestId("face-off");
   const result = faceOffs(loadSessions(), loadGames(), "GAL", lb.clans.map((c: { clanTag: string }) => c.clanTag), loadMeta().sessions.coveredUntil);
@@ -249,11 +480,11 @@ test("le comparateur met côte à côte deux clans de la liste officielle", asyn
   const above = clans[(me?.rank ?? 2) - 2];
   const other = clans.at(-1);
   if (!me || !above || !other) throw new Error("La liste devrait contenir le clan et ses voisins.");
-  await page.goto("/classement");
+  await page.goto("/rivaux");
   const block = page.getByTestId("clan-compare");
   await block.scrollIntoViewIfNeeded();
   // Sans attendre le script : les chiffres sont déjà dans la page.
-  const html = await (await page.request.get("/classement")).text();
+  const html = await (await page.request.get("/rivaux")).text();
   expect(html).toContain('data-testid="compare-table"');
   await hydrated(page);
 
@@ -284,7 +515,7 @@ test("dès deux relevés, le comparateur double sa courbe d'un tableau", async (
   await page.route("**/classement-scores.json", (route) =>
     route.fulfill({ json: { dates: ["2026-11-07", "2026-11-08"], scores: { [me.clanTag]: [100, 120], [above.clanTag]: [150, 110] } } }),
   );
-  await page.goto("/classement");
+  await page.goto("/rivaux");
   await hydrated(page);
   const table = page.getByTestId("compare-gap-table");
   await table.locator("summary").click();
@@ -307,7 +538,7 @@ test("un bouton de filtre actif reste lisible au survol", async ({ page }, testI
 
 test("sans le fichier des scores, le comparateur garde ses chiffres et le signale", async ({ page }) => {
   await page.route("**/classement-scores.json", (route) => route.fulfill({ status: 500, body: "panne" }));
-  await page.goto("/classement");
+  await page.goto("/rivaux");
   const block = page.getByTestId("clan-compare");
   await block.scrollIntoViewIfNeeded();
   await expect(block.getByRole("status").filter({ hasText: "n'a pas pu être chargée" })).toBeVisible();
@@ -451,7 +682,7 @@ test("le journal montre les dernières parties, avec leur replay et des filtres"
     await expect(page.locator(":focus")).toHaveAttribute("href", replayUrl(rows[shown]?.id ?? ""));
   }
   await expect(page.getByTestId("map-names-credit")).toBeVisible();
-  await expect(page.locator("footer").getByRole("link", { name: "Les dernières parties" })).toHaveAttribute("href", /\/parties$/);
+  await expect(page.locator("footer").getByRole("link", { name: "Dernières parties" })).toHaveAttribute("href", /\/parties$/);
   expect(apiCalls).toEqual([]);
 });
 
@@ -525,8 +756,8 @@ test("la gazette donne le bilan de la dernière semaine complète, et n'invente 
     await expect(arrivals).toContainText("Pas de données");
   }
 
-  // La navigation est pleine : on y arrive depuis l'accueil et le pied de page.
-  await expect(page.locator("footer").getByRole("link", { name: "La gazette du clan" })).toHaveAttribute("href", /\/gazette$/);
+  // On y arrive par le menu, l'accueil et le pied de page.
+  await expect(page.locator("footer").getByRole("link", { name: "La gazette", exact: true })).toHaveAttribute("href", /\/gazette$/);
   await page.goto("/");
   const home = page.getByTestId("home-gazette");
   await expect(home).toContainText(editionLead(latest, clan.tag));
@@ -634,6 +865,7 @@ for (const path of PAGES) {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto(path);
     await page.waitForLoadState("networkidle");
+    await openFolds(page);
     const { violations } = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
     expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target).join(" ; ")}`)).toEqual([]);
   });
@@ -644,9 +876,10 @@ for (const width of [360, 375, 768, 1024, 1280, 1920]) {
   test(`aucun défilement horizontal à ${width} px`, async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "desktop", "Largeurs testées une seule fois.");
     await page.setViewportSize({ width, height: 900 });
-    for (const path of [...PAGES, "/confidentialite"]) {
+    for (const path of [...PAGES, "/confidentialite", "/carte-monde/"]) {
       await page.goto(path);
       await page.waitForLoadState("networkidle");
+      await openFolds(page);
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
       expect(overflow, `${path} à ${width} px`).toBeLessThanOrEqual(0);
     }

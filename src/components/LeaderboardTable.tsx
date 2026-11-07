@@ -7,6 +7,76 @@ interface Props {
   tag: string;
 }
 
+/** Sur téléphone, les 105 clans faisaient plus de 20 écrans : les suivants restent dans la page, repliés. */
+const FIRST_ROWS = 25;
+
+function Rows({ clans, tag, share, caption }: { clans: RankedClan[]; tag: string; share: (score: number) => string; caption: string }) {
+  return (
+    <>
+      <div class="card mt-4 hidden overflow-hidden md:block">
+        <table class="data-table tnum w-full table-fixed text-sm">
+          <caption class="sr-only">{caption}</caption>
+          <colgroup>
+            <col class="w-16" />
+            <col class="w-28" />
+            <col />
+            <col class="w-24" />
+            <col class="w-24" />
+            <col class="w-24" />
+            <col class="w-20" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th scope="col">Rang</th>
+              <th scope="col">Clan</th>
+              <th scope="col" class="num">Score</th>
+              <th scope="col" class="num">Parties</th>
+              <th scope="col" class="num">Victoires</th>
+              <th scope="col" class="num">Défaites</th>
+              <th scope="col" class="num">Taux</th>
+            </tr>
+          </thead>
+          <tbody>
+            {clans.map((c) => (
+              <tr key={c.clanTag} class={c.clanTag === tag ? "row-highlight font-semibold" : ""} data-testid="leaderboard-row">
+                <td>{c.rank}</td>
+                <td class="font-display font-bold">[{c.clanTag}]</td>
+                <td class="num">
+                  <span class="score-bar" aria-hidden="true" style={{ width: share(c.weightedWins), "--i": Math.min(c.rank - 1, 24) }} />
+                  <span class="relative">{fmtScore(c.weightedWins)}</span>
+                </td>
+                <td class="num">{fmtInt(c.games)}</td>
+                <td class="num">{fmtInt(c.wins)}</td>
+                <td class="num">{fmtInt(c.losses)}</td>
+                <td class="num">{fmtPct(winRate(c.wins, c.games))}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <ol class="mt-4 space-y-2 md:hidden" aria-label={caption}>
+        {clans.map((c) => (
+          <li key={c.clanTag} class={`card tnum p-3 ${c.clanTag === tag ? "row-highlight" : ""}`} value={c.rank} data-testid="leaderboard-row">
+            <div class="flex items-baseline justify-between gap-3">
+              <p class="font-display text-lg font-bold">
+                <span class="mr-2 text-muted">{c.rank}</span>[{c.clanTag}]
+              </p>
+              <p class="font-semibold">{fmtScore(c.weightedWins)}</p>
+            </div>
+            <p class="mt-1 text-sm text-muted">
+              {fmtInt(c.games)} parties · {fmtInt(c.wins)} victoires · {fmtPct(winRate(c.wins, c.games))}
+            </p>
+            <div class="meter mt-2" aria-hidden="true">
+              <i style={{ "--v": share(c.weightedWins) }} />
+            </div>
+          </li>
+        ))}
+      </ol>
+    </>
+  );
+}
+
 export default function LeaderboardTable({ clans, tag }: Props) {
   const [query, setQuery] = useState("");
   const searchField = useRef<HTMLInputElement>(null);
@@ -17,6 +87,14 @@ export default function LeaderboardTable({ clans, tag }: Props) {
   const rows = useMemo(() => searchClans(clans, query), [clans, query]);
   const best = useMemo(() => Math.max(1, ...clans.map((c) => c.weightedWins)), [clans]);
   const share = (score: number) => `${Math.max(0, (score / best) * 100)}%`;
+  // Une recherche montre tout ce qu'elle trouve. Sinon, le clan reste toujours dans la première liste.
+  const searching = query.trim() !== "";
+  const [moreOpen, setMoreOpen] = useState(false);
+  useEffect(() => {
+    if (searching) setMoreOpen(false);
+  }, [searching]);
+  const first = searching ? rows : rows.filter((c, i) => i < FIRST_ROWS || c.clanTag === tag);
+  const rest = searching ? [] : rows.filter((c, i) => i >= FIRST_ROWS && c.clanTag !== tag);
 
   return (
     <div>
@@ -40,57 +118,13 @@ export default function LeaderboardTable({ clans, tag }: Props) {
         <p class="card mt-4 p-5 text-muted">Aucun clan ne correspond à « {query.trim()} » dans la liste officielle.</p>
       ) : (
         <>
-          <div class="card mt-4 hidden overflow-hidden md:block">
-            <table class="data-table tnum w-full text-sm">
-              <caption class="sr-only">Classement officiel des clans OpenFront</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Rang</th>
-                  <th scope="col">Clan</th>
-                  <th scope="col" class="num">Score</th>
-                  <th scope="col" class="num">Parties</th>
-                  <th scope="col" class="num">Victoires</th>
-                  <th scope="col" class="num">Défaites</th>
-                  <th scope="col" class="num">Taux</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((c) => (
-                  <tr key={c.clanTag} class={c.clanTag === tag ? "row-highlight font-semibold" : ""}>
-                    <td>{c.rank}</td>
-                    <td class="font-display font-bold">[{c.clanTag}]</td>
-                    <td class="num">
-                      <span class="score-bar" aria-hidden="true" style={{ width: share(c.weightedWins), "--i": Math.min(c.rank - 1, 24) }} />
-                      <span class="relative">{fmtScore(c.weightedWins)}</span>
-                    </td>
-                    <td class="num">{fmtInt(c.games)}</td>
-                    <td class="num">{fmtInt(c.wins)}</td>
-                    <td class="num">{fmtInt(c.losses)}</td>
-                    <td class="num">{fmtPct(winRate(c.wins, c.games))}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <ol class="mt-4 space-y-2 md:hidden" aria-label="Classement officiel des clans OpenFront">
-            {rows.map((c) => (
-              <li key={c.clanTag} class={`card tnum p-3 ${c.clanTag === tag ? "row-highlight" : ""}`} value={c.rank}>
-                <div class="flex items-baseline justify-between gap-3">
-                  <p class="font-display text-lg font-bold">
-                    <span class="mr-2 text-muted">{c.rank}</span>[{c.clanTag}]
-                  </p>
-                  <p class="font-semibold">{fmtScore(c.weightedWins)}</p>
-                </div>
-                <p class="mt-1 text-sm text-muted">
-                  {fmtInt(c.games)} parties · {fmtInt(c.wins)} victoires · {fmtPct(winRate(c.wins, c.games))}
-                </p>
-                <div class="meter mt-2" aria-hidden="true">
-                  <i style={{ "--v": share(c.weightedWins) }} />
-                </div>
-              </li>
-            ))}
-          </ol>
+          <Rows clans={first} tag={tag} share={share} caption="Classement officiel des clans OpenFront" />
+          {rest.length > 0 && (
+            <details class="mt-4" data-testid="leaderboard-more" onToggle={(e) => setMoreOpen(e.currentTarget.open)}>
+              <summary class="btn btn-ghost w-fit cursor-pointer list-none">{moreOpen ? "Masquer" : "Voir"} les {rest.length} autres clans</summary>
+              <Rows clans={rest} tag={tag} share={share} caption="Classement officiel, clans suivants" />
+            </details>
+          )}
         </>
       )}
     </div>

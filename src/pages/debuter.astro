@@ -2,50 +2,45 @@
 import { getCollection, render } from "astro:content";
 import Base from "../layouts/Base.astro";
 import PageHeader from "../components/PageHeader.astro";
-import BotCalculator from "../components/BotCalculator.tsx";
+import PageJumps from "../components/PageJumps.astro";
 import GrowthChart from "../components/GrowthChart.tsx";
 import { clan } from "../../config/clan";
-import { loadLinks } from "../lib/data";
 
 const entries = (await getCollection("guide")).sort((a, b) => a.data.order - b.data.order);
 const guides = await Promise.all(entries.map(async (entry) => ({ entry, Content: (await render(entry)).Content })));
 const chapterEntries = (await getCollection("guideClan")).sort((a, b) => a.data.order - b.data.order);
 const chapters = await Promise.all(chapterEntries.map(async (entry) => ({ entry, Content: (await render(entry)).Content })));
-const tools = loadLinks().tools;
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const jumps = [
   { href: "#guide-title", label: "Guide par mode" },
   { href: "#guide-clan-title", label: "Le guide du clan" },
-  { href: "#calculateur", label: "Calculateur" },
-  { href: "#outils-section", label: "Outils" },
 ];
 ---
 
-<Base title="Débuter" description="Stratégies par mode, guide du clan sur le combat et l'économie, calculateur de troupes contre un bot et outils communautaires.">
+<Base title="Guides" description="Pour débuter ou progresser sur OpenFront : stratégies par mode et guide du clan sur le combat et l'économie.">
   <div class="wrap">
-    <PageHeader title="Débuter" intro="Les stratégies par mode, le guide du clan sur le combat et l'économie, un repère pour attaquer les bots et les outils de la communauté.">
-      <nav class="mt-6 flex flex-wrap gap-2" aria-label="Sur cette page">
-        {jumps.map((jump) => <a class="chip inline-flex items-center" href={jump.href}>{jump.label}</a>)}
-      </nav>
+    <PageHeader title="Les guides" intro="Pour débuter ou progresser : les stratégies par mode et le guide du clan sur le combat et l'économie. Ouvrez ce qui vous intéresse.">
+      <PageJumps links={jumps} />
     </PageHeader>
 
     <section aria-labelledby="guide-title">
       <h2 id="guide-title" class="section-title scroll-mt-24">Guide par mode</h2>
-      <div class="mt-4 grid gap-3 md:grid-cols-2">
+      <div class="mt-4 space-y-3">
         {
           guides.map(({ entry, Content }) => (
-            <article class:list={["card scroll-mt-24 p-5", { "md:col-span-2": entry.data.wide }]} id={`guide-${entry.id}`} data-testid="guide-card" data-tilt="0">
-              <h3 class="text-xl">{entry.data.title}</h3>
+            <details class="card guide-fold scroll-mt-24 p-5" id={`guide-${entry.id}`} data-testid="guide-card" data-tilt="0">
+              <summary><h3 class="text-xl">{entry.data.title}</h3></summary>
               {entry.data.draft ? (
                 <p class="mt-2 text-sm text-muted">
                   Ce guide reste à rédiger par le clan.{" "}
                   <a href={clan.links.discord} rel="noopener">En attendant, posez vos questions sur le Discord.</a>
                 </p>
               ) : (
-                <div class:list={["guide-body mt-2 text-muted", { "guide-columns": entry.data.wide }]}>
+                <div class:list={["guide-body mt-2 text-muted", entry.data.wide ? "guide-columns" : "max-w-3xl"]}>
                   <Content />
                 </div>
               )}
-            </article>
+            </details>
           ))
         }
       </div>
@@ -66,16 +61,16 @@ const jumps = [
           {chapters.map(({ entry }) => <li><a href={`#chapitre-${entry.id}`}>{entry.data.title}</a></li>)}
         </ol>
       </nav>
-      <div class="mt-3 grid gap-3 md:grid-cols-2">
+      <div class="mt-3 space-y-3">
         {
           chapters.map(({ entry, Content }) => (
-            <article class:list={["card scroll-mt-24 p-5", { "md:col-span-2": entry.data.wide }]} id={`chapitre-${entry.id}`} data-testid="guide-chapter" data-tilt="0">
-              <h3 class="text-xl"><span class="tnum">{entry.data.order}.</span> {entry.data.title}</h3>
-              <div class:list={["guide-body mt-3 text-muted", { "guide-columns": entry.data.wide }]}>
+            <details class="card guide-fold scroll-mt-24 p-5" id={`chapitre-${entry.id}`} data-testid="guide-chapter" data-tilt="0">
+              <summary><h3 class="text-xl"><span class="tnum">{entry.data.order}.</span> {entry.data.title}</h3></summary>
+              <div class:list={["guide-body mt-3 text-muted", entry.data.wide ? "guide-columns" : "max-w-3xl"]}>
                 {entry.data.growthChart && <GrowthChart client:load />}
                 <Content />
               </div>
-            </article>
+            </details>
           ))
         }
       </div>
@@ -84,33 +79,23 @@ const jumps = [
       </p>
     </section>
 
-    <section class="mt-12 scroll-mt-24" aria-labelledby="calc-title" id="calculateur">
-      <h2 id="calc-title" class="section-title">Troupes à envoyer contre un bot</h2>
-      <p class="mb-4 mt-2 max-w-3xl text-muted">
-        Un repère calculé à partir des règles du jeu. Ce qui pèse le plus est la taille du bot, plus que ses troupes.
-      </p>
-      <BotCalculator client:load />
-    </section>
-
-    <section class="mt-12 scroll-mt-24" aria-labelledby="outils" id="outils-section">
-      <h2 id="outils" class="section-title">Outils communautaires</h2>
-      {
-        tools.length === 0 ? (
-          <p class="card mt-4 p-5 text-muted">Aucun outil répertorié pour le moment.</p>
-        ) : (
-          <ul class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {tools.map((t) => (
-              <li>
-                <a href={t.url} rel="noopener" class="card block h-full p-5 hover:border-white" data-tilt="4">
-                  <span class="font-display font-bold">{t.name}</span>
-                  <span class="mt-1 block text-sm text-muted">{t.description}</span>
-                </a>
-              </li>
-            ))}
-          </ul>
-        )
-      }
-      <p class="mt-3 text-xs text-muted">Sites tiers, indépendants du clan.</p>
-    </section>
+    <p class="mt-10 text-muted">Pour attaquer un bot, <a href={`${base}/outils`}>le calculateur de troupes et les outils de la communauté</a> ont leur page.</p>
   </div>
 </Base>
+
+<script>
+  // Le calculateur et les outils ont changé de page : les anciens liens y mènent encore.
+  if (["#calculateur", "#outils-section", "#outils"].includes(location.hash)) {
+    location.replace(`${import.meta.env.BASE_URL.replace(/\/$/, "")}/outils${location.hash}`);
+  }
+  // Un lien du sommaire ouvre le chapitre visé, même déjà visité. Sans script, le chapitre s'ouvre d'un clic.
+  function openChapter(hash: string): void {
+    const target = hash ? document.getElementById(decodeURIComponent(hash.slice(1))) : null;
+    if (target instanceof HTMLDetailsElement) target.open = true;
+  }
+  addEventListener("hashchange", () => openChapter(location.hash));
+  openChapter(location.hash);
+  for (const link of document.querySelectorAll<HTMLAnchorElement>('main a[href^="#"]')) {
+    link.addEventListener("click", () => openChapter(link.hash));
+  }
+</script>

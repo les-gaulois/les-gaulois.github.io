@@ -2,8 +2,7 @@ import { useEffect, useState } from "preact/hooks";
 import { fetchLiveNews, mergeAnnouncements, mergeEvents, type LiveNews, type NewsItem, type StaticAnnouncement, type StaticEvent } from "../lib/compte/news";
 import { fmtDate, fmtDateTime } from "../lib/format";
 
-function Items({ items, empty, date, testId }: { items: NewsItem[]; empty: string; date: (iso: string) => string; testId: string }) {
-  if (items.length === 0) return <p class="card mt-4 p-5 text-muted">{empty}</p>;
+function Items({ items, date, testId }: { items: NewsItem[]; date: (iso: string) => string; testId: string }) {
   return (
     <ul class="mt-4 space-y-3" data-testid={testId}>
       {items.map((item) => (
@@ -36,16 +35,25 @@ export default function NewsBoard({ announcements, events, now, live = false }: 
     });
   }, [live]);
 
+  const allAnnouncements = mergeAnnouncements(announcements, news.announcements);
+  const allEvents = mergeEvents(events, news.events, now);
+  // Sans annonce ni événement, le bloc n'existe pas : un visiteur n'a rien à y lire.
+  if (allAnnouncements.length === 0 && allEvents.length === 0) return null;
   return (
-    <>
-      <div>
-        <h2 class="text-2xl">Annonces</h2>
-        <Items items={mergeAnnouncements(announcements, news.announcements)} empty="Aucune annonce pour le moment." date={fmtDate} testId="news-announcements" />
-      </div>
-      <div>
-        <h2 class="text-2xl">Événements à venir</h2>
-        <Items items={mergeEvents(events, news.events, now)} empty="Aucun événement prévu pour le moment." date={fmtDateTime} testId="news-events" />
-      </div>
-    </>
+    <section class="grid gap-6 md:grid-cols-2" aria-label="Annonces et événements" data-testid="news-board">
+      {allAnnouncements.length > 0 && (
+        <div>
+          <h2 class="text-2xl">Annonces</h2>
+          <Items items={allAnnouncements} date={fmtDate} testId="news-announcements" />
+        </div>
+      )}
+      {allEvents.length > 0 && (
+        <div>
+          <h2 class="text-2xl">Événements à venir</h2>
+          <Items items={allEvents} date={fmtDateTime} testId="news-events" />
+        </div>
+      )}
+    </section>
   );
 }
+

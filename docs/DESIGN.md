@@ -6,6 +6,19 @@ Un univers de jeu sombre plutôt qu'une simple page de statistiques. Le guerrier
 
 Cette approche s'inspire de la façon dont les grands sites de la culture gaming construisent leurs pages : environnement immersif, titres massifs, un seul bouton fort, profondeur par la couleur. Elle ne reprend ni la marque, ni la couleur, ni les polices propriétaires, ni les visuels d'un autre site. L'identité reste celle du clan : bleu, blanc, rouge et son guerrier gaulois. Aucune référence à des personnages ou visuels protégés.
 
+## Organisation du site
+
+Le visiteur doit savoir où chercher, et avoir une raison de revenir. Le plan est dans `src/lib/nav.ts`, et le README en donne le tableau.
+
+- **Sept rubriques au plus dans le menu, six aujourd'hui.** Une rubrique répond à une question : que s'est-il passé, où en est-on, qui sommes-nous, la carte, comment jouer, comment entrer. Son nom ne doit pas se confondre avec un autre : « Guides » plutôt que « Jouer », à cause du bouton « Jouer à OpenFront ».
+- **Des onglets dans chaque rubrique.** `SectionNav.astro` les place en haut de page : on passe d'une page à l'autre sans repasser par le menu.
+- **Un contenu, une page.** L'accueil résume et renvoie ; il ne recopie pas un bloc entier. Une autre page peut citer un chiffre, en renvoyant à sa page.
+- **Le chiffre d'abord, l'explication à la demande.** Les précisions de méthode sont dans `ReadingNote.astro`, repliées mais dans le HTML. Ce qui doit rester visible ne s'y met jamais : mentions de licence, couverture de la lecture, pannes et suspensions, et ce qui change la lecture d'un chiffre, comme sa période, le périmètre des parties ou la réserve sur un taux.
+- **Une page courte.** Une longue liste montre ses premières lignes et garde le reste à portée : 25 clans au classement, 25 parties dans le journal, les chapitres du guide en sommaire qui s'ouvre.
+- **Un bloc vide n'existe pas.** Sans annonce ni événement, l'accueil n'affiche pas de bloc vide. Pour une donnée attendue, « Pas de données » reste la règle.
+- **Une raison de revenir.** L'accueil dit ce qui a changé depuis la dernière visite, retient son pseudo si on le demande, et donne l'objectif du moment sur la carte et le prochain bilan. Tout reste dans le navigateur du visiteur.
+- **Pas de fondu entre les pages.** Essayé le 7 novembre 2026 avec `@view-transition` : il provoquait des erreurs intermittentes vers la page Carte. Les pages sont statiques, et leur changement est déjà rapide.
+
 ## Couleurs
 
 Les jetons sont définis dans `src/styles/global.css`.
@@ -32,11 +45,11 @@ Les grandes sections sont des blocs `.stage` à coins de 24 px. La profondeur vi
 | Classe | Décor | Usage sur l'accueil |
 |---|---|---|
 | `.stage-blue` | Bleu royal | Classement officiel |
-| `.stage-indigo` | Indigo | Parties des 14 derniers jours, jeu en groupe |
-| `.stage-night` | Nuit, avec bordure | Carte des clans, membres, appel à rejoindre |
-| `.stage-wine` | Lie-de-vin | Meilleurs créneaux |
+| `.stage-indigo` | Indigo | Parties des 14 derniers jours et dernières parties |
+| `.stage-night` | Nuit, avec bordure | Gazette, Ma place, carte des clans, appel à rejoindre |
+| `.stage-wine` | Lie-de-vin | Quand jouer |
 
-Une scène associe un texte et un panneau `.panel`, à la manière d'un écran de l'application. **Ces panneaux n'affichent que des données collectées :** graphique des parties, encadrement réel du clan, créneaux réels. Aucune maquette ni valeur fictive.
+Une scène associe un texte et un panneau `.panel`, à la manière d'un écran de l'application. **Ces panneaux n'affichent que des données collectées :** graphique des parties, créneaux réels. Aucune maquette ni valeur fictive.
 
 ## Typographie
 
@@ -73,10 +86,10 @@ Le build en tire des versions légères dans `public/generated/`, et le site n'a
 - **Rang, score et membres :** trois graphiques distincts, jamais de double axe. Le rang a l'axe inversé. Chacun a sa propre échelle, ce que la page écrit, et un tableau donne les valeurs exactes.
 - **Heatmap :** une seule teinte, du sombre au clair, avec le nombre écrit dans chaque case. C'est un vrai tableau HTML. En dessous de 1 024 px, il pivote en une ligne par heure pour tenir sans défilement horizontal.
 - **Période en cours :** barre plus pâle.
-- **Comparateur de clans (page Classement) :** un vrai tableau à trois colonnes, sans jauge ni couleur par gagnant : le site ne dit pas lequel des deux est meilleur. L'écart est écrit en toutes lettres, annoncé aux lecteurs d'écran, et doublé d'un tableau repliable dès le deuxième relevé.
+- **Comparateur de clans (page Nos rivaux) :** un vrai tableau à trois colonnes, sans jauge ni couleur par gagnant : le site ne dit pas lequel des deux est meilleur. L'écart est écrit en toutes lettres, annoncé aux lecteurs d'écran, et doublé d'un tableau repliable dès le deuxième relevé.
 - **Paliers (page Membres et fiches) :** du texte et des noms, sans classement de jauges. Sur une fiche, la jauge va du palier atteint au suivant, et sa valeur est écrite juste au-dessus. Au-delà de 12 pseudos, un palier se replie : tout reste dans le HTML et s'ouvre sans JavaScript.
 - **Dernières parties :** un vrai tableau à partir de 1 024 px, des cartes en dessous. Les 25 premières lignes sont dans le HTML. Le résultat est écrit en toutes lettres : la pastille bleue ou orange ne porte jamais seule l'information.
-- **Croissance des troupes (page Débuter) :** une seule courbe calculée, en bleu `#4C86F5`, avec la zone de 35 à 42 % en surbrillance. Le survol lit une valeur, et un tableau repliable donne les mêmes chiffres sans survol.
+- **Croissance des troupes (page Guides) :** une seule courbe calculée, en bleu `#4C86F5`, avec la zone de 35 à 42 % en surbrillance. Le survol lit une valeur, et un tableau repliable donne les mêmes chiffres sans survol.
 
 ## Mouvement et interactions
 
@@ -140,14 +153,12 @@ Sous le film, la page transforme les données publiques en objectif concret. **A
 | Votre don sur la carte | Capsules, troupes, pixels, rang obtenu, seul ou avec tous les membres | Calcul, marqué comme simulation |
 | Simulation sur la carte | Le territoire s'étend depuis sa frontière sur les terres neutres. La vue recule quand il grandit. | Illustration : le chef et les officiers choisissent où peindre |
 | Comment participer | Don, jeu sous le tag, peinture, avec l'avertissement sur les dons définitifs | Code du jeu, à relire par un membre |
-| Ma place dans le clan | Un membre tape son pseudo : sa place, le prochain joueur à dépasser et celui qui le suit | `stats.team`, comme la page Membres |
 | Plus gros donateurs | Recopiés par le clan s'il choisit de les publier. Sinon, un renvoi vers le jeu. | `content/carte-heros.json` |
-| Le plus de victoires sous le tag | Les 3 premiers | `stats.team` |
-| Peuvent peindre pour GAL | Le chef et les officiers, sans classement | Rôles de la liste des membres |
+| Peuvent peindre pour GAL | Le chef et les officiers, avec un renvoi vers l'encadrement de la page Membres, et vers Ma place sur l'accueil | Rôles de la liste des membres |
 | Grandes journées, jour après jour | Le plus fort gain et le plus fort recul d'une journée terminée, puis chaque journée en tableau. Un clic rejoue la journée et s'arrête à sa fin. Sans mouvement : directement la carte de la fin du jour. | Historique daté, jours de Paris |
 | Explorer nos territoires, fronts | Un clic cadre la carte sur une zone ou un front, et met le clan adverse en évidence | Carte complète, rejouée |
 
-Le calculateur est dans `src/scripts/conquest.ts`, et ses règles dans `src/lib/clanmap/economy.ts`. Pour garder la page courte, les explications, les chiffres détaillés, le tableau jour après jour et les fronts sont repliés. Tout reste dans le HTML et s'ouvre sans JavaScript.
+Ma place, sur l'accueil, donne le rang d'un membre, le prochain joueur à dépasser et son prochain palier : `stats.team`, comme la page Membres. Le calculateur est dans `src/scripts/conquest.ts`, et ses règles dans `src/lib/clanmap/economy.ts`. Pour garder la page courte, les explications, les chiffres détaillés, le tableau jour après jour et les fronts sont repliés. Tout reste dans le HTML et s'ouvre sans JavaScript.
 
 **Le clic droit garde son menu habituel** sur les liens, les boutons, les champs, les images autres que le logo et le texte sélectionné. Maj + clic droit l'ouvre partout.
 

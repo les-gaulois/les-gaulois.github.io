@@ -1,6 +1,7 @@
 ---
 import DataStatus from "./DataStatus.astro";
 import GamesCoverage from "./GamesCoverage.astro";
+import ReadingNote from "./ReadingNote.astro";
 import { clan } from "../../config/clan";
 import { loadGames, loadLeaderboard, loadMeta, loadSessions } from "../lib/data";
 import { fmtCount, fmtDate, fmtInt, fmtPct } from "../lib/format";
@@ -20,7 +21,7 @@ const start = fmtDate(`${clan.archiveStart}T12:00:00Z`);
 {
   show && (
     <section class="stage stage-indigo reveal mt-8" aria-labelledby="face-offs-title" data-testid="face-offs">
-      <h2 id="face-offs-title" class="section-title">Face-à-face avec les autres clans</h2>
+      <h2 id="face-offs-title" class="section-title scroll-mt-24">Face-à-face avec les autres clans</h2>
       <p class="mt-4 max-w-3xl text-lg text-muted">
         Les parties publiques en équipe, hors classé, où [{clan.tag}] et un autre clan de la liste officielle avaient chacun au moins {MIN_CLAN_PLAYERS} joueurs, dans des équipes différentes. Un clan n'est pas seul dans son équipe, et dans une partie à plusieurs équipes, c'est souvent une troisième qui gagne.
       </p>
@@ -75,9 +76,12 @@ const start = fmtDate(`${clan.archiveStart}T12:00:00Z`);
       {
         result && (
           <>
-            <p class="mt-4 max-w-3xl text-sm text-muted">
-              Sur {RESULTS_DAYS} jours, du {fmtDate(`${result.from}T12:00:00Z`)} au {fmtDate(`${result.to}T12:00:00Z`)}. Un clan rencontré moins de {FACE_OFF_MIN_MEETINGS} fois sur cette période n'est pas affiché, et la liste s'arrête aux {FACE_OFF_MAX_ROWS} clans les plus rencontrés. L'API ne donne pas toujours l'équipe des perdants : le site la retrouve alors avec la règle du jeu, qui place tout un clan dans une seule équipe, le plus gros clan d'abord, dans l'équipe la moins remplie. Une partie est écartée si ce calcul ne concorde pas avec les résultats officiels : {fmtInt(result.doubtful)} sur {fmtCount(result.considered, "partie")} du clan à {MIN_CLAN_PLAYERS} joueurs ou plus.
+            <p class="tnum mt-4 max-w-3xl text-sm text-muted" data-testid="face-off-period">Sur {RESULTS_DAYS} jours, du {fmtDate(`${result.from}T12:00:00Z`)} au {fmtDate(`${result.to}T12:00:00Z`)}.{result.coverage.read < result.coverage.total && " Seules les parties dont le détail est lu comptent : voir ci-dessous."}</p>
+            <ReadingNote>
+              <p>
+              Un clan rencontré moins de {FACE_OFF_MIN_MEETINGS} fois sur cette période n'est pas affiché, et la liste s'arrête aux {FACE_OFF_MAX_ROWS} clans les plus rencontrés. L'API ne donne pas toujours l'équipe des perdants : le site la retrouve alors avec la règle du jeu, qui place tout un clan dans une seule équipe, le plus gros clan d'abord, dans l'équipe la moins remplie. Une partie est écartée si ce calcul ne concorde pas avec les résultats officiels : {fmtInt(result.doubtful)} sur {fmtCount(result.considered, "partie")} du clan à {MIN_CLAN_PLAYERS} joueurs ou plus.
             </p>
+            </ReadingNote>
             <GamesCoverage state={result} />
           </>
         )

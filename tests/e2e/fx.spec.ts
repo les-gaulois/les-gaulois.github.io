@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-const PAGES = ["/", "/classement", "/progression", "/membres", "/activite", "/carte", "/debuter", "/rejoindre", "/gazette", "/parties"];
+const PAGES = ["/", "/gazette", "/parties", "/classement", "/rivaux", "/progression", "/records", "/membres", "/carte", "/activite", "/debuter", "/outils", "/rejoindre"];
 
 /** Couleur franche de la case sous un point. Les vagues ambiantes, plus pâles, ne comptent pas. */
 const tileAt = (page: Page, x: number, y: number) =>
@@ -375,11 +375,12 @@ test.describe("à la souris", () => {
     await page.goto("/classement");
     const first = page.locator("tbody tr .score-bar").first();
     await expect(first).toHaveAttribute("style", /width:\s*100%/);
+    await page.goto("/rivaux");
     await expect(page.getByTestId("score-lanes").locator("li")).toHaveCount(3);
   });
 
   test("le calculateur rejoue l'attaque et le rejeu reste cohérent", async ({ page }) => {
-    await page.goto("/debuter");
+    await page.goto("/outils");
     await hydrated(page);
     const replay = page.getByTestId("attack-replay");
     await centerOnScreen(replay);
@@ -442,7 +443,7 @@ test.describe("à la souris", () => {
     await expect(page.locator(".fx-hidden")).toHaveCount(0);
     await expect(page.locator("[data-testid=heatmap] td[title]").first()).toBeAttached();
 
-    await page.goto("/debuter");
+    await page.goto("/outils");
     const troops = page.getByTestId("replay-troops");
     await expect(troops).not.toBeEmpty();
     const frozen = await troops.textContent();
@@ -522,7 +523,7 @@ test("avec « réduire les animations », aucun effet n'est lancé", async ({ pa
   expect(await menuPrevented(page)).toBe(false);
   await expect(page.locator("[data-fx-hint]")).toBeHidden();
 
-  await page.goto("/debuter");
+  await page.goto("/outils");
   await expect(page.getByTestId("replay-troops")).not.toBeEmpty();
 });
 

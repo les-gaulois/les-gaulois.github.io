@@ -1,66 +1,95 @@
 ---
 import Base from "../layouts/Base.astro";
 import DataStatus from "../components/DataStatus.astro";
-import GroupPlay from "../components/GroupPlay.astro";
+import MapNamesCredit from "../components/MapNamesCredit.astro";
+import MyPlace from "../components/MyPlace.tsx";
 import NewsBoard from "../components/NewsBoard";
+import SinceLastVisit from "../components/SinceLastVisit.tsx";
 import { AUTH_ENABLED } from "../lib/compte/api";
 import { clan } from "../../config/clan";
 import { brandFile } from "../lib/brand";
-import { loadAnnouncements, loadClanMapFilm, loadTerritoryReadings, loadEvents, loadHistory, loadLeaderboard, loadMembers, loadMemberWeeks, loadMeta, loadSessions } from "../lib/data";
-import { fmtDate, fmtDateTime, fmtDay, fmtDec1, fmtInt, fmtPct, fmtScore } from "../lib/format";
+import { objectiveFor } from "../lib/clanmap/economy";
+import { loadAnnouncements, loadClanMapFilm, loadEvents, loadGames, loadHistory, loadLeaderboard, loadMembers, loadMemberWeeks, loadMeta, loadSessions, loadTerritoryReadings } from "../lib/data";
+import { fmtDate, fmtDateTime, fmtDay, fmtDayAndTime, fmtDec1, fmtInt, fmtPct, fmtRank, fmtScore } from "../lib/format";
 import { MAX_AGE_HOURS } from "../lib/freshness";
 import { editionLead, gazetteEditions, weekLabel } from "../lib/gazette";
-import { bestSlots, buildHeatmap, dailySeries } from "../lib/sessions";
-import { findClan, winRate, withOfficialRanks } from "../lib/stats";
-import { WEEKDAYS_FR } from "../lib/time";
+import { clanJournal } from "../lib/journal";
+import { mapLabel } from "../lib/map-names";
+import { bestSlots, buildHeatmap, dailySeries, slotsOfDay } from "../lib/sessions";
+import { findClan, neighbours, winRate, withOfficialRanks } from "../lib/stats";
+import { parisParts, WEEKDAYS_FR } from "../lib/time";
+import type { VisitSnapshot } from "../lib/visite";
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const meta = loadMeta();
 const leaderboard = loadLeaderboard();
-const me = leaderboard ? findClan(withOfficialRanks(leaderboard.clans), clan.tag) : null;
+const clans = leaderboard ? withOfficialRanks(leaderboard.clans) : [];
+const me = findClan(clans, clan.tag);
+const near = neighbours(clans, clan.tag);
 const rate = me ? winRate(me.wins, me.games) : null;
 const hasLogo = brandFile("vertical") !== null;
 const hasBanner = brandFile("banner") !== null;
 const announcements = loadAnnouncements();
-const now = new Date().toISOString();
-const events = loadEvents().filter((e) => e.start >= now);
+const now = new Date();
+const events = loadEvents().filter((e) => e.start >= now.toISOString());
 
 const cards = [
-  { label: "Rang", value: me ? `${me.rank}${me.rank === 1 ? "er" : "e"}` : null, hint: `sur ${leaderboard?.clans.length ?? "—"} clans listés` },
+  { label: "Rang", value: me ? fmtRank(me.rank) : null, hint: `sur ${leaderboard?.clans.length ?? "—"} clans listés` },
   { label: "Score", value: me ? fmtScore(me.weightedWins) : null, count: me?.weightedWins, decimals: 2, hint: "victoires pondérées" },
   { label: "Parties", value: me ? fmtInt(me.games) : null, count: me?.games, hint: "sur 90 jours" },
   { label: "Victoires", value: me ? fmtInt(me.wins) : null, count: me?.wins, hint: "sur 90 jours" },
   { label: "Taux de victoire", value: rate === null ? null : fmtPct(rate), hint: "victoires ÷ parties" },
 ];
 
-// Aperçus des autres pages : uniquement des données collectées.
+// Chaque bloc résume une page et y renvoie : uniquement des données collectées.
 const sessions = loadSessions();
+const games = loadGames();
+const members = loadMembers();
+const film = loadClanMapFilm();
+const onMap = film?.galSummary ?? null;
+const objective = objectiveFor(film?.standings ?? [], clan.tag);
+const gazette = gazetteEditions({ sessions, history: loadHistory(), territory: loadTerritoryReadings(), weekTops: loadMemberWeeks().tops, members, archiveStart: clan.archiveStart, completeThrough: meta.sessions.completeThrough })[0] ?? null;
+
 const recent = dailySeries(sessions, clan.archiveStart, meta.sessions.coveredUntil).slice(-14);
 const recentMax = Math.max(1, ...recent.map((d) => d.games));
 const recentGames = recent.reduce((n, d) => n + d.games, 0);
 const recentWins = recent.reduce((n, d) => n + d.wins, 0);
-const slots = bestSlots(buildHeatmap(sessions, meta.sessions.coveredUntil), 3);
-const members = loadMembers();
-const roleLabel = { leader: "Chef", officer: "Officier", member: "Membre" } as const;
-const command = (members?.members ?? []).filter((m) => m.role !== "member");
-const anonymous = (members?.members ?? []).filter((m) => !m.username).length;
-const mapFilm = loadClanMapFilm();
-const onMap = mapFilm?.galSummary ?? null;
-const gazette = gazetteEditions({ sessions, history: loadHistory(), territory: loadTerritoryReadings(), weekTops: loadMemberWeeks().tops, members, archiveStart: clan.archiveStart, completeThrough: meta.sessions.completeThrough })[0] ?? null;
+const { rows: journal } = clanJournal({ sessions, games, coveredUntil: meta.sessions.coveredUntil, tag: clan.tag, officialTags: clans.map((c) => c.clanTag) });
+const lastGames = journal.slice(0, 5);
+
+const heat = buildHeatmap(sessions, meta.sessions.coveredUntil);
+const weekday = parisParts(now).weekday;
+const todaySlots = slotsOfDay(heat, weekday, 3);
+const slots = todaySlots.length > 0 ? todaySlots : bestSlots(heat, 3);
+const dayName = (WEEKDAYS_FR[weekday] ?? "").toLowerCase();
+
+const snapshot: VisitSnapshot | null = meta.lastRunAt
+  ? {
+      at: meta.lastRunAt,
+      rank: me?.rank ?? null,
+      score: me?.weightedWins ?? null,
+      games: sessions.length,
+      wins: sessions.filter((s) => s.hasWon).length,
+      pixels: onMap?.pixels ?? null,
+      mapRank: onMap?.rank ?? null,
+      members: members?.total ?? null,
+      gazette: gazette?.from ?? null,
+    }
+  : null;
 ---
 
 <Base>
   <section class="relative overflow-hidden">
-    <div class="wrap relative grid items-center gap-6 pb-14 pt-8 md:grid-cols-2 md:gap-10 md:pb-24 md:pt-16">
+    <div class="wrap relative grid items-center gap-6 pb-8 pt-6 md:grid-cols-[3fr_2fr] md:gap-10 md:pb-10 md:pt-10">
       <div class="reveal order-2 md:order-1">
         <span class="tribar mb-6"></span>
-        <h1 class="text-[2.75rem] !leading-[0.95] sm:text-6xl md:text-5xl lg:text-7xl">{clan.tagline}</h1>
-        {clan.description && <p class="mt-6 max-w-md text-lg text-muted">{clan.description}</p>}
-        <div class="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+        <h1 class="text-[2.75rem] !leading-[0.95] sm:text-6xl md:text-5xl lg:text-6xl">{clan.tagline}</h1>
+        {clan.description && <p class="mt-5 max-w-md text-lg text-muted">{clan.description}</p>}
+        <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <a href={clan.links.discord} class="btn btn-lg btn-primary" rel="noopener">Rejoindre le Discord</a>
           <a href={clan.links.openfront} class="btn btn-lg btn-secondary" rel="noopener">Jouer à OpenFront</a>
         </div>
-        <p class="mt-5 text-sm text-muted" data-fx-hint hidden>
+        <p class="mt-4 text-sm text-muted" data-fx-hint hidden>
           Bougez la souris et cliquez sur le fond : clic gauche pour une vague bleue, clic droit pour une vague rouge.
         </p>
       </div>
@@ -68,7 +97,7 @@ const gazette = gazetteEditions({ sessions, history: loadHistory(), territory: l
         <div class="hero-glow" aria-hidden="true"></div>
         {
           hasLogo ? (
-            <div class="float relative w-56 sm:w-72 md:w-full md:max-w-lg">
+            <div class="float relative w-36 sm:w-56 md:w-full md:max-w-sm">
               <img
                 src={`${base}/generated/logo-vertical-720.webp`}
                 width="720"
@@ -90,10 +119,20 @@ const gazette = gazetteEditions({ sessions, history: loadHistory(), territory: l
     </div>
   </section>
 
-  <div class="wrap space-y-6 md:space-y-8">
+  <div class="wrap grid grid-cols-1 gap-6">
+    {snapshot && <SinceLastVisit client:load snapshot={snapshot} gazetteHref={`${base}/gazette`} />}
+
+    {
+      AUTH_ENABLED ? (
+        <NewsBoard client:idle announcements={announcements} events={events} now={Date.now()} live />
+      ) : (
+        <NewsBoard announcements={announcements} events={events} now={Date.now()} />
+      )
+    }
+
     <section class="stage stage-blue reveal" aria-labelledby="stats-title">
-      <h2 id="stats-title" class="section-title">Le clan au classement officiel</h2>
-      <div class="mt-8 grid grid-cols-2 gap-x-6 gap-y-8 md:grid-cols-3 lg:grid-cols-5">
+      <h2 id="stats-title" class="section-title section-title-sm">Le clan au classement officiel</h2>
+      <div class="mt-6 grid grid-cols-2 gap-x-6 gap-y-6 md:grid-cols-3 lg:grid-cols-5">
         {
           cards.map((c) => (
             <div data-testid="stat-card">
@@ -124,7 +163,19 @@ const gazette = gazetteEditions({ sessions, history: loadHistory(), territory: l
           </p>
         )
       }
-      <div class="mt-8">
+      {
+        me && near && (near.above || near.below) && (
+          <ul class="tnum mt-6 flex flex-wrap gap-x-8 gap-y-1 font-semibold" data-testid="home-race">
+            {near.above && <li>{fmtScore(near.above.gap)} de retard sur [{near.above.clan.clanTag}], {fmtRank(near.above.clan.rank)}</li>}
+            {near.below && <li>{fmtScore(near.below.gap)} d'avance sur [{near.below.clan.clanTag}], {fmtRank(near.below.clan.rank)}</li>}
+          </ul>
+        )
+      }
+      <div class="mt-6 flex flex-wrap gap-3">
+        <a href={`${base}/classement`} class="btn btn-secondary">Voir le classement complet</a>
+        {me && near && <a href={`${base}/rivaux`} class="btn btn-ghost" data-testid="home-rivals">Voir nos rivaux</a>}
+      </div>
+      <div class="mt-6">
         <DataStatus state={meta.leaderboard} maxAgeHours={MAX_AGE_HOURS.leaderboard} asOf={leaderboard?.end} asOfLabel="Classement arrêté au" />
         {
           leaderboard && (
@@ -134,17 +185,46 @@ const gazette = gazetteEditions({ sessions, history: loadHistory(), territory: l
           )
         }
       </div>
-      <a href={`${base}/classement`} class="btn btn-secondary mt-6">Voir le classement complet</a>
     </section>
 
+    <div class="grid gap-6 lg:grid-cols-2">
+      {
+        gazette && (
+          <section class="stage stage-night reveal flex flex-col" aria-labelledby="gazette-title" data-testid="home-gazette">
+            <h2 id="gazette-title" class="section-title section-title-sm">La gazette du clan</h2>
+            <p class="mt-4 text-sm font-semibold text-muted">Semaine {weekLabel(gazette)}</p>
+            <p class="mt-1 text-lg text-muted">{editionLead(gazette, clan.tag)}</p>
+            <p class="mt-3 text-sm text-muted">Une nouvelle édition paraît chaque lundi.</p>
+            <a href={`${base}/gazette`} class="btn btn-ghost mt-6 self-start">Lire la gazette</a>
+          </section>
+        )
+      }
+
+      <section class="stage stage-night reveal scroll-mt-24" id="ma-place" aria-labelledby="place-title" data-testid="my-place">
+        <h2 id="place-title" class="section-title section-title-sm">Ma place dans le clan</h2>
+        <p class="mt-3 text-muted">Votre rang aux victoires sous le tag, votre palier et le prochain joueur à dépasser.</p>
+        <div class="mt-4">
+          <MyPlace client:idle src={`${base}/data/members.json`} />
+        </div>
+        <noscript><p class="mt-3 text-sm text-muted">JavaScript est nécessaire pour chercher un pseudo. La liste complète reste sur la page <a href={`${base}/membres`}>Membres</a>.</p></noscript>
+      </section>
+    </div>
+
     {
-      mapFilm && onMap && onMap.pixels > 0 && (
+      film && onMap && onMap.pixels > 0 && (
         <section class="stage stage-night reveal grid items-center gap-8 md:grid-cols-2" aria-labelledby="map-title">
           <div>
-            <h2 id="map-title" class="section-title">{fmtInt(onMap.pixels)} pixels sur la carte</h2>
+            <h2 id="map-title" class="section-title section-title-sm">{fmtInt(onMap.pixels)} pixels sur la carte</h2>
             <p class="mt-4 max-w-md text-lg text-muted">
-              Le territoire peint par le clan sur la carte officielle d'OpenFront{onMap.rank !== null && `, ${onMap.rank}${onMap.rank === 1 ? "er" : "e"} au ${fmtDate(mapFilm.fetchedAt)}`}. Ce n'est pas le classement des clans.
+              Le territoire peint par le clan sur la carte officielle d'OpenFront{onMap.rank !== null && `, ${fmtRank(onMap.rank)} au ${fmtDate(film.fetchedAt)}`}. Ce n'est pas le classement des clans.
             </p>
+            {
+              objective?.above && (
+                <p class="tnum mt-3 max-w-md font-semibold" data-testid="home-objective">
+                  Prochain objectif : dépasser [{objective.above.tag}], encore {fmtInt(objective.above.pixels - objective.me.pixels + 1)} pixels.
+                </p>
+              )
+            }
             <a href={`${base}/carte`} class="btn btn-ghost mt-6">Voir le film de la conquête</a>
           </div>
           <img
@@ -152,7 +232,7 @@ const gazette = gazetteEditions({ sessions, history: loadHistory(), territory: l
             srcset={`${base}/generated/carte/finale-800.webp 800w, ${base}/generated/carte/finale-1400.webp 1400w`}
             sizes="(min-width: 768px) 560px, calc(100vw - 5rem)"
             width="1400"
-            height={Math.round((1400 * mapFilm.rows) / mapFilm.cols)}
+            height={Math.round((1400 * film.rows) / film.cols)}
             loading="lazy"
             alt="La carte officielle des clans, où chaque clan occupe un territoire de sa couleur."
             class="h-auto w-full rounded-2xl"
@@ -163,18 +243,31 @@ const gazette = gazetteEditions({ sessions, history: loadHistory(), territory: l
 
     {
       recent.length > 0 && (
-        <section class="stage stage-indigo reveal grid items-center gap-8 md:grid-cols-2" aria-labelledby="progress-title">
+        <section class="stage stage-indigo reveal grid gap-8 md:grid-cols-2" aria-labelledby="progress-title">
           <div>
-            <h2 id="progress-title" class="section-title">{fmtInt(recentGames)} parties en 14 jours</h2>
-            <p class="mt-4 max-w-md text-lg text-muted">
+            <h2 id="progress-title" class="section-title section-title-sm">{fmtInt(recentGames)} parties en 14 jours</h2>
+            <p class="mt-3 max-w-md text-lg text-muted">
               {fmtInt(recentWins)} victoires, soit {fmtPct(winRate(recentWins, recentGames))}. Parties publiques en équipe jouées avec le tag.
             </p>
+            {
+              lastGames.length > 0 && (
+                <ul class="tnum mt-4 divide-y divide-white/10 text-sm" data-testid="home-games">
+                  {lastGames.map((game) => (
+                    <li class="flex flex-wrap items-baseline justify-between gap-x-4 py-1.5">
+                      <span class="min-w-0">{fmtDayAndTime(game.at)}{game.map !== null && <span class="text-muted"> sur {mapLabel(game.map)}</span>}</span>
+                      <span class="font-semibold">{game.won ? "Victoire" : "Défaite"}</span>
+                    </li>
+                  ))}
+                </ul>
+              )
+            }
+            {lastGames.some((game) => game.map !== null) && <MapNamesCredit />}
             <div class="mt-6 flex flex-wrap gap-3">
-              <a href={`${base}/progression`} class="btn btn-ghost">Voir la progression</a>
               <a href={`${base}/parties`} class="btn btn-ghost">Voir les dernières parties</a>
+              <a href={`${base}/progression`} class="btn btn-ghost">Voir la progression</a>
             </div>
           </div>
-          <div class="panel">
+          <div class="panel self-center">
             <div class="fx-bars flex h-44 items-end" aria-hidden="true" data-ripple-group>
               {
                 recent.map((d, i) => (
@@ -198,51 +291,22 @@ const gazette = gazetteEditions({ sessions, history: loadHistory(), territory: l
     }
 
     {
-      members && (
-        <section class="stage stage-night reveal grid items-center gap-8 md:grid-cols-2" aria-labelledby="members-title">
-          <div class="md:order-2">
-            <h2 id="members-title" class="section-title">{fmtInt(members.total)} membres dans le clan</h2>
-            <p class="mt-4 max-w-md text-lg text-muted">
-              La liste officielle du clan dans OpenFront, dont {fmtInt(anonymous)} membres sans pseudo public.
-            </p>
-            <a href={`${base}/membres`} class="btn btn-ghost mt-6">Voir les membres</a>
-          </div>
-          <div class="panel md:order-1 !bg-surface">
-            <h3 class="text-sm tracking-wide text-muted">Encadrement · {command.length}</h3>
-            <ul class="mt-3 grid gap-3 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2">
-              {
-                command.map((m) => (
-                  <li class="flex min-w-0 items-center gap-3">
-                    <span class="avatar" aria-hidden="true">{m.username?.charAt(0) ?? "?"}</span>
-                    <span class="min-w-0">
-                      <span class="block truncate font-semibold">{m.username ?? "Membre anonyme"}</span>
-                      <span class="block text-xs text-muted">{roleLabel[m.role]}</span>
-                    </span>
-                  </li>
-                ))
-              }
-            </ul>
-          </div>
-        </section>
-      )
-    }
-    <GroupPlay />
-
-
-    {
       slots.length > 0 && (
         <section class="stage stage-wine reveal grid items-center gap-8 md:grid-cols-2" aria-labelledby="slots-title">
           <div>
-            <h2 id="slots-title" class="section-title">Quand le clan joue le plus</h2>
+            <h2 id="slots-title" class="section-title section-title-sm">{todaySlots.length > 0 ? `Quand jouer le ${dayName}` : "Quand le clan joue le plus"}</h2>
             <p class="mt-4 max-w-md text-lg text-muted">
               Les créneaux avec le plus de parties enregistrées sur 90 jours, en heure de Paris. Ce sont des parties, pas des joueurs connectés.
             </p>
-            <a href={`${base}/activite`} class="btn btn-ghost mt-6">Voir l'activité</a>
+            <div class="mt-6 flex flex-wrap gap-3">
+              <a href={clan.links.discord} class="btn btn-secondary" rel="noopener">Trouver un groupe sur Discord</a>
+              <a href={`${base}/activite`} class="btn btn-ghost">Voir quand jouer</a>
+            </div>
           </div>
           <ol class="panel space-y-3">
             {
               slots.map((s) => (
-                <li>
+                <li data-testid="home-slot">
                   <div class="flex flex-wrap items-baseline justify-between gap-x-4">
                     <span class="font-display text-xl font-extrabold uppercase">{WEEKDAYS_FR[s.weekday]} {s.hour} h</span>
                     <span class="tnum text-sm text-muted">{fmtInt(s.games)} parties · {fmtDec1(s.avgPlayers)} joueurs du clan</span>
@@ -258,35 +322,16 @@ const gazette = gazetteEditions({ sessions, history: loadHistory(), territory: l
       )
     }
 
-    {
-      gazette && (
-        <section class="stage stage-night reveal" aria-labelledby="gazette-title" data-testid="home-gazette">
-          <h2 id="gazette-title" class="section-title">La gazette du clan</h2>
-          <p class="mt-4 text-sm font-semibold text-muted">Semaine {weekLabel(gazette)}</p>
-          <p class="mt-1 max-w-3xl text-lg text-muted">{editionLead(gazette, clan.tag)}</p>
-          <a href={`${base}/gazette`} class="btn btn-ghost mt-6">Lire la gazette</a>
-        </section>
-      )
-    }
-
-    <section class="reveal grid gap-6 pt-6 md:grid-cols-2">
-      {
-        AUTH_ENABLED ? (
-          <NewsBoard client:visible announcements={announcements} events={events} now={Date.now()} live />
-        ) : (
-          <NewsBoard announcements={announcements} events={events} now={Date.now()} />
-        )
-      }
-    </section>
-
-    <section class="stage stage-night reveal mt-6 grid items-center gap-8 md:grid-cols-2" aria-labelledby="join-title">
+    <section class="stage stage-night reveal grid items-center gap-8 md:grid-cols-2" aria-labelledby="join-title">
       <div>
-        <h2 id="join-title" class="section-title">Rejoignez les Gaulois</h2>
+        <h2 id="join-title" class="section-title section-title-sm">Rejoignez les Gaulois</h2>
         <p class="mt-4 max-w-md text-lg text-muted">
           {clan.join.inviteOnly ? "Le clan fonctionne sur invitation : demandez-la dans le jeu, puis retrouvez-nous sur Discord." : "Rejoignez le clan dans le jeu, puis retrouvez-nous sur Discord."}
+          {members && <span data-testid="home-members"> {fmtInt(members.total)} membres dans la liste officielle.</span>}
         </p>
         <div class="mt-6 flex flex-col gap-3 sm:flex-row">
           <a href={`${base}/rejoindre`} class="btn btn-lg btn-secondary">Voir les étapes</a>
+          <a href={`${base}/debuter`} class="btn btn-lg btn-ghost">Lire les guides</a>
         </div>
       </div>
       {

@@ -184,3 +184,10 @@ export function bestSlots(map: Heatmap | null, count = 5, minGames = 5): Slot[] 
     .sort((a, b) => b.games - a.games || b.avgPlayers - a.avgPlayers || a.weekday - b.weekday || a.hour - b.hour)
     .slice(0, count);
 }
+
+/** Les meilleurs créneaux d'un jour de la semaine, selon le même tri que `bestSlots`. 0 = lundi. */
+export function slotsOfDay(map: Heatmap | null, weekday: number, count = 3, minGames = 5): Slot[] {
+  return bestSlots(map, Number.MAX_SAFE_INTEGER, minGames)
+    .filter((slot) => slot.weekday === weekday)
+    .slice(0, count);
+}

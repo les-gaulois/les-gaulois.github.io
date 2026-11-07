@@ -36,7 +36,7 @@ R = troupes du défenseur ÷ troupes de l'attaque
 pertes = mag × modificateur de trahison × borne(R ; 0,6 ; 2) × (0,463 × bonus attaquant × bonus défenseur + 0,0039 × densité)
 ```
 
-Un Civil ou une Nation qui attaque un Bot paie 0,7 × mag : c'est le cas du [calculateur](#calculateur) plus bas sur cette page.
+Un Civil ou une Nation qui attaque un Bot paie 0,7 × mag : c'est le cas du [calculateur](../outils#calculateur).
 
 **Vitesse d'attaque.** Un tick dure 100 ms. La vitesse dépend du ratio, du terrain, de la taille des territoires, puis du poste et du statut de traître. En résumé : grosse attaque, R faible, coût qui diminue, conquête plus rapide.
 

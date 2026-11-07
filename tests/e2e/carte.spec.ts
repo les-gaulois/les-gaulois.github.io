@@ -440,7 +440,7 @@ test.describe("film de la carte", () => {
     const named = sorted.find((m, i) => i > 0 && m.username && (m.team?.wins ?? 0) > 0 && (m.team?.wins ?? 0) < (sorted[0]?.team?.wins ?? 0));
     const wins = named?.team?.wins ?? 0;
     const rank = known.filter((m) => (m.team?.wins ?? 0) > wins).length + 1;
-    await page.goto("/carte");
+    await page.goto("/");
     await page.getByTestId("my-place").scrollIntoViewIfNeeded();
     const field = page.getByLabel("Votre pseudo dans le jeu");
 
@@ -459,7 +459,7 @@ test.describe("film de la carte", () => {
     const all = JSON.parse(readFileSync("data/members.json", "utf8")).members as { username: string | null; team: { wins: number } | null }[];
     const first = [...all].filter((m) => m.team).sort((a, b) => (b.team?.wins ?? 0) - (a.team?.wins ?? 0))[0];
     test.skip(!first?.username, "Le premier du clan est anonyme.");
-    await page.goto("/carte");
+    await page.goto("/");
     await page.getByTestId("my-place").scrollIntoViewIfNeeded();
     await page.getByLabel("Votre pseudo dans le jeu").fill(first?.username ?? "");
     await expect(page.getByTestId("my-place-result")).toContainText("Personne devant");
@@ -467,8 +467,9 @@ test.describe("film de la carte", () => {
 
   test("Ma place : une panne de la liste se signale et peut se réessayer", async ({ page }) => {
     await page.route("**/data/members.json", (r) => r.abort());
-    await page.goto("/carte");
+    await page.goto("/");
     await page.getByTestId("my-place").scrollIntoViewIfNeeded();
+    await page.getByLabel("Votre pseudo dans le jeu").fill("Gaulois");
     await expect(page.getByTestId("my-place").getByRole("alert")).toContainText("n'a pas pu être chargée");
     errors = [];
     await page.unroute("**/data/members.json");
@@ -563,16 +564,13 @@ test.describe("film de la carte", () => {
     expect(await position(page)).toBe(film.frames.length);
   });
 
-  test("les joueurs mis en avant viennent des données, et aucun donateur n'est inventé", async ({ page }) => {
-    const members = JSON.parse(readFileSync("data/members.json", "utf8")).members;
+  test("la page renvoie vers l'encadrement et Ma place, et aucun donateur n'est inventé", async ({ page }) => {
     const heroes = JSON.parse(readFileSync("content/carte-heros.json", "utf8"));
     await page.goto("/carte");
 
-    const best = members
-      .filter((m: { team: unknown }) => m.team)
-      .sort((a: { team: { wins: number } }, b: { team: { wins: number } }) => b.team.wins - a.team.wins)[0];
-    await expect(page.getByTestId("map-winners").locator("li").first()).toContainText(best.username ?? "Membre anonyme");
-    await expect(page.getByTestId("map-painters").locator("li")).toHaveCount(members.filter((m: { role: string }) => m.role !== "member").length);
+    const painters = page.getByTestId("map-painters");
+    await expect(painters.getByRole("link", { name: "voir l'encadrement" })).toHaveAttribute("href", /\/membres#encadrement$/);
+    await expect(painters.getByRole("link", { name: "voir votre place dans le clan" })).toHaveAttribute("href", /\/#ma-place$/);
 
     if (heroes.donors.length === 0) {
       await expect(page.getByTestId("map-donors")).toContainText("Le clan n'a pas encore choisi de le publier ici.");

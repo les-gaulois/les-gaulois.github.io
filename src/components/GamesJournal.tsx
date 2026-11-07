@@ -1,20 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import { fmtCount, fmtEpochDay, fmtEpochTime, fmtInt, fmtMinutes, NO_DATA } from "../lib/format";
-import { filterJournal, isFiltered, journalChoices, journalCount, journalUnread, NO_FILTER, replayUrl, type JournalClan, type JournalFilter, type JournalRow } from "../lib/journal";
+import { fmtCount, fmtDayAndTime, fmtInt, fmtMinutes, NO_DATA } from "../lib/format";
+import { filterJournal, isFiltered, JOURNAL_FIRST_ROWS, journalChoices, journalCount, journalUnread, NO_FILTER, replayUrl, type JournalClan, type JournalFilter, type JournalRow } from "../lib/journal";
 import { mapLabel } from "../lib/map-names";
 import { formatLabel } from "../lib/results";
 
-const PAGE = 50;
+const PAGE = JOURNAL_FIRST_ROWS;
 const RESULTS: { key: JournalFilter["result"]; label: string }[] = [
   { key: "all", label: "Toutes" },
   { key: "won", label: "Victoires" },
   { key: "lost", label: "Défaites" },
 ];
 
-function whenOf(at: string): string {
-  const seconds = Date.parse(at) / 1000;
-  return `${fmtEpochDay(seconds)}, ${fmtEpochTime(seconds)}`;
-}
 const clanList = (clans: JournalClan[]) => clans.map(([tag, players]) => `[${tag}] (${fmtInt(players)})`).join(", ");
 const mapOf = (r: JournalRow) => (r.map === null ? NO_DATA : mapLabel(r.map));
 const formatOf = (r: JournalRow) => (r.format === null ? NO_DATA : formatLabel(r.format));
@@ -31,7 +27,7 @@ function Result({ won }: { won: boolean }) {
 
 function Replay({ row }: { row: JournalRow }) {
   return (
-    <a href={replayUrl(row.id)} rel="noopener" aria-label={`Ouvrir sur OpenFront la partie du ${whenOf(row.at)}`} data-testid="journal-replay">
+    <a href={replayUrl(row.id)} rel="noopener" aria-label={`Ouvrir sur OpenFront la partie du ${fmtDayAndTime(row.at)}`} data-testid="journal-replay">
       Ouvrir
     </a>
   );
@@ -210,7 +206,7 @@ export default function GamesJournal({ src, initial, sides }: Props) {
               <tbody>
                 {visible.map((r) => (
                   <tr key={r.id} data-testid="journal-row">
-                    <td class="whitespace-nowrap">{whenOf(r.at)}</td>
+                    <td class="whitespace-nowrap">{fmtDayAndTime(r.at)}</td>
                     <td>{mapOf(r)}</td>
                     <td class="whitespace-nowrap">{formatOf(r)}</td>
                     <td class="whitespace-nowrap">{fmtInt(r.gaulois)} sur {fmtInt(r.players)}</td>
@@ -228,7 +224,7 @@ export default function GamesJournal({ src, initial, sides }: Props) {
             {visible.map((r) => (
               <li key={r.id} class="card tnum p-3 text-sm" data-testid="journal-card">
                 <div class="flex flex-wrap items-baseline justify-between gap-x-3">
-                  <span class="font-semibold">{whenOf(r.at)}</span>
+                  <span class="font-semibold">{fmtDayAndTime(r.at)}</span>
                   <Result won={r.won} />
                 </div>
                 <p class="mt-1">{mapOf(r)} · {formatOf(r)}</p>

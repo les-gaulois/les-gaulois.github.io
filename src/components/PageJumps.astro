@@ -1,0 +1,12 @@
+---
+interface Props {
+  links: { href: string; label: string }[];
+}
+const { links } = Astro.props;
+---
+
+{/* Des liens simples : les pastilles restent réservées aux onglets de la rubrique, qui changent de page. */}
+<nav class="mt-4 flex flex-wrap items-baseline gap-x-4 text-sm leading-7" aria-label="Sur cette page" data-testid="page-jumps">
+  <span class="text-muted">Sur cette page :</span>
+  {links.map((link) => <a href={link.href}>{link.label}</a>)}
+</nav>

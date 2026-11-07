@@ -2,31 +2,20 @@
 import Base from "../layouts/Base.astro";
 import DataStatus from "../components/DataStatus.astro";
 import Empty from "../components/Empty.astro";
-import ClanCompare from "../components/ClanCompare.tsx";
-import FaceOffs from "../components/FaceOffs.astro";
 import PageHeader from "../components/PageHeader.astro";
 import LeaderboardTable from "../components/LeaderboardTable.tsx";
-import RankedPlayers from "../components/RankedPlayers.astro";
-import RivalRace from "../components/RivalRace.tsx";
 import { clan } from "../../config/clan";
-import { loadGames, loadLeaderboard, loadMeta, loadRivals, loadSessions } from "../lib/data";
+import { loadLeaderboard, loadMeta } from "../lib/data";
 import { fmtDate, fmtScore } from "../lib/format";
 import { MAX_AGE_HOURS } from "../lib/freshness";
-import { FACE_OFF_MIN_MEETINGS, faceOffs } from "../lib/games";
-import { rivalSeries } from "../lib/rivals";
 import { findClan, neighbours, withOfficialRanks } from "../lib/stats";
 
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const meta = loadMeta();
 const leaderboard = loadLeaderboard();
 const clans = leaderboard ? withOfficialRanks(leaderboard.clans) : [];
 const me = findClan(clans, clan.tag);
 const near = neighbours(clans, clan.tag);
-const lanes = me && near ? [near.above?.clan, me, near.below?.clan].filter((c) => c !== undefined) : [];
-const laneMax = Math.max(1, ...lanes.map((c) => c.weightedWins));
-const snapshots = loadRivals();
-const race = leaderboard && snapshots.length > 0 ? rivalSeries(leaderboard.clans, snapshots, clan.tag) : null;
-const meetings = leaderboard ? faceOffs(loadSessions(), loadGames(), clan.tag, leaderboard.clans.map((c) => c.clanTag), meta.sessions.coveredUntil) : null;
-const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 ---
 
 <Base title="Classement" description="Classement officiel des clans OpenFront et position du clan GAL.">
@@ -75,54 +64,16 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
                   <p class="mt-2 font-display text-lg font-bold">Aucun : {clan.tag} est dernier de la liste</p>
                 )}
               </div>
-              <div class="card p-5 md:col-span-3" data-testid="score-lanes">
-                <h2 class="text-sm tracking-wide text-muted">Le score autour de [{clan.tag}]</h2>
-                <ul class="mt-4 space-y-3">
-                  {lanes.map((lane) => (
-                    <li class="grid grid-cols-[3.5rem_1fr_auto] items-center gap-3 sm:grid-cols-[4.5rem_1fr_6rem]">
-                      <span class:list={["font-display font-bold", lane.clanTag !== clan.tag && "text-muted"]}>[{lane.clanTag}]</span>
-                      <span class:list={["meter meter-lg", lane.clanTag === clan.tag ? "meter-gal" : "meter-other"]} aria-hidden="true">
-                        <i style={{ "--v": `${(lane.weightedWins / laneMax) * 100}%` }}></i>
-                      </span>
-                      <span class="tnum text-right text-sm font-semibold">{fmtScore(lane.weightedWins)}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
             </section>
           ) : (
             <p class="mb-6 font-semibold text-warn">
               [{clan.tag}] ne figure pas dans la liste officielle : le clan est hors classement.
             </p>
           )}
-          {race && race.length > 0 && (
-            <section class="reveal mb-8" aria-labelledby="race-title" data-testid="rival-race">
-              <h2 id="race-title" class="section-title">La course avec nos voisins</h2>
-              <p class="mb-4 mt-2 max-w-3xl text-sm text-muted">
-                L'écart de score entre [{clan.tag}] et les clans les plus proches au classement, relevé une fois par jour depuis le {fmtDate(`${snapshots[0]?.date}T12:00:00Z`)}. L'API ne donne pas le passé du classement : les courbes commencent à ce premier relevé. Chaque courbe a sa propre échelle : le tableau donne les valeurs exactes.
-              </p>
-              <RivalRace client:load series={race} />
-            </section>
-          )}
           <LeaderboardTable client:load clans={clans} tag={clan.tag} />
           <p class="mt-4 text-sm text-muted">
-            Stats des parties publiques en équipe, hors classé et hors Humains contre Nations. L'API liste environ les 100 premiers clans.
+            Stats des parties publiques en équipe, hors classé et hors Humains contre Nations. L'API liste environ les 100 premiers clans. <a href={`${base}/rivaux`}>Suivre nos rivaux de plus près</a>.
           </p>
-          {me && clans.length > 1 && (
-            <section class="stage stage-night reveal mt-8" aria-labelledby="compare-title" data-testid="clan-compare">
-              <h2 id="compare-title" class="section-title">Comparer un clan avec [{clan.tag}]</h2>
-              <p class="mb-6 mt-4 max-w-3xl text-lg text-muted">
-                Choisissez un clan de la liste officielle pour voir ses chiffres à côté de ceux de [{clan.tag}]. Le rang et le score sont ceux de la liste, sans recalcul, et rien n'est noté.
-              </p>
-              <ClanCompare client:load clans={clans} tag={clan.tag} faceOffs={meetings?.reliable ? meetings.rows : []} src={`${base}/classement-scores.json`} />
-              <noscript><p class="mt-3 text-sm text-muted">JavaScript est nécessaire pour changer de clan.</p></noscript>
-              <p class="mt-6 max-w-3xl text-sm text-muted">
-                Le rang, le score, les parties, les victoires, les défaites et leur rapport pondéré viennent de la liste officielle, sur 90 jours glissants, hors classé et hors Humains contre Nations. Le taux vaut victoires ÷ parties, et les joueurs par partie, sessions de joueurs ÷ parties. Le taux dépend d'abord du nombre de joueurs et du format : il ne dit pas lequel des deux joue le mieux. L'écart se relève une fois par jour : l'API ne donne pas le passé du classement. Un face-à-face n'apparaît qu'à partir de {FACE_OFF_MIN_MEETINGS} parties l'un contre l'autre, et seulement pour les clans du bloc suivant.
-              </p>
-            </section>
-          )}
-          <FaceOffs />
-          <RankedPlayers />
         </>
       )
     }

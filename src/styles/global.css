@@ -113,6 +113,10 @@ a:not([class]):hover {
 .section-title {
   font-size: clamp(1.75rem, 4.5vw, 3rem);
 }
+/* Dans une scène de l'accueil ou une colonne : le titre garde sa force sans prendre deux lignes de trop. */
+.section-title-sm {
+  font-size: clamp(1.5rem, 3vw, 2.25rem);
+}
 /* Filet tricolore repris de la bande du logo. */
 .tribar {
   display: block;
@@ -358,7 +362,8 @@ main .card:hover::before {
 .chip:active:where(:not(:disabled)) {
   scale: 0.95;
 }
-.chip[aria-pressed="true"] {
+.chip[aria-pressed="true"],
+.chip[aria-current="page"] {
   color: var(--color-navy);
   background: #fff;
   border-color: #fff;
@@ -1075,7 +1080,8 @@ th.fx-cross {
   border-top: 1px solid var(--color-line);
   padding-block: 0.875rem;
 }
-.fold > summary {
+.fold > summary,
+.guide-fold > summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1084,10 +1090,12 @@ th.fx-cross {
   cursor: pointer;
   list-style: none;
 }
-.fold > summary::-webkit-details-marker {
+.fold > summary::-webkit-details-marker,
+.guide-fold > summary::-webkit-details-marker {
   display: none;
 }
-.fold > summary::after {
+.fold > summary::after,
+.guide-fold > summary::after {
   content: "+";
   flex: none;
   font-family: var(--font-display);
@@ -1095,7 +1103,8 @@ th.fx-cross {
   font-weight: 800;
   line-height: 1;
 }
-.fold[open] > summary::after {
+.fold[open] > summary::after,
+.guide-fold[open] > summary::after {
   content: "−";
 }
 /* Le texte de la page peut se couper partout : un chiffre ou un tag de clan, non. */

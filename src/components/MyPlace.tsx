@@ -1,11 +1,13 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { fmtInt, fmtPct } from "../lib/format";
 import { gamesOf, placeOf, rateOf, suggestMembers } from "../lib/members";
+import { hasLeftList, ME_KEY, rememberedMember } from "../lib/moi";
 import { nextTier } from "../lib/paliers";
 import type { StoredMember, StoredMembers } from "../lib/schemas";
 
 type State = { status: "loading" } | { status: "error" } | { status: "ready"; data: StoredMembers };
 
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const ordinal = (n: number) => `${n}${n === 1 ? "er" : "e"}`;
 const nameOf = (m: StoredMember) => m.username ?? "un membre anonyme";
 
@@ -31,7 +33,9 @@ function Result({ members, member }: { members: readonly StoredMember[]; member:
   return (
     <div class="mt-4 grid gap-4 sm:grid-cols-2" data-testid="my-place-result">
       <div>
-        <p class="truncate text-sm font-semibold text-muted">{member.username}</p>
+        <p class="truncate text-sm font-semibold text-muted">
+          {member.publicId ? <a href={`${BASE}/membres/${encodeURIComponent(member.publicId)}`}>{member.username}</a> : member.username}
+        </p>
         <p class="tnum font-display text-4xl font-extrabold">{ordinal(place.rank)}</p>
         <p class="tnum text-sm text-muted">sur {fmtInt(place.ranked)} membres, aux victoires sous le tag</p>
         <p class="tnum mt-2 text-sm">
@@ -73,14 +77,34 @@ export default function MyPlace({ src }: { src: string }) {
   const [query, setQuery] = useState("");
   const [picked, setPicked] = useState<StoredMember | null>(null);
   const [attempt, setAttempt] = useState(0);
+  // Rien n'est chargé tant que personne n'a tapé de pseudo ni retenu le sien : l'accueil reste léger.
+  const [wanted, setWanted] = useState(false);
+  const [savedId, setSavedId] = useState<string | null>(null);
+  const [gone, setGone] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+  const forgetButton = useRef<HTMLButtonElement>(null);
+  // Le bouton utilisé disparaît : le clavier reprend sur celui qui le remplace.
+  const focusNext = useRef<"forget" | "input" | null>(null);
 
   // Un pseudo tapé avant le démarrage du composant n'est pas perdu.
   useLayoutEffect(() => {
-    if (input.current?.value) setQuery(input.current.value);
+    if (input.current?.value) {
+      setQuery(input.current.value);
+      setWanted(true);
+    }
+    try {
+      const stored = localStorage.getItem(ME_KEY);
+      if (stored) {
+        setSavedId(stored);
+        setWanted(true);
+      }
+    } catch {
+      // Stockage indisponible : on tape son pseudo à chaque fois.
+    }
   }, []);
 
   useEffect(() => {
+    if (!wanted) return;
     let cancelled = false;
     setState({ status: "loading" });
     fetch(src)
@@ -97,16 +121,80 @@ export default function MyPlace({ src }: { src: string }) {
     return () => {
       cancelled = true;
     };
-  }, [src, attempt]);
+  }, [src, attempt, wanted]);
 
   const members = state.status === "ready" ? state.data.members : [];
+  const saved = useMemo(() => rememberedMember(members, savedId), [members, savedId]);
   const matches = useMemo(() => suggestMembers(members, query), [members, query]);
   // Un seul résultat, ou un pseudo exact : inutile de demander de choisir.
   const exact = matches.find((m) => m.username?.toLowerCase() === query.trim().toLowerCase());
   const chosen = picked ?? exact ?? (matches.length === 1 ? (matches[0] ?? null) : null);
 
+  useEffect(() => {
+    if (focusNext.current === "forget") forgetButton.current?.focus();
+    if (focusNext.current === "input") input.current?.focus();
+    focusNext.current = null;
+  }, [savedId]);
+
+  // Parti du clan, ou devenu anonyme : son identifiant n'a plus à rester sur cet appareil.
+  useEffect(() => {
+    if (state.status !== "ready" || !hasLeftList(state.data.members, savedId)) return;
+    try {
+      localStorage.removeItem(ME_KEY);
+    } catch {
+      // Rien à retirer.
+    }
+    setSavedId(null);
+    setGone(true);
+  }, [state, savedId]);
+
+  const remember = (member: StoredMember) => {
+    if (!member.publicId) return;
+    try {
+      localStorage.setItem(ME_KEY, member.publicId);
+    } catch {
+      // Stockage indisponible : le résultat reste affiché, sans être retenu.
+    }
+    focusNext.current = "forget";
+    setGone(false);
+    setSavedId(member.publicId);
+    setQuery("");
+    setPicked(null);
+  };
+  const forget = () => {
+    try {
+      localStorage.removeItem(ME_KEY);
+    } catch {
+      // Rien à retirer.
+    }
+    focusNext.current = "input";
+    setSavedId(null);
+  };
+
+  // Après un « Réessayer », le champ reste là : le clavier s'y pose, au lieu de retomber en haut de la page.
+  if (savedId && state.status === "loading" && attempt === 0) {
+    return <p class="text-sm text-muted" role="status" data-testid="my-place-loading">Chargement de votre place…</p>;
+  }
+
+  // Le joueur retenu : sa place tout de suite, sans champ de recherche.
+  if (saved) {
+    return (
+      <div>
+        <Result members={members} member={saved} />
+        <button ref={forgetButton} type="button" class="mt-4 text-sm underline underline-offset-2" onClick={forget} data-testid="my-place-forget">
+          Changer de pseudo
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div>
+      {gone && (
+        <p class="mb-3 text-sm text-muted" role="status" data-testid="my-place-gone">
+          Le pseudo retenu n'est plus dans la liste publique du clan : il n'est plus gardé sur cet appareil.
+        </p>
+      )}
       <label for="my-place-name" class="text-sm font-semibold">
         Votre pseudo dans le jeu
       </label>
@@ -121,12 +209,20 @@ export default function MyPlace({ src }: { src: string }) {
         onInput={(e) => {
           setQuery(e.currentTarget.value);
           setPicked(null);
+          setWanted(true);
         }}
       />
       {state.status === "error" && (
         <p class="mt-3 text-sm font-semibold text-warn" role="alert">
           La liste des membres n'a pas pu être chargée.{" "}
-          <button type="button" class="underline" onClick={() => setAttempt((n) => n + 1)}>
+          <button
+            type="button"
+            class="underline"
+            onClick={() => {
+              setAttempt((n) => n + 1);
+              input.current?.focus();
+            }}
+          >
             Réessayer
           </button>
         </p>
@@ -147,7 +243,16 @@ export default function MyPlace({ src }: { src: string }) {
           ))}
         </ul>
       )}
-      {chosen && <Result members={members} member={chosen} />}
+      {chosen && (
+        <>
+          <Result members={members} member={chosen} />
+          {chosen.publicId && (
+            <button type="button" class="btn btn-ghost mt-4" onClick={() => remember(chosen)} data-testid="my-place-remember">
+              C'est moi : retenir sur cet appareil
+            </button>
+          )}
+        </>
+      )}
     </div>
   );
 }
