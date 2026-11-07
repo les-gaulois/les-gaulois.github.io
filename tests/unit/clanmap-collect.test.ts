@@ -427,6 +427,8 @@ describe("collecte de la carte", () => {
     expect(run.errors).toEqual([]);
     expect(film().gal).toBeNull();
     expect(film().galSummary).toBeNull();
+    // Son territoire est inconnu, pas nul : aucune ligne de journal.
+    expect(existsSync(join(dir, "clanmap", "journal.json"))).toBe(false);
   });
 
   it("n'accepte pas un historique local dans le désordre", () => {

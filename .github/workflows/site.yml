@@ -50,15 +50,6 @@ jobs:
           restore-keys: member-games-
       - name: Collecter les données
         run: npm run data:fetch
-      # Sans ce secret, l'étape ne fait rien. Une panne de Discord n'empêche jamais d'enregistrer les données. Elle reste avant « Enregistrer les données », qui garde la trace de l'édition envoyée.
-      - name: Envoyer la gazette sur Discord
-        # Sur une autre branche, la trace de l'envoi ne reviendrait pas sur main, et l'édition repartirait.
-        if: github.ref_name == 'main'
-        continue-on-error: true
-        timeout-minutes: 2
-        run: npm run gazette:envoyer
-        env:
-          DISCORD_WEBHOOK_GAZETTE: ${{ secrets.DISCORD_WEBHOOK_GAZETTE }}
       - name: Conserver les parties des membres
         if: ${{ !cancelled() && hashFiles('.cache/member-games/players.json') != '' }}
         continue-on-error: true
@@ -85,6 +76,35 @@ jobs:
             git pull --rebase origin "${GITHUB_REF_NAME}"
             git push
           fi
+      # Après l'enregistrement : si le robot ne peut plus pousser sur main, l'étape est sautée. Sans cela, faute de trace, la même édition repartirait à chaque passage.
+      # Sans ce secret, l'étape ne fait rien. Une panne de Discord ne bloque rien : le passage suivant réessaie.
+      - name: Envoyer la gazette sur Discord
+        # Sur une autre branche, la trace de l'envoi ne reviendrait pas sur main, et l'édition repartirait.
+        if: github.ref_name == 'main'
+        continue-on-error: true
+        timeout-minutes: 2
+        run: npm run gazette:envoyer
+        env:
+          DISCORD_WEBHOOK_GAZETTE: ${{ secrets.DISCORD_WEBHOOK_GAZETTE }}
+      # Les données sont déjà enregistrées : un échec ici n'empêche pas de reconstruire le site, et se lit dans l'avertissement.
+      - name: Noter l'envoi de la gazette
+        if: github.ref_name == 'main'
+        continue-on-error: true
+        run: |
+          git add -- data/gazette-envoi.json 2>/dev/null || exit 0
+          if git diff --cached --quiet; then
+            echo "Aucun envoi à noter."
+            exit 0
+          fi
+          git commit -m "data: note l'envoi de la gazette"
+          for essai in 1 2 3; do
+            if git pull --rebase origin "${GITHUB_REF_NAME}" && git push; then
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "::warning::Gazette : envoi fait mais non noté. L'édition repartira une fois au passage suivant, si l'enregistrement remarche."
+          exit 1
       # La connexion compare chaque demande à cette liste. Sans réglages, l'étape ne s'exécute pas, et une panne n'empêche jamais le site de se publier.
       - name: Relire la liste des membres
         if: ${{ !cancelled() && vars.SUPABASE_URL != '' }}

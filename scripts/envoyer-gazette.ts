@@ -5,7 +5,7 @@
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { clan } from "../config/clan";
-import { loadHistory, loadMembers, loadMeta, loadSessions, loadTerritoryReadings } from "../src/lib/data";
+import { loadHistory, loadMembers, loadMeta, loadSessions, loadTerritoryReadings, unreadableSessionFiles } from "../src/lib/data";
 import { gazetteEditions } from "../src/lib/gazette";
 import { GazetteSendState, sendLatestGazette } from "../src/lib/gazette-discord";
 
@@ -37,6 +37,7 @@ try {
   const result = await sendLatestGazette({
     webhook,
     editions,
+    unreadable: unreadableSessionFiles(),
     lastSent: readLastSent(),
     tag: clan.tag,
     siteUrl: clan.links.site,

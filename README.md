@@ -185,14 +185,18 @@ Les membres se connectent avec Discord, un officier valide leur compte, et l'enc
 
 Le site peut poster chaque édition de la gazette dans un salon du serveur, tout seul. **C'est prêt, mais rien ne part tant que le clan n'a pas fait ces deux étapes**, qu'un site ne peut pas faire à sa place :
 
-1. Sur Discord, dans le salon choisi : **Modifier le salon → Intégrations → Webhooks → Nouveau webhook**, puis **Copier l'URL du webhook**. Ce lien permet d'écrire dans le salon : il ne se partage pas.
+1. Sur Discord, dans le salon choisi : **Modifier le salon → Intégrations → Webhooks → Nouveau webhook**. Donnez-lui un nom, par exemple « Gazette GAL », sinon le message portera le nom donné par défaut. Puis **Copier l'URL du webhook**. Ce lien permet d'écrire dans le salon : il ne se partage pas.
 2. Sur GitHub, dans le dépôt : **Settings → Secrets and variables → Actions → New repository secret**, nom `DISCORD_WEBHOOK_GAZETTE`, valeur le lien copié.
 
-Au passage suivant du robot, la dernière édition part une fois. Ensuite, chaque nouvelle édition part le lundi à partir de 9 h, heure de Paris, dès que la liste des membres a été relue pour donner les arrivées, et au plus tard à 21 h, sans elles s'il le faut. Les semaines passées ne sont pas rattrapées. Seul le robot de la branche `main` envoie. Si Discord ne répond pas, le robot réessaie au passage suivant, et la collecte continue. La dernière édition envoyée est notée dans `data/gazette-envoi.json`, écrit par le robot seulement.
+Au passage suivant du robot, la dernière édition part une fois. Pour un essai, posez d'abord le lien d'un salon privé : l'édition y part et sa trace est notée. Remplacez ensuite le secret par le vrai lien : le premier message du clan sera l'édition suivante.
 
-Le message reprend les chiffres de la page, sans aucun pseudo, et ne peut mentionner personne. Pour arrêter, supprimez le secret ou le webhook.
+Chaque nouvelle édition part ensuite le lundi à partir de 9 h, heure de Paris, dès que la liste des membres et le film de la carte couvrent le dimanche. Ces relectures glissent d'un jour à l'autre : le message part donc à une heure variable, au plus tard au premier passage du robot après 21 h. Ce qui manque encore à ce moment n'est pas écrit. Les semaines passées ne sont pas rattrapées. Seul le robot de la branche `main` envoie. Si Discord ne répond pas, le robot réessaie au passage suivant, et la collecte continue. La dernière édition envoyée est notée dans `data/gazette-envoi.json`, écrit par le robot seulement.
 
-Limite : si le robot envoie le message puis n'arrive pas à enregistrer `data/gazette-envoi.json`, l'édition repart une seconde fois au passage suivant.
+Le message reprend les chiffres de la page, sans aucun pseudo, et ne peut mentionner personne. Un message posté ne se corrige pas : il ne donne que le territoire d'une journée terminée, et rien ne part si un mois de sessions est illisible ou si la semaine n'a aucune partie.
+
+Pour arrêter, supprimez le secret. Supprimer seulement le webhook laisse le robot réessayer à chaque passage, sans rien poster. Une panne se lit dans l'onglet **Actions** : l'Action reste verte, mais l'étape « Envoyer la gazette sur Discord » porte un avertissement qui commence par « Gazette : ».
+
+Le robot envoie après avoir enregistré les données : s'il ne peut plus pousser sur `main`, plus rien ne part. Limite : s'il envoie le message puis n'arrive pas à noter l'envoi après trois essais, l'édition repart une fois au passage suivant.
 
 ## Animations
 

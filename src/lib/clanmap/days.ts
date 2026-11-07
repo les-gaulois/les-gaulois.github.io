@@ -119,6 +119,8 @@ export interface TerritoryReading {
   date: string;
   pixels: number;
   rank: number | null;
+  /** `true` : la fin de cette journée, d'après l'historique. Sinon, un relevé fait dans la journée, que le film suivant peut démentir. */
+  final?: boolean;
 }
 
 /**
@@ -129,5 +131,6 @@ export interface TerritoryReading {
 export function territoryReadings(rows: readonly DayRow[], journal: readonly TerritoryReading[]): TerritoryReading[] {
   const complete = rows.filter((r) => r.complete);
   const known = new Set(complete.map((r) => r.date));
-  return [...complete, ...journal.filter((j) => !known.has(j.date))].sort((a, b) => a.date.localeCompare(b.date));
+  const ends = complete.map(({ date, pixels, rank }) => ({ date, pixels, rank, final: true }));
+  return [...ends, ...journal.filter((j) => !known.has(j.date))].sort((a, b) => a.date.localeCompare(b.date));
 }

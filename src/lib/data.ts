@@ -67,6 +67,11 @@ export function loadSessions(): StoredSession[] {
   return listJson("data/sessions").flatMap((f) => read(`data/sessions/${f}`, StoredSessionFile)?.sessions ?? []);
 }
 
+/** Les mois de sessions illisibles. Une page les ignore et se corrige au build suivant ; un message posté ne se corrige pas. */
+export function unreadableSessionFiles(): string[] {
+  return listJson("data/sessions").filter((f) => !read(`data/sessions/${f}`, StoredSessionFile));
+}
+
 export function loadGames(): StoredGame[] {
   return listJson("data/games").flatMap((f) => read(`data/games/${f}`, StoredGameFile)?.games ?? []);
 }

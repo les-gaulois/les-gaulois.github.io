@@ -160,6 +160,8 @@ describe("relevés du territoire pour la gazette", () => {
   it("préfère la fin de journée de l'historique, et remonte avant le premier relevé", () => {
     const readings = territoryReadings([row("2026-11-04", 400, true), row("2026-11-05", 510, true)], journal);
     expect(readings.map((r) => [r.date, r.pixels])).toEqual([["2026-11-04", 400], ["2026-11-05", 510], ["2026-11-06", 600]]);
+    // Seule une journée terminée dans l'historique est définitive.
+    expect(readings.map((r) => r.final ?? false)).toEqual([true, true, false]);
   });
 
   it("garde le relevé du jour plutôt qu'une journée pas terminée", () => {

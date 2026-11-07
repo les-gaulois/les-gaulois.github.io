@@ -257,17 +257,20 @@ async function updateClanMap(api: ApiClient, deps: ClanMapDeps, at: string): Pro
   await writeJson(join(dir, "film.json"), film);
 
   // Le journal garde le dernier relevé de chaque jour, sans jamais le réécrire après coup.
-  const journalPath = join(dir, "journal.json");
-  const journal = (await readJson(journalPath, ClanMapJournal)) ?? [];
-  const date = parisParts(at).date;
-  const entry = {
-    date,
-    pixels: film.galSummary?.pixels ?? 0,
-    rank: film.galSummary?.rank ?? null,
-    caps: treasury?.caps ?? null,
-    troops: treasury?.troops ?? null,
-  };
-  await writeJson(journalPath, [...journal.filter((e) => e.date !== date), entry]);
+  // Sans GAL dans l'annuaire de la carte, son territoire est inconnu : pas de ligne plutôt qu'un faux zéro.
+  if (film.galSummary) {
+    const journalPath = join(dir, "journal.json");
+    const journal = (await readJson(journalPath, ClanMapJournal)) ?? [];
+    const date = parisParts(at).date;
+    const entry = {
+      date,
+      pixels: film.galSummary.pixels,
+      rank: film.galSummary.rank,
+      caps: treasury?.caps ?? null,
+      troops: treasury?.troops ?? null,
+    };
+    await writeJson(journalPath, [...journal.filter((e) => e.date !== date), entry]);
+  }
   return film;
 }
 
