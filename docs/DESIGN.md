@@ -70,9 +70,12 @@ Le build en tire des versions légères dans `public/generated/`, et le site n'a
 
 - **Parties par jour :** barres empilées victoires et défaites, en bleu `#4C86F5` et orange `#D9742E`. Palette contrôlée sur la surface des cartes, y compris pour les daltonismes. Une légende et un tableau accompagnent le graphique de la page Progression.
 - **Vue « Tout » :** regroupée par semaine, pour garder des barres lisibles en mobile.
-- **Rang et score :** deux graphiques distincts, jamais de double axe. Le rang a l'axe inversé.
+- **Rang, score et membres :** trois graphiques distincts, jamais de double axe. Le rang a l'axe inversé. Chacun a sa propre échelle, ce que la page écrit, et un tableau donne les valeurs exactes.
 - **Heatmap :** une seule teinte, du sombre au clair, avec le nombre écrit dans chaque case. C'est un vrai tableau HTML. En dessous de 1 024 px, il pivote en une ligne par heure pour tenir sans défilement horizontal.
 - **Période en cours :** barre plus pâle.
+- **Comparateur de clans (page Classement) :** un vrai tableau à trois colonnes, sans jauge ni couleur par gagnant : le site ne dit pas lequel des deux est meilleur. L'écart est écrit en toutes lettres, annoncé aux lecteurs d'écran, et doublé d'un tableau repliable dès le deuxième relevé.
+- **Paliers (page Membres et fiches) :** du texte et des noms, sans classement de jauges. Sur une fiche, la jauge va du palier atteint au suivant, et sa valeur est écrite juste au-dessus. Au-delà de 12 pseudos, un palier se replie : tout reste dans le HTML et s'ouvre sans JavaScript.
+- **Dernières parties :** un vrai tableau à partir de 1 024 px, des cartes en dessous. Les 25 premières lignes sont dans le HTML. Le résultat est écrit en toutes lettres : la pastille bleue ou orange ne porte jamais seule l'information.
 - **Croissance des troupes (page Débuter) :** une seule courbe calculée, en bleu `#4C86F5`, avec la zone de 35 à 42 % en surbrillance. Le survol lit une valeur, et un tableau repliable donne les mêmes chiffres sans survol.
 
 ## Mouvement et interactions
@@ -180,7 +183,4 @@ Le code est dans `src/scripts/fx.ts`, et sa logique testable dans `src/lib/fx/te
 
 Ces ajouts hors V1 restent possibles sans refonte :
 
-- **Profils individuels :** les `publicId` des membres avec pseudo sont conservés.
-- **Historique des parties :** les sessions sont déjà archivées avec leur `gameId`.
-- **Comparateur :** le classement complet est conservé à chaque collecte.
 - **Multilingue :** les textes sont dans les pages, ce qui demandera de les extraire.

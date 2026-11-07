@@ -19,6 +19,7 @@ export const clan = {
   entryConditions: [] as string[],
 
   links: {
+    site: "https://les-gaulois.github.io",
     discord: "https://discord.gg/cjUc42T7Y2",
     openfront: "https://openfront.io/",
     source: "https://github.com/les-gaulois/les-gaulois.github.io",

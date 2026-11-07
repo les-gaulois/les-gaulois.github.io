@@ -16,6 +16,7 @@
     "data:fetch": "tsx scripts/fetch-data.ts",
     "data:carte": "tsx scripts/fetch-data.ts --carte",
     "membres:relire": "tsx scripts/relire-membres.ts",
+    "gazette:envoyer": "tsx scripts/envoyer-gazette.ts",
     "verifier:ligne": "tsx scripts/verifier-mise-en-ligne.ts",
     "lint": "eslint .",
     "typecheck": "astro check && tsc --noEmit",

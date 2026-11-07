@@ -2,14 +2,19 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { clan } from "../../config/clan";
-import { loadTerritoryReadings, loadGames, loadHistory, loadMemberGames, loadMembers, loadMeta, loadSessions } from "../../src/lib/data";
-import { fmtCount } from "../../src/lib/format";
+import { worldTerritory } from "../../src/lib/carte-monde";
+import { loadClanMapFilm, loadTerritoryReadings, loadGames, loadHistory, loadMemberGames, loadMembers, loadMeta, loadSessions } from "../../src/lib/data";
+import { fmtCount, fmtGap, fmtRank, fmtScore } from "../../src/lib/format";
+import type { LeaderboardEntry } from "../../src/lib/schemas";
+import { withOfficialRanks } from "../../src/lib/stats";
 import { faceOffs, mapResults } from "../../src/lib/games";
 import { editionLead, gazetteEditions, rankWords, standingDetails, territoryDetails, weekLabel } from "../../src/lib/gazette";
+import { clanJournal, JOURNAL_FIRST_ROWS, journalChoices, journalCount, NO_FILTER, replayUrl } from "../../src/lib/journal";
 import { gamesOf, recentGamesTitle } from "../../src/lib/members";
 import { mapLabel } from "../../src/lib/map-names";
+import { nextTier, tierOf, tierRows } from "../../src/lib/paliers";
 
-const PAGES = ["/", "/classement", "/progression", "/membres", "/activite", "/carte", "/debuter", "/rejoindre", "/gazette"];
+const PAGES = ["/", "/classement", "/progression", "/membres", "/activite", "/carte", "/debuter", "/rejoindre", "/gazette", "/parties"];
 const lb = JSON.parse(readFileSync("data/leaderboard.json", "utf8"));
 const members = JSON.parse(readFileSync("data/members.json", "utf8"));
 const gal = lb.clans.find((c: { clanTag: string }) => c.clanTag === "GAL");
@@ -236,6 +241,236 @@ test("les face-à-face reprennent les chiffres calculés, sans aucun joueur", as
     expect(digits(await panel.getByTestId("face-off-others").textContent())).toBe(String(row.others));
   }
   await expect(block.getByRole("link")).toHaveCount(0);
+});
+
+test("le comparateur met côte à côte deux clans de la liste officielle", async ({ page }) => {
+  const clans = withOfficialRanks(lb.clans as LeaderboardEntry[]);
+  const me = clans.find((c) => c.clanTag === clan.tag);
+  const above = clans[(me?.rank ?? 2) - 2];
+  const other = clans.at(-1);
+  if (!me || !above || !other) throw new Error("La liste devrait contenir le clan et ses voisins.");
+  await page.goto("/classement");
+  const block = page.getByTestId("clan-compare");
+  await block.scrollIntoViewIfNeeded();
+  // Sans attendre le script : les chiffres sont déjà dans la page.
+  const html = await (await page.request.get("/classement")).text();
+  expect(html).toContain('data-testid="compare-table"');
+  await hydrated(page);
+
+  const checkRows = async (tag: string, score: number, games: number) => {
+    await expect(block.getByTestId("compare-table").locator("thead")).toContainText(`[${tag}]`);
+    const cells = block.getByTestId("compare-row");
+    await expect(cells.nth(1).locator("td").nth(1)).toHaveText(fmtScore(score));
+    expect(digits(await cells.nth(2).locator("td").nth(1).textContent())).toBe(String(games));
+  };
+  await checkRows(above.clanTag, above.weightedWins, above.games);
+  await expect(block.getByTestId("compare-gap")).toContainText(fmtGap(me.weightedWins - above.weightedWins));
+
+  await block.getByLabel("Clan à comparer").selectOption(other.clanTag);
+  await checkRows(other.clanTag, other.weightedWins, other.games);
+  await expect(block.getByTestId("compare-gap")).toContainText(fmtGap(me.weightedWins - other.weightedWins));
+  await expect(block.getByTestId("compare-row").first().locator("td").nth(1)).toHaveText(fmtRank(other.rank));
+
+  // Le clan lui-même ne se compare pas à lui-même.
+  await expect(block.getByLabel("Clan à comparer").locator(`option[value="${clan.tag}"]`)).toHaveCount(0);
+});
+
+test("dès deux relevés, le comparateur double sa courbe d'un tableau", async ({ page }) => {
+  // Ces deux dates ne servent qu'à ce test, sur un fichier remplacé à la volée : le premier jour de la collecte, il n'y avait qu'un relevé.
+  const clans = withOfficialRanks(lb.clans as LeaderboardEntry[]);
+  const me = clans.find((c) => c.clanTag === clan.tag);
+  const above = clans[(me?.rank ?? 2) - 2];
+  if (!me || !above) throw new Error("La liste devrait contenir le clan et son voisin.");
+  await page.route("**/classement-scores.json", (route) =>
+    route.fulfill({ json: { dates: ["2026-11-07", "2026-11-08"], scores: { [me.clanTag]: [100, 120], [above.clanTag]: [150, 110] } } }),
+  );
+  await page.goto("/classement");
+  await hydrated(page);
+  const table = page.getByTestId("compare-gap-table");
+  await table.locator("summary").click();
+  const rows = table.locator("tbody tr");
+  await expect(rows).toHaveCount(2);
+  await expect(rows.first()).toContainText(`+${fmtScore(10)}`);
+  await expect(rows.last()).toContainText(`−${fmtScore(50)}`);
+});
+
+test("un bouton de filtre actif reste lisible au survol", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "Le survol est testé sur desktop.");
+  await page.goto("/parties");
+  await hydrated(page);
+  const active = page.getByRole("button", { name: "Toutes", exact: true });
+  await expect(active).toBeEnabled();
+  await active.hover();
+  await expect(active).toHaveCSS("color", "rgb(10, 18, 48)");
+  await expect(active).toHaveCSS("background-color", "rgb(255, 255, 255)");
+});
+
+test("sans le fichier des scores, le comparateur garde ses chiffres et le signale", async ({ page }) => {
+  await page.route("**/classement-scores.json", (route) => route.fulfill({ status: 500, body: "panne" }));
+  await page.goto("/classement");
+  const block = page.getByTestId("clan-compare");
+  await block.scrollIntoViewIfNeeded();
+  await expect(block.getByRole("status").filter({ hasText: "n'a pas pu être chargée" })).toBeVisible();
+  await expect(block.getByTestId("compare-row").first()).toBeVisible();
+});
+
+test.describe("carte World", () => {
+  const film = loadClanMapFilm();
+  const expected = worldTerritory(film);
+
+  test("elle dessine la part réelle de GAL et le dit, sans valeur d'exemple", async ({ page }) => {
+    test.skip(!expected, "pas de film collecté");
+    const errors: string[] = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.goto("/carte-monde/");
+    const text = page.getByTestId("monde-territoire");
+    await expect(text).toContainText("carte officielle des clans");
+    await expect(text).toContainText("Sa forme ici est une illustration : le vrai tracé de GAL est sur la page Carte.");
+    await expect(page.locator("main")).not.toContainText(/démonstration|arbitraire|exemple/i);
+    const painted = await page.evaluate(async () => {
+      const world = (window as unknown as { carteMonde: { pret: Promise<void> } }).carteMonde;
+      await world.pret;
+      return document.querySelector('[data-testid="monde-territoire"]')?.textContent ?? "";
+    });
+    expect(digits(painted)).toContain(String(expected?.pixels));
+    expect(digits(painted)).toContain(String(expected?.tiles));
+    await expect(page.getByText("© OpenFront and Contributors")).toBeVisible();
+    await expect(page.getByRole("link", { name: "page Carte" })).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
+  test("sans son fichier, elle ne dessine aucun territoire et le dit", async ({ page }) => {
+    await page.route("**/territoire.json", (route) => route.fulfill({ status: 500, body: "panne" }));
+    await page.goto("/carte-monde/");
+    await expect(page.getByTestId("monde-territoire")).toHaveText("Pas de données : le territoire de GAL n'est pas dessiné.");
+  });
+});
+
+test("la progression suit le nombre de membres, relevé chaque jour", async ({ page }) => {
+  const last = loadHistory().at(-1);
+  if (!last) throw new Error("L'historique devrait avoir au moins un relevé.");
+  await page.goto("/progression");
+  await hydrated(page);
+  await expect(page.getByRole("heading", { name: "Membres", exact: true })).toBeVisible();
+  await page.getByText("Voir le tableau des relevés").click();
+  const row = page.getByRole("table", { name: "Rang, score et nombre de membres relevés chaque jour" }).locator("tbody tr").first();
+  expect(digits(await row.locator("td").nth(3).textContent())).toBe(last.membersTotal === null ? "" : String(last.membersTotal));
+});
+
+test("les paliers rangent chaque membre une fois, sans anonyme nommé", async ({ page }) => {
+  const stored = loadMembers();
+  if (!stored) throw new Error("La liste des membres devrait exister.");
+  const rows = tierRows(stored.members);
+  await page.goto("/membres");
+  const block = page.getByTestId("win-tiers");
+  await expect(block.getByTestId("win-tier")).toHaveCount(rows.length);
+  for (const [i, row] of rows.entries()) {
+    const tier = block.getByTestId("win-tier").nth(i);
+    await expect(tier.getByTestId("win-tier-title")).toHaveText(fmtCount(row.wins, "victoire"));
+    await expect(tier.getByTestId("win-tier-count")).toHaveText(fmtCount(row.count, "membre"));
+    await expect(tier.locator("a")).toHaveCount(row.named.length);
+  }
+  // Un pseudo mène à sa fiche, qui dit le même palier.
+  const leader = rows[0]?.named[0];
+  if (!leader?.team || !leader.username) throw new Error("Le plus haut palier devrait avoir un membre avec pseudo.");
+  await block.getByRole("link", { name: leader.username, exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/membres/${leader.publicId}`));
+  const tier = tierOf(leader.team.wins);
+  if (tier === null) throw new Error("Ce membre devrait avoir un palier.");
+  await expect(page.getByTestId("member-tier")).toContainText(`Palier atteint : ${fmtCount(tier, "victoire")}`);
+  const next = nextTier(leader.team.wins);
+  if (next) await expect(page.getByTestId("member-tier")).toContainText(`Prochain palier : ${fmtCount(next.wins, "victoire")}`);
+});
+
+test("le journal montre les dernières parties, avec leur replay et des filtres", async ({ page }) => {
+  const official = (lb.clans as { clanTag: string }[]).map((c) => c.clanTag);
+  const { rows, coverage } = clanJournal({ sessions: loadSessions(), games: loadGames(), coveredUntil: loadMeta().sessions.coveredUntil, tag: clan.tag, officialTags: official });
+  const first = rows[0];
+  if (!first) throw new Error("Le journal devrait avoir au moins une partie.");
+  const apiCalls: string[] = [];
+  page.on("request", (r) => {
+    if (r.url().includes("api.openfront.io")) apiCalls.push(r.url());
+  });
+  await page.goto("/parties");
+  const line = page.locator('[data-testid="journal-row"], [data-testid="journal-card"]').filter({ visible: true });
+  // Écrites dans la page, avant le chargement du reste.
+  const html = await (await page.request.get("/parties")).text();
+  expect(html.match(/data-testid="journal-replay"/g)?.length).toBe(2 * Math.min(rows.length, JOURNAL_FIRST_ROWS));
+
+  // Un tag se choisit librement : la page et son fichier ne citent que la liste officielle.
+  const published = (await (await page.request.get("/parties.json")).json()) as { rivals: [string, number][]; allies: [string, number][] }[];
+  expect(published).toHaveLength(rows.length);
+  for (const tag of new Set(published.flatMap((r) => [...r.rivals, ...r.allies].map(([t]) => t)))) expect(official).toContain(tag);
+
+  await hydrated(page);
+  const count = page.getByTestId("journal-count");
+  await expect(count).toContainText(journalCount(rows, NO_FILTER));
+  await expect(line.first().getByTestId("journal-replay")).toHaveAttribute("href", replayUrl(first.id));
+  await expect(line.first()).toContainText(first.won ? "Victoire" : "Défaite");
+  if (first.map) await expect(line.first()).toContainText(mapLabel(first.map));
+  expect(digits(await page.getByTestId("journal-coverage").textContent())).toContain(String(coverage.read));
+
+  // Un filtre ne garde que ce qu'il annonce, et n'écrit jamais de taux.
+  await page.getByRole("button", { name: "Défaites", exact: true }).click();
+  const lost = rows.filter((r) => !r.won);
+  await expect(count).toContainText(journalCount(lost, { ...NO_FILTER, result: "lost" }));
+  await expect(count).not.toContainText("%");
+  await expect(line.first()).toContainText("Défaite");
+
+  const rival = journalChoices(rows).rivals[0];
+  if (rival) {
+    await page.getByLabel("Contre le clan").selectOption(rival);
+    const against = lost.filter((r) => r.rivals.some(([tag]) => tag === rival));
+    await expect(count).toContainText(fmtCount(against.length, "partie"));
+    await expect(count).not.toContainText("%");
+    if (coverage.read < coverage.total) await expect(page.getByTestId("journal-unread")).toBeVisible();
+  }
+
+  // Au clavier, retirer les filtres ne renvoie pas en haut de la page.
+  const reset = page.getByRole("button", { name: "Retirer les filtres" });
+  await reset.focus();
+  await reset.press("Enter");
+  await expect(count).toContainText(journalCount(rows, NO_FILTER));
+  await expect(reset).toHaveCount(0);
+  await expect(page.locator(":focus")).toHaveText("Toutes");
+  await expect(page.getByTestId("journal-unread")).toHaveCount(0);
+
+  // Revenir à « tous » retire aussi le bouton.
+  await page.getByLabel("Format").selectOption({ index: 1 });
+  await expect(reset).toBeVisible();
+  await page.getByLabel("Format").selectOption("");
+  await expect(reset).toHaveCount(0);
+
+  // Plus de parties à la demande : le clavier reprend à la première ligne ajoutée.
+  const shown = await line.count();
+  if (rows.length > shown) {
+    const more = page.getByRole("button", { name: /de plus$/ });
+    await more.focus();
+    await more.press("Enter");
+    await expect(line).toHaveCount(Math.min(rows.length, shown * 2));
+    await expect(page.locator(":focus")).toHaveAttribute("href", replayUrl(rows[shown]?.id ?? ""));
+  }
+  await expect(page.getByTestId("map-names-credit")).toBeVisible();
+  await expect(page.locator("footer").getByRole("link", { name: "Les dernières parties" })).toHaveAttribute("href", /\/parties$/);
+  expect(apiCalls).toEqual([]);
+});
+
+test("réessayer de charger le journal garde la place du clavier", async ({ page }) => {
+  await page.route("**/parties.json", (route) => route.fulfill({ status: 500, body: "panne" }));
+  await page.goto("/parties");
+  const retry = page.getByRole("button", { name: "Réessayer" });
+  await retry.focus();
+  await retry.press("Enter");
+  await expect(page.locator(":focus")).toHaveAttribute("data-testid", "journal-count");
+  await expect(retry).toBeVisible();
+});
+
+test("sans son fichier, le journal garde ses premières lignes et le signale", async ({ page }) => {
+  await page.route("**/parties.json", (route) => route.fulfill({ status: 500, body: "panne" }));
+  await page.goto("/parties");
+  await expect(page.getByRole("alert").filter({ hasText: "n'a pas pu être chargé" })).toBeVisible();
+  await expect(page.locator('[data-testid="journal-row"], [data-testid="journal-card"]').filter({ visible: true }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Défaites", exact: true })).toBeDisabled();
 });
 
 test("la gazette donne le bilan de la dernière semaine complète, et n'invente pas ce qui manque", async ({ page }) => {

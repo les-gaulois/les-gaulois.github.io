@@ -50,6 +50,15 @@ jobs:
           restore-keys: member-games-
       - name: Collecter les données
         run: npm run data:fetch
+      # Sans ce secret, l'étape ne fait rien. Une panne de Discord n'empêche jamais d'enregistrer les données. Elle reste avant « Enregistrer les données », qui garde la trace de l'édition envoyée.
+      - name: Envoyer la gazette sur Discord
+        # Sur une autre branche, la trace de l'envoi ne reviendrait pas sur main, et l'édition repartirait.
+        if: github.ref_name == 'main'
+        continue-on-error: true
+        timeout-minutes: 2
+        run: npm run gazette:envoyer
+        env:
+          DISCORD_WEBHOOK_GAZETTE: ${{ secrets.DISCORD_WEBHOOK_GAZETTE }}
       - name: Conserver les parties des membres
         if: ${{ !cancelled() && hashFiles('.cache/member-games/players.json') != '' }}
         continue-on-error: true

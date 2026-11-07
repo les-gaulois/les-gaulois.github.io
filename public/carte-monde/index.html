@@ -18,6 +18,8 @@
       borderColor dans src/client/theme/ThemeProvider.ts (« borderDarken » de src/client/theme/default-theme.json).
   Modifications : réécrit en JavaScript simple pour un canvas 2D, sans WebGL ni textures ; un territoire
   par appel, sans motifs, skins, surbrillance, relations ni postes de défense ; noms traduits en français.
+  MODIFIÉ DE NOUVEAU LE 07/11/2026 : le territoire d'exemple, à la taille arbitraire, laisse la place à la part réelle
+  de GAL sur la carte officielle, lue dans territoire.json.
   Conditions supplémentaires de la licence du jeu (section 7) : la mention « © OpenFront and Contributors »
   reste visible en pied de page, et l'origine du code n'est pas travestie. Voir NOTICE.md.
 
@@ -56,7 +58,7 @@
       border: 1px solid #222;
       background: #3c3c3c;
     }
-    .exemple { color: #cfcfcf; font-size: .95rem; }
+    .territoire { color: #cfcfcf; font-size: .95rem; }
     footer { padding-top: 0; padding-bottom: 24px; font-size: .9rem; color: #bdbdbd; }
     footer p { margin: .25rem 0; }
     a { color: #9fd0ff; }
@@ -69,12 +71,12 @@
     <h1>Carte « World »</h1>
     <p class="intro">
       Le terrain du monde d'OpenFront, dessiné case par case à partir des données publiques du jeu, avec ses couleurs.
-      Les territoires de clans se posent par-dessus avec la fonction <code>paintTerritory</code>,
-      dessinés comme dans le jeu : intérieur translucide, bord plus foncé.
+      Un territoire s'y pose comme dans le jeu : intérieur translucide, bord plus foncé.
+      Ce n'est pas la carte sur laquelle les clans peignent : leur vraie carte est sur la <a href="../carte">page Carte</a>.
     </p>
     <p id="etat" class="etat" role="status" aria-live="polite">Chargement du terrain…</p>
     <canvas id="carte" role="img" aria-label="Carte du monde d'OpenFront, en cours de chargement"></canvas>
-    <p id="exemple" class="exemple" hidden></p>
+    <p id="territoire" class="territoire" data-testid="monde-territoire" hidden></p>
     <noscript><p>Cette page a besoin de JavaScript pour dessiner la carte.</p></noscript>
   </main>
   <footer>
@@ -90,7 +92,7 @@
     <p>
       © OpenFront and Contributors. Le code des couleurs du terrain et du dessin des territoires est repris du client
       du jeu, sous <a href="https://github.com/openfrontio/OpenFrontIO/blob/main/LICENSE" rel="noopener">AGPL-3.0</a>,
-      et modifié le 6 novembre 2026 : les fichiers d'origine sont listés en tête du code de cette page.
+      et modifié le 6 et le 7 novembre 2026 : les fichiers d'origine sont listés en tête du code de cette page.
     </p>
   </footer>
 
@@ -432,21 +434,36 @@
         return manifeste.nations.find((n) => n.flag === drapeau) || null;
       }
 
-      // ----- Exemple : un territoire pour GAL autour de la nation « fr » -----
-      // La taille est arbitraire, pour la démonstration. Plus tard, nbTuiles viendra de l'API publique du clan.
-      function exemple() {
-        const fr = nation("fr");
-        if (!fr) return;
-        const [x, y] = versEchelle(fr.coordinates);
-        const pris = paintTerritory(x, y, tuilesVersEchelle(4000), COULEUR_GAL);
-        const p = document.getElementById("exemple");
+      // ----- La part de GAL sur la carte officielle, posée autour de la nation « fr » -----
+      // territoire.json est calculé par worldTerritory (src/lib/carte-monde.ts). Sans lui, la page ne dessine aucun territoire.
+      async function territoireDeGal() {
+        const p = document.getElementById("territoire");
         p.hidden = false;
+        let donnees = null;
+        try {
+          const rep = await fetch(new URL("territoire.json", dossierDesDonnees()));
+          if (rep.ok) donnees = await rep.json();
+        } catch {
+          // Traité plus bas, comme une absence de données.
+        }
+        const fr = nation("fr");
+        if (!donnees || !fr) {
+          p.textContent = "Pas de données : le territoire de GAL n'est pas dessiné.";
+          return;
+        }
+        const [x, y] = versEchelle(fr.coordinates);
+        const pris = paintTerritory(x, y, donnees.tiles, COULEUR_GAL);
+        const nombre = (n) => n.toLocaleString("fr-FR");
+        const part = donnees.share.toLocaleString("fr-FR", { maximumFractionDigits: 1 });
+        const jour = new Date(donnees.at).toLocaleDateString("fr-FR", { timeZone: "Europe/Paris", day: "numeric", month: "long", year: "numeric" });
         p.textContent =
-          `Exemple de démonstration : un territoire « GAL » de ${pris.toLocaleString("fr-FR")} cases ` +
-          `(échelle ${largeur} × ${hauteur}) autour de la France. Cette taille est arbitraire : ce n'est pas une donnée du jeu.`;
+          `Le ${jour}, GAL tenait ${part} % des terres de la carte officielle des clans, soit ${nombre(donnees.pixels)} pixels. ` +
+          `La même part de cette carte fait ${nombre(donnees.tiles)} cases` +
+          (pris < donnees.tiles ? `, dont ${nombre(pris)} tiennent sur cette terre d'un seul tenant. ` : ". ") +
+          "Sa forme ici est une illustration : le vrai tracé de GAL est sur la page Carte.";
         canvas.setAttribute(
           "aria-label",
-          `Carte du monde d'OpenFront, ${largeur} sur ${hauteur} cases, avec un exemple de territoire coloré autour de la France.`,
+          `Carte du monde d'OpenFront, ${largeur} sur ${hauteur} cases, avec en rouge, autour de la France, la part des terres que GAL tient sur la carte officielle.`,
         );
       }
 
@@ -457,7 +474,7 @@
           etat.textContent =
             `Terrain dessiné : ${largeur} × ${hauteur} cases, dont ${casesDeTerre.toLocaleString("fr-FR")} de terre.`;
           canvas.setAttribute("aria-label", `Carte du monde d'OpenFront, ${largeur} sur ${hauteur} cases.`);
-          exemple();
+          await territoireDeGal();
         } catch (err) {
           etat.textContent = `La carte n'a pas pu être chargée : ${err.message}`;
           canvas.setAttribute("aria-label", "Carte non chargée");
@@ -465,7 +482,7 @@
         }
       }
 
-      // Accès depuis la console ou un autre script, par exemple pour brancher les vraies tailles :
+      // Accès depuis la console ou un autre script :
       //   await carteMonde.pret;
       //   carteMonde.effacerTerritoires();
       //   const [x, y] = carteMonde.versEchelle(carteMonde.nation("fr").coordinates);
