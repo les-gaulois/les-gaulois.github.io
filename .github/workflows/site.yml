@@ -24,7 +24,11 @@ jobs:
     permissions:
       contents: write
     steps:
+      # La branche telle qu'elle est maintenant, pas au lancement : une exécution restée en file d'attente
+      # repart des données que la précédente vient de pousser, et n'entre pas en conflit avec elles.
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref_name }}
       - uses: actions/setup-node@v7
         with:
           node-version: 22
