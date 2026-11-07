@@ -20,6 +20,7 @@ import {
   type Arrival,
   type Grid,
 } from "../lib/fx/territory";
+import { frNumber } from "../lib/nombre";
 
 const STORAGE_KEY = "gal-fx";
 /** Le clic droit garde son menu habituel sur ces éléments, et sur le texte sélectionné. */
@@ -904,7 +905,7 @@ function init(): void {
     const decimals = Number(el.dataset.decimals ?? 0);
     const final = el.textContent ?? "";
     if (!Number.isFinite(target)) return;
-    const fmt = new Intl.NumberFormat("fr-FR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    const fmt = frNumber({ minimumFractionDigits: decimals, maximumFractionDigits: decimals });
     const begin = performance.now();
     const step = (t: number) => {
       const p = Math.max(0, Math.min(1, (t - begin) / 900));

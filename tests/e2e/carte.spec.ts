@@ -179,7 +179,7 @@ test.describe("film de la carte", () => {
     const mid = Math.floor(film.frames.length / 2);
     await seekTo(page, mid);
     const frame = film.frames[mid - 1];
-    await expect(page.getByTestId("film-gal")).toContainText(new Intl.NumberFormat("fr-FR").format(frame.gal));
+    await expect(page.getByTestId("film-gal")).toContainText(fmtInt(frame.gal));
     await expect(page.locator("[data-film-event]")).toHaveText(/./);
     expect(digits(await page.locator("[data-film-event]").textContent())).toBe(`${frame.ev}${lastFrame.ev}`);
 
@@ -233,7 +233,7 @@ test.describe("film de la carte", () => {
     expect(await position(page)).toBe(film.frames.length);
     // Le premier pixel de GAL et son record sont datés dans le détail des chiffres.
     await page.getByTestId("fold-numbers").locator("summary").click();
-    await expect(page.getByTestId("film-fact").first()).toContainText(`Événement n° ${new Intl.NumberFormat("fr-FR").format(film.galSummary.firstEvent)}`);
+    await expect(page.getByTestId("film-fact").first()).toContainText(`Événement n° ${fmtInt(film.galSummary.firstEvent)}`);
     const since = changeSinceLastDay(dayRows(film.days, film.frames, film.fetchedAt), film.galSummary.pixels)!;
     await expect(page.getByTestId("map-journal")).toContainText(`${fmtInt(Math.abs(since.change))} pixels depuis la fin du ${fmtDay(since.date).replace(/\.$/, "")}`);
   });
@@ -447,7 +447,7 @@ test.describe("film de la carte", () => {
     await field.fill(named?.username ?? "");
     const result = page.getByTestId("my-place-result");
     await expect(result).toContainText(`${rank}${rank === 1 ? "er" : "e"}`);
-    await expect(result).toContainText(new Intl.NumberFormat("fr-FR").format(wins));
+    await expect(result).toContainText(fmtInt(wins));
     await expect(result).toContainText("Prochain à dépasser");
 
     await field.fill("zzzzzzzzzz");
@@ -516,7 +516,7 @@ test.describe("film de la carte", () => {
     const me = film.standings.findIndex((s: { tag: string }) => s.tag === "GAL");
     const above = film.standings[me - 1];
     const gap = above.pixels - film.standings[me].pixels + 1;
-    await expect(page.getByTestId("map-gap")).toHaveText(new Intl.NumberFormat("fr-FR").format(gap));
+    await expect(page.getByTestId("map-gap")).toHaveText(fmtInt(gap));
 
     await page.getByTestId("conquest-goal").click();
     await expect(page.getByTestId("conquest-verdict")).toContainText(`en dépassant ${above.tag}`);

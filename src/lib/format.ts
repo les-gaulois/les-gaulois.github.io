@@ -1,9 +1,10 @@
+import { frNumber } from "./nombre";
 import { parisParts } from "./time";
 
 const TZ = "Europe/Paris";
-const int = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 });
-const dec2 = new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const dec1 = new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const int = frNumber({ maximumFractionDigits: 0 });
+const dec2 = frNumber({ minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const dec1 = frNumber({ minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const dateTime = new Intl.DateTimeFormat("fr-FR", {
   timeZone: TZ,
   day: "numeric",
@@ -23,7 +24,7 @@ export const NO_DATA = "—";
 export const fmtInt = (n: number | null | undefined) => (n === null || n === undefined ? NO_DATA : int.format(n));
 export const fmtScore = (n: number | null | undefined) => (n === null || n === undefined ? NO_DATA : dec2.format(n));
 export const fmtPct = (n: number | null | undefined) =>
-  n === null || n === undefined ? NO_DATA : `${dec1.format(n)} %`;
+  n === null || n === undefined ? NO_DATA : `${dec1.format(n)}\u00a0%`;
 export const fmtDec1 = (n: number) => dec1.format(n);
 /** Un nombre et son nom, accordé : 1 partie, 2 parties. */
 export const fmtCount = (n: number, word: string) => `${int.format(n)} ${word}${n > 1 ? "s" : ""}`;

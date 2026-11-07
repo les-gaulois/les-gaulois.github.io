@@ -4,7 +4,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { clan } from "../../config/clan";
 import { worldTerritory } from "../../src/lib/carte-monde";
 import { loadClanMapFilm, loadTerritoryReadings, loadGames, loadHistory, loadMemberGames, loadMembers, loadMemberWeeks, loadMeta, loadSessions } from "../../src/lib/data";
-import { fmtCount, fmtGap, fmtRank, fmtScore } from "../../src/lib/format";
+import { fmtCount, fmtGap, fmtInt, fmtRank, fmtScore } from "../../src/lib/format";
 import type { LeaderboardEntry } from "../../src/lib/schemas";
 import { withOfficialRanks } from "../../src/lib/stats";
 import { faceOffs, mapResults } from "../../src/lib/games";
@@ -90,7 +90,7 @@ test("parcours principal", async ({ page }, testInfo) => {
   // Membres : liste officielle, anonymes, recherche, tri.
   await page.goto("/membres");
   await hydrated(page);
-  await expect(page.getByTestId("member-count")).toContainText(`${members.total}`.replace(/\B(?=(\d{3})+$)/g, " "));
+  await expect(page.getByTestId("member-count")).toContainText(fmtInt(members.total));
   await expect(page.getByText("Membre anonyme").filter({ visible: true }).first()).toBeVisible();
   const named = members.members.find((m: { username: string | null }) => m.username)?.username;
   await page.getByLabel("Rechercher par pseudo").fill(named);
@@ -277,6 +277,19 @@ test("le classement montre 25 clans d'abord, le reste à la demande, et la reche
   // Tous les clans sont dans la page, même sans script.
   const html = await (await page.request.get("/classement")).text();
   expect(html).toContain(last);
+});
+
+test("les nombres n'utilisent que des espaces contenues dans nos polices", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "Même texte sur mobile.");
+  test.slow();
+  // Outfit et Inter n'ont pas l'espace fine U+202F : le navigateur la prenait dans la police de l'appareil, et « 121 976 » se lisait « 121976 » en titre.
+  for (const path of PAGES) {
+    await page.goto(path);
+    await page.waitForLoadState("networkidle");
+    await openFolds(page);
+    const text = await page.evaluate(() => document.body.innerText);
+    expect(text.includes("\u202f"), path).toBe(false);
+  }
 });
 
 test("au retour, l'accueil dit ce qui a changé, et rien à la première visite", async ({ page }) => {

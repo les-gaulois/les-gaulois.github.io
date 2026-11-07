@@ -201,14 +201,14 @@ describe("les phrases", () => {
   });
   it("écrit les lignes du classement, avec leurs dates", () => {
     const at = (date: string, rank: number | null, score: number | null) => snapshot(date, rank, { score });
-    expect(standingDetails({ start: at("2026-10-25", 3, 1000.5), end: at("2026-11-01", 2, 1100) })).toEqual(["3e le 25 oct., 2e le 1 nov.", "Score : 1\u202f000,50, puis 1\u202f100,00."]);
+    expect(standingDetails({ start: at("2026-10-25", 3, 1000.5), end: at("2026-11-01", 2, 1100) })).toEqual(["3e le 25 oct., 2e le 1 nov.", "Score : 1\u00a0000,50, puis 1\u00a0100,00."]);
     expect(standingDetails({ start: null, end: at("2026-11-01", 2, 100) })).toEqual(["Seul relevé de la semaine : le 1 nov.", "Score : 100,00."]);
     expect(standingDetails({ start: at("2026-10-25", 2, null), end: at("2026-11-01", 2, 100) })[1]).toBe("Score : 100,00.");
     expect(standingDetails({ start: at("2026-10-25", 2, 100), end: at("2026-11-01", null, null) })).toEqual(["2e le 25 oct., hors de la liste le 1 nov."]);
   });
   it("écrit les lignes du territoire, écart signé compris", () => {
     const at = (date: string, pixels: number, rank: number | null = 5) => ({ date, pixels, rank, caps: null, troops: null });
-    expect(territoryDetails({ start: at("2026-11-05", 91_560), end: at("2026-11-08", 113_025) })).toEqual(["pixels le 8 nov., 5e sur la carte.", "91\u202f560 pixels le 5 nov., soit +21\u202f465."]);
+    expect(territoryDetails({ start: at("2026-11-05", 91_560), end: at("2026-11-08", 113_025) })).toEqual(["pixels le 8 nov., 5e sur la carte.", "91\u00a0560 pixels le 5 nov., soit +21\u00a0465."]);
     expect(territoryDetails({ start: at("2026-11-05", 200), end: at("2026-11-08", 150) })[1]).toBe("200 pixels le 5 nov., soit −50.");
     expect(territoryDetails({ start: null, end: at("2026-08-08", 150, null) })).toEqual(["pixels le 8 août."]);
   });
@@ -260,9 +260,9 @@ describe("les phrases", () => {
   });
   it("écrit le chapeau à partir des chiffres, et accorde les mots", () => {
     const totals = { games: 671, wins: 269, winRate: (269 / 671) * 100 };
-    expect(editionLead({ ...plain, totals }, "GAL")).toMatch(/^671 parties et 269 victoires, soit 40,1 %\.$/);
-    expect(editionLead({ ...plain, totals: { games: 1, wins: 1, winRate: 100 } }, "GAL")).toMatch(/^1 partie et 1 victoire, soit 100,0 %\.$/);
-    expect(editionLead({ ...plain, totals, previous: { games: 616, wins: 217, winRate: 35.2 } }, "GAL")).toContain("La semaine d'avant : 616 parties, 35,2 %.");
+    expect(editionLead({ ...plain, totals }, "GAL")).toMatch(/^671 parties et 269 victoires, soit 40,1\u00a0%\.$/);
+    expect(editionLead({ ...plain, totals: { games: 1, wins: 1, winRate: 100 } }, "GAL")).toMatch(/^1 partie et 1 victoire, soit 100,0\u00a0%\.$/);
+    expect(editionLead({ ...plain, totals, previous: { games: 616, wins: 217, winRate: 35.2 } }, "GAL")).toContain("La semaine d'avant : 616 parties, 35,2\u00a0%.");
     expect(editionLead({ ...plain, totals, standing: { start: snapshot("2026-10-25"), end: snapshot("2026-11-01") } }, "GAL")).toContain("Au classement officiel, [GAL] est 2e le 25 oct. et 2e le 1 nov.");
   });
   it("dit qu'aucune partie n'a eu lieu, et n'annonce pas de taux sans partie", () => {

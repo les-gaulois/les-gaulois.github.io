@@ -2,6 +2,8 @@
  * Les grands moments du film, déduits uniquement des chiffres de chaque image.
  * Aucun texte n'est écrit à la main : si l'histoire change, les moments changent.
  */
+import { frNumber } from "../nombre";
+
 export interface MomentFrame {
   ev: number;
   gal: number;
@@ -25,7 +27,7 @@ export interface Moment {
 const THRESHOLDS = [10_000, 25_000, 50_000, 75_000, 100_000, 150_000, 200_000, 300_000, 500_000, 1_000_000];
 /** Du plus important au moins important : c'est lui qui reste si deux moments sont trop proches. */
 const PRIORITY: MomentKind[] = ["now", "first", "rank", "comeback", "fall", "push", "loss", "threshold"];
-const fmt = new Intl.NumberFormat("fr-FR");
+const fmt = frNumber();
 const place = (rank: number) => `${rank}${rank === 1 ? "re" : "e"} place`;
 
 export function findMoments(frames: readonly MomentFrame[], tag = "GAL"): Moment[] {

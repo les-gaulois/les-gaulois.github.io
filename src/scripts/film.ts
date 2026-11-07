@@ -11,6 +11,7 @@ import { filmDayMarks, placeDayLabels } from "../lib/clanmap/days";
 import { findMoments, type Moment } from "../lib/clanmap/moments";
 import { fmtDay, fmtEpochDay, fmtEpochHour } from "../lib/format";
 import { motionAllowed } from "../lib/fx/motion";
+import { frNumber } from "../lib/nombre";
 import type { StoredClanMapFilm } from "../lib/schemas";
 import { loadFilmData } from "./film-data";
 
@@ -37,8 +38,8 @@ const DAY_LABEL_REM = 3.5;
 /** Une journée rejouée dure au moins ce temps à la vitesse × 1 : un long historique lui laisse peu d'images. */
 const DAY_REPLAY_MS = 4_000;
 
-const fmt = new Intl.NumberFormat("fr-FR");
-const fmtPct = new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const fmt = frNumber();
+const fmtPct = frNumber({ minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 interface Pulse {
   x: number;

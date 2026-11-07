@@ -9,9 +9,10 @@ import {
   type Standing,
 } from "../../src/lib/clanmap/economy";
 import { findMoments, type MomentFrame } from "../../src/lib/clanmap/moments";
+import { fmtInt } from "../../src/lib/format";
 import { MapHeroes, Meta } from "../../src/lib/schemas";
 
-const n = (value: number) => new Intl.NumberFormat("fr-FR").format(value);
+const n = (value: number) => fmtInt(value);
 const clan = (tag: string, pixels: number): Standing => ({ tag, color: null, pixels });
 const standings = [clan("LUX", 380000), clan("UN", 330000), clan("AST", 98000), clan("GAL", 91000), clan("ITA", 67000)];
 

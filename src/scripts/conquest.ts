@@ -6,10 +6,11 @@
 import { clanRgb } from "../lib/clanmap/codec";
 import { capsForNeutralPixels, capsToTroops, expansionOrder, neutralPixelsFor, objectiveFor, projectRank } from "../lib/clanmap/economy";
 import { motionAllowed } from "../lib/fx/motion";
+import { frNumber } from "../lib/nombre";
 import type { StoredClanMapFilm } from "../lib/schemas";
 import { loadFilmData, type FilmData } from "./film-data";
 
-const fmt = new Intl.NumberFormat("fr-FR");
+const fmt = frNumber();
 const TAG = "GAL";
 const MAX_CAPS = 10_000_000;
 const SIM_LIMIT = 500_000;

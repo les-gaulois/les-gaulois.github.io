@@ -55,7 +55,7 @@ Une scène associe un texte et un panneau `.panel`, à la manière d'un écran d
 
 - **Titres :** Outfit, graisse 800, en capitales, interligne serré, approche -0,01 em. Le rendu est proche du lettrage du logo, avec une police libre de droits.
 - **Texte :** Inter.
-- **Chiffres :** chiffres tabulaires (`.tnum`) pour que les colonnes s'alignent.
+- **Chiffres :** chiffres tabulaires (`.tnum`) pour que les colonnes s'alignent. Les milliers sont séparés par l'espace insécable de `src/lib/nombre.ts` : Outfit et Inter ne contiennent pas l'espace fine de `Intl`.
 - Les capitales sont appliquées en CSS : le texte d'origine reste en casse normale pour les lecteurs d'écran.
 - Les polices sont servies par le site, sans requête vers un service tiers.
 

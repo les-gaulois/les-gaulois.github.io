@@ -255,7 +255,7 @@ const snapshot: VisitSnapshot | null = meta.lastRunAt
                   {lastGames.map((game) => (
                     <li class="flex flex-wrap items-baseline justify-between gap-x-4 py-1.5">
                       <span class="min-w-0">{fmtDayAndTime(game.at)}{game.map !== null && <span class="text-muted"> sur {mapLabel(game.map)}</span>}</span>
-                      <span class="font-semibold">{game.won ? "Victoire" : "Défaite"}</span>
+                      <span class="ml-auto font-semibold">{game.won ? "Victoire" : "Défaite"}</span>
                     </li>
                   ))}
                 </ul>
