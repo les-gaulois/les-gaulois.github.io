@@ -1425,6 +1425,38 @@ main .fx-in,
   }
 }
 
+/* ---------- Les nouveautés du site ---------- */
+/* Le point : une mise à jour parue depuis le dernier coup d'œil du visiteur. Rouge du marqueur, 3:1 au moins partout où il se pose :
+   4,8:1 sur le marine, 4,6:1 sur le fond de l'encadrement, 3,8:1 sur la ligne active du menu.
+   Pas de display ici : dans un bouton ou un lien en flex, il devient un bloc, et une classe comme lg:hidden peut encore le masquer. */
+.nouveautes-dot {
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--color-red);
+}
+/* En contraste élevé, le système efface les fonds : le point prend la couleur du texte pour rester visible. */
+@media (forced-colors: active) {
+  .nouveautes-dot {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+}
+.nouveautes-menu > summary::-webkit-details-marker {
+  display: none;
+}
+.nouveautes-menu[open] > summary {
+  color: #fff;
+  border-color: #fff;
+}
+/* Le panneau tient dans la fenêtre : sur un écran bas, il défile au lieu d'en sortir. */
+.nouveautes-panel {
+  width: min(24rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 6rem);
+  overflow-y: auto;
+}
+
 /* ---------- Les écrans du compte et de l'administration ---------- */
 /* Pastille du lien Direction : les demandes qui attendent. Jaune des avertissements, texte sombre (11,6:1 au moins). */
 .count-pill {

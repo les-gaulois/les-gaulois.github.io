@@ -12,6 +12,7 @@ La personne qui pilote le projet ne développe pas et t'a confié le site en aut
 - Avant tout push : la procédure de la skill `publier`, qui commence par `verifier`. Rien ne part tant qu'un contrôle échoue.
 - Tu ne t'arrêtes pour demander que dans ces cas : une dépense, quelle qu'elle soit ; la suppression de données du vrai projet Supabase ou de l'historique dans `data/` ; une migration qui supprime ou vide une table ou une colonne ; une action hors de ce dépôt (comptes GitHub, Supabase, Discord, cron-job.org) ; une question que ces règles ne tranchent pas. Alors : prépare tout, explique en une phrase ce qui bloque, et attends.
 - Les sections « Données », « Secrets » et « Licences » ne se négocient pas. Si une demande les contredit, explique pourquoi et propose autre chose.
+- Chaque changement visible du site ajoute son entrée en tête de `content/nouveautes.json`, en français simple et sans rien inventer : les visiteurs y lisent ce qui a changé.
 - En fin de tâche, rapporte en français simple, sans embellir : ce qui est fait, ce qui est en ligne, ce qui a échoué et pourquoi. Une étape à la fois, sans jargon inutile.
 
 ## Commandes
@@ -34,9 +35,9 @@ Node 22 ou plus. Sous Windows, le shell est Git Bash : chemins avec `/`.
 - `src/pages/*.astro` : une page par fichier, mise en page `src/layouts/Base.astro` (en-tête, navigation, pied de page). Le plan du site, rubriques et onglets, est dans `src/lib/nav.ts`. Pages personnelles `compte`, `admin`, `direction` et fiches `membres/[id]` en `noindex`.
 - `src/components/` : `.astro` statiques, `.tsx` Preact hydratés (`client:idle`, `client:visible` ou `client:only="preact"`). `src/components/compte/` : écrans de la connexion.
 - `src/lib/` : calculs purs et testés. `schemas.ts` (Zod), `data.ts` (lecture de `data/` et `content/`), `compte/` (client Supabase `api.ts`, `preflight.ts`, `roster.ts`), `clanmap/` (carte des clans), `fx/` (logique des effets).
-- `src/scripts/` : scripts navigateur — `fx.ts` effets, `film.ts` film de la carte, `conquest.ts` calculateur de la page Carte.
+- `src/scripts/` : scripts navigateur — `fx.ts` effets, `film.ts` film de la carte, `conquest.ts` calculateur de la page Carte, `nouveautes.ts` point des nouveautés du site.
 - `src/styles/global.css` : jetons de couleur et classes `.stage`, `.card`, `.btn-*`, `.wrap`.
-- `content/` : textes du clan, JSON et Markdown (skill `contenu-clan`). `data/` : écrit par la collecte, jamais à la main.
+- `content/` : textes du clan, JSON et Markdown (skill `contenu-clan`). `content/nouveautes.json` : le journal des mises à jour du site, que tu tiens (skill `publier`). `data/` : écrit par la collecte, jamais à la main.
 - `scripts/` : collecte et outils Node (`tsx`). `supabase/migrations/` : schéma, figé une fois appliqué.
 - `tests/unit/` Vitest ; `tests/e2e/` Playwright, `site.spec.ts` liste les pages contrôlées.
 - `public/brand/` logos source, `public/generated/` dérivés (ignoré par Git), `public/carte-monde/` page HTML autonome.

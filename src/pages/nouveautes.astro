@@ -1,0 +1,47 @@
+---
+import Base from "../layouts/Base.astro";
+import Empty from "../components/Empty.astro";
+import NouveautesDay from "../components/NouveautesDay.astro";
+import PageHeader from "../components/PageHeader.astro";
+import { loadNouveautes } from "../lib/data";
+import { newsDays, splitDays } from "../lib/nouveautes";
+
+const days = newsDays(loadNouveautes());
+const { shown, folded } = splitDays(days);
+const foldedCount = folded.reduce((n, d) => n + d.entries.length, 0);
+---
+
+<Base title="Nouveautés du site" description="Chaque mise à jour du site du clan GAL, expliquée simplement, de la plus récente à la plus ancienne.">
+  <div class="wrap" data-nouveautes-page>
+    <PageHeader
+      title="Nouveautés du site"
+      intro="Ce qui change sur le site, mise à jour par mise à jour, de la plus récente à la plus ancienne. Les chiffres du clan, eux, se mettent à jour toutes les heures : ils ne sont pas listés ici."
+    />
+
+    {
+      days.length === 0 ? (
+        <Empty title="Pas de nouveautés">Aucune mise à jour n'est encore notée.</Empty>
+      ) : (
+        <div class="space-y-6">
+          {shown.map((day) => (
+            <NouveautesDay day={day} />
+          ))}
+          {folded.length > 0 && (
+            <details class="fold" data-testid="nouveautes-older">
+              <summary class="font-semibold">
+                <span>
+                  Mises à jour plus anciennes <span class="tnum text-muted">({foldedCount})</span>
+                </span>
+              </summary>
+              <div class="mt-4 space-y-6">
+                {folded.map((day) => (
+                  <NouveautesDay day={day} />
+                ))}
+              </div>
+            </details>
+          )}
+        </div>
+      )
+    }
+  </div>
+</Base>

@@ -17,7 +17,7 @@ export interface NavSection {
 const section = (label: string, first: NavPage, ...others: NavPage[]): NavSection => ({ label, href: first.href, pages: [first, ...others] });
 
 export const SECTIONS: NavSection[] = [
-  section("Actu", { href: "/gazette", label: "La gazette" }, { href: "/parties", label: "Dernières parties" }),
+  section("Actu", { href: "/gazette", label: "La gazette" }, { href: "/parties", label: "Dernières parties" }, { href: "/nouveautes", label: "Nouveautés du site" }),
   section(
     "Résultats",
     { href: "/classement", label: "Classement" },

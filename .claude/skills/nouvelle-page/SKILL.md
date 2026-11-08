@@ -46,7 +46,7 @@ const sessions = loadSessions();
 
 ## Navigation
 
-Le plan du site est dans `src/lib/nav.ts` : il alimente le menu, les onglets de chaque rubrique (`SectionNav.astro`) et le pied de page. Une nouvelle page rejoint d'abord une rubrique existante, comme onglet. Ne créer une rubrique que pour une question nouvelle du visiteur, et garder sept rubriques au plus : au-delà, le menu passe sous la largeur `lg`/`xl` et déborde. Un contenu n'a qu'une page : l'accueil résume et renvoie, il ne recopie pas. Détail : section « Organisation du site » de `docs/DESIGN.md`.
+Le plan du site est dans `src/lib/nav.ts` : il alimente le menu, les onglets de chaque rubrique (`SectionNav.astro`) et le pied de page. Une nouvelle page rejoint d'abord une rubrique existante, comme onglet. Ne créer une rubrique que pour une question nouvelle du visiteur, et garder six rubriques au plus : avec le bouton « Nouveautés » de l'en-tête, une septième ferait déborder l'en-tête de l'encadrement connecté à 1 280 px (voir `docs/DESIGN.md`). Un contenu n'a qu'une page : l'accueil résume et renvoie, il ne recopie pas. Détail : section « Organisation du site » de `docs/DESIGN.md`.
 
 ## Tests
 

@@ -1,0 +1,237 @@
+[
+  {
+    "date": "2026-11-08",
+    "kind": "nouveau",
+    "title": "Les nouveautés du site",
+    "body": "Le bouton « Nouveautés » en haut des pages, ou le menu sur téléphone, résume les dernières mises à jour du site. Un point rouge signale celles parues depuis votre dernier passage."
+  },
+  {
+    "date": "2026-11-08",
+    "kind": "nouveau",
+    "title": "Événements répétés, « Je viens » et sondages",
+    "body": "Un événement peut se répéter jusqu'à 12 semaines. Sur l'accueil, les membres validés répondent « Je viens » et votent aux sondages, sans que personne voie qui a voté quoi."
+  },
+  {
+    "date": "2026-11-08",
+    "kind": "ameliore",
+    "title": "Un site plus fluide et plus calme",
+    "body": "Chaque page se précharge au survol de son lien, et les blocs apparaissent en fondu au lieu de se construire case par case. La liste des membres montre les 30 premiers, puis un bouton.",
+    "link": { "href": "/membres", "label": "Voir les membres" }
+  },
+  {
+    "date": "2026-11-08",
+    "kind": "ameliore",
+    "title": "L'administration plus sûre et plus claire",
+    "body": "Un changement de rôle demande maintenant une confirmation, chaque demande dit depuis combien de temps elle attend, et des raisons de refus toutes prêtes remplissent le champ."
+  },
+  {
+    "date": "2026-11-08",
+    "kind": "nouveau",
+    "title": "Les paliers franchis sur Discord",
+    "body": "Le site peut annoncer sur Discord les membres avec pseudo qui franchissent un palier de victoires, de 100 à 5 000, avec un lien vers leur fiche. Un message par jour au plus, jamais la nuit.",
+    "link": { "href": "/membres", "label": "Voir les paliers des membres" }
+  },
+  {
+    "date": "2026-11-08",
+    "kind": "nouveau",
+    "title": "L'encadrement suit mieux le site",
+    "body": "Le journal de l'administration écrit chaque action en une phrase, une pastille compte les demandes en attente, et l'espace Direction montre l'état du site."
+  },
+  {
+    "date": "2026-11-08",
+    "kind": "ameliore",
+    "title": "L'espace de l'encadrement passe au rouge",
+    "body": "Les pages Direction et Administration prennent des couleurs rouges : on sait d'un coup d'œil qu'on est dans l'espace de l'encadrement. Les autres pages restent bleues."
+  },
+  {
+    "date": "2026-11-08",
+    "kind": "nouveau",
+    "title": "Le film de la carte reprend où vous l'aviez laissé",
+    "body": "À votre retour, le film ne rejoue que ce qui s'est passé depuis votre dernière visite, et dit ce que GAL a gagné ou perdu. Un bouton rejoue la dernière journée terminée.",
+    "link": { "href": "/carte", "label": "Voir la carte" }
+  },
+  {
+    "date": "2026-11-08",
+    "kind": "nouveau",
+    "title": "Les changements de place sur Discord",
+    "body": "Le site peut prévenir sur Discord quand GAL gagne ou perd une place, au classement officiel ou sur la carte des clans. Une place qui fait le yo-yo n'envoie rien, et deux alertes par jour au plus.",
+    "link": { "href": "/classement", "label": "Voir le classement" }
+  },
+  {
+    "date": "2026-11-08",
+    "kind": "nouveau",
+    "title": "La vue joueur pour l'encadrement",
+    "body": "Un bouton de l'espace Direction montre tout le site comme le voit un membre sans grade. Une bande en haut de chaque page permet d'en sortir. Seul l'affichage change, pas les droits."
+  },
+  {
+    "date": "2026-11-08",
+    "kind": "ameliore",
+    "title": "Une carte plus calme",
+    "body": "La caméra du film glisse en douceur au lieu de zoomer vite et fort, sans éclairs ni étincelles. La page se lit en quatre parties : l'histoire, où en est GAL, le faire grandir, les détails.",
+    "link": { "href": "/carte", "label": "Voir la carte" }
+  },
+  {
+    "date": "2026-11-08",
+    "kind": "ameliore",
+    "title": "La gazette ne compte que les victoires de la semaine",
+    "body": "Le bloc « Le plus de victoires » de la gazette, sur le site comme dans son image pour Discord, ne retient que les victoires de la semaine, jamais celles de tous les temps.",
+    "link": { "href": "/gazette", "label": "Lire la gazette" }
+  },
+  {
+    "date": "2026-11-07",
+    "kind": "corrige",
+    "title": "Les grands nombres restent lisibles",
+    "body": "Les milliers sont séparés par une espace que les polices du site savent afficher : « 121 976 » ne se lit plus « 121976 » dans les titres."
+  },
+  {
+    "date": "2026-11-07",
+    "kind": "nouveau",
+    "title": "La gazette sur Discord",
+    "body": "Le site peut poster la gazette sur Discord le lundi matin, en image aux couleurs du clan : chiffres de la semaine, carte, classement, arrivées et podium, avec un bouton vers le site.",
+    "link": { "href": "/gazette", "label": "Lire la gazette" }
+  },
+  {
+    "date": "2026-11-07",
+    "kind": "ameliore",
+    "title": "Le site rangé en six rubriques",
+    "body": "Six rubriques avec leurs onglets : chaque contenu n'a plus qu'une page. L'accueil dit ce qui a changé depuis votre dernière visite, et peut retenir votre pseudo dans votre navigateur."
+  },
+  {
+    "date": "2026-11-07",
+    "kind": "corrige",
+    "title": "La carte World montre la vraie part de GAL",
+    "body": "La carte World dessine la part réelle de GAL sur la carte officielle des clans, à la place d'une taille choisie arbitrairement.",
+    "link": { "href": "/carte-monde/", "label": "Voir la carte World" }
+  },
+  {
+    "date": "2026-11-07",
+    "kind": "nouveau",
+    "title": "Le comparateur de clans et la courbe des membres",
+    "body": "La page Nos rivaux compare GAL à un autre clan de la liste officielle, et la page Progression suit le nombre de membres du clan, relevé chaque jour.",
+    "link": { "href": "/rivaux", "label": "Comparer les clans" }
+  },
+  {
+    "date": "2026-11-07",
+    "kind": "nouveau",
+    "title": "Les paliers et le journal des parties",
+    "body": "Les membres sont rangés par paliers de victoires en équipe sous le tag. Le journal donne les parties des 30 derniers jours : carte, format, clans de la liste officielle et lien vers le jeu.",
+    "link": { "href": "/parties", "label": "Voir les dernières parties" }
+  },
+  {
+    "date": "2026-11-07",
+    "kind": "nouveau",
+    "title": "Le film de la carte est daté",
+    "body": "Chaque image du film de la carte a sa date, et le film peut s'arrêter sur la fin exacte d'une journée. La page Carte donne aussi les grandes journées de GAL.",
+    "link": { "href": "/carte", "label": "Voir la carte" }
+  },
+  {
+    "date": "2026-11-07",
+    "kind": "nouveau",
+    "title": "Une fiche pour chaque membre",
+    "body": "Chaque membre avec pseudo a sa fiche : stats d'équipe, date d'arrivée et dernières parties sous le tag. Un membre anonyme n'a pas de fiche.",
+    "link": { "href": "/membres", "label": "Voir les membres" }
+  },
+  {
+    "date": "2026-11-07",
+    "kind": "nouveau",
+    "title": "La gazette du clan",
+    "body": "Chaque semaine complète, du lundi au dimanche, a son édition : parties, victoires, temps forts, classement, territoire et arrivées. Ce qui n'a pas été relevé s'écrit « Pas de données ».",
+    "link": { "href": "/gazette", "label": "Lire la gazette" }
+  },
+  {
+    "date": "2026-11-07",
+    "kind": "nouveau",
+    "title": "Les cartes de jeu et les face-à-face",
+    "body": "La page Records donne les résultats du clan sur chaque carte de jeu, et Nos rivaux ses face-à-face avec les autres clans. Une carte n'est dite forte ou faible que si l'écart dépasse le hasard.",
+    "link": { "href": "/records", "label": "Voir les records" }
+  },
+  {
+    "date": "2026-11-07",
+    "kind": "nouveau",
+    "title": "Le classé, nos voisins et les formats de partie",
+    "body": "La page Membres donne les décomptes du classé, Nos rivaux suit la course avec les clans voisins depuis le 7 novembre, et Records donne les résultats selon le format de partie.",
+    "link": { "href": "/rivaux", "label": "Voir nos rivaux" }
+  },
+  {
+    "date": "2026-11-06",
+    "kind": "ameliore",
+    "title": "Une nouvelle adresse",
+    "body": "Le site passe à l'adresse les-gaulois.github.io. Les anciens liens mènent toujours à la bonne page."
+  },
+  {
+    "date": "2026-11-06",
+    "kind": "retire",
+    "title": "Fin de la Conquête des Gaulois",
+    "body": "Le jeu de territoires du site, la Conquête des Gaulois, est retiré, avec la page des dons qui en dépendait."
+  },
+  {
+    "date": "2026-11-06",
+    "kind": "nouveau",
+    "title": "La carte World",
+    "body": "Une page à part dessine la carte World d'OpenFront, avec le terrain et les couleurs du jeu, en citant leur source et leur licence.",
+    "link": { "href": "/carte-monde/", "label": "Voir la carte World" }
+  },
+  {
+    "date": "2026-11-06",
+    "kind": "nouveau",
+    "title": "Les guides",
+    "body": "La page Guides donne les stratégies de chaque mode, adaptées du wiki d'OpenFront, et le guide du clan en 11 chapitres, tiré de ses PDF.",
+    "link": { "href": "/debuter", "label": "Lire les guides" }
+  },
+  {
+    "date": "2026-11-06",
+    "kind": "ameliore",
+    "title": "Un code ouvert à tous",
+    "body": "Le site passe sous licence libre AGPL-3.0 : son code est public, et le bas de chaque page donne le lien vers le code source."
+  },
+  {
+    "date": "2026-11-06",
+    "kind": "corrige",
+    "title": "Le bouton de lecture de la carte reste visible",
+    "body": "Sur certains écrans en paysage, comme en 1 024 sur 768 pixels, le bouton de lecture de la carte sortait du premier écran. La carte se limite maintenant à la hauteur de l'écran."
+  },
+  {
+    "date": "2026-11-06",
+    "kind": "corrige",
+    "title": "La carte des clans repart",
+    "body": "OpenFront refusait une de ses adresses aux machines de GitHub, et la carte restait figée au 5 novembre. La collecte passe par l'adresse publique prévue, et la carte avance de nouveau.",
+    "link": { "href": "/carte", "label": "Voir la carte" }
+  },
+  {
+    "date": "2026-11-06",
+    "kind": "nouveau",
+    "title": "L'encadrement reconnu dès sa demande",
+    "body": "La direction peut noter à l'avance le rôle de son encadrement : à sa demande dans Mon compte, la personne est reconnue avec ce rôle, sans attendre la validation d'un officier."
+  },
+  {
+    "date": "2026-11-06",
+    "kind": "corrige",
+    "title": "Plus de défilement de côté",
+    "body": "Sur les pages Rejoindre et Confidentialité, un décor et un mot très long élargissaient la page sur certains écrans, qui défilait alors de côté. C'est corrigé."
+  },
+  {
+    "date": "2026-11-06",
+    "kind": "nouveau",
+    "title": "La connexion avec Discord sur tout le site",
+    "body": "Le bouton de connexion avec Discord passe en haut de chaque page, et l'encadrement a son espace Direction : tableau de bord, annonces et événements publiés en direct."
+  },
+  {
+    "date": "2026-11-06",
+    "kind": "nouveau",
+    "title": "Jouer en groupe",
+    "body": "Le site montre le taux de victoire du clan selon le nombre de ses joueurs dans une même partie.",
+    "link": { "href": "/activite", "label": "Voir quand jouer" }
+  },
+  {
+    "date": "2026-11-05",
+    "kind": "ameliore",
+    "title": "Un site animé",
+    "body": "Le site passe en grandes scènes animées : vagues au clic, blocs qui apparaissent case par case, frontière tricolore. Le bouton pause en haut de chaque page coupe toutes les animations."
+  },
+  {
+    "date": "2026-11-05",
+    "kind": "nouveau",
+    "title": "La première version du site",
+    "body": "Accueil, classement, progression, membres, activité, guide avec calculateur et page Rejoindre, avec les chiffres de l'API publique d'OpenFront collectés toutes les heures."
+  }
+]

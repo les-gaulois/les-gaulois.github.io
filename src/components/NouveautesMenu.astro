@@ -1,0 +1,42 @@
+---
+import { loadNouveautes } from "../lib/data";
+import { fmtDay } from "../lib/format";
+import { KIND_LABELS, latestNews, typo } from "../lib/nouveautes";
+
+/**
+ * Le bouton « Nouveautés » de l'en-tête, sur grand écran : un panneau avec les dernières mises à jour du site
+ * et le lien vers toutes. Sur téléphone, elles sont dans le menu (Base.astro). Le point est géré par src/scripts/nouveautes.ts.
+ */
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const latest = latestNews(loadNouveautes());
+---
+
+{
+  latest.length > 0 && (
+    <details class="nouveautes-menu relative" data-menu data-nouveautes-menu data-testid="nouveautes-menu">
+      {/* Point allumé, les lecteurs d'écran entendent « Nouveautés : du nouveau depuis votre dernier passage ». */}
+      {/* Plus serré qu'un onglet : l'en-tête de l'encadrement connecté n'a que peu de place à partir de xl, voir docs/DESIGN.md. */}
+      <summary class="chip inline-flex items-center gap-1.5 whitespace-nowrap !px-3.5">
+        Nouveautés
+        <span class="nouveautes-dot" data-nouveautes-dot hidden><span class="sr-only">: du nouveau depuis votre dernier passage</span></span>
+      </summary>
+      <div class="card nouveautes-panel absolute right-0 mt-2 p-5 shadow-xl" data-testid="nouveautes-panel">
+        <p class="font-display text-lg font-extrabold uppercase">Nouveautés du site</p>
+        <ol class="mt-1 divide-y divide-line">
+          {latest.map((entry) => (
+            <li class="py-3" data-testid="nouveautes-panel-entry">
+              <p class="text-xs font-semibold text-muted">
+                <span class="tnum">{fmtDay(entry.date)}</span> · {KIND_LABELS[entry.kind]}
+              </p>
+              <p class="mt-1 font-semibold">{typo(entry.title)}</p>
+              <p class="mt-1 text-sm text-muted">{typo(entry.body)}</p>
+            </li>
+          ))}
+        </ol>
+        <p class="mt-1 font-semibold">
+          <a href={`${base}/nouveautes`}>Toutes les nouveautés</a>
+        </p>
+      </div>
+    </details>
+  )
+}

@@ -21,6 +21,9 @@ Ces fichiers parlent au nom du clan. Leur contenu vient du clan : un message de 
 | Guide du clan | `content/guide-clan/NN-nom.md` | Markdown, en-tête `title`, `order`, `growthChart` (graphique calculé du chapitre 2, ne pas copier ailleurs), `wide` |
 | Donateurs de la carte | `content/carte-heros.json` | `{ "updatedOn": "2026-11-05", "donors": [{ "player": "…", "caps": 1200 }], "highlights": [{ "title": "…", "player": "…", "detail": "… (facultatif)" }] }` |
 | Fiche du clan | `config/clan.ts` | `description`, `history`, `values`, `entryConditions` ; `join.inviteOnly` et `checkedOn` relevés à la main dans le jeu |
+| Nouveautés du site | `content/nouveautes.json` | `[{ "date": "2026-11-08", "kind": "nouveau", "title": "…", "body": "…", "link": { "href": "/page", "label": "…" } }]` — la plus récente en tête, `link` facultatif |
+
+`content/nouveautes.json` est la seule exception à la règle du début, « tu ne rédiges pas à sa place » : ce n'est pas la voix du clan, c'est le journal du site, que tu tiens à chaque publication (skill `publier`, étape 1). Il ne décrit que des changements réellement faits, tels qu'un visiteur les voit.
 
 Les schémas exacts sont dans `src/lib/schemas.ts` et `src/content.config.ts`. Un JSON invalide est ignoré au build : la section s'affiche vide et le build le signale dans ses journaux, sans échouer. Après chaque modification, contrôler avec `node -e "JSON.parse(require('fs').readFileSync('content/events.json','utf8'))"` puis `npm run build`, et lire les journaux.
 

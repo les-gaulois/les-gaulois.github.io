@@ -461,3 +461,22 @@ export const Links = z.object({
   tools: z.array(z.object({ name: z.string().min(1), url: z.url(), description: z.string().min(1) })),
 });
 export type Links = z.infer<typeof Links>;
+/**
+ * Le journal des mises à jour du site, de la plus récente à la plus ancienne : une entrée par changement
+ * qu'un visiteur ou l'encadrement peut remarquer. Les données collectées chaque heure n'y figurent pas.
+ */
+export const NOUVEAUTE_KINDS = ["nouveau", "ameliore", "corrige", "retire"] as const;
+export const Nouveautes = z.array(
+  z.object({
+    /** Le jour de la mise en ligne, à Paris. */
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    kind: z.enum(NOUVEAUTE_KINDS),
+    title: z.string().min(1),
+    /** Ce qui change pour le visiteur, en une ou deux phrases simples. */
+    body: z.string().min(1),
+    /** Une page du site où voir le changement. */
+    link: z.object({ href: z.string().regex(/^\/[a-z0-9/#-]*$/), label: z.string().min(1) }).optional(),
+  }),
+);
+export type Nouveautes = z.infer<typeof Nouveautes>;
+export type Nouveaute = Nouveautes[number];

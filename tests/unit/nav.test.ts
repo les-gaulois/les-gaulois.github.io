@@ -25,7 +25,8 @@ describe("sectionOf", () => {
 describe("SECTIONS", () => {
   const pages = SECTIONS.flatMap((s) => s.pages);
   it("garde le menu assez court pour tenir sur une ligne", () => {
-    expect(SECTIONS.length).toBeLessThanOrEqual(7);
+    // Avec le bouton « Nouveautés », l'en-tête de l'encadrement connecté n'a plus la place d'une septième rubrique : voir docs/DESIGN.md.
+    expect(SECTIONS.length).toBeLessThanOrEqual(6);
   });
   it("ouvre chaque rubrique sur sa première page", () => {
     for (const s of SECTIONS) expect(s.href).toBe(s.pages[0]?.href);

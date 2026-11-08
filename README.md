@@ -15,7 +15,7 @@ Le plan est dans `src/lib/nav.ts`. Une rubrique répond à une question de visit
 | Rubrique | Pages | Ce qu'on y cherche |
 |---|---|---|
 | Accueil | `/` | Ce qui a changé depuis la dernière visite, sa place dans le clan, le dernier bilan, l'objectif sur la carte, quand jouer |
-| Actu | `/gazette`, `/parties` | Le bilan de la semaine, les parties une par une |
+| Actu | `/gazette`, `/parties`, `/nouveautes` | Le bilan de la semaine, les parties une par une, les mises à jour du site expliquées |
 | Résultats | `/classement`, `/rivaux`, `/progression`, `/records` | La liste officielle, la course et les face-à-face, les courbes, les records avec les résultats par format et par carte de jeu |
 | Membres | `/membres`, `/membres/:id` | Les paliers, l'encadrement, le classé, la liste, les fiches |
 | Carte | `/carte` | Le film, puis revoir l'histoire, où en est GAL, faire grandir GAL et le détail |
@@ -106,6 +106,9 @@ Tout se modifie depuis GitHub, sans outil particulier. L'enregistrement relance 
 | Guides par mode | `content/guide/*.md` | Markdown |
 | Guide du clan, chapitre par chapitre | `content/guide-clan/*.md` | Markdown |
 | Donateurs de la carte | `content/carte-heros.json` | `{ "updatedOn": "2026-11-05", "donors": [{ "player": "…", "caps": 1200 }], "highlights": [{ "title": "…", "player": "…", "detail": "… (facultatif)" }] }` |
+| Nouveautés du site | `content/nouveautes.json` | `[{ "date": "2026-11-08", "kind": "nouveau", "title": "…", "body": "…", "link": { "href": "/page", "label": "…" } (facultatif) }]` — `kind` : `nouveau`, `ameliore`, `corrige` ou `retire` ; la plus récente en tête |
+
+**Les nouveautés du site expliquent chaque mise à jour.** Chaque changement qu'un visiteur ou l'encadrement peut remarquer ajoute son entrée en tête de `content/nouveautes.json`, le jour de sa mise en ligne : un titre, puis une ou deux phrases simples, 200 caractères au plus, sur ce qui change pour le visiteur. Les données collectées chaque heure n'y vont pas. Le bouton « Nouveautés » de l'en-tête, sur grand écran, montre les trois dernières ; sur téléphone, elles sont dans le menu ; la page `/nouveautes` les donne toutes, par jour. Un point rouge signale au visiteur une entrée parue depuis son dernier passage : son navigateur garde seulement la marque de la dernière vue (`gal-nouveautes`). À la première visite, cette marque est retenue sans allumer de point : rien n'est nouveau pour ce visiteur.
 
 **Les donateurs se recopient à la main.** Le jeu les réserve aux membres du clan : fiche de [GAL], onglet « Dons », puis « Top donateurs ». Aucune route publique ne les donne, et le site n'utilise aucun compte. Publier ces noms rend publique une information que le jeu garde entre membres : c'est au clan d'en décider. Tant que le fichier est vide, la page n'affiche aucun nom et renvoie vers le jeu.
 

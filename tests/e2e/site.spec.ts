@@ -3,7 +3,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { clan } from "../../config/clan";
 import { worldTerritory } from "../../src/lib/carte-monde";
-import { loadClanMapFilm, loadTerritoryReadings, loadGames, loadHistory, loadMemberGames, loadMembers, loadMemberWeeks, loadMeta, loadSessions } from "../../src/lib/data";
+import { loadClanMapFilm, loadTerritoryReadings, loadGames, loadHistory, loadMemberGames, loadMembers, loadMemberWeeks, loadMeta, loadNouveautes, loadSessions } from "../../src/lib/data";
 import { fmtCount, fmtGap, fmtInt, fmtRank, fmtScore } from "../../src/lib/format";
 import type { LeaderboardEntry } from "../../src/lib/schemas";
 import { withOfficialRanks } from "../../src/lib/stats";
@@ -13,10 +13,11 @@ import { clanJournal, JOURNAL_FIRST_ROWS, journalChoices, journalCount, NO_FILTE
 import { gamesOf, recentGamesTitle } from "../../src/lib/members";
 import { mapLabel } from "../../src/lib/map-names";
 import { SECTIONS } from "../../src/lib/nav";
+import { latestNews, newsDays, newsMarker, NOUVEAUTES_KEY, splitDays } from "../../src/lib/nouveautes";
 import { objectiveFor } from "../../src/lib/clanmap/economy";
 import { nextTier, tierOf, tierRows } from "../../src/lib/paliers";
 
-const PAGES = ["/", "/gazette", "/parties", "/classement", "/rivaux", "/progression", "/records", "/membres", "/carte", "/activite", "/debuter", "/outils", "/rejoindre"];
+const PAGES = ["/", "/gazette", "/parties", "/nouveautes", "/classement", "/rivaux", "/progression", "/records", "/membres", "/carte", "/activite", "/debuter", "/outils", "/rejoindre"];
 const lb = JSON.parse(readFileSync("data/leaderboard.json", "utf8"));
 const members = JSON.parse(readFileSync("data/members.json", "utf8"));
 const gal = lb.clans.find((c: { clanTag: string }) => c.clanTag === "GAL");
@@ -291,6 +292,93 @@ test.describe("le plan du site", () => {
   test("le pied de page donne le plan complet", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByTestId("footer-plan").locator("a")).toHaveCount(SECTIONS.flatMap((s) => s.pages).length);
+  });
+});
+
+test.describe("les nouveautés du site", () => {
+  const entries = loadNouveautes();
+  const marker = newsMarker(entries);
+  /** Les points allumés : sur le bouton de l'en-tête, sur le menu du téléphone, ou dans le menu ouvert. */
+  const litDots = (page: Page) => page.locator("[data-nouveautes-dot]").filter({ visible: true });
+
+  test("la page explique chaque mise à jour, de la plus récente à la plus ancienne, et replie les anciennes", async ({ page }) => {
+    await page.goto("/nouveautes");
+    const items = page.getByTestId("nouveautes-entry");
+    const { shown, folded } = splitDays(newsDays(entries));
+    await expect(items.filter({ visible: true })).toHaveCount(shown.flatMap((d) => d.entries).length);
+    if (folded.length > 0) await page.getByTestId("nouveautes-older").locator("summary").click();
+    await expect(items).toHaveCount(entries.length);
+    for (const [i, e] of entries.entries()) {
+      const item = items.nth(i);
+      await expect(item.getByRole("heading", { level: 3 })).toHaveText(e.title);
+      await expect(item).toContainText(e.body);
+      if (e.link) await expect(item.getByRole("link", { name: e.link.label })).toHaveAttribute("href", e.link.href);
+    }
+  });
+
+  test("le bouton de l'en-tête résume les dernières, se referme avec Échap et mène à toutes", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop", "Sur téléphone, les nouveautés passent par le menu.");
+    await page.goto("/classement");
+    const summary = page.getByTestId("nouveautes-menu").locator("summary");
+    const panel = page.getByTestId("nouveautes-panel");
+    await expect(panel).toBeHidden();
+    await summary.click();
+    await expect(panel).toBeVisible();
+    const latest = latestNews(entries);
+    await expect(panel.getByTestId("nouveautes-panel-entry")).toHaveCount(latest.length);
+    for (const [i, e] of latest.entries()) await expect(panel.getByTestId("nouveautes-panel-entry").nth(i)).toContainText(e.body);
+    await page.keyboard.press("Escape");
+    await expect(panel).toBeHidden();
+    await expect(summary).toBeFocused();
+    await summary.click();
+    await panel.getByRole("link", { name: "Toutes les nouveautés" }).click();
+    await expect(page).toHaveURL(/\/nouveautes$/);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Nouveautés du site");
+  });
+
+  test("un point signale une mise à jour parue depuis le dernier passage, et s'éteint une fois vue", async ({ page }, testInfo) => {
+    const mobile = testInfo.project.name === "mobile";
+    // Première visite : rien n'est nouveau pour le visiteur. La marque est retenue, sans point.
+    await page.goto("/");
+    await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), NOUVEAUTES_KEY)).toBe(marker);
+    await expect(litDots(page)).toHaveCount(0);
+    // Comme si la dernière mise à jour vue était plus ancienne.
+    await page.evaluate((key) => localStorage.setItem(key, "2026-01-01/1"), NOUVEAUTES_KEY);
+    await page.reload();
+    await expect(litDots(page)).toHaveCount(1);
+    if (mobile) {
+      // Le bouton Menu garde son nom ; le point allumé lui donne une description.
+      await expect(page.getByLabel("Ouvrir le menu")).toHaveAccessibleDescription("Du nouveau sur le site depuis votre dernier passage");
+      await page.getByText("Menu", { exact: true }).click();
+      const link = page.getByTestId("nouveautes-menu-link");
+      await expect(link).toHaveAccessibleName("Nouveautés du site : du nouveau depuis votre dernier passage");
+      await link.click();
+      await expect(page).toHaveURL(/\/nouveautes$/);
+    } else {
+      const summary = page.getByTestId("nouveautes-menu").locator("summary");
+      await expect(summary).toHaveAccessibleName("Nouveautés : du nouveau depuis votre dernier passage");
+      await summary.click();
+      await expect(page.getByTestId("nouveautes-panel")).toBeVisible();
+    }
+    await expect(litDots(page)).toHaveCount(0);
+    await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), NOUVEAUTES_KEY)).toBe(marker);
+    // Vues une fois, elles ne rallument plus le point.
+    await page.goto("/membres");
+    await expect(litDots(page)).toHaveCount(0);
+  });
+
+  test("sans stockage dans le navigateur, aucun point et aucune erreur", async ({ page }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.addInitScript(() => {
+      Object.defineProperty(window, "localStorage", { get: () => { throw new Error("stockage refusé"); } });
+    });
+    for (const path of ["/", "/nouveautes"]) {
+      await page.goto(path);
+      await page.waitForLoadState("networkidle");
+      await expect(litDots(page)).toHaveCount(0);
+    }
+    expect(errors).toEqual([]);
   });
 });
 

@@ -12,6 +12,7 @@ import {
   Links,
   MapHeroes,
   Meta,
+  Nouveautes,
   RivalsSnapshot,
   StoredClanMapFilm,
   StoredGameFile,
@@ -100,3 +101,4 @@ export function loadRivals(): RivalsSnapshot[] {
 export const loadAnnouncements = () => read("content/announcements.json", Announcements) ?? [];
 export const loadEvents = () => read("content/events.json", Events) ?? [];
 export const loadLinks = () => read("content/links.json", Links) ?? { tools: [] };
+export const loadNouveautes = () => read("content/nouveautes.json", Nouveautes) ?? [];

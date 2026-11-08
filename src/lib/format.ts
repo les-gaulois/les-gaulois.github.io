@@ -16,6 +16,7 @@ const dateTime = new Intl.DateTimeFormat("fr-FR", {
 const clock = new Intl.DateTimeFormat("fr-FR", { timeZone: TZ, hour: "2-digit", minute: "2-digit", second: "2-digit" });
 const dateOnly = new Intl.DateTimeFormat("fr-FR", { timeZone: TZ, day: "numeric", month: "short", year: "numeric" });
 const dayShort = new Intl.DateTimeFormat("fr-FR", { timeZone: "UTC", day: "numeric", month: "short" });
+const dayLong = new Intl.DateTimeFormat("fr-FR", { timeZone: "UTC", day: "numeric", month: "long", year: "numeric" });
 const dayParis = new Intl.DateTimeFormat("fr-FR", { timeZone: TZ, day: "numeric", month: "short" });
 const timeParis = new Intl.DateTimeFormat("fr-FR", { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
 
@@ -68,3 +69,5 @@ export const fmtEpochHour = (seconds: number) => `${fmtEpochDay(seconds)}, ${par
 export const fmtEpochTime = (seconds: number) => timeParis.format(new Date(seconds * 1000));
 /** `day` au format AAAA-MM-JJ, sans conversion de fuseau. */
 export const fmtDay = (day: string) => dayShort.format(new Date(`${day}T00:00:00.000Z`));
+/** Un jour « AAAA-MM-JJ » en toutes lettres : « 8 novembre 2026 », et « 1er » pour le premier du mois. */
+export const fmtLongDay = (day: string) => dayLong.format(new Date(`${day}T00:00:00.000Z`)).replace(/^1 /, "1er ");

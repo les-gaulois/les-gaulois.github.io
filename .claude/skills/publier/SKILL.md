@@ -1,6 +1,6 @@
 ---
 name: publier
-description: Met le site GAL en ligne sans demander d'accord, de bout en bout — vérifications complètes, relecture, synchronisation avec origin/main (le robot y pousse des données chaque heure), commit par fichiers nommés, push sur main, suivi de la GitHub Action et contrôle du site publié. À utiliser dès qu'un changement est prêt, pour toute mise en ligne, et avec /publier.
+description: Met le site GAL en ligne sans demander d'accord, de bout en bout — entrée dans les nouveautés du site, vérifications complètes, relecture, synchronisation avec origin/main (le robot y pousse des données chaque heure), commit par fichiers nommés, push sur main, suivi de la GitHub Action et contrôle du site publié. À utiliser dès qu'un changement est prêt, pour toute mise en ligne, et avec /publier.
 ---
 
 # Publier
@@ -9,15 +9,19 @@ Un push sur `main` lance `.github/workflows/site.yml` : `npm test`, build, puis 
 
 Tu n'as pas besoin d'accord pour publier. Tu as besoin que tout passe.
 
-## 1. Vérifier
+## 1. Noter la nouveauté
+
+Si un visiteur ou l'encadrement peut remarquer le changement, ajouter son entrée en tête de `content/nouveautes.json`, à la date du jour à Paris : `kind` (`nouveau`, `ameliore`, `corrige` ou `retire`), un titre court, une ou deux phrases simples (200 caractères au plus) sur ce qui change pour le visiteur, et au besoin `link` vers la page concernée. Rien d'inventé : le texte décrit ce que fait le changement, sans promesse. Ni les données du robot, ni les tests, ni la documentation n'y vont. Plusieurs commits d'un même changement font une seule entrée. Format détaillé : `README.md`, « Mettre à jour les contenus ».
+
+## 2. Vérifier
 
 Suivre la skill `verifier` jusqu'au bout. Un contrôle qui échoue arrête la publication.
 
-## 2. Faire relire
+## 3. Faire relire
 
-Si le changement touche `src/lib/`, `scripts/`, `supabase/`, `tests/` ou plus d'une centaine de lignes : demander au sous-agent `relecteur` de relire le diff (`git diff origin/main...HEAD`, ou `git diff` si rien n'est encore committé). Corriger ce qu'il signale comme bloquant, puis refaire l'étape 1 si du code a changé.
+Si le changement touche `src/lib/`, `scripts/`, `supabase/`, `tests/` ou plus d'une centaine de lignes : demander au sous-agent `relecteur` de relire le diff (`git diff origin/main...HEAD`, ou `git diff` si rien n'est encore committé). Corriger ce qu'il signale comme bloquant, puis refaire l'étape 2 si du code a changé.
 
-## 3. Se mettre à jour sur origin/main
+## 4. Se mettre à jour sur origin/main
 
 ```bash
 git fetch origin
@@ -29,22 +33,22 @@ git status
 - Vérifier `data/history/` après le rebase : Git y garde parfois une vieille version sans signaler de conflit. Les fichiers doivent être ceux d'`origin/main` (`git diff origin/main -- data/` vide).
 - Si le rebase a touché du code, refaire `npm run build` et `npm test` au minimum.
 
-## 4. Composer le commit
+## 5. Composer le commit
 
 - Ajouter chaque fichier par son nom : `git add src/pages/x.astro tests/e2e/site.spec.ts`. Jamais `git add -A`, `--all` ni `.`.
 - Relire `git diff --cached --stat` puis `git diff --cached`. Doivent être absents : `.env`, tout fichier de `supabase/.temp/`, `public/generated/`, `dist/`, `test-results/`, un identifiant Discord, une clé, un fichier de `data/` modifié à la main.
 - `git status` ne doit plus montrer de fichier modifié que tu voulais inclure.
 - Message en français, une ligne, préfixe par domaine puis résumé à l'indicatif : `pages: ajoute la page Événements`, `design: resserre la grille des membres sur mobile`, `contenu: nouveau chapitre du guide`, `supabase: table des sondages`, `tests: couvre le tri par arrivée`, `docs: …`. Le préfixe `data:` est réservé au robot. Un corps de message explique le pourquoi quand ce n'est pas évident.
 
-## 5. Pousser
+## 6. Pousser
 
 ```bash
 git push origin main
 ```
 
-Jamais de `--force`. Si le push est refusé parce qu'`origin` a avancé : revenir à l'étape 3.
+Jamais de `--force`. Si le push est refusé parce qu'`origin` a avancé : revenir à l'étape 4.
 
-## 6. Suivre l'Action
+## 7. Suivre l'Action
 
 ```bash
 gh run list --workflow site.yml --limit 1
@@ -52,9 +56,9 @@ gh run watch <id> --exit-status
 ```
 
 - Si `gh` manque ou n'est pas connecté : attendre trois minutes, puis lire <https://github.com/les-gaulois/les-gaulois.github.io/actions> ; dire dans le rapport que le suivi s'est fait sans `gh`.
-- En cas d'échec : `gh run view <id> --log-failed`, corriger, et recommencer depuis l'étape 1. Le site reste sur sa version précédente tant que le build échoue : rien n'est cassé en ligne, mais rien n'est publié non plus.
+- En cas d'échec : `gh run view <id> --log-failed`, corriger, et recommencer depuis l'étape 2. Le site reste sur sa version précédente tant que le build échoue : rien n'est cassé en ligne, mais rien n'est publié non plus.
 
-## 7. Contrôler le site en ligne
+## 8. Contrôler le site en ligne
 
 Ouvrir <https://les-gaulois.github.io/> et la ou les pages changées. Vérifier qu'au moins un élément visible du changement est bien là, que le pied de page affiche « Dernière collecte » et « © OpenFront and Contributors », et que la page ne montre ni erreur ni bloc vide. GitHub Pages peut servir l'ancienne version une ou deux minutes : réessayer avant de conclure.
 
