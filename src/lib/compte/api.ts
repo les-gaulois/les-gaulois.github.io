@@ -6,6 +6,7 @@
  */
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import { errorMessage } from "./errors";
+import { setPlayerView } from "./vue-joueur";
 
 export const SUPABASE_URL = (import.meta.env.PUBLIC_SUPABASE_URL ?? "").replace(/\/$/, "");
 export const SUPABASE_KEY = import.meta.env.PUBLIC_SUPABASE_KEY ?? "";
@@ -17,6 +18,16 @@ export const SESSION_KEY = "gal-conquete-session";
 
 export const basePath = (): string => import.meta.env.BASE_URL.replace(/\/$/, "");
 
+/** Une session est peut-être ouverte ici. Sinon, inutile de télécharger Supabase : il n'y a personne à reconnaître. */
+export function mayHaveSession(): boolean {
+  try {
+    // Au retour de Discord, la session n'est pas encore enregistrée : seul le code de l'adresse l'annonce.
+    return localStorage.getItem(SESSION_KEY) !== null || new URLSearchParams(location.search).has("code");
+  } catch {
+    return false;
+  }
+}
+
 export class ServerError extends Error {
   constructor(readonly code: string) {
     super(errorMessage(code));
@@ -26,11 +37,16 @@ export class ServerError extends Error {
 let client: Promise<SupabaseClient> | null = null;
 
 export function supabase(): Promise<SupabaseClient> {
-  client ??= import("@supabase/supabase-js").then(({ createClient }) =>
-    createClient(SUPABASE_URL, SUPABASE_KEY, {
+  client ??= import("@supabase/supabase-js").then(({ createClient }) => {
+    const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
       auth: { flowType: "pkce", detectSessionInUrl: true, persistSession: true, autoRefreshToken: true, storageKey: SESSION_KEY },
-    }),
-  );
+    });
+    // Session fermée ou perdue (jeton révoqué, déconnexion ailleurs) : la vue joueur n'a plus de compte à montrer.
+    sb.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") setPlayerView(false);
+    });
+    return sb;
+  });
   return client;
 }
 
@@ -66,6 +82,8 @@ export async function signInWithDiscord(returnPath: string): Promise<void> {
 }
 
 export async function signOut(): Promise<void> {
+  // Le prochain compte ouvert dans ce navigateur repart de la vue normale.
+  setPlayerView(false);
   const sb = await supabase();
   await sb.auth.signOut();
 }

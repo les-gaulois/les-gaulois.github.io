@@ -1,6 +1,8 @@
 import { useEffect, useState } from "preact/hooks";
-import { SESSION_KEY, basePath, call, supabase } from "../lib/compte/api";
+import { basePath, call, mayHaveSession, supabase } from "../lib/compte/api";
 import type { Me } from "../lib/compte/types";
+import { viewedAccount } from "../lib/compte/vue-joueur";
+import { usePlayerView } from "./compte/common";
 
 const LINK = "btn btn-ghost !min-h-10 !py-1.5 !text-sm whitespace-nowrap";
 
@@ -11,14 +13,10 @@ const LINK = "btn btn-ghost !min-h-10 !py-1.5 !text-sm whitespace-nowrap";
  */
 export default function AuthMenu() {
   const [me, setMe] = useState<Me | null>(null);
+  const playerView = usePlayerView();
 
   useEffect(() => {
-    try {
-      // Au retour de Discord, la session n'est pas encore enregistrée : seul le code de l'adresse l'annonce.
-      if (!localStorage.getItem(SESSION_KEY) && !new URLSearchParams(location.search).has("code")) return;
-    } catch {
-      return;
-    }
+    if (!mayHaveSession()) return;
     let unsubscribe = () => {};
     let stopped = false;
     void supabase().then((sb) => {
@@ -46,11 +44,12 @@ export default function AuthMenu() {
     );
   }
 
-  const canDirect = (me.rank ?? 0) >= 2;
+  // En vue joueur, l'en-tête est celui d'un membre sans grade : la bande placée dessous permet d'en sortir.
+  const canDirect = (viewedAccount(me, playerView).rank ?? 0) >= 2;
   return (
     <>
       {canDirect && (
-        <a href={`${base}/direction`} class={LINK} data-testid="auth-direction">
+        <a href={`${base}/direction`} class={LINK} data-testid="auth-direction" data-direction-link>
           Direction
         </a>
       )}

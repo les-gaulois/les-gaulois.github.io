@@ -19,6 +19,9 @@ Sans `PUBLIC_SUPABASE_URL` et `PUBLIC_SUPABASE_KEY`, aucun de ces éléments n'a
 - **Ce qui attend une décision :** demandes à traiter, membres validés, encadrement, suspendus. Chaque case mène à `/admin`, qui reste l'écran de décision.
 - **Annonces et événements :** publiés sans passer par GitHub, visibles aussitôt sur l'accueil, même sans compte. Ils s'ajoutent à ceux de `content/*.json`, qui restent valables. Si le serveur ne répond pas, l'accueil garde ceux du dépôt.
 - **Transmettre le rôle de fondateur :** visible du fondateur seul. Il faut retaper le nom de la personne. L'ancien fondateur devient admin.
+- **Voir le site comme un joueur :** le bouton en haut de l'espace montre tout le site comme à un membre sans grade : plus de lien « Direction » dans l'en-tête, plus de boutons de l'encadrement dans `/compte`, et `/direction` et `/admin` fermés comme pour un membre. Une bande en haut de chaque page le rappelle et permet d'en sortir.
+  - Seul l'affichage change : le serveur garde le vrai rôle. Un bouton de membre agit pour de vrai : « Effacer mon compte » efface le compte d'un officier ou d'un admin, et le serveur le refuse au fondateur.
+  - Le choix reste dans le navigateur (`gal-vue-joueur`) jusqu'à la sortie ou la déconnexion, y compris quand la session se perd seule (jeton révoqué, déconnexion sur un autre appareil). Il vaut pour les pages ouvertes ensuite, dans tous les onglets : une page déjà ouverte ailleurs garde sa vue jusqu'à son prochain chargement, pour ne pas fermer un formulaire en cours. Les brouillons d'annonce et d'événement survivent à un aller-retour.
 
 Une annonce parle au nom du clan : le nom de son auteur n'est pas public, seuls l'encadrement et le journal le connaissent.
 
@@ -115,6 +118,7 @@ Il vérifie que le projet répond, que Discord est activé, que l'e-mail est cou
 
 - **L'espace Direction et un second compte sur le vrai Supabase.** La connexion Discord, elle, a été essayée le 6 novembre 2026 : `on_auth_user_updated` remplit bien le nom et l'identifiant depuis `auth.identities`. Le nom gardé est le nom d'utilisateur Discord, pas le nom affiché.
 - **Un vrai téléphone, Firefox et Safari.**
+- **La vue joueur avec un vrai compte de l'encadrement.** Le 8 novembre 2026, elle n'a été essayée qu'avec un faux serveur, dans un vrai navigateur : bouton, bande, en-tête, `/compte`, `/direction` et `/admin`.
 - **La relecture de la liste des membres sous son nouveau nom.** Le script `scripts/relire-membres.ts` reprend le code de l'ancienne tâche quotidienne. Sa première exécution sur le vrai projet se lit dans l'onglet **Actions**.
 
 ## Vérifier les membres : la limite à connaître

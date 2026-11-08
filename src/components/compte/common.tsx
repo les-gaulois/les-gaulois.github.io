@@ -2,16 +2,32 @@ import type { ComponentChildren } from "preact";
 import { useCallback, useEffect, useState } from "preact/hooks";
 import { ServerError, call, getSession, signInWithDiscord, supabase } from "../../lib/compte/api";
 import type { Me } from "../../lib/compte/types";
+import { onPlayerViewChange, readPlayerView, viewedAccount } from "../../lib/compte/vue-joueur";
 
 export type Loadable<T> = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; data: T };
 
 export const messageOf = (e: unknown): string => (e instanceof ServerError ? e.message : "Le serveur ne répond pas pour l'instant. Réessayez dans un moment.");
 
-/** Le compte connecté. `null` tant que la session n'est pas lue. */
+/** La vue joueur de ce navigateur, tenue à jour quand on l'ouvre ou la quitte sur cette page. */
+export function usePlayerView(): boolean {
+  const [on, setOn] = useState(readPlayerView);
+  useEffect(() => {
+    // Le choix a pu changer entre le rendu et l'écoute.
+    setOn(readPlayerView());
+    return onPlayerViewChange(() => setOn(readPlayerView()));
+  }, []);
+  return on;
+}
+
+/**
+ * Le compte connecté, tel que le site l'affiche : en vue joueur, l'encadrement s'y voit membre sans grade.
+ * `null` tant que la session n'est pas lue.
+ */
 export function useMe(): { me: Me | null; failed: boolean; userId: string | null; refresh: () => Promise<void> } {
   const [me, setMe] = useState<Me | null>(null);
   const [failed, setFailed] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const playerView = usePlayerView();
 
   const refresh = useCallback(async () => {
     try {
@@ -37,7 +53,7 @@ export function useMe(): { me: Me | null; failed: boolean; userId: string | null
     return () => unsubscribe();
   }, [refresh]);
 
-  return { me, failed, userId, refresh };
+  return { me: me && viewedAccount(me, playerView), failed, userId, refresh };
 }
 
 export function DiscordButton({ returnPath, label = "Se connecter avec Discord" }: { returnPath: string; label?: string }) {

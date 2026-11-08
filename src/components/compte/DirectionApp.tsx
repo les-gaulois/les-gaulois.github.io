@@ -2,6 +2,7 @@ import { useEffect, useState } from "preact/hooks";
 import { basePath, call } from "../../lib/compte/api";
 import { toLocalInput } from "../../lib/compte/news";
 import { ROLE_LABELS, type MemberRow, type Role } from "../../lib/compte/types";
+import { setPlayerView } from "../../lib/compte/vue-joueur";
 import { fmtDate, fmtDateTime, fmtInt } from "../../lib/format";
 import { DiscordButton, Loading, Problem, Success, messageOf, useMe } from "./common";
 
@@ -83,9 +84,13 @@ function useRun(after: () => Promise<void>) {
   return { busy, error, done, run };
 }
 
-function Announcements({ rows, reload }: { rows: AnnouncementRow[]; reload: () => Promise<void> }) {
-  const empty = { id: null as number | null, title: "", body: "", url: "" };
-  const [form, setForm] = useState(empty);
+const EMPTY_ANNOUNCEMENT = { id: null as number | null, title: "", body: "", url: "" };
+type AnnouncementDraft = typeof EMPTY_ANNOUNCEMENT;
+const EMPTY_EVENT = { id: null as number | null, title: "", description: "", url: "", start: "" };
+type EventDraft = typeof EMPTY_EVENT;
+
+function Announcements({ rows, reload, form, setForm }: { rows: AnnouncementRow[]; reload: () => Promise<void>; form: AnnouncementDraft; setForm: (draft: AnnouncementDraft) => void }) {
+  const empty = EMPTY_ANNOUNCEMENT;
   const { busy, error, done, run } = useRun(reload);
 
   const save = async () => {
@@ -161,9 +166,8 @@ function Announcements({ rows, reload }: { rows: AnnouncementRow[]; reload: () =
   );
 }
 
-function Events({ rows, reload }: { rows: EventRow[]; reload: () => Promise<void> }) {
-  const empty = { id: null as number | null, title: "", description: "", url: "", start: "" };
-  const [form, setForm] = useState(empty);
+function Events({ rows, reload, form, setForm }: { rows: EventRow[]; reload: () => Promise<void>; form: EventDraft; setForm: (draft: EventDraft) => void }) {
+  const empty = EMPTY_EVENT;
   const { busy, error, done, run } = useRun(reload);
 
   const save = async () => {
@@ -334,6 +338,9 @@ export default function DirectionApp() {
   const { me, failed, refresh } = useMe();
   const [overview, setOverview] = useState<Overview | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Les brouillons sont gardés ici : un aller-retour en vue joueur ferme les formulaires sans effacer le texte en cours.
+  const [announcementDraft, setAnnouncementDraft] = useState(EMPTY_ANNOUNCEMENT);
+  const [eventDraft, setEventDraft] = useState(EMPTY_EVENT);
   const rank = me?.rank ?? 0;
   const base = basePath();
 
@@ -373,9 +380,15 @@ export default function DirectionApp() {
   const admin = `${base}/admin`;
   return (
     <div class="grid gap-6" data-testid="direction">
-      <p class="text-muted">
-        Connecté en tant que <strong>{me.name}</strong>, {ROLE_LABELS[me.role as Role].toLowerCase()}. <a href={`${base}/compte`}>Mon compte</a>
-      </p>
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <p class="text-muted">
+          Connecté en tant que <strong>{me.name}</strong>, {ROLE_LABELS[me.role as Role].toLowerCase()}. <a href={`${base}/compte`}>Mon compte</a>
+        </p>
+        {/* Tout le site passe en vue de membre sans grade, jusqu'à « Quitter la vue joueur » en haut de chaque page. Le serveur garde le vrai rôle. */}
+        <button type="button" class="btn btn-ghost !min-h-10 !py-1.5 !text-sm" data-player-view-start data-testid="player-view-start" onClick={() => setPlayerView(true)}>
+          Voir le site comme un joueur
+        </button>
+      </div>
       <Problem message={error} onRetry={() => void load()} />
       {overview === null ? (
         !error && <Loading />
@@ -394,8 +407,8 @@ export default function DirectionApp() {
             </p>
           </section>
           <div class="grid items-start gap-6 lg:grid-cols-2">
-            <Announcements rows={overview.announcements} reload={load} />
-            <Events rows={overview.events} reload={load} />
+            <Announcements rows={overview.announcements} reload={load} form={announcementDraft} setForm={setAnnouncementDraft} />
+            <Events rows={overview.events} reload={load} form={eventDraft} setForm={setEventDraft} />
           </div>
           {me.role === "founder" && (
             <FounderTransfer

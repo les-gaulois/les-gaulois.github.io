@@ -4,6 +4,7 @@ import { clan, SITE_DISCLAIMER, SITE_LICENSE_NOTICE } from "../../config/clan";
 import { brandFile } from "../lib/brand";
 import { AUTH_ENABLED } from "../lib/compte/api";
 import AuthMenu from "../components/AuthMenu";
+import PlayerViewBar from "../components/PlayerViewBar";
 import SectionNav from "../components/SectionNav.astro";
 import { SECTIONS, sectionOf } from "../lib/nav";
 import { loadMeta, loadLinks } from "../lib/data";
@@ -147,6 +148,8 @@ const usefulTools = loadLinks().tools.length > 0;
     </header>
 
     <main id="contenu" class="flex-1">
+      {/* La vue joueur de l'encadrement : une bande en haut de chaque page pour ne pas l'oublier et en sortir. Hors de l'en-tête collant, qui garde sa hauteur. */}
+      {AUTH_ENABLED && <PlayerViewBar client:idle />}
       <SectionNav />
       <slot />
     </main>
