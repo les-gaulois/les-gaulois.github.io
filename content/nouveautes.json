@@ -2,6 +2,16 @@
   {
     "date": "2026-11-08",
     "kind": "nouveau",
+    "title": "Demandes signalées et sauvegarde chiffrée",
+    "body": "Le site peut prévenir un salon Discord privé de l'encadrement quand une demande d'adhésion attend, sans aucun nom, et faire chaque lundi une sauvegarde chiffrée des données de la connexion.",
+    "link": {
+      "href": "/confidentialite",
+      "label": "Ce que garde la sauvegarde"
+    }
+  },
+  {
+    "date": "2026-11-08",
+    "kind": "nouveau",
     "title": "Installez le site comme une application",
     "body": "Depuis le menu de votre navigateur, « Ajouter à l'écran d'accueil » met le site en icône sur votre téléphone ou votre ordinateur, pour y revenir en un geste. Rien n'est stocké ni suivi."
   },
