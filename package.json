@@ -16,6 +16,7 @@
     "data:fetch": "tsx scripts/fetch-data.ts",
     "data:carte": "tsx scripts/fetch-data.ts --carte",
     "membres:relire": "tsx scripts/relire-membres.ts",
+    "discord:verifier": "tsx scripts/verifier-discord.ts",
     "gazette:envoyer": "tsx scripts/envoyer-gazette.ts",
     "alertes:envoyer": "tsx scripts/envoyer-alertes.ts",
     "paliers:envoyer": "tsx scripts/envoyer-paliers.ts",

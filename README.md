@@ -42,6 +42,7 @@ Le site s'ouvre sur http://localhost:4321. Aucun secret n'est nécessaire.
 | `npm run data:fetch` | Collecte les données dans `data/` |
 | `npm run data:carte` | Met à jour seulement la carte des clans, sans attendre le délai d'une journée |
 | `npm run membres:relire` | Relit la liste des membres pour la connexion. Sans ses réglages, elle ne fait rien. |
+| `npm run discord:verifier` | Demande à Discord si le lien du salon marche, sans rien envoyer, une fois par nouveau lien. Sans son lien, elle ne fait rien. |
 | `npm run gazette:envoyer` | Envoie la dernière gazette sur Discord. Sans son lien, elle ne fait rien : voir « La gazette sur Discord ». |
 | `npm run alertes:envoyer` | Envoie une alerte si GAL a changé de place, sur le salon de la gazette. Sans son lien, elle ne fait rien : voir « Les alertes de place ». |
 | `npm run paliers:envoyer` | Envoie les paliers franchis par les membres, sur le salon de la gazette. Sans son lien, elle ne fait rien : voir « Les paliers franchis sur Discord ». |
@@ -209,6 +210,8 @@ Le site peut poster chaque édition de la gazette dans un salon du serveur, tout
 2. Sur GitHub, dans le dépôt : **Settings → Secrets and variables → Actions → New repository secret**, nom `DISCORD_WEBHOOK_GAZETTE`, valeur le lien copié.
 
 Au passage suivant du robot, la dernière édition part une fois. Pour un essai, posez d'abord le lien d'un salon privé : l'édition y part et sa trace est notée. Remplacez ensuite le secret par le vrai lien : le premier message du clan sera l'édition suivante. Les alertes de place et les paliers franchis partent avec le même secret, mais seulement après la gazette du lundi 9 novembre 2026 : posé avant ce lundi 9 h, le vrai lien reçoit donc d'abord cette gazette. Posé plus tard, le premier message du salon peut être une alerte ou des paliers.
+
+Pour vérifier un nouveau lien sans rien poster : au passage suivant, l'étape « Vérifier le lien Discord » de l'onglet **Actions** demande à Discord si le webhook existe (`src/lib/discord-check.ts`). Elle écrit son nom et sa date de création, lue dans son identifiant : celle du webhook qu'on vient de créer. Elle ne le fait qu'une fois par lien, et note la date dans `data/discord-lien.json`. Un lien que Discord ne reconnaît pas laisse un avertissement qui commence par « Lien Discord : », à chaque passage jusqu'à ce qu'il soit corrigé.
 
 Chaque nouvelle édition part ensuite le lundi, au premier passage du robot après 9 h, heure de Paris, donc vers 9 h 53. Le premier passage du lundi relit exprès la liste des membres et le film de la carte, pour couvrir le dimanche. Si l'une de ces lectures échoue, le message l'attend jusqu'au premier passage après 21 h, puis part sans ce qui manque. Les semaines passées ne sont pas rattrapées. Seul le robot de la branche `main` envoie. Si Discord ne répond pas, le robot réessaie au passage suivant, et la collecte continue. La dernière édition envoyée est notée dans `data/gazette-envoi.json`, écrit par le robot seulement.
 

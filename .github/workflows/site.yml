@@ -79,6 +79,14 @@ jobs:
             git pull --rebase origin "${GITHUB_REF_NAME}"
             git push
           fi
+      # Une seule fois par nouveau lien : demande à Discord si le webhook existe, sans rien envoyer. Le journal dit son nom et sa date de création.
+      - name: Vérifier le lien Discord
+        if: github.ref_name == 'main'
+        continue-on-error: true
+        timeout-minutes: 1
+        run: npm run discord:verifier
+        env:
+          DISCORD_WEBHOOK_GAZETTE: ${{ secrets.DISCORD_WEBHOOK_GAZETTE }}
       # Après l'enregistrement : si le robot ne peut plus pousser sur main, l'étape est sautée. Sans cela, faute de trace, la même édition repartirait à chaque passage.
       # Sans ce secret, l'étape ne fait rien. Une panne de Discord ne bloque rien : le passage suivant réessaie.
       - name: Envoyer la gazette sur Discord
@@ -110,7 +118,7 @@ jobs:
         if: github.ref_name == 'main'
         continue-on-error: true
         run: |
-          for fichier in data/gazette-envoi.json data/alertes-envoi.json data/paliers-envoi.json; do
+          for fichier in data/discord-lien.json data/gazette-envoi.json data/alertes-envoi.json data/paliers-envoi.json; do
             if [ -f "$fichier" ]; then git add -- "$fichier"; fi
           done
           if git diff --cached --quiet; then
