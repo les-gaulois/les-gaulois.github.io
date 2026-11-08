@@ -1,11 +1,12 @@
 /**
  * L'envoi d'une alerte de place, sur le même salon que la gazette : une phrase, l'image et un bouton vers la page.
  * Le message ne peut mentionner personne, et le tag d'un autre clan ne peut rien y mettre en forme.
- * L'envoi suit celui de la gazette (`gazette-discord.ts`), sans le partager : le message du lundi n'en dépend pas.
+ * L'envoi est celui de `discord-post.ts`, partagé avec les paliers franchis. La gazette garde le sien : le message du lundi n'en dépend pas.
  */
 import { alertHeadline, alertsStarted, gapParts, gapSentences, markSent, planAlert, sourceLine, type AlertState, type PlaceAlert, type PlaceReading } from "./alerts";
+import { postWithImage } from "./discord-post";
 import { fmtRank } from "./format";
-import { escapeDiscord, REFUSED_FORMAT, type RenderedImage } from "./gazette-discord";
+import { escapeDiscord, type RenderedImage } from "./gazette-discord";
 
 const discordTag = (tag: string | null) => (tag === null ? "un clan supprimé" : `[${escapeDiscord(tag)}]`);
 
@@ -39,41 +40,20 @@ export interface AlertSendDeps {
   log: (line: string) => void;
 }
 
-/**
- * Envoie l'alerte : avec l'image d'abord, en texte si Discord refuse ce format. Un échec se retente au passage suivant.
- * Le lien vaut un mot de passe pour ce salon : il n'est écrit dans aucun message, même d'erreur.
- */
-export async function sendPlaceAlert({ link, alert, renderImage, tag, siteUrl, fetch: post, log }: AlertSendDeps): Promise<boolean> {
-  const requests: { url: string; init: RequestInit }[] = [
-    { url: link, init: { headers: { "Content-Type": "application/json" }, body: JSON.stringify(alertPayload(alert, tag, siteUrl, null)) } },
-  ];
-  try {
-    const { png, alt } = await renderImage(alert);
-    const filename = `alerte-${alert.kind === "rank" ? "classement" : "carte"}.png`;
-    const form = new FormData();
-    form.append("payload_json", JSON.stringify(alertPayload(alert, tag, siteUrl, { alt, filename })));
-    form.append("files[0]", new Blob([Buffer.from(png)], { type: "image/png" }), filename);
-    // Sans ce réglage, Discord ignore le bouton.
-    requests.unshift({ url: `${link}?with_components=true`, init: { body: form } });
-  } catch (e) {
-    log(`::warning::Alertes : image impossible à dessiner (${e instanceof Error ? e.message : "erreur inconnue"}), le message part en texte.`);
-  }
-  try {
-    for (const [i, request] of requests.entries()) {
-      // Une redirection changerait l'envoi en simple lecture, qui répondrait « OK » sans poster de message.
-      const response = await post(request.url, { method: "POST", redirect: "error", ...request.init });
-      if (response.ok) return true;
-      if (REFUSED_FORMAT.includes(response.status) && i < requests.length - 1) {
-        log(`::warning::Alertes : Discord a refusé le message avec image (${response.status}), il part en texte.`);
-        continue;
-      }
-      log(`::warning::Alertes : Discord a répondu ${response.status}. Nouvel essai au prochain passage.`);
-      return false;
-    }
-  } catch {
-    log("::warning::Alertes : Discord n'a pas répondu. Nouvel essai au prochain passage.");
-  }
-  return false;
+/** Envoie l'alerte, avec l'image d'abord : voir `postWithImage`. Un échec se retente au passage suivant. */
+export function sendPlaceAlert({ link, alert, renderImage, tag, siteUrl, fetch, log }: AlertSendDeps): Promise<boolean> {
+  return postWithImage({
+    link,
+    label: "Alertes",
+    text: alertPayload(alert, tag, siteUrl, null),
+    image: async () => {
+      const { png, alt } = await renderImage(alert);
+      const filename = `alerte-${alert.kind === "rank" ? "classement" : "carte"}.png`;
+      return { payload: alertPayload(alert, tag, siteUrl, { alt, filename }), png, filename };
+    },
+    fetch,
+    log,
+  });
 }
 
 export interface AlertPassDeps {

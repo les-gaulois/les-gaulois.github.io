@@ -18,6 +18,7 @@
     "membres:relire": "tsx scripts/relire-membres.ts",
     "gazette:envoyer": "tsx scripts/envoyer-gazette.ts",
     "alertes:envoyer": "tsx scripts/envoyer-alertes.ts",
+    "paliers:envoyer": "tsx scripts/envoyer-paliers.ts",
     "verifier:ligne": "tsx scripts/verifier-mise-en-ligne.ts",
     "lint": "eslint .",
     "typecheck": "astro check && tsc --noEmit",

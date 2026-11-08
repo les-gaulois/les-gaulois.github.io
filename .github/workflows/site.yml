@@ -97,12 +97,20 @@ jobs:
         run: npm run alertes:envoyer
         env:
           DISCORD_WEBHOOK_GAZETTE: ${{ secrets.DISCORD_WEBHOOK_GAZETTE }}
+      # Même salon, même secret et même lancement. Un message par jour au plus, quand des membres avec pseudo passent un palier.
+      - name: Envoyer les paliers franchis sur Discord
+        if: github.ref_name == 'main'
+        continue-on-error: true
+        timeout-minutes: 2
+        run: npm run paliers:envoyer
+        env:
+          DISCORD_WEBHOOK_GAZETTE: ${{ secrets.DISCORD_WEBHOOK_GAZETTE }}
       # Les données sont déjà enregistrées : un échec ici n'empêche pas de reconstruire le site, et se lit dans l'avertissement.
       - name: Noter les envois sur Discord
         if: github.ref_name == 'main'
         continue-on-error: true
         run: |
-          for fichier in data/gazette-envoi.json data/alertes-envoi.json; do
+          for fichier in data/gazette-envoi.json data/alertes-envoi.json data/paliers-envoi.json; do
             if [ -f "$fichier" ]; then git add -- "$fichier"; fi
           done
           if git diff --cached --quiet; then
@@ -116,7 +124,7 @@ jobs:
             fi
             sleep 20
           done
-          echo "::warning::Discord : état des envois non noté. Une gazette ou une alerte déjà envoyée repartira une fois au passage suivant, si l'enregistrement remarche."
+          echo "::warning::Discord : état des envois non noté. Un message déjà envoyé (gazette, alerte ou paliers) repartira une fois au passage suivant, si l'enregistrement remarche."
           exit 1
       # La connexion compare chaque demande à cette liste. Sans réglages, l'étape ne s'exécute pas, et une panne n'empêche jamais le site de se publier.
       - name: Relire la liste des membres

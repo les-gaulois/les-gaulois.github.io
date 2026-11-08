@@ -28,6 +28,7 @@ import {
   type StoredSession,
 } from "./schemas";
 import { gamesOf, MEMBER_RECENT_GAMES, memberGamesUnderTag, toStoredMember } from "./members";
+import { forgetMilestoneMembers, MilestoneState } from "./paliers-franchis";
 import { RANKED_MODES, rankedCounts } from "./ranked";
 import { mergeSessions } from "./sessions";
 import { findClan, withOfficialRanks } from "./stats";
@@ -309,7 +310,8 @@ async function writeMemberGames(deps: Deps, players: ReadonlyMap<string, StoredM
 
 /**
  * Oublie un membre parti, ou qui a retiré son pseudo : il n'a plus de fiche, et son identifiant ne doit rester nulle part.
- * Aucun appel à l'API : cela reste vrai quand une route est en panne.
+ * Aucun appel à l'API : cela reste vrai quand une route est en panne. Le fichier des paliers franchis est nettoyé ici aussi,
+ * car son envoi sur Discord ne tourne pas sans lien.
  */
 async function forgetFormerMembers(deps: Deps, members: StoredMembers): Promise<Map<string, StoredMemberRecent>> {
   const stored = (await readJson(deps.memberGamesFile, StoredMemberGames)) ?? {};
@@ -319,6 +321,12 @@ async function forgetFormerMembers(deps: Deps, members: StoredMembers): Promise<
   const weeks = await readMemberWeeks(deps);
   const kept = forgetInMemberWeeks(weeks, current);
   if (kept !== weeks) await writeMemberWeeks(deps, kept);
+  const milestonesFile = join(deps.dataDir, "paliers-envoi.json");
+  const milestones = await readJson(milestonesFile, MilestoneState);
+  if (milestones) {
+    const keptMilestones = forgetMilestoneMembers(milestones, current);
+    if (keptMilestones !== milestones) await writeJson(milestonesFile, keptMilestones);
+  }
   return players;
 }
 

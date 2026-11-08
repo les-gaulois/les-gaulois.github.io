@@ -34,6 +34,17 @@ export type GazetteSendState = z.infer<typeof GazetteSendState>;
 /** La dernière édition envoyée dans le format actuel. */
 export const lastSentEdition = (state: GazetteSendState | null) => (state?.format === MESSAGE_FORMAT ? state.lastSent : null);
 
+/** La dernière édition envoyée, quel que soit son format, d'après le texte de `data/gazette-envoi.json`. Absent ou illisible : `null`. */
+export function lastSentAnyFormat(raw: string | null): string | null {
+  if (raw === null) return null;
+  try {
+    const parsed = GazetteSendState.safeParse(JSON.parse(raw));
+    return parsed.success ? parsed.data.lastSent : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Seul un lien de Discord est accepté : une valeur erronée ne doit envoyer la gazette nulle part ailleurs.
  * Les versions d'essai de l'application (ptb, canary) copient le même lien sous leur propre adresse.

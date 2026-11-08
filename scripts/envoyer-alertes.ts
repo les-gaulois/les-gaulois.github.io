@@ -9,24 +9,12 @@ import { clan } from "../config/clan";
 import { mapReading, parseAlertState, rankReading } from "../src/lib/alerts";
 import { alertPass, sendPlaceAlert } from "../src/lib/alerts-discord";
 import { loadClanMapFilm, loadLeaderboard } from "../src/lib/data";
-import { GazetteSendState, isWebhookUrl } from "../src/lib/gazette-discord";
+import { isWebhookUrl, lastSentAnyFormat } from "../src/lib/gazette-discord";
 
 const STATE_FILE = "data/alertes-envoi.json";
 const GAZETTE_FILE = "data/gazette-envoi.json";
 
 const readText = (path: string) => (existsSync(path) ? readFileSync(path, "utf8") : null);
-
-/** La dernière édition de la gazette envoyée, quel que soit son format. Illisible : comme si aucune n'était partie. */
-function gazetteLastSent(): string | null {
-  const raw = readText(GAZETTE_FILE);
-  if (raw === null) return null;
-  try {
-    const parsed = GazetteSendState.safeParse(JSON.parse(raw));
-    return parsed.success ? parsed.data.lastSent : null;
-  } catch {
-    return null;
-  }
-}
 
 // Un copier-coller peut laisser une espace ou un retour à la ligne autour du lien.
 const link = process.env["DISCORD_WEBHOOK_GAZETTE"]?.trim();
@@ -45,7 +33,7 @@ try {
   const result = await alertPass({
     stored,
     readings: { rank: rankReading(loadLeaderboard(), clan.tag), map: mapReading(loadClanMapFilm(), clan.tag) },
-    gazetteLastSent: gazetteLastSent(),
+    gazetteLastSent: lastSentAnyFormat(readText(GAZETTE_FILE)),
     now: new Date(),
     send: (alert) =>
       sendPlaceAlert({

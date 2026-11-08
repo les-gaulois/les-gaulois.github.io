@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -674,6 +674,15 @@ describe("runPipeline", () => {
       await runPipeline(deps(withMembers([withRecord("id1", "Alpha", 1, 1), withRecord("id2", null, 1, 1)], answering({ id1: 2 }))));
       expect(Object.keys(stored())).toEqual(["id1"]);
       expect(readFileSync(storedPath(), "utf8")).not.toContain("id2");
+    });
+
+    it("oublie aussi un membre parti dans le fichier des paliers franchis, sans lien Discord ni envoi", async () => {
+      const milestonesPath = join(dir, "paliers-envoi.json");
+      const reading = { at: "2026-11-05T09:00:00.000Z", tiers: { id1: 0, id2: 100 } };
+      writeFileSync(milestonesPath, JSON.stringify({ reading, pending: { since: "2026-11-04T09:00:00.000Z", until: reading.at, players: [{ id: "id2", tier: 100 }] }, lastSentOn: null }));
+      await runPipeline(deps(withMembers([withRecord("id1", "Alpha", 1, 1), withRecord("id2", null, 1, 1)], answering({ id1: 2 }))));
+      expect(JSON.parse(readFileSync(milestonesPath, "utf8"))).toEqual({ reading: { at: reading.at, tiers: { id1: 0 } }, pending: null, lastSentOn: null });
+      expect(readFileSync(milestonesPath, "utf8")).not.toContain("id2");
     });
 
     it("oublie un membre qui retire son pseudo, même si la liste des comptes supprimés est en panne", async () => {

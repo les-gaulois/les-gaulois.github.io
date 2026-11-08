@@ -44,6 +44,7 @@ Le site s'ouvre sur http://localhost:4321. Aucun secret n'est nécessaire.
 | `npm run membres:relire` | Relit la liste des membres pour la connexion. Sans ses réglages, elle ne fait rien. |
 | `npm run gazette:envoyer` | Envoie la dernière gazette sur Discord. Sans son lien, elle ne fait rien : voir « La gazette sur Discord ». |
 | `npm run alertes:envoyer` | Envoie une alerte si GAL a changé de place, sur le salon de la gazette. Sans son lien, elle ne fait rien : voir « Les alertes de place ». |
+| `npm run paliers:envoyer` | Envoie les paliers franchis par les membres, sur le salon de la gazette. Sans son lien, elle ne fait rien : voir « Les paliers franchis sur Discord ». |
 | `npm run verifier:ligne` | Contrôle le vrai projet Supabase, sans rien y écrire : voir [docs/DIRECTION.md](docs/DIRECTION.md) |
 | `npm run build` | Génère le favicon, l'image de partage et les fichiers du film, puis construit `dist/` |
 | `npm run preview` | Sert le dossier `dist/` |
@@ -207,7 +208,7 @@ Le site peut poster chaque édition de la gazette dans un salon du serveur, tout
 1. Sur Discord, dans le salon choisi : **Modifier le salon → Intégrations → Webhooks → Nouveau webhook**. Donnez-lui un nom, par exemple « Gazette GAL », sinon le message portera le nom donné par défaut. Puis **Copier l'URL du webhook**. Ce lien permet d'écrire dans le salon : il ne se partage pas.
 2. Sur GitHub, dans le dépôt : **Settings → Secrets and variables → Actions → New repository secret**, nom `DISCORD_WEBHOOK_GAZETTE`, valeur le lien copié.
 
-Au passage suivant du robot, la dernière édition part une fois. Pour un essai, posez d'abord le lien d'un salon privé : l'édition y part et sa trace est notée. Remplacez ensuite le secret par le vrai lien : le premier message du clan sera l'édition suivante. Les alertes de place partent avec le même secret, mais seulement après la gazette du lundi 9 novembre 2026 : posé avant ce lundi 9 h, le vrai lien reçoit donc d'abord cette gazette. Posé plus tard, le premier message du salon peut être une alerte.
+Au passage suivant du robot, la dernière édition part une fois. Pour un essai, posez d'abord le lien d'un salon privé : l'édition y part et sa trace est notée. Remplacez ensuite le secret par le vrai lien : le premier message du clan sera l'édition suivante. Les alertes de place et les paliers franchis partent avec le même secret, mais seulement après la gazette du lundi 9 novembre 2026 : posé avant ce lundi 9 h, le vrai lien reçoit donc d'abord cette gazette. Posé plus tard, le premier message du salon peut être une alerte ou des paliers.
 
 Chaque nouvelle édition part ensuite le lundi, au premier passage du robot après 9 h, heure de Paris, donc vers 9 h 53. Le premier passage du lundi relit exprès la liste des membres et le film de la carte, pour couvrir le dimanche. Si l'une de ces lectures échoue, le message l'attend jusqu'au premier passage après 21 h, puis part sans ce qui manque. Les semaines passées ne sont pas rattrapées. Seul le robot de la branche `main` envoie. Si Discord ne répond pas, le robot réessaie au passage suivant, et la collecte continue. La dernière édition envoyée est notée dans `data/gazette-envoi.json`, écrit par le robot seulement.
 
@@ -236,6 +237,16 @@ Peu de messages, et seulement du vrai (`src/lib/alerts.ts`) :
 Le message donne la nouvelle place, l'écart avec les clans juste devant et juste derrière, et l'heure du relevé, avec une image (`src/lib/alerts-image.ts`, même dessin que la gazette) et un bouton vers `/classement` ou `/carte`. Il ne peut mentionner personne, et les tags des autres clans sont échappés. Si GAL sort du classement ou n'a plus de pixel sur la carte, rien ne part ; à son retour, sa place est comparée à la dernière annoncée.
 
 La place annoncée, celle qui attend un second calcul et les envois du jour sont notés dans `data/alertes-envoi.json`, écrit par le robot seulement. S'il devient illisible, les places du moment servent de nouveau départ, avec un avertissement : seule une alerte en attente peut s'y perdre. Une panne se lit comme pour la gazette : l'étape « Envoyer les alertes de place sur Discord » porte un avertissement qui commence par « Alertes : ». Même limite aussi : une alerte envoyée mais non notée repart une fois.
+
+## Les paliers franchis sur Discord
+
+Le robot poste aussi un message quand des membres passent un palier de victoires en équipe sous le tag : 100, 250, 500, 1 000, 2 500 ou 5 000, les paliers du site à partir de 100 (`src/lib/paliers-franchis.ts`). En dessous, ils tombent presque chaque jour, surtout chez les nouveaux : sur les relevés de la liste du 5 au 8 novembre 2026, les paliers de 10 et 50 victoires ont été passés 6 fois, celui de 100 une fois. Même salon, même secret et même lancement que les alertes.
+
+- **Quand :** la liste des membres est relue environ une fois par jour. Chaque relecture est comparée à la précédente : un membre avec pseudo présent aux deux, qui a passé un palier entre elles, est noté avec le plus haut palier passé.
+- **Qui :** un nouveau membre, ou un pseudo apparu, n'a pas de point de départ : il n'est pas cité. Un anonyme ne l'est jamais, ni un joueur sans stats ou repassé sous son palier. Un membre parti ou sans pseudo est oublié à chaque passage de la collecte, même sans lien Discord : son identifiant ne reste pas dans le fichier. Un palier ne se note qu'une fois, même si le chiffre recule puis remonte.
+- **Combien :** un seul message par jour à Paris, jamais la nuit, avec tout ce qui a été noté depuis le précédent. Il attend le passage du robot qui suit la relecture, quand le site montre les nouveaux paliers. Au premier passage, les paliers du moment servent de départ : rien n'est envoyé.
+
+Le message cite chaque pseudo, relié à sa fiche, avec le palier passé et la période entre les deux relevés, et rappelle qu'un palier compte d'abord les parties jouées. L'image (`src/lib/paliers-franchis-image.ts`) montre cinq joueurs au plus. Le texte en écrit quinze au plus, moins si de longs pseudos le rendaient trop long pour Discord, et compte les autres. Le bouton ouvre la fiche s'il n'y a qu'un joueur, sinon les paliers de la page Membres. Le palier de chaque membre avec pseudo à la dernière relecture, ceux en attente et le jour du dernier message sont notés dans `data/paliers-envoi.json`, écrit par le robot seulement. Une panne laisse un avertissement qui commence par « Paliers : » sur l'étape « Envoyer les paliers franchis sur Discord ».
 
 ## Animations
 
