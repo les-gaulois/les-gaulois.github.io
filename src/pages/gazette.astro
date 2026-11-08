@@ -6,16 +6,25 @@ import GazetteEditionBlock from "../components/GazetteEdition.astro";
 import PageHeader from "../components/PageHeader.astro";
 import { clan } from "../../config/clan";
 import { loadHistory, loadMembers, loadMemberWeeks, loadMeta, loadSessions, loadTerritoryReadings } from "../lib/data";
-import { fmtCount, fmtPct } from "../lib/format";
+import { fmtCount, fmtDay, fmtPct } from "../lib/format";
 import { MAX_AGE_HOURS } from "../lib/freshness";
 import { gazetteEditions, weekLabel } from "../lib/gazette";
+import { clanRecords } from "../lib/results";
+import { currentWeek, currentWeekComparison, currentWeekLead } from "../lib/semaine";
+import { addDays } from "../lib/time";
 
 const meta = loadMeta();
+const sessions = loadSessions();
 const history = loadHistory();
 const territory = loadTerritoryReadings();
 const members = loadMembers();
-const editions = gazetteEditions({ sessions: loadSessions(), history, territory, weekTops: loadMemberWeeks().tops, members, archiveStart: clan.archiveStart, completeThrough: meta.sessions.completeThrough });
+const editions = gazetteEditions({ sessions, history, territory, weekTops: loadMemberWeeks().tops, members, archiveStart: clan.archiveStart, completeThrough: meta.sessions.completeThrough });
 const [latest, ...older] = editions;
+// La semaine qui n'est pas finie : arrêtée à la dernière collecte, et comparée à la semaine d'avant au même moment.
+const week = currentWeek(sessions, meta.sessions.coveredUntil, clan.archiveStart);
+const weekComparison = week ? currentWeekComparison(week) : null;
+// Les records de tout l'historique : un temps fort d'une semaine qui les égale, même moment compris, est un record du clan.
+const records = clanRecords(sessions);
 const context = { firstStanding: history[0]?.date ?? null, firstTerritory: territory[0]?.date ?? null, membersAt: members?.fetchedAt ?? null };
 // La date affichée est celle des sessions. Une panne des autres sources doit se voir aussi.
 const failures = [
@@ -44,11 +53,22 @@ const failures = [
     </PageHeader>
 
     {
+      week && (
+        <section class="card card-accent p-5 md:p-6" aria-labelledby="gazette-now-title" data-testid="gazette-now">
+          <h2 id="gazette-now-title" class="text-2xl">Semaine en cours, {weekLabel(week)}</h2>
+          <p class="tnum mt-2 text-lg" data-testid="gazette-now-lead">{currentWeekLead(week)}</p>
+          {weekComparison && <p class="tnum mt-1 text-sm text-muted" data-testid="gazette-now-comparison">{weekComparison}</p>}
+          <p class="mt-2 text-sm text-muted">Son édition complète paraît le lundi {fmtDay(addDays(week.to, 1))}, une fois le dimanche définitif.</p>
+        </section>
+      )
+    }
+
+    {
       latest ? (
         <>
-          <article class="stage stage-blue reveal" aria-labelledby="gazette-latest-title" data-testid="gazette-latest">
+          <article class="stage stage-blue reveal mt-8" aria-labelledby="gazette-latest-title" data-testid="gazette-latest">
             <h2 id="gazette-latest-title" class="section-title">Semaine {weekLabel(latest)}</h2>
-            <GazetteEditionBlock edition={latest} {...context} />
+            <GazetteEditionBlock edition={latest} records={records} {...context} />
           </article>
 
           {older.length > 0 && (
@@ -61,7 +81,7 @@ const failures = [
                       Semaine {weekLabel(edition)}
                       <span class="tnum font-normal text-muted"> · {fmtCount(edition.totals.games, "partie")}, {fmtCount(edition.totals.wins, "victoire")}{edition.totals.winRate !== null && `, ${fmtPct(edition.totals.winRate)}`}</span>
                     </summary>
-                    <GazetteEditionBlock edition={edition} {...context} />
+                    <GazetteEditionBlock edition={edition} records={records} {...context} />
                   </details>
                 ))}
               </div>

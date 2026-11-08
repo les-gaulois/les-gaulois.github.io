@@ -3,11 +3,14 @@ import ReadingNote from "./ReadingNote.astro";
 import { clan } from "../../config/clan";
 import { loadMeta, loadSessions } from "../lib/data";
 import { fmtCount, fmtDate, fmtInt, fmtPct } from "../lib/format";
+import { recentRecordKeys, type RecordKey } from "../lib/records-battus";
 import { clanRecords, formatResults, RESULTS_DAYS } from "../lib/results";
 
 const sessions = loadSessions();
 const results = formatResults(sessions, loadMeta().sessions.coveredUntil);
 const records = clanRecords(sessions);
+// Un record des sept derniers jours couverts se signale : le clan vient de le battre.
+const recent = recentRecordKeys(records, loadMeta().sessions.coveredUntil);
 const groups = results
   ? [
       { title: "Par nombre d'équipes", rows: results.byTeams },
@@ -15,12 +18,12 @@ const groups = results
     ].filter((g) => g.rows.length > 0)
   : [];
 const start = fmtDate(`${clan.archiveStart}T12:00:00Z`);
-const tiles = records
+const tiles: { key: RecordKey; label: string; value: string; hint: string }[] = records
   ? [
-      { label: "Plus longue série", value: fmtCount(records.streak.wins, "victoire"), hint: `terminée le ${fmtDate(records.streak.endedAt)}` },
-      { label: "Meilleure journée", value: fmtCount(records.bestDay.wins, "victoire"), hint: `sur ${fmtCount(records.bestDay.games, "partie")}, le ${fmtDate(`${records.bestDay.date}T12:00:00Z`)}` },
-      { label: "Le plus de Gaulois dans une partie gagnée", value: fmtCount(records.biggestGroup.players, "joueur"), hint: `le ${fmtDate(records.biggestGroup.at)}` },
-      { label: "Victoire avec le plus d'équipes en jeu", value: fmtCount(records.mostTeams.teams, "équipe"), hint: `${fmtCount(records.mostTeams.players, "joueur")} dans la partie, le ${fmtDate(records.mostTeams.at)}` },
+      { key: "streak", label: "Plus longue série", value: fmtCount(records.streak.wins, "victoire"), hint: `terminée le ${fmtDate(records.streak.endedAt)}` },
+      { key: "bestDay", label: "Meilleure journée", value: fmtCount(records.bestDay.wins, "victoire"), hint: `sur ${fmtCount(records.bestDay.games, "partie")}, le ${fmtDate(`${records.bestDay.date}T12:00:00Z`)}` },
+      { key: "biggestGroup", label: "Le plus de Gaulois dans une partie gagnée", value: fmtCount(records.biggestGroup.players, "joueur"), hint: `le ${fmtDate(records.biggestGroup.at)}` },
+      { key: "mostTeams", label: "Victoire avec le plus d'équipes en jeu", value: fmtCount(records.mostTeams.teams, "équipe"), hint: `${fmtCount(records.mostTeams.players, "joueur")} dans la partie, le ${fmtDate(records.mostTeams.at)}` },
     ]
   : [];
 ---
@@ -33,7 +36,10 @@ const tiles = records
         {
           tiles.map((t) => (
             <div data-testid="clan-record">
-              <dt class="text-sm font-semibold text-muted">{t.label}</dt>
+              <dt class="text-sm font-semibold text-muted">
+                {t.label}
+                {recent.has(t.key) && <span class="ml-2 rounded border border-warn px-1.5 py-0.5 text-xs font-semibold text-warn" data-testid="clan-record-new">Nouveau record</span>}
+              </dt>
               <dd class="mt-1">
                 <span class="tnum block font-display text-3xl font-extrabold">{t.value}</span>
                 <span class="tnum mt-1 block text-xs text-muted">{t.hint}</span>

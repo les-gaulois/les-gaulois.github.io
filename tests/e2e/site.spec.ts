@@ -9,7 +9,11 @@ import type { LeaderboardEntry } from "../../src/lib/schemas";
 import { withOfficialRanks } from "../../src/lib/stats";
 import { faceOffs, mapResults } from "../../src/lib/games";
 import { editionLead, gazetteEditions, rankWords, standingDetails, territoryDetails, weekLabel } from "../../src/lib/gazette";
+import { bestGameOf, bestGameSentence, yesterdayOf } from "../../src/lib/belle-partie";
 import { clanJournal, JOURNAL_FIRST_ROWS, journalChoices, journalCount, NO_FILTER, replayUrl } from "../../src/lib/journal";
+import { recentRecordKeys, weekRecordKeys } from "../../src/lib/records-battus";
+import { clanRecords } from "../../src/lib/results";
+import { currentWeek, currentWeekComparison, currentWeekLead } from "../../src/lib/semaine";
 import { gamesOf, recentGamesTitle } from "../../src/lib/members";
 import { mapLabel } from "../../src/lib/map-names";
 import { SECTIONS } from "../../src/lib/nav";
@@ -838,6 +842,53 @@ test("sans son fichier, le journal garde ses premières lignes et le signale", a
   await expect(page.getByRole("alert").filter({ hasText: "n'a pas pu être chargé" })).toBeVisible();
   await expect(page.locator('[data-testid="journal-row"], [data-testid="journal-card"]').filter({ visible: true }).first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Défaites", exact: true })).toBeDisabled();
+});
+
+test("la gazette montre la semaine en cours, datée et comparée au même moment de la semaine d'avant", async ({ page }) => {
+  const meta = loadMeta();
+  const week = currentWeek(loadSessions(), meta.sessions.coveredUntil, clan.archiveStart);
+  await page.goto("/gazette");
+  const block = page.getByTestId("gazette-now");
+  if (!week) {
+    await expect(block).toHaveCount(0);
+    return;
+  }
+  await expect(block.getByRole("heading")).toHaveText(`Semaine en cours, ${weekLabel(week)}`);
+  await expect(block.getByTestId("gazette-now-lead")).toHaveText(currentWeekLead(week));
+  const comparison = currentWeekComparison(week);
+  if (comparison) await expect(block.getByTestId("gazette-now-comparison")).toHaveText(comparison);
+  else await expect(block.getByTestId("gazette-now-comparison")).toHaveCount(0);
+  // Jamais donnée pour la semaine entière : la phrase est datée de la collecte.
+  await expect(block.getByTestId("gazette-now-lead")).toContainText("Jusqu'au");
+});
+
+test("l'accueil donne la belle partie d'hier, calculée et jamais choisie à la main", async ({ page }) => {
+  const meta = loadMeta();
+  const { rows } = clanJournal({ sessions: loadSessions(), games: loadGames(), coveredUntil: meta.sessions.coveredUntil, tag: clan.tag, officialTags: lb.clans.map((c: { clanTag: string }) => c.clanTag) });
+  const best = meta.sessions.coveredUntil ? bestGameOf(rows, yesterdayOf(meta.sessions.coveredUntil)) : null;
+  await page.goto("/");
+  const block = page.getByTestId("home-best-game");
+  if (!best) {
+    await expect(block).toHaveCount(0);
+    return;
+  }
+  await expect(block).toHaveText(`La belle partie d'hier. ${bestGameSentence(best)}`);
+  // Le nom de carte vient de la traduction du jeu : son crédit accompagne le bloc.
+  if (best.map !== null) await expect(page.getByTestId("map-names-credit")).toBeVisible();
+});
+
+test("un record qui vient de tomber est marqué sur la page Records et dans la gazette, jamais inventé", async ({ page }) => {
+  const sessions = loadSessions();
+  const meta = loadMeta();
+  const records = clanRecords(sessions);
+  await page.goto("/records");
+  await expect(page.getByTestId("clan-record-new")).toHaveCount(recentRecordKeys(records, meta.sessions.coveredUntil).size);
+  const history = loadHistory();
+  const editions = gazetteEditions({ sessions, history, territory: loadTerritoryReadings(), weekTops: loadMemberWeeks().tops, members: loadMembers(), archiveStart: clan.archiveStart, completeThrough: meta.sessions.completeThrough });
+  const latest = editions[0];
+  if (!latest) return;
+  await page.goto("/gazette");
+  await expect(page.getByTestId("gazette-latest").getByTestId("gazette-record")).toHaveCount(weekRecordKeys(latest.highlights, records).size);
 });
 
 test("la gazette donne le bilan de la dernière semaine complète, et n'invente pas ce qui manque", async ({ page }) => {

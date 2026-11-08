@@ -19,6 +19,7 @@
     "discord:verifier": "tsx scripts/verifier-discord.ts",
     "gazette:envoyer": "tsx scripts/envoyer-gazette.ts",
     "alertes:envoyer": "tsx scripts/envoyer-alertes.ts",
+    "records:envoyer": "tsx scripts/envoyer-records.ts",
     "paliers:envoyer": "tsx scripts/envoyer-paliers.ts",
     "verifier:ligne": "tsx scripts/verifier-mise-en-ligne.ts",
     "lint": "eslint .",

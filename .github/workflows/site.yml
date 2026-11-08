@@ -113,12 +113,20 @@ jobs:
         run: npm run paliers:envoyer
         env:
           DISCORD_WEBHOOK_GAZETTE: ${{ secrets.DISCORD_WEBHOOK_GAZETTE }}
+      # Même salon : un message quand le clan bat un de ses records. Au premier passage, les records du moment servent de départ.
+      - name: Envoyer les alertes de record sur Discord
+        if: github.ref_name == 'main'
+        continue-on-error: true
+        timeout-minutes: 2
+        run: npm run records:envoyer
+        env:
+          DISCORD_WEBHOOK_GAZETTE: ${{ secrets.DISCORD_WEBHOOK_GAZETTE }}
       # Les données sont déjà enregistrées : un échec ici n'empêche pas de reconstruire le site, et se lit dans l'avertissement.
       - name: Noter les envois sur Discord
         if: github.ref_name == 'main'
         continue-on-error: true
         run: |
-          for fichier in data/discord-lien.json data/gazette-envoi.json data/alertes-envoi.json data/paliers-envoi.json; do
+          for fichier in data/discord-lien.json data/gazette-envoi.json data/alertes-envoi.json data/paliers-envoi.json data/records-envoi.json; do
             if [ -f "$fichier" ]; then git add -- "$fichier"; fi
           done
           if git diff --cached --quiet; then

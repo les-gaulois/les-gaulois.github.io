@@ -7,6 +7,7 @@ import NewsBoard from "../components/NewsBoard";
 import SinceLastVisit from "../components/SinceLastVisit.tsx";
 import { AUTH_ENABLED } from "../lib/compte/api";
 import { clan } from "../../config/clan";
+import { bestGameOf, bestGameSentence, yesterdayOf } from "../lib/belle-partie";
 import { brandFile } from "../lib/brand";
 import { objectiveFor } from "../lib/clanmap/economy";
 import { loadAnnouncements, loadClanMapFilm, loadEvents, loadGames, loadHistory, loadLeaderboard, loadMembers, loadMemberWeeks, loadMeta, loadSessions, loadTerritoryReadings } from "../lib/data";
@@ -56,6 +57,9 @@ const recentGames = recent.reduce((n, d) => n + d.games, 0);
 const recentWins = recent.reduce((n, d) => n + d.wins, 0);
 const { rows: journal } = clanJournal({ sessions, games, coveredUntil: meta.sessions.coveredUntil, tag: clan.tag, officialTags: clans.map((c) => c.clanTag) });
 const lastGames = journal.slice(0, 5);
+// La belle partie d'hier : le plus de Gaulois ensemble la veille de la collecte, règle dans src/lib/belle-partie.ts.
+const bestYesterday = meta.sessions.coveredUntil ? bestGameOf(journal, yesterdayOf(meta.sessions.coveredUntil)) : null;
+const creditMaps = lastGames.some((game) => game.map !== null) || (bestYesterday?.map ?? null) !== null;
 
 const heat = buildHeatmap(sessions, meta.sessions.coveredUntil);
 const weekday = parisParts(now).weekday;
@@ -239,6 +243,13 @@ const snapshot = loadVisitSnapshot();
               {fmtInt(recentWins)} victoires, soit {fmtPct(winRate(recentWins, recentGames))}. Parties publiques en équipe jouées avec le tag.
             </p>
             {
+              bestYesterday && (
+                <p class="tnum mt-4 text-sm" data-testid="home-best-game">
+                  <strong>La belle partie d'hier.</strong> {bestGameSentence(bestYesterday)}
+                </p>
+              )
+            }
+            {
               lastGames.length > 0 && (
                 <ul class="tnum mt-4 divide-y divide-white/10 text-sm" data-testid="home-games">
                   {lastGames.map((game) => (
@@ -250,7 +261,7 @@ const snapshot = loadVisitSnapshot();
                 </ul>
               )
             }
-            {lastGames.some((game) => game.map !== null) && <MapNamesCredit />}
+            {creditMaps && <MapNamesCredit />}
             <div class="mt-6 flex flex-wrap gap-3">
               <a href={`${base}/parties`} class="btn btn-ghost">Voir les dernières parties</a>
               <a href={`${base}/progression`} class="btn btn-ghost">Voir la progression</a>
