@@ -8,7 +8,7 @@ import {
   projectRank,
   type Standing,
 } from "../../src/lib/clanmap/economy";
-import { findMoments, type MomentFrame } from "../../src/lib/clanmap/moments";
+import { findMoments, nextThreshold, THRESHOLDS, type MomentFrame } from "../../src/lib/clanmap/moments";
 import { fmtInt } from "../../src/lib/format";
 import { MapHeroes, Meta } from "../../src/lib/schemas";
 
@@ -184,5 +184,19 @@ describe("grands moments", () => {
   it("note le numéro d'événement de chaque moment", () => {
     const moments = findMoments(frames([[0, null], [50, 1]]));
     expect(moments[0]).toMatchObject({ frame: 2, event: 10000 });
+  });
+});
+
+describe("nextThreshold", () => {
+  it("donne le prochain palier et ce qu'il manque", () => {
+    expect(nextThreshold(121_976)).toEqual({ threshold: 150_000, remaining: 28_024 });
+    expect(nextThreshold(0)).toEqual({ threshold: 10_000, remaining: 10_000 });
+  });
+  it("un palier atteint n'est plus le prochain", () => {
+    expect(nextThreshold(150_000)).toEqual({ threshold: 200_000, remaining: 50_000 });
+  });
+  it("ne dit rien au-delà du dernier palier", () => {
+    expect(nextThreshold(THRESHOLDS.at(-1)!)).toBeNull();
+    expect(nextThreshold(2_000_000)).toBeNull();
   });
 });

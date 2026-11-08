@@ -101,6 +101,21 @@ describe("visitLines", () => {
   });
 });
 
+describe("mapAt", () => {
+  it("garde la dernière image du film, et relit encore un ancien relevé qui ne l'a pas", () => {
+    const now = new Date("2026-11-05T10:00:00.000Z");
+    const kept = readVisitState(JSON.stringify(nextVisitState(null, snap({ mapAt: 1_762_540_000 }), now)));
+    expect(kept?.latest.mapAt).toBe(1_762_540_000);
+    const older = readVisitState(JSON.stringify(nextVisitState(null, snap(), now)));
+    expect(older).not.toBeNull();
+    expect(older?.latest.mapAt).toBeUndefined();
+  });
+  it("refuse une date d'image qui n'est pas un nombre", () => {
+    const state = nextVisitState(null, snap(), new Date("2026-11-05T10:00:00.000Z"));
+    expect(readVisitState(JSON.stringify({ ...state, latest: { ...state.latest, mapAt: "hier" } }))).toBeNull();
+  });
+});
+
 describe("hasNewGazette", () => {
   it("repère une nouvelle édition", () => {
     expect(hasNewGazette(snap(), later({ gazette: "2026-11-02" }))).toBe(true);

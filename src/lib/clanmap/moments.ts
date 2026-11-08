@@ -24,7 +24,13 @@ export interface Moment {
   title: string;
 }
 
-const THRESHOLDS = [10_000, 25_000, 50_000, 75_000, 100_000, 150_000, 200_000, 300_000, 500_000, 1_000_000];
+export const THRESHOLDS = [10_000, 25_000, 50_000, 75_000, 100_000, 150_000, 200_000, 300_000, 500_000, 1_000_000];
+
+/** Le prochain palier de pixels, et ce qu'il manque pour l'atteindre. `null` au-delà du dernier palier. */
+export function nextThreshold(pixels: number): { threshold: number; remaining: number } | null {
+  const threshold = THRESHOLDS.find((t) => t > pixels);
+  return threshold === undefined ? null : { threshold, remaining: threshold - pixels };
+}
 /** Du plus important au moins important : c'est lui qui reste si deux moments sont trop proches. */
 const PRIORITY: MomentKind[] = ["now", "first", "rank", "comeback", "fall", "push", "loss", "threshold"];
 const fmt = frNumber();

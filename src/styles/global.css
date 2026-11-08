@@ -1079,6 +1079,9 @@ th.fx-cross {
     background: linear-gradient(transparent, rgb(3 6 15 / 0.94) 38%);
   }
   .film-caption {
+    /* Dans la bande libre entre le titre, à gauche, et la date, à droite : un sous-titre long y passe sur deux lignes. */
+    left: 26rem;
+    right: 21rem;
     top: 0.875rem;
     max-width: 46%;
   }

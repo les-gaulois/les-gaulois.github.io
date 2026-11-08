@@ -5,7 +5,7 @@
 import { fmtCount, fmtInt, fmtRank, fmtScore } from "./format";
 
 export const VISIT_KEY = "gal-visite";
-/** Après ce délai sans revenir sur l'accueil, c'est une nouvelle visite. Recharger la page ne doit pas faire perdre le résumé. */
+/** Après ce délai sans revenir sur l'accueil ni sur la carte, c'est une nouvelle visite. Recharger la page ne doit pas faire perdre le résumé. */
 export const VISIT_GAP_MS = 3 * 3_600_000;
 
 export interface VisitSnapshot {
@@ -18,6 +18,8 @@ export interface VisitSnapshot {
   wins: number;
   pixels: number | null;
   mapRank: number | null;
+  /** La dernière image du film de la carte, en secondes Unix : le film reprend après elle. Absente des anciens relevés. */
+  mapAt?: number | null;
   members: number | null;
   /** Le lundi de la dernière gazette. */
   gazette: string | null;
@@ -47,6 +49,7 @@ function isSnapshot(value: unknown): value is VisitSnapshot {
     isNumberOrNull(v["score"]) &&
     isNumberOrNull(v["pixels"]) &&
     isNumberOrNull(v["mapRank"]) &&
+    (v["mapAt"] === undefined || isNumberOrNull(v["mapAt"])) &&
     isNumberOrNull(v["members"]) &&
     (v["gazette"] === null || typeof v["gazette"] === "string")
   );

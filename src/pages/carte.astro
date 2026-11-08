@@ -9,11 +9,12 @@ import { clanRgb } from "../lib/clanmap/codec";
 import { RULES_CHECKED_ON, TROOPS_PER_CAP, NEUTRAL_PIXEL_TROOPS, ENEMY_PIXEL_BASE_TROOPS, capsToTroops, neutralPixelsFor, objectiveFor } from "../lib/clanmap/economy";
 import { SHOT_SPACING_MS } from "../lib/fx/camera";
 import { changeSinceLastDay, dayHighlights, dayRows, parisDayOf, territorySeries, type DayRow } from "../lib/clanmap/days";
-import { findMoments } from "../lib/clanmap/moments";
+import { findMoments, nextThreshold } from "../lib/clanmap/moments";
 import { loadClanMapFilm, loadClanMapJournal, loadMapHeroes, loadMembers, loadMeta } from "../lib/data";
 import { fmtDate, fmtDay, fmtDec1, fmtEpochDay, fmtEpochTime, fmtInt, fmtRank } from "../lib/format";
 import { endingOn } from "../lib/gazette";
 import { MAX_AGE_HOURS } from "../lib/freshness";
+import { loadVisitSnapshot } from "../lib/visite-snapshot";
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const meta = loadMeta();
@@ -43,6 +44,11 @@ const dayCards = [
   { row: worstDay, title: "Le jour où GAL a le plus reculé" },
 ].flatMap(({ row, title }) => (row ? [{ row, title }] : []));
 const hasHistory = moments.length > 0 || dayCards.length > 0 || (gal?.zones.length ?? 0) > 0;
+// La dernière journée terminée se rejoue d'un clic : un nouveau mini-film chaque jour.
+const lastDay = [...days].reverse().find((d) => d.complete) ?? null;
+const threshold = gal ? nextThreshold(gal.pixels) : null;
+// Le relevé que le navigateur garde : le film reprend après la dernière image vue.
+const visit = loadVisitSnapshot();
 
 // Objectif et réserves : uniquement des chiffres collectés, et un calcul documenté.
 const objective = objectiveFor(standings, clan.tag);
@@ -96,7 +102,7 @@ const sinceLine =
       : null;
 ---
 
-<Base title="Carte" description="Le territoire du clan GAL sur la carte officielle des clans d'OpenFront, rejoué du premier pixel au dernier. Objectif du moment et votre place dans le clan.">
+<Base title="Carte" description="Le territoire du clan GAL sur la carte officielle des clans d'OpenFront, rejoué du premier pixel au dernier. L'objectif du moment et comment faire grandir GAL." calm>
   {
     !film ? (
       <div class="wrap pt-12">
@@ -110,7 +116,7 @@ const sinceLine =
       </div>
     ) : (
       <>
-        <section data-film data-assets={assets} aria-labelledby="map-page-title">
+        <section data-film data-assets={assets} data-visit={visit ? JSON.stringify(visit) : undefined} aria-labelledby="map-page-title">
           <div class="film-hero">
             <div class="film-title">
               <h1 id="map-page-title">La carte des clans</h1>
@@ -158,6 +164,11 @@ const sinceLine =
                   <svg viewBox="0 0 14 14" width="14" height="14" fill="currentColor" aria-hidden="true"><path data-film-play-icon d="M2 1l11 6-11 6z"></path></svg>
                   <span data-film-play-label>Lancer le film</span>
                 </button>
+                {lastDay && (
+                  <button type="button" class="btn btn-ghost" {...dayReplay(lastDay)} data-testid="film-last-day" aria-label={`Revoir le ${fmtDay(lastDay.date)}, la dernière journée terminée`}>
+                    Revoir le {fmtDay(lastDay.date)}
+                  </button>
+                )}
                 <div class="film-scrub">
                   <svg data-film-curve preserveAspectRatio="none" aria-hidden="true" style={{ "--gal": rgb(film.gal === null ? null : (film.clans[film.gal]?.color ?? null)) }}><path></path></svg>
                   <span class="film-ticks" data-film-ticks aria-hidden="true"></span>
@@ -281,6 +292,12 @@ const sinceLine =
                     </>
                   ) : (
                     <h2 id="goal-title" class="section-title mt-2">GAL sur la carte</h2>
+                  )}
+                  {threshold && (
+                    <p class="tnum mt-4 font-semibold" data-testid="map-next-threshold">
+                      Prochain palier : {fmtInt(threshold.threshold)} pixels, encore {fmtInt(threshold.remaining)}.
+                    </p>
+                    <p class="mt-1 text-xs text-muted">Un repère du site, pas du jeu : les mêmes paliers que les grands moments du film.</p>
                   )}
                 </div>
                 <div class="panel">
@@ -556,6 +573,7 @@ const sinceLine =
                     )
                   }
                   <li><strong class="text-white">Une caméra posée.</strong> La caméra glisse sans à-coup. À la vitesse × 1, elle s'approche lentement de GAL sur quelques grands moments, au plus une fois toutes les {SHOT_SPACING_MS / 1000} secondes. Aux vitesses × 2 et × 4, elle ne s'approche que d'un moment choisi dans la liste. Avec « Suivre GAL », activé d'office sur téléphone, elle accompagne notre territoire et ne fait aucun plan rapproché. Avec « réduire les animations », elle ne s'approche jamais et passe directement d'un cadre à l'autre.</li>
+                  <li><strong class="text-white">Le film reprend où vous l'aviez laissé.</strong> Votre navigateur garde la date de la dernière image vue, sur cet appareil seulement : au retour, le film ne rejoue que la suite, et « Rejouer » redonne le film entier. Rien n'est envoyé au site.</li>
                   <li><strong class="text-white">Une mise à jour par jour.</strong> Ce ne sont pas des données en temps réel. La carte vient de l'historique public documenté par OpenFront, lu par la collecte du site et jamais par votre navigateur. Les réserves du clan viennent de sa fiche, une route non documentée : quand elle ne répond pas à la collecte, la page écrit « Pas de données ».</li>
                   <li><strong class="text-white">Vérifié à chaque mise à jour.</strong> Chaque événement officiel annonce l'ancien propriétaire du pixel. Rejoué depuis le premier pixel, l'historique retombe dessus, avec {fmtInt(film.check.mismatches)} écart sur {fmtInt(film.check.events)} événements. En cas d'écart, le film n'est pas mis à jour.</li>
                   <li><strong class="text-white">Ce que l'historique ne donne pas.</strong> Il ne dit pas les troupes des autres clans. Le site n'affiche donc pas le coût exact d'un pixel ennemi.</li>

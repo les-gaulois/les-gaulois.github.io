@@ -884,6 +884,8 @@ function init(): void {
       if (el.getBoundingClientRect().width === 0) continue;
       // Le contenu d'un volet fermé n'entre jamais à l'écran : il resterait caché une fois le volet ouvert.
       if (el.closest("details:not([open])")) continue;
+      // Une page calme (`data-fx-calm`) : ses blocs apparaissent simplement, sans conquête.
+      if (el.closest("[data-fx-calm]")) continue;
       el.classList.add("fx-hidden");
       hiddenBlocks.add(el);
       revealObserver.observe(el);
@@ -1002,7 +1004,9 @@ function init(): void {
   for (const el of document.querySelectorAll<HTMLElement>("[data-count]")) {
     if (el.dataset.count) counterObserver.observe(el);
   }
-  for (const el of document.querySelectorAll<HTMLElement>(BLOCKS)) visibilityObserver.observe(el);
+  for (const el of document.querySelectorAll<HTMLElement>(BLOCKS)) {
+    if (!el.closest("[data-fx-calm]")) visibilityObserver.observe(el);
+  }
   useCustomTips(enabled);
   if (enabled) prepareReveal();
   root.classList.remove("fx-wait");

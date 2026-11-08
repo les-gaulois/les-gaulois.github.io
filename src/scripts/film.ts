@@ -10,11 +10,13 @@
 import { clanRgb, type DecodedFrames } from "../lib/clanmap/codec";
 import { filmDayMarks, placeDayLabels } from "../lib/clanmap/days";
 import { findMoments, type Moment } from "../lib/clanmap/moments";
+import { filmResume } from "../lib/clanmap/reprise";
 import { fmtDay, fmtEpochDay, fmtEpochHour } from "../lib/format";
 import { CAMERA_CLICK_MS, CAMERA_SMOOTH_MS, FILM_MS, SHOT_MAX_ZOOM, SHOT_MS, SHOT_SPACING_MS, moveCamera, pickShots, placeCamera, type Camera } from "../lib/fx/camera";
 import { motionAllowed } from "../lib/fx/motion";
 import { frNumber } from "../lib/nombre";
 import type { StoredClanMapFilm } from "../lib/schemas";
+import { nextVisitState, readVisitState, VISIT_KEY, type VisitSnapshot } from "../lib/visite";
 import { loadFilmData } from "./film-data";
 
 const AUTOPLAY_DELAY_MS = 1_500;
@@ -32,6 +34,10 @@ const LOW_POWER_RESOLUTION = 0.7;
 const DAY_LABEL_REM = 3.5;
 /** Une journée rejouée dure au moins ce temps à la vitesse × 1 : un long historique lui laisse peu d'images. */
 const DAY_REPLAY_MS = 4_000;
+/** La suite du film, pour celui qui revient, dure au moins ce temps. */
+const RESUME_MIN_MS = 6_000;
+/** Après un saut dans le film, l'ancienne image s'efface en fondu pendant ce temps. */
+const FADE_MS = 500;
 
 const fmt = frNumber();
 const fmtPct = frNumber({ minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -85,6 +91,7 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
   const bloomH = Math.ceil(H / BLOOM_DIVISOR);
   const [glowBloom, glowBloomCtx] = makeLayer(bloomW, bloomH);
   const [galBloom, galBloomCtx] = makeLayer(bloomW, bloomH);
+  const [fadeCanvas, fadeCtx] = makeLayer(1, 1);
 
   const map = one<HTMLElement>("[data-film-map]");
   const playButton = one<HTMLButtonElement>("[data-film-play]");
@@ -176,6 +183,8 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
   let active = new Int32Array(1 << 14);
   let activeCount = 0;
   const pulses: Pulse[] = [];
+  /** L'ancienne image, qui s'efface en fondu après un saut dans le film : 1 = encore entière. */
+  let fade = 0;
 
   function addGlow(cell: number, type: number): void {
     if (life[cell] === 0) {
@@ -230,6 +239,15 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
   function addPulse(x: number, y: number, size: number, color: string): void {
     if (pulses.length >= MAX_PULSES) pulses.shift();
     pulses.push({ x, y, size, color, t: 0 });
+  }
+
+  /** Garde l'image affichée pour la fondre dans la suivante : un saut dans le film ne fait pas de coupure sèche. */
+  function crossfade(): void {
+    if (!motionAllowed() || view.width === 0) return;
+    fadeCanvas.width = view.width;
+    fadeCanvas.height = view.height;
+    fadeCtx.drawImage(view, 0, 0);
+    fade = 1;
   }
 
   /** Avance d'une image et ne redessine que la zone modifiée. */
@@ -380,6 +398,7 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     if (width === view.width && height === view.height) return;
     view.width = width;
     view.height = height;
+    fade = 0;
     stepCamera(0, true);
     invalidate();
   }
@@ -455,6 +474,13 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
       c.fillText("GAL", sx, sy + dpr / 2);
     }
 
+    if (fade > 0) {
+      c.setTransform(1, 0, 0, 1, 0, 0);
+      c.globalAlpha = fade;
+      c.drawImage(fadeCanvas, 0, 0);
+      c.globalAlpha = 1;
+    }
+
     // Le zoom par rapport à la vue d'ensemble, lu par les tests : 1 tant que la caméra ne s'approche pas.
     const zoom = (camera.s / worldView().s).toFixed(2);
     if (view.dataset.zoom !== zoom) view.dataset.zoom = zoom;
@@ -520,11 +546,20 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
       for (let i = pulses.length - 1; i >= 0; i--) if (pulses[i]!.t >= 1) pulses.splice(i, 1);
       dirty = true;
     }
+    if (fade > 0) {
+      fade = Math.max(0, fade - dt / FADE_MS);
+      if (fade === 0) {
+        // L'ancienne image ne sert plus : on rend sa mémoire.
+        fadeCanvas.width = 1;
+        fadeCanvas.height = 1;
+      }
+      dirty = true;
+    }
     const moving = stepCamera(dt, false);
     if (moving) dirty = true;
     if (dirty) draw();
     needDraw = false;
-    const busy = (playing && inView) || activeCount > 0 || pulses.length > 0 || shot !== null || moving;
+    const busy = (playing && inView) || activeCount > 0 || pulses.length > 0 || fade > 0 || shot !== null || moving;
     if (busy) schedule();
     else last = 0;
   }
@@ -640,7 +675,10 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     releaseView();
     markMoment(null);
     requestedMoment = 0;
-    if (cur >= F) seek(0);
+    if (cur >= F) {
+      crossfade();
+      seek(0);
+    }
     setPlaying(true);
   });
 
@@ -696,6 +734,7 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     revealMap();
     requestedMoment = frame;
     if (motionAllowed()) {
+      crossfade();
       seek(Math.max(0, frame - 5));
       setPlaying(true);
       return;
@@ -718,6 +757,7 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     shot = null;
     requestedMoment = 0;
     if (motionAllowed()) {
+      crossfade();
       seek(start);
       setPlaying(true);
       stopAt = end;
@@ -740,7 +780,10 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
       shot = null;
       setPlaying(false);
       markMoment(null);
-      if (cur < F) seek(F);
+      if (cur < F) {
+        crossfade();
+        seek(F);
+      }
       const halfW = Math.max(Number(button.dataset.halfWidth), 130);
       const halfH = Math.max(Number(button.dataset.halfHeight), 85);
       const clan = button.dataset.clan;
@@ -839,12 +882,35 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
   };
   new ResizeObserver(writeDayLabels).observe(dates);
 
+  /* ---------- Reprendre là où le visiteur en était ---------- */
+
+  // Le même relevé que « Depuis votre dernière visite » sur l'accueil : il reste dans le navigateur.
+  const resume = ((): ReturnType<typeof filmResume> => {
+    const raw = root.dataset.visit;
+    if (!raw) return null;
+    try {
+      const snapshot = JSON.parse(raw) as VisitSnapshot;
+      const stored = readVisitState(localStorage.getItem(VISIT_KEY));
+      const state = nextVisitState(stored, snapshot, new Date());
+      localStorage.setItem(VISIT_KEY, JSON.stringify(state));
+      return stored ? filmResume(film.frames, state.baseline.mapAt, state.since, state.baseline.pixels) : null;
+    } catch {
+      // Stockage indisponible : le film complet, comme à une première visite.
+      return null;
+    }
+  })();
+
   buildPalette();
   applyUpTo(F);
   repaint();
   updateHud();
   setPlaying(false);
   if (matchMedia("(max-width: 43.75rem)").matches) setFollow(true);
+  if (resume && !motionAllowed()) {
+    // Sans animation, le film attend une demande : le visiteur lit au moins ce qui a changé.
+    showCaption(resume.caption, true);
+    status.textContent = resume.caption;
+  }
 
   view.hidden = false;
   for (const el of document.querySelectorAll<HTMLElement>("[data-film-ready]")) el.hidden = false;
@@ -862,8 +928,20 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
         autoplayPending = false;
         autoplayTimer = window.setTimeout(() => {
           if (!motionAllowed()) return;
-          seek(0);
-          setPlaying(true);
+          crossfade();
+          if (resume && resume.start > 0 && resume.start < F) {
+            // Celui qui revient ne revoit que la suite, jamais en moins de quelques secondes.
+            seek(resume.start);
+            setPlaying(true);
+            dayFrameMs = RESUME_MIN_MS / (F - resume.start);
+          } else {
+            seek(0);
+            setPlaying(true);
+          }
+          if (resume) {
+            showCaption(resume.caption);
+            status.textContent = resume.caption;
+          }
         }, AUTOPLAY_DELAY_MS);
       }
     },

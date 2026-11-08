@@ -16,7 +16,7 @@ Le visiteur doit savoir où chercher, et avoir une raison de revenir. Le plan es
 - **Le chiffre d'abord, l'explication à la demande.** Les précisions de méthode sont dans `ReadingNote.astro`, repliées mais dans le HTML. Ce qui doit rester visible ne s'y met jamais : mentions de licence, couverture de la lecture, pannes et suspensions, et ce qui change la lecture d'un chiffre, comme sa période, le périmètre des parties ou la réserve sur un taux.
 - **Une page courte.** Une longue liste montre ses premières lignes et garde le reste à portée : 25 clans au classement, 25 parties dans le journal, les chapitres du guide en sommaire qui s'ouvre.
 - **Un bloc vide n'existe pas.** Sans annonce ni événement, l'accueil n'affiche pas de bloc vide. Pour une donnée attendue, « Pas de données » reste la règle.
-- **Une raison de revenir.** L'accueil dit ce qui a changé depuis la dernière visite, retient son pseudo si on le demande, et donne l'objectif du moment sur la carte et le prochain bilan. Tout reste dans le navigateur du visiteur.
+- **Une raison de revenir.** L'accueil dit ce qui a changé depuis la dernière visite, retient son pseudo si on le demande, et donne l'objectif du moment sur la carte et le prochain bilan. Le film de la carte reprend où le visiteur l'avait laissé, et la dernière journée se rejoue d'un clic. Tout reste dans le navigateur du visiteur.
 - **Pas de fondu entre les pages.** Essayé le 7 novembre 2026 avec `@view-transition` : il provoquait des erreurs intermittentes vers la page Carte. Les pages sont statiques, et leur changement est déjà rapide.
 
 ## Couleurs
@@ -115,7 +115,7 @@ L'idée centrale reprend le principe d'OpenFront, la conquête de territoire : d
 
 ### Le film de la carte
 
-C'est le seul effet qui affiche des données : chaque image vient de l'historique officiel de la carte des clans. La page s'ouvre directement sur la carte, en plein écran sur un grand écran, avec le titre, le classement et les commandes posés dessus. Sous 1 200 px, tout s'empile et les commandes restent collées à la carte, dont la hauteur se limite sur un écran en paysage pour garder le bouton de lecture dans le premier écran. La carte finale s'affiche d'abord, puis le film repart du premier pixel.
+C'est le seul effet qui affiche des données : chaque image vient de l'historique officiel de la carte des clans. La page s'ouvre directement sur la carte, en plein écran sur un grand écran, avec le titre, le classement et les commandes posés dessus. Sous 1 200 px, tout s'empile et les commandes restent collées à la carte, dont la hauteur se limite sur un écran en paysage pour garder le bouton de lecture dans le premier écran. La carte finale s'affiche d'abord, puis le film démarre en fondu : du premier pixel à la première visite, et seulement la suite quand le visiteur revient (`src/lib/clanmap/reprise.ts`, à partir du relevé de « Depuis votre dernière visite »). Cette page est calme : ses blocs apparaissent sans la conquête case par case des autres pages (`calm` de `Base.astro`, qui pose `data-fx-calm`).
 
 | Élément | Rôle |
 |---|---|
@@ -129,6 +129,8 @@ C'est le seul effet qui affiche des données : chaque image vient de l'historiqu
 | Date posée sur la carte | Le jour et l'heure de Paris de l'image affichée, à l'heure près. Le curseur donne la même date aux lecteurs d'écran. |
 | Griser les autres clans | GAL seul en couleur, sans changer aucun chiffre |
 | Suivre GAL | La caméra accompagne son territoire, sans à-coup. Activé par défaut sur téléphone. |
+| Revoir la dernière journée | Un bouton à côté de la lecture rejoue la dernière journée terminée en quelques secondes : un nouveau mini-film chaque jour |
+| Fondu | Tout saut dans le film, au départ, vers un moment, une journée, une zone ou un front, fond l'ancienne image dans la nouvelle en une demi-seconde |
 | Survol ou pression sur la carte | Le tag du clan à cet endroit |
 
 **Les grands moments sont calculés, jamais écrits à la main** (`src/lib/clanmap/moments.ts`) : premier pixel, meilleure place, plus forte chute, remontée, plus grande poussée, plus dur recul, paliers de pixels. Deux moments trop proches ne se suivent pas : le plus important reste.
@@ -149,7 +151,7 @@ Sous le film, la page se lit en quatre parties, reliées par « Sur cette page �
 
 | Partie | Contenu | Source |
 |---|---|---|
-| Prochain objectif | Le clan à dépasser, les pixels manquants, l'avance sur le suivant | Ordre de la carte officielle |
+| Prochain objectif | Le clan à dépasser, les pixels manquants, l'avance sur le suivant, et le prochain palier de pixels avec ce qu'il manque | Ordre de la carte officielle, paliers de `src/lib/clanmap/moments.ts` |
 | GAL en chiffres | Territoire et record, pris et perdus, premier pixel, réserves du clan et ce qu'elles valent en pixels neutres | Historique de la carte, fiche publique du clan, règles du jeu |
 | Votre don sur la carte | Capsules, troupes, pixels, rang obtenu, seul ou avec tous les membres | Calcul, marqué comme simulation |
 | Simulation sur la carte | Le territoire s'étend depuis sa frontière sur les terres neutres. La vue recule quand il grandit. | Illustration : le chef et les officiers choisissent où peindre |

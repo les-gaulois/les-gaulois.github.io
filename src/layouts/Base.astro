@@ -15,8 +15,10 @@ interface Props {
   description?: string;
   /** Pages personnelles : inutile qu'un moteur de recherche les retienne. */
   noindex?: boolean;
+  /** Page calme : ses blocs apparaissent sans la conquête case par case ni la frontière des effets. */
+  calm?: boolean;
 }
-const { title, description = `${clan.tagline} Classement, progression, membres et activité du clan.`, noindex = false } = Astro.props;
+const { title, description = `${clan.tagline} Classement, progression, membres et activité du clan.`, noindex = false, calm = false } = Astro.props;
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const fullTitle = title ? `${title} · [${clan.tag}] ${clan.name}` : `[${clan.tag}] ${clan.name} · Clan OpenFront`;
@@ -147,7 +149,7 @@ const usefulTools = loadLinks().tools.length > 0;
       </div>
     </header>
 
-    <main id="contenu" class="flex-1">
+    <main id="contenu" class="flex-1" data-fx-calm={calm || undefined}>
       {/* La vue joueur de l'encadrement : une bande en haut de chaque page pour ne pas l'oublier et en sortir. Hors de l'en-tête collant, qui garde sa hauteur. */}
       {AUTH_ENABLED && <PlayerViewBar client:idle />}
       <SectionNav />

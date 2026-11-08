@@ -18,7 +18,7 @@ import { mapLabel } from "../lib/map-names";
 import { bestSlots, buildHeatmap, dailySeries, slotsOfDay } from "../lib/sessions";
 import { findClan, neighbours, winRate, withOfficialRanks } from "../lib/stats";
 import { parisParts, WEEKDAYS_FR } from "../lib/time";
-import type { VisitSnapshot } from "../lib/visite";
+import { loadVisitSnapshot } from "../lib/visite-snapshot";
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const meta = loadMeta();
@@ -63,19 +63,8 @@ const todaySlots = slotsOfDay(heat, weekday, 3);
 const slots = todaySlots.length > 0 ? todaySlots : bestSlots(heat, 3);
 const dayName = (WEEKDAYS_FR[weekday] ?? "").toLowerCase();
 
-const snapshot: VisitSnapshot | null = meta.lastRunAt
-  ? {
-      at: meta.lastRunAt,
-      rank: me?.rank ?? null,
-      score: me?.weightedWins ?? null,
-      games: sessions.length,
-      wins: sessions.filter((s) => s.hasWon).length,
-      pixels: onMap?.pixels ?? null,
-      mapRank: onMap?.rank ?? null,
-      members: members?.total ?? null,
-      gazette: gazette?.from ?? null,
-    }
-  : null;
+// Le même relevé que sur la page Carte, où il fait reprendre le film.
+const snapshot = loadVisitSnapshot();
 ---
 
 <Base>

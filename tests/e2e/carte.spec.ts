@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { changeSinceLastDay, dayHighlights, dayRows, filmDayMarks, parisDayOf } from "../../src/lib/clanmap/days";
+import { findMoments, nextThreshold } from "../../src/lib/clanmap/moments";
+import { filmResume } from "../../src/lib/clanmap/reprise";
 import { fmtDay, fmtEpochDay, fmtEpochHour, fmtInt, fmtRank } from "../../src/lib/format";
 
 /**
@@ -616,6 +618,60 @@ test.describe("film de la carte", () => {
       await expect(page.getByTestId("map-donors").locator("li").first()).toContainText(heroes.donors[0].player);
     }
     await expect(page.getByText("Un don est permanent et non remboursable.")).toBeVisible();
+  });
+
+  test("au retour, le film reprend après la dernière image vue, et dit ce qui a changé", async ({ page }) => {
+    test.skip(!datedFilm, "film sans dates, refait au prochain passage du robot");
+    // La dernière image vue : vers 60 % du film, loin d'un grand moment dont le sous-titre remplacerait le nôtre.
+    const moments = findMoments(film.frames).map((m) => m.frame);
+    let seen = Math.floor(film.frames.length * 0.6);
+    while (moments.some((frame) => frame > seen && frame <= seen + 30)) seen++;
+    const lastSeen = film.frames[seen - 1];
+    const expected = filmResume(film.frames, lastSeen.at, "2026-10-01T10:05:00.000Z")!;
+    const old = { at: "2026-10-01T10:00:00.000Z", rank: null, score: null, games: 0, wins: 0, pixels: lastSeen.gal, mapRank: null, mapAt: lastSeen.at, members: null, gazette: null };
+    await page.addInitScript((state) => localStorage.setItem("gal-visite", state), JSON.stringify({ baseline: old, latest: old, since: "2026-10-01T10:05:00.000Z", seenAt: "2026-10-01T10:05:00.000Z" }));
+    await page.goto("/carte");
+    await expect(playButton(page)).toContainText("Pause", { timeout: 8000 });
+    await expect(page.locator("[data-film-caption]")).toHaveText(expected.caption);
+    const at = await position(page);
+    expect(at).toBeGreaterThanOrEqual(seen);
+    expect(at).toBeLessThan(film.frames.length);
+    // La visite est notée avec la dernière image du film : la prochaine reprendra après elle.
+    const stored = JSON.parse((await page.evaluate(() => localStorage.getItem("gal-visite"))) ?? "null");
+    expect(stored.latest.mapAt).toBe(film.frames.at(-1).at);
+    expect(stored.baseline.mapAt).toBe(lastSeen.at);
+  });
+
+  test("un bouton rejoue la dernière journée terminée", async ({ page }) => {
+    test.skip(!datedFilm, "film sans dates, refait au prochain passage du robot");
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/carte");
+    const last = [...dayRows(film.days, film.frames, film.fetchedAt)].reverse().find((d) => d.complete)!;
+    const button = page.getByTestId("film-last-day");
+    await expect(button).toHaveText(`Revoir le ${fmtDay(last.date)}`);
+    await button.click();
+    expect(await position(page)).toBe(last.frame);
+    await expect(page.locator("[data-film-caption]")).toContainText(fmtDay(last.date));
+    await expect(page.getByTestId("film-gal")).toHaveText(galLine(last));
+  });
+
+  test("la page donne le prochain palier de pixels, sans l'inventer", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/carte");
+    const next = nextThreshold(film.galSummary.pixels);
+    const line = page.getByTestId("map-next-threshold");
+    if (!next) await expect(line).toHaveCount(0);
+    else await expect(line).toHaveText(`Prochain palier : ${fmtInt(next.threshold)} pixels, encore ${fmtInt(next.remaining)}.`);
+  });
+
+  test("sur cette page, aucun bloc n'est conquis case par case", async ({ page }) => {
+    await page.goto("/carte");
+    await expect(playButton(page)).toBeVisible();
+    expect(await page.locator("main .fx-hidden").count()).toBe(0);
+    await page.locator("#details").scrollIntoViewIfNeeded();
+    await page.waitForTimeout(400);
+    expect(await page.locator("main [style*='clip-path']").count()).toBe(0);
+    expect(await page.locator("main .fx-hidden").count()).toBe(0);
   });
 
   test("l'accueil renvoie vers le film", async ({ page }) => {
