@@ -280,27 +280,31 @@ test.describe("à la souris", () => {
     expect(await menuPrevented(page)).toBe(true);
   });
 
-  test("les blocs sont conquis case par case", async ({ page }) => {
+  test("les blocs apparaissent en fondu, sans découpe case par case", async ({ page }) => {
     const stage = page.locator(".stage-wine");
     await expect(stage).toHaveClass(/fx-hidden/);
-    const sawTiles = stage.evaluate(
+    // Avant le 8 novembre 2026, des cases recouvraient le bloc à son apparition : plus aucune découpe ne doit passer.
+    const sawClip = stage.evaluate(
       (el: HTMLElement) =>
         new Promise<boolean>((resolve) => {
           const observer = new MutationObserver(() => {
-            if (el.style.clipPath.includes("path")) {
+            if (el.style.clipPath !== "") {
               observer.disconnect();
               resolve(true);
             }
           });
           observer.observe(el, { attributes: true, attributeFilter: ["style"] });
-          setTimeout(() => resolve(false), 5000);
+          setTimeout(() => {
+            observer.disconnect();
+            resolve(false);
+          }, 2500);
         }),
     );
     await centerOnScreen(stage);
-    expect(await sawTiles).toBe(true);
-    await expect.poll(() => stage.evaluate((el: HTMLElement) => el.style.clipPath), { timeout: 3000 }).toBe("");
+    await expect(stage).toHaveClass(/fx-in/);
     await expect(stage).not.toHaveClass(/fx-hidden/);
     await expect(stage).toHaveCSS("opacity", "1");
+    expect(await sawClip).toBe(false);
   });
 
   test("les compteurs finissent sur la valeur collectée", async ({ page }) => {
@@ -325,6 +329,8 @@ test.describe("à la souris", () => {
     await expect(bars).toHaveCount(30);
     await centerOnScreen(bars.nth(15));
     await blocksSettled(page);
+    // Les barres poussent à l'apparition du bloc : on attend leur taille finale avant d'en viser une.
+    await bars.nth(15).evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
     const box = (await bars.nth(15).boundingBox())!;
 
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 3 });

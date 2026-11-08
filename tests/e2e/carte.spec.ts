@@ -664,16 +664,6 @@ test.describe("film de la carte", () => {
     else await expect(line).toHaveText(`Prochain palier : ${fmtInt(next.threshold)} pixels, encore ${fmtInt(next.remaining)}.`);
   });
 
-  test("sur cette page, aucun bloc n'est conquis case par case", async ({ page }) => {
-    await page.goto("/carte");
-    await expect(playButton(page)).toBeVisible();
-    expect(await page.locator("main .fx-hidden").count()).toBe(0);
-    await page.locator("#details").scrollIntoViewIfNeeded();
-    await page.waitForTimeout(400);
-    expect(await page.locator("main [style*='clip-path']").count()).toBe(0);
-    expect(await page.locator("main .fx-hidden").count()).toBe(0);
-  });
-
   test("l'accueil renvoie vers le film", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: /pixels sur la carte/i })).toBeVisible();

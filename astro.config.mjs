@@ -10,6 +10,8 @@ export default defineConfig({
   base: process.env.BASE_PATH || "/",
   trailingSlash: "ignore",
   integrations: [preact()],
+  // Les pages sont statiques et légères : la suivante se charge au survol de son lien, et la navigation paraît instantanée.
+  prefetch: { prefetchAll: true, defaultStrategy: "hover" },
   // Les guides n'affichent que des formules : ni coloration, ni défilement dans les blocs de code.
   markdown: { syntaxHighlight: false },
   vite: { plugins: [tailwindcss()] },

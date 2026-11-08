@@ -118,6 +118,14 @@ test("parcours principal", async ({ page }, testInfo) => {
   await page.goto("/membres");
   await hydrated(page);
   await expect(page.getByTestId("member-count")).toContainText(fmtInt(members.total));
+  // Trente membres d'abord, le reste d'un clic : la page reste courte sur téléphone.
+  const memberRows = page.getByTestId("member-row");
+  await expect(memberRows).toHaveCount(Math.min(30, members.members.length));
+  if (members.members.length > 30) {
+    await page.getByTestId("members-more").click();
+    await expect(memberRows).toHaveCount(members.members.length);
+  }
+  await expect(page.getByTestId("members-more")).toHaveCount(0);
   await expect(page.getByText("Membre anonyme").filter({ visible: true }).first()).toBeVisible();
   const named = members.members.find((m: { username: string | null }) => m.username)?.username;
   await page.getByLabel("Rechercher par pseudo").fill(named);

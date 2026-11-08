@@ -81,7 +81,8 @@ Une scène associe un texte et un panneau `.panel`, à la manière d'un écran d
 - **Texte :** Inter.
 - **Chiffres :** chiffres tabulaires (`.tnum`) pour que les colonnes s'alignent. Les milliers sont séparés par l'espace insécable de `src/lib/nombre.ts` : Outfit et Inter ne contiennent pas l'espace fine de `Intl`.
 - Les capitales sont appliquées en CSS : le texte d'origine reste en casse normale pour les lecteurs d'écran.
-- Les polices sont servies par le site, sans requête vers un service tiers.
+- Les polices sont servies par le site, sans requête vers un service tiers, et préchargées dans l'en-tête de chaque page : le texte s'affiche presque toujours directement dans sa police, au lieu d'une police de remplacement remplacée après coup.
+- Les pages se préchargent au survol de leur lien (`prefetch` d'Astro, stratégie `hover`) : la page suivante s'ouvre sans attente.
 
 ## Boutons
 
@@ -130,20 +131,22 @@ L'idée centrale reprend le principe d'OpenFront, la conquête de territoire : d
 | Clic gauche sur le logo | Pulsation et vague plus grande |
 | Clic droit sur le logo | Tour complet du logo et vague rouge plus grande |
 | Toucher un écran | Vague bleue. Pas d'effet de survol. |
-| Défiler | Blocs conquis case par case depuis le point le plus proche du curseur, titres mot à mot, barre de progression, compteurs |
+| Défiler | Blocs qui apparaissent en fondu, titres mot à mot, barre de progression, compteurs |
 | Survoler le graphique des parties | Colonne glissante, repère de valeur, barres voisines éclairées |
 | Cliquer sur un graphique ou la heatmap | Une onde se propage depuis le clic, bleue ou rouge selon le bouton |
 | Survoler la heatmap | Réticule sur le jour et l'heure, infobulle qui suit le curseur |
 | Changer de période | Barres qui repoussent, balayage tricolore, chiffres qui défilent |
 | Trier les membres | Les lignes glissent vers leur nouvelle place |
 | Modifier le calculateur | L'attaque se rejoue : le bot est conquis pendant que les troupes fondent |
-| Rien | Lente flottaison du logo, petits territoires qui naissent et disparaissent seuls, frontière qui fait parfois le tour d'un bloc |
+| Rien | Lente flottaison du logo, petits territoires qui naissent et disparaissent seuls |
+
+**Depuis le 8 novembre 2026, les blocs ne sont plus conquis case par case à leur apparition, et la frontière ne fait plus le tour d'un bloc toute seule.** Le pilote trouvait ces mouvements agressifs : des cases recouvraient ce qu'on lisait. Les blocs apparaissent en fondu, et la conquête reste pour les gestes du visiteur, ses clics et la première vague de l'accueil.
 
 Sur les pages rouges de l'encadrement, le bleu et le rouge échangent leurs rôles dans tous ces gestes : traînée du curseur, clic gauche, toucher et territoires ambiants y sont rouges, le clic droit et l'onde qu'il lance bleus.
 
 ### Le film de la carte
 
-C'est le seul effet qui affiche des données : chaque image vient de l'historique officiel de la carte des clans. La page s'ouvre directement sur la carte, en plein écran sur un grand écran, avec le titre, le classement et les commandes posés dessus. Sous 1 200 px, tout s'empile et les commandes restent collées à la carte, dont la hauteur se limite sur un écran en paysage pour garder le bouton de lecture dans le premier écran. La carte finale s'affiche d'abord, puis le film démarre en fondu : du premier pixel à la première visite, et seulement la suite quand le visiteur revient (`src/lib/clanmap/reprise.ts`, à partir du relevé de « Depuis votre dernière visite »). Cette page est calme : ses blocs apparaissent sans la conquête case par case des autres pages (`calm` de `Base.astro`, qui pose `data-fx-calm`).
+C'est le seul effet qui affiche des données : chaque image vient de l'historique officiel de la carte des clans. La page s'ouvre directement sur la carte, en plein écran sur un grand écran, avec le titre, le classement et les commandes posés dessus. Sous 1 200 px, tout s'empile et les commandes restent collées à la carte, dont la hauteur se limite sur un écran en paysage pour garder le bouton de lecture dans le premier écran. La carte finale s'affiche d'abord, puis le film démarre en fondu : du premier pixel à la première visite, et seulement la suite quand le visiteur revient (`src/lib/clanmap/reprise.ts`, à partir du relevé de « Depuis votre dernière visite »).
 
 | Élément | Rôle |
 |---|---|

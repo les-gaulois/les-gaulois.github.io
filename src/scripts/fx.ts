@@ -5,7 +5,7 @@
  *
  * - curseur : les cases s'allument, les blocs s'inclinent, un halo le suit ;
  * - clic gauche : vague bleue ; clic droit : vague rouge (l'inverse sur les pages rouges de l'encadrement) ;
- * - blocs : conquis case par case à leur apparition, frontière qui fait leur tour ;
+ * - blocs : apparition en fondu, frontière tricolore au survol ;
  * - graphiques : onde au clic, réticule sur la heatmap, infobulles.
  */
 import {
@@ -16,7 +16,6 @@ import {
   makeGrid,
   planWave,
   segment,
-  tilePath,
   type Arrival,
   type Grid,
 } from "../lib/fx/territory";
@@ -32,13 +31,8 @@ const MAX_ALPHA = 0.5;
 /** Inclinaison maximale d'une grande scène, en degrés : au-delà, le texte perd en netteté. */
 const STAGE_TILT = 0.8;
 const CARD_TILT = 3;
-const CONQUEST_TILE = 32;
-/** Au-delà de cette hauteur, un bloc apparaît en fondu : son tracé serait trop lourd. */
-const CONQUEST_MAX_HEIGHT = 900;
-/** Délai entre deux blocs qui arrivent ensemble, et attente maximale d'un bloc : il ne doit pas tarder. */
-const CONQUEST_STAGGER_MS = 90;
-const CONQUEST_MAX_WAIT_MS = 400;
-const FLASH_TTL = 0.32;
+/** Au-delà de cette hauteur, l'onde d'un clic ne traverse plus le bloc : son tracé serait trop lourd. */
+const LOCAL_WAVE_MAX_HEIGHT = 1_350;
 const LOCAL_TTL = 0.7;
 
 type Owner = 1 | 2 | 3;
@@ -73,22 +67,6 @@ interface Ring {
   life: number;
   ttl: number;
   radius: number;
-  color: string;
-}
-interface Flash {
-  x: number;
-  y: number;
-  size: number;
-  life: number;
-  color: string;
-}
-interface Conquest {
-  el: HTMLElement;
-  start: number;
-  grid: Grid | null;
-  arrivals: Arrival[];
-  next: number;
-  path: string;
   color: string;
 }
 interface LocalWave {
@@ -269,100 +247,6 @@ function init(): void {
     launchWave(Math.random() * width, Math.random() * height, owner, 60 + Math.random() * 110, 130 + Math.random() * 70, 0.26 + Math.random() * 0.1);
   }
 
-  /* ---------- Conquête d'un bloc, case par case ---------- */
-
-  let conquests: Conquest[] = [];
-  let flashes: Flash[] = [];
-  let nextSlot = 0;
-
-  function traceFrontier(el: HTMLElement): void {
-    if (el.classList.contains("fx-traced")) return;
-    el.classList.add("fx-traced");
-    window.setTimeout(() => el.classList.remove("fx-traced"), 1700);
-  }
-
-  function queueConquest(el: HTMLElement, now: number): void {
-    const start = Math.min(Math.max(now, nextSlot), now + CONQUEST_MAX_WAIT_MS);
-    nextSlot = start + CONQUEST_STAGGER_MS;
-    conquests.push({
-      el,
-      start,
-      grid: null,
-      arrivals: [],
-      next: 0,
-      path: "",
-      color: COLORS[el.classList.contains("stage-wine") ? RED : lead],
-    });
-  }
-
-  function updateConquests(now: number): void {
-    conquests = conquests.filter((c) => {
-      if (now < c.start) return true;
-      const r = c.el.getBoundingClientRect();
-      if (!c.grid) {
-        if (!c.el.isConnected || r.width === 0) {
-          c.el.classList.remove("fx-hidden");
-          return false;
-        }
-        c.grid = makeGrid(r.width, r.height, CONQUEST_TILE);
-        // La conquête part du point du bloc le plus proche du curseur.
-        const originX = pointer.seen ? Math.max(0, Math.min(r.width, pointer.x - r.left)) : 0;
-        const originY = pointer.seen ? Math.max(0, Math.min(r.height, pointer.y - r.top)) : r.height;
-        seed = (seed + 1) % 1000;
-        const duration = Math.min(0.95, 0.45 + (r.width * r.height) / 1_200_000);
-        c.arrivals = coverWave(c.grid, originX, originY, duration, seed);
-        c.start = now;
-        c.el.style.clipPath = 'path("M0 0")';
-        c.el.classList.remove("fx-hidden");
-      }
-      const elapsed = Math.max(0, (now - c.start) / 1000);
-      const { cols, size } = c.grid;
-      let changed = false;
-      while (c.next < c.arrivals.length) {
-        const arrival = c.arrivals[c.next];
-        if (!arrival || arrival.at > elapsed) break;
-        c.path += tilePath(arrival.index, c.grid);
-        if (flashes.length < 1200) {
-          flashes.push({
-            x: r.left + (arrival.index % cols) * size,
-            y: r.top + Math.floor(arrival.index / cols) * size,
-            size,
-            life: 0,
-            color: c.color,
-          });
-        }
-        c.next++;
-        changed = true;
-      }
-      if (c.next >= c.arrivals.length) {
-        c.el.style.clipPath = "";
-        traceFrontier(c.el);
-        return false;
-      }
-      if (changed) c.el.style.clipPath = `path("${c.path}")`;
-      return true;
-    });
-  }
-
-  /* ---------- La frontière fait parfois le tour d'un bloc visible ---------- */
-
-  const visibleBlocks = new Set<HTMLElement>();
-  const visibilityObserver = new IntersectionObserver((entries) => {
-    for (const entry of entries) {
-      if (entry.isIntersecting) visibleBlocks.add(entry.target as HTMLElement);
-      else visibleBlocks.delete(entry.target as HTMLElement);
-    }
-  });
-  let nextTrace = 0;
-
-  function updateTraces(now: number): void {
-    if (now < nextTrace || visibleBlocks.size === 0) return;
-    nextTrace = now + 1400 + Math.random() * 1400;
-    const candidates = [...visibleBlocks];
-    const el = candidates[Math.floor(Math.random() * candidates.length)];
-    if (el?.isConnected) traceFrontier(el);
-  }
-
   /* ---------- Éclats, onde de choc et ondes dans les blocs, par-dessus la page ---------- */
 
   let sparks: Spark[] = [];
@@ -398,7 +282,7 @@ function init(): void {
   /** L'onde traverse aussi le bloc cliqué, qui cache la grille de fond. */
   function launchLocal(el: HTMLElement, x: number, y: number, side: Side): void {
     const r = el.getBoundingClientRect();
-    if (r.height > CONQUEST_MAX_HEIGHT * 1.5) return;
+    if (r.height > LOCAL_WAVE_MAX_HEIGHT) return;
     const localGrid = makeGrid(r.width, r.height, TILE_SIZE);
     seed = (seed + 1) % 1000;
     locals.push({
@@ -444,18 +328,10 @@ function init(): void {
 
   function drawOverlay(now: number, dt: number): void {
     if (!sparkCtx) return;
-    const active = sparks.length + rings.length + flashes.length + locals.length > 0;
+    const active = sparks.length + rings.length + locals.length > 0;
     if (!active && !sparksDrawn) return;
     sparkCtx.clearRect(0, 0, width, height);
     drawLocals(now);
-    flashes = flashes.filter((f) => {
-      f.life += dt;
-      if (f.life >= FLASH_TTL) return false;
-      sparkCtx.globalAlpha = 0.75 * (1 - f.life / FLASH_TTL);
-      sparkCtx.fillStyle = f.life < FLASH_TTL * 0.3 ? "#ffffff" : f.color;
-      sparkCtx.fillRect(f.x + 1, f.y + 1, f.size - 2, f.size - 2);
-      return true;
-    });
     sparks = sparks.filter((s) => {
       s.life += dt;
       if (s.life >= s.ttl) return false;
@@ -710,8 +586,6 @@ function init(): void {
     }
     updateAmbient(now);
     updateWaves(now);
-    updateConquests(now);
-    updateTraces(now);
     drawTiles(dt);
     drawOverlay(now, dt);
     updateTilts(dt);
@@ -859,13 +733,9 @@ function init(): void {
         const el = entry.target as HTMLElement;
         revealObserver.unobserve(el);
         hiddenBlocks.delete(el);
-        // Un très grand bloc ou une longue liste apparaît en fondu : la conquête y serait trop lente.
-        if (el.offsetHeight > CONQUEST_MAX_HEIGHT || el.matches("astro-island li")) {
-          el.classList.add("fx-in");
-          el.classList.remove("fx-hidden");
-        } else {
-          queueConquest(el, performance.now());
-        }
+        // Un bloc apparaît en fondu : la conquête case par case recouvrait ce qu'on lisait.
+        el.classList.add("fx-in");
+        el.classList.remove("fx-hidden");
       }
     },
     { rootMargin: "0px 0px -6% 0px" },
@@ -877,11 +747,6 @@ function init(): void {
       el.classList.remove("fx-hidden");
     }
     hiddenBlocks.clear();
-    for (const c of conquests) {
-      c.el.style.clipPath = "";
-      c.el.classList.remove("fx-hidden");
-    }
-    conquests = [];
   }
 
   function prepareReveal(): void {
@@ -889,8 +754,6 @@ function init(): void {
       if (el.getBoundingClientRect().width === 0) continue;
       // Le contenu d'un volet fermé n'entre jamais à l'écran : il resterait caché une fois le volet ouvert.
       if (el.closest("details:not([open])")) continue;
-      // Une page calme (`data-fx-calm`) : ses blocs apparaissent simplement, sans conquête.
-      if (el.closest("[data-fx-calm]")) continue;
       el.classList.add("fx-hidden");
       hiddenBlocks.add(el);
       revealObserver.observe(el);
@@ -964,7 +827,6 @@ function init(): void {
     waves = [];
     sparks = [];
     rings = [];
-    flashes = [];
     locals = [];
     tilesDrawn = false;
     sparksDrawn = false;
@@ -1008,9 +870,6 @@ function init(): void {
   resize();
   for (const el of document.querySelectorAll<HTMLElement>("[data-count]")) {
     if (el.dataset.count) counterObserver.observe(el);
-  }
-  for (const el of document.querySelectorAll<HTMLElement>(BLOCKS)) {
-    if (!el.closest("[data-fx-calm]")) visibilityObserver.observe(el);
   }
   useCustomTips(enabled);
   if (enabled) prepareReveal();

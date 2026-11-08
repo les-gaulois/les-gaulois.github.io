@@ -234,9 +234,6 @@ main .card:hover::before {
   opacity: 1;
   animation: frontier 2.4s linear infinite;
 }
-.fx-traced::before {
-  animation: frontier-once 1.6s ease-in-out;
-}
 
 .hero-glow {
   position: absolute;
@@ -1326,20 +1323,7 @@ main .fx-in,
     --angle: 360deg;
   }
 }
-@keyframes frontier-once {
-  0% {
-    --angle: 0deg;
-    opacity: 0;
-  }
-  15%,
-  85% {
-    opacity: 1;
-  }
-  100% {
-    --angle: 360deg;
-    opacity: 0;
-  }
-}
+
 @keyframes fx-guard {
   to {
     opacity: 1;

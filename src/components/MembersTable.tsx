@@ -4,7 +4,8 @@ import { motionAllowed } from "../lib/fx/motion";
 import { filterMembers, gamesOf, rateOf, sortMembers, type SortDir, type SortKey } from "../lib/members";
 import type { StoredMember, StoredMembers } from "../lib/schemas";
 
-const PAGE = 50;
+/** Les premiers membres affichés : le reste vient d'un clic, comme pour le classement. */
+const PAGE = 30;
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const ROLE: Record<StoredMember["role"], string> = { leader: "Chef", officer: "Officier", member: "Membre" };
 const SORTS: { key: SortKey; label: string }[] = [
@@ -228,7 +229,9 @@ export default function MembersTable({ src }: { src: string }) {
 
           {visible.length < rows.length && (
             <div class="mt-4 text-center">
-              <button type="button" class="btn btn-ghost" onClick={() => setLimit(limit + PAGE)}>Afficher {Math.min(PAGE, rows.length - visible.length)} de plus</button>
+              <button type="button" class="btn btn-ghost" data-testid="members-more" onClick={() => setLimit(rows.length)}>
+                {rows.length - visible.length > 1 ? `Voir les ${fmtInt(rows.length - visible.length)} autres membres` : "Voir le dernier membre"}
+              </button>
             </div>
           )}
         </>
