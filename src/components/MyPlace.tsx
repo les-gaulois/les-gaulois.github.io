@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
-import { fmtInt, fmtPct } from "../lib/format";
+import { fmtDate, fmtInt, fmtPct } from "../lib/format";
 import { gamesOf, placeOf, rateOf, suggestMembers } from "../lib/members";
 import { hasLeftList, ME_KEY, rememberedMember } from "../lib/moi";
+import { ME_VISIT_KEY, meVisitLines, nextMeVisitState, readMeVisitState, type MeSnapshot } from "../lib/moi-visite";
 import { nextTier } from "../lib/paliers";
 import type { StoredMember, StoredMembers } from "../lib/schemas";
 
@@ -81,6 +82,8 @@ export default function MyPlace({ src }: { src: string }) {
   const [wanted, setWanted] = useState(false);
   const [savedId, setSavedId] = useState<string | null>(null);
   const [gone, setGone] = useState(false);
+  /** Ce qui a changé pour le membre retenu depuis sa dernière visite : ses chiffres d'alors restent dans son navigateur. */
+  const [since, setSince] = useState<{ date: string; lines: string[] } | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const forgetButton = useRef<HTMLButtonElement>(null);
   // Le bouton utilisé disparaît : le clavier reprend sur celui qui le remplace.
@@ -125,6 +128,20 @@ export default function MyPlace({ src }: { src: string }) {
 
   const members = state.status === "ready" ? state.data.members : [];
   const saved = useMemo(() => rememberedMember(members, savedId), [members, savedId]);
+
+  useEffect(() => {
+    if (state.status !== "ready" || !saved?.publicId) return;
+    const place = placeOf(state.data.members, saved);
+    if (!place) return;
+    const current: MeSnapshot = { id: saved.publicId, at: state.data.fetchedAt, wins: place.wins, losses: saved.team?.losses ?? 0, rank: place.rank, ranked: place.ranked };
+    try {
+      const next = nextMeVisitState(readMeVisitState(localStorage.getItem(ME_VISIT_KEY)), current, new Date());
+      localStorage.setItem(ME_VISIT_KEY, JSON.stringify(next));
+      setSince({ date: fmtDate(next.since), lines: meVisitLines(next.baseline, current) });
+    } catch {
+      // Stockage indisponible : pas de résumé personnel, la place s'affiche quand même.
+    }
+  }, [state, saved]);
   const matches = useMemo(() => suggestMembers(members, query), [members, query]);
   // Un seul résultat, ou un pseudo exact : inutile de demander de choisir.
   const exact = matches.find((m) => m.username?.toLowerCase() === query.trim().toLowerCase());
@@ -141,6 +158,7 @@ export default function MyPlace({ src }: { src: string }) {
     if (state.status !== "ready" || !hasLeftList(state.data.members, savedId)) return;
     try {
       localStorage.removeItem(ME_KEY);
+      localStorage.removeItem(ME_VISIT_KEY);
     } catch {
       // Rien à retirer.
     }
@@ -164,11 +182,13 @@ export default function MyPlace({ src }: { src: string }) {
   const forget = () => {
     try {
       localStorage.removeItem(ME_KEY);
+      localStorage.removeItem(ME_VISIT_KEY);
     } catch {
       // Rien à retirer.
     }
     focusNext.current = "input";
     setSavedId(null);
+    setSince(null);
   };
 
   // Après un « Réessayer », le champ reste là : le clavier s'y pose, au lieu de retomber en haut de la page.
@@ -181,6 +201,16 @@ export default function MyPlace({ src }: { src: string }) {
     return (
       <div>
         <Result members={members} member={saved} />
+        {since && since.lines.length > 0 && (
+          <div class="tnum mt-4 text-sm" data-testid="my-place-since">
+            <p class="font-semibold">Pour vous, depuis votre dernière visite, le {since.date}</p>
+            <ul class="mt-1 grid gap-0.5 text-muted">
+              {since.lines.map((line) => (
+                <li key={line} data-testid="my-place-since-line">{line}</li>
+              ))}
+            </ul>
+          </div>
+        )}
         <button ref={forgetButton} type="button" class="mt-4 text-sm underline underline-offset-2" onClick={forget} data-testid="my-place-forget">
           Changer de pseudo
         </button>

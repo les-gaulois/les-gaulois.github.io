@@ -22,15 +22,18 @@ interface Props {
   noindex?: boolean;
   /** Les pages de l'encadrement passent au rouge : voir « Thème rouge de l'encadrement » dans docs/DESIGN.md. */
   theme?: "rouge";
+  /** L'image d'aperçu du lien, à la place de celle du site : un chemin qui commence par la base, et ce qu'elle montre. */
+  image?: string;
+  imageAlt?: string;
 }
-const { title, description = `${clan.tagline} Classement, progression, membres et activité du clan.`, noindex = false, theme } = Astro.props;
+const { title, description = `${clan.tagline} Classement, progression, membres et activité du clan.`, noindex = false, theme, image, imageAlt } = Astro.props;
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const fullTitle = title ? `${title} · [${clan.tag}] ${clan.name}` : `[${clan.tag}] ${clan.name} · Clan OpenFront`;
 const path = Astro.url.pathname.replace(base, "").replace(/\/$/, "") || "/";
 const currentSection = sectionOf(path);
 const badge = brandFile("badge");
-const ogImage = new URL(`${base}/generated/og.jpg`, Astro.site).href;
+const ogImage = new URL(image ?? `${base}/generated/og.jpg`, Astro.site).href;
 const lastRun = loadMeta().lastRunAt;
 const usefulTools = loadLinks().tools.length > 0;
 // La marque de la dernière mise à jour du site : src/scripts/nouveautes.ts la compare à celle que le visiteur a vue.
@@ -52,10 +55,12 @@ const nouveautesMarker = newsMarker(loadNouveautes());
     <meta property="og:title" content={fullTitle} />
     <meta property="og:description" content={description} />
     <meta property="og:image" content={ogImage} />
+    {imageAlt && <meta property="og:image:alt" content={imageAlt} />}
     <meta property="og:locale" content="fr_FR" />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="icon" type="image/png" sizes="32x32" href={`${base}/generated/favicon-32.png`} />
     <link rel="apple-touch-icon" href={`${base}/generated/apple-touch-icon.png`} />
+    <link rel="manifest" href={`${base}/manifest.webmanifest`} />
     <link rel="preload" href={outfitFont} as="font" type="font/woff2" crossorigin />
     <link rel="preload" href={interFont} as="font" type="font/woff2" crossorigin />
     <script is:inline>

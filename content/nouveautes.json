@@ -2,6 +2,48 @@
   {
     "date": "2026-11-08",
     "kind": "nouveau",
+    "title": "Installez le site comme une application",
+    "body": "Depuis le menu de votre navigateur, « Ajouter à l'écran d'accueil » met le site en icône sur votre téléphone ou votre ordinateur, pour y revenir en un geste. Rien n'est stocké ni suivi."
+  },
+  {
+    "date": "2026-11-08",
+    "kind": "nouveau",
+    "title": "Des fiches de membre à coller sur Discord",
+    "body": "Chaque fiche a un bouton « Copier le lien ». Collé sur Discord, le lien montre une image avec le pseudo, la place aux victoires sous le tag et le palier, mise à jour à chaque passage.",
+    "link": {
+      "href": "/membres",
+      "label": "Trouver sa fiche"
+    }
+  },
+  {
+    "date": "2026-11-08",
+    "kind": "nouveau",
+    "title": "Votre bilan personnel au retour",
+    "body": "Si vous avez retenu votre pseudo, Ma place vous dit ce qui a changé pour vous depuis votre dernière visite : parties et victoires de plus, place gagnée ou perdue, palier franchi."
+  },
+  {
+    "date": "2026-11-08",
+    "kind": "nouveau",
+    "title": "Les records battus sont signalés",
+    "body": "La page Records marque un record établi dans la semaine, la gazette le temps fort qui est aussi un record du clan, et le salon Discord reçoit un message quand un record tombe.",
+    "link": {
+      "href": "/records",
+      "label": "Voir les records"
+    }
+  },
+  {
+    "date": "2026-11-08",
+    "kind": "nouveau",
+    "title": "La semaine en cours et la belle partie d'hier",
+    "body": "La gazette montre la semaine qui n'est pas finie, arrêtée à la dernière collecte et comparée à la semaine d'avant à la même heure. L'accueil donne la partie d'hier avec le plus de Gaulois.",
+    "link": {
+      "href": "/gazette",
+      "label": "Lire la gazette"
+    }
+  },
+  {
+    "date": "2026-11-08",
+    "kind": "nouveau",
     "title": "Les nouveautés du site",
     "body": "Le bouton « Nouveautés » en haut des pages, ou le menu sur téléphone, résume les dernières mises à jour du site. Un point rouge signale celles parues depuis votre dernier passage."
   },
@@ -16,7 +58,10 @@
     "kind": "ameliore",
     "title": "Un site plus fluide et plus calme",
     "body": "Chaque page se précharge au survol de son lien, et les blocs apparaissent en fondu au lieu de se construire case par case. La liste des membres montre les 30 premiers, puis un bouton.",
-    "link": { "href": "/membres", "label": "Voir les membres" }
+    "link": {
+      "href": "/membres",
+      "label": "Voir les membres"
+    }
   },
   {
     "date": "2026-11-08",
@@ -29,7 +74,10 @@
     "kind": "nouveau",
     "title": "Les paliers franchis sur Discord",
     "body": "Le site peut annoncer sur Discord les membres avec pseudo qui franchissent un palier de victoires, de 100 à 5 000, avec un lien vers leur fiche. Un message par jour au plus, jamais la nuit.",
-    "link": { "href": "/membres", "label": "Voir les paliers des membres" }
+    "link": {
+      "href": "/membres",
+      "label": "Voir les paliers des membres"
+    }
   },
   {
     "date": "2026-11-08",
@@ -48,14 +96,20 @@
     "kind": "nouveau",
     "title": "Le film de la carte reprend où vous l'aviez laissé",
     "body": "À votre retour, le film ne rejoue que ce qui s'est passé depuis votre dernière visite, et dit ce que GAL a gagné ou perdu. Un bouton rejoue la dernière journée terminée.",
-    "link": { "href": "/carte", "label": "Voir la carte" }
+    "link": {
+      "href": "/carte",
+      "label": "Voir la carte"
+    }
   },
   {
     "date": "2026-11-08",
     "kind": "nouveau",
     "title": "Les changements de place sur Discord",
     "body": "Le site peut prévenir sur Discord quand GAL gagne ou perd une place, au classement officiel ou sur la carte des clans. Une place qui fait le yo-yo n'envoie rien, et deux alertes par jour au plus.",
-    "link": { "href": "/classement", "label": "Voir le classement" }
+    "link": {
+      "href": "/classement",
+      "label": "Voir le classement"
+    }
   },
   {
     "date": "2026-11-08",
@@ -68,14 +122,20 @@
     "kind": "ameliore",
     "title": "Une carte plus calme",
     "body": "La caméra du film glisse en douceur au lieu de zoomer vite et fort, sans éclairs ni étincelles. La page se lit en quatre parties : l'histoire, où en est GAL, le faire grandir, les détails.",
-    "link": { "href": "/carte", "label": "Voir la carte" }
+    "link": {
+      "href": "/carte",
+      "label": "Voir la carte"
+    }
   },
   {
     "date": "2026-11-08",
     "kind": "ameliore",
     "title": "La gazette ne compte que les victoires de la semaine",
     "body": "Le bloc « Le plus de victoires » de la gazette, sur le site comme dans son image pour Discord, ne retient que les victoires de la semaine, jamais celles de tous les temps.",
-    "link": { "href": "/gazette", "label": "Lire la gazette" }
+    "link": {
+      "href": "/gazette",
+      "label": "Lire la gazette"
+    }
   },
   {
     "date": "2026-11-07",
@@ -88,7 +148,10 @@
     "kind": "nouveau",
     "title": "La gazette sur Discord",
     "body": "Le site peut poster la gazette sur Discord le lundi matin, en image aux couleurs du clan : chiffres de la semaine, carte, classement, arrivées et podium, avec un bouton vers le site.",
-    "link": { "href": "/gazette", "label": "Lire la gazette" }
+    "link": {
+      "href": "/gazette",
+      "label": "Lire la gazette"
+    }
   },
   {
     "date": "2026-11-07",
@@ -101,56 +164,80 @@
     "kind": "corrige",
     "title": "La carte World montre la vraie part de GAL",
     "body": "La carte World dessine la part réelle de GAL sur la carte officielle des clans, à la place d'une taille choisie arbitrairement.",
-    "link": { "href": "/carte-monde/", "label": "Voir la carte World" }
+    "link": {
+      "href": "/carte-monde/",
+      "label": "Voir la carte World"
+    }
   },
   {
     "date": "2026-11-07",
     "kind": "nouveau",
     "title": "Le comparateur de clans et la courbe des membres",
     "body": "La page Nos rivaux compare GAL à un autre clan de la liste officielle, et la page Progression suit le nombre de membres du clan, relevé chaque jour.",
-    "link": { "href": "/rivaux", "label": "Comparer les clans" }
+    "link": {
+      "href": "/rivaux",
+      "label": "Comparer les clans"
+    }
   },
   {
     "date": "2026-11-07",
     "kind": "nouveau",
     "title": "Les paliers et le journal des parties",
     "body": "Les membres sont rangés par paliers de victoires en équipe sous le tag. Le journal donne les parties des 30 derniers jours : carte, format, clans de la liste officielle et lien vers le jeu.",
-    "link": { "href": "/parties", "label": "Voir les dernières parties" }
+    "link": {
+      "href": "/parties",
+      "label": "Voir les dernières parties"
+    }
   },
   {
     "date": "2026-11-07",
     "kind": "nouveau",
     "title": "Le film de la carte est daté",
     "body": "Chaque image du film de la carte a sa date, et le film peut s'arrêter sur la fin exacte d'une journée. La page Carte donne aussi les grandes journées de GAL.",
-    "link": { "href": "/carte", "label": "Voir la carte" }
+    "link": {
+      "href": "/carte",
+      "label": "Voir la carte"
+    }
   },
   {
     "date": "2026-11-07",
     "kind": "nouveau",
     "title": "Une fiche pour chaque membre",
     "body": "Chaque membre avec pseudo a sa fiche : stats d'équipe, date d'arrivée et dernières parties sous le tag. Un membre anonyme n'a pas de fiche.",
-    "link": { "href": "/membres", "label": "Voir les membres" }
+    "link": {
+      "href": "/membres",
+      "label": "Voir les membres"
+    }
   },
   {
     "date": "2026-11-07",
     "kind": "nouveau",
     "title": "La gazette du clan",
     "body": "Chaque semaine complète, du lundi au dimanche, a son édition : parties, victoires, temps forts, classement, territoire et arrivées. Ce qui n'a pas été relevé s'écrit « Pas de données ».",
-    "link": { "href": "/gazette", "label": "Lire la gazette" }
+    "link": {
+      "href": "/gazette",
+      "label": "Lire la gazette"
+    }
   },
   {
     "date": "2026-11-07",
     "kind": "nouveau",
     "title": "Les cartes de jeu et les face-à-face",
     "body": "La page Records donne les résultats du clan sur chaque carte de jeu, et Nos rivaux ses face-à-face avec les autres clans. Une carte n'est dite forte ou faible que si l'écart dépasse le hasard.",
-    "link": { "href": "/records", "label": "Voir les records" }
+    "link": {
+      "href": "/records",
+      "label": "Voir les records"
+    }
   },
   {
     "date": "2026-11-07",
     "kind": "nouveau",
     "title": "Le classé, nos voisins et les formats de partie",
     "body": "La page Membres donne les décomptes du classé, Nos rivaux suit la course avec les clans voisins depuis le 7 novembre, et Records donne les résultats selon le format de partie.",
-    "link": { "href": "/rivaux", "label": "Voir nos rivaux" }
+    "link": {
+      "href": "/rivaux",
+      "label": "Voir nos rivaux"
+    }
   },
   {
     "date": "2026-11-06",
@@ -169,14 +256,20 @@
     "kind": "nouveau",
     "title": "La carte World",
     "body": "Une page à part dessine la carte World d'OpenFront, avec le terrain et les couleurs du jeu, en citant leur source et leur licence.",
-    "link": { "href": "/carte-monde/", "label": "Voir la carte World" }
+    "link": {
+      "href": "/carte-monde/",
+      "label": "Voir la carte World"
+    }
   },
   {
     "date": "2026-11-06",
     "kind": "nouveau",
     "title": "Les guides",
     "body": "La page Guides donne les stratégies de chaque mode, adaptées du wiki d'OpenFront, et le guide du clan en 11 chapitres, tiré de ses PDF.",
-    "link": { "href": "/debuter", "label": "Lire les guides" }
+    "link": {
+      "href": "/debuter",
+      "label": "Lire les guides"
+    }
   },
   {
     "date": "2026-11-06",
@@ -195,7 +288,10 @@
     "kind": "corrige",
     "title": "La carte des clans repart",
     "body": "OpenFront refusait une de ses adresses aux machines de GitHub, et la carte restait figée au 5 novembre. La collecte passe par l'adresse publique prévue, et la carte avance de nouveau.",
-    "link": { "href": "/carte", "label": "Voir la carte" }
+    "link": {
+      "href": "/carte",
+      "label": "Voir la carte"
+    }
   },
   {
     "date": "2026-11-06",
@@ -220,7 +316,10 @@
     "kind": "nouveau",
     "title": "Jouer en groupe",
     "body": "Le site montre le taux de victoire du clan selon le nombre de ses joueurs dans une même partie.",
-    "link": { "href": "/activite", "label": "Voir quand jouer" }
+    "link": {
+      "href": "/activite",
+      "label": "Voir quand jouer"
+    }
   },
   {
     "date": "2026-11-05",

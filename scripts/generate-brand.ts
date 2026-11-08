@@ -50,6 +50,7 @@ async function icon(size: number, name: string): Promise<void> {
 await icon(32, "favicon-32.png");
 await icon(180, "apple-touch-icon.png");
 await icon(192, "icon-192.png");
+await icon(512, "icon-512.png");
 
 // Versions légères affichées sur le site : les originaux pèsent jusqu'à 2 Mo.
 if (badge) {

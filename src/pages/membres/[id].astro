@@ -1,4 +1,6 @@
 ---
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import Base from "../../layouts/Base.astro";
 import DataStatus from "../../components/DataStatus.astro";
 import MapNamesCredit from "../../components/MapNamesCredit.astro";
@@ -6,6 +8,7 @@ import PageHeader from "../../components/PageHeader.astro";
 import { clan } from "../../../config/clan";
 import { loadMemberGames, loadMembers, loadMeta } from "../../lib/data";
 import { fmtCount, fmtDate, fmtInt, fmtPct } from "../../lib/format";
+import { ficheFacts, ficheImageAlt } from "../../lib/fiche-image";
 import { MAX_AGE_HOURS } from "../../lib/freshness";
 import { mapLabel } from "../../lib/map-names";
 import { gamesOf, rateOf, recentGamesTitle } from "../../lib/members";
@@ -37,6 +40,12 @@ const joinedOn = parisParts(member.joinedAt).date;
 const ROLE = { leader: "Chef du clan", officer: "Officier du clan", member: null } as const;
 const RESULT = { victory: "Victoire", defeat: "Défaite" } as const;
 const atDay = (date: string) => fmtDate(`${date}T12:00:00Z`);
+// L'image d'aperçu du lien, dessinée au build (scripts/generate-fiches.ts) : sans elle, celle du site.
+const list = loadMembers();
+const facts = list ? ficheFacts(list.members, member) : null;
+const hasImage = facts !== null && member.publicId !== null && existsSync(join("public", "generated", "fiches", `${member.publicId}.png`));
+const image = hasImage ? `${base}/generated/fiches/${member.publicId}.png` : undefined;
+const imageAlt = hasImage && facts && list ? ficheImageAlt(facts, clan.tag, list.fetchedAt) : undefined;
 const tiles = member.team
   ? [
       { label: "Victoires", value: fmtInt(member.team.wins) },
@@ -47,7 +56,7 @@ const tiles = member.team
   : [];
 ---
 
-<Base title={username} description={`Fiche de ${username}, membre du clan ${clan.tag} : ses parties d'équipe sous le tag.`} noindex>
+<Base title={username} description={`Fiche de ${username}, membre du clan ${clan.tag} : ses parties d'équipe sous le tag.`} noindex image={image} imageAlt={imageAlt}>
   <div class="wrap">
     <PageHeader title={username} intro={`Membre de [${clan.tag}] depuis le ${fmtDate(member.joinedAt)}.`}>
       {ROLE[member.role] && <p class="mt-2 font-semibold" data-testid="member-role">{ROLE[member.role]}</p>}
@@ -150,8 +159,28 @@ const tiles = member.team
     }
 
     <div class="reveal mt-8 flex flex-col gap-3 sm:flex-row">
+      <button type="button" class="btn btn-secondary" data-copy-link data-testid="copy-link" hidden>Copier le lien de cette fiche</button>
       <a href={`${base}/membres`} class="btn btn-ghost">Retour aux membres</a>
       <a href={`https://openfront.io/#modal=profile&publicID=${encodeURIComponent(member.publicId ?? "")}`} class="btn btn-ghost" rel="noopener">Son profil sur OpenFront</a>
     </div>
+    <p class="mt-3 text-sm text-muted" role="status" data-copy-status data-testid="copy-status"></p>
   </div>
 </Base>
+
+<script>
+  // Copier le lien de la fiche pour le coller sur Discord : l'aperçu y montre l'image de la fiche. Sans presse-papiers, le bouton reste caché.
+  const button = document.querySelector<HTMLButtonElement>("[data-copy-link]");
+  const status = document.querySelector<HTMLElement>("[data-copy-status]");
+  if (button && status && navigator.clipboard) {
+    button.hidden = false;
+    button.addEventListener("click", async () => {
+      const link = location.href.split("#")[0] ?? location.href;
+      try {
+        await navigator.clipboard.writeText(link);
+        status.textContent = "Lien copié. Collé sur Discord, il montre un aperçu de cette fiche.";
+      } catch {
+        status.textContent = `Le lien de cette fiche : ${link}`;
+      }
+    });
+  }
+</script>

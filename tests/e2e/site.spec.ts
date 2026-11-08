@@ -14,8 +14,9 @@ import { clanJournal, JOURNAL_FIRST_ROWS, journalChoices, journalCount, NO_FILTE
 import { recentRecordKeys, weekRecordKeys } from "../../src/lib/records-battus";
 import { clanRecords } from "../../src/lib/results";
 import { currentWeek, currentWeekComparison, currentWeekLead } from "../../src/lib/semaine";
-import { gamesOf, recentGamesTitle } from "../../src/lib/members";
+import { gamesOf, placeOf, recentGamesTitle } from "../../src/lib/members";
 import { mapLabel } from "../../src/lib/map-names";
+import { meVisitLines } from "../../src/lib/moi-visite";
 import { SECTIONS } from "../../src/lib/nav";
 import { latestNews, newsDays, newsMarker, NOUVEAUTES_KEY, splitDays } from "../../src/lib/nouveautes";
 import { objectiveFor } from "../../src/lib/clanmap/economy";
@@ -488,12 +489,60 @@ test("Ma place ne charge la liste qu'à la demande, et retient seulement le pseu
   await expect(result).toContainText(named.username);
   await expect(field).toHaveCount(0);
 
+  // Le bilan personnel : comme si la visite précédente datait d'un mois, avec trois victoires et une place de moins.
+  const place = placeOf(members.members, named)!;
+  const current = { id: named.publicId, at: members.fetchedAt, wins: place.wins, losses: named.team.losses, rank: place.rank, ranked: place.ranked };
+  const old = { ...current, at: "2026-10-01T10:00:00.000Z", wins: Math.max(0, current.wins - 3), losses: Math.max(0, current.losses - 1), rank: current.rank + 1 };
+  await page.evaluate((state) => localStorage.setItem("gal-moi-visite", state), JSON.stringify({ baseline: old, latest: old, since: "2026-10-01T10:05:00.000Z", seenAt: "2026-10-01T10:05:00.000Z" }));
+  await page.reload();
+  await hydrated(page);
+  const since = page.getByTestId("my-place-since");
+  await expect(since).toContainText("Pour vous, depuis votre dernière visite, le 1 oct. 2026");
+  await expect(since.getByTestId("my-place-since-line")).toHaveText(meVisitLines(old, current));
+
   await page.getByTestId("my-place-forget").click();
+  // Oublier son pseudo efface aussi ce bilan.
+  expect(await page.evaluate(() => localStorage.getItem("gal-moi-visite"))).toBeNull();
   await expect(field).toBeVisible();
   await expect(field).toBeFocused();
   await page.reload();
   await hydrated(page);
   await expect(result).toHaveCount(0);
+});
+
+test("une fiche de membre se partage : un bouton copie son lien, et l'aperçu du lien montre sa fiche", async ({ page, context }) => {
+  const named = members.members.find((m: { username: string | null; team: unknown; publicId: string | null }) => m.username && m.team && m.publicId);
+  await page.goto(`/membres/${named.publicId}`);
+  // L'image d'aperçu, dessinée au build, est bien servie et décrite.
+  // L'adresse est absolue, sur le domaine du site : on ne garde que le chemin pour l'interroger ici.
+  const image = new URL((await page.locator('meta[property="og:image"]').getAttribute("content"))!).pathname;
+  expect(image).toBe(`/generated/fiches/${named.publicId}.png`);
+  const served = await page.request.get(image);
+  expect(served.status()).toBe(200);
+  expect(served.headers()["content-type"]).toContain("image/png");
+  const alt = await page.locator('meta[property="og:image:alt"]').getAttribute("content");
+  expect(alt?.startsWith(`${named.username}, membre de [${clan.tag}]`), alt ?? "").toBe(true);
+  // Le bouton copie l'adresse de la fiche.
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.getByTestId("copy-link").click();
+  await expect(page.getByTestId("copy-status")).toContainText("Lien copié");
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(page.url());
+});
+
+test("le site s'installe comme une application : un fichier d'installation et ses icônes", async ({ page }) => {
+  await page.goto("/");
+  const href = await page.locator('link[rel="manifest"]').getAttribute("href");
+  expect(href).toMatch(/\/manifest\.webmanifest$/);
+  const response = await page.request.get(href!);
+  expect(response.status()).toBe(200);
+  const manifest = await response.json();
+  expect(manifest).toMatchObject({ name: `[${clan.tag}] ${clan.name}`, short_name: clan.tag, display: "standalone", lang: "fr" });
+  expect(manifest.icons).toHaveLength(2);
+  for (const icon of manifest.icons) {
+    const served = await page.request.get(icon.src);
+    expect(served.status(), icon.src).toBe(200);
+    expect(served.headers()["content-type"]).toContain("image/png");
+  }
 });
 
 test("une liste vide ne fait pas perdre le pseudo retenu : pas de données n'est pas un départ", async ({ page }) => {
