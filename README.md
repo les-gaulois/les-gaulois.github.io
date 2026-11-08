@@ -18,7 +18,7 @@ Le plan est dans `src/lib/nav.ts`. Une rubrique répond à une question de visit
 | Actu | `/gazette`, `/parties` | Le bilan de la semaine, les parties une par une |
 | Résultats | `/classement`, `/rivaux`, `/progression`, `/records` | La liste officielle, la course et les face-à-face, les courbes, les records avec les résultats par format et par carte de jeu |
 | Membres | `/membres`, `/membres/:id` | Les paliers, l'encadrement, le classé, la liste, les fiches |
-| Carte | `/carte` | Le film, l'objectif, le don, comment participer |
+| Carte | `/carte` | Le film, puis revoir l'histoire, où en est GAL, faire grandir GAL et le détail |
 | Guides | `/debuter`, `/activite`, `/outils` | Les guides, quand jouer et le jeu en groupe, le calculateur et les outils |
 | Rejoindre | `/rejoindre` | Les étapes pour entrer dans le clan |
 
@@ -236,7 +236,7 @@ Les effets au curseur et aux clics sont dans `src/scripts/fx.ts`. Ils sont décr
 - Le film ne filtre pas les dessins peints par les joueurs sur la carte.
 - Le jeu ne publie pas qui a peint quel pixel : le site ne peut classer personne pour sa peinture.
 - De la connexion, seules la connexion Discord d'un compte et la désignation du fondateur ont été essayées en vrai. Il n'y a plus de test automatique des droits côté serveur : voir [docs/DIRECTION.md](docs/DIRECTION.md).
-- Les parcours décrits dans « Comment participer » viennent du code du jeu et n'ont pas été essayés avec un compte. Le texte devra être relu par un membre du clan.
+- Les parcours décrits dans « Faire grandir GAL », sur la page Carte, viennent du code du jeu et n'ont pas été essayés avec un compte. Le texte devra être relu par un membre du clan.
 
 ## Licence
 

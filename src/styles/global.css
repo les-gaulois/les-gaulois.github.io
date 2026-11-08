@@ -981,14 +981,34 @@ th.fx-cross {
   flex-wrap: wrap;
   gap: 0.5rem;
 }
-.film-moment {
-  height: auto;
-  text-align: left;
+/* Les grands moments, dans l'ordre du film : une ligne par moment, la date d'abord. */
+.film-timeline {
+  display: grid;
+  gap: 0.25rem;
 }
-.film-moment[aria-current="true"] {
+.film-timeline-item {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.75rem;
+  text-align: left;
+  color: inherit;
+  transition: background-color 0.15s ease;
+  cursor: pointer;
+}
+.film-timeline-item:hover {
+  background: var(--color-surface-2);
+}
+.film-timeline-item[aria-current="true"] {
   color: var(--color-navy);
   background: #fff;
-  border-color: #fff;
+}
+.film-timeline-item[aria-current="true"] > span {
+  color: inherit;
 }
 .film-front-link {
   color: var(--color-blue-text);

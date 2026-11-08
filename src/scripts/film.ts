@@ -2,32 +2,27 @@
  * Lecteur du film de la carte. Le HTML contient déjà la carte finale et tous les
  * chiffres : ce script n'ajoute que le mouvement, et ne change aucune valeur.
  *
- * Halo, lueurs, étincelles, ondes et plans rapprochés sont décoratifs : ils disparaissent
- * avec « réduire les animations » ou le bouton pause du site, et le film ne démarre
- * alors que sur demande. Les grands moments viennent des chiffres de chaque image.
+ * Halo, lueurs et plans rapprochés sont décoratifs : ils disparaissent avec « réduire
+ * les animations » ou le bouton pause du site, et le film ne démarre alors que sur demande.
+ * Les grands moments viennent des chiffres de chaque image. La caméra glisse sans à-coup
+ * (`src/lib/fx/camera.ts`) et ne s'approche seule qu'à la vitesse × 1, jamais coup sur coup.
  */
 import { clanRgb, type DecodedFrames } from "../lib/clanmap/codec";
 import { filmDayMarks, placeDayLabels } from "../lib/clanmap/days";
 import { findMoments, type Moment } from "../lib/clanmap/moments";
 import { fmtDay, fmtEpochDay, fmtEpochHour } from "../lib/format";
+import { CAMERA_CLICK_MS, CAMERA_SMOOTH_MS, FILM_MS, SHOT_MAX_ZOOM, SHOT_MS, SHOT_SPACING_MS, moveCamera, pickShots, placeCamera, type Camera } from "../lib/fx/camera";
 import { motionAllowed } from "../lib/fx/motion";
 import { frNumber } from "../lib/nombre";
 import type { StoredClanMapFilm } from "../lib/schemas";
 import { loadFilmData } from "./film-data";
 
-/** Durée du film à la vitesse normale, quel que soit le nombre d'images. */
-const FILM_MS = 60_000;
 const AUTOPLAY_DELAY_MS = 1_500;
 const ROW_HEIGHT = 38;
 const GAIN = "#7dd3fc";
-const LOSS = "#ff5a67";
-const BIN = 48;
-const MAX_PULSES = 14;
-const MAX_SPARKS = 240;
+const MAX_PULSES = 4;
 const BLOOM_DIVISOR = 6;
-/** Un grand moment : un plan rapproché, un ralenti et un sous-titre. */
-const SHOT_MS = 2_800;
-const SHOT_PACE = 0.3;
+/** Un grand moment : un sous-titre, et parfois un plan rapproché lent. */
 const CAPTION_MS = 3_400;
 /** Sur une machine lente, le film renonce à ses effets les plus coûteux plutôt que de saccader. */
 const SLOW_FRAME_MS = 40;
@@ -47,14 +42,6 @@ interface Pulse {
   size: number;
   color: string;
   t: number;
-}
-interface Spark {
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  life: number;
-  color: string;
 }
 interface View {
   x: number;
@@ -173,7 +160,7 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     invalidate();
   }
 
-  /* ---------- Lueurs, étincelles et ondes de conquête ---------- */
+  /* ---------- Lueurs de conquête : douces, sans étincelle ni éclair ---------- */
 
   const GLOW_GAIN = 1;
   const GLOW_LOSS = 2;
@@ -182,15 +169,13 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
   for (let a = 0; a < 256; a++) {
     glowColors[GLOW_GAIN]![a] = rgba(210, 245, 255, a);
     glowColors[GLOW_LOSS]![a] = rgba(255, 70, 85, a);
-    glowColors[GLOW_OTHER]![a] = rgba(255, 255, 255, Math.round(a * 0.4));
+    glowColors[GLOW_OTHER]![a] = rgba(255, 255, 255, Math.round(a * 0.25));
   }
   const life = new Uint8Array(N);
   const kind = new Uint8Array(N);
   let active = new Int32Array(1 << 14);
   let activeCount = 0;
   const pulses: Pulse[] = [];
-  let sparks: Spark[] = [];
-  let flash = 0;
 
   function addGlow(cell: number, type: number): void {
     if (life[cell] === 0) {
@@ -212,8 +197,6 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     }
     activeCount = 0;
     pulses.length = 0;
-    sparks = [];
-    flash = 0;
     glowCtx.clearRect(0, 0, W, H);
     glowBloomCtx.clearRect(0, 0, bloomW, bloomH);
   }
@@ -249,37 +232,9 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     pulses.push({ x, y, size, color, t: 0 });
   }
 
-  function addSparks(x: number, y: number, count: number, color: string): void {
-    if (lowPower) return;
-    for (let i = 0; i < count && sparks.length < MAX_SPARKS; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const speed = 0.03 + Math.random() * 0.09;
-      sparks.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, life: 1, color });
-    }
-  }
-
-  const binCols = Math.ceil(W / BIN);
-  const gains = new Map<number, number>();
-  const losses = new Map<number, number>();
-
-  /** La zone qui a le plus bougé dans cette image. */
-  function hottest(bins: Map<number, number>): { x: number; y: number; count: number } | null {
-    let best = -1;
-    let most = 0;
-    for (const [bin, n] of bins) {
-      if (n > most) {
-        most = n;
-        best = bin;
-      }
-    }
-    return best < 0 ? null : { x: (best % binCols) * BIN + BIN / 2, y: Math.floor(best / binCols) * BIN + BIN / 2, count: most };
-  }
-
   /** Avance d'une image et ne redessine que la zone modifiée. */
   function advance(now: number): void {
     const effects = motionAllowed();
-    gains.clear();
-    losses.clear();
     let x0 = W;
     let y0 = H;
     let x1 = -1;
@@ -298,51 +253,45 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
       if (y < y0) y0 = y;
       if (y > y1) y1 = y;
       if (!effects) continue;
-      const bin = Math.floor(y / BIN) * binCols + Math.floor(x / BIN);
-      if (v === GAL) {
-        addGlow(cell, GLOW_GAIN);
-        gains.set(bin, (gains.get(bin) ?? 0) + 1);
-      } else if (previous === GAL) {
-        addGlow(cell, GLOW_LOSS);
-        losses.set(bin, (losses.get(bin) ?? 0) + 1);
-      } else if (!focus && v !== 0) {
-        addGlow(cell, GLOW_OTHER);
-      }
+      if (v === GAL) addGlow(cell, GLOW_GAIN);
+      else if (previous === GAL) addGlow(cell, GLOW_LOSS);
+      else if (!focus && v !== 0) addGlow(cell, GLOW_OTHER);
     }
     if (x1 >= 0) {
       layerCtx.putImageData(image, 0, 0, x0, y0, x1 - x0 + 1, y1 - y0 + 1);
       galCtx.putImageData(galImage, 0, 0, x0, y0, x1 - x0 + 1, y1 - y0 + 1);
       galDirty = true;
     }
-    const gain = hottest(gains);
-    const loss = hottest(losses);
-    if (gain) {
-      addPulse(gain.x, gain.y, Math.min(130, 22 + Math.sqrt(gain.count) * 5), GAIN);
-      addSparks(gain.x, gain.y, Math.min(16, 3 + Math.floor(Math.sqrt(gain.count))), GAIN);
-    }
-    if (loss) {
-      addPulse(loss.x, loss.y, Math.min(130, 22 + Math.sqrt(loss.count) * 5), LOSS);
-      addSparks(loss.x, loss.y, Math.min(16, 3 + Math.floor(Math.sqrt(loss.count))), LOSS);
-    }
     cur++;
     const moment = momentAt.get(cur);
-    if (moment) playMoment(moment, now, moment.kind === "loss" ? (loss ?? gain) : (gain ?? loss));
+    if (moment) {
+      playMoment(moment, now, moment.frame === requestedMoment);
+      if (moment.frame === requestedMoment) requestedMoment = 0;
+    }
   }
 
-  /* ---------- Les grands moments : plan rapproché, ralenti et sous-titre ---------- */
+  /* ---------- Les grands moments : un sous-titre, et parfois un plan rapproché lent ---------- */
 
   const moments = findMoments(film.frames);
   const momentAt = new Map<number, Moment>(moments.map((m) => [m.frame, m]));
-  const momentButtons = [...root.querySelectorAll<HTMLButtonElement>("[data-film-moment]")];
+  // La liste des grands moments est sous le film, hors de son bloc : on la cherche dans toute la page.
+  const momentButtons = [...document.querySelectorAll<HTMLButtonElement>("[data-film-moment]")];
+  /** Les moments filmés de près à la vitesse × 1 : les plus importants, jamais coup sur coup. */
+  const shotFrames = pickShots(moments, FILM_MS / F);
+  /** Le moment qu'on vient de demander dans la liste : lui a toujours son plan rapproché. */
+  let requestedMoment = 0;
+  /** Le début du dernier plan rapproché : un plan automatique attend au moins `SHOT_SPACING_MS`, même après un clic. */
+  let lastShotAt = -Infinity;
   let shot: (View & { until: number }) | null = null;
-  let bars = 0;
   let captionTimer = 0;
 
   function showCaption(text: string, keep = false): void {
     window.clearTimeout(captionTimer);
+    // Un sous-titre déjà affiché change de texte sans réapparaître : rien ne saute à vitesse rapide.
+    const appearing = caption.hidden;
     caption.textContent = text;
     caption.hidden = false;
-    if (motionAllowed()) {
+    if (appearing && motionAllowed()) {
       caption.animate(
         [
           { opacity: 0, translate: "0 12px", scale: 0.96 },
@@ -370,28 +319,24 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     }
   }
 
-  function playMoment(moment: Moment, now: number, spot: { x: number; y: number } | null): void {
+  function playMoment(moment: Moment, now: number, requested: boolean): void {
     showCaption(moment.title);
     markMoment(moment);
     status.textContent = moment.at === null ? moment.title : `${fmtEpochDay(moment.at)} : ${moment.title}`;
     if (!motionAllowed() || follow || manual) return;
+    // À × 2 et × 4, la caméra reste où elle est : seul le moment demandé dans la liste est filmé de près.
+    if (!requested && (speed !== 1 || !shotFrames.has(moment.frame) || now - lastShotAt < SHOT_SPACING_MS)) return;
     const cam = film.frames[moment.frame - 1]?.cam;
-    const target = moment.kind === "now" ? null : spot;
-    const x = target?.x ?? cam?.[0] ?? W / 2;
-    const y = target?.y ?? cam?.[1] ?? H / 2;
-    const world = Math.min(view.width / W, view.height / H);
-    // Sur le moment final, on recule assez pour voir tout le territoire.
-    const zoom = moment.kind === "now" ? 2.2 : 4.2;
-    shot = { x, y, s: Math.min(world * zoom, 4 * dpr), until: now + (moment.kind === "now" ? SHOT_MS * 1.5 : SHOT_MS) };
-    flash = 1;
-    addPulse(x, y, 190, GAIN);
-    addPulse(x, y, 110, "#ffffff");
-    addSparks(x, y, 36, moment.kind === "loss" || moment.kind === "fall" ? LOSS : GAIN);
+    if (!cam) return;
+    const target = galView(cam, SHOT_MAX_ZOOM);
+    shot = { ...target, until: now + SHOT_MS };
+    lastShotAt = now;
+    addPulse(target.x, target.y, 120, GAIN);
   }
 
-  /* ---------- Caméra ---------- */
+  /* ---------- Caméra : des mouvements lents, sans à-coup ---------- */
 
-  const camera: View = { x: W / 2, y: H / 2, s: 1 };
+  const camera: Camera = { x: W / 2, y: H / 2, s: 1, vx: 0, vy: 0, vz: 0 };
   let follow = false;
   let manual: View | null = null;
   let dpr = 1;
@@ -400,42 +345,31 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     return { x: W / 2, y: H / 2, s: Math.min(view.width / W, view.height / H) };
   }
 
+  /** Tout le territoire de GAL, sans s'approcher plus que `maxZoom` fois la vue d'ensemble. */
+  function galView(c: readonly [number, number, number, number], maxZoom = Infinity): View {
+    const world = worldView().s;
+    const halfW = Math.max(c[2] * 2.7, 255);
+    const halfH = Math.max(c[3] * 2.7, 165);
+    const fit = Math.min(view.width / (2 * halfW), view.height / (2 * halfH));
+    return { x: c[0], y: c[1], s: Math.min(Math.max(fit, world), 3 * dpr, world * maxZoom) };
+  }
+
   function cameraTarget(): View {
     if (manual) return manual;
     if (shot) return shot;
     const c = cur > 0 ? film.frames[cur - 1]?.cam : null;
-    if (follow && c) {
-      const world = worldView().s;
-      const halfW = Math.max(c[2] * 2.7, 255);
-      const halfH = Math.max(c[3] * 2.7, 165);
-      return { x: c[0], y: c[1], s: Math.min(Math.max(Math.min(view.width / (2 * halfW), view.height / (2 * halfH)), world), 3 * dpr) };
-    }
+    if (follow && c) return galView(c);
     return worldView();
   }
 
   function stepCamera(dt: number, snap: boolean): boolean {
-    const t = cameraTarget();
+    const target = cameraTarget();
     if (snap || !motionAllowed()) {
-      const moved = camera.x !== t.x || camera.y !== t.y || camera.s !== t.s;
-      camera.x = t.x;
-      camera.y = t.y;
-      camera.s = t.s;
+      const moved = camera.x !== target.x || camera.y !== target.y || camera.s !== target.s;
+      placeCamera(camera, target);
       return moved;
     }
-    const dx = t.x - camera.x;
-    const dy = t.y - camera.y;
-    const ds = t.s - camera.s;
-    if (Math.abs(dx) < 0.3 && Math.abs(dy) < 0.3 && Math.abs(ds) < 0.002) {
-      camera.x = t.x;
-      camera.y = t.y;
-      camera.s = t.s;
-      return false;
-    }
-    const k = 1 - Math.exp(-dt * (shot || manual ? 0.0055 : 0.004));
-    camera.x += dx * k;
-    camera.y += dy * k;
-    camera.s += ds * k;
-    return true;
+    return moveCamera(camera, target, dt, manual ? CAMERA_CLICK_MS : CAMERA_SMOOTH_MS);
   }
 
   function resize(): void {
@@ -450,7 +384,7 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     invalidate();
   }
 
-  function draw(now: number): void {
+  function draw(): void {
     const c = ctx!;
     const effects = motionAllowed();
     c.setTransform(1, 0, 0, 1, 0, 0);
@@ -466,20 +400,20 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     if (effects) {
       c.globalCompositeOperation = "lighter";
       if (!lowPower) {
-        // Le territoire de GAL respire pendant le film, avec un halo doux tiré d'une version réduite.
+        // Le territoire de GAL garde un halo doux, tiré d'une version réduite.
         if (galDirty) {
           galBloomCtx.clearRect(0, 0, bloomW, bloomH);
           galBloomCtx.drawImage(galCanvas, 0, 0, bloomW, bloomH);
           galDirty = false;
         }
         c.imageSmoothingEnabled = true;
-        c.globalAlpha = playing ? 0.3 + 0.22 * Math.sin(now / 420) : 0.3;
+        // Un halo fixe : le territoire de GAL ne clignote pas.
+        c.globalAlpha = 0.3;
         c.drawImage(galBloom, 0, 0, W, H);
         if (activeCount > 0) {
           glowBloomCtx.clearRect(0, 0, bloomW, bloomH);
           glowBloomCtx.drawImage(glowCanvas, 0, 0, bloomW, bloomH);
-          c.globalAlpha = 1;
-          c.drawImage(glowBloom, 0, 0, W, H);
+          c.globalAlpha = 0.8;
           c.drawImage(glowBloom, 0, 0, W, H);
         }
         c.imageSmoothingEnabled = camera.s < 1;
@@ -489,23 +423,14 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
       c.globalCompositeOperation = "source-over";
     }
 
+    // Un seul cercle doux marque l'endroit d'un plan rapproché.
     for (const p of pulses) {
       c.beginPath();
       c.arc(p.x, p.y, p.size * (0.25 + p.t), 0, Math.PI * 2);
-      c.lineWidth = Math.max(1.6, 3.5 * (1 - p.t)) * (dpr / camera.s);
-      c.globalAlpha = (1 - p.t) * 0.95;
+      c.lineWidth = Math.max(1.2, 2.5 * (1 - p.t)) * (dpr / camera.s);
+      c.globalAlpha = (1 - p.t) * 0.6;
       c.strokeStyle = p.color;
       c.stroke();
-    }
-    if (sparks.length > 0) {
-      const size = Math.max(1.5, 2.5 * dpr) / camera.s;
-      c.globalCompositeOperation = "lighter";
-      for (const s of sparks) {
-        c.globalAlpha = s.life;
-        c.fillStyle = s.color;
-        c.fillRect(s.x - size / 2, s.y - size / 2, size, size);
-      }
-      c.globalCompositeOperation = "source-over";
     }
     c.globalAlpha = 1;
 
@@ -530,19 +455,9 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
       c.fillText("GAL", sx, sy + dpr / 2);
     }
 
-    // Un éclair doux et des bandes de cinéma sur les grands moments.
-    if (flash > 0) {
-      c.globalCompositeOperation = "lighter";
-      c.fillStyle = `rgb(150 205 255 / ${(flash * 0.16).toFixed(3)})`;
-      c.fillRect(0, 0, view.width, view.height);
-      c.globalCompositeOperation = "source-over";
-    }
-    if (bars > 0.005) {
-      const band = Math.round(bars * view.height * 0.07);
-      c.fillStyle = "#03060f";
-      c.fillRect(0, 0, view.width, band);
-      c.fillRect(0, view.height - band, view.width, band);
-    }
+    // Le zoom par rapport à la vue d'ensemble, lu par les tests : 1 tant que la caméra ne s'approche pas.
+    const zoom = (camera.s / worldView().s).toFixed(2);
+    if (view.dataset.zoom !== zoom) view.dataset.zoom = zoom;
   }
 
   /* ---------- Boucle : elle s'arrête dès qu'il n'y a plus rien à animer ---------- */
@@ -577,7 +492,6 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
       slowFrames = dt > SLOW_FRAME_MS ? slowFrames + 1 : Math.max(0, slowFrames - 1);
       if (slowFrames >= SLOW_FRAMES_LIMIT) {
         lowPower = true;
-        sparks = [];
         resize();
       }
     }
@@ -585,7 +499,7 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     let dirty = needDraw;
     if (shot && now >= shot.until) shot = null;
     if (playing && inView) {
-      elapsed += dt * (shot ? SHOT_PACE : 1);
+      elapsed += dt;
       const step = Math.max(frameMs, dayFrameMs) / speed;
       let moved = false;
       while (elapsed >= step && cur < (stopAt ?? F)) {
@@ -602,36 +516,15 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     }
     if (stepGlow(dt)) dirty = true;
     if (pulses.length > 0) {
-      for (const p of pulses) p.t += dt / 1000;
+      for (const p of pulses) p.t += dt / 1600;
       for (let i = pulses.length - 1; i >= 0; i--) if (pulses[i]!.t >= 1) pulses.splice(i, 1);
-      dirty = true;
-    }
-    if (sparks.length > 0) {
-      for (const s of sparks) {
-        s.x += s.vx * dt;
-        s.y += s.vy * dt;
-        s.vx *= 0.985;
-        s.vy *= 0.985;
-        s.life -= dt / 800;
-      }
-      sparks = sparks.filter((s) => s.life > 0);
-      dirty = true;
-    }
-    if (flash > 0) {
-      flash = Math.max(0, flash - dt / 500);
-      dirty = true;
-    }
-    const barsTarget = shot ? 1 : 0;
-    if (bars !== barsTarget) {
-      bars += (barsTarget - bars) * (1 - Math.exp(-dt * 0.008));
-      if (Math.abs(barsTarget - bars) < 0.005) bars = barsTarget;
       dirty = true;
     }
     const moving = stepCamera(dt, false);
     if (moving) dirty = true;
-    if (dirty) draw(now);
+    if (dirty) draw();
     needDraw = false;
-    const busy = (playing && inView) || activeCount > 0 || pulses.length > 0 || sparks.length > 0 || flash > 0 || bars !== barsTarget || shot !== null || moving;
+    const busy = (playing && inView) || activeCount > 0 || pulses.length > 0 || shot !== null || moving;
     if (busy) schedule();
     else last = 0;
   }
@@ -746,6 +639,7 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     }
     releaseView();
     markMoment(null);
+    requestedMoment = 0;
     if (cur >= F) seek(0);
     setPlaying(true);
   });
@@ -753,6 +647,7 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
   pos.addEventListener("input", () => {
     cancelAutoplay();
     shot = null;
+    requestedMoment = 0;
     setPlaying(false);
     markMoment(null);
     hideCaption();
@@ -764,6 +659,11 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     chip.addEventListener("click", () => {
       speed = Number(chip.dataset.filmSpeed);
       for (const other of speedChips) other.setAttribute("aria-pressed", String(other === chip));
+      // Plus vite, la caméra quitte le plan rapproché et revient doucement à la vue choisie.
+      if (speed !== 1) {
+        shot = null;
+        invalidate();
+      }
     });
   }
 
@@ -794,6 +694,7 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     cancelAutoplay();
     releaseView();
     revealMap();
+    requestedMoment = frame;
     if (motionAllowed()) {
       seek(Math.max(0, frame - 5));
       setPlaying(true);
@@ -802,13 +703,11 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     seek(frame);
     setPlaying(false);
     const moment = momentAt.get(frame);
-    if (moment) playMoment(moment, performance.now(), null);
+    if (moment) playMoment(moment, performance.now(), true);
   }
   for (const button of momentButtons) {
     button.addEventListener("click", () => jumpToMoment(Number(button.dataset.filmMoment)));
   }
-  const firstFrame = film.frames.findIndex((f) => f.gal > 0) + 1;
-  document.querySelector("[data-film-jump]")?.addEventListener("click", () => jumpToMoment(firstFrame));
 
   /** Rejoue une journée et s'arrête à sa fin. Sans mouvement : directement la carte de la fin de ce jour. */
   function replayDay(start: number, end: number, label: string): void {
@@ -817,6 +716,7 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     markMoment(null);
     revealMap();
     shot = null;
+    requestedMoment = 0;
     if (motionAllowed()) {
       seek(start);
       setPlaying(true);

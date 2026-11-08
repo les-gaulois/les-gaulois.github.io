@@ -119,46 +119,47 @@ C'est le seul effet qui affiche des données : chaque image vient de l'historiqu
 
 | Élément | Rôle |
 |---|---|
-| Lueur bleu pâle et étincelles | Des pixels que GAL vient de prendre |
-| Lueur rouge et étincelles | Des pixels que GAL vient de perdre |
-| Onde | L'endroit où GAL a le plus gagné ou le plus perdu dans cette image |
+| Lueur bleu pâle | Des pixels que GAL vient de prendre |
+| Lueur rouge | Des pixels que GAL vient de perdre |
 | Lueur blanche discrète | Un pixel pris par un autre clan |
-| Halo qui respire | Le territoire de GAL, pendant la lecture |
-| Grand moment | Plan rapproché, ralenti, bandes de cinéma, éclair doux et sous-titre |
+| Halo fixe | Le territoire de GAL. Il ne clignote pas. |
+| Grand moment | Un sous-titre. À la vitesse × 1, les plus importants ont aussi un plan rapproché lent, marqué d'un cercle doux. |
 | Classement posé sur la carte | Les 5 plus grands territoires, avec des barres et des places qui glissent. Les valeurs sont celles de l'image affichée. Il occupe l'océan au sud-ouest. |
 | Frise, courbe et repères | Position dans l'historique, pixels de GAL tout au long du film, grands moments et vrais jours. Le film suit les événements, pas le temps : une journée active prend plus de place. Les dates écrites sous la frise s'espacent selon la largeur. |
 | Date posée sur la carte | Le jour et l'heure de Paris de l'image affichée, à l'heure près. Le curseur donne la même date aux lecteurs d'écran. |
 | Griser les autres clans | GAL seul en couleur, sans changer aucun chiffre |
-| Suivre GAL | La caméra accompagne son territoire. Activé par défaut sur téléphone. |
+| Suivre GAL | La caméra accompagne son territoire, sans à-coup. Activé par défaut sur téléphone. |
 | Survol ou pression sur la carte | Le tag du clan à cet endroit |
 
 **Les grands moments sont calculés, jamais écrits à la main** (`src/lib/clanmap/moments.ts`) : premier pixel, meilleure place, plus forte chute, remontée, plus grande poussée, plus dur recul, paliers de pixels. Deux moments trop proches ne se suivent pas : le plus important reste.
 
-Le film dure 60 s à la vitesse × 1, quel que soit le nombre d'images, plus les ralentis. Il s'arrête hors de l'écran, sa boucle s'arrête quand plus rien ne bouge, et il se charge seulement sur cette page : environ 400 Ko au total. L'éclair reste doux et ne se répète pas : rien ne clignote. Si le film saccade, il coupe seul le halo et les étincelles, et baisse un peu sa résolution.
+Le film dure 60 s à la vitesse × 1, quel que soit le nombre d'images. Il s'arrête hors de l'écran, sa boucle s'arrête quand plus rien ne bouge, et il se charge seulement sur cette page : environ 400 Ko au total. Rien ne clignote : ni éclair, ni étincelle, ni bande de cinéma. Si le film saccade, il coupe seul le halo et baisse un peu sa résolution.
+
+**La caméra ne fait jamais d'à-coup** (`src/lib/fx/camera.ts`). Elle suit sa cible comme un ressort amorti : elle part doucement, ralentit avant d'arriver et ne dépasse jamais la cible. Un mouvement automatique prend environ deux secondes, un cadrage demandé par un clic sur une zone ou un front environ une seconde. À la vitesse × 1, les moments les plus importants ont un plan rapproché, jamais à moins de 14 secondes du précédent, même si celui-ci venait d'un clic, et sans s'approcher plus de trois fois la vue d'ensemble. Aux vitesses × 2 et × 4, seul un moment choisi dans la liste a son plan rapproché. Avec « Suivre GAL », activé d'office sur téléphone, la caméra accompagne le territoire et ne fait aucun plan rapproché. Avant le 8 novembre 2026, chaque moment zoomait vite et fort, et le film à × 4 n'était plus qu'une suite d'allers-retours.
 
 Les couleurs des territoires sont celles que les clans ont choisies dans le jeu : le bleu ciel de GAL n'est pas un jeton du site. Elles peuvent donc être peu contrastées entre elles : les chiffres et les tags en texte restent la référence, et l'option « Griser les autres clans » isole GAL.
 
-**Avec « réduire les animations » ou le bouton pause du site :** le film ne démarre pas seul, il n'y a ni lueur, ni onde, ni halo, ni plan rapproché, et la caméra saute directement. Le bouton de lecture, la frise et les sous-titres restent disponibles. **Sans JavaScript ou si le film ne charge pas :** la carte finale et tous les chiffres restent affichés.
+**Avec « réduire les animations » ou le bouton pause du site :** le film ne démarre pas seul, il n'y a ni lueur, ni halo, ni plan rapproché, et la caméra saute directement. Le bouton de lecture, la frise et les sous-titres restent disponibles. **Sans JavaScript ou si le film ne charge pas :** la carte finale et tous les chiffres restent affichés.
 
 Le code est dans `src/scripts/film.ts`. Sa logique testable est dans `src/lib/clanmap/`.
 
 ### Donner envie de participer
 
-Sous le film, la page transforme les données publiques en objectif concret. **Aucune de ces parties n'invente un chiffre, et aucune ne pousse à dépenser de l'argent : seules les capsules comptent, jamais le Plutonium.**
+Sous le film, la page se lit en quatre parties, reliées par « Sur cette page » : **Revoir l'histoire** (grands moments, grandes journées, zones), **Où en est GAL** (objectif et chiffres), **Faire grandir GAL** (façons d'aider, calculateur, donateurs et peintres), puis **Les détails**, repliés (jour après jour, fronts, lecture de la carte). Elle transforme les données publiques en objectif concret. **Aucune de ces parties n'invente un chiffre, et aucune ne pousse à dépenser de l'argent : seules les capsules comptent, jamais le Plutonium.**
 
 | Partie | Contenu | Source |
 |---|---|---|
 | Prochain objectif | Le clan à dépasser, les pixels manquants, l'avance sur le suivant | Ordre de la carte officielle |
-| Réserves du clan | Capsules et troupes, et ce qu'elles valent en pixels neutres | Fiche publique du clan, règles du jeu |
+| GAL en chiffres | Territoire et record, pris et perdus, premier pixel, réserves du clan et ce qu'elles valent en pixels neutres | Historique de la carte, fiche publique du clan, règles du jeu |
 | Votre don sur la carte | Capsules, troupes, pixels, rang obtenu, seul ou avec tous les membres | Calcul, marqué comme simulation |
 | Simulation sur la carte | Le territoire s'étend depuis sa frontière sur les terres neutres. La vue recule quand il grandit. | Illustration : le chef et les officiers choisissent où peindre |
-| Comment participer | Don, jeu sous le tag, peinture, avec l'avertissement sur les dons définitifs | Code du jeu, à relire par un membre |
+| Faire grandir GAL | Don, jeu sous le tag, peinture, avec l'avertissement sur les dons définitifs | Code du jeu, à relire par un membre |
 | Plus gros donateurs | Recopiés par le clan s'il choisit de les publier. Sinon, un renvoi vers le jeu. | `content/carte-heros.json` |
 | Peuvent peindre pour GAL | Le chef et les officiers, avec un renvoi vers l'encadrement de la page Membres, et vers Ma place sur l'accueil | Rôles de la liste des membres |
 | Grandes journées, jour après jour | Le plus fort gain et le plus fort recul d'une journée terminée, puis chaque journée en tableau. Un clic rejoue la journée et s'arrête à sa fin. Sans mouvement : directement la carte de la fin du jour. | Historique daté, jours de Paris |
-| Explorer nos territoires, fronts | Un clic cadre la carte sur une zone ou un front, et met le clan adverse en évidence | Carte complète, rejouée |
+| Nos territoires, fronts | Un clic cadre la carte sur une zone ou un front, et met le clan adverse en évidence | Carte complète, rejouée |
 
-Ma place, sur l'accueil, donne le rang d'un membre, le prochain joueur à dépasser et son prochain palier : `stats.team`, comme la page Membres. Le calculateur est dans `src/scripts/conquest.ts`, et ses règles dans `src/lib/clanmap/economy.ts`. Pour garder la page courte, les explications, les chiffres détaillés, le tableau jour après jour et les fronts sont repliés. Tout reste dans le HTML et s'ouvre sans JavaScript.
+Ma place, sur l'accueil, donne le rang d'un membre, le prochain joueur à dépasser et son prochain palier : `stats.team`, comme la page Membres. Le calculateur est dans `src/scripts/conquest.ts`, et ses règles dans `src/lib/clanmap/economy.ts`. Pour garder la page courte, seuls le tableau jour après jour, les fronts et la lecture de la carte sont repliés. Tout reste dans le HTML et s'ouvre sans JavaScript.
 
 **Le clic droit garde son menu habituel** sur les liens, les boutons, les champs, les images autres que le logo et le texte sélectionné. Maj + clic droit l'ouvre partout.
 

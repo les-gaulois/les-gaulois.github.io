@@ -73,7 +73,7 @@ test.describe("film de la carte", () => {
     await page.goto("/carte");
     await expect(page.getByTestId("data-status")).toContainText("Dernière mise à jour");
     await expect(page.getByTestId("film-gal")).toContainText(String(film.galSummary.rank));
-    expect(digits(await page.getByTestId("film-fact").nth(1).locator("p").nth(1).textContent())).toBe(String(film.galSummary.pixels));
+    expect(digits(await page.getByTestId("map-pixels").textContent())).toBe(String(film.galSummary.pixels));
     await expect(page.getByTestId("film-fronts").locator("tbody tr")).toHaveCount(film.galSummary.fronts.length);
     await expect(page.getByText("pas le classement des clans").first()).toBeVisible();
     await page.getByTestId("fold-read").locator("summary").click();
@@ -94,15 +94,21 @@ test.describe("film de la carte", () => {
     expect(box.y).toBeLessThan(testViewportTitleLimit);
     await expect(page.locator("main h1")).toHaveText("La carte des clans");
     await expect(page.getByTestId("data-status")).toBeVisible();
-    for (const fold of ["fold-join", "fold-numbers", ...(datedFilm ? ["fold-days"] : []), "fold-fronts", "fold-read"]) {
+    for (const fold of [...(datedFilm ? ["fold-days"] : []), "fold-fronts", "fold-read"]) {
       await expect(page.getByTestId(fold)).not.toHaveAttribute("open");
     }
     // Un bloc replié s'ouvre et se referme.
-    const summary = page.getByTestId("fold-join").locator("summary");
+    const summary = page.getByTestId("fold-fronts").locator("summary");
     await summary.click();
+    await expect(page.getByTestId("film-fronts")).toBeVisible();
+    await summary.click();
+    await expect(page.getByTestId("film-fronts")).toBeHidden();
+    // Sous la carte, la page se lit dans l'ordre : revoir l'histoire, où en est GAL, comment l'aider, puis le détail.
+    const order = await page.locator("main section[id]").evaluateAll((sections) => sections.map((section) => section.id));
+    expect(order).toEqual(["histoire", "objectif", "participer", "details"]);
+    await expect(page.getByTestId("page-jumps").getByRole("link")).toHaveText(["Revoir l'histoire", "Où en est GAL", "Faire grandir GAL", "Les détails"]);
+    // Les façons d'aider se lisent sans rien ouvrir.
     await expect(page.getByRole("heading", { name: "Donner des capsules" })).toBeVisible();
-    await summary.click();
-    await expect(page.getByRole("heading", { name: "Donner des capsules" })).toBeHidden();
   });
 
   // Avec « réduire les animations », le film attend ce bouton : il doit se voir dès l'arrivée sur la page.
@@ -231,9 +237,8 @@ test.describe("film de la carte", () => {
     await expect(first).toContainText(fmtEpochDay(film.frames[frame - 1].at));
     await page.getByRole("button", { name: /Dernier relevé/ }).click();
     expect(await position(page)).toBe(film.frames.length);
-    // Le premier pixel de GAL et son record sont datés dans le détail des chiffres.
-    await page.getByTestId("fold-numbers").locator("summary").click();
-    await expect(page.getByTestId("film-fact").first()).toContainText(`Événement n° ${fmtInt(film.galSummary.firstEvent)}`);
+    // Le premier pixel de GAL et son record sont datés dans les chiffres de GAL.
+    await expect(page.getByTestId("map-figure").filter({ hasText: "Premier pixel" })).toContainText(`Événement n° ${fmtInt(film.galSummary.firstEvent)}`);
     const since = changeSinceLastDay(dayRows(film.days, film.frames, film.fetchedAt), film.galSummary.pixels)!;
     await expect(page.getByTestId("map-journal")).toContainText(`${fmtInt(Math.abs(since.change))} pixels depuis la fin du ${fmtDay(since.date).replace(/\.$/, "")}`);
   });
@@ -326,10 +331,42 @@ test.describe("film de la carte", () => {
 
   test("revoir le premier pixel de GAL", async ({ page }) => {
     await page.goto("/carte");
-    await page.getByTestId("fold-numbers").locator("summary").click();
-    await page.getByRole("button", { name: "Revoir ce moment" }).click();
+    await expect(playButton(page)).toBeVisible();
+    // D'abord la fin du film : sans le bouton, il ne reviendrait pas au début.
+    await seekTo(page, film.frames.length);
+    await expect(playButton(page)).not.toContainText("Pause");
+    await page.getByRole("button", { name: /Premier pixel de GAL/ }).click();
     await expect(playButton(page)).toContainText("Pause");
     expect(await position(page)).toBeLessThan(10);
+  });
+
+  test("à × 4, la caméra reste sur la vue d'ensemble : aucun aller-retour", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop", "Sur téléphone, la caméra suit GAL.");
+    test.slow();
+    await page.goto("/carte");
+    await expect(playButton(page)).toBeVisible();
+    await page.getByRole("button", { name: "× 4" }).click();
+    await seekTo(page, 0);
+    // La caméra a pu s'approcher d'un premier moment pendant la lecture automatique : elle revient d'abord.
+    await expect.poll(() => page.locator("[data-film-canvas]").getAttribute("data-zoom"), { timeout: 15_000 }).toBe("1.00");
+    await playButton(page).click();
+    // Le zoom de chaque image, jusqu'à la fin du film.
+    const zooms = await page.evaluate(
+      () =>
+        new Promise<number[]>((resolve) => {
+          const canvas = document.querySelector<HTMLCanvasElement>("[data-film-canvas]")!;
+          const pos = document.querySelector<HTMLInputElement>("[data-film-pos]")!;
+          const seen: number[] = [];
+          const tick = () => {
+            seen.push(Number(canvas.dataset.zoom ?? "1"));
+            if (Number(pos.value) >= Number(pos.max)) resolve(seen);
+            else requestAnimationFrame(tick);
+          };
+          requestAnimationFrame(tick);
+        }),
+    );
+    expect(zooms.length).toBeGreaterThan(10);
+    expect(Math.max(...zooms)).toBe(1);
   });
 
   test("griser les autres clans et suivre GAL ne changent aucun chiffre", async ({ page }) => {
@@ -416,7 +453,7 @@ test.describe("film de la carte", () => {
     const page = await context.newPage();
     await page.goto("/carte");
     await expect(page.locator("[data-testid=film-map] img")).toBeVisible();
-    await expect(page.getByTestId("film-fact")).toHaveCount(3);
+    await expect(page.getByTestId("map-figure")).toHaveCount(4);
     // Les grandes journées restent lisibles, sans leur bouton inutile.
     if (datedFilm) {
       await expect(page.getByTestId("map-day").first()).toBeVisible();
