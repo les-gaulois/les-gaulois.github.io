@@ -1,0 +1,133 @@
+/**
+ * Le journal de l'administration, en clair : chaque ligne du serveur devient une phrase.
+ * Le serveur garde les codes (`role_changed`…) et leurs détails. Rien n'est inventé ici :
+ * un détail absent n'est pas écrit, et un code sans libellé reste affiché tel quel.
+ */
+import { ROLE_LABELS, type LogRow, type Role } from "./types";
+
+/** Le serveur ne lit pas plus de lignes que cela (`list_admin_log`). */
+export const LOG_LIMIT = 500;
+/** Les lignes montrées d'abord, puis à chaque « Afficher plus ». */
+export const LOG_PAGE = 50;
+
+export type LogCategory = "requests" | "roles" | "suspensions" | "news" | "other";
+
+export const LOG_CATEGORIES: readonly { id: LogCategory; label: string }[] = [
+  { id: "requests", label: "Demandes" },
+  { id: "roles", label: "Rôles" },
+  { id: "suspensions", label: "Suspensions" },
+  { id: "news", label: "Annonces et événements" },
+  { id: "other", label: "Autres" },
+];
+
+const CATEGORIES: Record<string, LogCategory> = {
+  membership_approved: "requests",
+  membership_refused: "requests",
+  role_changed: "roles",
+  role_preset_applied: "roles",
+  founder_bootstrap: "roles",
+  founder_transferred: "roles",
+  member_suspended: "suspensions",
+  member_reinstated: "suspensions",
+  announcement_saved: "news",
+  announcement_deleted: "news",
+  event_saved: "news",
+  event_deleted: "news",
+};
+
+export const categoryOf = (action: string): LogCategory => CATEGORIES[action] ?? "other";
+
+/** Un compte supprimé n'a plus de nom : le journal le dit, sans en inventer un. */
+export const GONE_SUBJECT = "Un compte supprimé";
+export const GONE_OBJECT = "un compte supprimé";
+
+/** Une ligne du journal : `who`, en gras, commence la phrase, et `what` la termine, point compris. */
+export interface LogLine {
+  who: string;
+  what: string;
+}
+
+function textOf(details: Record<string, unknown>, key: string): string | null {
+  const value = details[key];
+  return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
+}
+
+function roleOf(details: Record<string, unknown>, key: string): string | null {
+  const value = details[key];
+  return typeof value === "string" && Object.hasOwn(ROLE_LABELS, value) ? ROLE_LABELS[value as Role] : null;
+}
+
+/** `when` écrit une date du serveur (le début d'un événement) : `fmtDateTime` sur la page. */
+export function describe(row: LogRow, when: (iso: string) => string): LogLine {
+  const details = row.details ?? {};
+  const who = row.actor ?? GONE_SUBJECT;
+  const target = row.target ?? GONE_OBJECT;
+  // « de Recrue », mais « d'un compte supprimé ».
+  const ofTarget = row.target === null ? `d'${GONE_OBJECT}` : `de ${row.target}`;
+  const reason = textOf(details, "reason");
+  const title = textOf(details, "title");
+  const withReason = (start: string) => `${start}${reason ? ` : « ${reason} »` : ""}.`;
+  const titled = (start: string) => `${start}${title ? ` « ${title} »` : ""}`;
+
+  switch (row.action) {
+    case "membership_approved":
+      // La personne est validée à son propre nom dans deux cas : le fondateur qui valide sa demande à l'installation,
+      // et un rôle prévu par la direction. Dans le second, la ligne du rôle prévu s'affiche juste au-dessus.
+      if (row.actor !== null && row.actor === row.target) return { who, what: "a validé sa propre demande." };
+      return { who, what: `a validé la demande ${ofTarget}${details["in_roster"] === false ? ", hors de la liste officielle" : ""}.` };
+    case "membership_refused":
+      return { who, what: withReason(`a refusé la demande ${ofTarget}`) };
+    case "role_changed": {
+      const from = roleOf(details, "from");
+      const to = roleOf(details, "to");
+      return { who, what: from && to ? `a changé le rôle ${ofTarget} : ${from} → ${to}.` : `a changé le rôle ${ofTarget}.` };
+    }
+    case "role_preset_applied": {
+      const role = roleOf(details, "role");
+      return { who: row.target ?? GONE_SUBJECT, what: `reçoit son rôle prévu par la direction${role ? ` : ${role}` : ""}.` };
+    }
+    case "founder_bootstrap":
+      return { who, what: "reçoit le rôle de fondateur, à l'installation du site." };
+    case "founder_transferred":
+      return { who, what: `a transmis le rôle de fondateur à ${target}.` };
+    case "member_suspended":
+      return { who, what: withReason(`a suspendu ${target}`) };
+    case "member_reinstated":
+      return { who, what: `a rétabli ${target}.` };
+    // Le serveur note de la même façon une publication et une modification.
+    case "announcement_saved":
+      return { who, what: `${titled("a publié ou modifié l'annonce")}.` };
+    case "announcement_deleted":
+      return { who, what: `${titled("a supprimé l'annonce")}.` };
+    case "event_saved": {
+      const start = textOf(details, "starts_at");
+      return { who, what: `${titled("a publié ou modifié l'événement")}${start ? `, prévu le ${when(start)}` : ""}.` };
+    }
+    case "event_deleted":
+      return { who, what: `${titled("a supprimé l'événement")}.` };
+    case "account_deleted":
+      return { who: row.actor ?? "Un membre", what: "a supprimé son compte." };
+    default:
+      return { who, what: `a fait une action sans libellé : ${row.action}.` };
+  }
+}
+
+export interface LogFilter {
+  /** Un nom : les lignes où cette personne agit ou est visée. */
+  person: string | null;
+  category: LogCategory | null;
+}
+
+export function filterLog(rows: readonly LogRow[], { person, category }: LogFilter): LogRow[] {
+  return rows.filter((row) => (category === null || categoryOf(row.action) === category) && (person === null || row.actor === person || row.target === person));
+}
+
+/** Les noms du journal, pour le filtre : qui agit et qui est visé, sans doublon, par ordre alphabétique. */
+export function logPeople(rows: readonly LogRow[]): string[] {
+  const names = new Set<string>();
+  for (const row of rows) {
+    if (row.actor) names.add(row.actor);
+    if (row.target) names.add(row.target);
+  }
+  return [...names].sort((a, b) => a.localeCompare(b, "fr", { sensitivity: "base" }));
+}

@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { z } from "zod";
 import { dayRows, territoryReadings, type TerritoryReading } from "./clanmap/days";
+import { GazetteSendState } from "./gazette-discord";
 import { EMPTY_MEMBER_WEEKS } from "./week-players";
 import {
   Announcements,
@@ -50,6 +51,8 @@ function listJson(dir: string): string[] {
 }
 
 export const loadMeta = (): Meta => read("data/meta.json", Meta) ?? emptyMeta();
+/** Le dernier envoi de la gazette sur Discord, noté par le robot. `null` : aucun envoi, ou fichier illisible. */
+export const loadGazetteSendState = () => read("data/gazette-envoi.json", GazetteSendState);
 export const loadLeaderboard = () => read("data/leaderboard.json", StoredLeaderboard);
 export const loadMembers = () => read("data/members.json", StoredMembers);
 export const loadRanked = () => read("data/ranked.json", StoredRanked);

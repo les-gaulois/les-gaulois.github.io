@@ -26,7 +26,7 @@ Un univers de jeu sombre, pas une page de statistiques : grands titres en capita
 | `flag-blue` `#0B5FFF` | Bleu du drapeau : filet tricolore, frontière, barre de progression. Ne change jamais avec le thème |
 | `red` `#FF1A2E` | Filets, marqueur de page et de ligne active. Jamais de texte blanc dessus en petite taille |
 | `muted` `#C0C9E2` | Texte secondaire |
-| `warn` `#FFC857` | Données périmées et erreurs de collecte |
+| `warn` `#FFC857` | Données périmées et erreurs de collecte, et ce qui attend l'encadrement (demandes à traiter, pastille `.count-pill`, état du site) |
 
 Pas de couleur en dur dans un composant : un jeton, ou une classe de `global.css`. Les couleurs des territoires sur la carte sont celles des clans dans le jeu, pas des jetons.
 

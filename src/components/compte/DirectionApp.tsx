@@ -3,8 +3,10 @@ import { basePath, call } from "../../lib/compte/api";
 import { toLocalInput } from "../../lib/compte/news";
 import { ROLE_LABELS, type MemberRow, type Role } from "../../lib/compte/types";
 import { setPlayerView } from "../../lib/compte/vue-joueur";
+import type { SiteHealthInput } from "../../lib/etat-site";
 import { fmtDate, fmtDateTime, fmtInt } from "../../lib/format";
 import { DiscordButton, Loading, Problem, Success, messageOf, useMe } from "./common";
+import SiteHealth from "./SiteHealth";
 
 interface NewsRow {
   id: number;
@@ -334,7 +336,8 @@ function FounderTransfer({ onDone }: { onDone: () => Promise<void> }) {
   );
 }
 
-export default function DirectionApp() {
+/** `health` : l'état de la collecte et de la gazette, lu au moment de la construction du site (voir direction.astro). */
+export default function DirectionApp({ health }: { health: Omit<SiteHealthInput, "roster"> }) {
   const { me, failed, refresh } = useMe();
   const [overview, setOverview] = useState<Overview | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -402,10 +405,10 @@ export default function DirectionApp() {
               <Tile label="Suspendus" value={overview.suspended} href={admin} />
             </div>
             <p class="mt-3 text-sm text-muted">
-              {overview.roster ? `Liste officielle relue le ${fmtDateTime(overview.roster.read_at)} : ${fmtInt(overview.roster.total)} ${overview.roster.total > 1 ? "membres" : "membre"}.` : "La liste officielle n'a encore jamais été relue."}{" "}
               <a href={admin}>Ouvrir l'administration</a> pour valider les membres, gérer les rôles et lire le journal.
             </p>
           </section>
+          <SiteHealth meta={health.meta} gazette={health.gazette} roster={overview.roster} />
           <div class="grid items-start gap-6 lg:grid-cols-2">
             <Announcements rows={overview.announcements} reload={load} form={announcementDraft} setForm={setAnnouncementDraft} />
             <Events rows={overview.events} reload={load} form={eventDraft} setForm={setEventDraft} />

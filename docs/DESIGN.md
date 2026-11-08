@@ -36,7 +36,7 @@ Les jetons sont définis dans `src/styles/global.css`.
 | `flag-blue` | `#0B5FFF` | Le bleu du drapeau : filet tricolore, frontière, barre de progression. Il ne change pas avec le thème |
 | `red` | `#FF1A2E` | Filet, marqueur de page et de ligne active |
 | `muted` | `#C0C9E2` | Texte secondaire |
-| `warn` | `#FFC857` | Données périmées et erreurs de collecte |
+| `warn` | `#FFC857` | Données périmées et erreurs de collecte, et ce qui attend l'encadrement : demandes à traiter, pastille, points de l'état du site |
 
 **Règle du tricolore :** en accent dans l'interface (filets, soulignement de la page active, loader). Pas de texte blanc sur le rouge vif, trop peu contrasté à petite taille.
 
@@ -92,6 +92,8 @@ Une scène associe un texte et un panneau `.panel`, à la manière d'un écran d
 | `.btn-ghost` | Contour blanc | Liens vers les pages, dans les scènes colorées |
 
 Les boutons ont des coins de 12 px, et `.btn-lg` les agrandit pour les appels principaux.
+
+La pastille `.count-pill` donne, à côté du lien Direction, le nombre de demandes en attente : fond jaune `warn`, texte `navy`, 11,6:1 au moins dans les deux thèmes. Les lecteurs d'écran entendent le texte visible suivi de ce qu'il compte : « Direction 2 demandes à traiter ».
 
 ## Logos
 

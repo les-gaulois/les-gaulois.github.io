@@ -1,7 +1,9 @@
 import { useEffect, useState } from "preact/hooks";
+import { LOG_CATEGORIES, LOG_LIMIT, LOG_PAGE, describe, filterLog, logPeople, type LogCategory } from "../../lib/compte/admin-log";
 import { basePath, call } from "../../lib/compte/api";
+import { announcePendingChange } from "../../lib/compte/pending";
 import { ROLE_LABELS, type LogRow, type Me, type MemberRow, type RequestRow, type Role } from "../../lib/compte/types";
-import { fmtDateTime, fmtInt } from "../../lib/format";
+import { fmtCount, fmtDateTime, fmtInt } from "../../lib/format";
 import { DiscordButton, Empty, Loading, Problem, Success, messageOf, useMe } from "./common";
 
 type Tab = "requests" | "members" | "log";
@@ -62,7 +64,11 @@ function useAction(after: () => Promise<void>) {
 
 function Requests() {
   const list = useList<RequestRow>("list_membership_requests");
-  const action = useAction(list.reload);
+  // La pastille de l'en-tête suit : une demande traitée ici n'y compte plus.
+  const action = useAction(async () => {
+    announcePendingChange();
+    await list.reload();
+  });
   const [reasons, setReasons] = useState<Record<number, string>>({});
   const roster = list.extra["roster"] as { total: number; read_at: string } | null | undefined;
 
@@ -232,38 +238,97 @@ function Members({ me }: { me: Me }) {
   );
 }
 
+/** Le journal en phrases, avec un filtre par personne et par type d'action. Le serveur garde les codes : voir `src/lib/compte/admin-log.ts`. */
 function Log() {
-  const list = useList<LogRow>("list_admin_log", { p_limit: 200 });
+  const list = useList<LogRow>("list_admin_log", { p_limit: LOG_LIMIT });
+  const [person, setPerson] = useState("");
+  const [category, setCategory] = useState<LogCategory | "">("");
+  const [shown, setShown] = useState(LOG_PAGE);
+  const rows = list.rows ?? [];
+  const filtered = filterLog(rows, { person: person || null, category: category || null });
+
   return (
     <div data-testid="admin-log">
       <Problem message={list.error} onRetry={() => void list.reload()} />
       {list.rows === null ? (
         !list.error && <Loading />
-      ) : list.rows.length === 0 ? (
+      ) : rows.length === 0 ? (
         <Empty>Le journal est vide.</Empty>
       ) : (
-        <div class="overflow-x-auto" tabIndex={0} role="region" aria-label="Journal d'administration">
-          <table class="data-table w-full">
-            <thead>
-              <tr>
-                <th scope="col">Quand</th>
-                <th scope="col">Qui</th>
-                <th scope="col">Quoi</th>
-                <th scope="col">Sur qui</th>
-              </tr>
-            </thead>
-            <tbody>
-              {list.rows.map((l) => (
-                <tr key={l.id} data-testid="log-row">
-                  <td class="tnum whitespace-nowrap">{fmtDateTime(l.at)}</td>
-                  <td>{l.actor ?? "Compte supprimé"}</td>
-                  <td>{l.action}</td>
-                  <td>{l.target ?? "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <div class="flex flex-wrap gap-3">
+            <div class="min-w-48 flex-1">
+              <label class="text-sm font-semibold" for="log-person">
+                Personne
+              </label>
+              <select
+                id="log-person"
+                class="field mt-1"
+                value={person}
+                onChange={(e) => {
+                  setPerson(e.currentTarget.value);
+                  setShown(LOG_PAGE);
+                }}
+              >
+                <option value="">Tout le monde</option>
+                {logPeople(rows).map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div class="min-w-48 flex-1">
+              <label class="text-sm font-semibold" for="log-category">
+                Type d'action
+              </label>
+              <select
+                id="log-category"
+                class="field mt-1"
+                value={category}
+                onChange={(e) => {
+                  setCategory(e.currentTarget.value as LogCategory | "");
+                  setShown(LOG_PAGE);
+                }}
+              >
+                <option value="">Toutes</option>
+                {LOG_CATEGORIES.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <p class="mt-3 text-sm text-muted" role="status" data-testid="log-count">
+            {fmtCount(filtered.length, "entrée")}
+            {rows.length >= LOG_LIMIT ? `, parmi les ${fmtInt(LOG_LIMIT)} dernières : l'écran n'en lit pas davantage.` : "."}
+          </p>
+          {filtered.length === 0 ? (
+            <Empty>Aucune entrée pour ce choix.</Empty>
+          ) : (
+            <ol class="mt-2" aria-label="Journal d'administration">
+              {filtered.slice(0, shown).map((l) => {
+                const line = describe(l, fmtDateTime);
+                return (
+                  <li key={l.id} class="border-t border-line py-3" data-testid="log-row">
+                    <p class="tnum text-xs text-muted">
+                      <time dateTime={l.at}>{fmtDateTime(l.at)}</time>
+                    </p>
+                    <p class="mt-0.5">
+                      <strong>{line.who}</strong> {line.what}
+                    </p>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+          {filtered.length > shown && (
+            <button type="button" class="btn btn-ghost mt-2 !min-h-10 !py-1.5 !text-sm" onClick={() => setShown(shown + LOG_PAGE)}>
+              Afficher {fmtInt(Math.min(LOG_PAGE, filtered.length - shown))} de plus
+            </button>
+          )}
+        </>
       )}
     </div>
   );
