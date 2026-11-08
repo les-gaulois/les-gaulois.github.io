@@ -17,6 +17,8 @@ const edition = (over: Partial<GazetteEdition> = {}): GazetteEdition => ({
   territory: null,
   arrivals: null,
   players: null,
+  // Un podium part par défaut du relevé du lundi 2 novembre, à 0 h 53 à Paris.
+  playersSince: over.players ? "2026-11-01T23:53:00.000Z" : null,
   ...over,
 });
 // Le lundi suivant, à Paris : 9 h y font 8 h UTC en novembre.
@@ -29,13 +31,13 @@ const ready = (over: Partial<GazetteEdition> = {}) => edition({ arrivals: ARRIVA
 
 describe("gazettePayload", () => {
   const player = (username: string, wins: number, place: number): WeekPlayer => ({ id: username, username, wins, place });
-  const embedOf = (e: GazetteEdition, allTime: WeekPlayer[] = []) => gazettePayload(e, "GAL", "https://les-gaulois.github.io/", allTime).embeds[0]!;
+  const embedOf = (e: GazetteEdition) => gazettePayload(e, "GAL", "https://les-gaulois.github.io/").embeds[0]!;
   /** Les nombres sont écrits avec une espace insécable. */
   const plain = (text: string | undefined) => text?.replace(/[\u00a0\u202f]/g, " ");
-  const field = (e: GazetteEdition, name: string, allTime: WeekPlayer[] = []) => plain(embedOf(e, allTime).fields.find((f) => f.name === name)?.value);
+  const field = (e: GazetteEdition, name: string) => plain(embedOf(e).fields.find((f) => f.name === name)?.value);
 
   it("donne le titre, la semaine et le lien de la page, sans texte à côté qui ferait un second aperçu", () => {
-    const payload = gazettePayload(edition(), "GAL", "https://les-gaulois.github.io/", []);
+    const payload = gazettePayload(edition(), "GAL", "https://les-gaulois.github.io/");
     expect(payload).not.toHaveProperty("content");
     expect(payload.embeds).toHaveLength(1);
     expect(payload.embeds[0]).toMatchObject({ title: "La gazette de [GAL]", url: "https://les-gaulois.github.io/gazette" });
@@ -86,21 +88,23 @@ describe("gazettePayload", () => {
   it("donne le nombre d'arrivées sans citer les arrivants", () => {
     const e = edition({ arrivals: { count: 92, named: ["Secret.1234"], anonymous: 91 } });
     expect(field(e, "Arrivées")).toBe("**92** encore dans le clan");
-    expect(JSON.stringify(gazettePayload(e, "GAL", "https://x.test", []))).not.toContain("Secret.1234");
+    expect(JSON.stringify(gazettePayload(e, "GAL", "https://x.test"))).not.toContain("Secret.1234");
   });
 
   it("met en valeur les joueurs de la semaine, une même médaille pour une même place", () => {
     const e = edition({ players: [player("Alpha", 33, 1), player("Beta", 33, 1), player("Gamma", 1, 3)] });
     expect(field(e, "Le plus de victoires de la semaine")).toBe("🥇 **Alpha** : 33 victoires\n🥇 **Beta** : 33 victoires\n🥉 **Gamma** : 1 victoire\n*Cela compte d'abord le temps de jeu, pas le niveau.*");
-    expect(embedOf(e).footer.text).toContain("membres avec pseudo présents dès le lundi");
+    expect(embedOf(e).footer.text).toContain("membres avec pseudo présents aux deux");
   });
 
-  it("sans relevé pour cette semaine, cite les victoires depuis le début et le dit dans son titre", () => {
-    const allTime = [player("Alpha", 1807, 1)];
-    expect(field(edition(), "Le plus de victoires depuis le début", allTime)).toBe("🥇 **Alpha** : 1 807 victoires\n*Cela compte d'abord le temps de jeu, pas le niveau.*");
-    expect(field(edition(), "Le plus de victoires de la semaine", allTime)).toBeUndefined();
-    expect(embedOf(edition(), allTime).footer.text).not.toContain("dès le lundi");
-    expect(field(edition({ players: [player("Beta", 3, 1)] }), "Le plus de victoires depuis le début", allTime)).toBeUndefined();
+  it("écrit les dates d'un podium parti plus tard que le lundi, car la période est plus courte", () => {
+    const e = edition({ players: [player("Alpha", 33, 1)], playersSince: "2026-11-05T10:39:31.574Z" });
+    expect(field(e, "Le plus de victoires du 5 nov. au 8 nov.")).toBe("🥇 **Alpha** : 33 victoires\n*Cela compte d'abord le temps de jeu, pas le niveau.*");
+    expect(field(e, "Le plus de victoires de la semaine")).toBeUndefined();
+  });
+
+  it("sans podium pour cette semaine, rien ne le remplace", () => {
+    expect(embedOf(edition()).fields.some((f) => f.name.startsWith("Le plus de victoires"))).toBe(false);
   });
 
   it("n'écrit rien sur les joueurs s'il n'y a personne à citer", () => {
@@ -118,7 +122,7 @@ describe("gazettePayload", () => {
   });
 
   it("interdit toute mention, même si une valeur en contenait une", () => {
-    expect(gazettePayload(edition(), "GAL", "https://x.test", [])).toMatchObject({ allowed_mentions: { parse: [] } });
+    expect(gazettePayload(edition(), "GAL", "https://x.test")).toMatchObject({ allowed_mentions: { parse: [] } });
   });
 
   it("tient dans les limites de Discord, même avec le message le plus long", () => {
@@ -136,19 +140,19 @@ describe("gazettePayload", () => {
 });
 
 describe("imagePayload", () => {
-  const payload = (e: GazetteEdition = edition(), allTime: WeekPlayer[] = [{ id: "a", username: "Alpha", wins: 9, place: 1 }]) => imagePayload(e, "GAL", "https://les-gaulois.github.io/", "Description.", "gazette.png", allTime) as { content: string; avatar_url: string; allowed_mentions: unknown; attachments: unknown[]; components: unknown[] };
+  const payload = (e: GazetteEdition = edition()) => imagePayload(e, "GAL", "https://les-gaulois.github.io/", "Description.", "gazette.png") as { content: string; avatar_url: string; allowed_mentions: unknown; attachments: unknown[]; components: unknown[] };
 
   it("donne le titre, un lien sans aperçu en double, et ce que le podium compte", () => {
     const { content } = payload();
     const lines = content.replace(/[\s\u00a0\u202f]+/g, " ");
     expect(lines).toContain("**La gazette de [GAL]** : semaine du 2 nov. au 8 nov. 2026");
     expect(content).toContain("(<https://les-gaulois.github.io/gazette>)");
-    expect(content).toContain("-# Podium : victoires en équipe sous le tag, membres avec pseudo. Cela compte d'abord le temps de jeu, pas le niveau.");
-    expect(payload(edition({ players: [{ id: "a", username: "Alpha", wins: 3, place: 1 }] })).content).toContain("membres avec pseudo présents dès le lundi");
+    const withPodium = payload(edition({ players: [{ id: "a", username: "Alpha", wins: 3, place: 1 }] })).content;
+    expect(withPodium).toContain("-# Podium : victoires en équipe sous le tag entre deux relevés, membres avec pseudo présents aux deux. Cela compte d'abord le temps de jeu, pas le niveau.");
   });
 
   it("ne parle pas d'un podium quand il n'y en a pas", () => {
-    const { content } = payload(edition(), []);
+    const { content } = payload(edition());
     expect(content).toContain("-# Données publiques d'OpenFront.");
     expect(content).not.toContain("Podium");
   });
@@ -251,7 +255,7 @@ describe("sendLatestGazette", () => {
   const setup = (over: Partial<SendDeps> = {}) => {
     const logs: string[] = [];
     const post = vi.fn(async () => new Response(null, { status: 204 }));
-    const deps: SendDeps = { webhook: WEBHOOK, editions: [ready()], unreadable: [], allTime: [], renderImage: async () => ({ png: Uint8Array.of(137, 80, 78, 71), alt: "Description de l'image." }), lastSent: null, tag: "GAL", siteUrl: "https://x.test", now: MONDAY_LATE, fetch: post as unknown as typeof fetch, log: (line) => logs.push(line), ...over };
+    const deps: SendDeps = { webhook: WEBHOOK, editions: [ready()], unreadable: [], renderImage: async () => ({ png: Uint8Array.of(137, 80, 78, 71), alt: "Description de l'image." }), lastSent: null, tag: "GAL", siteUrl: "https://x.test", now: MONDAY_LATE, fetch: post as unknown as typeof fetch, log: (line) => logs.push(line), ...over };
     return { deps, logs, post };
   };
   const noSecret = (logs: string[]) => {

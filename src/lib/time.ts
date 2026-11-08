@@ -47,6 +47,17 @@ export function mondayOf(day: string): string {
   return addDays(day, -parisParts(`${day}T12:00:00.000Z`).weekday);
 }
 
+/** L'instant, en temps universel, où commence le jour `day` à Paris. Le changement d'heure a lieu la nuit, jamais à minuit. */
+export function parisStartOf(day: string): string {
+  const midnightUtc = Date.parse(`${day}T00:00:00.000Z`);
+  for (const hours of [1, 2, 0]) {
+    const at = new Date(midnightUtc - hours * 3_600_000);
+    const parts = parisParts(at);
+    if (parts.date === day && parts.hour === 0) return at.toISOString();
+  }
+  throw new Error(`début du jour introuvable : ${day}`);
+}
+
 /** Le premier passage d'un lundi à Paris, d'après le dernier relevé réussi : les relevés qui glissent d'un jour à l'autre y prennent la photo de la fin de semaine. */
 export function isFirstOfMonday(lastAt: string | null, now: Date): boolean {
   const { date, weekday } = parisParts(now);

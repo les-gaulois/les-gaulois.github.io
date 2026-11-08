@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { clan } from "../config/clan";
 import { runClanMap } from "../src/lib/clanmap/collect";
 import { MEMBER_GAMES_FILE } from "../src/lib/data";
+import { oldestMembersReading } from "../src/lib/member-history";
 import { runPipeline, type Deps } from "../src/lib/pipeline";
 
 const deps: Deps = {
@@ -15,6 +16,11 @@ const deps: Deps = {
   memberGamesFile: MEMBER_GAMES_FILE,
   log: console.log,
 };
+
+// Sur GitHub seulement : l'historique du dépôt donne un départ aux joueurs d'une semaine dont le lundi a manqué.
+const repo = process.env["GITHUB_REPOSITORY"];
+const token = process.env["GITHUB_TOKEN"];
+if (repo && token) deps.memberHistory = (from, to) => oldestMembersReading({ fetch, repo, token }, from, to);
 
 // `--carte` : ne met à jour que la carte des clans, sans attendre le délai d'une journée.
 const mapOnly = process.argv.includes("--carte");

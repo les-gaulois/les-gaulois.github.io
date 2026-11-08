@@ -31,7 +31,7 @@ import { gamesOf, MEMBER_RECENT_GAMES, memberGamesUnderTag, toStoredMember } fro
 import { RANKED_MODES, rankedCounts } from "./ranked";
 import { mergeSessions } from "./sessions";
 import { findClan, withOfficialRanks } from "./stats";
-import { addDays, isFirstOfMonday, parisParts } from "./time";
+import { addDays, isFirstOfMonday, parisParts, parisStartOf } from "./time";
 import { EMPTY_MEMBER_WEEKS, forgetInMemberWeeks, nextMemberWeeks } from "./week-players";
 
 export const API_ORIGIN = "https://api.openfront.io";
@@ -64,6 +64,8 @@ export interface Deps {
   memberCallsPerRun?: number;
   /** Les parties de chaque membre : hors de `data/`, donc hors de Git. */
   memberGamesFile: string;
+  /** Le plus ancien relevé de la liste des membres fait entre deux instants, gardé dans l'historique Git. Absent hors de GitHub. */
+  memberHistory?: (from: string, to: string) => Promise<StoredMembers | null>;
   log: (msg: string) => void;
 }
 
@@ -320,11 +322,28 @@ async function forgetFormerMembers(deps: Deps, members: StoredMembers): Promise<
   return players;
 }
 
-/** Le relevé du lundi, pour les joueurs de la semaine. Aucun appel à l'API : il part de la liste déjà relue. */
-async function noteMemberWeek(deps: Deps, members: StoredMembers): Promise<void> {
+/**
+ * Sans relevé du lundi d'avant, le plus ancien relevé de la semaine écoulée, gardé dans l'historique Git.
+ * Une panne de GitHub ne bloque rien : le passage suivant du même lundi réessaie, et l'avertissement se lit dans l'Action.
+ */
+async function weekStartFromHistory(deps: Deps, weeks: StoredMemberWeeks, members: StoredMembers): Promise<{ reading: StoredMembers | null; warning: string | null }> {
+  const { date, weekday } = parisParts(members.fetchedAt);
+  const week = addDays(date, -7);
+  if (!deps.memberHistory || weekday !== 0 || weeks.tops[week] || weeks.reading?.on === week) return { reading: null, warning: null };
+  try {
+    return { reading: await deps.memberHistory(parisStartOf(week), parisStartOf(date)), warning: null };
+  } catch (e) {
+    return { reading: null, warning: `joueurs de la semaine : historique illisible (${e instanceof Error ? e.message : "erreur inconnue"}), nouvel essai au passage suivant` };
+  }
+}
+
+/** Le relevé du lundi, pour les joueurs de la semaine. Aucun appel à l'API d'OpenFront : il part de la liste déjà relue. */
+async function noteMemberWeek(deps: Deps, members: StoredMembers): Promise<string | null> {
   const weeks = await readMemberWeeks(deps);
-  const next = nextMemberWeeks(weeks, members);
+  const start = await weekStartFromHistory(deps, weeks, members);
+  const next = nextMemberWeeks(weeks, members, start.reading);
   if (next !== weeks) await writeMemberWeeks(deps, next);
+  return start.warning;
 }
 
 /** Les dernières parties sous le tag des membres avec pseudo. Tant que ses parties selon `stats.team` ne bougent pas, un joueur n'est pas relu. Rien n'est écrit pour un anonyme. */
@@ -461,7 +480,8 @@ export async function runPipeline(deps: Deps): Promise<RunSummary> {
       await forgetFormerMembers(deps, members);
       if (clanExists) {
         members = await dropDeletedMembers(api, deps, members);
-        await noteMemberWeek(deps, members);
+        const warning = await noteMemberWeek(deps, members);
+        if (warning) errors.push(warning);
         const { read, left, unreadable } = await fetchMemberGames(api, deps, members);
         if (read > 0 || unreadable === 0) markOk(meta.memberGames, at);
         deps.log(`fiches des membres : ${read} lues, ${left} restent à lire`);

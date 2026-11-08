@@ -3,8 +3,7 @@
  *
  * Deux temps : `gazetteCard` décide quoi écrire et où, à partir de l'édition seule, et se teste sans police.
  * `renderGazetteCard` la dessine : chaque lettre devient un tracé, pour ne pas dépendre des polices de la machine.
- * Tout vient de l'édition, sauf le repli sur les victoires depuis le début, annoncé par son titre.
- * Ce qui manque n'est pas dessiné, jamais remplacé par un zéro.
+ * Tout vient de l'édition. Ce qui manque n'est pas dessiné, jamais remplacé par un zéro.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -12,7 +11,7 @@ import { create, type Font } from "fontkit";
 import sharp from "sharp";
 import { brandFile } from "./brand";
 import { fmtCount, fmtDay, fmtInt, fmtPct, fmtPoints, fmtRank } from "./format";
-import { comparisonSentence, rankWords, type GazetteEdition, weekLabel } from "./gazette";
+import { comparisonSentence, playersPeriod, rankWords, type GazetteEdition, weekLabel } from "./gazette";
 import type { WeekPlayer } from "./week-players";
 
 const WIDTH = 1200;
@@ -145,8 +144,8 @@ function infoRows({ standing, territory, arrivals }: GazetteEdition): InfoRow[] 
   return rows;
 }
 
-/** Quoi écrire et où. `allTime` remplace les joueurs de la semaine tant qu'elle n'a pas les siens, et le titre le dit. */
-export function gazetteCard(edition: GazetteEdition, tag: string, siteUrl: string, allTime: readonly WeekPlayer[], measure: Measure): GazetteCard {
+/** Quoi écrire et où. Le titre du podium dit sa période : voir `playersPeriod`. */
+export function gazetteCard(edition: GazetteEdition, tag: string, siteUrl: string, measure: Measure): GazetteCard {
   const rects: CardRect[] = [{ x: 0, y: 0, width: WIDTH, height: HEIGHT, radius: 0, color: NAVY }];
   const texts: CardText[] = [];
   const third = WIDTH / 3;
@@ -176,8 +175,9 @@ export function gazetteCard(edition: GazetteEdition, tag: string, siteUrl: strin
   if (hasDelta) texts.push({ text: "Écarts par rapport à la semaine d'avant", x: MARGIN, y: statsTop + 232, size: 24, font: "body", color: MUTED });
 
   // La carte, le classement et les arrivées, à gauche. Les joueurs, à droite.
-  const players = edition.players ?? allTime;
-  const hasPlayers = players.length > 0;
+  const players: readonly WeekPlayer[] = edition.players ?? [];
+  const period = playersPeriod(edition);
+  const hasPlayers = players.length > 0 && period !== null;
   const columnTop = statsTop + 248;
   const rows = infoRows(edition);
   const leftWidth = hasPlayers ? 556 : WIDTH - 2 * MARGIN;
@@ -199,7 +199,7 @@ export function gazetteCard(edition: GazetteEdition, tag: string, siteUrl: strin
   if (hasPlayers) {
     const x = MARGIN + leftWidth + 24;
     const width = WIDTH - MARGIN - x;
-    const heading = fitted(edition.players ? "Le plus de victoires de la semaine" : "Le plus de victoires depuis le début", "strong", 30, 24, width, measure);
+    const heading = fitted(`Le plus de victoires ${period}`, "strong", 30, 22, width, measure);
     texts.push({ ...heading, x, y: columnTop + 24, font: "strong", color: WHITE });
     const base = HEIGHT - 44;
     if (players.length <= 3) {
@@ -239,7 +239,7 @@ export function gazetteCard(edition: GazetteEdition, tag: string, siteUrl: strin
 }
 
 /** Ce que l'image dit, pour un lecteur d'écran : Discord le lit comme description du fichier. */
-export function gazetteImageAlt(edition: GazetteEdition, tag: string, allTime: readonly WeekPlayer[]): string {
+export function gazetteImageAlt(edition: GazetteEdition, tag: string): string {
   const { totals } = edition;
   const parts = [`La gazette de [${tag}], semaine ${weekLabel(edition)}.`, `${fmtCount(totals.wins, "victoire")} sur ${fmtCount(totals.games, "partie")}, soit ${fmtPct(totals.winRate)}.`];
   const comparison = comparisonSentence(edition);
@@ -248,10 +248,11 @@ export function gazetteImageAlt(edition: GazetteEdition, tag: string, allTime: r
     const sentence = `${row.label} : ${row.value}${row.detail ? `, ${row.detail.text}` : ""}`;
     parts.push(sentence.endsWith(".") ? sentence : `${sentence}.`);
   }
-  const players = edition.players ?? allTime;
-  if (players.length > 0) {
+  const players = edition.players ?? [];
+  const period = playersPeriod(edition);
+  if (players.length > 0 && period) {
     const names = players.map((p) => `${p.username}, ${fmtCount(p.wins, "victoire")}`).join(" ; ");
-    parts.push(`${edition.players ? "Le plus de victoires de la semaine" : "Le plus de victoires depuis le début"} : ${names}. Cela compte d'abord le temps de jeu, pas le niveau.`);
+    parts.push(`Le plus de victoires ${period} : ${names}. Cela compte d'abord le temps de jeu, pas le niveau.`);
   }
   return parts.join(" ").slice(0, 1024);
 }

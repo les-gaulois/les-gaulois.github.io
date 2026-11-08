@@ -4,7 +4,7 @@
  */
 import { z } from "zod";
 import { fmtCount, fmtDay, fmtInt, fmtPct, fmtRank } from "./format";
-import { comparisonSentence, endingOn, type GazetteEdition, rankWords, weekLabel } from "./gazette";
+import { comparisonSentence, endingOn, type GazetteEdition, playersPeriod, rankWords, weekLabel } from "./gazette";
 import { addDays, parisParts } from "./time";
 import type { WeekPlayer } from "./week-players";
 
@@ -83,9 +83,8 @@ export interface GazettePayload {
 
 /**
  * Le message : les chiffres en blocs, chacun avec son titre, plutôt qu'une phrase à déchiffrer.
- * `allTime` remplace les joueurs de la semaine tant qu'il n'y a pas de relevé pour elle, et le dit dans son titre.
  */
-export function gazettePayload(edition: GazetteEdition, tag: string, siteUrl: string, allTime: readonly WeekPlayer[]): GazettePayload {
+export function gazettePayload(edition: GazetteEdition, tag: string, siteUrl: string): GazettePayload {
   const site = siteUrl.replace(/\/$/, "");
   const { games, wins, winRate } = edition.totals;
   const fields: GazettePayload["embeds"][number]["fields"] = [
@@ -99,9 +98,9 @@ export function gazettePayload(edition: GazetteEdition, tag: string, siteUrl: st
   // Un relevé fait dans la journée serait bientôt démenti par la page, et un message ne se corrige pas : seule la fin d'une journée part.
   if (edition.territory?.end.final) fields.push({ name: "Carte des clans", value: territoryValue(edition.territory) });
   if (edition.arrivals) fields.push({ name: "Arrivées", value: `**${fmtInt(edition.arrivals.count)}** encore dans le clan` });
-  const players = edition.players ?? allTime;
-  if (players.length > 0) fields.push({ name: edition.players ? "Le plus de victoires de la semaine" : "Le plus de victoires depuis le début", value: playerLines(players) });
-  const whoCounts = edition.players ? "Victoires en équipe sous le tag, membres avec pseudo présents dès le lundi. " : "Victoires en équipe sous le tag, membres avec pseudo. ";
+  const period = playersPeriod(edition);
+  if (edition.players && period) fields.push({ name: `Le plus de victoires ${period}`, value: playerLines(edition.players) });
+  const whoCounts = edition.players ? "Victoires en équipe sous le tag entre deux relevés, membres avec pseudo présents aux deux. " : "";
   return {
     avatar_url: `${site}/generated/icon-192.png`,
     allowed_mentions: { parse: [] },
@@ -112,7 +111,7 @@ export function gazettePayload(edition: GazetteEdition, tag: string, siteUrl: st
         description: `Semaine ${weekLabel(edition)}`,
         color: COLOR,
         fields,
-        footer: { text: `${players.length > 0 ? whoCounts : ""}Données publiques d'OpenFront.` },
+        footer: { text: `${whoCounts}Données publiques d'OpenFront.` },
       },
     ],
   };
@@ -139,11 +138,10 @@ export function editionToSend(editions: readonly GazetteEdition[], lastSent: str
 }
 
 /** Le message avec l'image de la semaine : du texte court, l'image et un bouton vers la page. */
-export function imagePayload(edition: GazetteEdition, tag: string, siteUrl: string, alt: string, filename: string, allTime: readonly WeekPlayer[]): Record<string, unknown> {
+export function imagePayload(edition: GazetteEdition, tag: string, siteUrl: string, alt: string, filename: string): Record<string, unknown> {
   const site = siteUrl.replace(/\/$/, "");
-  const who = edition.players ? "membres avec pseudo présents dès le lundi" : "membres avec pseudo";
   // Lisible sur un téléphone, où le texte de l'image est petit.
-  const podium = (edition.players ?? allTime).length > 0 ? `Podium : victoires en équipe sous le tag, ${who}. Cela compte d'abord le temps de jeu, pas le niveau. ` : "";
+  const podium = edition.players ? "Podium : victoires en équipe sous le tag entre deux relevés, membres avec pseudo présents aux deux. Cela compte d'abord le temps de jeu, pas le niveau. " : "";
   return {
     content: [
       `**La gazette de [${tag}]** : semaine ${weekLabel(edition)}`,
@@ -168,8 +166,6 @@ export interface SendDeps {
   editions: readonly GazetteEdition[];
   /** Les mois de sessions illisibles : avec eux, les totaux seraient faux. */
   unreadable: readonly string[];
-  /** Les joueurs à citer si l'édition n'a pas encore les siens. */
-  allTime: readonly WeekPlayer[];
   /** Dessine l'image. Si elle échoue, le message part en texte. */
   renderImage: (edition: GazetteEdition) => Promise<RenderedImage>;
   lastSent: string | null;
@@ -186,7 +182,7 @@ export type SendResult = { status: "off" | "invalid" | "nothing" | "failed" } | 
  * Envoie la dernière édition si elle ne l'a pas encore été. Un échec se retente au passage suivant.
  * Le lien vaut un mot de passe pour ce salon : il n'est écrit dans aucun message, même d'erreur.
  */
-export async function sendLatestGazette({ webhook, editions, unreadable, allTime, renderImage, lastSent, tag, siteUrl, now, fetch: post, log }: SendDeps): Promise<SendResult> {
+export async function sendLatestGazette({ webhook, editions, unreadable, renderImage, lastSent, tag, siteUrl, now, fetch: post, log }: SendDeps): Promise<SendResult> {
   // Un copier-coller peut laisser une espace ou un retour à la ligne autour du lien.
   const link = webhook?.trim();
   if (!link) {
@@ -206,13 +202,13 @@ export async function sendLatestGazette({ webhook, editions, unreadable, allTime
     log(`Gazette : rien à envoyer (${decision.reason}).`);
     return { status: "nothing" };
   }
-  const textRequest = { url: link, init: { headers: { "Content-Type": "application/json" }, body: JSON.stringify(gazettePayload(decision.edition, tag, siteUrl, allTime)) } };
+  const textRequest = { url: link, init: { headers: { "Content-Type": "application/json" }, body: JSON.stringify(gazettePayload(decision.edition, tag, siteUrl)) } };
   const requests: { url: string; init: RequestInit }[] = [textRequest];
   try {
     const { png, alt } = await renderImage(decision.edition);
     const filename = `gazette-${decision.edition.from}.png`;
     const form = new FormData();
-    form.append("payload_json", JSON.stringify(imagePayload(decision.edition, tag, siteUrl, alt, filename, allTime)));
+    form.append("payload_json", JSON.stringify(imagePayload(decision.edition, tag, siteUrl, alt, filename)));
     form.append("files[0]", new Blob([Buffer.from(png)], { type: "image/png" }), filename);
     // Sans ce réglage, Discord ignore le bouton.
     requests.unshift({ url: `${link}?with_components=true`, init: { body: form } });

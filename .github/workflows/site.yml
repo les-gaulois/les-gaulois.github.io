@@ -50,6 +50,9 @@ jobs:
           restore-keys: member-games-
       - name: Collecter les données
         run: npm run data:fetch
+        env:
+          # Le jeton de l'Action, qui peut écrire : la collecte ne s'en sert que pour lire l'historique du dépôt, départ des joueurs de la semaine.
+          GITHUB_TOKEN: ${{ github.token }}
       - name: Conserver les parties des membres
         if: ${{ !cancelled() && hashFiles('.cache/member-games/players.json') != '' }}
         continue-on-error: true

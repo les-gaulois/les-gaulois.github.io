@@ -222,8 +222,11 @@ export const StoredMemberWeeks = z.object({
       wins: z.record(z.string().min(1), z.number().int().nonnegative()),
     })
     .nullable(),
-  // Clé : le lundi de la semaine.
-  tops: z.record(z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.array(z.object({ id: z.string().min(1), wins: z.number().int().positive() }))),
+  // Clé : le lundi de la semaine. `since` : l'heure du relevé de départ, ce lundi, ou plus tard si la période est plus courte.
+  tops: z.record(
+    z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    z.object({ since: isoDate, players: z.array(z.object({ id: z.string().min(1), wins: z.number().int().positive() })) }),
+  ),
 });
 export type StoredMemberWeeks = z.infer<typeof StoredMemberWeeks>;
 

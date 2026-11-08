@@ -488,6 +488,8 @@ describe("runPipeline", () => {
           answering(Object.fromEntries(Object.entries(wins).map(([id, w]) => [id, w + 1]))),
         );
       const memberListCalls = () => calls.filter((c) => c.includes("/members?")).length;
+      /** Un membre avec pseudo tel que `data/members.json` le garde, pour un ancien relevé. */
+      const withRecordStored = (id: string, wins: number) => ({ role: "member" as const, joinedAt: "2026-05-03T21:26:21.579Z", publicId: id, username: id.toUpperCase(), team: { wins, losses: 1 } });
       // Lundi 9 novembre, 0 h 53 à Paris. Le lundi suivant, à la même heure.
       const MONDAY = "2026-11-08T23:53:00.000Z";
       const NEXT_MONDAY = "2026-11-15T23:53:00.000Z";
@@ -501,10 +503,13 @@ describe("runPipeline", () => {
         now = new Date(NEXT_MONDAY);
         await runPipeline(deps(roster({ id1: 25, id2: 22 }, 900)));
         expect(weeks().tops).toEqual({
-          "2026-11-09": [
-            { id: "id1", wins: 15 },
-            { id: "id2", wins: 2 },
-          ],
+          "2026-11-09": {
+            since: MONDAY,
+            players: [
+              { id: "id1", wins: 15 },
+              { id: "id2", wins: 2 },
+            ],
+          },
         });
         expect(weeks().reading.on).toBe("2026-11-16");
       });
@@ -524,6 +529,45 @@ describe("runPipeline", () => {
         await runPipeline(deps(roster({ id1: 99 })));
         expect(memberListCalls()).toBe(2);
         expect(weeks().reading.wins).toEqual({ id1: 12 });
+      });
+
+      it("sans relevé du lundi d'avant, part du plus ancien relevé de la semaine gardé dans l'historique", async () => {
+        const asked: string[][] = [];
+        now = new Date(MONDAY);
+        await runPipeline({
+          ...deps(roster({ id1: 30, id2: 20 })),
+          memberHistory: async (from, to) => {
+            asked.push([from, to]);
+            return { fetchedAt: "2026-11-05T10:39:31.574Z", total: 3, members: [withRecordStored("id1", 10), withRecordStored("id2", 19)] };
+          },
+        });
+        expect(asked).toEqual([["2026-11-01T23:00:00.000Z", "2026-11-08T23:00:00.000Z"]]);
+        expect(weeks().tops).toEqual({ "2026-11-02": { since: "2026-11-05T10:39:31.574Z", players: [{ id: "id1", wins: 20 }, { id: "id2", wins: 1 }] } });
+      });
+
+      it("une panne de l'historique ne bloque rien : la semaine n'a simplement pas de podium", async () => {
+        now = new Date(MONDAY);
+        const { errors } = await runPipeline({ ...deps(roster({ id1: 30 })), memberHistory: async () => { throw new Error("HTTP 503"); } });
+        expect(errors).toEqual(["joueurs de la semaine : historique illisible (HTTP 503), nouvel essai au passage suivant"]);
+        expect(weeks()).toMatchObject({ reading: { on: "2026-11-09" }, tops: {} });
+        // Une heure plus tard, GitHub répond : le podium part du premier relevé de ce lundi, pas d'une relecture.
+        now = new Date("2026-11-09T00:53:00.000Z");
+        await runPipeline({
+          ...deps(roster({ id1: 99 })),
+          memberHistory: async () => ({ fetchedAt: "2026-11-05T10:39:31.574Z", total: 1, members: [withRecordStored("id1", 10)] }),
+        });
+        expect(weeks().tops).toEqual({ "2026-11-02": { since: "2026-11-05T10:39:31.574Z", players: [{ id: "id1", wins: 20 }] } });
+        expect(weeks().reading.wins).toEqual({ id1: 30 });
+      });
+
+      it("ne lit pas l'historique quand le relevé du lundi d'avant existe", async () => {
+        now = new Date("2026-11-01T23:53:00.000Z");
+        await runPipeline(deps(roster({ id1: 10 })));
+        let asked = 0;
+        now = new Date(MONDAY);
+        await runPipeline({ ...deps(roster({ id1: 12 })), memberHistory: async () => { asked++; return null; } });
+        expect(asked).toBe(0);
+        expect(weeks().tops["2026-11-02"]).toEqual({ since: "2026-11-01T23:53:00.000Z", players: [{ id: "id1", wins: 2 }] });
       });
 
       it("oublie aussi dans ces relevés un membre parti", async () => {

@@ -5,7 +5,7 @@
 import { fmtCount, fmtDate, fmtDay, fmtInt, fmtPct, fmtPoints, fmtRank, fmtScore } from "./format";
 import { clanRecords, type ClanRecords } from "./results";
 import type { TerritoryReading } from "./clanmap/days";
-import { namedWeekPlayers, type WeekPlayer, type WeekWinner } from "./week-players";
+import { namedWeekPlayers, type WeekPlayer, type WeekTop } from "./week-players";
 import type { HistorySnapshot, StoredMembers, StoredSession } from "./schemas";
 import { winRate } from "./stats";
 import { addDays, mondayOf, parisParts } from "./time";
@@ -46,6 +46,8 @@ export interface GazetteEdition {
   arrivals: WeekArrivals | null;
   /** Les membres avec pseudo qui ont le plus gagné cette semaine. `null` : pas de relevé de départ ou d'arrivée. */
   players: WeekPlayer[] | null;
+  /** L'heure du relevé de départ de ce podium : voir `playersPeriod`. `null` sans podium. */
+  playersSince: string | null;
 }
 
 export interface GazetteSources {
@@ -54,7 +56,7 @@ export interface GazetteSources {
   /** Les relevés du territoire : voir `territoryReadings`. */
   territory: readonly TerritoryReading[];
   /** Les joueurs de chaque semaine, par son lundi : voir `src/lib/week-players.ts`. */
-  weekTops: Readonly<Record<string, readonly WeekWinner[]>>;
+  weekTops: Readonly<Record<string, WeekTop>>;
   members: StoredMembers | null;
   archiveStart: string;
   /** Dernier jour UTC définitif : le dimanche de Paris se termine avant la fin du dimanche UTC. */
@@ -114,10 +116,24 @@ export function gazetteEditions({ sessions, history, territory, weekTops, member
       standing: evolution(snapshots, from, to),
       territory: evolution(readings, from, to),
       arrivals: known ? { count: arrivals.length, named, anonymous: arrivals.length - named.length } : null,
-      players: namedWeekPlayers(weekTops[from], members),
+      ...withPlayers(namedWeekPlayers(weekTops[from], members), weekTops[from]),
     });
   }
   return editions;
+}
+
+function withPlayers(players: WeekPlayer[] | null, top: WeekTop | undefined): Pick<GazetteEdition, "players" | "playersSince"> {
+  return players && top ? { players, playersSince: top.since } : { players: null, playersSince: null };
+}
+
+/**
+ * La période du podium : « de la semaine » s'il part du lundi, sinon ses dates, car elle est alors plus courte.
+ * `null` sans podium.
+ */
+export function playersPeriod({ from, to, players, playersSince }: Pick<GazetteEdition, "from" | "to" | "players" | "playersSince">): string | null {
+  if (!players || !playersSince) return null;
+  const start = parisParts(playersSince).date;
+  return start <= from ? "de la semaine" : `du ${fmtDay(start)} au ${fmtDay(to)}`;
 }
 
 export const weekLabel = ({ from, to }: Pick<GazetteEdition, "from" | "to">) => `du ${fmtDay(from)} au ${fmtDay(to)} ${to.slice(0, 4)}`;

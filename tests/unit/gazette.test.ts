@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fmtPoints } from "../../src/lib/format";
-import { arrivalsGap, comparisonSentence, editionLead, endingOn, gazetteEditions, type GazetteSources, standingDetails, standingGap, standingSentence, territoryDetails, territoryGap, weekLabel } from "../../src/lib/gazette";
+import { arrivalsGap, comparisonSentence, editionLead, endingOn, gazetteEditions, type GazetteSources, standingDetails, standingGap, standingSentence, territoryDetails, territoryGap, weekLabel, playersPeriod } from "../../src/lib/gazette";
 import type { HistorySnapshot, StoredMember, StoredMembers, StoredSession } from "../../src/lib/schemas";
 import { mondayOf } from "../../src/lib/time";
 
@@ -94,15 +94,25 @@ describe("gazetteEditions", () => {
     const named = (fetchedAt: string, ...names: string[]): StoredMembers => ({ fetchedAt, total: names.length, members: names.map((n) => ({ ...member("2026-05-03T00:00:00.000Z", n), team: { wins: 1, losses: 1 } })) });
 
     it("donne à une édition les joueurs relevés sous son lundi, avec leur pseudo, et rien aux autres", () => {
-      const editions = gazetteEditions(sources({ weekTops: { "2026-10-26": [{ id: "Alpha", wins: 33 }] }, members: named("2026-11-07T05:00:00.000Z", "Alpha") }));
+      const editions = gazetteEditions(sources({ weekTops: { "2026-10-26": { since: "2026-10-25T23:53:00.000Z", players: [{ id: "Alpha", wins: 33 }] } }, members: named("2026-11-07T05:00:00.000Z", "Alpha") }));
       const [latest, before] = editions;
       expect(latest?.from).toBe("2026-10-26");
       expect(latest?.players).toEqual([{ id: "Alpha", username: "Alpha", wins: 33, place: 1 }]);
+      expect(latest?.playersSince).toBe("2026-10-25T23:53:00.000Z");
+      expect(latest && playersPeriod(latest)).toBe("de la semaine");
       expect(before?.players).toBeNull();
+      expect(before?.playersSince).toBeNull();
+    });
+
+    it("écrit les dates d'un podium parti plus tard que le lundi", () => {
+      const players = [{ id: "a", username: "Alpha", wins: 3, place: 1 }];
+      expect(playersPeriod({ from: "2026-11-02", to: "2026-11-08", players, playersSince: "2026-11-05T10:39:31.574Z" })).toBe("du 5 nov. au 8 nov.");
+      expect(playersPeriod({ from: "2026-11-02", to: "2026-11-08", players, playersSince: "2026-11-01T23:53:00.000Z" })).toBe("de la semaine");
+      expect(playersPeriod({ from: "2026-11-02", to: "2026-11-08", players: null, playersSince: null })).toBeNull();
     });
 
     it("n'en cite plus un qui a quitté le clan", () => {
-      const [latest] = gazetteEditions(sources({ weekTops: { "2026-10-26": [{ id: "Parti", wins: 33 }] }, members: named("2026-11-07T05:00:00.000Z", "Alpha") }));
+      const [latest] = gazetteEditions(sources({ weekTops: { "2026-10-26": { since: "2026-10-25T23:53:00.000Z", players: [{ id: "Parti", wins: 33 }] } }, members: named("2026-11-07T05:00:00.000Z", "Alpha") }));
       expect(latest?.players).toBeNull();
     });
   });
