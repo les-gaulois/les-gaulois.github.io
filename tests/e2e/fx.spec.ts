@@ -160,6 +160,17 @@ test.describe("à la souris", () => {
     expect(await menuPrevented(page)).toBe(true);
   });
 
+  test("sur les pages rouges de l'encadrement, le rouge mène et le bleu répond", async ({ page }) => {
+    await page.goto("/direction");
+    await page.mouse.click(BACKGROUND.x, BACKGROUND.y);
+    expect(await seesTile(page, BACKGROUND.x, BACKGROUND.y + 170, "red")).toBe(true);
+    await page.goto("/admin");
+    await watchContextMenu(page);
+    await page.mouse.click(BACKGROUND.x, BACKGROUND.y, { button: "right" });
+    expect(await seesTile(page, BACKGROUND.x, BACKGROUND.y + 170, "blue")).toBe(true);
+    expect(await menuPrevented(page)).toBe(true);
+  });
+
   test("une recherche tapée avant le démarrage de la page est prise en compte", async ({ page }) => {
     await page.route("**/_astro/*LeaderboardTable*", async (route) => {
       await new Promise((r) => setTimeout(r, 800));

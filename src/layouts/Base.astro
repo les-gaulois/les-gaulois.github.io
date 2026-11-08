@@ -17,8 +17,10 @@ interface Props {
   noindex?: boolean;
   /** Page calme : ses blocs apparaissent sans la conquête case par case ni la frontière des effets. */
   calm?: boolean;
+  /** Les pages de l'encadrement passent au rouge : voir « Thème rouge de l'encadrement » dans docs/DESIGN.md. */
+  theme?: "rouge";
 }
-const { title, description = `${clan.tagline} Classement, progression, membres et activité du clan.`, noindex = false, calm = false } = Astro.props;
+const { title, description = `${clan.tagline} Classement, progression, membres et activité du clan.`, noindex = false, calm = false, theme } = Astro.props;
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const fullTitle = title ? `${title} · [${clan.tag}] ${clan.name}` : `[${clan.tag}] ${clan.name} · Clan OpenFront`;
@@ -31,12 +33,13 @@ const usefulTools = loadLinks().tools.length > 0;
 ---
 
 <!doctype html>
-<html lang="fr">
+<html lang="fr" data-theme={theme}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark" />
-    <meta name="theme-color" content="#0A1230" />
+    {/* La barre du navigateur sur téléphone prend le fond de la page : le jeton navy de chaque thème. */}
+    <meta name="theme-color" content={theme === "rouge" ? "#300A10" : "#0A1230"} />
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
     {noindex && <meta name="robots" content="noindex" />}

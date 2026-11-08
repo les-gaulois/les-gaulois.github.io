@@ -20,13 +20,17 @@ Un univers de jeu sombre, pas une page de statistiques : grands titres en capita
 | `night` `#060B22` | Pied de page, scènes nocturnes, panneaux dans une scène |
 | `surface` `#121C3F` / `surface-2` `#1A2650` | Cartes / état actif, avatars |
 | `line` `#2C3A6B` | Bordures |
+| `line-strong` `#5D6C9E` | Contour des champs, carte survolée (3:1 au moins sur une carte) |
 | `blue` `#0B5FFF` | **Bouton principal seulement** |
 | `blue-text` `#9DBCFF` | Liens (le bleu du logo manque de contraste sur le marine) |
+| `flag-blue` `#0B5FFF` | Bleu du drapeau : filet tricolore, frontière, barre de progression. Ne change jamais avec le thème |
 | `red` `#FF1A2E` | Filets, marqueur de page et de ligne active. Jamais de texte blanc dessus en petite taille |
 | `muted` `#C0C9E2` | Texte secondaire |
 | `warn` `#FFC857` | Données périmées et erreurs de collecte |
 
 Pas de couleur en dur dans un composant : un jeton, ou une classe de `global.css`. Les couleurs des territoires sur la carte sont celles des clans dans le jeu, pas des jetons.
+
+**Thème rouge de l'encadrement :** `/direction` et `/admin` passent `theme="rouge"` à `Base.astro`, qui pose `data-theme="rouge"` sur `<html>`. `global.css` redonne alors à chaque jeton une teinte rouge, rôle pour rôle (valeurs et contrastes dans `docs/DESIGN.md`), et `fx.ts` inverse ses couleurs : le rouge mène, le bleu répond. Une future page de l'encadrement passe la même option ; une page de membre, comme `/compte`, reste bleue. Le tricolore garde `flag-blue`, et `.form-problem` (refus du serveur, « Absent de la liste ») s'y écrit en jaune `warn`.
 
 ## Scènes, cartes, boutons
 

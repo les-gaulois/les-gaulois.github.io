@@ -4,7 +4,7 @@
  * bouton pause, le site reste complet.
  *
  * - curseur : les cases s'allument, les blocs s'inclinent, un halo le suit ;
- * - clic gauche : vague bleue ; clic droit : vague rouge ;
+ * - clic gauche : vague bleue ; clic droit : vague rouge (l'inverse sur les pages rouges de l'encadrement) ;
  * - blocs : conquis case par case à leur apparition, frontière qui fait leur tour ;
  * - graphiques : onde au clic, réticule sur la heatmap, infobulles.
  */
@@ -47,6 +47,8 @@ const BLUE: Owner = 1;
 const RED: Owner = 2;
 const WHITE: Owner = 3;
 const COLORS = ["", "#3d7fff", "#ff2b3f", "#dfe7ff"] as const;
+/** La même couleur en « r g b », pour l'onde d'un graphique. */
+const rgbOf = (owner: Owner): string => [1, 3, 5].map((i) => parseInt(COLORS[owner].slice(i, i + 2), 16)).join(" ");
 
 interface Wave {
   arrivals: Arrival[];
@@ -119,6 +121,9 @@ function storePreference(on: boolean): void {
 
 function init(): void {
   const root = document.documentElement;
+  // La couleur qui mène et celle qui répond. Sur les pages rouges de l'encadrement (data-theme="rouge"), le rouge mène.
+  const lead: Owner = root.dataset.theme === "rouge" ? RED : BLUE;
+  const reply: Owner = lead === RED ? BLUE : RED;
   const finePointer = matchMedia("(hover: hover) and (pointer: fine)").matches;
   const tiltSelector = CSS.supports("selector(:has(a))")
     ? ".stage, [data-tilt], main .card:not(:has(table, input, select, canvas))"
@@ -245,7 +250,7 @@ function init(): void {
       stillHot.push(index);
       const owner = owners[index] ?? 0;
       tileCtx.globalAlpha = Math.min(1, level) * MAX_ALPHA * (owner === WHITE ? 0.45 : 1);
-      tileCtx.fillStyle = COLORS[owner as Owner] ?? COLORS[BLUE];
+      tileCtx.fillStyle = COLORS[owner as Owner] ?? COLORS[lead];
       tileCtx.fillRect((index % cols) * size + 1, Math.floor(index / cols) * size + 1, size - 2, size - 2);
     }
     hot = stillHot;
@@ -260,7 +265,7 @@ function init(): void {
     if (now < nextAmbient) return;
     nextAmbient = now + (finePointer ? 900 + Math.random() * 900 : 2500 + Math.random() * 1500);
     const roll = Math.random();
-    const owner = roll < 0.6 ? BLUE : roll < 0.85 ? RED : WHITE;
+    const owner = roll < 0.6 ? lead : roll < 0.85 ? reply : WHITE;
     launchWave(Math.random() * width, Math.random() * height, owner, 60 + Math.random() * 110, 130 + Math.random() * 70, 0.26 + Math.random() * 0.1);
   }
 
@@ -286,7 +291,7 @@ function init(): void {
       arrivals: [],
       next: 0,
       path: "",
-      color: COLORS[el.classList.contains("stage-wine") ? RED : BLUE],
+      color: COLORS[el.classList.contains("stage-wine") ? RED : lead],
     });
   }
 
@@ -366,10 +371,10 @@ function init(): void {
   let sparksDrawn = false;
 
   function burst(x: number, y: number, side: Side, big = false): void {
-    const owner = side === "left" ? BLUE : RED;
+    const owner = side === "left" ? lead : reply;
     launchWave(x, y, owner, big ? 520 : 380, 760, 1);
     const main = COLORS[owner];
-    const other = COLORS[side === "left" ? RED : BLUE];
+    const other = COLORS[side === "left" ? reply : lead];
     const palette = [main, main, main, "#ffffff", "#ffffff", other];
     const count = (finePointer ? 18 : 10) * (big ? 2 : 1);
     for (let i = 0; i < count; i++) {
@@ -402,7 +407,7 @@ function init(): void {
       arrivals: coverWave(localGrid, x - r.left, y - r.top, 0.6, seed),
       first: 0,
       start: performance.now(),
-      color: COLORS[side === "left" ? BLUE : RED],
+      color: COLORS[side === "left" ? lead : reply],
       radius: parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0,
     });
     if (locals.length > 3) locals.shift();
@@ -480,7 +485,7 @@ function init(): void {
 
   /** Une onde se propage dans un graphique, depuis le clic, sans changer aucune valeur. */
   function ripple(group: Element, x: number, y: number, side: Side): void {
-    const rgb = side === "left" ? "61 127 255" : "255 43 63";
+    const rgb = rgbOf(side === "left" ? lead : reply);
     for (const el of group.querySelectorAll<HTMLElement>("[data-ripple]")) {
       const r = el.getBoundingClientRect();
       if (r.width === 0) continue;
@@ -557,7 +562,7 @@ function init(): void {
     // Traînée de cases allumées.
     for (const [px, py] of segment(pointer.prevX, pointer.prevY, x, y, TILE_SIZE)) {
       for (const t of brush(grid, px, py, TILE_SIZE * 3)) {
-        light(t.index, BLUE, t.strength * (pointer.down ? 0.75 : 0.38));
+        light(t.index, lead, t.strength * (pointer.down ? 0.75 : 0.38));
       }
     }
     pointer.prevX = x;
@@ -1016,8 +1021,8 @@ function init(): void {
   if (document.querySelector("[data-fx-hint]")) {
     window.setTimeout(() => {
       if (!enabled) return;
-      launchWave(0, height * 0.62, BLUE, width * 0.4, 520, 0.75);
-      launchWave(width, height * 0.62, RED, width * 0.4, 520, 0.75);
+      launchWave(0, height * 0.62, lead, width * 0.4, 520, 0.75);
+      launchWave(width, height * 0.62, reply, width * 0.4, 520, 0.75);
     }, 450);
   }
   root.classList.add("fx-ready");

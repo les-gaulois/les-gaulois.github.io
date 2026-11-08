@@ -45,6 +45,33 @@ test("sans serveur configuré, la connexion n'apparaît pas et le site reste sta
   expect(calls).toEqual([]);
 });
 
+// L'encadrement sait d'un coup d'œil où il est. Le compte d'un membre reste bleu, comme le reste du site.
+test("seules les pages de l'encadrement passent au rouge", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "Même thème sur mobile.");
+  const look = async (path: string) => {
+    await page.goto(path);
+    return page.evaluate(() => ({
+      theme: document.documentElement.dataset.theme ?? null,
+      background: getComputedStyle(document.body).backgroundColor,
+      bar: document.querySelector('meta[name="theme-color"]')?.getAttribute("content") ?? "",
+    }));
+  };
+  // La barre du navigateur, sur téléphone, prend le fond de la page.
+  const rgbOf = (hex: string) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(", ")})`;
+  const blue = await look("/");
+  expect(blue.theme).toBeNull();
+  expect(blue.background).toBe(rgbOf(blue.bar));
+  for (const path of ["/admin", "/direction"]) {
+    const red = await look(path);
+    expect(red.theme, path).toBe("rouge");
+    expect(red.background, path).not.toBe(blue.background);
+    expect(red.background, path).toBe(rgbOf(red.bar));
+  }
+  for (const path of [...PAGES, "/compte", "/confidentialite"]) {
+    expect(await look(path), path).toEqual(blue);
+  }
+});
+
 test("parcours principal", async ({ page }, testInfo) => {
   const mobile = testInfo.project.name === "mobile";
   const apiCalls: string[] = [];
@@ -873,7 +900,8 @@ test("affiche une erreur si la liste des membres ne charge pas", async ({ page }
   await expect(page.getByTestId("member-count")).toBeVisible();
 });
 
-for (const path of PAGES) {
+// Les pages de l'encadrement ont leurs propres couleurs, le thème rouge : leurs contrastes sont contrôlés aussi.
+for (const path of [...PAGES, "/admin", "/direction"]) {
   test(`accessibilité WCAG AA : ${path}`, async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto(path);

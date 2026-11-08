@@ -30,13 +30,37 @@ Les jetons sont définis dans `src/styles/global.css`.
 | `surface` | `#121C3F` | Cartes |
 | `surface-2` | `#1A2650` | État actif, avatars |
 | `line` | `#2C3A6B` | Bordures |
+| `line-strong` | `#5D6C9E` | Contour des champs, carte survolée : 3,2:1 sur une carte |
 | `blue` | `#0B5FFF` | **Bouton principal uniquement** |
 | `blue-text` | `#9DBCFF` | Liens : le bleu du logo n'est pas assez contrasté sur le fond marine |
+| `flag-blue` | `#0B5FFF` | Le bleu du drapeau : filet tricolore, frontière, barre de progression. Il ne change pas avec le thème |
 | `red` | `#FF1A2E` | Filet, marqueur de page et de ligne active |
 | `muted` | `#C0C9E2` | Texte secondaire |
 | `warn` | `#FFC857` | Données périmées et erreurs de collecte |
 
 **Règle du tricolore :** en accent dans l'interface (filets, soulignement de la page active, loader). Pas de texte blanc sur le rouge vif, trop peu contrasté à petite taille.
+
+### Thème rouge de l'encadrement
+
+`/direction` et `/admin` sont rouges : l'encadrement sait d'un coup d'œil qu'il est dans son espace. Ces pages passent `theme="rouge"` à `Base.astro`, qui pose `data-theme="rouge"` sur `<html>`. `global.css` redonne alors à chaque jeton une teinte rouge, rôle pour rôle : aucun composant n'a de couleur à lui. Les noms ne changent pas : `navy` y est un bordeaux très sombre, `blue` le rouge du bouton principal.
+
+| Jeton | Thème rouge | Contraste vérifié |
+|---|---|---|
+| `navy` | `#300A10` | Texte blanc 17,9:1. Le fond porte une lueur rouge et un reflet bleu |
+| `night` | `#22060B` | Texte blanc 19,1:1 |
+| `surface` | `#3F121A` | Texte blanc 16:1, `muted` 9,6:1, liens 8,1:1 |
+| `surface-2` | `#501A23` | Texte blanc 13,9:1, liens 7,1:1 |
+| `line` | `#6B2C37` | Bordures |
+| `line-strong` | `#9E5D68` | 3,2:1 sur une carte, 3,8:1 sur `night` |
+| `blue` | `#D4132F` | Bouton principal : texte blanc 5,3:1, et 7,1:1 au survol (`#B00F27`) |
+| `blue-text` | `#FF9DAD` | Liens |
+| `muted` | `#E2C0C6` | Texte secondaire |
+
+- Le filet tricolore, la frontière et la barre de progression gardent le bleu du drapeau (`flag-blue`) : c'est l'identité du clan.
+- Les effets s'inversent : le rouge mène et le bleu répond. Clic gauche et toucher rouges, clic droit bleu, traînée du curseur et territoires ambiants surtout rouges.
+- `.form-problem`, un refus du serveur ou un avertissement comme « Absent de la liste », s'y écrit en jaune `warn`, la couleur de « Plus dans la liste » : en rose, il se perdrait dans le décor.
+- `/compte` reste bleu : c'est la page de chaque membre, pas un espace de l'encadrement.
+- Un test e2e vérifie que ces deux pages sont rouges et que toutes les autres restent bleues. Axe contrôle aussi leurs contrastes, mais les tests construisent le site sans serveur de connexion : il n'y voit que la carte « connexion pas ouverte ». Les vrais écrans (tuiles, formulaires, tableau, onglets, refus en jaune) n'ont été contrôlés qu'une fois, le 8 novembre 2026, par axe avec un faux serveur, sur bureau et téléphone.
 
 ## Scènes
 
@@ -113,6 +137,8 @@ L'idée centrale reprend le principe d'OpenFront, la conquête de territoire : d
 | Modifier le calculateur | L'attaque se rejoue : le bot est conquis pendant que les troupes fondent |
 | Rien | Lente flottaison du logo, petits territoires qui naissent et disparaissent seuls, frontière qui fait parfois le tour d'un bloc |
 
+Sur les pages rouges de l'encadrement, le bleu et le rouge échangent leurs rôles dans tous ces gestes : traînée du curseur, clic gauche, toucher et territoires ambiants y sont rouges, le clic droit et l'onde qu'il lance bleus.
+
 ### Le film de la carte
 
 C'est le seul effet qui affiche des données : chaque image vient de l'historique officiel de la carte des clans. La page s'ouvre directement sur la carte, en plein écran sur un grand écran, avec le titre, le classement et les commandes posés dessus. Sous 1 200 px, tout s'empile et les commandes restent collées à la carte, dont la hauteur se limite sur un écran en paysage pour garder le bouton de lecture dans le premier écran. La carte finale s'affiche d'abord, puis le film démarre en fondu : du premier pixel à la première visite, et seulement la suite quand le visiteur revient (`src/lib/clanmap/reprise.ts`, à partir du relevé de « Depuis votre dernière visite »). Cette page est calme : ses blocs apparaissent sans la conquête case par case des autres pages (`calm` de `Base.astro`, qui pose `data-fx-calm`).
@@ -179,7 +205,7 @@ Le code est dans `src/scripts/fx.ts`, et sa logique testable dans `src/lib/fx/te
 - Animations continues interruptibles par le bouton pause, comme l'exige le critère WCAG 2.2.2. Toutes les interactions à la souris sont décoratives : aucune information n'en dépend.
 - Les chiffres qui défilent sont masqués aux lecteurs d'écran, qui reçoivent uniquement la valeur finale.
 - Graphiques de la page Progression doublés par des tableaux, identité jamais portée par la seule couleur.
-- Tests automatiques axe (WCAG 2.1 A et AA) sur les 8 pages en desktop et mobile. Ces tests ne remplacent pas un essai avec un lecteur d'écran, qui n'a pas été fait. Ils ne peuvent pas non plus toujours mesurer un contraste sur un dégradé : le texte des scènes a été choisi clair et vérifié à l'œil sur les captures.
+- Tests automatiques axe (WCAG 2.1 A et AA) sur les 13 pages publiques et les deux pages rouges de l'encadrement, en desktop et mobile. Ces tests ne remplacent pas un essai avec un lecteur d'écran, qui n'a pas été fait. Ils ne peuvent pas non plus toujours mesurer un contraste sur un dégradé : le texte des scènes a été choisi clair et vérifié à l'œil sur les captures.
 - Absence de défilement horizontal testée à 360, 375, 768, 1 024, 1 280 et 1 920 px. Ces tests tournent sans barre de défilement visible : une vraie barre retire 15 px de largeur, ce qui peut révéler un débordement qu'ils ne voient pas.
 
 ## États des données

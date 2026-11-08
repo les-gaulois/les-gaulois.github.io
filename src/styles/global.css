@@ -8,9 +8,13 @@
   --color-surface: #121c3f;
   --color-surface-2: #1a2650;
   --color-line: #2c3a6b;
+  /* Contour des champs et carte survolée : 3:1 au moins sur une carte. */
+  --color-line-strong: #5d6c9e;
   --color-blue: #0b5fff;
   --color-blue-hover: #0a4fd6;
   --color-blue-text: #9dbcff;
+  /* Le bleu du drapeau : filet tricolore, frontière, barre de progression. Il ne change pas avec le thème. */
+  --color-flag-blue: #0b5fff;
   --color-red: #ff1a2e;
   --color-muted: #c0c9e2;
   --color-win: #4c86f5;
@@ -18,6 +22,40 @@
   --color-warn: #ffc857;
   --font-display: "Outfit Variable", system-ui, sans-serif;
   --font-sans: "Inter Variable", system-ui, sans-serif;
+}
+
+/* Le décor de la page : une lueur bleue, un reflet rouge et le halo qui suit le curseur. */
+:root {
+  --glow: rgb(11 95 255 / 0.32);
+  --reflection: rgb(255 26 46 / 0.1);
+  --aurora: rgb(61 127 255 / 0.2);
+}
+
+/* ---------- Thème rouge : les pages de l'encadrement ---------- */
+/* /direction et /admin passent theme="rouge" à Base.astro, qui pose data-theme="rouge" sur <html>.
+   Chaque jeton garde son rôle et prend une teinte rouge : aucun composant ne change.
+   Contrastes vérifiés dans docs/DESIGN.md, section « Thème rouge de l'encadrement ». */
+:root[data-theme="rouge"] {
+  --color-navy: #300a10;
+  --color-night: #22060b;
+  --color-surface: #3f121a;
+  --color-surface-2: #501a23;
+  --color-line: #6b2c37;
+  --color-line-strong: #9e5d68;
+  --color-blue: #d4132f;
+  --color-blue-hover: #b00f27;
+  --color-blue-text: #ff9dad;
+  --color-muted: #e2c0c6;
+  --glow: rgb(255 26 46 / 0.3);
+  --reflection: rgb(11 95 255 / 0.1);
+  --aurora: rgb(255 61 90 / 0.18);
+}
+:root[data-theme="rouge"] .btn-secondary:hover {
+  background: #f8e3e6;
+}
+/* Sur fond rouge, un refus écrit en rose se perdrait : il prend le jaune des avertissements. */
+:root[data-theme="rouge"] .form-problem {
+  color: var(--color-warn);
 }
 
 /* Variables non héritées : les modifier au survol ne recalcule pas tout le contenu d'un bloc. */
@@ -60,10 +98,10 @@ html {
 body {
   min-height: 100dvh;
   overflow-wrap: anywhere;
-  /* Un environnement plutôt qu'un fond : une lueur bleue et un reflet rouge sur la nuit. */
+  /* Un environnement plutôt qu'un fond : une lueur bleue et un reflet rouge sur la nuit (l'inverse dans le thème rouge). */
   background:
-    radial-gradient(70rem 42rem at 88% -8rem, rgb(11 95 255 / 0.32), transparent 70%),
-    radial-gradient(48rem 30rem at -8% 24rem, rgb(255 26 46 / 0.1), transparent 70%),
+    radial-gradient(70rem 42rem at 88% -8rem, var(--glow), transparent 70%),
+    radial-gradient(48rem 30rem at -8% 24rem, var(--reflection), transparent 70%),
     var(--color-navy);
   background-repeat: no-repeat;
 }
@@ -125,7 +163,7 @@ a:not([class]):hover {
   border-radius: 2px;
   background: linear-gradient(
     90deg,
-    var(--color-blue) 0 32%,
+    var(--color-flag-blue) 0 32%,
     transparent 32% 34%,
     #fff 34% 66%,
     transparent 66% 68%,
@@ -160,7 +198,7 @@ main .card {
   position: relative;
 }
 main .card:hover {
-  border-color: #5d6c9e;
+  border-color: var(--color-line-strong);
 }
 /* Frontière : une lumière tricolore fait le tour de la bordure d'un bloc. */
 .stage::before,
@@ -176,7 +214,7 @@ main .card::before {
   background: conic-gradient(
     from var(--angle),
     transparent 0 58%,
-    var(--color-blue) 70%,
+    var(--color-flag-blue) 70%,
     #fff 82%,
     var(--color-red) 94%,
     transparent 100%
@@ -331,7 +369,7 @@ main .card:hover::before {
   min-height: 2.75rem;
   padding: 0.5rem 0.75rem;
   background: var(--color-night);
-  border: 1px solid #5d6c9e;
+  border: 1px solid var(--color-line-strong);
   border-radius: 0.75rem;
   color: #fff;
 }
@@ -587,7 +625,7 @@ th.fx-cross {
   bottom: 0;
   width: 2px;
   opacity: 0;
-  background: linear-gradient(var(--color-blue), #fff, var(--color-red));
+  background: linear-gradient(var(--color-flag-blue), #fff, var(--color-red));
   pointer-events: none;
   animation: sweep 0.95s cubic-bezier(0.3, 0.6, 0.4, 1) backwards;
 }
@@ -672,7 +710,7 @@ th.fx-cross {
   border-radius: 5px;
 }
 .meter-gal > i {
-  background: linear-gradient(90deg, var(--color-blue), #fff 70%, var(--color-red));
+  background: linear-gradient(90deg, var(--color-flag-blue), #fff 70%, var(--color-red));
 }
 .meter-other > i {
   background: #6f7fb3;
@@ -905,13 +943,13 @@ th.fx-cross {
 .film-range::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 2px;
-  background: #5d6c9e;
+  background: var(--color-line-strong);
 }
 .film-scrub > input::-moz-range-track,
 .film-range::-moz-range-track {
   height: 4px;
   border-radius: 2px;
-  background: #5d6c9e;
+  background: var(--color-line-strong);
 }
 .film-scrub > input::-webkit-slider-thumb,
 .film-range::-webkit-slider-thumb {
@@ -1178,7 +1216,7 @@ header a:hover img {
   z-index: 50;
   width: 100%;
   height: 3px;
-  background: linear-gradient(90deg, var(--color-blue) 33.3%, #fff 33.3% 66.6%, var(--color-red) 66.6%);
+  background: linear-gradient(90deg, var(--color-flag-blue) 33.3%, #fff 33.3% 66.6%, var(--color-red) 66.6%);
   transform: scaleX(0);
   transform-origin: left;
   pointer-events: none;
@@ -1191,7 +1229,7 @@ header a:hover img {
   width: 60rem;
   height: 60rem;
   pointer-events: none;
-  background: radial-gradient(closest-side, rgb(61 127 255 / 0.2), transparent);
+  background: radial-gradient(closest-side, var(--aurora), transparent);
   transform: translate3d(75vw, 5vh, 0);
   will-change: transform;
 }

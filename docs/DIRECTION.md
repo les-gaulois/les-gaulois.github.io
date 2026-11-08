@@ -16,6 +16,7 @@ Sans `PUBLIC_SUPABASE_URL` et `PUBLIC_SUPABASE_KEY`, aucun de ces éléments n'a
 
 ## L'espace Direction : `/direction`
 
+- **En rouge :** `/direction` et `/admin` ont le thème rouge de l'encadrement ([DESIGN.md](DESIGN.md), « Thème rouge de l'encadrement »), pour qu'on sache où l'on est. Seul l'affichage change. Ces pages restent rouges pour tout visiteur, y compris en vue joueur, où elles sont fermées comme pour un membre.
 - **Ce qui attend une décision :** demandes à traiter, membres validés, encadrement, suspendus. Chaque case mène à `/admin`, qui reste l'écran de décision.
 - **Annonces et événements :** publiés sans passer par GitHub, visibles aussitôt sur l'accueil, même sans compte. Ils s'ajoutent à ceux de `content/*.json`, qui restent valables. Si le serveur ne répond pas, l'accueil garde ceux du dépôt.
 - **Transmettre le rôle de fondateur :** visible du fondateur seul. Il faut retaper le nom de la personne. L'ancien fondateur devient admin.
@@ -119,6 +120,7 @@ Il vérifie que le projet répond, que Discord est activé, que l'e-mail est cou
 - **L'espace Direction et un second compte sur le vrai Supabase.** La connexion Discord, elle, a été essayée le 6 novembre 2026 : `on_auth_user_updated` remplit bien le nom et l'identifiant depuis `auth.identities`. Le nom gardé est le nom d'utilisateur Discord, pas le nom affiché.
 - **Un vrai téléphone, Firefox et Safari.**
 - **La vue joueur avec un vrai compte de l'encadrement.** Le 8 novembre 2026, elle n'a été essayée qu'avec un faux serveur, dans un vrai navigateur : bouton, bande, en-tête, `/compte`, `/direction` et `/admin`.
+- **Le thème rouge sur les écrans connectés.** Le 8 novembre 2026, axe n'a trouvé aucun défaut sur `/direction` et `/admin` connectés, sur bureau et téléphone, mais avec un faux serveur. Les tests automatiques, construits sans serveur de connexion, ne voient de ces pages que la carte « connexion pas ouverte ».
 - **La relecture de la liste des membres sous son nouveau nom.** Le script `scripts/relire-membres.ts` reprend le code de l'ancienne tâche quotidienne. Sa première exécution sur le vrai projet se lit dans l'onglet **Actions**.
 
 ## Vérifier les membres : la limite à connaître
