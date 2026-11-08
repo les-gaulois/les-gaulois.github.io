@@ -1,0 +1,116 @@
+/**
+ * L'envoi d'une alerte de place, sur le même salon que la gazette : une phrase, l'image et un bouton vers la page.
+ * Le message ne peut mentionner personne, et le tag d'un autre clan ne peut rien y mettre en forme.
+ * L'envoi suit celui de la gazette (`gazette-discord.ts`), sans le partager : le message du lundi n'en dépend pas.
+ */
+import { alertHeadline, alertsStarted, gapParts, gapSentences, markSent, planAlert, sourceLine, type AlertState, type PlaceAlert, type PlaceReading } from "./alerts";
+import { fmtRank } from "./format";
+import { escapeDiscord, REFUSED_FORMAT, type RenderedImage } from "./gazette-discord";
+
+const discordTag = (tag: string | null) => (tag === null ? "un clan supprimé" : `[${escapeDiscord(tag)}]`);
+
+const pageOf = (alert: PlaceAlert, site: string) =>
+  alert.kind === "rank" ? { url: `${site}/classement`, label: "Voir le classement" } : { url: `${site}/carte`, label: "Voir la carte" };
+
+/** Le message. `image` : le fichier joint et sa description ; sans lui, le message part en texte, avec un lien à la place du bouton. */
+export function alertPayload(alert: PlaceAlert, tag: string, siteUrl: string, image: { alt: string; filename: string } | null): Record<string, unknown> {
+  const site = siteUrl.replace(/\/$/, "");
+  const page = pageOf(alert, site);
+  const gaps = gapSentences(gapParts(alert, discordTag));
+  const content = [`**${alertHeadline(alert, escapeDiscord(tag))}**`, ...(gaps ? [gaps] : []), `[${page.label} sur le site](<${page.url}>)`, `-# ${sourceLine(alert.reading)}`].join("\n");
+  const base = { content, avatar_url: `${site}/generated/icon-192.png`, allowed_mentions: { parse: [] } };
+  if (!image) return base;
+  return {
+    ...base,
+    attachments: [{ id: 0, filename: image.filename, description: image.alt }],
+    components: [{ type: 1, components: [{ type: 2, style: 5, label: page.label, url: page.url }] }],
+  };
+}
+
+export interface AlertSendDeps {
+  /** Un lien déjà vérifié par `isWebhookUrl`. */
+  link: string;
+  alert: PlaceAlert;
+  /** Dessine l'image. Si elle échoue, le message part en texte. */
+  renderImage: (alert: PlaceAlert) => Promise<RenderedImage>;
+  tag: string;
+  siteUrl: string;
+  fetch: typeof fetch;
+  log: (line: string) => void;
+}
+
+/**
+ * Envoie l'alerte : avec l'image d'abord, en texte si Discord refuse ce format. Un échec se retente au passage suivant.
+ * Le lien vaut un mot de passe pour ce salon : il n'est écrit dans aucun message, même d'erreur.
+ */
+export async function sendPlaceAlert({ link, alert, renderImage, tag, siteUrl, fetch: post, log }: AlertSendDeps): Promise<boolean> {
+  const requests: { url: string; init: RequestInit }[] = [
+    { url: link, init: { headers: { "Content-Type": "application/json" }, body: JSON.stringify(alertPayload(alert, tag, siteUrl, null)) } },
+  ];
+  try {
+    const { png, alt } = await renderImage(alert);
+    const filename = `alerte-${alert.kind === "rank" ? "classement" : "carte"}.png`;
+    const form = new FormData();
+    form.append("payload_json", JSON.stringify(alertPayload(alert, tag, siteUrl, { alt, filename })));
+    form.append("files[0]", new Blob([Buffer.from(png)], { type: "image/png" }), filename);
+    // Sans ce réglage, Discord ignore le bouton.
+    requests.unshift({ url: `${link}?with_components=true`, init: { body: form } });
+  } catch (e) {
+    log(`::warning::Alertes : image impossible à dessiner (${e instanceof Error ? e.message : "erreur inconnue"}), le message part en texte.`);
+  }
+  try {
+    for (const [i, request] of requests.entries()) {
+      // Une redirection changerait l'envoi en simple lecture, qui répondrait « OK » sans poster de message.
+      const response = await post(request.url, { method: "POST", redirect: "error", ...request.init });
+      if (response.ok) return true;
+      if (REFUSED_FORMAT.includes(response.status) && i < requests.length - 1) {
+        log(`::warning::Alertes : Discord a refusé le message avec image (${response.status}), il part en texte.`);
+        continue;
+      }
+      log(`::warning::Alertes : Discord a répondu ${response.status}. Nouvel essai au prochain passage.`);
+      return false;
+    }
+  } catch {
+    log("::warning::Alertes : Discord n'a pas répondu. Nouvel essai au prochain passage.");
+  }
+  return false;
+}
+
+export interface AlertPassDeps {
+  /** L'état noté au passage précédent. `null` : premier passage. */
+  stored: AlertState | null;
+  readings: { rank: PlaceReading | null; map: PlaceReading | null };
+  /** La dernière édition de la gazette envoyée : les alertes attendent la première du vrai salon (`alertsStarted`). */
+  gazetteLastSent: string | null;
+  now: Date;
+  /** Envoie l'alerte. `true` : Discord l'a acceptée. */
+  send: (alert: PlaceAlert) => Promise<boolean>;
+  log: (line: string) => void;
+}
+
+export interface AlertPassResult {
+  /** L'état à écrire. `null` : rien n'a changé, rien à écrire. */
+  state: AlertState | null;
+  /** Une alerte devait partir et Discord ne l'a pas acceptée. */
+  failed: boolean;
+}
+
+/**
+ * Un passage du robot : décide, envoie au besoin, et rend l'état à noter.
+ * La place annoncée ne change qu'après un envoi accepté. Après un échec, la place en attente reste notée : le passage suivant réessaie.
+ */
+export async function alertPass({ stored, readings, gazetteLastSent, now, send, log }: AlertPassDeps): Promise<AlertPassResult> {
+  if (!alertsStarted(gazetteLastSent)) {
+    log("Alertes : elles commencent après la gazette du lundi 9 novembre, premier message du salon.");
+    return { state: null, failed: false };
+  }
+  const plan = planAlert(stored, readings, now);
+  if (!plan.alert) {
+    log(`Alertes : rien à envoyer (${plan.reason}).`);
+    return { state: plan.state === stored ? null : plan.state, failed: false };
+  }
+  const { alert } = plan;
+  if (!(await send(alert))) return { state: plan.state, failed: true };
+  log(`Alertes : ${alert.kind === "rank" ? "classement" : "carte"}, ${fmtRank(alert.from)} puis ${fmtRank(alert.reading.rank)}, envoyée.`);
+  return { state: markSent(plan.state, alert, now), failed: false };
+}

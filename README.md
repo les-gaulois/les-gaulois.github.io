@@ -43,6 +43,7 @@ Le site s'ouvre sur http://localhost:4321. Aucun secret n'est nécessaire.
 | `npm run data:carte` | Met à jour seulement la carte des clans, sans attendre le délai d'une journée |
 | `npm run membres:relire` | Relit la liste des membres pour la connexion. Sans ses réglages, elle ne fait rien. |
 | `npm run gazette:envoyer` | Envoie la dernière gazette sur Discord. Sans son lien, elle ne fait rien : voir « La gazette sur Discord ». |
+| `npm run alertes:envoyer` | Envoie une alerte si GAL a changé de place, sur le salon de la gazette. Sans son lien, elle ne fait rien : voir « Les alertes de place ». |
 | `npm run verifier:ligne` | Contrôle le vrai projet Supabase, sans rien y écrire : voir [docs/DIRECTION.md](docs/DIRECTION.md) |
 | `npm run build` | Génère le favicon, l'image de partage et les fichiers du film, puis construit `dist/` |
 | `npm run preview` | Sert le dossier `dist/` |
@@ -205,7 +206,7 @@ Le site peut poster chaque édition de la gazette dans un salon du serveur, tout
 1. Sur Discord, dans le salon choisi : **Modifier le salon → Intégrations → Webhooks → Nouveau webhook**. Donnez-lui un nom, par exemple « Gazette GAL », sinon le message portera le nom donné par défaut. Puis **Copier l'URL du webhook**. Ce lien permet d'écrire dans le salon : il ne se partage pas.
 2. Sur GitHub, dans le dépôt : **Settings → Secrets and variables → Actions → New repository secret**, nom `DISCORD_WEBHOOK_GAZETTE`, valeur le lien copié.
 
-Au passage suivant du robot, la dernière édition part une fois. Pour un essai, posez d'abord le lien d'un salon privé : l'édition y part et sa trace est notée. Remplacez ensuite le secret par le vrai lien : le premier message du clan sera l'édition suivante.
+Au passage suivant du robot, la dernière édition part une fois. Pour un essai, posez d'abord le lien d'un salon privé : l'édition y part et sa trace est notée. Remplacez ensuite le secret par le vrai lien : le premier message du clan sera l'édition suivante. Les alertes de place partent avec le même secret, mais seulement après la gazette du lundi 9 novembre 2026 : posé avant ce lundi 9 h, le vrai lien reçoit donc d'abord cette gazette. Posé plus tard, le premier message du salon peut être une alerte.
 
 Chaque nouvelle édition part ensuite le lundi, au premier passage du robot après 9 h, heure de Paris, donc vers 9 h 53. Le premier passage du lundi relit exprès la liste des membres et le film de la carte, pour couvrir le dimanche. Si l'une de ces lectures échoue, le message l'attend jusqu'au premier passage après 21 h, puis part sans ce qui manque. Les semaines passées ne sont pas rattrapées. Seul le robot de la branche `main` envoie. Si Discord ne répond pas, le robot réessaie au passage suivant, et la collecte continue. La dernière édition envoyée est notée dans `data/gazette-envoi.json`, écrit par le robot seulement.
 
@@ -216,6 +217,24 @@ Le message est une image dessinée par le robot (`src/lib/gazette-image.ts`), av
 Pour arrêter, supprimez le secret. Supprimer seulement le webhook laisse le robot réessayer à chaque passage, sans rien poster. Une panne se lit dans l'onglet **Actions** : l'Action reste verte, mais l'étape « Envoyer la gazette sur Discord » porte un avertissement qui commence par « Gazette : ».
 
 Le robot envoie après avoir enregistré les données : s'il ne peut plus pousser sur `main`, plus rien ne part. Limite : s'il envoie le message puis n'arrive pas à noter l'envoi après trois essais, l'édition repart une fois au passage suivant.
+
+## Les alertes de place
+
+Le robot poste aussi un message quand GAL gagne ou perd une place, au classement officiel des clans ou sur la carte des clans. Il utilise le même salon et le même secret que la gazette : il n'y a rien d'autre à régler. Supprimer le secret arrête les deux. Tant que le secret pointe vers un salon d'essai, les alertes y partent aussi, et elles comptent comme annoncées : elles ne repartent pas vers le vrai salon.
+
+Peu de messages, et seulement du vrai (`src/lib/alerts.ts`) :
+
+- **Lancement :** les alertes commencent après l'envoi de la gazette du lundi 9 novembre 2026, pour qu'elle soit le premier message du salon.
+- **Classement :** OpenFront le recalcule environ une fois par heure, et `end` date chaque calcul. Un changement de place ne compte que s'il tient sur deux calculs, à au moins 50 minutes d'écart, du même côté de la place annoncée, et l'alerte donne la place du dernier. Une place qui fait le yo-yo d'un calcul à l'autre n'envoie rien.
+- **Carte :** relevée environ une fois par jour. Chaque relevé est comparé à la dernière place annoncée. L'alerte attend le passage suivant du robot, pour que le bouton montre la nouvelle carte. C'est le territoire en pixels, pas le classement des clans, et le message le dit.
+- **Le site :** l'alerte du classement part dès le second calcul. Le site montre déjà la place, sauf si elle a encore bougé au dernier calcul, comme 3e puis 4e : il peut alors montrer la précédente quelques minutes. Attendre davantage ferait taire une chute continue, car le robot ne lit en général chaque calcul qu'une fois.
+- **Jamais la nuit :** de 23 h à 8 h, heure de Paris, l'alerte attend le matin. Si la place est revenue entre-temps, rien ne part.
+- **Au plus deux alertes par jour** à Paris, une seule par passage du robot, et seulement sur un relevé récent : moins de 2 heures pour le classement, moins d'un jour pour la carte.
+- **Au premier passage**, les places du moment servent de départ : rien n'est envoyé.
+
+Le message donne la nouvelle place, l'écart avec les clans juste devant et juste derrière, et l'heure du relevé, avec une image (`src/lib/alerts-image.ts`, même dessin que la gazette) et un bouton vers `/classement` ou `/carte`. Il ne peut mentionner personne, et les tags des autres clans sont échappés. Si GAL sort du classement ou n'a plus de pixel sur la carte, rien ne part ; à son retour, sa place est comparée à la dernière annoncée.
+
+La place annoncée, celle qui attend un second calcul et les envois du jour sont notés dans `data/alertes-envoi.json`, écrit par le robot seulement. S'il devient illisible, les places du moment servent de nouveau départ, avec un avertissement : seule une alerte en attente peut s'y perdre. Une panne se lit comme pour la gazette : l'étape « Envoyer les alertes de place sur Discord » porte un avertissement qui commence par « Alertes : ». Même limite aussi : une alerte envoyée mais non notée repart une fois.
 
 ## Animations
 
@@ -230,6 +249,7 @@ Les effets au curseur et aux clics sont dans `src/scripts/fx.ts`. Ils sont décr
 - Une fiche peut écrire « Pas de données » pour ses dernières parties, sans en donner la raison : pas encore lues, joueur qui ne répond pas, ou parties trop anciennes pour la lecture, limitée à quelques pages. Les parties de chaque joueur restent hors de Git, mais les anciennes versions de la liste des membres sont dans son historique public. Si le cache de l'Action est perdu, les fiches écrivent « Pas de données » le temps de se remplir.
 - Le lien « Ouvrir » de la page Dernières parties mène à `https://openfront.io/game/:id`, adresse que le jeu utilise pour partager une partie, sans être documentée. Le 7 novembre 2026, seules les parties jouées avec la version actuelle du jeu s'y rejouaient : les autres partent vers `replay.openfront.io`, qui échoue. La page le dit. Si ce n'est plus vrai, ou si l'adresse change, il faut reprendre cette note et `replayUrl`.
 - La gazette ne donne le rang que depuis le 5 novembre 2026, premier relevé, et le territoire que depuis le 29 octobre 2026, début de la carte. Le lundi matin, le territoire du dimanche peut venir d'un relevé fait dans la journée : sa date reste écrite, et le chiffre se précise avec le film suivant. Ses arrivées ne comptent que les membres encore dans le clan : une ancienne édition perd donc un arrivant quand il repart. Elles attendent une liste de membres relevée après le dimanche : le lundi matin, elles peuvent rester en « Pas de données » jusqu'à la relecture suivante de la liste, au plus tard le soir.
+- Une alerte de place n'est pas instantanée : le robot passe une à deux fois par heure, un changement au classement attend le calcul suivant d'OpenFront, la carte n'est relevée qu'une fois par jour, puis son alerte attend le passage suivant. La nuit, l'alerte attend 8 h.
 - Le détail des parties se lit petit à petit, des plus récentes aux plus anciennes : les pages disent combien sont lues, et les totaux depuis le début n'apparaissent qu'à la fin de cette lecture. Une partie qui ne répond pas reste à lire : rien de définitif n'est écrit. Après 25 échecs dans un passage, ou 5 sans aucune partie lue, la page signale une panne. Les équipes des clans sont retrouvées par calcul tant que les fiches ne les donnent pas : si OpenFront change sa façon de les former, il faudra adapter `placeClans`.
 - La route documentée de la carte ne donne pas les troupes des clans. Le site n'affiche donc pas le coût exact d'un pixel ennemi. Le message prévu pour OpenFront, à la section 10 de [docs/API_AUDIT.md](docs/API_AUDIT.md), demande cette donnée.
 - Le trésor vient de `/clans/GAL`, une route non documentée. Elle n'a pas répondu à la collecte sur GitHub le 6 novembre 2026 : la page écrit donc « Pas de données » pour les réserves du clan.

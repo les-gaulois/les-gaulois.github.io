@@ -29,6 +29,9 @@ const MUTED = "#C0C9E2";
 const WHITE = "#FFFFFF";
 const LOSS = "#D9742E";
 
+/** Les mêmes couleurs, pour les autres images du robot. `WIN` : le bleu des victoires dans les graphiques. */
+export const CARD_COLORS = { NAVY, SURFACE, SURFACE_2, BLUE, BLUE_TEXT, RED, MUTED, WHITE, LOSS, WIN: "#4C86F5" } as const;
+
 export type CardFont = "title" | "strong" | "body";
 
 export interface CardText {
@@ -63,7 +66,7 @@ export interface GazetteCard {
 export type Measure = (text: string, font: CardFont, size: number) => number;
 
 /** Réduit un texte pour qu'il tienne, puis le coupe s'il dépasse encore à la plus petite taille. */
-function fitted(text: string, font: CardFont, size: number, minSize: number, maxWidth: number, measure: Measure): { text: string; size: number } {
+export function fitted(text: string, font: CardFont, size: number, minSize: number, maxWidth: number, measure: Measure): { text: string; size: number } {
   for (let s = size; s >= minSize; s--) if (measure(text, font, s) <= maxWidth) return { text, size: s };
   let cut = [...text];
   while (cut.length > 1 && measure(`${cut.join("")}…`, font, minSize) > maxWidth) cut = cut.slice(0, -1);

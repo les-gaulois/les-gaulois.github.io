@@ -45,7 +45,7 @@ export const escapeDiscord = (text: string) => text.replace(/\s+/g, " ").trim().
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 /** Requête refusée, droits du salon sur les fichiers, fichier trop lourd. Un lien mort (401, 404) ou une limite (429) n'en font pas partie. */
-const REFUSED_FORMAT = [400, 403, 413];
+export const REFUSED_FORMAT = [400, 403, 413];
 const COLOR = 0x0b5fff;
 
 function playerLines(players: readonly WeekPlayer[]): string {
