@@ -61,7 +61,8 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   if (isClosed(bootstrap.status)) add("Un visiteur ne peut pas se désigner fondateur", "ok");
   else add("Un visiteur ne peut pas se désigner fondateur", "fail", `Réponse ${bootstrap.status}. Le fichier …_droits.sql n'a sans doute pas été installé : ne mettez pas en ligne.`);
 
-  for (const table of ["profiles", "private_links", "admin_log", "clan_roster", "site_announcements"]) {
+  // Les réponses « Je viens » et les votes sont dans le schéma `internal`, que l'API ne montre pas : rien à lire ici.
+  for (const table of ["profiles", "private_links", "admin_log", "clan_roster", "site_announcements", "polls"]) {
     const res = await fetcher(`${base}/rest/v1/${table}?select=*&limit=1`, { headers: anonHeaders });
     const rows = res.ok ? ((await res.json()) as unknown[]) : [];
     if (isClosed(res.status) || (res.ok && rows.length === 0)) add(`Un visiteur ne lit pas la table ${table}`, "ok");

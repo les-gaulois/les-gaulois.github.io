@@ -13,6 +13,7 @@ const HEALTHY: Record<string, Route> = {
   "/rest/v1/admin_log": { status: 401, body: {} },
   "/rest/v1/clan_roster": { status: 401, body: {} },
   "/rest/v1/site_announcements": { status: 401, body: {} },
+  "/rest/v1/polls": { status: 401, body: {} },
   "/rest/v1/app_state": { status: 200, body: [{ value: {} }] },
 };
 
@@ -64,6 +65,8 @@ describe("le contrôle de la mise en ligne", () => {
   it("bloque si un visiteur lit une table privée, mais pas si elle est vide", async () => {
     expect(await statusOf({ ...HEALTHY, "/rest/v1/private_links": { status: 200, body: [{ discord_id: "1" }] } }, "private_links")).toBe("fail");
     expect(await statusOf({ ...HEALTHY, "/rest/v1/private_links": { status: 200, body: [] } }, "private_links")).toBe("ok");
+    // Les sondages ne se lisent que par les fonctions : la table elle-même reste fermée.
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/polls": { status: 200, body: [{ question: "Quel soir ?" }] } }, "table polls")).toBe("fail");
   });
 
   it("s'arrête net si la clé publique est une clé secrète, sans rien envoyer", async () => {

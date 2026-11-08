@@ -15,7 +15,7 @@ Le visiteur doit savoir où chercher, et avoir une raison de revenir. Le plan es
 - **Un contenu, une page.** L'accueil résume et renvoie ; il ne recopie pas un bloc entier. Une autre page peut citer un chiffre, en renvoyant à sa page.
 - **Le chiffre d'abord, l'explication à la demande.** Les précisions de méthode sont dans `ReadingNote.astro`, repliées mais dans le HTML. Ce qui doit rester visible ne s'y met jamais : mentions de licence, couverture de la lecture, pannes et suspensions, et ce qui change la lecture d'un chiffre, comme sa période, le périmètre des parties ou la réserve sur un taux.
 - **Une page courte.** Une longue liste montre ses premières lignes et garde le reste à portée : 25 clans au classement, 25 parties dans le journal, les chapitres du guide en sommaire qui s'ouvre.
-- **Un bloc vide n'existe pas.** Sans annonce ni événement, l'accueil n'affiche pas de bloc vide. Pour une donnée attendue, « Pas de données » reste la règle.
+- **Un bloc vide n'existe pas.** Sans annonce, événement ni sondage, l'accueil n'affiche pas de bloc vide. Pour une donnée attendue, « Pas de données » reste la règle.
 - **Une raison de revenir.** L'accueil dit ce qui a changé depuis la dernière visite, retient son pseudo si on le demande, et donne l'objectif du moment sur la carte et le prochain bilan. Le film de la carte reprend où le visiteur l'avait laissé, et la dernière journée se rejoue d'un clic. Tout reste dans le navigateur du visiteur.
 - **Pas de fondu entre les pages.** Essayé le 7 novembre 2026 avec `@view-transition` : il provoquait des erreurs intermittentes vers la page Carte. Les pages sont statiques, et leur changement est déjà rapide.
 
@@ -116,6 +116,7 @@ Le build en tire des versions légères dans `public/generated/`, et le site n'a
 - **Comparateur de clans (page Nos rivaux) :** un vrai tableau à trois colonnes, sans jauge ni couleur par gagnant : le site ne dit pas lequel des deux est meilleur. L'écart est écrit en toutes lettres, annoncé aux lecteurs d'écran, et doublé d'un tableau repliable dès le deuxième relevé.
 - **Paliers (page Membres et fiches) :** du texte et des noms, sans classement de jauges. Sur une fiche, la jauge va du palier atteint au suivant, et sa valeur est écrite juste au-dessus. Au-delà de 12 pseudos, un palier se replie : tout reste dans le HTML et s'ouvre sans JavaScript.
 - **Dernières parties :** un vrai tableau à partir de 1 024 px, des cartes en dessous. Les 25 premières lignes sont dans le HTML. Le résultat est écrit en toutes lettres : la pastille bleue ou orange ne porte jamais seule l'information.
+- **Sondages (accueil et espace Direction) :** une jauge `.meter` par choix, dont la longueur est la part des voix. Le nombre de voix et la part sont écrits à côté, et la jauge est masquée aux lecteurs d'écran. Le choix du membre connecté est écrit en toutes lettres, « votre choix ». Avant la première voix, aucune part n'est inventée : les jauges restent vides et seul « 0 voix » s'affiche.
 - **Croissance des troupes (page Guides) :** une seule courbe calculée, en bleu `#4C86F5`, avec la zone de 35 à 42 % en surbrillance. Le survol lit une valeur, et un tableau repliable donne les mêmes chiffres sans survol.
 
 ## Mouvement et interactions

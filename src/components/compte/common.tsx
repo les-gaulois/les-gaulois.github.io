@@ -119,3 +119,47 @@ export function Loading({ label = "Lecture en cours…" }: { label?: string }) {
 export function Empty({ children }: { children: ComponentChildren }) {
   return <p class="text-muted">{children}</p>;
 }
+
+/** Une suppression ne part qu'au second clic : le texte, lui, ne se récupère pas. */
+export function DeleteButton({ busy, onConfirm, label }: { busy: boolean; onConfirm: () => void; label: string }) {
+  const [armed, setArmed] = useState(false);
+  return (
+    <button
+      type="button"
+      class="btn btn-ghost !min-h-10 !py-1.5 !text-sm"
+      disabled={busy}
+      aria-label={armed ? `Confirmer la suppression de « ${label} »` : `Supprimer « ${label} »`}
+      onClick={() => {
+        if (armed) onConfirm();
+        else setArmed(true);
+      }}
+      onBlur={() => setArmed(false)}
+    >
+      {armed ? "Confirmer la suppression" : "Supprimer"}
+    </button>
+  );
+}
+
+/** Exécute une action : `true` si le serveur l'accepte, sinon son refus s'affiche. */
+export function useRun(after: () => Promise<void>) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState<string | null>(null);
+  const run = async (action: () => Promise<unknown>, success: string): Promise<boolean> => {
+    setBusy(true);
+    setError(null);
+    setDone(null);
+    try {
+      await action();
+      setDone(success);
+      await after();
+      return true;
+    } catch (e) {
+      setError(messageOf(e));
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  };
+  return { busy, error, done, run };
+}

@@ -31,6 +31,16 @@ export const ERROR_MESSAGES: Record<string, string> = {
   already_linked: "Ce joueur OpenFront est déjà lié à un compte. Parlez-en à un officier sur Discord.",
   request_not_found: "Cette demande n'existe plus.",
   request_closed: "Cette demande a déjà été traitée.",
+
+  invalid_repeat: "Choisissez de 2 à 12 semaines.",
+  event_over: "Cet événement est passé, ou n'existe plus.",
+  invalid_question: "Posez une question, en 200 caractères au plus.",
+  invalid_options: "Donnez de 2 à 6 choix différents, de 80 caractères au plus chacun.",
+  invalid_close: "La fin du sondage doit tomber dans les 90 prochains jours.",
+  poll_not_found: "Ce sondage n'existe plus.",
+  poll_closed: "Ce sondage est fermé.",
+  invalid_option: "Ce choix n'existe pas. Rechargez la page.",
+  too_many_polls: "Trois sondages sont déjà ouverts : fermez-en un avant d'en lancer un autre.",
 };
 
 export function errorMessage(code: string): string {

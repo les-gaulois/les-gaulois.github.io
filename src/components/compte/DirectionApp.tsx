@@ -5,7 +5,9 @@ import { ROLE_LABELS, type MemberRow, type Role } from "../../lib/compte/types";
 import { setPlayerView } from "../../lib/compte/vue-joueur";
 import type { SiteHealthInput } from "../../lib/etat-site";
 import { fmtDate, fmtDateTime, fmtInt } from "../../lib/format";
-import { DiscordButton, Loading, Problem, Success, messageOf, useMe } from "./common";
+import { DeleteButton, DiscordButton, Loading, Problem, Success, messageOf, useMe, useRun } from "./common";
+import DirectionPolls, { EMPTY_POLL, type PollDraft } from "./DirectionPolls";
+import DirectionWelcome from "./DirectionWelcome";
 import SiteHealth from "./SiteHealth";
 
 interface NewsRow {
@@ -42,54 +44,12 @@ function Tile({ label, value, href, alert = false }: { label: string; value: num
   );
 }
 
-/** Une suppression ne part qu'au second clic : le texte, lui, ne se récupère pas. */
-function DeleteButton({ busy, onConfirm, label }: { busy: boolean; onConfirm: () => void; label: string }) {
-  const [armed, setArmed] = useState(false);
-  return (
-    <button
-      type="button"
-      class="btn btn-ghost !min-h-10 !py-1.5 !text-sm"
-      disabled={busy}
-      aria-label={armed ? `Confirmer la suppression de « ${label} »` : `Supprimer « ${label} »`}
-      onClick={() => {
-        if (armed) onConfirm();
-        else setArmed(true);
-      }}
-      onBlur={() => setArmed(false)}
-    >
-      {armed ? "Confirmer la suppression" : "Supprimer"}
-    </button>
-  );
-}
-
-/** Exécute une action : `true` si le serveur l'accepte, sinon son refus s'affiche. */
-function useRun(after: () => Promise<void>) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<string | null>(null);
-  const run = async (action: () => Promise<unknown>, success: string): Promise<boolean> => {
-    setBusy(true);
-    setError(null);
-    setDone(null);
-    try {
-      await action();
-      setDone(success);
-      await after();
-      return true;
-    } catch (e) {
-      setError(messageOf(e));
-      return false;
-    } finally {
-      setBusy(false);
-    }
-  };
-  return { busy, error, done, run };
-}
-
 const EMPTY_ANNOUNCEMENT = { id: null as number | null, title: "", body: "", url: "" };
 type AnnouncementDraft = typeof EMPTY_ANNOUNCEMENT;
-const EMPTY_EVENT = { id: null as number | null, title: "", description: "", url: "", start: "" };
+// `repeat` et `weeks` : seulement pour un nouvel événement. Une série crée un événement par semaine, chacun modifiable seul.
+const EMPTY_EVENT = { id: null as number | null, title: "", description: "", url: "", start: "", repeat: false, weeks: "4" };
 type EventDraft = typeof EMPTY_EVENT;
+const SERIES_WEEKS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
 function Announcements({ rows, reload, form, setForm }: { rows: AnnouncementRow[]; reload: () => Promise<void>; form: AnnouncementDraft; setForm: (draft: AnnouncementDraft) => void }) {
   const empty = EMPTY_ANNOUNCEMENT;
@@ -168,15 +128,22 @@ function Announcements({ rows, reload, form, setForm }: { rows: AnnouncementRow[
   );
 }
 
-function Events({ rows, reload, form, setForm }: { rows: EventRow[]; reload: () => Promise<void>; form: EventDraft; setForm: (draft: EventDraft) => void }) {
+function Events({ rows, attendance, reload, form, setForm }: { rows: EventRow[]; attendance: Map<number, string[]> | null | undefined; reload: () => Promise<void>; form: EventDraft; setForm: (draft: EventDraft) => void }) {
   const empty = EMPTY_EVENT;
   const { busy, error, done, run } = useRun(reload);
 
   const save = async () => {
-    const ok = await run(
-      () => call("save_event", { p_id: form.id, p_title: form.title, p_description: form.description || null, p_url: form.url || null, p_starts_at: form.start ? new Date(form.start).toISOString() : null }),
-      form.id ? "Événement modifié." : "Événement publié : il est visible sur l'accueil.",
-    );
+    const start = form.start ? new Date(form.start).toISOString() : null;
+    const series = form.id === null && form.repeat;
+    const ok = series
+      ? await run(
+          () => call("save_event_series", { p_title: form.title, p_description: form.description || null, p_url: form.url || null, p_starts_at: start, p_weeks: Number(form.weeks) }),
+          `${form.weeks} événements publiés, un par semaine. L'accueil ne montre que le prochain.`,
+        )
+      : await run(
+          () => call("save_event", { p_id: form.id, p_title: form.title, p_description: form.description || null, p_url: form.url || null, p_starts_at: start }),
+          form.id ? "Événement modifié." : "Événement publié : il est visible sur l'accueil.",
+        );
     if (ok) setForm(empty);
   };
 
@@ -216,9 +183,31 @@ function Events({ rows, reload, form, setForm }: { rows: EventRow[]; reload: () 
           </label>
           <input id="evt-u" class="field mt-1" type="url" maxLength={500} value={form.url} onInput={(e) => setForm({ ...form, url: e.currentTarget.value })} />
         </div>
+        {form.id === null && (
+          <div class="flex flex-wrap items-end gap-x-4 gap-y-2">
+            <label class="flex min-h-11 items-center gap-2 text-sm font-semibold">
+              <input type="checkbox" class="size-5" checked={form.repeat} onChange={(e) => setForm({ ...form, repeat: e.currentTarget.checked })} />
+              Répéter chaque semaine
+            </label>
+            {form.repeat && (
+              <div>
+                <label for="evt-w" class="text-sm font-semibold">
+                  Pendant
+                </label>
+                <select id="evt-w" class="field mt-1 !w-auto" value={form.weeks} onChange={(e) => setForm({ ...form, weeks: e.currentTarget.value })}>
+                  {SERIES_WEEKS.map((n) => (
+                    <option key={n} value={String(n)}>
+                      {n} semaines
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+        )}
         <div class="flex flex-wrap gap-2">
           <button type="submit" class="btn btn-primary" disabled={busy}>
-            {form.id ? "Enregistrer" : "Publier l'événement"}
+            {form.id ? "Enregistrer" : form.repeat ? `Publier ${form.weeks} événements` : "Publier l'événement"}
           </button>
           {form.id && (
             <button type="button" class="btn btn-ghost" onClick={() => setForm(empty)}>
@@ -229,31 +218,40 @@ function Events({ rows, reload, form, setForm }: { rows: EventRow[]; reload: () 
       </form>
       <Problem message={error} />
       {done && <Success message={done} />}
+      {rows.length > 0 && attendance === null && <p class="mt-3 text-sm text-warn">Les réponses « Je viens » n'ont pas pu être lues : rechargez la page.</p>}
       {rows.length > 0 && (
         <ul class="mt-5 grid gap-3">
-          {rows.map((ev) => (
-            <li key={ev.id} class="border-t border-line pt-3" data-testid="direction-event">
-              <p class="font-semibold">{ev.title}</p>
-              <p class="tnum text-xs text-muted">
-                {fmtDateTime(ev.starts_at)}
-                {ev.author ? ` · ${ev.author}` : ""}
-              </p>
-              {ev.editable && (
-                <div class="mt-2 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    class="btn btn-ghost !min-h-10 !py-1.5 !text-sm"
-                    disabled={busy}
-                    aria-label={`Modifier « ${ev.title} »`}
-                    onClick={() => setForm({ id: ev.id, title: ev.title, description: ev.description ?? "", url: ev.url ?? "", start: toLocalInput(ev.starts_at) })}
-                  >
-                    Modifier
-                  </button>
-                  <DeleteButton busy={busy} label={ev.title} onConfirm={() => void run(() => call("delete_event", { p_id: ev.id }), "Événement supprimé.")} />
-                </div>
-              )}
-            </li>
-          ))}
+          {rows.map((ev) => {
+            const names = attendance?.get(ev.id) ?? [];
+            return (
+              <li key={ev.id} class="border-t border-line pt-3" data-testid="direction-event">
+                <p class="font-semibold">{ev.title}</p>
+                <p class="tnum text-xs text-muted">
+                  {fmtDateTime(ev.starts_at)}
+                  {ev.author ? ` · ${ev.author}` : ""}
+                </p>
+                {names.length > 0 && (
+                  <p class="mt-1 text-sm" data-testid="direction-event-going">
+                    {names.length === 1 ? "1 vient" : `${fmtInt(names.length)} viennent`} : {names.join(", ")}
+                  </p>
+                )}
+                {ev.editable && (
+                  <div class="mt-2 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      class="btn btn-ghost !min-h-10 !py-1.5 !text-sm"
+                      disabled={busy}
+                      aria-label={`Modifier « ${ev.title} »`}
+                      onClick={() => setForm({ ...EMPTY_EVENT, id: ev.id, title: ev.title, description: ev.description ?? "", url: ev.url ?? "", start: toLocalInput(ev.starts_at) })}
+                    >
+                      Modifier
+                    </button>
+                    <DeleteButton busy={busy} label={ev.title} onConfirm={() => void run(() => call("delete_event", { p_id: ev.id }), "Événement supprimé.")} />
+                  </div>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>
@@ -344,6 +342,11 @@ export default function DirectionApp({ health }: { health: Omit<SiteHealthInput,
   // Les brouillons sont gardés ici : un aller-retour en vue joueur ferme les formulaires sans effacer le texte en cours.
   const [announcementDraft, setAnnouncementDraft] = useState(EMPTY_ANNOUNCEMENT);
   const [eventDraft, setEventDraft] = useState(EMPTY_EVENT);
+  const [pollDraft, setPollDraft] = useState<PollDraft>(EMPTY_POLL);
+  const [welcomeDraft, setWelcomeDraft] = useState<string | null>(null);
+  // Qui vient, événement par événement : `undefined` tant que ce n'est pas lu, `null` si le serveur ne l'a pas donné.
+  // Dans ce dernier cas, la liste des événements le dit, et reste lisible.
+  const [attendance, setAttendance] = useState<Map<number, string[]> | null | undefined>(undefined);
   const rank = me?.rank ?? 0;
   const base = basePath();
 
@@ -353,6 +356,12 @@ export default function DirectionApp({ health }: { health: Omit<SiteHealthInput,
       setError(null);
     } catch (e) {
       setError(messageOf(e));
+    }
+    try {
+      const data = await call<{ rows: { event_id: number; names: string[] }[] }>("list_event_attendance");
+      setAttendance(new Map(data.rows.map((r) => [r.event_id, r.names])));
+    } catch {
+      setAttendance(null);
     }
   };
 
@@ -411,7 +420,11 @@ export default function DirectionApp({ health }: { health: Omit<SiteHealthInput,
           <SiteHealth meta={health.meta} gazette={health.gazette} roster={overview.roster} />
           <div class="grid items-start gap-6 lg:grid-cols-2">
             <Announcements rows={overview.announcements} reload={load} form={announcementDraft} setForm={setAnnouncementDraft} />
-            <Events rows={overview.events} reload={load} form={eventDraft} setForm={setEventDraft} />
+            <Events rows={overview.events} attendance={attendance} reload={load} form={eventDraft} setForm={setEventDraft} />
+          </div>
+          <div class="grid items-start gap-6 lg:grid-cols-2">
+            <DirectionPolls form={pollDraft} setForm={setPollDraft} />
+            <DirectionWelcome draft={welcomeDraft} setDraft={setWelcomeDraft} />
           </div>
           {me.role === "founder" && (
             <FounderTransfer

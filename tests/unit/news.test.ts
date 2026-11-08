@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fetchLiveNews, mergeAnnouncements, mergeEvents, safeUrl, toLocalInput } from "../../src/lib/compte/news";
+import { fetchLiveNews, goingLabel, mergeAnnouncements, mergeEvents, safeUrl, seriesNote, toLocalInput } from "../../src/lib/compte/news";
 
 const NOW = Date.parse("2026-11-06T12:00:00Z");
 
@@ -38,8 +38,14 @@ describe("les événements", () => {
 
 describe("fetchLiveNews", () => {
   const respond = (status: number, body: unknown) => (async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
-  it("renvoie les données", async () => {
-    expect(await fetchLiveNews(respond(200, { ok: true, announcements: [], events: [] }))).toEqual({ announcements: [], events: [] });
+  it("renvoie les données, sondages compris, même d'un serveur qui n'en connaît pas encore", async () => {
+    expect(await fetchLiveNews(respond(200, { ok: true, announcements: [], events: [] }))).toEqual({ announcements: [], events: [], polls: [] });
+    const poll = { id: 1, question: "Quel soir ?", options: ["Vendredi", "Samedi"], counts: [3, 1], is_open: true, closes_at: null, created_at: "2026-11-08T10:00:00Z" };
+    const data = await fetchLiveNews(
+      respond(200, { ok: true, announcements: [], events: [], polls: [poll, { id: 2, question: "Sans choix" }, null, { ...poll, id: 3, options: [1, 2] }, { ...poll, id: 4, counts: [3] }, { ...poll, id: 5, counts: [3, null] }] }),
+    );
+    // Un sondage aux totaux incomplets n'est pas montré : un total absent n'est pas zéro.
+    expect(data?.polls).toEqual([poll]);
   });
   it("renvoie null en cas de panne ou de réponse inattendue : la page garde le dépôt", async () => {
     expect(await fetchLiveNews(respond(500, {}))).toBeNull();
@@ -49,6 +55,35 @@ describe("fetchLiveNews", () => {
         throw new Error("réseau");
       }) as unknown as typeof fetch),
     ).toBeNull();
+  });
+});
+
+describe("les réponses aux événements", () => {
+  it("gardent l'identifiant, le nombre de membres qui viennent et la série d'un événement de la Direction", () => {
+    const [item] = mergeEvents([], [{ id: 7, title: "Soirée", description: null, url: null, starts_at: "2026-11-13T20:00:00Z", going: 3, series: { left: 4, until: "2026-12-04T20:00:00Z" } }], NOW);
+    expect(item).toMatchObject({ eventId: 7, going: 3, series: { left: 4, until: "2026-12-04T20:00:00Z" } });
+    // Un serveur plus ancien ne donne ni réponses ni série.
+    const [old] = mergeEvents([], [{ id: 8, title: "Ancien", description: null, url: null, starts_at: "2026-11-13T20:00:00Z" }], NOW);
+    expect(old).toMatchObject({ eventId: 8, series: null });
+    expect(old?.going).toBeUndefined();
+  });
+
+  it("n'ont pas de bouton pour un événement du dépôt", () => {
+    const [item] = mergeEvents([{ start: "2026-11-20T20:00:00Z", title: "Dépôt" }], [], NOW);
+    expect(item?.eventId).toBeUndefined();
+  });
+
+  it("s'écrivent au singulier comme au pluriel, et rien sans personne", () => {
+    expect(goingLabel(undefined)).toBeNull();
+    expect(goingLabel(0)).toBeNull();
+    expect(goingLabel(1)).toBe("1 membre vient");
+    expect(goingLabel(12)).toBe("12 membres viennent");
+  });
+
+  it("disent combien de rendez-vous restent dans une série, et jusqu'à quand, tant qu'il en reste plus d'un", () => {
+    expect(seriesNote(null)).toBeNull();
+    expect(seriesNote({ left: 1, until: "2026-12-04T20:00:00Z" })).toBeNull();
+    expect(seriesNote({ left: 4, until: "2026-12-04T20:00:00Z" })).toBe("Encore 4 rendez-vous, jusqu'au 4 déc. 2026");
   });
 });
 

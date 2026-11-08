@@ -16,7 +16,7 @@ export const LOG_CATEGORIES: readonly { id: LogCategory; label: string }[] = [
   { id: "requests", label: "Demandes" },
   { id: "roles", label: "Rôles" },
   { id: "suspensions", label: "Suspensions" },
-  { id: "news", label: "Annonces et événements" },
+  { id: "news", label: "Publications : annonces, événements, sondages, mot d'accueil" },
   { id: "other", label: "Autres" },
 ];
 
@@ -32,7 +32,12 @@ const CATEGORIES: Record<string, LogCategory> = {
   announcement_saved: "news",
   announcement_deleted: "news",
   event_saved: "news",
+  event_series_saved: "news",
   event_deleted: "news",
+  poll_saved: "news",
+  poll_closed: "news",
+  poll_deleted: "news",
+  welcome_saved: "news",
 };
 
 export const categoryOf = (action: string): LogCategory => CATEGORIES[action] ?? "other";
@@ -68,6 +73,8 @@ export function describe(row: LogRow, when: (iso: string) => string): LogLine {
   const title = textOf(details, "title");
   const withReason = (start: string) => `${start}${reason ? ` : « ${reason} »` : ""}.`;
   const titled = (start: string) => `${start}${title ? ` « ${title} »` : ""}`;
+  const question = textOf(details, "question");
+  const questioned = (start: string) => `${start}${question ? ` « ${question} »` : ""}`;
 
   switch (row.action) {
     case "membership_approved":
@@ -103,8 +110,22 @@ export function describe(row: LogRow, when: (iso: string) => string): LogLine {
       const start = textOf(details, "starts_at");
       return { who, what: `${titled("a publié ou modifié l'événement")}${start ? `, prévu le ${when(start)}` : ""}.` };
     }
+    case "event_series_saved": {
+      const start = textOf(details, "starts_at");
+      const weeks = details["weeks"];
+      const times = typeof weeks === "number" && Number.isInteger(weeks) && weeks > 1 ? `, ${weeks} semaines de suite` : "";
+      return { who, what: `${titled("a publié l'événement")} chaque semaine${times}${start ? `, à partir du ${when(start)}` : ""}.` };
+    }
     case "event_deleted":
       return { who, what: `${titled("a supprimé l'événement")}.` };
+    case "poll_saved":
+      return { who, what: `${questioned("a lancé le sondage")}.` };
+    case "poll_closed":
+      return { who, what: `${questioned("a fermé le sondage")}.` };
+    case "poll_deleted":
+      return { who, what: `${questioned("a supprimé le sondage")}.` };
+    case "welcome_saved":
+      return { who, what: details["empty"] === true ? "a effacé le mot d'accueil." : "a modifié le mot d'accueil." };
     case "account_deleted":
       return { who: row.actor ?? "Un membre", what: "a supprimé son compte." };
     default:

@@ -1,8 +1,28 @@
-import { useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import { basePath, call, signOut } from "../../lib/compte/api";
 import { ROLE_LABELS, type Me } from "../../lib/compte/types";
 import { fmtDate } from "../../lib/format";
 import { DiscordButton, Loading, Problem, messageOf, useMe } from "./common";
+
+/** Le mot d'accueil écrit par l'encadrement, pour chaque membre validé. Sans texte, ou si le serveur ne répond pas, rien ne s'affiche. */
+function WelcomeNote() {
+  const [note, setNote] = useState<{ body: string | null; updated_at: string | null } | null>(null);
+  useEffect(() => {
+    call<{ body: string | null; updated_at: string | null }>("get_welcome")
+      .then(setNote)
+      .catch(() => setNote(null));
+  }, []);
+  if (!note?.body) return null;
+  return (
+    <section class="card p-5" aria-labelledby="welcome-title" data-testid="account-welcome">
+      <h2 id="welcome-title" class="text-xl">
+        Le mot de l'encadrement
+      </h2>
+      <p class="mt-3 whitespace-pre-line">{note.body}</p>
+      {note.updated_at && <p class="tnum mt-3 text-xs text-muted">Mis à jour le {fmtDate(note.updated_at)}</p>}
+    </section>
+  );
+}
 
 /** Lier son profil OpenFront et demander sa validation. */
 function MembershipRequest({ me, onChange }: { me: Me; onChange: () => Promise<void> }) {
@@ -198,6 +218,8 @@ export default function AccountApp() {
           </div>
         )}
       </section>
+
+      {me.status === "validated" && <WelcomeNote />}
 
       {me.status === "pending" && <MembershipRequest me={me} onChange={refresh} />}
 

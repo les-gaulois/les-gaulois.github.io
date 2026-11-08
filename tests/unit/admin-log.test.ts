@@ -18,7 +18,7 @@ const sentence = (r: LogRow) => {
 };
 
 // Les migrations des fonctions que le site appelle encore. « Effacer mon compte » est dans celle des dons.
-const SITE_SQL = ["20261105000100_comptes_et_roles", "20261105000200_validation_des_membres", "20261105000900_direction", "20261106000100_roles_prevus"]
+const SITE_SQL = ["20261105000100_comptes_et_roles", "20261105000200_validation_des_membres", "20261105000900_direction", "20261106000100_roles_prevus", "20261108000200_vie_du_clan"]
   .map((name) => readFileSync(`supabase/migrations/${name}.sql`, "utf8"))
   .join("\n");
 const SITE_CODES = new Set([...[...SITE_SQL.matchAll(/log_admin\([^,]+,\s*'([a-z_]+)'/g)].map((m) => m[1]!), "account_deleted"]);
@@ -39,6 +39,14 @@ describe("le journal en clair", () => {
       "Chef a publié ou modifié l'événement « Soirée », prévu le [2026-11-10T20:00:00+00:00].",
     );
     expect(sentence(row("event_deleted", { id: 4, title: "Soirée" }, "Chef", null))).toBe("Chef a supprimé l'événement « Soirée ».");
+    expect(sentence(row("event_series_saved", { title: "Soirée", starts_at: "2026-11-13T20:00:00+00:00", weeks: 4 }, "Chef", null))).toBe(
+      "Chef a publié l'événement « Soirée » chaque semaine, 4 semaines de suite, à partir du [2026-11-13T20:00:00+00:00].",
+    );
+    expect(sentence(row("poll_saved", { id: 2, question: "Quel soir ?" }, "Chef", null))).toBe("Chef a lancé le sondage « Quel soir ? ».");
+    expect(sentence(row("poll_closed", { id: 2, question: "Quel soir ?" }, "Chef", null))).toBe("Chef a fermé le sondage « Quel soir ? ».");
+    expect(sentence(row("poll_deleted", { id: 2, question: "Quel soir ?" }, "Chef", null))).toBe("Chef a supprimé le sondage « Quel soir ? ».");
+    expect(sentence(row("welcome_saved", { empty: false }, "Chef", null))).toBe("Chef a modifié le mot d'accueil.");
+    expect(sentence(row("welcome_saved", { empty: true }, "Chef", null))).toBe("Chef a effacé le mot d'accueil.");
   });
 
   it("n'écrit pas un détail que le serveur n'a pas donné", () => {

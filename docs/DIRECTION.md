@@ -9,7 +9,7 @@ C'est la seule partie du site qui a un serveur et une base de données (Supabase
 ## Ce que voit chacun
 
 - **Un visiteur :** un bouton « Se connecter » dans l'en-tête de toutes les pages. Tant qu'il n'a pas de session, son navigateur ne télécharge pas Supabase.
-- **Un membre connecté :** son nom dans l'en-tête, qui mène à son compte.
+- **Un membre connecté :** son nom dans l'en-tête, qui mène à son compte. Une fois validé, il répond « Je viens » aux événements et vote aux sondages de l'accueil, et lit le mot d'accueil de l'encadrement dans `/compte`.
 - **Un officier, un admin, le fondateur :** en plus, un lien « Direction ». Sur téléphone, seul ce lien reste, faute de place : le compte s'ouvre depuis l'espace Direction.
   - Quand des demandes attendent, une pastille jaune donne leur nombre à côté de ce lien, sur toutes les pages. Le serveur ne le donne qu'à l'encadrement (`count_pending_requests`, migration `20261108000100_pastille_direction.sql`). Il se relit à chaque page, et aussitôt qu'une demande est traitée dans `/admin`. En vue joueur, ni lien ni pastille.
 
@@ -25,6 +25,15 @@ Sans `PUBLIC_SUPABASE_URL` et `PUBLIC_SUPABASE_KEY`, aucun de ces éléments n'a
   - La gazette est donnée sans jugement de retard. Un fichier d'envoi absent ou illisible donne « aucun envoi noté ».
   - Le calcul est dans `src/lib/etat-site.ts`.
 - **Annonces et événements :** publiés sans passer par GitHub, visibles aussitôt sur l'accueil, même sans compte. Ils s'ajoutent à ceux de `content/*.json`, qui restent valables. Si le serveur ne répond pas, l'accueil garde ceux du dépôt.
+  - **Répéter chaque semaine :** un nouvel événement peut revenir de 2 à 12 semaines, à la même heure de Paris, changement d'heure compris (`save_event_series`). Chaque rendez-vous est un événement ordinaire, qui se modifie ou se supprime seul et garde ses propres réponses. L'accueil n'en montre que le prochain, avec « Encore 4 rendez-vous, jusqu'au … » : ce texte reste juste même si un rendez-vous est déplacé ou supprimé.
+  - **« Je viens » :** sur l'accueil, un membre validé connecté répond pour lui-même, seulement à un événement à venir (`set_attendance`). Tout le monde voit le nombre ; l'espace Direction donne les noms (`list_event_attendance`). Les réponses sont dans une table privée, `internal.event_attendance`, que l'API ne montre pas. Un compte suspendu n'est ni compté ni nommé. Les événements du dépôt n'ont pas de réponses.
+- **Sondages :** une question et de 2 à 6 choix, avec une fin facultative dans les 90 jours (`save_poll`). Trois sondages ouverts au plus : l'accueil, seul endroit où l'on vote, les montre tous, avant les sondages fermés.
+  - Les membres validés votent sur l'accueil, une voix chacun, qu'ils peuvent changer tant que le sondage est ouvert (`vote_poll`).
+  - Tout le monde voit les totaux, jamais qui a voté quoi : les voix sont dans une table privée, `internal.poll_votes`, et aucune fonction ne le donne. La voix d'un compte suspendu ne compte plus.
+  - Un sondage fermé, à la main ou par sa date, montre son résultat 7 jours sur l'accueil. Le supprimer efface ses votes. Un sondage ne se modifie pas : cela fausserait les voix déjà données.
+  - Un sondage dont les totaux seraient illisibles n'affiche aucun résultat, plutôt qu'un « 0 voix » faux.
+- **Mot d'accueil :** un texte de l'encadrement, de 2 000 caractères au plus, que chaque membre validé lit dans `/compte` (`save_welcome`, `get_welcome`). Un texte vide l'efface. C'est un texte commun : tout l'encadrement, officiers compris, peut le réécrire.
+- Les brouillons des sondages et du mot d'accueil survivent, eux aussi, à un aller-retour en vue joueur.
 - **Transmettre le rôle de fondateur :** visible du fondateur seul. Il faut retaper le nom de la personne. L'ancien fondateur devient admin.
 - **Voir le site comme un joueur :** le bouton en haut de l'espace montre tout le site comme à un membre sans grade : plus de lien « Direction » dans l'en-tête, plus de boutons de l'encadrement dans `/compte`, et `/direction` et `/admin` fermés comme pour un membre. Une bande en haut de chaque page le rappelle et permet d'en sortir.
   - Seul l'affichage change : le serveur garde le vrai rôle. Un bouton de membre agit pour de vrai : « Effacer mon compte » efface le compte d'un officier ou d'un admin, et le serveur le refuse au fondateur.
@@ -46,12 +55,14 @@ Une annonce parle au nom du clan : le nom de son auteur n'est pas public, seuls 
 | Action | Visiteur | En attente | Membre | Officier | Admin | Fondateur |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|
 | Lire les annonces et les événements | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Voir les totaux des sondages et le nombre de présents | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Demander sa validation | | ✓ | | | | |
+| Répondre « Je viens », voter, lire le mot d'accueil | | | ✓ | ✓ | ✓ | ✓ |
 | Valider les membres | | | | ✓ | ✓ | ✓ |
-| Ouvrir l'espace Direction | | | | ✓ | ✓ | ✓ |
-| Publier une annonce ou un événement | | | | ✓ | ✓ | ✓ |
-| Modifier ou supprimer les siens | | | | ✓ | ✓ | ✓ |
-| Modifier ou supprimer ceux des autres | | | | | ✓ | ✓ |
+| Ouvrir l'espace Direction, voir qui vient | | | | ✓ | ✓ | ✓ |
+| Publier une annonce, un événement ou un sondage, écrire le mot d'accueil | | | | ✓ | ✓ | ✓ |
+| Modifier, fermer ou supprimer les siens | | | | ✓ | ✓ | ✓ |
+| Modifier, fermer ou supprimer ceux des autres | | | | | ✓ | ✓ |
 | Lire le journal | | | | | ✓ | ✓ |
 | Suspendre un membre, gérer les officiers | | | | | ✓ | ✓ |
 | Lever une suspension | | | | | ✓ | ✓ |
@@ -135,6 +146,7 @@ Il vérifie que le projet répond, que Discord est activé, que l'e-mail est cou
 - **L'espace Direction et un second compte sur le vrai Supabase.** La connexion Discord, elle, a été essayée le 6 novembre 2026 : `on_auth_user_updated` remplit bien le nom et l'identifiant depuis `auth.identities`. Le nom gardé est le nom d'utilisateur Discord, pas le nom affiché.
 - **Un vrai téléphone, Firefox et Safari.**
 - **La vue joueur avec un vrai compte de l'encadrement.** Le 8 novembre 2026, elle n'a été essayée qu'avec un faux serveur, dans un vrai navigateur : bouton, bande, en-tête, `/compte`, `/direction` et `/admin`.
+- **Les événements répétés, « Je viens », les sondages et le mot d'accueil.** Le 8 novembre 2026, ils n'ont été essayés qu'avec un faux serveur, dans un vrai navigateur. Leur migration (`20261108000200_vie_du_clan.sql`) est installée sur le vrai projet, et ses droits contrôlés en lecture seule ; les fonctions elles-mêmes n'y ont pas encore servi.
 - **La confirmation d'un rôle, l'attente des demandes et les raisons toutes prêtes.** Le 8 novembre 2026, ils n'ont été essayés qu'avec un faux serveur, dans un vrai navigateur.
 - **Le journal en phrases, la pastille et l'état du site.** Le 8 novembre 2026, ils n'ont été essayés qu'avec un faux serveur, dans un vrai navigateur. La fonction de la pastille a été installée sur le vrai projet, et ses droits contrôlés en lecture seule.
 - **Le thème rouge sur les écrans connectés.** Le 8 novembre 2026, axe n'a trouvé aucun défaut sur `/direction` et `/admin` connectés, sur bureau et téléphone, mais avec un faux serveur. Les tests automatiques, construits sans serveur de connexion, ne voient de ces pages que la carte « connexion pas ouverte ».
