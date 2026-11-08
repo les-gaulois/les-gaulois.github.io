@@ -50,6 +50,57 @@ Une annonce parle au nom du clan : le nom de son auteur n'est pas public, seuls 
 - **Membres :** rôles, suspensions et rétablissements. Un rôle choisi dans la liste ne part qu'après « Confirmer » : au clavier ou d'un doigt, on choisit vite un autre rôle par erreur. Après « Confirmer » ou « Annuler », le focus revient à la liste du rôle.
 - **Journal**, pour les admins et le fondateur : une phrase par action, la plus récente d'abord, par exemple « Chef a changé le rôle de Recrue : Membre → Officier ». Les détails viennent du serveur (rôles, raison, titre, date d'un événement) : un détail absent n'est pas écrit, et un code sans libellé s'affiche tel quel. Le serveur note de la même façon une publication et une modification, d'où « a publié ou modifié ». Filtres par personne (qui agit ou qui est visé) et par type d'action. L'écran lit les 500 dernières entrées, le maximum du serveur, et en montre 50 à la fois. Les phrases sont dans `src/lib/compte/admin-log.ts`, et un test vérifie que chaque action notée par le serveur du site a la sienne.
 
+## Prévenir l'encadrement sur Discord
+
+Le robot horaire signale les demandes d'adhésion qui attendent, sur un salon Discord **privé** de l'encadrement (`scripts/prevenir-encadrement.ts`, `src/lib/encadrement-discord.ts`).
+
+- **Quand :** une nouvelle demande déclenche un message au passage suivant du robot, dans l'heure. Une demande qui attend depuis plus de 24 h vaut un rappel, une fois par jour au plus. Rien entre 23 h et 8 h, heure de Paris, comme les alertes de place.
+- **Quoi :** « 2 demandes d'adhésion attendent sur le site du clan. La plus ancienne attend depuis 3 jours. », avec le lien de `/admin`. Ni nom, ni identifiant, ni mention : personne n'est appelé.
+- **Où c'est noté :** ce qui a été annoncé reste dans Supabase (`app_state`, clé `staff_notice`), jamais dans le dépôt public. Un envoi raté n'est pas noté : il repart au passage suivant.
+- **Les fonctions :** `staff_digest` et `note_staff_notice` (migration `20261108000300_encadrement_et_sauvegarde.sql`), réservées à la clé de service.
+
+**Pour l'activer**, une seule fois :
+
+1. Dans Discord, sur le salon privé de l'encadrement : **Modifier le salon → Intégrations → Webhooks → Nouveau webhook**, puis **Copier l'URL du webhook**.
+2. Sur GitHub, **Settings → Secrets and variables → Actions → New repository secret** : nom `DISCORD_WEBHOOK_ENCADREMENT`, valeur l'adresse copiée.
+
+Ce lien permet d'écrire dans le salon : il ne va que dans ce secret, jamais dans le dépôt ni dans une conversation. Sans lui, rien n'est envoyé.
+
+## La sauvegarde chiffrée
+
+Supabase ne sauvegarde rien sur le forfait gratuit. Chaque lundi au petit matin, l'Action **Sauvegarde chiffrée** (`.github/workflows/sauvegarde.yml`) copie ce que le site garde et qui ne se retrouve nulle part ailleurs :
+
+- comptes et rôles, liens Discord (identifiant et nom), demandes et journal ;
+- annonces, événements et réponses « Je viens » ;
+- sondages avec leurs seuls totaux, et mot d'accueil.
+
+L'export (fonction `export_site`, réservée à la clé de service) ne garde que le nécessaire :
+
+- **Des votes, les totaux par choix seulement.** Personne n'apprend qui a voté quoi, pas même avec la phrase de passe. Après une restauration, les sondages reviennent sans leurs voix individuelles.
+- **Ni l'empreinte du `publicId` OpenFront, ni les textes libres d'une demande** (ce que le joueur a tapé, son mot pour l'officier). Avec l'API publique, ils pourraient lever l'anonymat d'un membre anonyme si la phrase était devinée. Après une restauration, le lien avec le profil OpenFront est perdu. Un compte validé ne peut pas refaire de demande : remettez-le d'abord en attente dans l'éditeur SQL, puis la personne refait sa demande.
+- **Ni les rôles prévus**, qu'on ne lit que dans l'éditeur de Supabase, **ni la liste officielle**, qui se relit, **ni les tables de l'ancien jeu**.
+- **Ni les comptes de connexion eux-mêmes** (`auth.users`, gérés par Supabase). Si le projet est perdu, chacun se reconnecte avec Discord, et l'encadrement retrouve rôles et données par l'identifiant Discord de `private_links`.
+
+Comment elle est gardée :
+
+- **Chiffrée avant de sortir :** AES-256-GCM, avec une clé tirée de la phrase de passe par scrypt, réglé lent exprès (N = 2^18) pour qu'une phrase coûte cher à deviner (`src/lib/sauvegarde.ts`). Le fichier porte ses réglages, et tout son en-tête est authentifié : une seule lettre changée le rend inutilisable.
+- **Gardée 90 jours** par GitHub, dans l'exécution de l'Action, sous **Artifacts**. Le dépôt est public : n'importe quel compte GitHub peut télécharger ce fichier, illisible sans la phrase. Rien n'est écrit en clair, ni sur le disque de l'Action ni dans le dépôt. Le journal de l'Action ne donne que le nombre de lignes de chaque table.
+- **Sans phrase de passe dans GitHub,** l'Action ne sauvegarde rien et l'affiche en avertissement sur la page de son exécution.
+- **Sur demande :** onglet **Actions → Sauvegarde chiffrée → Run workflow**. GitHub peut sauter une exécution planifiée : s'il manque une semaine dans la liste, lancez-la ainsi.
+
+**Pour l'activer**, une seule fois :
+
+1. Tirer une phrase de passe au hasard avec le générateur d'un gestionnaire de mots de passe : 32 caractères, ou six mots. Le script refuse une phrase de moins de 20 caractères ou faite de trop peu de lettres différentes. La garder dans ce gestionnaire. **La perdre, c'est perdre toutes les sauvegardes.**
+2. Sur GitHub, **Settings → Secrets and variables → Actions → New repository secret** : nom `SAUVEGARDE_CLE`, valeur la phrase.
+
+**Pour ouvrir une sauvegarde**, à faire soi-même, jamais dans une conversation, de préférence dans PowerShell ou Windows Terminal : télécharger l'artifact de l'exécution voulue et le décompresser, puis, dans le dossier du site :
+
+```bash
+npm run sauvegarde:ouvrir -- chemin/gal-sauvegarde-2026-11-09.bin
+```
+
+La phrase de passe est demandée à l'écran, sans s'afficher : elle ne reste dans aucun historique. Certaines fenêtres, comme Git Bash, ne savent pas la masquer : elle s'y afficherait, d'où PowerShell ou Windows Terminal. Le contenu, en clair, arrive dans `.cache/sauvegarde/`, que Git ignore. Il contient des données personnelles : effacez-le une fois servi. La restauration se fait à la main, dans l'éditeur SQL de Supabase : demandez de l'aide si besoin.
+
 ## Les droits
 
 | Action | Visiteur | En attente | Membre | Officier | Admin | Fondateur |
@@ -146,6 +197,7 @@ Il vérifie que le projet répond, que Discord est activé, que l'e-mail est cou
 - **L'espace Direction et un second compte sur le vrai Supabase.** La connexion Discord, elle, a été essayée le 6 novembre 2026 : `on_auth_user_updated` remplit bien le nom et l'identifiant depuis `auth.identities`. Le nom gardé est le nom d'utilisateur Discord, pas le nom affiché.
 - **Un vrai téléphone, Firefox et Safari.**
 - **La vue joueur avec un vrai compte de l'encadrement.** Le 8 novembre 2026, elle n'a été essayée qu'avec un faux serveur, dans un vrai navigateur : bouton, bande, en-tête, `/compte`, `/direction` et `/admin`.
+- **L'avis à l'encadrement et la sauvegarde chiffrée.** Le 8 novembre 2026, leur logique a été testée, les scripts lancés sans secret (ils ne font rien) et une sauvegarde d'essai rouverte. Mais aucun message n'est encore parti sur Discord, et l'Action **Sauvegarde chiffrée** n'a jamais tourné : il faut d'abord poser les secrets `DISCORD_WEBHOOK_ENCADREMENT` et `SAUVEGARDE_CLE`. À la première sauvegarde, vérifier qu'elle s'ouvre avec la phrase de passe.
 - **Les événements répétés, « Je viens », les sondages et le mot d'accueil.** Le 8 novembre 2026, ils n'ont été essayés qu'avec un faux serveur, dans un vrai navigateur. Leur migration (`20261108000200_vie_du_clan.sql`) est installée sur le vrai projet, et ses droits contrôlés en lecture seule ; les fonctions elles-mêmes n'y ont pas encore servi.
 - **La confirmation d'un rôle, l'attente des demandes et les raisons toutes prêtes.** Le 8 novembre 2026, ils n'ont été essayés qu'avec un faux serveur, dans un vrai navigateur.
 - **Le journal en phrases, la pastille et l'état du site.** Le 8 novembre 2026, ils n'ont été essayés qu'avec un faux serveur, dans un vrai navigateur. La fonction de la pastille a été installée sur le vrai projet, et ses droits contrôlés en lecture seule.
@@ -215,6 +267,8 @@ Sur GitHub, **Settings → Secrets and variables → Actions**.
 | Variables | `SUPABASE_URL` | L'adresse du projet |
 | Variables | `SUPABASE_PUBLISHABLE_KEY` | La clé `sb_publishable_…` |
 | Secrets | `SUPABASE_SECRET_KEY` | La clé `sb_secret_…` |
+| Secrets, facultatif | `DISCORD_WEBHOOK_ENCADREMENT` | Le lien d'un salon privé de l'encadrement : voir « Prévenir l'encadrement sur Discord » |
+| Secrets, facultatif | `SAUVEGARDE_CLE` | La phrase de passe de la sauvegarde : voir « La sauvegarde chiffrée » |
 
 Relancez ensuite **Données et site** dans l'onglet **Actions**. Le bouton « Se connecter » apparaît dans l'en-tête.
 
@@ -223,4 +277,4 @@ Relancez ensuite **Données et site** dans l'onglet **Actions**. Le bouton « Se
 Lues sur [la page des tarifs de Supabase](https://supabase.com/pricing) le 5 novembre 2026 : 500 Mo de base, 50 000 utilisateurs actifs par mois, 5 Go de bande passante, 2 projets actifs.
 
 - **Mise en pause après une semaine d'inactivité.** La relecture de la liste des membres devrait l'éviter, mais [Supabase ne le garantit pas](https://supabase.com/docs/guides/platform/free-project-pausing), et elle dépend du cron de GitHub. En cas de pause, la connexion ne répond plus et le reste du site continue. Le projet se relance depuis le tableau de bord.
-- **Aucune sauvegarde automatique.** La sauvegarde chiffrée faisait partie de la tâche du jeu : elle a été retirée avec lui.
+- **Aucune sauvegarde automatique de Supabase.** La sauvegarde chiffrée du site la remplace, une fois sa phrase de passe posée : voir « La sauvegarde chiffrée ».

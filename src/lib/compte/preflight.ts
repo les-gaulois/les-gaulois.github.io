@@ -61,6 +61,11 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   if (isClosed(bootstrap.status)) add("Un visiteur ne peut pas se désigner fondateur", "ok");
   else add("Un visiteur ne peut pas se désigner fondateur", "fail", `Réponse ${bootstrap.status}. Le fichier …_droits.sql n'a sans doute pas été installé : ne mettez pas en ligne.`);
 
+  // La sauvegarde ne s'exporte qu'avec la clé de service, depuis l'Action : un visiteur n'y a pas accès.
+  const exported = await rpc("export_site");
+  if (isClosed(exported.status)) add("Un visiteur ne peut pas exporter les données du site", "ok");
+  else add("Un visiteur ne peut pas exporter les données du site", "fail", `Réponse ${exported.status}. Ne mettez pas en ligne : retirez le droit d'appeler export_site.`);
+
   // Les réponses « Je viens » et les votes sont dans le schéma `internal`, que l'API ne montre pas : rien à lire ici.
   for (const table of ["profiles", "private_links", "admin_log", "clan_roster", "site_announcements", "polls"]) {
     const res = await fetcher(`${base}/rest/v1/${table}?select=*&limit=1`, { headers: anonHeaders });

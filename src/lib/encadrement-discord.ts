@@ -1,0 +1,112 @@
+/**
+ * Prévenir l'encadrement, sur un salon Discord privé, des demandes d'adhésion qui attendent. Lancé par la GitHub Action.
+ * Le message ne contient ni nom ni identifiant : seulement le nombre de demandes, leur attente et le lien de l'administration.
+ * Il part quand une nouvelle demande arrive, puis une fois par jour au plus tant qu'une demande attend depuis plus de 24 h.
+ * Rien la nuit, comme les alertes de place.
+ */
+import { QUIET_FROM_HOUR, QUIET_UNTIL_HOUR } from "./alerts";
+import { fmtDuration } from "./format";
+import { isWebhookUrl } from "./gazette-discord";
+import { parisParts } from "./time";
+
+const HOUR_MS = 3_600_000;
+/** Une demande qui attend plus longtemps vaut un rappel. */
+export const REMIND_AFTER_HOURS = 24;
+/** Au plus un rappel par jour. */
+export const REMIND_EVERY_HOURS = 24;
+
+/** Ce que le serveur donne (`staff_digest`) : jamais de nom. */
+export interface StaffDigest {
+  pending: number;
+  oldest_at: string | null;
+  newest_id: number | null;
+  /** Ce qui a déjà été annoncé. `null` au tout premier passage. */
+  notice: StaffNoticeState | null;
+}
+export interface StaffNoticeState {
+  newest_id: number | null;
+  reminded_at: string | null;
+}
+
+export type StaffDecision = { send: false; reason: string } | { send: true; kind: "nouvelle" | "rappel"; text: string; note: StaffNoticeState };
+
+function waiting(pending: number): string {
+  return pending === 1 ? "Une demande d'adhésion attend" : `${pending} demandes d'adhésion attendent`;
+}
+
+export function staffNotice(digest: StaffDigest, now: Date, siteUrl: string): StaffDecision {
+  if (digest.pending < 1) return { send: false, reason: "aucune demande en attente" };
+  const hour = parisParts(now).hour;
+  if (hour >= QUIET_FROM_HOUR || hour < QUIET_UNTIL_HOUR) return { send: false, reason: `la nuit : le message attend ${QUIET_UNTIL_HOUR} h` };
+
+  const link = `${siteUrl.replace(/\/$/, "")}/admin`;
+  const age = digest.oldest_at ? now.getTime() - Date.parse(digest.oldest_at) : 0;
+  const old = age > REMIND_AFTER_HOURS * HOUR_MS ? ` La plus ancienne attend depuis ${fmtDuration(age)}.` : "";
+  const known = digest.notice?.newest_id ?? null;
+
+  if (digest.newest_id !== null && (known === null || digest.newest_id > known)) {
+    return {
+      send: true,
+      kind: "nouvelle",
+      text: `${waiting(digest.pending)} sur le site du clan.${old} À traiter : ${link}`,
+      // Un message vaut aussi rappel : le suivant attend au moins un jour.
+      note: { newest_id: digest.newest_id, reminded_at: now.toISOString() },
+    };
+  }
+
+  const reminded = digest.notice?.reminded_at ? Date.parse(digest.notice.reminded_at) : null;
+  if (old && (reminded === null || now.getTime() - reminded >= REMIND_EVERY_HOURS * HOUR_MS)) {
+    return { send: true, kind: "rappel", text: `Rappel : ${waiting(digest.pending).charAt(0).toLowerCase()}${waiting(digest.pending).slice(1)} sur le site du clan.${old} À traiter : ${link}`, note: { newest_id: known ?? digest.newest_id, reminded_at: now.toISOString() } };
+  }
+  return { send: false, reason: "rien de nouveau depuis le dernier message" };
+}
+
+export interface StaffSendDeps {
+  webhook: string | undefined;
+  digest: StaffDigest;
+  now: Date;
+  siteUrl: string;
+  fetch: typeof fetch;
+  note: (state: StaffNoticeState) => Promise<void>;
+  log: (line: string) => void;
+}
+
+/**
+ * Envoie le message s'il y a lieu, puis note ce qui a été annoncé. Le lien du salon vaut un mot de passe :
+ * il n'est écrit dans aucun message, même d'erreur. Un envoi raté n'est pas noté : il repart au passage suivant.
+ */
+export async function sendStaffNotice({ webhook, digest, now, siteUrl, fetch: post, note, log }: StaffSendDeps): Promise<"off" | "invalid" | "quiet" | "sent" | "failed"> {
+  const link = webhook?.trim();
+  if (!link) {
+    log("Pas de lien Discord pour l'encadrement : rien à envoyer.");
+    return "off";
+  }
+  if (!isWebhookUrl(link)) {
+    log("::warning::Encadrement : le lien Discord n'a pas la forme attendue, rien n'est envoyé.");
+    return "invalid";
+  }
+  const decision = staffNotice(digest, now, siteUrl);
+  if (!decision.send) {
+    log(`Encadrement : rien à envoyer (${decision.reason}).`);
+    return "quiet";
+  }
+  try {
+    // Aucune mention : le message ne doit faire sonner personne en particulier.
+    const response = await post(link, {
+      method: "POST",
+      redirect: "error",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: decision.text, allowed_mentions: { parse: [] } }),
+    });
+    if (!response.ok) {
+      log(`::warning::Encadrement : Discord a répondu ${response.status}. Nouvel essai au prochain passage.`);
+      return "failed";
+    }
+  } catch {
+    log("::warning::Encadrement : Discord n'a pas répondu. Nouvel essai au prochain passage.");
+    return "failed";
+  }
+  await note(decision.note);
+  log(`Encadrement : message « ${decision.kind} » envoyé.`);
+  return "sent";
+}

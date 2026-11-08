@@ -1,0 +1,41 @@
+name: Sauvegarde chiffrée
+
+# Chaque lundi, une copie chiffrée des données du serveur de connexion : comptes et rôles, demandes, journal,
+# publications, réponses et totaux des sondages. Sans le secret SAUVEGARDE_CLE, rien n'est sauvegardé, et la page
+# de l'exécution l'affiche en avertissement. Voir docs/DIRECTION.md, « La sauvegarde chiffrée ».
+on:
+  schedule:
+    - cron: "41 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sauvegarde:
+    if: vars.SUPABASE_URL != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Sauvegarder
+        id: sauvegarde
+        run: npm run sauvegarde
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          SAUVEGARDE_CLE: ${{ secrets.SAUVEGARDE_CLE }}
+      # Le dépôt est public : ce fichier aussi, une fois gardé par GitHub. Il n'en sort que chiffré, et part au bout de 90 jours.
+      # L'envoi n'a lieu que si une sauvegarde a été écrite ; s'il ne la trouve pas, l'exécution échoue au lieu de rester verte.
+      - uses: actions/upload-artifact@v7
+        if: steps.sauvegarde.outputs.file != ''
+        with:
+          name: sauvegarde-${{ github.run_number }}
+          path: ${{ steps.sauvegarde.outputs.file }}
+          retention-days: 90
+          if-no-files-found: error

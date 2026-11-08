@@ -37,10 +37,11 @@ const tierList = `${tiers.slice(0, -1).join(", ")} ou ${tiers.at(-1) ?? ""}`;
       </ul>
 
       <h2>Où, et qui peut lire</h2>
-      <p>Les données sont hébergées chez Supabase, en Europe. La connexion passe par Discord. Chaque membre ne lit que ses propres données ; les officiers et les admins voient ce qu'il leur faut pour valider les comptes et savoir qui vient à un événement. Plus aucune sauvegarde n'est produite, et celles déjà faites s'effacent d'elles-mêmes au bout de 14 jours.</p>
+      <p>Les données sont hébergées chez Supabase, en Europe. La connexion passe par Discord. Chaque membre ne lit que ses propres données ; les officiers et les admins voient ce qu'il leur faut pour valider les comptes et savoir qui vient à un événement. Quand une demande attend, un salon Discord privé de l'encadrement en est prévenu, sans aucun nom.</p>
+      <p>Dès que la direction a posé sa phrase de passe, une sauvegarde chiffrée est faite chaque lundi. Elle contient votre compte et votre rôle, votre identifiant et votre nom Discord, vos demandes, le journal d'administration, les publications et vos réponses « Je viens ». Des sondages, elle ne garde que les totaux, jamais qui a voté quoi. Elle ne contient ni l'empreinte de votre identifiant OpenFront, ni ce que vous avez tapé dans une demande, mot pour l'officier compris. GitHub, une entreprise américaine, la garde 90 jours dans l'onglet Actions du dépôt public du site : n'importe qui peut la télécharger, mais elle reste illisible sans la phrase de passe de la direction. Les sauvegardes de l'ancien jeu s'effacent d'elles-mêmes au bout de 14 jours.</p>
 
       <h2>Effacer ses données</h2>
-      <p>Depuis <a href={`${base}/compte`}>Mon compte</a>, le bouton « Effacer mon compte » supprime tout de suite votre profil et ce qui s'y rattache, ancien jeu compris. Dans la liste recopiée, un don reste sans empreinte : plus rien ne le relie à vous. Le journal d'administration garde la trace de l'effacement, sans votre nom.</p>
+      <p>Depuis <a href={`${base}/compte`}>Mon compte</a>, le bouton « Effacer mon compte » supprime tout de suite votre profil et ce qui s'y rattache, ancien jeu compris. Dans la liste recopiée, un don reste sans empreinte : plus rien ne le relie à vous. Le journal d'administration garde la trace de l'effacement, sans votre nom. Une copie chiffrée de ce qui a été effacé peut rester jusqu'à 90 jours dans les sauvegardes déjà faites, puis disparaît avec elles.</p>
       <p>Pour toute question, adressez-vous aux officiers sur le <a href={clan.links.discord} rel="noopener">Discord du clan</a>.</p>
     </div>
   </div>

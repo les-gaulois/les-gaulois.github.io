@@ -8,6 +8,7 @@ const HEALTHY: Record<string, Route> = {
   "/auth/v1/settings": { status: 200, body: { external: { discord: true, email: false } } },
   "/rest/v1/rpc/get_site_news": { status: 200, body: { ok: true } },
   "/rest/v1/rpc/bootstrap_founder": { status: 401, body: {} },
+  "/rest/v1/rpc/export_site": { status: 401, body: {} },
   "/rest/v1/profiles": { status: 401, body: {} },
   "/rest/v1/private_links": { status: 401, body: {} },
   "/rest/v1/admin_log": { status: 401, body: {} },
@@ -60,6 +61,11 @@ describe("le contrôle de la mise en ligne", () => {
 
   it("bloque si un visiteur peut se désigner fondateur", async () => {
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/bootstrap_founder": { status: 200, body: { ok: false } } }, "fondateur")).toBe("fail");
+  });
+
+  it("bloque si un visiteur peut exporter les données du site", async () => {
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/export_site": { status: 200, body: { ok: true, profiles: [] } } }, "exporter")).toBe("fail");
+    expect(await statusOf(HEALTHY, "exporter")).toBe("ok");
   });
 
   it("bloque si un visiteur lit une table privée, mais pas si elle est vide", async () => {

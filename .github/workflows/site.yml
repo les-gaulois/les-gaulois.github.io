@@ -150,6 +150,17 @@ jobs:
         env:
           SUPABASE_URL: ${{ vars.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      # Prévient l'encadrement, sur un salon Discord privé, des demandes d'adhésion qui attendent. Ni nom ni identifiant dans le message.
+      # Sans le secret DISCORD_WEBHOOK_ENCADREMENT, rien n'est envoyé. Ce qui a été annoncé est noté dans Supabase, pas dans data/.
+      - name: Prévenir l'encadrement sur Discord
+        if: ${{ !cancelled() && github.ref_name == 'main' && vars.SUPABASE_URL != '' }}
+        continue-on-error: true
+        timeout-minutes: 2
+        run: npm run encadrement:prevenir
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          DISCORD_WEBHOOK_ENCADREMENT: ${{ secrets.DISCORD_WEBHOOK_ENCADREMENT }}
 
   build:
     needs: update-data
