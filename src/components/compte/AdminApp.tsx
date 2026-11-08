@@ -2,9 +2,10 @@ import { useEffect, useState } from "preact/hooks";
 import { LOG_CATEGORIES, LOG_LIMIT, LOG_PAGE, describe, filterLog, logPeople, type LogCategory } from "../../lib/compte/admin-log";
 import { basePath, call } from "../../lib/compte/api";
 import { announcePendingChange } from "../../lib/compte/pending";
+import { READY_REASONS, requestWait, requestsSummary } from "../../lib/compte/requests";
 import { ROLE_LABELS, type LogRow, type Me, type MemberRow, type RequestRow, type Role } from "../../lib/compte/types";
 import { fmtCount, fmtDateTime, fmtInt } from "../../lib/format";
-import { DiscordButton, Empty, Loading, Problem, Success, messageOf, useMe } from "./common";
+import { DiscordButton, Empty, Loading, Problem, Success, messageOf, useMe, useNow } from "./common";
 
 type Tab = "requests" | "members" | "log";
 
@@ -71,6 +72,9 @@ function Requests() {
   });
   const [reasons, setReasons] = useState<Record<number, string>>({});
   const roster = list.extra["roster"] as { total: number; read_at: string } | null | undefined;
+  const now = useNow();
+  // Le serveur les donne de la plus ancienne à la plus récente.
+  const oldest = list.rows?.[0] ? requestWait(list.rows[0].created_at, now) : null;
 
   return (
     <div data-testid="admin-requests">
@@ -84,40 +88,61 @@ function Requests() {
       ) : list.rows.length === 0 ? (
         <Empty>Aucune demande en attente.</Empty>
       ) : (
-        <ul class="mt-3 grid gap-3">
-          {list.rows.map((r) => (
-            <li key={r.id} class="card p-4" data-testid="request-row">
-              <p class="font-semibold">
-                {r.discord_name ?? r.name} <span class="text-sm font-normal text-muted">({r.name})</span>
-              </p>
-              <p class={r.in_roster ? "form-success" : "form-problem"} data-testid="request-roster">
-                {r.in_roster ? `Dans la liste${r.roster_username ? ` : ${r.roster_username}` : ", membre sans pseudo public"}` : `Absent de la liste${r.claimed_text ? ` : a indiqué « ${r.claimed_text} »` : ""}`}
-              </p>
-              {(r.game_role === "leader" || r.game_role === "officer") && (
-                <p class="mt-1 text-sm" data-testid="request-game-role">
-                  {r.game_role === "leader" ? "Chef" : "Officier"} dans le jeu, d'après la liste publique. Ce rang ne donne aucun droit ici : à vous de le nommer après vérification.
-                </p>
-              )}
-              {r.note && <p class="mt-1 text-sm">« {r.note} »</p>}
-              <p class="tnum mt-1 text-xs text-muted">
-                Demandé le {fmtDateTime(r.created_at)}
-                {r.discord_id ? ` · Discord : ${r.discord_id}` : ""}
-              </p>
-              <label class="mt-3 block text-sm font-semibold" for={`reason-${r.id}`}>
-                Raison (facultative)
-              </label>
-              <input id={`reason-${r.id}`} class="field mt-1" maxLength={300} value={reasons[r.id] ?? ""} onInput={(e) => setReasons({ ...reasons, [r.id]: e.currentTarget.value })} />
-              <div class="mt-3 flex flex-wrap gap-2">
-                <button type="button" class="btn btn-primary !min-h-10 !py-1.5" disabled={action.busy} onClick={() => void action.run(() => call("review_membership", { p_request: r.id, p_approve: true, p_reason: reasons[r.id] || null }), "Membre validé.")}>
-                  Valider
-                </button>
-                <button type="button" class="btn btn-ghost !min-h-10 !py-1.5" disabled={action.busy} onClick={() => void action.run(() => call("review_membership", { p_request: r.id, p_approve: false, p_reason: reasons[r.id] || null }), "Demande refusée.")}>
-                  Refuser
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <>
+          {oldest && (
+            <p class={`mt-3 text-sm ${oldest.late ? "font-semibold text-warn" : ""}`} data-testid="requests-summary">
+              {requestsSummary(list.rows.length, oldest)}
+            </p>
+          )}
+          <ul class="mt-3 grid gap-3">
+            {list.rows.map((r) => {
+              const wait = requestWait(r.created_at, now);
+              return (
+                <li key={r.id} class="card p-4" data-testid="request-row">
+                  <p class="font-semibold">
+                    {r.discord_name ?? r.name} <span class="text-sm font-normal text-muted">({r.name})</span>
+                  </p>
+                  <p class={r.in_roster ? "form-success" : "form-problem"} data-testid="request-roster">
+                    {r.in_roster ? `Dans la liste${r.roster_username ? ` : ${r.roster_username}` : ", membre sans pseudo public"}` : `Absent de la liste${r.claimed_text ? ` : a indiqué « ${r.claimed_text} »` : ""}`}
+                  </p>
+                  {(r.game_role === "leader" || r.game_role === "officer") && (
+                    <p class="mt-1 text-sm" data-testid="request-game-role">
+                      {r.game_role === "leader" ? "Chef" : "Officier"} dans le jeu, d'après la liste publique. Ce rang ne donne aucun droit ici : à vous de le nommer après vérification.
+                    </p>
+                  )}
+                  {r.note && <p class="mt-1 text-sm">« {r.note} »</p>}
+                  <p class="tnum mt-1 text-xs text-muted">
+                    Demandé le {fmtDateTime(r.created_at)} · <span class={wait.late ? "font-semibold text-warn" : ""} data-testid="request-wait">{wait.text}</span>
+                    {r.discord_id ? ` · Discord : ${r.discord_id}` : ""}
+                  </p>
+                  <label class="mt-3 block text-sm font-semibold" for={`reason-${r.id}`}>
+                    Raison (facultative)
+                  </label>
+                  <input id={`reason-${r.id}`} class="field mt-1" maxLength={300} value={reasons[r.id] ?? ""} onInput={(e) => setReasons({ ...reasons, [r.id]: e.currentTarget.value })} />
+                  {/* Remplit le champ sans rien envoyer : la raison d'un refus est montrée telle quelle au membre. */}
+                  <div class="mt-2 flex flex-wrap items-center gap-2" role="group" aria-labelledby={`ready-${r.id}`}>
+                    <span id={`ready-${r.id}`} class="text-sm text-muted">
+                      Pour un refus :
+                    </span>
+                    {READY_REASONS.map((reason) => (
+                      <button key={reason} type="button" class="chip !min-h-9" onClick={() => setReasons({ ...reasons, [r.id]: reason })}>
+                        {reason}
+                      </button>
+                    ))}
+                  </div>
+                  <div class="mt-3 flex flex-wrap gap-2">
+                    <button type="button" class="btn btn-primary !min-h-10 !py-1.5" disabled={action.busy} onClick={() => void action.run(() => call("review_membership", { p_request: r.id, p_approve: true, p_reason: reasons[r.id] || null }), "Membre validé.")}>
+                      Valider
+                    </button>
+                    <button type="button" class="btn btn-ghost !min-h-10 !py-1.5" disabled={action.busy} onClick={() => void action.run(() => call("review_membership", { p_request: r.id, p_approve: false, p_reason: reasons[r.id] || null }), "Demande refusée.")}>
+                      Refuser
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </>
       )}
     </div>
   );
@@ -128,12 +153,26 @@ function Members({ me }: { me: Me }) {
   const [query, setQuery] = useState("");
   const list = useList<MemberRow>("list_members", { p_search: query || null, p_limit: 200 });
   const action = useAction(list.reload);
+  // Un rôle choisi dans la liste attend une confirmation : au clavier ou d'un doigt, on choisit vite un autre rôle par erreur.
+  const [draft, setDraft] = useState<{ user: string; role: Role } | null>(null);
+  // Après « Confirmer » ou « Annuler », le focus revient à la liste du rôle, une fois l'envoi fini : sinon, il repartirait du haut de la page.
+  const [refocus, setRefocus] = useState<string | null>(null);
+  useEffect(() => {
+    if (refocus === null || action.busy) return;
+    document.getElementById(`role-${refocus}`)?.focus();
+    setRefocus(null);
+  }, [refocus, action.busy, list.rows]);
   const rank = me.rank ?? 0;
   const myRole = me.role ?? "member";
   const assignable: Role[] = rank >= 4 ? ["member", "officer", "admin"] : ["member", "officer"];
+  const drafted = draft ? list.rows?.find((m) => m.user_id === draft.user) : undefined;
 
   return (
     <div data-testid="admin-members">
+      {/* Toujours présente : un lecteur d'écran annonce ce qui change dans une zone qui existait déjà. */}
+      <p class="sr-only" role="status">
+        {draft && drafted ? `Rôle de ${drafted.name} : ${ROLE_LABELS[drafted.role]} → ${ROLE_LABELS[draft.role]}. Confirmez ou annulez.` : ""}
+      </p>
       <form
         class="flex flex-wrap items-end gap-2"
         onSubmit={(e) => {
@@ -173,6 +212,7 @@ function Members({ me }: { me: Me }) {
             <tbody>
               {list.rows.map((m) => {
                 const editable = rank >= 3 && m.status === "validated" && m.role !== "founder" && (rank >= 4 || m.role !== "admin") && m.user_id !== undefined;
+                const chosen = draft?.user === m.user_id ? draft.role : null;
                 return (
                   <tr key={m.user_id} data-testid="member-row">
                     <td class="font-semibold">{m.name}</td>
@@ -184,22 +224,56 @@ function Members({ me }: { me: Me }) {
                     <td>{m.linked ? (m.in_roster ? "Oui" : <span class="text-warn">Plus dans la liste</span>) : "—"}</td>
                     <td>
                       {editable ? (
-                        <select
-                          aria-label={`Rôle de ${m.name}`}
-                          class="field !min-h-9 !py-1"
-                          value={m.role}
-                          disabled={action.busy}
-                          onChange={(e) => {
-                            const role = e.currentTarget.value;
-                            void action.run(() => call("set_member_role", { p_user: m.user_id, p_role: role }), `Rôle de ${m.name} modifié.`);
-                          }}
-                        >
-                          {assignable.map((r) => (
-                            <option key={r} value={r}>
-                              {ROLE_LABELS[r]}
-                            </option>
-                          ))}
-                        </select>
+                        <>
+                          <select
+                            id={`role-${m.user_id}`}
+                            aria-label={`Rôle de ${m.name}`}
+                            class="field !min-h-9 !py-1"
+                            value={chosen ?? m.role}
+                            disabled={action.busy}
+                            onChange={(e) => {
+                              const role = e.currentTarget.value as Role;
+                              setDraft(role === m.role ? null : { user: m.user_id, role });
+                            }}
+                          >
+                            {assignable.map((r) => (
+                              <option key={r} value={r}>
+                                {ROLE_LABELS[r]}
+                              </option>
+                            ))}
+                          </select>
+                          {chosen && (
+                            <div class="mt-2 flex flex-wrap items-center gap-2" data-testid="role-confirm">
+                              <span class="text-sm" aria-hidden="true">
+                                {ROLE_LABELS[m.role]} → {ROLE_LABELS[chosen]} ?
+                              </span>
+                              <button
+                                type="button"
+                                class="chip !min-h-9"
+                                aria-label={`Confirmer le rôle ${ROLE_LABELS[chosen]} pour ${m.name}`}
+                                disabled={action.busy}
+                                onClick={() => {
+                                  setDraft(null);
+                                  setRefocus(m.user_id);
+                                  void action.run(() => call("set_member_role", { p_user: m.user_id, p_role: chosen }), `Rôle de ${m.name} modifié : ${ROLE_LABELS[m.role]} → ${ROLE_LABELS[chosen]}.`);
+                                }}
+                              >
+                                Confirmer
+                              </button>
+                              <button
+                                type="button"
+                                class="chip !min-h-9"
+                                aria-label={`Annuler le changement de rôle de ${m.name}`}
+                                onClick={() => {
+                                  setDraft(null);
+                                  setRefocus(m.user_id);
+                                }}
+                              >
+                                Annuler
+                              </button>
+                            </div>
+                          )}
+                        </>
                       ) : (
                         ROLE_LABELS[m.role]
                       )}

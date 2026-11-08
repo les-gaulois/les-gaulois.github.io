@@ -37,6 +37,14 @@ export function fmtPoints(n: number): string {
   return `${rounded < 0 ? "−" : "+"}${dec1.format(Math.abs(rounded))} ${Math.abs(rounded) >= 2 ? "points" : "point"}`;
 }
 export const fmtMinutes = (seconds: number) => `${int.format(Math.round(seconds / 60))} min`;
+/** Une durée en millisecondes, arrondie vers le bas : « 12 min », « 26 h », puis « 3 jours » à partir de 48 h. */
+export function fmtDuration(ms: number): string {
+  const minutes = Math.max(0, Math.floor(ms / 60_000));
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 48) return `${hours} h`;
+  return `${int.format(Math.floor(hours / 24))} jours`;
+}
 export const fmtDateTime = (iso: string) => dateTime.format(new Date(iso));
 /** Sans l'année, pour une partie récente : « 7 nov., 17:39 ». */
 export const fmtDayAndTime = (iso: string) => `${dayParis.format(new Date(iso))}, ${timeParis.format(new Date(iso))}`;

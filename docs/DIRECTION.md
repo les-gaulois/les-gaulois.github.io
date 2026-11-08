@@ -35,7 +35,10 @@ Une annonce parle au nom du clan : le nom de son auteur n'est pas public, seuls 
 ## L'administration : `/admin`
 
 - **Demandes :** valider ou refuser, avec une raison facultative.
-- **Membres :** rôles, suspensions et rétablissements.
+  - De la plus ancienne à la plus récente, chacune dit depuis combien de temps elle attend. Au-delà de 2 jours, elle passe en jaune (`src/lib/compte/requests.ts`).
+  - Des raisons de refus toutes prêtes (« Pas reconnu sur Discord. »…) remplissent le champ sans rien envoyer : on peut les compléter. La raison d'un refus est montrée telle quelle au membre, dans `/compte`. Une validation n'en montre aucune.
+  - La durée d'attente se recalcule chaque minute. L'écran montre au plus les 200 demandes les plus anciennes, ce que le serveur renvoie.
+- **Membres :** rôles, suspensions et rétablissements. Un rôle choisi dans la liste ne part qu'après « Confirmer » : au clavier ou d'un doigt, on choisit vite un autre rôle par erreur. Après « Confirmer » ou « Annuler », le focus revient à la liste du rôle.
 - **Journal**, pour les admins et le fondateur : une phrase par action, la plus récente d'abord, par exemple « Chef a changé le rôle de Recrue : Membre → Officier ». Les détails viennent du serveur (rôles, raison, titre, date d'un événement) : un détail absent n'est pas écrit, et un code sans libellé s'affiche tel quel. Le serveur note de la même façon une publication et une modification, d'où « a publié ou modifié ». Filtres par personne (qui agit ou qui est visé) et par type d'action. L'écran lit les 500 dernières entrées, le maximum du serveur, et en montre 50 à la fois. Les phrases sont dans `src/lib/compte/admin-log.ts`, et un test vérifie que chaque action notée par le serveur du site a la sienne.
 
 ## Les droits
@@ -132,6 +135,7 @@ Il vérifie que le projet répond, que Discord est activé, que l'e-mail est cou
 - **L'espace Direction et un second compte sur le vrai Supabase.** La connexion Discord, elle, a été essayée le 6 novembre 2026 : `on_auth_user_updated` remplit bien le nom et l'identifiant depuis `auth.identities`. Le nom gardé est le nom d'utilisateur Discord, pas le nom affiché.
 - **Un vrai téléphone, Firefox et Safari.**
 - **La vue joueur avec un vrai compte de l'encadrement.** Le 8 novembre 2026, elle n'a été essayée qu'avec un faux serveur, dans un vrai navigateur : bouton, bande, en-tête, `/compte`, `/direction` et `/admin`.
+- **La confirmation d'un rôle, l'attente des demandes et les raisons toutes prêtes.** Le 8 novembre 2026, ils n'ont été essayés qu'avec un faux serveur, dans un vrai navigateur.
 - **Le journal en phrases, la pastille et l'état du site.** Le 8 novembre 2026, ils n'ont été essayés qu'avec un faux serveur, dans un vrai navigateur. La fonction de la pastille a été installée sur le vrai projet, et ses droits contrôlés en lecture seule.
 - **Le thème rouge sur les écrans connectés.** Le 8 novembre 2026, axe n'a trouvé aucun défaut sur `/direction` et `/admin` connectés, sur bureau et téléphone, mais avec un faux serveur. Les tests automatiques, construits sans serveur de connexion, ne voient de ces pages que la carte « connexion pas ouverte ».
 - **La relecture de la liste des membres sous son nouveau nom.** Le script `scripts/relire-membres.ts` reprend le code de l'ancienne tâche quotidienne. Sa première exécution sur le vrai projet se lit dans l'onglet **Actions**.

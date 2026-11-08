@@ -8,6 +8,16 @@ export type Loadable<T> = { status: "loading" } | { status: "error"; message: st
 
 export const messageOf = (e: unknown): string => (e instanceof ServerError ? e.message : "Le serveur ne répond pas pour l'instant. Réessayez dans un moment.");
 
+/** L'heure, relue chaque minute : une durée affichée reste juste dans une page laissée ouverte. */
+export function useNow(every = 60_000): Date {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), every);
+    return () => window.clearInterval(timer);
+  }, [every]);
+  return now;
+}
+
 /** La vue joueur de ce navigateur, tenue à jour quand on l'ouvre ou la quitte sur cette page. */
 export function usePlayerView(): boolean {
   const [on, setOn] = useState(readPlayerView);

@@ -1,5 +1,5 @@
-import { useEffect, useState } from "preact/hooks";
 import { siteHealth, type HealthLevel, type SiteHealthInput } from "../../lib/etat-site";
+import { useNow } from "./common";
 
 const TONE: Record<HealthLevel, string> = { ok: "text-muted", info: "text-muted", warn: "font-semibold text-warn" };
 
@@ -8,13 +8,7 @@ const TONE: Record<HealthLevel, string> = { ok: "text-muted", info: "text-muted"
  * L'âge se recalcule chaque minute : une page laissée ouverte reste juste.
  */
 export default function SiteHealth(props: SiteHealthInput) {
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(new Date()), 60_000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  const health = siteHealth(props, now);
+  const health = siteHealth(props, useNow());
   const warnings = health.lines.filter((line) => line.level === "warn").length;
 
   return (

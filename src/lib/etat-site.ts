@@ -6,7 +6,7 @@
  * Le site est statique : si le robot s'arrête, la page n'est plus reconstruite. L'âge se calcule donc
  * dans le navigateur du lecteur, avec `now`, et une page restée en l'état vieillit à l'écran.
  */
-import { fmtCount, fmtDateTime, fmtDay } from "./format";
+import { fmtCount, fmtDateTime, fmtDay, fmtDuration } from "./format";
 import { MAX_AGE_HOURS, freshness } from "./freshness";
 import type { GazetteSendState } from "./gazette-discord";
 import type { DatasetState, Meta } from "./schemas";
@@ -32,14 +32,7 @@ export const SOURCES: readonly { key: SourceKey; label: string }[] = [
 ];
 
 /** Un âge en toutes lettres : « il y a 24 min », « il y a 5 h », « il y a 3 jours ». */
-export function ago(ms: number): string {
-  if (ms < 60_000) return "à l'instant";
-  const minutes = Math.floor(ms / 60_000);
-  if (minutes < 60) return `il y a ${minutes} min`;
-  const hours = Math.floor(ms / HOUR_MS);
-  if (hours < 48) return `il y a ${hours} h`;
-  return `il y a ${Math.floor(hours / 24)} jours`;
-}
+export const ago = (ms: number): string => (ms < 60_000 ? "à l'instant" : `il y a ${fmtDuration(ms)}`);
 
 const since = (iso: string, now: Date) => `${ago(now.getTime() - Date.parse(iso))} (${fmtDateTime(iso)})`;
 
