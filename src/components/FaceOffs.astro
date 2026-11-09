@@ -1,12 +1,13 @@
 ---
 import DataStatus from "./DataStatus.astro";
+import FaceOffCard from "./FaceOffCard.astro";
 import GamesCoverage from "./GamesCoverage.astro";
 import ReadingNote from "./ReadingNote.astro";
 import { clan } from "../../config/clan";
 import { loadGames, loadLeaderboard, loadMeta, loadSessions } from "../lib/data";
-import { fmtCount, fmtDate, fmtInt, fmtPct } from "../lib/format";
+import { fmtCount, fmtDate, fmtInt } from "../lib/format";
 import { MAX_AGE_HOURS } from "../lib/freshness";
-import { FACE_OFF_MAX_ROWS, FACE_OFF_MIN_MEETINGS, faceOffs, MIN_CLAN_PLAYERS } from "../lib/games";
+import { FACE_OFF_FIRST_ROWS, FACE_OFF_MAX_ROWS, FACE_OFF_MIN_MEETINGS, faceOffs, MIN_CLAN_PLAYERS } from "../lib/games";
 import { RESULTS_DAYS } from "../lib/results";
 
 const meta = loadMeta();
@@ -14,7 +15,9 @@ const leaderboard = loadLeaderboard();
 const result = leaderboard ? faceOffs(loadSessions(), loadGames(), clan.tag, leaderboard.clans.map((c) => c.clanTag), meta.sessions.coveredUntil) : null;
 const rows = result?.reliable ? result.rows : [];
 const show = rows.length > 0 || (result !== null && !result.reliable) || meta.games.lastError;
-const part = (n: number, total: number) => ({ "--v": `${(n / total) * 100}%` });
+// Les clans les plus rencontrés d'abord ; les suivants restent dans la page, repliés : elle reste courte sur téléphone.
+const first = rows.slice(0, FACE_OFF_FIRST_ROWS);
+const rest = rows.slice(FACE_OFF_FIRST_ROWS);
 const start = fmtDate(`${clan.archiveStart}T12:00:00Z`);
 ---
 
@@ -27,41 +30,23 @@ const start = fmtDate(`${clan.archiveStart}T12:00:00Z`);
       </p>
       {
         rows.length > 0 ? (
-          <ul class="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {rows.map((row) => (
-              <li class="panel" data-testid="face-off">
-                <div class="flex flex-wrap items-baseline justify-between gap-x-4">
-                  <h3 class="text-2xl">[{row.tag}]</h3>
-                  <span class="tnum text-sm text-muted" data-testid="face-off-meetings">{fmtCount(row.meetings, "partie")}</span>
-                </div>
-                <div class="split-bar mt-3" aria-hidden="true">
-                  <i class="bg-win" style={part(row.ours, row.meetings)}></i>
-                  <i class="bg-loss" style={part(row.theirs, row.meetings)}></i>
-                  <i class="split-other" style={part(row.others, row.meetings)}></i>
-                </div>
-                <dl class="tnum mt-3 space-y-1 text-sm">
-                  <div class="flex justify-between gap-4">
-                    <dt class="flex items-center gap-1.5"><i class="inline-block size-3 shrink-0 rounded-sm bg-win" aria-hidden="true"></i>L'équipe de [{clan.tag}] gagne</dt>
-                    <dd class="font-semibold" data-testid="face-off-ours">{fmtInt(row.ours)}</dd>
-                  </div>
-                  <div class="flex justify-between gap-4">
-                    <dt class="flex items-center gap-1.5"><i class="inline-block size-3 shrink-0 rounded-sm bg-loss" aria-hidden="true"></i>L'équipe de [{row.tag}] gagne</dt>
-                    <dd class="font-semibold" data-testid="face-off-theirs">{fmtInt(row.theirs)}</dd>
-                  </div>
-                  <div class="flex justify-between gap-4">
-                    <dt class="flex items-center gap-1.5"><i class="split-other inline-block size-3 shrink-0 rounded-sm" aria-hidden="true"></i>Une autre équipe gagne</dt>
-                    <dd class="font-semibold" data-testid="face-off-others">{fmtInt(row.others)}</dd>
-                  </div>
-                </dl>
-                {row.share !== null && (
-                  <p class="tnum mt-3 text-sm text-muted">
-                    Quand l'équipe de l'un des deux gagne, c'est celle de [{clan.tag}] : {fmtInt(row.ours)} fois sur {fmtInt(row.ours + row.theirs)}, soit {fmtPct(row.share)}.
-                  </p>
-                )}
-                {row.allTime && <p class="tnum mt-1 text-xs text-muted">Depuis le {start} : {fmtCount(row.allTime.meetings, "partie")}, équipe de [{clan.tag}] {fmtInt(row.allTime.ours)}, équipe de [{row.tag}] {fmtInt(row.allTime.theirs)}.</p>}
-              </li>
-            ))}
-          </ul>
+          <>
+            <ul class="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3" data-testid="face-offs-first">
+              {first.map((row) => (
+                <FaceOffCard row={row} start={start} />
+              ))}
+            </ul>
+            {rest.length > 0 && (
+              <details class="mt-5" data-testid="face-offs-more">
+                <summary class="cursor-pointer font-semibold">{rest.length > 1 ? `Voir les ${fmtInt(rest.length)} autres clans` : "Voir le dernier clan"}</summary>
+                <ul class="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {rest.map((row) => (
+                    <FaceOffCard row={row} start={start} />
+                  ))}
+                </ul>
+              </details>
+            )}
+          </>
         ) : (
           <p class="mt-6 font-display text-lg font-bold">Pas de données</p>
         )

@@ -20,6 +20,8 @@ const GROUP_CAP = 4;
 const LOBBY_LIMITS = [20, 40, 80];
 export const FACE_OFF_MIN_MEETINGS = 30;
 export const FACE_OFF_MAX_ROWS = 12;
+/** Les clans montrés d'abord, les plus rencontrés : les autres restent dans la page, repliés. Sur téléphone, douze cartes font plus de quatre écrans. */
+export const FACE_OFF_FIRST_ROWS = 3;
 /** Au-delà de cette part de parties écartées parmi les plus récentes, la règle de placement du jeu a sans doute changé. */
 export const FACE_OFF_MAX_DOUBT = 0.05;
 /** Le contrôle porte sur les dernières parties, pour réagir vite à un changement, et attend d'en avoir assez pour juger. */

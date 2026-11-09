@@ -7,8 +7,8 @@ import { loadClanMapFilm, loadTerritoryReadings, loadGames, loadHistory, loadMem
 import { fmtCount, fmtGap, fmtInt, fmtRank, fmtScore } from "../../src/lib/format";
 import type { LeaderboardEntry } from "../../src/lib/schemas";
 import { withOfficialRanks } from "../../src/lib/stats";
-import { faceOffs, mapResults } from "../../src/lib/games";
-import { editionLead, gazetteEditions, playersPeriod, rankWords, standingDetails, territoryDetails, weekLabel } from "../../src/lib/gazette";
+import { FACE_OFF_FIRST_ROWS, faceOffs, mapResults } from "../../src/lib/games";
+import { editionLead, GAZETTE_RECENT_EDITIONS, gazetteEditions, playersPeriod, rankWords, standingDetails, territoryDetails, weekLabel } from "../../src/lib/gazette";
 import { bestGameOf, bestGameSentence, yesterdayOf } from "../../src/lib/belle-partie";
 import { clanJournal, JOURNAL_FIRST_ROWS, journalChoices, journalCount, NO_FILTER, replayUrl } from "../../src/lib/journal";
 import { recentRecordKeys, weekRecordKeys } from "../../src/lib/records-battus";
@@ -136,10 +136,12 @@ test("parcours principal", async ({ page }, testInfo) => {
   await page.goto("/membres");
   await hydrated(page);
   await expect(page.getByTestId("member-count")).toContainText(fmtInt(members.total));
-  // Trente membres d'abord, le reste d'un clic : la page reste courte sur téléphone.
-  const memberRows = page.getByTestId("member-row");
-  await expect(memberRows).toHaveCount(Math.min(30, members.members.length));
-  if (members.members.length > 30) {
+  // Trente membres d'abord, dix sur téléphone où chacun est une carte : le reste d'un clic, la page reste courte.
+  const firstPage = mobile ? 10 : 30;
+  // La liste que le visiteur voit : des cartes sur téléphone, les lignes du tableau au-delà.
+  const memberRows = page.getByTestId(mobile ? "member-card" : "member-row").filter({ visible: true });
+  await expect(memberRows).toHaveCount(Math.min(firstPage, members.members.length));
+  if (members.members.length > firstPage) {
     await page.getByTestId("members-more").click();
     await expect(memberRows).toHaveCount(members.members.length);
   }
@@ -665,6 +667,17 @@ test("les face-à-face reprennent les chiffres calculés, sans aucun joueur", as
   await expect(block).toContainText("L'API ne donne pas toujours l'équipe des perdants");
   await expect(block).toContainText("Dernière mise à jour");
   await expect(panels).toHaveCount(result.rows.length);
+  // Les clans les plus rencontrés d'abord, visibles ; les suivants restent dans la page, repliés d'un seul tenant.
+  await expect(block.getByTestId("face-offs-first").getByTestId("face-off")).toHaveCount(Math.min(FACE_OFF_FIRST_ROWS, result.rows.length));
+  const more = block.getByTestId("face-offs-more");
+  if (result.rows.length > FACE_OFF_FIRST_ROWS) {
+    await expect(more.getByTestId("face-off")).toHaveCount(result.rows.length - FACE_OFF_FIRST_ROWS);
+    await expect(panels.nth(FACE_OFF_FIRST_ROWS)).toBeHidden();
+    await more.locator("summary").click();
+    await expect(panels.nth(result.rows.length - 1)).toBeVisible();
+  } else {
+    await expect(more).toHaveCount(0);
+  }
   for (const [i, row] of result.rows.entries()) {
     const panel = panels.nth(i);
     await expect(panel.getByRole("heading")).toHaveText(`[${row.tag}]`);
@@ -1068,6 +1081,18 @@ test("la gazette donne le bilan de la dernière semaine complète, et n'invente 
   expect(digits(await block.getByTestId("gazette-totals").locator("p").first().textContent())).toBe(String(latest.totals.games));
   await expect(block.getByTestId("gazette-totals")).toContainText(fmtCount(latest.totals.wins, "victoire"));
   await expect(page.getByTestId("gazette-older")).toHaveCount(editions.length - 1);
+  // Les dernières éditions d'abord ; les plus anciennes restent dans la page, repliées ensemble, et s'ouvrent d'un geste.
+  const olderCount = editions.length - 1;
+  const ancient = page.getByTestId("gazette-ancient");
+  if (olderCount > GAZETTE_RECENT_EDITIONS) {
+    await expect(ancient.getByTestId("gazette-older")).toHaveCount(olderCount - GAZETTE_RECENT_EDITIONS);
+    await expect(page.getByTestId("gazette-older").nth(GAZETTE_RECENT_EDITIONS - 1)).toBeVisible();
+    await expect(page.getByTestId("gazette-older").nth(olderCount - 1)).toBeHidden();
+    await ancient.locator("summary").first().click();
+    await expect(page.getByTestId("gazette-older").nth(olderCount - 1)).toBeVisible();
+  } else {
+    await expect(ancient).toHaveCount(0);
+  }
   await expect(page.getByTestId("data-status").first()).toContainText("Dernière mise à jour");
   // Les mois abrégés finissent déjà par un point : aucune phrase ne doit en avoir deux. Les pseudos, eux, sont libres.
   for (const part of ["gazette-lead", "gazette-totals", "gazette-standing", "gazette-territory", "gazette-highlights"]) {

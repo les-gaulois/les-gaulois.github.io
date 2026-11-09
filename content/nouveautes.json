@@ -2,6 +2,12 @@
   {
     "date": "2026-11-09",
     "kind": "ameliore",
+    "title": "Des pages plus courtes, surtout sur téléphone",
+    "body": "Rivaux, Membres et la Gazette montrent d'abord l'essentiel : les face-à-face suivants, les éditions anciennes et le reste de la liste des membres s'ouvrent d'un geste."
+  },
+  {
+    "date": "2026-11-09",
+    "kind": "ameliore",
     "title": "L'encadrement prévenu des sauvegardes",
     "body": "Le salon privé de l'encadrement reçoit un message après chaque sauvegarde chiffrée, faite ou ratée, et, une seule fois, un message qui prouve que son lien marche. Aucun nom.",
     "link": {

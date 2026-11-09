@@ -143,6 +143,9 @@ export function playersPeriod({ from, to, players, playersSince }: Pick<GazetteE
   return start <= from ? "de la semaine" : `du ${fmtDay(start)} au ${fmtDay(to)}`;
 }
 
+/** Les éditions précédentes montrées d'abord sur la page de la gazette : les plus anciennes restent dans la page, repliées ensemble. */
+export const GAZETTE_RECENT_EDITIONS = 6;
+
 export const weekLabel = ({ from, to }: Pick<GazetteEdition, "from" | "to">) => `du ${fmtDay(from)} au ${fmtDay(to)} ${to.slice(0, 4)}`;
 
 /** Termine une phrase par une date : les mois abrégés finissent déjà par un point (« 1 nov. »), pas les autres (« 3 août »). */

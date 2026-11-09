@@ -4,8 +4,16 @@ import { motionAllowed } from "../lib/fx/motion";
 import { filterMembers, gamesOf, rateOf, sortMembers, type SortDir, type SortKey } from "../lib/members";
 import type { StoredMember, StoredMembers } from "../lib/schemas";
 
-/** Les premiers membres affichés : le reste vient d'un clic, comme pour le classement. */
+/**
+ * Les membres montrés d'abord, le reste d'un clic, comme pour le classement. Sur téléphone, chaque membre est une carte :
+ * dix suffisent, trente en feraient plus de quatre écrans. La longueur est choisie à l'ouverture, puis à chaque tri ou recherche :
+ * elle ne suit pas une rotation de l'écran, pour que la liste ne bouge pas sous le doigt. « N affichés » reste toujours vrai.
+ */
 const PAGE = 30;
+const PAGE_PHONE = 10;
+/** La largeur sous laquelle la liste passe en cartes : `md` de Tailwind, en rem comme lui. */
+const PHONE = "(width < 48rem)";
+const firstPage = () => (typeof window !== "undefined" && window.matchMedia(PHONE).matches ? PAGE_PHONE : PAGE);
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const ROLE: Record<StoredMember["role"], string> = { leader: "Chef", officer: "Officier", member: "Membre" };
 const SORTS: { key: SortKey; label: string }[] = [
@@ -77,7 +85,7 @@ export default function MembersTable({ src }: { src: string }) {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("wins");
   const [dir, setDir] = useState<SortDir>("desc");
-  const [limit, setLimit] = useState(PAGE);
+  const [limit, setLimit] = useState(firstPage);
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
@@ -104,7 +112,7 @@ export default function MembersTable({ src }: { src: string }) {
   const members = state.status === "ready" ? state.data.members : [];
   const rows = useMemo(() => sortMembers(filterMembers(members, query), sort, dir), [members, query, sort, dir]);
 
-  useEffect(() => setLimit(PAGE), [query, sort, dir]);
+  useEffect(() => setLimit(firstPage()), [query, sort, dir]);
 
   const tableBody = useRef<HTMLTableSectionElement>(null);
   const cardList = useRef<HTMLUListElement>(null);
