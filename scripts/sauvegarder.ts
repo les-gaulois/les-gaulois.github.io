@@ -1,5 +1,6 @@
 /**
- * Sauvegarde chiffrée des données du serveur de connexion, lancée chaque lundi par l'Action « Sauvegarde chiffrée ».
+ * Sauvegarde chiffrée des données du serveur de connexion, faite chaque semaine par l'Action « Sauvegarde chiffrée »,
+ * que le robot horaire lance (voir src/lib/sauvegarde-relance.ts).
  *   npm run sauvegarde
  * Avec SUPABASE_URL, SUPABASE_SECRET_KEY et SAUVEGARDE_CLE, la phrase de passe de la direction. Sans eux, ne fait rien.
  * Le fichier chiffré va dans .cache/sauvegarde/, que l'Action garde 90 jours. Rien n'est écrit en clair sur le disque.
@@ -7,7 +8,7 @@
  */
 import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
-import { backupName, passphraseProblem, seal } from "../src/lib/sauvegarde";
+import { backupName, backupSummary, passphraseProblem, seal } from "../src/lib/sauvegarde";
 
 // Dans une Action, un réglage manquant s'affiche en avertissement sur la page de l'exécution, et pas seulement dans son journal.
 const warn = (text: string) => console.log(process.env["GITHUB_ACTIONS"] ? `::warning::Sauvegarde : ${text}` : text);
@@ -35,10 +36,7 @@ try {
   if (error) throw new Error(`export_site : ${error.message}`);
   const content = data as Record<string, unknown>;
   // Les nombres de lignes, pour vérifier dans le journal de l'Action : aucun nom, aucune donnée.
-  const sizes = Object.entries(content)
-    .filter(([, value]) => Array.isArray(value))
-    .map(([table, value]) => `${table} ${(value as unknown[]).length}`)
-    .join(", ");
+  const sizes = backupSummary(content);
   const dir = ".cache/sauvegarde";
   mkdirSync(dir, { recursive: true });
   const file = `${dir}/${backupName(new Date())}`;

@@ -1,14 +1,16 @@
 /**
  * Ouvre une sauvegarde chiffrée, téléchargée depuis l'onglet Actions de GitHub (Action « Sauvegarde chiffrée »).
- *   npm run sauvegarde:ouvrir -- chemin/gal-sauvegarde-2026-11-09.bin
+ *   npm run sauvegarde:ouvrir chemin/gal-sauvegarde-2026-11-09.bin
+ *   npm run sauvegarde:verifier chemin/gal-sauvegarde-2026-11-09.bin
  * La phrase de passe est demandée à l'écran, sans s'afficher : à lancer soi-même, dans un terminal, jamais dans une
- * conversation. Le contenu, en clair, va dans .cache/sauvegarde/, que Git ignore. Il contient des données personnelles :
- * l'effacer une fois servi.
+ * conversation. Pour ouvrir, le contenu en clair va dans .cache/sauvegarde/, que Git ignore. Il contient des données
+ * personnelles : l'effacer une fois servi. Pour vérifier (--verifier), rien n'est écrit : seul le nombre de lignes de
+ * chaque table s'affiche, preuve que la phrase ouvre bien le fichier.
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename } from "node:path";
 import { createInterface } from "node:readline";
-import { BackupError, open } from "../src/lib/sauvegarde";
+import { BackupError, backupSummary, open } from "../src/lib/sauvegarde";
 
 /**
  * Lit une ligne sans l'afficher. Hors terminal (entrée redirigée, ou fenêtre comme Git Bash que node ne reconnaît pas),
@@ -58,22 +60,29 @@ async function askHidden(question: string): Promise<string> {
   });
 }
 
-const file = process.argv[2];
+const args = process.argv.slice(2);
+const verifyOnly = args.includes("--verifier");
+const file = args.find((arg) => !arg.startsWith("--"));
 if (!file) {
-  console.log("Usage : npm run sauvegarde:ouvrir -- chemin/gal-sauvegarde-AAAA-MM-JJ.bin");
+  console.log("Usage : npm run sauvegarde:ouvrir chemin/gal-sauvegarde-AAAA-MM-JJ.bin, ou npm run sauvegarde:verifier chemin/… pour vérifier sans rien écrire.");
   process.exit(1);
 }
 
 try {
   const sealed = readFileSync(file);
   const passphrase = process.env["SAUVEGARDE_CLE"] || (await askHidden("Phrase de passe de la sauvegarde (elle ne s'affiche pas) : "));
-  const plain = open(sealed, passphrase);
-  const dir = ".cache/sauvegarde";
-  mkdirSync(dir, { recursive: true });
-  const out = `${dir}/${basename(file).replace(/\.bin$/i, "")}.json`;
-  writeFileSync(out, JSON.stringify(JSON.parse(plain.toString("utf8")), null, 2));
-  console.log(`Sauvegarde ouverte : ${out}. Ce fichier contient des données personnelles : effacez-le après usage.`);
+  const content: unknown = JSON.parse(open(sealed, passphrase).toString("utf8"));
+  if (verifyOnly) {
+    console.log(`La phrase ouvre bien cette sauvegarde. Lignes : ${backupSummary(content)}. Rien n'a été écrit sur le disque.`);
+  } else {
+    const dir = ".cache/sauvegarde";
+    mkdirSync(dir, { recursive: true });
+    const out = `${dir}/${basename(file).replace(/\.bin$/i, "")}.json`;
+    writeFileSync(out, JSON.stringify(content, null, 2));
+    console.log(`Sauvegarde ouverte : ${out}. Ce fichier contient des données personnelles : effacez-le après usage.`);
+  }
 } catch (e) {
-  console.log(e instanceof BackupError ? e.message : `Impossible d'ouvrir la sauvegarde : ${e instanceof Error ? e.message : String(e)}`);
+  if ((e as NodeJS.ErrnoException).code === "ENOENT") console.log(`Fichier introuvable : ${file}. Le .bin se trouve dans le .zip téléchargé : décompressez-le d'abord.`);
+  else console.log(e instanceof BackupError ? e.message : `Impossible d'ouvrir la sauvegarde : ${e instanceof Error ? e.message : String(e)}`);
   process.exit(1);
 }

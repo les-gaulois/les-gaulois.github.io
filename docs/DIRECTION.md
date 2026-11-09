@@ -68,7 +68,7 @@ Ce lien permet d'écrire dans le salon : il ne va que dans ce secret, jamais dan
 
 ## La sauvegarde chiffrée
 
-Supabase ne sauvegarde rien sur le forfait gratuit. Chaque lundi au petit matin, l'Action **Sauvegarde chiffrée** (`.github/workflows/sauvegarde.yml`) copie ce que le site garde et qui ne se retrouve nulle part ailleurs :
+Supabase ne sauvegarde rien sur le forfait gratuit. Chaque semaine, l'Action **Sauvegarde chiffrée** (`.github/workflows/sauvegarde.yml`) copie ce que le site garde et qui ne se retrouve nulle part ailleurs :
 
 - comptes et rôles, liens Discord (identifiant et nom), demandes et journal ;
 - annonces, événements et réponses « Je viens » ;
@@ -85,21 +85,26 @@ Comment elle est gardée :
 
 - **Chiffrée avant de sortir :** AES-256-GCM, avec une clé tirée de la phrase de passe par scrypt, réglé lent exprès (N = 2^18) pour qu'une phrase coûte cher à deviner (`src/lib/sauvegarde.ts`). Le fichier porte ses réglages, et tout son en-tête est authentifié : une seule lettre changée le rend inutilisable.
 - **Gardée 90 jours** par GitHub, dans l'exécution de l'Action, sous **Artifacts**. Le dépôt est public : n'importe quel compte GitHub peut télécharger ce fichier, illisible sans la phrase. Rien n'est écrit en clair, ni sur le disque de l'Action ni dans le dépôt. Le journal de l'Action ne donne que le nombre de lignes de chaque table.
-- **Sans phrase de passe dans GitHub,** l'Action ne sauvegarde rien et l'affiche en avertissement sur la page de son exécution.
-- **Sur demande :** onglet **Actions → Sauvegarde chiffrée → Run workflow**. GitHub peut sauter une exécution planifiée : s'il manque une semaine dans la liste, lancez-la ainsi.
+- **Sans phrase de passe dans GitHub,** le robot ne lance aucune sauvegarde. Lancée à la main, l'Action ne sauvegarde rien et l'affiche en avertissement sur la page de son exécution.
+- **Lancée par le robot horaire :** le planning de GitHub saute la plupart de ses passages sur ce dépôt (les 6, 7 et 8 novembre 2026, quatre exécutions planifiées sur vingt-quatre ont démarré chaque jour, et la première sauvegarde du lundi n'a pas eu lieu). Le job `sauvegarde-de-la-semaine` de `site.yml` regarde donc à chaque passage du robot si la semaine a son fichier gardé, la semaine commençant le lundi à 3 h UTC (4 h à Paris en hiver, 5 h en été). Sinon, il lance l'Action. Une sauvegarde ratée est relancée au passage suivant, avec trois essais au plus dans la semaine, lancements à la main compris ; au-delà, l'exécution du robot l'affiche en avertissement, et il attend le lundi suivant. Une sauvegarde restée plus d'une heure en file d'attente est signalée aussi (`src/lib/sauvegarde-relance.ts`).
+- **Les droits de ce job :** le seul droit Actions de GitHub, qui permet de lancer une exécution, mais aussi d'en annuler ou d'en effacer une avec ses fichiers. Il ne peut pas écrire dans le dépôt, et le job qui travaille sur `data/` n'a pas ce droit sur les sauvegardes. La phrase ne passe pas par lui : seulement le fait qu'elle existe.
+- **Sur demande :** onglet **Actions → Sauvegarde chiffrée → Run workflow**. Une sauvegarde faite à la main compte pour sa semaine.
 
 **Pour l'activer**, une seule fois :
 
 1. Tirer une phrase de passe au hasard avec le générateur d'un gestionnaire de mots de passe : 32 caractères, ou six mots. Le script refuse une phrase de moins de 20 caractères ou faite de trop peu de lettres différentes. La garder dans ce gestionnaire. **La perdre, c'est perdre toutes les sauvegardes.**
 2. Sur GitHub, **Settings → Secrets and variables → Actions → New repository secret** : nom `SAUVEGARDE_CLE`, valeur la phrase.
 
-**Pour ouvrir une sauvegarde**, à faire soi-même, jamais dans une conversation, de préférence dans PowerShell ou Windows Terminal : télécharger l'artifact de l'exécution voulue et le décompresser, puis, dans le dossier du site :
+**Pour vérifier ou ouvrir une sauvegarde**, la phrase se tape soi-même dans un terminal, jamais dans une conversation, de préférence PowerShell ou Windows Terminal. Télécharger l'artifact de l'exécution voulue et le décompresser, puis, dans le dossier du site :
 
 ```bash
-npm run sauvegarde:ouvrir -- chemin/gal-sauvegarde-2026-11-09.bin
+npm run sauvegarde:verifier chemin/gal-sauvegarde-2026-11-09.bin
+npm run sauvegarde:ouvrir chemin/gal-sauvegarde-2026-11-09.bin
 ```
 
-La phrase de passe est demandée à l'écran, sans s'afficher : elle ne reste dans aucun historique. Certaines fenêtres, comme Git Bash, ne savent pas la masquer : elle s'y afficherait, d'où PowerShell ou Windows Terminal. Le contenu, en clair, arrive dans `.cache/sauvegarde/`, que Git ignore. Il contient des données personnelles : effacez-le une fois servi. La restauration se fait à la main, dans l'éditeur SQL de Supabase : demandez de l'aide si besoin.
+`sauvegarde:verifier` n'écrit rien : il dit si la phrase ouvre le fichier et combien de lignes a chaque table. À faire après la première sauvegarde, avec la phrase telle qu'elle a été rangée, pour s'assurer qu'elle est juste. `sauvegarde:ouvrir` écrit le contenu, en clair, dans `.cache/sauvegarde/`, que Git ignore. Il contient des données personnelles : effacez-le une fois servi. La restauration se fait à la main, dans l'éditeur SQL de Supabase : demandez de l'aide si besoin.
+
+La phrase est demandée à l'écran, sans s'afficher : elle ne reste dans aucun historique. Certaines fenêtres, comme Git Bash, ne savent pas la masquer : elle s'y afficherait, d'où PowerShell ou Windows Terminal.
 
 ## Les droits
 

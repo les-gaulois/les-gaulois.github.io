@@ -19,6 +19,8 @@
     "encadrement:prevenir": "tsx scripts/prevenir-encadrement.ts",
     "sauvegarde": "tsx scripts/sauvegarder.ts",
     "sauvegarde:ouvrir": "tsx scripts/ouvrir-sauvegarde.ts",
+    "sauvegarde:verifier": "tsx scripts/ouvrir-sauvegarde.ts --verifier",
+    "sauvegarde:relancer": "tsx scripts/relancer-sauvegarde.ts",
     "discord:verifier": "tsx scripts/verifier-discord.ts",
     "gazette:envoyer": "tsx scripts/envoyer-gazette.ts",
     "alertes:envoyer": "tsx scripts/envoyer-alertes.ts",

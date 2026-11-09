@@ -83,3 +83,24 @@ export function open(sealed: Buffer, passphrase: string): Buffer {
 
 /** Le nom du fichier d'une sauvegarde : son jour, en temps universel. */
 export const backupName = (now: Date) => `gal-sauvegarde-${now.toISOString().slice(0, 10)}.bin`;
+
+/** Le nombre de lignes de chaque table d'une sauvegarde ouverte, sans aucune donnée : « profiles 12, polls 2 ». */
+export function backupSummary(content: unknown): string {
+  if (typeof content !== "object" || content === null || Array.isArray(content)) throw new BackupError("Le contenu de la sauvegarde est illisible.");
+  return Object.entries(content)
+    .filter(([, value]) => Array.isArray(value))
+    .map(([table, value]) => `${table} ${(value as unknown[]).length}`)
+    .join(", ");
+}
+
+/** L'heure, en temps universel, où commence le lundi d'une semaine de sauvegarde : 3 h, soit 4 h ou 5 h à Paris. */
+export const BACKUP_WEEK_START_HOUR_UTC = 3;
+
+/** Le début de la semaine de sauvegarde en cours : le dernier lundi à 3 h UTC passé. */
+export function backupWeekStart(now: Date): Date {
+  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), BACKUP_WEEK_START_HOUR_UTC));
+  // Jours écoulés depuis lundi : lundi 0, dimanche 6.
+  start.setUTCDate(start.getUTCDate() - ((now.getUTCDay() + 6) % 7));
+  if (start.getTime() > now.getTime()) start.setUTCDate(start.getUTCDate() - 7);
+  return start;
+}

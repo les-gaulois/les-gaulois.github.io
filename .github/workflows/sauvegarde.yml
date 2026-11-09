@@ -1,15 +1,21 @@
 name: Sauvegarde chiffrée
 
-# Chaque lundi, une copie chiffrée des données du serveur de connexion : comptes et rôles, demandes, journal,
+# Chaque semaine, une copie chiffrée des données du serveur de connexion : comptes et rôles, demandes, journal,
 # publications, réponses et totaux des sondages. Sans le secret SAUVEGARDE_CLE, rien n'est sauvegardé, et la page
 # de l'exécution l'affiche en avertissement. Voir docs/DIRECTION.md, « La sauvegarde chiffrée ».
+# Pas de planning ici : celui de GitHub saute la plupart de ses passages sur ce dépôt. Le robot horaire
+# (« Données et site », job sauvegarde-de-la-semaine) lance cette Action dès le lundi 3 h UTC si la semaine
+# n'a pas sa sauvegarde. Elle se lance aussi à la main : onglet Actions, « Run workflow ».
 on:
-  schedule:
-    - cron: "41 3 * * 1"
   workflow_dispatch:
 
 permissions:
   contents: read
+
+# Une sauvegarde à la fois : un lancement à la main et un lancement du robot ne se croisent pas.
+concurrency:
+  group: sauvegarde
+  cancel-in-progress: false
 
 jobs:
   sauvegarde:

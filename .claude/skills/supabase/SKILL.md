@@ -10,6 +10,7 @@ paths:
   - "scripts/prevenir-encadrement.ts"
   - "scripts/sauvegarder.ts"
   - "scripts/ouvrir-sauvegarde.ts"
+  - "scripts/relancer-sauvegarde.ts"
 ---
 
 # Supabase : la connexion et l'espace Direction
@@ -57,6 +58,7 @@ Si `npx supabase` demande de se connecter (`supabase login`) ou de relier le pro
 - `scripts/relire-membres.ts` (`npm run membres:relire`) : lancé chaque heure par l'Action avec `SUPABASE_URL` et `SUPABASE_SECRET_KEY` des secrets GitHub ; sans eux il ne fait rien. Il remplace le `publicId` par son empreinte avant d'écrire.
 - `scripts/verifier-mise-en-ligne.ts` (`npm run verifier:ligne`) : les contrôles de `src/lib/compte/preflight.ts`, testés dans `tests/unit/preflight.test.ts`.
 - `scripts/prevenir-encadrement.ts` (`npm run encadrement:prevenir`) : lancé chaque heure par l'Action, avec en plus le secret `DISCORD_WEBHOOK_ENCADREMENT`. Il lit `staff_digest`, poste sur un salon privé sans aucun nom, puis note l'envoi par `note_staff_notice`. Logique et tests : `src/lib/encadrement-discord.ts`.
-- `scripts/sauvegarder.ts` (`npm run sauvegarde`) : lancé chaque lundi par `.github/workflows/sauvegarde.yml`, avec en plus le secret `SAUVEGARDE_CLE`. Il chiffre `export_site` (`src/lib/sauvegarde.ts`). L'export ne garde que le nécessaire : les totaux des votes, jamais qui a voté quoi, et ni l'empreinte OpenFront ni les textes libres d'une demande (identifiant tapé, mot pour l'officier). Toute nouvelle table à sauvegarder passe par une nouvelle version de `export_site`, avec la même règle.
-- `scripts/ouvrir-sauvegarde.ts` (`npm run sauvegarde:ouvrir -- fichier.bin`) : demande la phrase à l'écran et écrit le contenu en clair dans `.cache/sauvegarde/`. Il ne se lance jamais dans une conversation : la phrase n'a rien à y faire.
+- `scripts/sauvegarder.ts` (`npm run sauvegarde`) : lancé chaque semaine par `.github/workflows/sauvegarde.yml`, avec en plus le secret `SAUVEGARDE_CLE`. Il chiffre `export_site` (`src/lib/sauvegarde.ts`). L'export ne garde que le nécessaire : les totaux des votes, jamais qui a voté quoi, et ni l'empreinte OpenFront ni les textes libres d'une demande (identifiant tapé, mot pour l'officier). Toute nouvelle table à sauvegarder passe par une nouvelle version de `export_site`, avec la même règle.
+- `scripts/relancer-sauvegarde.ts` (`npm run sauvegarde:relancer`) : job `sauvegarde-de-la-semaine` de `site.yml`, à chaque passage du robot. Le planning de GitHub saute la plupart de ses passages : c'est ce job qui lance l'Action de sauvegarde si la semaine (depuis le lundi 3 h UTC) n'a pas de fichier gardé, trois essais au plus par semaine (`src/lib/sauvegarde-relance.ts`). Il ne reçoit que `SAUVEGARDE_CLE_POSEE`, jamais la phrase, et n'a que le droit `actions: write`.
+- `scripts/ouvrir-sauvegarde.ts` (`npm run sauvegarde:verifier fichier.bin` ou `npm run sauvegarde:ouvrir fichier.bin`) : demande la phrase à l'écran ; `verifier` n'écrit rien et donne les nombres de lignes, `ouvrir` écrit le contenu en clair dans `.cache/sauvegarde/`. La phrase se tape dans le terminal du pilote, jamais dans une conversation : ne jamais la demander, ni lire le terminal pendant qu'elle se tape.
 - Le site reste entièrement statique sans `PUBLIC_SUPABASE_URL` et `PUBLIC_SUPABASE_KEY` : un test e2e le vérifie. Toute nouvelle fonctionnalité serveur doit garder ce comportement.

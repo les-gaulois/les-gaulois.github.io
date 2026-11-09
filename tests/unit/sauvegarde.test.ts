@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BackupError, MIN_PASSPHRASE, SCRYPT, backupName, open, passphraseProblem, seal, type ScryptSettings } from "../../src/lib/sauvegarde";
+import { BackupError, MIN_PASSPHRASE, SCRYPT, backupName, backupSummary, backupWeekStart, open, passphraseProblem, seal, type ScryptSettings } from "../../src/lib/sauvegarde";
 
 const PASS = "Brume-Falaise-Hibou-Carte-Lanterne-92";
 // Des réglages plus rapides pour les tests : le fichier porte les siens, que `open` relit.
@@ -55,5 +55,25 @@ describe("la sauvegarde chiffrée", () => {
 
   it("donne le jour à son fichier", () => {
     expect(backupName(new Date("2026-11-09T03:41:00Z"))).toBe("gal-sauvegarde-2026-11-09.bin");
+  });
+
+  it("résume une sauvegarde ouverte par ses seuls nombres de lignes", () => {
+    const summary = backupSummary({ profiles: [{ display_name: "Essai" }, { display_name: "Autre" }], polls: [], welcome: { text: "Bienvenue" } });
+    expect(summary).toBe("profiles 2, polls 0");
+    expect(summary).not.toContain("Essai");
+    expect(() => backupSummary([1, 2])).toThrow(BackupError);
+    expect(() => backupSummary(null)).toThrow(BackupError);
+  });
+
+  it("fait commencer la semaine de sauvegarde le lundi à 3 h UTC", () => {
+    const start = (iso: string) => backupWeekStart(new Date(iso)).toISOString();
+    // Le 9 novembre 2026 est un lundi.
+    expect(start("2026-11-09T06:33:00Z")).toBe("2026-11-09T03:00:00.000Z");
+    expect(start("2026-11-09T03:00:00Z")).toBe("2026-11-09T03:00:00.000Z");
+    expect(start("2026-11-09T02:59:59Z")).toBe("2026-11-02T03:00:00.000Z");
+    expect(start("2026-11-11T12:00:00Z")).toBe("2026-11-09T03:00:00.000Z");
+    expect(start("2026-11-15T23:30:00Z")).toBe("2026-11-09T03:00:00.000Z");
+    // Au passage d'une année : le vendredi 1er janvier 2027 est dans la semaine du lundi 28 décembre.
+    expect(start("2027-01-01T10:00:00Z")).toBe("2026-12-28T03:00:00.000Z");
   });
 });

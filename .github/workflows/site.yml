@@ -162,6 +162,36 @@ jobs:
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           DISCORD_WEBHOOK_ENCADREMENT: ${{ secrets.DISCORD_WEBHOOK_ENCADREMENT }}
 
+  # Lance la sauvegarde chiffrée de la semaine si elle manque : le planning de GitHub saute la plupart de ses passages,
+  # le robot horaire passe toutes les heures. Règles : src/lib/sauvegarde-relance.ts. Job à part, avec le seul droit
+  # Actions de GitHub (lancer une exécution, mais aussi en annuler ou en effacer une avec ses fichiers) : il ne peut pas
+  # écrire dans le dépôt, et le job update-data, qui travaille sur data/, n'a pas ce droit sur les sauvegardes.
+  # Sans SUPABASE_URL, le job de sauvegarde.yml est sauté : rien à lancer.
+  sauvegarde-de-la-semaine:
+    if: github.event_name != 'push' && github.ref_name == 'main' && vars.SUPABASE_URL != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Seul le fait que la phrase existe passe ici, jamais la phrase.
+      - name: Lancer la sauvegarde si elle manque
+        continue-on-error: true
+        timeout-minutes: 2
+        run: npm run sauvegarde:relancer
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SAUVEGARDE_CLE_POSEE: ${{ secrets.SAUVEGARDE_CLE != '' }}
+
   build:
     needs: update-data
     # Sur un push, update-data est ignoré : le site se reconstruit quand même.

@@ -43,8 +43,10 @@ Le site s'ouvre sur http://localhost:4321. Aucun secret n'est nécessaire.
 | `npm run data:carte` | Met à jour seulement la carte des clans, sans attendre le délai d'une journée |
 | `npm run membres:relire` | Relit la liste des membres pour la connexion. Sans ses réglages, elle ne fait rien. |
 | `npm run encadrement:prevenir` | Signale à un salon privé de l'encadrement les demandes d'adhésion qui attendent, sans aucun nom. Sans son lien, elle ne fait rien : voir [docs/DIRECTION.md](docs/DIRECTION.md). |
-| `npm run sauvegarde` | Sauvegarde chiffrée des données de la connexion, lancée chaque lundi par l'Action « Sauvegarde chiffrée ». Sans sa phrase de passe, elle ne fait rien. |
-| `npm run sauvegarde:ouvrir -- fichier.bin` | Ouvre une sauvegarde téléchargée. La phrase de passe est demandée à l'écran, sans s'afficher : à lancer soi-même, jamais dans une conversation. Voir [docs/DIRECTION.md](docs/DIRECTION.md). |
+| `npm run sauvegarde` | Sauvegarde chiffrée des données de la connexion, faite par l'Action « Sauvegarde chiffrée ». Sans sa phrase de passe, elle ne fait rien. |
+| `npm run sauvegarde:relancer` | Lance l'Action « Sauvegarde chiffrée » si la semaine n'a pas encore sa sauvegarde : le robot horaire s'en charge. |
+| `npm run sauvegarde:verifier fichier.bin` | Vérifie qu'une sauvegarde téléchargée s'ouvre avec la phrase de passe, sans rien écrire : seuls les nombres de lignes s'affichent. |
+| `npm run sauvegarde:ouvrir fichier.bin` | Ouvre une sauvegarde téléchargée et écrit son contenu en clair dans `.cache/sauvegarde/`. Pour les deux commandes, la phrase se tape dans le terminal, sans s'afficher, jamais dans une conversation. Voir [docs/DIRECTION.md](docs/DIRECTION.md). |
 | `npm run discord:verifier` | Demande à Discord si le lien du salon marche, sans rien envoyer, une fois par nouveau lien. Sans son lien, elle ne fait rien. |
 | `npm run gazette:envoyer` | Envoie la dernière gazette sur Discord. Sans son lien, elle ne fait rien : voir « La gazette sur Discord ». |
 | `npm run alertes:envoyer` | Envoie une alerte si GAL a changé de place, sur le salon de la gazette. Sans son lien, elle ne fait rien : voir « Les alertes de place ». |
