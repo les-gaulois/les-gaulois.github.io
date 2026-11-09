@@ -61,9 +61,7 @@ const tiles: { key: RecordKey; label: string; value: string; hint: string }[] = 
   results && groups.length > 0 && (
     <section class="stage stage-indigo reveal mt-6" aria-labelledby="formats-title" data-testid="format-results">
       <h2 id="formats-title" class="section-title">Nos résultats par format</h2>
-      <p class="mt-4 max-w-3xl text-lg text-muted">
-        Un taux seul ne dit pas grand-chose : à 2 équipes, le hasard donne déjà 50 %. Le trait rouge sur chaque jauge marque le taux d'une équipe prise au hasard.
-      </p>
+      <p class="mt-4 max-w-3xl text-lg text-muted">Trait rouge : le taux d'une équipe prise au hasard.</p>
       <div class="mt-6 space-y-4">
         {
           groups.map((group) => (
@@ -94,7 +92,7 @@ const tiles: { key: RecordKey; label: string; value: string; hint: string }[] = 
       <p class="tnum mt-4 max-w-3xl text-sm text-muted" data-testid="format-period">Sur {RESULTS_DAYS} jours, du {fmtDate(`${results.from}T12:00:00Z`)} au {fmtDate(`${results.to}T12:00:00Z`)}.</p>
       <ReadingNote>
         <p>
-        Le hasard est la moyenne de 1 ÷ nombre d'équipes sur ces parties. C'est un repère, pas une preuve : le niveau des adversaires et le nombre de Gaulois dans la partie comptent aussi. Un format sous 30 parties sur cette période n'est pas affiché.
+        Un taux seul ne dit pas grand-chose : à 2 équipes, le hasard donne déjà 50 %. Le hasard est la moyenne de 1 ÷ nombre d'équipes sur ces parties. C'est un repère, pas une preuve : le niveau des adversaires et le nombre de Gaulois dans la partie comptent aussi. Un format sous 30 parties sur cette période n'est pas affiché.
       </p>
       </ReadingNote>
     </section>

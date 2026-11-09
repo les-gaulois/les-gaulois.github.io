@@ -3,7 +3,7 @@ import DataStatus from "./DataStatus.astro";
 import ReadingNote from "./ReadingNote.astro";
 import { clan } from "../../config/clan";
 import { loadMembers, loadMemberWeeks, loadMeta } from "../lib/data";
-import { fmtCount, fmtDay } from "../lib/format";
+import { fmtCount, fmtDate, fmtDay } from "../lib/format";
 import { MAX_AGE_HOURS } from "../lib/freshness";
 import { singlePseudos } from "../lib/members";
 import { playerRecords, type RecordHolder, type WeekRecord } from "../lib/records-joueurs";
@@ -58,19 +58,20 @@ const tiles: { label: string; holders: RecordHolder[]; value: string; hint: stri
           ))
         }
       </dl>
-      {/* Le périmètre, la réserve sur le niveau et la couverture changent la lecture des chiffres : ils restent visibles. */}
-      <p class="mt-6 max-w-3xl text-sm text-muted" data-testid="player-records-scope">
-        Parties publiques en équipe jouées avec le tag {clan.tag}, sans le classé, le FFA ni Humains contre Nations, parmi les membres encore dans le clan. Cela compte d'abord le temps de jeu : ce n'est pas un classement de niveau.
-        {
-          records.firstDay && (
-            <>
-              {" "}
-              Les semaines sont celles de <a href={`${base}/gazette`}>la gazette</a>, relevées depuis le {fmtDay(records.firstDay)}{records.gamesFirstDay ? `, leurs parties depuis le ${fmtDay(records.gamesFirstDay)}` : ", sans leurs parties pour l'instant"} : une semaine plus ancienne n'est pas connue.
-            </>
-          )
-        }
-      </p>
+      {/* La couverture des semaines change la lecture d'un record : elle reste écrite. Le périmètre et la réserve sur le niveau sont repliés. */}
+      {records.firstDay && <p class="mt-6 max-w-3xl text-sm text-muted" data-testid="player-records-weeks">Semaines relevées depuis le {fmtDate(`${records.firstDay}T12:00:00Z`)}.</p>}
       <ReadingNote>
+        <p data-testid="player-records-scope">
+          Parties publiques en équipe jouées avec le tag {clan.tag}, sans le classé, le FFA ni Humains contre Nations, parmi les membres encore dans le clan. Cela compte d'abord le temps de jeu : ce n'est pas un classement de niveau.
+          {
+            records.firstDay && (
+              <>
+                {" "}
+                Les semaines sont celles de <a href={`${base}/gazette`}>la gazette</a>, relevées depuis le {fmtDay(records.firstDay)}{records.gamesFirstDay ? `, leurs parties depuis le ${fmtDay(records.gamesFirstDay)}` : ", sans leurs parties pour l'instant"} : une semaine plus ancienne n'est pas connue.
+              </>
+            )
+          }
+        </p>
         <p>
           Une semaine va du lundi au dimanche, à Paris. Relevée en cours de route, elle compte moins de jours : sa période est écrite sous le chiffre. À égalité dans une semaine, tous les joueurs sont cités ; d'une semaine à l'autre, la première à atteindre le chiffre garde le record. Un joueur parti du clan, ou qui a retiré son pseudo, n'est plus compté.
         </p>

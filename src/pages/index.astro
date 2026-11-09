@@ -92,9 +92,7 @@ const snapshot = loadVisitSnapshot();
           <a href={clan.links.discord} class="btn btn-lg btn-primary" rel="noopener">Aller sur le Discord</a>
           <a href={clan.links.openfront} class="btn btn-lg btn-secondary" rel="noopener">Jouer à OpenFront</a>
         </div>
-        <p class="mt-4 text-sm text-muted" data-fx-hint hidden>
-          Bougez la souris et cliquez sur le fond : clic gauche pour une vague bleue, clic droit pour une vague rouge.
-        </p>
+        <p class="mt-4 text-sm text-muted" data-fx-hint hidden>Cliquez sur le fond : clic gauche en bleu, clic droit en rouge.</p>
       </div>
       <div class="fx-stage reveal relative order-1 flex justify-center md:order-2">
         <div class="hero-glow" aria-hidden="true"></div>
@@ -140,7 +138,6 @@ const snapshot = loadVisitSnapshot();
     <div class:list={["grid gap-6", AUTH_ENABLED && "lg:grid-cols-2"]}>
       <section class="stage stage-night reveal scroll-mt-24" id="ma-place" aria-labelledby="place-title" data-testid="my-place">
         <h2 id="place-title" class="section-title section-title-sm">Ma place dans le clan</h2>
-        <p class="mt-3 text-muted">Votre rang aux victoires sous le tag, votre palier et le prochain joueur à dépasser.</p>
         <div class="mt-4">
           <MyPlace client:idle src={`${base}/data/members.json`} />
         </div>
@@ -152,7 +149,7 @@ const snapshot = loadVisitSnapshot();
         AUTH_ENABLED && (
           <section class="stage stage-night reveal flex flex-col items-start" aria-labelledby="qg-title" data-testid="home-qg">
             <h2 id="qg-title" class="section-title section-title-sm">Le QG des membres</h2>
-            <p class="mt-3 max-w-xl text-muted">Les Gaulois qui attendent dans un salon, les sondages et les décisions du clan, la boîte à idées et le mur des membres. Réservé aux membres de GAL reconnus par un officier.</p>
+            <p class="mt-3 max-w-xl text-muted">Salons, sondages, idées et mur des membres : réservé aux membres de GAL.</p>
             {/* Vide dans la page publiée : pour un membre validé connecté, ce qui l'attend au QG (src/scripts/visages.ts). */}
             <p class="tnum mt-3 font-semibold" data-qg-waiting data-testid="home-qg-waiting" hidden></p>
             <a href={`${base}/qg`} class="btn btn-secondary mt-6">Entrer dans le QG</a>
@@ -208,13 +205,6 @@ const snapshot = loadVisitSnapshot();
       </div>
       <div class="mt-6">
         <DataStatus state={meta.leaderboard} maxAgeHours={MAX_AGE_HOURS.leaderboard} asOf={leaderboard?.end} asOfLabel="Classement arrêté au" />
-        {
-          leaderboard && (
-            <p class="mt-1 text-sm text-muted">
-              Période du classement : {fmtDate(leaderboard.start)} au {fmtDate(leaderboard.end)}. Parties publiques en équipe, sans le classé.
-            </p>
-          )
-        }
       </div>
     </section>
 
@@ -223,9 +213,7 @@ const snapshot = loadVisitSnapshot();
         <section class="stage stage-night reveal grid items-center gap-8 md:grid-cols-2" aria-labelledby="map-title">
           <div>
             <h2 id="map-title" class="section-title section-title-sm">{fmtInt(onMap.pixels)} pixels sur la carte</h2>
-            <p class="mt-4 max-w-md text-lg text-muted">
-              Le territoire peint par le clan sur la carte officielle d'OpenFront{onMap.rank !== null && `, ${fmtRank(onMap.rank)} au ${fmtDate(film.fetchedAt)}`}. Ce n'est pas le classement des clans.
-            </p>
+            {onMap.rank !== null && <p class="mt-4 max-w-md text-lg text-muted">{fmtRank(onMap.rank)} sur la carte des clans le {fmtDate(film.fetchedAt)} : ce n'est pas le classement.</p>}
             {
               objective?.above && (
                 <p class="tnum mt-3 max-w-md font-semibold" data-testid="home-objective">
@@ -255,7 +243,7 @@ const snapshot = loadVisitSnapshot();
           <div>
             <h2 id="progress-title" class="section-title section-title-sm">{fmtInt(recentGames)} parties en 14 jours</h2>
             <p class="mt-3 max-w-md text-lg text-muted">
-              {fmtInt(recentWins)} victoires, soit {fmtPct(winRate(recentWins, recentGames))}. Parties publiques en équipe jouées avec le tag.
+              {fmtInt(recentWins)} victoires, soit {fmtPct(winRate(recentWins, recentGames))}.
             </p>
             {
               lastGames.length > 0 && (
@@ -303,9 +291,7 @@ const snapshot = loadVisitSnapshot();
         <section class="stage stage-wine reveal grid items-center gap-8 md:grid-cols-2" aria-labelledby="slots-title">
           <div>
             <h2 id="slots-title" class="section-title section-title-sm">{todaySlots.length > 0 ? `Quand jouer le ${dayName}` : "Quand le clan joue le plus"}</h2>
-            <p class="mt-4 max-w-md text-lg text-muted">
-              Les créneaux avec le plus de parties enregistrées sur 90 jours, en heure de Paris. Ce sont des parties, pas des joueurs connectés.
-            </p>
+            <p class="mt-4 max-w-md text-lg text-muted">Les créneaux les plus joués sur 90 jours, heure de Paris.</p>
             <div class="mt-6 flex flex-wrap gap-3">
               <a href={clan.links.discord} class="btn btn-secondary" rel="noopener">Trouver un groupe sur Discord</a>
               <a href={`${base}/activite`} class="btn btn-ghost">Voir quand jouer</a>
@@ -334,8 +320,8 @@ const snapshot = loadVisitSnapshot();
       <div>
         <h2 id="join-title" class="section-title section-title-sm">Rejoignez les Gaulois</h2>
         <p class="mt-4 max-w-md text-lg text-muted">
-          {clan.join.inviteOnly ? "Le clan fonctionne sur invitation : demandez-la dans le jeu, puis retrouvez-nous sur Discord." : "Rejoignez le clan dans le jeu, puis retrouvez-nous sur Discord."}
-          {members && <span data-testid="home-members"> {fmtInt(members.total)} membres dans la liste officielle.</span>}
+          {clan.join.inviteOnly ? "Demandez une invitation dans le jeu, puis venez sur Discord." : "Rejoignez le clan dans le jeu, puis venez sur Discord."}
+          {members && <span data-testid="home-members"> {fmtInt(members.total)} membres.</span>}
         </p>
         <div class="mt-6 flex flex-col gap-3 sm:flex-row">
           <a href={`${base}/rejoindre`} class="btn btn-lg btn-secondary">Voir les étapes</a>

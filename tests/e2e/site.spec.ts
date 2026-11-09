@@ -160,9 +160,9 @@ test("parcours principal", async ({ page }, testInfo) => {
   else await page.getByRole("button", { name: /Arrivée/ }).click();
   await expect(page.getByText(/\d+ affichés/)).toBeVisible();
 
-  // Activité : la précision obligatoire et la heatmap.
+  // Activité : la ligne « Parties enregistrées » et la heatmap.
   await page.goto("/activite");
-  await expect(page.getByText("Ce sont des parties enregistrées, pas des joueurs connectés.")).toBeVisible();
+  await expect(page.getByText("Parties enregistrées, heure de Paris.")).toBeVisible();
   await expect(page.getByTestId("best-slot").first()).toBeVisible();
 
   // Guides : tout est dans la page, et le sommaire ouvre le chapitre visé.
@@ -297,10 +297,14 @@ test("le sommaire des guides rouvre un chapitre refermé", async ({ page }) => {
   await expect(chapter).toHaveAttribute("open", "");
 });
 
-test("ce qui change la lecture d'un chiffre reste visible, hors des précisions repliées", async ({ page }) => {
+// Le 10 novembre 2026, à la demande du pilote : le périmètre des parties passe dans les précisions repliées, qui restent dans la page.
+test("la période et les réserves restent visibles, le périmètre se lit dans les précisions repliées", async ({ page }) => {
   await page.goto("/membres");
-  await expect(page.getByTestId("members-scope")).toContainText("sans le classé");
-  await expect(page.getByTestId("members-scope")).toBeVisible();
+  const scope = page.getByTestId("members-scope");
+  await expect(scope).toContainText("sans le classé");
+  await expect(scope).toBeHidden();
+  await page.locator("details", { has: scope }).locator("summary").click();
+  await expect(scope).toBeVisible();
   await page.goto("/rivaux");
   await expect(page.getByTestId("compare-rate-note")).toBeVisible();
   await page.goto("/records");
@@ -308,7 +312,7 @@ test("ce qui change la lecture d'un chiffre reste visible, hors des précisions 
   await page.goto("/parties");
   await expect(page.getByTestId("journal-link-note")).toBeVisible();
   await expect(page.getByTestId("journal-link-note")).toContainText("Rejoindre un salon privé");
-  await expect(page.getByTestId("journal-sides-note")).toBeVisible();
+  await expect(page.getByTestId("journal-clans-note")).toContainText("L'API ne donne pas l'équipe des perdants");
 });
 
 test("la carte World se trouve depuis la page Carte", async ({ page }) => {
@@ -676,13 +680,15 @@ test("les résultats par carte de jeu se comparent aux habitudes du clan et dise
   await expect(block).toContainText("à ne pas confondre avec la carte des clans");
   await expect(block).toContainText("CC BY-SA 4.0");
   await expect(block).toContainText("Dernière mise à jour");
-  expect(digits(await block.getByTestId("games-coverage").textContent())).toContain(String(results.coverage.read));
+  // La couverture ne s'écrit que lorsqu'il manque des parties.
+  const partial = results.coverage.read < results.coverage.total || results.archive.read < results.archive.total || results.reading;
+  if (partial) expect(digits(await block.getByTestId("games-coverage").textContent())).toContain(String(results.coverage.read));
+  else await expect(block.getByTestId("games-coverage")).toHaveCount(0);
   const signals = results.strong.length + results.weak.length;
   await expect(block.getByTestId("map-row")).toHaveCount(results.rows.length + signals);
-  // Aucune carte n'est dite forte ou faible sans écart que le hasard n'explique pas.
+  // Aucune carte n'est dite forte ou faible sans écart que le hasard n'explique pas ; sans elles, rien ne s'affiche.
   await expect(block.getByTestId("maps-strong").getByTestId("map-row")).toHaveCount(results.strong.length);
   await expect(block.getByTestId("maps-weak").getByTestId("map-row")).toHaveCount(results.weak.length);
-  await expect(block.getByTestId("maps-verdict")).toHaveCount(signals === 0 ? 1 : 0);
   const mostPlayed = results.rows[0];
   const row = block.getByTestId("map-row").nth(signals);
   await expect(row).toContainText(mapLabel(mostPlayed?.map ?? ""));
@@ -888,7 +894,9 @@ test("le journal montre les dernières parties, avec leur replay et des filtres"
   await expect(line.first().getByTestId("journal-replay")).toHaveAttribute("href", replayUrl(first.id));
   await expect(line.first()).toContainText(first.won ? "Victoire" : "Défaite");
   if (first.map) await expect(line.first()).toContainText(mapLabel(first.map));
-  expect(digits(await page.getByTestId("journal-coverage").textContent())).toContain(String(coverage.read));
+  // La couverture ne s'écrit que lorsqu'il manque des parties.
+  if (coverage.read < coverage.total) expect(digits(await page.getByTestId("journal-coverage").textContent())).toContain(String(coverage.read));
+  else await expect(page.getByTestId("journal-coverage")).toHaveCount(0);
 
   // Un filtre ne garde que ce qu'il annonce, et n'écrit jamais de taux.
   await page.getByRole("button", { name: "Défaites", exact: true }).click();
@@ -1001,7 +1009,7 @@ test("l'accueil nomme les Gaulois de la semaine d'après la dernière gazette, s
   await expect(block.getByTestId("home-week-lead")).toHaveText(editionLead(latest, clan.tag));
   await expect(block.getByRole("link", { name: "Lire la gazette" })).toHaveAttribute("href", "/gazette");
 
-  // Le podium est celui de la gazette : mêmes joueurs, mêmes victoires, et la même réserve.
+  // Le podium est celui de la gazette : mêmes joueurs, mêmes victoires. Sa réserve se lit dans la gazette.
   const podium = block.getByTestId("home-podium");
   if (latest.players) {
     const rows = podium.getByTestId("home-podium-player");
@@ -1011,7 +1019,6 @@ test("l'accueil nomme les Gaulois de la semaine d'après la dernière gazette, s
       await expect(rows.nth(i).getByRole("link")).toHaveAttribute("href", `/membres/${encodeURIComponent(player.id)}`);
       await expect(rows.nth(i)).toContainText(fmtCount(player.wins, "victoire"));
     }
-    await expect(podium).toContainText("ce n'est pas un classement de niveau");
   } else {
     await expect(podium).toHaveCount(0);
   }
@@ -1078,10 +1085,9 @@ test("la gazette donne les plus actifs et les paliers franchis quand la semaine 
   await expect(players.getByTestId("gazette-active")).toHaveCount(latest.active?.length ?? 0);
   if (latest.active) await expect(players).toContainText("Les plus actifs");
   else await expect(players).not.toContainText("Les plus actifs");
-  if (latest.milestones === null) {
+  // Sans palier relevé, ou sans palier franchi, rien ne s'affiche : pas de liste vide.
+  if (latest.milestones === null || latest.milestones.length === 0) {
     await expect(players).not.toContainText("Paliers franchis");
-  } else if (latest.milestones.length === 0) {
-    await expect(players.getByTestId("gazette-no-milestone")).toBeVisible();
   } else {
     await expect(players.getByTestId("gazette-milestone")).toHaveCount(latest.milestones.length);
     await expect(players).toContainText(latest.milestones[0]!.username);
@@ -1110,8 +1116,9 @@ test("la page Records cite les joueurs qui détiennent un record, avec leurs chi
     records.mostWins && { value: fmtCount(records.mostWins.value, "victoire"), holders: records.mostWins.holders },
   ].filter((r) => r !== null);
   await page.goto("/records");
-  // Le périmètre, la réserve sur le niveau et la couverture des semaines restent visibles, hors du repli.
+  // La couverture des semaines reste écrite ; le périmètre et la réserve sur le niveau sont dans le repli.
   if (shown.length > 0) await expect(page.getByTestId("player-records-scope")).toContainText("ce n'est pas un classement de niveau");
+  if (shown.length > 0 && records.firstDay) await expect(page.getByTestId("player-records-weeks")).toBeVisible();
   const tiles = page.getByTestId("player-record");
   await expect(tiles).toHaveCount(shown.length);
   for (const [i, record] of shown.entries()) {
@@ -1182,14 +1189,15 @@ test("la gazette donne le bilan de la dernière semaine complète, et n'invente 
   if (latest.players) {
     await expect(players.getByTestId("gazette-player")).toHaveCount(latest.players.length);
     await expect(players).toContainText(latest.players[0]!.username);
-    await expect(players).toContainText("d'abord le temps de jeu");
+    // La réserve sur le niveau reste dans l'édition, avec les autres précisions repliées.
+    await expect(block.getByTestId("reading-note")).toContainText("d'abord le temps de jeu");
   } else {
     await expect(players).toContainText("Pas de données");
   }
   const arrivals = block.getByTestId("gazette-arrivals");
   if (latest.arrivals) {
     expect(digits(await arrivals.locator("p").first().textContent())).toBe(String(latest.arrivals.count));
-    await expect(arrivals).toContainText("Seuls les membres encore dans le clan sont comptés");
+    await expect(arrivals).toContainText("Encore dans le clan");
   } else {
     await expect(arrivals).toContainText("Pas de données");
   }

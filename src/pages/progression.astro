@@ -2,6 +2,7 @@
 import Base from "../layouts/Base.astro";
 import DataStatus from "../components/DataStatus.astro";
 import PageHeader from "../components/PageHeader.astro";
+import ReadingNote from "../components/ReadingNote.astro";
 import ProgressCharts from "../components/ProgressCharts.tsx";
 import { clan } from "../../config/clan";
 import { loadHistory, loadMeta, loadSessions } from "../lib/data";
@@ -16,14 +17,15 @@ const history = loadHistory();
 
 <Base title="Progression" description="Évolution du clan GAL : parties, victoires, rang et score.">
   <div class="wrap">
-    <PageHeader
-      title="Progression"
-      intro={`L'évolution du clan depuis sa création dans le jeu, le ${fmtDay(clan.archiveStart)} 2026. Parties publiques en équipe jouées avec le tag, regroupées par jour de Paris. Ce sont des données historiques, pas du temps réel.`}
-    >
+    <PageHeader title="Progression" intro={`Depuis la création du clan, le ${fmtDay(clan.archiveStart)} 2026.`}>
       <div class="mt-4">
         <DataStatus state={meta.sessions} maxAgeHours={MAX_AGE_HOURS.sessions} />
       </div>
     </PageHeader>
     <ProgressCharts client:load days={days} history={history} />
+    <ReadingNote>
+      <p>Parties publiques en équipe jouées avec le tag, sans le classé, regroupées par jour de Paris.</p>
+      <p>Le rang et le score viennent du classement officiel, sur sa fenêtre glissante de 90 jours : ils ne se comparent pas aux parties par jour. Le nombre de membres vient de la liste officielle du clan, anonymes compris. Ces trois mesures ne sont connues que depuis le premier relevé ; le tableau donne leurs valeurs exactes.</p>
+    </ReadingNote>
   </div>
 </Base>

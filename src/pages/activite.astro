@@ -4,6 +4,7 @@ import DataStatus from "../components/DataStatus.astro";
 import Empty from "../components/Empty.astro";
 import GroupPlay from "../components/GroupPlay.astro";
 import PageHeader from "../components/PageHeader.astro";
+import ReadingNote from "../components/ReadingNote.astro";
 import { loadMeta, loadSessions } from "../lib/data";
 import { fmtDay, fmtDec1, fmtInt } from "../lib/format";
 import { MAX_AGE_HOURS } from "../lib/freshness";
@@ -29,10 +30,7 @@ const tip = (d: number, h: number) => `${DAYS[d]} ${h} h : ${fmtInt(count(d, h))
 
 <Base title="Quand jouer" description="Quand trouver des Gaulois pour jouer : parties enregistrées par jour et par heure de Paris, et résultats selon la taille du groupe.">
   <div class="wrap">
-    <PageHeader
-      title="Quand jouer"
-      intro="Les moments où le clan joue le plus, en heure de Paris. Ce sont des parties enregistrées, pas des joueurs connectés."
-    >
+    <PageHeader title="Quand jouer" intro="Parties enregistrées, heure de Paris.">
       <div class="mt-4">
         <DataStatus state={meta.sessions} maxAgeHours={MAX_AGE_HOURS.sessions} />
       </div>
@@ -44,7 +42,7 @@ const tip = (d: number, h: number) => `${DAYS[d]} ${h} h : ${fmtInt(count(d, h))
       ) : (
         <>
           <p class="tnum text-sm text-muted">
-            {fmtInt(map.total)} parties, du {fmtDay(map.from)} au {fmtDay(map.to)} ({HEATMAP_DAYS} jours). Parties publiques en équipe jouées avec le tag : ni FFA, ni classé, ni Humains contre Nations.
+            {fmtInt(map.total)} parties, du {fmtDay(map.from)} au {fmtDay(map.to)} ({HEATMAP_DAYS} jours).
           </p>
 
           <section class="mt-6" aria-labelledby="slots-title">
@@ -63,7 +61,10 @@ const tip = (d: number, h: number) => `${DAYS[d]} ${h} h : ${fmtInt(count(d, h))
                 ))}
               </ol>
             )}
-            <p class="mt-2 text-xs text-muted">Classés par nombre de parties enregistrées, puis par joueurs du clan par partie. Minimum : 5 parties.</p>
+            <ReadingNote>
+              <p>Parties publiques en équipe jouées avec le tag : ni FFA, ni classé, ni Humains contre Nations. Ce sont des parties enregistrées, pas des joueurs connectés.</p>
+              <p>Créneaux classés par nombre de parties, puis par joueurs du clan par partie, à partir de 5 parties.</p>
+            </ReadingNote>
           </section>
 
           <section class="mt-10" aria-labelledby="heat-title">

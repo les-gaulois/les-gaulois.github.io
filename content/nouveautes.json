@@ -2,6 +2,12 @@
   {
     "date": "2026-11-10",
     "kind": "ameliore",
+    "title": "Moins de texte sur tout le site",
+    "body": "Les explications en trop sont retirées des pages et du QG, comme les messages « Aucun … pour l'instant ». Les précisions de calcul restent dans « Comment lire ces chiffres »."
+  },
+  {
+    "date": "2026-11-10",
+    "kind": "ameliore",
     "title": "Les appels des Gaulois sur tout le site",
     "body": "Quand un Gaulois prévient au QG qu'il attend dans un salon, les membres connectés le voient sur les pages du site, dans une fenêtre bleue plus visible, avec un son.",
     "link": {

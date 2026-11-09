@@ -9,14 +9,13 @@ const tools = loadLinks().tools;
 
 <Base title="Calculateur et outils" description="Le calculateur de troupes à envoyer contre un bot, et les outils de la communauté OpenFront.">
   <div class="wrap">
-    <PageHeader title="Calculateur et outils" intro="Un repère pour attaquer les bots, et les sites de la communauté OpenFront." />
+    <PageHeader title="Calculateur et outils" />
 
     <section class="scroll-mt-24" aria-labelledby="calc-title" id="calculateur">
       <h2 id="calc-title" class="section-title">Troupes à envoyer contre un bot</h2>
-      <p class="mb-4 mt-2 max-w-3xl text-muted">
-        Un repère calculé à partir des règles du jeu. Ce qui pèse le plus est la taille du bot, plus que ses troupes.
-      </p>
-      <BotCalculator client:load />
+      <div class="mt-4">
+        <BotCalculator client:load />
+      </div>
     </section>
 
     <section class="mt-12 scroll-mt-24" aria-labelledby="outils" id="outils-section">

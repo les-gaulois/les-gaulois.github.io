@@ -5,6 +5,7 @@ import Base from "../../layouts/Base.astro";
 import DataStatus from "../../components/DataStatus.astro";
 import MapNamesCredit from "../../components/MapNamesCredit.astro";
 import PageHeader from "../../components/PageHeader.astro";
+import ReadingNote from "../../components/ReadingNote.astro";
 import { clan } from "../../../config/clan";
 import { loadMemberGames, loadMembers, loadMeta } from "../../lib/data";
 import { fmtCount, fmtDate, fmtInt, fmtPct } from "../../lib/format";
@@ -102,9 +103,11 @@ const tiles = member.team
           </div>
         )
       }
-      <p class="mt-6 max-w-3xl text-sm text-muted">
-        Parties publiques en équipe jouées avec le tag {clan.tag}, sans le classé, le FFA ni Humains contre Nations.{games === 0 && " Cela ne veut pas dire que ce joueur est inactif."}{games !== null && games > 0 && <> <a href={`${base}/membres`}>Les paliers</a> sont choisis par le site. Ils comptent des victoires, donc d'abord des parties jouées : ils ne disent pas qui joue le mieux.</>}
-      </p>
+      <ReadingNote>
+        <p>
+          Parties publiques en équipe jouées avec le tag {clan.tag}, sans le classé, le FFA ni Humains contre Nations.{games === 0 && " Cela ne veut pas dire que ce joueur est inactif."}{games !== null && games > 0 && <> <a href={`${base}/membres`}>Les paliers</a> sont choisis par le site. Ils comptent des victoires, donc d'abord des parties jouées : ils ne disent pas qui joue le mieux.</>}
+        </p>
+      </ReadingNote>
     </section>
 
     {
@@ -140,9 +143,12 @@ const tiles = member.team
                     </tbody>
                   </table>
                 </div>
-              <p class="mt-4 max-w-3xl text-sm text-muted">
-                Relevé le {atDay(recent.readOn)}{recent.seen !== games && " : ses parties les plus récentes n'y sont pas encore"}. Le résultat est celui qu'OpenFront compte pour ce joueur : s'il quitte la partie avant la fin, une victoire de son équipe peut compter comme une défaite pour lui. La fiche n'affiche que le jour, mais la page <a href={`${base}/parties`}>Dernières parties</a> permet souvent de retrouver cette partie, avec son heure et son lien vers OpenFront.{recent.recent.some((game) => game.date < joinedOn) && " Certaines parties sont antérieures à son arrivée dans la liste officielle."}
-              </p>
+              <p class="mt-4 max-w-3xl text-sm text-muted">Relevé le {atDay(recent.readOn)}{recent.seen !== games && " : ses parties les plus récentes n'y sont pas encore"}.</p>
+              <ReadingNote>
+                <p>
+                  Le résultat est celui qu'OpenFront compte pour ce joueur : s'il quitte la partie avant la fin, une victoire de son équipe peut compter comme une défaite pour lui. La fiche n'affiche que le jour, mais la page <a href={`${base}/parties`}>Dernières parties</a> permet souvent de retrouver cette partie, avec son heure et son lien vers OpenFront.{recent.recent.some((game) => game.date < joinedOn) && " Certaines parties sont antérieures à son arrivée dans la liste officielle."}
+                </p>
+              </ReadingNote>
               <MapNamesCredit />
             </>
           ) : (
@@ -181,7 +187,7 @@ const tiles = member.team
       const link = location.href.split("#")[0] ?? location.href;
       try {
         await navigator.clipboard.writeText(link);
-        status.textContent = "Lien copié. Collé sur Discord, il montre un aperçu de cette fiche.";
+        status.textContent = "Lien copié.";
       } catch {
         status.textContent = `Le lien de cette fiche : ${link}`;
       }

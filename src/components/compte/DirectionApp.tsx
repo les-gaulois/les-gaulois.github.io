@@ -279,7 +279,7 @@ function FounderTransfer({ onDone }: { onDone: () => Promise<void> }) {
       <h2 id="founder-title" class="text-xl">
         Transmettre le rôle de fondateur
       </h2>
-      <p class="mt-2 text-sm text-muted">Vous devenez admin, et seul le nouveau fondateur pourra vous rendre ce rôle. Le clan garde toujours un fondateur : c'est aussi ce qui vous permet ensuite de supprimer votre compte.</p>
+      <p class="mt-2 text-sm text-muted">Vous devenez admin, et seul le nouveau fondateur pourra vous rendre ce rôle.</p>
       {members === null ? (
         <Loading />
       ) : members.length === 0 ? (
@@ -420,7 +420,7 @@ export default function DirectionApp({ health }: { health: Omit<SiteHealthInput,
               <Tile label="Suspendus" value={overview.suspended} href={admin} />
             </div>
             <p class="mt-3 text-sm text-muted">
-              <a href={admin}>Ouvrir l'administration</a> pour valider les membres, gérer les rôles et lire le journal.
+              <a href={admin}>Ouvrir l'administration</a>
             </p>
           </section>
           <SiteHealth meta={health.meta} gazette={health.gazette} roster={overview.roster} />

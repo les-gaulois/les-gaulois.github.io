@@ -41,7 +41,7 @@ export default function DirectionWelcome({ draft, setDraft }: { draft: string | 
       <h2 id="welcome-title" class="text-xl">
         Mot d'accueil
       </h2>
-      <p class="mt-2 text-sm text-muted">Chaque membre validé le lit en haut du QG : les salons à rejoindre, les règles du clan. Un texte vide l'efface.</p>
+      <p class="mt-2 text-sm text-muted">Affiché en haut du QG. Un texte vide l'efface.</p>
       <Problem message={loadError} onRetry={() => void load().then((body) => body !== null && setDraft(body))} />
       {draft === null ? (
         !loadError && <Loading />

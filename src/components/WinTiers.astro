@@ -16,9 +16,6 @@ const profile = (publicId: string | null) => `${base}/membres/${encodeURICompone
   rows.length > 0 && (
     <section class="stage stage-indigo reveal mb-6 scroll-mt-24" id="paliers" aria-labelledby="tiers-title" data-testid="win-tiers">
       <h2 id="tiers-title" class="section-title">Les paliers du clan</h2>
-      <p class="mt-4 max-w-3xl text-lg text-muted">
-        Chaque membre figure une seule fois, à son plus haut palier de victoires en équipe sous le tag. Un palier compte des victoires, donc d'abord des parties jouées : il ne dit pas qui joue le mieux.
-      </p>
       <ul class="mt-6 space-y-3">
         {rows.map((row) => (
           <li class="panel grid gap-2 md:grid-cols-[13rem_1fr] md:gap-6" data-testid="win-tier">
@@ -52,7 +49,7 @@ const profile = (publicId: string | null) => `${base}/membres/${encodeURICompone
       </ul>
       <ReadingNote>
         <p>
-        Seuils choisis par le site, de {WIN_TIERS[0]} à {fmtCount(WIN_TIERS[WIN_TIERS.length - 1] ?? 0, "victoire")} : ils ne viennent pas du jeu. Parties publiques en équipe jouées avec le tag {clan.tag}, sans le classé, le FFA ni Humains contre Nations. Un membre sous le premier seuil n'apparaît pas ici.
+        Chaque membre figure une seule fois, à son plus haut palier de victoires en équipe sous le tag. Un palier compte des victoires, donc d'abord des parties jouées : il ne dit pas qui joue le mieux. Seuils choisis par le site, de {WIN_TIERS[0]} à {fmtCount(WIN_TIERS[WIN_TIERS.length - 1] ?? 0, "victoire")} : ils ne viennent pas du jeu. Parties publiques en équipe jouées avec le tag {clan.tag}, sans le classé, le FFA ni Humains contre Nations. Un membre sous le premier seuil n'apparaît pas ici.
       </p>
       </ReadingNote>
     </section>

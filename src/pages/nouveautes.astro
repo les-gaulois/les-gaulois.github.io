@@ -13,10 +13,7 @@ const foldedCount = folded.reduce((n, d) => n + d.entries.length, 0);
 
 <Base title="Nouveautés du site" description="Chaque mise à jour du site du clan GAL, expliquée simplement, de la plus récente à la plus ancienne.">
   <div class="wrap" data-nouveautes-page>
-    <PageHeader
-      title="Nouveautés du site"
-      intro="Ce qui change sur le site, mise à jour par mise à jour, de la plus récente à la plus ancienne. Les chiffres du clan, eux, se mettent à jour toutes les heures : ils ne sont pas listés ici."
-    />
+    <PageHeader title="Nouveautés du site" />
 
     {
       days.length === 0 ? (

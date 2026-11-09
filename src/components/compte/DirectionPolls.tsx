@@ -68,7 +68,7 @@ export default function DirectionPolls({ form, setForm }: { form: PollDraft; set
       <h2 id="polls-title" class="text-xl">
         Sondages
       </h2>
-      <p class="mt-2 text-sm text-muted">Les membres validés votent au QG, une voix chacun, qu'ils peuvent changer tant que le sondage est ouvert. Seuls les membres validés voient les totaux ; personne ne voit qui a voté quoi. Trois sondages ouverts au plus.</p>
+      <p class="mt-2 text-sm text-muted">Vote secret au QG. Trois sondages ouverts au plus.</p>
       <form
         class="mt-4 grid gap-3"
         onSubmit={(e) => {

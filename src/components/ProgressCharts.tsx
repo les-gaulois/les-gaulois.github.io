@@ -38,7 +38,7 @@ function GamesChart({ buckets, weekly }: { buckets: Bucket[]; weekly: boolean })
       <p class="tnum mt-2 min-h-5 text-sm text-muted" aria-hidden="true">
         {shown
           ? `${bucketLabel(shown)} : ${fmtInt(shown.games)} parties, ${fmtInt(shown.wins)} victoires, ${fmtInt(shown.losses)} défaites, ${fmtPct(shown.winRate)}${shown.partial ? " (en cours)" : ""}`
-          : "Survolez une barre pour le détail."}
+          : ""}
       </p>
       <div class="relative mt-2 h-64 pl-10" aria-hidden="true" onPointerLeave={() => setHover(null)}>
         {[1, 0.5, 0].map((f) => (
@@ -200,7 +200,7 @@ export default function ProgressCharts({ days, history }: Props) {
 
       <h2 class="section-title mt-12">Relevés de chaque jour</h2>
       <p class="mt-2 max-w-3xl text-sm text-muted">
-        Le rang et le score viennent du classement officiel, sur sa fenêtre glissante de 90 jours : ils ne se comparent donc pas aux parties par jour ci-dessus. Le nombre de membres vient de la liste officielle du clan, anonymes compris. Ces trois mesures ne sont connues que depuis le premier relevé. Chaque courbe a sa propre échelle : le tableau donne les valeurs exactes.
+        Rang et score du classement officiel, sur 90 jours glissants. Chaque courbe a sa propre échelle.
       </p>
       <div class="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <LineChart

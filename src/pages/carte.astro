@@ -192,8 +192,7 @@ const sinceLine =
             <button type="button" class="btn btn-ghost !min-h-10 !py-1.5" data-film-retry>Réessayer</button>
           </div>
 
-          <div class="wrap mt-6">
-            <p class="max-w-3xl text-lg text-muted">Les clans d'OpenFront peignent un territoire sur une carte commune. Voici toute son histoire, du premier pixel au dernier, et le prochain objectif de GAL.</p>
+          <div class="wrap mt-2">
             <PageJumps links={jumps} />
           </div>
         </section>
@@ -203,7 +202,6 @@ const sinceLine =
             hasHistory && (
               <section class="scroll-mt-24" id="histoire" aria-labelledby="history-title">
                 <h2 id="history-title" class="section-title section-title-sm">Revoir l'histoire</h2>
-                <p class="mt-2 max-w-2xl text-muted" data-film-ready hidden>Choisissez un moment, une journée ou une zone : la carte s'y place.</p>
                 {/* Large et peu haut : les grands moments en tuiles sur toute la largeur, puis la journée et les zones côte à côte. */}
                 {
                   moments.length > 0 && (
@@ -242,7 +240,6 @@ const sinceLine =
                                 </div>
                               </div>
                             ))}
-                            <p class="mt-3 text-xs text-muted">Pixels pris moins pixels perdus, en heure de Paris, sur les journées terminées.</p>
                           </div>
                         )
                       }
@@ -250,7 +247,7 @@ const sinceLine =
                         gal && gal.zones.length > 0 && (
                           <div class="card p-4 sm:p-5" data-film-ready hidden>
                             <h3 class="text-lg">Nos territoires</h3>
-                            <p class="tnum mt-1 text-sm text-muted">{fmtInt(gal.zoneCount)} zones d'un seul tenant. Voici les plus grandes.</p>
+                            <p class="tnum mt-1 text-sm text-muted">Les {fmtInt(gal.zones.length)} plus grandes, sur {fmtInt(gal.zoneCount)} zones d'un seul tenant.</p>
                             <ul class="film-tiles mt-3 grid-cols-[repeat(auto-fill,minmax(8rem,1fr))]">
                               {gal.zones.map((z, i) => (
                                 <li>
@@ -304,18 +301,11 @@ const sinceLine =
                     </>
                   )}
                   {/* Territoire et place ne sont écrits qu'ici, et sous le film : « GAL en chiffres » ne les répète pas. */}
-                  {
-                    sinceLine ? (
-                      <p class="tnum mt-3 text-sm font-semibold" data-testid="map-journal">{sinceLine}</p>
-                    ) : (
-                      <p class="mt-3 text-sm text-muted" data-testid="map-journal">L'évolution jour par jour s'affichera ici à partir du prochain relevé.</p>
-                    )
-                  }
+                  {sinceLine && <p class="tnum mt-3 text-sm font-semibold" data-testid="map-journal">{sinceLine}</p>}
                   {threshold && (
                     <p class="tnum mt-4 font-semibold" data-testid="map-next-threshold">
                       Prochain palier : {fmtInt(threshold.threshold)} pixels, encore {fmtInt(threshold.remaining)}.
                     </p>
-                    <p class="mt-1 text-xs text-muted">Un repère du site, pas du jeu : les mêmes paliers que les grands moments du film.</p>
                   )}
                 </div>
                 <div class="panel">
@@ -347,17 +337,17 @@ const sinceLine =
                       <div data-testid="map-figure">
                         <dt class="text-sm text-muted">Réserves du clan</dt>
                         <dd class="mt-1 font-display text-2xl font-extrabold">{reserveComplete ? "Environ" : "Au moins"} {fmtInt(reservePixels)} pixels neutres</dd>
-                        <dd class="mt-1 text-sm text-muted" data-testid="map-reserves">Ce que les réserves permettent de peindre sur des terres neutres. Troupes prêtes : {troopsText}. Capsules au trésor : {capsText}.</dd>
+                        <dd class="mt-1 text-sm text-muted" data-testid="map-reserves">Troupes prêtes : {troopsText}. Capsules au trésor : {capsText}.</dd>
                         {reserveGoal && <dd class="mt-1 text-sm font-semibold">{reserveGoal}</dd>}
                       </div>
                     )}
                   </dl>
                   {gal.neutralBorder !== null && <p class="tnum mt-5 text-sm text-muted" data-testid="map-neutral-border">{fmtInt(gal.neutralBorder)} pixels de terre neutre touchent déjà notre territoire.</p>}
-                  {reservePixels === null && <p class="mt-2 text-sm text-muted" data-testid="map-no-reserves">Réserves du clan : pas de données, sa fiche n'a pas répondu à la collecte.</p>}
+                  {reservePixels === null && <p class="mt-2 text-sm text-muted" data-testid="map-no-reserves">Réserves du clan : pas de données.</p>}
                   {
                     (reservePixels !== null || gal.neutralBorder !== null) && (
                       <p class="mt-2 text-xs text-muted">
-                        {reservePixels === null ? "Terre neutre : repère indicatif" : "Réserves et terre neutre : repères indicatifs"}, selon les règles lues dans le code de la carte le {fmtDate(`${RULES_CHECKED_ON}T12:00:00Z`)}.
+                        {reservePixels === null ? "Repère indicatif" : "Repères indicatifs"}, selon les règles du jeu lues le {fmtDate(`${RULES_CHECKED_ON}T12:00:00Z`)}.
                       </p>
                     )
                   }
@@ -486,6 +476,7 @@ const sinceLine =
                   <li><strong class="text-white">Le film reprend où vous l'aviez laissé.</strong> Votre navigateur garde la date de la dernière image vue, sur cet appareil seulement : au retour, le film ne rejoue que la suite, et « Rejouer » redonne le film entier. Rien n'est envoyé au site.</li>
                   <li><strong class="text-white">Une mise à jour par jour.</strong> Ce ne sont pas des données en temps réel. La carte vient de l'historique public documenté par OpenFront, lu par la collecte du site et jamais par votre navigateur. Les réserves du clan viennent de sa fiche, une route non documentée : quand elle ne répond pas à la collecte, « GAL en chiffres » le dit en une ligne, sans chiffre{reservePixels === null && ", comme en ce moment"}.</li>
                   <li><strong class="text-white">Vérifié à chaque mise à jour.</strong> Chaque événement officiel annonce l'ancien propriétaire du pixel. Rejoué depuis le premier pixel, l'historique retombe dessus, avec {fmtInt(film.check.mismatches)} écart sur {fmtInt(film.check.events)} événements. En cas d'écart, le film n'est pas mis à jour.</li>
+                  <li><strong class="text-white">Des paliers du site.</strong> Le prochain palier de pixels est un repère du site, pas du jeu : les mêmes paliers que les grands moments du film.</li>
                   <li><strong class="text-white">Ce que l'historique ne donne pas.</strong> Il ne dit pas les troupes des autres clans. Le site n'affiche donc pas le coût exact d'un pixel ennemi.</li>
                   <li><strong class="text-white">Des coûts indicatifs.</strong> Les réserves du clan sont converties avec les règles lues dans le code de la carte : 1 capsule = {fmtInt(TROOPS_PER_CAP)} troupes, 1 pixel neutre = {fmtInt(NEUTRAL_PIXEL_TROOPS)} troupes. Ces coûts ne tiennent pas compte de la forme du territoire ni des pixels verrouillés, et le jeu peut les changer.</li>
                   <li><strong class="text-white">Image allégée.</strong> Les chiffres sont calculés sur la carte complète, {fmtInt(film.width)} × {fmtInt(film.height)} pixels. Seul le film est affiché en résolution réduite.</li>

@@ -97,7 +97,8 @@ test.describe("film de la carte", () => {
     const neutral = page.getByTestId("map-neutral-border");
     if (film.galSummary.neutralBorder === undefined || film.galSummary.neutralBorder === null) await expect(neutral).toHaveCount(0);
     else expect(digits(await neutral.textContent())).toBe(String(film.galSummary.neutralBorder));
-    await expect(page.getByTestId("map-journal")).not.toContainText("..");
+    // La ligne du changement depuis la veille n'existe qu'à partir du deuxième relevé.
+    if ((await page.getByTestId("map-journal").count()) > 0) await expect(page.getByTestId("map-journal")).not.toContainText("..");
   });
 
   test("la page s'ouvre sur la carte, et les détails restent repliés", async ({ page }) => {

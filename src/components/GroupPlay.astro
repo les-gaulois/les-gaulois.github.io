@@ -17,7 +17,7 @@ const last = stats?.sizes[stats.sizes.length - 1];
         <p class="mt-4 max-w-md text-lg text-muted">
           {first.label} : {fmtPct(first.winRate)} de victoires. {last.label} : {fmtPct(last.winRate)}. Pourtant, {fmtPct(stats.soloShare)} des parties se jouent seul sous le tag.
         </p>
-        <p class="mt-4 max-w-md text-lg text-muted">Le vocal est obligatoire pour jouer en équipe avec le tag : trouvez votre groupe sur Discord.</p>
+        <p class="mt-4 max-w-md text-lg text-muted">Vocal obligatoire pour jouer en équipe avec le tag.</p>
         <a href={clan.links.discord} class="btn btn-secondary mt-6" rel="noopener">Trouver un groupe sur Discord</a>
       </div>
       <div class="panel">
@@ -39,7 +39,7 @@ const last = stats?.sizes[stats.sizes.length - 1];
           }
         </ul>
         <p class="mt-4 text-xs text-muted">
-          {fmtInt(stats.games)} parties publiques en équipe jouées avec le tag depuis le {fmtDate(`${clan.archiveStart}T12:00:00Z`)}. Un lien, pas une preuve : le niveau des joueurs et le format de la partie comptent aussi.
+          {fmtInt(stats.games)} parties depuis le {fmtDate(`${clan.archiveStart}T12:00:00Z`)}. Un lien, pas une preuve.
         </p>
       </div>
     </section>

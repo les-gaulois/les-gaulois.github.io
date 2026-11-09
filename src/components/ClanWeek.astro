@@ -11,7 +11,7 @@ import { currentMilestonesPeriod, endSentence, homeMilestones, NAMES_SHOWN, rest
 /**
  * Les Gaulois de la semaine, sur l'accueil : le résumé de la dernière gazette (podium, plus actifs, arrivées)
  * et le fil de ce que les membres viennent de faire. Tout renvoie à sa page : l'accueil résume, il ne recopie pas.
- * Une ligne sans donnée n'existe pas, et chaque chiffre garde sa période et son périmètre.
+ * Une ligne sans donnée n'existe pas, et chaque chiffre garde sa période ; le périmètre et les réserves se lisent dans la gazette.
  */
 interface Props {
   edition: GazetteEdition;
@@ -88,9 +88,6 @@ const faces = singlePseudos(loadMembers()?.members ?? []);
               </>
             )
           }
-          <p class="mt-4 text-xs text-muted">
-            Victoires{active ? " et parties" : ""} en équipe sous le tag, parmi les membres avec pseudo. Cela compte d'abord le temps de jeu : ce n'est pas un classement de niveau.
-          </p>
         </div>
       )
     }

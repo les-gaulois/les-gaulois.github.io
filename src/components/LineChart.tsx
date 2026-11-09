@@ -52,7 +52,7 @@ export default function LineChart({ title, points, invert, format }: { title: st
       {measured < 2 ? (
         <p class="mt-3 text-sm text-muted">
           <span class="beacon" aria-hidden="true" />
-          Une seule mesure pour l'instant. L'API ne donne pas le passé de cette valeur : la courbe se construira jour après jour.
+          Une seule mesure : la courbe se construira jour après jour.
         </p>
       ) : (
         <div

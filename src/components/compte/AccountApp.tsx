@@ -47,13 +47,13 @@ function MembershipRequest({ me, onChange }: { me: Me; onChange: () => Promise<v
         <p class="mt-2">
           {request.in_roster ? (
             <>
-              Votre profil{request.roster_username ? ` « ${request.roster_username} »` : ""} figure bien dans la liste des membres de GAL. Un officier doit encore confirmer que c'est bien vous, car cette liste est publique.
+              Profil{request.roster_username ? ` « ${request.roster_username} »` : ""} trouvé dans la liste des membres. Un officier doit encore confirmer que c'est vous.
             </>
           ) : (
-            <>Ce profil n'a pas été trouvé dans la liste des membres de GAL, relue une fois par jour. Un officier va vérifier. Si vous venez d'arriver, c'est normal.</>
+            <>Profil pas encore trouvé dans la liste des membres, relue chaque jour : un officier va vérifier.</>
           )}
         </p>
-        <p class="mt-2 text-sm text-muted">Envoyée le {fmtDate(request.created_at)}. Tant qu'elle n'est pas validée, vous ne voyez que ce statut et ce qui est public : le QG reste fermé.</p>
+        <p class="mt-2 text-sm text-muted">Envoyée le {fmtDate(request.created_at)}.</p>
         <button type="button" class="btn btn-ghost mt-4 !min-h-10 !py-1.5 !text-sm" disabled={busy} onClick={() => void cancel()}>
           Annuler ma demande
         </button>
@@ -65,7 +65,7 @@ function MembershipRequest({ me, onChange }: { me: Me; onChange: () => Promise<v
   return (
     <section class="card p-5" data-testid="request-form">
       <h2 class="text-xl">Lier mon profil OpenFront</h2>
-      <p class="mt-2 text-muted">Votre compte Discord ne prouve pas que vous êtes membre de GAL. Indiquez votre pseudo OpenFront, ou votre identifiant public si vous n'avez pas de pseudo : un officier confirmera ensuite que c'est bien vous.</p>
+      <p class="mt-2 text-muted">Un officier confirmera ensuite que c'est bien vous.</p>
       {request?.status === "refused" && (
         <p class="form-problem mt-3" data-testid="request-refused">
           Votre dernière demande a été refusée{request.reason ? ` : ${request.reason}` : "."}
@@ -74,7 +74,7 @@ function MembershipRequest({ me, onChange }: { me: Me; onChange: () => Promise<v
       {/* Une demande acceptée, et pourtant un compte en attente : l'encadrement l'a remis en attente avec « Refaire la demande ». */}
       {request?.status === "approved" && (
         <p class="form-problem mt-3" data-testid="request-redo">
-          L'encadrement vous demande de refaire votre demande : le site n'a pas retrouvé votre profil OpenFront dans la liste des membres de GAL. Indiquez votre pseudo OpenFront exact, tel qu'il apparaît sur la page <a href={`${basePath()}/membres`}>Membres</a>, ou votre identifiant public si vous y figurez comme « Membre anonyme ».
+          Refaites votre demande : votre profil n'a pas été trouvé dans la liste des membres. Indiquez votre pseudo exact, tel qu'il apparaît sur la page <a href={`${basePath()}/membres`}>Membres</a>, ou votre identifiant public si vous y figurez comme « Membre anonyme ».
         </p>
       )}
       <form
@@ -113,7 +113,7 @@ function DeleteAccount({ founder }: { founder: boolean }) {
   return (
     <section class="mt-6" data-testid="delete-account">
       <h2 class="text-lg">Effacer mon compte</h2>
-      <p class="mt-1 text-sm text-muted">Vos données sont supprimées. Cela ne touche ni à votre compte OpenFront, ni à vos dons dans le jeu.</p>
+      <p class="mt-1 text-sm text-muted">Votre compte OpenFront et vos dons dans le jeu ne sont pas touchés.</p>
       <button
         type="button"
         class="btn btn-ghost mt-3 !min-h-10 !py-1.5 !text-sm"
@@ -144,12 +144,12 @@ export default function AccountApp() {
     return (
       <section class="card p-6" data-testid="signed-out">
         <h2 class="text-2xl">Connectez-vous</h2>
-        <p class="mt-2 text-muted">La connexion passe par Discord. Le site ne reçoit jamais votre mot de passe. Un officier validera ensuite que vous êtes bien membre de GAL.</p>
+        <p class="mt-2 text-muted">Le site ne reçoit jamais votre mot de passe.</p>
         <div class="mt-4">
           <DiscordButton returnPath="/compte" />
         </div>
         <p class="mt-3 text-sm text-muted">
-          Ce qui est conservé est décrit dans la <a href={`${basePath()}/confidentialite`}>page de confidentialité</a>.
+          <a href={`${basePath()}/confidentialite`}>Ce que le site conserve</a>
         </p>
       </section>
     );

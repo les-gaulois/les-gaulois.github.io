@@ -105,7 +105,6 @@ export default function NewsBoard({ announcements, events, now, live = false }: 
             <button type="button" class="chip !min-h-9" aria-pressed={coming} aria-disabled={busy || undefined} onClick={() => void answer(item.eventId as number, !coming)} data-testid="news-going">
               Je viens
             </button>
-            {coming && <span class="text-sm text-muted">Votre présence est notée.</span>}
           </div>
         )}
       </>

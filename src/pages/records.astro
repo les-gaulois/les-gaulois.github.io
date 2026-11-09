@@ -24,7 +24,7 @@ const empty = clanRecords(sessions) === null && !hasFormats && !hasMaps && !hasP
 
 <Base title="Records" description="Les records des joueurs et du clan GAL, ses résultats par format et par carte de jeu.">
   <div class="wrap">
-    <PageHeader title="Records" intro="Ce que les Gaulois et le clan ont fait de mieux, et les résultats selon le format et la carte de jeu.">
+    <PageHeader title="Records">
       <div class="mt-4">
         <DataStatus state={meta.sessions} maxAgeHours={MAX_AGE_HOURS.sessions} />
       </div>

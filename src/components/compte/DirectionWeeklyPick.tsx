@@ -45,7 +45,7 @@ export default function DirectionWeeklyPick({ draft, setDraft }: { draft: Weekly
         Gaulois de la semaine
       </h2>
       <p class="mt-2 text-sm text-muted">
-        Choisissez un membre de la liste officielle, avec un mot si vous voulez. L'accueil le montre à tous, sans dire qui l'a choisi : toute la semaine, et la suivante tant qu'aucun autre n'est choisi.
+        L'accueil le montre à tous, sans dire qui l'a choisi.
       </p>
       <Problem message={readFailed ? "Le serveur ne répond pas pour l'instant : le choix en cours n'a pas pu être lu." : null} onRetry={() => void read()} />
       {shown === undefined ? (

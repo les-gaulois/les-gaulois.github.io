@@ -1,5 +1,6 @@
 ---
 import DataStatus from "./DataStatus.astro";
+import ReadingNote from "./ReadingNote.astro";
 import { clan } from "../../config/clan";
 import { loadMeta, loadRanked } from "../lib/data";
 import { fmtInt } from "../lib/format";
@@ -14,9 +15,8 @@ const ranked = loadRanked();
   (ranked || meta.ranked.lastError) && (
     <section class="stage stage-wine reveal mt-6 scroll-mt-24" id="classe" aria-labelledby="ranked-title" data-testid="ranked-block">
       <h2 id="ranked-title" class="section-title">Membres présents au classé</h2>
-      <p class="mt-4 max-w-3xl text-lg text-muted">
-        Combien de membres de [{clan.tag}] figurent au classement officiel de chaque mode classé d'OpenFront. Ce classement est individuel et à part : il ne compte pas dans le score du clan, et il ne dit pas sous quel tag ces parties ont été jouées. Seuls les membres avec un pseudo public sont reconnus : ces nombres sont donc des minimums.
-      </p>
+      {/* Le classé est à part : une ligne le dit, le reste est replié. */}
+      <p class="mt-4 max-w-3xl text-lg text-muted">Classement individuel, hors score du clan.</p>
       {
         ranked ? (
           <ul class="mt-6 grid grid-cols-3 gap-2 md:gap-4">
@@ -30,7 +30,7 @@ const ranked = loadRanked();
                   ) : (
                     <>
                       <p class="tnum mt-2 font-display text-3xl font-extrabold md:text-4xl" data-testid="ranked-members">{fmtInt(mode.members)}</p>
-                      <p class="tnum mt-1 text-xs text-muted md:text-sm">{mode.members > 1 ? "membres" : "membre"} sur les {fmtInt(mode.listed)} premières places</p>
+                      <p class="tnum mt-1 text-xs text-muted md:text-sm">{mode.members > 1 ? "membres" : "membre"} au moins, sur les {fmtInt(mode.listed)} premières places</p>
                       <p class="tnum mt-1 text-xs text-muted md:text-sm" data-testid="ranked-top">dont {fmtInt(mode.top)} sur les {RANKED_TOP} premières</p>
                     </>
                   )}
@@ -42,6 +42,9 @@ const ranked = loadRanked();
           <p class="mt-6 font-display text-lg font-bold">Pas de données</p>
         )
       }
+      <ReadingNote>
+        <p>Combien de membres de [{clan.tag}] figurent au classement officiel de chaque mode classé d'OpenFront. Ce classement est individuel et à part : il ne compte pas dans le score du clan, et il ne dit pas sous quel tag ces parties ont été jouées. Seuls les membres avec un pseudo public sont reconnus : ces nombres sont donc des minimums.</p>
+      </ReadingNote>
       <div class="mt-4">
         <DataStatus state={meta.ranked} maxAgeHours={MAX_AGE_HOURS.ranked} />
       </div>

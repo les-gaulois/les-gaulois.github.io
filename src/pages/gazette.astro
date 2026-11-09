@@ -13,6 +13,7 @@ import { GAZETTE_RECENT_EDITIONS, gazetteEditions, weekLabel } from "../lib/gaze
 import { clanRecords } from "../lib/results";
 import { currentWeek, currentWeekComparison, currentWeekLead } from "../lib/semaine";
 import { addDays } from "../lib/time";
+import { endSentence } from "../lib/vie-du-clan";
 
 const meta = loadMeta();
 const sessions = loadSessions();
@@ -41,10 +42,7 @@ const failures = [
 
 <Base title="Gazette" description="Le bilan de chaque semaine du clan GAL : parties, victoires, classement, territoire et arrivées.">
   <div class="wrap">
-    <PageHeader
-      title="La gazette du clan"
-      intro="Le bilan de chaque semaine complète, du lundi au dimanche à l'heure de Paris, écrit automatiquement à partir des données collectées. Une nouvelle édition paraît le lundi matin. Parties publiques en équipe jouées avec le tag : ce ne sont pas des données en temps réel."
-    >
+    <PageHeader title="La gazette du clan">
       <div class="mt-4">
         <DataStatus state={meta.sessions} maxAgeHours={MAX_AGE_HOURS.sessions} />
         {
@@ -63,7 +61,7 @@ const failures = [
           <h2 id="gazette-now-title" class="text-2xl">Semaine en cours, {weekLabel(week)}</h2>
           <p class="tnum mt-2 text-lg" data-testid="gazette-now-lead">{currentWeekLead(week)}</p>
           {weekComparison && <p class="tnum mt-1 text-sm text-muted" data-testid="gazette-now-comparison">{weekComparison}</p>}
-          <p class="mt-2 text-sm text-muted">Son édition complète paraît le lundi {fmtDay(addDays(week.to, 1))}, une fois le dimanche définitif.</p>
+          <p class="mt-2 text-sm text-muted">{endSentence(`Édition complète le lundi ${fmtDay(addDays(week.to, 1))}`)}</p>
         </section>
       )
     }

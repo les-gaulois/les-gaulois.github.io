@@ -47,7 +47,7 @@ function Door({ me }: { me: Me }) {
   return (
     <section class="card max-w-3xl p-6" data-testid="qg-door">
       <h2 class="text-2xl">Réservé aux membres de GAL</h2>
-      <p class="mt-2 text-muted">Au QG : les Gaulois qui attendent dans un salon pour jouer ensemble, les sondages et les décisions du clan, la boîte à idées, qui vient aux événements et le mur des membres. Rien de cela n'est visible sans être reconnu comme membre.</p>
+      <p class="mt-2 text-muted">Salons, sondages, idées, événements et mur des membres.</p>
       <ol class="mt-4 list-decimal space-y-1 pl-5">
         <li>Connectez-vous avec Discord.</li>
         <li>Indiquez votre pseudo ou votre identifiant OpenFront dans « Mon compte ».</li>
@@ -60,7 +60,7 @@ function Door({ me }: { me: Me }) {
             <DiscordButton returnPath="/compte" />
           </div>
           <p class="mt-3 text-sm text-muted">
-            Le site ne reçoit jamais votre mot de passe. Ce qui est conservé est décrit dans la <a href={`${base}/confidentialite`}>page de confidentialité</a>.
+            Le site ne reçoit jamais votre mot de passe. <a href={`${base}/confidentialite`}>Ce qu'il conserve</a>
           </p>
         </>
       )}
@@ -79,7 +79,6 @@ function Door({ me }: { me: Me }) {
 }
 
 function Events({ events, busy, problemAt, onAnswer }: { events: QgEvent[]; busy: boolean; problemAt: (at: string) => string | null; onAnswer: (event: number, going: boolean) => void }) {
-  if (events.length === 0) return <p class="mt-3 text-muted">Aucun événement annoncé pour l'instant.</p>;
   return (
     <ul class="mt-4 grid gap-3 md:grid-cols-2" data-testid="qg-events-list">
       {events.map((event) => {
@@ -112,7 +111,6 @@ function Events({ events, busy, problemAt, onAnswer }: { events: QgEvent[]; busy
               <button type="button" class="chip !min-h-9" aria-pressed={event.mine} aria-disabled={busy || undefined} onClick={() => !busy && onAnswer(event.id, !event.mine)} data-testid="qg-going">
                 Je viens
               </button>
-              {event.mine && <span class="text-sm text-muted">Votre présence est notée.</span>}
             </div>
             <Problem message={problemAt(`event-${event.id}`)} />
           </li>
@@ -206,7 +204,6 @@ function IdeaCard({
             Je soutiens
           </button>
         )}
-        {open && idea.supported && <span class="text-sm text-muted">Vous soutenez cette idée.</span>}
         {(idea.mine || staff) && <DeleteButton busy={busy} label={idea.mine ? "votre idée" : `l'idée de ${idea.author}`} onConfirm={() => onDelete(idea)} />}
       </div>
       <Problem message={problem} />
@@ -215,7 +212,7 @@ function IdeaCard({
   );
 }
 
-function IdeaForm({ name, openMine, busy, refusal, onSend }: { name: string; openMine: number; busy: boolean; refusal: string | null; onSend: (body: string) => Promise<boolean> }) {
+function IdeaForm({ openMine, busy, refusal, onSend }: { openMine: number; busy: boolean; refusal: string | null; onSend: (body: string) => Promise<boolean> }) {
   const [body, setBody] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
   return (
@@ -238,7 +235,7 @@ function IdeaForm({ name, openMine, busy, refusal, onSend }: { name: string; ope
         </label>
         <textarea id="idea-body" class="field mt-1" rows={3} maxLength={IDEA_MAX} aria-describedby="idea-help" value={body} onInput={(e) => setBody(e.currentTarget.value)} />
         <p id="idea-help" class="tnum mt-1 text-sm text-muted">
-          {fmtInt(body.trim().length)} / {fmtInt(IDEA_MAX)} caractères. Elle paraît sous votre nom, {name}, pour les seuls membres validés. Vous pouvez la retirer quand vous voulez.
+          {fmtInt(body.trim().length)} / {fmtInt(IDEA_MAX)} caractères. Elle paraît sous votre nom.
         </p>
       </div>
       <div>
@@ -317,6 +314,15 @@ function Inside({ me, staff }: { me: Me; staff: boolean }) {
   const problemAt = (at: string) => (error?.at === at ? error.message : null);
   const ideasDecided = decidedIdeas(data.ideas);
   const openMine = ideasOpen.filter((idea) => idea.mine).length;
+  const jumps = (
+    [
+      ["#salons", "Salons", true],
+      ["#decisions", "Décisions", data.polls.length > 0],
+      ["#evenements", "Événements", data.events.length > 0],
+      ["#idees", "Boîte à idées", true],
+      ["#mur", "Le mur", data.wall.length > 0],
+    ] as const
+  ).filter(([, , here]) => here);
   const vote = (poll: number, choice: number) => void act("polls", () => call("vote_poll", { p_poll: poll, p_choice: choice }), "Vote enregistré.");
 
   const ideaList = (ideas: QgIdea[]) =>
@@ -365,22 +371,19 @@ function Inside({ me, staff }: { me: Me; staff: boolean }) {
             Me montrer aux autres membres
           </button>
         </div>
+        {/* Le détail, dont l'identifiant Discord que contient l'adresse de la photo, est sur la page de confidentialité. */}
         <p class="mt-2 text-sm text-muted">
           {data.me.visible
-            ? "Les membres validés voient votre nom, votre rôle et votre photo Discord sur le mur, quand vous venez à un événement, et, depuis le 9 novembre 2026, votre photo à côté de votre pseudo sur les pages du site : podiums, records, encadrement, votre fiche. Les visiteurs ne la voient pas. L'adresse de cette photo contient votre identifiant Discord : les membres validés peuvent donc le lire."
-            : "Pour l'instant, vous n'apparaissez ni sur le mur ni parmi ceux qui viennent. Si vous l'activez, seuls les membres validés voient votre nom, votre rôle et votre photo Discord, au QG et à côté de votre pseudo sur les pages du site. L'adresse de cette photo contient votre identifiant Discord : ils pourront donc le lire."}
+            ? "Les membres validés voient votre nom, votre rôle et votre photo Discord."
+            : "Si vous l'activez, les membres validés verront votre nom, votre rôle et votre photo Discord, dont l'adresse contient votre identifiant Discord."}{" "}
+          <a href={`${base}/confidentialite#avec-un-compte`}>Détails</a>
         </p>
         <Problem message={problemAt("me")} />
       </section>
 
+      {/* Une partie vide n'est pas affichée : son lien non plus. */}
       <nav class="flex flex-wrap gap-2" aria-label="Dans le QG" data-testid="qg-jumps">
-        {[
-          ["#salons", "Salons"],
-          ["#decisions", "Décisions"],
-          ["#evenements", "Événements"],
-          ["#idees", "Boîte à idées"],
-          ["#mur", "Le mur"],
-        ].map(([href, label]) => (
+        {jumps.map(([href, label]) => (
           <a key={href} class="chip inline-flex items-center" href={href}>
             {label}
           </a>
@@ -403,44 +406,52 @@ function Inside({ me, staff }: { me: Me; staff: boolean }) {
 
       <QgSalons />
 
-      <Section id="decisions" title="Décisions" testId="qg-decisions">
-        <p class="mt-2 text-sm text-muted">Une voix par membre validé, que vous pouvez changer tant que le sondage est ouvert. Personne ne voit qui a voté quoi, pas même l'encadrement.</p>
-        <h3 class="mt-5 text-lg">Sondages ouverts</h3>
-        {openPolls.length > 0 ? <QgPolls polls={openPolls} busy={busy} onVote={vote} testId="qg-polls-open" /> : <p class="mt-2 text-muted">Aucun sondage ouvert pour l'instant.</p>}
-        <Problem message={problemAt("polls")} />
-        {pastPolls.length > 0 && (
-          <>
-            <h3 class="mt-8 text-lg">Décisions passées</h3>
-            <QgPolls polls={pastPolls.slice(0, PAST_SHOWN)} busy={busy} onVote={vote} testId="qg-polls-past" />
-            {pastPolls.length > PAST_SHOWN && (
-              <details class="mt-3">
-                <summary class="cursor-pointer font-semibold">Voir les {fmtInt(pastPolls.length - PAST_SHOWN)} autres</summary>
-                <QgPolls polls={pastPolls.slice(PAST_SHOWN)} busy={busy} onVote={vote} testId="qg-polls-older" />
-              </details>
-            )}
-          </>
-        )}
-      </Section>
+      {data.polls.length > 0 && (
+        <Section id="decisions" title="Décisions" testId="qg-decisions">
+          <p class="mt-2 text-sm text-muted">Vote secret, modifiable tant que le sondage est ouvert.</p>
+          {openPolls.length > 0 && (
+            <>
+              <h3 class="mt-5 text-lg">Sondages ouverts</h3>
+              <QgPolls polls={openPolls} busy={busy} onVote={vote} testId="qg-polls-open" />
+            </>
+          )}
+          <Problem message={problemAt("polls")} />
+          {pastPolls.length > 0 && (
+            <>
+              <h3 class="mt-8 text-lg">Décisions passées</h3>
+              <QgPolls polls={pastPolls.slice(0, PAST_SHOWN)} busy={busy} onVote={vote} testId="qg-polls-past" />
+              {pastPolls.length > PAST_SHOWN && (
+                <details class="mt-3">
+                  <summary class="cursor-pointer font-semibold">Voir les {fmtInt(pastPolls.length - PAST_SHOWN)} autres</summary>
+                  <QgPolls polls={pastPolls.slice(PAST_SHOWN)} busy={busy} onVote={vote} testId="qg-polls-older" />
+                </details>
+              )}
+            </>
+          )}
+        </Section>
+      )}
 
-      <Section id="evenements" title="Événements à venir" testId="qg-events">
-        <Events
-          events={data.events}
-          busy={busy}
-          problemAt={problemAt}
-          onAnswer={(event, going) => void act(`event-${event}`, () => call("set_attendance", { p_event: event, p_going: going }), going ? "Votre présence est notée." : "Votre présence est retirée.")}
-        />
-      </Section>
+      {data.events.length > 0 && (
+        <Section id="evenements" title="Événements à venir" testId="qg-events">
+          <Events
+            events={data.events}
+            busy={busy}
+            problemAt={problemAt}
+            onAnswer={(event, going) => void act(`event-${event}`, () => call("set_attendance", { p_event: event, p_going: going }), going ? "Votre présence est notée." : "Votre présence est retirée.")}
+          />
+        </Section>
+      )}
 
       <Section id="idees" title="Boîte à idées" testId="qg-ideas">
-        <p class="mt-2 text-sm text-muted">Proposez, soutenez les idées des autres : l'encadrement tranche. Le nombre de soutiens est visible, pas qui soutient.</p>
-        <IdeaForm name={name} openMine={openMine} busy={busy} refusal={problemAt("idea-form")} onSend={(body) => act("idea-form", () => call("save_idea", { p_body: body }), "Idée proposée.")} />
-        <h3 class="mt-6 text-lg">À l'étude</h3>
-        {ideasOpen.length > 0 ? (
-          <ul class="mt-3 grid gap-3" data-testid="qg-ideas-open">
-            {ideaList(ideasOpen)}
-          </ul>
-        ) : (
-          <p class="mt-2 text-muted">Aucune idée à l'étude pour l'instant.</p>
+        <p class="mt-2 text-sm text-muted">L'encadrement tranche. Les soutiens restent anonymes.</p>
+        <IdeaForm openMine={openMine} busy={busy} refusal={problemAt("idea-form")} onSend={(body) => act("idea-form", () => call("save_idea", { p_body: body }), "Idée proposée.")} />
+        {ideasOpen.length > 0 && (
+          <>
+            <h3 class="mt-6 text-lg">À l'étude</h3>
+            <ul class="mt-3 grid gap-3" data-testid="qg-ideas-open">
+              {ideaList(ideasOpen)}
+            </ul>
+          </>
         )}
         {ideasDecided.length > 0 && (
           <>
@@ -458,11 +469,11 @@ function Inside({ me, staff }: { me: Me; staff: boolean }) {
         )}
       </Section>
 
-      <Section id="mur" title="Le mur des membres" testId="qg-wall">
-        <p class="tnum mt-2 text-sm text-muted" data-testid="qg-wall-count">
-          Membres qui ont choisi de se montrer : {fmtInt(data.wall.length)} sur {fmtInt(data.members)} reconnus sur le site.
-        </p>
-        {data.wall.length > 0 && (
+      {data.wall.length > 0 && (
+        <Section id="mur" title="Le mur des membres" testId="qg-wall">
+          <p class="tnum mt-2 text-sm text-muted" data-testid="qg-wall-count">
+            {fmtInt(data.wall.length)} sur {fmtInt(data.members)} membres reconnus {data.wall.length > 1 ? "se montrent" : "se montre"}.
+          </p>
           <ul class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3" data-testid="qg-wall-list">
             {data.wall.map((face, i) => (
               <li key={i} class="card flex items-center gap-3 p-3">
@@ -474,8 +485,8 @@ function Inside({ me, staff }: { me: Me; staff: boolean }) {
               </li>
             ))}
           </ul>
-        )}
-      </Section>
+        </Section>
+      )}
     </div>
   );
 }

@@ -166,7 +166,7 @@ export default function GamesJournal({ src, initial, sides }: Props) {
       </p>
       {unread && <p class="tnum mt-1 text-sm text-muted" data-testid="journal-unread">{unread}</p>}
       <p class="mt-1 max-w-3xl text-sm text-muted" data-testid="journal-link-note">
-        « Ouvrir » mène à la partie sur le site d'OpenFront, où son replay montre les pseudos de tous ses joueurs. Essayé le 7 novembre 2026 : les parties les plus récentes s'y rejouent ; les plus anciennes, jouées avec une autre version du jeu, s'arrêtent sur l'écran « Rejoindre un salon privé » d'OpenFront.
+        « Ouvrir » lance le replay sur OpenFront. Une partie ancienne peut s'arrêter sur « Rejoindre un salon privé ».
       </p>
       {state === "error" && (
         <div class="card mt-3 p-4" role="alert">

@@ -12,13 +12,14 @@ const hasLogo = brandFile("vertical") !== null;
 const group = groupStats(loadSessions());
 const alone = group?.sizes[0];
 const together = group?.sizes[group.sizes.length - 1];
-const steps = [
-  { title: "Créez un compte OpenFront", body: "Le jeu demande un compte pour rejoindre un clan." },
+// Une étape qui se comprend à son titre n'a pas de phrase.
+const steps: { title: string; body?: string }[] = [
+  { title: "Créez un compte OpenFront" },
   { title: `Cherchez le clan [${clan.tag}]`, body: "Ouvrez la section Clans du jeu, puis l'onglet Rechercher." },
   clan.join.inviteOnly
-    ? { title: "Demandez une invitation", body: "Le clan fonctionne sur invitation : sur sa fiche, utilisez « Demander une invitation ». Un chef ou un officier répond à la demande." }
+    ? { title: "Demandez une invitation", body: "Sur sa fiche : « Demander une invitation ». Un officier vous répond." }
     : { title: "Rejoignez le clan", body: "Sur sa fiche, utilisez « Rejoindre le clan »." },
-  { title: "Retrouvez-nous sur Discord", body: "Le lien du serveur du clan se trouve juste en dessous." },
+  { title: "Retrouvez-nous sur Discord" },
 ];
 ---
 
@@ -26,7 +27,7 @@ const steps = [
   {/* Le halo du logo dépasse de sa colonne et suit la souris : il ne doit jamais élargir la page. */}
   <div class="overflow-x-clip">
     <div class="wrap">
-      <PageHeader title="Rejoindre le clan" intro="Quatre étapes pour nous rejoindre dans le jeu, puis sur le Discord." />
+      <PageHeader title="Rejoindre le clan" />
 
       <div class="grid items-center gap-10 lg:grid-cols-[3fr_2fr]">
         <div>
@@ -37,7 +38,7 @@ const steps = [
                   <span class="tnum font-display text-3xl font-extrabold text-blue-text" aria-hidden="true">{i + 1}</span>
                   <div>
                     <h2 class="text-lg">{s.title}</h2>
-                    <p class="mt-1 text-muted">{s.body}</p>
+                    {s.body && <p class="mt-1 text-muted">{s.body}</p>}
                   </div>
                 </li>
               ))
@@ -67,7 +68,7 @@ const steps = [
             <p class="text-lg text-muted">
               {alone.label} : {fmtPct(alone.winRate)} de victoires. {together.label} : {fmtPct(together.winRate)}. <a href={`${base}/activite`}>Voir quand trouver un groupe</a>.
             </p>
-            <p class="mt-1 text-sm text-muted">Parties publiques en équipe jouées avec le tag depuis le {fmtDate(`${clan.archiveStart}T12:00:00Z`)}. Un lien, pas une preuve : le niveau des joueurs et le format de la partie comptent aussi.</p>
+            <p class="mt-1 text-sm text-muted">Depuis le {fmtDate(`${clan.archiveStart}T12:00:00Z`)}. Un lien, pas une preuve.</p>
           </section>
         )
       }

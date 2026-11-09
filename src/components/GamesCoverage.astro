@@ -8,10 +8,16 @@ interface Props {
 }
 const { coverage, archive, reading } = Astro.props.state;
 const start = fmtDate(`${clan.archiveStart}T12:00:00Z`);
+// Une lecture complète ne s'écrit pas : la ligne n'apparaît que lorsqu'il manque des parties, ce qui change alors la lecture des chiffres.
+const partial = coverage.read < coverage.total || archive.read < archive.total || reading;
 ---
 
-<p class="tnum mt-2 max-w-3xl text-sm text-muted" data-testid="games-coverage">
-  {coverage.read === coverage.total ? `Détail lu pour toutes les parties de cette période : ${fmtInt(coverage.total)}.` : `Détail lu pour ${fmtInt(coverage.read)} parties sur les ${fmtInt(coverage.total)} de cette période.`}
-  {archive.read < archive.total && ` Depuis le ${start} : ${fmtInt(archive.read)} sur ${fmtInt(archive.total)}.`}
-  {reading && " La lecture se fait petit à petit, des plus récentes aux plus anciennes : ces chiffres vont encore changer."}
-</p>
+{
+  partial && (
+    <p class="tnum mt-2 max-w-3xl text-sm text-muted" data-testid="games-coverage">
+      {coverage.read === coverage.total ? `Détail lu pour toutes les parties de cette période : ${fmtInt(coverage.total)}.` : `Détail lu pour ${fmtInt(coverage.read)} parties sur les ${fmtInt(coverage.total)} de cette période.`}
+      {archive.read < archive.total && ` Depuis le ${start} : ${fmtInt(archive.read)} sur ${fmtInt(archive.total)}.`}
+      {reading && " La lecture se fait petit à petit, des plus récentes aux plus anciennes : ces chiffres vont encore changer."}
+    </p>
+  )
+}

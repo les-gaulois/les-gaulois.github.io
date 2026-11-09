@@ -1,6 +1,7 @@
 ---
 import { clan } from "../../config/clan";
 import { loadMembers } from "../lib/data";
+import ReadingNote from "./ReadingNote.astro";
 import { fmtCount, fmtDate, fmtDay, fmtInt, fmtPct, fmtRank } from "../lib/format";
 import { singlePseudos } from "../lib/members";
 import { weekRecordKeys, type RecordKey } from "../lib/records-battus";
@@ -55,7 +56,7 @@ const tiles: { key: RecordKey; label: string; value: string; hint: string }[] = 
           {standingDetails(standing).map((line) => (
             <p class="tnum mt-1 text-sm text-muted">{line}</p>
           ))}
-          <p class="mt-1 text-xs text-muted">Le rang et le score portent sur 90 jours glissants, pas sur cette seule semaine.</p>
+          <p class="mt-1 text-xs text-muted">Sur 90 jours glissants.</p>
         </>
       ) : (
         <>
@@ -75,7 +76,6 @@ const tiles: { key: RecordKey; label: string; value: string; hint: string }[] = 
           {territoryDetails(territory).map((line) => (
             <p class="tnum mt-1 text-sm text-muted">{line}</p>
           ))}
-          <p class="mt-1 text-xs text-muted">Ce n'est pas le classement des clans.</p>
         </>
       ) : (
         <>
@@ -104,7 +104,6 @@ const tiles: { key: RecordKey; label: string; value: string; hint: string }[] = 
             </div>
           ))}
         </dl>
-        <p class="mt-3 text-xs text-muted">Tous joueurs du clan confondus : une série mêle donc plusieurs groupes, et elle s'arrête au dimanche. Le nombre de Gaulois compte aussi ceux partis avant la fin. Une partie jouée seul contre des robots n'est pas comptée.</p>
       </section>
     )
   }
@@ -139,26 +138,22 @@ const tiles: { key: RecordKey; label: string; value: string; hint: string }[] = 
               </>
             )
           }
+          {/* Une semaine sans palier franchi n'a pas de liste vide : rien ne s'affiche. */}
           {
-            milestones && (
+            milestones && milestones.length > 0 && (
               <>
                 <h4 class="mt-5 text-lg">Paliers franchis</h4>
-                {milestones.length > 0 ? (
-                  <ul class="tnum mt-2 grid gap-x-6 gap-y-2 sm:grid-cols-3">
-                    {milestones.map((p) => (
-                      <li class="min-w-0 [overflow-wrap:anywhere]" data-testid="gazette-milestone">
-                        <a href={`${base}/membres/${encodeURIComponent(p.id)}`}>{p.username}</a>
-                        <span class="block text-sm text-muted">{fmtCount(p.tier, "victoire")}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p class="mt-2 text-sm text-muted" data-testid="gazette-no-milestone">Aucun palier franchi sur cette période.</p>
-                )}
+                <ul class="tnum mt-2 grid gap-x-6 gap-y-2 sm:grid-cols-3">
+                  {milestones.map((p) => (
+                    <li class="min-w-0 [overflow-wrap:anywhere]" data-testid="gazette-milestone">
+                      <a href={`${base}/membres/${encodeURIComponent(p.id)}`}>{p.username}</a>
+                      <span class="block text-sm text-muted">{fmtCount(p.tier, "victoire")}</span>
+                    </li>
+                  ))}
+                </ul>
               </>
             )
           }
-          <p class="mt-3 text-xs text-muted">Victoires{active ? " et parties" : ""} en équipe sous le tag, entre deux relevés de la liste des membres, parmi les membres avec pseudo présents aux deux et encore dans le clan. Cela compte d'abord le temps de jeu : ce n'est pas un classement de niveau.{milestones && " Les paliers sont ceux de la page Membres, à partir de 100 victoires."}</p>
         </>
       ) : (
         <>
@@ -182,7 +177,7 @@ const tiles: { key: RecordKey; label: string; value: string; hint: string }[] = 
               <p class="mt-2 text-muted [overflow-wrap:anywhere]" data-testid="gazette-names">{arrivals.named.join(", ")}</p>
             </details>
           )}
-          <p class="mt-2 text-xs text-muted">Seuls les membres encore dans le clan sont comptés{membersAt ? `, d'après la liste du ${fmtDate(membersAt)}` : ""}.{members !== null && ` Effectif relevé le ${fmtDay(standing?.end.date ?? "")} : ${fmtInt(members)}.`}</p>
+          <p class="mt-2 text-xs text-muted">Encore dans le clan{membersAt ? ` le ${fmtDate(membersAt)}` : ""}.{members !== null && ` Effectif le ${fmtDay(standing?.end.date ?? "")} : ${fmtInt(members)}.`}</p>
         </>
       ) : (
         <>
@@ -193,3 +188,17 @@ const tiles: { key: RecordKey; label: string; value: string; hint: string }[] = 
     }
   </section>
 </div>
+
+{/* Les précisions de méthode, repliées : le chiffre d'abord. */}
+<ReadingNote>
+  <p>Parties publiques en équipe jouées avec le tag, du lundi au dimanche, heure de Paris.</p>
+  {tiles.length > 0 && <p>Temps forts : tous joueurs du clan confondus, une série mêle donc plusieurs groupes et s'arrête au dimanche. Le nombre de Gaulois compte aussi ceux partis avant la fin. Une partie jouée seul contre des robots n'est pas comptée.</p>}
+  {
+    players && (
+      <p>
+        Le plus de victoires{active ? " et de parties" : ""} : en équipe sous le tag, entre deux relevés de la liste des membres, parmi les membres avec pseudo présents aux deux et encore dans le clan. Cela compte d'abord le temps de jeu : ce n'est pas un classement de niveau.{milestones && milestones.length > 0 && " Les paliers sont ceux de la page Membres, à partir de 100 victoires."}
+      </p>
+    )
+  }
+  {territory && <p>La carte des clans compte des pixels peints : ce n'est pas le classement des clans.</p>}
+</ReadingNote>

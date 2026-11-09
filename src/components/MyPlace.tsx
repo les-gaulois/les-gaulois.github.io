@@ -259,7 +259,7 @@ export default function MyPlace({ src }: { src: string }) {
       )}
       {query.trim() !== "" && state.status === "ready" && matches.length === 0 && (
         <p class="mt-3 text-sm text-muted" role="status">
-          Aucun membre avec ce pseudo. Les membres sans pseudo public ne peuvent pas être cherchés.
+          Aucun membre avec ce pseudo. Un membre sans pseudo public ne peut pas être cherché.
         </p>
       )}
       {!chosen && matches.length > 1 && (

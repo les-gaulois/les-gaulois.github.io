@@ -31,10 +31,7 @@ const jumps = [
 
 <Base title="Membres" description="Les membres du clan GAL sur OpenFront : les paliers, l'encadrement et la liste officielle.">
   <div class="wrap">
-    <PageHeader
-      title="Membres"
-      intro="La liste officielle du clan dans OpenFront. Les membres qui n'ont pas défini de pseudo restent anonymes."
-    >
+    <PageHeader title="Membres">
       <div class="mt-4">
         <DataStatus state={meta.members} maxAgeHours={MAX_AGE_HOURS.members} />
       </div>
@@ -47,7 +44,6 @@ const jumps = [
       command.length > 0 && (
         <section class="card reveal mb-6 scroll-mt-24 p-5" id="encadrement" aria-labelledby="command-title" data-testid="command">
           <h2 id="command-title" class="text-xl">L'encadrement · {command.length}</h2>
-          <p class="mt-1 text-sm text-muted">Le chef et les officiers répondent aux demandes d'invitation et choisissent où peindre sur la carte des clans.</p>
           <ul class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {
               command.map((m) => (
@@ -74,11 +70,9 @@ const jumps = [
 
     <section class="mt-8 scroll-mt-24" id="liste" aria-labelledby="list-title">
       <h2 id="list-title" class="section-title">Toute la liste</h2>
-      <p class="mt-2 max-w-3xl text-sm text-muted" data-testid="members-scope">
-        Parties publiques en équipe jouées avec le tag {clan.tag}, sans le classé, le FFA ni Humains contre Nations.
-      </p>
       <div class="mb-4">
         <ReadingNote>
+          <p data-testid="members-scope">La liste officielle du clan dans OpenFront. Parties publiques en équipe jouées avec le tag {clan.tag}, sans le classé, le FFA ni Humains contre Nations.</p>
           <p>« 0 » signifie aucune partie sous le tag, ce qui ne veut pas dire que le joueur est inactif. « — » signifie pas de données, ou pas de taux sans partie jouée. Un pseudo mène à la fiche du membre.</p>
         </ReadingNote>
       </div>

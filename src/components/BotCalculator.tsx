@@ -172,8 +172,8 @@ export default function BotCalculator() {
     <div class="card card-accent p-4 sm:p-6">
       <div class="grid gap-6 lg:grid-cols-2">
         <form ref={form} class="grid content-start gap-4 sm:grid-cols-2" onSubmit={(e) => e.preventDefault()} aria-label="Paramètres du calculateur">
-          <NumberField id="calc-troops" label="Troupes du bot" hint="Un bot démarre à 10 000 dans le jeu." value={botTroops} min={1} onInput={setBotTroops} />
-          <NumberField id="calc-tiles" label="Taille du bot" hint="En cases de territoire." value={botTiles} min={1} max={MAX_BOT_TILES} onInput={setBotTiles} />
+          <NumberField id="calc-troops" label="Troupes du bot" hint="Un bot démarre à 10 000." value={botTroops} min={1} onInput={setBotTroops} />
+          <NumberField id="calc-tiles" label="Taille du bot" hint="En cases." value={botTiles} min={1} max={MAX_BOT_TILES} onInput={setBotTiles} />
           <label class="block" htmlFor="calc-terrain">
             <span class="block text-sm font-semibold">Terrain</span>
             <span class="block text-xs text-muted">Dominant chez le bot.</span>
@@ -182,7 +182,7 @@ export default function BotCalculator() {
             </select>
           </label>
           <NumberField id="calc-border" label="Frontière" hint="En cases. Change la durée, pas les pertes." value={border} min={1} onInput={setBorder} />
-          <NumberField id="calc-mine" label="Votre territoire" hint="En cases. Effet surtout sur les très grands territoires." value={myTiles} min={1} onInput={setMyTiles} />
+          <NumberField id="calc-mine" label="Votre territoire" hint="En cases." value={myTiles} min={1} onInput={setMyTiles} />
         </form>
 
         <div aria-live="polite" data-testid="calc-result">
@@ -229,9 +229,7 @@ export default function BotCalculator() {
 
       <div class="mt-6 border-t border-line pt-4 text-sm text-muted">
         <p class="font-semibold text-white">Repère indicatif, pas une garantie.</p>
-        <p class="mt-1">
-          Le minimum laisse l'attaque à zéro à la dernière case : prévoyez de la marge. Le calcul suppose un terrain uniforme et ne compte ni la régénération du bot pendant l'attaque, ni les bâtiments. Il n'a pas été vérifié en partie réelle.
-        </p>
+        <p class="mt-1">Prévoyez de la marge : ce calcul n'a pas été vérifié en partie réelle.</p>
         <details class="mt-3">
           <summary class="cursor-pointer font-semibold text-white">Voir la formule</summary>
           <p class="mt-2">À chaque case conquise, l'attaque perd :</p>
@@ -239,7 +237,7 @@ export default function BotCalculator() {
             M × 0,7 × borne(troupes du bot ÷ troupes d'attaque ; 0,6 ; 2) × (0,463 × bonus de taille + 0,0039 × troupes du bot ÷ cases du bot)
           </p>
           <p class="mt-2">
-            M vaut 80 en plaine, 100 en colline et 120 en montagne. Le bot perd ses troupes par case à chaque case conquise. La frontière n'agit que sur la vitesse. Le minimum est trouvé en simulant l'attaque case par case.
+            M vaut 80 en plaine, 100 en colline et 120 en montagne. Le bot perd ses troupes par case à chaque case conquise. La frontière n'agit que sur la vitesse. Le minimum est trouvé en simulant l'attaque case par case : il laisse l'attaque à zéro à la dernière case. Le calcul suppose un terrain uniforme et ne compte ni la régénération du bot pendant l'attaque, ni les bâtiments. Ce qui pèse le plus est la taille du bot, plus que ses troupes.
           </p>
           <p class="mt-2">
             Source : <a href={`https://github.com/openfrontio/OpenFrontIO/blob/${FORMULA_COMMIT}/packages/engine/src/configuration/EngineConfig.ts`} rel="noopener">EngineConfig.ts d'OpenFront</a>, commit {FORMULA_COMMIT}. Le jeu évolue : ces constantes peuvent changer.
