@@ -1,5 +1,6 @@
 ---
 import Base from "../layouts/Base.astro";
+import ClanWeek from "../components/ClanWeek.astro";
 import DataStatus from "../components/DataStatus.astro";
 import MapNamesCredit from "../components/MapNamesCredit.astro";
 import MyPlace from "../components/MyPlace.tsx";
@@ -13,12 +14,15 @@ import { objectiveFor } from "../lib/clanmap/economy";
 import { loadAnnouncements, loadClanMapFilm, loadEvents, loadGames, loadHistory, loadLeaderboard, loadMembers, loadMemberWeeks, loadMeta, loadSessions, loadTerritoryReadings } from "../lib/data";
 import { fmtDate, fmtDateTime, fmtDay, fmtDayAndTime, fmtDec1, fmtInt, fmtPct, fmtRank, fmtScore } from "../lib/format";
 import { MAX_AGE_HOURS } from "../lib/freshness";
-import { editionLead, gazetteEditions, weekLabel } from "../lib/gazette";
+import { gazetteEditions } from "../lib/gazette";
 import { clanJournal } from "../lib/journal";
 import { mapLabel } from "../lib/map-names";
+import { clanRecords } from "../lib/results";
 import { bestSlots, buildHeatmap, dailySeries, slotsOfDay } from "../lib/sessions";
 import { findClan, neighbours, winRate, withOfficialRanks } from "../lib/stats";
 import { parisParts, WEEKDAYS_FR } from "../lib/time";
+import { recentRecordLines, recentTerritoryRecord } from "../lib/vie-du-clan";
+import { milestonesSinceMonday } from "../lib/week-players";
 import { loadVisitSnapshot } from "../lib/visite-snapshot";
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -49,7 +53,12 @@ const members = loadMembers();
 const film = loadClanMapFilm();
 const onMap = film?.galSummary ?? null;
 const objective = objectiveFor(film?.standings ?? [], clan.tag);
-const gazette = gazetteEditions({ sessions, history: loadHistory(), territory: loadTerritoryReadings(), weekTops: loadMemberWeeks().tops, members, archiveStart: clan.archiveStart, completeThrough: meta.sessions.completeThrough })[0] ?? null;
+const memberWeeks = loadMemberWeeks();
+const gazette = gazetteEditions({ sessions, history: loadHistory(), territory: loadTerritoryReadings(), weekTops: memberWeeks.tops, members, archiveStart: clan.archiveStart, completeThrough: meta.sessions.completeThrough })[0] ?? null;
+// Le fil du clan : les paliers franchis depuis le relevé du lundi, et les records des sept derniers jours. Règles dans src/lib/vie-du-clan.ts.
+const currentMilestones = milestonesSinceMonday(memberWeeks.reading, members);
+const recordLines = recentRecordLines(clanRecords(sessions), meta.sessions.coveredUntil);
+const territoryRecord = recentTerritoryRecord(onMap?.peak ?? null, film?.fetchedAt ?? null);
 
 const recent = dailySeries(sessions, clan.archiveStart, meta.sessions.coveredUntil).slice(-14);
 const recentMax = Math.max(1, ...recent.map((d) => d.games));
@@ -59,7 +68,7 @@ const { rows: journal } = clanJournal({ sessions, games, coveredUntil: meta.sess
 const lastGames = journal.slice(0, 5);
 // La belle partie d'hier : le plus de Gaulois ensemble la veille de la collecte, règle dans src/lib/belle-partie.ts.
 const bestYesterday = meta.sessions.coveredUntil ? bestGameOf(journal, yesterdayOf(meta.sessions.coveredUntil)) : null;
-const creditMaps = lastGames.some((game) => game.map !== null) || (bestYesterday?.map ?? null) !== null;
+const creditMaps = lastGames.some((game) => game.map !== null);
 
 const heat = buildHeatmap(sessions, meta.sessions.coveredUntil);
 const weekday = parisParts(now).weekday;
@@ -123,18 +132,31 @@ const snapshot = loadVisitSnapshot();
       )
     }
 
-    {/* La porte de la face privée : le contenu du QG n'est pas dans cette page, le serveur ne le donne qu'aux membres validés. */}
-    {
-      AUTH_ENABLED && (
-        <section class="stage stage-night reveal flex flex-wrap items-center justify-between gap-x-8 gap-y-4" aria-labelledby="qg-title" data-testid="home-qg">
-          <div>
+    {/* Ce que les membres viennent de faire : le résumé de la dernière gazette, et ce qui s'est passé depuis. */}
+    {gazette && <ClanWeek edition={gazette} currentMilestones={currentMilestones} records={recordLines} territoryRecord={territoryRecord} bestGame={bestYesterday ? bestGameSentence(bestYesterday) : null} creditMaps={(bestYesterday?.map ?? null) !== null} />}
+
+    {/* Ce qui est à chacun : sa place dans le clan, et la porte de la face privée. */}
+    <div class:list={["grid gap-6", AUTH_ENABLED && "lg:grid-cols-2"]}>
+      <section class="stage stage-night reveal scroll-mt-24" id="ma-place" aria-labelledby="place-title" data-testid="my-place">
+        <h2 id="place-title" class="section-title section-title-sm">Ma place dans le clan</h2>
+        <p class="mt-3 text-muted">Votre rang aux victoires sous le tag, votre palier et le prochain joueur à dépasser.</p>
+        <div class="mt-4">
+          <MyPlace client:idle src={`${base}/data/members.json`} />
+        </div>
+        <noscript><p class="mt-3 text-sm text-muted">JavaScript est nécessaire pour chercher un pseudo. La liste complète reste sur la page <a href={`${base}/membres`}>Membres</a>.</p></noscript>
+      </section>
+
+      {/* La porte de la face privée : le contenu du QG n'est pas dans cette page, le serveur ne le donne qu'aux membres validés. */}
+      {
+        AUTH_ENABLED && (
+          <section class="stage stage-night reveal flex flex-col items-start" aria-labelledby="qg-title" data-testid="home-qg">
             <h2 id="qg-title" class="section-title section-title-sm">Le QG des membres</h2>
             <p class="mt-3 max-w-xl text-muted">Les sondages et les décisions du clan, la boîte à idées et le mur des membres. Réservé aux membres de GAL reconnus par un officier.</p>
-          </div>
-          <a href={`${base}/qg`} class="btn btn-secondary">Entrer dans le QG</a>
-        </section>
-      )
-    }
+            <a href={`${base}/qg`} class="btn btn-secondary mt-6">Entrer dans le QG</a>
+          </section>
+        )
+      }
+    </div>
 
     <section class="stage stage-blue reveal" aria-labelledby="stats-title">
       <h2 id="stats-title" class="section-title section-title-sm">Le clan au classement officiel</h2>
@@ -193,29 +215,6 @@ const snapshot = loadVisitSnapshot();
       </div>
     </section>
 
-    <div class="grid gap-6 lg:grid-cols-2">
-      {
-        gazette && (
-          <section class="stage stage-night reveal flex flex-col" aria-labelledby="gazette-title" data-testid="home-gazette">
-            <h2 id="gazette-title" class="section-title section-title-sm">La gazette du clan</h2>
-            <p class="mt-4 text-sm font-semibold text-muted">Semaine {weekLabel(gazette)}</p>
-            <p class="mt-1 text-lg text-muted">{editionLead(gazette, clan.tag)}</p>
-            <p class="mt-3 text-sm text-muted">Une nouvelle édition paraît chaque lundi.</p>
-            <a href={`${base}/gazette`} class="btn btn-ghost mt-6 self-start">Lire la gazette</a>
-          </section>
-        )
-      }
-
-      <section class="stage stage-night reveal scroll-mt-24" id="ma-place" aria-labelledby="place-title" data-testid="my-place">
-        <h2 id="place-title" class="section-title section-title-sm">Ma place dans le clan</h2>
-        <p class="mt-3 text-muted">Votre rang aux victoires sous le tag, votre palier et le prochain joueur à dépasser.</p>
-        <div class="mt-4">
-          <MyPlace client:idle src={`${base}/data/members.json`} />
-        </div>
-        <noscript><p class="mt-3 text-sm text-muted">JavaScript est nécessaire pour chercher un pseudo. La liste complète reste sur la page <a href={`${base}/membres`}>Membres</a>.</p></noscript>
-      </section>
-    </div>
-
     {
       film && onMap && onMap.pixels > 0 && (
         <section class="stage stage-night reveal grid items-center gap-8 md:grid-cols-2" aria-labelledby="map-title">
@@ -249,19 +248,12 @@ const snapshot = loadVisitSnapshot();
 
     {
       recent.length > 0 && (
-        <section class="stage stage-indigo reveal grid gap-8 md:grid-cols-2" aria-labelledby="progress-title">
+        <section class="stage stage-indigo reveal grid gap-8 md:grid-cols-2" aria-labelledby="progress-title" data-testid="home-parties">
           <div>
             <h2 id="progress-title" class="section-title section-title-sm">{fmtInt(recentGames)} parties en 14 jours</h2>
             <p class="mt-3 max-w-md text-lg text-muted">
               {fmtInt(recentWins)} victoires, soit {fmtPct(winRate(recentWins, recentGames))}. Parties publiques en équipe jouées avec le tag.
             </p>
-            {
-              bestYesterday && (
-                <p class="tnum mt-4 text-sm" data-testid="home-best-game">
-                  <strong>La belle partie d'hier.</strong> {bestGameSentence(bestYesterday)}
-                </p>
-              )
-            }
             {
               lastGames.length > 0 && (
                 <ul class="tnum mt-4 divide-y divide-white/10 text-sm" data-testid="home-games">

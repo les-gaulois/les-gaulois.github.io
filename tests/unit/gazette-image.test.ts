@@ -21,6 +21,8 @@ const edition = (over: Partial<GazetteEdition> = {}): GazetteEdition => ({
   players: null,
   // Un podium part par défaut du relevé du lundi 2 novembre, à 0 h 53 à Paris.
   playersSince: over.players ? "2026-11-01T23:53:00.000Z" : null,
+  active: null,
+  milestones: null,
   ...over,
 });
 

@@ -2,6 +2,16 @@
   {
     "date": "2026-11-09",
     "kind": "nouveau",
+    "title": "Les Gaulois de la semaine sur l'accueil",
+    "body": "L'accueil nomme les joueurs : le podium des victoires de la semaine, les records et les arrivées. Les plus actifs et les paliers franchis s'y ajoutent dès que le robot les a relevés.",
+    "link": {
+      "href": "/gazette",
+      "label": "Lire la gazette"
+    }
+  },
+  {
+    "date": "2026-11-09",
+    "kind": "nouveau",
     "title": "Le QG, réservé aux membres",
     "body": "Les membres reconnus par un officier y votent, proposent des idées et peuvent se montrer sur le mur avec leur photo Discord. Les sondages quittent l'accueil pour le QG.",
     "link": {

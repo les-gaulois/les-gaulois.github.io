@@ -102,6 +102,30 @@ describe("gazetteEditions", () => {
       expect(latest && playersPeriod(latest)).toBe("de la semaine");
       expect(before?.players).toBeNull();
       expect(before?.playersSince).toBeNull();
+      // Une semaine arrêtée avant le relevé des parties et des paliers : ni l'un ni l'autre, et pas un zéro.
+      expect(latest?.active).toBeNull();
+      expect(latest?.milestones).toBeNull();
+    });
+
+    it("donne aussi ceux qui ont le plus joué et les paliers franchis, quand la semaine les a relevés", () => {
+      const top = { since: "2026-10-25T23:53:00.000Z", players: [{ id: "Alpha", wins: 33 }], active: [{ id: "Beta", games: 80 }, { id: "Alpha", games: 41 }, { id: "Parti", games: 12 }], milestones: [{ id: "Alpha", tier: 500 }] };
+      const [latest] = gazetteEditions(sources({ weekTops: { "2026-10-26": top }, members: named("2026-11-07T05:00:00.000Z", "Alpha", "Beta") }));
+      expect(latest?.active).toEqual([
+        { id: "Beta", games: 80, username: "Beta", place: 1 },
+        { id: "Alpha", games: 41, username: "Alpha", place: 2 },
+      ]);
+      expect(latest?.milestones).toEqual([{ id: "Alpha", tier: 500, username: "Alpha" }]);
+      // Aucun palier franchi : une liste vide, qui est un vrai « aucun ».
+      const [none] = gazetteEditions(sources({ weekTops: { "2026-10-26": { ...top, milestones: [] } }, members: named("2026-11-07T05:00:00.000Z", "Alpha", "Beta") }));
+      expect(none?.milestones).toEqual([]);
+    });
+
+    it("ne donne ni plus actifs ni paliers sans podium : leur période ne serait pas écrite", () => {
+      const top = { since: "2026-10-25T23:53:00.000Z", players: [{ id: "Parti", wins: 33 }], active: [{ id: "Alpha", games: 41 }], milestones: [{ id: "Alpha", tier: 500 }] };
+      const [latest] = gazetteEditions(sources({ weekTops: { "2026-10-26": top }, members: named("2026-11-07T05:00:00.000Z", "Alpha") }));
+      expect(latest?.players).toBeNull();
+      expect(latest?.active).toBeNull();
+      expect(latest?.milestones).toBeNull();
     });
 
     it("écrit les dates d'un podium parti plus tard que le lundi", () => {

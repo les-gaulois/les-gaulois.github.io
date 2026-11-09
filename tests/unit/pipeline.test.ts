@@ -497,7 +497,7 @@ describe("runPipeline", () => {
       it("prend le relevé du lundi, sans aucun anonyme, puis arrête les joueurs de la semaine au lundi suivant", async () => {
         now = new Date(MONDAY);
         await runPipeline(deps(roster({ id1: 10, id2: 20 })));
-        expect(weeks()).toEqual({ reading: { on: "2026-11-09", at: MONDAY, wins: { id1: 10, id2: 20 } }, tops: {} });
+        expect(weeks()).toEqual({ reading: { on: "2026-11-09", at: MONDAY, wins: { id1: 10, id2: 20 }, games: { id1: 11, id2: 21 } }, tops: {} });
         expect(readFileSync(weeksPath(), "utf8")).not.toContain("SECRET");
 
         now = new Date(NEXT_MONDAY);
@@ -509,6 +509,11 @@ describe("runPipeline", () => {
               { id: "id1", wins: 15 },
               { id: "id2", wins: 2 },
             ],
+            active: [
+              { id: "id1", games: 15 },
+              { id: "id2", games: 2 },
+            ],
+            milestones: [],
           },
         });
         expect(weeks().reading.on).toBe("2026-11-16");
@@ -542,7 +547,9 @@ describe("runPipeline", () => {
           },
         });
         expect(asked).toEqual([["2026-11-01T23:00:00.000Z", "2026-11-08T23:00:00.000Z"]]);
-        expect(weeks().tops).toEqual({ "2026-11-02": { since: "2026-11-05T10:39:31.574Z", players: [{ id: "id1", wins: 20 }, { id: "id2", wins: 1 }] } });
+        expect(weeks().tops).toEqual({
+          "2026-11-02": { since: "2026-11-05T10:39:31.574Z", players: [{ id: "id1", wins: 20 }, { id: "id2", wins: 1 }], active: [{ id: "id1", games: 20 }, { id: "id2", games: 1 }], milestones: [] },
+        });
       });
 
       it("une panne de l'historique ne bloque rien : la semaine n'a simplement pas de podium", async () => {
@@ -556,7 +563,7 @@ describe("runPipeline", () => {
           ...deps(roster({ id1: 99 })),
           memberHistory: async () => ({ fetchedAt: "2026-11-05T10:39:31.574Z", total: 1, members: [withRecordStored("id1", 10)] }),
         });
-        expect(weeks().tops).toEqual({ "2026-11-02": { since: "2026-11-05T10:39:31.574Z", players: [{ id: "id1", wins: 20 }] } });
+        expect(weeks().tops).toEqual({ "2026-11-02": { since: "2026-11-05T10:39:31.574Z", players: [{ id: "id1", wins: 20 }], active: [{ id: "id1", games: 20 }], milestones: [] } });
         expect(weeks().reading.wins).toEqual({ id1: 30 });
       });
 
@@ -567,7 +574,35 @@ describe("runPipeline", () => {
         now = new Date(MONDAY);
         await runPipeline({ ...deps(roster({ id1: 12 })), memberHistory: async () => { asked++; return null; } });
         expect(asked).toBe(0);
-        expect(weeks().tops["2026-11-02"]).toEqual({ since: "2026-11-01T23:53:00.000Z", players: [{ id: "id1", wins: 2 }] });
+        expect(weeks().tops["2026-11-02"]).toEqual({ since: "2026-11-01T23:53:00.000Z", players: [{ id: "id1", wins: 2 }], active: [{ id: "id1", games: 2 }], milestones: [] });
+      });
+
+      it("lit l'historique une fois quand le relevé du lundi d'avant n'a pas les parties, et s'en sert si c'est le même relevé", async () => {
+        // Un repère gardé avant le 9 novembre 2026 : des victoires, pas de parties.
+        writeFileSync(weeksPath(), JSON.stringify({ reading: { on: "2026-11-02", at: "2026-11-01T23:53:00.000Z", wins: { id1: 10 } }, tops: {} }));
+        let asked = 0;
+        now = new Date(MONDAY);
+        await runPipeline({
+          ...deps(roster({ id1: 110 })),
+          memberHistory: async () => {
+            asked++;
+            return { fetchedAt: "2026-11-01T23:53:00.000Z", total: 1, members: [{ ...withRecordStored("id1", 10), team: { wins: 10, losses: 4 } }] };
+          },
+        });
+        expect(asked).toBe(1);
+        // 110 victoires et 1 défaite à l'arrivée, 10 et 4 au départ : 100 victoires, 97 parties de plus, et le palier des 100.
+        expect(weeks().tops["2026-11-02"]).toEqual({ since: "2026-11-01T23:53:00.000Z", players: [{ id: "id1", wins: 100 }], active: [{ id: "id1", games: 97 }], milestones: [{ id: "id1", tier: 100 }] });
+        // Le nouveau repère a les parties : le lundi suivant, l'historique ne sera plus lu.
+        expect(weeks().reading.games).toEqual({ id1: 111 });
+      });
+
+      it("si l'historique ne répond pas ce lundi-là, arrête quand même la semaine, sans les plus actifs, et le dit", async () => {
+        writeFileSync(weeksPath(), JSON.stringify({ reading: { on: "2026-11-02", at: "2026-11-01T23:53:00.000Z", wins: { id1: 10 } }, tops: {} }));
+        now = new Date(MONDAY);
+        const { errors } = await runPipeline({ ...deps(roster({ id1: 12 })), memberHistory: async () => { throw new Error("HTTP 503"); } });
+        // Le podium part, pour la gazette du lundi : rien ne refera cette semaine, et l'avertissement ne promet pas de nouvel essai.
+        expect(errors).toEqual(["les plus actifs de la semaine : historique illisible (HTTP 503), cette semaine est arrêtée sans eux"]);
+        expect(weeks().tops["2026-11-02"]).toEqual({ since: "2026-11-01T23:53:00.000Z", players: [{ id: "id1", wins: 2 }], milestones: [] });
       });
 
       it("oublie aussi dans ces relevés un membre parti", async () => {

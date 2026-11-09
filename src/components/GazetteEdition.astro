@@ -16,7 +16,7 @@ interface Props {
   records?: ClanRecords | null;
 }
 const { edition, firstStanding, firstTerritory, membersAt, records = null } = Astro.props;
-const { totals, highlights, standing, territory, arrivals, players } = edition;
+const { totals, highlights, standing, territory, arrivals, players, active, milestones } = edition;
 const period = playersPeriod(edition);
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const members = standing?.end.membersTotal ?? null;
@@ -119,7 +119,41 @@ const tiles: { key: RecordKey; label: string; value: string; hint: string }[] = 
               </li>
             ))}
           </ol>
-          <p class="mt-3 text-xs text-muted">Victoires en équipe sous le tag, entre deux relevés de la liste des membres, parmi les membres avec pseudo présents aux deux et encore dans le clan. Cela compte d'abord le temps de jeu : ce n'est pas un classement de niveau.</p>
+          {
+            active && (
+              <>
+                <h4 class="mt-5 text-lg">Les plus actifs</h4>
+                <ol class="tnum mt-2 grid gap-x-6 gap-y-2 sm:grid-cols-3">
+                  {active.map((p) => (
+                    <li class="min-w-0 [overflow-wrap:anywhere]" data-testid="gazette-active">
+                      <span class="text-muted">{fmtRank(p.place)}</span> <a href={`${base}/membres/${encodeURIComponent(p.id)}`}>{p.username}</a>
+                      <span class="block text-sm text-muted">{fmtCount(p.games, "partie")}</span>
+                    </li>
+                  ))}
+                </ol>
+              </>
+            )
+          }
+          {
+            milestones && (
+              <>
+                <h4 class="mt-5 text-lg">Paliers franchis</h4>
+                {milestones.length > 0 ? (
+                  <ul class="tnum mt-2 grid gap-x-6 gap-y-2 sm:grid-cols-3">
+                    {milestones.map((p) => (
+                      <li class="min-w-0 [overflow-wrap:anywhere]" data-testid="gazette-milestone">
+                        <a href={`${base}/membres/${encodeURIComponent(p.id)}`}>{p.username}</a>
+                        <span class="block text-sm text-muted">{fmtCount(p.tier, "victoire")}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p class="mt-2 text-sm text-muted" data-testid="gazette-no-milestone">Aucun palier franchi sur cette période.</p>
+                )}
+              </>
+            )
+          }
+          <p class="mt-3 text-xs text-muted">Victoires{active ? " et parties" : ""} en équipe sous le tag, entre deux relevés de la liste des membres, parmi les membres avec pseudo présents aux deux et encore dans le clan. Cela compte d'abord le temps de jeu : ce n'est pas un classement de niveau.{milestones && " Les paliers sont ceux de la page Membres, à partir de 100 victoires."}</p>
         </>
       ) : (
         <>

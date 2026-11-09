@@ -331,17 +331,24 @@ async function forgetFormerMembers(deps: Deps, members: StoredMembers): Promise<
 }
 
 /**
- * Sans relevé du lundi d'avant, le plus ancien relevé de la semaine écoulée, gardé dans l'historique Git.
- * Une panne de GitHub ne bloque rien : le passage suivant du même lundi réessaie, et l'avertissement se lit dans l'Action.
+ * Sans relevé du lundi d'avant, ou si ce relevé n'a pas les parties jouées, le plus ancien relevé de la semaine écoulée, gardé dans l'historique Git.
+ * Une panne de GitHub ne bloque rien, et l'avertissement se lit dans l'Action. Sans repère du lundi d'avant, le passage suivant
+ * du même lundi réessaie. Avec un repère sans les parties, la semaine est arrêtée tout de suite, pour que son podium parte :
+ * elle n'aura simplement pas « les plus actifs », et rien ne la refait.
  */
 async function weekStartFromHistory(deps: Deps, weeks: StoredMemberWeeks, members: StoredMembers): Promise<{ reading: StoredMembers | null; warning: string | null }> {
   const { date, weekday } = parisParts(members.fetchedAt);
   const week = addDays(date, -7);
-  if (!deps.memberHistory || weekday !== 0 || weeks.tops[week] || weeks.reading?.on === week) return { reading: null, warning: null };
+  // Le repère du lundi d'avant suffit, sauf s'il date d'avant le relevé des parties : l'historique les donne alors, une fois.
+  const complete = weeks.reading?.on === week && weeks.reading.games !== undefined;
+  if (!deps.memberHistory || weekday !== 0 || weeks.tops[week] || complete) return { reading: null, warning: null };
   try {
     return { reading: await deps.memberHistory(parisStartOf(week), parisStartOf(date)), warning: null };
   } catch (e) {
-    return { reading: null, warning: `joueurs de la semaine : historique illisible (${e instanceof Error ? e.message : "erreur inconnue"}), nouvel essai au passage suivant` };
+    const why = e instanceof Error ? e.message : "erreur inconnue";
+    // Seules les parties manquaient au repère : la semaine s'arrête sans elles.
+    if (weeks.reading?.on === week) return { reading: null, warning: `les plus actifs de la semaine : historique illisible (${why}), cette semaine est arrêtée sans eux` };
+    return { reading: null, warning: `joueurs de la semaine : historique illisible (${why}), nouvel essai au passage suivant` };
   }
 }
 

@@ -1,7 +1,20 @@
 import { describe, expect, it } from "vitest";
 import type { StoredMember, StoredMembers, StoredMemberWeeks } from "../../src/lib/schemas";
 import { isFirstOfMonday, parisStartOf } from "../../src/lib/time";
-import { EMPTY_MEMBER_WEEKS, forgetInMemberWeeks, namedWeekPlayers, namedWins, nextMemberWeeks, weekWinners } from "../../src/lib/week-players";
+import {
+  EMPTY_MEMBER_WEEKS,
+  forgetInMemberWeeks,
+  milestonesSinceMonday,
+  namedGames,
+  namedWeekActive,
+  namedWeekMilestones,
+  namedWeekPlayers,
+  namedWins,
+  nextMemberWeeks,
+  weekActive,
+  weekMilestones,
+  weekWinners,
+} from "../../src/lib/week-players";
 
 const member = (id: string | null, username: string | null, wins: number | null): StoredMember => ({
   role: "member",
@@ -11,6 +24,8 @@ const member = (id: string | null, username: string | null, wins: number | null)
   team: wins === null ? null : { wins, losses: 1 },
 });
 const list = (fetchedAt: string, members: StoredMember[]): StoredMembers => ({ fetchedAt, total: members.length, members });
+/** Un membre avec ses défaites : ses parties sont les deux réunies. */
+const played = (id: string, username: string, wins: number, losses: number): StoredMember => ({ ...member(id, username, wins), team: { wins, losses } });
 // Le 9 novembre 2026 est un lundi : 0 h 53 à Paris, c'est encore dimanche en temps universel.
 const MONDAY_9 = "2026-11-08T23:53:00.000Z";
 const MONDAY_16 = "2026-11-15T23:53:00.000Z";
@@ -50,11 +65,52 @@ describe("namedWins", () => {
   });
 });
 
+describe("namedGames", () => {
+  it("compte les victoires et les défaites, jamais un anonyme ni un membre sans stats", () => {
+    expect(namedGames(list(MONDAY_9, [played("a", "Alpha", 4, 6), member("SECRET", null, 9), member(null, null, 9), member("b", "Beta", null)]))).toEqual({ a: 10 });
+  });
+});
+
+describe("weekActive", () => {
+  it("range ceux qui ont le plus joué, avec les mêmes règles que le podium des victoires", () => {
+    expect(weekActive({ a: 100, b: 50, c: 10, d: 0 }, { a: 110, b: 90, c: 30, d: 5 })).toEqual([
+      { id: "b", games: 40 },
+      { id: "c", games: 20 },
+      { id: "a", games: 10 },
+    ]);
+    // Ni un membre sans relevé de départ, ni une absence de partie, ni une baisse.
+    expect(weekActive({ a: 10, b: 10, c: 10 }, { a: 10, b: 8, c: 12, nouveau: 500 })).toEqual([{ id: "c", games: 2 }]);
+    // Une égalité sur la dernière marche garde tout le monde, sauf si elle ferait trop de lignes.
+    expect(weekActive({ a: 0, b: 0, c: 0, d: 0 }, { a: 9, b: 7, c: 5, d: 5 }).map((r) => r.id)).toEqual(["a", "b", "c", "d"]);
+    expect(weekActive({ a: 0, b: 0, c: 0, d: 0, e: 0, f: 0 }, { a: 9, b: 2, c: 2, d: 2, e: 2, f: 2 }).map((r) => r.id)).toEqual(["a"]);
+    expect(weekActive({}, {})).toEqual([]);
+  });
+});
+
+describe("weekMilestones", () => {
+  it("note le plus haut palier franchi entre deux relevés, du plus haut au plus bas", () => {
+    expect(weekMilestones({ a: 95, b: 240, c: 480, d: 99 }, { a: 101, b: 260, c: 1004, d: 99 })).toEqual([
+      { id: "c", tier: 1000 },
+      { id: "b", tier: 250 },
+      { id: "a", tier: 100 },
+    ]);
+  });
+
+  it("ne cite ni un palier sous 100, ni un membre sans relevé de départ, ni un recul", () => {
+    // 10 et 50 sont des paliers du site, pas des paliers annoncés : ils tombent presque chaque jour.
+    expect(weekMilestones({ a: 8, b: 45 }, { a: 12, b: 60 })).toEqual([]);
+    expect(weekMilestones({}, { nouveau: 700 })).toEqual([]);
+    expect(weekMilestones({ a: 510 }, { a: 495 })).toEqual([]);
+    expect(weekMilestones({ a: 510 }, { a: 520 })).toEqual([]);
+  });
+});
+
 describe("nextMemberWeeks", () => {
   const first = nextMemberWeeks(EMPTY_MEMBER_WEEKS, list(MONDAY_9, [member("a", "Alpha", 10), member("b", "Beta", 20)]));
 
   it("prend le premier relevé d'un lundi à Paris comme repère", () => {
-    expect(first).toEqual({ reading: { on: "2026-11-09", at: MONDAY_9, wins: { a: 10, b: 20 } }, tops: {} });
+    // Les parties jouées sont gardées avec les victoires : ici, une défaite chacun.
+    expect(first).toEqual({ reading: { on: "2026-11-09", at: MONDAY_9, wins: { a: 10, b: 20 }, games: { a: 11, b: 21 } }, tops: {} });
   });
 
   it("ne fait rien un autre jour, et le rend sans le recopier", () => {
@@ -76,13 +132,73 @@ describe("nextMemberWeeks", () => {
           { id: "a", wins: 15 },
           { id: "b", wins: 2 },
         ],
+        active: [
+          { id: "a", games: 15 },
+          { id: "b", games: 2 },
+        ],
+        milestones: [],
       },
     });
-    expect(next.reading).toEqual({ on: "2026-11-16", at: MONDAY_16, wins: { a: 25, b: 22 } });
+    expect(next.reading).toEqual({ on: "2026-11-16", at: MONDAY_16, wins: { a: 25, b: 22 }, games: { a: 26, b: 23 } });
+  });
+
+  it("note ceux qui ont le plus joué et les paliers franchis, sur la même période que le podium", () => {
+    const start = nextMemberWeeks(EMPTY_MEMBER_WEEKS, list(MONDAY_9, [played("a", "Alpha", 95, 100), played("b", "Beta", 20, 5), played("c", "Gamma", 498, 300)]));
+    const next = nextMemberWeeks(start, list(MONDAY_16, [played("a", "Alpha", 102, 140), played("b", "Beta", 30, 6), played("c", "Gamma", 503, 301)]));
+    // Alpha a peu gagné mais beaucoup joué : les deux listes ne disent pas la même chose.
+    expect(next.tops["2026-11-09"]).toEqual({
+      since: MONDAY_9,
+      players: [
+        { id: "b", wins: 10 },
+        { id: "a", wins: 7 },
+        { id: "c", wins: 5 },
+      ],
+      active: [
+        { id: "a", games: 47 },
+        { id: "b", games: 11 },
+        { id: "c", games: 6 },
+      ],
+      milestones: [
+        { id: "c", tier: 500 },
+        { id: "a", tier: 100 },
+      ],
+    });
+  });
+
+  it("sans les parties au départ, n'invente pas ceux qui ont le plus joué", () => {
+    // Un repère gardé avant le 9 novembre 2026 : des victoires, pas de parties.
+    const old = { reading: { on: "2026-11-09", at: MONDAY_9, wins: { a: 10, b: 20 } }, tops: {} };
+    const monday = list(MONDAY_16, [played("a", "Alpha", 25, 9), played("b", "Beta", 22, 3)]);
+    const top = nextMemberWeeks(old, monday).tops["2026-11-09"];
+    expect(top?.players).toEqual([{ id: "a", wins: 15 }, { id: "b", wins: 2 }]);
+    expect(top && "active" in top).toBe(false);
+    expect(top?.milestones).toEqual([]);
+    // Le même relevé retrouvé dans l'historique, à la même heure, donne les parties : la période reste la même.
+    const same = list(MONDAY_9, [played("a", "Alpha", 10, 4), played("b", "Beta", 20, 3)]);
+    expect(nextMemberWeeks(old, monday, same).tops["2026-11-09"]?.active).toEqual([{ id: "a", games: 20 }, { id: "b", games: 2 }]);
+    // L'historique n'a pas connu les oublis faits depuis : un membre retiré du repère en cours de semaine n'y revient pas par les parties.
+    const withForgotten = list(MONDAY_9, [played("a", "Alpha", 10, 4), played("b", "Beta", 20, 3), played("oublie", "Oublié", 5, 5)]);
+    const back = list(MONDAY_16, [played("a", "Alpha", 25, 9), played("b", "Beta", 22, 3), played("oublie", "Oublié", 90, 90)]);
+    const afterForget = nextMemberWeeks(old, back, withForgotten).tops["2026-11-09"];
+    expect(JSON.stringify(afterForget)).not.toContain("oublie");
+    expect(afterForget?.active).toEqual([{ id: "a", games: 20 }, { id: "b", games: 2 }]);
+    // Un autre relevé de la semaine ne couvre pas la même période : il ne sert pas.
+    const other = list("2026-11-10T23:53:00.000Z", [played("a", "Alpha", 12, 4), played("b", "Beta", 20, 3)]);
+    const mixed = nextMemberWeeks(old, monday, other).tops["2026-11-09"];
+    expect(mixed && "active" in mixed).toBe(false);
   });
 
   it("n'annonce pas une semaine trop longue : le relevé d'arrivée fait tard le lundi ne vaut pas une semaine", () => {
     const late = nextMemberWeeks(first, list("2026-11-16T20:00:00.000Z", [member("a", "Alpha", 40)]));
+    expect(late.tops).toEqual({});
+    expect(late.reading?.on).toBe("2026-11-16");
+  });
+
+  it("ne rattrape pas une semaine trop longue par l'historique, qui garde aussi le repère du lundi d'avant", () => {
+    // Le repère du 9 existe, sans les parties : l'historique est relu et rend ce même relevé. Arrivé à 10 h le lundi 16, il ferait 7 jours et 9 heures.
+    const old = { reading: { on: "2026-11-09", at: MONDAY_9, wins: { a: 10 } }, tops: {} };
+    const sameReading = list(MONDAY_9, [played("a", "Alpha", 10, 4)]);
+    const late = nextMemberWeeks(old, list("2026-11-16T09:00:00.000Z", [member("a", "Alpha", 40)]), sameReading);
     expect(late.tops).toEqual({});
     expect(late.reading?.on).toBe("2026-11-16");
   });
@@ -120,6 +236,11 @@ describe("nextMemberWeeks, sans relevé du lundi d'avant", () => {
           { id: "a", wins: 30 },
           { id: "b", wins: 5 },
         ],
+        active: [
+          { id: "a", games: 30 },
+          { id: "b", games: 5 },
+        ],
+        milestones: [],
       },
     });
   });
@@ -159,6 +280,18 @@ describe("forgetInMemberWeeks", () => {
     reading: { on: "2026-11-16", at: MONDAY_16, wins: { a: 1, parti: 2 } },
     tops: { "2026-11-09": { since: MONDAY_9, players: [{ id: "parti", wins: 9 }, { id: "a", wins: 3 }] } },
   };
+  const full: StoredMemberWeeks = {
+    reading: { on: "2026-11-16", at: MONDAY_16, wins: { a: 1 }, games: { a: 4, parti: 9 } },
+    tops: { "2026-11-09": { since: MONDAY_9, players: [{ id: "a", wins: 3 }], active: [{ id: "parti", games: 40 }, { id: "a", games: 8 }], milestones: [{ id: "parti", tier: 500 }, { id: "a", tier: 100 }] } },
+  };
+
+  it("retire aussi un membre parti des parties jouées et des paliers franchis", () => {
+    const kept = forgetInMemberWeeks(full, new Set(["a"]));
+    expect(JSON.stringify(kept)).not.toContain("parti");
+    expect(kept.reading?.games).toEqual({ a: 4 });
+    expect(kept.tops["2026-11-09"]).toEqual({ since: MONDAY_9, players: [{ id: "a", wins: 3 }], active: [{ id: "a", games: 8 }], milestones: [{ id: "a", tier: 100 }] });
+    expect(forgetInMemberWeeks(full, new Set(["a", "parti"]))).toBe(full);
+  });
 
   it("retire un membre parti partout", () => {
     const kept = forgetInMemberWeeks(weeks, new Set(["a"]));
@@ -192,6 +325,57 @@ describe("namedWeekPlayers", () => {
     expect(namedWeekPlayers(top([{ id: "a", wins: 9 }]), null)).toBeNull();
     expect(namedWeekPlayers(top([]), members)).toBeNull();
     expect(namedWeekPlayers(top([{ id: "parti", wins: 9 }]), members)).toBeNull();
+  });
+});
+
+describe("namedWeekActive et namedWeekMilestones", () => {
+  const members = list(MONDAY_16, [member("a", "Alpha", 1), member("b", "Beta", 1), member("c", "Zoé", 1), member("sans", null, 1)]);
+  const top = { since: MONDAY_9, players: [], active: [{ id: "a", games: 40 }, { id: "b", games: 12 }, { id: "c", games: 12 }, { id: "parti", games: 9 }], milestones: [{ id: "c", tier: 500 }, { id: "b", tier: 500 }, { id: "a", tier: 100 }, { id: "parti", tier: 250 }] };
+
+  it("donnent le pseudo du moment, et ne citent plus celui qui a quitté le clan", () => {
+    expect(namedWeekActive(top, members)).toEqual([
+      { id: "a", games: 40, username: "Alpha", place: 1 },
+      { id: "b", games: 12, username: "Beta", place: 2 },
+      { id: "c", games: 12, username: "Zoé", place: 2 },
+    ]);
+    // À l'intérieur d'un palier, l'ordre alphabétique : personne n'est devant personne.
+    expect(namedWeekMilestones(top, members)).toEqual([
+      { id: "b", tier: 500, username: "Beta" },
+      { id: "c", tier: 500, username: "Zoé" },
+      { id: "a", tier: 100, username: "Alpha" },
+    ]);
+  });
+
+  it("distinguent « pas relevé » de « aucun »", () => {
+    const old = { since: MONDAY_9, players: [{ id: "a", wins: 3 }] };
+    expect(namedWeekActive(old, members)).toBeNull();
+    expect(namedWeekMilestones(old, members)).toBeNull();
+    expect(namedWeekMilestones({ ...old, milestones: [] }, members)).toEqual([]);
+    expect(namedWeekActive({ ...old, active: [] }, members)).toBeNull();
+    expect(namedWeekActive(top, null)).toBeNull();
+    expect(namedWeekMilestones(undefined, members)).toBeNull();
+  });
+});
+
+describe("milestonesSinceMonday", () => {
+  const reading = { on: "2026-11-09", at: MONDAY_9, wins: { a: 95, b: 240, c: 30 } };
+
+  it("donne les paliers franchis depuis le relevé du lundi, avec la période", () => {
+    const now = list("2026-11-11T23:53:00.000Z", [member("a", "Alpha", 104), member("b", "Beta", 249), member("c", "Gamma", 60), member("nouveau", "Neuf", 900)]);
+    expect(milestonesSinceMonday(reading, now)).toEqual({ since: MONDAY_9, until: "2026-11-11T23:53:00.000Z", players: [{ id: "a", tier: 100, username: "Alpha" }] });
+  });
+
+  it("dit « aucun pour l'instant » par une liste vide, le lundi même", () => {
+    expect(milestonesSinceMonday(reading, list(MONDAY_9, [member("a", "Alpha", 95)]))).toEqual({ since: MONDAY_9, until: MONDAY_9, players: [] });
+  });
+
+  it("ne dit rien si le relevé n'est pas celui du lundi de cette semaine", () => {
+    // La liste date de la semaine suivante : le relevé du lundi 16 a manqué.
+    expect(milestonesSinceMonday(reading, list("2026-11-17T10:00:00.000Z", [member("a", "Alpha", 300)]))).toBeNull();
+    // Une liste plus ancienne que le relevé.
+    expect(milestonesSinceMonday(reading, list("2026-11-08T10:00:00.000Z", [member("a", "Alpha", 300)]))).toBeNull();
+    expect(milestonesSinceMonday(null, list(MONDAY_9, []))).toBeNull();
+    expect(milestonesSinceMonday(reading, null)).toBeNull();
   });
 });
 

@@ -5,7 +5,7 @@
 import { fmtCount, fmtDate, fmtDay, fmtInt, fmtPct, fmtPoints, fmtRank, fmtScore } from "./format";
 import { clanRecords, type ClanRecords } from "./results";
 import type { TerritoryReading } from "./clanmap/days";
-import { namedWeekPlayers, type WeekPlayer, type WeekTop } from "./week-players";
+import { namedWeekActive, namedWeekMilestones, namedWeekPlayers, type WeekActivePlayer, type WeekMilestonePlayer, type WeekPlayer, type WeekTop } from "./week-players";
 import type { HistorySnapshot, StoredMembers, StoredSession } from "./schemas";
 import { winRate } from "./stats";
 import { addDays, mondayOf, parisParts } from "./time";
@@ -48,6 +48,10 @@ export interface GazetteEdition {
   players: WeekPlayer[] | null;
   /** L'heure du relevé de départ de ce podium : voir `playersPeriod`. `null` sans podium. */
   playersSince: string | null;
+  /** Ceux qui ont le plus joué, sur la période du podium. `null` : sans podium, ou parties pas relevées cette semaine-là. */
+  active: WeekActivePlayer[] | null;
+  /** Les paliers de victoires franchis, sur la période du podium. `null` : sans podium, ou pas relevés cette semaine-là. Vide : aucun. */
+  milestones: WeekMilestonePlayer[] | null;
 }
 
 export interface GazetteSources {
@@ -116,14 +120,17 @@ export function gazetteEditions({ sessions, history, territory, weekTops, member
       standing: evolution(snapshots, from, to),
       territory: evolution(readings, from, to),
       arrivals: known ? { count: arrivals.length, named, anonymous: arrivals.length - named.length } : null,
-      ...withPlayers(namedWeekPlayers(weekTops[from], members), weekTops[from]),
+      ...withPlayers(weekTops[from], members),
     });
   }
   return editions;
 }
 
-function withPlayers(players: WeekPlayer[] | null, top: WeekTop | undefined): Pick<GazetteEdition, "players" | "playersSince"> {
-  return players && top ? { players, playersSince: top.since } : { players: null, playersSince: null };
+/** Le podium d'une semaine et ce qui porte sur la même période. Sans podium, rien d'autre n'est donné : la période ne serait pas écrite. */
+function withPlayers(top: WeekTop | undefined, members: StoredMembers | null): Pick<GazetteEdition, "players" | "playersSince" | "active" | "milestones"> {
+  const players = namedWeekPlayers(top, members);
+  if (!players || !top) return { players: null, playersSince: null, active: null, milestones: null };
+  return { players, playersSince: top.since, active: namedWeekActive(top, members), milestones: namedWeekMilestones(top, members) };
 }
 
 /**

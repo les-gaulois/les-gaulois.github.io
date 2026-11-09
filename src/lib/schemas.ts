@@ -220,12 +220,21 @@ export const StoredMemberWeeks = z.object({
       on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
       at: isoDate,
       wins: z.record(z.string().min(1), z.number().int().nonnegative()),
+      // Les parties jouées, victoires et défaites, selon `stats.team`. Absent d'un relevé fait avant le 9 novembre 2026.
+      games: z.record(z.string().min(1), z.number().int().nonnegative()).optional(),
     })
     .nullable(),
   // Clé : le lundi de la semaine. `since` : l'heure du relevé de départ, ce lundi, ou plus tard si la période est plus courte.
   tops: z.record(
     z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-    z.object({ since: isoDate, players: z.array(z.object({ id: z.string().min(1), wins: z.number().int().positive() })) }),
+    z.object({
+      since: isoDate,
+      players: z.array(z.object({ id: z.string().min(1), wins: z.number().int().positive() })),
+      // Ceux qui ont le plus joué, sur la même période. Absent : pas de relevé des parties au départ, ce n'est pas zéro.
+      active: z.array(z.object({ id: z.string().min(1), games: z.number().int().positive() })).optional(),
+      // Les paliers de victoires franchis sur la même période. Absent : semaine arrêtée avant qu'ils soient relevés. Vide : aucun.
+      milestones: z.array(z.object({ id: z.string().min(1), tier: z.number().int().positive() })).optional(),
+    }),
   ),
 });
 export type StoredMemberWeeks = z.infer<typeof StoredMemberWeeks>;

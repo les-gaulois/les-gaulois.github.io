@@ -8,7 +8,7 @@ import { fmtCount, fmtGap, fmtInt, fmtRank, fmtScore } from "../../src/lib/forma
 import type { LeaderboardEntry } from "../../src/lib/schemas";
 import { withOfficialRanks } from "../../src/lib/stats";
 import { faceOffs, mapResults } from "../../src/lib/games";
-import { editionLead, gazetteEditions, rankWords, standingDetails, territoryDetails, weekLabel } from "../../src/lib/gazette";
+import { editionLead, gazetteEditions, playersPeriod, rankWords, standingDetails, territoryDetails, weekLabel } from "../../src/lib/gazette";
 import { bestGameOf, bestGameSentence, yesterdayOf } from "../../src/lib/belle-partie";
 import { clanJournal, JOURNAL_FIRST_ROWS, journalChoices, journalCount, NO_FILTER, replayUrl } from "../../src/lib/journal";
 import { recentRecordKeys, weekRecordKeys } from "../../src/lib/records-battus";
@@ -21,6 +21,8 @@ import { SECTIONS } from "../../src/lib/nav";
 import { latestNews, newsDays, newsMarker, NOUVEAUTES_KEY, splitDays } from "../../src/lib/nouveautes";
 import { objectiveFor } from "../../src/lib/clanmap/economy";
 import { nextTier, tierOf, tierRows } from "../../src/lib/paliers";
+import { currentMilestonesPeriod, homeMilestones, recentRecordLines, recentTerritoryRecord } from "../../src/lib/vie-du-clan";
+import { milestonesSinceMonday } from "../../src/lib/week-players";
 
 const PAGES = ["/", "/gazette", "/parties", "/nouveautes", "/classement", "/rivaux", "/progression", "/records", "/membres", "/qg", "/carte", "/activite", "/debuter", "/outils", "/rejoindre"];
 const lb = JSON.parse(readFileSync("data/leaderboard.json", "utf8"));
@@ -197,8 +199,9 @@ test("l'accueil n'affiche que des données collectées", async ({ page }) => {
   if (news.length === 0) await expect(page.getByTestId("news-board")).toHaveCount(0);
   await expect(page.getByTestId("home-slot").first()).toBeVisible();
   await expect(page.getByTestId("home-games").locator("li")).toHaveCount(5);
-  // Les noms de cartes sont sous CC BY-SA : leur crédit accompagne chaque liste.
-  await expect(page.getByTestId("map-names-credit")).toBeVisible();
+  // Les noms de cartes sont sous CC BY-SA : leur crédit accompagne chaque liste qui en cite un.
+  const { rows: lastRows } = clanJournal({ sessions: loadSessions(), games: loadGames(), coveredUntil: loadMeta().sessions.coveredUntil, tag: clan.tag, officialTags: lb.clans.map((c: { clanTag: string }) => c.clanTag) });
+  await expect(page.getByTestId("home-parties").getByTestId("map-names-credit")).toHaveCount(lastRows.slice(0, 5).some((row) => row.map !== null) ? 1 : 0);
 
   const clans = withOfficialRanks(lb.clans as LeaderboardEntry[]);
   const me = clans.find((c) => c.clanTag === clan.tag);
@@ -932,8 +935,110 @@ test("l'accueil donne la belle partie d'hier, calculée et jamais choisie à la 
     return;
   }
   await expect(block).toHaveText(`La belle partie d'hier. ${bestGameSentence(best)}`);
-  // Le nom de carte vient de la traduction du jeu : son crédit accompagne le bloc.
-  if (best.map !== null) await expect(page.getByTestId("map-names-credit")).toBeVisible();
+  // Elle est dans le fil du clan. Le nom de carte vient de la traduction du jeu : son crédit accompagne ce bloc-là.
+  if (best.map !== null) await expect(page.getByTestId("home-feed").getByTestId("map-names-credit")).toBeVisible();
+});
+
+test("l'accueil nomme les Gaulois de la semaine d'après la dernière gazette, sans rien inventer", async ({ page }) => {
+  const meta = loadMeta();
+  const sessions = loadSessions();
+  const list = loadMembers();
+  const weeks = loadMemberWeeks();
+  const latest = gazetteEditions({ sessions, history: loadHistory(), territory: loadTerritoryReadings(), weekTops: weeks.tops, members: list, archiveStart: clan.archiveStart, completeThrough: meta.sessions.completeThrough })[0];
+  await page.goto("/");
+  const block = page.getByTestId("home-week");
+  if (!latest) {
+    await expect(block).toHaveCount(0);
+    return;
+  }
+  await expect(block.getByTestId("home-week-lead")).toHaveText(editionLead(latest, clan.tag));
+  await expect(block.getByRole("link", { name: "Lire la gazette" })).toHaveAttribute("href", "/gazette");
+
+  // Le podium est celui de la gazette : mêmes joueurs, mêmes victoires, et la même réserve.
+  const podium = block.getByTestId("home-podium");
+  if (latest.players) {
+    const rows = podium.getByTestId("home-podium-player");
+    await expect(rows).toHaveCount(latest.players.length);
+    for (const [i, player] of latest.players.entries()) {
+      await expect(rows.nth(i).getByRole("link")).toHaveText(player.username);
+      await expect(rows.nth(i).getByRole("link")).toHaveAttribute("href", `/membres/${encodeURIComponent(player.id)}`);
+      await expect(rows.nth(i)).toContainText(fmtCount(player.wins, "victoire"));
+    }
+    await expect(podium).toContainText("ce n'est pas un classement de niveau");
+  } else {
+    await expect(podium).toHaveCount(0);
+  }
+  // Les plus actifs : seulement si la semaine a relevé les parties. Sinon, rien, et surtout pas un zéro.
+  const active = block.getByTestId("home-active-player");
+  await expect(active).toHaveCount(latest.players ? (latest.active?.length ?? 0) : 0);
+  for (const [i, player] of (latest.players ? (latest.active ?? []) : []).entries()) await expect(active.nth(i)).toContainText(fmtCount(player.games, "partie"));
+
+  // Les paliers : ceux de la semaine en cours s'il y en a, sinon ceux de la gazette. Sans palier franchi, la ligne n'existe pas.
+  const crossed = homeMilestones(milestonesSinceMonday(weeks.reading, list), latest.milestones);
+  const milestones = block.getByTestId("home-feed-milestones");
+  if (crossed) {
+    // La semaine en cours est datée par ses deux relevés ; celle de la gazette porte la période de son podium.
+    const period = playersPeriod(latest);
+    await expect(milestones).toContainText(crossed.when === "current" ? currentMilestonesPeriod(crossed.since, crossed.until) : period && period !== "de la semaine" ? period : `la semaine ${weekLabel(latest)}`);
+    await expect(milestones.getByRole("link")).toHaveCount(crossed.groups.reduce((n, group) => n + group.players.length, 0));
+    for (const group of crossed.groups) await expect(milestones).toContainText(fmtCount(group.tier, "victoire"));
+  } else {
+    await expect(milestones).toHaveCount(0);
+  }
+
+  // Les records du clan : ceux que la page Records signale, et eux seuls, avec le lien vers cette page.
+  const lines = recentRecordLines(clanRecords(sessions), meta.sessions.coveredUntil);
+  const records = block.getByTestId("home-feed-records");
+  if (lines.length > 0) {
+    for (const line of lines) await expect(records).toContainText(line.slice(1));
+    expect(await records.textContent()).not.toMatch(/\.\./);
+    await expect(block.getByRole("link", { name: "Voir les records" })).toHaveAttribute("href", "/records");
+  } else {
+    await expect(records).toHaveCount(0);
+    await expect(block.getByRole("link", { name: "Voir les records" })).toHaveCount(0);
+  }
+  // Le plus grand territoire est un chiffre de la carte des clans : sa propre ligne, qui renvoie à la page Carte.
+  const film = loadClanMapFilm();
+  const territory = recentTerritoryRecord(film?.galSummary?.peak ?? null, film?.fetchedAt ?? null);
+  const peak = block.getByTestId("home-feed-territory");
+  if (territory) {
+    await expect(peak).toContainText(territory);
+    await expect(peak).not.toContainText("Record du clan");
+    await expect(peak.getByRole("link", { name: "carte des clans" })).toHaveAttribute("href", "/carte");
+    expect(await peak.textContent()).not.toMatch(/\.\./);
+  } else {
+    await expect(peak).toHaveCount(0);
+  }
+
+  // Les arrivées : le nombre de la gazette, jamais un zéro écrit.
+  const arrivals = block.getByTestId("home-feed-arrivals");
+  if (latest.arrivals && latest.arrivals.count > 0) {
+    expect(digits((await arrivals.locator("strong").textContent())?.split("arrivée")[0] ?? "")).toBe(String(latest.arrivals.count));
+    // Le périmètre du chiffre reste écrit : seuls ceux encore dans le clan sont comptés.
+    await expect(arrivals).toContainText("encore dans le clan");
+    if (latest.arrivals.named[0]) await expect(arrivals).toContainText(latest.arrivals.named[0]);
+  } else {
+    await expect(arrivals).toHaveCount(0);
+  }
+});
+
+test("la gazette donne les plus actifs et les paliers franchis quand la semaine les a relevés, et rien sinon", async ({ page }) => {
+  const meta = loadMeta();
+  const latest = gazetteEditions({ sessions: loadSessions(), history: loadHistory(), territory: loadTerritoryReadings(), weekTops: loadMemberWeeks().tops, members: loadMembers(), archiveStart: clan.archiveStart, completeThrough: meta.sessions.completeThrough })[0];
+  if (!latest) return;
+  await page.goto("/gazette");
+  const players = page.getByTestId("gazette-latest").getByTestId("gazette-players");
+  await expect(players.getByTestId("gazette-active")).toHaveCount(latest.active?.length ?? 0);
+  if (latest.active) await expect(players).toContainText("Les plus actifs");
+  else await expect(players).not.toContainText("Les plus actifs");
+  if (latest.milestones === null) {
+    await expect(players).not.toContainText("Paliers franchis");
+  } else if (latest.milestones.length === 0) {
+    await expect(players.getByTestId("gazette-no-milestone")).toBeVisible();
+  } else {
+    await expect(players.getByTestId("gazette-milestone")).toHaveCount(latest.milestones.length);
+    await expect(players).toContainText(latest.milestones[0]!.username);
+  }
 });
 
 test("un record qui vient de tomber est marqué sur la page Records et dans la gazette, jamais inventé", async ({ page }) => {
@@ -1005,7 +1110,8 @@ test("la gazette donne le bilan de la dernière semaine complète, et n'invente 
   // On y arrive par le menu, l'accueil et le pied de page.
   await expect(page.locator("footer").getByRole("link", { name: "La gazette", exact: true })).toHaveAttribute("href", /\/gazette$/);
   await page.goto("/");
-  const home = page.getByTestId("home-gazette");
+  // Le résumé de la gazette sur l'accueil est le bloc « Les Gaulois de la semaine ».
+  const home = page.getByTestId("home-week");
   await expect(home).toContainText(editionLead(latest, clan.tag));
   await home.getByRole("link", { name: "Lire la gazette" }).click();
   await expect(page).toHaveURL(/gazette/);

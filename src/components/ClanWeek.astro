@@ -1,0 +1,155 @@
+---
+import MapNamesCredit from "./MapNamesCredit.astro";
+import { clan } from "../../config/clan";
+import { fmtCount, fmtInt, fmtRank } from "../lib/format";
+import { editionLead, type GazetteEdition, playersPeriod, weekLabel } from "../lib/gazette";
+import { currentMilestonesPeriod, endSentence, homeMilestones, NAMES_SHOWN, restAfter, type CurrentMilestones } from "../lib/vie-du-clan";
+
+/**
+ * Les Gaulois de la semaine, sur l'accueil : le résumé de la dernière gazette (podium, plus actifs, arrivées)
+ * et le fil de ce que les membres viennent de faire. Tout renvoie à sa page : l'accueil résume, il ne recopie pas.
+ * Une ligne sans donnée n'existe pas, et chaque chiffre garde sa période et son périmètre.
+ */
+interface Props {
+  edition: GazetteEdition;
+  /** Les paliers franchis depuis le relevé du lundi : la semaine en cours, avec les heures des deux relevés. `null` : pas de relevé. */
+  currentMilestones: CurrentMilestones | null;
+  /** Les records du clan des sept derniers jours, ceux de la page Records, déjà en mots. */
+  records: readonly string[];
+  /** Le plus grand territoire sur la carte des clans, s'il est récent, déjà en mots. Ce n'est pas un record de la page Records. */
+  territoryRecord: string | null;
+  /** « 8 nov., 17:02 sur Baïkal : 9 Gaulois ensemble, victoire en 8 min. » */
+  bestGame: string | null;
+  /** La belle partie cite une carte de jeu : son nom vient de la traduction du jeu, dont le crédit accompagne le bloc. */
+  creditMaps: boolean;
+}
+const { edition, currentMilestones, records, territoryRecord, bestGame, creditMaps } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const { players, active, arrivals } = edition;
+const period = playersPeriod(edition);
+const milestones = homeMilestones(currentMilestones, edition.milestones);
+const week = weekLabel(edition);
+// Les paliers d'une gazette portent sur la période de son podium : ses dates s'écrivent quand elle est plus courte que la semaine.
+const milestonesWhen = milestones === null ? "" : milestones.when === "current" ? currentMilestonesPeriod(milestones.since, milestones.until) : period && period !== "de la semaine" ? period : `la semaine ${week}`;
+const fiche = (id: string) => `${base}/membres/${encodeURIComponent(id)}`;
+const arrivalNames = arrivals ? arrivals.named.slice(0, NAMES_SHOWN) : [];
+const arrivalRest = arrivals ? restAfter(arrivals.count, arrivalNames.length) : null;
+const hasFeed = milestones !== null || records.length > 0 || territoryRecord !== null || bestGame !== null || (arrivals !== null && arrivals.count > 0);
+const capital = (text: string) => text.charAt(0).toLocaleUpperCase("fr") + text.slice(1);
+---
+
+<section class="stage stage-indigo reveal" aria-labelledby="week-title" data-testid="home-week">
+  <h2 id="week-title" class="section-title section-title-sm">Les Gaulois de la semaine</h2>
+  <p class="tnum mt-4 text-sm font-semibold text-muted">Semaine {week}</p>
+  <p class="mt-1 max-w-3xl text-lg text-muted" data-testid="home-week-lead">{editionLead(edition, clan.tag)}</p>
+
+  <div class:list={["mt-6 grid gap-6", players && hasFeed && "lg:grid-cols-2"]}>
+    {
+      players && (
+        <div class="panel" data-testid="home-podium">
+          <h3 class="text-xl">Le plus de victoires{period && ` ${period}`}</h3>
+          <ol class="tnum mt-3 space-y-2">
+            {players.map((p) => (
+              <li class="flex flex-wrap items-baseline gap-x-3 [overflow-wrap:anywhere]" data-testid="home-podium-player">
+                <span class="w-8 flex-none font-display text-lg font-extrabold">{fmtRank(p.place)}</span>
+                <span class="min-w-0 text-lg font-semibold">
+                  <a href={fiche(p.id)}>{p.username}</a>
+                </span>
+                <span class="ml-auto text-sm text-muted">{fmtCount(p.wins, "victoire")}</span>
+              </li>
+            ))}
+          </ol>
+          {
+            active && (
+              <>
+                <h3 class="mt-6 text-xl">Les plus actifs</h3>
+                <ol class="tnum mt-3 space-y-2">
+                  {active.map((p) => (
+                    <li class="flex flex-wrap items-baseline gap-x-3 [overflow-wrap:anywhere]" data-testid="home-active-player">
+                      <span class="w-8 flex-none font-display text-lg font-extrabold">{fmtRank(p.place)}</span>
+                      <span class="min-w-0 text-lg font-semibold">
+                        <a href={fiche(p.id)}>{p.username}</a>
+                      </span>
+                      <span class="ml-auto text-sm text-muted">{fmtCount(p.games, "partie")}</span>
+                    </li>
+                  ))}
+                </ol>
+              </>
+            )
+          }
+          <p class="mt-4 text-xs text-muted">
+            Victoires{active ? " et parties" : ""} en équipe sous le tag, parmi les membres avec pseudo. Cela compte d'abord le temps de jeu : ce n'est pas un classement de niveau.
+          </p>
+        </div>
+      )
+    }
+
+    {
+      hasFeed && (
+        <div class="panel" data-testid="home-feed">
+          <h3 class="text-xl">Le fil du clan</h3>
+          <ul class="mt-3 space-y-3">
+            {milestones && (
+              <li class="tnum [overflow-wrap:anywhere]" data-testid="home-feed-milestones">
+                <strong>Paliers franchis {endSentence(milestonesWhen)}</strong>{" "}
+                <span class="text-muted">
+                  {milestones.groups.map((group, g) => (
+                    <>
+                      {g > 0 && " · "}
+                      {fmtCount(group.tier, "victoire")} :{" "}
+                      {group.players.map((p, i) => (
+                        <>
+                          {i > 0 && ", "}
+                          <a href={fiche(p.id)}>{p.username}</a>
+                        </>
+                      ))}
+                    </>
+                  ))}
+                </span>
+              </li>
+            )}
+            {records.length > 0 && (
+              <li class="tnum" data-testid="home-feed-records">
+                <strong>{records.length > 1 ? "Records du clan battus." : "Record du clan battu."}</strong> <span class="text-muted">{records.map(capital).map(endSentence).join(" ")}</span>
+              </li>
+            )}
+            {territoryRecord && (
+              <li class="tnum" data-testid="home-feed-territory">
+                <strong>
+                  Plus grand territoire sur la <a href={`${base}/carte`}>carte des clans</a>.
+                </strong>{" "}
+                <span class="text-muted">{endSentence(territoryRecord)}</span>
+              </li>
+            )}
+            {bestGame && (
+              <li class="tnum" data-testid="home-best-game">
+                <strong>La belle partie d'hier.</strong> <span class="text-muted">{bestGame}</span>
+              </li>
+            )}
+            {arrivals && arrivals.count > 0 && (
+              <li class="tnum [overflow-wrap:anywhere]" data-testid="home-feed-arrivals">
+                <strong>
+                  {fmtInt(arrivals.count)} {arrivals.count > 1 ? "arrivées" : "arrivée"} la semaine {week}, encore dans le clan.
+                </strong>
+                {arrivalNames.length > 0 && <span class="text-muted"> {endSentence([arrivalNames.join(", "), arrivalRest].filter(Boolean).join(" "))}</span>}
+              </li>
+            )}
+          </ul>
+          {creditMaps && <MapNamesCredit />}
+        </div>
+      )
+    }
+  </div>
+
+  <div class="mt-6 flex flex-wrap gap-3">
+    <a href={`${base}/gazette`} class="btn btn-secondary">Lire la gazette</a>
+    <a href={`${base}/membres`} class="btn btn-ghost">Voir les membres</a>
+    {
+      records.length > 0 && (
+        <a href={`${base}/records`} class="btn btn-ghost">
+          Voir les records
+        </a>
+      )
+    }
+  </div>
+</section>
