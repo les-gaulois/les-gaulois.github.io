@@ -8,7 +8,6 @@ import {
   IDEA_STATUS_LABELS,
   decidedIdeas,
   ideaProblem,
-  initialOf,
   keepOrder,
   openIdeas,
   othersLabel,
@@ -22,26 +21,12 @@ import {
 } from "../../lib/compte/qg";
 import { ROLE_LABELS, type Me } from "../../lib/compte/types";
 import { fmtDate, fmtDateTime, fmtInt } from "../../lib/format";
-import { DeleteButton, DiscordButton, Loading, Problem, messageOf, useMe, type Loadable } from "./common";
+import { Avatar, DeleteButton, DiscordButton, Loading, Problem, messageOf, useMe, type Loadable } from "./common";
 import QgPolls from "./QgPolls";
+import QgSalons from "./QgSalons";
 
 /** Les décisions passées montrées d'abord ; les suivantes restent repliées, à portée. */
 const PAST_SHOWN = 2;
-
-/** La photo Discord d'un membre, ou son initiale si elle manque ou ne se charge pas. Décorative : le nom est écrit à côté. */
-function Avatar({ name, avatar, large = false }: { name: string; avatar: string | null; large?: boolean }) {
-  const [broken, setBroken] = useState(false);
-  useEffect(() => setBroken(false), [avatar]);
-  return (
-    <span class={`avatar overflow-hidden ${large ? "!size-14 text-xl" : ""}`} aria-hidden="true">
-      {avatar && !broken ? (
-        <img src={avatar} alt="" width={large ? 56 : 36} height={large ? 56 : 36} loading="lazy" decoding="async" referrerpolicy="no-referrer" class="size-full object-cover" onError={() => setBroken(true)} />
-      ) : (
-        initialOf(name)
-      )}
-    </span>
-  );
-}
 
 const roleNote = (face: Face) => (face.role === "member" ? null : ROLE_LABELS[face.role]);
 
@@ -62,7 +47,7 @@ function Door({ me }: { me: Me }) {
   return (
     <section class="card max-w-3xl p-6" data-testid="qg-door">
       <h2 class="text-2xl">Réservé aux membres de GAL</h2>
-      <p class="mt-2 text-muted">Au QG : les sondages et les décisions du clan, la boîte à idées, qui vient aux événements et le mur des membres. Rien de cela n'est visible sans être reconnu comme membre.</p>
+      <p class="mt-2 text-muted">Au QG : les Gaulois qui attendent dans un salon pour jouer ensemble, les sondages et les décisions du clan, la boîte à idées, qui vient aux événements et le mur des membres. Rien de cela n'est visible sans être reconnu comme membre.</p>
       <ol class="mt-4 list-decimal space-y-1 pl-5">
         <li>Connectez-vous avec Discord.</li>
         <li>Indiquez votre pseudo ou votre identifiant OpenFront dans « Mon compte ».</li>
@@ -390,6 +375,7 @@ function Inside({ me, staff }: { me: Me; staff: boolean }) {
 
       <nav class="flex flex-wrap gap-2" aria-label="Dans le QG" data-testid="qg-jumps">
         {[
+          ["#salons", "Salons"],
           ["#decisions", "Décisions"],
           ["#evenements", "Événements"],
           ["#idees", "Boîte à idées"],
@@ -414,6 +400,8 @@ function Inside({ me, staff }: { me: Me; staff: boolean }) {
           {data.welcome.updated_at && <p class="tnum mt-3 text-xs text-muted">Mis à jour le {fmtDate(data.welcome.updated_at)}</p>}
         </section>
       )}
+
+      <QgSalons />
 
       <Section id="decisions" title="Décisions" testId="qg-decisions">
         <p class="mt-2 text-sm text-muted">Une voix par membre validé, que vous pouvez changer tant que le sondage est ouvert. Personne ne voit qui a voté quoi, pas même l'encadrement.</p>

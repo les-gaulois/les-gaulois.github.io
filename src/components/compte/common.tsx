@@ -1,6 +1,7 @@
 import type { ComponentChildren } from "preact";
 import { useCallback, useEffect, useState } from "preact/hooks";
 import { ServerError, call, getSession, signInWithDiscord, supabase } from "../../lib/compte/api";
+import { initialOf } from "../../lib/compte/qg";
 import type { Me } from "../../lib/compte/types";
 import { onPlayerViewChange, readPlayerView, viewedAccount } from "../../lib/compte/vue-joueur";
 
@@ -113,6 +114,21 @@ export function Loading({ label = "Lecture en cours…" }: { label?: string }) {
     <p class="text-muted" role="status">
       {label}
     </p>
+  );
+}
+
+/** La photo Discord d'un membre, ou son initiale si elle manque ou ne se charge pas. Décorative : le nom est écrit à côté. */
+export function Avatar({ name, avatar, large = false }: { name: string; avatar: string | null; large?: boolean }) {
+  const [broken, setBroken] = useState(false);
+  useEffect(() => setBroken(false), [avatar]);
+  return (
+    <span class={`avatar overflow-hidden ${large ? "!size-14 text-xl" : ""}`} aria-hidden="true">
+      {avatar && !broken ? (
+        <img src={avatar} alt="" width={large ? 56 : 36} height={large ? 56 : 36} loading="lazy" decoding="async" referrerpolicy="no-referrer" class="size-full object-cover" onError={() => setBroken(true)} />
+      ) : (
+        initialOf(name)
+      )}
+    </span>
   );
 }
 

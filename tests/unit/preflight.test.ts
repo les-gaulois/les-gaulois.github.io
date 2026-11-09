@@ -12,6 +12,8 @@ const HEALTHY: Record<string, Route> = {
   "/rest/v1/rpc/bootstrap_founder": { status: 401, body: {} },
   "/rest/v1/rpc/export_site": { status: 401, body: {} },
   "/rest/v1/rpc/get_qg": { status: 401, body: {} },
+  "/rest/v1/rpc/get_lobby_calls": { status: 401, body: {} },
+  "/rest/v1/rpc/save_lobby_call": { status: 401, body: {} },
   "/rest/v1/profiles": { status: 401, body: {} },
   "/rest/v1/private_links": { status: 401, body: {} },
   "/rest/v1/admin_log": { status: 401, body: {} },
@@ -91,6 +93,14 @@ describe("le contrôle de la mise en ligne", () => {
     // Le serveur répond 200 avec un refus : le QG reste fermé.
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_qg": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "QG")).toBe("ok");
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_qg": { status: 200, body: { ok: true, polls: [], ideas: [], wall: [] } } }, "QG")).toBe("fail");
+  });
+
+  it("bloque si un visiteur voit les appels aux salons ou en lance un", async () => {
+    expect(await statusOf(HEALTHY, "voit pas les appels")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_lobby_calls": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "voit pas les appels")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_lobby_calls": { status: 200, body: { ok: true, now: "2026-11-09T20:00:00Z", calls: [] } } }, "voit pas les appels")).toBe("fail");
+    expect(await statusOf(HEALTHY, "lance pas d'appel")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/save_lobby_call": { status: 200, body: { ok: true } } }, "lance pas d'appel")).toBe("fail");
   });
 
   it("bloque si un visiteur lit une table privée, mais pas si elle est vide", async () => {

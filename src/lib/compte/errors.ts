@@ -53,6 +53,10 @@ export const ERROR_MESSAGES: Record<string, string> = {
   pick_not_in_roster: "Ce pseudo n'est pas dans la liste officielle du clan. Vérifiez l'orthographe, ou attendez la prochaine relecture de la liste.",
   pick_ambiguous: "Plusieurs membres portent ce pseudo dans la liste officielle : le site ne peut pas savoir lequel est choisi.",
   pick_not_found: "Aucun Gaulois de la semaine n'est affiché en ce moment.",
+
+  invalid_game: "Collez le lien de votre salon, copié dans OpenFront : une adresse https://openfront.io/ qui contient /game/, ou le code de la partie.",
+  invalid_format: "Choisissez le format de votre salon.",
+  call_too_soon: "Vous venez de prévenir les Gaulois : attendez une minute avant un nouvel appel.",
 };
 
 export function errorMessage(code: string): string {

@@ -88,6 +88,17 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   if (isClosed(qg.status) || (qg.ok && qgAnswer?.ok === false)) add("Un visiteur n'entre pas dans le QG", "ok");
   else add("Un visiteur n'entre pas dans le QG", "fail", `Réponse ${qg.status}. Ne mettez pas en ligne : le QG ne doit s'ouvrir qu'à un membre validé.`);
 
+  // Les appels aux salons du QG : lus et lancés par les seuls membres validés. Leur installation se lit avec `supabase migration list`.
+  const calls = await rpc("get_lobby_calls");
+  const callsAnswer = calls.ok ? ((await calls.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (isClosed(calls.status) || (calls.ok && callsAnswer?.ok === false)) add("Un visiteur ne voit pas les appels aux salons", "ok");
+  else add("Un visiteur ne voit pas les appels aux salons", "fail", `Réponse ${calls.status}. Ne mettez pas en ligne : les appels ne vont qu'aux membres validés.`);
+
+  const callSaved = await rpc("save_lobby_call", { p_game: "verification", p_format: "trios" });
+  const callSavedAnswer = callSaved.ok ? ((await callSaved.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (isClosed(callSaved.status) || (callSaved.ok && callSavedAnswer?.ok === false)) add("Un visiteur ne lance pas d'appel", "ok");
+  else add("Un visiteur ne lance pas d'appel", "fail", `Réponse ${callSaved.status}. Ne mettez pas en ligne : seuls les membres validés appellent.`);
+
   // Les réponses « Je viens », les votes, les idées et leurs soutiens sont dans le schéma `internal`, que l'API ne montre pas : rien à lire ici.
   for (const table of ["profiles", "private_links", "admin_log", "clan_roster", "site_announcements", "polls"]) {
     const res = await fetcher(`${base}/rest/v1/${table}?select=*&limit=1`, { headers: anonHeaders });

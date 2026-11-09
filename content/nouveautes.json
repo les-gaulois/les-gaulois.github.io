@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-09",
+    "kind": "nouveau",
+    "title": "Rejoindre un Gaulois",
+    "body": "Au QG, un membre qui attend dans un salon d'OpenFront peut coller son lien : les membres qui ont le QG ouvert voient une fenêtre, avec un son, et le lien de son salon.",
+    "link": {
+      "href": "/qg#salons",
+      "label": "Ouvrir le QG"
+    }
+  },
+  {
+    "date": "2026-11-09",
     "kind": "corrige",
     "title": "La liste des comptes de l'administration plus claire",
     "body": "Un compte en attente montre s'il a une demande ouverte. Un compte validé hors de la liste officielle n'est plus dit « Plus dans la liste », et une ligne explique les noms « Gaulois n° … »."

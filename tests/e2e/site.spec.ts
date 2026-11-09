@@ -61,7 +61,7 @@ test("le QG n'est pas indexé, et sa page ne contient rien de privé", async ({ 
   await page.goto("/qg");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Le QG");
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex");
-  for (const id of ["qg", "qg-decisions", "qg-ideas", "qg-wall", "qg-events"]) await expect(page.getByTestId(id)).toHaveCount(0);
+  for (const id of ["qg", "qg-salons", "qg-decisions", "qg-ideas", "qg-wall", "qg-events"]) await expect(page.getByTestId(id)).toHaveCount(0);
 });
 
 // L'encadrement sait d'un coup d'œil où il est. Le compte d'un membre reste bleu, comme le reste du site.
