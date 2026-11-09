@@ -2,7 +2,8 @@
  * Prévenir l'encadrement, sur un salon Discord privé, des demandes d'adhésion qui attendent. Lancé par la GitHub Action.
  * Le message ne contient ni nom ni identifiant : seulement le nombre de demandes, leur attente et le lien de l'administration.
  * Il part quand une nouvelle demande arrive, puis une fois par jour au plus tant qu'une demande attend depuis plus de 24 h.
- * Rien la nuit, comme les alertes de place.
+ * Au tout premier passage, s'il n'y a aucune demande à annoncer, un message de mise en service part une seule fois :
+ * il prouve que le lien du salon marche, sans attendre une vraie demande. Rien la nuit, comme les alertes de place.
  */
 import { QUIET_FROM_HOUR, QUIET_UNTIL_HOUR } from "./alerts";
 import { fmtDuration } from "./format";
@@ -28,18 +29,35 @@ export interface StaffNoticeState {
   reminded_at: string | null;
 }
 
-export type StaffDecision = { send: false; reason: string } | { send: true; kind: "nouvelle" | "rappel"; text: string; note: StaffNoticeState };
+export type StaffDecision = { send: false; reason: string } | { send: true; kind: "nouvelle" | "rappel" | "service"; text: string; note: StaffNoticeState };
 
 function waiting(pending: number): string {
   return pending === 1 ? "Une demande d'adhésion attend" : `${pending} demandes d'adhésion attendent`;
 }
 
-export function staffNotice(digest: StaffDigest, now: Date, siteUrl: string): StaffDecision {
-  if (digest.pending < 1) return { send: false, reason: "aucune demande en attente" };
+/** Vrai entre 23 h et 8 h à Paris : aucun message à l'encadrement ne part alors. */
+export function isQuietHour(now: Date): boolean {
   const hour = parisParts(now).hour;
-  if (hour >= QUIET_FROM_HOUR || hour < QUIET_UNTIL_HOUR) return { send: false, reason: `la nuit : le message attend ${QUIET_UNTIL_HOUR} h` };
+  return hour >= QUIET_FROM_HOUR || hour < QUIET_UNTIL_HOUR;
+}
 
+export function staffNotice(digest: StaffDigest, now: Date, siteUrl: string): StaffDecision {
+  const quiet = isQuietHour(now);
   const link = `${siteUrl.replace(/\/$/, "")}/admin`;
+  if (digest.pending < 1) {
+    // Rien n'a encore jamais été noté : le lien vient d'être posé. Une seule fois, de jour.
+    if (digest.notice === null && !quiet) {
+      return {
+        send: true,
+        kind: "service",
+        text: `L'avis à l'encadrement est en place : ce salon sera prévenu dans l'heure des demandes d'adhésion qui attendent sur le site du clan, sans aucun nom, et du résultat de chaque sauvegarde chiffrée, jamais entre ${QUIET_FROM_HOUR} h et ${QUIET_UNTIL_HOUR} h. Les demandes se traitent ici : ${link}`,
+        note: { newest_id: null, reminded_at: null },
+      };
+    }
+    return { send: false, reason: "aucune demande en attente" };
+  }
+  if (quiet) return { send: false, reason: `la nuit : le message attend ${QUIET_UNTIL_HOUR} h` };
+
   const age = digest.oldest_at ? now.getTime() - Date.parse(digest.oldest_at) : 0;
   const old = age > REMIND_AFTER_HOURS * HOUR_MS ? ` La plus ancienne attend depuis ${fmtDuration(age)}.` : "";
   const known = digest.notice?.newest_id ?? null;
@@ -90,23 +108,35 @@ export async function sendStaffNotice({ webhook, digest, now, siteUrl, fetch: po
     log(`Encadrement : rien à envoyer (${decision.reason}).`);
     return "quiet";
   }
+  if (decision.kind === "service") {
+    // Noté avant l'envoi : ce message part une fois au plus, même si l'enregistrement échouait après coup.
+    // Si Discord le refuse, son avertissement suffit à signaler un mauvais lien.
+    await note(decision.note);
+    if (!(await postStaffMessage(link, decision.text, post, log, "Le message de mise en service ne repartira pas : vérifier le lien du salon."))) return "failed";
+  } else {
+    if (!(await postStaffMessage(link, decision.text, post, log, "Nouvel essai au prochain passage."))) return "failed";
+    await note(decision.note);
+  }
+  log(`Encadrement : message « ${decision.kind} » envoyé.`);
+  return "sent";
+}
+
+/**
+ * Poste un texte sur le salon de l'encadrement, sans mention : le message ne doit faire sonner personne en particulier.
+ * `link` est déjà vérifié par `isWebhookUrl`, et n'est jamais écrit dans le journal. `false` si Discord refuse ou ne répond pas.
+ */
+export async function postStaffMessage(link: string, text: string, post: typeof fetch, log: (line: string) => void, retry: string): Promise<boolean> {
   try {
-    // Aucune mention : le message ne doit faire sonner personne en particulier.
     const response = await post(link, {
       method: "POST",
       redirect: "error",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: decision.text, allowed_mentions: { parse: [] } }),
+      body: JSON.stringify({ content: text, allowed_mentions: { parse: [] } }),
     });
-    if (!response.ok) {
-      log(`::warning::Encadrement : Discord a répondu ${response.status}. Nouvel essai au prochain passage.`);
-      return "failed";
-    }
+    if (response.ok) return true;
+    log(`::warning::Encadrement : Discord a répondu ${response.status}. ${retry}`);
   } catch {
-    log("::warning::Encadrement : Discord n'a pas répondu. Nouvel essai au prochain passage.");
-    return "failed";
+    log(`::warning::Encadrement : Discord n'a pas répondu. ${retry}`);
   }
-  await note(decision.note);
-  log(`Encadrement : message « ${decision.kind} » envoyé.`);
-  return "sent";
+  return false;
 }

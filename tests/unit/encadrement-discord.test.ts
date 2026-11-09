@@ -53,6 +53,23 @@ describe("le message à l'encadrement", () => {
     // 8 h à Paris.
     expect(staffNotice(digest(), new Date("2026-11-08T07:00:00Z"), SITE).send).toBe(true);
   });
+
+  it("annonce une seule fois sa mise en service, de jour, quand rien n'a encore été noté", () => {
+    const first = digest({ pending: 0, newest_id: null, oldest_at: null, notice: null });
+    const decision = staffNotice(first, NOW, SITE);
+    expect(decision).toEqual({
+      send: true,
+      kind: "service",
+      text: `L'avis à l'encadrement est en place : ce salon sera prévenu dans l'heure des demandes d'adhésion qui attendent sur le site du clan, sans aucun nom, et du résultat de chaque sauvegarde chiffrée, jamais entre 23 h et 8 h. Les demandes se traitent ici : ${SITE}/admin`,
+      note: { newest_id: null, reminded_at: null },
+    });
+    // La nuit, il attend 8 h.
+    expect(staffNotice(first, new Date("2026-11-08T22:30:00Z"), SITE).send).toBe(false);
+    // Une fois noté, plus jamais ; et la première demande qui suit est bien annoncée.
+    const noted = { newest_id: null, reminded_at: null };
+    expect(staffNotice(digest({ pending: 0, newest_id: null, oldest_at: null, notice: noted }), NOW, SITE).send).toBe(false);
+    expect(staffNotice(digest({ pending: 1, newest_id: 1, oldest_at: hoursAgo(1), notice: noted }), NOW, SITE)).toMatchObject({ send: true, kind: "nouvelle" });
+  });
 });
 
 describe("l'envoi à l'encadrement", () => {
@@ -100,6 +117,37 @@ describe("l'envoi à l'encadrement", () => {
     expect(down.result).toBe("failed");
     expect(down.notes).toEqual([]);
     expect([...refused.lines, ...down.lines].join("\n")).not.toContain("jeton-faux");
+  });
+
+  it("note la mise en service avant de l'envoyer : elle part une fois au plus, même si Discord ou l'enregistrement flanchent", async () => {
+    const first = digest({ pending: 0, newest_id: null, oldest_at: null, notice: null });
+    const sent = await run(async () => new Response(null, { status: 204 }), { digest: first });
+    expect(sent.result).toBe("sent");
+    expect(sent.notes).toEqual([{ newest_id: null, reminded_at: null }]);
+    expect(JSON.parse(String(sent.calls[0]?.init.body)).content).toContain("est en place");
+    // Discord refuse : c'est noté quand même, le message ne repartira pas ; l'avertissement signale le lien.
+    const refused = await run(async () => new Response(null, { status: 404 }), { digest: first });
+    expect(refused.result).toBe("failed");
+    expect(refused.notes).toEqual([{ newest_id: null, reminded_at: null }]);
+    expect(refused.lines.some((line) => line.startsWith("::warning::"))).toBe(true);
+    // L'enregistrement échoue : rien n'est envoyé, l'essai reprend au passage suivant.
+    const calls: string[] = [];
+    const failingNote = sendStaffNotice({
+      webhook: WEBHOOK,
+      digest: first,
+      now: NOW,
+      siteUrl: SITE,
+      fetch: (async (url: string) => {
+        calls.push(url);
+        return new Response(null, { status: 204 });
+      }) as unknown as typeof fetch,
+      note: async () => {
+        throw new Error("lecture seule");
+      },
+      log: () => undefined,
+    });
+    await expect(failingNote).rejects.toThrow("lecture seule");
+    expect(calls).toEqual([]);
   });
 
   it("ne fait rien sans lien, ou avec un lien qui n'est pas celui d'un salon Discord", async () => {

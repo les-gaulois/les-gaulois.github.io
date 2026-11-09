@@ -4,8 +4,9 @@ name: Sauvegarde chiffrée
 # publications, réponses et totaux des sondages. Sans le secret SAUVEGARDE_CLE, rien n'est sauvegardé, et la page
 # de l'exécution l'affiche en avertissement. Voir docs/DIRECTION.md, « La sauvegarde chiffrée ».
 # Pas de planning ici : celui de GitHub saute la plupart de ses passages sur ce dépôt. Le robot horaire
-# (« Données et site », job sauvegarde-de-la-semaine) lance cette Action dès le lundi 3 h UTC si la semaine
-# n'a pas sa sauvegarde. Elle se lance aussi à la main : onglet Actions, « Run workflow ».
+# (« Données et site », job sauvegarde-de-la-semaine) lance cette Action dès le lundi 7 h UTC (8 h ou 9 h à Paris)
+# si la semaine n'a pas sa sauvegarde. Elle se lance aussi à la main : onglet Actions, « Run workflow ».
+# À la fin, le salon privé de l'encadrement apprend qu'elle est faite ou ratée, sans aucune donnée, jamais la nuit.
 on:
   workflow_dispatch:
 
@@ -39,9 +40,22 @@ jobs:
       # Le dépôt est public : ce fichier aussi, une fois gardé par GitHub. Il n'en sort que chiffré, et part au bout de 90 jours.
       # L'envoi n'a lieu que si une sauvegarde a été écrite ; s'il ne la trouve pas, l'exécution échoue au lieu de rester verte.
       - uses: actions/upload-artifact@v7
+        id: envoi
         if: steps.sauvegarde.outputs.file != ''
         with:
           name: sauvegarde-${{ github.run_number }}
           path: ${{ steps.sauvegarde.outputs.file }}
+          # BACKUP_RETENTION_DAYS de src/lib/sauvegarde.ts : un test vérifie que les deux disent la même chose.
           retention-days: 90
           if-no-files-found: error
+      # « faite » si le fichier chiffré est gardé ; « reglage » si la sauvegarde a tourné sans rien écrire (phrase ou
+      # réglage absent) ; « ratee » pour toute panne. Pas de compte rendu la nuit, ni pour une exécution annulée.
+      # Sans le secret DISCORD_WEBHOOK_ENCADREMENT, rien n'est envoyé. Un envoi raté ne fait pas échouer la sauvegarde.
+      - name: Prévenir l'encadrement
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        timeout-minutes: 2
+        run: npm run sauvegarde:compte-rendu
+        env:
+          DISCORD_WEBHOOK_ENCADREMENT: ${{ secrets.DISCORD_WEBHOOK_ENCADREMENT }}
+          ISSUE_SAUVEGARDE: ${{ steps.envoi.outcome == 'success' && 'faite' || ((steps.sauvegarde.outcome == 'success' && steps.sauvegarde.outputs.file == '') && 'reglage' || 'ratee') }}

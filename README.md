@@ -45,6 +45,7 @@ Le site s'ouvre sur http://localhost:4321. Aucun secret n'est nécessaire.
 | `npm run encadrement:prevenir` | Signale à un salon privé de l'encadrement les demandes d'adhésion qui attendent, sans aucun nom. Sans son lien, elle ne fait rien : voir [docs/DIRECTION.md](docs/DIRECTION.md). |
 | `npm run sauvegarde` | Sauvegarde chiffrée des données de la connexion, faite par l'Action « Sauvegarde chiffrée ». Sans sa phrase de passe, elle ne fait rien. |
 | `npm run sauvegarde:relancer` | Lance l'Action « Sauvegarde chiffrée » si la semaine n'a pas encore sa sauvegarde : le robot horaire s'en charge. |
+| `npm run sauvegarde:compte-rendu` | Dit au salon privé de l'encadrement si la sauvegarde est faite ou ratée : dernière étape de l'Action « Sauvegarde chiffrée ». |
 | `npm run sauvegarde:verifier fichier.bin` | Vérifie qu'une sauvegarde téléchargée s'ouvre avec la phrase de passe, sans rien écrire : seuls les nombres de lignes s'affichent. |
 | `npm run sauvegarde:ouvrir fichier.bin` | Ouvre une sauvegarde téléchargée et écrit son contenu en clair dans `.cache/sauvegarde/`. Pour les deux commandes, la phrase se tape dans le terminal, sans s'afficher, jamais dans une conversation. Voir [docs/DIRECTION.md](docs/DIRECTION.md). |
 | `npm run discord:verifier` | Demande à Discord si le lien du salon marche, sans rien envoyer, une fois par nouveau lien. Sans son lien, elle ne fait rien. |

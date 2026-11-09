@@ -93,10 +93,16 @@ export function backupSummary(content: unknown): string {
     .join(", ");
 }
 
-/** L'heure, en temps universel, où commence le lundi d'une semaine de sauvegarde : 3 h, soit 4 h ou 5 h à Paris. */
-export const BACKUP_WEEK_START_HOUR_UTC = 3;
+/**
+ * L'heure, en temps universel, où commence le lundi d'une semaine de sauvegarde : 7 h, soit 8 h ou 9 h à Paris.
+ * Après les heures de silence : le compte rendu sur le salon de l'encadrement ne part jamais la nuit.
+ */
+export const BACKUP_WEEK_START_HOUR_UTC = 7;
 
-/** Le début de la semaine de sauvegarde en cours : le dernier lundi à 3 h UTC passé. */
+/** Combien de jours GitHub garde une sauvegarde : `retention-days` de `.github/workflows/sauvegarde.yml`. */
+export const BACKUP_RETENTION_DAYS = 90;
+
+/** Le début de la semaine de sauvegarde en cours : le dernier lundi à 7 h UTC passé. */
 export function backupWeekStart(now: Date): Date {
   const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), BACKUP_WEEK_START_HOUR_UTC));
   // Jours écoulés depuis lundi : lundi 0, dimanche 6.

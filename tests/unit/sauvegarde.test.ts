@@ -1,5 +1,7 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { BackupError, MIN_PASSPHRASE, SCRYPT, backupName, backupSummary, backupWeekStart, open, passphraseProblem, seal, type ScryptSettings } from "../../src/lib/sauvegarde";
+import { isQuietHour } from "../../src/lib/encadrement-discord";
+import { BACKUP_RETENTION_DAYS, BackupError, MIN_PASSPHRASE, SCRYPT, backupName, backupSummary, backupWeekStart, open, passphraseProblem, seal, type ScryptSettings } from "../../src/lib/sauvegarde";
 
 const PASS = "Brume-Falaise-Hibou-Carte-Lanterne-92";
 // Des réglages plus rapides pour les tests : le fichier porte les siens, que `open` relit.
@@ -65,15 +67,23 @@ describe("la sauvegarde chiffrée", () => {
     expect(() => backupSummary(null)).toThrow(BackupError);
   });
 
-  it("fait commencer la semaine de sauvegarde le lundi à 3 h UTC", () => {
+  it("fait commencer la semaine de sauvegarde le lundi à 7 h UTC, après les heures de silence", () => {
     const start = (iso: string) => backupWeekStart(new Date(iso)).toISOString();
     // Le 9 novembre 2026 est un lundi.
-    expect(start("2026-11-09T06:33:00Z")).toBe("2026-11-09T03:00:00.000Z");
-    expect(start("2026-11-09T03:00:00Z")).toBe("2026-11-09T03:00:00.000Z");
-    expect(start("2026-11-09T02:59:59Z")).toBe("2026-11-02T03:00:00.000Z");
-    expect(start("2026-11-11T12:00:00Z")).toBe("2026-11-09T03:00:00.000Z");
-    expect(start("2026-11-15T23:30:00Z")).toBe("2026-11-09T03:00:00.000Z");
+    expect(start("2026-11-09T07:53:00Z")).toBe("2026-11-09T07:00:00.000Z");
+    expect(start("2026-11-09T07:00:00Z")).toBe("2026-11-09T07:00:00.000Z");
+    expect(start("2026-11-09T06:59:59Z")).toBe("2026-11-02T07:00:00.000Z");
+    expect(start("2026-11-11T12:00:00Z")).toBe("2026-11-09T07:00:00.000Z");
+    expect(start("2026-11-15T23:30:00Z")).toBe("2026-11-09T07:00:00.000Z");
     // Au passage d'une année : le vendredi 1er janvier 2027 est dans la semaine du lundi 28 décembre.
-    expect(start("2027-01-01T10:00:00Z")).toBe("2026-12-28T03:00:00.000Z");
+    expect(start("2027-01-01T10:00:00Z")).toBe("2026-12-28T07:00:00.000Z");
+    // 8 h à Paris en hiver, 9 h en été : jamais pendant le silence de 23 h à 8 h.
+    expect(isQuietHour(new Date("2026-11-09T07:00:00Z"))).toBe(false);
+    expect(isQuietHour(new Date("2027-06-07T07:00:00Z"))).toBe(false);
+  });
+
+  it("dit combien de temps GitHub garde une sauvegarde, comme le workflow", () => {
+    const workflow = readFileSync(".github/workflows/sauvegarde.yml", "utf8");
+    expect(workflow.match(/retention-days: (\d+)/)?.[1]).toBe(String(BACKUP_RETENTION_DAYS));
   });
 });

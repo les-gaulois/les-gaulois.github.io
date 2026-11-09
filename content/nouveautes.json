@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-09",
+    "kind": "ameliore",
+    "title": "L'encadrement prévenu des sauvegardes",
+    "body": "Le salon privé de l'encadrement reçoit un message après chaque sauvegarde chiffrée, faite ou ratée, et, une seule fois, un message qui prouve que son lien marche. Aucun nom.",
+    "link": {
+      "href": "/confidentialite",
+      "label": "Ce que garde la sauvegarde"
+    }
+  },
+  {
+    "date": "2026-11-09",
     "kind": "nouveau",
     "title": "Les Gaulois de la semaine sur l'accueil",
     "body": "L'accueil nomme les joueurs : le podium des victoires de la semaine, les records et les arrivées. Les plus actifs et les paliers franchis s'y ajoutent dès que le robot les a relevés.",

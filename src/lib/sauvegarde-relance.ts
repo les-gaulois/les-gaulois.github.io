@@ -4,7 +4,7 @@
  * Le planning de GitHub saute la plupart de ses passages sur ce dépôt : les 6, 7 et 8 novembre 2026, quatre exécutions
  * planifiées sur vingt-quatre ont démarré chaque jour, et la première sauvegarde du lundi n'a pas eu lieu. Le robot
  * horaire, lancé par cron-job.org, passe lui toutes les heures. À chaque passage, il regarde si la semaine a sa
- * sauvegarde, et sinon, il lance l'Action « Sauvegarde chiffrée ». La semaine commence le lundi à 3 h UTC (`backupWeekStart`).
+ * sauvegarde, et sinon, il lance l'Action « Sauvegarde chiffrée ». La semaine commence le lundi à 7 h UTC (`backupWeekStart`).
  * Une sauvegarde ratée est relancée au passage suivant, avec trois essais au plus dans la semaine, lancements à la main
  * compris : au-delà, le robot le signale en avertissement et attend la semaine suivante, pour ne pas répéter toutes les
  * heures la même erreur. Tant qu'une exécution n'est pas finie, il ne lance rien ; si elle attend depuis plus d'une heure

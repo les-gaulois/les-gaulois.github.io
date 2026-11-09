@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { MAX_ATTEMPTS_PER_WEEK, relaunchBackupIfDue, type BackupRun } from "../../src/lib/sauvegarde-relance";
 
-// Le lundi 16 novembre 2026, au passage de 8 h 53 UTC. La semaine de sauvegarde a commencé à 3 h UTC.
+// Le lundi 16 novembre 2026, au passage de 8 h 53 UTC. La semaine de sauvegarde a commencé à 7 h UTC.
 const NOW = new Date("2026-11-16T08:53:00Z");
-const WEEK_START = "2026-11-16T03:00:00Z";
+const WEEK_START = "2026-11-16T07:00:00Z";
 const run = (id: number, createdAt: string, conclusion: string | null = "success", status = "completed"): BackupRun => ({ id, status, conclusion, created_at: createdAt });
 
 interface Fake {
@@ -44,7 +44,7 @@ describe("la sauvegarde de la semaine lancée par le robot", () => {
   });
 
   it("n'avertit de rien quand la semaine a sa sauvegarde", async () => {
-    const { result, lines } = await relaunch(fakeGitHub({ runs: [run(4, "2026-11-16T03:10:00Z")], artifacts: { 4: [{ expired: false }] } }));
+    const { result, lines } = await relaunch(fakeGitHub({ runs: [run(4, "2026-11-16T07:10:00Z")], artifacts: { 4: [{ expired: false }] } }));
     expect(result).toBe("done");
     expect(lines.some((line) => line.startsWith("::"))).toBe(false);
   });
@@ -60,20 +60,20 @@ describe("la sauvegarde de la semaine lancée par le robot", () => {
   });
 
   it("ne relance pas une semaine qui a son fichier", async () => {
-    const fake = fakeGitHub({ runs: [run(5, "2026-11-16T03:54:00Z", "failure"), run(4, "2026-11-16T03:10:00Z")], artifacts: { 4: [{ expired: false }] } });
+    const fake = fakeGitHub({ runs: [run(5, "2026-11-16T07:54:00Z", "failure"), run(4, "2026-11-16T07:10:00Z")], artifacts: { 4: [{ expired: false }] } });
     expect((await relaunch(fake)).result).toBe("done");
     expect(fake.launches()).toEqual([]);
   });
 
-  it("fait commencer la semaine au lundi 3 h UTC tout rond", async () => {
+  it("fait commencer la semaine au lundi 7 h UTC tout rond", async () => {
     const kept = { 8: [{ expired: false }] };
     expect((await relaunch(fakeGitHub({ runs: [run(8, WEEK_START)], artifacts: kept }))).result).toBe("done");
-    expect((await relaunch(fakeGitHub({ runs: [run(8, "2026-11-16T02:59:59Z")], artifacts: kept }))).result).toBe("launched");
+    expect((await relaunch(fakeGitHub({ runs: [run(8, "2026-11-16T06:59:59Z")], artifacts: kept }))).result).toBe("launched");
   });
 
   it("ne compte pas une exécution réussie qui n'a rien gardé, ni un fichier expiré", async () => {
     for (const kept of [[], [{ expired: true }]]) {
-      const fake = fakeGitHub({ runs: [run(6, "2026-11-16T03:10:00Z")], artifacts: { 6: kept } });
+      const fake = fakeGitHub({ runs: [run(6, "2026-11-16T07:10:00Z")], artifacts: { 6: kept } });
       expect((await relaunch(fake)).result).toBe("launched");
     }
   });
@@ -97,7 +97,7 @@ describe("la sauvegarde de la semaine lancée par le robot", () => {
   });
 
   it(`s'arrête après ${MAX_ATTEMPTS_PER_WEEK} essais sans fichier dans la semaine, et le signale`, async () => {
-    const failed = Array.from({ length: MAX_ATTEMPTS_PER_WEEK }, (_, i) => run(10 + i, `2026-11-16T0${3 + i}:55:00Z`, "failure"));
+    const failed = Array.from({ length: MAX_ATTEMPTS_PER_WEEK }, (_, i) => run(10 + i, `2026-11-16T07:${15 + 20 * i}:00Z`, "failure"));
     const fake = fakeGitHub({ runs: failed });
     const { result, lines } = await relaunch(fake);
     expect(result).toBe("gave-up");
@@ -114,7 +114,7 @@ describe("la sauvegarde de la semaine lancée par le robot", () => {
     expect(listed.lines[0]).toMatch(/^::warning::.*500/);
     expect(down.launches()).toEqual([]);
 
-    const noFiles = fakeGitHub({ runs: [run(6, "2026-11-16T03:10:00Z")], artifactsStatus: 502 });
+    const noFiles = fakeGitHub({ runs: [run(6, "2026-11-16T07:10:00Z")], artifactsStatus: 502 });
     const files = await relaunch(noFiles);
     expect(files.result).toBe("failed");
     expect(files.lines[0]).toMatch(/^::warning::.*502/);
