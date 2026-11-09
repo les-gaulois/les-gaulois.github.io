@@ -14,6 +14,7 @@ const HEALTHY: Record<string, Route> = {
   "/rest/v1/rpc/get_qg": { status: 401, body: {} },
   "/rest/v1/rpc/get_lobby_calls": { status: 401, body: {} },
   "/rest/v1/rpc/save_lobby_call": { status: 401, body: {} },
+  "/rest/v1/rpc/reset_member_link": { status: 401, body: {} },
   "/rest/v1/profiles": { status: 401, body: {} },
   "/rest/v1/private_links": { status: 401, body: {} },
   "/rest/v1/admin_log": { status: 401, body: {} },
@@ -93,6 +94,12 @@ describe("le contrôle de la mise en ligne", () => {
     // Le serveur répond 200 avec un refus : le QG reste fermé.
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_qg": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "QG")).toBe("ok");
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_qg": { status: 200, body: { ok: true, polls: [], ideas: [], wall: [] } } }, "QG")).toBe("fail");
+  });
+
+  it("bloque si un visiteur peut remettre un compte en attente", async () => {
+    expect(await statusOf(HEALTHY, "remet pas un compte en attente")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/reset_member_link": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "remet pas un compte en attente")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/reset_member_link": { status: 200, body: { ok: true } } }, "remet pas un compte en attente")).toBe("fail");
   });
 
   it("bloque si un visiteur voit les appels aux salons ou en lance un", async () => {

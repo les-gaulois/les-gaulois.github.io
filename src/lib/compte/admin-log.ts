@@ -23,6 +23,7 @@ export const LOG_CATEGORIES: readonly { id: LogCategory; label: string }[] = [
 const CATEGORIES: Record<string, LogCategory> = {
   membership_approved: "requests",
   membership_refused: "requests",
+  member_link_reset: "requests",
   role_changed: "roles",
   role_preset_applied: "roles",
   founder_bootstrap: "roles",
@@ -91,6 +92,12 @@ export function describe(row: LogRow, when: (iso: string) => string): LogLine {
       return { who, what: `a validé la demande ${ofTarget}${details["in_roster"] === false ? ", hors de la liste officielle" : ""}.` };
     case "membership_refused":
       return { who, what: withReason(`a refusé la demande ${ofTarget}`) };
+    // « Refaire la demande ». Le journal lit le nom d'aujourd'hui : celui du moment n'est écrit que s'il a changé depuis.
+    case "member_link_reset": {
+      const then = textOf(details, "name");
+      const formerly = then !== null && row.target !== null && then !== row.target ? ` (alors ${then})` : "";
+      return { who, what: `a remis ${target}${formerly} en attente, pour une nouvelle demande.` };
+    }
     case "role_changed": {
       const from = roleOf(details, "from");
       const to = roleOf(details, "to");

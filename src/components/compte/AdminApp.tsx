@@ -1,6 +1,6 @@
 import { useEffect, useState } from "preact/hooks";
 import { LOG_CATEGORIES, LOG_LIMIT, LOG_PAGE, describe, filterLog, logPeople, type LogCategory } from "../../lib/compte/admin-log";
-import { ROSTER_CELL_LABELS, ROSTER_CELL_WARN, openRequests, rosterCell } from "../../lib/compte/admin-members";
+import { ROSTER_CELL_LABELS, ROSTER_CELL_WARN, canRedoRequest, notFoundHelp, openRequests, redoRequestDone, redoRequestQuestion, rosterCell } from "../../lib/compte/admin-members";
 import { basePath, call } from "../../lib/compte/api";
 import { announcePendingChange } from "../../lib/compte/pending";
 import { READY_REASONS, requestWait, requestsSummary } from "../../lib/compte/requests";
@@ -176,6 +176,16 @@ function Members({ me }: { me: Me }) {
   const myRole = me.role ?? "member";
   const assignable: Role[] = rank >= 4 ? ["member", "officer", "admin"] : ["member", "officer"];
   const drafted = draft ? list.rows?.find((m) => m.user_id === draft.user) : undefined;
+  // La ligne d'aide n'explique « Pas trouvé dans la liste » que si la case est à l'écran, et le bouton que s'il y est.
+  const someNotFound = list.rows?.some((m) => rosterCell(m, null) === "not_found") ?? false;
+  const someRedo = list.rows?.some((m) => canRedoRequest(m, rank)) ?? false;
+  // Après « Refaire la demande », le bouton disparaît : le focus va au message, qui dit la suite à donner.
+  const [focusDone, setFocusDone] = useState(false);
+  useEffect(() => {
+    if (!focusDone || action.busy) return;
+    document.getElementById("members-done")?.focus();
+    setFocusDone(false);
+  }, [focusDone, action.busy]);
 
   return (
     <div data-testid="admin-members">
@@ -203,7 +213,9 @@ function Members({ me }: { me: Me }) {
       </form>
       <Problem message={list.error ?? action.error} onRetry={() => void reloadAll()} />
       {!list.error && <Problem message={pending.error ? "Les demandes n'ont pas pu être lues : la colonne Liste ne dit pas si un compte en attente en a une." : null} onRetry={() => void pending.reload()} />}
-      {action.done && <Success message={action.done} />}
+      <div id="members-done" tabIndex={-1}>
+        {action.done && <Success message={action.done} />}
+      </div>
       {list.rows === null ? (
         !list.error && <Loading />
       ) : list.rows.length === 0 ? (
@@ -296,24 +308,43 @@ function Members({ me }: { me: Me }) {
                     </td>
                     {rank >= 3 && (
                       <td>
-                        {m.status === "validated" && m.role !== "founder" && (rank >= 4 || m.role !== "admin") && (
-                          <button
-                            type="button"
-                            class="chip !min-h-9"
-                            disabled={action.busy}
-                            onClick={() => {
-                              const reason = window.prompt(`Pourquoi suspendre ${m.name} ?`);
-                              if (reason) void action.run(() => call("suspend_member", { p_user: m.user_id, p_reason: reason }), `${m.name} est suspendu.`);
-                            }}
-                          >
-                            Suspendre
-                          </button>
-                        )}
-                        {m.status === "suspended" && (
-                          <button type="button" class="chip !min-h-9" disabled={action.busy} onClick={() => void action.run(() => call("reinstate_member", { p_user: m.user_id }), `${m.name} est rétabli.`)}>
-                            Rétablir
-                          </button>
-                        )}
+                        <div class="flex flex-wrap gap-2">
+                          {/* Un compte que la liste ne trouve pas : la personne refait sa demande avec son pseudo exact. */}
+                          {canRedoRequest(m, rank) && (
+                            <button
+                              type="button"
+                              class="chip !min-h-9 whitespace-nowrap"
+                              aria-label={`Refaire la demande de ${m.name}`}
+                              data-testid="redo-request"
+                              disabled={action.busy}
+                              onClick={() => {
+                                if (!window.confirm(redoRequestQuestion(m.name, m.role))) return;
+                                setFocusDone(true);
+                                void action.run(() => call("reset_member_link", { p_user: m.user_id }), redoRequestDone(m.name, m.discord_name));
+                              }}
+                            >
+                              Refaire la demande
+                            </button>
+                          )}
+                          {m.status === "validated" && m.role !== "founder" && (rank >= 4 || m.role !== "admin") && (
+                            <button
+                              type="button"
+                              class="chip !min-h-9"
+                              disabled={action.busy}
+                              onClick={() => {
+                                const reason = window.prompt(`Pourquoi suspendre ${m.name} ?`);
+                                if (reason) void action.run(() => call("suspend_member", { p_user: m.user_id, p_reason: reason }), `${m.name} est suspendu.`);
+                              }}
+                            >
+                              Suspendre
+                            </button>
+                          )}
+                          {m.status === "suspended" && (
+                            <button type="button" class="chip !min-h-9" disabled={action.busy} onClick={() => void action.run(() => call("reinstate_member", { p_user: m.user_id }), `${m.name} est rétabli.`)}>
+                              Rétablir
+                            </button>
+                          )}
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -326,6 +357,7 @@ function Members({ me }: { me: Me }) {
       <p class="mt-2 text-xs text-muted" data-testid="members-names-help">
         <span data-testid="members-roster-date">{roster ? `Liste officielle relue le ${fmtDateTime(roster.read_at)}. ` : roster === null ? "La liste officielle n'a encore jamais été relue. " : ""}</span>
         Un compte s'appelle « Gaulois n° … » jusqu'à sa validation, puis prend son pseudo de la liste officielle. Validé hors de la liste, ou membre sans pseudo public, il garde ce nom.
+        {someNotFound && <span data-testid="members-not-found-help">{` ${notFoundHelp(someRedo)}`}</span>}
       </p>
       <p class="mt-1 text-xs text-muted">Vous êtes {ROLE_LABELS[myRole]}. Le serveur revérifie chaque changement.</p>
     </div>

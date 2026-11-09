@@ -2,6 +2,12 @@
   {
     "date": "2026-11-09",
     "kind": "nouveau",
+    "title": "Refaire une demande d'adhésion",
+    "body": "Un admin peut remettre en attente un compte validé que la liste officielle ne trouve pas. La personne refait sa demande dans Mon compte, puis un officier la valide comme une autre."
+  },
+  {
+    "date": "2026-11-09",
+    "kind": "nouveau",
     "title": "Rejoindre un Gaulois",
     "body": "Au QG, un membre qui attend dans un salon d'OpenFront peut coller son lien : les membres qui ont le QG ouvert voient une fenêtre, avec un son, et le lien de son salon.",
     "link": {

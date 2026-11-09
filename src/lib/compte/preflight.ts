@@ -99,6 +99,12 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   if (isClosed(callSaved.status) || (callSaved.ok && callSavedAnswer?.ok === false)) add("Un visiteur ne lance pas d'appel", "ok");
   else add("Un visiteur ne lance pas d'appel", "fail", `Réponse ${callSaved.status}. Ne mettez pas en ligne : seuls les membres validés appellent.`);
 
+  // « Refaire la demande » : seul un admin remet un compte en attente. Son installation se lit avec `supabase migration list`.
+  const reset = await rpc("reset_member_link", { p_user: "00000000-0000-0000-0000-000000000000" });
+  const resetAnswer = reset.ok ? ((await reset.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (isClosed(reset.status) || (reset.ok && resetAnswer?.ok === false)) add("Un visiteur ne remet pas un compte en attente", "ok");
+  else add("Un visiteur ne remet pas un compte en attente", "fail", `Réponse ${reset.status}. Ne mettez pas en ligne : seul un admin remet un compte en attente.`);
+
   // Les réponses « Je viens », les votes, les idées et leurs soutiens sont dans le schéma `internal`, que l'API ne montre pas : rien à lire ici.
   for (const table of ["profiles", "private_links", "admin_log", "clan_roster", "site_announcements", "polls"]) {
     const res = await fetcher(`${base}/rest/v1/${table}?select=*&limit=1`, { headers: anonHeaders });

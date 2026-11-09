@@ -18,7 +18,7 @@ const sentence = (r: LogRow) => {
 };
 
 // Les migrations des fonctions que le site appelle encore. « Effacer mon compte » est dans celle des dons.
-const SITE_SQL = ["20261105000100_comptes_et_roles", "20261105000200_validation_des_membres", "20261105000900_direction", "20261106000100_roles_prevus", "20261108000200_vie_du_clan", "20261109000100_qg_des_membres", "20261109000200_gaulois_de_la_semaine"]
+const SITE_SQL = ["20261105000100_comptes_et_roles", "20261105000200_validation_des_membres", "20261105000900_direction", "20261106000100_roles_prevus", "20261108000200_vie_du_clan", "20261109000100_qg_des_membres", "20261109000200_gaulois_de_la_semaine", "20261109000400_refaire_la_demande"]
   .map((name) => readFileSync(`supabase/migrations/${name}.sql`, "utf8"))
   .join("\n");
 const SITE_CODES = new Set([...[...SITE_SQL.matchAll(/log_admin\([^,]+,\s*'([a-z_]+)'/g)].map((m) => m[1]!), "account_deleted"]);
@@ -70,6 +70,15 @@ describe("le journal en clair", () => {
     expect(sentence(row("event_saved", { id: 4 }, "Chef", null))).toBe("Chef a publié ou modifié l'événement.");
     expect(sentence(row("idea_decided", { id: 7 }))).toBe("Chef a tranché une idée de Recrue.");
     expect(sentence(row("idea_decided", { id: 7, status: "toString" }))).toBe("Chef a tranché une idée de Recrue.");
+  });
+
+  it("écrit « Refaire la demande », et le nom du moment seulement s'il a changé depuis", () => {
+    expect(sentence(row("member_link_reset", { name: "Recrue" }))).toBe("Chef a remis Recrue en attente, pour une nouvelle demande.");
+    expect(sentence(row("member_link_reset", {}))).toBe("Chef a remis Recrue en attente, pour une nouvelle demande.");
+    // Validé ensuite sous son pseudo, le compte ne s'appelle plus « Gaulois n° 9 » : le journal rappelle son nom d'alors.
+    expect(sentence(row("member_link_reset", { name: "Gaulois n° 9" }, "Chef", "SuperSim"))).toBe("Chef a remis SuperSim (alors Gaulois n° 9) en attente, pour une nouvelle demande.");
+    expect(sentence(row("member_link_reset", { name: "Gaulois n° 9" }, "Chef", null))).toBe(`Chef a remis ${GONE_OBJECT} en attente, pour une nouvelle demande.`);
+    expect(categoryOf("member_link_reset")).toBe("requests");
   });
 
   it("dit qui reçoit un rôle prévu, quel que soit le chemin", () => {

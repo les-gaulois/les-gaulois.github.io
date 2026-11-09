@@ -71,6 +71,12 @@ function MembershipRequest({ me, onChange }: { me: Me; onChange: () => Promise<v
           Votre dernière demande a été refusée{request.reason ? ` : ${request.reason}` : "."}
         </p>
       )}
+      {/* Une demande acceptée, et pourtant un compte en attente : l'encadrement l'a remis en attente avec « Refaire la demande ». */}
+      {request?.status === "approved" && (
+        <p class="form-problem mt-3" data-testid="request-redo">
+          L'encadrement vous demande de refaire votre demande : le site n'a pas retrouvé votre profil OpenFront dans la liste des membres de GAL. Indiquez votre pseudo OpenFront exact, tel qu'il apparaît sur la page <a href={`${basePath()}/membres`}>Membres</a>, ou votre identifiant public si vous y figurez comme « Membre anonyme ».
+        </p>
+      )}
       <form
         class="mt-4 grid gap-3"
         onSubmit={(e) => {

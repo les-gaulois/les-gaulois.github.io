@@ -31,6 +31,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   already_linked: "Ce joueur OpenFront est déjà lié à un compte. Parlez-en à un officier sur Discord.",
   request_not_found: "Cette demande n'existe plus.",
   request_closed: "Cette demande a déjà été traitée.",
+  member_in_roster: "Ce compte est déjà relié à un membre de la liste officielle : sa demande n'est pas à refaire.",
 
   invalid_repeat: "Choisissez de 2 à 12 semaines.",
   event_over: "Cet événement est passé, ou n'existe plus.",

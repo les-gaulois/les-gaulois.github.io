@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ROSTER_CELL_LABELS, ROSTER_CELL_WARN, openRequests, rosterCell } from "../../src/lib/compte/admin-members";
+import { ROLE_RANK, ROSTER_CELL_LABELS, ROSTER_CELL_WARN, canRedoRequest, notFoundHelp, openRequests, redoRequestDone, redoRequestQuestion, rosterCell } from "../../src/lib/compte/admin-members";
 import { REQUESTS_LIMIT } from "../../src/lib/compte/requests";
 
 type Member = Parameters<typeof rosterCell>[0];
@@ -28,6 +28,10 @@ describe("la colonne Liste d'un compte validé", () => {
     const requests = openRequests([{ number: 3 }]);
     expect(rosterCell(validated({}), requests)).toBe("in");
     expect(rosterCell(validated({ in_roster: false, openfront_username: null }), requests)).toBe("not_found");
+  });
+
+  it("dit « Pas trouvé dans la liste » d'un compte validé sans aucun lien, comme après une restauration", () => {
+    expect(rosterCell(validated({ linked: false, in_roster: false, openfront_username: null }), null)).toBe("not_found");
   });
 });
 
@@ -63,6 +67,72 @@ describe("la colonne Liste d'un compte suspendu sans profil lié", () => {
     const suspended: Member = { number: 4, status: "suspended", linked: false, in_roster: false, openfront_username: null };
     expect(rosterCell(suspended, openRequests([{ number: 4 }]))).toBe("unknown");
     expect(rosterCell(suspended, openRequests([]))).toBe("unknown");
+  });
+});
+
+describe("le bouton « Refaire la demande »", () => {
+  const notFound = (over: Partial<Parameters<typeof canRedoRequest>[0]> = {}) => ({ ...validated({ in_roster: false, openfront_username: null }), role: "member" as const, ...over });
+
+  it("suit les rangs du serveur", () => {
+    expect(ROLE_RANK).toEqual({ member: 1, officer: 2, admin: 3, founder: 4 });
+  });
+
+  it("s'offre à un admin et au fondateur pour un compte validé que la liste ne trouve pas", () => {
+    expect(canRedoRequest(notFound(), 3)).toBe(true);
+    expect(canRedoRequest(notFound(), 4)).toBe(true);
+    expect(canRedoRequest(notFound({ linked: false }), 3)).toBe(true);
+    expect(canRedoRequest(notFound({ role: "officer" }), 3)).toBe(true);
+  });
+
+  it("ne s'offre ni à un officier ni à un membre : le serveur le leur refuse", () => {
+    expect(canRedoRequest(notFound(), 2)).toBe(false);
+    expect(canRedoRequest(notFound(), 1)).toBe(false);
+  });
+
+  it("ne touche pas à un rang égal ou supérieur : un admin, pour un admin ; le fondateur, jamais", () => {
+    expect(canRedoRequest(notFound({ role: "admin" }), 3)).toBe(false);
+    expect(canRedoRequest(notFound({ role: "admin" }), 4)).toBe(true);
+    expect(canRedoRequest(notFound({ role: "founder" }), 4)).toBe(false);
+  });
+
+  it("ne s'offre que là où la liste ne trouve pas le compte", () => {
+    expect(canRedoRequest(notFound({ in_roster: true }), 4)).toBe(false);
+    expect(canRedoRequest(notFound({ openfront_username: "EssaiParti" }), 4)).toBe(false);
+    expect(canRedoRequest(notFound({ status: "pending", linked: false }), 4)).toBe(false);
+    expect(canRedoRequest(notFound({ status: "suspended" }), 4)).toBe(false);
+  });
+
+  it("dit avant d'agir ce qui change et ce que la personne devra faire, anonymes compris", () => {
+    expect(redoRequestQuestion("Gaulois n° 9", "member")).toBe(
+      "Remettre le compte Gaulois n° 9 en attente ?\n\nLe QG lui restera fermé jusqu'à sa nouvelle validation. La personne devra refaire sa demande dans « Mon compte », avec son pseudo OpenFront exact, ou son identifiant public si elle est anonyme dans la liste, puis un officier la validera.",
+    );
+  });
+
+  it("prévient qu'un rôle de l'encadrement est retiré, comme le fait le serveur", () => {
+    expect(redoRequestQuestion("Gaulois n° 12", "officer")).toContain(" Son rôle d'encadrement (Officier) lui sera retiré : il pourra lui être redonné après sa validation. ");
+    expect(redoRequestQuestion("Gaulois n° 13", "admin")).toContain("(Admin) lui sera retiré");
+    expect(redoRequestQuestion("Gaulois n° 9", "member")).not.toContain("retiré");
+  });
+
+  it("dit après coup qui prévenir sur Discord, et où arrivera la nouvelle demande", () => {
+    expect(redoRequestDone("Gaulois n° 9", "essai_9")).toBe(
+      "Le compte Gaulois n° 9 est remis en attente. Prévenez essai_9 sur Discord : sa demande est à refaire dans « Mon compte », avec son pseudo OpenFront exact, ou son identifiant public si elle est anonyme dans la liste. Sa nouvelle demande arrivera ensuite dans l'onglet Demandes.",
+    );
+    expect(redoRequestDone("Gaulois n° 9", null)).toContain("Prévenez la personne sur Discord");
+  });
+
+  it("explique la case sous le tableau, et ne parle du bouton que s'il est à l'écran", () => {
+    expect(notFoundHelp(true)).toBe(
+      "« Pas trouvé dans la liste » : un tel compte n'est relié à aucun membre de la liste officielle. « Refaire la demande » le remet en attente, pour que la personne indique son pseudo OpenFront exact, ou son identifiant public si elle est anonyme dans la liste.",
+    );
+    expect(notFoundHelp(false)).toContain("Un admin peut le remettre en attente, ou le fondateur s'il s'agit d'un admin");
+    expect(notFoundHelp(false)).not.toContain("« Refaire la demande »");
+  });
+
+  it("n'écrit jamais « il » ou « elle » pour une personne sans nom de référence : « il » ne renvoie qu'au compte ou au rôle", () => {
+    for (const text of [redoRequestQuestion("X", "officer"), redoRequestDone("X", "y"), notFoundHelp(true), notFoundHelp(false)]) {
+      expect(text).not.toMatch(/\b(Il|il) (n'entrera|devra|doit)\b/);
+    }
   });
 });
 
