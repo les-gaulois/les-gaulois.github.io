@@ -4,6 +4,9 @@
  */
 import { frNumber } from "../nombre";
 
+/** L'espace insécable avant « : » : un titre ne commence jamais sa deuxième ligne par les deux-points. */
+const NBSP = "\u00a0";
+
 export interface MomentFrame {
   ev: number;
   gal: number;
@@ -96,13 +99,13 @@ export function findMoments(frames: readonly MomentFrame[], tag = "GAL"): Moment
       lossFrame = i;
     }
   }
-  if (pushFrame > 0) candidates.push({ frame: pushFrame + 1, kind: "push", title: `La plus grande poussée : +${fmt.format(push)} pixels` });
-  if (lossFrame > 0) candidates.push({ frame: lossFrame + 1, kind: "loss", title: `Le plus dur recul : −${fmt.format(-loss)} pixels` });
+  if (pushFrame > 0) candidates.push({ frame: pushFrame + 1, kind: "push", title: `La plus grande poussée${NBSP}: +${fmt.format(push)} pixels` });
+  if (lossFrame > 0) candidates.push({ frame: lossFrame + 1, kind: "loss", title: `Le plus dur recul${NBSP}: −${fmt.format(-loss)} pixels` });
 
   const last = frames[frames.length - 1]!;
   if (last.gal > 0) {
     const rank = last.rank === null ? "" : `, ${place(last.rank)}`;
-    candidates.push({ frame: frames.length, kind: "now", title: `Dernier relevé : ${fmt.format(last.gal)} pixels${rank}` });
+    candidates.push({ frame: frames.length, kind: "now", title: `Dernier relevé${NBSP}: ${fmt.format(last.gal)} pixels${rank}` });
   }
 
   const minGap = Math.max(3, Math.floor(frames.length * 0.015));

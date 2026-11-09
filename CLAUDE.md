@@ -35,7 +35,7 @@ Node 22 ou plus. Sous Windows, le shell est Git Bash : chemins avec `/`.
 - `src/pages/*.astro` : une page par fichier, mise en page `src/layouts/Base.astro` (en-tête, navigation, pied de page). Le plan du site, rubriques et onglets, est dans `src/lib/nav.ts`. Pages personnelles `compte`, `admin`, `direction` et fiches `membres/[id]` en `noindex`.
 - `src/components/` : `.astro` statiques, `.tsx` Preact hydratés (`client:idle`, `client:visible` ou `client:only="preact"`). `src/components/compte/` : écrans de la connexion.
 - `src/lib/` : calculs purs et testés. `schemas.ts` (Zod), `data.ts` (lecture de `data/` et `content/`), `compte/` (client Supabase `api.ts`, `preflight.ts`, `roster.ts`), `clanmap/` (carte des clans), `fx/` (logique des effets).
-- `src/scripts/` : scripts navigateur — `fx.ts` effets, `film.ts` film de la carte, `conquest.ts` calculateur de la page Carte, `nouveautes.ts` point des nouveautés du site.
+- `src/scripts/` : scripts navigateur — `fx.ts` effets, `film.ts` film de la carte, `nouveautes.ts` point des nouveautés du site.
 - `src/styles/global.css` : jetons de couleur et classes `.stage`, `.card`, `.btn-*`, `.wrap`.
 - `content/` : textes du clan, JSON et Markdown (skill `contenu-clan`). `content/nouveautes.json` : le journal des mises à jour du site, que tu tiens (skill `publier`). `data/` : écrit par la collecte, jamais à la main.
 - `scripts/` : collecte et outils Node (`tsx`). `supabase/migrations/` : schéma, figé une fois appliqué.
@@ -51,7 +51,7 @@ Node 22 ou plus. Sous Windows, le shell est Git Bash : chemins avec `/`.
 - Date de mise à jour visible. « Pas de données » n'est pas zéro. Pas d'historique présenté comme du temps réel. Pas de mélange entre stats de clan et classé. Pas de classement recalculé.
 - Si l'API échoue : garder les dernières données valides et le signaler (`data/meta.json`). Un refus de l'API (403) ne se contourne pas.
 - Stats des membres : `stats.team` uniquement. Le `publicId` d'un anonyme n'est jamais publié.
-- Dons : aucun nom sans `content/carte-heros.json` fourni par le clan ; ni nom ni montant de ce qui n'est visible qu'aux membres ; seules les capsules comptent, jamais de renvoi vers le Plutonium, monnaie payante.
+- Dons : aucun nom de donateur sans une liste fournie par le clan ; ni nom ni montant de ce qui n'est visible qu'aux membres ; seules les capsules comptent, jamais de renvoi vers le Plutonium, monnaie payante.
 - Les conditions d'OpenFront (sections 5 et 6.5) interdisent robots et scripts : aucune lecture automatique de ce qui demande un compte de joueur.
 
 ### Secrets

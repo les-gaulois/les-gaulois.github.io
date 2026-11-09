@@ -5,7 +5,8 @@
  * Halo, lueurs et plans rapprochés sont décoratifs : ils disparaissent avec « réduire
  * les animations » ou le bouton pause du site, et le film ne démarre alors que sur demande.
  * Les grands moments viennent des chiffres de chaque image. La caméra glisse sans à-coup
- * (`src/lib/fx/camera.ts`) et ne s'approche seule qu'à la vitesse × 1, jamais coup sur coup.
+ * (`src/lib/fx/camera.ts`) et ne s'approche seule que de quelques grands moments, jamais coup sur coup.
+ * La vitesse va de × 0,1 à × 1 (`src/lib/fx/speed.ts`) : le film ne va jamais plus vite que × 1.
  */
 import { clanRgb, type DecodedFrames } from "../lib/clanmap/codec";
 import { filmDayMarks, placeDayLabels } from "../lib/clanmap/days";
@@ -14,6 +15,7 @@ import { filmResume } from "../lib/clanmap/reprise";
 import { fmtDay, fmtEpochDay, fmtEpochHour } from "../lib/format";
 import { CAMERA_CLICK_MS, CAMERA_SMOOTH_MS, FILM_MS, SHOT_MAX_ZOOM, SHOT_MS, SHOT_SPACING_MS, moveCamera, pickShots, placeCamera, type Camera } from "../lib/fx/camera";
 import { motionAllowed } from "../lib/fx/motion";
+import { filmSpeed, speedLabel, speedText } from "../lib/fx/speed";
 import { frNumber } from "../lib/nombre";
 import type { StoredClanMapFilm } from "../lib/schemas";
 import { nextVisitState, readVisitState, VISIT_KEY, type VisitSnapshot } from "../lib/visite";
@@ -108,7 +110,8 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
   const tip = one<HTMLElement>("[data-film-tip]");
   const caption = one<HTMLElement>("[data-film-caption]");
   const focusChip = one<HTMLButtonElement>("[data-film-focus]");
-  const followChip = one<HTMLButtonElement>("[data-film-follow]");
+  const speedInput = one<HTMLInputElement>("[data-film-speed]");
+  const speedValue = one<HTMLElement>("[data-film-speed-value]");
   const worldChip = one<HTMLButtonElement>("[data-film-world]");
 
   /* ---------- Couleurs et état de la carte ---------- */
@@ -294,7 +297,7 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
   const momentAt = new Map<number, Moment>(moments.map((m) => [m.frame, m]));
   // La liste des grands moments est sous le film, hors de son bloc : on la cherche dans toute la page.
   const momentButtons = [...document.querySelectorAll<HTMLButtonElement>("[data-film-moment]")];
-  /** Les moments filmés de près à la vitesse × 1 : les plus importants, jamais coup sur coup. */
+  /** Les moments filmés de près : les plus importants, jamais coup sur coup. Plus lent que × 1, ils s'espacent encore. */
   const shotFrames = pickShots(moments, FILM_MS / F);
   /** Le moment qu'on vient de demander dans la liste : lui a toujours son plan rapproché. */
   let requestedMoment = 0;
@@ -305,7 +308,7 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
 
   function showCaption(text: string, keep = false): void {
     window.clearTimeout(captionTimer);
-    // Un sous-titre déjà affiché change de texte sans réapparaître : rien ne saute à vitesse rapide.
+    // Un sous-titre déjà affiché change de texte sans réapparaître : rien ne saute quand deux moments se suivent.
     const appearing = caption.hidden;
     caption.textContent = text;
     caption.hidden = false;
@@ -341,9 +344,9 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     showCaption(moment.title);
     markMoment(moment);
     status.textContent = moment.at === null ? moment.title : `${fmtEpochDay(moment.at)} : ${moment.title}`;
-    if (!motionAllowed() || follow || manual) return;
-    // À × 2 et × 4, la caméra reste où elle est : seul le moment demandé dans la liste est filmé de près.
-    if (!requested && (speed !== 1 || !shotFrames.has(moment.frame) || now - lastShotAt < SHOT_SPACING_MS)) return;
+    if (!motionAllowed() || manual) return;
+    // Seuls les moments choisis d'avance, ou celui demandé dans la liste, sont filmés de près, jamais coup sur coup.
+    if (!requested && (!shotFrames.has(moment.frame) || now - lastShotAt < SHOT_SPACING_MS)) return;
     const cam = film.frames[moment.frame - 1]?.cam;
     if (!cam) return;
     const target = galView(cam, SHOT_MAX_ZOOM);
@@ -355,7 +358,6 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
   /* ---------- Caméra : des mouvements lents, sans à-coup ---------- */
 
   const camera: Camera = { x: W / 2, y: H / 2, s: 1, vx: 0, vy: 0, vz: 0 };
-  let follow = false;
   let manual: View | null = null;
   let dpr = 1;
 
@@ -364,7 +366,7 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
   }
 
   /** Tout le territoire de GAL, sans s'approcher plus que `maxZoom` fois la vue d'ensemble. */
-  function galView(c: readonly [number, number, number, number], maxZoom = Infinity): View {
+  function galView(c: readonly [number, number, number, number], maxZoom: number): View {
     const world = worldView().s;
     const halfW = Math.max(c[2] * 2.7, 255);
     const halfH = Math.max(c[3] * 2.7, 165);
@@ -375,8 +377,6 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
   function cameraTarget(): View {
     if (manual) return manual;
     if (shot) return shot;
-    const c = cur > 0 ? film.frames[cur - 1]?.cam : null;
-    if (follow && c) return galView(c);
     return worldView();
   }
 
@@ -692,18 +692,13 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     seek(Number(pos.value));
   });
 
-  const speedChips = [...root.querySelectorAll<HTMLButtonElement>("[data-film-speed]")];
-  for (const chip of speedChips) {
-    chip.addEventListener("click", () => {
-      speed = Number(chip.dataset.filmSpeed);
-      for (const other of speedChips) other.setAttribute("aria-pressed", String(other === chip));
-      // Plus vite, la caméra quitte le plan rapproché et revient doucement à la vue choisie.
-      if (speed !== 1) {
-        shot = null;
-        invalidate();
-      }
-    });
+  /** Le curseur de vitesse, de × 0,1 à × 1 : le film ralentit dès l'image suivante, sans saut. */
+  function setSpeed(value: number): void {
+    speed = filmSpeed(value);
+    speedValue.textContent = speedLabel(speed);
+    speedInput.setAttribute("aria-valuetext", speedText(speed));
   }
+  speedInput.addEventListener("input", () => setSpeed(Number(speedInput.value)));
 
   focusChip.addEventListener("click", () => {
     focus = !focus;
@@ -713,14 +708,6 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     invalidate();
   });
 
-  function setFollow(on: boolean): void {
-    follow = on;
-    if (on) manual = null;
-    shot = null;
-    followChip.setAttribute("aria-pressed", String(on));
-    invalidate();
-  }
-  followChip.addEventListener("click", () => setFollow(!follow));
   worldChip.addEventListener("click", releaseView);
 
   function revealMap(): void {
@@ -905,7 +892,8 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
   repaint();
   updateHud();
   setPlaying(false);
-  if (matchMedia("(max-width: 43.75rem)").matches) setFollow(true);
+  // Le navigateur peut rendre au curseur la vitesse d'une visite précédente (retour arrière) : le film la reprend.
+  setSpeed(Number(speedInput.value));
   if (resume && !motionAllowed()) {
     // Sans animation, le film attend une demande : le visiteur lit au moins ce qui a changé.
     showCaption(resume.caption, true);

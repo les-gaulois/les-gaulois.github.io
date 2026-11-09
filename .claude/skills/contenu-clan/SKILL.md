@@ -1,6 +1,6 @@
 ---
 name: contenu-clan
-description: Modifie les textes et listes du clan — annonces, événements, outils communautaires, guides par mode, guide du clan, donateurs de la carte (content/) et fiche du clan (config/clan.ts) — avec les bons formats JSON et Markdown, sans rien inventer. À utiliser pour « ajouter une annonce », « un événement », « un chapitre », « changer la description du clan ».
+description: Modifie les textes et listes du clan — annonces, événements, outils communautaires, guides par mode, guide du clan (content/) et fiche du clan (config/clan.ts) — avec les bons formats JSON et Markdown, sans rien inventer. À utiliser pour « ajouter une annonce », « un événement », « un chapitre », « changer la description du clan ».
 paths:
   - "content/**"
   - "config/clan.ts"
@@ -19,7 +19,6 @@ Ces fichiers parlent au nom du clan. Leur contenu vient du clan : un message de 
 | Outils communautaires | `content/links.json` | `{ "tools": [{ "name": "…", "url": "https://…", "description": "…" }] }` |
 | Guides par mode | `content/guide/*.md` | Markdown, en-tête `title`, `order`, `draft` (retirer `draft: true` pour publier), `wide` |
 | Guide du clan | `content/guide-clan/NN-nom.md` | Markdown, en-tête `title`, `order`, `growthChart` (graphique calculé du chapitre 2, ne pas copier ailleurs), `wide` |
-| Donateurs de la carte | `content/carte-heros.json` | `{ "updatedOn": "2026-11-05", "donors": [{ "player": "…", "caps": 1200 }], "highlights": [{ "title": "…", "player": "…", "detail": "… (facultatif)" }] }` |
 | Fiche du clan | `config/clan.ts` | `description`, `history`, `values`, `entryConditions` ; `join.inviteOnly` et `checkedOn` relevés à la main dans le jeu |
 | Nouveautés du site | `content/nouveautes.json` | `[{ "date": "2026-11-08", "kind": "nouveau", "title": "…", "body": "…", "link": { "href": "/page", "label": "…" } }]` — la plus récente en tête, `link` facultatif |
 
@@ -31,7 +30,7 @@ Les schémas exacts sont dans `src/lib/schemas.ts` et `src/content.config.ts`. U
 
 - Les annonces et événements publiés depuis `/direction` vivent dans Supabase et s'ajoutent à ceux de ces fichiers. Les deux voies restent valables.
 - `content/guide/` adapte le wiki OpenFront (CC BY-SA 4.0) : réécrire, ne pas copier, et garder la mention de licence sur la page `/debuter`. Quand le wiki et le code public du jeu divergent, le code tranche. `content/guide-clan/` est au clan, tous droits réservés.
-- Donateurs : seulement une liste fournie par le clan, qui a décidé de la publier. Capsules uniquement, jamais de montant en argent, jamais de renvoi vers le Plutonium.
+- Donateurs : le site n'en affiche plus depuis le 9 novembre 2026. S'ils reviennent un jour : seulement une liste fournie par le clan, qui a décidé de la publier. Capsules uniquement, jamais de montant en argent, jamais de renvoi vers le Plutonium.
 - Pas de référence à Astérix, pas d'emoji dans les textes du site.
 
 ## Les tests qui comptent

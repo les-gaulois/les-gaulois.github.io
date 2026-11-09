@@ -1,4 +1,4 @@
-/** Charge une seule fois les fichiers du film, partagés par le lecteur et le calculateur. */
+/** Charge une seule fois les fichiers du film pour son lecteur ; après un échec, « Réessayer » relance le chargement. */
 import { decodeFrames, type DecodedFrames } from "../lib/clanmap/codec";
 import type { StoredClanMapFilm } from "../lib/schemas";
 

@@ -31,6 +31,13 @@ const seekTo = (page: Page, frame: number) =>
     el.dispatchEvent(new Event("input", { bubbles: true }));
   }, frame);
 
+/** Règle le curseur de vitesse comme le ferait un visiteur. */
+const setSpeed = (page: Page, speed: string) =>
+  page.getByTestId("film-speed").evaluate((el: HTMLInputElement, value) => {
+    el.value = value;
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+  }, speed);
+
 /** Nombre de pixels peints par le film au-delà du fond de carte : il dépend du territoire affiché. */
 const colorfulPixels = (page: Page) =>
   page.evaluate(() => {
@@ -76,6 +83,10 @@ test.describe("film de la carte", () => {
     await expect(page.getByTestId("data-status")).toContainText("Dernière mise à jour");
     await expect(page.getByTestId("film-gal")).toContainText(String(film.galSummary.rank));
     expect(digits(await page.getByTestId("map-pixels").textContent())).toBe(String(film.galSummary.pixels));
+    // Le prochain objectif suit l'ordre de la carte : les pixels du clan juste devant, moins ceux de GAL, plus 1.
+    const me = film.standings.findIndex((s: { tag: string }) => s.tag === "GAL");
+    if (me > 0) await expect(page.getByTestId("map-gap")).toHaveText(fmtInt(film.standings[me - 1].pixels - film.standings[me].pixels + 1));
+    else await expect(page.getByTestId("map-gap")).toHaveCount(0);
     await expect(page.getByTestId("film-fronts").locator("tbody tr")).toHaveCount(film.galSummary.fronts.length);
     await expect(page.getByText("pas le classement des clans").first()).toBeVisible();
     await page.getByTestId("fold-read").locator("summary").click();
@@ -101,7 +112,6 @@ test.describe("film de la carte", () => {
     }
     // Deux blocs secondaires ne se replient que sur téléphone : sur grand écran, ils restent ouverts, comme avant.
     const phone = (page.viewportSize()?.width ?? 0) < 768;
-    const heroes = JSON.parse(readFileSync("content/carte-heros.json", "utf8"));
     const figures = page.getByTestId("fold-figures");
     if (phone) {
       await expect(figures).not.toHaveAttribute("open");
@@ -116,21 +126,39 @@ test.describe("film de la carte", () => {
     }
     // Le plus grand territoire est celui du film, pas un chiffre recopié.
     expect(digits(await page.getByTestId("map-peak").textContent())).toBe(String(film.galSummary.peak.pixels));
-    // Sans donateur fourni par le clan, aucun bloc vide : ni carte « Plus gros donateurs », ni repli à ouvrir pour rien.
-    await expect(page.getByTestId("fold-people")).toHaveCount(0);
-    if (heroes.donors.length === 0) await expect(page.getByTestId("map-donors")).toHaveCount(0);
+    // « Faire grandir GAL » et son calculateur « Votre don sur la carte » ont été retirés le 9 novembre 2026 : la page reste courte.
+    for (const name of ["Faire grandir GAL", "Votre don sur la carte"]) await expect(page.getByRole("heading", { name })).toHaveCount(0);
     // Un bloc replié s'ouvre et se referme.
     const summary = page.getByTestId("fold-fronts").locator("summary");
     await summary.click();
     await expect(page.getByTestId("film-fronts")).toBeVisible();
     await summary.click();
     await expect(page.getByTestId("film-fronts")).toBeHidden();
-    // Sous la carte, la page se lit dans l'ordre : revoir l'histoire, où en est GAL, comment l'aider, puis le détail.
+    // Sous la carte, la page se lit dans l'ordre : revoir l'histoire, où en est GAL, puis le détail.
     const order = await page.locator("main section[id]").evaluateAll((sections) => sections.map((section) => section.id));
-    expect(order).toEqual(["histoire", "objectif", "participer", "details"]);
-    await expect(page.getByTestId("page-jumps").getByRole("link")).toHaveText(["Revoir l'histoire", "Où en est GAL", "Faire grandir GAL", "Les détails"]);
-    // Les façons d'aider se lisent sans rien ouvrir.
-    await expect(page.getByRole("heading", { name: "Donner des capsules" })).toBeVisible();
+    expect(order).toEqual(["histoire", "objectif", "details"]);
+    await expect(page.getByTestId("page-jumps").getByRole("link")).toHaveText(["Revoir l'histoire", "Où en est GAL", "Les détails"]);
+  });
+
+  test("revoir l'histoire tient en largeur : les moments en colonnes, la journée et les zones côte à côte", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/carte");
+    await expect(playButton(page)).toBeVisible();
+    const width = page.viewportSize()?.width ?? 0;
+    // Deux colonnes sur téléphone, six sur grand écran : la liste ne s'allonge plus en une seule colonne.
+    const tiles = page.getByTestId("map-moments").getByRole("button");
+    const count = await tiles.count();
+    expect(count).toBe(findMoments(film.frames).length);
+    const columns = await tiles.evaluateAll((els) => new Set(els.map((el) => Math.round(el.getBoundingClientRect().x))).size);
+    expect(columns).toBe(Math.min(count, width >= 1280 ? 6 : width >= 1024 ? 4 : width >= 640 ? 3 : 2));
+    // Sur grand écran, la plus belle journée et nos territoires sont sur la même ligne.
+    const day = page.getByTestId("map-days");
+    const zones = page.getByRole("heading", { name: "Nos territoires" }).locator("..");
+    if (width >= 768 && (await day.count()) > 0 && film.galSummary.zones.length > 0) {
+      expect(Math.round((await day.boundingBox())!.y)).toBe(Math.round((await zones.boundingBox())!.y));
+    }
+    // Rien ne déborde, même avec les tuiles.
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
   });
 
   // Avec « réduire les animations », le film attend ce bouton : il doit se voir dès l'arrivée sur la page.
@@ -180,7 +208,6 @@ test.describe("film de la carte", () => {
   test("le film va jusqu'au bout et retombe sur les chiffres de la page", async ({ page }) => {
     await page.goto("/carte");
     await expect(playButton(page)).toBeVisible();
-    await page.getByRole("button", { name: "× 4" }).click();
     await seekTo(page, film.frames.length - 6);
     await playButton(page).click();
     await expect(playButton(page)).toContainText("Rejouer", { timeout: 8000 });
@@ -366,36 +393,76 @@ test.describe("film de la carte", () => {
     expect(await position(page)).toBeLessThan(10);
   });
 
-  test("à × 4, la caméra reste sur la vue d'ensemble : aucun aller-retour", async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name !== "desktop", "Sur téléphone, la caméra suit GAL.");
+  test("la vitesse se règle de × 0,1 à × 1, jamais plus vite", async ({ page }) => {
+    await page.goto("/carte");
+    await expect(playButton(page)).toBeVisible();
+    const speed = page.getByTestId("film-speed");
+    const shown = page.locator("[data-film-speed-value]");
+    // Un curseur gradué de 0,1 en 0,1, à × 1 au départ : plus de × 2 ni de × 4.
+    await expect(speed).toHaveAttribute("min", "0.1");
+    await expect(speed).toHaveAttribute("max", "1");
+    await expect(speed).toHaveAttribute("step", "0.1");
+    await expect(speed).toHaveValue("1");
+    await expect(shown).toHaveText("× 1,0");
+    for (const name of ["× 2", "× 4"]) await expect(page.getByRole("button", { name })).toHaveCount(0);
+    // Le curseur a son nom, et dit sa valeur aux lecteurs d'écran.
+    await expect(page.getByRole("slider", { name: "Vitesse" })).toHaveAttribute("aria-valuetext", "vitesse normale");
+    // Au clavier, un pas de 0,1 à la fois.
+    await speed.focus();
+    await page.keyboard.press("ArrowLeft");
+    await expect(speed).toHaveValue("0.9");
+    await expect(shown).toHaveText("× 0,9");
+    await expect(speed).toHaveAttribute("aria-valuetext", "0,9 fois la vitesse normale");
+
+    // À × 0,1, le film avance bien moins vite qu'à × 1 pendant le même temps.
+    const framesIn = async (value: string) => {
+      await setSpeed(page, value);
+      await seekTo(page, 0);
+      await playButton(page).click();
+      await expect(playButton(page)).toContainText("Pause");
+      await page.waitForTimeout(1_500);
+      await playButton(page).click();
+      return position(page);
+    };
+    const normal = await framesIn("1");
+    const slow = await framesIn("0.1");
+    await expect(shown).toHaveText("× 0,1");
+    expect(normal).toBeGreaterThanOrEqual(6);
+    expect(slow).toBeLessThan(normal / 3);
+  });
+
+  test("un plan rapproché reste mesuré, puis la caméra revient seule à la carte entière", async ({ page }) => {
     test.slow();
     await page.goto("/carte");
     await expect(playButton(page)).toBeVisible();
-    await page.getByRole("button", { name: "× 4" }).click();
-    await seekTo(page, 0);
-    // La caméra a pu s'approcher d'un premier moment pendant la lecture automatique : elle revient d'abord.
-    await expect.poll(() => page.locator("[data-film-canvas]").getAttribute("data-zoom"), { timeout: 15_000 }).toBe("1.00");
+    const canvas = page.locator("[data-film-canvas]");
+    const zoom = async () => Number(await canvas.getAttribute("data-zoom"));
+    // Le moment choisi dans la liste a son plan rapproché, sur grand écran comme sur téléphone.
+    await page.getByRole("button", { name: /Premier pixel de GAL/ }).click();
+    await expect.poll(zoom, { timeout: 8_000 }).toBeGreaterThan(1.2);
+    // Le film s'arrête : aucun autre moment ne relance la caméra.
     await playButton(page).click();
-    // Le zoom de chaque image, jusqu'à la fin du film.
-    const zooms = await page.evaluate(
+    await expect(playButton(page)).not.toContainText("Pause");
+    // Le zoom de chaque image : jamais plus de trois fois la vue d'ensemble, puis le retour à la carte entière, sans clic.
+    const seen = await page.evaluate(
       () =>
         new Promise<number[]>((resolve) => {
-          const canvas = document.querySelector<HTMLCanvasElement>("[data-film-canvas]")!;
-          const pos = document.querySelector<HTMLInputElement>("[data-film-pos]")!;
-          const seen: number[] = [];
+          const el = document.querySelector<HTMLCanvasElement>("[data-film-canvas]")!;
+          const values: number[] = [];
+          const start = performance.now();
           const tick = () => {
-            seen.push(Number(canvas.dataset.zoom ?? "1"));
-            if (Number(pos.value) >= Number(pos.max)) resolve(seen);
+            values.push(Number(el.dataset.zoom ?? "1"));
+            if (el.dataset.zoom === "1.00" || performance.now() - start > 12_000) resolve(values);
             else requestAnimationFrame(tick);
           };
           requestAnimationFrame(tick);
         }),
     );
-    expect(zooms.length).toBeGreaterThan(10);
-    expect(Math.max(...zooms)).toBe(1);
+    expect(Math.max(...seen)).toBeLessThanOrEqual(3);
+    expect(seen.at(-1)).toBe(1);
   });
 
-  test("griser les autres clans et suivre GAL ne changent aucun chiffre", async ({ page }) => {
+  test("griser les autres clans et changer de vitesse ne changent aucun chiffre", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/carte");
     await expect(playButton(page)).toBeVisible();
@@ -407,11 +474,11 @@ test.describe("film de la carte", () => {
     await expect(focus).toHaveAttribute("aria-pressed", "true");
     await expect.poll(() => colorfulPixels(page)).toBeLessThan(pixels);
 
-    const follow = page.getByRole("button", { name: "Suivre GAL" });
-    const followed = await follow.getAttribute("aria-pressed");
-    await follow.click();
-    await expect(follow).toHaveAttribute("aria-pressed", followed === "true" ? "false" : "true");
+    await setSpeed(page, "0.3");
+    await expect(page.locator("[data-film-speed-value]")).toHaveText("× 0,3");
     await expect(page.getByTestId("film-gal")).toHaveText(before ?? "");
+    // Le bouton « Suivre GAL » a été retiré le 9 novembre 2026.
+    await expect(page.getByRole("button", { name: "Suivre GAL" })).toHaveCount(0);
   });
 
   test("avec « réduire les animations », le film attend une demande", async ({ page }) => {
@@ -486,7 +553,6 @@ test.describe("film de la carte", () => {
     await expect(page.getByTestId("fold-figures")).toHaveAttribute("open");
     await expect(page.getByTestId("map-peak")).toBeVisible();
     await expect(page.getByTestId("map-pixels")).toBeVisible();
-    await expect(page.getByTestId("map-ways")).toBeVisible();
     // Sans réponse de la fiche du clan, une ligne le dit au lieu d'une case vide ; avec, la case des réserves suffit.
     await expect(page.getByTestId("map-no-reserves")).toHaveCount(reservesKnown ? 0 : 1);
     if (!reservesKnown) await expect(page.getByTestId("map-no-reserves")).toBeVisible();
@@ -563,59 +629,6 @@ test.describe("film de la carte", () => {
     expect(await position(page)).toBeGreaterThanOrEqual(frame);
   });
 
-  test("le calculateur traduit les capsules en pixels sans toucher aux chiffres de la carte", async ({ page }) => {
-    await page.emulateMedia({ reducedMotion: "reduce" });
-    await page.goto("/carte");
-    const before = await page.getByTestId("film-gal").textContent();
-    const total = page.getByTestId("conquest-total");
-    const pixels = page.getByTestId("conquest-pixels");
-
-    await page.locator("[data-conquest-caps]").fill("1000");
-    await expect.poll(async () => digits(await total.textContent())).toBe("1000");
-    // 1 capsule = 100 troupes, 1 pixel neutre = 1 000 troupes.
-    expect(digits(await pixels.textContent())).toBe("100");
-
-    // Sans la fiche du clan, le nombre de membres vient de la liste des membres.
-    const memberCount = film.treasury?.members ?? JSON.parse(readFileSync("data/members.json", "utf8")).total;
-    await page.getByRole("button", { name: /Chaque membre/ }).click();
-    await expect.poll(async () => digits(await total.textContent())).toBe(String(1000 * memberCount));
-    expect(digits(await pixels.textContent())).toBe(String(100 * memberCount));
-    await expect(page.getByTestId("film-gal")).toHaveText(before ?? "");
-  });
-
-  test("le calculateur montre ce qu'il faut pour atteindre l'objectif", async ({ page }) => {
-    await page.emulateMedia({ reducedMotion: "reduce" });
-    await page.goto("/carte");
-    const me = film.standings.findIndex((s: { tag: string }) => s.tag === "GAL");
-    const above = film.standings[me - 1];
-    const gap = above.pixels - film.standings[me].pixels + 1;
-    await expect(page.getByTestId("map-gap")).toHaveText(fmtInt(gap));
-
-    await page.getByTestId("conquest-goal").click();
-    await expect(page.getByTestId("conquest-verdict")).toContainText(`en dépassant ${above.tag}`);
-    expect(Number(digits(await page.getByTestId("conquest-pixels").textContent()))).toBeGreaterThanOrEqual(gap);
-  });
-
-  test("la simulation se dessine sur sa propre carte", async ({ page }) => {
-    await page.emulateMedia({ reducedMotion: "reduce" });
-    await page.goto("/carte");
-    await page.getByTestId("conquest").scrollIntoViewIfNeeded();
-    const canvas = page.locator("[data-conquest-map]");
-    await expect(canvas).toBeVisible();
-    // Couleur de la simulation : un bleu presque blanc, absent de la carte d'origine.
-    const lit = () =>
-      canvas.evaluate((el: HTMLCanvasElement) => {
-        const { data } = el.getContext("2d")!.getImageData(0, 0, el.width, el.height);
-        let count = 0;
-        for (let i = 0; i < data.length; i += 4) if (data[i]! > 170 && data[i + 1]! > 225 && data[i + 2]! > 240) count++;
-        return count;
-      });
-    const small = await lit();
-    await page.locator("[data-conquest-caps]").fill("50000");
-    await expect.poll(lit).toBeGreaterThan(small);
-    await expect(page.getByText("Simulation, pas une prévision")).toBeVisible();
-  });
-
   test("on peut regarder un front ou une zone, puis revenir à la vue d'ensemble", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/carte");
@@ -651,24 +664,6 @@ test.describe("film de la carte", () => {
     // Même activé par une aide technique, le titre ne referme pas le bloc sur grand écran.
     await figures.locator("summary").dispatchEvent("click");
     await expect(figures).toHaveAttribute("open");
-  });
-
-  test("la page renvoie vers l'encadrement et Ma place, et aucun donateur n'est inventé", async ({ page }) => {
-    const heroes = JSON.parse(readFileSync("content/carte-heros.json", "utf8"));
-    await page.goto("/carte");
-
-    const ways = page.getByTestId("map-ways");
-    await expect(ways.getByRole("link", { name: "voir l'encadrement" })).toHaveAttribute("href", /\/membres#encadrement$/);
-    await expect(ways.getByRole("link", { name: "voir votre place dans le clan" })).toHaveAttribute("href", /\/#ma-place$/);
-
-    if (heroes.donors.length === 0) {
-      // Pas de bloc vide : la page dit seulement où trouver ce classement dans le jeu.
-      await expect(page.getByTestId("map-donors")).toHaveCount(0);
-      await expect(ways).toContainText("« Top donateurs »");
-    } else {
-      await expect(page.getByTestId("map-donors").locator("li").first()).toContainText(heroes.donors[0].player);
-    }
-    await expect(page.getByText("Un don est permanent et non remboursable.")).toBeVisible();
   });
 
   test("au retour, le film reprend après la dernière image vue, et dit ce qui a changé", async ({ page }) => {
@@ -723,10 +718,14 @@ test.describe("film de la carte", () => {
   });
 });
 
-test("sur téléphone, le film suit GAL sans déborder", async ({ page }, testInfo) => {
+test("sur téléphone, le film part de la carte entière, sans déborder", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile", "Testé sur mobile.");
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/carte");
-  await expect(page.getByRole("button", { name: "Suivre GAL" })).toHaveAttribute("aria-pressed", "true");
+  await expect(playButton(page)).toBeVisible();
+  // Plus de « Suivre GAL » activé d'office : comme sur grand écran, la caméra montre la vue d'ensemble.
+  await expect(page.getByRole("button", { name: "Suivre GAL" })).toHaveCount(0);
+  await expect.poll(() => page.locator("[data-film-canvas]").getAttribute("data-zoom")).toBe("1.00");
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(0);
 });

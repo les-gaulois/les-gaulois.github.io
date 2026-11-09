@@ -457,8 +457,8 @@ Lu dans le code de la page de la carte (`clanmap.openfront.io`) et du jeu, le 5 
 
 **Conséquences pour le site :**
 
-- **Le « joueur qui a le plus participé » à la carte n'est pas mesurable.** La page n'affiche donc aucun classement de peinture. Elle cite ceux qui peuvent peindre, sans dire qu'ils l'ont fait.
-- **Le top donateurs ne peut pas être collecté.** Il faudrait le compte d'un membre, ce qui est exclu pour ce site. De plus, le jeu indique : « Les dons sont uniquement visibles aux yeux des membres du clan ». Le site passe donc par `content/carte-heros.json`, rempli à la main par le clan s'il choisit de le publier.
+- **Le « joueur qui a le plus participé » à la carte n'est pas mesurable.** La page n'affiche donc aucun classement de peinture.
+- **Le top donateurs ne peut pas être collecté.** Il faudrait le compte d'un membre, ce qui est exclu pour ce site. De plus, le jeu indique : « Les dons sont uniquement visibles aux yeux des membres du clan ». Le site n'affiche donc aucun donateur. La liste que le clan pouvait remplir à la main pour la page Carte (`content/carte-heros.json`) a été retirée le 9 novembre 2026, avec « Faire grandir GAL ».
 - **Le top des victoires reste public.** Il vient de `stats.team`, déjà affiché sur la page Membres.
 
 ### Licences
@@ -493,7 +493,7 @@ Pour la connexion au site : voir [DIRECTION.md](DIRECTION.md). Testé le 5 novem
 
 Le code du jeu (`packages/shared/src/ClanApiSchemas.ts`) confirme que ces listes séparent les capsules (`soft`) du Plutonium (`hard`), et qu'elles excluent la part des victoires. La somme des dons n'est donc pas le trésor.
 
-**Conséquence : les dons ne peuvent pas être synchronisés** sans le compte d'un membre, ce que le projet exclut. Le site n'en lit aucun. Seule la page de la carte peut citer des donateurs, depuis une liste fournie par le clan (`content/carte-heros.json`).
+**Conséquence : les dons ne peuvent pas être synchronisés** sans le compte d'un membre, ce que le projet exclut. Le site n'en lit aucun et n'en affiche aucun : la liste fournie à la main par le clan pour la page Carte a été retirée le 9 novembre 2026.
 
 **Vérifié de plus le 6 novembre 2026, quand la question du temps réel s'est posée :**
 

@@ -6,11 +6,12 @@ import PageJumps from "../components/PageJumps.astro";
 import TerritoryChart from "../components/TerritoryChart.tsx";
 import { clan } from "../../config/clan";
 import { clanRgb } from "../lib/clanmap/codec";
-import { RULES_CHECKED_ON, TROOPS_PER_CAP, NEUTRAL_PIXEL_TROOPS, ENEMY_PIXEL_BASE_TROOPS, capsToTroops, neutralPixelsFor, objectiveFor } from "../lib/clanmap/economy";
-import { SHOT_SPACING_MS } from "../lib/fx/camera";
+import { NEUTRAL_PIXEL_TROOPS, RULES_CHECKED_ON, TROOPS_PER_CAP, capsToTroops, neutralPixelsFor, objectiveFor } from "../lib/clanmap/economy";
+import { FILM_MS, SHOT_SPACING_MS } from "../lib/fx/camera";
+import { SPEED_MAX, SPEED_MIN, SPEED_STEP, speedLabel, speedText } from "../lib/fx/speed";
 import { changeSinceLastDay, dayHighlights, dayRows, parisDayOf, territorySeries, type DayRow } from "../lib/clanmap/days";
 import { findMoments, nextThreshold } from "../lib/clanmap/moments";
-import { loadClanMapFilm, loadClanMapJournal, loadMapHeroes, loadMembers, loadMeta } from "../lib/data";
+import { loadClanMapFilm, loadClanMapJournal, loadMeta } from "../lib/data";
 import { fmtDate, fmtDay, fmtDec1, fmtEpochDay, fmtEpochTime, fmtInt, fmtRank } from "../lib/format";
 import { endingOn } from "../lib/gazette";
 import { MAX_AGE_HOURS } from "../lib/freshness";
@@ -68,24 +69,12 @@ const reserveGoal =
         ? `Il en manque ${fmtInt(objective.gap - reservePixels)} pour l'objectif.`
         : null;
 
-// La page se lit de haut en bas : revoir l'histoire, où en est GAL, comment l'aider, puis le détail.
+// La page se lit de haut en bas : revoir l'histoire, où en est GAL, puis le détail.
 const jumps = [
   { href: "#histoire", label: "Revoir l'histoire", show: hasHistory },
   { href: "#objectif", label: "Où en est GAL", show: gal !== null },
-  { href: "#participer", label: "Faire grandir GAL", show: true },
   { href: "#details", label: "Les détails", show: true },
 ].filter((jump) => jump.show);
-
-// Calculateur : valeurs affichées avant le démarrage du script, et sans JavaScript.
-const startCaps = 100;
-const startTroops = capsToTroops(startCaps);
-const startPixels = neutralPixelsFor(startTroops);
-
-// Les joueurs : les rôles et les victoires sont publics, les dons sont recopiés par le clan.
-const members = loadMembers();
-const memberCount = treasury?.members ?? members?.total ?? null;
-const heroes = loadMapHeroes();
-const donorLead = heroes.donors[0]?.caps ?? 1;
 
 const journal = loadClanMapJournal();
 const today = journal.at(-1);
@@ -100,7 +89,7 @@ const sinceLine =
       : null;
 ---
 
-<Base title="Carte" description="Le territoire du clan GAL sur la carte officielle des clans d'OpenFront, rejoué du premier pixel au dernier. L'objectif du moment et comment faire grandir GAL.">
+<Base title="Carte" description="Le territoire du clan GAL sur la carte officielle des clans d'OpenFront, rejoué du premier pixel au dernier, et l'objectif du moment.">
   {
     !film ? (
       <div class="wrap pt-12">
@@ -173,14 +162,25 @@ const sinceLine =
                   <input type="range" min="0" value="0" step="1" data-film-pos data-testid="film-pos" aria-label="Position dans le film" />
                   <span class="film-dates tnum" data-film-dates data-testid="film-dates" aria-hidden="true"></span>
                 </div>
-                <div class="film-opts" role="group" aria-label="Vitesse de lecture">
-                  <button type="button" class="chip" data-film-speed="1" aria-pressed="true">× 1</button>
-                  <button type="button" class="chip" data-film-speed="2" aria-pressed="false">× 2</button>
-                  <button type="button" class="chip" data-film-speed="4" aria-pressed="false">× 4</button>
+                <div class="film-speed">
+                  <label for="film-speed" class="text-sm font-semibold text-muted">Vitesse</label>
+                  <input
+                    id="film-speed"
+                    class="film-range"
+                    type="range"
+                    min={SPEED_MIN}
+                    max={SPEED_MAX}
+                    step={SPEED_STEP}
+                    value={SPEED_MAX}
+                    aria-valuetext={speedText(SPEED_MAX)}
+                    data-film-speed
+                    data-testid="film-speed"
+                  />
+                  {/* La valeur écrite pour les yeux ; le curseur la donne déjà aux lecteurs d'écran. */}
+                  <output for="film-speed" class="tnum text-sm font-semibold" aria-hidden="true" data-film-speed-value>{speedLabel(SPEED_MAX)}</output>
                 </div>
                 <div class="film-opts">
                   <button type="button" class="chip" data-film-focus aria-pressed="false">Griser les autres</button>
-                  <button type="button" class="chip" data-film-follow aria-pressed="false">Suivre GAL</button>
                 </div>
               </div>
             </div>
@@ -193,7 +193,7 @@ const sinceLine =
           </div>
 
           <div class="wrap mt-6">
-            <p class="max-w-3xl text-lg text-muted">Les clans d'OpenFront peignent un territoire sur une carte commune. Voici toute son histoire, du premier pixel au dernier, et ce qu'il faut pour que GAL aille plus loin.</p>
+            <p class="max-w-3xl text-lg text-muted">Les clans d'OpenFront peignent un territoire sur une carte commune. Voici toute son histoire, du premier pixel au dernier, et le prochain objectif de GAL.</p>
             <PageJumps links={jumps} />
           </div>
         </section>
@@ -204,65 +204,70 @@ const sinceLine =
               <section class="scroll-mt-24" id="histoire" aria-labelledby="history-title">
                 <h2 id="history-title" class="section-title section-title-sm">Revoir l'histoire</h2>
                 <p class="mt-2 max-w-2xl text-muted" data-film-ready hidden>Choisissez un moment, une journée ou une zone : la carte s'y place.</p>
-                <div class="mt-5 grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
-                  {
-                    moments.length > 0 && (
-                      <div class="card p-5" data-film-ready hidden data-testid="map-moments">
-                        <h3 class="text-lg">Les grands moments</h3>
-                        <ol class="film-timeline mt-3">
-                          {moments.map((m) => (
-                            <li>
-                              <button type="button" class="film-timeline-item" data-film-moment={m.frame}>
-                                <span class="tnum text-sm text-muted">{m.at === null ? "" : fmtEpochDay(m.at)}</span>
-                                {/* Le dernier relevé n'a pas besoin de ses chiffres ici : ils sont juste au-dessus, sous la carte. Le film les garde dans sa légende. */}
-                                <span class="font-semibold">{m.kind === "now" ? "Dernier relevé" : m.title}</span>
-                              </button>
-                            </li>
-                          ))}
-                        </ol>
-                      </div>
-                    )
-                  }
-                  <div class="grid grid-cols-1 gap-5">
-                    {
-                      dayCards.length > 0 && (
-                        <div class="card p-5" data-testid="map-days">
-                          <h3 class="text-lg">La plus belle journée</h3>
-                          <div class="mt-3">
+                {/* Large et peu haut : les grands moments en tuiles sur toute la largeur, puis la journée et les zones côte à côte. */}
+                {
+                  moments.length > 0 && (
+                    <div class="card mt-5 p-4 sm:p-5" data-film-ready hidden data-testid="map-moments">
+                      <h3 class="text-lg">Les grands moments</h3>
+                      <ol class="film-tiles mt-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+                        {moments.map((m) => (
+                          <li>
+                            <button type="button" class="film-tile" data-film-moment={m.frame}>
+                              <span class="tnum text-xs text-muted">{m.at === null ? "" : fmtEpochDay(m.at)}</span>
+                              {/* Le dernier relevé n'a pas besoin de ses chiffres ici : ils sont juste au-dessus, sous la carte. Le film les garde dans sa légende. */}
+                              <span class="font-semibold">{m.kind === "now" ? "Dernier relevé" : m.title}</span>
+                            </button>
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  )
+                }
+                {
+                  (dayCards.length > 0 || (gal?.zones.length ?? 0) > 0) && (
+                    <div class="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
+                      {
+                        dayCards.length > 0 && (
+                          <div class="card p-4 sm:p-5" data-testid="map-days">
+                            <h3 class="text-lg">La plus belle journée</h3>
                             {dayCards.map(({ row, title }) => (
-                              <div data-testid="map-day">
-                                <p class="text-sm font-semibold text-muted">{title}</p>
-                                <p class="tnum mt-1 font-display text-2xl font-extrabold">{signed(row.net)} pixels</p>
-                                <p class="tnum mt-1 text-sm text-muted">Le {fmtDay(row.date)} : {fmtInt(row.taken)} pris, {fmtInt(row.lost)} perdus.</p>
-                                <div class="mt-3" data-film-ready hidden>
+                              <div class="mt-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-3" data-testid="map-day">
+                                <div>
+                                  <p class="text-sm font-semibold text-muted">{title}</p>
+                                  <p class="tnum mt-1 font-display text-2xl font-extrabold">{signed(row.net)} pixels</p>
+                                  <p class="tnum mt-1 text-sm text-muted">Le {fmtDay(row.date)} : {fmtInt(row.taken)} pris, {fmtInt(row.lost)} perdus.</p>
+                                </div>
+                                <div data-film-ready hidden>
                                   <button type="button" class="btn btn-ghost !min-h-10 !py-1.5 !text-sm" {...dayReplay(row)} aria-label={`Revoir cette journée, le ${fmtDay(row.date)}`}>Revoir cette journée</button>
                                 </div>
                               </div>
                             ))}
+                            <p class="mt-3 text-xs text-muted">Pixels pris moins pixels perdus, en heure de Paris, sur les journées terminées.</p>
                           </div>
-                          <p class="mt-4 text-xs text-muted">Pixels pris moins pixels perdus, en heure de Paris, sur les journées terminées.</p>
-                        </div>
-                      )
-                    }
-                    {
-                      gal && gal.zones.length > 0 && (
-                        <div class="card p-5" data-film-ready hidden>
-                          <h3 class="text-lg">Nos territoires</h3>
-                          <p class="tnum mt-1 text-sm text-muted">{fmtInt(gal.zoneCount)} zones d'un seul tenant. Voici les plus grandes.</p>
-                          <ul class="film-moments mt-3">
-                            {gal.zones.map((z, i) => (
-                              <li>
-                                <button type="button" class="chip tnum" data-film-look={`Zone ${i + 1} : ${fmtInt(z.pixels)} pixels`} data-x={z.x} data-y={z.y} data-half-width={z.halfWidth} data-half-height={z.halfHeight}>
-                                  Zone {i + 1} · {fmtInt(z.pixels)} pixels
-                                </button>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )
-                    }
-                  </div>
-                </div>
+                        )
+                      }
+                      {
+                        gal && gal.zones.length > 0 && (
+                          <div class="card p-4 sm:p-5" data-film-ready hidden>
+                            <h3 class="text-lg">Nos territoires</h3>
+                            <p class="tnum mt-1 text-sm text-muted">{fmtInt(gal.zoneCount)} zones d'un seul tenant. Voici les plus grandes.</p>
+                            <ul class="film-tiles mt-3 grid-cols-[repeat(auto-fill,minmax(8rem,1fr))]">
+                              {gal.zones.map((z, i) => (
+                                <li>
+                                  <button type="button" class="film-tile" data-film-look={`Zone ${i + 1} : ${fmtInt(z.pixels)} pixels`} data-x={z.x} data-y={z.y} data-half-width={z.halfWidth} data-half-height={z.halfHeight}>
+                                    {/* Le nom lu reprend le texte visible, avec une pause entre le numéro et les pixels. */}
+                                    <span class="text-xs text-muted">Zone {i + 1}<span class="sr-only"> :</span></span>
+                                    <span class="tnum font-semibold">{fmtInt(z.pixels)} pixels</span>
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )
+                      }
+                    </div>
+                  )
+                }
               </section>
             )
           }
@@ -366,114 +371,6 @@ const sinceLine =
               </section>
             )
           }
-
-          <section class="scroll-mt-24" id="participer" aria-labelledby="help-title">
-            <h2 id="help-title" class="section-title section-title-sm">Faire grandir GAL</h2>
-            <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3" data-testid="map-ways">
-              <div class="card p-5">
-                <h3 class="text-lg">Donner des capsules</h3>
-                <p class="mt-2 text-sm text-muted">Sur la fiche de [{clan.tag}] dans le jeu, le bouton « Faire un don » envoie vos capsules au trésor du clan. Il est réservé aux membres.</p>
-                <p class="tnum mt-2 text-sm text-muted">1 capsule = {TROOPS_PER_CAP} troupes.</p>
-                {heroes.donors.length === 0 && <p class="mt-2 text-sm text-muted">Le classement des donateurs est réservé aux membres, dans le jeu : fiche de [{clan.tag}], onglet « Dons », puis « Top donateurs ».</p>}
-              </div>
-              <div class="card p-5">
-                <h3 class="text-lg">Jouer sous le tag</h3>
-                <p class="mt-2 text-sm text-muted">Le code du jeu prévoit aussi une part des victoires pour le trésor du clan. Son montant n'est pas public, donc ce site n'en donne aucun chiffre.</p>
-                <p class="mt-2 text-sm text-muted">Chaque victoire sous le tag compte aussi pour votre place parmi les Gaulois : <a href={`${base}/#ma-place`}>voir votre place dans le clan</a>.</p>
-                <a href={clan.links.openfront} class="btn btn-ghost mt-4 !min-h-10 !py-1.5 !text-sm" rel="noopener">Jouer à OpenFront</a>
-              </div>
-              <div class="card p-5">
-                <h3 class="text-lg">Peindre la carte</h3>
-                <p class="tnum mt-2 text-sm text-muted">Seuls le chef et les officiers peuvent peindre : <a href={`${base}/membres#encadrement`}>voir l'encadrement</a>. Ils achètent des troupes avec le trésor : un pixel neutre coûte {fmtInt(NEUTRAL_PIXEL_TROOPS)} troupes, un pixel ennemi {fmtInt(ENEMY_PIXEL_BASE_TROOPS)} et plus selon les troupes de ce clan.</p>
-                <p class="mt-2 text-sm text-muted">Le jeu ne publie pas qui a peint quel pixel : personne n'est classé ici pour sa peinture.</p>
-                <a href="https://clanmap.openfront.io/" class="btn btn-ghost mt-4 !min-h-10 !py-1.5 !text-sm" rel="noopener">Voir la carte officielle</a>
-              </div>
-            </div>
-
-            {
-              gal && objective && (
-                <section class="stage stage-night mt-6 grid grid-cols-1 gap-8 lg:grid-cols-2" aria-labelledby="conquest-title" data-conquest data-assets={assets} data-members={memberCount ?? undefined} data-testid="conquest">
-                  <div>
-                    <h3 id="conquest-title" class="section-title section-title-sm">Votre don sur la carte</h3>
-                    <p class="mt-3 text-muted">Combien de pixels valent vos capsules ? Essayez : rien n'est donné ici, le site ne touche pas à votre compte.</p>
-
-                    <div class="mt-4 grid gap-3" data-conquest-ready hidden>
-                      <label class="grid gap-1 text-sm font-semibold" for="conquest-caps">Capsules données</label>
-                      <input id="conquest-caps" class="field tnum" type="number" min="0" max="10000000" step="10" value={startCaps} inputmode="numeric" data-conquest-caps />
-                      <input class="film-range" type="range" min="0" max="100" step="1" value="33" aria-label="Capsules données, sur une échelle progressive" data-conquest-range />
-                      {memberCount !== null && (
-                        <div class="film-opts" role="group" aria-label="Qui donne">
-                          <button type="button" class="chip" data-conquest-scope="me" aria-pressed="true">Moi seul</button>
-                          <button type="button" class="chip" data-conquest-scope="all" aria-pressed="false">Chaque membre ({fmtInt(memberCount)})</button>
-                        </div>
-                      )}
-                      {objective.above && objective.gap !== null && memberCount !== null && (
-                        <button type="button" class="btn btn-secondary justify-self-start !whitespace-normal" data-conquest-goal data-testid="conquest-goal">Que faut-il pour dépasser {objective.above.tag} ?</button>
-                      )}
-                    </div>
-
-                    <dl class="tnum mt-4 grid grid-cols-3 gap-3">
-                      <div>
-                        <dt class="text-xs text-muted">Capsules</dt>
-                        <dd class="font-display text-2xl font-extrabold" data-conquest-total data-testid="conquest-total">{fmtInt(startCaps)}</dd>
-                      </div>
-                      <div>
-                        <dt class="text-xs text-muted">Troupes</dt>
-                        <dd class="font-display text-2xl font-extrabold" data-conquest-troops>{fmtInt(startTroops)}</dd>
-                      </div>
-                      <div>
-                        <dt class="text-xs text-muted">Pixels neutres</dt>
-                        <dd class="font-display text-2xl font-extrabold" data-conquest-pixels data-testid="conquest-pixels">{fmtInt(startPixels)}</dd>
-                      </div>
-                    </dl>
-                    <p class="mt-3 font-semibold" aria-live="polite" data-conquest-verdict data-testid="conquest-verdict">GAL passerait de {fmtInt(gal.pixels)} à {fmtInt(gal.pixels + startPixels)} pixels.</p>
-                    <p class="mt-3 text-sm">Pour donner pour de vrai : fiche de [{clan.tag}] dans le jeu, bouton « Faire un don ». <strong class="text-warn">Un don est permanent et non remboursable. Rien ne vous oblige à donner.</strong></p>
-                  </div>
-                  <div class="grid content-start gap-2">
-                    <div class="conquest-map">
-                      <canvas data-conquest-map hidden role="img" aria-label="Simulation : le territoire de GAL et les pixels neutres qu'il pourrait peindre autour de lui."></canvas>
-                      <span class="film-hud !left-2.5 !right-auto" data-conquest-map-ready hidden aria-hidden="true">Simulation</span>
-                    </div>
-                    <p class="text-xs text-muted">Simulation, pas une prévision : le chef et les officiers choisissent où peindre, et la carte ne change pas ici.</p>
-                  </div>
-                </section>
-              )
-            }
-
-            {/* Les donateurs n'ont un bloc que si le clan a fourni sa liste : sinon, « Donner des capsules » dit où la trouver dans le jeu. */}
-            {
-              heroes.donors.length > 0 && (
-                <div class="card mt-6 p-5" data-testid="map-donors">
-                  <h3 class="text-lg">Plus gros donateurs</h3>
-                  <ol class="tnum mt-3 space-y-3">
-                    {heroes.donors.slice(0, 5).map((d, i) => (
-                      <li>
-                        <div class="flex items-baseline justify-between gap-3">
-                          <span class="min-w-0 truncate font-semibold">{i + 1}. {d.player}</span>
-                          <span class="text-sm text-muted">{fmtInt(d.caps)} capsules</span>
-                        </div>
-                        <div class="meter mt-1" aria-hidden="true"><i style={{ "--v": `${(d.caps / donorLead) * 100}%` }}></i></div>
-                      </li>
-                    ))}
-                  </ol>
-                  <p class="mt-3 text-xs text-muted">Relevé à la main par le clan dans le jeu{heroes.updatedOn && `, le ${fmtDate(`${heroes.updatedOn}T12:00:00Z`)}`}. Ces chiffres ne viennent pas de la collecte automatique.</p>
-                </div>
-              )
-            }
-            {
-              heroes.highlights.length > 0 && (
-                <ul class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3" data-testid="map-highlights">
-                  {heroes.highlights.map((h) => (
-                    <li class="card p-5">
-                      <p class="text-sm font-semibold text-muted">{h.title}</p>
-                      <p class="mt-1 font-display text-2xl font-extrabold">{h.player}</p>
-                      {h.detail && <p class="mt-1 text-sm text-muted">{h.detail}</p>}
-                    </li>
-                  ))}
-                </ul>
-              )
-            }
-          </section>
 
           <section class="scroll-mt-24" id="details" aria-labelledby="details-title">
             <h2 id="details-title" class="section-title section-title-sm">Les détails</h2>
@@ -584,12 +481,13 @@ const sinceLine =
                       <li><strong class="text-white">Des dates, mais pas une horloge.</strong> Chaque image porte la date de son dernier changement, donnée par OpenFront et écrite en heure de Paris. Le film suit le rythme des changements : une journée très active prend plus de place sur la frise qu'une journée calme.</li>
                     )
                   }
-                  <li><strong class="text-white">Une caméra posée.</strong> La caméra glisse sans à-coup. À la vitesse × 1, elle s'approche lentement de GAL sur quelques grands moments, au plus une fois toutes les {SHOT_SPACING_MS / 1000} secondes. Aux vitesses × 2 et × 4, elle ne s'approche que d'un moment choisi dans la liste. Avec « Suivre GAL », activé d'office sur téléphone, elle accompagne notre territoire et ne fait aucun plan rapproché. Avec « réduire les animations », elle ne s'approche jamais et passe directement d'un cadre à l'autre.</li>
+                  <li><strong class="text-white">Une vitesse au choix.</strong> À {speedLabel(SPEED_MAX)}, le film entier dure {FILM_MS / 1000} secondes. Le curseur « Vitesse » le ralentit pas à pas jusqu'à {speedLabel(SPEED_MIN)}, {Math.round(SPEED_MAX / SPEED_MIN)} fois plus lent.</li>
+                  <li><strong class="text-white">Une caméra posée.</strong> La caméra glisse sans à-coup. Elle s'approche lentement de GAL sur quelques grands moments, au plus une fois toutes les {SHOT_SPACING_MS / 1000} secondes, et revient d'elle-même à la vue d'ensemble. Avec « réduire les animations », elle ne s'approche jamais et passe directement d'un cadre à l'autre.</li>
                   <li><strong class="text-white">Le film reprend où vous l'aviez laissé.</strong> Votre navigateur garde la date de la dernière image vue, sur cet appareil seulement : au retour, le film ne rejoue que la suite, et « Rejouer » redonne le film entier. Rien n'est envoyé au site.</li>
                   <li><strong class="text-white">Une mise à jour par jour.</strong> Ce ne sont pas des données en temps réel. La carte vient de l'historique public documenté par OpenFront, lu par la collecte du site et jamais par votre navigateur. Les réserves du clan viennent de sa fiche, une route non documentée : quand elle ne répond pas à la collecte, « GAL en chiffres » le dit en une ligne, sans chiffre{reservePixels === null && ", comme en ce moment"}.</li>
                   <li><strong class="text-white">Vérifié à chaque mise à jour.</strong> Chaque événement officiel annonce l'ancien propriétaire du pixel. Rejoué depuis le premier pixel, l'historique retombe dessus, avec {fmtInt(film.check.mismatches)} écart sur {fmtInt(film.check.events)} événements. En cas d'écart, le film n'est pas mis à jour.</li>
                   <li><strong class="text-white">Ce que l'historique ne donne pas.</strong> Il ne dit pas les troupes des autres clans. Le site n'affiche donc pas le coût exact d'un pixel ennemi.</li>
-                  <li><strong class="text-white">Des coûts indicatifs.</strong> Ils viennent du code de la carte et ne tiennent pas compte de la forme du territoire ni des pixels verrouillés. Le jeu peut les changer.</li>
+                  <li><strong class="text-white">Des coûts indicatifs.</strong> Les réserves du clan sont converties avec les règles lues dans le code de la carte : 1 capsule = {fmtInt(TROOPS_PER_CAP)} troupes, 1 pixel neutre = {fmtInt(NEUTRAL_PIXEL_TROOPS)} troupes. Ces coûts ne tiennent pas compte de la forme du territoire ni des pixels verrouillés, et le jeu peut les changer.</li>
                   <li><strong class="text-white">Image allégée.</strong> Les chiffres sont calculés sur la carte complète, {fmtInt(film.width)} × {fmtInt(film.height)} pixels. Seul le film est affiché en résolution réduite.</li>
                   <li><strong class="text-white">Dessins des joueurs.</strong> Les motifs visibles sont peints par les joueurs, et le site ne les filtre pas.</li>
                 </ul>
@@ -606,7 +504,6 @@ const sinceLine =
 
 <script>
   import "../scripts/film";
-  import "../scripts/conquest";
 
   // Les blocs repliés sur téléphone seulement : au-delà de 48rem, ils sont toujours ouverts et leur titre ne prend pas le focus.
   // Un écran qui s'élargit (rotation) les rouvre ; un écran qui rétrécit les laisse comme ils sont.

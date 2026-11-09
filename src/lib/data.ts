@@ -10,7 +10,6 @@ import {
   Events,
   HistorySnapshot,
   Links,
-  MapHeroes,
   Meta,
   Nouveautes,
   RivalsSnapshot,
@@ -69,7 +68,6 @@ export function loadTerritoryReadings(): TerritoryReading[] {
   const film = loadClanMapFilm();
   return territoryReadings(film ? dayRows(film.days ?? [], film.frames, film.fetchedAt) : [], loadClanMapJournal());
 }
-export const loadMapHeroes = () => read("content/carte-heros.json", MapHeroes) ?? { updatedOn: null, donors: [], highlights: [] };
 
 export function loadSessions(): StoredSession[] {
   return listJson("data/sessions").flatMap((f) => read(`data/sessions/${f}`, StoredSessionFile)?.sessions ?? []);

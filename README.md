@@ -18,7 +18,7 @@ Le plan est dans `src/lib/nav.ts`. Une rubrique répond à une question de visit
 | Actu | `/gazette`, `/parties`, `/nouveautes` | Le bilan de la semaine, les parties une par une, les mises à jour du site expliquées |
 | Résultats | `/classement`, `/rivaux`, `/progression`, `/records` | La liste officielle, la course et les face-à-face, les courbes, les records avec les résultats par format et par carte de jeu |
 | Membres | `/membres`, `/membres/:id`, `/qg` | Les paliers, l'encadrement, le classé, la liste, les fiches ; le QG, face privée réservée aux membres validés |
-| Carte | `/carte` | Le film, puis revoir l'histoire, où en est GAL, faire grandir GAL et le détail |
+| Carte | `/carte` | Le film, puis revoir l'histoire, où en est GAL et le détail |
 | Guides | `/debuter`, `/activite`, `/outils` | Les guides, quand jouer et le jeu en groupe, le calculateur et les outils |
 | Rejoindre | `/rejoindre` | Les étapes pour entrer dans le clan |
 
@@ -112,7 +112,6 @@ Tout se modifie depuis GitHub, sans outil particulier. L'enregistrement relance 
 | Outils communautaires | `content/links.json` | `{ "tools": [{ "name": "…", "url": "https://…", "description": "…" }] }` |
 | Guides par mode | `content/guide/*.md` | Markdown |
 | Guide du clan, chapitre par chapitre | `content/guide-clan/*.md` | Markdown |
-| Donateurs de la carte | `content/carte-heros.json` | `{ "updatedOn": "2026-11-05", "donors": [{ "player": "…", "caps": 1200 }], "highlights": [{ "title": "…", "player": "…", "detail": "… (facultatif)" }] }` |
 | Nouveautés du site | `content/nouveautes.json` | `[{ "date": "2026-11-08", "kind": "nouveau", "title": "…", "body": "…", "link": { "href": "/page", "label": "…" } (facultatif) }]` — `kind` : `nouveau`, `ameliore`, `corrige` ou `retire` ; la plus récente en tête |
 
 **Les nouveautés du site expliquent chaque mise à jour.** Chaque changement qu'un visiteur ou l'encadrement peut remarquer ajoute son entrée en tête de `content/nouveautes.json`, le jour de sa mise en ligne : un titre, puis une ou deux phrases simples, 200 caractères au plus, sur ce qui change pour le visiteur. Les données collectées chaque heure n'y vont pas. Le bouton « Nouveautés » de l'en-tête, sur grand écran, montre les trois dernières ; sur téléphone, elles sont dans le menu ; la page `/nouveautes` les donne toutes, par jour. Un point rouge signale au visiteur une entrée parue depuis son dernier passage : son navigateur garde seulement la marque de la dernière vue (`gal-nouveautes`). À la première visite, cette marque est retenue sans allumer de point : rien n'est nouveau pour ce visiteur.
@@ -192,7 +191,7 @@ Tous les calculs sont dans `src/lib/` et testés :
 - **Territoire sur la carte :** pixels rejoués depuis l'historique. L'ordre des clans suit le nombre de pixels, comme la liste de la carte officielle. Ce n'est pas le classement des clans.
 - **Pixels pris et perdus :** comptés à chaque changement de main d'un pixel. Les terres neutres sont comptées à part.
 - **Objectif :** pixels du clan juste devant, moins ceux de GAL, plus 1.
-- **Coûts de la carte :** 1 capsule = 100 troupes, 1 pixel neutre = 1 000 troupes, 1 pixel ennemi = 2 000 troupes et plus selon les troupes du clan visé. Règles lues dans le code de la carte, dans `src/lib/clanmap/economy.ts`. **Si le jeu les change, il faut les mettre à jour à la main.**
+- **Coûts de la carte :** 1 capsule = 100 troupes, 1 pixel neutre = 1 000 troupes. Ils traduisent les réserves du clan en pixels neutres. Règles lues dans le code de la carte, dans `src/lib/clanmap/economy.ts`. **Si le jeu les change, il faut les mettre à jour à la main.**
 - **Grands moments du film :** déduits des chiffres de chaque image dans `src/lib/clanmap/moments.ts`, sans texte écrit à la main. Chacun porte la date de son image.
 - **Journées de GAL :** les dates viennent de l'historique officiel et se comptent en jours de Paris (`src/lib/clanmap/replay.ts`, `days.ts`). Le solde d'une journée est ses pixels pris moins ses pixels perdus. Les deux records ne regardent que les journées terminées. La gazette prend le territoire à la fin de ces journées, et le relevé quotidien de `journal.json` pour le reste.
 
@@ -298,7 +297,6 @@ Les effets au curseur et aux clics sont dans `src/scripts/fx.ts`. Ils sont décr
 - Le film ne filtre pas les dessins peints par les joueurs sur la carte.
 - Le jeu ne publie pas qui a peint quel pixel : le site ne peut classer personne pour sa peinture.
 - De la connexion, seules la connexion Discord d'un compte et la désignation du fondateur ont été essayées en vrai. Il n'y a plus de test automatique des droits côté serveur : voir [docs/DIRECTION.md](docs/DIRECTION.md).
-- Les parcours décrits dans « Faire grandir GAL », sur la page Carte, viennent du code du jeu et n'ont pas été essayés avec un compte. Le texte devra être relu par un membre du clan.
 
 ## Licence
 

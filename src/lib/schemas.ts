@@ -453,19 +453,6 @@ export const Events = z.array(
   }),
 );
 export type Events = z.infer<typeof Events>;
-/**
- * Donateurs recopiés à la main par le clan : le jeu réserve ce classement à ses
- * membres et aucune route publique ne le donne. Vide : le site n'affiche aucun nom.
- */
-export const MapHeroes = z.object({
-  updatedOn: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .nullable(),
-  donors: z.array(z.object({ player: z.string().min(1), caps: z.number().int().positive() })),
-  highlights: z.array(z.object({ title: z.string().min(1), player: z.string().min(1), detail: z.string().optional() })),
-});
-export type MapHeroes = z.infer<typeof MapHeroes>;
 export const Links = z.object({
   tools: z.array(z.object({ name: z.string().min(1), url: z.url(), description: z.string().min(1) })),
 });

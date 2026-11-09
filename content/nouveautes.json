@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-09",
+    "kind": "ameliore",
+    "title": "Une page Carte plus courte",
+    "body": "Le film se ralentit au curseur, de × 0,1 à × 1, sans × 2 ni × 4. « Revoir l'histoire » s'étale en largeur. « Faire grandir GAL », le calculateur de don et « Suivre GAL » sont retirés.",
+    "link": {
+      "href": "/carte",
+      "label": "Voir la carte"
+    }
+  },
+  {
+    "date": "2026-11-09",
     "kind": "nouveau",
     "title": "Le Gaulois de la semaine",
     "body": "Chaque semaine, l'encadrement peut mettre un membre à l'honneur, avec un mot. L'accueil le montre à tous, sous le podium des Gaulois de la semaine, sans dire qui l'a choisi."

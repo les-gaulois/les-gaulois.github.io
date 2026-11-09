@@ -35,8 +35,8 @@ Audit complet, routes et réponses observées : `docs/API_AUDIT.md`. Les visiteu
 ## Dons et conditions d'utilisation
 
 - Les conditions d'OpenFront (sections 5 et 6.5) interdisent robots et scripts : aucune lecture automatique de ce qui demande un compte de joueur, aucune session de joueur dans une variable d'environnement.
-- Les dons sont réservés aux membres dans le jeu. Seule voie : un officier recopie la liste à la main dans `/admin` (`src/components/compte/AdminApp.tsx`, migration `20261106000200_dons_copies_a_la_main.sql`) ou le clan remplit `content/carte-heros.json`. Rien n'automatise cette copie.
-- Aucun nom de donneur ni montant sans cette liste. Capsules seulement : ne jamais pousser vers le Plutonium, monnaie payante.
+- Les dons sont réservés aux membres dans le jeu : aucune route publique ne les donne, et le site n'en affiche aucun. La liste recopiée à la main par les officiers pour l'ancien jeu (migration `20261106000200_dons_copies_a_la_main.sql`) reste dans la base sans être affichée, et `content/carte-heros.json` a été retiré avec « Faire grandir GAL » le 9 novembre 2026. Rien n'automatise une copie.
+- Aucun nom de donneur ni montant sans une liste fournie par le clan. Capsules seulement : ne jamais pousser vers le Plutonium, monnaie payante.
 
 ## Reprendre un fichier ou du code d'OpenFront
 

@@ -88,8 +88,8 @@ export function moveCamera(camera: Camera, target: CameraView, dt: number, smoot
 }
 
 /**
- * Les grands moments filmés de près pendant une lecture à la vitesse × 1 : les plus importants
- * d'abord, et jamais deux plans à moins de `spacingMs` l'un de l'autre.
+ * Les grands moments filmés de près pendant la lecture : les plus importants d'abord, et jamais
+ * deux plans à moins de `spacingMs` l'un de l'autre à la vitesse × 1. Plus lent, ils s'espacent encore.
  */
 export function pickShots(moments: readonly { frame: number; kind: MomentKind }[], frameMs: number, spacingMs = SHOT_SPACING_MS): Set<number> {
   const kept: number[] = [];
