@@ -34,16 +34,27 @@ async function relaunch(fake: ReturnType<typeof fakeGitHub>, passphraseSet = tru
 }
 
 describe("la sauvegarde de la semaine lancée par le robot", () => {
-  it("ne lance rien et ne demande rien à GitHub sans phrase de passe", async () => {
+  it("sans phrase de passe, ne lance rien, ne demande rien à GitHub, et le signale", async () => {
     const fake = fakeGitHub();
-    expect((await relaunch(fake, false)).result).toBe("off");
+    const { result, lines } = await relaunch(fake, false);
+    expect(result).toBe("off");
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatch(/^::warning::.*SAUVEGARDE_CLE/);
     expect(fake.calls).toEqual([]);
+  });
+
+  it("n'avertit de rien quand la semaine a sa sauvegarde", async () => {
+    const { result, lines } = await relaunch(fakeGitHub({ runs: [run(4, "2026-11-16T03:10:00Z")], artifacts: { 4: [{ expired: false }] } }));
+    expect(result).toBe("done");
+    expect(lines.some((line) => line.startsWith("::"))).toBe(false);
   });
 
   it("lance la sauvegarde quand la semaine n'en a pas encore, sur la branche donnée", async () => {
     // Celle de la semaine passée, gardée, ne compte pas pour celle-ci.
     const fake = fakeGitHub({ runs: [run(2, "2026-11-09T06:33:00Z")], artifacts: { 2: [{ expired: false }] } });
-    expect((await relaunch(fake)).result).toBe("launched");
+    const { result, lines } = await relaunch(fake);
+    expect(result).toBe("launched");
+    expect(lines).toEqual(["Sauvegarde de la semaine lancée."]);
     expect(fake.launches()).toEqual([{ path: "/actions/workflows/sauvegarde.yml/dispatches", method: "POST", body: JSON.stringify({ ref: "main" }) }]);
     expect(fake.calls.some((c) => c.path === "/actions/runs/2/artifacts")).toBe(false);
   });

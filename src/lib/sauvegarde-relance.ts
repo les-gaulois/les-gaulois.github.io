@@ -8,7 +8,8 @@
  * Une sauvegarde ratée est relancée au passage suivant, avec trois essais au plus dans la semaine, lancements à la main
  * compris : au-delà, le robot le signale en avertissement et attend la semaine suivante, pour ne pas répéter toutes les
  * heures la même erreur. Tant qu'une exécution n'est pas finie, il ne lance rien ; si elle attend depuis plus d'une heure
- * (incident de GitHub), il le signale aussi.
+ * (incident de GitHub), il le signale aussi. Sans le secret SAUVEGARDE_CLE, il ne lance rien et le signale à chaque
+ * passage : un avertissement se lit sur la page de l'exécution, et par l'API publique, sans ouvrir le journal.
  */
 import { backupWeekStart } from "./sauvegarde";
 
@@ -40,7 +41,8 @@ export interface RelaunchDeps {
 
 export async function relaunchBackupIfDue({ api, now, passphraseSet, ref, log }: RelaunchDeps): Promise<RelaunchResult> {
   if (!passphraseSet) {
-    log("Pas de SAUVEGARDE_CLE : aucune sauvegarde à lancer.");
+    // En avertissement, visible sur la page de l'exécution sans ouvrir le journal : sans phrase, plus aucune sauvegarde.
+    log("::warning::Sauvegarde : ce job ne voit pas le secret SAUVEGARDE_CLE (absent des secrets du dépôt, ou non transmis par site.yml), aucune sauvegarde ne se fait. Voir docs/DIRECTION.md, « La sauvegarde chiffrée ».");
     return "off";
   }
   const listed = await api(`/actions/workflows/${BACKUP_WORKFLOW}/runs?per_page=30`);
