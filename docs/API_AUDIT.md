@@ -252,15 +252,19 @@ Testé le 7 novembre 2026, à la main. Donne les métadonnées de toutes les par
 
 Sur 13 272 sessions du 10 avril au 6 novembre 2026, 11 ont un `totalPlayerCount` de 1, et toutes sont gagnées. Le détail de l'une d'elles confirme un seul joueur humain, dans une partie publique avec 400 robots. Ces parties ont les meilleurs scores de toute l'archive : le site ne publie donc pas de record de score, et les écarte de ses autres records.
 
-### Salons en attente : aucun pseudo lisible, pas utilisé
+### Salons en attente : ni pseudo ni tag lisible, pas utilisé
 
-Le 9 novembre 2026, le pilote a demandé un pop-up sur l'accueil quand un joueur au tag GAL attend dans un salon d'OpenFront, avec un bouton pour le rejoindre. Lu dans le code du jeu (branche `main`, commit `ac60675`) : c'est impossible, pour trois raisons.
+Le 9 novembre 2026, le pilote a demandé un pop-up sur l'accueil quand un joueur au tag GAL attend dans un salon d'OpenFront, avec un bouton pour le rejoindre, puis, à défaut du pseudo, le seul tag. Lu dans le code du jeu (branche `main`, commit `ac60675`) : c'est impossible dans les deux cas, pour trois raisons.
 
 - **La liste publique des salons ne nomme personne.** Le jeu la diffuse par une connexion permanente (`/wN/lobbies`), dans un format binaire qui suit chaque version du jeu. Pour chaque salon : l'identifiant, la configuration, l'heure de départ et le **nombre** de joueurs, ni pseudo ni tag (`PublicGameInfoSchema`, `packages/shared/src/WireSchemas.ts`).
-- **Les pseudos d'un salon restent dans le jeu.** Ils ne vont qu'aux joueurs déjà dans le salon, et à `GET /wN/api/game/:id`, dont le CORS n'autorise que `openfront.io`, son site de replays et l'application de bureau (`src/server/GameApiCors.ts`). Essayé à la main le 9 novembre 2026, deux appels avec un identifiant inventé : 403 et `cf-mitigated: challenge`, la barrière anti-robot de Cloudflare, que l'origine annoncée soit la nôtre ou `openfront.io`. Un salon public part deux minutes après être passé en tête de sa file (`MasterLobbyService.ts`, `ServerEnv.gameCreationRate`) : la collecte horaire ne peut pas le suivre.
+- **Pseudos et tags d'un salon restent dans le jeu.** Ils ne vont qu'aux joueurs déjà dans le salon, et à `GET /wN/api/game/:id`, dont le CORS n'autorise que `openfront.io`, son site de replays et l'application de bureau (`src/server/GameApiCors.ts`). Essayé à la main le 9 novembre 2026, deux appels avec un identifiant inventé : 403 et `cf-mitigated: challenge`, la barrière anti-robot de Cloudflare, que l'origine annoncée soit la nôtre ou `openfront.io`. En chacun pour soi, le jeu retire même les tags pour les joueurs du salon (`disableClanTags` dans `src/server/MapPlaylist.ts`, appliqué par `NameVisibility.lobbyClients`). Un salon public part deux minutes après être passé en tête de sa file (`MasterLobbyService.ts`, `ServerEnv.gameCreationRate`) : la collecte horaire ne peut pas le suivre.
 - **Les conditions l'interdisent.** Section 5 : aucun moyen automatisé que le jeu ne fournit pas. Section 6.5 : aucun logiciel tiers, extension ou script, qui lit le trafic du jeu. Section 6.2 : en chacun pour soi, toute entente arrangée hors de la partie avec un autre joueur de la même partie est interdite ; un bouton pour rejoindre un autre Gaulois y pousserait.
 
-Seule voie restante : qu'un membre partage lui-même le lien de son salon, que le jeu donne par un bouton de copie dans l'écran du salon privé (`src/client/HostLobbyModal.ts`). Proposé au pilote le même jour.
+En équipes, le jeu place ensemble les joueurs d'un même tag, et passe en spectateurs ceux qui dépassent la taille d'une équipe (`convertClanOverflowToSpectators`, `src/server/GameServer.ts`).
+
+Recherche du même jour : aucun site ni outil de la communauté trouvé qui montre les tags d'un salon en attente. « OpenFront Game Notifier », un script de Greasy Fork, tourne sur openfront.io même et trie les salons par mode, carte et taille ; un script de ce genre est interdit par la section 6.5, sauf accord écrit d'OpenFront.
+
+Voies restantes : qu'un membre partage lui-même le lien de son salon, que le jeu donne par un bouton de copie dans l'écran du salon privé (`src/client/HostLobbyModal.ts`), proposé au pilote le même jour ; ou qu'OpenFront ouvre une voie publique, question ajoutée au message de la section 10.
 
 ### Routes essayées qui n'existent pas (404)
 
@@ -330,7 +334,7 @@ Ces parties antérieures à la création du clan sont liées au **tag**, pas for
 | Face-à-face avec les autres clans | ✅⚠️ | `/public/game/:id`. L'équipe des perdants est calculée avec la règle du jeu, et contrôlée sur les vainqueurs. |
 | Journal des parties et lien vers le jeu | ✅⚠️ | Sessions et `/public/game/:id`. L'équipe des perdants est calculée, comme pour les face-à-face. Le lien `https://openfront.io/game/:id` n'est pas documenté, et ne rejoue que la version actuelle du jeu : voir « Détail d'une partie ». |
 | Joueurs connectés en direct | ❌ | Aucune source. Non proposé. |
-| Pop-up « un Gaulois attend dans un salon », avec bouton pour le rejoindre | ❌ | La liste des salons ne donne que le nombre de joueurs ; leurs pseudos sont réservés au jeu, et les conditions interdisent de les lire autrement. Voir « Salons en attente ». |
+| Pop-up « un Gaulois attend dans un salon », avec bouton pour le rejoindre, même par le seul tag | ❌ | La liste des salons ne donne que le nombre de joueurs ; pseudos et tags sont réservés au jeu, les tags cachés à tous en chacun pour soi, et les conditions interdisent de les lire autrement. Voir « Salons en attente ». |
 | Liste ou profil des anciens membres | ❌ | Le roster ne donne que les membres actuels. |
 | Nombre de joueurs du clan dans le temps | ⚠️ | Seulement via nos instantanés, sur la page Progression depuis le 7 novembre 2026. Reconstruire par `joinedAt` oublierait ceux qui sont partis. |
 | Description, ouverture, nom officiel | ⚠️ | Route hors `/public`. À valider (voir la proposition). |
@@ -535,6 +539,8 @@ D'après la documentation du jeu, un jeton d'identité dure 10 minutes, n'est va
 > How we would use it: our server validates the token once with `POST /public/identity_token/validate`, checks the public ID against `/public/clan/GAL/members`, then discards the token. We store neither the token nor the public ID, only a hash, and members without a public username stay anonymous.
 >
 > A question about the clan map. Our site builds its timelapse from your documented `/public/clanmap/history` and your Giant World Map, credited under CC BY-SA 4.0, thank you for both. Two things are not in the public API: each clan's troops (`/clanmap/ownership`) and a clan's treasury (`/clans/GAL`). `/clanmap/ownership` answered 403 from GitHub Actions, so we stopped reading it, and we will not try to get around that. Our reading of `/clans/GAL` fails from GitHub Actions too, so the site shows "no data" for the treasury; we still try once a day, and we will stop if you prefer. Would you consider public versions of these, or tell us if we may read them once a day?
+>
+> A question about lobbies. Our members would love a notice on our site when a [GAL] player is waiting in a public Team lobby, with a link to join. Your lobby feed only gives player counts and the rosters stay in the game, so we have built nothing, and we will not read them any other way. Would you consider a public, documented way for community sites to see the clan tags waiting in Team lobbies? Never in FFA, where you hide tags on purpose.
 >
 > A small bug report, in case it helps: links to archived games from older builds do not replay for us. `https://openfront.io/game/cA4qqR72uf` goes to `https://replay.openfront.io/cA4qqR72uf`, then stops on the "join private lobby" screen, because the fetch to `https://api.openfront.io/game/cA4qqR72uf` is blocked by CORS: the allowed origin is `https://openfront.io`, not `https://replay.openfront.io`. Games from the current build replay fine.
 >
