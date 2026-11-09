@@ -1139,7 +1139,8 @@ th.fx-cross {
   padding-block: 0.875rem;
 }
 .fold > summary,
-.guide-fold > summary {
+.guide-fold > summary,
+.fold-phone > summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1149,11 +1150,13 @@ th.fx-cross {
   list-style: none;
 }
 .fold > summary::-webkit-details-marker,
-.guide-fold > summary::-webkit-details-marker {
+.guide-fold > summary::-webkit-details-marker,
+.fold-phone > summary::-webkit-details-marker {
   display: none;
 }
 .fold > summary::after,
-.guide-fold > summary::after {
+.guide-fold > summary::after,
+.fold-phone > summary::after {
   content: "+";
   flex: none;
   font-family: var(--font-display);
@@ -1162,8 +1165,26 @@ th.fx-cross {
   line-height: 1;
 }
 .fold[open] > summary::after,
-.guide-fold[open] > summary::after {
+.guide-fold[open] > summary::after,
+.fold-phone[open] > summary::after {
   content: "−";
+}
+/* Un bloc replié sur téléphone seulement (page Carte). Le HTML le donne ouvert : sans script, rien n'est caché.
+   Un script en ligne le referme sous 48rem, avant le premier affichage. Au-delà, il est ouvert : son titre ne se
+   clique pas, et disparaît s'il ne sert qu'à replier (`.fold-phone-quiet`). Seul l'état ouvert est neutralisé :
+   un bloc resté fermé sur un écran qui s'élargit garde son « + » et se rouvre d'un geste. */
+@media (min-width: 48rem) {
+  .fold-phone[open] > summary {
+    min-height: 0;
+    cursor: default;
+    pointer-events: none;
+  }
+  .fold-phone[open] > summary::after {
+    content: none;
+  }
+  .fold-phone-quiet[open] > summary {
+    display: none;
+  }
 }
 /* Le texte de la page peut se couper partout : un chiffre ou un tag de clan, non. */
 .film-fronts {

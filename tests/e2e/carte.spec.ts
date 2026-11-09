@@ -99,6 +99,30 @@ test.describe("film de la carte", () => {
     for (const fold of [...(datedFilm ? ["fold-days"] : []), "fold-fronts", "fold-read"]) {
       await expect(page.getByTestId(fold)).not.toHaveAttribute("open");
     }
+    // Deux blocs secondaires ne se replient que sur téléphone : sur grand écran, ils restent ouverts, comme avant.
+    const phone = (page.viewportSize()?.width ?? 0) < 768;
+    const heroes = JSON.parse(readFileSync("content/carte-heros.json", "utf8"));
+    const figures = page.getByTestId("fold-figures");
+    if (phone) {
+      await expect(figures).not.toHaveAttribute("open");
+      await expect(page.getByTestId("map-pixels")).toBeHidden();
+      await figures.locator("summary").click();
+    } else {
+      await expect(figures).toHaveAttribute("open");
+      // Le titre n'est pas un bouton sur grand écran : il ne prend pas le focus.
+      await expect(figures.locator("summary")).toHaveAttribute("tabindex", "-1");
+    }
+    await expect(page.getByTestId("map-pixels")).toBeVisible();
+    // Les donateurs et les peintres : repliés sur téléphone tant que le clan n'a fourni aucun nom.
+    const people = page.getByTestId("fold-people");
+    if (phone && heroes.donors.length === 0 && heroes.highlights.length === 0) {
+      await expect(people).not.toHaveAttribute("open");
+      await expect(page.getByTestId("map-painters")).toBeHidden();
+      await people.locator("summary").click();
+    } else {
+      await expect(people).toHaveAttribute("open");
+    }
+    await expect(page.getByTestId("map-painters")).toBeVisible();
     // Un bloc replié s'ouvre et se referme.
     const summary = page.getByTestId("fold-fronts").locator("summary");
     await summary.click();
@@ -456,6 +480,10 @@ test.describe("film de la carte", () => {
     await page.goto("/carte");
     await expect(page.locator("[data-testid=film-map] img")).toBeVisible();
     await expect(page.getByTestId("map-figure")).toHaveCount(4);
+    // Sans script, rien n'est caché : les deux blocs repliés sur téléphone restent ouverts, à toutes les largeurs.
+    for (const fold of ["fold-figures", "fold-people"]) await expect(page.getByTestId(fold)).toHaveAttribute("open");
+    await expect(page.getByTestId("map-pixels")).toBeVisible();
+    await expect(page.getByTestId("map-painters")).toBeVisible();
     // Les grandes journées restent lisibles, sans leur bouton inutile.
     if (datedFilm) {
       await expect(page.getByTestId("map-day").first()).toBeVisible();
@@ -603,11 +631,31 @@ test.describe("film de la carte", () => {
     expect(await position(page)).toBe(film.frames.length);
   });
 
+  test("un téléphone tourné en paysage retrouve les blocs ouverts, sans bouton à chercher", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto("/carte");
+    const figures = page.getByTestId("fold-figures");
+    await expect(figures).not.toHaveAttribute("open");
+    // L'écran s'élargit : les blocs se rouvrent d'eux-mêmes, et leur titre n'est plus un bouton.
+    await page.setViewportSize({ width: 1024, height: 768 });
+    for (const fold of ["fold-figures", "fold-people"]) await expect(page.getByTestId(fold)).toHaveAttribute("open");
+    await expect(page.getByTestId("map-pixels")).toBeVisible();
+    await expect(page.getByTestId("map-painters")).toBeVisible();
+    await expect(figures.locator("summary")).toHaveAttribute("tabindex", "-1");
+    // Même activé par une aide technique, le titre ne referme pas le bloc sur grand écran.
+    await figures.locator("summary").dispatchEvent("click");
+    await expect(figures).toHaveAttribute("open");
+  });
+
   test("la page renvoie vers l'encadrement et Ma place, et aucun donateur n'est inventé", async ({ page }) => {
     const heroes = JSON.parse(readFileSync("content/carte-heros.json", "utf8"));
     await page.goto("/carte");
 
     const painters = page.getByTestId("map-painters");
+    // Sur téléphone, le bloc est replié tant que le clan n'a fourni aucun nom : on l'ouvre comme le ferait un visiteur.
+    const people = page.getByTestId("fold-people");
+    if ((await people.getAttribute("open")) === null) await people.locator("summary").click();
     await expect(painters.getByRole("link", { name: "voir l'encadrement" })).toHaveAttribute("href", /\/membres#encadrement$/);
     await expect(painters.getByRole("link", { name: "voir votre place dans le clan" })).toHaveAttribute("href", /\/#ma-place$/);
 
