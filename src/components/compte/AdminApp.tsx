@@ -1,5 +1,6 @@
 import { useEffect, useState } from "preact/hooks";
 import { LOG_CATEGORIES, LOG_LIMIT, LOG_PAGE, describe, filterLog, logPeople, type LogCategory } from "../../lib/compte/admin-log";
+import { ROSTER_CELL_LABELS, ROSTER_CELL_WARN, openRequests, rosterCell } from "../../lib/compte/admin-members";
 import { basePath, call } from "../../lib/compte/api";
 import { announcePendingChange } from "../../lib/compte/pending";
 import { READY_REASONS, requestWait, requestsSummary } from "../../lib/compte/requests";
@@ -152,7 +153,16 @@ function Members({ me }: { me: Me }) {
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
   const list = useList<MemberRow>("list_members", { p_search: query || null, p_limit: 200 });
-  const action = useAction(list.reload);
+  // Pour un compte en attente, la colonne « Liste » dit s'il a une demande ouverte. Sans cette lecture, elle ne devine rien.
+  // La même lecture donne la date de la dernière relecture de la liste officielle.
+  const pending = useList<RequestRow>("list_membership_requests");
+  const requests = openRequests(pending.error ? null : pending.rows);
+  const roster = pending.error ? undefined : (pending.extra["roster"] as { read_at: string } | null | undefined);
+  // Une demande a pu arriver entre-temps : chaque relecture reprend les deux listes.
+  const reloadAll = async () => {
+    await Promise.all([list.reload(), pending.reload()]);
+  };
+  const action = useAction(reloadAll);
   // Un rôle choisi dans la liste attend une confirmation : au clavier ou d'un doigt, on choisit vite un autre rôle par erreur.
   const [draft, setDraft] = useState<{ user: string; role: Role } | null>(null);
   // Après « Confirmer » ou « Annuler », le focus revient à la liste du rôle, une fois l'envoi fini : sinon, il repartirait du haut de la page.
@@ -178,6 +188,7 @@ function Members({ me }: { me: Me }) {
         onSubmit={(e) => {
           e.preventDefault();
           setQuery(search);
+          void pending.reload();
         }}
       >
         <div class="min-w-48 flex-1">
@@ -190,7 +201,8 @@ function Members({ me }: { me: Me }) {
           Chercher
         </button>
       </form>
-      <Problem message={list.error ?? action.error} onRetry={() => void list.reload()} />
+      <Problem message={list.error ?? action.error} onRetry={() => void reloadAll()} />
+      {!list.error && <Problem message={pending.error ? "Les demandes n'ont pas pu être lues : la colonne Liste ne dit pas si un compte en attente en a une." : null} onRetry={() => void pending.reload()} />}
       {action.done && <Success message={action.done} />}
       {list.rows === null ? (
         !list.error && <Loading />
@@ -198,7 +210,8 @@ function Members({ me }: { me: Me }) {
         <Empty>Aucun compte trouvé.</Empty>
       ) : (
         <div class="mt-3 overflow-x-auto" tabIndex={0} role="region" aria-label="Membres">
-          <table class="data-table w-full">
+          {/* Sur téléphone, le tableau défile dans son cadre : coupé n'importe où, comme le reste de la page, il écrirait les mots lettre par lettre. */}
+          <table class="data-table w-full [overflow-wrap:break-word]">
             <thead>
               <tr>
                 <th scope="col">Nom</th>
@@ -213,6 +226,7 @@ function Members({ me }: { me: Me }) {
               {list.rows.map((m) => {
                 const editable = rank >= 3 && m.status === "validated" && m.role !== "founder" && (rank >= 4 || m.role !== "admin") && m.user_id !== undefined;
                 const chosen = draft?.user === m.user_id ? draft.role : null;
+                const cell = rosterCell(m, requests);
                 return (
                   <tr key={m.user_id} data-testid="member-row">
                     <td class="font-semibold">{m.name}</td>
@@ -221,14 +235,16 @@ function Members({ me }: { me: Me }) {
                       {STATUS_LABELS[m.status]}
                       {m.status_reason ? ` : ${m.status_reason}` : ""}
                     </td>
-                    <td>{m.linked ? (m.in_roster ? "Oui" : <span class="text-warn">Plus dans la liste</span>) : "—"}</td>
+                    <td class={ROSTER_CELL_WARN.has(cell) ? "text-warn" : cell === "no_request" ? "text-muted" : undefined} data-testid="member-roster">
+                      {ROSTER_CELL_LABELS[cell]}
+                    </td>
                     <td>
                       {editable ? (
                         <>
                           <select
                             id={`role-${m.user_id}`}
                             aria-label={`Rôle de ${m.name}`}
-                            class="field !min-h-9 !py-1"
+                            class="field !min-h-9 min-w-32 !py-1"
                             value={chosen ?? m.role}
                             disabled={action.busy}
                             onChange={(e) => {
@@ -307,7 +323,11 @@ function Members({ me }: { me: Me }) {
           </table>
         </div>
       )}
-      <p class="mt-2 text-xs text-muted">Vous êtes {ROLE_LABELS[myRole]}. Le serveur revérifie chaque changement.</p>
+      <p class="mt-2 text-xs text-muted" data-testid="members-names-help">
+        <span data-testid="members-roster-date">{roster ? `Liste officielle relue le ${fmtDateTime(roster.read_at)}. ` : roster === null ? "La liste officielle n'a encore jamais été relue. " : ""}</span>
+        Un compte s'appelle « Gaulois n° … » jusqu'à sa validation, puis prend son pseudo de la liste officielle. Validé hors de la liste, ou membre sans pseudo public, il garde ce nom.
+      </p>
+      <p class="mt-1 text-xs text-muted">Vous êtes {ROLE_LABELS[myRole]}. Le serveur revérifie chaque changement.</p>
     </div>
   );
 }
