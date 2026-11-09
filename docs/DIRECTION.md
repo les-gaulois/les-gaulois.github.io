@@ -250,8 +250,13 @@ Il vérifie que le projet répond, que Discord est activé, que l'e-mail est cou
 - **L'espace Direction et un second compte sur le vrai Supabase.** La connexion Discord, elle, a été essayée le 6 novembre 2026 : `on_auth_user_updated` remplit bien le nom et l'identifiant depuis `auth.identities`. Le nom gardé est le nom d'utilisateur Discord, pas le nom affiché.
 - **Un vrai téléphone, Firefox et Safari.**
 - **La vue joueur avec un vrai compte de l'encadrement.** Le 8 novembre 2026, elle n'a été essayée qu'avec un faux serveur, dans un vrai navigateur : bouton, bande, en-tête, `/compte`, `/direction` et `/admin`.
-- **L'avis à l'encadrement.** Le secret `DISCORD_WEBHOOK_ENCADREMENT` est posé et le robot s'en sert sans avertissement. Le 9 novembre 2026, aucune demande n'attendait : le message de mise en service doit prouver le lien au premier passage de jour qui suit sa publication. Un vrai message de demande n'est pas encore parti.
-- **La sauvegarde chiffrée, elle, a été vérifiée de bout en bout.** Le 9 novembre 2026, le secret `SAUVEGARDE_CLE` a été posé, et l'Action lancée à la main a gardé `sauvegarde-2`. La direction a rouvert ce fichier avec la phrase telle qu'elle l'a rangée (`npm run sauvegarde:verifier`). Le lancement chaque semaine par le robot n'a pas encore eu son premier lundi.
+- **L'avis à l'encadrement, pour une vraie demande.** Le secret `DISCORD_WEBHOOK_ENCADREMENT` est posé. Le 9 novembre 2026 à 12:53 UTC, le robot a envoyé le message de mise en service : Discord l'a accepté, sans avertissement, et `app_state` l'a noté. Un message de demande n'est pas encore parti, faute de demande.
+- **La sauvegarde chiffrée, elle, a été vérifiée de bout en bout.** Le 9 novembre 2026 :
+  - le secret `SAUVEGARDE_CLE` a été posé, et l'Action lancée à la main a gardé `sauvegarde-2` ;
+  - la direction a rouvert ce fichier avec la phrase telle qu'elle l'a rangée (`npm run sauvegarde:verifier`) ;
+  - à 12:53 UTC, le robot a lancé lui-même la sauvegarde de la semaine (`sauvegarde-3`), et son compte rendu est parti sur le salon de l'encadrement, sans avertissement.
+
+  Le compte rendu d'une sauvegarde ratée n'a pas encore servi.
 - **Le QG.** Le 9 novembre 2026, il n'a été essayé qu'avec un faux serveur, dans un vrai navigateur : la porte, un compte en attente, un membre, l'encadrement. Sa migration (`20261109000100_qg_des_membres.sql`) n'a tourné sur aucun Postgres avant le vrai projet. Le nom du champ où Discord donne la photo (`avatar_url`, sinon `picture`) n'a pas été lu sur le vrai projet : si une photo manque au premier essai réel, c'est là qu'il faut regarder. D'ici là, l'initiale s'affiche.
 - **Les événements répétés, « Je viens », les sondages et le mot d'accueil.** Le 8 novembre 2026, ils n'ont été essayés qu'avec un faux serveur, dans un vrai navigateur. Leur migration (`20261108000200_vie_du_clan.sql`) est installée sur le vrai projet, et ses droits contrôlés en lecture seule ; les fonctions elles-mêmes n'y ont pas encore servi.
 - **La confirmation d'un rôle, l'attente des demandes et les raisons toutes prêtes.** Le 8 novembre 2026, ils n'ont été essayés qu'avec un faux serveur, dans un vrai navigateur.
