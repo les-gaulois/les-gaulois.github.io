@@ -252,6 +252,16 @@ Testé le 7 novembre 2026, à la main. Donne les métadonnées de toutes les par
 
 Sur 13 272 sessions du 10 avril au 6 novembre 2026, 11 ont un `totalPlayerCount` de 1, et toutes sont gagnées. Le détail de l'une d'elles confirme un seul joueur humain, dans une partie publique avec 400 robots. Ces parties ont les meilleurs scores de toute l'archive : le site ne publie donc pas de record de score, et les écarte de ses autres records.
 
+### Salons en attente : aucun pseudo lisible, pas utilisé
+
+Le 9 novembre 2026, le pilote a demandé un pop-up sur l'accueil quand un joueur au tag GAL attend dans un salon d'OpenFront, avec un bouton pour le rejoindre. Lu dans le code du jeu (branche `main`, commit `ac60675`) : c'est impossible, pour trois raisons.
+
+- **La liste publique des salons ne nomme personne.** Le jeu la diffuse par une connexion permanente (`/wN/lobbies`), dans un format binaire qui suit chaque version du jeu. Pour chaque salon : l'identifiant, la configuration, l'heure de départ et le **nombre** de joueurs, ni pseudo ni tag (`PublicGameInfoSchema`, `packages/shared/src/WireSchemas.ts`).
+- **Les pseudos d'un salon restent dans le jeu.** Ils ne vont qu'aux joueurs déjà dans le salon, et à `GET /wN/api/game/:id`, dont le CORS n'autorise que `openfront.io`, son site de replays et l'application de bureau (`src/server/GameApiCors.ts`). Essayé à la main le 9 novembre 2026, deux appels avec un identifiant inventé : 403 et `cf-mitigated: challenge`, la barrière anti-robot de Cloudflare, que l'origine annoncée soit la nôtre ou `openfront.io`. Un salon public part deux minutes après être passé en tête de sa file (`MasterLobbyService.ts`, `ServerEnv.gameCreationRate`) : la collecte horaire ne peut pas le suivre.
+- **Les conditions l'interdisent.** Section 5 : aucun moyen automatisé que le jeu ne fournit pas. Section 6.5 : aucun logiciel tiers, extension ou script, qui lit le trafic du jeu. Section 6.2 : en chacun pour soi, toute entente arrangée hors de la partie avec un autre joueur de la même partie est interdite ; un bouton pour rejoindre un autre Gaulois y pousserait.
+
+Seule voie restante : qu'un membre partage lui-même le lien de son salon, que le jeu donne par un bouton de copie dans l'écran du salon privé (`src/client/HostLobbyModal.ts`). Proposé au pilote le même jour.
+
 ### Routes essayées qui n'existent pas (404)
 
 `/public/clan/GAL/players`, `/public/clans`, `/public/clan/GAL/info`, `/stats`, `/profile`, `/elo`, `/history`, `/requests`, `/bans`, `/wars`, `/public/clans/GAL`.
@@ -320,6 +330,7 @@ Ces parties antérieures à la création du clan sont liées au **tag**, pas for
 | Face-à-face avec les autres clans | ✅⚠️ | `/public/game/:id`. L'équipe des perdants est calculée avec la règle du jeu, et contrôlée sur les vainqueurs. |
 | Journal des parties et lien vers le jeu | ✅⚠️ | Sessions et `/public/game/:id`. L'équipe des perdants est calculée, comme pour les face-à-face. Le lien `https://openfront.io/game/:id` n'est pas documenté, et ne rejoue que la version actuelle du jeu : voir « Détail d'une partie ». |
 | Joueurs connectés en direct | ❌ | Aucune source. Non proposé. |
+| Pop-up « un Gaulois attend dans un salon », avec bouton pour le rejoindre | ❌ | La liste des salons ne donne que le nombre de joueurs ; leurs pseudos sont réservés au jeu, et les conditions interdisent de les lire autrement. Voir « Salons en attente ». |
 | Liste ou profil des anciens membres | ❌ | Le roster ne donne que les membres actuels. |
 | Nombre de joueurs du clan dans le temps | ⚠️ | Seulement via nos instantanés, sur la page Progression depuis le 7 novembre 2026. Reconstruire par `joinedAt` oublierait ceux qui sont partis. |
 | Description, ouverture, nom officiel | ⚠️ | Route hors `/public`. À valider (voir la proposition). |
