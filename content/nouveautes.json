@@ -1,6 +1,42 @@
 [
   {
     "date": "2026-11-09",
+    "kind": "nouveau",
+    "title": "Les records des joueurs",
+    "body": "La page Records nomme les Gaulois : le plus de victoires en une semaine, le plus de parties en une semaine dès qu'elles sont relevées, et le plus de victoires sous le tag.",
+    "link": {
+      "href": "/records",
+      "label": "Voir les records"
+    }
+  },
+  {
+    "date": "2026-11-09",
+    "kind": "nouveau",
+    "title": "Les visages des Gaulois",
+    "body": "Un membre reconnu et connecté voit la photo Discord de ceux qui ont choisi de se montrer au QG, à côté de leur pseudo : podiums, records, encadrement, fiches. Les visiteurs ne la voient pas.",
+    "link": {
+      "href": "/confidentialite",
+      "label": "Qui voit les photos"
+    }
+  },
+  {
+    "date": "2026-11-09",
+    "kind": "ameliore",
+    "title": "Un accueil pour les membres",
+    "body": "Le bouton du haut mène au Discord du clan, l'appel à rejoindre reste en bas de page, et la porte du QG dit à un membre connecté ce qui l'attend : sondages, idées, événements."
+  },
+  {
+    "date": "2026-11-09",
+    "kind": "ameliore",
+    "title": "La Carte et les Membres plus faciles sur téléphone",
+    "body": "La page Carte ne répète plus le territoire de GAL, n'a plus de bloc vide et met en avant sa plus belle journée. Sur Membres, les pseudos se touchent mieux du doigt.",
+    "link": {
+      "href": "/carte",
+      "label": "Voir la carte"
+    }
+  },
+  {
+    "date": "2026-11-09",
     "kind": "ameliore",
     "title": "Des pages plus courtes, surtout sur téléphone",
     "body": "Rivaux, Membres et la Gazette montrent d'abord l'essentiel, la suite s'ouvre d'un geste. Sur téléphone, la page Carte replie aussi « GAL en chiffres » et le bloc des donateurs."

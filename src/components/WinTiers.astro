@@ -27,19 +27,20 @@ const profile = (publicId: string | null) => `${base}/membres/${encodeURICompone
               <p class="tnum text-sm text-muted" data-testid="win-tier-count">{fmtCount(row.count, "membre")}</p>
             </div>
             <div class="min-w-0 text-sm">
+              {/* Des pseudos assez hauts pour le doigt : 32 px de haut au lieu de 17, l'écart entre les lignes est dans le lien. `.link` leur garde l'allure d'un lien. */}
               {row.named.length > 0 && row.named.length <= OPEN_NAMES && (
-                <ul class="flex flex-wrap gap-x-4 gap-y-1">
+                <ul class="-my-1.5 flex flex-wrap gap-x-4">
                   {row.named.map((m) => (
-                    <li class="min-w-0 [overflow-wrap:anywhere]"><a href={profile(m.publicId)}>{m.username}</a></li>
+                    <li class="min-w-0 [overflow-wrap:anywhere]"><a class="link inline-block py-1.5" href={profile(m.publicId)}>{m.username}</a></li>
                   ))}
                 </ul>
               )}
               {row.named.length > OPEN_NAMES && (
                 <details>
-                  <summary class="cursor-pointer font-semibold">Voir les {row.named.length} pseudos</summary>
-                  <ul class="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                  <summary class="cursor-pointer py-1.5 font-semibold">Voir les {row.named.length} pseudos</summary>
+                  <ul class="mt-0.5 flex flex-wrap gap-x-4">
                     {row.named.map((m) => (
-                      <li class="min-w-0 [overflow-wrap:anywhere]"><a href={profile(m.publicId)}>{m.username}</a></li>
+                      <li class="min-w-0 [overflow-wrap:anywhere]"><a class="link inline-block py-1.5" href={profile(m.publicId)}>{m.username}</a></li>
                     ))}
                   </ul>
                 </details>

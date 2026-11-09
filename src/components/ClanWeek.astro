@@ -2,7 +2,9 @@
 import MapNamesCredit from "./MapNamesCredit.astro";
 import { clan } from "../../config/clan";
 import { fmtCount, fmtInt, fmtRank } from "../lib/format";
+import { loadMembers } from "../lib/data";
 import { editionLead, type GazetteEdition, playersPeriod, weekLabel } from "../lib/gazette";
+import { singlePseudos } from "../lib/members";
 import { currentMilestonesPeriod, endSentence, homeMilestones, NAMES_SHOWN, restAfter, type CurrentMilestones } from "../lib/vie-du-clan";
 
 /**
@@ -36,6 +38,8 @@ const arrivalNames = arrivals ? arrivals.named.slice(0, NAMES_SHOWN) : [];
 const arrivalRest = arrivals ? restAfter(arrivals.count, arrivalNames.length) : null;
 const hasFeed = milestones !== null || records.length > 0 || territoryRecord !== null || bestGame !== null || (arrivals !== null && arrivals.count > 0);
 const capital = (text: string) => text.charAt(0).toLocaleUpperCase("fr") + text.slice(1);
+// Une photo Discord ne va qu'à côté d'un pseudo porté par un seul membre : jamais à côté d'un homonyme (src/scripts/visages.ts).
+const faces = singlePseudos(loadMembers()?.members ?? []);
 ---
 
 <section class="stage stage-indigo reveal" aria-labelledby="week-title" data-testid="home-week">
@@ -53,6 +57,8 @@ const capital = (text: string) => text.charAt(0).toLocaleUpperCase("fr") + text.
               <li class="flex flex-wrap items-baseline gap-x-3 [overflow-wrap:anywhere]" data-testid="home-podium-player">
                 <span class="w-8 flex-none font-display text-lg font-extrabold">{fmtRank(p.place)}</span>
                 <span class="min-w-0 text-lg font-semibold">
+                  {/* Vide pour un visiteur : la photo Discord d'un membre qui se montre, pour un membre validé connecté (src/scripts/visages.ts). */}
+                  <span class="face-slot mr-2" aria-hidden="true" data-face={faces.has(p.username) ? p.username : undefined} hidden></span>
                   <a href={fiche(p.id)}>{p.username}</a>
                 </span>
                 <span class="ml-auto text-sm text-muted">{fmtCount(p.wins, "victoire")}</span>
@@ -68,6 +74,7 @@ const capital = (text: string) => text.charAt(0).toLocaleUpperCase("fr") + text.
                     <li class="flex flex-wrap items-baseline gap-x-3 [overflow-wrap:anywhere]" data-testid="home-active-player">
                       <span class="w-8 flex-none font-display text-lg font-extrabold">{fmtRank(p.place)}</span>
                       <span class="min-w-0 text-lg font-semibold">
+                        <span class="face-slot mr-2" aria-hidden="true" data-face={faces.has(p.username) ? p.username : undefined} hidden></span>
                         <a href={fiche(p.id)}>{p.username}</a>
                       </span>
                       <span class="ml-auto text-sm text-muted">{fmtCount(p.games, "partie")}</span>

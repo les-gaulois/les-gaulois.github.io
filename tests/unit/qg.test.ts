@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { ERROR_MESSAGES } from "../../src/lib/compte/errors";
-import { IDEA_MAX, IDEA_MIN, IDEA_NOTE_MAX, IDEA_OPEN_MAX, IDEA_STATUS_LABELS, decidedIdeas, ideaProblem, initialOf, keepOrder, openIdeas, othersLabel, parseQg, safeAvatar, supportLabel, type QgIdea } from "../../src/lib/compte/qg";
+import { IDEA_MAX, IDEA_MIN, IDEA_NOTE_MAX, IDEA_OPEN_MAX, IDEA_STATUS_LABELS, decidedIdeas, ideaProblem, initialOf, keepOrder, openIdeas, othersLabel, parseQg, qgWaiting, safeAvatar, supportLabel, wallPhotos, type QgIdea } from "../../src/lib/compte/qg";
 
 const SQL = readFileSync("supabase/migrations/20261109000100_qg_des_membres.sql", "utf8");
 
@@ -147,6 +147,48 @@ describe("ceux qui viennent", () => {
     expect(othersLabel(3, 0)).toBe("3 membres viennent");
     expect(othersLabel(3, 2)).toBe("et 1 autre membre");
     expect(othersLabel(5, 2)).toBe("et 3 autres membres");
+  });
+});
+
+describe("les photos du mur ailleurs sur le site", () => {
+  const OTHER = "https://cdn.discordapp.com/avatars/223456789012345678/0f1e2d3c4b5a69788796a5b4c3d2e1f0.webp";
+
+  it("donnent la photo de chaque membre qui se montre, par son nom exact", () => {
+    const photos = wallPhotos([
+      { name: "Ancien Gaulois", role: "officer", avatar: AVATAR },
+      { name: "Recrue", role: "member", avatar: OTHER },
+    ]);
+    expect(photos.get("Ancien Gaulois")).toBe(AVATAR);
+    expect(photos.get("Recrue")).toBe(OTHER);
+    expect(photos.get("ancien gaulois")).toBeUndefined();
+  });
+
+  it("laissent l'initiale à un membre sans photo, et à un nom porté par deux comptes, plutôt que la photo d'un autre", () => {
+    const photos = wallPhotos([
+      { name: "Sans photo", role: "member", avatar: null },
+      { name: "Double", role: "member", avatar: AVATAR },
+      { name: "Double", role: "member", avatar: null },
+    ]);
+    expect([...photos.keys()]).toEqual([]);
+  });
+});
+
+describe("ce qui attend les membres au QG", () => {
+  const now = Date.parse("2026-11-10T12:00:00Z");
+
+  it("compte les sondages ouverts, les idées à l'étude et les événements à venir", () => {
+    const data = {
+      polls: [{ ...poll, is_open: true }, { ...poll, id: 2, is_open: false }],
+      ideas: [idea, { ...idea, id: 8 }, { ...idea, id: 9, status: "kept" }],
+      events: [event, { ...event, id: 5, starts_at: "2026-11-09T20:00:00Z" }],
+    } as unknown as Parameters<typeof qgWaiting>[0];
+    expect(qgWaiting(data, now)).toBe("1 sondage ouvert, 2 idées à l'étude et 1 événement à venir.");
+  });
+
+  it("ne dit que ce qui existe, et rien du tout quand rien n'attend", () => {
+    expect(qgWaiting({ polls: [], ideas: [], events: [] }, now)).toBeNull();
+    const ideas = [idea, { ...idea, id: 8 }] as unknown as Parameters<typeof qgWaiting>[0]["ideas"];
+    expect(qgWaiting({ polls: [], ideas, events: [] }, now)).toBe("2 idées à l'étude.");
   });
 });
 

@@ -25,11 +25,12 @@ const SORTS: { key: SortKey; label: string }[] = [
 
 type State = { status: "loading" } | { status: "error" } | { status: "ready"; data: StoredMembers };
 
-function Name({ m }: { m: StoredMember }) {
+/** `stretch` : sur téléphone, toute la carte du membre mène à sa fiche. Le pseudo seul ne fait que 20 pixels de haut, trop peu pour le doigt. */
+function Name({ m, stretch = false }: { m: StoredMember; stretch?: boolean }) {
   if (!m.username) return <span class="text-muted italic">Membre anonyme</span>;
   return (
     <a
-      class="font-semibold underline-offset-2 hover:underline"
+      class={`font-semibold underline-offset-2 hover:underline${stretch ? " after:absolute after:inset-0 after:content-['']" : ""}`}
       href={`${BASE}/membres/${encodeURIComponent(m.publicId ?? "")}`}
     >
       {m.username}
@@ -224,8 +225,8 @@ export default function MembersTable({ src }: { src: string }) {
             {visible.map((m, i) => {
               const note = wlText(m);
               return (
-                <li key={memberKey(m)} class="fx-row card tnum p-3" data-key={memberKey(m)} data-testid="member-card" style={{ "--i": Math.min(i, 18) }}>
-                  <p><Name m={m} /><RoleBadge role={m.role} /></p>
+                <li key={memberKey(m)} class="fx-row card tnum relative p-3" data-key={memberKey(m)} data-testid="member-card" style={{ "--i": Math.min(i, 18) }}>
+                  <p><Name m={m} stretch /><RoleBadge role={m.role} /></p>
                   <p class="mt-1 text-sm">
                     {note ?? `${fmtInt(m.team?.wins)} victoires · ${fmtInt(gamesOf(m))} parties · ${fmtPct(rateOf(m))}`}
                   </p>

@@ -105,24 +105,20 @@ test.describe("film de la carte", () => {
     const figures = page.getByTestId("fold-figures");
     if (phone) {
       await expect(figures).not.toHaveAttribute("open");
-      await expect(page.getByTestId("map-pixels")).toBeHidden();
+      await expect(page.getByTestId("map-peak")).toBeHidden();
+      // Le territoire du moment reste écrit au-dessus du repli.
+      await expect(page.getByTestId("map-pixels")).toBeVisible();
       await figures.locator("summary").click();
     } else {
       await expect(figures).toHaveAttribute("open");
       // Le titre n'est pas un bouton sur grand écran : il ne prend pas le focus.
       await expect(figures.locator("summary")).toHaveAttribute("tabindex", "-1");
     }
-    await expect(page.getByTestId("map-pixels")).toBeVisible();
-    // Les donateurs et les peintres : repliés sur téléphone tant que le clan n'a fourni aucun nom.
-    const people = page.getByTestId("fold-people");
-    if (phone && heroes.donors.length === 0 && heroes.highlights.length === 0) {
-      await expect(people).not.toHaveAttribute("open");
-      await expect(page.getByTestId("map-painters")).toBeHidden();
-      await people.locator("summary").click();
-    } else {
-      await expect(people).toHaveAttribute("open");
-    }
-    await expect(page.getByTestId("map-painters")).toBeVisible();
+    // Le plus grand territoire est celui du film, pas un chiffre recopié.
+    expect(digits(await page.getByTestId("map-peak").textContent())).toBe(String(film.galSummary.peak.pixels));
+    // Sans donateur fourni par le clan, aucun bloc vide : ni carte « Plus gros donateurs », ni repli à ouvrir pour rien.
+    await expect(page.getByTestId("fold-people")).toHaveCount(0);
+    if (heroes.donors.length === 0) await expect(page.getByTestId("map-donors")).toHaveCount(0);
     // Un bloc replié s'ouvre et se referme.
     const summary = page.getByTestId("fold-fronts").locator("summary");
     await summary.click();
@@ -269,15 +265,19 @@ test.describe("film de la carte", () => {
     await expect(page.getByTestId("map-journal")).toContainText(`${fmtInt(Math.abs(since.change))} pixels depuis la fin du ${fmtDay(since.date).replace(/\.$/, "")}`);
   });
 
-  test("les grandes journées viennent de l'historique et se rejouent", async ({ page }) => {
+  test("la plus belle journée vient de l'historique et se rejoue", async ({ page }) => {
     test.skip(!datedFilm, "film sans dates, refait au prochain passage du robot");
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/carte");
     await expect(playButton(page)).toBeVisible();
     const { gain, loss } = dayHighlights(dayRows(film.days, film.frames, film.fetchedAt));
-    const shown = [gain, loss].filter((d) => d !== null);
+    // Seule la plus belle journée est mise en avant : le plus dur recul reste dans le tableau jour après jour.
+    const shown = [gain].filter((d) => d !== null);
     const cards = page.getByTestId("map-day");
     await expect(cards).toHaveCount(shown.length);
+    // Le bloc ne met en avant aucun recul : ni son titre, ni le jour du plus dur.
+    await expect(page.getByTestId("map-days")).not.toContainText("reculé");
+    if (loss && gain && loss.date !== gain.date) await expect(page.getByTestId("map-days")).not.toContainText(fmtDay(loss.date));
     for (const [i, day] of shown.entries()) {
       const card = cards.nth(i);
       expect(digits(await card.locator("p").nth(1).textContent())).toBe(String(Math.abs(day.net)));
@@ -479,13 +479,19 @@ test.describe("film de la carte", () => {
     const page = await context.newPage();
     await page.goto("/carte");
     await expect(page.locator("[data-testid=film-map] img")).toBeVisible();
-    await expect(page.getByTestId("map-figure")).toHaveCount(4);
-    // Sans script, rien n'est caché : les deux blocs repliés sur téléphone restent ouverts, à toutes les largeurs.
-    for (const fold of ["fold-figures", "fold-people"]) await expect(page.getByTestId(fold)).toHaveAttribute("open");
+    // Les réserves n'ont leur case que si la fiche du clan a répondu : jamais une case « Pas de données » de plus.
+    const reservesKnown = (film.treasury?.troops ?? null) !== null || (film.treasury?.caps ?? null) !== null;
+    await expect(page.getByTestId("map-figure")).toHaveCount(reservesKnown ? 4 : 3);
+    // Sans script, rien n'est caché : le bloc replié sur téléphone reste ouvert, à toutes les largeurs.
+    await expect(page.getByTestId("fold-figures")).toHaveAttribute("open");
+    await expect(page.getByTestId("map-peak")).toBeVisible();
     await expect(page.getByTestId("map-pixels")).toBeVisible();
-    await expect(page.getByTestId("map-painters")).toBeVisible();
-    // Les grandes journées restent lisibles, sans leur bouton inutile.
-    if (datedFilm) {
+    await expect(page.getByTestId("map-ways")).toBeVisible();
+    // Sans réponse de la fiche du clan, une ligne le dit au lieu d'une case vide ; avec, la case des réserves suffit.
+    await expect(page.getByTestId("map-no-reserves")).toHaveCount(reservesKnown ? 0 : 1);
+    if (!reservesKnown) await expect(page.getByTestId("map-no-reserves")).toBeVisible();
+    // La plus belle journée reste lisible, sans son bouton inutile.
+    if (datedFilm && dayHighlights(dayRows(film.days, film.frames, film.fetchedAt)).gain) {
       await expect(page.getByTestId("map-day").first()).toBeVisible();
       await expect(page.getByRole("button", { name: "Revoir cette journée" }).first()).toBeHidden();
     }
@@ -639,9 +645,8 @@ test.describe("film de la carte", () => {
     await expect(figures).not.toHaveAttribute("open");
     // L'écran s'élargit : les blocs se rouvrent d'eux-mêmes, et leur titre n'est plus un bouton.
     await page.setViewportSize({ width: 1024, height: 768 });
-    for (const fold of ["fold-figures", "fold-people"]) await expect(page.getByTestId(fold)).toHaveAttribute("open");
-    await expect(page.getByTestId("map-pixels")).toBeVisible();
-    await expect(page.getByTestId("map-painters")).toBeVisible();
+    await expect(figures).toHaveAttribute("open");
+    await expect(page.getByTestId("map-peak")).toBeVisible();
     await expect(figures.locator("summary")).toHaveAttribute("tabindex", "-1");
     // Même activé par une aide technique, le titre ne referme pas le bloc sur grand écran.
     await figures.locator("summary").dispatchEvent("click");
@@ -652,16 +657,14 @@ test.describe("film de la carte", () => {
     const heroes = JSON.parse(readFileSync("content/carte-heros.json", "utf8"));
     await page.goto("/carte");
 
-    const painters = page.getByTestId("map-painters");
-    // Sur téléphone, le bloc est replié tant que le clan n'a fourni aucun nom : on l'ouvre comme le ferait un visiteur.
-    const people = page.getByTestId("fold-people");
-    if ((await people.getAttribute("open")) === null) await people.locator("summary").click();
-    await expect(painters.getByRole("link", { name: "voir l'encadrement" })).toHaveAttribute("href", /\/membres#encadrement$/);
-    await expect(painters.getByRole("link", { name: "voir votre place dans le clan" })).toHaveAttribute("href", /\/#ma-place$/);
+    const ways = page.getByTestId("map-ways");
+    await expect(ways.getByRole("link", { name: "voir l'encadrement" })).toHaveAttribute("href", /\/membres#encadrement$/);
+    await expect(ways.getByRole("link", { name: "voir votre place dans le clan" })).toHaveAttribute("href", /\/#ma-place$/);
 
     if (heroes.donors.length === 0) {
-      await expect(page.getByTestId("map-donors")).toContainText("Le clan n'a pas encore choisi de le publier ici.");
-      await expect(page.getByTestId("map-donors").locator("li")).toHaveCount(0);
+      // Pas de bloc vide : la page dit seulement où trouver ce classement dans le jeu.
+      await expect(page.getByTestId("map-donors")).toHaveCount(0);
+      await expect(ways).toContainText("« Top donateurs »");
     } else {
       await expect(page.getByTestId("map-donors").locator("li").first()).toContainText(heroes.donors[0].player);
     }

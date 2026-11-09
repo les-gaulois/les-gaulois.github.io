@@ -9,6 +9,7 @@ import ReadingNote from "../components/ReadingNote.astro";
 import WinTiers from "../components/WinTiers.astro";
 import { clan } from "../../config/clan";
 import { loadMembers, loadMeta, loadRanked } from "../lib/data";
+import { singlePseudos } from "../lib/members";
 import { tierRows } from "../lib/paliers";
 import { MAX_AGE_HOURS } from "../lib/freshness";
 
@@ -17,6 +18,8 @@ const meta = loadMeta();
 const src = `${base}/data/members.json`;
 const ROLE = { leader: "Chef", officer: "Officier", member: "Membre" } as const;
 const list = loadMembers()?.members ?? [];
+// Une photo Discord ne va qu'à côté d'un pseudo porté par un seul membre : jamais à côté d'un homonyme (src/scripts/visages.ts).
+const faces = singlePseudos(list);
 const command = list.filter((m) => m.role !== "member").sort((a, b) => (a.role === "leader" ? -1 : b.role === "leader" ? 1 : 0));
 const jumps = [
   { href: "#paliers", label: "Les paliers", show: tierRows(list).length > 0 },
@@ -48,11 +51,12 @@ const jumps = [
           <ul class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {
               command.map((m) => (
-                <li class="flex min-w-0 items-center gap-3" data-testid="command-member">
-                  <span class="avatar" aria-hidden="true">{m.username?.charAt(0) ?? "?"}</span>
+                <li class="relative flex min-w-0 items-center gap-3" data-testid="command-member">
+                  {/* La photo Discord d'un membre de l'encadrement qui a choisi de se montrer remplace son initiale, pour un membre validé connecté (src/scripts/visages.ts). Toute la ligne mène à la fiche : une cible pour le doigt, pas un mot de 17 pixels. */}
+                  <span class="avatar overflow-hidden" aria-hidden="true" data-face={m.username && faces.has(m.username) ? m.username : undefined}>{m.username?.charAt(0) ?? "?"}</span>
                   <span class="min-w-0">
                     {m.username && m.publicId ? (
-                      <a class="block truncate" href={`${base}/membres/${encodeURIComponent(m.publicId)}`}>{m.username}</a>
+                      <a class="block truncate after:absolute after:inset-0 after:content-['']" href={`${base}/membres/${encodeURIComponent(m.publicId)}`}>{m.username}</a>
                     ) : (
                       <span class="block truncate font-semibold">Membre anonyme</span>
                     )}

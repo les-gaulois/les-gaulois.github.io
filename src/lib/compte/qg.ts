@@ -219,3 +219,32 @@ export function othersLabel(going: number, shown: number): string | null {
 
 /** L'initiale affichée à la place d'une photo absente ou illisible. */
 export const initialOf = (name: string) => [...name.trim()][0]?.toLocaleUpperCase("fr") ?? "?";
+
+/**
+ * Les photos du mur, par nom : de quoi mettre la photo d'un membre qui se montre à côté de son pseudo, ailleurs sur le site
+ * (`src/scripts/visages.ts`). Le nom d'un compte validé est son pseudo de la liste officielle le jour de sa validation.
+ * Seulement une photo lisible ; un nom porté par deux comptes n'en reçoit aucune, plutôt que la photo de quelqu'un d'autre.
+ */
+export function wallPhotos(wall: readonly Face[]): Map<string, string> {
+  const seen = new Map<string, number>();
+  for (const face of wall) seen.set(face.name, (seen.get(face.name) ?? 0) + 1);
+  return new Map(wall.flatMap((face) => (face.avatar !== null && seen.get(face.name) === 1 ? [[face.name, face.avatar] as const] : [])));
+}
+
+const counted = (n: number, one: string, many: string) => (n === 1 ? `1 ${one}` : `${fmtInt(n)} ${many}`);
+
+/**
+ * Ce qui attend les membres au QG, en une phrase pour la porte de l'accueil : « 2 sondages ouverts, 1 idée à l'étude et
+ * 1 événement à venir. » `null` : rien de tout cela, la porte garde son texte.
+ */
+export function qgWaiting(data: Pick<QgData, "polls" | "ideas" | "events">, now: number): string | null {
+  const parts = [
+    [data.polls.filter((poll) => poll.is_open).length, "sondage ouvert", "sondages ouverts"],
+    [data.ideas.filter((idea) => idea.status === "open").length, "idée à l'étude", "idées à l'étude"],
+    [data.events.filter((event) => time(event.starts_at) > now).length, "événement à venir", "événements à venir"],
+  ] as const;
+  const said = parts.filter(([n]) => n > 0).map(([n, one, many]) => counted(n, one, many));
+  if (said.length === 0) return null;
+  const last = said.pop()!;
+  return `${said.length > 0 ? `${said.join(", ")} et ${last}` : last}.`;
+}

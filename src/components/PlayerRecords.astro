@@ -1,0 +1,84 @@
+---
+import DataStatus from "./DataStatus.astro";
+import ReadingNote from "./ReadingNote.astro";
+import { clan } from "../../config/clan";
+import { loadMembers, loadMemberWeeks, loadMeta } from "../lib/data";
+import { fmtCount, fmtDay } from "../lib/format";
+import { MAX_AGE_HOURS } from "../lib/freshness";
+import { singlePseudos } from "../lib/members";
+import { playerRecords, type RecordHolder, type WeekRecord } from "../lib/records-joueurs";
+
+/**
+ * Les records des joueurs : la meilleure semaine, la semaine la plus active et le plus de victoires sous le tag, au total.
+ * Calculs et limites dans src/lib/records-joueurs.ts. Un détenteur sans pseudo public n'est jamais nommé.
+ */
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const members = loadMembers();
+const records = playerRecords(loadMemberWeeks(), members);
+const fiche = (id: string) => `${base}/membres/${encodeURIComponent(id)}`;
+// Une photo Discord ne va qu'à côté d'un pseudo porté par un seul membre : jamais à côté d'un homonyme (src/scripts/visages.ts).
+const faces = singlePseudos(members?.members ?? []);
+const period = (r: WeekRecord) => (r.from === r.week ? `la semaine du ${fmtDay(r.week)} au ${fmtDay(r.to)}` : `du ${fmtDay(r.from)} au ${fmtDay(r.to)}`);
+const tiles: { label: string; holders: RecordHolder[]; value: string; hint: string }[] = [
+  records.bestWeek && { label: "Le plus de victoires en une semaine", holders: records.bestWeek.holders, value: fmtCount(records.bestWeek.value, "victoire"), hint: period(records.bestWeek) },
+  records.busiestWeek && { label: "Le plus de parties en une semaine", holders: records.busiestWeek.holders, value: fmtCount(records.busiestWeek.value, "partie"), hint: period(records.busiestWeek) },
+  records.mostWins && { label: "Le plus de victoires sous le tag", holders: records.mostWins.holders, value: fmtCount(records.mostWins.value, "victoire"), hint: "au total, d'après la liste officielle" },
+].filter((tile) => tile !== null);
+---
+
+{
+  tiles.length > 0 && (
+    <section class="stage stage-blue reveal" aria-labelledby="player-records-title" data-testid="player-records">
+      <h2 id="player-records-title" class="section-title">Les records des joueurs</h2>
+      <dl class="mt-8 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
+        {
+          tiles.map((t) => (
+            <div data-testid="player-record">
+              <dt class="text-sm font-semibold text-muted">{t.label}</dt>
+              <dd class="mt-1">
+                <span class="block font-display text-2xl font-extrabold [overflow-wrap:anywhere]" data-testid="player-record-holders">
+                  {t.holders.map((h, i) => (
+                    <>
+                      {i > 0 && (i === t.holders.length - 1 ? " et " : ", ")}
+                      {h.username ? (
+                        <span class="inline-flex items-center gap-2">
+                          <span class="face-slot" aria-hidden="true" data-face={faces.has(h.username) ? h.username : undefined} hidden></span>
+                          <a href={fiche(h.id)}>{h.username}</a>
+                        </span>
+                      ) : (
+                        "un membre sans pseudo public"
+                      )}
+                    </>
+                  ))}
+                </span>
+                <span class="tnum mt-1 block text-lg font-semibold">{t.value}</span>
+                <span class="tnum mt-1 block text-xs text-muted">{t.hint}</span>
+              </dd>
+            </div>
+          ))
+        }
+      </dl>
+      {/* Le périmètre, la réserve sur le niveau et la couverture changent la lecture des chiffres : ils restent visibles. */}
+      <p class="mt-6 max-w-3xl text-sm text-muted" data-testid="player-records-scope">
+        Parties publiques en équipe jouées avec le tag {clan.tag}, sans le classé, le FFA ni Humains contre Nations, parmi les membres encore dans le clan. Cela compte d'abord le temps de jeu : ce n'est pas un classement de niveau.
+        {
+          records.firstDay && (
+            <>
+              {" "}
+              Les semaines sont celles de <a href={`${base}/gazette`}>la gazette</a>, relevées depuis le {fmtDay(records.firstDay)}{records.gamesFirstDay ? `, leurs parties depuis le ${fmtDay(records.gamesFirstDay)}` : ", sans leurs parties pour l'instant"} : une semaine plus ancienne n'est pas connue.
+            </>
+          )
+        }
+      </p>
+      <ReadingNote>
+        <p>
+          Une semaine va du lundi au dimanche, à Paris. Relevée en cours de route, elle compte moins de jours : sa période est écrite sous le chiffre. À égalité dans une semaine, tous les joueurs sont cités ; d'une semaine à l'autre, la première à atteindre le chiffre garde le record. Un joueur parti du clan, ou qui a retiré son pseudo, n'est plus compté.
+        </p>
+        <p>Le total sous le tag vient de la liste officielle d'OpenFront : il peut compter des parties jouées sous le tag avant l'arrivée du joueur dans la liste. Un membre sans pseudo public n'est jamais nommé.</p>
+      </ReadingNote>
+      <div class="mt-4">
+        <DataStatus state={loadMeta().members} maxAgeHours={MAX_AGE_HOURS.members} />
+      </div>
+    </section>
+  )
+}

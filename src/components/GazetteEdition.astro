@@ -1,6 +1,8 @@
 ---
 import { clan } from "../../config/clan";
+import { loadMembers } from "../lib/data";
 import { fmtCount, fmtDate, fmtDay, fmtInt, fmtPct, fmtRank } from "../lib/format";
+import { singlePseudos } from "../lib/members";
 import { weekRecordKeys, type RecordKey } from "../lib/records-battus";
 import type { ClanRecords } from "../lib/results";
 import { arrivalsGap, comparisonSentence, editionLead, type GazetteEdition, playersPeriod, rankWords, standingDetails, standingGap, territoryDetails, territoryGap } from "../lib/gazette";
@@ -19,6 +21,8 @@ const { edition, firstStanding, firstTerritory, membersAt, records = null } = As
 const { totals, highlights, standing, territory, arrivals, players, active, milestones } = edition;
 const period = playersPeriod(edition);
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+// Une photo Discord ne va qu'à côté d'un pseudo porté par un seul membre : jamais à côté d'un homonyme (src/scripts/visages.ts).
+const faces = singlePseudos(loadMembers()?.members ?? []);
 const members = standing?.end.membersTotal ?? null;
 const comparison = comparisonSentence(edition);
 const newRecords = weekRecordKeys(highlights, records);
@@ -114,6 +118,7 @@ const tiles: { key: RecordKey; label: string; value: string; hint: string }[] = 
             {players.map((p) => (
               <li class="min-w-0 [overflow-wrap:anywhere]" data-testid="gazette-player">
                 <span class="text-muted">{fmtRank(p.place)}</span>{" "}
+                <span class="face-slot mr-1.5" aria-hidden="true" data-face={faces.has(p.username) ? p.username : undefined} hidden></span>
                 <a href={`${base}/membres/${encodeURIComponent(p.id)}`}>{p.username}</a>
                 <span class="block text-sm text-muted">{fmtCount(p.wins, "victoire")}</span>
               </li>
@@ -126,7 +131,7 @@ const tiles: { key: RecordKey; label: string; value: string; hint: string }[] = 
                 <ol class="tnum mt-2 grid gap-x-6 gap-y-2 sm:grid-cols-3">
                   {active.map((p) => (
                     <li class="min-w-0 [overflow-wrap:anywhere]" data-testid="gazette-active">
-                      <span class="text-muted">{fmtRank(p.place)}</span> <a href={`${base}/membres/${encodeURIComponent(p.id)}`}>{p.username}</a>
+                      <span class="text-muted">{fmtRank(p.place)}</span> <span class="face-slot mr-1.5" aria-hidden="true" data-face={faces.has(p.username) ? p.username : undefined} hidden></span><a href={`${base}/membres/${encodeURIComponent(p.id)}`}>{p.username}</a>
                       <span class="block text-sm text-muted">{fmtCount(p.games, "partie")}</span>
                     </li>
                   ))}

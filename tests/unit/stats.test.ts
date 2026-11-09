@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { findClan, neighbours, searchClans, winRate, withOfficialRanks } from "../../src/lib/stats";
-import { filterMembers, gamesOf, rateOf, sortMembers, toStoredMember } from "../../src/lib/members";
+import { filterMembers, gamesOf, rateOf, singlePseudos, sortMembers, toStoredMember } from "../../src/lib/members";
 import { freshness } from "../../src/lib/freshness";
 import { fmtInt, fmtPct, NO_DATA } from "../../src/lib/format";
 import type { LeaderboardEntry, StoredMember } from "../../src/lib/schemas";
@@ -95,6 +95,11 @@ describe("membres", () => {
     const named = toStoredMember({ role: "officer", joinedAt: a.joinedAt, publicId: "abc", username: "Nom" });
     expect(named.publicId).toBe("abc");
     expect(named.team).toBeNull();
+  });
+
+  it("ne garde, pour une photo à côté d'un pseudo, que les pseudos portés par un seul membre", () => {
+    const pseudos = singlePseudos([{ username: "Unique" }, { username: "Double" }, { username: "Double" }, { username: "casse" }, { username: "CASSE" }, { username: null }]);
+    expect([...pseudos]).toEqual(["Unique"]);
   });
 });
 

@@ -382,8 +382,8 @@ function Inside({ me, staff }: { me: Me; staff: boolean }) {
         </div>
         <p class="mt-2 text-sm text-muted">
           {data.me.visible
-            ? "Les membres validés voient votre nom, votre rôle et votre photo Discord sur le mur, et quand vous venez à un événement. L'adresse de cette photo contient votre identifiant Discord : ils peuvent donc le lire."
-            : "Pour l'instant, vous n'apparaissez ni sur le mur ni parmi ceux qui viennent. Si vous l'activez, seuls les membres validés voient votre nom, votre rôle et votre photo Discord. L'adresse de cette photo contient votre identifiant Discord : ils pourront donc le lire."}
+            ? "Les membres validés voient votre nom, votre rôle et votre photo Discord sur le mur, quand vous venez à un événement, et, depuis le 9 novembre 2026, votre photo à côté de votre pseudo sur les pages du site : podiums, records, encadrement, votre fiche. Les visiteurs ne la voient pas. L'adresse de cette photo contient votre identifiant Discord : les membres validés peuvent donc le lire."
+            : "Pour l'instant, vous n'apparaissez ni sur le mur ni parmi ceux qui viennent. Si vous l'activez, seuls les membres validés voient votre nom, votre rôle et votre photo Discord, au QG et à côté de votre pseudo sur les pages du site. L'adresse de cette photo contient votre identifiant Discord : ils pourront donc le lire."}
         </p>
         <Problem message={problemAt("me")} />
       </section>

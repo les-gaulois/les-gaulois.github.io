@@ -5,9 +5,11 @@ import DataStatus from "../components/DataStatus.astro";
 import Empty from "../components/Empty.astro";
 import MapResults from "../components/MapResults.astro";
 import PageHeader from "../components/PageHeader.astro";
-import { loadGames, loadMeta, loadSessions } from "../lib/data";
+import PlayerRecords from "../components/PlayerRecords.astro";
+import { loadGames, loadMembers, loadMemberWeeks, loadMeta, loadSessions } from "../lib/data";
 import { MAX_AGE_HOURS } from "../lib/freshness";
 import { mapResults } from "../lib/games";
+import { playerRecords } from "../lib/records-joueurs";
 import { clanRecords, formatResults } from "../lib/results";
 
 const meta = loadMeta();
@@ -15,17 +17,20 @@ const sessions = loadSessions();
 const results = formatResults(sessions, meta.sessions.coveredUntil);
 const hasFormats = results !== null && results.byTeams.length + results.bySize.length > 0;
 const hasMaps = (mapResults(sessions, loadGames(), meta.sessions.coveredUntil)?.rows.length ?? 0) > 0 || meta.games.lastError !== null;
-const empty = clanRecords(sessions) === null && !hasFormats && !hasMaps;
+const players = playerRecords(loadMemberWeeks(), loadMembers());
+const hasPlayers = players.bestWeek !== null || players.busiestWeek !== null || players.mostWins !== null;
+const empty = clanRecords(sessions) === null && !hasFormats && !hasMaps && !hasPlayers;
 ---
 
-<Base title="Records" description="Les records du clan GAL, ses résultats par format et par carte de jeu.">
+<Base title="Records" description="Les records des joueurs et du clan GAL, ses résultats par format et par carte de jeu.">
   <div class="wrap">
-    <PageHeader title="Records" intro="Ce que le clan a fait de mieux, et ses résultats selon le format et la carte de jeu.">
+    <PageHeader title="Records" intro="Ce que les Gaulois et le clan ont fait de mieux, et les résultats selon le format et la carte de jeu.">
       <div class="mt-4">
         <DataStatus state={meta.sessions} maxAgeHours={MAX_AGE_HOURS.sessions} />
       </div>
     </PageHeader>
     {empty && <Empty title="Pas de données">Les records et les résultats apparaîtront avec les premières parties enregistrées.</Empty>}
+    <PlayerRecords />
     <ClanResults />
     <MapResults />
   </div>

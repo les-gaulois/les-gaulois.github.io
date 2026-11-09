@@ -11,7 +11,7 @@ import { fmtCount, fmtDate, fmtInt, fmtPct } from "../../lib/format";
 import { ficheFacts, ficheImageAlt } from "../../lib/fiche-image";
 import { MAX_AGE_HOURS } from "../../lib/freshness";
 import { mapLabel } from "../../lib/map-names";
-import { gamesOf, rateOf, recentGamesTitle } from "../../lib/members";
+import { gamesOf, rateOf, recentGamesTitle, singlePseudos } from "../../lib/members";
 import { nextTier, tierOf } from "../../lib/paliers";
 import { formatLabel } from "../../lib/results";
 import type { StoredMember } from "../../lib/schemas";
@@ -45,6 +45,8 @@ const list = loadMembers();
 const facts = list ? ficheFacts(list.members, member) : null;
 const hasImage = facts !== null && member.publicId !== null && existsSync(join("public", "generated", "fiches", `${member.publicId}.png`));
 const image = hasImage ? `${base}/generated/fiches/${member.publicId}.png` : undefined;
+// Une photo Discord ne va qu'à côté d'un pseudo porté par un seul membre : jamais à côté d'un homonyme (src/scripts/visages.ts).
+const face = list && singlePseudos(list.members).has(username) ? username : undefined;
 const imageAlt = hasImage && facts && list ? ficheImageAlt(facts, clan.tag, list.fetchedAt) : undefined;
 const tiles = member.team
   ? [
@@ -59,6 +61,8 @@ const tiles = member.team
 <Base title={username} description={`Fiche de ${username}, membre du clan ${clan.tag} : ses parties d'équipe sous le tag.`} noindex image={image} imageAlt={imageAlt}>
   <div class="wrap">
     <PageHeader title={username} intro={`Membre de [${clan.tag}] depuis le ${fmtDate(member.joinedAt)}.`}>
+      {/* Vide pour un visiteur : sa photo Discord, s'il a choisi de se montrer, pour un membre validé connecté (src/scripts/visages.ts). */}
+      <span class="face-slot face-slot-lg mt-4" aria-hidden="true" data-face={face} hidden></span>
       {ROLE[member.role] && <p class="mt-2 font-semibold" data-testid="member-role">{ROLE[member.role]}</p>}
       <div class="mt-4">
         <DataStatus state={meta.members} maxAgeHours={MAX_AGE_HOURS.members} />

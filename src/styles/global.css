@@ -120,12 +120,15 @@ h3 {
   outline-offset: 2px;
   border-radius: 4px;
 }
-a:not([class]) {
+/* `.link` : un lien qui a besoin d'une classe (une cible agrandie pour le doigt) garde l'allure d'un lien. */
+a:not([class]),
+a.link {
   color: var(--color-blue-text);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
-a:not([class]):hover {
+a:not([class]):hover,
+a.link:hover {
   color: #fff;
 }
 
@@ -284,6 +287,26 @@ main .card:hover::before {
   font-family: var(--font-display);
   font-weight: 800;
   text-transform: uppercase;
+}
+/* La place d'une photo Discord à côté d'un pseudo : vide et masquée dans la page publiée, remplie pour un membre validé
+   connecté par src/scripts/visages.ts. Décorative : le pseudo est écrit à côté. */
+.face-slot {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 1.75rem;
+  height: 1.75rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-surface-2);
+  vertical-align: middle;
+}
+.face-slot[hidden] {
+  display: none;
+}
+.face-slot-lg {
+  width: 3.5rem;
+  height: 3.5rem;
 }
 
 .btn {
@@ -1170,9 +1193,9 @@ th.fx-cross {
   content: "−";
 }
 /* Un bloc replié sur téléphone seulement (page Carte). Le HTML le donne ouvert : sans script, rien n'est caché.
-   Un script en ligne le referme sous 48rem, avant le premier affichage. Au-delà, il est ouvert : son titre ne se
-   clique pas, et disparaît s'il ne sert qu'à replier (`.fold-phone-quiet`). Seul l'état ouvert est neutralisé :
-   un bloc resté fermé sur un écran qui s'élargit garde son « + » et se rouvre d'un geste. */
+   Un script en ligne le referme sous 48rem, avant le premier affichage. Au-delà, il est ouvert et son titre ne se
+   clique pas. Seul l'état ouvert est neutralisé : un bloc resté fermé sur un écran qui s'élargit garde son « + » et
+   se rouvre d'un geste. */
 @media (min-width: 48rem) {
   .fold-phone[open] > summary {
     min-height: 0;
@@ -1181,9 +1204,6 @@ th.fx-cross {
   }
   .fold-phone[open] > summary::after {
     content: none;
-  }
-  .fold-phone-quiet[open] > summary {
-    display: none;
   }
 }
 /* Le texte de la page peut se couper partout : un chiffre ou un tag de clan, non. */

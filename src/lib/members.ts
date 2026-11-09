@@ -81,6 +81,17 @@ export function sortMembers(members: readonly StoredMember[], key: SortKey, dir:
   });
 }
 
+/**
+ * Les pseudos portés par un seul membre de la liste. Seuls ceux-là reçoivent un emplacement pour une photo Discord
+ * (`data-face`, `src/scripts/visages.ts`) : la photo d'un membre ne doit pas s'afficher à côté du pseudo d'un homonyme.
+ * La casse compte peu pour un joueur : deux pseudos qui ne diffèrent que par elle sont aussi écartés.
+ */
+export function singlePseudos(members: readonly Pick<StoredMember, "username">[]): Set<string> {
+  const seen = new Map<string, number>();
+  for (const m of members) if (m.username) seen.set(m.username.toLocaleLowerCase("fr"), (seen.get(m.username.toLocaleLowerCase("fr")) ?? 0) + 1);
+  return new Set(members.flatMap((m) => (m.username && seen.get(m.username.toLocaleLowerCase("fr")) === 1 ? [m.username] : [])));
+}
+
 /** Recherche par pseudo. Les membres anonymes n'ont pas de pseudo et ne ressortent pas d'une recherche. */
 export function filterMembers(members: readonly StoredMember[], query: string): StoredMember[] {
   const q = query.trim().toLowerCase();

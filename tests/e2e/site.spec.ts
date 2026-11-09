@@ -12,6 +12,7 @@ import { editionLead, GAZETTE_RECENT_EDITIONS, gazetteEditions, playersPeriod, r
 import { bestGameOf, bestGameSentence, yesterdayOf } from "../../src/lib/belle-partie";
 import { clanJournal, JOURNAL_FIRST_ROWS, journalChoices, journalCount, NO_FILTER, replayUrl } from "../../src/lib/journal";
 import { recentRecordKeys, weekRecordKeys } from "../../src/lib/records-battus";
+import { playerRecords } from "../../src/lib/records-joueurs";
 import { clanRecords } from "../../src/lib/results";
 import { currentWeek, currentWeekComparison, currentWeekLead } from "../../src/lib/semaine";
 import { gamesOf, placeOf, recentGamesTitle } from "../../src/lib/members";
@@ -99,7 +100,11 @@ test("parcours principal", async ({ page }, testInfo) => {
 
   // Accueil : les cartes affichent les valeurs collectées.
   await page.goto("/");
-  await expect(page.getByRole("link", { name: "Rejoindre le Discord" })).toHaveAttribute("href", "https://discord.gg/cjUc42T7Y2");
+  await expect(page.getByRole("link", { name: "Aller sur le Discord" })).toHaveAttribute("href", "https://discord.gg/cjUc42T7Y2");
+  // L'accueil parle d'abord aux membres : l'appel à rejoindre le clan n'est qu'en bas de page.
+  // (Le menu et le pied de page gardent leur rubrique « Rejoindre » : seul le contenu de l'accueil compte ici.)
+  await expect(page.locator("main").getByRole("link", { name: /^Rejoindre/ })).toHaveCount(0);
+  await expect(page.locator("main section").last()).toContainText("Rejoignez les Gaulois");
   await expect(page.getByRole("link", { name: "Jouer à OpenFront" }).first()).toBeVisible();
   const cards = page.getByTestId("stat-card");
   await expect(cards).toHaveCount(5);
@@ -224,6 +229,35 @@ test("la page Membres présente l'encadrement, et chacun mène à sa fiche", asy
   for (const m of command) {
     if (m.username) await expect(block.getByRole("link", { name: m.username, exact: true })).toHaveAttribute("href", new RegExp(`/membres/${m.publicId}$`));
   }
+});
+
+/** Le lien que le doigt touche en un point d'un élément : celui du dessus, comme un vrai toucher. */
+const linkAt = async (page: Page, x: number, y: number) =>
+  page.evaluate(([px, py]) => document.elementFromPoint(px!, py!)?.closest("a")?.getAttribute("href") ?? null, [x, y]);
+
+test("les pseudos de la page Membres se touchent du doigt", async ({ page }, testInfo) => {
+  await page.goto("/membres");
+  await hydrated(page);
+  // Les paliers : chaque pseudo fait au moins 24 pixels de haut, le minimum de WCAG 2.2.
+  const tierLink = page.getByTestId("win-tier").locator("a").first();
+  if ((await tierLink.count()) > 0) {
+    expect((await tierLink.boundingBox())!.height).toBeGreaterThanOrEqual(24);
+    // Plus haut, il garde l'allure d'un lien : souligné, de la couleur des liens.
+    expect(await tierLink.evaluate((a) => getComputedStyle(a).textDecorationLine)).toBe("underline");
+  }
+  // L'encadrement : toute la ligne mène à la fiche, jusqu'au bord opposé au pseudo.
+  const staff = page.getByTestId("command-member").filter({ has: page.locator("a") }).first();
+  if ((await staff.count()) > 0) {
+    await staff.scrollIntoViewIfNeeded();
+    const box = (await staff.boundingBox())!;
+    expect(await linkAt(page, box.x + box.width - 4, box.y + box.height - 4)).toMatch(/^\/membres\/./);
+  }
+  if (testInfo.project.name !== "mobile") return;
+  // Sur téléphone, toute la carte d'un membre avec pseudo mène à sa fiche, pas seulement ses 20 pixels de pseudo.
+  const card = page.getByTestId("member-card").filter({ has: page.locator("a") }).first();
+  await card.scrollIntoViewIfNeeded();
+  const box = (await card.boundingBox())!;
+  expect(await linkAt(page, box.x + box.width - 8, box.y + box.height - 8)).toBe(await card.locator("a").getAttribute("href"));
 });
 
 test("le bloc de jeu en groupe mène au Discord", async ({ page }) => {
@@ -1066,6 +1100,34 @@ test("un record qui vient de tomber est marqué sur la page Records et dans la g
   if (!latest) return;
   await page.goto("/gazette");
   await expect(page.getByTestId("gazette-latest").getByTestId("gazette-record")).toHaveCount(weekRecordKeys(latest.highlights, records).size);
+});
+
+test("la page Records cite les joueurs qui détiennent un record, avec leurs chiffres, et aucune photo pour un visiteur", async ({ page }) => {
+  const records = playerRecords(loadMemberWeeks(), loadMembers());
+  const shown = [
+    records.bestWeek && { value: fmtCount(records.bestWeek.value, "victoire"), holders: records.bestWeek.holders },
+    records.busiestWeek && { value: fmtCount(records.busiestWeek.value, "partie"), holders: records.busiestWeek.holders },
+    records.mostWins && { value: fmtCount(records.mostWins.value, "victoire"), holders: records.mostWins.holders },
+  ].filter((r) => r !== null);
+  await page.goto("/records");
+  // Le périmètre, la réserve sur le niveau et la couverture des semaines restent visibles, hors du repli.
+  if (shown.length > 0) await expect(page.getByTestId("player-records-scope")).toContainText("ce n'est pas un classement de niveau");
+  const tiles = page.getByTestId("player-record");
+  await expect(tiles).toHaveCount(shown.length);
+  for (const [i, record] of shown.entries()) {
+    const tile = tiles.nth(i);
+    await expect(tile).toContainText(record.value);
+    for (const holder of record.holders) {
+      if (holder.username) await expect(tile.getByRole("link", { name: holder.username, exact: true })).toHaveAttribute("href", `/membres/${encodeURIComponent(holder.id)}`);
+      else await expect(tile).toContainText("un membre sans pseudo public");
+    }
+  }
+  // Les photos Discord ne sont jamais écrites dans une page publiée : un visiteur ne voit que des emplacements vides et masqués.
+  for (const path of ["/records", "/", "/membres", "/gazette"]) {
+    await page.goto(path);
+    await expect(page.locator("[data-face] img")).toHaveCount(0);
+    await expect(page.locator(".face-slot[data-face]").filter({ visible: true })).toHaveCount(0);
+  }
 });
 
 test("la gazette donne le bilan de la dernière semaine complète, et n'invente pas ce qui manque", async ({ page }) => {
