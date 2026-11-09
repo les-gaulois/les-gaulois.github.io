@@ -9,6 +9,7 @@ const HEALTHY: Record<string, Route> = {
   "/rest/v1/rpc/get_site_news": { status: 200, body: { ok: true } },
   "/rest/v1/rpc/bootstrap_founder": { status: 401, body: {} },
   "/rest/v1/rpc/export_site": { status: 401, body: {} },
+  "/rest/v1/rpc/get_qg": { status: 401, body: {} },
   "/rest/v1/profiles": { status: 401, body: {} },
   "/rest/v1/private_links": { status: 401, body: {} },
   "/rest/v1/admin_log": { status: 401, body: {} },
@@ -66,6 +67,13 @@ describe("le contrôle de la mise en ligne", () => {
   it("bloque si un visiteur peut exporter les données du site", async () => {
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/export_site": { status: 200, body: { ok: true, profiles: [] } } }, "exporter")).toBe("fail");
     expect(await statusOf(HEALTHY, "exporter")).toBe("ok");
+  });
+
+  it("bloque si le QG s'ouvre à un visiteur", async () => {
+    expect(await statusOf(HEALTHY, "QG")).toBe("ok");
+    // Le serveur répond 200 avec un refus : le QG reste fermé.
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_qg": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "QG")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_qg": { status: 200, body: { ok: true, polls: [], ideas: [], wall: [] } } }, "QG")).toBe("fail");
   });
 
   it("bloque si un visiteur lit une table privée, mais pas si elle est vide", async () => {

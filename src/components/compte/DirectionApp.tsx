@@ -394,7 +394,11 @@ export default function DirectionApp({ health }: { health: Omit<SiteHealthInput,
     <div class="grid gap-6" data-testid="direction">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <p class="text-muted">
-          Connecté en tant que <strong>{me.name}</strong>, {ROLE_LABELS[me.role as Role].toLowerCase()}. <a href={`${base}/compte`}>Mon compte</a>
+          Connecté en tant que <strong>{me.name}</strong>, {ROLE_LABELS[me.role as Role].toLowerCase()}. <a href={`${base}/compte`}>Mon compte</a> ·{" "}
+          {/* Les idées des membres se tranchent au QG, là où ils les lisent. */}
+          <a href={`${base}/qg`} data-testid="direction-qg">
+            Le QG, où trancher les idées
+          </a>
         </p>
         {/* Tout le site passe en vue de membre sans grade, jusqu'à « Quitter la vue joueur » en haut de chaque page. Le serveur garde le vrai rôle. */}
         <button type="button" class="btn btn-ghost !min-h-10 !py-1.5 !text-sm" data-player-view-start data-testid="player-view-start" onClick={() => setPlayerView(true)}>

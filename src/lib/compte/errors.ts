@@ -41,6 +41,13 @@ export const ERROR_MESSAGES: Record<string, string> = {
   poll_closed: "Ce sondage est fermé.",
   invalid_option: "Ce choix n'existe pas. Rechargez la page.",
   too_many_polls: "Trois sondages sont déjà ouverts : fermez-en un avant d'en lancer un autre.",
+
+  invalid_idea: "Écrivez votre idée en 10 à 500 caractères.",
+  too_many_ideas: "Vous avez déjà 3 idées à l'étude : attendez une décision, ou retirez-en une.",
+  idea_not_found: "Cette idée n'existe plus.",
+  idea_closed: "Cette idée a déjà reçu une décision : elle ne se soutient plus.",
+  own_idea: "C'est votre idée : seuls les autres membres peuvent la soutenir.",
+  invalid_status: "Cette décision n'existe pas. Rechargez la page.",
 };
 
 export function errorMessage(code: string): string {

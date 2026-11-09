@@ -123,6 +123,19 @@ const snapshot = loadVisitSnapshot();
       )
     }
 
+    {/* La porte de la face privée : le contenu du QG n'est pas dans cette page, le serveur ne le donne qu'aux membres validés. */}
+    {
+      AUTH_ENABLED && (
+        <section class="stage stage-night reveal flex flex-wrap items-center justify-between gap-x-8 gap-y-4" aria-labelledby="qg-title" data-testid="home-qg">
+          <div>
+            <h2 id="qg-title" class="section-title section-title-sm">Le QG des membres</h2>
+            <p class="mt-3 max-w-xl text-muted">Les sondages et les décisions du clan, la boîte à idées et le mur des membres. Réservé aux membres de GAL reconnus par un officier.</p>
+          </div>
+          <a href={`${base}/qg`} class="btn btn-secondary">Entrer dans le QG</a>
+        </section>
+      )
+    }
+
     <section class="stage stage-blue reveal" aria-labelledby="stats-title">
       <h2 id="stats-title" class="section-title section-title-sm">Le clan au classement officiel</h2>
       <div class="mt-6 grid grid-cols-2 gap-x-6 gap-y-6 md:grid-cols-3 lg:grid-cols-5">

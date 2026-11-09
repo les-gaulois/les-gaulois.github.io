@@ -74,6 +74,8 @@ export default function AuthMenu() {
   }
 
   const waiting = pendingWords(pending);
+  // Pour l'affichage seulement : le serveur ne donne le contenu du QG qu'à un compte validé.
+  const validated = me.status === "validated";
   return (
     <>
       {canDirect && (
@@ -88,12 +90,22 @@ export default function AuthMenu() {
           )}
         </a>
       )}
-      {/* Sur téléphone, la place manque : un officier garde « Direction », et son compte s'ouvre depuis cet espace. */}
-      <span class={canDirect ? "hidden sm:inline-flex" : "inline-flex"}>
-        <a href={`${base}/compte`} class={LINK} data-testid="auth-account" title={me.name}>
-          <span class="block max-w-24 truncate sm:max-w-32">{me.name ?? "Mon compte"}</span>
-        </a>
-      </span>
+      {/* Le QG, à un clic de toutes les pages pour un membre validé. Sur téléphone, la place manque : un officier garde « Direction », d'où s'ouvre le QG. */}
+      {validated && (
+        <span class={canDirect ? "hidden sm:inline-flex" : "inline-flex"}>
+          <a href={`${base}/qg`} class={LINK} data-testid="auth-qg">
+            QG
+          </a>
+        </span>
+      )}
+      {/* Le nom mène au compte. L'encadrement, qui a déjà deux liens, ouvre le sien depuis le QG ou la Direction ; sur téléphone, un membre validé aussi. */}
+      {!canDirect && (
+        <span class={validated ? "hidden sm:inline-flex" : "inline-flex"}>
+          <a href={`${base}/compte`} class={LINK} data-testid="auth-account" title={me.name}>
+            <span class="block max-w-24 truncate sm:max-w-32">{me.name ?? "Mon compte"}</span>
+          </a>
+        </span>
+      )}
     </>
   );
 }

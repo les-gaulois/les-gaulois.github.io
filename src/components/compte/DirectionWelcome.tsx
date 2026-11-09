@@ -6,7 +6,7 @@ import { Loading, Problem, Success, messageOf, useRun } from "./common";
 const MAX = 2000;
 
 /**
- * Le mot d'accueil : un texte de l'encadrement que chaque membre validé lit dans « Mon compte ».
+ * Le mot d'accueil : un texte de l'encadrement que chaque membre validé lit au QG.
  * `draft` est gardé par l'espace Direction : `null` tant que le texte enregistré n'est pas lu.
  */
 export default function DirectionWelcome({ draft, setDraft }: { draft: string | null; setDraft: (text: string) => void }) {
@@ -41,7 +41,7 @@ export default function DirectionWelcome({ draft, setDraft }: { draft: string | 
       <h2 id="welcome-title" class="text-xl">
         Mot d'accueil
       </h2>
-      <p class="mt-2 text-sm text-muted">Chaque membre validé le lit dans « Mon compte » : les salons à rejoindre, les règles du clan. Un texte vide l'efface.</p>
+      <p class="mt-2 text-sm text-muted">Chaque membre validé le lit en haut du QG : les salons à rejoindre, les règles du clan. Un texte vide l'efface.</p>
       <Problem message={loadError} onRetry={() => void load().then((body) => body !== null && setDraft(body))} />
       {draft === null ? (
         !loadError && <Loading />
@@ -50,7 +50,7 @@ export default function DirectionWelcome({ draft, setDraft }: { draft: string | 
           class="mt-4 grid gap-3"
           onSubmit={(e) => {
             e.preventDefault();
-            void run(() => call("save_welcome", { p_body: draft }), draft.trim() === "" ? "Mot d'accueil effacé." : "Mot d'accueil enregistré : les membres validés le voient dans « Mon compte ».");
+            void run(() => call("save_welcome", { p_body: draft }), draft.trim() === "" ? "Mot d'accueil effacé." : "Mot d'accueil enregistré : les membres validés le voient au QG.");
           }}
         >
           <div>

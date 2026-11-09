@@ -11,6 +11,9 @@ describe("sectionOf", () => {
   it("range une fiche de membre dans sa rubrique", () => {
     expect(sectionOf("/membres/abc123")?.label).toBe("Membres");
   });
+  it("range le QG, la face privée, avec les membres", () => {
+    expect(sectionOf("/qg")?.label).toBe("Membres");
+  });
   it("ne range ni l'accueil ni les pages personnelles", () => {
     expect(sectionOf("/")).toBeNull();
     expect(sectionOf("/compte")).toBeNull();
@@ -25,7 +28,7 @@ describe("sectionOf", () => {
 describe("SECTIONS", () => {
   const pages = SECTIONS.flatMap((s) => s.pages);
   it("garde le menu assez court pour tenir sur une ligne", () => {
-    // Avec le bouton « Nouveautés », l'en-tête de l'encadrement connecté n'a plus la place d'une septième rubrique : voir docs/DESIGN.md.
+    // Avec le bouton « Nouveautés », une septième rubrique mangerait presque toute la marge de l'en-tête d'un membre connecté : voir docs/DESIGN.md.
     expect(SECTIONS.length).toBeLessThanOrEqual(6);
   });
   it("ouvre chaque rubrique sur sa première page", () => {

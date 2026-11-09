@@ -66,7 +66,13 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   if (isClosed(exported.status)) add("Un visiteur ne peut pas exporter les données du site", "ok");
   else add("Un visiteur ne peut pas exporter les données du site", "fail", `Réponse ${exported.status}. Ne mettez pas en ligne : retirez le droit d'appeler export_site.`);
 
-  // Les réponses « Je viens » et les votes sont dans le schéma `internal`, que l'API ne montre pas : rien à lire ici.
+  // Le QG est la face privée du site : sans compte validé, le serveur refuse, par son droit d'appel ou par la fonction elle-même.
+  const qg = await rpc("get_qg");
+  const qgAnswer = qg.ok ? ((await qg.json()) as { ok?: boolean } | null) : null;
+  if (isClosed(qg.status) || (qg.ok && qgAnswer?.ok === false)) add("Un visiteur n'entre pas dans le QG", "ok");
+  else add("Un visiteur n'entre pas dans le QG", "fail", `Réponse ${qg.status}. Ne mettez pas en ligne : le QG ne doit s'ouvrir qu'à un membre validé.`);
+
+  // Les réponses « Je viens », les votes, les idées et leurs soutiens sont dans le schéma `internal`, que l'API ne montre pas : rien à lire ici.
   for (const table of ["profiles", "private_links", "admin_log", "clan_roster", "site_announcements", "polls"]) {
     const res = await fetcher(`${base}/rest/v1/${table}?select=*&limit=1`, { headers: anonHeaders });
     const rows = res.ok ? ((await res.json()) as unknown[]) : [];

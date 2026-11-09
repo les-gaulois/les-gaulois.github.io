@@ -16,7 +16,7 @@ export const LOG_CATEGORIES: readonly { id: LogCategory; label: string }[] = [
   { id: "requests", label: "Demandes" },
   { id: "roles", label: "Rôles" },
   { id: "suspensions", label: "Suspensions" },
-  { id: "news", label: "Publications : annonces, événements, sondages, mot d'accueil" },
+  { id: "news", label: "Publications : annonces, événements, sondages, mot d'accueil, idées" },
   { id: "other", label: "Autres" },
 ];
 
@@ -38,7 +38,12 @@ const CATEGORIES: Record<string, LogCategory> = {
   poll_closed: "news",
   poll_deleted: "news",
   welcome_saved: "news",
+  idea_decided: "news",
+  idea_removed: "news",
 };
+
+/** Les décisions de la boîte à idées, comme le journal les écrit. Mêmes codes que `IDEA_STATUS_LABELS` du QG. */
+const IDEA_DECISIONS: Record<string, string> = { open: "a remis à l'étude", kept: "a retenu", declined: "a écarté", done: "a noté comme faite" };
 
 export const categoryOf = (action: string): LogCategory => CATEGORIES[action] ?? "other";
 
@@ -126,6 +131,14 @@ export function describe(row: LogRow, when: (iso: string) => string): LogLine {
       return { who, what: `${questioned("a supprimé le sondage")}.` };
     case "welcome_saved":
       return { who, what: details["empty"] === true ? "a effacé le mot d'accueil." : "a modifié le mot d'accueil." };
+    // Le texte d'une idée n'est jamais dans le journal, qui ne s'efface pas : seulement son auteur.
+    case "idea_decided": {
+      const status = textOf(details, "status");
+      const verb = status !== null && Object.hasOwn(IDEA_DECISIONS, status) ? IDEA_DECISIONS[status] : null;
+      return { who, what: verb ? `${verb} une idée ${ofTarget}.` : `a tranché une idée ${ofTarget}.` };
+    }
+    case "idea_removed":
+      return { who, what: `a retiré une idée ${ofTarget}.` };
     case "account_deleted":
       return { who: row.actor ?? "Un membre", what: "a supprimé son compte." };
     default:

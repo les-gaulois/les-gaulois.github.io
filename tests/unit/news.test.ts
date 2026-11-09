@@ -38,14 +38,11 @@ describe("les événements", () => {
 
 describe("fetchLiveNews", () => {
   const respond = (status: number, body: unknown) => (async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
-  it("renvoie les données, sondages compris, même d'un serveur qui n'en connaît pas encore", async () => {
-    expect(await fetchLiveNews(respond(200, { ok: true, announcements: [], events: [] }))).toEqual({ announcements: [], events: [], polls: [] });
+  it("renvoie les annonces et les événements, jamais de sondage : ils sont au QG", async () => {
+    expect(await fetchLiveNews(respond(200, { ok: true, announcements: [], events: [] }))).toEqual({ announcements: [], events: [] });
+    // Un serveur plus ancien donne encore des sondages : l'accueil, public, ne les garde pas.
     const poll = { id: 1, question: "Quel soir ?", options: ["Vendredi", "Samedi"], counts: [3, 1], is_open: true, closes_at: null, created_at: "2026-11-08T10:00:00Z" };
-    const data = await fetchLiveNews(
-      respond(200, { ok: true, announcements: [], events: [], polls: [poll, { id: 2, question: "Sans choix" }, null, { ...poll, id: 3, options: [1, 2] }, { ...poll, id: 4, counts: [3] }, { ...poll, id: 5, counts: [3, null] }] }),
-    );
-    // Un sondage aux totaux incomplets n'est pas montré : un total absent n'est pas zéro.
-    expect(data?.polls).toEqual([poll]);
+    expect(await fetchLiveNews(respond(200, { ok: true, announcements: [], events: [], polls: [poll] }))).toEqual({ announcements: [], events: [] });
   });
   it("renvoie null en cas de panne ou de réponse inattendue : la page garde le dépôt", async () => {
     expect(await fetchLiveNews(respond(500, {}))).toBeNull();

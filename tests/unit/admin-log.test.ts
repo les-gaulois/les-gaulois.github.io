@@ -18,7 +18,7 @@ const sentence = (r: LogRow) => {
 };
 
 // Les migrations des fonctions que le site appelle encore. « Effacer mon compte » est dans celle des dons.
-const SITE_SQL = ["20261105000100_comptes_et_roles", "20261105000200_validation_des_membres", "20261105000900_direction", "20261106000100_roles_prevus", "20261108000200_vie_du_clan"]
+const SITE_SQL = ["20261105000100_comptes_et_roles", "20261105000200_validation_des_membres", "20261105000900_direction", "20261106000100_roles_prevus", "20261108000200_vie_du_clan", "20261109000100_qg_des_membres"]
   .map((name) => readFileSync(`supabase/migrations/${name}.sql`, "utf8"))
   .join("\n");
 const SITE_CODES = new Set([...[...SITE_SQL.matchAll(/log_admin\([^,]+,\s*'([a-z_]+)'/g)].map((m) => m[1]!), "account_deleted"]);
@@ -47,6 +47,12 @@ describe("le journal en clair", () => {
     expect(sentence(row("poll_deleted", { id: 2, question: "Quel soir ?" }, "Chef", null))).toBe("Chef a supprimé le sondage « Quel soir ? ».");
     expect(sentence(row("welcome_saved", { empty: false }, "Chef", null))).toBe("Chef a modifié le mot d'accueil.");
     expect(sentence(row("welcome_saved", { empty: true }, "Chef", null))).toBe("Chef a effacé le mot d'accueil.");
+    // La boîte à idées du QG : le journal nomme l'auteur de l'idée, jamais son texte.
+    expect(sentence(row("idea_decided", { id: 7, status: "kept" }))).toBe("Chef a retenu une idée de Recrue.");
+    expect(sentence(row("idea_decided", { id: 7, status: "declined" }))).toBe("Chef a écarté une idée de Recrue.");
+    expect(sentence(row("idea_decided", { id: 7, status: "done" }))).toBe("Chef a noté comme faite une idée de Recrue.");
+    expect(sentence(row("idea_decided", { id: 7, status: "open" }))).toBe("Chef a remis à l'étude une idée de Recrue.");
+    expect(sentence(row("idea_removed", { id: 7 }))).toBe("Chef a retiré une idée de Recrue.");
   });
 
   it("n'écrit pas un détail que le serveur n'a pas donné", () => {
@@ -58,6 +64,8 @@ describe("le journal en clair", () => {
     // Un nom hérité d'un objet JavaScript n'est pas un rôle.
     expect(sentence(row("role_changed", { from: "member", to: "toString" }))).toBe("Chef a changé le rôle de Recrue.");
     expect(sentence(row("event_saved", { id: 4 }, "Chef", null))).toBe("Chef a publié ou modifié l'événement.");
+    expect(sentence(row("idea_decided", { id: 7 }))).toBe("Chef a tranché une idée de Recrue.");
+    expect(sentence(row("idea_decided", { id: 7, status: "toString" }))).toBe("Chef a tranché une idée de Recrue.");
   });
 
   it("dit qui reçoit un rôle prévu, quel que soit le chemin", () => {

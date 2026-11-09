@@ -27,7 +27,7 @@ function status(poll: PollRow): string {
 }
 
 /**
- * Les sondages du clan : la Direction les lance, les ferme ou les supprime ; les membres validés votent sur l'accueil.
+ * Les sondages du clan : la Direction les lance, les ferme ou les supprime ; les membres validés votent au QG.
  * Le serveur vérifie tout (`save_poll`, `close_poll`, `delete_poll`) et ne donne jamais qui a voté quoi.
  * Le brouillon est gardé par l'espace Direction : un aller-retour en vue joueur ne l'efface pas.
  */
@@ -56,7 +56,7 @@ export default function DirectionPolls({ form, setForm }: { form: PollDraft; set
     if (issue) return;
     const ok = await run(
       () => call("save_poll", { p_question: form.question.trim(), p_options: cleanOptions(form.options), p_closes_at: form.closes ? new Date(form.closes).toISOString() : null }),
-      "Sondage lancé : il est sur l'accueil, et les membres validés peuvent voter.",
+      "Sondage lancé : il est au QG, et les membres validés peuvent voter.",
     );
     if (ok) setForm(EMPTY_POLL);
   };
@@ -68,7 +68,7 @@ export default function DirectionPolls({ form, setForm }: { form: PollDraft; set
       <h2 id="polls-title" class="text-xl">
         Sondages
       </h2>
-      <p class="mt-2 text-sm text-muted">Les membres validés votent sur l'accueil, une voix chacun, qu'ils peuvent changer tant que le sondage est ouvert. Tout le monde voit les totaux ; personne ne voit qui a voté quoi. Trois sondages ouverts au plus.</p>
+      <p class="mt-2 text-sm text-muted">Les membres validés votent au QG, une voix chacun, qu'ils peuvent changer tant que le sondage est ouvert. Seuls les membres validés voient les totaux ; personne ne voit qui a voté quoi. Trois sondages ouverts au plus.</p>
       <form
         class="mt-4 grid gap-3"
         onSubmit={(e) => {
@@ -156,7 +156,7 @@ export default function DirectionPolls({ form, setForm }: { form: PollDraft; set
                   {poll.editable && (
                     <div class="mt-3 flex flex-wrap gap-2">
                       {poll.is_open && (
-                        <button type="button" class="btn btn-ghost !min-h-10 !py-1.5 !text-sm" disabled={busy} aria-label={`Fermer le sondage « ${poll.question} »`} onClick={() => void run(() => call("close_poll", { p_id: poll.id }), "Sondage fermé : son résultat reste visible 7 jours sur l'accueil.")}>
+                        <button type="button" class="btn btn-ghost !min-h-10 !py-1.5 !text-sm" disabled={busy} aria-label={`Fermer le sondage « ${poll.question} »`} onClick={() => void run(() => call("close_poll", { p_id: poll.id }), "Sondage fermé : son résultat reste au QG, dans les décisions passées.")}>
                           Fermer
                         </button>
                       )}

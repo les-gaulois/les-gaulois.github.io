@@ -1,6 +1,6 @@
 /**
  * Les sondages du clan, côté site : leurs totaux tels que le serveur les donne, et la vérification d'un sondage avant l'envoi.
- * Le serveur ne donne jamais qui a voté quoi, seulement un total par choix (`get_site_news`, `list_polls`), et il revérifie tout.
+ * Le serveur ne donne jamais qui a voté quoi, seulement un total par choix (`get_qg`, `list_polls`), et il revérifie tout.
  */
 import { fmtInt } from "../format";
 

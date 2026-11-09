@@ -1,28 +1,8 @@
-import { useEffect, useState } from "preact/hooks";
+import { useState } from "preact/hooks";
 import { basePath, call, signOut } from "../../lib/compte/api";
 import { ROLE_LABELS, type Me } from "../../lib/compte/types";
 import { fmtDate } from "../../lib/format";
 import { DiscordButton, Loading, Problem, messageOf, useMe } from "./common";
-
-/** Le mot d'accueil écrit par l'encadrement, pour chaque membre validé. Sans texte, ou si le serveur ne répond pas, rien ne s'affiche. */
-function WelcomeNote() {
-  const [note, setNote] = useState<{ body: string | null; updated_at: string | null } | null>(null);
-  useEffect(() => {
-    call<{ body: string | null; updated_at: string | null }>("get_welcome")
-      .then(setNote)
-      .catch(() => setNote(null));
-  }, []);
-  if (!note?.body) return null;
-  return (
-    <section class="card p-5" aria-labelledby="welcome-title" data-testid="account-welcome">
-      <h2 id="welcome-title" class="text-xl">
-        Le mot de l'encadrement
-      </h2>
-      <p class="mt-3 whitespace-pre-line">{note.body}</p>
-      {note.updated_at && <p class="tnum mt-3 text-xs text-muted">Mis à jour le {fmtDate(note.updated_at)}</p>}
-    </section>
-  );
-}
 
 /** Lier son profil OpenFront et demander sa validation. */
 function MembershipRequest({ me, onChange }: { me: Me; onChange: () => Promise<void> }) {
@@ -73,7 +53,7 @@ function MembershipRequest({ me, onChange }: { me: Me; onChange: () => Promise<v
             <>Ce profil n'a pas été trouvé dans la liste des membres de GAL, relue une fois par jour. Un officier va vérifier. Si vous venez d'arriver, c'est normal.</>
           )}
         </p>
-        <p class="mt-2 text-sm text-muted">Envoyée le {fmtDate(request.created_at)}. Tant qu'elle n'est pas validée, vous ne voyez que ce statut et ce qui est public.</p>
+        <p class="mt-2 text-sm text-muted">Envoyée le {fmtDate(request.created_at)}. Tant qu'elle n'est pas validée, vous ne voyez que ce statut et ce qui est public : le QG reste fermé.</p>
         <button type="button" class="btn btn-ghost mt-4 !min-h-10 !py-1.5 !text-sm" disabled={busy} onClick={() => void cancel()}>
           Annuler ma demande
         </button>
@@ -207,19 +187,25 @@ export default function AccountApp() {
             </>
           )}
         </p>
-        {me.status === "validated" && (me.rank ?? 0) >= 2 && (
+        {me.status === "validated" && (
           <div class="mt-4 flex flex-wrap gap-3">
-            <a class="btn btn-secondary" href={`${basePath()}/direction`}>
-              Direction
+            {/* Le mot de l'encadrement, les sondages, les idées et le mur sont au QG, réservé aux membres validés. */}
+            <a class="btn btn-primary" href={`${basePath()}/qg`} data-testid="account-qg">
+              Entrer dans le QG
             </a>
-            <a class="btn btn-secondary" href={`${basePath()}/admin`}>
-              Administration
-            </a>
+            {(me.rank ?? 0) >= 2 && (
+              <>
+                <a class="btn btn-secondary" href={`${basePath()}/direction`}>
+                  Direction
+                </a>
+                <a class="btn btn-secondary" href={`${basePath()}/admin`}>
+                  Administration
+                </a>
+              </>
+            )}
           </div>
         )}
       </section>
-
-      {me.status === "validated" && <WelcomeNote />}
 
       {me.status === "pending" && <MembershipRequest me={me} onChange={refresh} />}
 

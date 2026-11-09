@@ -1,11 +1,11 @@
 /**
- * Les annonces, événements et sondages publiés depuis l'espace Direction, réunis avec ceux du dépôt.
+ * Les annonces et les événements publiés depuis l'espace Direction, réunis avec ceux du dépôt : la face publique.
  * Un simple fetch : la page d'accueil ne charge pas toute la bibliothèque de Supabase pour cela.
- * Seul un membre connecté la charge, pour répondre « Je viens » ou voter (`fetchMyParticipation`).
+ * Seul un membre connecté la charge, pour répondre « Je viens » (`fetchMyParticipation`).
+ * Les sondages sont au QG (`qg.ts`), pour les membres validés : le serveur ne les donne plus ici.
  */
 import { fmtDate, fmtInt } from "../format";
 import { SUPABASE_KEY, SUPABASE_URL, call } from "./api";
-import { validPollTotals, type PollTotals } from "./polls";
 
 export interface StaticAnnouncement {
   date: string;
@@ -41,17 +41,9 @@ export interface LiveEvent {
   going?: number;
   series?: EventSeries | null;
 }
-export interface LivePoll extends PollTotals {
-  id: number;
-  question: string;
-  created_at: string;
-  closes_at: string | null;
-  is_open: boolean;
-}
 export interface LiveNews {
   announcements: LiveAnnouncement[];
   events: LiveEvent[];
-  polls: LivePoll[];
 }
 export interface NewsItem {
   key: string;
@@ -64,10 +56,9 @@ export interface NewsItem {
   going?: number;
   series?: EventSeries | null;
 }
-/** Ce que le membre connecté a répondu : les événements où il vient, et son choix à chaque sondage. */
+/** Ce que le membre connecté a répondu : les événements où il vient. */
 export interface Participation {
   events: Set<number>;
-  votes: Map<number, number>;
 }
 
 /** « 1 membre vient », « 3 membres viennent ». `null` : personne, rien à écrire. */
@@ -116,29 +107,20 @@ export async function fetchLiveNews(fetcher: typeof fetch = fetch): Promise<Live
     });
     if (!res.ok) return null;
     const data = (await res.json()) as Partial<LiveNews> & { ok?: boolean };
-    // Les sondages n'existent pas sur un serveur plus ancien : la page fait sans.
-    return data.ok && Array.isArray(data.announcements) && Array.isArray(data.events)
-      ? { announcements: data.announcements, events: data.events, polls: Array.isArray(data.polls) ? data.polls.filter(isPoll) : [] }
-      : null;
+    return data.ok && Array.isArray(data.announcements) && Array.isArray(data.events) ? { announcements: data.announcements, events: data.events } : null;
   } catch {
     return null;
   }
 }
 
-/** Un sondage lisible : des choix en texte et un total entier par choix. Sinon, la page ne le montre pas. */
-function isPoll(poll: unknown): poll is LivePoll {
-  const p = poll as Partial<LivePoll> | null;
-  return typeof p === "object" && p !== null && typeof p.id === "number" && typeof p.question === "string" && typeof p.is_open === "boolean" && validPollTotals(p);
-}
-
 /**
  * Ce que le membre connecté a répondu. `null` : pas de session, compte pas encore validé ou serveur muet ;
- * la page ne propose alors ni « Je viens » ni de voter.
+ * la page ne propose alors pas « Je viens ».
  */
 export async function fetchMyParticipation(): Promise<Participation | null> {
   try {
-    const data = await call<{ events: number[]; votes: { poll_id: number; choice: number }[] }>("get_my_participation");
-    return { events: new Set(data.events), votes: new Map(data.votes.map((v) => [v.poll_id, v.choice])) };
+    const data = await call<{ events: number[] }>("get_my_participation");
+    return { events: new Set(data.events) };
   } catch {
     return null;
   }

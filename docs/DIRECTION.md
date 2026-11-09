@@ -9,11 +9,46 @@ C'est la seule partie du site qui a un serveur et une base de données (Supabase
 ## Ce que voit chacun
 
 - **Un visiteur :** un bouton « Se connecter » dans l'en-tête de toutes les pages. Tant qu'il n'a pas de session, son navigateur ne télécharge pas Supabase.
-- **Un membre connecté :** son nom dans l'en-tête, qui mène à son compte. Une fois validé, il répond « Je viens » aux événements et vote aux sondages de l'accueil, et lit le mot d'accueil de l'encadrement dans `/compte`.
-- **Un officier, un admin, le fondateur :** en plus, un lien « Direction ». Sur téléphone, seul ce lien reste, faute de place : le compte s'ouvre depuis l'espace Direction.
+- **Un membre connecté :** son nom dans l'en-tête, qui mène à son compte. Une fois validé, un lien « QG » s'y ajoute : c'est la face privée du site, décrite plus bas. Sur téléphone, seul « QG » reste, faute de place : le compte s'ouvre depuis le QG. Sur l'accueil, il répond « Je viens » aux événements.
+- **Un officier, un admin, le fondateur :** à la place de son nom, les liens « Direction » et « QG ». Sur téléphone, seul « Direction » reste, faute de place : le QG et le compte s'ouvrent depuis l'espace Direction.
   - Quand des demandes attendent, une pastille jaune donne leur nombre à côté de ce lien, sur toutes les pages. Le serveur ne le donne qu'à l'encadrement (`count_pending_requests`, migration `20261108000100_pastille_direction.sql`). Il se relit à chaque page, et aussitôt qu'une demande est traitée dans `/admin`. En vue joueur, ni lien ni pastille.
 
 Sans `PUBLIC_SUPABASE_URL` et `PUBLIC_SUPABASE_KEY`, aucun de ces éléments n'apparaît et le site reste entièrement statique.
+
+## La face publique et la face privée
+
+Le site a deux faces depuis le 9 novembre 2026.
+
+- **La face publique :** tout ce qui vient de l'API publique d'OpenFront (classement, carte, records, gazette, membres), les guides, les annonces et les événements. Tout le monde la lit, sans compte.
+- **La face privée, le QG (`/qg`) :** réservée aux membres validés. Sa page publiée ne contient que la porte. Son contenu n'est écrit dans aucune page du site ni dans le dépôt : le serveur le donne en un appel, `get_qg`, qui refuse un visiteur, un compte en attente et un compte suspendu.
+
+**Comment on est reconnu membre**, une seule fois :
+
+1. Le joueur se connecte avec Discord.
+2. Il tape son pseudo ou son identifiant OpenFront dans `/compte`.
+3. Le site vérifie qu'il figure dans la liste des membres de GAL.
+4. Un officier confirme que c'est bien lui. Ensuite, le site le reconnaît à chaque visite.
+
+L'identifiant OpenFront seul ne peut pas ouvrir le QG : il est public, dans l'API du jeu et dans l'adresse de chaque fiche de membre. L'étape 4 deviendra automatique le jour où OpenFront acceptera le site dans sa liste (voir « Vérifier les membres : la limite à connaître »).
+
+## Le QG des membres : `/qg`
+
+En bleu, comme le reste du site : c'est l'espace des membres, pas celui de l'encadrement. Un visiteur y lit la porte et les quatre étapes ; le bouton de connexion ramène à `/compte`, là où se fait la demande.
+
+- **Se montrer aux autres membres :** un choix de chaque membre, désactivé au départ (`set_member_visibility`, colonne `profiles.show_to_members`). Activé, les autres membres validés voient son nom sur le site, son rôle et sa photo de profil Discord, sur le mur et parmi ceux qui viennent à un événement.
+  - La photo n'est recopiée nulle part : le serveur lit son adresse dans `auth.identities` (`internal.discord_avatar`), et n'accepte qu'une photo choisie par le membre, à l'adresse exacte du serveur d'images de Discord. Le navigateur revérifie (`safeAvatar`). Sans photo lisible, l'initiale du nom s'affiche. L'image par défaut d'un compte sans photo est le logo de Discord : elle est écartée.
+  - **Cette adresse contient l'identifiant Discord du membre.** Un membre validé peut donc lire l'identifiant de ceux qui se montrent. Le QG le dit sous le bouton, avant le choix, et la page de confidentialité aussi. Le cacher demanderait de recopier les photos sur le serveur du site.
+- **Le mot de l'encadrement,** en haut du QG.
+- **Décisions :** les sondages ouverts, où l'on vote, puis les 30 derniers fermés avec leur résultat. Les sondages ne sont plus sur l'accueil : `get_site_news` ne les donne plus, leurs totaux ne sortent qu'au QG.
+- **Événements à venir :** comme sur l'accueil, avec « Je viens » et, en plus, les membres qui viennent parmi ceux qui ont choisi de se montrer (12 au plus par événement). Les autres ne sont que comptés : « et 3 autres membres ».
+- **Boîte à idées :** un membre validé propose une idée de 10 à 500 caractères, sous son nom, trois à l'étude au plus (`save_idea`). Les autres la soutiennent (`support_idea`) : le site montre le nombre de soutiens, jamais qui soutient. L'encadrement tranche, au QG même : retenue, écartée ou faite, avec un mot facultatif de 300 caractères (`decide_idea`).
+  - L'auteur retire son idée quand il veut. L'encadrement peut retirer celle d'un autre (`delete_idea`). Le journal note qui a tranché ou retiré l'idée de qui, jamais le texte : ce journal ne s'efface pas.
+  - Une idée part avec le compte de son auteur. Les idées d'un compte suspendu ne sont plus montrées, et ses soutiens ne comptent plus.
+  - Les idées et leurs soutiens sont dans des tables privées, `internal.ideas` et `internal.idea_supports`, que l'API ne montre pas.
+- **Le mur des membres :** ceux qui ont choisi de se montrer, l'encadrement d'abord, avec le nombre de comptes validés.
+- **En vue joueur,** l'encadrement voit le QG sans les commandes de décision. Le serveur garde le vrai rôle.
+
+Le contrôle `npm run verifier:ligne` vérifie qu'un visiteur n'entre pas dans le QG.
 
 ## L'espace Direction : `/direction`
 
@@ -27,12 +62,12 @@ Sans `PUBLIC_SUPABASE_URL` et `PUBLIC_SUPABASE_KEY`, aucun de ces éléments n'a
 - **Annonces et événements :** publiés sans passer par GitHub, visibles aussitôt sur l'accueil, même sans compte. Ils s'ajoutent à ceux de `content/*.json`, qui restent valables. Si le serveur ne répond pas, l'accueil garde ceux du dépôt.
   - **Répéter chaque semaine :** un nouvel événement peut revenir de 2 à 12 semaines, à la même heure de Paris, changement d'heure compris (`save_event_series`). Chaque rendez-vous est un événement ordinaire, qui se modifie ou se supprime seul et garde ses propres réponses. L'accueil n'en montre que le prochain, avec « Encore 4 rendez-vous, jusqu'au … » : ce texte reste juste même si un rendez-vous est déplacé ou supprimé.
   - **« Je viens » :** sur l'accueil, un membre validé connecté répond pour lui-même, seulement à un événement à venir (`set_attendance`). Tout le monde voit le nombre ; l'espace Direction donne les noms (`list_event_attendance`). Les réponses sont dans une table privée, `internal.event_attendance`, que l'API ne montre pas. Un compte suspendu n'est ni compté ni nommé. Les événements du dépôt n'ont pas de réponses.
-- **Sondages :** une question et de 2 à 6 choix, avec une fin facultative dans les 90 jours (`save_poll`). Trois sondages ouverts au plus : l'accueil, seul endroit où l'on vote, les montre tous, avant les sondages fermés.
-  - Les membres validés votent sur l'accueil, une voix chacun, qu'ils peuvent changer tant que le sondage est ouvert (`vote_poll`).
-  - Tout le monde voit les totaux, jamais qui a voté quoi : les voix sont dans une table privée, `internal.poll_votes`, et aucune fonction ne le donne. La voix d'un compte suspendu ne compte plus.
-  - Un sondage fermé, à la main ou par sa date, montre son résultat 7 jours sur l'accueil. Le supprimer efface ses votes. Un sondage ne se modifie pas : cela fausserait les voix déjà données.
+- **Sondages :** une question et de 2 à 6 choix, avec une fin facultative dans les 90 jours (`save_poll`). Trois sondages ouverts au plus : le QG, seul endroit où l'on vote, les montre tous, avant les sondages fermés.
+  - Les membres validés votent au QG, une voix chacun, qu'ils peuvent changer tant que le sondage est ouvert (`vote_poll`).
+  - Seuls les membres validés voient les totaux, jamais qui a voté quoi : les voix sont dans une table privée, `internal.poll_votes`, et aucune fonction ne le donne. La voix d'un compte suspendu ne compte plus.
+  - Un sondage fermé, à la main ou par sa date, garde son résultat au QG, dans les décisions passées. Le supprimer efface ses votes. Un sondage ne se modifie pas : cela fausserait les voix déjà données.
   - Un sondage dont les totaux seraient illisibles n'affiche aucun résultat, plutôt qu'un « 0 voix » faux.
-- **Mot d'accueil :** un texte de l'encadrement, de 2 000 caractères au plus, que chaque membre validé lit dans `/compte` (`save_welcome`, `get_welcome`). Un texte vide l'efface. C'est un texte commun : tout l'encadrement, officiers compris, peut le réécrire.
+- **Mot d'accueil :** un texte de l'encadrement, de 2 000 caractères au plus, que chaque membre validé lit en haut du QG (`save_welcome` ; `get_welcome` le relit pour l'encadrement). Un texte vide l'efface. C'est un texte commun : tout l'encadrement, officiers compris, peut le réécrire.
 - Les brouillons des sondages et du mot d'accueil survivent, eux aussi, à un aller-retour en vue joueur.
 - **Transmettre le rôle de fondateur :** visible du fondateur seul. Il faut retaper le nom de la personne. L'ancien fondateur devient admin.
 - **Voir le site comme un joueur :** le bouton en haut de l'espace montre tout le site comme à un membre sans grade : plus de lien « Direction » dans l'en-tête, plus de boutons de l'encadrement dans `/compte`, et `/direction` et `/admin` fermés comme pour un membre. Une bande en haut de chaque page le rappelle et permet d'en sortir.
@@ -72,11 +107,13 @@ Supabase ne sauvegarde rien sur le forfait gratuit. Chaque semaine, l'Action **S
 
 - comptes et rôles, liens Discord (identifiant et nom), demandes et journal ;
 - annonces, événements et réponses « Je viens » ;
-- sondages avec leurs seuls totaux, et mot d'accueil.
+- sondages avec leurs seuls totaux, et mot d'accueil ;
+- idées de la boîte à idées, avec le seul nombre de leurs soutiens, et le choix de chacun de se montrer.
 
 L'export (fonction `export_site`, réservée à la clé de service) ne garde que le nécessaire :
 
 - **Des votes, les totaux par choix seulement.** Personne n'apprend qui a voté quoi, pas même avec la phrase de passe. Après une restauration, les sondages reviennent sans leurs voix individuelles.
+- **Des soutiens aux idées, le nombre par idée seulement,** pour la même raison.
 - **Ni l'empreinte du `publicId` OpenFront, ni les textes libres d'une demande** (ce que le joueur a tapé, son mot pour l'officier). Avec l'API publique, ils pourraient lever l'anonymat d'un membre anonyme si la phrase était devinée. Après une restauration, le lien avec le profil OpenFront est perdu. Un compte validé ne peut pas refaire de demande : remettez-le d'abord en attente dans l'éditeur SQL, puis la personne refait sa demande.
 - **Ni les rôles prévus**, qu'on ne lit que dans l'éditeur de Supabase, **ni la liste officielle**, qui se relit, **ni les tables de l'ancien jeu**.
 - **Ni les comptes de connexion eux-mêmes** (`auth.users`, gérés par Supabase). Si le projet est perdu, chacun se reconnecte avec Discord, et l'encadrement retrouve rôles et données par l'identifiant Discord de `private_links`.
@@ -111,9 +148,12 @@ La phrase est demandée à l'écran, sans s'afficher : elle ne reste dans aucun 
 | Action | Visiteur | En attente | Membre | Officier | Admin | Fondateur |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|
 | Lire les annonces et les événements | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Voir les totaux des sondages et le nombre de présents | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Voir le nombre de présents à un événement | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Demander sa validation | | ✓ | | | | |
-| Répondre « Je viens », voter, lire le mot d'accueil | | | ✓ | ✓ | ✓ | ✓ |
+| Entrer au QG : sondages et totaux, idées, mur, mot d'accueil | | | ✓ | ✓ | ✓ | ✓ |
+| Répondre « Je viens », voter, proposer ou soutenir une idée, se montrer aux autres membres | | | ✓ | ✓ | ✓ | ✓ |
+| Retirer sa propre idée | | | ✓ | ✓ | ✓ | ✓ |
+| Trancher une idée, retirer celle d'un autre | | | | ✓ | ✓ | ✓ |
 | Valider les membres | | | | ✓ | ✓ | ✓ |
 | Ouvrir l'espace Direction, voir qui vient | | | | ✓ | ✓ | ✓ |
 | Publier une annonce, un événement ou un sondage, écrire le mot d'accueil | | | | ✓ | ✓ | ✓ |
@@ -203,6 +243,7 @@ Il vérifie que le projet répond, que Discord est activé, que l'e-mail est cou
 - **Un vrai téléphone, Firefox et Safari.**
 - **La vue joueur avec un vrai compte de l'encadrement.** Le 8 novembre 2026, elle n'a été essayée qu'avec un faux serveur, dans un vrai navigateur : bouton, bande, en-tête, `/compte`, `/direction` et `/admin`.
 - **L'avis à l'encadrement et la sauvegarde chiffrée.** Le 8 novembre 2026, leur logique a été testée, les scripts lancés sans secret (ils ne font rien) et une sauvegarde d'essai rouverte. Mais aucun message n'est encore parti sur Discord, et l'Action **Sauvegarde chiffrée** n'a jamais tourné : il faut d'abord poser les secrets `DISCORD_WEBHOOK_ENCADREMENT` et `SAUVEGARDE_CLE`. À la première sauvegarde, vérifier qu'elle s'ouvre avec la phrase de passe.
+- **Le QG.** Le 9 novembre 2026, il n'a été essayé qu'avec un faux serveur, dans un vrai navigateur : la porte, un compte en attente, un membre, l'encadrement. Sa migration (`20261109000100_qg_des_membres.sql`) n'a tourné sur aucun Postgres avant le vrai projet. Le nom du champ où Discord donne la photo (`avatar_url`, sinon `picture`) n'a pas été lu sur le vrai projet : si une photo manque au premier essai réel, c'est là qu'il faut regarder. D'ici là, l'initiale s'affiche.
 - **Les événements répétés, « Je viens », les sondages et le mot d'accueil.** Le 8 novembre 2026, ils n'ont été essayés qu'avec un faux serveur, dans un vrai navigateur. Leur migration (`20261108000200_vie_du_clan.sql`) est installée sur le vrai projet, et ses droits contrôlés en lecture seule ; les fonctions elles-mêmes n'y ont pas encore servi.
 - **La confirmation d'un rôle, l'attente des demandes et les raisons toutes prêtes.** Le 8 novembre 2026, ils n'ont été essayés qu'avec un faux serveur, dans un vrai navigateur.
 - **Le journal en phrases, la pastille et l'état du site.** Le 8 novembre 2026, ils n'ont été essayés qu'avec un faux serveur, dans un vrai navigateur. La fonction de la pastille a été installée sur le vrai projet, et ses droits contrôlés en lecture seule.

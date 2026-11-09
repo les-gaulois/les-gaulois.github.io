@@ -25,7 +25,8 @@ export const SECTIONS: NavSection[] = [
     { href: "/progression", label: "Progression" },
     { href: "/records", label: "Records" },
   ),
-  section("Membres", { href: "/membres", label: "Membres" }),
+  // Le QG : la face privée du site. Sa page ne montre que la porte tant que le serveur n'a pas reconnu un membre validé.
+  section("Membres", { href: "/membres", label: "Membres" }, { href: "/qg", label: "Le QG" }),
   section("Carte", { href: "/carte", label: "Carte" }),
   section("Guides", { href: "/debuter", label: "Guides" }, { href: "/activite", label: "Quand jouer" }, { href: "/outils", label: "Calculateur et outils" }),
   section("Rejoindre", { href: "/rejoindre", label: "Rejoindre" }),

@@ -1,0 +1,17 @@
+---
+import Base from "../layouts/Base.astro";
+import PageHeader from "../components/PageHeader.astro";
+import NotOpen from "../components/compte/NotOpen.astro";
+import QgApp from "../components/compte/QgApp";
+import { AUTH_ENABLED } from "../lib/compte/api";
+---
+
+{/* La face privée du site : cette page ne contient que la porte. Le contenu vient du serveur, pour un membre validé seulement. */}
+<Base title="Le QG" description="Le QG des membres du clan GAL : décisions, boîte à idées et événements, réservé aux membres reconnus." noindex>
+  <div class="wrap">
+    <PageHeader title="Le QG" intro="L'espace réservé aux membres de GAL : les décisions du clan, la boîte à idées, les événements et le mur des membres." />
+    <div class="mt-6">
+      {AUTH_ENABLED ? <QgApp client:only="preact" /> : <NotOpen />}
+    </div>
+  </div>
+</Base>

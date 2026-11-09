@@ -1,5 +1,15 @@
 [
   {
+    "date": "2026-11-09",
+    "kind": "nouveau",
+    "title": "Le QG, réservé aux membres",
+    "body": "Les membres reconnus par un officier y votent, proposent des idées et peuvent se montrer sur le mur avec leur photo Discord. Les sondages quittent l'accueil pour le QG.",
+    "link": {
+      "href": "/qg",
+      "label": "Ouvrir le QG"
+    }
+  },
+  {
     "date": "2026-11-08",
     "kind": "nouveau",
     "title": "Demandes signalées et sauvegarde chiffrée",

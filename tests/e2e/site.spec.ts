@@ -22,7 +22,7 @@ import { latestNews, newsDays, newsMarker, NOUVEAUTES_KEY, splitDays } from "../
 import { objectiveFor } from "../../src/lib/clanmap/economy";
 import { nextTier, tierOf, tierRows } from "../../src/lib/paliers";
 
-const PAGES = ["/", "/gazette", "/parties", "/nouveautes", "/classement", "/rivaux", "/progression", "/records", "/membres", "/carte", "/activite", "/debuter", "/outils", "/rejoindre"];
+const PAGES = ["/", "/gazette", "/parties", "/nouveautes", "/classement", "/rivaux", "/progression", "/records", "/membres", "/qg", "/carte", "/activite", "/debuter", "/outils", "/rejoindre"];
 const lb = JSON.parse(readFileSync("data/leaderboard.json", "utf8"));
 const members = JSON.parse(readFileSync("data/members.json", "utf8"));
 const gal = lb.clans.find((c: { clanTag: string }) => c.clanTag === "GAL");
@@ -44,11 +44,21 @@ test("sans serveur configuré, la connexion n'apparaît pas et le site reste sta
   });
   await page.goto("/");
   await expect(page.getByTestId("auth-sign-in")).toHaveCount(0);
-  for (const path of ["/compte", "/admin", "/direction"]) {
+  // Sans serveur, pas de face privée : l'accueil n'en montre pas la porte.
+  await expect(page.getByTestId("home-qg")).toHaveCount(0);
+  for (const path of ["/compte", "/admin", "/direction", "/qg"]) {
     await page.goto(path);
     await expect(page.getByTestId("auth-not-open")).toBeVisible();
   }
   expect(calls).toEqual([]);
+});
+
+// La face privée : la page publiée ne contient que la porte. Son contenu vient du serveur, pour un membre validé.
+test("le QG n'est pas indexé, et sa page ne contient rien de privé", async ({ page }) => {
+  await page.goto("/qg");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Le QG");
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex");
+  for (const id of ["qg", "qg-decisions", "qg-ideas", "qg-wall", "qg-events"]) await expect(page.getByTestId(id)).toHaveCount(0);
 });
 
 // L'encadrement sait d'un coup d'œil où il est. Le compte d'un membre reste bleu, comme le reste du site.

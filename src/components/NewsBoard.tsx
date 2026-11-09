@@ -15,7 +15,6 @@ import {
   type StaticEvent,
 } from "../lib/compte/news";
 import { fmtDate, fmtDateTime } from "../lib/format";
-import NewsPolls from "./NewsPolls";
 
 function Items({ items, date, testId, extra }: { items: NewsItem[]; date: (iso: string) => string; testId: string; extra?: (item: NewsItem) => ComponentChildren }) {
   return (
@@ -40,16 +39,17 @@ function Items({ items, date, testId, extra }: { items: NewsItem[]; date: (iso: 
 const refusal = (e: unknown) => (e instanceof ServerError ? e.message : "Le serveur ne répond pas pour l'instant. Réessayez dans un moment.");
 
 /**
- * Les annonces, les événements et les sondages de l'accueil. Le HTML construit contient ceux du dépôt.
+ * Les annonces et les événements de l'accueil : la face publique. Le HTML construit contient ceux du dépôt.
  * Avec `live`, le navigateur y ajoute ceux publiés depuis l'espace Direction. Un membre validé connecté
- * peut en plus répondre « Je viens » et voter : sans session, rien de Supabase n'est chargé pour cela.
+ * peut en plus répondre « Je viens » : sans session, rien de Supabase n'est chargé pour cela.
+ * Les sondages n'y sont plus : ils sont au QG, réservé aux membres validés.
  */
 export default function NewsBoard({ announcements, events, now, live = false }: { announcements: StaticAnnouncement[]; events: StaticEvent[]; now: number; live?: boolean }) {
-  const [news, setNews] = useState<LiveNews>({ announcements: [], events: [], polls: [] });
+  const [news, setNews] = useState<LiveNews>({ announcements: [], events: [] });
   const [mine, setMine] = useState<Participation | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Ce que les lecteurs d'écran entendent après une réponse ou un vote : la zone existe déjà, seul son texte change.
+  // Ce que les lecteurs d'écran entendent après une réponse : la zone existe déjà, seul son texte change.
   const [said, setSaid] = useState("");
 
   const reload = async () => {
@@ -86,30 +86,10 @@ export default function NewsBoard({ announcements, events, now, live = false }: 
     }
   };
 
-  const vote = async (poll: number, choice: number) => {
-    if (busy) return;
-    setBusy(true);
-    setError(null);
-    setSaid("");
-    try {
-      await call("vote_poll", { p_poll: poll, p_choice: choice });
-      setMine((current) => (current ? { ...current, votes: new Map(current.votes).set(poll, choice) } : current));
-      // Les totaux viennent du serveur : on les relit plutôt que de les recompter ici.
-      await reload();
-      const label = news.polls.find((p) => p.id === poll)?.options[choice];
-      setSaid(label ? `Vote enregistré : ${label}.` : "Vote enregistré.");
-    } catch (e) {
-      setError(refusal(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const allAnnouncements = mergeAnnouncements(announcements, news.announcements);
   const allEvents = mergeEvents(events, news.events, now);
-  const polls = news.polls;
-  // Sans annonce, événement ni sondage, le bloc n'existe pas : un visiteur n'a rien à y lire.
-  if (allAnnouncements.length === 0 && allEvents.length === 0 && polls.length === 0) return null;
+  // Sans annonce ni événement, le bloc n'existe pas : un visiteur n'a rien à y lire.
+  if (allAnnouncements.length === 0 && allEvents.length === 0) return null;
 
   const eventExtra = (item: NewsItem) => {
     const going = goingLabel(item.going);
@@ -132,7 +112,7 @@ export default function NewsBoard({ announcements, events, now, live = false }: 
   };
 
   return (
-    <section class="grid gap-6 md:grid-cols-2" aria-label="Annonces, événements et sondages" data-testid="news-board">
+    <section class="grid gap-6 md:grid-cols-2" aria-label="Annonces et événements" data-testid="news-board">
       {allAnnouncements.length > 0 && (
         <div>
           <h2 class="text-2xl">Annonces</h2>
@@ -143,13 +123,6 @@ export default function NewsBoard({ announcements, events, now, live = false }: 
         <div>
           <h2 class="text-2xl">Événements à venir</h2>
           <Items items={allEvents} date={fmtDateTime} testId="news-events" extra={eventExtra} />
-        </div>
-      )}
-      {polls.length > 0 && (
-        <div class="md:col-span-2">
-          <h2 class="text-2xl">Sondages</h2>
-          <NewsPolls polls={polls} votes={mine?.votes ?? null} busy={busy} onVote={(poll, choice) => void vote(poll, choice)} />
-          {mine === null && polls.some((p) => p.is_open) && <p class="mt-3 text-sm text-muted">Les membres validés votent ici, une fois connectés.</p>}
         </div>
       )}
       {error && (
