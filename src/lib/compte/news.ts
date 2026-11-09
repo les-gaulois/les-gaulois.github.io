@@ -4,7 +4,8 @@
  * Seul un membre connecté la charge, pour répondre « Je viens » (`fetchMyParticipation`).
  * Les sondages sont au QG (`qg.ts`), pour les membres validés : le serveur ne les donne plus ici.
  */
-import { fmtDate, fmtInt } from "../format";
+import { fmtDate, fmtDay, fmtInt } from "../format";
+import { addDays, mondayOf, parisParts } from "../time";
 import { SUPABASE_KEY, SUPABASE_URL, call } from "./api";
 
 export interface StaticAnnouncement {
@@ -41,10 +42,44 @@ export interface LiveEvent {
   going?: number;
   series?: EventSeries | null;
 }
+/** Le Gaulois de la semaine, choisi par l'encadrement : un pseudo de la liste officielle et un mot facultatif. */
+export interface WeeklyPick {
+  /** Le lundi de sa semaine, à Paris, « AAAA-MM-JJ ». */
+  week: string;
+  player: string;
+  note: string | null;
+}
 export interface LiveNews {
   announcements: LiveAnnouncement[];
   events: LiveEvent[];
+  /** `null` : rien n'est choisi, ou un serveur d'avant le Gaulois de la semaine. */
+  weeklyPick: WeeklyPick | null;
 }
+
+/** Bornes du serveur (`save_weekly_pick`). */
+export const WEEKLY_PICK_PLAYER_MAX = 64;
+export const WEEKLY_PICK_NOTE_MAX = 300;
+
+/** Le choix tel que le serveur le donne. Illisible ou absent : `null`, l'accueil n'en dit rien plutôt que de deviner. */
+export function weeklyPickOf(raw: unknown): WeeklyPick | null {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;
+  const { week, player, note } = raw as Record<string, unknown>;
+  if (typeof week !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(week) || mondayOf(week) !== week) return null;
+  if (typeof player !== "string" || player.trim() === "" || player.length > WEEKLY_PICK_PLAYER_MAX) return null;
+  return { week, player, note: typeof note === "string" && note.trim() !== "" ? note.slice(0, WEEKLY_PICK_NOTE_MAX) : null };
+}
+
+/** Le lundi de la semaine en cours, à Paris, comme le serveur le calcule. */
+export const currentPickWeek = (now: Date) => mondayOf(parisParts(now).date);
+
+/** « la semaine du 9 nov. au 15 nov. » : la semaine d'un choix, toujours écrite. */
+export const pickWeekLabel = (week: string) => `la semaine du ${fmtDay(week)} au ${fmtDay(addDays(week, 6))}`;
+
+/** La même, en fin de phrase : un seul point, même après un mois abrégé (« 15 nov. »). */
+export const pickWeekEnding = (week: string) => {
+  const label = pickWeekLabel(week);
+  return label.endsWith(".") ? label : `${label}.`;
+};
 export interface NewsItem {
   key: string;
   at: string;
@@ -106,11 +141,24 @@ export async function fetchLiveNews(fetcher: typeof fetch = fetch): Promise<Live
       body: "{}",
     });
     if (!res.ok) return null;
-    const data = (await res.json()) as Partial<LiveNews> & { ok?: boolean };
-    return data.ok && Array.isArray(data.announcements) && Array.isArray(data.events) ? { announcements: data.announcements, events: data.events } : null;
+    const data = (await res.json()) as Partial<LiveNews> & { ok?: boolean; weekly_pick?: unknown };
+    return data.ok && Array.isArray(data.announcements) && Array.isArray(data.events)
+      ? { announcements: data.announcements, events: data.events, weeklyPick: weeklyPickOf(data.weekly_pick) }
+      : null;
   } catch {
     return null;
   }
+}
+
+let firstRead: Promise<LiveNews | null> | null = null;
+
+/**
+ * La première lecture de la page, partagée : les annonces de l'accueil et le Gaulois de la semaine viennent du même appel.
+ * Après une action, relire avec `fetchLiveNews`.
+ */
+export function fetchLiveNewsOnce(): Promise<LiveNews | null> {
+  firstRead ??= fetchLiveNews();
+  return firstRead;
 }
 
 /**

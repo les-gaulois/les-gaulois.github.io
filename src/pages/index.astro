@@ -134,7 +134,7 @@ const snapshot = loadVisitSnapshot();
     }
 
     {/* Ce que les membres viennent de faire : le résumé de la dernière gazette, et ce qui s'est passé depuis. */}
-    {gazette && <ClanWeek edition={gazette} currentMilestones={currentMilestones} records={recordLines} territoryRecord={territoryRecord} bestGame={bestYesterday ? bestGameSentence(bestYesterday) : null} creditMaps={(bestYesterday?.map ?? null) !== null} />}
+    {gazette && <ClanWeek edition={gazette} currentMilestones={currentMilestones} records={recordLines} territoryRecord={territoryRecord} bestGame={bestYesterday ? bestGameSentence(bestYesterday) : null} creditMaps={(bestYesterday?.map ?? null) !== null} live={AUTH_ENABLED} />}
 
     {/* Ce qui est à chacun : sa place dans le clan, et la porte de la face privée. */}
     <div class:list={["grid gap-6", AUTH_ENABLED && "lg:grid-cols-2"]}>

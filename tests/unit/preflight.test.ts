@@ -6,7 +6,9 @@ type Route = { status: number; body?: unknown };
 /** Un projet Supabase bien réglé. Chaque test en dérègle une partie. */
 const HEALTHY: Record<string, Route> = {
   "/auth/v1/settings": { status: 200, body: { external: { discord: true, email: false } } },
-  "/rest/v1/rpc/get_site_news": { status: 200, body: { ok: true } },
+  "/rest/v1/rpc/get_site_news": { status: 200, body: { ok: true, weekly_pick: null } },
+  "/rest/v1/rpc/save_weekly_pick": { status: 401, body: {} },
+  "/rest/v1/rpc/get_member_faces": { status: 401, body: {} },
   "/rest/v1/rpc/bootstrap_founder": { status: 401, body: {} },
   "/rest/v1/rpc/export_site": { status: 401, body: {} },
   "/rest/v1/rpc/get_qg": { status: 401, body: {} },
@@ -67,6 +69,21 @@ describe("le contrôle de la mise en ligne", () => {
   it("bloque si un visiteur peut exporter les données du site", async () => {
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/export_site": { status: 200, body: { ok: true, profiles: [] } } }, "exporter")).toBe("fail");
     expect(await statusOf(HEALTHY, "exporter")).toBe("ok");
+  });
+
+  it("repère un serveur sans le Gaulois de la semaine, et bloque si un visiteur peut le choisir", async () => {
+    expect(await statusOf(HEALTHY, "Gaulois de la semaine est installé")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_site_news": { status: 200, body: { ok: true } } }, "Gaulois de la semaine est installé")).toBe("fail");
+    expect(await statusOf(HEALTHY, "choisit pas")).toBe("ok");
+    // Le serveur répond 200 avec un refus : rien n'est choisi.
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/save_weekly_pick": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "choisit pas")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/save_weekly_pick": { status: 200, body: { ok: true } } }, "choisit pas")).toBe("fail");
+  });
+
+  it("bloque si les photos des membres sortent pour un visiteur", async () => {
+    expect(await statusOf(HEALTHY, "photos des membres")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_member_faces": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "photos des membres")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_member_faces": { status: 200, body: { ok: true, faces: [] } } }, "photos des membres")).toBe("fail");
   });
 
   it("bloque si le QG s'ouvre à un visiteur", async () => {

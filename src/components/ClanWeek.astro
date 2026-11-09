@@ -1,5 +1,6 @@
 ---
 import MapNamesCredit from "./MapNamesCredit.astro";
+import WeeklyPickCard from "./WeeklyPickCard";
 import { clan } from "../../config/clan";
 import { fmtCount, fmtInt, fmtRank } from "../lib/format";
 import { loadMembers } from "../lib/data";
@@ -24,8 +25,10 @@ interface Props {
   bestGame: string | null;
   /** La belle partie cite une carte de jeu : son nom vient de la traduction du jeu, dont le crédit accompagne le bloc. */
   creditMaps: boolean;
+  /** Le serveur de connexion est réglé : le Gaulois de la semaine choisi par l'encadrement peut s'afficher. */
+  live?: boolean;
 }
-const { edition, currentMilestones, records, territoryRecord, bestGame, creditMaps } = Astro.props;
+const { edition, currentMilestones, records, territoryRecord, bestGame, creditMaps, live = false } = Astro.props;
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const { players, active, arrivals } = edition;
 const period = playersPeriod(edition);
@@ -46,6 +49,7 @@ const faces = singlePseudos(loadMembers()?.members ?? []);
   <h2 id="week-title" class="section-title section-title-sm">Les Gaulois de la semaine</h2>
   <p class="tnum mt-4 text-sm font-semibold text-muted">Semaine {week}</p>
   <p class="mt-1 max-w-3xl text-lg text-muted" data-testid="home-week-lead">{editionLead(edition, clan.tag)}</p>
+
 
   <div class:list={["mt-6 grid gap-6", players && hasFeed && "lg:grid-cols-2"]}>
     {
@@ -147,6 +151,9 @@ const faces = singlePseudos(loadMembers()?.members ?? []);
       )
     }
   </div>
+
+  {/* Le Gaulois de la semaine, choisi par l'encadrement : il vient du serveur au chargement, rien n'en est écrit dans la page. Placé sous le podium, il ne le pousse pas quand il apparaît. */}
+  {live && <WeeklyPickCard client:idle membersSrc={`${base}/data/members.json`} fichesBase={`${base}/membres`} />}
 
   <div class="mt-6 flex flex-wrap gap-3">
     <a href={`${base}/gazette`} class="btn btn-secondary">Lire la gazette</a>

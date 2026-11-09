@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { ERROR_MESSAGES } from "../../src/lib/compte/errors";
-import { IDEA_MAX, IDEA_MIN, IDEA_NOTE_MAX, IDEA_OPEN_MAX, IDEA_STATUS_LABELS, decidedIdeas, ideaProblem, initialOf, keepOrder, openIdeas, othersLabel, parseQg, qgWaiting, safeAvatar, supportLabel, wallPhotos, type QgIdea } from "../../src/lib/compte/qg";
+import { IDEA_MAX, IDEA_MIN, IDEA_NOTE_MAX, IDEA_OPEN_MAX, IDEA_STATUS_LABELS, decidedIdeas, ideaProblem, initialOf, keepOrder, openIdeas, othersLabel, memberFacesOf, parseQg, qgWaiting, safeAvatar, supportLabel, type QgIdea } from "../../src/lib/compte/qg";
 
 const SQL = readFileSync("supabase/migrations/20261109000100_qg_des_membres.sql", "utf8");
 
@@ -150,26 +150,40 @@ describe("ceux qui viennent", () => {
   });
 });
 
-describe("les photos du mur ailleurs sur le site", () => {
+describe("les visages ailleurs sur le site", () => {
   const OTHER = "https://cdn.discordapp.com/avatars/223456789012345678/0f1e2d3c4b5a69788796a5b4c3d2e1f0.webp";
 
-  it("donnent la photo de chaque membre qui se montre, par son nom exact", () => {
-    const photos = wallPhotos([
-      { name: "Ancien Gaulois", role: "officer", avatar: AVATAR },
-      { name: "Recrue", role: "member", avatar: OTHER },
-    ]);
-    expect(photos.get("Ancien Gaulois")).toBe(AVATAR);
-    expect(photos.get("Recrue")).toBe(OTHER);
-    expect(photos.get("ancien gaulois")).toBeUndefined();
+  it("donnent la photo de chaque membre qui se montre, par son pseudo exact d'aujourd'hui", () => {
+    const photos = memberFacesOf({
+      ok: true,
+      faces: [
+        { pseudo: "Ancien Gaulois", avatar: AVATAR },
+        { pseudo: "Recrue", avatar: OTHER },
+      ],
+    });
+    expect(photos?.get("Ancien Gaulois")).toBe(AVATAR);
+    expect(photos?.get("Recrue")).toBe(OTHER);
+    expect(photos?.get("ancien gaulois")).toBeUndefined();
   });
 
-  it("laissent l'initiale à un membre sans photo, et à un nom porté par deux comptes, plutôt que la photo d'un autre", () => {
-    const photos = wallPhotos([
-      { name: "Sans photo", role: "member", avatar: null },
-      { name: "Double", role: "member", avatar: AVATAR },
-      { name: "Double", role: "member", avatar: null },
-    ]);
-    expect([...photos.keys()]).toEqual([]);
+  it("laissent l'initiale à un membre sans photo lisible, et à un pseudo porté par deux membres, plutôt que la photo d'un autre", () => {
+    const photos = memberFacesOf({
+      ok: true,
+      faces: [
+        { pseudo: "Sans photo", avatar: null },
+        { pseudo: "Logo", avatar: "https://cdn.discordapp.com/embed/avatars/0.png" },
+        { pseudo: "Double", avatar: AVATAR },
+        { pseudo: "DOUBLE", avatar: OTHER },
+        { pseudo: "", avatar: AVATAR },
+        null,
+      ],
+    });
+    expect([...(photos?.keys() ?? ["?"])]).toEqual([]);
+  });
+
+  it("ne devinent rien d'une réponse illisible", () => {
+    expect(memberFacesOf(null)).toBeNull();
+    expect(memberFacesOf({ ok: false, error: "not_validated" })).toBeNull();
   });
 });
 

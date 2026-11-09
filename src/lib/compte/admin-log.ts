@@ -16,7 +16,7 @@ export const LOG_CATEGORIES: readonly { id: LogCategory; label: string }[] = [
   { id: "requests", label: "Demandes" },
   { id: "roles", label: "Rôles" },
   { id: "suspensions", label: "Suspensions" },
-  { id: "news", label: "Publications : annonces, événements, sondages, mot d'accueil, idées" },
+  { id: "news", label: "Publications : annonces, événements, sondages, mot d'accueil, idées, Gaulois de la semaine" },
   { id: "other", label: "Autres" },
 ];
 
@@ -40,6 +40,8 @@ const CATEGORIES: Record<string, LogCategory> = {
   welcome_saved: "news",
   idea_decided: "news",
   idea_removed: "news",
+  weekly_pick_saved: "news",
+  weekly_pick_deleted: "news",
 };
 
 /** Les décisions de la boîte à idées, comme le journal les écrit. Mêmes codes que `IDEA_STATUS_LABELS` du QG. */
@@ -139,6 +141,15 @@ export function describe(row: LogRow, when: (iso: string) => string): LogLine {
     }
     case "idea_removed":
       return { who, what: `a retiré une idée ${ofTarget}.` };
+    // Le pseudo choisi est public : c'est celui de la liste officielle. Le mot qui l'accompagne n'est pas dans le journal.
+    case "weekly_pick_saved": {
+      const player = textOf(details, "player");
+      return { who, what: player ? `a choisi ${player} comme Gaulois de la semaine.` : "a choisi le Gaulois de la semaine." };
+    }
+    case "weekly_pick_deleted": {
+      const player = textOf(details, "player");
+      return { who, what: player ? `a retiré ${player} du Gaulois de la semaine.` : "a retiré le Gaulois de la semaine." };
+    }
     case "account_deleted":
       return { who: row.actor ?? "Un membre", what: "a supprimé son compte." };
     default:

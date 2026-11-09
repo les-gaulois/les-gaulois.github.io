@@ -57,6 +57,22 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   if (news.ok) add("Le schéma est installé", "ok");
   else add("Le schéma est installé", "fail", `get_site_news répond ${news.status}. Installez les migrations de supabase/migrations, dans l'ordre.`);
 
+  // Le Gaulois de la semaine : get_site_news donne la case, même vide, dès que sa migration est installée.
+  const newsAnswer = news.ok ? ((await news.json().catch(() => null)) as Record<string, unknown> | null) : null;
+  if (newsAnswer !== null && Object.hasOwn(newsAnswer, "weekly_pick")) add("Le Gaulois de la semaine est installé", "ok");
+  else if (news.ok) add("Le Gaulois de la semaine est installé", "fail", "get_site_news ne donne pas weekly_pick : installez la migration 20261109000200_gaulois_de_la_semaine.sql avant de mettre le site en ligne.");
+
+  const pick = await rpc("save_weekly_pick", { p_player: "verification", p_note: null });
+  const pickAnswer = pick.ok ? ((await pick.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (isClosed(pick.status) || (pick.ok && pickAnswer?.ok === false)) add("Un visiteur ne choisit pas le Gaulois de la semaine", "ok");
+  else add("Un visiteur ne choisit pas le Gaulois de la semaine", "fail", `Réponse ${pick.status}. Ne mettez pas en ligne : seul l'encadrement choisit.`);
+
+  // Les visages du site : les photos Discord de ceux qui se montrent, réservées aux membres validés.
+  const faces = await rpc("get_member_faces");
+  const facesAnswer = faces.ok ? ((await faces.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (isClosed(faces.status) || (faces.ok && facesAnswer?.ok === false)) add("Un visiteur ne reçoit pas les photos des membres", "ok");
+  else add("Un visiteur ne reçoit pas les photos des membres", "fail", `Réponse ${faces.status}. Ne mettez pas en ligne : les photos ne vont qu'aux membres validés.`);
+
   const bootstrap = await rpc("bootstrap_founder", { p_discord_id: "verification" });
   if (isClosed(bootstrap.status)) add("Un visiteur ne peut pas se désigner fondateur", "ok");
   else add("Un visiteur ne peut pas se désigner fondateur", "fail", `Réponse ${bootstrap.status}. Le fichier …_droits.sql n'a sans doute pas été installé : ne mettez pas en ligne.`);

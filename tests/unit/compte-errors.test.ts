@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { ERROR_MESSAGES, errorMessage } from "../../src/lib/compte/errors";
 
 // Les migrations des comptes, des rôles et de la Direction : les seules fonctions que le site appelle encore.
-const SQL = ["20261105000100_comptes_et_roles", "20261105000200_validation_des_membres", "20261105000900_direction", "20261106000100_roles_prevus", "20261108000100_pastille_direction", "20261108000200_vie_du_clan", "20261109000100_qg_des_membres"]
+const SQL = ["20261105000100_comptes_et_roles", "20261105000200_validation_des_membres", "20261105000900_direction", "20261106000100_roles_prevus", "20261108000100_pastille_direction", "20261108000200_vie_du_clan", "20261109000100_qg_des_membres", "20261109000200_gaulois_de_la_semaine"]
   .map((name) => readFileSync(`supabase/migrations/${name}.sql`, "utf8"))
   .join("\n");
 

@@ -48,6 +48,11 @@ export const ERROR_MESSAGES: Record<string, string> = {
   idea_closed: "Cette idée a déjà reçu une décision : elle ne se soutient plus.",
   own_idea: "C'est votre idée : seuls les autres membres peuvent la soutenir.",
   invalid_status: "Cette décision n'existe pas. Rechargez la page.",
+
+  invalid_pick: "Indiquez le pseudo d'un membre, tel qu'il est dans la liste officielle.",
+  pick_not_in_roster: "Ce pseudo n'est pas dans la liste officielle du clan. Vérifiez l'orthographe, ou attendez la prochaine relecture de la liste.",
+  pick_ambiguous: "Plusieurs membres portent ce pseudo dans la liste officielle : le site ne peut pas savoir lequel est choisi.",
+  pick_not_found: "Aucun Gaulois de la semaine n'est affiché en ce moment.",
 };
 
 export function errorMessage(code: string): string {

@@ -2,6 +2,12 @@
   {
     "date": "2026-11-09",
     "kind": "nouveau",
+    "title": "Le Gaulois de la semaine",
+    "body": "Chaque semaine, l'encadrement peut mettre un membre à l'honneur, avec un mot. L'accueil le montre à tous, sous le podium des Gaulois de la semaine, sans dire qui l'a choisi."
+  },
+  {
+    "date": "2026-11-09",
+    "kind": "nouveau",
     "title": "Les records des joueurs",
     "body": "La page Records nomme les Gaulois : le plus de victoires en une semaine, le plus de parties en une semaine dès qu'elles sont relevées, et le plus de victoires sous le tag.",
     "link": {

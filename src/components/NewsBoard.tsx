@@ -2,7 +2,7 @@ import type { ComponentChildren } from "preact";
 import { useEffect, useState } from "preact/hooks";
 import { ServerError, call, mayHaveSession } from "../lib/compte/api";
 import {
-  fetchLiveNews,
+  fetchLiveNewsOnce,
   fetchMyParticipation,
   goingLabel,
   mergeAnnouncements,
@@ -45,15 +45,16 @@ const refusal = (e: unknown) => (e instanceof ServerError ? e.message : "Le serv
  * Les sondages n'y sont plus : ils sont au QG, réservé aux membres validés.
  */
 export default function NewsBoard({ announcements, events, now, live = false }: { announcements: StaticAnnouncement[]; events: StaticEvent[]; now: number; live?: boolean }) {
-  const [news, setNews] = useState<LiveNews>({ announcements: [], events: [] });
+  const [news, setNews] = useState<LiveNews>({ announcements: [], events: [], weeklyPick: null });
   const [mine, setMine] = useState<Participation | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Ce que les lecteurs d'écran entendent après une réponse : la zone existe déjà, seul son texte change.
   const [said, setSaid] = useState("");
 
+  // La première lecture est partagée avec le Gaulois de la semaine, plus bas sur l'accueil : un seul appel au serveur.
   const reload = async () => {
-    const data = await fetchLiveNews();
+    const data = await fetchLiveNewsOnce();
     if (data) setNews(data);
   };
 

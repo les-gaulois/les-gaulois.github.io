@@ -221,14 +221,17 @@ export function othersLabel(going: number, shown: number): string | null {
 export const initialOf = (name: string) => [...name.trim()][0]?.toLocaleUpperCase("fr") ?? "?";
 
 /**
- * Les photos du mur, par nom : de quoi mettre la photo d'un membre qui se montre à côté de son pseudo, ailleurs sur le site
- * (`src/scripts/visages.ts`). Le nom d'un compte validé est son pseudo de la liste officielle le jour de sa validation.
- * Seulement une photo lisible ; un nom porté par deux comptes n'en reçoit aucune, plutôt que la photo de quelqu'un d'autre.
+ * Les visages du site (`get_member_faces`), par pseudo : de quoi mettre la photo d'un membre qui se montre à côté de son
+ * pseudo, ailleurs sur le site (`src/scripts/visages.ts`). Le serveur donne le pseudo d'aujourd'hui dans la liste officielle,
+ * retrouvé par l'empreinte de l'identifiant OpenFront, et écarte déjà les photos absentes et les pseudos portés par deux
+ * membres : on revérifie, casse comprise, plutôt que de mettre la photo de quelqu'un d'autre. `null` : réponse illisible.
  */
-export function wallPhotos(wall: readonly Face[]): Map<string, string> {
+export function memberFacesOf(raw: unknown): Map<string, string> | null {
+  if (!isRecord(raw) || !Array.isArray(raw["faces"])) return null;
+  const rows = raw["faces"].flatMap((face) => (isRecord(face) && typeof face["pseudo"] === "string" && face["pseudo"] !== "" ? [{ pseudo: face["pseudo"], avatar: safeAvatar(face["avatar"]) }] : []));
   const seen = new Map<string, number>();
-  for (const face of wall) seen.set(face.name, (seen.get(face.name) ?? 0) + 1);
-  return new Map(wall.flatMap((face) => (face.avatar !== null && seen.get(face.name) === 1 ? [[face.name, face.avatar] as const] : [])));
+  for (const row of rows) seen.set(row.pseudo.toLocaleLowerCase("fr"), (seen.get(row.pseudo.toLocaleLowerCase("fr")) ?? 0) + 1);
+  return new Map(rows.flatMap((row) => (row.avatar !== null && seen.get(row.pseudo.toLocaleLowerCase("fr")) === 1 ? [[row.pseudo, row.avatar] as const] : [])));
 }
 
 const counted = (n: number, one: string, many: string) => (n === 1 ? `1 ${one}` : `${fmtInt(n)} ${many}`);

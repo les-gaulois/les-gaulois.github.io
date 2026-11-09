@@ -8,6 +8,7 @@ import { fmtDate, fmtDateTime, fmtInt } from "../../lib/format";
 import { DeleteButton, DiscordButton, Loading, Problem, Success, messageOf, useMe, useRun } from "./common";
 import DirectionPolls, { EMPTY_POLL, type PollDraft } from "./DirectionPolls";
 import DirectionWelcome from "./DirectionWelcome";
+import DirectionWeeklyPick, { EMPTY_WEEKLY_PICK, type WeeklyPickDraft } from "./DirectionWeeklyPick";
 import SiteHealth from "./SiteHealth";
 
 interface NewsRow {
@@ -344,6 +345,7 @@ export default function DirectionApp({ health }: { health: Omit<SiteHealthInput,
   const [eventDraft, setEventDraft] = useState(EMPTY_EVENT);
   const [pollDraft, setPollDraft] = useState<PollDraft>(EMPTY_POLL);
   const [welcomeDraft, setWelcomeDraft] = useState<string | null>(null);
+  const [pickDraft, setPickDraft] = useState<WeeklyPickDraft>(EMPTY_WEEKLY_PICK);
   // Qui vient, événement par événement : `undefined` tant que ce n'est pas lu, `null` si le serveur ne l'a pas donné.
   // Dans ce dernier cas, la liste des événements le dit, et reste lisible.
   const [attendance, setAttendance] = useState<Map<number, string[]> | null | undefined>(undefined);
@@ -429,6 +431,9 @@ export default function DirectionApp({ health }: { health: Omit<SiteHealthInput,
           <div class="grid items-start gap-6 lg:grid-cols-2">
             <DirectionPolls form={pollDraft} setForm={setPollDraft} />
             <DirectionWelcome draft={welcomeDraft} setDraft={setWelcomeDraft} />
+          </div>
+          <div class="grid items-start gap-6 lg:grid-cols-2">
+            <DirectionWeeklyPick draft={pickDraft} setDraft={setPickDraft} />
           </div>
           {me.role === "founder" && (
             <FounderTransfer

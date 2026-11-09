@@ -18,7 +18,7 @@ const sentence = (r: LogRow) => {
 };
 
 // Les migrations des fonctions que le site appelle encore. « Effacer mon compte » est dans celle des dons.
-const SITE_SQL = ["20261105000100_comptes_et_roles", "20261105000200_validation_des_membres", "20261105000900_direction", "20261106000100_roles_prevus", "20261108000200_vie_du_clan", "20261109000100_qg_des_membres"]
+const SITE_SQL = ["20261105000100_comptes_et_roles", "20261105000200_validation_des_membres", "20261105000900_direction", "20261106000100_roles_prevus", "20261108000200_vie_du_clan", "20261109000100_qg_des_membres", "20261109000200_gaulois_de_la_semaine"]
   .map((name) => readFileSync(`supabase/migrations/${name}.sql`, "utf8"))
   .join("\n");
 const SITE_CODES = new Set([...[...SITE_SQL.matchAll(/log_admin\([^,]+,\s*'([a-z_]+)'/g)].map((m) => m[1]!), "account_deleted"]);
@@ -53,9 +53,13 @@ describe("le journal en clair", () => {
     expect(sentence(row("idea_decided", { id: 7, status: "done" }))).toBe("Chef a noté comme faite une idée de Recrue.");
     expect(sentence(row("idea_decided", { id: 7, status: "open" }))).toBe("Chef a remis à l'étude une idée de Recrue.");
     expect(sentence(row("idea_removed", { id: 7 }))).toBe("Chef a retiré une idée de Recrue.");
+    // Le Gaulois de la semaine : son pseudo est public, le mot qui l'accompagne n'est pas dans le journal.
+    expect(sentence(row("weekly_pick_saved", { week: "2026-11-09", player: "Ancien Gaulois" }, "Chef", null))).toBe("Chef a choisi Ancien Gaulois comme Gaulois de la semaine.");
+    expect(sentence(row("weekly_pick_deleted", { week: "2026-11-09", player: "Ancien Gaulois" }, "Chef", null))).toBe("Chef a retiré Ancien Gaulois du Gaulois de la semaine.");
   });
 
   it("n'écrit pas un détail que le serveur n'a pas donné", () => {
+    expect(sentence(row("weekly_pick_saved", {}, "Chef", null))).toBe("Chef a choisi le Gaulois de la semaine.");
     expect(sentence(row("membership_refused"))).toBe("Chef a refusé la demande de Recrue.");
     expect(sentence(row("membership_refused", { reason: "   " }))).toBe("Chef a refusé la demande de Recrue.");
     expect(sentence(row("membership_approved"))).toBe("Chef a validé la demande de Recrue.");
