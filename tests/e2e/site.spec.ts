@@ -104,7 +104,7 @@ test("parcours principal", async ({ page }, testInfo) => {
   const cards = page.getByTestId("stat-card");
   await expect(cards).toHaveCount(5);
   await expect(async () => {
-    expect(digits(await cards.nth(2).getByTestId("stat-value").textContent())).toBe(String(gal.games));
+    expect(digits(await cards.nth(2).locator("[data-count]").textContent())).toBe(String(gal.games));
   }).toPass();
   await expect(page.getByTestId("data-status")).toContainText("Dernière mise à jour");
   await expect(page.getByText("Site communautaire non officiel, sans lien avec les éditeurs d'OpenFront.")).toBeVisible();
@@ -311,27 +311,6 @@ test.describe("le plan du site", () => {
     await page.goto("/");
     await expect(page.getByTestId("footer-plan").locator("a")).toHaveCount(SECTIONS.flatMap((s) => s.pages).length);
   });
-  // Sur grand écran, les rubriques se voient d'un coup d'œil : le bouton « Menu » est réservé au téléphone et à la tablette.
-  test("les rubriques sont visibles dès 1 024 px, le menu ne sert qu'en dessous", async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name !== "desktop", "Largeurs testées une seule fois.");
-    const nav = page.getByRole("navigation", { name: "Navigation principale" });
-    const menu = page.getByLabel("Ouvrir le menu");
-    for (const width of [1024, 1280, 1920]) {
-      await page.setViewportSize({ width, height: 800 });
-      await page.goto("/");
-      for (const section of SECTIONS) await expect(nav.getByRole("link", { name: section.label, exact: true }), `${section.label} à ${width} px`).toBeVisible();
-      await expect(menu, `${width} px`).toBeHidden();
-      // Discord est le seul bouton de la barre : les nouveautés et la connexion sont des liens de texte.
-      await expect(page.locator("header .btn").filter({ visible: true }), `${width} px`).toHaveCount(1);
-      await expect(page.locator("header .btn").filter({ visible: true })).toHaveText("Discord");
-    }
-    for (const width of [375, 768]) {
-      await page.setViewportSize({ width, height: 800 });
-      await page.goto("/");
-      await expect(nav, `${width} px`).toBeHidden();
-      await expect(menu, `${width} px`).toBeVisible();
-    }
-  });
 });
 
 test.describe("les nouveautés du site", () => {
@@ -444,7 +423,7 @@ test("le classement montre 25 clans d'abord, le reste à la demande, et la reche
 test("les nombres n'utilisent que des espaces contenues dans nos polices", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "Même texte sur mobile.");
   test.slow();
-  // Spectral et Red Hat Text n'ont pas l'espace fine U+202F, comme Outfit et Inter avant elles : le navigateur la prendrait dans la police de l'appareil, et « 121 976 » se lisait « 121976 » en titre.
+  // Outfit et Inter n'ont pas l'espace fine U+202F : le navigateur la prenait dans la police de l'appareil, et « 121 976 » se lisait « 121976 » en titre.
   for (const path of PAGES) {
     await page.goto(path);
     await page.waitForLoadState("networkidle");

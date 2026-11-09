@@ -6,8 +6,7 @@ import { viewedAccount } from "../lib/compte/vue-joueur";
 import { fmtInt } from "../lib/format";
 import { usePlayerView } from "./compte/common";
 
-// Des liens de texte, comme les rubriques : le Discord reste le seul bouton mis en avant dans la barre.
-const LINK = "nav-link";
+const LINK = "btn btn-ghost !min-h-10 !py-1.5 !text-sm whitespace-nowrap";
 
 /**
  * L'entrée du compte dans l'en-tête, sur toutes les pages.

@@ -20,7 +20,7 @@ Code source de la version en ligne : <https://github.com/les-gaulois/les-gaulois
 | Code des couleurs du terrain et du dessin des territoires, repris du client d'OpenFront (commit `a0abccc`) et modifié les 6 et 7 novembre 2026 : fichiers d'origine listés en tête de la page | `public/carte-monde/index.html` | AGPL-3.0, avec les conditions de la section « OpenFront » ci-dessous |
 | Noms français des cartes du jeu, repris de `resources/lang/fr.json` d'OpenFront (commit `31a2119`) et modifiés le 7 novembre 2026 : seules les entrées qui nomment une carte sont gardées | `src/lib/map-names.ts` | CC BY-SA 4.0, attribution « OpenFront » : le bloc qui les affiche cite leur source et leur licence |
 | Placement des clans dans les équipes, adapté de `assignTeams` d'OpenFront (commit `31a2119`), réécrit et réduit le 7 novembre 2026 | `placeClans` dans `src/lib/games.ts` | AGPL-3.0, avec les conditions de la section « OpenFront » ci-dessous |
-| Dépendances et polices | `package-lock.json` | Leur propre licence (polices du site, Spectral et Red Hat Text, et polices des images dessinées par le robot, Inter et Outfit : OFL-1.1) |
+| Dépendances et polices | `package-lock.json` | Leur propre licence (polices Inter et Outfit : OFL-1.1) |
 
 ## OpenFront
 

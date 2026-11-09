@@ -41,12 +41,12 @@ const sessions = loadSessions();
 - Les liens internes passent par `${base}` : ainsi, le site ne dépend jamais de son adresse.
 - Les données viennent des fonctions de `src/lib/data.ts`, validées par Zod. `null` ou `[]` veut dire « Pas de données » : afficher `Empty.astro` (prop `title`, texte dans le slot) ou masquer la section, jamais un zéro, jamais un exemple.
 - Une donnée collectée s'accompagne de sa date : `DataStatus.astro` prend `state={meta.<jeu>}` et `maxAgeHours` depuis `MAX_AGE_HOURS` de `src/lib/freshness.ts` (4 h pour classement et sessions, 36 h pour membres et carte). C'est lui qui affiche la panne de collecte et la péremption côté visiteur.
-- Interactivité : un composant Preact `.tsx` dans `src/components/`, hydraté avec `client:idle` ou `client:visible`. Les valeurs finales sont déjà dans le HTML. Rien ne s'anime au chargement ; une animation ne répond qu'à un geste du visiteur, et `src/lib/fx/motion.ts` dit si elle est permise.
+- Interactivité : un composant Preact `.tsx` dans `src/components/`, hydraté avec `client:idle` ou `client:visible`. Les valeurs finales sont déjà dans le HTML, le script ne fait que les animer. `src/lib/fx/motion.ts` dit si les animations sont permises.
 - Les textes qui parlent au nom du clan viennent du clan (`content/`, `config/clan.ts`). Ne pas en écrire à sa place.
 
 ## Navigation
 
-Le plan du site est dans `src/lib/nav.ts` : il alimente le menu, les onglets de chaque rubrique (`SectionNav.astro`) et le pied de page. Une nouvelle page rejoint d'abord une rubrique existante, comme onglet. Ne créer une rubrique que pour une question nouvelle du visiteur, et garder six rubriques au plus : les rubriques s'affichent dans l'en-tête dès 1 024 px, et une septième mangerait presque toute la marge de l'en-tête de l'encadrement connecté à cette largeur (voir `docs/DESIGN.md`). Un contenu n'a qu'une page : l'accueil résume et renvoie, il ne recopie pas. Détail : section « Organisation du site » de `docs/DESIGN.md`.
+Le plan du site est dans `src/lib/nav.ts` : il alimente le menu, les onglets de chaque rubrique (`SectionNav.astro`) et le pied de page. Une nouvelle page rejoint d'abord une rubrique existante, comme onglet. Ne créer une rubrique que pour une question nouvelle du visiteur, et garder six rubriques au plus : avec le bouton « Nouveautés » de l'en-tête, une septième mangerait presque toute la marge de l'en-tête d'un membre connecté à 1 280 px (voir `docs/DESIGN.md`). Un contenu n'a qu'une page : l'accueil résume et renvoie, il ne recopie pas. Détail : section « Organisation du site » de `docs/DESIGN.md`.
 
 ## Tests
 

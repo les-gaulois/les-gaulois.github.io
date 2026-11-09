@@ -165,7 +165,7 @@ const sinceLine =
                   <span data-film-play-label>Lancer le film</span>
                 </button>
                 {lastDay && (
-                  <button type="button" class="btn btn-secondary" {...dayReplay(lastDay)} data-testid="film-last-day" aria-label={`Revoir le ${fmtDay(lastDay.date)}, la dernière journée terminée`}>
+                  <button type="button" class="btn btn-ghost" {...dayReplay(lastDay)} data-testid="film-last-day" aria-label={`Revoir le ${fmtDay(lastDay.date)}, la dernière journée terminée`}>
                     Revoir le {fmtDay(lastDay.date)}
                   </button>
                 )}
@@ -191,7 +191,7 @@ const sinceLine =
           <p class="sr-only" role="status" data-film-status></p>
           <div class="wrap mt-3 flex flex-wrap items-center gap-3 text-sm font-semibold text-warn" role="status" data-film-message hidden>
             <span data-film-message-text></span>
-            <button type="button" class="btn btn-secondary btn-sm" data-film-retry>Réessayer</button>
+            <button type="button" class="btn btn-ghost !min-h-10 !py-1.5" data-film-retry>Réessayer</button>
           </div>
 
           <div class="wrap mt-6">
@@ -200,17 +200,17 @@ const sinceLine =
           </div>
         </section>
 
-        <div class="wrap mt-10 grid grid-cols-1">
+        <div class="wrap mt-10 grid grid-cols-1 gap-12 md:gap-16">
           {
             hasHistory && (
-              <section class="band scroll-mt-24" id="histoire" aria-labelledby="history-title">
-                <h2 id="history-title" class="section-title">Revoir l'histoire</h2>
-                <p class="mt-3 max-w-2xl text-muted" data-film-ready hidden>Choisissez un moment, une journée ou une zone : la carte s'y place.</p>
+              <section class="scroll-mt-24" id="histoire" aria-labelledby="history-title">
+                <h2 id="history-title" class="section-title section-title-sm">Revoir l'histoire</h2>
+                <p class="mt-2 max-w-2xl text-muted" data-film-ready hidden>Choisissez un moment, une journée ou une zone : la carte s'y place.</p>
                 <div class="mt-5 grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
                   {
                     moments.length > 0 && (
                       <div class="card p-5" data-film-ready hidden data-testid="map-moments">
-                        <h3 class="text-xl">Les grands moments</h3>
+                        <h3 class="text-lg">Les grands moments</h3>
                         <ol class="film-timeline mt-3">
                           {moments.map((m) => (
                             <li>
@@ -228,15 +228,15 @@ const sinceLine =
                     {
                       dayCards.length > 0 && (
                         <div class="card p-5" data-testid="map-days">
-                          <h3 class="text-xl">Les grandes journées</h3>
+                          <h3 class="text-lg">Les grandes journées</h3>
                           <div class="mt-3 grid grid-cols-1 gap-5 sm:grid-cols-2">
                             {dayCards.map(({ row, title }) => (
                               <div data-testid="map-day">
                                 <p class="text-sm font-semibold text-muted">{title}</p>
-                                <p class="figure mt-2 text-2xl">{signed(row.net)} pixels</p>
+                                <p class="tnum mt-1 font-display text-2xl font-extrabold">{signed(row.net)} pixels</p>
                                 <p class="tnum mt-1 text-sm text-muted">Le {fmtDay(row.date)} : {fmtInt(row.taken)} pris, {fmtInt(row.lost)} perdus.</p>
                                 <div class="mt-3" data-film-ready hidden>
-                                  <button type="button" class="btn btn-secondary btn-sm" {...dayReplay(row)} aria-label={`Revoir cette journée, le ${fmtDay(row.date)}`}>Revoir cette journée</button>
+                                  <button type="button" class="btn btn-ghost !min-h-10 !py-1.5 !text-sm" {...dayReplay(row)} aria-label={`Revoir cette journée, le ${fmtDay(row.date)}`}>Revoir cette journée</button>
                                 </div>
                               </div>
                             ))}
@@ -248,7 +248,7 @@ const sinceLine =
                     {
                       gal && gal.zones.length > 0 && (
                         <div class="card p-5" data-film-ready hidden>
-                          <h3 class="text-xl">Nos territoires</h3>
+                          <h3 class="text-lg">Nos territoires</h3>
                           <p class="tnum mt-1 text-sm text-muted">{fmtInt(gal.zoneCount)} zones d'un seul tenant. Voici les plus grandes.</p>
                           <ul class="film-moments mt-3">
                             {gal.zones.map((z, i) => (
@@ -270,15 +270,15 @@ const sinceLine =
 
           {
             gal && (
-              <section class="band grid scroll-mt-24 grid-cols-1 items-start gap-10 md:grid-cols-2 md:gap-12" id="objectif" aria-labelledby="goal-title" data-testid="map-goal">
+              <section class="stage stage-blue grid scroll-mt-24 grid-cols-1 items-start gap-8 md:grid-cols-2" id="objectif" aria-labelledby="goal-title" data-testid="map-goal">
                 <div>
                   {objective ? (
                     <>
-                      <p class="label">{ordinal(objective.rank)} sur la carte</p>
+                      <p class="text-sm font-semibold uppercase tracking-wide text-muted">{ordinal(objective.rank)} sur la carte</p>
                       {objective.above && objective.gap !== null ? (
                         <>
                           <h2 id="goal-title" class="section-title mt-2">Prochain objectif&nbsp;: dépasser {objective.above.tag ?? "le clan suivant"}</h2>
-                          <p class="figure mt-5 text-5xl md:text-6xl" data-testid="map-gap">{fmtInt(objective.gap)}</p>
+                          <p class="tnum mt-4 font-display text-5xl font-extrabold" data-testid="map-gap" data-count={objective.gap}>{fmtInt(objective.gap)}</p>
                           <p class="mt-1 text-lg text-muted">pixels à gagner pour passer {ordinal(objective.rank - 1)}.</p>
                           <div class="meter meter-lg mt-5" aria-hidden="true"><i style={{ "--v": `${goalProgress}%` }}></i></div>
                           <p class="tnum mt-2 text-sm text-muted">GAL {fmtInt(objective.me.pixels)} · {objective.above.tag} {fmtInt(objective.above.pixels)}</p>
@@ -300,12 +300,12 @@ const sinceLine =
                     <p class="mt-1 text-xs text-muted">Un repère du site, pas du jeu : les mêmes paliers que les grands moments du film.</p>
                   )}
                 </div>
-                <div class="card p-5 md:p-6">
-                  <h3 class="text-xl">GAL en chiffres</h3>
+                <div class="panel">
+                  <h3 class="text-sm tracking-wide text-muted">GAL en chiffres</h3>
                   <dl class="tnum mt-3 grid grid-cols-1 gap-5 sm:grid-cols-2">
                     <div data-testid="map-figure">
                       <dt class="text-sm text-muted">Territoire à la dernière mise à jour</dt>
-                      <dd class="figure mt-2 text-2xl" data-testid="map-pixels">{fmtInt(gal.pixels)} pixels</dd>
+                      <dd class="mt-1 font-display text-2xl font-extrabold" data-testid="map-pixels">{fmtInt(gal.pixels)} pixels</dd>
                       <dd class="mt-1 text-sm text-muted">
                         {gal.rank === null ? "Plus aucun pixel sur la carte." : `${ordinal(gal.rank)} sur la carte.`}
                         {gal.peak.pixels === gal.pixels ? " C'est aussi son plus grand territoire." : ` Son record : ${fmtInt(gal.peak.pixels)} pixels${gal.peak.at === undefined ? "." : `, le ${endingOn(parisDayOf(gal.peak.at))}`}`}
@@ -320,21 +320,21 @@ const sinceLine =
                     </div>
                     <div data-testid="map-figure">
                       <dt class="text-sm text-muted">Pris et perdus</dt>
-                      <dd class="figure mt-2 text-2xl">+{fmtInt(gal.taken)} / −{fmtInt(gal.lost)}</dd>
+                      <dd class="mt-1 font-display text-2xl font-extrabold">+{fmtInt(gal.taken)} / −{fmtInt(gal.lost)}</dd>
                       <dd class="mt-1 text-sm text-muted">Dont {fmtInt(gal.neutralTaken)} pixels pris sur des terres neutres.</dd>
                     </div>
                     <div data-testid="map-figure">
                       <dt class="text-sm text-muted">Premier pixel</dt>
-                      <dd class="figure mt-2 text-2xl" data-testid="map-first">{gal.firstAt === undefined ? `Événement n° ${fmtInt(gal.firstEvent)}` : fmtDate(new Date(gal.firstAt * 1000).toISOString())}</dd>
+                      <dd class="mt-1 font-display text-2xl font-extrabold" data-testid="map-first">{gal.firstAt === undefined ? `Événement n° ${fmtInt(gal.firstEvent)}` : fmtDate(new Date(gal.firstAt * 1000).toISOString())}</dd>
                       <dd class="mt-1 text-sm text-muted">{gal.firstAt !== undefined && `Événement n° ${fmtInt(gal.firstEvent)}, sur `}{gal.firstAt === undefined && "Sur "}{fmtInt(film.events)} changements de main au total.</dd>
                     </div>
                     <div data-testid="map-figure">
                       <dt class="text-sm text-muted">Réserves du clan</dt>
                       {reservePixels === null ? (
-                        <dd class="figure mt-2 text-2xl">Pas de données</dd>
+                        <dd class="mt-1 font-display text-2xl font-extrabold">Pas de données</dd>
                       ) : (
                         <>
-                          <dd class="figure mt-2 text-2xl">{reserveComplete ? "Environ" : "Au moins"} {fmtInt(reservePixels)} pixels neutres</dd>
+                          <dd class="mt-1 font-display text-2xl font-extrabold">{reserveComplete ? "Environ" : "Au moins"} {fmtInt(reservePixels)} pixels neutres</dd>
                           <dd class="mt-1 text-sm text-muted" data-testid="map-reserves">Ce que les réserves permettent de peindre sur des terres neutres. Troupes prêtes : {troopsText}. Capsules au trésor : {capsText}.</dd>
                           {reserveGoal && <dd class="mt-1 text-sm font-semibold">{reserveGoal}</dd>}
                         </>
@@ -348,35 +348,29 @@ const sinceLine =
             )
           }
 
-          <section class="band scroll-mt-24" id="participer" aria-labelledby="help-title">
-            <h2 id="help-title" class="section-title">Faire grandir GAL</h2>
-            <div class="mt-7 divide-y divide-line border-y border-line" data-testid="map-ways">
-              <div class="grid gap-2 py-5 md:grid-cols-[16rem_1fr] md:gap-8">
-                <h3 class="text-xl">Donner des capsules</h3>
-                <div class="max-w-2xl">
-                  <p class="text-muted">Sur la fiche de [{clan.tag}] dans le jeu, le bouton « Faire un don » envoie vos capsules au trésor du clan. Il est réservé aux membres.</p>
-                  <p class="tnum mt-2 text-muted">1 capsule = {TROOPS_PER_CAP} troupes.</p>
-                </div>
+          <section class="scroll-mt-24" id="participer" aria-labelledby="help-title">
+            <h2 id="help-title" class="section-title section-title-sm">Faire grandir GAL</h2>
+            <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3" data-testid="map-ways">
+              <div class="card p-5">
+                <h3 class="text-lg">Donner des capsules</h3>
+                <p class="mt-2 text-sm text-muted">Sur la fiche de [{clan.tag}] dans le jeu, le bouton « Faire un don » envoie vos capsules au trésor du clan. Il est réservé aux membres.</p>
+                <p class="tnum mt-2 text-sm text-muted">1 capsule = {TROOPS_PER_CAP} troupes.</p>
               </div>
-              <div class="grid gap-2 py-5 md:grid-cols-[16rem_1fr] md:gap-8">
-                <h3 class="text-xl">Jouer sous le tag</h3>
-                <div class="max-w-2xl">
-                  <p class="text-muted">Le code du jeu prévoit aussi une part des victoires pour le trésor du clan. Son montant n'est pas public, donc ce site n'en donne aucun chiffre.</p>
-                  <p class="mt-2"><a href={clan.links.openfront} class="link" rel="noopener">Jouer à OpenFront</a></p>
-                </div>
+              <div class="card p-5">
+                <h3 class="text-lg">Jouer sous le tag</h3>
+                <p class="mt-2 text-sm text-muted">Le code du jeu prévoit aussi une part des victoires pour le trésor du clan. Son montant n'est pas public, donc ce site n'en donne aucun chiffre.</p>
+                <a href={clan.links.openfront} class="btn btn-ghost mt-4 !min-h-10 !py-1.5 !text-sm" rel="noopener">Jouer à OpenFront</a>
               </div>
-              <div class="grid gap-2 py-5 md:grid-cols-[16rem_1fr] md:gap-8">
-                <h3 class="text-xl">Peindre la carte</h3>
-                <div class="max-w-2xl">
-                  <p class="tnum text-muted">Seuls le chef et les officiers peuvent peindre. Ils achètent des troupes avec le trésor : un pixel neutre coûte {fmtInt(NEUTRAL_PIXEL_TROOPS)} troupes, un pixel ennemi {fmtInt(ENEMY_PIXEL_BASE_TROOPS)} et plus selon les troupes de ce clan.</p>
-                  <p class="mt-2"><a href="https://clanmap.openfront.io/" class="link" rel="noopener">Voir la carte officielle</a></p>
-                </div>
+              <div class="card p-5">
+                <h3 class="text-lg">Peindre la carte</h3>
+                <p class="tnum mt-2 text-sm text-muted">Seuls le chef et les officiers peuvent peindre. Ils achètent des troupes avec le trésor : un pixel neutre coûte {fmtInt(NEUTRAL_PIXEL_TROOPS)} troupes, un pixel ennemi {fmtInt(ENEMY_PIXEL_BASE_TROOPS)} et plus selon les troupes de ce clan.</p>
+                <a href="https://clanmap.openfront.io/" class="btn btn-ghost mt-4 !min-h-10 !py-1.5 !text-sm" rel="noopener">Voir la carte officielle</a>
               </div>
             </div>
 
             {
               gal && objective && (
-                <section class="card mt-10 grid grid-cols-1 gap-8 p-5 md:p-7 lg:grid-cols-2" aria-labelledby="conquest-title" data-conquest data-assets={assets} data-members={memberCount ?? undefined} data-testid="conquest">
+                <section class="stage stage-night mt-6 grid grid-cols-1 gap-8 lg:grid-cols-2" aria-labelledby="conquest-title" data-conquest data-assets={assets} data-members={memberCount ?? undefined} data-testid="conquest">
                   <div>
                     <h3 id="conquest-title" class="section-title section-title-sm">Votre don sur la carte</h3>
                     <p class="mt-3 text-muted">Combien de pixels valent vos capsules ? Essayez : rien n'est donné ici, le site ne touche pas à votre compte.</p>
@@ -399,15 +393,15 @@ const sinceLine =
                     <dl class="tnum mt-4 grid grid-cols-3 gap-3">
                       <div>
                         <dt class="text-xs text-muted">Capsules</dt>
-                        <dd class="figure mt-1 text-2xl" data-conquest-total data-testid="conquest-total">{fmtInt(startCaps)}</dd>
+                        <dd class="font-display text-2xl font-extrabold" data-conquest-total data-testid="conquest-total">{fmtInt(startCaps)}</dd>
                       </div>
                       <div>
                         <dt class="text-xs text-muted">Troupes</dt>
-                        <dd class="figure mt-1 text-2xl" data-conquest-troops>{fmtInt(startTroops)}</dd>
+                        <dd class="font-display text-2xl font-extrabold" data-conquest-troops>{fmtInt(startTroops)}</dd>
                       </div>
                       <div>
                         <dt class="text-xs text-muted">Pixels neutres</dt>
-                        <dd class="figure mt-1 text-2xl" data-conquest-pixels data-testid="conquest-pixels">{fmtInt(startPixels)}</dd>
+                        <dd class="font-display text-2xl font-extrabold" data-conquest-pixels data-testid="conquest-pixels">{fmtInt(startPixels)}</dd>
                       </div>
                     </dl>
                     <p class="mt-3 font-semibold" aria-live="polite" data-conquest-verdict data-testid="conquest-verdict">GAL passerait de {fmtInt(gal.pixels)} à {fmtInt(gal.pixels + startPixels)} pixels.</p>
@@ -424,9 +418,9 @@ const sinceLine =
               )
             }
 
-            <div class="mt-10 grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-12">
-              <div data-testid="map-donors">
-                <h3 class="text-xl">Plus gros donateurs</h3>
+            <div class="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div class="card p-5" data-testid="map-donors">
+                <h3 class="text-lg">Plus gros donateurs</h3>
                 {
                   heroes.donors.length > 0 ? (
                     <>
@@ -448,8 +442,8 @@ const sinceLine =
                   )
                 }
               </div>
-              <div class="lg:border-l lg:border-line lg:pl-12" data-testid="map-painters">
-                <h3 class="text-xl">Peuvent peindre pour GAL</h3>
+              <div class="card p-5" data-testid="map-painters">
+                <h3 class="text-lg">Peuvent peindre pour GAL</h3>
                 <p class="mt-3 text-sm text-muted">Le chef et les officiers choisissent où peindre : <a href={`${base}/membres#encadrement`}>voir l'encadrement</a>. Le jeu ne publie pas qui a peint quel pixel : personne n'est classé ici pour sa peinture.</p>
                 <p class="mt-3 text-sm text-muted">Chaque partie gagnée sous le tag compte aussi : <a href={`${base}/#ma-place`}>voir votre place dans le clan</a>.</p>
               </div>
@@ -460,7 +454,7 @@ const sinceLine =
                   {heroes.highlights.map((h) => (
                     <li class="card p-5">
                       <p class="text-sm font-semibold text-muted">{h.title}</p>
-                      <p class="mt-1 font-display text-2xl font-extrabold [overflow-wrap:anywhere]">{h.player}</p>
+                      <p class="mt-1 font-display text-2xl font-extrabold">{h.player}</p>
                       {h.detail && <p class="mt-1 text-sm text-muted">{h.detail}</p>}
                     </li>
                   ))}
@@ -469,8 +463,8 @@ const sinceLine =
             }
           </section>
 
-          <section class="band scroll-mt-24" id="details" aria-labelledby="details-title">
-            <h2 id="details-title" class="section-title">Les détails</h2>
+          <section class="scroll-mt-24" id="details" aria-labelledby="details-title">
+            <h2 id="details-title" class="section-title section-title-sm">Les détails</h2>
             <div class="fold-list mt-4">
               {
                 days.length > 0 && (

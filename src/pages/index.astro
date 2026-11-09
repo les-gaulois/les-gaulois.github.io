@@ -10,7 +10,6 @@ import { AUTH_ENABLED } from "../lib/compte/api";
 import { clan } from "../../config/clan";
 import { bestGameOf, bestGameSentence, yesterdayOf } from "../lib/belle-partie";
 import { brandFile } from "../lib/brand";
-import { countAxis } from "../lib/chart";
 import { objectiveFor } from "../lib/clanmap/economy";
 import { loadAnnouncements, loadClanMapFilm, loadEvents, loadGames, loadHistory, loadLeaderboard, loadMembers, loadMemberWeeks, loadMeta, loadSessions, loadTerritoryReadings } from "../lib/data";
 import { fmtDate, fmtDateTime, fmtDay, fmtDayAndTime, fmtDec1, fmtInt, fmtPct, fmtRank, fmtScore } from "../lib/format";
@@ -41,9 +40,9 @@ const events = loadEvents().filter((e) => e.start >= now.toISOString());
 
 const cards = [
   { label: "Rang", value: me ? fmtRank(me.rank) : null, hint: `sur ${leaderboard?.clans.length ?? "—"} clans listés` },
-  { label: "Score", value: me ? fmtScore(me.weightedWins) : null, hint: "victoires pondérées" },
-  { label: "Parties", value: me ? fmtInt(me.games) : null, hint: "sur 90 jours" },
-  { label: "Victoires", value: me ? fmtInt(me.wins) : null, hint: "sur 90 jours" },
+  { label: "Score", value: me ? fmtScore(me.weightedWins) : null, count: me?.weightedWins, decimals: 2, hint: "victoires pondérées" },
+  { label: "Parties", value: me ? fmtInt(me.games) : null, count: me?.games, hint: "sur 90 jours" },
+  { label: "Victoires", value: me ? fmtInt(me.wins) : null, count: me?.wins, hint: "sur 90 jours" },
   { label: "Taux de victoire", value: rate === null ? null : fmtPct(rate), hint: "victoires ÷ parties" },
 ];
 
@@ -62,11 +61,9 @@ const recordLines = recentRecordLines(clanRecords(sessions), meta.sessions.cover
 const territoryRecord = recentTerritoryRecord(onMap?.peak ?? null, film?.fetchedAt ?? null);
 
 const recent = dailySeries(sessions, clan.archiveStart, meta.sessions.coveredUntil).slice(-14);
+const recentMax = Math.max(1, ...recent.map((d) => d.games));
 const recentGames = recent.reduce((n, d) => n + d.games, 0);
 const recentWins = recent.reduce((n, d) => n + d.wins, 0);
-// L'axe du graphique : des graduations rondes, écrites, de 0 au haut de l'axe (src/lib/chart.ts).
-const axis = countAxis(Math.max(0, ...recent.map((d) => d.games)));
-const middle = Math.floor((recent.length - 1) / 2);
 const { rows: journal } = clanJournal({ sessions, games, coveredUntil: meta.sessions.coveredUntil, tag: clan.tag, officialTags: clans.map((c) => c.clanTag) });
 const lastGames = journal.slice(0, 5);
 // La belle partie d'hier : le plus de Gaulois ensemble la veille de la collecte, règle dans src/lib/belle-partie.ts.
@@ -84,43 +81,49 @@ const snapshot = loadVisitSnapshot();
 ---
 
 <Base>
-  {/* L'ouverture : le nom du clan, une phrase, une seule action mise en avant. Compacte sur téléphone : les chiffres arrivent dans le premier écran. */}
-  <section class="wrap grid items-center gap-8 pb-9 pt-7 md:grid-cols-[3fr_2fr] md:gap-12 md:pb-14 md:pt-14" aria-labelledby="hero-title">
-    <div>
-      <span class="tribar mb-5 md:mb-7"></span>
-      <h1 id="hero-title" class="page-title">{clan.tagline}</h1>
-      {clan.description && <p class="mt-4 max-w-xl text-lg text-muted md:mt-6 md:text-xl">{clan.description}</p>}
-      <div class="mt-6 flex flex-wrap items-center gap-x-7 gap-y-3 md:mt-8">
-        <a href={clan.links.discord} class="btn btn-lg btn-primary" rel="noopener">Rejoindre le Discord</a>
-        <a href={clan.links.openfront} rel="noopener" class="inline-flex min-h-11 items-center font-semibold text-white underline decoration-line-strong decoration-2 underline-offset-[6px] hover:decoration-white">Jouer à OpenFront</a>
+  <section class="relative overflow-hidden">
+    <div class="wrap relative grid items-center gap-6 pb-8 pt-6 md:grid-cols-[3fr_2fr] md:gap-10 md:pb-10 md:pt-10">
+      <div class="reveal order-2 md:order-1">
+        <span class="tribar mb-6"></span>
+        <h1 class="text-[2.75rem] !leading-[0.95] sm:text-6xl md:text-5xl lg:text-6xl">{clan.tagline}</h1>
+        {clan.description && <p class="mt-5 max-w-md text-lg text-muted">{clan.description}</p>}
+        <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+          <a href={clan.links.discord} class="btn btn-lg btn-primary" rel="noopener">Rejoindre le Discord</a>
+          <a href={clan.links.openfront} class="btn btn-lg btn-secondary" rel="noopener">Jouer à OpenFront</a>
+        </div>
+        <p class="mt-4 text-sm text-muted" data-fx-hint hidden>
+          Bougez la souris et cliquez sur le fond : clic gauche pour une vague bleue, clic droit pour une vague rouge.
+        </p>
+      </div>
+      <div class="fx-stage reveal relative order-1 flex justify-center md:order-2">
+        <div class="hero-glow" aria-hidden="true"></div>
+        {
+          hasLogo ? (
+            <div class="float relative w-36 sm:w-56 md:w-full md:max-w-sm">
+              <img
+                src={`${base}/generated/logo-vertical-720.webp`}
+                width="720"
+                height="720"
+                alt="Logo du clan GAL, Les Gaulois : un guerrier gaulois de profil, un casque à plumes tricolore et le lettrage GAL."
+                class="h-auto w-full"
+                draggable="false"
+                data-fx-logo
+              />
+            </div>
+          ) : (
+            <div class="relative text-center" aria-hidden="true">
+              <p class="font-display text-8xl font-black leading-none tracking-tight sm:text-9xl">{clan.tag}</p>
+              <p class="mt-3 font-display text-xl font-bold tracking-[0.3em] sm:text-3xl">LES GAULOIS</p>
+            </div>
+          )
+        }
       </div>
     </div>
-    {
-      hasLogo ? (
-        // Sur téléphone, le badge de l'en-tête suffit : le grand logo n'est ni affiché ni téléchargé.
-        <picture class="hidden justify-center md:flex">
-          <source media="(max-width: 47.99rem)" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" />
-          <img
-            src={`${base}/generated/logo-vertical-720.webp`}
-            width="720"
-            height="720"
-            alt="Logo du clan GAL, Les Gaulois : un guerrier gaulois de profil, un casque à plumes tricolore et le lettrage GAL."
-            class="h-auto w-full max-w-[19rem] lg:max-w-[21rem]"
-            fetchpriority="high"
-          />
-        </picture>
-      ) : (
-        <div class="hidden text-center md:block" aria-hidden="true">
-          <p class="font-display text-8xl font-extrabold leading-none">{clan.tag}</p>
-          <p class="mt-3 font-display text-2xl font-semibold">Les Gaulois</p>
-        </div>
-      )
-    }
   </section>
 
-  <div class="wrap">
-    {/* Sans rien à dire, ces deux blocs ne laissent aucune trace : leur îlot ne prend pas de place. */}
+  <div class="wrap grid grid-cols-1 gap-6">
     {snapshot && <SinceLastVisit client:load snapshot={snapshot} gazetteHref={`${base}/gazette`} />}
+
     {
       AUTH_ENABLED ? (
         <NewsBoard client:idle announcements={announcements} events={events} now={Date.now()} live />
@@ -132,12 +135,12 @@ const snapshot = loadVisitSnapshot();
     {/* Ce que les membres viennent de faire : le résumé de la dernière gazette, et ce qui s'est passé depuis. */}
     {gazette && <ClanWeek edition={gazette} currentMilestones={currentMilestones} records={recordLines} territoryRecord={territoryRecord} bestGame={bestYesterday ? bestGameSentence(bestYesterday) : null} creditMaps={(bestYesterday?.map ?? null) !== null} />}
 
-    {/* Ce qui est à chacun : sa place dans le clan, et la porte de la face privée. Deux colonnes séparées par un filet. */}
-    <div class:list={["band grid gap-12", AUTH_ENABLED && "lg:grid-cols-2 lg:gap-0"]}>
-      <section class:list={["scroll-mt-24", AUTH_ENABLED && "lg:pr-12"]} id="ma-place" aria-labelledby="place-title" data-testid="my-place">
-        <h2 id="place-title" class="section-title-sm">Ma place dans le clan</h2>
-        <p class="mt-3 max-w-xl text-muted">Votre rang aux victoires sous le tag, votre palier et le prochain joueur à dépasser.</p>
-        <div class="mt-5 max-w-md">
+    {/* Ce qui est à chacun : sa place dans le clan, et la porte de la face privée. */}
+    <div class:list={["grid gap-6", AUTH_ENABLED && "lg:grid-cols-2"]}>
+      <section class="stage stage-night reveal scroll-mt-24" id="ma-place" aria-labelledby="place-title" data-testid="my-place">
+        <h2 id="place-title" class="section-title section-title-sm">Ma place dans le clan</h2>
+        <p class="mt-3 text-muted">Votre rang aux victoires sous le tag, votre palier et le prochain joueur à dépasser.</p>
+        <div class="mt-4">
           <MyPlace client:idle src={`${base}/data/members.json`} />
         </div>
         <noscript><p class="mt-3 text-sm text-muted">JavaScript est nécessaire pour chercher un pseudo. La liste complète reste sur la page <a href={`${base}/membres`}>Membres</a>.</p></noscript>
@@ -146,8 +149,8 @@ const snapshot = loadVisitSnapshot();
       {/* La porte de la face privée : le contenu du QG n'est pas dans cette page, le serveur ne le donne qu'aux membres validés. */}
       {
         AUTH_ENABLED && (
-          <section class="flex flex-col items-start lg:border-l lg:border-line lg:pl-12" aria-labelledby="qg-title" data-testid="home-qg">
-            <h2 id="qg-title" class="section-title-sm">Le QG des membres</h2>
+          <section class="stage stage-night reveal flex flex-col items-start" aria-labelledby="qg-title" data-testid="home-qg">
+            <h2 id="qg-title" class="section-title section-title-sm">Le QG des membres</h2>
             <p class="mt-3 max-w-xl text-muted">Les sondages et les décisions du clan, la boîte à idées et le mur des membres. Réservé aux membres de GAL reconnus par un officier.</p>
             <a href={`${base}/qg`} class="btn btn-secondary mt-6">Entrer dans le QG</a>
           </section>
@@ -155,52 +158,51 @@ const snapshot = loadVisitSnapshot();
       }
     </div>
 
-    {/* Le tableau de score : les chiffres du classement officiel, sans cadre, séparés par des filets. */}
-    <section class="band" aria-labelledby="stats-title">
-      <h2 id="stats-title" class="section-title">Le clan au classement officiel</h2>
-      <dl class="mt-7 grid grid-cols-2 gap-x-6 gap-y-7 sm:grid-cols-3 lg:mt-9 lg:grid-cols-5 lg:gap-x-0">
+    <section class="stage stage-blue reveal" aria-labelledby="stats-title">
+      <h2 id="stats-title" class="section-title section-title-sm">Le clan au classement officiel</h2>
+      <div class="mt-6 grid grid-cols-2 gap-x-6 gap-y-6 md:grid-cols-3 lg:grid-cols-5">
         {
           cards.map((c) => (
-            <div class="min-w-0 lg:border-l lg:border-line lg:px-6 lg:first:border-l-0 lg:first:pl-0" data-testid="stat-card">
-              <dt class="label">{c.label}</dt>
-              <dd class="mt-2">
-                {c.value === null ? (
-                  <span class="block font-display text-xl font-extrabold">Pas de données</span>
-                ) : (
-                  <span class="figure block text-[2rem] sm:text-4xl lg:text-[2rem] xl:text-[2.5rem]" data-testid="stat-value">
-                    {c.value}
-                  </span>
-                )}
-                <span class="mt-2 block text-xs text-muted">{c.hint}</span>
-                {c.label === "Taux de victoire" && rate !== null && (
-                  <span class="meter mt-3 block max-w-40" aria-hidden="true">
-                    <i style={{ "--v": `${rate}%` }} />
-                  </span>
-                )}
-              </dd>
+            <div data-testid="stat-card">
+              <p class="text-sm font-semibold text-muted">{c.label}</p>
+              {c.value === null ? (
+                <p class="mt-2 font-display text-lg font-bold">Pas de données</p>
+              ) : (
+                <p class="tnum mt-1 font-display text-3xl font-extrabold sm:text-4xl" data-count={c.count} data-decimals={c.decimals ?? 0}>
+                  {c.value}
+                </p>
+              )}
+              <p class="mt-1 text-xs text-muted">{c.hint}</p>
+              {
+                c.label === "Taux de victoire" && rate !== null && (
+                  <div class="meter mt-3" aria-hidden="true">
+                    <i style={{ "--v": `${rate}%` }}></i>
+                  </div>
+                )
+              }
             </div>
           ))
         }
-      </dl>
+      </div>
       {
         leaderboard && !me && (
-          <p class="mt-7 font-semibold text-warn">
+          <p class="mt-6 font-semibold text-warn">
             [{clan.tag}] ne figure pas dans la liste officielle au {fmtDateTime(leaderboard.end)} : le clan est hors classement.
           </p>
         )
       }
       {
         me && near && (near.above || near.below) && (
-          <ul class="tnum mt-8 flex flex-wrap gap-x-10 gap-y-1 text-lg font-semibold" data-testid="home-race">
+          <ul class="tnum mt-6 flex flex-wrap gap-x-8 gap-y-1 font-semibold" data-testid="home-race">
             {near.above && <li>{fmtScore(near.above.gap)} de retard sur [{near.above.clan.clanTag}], {fmtRank(near.above.clan.rank)}</li>}
             {near.below && <li>{fmtScore(near.below.gap)} d'avance sur [{near.below.clan.clanTag}], {fmtRank(near.below.clan.rank)}</li>}
           </ul>
         )
       }
-      <p class="mt-5 flex flex-wrap gap-x-7">
-        <a href={`${base}/classement`} class="link">Voir le classement complet</a>
-        {me && near && <a href={`${base}/rivaux`} class="link" data-testid="home-rivals">Voir nos rivaux</a>}
-      </p>
+      <div class="mt-6 flex flex-wrap gap-3">
+        <a href={`${base}/classement`} class="btn btn-secondary">Voir le classement complet</a>
+        {me && near && <a href={`${base}/rivaux`} class="btn btn-ghost" data-testid="home-rivals">Voir nos rivaux</a>}
+      </div>
       <div class="mt-6">
         <DataStatus state={meta.leaderboard} maxAgeHours={MAX_AGE_HOURS.leaderboard} asOf={leaderboard?.end} asOfLabel="Classement arrêté au" />
         {
@@ -213,33 +215,32 @@ const snapshot = loadVisitSnapshot();
       </div>
     </section>
 
-    {/* La carte d'abord : l'image porte la section. */}
     {
       film && onMap && onMap.pixels > 0 && (
-        <section class="band grid items-center gap-8 md:grid-cols-[7fr_5fr] md:gap-12" aria-labelledby="map-title">
-          <div class="md:order-2">
-            <h2 id="map-title" class="section-title-sm">{fmtInt(onMap.pixels)} pixels sur la carte</h2>
-            <p class="mt-4 text-lg text-muted">
+        <section class="stage stage-night reveal grid items-center gap-8 md:grid-cols-2" aria-labelledby="map-title">
+          <div>
+            <h2 id="map-title" class="section-title section-title-sm">{fmtInt(onMap.pixels)} pixels sur la carte</h2>
+            <p class="mt-4 max-w-md text-lg text-muted">
               Le territoire peint par le clan sur la carte officielle d'OpenFront{onMap.rank !== null && `, ${fmtRank(onMap.rank)} au ${fmtDate(film.fetchedAt)}`}. Ce n'est pas le classement des clans.
             </p>
             {
               objective?.above && (
-                <p class="tnum mt-4 font-semibold" data-testid="home-objective">
+                <p class="tnum mt-3 max-w-md font-semibold" data-testid="home-objective">
                   Prochain objectif : dépasser [{objective.above.tag}], encore {fmtInt(objective.above.pixels - objective.me.pixels + 1)} pixels.
                 </p>
               )
             }
-            <p class="mt-3"><a href={`${base}/carte`} class="link">Voir le film de la conquête</a></p>
+            <a href={`${base}/carte`} class="btn btn-ghost mt-6">Voir le film de la conquête</a>
           </div>
           <img
             src={`${base}/generated/carte/finale-800.webp`}
             srcset={`${base}/generated/carte/finale-800.webp 800w, ${base}/generated/carte/finale-1400.webp 1400w`}
-            sizes="(min-width: 75rem) 640px, (min-width: 768px) 56vw, calc(100vw - 2rem)"
+            sizes="(min-width: 768px) 560px, calc(100vw - 5rem)"
             width="1400"
             height={Math.round((1400 * film.rows) / film.cols)}
             loading="lazy"
             alt="La carte officielle des clans, où chaque clan occupe un territoire de sa couleur."
-            class="h-auto w-full rounded-lg md:order-1"
+            class="h-auto w-full rounded-2xl"
           />
         </section>
       )
@@ -247,87 +248,47 @@ const snapshot = loadVisitSnapshot();
 
     {
       recent.length > 0 && (
-        <section class="band" aria-labelledby="progress-title" data-testid="home-parties">
-          <h2 id="progress-title" class="section-title">{fmtInt(recentGames)} parties en 14 jours</h2>
-          <p class="mt-3 max-w-2xl text-lg text-muted">
-            {fmtInt(recentWins)} victoires, soit {fmtPct(winRate(recentWins, recentGames))}. Parties publiques en équipe jouées avec le tag.
-          </p>
-          <div class="mt-8 grid gap-10 lg:grid-cols-[3fr_2fr] lg:gap-14">
-            {/* Le graphique : un axe gradué, la légende au-dessus, le détail de chaque jour au survol et dans un tableau pour les lecteurs d'écran. */}
-            <figure class="m-0 min-w-0">
-              <figcaption class="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
-                <span class="flex items-center gap-2"><i class="inline-block size-3.5 rounded-sm bg-win" aria-hidden="true" />Victoires</span>
-                <span class="flex items-center gap-2"><i class="inline-block size-3.5 rounded-sm bg-loss" aria-hidden="true" />Défaites</span>
-                <span class="tnum ml-auto text-muted">{fmtDay(recent[0]?.date ?? "")} au {fmtDay(recent[recent.length - 1]?.date ?? "")}</span>
-              </figcaption>
-              <div class="relative mt-4 h-48 pl-10" aria-hidden="true">
-                {axis.ticks.map((tick) => (
-                  <div class="absolute inset-x-0 border-t border-line" style={{ bottom: `${(tick / axis.max) * 100}%` }}>
-                    <span class="tnum absolute -top-2.5 left-0 bg-navy pr-2 text-xs text-muted">{fmtInt(tick)}</span>
-                  </div>
-                ))}
-                <div class="absolute inset-y-0 left-10 right-0 flex items-end">
-                  {recent.map((d) => (
-                    <div class="flex h-full flex-1 items-end px-px" title={`${fmtDay(d.date)}${d.partial ? " (en cours)" : ""} : ${fmtInt(d.games)} parties, ${fmtInt(d.wins)} victoires, ${fmtInt(d.losses)} défaites`}>
-                      {d.games > 0 && (
-                        <div class="bar-stack" style={{ height: `${(d.games / axis.max) * 100}%`, opacity: d.partial ? 0.55 : 1 }}>
-                          {d.losses > 0 && <div class="min-h-px bg-loss" style={{ flexGrow: d.losses, flexBasis: 0 }} />}
-                          {d.wins > 0 && <div class="min-h-px bg-win" style={{ flexGrow: d.wins, flexBasis: 0 }} />}
-                        </div>
-                      )}
-                    </div>
+        <section class="stage stage-indigo reveal grid gap-8 md:grid-cols-2" aria-labelledby="progress-title" data-testid="home-parties">
+          <div>
+            <h2 id="progress-title" class="section-title section-title-sm">{fmtInt(recentGames)} parties en 14 jours</h2>
+            <p class="mt-3 max-w-md text-lg text-muted">
+              {fmtInt(recentWins)} victoires, soit {fmtPct(winRate(recentWins, recentGames))}. Parties publiques en équipe jouées avec le tag.
+            </p>
+            {
+              lastGames.length > 0 && (
+                <ul class="tnum mt-4 divide-y divide-white/10 text-sm" data-testid="home-games">
+                  {lastGames.map((game) => (
+                    <li class="flex flex-wrap items-baseline justify-between gap-x-4 py-1.5">
+                      <span class="min-w-0">{fmtDayAndTime(game.at)}{game.map !== null && <span class="text-muted"> sur {mapLabel(game.map)}</span>}</span>
+                      <span class="ml-auto font-semibold">{game.won ? "Victoire" : "Défaite"}</span>
+                    </li>
                   ))}
-                </div>
-              </div>
-              <div class="tnum relative mt-2 h-5 pl-10 text-xs text-muted" aria-hidden="true">
-                <div class="flex">
-                  {recent.map((d, i) => (
-                    <div class="relative flex-1">
-                      {(i === 0 || i === middle || i === recent.length - 1) && (
-                        <span class:list={["absolute top-0 whitespace-nowrap", i === 0 ? "left-0" : i === recent.length - 1 ? "right-0" : "left-1/2 -translate-x-1/2"]}>{fmtDay(d.date)}</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-              {recent.some((d) => d.partial) && <p class="mt-2 text-xs text-muted">Barre plus pâle : période encore en cours.</p>}
-              {/* Un tableau ne se laisse pas réduire par sr-only : c'est son bloc qui est masqué, sinon il élargit la page. */}
-              <div class="sr-only">
-              <table>
-                <caption>Parties, victoires et défaites par jour, sur les 14 derniers jours</caption>
-                <thead>
-                  <tr><th scope="col">Jour</th><th scope="col">Parties</th><th scope="col">Victoires</th><th scope="col">Défaites</th></tr>
-                </thead>
-                <tbody>
-                  {recent.map((d) => (
-                    <tr><td>{fmtDay(d.date)}{d.partial ? " (en cours)" : ""}</td><td>{fmtInt(d.games)}</td><td>{fmtInt(d.wins)}</td><td>{fmtInt(d.losses)}</td></tr>
-                  ))}
-                </tbody>
-              </table>
-              </div>
-            </figure>
-
-            <div class="min-w-0">
+                </ul>
+              )
+            }
+            {creditMaps && <MapNamesCredit />}
+            <div class="mt-6 flex flex-wrap gap-3">
+              <a href={`${base}/parties`} class="btn btn-ghost">Voir les dernières parties</a>
+              <a href={`${base}/progression`} class="btn btn-ghost">Voir la progression</a>
+            </div>
+          </div>
+          <div class="panel self-center">
+            <div class="fx-bars flex h-44 items-end" aria-hidden="true" data-ripple-group>
               {
-                lastGames.length > 0 && (
-                  <ul class="tnum divide-y divide-line border-y border-line text-sm" data-testid="home-games">
-                    {lastGames.map((game) => (
-                      <li class="flex flex-wrap items-baseline justify-between gap-x-4 py-2.5">
-                        <span class="min-w-0">{fmtDayAndTime(game.at)}{game.map !== null && <span class="text-muted"> sur {mapLabel(game.map)}</span>}</span>
-                        <span class="ml-auto flex items-center gap-2 font-semibold">
-                          <i class:list={["inline-block size-2.5 rounded-full", game.won ? "bg-win" : "bg-loss"]} aria-hidden="true" />
-                          {game.won ? "Victoire" : "Défaite"}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )
+                recent.map((d, i) => (
+                  <div class="flex h-full flex-1 flex-col justify-end px-0.5" title={`${fmtDay(d.date)} : ${fmtInt(d.games)} parties, ${fmtInt(d.wins)} victoires`}>
+                    <div class="fx-grow flex flex-col gap-0.5" data-ripple="glow" style={{ height: `${(d.games / recentMax) * 100}%`, opacity: d.partial ? 0.55 : 1, "--i": i }}>
+                      {d.losses > 0 && <div class="min-h-px rounded-t bg-loss" style={{ flexGrow: d.losses, flexBasis: 0 }} />}
+                      {d.wins > 0 && <div class:list={["min-h-px bg-win", d.losses === 0 && "rounded-t"]} style={{ flexGrow: d.wins, flexBasis: 0 }} />}
+                    </div>
+                  </div>
+                ))
               }
-              {creditMaps && <MapNamesCredit />}
-              <p class="mt-4 flex flex-wrap gap-x-7">
-                <a href={`${base}/parties`} class="link">Voir les dernières parties</a>
-                <a href={`${base}/progression`} class="link">Voir la progression</a>
-              </p>
+            </div>
+            <div class="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
+              <span class="flex items-center gap-1.5"><i class="inline-block size-3 rounded-sm bg-win" aria-hidden="true"></i>Victoires</span>
+              <span class="flex items-center gap-1.5"><i class="inline-block size-3 rounded-sm bg-loss" aria-hidden="true"></i>Défaites</span>
+              <span class="tnum ml-auto">{fmtDay(recent[0]?.date ?? "")} au {fmtDay(recent[recent.length - 1]?.date ?? "")}</span>
             </div>
           </div>
         </section>
@@ -336,27 +297,27 @@ const snapshot = loadVisitSnapshot();
 
     {
       slots.length > 0 && (
-        <section class="band grid gap-8 md:grid-cols-[5fr_7fr] md:gap-14" aria-labelledby="slots-title">
+        <section class="stage stage-wine reveal grid items-center gap-8 md:grid-cols-2" aria-labelledby="slots-title">
           <div>
-            <h2 id="slots-title" class="section-title-sm">{todaySlots.length > 0 ? `Quand jouer le ${dayName}` : "Quand le clan joue le plus"}</h2>
-            <p class="mt-4 text-lg text-muted">
+            <h2 id="slots-title" class="section-title section-title-sm">{todaySlots.length > 0 ? `Quand jouer le ${dayName}` : "Quand le clan joue le plus"}</h2>
+            <p class="mt-4 max-w-md text-lg text-muted">
               Les créneaux avec le plus de parties enregistrées sur 90 jours, en heure de Paris. Ce sont des parties, pas des joueurs connectés.
             </p>
-            <p class="mt-3 flex flex-wrap gap-x-7">
-              <a href={clan.links.discord} rel="noopener" class="link">Trouver un groupe sur Discord</a>
-              <a href={`${base}/activite`} class="link">Voir quand jouer</a>
-            </p>
+            <div class="mt-6 flex flex-wrap gap-3">
+              <a href={clan.links.discord} class="btn btn-secondary" rel="noopener">Trouver un groupe sur Discord</a>
+              <a href={`${base}/activite`} class="btn btn-ghost">Voir quand jouer</a>
+            </div>
           </div>
-          <ol class="divide-y divide-line border-y border-line self-start">
+          <ol class="panel space-y-3">
             {
               slots.map((s) => (
-                <li class="py-4" data-testid="home-slot">
-                  <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                    <span class="font-display text-2xl font-semibold">{WEEKDAYS_FR[s.weekday]} {s.hour} h</span>
+                <li data-testid="home-slot">
+                  <div class="flex flex-wrap items-baseline justify-between gap-x-4">
+                    <span class="font-display text-xl font-extrabold uppercase">{WEEKDAYS_FR[s.weekday]} {s.hour} h</span>
                     <span class="tnum text-sm text-muted">{fmtInt(s.games)} parties · {fmtDec1(s.avgPlayers)} joueurs du clan</span>
                   </div>
-                  <div class="meter mt-3" aria-hidden="true">
-                    <i style={{ "--v": `${(s.games / (slots[0]?.games ?? s.games)) * 100}%` }} />
+                  <div class="meter mt-2" aria-hidden="true">
+                    <i style={{ "--v": `${(s.games / (slots[0]?.games ?? s.games)) * 100}%` }}></i>
                   </div>
                 </li>
               ))
@@ -366,16 +327,16 @@ const snapshot = loadVisitSnapshot();
       )
     }
 
-    <section class="band grid items-center gap-8 md:grid-cols-2 md:gap-14" aria-labelledby="join-title">
+    <section class="stage stage-night reveal grid items-center gap-8 md:grid-cols-2" aria-labelledby="join-title">
       <div>
-        <h2 id="join-title" class="section-title">Rejoignez les Gaulois</h2>
+        <h2 id="join-title" class="section-title section-title-sm">Rejoignez les Gaulois</h2>
         <p class="mt-4 max-w-md text-lg text-muted">
           {clan.join.inviteOnly ? "Le clan fonctionne sur invitation : demandez-la dans le jeu, puis retrouvez-nous sur Discord." : "Rejoignez le clan dans le jeu, puis retrouvez-nous sur Discord."}
           {members && <span data-testid="home-members"> {fmtInt(members.total)} membres dans la liste officielle.</span>}
         </p>
-        <div class="mt-6 flex flex-wrap items-center gap-x-7 gap-y-4">
-          <a href={`${base}/rejoindre`} class="btn btn-secondary">Voir les étapes</a>
-          <a href={`${base}/debuter`} class="link">Lire les guides</a>
+        <div class="mt-6 flex flex-col gap-3 sm:flex-row">
+          <a href={`${base}/rejoindre`} class="btn btn-lg btn-secondary">Voir les étapes</a>
+          <a href={`${base}/debuter`} class="btn btn-lg btn-ghost">Lire les guides</a>
         </div>
       </div>
       {
@@ -383,12 +344,12 @@ const snapshot = loadVisitSnapshot();
           <img
             src={`${base}/generated/banner-1600.webp`}
             srcset={`${base}/generated/banner-800.webp 800w, ${base}/generated/banner-1600.webp 1600w`}
-            sizes="(min-width: 75rem) 560px, (min-width: 768px) 48vw, calc(100vw - 2rem)"
+            sizes="(min-width: 768px) 560px, calc(100vw - 5rem)"
             width="1672"
             height="941"
             loading="lazy"
             alt="Bannière du clan GAL, Les Gaulois."
-            class="h-auto w-full rounded-lg"
+            class="h-auto w-full rounded-2xl"
           />
         )
       }

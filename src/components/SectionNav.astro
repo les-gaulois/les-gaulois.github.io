@@ -6,13 +6,13 @@ const path = Astro.url.pathname.replace(base, "").replace(/\/$/, "") || "/";
 const section = sectionOf(path);
 ---
 
-{/* Les onglets de la rubrique : on passe d'une page à l'autre sans repasser par le menu. Le trait rouge marque la page ouverte, comme dans le menu. */}
+{/* Les onglets de la rubrique : on passe d'une page à l'autre sans repasser par le menu. */}
 {
   section && section.pages.length > 1 && (
-    <div class="wrap pt-3 md:pt-4">
-      <nav class="section-tabs" aria-label={`Rubrique ${section.label}`} data-testid="section-nav">
+    <div class="wrap pt-5 md:pt-6">
+      <nav class="flex flex-wrap gap-2" aria-label={`Rubrique ${section.label}`} data-testid="section-nav">
         {section.pages.map((p) => (
-          <a class="section-tab" href={`${base}${p.href}`} aria-current={path === p.href || path.startsWith(`${p.href}/`) ? "page" : undefined}>
+          <a class="chip inline-flex items-center" href={`${base}${p.href}`} aria-current={path === p.href || path.startsWith(`${p.href}/`) ? "page" : undefined}>
             {p.label}
           </a>
         ))}

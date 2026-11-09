@@ -40,9 +40,9 @@ function Rows({ clans, tag, share, caption }: { clans: RankedClan[]; tag: string
             {clans.map((c) => (
               <tr key={c.clanTag} class={c.clanTag === tag ? "row-highlight font-semibold" : ""} data-testid="leaderboard-row">
                 <td>{c.rank}</td>
-                <td class="font-semibold">[{c.clanTag}]</td>
+                <td class="font-display font-bold">[{c.clanTag}]</td>
                 <td class="num">
-                  <span class="score-bar" aria-hidden="true" style={{ width: share(c.weightedWins) }} />
+                  <span class="score-bar" aria-hidden="true" style={{ width: share(c.weightedWins), "--i": Math.min(c.rank - 1, 24) }} />
                   <span class="relative">{fmtScore(c.weightedWins)}</span>
                 </td>
                 <td class="num">{fmtInt(c.games)}</td>
@@ -55,12 +55,12 @@ function Rows({ clans, tag, share, caption }: { clans: RankedClan[]; tag: string
         </table>
       </div>
 
-      <ol class="mt-4 divide-y divide-line border-y border-line md:hidden" aria-label={caption}>
+      <ol class="mt-4 space-y-2 md:hidden" aria-label={caption}>
         {clans.map((c) => (
-          <li key={c.clanTag} class={`tnum px-3 py-3 ${c.clanTag === tag ? "row-highlight" : ""}`} value={c.rank} data-testid="leaderboard-row">
+          <li key={c.clanTag} class={`card tnum p-3 ${c.clanTag === tag ? "row-highlight" : ""}`} value={c.rank} data-testid="leaderboard-row">
             <div class="flex items-baseline justify-between gap-3">
-              <p class="text-lg font-bold">
-                <span class="mr-2 font-semibold text-muted">{c.rank}</span>[{c.clanTag}]
+              <p class="font-display text-lg font-bold">
+                <span class="mr-2 text-muted">{c.rank}</span>[{c.clanTag}]
               </p>
               <p class="font-semibold">{fmtScore(c.weightedWins)}</p>
             </div>
@@ -115,13 +115,13 @@ export default function LeaderboardTable({ clans, tag }: Props) {
       </p>
 
       {rows.length === 0 ? (
-        <p class="mt-4 border-y border-line py-5 text-muted">Aucun clan ne correspond à « {query.trim()} » dans la liste officielle.</p>
+        <p class="card mt-4 p-5 text-muted">Aucun clan ne correspond à « {query.trim()} » dans la liste officielle.</p>
       ) : (
         <>
           <Rows clans={first} tag={tag} share={share} caption="Classement officiel des clans OpenFront" />
           {rest.length > 0 && (
             <details class="mt-4" data-testid="leaderboard-more" onToggle={(e) => setMoreOpen(e.currentTarget.open)}>
-              <summary class="btn btn-secondary w-fit cursor-pointer list-none">{moreOpen ? "Masquer" : "Voir"} les {rest.length} autres clans</summary>
+              <summary class="btn btn-ghost w-fit cursor-pointer list-none">{moreOpen ? "Masquer" : "Voir"} les {rest.length} autres clans</summary>
               <Rows clans={rest} tag={tag} share={share} caption="Classement officiel, clans suivants" />
             </details>
           )}

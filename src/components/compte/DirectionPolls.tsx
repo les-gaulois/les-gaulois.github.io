@@ -156,7 +156,7 @@ export default function DirectionPolls({ form, setForm }: { form: PollDraft; set
                   {poll.editable && (
                     <div class="mt-3 flex flex-wrap gap-2">
                       {poll.is_open && (
-                        <button type="button" class="btn btn-secondary btn-sm" disabled={busy} aria-label={`Fermer le sondage « ${poll.question} »`} onClick={() => void run(() => call("close_poll", { p_id: poll.id }), "Sondage fermé : son résultat reste au QG, dans les décisions passées.")}>
+                        <button type="button" class="btn btn-ghost !min-h-10 !py-1.5 !text-sm" disabled={busy} aria-label={`Fermer le sondage « ${poll.question} »`} onClick={() => void run(() => call("close_poll", { p_id: poll.id }), "Sondage fermé : son résultat reste au QG, dans les décisions passées.")}>
                           Fermer
                         </button>
                       )}

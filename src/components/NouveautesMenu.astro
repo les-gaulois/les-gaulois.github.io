@@ -15,13 +15,13 @@ const latest = latestNews(loadNouveautes());
   latest.length > 0 && (
     <details class="nouveautes-menu relative" data-menu data-nouveautes-menu data-testid="nouveautes-menu">
       {/* Point allumé, les lecteurs d'écran entendent « Nouveautés : du nouveau depuis votre dernier passage ». */}
-      {/* Un lien de texte, comme les rubriques : l'en-tête de l'encadrement connecté n'a que peu de place, voir docs/DESIGN.md. */}
-      <summary class="nav-link">
+      {/* Plus serré qu'un onglet : l'en-tête de l'encadrement connecté n'a que peu de place à partir de xl, voir docs/DESIGN.md. */}
+      <summary class="chip inline-flex items-center gap-1.5 whitespace-nowrap !px-3.5">
         Nouveautés
         <span class="nouveautes-dot" data-nouveautes-dot hidden><span class="sr-only">: du nouveau depuis votre dernier passage</span></span>
       </summary>
-      <div class="card nouveautes-panel absolute right-0 mt-2 p-5 shadow-lg shadow-black/40" data-testid="nouveautes-panel">
-        <p class="font-display text-xl font-extrabold">Nouveautés du site</p>
+      <div class="card nouveautes-panel absolute right-0 mt-2 p-5 shadow-xl" data-testid="nouveautes-panel">
+        <p class="font-display text-lg font-extrabold uppercase">Nouveautés du site</p>
         <ol class="mt-1 divide-y divide-line">
           {latest.map((entry) => (
             <li class="py-3" data-testid="nouveautes-panel-entry">
@@ -33,8 +33,8 @@ const latest = latestNews(loadNouveautes());
             </li>
           ))}
         </ol>
-        <p class="mt-1">
-          <a href={`${base}/nouveautes`} class="link">Toutes les nouveautés</a>
+        <p class="mt-1 font-semibold">
+          <a href={`${base}/nouveautes`}>Toutes les nouveautés</a>
         </p>
       </div>
     </details>

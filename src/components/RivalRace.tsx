@@ -6,7 +6,7 @@ export default function RivalRace({ series }: { series: RivalSeries[] }) {
   const dates = series[0]?.points.map((p) => p.date) ?? [];
   return (
     <div>
-      <div class="grid gap-x-8 gap-y-6 md:grid-cols-3">
+      <div class="grid gap-4 md:grid-cols-3">
         {series.map((s) => (
           <LineChart key={s.clanTag} title={`Face à [${s.clanTag}], ${fmtRank(s.rank)}`} points={s.points} format={fmtGap} />
         ))}

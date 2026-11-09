@@ -54,9 +54,9 @@ const failures = [
 
     {
       week && (
-        <section class="card card-accent p-5 md:p-7" aria-labelledby="gazette-now-title" data-testid="gazette-now">
-          <h2 id="gazette-now-title" class="section-title-sm">Semaine en cours, {weekLabel(week)}</h2>
-          <p class="tnum mt-3 text-lg" data-testid="gazette-now-lead">{currentWeekLead(week)}</p>
+        <section class="card card-accent p-5 md:p-6" aria-labelledby="gazette-now-title" data-testid="gazette-now">
+          <h2 id="gazette-now-title" class="text-2xl">Semaine en cours, {weekLabel(week)}</h2>
+          <p class="tnum mt-2 text-lg" data-testid="gazette-now-lead">{currentWeekLead(week)}</p>
           {weekComparison && <p class="tnum mt-1 text-sm text-muted" data-testid="gazette-now-comparison">{weekComparison}</p>}
           <p class="mt-2 text-sm text-muted">Son édition complète paraît le lundi {fmtDay(addDays(week.to, 1))}, une fois le dimanche définitif.</p>
         </section>
@@ -66,22 +66,20 @@ const failures = [
     {
       latest ? (
         <>
-          <article class="band mt-10" aria-labelledby="gazette-latest-title" data-testid="gazette-latest">
+          <article class="stage stage-blue reveal mt-8" aria-labelledby="gazette-latest-title" data-testid="gazette-latest">
             <h2 id="gazette-latest-title" class="section-title">Semaine {weekLabel(latest)}</h2>
             <GazetteEditionBlock edition={latest} records={records} {...context} />
           </article>
 
           {older.length > 0 && (
-            <section class="band" aria-labelledby="gazette-older-title">
+            <section class="reveal mt-10" aria-labelledby="gazette-older-title">
               <h2 id="gazette-older-title" class="section-title">Les éditions précédentes</h2>
-              <div class="fold-list mt-6">
+              <div class="mt-6 space-y-3">
                 {older.map((edition) => (
-                  <details class="fold" data-testid="gazette-older">
-                    <summary class="font-semibold">
-                      <span>
-                        Semaine {weekLabel(edition)}
-                        <span class="tnum font-normal text-muted"> · {fmtCount(edition.totals.games, "partie")}, {fmtCount(edition.totals.wins, "victoire")}{edition.totals.winRate !== null && `, ${fmtPct(edition.totals.winRate)}`}</span>
-                      </span>
+                  <details class="card p-5" data-testid="gazette-older">
+                    <summary class="cursor-pointer font-semibold">
+                      Semaine {weekLabel(edition)}
+                      <span class="tnum font-normal text-muted"> · {fmtCount(edition.totals.games, "partie")}, {fmtCount(edition.totals.wins, "victoire")}{edition.totals.winRate !== null && `, ${fmtPct(edition.totals.winRate)}`}</span>
                     </summary>
                     <GazetteEditionBlock edition={edition} records={records} {...context} />
                   </details>

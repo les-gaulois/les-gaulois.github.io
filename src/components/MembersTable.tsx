@@ -136,12 +136,12 @@ export default function MembersTable({ src }: { src: string }) {
     return (
       <div class="card p-6 text-center" role="alert">
         <p class="font-semibold">La liste des membres n'a pas pu être chargée.</p>
-        <button type="button" class="btn btn-secondary mt-3" onClick={() => setAttempt(attempt + 1)}>Réessayer</button>
+        <button type="button" class="btn btn-ghost mt-3" onClick={() => setAttempt(attempt + 1)}>Réessayer</button>
       </div>
     );
   }
   if (members.length === 0) {
-    return <p class="border-y border-line py-6 text-muted">Pas de données : aucune liste de membres n'a encore été collectée.</p>;
+    return <p class="card p-6 text-center text-muted">Pas de données : aucune liste de membres n'a encore été collectée.</p>;
   }
 
   const visible = rows.slice(0, limit);
@@ -164,7 +164,7 @@ export default function MembersTable({ src }: { src: string }) {
               {SORTS.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
             </select>
           </label>
-          <button type="button" class="btn btn-secondary" onClick={() => setDir(dir === "desc" ? "asc" : "desc")}>
+          <button type="button" class="btn btn-ghost" onClick={() => setDir(dir === "desc" ? "asc" : "desc")}>
             {dir === "desc" ? "Décroissant" : "Croissant"}
           </button>
         </div>
@@ -174,7 +174,7 @@ export default function MembersTable({ src }: { src: string }) {
       </p>
 
       {rows.length === 0 ? (
-        <p class="mt-4 border-y border-line py-5 text-muted">Aucun pseudo ne correspond à « {query.trim()} ». Les membres anonymes ne peuvent pas être recherchés.</p>
+        <p class="card mt-4 p-5 text-muted">Aucun pseudo ne correspond à « {query.trim()} ». Les membres anonymes ne peuvent pas être recherchés.</p>
       ) : (
         <>
           <div class="card mt-4 hidden overflow-hidden md:block">
@@ -185,7 +185,7 @@ export default function MembersTable({ src }: { src: string }) {
                   <th scope="col">Membre</th>
                   {SORTS.map((s) => (
                     <th key={s.key} scope="col" class={s.key === "joinedAt" ? "" : "num"} aria-sort={sort === s.key ? (dir === "asc" ? "ascending" : "descending") : "none"}>
-                      <button type="button" class="-my-2 py-2 font-semibold underline decoration-transparent underline-offset-4 hover:text-white hover:decoration-line-strong" onClick={() => toggleSort(s.key)}>
+                      <button type="button" class="uppercase hover:text-white" onClick={() => toggleSort(s.key)}>
                         {s.label} {sort === s.key ? (dir === "asc" ? "↑" : "↓") : ""}
                       </button>
                     </th>
@@ -193,15 +193,15 @@ export default function MembersTable({ src }: { src: string }) {
                 </tr>
               </thead>
               <tbody ref={tableBody}>
-                {visible.map((m) => {
+                {visible.map((m, i) => {
                   const rate = rateOf(m);
                   return (
-                    <tr key={memberKey(m)} data-key={memberKey(m)} data-testid="member-row">
+                    <tr key={memberKey(m)} class="fx-row" data-key={memberKey(m)} data-testid="member-row" style={{ "--i": Math.min(i, 18) }}>
                       <td><Name m={m} /><RoleBadge role={m.role} /></td>
                       <td class="num">{m.team ? fmtInt(m.team.wins) : "—"}</td>
                       <td class="num">{fmtInt(gamesOf(m))}</td>
                       <td class="num">
-                        {rate !== null && <span class="score-bar" aria-hidden="true" style={{ width: `${rate}%` }} />}
+                        {rate !== null && <span class="score-bar" aria-hidden="true" style={{ width: `${rate}%`, "--i": Math.min(i, 18) }} />}
                         <span class="relative">{fmtPct(rate)}</span>
                       </td>
                       <td>{fmtDate(m.joinedAt)}</td>
@@ -213,11 +213,11 @@ export default function MembersTable({ src }: { src: string }) {
           </div>
 
           <ul class="mt-4 space-y-2 md:hidden" ref={cardList}>
-            {visible.map((m) => {
+            {visible.map((m, i) => {
               const note = wlText(m);
               return (
-                <li key={memberKey(m)} class="card tnum p-3" data-key={memberKey(m)} data-testid="member-card">
-                  <p class="tap-links"><Name m={m} /><RoleBadge role={m.role} /></p>
+                <li key={memberKey(m)} class="fx-row card tnum p-3" data-key={memberKey(m)} data-testid="member-card" style={{ "--i": Math.min(i, 18) }}>
+                  <p><Name m={m} /><RoleBadge role={m.role} /></p>
                   <p class="mt-1 text-sm">
                     {note ?? `${fmtInt(m.team?.wins)} victoires · ${fmtInt(gamesOf(m))} parties · ${fmtPct(rateOf(m))}`}
                   </p>
@@ -229,7 +229,7 @@ export default function MembersTable({ src }: { src: string }) {
 
           {visible.length < rows.length && (
             <div class="mt-4 text-center">
-              <button type="button" class="btn btn-secondary" data-testid="members-more" onClick={() => setLimit(rows.length)}>
+              <button type="button" class="btn btn-ghost" data-testid="members-more" onClick={() => setLimit(rows.length)}>
                 {rows.length - visible.length > 1 ? `Voir les ${fmtInt(rows.length - visible.length)} autres membres` : "Voir le dernier membre"}
               </button>
             </div>

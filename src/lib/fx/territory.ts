@@ -1,9 +1,12 @@
 /**
- * La grille de cases du rejeu du calculateur (src/components/BotCalculator.tsx) : une vague qui gagne
- * les cases du bot à partir d'un bord, comme une conquête. Fonctions pures, sans DOM, pour pouvoir les tester.
- * Aucune de ces valeurs n'est une donnée du clan. Le fond animé qui s'en servait aussi a été retiré le 9 novembre 2026.
+ * Logique de l'effet décoratif « territoire » : une grille de cases qui se
+ * colorent et s'éteignent. Fonctions pures, sans DOM, pour pouvoir les tester.
+ * Aucune de ces valeurs n'est une donnée du clan.
  */
 export const TILE_SIZE = 28;
+
+/** Durée de vie caractéristique d'une case allumée, en secondes. */
+export const TILE_TAU = 1.1;
 
 export interface Grid {
   cols: number;
@@ -70,7 +73,7 @@ export const WAVE_MIN_REACH = 0.615;
 
 /**
  * Vague qui couvre toutes les cases d'une grille en `duration` secondes au plus,
- * à partir d'un point : l'ordre dans lequel le rejeu du calculateur conquiert le bot.
+ * pour révéler un bloc case par case à partir d'un point.
  */
 export function coverWave(grid: Grid, x: number, y: number, duration: number, seed = 0): Arrival[] {
   const width = grid.cols * grid.size;
@@ -79,4 +82,50 @@ export function coverWave(grid: Grid, x: number, y: number, duration: number, se
     Math.max(Math.hypot(x, y), Math.hypot(width - x, y), Math.hypot(x, height - y), Math.hypot(width - x, height - y)) +
     grid.size;
   return planWave(grid, x, y, far / WAVE_MIN_REACH, (far * 1.25) / duration, seed);
+}
+
+/** Tracé SVG d'une case, pour construire un `clip-path: path(...)`. */
+export function tilePath(index: number, grid: Grid): string {
+  const x = (index % grid.cols) * grid.size;
+  const y = Math.floor(index / grid.cols) * grid.size;
+  return `M${x} ${y}h${grid.size}v${grid.size}h-${grid.size}z`;
+}
+
+export interface BrushTile {
+  index: number;
+  /** 1 au centre du pinceau, proche de 0 sur son bord. */
+  strength: number;
+}
+
+/** Cases sous le curseur, plus fortes au centre. */
+export function brush(grid: Grid, x: number, y: number, radius: number): BrushTile[] {
+  const { cols, rows, size } = grid;
+  const minCol = Math.max(0, Math.floor((x - radius) / size));
+  const maxCol = Math.min(cols - 1, Math.floor((x + radius) / size));
+  const minRow = Math.max(0, Math.floor((y - radius) / size));
+  const maxRow = Math.min(rows - 1, Math.floor((y + radius) / size));
+  const tiles: BrushTile[] = [];
+
+  for (let row = minRow; row <= maxRow; row++) {
+    for (let col = minCol; col <= maxCol; col++) {
+      const distance = Math.hypot((col + 0.5) * size - x, (row + 0.5) * size - y);
+      if (distance < radius) tiles.push({ index: row * cols + col, strength: 1 - distance / radius });
+    }
+  }
+  return tiles;
+}
+
+/** Points réguliers entre deux positions du curseur, pour une traînée sans trou. */
+export function segment(x0: number, y0: number, x1: number, y1: number, step: number, maxPoints = 64): [number, number][] {
+  const count = Math.min(maxPoints, Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / step)));
+  const points: [number, number][] = [];
+  for (let i = 1; i <= count; i++) {
+    points.push([x0 + ((x1 - x0) * i) / count, y0 + ((y1 - y0) * i) / count]);
+  }
+  return points;
+}
+
+/** Intensité restante d'une case après `dt` secondes. */
+export function decay(level: number, dt: number, tau = TILE_TAU): number {
+  return level * Math.exp(-dt / tau);
 }

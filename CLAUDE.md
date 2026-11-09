@@ -34,9 +34,9 @@ Node 22 ou plus. Sous Windows, le shell est Git Bash : chemins avec `/`.
 - `config/clan.ts` : tag, nom, liens, logos, date de création du clan. Les champs à `null` ou `[]` masquent leur section.
 - `src/pages/*.astro` : une page par fichier, mise en page `src/layouts/Base.astro` (en-tête, navigation, pied de page). Le plan du site, rubriques et onglets, est dans `src/lib/nav.ts`. Pages personnelles `compte`, `admin`, `direction` et fiches `membres/[id]` en `noindex`.
 - `src/components/` : `.astro` statiques, `.tsx` Preact hydratés (`client:idle`, `client:visible` ou `client:only="preact"`). `src/components/compte/` : écrans de la connexion.
-- `src/lib/` : calculs purs et testés. `schemas.ts` (Zod), `data.ts` (lecture de `data/` et `content/`), `compte/` (client Supabase `api.ts`, `preflight.ts`, `roster.ts`), `clanmap/` (carte des clans), `fx/` (caméra du film, territoire du calculateur, `motion.ts` qui dit si une animation est permise), `chart.ts` (axe des graphiques).
-- `src/scripts/` : scripts navigateur — `film.ts` film de la carte, `conquest.ts` calculateur de la page Carte, `nouveautes.ts` point des nouveautés du site.
-- `src/styles/global.css` : jetons de couleur, polices et classes `.band` (section), `.card` (objet), `.btn-*`, `.figure`, `.wrap`.
+- `src/lib/` : calculs purs et testés. `schemas.ts` (Zod), `data.ts` (lecture de `data/` et `content/`), `compte/` (client Supabase `api.ts`, `preflight.ts`, `roster.ts`), `clanmap/` (carte des clans), `fx/` (logique des effets).
+- `src/scripts/` : scripts navigateur — `fx.ts` effets, `film.ts` film de la carte, `conquest.ts` calculateur de la page Carte, `nouveautes.ts` point des nouveautés du site.
+- `src/styles/global.css` : jetons de couleur et classes `.stage`, `.card`, `.btn-*`, `.wrap`.
 - `content/` : textes du clan, JSON et Markdown (skill `contenu-clan`). `content/nouveautes.json` : le journal des mises à jour du site, que tu tiens (skill `publier`). `data/` : écrit par la collecte, jamais à la main.
 - `scripts/` : collecte et outils Node (`tsx`). `supabase/migrations/` : schéma, figé une fois appliqué.
 - `tests/unit/` Vitest ; `tests/e2e/` Playwright, `site.spec.ts` liste les pages contrôlées.
@@ -66,9 +66,9 @@ Node 22 ou plus. Sous Windows, le shell est Git Bash : chemins avec `/`.
 
 ### Design et accessibilité
 
-- Jetons, polices, sections, cartes et boutons de `docs/DESIGN.md` (skill `design-gal`). Aucune maquette ni valeur fictive dans l'interface.
-- WCAG AA, texte à 4,5:1 au moins, `prefers-reduced-motion` respecté, aucun défilement horizontal de 360 à 1 920 px, clic droit natif partout. Rien ne bouge au chargement ni en continu, et tout le contenu est visible sans JavaScript : seul le film de la carte dure, avec son propre bouton de pause. Une animation ne change jamais une valeur.
-- Les styles de `global.css` sont rangés dans les couches `base` et `components` de Tailwind : une classe utilitaire (`hidden`, `mt-4`, `text-sm`…) les ajuste sans `!`. Une règle qui doit l'emporter sur un utilitaire le dit en commentaire et prend `!important`.
+- Jetons, scènes et boutons de `docs/DESIGN.md` (skill `design-gal`). Aucune maquette ni valeur fictive dans l'interface.
+- WCAG AA, `prefers-reduced-motion` respecté, bouton pause de l'en-tête obligatoire, aucun défilement horizontal de 360 à 1 920 px, clic droit natif conservé sur les liens, champs, texte sélectionné et avec Maj. Une animation ne change jamais une valeur.
+- `.btn` écrase la classe `hidden` de Tailwind : masquer via un conteneur.
 
 ### Serveur Supabase
 

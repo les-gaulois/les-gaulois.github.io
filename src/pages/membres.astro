@@ -42,17 +42,17 @@ const jumps = [
 
     {
       command.length > 0 && (
-        <section class="band scroll-mt-24" id="encadrement" aria-labelledby="command-title" data-testid="command">
-          <h2 id="command-title" class="section-title">L'encadrement · {command.length}</h2>
-          <p class="mt-3 max-w-3xl text-lg text-muted">Le chef et les officiers répondent aux demandes d'invitation et choisissent où peindre sur la carte des clans.</p>
-          <ul class="mt-7 grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
+        <section class="card reveal mb-6 scroll-mt-24 p-5" id="encadrement" aria-labelledby="command-title" data-testid="command">
+          <h2 id="command-title" class="text-xl">L'encadrement · {command.length}</h2>
+          <p class="mt-1 text-sm text-muted">Le chef et les officiers répondent aux demandes d'invitation et choisissent où peindre sur la carte des clans.</p>
+          <ul class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {
               command.map((m) => (
                 <li class="flex min-w-0 items-center gap-3" data-testid="command-member">
                   <span class="avatar" aria-hidden="true">{m.username?.charAt(0) ?? "?"}</span>
                   <span class="min-w-0">
                     {m.username && m.publicId ? (
-                      <a class="block truncate py-1 font-semibold underline decoration-transparent underline-offset-4 hover:decoration-line-strong" href={`${base}/membres/${encodeURIComponent(m.publicId)}`}>{m.username}</a>
+                      <a class="block truncate" href={`${base}/membres/${encodeURIComponent(m.publicId)}`}>{m.username}</a>
                     ) : (
                       <span class="block truncate font-semibold">Membre anonyme</span>
                     )}
@@ -68,9 +68,9 @@ const jumps = [
 
     <RankedPlayers />
 
-    <section class="band scroll-mt-24" id="liste" aria-labelledby="list-title">
+    <section class="mt-8 scroll-mt-24" id="liste" aria-labelledby="list-title">
       <h2 id="list-title" class="section-title">Toute la liste</h2>
-      <p class="mt-3 max-w-3xl text-muted" data-testid="members-scope">
+      <p class="mt-2 max-w-3xl text-sm text-muted" data-testid="members-scope">
         Parties publiques en équipe jouées avec le tag {clan.tag}, sans le classé, le FFA ni Humains contre Nations.
       </p>
       <div class="mb-4">

@@ -37,7 +37,7 @@ function Result({ members, member }: { members: readonly StoredMember[]; member:
         <p class="truncate text-sm font-semibold text-muted">
           {member.publicId ? <a href={`${BASE}/membres/${encodeURIComponent(member.publicId)}`}>{member.username}</a> : member.username}
         </p>
-        <p class="figure text-4xl">{ordinal(place.rank)}</p>
+        <p class="tnum font-display text-4xl font-extrabold">{ordinal(place.rank)}</p>
         <p class="tnum text-sm text-muted">sur {fmtInt(place.ranked)} membres, aux victoires sous le tag</p>
         <p class="tnum mt-2 text-sm">
           {fmtInt(place.wins)} victoires · {fmtInt(member.team?.losses ?? 0)} défaites · {fmtPct(rateOf(member))}
@@ -277,7 +277,7 @@ export default function MyPlace({ src }: { src: string }) {
         <>
           <Result members={members} member={chosen} />
           {chosen.publicId && (
-            <button type="button" class="btn btn-secondary mt-4" onClick={() => remember(chosen)} data-testid="my-place-remember">
+            <button type="button" class="btn btn-ghost mt-4" onClick={() => remember(chosen)} data-testid="my-place-remember">
               C'est moi : retenir sur cet appareil
             </button>
           )}

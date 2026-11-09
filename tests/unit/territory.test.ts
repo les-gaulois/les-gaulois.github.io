@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { WAVE_MAX_REACH, coverWave, makeGrid, planWave, tileNoise } from "../../src/lib/fx/territory";
+import { WAVE_MAX_REACH, brush, coverWave, decay, makeGrid, planWave, segment, tileNoise, tilePath } from "../../src/lib/fx/territory";
 
 const grid = makeGrid(1280, 720, 28);
 
@@ -90,5 +90,50 @@ describe("coverWave", () => {
   it("couvre aussi un très petit bloc", () => {
     const tiny = makeGrid(10, 10, 32);
     expect(coverWave(tiny, 5, 5, 0.5, 1)).toHaveLength(1);
+  });
+});
+
+describe("tilePath", () => {
+  it("décrit le carré de la case", () => {
+    const g = makeGrid(280, 280, 28);
+    expect(tilePath(0, g)).toBe("M0 0h28v28h-28z");
+    expect(tilePath(g.cols + 2, g)).toBe("M56 28h28v28h-28z");
+  });
+});
+
+describe("brush", () => {
+  it("est plus fort au centre et limité à son rayon", () => {
+    const tiles = brush(grid, 640, 360, 84);
+    const strengths = tiles.map((t) => t.strength);
+    expect(Math.max(...strengths)).toBeGreaterThan(0.8);
+    expect(Math.min(...strengths)).toBeGreaterThan(0);
+    expect(tiles.length).toBeLessThan(40);
+  });
+  it("reste dans la grille hors de l'écran", () => {
+    expect(brush(grid, -500, -500, 84)).toEqual([]);
+  });
+});
+
+describe("segment", () => {
+  it("arrive exactement au dernier point", () => {
+    const points = segment(0, 0, 100, 0, 25);
+    expect(points).toHaveLength(4);
+    expect(points.at(-1)).toEqual([100, 0]);
+  });
+  it("donne un point même sans déplacement", () => {
+    expect(segment(5, 5, 5, 5, 28)).toEqual([[5, 5]]);
+  });
+  it("limite le nombre de points lors d'un grand saut", () => {
+    expect(segment(0, 0, 100000, 0, 28)).toHaveLength(64);
+  });
+});
+
+describe("decay", () => {
+  it("décroît sans devenir négatif", () => {
+    expect(decay(1, 1.1, 1.1)).toBeCloseTo(Math.exp(-1), 8);
+    expect(decay(1, 100)).toBeGreaterThanOrEqual(0);
+  });
+  it("ne change rien sans temps écoulé", () => {
+    expect(decay(0.7, 0)).toBe(0.7);
   });
 });

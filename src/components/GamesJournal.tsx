@@ -150,7 +150,7 @@ export default function GamesJournal({ src, initial, sides }: Props) {
         {isFiltered(filter) && (
           <button
             type="button"
-            class="btn btn-secondary"
+            class="btn btn-ghost"
             onClick={() => {
               setFilter(NO_FILTER);
               firstChip.current?.focus();
@@ -173,7 +173,7 @@ export default function GamesJournal({ src, initial, sides }: Props) {
           <p class="font-semibold">Le reste du journal n'a pas pu être chargé : seules les dernières parties s'affichent, sans les filtres.</p>
           <button
             type="button"
-            class="btn btn-secondary mt-3"
+            class="btn btn-ghost mt-3"
             onClick={() => {
               setAttempt(attempt + 1);
               status.current?.focus();
@@ -185,7 +185,7 @@ export default function GamesJournal({ src, initial, sides }: Props) {
       )}
 
       {rows.length === 0 ? (
-        <p class="mt-4 border-y border-line py-5 text-muted" data-testid="journal-empty">Aucune partie ne correspond à ces filtres sur cette période.</p>
+        <p class="card mt-4 p-5 text-muted" data-testid="journal-empty">Aucune partie ne correspond à ces filtres sur cette période.</p>
       ) : (
         <div ref={lines}>
           <div class="card mt-4 hidden overflow-hidden lg:block">
@@ -230,7 +230,7 @@ export default function GamesJournal({ src, initial, sides }: Props) {
                 <p class="mt-1">{mapOf(r)} · {formatOf(r)}</p>
                 <p class="mt-1 text-muted">{fmtInt(r.gaulois)} Gaulois sur {fmtCount(r.players, "joueur")} · {durationOf(r)}</p>
                 {(r.rivals.length > 0 || r.allies.length > 0) && <p class="mt-1 text-muted"><Clans row={r} /></p>}
-                <p class="tap-links mt-1"><Replay row={r} /></p>
+                <p class="mt-2"><Replay row={r} /></p>
               </li>
             ))}
           </ul>
@@ -239,7 +239,7 @@ export default function GamesJournal({ src, initial, sides }: Props) {
             <div class="mt-4 text-center">
               <button
                 type="button"
-                class="btn btn-secondary"
+                class="btn btn-ghost"
                 onClick={() => {
                   setFocusRow(visible.length);
                   setLimit(limit + PAGE);

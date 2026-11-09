@@ -62,7 +62,7 @@ export default function PlayerViewBar() {
         </p>
         <button
           type="button"
-          class="btn btn-secondary btn-sm"
+          class="btn btn-ghost !min-h-10 !py-1.5 !text-sm"
           data-testid="player-view-leave"
           onClick={() => {
             setPlayerView(false);

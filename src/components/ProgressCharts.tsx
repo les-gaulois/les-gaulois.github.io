@@ -1,7 +1,6 @@
 import { useMemo, useState } from "preact/hooks";
 import AnimatedNumber from "./AnimatedNumber";
 import LineChart from "./LineChart";
-import { countAxis } from "../lib/chart";
 import { fmtDay, fmtInt, fmtPct, fmtScore } from "../lib/format";
 import type { HistorySnapshot } from "../lib/schemas";
 import { bucketize, filterRange, type Bucket, type DayStat, type RangeKey } from "../lib/sessions";
@@ -14,21 +13,27 @@ const RANGES: { key: RangeKey; label: string }[] = [
   { key: "all", label: "Tout" },
 ];
 
+function niceMax(v: number): number {
+  if (v <= 5) return Math.max(v, 1);
+  const pow = 10 ** Math.floor(Math.log10(v));
+  for (const m of [1, 2, 2.5, 5, 10]) if (v <= m * pow) return m * pow;
+  return v;
+}
+
 const bucketLabel = (b: Bucket) => (b.date === b.endDate ? fmtDay(b.date) : `${fmtDay(b.date)} au ${fmtDay(b.endDate)}`);
 
 function GamesChart({ buckets, weekly }: { buckets: Bucket[]; weekly: boolean }) {
   const [hover, setHover] = useState<number | null>(null);
-  // Des graduations rondes et entières, chacune écrite sur son trait (src/lib/chart.ts).
-  const { max, ticks } = countAxis(Math.max(0, ...buckets.map((b) => b.games)));
+  const max = niceMax(Math.max(1, ...buckets.map((b) => b.games)));
   const shown = hover === null ? null : buckets[hover];
   const labelIdx = new Set([0, Math.floor((buckets.length - 1) / 2), buckets.length - 1]);
 
   return (
     <figure class="m-0">
-      <figcaption class="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
+      <figcaption class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
         <span class="font-semibold">Parties {weekly ? "par semaine" : "par jour"}</span>
-        <span class="flex items-center gap-2"><i class="inline-block size-3.5 rounded-sm bg-win" aria-hidden="true" />Victoires</span>
-        <span class="flex items-center gap-2"><i class="inline-block size-3.5 rounded-sm bg-loss" aria-hidden="true" />Défaites</span>
+        <span class="flex items-center gap-1.5 text-muted"><i class="inline-block size-3 rounded-sm bg-win" aria-hidden="true" />Victoires</span>
+        <span class="flex items-center gap-1.5 text-muted"><i class="inline-block size-3 rounded-sm bg-loss" aria-hidden="true" />Défaites</span>
       </figcaption>
       <p class="tnum mt-2 min-h-5 text-sm text-muted" aria-hidden="true">
         {shown
@@ -36,12 +41,13 @@ function GamesChart({ buckets, weekly }: { buckets: Bucket[]; weekly: boolean })
           : "Survolez une barre pour le détail."}
       </p>
       <div class="relative mt-2 h-64 pl-10" aria-hidden="true" onPointerLeave={() => setHover(null)}>
-        {ticks.map((tick) => (
-          <div key={tick} class="absolute inset-x-0 border-t border-line" style={{ bottom: `${(tick / max) * 100}%` }}>
-            <span class="tnum absolute -top-2.5 left-0 bg-navy pr-2 text-xs text-muted">{fmtInt(tick)}</span>
+        {[1, 0.5, 0].map((f) => (
+          <div key={f} class="absolute inset-x-0 border-t border-line/60" style={{ top: `${(1 - f) * 100}%` }}>
+            <span class="tnum absolute -top-2.5 left-0 bg-surface pr-1 text-xs text-muted">{fmtInt(Math.round(max * f))}</span>
           </div>
         ))}
-        <div class="absolute inset-y-0 left-10 right-0">
+        <div class="absolute inset-y-0 left-10 right-0" data-ripple-group>
+          <div class="chart-sweep" />
           {hover !== null && shown && (
             <>
               <div class="chart-cursor" style={{ left: `${(hover / buckets.length) * 100}%`, width: `${100 / buckets.length}%` }} />
@@ -59,16 +65,26 @@ function GamesChart({ buckets, weekly }: { buckets: Bucket[]; weekly: boolean })
             {buckets.map((b, i) => (
               <div
                 key={b.date}
-                class="flex h-full flex-1 items-end px-px"
+                class="flex h-full flex-1 flex-col justify-end px-px"
                 onPointerEnter={() => setHover(i)}
                 onPointerDown={() => setHover(i)}
               >
-                {b.games > 0 && (
-                  <div class="bar-stack" style={{ height: `${(b.games / max) * 100}%`, opacity: b.partial ? 0.55 : 1 }}>
-                    {b.losses > 0 && <div class="min-h-px bg-loss" style={{ flexGrow: b.losses, flexBasis: 0 }} />}
-                    {b.wins > 0 && <div class="min-h-px bg-win" style={{ flexGrow: b.wins, flexBasis: 0 }} />}
-                  </div>
-                )}
+                <div
+                  class="fx-grow flex flex-col gap-0.5"
+                  data-ripple="glow"
+                  style={{
+                    height: `${(b.games / max) * 100}%`,
+                    opacity: b.partial ? 0.55 : 1,
+                    "--i": i,
+                    // Les barres voisines s'éclairent : leur hauteur, elle, ne change jamais.
+                    filter: hover === null ? undefined : `brightness(${1 + 0.35 * Math.max(0, 1 - Math.abs(i - hover) / 3)})`,
+                  }}
+                >
+                  {b.losses > 0 && <div class="min-h-px rounded-t bg-loss" style={{ flexGrow: b.losses, flexBasis: 0 }} />}
+                  {b.wins > 0 && (
+                    <div class={`min-h-px bg-win ${b.losses === 0 ? "rounded-t" : ""}`} style={{ flexGrow: b.wins, flexBasis: 0 }} />
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -116,7 +132,7 @@ export default function ProgressCharts({ days, history }: Props) {
   const rate = winRate(wins, games);
 
   if (days.length === 0) {
-    return <p class="border-y border-line py-6 text-muted">Pas de données : aucune session n'a encore été collectée.</p>;
+    return <p class="card p-6 text-center text-muted">Pas de données : aucune session n'a encore été collectée.</p>;
   }
 
   return (
@@ -129,18 +145,18 @@ export default function ProgressCharts({ days, history }: Props) {
         ))}
       </div>
 
-      <dl class="mt-7 grid grid-cols-3 border-y border-line py-6" aria-live="polite">
+      <dl class="mt-5 grid grid-cols-3 gap-3" aria-live="polite">
         {[
           { label: "Parties", value: games, format: fmtInt },
           { label: "Victoires", value: wins, format: fmtInt },
           { label: "Taux de victoire", value: rate, format: fmtPct },
         ].map(({ label, value, format }) => (
-          <div key={label} class="min-w-0 border-l border-line px-3 first:border-l-0 first:pl-0 sm:px-6">
-            <dt class="label">{label}</dt>
-            <dd class="figure mt-2 text-2xl sm:text-4xl">
+          <div key={label} class="card p-3 sm:p-5">
+            <dt class="text-xs font-semibold text-muted sm:text-sm">{label}</dt>
+            <dd class="tnum mt-1 font-display text-xl font-extrabold sm:text-3xl">
               <AnimatedNumber value={value} format={format} testId={`summary-${label}`} />
               {label === "Taux de victoire" && rate !== null && (
-                <div class="meter mt-3 max-w-40" aria-hidden="true">
+                <div class="meter mt-3" aria-hidden="true">
                   <i style={{ "--v": `${rate}%` }} />
                 </div>
               )}
@@ -149,8 +165,9 @@ export default function ProgressCharts({ days, history }: Props) {
         ))}
       </dl>
 
-      <section class="mt-8">
-        <GamesChart buckets={buckets} weekly={weekly} />
+      <section class="card mt-5 p-4 sm:p-5">
+        {/* La clé relance la pousse des barres et le balayage à chaque changement de période. */}
+        <GamesChart key={range} buckets={buckets} weekly={weekly} />
         <details class="mt-4">
           <summary class="cursor-pointer font-semibold">Voir le tableau des parties</summary>
           <div class="mt-3 max-h-96 overflow-auto" tabIndex={0} aria-label="Tableau des parties, zone défilante">
@@ -181,12 +198,11 @@ export default function ProgressCharts({ days, history }: Props) {
         </details>
       </section>
 
-      <section class="band mt-12">
-      <h2 class="section-title">Relevés de chaque jour</h2>
-      <p class="mt-3 max-w-3xl text-muted">
+      <h2 class="section-title mt-12">Relevés de chaque jour</h2>
+      <p class="mt-2 max-w-3xl text-sm text-muted">
         Le rang et le score viennent du classement officiel, sur sa fenêtre glissante de 90 jours : ils ne se comparent donc pas aux parties par jour ci-dessus. Le nombre de membres vient de la liste officielle du clan, anonymes compris. Ces trois mesures ne sont connues que depuis le premier relevé. Chaque courbe a sa propre échelle : le tableau donne les valeurs exactes.
       </p>
-      <div class="mt-8 grid gap-x-8 gap-y-6 md:grid-cols-2 lg:grid-cols-3">
+      <div class="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <LineChart
           title="Rang"
           invert
@@ -224,7 +240,6 @@ export default function ProgressCharts({ days, history }: Props) {
           </div>
         </details>
       )}
-      </section>
     </div>
   );
 }

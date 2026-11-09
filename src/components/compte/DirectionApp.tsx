@@ -95,7 +95,7 @@ function Announcements({ rows, reload, form, setForm }: { rows: AnnouncementRow[
             {form.id ? "Enregistrer" : "Publier l'annonce"}
           </button>
           {form.id && (
-            <button type="button" class="btn btn-secondary" onClick={() => setForm(empty)}>
+            <button type="button" class="btn btn-ghost" onClick={() => setForm(empty)}>
               Annuler
             </button>
           )}
@@ -114,7 +114,7 @@ function Announcements({ rows, reload, form, setForm }: { rows: AnnouncementRow[
               </p>
               {a.editable && (
                 <div class="mt-2 flex flex-wrap gap-2">
-                  <button type="button" class="btn btn-secondary btn-sm" disabled={busy} aria-label={`Modifier « ${a.title} »`} onClick={() => setForm({ id: a.id, title: a.title, body: a.body, url: a.url ?? "" })}>
+                  <button type="button" class="btn btn-ghost !min-h-10 !py-1.5 !text-sm" disabled={busy} aria-label={`Modifier « ${a.title} »`} onClick={() => setForm({ id: a.id, title: a.title, body: a.body, url: a.url ?? "" })}>
                     Modifier
                   </button>
                   <DeleteButton busy={busy} label={a.title} onConfirm={() => void run(() => call("delete_announcement", { p_id: a.id }), "Annonce supprimée.")} />
@@ -210,7 +210,7 @@ function Events({ rows, attendance, reload, form, setForm }: { rows: EventRow[];
             {form.id ? "Enregistrer" : form.repeat ? `Publier ${form.weeks} événements` : "Publier l'événement"}
           </button>
           {form.id && (
-            <button type="button" class="btn btn-secondary" onClick={() => setForm(empty)}>
+            <button type="button" class="btn btn-ghost" onClick={() => setForm(empty)}>
               Annuler
             </button>
           )}
@@ -239,7 +239,7 @@ function Events({ rows, attendance, reload, form, setForm }: { rows: EventRow[];
                   <div class="mt-2 flex flex-wrap gap-2">
                     <button
                       type="button"
-                      class="btn btn-secondary btn-sm"
+                      class="btn btn-ghost !min-h-10 !py-1.5 !text-sm"
                       disabled={busy}
                       aria-label={`Modifier « ${ev.title} »`}
                       onClick={() => setForm({ ...EMPTY_EVENT, id: ev.id, title: ev.title, description: ev.description ?? "", url: ev.url ?? "", start: toLocalInput(ev.starts_at) })}
@@ -322,7 +322,7 @@ function FounderTransfer({ onDone }: { onDone: () => Promise<void> }) {
             </div>
           )}
           <div>
-            <button type="submit" class="btn btn-secondary" disabled={busy || !chosen || typed !== chosen.name}>
+            <button type="submit" class="btn btn-ghost" disabled={busy || !chosen || typed !== chosen.name}>
               Transmettre le rôle
             </button>
           </div>
@@ -401,7 +401,7 @@ export default function DirectionApp({ health }: { health: Omit<SiteHealthInput,
           </a>
         </p>
         {/* Tout le site passe en vue de membre sans grade, jusqu'à « Quitter la vue joueur » en haut de chaque page. Le serveur garde le vrai rôle. */}
-        <button type="button" class="btn btn-secondary btn-sm" data-player-view-start data-testid="player-view-start" onClick={() => setPlayerView(true)}>
+        <button type="button" class="btn btn-ghost !min-h-10 !py-1.5 !text-sm" data-player-view-start data-testid="player-view-start" onClick={() => setPlayerView(true)}>
           Voir le site comme un joueur
         </button>
       </div>
