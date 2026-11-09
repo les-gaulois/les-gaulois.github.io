@@ -2,15 +2,15 @@
 
 ## Intention
 
-Un univers de jeu sombre plutôt qu'une simple page de statistiques. Le guerrier du logo occupe la scène d'ouverture, de grands titres en capitales donnent le ton, et chaque grande section devient une scène avec son propre décor.
+Le journal d'un clan de stratégie. Un fond nuit uni, de grands titres à empattements en casse normale, les chiffres du clan posés comme un tableau de score, et un seul bouton fort par section. Le registre est celui des gazettes et des états-majors, celui des jeux de grande stratégie, sans tomber dans le folklore celtique. L'identité reste celle du clan : bleu, blanc, rouge et son guerrier gaulois, le tricolore en accent et jamais en fond. Aucune référence à des personnages ou visuels protégés.
 
-Cette approche s'inspire de la façon dont les grands sites de la culture gaming construisent leurs pages : environnement immersif, titres massifs, un seul bouton fort, profondeur par la couleur. Elle ne reprend ni la marque, ni la couleur, ni les polices propriétaires, ni les visuels d'un autre site. L'identité reste celle du clan : bleu, blanc, rouge et son guerrier gaulois. Aucune référence à des personnages ou visuels protégés.
+**Refonte du 9 novembre 2026.** Le pilote trouvait que le site « faisait généré par IA » : Inter et Outfit, les polices par défaut de ces sites ; tous les titres en capitales, à la même taille ; huit blocs arrondis de couleurs différentes ; la même recette titre, paragraphe et deux boutons partout ; seize boutons sur l'accueil ; un fond animé à piloter et des blocs qui n'apparaissaient qu'au défilement, et restaient parfois invisibles. Tout cela est retiré. Ne pas y revenir : une nouvelle page suit les règles ci-dessous.
 
 ## Organisation du site
 
 Le visiteur doit savoir où chercher, et avoir une raison de revenir. Le plan est dans `src/lib/nav.ts`, et le README en donne le tableau.
 
-- **Six rubriques dans le menu, pas une de plus.** Avec le bouton « Nouveautés », l'en-tête connecté le plus chargé est celui d'un membre validé (lien « QG », nom du compte au plus long) : il garde 117 px de marge à partir de 1 280 px. Celui de l'encadrement (lien Direction avec sa pastille à deux chiffres, lien « QG ») en garde 147. Mesurés le 9 novembre 2026 avec un faux serveur. Une septième rubrique mangerait presque toute cette marge : mesurer de nouveau avant d'en ajouter une. Une rubrique répond à une question : que s'est-il passé, où en est-on, qui sommes-nous, la carte, comment jouer, comment entrer. Son nom ne doit pas se confondre avec un autre : « Guides » plutôt que « Jouer », à cause du bouton « Jouer à OpenFront ».
+- **Six rubriques dans l'en-tête, visibles dès 1 024 px, pas une de plus.** En dessous, elles passent dans le bouton « Menu ». À 1 024 px, le nom « Les Gaulois » laisse sa place aux rubriques, et l'en-tête connecté le plus chargé, celui d'un membre validé (lien « QG », nom du compte au plus long), garde 54 px de marge ; celui de l'encadrement (lien Direction avec sa pastille à deux chiffres, lien « QG ») en garde 84. Mesurés le 9 novembre 2026 avec un faux serveur. Une septième rubrique ne tiendrait pas : la placer comme onglet d'une rubrique existante. Une rubrique répond à une question : que s'est-il passé, où en est-on, qui sommes-nous, la carte, comment jouer, comment entrer. Son nom ne doit pas se confondre avec un autre : « Guides » plutôt que « Jouer », à cause du bouton « Jouer à OpenFront ».
 - **Des onglets dans chaque rubrique.** `SectionNav.astro` les place en haut de page : on passe d'une page à l'autre sans repasser par le menu.
 - **Un contenu, une page.** L'accueil résume et renvoie ; il ne recopie pas un bloc entier. Une autre page peut citer un chiffre, en renvoyant à sa page.
 - **Une face publique, une face privée.** Le QG (`/qg`, onglet de la rubrique Membres) est réservé aux membres validés : sondages, boîte à idées, mur. Sa page ne contient que la porte, et l'accueil n'en montre qu'un bloc d'entrée. Dans l'en-tête, un membre validé a un lien « QG » avant son nom ; l'encadrement a « Direction » et « QG », sans son nom, et ouvre son compte depuis le QG ou la Direction. Sur téléphone, il ne reste que « QG » pour un membre et « Direction » pour l'encadrement. Le QG reste bleu : le rouge est réservé à l'encadrement. Au QG, le refus du serveur s'écrit à l'endroit de l'action, pas en haut de la page, et une photo Discord absente laisse la place à l'initiale du nom : le logo de Discord ne s'affiche jamais.
@@ -19,7 +19,7 @@ Le visiteur doit savoir où chercher, et avoir une raison de revenir. Le plan es
 - **Un bloc vide n'existe pas.** Sans annonce ni événement, l'accueil n'affiche pas de bloc vide. Au QG, un espace de travail, chaque partie dit en une phrase qu'elle est vide. Pour une donnée attendue, « Pas de données » reste la règle.
 - **Les membres d'abord.** Juste sous l'en-tête de l'accueil, « Les Gaulois de la semaine » (`ClanWeek.astro`) nomme des joueurs : le podium des victoires de la dernière gazette, les plus actifs quand les parties sont relevées, et le fil du clan (paliers franchis, records récents, belle partie d'hier, arrivées). C'est le résumé de la gazette, qui garde le détail : il remplace l'ancien bloc « La gazette du clan ». Une ligne sans donnée n'existe pas, et la réserve « ce n'est pas un classement de niveau » reste visible. « Ma place dans le clan » et la porte du QG viennent ensuite, côte à côte, puis le classement du clan.
 - **Une raison de revenir.** L'accueil dit ce qui a changé depuis la dernière visite, retient son pseudo si on le demande, et donne l'objectif du moment sur la carte et le prochain bilan. Le film de la carte reprend où le visiteur l'avait laissé, et la dernière journée se rejoue d'un clic. La gazette montre la semaine en cours, l'accueil la belle partie d'hier, et un record qui vient de tomber est signalé sur la page Records et dans la gazette. Le membre qui a retenu son pseudo lit aussi son bilan personnel. Chaque fiche de membre a un bouton « Copier le lien » et une image d'aperçu dessinée au build (`src/lib/fiche-image.ts`), pour que le lien collé sur Discord montre le pseudo, la place et le palier. Le site s'installe comme une application depuis le navigateur (`/manifest.webmanifest`), sans rien stocker ni suivre. Tout ce qui est personnel reste dans le navigateur du visiteur.
-- **Les nouveautés du site, discrètes mais à portée.** Sur grand écran (`lg` et plus), un bouton « Nouveautés » au style d'un onglet, un peu plus serré, à gauche des boutons de l'en-tête, ouvre un panneau avec les trois dernières mises à jour et le lien vers toutes. En dessous, la place manque dans l'en-tête : l'entrée passe en bas du menu. Un point rouge (`.nouveautes-dot`, 3:1 au moins sur chaque fond) signale une mise à jour parue depuis le dernier passage, sur le bouton ou sur le menu ; il ne clignote pas. Les lecteurs d'écran l'entendent dans le nom du bouton et du lien du menu, et en description du bouton Menu. Pas de bulle flottante : sur la page Carte, les commandes du film occupent le bas de l'écran. La page `/nouveautes` est un onglet de la rubrique Actu.
+- **Les nouveautés du site, discrètes mais à portée.** Sur grand écran (`lg` et plus), un lien de texte « Nouveautés », à gauche du bouton Discord, ouvre un panneau avec les trois dernières mises à jour et le lien vers toutes. En dessous, la place manque dans l'en-tête : l'entrée passe en bas du menu. Un point rouge (`.nouveautes-dot`, 3:1 au moins sur chaque fond) signale une mise à jour parue depuis le dernier passage, sur le bouton ou sur le menu ; il ne clignote pas. Les lecteurs d'écran l'entendent dans le nom du bouton et du lien du menu, et en description du bouton Menu. Pas de bulle flottante : sur la page Carte, les commandes du film occupent le bas de l'écran. La page `/nouveautes` est un onglet de la rubrique Actu.
 - **Pas de fondu entre les pages.** Essayé le 7 novembre 2026 avec `@view-transition` : il provoquait des erreurs intermittentes vers la page Carte. Les pages sont statiques, et leur changement est déjà rapide.
 
 ## Couleurs
@@ -28,20 +28,24 @@ Les jetons sont définis dans `src/styles/global.css`.
 
 | Jeton | Valeur | Usage |
 |---|---|---|
-| `navy` | `#0A1230` | Environnement de la page, avec une lueur bleue et un reflet rouge |
-| `night` | `#060B22` | Pied de page, scènes nocturnes, panneaux posés dans une scène |
-| `surface` | `#121C3F` | Cartes |
+| `navy` | `#0A1230` | Fond uni de toutes les pages, sans lueur ni dégradé |
+| `night` | `#060B22` | Pied de page, champs, encarts sombres |
+| `surface` | `#121C3F` | Cartes : un objet, jamais une section |
 | `surface-2` | `#1A2650` | État actif, avatars |
-| `line` | `#2C3A6B` | Bordures |
-| `line-strong` | `#5D6C9E` | Contour des champs, carte survolée : 3,2:1 sur une carte |
+| `line` | `#2C3A6B` | Filets entre les sections, bordures |
+| `line-strong` | `#5D6C9E` | Contour des champs et des boutons secondaires : 3,6:1 sur le fond, 3,2:1 sur une carte |
 | `blue` | `#0B5FFF` | **Bouton principal uniquement** |
 | `blue-text` | `#9DBCFF` | Liens : le bleu du logo n'est pas assez contrasté sur le fond marine |
-| `flag-blue` | `#0B5FFF` | Le bleu du drapeau : filet tricolore, frontière, barre de progression. Il ne change pas avec le thème |
-| `red` | `#FF1A2E` | Filet, marqueur de page et de ligne active |
-| `muted` | `#C0C9E2` | Texte secondaire |
+| `flag-blue` | `#0B5FFF` | Le bleu du drapeau : filet tricolore, jauge de GAL. Il ne change pas avec le thème |
+| `red` | `#FF1A2E` | Filet tricolore, trait de la page active dans le menu et les onglets, ligne de GAL au classement |
+| `win` | `#4C86F5` | Victoires, dans les graphiques et les pastilles de résultat |
+| `loss` | `#F0505F` | Défaites. Avec `win`, contrôlé pour les daltonismes sur le fond et sur une carte |
+| `muted` | `#C0C9E2` | Texte secondaire : 11:1 sur le fond, 10:1 sur une carte |
 | `warn` | `#FFC857` | Données périmées et erreurs de collecte, et ce qui attend l'encadrement : demandes à traiter, pastille, points de l'état du site |
 
-**Règle du tricolore :** en accent dans l'interface (filets, soulignement de la page active, loader). Pas de texte blanc sur le rouge vif, trop peu contrasté à petite taille.
+**Une palette réduite :** le fond nuit, un bleu, un rouge d'accent et des neutres. Le jaune `warn` ne sert qu'aux états, jamais au décor.
+
+**Règle du tricolore :** en accent dans l'interface (filets, trait de la page active, loader), jamais en couleur de fond d'une section. Pas de texte blanc sur le rouge vif, trop peu contrasté à petite taille.
 
 ### Thème rouge de l'encadrement
 
@@ -49,7 +53,7 @@ Les jetons sont définis dans `src/styles/global.css`.
 
 | Jeton | Thème rouge | Contraste vérifié |
 |---|---|---|
-| `navy` | `#300A10` | Texte blanc 17,9:1. Le fond porte une lueur rouge et un reflet bleu |
+| `navy` | `#300A10` | Texte blanc 17,9:1 |
 | `night` | `#22060B` | Texte blanc 19,1:1 |
 | `surface` | `#3F121A` | Texte blanc 16:1, `muted` 9,6:1, liens 8,1:1 |
 | `surface-2` | `#501A23` | Texte blanc 13,9:1, liens 7,1:1 |
@@ -60,42 +64,42 @@ Les jetons sont définis dans `src/styles/global.css`.
 | `muted` | `#E2C0C6` | Texte secondaire |
 
 - Le filet tricolore, la frontière et la barre de progression gardent le bleu du drapeau (`flag-blue`) : c'est l'identité du clan.
-- Les effets s'inversent : le rouge mène et le bleu répond. Clic gauche et toucher rouges, clic droit bleu, traînée du curseur et territoires ambiants surtout rouges.
 - `.form-problem`, un refus du serveur ou un avertissement comme « Absent de la liste », s'y écrit en jaune `warn`, la couleur de « Plus dans la liste » : en rose, il se perdrait dans le décor.
 - `/compte` reste bleu : c'est la page de chaque membre, pas un espace de l'encadrement.
 - Un test e2e vérifie que ces deux pages sont rouges et que toutes les autres restent bleues. Axe contrôle aussi leurs contrastes, mais les tests construisent le site sans serveur de connexion : il n'y voit que la carte « connexion pas ouverte ». Les vrais écrans (tuiles, formulaires, tableau, onglets, refus en jaune) n'ont été contrôlés qu'une fois, le 8 novembre 2026, par axe avec un faux serveur, sur bureau et téléphone.
 
-## Scènes
+## Sections et cartes
 
-Les grandes sections sont des blocs `.stage` à coins de 24 px. La profondeur vient de la couleur, sans ombre portée.
-
-| Classe | Décor | Usage sur l'accueil |
-|---|---|---|
-| `.stage-blue` | Bleu royal | Classement officiel |
-| `.stage-indigo` | Indigo | Parties des 14 derniers jours et dernières parties |
-| `.stage-night` | Nuit, avec bordure | Gazette, Ma place, carte des clans, appel à rejoindre |
-| `.stage-wine` | Lie-de-vin | Quand jouer |
-
-Une scène associe un texte et un panneau `.panel`, à la manière d'un écran de l'application. **Ces panneaux n'affichent que des données collectées :** graphique des parties, créneaux réels. Aucune maquette ni valeur fictive.
+- **Une section se pose sur le fond.** `.band` : un filet en haut et de l'espace autour. Plus de blocs colorés : les anciennes « scènes » (`.stage-blue`, `.stage-indigo`, `.stage-wine`, `.stage-night`) et leurs panneaux sont retirés.
+- **Chaque section a sa mise en page**, au lieu de répéter titre, paragraphe et boutons. Sur l'accueil : l'ouverture, avec le logo à côté ; les Gaulois de la semaine, le podium et le fil du clan en deux colonnes séparées par un filet ; « Ma place » et la porte du QG, de même ; le tableau de score du classement, des chiffres séparés par des filets ; la carte des clans, l'image en premier ; les parties, un graphique et une liste ; les créneaux, une liste à filets avec leur jauge ; l'appel à rejoindre, avec la bannière.
+- **Une carte `.card` n'entoure qu'un objet :** une partie, une stat, un membre, un créneau, un face-à-face, un chapitre du guide, un outil comme le calculateur ou la simulation de la carte. Coins de 10 px, bordure `line`, sans ombre ni dégradé. Pas de grille de trois cartes « avantages » : les façons d'aider de la page Carte sont une liste à filets.
+- Hiérarchie des coins : 4 px pour une étiquette, 6 px pour un bouton ou un champ, 10 px pour une carte.
+- **Ces blocs n'affichent que des données collectées.** Aucune maquette ni valeur fictive.
 
 ## Typographie
 
-- **Titres :** Outfit, graisse 800, en capitales, interligne serré, approche -0,01 em. Le rendu est proche du lettrage du logo, avec une police libre de droits.
-- **Texte :** Inter.
-- **Chiffres :** chiffres tabulaires (`.tnum`) pour que les colonnes s'alignent. Les milliers sont séparés par l'espace insécable de `src/lib/nombre.ts` : Outfit et Inter ne contiennent pas l'espace fine de `Intl`.
-- Les capitales sont appliquées en CSS : le texte d'origine reste en casse normale pour les lecteurs d'écran.
-- Les polices sont servies par le site, sans requête vers un service tiers, et préchargées dans l'en-tête de chaque page : le texte s'affiche presque toujours directement dans sa police, au lieu d'une police de remplacement remplacée après coup.
+- **Titres et grands chiffres : Spectral**, dessinée à Paris par Production Type pour l'écran. Ses empattements nets donnent le registre de la gazette et des jeux de grande stratégie, sans folklore. Graisse 800 pour H1, H2 et les chiffres mis en avant (`.figure`), 600 pour H3. Casse normale, interligne serré.
+- **Texte : Red Hat Text**, dessinée pour la lecture aux petites tailles, avec des chiffres tabulaires. Atkinson Hyperlegible a été essayée le 9 novembre 2026 : son zéro barré faisait lire « 2Ø26 » dans chaque date.
+- **Échelle :** `.page-title` (H1, de 36 à 64 px), `.section-title` (H2, de 28 à 40 px), `.section-title-sm` (H2 d'une colonne, de 24 à 34 px), H3 de 20 à 24 px, texte de 16 px sur téléphone et 17 px au-delà. `text-sm` vaut 15 px et `text-xs` 13 px : les mentions restent lisibles.
+- **Les capitales ne servent plus nulle part**, ni aux titres, ni aux libellés, ni aux en-têtes de tableau. Un petit libellé au-dessus d'un chiffre prend `.label` : gras, en casse normale, couleur `muted`.
+- **Chiffres :** chiffres tabulaires (`.tnum`) pour que les colonnes s'alignent. Les milliers sont séparés par l'espace insécable de `src/lib/nombre.ts` : Spectral et Red Hat Text ne contiennent pas l'espace fine de `Intl`.
+- Polices interdites, parce qu'elles signent les sites générés : Inter, Outfit, Poppins, Montserrat, Space Grotesk, Roboto et les polices du même genre. Inter et Outfit ne servent plus qu'aux images dessinées par le robot pour Discord.
+- Les polices sont servies par le site, sans requête vers un service tiers, et préchargées dans l'en-tête de chaque page (Spectral 800 et Red Hat Text) : le texte s'affiche presque toujours directement dans sa police. Leur poids reste celui d'avant la refonte, 77 Ko environ.
 - Les pages se préchargent au survol de leur lien (`prefetch` d'Astro, stratégie `hover`) : la page suivante s'ouvre sans attente.
 
 ## Boutons
 
+Un seul système, appliqué partout, en-tête compris : coins de 6 px, texte gras, survol par la couleur seule (ni soulèvement, ni reflet, ni attraction vers le curseur), focus par le contour blanc du site.
+
 | Classe | Style | Usage |
 |---|---|---|
-| `.btn-primary` | Bleu plein | L'action principale, rejoindre le Discord |
-| `.btn-secondary` | Blanc plein | L'action associée, jouer à OpenFront |
-| `.btn-ghost` | Contour blanc | Liens vers les pages, dans les scènes colorées |
+| `.btn-primary` | Bleu plein | L'action principale de la section. Sur l'accueil, seul « Rejoindre le Discord » ; dans l'en-tête, seul « Discord » |
+| `.btn-secondary` | Contour `line-strong` | Les autres actions : entrer dans le QG, voir les étapes, réessayer, copier un lien |
+| `.btn-lg` · `.btn` · `.btn-sm` | 52, 44 et 40 px de haut | L'ouverture d'une page · le cas courant · une action dans une liste |
+| `.chip` | Même forme, plus discrète | Interrupteurs et filtres : période, vitesse du film, résultat |
+| `.nav-link` | Texte, trait au survol | Rubriques, « Nouveautés » et liens du compte dans l'en-tête |
 
-Les boutons ont des coins de 12 px, et `.btn-lg` les agrandit pour les appels principaux.
+**Un lien mène ailleurs, un bouton agit.** « Voir le classement complet », « Lire la gazette », « Voir la progression » sont des liens de texte (`<a>` sans classe, ou `.link`). Une section a au plus un bouton ; la seconde action devient un lien.
 
 La pastille `.count-pill` donne, à côté du lien Direction, le nombre de demandes en attente : fond jaune `warn`, texte `navy`, 11,6:1 au moins dans les deux thèmes. Les lecteurs d'écran entendent le texte visible suivi de ce qu'il compte : « Direction 2 demandes à traiter ».
 
@@ -103,7 +107,7 @@ La pastille `.count-pill` donne, à côté du lien Direction, le nombre de deman
 
 | Fichier | Où |
 |---|---|
-| Logo vertical | Grand visuel de l'accueil et de la page Rejoindre, sur une lueur bleue |
+| Logo vertical | Grand visuel de l'accueil et de la page Rejoindre, posé sur le fond, sans halo ni mouvement. Sur téléphone, il n'est ni affiché ni téléchargé : le badge de l'en-tête suffit |
 | Bannière | Bas de l'accueil, image de partage |
 | Badge rond | En-tête, favicon recadré en cercle |
 
@@ -111,42 +115,32 @@ Le build en tire des versions légères dans `public/generated/`, et le site n'a
 
 ## Visualisation de données
 
-- **Parties par jour :** barres empilées victoires et défaites, en bleu `#4C86F5` et orange `#D9742E`. Palette contrôlée sur la surface des cartes, y compris pour les daltonismes. Une légende et un tableau accompagnent le graphique de la page Progression.
+- **Parties par jour :** barres empilées victoires et défaites, en bleu `#4C86F5` et rouge `#F0505F`, les couleurs du clan. Palette contrôlée le 9 novembre 2026 sur le fond et sur une carte : contraste de 5,3:1 sur le fond et de 4,8:1 sur une carte pour chacune, et un écart de couleur suffisant entre les deux pour les trois formes de daltonisme (ΔE 22,7 au pire, en protanopie). Barres de 24 px au plus, 2 px de fond entre les deux parts, haut arrondi. Un axe gradué de valeurs rondes et entières (`countAxis` de `src/lib/chart.ts`), les dates en bas, la légende au-dessus avec des pastilles de 14 px. Le détail de chaque barre au survol, et un tableau : visible sur la page Progression, réservé aux lecteurs d'écran sur l'accueil, dans un bloc `.sr-only` (sur le `<table>` lui-même, la classe ne l'empêche pas d'élargir la page).
 - **Vue « Tout » :** regroupée par semaine, pour garder des barres lisibles en mobile.
-- **Rang, score et membres :** trois graphiques distincts, jamais de double axe. Le rang a l'axe inversé. Chacun a sa propre échelle, ce que la page écrit, et un tableau donne les valeurs exactes.
+- **Rang, score et membres :** trois graphiques distincts, jamais de double axe. Le rang a l'axe inversé. Chacun a sa propre échelle, ce que la page écrit : sa valeur la plus haute et la plus basse sont écrites contre leur trait, du côté où la courbe ne passe pas. Un tableau donne les valeurs exactes.
 - **Heatmap :** une seule teinte, du sombre au clair, avec le nombre écrit dans chaque case. C'est un vrai tableau HTML. En dessous de 1 024 px, il pivote en une ligne par heure pour tenir sans défilement horizontal.
 - **Période en cours :** barre plus pâle.
 - **Comparateur de clans (page Nos rivaux) :** un vrai tableau à trois colonnes, sans jauge ni couleur par gagnant : le site ne dit pas lequel des deux est meilleur. L'écart est écrit en toutes lettres, annoncé aux lecteurs d'écran, et doublé d'un tableau repliable dès le deuxième relevé.
 - **Paliers (page Membres et fiches) :** du texte et des noms, sans classement de jauges. Sur une fiche, la jauge va du palier atteint au suivant, et sa valeur est écrite juste au-dessus. Au-delà de 12 pseudos, un palier se replie : tout reste dans le HTML et s'ouvre sans JavaScript.
-- **Dernières parties :** un vrai tableau à partir de 1 024 px, des cartes en dessous. Les 25 premières lignes sont dans le HTML. Le résultat est écrit en toutes lettres : la pastille bleue ou orange ne porte jamais seule l'information.
+- **Dernières parties :** un vrai tableau à partir de 1 024 px, des cartes en dessous. Les 25 premières lignes sont dans le HTML. Le résultat est écrit en toutes lettres : la pastille bleue ou rouge ne porte jamais seule l'information.
 - **Sondages (QG et espace Direction) :** une jauge `.meter` par choix, dont la longueur est la part des voix. Le nombre de voix et la part sont écrits à côté, et la jauge est masquée aux lecteurs d'écran. Le choix du membre connecté est écrit en toutes lettres, « votre choix ». Avant la première voix, aucune part n'est inventée : les jauges restent vides et seul « 0 voix » s'affiche.
 - **Croissance des troupes (page Guides) :** une seule courbe calculée, en bleu `#4C86F5`, avec la zone de 35 à 42 % en surbrillance. Le survol lit une valeur, et un tableau repliable donne les mêmes chiffres sans survol.
 
 ## Mouvement et interactions
 
-L'idée centrale reprend le principe d'OpenFront, la conquête de territoire : derrière la page, une grille de cases s'allume et s'éteint. **Cet effet est purement décoratif : il n'affiche aucune donnée du clan.**
+**Le site est immobile.** Rien ne bouge au chargement ni au défilement, et tout le contenu est visible dès l'ouverture, avec ou sans JavaScript. Ce qui bouge répond à un geste du visiteur ou montre un calcul :
 
-| Geste | Effet |
+| Geste ou calcul | Mouvement |
 |---|---|
-| Déplacer la souris | Les cases s'allument sur son passage, un halo suit le curseur dans les blocs, les blocs s'inclinent, les boutons sont attirés, le logo suit le curseur |
-| Survoler un bloc | Une frontière tricolore fait le tour de sa bordure |
-| Clic gauche | Vague de conquête bleue, onde de choc et éclats. L'onde traverse aussi le bloc cliqué. |
-| Clic droit sur le fond | Vague de conquête rouge, onde de choc et éclats. L'onde traverse aussi le bloc cliqué. |
-| Clic gauche sur le logo | Pulsation et vague plus grande |
-| Clic droit sur le logo | Tour complet du logo et vague rouge plus grande |
-| Toucher un écran | Vague bleue. Pas d'effet de survol. |
-| Défiler | Blocs qui apparaissent en fondu, titres mot à mot, barre de progression, compteurs |
-| Survoler le graphique des parties | Colonne glissante, repère de valeur, barres voisines éclairées |
-| Cliquer sur un graphique ou la heatmap | Une onde se propage depuis le clic, bleue ou rouge selon le bouton |
-| Survoler la heatmap | Réticule sur le jour et l'heure, infobulle qui suit le curseur |
-| Changer de période | Barres qui repoussent, balayage tricolore, chiffres qui défilent |
+| Lancer le film de la carte | Le film, avec son bouton de lecture et de pause (section suivante) |
+| Modifier la simulation de la carte | Le territoire s'étend depuis sa frontière |
+| Modifier le calculateur, ou appuyer sur « Rejouer l'attaque » | L'attaque se rejoue une fois, en 5 s au plus : le bot est conquis pendant que les troupes fondent. À l'ouverture de la page, l'image finale, immobile |
 | Trier les membres | Les lignes glissent vers leur nouvelle place |
-| Modifier le calculateur | L'attaque se rejoue : le bot est conquis pendant que les troupes fondent |
-| Rien | Lente flottaison du logo, petits territoires qui naissent et disparaissent seuls |
+| Changer de période sur la page Progression | Les chiffres du résumé défilent jusqu'à leur nouvelle valeur |
+| Survoler un graphique | Colonne survolée, repère et valeur ; rien d'autre ne bouge |
+| Survoler une case de la heatmap | Un contour blanc, et son détail dans l'infobulle du navigateur |
 
-**Depuis le 8 novembre 2026, les blocs ne sont plus conquis case par case à leur apparition, et la frontière ne fait plus le tour d'un bloc toute seule.** Le pilote trouvait ces mouvements agressifs : des cases recouvraient ce qu'on lisait. Les blocs apparaissent en fondu, et la conquête reste pour les gestes du visiteur, ses clics et la première vague de l'accueil.
-
-Sur les pages rouges de l'encadrement, le bleu et le rouge échangent leurs rôles dans tous ces gestes : traînée du curseur, clic gauche, toucher et territoires ambiants y sont rouges, le clic droit et l'onde qu'il lance bleus.
+**Retiré le 9 novembre 2026, à ne pas remettre :** la grille de cases animée derrière la page et ses vagues au clic, le halo et l'inclinaison des blocs, l'attraction des boutons, le logo qui flotte et suit le curseur, la frontière tricolore au survol, les titres qui s'écrivent mot à mot, les blocs qui apparaissent en fondu au défilement, la barre de progression du défilement, les compteurs qui défilent à l'ouverture, le balayage et la pousse des graphiques, la ligne de GAL qui brille au classement, et le bouton pause de l'en-tête avec la phrase « Bougez la souris… ». Le pilote les trouvait gratuits, et certains blocs du bas de l'accueil restaient invisibles quand leur apparition ne se déclenchait pas.
 
 ### Le film de la carte
 
@@ -176,7 +170,7 @@ Le film dure 60 s à la vitesse × 1, quel que soit le nombre d'images. Il s'arr
 
 Les couleurs des territoires sont celles que les clans ont choisies dans le jeu : le bleu ciel de GAL n'est pas un jeton du site. Elles peuvent donc être peu contrastées entre elles : les chiffres et les tags en texte restent la référence, et l'option « Griser les autres clans » isole GAL.
 
-**Avec « réduire les animations » ou le bouton pause du site :** le film ne démarre pas seul, il n'y a ni lueur, ni halo, ni plan rapproché, et la caméra saute directement. Le bouton de lecture, la frise et les sous-titres restent disponibles. **Sans JavaScript ou si le film ne charge pas :** la carte finale et tous les chiffres restent affichés.
+**Avec « réduire les animations » :** le film ne démarre pas seul, et s'il tournait, il s'arrête dès que le réglage change, il n'y a ni lueur, ni halo, ni plan rapproché, et la caméra saute directement. Le bouton de lecture, la frise et les sous-titres restent disponibles. **Sans JavaScript ou si le film ne charge pas :** la carte finale et tous les chiffres restent affichés.
 
 Le code est dans `src/scripts/film.ts`. Sa logique testable est dans `src/lib/clanmap/`.
 
@@ -198,23 +192,22 @@ Sous le film, la page se lit en quatre parties, reliées par « Sur cette page �
 
 Ma place, sur l'accueil, donne le rang d'un membre, le prochain joueur à dépasser et son prochain palier : `stats.team`, comme la page Membres. Le calculateur est dans `src/scripts/conquest.ts`, et ses règles dans `src/lib/clanmap/economy.ts`. Pour garder la page courte, seuls le tableau jour après jour, les fronts et la lecture de la carte sont repliés. Tout reste dans le HTML et s'ouvre sans JavaScript.
 
-**Le clic droit garde son menu habituel** sur les liens, les boutons, les champs, les images autres que le logo et le texte sélectionné. Maj + clic droit l'ouvre partout.
+**Le clic droit garde partout son menu habituel :** plus aucun effet ne le détourne.
 
-**Les animations ne touchent jamais aux valeurs.** Une barre ne change pas de hauteur au survol, et l'onde d'un clic ne fait que l'éclairer. Les nouvelles jauges (taux de victoire, créneaux, scores du classement) ont une longueur calculée à partir des données. Le trait rouge d'une jauge (`.meter-tick`, repère du hasard ou des habitudes du clan sur la page Progression) est calculé lui aussi, et sa valeur est écrite à côté. La barre d'un face-à-face (`.split-bar`, page Classement) partage un même total entre trois issues, écrites à côté avec leur nombre. Le rejeu du calculateur vient de `simulateTrace`, et reste un repère indicatif.
+**Les animations ne touchent jamais aux valeurs.** Une barre ne change pas de hauteur au survol. Les nouvelles jauges (taux de victoire, créneaux, scores du classement) ont une longueur calculée à partir des données. Le trait rouge d'une jauge (`.meter-tick`, repère du hasard ou des habitudes du clan sur la page Progression) est calculé lui aussi, et sa valeur est écrite à côté. La barre d'un face-à-face (`.split-bar`, page Classement) partage un même total entre trois issues, écrites à côté avec leur nombre. Le rejeu du calculateur vient de `simulateTrace`, et reste un repère indicatif.
 
-**Un effet ne peut pas masquer du contenu.** La conquête d'un bloc couvre toutes ses cases, ce que des tests vérifient. Un bloc très haut ou une longue liste apparaît en fondu, et un bloc n'attend jamais plus de 0,4 s avant d'apparaître. Si le script ne se charge pas, les blocs s'affichent seuls au bout de 1,5 s.
+**Rien ne peut masquer du contenu.** Aucun bloc n'attend un défilement ou un script pour apparaître : `tests/e2e/fx.spec.ts` le vérifie sur chaque page, avec et sans JavaScript, et vérifie qu'aucune animation ne tourne seule à l'ouverture.
 
-Le code est dans `src/scripts/fx.ts`, et sa logique testable dans `src/lib/fx/territory.ts`. Les composants Preact utilisent `src/lib/fx/motion.ts` pour savoir si les animations sont permises. Le script pèse environ 15 Ko et la boucle d'animation s'arrête quand l'onglet est masqué.
-
-**Trois façons de couper les effets :** le bouton pause de l'en-tête (le choix est mémorisé), le réglage « réduire les animations » du système, ou l'absence de JavaScript. Dans tous les cas, le contenu reste complet et les valeurs finales sont déjà dans le HTML.
+**Pour tout arrêter :** le bouton de lecture du film, ou le réglage « réduire les animations » du système, qui coupe aussi le calculateur, la simulation et le tri. Les scripts le lisent par `src/lib/fx/motion.ts`. Sans JavaScript, le contenu reste complet et les valeurs finales sont déjà dans le HTML. Le bouton pause de l'en-tête a disparu avec les effets continus ; l'ancien choix gardé dans le navigateur (`gal-fx`) est effacé à la visite suivante.
 
 ## Accessibilité
 
 - Lien d'évitement, focus visible partout, navigation entièrement utilisable au clavier.
-- Animations continues interruptibles par le bouton pause, comme l'exige le critère WCAG 2.2.2. Toutes les interactions à la souris sont décoratives : aucune information n'en dépend.
+- Aucune animation continue : le film de la carte, seul mouvement de plus de cinq secondes, a son propre bouton de pause, comme l'exige le critère WCAG 2.2.2. Aucune information ne dépend du survol : chaque graphique a sa légende, ses valeurs écrites et son tableau.
+- Contraste du texte : 4,5:1 au moins partout, calculé pour chaque jeton (11:1 pour `muted` sur le fond). Les petits textes ne sont plus posés sur des fonds bleus ou des dégradés. Boutons de 40 px de haut au moins, 44 px pour le cas courant.
 - Les chiffres qui défilent sont masqués aux lecteurs d'écran, qui reçoivent uniquement la valeur finale.
 - Graphiques de la page Progression doublés par des tableaux, identité jamais portée par la seule couleur.
-- Tests automatiques axe (WCAG 2.1 A et AA) sur les 13 pages publiques et les deux pages rouges de l'encadrement, en desktop et mobile. Ces tests ne remplacent pas un essai avec un lecteur d'écran, qui n'a pas été fait. Ils ne peuvent pas non plus toujours mesurer un contraste sur un dégradé : le texte des scènes a été choisi clair et vérifié à l'œil sur les captures.
+- Tests automatiques axe (WCAG 2.1 A et AA) sur les pages publiques et les deux pages rouges de l'encadrement, en desktop et mobile. Ces tests ne remplacent pas un essai avec un lecteur d'écran, qui n'a pas été fait.
 - Absence de défilement horizontal testée à 360, 375, 768, 1 024, 1 280 et 1 920 px. Ces tests tournent sans barre de défilement visible : une vraie barre retire 15 px de largeur, ce qui peut révéler un débordement qu'ils ne voient pas.
 
 ## États des données
@@ -222,7 +215,7 @@ Le code est dans `src/scripts/fx.ts`, et sa logique testable dans `src/lib/fx/te
 | État | Affichage |
 |---|---|
 | Chargement | Arc animé, uniquement pour la liste des membres. Les autres pages arrivent déjà remplies. |
-| Vide | « Pas de données », jamais un zéro. Une scène de l'accueil sans données n'est pas affichée. |
+| Vide | « Pas de données », jamais un zéro. Une section de l'accueil sans données n'est pas affichée. |
 | Zéro réel | « 0 » ; un taux sans partie affiche « — » |
 | Erreur de collecte | Message jaune, dernières données valides conservées |
 | Périmé | Message jaune calculé dans le navigateur du visiteur |

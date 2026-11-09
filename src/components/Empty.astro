@@ -5,7 +5,7 @@ interface Props {
 const { title } = Astro.props;
 ---
 
-<div class="card p-6 text-center">
-  <p class="font-display text-lg font-bold">{title}</p>
-  <p class="mt-2 text-sm text-muted"><slot /></p>
+<div class="border-y border-line py-8">
+  <p class="font-display text-xl font-extrabold">{title}</p>
+  <p class="mt-2 max-w-2xl text-muted"><slot /></p>
 </div>

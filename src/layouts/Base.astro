@@ -1,8 +1,8 @@
 ---
 import "../styles/global.css";
-// Les deux polices du site, préchargées : le texte s'affiche presque toujours directement dans sa police.
-import interFont from "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url";
-import outfitFont from "@fontsource-variable/outfit/files/outfit-latin-wght-normal.woff2?url";
+// Les polices des titres et du texte, préchargées : le texte s'affiche presque toujours directement dans sa police.
+import textFont from "@fontsource-variable/red-hat-text/files/red-hat-text-latin-wght-normal.woff2?url";
+import titleFont from "@fontsource/spectral/files/spectral-latin-800-normal.woff2?url";
 import { clan, SITE_DISCLAIMER, SITE_LICENSE_NOTICE } from "../../config/clan";
 import { brandFile } from "../lib/brand";
 import { AUTH_ENABLED } from "../lib/compte/api";
@@ -61,18 +61,8 @@ const nouveautesMarker = newsMarker(loadNouveautes());
     <link rel="icon" type="image/png" sizes="32x32" href={`${base}/generated/favicon-32.png`} />
     <link rel="apple-touch-icon" href={`${base}/generated/apple-touch-icon.png`} />
     <link rel="manifest" href={`${base}/manifest.webmanifest`} />
-    <link rel="preload" href={outfitFont} as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href={interFont} as="font" type="font/woff2" crossorigin />
-    <script is:inline>
-      // Avant le premier affichage : un visiteur ayant mis en pause ne voit aucune animation,
-      // et les autres ne voient pas les blocs s'afficher puis disparaître avant leur apparition en fondu.
-      try {
-        if (localStorage.getItem("gal-fx") === "off") document.documentElement.classList.add("fx-off");
-        else if (!matchMedia("(prefers-reduced-motion: reduce)").matches) document.documentElement.classList.add("fx-wait");
-      } catch {
-        // Stockage indisponible : les animations restent actives, le bouton pause fonctionne.
-      }
-    </script>
+    <link rel="preload" href={titleFont} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={textFont} as="font" type="font/woff2" crossorigin />
   </head>
   <body class="flex min-h-dvh flex-col" data-nouveautes-marker={nouveautesMarker ?? undefined}>
     <a
@@ -80,33 +70,26 @@ const nouveautesMarker = newsMarker(loadNouveautes());
       class="absolute left-2 top-[-4rem] z-50 rounded bg-white px-3 py-2 font-semibold text-navy focus:top-2"
       >Aller au contenu</a
     >
-    <header class="sticky top-0 z-40 bg-navy/80 backdrop-blur-md">
-      <div class="wrap flex min-h-16 items-center justify-between gap-4">
-        <a href={`${base}/`} class="flex items-center gap-3 font-display font-extrabold">
+    <header class="sticky top-0 z-40 border-b border-line bg-navy">
+      <div class="wrap flex min-h-16 items-center gap-3 lg:gap-5">
+        <a href={`${base}/`} class="flex shrink-0 items-center gap-3">
           {
             badge ? (
               <img src={`${base}/generated/badge-96.webp`} alt={`[${clan.tag}], accueil`} width="40" height="40" class="size-10 rounded-full object-cover" />
             ) : (
-              <span class="text-xl">[{clan.tag}]</span>
+              <span class="font-display text-xl font-extrabold">[{clan.tag}]</span>
             )
           }
-          <span class:list={[AUTH_ENABLED ? "hidden sm:inline xl:hidden" : "hidden sm:inline"]}>{clan.name}</span>
+          {/* Sur un écran moyen, les liens des rubriques prennent sa place. */}
+          <span class="hidden font-display text-xl font-extrabold sm:inline lg:hidden xl:inline">{clan.name}</span>
         </a>
 
-        {/* Le bouton du compte prend de la place : le menu complet demande alors plus de largeur. */}
-        <nav aria-label="Navigation principale" class:list={[AUTH_ENABLED ? "hidden xl:block" : "hidden lg:block"]}>
-          <ul class="flex items-center gap-1">
+        <nav aria-label="Navigation principale" class="hidden lg:block">
+          <ul class="flex items-center">
             {
               SECTIONS.map((s) => (
                 <li>
-                  <a
-                    href={`${base}${s.href}`}
-                    aria-current={path === s.href ? "page" : currentSection === s ? "true" : undefined}
-                    class:list={[
-                      "block whitespace-nowrap rounded px-3 py-2 text-sm font-semibold text-white hover:underline hover:underline-offset-8",
-                      currentSection === s && "underline decoration-red decoration-2 underline-offset-8",
-                    ]}
-                  >
+                  <a href={`${base}${s.href}`} aria-current={path === s.href ? "page" : currentSection === s ? "true" : undefined} class="nav-link">
                     {s.label}
                   </a>
                 </li>
@@ -115,43 +98,24 @@ const nouveautesMarker = newsMarker(loadNouveautes());
           </ul>
         </nav>
 
-        <div class="flex items-center gap-2">
-          {/* Les nouveautés du site : un bouton discret sur grand écran ; en dessous, la place manque et elles passent dans le menu. */}
+        <div class="ml-auto flex items-center gap-1 sm:gap-2">
+          {/* Les nouveautés du site : un lien discret sur grand écran ; en dessous, la place manque et elles passent dans le menu. */}
           <div class="hidden lg:block">
             <NouveautesMenu />
           </div>
-          {/* Avec le bouton de connexion, la place manque sur téléphone : le Discord reste dans la page et le pied de page. */}
-          <span class:list={[AUTH_ENABLED ? "hidden md:inline-flex" : "inline-flex"]}>
-            <a href={clan.links.discord} class="btn btn-secondary !min-h-10 !py-1.5 !text-sm" rel="noopener">
-              Discord
-            </a>
-          </span>
           {AUTH_ENABLED && <AuthMenu client:idle />}
-          <button
-            type="button"
-            class="btn btn-ghost fx-toggle !min-h-10 !px-2.5 !py-1.5"
-            data-fx-toggle
-            aria-pressed="false"
-            aria-label="Mettre les animations en pause"
-            title="Mettre les animations en pause"
-            hidden
-          >
-            <svg class="fx-icon-pause" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true">
-              <rect x="3" y="2" width="4" height="12" rx="1"></rect>
-              <rect x="9" y="2" width="4" height="12" rx="1"></rect>
-            </svg>
-            <svg class="fx-icon-play" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true">
-              <path d="M4 2.500v11l9-5.500z"></path>
-            </svg>
-          </button>
-          <details class:list={["relative", AUTH_ENABLED ? "xl:hidden" : "lg:hidden"]} data-menu>
-            <summary class="btn btn-ghost !min-h-10 !py-1.5 cursor-pointer list-none text-sm" aria-label="Ouvrir le menu" data-nouveautes-described>
+          {/* Le seul bouton mis en avant de la barre. Avec la connexion, la place manque sur téléphone : le Discord reste dans la page et le pied de page. */}
+          <span class:list={[AUTH_ENABLED ? "hidden md:inline-flex" : "inline-flex"]}>
+            <a href={clan.links.discord} class="btn btn-primary" rel="noopener">Discord</a>
+          </span>
+          <details class="relative lg:hidden" data-menu>
+            <summary class="btn btn-secondary cursor-pointer list-none" aria-label="Ouvrir le menu" data-nouveautes-described>
               Menu
               {/* Le point dit qu'une nouveauté du site attend dans le menu. Allumé, src/scripts/nouveautes.ts le dit aussi aux lecteurs d'écran, par la description du bouton. */}
               {nouveautesMarker && <span class="nouveautes-dot lg:hidden" data-nouveautes-dot aria-hidden="true" hidden />}
             </summary>
             {nouveautesMarker && <span id="nouveautes-menu-note" hidden>Du nouveau sur le site depuis votre dernier passage</span>}
-            <nav aria-label="Navigation mobile" class="card absolute right-0 mt-2 w-56 p-2 shadow-xl">
+            <nav aria-label="Navigation mobile" class="card absolute right-0 mt-2 w-60 p-2 shadow-lg shadow-black/40">
               <ul>
                 {
                   SECTIONS.map((s) => (
@@ -195,23 +159,23 @@ const nouveautesMarker = newsMarker(loadNouveautes());
       <slot />
     </main>
 
-    <footer class="mt-20 bg-night">
+    <footer class="mt-20 border-t border-line bg-night">
       <div class="wrap grid gap-10 py-14 md:grid-cols-2 lg:grid-cols-[3fr_3fr_2fr_3fr]">
         <div>
-          <p class="font-display text-lg font-extrabold">[{clan.tag}] {clan.name}</p>
+          <p class="font-display text-xl font-extrabold">[{clan.tag}] {clan.name}</p>
           <span class="tribar mt-3"></span>
           <p class="mt-4 text-sm text-muted">{SITE_DISCLAIMER}</p>
           <p class="mt-2 text-sm text-muted">{SITE_LICENSE_NOTICE}</p>
         </div>
         <nav aria-label="Plan du site">
-          <h2 class="text-sm uppercase tracking-wide text-muted">Le site</h2>
-          <ul class="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm" data-testid="footer-plan">
+          <h2 class="font-sans text-sm font-bold">Le site</h2>
+          <ul class="mt-2 grid grid-cols-2 gap-x-4 text-sm" data-testid="footer-plan">
             {SECTIONS.flatMap((s) => s.pages).map((p) => <li><a href={`${base}${p.href}`}>{p.label}</a></li>)}
           </ul>
         </nav>
         <div>
-          <h2 class="text-sm uppercase tracking-wide text-muted">Liens utiles</h2>
-          <ul class="mt-3 space-y-2 text-sm">
+          <h2 class="font-sans text-sm font-bold">Liens utiles</h2>
+          <ul class="mt-2 text-sm">
             <li><a href={clan.links.discord} rel="noopener">Discord du clan</a></li>
             <li><a href={clan.links.openfront} rel="noopener">Jouer à OpenFront</a></li>
             {usefulTools && <li><a href={`${base}/outils#outils-section`}>Outils communautaires</a></li>}
@@ -220,7 +184,7 @@ const nouveautesMarker = newsMarker(loadNouveautes());
           </ul>
         </div>
         <div class="text-sm text-muted">
-          <h2 class="text-sm uppercase tracking-wide">Données</h2>
+          <h2 class="font-sans text-sm font-bold text-white">Données</h2>
           <p class="mt-3">
             Chiffres issus de l'API publique d'OpenFront, collectés toutes les heures. Ce ne sont pas des données en temps réel.
           </p>
@@ -257,9 +221,15 @@ const nouveautesMarker = newsMarker(loadNouveautes());
       document.addEventListener("click", (e) => {
         for (const menu of menus) if (menu.open && !menu.contains(e.target as Node)) menu.open = false;
       });
+
+      // Le choix « animations en pause » de l'ancien bouton de l'en-tête ne sert plus : il n'y a plus d'effet à mettre en pause.
+      try {
+        localStorage.removeItem("gal-fx");
+      } catch {
+        // Stockage indisponible : rien à effacer.
+      }
     </script>
     <script>
-      import "../scripts/fx";
       import "../scripts/nouveautes";
     </script>
   </body>

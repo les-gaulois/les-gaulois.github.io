@@ -8,9 +8,9 @@ const { title, intro } = Astro.props;
 const hasLongWord = title.split(" ").some((word) => word.length >= 14);
 ---
 
-<header class="reveal pb-8 pt-8 md:pb-10 md:pt-12">
-  <span class="tribar mb-6"></span>
+<header class="pb-8 pt-7 md:pb-10 md:pt-12">
+  <span class="tribar mb-5 md:mb-6"></span>
   <h1 class:list={["page-title", { "page-title-long": hasLongWord }]}>{title}</h1>
-  {intro && <p class="mt-5 max-w-3xl text-lg text-muted">{intro}</p>}
+  {intro && <p class="mt-4 max-w-3xl text-lg text-muted md:mt-5">{intro}</p>}
   <slot />
 </header>

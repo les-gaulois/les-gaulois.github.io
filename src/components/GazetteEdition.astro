@@ -32,22 +32,22 @@ const tiles: { key: RecordKey; label: string; value: string; hint: string }[] = 
   : [];
 ---
 
-<p class="mt-4 max-w-3xl text-lg text-muted" data-testid="gazette-lead">{editionLead(edition, clan.tag)}</p>
+<p class="mt-4 max-w-3xl text-xl leading-snug" data-testid="gazette-lead">{editionLead(edition, clan.tag)}</p>
 
-<div class="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-  <section class="panel" data-testid="gazette-totals">
+<div class="mt-8 grid gap-x-0 gap-y-10 md:grid-cols-2 lg:grid-cols-3">
+  <section class="md:pr-8" data-testid="gazette-totals">
     <h3 class="text-xl">Les parties</h3>
-    <p class="tnum mt-2 font-display text-4xl font-extrabold">{fmtInt(totals.games)}</p>
+    <p class="figure mt-3 text-[2.5rem]">{fmtInt(totals.games)}</p>
     <p class="tnum mt-1 text-sm text-muted">{totals.winRate === null ? "Aucune partie, donc pas de taux de victoire." : `${fmtCount(totals.wins, "victoire")}, soit ${fmtPct(totals.winRate)}.`}</p>
     {comparison && <p class="tnum mt-1 text-sm text-muted" data-testid="gazette-comparison">{comparison}</p>}
   </section>
 
-  <section class="panel" data-testid="gazette-standing">
+  <section class="md:border-l md:border-line md:px-8" data-testid="gazette-standing">
     <h3 class="text-xl">Le classement officiel</h3>
     {
       standing ? (
         <>
-          <p class="tnum mt-2 font-display text-4xl font-extrabold">{rankWords(standing.end.rank)}</p>
+          <p class="figure mt-3 text-[2.5rem]">{rankWords(standing.end.rank)}</p>
           {standingDetails(standing).map((line) => (
             <p class="tnum mt-1 text-sm text-muted">{line}</p>
           ))}
@@ -55,19 +55,19 @@ const tiles: { key: RecordKey; label: string; value: string; hint: string }[] = 
         </>
       ) : (
         <>
-          <p class="mt-2 font-display text-lg font-bold">Pas de données</p>
+          <p class="mt-3 font-display text-xl font-extrabold">Pas de données</p>
           <p class="mt-1 text-sm text-muted">{standingGap(firstStanding, edition.to)}</p>
         </>
       )
     }
   </section>
 
-  <section class="panel md:col-span-2 lg:col-span-1" data-testid="gazette-territory">
+  <section class="md:col-span-2 lg:col-span-1 lg:border-l lg:border-line lg:pl-8" data-testid="gazette-territory">
     <h3 class="text-xl">La carte des clans</h3>
     {
       territory ? (
         <>
-          <p class="tnum mt-2 font-display text-4xl font-extrabold">{fmtInt(territory.end.pixels)}</p>
+          <p class="figure mt-3 text-[2.5rem]">{fmtInt(territory.end.pixels)}</p>
           {territoryDetails(territory).map((line) => (
             <p class="tnum mt-1 text-sm text-muted">{line}</p>
           ))}
@@ -75,7 +75,7 @@ const tiles: { key: RecordKey; label: string; value: string; hint: string }[] = 
         </>
       ) : (
         <>
-          <p class="mt-2 font-display text-lg font-bold">Pas de données</p>
+          <p class="mt-3 font-display text-xl font-extrabold">Pas de données</p>
           <p class="mt-1 text-sm text-muted">{territoryGap(firstTerritory, edition.to)}</p>
         </>
       )
@@ -84,7 +84,7 @@ const tiles: { key: RecordKey; label: string; value: string; hint: string }[] = 
 
   {
     tiles.length > 0 && (
-      <section class="panel md:col-span-2 lg:col-span-3" data-testid="gazette-highlights">
+      <section class="border-t border-line pt-8 md:col-span-2 lg:col-span-3" data-testid="gazette-highlights">
         <h3 class="text-xl">Les temps forts</h3>
         <dl class="mt-3 grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
           {tiles.map((t) => (
@@ -94,7 +94,7 @@ const tiles: { key: RecordKey; label: string; value: string; hint: string }[] = 
                 {newRecords.has(t.key) && <span class="ml-2 rounded border border-warn px-1.5 py-0.5 text-xs font-semibold text-warn" data-testid="gazette-record">Record du clan</span>}
               </dt>
               <dd class="mt-0.5">
-                <span class="tnum block font-display text-xl font-extrabold">{t.value}</span>
+                <span class="figure block text-2xl">{t.value}</span>
                 <span class="tnum block text-xs text-muted">{t.hint}</span>
               </dd>
             </div>
@@ -105,12 +105,12 @@ const tiles: { key: RecordKey; label: string; value: string; hint: string }[] = 
     )
   }
 
-  <section class="panel md:col-span-2 lg:col-span-3" data-testid="gazette-players">
+  <section class="border-t border-line pt-8 md:col-span-2 lg:col-span-3" data-testid="gazette-players">
     <h3 class="text-xl">Le plus de victoires{period && ` ${period}`}</h3>
     {
       players ? (
         <>
-          <ol class="tnum mt-3 grid gap-x-6 gap-y-2 sm:grid-cols-3">
+          <ol class="tap-links tnum mt-3 grid gap-x-6 gap-y-2 sm:grid-cols-3">
             {players.map((p) => (
               <li class="min-w-0 [overflow-wrap:anywhere]" data-testid="gazette-player">
                 <span class="text-muted">{fmtRank(p.place)}</span>{" "}
@@ -122,8 +122,8 @@ const tiles: { key: RecordKey; label: string; value: string; hint: string }[] = 
           {
             active && (
               <>
-                <h4 class="mt-5 text-lg">Les plus actifs</h4>
-                <ol class="tnum mt-2 grid gap-x-6 gap-y-2 sm:grid-cols-3">
+                <h4 class="mt-6 font-display text-lg font-semibold">Les plus actifs</h4>
+                <ol class="tap-links tnum mt-2 grid gap-x-6 gap-y-2 sm:grid-cols-3">
                   {active.map((p) => (
                     <li class="min-w-0 [overflow-wrap:anywhere]" data-testid="gazette-active">
                       <span class="text-muted">{fmtRank(p.place)}</span> <a href={`${base}/membres/${encodeURIComponent(p.id)}`}>{p.username}</a>
@@ -137,9 +137,9 @@ const tiles: { key: RecordKey; label: string; value: string; hint: string }[] = 
           {
             milestones && (
               <>
-                <h4 class="mt-5 text-lg">Paliers franchis</h4>
+                <h4 class="mt-6 font-display text-lg font-semibold">Paliers franchis</h4>
                 {milestones.length > 0 ? (
-                  <ul class="tnum mt-2 grid gap-x-6 gap-y-2 sm:grid-cols-3">
+                  <ul class="tap-links tnum mt-2 grid gap-x-6 gap-y-2 sm:grid-cols-3">
                     {milestones.map((p) => (
                       <li class="min-w-0 [overflow-wrap:anywhere]" data-testid="gazette-milestone">
                         <a href={`${base}/membres/${encodeURIComponent(p.id)}`}>{p.username}</a>
@@ -157,19 +157,19 @@ const tiles: { key: RecordKey; label: string; value: string; hint: string }[] = 
         </>
       ) : (
         <>
-          <p class="mt-2 font-display text-lg font-bold">Pas de données</p>
+          <p class="mt-3 font-display text-xl font-extrabold">Pas de données</p>
           <p class="mt-1 text-sm text-muted">Pas de relevé de la liste des membres au début et à la fin de cette semaine, ou plus personne à citer.</p>
         </>
       )
     }
   </section>
 
-  <section class="panel md:col-span-2 lg:col-span-3" data-testid="gazette-arrivals">
+  <section class="border-t border-line pt-8 md:col-span-2 lg:col-span-3" data-testid="gazette-arrivals">
     <h3 class="text-xl">Les arrivées</h3>
     {
       arrivals ? (
         <>
-          <p class="tnum mt-2 font-display text-4xl font-extrabold">{fmtInt(arrivals.count)}</p>
+          <p class="figure mt-3 text-[2.5rem]">{fmtInt(arrivals.count)}</p>
           {arrivals.count > 0 && <p class="tnum mt-1 text-sm text-muted">{fmtInt(arrivals.anonymous)} sans pseudo public.</p>}
           {arrivals.named.length > 0 && (
             <details class="mt-2 text-sm">
@@ -181,7 +181,7 @@ const tiles: { key: RecordKey; label: string; value: string; hint: string }[] = 
         </>
       ) : (
         <>
-          <p class="mt-2 font-display text-lg font-bold">Pas de données</p>
+          <p class="mt-3 font-display text-xl font-extrabold">Pas de données</p>
           <p class="mt-1 text-sm text-muted">{arrivalsGap(membersAt, edition.to)}</p>
         </>
       )

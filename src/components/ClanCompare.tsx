@@ -72,7 +72,7 @@ export default function ClanCompare({ clans, tag, faceOffs, src }: Props) {
       </label>
 
       <div class="mt-4 grid gap-4 lg:grid-cols-2">
-        <div class="panel !p-0">
+        <div class="card overflow-hidden">
           <table class="data-table tnum w-full text-sm [overflow-wrap:break-word]" data-testid="compare-table">
             <caption class="sr-only">Les chiffres de [{mine.tag}] et de [{theirs.tag}] dans la liste officielle</caption>
             <thead>
@@ -85,7 +85,7 @@ export default function ClanCompare({ clans, tag, faceOffs, src }: Props) {
             <tbody>
               {ROWS.map((row) => (
                 <tr key={row.label} data-testid="compare-row">
-                  <th scope="row" class="!text-sm !font-normal !normal-case !tracking-normal">{row.label}</th>
+                  <th scope="row" class="font-normal">{row.label}</th>
                   <td class="num whitespace-nowrap font-semibold">{row.value(mine)}</td>
                   <td class="num whitespace-nowrap font-semibold">{row.value(theirs)}</td>
                 </tr>
@@ -94,7 +94,7 @@ export default function ClanCompare({ clans, tag, faceOffs, src }: Props) {
           </table>
         </div>
         <div class="space-y-4">
-          <p class="tnum font-display text-xl font-bold" role="status" data-testid="compare-gap">
+          <p class="tnum font-display text-2xl font-extrabold" role="status" data-testid="compare-gap">
             {fmtGap(mine.score - theirs.score)} pour [{mine.tag}]
           </p>
           {points.length > 0 && <LineChart key={theirs.tag} title={`Écart de score avec [${theirs.tag}], jour après jour`} points={points} format={fmtGap} />}

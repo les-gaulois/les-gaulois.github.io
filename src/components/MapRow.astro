@@ -13,7 +13,7 @@ const { row } = Astro.props;
 <li data-testid="map-row">
   <div class="flex flex-wrap items-baseline justify-between gap-x-4">
     <span class="font-semibold">{mapLabel(row.map)}</span>
-    <span class="tnum font-display text-xl font-extrabold">{fmtPct(row.winRate)}</span>
+    <span class="figure text-2xl">{fmtPct(row.winRate)}</span>
   </div>
   <div class="meter relative mt-1" aria-hidden="true">
     <i style={{ "--v": `${row.winRate}%` }}></i>

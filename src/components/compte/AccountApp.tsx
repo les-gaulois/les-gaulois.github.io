@@ -54,7 +54,7 @@ function MembershipRequest({ me, onChange }: { me: Me; onChange: () => Promise<v
           )}
         </p>
         <p class="mt-2 text-sm text-muted">Envoyée le {fmtDate(request.created_at)}. Tant qu'elle n'est pas validée, vous ne voyez que ce statut et ce qui est public : le QG reste fermé.</p>
-        <button type="button" class="btn btn-ghost mt-4 !min-h-10 !py-1.5 !text-sm" disabled={busy} onClick={() => void cancel()}>
+        <button type="button" class="btn btn-secondary btn-sm mt-4" disabled={busy} onClick={() => void cancel()}>
           Annuler ma demande
         </button>
         <Problem message={error} />
@@ -110,7 +110,7 @@ function DeleteAccount({ founder }: { founder: boolean }) {
       <p class="mt-1 text-sm text-muted">Vos données sont supprimées. Cela ne touche ni à votre compte OpenFront, ni à vos dons dans le jeu.</p>
       <button
         type="button"
-        class="btn btn-ghost mt-3 !min-h-10 !py-1.5 !text-sm"
+        class="btn btn-secondary btn-sm mt-3"
         onClick={() => {
           if (!window.confirm("Effacer définitivement votre compte sur ce site ?")) return;
           call("delete_my_account")
@@ -164,7 +164,7 @@ export default function AccountApp() {
           </div>
           <button
             type="button"
-            class="btn btn-ghost !min-h-10 !py-1.5 !text-sm"
+            class="btn btn-secondary btn-sm"
             data-testid="sign-out"
             onClick={() => {
               void signOut().then(refresh);

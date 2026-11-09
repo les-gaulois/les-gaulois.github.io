@@ -173,7 +173,7 @@ function IdeaDecision({ idea, busy, onDecide }: { idea: QgIdea; busy: boolean; o
         </label>
         <input id={`idea-note-${idea.id}`} class="field mt-1" maxLength={IDEA_NOTE_MAX} value={note} disabled={status === "open"} onInput={(e) => setNote(e.currentTarget.value)} />
       </div>
-      <button type="submit" class="btn btn-ghost !min-h-10 !py-1.5 !text-sm" disabled={busy || unchanged}>
+      <button type="submit" class="btn btn-secondary btn-sm" disabled={busy || unchanged}>
         Enregistrer
       </button>
     </form>

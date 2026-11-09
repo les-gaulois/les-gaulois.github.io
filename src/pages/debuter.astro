@@ -23,12 +23,12 @@ const jumps = [
       <PageJumps links={jumps} />
     </PageHeader>
 
-    <section aria-labelledby="guide-title">
+    <section class="band" aria-labelledby="guide-title">
       <h2 id="guide-title" class="section-title scroll-mt-24">Guide par mode</h2>
-      <div class="mt-4 space-y-3">
+      <div class="mt-6 space-y-3">
         {
           guides.map(({ entry, Content }) => (
-            <details class="card guide-fold scroll-mt-24 p-5" id={`guide-${entry.id}`} data-testid="guide-card" data-tilt="0">
+            <details class="card guide-fold scroll-mt-24 px-5 py-3" id={`guide-${entry.id}`} data-testid="guide-card">
               <summary><h3 class="text-xl">{entry.data.title}</h3></summary>
               {entry.data.draft ? (
                 <p class="mt-2 text-sm text-muted">
@@ -44,27 +44,27 @@ const jumps = [
           ))
         }
       </div>
-      <p class="mt-3 text-xs text-muted" data-testid="guide-sources">
+      <p class="mt-4 max-w-3xl text-sm text-muted" data-testid="guide-sources">
         Stratégies traduites et adaptées du <a href="https://openfront.wiki/Main_Page" rel="noopener">wiki OpenFront</a>, sous licence{" "}
         <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.fr" rel="noopener">CC BY-SA 4.0</a> : ce texte adapté reste sous la même licence. Formats du classé et chiffres contrôlés sur le{" "}
         <a href="https://github.com/openfrontio/OpenFrontIO" rel="noopener">code public du jeu</a>, v0.35.12. Lu le 6 novembre 2026 : le jeu évolue, ces règles peuvent changer.
       </p>
     </section>
 
-    <section class="mt-12" aria-labelledby="guide-clan-title">
+    <section class="band" aria-labelledby="guide-clan-title">
       <h2 id="guide-clan-title" class="section-title scroll-mt-24">Le guide du clan</h2>
-      <p class="mt-2 max-w-3xl text-muted">
+      <p class="mt-3 max-w-3xl text-lg text-muted">
         Comprendre les mécaniques utiles sans lire le code du jeu : vos troupes, le ratio, la densité et les postes ; d'où vient l'or et à quoi servent Ville, Port et Usine ; les erreurs d'alliance et la trahison. Commencez par les chapitres 1 à 5. L'économie vient ensuite. Le chapitre 9 est important pour éviter les erreurs d'alliance. Les formules sont repliées à la fin des chapitres.
       </p>
-      <nav class="card mt-4 p-5" aria-label="Chapitres du guide du clan" data-tilt="0">
+      <nav class="mt-6 border-y border-line py-5" aria-label="Chapitres du guide du clan">
         <ol class="guide-toc">
           {chapters.map(({ entry }) => <li><a href={`#chapitre-${entry.id}`}>{entry.data.title}</a></li>)}
         </ol>
       </nav>
-      <div class="mt-3 space-y-3">
+      <div class="mt-6 space-y-3">
         {
           chapters.map(({ entry, Content }) => (
-            <details class="card guide-fold scroll-mt-24 p-5" id={`chapitre-${entry.id}`} data-testid="guide-chapter" data-tilt="0">
+            <details class="card guide-fold scroll-mt-24 px-5 py-3" id={`chapitre-${entry.id}`} data-testid="guide-chapter">
               <summary><h3 class="text-xl"><span class="tnum">{entry.data.order}.</span> {entry.data.title}</h3></summary>
               <div class:list={["guide-body mt-3 text-muted", entry.data.wide ? "guide-columns" : "max-w-3xl"]}>
                 {entry.data.growthChart && <GrowthChart client:load />}
@@ -74,12 +74,12 @@ const jumps = [
           ))
         }
       </div>
-      <p class="mt-3 text-xs text-muted">
+      <p class="mt-4 max-w-3xl text-sm text-muted">
         Guide Gaulois [GAL], version d'octobre 2026, écrit sur le code de la v0.35.2. Contrôlé le 6 novembre 2026 sur la v0.35.12 : les formules de cadence et l'effet du statut de traître sur la vitesse sont donnés dans leur état actuel. Les valeurs peuvent évoluer si le code du jeu change. Texte réservé au clan : sa copie, sa reproduction ou sa diffusion à d'autres clans reste interdite.
       </p>
     </section>
 
-    <p class="mt-10 text-muted">Pour attaquer un bot, <a href={`${base}/outils`}>le calculateur de troupes et les outils de la communauté</a> ont leur page.</p>
+    <p class="band text-lg text-muted">Pour attaquer un bot, <a href={`${base}/outils`}>le calculateur de troupes et les outils de la communauté</a> ont leur page.</p>
   </div>
 </Base>
 

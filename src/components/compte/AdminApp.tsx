@@ -131,10 +131,10 @@ function Requests() {
                     ))}
                   </div>
                   <div class="mt-3 flex flex-wrap gap-2">
-                    <button type="button" class="btn btn-primary !min-h-10 !py-1.5" disabled={action.busy} onClick={() => void action.run(() => call("review_membership", { p_request: r.id, p_approve: true, p_reason: reasons[r.id] || null }), "Membre validé.")}>
+                    <button type="button" class="btn btn-primary btn-sm" disabled={action.busy} onClick={() => void action.run(() => call("review_membership", { p_request: r.id, p_approve: true, p_reason: reasons[r.id] || null }), "Membre validé.")}>
                       Valider
                     </button>
-                    <button type="button" class="btn btn-ghost !min-h-10 !py-1.5" disabled={action.busy} onClick={() => void action.run(() => call("review_membership", { p_request: r.id, p_approve: false, p_reason: reasons[r.id] || null }), "Demande refusée.")}>
+                    <button type="button" class="btn btn-secondary btn-sm" disabled={action.busy} onClick={() => void action.run(() => call("review_membership", { p_request: r.id, p_approve: false, p_reason: reasons[r.id] || null }), "Demande refusée.")}>
                       Refuser
                     </button>
                   </div>
@@ -186,7 +186,7 @@ function Members({ me }: { me: Me }) {
           </label>
           <input id="member-search" class="field mt-1" type="search" value={search} onInput={(e) => setSearch(e.currentTarget.value)} />
         </div>
-        <button type="submit" class="btn btn-secondary !min-h-11">
+        <button type="submit" class="btn btn-secondary">
           Chercher
         </button>
       </form>
@@ -398,7 +398,7 @@ function Log() {
             </ol>
           )}
           {filtered.length > shown && (
-            <button type="button" class="btn btn-ghost mt-2 !min-h-10 !py-1.5 !text-sm" onClick={() => setShown(shown + LOG_PAGE)}>
+            <button type="button" class="btn btn-secondary btn-sm mt-2" onClick={() => setShown(shown + LOG_PAGE)}>
               Afficher {fmtInt(Math.min(LOG_PAGE, filtered.length - shown))} de plus
             </button>
           )}

@@ -101,7 +101,7 @@ export default function NewsBoard({ announcements, events, now, live = false }: 
         {item.eventId !== undefined && mine !== null && (
           <div class="mt-3 flex flex-wrap items-center gap-2">
             {/* Pas de `disabled` pendant l'envoi : un bouton désactivé perd le focus du clavier. */}
-            <button type="button" class="chip !min-h-9" aria-pressed={coming} aria-disabled={busy || undefined} onClick={() => void answer(item.eventId as number, !coming)} data-testid="news-going">
+            <button type="button" class="chip" aria-pressed={coming} aria-disabled={busy || undefined} onClick={() => void answer(item.eventId as number, !coming)} data-testid="news-going">
               Je viens
             </button>
             {coming && <span class="text-sm text-muted">Votre présence est notée.</span>}
@@ -112,16 +112,16 @@ export default function NewsBoard({ announcements, events, now, live = false }: 
   };
 
   return (
-    <section class="grid gap-6 md:grid-cols-2" aria-label="Annonces et événements" data-testid="news-board">
+    <section class="mb-10 grid gap-6 md:grid-cols-2" aria-label="Annonces et événements" data-testid="news-board">
       {allAnnouncements.length > 0 && (
         <div>
-          <h2 class="text-2xl">Annonces</h2>
+          <h2 class="section-title-sm">Annonces</h2>
           <Items items={allAnnouncements} date={fmtDate} testId="news-announcements" />
         </div>
       )}
       {allEvents.length > 0 && (
         <div>
-          <h2 class="text-2xl">Événements à venir</h2>
+          <h2 class="section-title-sm">Événements à venir</h2>
           <Items items={allEvents} date={fmtDateTime} testId="news-events" extra={eventExtra} />
         </div>
       )}

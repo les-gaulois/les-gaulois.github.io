@@ -7,13 +7,16 @@ import { coverWave, makeGrid } from "../lib/fx/territory";
 
 const REPLAY_TILE = 12;
 const REPLAY_MIN_SECONDS = 1.5;
-const REPLAY_MAX_SECONDS = 6;
-const REPLAY_HOLD_SECONDS = 1.6;
+/** Un rejeu dure 5 s au plus : au-delà, il faudrait pouvoir le mettre en pause (WCAG 2.2.2). */
+const REPLAY_MAX_SECONDS = 5;
 
 /**
  * Rejoue l'attaque selon le modèle du calculateur : le territoire du bot est
  * conquis pendant que les troupes de l'attaque fondent. Chaque valeur affichée
- * vient de `simulateTrace`. Sans animation, l'état final s'affiche directement.
+ * vient de `simulateTrace`.
+ * Rien ne bouge seul : à l'ouverture, l'image finale. Le rejeu se joue une fois quand le visiteur
+ * change un champ ou appuie sur « Rejouer l'attaque », puis reste sur l'image finale.
+ * Avec « réduire les animations », l'image finale seulement, et pas de bouton.
  */
 function AttackReplay({ input, attack }: { input: CalcInput; attack: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -25,8 +28,16 @@ function AttackReplay({ input, attack }: { input: CalcInput; attack: number }) {
   const total = trace[trace.length - 1]?.seconds ?? 0;
   const playback = Math.max(REPLAY_MIN_SECONDS, Math.min(REPLAY_MAX_SECONDS, total));
   const speed = total / playback;
+  // Chaque appui sur « Rejouer l'attaque » relance le rejeu une fois.
+  const [run, setRun] = useState(0);
+  const [canPlay, setCanPlay] = useState(false);
+  const started = useRef(false);
+  useEffect(() => setCanPlay(motionAllowed()), []);
 
   useEffect(() => {
+    // Le premier dessin, à l'ouverture de la page, montre l'image finale : il ne répond à aucun geste.
+    const first = !started.current;
+    started.current = true;
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx || canvas.clientWidth === 0) return;
@@ -62,52 +73,47 @@ function AttackReplay({ input, attack }: { input: CalcInput; attack: number }) {
       if (clockRef.current) clockRef.current.textContent = `${fmtDec1(seconds)} s sur ${fmtDec1(total)} s`;
     };
 
-    if (!motionAllowed()) {
+    if (first || !motionAllowed()) {
       paint(total);
       return;
     }
 
-    let visible = true;
-    let paused = false;
-    const observer = new IntersectionObserver(([entry]) => {
-      visible = Boolean(entry?.isIntersecting);
-    });
-    observer.observe(canvas);
-    let begin = performance.now();
+    const begin = performance.now();
     let raf = 0;
     const step = (now: number) => {
-      raf = requestAnimationFrame(step);
-      if (!motionAllowed()) {
-        if (!paused) paint(total);
-        paused = true;
-        return;
-      }
-      paused = false;
-      if (!visible) return;
       // L'horodatage d'une image peut précéder de peu `begin` : jamais de durée négative.
       const elapsed = Math.max(0, (now - begin) / 1000);
-      if (elapsed > playback + REPLAY_HOLD_SECONDS) begin = now;
-      paint((Math.min(playback, elapsed) / playback) * total);
+      if (elapsed >= playback || !motionAllowed()) {
+        paint(total);
+        return;
+      }
+      paint((elapsed / playback) * total);
+      raf = requestAnimationFrame(step);
     };
     raf = requestAnimationFrame(step);
-    return () => {
-      cancelAnimationFrame(raf);
-      observer.disconnect();
-    };
-  }, [trace, total, playback]);
+    return () => cancelAnimationFrame(raf);
+  }, [trace, total, playback, run]);
 
   return (
-    <div class="mt-5" aria-hidden="true" data-testid="attack-replay">
-      <div class="flex flex-wrap items-baseline justify-between gap-x-4 text-xs font-semibold text-muted">
-        <span>Rejeu de l'attaque, avec cet envoi</span>
-        <span>{speed > 1.05 ? `accéléré × ${fmtDec1(speed)}` : speed < 0.95 ? "ralenti" : "temps réel"}</span>
+    <div class="mt-5" data-testid="attack-replay">
+      {/* Le rejeu illustre le calcul : les lecteurs d'écran ont déjà le minimum et le tableau par terrain. Le bouton, lui, reste accessible. */}
+      <div aria-hidden="true">
+        <div class="flex flex-wrap items-baseline justify-between gap-x-4 text-xs font-semibold text-muted">
+          <span>Rejeu de l'attaque, avec cet envoi</span>
+          <span>{speed > 1.05 ? `accéléré × ${fmtDec1(speed)}` : speed < 0.95 ? "ralenti" : "temps réel"}</span>
+        </div>
+        <canvas ref={canvasRef} class="mt-2 block h-24 w-full" />
+        <div class="tnum mt-2 flex flex-wrap justify-between gap-x-4 text-sm">
+          <span>Troupes : <strong data-testid="replay-troops" ref={troopsRef} /></span>
+          <span>Bot conquis : <strong ref={tilesRef} /></span>
+          <span class="text-muted" ref={clockRef} />
+        </div>
       </div>
-      <canvas ref={canvasRef} class="mt-2 block h-24 w-full" />
-      <div class="tnum mt-2 flex flex-wrap justify-between gap-x-4 text-sm">
-        <span>Troupes : <strong data-testid="replay-troops" ref={troopsRef} /></span>
-        <span>Bot conquis : <strong ref={tilesRef} /></span>
-        <span class="text-muted" ref={clockRef} />
-      </div>
+      {canPlay && (
+        <button type="button" class="btn btn-secondary btn-sm mt-3" onClick={() => setRun((n) => n + 1)} data-testid="replay-play">
+          Rejouer l'attaque
+        </button>
+      )}
     </div>
   );
 }
@@ -188,8 +194,8 @@ export default function BotCalculator() {
         <div aria-live="polite" data-testid="calc-result">
           {current ? (
             <>
-              <p class="text-sm font-semibold text-muted">Minimum pour conquérir tout le bot</p>
-              <p class="tnum mt-1 font-display text-5xl font-extrabold">
+              <p class="label">Minimum pour conquérir tout le bot</p>
+              <p class="figure mt-2 text-5xl">
                 <AnimatedNumber value={roundUp(current.minimum)} format={fmtInt} duration={350} testId="calc-minimum" />
               </p>
               <p class="tnum mt-1 text-sm text-muted">

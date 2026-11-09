@@ -13,10 +13,10 @@ export default function LineChart({ title, points, invert, format }: { title: st
 
   if (measured === 0) {
     return (
-      <div class="card p-5">
+      <figure class="m-0 border-t border-line pt-4">
         <h3 class="text-lg">{title}</h3>
         <p class="mt-2 text-sm text-muted">Pas de données sur cette période.</p>
-      </div>
+      </figure>
     );
   }
   const lo = Math.min(...values);
@@ -41,8 +41,10 @@ export default function LineChart({ title, points, invert, format }: { title: st
   const shown = hover === null ? null : points[hover];
   const last = [...points].reverse().find((p) => p.value !== null);
 
+  // Les deux extrêmes de la courbe sont écrits contre leur trait, côté extérieur, là où la courbe ne passe jamais : l'échelle se lit sans survol.
+  const [top, bottom] = invert ? [lo, hi] : [hi, lo];
   return (
-    <div class="card p-5">
+    <figure class="m-0 border-t border-line pt-4">
       <h3 class="text-lg">{title}</h3>
       <p class="tnum mt-1 text-sm text-muted" aria-hidden="true">
         {shown
@@ -55,29 +57,38 @@ export default function LineChart({ title, points, invert, format }: { title: st
           Une seule mesure pour l'instant. L'API ne donne pas le passé de cette valeur : la courbe se construira jour après jour.
         </p>
       ) : (
-        <div
-          class="relative mt-3 h-40"
-          aria-hidden="true"
-          onPointerLeave={() => setHover(null)}
-          onPointerMove={(e) => {
-            const r = e.currentTarget.getBoundingClientRect();
-            const pct = ((e.clientX - r.left) / r.width) * 100;
-            setHover(Math.max(0, Math.min(points.length - 1, Math.round(((pct - 2) / 96) * (points.length - 1)))));
-          }}
-        >
-          <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="chart-draw absolute inset-0 size-full overflow-visible">
-            {segments.map((d) => (
-              <path key={d} d={d} fill="none" stroke="var(--color-win)" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round" />
-            ))}
-          </svg>
-          {shown && shown.value !== null && hover !== null && (
-            <span
-              class="absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-surface bg-white"
-              style={{ left: `${x(hover)}%`, top: `${y(shown.value)}%` }}
-            />
+        <div class="relative mb-6 mt-9 h-40" aria-hidden="true">
+          <div class="absolute inset-x-0 border-t border-line" style={{ top: `${y(top)}%` }}>
+            <span class="tnum absolute bottom-1 left-0 text-xs text-muted">{format(top)}</span>
+          </div>
+          {bottom !== top && (
+            <div class="absolute inset-x-0 border-t border-line" style={{ top: `${y(bottom)}%` }}>
+              <span class="tnum absolute left-0 top-1 text-xs text-muted">{format(bottom)}</span>
+            </div>
           )}
+          <div
+            class="absolute inset-0"
+            onPointerLeave={() => setHover(null)}
+            onPointerMove={(e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              const pct = ((e.clientX - r.left) / r.width) * 100;
+              setHover(Math.max(0, Math.min(points.length - 1, Math.round(((pct - 2) / 96) * (points.length - 1)))));
+            }}
+          >
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="absolute inset-0 size-full overflow-visible">
+              {segments.map((d) => (
+                <path key={d} d={d} fill="none" stroke="var(--color-win)" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round" />
+              ))}
+            </svg>
+            {shown && shown.value !== null && hover !== null && (
+              <span
+                class="absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-navy bg-white"
+                style={{ left: `${x(hover)}%`, top: `${y(shown.value)}%` }}
+              />
+            )}
+          </div>
         </div>
       )}
-    </div>
+    </figure>
   );
 }

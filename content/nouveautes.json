@@ -1,6 +1,12 @@
 [
   {
     "date": "2026-11-09",
+    "kind": "ameliore",
+    "title": "Un site plus lisible et plus calme",
+    "body": "Nouvelles polices, titres en casse normale, sections posées sur le fond, moins de boutons, rubriques visibles sur grand écran. Fin du fond animé, de son bouton pause et des apparitions au défilement."
+  },
+  {
+    "date": "2026-11-09",
     "kind": "nouveau",
     "title": "Les Gaulois de la semaine sur l'accueil",
     "body": "L'accueil nomme les joueurs : le podium des victoires de la semaine, les records et les arrivées. Les plus actifs et les paliers franchis s'y ajoutent dès que le robot les a relevés.",

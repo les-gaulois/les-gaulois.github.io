@@ -126,7 +126,7 @@ export function DeleteButton({ busy, onConfirm, label }: { busy: boolean; onConf
   return (
     <button
       type="button"
-      class="btn btn-ghost !min-h-10 !py-1.5 !text-sm"
+      class="btn btn-secondary btn-sm"
       disabled={busy}
       aria-label={armed ? `Confirmer la suppression de « ${label} »` : `Supprimer « ${label} »`}
       onClick={() => {

@@ -400,20 +400,16 @@ test.describe("film de la carte", () => {
     await expect(playButton(page)).toContainText("Pause");
   });
 
-  test("le bouton pause du site arrête le film et l'empêche de repartir", async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name !== "desktop", "Bouton testé sur desktop.");
+  // Le site n'a plus de bouton pause : le film a le sien, et le réglage du système l'arrête aussi en cours de route.
+  test("« réduire les animations », demandé pendant le film, l'arrête", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop", "Testé sur desktop.");
     await page.goto("/carte");
     await expect(playButton(page)).toContainText("Pause", { timeout: 8000 });
-    await page.getByRole("button", { name: "Mettre les animations en pause" }).click();
+    await page.emulateMedia({ reducedMotion: "reduce" });
     await expect(playButton(page)).toContainText("Lecture");
     const frozen = await position(page);
     await page.waitForTimeout(400);
     expect(await position(page)).toBe(frozen);
-
-    await page.goto("/carte");
-    await expect(playButton(page)).toContainText("Lancer le film");
-    await page.waitForTimeout(2500);
-    expect(await position(page)).toBe(film.frames.length);
   });
 
   test("au survol, la carte nomme le clan", async ({ page }, testInfo) => {

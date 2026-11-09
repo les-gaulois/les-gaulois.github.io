@@ -29,7 +29,7 @@ export default function SinceLastVisit({ snapshot, gazetteHref }: { snapshot: Vi
 
   if (!view) return null;
   return (
-    <section class="card card-accent p-5 md:p-6" aria-labelledby="since-title" data-testid="since-visit">
+    <section class="card card-accent mb-10 p-5 md:p-6" aria-labelledby="since-title" data-testid="since-visit">
       <h2 id="since-title" class="text-2xl">Depuis votre dernière visite, le {view.since}</h2>
       <ul class="tnum mt-3 grid gap-x-8 gap-y-1 md:grid-cols-2">
         {view.lines.map((line) => (

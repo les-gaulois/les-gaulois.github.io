@@ -1,6 +1,6 @@
 ---
 name: tests-e2e
-description: Lancer, cibler ou déboguer les tests Playwright du site GAL (parcours, accessibilité axe, largeurs d'écran, carte, effets) — build préalable, port 4321, serveur réutilisé, projets desktop et mobile, tests lents ou instables, captures d'écran. À utiliser pour npm run test:e2e et pour tout test qui échoue ou traîne.
+description: Lancer, cibler ou déboguer les tests Playwright du site GAL (parcours, accessibilité axe, largeurs d'écran, carte, mouvement) — build préalable, port 4321, serveur réutilisé, projets desktop et mobile, tests lents ou instables, captures d'écran. À utiliser pour npm run test:e2e et pour tout test qui échoue ou traîne.
 paths:
   - "tests/**"
   - "playwright.config.ts"
@@ -8,7 +8,7 @@ paths:
 
 # Tests e2e (Playwright)
 
-Trois fichiers dans `tests/e2e/` : `site.spec.ts` (parcours, données affichées, accessibilité, défilement horizontal, pied de page, clavier), `carte.spec.ts` (film de la carte), `fx.spec.ts` (effets). Deux projets dans `playwright.config.ts` : `desktop` (1280 × 800) et `mobile` (375 × 812, tactile). Les tests lisent `data/leaderboard.json` et `data/members.json` et comparent la page aux fichiers.
+Trois fichiers dans `tests/e2e/` : `site.spec.ts` (parcours, données affichées, accessibilité, défilement horizontal, pied de page, clavier), `carte.spec.ts` (film de la carte), `fx.spec.ts` (mouvement : tout visible dès le chargement, rien qui bouge seul, sans JavaScript, ouverture compacte sur téléphone). Deux projets dans `playwright.config.ts` : `desktop` (1280 × 800) et `mobile` (375 × 812, tactile). Les tests lisent `data/leaderboard.json` et `data/members.json` et comparent la page aux fichiers.
 
 ## Avant de lancer
 
@@ -30,7 +30,7 @@ Les captures, vidéos et traces vont dans `test-results/`, ignoré par Git. `npx
 ## Un test échoue
 
 - Lire l'assertion : la plupart comparent un chiffre affiché à `data/`. Si `data/` a changé entre le build et le test (collecte lancée entre-temps), rebuild.
-- Un test de la carte ou des effets peut dépasser son délai sous charge : le relancer seul avant de conclure.
+- Un test de la carte ou du calculateur peut dépasser son délai sous charge : le relancer seul avant de conclure.
 - Un test d'accessibilité liste des règles axe et des sélecteurs : corriger le HTML, jamais exclure la règle.
 - Un test de défilement horizontal nomme la page et la largeur : chercher l'élément qui déborde (image sans `max-width`, halo, tableau, mot long), pas ajouter `overflow: hidden` sur le body.
 - Rapporter tel quel : ce qui passe, ce qui échoue, la cause probable. Ne jamais marquer `skip`, affaiblir une attente ou modifier un test pour qu'il accepte une valeur inventée.

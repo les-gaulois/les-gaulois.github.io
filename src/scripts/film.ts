@@ -458,7 +458,7 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     c.setTransform(1, 0, 0, 1, 0, 0);
     if (cam && !manual) {
       const size = 12 * dpr;
-      c.font = `700 ${size}px "Outfit Variable", system-ui, sans-serif`;
+      c.font = `700 ${size}px "Red Hat Text Variable", system-ui, sans-serif`;
       const pillW = c.measureText("GAL").width + 12 * dpr;
       const pillH = size + 8 * dpr;
       const sx = view.width / 2 + (cam[0] - camera.x) * camera.s;
@@ -803,17 +803,14 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     });
   }
 
-  // Le bouton pause du site arrête aussi le film.
-  new MutationObserver(() => {
-    if (motionAllowed()) return;
+  // Avec « réduire les animations » demandé en cours de route, le film s'arrête et ses lueurs s'éteignent.
+  matchMedia("(prefers-reduced-motion: reduce)").addEventListener("change", (e) => {
+    if (!e.matches) return;
     cancelAutoplay();
     clearEffects();
     shot = null;
     if (playing) setPlaying(false);
     invalidate();
-  }).observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
-  matchMedia("(prefers-reduced-motion: reduce)").addEventListener("change", (e) => {
-    if (e.matches && playing) setPlaying(false);
   });
 
   /* ---------- Survol : quel clan occupe ce territoire ---------- */
