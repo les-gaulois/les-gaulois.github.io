@@ -29,6 +29,13 @@
   --glow: rgb(11 95 255 / 0.32);
   --reflection: rgb(255 26 46 / 0.1);
   --aurora: rgb(61 127 255 / 0.2);
+  /* Le filet qui sépare deux groupes posés sur le décor, à la place d'un cadre. */
+  --hairline: rgb(255 255 255 / 0.18);
+  /* Le texte secondaire posé sur une scène colorée : 6:1 au moins sur le plus clair de chaque dégradé. */
+  --stage-muted: #dbe2f7;
+  /* Le trait d'une courbe s'éclaircit vers sa fin : le bleu des victoires, puis un bleu pâle, puis le blanc. */
+  --chart-trait-milieu: #8db0ff;
+  --chart-trait-fin: #fff;
 }
 
 /* ---------- Thème rouge : l'encadrement ---------- */
@@ -115,6 +122,8 @@ h3 {
   line-height: 1;
   text-transform: uppercase;
   overflow-wrap: normal;
+  /* Les grands titres passent à la ligne en lignes de même longueur : pas de « JOURS » seul sur la sienne. */
+  text-wrap: balance;
 }
 :focus-visible {
   outline: 3px solid #fff;
@@ -142,15 +151,25 @@ a.link:hover {
   margin-inline: auto;
   padding-inline: 1rem;
 }
+/* Les pages se lisent en grand : dans le contenu, chaque taille de texte de Tailwind monte d'un cran (17 px pour le texte
+   courant, 15 px pour le petit texte, 13 px pour le plus petit). L'en-tête et le pied de page gardent les leurs, et les
+   espaces de travail (.espace) ont leur propre échelle, plus grande encore. */
+main {
+  --text-xs: 0.8125rem;
+  --text-sm: 0.9375rem;
+  --text-base: 1.0625rem;
+  --text-lg: 1.25rem;
+  font-size: var(--text-base);
+}
 .page-title {
-  font-size: clamp(2.5rem, 8vw, 4.75rem);
-  line-height: 0.95;
+  font-size: clamp(2.5rem, 8.5vw, 6rem);
+  line-height: 0.92;
   /* Un pseudo peut être un seul très long mot : mieux vaut le couper que faire défiler la page. */
   overflow-wrap: anywhere;
 }
 /* Sur un petit téléphone, le long mot rétrécit juste assez pour garder ses marges (1rem de chaque côté). */
 .page-title-long {
-  font-size: clamp(min(2.5rem, (100vw - 2rem) / 9.2), 8vw, 4.75rem);
+  font-size: clamp(min(2.5rem, (100vw - 2rem) / 9.2), 8.5vw, 6rem);
 }
 /* Un espace de travail (QG, Direction) : le titre laisse la place aux onglets. */
 .page-title-compact {
@@ -160,11 +179,77 @@ a.link:hover {
   font-size: clamp(min(2.25rem, (100vw - 2rem) / 9.2), 5.5vw, 3.5rem);
 }
 .section-title {
-  font-size: clamp(1.75rem, 4.5vw, 3rem);
+  font-size: clamp(2rem, 5vw, 4rem);
 }
 /* Dans une scène de l'accueil ou une colonne : le titre garde sa force sans prendre deux lignes de trop. */
 .section-title-sm {
-  font-size: clamp(1.5rem, 3vw, 2.25rem);
+  font-size: clamp(1.75rem, 3.6vw, 2.75rem);
+}
+/* ---------- Les chiffres clés, en grand ---------- */
+/* Un libellé court au-dessus, le chiffre en très grand, une ligne d'explication dessous. Pas de cadre : un filet à gauche
+   les sépare. Le chiffre ne se coupe jamais ; la rangée passe à la ligne quand la place manque. */
+.kpi-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem 2.5rem;
+}
+.kpi {
+  min-width: 0;
+  padding-left: 1rem;
+  border-left: 1px solid var(--hairline);
+}
+.kpi-label {
+  font-family: var(--font-display);
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.kpi-value {
+  margin-top: 0.375rem;
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 4.4vw, 3.5rem);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* Le chiffre d'une page : une seule rangée, encore plus grand. */
+.kpi-value-xl {
+  font-size: clamp(2.75rem, 6vw, 4.5rem);
+}
+/* La dernière mesure d'une courbe, au-dessus d'elle. Une valeur en mots (« 8 605,58 de retard ») peut passer à la ligne
+   entre le nombre et les mots, jamais dans le nombre (espaces insécables). */
+.kpi-value-sm {
+  font-size: clamp(2rem, 3.2vw, 2.75rem);
+  white-space: normal;
+  overflow-wrap: normal;
+}
+/* Cinq colonnes étroites (les créneaux de Quand jouer) : « 21 h – 22 h » tient dans la sienne de 1 024 à 1 920 px. */
+.kpi-value-md {
+  font-size: clamp(1.75rem, 2.4vw, 2.25rem);
+}
+/* Le premier d'une liste classée : son filet est blanc et plus épais. */
+.kpi-accent {
+  border-left: 3px solid #fff;
+}
+.kpi-hint {
+  margin-top: 0.5rem;
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+}
+/* Dans une scène colorée, le texte secondaire s'éclaircit, comme .stage .text-muted. */
+.stage .kpi-label,
+.stage .kpi-hint {
+  color: var(--stage-muted);
+}
+/* Un bloc posé sur le décor, sans cadre : il apparaît en fondu comme une scène (src/scripts/fx.ts), et ses animations
+   attendent qu'il entre à l'écran. */
+.fx-block {
+  position: relative;
 }
 /* Filet tricolore repris de la bande du logo. */
 .tribar {
@@ -273,16 +358,22 @@ main .card:hover::before {
   border: 1px solid var(--color-line);
 }
 .stage .text-muted {
-  color: #dbe2f7;
+  color: var(--stage-muted);
 }
-/* Panneau posé dans une scène, à la manière d'un écran de l'application. */
+/* Sur le bleu royal, le bleu des liens manque de contraste (4,1:1 au plus clair du dégradé) : ils y passent en blanc,
+   toujours soulignés. Le survol épaissit le trait. */
+.stage-blue a:not([class]),
+.stage-blue a.link {
+  color: #fff;
+}
+.stage-blue a:not([class]):hover,
+.stage-blue a.link:hover {
+  text-decoration-thickness: 2px;
+}
+/* Un groupe posé dans une scène : sur le décor, sans cadre ni fond, séparé par un filet au-dessus. Pas de case dans la case. */
 .panel {
-  background: var(--color-night);
-  border-radius: 1rem;
-  padding: 1.25rem;
-}
-.panel .text-muted {
-  color: var(--color-muted);
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--hairline);
 }
 .avatar {
   display: grid;
@@ -451,6 +542,13 @@ main .card:hover::before {
 }
 .data-table .num {
   text-align: right;
+}
+/* Sur un petit téléphone, le texte plus grand demande des cellules plus serrées : le tableau tient dans sa colonne. */
+@media (max-width: 30rem) {
+  .data-table th,
+  .data-table td {
+    padding-inline: 0.5rem;
+  }
 }
 /* Les guides de /debuter, écrits en Markdown dans content/ : titres, listes, tableaux, encadrés, formules. */
 .guide-body > * + *,
@@ -693,6 +791,32 @@ th.fx-cross {
 .chart-draw {
   animation: draw 1.2s cubic-bezier(0.3, 0.6, 0.3, 1) backwards;
 }
+/* Les graphiques se posent sur le décor, sans cadre : des repères à peine visibles, l'aire sous la courbe qui s'efface
+   vers le fond, un point au bout de la courbe. Un filet au-dessus d'un graphique le sépare de son voisin. */
+.chart-open {
+  padding-top: 1rem;
+  border-top: 1px solid var(--hairline);
+}
+.chart-gridline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px solid rgb(255 255 255 / 0.09);
+  pointer-events: none;
+}
+/* Le bout de la courbe, la dernière mesure : il paraît quand le trait l'atteint. */
+.chart-end {
+  position: absolute;
+  width: 0.875rem;
+  height: 0.875rem;
+  translate: -50% -50%;
+  border: 3px solid var(--color-navy);
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-win) 35%, transparent);
+  pointer-events: none;
+  animation: chart-end-in 0.4s ease-out 1s backwards;
+}
 /* Balise : la première mesure d'une courbe qui se construit. */
 .beacon {
   position: relative;
@@ -753,21 +877,25 @@ th.fx-cross {
   /* Le rouge seul se perd sur le dégradé de la jauge : un liseré sombre le détache. */
   box-shadow: 0 0 0 1px var(--color-night);
 }
-/* Les issues d'un face-à-face, sur un même total : chacune est écrite à côté, en texte. */
+/* Les issues d'un face-à-face, sur un même total : chacune est écrite à côté, en texte. Posée sur l'indigo de sa scène,
+   la barre a un fond sombre : les fentes de 2 px entre deux issues séparent nettement les couleurs (victoires 4,7:1,
+   défaites 5:1, autre équipe 7,8:1 contre ce fond). */
 .split-bar {
   display: flex;
   gap: 2px;
   height: 10px;
   overflow: hidden;
   border-radius: 5px;
-  background: rgb(255 255 255 / 0.14);
+  background: color-mix(in srgb, var(--color-night) 55%, transparent);
 }
 .split-bar > i {
   display: block;
   width: var(--v);
 }
+/* Une autre équipe gagne : un gris bleuté clair, 5,5:1 sur l'indigo le plus clair de la scène, plus clair que le bleu des
+   victoires et l'orange des défaites qu'il côtoie. Le gris des bordures (--color-line) s'y perdait (1,1:1). */
 .split-other {
-  background: var(--color-line);
+  background: #a9b4d0;
 }
 .score-bar {
   position: absolute;
@@ -1318,7 +1446,8 @@ main .fx-in,
 }
 /* Évite un bloc visible puis masqué au chargement. Sécurité : il s'affiche seul si le script échoue. */
 .fx-wait .stage,
-.fx-wait main .card {
+.fx-wait main .card,
+.fx-wait main .fx-block {
   opacity: 0;
   animation: fx-guard 0.2s linear 1.5s forwards;
 }
@@ -1329,6 +1458,7 @@ main .fx-in,
 .fx-hidden .score-bar,
 .fx-hidden .chart-sweep,
 .fx-hidden .chart-draw,
+.fx-hidden .chart-end,
 .fx-hidden .fx-row,
 .fx-title-wait .fx-word {
   animation-play-state: paused;
@@ -1399,6 +1529,12 @@ main .fx-in,
 @keyframes draw {
   from {
     clip-path: inset(0 100% 0 0);
+  }
+}
+@keyframes chart-end-in {
+  from {
+    opacity: 0;
+    scale: 0.4;
   }
 }
 @keyframes ping {

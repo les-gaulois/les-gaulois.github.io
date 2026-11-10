@@ -13,7 +13,7 @@ const FIRST_ROWS = 25;
 function Rows({ clans, tag, share, caption }: { clans: RankedClan[]; tag: string; share: (score: number) => string; caption: string }) {
   return (
     <>
-      <div class="card mt-4 hidden overflow-hidden md:block">
+      <div class="fx-block mt-4 hidden overflow-hidden md:block">
         <table class="data-table tnum w-full table-fixed text-sm">
           <caption class="sr-only">{caption}</caption>
           <colgroup>

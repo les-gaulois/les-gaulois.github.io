@@ -50,12 +50,13 @@ const tip = (d: number, h: number) => `${DAYS[d]} ${h} h : ${fmtInt(count(d, h))
             {slots.length === 0 ? (
               <p class="card mt-4 p-5 text-muted">Pas assez de parties pour dégager un créneau.</p>
             ) : (
-              <ol class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              <ol class="fx-block mt-6 grid gap-x-8 gap-y-6 sm:grid-cols-2 lg:grid-cols-5">
+                {/* Sans cadre : un filet à gauche de chaque créneau, blanc et plus épais pour le meilleur. */}
                 {slots.map((s, i) => (
-                  <li class:list={["card p-4", i === 0 && "card-accent"]} data-testid="best-slot" data-tilt="4">
-                    <p class="font-display text-lg font-bold">{DAYS[s.weekday]}</p>
-                    <p class="tnum font-display text-2xl font-extrabold">{s.hour} h – {(s.hour + 1) % 24} h</p>
-                    <p class="tnum mt-1 text-sm text-muted">{fmtInt(s.games)} parties, {fmtDec1(s.avgPlayers)} joueurs du clan en moyenne</p>
+                  <li class:list={["kpi", i === 0 && "kpi-accent"]} data-testid="best-slot">
+                    <p class="kpi-label">{DAYS[s.weekday]}</p>
+                    <p class="kpi-value kpi-value-md">{s.hour} h – {(s.hour + 1) % 24} h</p>
+                    <p class="kpi-hint tnum">{fmtInt(s.games)} parties, {fmtDec1(s.avgPlayers)} joueurs du clan en moyenne</p>
                     <div class="meter mt-3" aria-hidden="true"><i style={{ "--v": `${(s.games / map.max) * 100}%` }}></i></div>
                   </li>
                 ))}
@@ -76,19 +77,19 @@ const tip = (d: number, h: number) => `${DAYS[d]} ${h} h : ${fmtInt(count(d, h))
             </div>
 
             {/* Grand écran : une ligne par jour. */}
-            <div class="card mt-3 hidden p-3 lg:block">
+            <div class="fx-block mt-4 hidden lg:block">
               <table class="tnum w-full table-fixed border-separate border-spacing-0.5 text-xs" data-testid="heatmap" data-ripple-group>
                 <caption class="sr-only">Nombre de parties enregistrées par jour de la semaine et par heure de Paris</caption>
                 <thead>
                   <tr>
-                    <td class="w-20"></td>
+                    <td class="w-24"></td>
                     {HOURS.map((h) => <th scope="col" class="pb-1 font-medium text-muted">{h}<span class="sr-only"> h</span></th>)}
                   </tr>
                 </thead>
                 <tbody>
                   {DAYS.map((name, d) => (
                     <tr>
-                      <th scope="row" class="pr-2 text-left text-sm font-semibold">{name}</th>
+                      <th scope="row" class="whitespace-nowrap pr-2 text-left text-sm font-semibold">{name}</th>
                       {HOURS.map((h) => (
                         <td class="heat-cell h-9 rounded text-center" data-ripple="scale" style={{ ...cell(count(d, h)), "--d": d, "--h": h }} title={tip(d, h)}>{count(d, h)}</td>
                       ))}
@@ -99,7 +100,7 @@ const tip = (d: number, h: number) => `${DAYS[d]} ${h} h : ${fmtInt(count(d, h))
             </div>
 
             {/* Petit écran : une ligne par heure, pour éviter tout défilement horizontal. */}
-            <div class="card mt-3 p-2 lg:hidden">
+            <div class="fx-block mt-4 lg:hidden">
               <table class="tnum w-full table-fixed border-separate border-spacing-0.5 text-xs" data-ripple-group>
                 <caption class="sr-only">Nombre de parties enregistrées par heure de Paris et par jour de la semaine</caption>
                 <thead>

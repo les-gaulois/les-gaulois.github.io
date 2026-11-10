@@ -97,7 +97,8 @@ export default function ClanCompare({ clans, tag, faceOffs, src }: Props) {
           <p class="tnum font-display text-xl font-bold" role="status" data-testid="compare-gap">
             {fmtGap(mine.score - theirs.score)} pour [{mine.tag}]
           </p>
-          {points.length > 0 && <LineChart key={theirs.tag} title={`Écart de score avec [${theirs.tag}], jour après jour`} points={points} format={fmtGap} />}
+          {/* L'écart du jour est écrit juste au-dessus : la courbe ne le répète pas en grand. */}
+          {points.length > 0 && <LineChart key={theirs.tag} title={`Écart de score avec [${theirs.tag}], jour après jour`} points={points} format={fmtGap} showValue={false} />}
           {points.length > 1 && (
             <details data-testid="compare-gap-table">
               <summary class="cursor-pointer font-semibold">Voir le tableau de l'écart</summary>

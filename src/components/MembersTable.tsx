@@ -186,7 +186,7 @@ export default function MembersTable({ src }: { src: string }) {
         <p class="card mt-4 p-5 text-muted">Aucun pseudo ne correspond à « {query.trim()} ». Les membres anonymes ne peuvent pas être recherchés.</p>
       ) : (
         <>
-          <div class="card mt-4 hidden overflow-hidden md:block">
+          <div class="fx-block mt-4 hidden overflow-hidden md:block">
             <table class="data-table tnum w-full text-sm">
               <caption class="sr-only">Membres du clan et leurs parties d'équipe sous le tag</caption>
               <thead>

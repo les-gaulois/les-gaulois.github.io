@@ -40,13 +40,15 @@ function GamesChart({ buckets, weekly }: { buckets: Bucket[]; weekly: boolean })
           ? `${bucketLabel(shown)} : ${fmtInt(shown.games)} parties, ${fmtInt(shown.wins)} victoires, ${fmtInt(shown.losses)} défaites, ${fmtPct(shown.winRate)}${shown.partial ? " (en cours)" : ""}`
           : ""}
       </p>
-      <div class="relative mt-2 h-64 pl-10" aria-hidden="true" onPointerLeave={() => setHover(null)}>
+      <div class="relative mt-2 h-56 pl-12 sm:h-72" aria-hidden="true" onPointerLeave={() => setHover(null)}>
+        {/* Repères à peine visibles : les valeurs sont écrites à gauche, hors des barres. */}
         {[1, 0.5, 0].map((f) => (
-          <div key={f} class="absolute inset-x-0 border-t border-line/60" style={{ top: `${(1 - f) * 100}%` }}>
-            <span class="tnum absolute -top-2.5 left-0 bg-surface pr-1 text-xs text-muted">{fmtInt(Math.round(max * f))}</span>
+          <div key={f} class="absolute left-12 right-0" style={{ top: `${(1 - f) * 100}%` }}>
+            <div class="chart-gridline" />
+            <span class="tnum absolute -top-2.5 right-full whitespace-nowrap pr-3 text-xs text-muted">{fmtInt(Math.round(max * f))}</span>
           </div>
         ))}
-        <div class="absolute inset-y-0 left-10 right-0" data-ripple-group>
+        <div class="absolute inset-y-0 left-12 right-0" data-ripple-group>
           <div class="chart-sweep" />
           {hover !== null && shown && (
             <>
@@ -90,7 +92,7 @@ function GamesChart({ buckets, weekly }: { buckets: Bucket[]; weekly: boolean })
           </div>
         </div>
       </div>
-      <div class="relative mt-1 h-5 pl-10 text-xs text-muted" aria-hidden="true">
+      <div class="relative mt-2 h-5 pl-12 text-xs text-muted" aria-hidden="true">
         <div class="flex">
           {buckets.map((b, i) => (
             <div key={b.date} class="relative flex-1">
@@ -145,18 +147,19 @@ export default function ProgressCharts({ days, history }: Props) {
         ))}
       </div>
 
-      <dl class="mt-5 grid grid-cols-3 gap-3" aria-live="polite">
+      {/* Les trois chiffres de la période, en très grand, sans cadre : un filet à gauche les sépare. */}
+      <dl class="kpi-row mt-8" aria-live="polite">
         {[
           { label: "Parties", value: games, format: fmtInt },
           { label: "Victoires", value: wins, format: fmtInt },
           { label: "Taux de victoire", value: rate, format: fmtPct },
         ].map(({ label, value, format }) => (
-          <div key={label} class="card p-3 sm:p-5">
-            <dt class="text-xs font-semibold text-muted sm:text-sm">{label}</dt>
-            <dd class="tnum mt-1 font-display text-xl font-extrabold sm:text-3xl">
+          <div key={label} class="kpi">
+            <dt class="kpi-label">{label}</dt>
+            <dd class="kpi-value kpi-value-xl">
               <AnimatedNumber value={value} format={format} testId={`summary-${label}`} />
               {label === "Taux de victoire" && rate !== null && (
-                <div class="meter mt-3" aria-hidden="true">
+                <div class="meter mt-4" aria-hidden="true">
                   <i style={{ "--v": `${rate}%` }} />
                 </div>
               )}
@@ -165,7 +168,8 @@ export default function ProgressCharts({ days, history }: Props) {
         ))}
       </dl>
 
-      <section class="card mt-5 p-4 sm:p-5">
+      {/* Le graphique se pose sur le fond de la page : ni cadre ni carte. */}
+      <section class="fx-block mt-10">
         {/* La clé relance la pousse des barres et le balayage à chaque changement de période. */}
         <GamesChart key={range} buckets={buckets} weekly={weekly} />
         <details class="mt-4">
@@ -198,11 +202,11 @@ export default function ProgressCharts({ days, history }: Props) {
         </details>
       </section>
 
-      <h2 class="section-title mt-12">Relevés de chaque jour</h2>
-      <p class="mt-2 max-w-3xl text-sm text-muted">
+      <h2 class="section-title mt-16">Relevés de chaque jour</h2>
+      <p class="mt-3 max-w-3xl text-sm text-muted">
         Rang et score du classement officiel, sur 90 jours glissants. Chaque courbe a sa propre échelle.
       </p>
-      <div class="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div class="mt-6 grid gap-x-10 gap-y-8 md:grid-cols-2 lg:grid-cols-3">
         <LineChart
           title="Rang"
           invert

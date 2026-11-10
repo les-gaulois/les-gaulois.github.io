@@ -85,7 +85,7 @@ const snapshot = loadVisitSnapshot();
     <div class="wrap relative grid items-center gap-6 pb-8 pt-6 md:grid-cols-[3fr_2fr] md:gap-10 md:pb-10 md:pt-10">
       <div class="reveal order-2 md:order-1">
         <span class="tribar mb-6"></span>
-        <h1 class="text-[2.75rem] !leading-[0.95] sm:text-6xl md:text-5xl lg:text-6xl">{clan.tagline}</h1>
+        <h1 class="text-[2.75rem] !leading-[0.95] sm:text-6xl md:text-5xl lg:text-6xl xl:text-7xl">{clan.tagline}</h1>
         {clan.description && <p class="mt-5 max-w-md text-lg text-muted">{clan.description}</p>}
         {/* Deux gestes qui servent d'abord aux membres : retrouver le clan sur Discord et lancer une partie. L'appel à rejoindre le clan est en bas de page. */}
         <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -160,19 +160,20 @@ const snapshot = loadVisitSnapshot();
 
     <section class="stage stage-blue reveal" aria-labelledby="stats-title">
       <h2 id="stats-title" class="section-title section-title-sm">Le clan au classement officiel</h2>
-      <div class="mt-6 grid grid-cols-2 gap-x-6 gap-y-6 md:grid-cols-3 lg:grid-cols-5">
+      {/* Les chiffres en grand, sans case : un filet à gauche de chacun. La rangée passe à la ligne quand la place manque. */}
+      <div class="kpi-row mt-8">
         {
           cards.map((c) => (
-            <div data-testid="stat-card">
-              <p class="text-sm font-semibold text-muted">{c.label}</p>
+            <div class="kpi" data-testid="stat-card">
+              <p class="kpi-label">{c.label}</p>
               {c.value === null ? (
                 <p class="mt-2 font-display text-lg font-bold">Pas de données</p>
               ) : (
-                <p class="tnum mt-1 font-display text-3xl font-extrabold sm:text-4xl" data-count={c.count} data-decimals={c.decimals ?? 0}>
+                <p class="kpi-value" data-count={c.count} data-decimals={c.decimals ?? 0}>
                   {c.value}
                 </p>
               )}
-              <p class="mt-1 text-xs text-muted">{c.hint}</p>
+              <p class="kpi-hint">{c.hint}</p>
               {
                 c.label === "Taux de victoire" && rate !== null && (
                   <div class="meter mt-3" aria-hidden="true">
@@ -263,8 +264,9 @@ const snapshot = loadVisitSnapshot();
               <a href={`${base}/progression`} class="btn btn-ghost">Voir la progression</a>
             </div>
           </div>
+          {/* Les barres se posent sur le décor de la scène : pas de cadre, un filet au-dessus. */}
           <div class="panel self-center">
-            <div class="fx-bars flex h-44 items-end" aria-hidden="true" data-ripple-group>
+            <div class="fx-bars flex h-52 items-end" aria-hidden="true" data-ripple-group>
               {
                 recent.map((d, i) => (
                   <div class="flex h-full flex-1 flex-col justify-end px-0.5" title={`${fmtDay(d.date)} : ${fmtInt(d.games)} parties, ${fmtInt(d.wins)} victoires`}>
@@ -302,7 +304,7 @@ const snapshot = loadVisitSnapshot();
               slots.map((s) => (
                 <li data-testid="home-slot">
                   <div class="flex flex-wrap items-baseline justify-between gap-x-4">
-                    <span class="font-display text-xl font-extrabold uppercase">{WEEKDAYS_FR[s.weekday]} {s.hour} h</span>
+                    <span class="font-display text-2xl font-extrabold uppercase">{WEEKDAYS_FR[s.weekday]} {s.hour} h</span>
                     <span class="tnum text-sm text-muted">{fmtInt(s.games)} parties · {fmtDec1(s.avgPlayers)} joueurs du clan</span>
                   </div>
                   <div class="meter mt-2" aria-hidden="true">

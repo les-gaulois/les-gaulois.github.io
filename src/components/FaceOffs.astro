@@ -28,7 +28,7 @@ const start = fmtDate(`${clan.archiveStart}T12:00:00Z`);
       {
         rows.length > 0 ? (
           <>
-            <ul class="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3" data-testid="face-offs-first">
+            <ul class="mt-6 grid gap-x-8 gap-y-6 md:grid-cols-2 lg:grid-cols-3" data-testid="face-offs-first">
               {first.map((row) => (
                 <FaceOffCard row={row} start={start} />
               ))}
@@ -36,7 +36,7 @@ const start = fmtDate(`${clan.archiveStart}T12:00:00Z`);
             {rest.length > 0 && (
               <details class="mt-5" data-testid="face-offs-more">
                 <summary class="cursor-pointer font-semibold">{rest.length > 1 ? `Voir les ${fmtInt(rest.length)} autres clans` : "Voir le dernier clan"}</summary>
-                <ul class="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <ul class="mt-4 grid gap-x-8 gap-y-6 md:grid-cols-2 lg:grid-cols-3">
                   {rest.map((row) => (
                     <FaceOffCard row={row} start={start} />
                   ))}

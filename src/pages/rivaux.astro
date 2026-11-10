@@ -49,8 +49,8 @@ const jumps = [
       ) : (
         <>
           {lanes.length > 0 && (
-            <section class="card reveal mb-8 p-5" data-testid="score-lanes" aria-labelledby="lanes-title">
-              <h2 id="lanes-title" class="text-sm tracking-wide text-muted">Le score autour de [{clan.tag}]</h2>
+            <section class="chart-open reveal mb-10" data-testid="score-lanes" aria-labelledby="lanes-title">
+              <h2 id="lanes-title" class="kpi-label">Le score autour de [{clan.tag}]</h2>
               <ul class="mt-4 space-y-3">
                 {lanes.map((lane) => (
                   <li class="grid grid-cols-[3.5rem_1fr_auto] items-center gap-3 sm:grid-cols-[4.5rem_1fr_6rem]">

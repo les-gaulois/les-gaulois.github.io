@@ -188,7 +188,7 @@ export default function GamesJournal({ src, initial, sides }: Props) {
         <p class="card mt-4 p-5 text-muted" data-testid="journal-empty">Aucune partie ne correspond à ces filtres sur cette période.</p>
       ) : (
         <div ref={lines}>
-          <div class="card mt-4 hidden overflow-hidden lg:block">
+          <div class="fx-block mt-4 hidden overflow-hidden lg:block">
             <table class="data-table tnum w-full text-sm [overflow-wrap:break-word]">
               <caption class="sr-only">Les parties du clan, de la plus récente à la plus ancienne</caption>
               <thead>

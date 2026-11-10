@@ -1,4 +1,4 @@
-import { useState } from "preact/hooks";
+import { useId, useState } from "preact/hooks";
 import { fmtInt } from "../lib/format";
 import { GROWTH_REFERENCE_CAPACITY, gainVersusPeak, peakPercent } from "../lib/growth";
 
@@ -17,6 +17,8 @@ const PEAK = peakPercent(GROWTH_REFERENCE_CAPACITY);
 
 /** La courbe du jeu, calculée : chaque valeur vient de `src/lib/growth.ts`. Le tableau en donne l'équivalent sans survol. */
 export default function GrowthChart() {
+  // Le dégradé de l'aire a son propre identifiant : la page peut porter d'autres graphiques.
+  const id = `${useId()}-croissance`;
   const [hover, setHover] = useState<number | null>(null);
   const gain = hover === null ? null : (CURVE[hover] ?? null);
 
@@ -44,14 +46,22 @@ export default function GrowthChart() {
           onPointerMove={(e) => setHover(fillFromPointer(e))}
         >
           {Y_TICKS.map((tick) => (
-            <div key={tick} class="absolute inset-x-0 border-t border-line" style={{ top: `${100 - tick}%` }}>
+            <div key={tick} class="chart-gridline" style={{ top: `${100 - tick}%` }}>
               <span class="tnum absolute -top-2 right-full whitespace-nowrap pr-2 text-xs text-muted">{pct(tick)}</span>
             </div>
           ))}
           <div class="absolute inset-y-0 bg-white/15" style={{ left: `${ZONE.from}%`, width: `${ZONE.to - ZONE.from}%` }} />
           <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="absolute inset-0 size-full overflow-visible">
-            <path d={`${LINE}L100 100L0 100Z`} fill="var(--color-win)" fill-opacity="0.1" />
-            <path d={LINE} fill="none" stroke="var(--color-win)" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round" />
+            <defs>
+              {/* L'aire sous la courbe s'efface vers le bas, comme celle des relevés. */}
+              <linearGradient id={`${id}-aire`} gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="100">
+                <stop offset="0" style={{ stopColor: "var(--color-win)", stopOpacity: 0.34 }} />
+                <stop offset="1" style={{ stopColor: "var(--color-win)", stopOpacity: 0 }} />
+              </linearGradient>
+            </defs>
+            <path d={`${LINE}L100 100L0 100Z`} fill={`url(#${id}-aire)`} />
+            <path d={LINE} fill="none" stroke="var(--color-win)" stroke-opacity="0.28" stroke-width="7" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round" />
+            <path d={LINE} fill="none" stroke="var(--color-win)" stroke-width="2.5" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round" />
           </svg>
           {hover !== null && gain !== null && (
             <>

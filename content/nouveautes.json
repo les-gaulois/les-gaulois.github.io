@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-10",
+    "kind": "ameliore",
+    "title": "Tout plus grand, des graphiques sans case",
+    "body": "Le texte et les chiffres clés sont plus grands dans les pages. Les graphiques et les grands tableaux se posent sur le décor, sans cadre autour.",
+    "link": {
+      "href": "/progression",
+      "label": "Voir la progression"
+    }
+  },
+  {
+    "date": "2026-11-10",
     "kind": "nouveau",
     "title": "Une page Mentions légales",
     "body": "Elle dit qui héberge le site, comme la loi le demande. Son lien est en bas de chaque page.",

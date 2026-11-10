@@ -63,11 +63,11 @@ const seesScriptAnimation = (locator: Locator) =>
       }),
   );
 
-/** Attend que tous les blocs à l'écran soient entièrement révélés : avant, une case peut ne pas réagir au survol. */
+/** Attend que tous les blocs à l'écran soient entièrement révélés, graphiques sans case compris : avant, une case peut ne pas réagir au survol. */
 const blocksSettled = (page: Page) =>
   page.waitForFunction(
     () =>
-      ![...document.querySelectorAll<HTMLElement>(".stage, main .card")].some((el) => {
+      ![...document.querySelectorAll<HTMLElement>(".stage, main .card, main .fx-block")].some((el) => {
         const r = el.getBoundingClientRect();
         const onScreen = r.width > 0 && r.top < window.innerHeight * 0.9 && r.bottom > 0;
         return onScreen && (el.classList.contains("fx-hidden") || el.style.clipPath !== "");
@@ -496,7 +496,7 @@ for (const path of PAGES) {
       .poll(
         () =>
           page.evaluate(() =>
-            [...document.querySelectorAll<HTMLElement>(".stage, main .card")]
+            [...document.querySelectorAll<HTMLElement>(".stage, main .card, main .fx-block")]
               .filter((el) => el.getBoundingClientRect().width > 0)
               .filter((el) => getComputedStyle(el).opacity !== "1" || el.style.clipPath !== "")
               .map((el) => el.className),

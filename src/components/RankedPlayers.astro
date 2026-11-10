@@ -19,11 +19,11 @@ const ranked = loadRanked();
       <p class="mt-4 max-w-3xl text-lg text-muted">Classement individuel, hors score du clan.</p>
       {
         ranked ? (
-          <ul class="mt-6 grid grid-cols-3 gap-2 md:gap-4">
+          <ul class="mt-6 grid grid-cols-3 gap-x-4 gap-y-2 md:gap-x-8">
             {RANKED_MODES.map(({ key, label }) => {
               const mode = ranked.modes[key];
               return (
-                <li class="panel max-md:!p-3" data-testid="ranked-mode">
+                <li class="panel max-md:!pt-3" data-testid="ranked-mode">
                   <h3 class="text-xl md:text-2xl">{label}</h3>
                   {mode.listed === 0 ? (
                     <p class="mt-2 font-display text-base font-bold md:text-lg">Pas de données</p>

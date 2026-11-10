@@ -12,12 +12,14 @@ paths:
 
 Un univers de jeu sombre, pas une page de statistiques : grands titres en capitales, un seul bouton fort, profondeur par la couleur, le guerrier du logo en scène d'ouverture. Identité tricolore du clan, aucune référence à des personnages ou visuels protégés. Le détail est dans `docs/DESIGN.md` : le mettre à jour quand une règle change ici.
 
+**Lisible et ouvert (10 novembre 2026) :** tout écrit en gros, chiffres clés en très grand, graphiques et groupes posés sur le décor sans case, séparés par un filet. Principes inspirés du site du clan [FR], jamais copiés (ni police, ni textes, ni visuels, ni agencement). Les scènes colorées, le fond animé et le bouton pause restent : le pilote a rejeté une refonte sobre le 9 novembre.
+
 ## Jetons (`src/styles/global.css`)
 
 | Jeton | Usage |
 |---|---|
 | `navy` `#0A1230` | Fond de page |
-| `night` `#060B22` | Pied de page, scènes nocturnes, panneaux dans une scène |
+| `night` `#060B22` | Pied de page, scènes nocturnes, champs, barre d'onglets |
 | `surface` `#121C3F` / `surface-2` `#1A2650` | Cartes / état actif, avatars |
 | `line` `#2C3A6B` | Bordures |
 | `line-strong` `#5D6C9E` | Contour des champs, carte survolée (3:1 au moins sur une carte) |
@@ -34,17 +36,19 @@ Pas de couleur en dur dans un composant : un jeton, ou une classe de `global.css
 
 ## Scènes, cartes, boutons
 
-- Grandes sections : `.stage` à coins de 24 px, décor `.stage-blue`, `.stage-indigo`, `.stage-night`, `.stage-wine`. Profondeur par la couleur, sans ombre portée. Un panneau `.panel` dans une scène n'affiche que des données collectées : aucune maquette, aucune valeur fictive.
-- Cartes : `.card`. Largeur de page : `.wrap`.
+- Grandes sections : `.stage` à coins de 24 px, décor `.stage-blue`, `.stage-indigo`, `.stage-night`, `.stage-wine`. Profondeur par la couleur, sans ombre portée. Un groupe `.panel` dans une scène n'a ni fond ni cadre : un filet au-dessus (`--hairline`). Il n'affiche que des données collectées : aucune maquette, aucune valeur fictive. Sur `.stage-blue`, les liens sont blancs soulignés.
+- Chiffres clés : `.kpi-row` > `.kpi` (`.kpi-label`, `.kpi-value` et ses tailles `-xl` `-md` `-sm`, `.kpi-hint`), un filet à gauche, `.kpi-accent` pour le premier d'une liste classée. Le chiffre ne se coupe pas : vérifier qu'il tient de 360 à 1 920 px.
+- Cartes : `.card`, pour les listes et les espaces de travail ; pas autour d'un graphique. Largeur de page : `.wrap`. Un graphique ou un tableau posé sur le fond porte `.fx-block` pour apparaître en fondu.
 - Boutons : `.btn-primary` (bleu plein, l'action principale, rejoindre le Discord), `.btn-secondary` (blanc plein, jouer à OpenFront), `.btn-ghost` (contour blanc, liens dans les scènes). Coins 12 px, `.btn-lg` pour les appels principaux. `.btn` écrase `hidden` : masquer via un conteneur.
 - Bouton Discord : texte seul, pas de logo ni de couleur de la marque.
 
 ## Typographie
 
-Titres en Outfit 800, capitales appliquées en CSS (le texte source reste en casse normale pour les lecteurs d'écran), `.page-title` pour le H1. Texte en Inter. Chiffres tabulaires `.tnum` dans les colonnes. Polices servies par le site, aucun service tiers.
+Titres en Outfit 800, capitales appliquées en CSS (le texte source reste en casse normale pour les lecteurs d'écran), lignes équilibrées, `.page-title` pour le H1 (jusqu'à 96 px), `.section-title` (64 px), `.section-title-sm` (44 px). Texte en Inter ; dans `main`, l'échelle de Tailwind monte d'un cran (17 px courant, `text-sm` 15 px, `text-xs` 13 px). Chiffres tabulaires `.tnum` dans les colonnes. Polices servies par le site, aucun service tiers.
 
 ## Graphiques
 
+- Sans case : repères `.chart-gridline` à peine visibles, `.chart-open` (filet au-dessus) entre deux courbes, dernière mesure en grand au-dessus. Courbe : aire en dégradé vers le fond, halo léger, point au bout `.chart-end` ; pas d'aire sous le rang. Dégradés SVG en `userSpaceOnUse` (un trait plat garde le sien) et identifiant propre à chaque courbe.
 - Victoires et défaites : bleu `#4C86F5` et orange `#D9742E`, palette contrôlée pour les daltonismes.
 - Un graphique par mesure, jamais de double axe. Le rang a l'axe inversé. La période en cours est plus pâle.
 - Chaque graphique est doublé d'un tableau ou d'une légende lisible, et l'information n'est jamais portée par la seule couleur.

@@ -39,7 +39,7 @@ const tiles: { key: RecordKey; label: string; value: string; hint: string }[] = 
 
 <p class="mt-4 max-w-3xl text-lg text-muted" data-testid="gazette-lead">{editionLead(edition, clan.tag)}</p>
 
-<div class="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+<div class="mt-6 grid gap-x-8 gap-y-6 md:grid-cols-2 lg:grid-cols-3">
   <section class="panel" data-testid="gazette-totals">
     <h3 class="text-xl">Les parties</h3>
     <p class="tnum mt-2 font-display text-4xl font-extrabold">{fmtInt(totals.games)}</p>

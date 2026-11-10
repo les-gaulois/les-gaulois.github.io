@@ -26,6 +26,8 @@ const STORAGE_KEY = "gal-fx";
 const NATIVE_MENU = "a, button, input, select, textarea, summary, label, video, [contenteditable], img:not([data-fx-logo])";
 const NO_WAVE = "input, select, textarea";
 const BLOCKS = ".stage, main .card";
+/** Ce qui apparaît en fondu : les blocs, et les graphiques posés sur le décor sans cadre (`.fx-block`), qui n'ont ni halo ni onde à eux. */
+const REVEALED = `${BLOCKS}, main .fx-block`;
 const MAX_WAVES = 8;
 const MAX_ALPHA = 0.5;
 /** Inclinaison maximale d'une grande scène, en degrés : au-delà, le texte perd en netteté. */
@@ -750,8 +752,10 @@ function init(): void {
   }
 
   function prepareReveal(): void {
-    for (const el of document.querySelectorAll<HTMLElement>(BLOCKS)) {
+    for (const el of document.querySelectorAll<HTMLElement>(REVEALED)) {
       if (el.getBoundingClientRect().width === 0) continue;
+      // Un graphique posé dans une scène ou une carte apparaît avec elle : pas de second fondu.
+      if (el.matches(".fx-block") && el.parentElement?.closest(BLOCKS)) continue;
       // Le contenu d'un volet fermé n'entre jamais à l'écran : il resterait caché une fois le volet ouvert.
       if (el.closest("details:not([open])")) continue;
       el.classList.add("fx-hidden");

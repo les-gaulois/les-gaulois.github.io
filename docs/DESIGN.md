@@ -6,6 +6,8 @@ Un univers de jeu sombre plutôt qu'une simple page de statistiques. Le guerrier
 
 Cette approche s'inspire de la façon dont les grands sites de la culture gaming construisent leurs pages : environnement immersif, titres massifs, un seul bouton fort, profondeur par la couleur. Elle ne reprend ni la marque, ni la couleur, ni les polices propriétaires, ni les visuels d'un autre site. L'identité reste celle du clan : bleu, blanc, rouge et son guerrier gaulois. Aucune référence à des personnages ou visuels protégés.
 
+**Lisible et ouvert, depuis le 10 novembre 2026.** Le pilote aimait la lisibilité du site du clan [FR] : tout écrit en gros, des graphiques qui se fondent dans le décor au lieu d'être enfermés dans une case, une page propre. Le site en reprend les principes, courants dans la mise en page, sans copier ce site : ni sa police, ni ses textes, ni ses visuels, ni l'agencement de ses pages. Le texte est plus grand, les chiffres clés s'écrivent en très grand, les graphiques et les groupes d'une scène se posent sur le décor, séparés par un filet. Les scènes colorées, le fond animé, les capitales d'Outfit, le tricolore et le bouton pause restent ceux du clan.
+
 ## Organisation du site
 
 Le visiteur doit savoir où chercher, et avoir une raison de revenir. Le plan est dans `src/lib/nav.ts`, et le README en donne le tableau.
@@ -23,7 +25,7 @@ Le visiteur doit savoir où chercher, et avoir une raison de revenir. Le plan es
   - **Au QG,** les onglets de l'encadrement (Demandes, Comptes, Journal) viennent après un trait, marqués d'un point rouge. « Comptes » et non « Membres » : l'onglet de rubrique « Membres », juste au-dessus, mène à la page publique. Ces onglets et leur partie portent `data-theme="rouge"` : les jetons rouges valent pour elle seule, dans un cadre bordeaux (`.zone-encadrement`). La Direction est rouge en entier.
   - **L'adresse** garde l'onglet ouvert (`#decisions`) sans ajouter de page à l'historique : un lien peut ouvrir un onglet, et un onglet que le compte n'a pas laisse le premier. Au clavier, les flèches, Début et Fin passent d'un onglet à l'autre ; Tab entre dans la partie.
   - **Le roulement :** la partie choisie glisse de 12 px et apparaît en 0,38 s, du côté de son onglet, une seule fois. Le bouton pause et le réglage « réduire les animations » la coupent.
-  - **Plus grand :** le conteneur `.espace` redéfinit les tailles de texte de Tailwind (`text-sm` passe à 17 px, le texte courant à 18 px) et son pas d'espacement (× 1,12) : boutons de 48 px, champs de 50 px. Les pages de lecture ne changent pas.
+  - **Plus grand :** le conteneur `.espace` redéfinit les tailles de texte de Tailwind (`text-sm` passe à 17 px, le texte courant à 18 px) et son pas d'espacement (× 1,12) : boutons de 48 px, champs de 50 px. Les pages de lecture ont leur propre échelle, un cran plus petite (voir « Typographie »).
   - Une partie cachée reste dans la page : un brouillon ou un appel en cours ne se perd pas d'un onglet à l'autre. Les parties qui lisent le serveur (comptes, journal, sondages de la Direction…) ne le lisent qu'au premier passage.
   - Mesuré le 10 novembre 2026 avec un faux serveur, pied de page compris, pour un fondateur : le QG tenait 6,5 écrans sur bureau (1 280 × 800) et 10,4 sur téléphone (375 × 812) la veille au soir, plus 1,8 et 2,8 pour `/admin` ; en onglets, 1,9 et 3,6 sur l'onglet des salons, 2,1 et 4,1 sur celui des demandes. La Direction passe de 5 à 1,7 écran et de 7,7 à 3,1. Une partie du gain vient des textes raccourcis le même jour. Sur téléphone, toucher un onglet en bas de l'écran fait remonter la barre sous l'en-tête.
 - **Un bloc vide n'existe pas.** Sans annonce ni événement, l'accueil n'affiche pas de bloc vide. Au QG, une partie vide n'a pas d'onglet : pas de « Aucun … pour l'instant ». Le mur garde le sien, qui porte le choix de se montrer. De même, une semaine sans palier franchi n'a pas de liste vide dans la gazette, et la page Records n'écrit rien quand aucune carte ne se détache. Pour une donnée attendue, « Pas de données » reste la règle.
@@ -39,7 +41,7 @@ Les jetons sont définis dans `src/styles/global.css`.
 | Jeton | Valeur | Usage |
 |---|---|---|
 | `navy` | `#0A1230` | Environnement de la page, avec une lueur bleue et un reflet rouge |
-| `night` | `#060B22` | Pied de page, scènes nocturnes, panneaux posés dans une scène |
+| `night` | `#060B22` | Pied de page, scènes nocturnes, champs, barre d'onglets |
 | `surface` | `#121C3F` | Cartes |
 | `surface-2` | `#1A2650` | État actif, avatars |
 | `line` | `#2C3A6B` | Bordures |
@@ -86,7 +88,7 @@ Les grandes sections sont des blocs `.stage` à coins de 24 px. La profondeur vi
 | `.stage-night` | Nuit, avec bordure | Gazette, Ma place, carte des clans, appel à rejoindre |
 | `.stage-wine` | Lie-de-vin | Quand jouer |
 
-Une scène associe un texte et un panneau `.panel`, à la manière d'un écran de l'application. **Ces panneaux n'affichent que des données collectées :** graphique des parties, créneaux réels. Aucune maquette ni valeur fictive.
+Une scène associe un texte et des groupes `.panel`. **Pas de case dans la case :** depuis le 10 novembre 2026, un `.panel` n'a ni fond ni cadre. Il se pose sur le décor de la scène, séparé de ce qui le précède par un filet (`--hairline`, blanc à 18 %), et son texte secondaire prend le clair des scènes (`#DBE2F7`). **Ces groupes n'affichent que des données collectées :** graphique des parties, créneaux réels. Aucune maquette ni valeur fictive. Sur `.stage-blue`, les liens s'écrivent en blanc souligné : le bleu des liens n'y a que 4,1:1 au plus clair du dégradé.
 
 **La seule surface flottante du site** est le pop-up des appels des Gaulois (`src/components/compte/AppelsGaulois.tsx`), pour les membres connectés. Il reprend le dégradé de `.stage-blue` par sa variable, sans la classe `.stage` : ni halo, ni inclinaison, ni frontière au survol. Il a des coins de 16 px, une ombre et une bordure blanche de 2 px, qui le détachent de la page. Il garde un fond plein (`bg-blue`) sous le dégradé, pour le mode contraste élevé. Il reste bleu sur `/direction` et dans les parties rouges du QG.
 
@@ -94,6 +96,8 @@ Une scène associe un texte et un panneau `.panel`, à la manière d'un écran d
 
 - **Titres :** Outfit, graisse 800, en capitales, interligne serré, approche -0,01 em. Le rendu est proche du lettrage du logo, avec une police libre de droits.
 - **Texte :** Inter.
+- **Tailles :** dans `main`, chaque taille de texte de Tailwind monte d'un cran : `text-xs` 13 px, `text-sm` 15 px, le texte courant 17 px, `text-lg` 20 px. L'en-tête, le pied de page et les espaces de travail (`.espace`) gardent les leurs. Le titre d'une page va jusqu'à 96 px (`.page-title`), celui d'une section jusqu'à 64 px (`.section-title`), 44 px dans une scène (`.section-title-sm`). Les titres passent à la ligne en lignes équilibrées (`text-wrap: balance`) : pas de mot seul sur la dernière.
+- **Chiffres clés :** `.kpi-row` aligne des `.kpi`, chacun avec un libellé court en capitales (`.kpi-label`), le chiffre en très grand (`.kpi-value`, jusqu'à 56 px) et une ligne d'explication (`.kpi-hint`). `.kpi-value-xl` (jusqu'à 72 px) sert aux chiffres du haut d'une page, `.kpi-value-md` à cinq colonnes étroites, `.kpi-value-sm` à la dernière mesure d'une courbe. Pas de case : un filet à gauche de chacun, blanc et plus épais pour le premier d'une liste classée (`.kpi-accent`). Le chiffre ne se coupe jamais ; la rangée passe à la ligne quand la place manque. Mesuré le 10 novembre 2026 : aucun débordement sur 15 pages de 360 à 1 920 px.
 - **Chiffres :** chiffres tabulaires (`.tnum`) pour que les colonnes s'alignent. Les milliers sont séparés par l'espace insécable de `src/lib/nombre.ts` : Outfit et Inter ne contiennent pas l'espace fine de `Intl`.
 - Les capitales sont appliquées en CSS : le texte d'origine reste en casse normale pour les lecteurs d'écran.
 - Les polices sont servies par le site, sans requête vers un service tiers, et préchargées dans l'en-tête de chaque page : le texte s'affiche presque toujours directement dans sa police, au lieu d'une police de remplacement remplacée après coup.
@@ -123,7 +127,8 @@ Le build en tire des versions légères dans `public/generated/`, et le site n'a
 
 ## Visualisation de données
 
-- **Parties par jour :** barres empilées victoires et défaites, en bleu `#4C86F5` et orange `#D9742E`. Palette contrôlée sur la surface des cartes, y compris pour les daltonismes. Une légende et un tableau accompagnent le graphique de la page Progression.
+- **Posés sur le décor :** depuis le 10 novembre 2026, un graphique n'a pas de case. Ses repères sont à peine visibles (`.chart-gridline`, blanc à 9 %), un filet au-dessus d'une courbe la sépare de sa voisine (`.chart-open`), et sa dernière mesure est écrite en grand au-dessus d'elle. Une courbe (`LineChart.tsx`) a une aire en dégradé qui s'efface vers le bas, un trait qui s'éclaircit vers la fin, un léger halo et un point au bout (`.chart-end`), qui paraît quand le trait l'atteint ; la première et la dernière date sont écrites dessous. La courbe du rang n'a pas d'aire : un rang n'est pas une quantité. Quand la page écrit déjà la dernière valeur juste au-dessus (comparateur de clans), la courbe ne la répète pas en grand (`showValue={false}`). Les grands tableaux (classement, membres, dernières parties) se posent eux aussi sur le fond, sans cadre. Posée sur l'indigo, la barre d'un face-à-face a un fond sombre, et la part « une autre équipe gagne » un gris bleuté clair (`#A9B4D0`, 5,5:1 sur l'indigo) : le gris des bordures s'y perdait.
+- **Parties par jour :** barres empilées victoires et défaites, en bleu `#4C86F5` et orange `#D9742E`. Palette contrôlée pour les daltonismes. Sur le fond de la page, les barres ont 5,3:1 et 5,7:1, et sur l'indigo de l'accueil 3,3:1 et 3,6:1 au plus clair du dégradé. Une légende et un tableau accompagnent le graphique de la page Progression.
 - **Vue « Tout » :** regroupée par semaine, pour garder des barres lisibles en mobile.
 - **Rang, score et membres :** trois graphiques distincts, jamais de double axe. Le rang a l'axe inversé. Chacun a sa propre échelle, ce que la page écrit, et un tableau donne les valeurs exactes.
 - **Heatmap :** une seule teinte, du sombre au clair, avec le nombre écrit dans chaque case. C'est un vrai tableau HTML. En dessous de 1 024 px, il pivote en une ligne par heure pour tenir sans défilement horizontal.
@@ -156,7 +161,7 @@ L'idée centrale reprend le principe d'OpenFront, la conquête de territoire : d
 | Modifier le calculateur | L'attaque se rejoue : le bot est conquis pendant que les troupes fondent |
 | Rien | Lente flottaison du logo, petits territoires qui naissent et disparaissent seuls |
 
-**Depuis le 8 novembre 2026, les blocs ne sont plus conquis case par case à leur apparition, et la frontière ne fait plus le tour d'un bloc toute seule.** Le pilote trouvait ces mouvements agressifs : des cases recouvraient ce qu'on lisait. Les blocs apparaissent en fondu, et la conquête reste pour les gestes du visiteur, ses clics et la première vague de l'accueil.
+**Depuis le 8 novembre 2026, les blocs ne sont plus conquis case par case à leur apparition, et la frontière ne fait plus le tour d'un bloc toute seule.** Le pilote trouvait ces mouvements agressifs : des cases recouvraient ce qu'on lisait. Les blocs apparaissent en fondu, et la conquête reste pour les gestes du visiteur, ses clics et la première vague de l'accueil. Un graphique ou un tableau posé sur le fond sans case (`.fx-block`) apparaît en fondu comme un bloc, et ses animations attendent qu'il entre à l'écran ; dans une scène, il apparaît avec elle. Il n'a ni halo ni onde à lui : leur bord dessinerait la case qu'il n'a plus.
 
 Sur les pages rouges de l'encadrement, le bleu et le rouge échangent leurs rôles dans tous ces gestes : traînée du curseur, clic gauche, toucher et territoires ambiants y sont rouges, le clic droit et l'onde qu'il lance bleus.
 

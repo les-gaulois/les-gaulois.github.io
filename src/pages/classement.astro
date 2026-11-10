@@ -33,29 +33,30 @@ const near = neighbours(clans, clan.tag);
       ) : (
         <>
           {me && near ? (
-            <section class="reveal mb-8 grid gap-3 md:grid-cols-3" aria-label={`Position de ${clan.tag}`}>
-              <div class="card card-accent p-5" data-tilt="3">
-                <p class="text-sm font-semibold text-muted">Position de [{clan.tag}]</p>
-                <p class="tnum mt-2 font-display text-3xl font-extrabold">{me.rank}{me.rank === 1 ? "er" : "e"}</p>
-                <p class="tnum mt-1 text-sm text-muted">Score {fmtScore(me.weightedWins)}</p>
+            <section class="kpi-row reveal mb-10" aria-label={`Position de ${clan.tag}`}>
+              {/* Les trois chiffres en très grand, sans case : un filet à gauche de chacun, blanc pour la place du clan. */}
+              <div class="kpi kpi-accent">
+                <p class="kpi-label">Position de [{clan.tag}]</p>
+                <p class="kpi-value kpi-value-xl">{me.rank}{me.rank === 1 ? "er" : "e"}</p>
+                <p class="kpi-hint tnum">Score {fmtScore(me.weightedWins)}</p>
               </div>
-              <div class="card p-5" data-testid="gap-above" data-tilt="3">
-                <p class="text-sm font-semibold text-muted">Écart avec le clan au-dessus</p>
+              <div class="kpi" data-testid="gap-above">
+                <p class="kpi-label">Écart avec le clan au-dessus</p>
                 {near.above ? (
                   <>
-                    <p class="tnum mt-2 font-display text-3xl font-extrabold">{fmtScore(near.above.gap)}</p>
-                    <p class="mt-1 text-sm text-muted">derrière [{near.above.clan.clanTag}]</p>
+                    <p class="kpi-value kpi-value-xl">{fmtScore(near.above.gap)}</p>
+                    <p class="kpi-hint">derrière [{near.above.clan.clanTag}]</p>
                   </>
                 ) : (
                   <p class="mt-2 font-display text-lg font-bold">Aucun : {clan.tag} est premier</p>
                 )}
               </div>
-              <div class="card p-5" data-testid="gap-below" data-tilt="3">
-                <p class="text-sm font-semibold text-muted">Écart avec le clan en dessous</p>
+              <div class="kpi" data-testid="gap-below">
+                <p class="kpi-label">Écart avec le clan en dessous</p>
                 {near.below ? (
                   <>
-                    <p class="tnum mt-2 font-display text-3xl font-extrabold">{fmtScore(near.below.gap)}</p>
-                    <p class="mt-1 text-sm text-muted">devant [{near.below.clan.clanTag}]</p>
+                    <p class="kpi-value kpi-value-xl">{fmtScore(near.below.gap)}</p>
+                    <p class="kpi-hint">devant [{near.below.clan.clanTag}]</p>
                   </>
                 ) : (
                   <p class="mt-2 font-display text-lg font-bold">Aucun : {clan.tag} est dernier de la liste</p>
