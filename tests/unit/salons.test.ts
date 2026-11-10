@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { ERROR_MESSAGES } from "../../src/lib/compte/errors";
-import { FORMAT_ORDER, GAME_ID_PATTERN, LOBBY_FORMATS, TEAM_SIZE, callKey, callSentence, freshCalls, lobbyIdOf, lobbyUrl, parseLobbyCalls, salonOf, seatsNote, sinceLabel, type LobbyCall } from "../../src/lib/compte/salons";
+import { FORMAT_ORDER, GAME_ID_PATTERN, LOBBY_FORMATS, TEAM_SIZE, callKey, isFinalRefusal, callSentence, freshCalls, lobbyIdOf, lobbyUrl, parseLobbyCalls, salonOf, seatsNote, sinceLabel, type LobbyCall } from "../../src/lib/compte/salons";
 
 const SQL = readFileSync("supabase/migrations/20261109000300_appels_aux_salons.sql", "utf8");
 
@@ -78,6 +78,13 @@ describe("la réponse des appels", () => {
     expect(parseLobbyCalls({ ok: true, calls: [row] })).toBeNull();
     expect(parseLobbyCalls({ ok: true, now: "2026-11-09T20:03:00Z" })).toBeNull();
     expect(parseLobbyCalls(null)).toBeNull();
+  });
+});
+
+describe("la relecture des appels", () => {
+  it("s'arrête au premier refus qui ne passera pas en réessayant, pas sur une panne", () => {
+    for (const code of ["not_signed_in", "not_validated", "suspended"]) expect(isFinalRefusal(code), code).toBe(true);
+    for (const code of ["network", "rate_limited", "invalid_game"]) expect(isFinalRefusal(code), code).toBe(false);
   });
 });
 

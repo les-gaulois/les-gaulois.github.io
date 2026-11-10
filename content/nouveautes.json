@@ -1,5 +1,15 @@
 [
   {
+    "date": "2026-11-10",
+    "kind": "ameliore",
+    "title": "Les appels des Gaulois sur tout le site",
+    "body": "Quand un Gaulois prévient au QG qu'il attend dans un salon, les membres connectés le voient sur les pages du site, dans une fenêtre bleue plus visible, avec un son.",
+    "link": {
+      "href": "/qg#salons",
+      "label": "Ouvrir le QG"
+    }
+  },
+  {
     "date": "2026-11-09",
     "kind": "nouveau",
     "title": "Refaire une demande d'adhésion",

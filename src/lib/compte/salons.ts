@@ -1,6 +1,6 @@
 /**
  * Les appels aux salons, au QG : un membre validé qui attend dans un salon d'OpenFront colle le lien que le jeu lui donne
- * pour inviter ses amis, et les membres validés qui ont le QG ouvert sont prévenus. Le site ne lit rien chez OpenFront :
+ * pour inviter ses amis, et les membres validés connectés sont prévenus, sur les pages du site. Le site ne lit rien chez OpenFront :
  * il refait seulement l'adresse du salon à partir de son identifiant. Le serveur (`save_lobby_call`, `get_lobby_calls`)
  * refait chaque contrôle ; ici, de quoi lire sa réponse sans rien inventer.
  */
@@ -105,6 +105,9 @@ export function parseLobbyCalls(raw: unknown): LobbyCalls | null {
   if (now === null) return null;
   return { now, calls: raw["calls"].flatMap((call) => callOf(call) ?? []) };
 }
+
+/** Les refus du serveur qui ne passeront pas en réessayant : plus de session, compte pas encore validé, compte suspendu. La relecture s'arrête là. */
+export const isFinalRefusal = (code: string): boolean => code === "not_signed_in" || code === "not_validated" || code === "suspended";
 
 /** La clé d'un appel : un nouveau salon du même membre fait de nouveau sonner, le même salon jamais deux fois. */
 export const callKey = (call: Pick<LobbyCall, "id" | "game">): string => `${call.id}:${call.game}`;

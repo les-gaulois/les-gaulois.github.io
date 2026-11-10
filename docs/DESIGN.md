@@ -79,6 +79,8 @@ Les grandes sections sont des blocs `.stage` à coins de 24 px. La profondeur vi
 
 Une scène associe un texte et un panneau `.panel`, à la manière d'un écran de l'application. **Ces panneaux n'affichent que des données collectées :** graphique des parties, créneaux réels. Aucune maquette ni valeur fictive.
 
+**La seule surface flottante du site** est le pop-up des appels des Gaulois (`src/components/compte/AppelsGaulois.tsx`), pour les membres connectés. Il reprend le dégradé de `.stage-blue` par sa variable, sans la classe `.stage` : ni halo, ni inclinaison, ni frontière au survol. Il a des coins de 16 px, une ombre et une bordure blanche de 2 px, qui le détachent de la page. Il garde un fond plein (`bg-blue`) sous le dégradé, pour le mode contraste élevé. Il reste bleu sur `/direction` et `/admin`.
+
 ## Typographie
 
 - **Titres :** Outfit, graisse 800, en capitales, interligne serré, approche -0,01 em. Le rendu est proche du lettrage du logo, avec une police libre de droits.
