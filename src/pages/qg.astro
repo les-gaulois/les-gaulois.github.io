@@ -6,11 +6,12 @@ import QgApp from "../components/compte/QgApp";
 import { AUTH_ENABLED } from "../lib/compte/api";
 ---
 
-{/* La face privée du site : cette page ne contient que la porte. Le contenu vient du serveur, pour un membre validé seulement. */}
+{/* La face privée du site, et depuis le 10 novembre 2026 l'administration de l'encadrement : cette page ne contient que la porte.
+    Le contenu vient du serveur, pour un membre validé seulement. `espace` : tout y est plus grand, voir global.css. */}
 <Base title="Le QG" description="Le QG des membres du clan GAL : salons à rejoindre, décisions, boîte à idées et événements, réservé aux membres reconnus." noindex>
   <div class="wrap">
-    <PageHeader title="Le QG" />
-    <div class="mt-6">
+    <PageHeader title="Le QG" compact />
+    <div class="espace">
       {AUTH_ENABLED ? <QgApp client:only="preact" /> : <NotOpen />}
     </div>
   </div>

@@ -30,7 +30,7 @@ Un univers de jeu sombre, pas une page de statistiques : grands titres en capita
 
 Pas de couleur en dur dans un composant : un jeton, ou une classe de `global.css`. Les couleurs des territoires sur la carte sont celles des clans dans le jeu, pas des jetons.
 
-**Thème rouge de l'encadrement :** `/direction` et `/admin` passent `theme="rouge"` à `Base.astro`, qui pose `data-theme="rouge"` sur `<html>`. `global.css` redonne alors à chaque jeton une teinte rouge, rôle pour rôle (valeurs et contrastes dans `docs/DESIGN.md`), et `fx.ts` inverse ses couleurs : le rouge mène, le bleu répond. Une future page de l'encadrement passe la même option ; une page de membre, comme `/compte`, reste bleue. Le tricolore garde `flag-blue`, et `.form-problem` (refus du serveur, « Absent de la liste ») s'y écrit en jaune `warn`.
+**Thème rouge de l'encadrement :** `/direction` passe `theme="rouge"` à `Base.astro`, qui pose `data-theme="rouge"` sur `<html>`, et `fx.ts` inverse ses couleurs : le rouge mène, le bleu répond. Au QG, seuls les onglets de l'encadrement (Demandes, Comptes, Journal) et leurs parties portent `data-theme="rouge"`, dans un cadre `.zone-encadrement`. `global.css` redonne alors à chaque jeton une teinte rouge, rôle pour rôle, pour la page ou pour l'élément (valeurs et contrastes dans `docs/DESIGN.md`). `/admin` ne fait plus que mener au QG. Une future page de l'encadrement passe la même option ; une page de membre, comme `/compte`, reste bleue. Le tricolore garde `flag-blue`, et `.form-problem` (refus du serveur, « Absent de la liste ») s'y écrit en jaune `warn`.
 
 ## Scènes, cartes, boutons
 

@@ -120,6 +120,11 @@ export function freshCalls(calls: readonly LobbyCall[], seen: ReadonlySet<string
   return calls.filter((call) => !seen.has(callKey(call)));
 }
 
+/** Les Gaulois qui attendent dans un salon, sans compter le membre connecté : le nombre de l'onglet « Salons » du QG. */
+export function waitingOthers(calls: readonly Pick<LobbyCall, "mine">[]): number {
+  return calls.filter((call) => !call.mine).length;
+}
+
 /** Le texte d'un appel pour celui qui l'a lancé : « Vous attendez dans un salon Trios. » */
 export const ownCallSentence = (call: Pick<LobbyCall, "format">): string => `Vous attendez dans ${salonOf(call.format)}.`;
 

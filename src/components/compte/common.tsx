@@ -1,6 +1,7 @@
 import type { ComponentChildren } from "preact";
 import { useCallback, useEffect, useState } from "preact/hooks";
 import { ServerError, call, getSession, signInWithDiscord, supabase } from "../../lib/compte/api";
+import { PENDING_CHANGED } from "../../lib/compte/pending";
 import { initialOf } from "../../lib/compte/qg";
 import type { Me } from "../../lib/compte/types";
 import { onPlayerViewChange, readPlayerView, viewedAccount } from "../../lib/compte/vue-joueur";
@@ -17,6 +18,38 @@ export function useNow(every = 60_000): Date {
     return () => window.clearInterval(timer);
   }, [every]);
   return now;
+}
+
+/**
+ * Les demandes d'adhésion qui attendent, pour la pastille de l'en-tête et l'onglet Demandes du QG. Le serveur ne donne ce
+ * nombre qu'à l'encadrement (`count_pending_requests`) ; il se relit quand une demande est traitée sur la page.
+ * `null` : pas demandé (`enabled` faux) ou pas de réponse : rien ne s'affiche.
+ */
+export function usePendingCount(enabled: boolean): number | null {
+  const [pending, setPending] = useState<number | null>(null);
+  useEffect(() => {
+    if (!enabled) {
+      setPending(null);
+      return;
+    }
+    let live = true;
+    const read = () => {
+      call<{ pending: number }>("count_pending_requests")
+        .then((data) => {
+          if (live) setPending(data.pending);
+        })
+        .catch(() => {
+          if (live) setPending(null);
+        });
+    };
+    read();
+    window.addEventListener(PENDING_CHANGED, read);
+    return () => {
+      live = false;
+      window.removeEventListener(PENDING_CHANGED, read);
+    };
+  }, [enabled]);
+  return pending;
 }
 
 /** La vue joueur de ce navigateur, tenue à jour quand on l'ouvre ou la quitte sur cette page. */

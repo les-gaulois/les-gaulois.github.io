@@ -2,6 +2,16 @@
   {
     "date": "2026-11-10",
     "kind": "ameliore",
+    "title": "Le QG rangé en onglets, et en plus grand",
+    "body": "Le QG et la Direction montrent une partie à la fois, sous des onglets. Textes et boutons sont plus grands. L'administration de l'encadrement a rejoint le QG.",
+    "link": {
+      "href": "/qg",
+      "label": "Ouvrir le QG"
+    }
+  },
+  {
+    "date": "2026-11-10",
+    "kind": "ameliore",
     "title": "L'alerte aussi pour celui qui appelle",
     "body": "Le membre qui prévient les Gaulois depuis le QG reçoit lui aussi une fenêtre, comme celle des autres, avec le son.",
     "link": {

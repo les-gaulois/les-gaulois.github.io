@@ -234,7 +234,13 @@ export function memberFacesOf(raw: unknown): Map<string, string> | null {
   return new Map(rows.flatMap((row) => (row.avatar !== null && seen.get(row.pseudo.toLocaleLowerCase("fr")) === 1 ? [[row.pseudo, row.avatar] as const] : [])));
 }
 
-const counted = (n: number, one: string, many: string) => (n === 1 ? `1 ${one}` : `${fmtInt(n)} ${many}`);
+/** « 1 sondage ouvert », « 3 sondages ouverts » : le nombre et ses mots, accordés. */
+export const counted = (n: number, one: string, many: string) => (n === 1 ? `1 ${one}` : `${fmtInt(n)} ${many}`);
+
+/** Les sondages ouverts où le membre n'a pas encore voté : le nombre de l'onglet « Décisions » du QG. */
+export function pollsAwaitingVote(polls: readonly Pick<QgPoll, "is_open" | "mine">[]): number {
+  return polls.filter((poll) => poll.is_open && poll.mine === null).length;
+}
 
 /**
  * Ce qui attend les membres au QG, en une phrase pour la porte de l'accueil : « 2 sondages ouverts, 1 idée à l'étude et

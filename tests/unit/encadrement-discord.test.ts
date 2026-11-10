@@ -13,19 +13,19 @@ describe("le message à l'encadrement", () => {
     expect(decision).toEqual({
       send: true,
       kind: "nouvelle",
-      text: `2 demandes d'adhésion attendent sur le site du clan. À traiter : ${SITE}/admin`,
+      text: `2 demandes d'adhésion attendent sur le site du clan. À traiter : ${SITE}/qg#demandes`,
       note: { newest_id: 12, reminded_at: NOW.toISOString() },
     });
   });
 
   it("part au tout premier passage s'il y a des demandes", () => {
     const decision = staffNotice(digest({ pending: 1, newest_id: 3, notice: null }), NOW, SITE);
-    expect(decision).toMatchObject({ send: true, kind: "nouvelle", text: `Une demande d'adhésion attend sur le site du clan. À traiter : ${SITE}/admin` });
+    expect(decision).toMatchObject({ send: true, kind: "nouvelle", text: `Une demande d'adhésion attend sur le site du clan. À traiter : ${SITE}/qg#demandes` });
   });
 
   it("dit l'attente de la plus ancienne au-delà de 24 h", () => {
     const decision = staffNotice(digest({ oldest_at: hoursAgo(50) }), NOW, SITE);
-    expect(decision.send && decision.text).toBe(`2 demandes d'adhésion attendent sur le site du clan. La plus ancienne attend depuis 2 jours. À traiter : ${SITE}/admin`);
+    expect(decision.send && decision.text).toBe(`2 demandes d'adhésion attendent sur le site du clan. La plus ancienne attend depuis 2 jours. À traiter : ${SITE}/qg#demandes`);
   });
 
   it("ne répète rien sans nouvelle demande, puis rappelle une fois par jour une demande de plus de 24 h", () => {
@@ -35,7 +35,7 @@ describe("le message à l'encadrement", () => {
     expect(staffNotice(later, NOW, SITE)).toEqual({
       send: true,
       kind: "rappel",
-      text: `Rappel : 2 demandes d'adhésion attendent sur le site du clan. La plus ancienne attend depuis 26 h. À traiter : ${SITE}/admin`,
+      text: `Rappel : 2 demandes d'adhésion attendent sur le site du clan. La plus ancienne attend depuis 26 h. À traiter : ${SITE}/qg#demandes`,
       note: { newest_id: 10, reminded_at: NOW.toISOString() },
     });
   });
@@ -60,7 +60,7 @@ describe("le message à l'encadrement", () => {
     expect(decision).toEqual({
       send: true,
       kind: "service",
-      text: `L'avis à l'encadrement est en place : ce salon sera prévenu dans l'heure des demandes d'adhésion qui attendent sur le site du clan, sans aucun nom, et du résultat de chaque sauvegarde chiffrée, jamais entre 23 h et 8 h. Les demandes se traitent ici : ${SITE}/admin`,
+      text: `L'avis à l'encadrement est en place : ce salon sera prévenu dans l'heure des demandes d'adhésion qui attendent sur le site du clan, sans aucun nom, et du résultat de chaque sauvegarde chiffrée, jamais entre 23 h et 8 h. Les demandes se traitent ici : ${SITE}/qg#demandes`,
       note: { newest_id: null, reminded_at: null },
     });
     // La nuit, il attend 8 h.

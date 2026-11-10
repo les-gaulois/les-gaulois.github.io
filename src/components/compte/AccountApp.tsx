@@ -195,19 +195,14 @@ export default function AccountApp() {
         </p>
         {me.status === "validated" && (
           <div class="mt-4 flex flex-wrap gap-3">
-            {/* Le mot de l'encadrement, les sondages, les idées et le mur sont au QG, réservé aux membres validés. */}
+            {/* Le mot de l'encadrement, les sondages, les idées et le mur sont au QG, réservé aux membres validés. L'administration y est aussi, dans les onglets de l'encadrement. */}
             <a class="btn btn-primary" href={`${basePath()}/qg`} data-testid="account-qg">
               Entrer dans le QG
             </a>
             {(me.rank ?? 0) >= 2 && (
-              <>
-                <a class="btn btn-secondary" href={`${basePath()}/direction`}>
-                  Direction
-                </a>
-                <a class="btn btn-secondary" href={`${basePath()}/admin`}>
-                  Administration
-                </a>
-              </>
+              <a class="btn btn-secondary" href={`${basePath()}/direction`}>
+                Direction
+              </a>
             )}
           </div>
         )}

@@ -4,9 +4,13 @@ import type { Me } from "../lib/compte/types";
 import { keepsPlayerView, setPlayerView, takeOpenedHere } from "../lib/compte/vue-joueur";
 import { usePlayerView } from "./compte/common";
 
-/** Quand la bande disparaît, le focus revient au bouton qui l'avait ouverte, sinon au lien Direction de l'en-tête. */
+/**
+ * Quand la bande disparaît, le focus revient au bouton qui l'avait ouverte, sinon au lien Direction de l'en-tête, ou au
+ * lien QG sur téléphone, où le lien Direction est masqué.
+ */
 function focusAfterLeaving() {
-  (document.querySelector<HTMLElement>("[data-player-view-start]") ?? document.querySelector<HTMLElement>("[data-direction-link]"))?.focus();
+  const links = [...document.querySelectorAll<HTMLElement>("[data-direction-link], [data-qg-link]")];
+  (document.querySelector<HTMLElement>("[data-player-view-start]") ?? links.find((link) => link.getClientRects().length > 0))?.focus();
 }
 
 /**

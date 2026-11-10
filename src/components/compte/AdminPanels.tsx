@@ -1,21 +1,19 @@
+/**
+ * L'administration, au QG depuis le 10 novembre 2026 : les onglets Demandes, Comptes et Journal de l'encadrement.
+ * L'affichage suit le rôle (voir `QgApp.tsx`), mais chaque fonction du serveur revérifie : masquer un onglet ne protège rien.
+ */
 import { useEffect, useState } from "preact/hooks";
 import { LOG_CATEGORIES, LOG_LIMIT, LOG_PAGE, describe, filterLog, logPeople, type LogCategory } from "../../lib/compte/admin-log";
 import { ROSTER_CELL_LABELS, ROSTER_CELL_WARN, canRedoRequest, notFoundHelp, openRequests, redoRequestDone, redoRequestQuestion, rosterCell } from "../../lib/compte/admin-members";
-import { basePath, call } from "../../lib/compte/api";
+import { call } from "../../lib/compte/api";
 import { announcePendingChange } from "../../lib/compte/pending";
 import { READY_REASONS, requestWait, requestsSummary } from "../../lib/compte/requests";
 import { ROLE_LABELS, type LogRow, type Me, type MemberRow, type RequestRow, type Role } from "../../lib/compte/types";
 import { fmtCount, fmtDateTime, fmtInt } from "../../lib/format";
-import { DiscordButton, Empty, Loading, Problem, Success, messageOf, useMe, useNow } from "./common";
+import { Empty, Loading, Problem, Success, messageOf, useNow } from "./common";
+import { PartieTete } from "./Onglets";
 
-type Tab = "requests" | "members" | "log";
-
-/** L'affichage suit le rôle, mais chaque fonction du serveur revérifie : masquer un onglet ne protège rien. */
-const TABS: { id: Tab; label: string; rank: number }[] = [
-  { id: "requests", label: "Demandes", rank: 2 },
-  { id: "members", label: "Membres", rank: 2 },
-  { id: "log", label: "Journal", rank: 3 },
-];
+const STAFF = "Encadrement";
 
 const STATUS_LABELS = { pending: "En attente", validated: "Validé", suspended: "Suspendu" } as const;
 
@@ -64,9 +62,9 @@ function useAction(after: () => Promise<void>) {
   return { busy, error, done, run };
 }
 
-function Requests() {
+export function Requests() {
   const list = useList<RequestRow>("list_membership_requests");
-  // La pastille de l'en-tête suit : une demande traitée ici n'y compte plus.
+  // La pastille de l'en-tête et le nombre de l'onglet suivent : une demande traitée ici n'y compte plus.
   const action = useAction(async () => {
     announcePendingChange();
     await list.reload();
@@ -78,28 +76,36 @@ function Requests() {
   const oldest = list.rows?.[0] ? requestWait(list.rows[0].created_at, now) : null;
 
   return (
-    <div data-testid="admin-requests">
-      <p class="text-sm text-muted">
-        {roster ? `Liste officielle relue le ${fmtDateTime(roster.read_at)} : ${fmtInt(roster.total)} ${roster.total > 1 ? "membres" : "membre"}.` : "La liste officielle n'a encore jamais été relue : aucun contrôle automatique pour l'instant."} Cette liste est publique : y figurer ne prouve pas qu'on est ce membre. Vérifiez sur Discord.
-      </p>
+    <section aria-labelledby="demandes-titre" data-testid="admin-requests">
+      <PartieTete id="demandes-titre" eyebrow={STAFF} title="Demandes d'adhésion">
+        <p>
+          {roster ? `Liste officielle relue le ${fmtDateTime(roster.read_at)} : ${fmtInt(roster.total)} ${roster.total > 1 ? "membres" : "membre"}.` : "La liste officielle n'a encore jamais été relue : aucun contrôle automatique pour l'instant."} Cette liste est publique : y figurer ne prouve pas qu'on est ce membre. Vérifiez sur Discord.
+        </p>
+      </PartieTete>
       <Problem message={list.error ?? action.error} onRetry={() => void list.reload()} />
       {action.done && <Success message={action.done} />}
       {list.rows === null ? (
-        !list.error && <Loading />
+        !list.error && (
+          <div class="mt-4">
+            <Loading />
+          </div>
+        )
       ) : list.rows.length === 0 ? (
-        <Empty>Aucune demande en attente.</Empty>
+        <div class="mt-4">
+          <Empty>Aucune demande en attente.</Empty>
+        </div>
       ) : (
         <>
           {oldest && (
-            <p class={`mt-3 text-sm ${oldest.late ? "font-semibold text-warn" : ""}`} data-testid="requests-summary">
+            <p class={`mt-4 ${oldest.late ? "font-semibold text-warn" : ""}`} data-testid="requests-summary">
               {requestsSummary(list.rows.length, oldest)}
             </p>
           )}
-          <ul class="mt-3 grid gap-3">
+          <ul class="mt-4 grid items-start gap-4 lg:grid-cols-2">
             {list.rows.map((r) => {
               const wait = requestWait(r.created_at, now);
               return (
-                <li key={r.id} class="card p-4" data-testid="request-row">
+                <li key={r.id} class="card p-5" data-testid="request-row">
                   <p class="font-semibold">
                     {r.discord_name ?? r.name} <span class="text-sm font-normal text-muted">({r.name})</span>
                   </p>
@@ -131,11 +137,11 @@ function Requests() {
                       </button>
                     ))}
                   </div>
-                  <div class="mt-3 flex flex-wrap gap-2">
-                    <button type="button" class="btn btn-primary !min-h-10 !py-1.5" disabled={action.busy} onClick={() => void action.run(() => call("review_membership", { p_request: r.id, p_approve: true, p_reason: reasons[r.id] || null }), "Membre validé.")}>
+                  <div class="mt-4 flex flex-wrap gap-3">
+                    <button type="button" class="btn btn-primary" disabled={action.busy} onClick={() => void action.run(() => call("review_membership", { p_request: r.id, p_approve: true, p_reason: reasons[r.id] || null }), "Membre validé.")}>
                       Valider
                     </button>
-                    <button type="button" class="btn btn-ghost !min-h-10 !py-1.5" disabled={action.busy} onClick={() => void action.run(() => call("review_membership", { p_request: r.id, p_approve: false, p_reason: reasons[r.id] || null }), "Demande refusée.")}>
+                    <button type="button" class="btn btn-ghost" disabled={action.busy} onClick={() => void action.run(() => call("review_membership", { p_request: r.id, p_approve: false, p_reason: reasons[r.id] || null }), "Demande refusée.")}>
                       Refuser
                     </button>
                   </div>
@@ -145,11 +151,11 @@ function Requests() {
           </ul>
         </>
       )}
-    </div>
+    </section>
   );
 }
 
-function Members({ me }: { me: Me }) {
+export function Members({ me }: { me: Me }) {
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
   const list = useList<MemberRow>("list_members", { p_search: query || null, p_limit: 200 });
@@ -188,13 +194,14 @@ function Members({ me }: { me: Me }) {
   }, [focusDone, action.busy]);
 
   return (
-    <div data-testid="admin-members">
+    <section aria-labelledby="membres-titre" data-testid="admin-members">
+      <PartieTete id="membres-titre" eyebrow={STAFF} title="Comptes du site" />
       {/* Toujours présente : un lecteur d'écran annonce ce qui change dans une zone qui existait déjà. */}
       <p class="sr-only" role="status">
         {draft && drafted ? `Rôle de ${drafted.name} : ${ROLE_LABELS[drafted.role]} → ${ROLE_LABELS[draft.role]}. Confirmez ou annulez.` : ""}
       </p>
       <form
-        class="flex flex-wrap items-end gap-2"
+        class="mt-5 flex flex-wrap items-end gap-3"
         onSubmit={(e) => {
           e.preventDefault();
           setQuery(search);
@@ -207,7 +214,7 @@ function Members({ me }: { me: Me }) {
           </label>
           <input id="member-search" class="field mt-1" type="search" value={search} onInput={(e) => setSearch(e.currentTarget.value)} />
         </div>
-        <button type="submit" class="btn btn-secondary !min-h-11">
+        <button type="submit" class="btn btn-secondary">
           Chercher
         </button>
       </form>
@@ -354,18 +361,18 @@ function Members({ me }: { me: Me }) {
           </table>
         </div>
       )}
-      <p class="mt-2 text-xs text-muted" data-testid="members-names-help">
+      <p class="mt-3 max-w-4xl text-sm text-muted" data-testid="members-names-help">
         <span data-testid="members-roster-date">{roster ? `Liste officielle relue le ${fmtDateTime(roster.read_at)}. ` : roster === null ? "La liste officielle n'a encore jamais été relue. " : ""}</span>
         Un compte s'appelle « Gaulois n° … » jusqu'à sa validation, puis prend son pseudo de la liste officielle. Validé hors de la liste, ou membre sans pseudo public, il garde ce nom.
         {someNotFound && <span data-testid="members-not-found-help">{` ${notFoundHelp(someRedo)}`}</span>}
       </p>
-      <p class="mt-1 text-xs text-muted">Vous êtes {ROLE_LABELS[myRole]}. Le serveur revérifie chaque changement.</p>
-    </div>
+      <p class="mt-1 text-sm text-muted">Vous êtes {ROLE_LABELS[myRole]}. Le serveur revérifie chaque changement.</p>
+    </section>
   );
 }
 
 /** Le journal en phrases, avec un filtre par personne et par type d'action. Le serveur garde les codes : voir `src/lib/compte/admin-log.ts`. */
-function Log() {
+export function Log() {
   const list = useList<LogRow>("list_admin_log", { p_limit: LOG_LIMIT });
   const [person, setPerson] = useState("");
   const [category, setCategory] = useState<LogCategory | "">("");
@@ -374,15 +381,22 @@ function Log() {
   const filtered = filterLog(rows, { person: person || null, category: category || null });
 
   return (
-    <div data-testid="admin-log">
+    <section aria-labelledby="journal-titre" data-testid="admin-log">
+      <PartieTete id="journal-titre" eyebrow={STAFF} title="Journal" />
       <Problem message={list.error} onRetry={() => void list.reload()} />
       {list.rows === null ? (
-        !list.error && <Loading />
+        !list.error && (
+          <div class="mt-4">
+            <Loading />
+          </div>
+        )
       ) : rows.length === 0 ? (
-        <Empty>Le journal est vide.</Empty>
+        <div class="mt-4">
+          <Empty>Le journal est vide.</Empty>
+        </div>
       ) : (
         <>
-          <div class="flex flex-wrap gap-3">
+          <div class="mt-5 flex flex-wrap gap-3">
             <div class="min-w-48 flex-1">
               <label class="text-sm font-semibold" for="log-person">
                 Personne
@@ -450,54 +464,12 @@ function Log() {
             </ol>
           )}
           {filtered.length > shown && (
-            <button type="button" class="btn btn-ghost mt-2 !min-h-10 !py-1.5 !text-sm" onClick={() => setShown(shown + LOG_PAGE)}>
+            <button type="button" class="btn btn-ghost mt-3" onClick={() => setShown(shown + LOG_PAGE)}>
               Afficher {fmtInt(Math.min(LOG_PAGE, filtered.length - shown))} de plus
             </button>
           )}
         </>
       )}
-    </div>
-  );
-}
-
-export default function AdminApp() {
-  const { me, failed, refresh } = useMe();
-  const [tab, setTab] = useState<Tab>("requests");
-
-  if (me === null) return <Loading label="Lecture de votre compte…" />;
-  if (failed) return <Problem message="Votre compte n'a pas pu être lu pour l'instant." onRetry={() => void refresh()} />;
-  if (!me.signed_in) {
-    return (
-      <section class="card p-6" data-testid="admin-signed-out">
-        <p class="mb-4">Cet espace est réservé aux officiers et aux admins du clan.</p>
-        <DiscordButton returnPath="/admin" />
-      </section>
-    );
-  }
-  const rank = me.rank ?? 0;
-  if (rank < 2) {
-    return (
-      <p class="card p-6" data-testid="admin-denied">
-        Cet espace est réservé aux officiers et aux admins du clan. <a href={`${basePath()}/compte`}>Voir mon compte</a>
-      </p>
-    );
-  }
-
-  const tabs = TABS.filter((t) => rank >= t.rank);
-  return (
-    <div data-testid="admin">
-      <div class="flex flex-wrap gap-2" role="tablist" aria-label="Sections de l'administration">
-        {tabs.map((t) => (
-          <button key={t.id} type="button" role="tab" class="chip" aria-selected={tab === t.id} onClick={() => setTab(t.id)}>
-            {t.label}
-          </button>
-        ))}
-      </div>
-      <div class="mt-5" role="tabpanel">
-        {tab === "requests" && <Requests />}
-        {tab === "members" && <Members me={me} />}
-        {tab === "log" && <Log />}
-      </div>
-    </div>
+    </section>
   );
 }

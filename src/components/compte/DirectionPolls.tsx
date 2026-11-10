@@ -3,6 +3,7 @@ import { call } from "../../lib/compte/api";
 import { POLL_MAX_OPTIONS, POLL_MIN_OPTIONS, POLL_OPTION_MAX, POLL_QUESTION_MAX, cleanOptions, fmtVotes, pollProblem, pollRows, validPollTotals } from "../../lib/compte/polls";
 import { fmtDateTime, fmtInt } from "../../lib/format";
 import { DeleteButton, Loading, Problem, Success, messageOf, useRun } from "./common";
+import { PartieTete } from "./Onglets";
 
 interface PollRow {
   id: number;
@@ -64,111 +65,117 @@ export default function DirectionPolls({ form, setForm }: { form: PollDraft; set
   const setOption = (index: number, value: string) => setForm({ ...form, options: form.options.map((o, i) => (i === index ? value : o)) });
 
   return (
-    <section class="card p-5" aria-labelledby="polls-title" data-testid="direction-polls">
-      <h2 id="polls-title" class="text-xl">
-        Sondages
-      </h2>
-      <p class="mt-2 text-sm text-muted">Vote secret au QG. Trois sondages ouverts au plus.</p>
-      <form
-        class="mt-4 grid gap-3"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void send();
-        }}
-      >
-        <div>
-          <label for="poll-q" class="text-sm font-semibold">
-            Question
-          </label>
-          <input id="poll-q" class="field mt-1" required maxLength={POLL_QUESTION_MAX} value={form.question} onInput={(e) => setForm({ ...form, question: e.currentTarget.value })} />
-        </div>
-        <fieldset class="grid gap-2">
-          <legend class="text-sm font-semibold">
-            Choix ({POLL_MIN_OPTIONS} à {POLL_MAX_OPTIONS})
-          </legend>
-          {form.options.map((option, i) => (
-            <div key={i} class="flex gap-2">
-              <input class="field" aria-label={`Choix ${i + 1}`} maxLength={POLL_OPTION_MAX} value={option} onInput={(e) => setOption(i, e.currentTarget.value)} />
-              {form.options.length > POLL_MIN_OPTIONS && (
-                <button type="button" class="chip !min-h-11 shrink-0" aria-label={`Retirer le choix ${i + 1}`} onClick={() => setForm({ ...form, options: form.options.filter((_, j) => j !== i) })}>
-                  Retirer
+    <section aria-labelledby="polls-title" data-testid="direction-polls">
+      <PartieTete id="polls-title" title="Sondages">
+        <p>Vote secret au QG. Trois sondages ouverts au plus.</p>
+      </PartieTete>
+      <div class="mt-6 grid items-start gap-6 lg:grid-cols-2">
+        <form
+          class="card grid gap-4 p-5"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void send();
+          }}
+        >
+          <h3 class="text-lg">Nouveau sondage</h3>
+          <div>
+            <label for="poll-q" class="text-sm font-semibold">
+              Question
+            </label>
+            <input id="poll-q" class="field mt-1" required maxLength={POLL_QUESTION_MAX} value={form.question} onInput={(e) => setForm({ ...form, question: e.currentTarget.value })} />
+          </div>
+          <fieldset class="grid gap-2">
+            <legend class="text-sm font-semibold">
+              Choix ({POLL_MIN_OPTIONS} à {POLL_MAX_OPTIONS})
+            </legend>
+            {form.options.map((option, i) => (
+              <div key={i} class="flex gap-2">
+                <input class="field" aria-label={`Choix ${i + 1}`} maxLength={POLL_OPTION_MAX} value={option} onInput={(e) => setOption(i, e.currentTarget.value)} />
+                {form.options.length > POLL_MIN_OPTIONS && (
+                  <button type="button" class="chip !min-h-11 shrink-0" aria-label={`Retirer le choix ${i + 1}`} onClick={() => setForm({ ...form, options: form.options.filter((_, j) => j !== i) })}>
+                    Retirer
+                  </button>
+                )}
+              </div>
+            ))}
+            {form.options.length < POLL_MAX_OPTIONS && (
+              <div>
+                <button type="button" class="chip !min-h-10" onClick={() => setForm({ ...form, options: [...form.options, ""] })}>
+                  Ajouter un choix
                 </button>
-              )}
-            </div>
-          ))}
-          {form.options.length < POLL_MAX_OPTIONS && (
-            <div>
-              <button type="button" class="chip !min-h-10" onClick={() => setForm({ ...form, options: [...form.options, ""] })}>
-                Ajouter un choix
-              </button>
-            </div>
-          )}
-        </fieldset>
-        <div>
-          <label for="poll-end" class="text-sm font-semibold">
-            Fin du vote (facultative, dans les 90 jours)
-          </label>
-          <input id="poll-end" class="field mt-1" type="datetime-local" value={form.closes} onInput={(e) => setForm({ ...form, closes: e.currentTarget.value })} />
-        </div>
-        <div>
-          <button type="submit" class="btn btn-primary" disabled={busy}>
-            Lancer le sondage
-          </button>
-        </div>
-      </form>
-      <Problem message={problem ?? error} />
-      {done && <Success message={done} />}
-      <Problem message={loadError} onRetry={() => void load()} />
-      {polls === null ? (
-        !loadError && <Loading />
-      ) : (
-        polls.length > 0 && (
-          <ul class="mt-5 grid gap-4">
-            {polls.map((poll) => {
-              // Un total absent n'est pas zéro : sans totaux lisibles, pas de résultat du tout.
-              const readable = validPollTotals(poll);
-              const { rows, total } = readable ? pollRows(poll) : { rows: [], total: 0 };
-              return (
-                <li key={poll.id} class="border-t border-line pt-3" data-testid="direction-poll">
-                  <p class="font-semibold">{poll.question}</p>
-                  <p class="tnum text-xs text-muted">
-                    {status(poll)}
-                    {readable ? ` · ${fmtVotes(total)}` : ""}
-                    {poll.author ? ` · ${poll.author}` : ""}
-                  </p>
-                  {!readable && <p class="mt-2 text-sm text-warn">Les totaux de ce sondage n'ont pas pu être lus. Rechargez la page.</p>}
-                  <ul class="mt-2 grid gap-2">
-                    {rows.map((row, i) => (
-                      <li key={i}>
-                        <div class="flex flex-wrap items-baseline justify-between gap-x-3 text-sm">
-                          <span>{row.label}</span>
-                          <span class="tnum text-muted">
-                            {fmtVotes(row.count)}
-                            {row.share !== null ? ` · ${fmtInt(row.share)} %` : ""}
-                          </span>
+              </div>
+            )}
+          </fieldset>
+          <div>
+            <label for="poll-end" class="text-sm font-semibold">
+              Fin du vote (facultative, dans les 90 jours)
+            </label>
+            <input id="poll-end" class="field mt-1" type="datetime-local" value={form.closes} onInput={(e) => setForm({ ...form, closes: e.currentTarget.value })} />
+          </div>
+          <div>
+            <button type="submit" class="btn btn-primary" disabled={busy}>
+              Lancer le sondage
+            </button>
+          </div>
+          <Problem message={problem ?? error} />
+          {done && <Success message={done} />}
+        </form>
+        {/* Une liste vide n'est pas affichée : le formulaire reste seul. */}
+        {(polls === null || polls.length > 0 || loadError) && (
+          <div>
+            <h3 class="text-lg">Lancés depuis le site</h3>
+            <Problem message={loadError} onRetry={() => void load()} />
+            {polls === null ? (
+              !loadError && <Loading />
+            ) : (
+              <ul class="mt-3 grid gap-3">
+                {polls.map((poll) => {
+                  // Un total absent n'est pas zéro : sans totaux lisibles, pas de résultat du tout.
+                  const readable = validPollTotals(poll);
+                  const { rows, total } = readable ? pollRows(poll) : { rows: [], total: 0 };
+                  return (
+                    <li key={poll.id} class="card p-5" data-testid="direction-poll">
+                      <p class="font-semibold [overflow-wrap:anywhere]">{poll.question}</p>
+                      <p class="tnum mt-1 text-sm text-muted">
+                        {status(poll)}
+                        {readable ? ` · ${fmtVotes(total)}` : ""}
+                        {poll.author ? ` · ${poll.author}` : ""}
+                      </p>
+                      {!readable && <p class="mt-2 text-sm text-warn">Les totaux de ce sondage n'ont pas pu être lus. Rechargez la page.</p>}
+                      <ul class="mt-2 grid gap-2">
+                        {rows.map((row, i) => (
+                          <li key={i}>
+                            <div class="flex flex-wrap items-baseline justify-between gap-x-3 text-sm">
+                              <span>{row.label}</span>
+                              <span class="tnum text-muted">
+                                {fmtVotes(row.count)}
+                                {row.share !== null ? ` · ${fmtInt(row.share)} %` : ""}
+                              </span>
+                            </div>
+                            <div class="meter mt-1" aria-hidden="true">
+                              <i style={{ "--v": `${row.share ?? 0}%` }} />
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                      {poll.editable && (
+                        <div class="mt-3 flex flex-wrap gap-2">
+                          {poll.is_open && (
+                            <button type="button" class="btn btn-ghost !min-h-10 !py-1.5 !text-sm" disabled={busy} aria-label={`Fermer le sondage « ${poll.question} »`} onClick={() => void run(() => call("close_poll", { p_id: poll.id }), "Sondage fermé : son résultat reste au QG, dans les décisions passées.")}>
+                              Fermer
+                            </button>
+                          )}
+                          <DeleteButton busy={busy} label={poll.question} onConfirm={() => void run(() => call("delete_poll", { p_id: poll.id }), "Sondage supprimé, avec ses votes.")} />
                         </div>
-                        <div class="meter mt-1" aria-hidden="true">
-                          <i style={{ "--v": `${row.share ?? 0}%` }} />
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                  {poll.editable && (
-                    <div class="mt-3 flex flex-wrap gap-2">
-                      {poll.is_open && (
-                        <button type="button" class="btn btn-ghost !min-h-10 !py-1.5 !text-sm" disabled={busy} aria-label={`Fermer le sondage « ${poll.question} »`} onClick={() => void run(() => call("close_poll", { p_id: poll.id }), "Sondage fermé : son résultat reste au QG, dans les décisions passées.")}>
-                          Fermer
-                        </button>
                       )}
-                      <DeleteButton busy={busy} label={poll.question} onConfirm={() => void run(() => call("delete_poll", { p_id: poll.id }), "Sondage supprimé, avec ses votes.")} />
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )
-      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
     </section>
   );
 }

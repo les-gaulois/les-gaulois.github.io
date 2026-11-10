@@ -2,6 +2,7 @@ import { useEffect, useState } from "preact/hooks";
 import { call } from "../../lib/compte/api";
 import { fmtDateTime } from "../../lib/format";
 import { Loading, Problem, Success, messageOf, useRun } from "./common";
+import { PartieTete } from "./Onglets";
 
 const MAX = 2000;
 
@@ -37,38 +38,39 @@ export default function DirectionWelcome({ draft, setDraft }: { draft: string | 
   }, []);
 
   return (
-    <section class="card p-5" aria-labelledby="welcome-title" data-testid="direction-welcome">
-      <h2 id="welcome-title" class="text-xl">
-        Mot d'accueil
-      </h2>
-      <p class="mt-2 text-sm text-muted">Affiché en haut du QG. Un texte vide l'efface.</p>
-      <Problem message={loadError} onRetry={() => void load().then((body) => body !== null && setDraft(body))} />
-      {draft === null ? (
-        !loadError && <Loading />
-      ) : (
-        <form
-          class="mt-4 grid gap-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void run(() => call("save_welcome", { p_body: draft }), draft.trim() === "" ? "Mot d'accueil effacé." : "Mot d'accueil enregistré : les membres validés le voient au QG.");
-          }}
-        >
-          <div>
-            <label for="welcome-body" class="text-sm font-semibold">
-              Texte
-            </label>
-            <textarea id="welcome-body" class="field mt-1" rows={5} maxLength={MAX} value={draft} onInput={(e) => setDraft(e.currentTarget.value)} />
-            {updatedAt && <p class="tnum mt-1 text-xs text-muted">Enregistré le {fmtDateTime(updatedAt)}</p>}
-          </div>
-          <div>
-            <button type="submit" class="btn btn-primary" disabled={busy}>
-              Enregistrer le mot d'accueil
-            </button>
-          </div>
-        </form>
-      )}
-      <Problem message={error} />
-      {done && <Success message={done} />}
+    <section aria-labelledby="welcome-title" data-testid="direction-welcome">
+      <PartieTete id="welcome-title" title="Mot d'accueil">
+        <p>Affiché en haut du QG. Un texte vide l'efface.</p>
+      </PartieTete>
+      <div class="card mt-6 max-w-3xl p-5">
+        <Problem message={loadError} onRetry={() => void load().then((body) => body !== null && setDraft(body))} />
+        {draft === null ? (
+          !loadError && <Loading />
+        ) : (
+          <form
+            class="grid gap-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void run(() => call("save_welcome", { p_body: draft }), draft.trim() === "" ? "Mot d'accueil effacé." : "Mot d'accueil enregistré : les membres validés le voient au QG.");
+            }}
+          >
+            <div>
+              <label for="welcome-body" class="text-sm font-semibold">
+                Texte
+              </label>
+              <textarea id="welcome-body" class="field mt-1" rows={7} maxLength={MAX} value={draft} onInput={(e) => setDraft(e.currentTarget.value)} />
+              {updatedAt && <p class="tnum mt-2 text-sm text-muted">Enregistré le {fmtDateTime(updatedAt)}</p>}
+            </div>
+            <div>
+              <button type="submit" class="btn btn-primary" disabled={busy}>
+                Enregistrer le mot d'accueil
+              </button>
+            </div>
+          </form>
+        )}
+        <Problem message={error} />
+        {done && <Success message={done} />}
+      </div>
     </section>
   );
 }

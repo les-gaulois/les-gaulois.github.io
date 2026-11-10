@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { ERROR_MESSAGES } from "../../src/lib/compte/errors";
-import { IDEA_MAX, IDEA_MIN, IDEA_NOTE_MAX, IDEA_OPEN_MAX, IDEA_STATUS_LABELS, decidedIdeas, ideaProblem, initialOf, keepOrder, openIdeas, othersLabel, memberFacesOf, parseQg, qgWaiting, safeAvatar, supportLabel, type QgIdea } from "../../src/lib/compte/qg";
+import { IDEA_MAX, IDEA_MIN, IDEA_NOTE_MAX, IDEA_OPEN_MAX, IDEA_STATUS_LABELS, decidedIdeas, ideaProblem, initialOf, keepOrder, openIdeas, othersLabel, memberFacesOf, parseQg, pollsAwaitingVote, qgWaiting, safeAvatar, supportLabel, type QgIdea } from "../../src/lib/compte/qg";
 
 const SQL = readFileSync("supabase/migrations/20261109000100_qg_des_membres.sql", "utf8");
 
@@ -59,6 +59,20 @@ describe("la réponse du QG", () => {
     expect(data?.welcome).toBeNull();
     expect(data?.ideas.map((i) => i.id)).toEqual([7]);
     expect(parseQg({ ...answer, welcome: null })?.welcome).toBeNull();
+  });
+});
+
+describe("le nombre de l'onglet Décisions", () => {
+  it("compte les sondages ouverts sans la voix du membre, et rien d'autre", () => {
+    expect(pollsAwaitingVote([])).toBe(0);
+    expect(
+      pollsAwaitingVote([
+        { is_open: true, mine: null },
+        { is_open: true, mine: 0 },
+        { is_open: false, mine: null },
+        { is_open: true, mine: null },
+      ]),
+    ).toBe(2);
   });
 });
 

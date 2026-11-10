@@ -10,8 +10,9 @@ C'est la seule partie du site qui a un serveur et une base de données (Supabase
 
 - **Un visiteur :** un bouton « Se connecter » dans l'en-tête de toutes les pages. Tant qu'il n'a pas de session, son navigateur ne télécharge pas Supabase.
 - **Un membre connecté :** son nom dans l'en-tête, qui mène à son compte. Une fois validé, un lien « QG » s'y ajoute : c'est la face privée du site, décrite plus bas. Sur téléphone, seul « QG » reste, faute de place : le compte s'ouvre depuis le QG. Sur l'accueil, il répond « Je viens » aux événements.
-- **Un officier, un admin, le fondateur :** à la place de son nom, les liens « Direction » et « QG ». Sur téléphone, seul « Direction » reste, faute de place : le QG et le compte s'ouvrent depuis l'espace Direction.
-  - Quand des demandes attendent, une pastille jaune donne leur nombre à côté de ce lien, sur toutes les pages. Le serveur ne le donne qu'à l'encadrement (`count_pending_requests`, migration `20261108000100_pastille_direction.sql`). Il se relit à chaque page, et aussitôt qu'une demande est traitée dans `/admin`. En vue joueur, ni lien ni pastille.
+- **Un officier, un admin, le fondateur :** à la place de son nom, les liens « Direction » et « QG ». Sur téléphone, seul « QG » reste, faute de place : la Direction et le compte s'ouvrent depuis le QG.
+  - Quand des demandes attendent, une pastille jaune donne leur nombre à côté du lien « QG », sur toutes les pages, et le lien mène alors droit à l'onglet des demandes (`/qg#demandes`). Le serveur ne donne ce nombre qu'à l'encadrement (`count_pending_requests`, migration `20261108000100_pastille_direction.sql`). Il se relit à chaque page, et aussitôt qu'une demande est traitée au QG. En vue joueur, ni lien Direction ni pastille.
+  - Jusqu'au 10 novembre 2026, la pastille était sur « Direction », et seul ce lien restait sur téléphone : les demandes se traitaient alors dans `/admin`.
 
 Sans `PUBLIC_SUPABASE_URL` et `PUBLIC_SUPABASE_KEY`, aucun de ces éléments n'apparaît et le site reste entièrement statique.
 
@@ -35,9 +36,15 @@ L'identifiant OpenFront seul ne peut pas ouvrir le QG : il est public, dans l'AP
 
 En bleu, comme le reste du site : c'est l'espace des membres, pas celui de l'encadrement. Un visiteur y lit la porte et les quatre étapes ; le bouton de connexion ramène à `/compte`, là où se fait la demande.
 
+**En onglets, depuis le 10 novembre 2026** (demande du pilote : « rien n'est rangé », « tout est extrêmement petit ») : une partie à la fois, sous une barre d'onglets, en plus grand. Un membre validé a **Salons, Décisions, Événements, Idées et Le mur** ; l'encadrement a en plus **Demandes et Comptes**, et les admins et le fondateur **Journal** : l'ancienne administration, décrite plus bas. Une partie vide n'a pas d'onglet : Décisions n'apparaît qu'avec un sondage, Événements qu'avec un événement à venir. Le mur garde le sien, qui porte le bouton « Me montrer aux autres membres ». Au-dessus des onglets restent le nom du membre, ses liens (Mon compte, et Direction pour l'encadrement) et le mot de l'encadrement. Le détail de l'affichage est dans [DESIGN.md](DESIGN.md), « Les espaces de travail en onglets ».
+
+- L'onglet ouvert est dans l'adresse (`/qg#idees`) : un lien peut ouvrir un onglet, comme celui du pop-up des appels (`/qg#salons`) ou de la pastille (`/qg#demandes`). Un onglet que le compte n'a pas, par exemple `#demandes` pour un membre ou en vue joueur, laisse le premier.
+- Un nombre sur un onglet dit ce qui attend le membre : un Gaulois dans un salon, un sondage sans sa voix ; pour l'encadrement, les idées à trancher et les demandes. Tout vient du serveur.
+- Une partie cachée reste dans la page : un brouillon, une recherche ou un appel en cours ne se perdent pas d'un onglet à l'autre. Les onglets de l'encadrement ne lisent le serveur qu'au premier passage : un membre ne déclenche aucun appel d'administration.
+
 - **Se montrer aux autres membres :** un choix de chaque membre, désactivé au départ (`set_member_visibility`, colonne `profiles.show_to_members`). Activé, les autres membres validés voient son nom sur le site, son rôle et sa photo de profil Discord, sur le mur et parmi ceux qui viennent à un événement.
   - La photo n'est recopiée nulle part : le serveur lit son adresse dans `auth.identities` (`internal.discord_avatar`), et n'accepte qu'une photo choisie par le membre, à l'adresse exacte du serveur d'images de Discord. Le navigateur revérifie (`safeAvatar`). Sans photo lisible, l'initiale du nom s'affiche. L'image par défaut d'un compte sans photo est le logo de Discord : elle est écartée.
-  - **Cette adresse contient l'identifiant Discord du membre.** Un membre validé peut donc lire l'identifiant de ceux qui se montrent. Le QG le dit sous le bouton, avant le choix, et la page de confidentialité aussi. Le cacher demanderait de recopier les photos sur le serveur du site.
+  - **Cette adresse contient l'identifiant Discord du membre.** Un membre validé peut donc lire l'identifiant de ceux qui se montrent. Le QG le dit sous le bouton, avant le choix, et la page de confidentialité aussi. Le bouton est dans l'onglet « Le mur ». Le cacher demanderait de recopier les photos sur le serveur du site.
   - **Ailleurs sur le site,** depuis le 9 novembre 2026 : un membre validé connecté voit aussi ces photos à côté des pseudos, sur les podiums de l'accueil et de la gazette, les records des joueurs, l'encadrement de la page Membres et la fiche du membre. Les pages publiées ne portent que des emplacements vides (`data-face`). `src/scripts/visages.ts` appelle `get_member_faces` (migration `20261109000200_gaulois_de_la_semaine.sql`), qui ne répond qu'à un membre validé : la photo de chaque membre qui se montre, avec son pseudo d'aujourd'hui dans la liste officielle, retrouvé par l'empreinte de `private_links` et `clan_roster`, et non le nom gardé le jour de sa validation. La photo suit donc un changement de pseudo, et un autre membre qui prendrait l'ancien ne reçoit jamais la photo d'un autre. Un membre sorti de la liste n'a pas de visage. Sur la porte du QG de l'accueil, `get_qg` dit en plus ce qui attend les membres (`qgWaiting`). Un visiteur ne déclenche aucun appel.
     - Deux garde-fous de plus : un pseudo porté par plusieurs membres de la liste officielle n'a pas d'emplacement (`singlePseudos`, au build), et le serveur comme le navigateur (`memberFacesOf`) écartent un pseudo porté par deux membres, casse comprise.
     - Du 9 novembre 2026 à la mise en ligne de cette migration, les photos venaient du mur de `get_qg`, par le nom gardé à la validation : un changement de pseudo les faisait disparaître.
@@ -61,8 +68,9 @@ Le contrôle `npm run verifier:ligne` vérifie qu'un visiteur n'entre pas dans l
 
 ## L'espace Direction : `/direction`
 
-- **En rouge :** `/direction` et `/admin` ont le thème rouge de l'encadrement ([DESIGN.md](DESIGN.md), « Thème rouge de l'encadrement »), pour qu'on sache où l'on est. Seul l'affichage change. Ces pages restent rouges pour tout visiteur, y compris en vue joueur, où elles sont fermées comme pour un membre.
-- **Ce qui attend une décision :** demandes à traiter, membres validés, encadrement, suspendus. Chaque case mène à `/admin`, qui reste l'écran de décision.
+- **En onglets, depuis le 10 novembre 2026 :** Vue d'ensemble, Annonces, Événements, Sondages, Mot d'accueil, Gaulois de la semaine, et Fondateur pour le fondateur seul. Au-dessus : le nom, les liens vers le QG et Mon compte, et « Voir le site comme un joueur ».
+- **En rouge :** `/direction` a le thème rouge de l'encadrement ([DESIGN.md](DESIGN.md), « Thème rouge de l'encadrement »), comme les onglets de l'encadrement au QG, pour qu'on sache où l'on est. Seul l'affichage change. La page reste rouge pour tout visiteur, y compris en vue joueur, où elle est fermée comme pour un membre.
+- **Ce qui attend une décision**, dans la vue d'ensemble : demandes à traiter, membres validés, encadrement, suspendus. Chaque case mène à l'onglet du QG où l'on décide (`/qg#demandes`, `/qg#comptes`). L'onglet Vue d'ensemble compte les demandes qui attendent.
 - **État du site :** la dernière collecte publiée, chaque source de l'API d'OpenFront (à jour, en retard ou en échec, avec l'erreur), la dernière relecture de la liste officielle et le dernier envoi de la gazette sur Discord.
   - Tout vient de `data/meta.json`, de `data/gazette-envoi.json` et du serveur. Les délais sont ceux des pages du site (`src/lib/freshness.ts`).
   - L'âge se calcule dans le navigateur, chaque minute. Si la collecte ou la mise en ligne s'arrête, la page n'est plus reconstruite, mais elle vieillit à l'écran et le signale. Laquelle des deux s'est arrêtée se lit dans l'onglet **Actions**.
@@ -80,13 +88,16 @@ Le contrôle `npm run verifier:ligne` vérifie qu'un visiteur n'entre pas dans l
 - **Gaulois de la semaine :** l'encadrement, officiers compris, choisit un membre de la liste officielle pour la semaine en cours, du lundi au dimanche à Paris, avec un mot facultatif de 300 caractères (`save_weekly_pick`), et peut retirer le choix que l'accueil montre, de cette semaine ou de la précédente (`delete_weekly_pick`). Le serveur n'accepte qu'un pseudo de `clan_roster`, sans homonyme. L'accueil le montre à tous, sous le podium de « Les Gaulois de la semaine », jamais le nom de qui l'a choisi (`get_site_news`, case `weekly_pick`) : toute sa semaine, et la suivante tant qu'aucun autre n'est choisi, avec sa semaine écrite. Un joueur qui n'est plus dans la liste publique (parti, ou pseudo retiré) n'est pas affiché, comme dans la gazette. Les choix passés restent dans la table et les sauvegardes ; en retirer un ancien se fait dans l'éditeur SQL. Le journal note qui a choisi ou retiré qui, jamais le mot. Les choix sont dans une table privée, `internal.weekly_picks`, et dans la sauvegarde (`export_site` version 3).
 - Les brouillons des sondages et du mot d'accueil survivent, eux aussi, à un aller-retour en vue joueur.
 - **Transmettre le rôle de fondateur :** visible du fondateur seul. Il faut retaper le nom de la personne. L'ancien fondateur devient admin.
-- **Voir le site comme un joueur :** le bouton en haut de l'espace montre tout le site comme à un membre sans grade : plus de lien « Direction » dans l'en-tête, plus de boutons de l'encadrement dans `/compte`, et `/direction` et `/admin` fermés comme pour un membre. Une bande en haut de chaque page le rappelle et permet d'en sortir.
+- **Voir le site comme un joueur :** le bouton en haut de l'espace montre tout le site comme à un membre sans grade : plus de lien « Direction » dans l'en-tête, plus de boutons de l'encadrement dans `/compte`, plus d'onglets de l'encadrement au QG, et `/direction` fermé comme pour un membre. Une bande en haut de chaque page le rappelle et permet d'en sortir.
   - Seul l'affichage change : le serveur garde le vrai rôle. Un bouton de membre agit pour de vrai : « Effacer mon compte » efface le compte d'un officier ou d'un admin, et le serveur le refuse au fondateur.
   - Le choix reste dans le navigateur (`gal-vue-joueur`) jusqu'à la sortie ou la déconnexion, y compris quand la session se perd seule (jeton révoqué, déconnexion sur un autre appareil). Il vaut pour les pages ouvertes ensuite, dans tous les onglets : une page déjà ouverte ailleurs garde sa vue jusqu'à son prochain chargement, pour ne pas fermer un formulaire en cours. Les brouillons d'annonce et d'événement survivent à un aller-retour.
 
 Une annonce parle au nom du clan : le nom de son auteur n'est pas public, seuls l'encadrement et le journal le connaissent.
 
-## L'administration : `/admin`
+## L'administration, au QG
+
+Depuis le 10 novembre 2026, à la demande du pilote, l'administration est dans les onglets de l'encadrement du QG (`src/components/compte/AdminPanels.tsx`), aux couleurs du thème rouge. L'ancienne adresse `/admin` reste, pour les liens déjà donnés et les retours de connexion : elle mène à `/qg#demandes` en gardant la suite de l'adresse (`/admin#comptes` ouvre les comptes). L'onglet s'appelle « Comptes » et non « Membres » : l'onglet de rubrique « Membres », juste au-dessus, mène à la page publique.
+- **Si le QG ne se lit pas** (`get_qg` en panne), ses parties de membre s'effacent et un message le dit, mais les salons et les onglets de l'encadrement restent : on peut toujours valider un membre. Après une action, si la relecture échoue, l'écran garde l'état d'avant et le dit à l'endroit de l'action.
 
 - **Demandes :** valider ou refuser, avec une raison facultative.
   - De la plus ancienne à la plus récente, chacune dit depuis combien de temps elle attend. Au-delà de 2 jours, elle passe en jaune (`src/lib/compte/requests.ts`).
@@ -113,7 +124,7 @@ Une annonce parle au nom du clan : le nom de son auteur n'est pas public, seuls 
 Le robot horaire signale les demandes d'adhésion qui attendent, sur un salon Discord **privé** de l'encadrement (`scripts/prevenir-encadrement.ts`, `src/lib/encadrement-discord.ts`).
 
 - **Quand :** une nouvelle demande déclenche un message au passage suivant du robot, dans l'heure. Une demande qui attend depuis plus de 24 h vaut un rappel, une fois par jour au plus. Rien entre 23 h et 8 h, heure de Paris, comme les alertes de place.
-- **Quoi :** « 2 demandes d'adhésion attendent sur le site du clan. La plus ancienne attend depuis 3 jours. », avec le lien de `/admin`. Ni nom, ni identifiant, ni mention : personne n'est appelé.
+- **Quoi :** « 2 demandes d'adhésion attendent sur le site du clan. La plus ancienne attend depuis 3 jours. », avec le lien de l'onglet des demandes au QG (`/qg#demandes` ; avant le 10 novembre 2026, `/admin`, qui y mène toujours). Ni nom, ni identifiant, ni mention : personne n'est appelé.
 - **La mise en service :** au premier passage de jour du robot où rien n'a encore jamais été noté, s'il n'y a aucune demande à annoncer, un message part : « L'avis à l'encadrement est en place… ». Il prouve que le lien marche et que c'est le bon salon, sans attendre une vraie demande. Il est noté avant l'envoi : il part une fois au plus, et si Discord le refuse, l'exécution du robot l'affiche en avertissement, sans le renvoyer. Changer ensuite le lien pour un autre salon ne le renvoie pas.
 - **Les sauvegardes :** le même salon reçoit le compte rendu de chaque sauvegarde chiffrée (voir plus bas).
 - **Où c'est noté :** ce qui a été annoncé reste dans Supabase (`app_state`, clé `staff_notice`), jamais dans le dépôt public. Un envoi raté n'est pas noté : il repart au passage suivant.
@@ -139,7 +150,7 @@ L'export (fonction `export_site`, réservée à la clé de service) ne garde que
 
 - **Des votes, les totaux par choix seulement.** Personne n'apprend qui a voté quoi, pas même avec la phrase de passe. Après une restauration, les sondages reviennent sans leurs voix individuelles.
 - **Des soutiens aux idées, le nombre par idée seulement,** pour la même raison.
-- **Ni l'empreinte du `publicId` OpenFront, ni les textes libres d'une demande** (ce que le joueur a tapé, son mot pour l'officier). Avec l'API publique, ils pourraient lever l'anonymat d'un membre anonyme si la phrase était devinée. Après une restauration, le lien avec le profil OpenFront est perdu : dans `/admin`, un tel compte validé s'affiche « Pas trouvé dans la liste », et « Refaire la demande » le remet en attente, pour que la personne refasse sa demande. Le fondateur, que personne ne peut remettre en attente, l'est dans l'éditeur SQL, avant de refaire sa demande.
+- **Ni l'empreinte du `publicId` OpenFront, ni les textes libres d'une demande** (ce que le joueur a tapé, son mot pour l'officier). Avec l'API publique, ils pourraient lever l'anonymat d'un membre anonyme si la phrase était devinée. Après une restauration, le lien avec le profil OpenFront est perdu : au QG, onglet Comptes, un tel compte validé s'affiche « Pas trouvé dans la liste », et « Refaire la demande » le remet en attente, pour que la personne refasse sa demande. Le fondateur, que personne ne peut remettre en attente, l'est dans l'éditeur SQL, avant de refaire sa demande.
 - **Ni les rôles prévus**, qu'on ne lit que dans l'éditeur de Supabase, **ni la liste officielle**, qui se relit, **ni les tables de l'ancien jeu**.
 - **Ni les comptes de connexion eux-mêmes** (`auth.users`, gérés par Supabase). Si le projet est perdu, chacun se reconnecte avec Discord, et l'encadrement retrouve rôles et données par l'identifiant Discord de `private_links`.
 
@@ -266,7 +277,7 @@ Il vérifie que le projet répond, que Discord est activé, que l'e-mail est cou
 **Ce contrôle ne remplace pas un essai réel.** Il reste à faire, avec de vrais comptes :
 
 1. Se connecter avec Discord : le vrai nom Discord doit apparaître dans `/compte`.
-2. Faire sa demande dans `/compte`, se désigner fondateur, valider sa propre demande dans `/admin` (détail à l'étape 4 de l'installation), puis ouvrir `/direction`.
+2. Faire sa demande dans `/compte`, se désigner fondateur, valider sa propre demande au QG, onglet Demandes (détail à l'étape 4 de l'installation), puis ouvrir `/direction`.
 3. Publier une annonce, puis la voir sur l'accueil dans une fenêtre privée.
 4. Connecter un second compte, faire une demande et la valider.
 
@@ -292,7 +303,7 @@ Il vérifie que le projet répond, que Discord est activé, que l'e-mail est cou
 - **Les événements répétés, « Je viens », les sondages et le mot d'accueil.** Le 8 novembre 2026, ils n'ont été essayés qu'avec un faux serveur, dans un vrai navigateur. Leur migration (`20261108000200_vie_du_clan.sql`) est installée sur le vrai projet, et ses droits contrôlés en lecture seule ; les fonctions elles-mêmes n'y ont pas encore servi.
 - **La confirmation d'un rôle, l'attente des demandes et les raisons toutes prêtes.** Le 8 novembre 2026, ils n'ont été essayés qu'avec un faux serveur, dans un vrai navigateur.
 - **Le journal en phrases, la pastille et l'état du site.** Le 8 novembre 2026, ils n'ont été essayés qu'avec un faux serveur, dans un vrai navigateur. La fonction de la pastille a été installée sur le vrai projet, et ses droits contrôlés en lecture seule.
-- **Le thème rouge sur les écrans connectés.** Le 8 novembre 2026, axe n'a trouvé aucun défaut sur `/direction` et `/admin` connectés, sur bureau et téléphone, mais avec un faux serveur. Les tests automatiques, construits sans serveur de connexion, ne voient de ces pages que la carte « connexion pas ouverte ».
+- **Le thème rouge sur les écrans connectés.** Le 8 novembre 2026, axe n'a trouvé aucun défaut sur `/direction` et `/admin` connectés, sur bureau et téléphone, mais avec un faux serveur. Le 10 novembre 2026, de même pour chaque onglet du QG et de la Direction après leur passage en onglets, avec en plus le clavier, les adresses d'onglet et les largeurs de 360 à 1 920 px. Aucun vrai compte n'a servi. Les tests automatiques, construits sans serveur de connexion, ne voient de ces pages que la carte « connexion pas ouverte ».
 - **La relecture de la liste des membres sous son nouveau nom.** Le script `scripts/relire-membres.ts` reprend le code de l'ancienne tâche quotidienne. Sa première exécution sur le vrai projet se lit dans l'onglet **Actions**.
 
 ## Vérifier les membres : la limite à connaître
@@ -347,7 +358,7 @@ select public.bootstrap_founder('VOTRE_IDENTIFIANT_DISCORD');
 
 Cette fonction ne marche qu'une fois, et personne ne peut l'appeler depuis le site.
 
-Enfin, dans `/admin`, onglet **Demandes**, validez votre propre demande : votre pseudo OpenFront devient votre nom sur le site.
+Enfin, au QG, onglet **Demandes** (`/qg#demandes`), validez votre propre demande : votre pseudo OpenFront devient votre nom sur le site.
 
 ### 5. Brancher le site
 

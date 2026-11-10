@@ -1,5 +1,5 @@
 /**
- * La colonne « Liste » de l'onglet Membres, dans /admin : où en est chaque compte face à la liste officielle du clan.
+ * La colonne « Liste » de l'onglet Comptes, au QG : où en est chaque compte face à la liste officielle du clan.
  *
  * Le profil OpenFront n'est lié qu'à la validation (`internal.approve_membership`) : avant, le site ne sait pas
  * quel joueur est derrière le compte, qui garde son nom « Gaulois n° … ». À la validation, `openfront_username`

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { ERROR_MESSAGES } from "../../src/lib/compte/errors";
-import { FORMAT_ORDER, GAME_ID_PATTERN, LOBBY_FORMATS, TEAM_SIZE, callKey, isFinalRefusal, ownCallSentence, endedCallSentence, callSentence, freshCalls, lobbyIdOf, lobbyUrl, parseLobbyCalls, salonOf, seatsNote, sinceLabel, type LobbyCall } from "../../src/lib/compte/salons";
+import { FORMAT_ORDER, GAME_ID_PATTERN, LOBBY_FORMATS, TEAM_SIZE, callKey, isFinalRefusal, ownCallSentence, endedCallSentence, callSentence, freshCalls, waitingOthers, lobbyIdOf, lobbyUrl, parseLobbyCalls, salonOf, seatsNote, sinceLabel, type LobbyCall } from "../../src/lib/compte/salons";
 
 const SQL = readFileSync("supabase/migrations/20261109000300_appels_aux_salons.sql", "utf8");
 
@@ -85,6 +85,14 @@ describe("la relecture des appels", () => {
   it("s'arrête au premier refus qui ne passera pas en réessayant, pas sur une panne", () => {
     for (const code of ["not_signed_in", "not_validated", "suspended"]) expect(isFinalRefusal(code), code).toBe(true);
     for (const code of ["network", "rate_limited", "invalid_game"]) expect(isFinalRefusal(code), code).toBe(false);
+  });
+});
+
+describe("le nombre de l'onglet Salons", () => {
+  it("compte les autres Gaulois qui attendent, pas le membre connecté", () => {
+    expect(waitingOthers([])).toBe(0);
+    expect(waitingOthers([{ mine: true }])).toBe(0);
+    expect(waitingOthers([{ mine: false }, { mine: true }, { mine: false }])).toBe(2);
   });
 });
 

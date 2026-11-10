@@ -17,7 +17,7 @@ Le plan est dans `src/lib/nav.ts`. Une rubrique répond à une question de visit
 | Accueil | `/` | Ce qui a changé depuis la dernière visite, les Gaulois de la semaine (podium, plus actifs, fil du clan), sa place dans le clan, la porte du QG, l'objectif sur la carte, quand jouer |
 | Actu | `/gazette`, `/parties`, `/nouveautes` | Le bilan de la semaine, les parties une par une, les mises à jour du site expliquées |
 | Résultats | `/classement`, `/rivaux`, `/progression`, `/records` | La liste officielle, la course et les face-à-face, les courbes, les records avec les résultats par format et par carte de jeu |
-| Membres | `/membres`, `/membres/:id`, `/qg` | Les paliers, l'encadrement, le classé, la liste, les fiches ; le QG, face privée réservée aux membres validés |
+| Membres | `/membres`, `/membres/:id`, `/qg` | Les paliers, l'encadrement, le classé, la liste, les fiches ; le QG, face privée réservée aux membres validés, en onglets, avec l'administration de l'encadrement |
 | Carte | `/carte` | Le film, puis revoir l'histoire, où en est GAL et le détail |
 | Guides | `/debuter`, `/activite`, `/outils` | Les guides, quand jouer et le jeu en groupe, le calculateur et les outils |
 | Rejoindre | `/rejoindre` | Les étapes pour entrer dans le clan |
@@ -213,7 +213,7 @@ Le workflow `.github/workflows/site.yml` tourne ensuite chaque heure, à chaque 
 
 ## La connexion Discord
 
-Les membres se connectent avec Discord, un officier valide leur compte, et l'encadrement publie annonces, événements, sondages et mot d'accueil depuis `/direction`. Le site a une face publique, lue par tous, et une face privée, le QG (`/qg`) : les membres validés y préviennent les autres quand ils attendent dans un salon d'OpenFront, votent, proposent des idées, voient qui vient et choisissent de se montrer sur le mur avec leur photo Discord. Rien du QG n'est écrit dans les pages publiées : le serveur ne le donne qu'à un compte validé. C'est la seule partie du site qui a un serveur et une base de données (Supabase), **branchée à un vrai projet depuis le 6 novembre 2026** : voir [docs/DIRECTION.md](docs/DIRECTION.md). Le reste du site n'en dépend pas et continue de marcher si elle tombe.
+Les membres se connectent avec Discord, un officier valide leur compte au QG, et l'encadrement publie annonces, événements, sondages et mot d'accueil depuis `/direction`. Le site a une face publique, lue par tous, et une face privée, le QG (`/qg`) : les membres validés y préviennent les autres quand ils attendent dans un salon d'OpenFront, votent, proposent des idées, voient qui vient et choisissent de se montrer sur le mur avec leur photo Discord. Rien du QG n'est écrit dans les pages publiées : le serveur ne le donne qu'à un compte validé. C'est la seule partie du site qui a un serveur et une base de données (Supabase), **branchée à un vrai projet depuis le 6 novembre 2026** : voir [docs/DIRECTION.md](docs/DIRECTION.md). Le reste du site n'en dépend pas et continue de marcher si elle tombe.
 
 **La Conquête des Gaulois, un jeu de territoires, a été retirée du site le 6 novembre 2026. Ses tables restent dans le projet Supabase en ligne, inutilisées, et ses fichiers déjà appliqués restent dans `supabase/migrations/`, jusqu'à ce que le clan s'en occupe.** Le fichier `config/conquete.json` reste lui aussi, sans plus servir.
 

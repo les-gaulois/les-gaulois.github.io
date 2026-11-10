@@ -1,10 +1,10 @@
 import { useEffect, useState } from "preact/hooks";
 import { basePath, call, mayHaveSession, supabase } from "../lib/compte/api";
-import { PENDING_CHANGED, pendingWords } from "../lib/compte/pending";
+import { pendingWords } from "../lib/compte/pending";
 import type { Me } from "../lib/compte/types";
 import { viewedAccount } from "../lib/compte/vue-joueur";
 import { fmtInt } from "../lib/format";
-import { usePlayerView } from "./compte/common";
+import { usePendingCount, usePlayerView } from "./compte/common";
 
 const LINK = "btn btn-ghost !min-h-10 !py-1.5 !text-sm whitespace-nowrap";
 
@@ -15,10 +15,11 @@ const LINK = "btn btn-ghost !min-h-10 !py-1.5 !text-sm whitespace-nowrap";
  */
 export default function AuthMenu() {
   const [me, setMe] = useState<Me | null>(null);
-  const [pending, setPending] = useState<number | null>(null);
   const playerView = usePlayerView();
   // En vue joueur, l'en-tête est celui d'un membre sans grade : la bande placée dessous permet d'en sortir.
   const canDirect = me !== null && (viewedAccount(me, playerView).rank ?? 0) >= 2;
+  // La pastille des demandes en attente. Le serveur ne donne ce nombre qu'à l'encadrement ; s'il ne répond pas, elle ne s'affiche pas.
+  const pending = usePendingCount(canDirect);
 
   useEffect(() => {
     if (!mayHaveSession()) return;
@@ -40,30 +41,6 @@ export default function AuthMenu() {
     };
   }, []);
 
-  // La pastille des demandes en attente. Le serveur ne donne ce nombre qu'à l'encadrement ; s'il ne répond pas, elle ne s'affiche pas.
-  useEffect(() => {
-    if (!canDirect) {
-      setPending(null);
-      return;
-    }
-    let live = true;
-    const read = () => {
-      call<{ pending: number }>("count_pending_requests")
-        .then((data) => {
-          if (live) setPending(data.pending);
-        })
-        .catch(() => {
-          if (live) setPending(null);
-        });
-    };
-    read();
-    window.addEventListener(PENDING_CHANGED, read);
-    return () => {
-      live = false;
-      window.removeEventListener(PENDING_CHANGED, read);
-    };
-  }, [canDirect]);
-
   const base = basePath();
   if (!me) {
     return (
@@ -78,25 +55,26 @@ export default function AuthMenu() {
   const validated = me.status === "validated";
   return (
     <>
+      {/* Sur téléphone, la place manque : l'encadrement garde « QG », où se traitent les demandes, et ouvre la Direction depuis le QG. */}
       {canDirect && (
-        // Les lecteurs d'écran entendent « Direction 2 demandes à traiter » : le texte visible, puis ce que compte la pastille.
-        <a href={`${base}/direction`} class={LINK} data-testid="auth-direction" data-direction-link>
-          Direction
+        <span class="hidden sm:inline-flex">
+          <a href={`${base}/direction`} class={LINK} data-testid="auth-direction" data-direction-link>
+            Direction
+          </a>
+        </span>
+      )}
+      {/* Le QG, à un clic de toutes les pages pour un membre validé. L'administration y est aussi : quand des demandes attendent,
+          la pastille les compte et le lien ouvre leur onglet. Les lecteurs d'écran entendent « QG 2 demandes à traiter ». */}
+      {validated && (
+        <a href={waiting ? `${base}/qg#demandes` : `${base}/qg`} class={LINK} data-testid="auth-qg" data-qg-link>
+          QG
           {waiting && pending !== null && (
-            <span class="count-pill tnum" data-testid="direction-pending">
+            <span class="count-pill tnum" data-testid="auth-pending">
               {fmtInt(pending)}
               <span class="sr-only"> {waiting}</span>
             </span>
           )}
         </a>
-      )}
-      {/* Le QG, à un clic de toutes les pages pour un membre validé. Sur téléphone, la place manque : un officier garde « Direction », d'où s'ouvre le QG. */}
-      {validated && (
-        <span class={canDirect ? "hidden sm:inline-flex" : "inline-flex"}>
-          <a href={`${base}/qg`} class={LINK} data-testid="auth-qg">
-            QG
-          </a>
-        </span>
       )}
       {/* Le nom mène au compte. L'encadrement, qui a déjà deux liens, ouvre le sien depuis le QG ou la Direction ; sur téléphone, un membre validé aussi. */}
       {!canDirect && (

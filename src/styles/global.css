@@ -31,11 +31,12 @@
   --aurora: rgb(61 127 255 / 0.2);
 }
 
-/* ---------- Thème rouge : les pages de l'encadrement ---------- */
-/* /direction et /admin passent theme="rouge" à Base.astro, qui pose data-theme="rouge" sur <html>.
+/* ---------- Thème rouge : l'encadrement ---------- */
+/* /direction passe theme="rouge" à Base.astro, qui pose data-theme="rouge" sur <html>. Au QG, seules les parties de
+   l'encadrement le portent (Demandes, Comptes, Journal), avec leurs onglets : les jetons rouges valent alors pour eux seuls.
    Chaque jeton garde son rôle et prend une teinte rouge : aucun composant ne change.
    Contrastes vérifiés dans docs/DESIGN.md, section « Thème rouge de l'encadrement ». */
-:root[data-theme="rouge"] {
+[data-theme="rouge"] {
   --color-navy: #300a10;
   --color-night: #22060b;
   --color-surface: #3f121a;
@@ -50,11 +51,11 @@
   --reflection: rgb(11 95 255 / 0.1);
   --aurora: rgb(255 61 90 / 0.18);
 }
-:root[data-theme="rouge"] .btn-secondary:hover {
+[data-theme="rouge"] .btn-secondary:hover {
   background: #f8e3e6;
 }
 /* Sur fond rouge, un refus écrit en rose se perdrait : il prend le jaune des avertissements. */
-:root[data-theme="rouge"] .form-problem {
+[data-theme="rouge"] .form-problem {
   color: var(--color-warn);
 }
 
@@ -150,6 +151,13 @@ a.link:hover {
 /* Sur un petit téléphone, le long mot rétrécit juste assez pour garder ses marges (1rem de chaque côté). */
 .page-title-long {
   font-size: clamp(min(2.5rem, (100vw - 2rem) / 9.2), 8vw, 4.75rem);
+}
+/* Un espace de travail (QG, Direction) : le titre laisse la place aux onglets. */
+.page-title-compact {
+  font-size: clamp(2.25rem, 5.5vw, 3.5rem);
+}
+.page-title-compact.page-title-long {
+  font-size: clamp(min(2.25rem, (100vw - 2rem) / 9.2), 5.5vw, 3.5rem);
 }
 .section-title {
   font-size: clamp(1.75rem, 4.5vw, 3rem);
@@ -1535,6 +1543,221 @@ main .fx-in,
 }
 .form-success:empty {
   display: none;
+}
+
+/* ---------- Les espaces de travail : le QG et la Direction ---------- */
+/* On y lit, on y tape et on y clique : tout y est plus grand que sur les pages de lecture. Les tailles de texte de
+   Tailwind (text-xs à text-4xl) et son pas d'espacement y sont redéfinis : chaque composant grandit sans changer de classe. */
+.espace {
+  --spacing: 0.28rem;
+  --text-xs: 0.9375rem;
+  --text-sm: 1.0625rem;
+  --text-base: 1.125rem;
+  --text-lg: 1.375rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 1.875rem;
+  --text-3xl: 2.25rem;
+  --text-4xl: 2.75rem;
+  font-size: var(--text-base);
+  line-height: 1.55;
+}
+/* Un long bouton (« Changer le Gaulois de la semaine ») passe à la ligne plutôt que d'élargir la page sur téléphone. */
+.espace .btn {
+  min-height: 3rem;
+  padding: 0.6875rem 1.375rem;
+  white-space: normal;
+  text-align: center;
+}
+.espace .chip {
+  min-height: 2.875rem;
+  padding-inline: 1.25rem;
+  font-size: var(--text-sm);
+}
+.espace .field {
+  min-height: 3.125rem;
+  padding: 0.625rem 0.875rem;
+}
+.espace .avatar {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+.espace .data-table th {
+  font-size: 0.875rem;
+}
+.espace .data-table td {
+  padding: 0.875rem;
+}
+.espace .meter {
+  height: 8px;
+  border-radius: 4px;
+}
+
+/* La barre d'onglets : une seule ligne. Quand la place manque (téléphone), elle défile de côté dans son cadre, sans
+   élargir la page, et ses bords s'estompent du côté où d'autres onglets attendent. Ce ne sont pas des pastilles :
+   les pastilles restent aux onglets des rubriques, qui changent de page. */
+.onglets {
+  position: relative;
+  /* Dans une grille, la barre ne doit pas réclamer la largeur de tous ses onglets. */
+  min-width: 0;
+  scroll-margin-top: 5.5rem;
+  background: var(--color-night);
+  border: 1px solid var(--color-line);
+  border-radius: 1.125rem;
+}
+.onglets-defile {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.375rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 0.375rem;
+  scrollbar-width: none;
+}
+.onglets-defile::-webkit-scrollbar {
+  display: none;
+}
+.onglets-avant .onglets-defile {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 3rem);
+  mask-image: linear-gradient(90deg, transparent, #000 3rem);
+}
+.onglets-apres .onglets-defile {
+  -webkit-mask-image: linear-gradient(270deg, transparent, #000 3rem);
+  mask-image: linear-gradient(270deg, transparent, #000 3rem);
+}
+.onglets-avant.onglets-apres .onglets-defile {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 3rem, #000 calc(100% - 3rem), transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 3rem, #000 calc(100% - 3rem), transparent);
+}
+.onglet {
+  /* Le texte réservé aux lecteurs d'écran (.sr-only, en position absolue) se place dans l'onglet, donc dans le cadre qui
+     défile : placé hors de lui, il élargissait la page sur téléphone. */
+  position: relative;
+  flex: none;
+  scroll-snap-align: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 3.25rem;
+  padding: 0.5rem 1.125rem;
+  border-radius: 0.875rem;
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: var(--color-muted);
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    background-color 0.15s,
+    box-shadow 0.2s;
+}
+.onglet:hover {
+  color: #fff;
+  background: rgb(255 255 255 / 0.07);
+}
+/* L'onglet ouvert : fond plus clair et filet rouge dessous, le marqueur de page du site. Pas seulement une couleur. */
+.onglet[aria-selected="true"] {
+  color: #fff;
+  background: var(--color-surface-2);
+  box-shadow: inset 0 -3px 0 var(--color-red);
+}
+/* Dans un cadre qui défile, le contour du focus reste à l'intérieur de l'onglet. */
+.onglet:focus-visible {
+  outline-offset: -4px;
+}
+/* Ce qui attend derrière un onglet. Le nombre est doublé d'une phrase pour les lecteurs d'écran. */
+.onglet-nombre {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.625rem;
+  height: 1.625rem;
+  padding-inline: 0.4375rem;
+  border-radius: 999px;
+  background: var(--color-line);
+  color: #fff;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 800;
+  line-height: 1;
+}
+/* Quelqu'un attend dans un salon : le bleu du bouton principal (blanc dessus : 5,1:1 ; en thème rouge, 5,3:1). */
+.onglet-nombre-vif {
+  background: var(--color-blue);
+}
+/* Des demandes attendent l'encadrement : le jaune des avertissements, comme la pastille de l'en-tête. */
+.onglet-nombre-alerte {
+  background: var(--color-warn);
+  color: var(--color-navy);
+}
+/* Au QG, les onglets de l'encadrement viennent après un trait, marqués d'un point rouge. Ils portent data-theme="rouge" :
+   ouverts, ils prennent la surface du thème rouge, comme leur partie. */
+.onglets-separation {
+  flex: none;
+  width: 1px;
+  margin: 0.625rem 0.375rem;
+  background: var(--color-line-strong);
+}
+.onglet-encadrement::before {
+  content: "";
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--color-red);
+}
+
+/* Une partie sous ses onglets. Le « roulement » : la partie choisie glisse doucement du côté de son onglet, une fois,
+   de moins que la marge de la page (rien ne déborde). Le bouton pause (.fx-off *) et le réglage « réduire les animations »
+   le coupent, comme toute animation du site. */
+.partie:focus-visible {
+  outline-offset: 6px;
+  border-radius: 1rem;
+}
+.partie-droite {
+  animation: partie-droite 0.38s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.partie-gauche {
+  animation: partie-gauche 0.38s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes partie-droite {
+  from {
+    opacity: 0;
+    transform: translateX(0.75rem);
+  }
+}
+@keyframes partie-gauche {
+  from {
+    opacity: 0;
+    transform: translateX(-0.75rem);
+  }
+}
+/* Les parties de l'encadrement, au QG : posées dans la page bleue, aux couleurs du thème rouge (data-theme="rouge"). */
+.zone-encadrement {
+  background: var(--color-navy);
+  border: 1px solid var(--color-line);
+  border-radius: 1.5rem;
+  padding: clamp(1rem, 3vw, 1.75rem);
+}
+.partie-surtitre {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.partie-surtitre::before {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--color-red);
 }
 
 /* ---------- Une page de texte : la confidentialité ---------- */

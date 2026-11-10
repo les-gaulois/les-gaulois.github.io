@@ -49,11 +49,20 @@ test("sans serveur configuré, la connexion n'apparaît pas et le site reste sta
   await expect(page.getByTestId("auth-sign-in")).toHaveCount(0);
   // Sans serveur, pas de face privée : l'accueil n'en montre pas la porte.
   await expect(page.getByTestId("home-qg")).toHaveCount(0);
-  for (const path of ["/compte", "/admin", "/direction", "/qg"]) {
+  for (const path of ["/compte", "/direction", "/qg"]) {
     await page.goto(path);
     await expect(page.getByTestId("auth-not-open")).toBeVisible();
   }
   expect(calls).toEqual([]);
+});
+
+// L'administration a rejoint le QG : l'ancienne adresse y mène, avec la suite de l'adresse (le code d'un retour de Discord, un onglet).
+test("l'ancienne adresse de l'administration mène aux demandes du QG", async ({ page }) => {
+  await page.goto("/admin");
+  await page.waitForURL((url) => /^\/qg\/?$/.test(url.pathname) && url.hash === "#demandes");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Le QG");
+  await page.goto("/admin?code=essai#comptes");
+  await page.waitForURL((url) => /^\/qg\/?$/.test(url.pathname) && url.search === "?code=essai" && url.hash === "#comptes");
 });
 
 // La face privée : la page publiée ne contient que la porte. Son contenu vient du serveur, pour un membre validé.
@@ -61,7 +70,8 @@ test("le QG n'est pas indexé, et sa page ne contient rien de privé", async ({ 
   await page.goto("/qg");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Le QG");
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex");
-  for (const id of ["qg", "qg-salons", "qg-decisions", "qg-ideas", "qg-wall", "qg-events"]) await expect(page.getByTestId(id)).toHaveCount(0);
+  // L'administration y est aussi depuis le 10 novembre 2026 : rien d'elle non plus dans la page publiée.
+  for (const id of ["qg", "qg-salons", "qg-decisions", "qg-ideas", "qg-wall", "qg-events", "admin-requests", "admin-members", "admin-log"]) await expect(page.getByTestId(id)).toHaveCount(0);
 });
 
 // L'encadrement sait d'un coup d'œil où il est. Le compte d'un membre reste bleu, comme le reste du site.
@@ -80,7 +90,7 @@ test("seules les pages de l'encadrement passent au rouge", async ({ page }, test
   const blue = await look("/");
   expect(blue.theme).toBeNull();
   expect(blue.background).toBe(rgbOf(blue.bar));
-  for (const path of ["/admin", "/direction"]) {
+  for (const path of ["/direction"]) {
     const red = await look(path);
     expect(red.theme, path).toBe("rouge");
     expect(red.background, path).not.toBe(blue.background);
@@ -1308,7 +1318,7 @@ test("affiche une erreur si la liste des membres ne charge pas", async ({ page }
 });
 
 // Les pages de l'encadrement ont leurs propres couleurs, le thème rouge : leurs contrastes sont contrôlés aussi.
-for (const path of [...PAGES, "/admin", "/direction"]) {
+for (const path of [...PAGES, "/direction"]) {
   test(`accessibilité WCAG AA : ${path}`, async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto(path);
@@ -1337,7 +1347,7 @@ for (const width of [360, 375, 768, 1024, 1280, 1920]) {
 // L'AGPL et les conditions d'OpenFront, voir NOTICE.md : le code et la mention restent accessibles sur toutes les pages.
 test("chaque page donne le code source et la mention d'OpenFront", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "Même pied de page sur mobile.");
-  for (const path of [...PAGES, "/confidentialite", "/compte", "/admin", "/direction"]) {
+  for (const path of [...PAGES, "/confidentialite", "/compte", "/direction"]) {
     await page.goto(path);
     const footer = page.locator("footer");
     await expect(footer.getByRole("link", { name: "Code source", exact: true }), path).toHaveAttribute("href", "https://github.com/les-gaulois/les-gaulois.github.io");

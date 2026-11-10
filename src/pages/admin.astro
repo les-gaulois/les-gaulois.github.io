@@ -1,16 +1,20 @@
 ---
 import Base from "../layouts/Base.astro";
 import PageHeader from "../components/PageHeader.astro";
-import AdminApp from "../components/compte/AdminApp";
-import NotOpen from "../components/compte/NotOpen.astro";
-import { AUTH_ENABLED } from "../lib/compte/api";
+
+// L'administration a rejoint le QG le 10 novembre 2026. L'adresse reste, pour les liens déjà donnés (Discord, favoris) et le
+// retour d'une connexion commencée ici : la suite de l'adresse (?code=… de Discord, #comptes) suit jusqu'au QG.
+const qg = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/qg`;
 ---
 
-<Base title="Administration" description="Espace des officiers et des admins du clan GAL." noindex theme="rouge">
+<Base title="Administration" description="L'administration du clan GAL est maintenant au QG." noindex>
   <div class="wrap">
-    <PageHeader title="Administration" />
-    <div class="mt-6">
-      {AUTH_ENABLED ? <AdminApp client:only="preact" /> : <NotOpen />}
-    </div>
+    <PageHeader title="Administration" compact />
+    <p class="card max-w-3xl p-6 text-lg" data-testid="admin-moved">
+      L'administration est maintenant au QG, dans les onglets de l'encadrement. <a href={`${qg}#demandes`}>Ouvrir les demandes au QG</a>
+    </p>
   </div>
+  <script is:inline define:vars={{ qg }}>
+    location.replace(`${qg}${location.search}${location.hash || "#demandes"}`);
+  </script>
 </Base>
