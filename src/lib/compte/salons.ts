@@ -7,7 +7,11 @@
 import { fmtInt } from "../format";
 import { safeAvatar } from "./qg";
 
-/** Les formats qu'un membre peut annoncer. Pas de chacun pour soi : le jeu y cache les tags, et ses conditions interdisent de s'y retrouver entre membres. */
+/**
+ * Les formats qu'un appel peut porter. Depuis le 10 novembre 2026, le QG ne les demande plus (migration
+ * `20261110000100_appels_sans_format.sql`) : seuls les appels lancés avant, ou depuis une page restée ouverte, en ont un.
+ * Pas de chacun pour soi : le jeu y cache les tags, et ses conditions y interdisent toute entente arrangée hors de la partie.
+ */
 export const LOBBY_FORMATS = {
   duos: "Duos",
   trios: "Trios",
@@ -23,7 +27,7 @@ export const LOBBY_FORMATS = {
 
 export type LobbyFormat = keyof typeof LOBBY_FORMATS;
 
-/** L'ordre du choix : JavaScript range les clés « 2 » à « 7 » avant les autres, l'ordre de `LOBBY_FORMATS` ne compte donc pas. */
+/** L'ordre des formats, celui des listes du serveur que les tests comparent : JavaScript range les clés « 2 » à « 7 » avant les autres, l'ordre de `LOBBY_FORMATS` ne compte donc pas. */
 export const FORMAT_ORDER: readonly LobbyFormat[] = ["duos", "trios", "quads", "2", "3", "4", "5", "6", "7", "private"];
 
 const isFormat = (value: unknown): value is LobbyFormat => typeof value === "string" && Object.hasOwn(LOBBY_FORMATS, value);
@@ -59,7 +63,8 @@ export const lobbyUrl = (game: string): string => `https://openfront.io/game/${g
 export const TEAM_SIZE: Partial<Record<LobbyFormat, number>> = { duos: 2, trios: 3, quads: 4 };
 
 /** Ce que le format dit à ceux qui veulent rejoindre. Le site ne sait pas qui a déjà rejoint : il dit la règle, pas les places libres. */
-export function seatsNote(format: LobbyFormat): string | null {
+export function seatsNote(format: LobbyFormat | null): string | null {
+  if (format === null) return null;
   const size = TEAM_SIZE[format];
   if (size !== undefined) return `Équipes de ${size} joueurs : le jeu met tous les Gaulois dans la même et passe en spectateurs ceux qui n'y tiennent pas.`;
   if (format === "private") return "Un salon privé ne compte pas au classement des clans.";
@@ -69,7 +74,8 @@ export function seatsNote(format: LobbyFormat): string | null {
 export interface LobbyCall {
   id: number;
   game: string;
-  format: LobbyFormat;
+  /** `null` : le membre n'a pas dit le format, le cas de tous les appels depuis le 10 novembre 2026. */
+  format: LobbyFormat | null;
   createdAt: string;
   expiresAt: string;
   /** L'appel du membre connecté. */
@@ -92,10 +98,12 @@ const timeOf = (value: unknown): number | null => (typeof value === "string" && 
 function callOf(raw: unknown): LobbyCall | null {
   if (!isRecord(raw)) return null;
   const { id, game, format, created_at: createdAt, expires_at: expiresAt, name } = raw;
-  if (typeof id !== "number" || !Number.isInteger(id) || typeof game !== "string" || !GAME_ID.test(game) || !isFormat(format)) return null;
+  if (typeof id !== "number" || !Number.isInteger(id) || typeof game !== "string" || !GAME_ID.test(game)) return null;
+  // Pas de format : l'appel se montre sans. Un format inconnu, lui, rend l'appel illisible plutôt que deviné.
+  if (format !== null && format !== undefined && !isFormat(format)) return null;
   if (typeof createdAt !== "string" || timeOf(createdAt) === null || typeof expiresAt !== "string" || timeOf(expiresAt) === null) return null;
   if (typeof name !== "string" || name.trim() === "") return null;
-  return { id, game, format, createdAt, expiresAt, mine: raw["mine"] === true, name, avatar: safeAvatar(raw["avatar"]) };
+  return { id, game, format: isFormat(format) ? format : null, createdAt, expiresAt, mine: raw["mine"] === true, name, avatar: safeAvatar(raw["avatar"]) };
 }
 
 /** La réponse de `get_lobby_calls`, relue : un appel illisible n'est pas montré. `null` : la réponse n'a pas la forme attendue. */
@@ -139,7 +147,8 @@ export function sinceLabel(createdAt: string, now: number): string {
 }
 
 /** « un salon Trios », « un salon à 4 équipes », « un salon privé ». */
-export function salonOf(format: LobbyFormat): string {
+export function salonOf(format: LobbyFormat | null): string {
+  if (format === null) return "un salon";
   if (format === "private") return "un salon privé";
   return /^\d$/.test(format) ? `un salon à ${LOBBY_FORMATS[format]}` : `un salon ${LOBBY_FORMATS[format]}`;
 }

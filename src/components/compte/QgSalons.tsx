@@ -1,7 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { call } from "../../lib/compte/api";
 import { errorMessage } from "../../lib/compte/errors";
-import { FORMAT_ORDER, LOBBY_FORMATS, callKey, callSentence, lobbyIdOf, lobbyUrl, salonOf, seatsNote, sinceLabel, type LobbyCall, type LobbyFormat } from "../../lib/compte/salons";
+import { callKey, callSentence, lobbyIdOf, lobbyUrl, seatsNote, sinceLabel, type LobbyCall } from "../../lib/compte/salons";
 import { chime, refreshAfterWrite, setSound, start, subscribe, unlockAudio, type AppelsState } from "./appels";
 import { Avatar, Problem, messageOf } from "./common";
 import { PartieTete } from "./Onglets";
@@ -34,7 +34,6 @@ export default function QgSalons() {
   const [appels, setAppels] = useState<AppelsState | null>(null);
   const [said, setSaid] = useState("");
   const [link, setLink] = useState("");
-  const [format, setFormat] = useState<LobbyFormat | "">("");
   const [formProblem, setFormProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [, setTick] = useState(0);
@@ -63,12 +62,12 @@ export default function QgSalons() {
   const submit = async () => {
     const game = lobbyIdOf(link);
     if (game === null) return setFormProblem(errorMessage("invalid_game"));
-    if (format === "") return setFormProblem(errorMessage("invalid_format"));
     setBusy(true);
     setFormProblem(null);
     setSaid("");
     try {
-      await call("save_lobby_call", { p_game: game, p_format: format });
+      // Plus de format à choisir (migration 20261110000100_appels_sans_format.sql) : le lien suffit.
+      await call("save_lobby_call", { p_game: game, p_format: null });
       setLink("");
       await refreshAfterWrite();
       setSaid("Les Gaulois sont prévenus.");
@@ -145,7 +144,7 @@ export default function QgSalons() {
           {mine && (
             <div class="card mt-3 p-5" data-testid="qg-salons-mine">
               <p>
-                <strong>Votre appel :</strong> {salonOf(mine.format)}, lancé {sinceLabel(mine.createdAt, now)}. Il dure 15 minutes au plus.
+                <strong>Votre appel</strong>, lancé {sinceLabel(mine.createdAt, now)}, dure 15 minutes au plus.
               </p>
               <button type="button" class="chip mt-3" aria-disabled={busy || undefined} onClick={() => !busy && void withdraw()} data-testid="qg-salons-withdraw">
                 Retirer mon appel
@@ -166,20 +165,8 @@ export default function QgSalons() {
               </label>
               <input id="salon-lien" class="field mt-1" inputMode="url" autoComplete="off" spellcheck={false} placeholder="https://openfront.io/game/…" value={link} onInput={(e) => setLink(e.currentTarget.value)} />
             </div>
-            <div>
-              <label for="salon-format" class="block text-sm font-semibold">
-                Le format du salon
-              </label>
-              <select id="salon-format" class="field mt-1 sm:!w-auto" value={format} onChange={(e) => setFormat(e.currentTarget.value as LobbyFormat | "")}>
-                <option value="">Choisir…</option>
-                {FORMAT_ORDER.map((value) => (
-                  <option key={value} value={value}>
-                    {LOBBY_FORMATS[value]}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <p class="text-sm text-muted">Les membres verront votre pseudo pendant l'appel.</p>
+            {/* Le site ne peut pas vérifier le mode du salon : cette phrase est le seul garde-fou contre le chacun pour soi public. */}
+            <p class="text-sm text-muted">Salons en équipes ou privés seulement : en chacun pour soi, OpenFront interdit de s'entendre hors de la partie. Les membres verront votre pseudo pendant l'appel.</p>
             <div>
               <button type="submit" class="btn btn-primary" disabled={busy}>
                 Prévenir les Gaulois

@@ -2,6 +2,16 @@
   {
     "date": "2026-11-10",
     "kind": "ameliore",
+    "title": "Un appel en un collage",
+    "body": "Au QG, il suffit maintenant de coller le lien de son salon pour prévenir les Gaulois : plus de format à choisir.",
+    "link": {
+      "href": "/qg#salons",
+      "label": "Ouvrir le QG"
+    }
+  },
+  {
+    "date": "2026-11-10",
+    "kind": "ameliore",
     "title": "Le QG rangé en onglets, et en plus grand",
     "body": "Le QG et la Direction montrent une partie à la fois, sous des onglets. Textes et boutons sont plus grands. L'administration de l'encadrement a rejoint le QG.",
     "link": {

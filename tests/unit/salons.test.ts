@@ -4,6 +4,7 @@ import { ERROR_MESSAGES } from "../../src/lib/compte/errors";
 import { FORMAT_ORDER, GAME_ID_PATTERN, LOBBY_FORMATS, TEAM_SIZE, callKey, isFinalRefusal, ownCallSentence, endedCallSentence, callSentence, freshCalls, waitingOthers, lobbyIdOf, lobbyUrl, parseLobbyCalls, salonOf, seatsNote, sinceLabel, type LobbyCall } from "../../src/lib/compte/salons";
 
 const SQL = readFileSync("supabase/migrations/20261109000300_appels_aux_salons.sql", "utf8");
+const SANS_FORMAT = readFileSync("supabase/migrations/20261110000100_appels_sans_format.sql", "utf8");
 
 const AVATAR = "https://cdn.discordapp.com/avatars/123456789012345678/a_0f1e2d3c4b5a69788796a5b4c3d2e1f0.png";
 const row = { id: 3, game: "cA4qqR72uf", format: "trios", created_at: "2026-11-09T20:00:00Z", expires_at: "2026-11-09T20:15:00Z", mine: false, name: "Recrue", avatar: AVATAR };
@@ -129,6 +130,16 @@ describe("les pop-ups", () => {
     expect(salonOf("duos")).toBe("un salon Duos");
   });
 
+  it("se passent du format, que le QG ne demande plus depuis le 10 novembre 2026", () => {
+    expect(callSentence(call({ format: null }))).toBe("Recrue attend dans un salon.");
+    expect(ownCallSentence(call({ format: null }))).toBe("Vous attendez dans un salon.");
+    expect(endedCallSentence(call({ format: null, mine: true }))).toBe("Vous attendiez dans un salon.");
+    expect(seatsNote(null)).toBeNull();
+    // Le serveur renvoie null pour un appel sans format : il se lit, sans format inventé.
+    const answer = parseLobbyCalls({ ok: true, now: "2026-11-10T20:03:00Z", calls: [{ ...row, format: null }] });
+    expect(answer?.calls[0]?.format).toBeNull();
+  });
+
   it("comptent les minutes à l'heure du serveur", () => {
     const now = Date.parse("2026-11-09T20:03:30Z");
     expect(sinceLabel("2026-11-09T20:03:00Z", now)).toBe("à l'instant");
@@ -187,5 +198,28 @@ describe("les appels, côté serveur", () => {
     // Un compte suspendu n'appelle plus personne, et les appels finis s'effacent.
     expect(body("public.get_lobby_calls")).toContain("p.status = 'validated'");
     expect(body("public.get_lobby_calls")).toContain("delete from internal.lobby_calls where expires_at <= now();");
+  });
+});
+
+describe("les appels sans format, côté serveur (migration du 10 novembre 2026)", () => {
+  it("ne fait qu'assouplir : rien n'est supprimé", () => {
+    expect(SANS_FORMAT).toContain("alter table internal.lobby_calls alter column team_format drop not null;");
+    expect(SANS_FORMAT).not.toMatch(/\bdrop (table|column|function)\b|\btruncate\b|\bdelete from internal\.lobby_calls\b(?! where expires_at)/i);
+  });
+
+  it("garde les mêmes droits et la même vérification du compte", () => {
+    expect(SANS_FORMAT).toContain("create or replace function public.save_lobby_call(p_game text, p_format text) returns jsonb");
+    expect(SANS_FORMAT).toContain("internal.require_rank(1)");
+    expect(SANS_FORMAT).toContain("revoke all on function public.save_lobby_call(text, text) from public, anon, authenticated;");
+    expect(SANS_FORMAT).toContain("grant execute on function public.save_lobby_call(text, text) to authenticated;");
+    expect(SANS_FORMAT).not.toMatch(/grant execute on function public\.save_lobby_call\([^)]*\) to [^;]*anon/);
+  });
+
+  it("accepte l'absence de format, mais un format seulement de la liste, et les mêmes identifiants", () => {
+    expect(SANS_FORMAT).toContain("v_format text := nullif(btrim(coalesce(p_format, '')), '');");
+    expect(SANS_FORMAT).toContain(`v_format is not null and v_format not in (${FORMAT_ORDER.map((f) => `'${f}'`).join(", ")})`);
+    expect(SANS_FORMAT).toContain(`v_game !~ '${GAME_ID_PATTERN}'`);
+    expect(SANS_FORMAT).toContain("now() + interval '15 minutes'");
+    expect(SANS_FORMAT).toContain("interval '1 minute' then perform internal.fail('call_too_soon')");
   });
 });

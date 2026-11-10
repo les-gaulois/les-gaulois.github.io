@@ -56,7 +56,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   pick_not_found: "Aucun Gaulois de la semaine n'est affiché en ce moment.",
 
   invalid_game: "Collez le lien de votre salon, copié dans OpenFront : une adresse https://openfront.io/ qui contient /game/, ou le code de la partie.",
-  invalid_format: "Choisissez le format de votre salon.",
+  invalid_format: "Ce format de salon n'existe pas. Rechargez la page.",
   call_too_soon: "Vous venez de prévenir les Gaulois : attendez une minute avant un nouvel appel.",
 };
 
