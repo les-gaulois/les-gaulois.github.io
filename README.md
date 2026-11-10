@@ -22,6 +22,8 @@ Le plan est dans `src/lib/nav.ts`. Une rubrique répond à une question de visit
 | Guides | `/debuter`, `/activite`, `/outils` | Les guides, quand jouer et le jeu en groupe, le calculateur et les outils |
 | Rejoindre | `/rejoindre` | Les étapes pour entrer dans le clan |
 
+Hors des rubriques, dans le pied de page de chaque page : `/mentions-legales` (l'éditeur et les hébergeurs, exigés par la loi ; version anonyme choisie par le pilote) et `/confidentialite` quand la connexion est ouverte.
+
 ## Installation
 
 Il faut Node.js 22 ou plus.

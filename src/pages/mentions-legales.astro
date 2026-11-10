@@ -1,0 +1,43 @@
+---
+import Base from "../layouts/Base.astro";
+import PageHeader from "../components/PageHeader.astro";
+import { clan } from "../../config/clan";
+import { AUTH_ENABLED } from "../lib/compte/api";
+
+// Loi n° 2004-575 du 21 juin 2004 pour la confiance dans l'économie numérique, article 1-1, lu sur Légifrance le 10 novembre 2026.
+// Le 10 novembre 2026, le pilote a choisi la version anonyme du II, permise à qui édite à titre non professionnel : seuls le nom et
+// l'adresse de l'hébergeur sont publiés, à condition que l'hébergeur ait reçu l'identité de l'éditeur. Le dépôt est public :
+// n'y écrire aucune identité (nom, adresse, téléphone) sans l'accord explicite du pilote.
+// Adresses relevées le même jour, sur les pages légales de chaque hébergeur :
+// - GitHub, Inc., partie aux conditions d'utilisation de GitHub, adresse de sa déclaration de confidentialité (version du 27 avril 2026) ;
+// - Supabase Pte. Ltd., partie aux conditions de Supabase pour qui n'achète pas par AWS Marketplace (supabase.com/terms, section 1(j)).
+const LCEN = "https://www.legifrance.gouv.fr/loda/id/JORFTEXT000000801164";
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+---
+
+<Base title="Mentions légales" description="Qui héberge le site du clan GAL, comme la loi le demande.">
+  <div class="wrap">
+    <PageHeader title="Mentions légales" />
+    <div class="text-page max-w-3xl" data-testid="legal">
+      <h2>Éditeur</h2>
+      <p>
+        Site du clan [{clan.tag}] {clan.name}, édité à titre non professionnel par un particulier qui garde l'anonymat (<a href={LCEN} rel="noopener">loi du 21 juin 2004</a>, article 1-1, II). Contact : le <a href={clan.links.discord} rel="noopener">Discord du clan</a>.
+      </p>
+
+      <h2>Hébergement des pages</h2>
+      <p>GitHub, Inc.<br />88 Colin P. Kelly Jr. St.<br />San Francisco, CA 94107, États-Unis</p>
+
+      {/* Sans serveur configuré, Supabase n'héberge rien du site : il n'est pas cité. */}
+      {
+        AUTH_ENABLED && (
+          <>
+            <h2>Hébergement des données des membres</h2>
+            <p>Supabase Pte. Ltd.<br />65 Chulia Street #38-02/03, OCBC Centre<br />Singapour 049513</p>
+            {/* Singapour est l'adresse de la société : les données sont en Europe (docs/DIRECTION.md, page Confidentialité). */}
+            <p>Les données sont gardées en Europe (<a href={`${base}/confidentialite`}>Confidentialité</a>).</p>
+          </>
+        )
+      }
+    </div>
+  </div>
+</Base>

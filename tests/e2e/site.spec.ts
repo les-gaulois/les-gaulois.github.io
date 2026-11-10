@@ -25,7 +25,7 @@ import { nextTier, tierOf, tierRows } from "../../src/lib/paliers";
 import { currentMilestonesPeriod, homeMilestones, recentRecordLines, recentTerritoryRecord } from "../../src/lib/vie-du-clan";
 import { milestonesSinceMonday } from "../../src/lib/week-players";
 
-const PAGES = ["/", "/gazette", "/parties", "/nouveautes", "/classement", "/rivaux", "/progression", "/records", "/membres", "/qg", "/carte", "/activite", "/debuter", "/outils", "/rejoindre"];
+const PAGES = ["/", "/gazette", "/parties", "/nouveautes", "/classement", "/rivaux", "/progression", "/records", "/membres", "/qg", "/carte", "/activite", "/debuter", "/outils", "/rejoindre", "/mentions-legales"];
 const lb = JSON.parse(readFileSync("data/leaderboard.json", "utf8"));
 const members = JSON.parse(readFileSync("data/members.json", "utf8"));
 const gal = lb.clans.find((c: { clanTag: string }) => c.clanTag === "GAL");
@@ -1345,14 +1345,34 @@ for (const width of [360, 375, 768, 1024, 1280, 1920]) {
 }
 
 // L'AGPL et les conditions d'OpenFront, voir NOTICE.md : le code et la mention restent accessibles sur toutes les pages.
-test("chaque page donne le code source et la mention d'OpenFront", async ({ page }, testInfo) => {
+// La loi du 21 juin 2004 (article 1-1) : les mentions légales aussi.
+test("chaque page donne le code source, la mention d'OpenFront et les mentions légales", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "Même pied de page sur mobile.");
   for (const path of [...PAGES, "/confidentialite", "/compte", "/direction"]) {
     await page.goto(path);
     const footer = page.locator("footer");
     await expect(footer.getByRole("link", { name: "Code source", exact: true }), path).toHaveAttribute("href", "https://github.com/les-gaulois/les-gaulois.github.io");
     await expect(footer, path).toContainText("© OpenFront and Contributors");
+    await expect(footer.getByRole("link", { name: "Mentions légales", exact: true }), path).toHaveAttribute("href", "/mentions-legales");
   }
+});
+
+// Version anonyme choisie par le pilote (article 1-1, II) : l'éditeur n'est pas nommé, l'hébergeur l'est.
+test("les mentions légales nomment l'hébergeur, sans identité de l'éditeur", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("footer").getByRole("link", { name: "Mentions légales", exact: true }).click();
+  await expect(page).toHaveURL(/\/mentions-legales\/?$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Mentions légales");
+  const legal = page.getByTestId("legal");
+  await expect(legal).toContainText("édité à titre non professionnel par un particulier qui garde l'anonymat");
+  for (const line of ["GitHub, Inc.", "88 Colin P. Kelly Jr. St.", "San Francisco, CA 94107, États-Unis"]) await expect(legal).toContainText(line);
+  await expect(legal.getByRole("link", { name: "Discord du clan" })).toHaveAttribute("href", clan.links.discord);
+  // Ces tests tournent sans serveur : Supabase n'héberge alors rien, et n'est pas cité.
+  await expect(legal).not.toContainText("Supabase");
+  // La page autonome de la carte du monde a son propre pied de page : le lien y est aussi.
+  await page.goto("/carte-monde/");
+  await page.locator("footer").getByRole("link", { name: "Mentions légales", exact: true }).click();
+  await expect(page).toHaveURL(/\/mentions-legales\/?$/);
 });
 
 test("navigation au clavier : lien d'évitement et focus visible", async ({ page }, testInfo) => {

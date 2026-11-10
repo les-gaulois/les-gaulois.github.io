@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-10",
+    "kind": "nouveau",
+    "title": "Une page Mentions légales",
+    "body": "Elle dit qui héberge le site, comme la loi le demande. Son lien est en bas de chaque page.",
+    "link": {
+      "href": "/mentions-legales",
+      "label": "Lire les mentions légales"
+    }
+  },
+  {
+    "date": "2026-11-10",
     "kind": "ameliore",
     "title": "Un appel en un collage",
     "body": "Au QG, il suffit maintenant de coller le lien de son salon pour prévenir les Gaulois : plus de format à choisir.",
