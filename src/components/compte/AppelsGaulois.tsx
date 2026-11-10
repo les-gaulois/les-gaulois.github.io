@@ -1,7 +1,7 @@
 import { createPortal } from "preact/compat";
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { basePath, mayHaveSession } from "../../lib/compte/api";
-import { callKey, callSentence, freshCalls, lobbyUrl, seatsNote, sinceLabel, type LobbyCall } from "../../lib/compte/salons";
+import { callKey, callSentence, endedCallSentence, freshCalls, lobbyUrl, ownCallSentence, seatsNote, sinceLabel, type LobbyCall } from "../../lib/compte/salons";
 import { chime, setSound, start, subscribe, unlockAudio, type AppelsState } from "./appels";
 import { Avatar } from "./common";
 
@@ -34,6 +34,8 @@ function addKeys(storage: () => Storage, key: string, added: readonly string[]):
 const local = () => localStorage;
 const session = () => sessionStorage;
 const othersWaiting = (n: number) => (n === 1 ? "Un autre appel attend au QG" : `${n} autres appels attendent au QG`);
+/** Ce que les lecteurs d'écran entendent : l'appel d'un autre, ou la confirmation du sien. */
+const spoken = (item: LobbyCall) => (item.mine ? `Votre appel est lancé. ${ownCallSentence(item)}` : callSentence(item));
 
 /**
  * Les appels des Gaulois, sur les pages du site : quand un membre validé dit au QG qu'il attend dans un salon d'OpenFront,
@@ -69,7 +71,7 @@ export default function AppelsGaulois() {
       const announced = fresh.filter((item) => !rung.has(callKey(item)));
       if (announced.length === 0) return;
       addKeys(session, RUNG_KEY, announced.map(callKey));
-      setSaid(announced.map(callSentence).join(" "));
+      setSaid(announced.map(spoken).join(" "));
       if (next.soundOn) chime();
     });
     // Après le chargement de la page : le reste du site passe d'abord.
@@ -93,11 +95,13 @@ export default function AppelsGaulois() {
     };
   }, [wantsUnlock]);
 
-  // Le titre de l'onglet compte les appels en attente, sans clignoter : il se voit même quand la page est en arrière-plan.
+  // Le titre de l'onglet compte les Gaulois qui vous attendent, sans clignoter : il se voit même quand la page est en
+  // arrière-plan. Son propre appel n'y compte pas : personne ne l'attend.
+  const waiting = popups.filter((item) => !item.mine).length;
   useEffect(() => {
     baseTitle.current ??= document.title;
-    document.title = open ? `(${popups.length}) ${baseTitle.current}` : baseTitle.current;
-  }, [open, popups.length]);
+    document.title = waiting > 0 ? `(${waiting}) ${baseTitle.current}` : baseTitle.current;
+  }, [waiting]);
   useEffect(
     () => () => {
       if (baseTitle.current !== null) document.title = baseTitle.current;
@@ -158,10 +162,17 @@ export default function AppelsGaulois() {
     });
   };
 
-  const item = popups[0];
+  const shown = popups[0];
   const now = Date.now() + (appels?.offset ?? 0);
-  const ended = item !== undefined && !(appels?.data?.calls.some((other) => callKey(other) === callKey(item)) ?? false);
-  const seats = item ? seatsNote(item.format) : null;
+  // Ce que le dernier relevé dit de cet appel : le format a pu changer depuis son ouverture. Absent : l'appel est fini.
+  const latest = shown ? appels?.data?.calls.find((other) => callKey(other) === callKey(shown)) : undefined;
+  const ended = shown !== undefined && latest === undefined;
+  const item = latest ?? shown;
+  const seats = item && !ended ? seatsNote(item.format) : null;
+  // Le lien vers les autres appels ne compte que ceux des autres : le sien est au QG, sous « Votre appel ».
+  const othersQueued = popups.slice(1).filter((other) => !other.mine).length;
+  const title = item?.mine ? (ended ? "Votre appel est terminé" : "Votre appel est lancé") : ended ? "Appel terminé" : "Un Gaulois vous attend";
+  const sentence = item ? (ended ? endedCallSentence(item) : item.mine ? ownCallSentence(item) : callSentence(item)) : "";
 
   return (
     <>
@@ -177,14 +188,14 @@ export default function AppelsGaulois() {
             {/* Le dégradé des scènes bleues, sans la classe `.stage` et ses effets ; un fond plein et une vraie bordure pour le mode contraste élevé. */}
             <div
               role="group"
-              aria-label={`Appel de ${item.name}`}
+              aria-label={item.mine ? "Votre appel" : `Appel de ${item.name}`}
               class="stage-blue pointer-events-auto relative max-h-[calc(100dvh-7rem)] overflow-y-auto rounded-2xl border-2 border-white/80 bg-blue p-4 pr-14 text-white shadow-2xl [background-image:var(--stage-bg)] sm:p-5 sm:pr-14"
               data-testid="appels-popup"
             >
               <button
                 type="button"
                 class="absolute right-2 top-2 grid size-11 place-items-center rounded-full text-white hover:bg-white/15"
-                aria-label={`Fermer l'appel de ${item.name}`}
+                aria-label={item.mine ? "Fermer la fenêtre de votre appel" : `Fermer l'appel de ${item.name}`}
                 onClick={() => close(item)}
                 data-testid="appels-close"
               >
@@ -193,15 +204,23 @@ export default function AppelsGaulois() {
                 </span>
               </button>
               <p class="text-xs font-bold uppercase tracking-widest max-sm:hidden">Appel du QG</p>
-              <p class="font-display text-xl font-extrabold leading-tight sm:mt-1 sm:text-2xl">Un Gaulois vous attend</p>
+              <p class="font-display text-xl font-extrabold leading-tight sm:mt-1 sm:text-2xl">{title}</p>
               <div class="mt-3 flex items-center gap-3">
                 <Avatar name={item.name} avatar={item.avatar} />
-                <p class="min-w-0 font-semibold [overflow-wrap:anywhere] sm:text-lg">{callSentence(item)}</p>
+                <p class="min-w-0 font-semibold [overflow-wrap:anywhere] sm:text-lg">{sentence}</p>
               </div>
-              <p class="tnum mt-2 text-sm text-white/85">{ended ? "Cet appel est terminé." : `Appel lancé ${sinceLabel(item.createdAt, now)}.`}</p>
-              {!ended && seats && <p class="mt-1 text-sm text-white/85">{seats}</p>}
+              {!ended && <p class="tnum mt-2 text-sm text-white/85">Appel lancé {sinceLabel(item.createdAt, now)}.</p>}
+              {/* Celui qui appelle a une fenêtre comme celle des autres : la phrase le lui dit. */}
+              {!ended && item.mine && <p class="mt-1 text-sm text-white/85">Les membres connectés reçoivent la même alerte.</p>}
+              {seats && <p class="mt-1 text-sm text-white/85">{seats}</p>}
               <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 sm:mt-4">
-                {!ended && (
+                {/* Celui qui appelle est déjà dans son salon : son bouton mène au QG, où il peut retirer l'appel. */}
+                {!ended && item.mine && (
+                  <a class="btn btn-secondary !min-h-11" href={`${basePath()}/qg#salons`} data-testid="appels-manage">
+                    Gérer mon appel
+                  </a>
+                )}
+                {!ended && !item.mine && (
                   <a class="btn btn-secondary !min-h-11" href={lobbyUrl(item.game)} target="_blank" rel="noopener" data-testid="appels-join">
                     Rejoindre la partie<span class="sr-only"> (nouvel onglet)</span>
                   </a>
@@ -211,9 +230,9 @@ export default function AppelsGaulois() {
                 </button>
               </div>
             </div>
-            {popups.length > 1 && (
+            {othersQueued > 0 && (
               <p class="card pointer-events-auto p-3 text-sm" data-testid="appels-more">
-                <a href={`${basePath()}/qg#salons`}>{othersWaiting(popups.length - 1)}</a>
+                <a href={`${basePath()}/qg#salons`}>{othersWaiting(othersQueued)}</a>
               </p>
             )}
           </div>,

@@ -112,10 +112,20 @@ export const isFinalRefusal = (code: string): boolean => code === "not_signed_in
 /** La clé d'un appel : un nouveau salon du même membre fait de nouveau sonner, le même salon jamais deux fois. */
 export const callKey = (call: Pick<LobbyCall, "id" | "game">): string => `${call.id}:${call.game}`;
 
-/** Les appels qui ouvrent un pop-up : ceux des autres, que cette page n'a pas encore montrés ni vu fermer. */
+/**
+ * Les appels qui ouvrent un pop-up : ceux que cette page n'a pas encore montrés ni vu fermer. Celui du membre connecté
+ * compris, depuis le 10 novembre 2026 : celui qui lance l'appel reçoit lui aussi une fenêtre, comme celle des autres.
+ */
 export function freshCalls(calls: readonly LobbyCall[], seen: ReadonlySet<string>): LobbyCall[] {
-  return calls.filter((call) => !call.mine && !seen.has(callKey(call)));
+  return calls.filter((call) => !seen.has(callKey(call)));
 }
+
+/** Le texte d'un appel pour celui qui l'a lancé : « Vous attendez dans un salon Trios. » */
+export const ownCallSentence = (call: Pick<LobbyCall, "format">): string => `Vous attendez dans ${salonOf(call.format)}.`;
+
+/** Un appel fini (retiré, ou au bout de 15 minutes), au passé : le site ne sait pas si la partie a commencé. */
+export const endedCallSentence = (call: Pick<LobbyCall, "format" | "mine" | "name">): string =>
+  call.mine ? `Vous attendiez dans ${salonOf(call.format)}.` : `${call.name} attendait dans ${salonOf(call.format)}.`;
 
 /** « à l'instant », « il y a 1 min », « il y a 12 min », d'après l'heure du serveur. */
 export function sinceLabel(createdAt: string, now: number): string {

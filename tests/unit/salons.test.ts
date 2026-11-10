@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { ERROR_MESSAGES } from "../../src/lib/compte/errors";
-import { FORMAT_ORDER, GAME_ID_PATTERN, LOBBY_FORMATS, TEAM_SIZE, callKey, isFinalRefusal, callSentence, freshCalls, lobbyIdOf, lobbyUrl, parseLobbyCalls, salonOf, seatsNote, sinceLabel, type LobbyCall } from "../../src/lib/compte/salons";
+import { FORMAT_ORDER, GAME_ID_PATTERN, LOBBY_FORMATS, TEAM_SIZE, callKey, isFinalRefusal, ownCallSentence, endedCallSentence, callSentence, freshCalls, lobbyIdOf, lobbyUrl, parseLobbyCalls, salonOf, seatsNote, sinceLabel, type LobbyCall } from "../../src/lib/compte/salons";
 
 const SQL = readFileSync("supabase/migrations/20261109000300_appels_aux_salons.sql", "utf8");
 
@@ -89,11 +89,23 @@ describe("la relecture des appels", () => {
 });
 
 describe("les pop-ups", () => {
-  it("ne s'ouvrent que pour les appels des autres, une seule fois par salon", () => {
+  it("s'ouvrent pour chaque appel, celui du membre connecté compris, une seule fois par salon", () => {
     const mine = call({ id: 1, mine: true });
     const seen = call({ id: 2, game: "dnH1jfKbGh" });
     const fresh = call({ id: 3 });
-    expect(freshCalls([mine, seen, fresh], new Set([callKey(seen)]))).toEqual([fresh]);
+    // Celui qui lance l'appel reçoit l'alerte lui aussi (demande du pilote, 10 novembre 2026).
+    expect(freshCalls([mine, seen, fresh], new Set([callKey(seen)]))).toEqual([mine, fresh]);
+    expect(freshCalls([mine], new Set([callKey(mine)]))).toEqual([]);
+  });
+
+  it("disent à celui qui appelle où il attend", () => {
+    expect(ownCallSentence(call({ format: "trios" }))).toBe("Vous attendez dans un salon Trios.");
+    expect(ownCallSentence(call({ format: "private" }))).toBe("Vous attendez dans un salon privé.");
+  });
+
+  it("parlent au passé d'un appel fini, sans dire si la partie a commencé", () => {
+    expect(endedCallSentence(call({ format: "trios", mine: true }))).toBe("Vous attendiez dans un salon Trios.");
+    expect(endedCallSentence(call({ format: "4" }))).toBe("Recrue attendait dans un salon à 4 équipes.");
   });
 
   it("se rouvrent quand le même membre appelle depuis un autre salon", () => {

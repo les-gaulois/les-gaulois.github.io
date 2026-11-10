@@ -2,6 +2,16 @@
   {
     "date": "2026-11-10",
     "kind": "ameliore",
+    "title": "L'alerte aussi pour celui qui appelle",
+    "body": "Le membre qui prévient les Gaulois depuis le QG reçoit lui aussi une fenêtre, comme celle des autres, avec le son.",
+    "link": {
+      "href": "/qg#salons",
+      "label": "Ouvrir le QG"
+    }
+  },
+  {
+    "date": "2026-11-10",
+    "kind": "ameliore",
     "title": "Moins de texte sur tout le site",
     "body": "Les explications en trop sont retirées des pages et du QG, comme les messages « Aucun … pour l'instant ». Les précisions de calcul restent dans « Comment lire ces chiffres »."
   },
