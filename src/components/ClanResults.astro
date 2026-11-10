@@ -2,21 +2,14 @@
 import ReadingNote from "./ReadingNote.astro";
 import { clan } from "../../config/clan";
 import { loadMeta, loadSessions } from "../lib/data";
-import { fmtCount, fmtDate, fmtInt, fmtPct } from "../lib/format";
+import { fmtCount, fmtDate } from "../lib/format";
 import { recentRecordKeys, type RecordKey } from "../lib/records-battus";
-import { clanRecords, formatResults, RESULTS_DAYS } from "../lib/results";
+import { clanRecords } from "../lib/results";
 
 const sessions = loadSessions();
-const results = formatResults(sessions, loadMeta().sessions.coveredUntil);
 const records = clanRecords(sessions);
 // Un record des sept derniers jours couverts se signale : le clan vient de le battre.
 const recent = recentRecordKeys(records, loadMeta().sessions.coveredUntil);
-const groups = results
-  ? [
-      { title: "Par nombre d'équipes", rows: results.byTeams },
-      { title: "Par taille d'équipe", rows: results.bySize },
-    ].filter((g) => g.rows.length > 0)
-  : [];
 const start = fmtDate(`${clan.archiveStart}T12:00:00Z`);
 const tiles: { key: RecordKey; label: string; value: string; hint: string }[] = records
   ? [
@@ -51,48 +44,6 @@ const tiles: { key: RecordKey; label: string; value: string; hint: string }[] = 
       <ReadingNote>
         <p>
         Depuis le {start}, parties publiques en équipe jouées avec le tag, tous joueurs du clan confondus : une série mêle donc plusieurs groupes. Le jeu place tout un clan dans une seule équipe : le nombre de Gaulois d'une partie gagnée compte aussi ceux partis avant la fin. Une partie jouée seul contre des robots n'est pas comptée.
-      </p>
-      </ReadingNote>
-    </section>
-  )
-}
-
-{
-  results && groups.length > 0 && (
-    <section class="stage stage-indigo reveal mt-6" aria-labelledby="formats-title" data-testid="format-results">
-      <h2 id="formats-title" class="section-title">Nos résultats par format</h2>
-      <p class="mt-4 max-w-3xl text-lg text-muted">Trait rouge : le taux d'une équipe prise au hasard.</p>
-      <div class="mt-6 space-y-4">
-        {
-          groups.map((group) => (
-            <div class="panel">
-              <h3 class="text-sm tracking-wide text-muted">{group.title}</h3>
-              <ul class="mt-4 grid gap-x-8 gap-y-5 md:grid-cols-2 lg:grid-cols-3">
-                {group.rows.map((row) => (
-                  <li data-testid="format-row">
-                    <div class="flex flex-wrap items-baseline justify-between gap-x-4">
-                      <span class="font-semibold">{row.label}</span>
-                      <span class="tnum font-display text-xl font-extrabold">{fmtPct(row.winRate)}</span>
-                    </div>
-                    <div class="meter relative mt-1" aria-hidden="true">
-                      <i style={{ "--v": `${row.winRate}%` }}></i>
-                      {row.chance !== null && <b class="meter-tick" style={{ left: `${row.chance}%` }}></b>}
-                    </div>
-                    <p class="tnum mt-1 text-xs text-muted">
-                      {fmtInt(row.wins)} victoires sur {fmtInt(row.games)} parties{row.chance !== null && ` · au hasard : ${fmtPct(row.chance)}`}
-                    </p>
-                    <p class="tnum mt-0.5 text-xs text-muted">Depuis le {start} : {fmtPct(row.allTime.winRate)} sur {fmtInt(row.allTime.games)} parties</p>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))
-        }
-      </div>
-      <p class="tnum mt-4 max-w-3xl text-sm text-muted" data-testid="format-period">Sur {RESULTS_DAYS} jours, du {fmtDate(`${results.from}T12:00:00Z`)} au {fmtDate(`${results.to}T12:00:00Z`)}.</p>
-      <ReadingNote>
-        <p>
-        Un taux seul ne dit pas grand-chose : à 2 équipes, le hasard donne déjà 50 %. Le hasard est la moyenne de 1 ÷ nombre d'équipes sur ces parties. C'est un repère, pas une preuve : le niveau des adversaires et le nombre de Gaulois dans la partie comptent aussi. Un format sous 30 parties sur cette période n'est pas affiché.
       </p>
       </ReadingNote>
     </section>

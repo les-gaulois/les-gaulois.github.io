@@ -1,0 +1,87 @@
+---
+import DataStatus from "./DataStatus.astro";
+import ReadingNote from "./ReadingNote.astro";
+import { clan } from "../../config/clan";
+import { loadMemberResults, loadMembers, loadMeta, loadSessions, unreadableSessionFiles } from "../lib/data";
+import { fmtCount, fmtDate, fmtInt, fmtRank } from "../lib/format";
+import { MAX_AGE_HOURS } from "../lib/freshness";
+import { singlePseudos } from "../lib/members";
+import { playerPodiums, podiumDates, PODIUM_SIZE, type PodiumPlace } from "../lib/podiums";
+
+/**
+ * Les podiums des Gaulois : les plus longues séries de victoires et le plus de victoires en une journée, joueur par joueur.
+ * Calculs et limites dans src/lib/podiums.ts. Un membre sans pseudo public n'y figure jamais.
+ */
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const meta = loadMeta();
+const members = loadMembers();
+// Sans un mois de sessions, une victoire de ce mois ne serait pas reconnue : pas de podium plutôt qu'un podium faux.
+const podiums = unreadableSessionFiles().length === 0 ? playerPodiums(loadMemberResults(), loadSessions(), members, meta.sessions.coveredUntil) : null;
+const fiche = (id: string) => `${base}/membres/${encodeURIComponent(id)}`;
+// Une photo Discord ne va qu'à côté d'un pseudo porté par un seul membre : jamais à côté d'un homonyme (src/scripts/visages.ts).
+const faces = singlePseudos(members?.members ?? []);
+const boards: { title: string; rows: PodiumPlace[]; testId: string }[] = podiums
+  ? [
+      { title: "Les plus longues séries de victoires", rows: podiums.streaks, testId: "podium-streaks" },
+      { title: "Le plus de victoires en une journée", rows: podiums.days, testId: "podium-days" },
+    ]
+  : [];
+---
+
+<section class="stage stage-indigo reveal" aria-labelledby="podiums-title" data-testid="player-podiums">
+  <h2 id="podiums-title" class="section-title">Les podiums des Gaulois</h2>
+  {
+    !podiums || podiums.since === null ? (
+      <p class="mt-6 font-display text-lg font-bold">Pas de données</p>
+    ) : (
+      <>
+        <div class="mt-8 grid gap-x-10 gap-y-8 lg:grid-cols-2">
+          {boards.map((board) => (
+            <div class="panel" data-testid={board.testId}>
+              <h3 class="text-xl">{board.title}</h3>
+              {board.rows.length === 0 ? (
+                <p class="mt-4 font-display text-lg font-bold">Pas de données</p>
+              ) : (
+                <ol class="mt-4 space-y-4">
+                  {board.rows.map((row) => (
+                    <li class="grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-x-2 sm:gap-x-3" data-testid="podium-row">
+                      <span class="font-display text-xl font-extrabold">{fmtRank(row.place)}</span>
+                      <span class="min-w-0 [overflow-wrap:anywhere]">
+                        <span class="text-lg font-semibold">
+                          {/* Vide pour un visiteur : la photo Discord d'un membre qui se montre, pour un membre validé connecté (src/scripts/visages.ts). */}
+                          <span class="face-slot mr-2" aria-hidden="true" data-face={faces.has(row.username) ? row.username : undefined} hidden></span>
+                          <a href={fiche(row.id)}>{row.username}</a>
+                        </span>
+                        <span class="tnum block text-xs text-muted" data-testid="podium-dates">{podiumDates(row)}</span>
+                      </span>
+                      {/* Le chiffre en grand, l'unité dessous : sur téléphone, la place reste au pseudo. */}
+                      <span class="text-right leading-tight" data-testid="podium-value">
+                        <span class="tnum block font-display text-2xl font-extrabold">{fmtInt(row.value)}</span>{" "}
+                        <span class="block text-xs text-muted">{row.value > 1 ? "victoires" : "victoire"}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+          ))}
+        </div>
+        <p class="tnum mt-6 max-w-3xl text-sm text-muted" data-testid="podiums-period">
+          Parties depuis le {fmtDate(`${podiums.since}T12:00:00Z`)}.{podiums.pending > 0 && ` L'historique de ${fmtCount(podiums.pending, "joueur")} se lit encore : ces podiums vont changer.`}
+        </p>
+        <ReadingNote>
+          <p>
+            Les parties publiques en équipe jouées avec le tag {clan.tag}, celles du bilan officiel de chaque joueur, parmi les membres avec pseudo encore dans le clan. Une partie quittée avant d'apparaître sur la carte compte comme une défaite, comme dans ce bilan. Une victoire seul contre des robots ne compte pas. Les podiums se mettent à jour environ une fois par jour, quand la liste des membres est relue.
+          </p>
+          <p>
+            Une journée va de minuit à minuit, à Paris, d'après l'heure de début des parties. À égalité, le premier à atteindre le chiffre passe devant, et deux joueurs qui l'atteignent dans la même partie partagent la place ; le podium s'arrête à la {fmtRank(PODIUM_SIZE)} place. La liste d'un joueur range Humains contre Nations avec les parties en équipe : une victoire y est écartée, une défaite y coupe la série. Un chiffre peut donc être un peu plus bas que dans le bilan officiel, jamais plus haut.
+          </p>
+          <p>Une série se gagne en équipe, et une grosse journée demande d'abord beaucoup de parties : ce n'est pas un classement de niveau.</p>
+        </ReadingNote>
+      </>
+    )
+  }
+  <div class="mt-4">
+    <DataStatus state={meta.memberResults} maxAgeHours={MAX_AGE_HOURS.memberResults} />
+  </div>
+</section>

@@ -66,6 +66,8 @@ const healthy: Route = (url) => {
   if (path === "/leaderboard/ranked") return { body: rankedPage(url.searchParams.get("page") === "1" ? ["id1", "AUTRE", "SECRET"] : ["LOIN"]) };
   if (path.startsWith("/game/")) return { body: game() };
   if (path === "/players/recently-deleted") return { body: [] };
+  // La liste des parties de chaque joueur pour les podiums : vide par défaut, les tests des podiums donnent la leur.
+  if (/^\/player\/[^/]+\/sessions$/.test(path)) return { body: { results: [], nextCursor: null } };
   if (path.startsWith("/player/")) return { body: { results: Array.from({ length: 3 }, () => ({ start: "2026-11-03T20:00:00.000Z", map: "World", mode: "Team", type: "Public", result: "victory", clanTag: "GAL" })), nextCursor: null } };
   return { status: 404 };
 };
@@ -89,6 +91,7 @@ describe("runPipeline", () => {
     archiveStart: "2026-11-03",
     delayMs: 0,
     memberGamesFile: join(dir, "cache", "players.json"),
+    memberResultsFile: join(dir, "cache", "results.json"),
     log: () => {},
   });
   const read = (file: string) => JSON.parse(readFileSync(join(dir, file), "utf8"));
@@ -177,9 +180,10 @@ describe("runPipeline", () => {
 
   it("n'écrit rien sur le clan si le tag n'existe pas", async () => {
     const { errors } = await runPipeline(deps((url) => (url.pathname.endsWith("/exists") ? { body: { exists: false } } : undefined)));
-    expect(errors).toHaveLength(4);
+    expect(errors).toHaveLength(5);
     expect(read("meta.json").games.lastError).toContain("n'existe pas");
     expect(read("meta.json").memberGames.lastError).toContain("n'existe pas");
+    expect(read("meta.json").memberResults.lastError).toContain("n'existe pas");
     expect(existsSync(join(dir, "members.json"))).toBe(false);
     expect(existsSync(join(dir, "sessions", "2026-11.json"))).toBe(false);
   });
@@ -474,7 +478,8 @@ describe("runPipeline", () => {
         const id = url.pathname.match(/\/player\/([^/]+)\/games$/)?.[1];
         return id ? games(lines(counts[id] ?? 0)) : undefined;
       };
-    const playerCalls = () => calls.filter((c) => c.includes("/public/player/"));
+    // Les appels des fiches seulement : la liste des parties pour les podiums a ses propres tests.
+    const playerCalls = () => calls.filter((c) => c.includes("/public/player/") && !c.includes("/sessions"));
     const storedPath = () => join(dir, "cache", "players.json");
     const stored = () => JSON.parse(readFileSync(storedPath(), "utf8"));
 
@@ -643,6 +648,8 @@ describe("runPipeline", () => {
     it("n'appelle jamais de partie pour un anonyme, ni pour un membre sans partie sous le tag", async () => {
       await runPipeline(deps(withMembers([withRecord("SECRET", null, 5, 5), withRecord("id2", "Bravo", 0, 0)])));
       expect(playerCalls()).toEqual([]);
+      // Ni pour ses podiums.
+      expect(calls.filter((c) => c.includes("/public/player/"))).toEqual([]);
     });
 
     it("ne relit un joueur que si ses parties selon stats.team ont bougé", async () => {
@@ -815,11 +822,193 @@ describe("runPipeline", () => {
       expect(playerCalls()).toEqual([]);
       expect(calls.some((c) => c.includes("recently-deleted"))).toBe(false);
     });
+
+    describe("podiums des joueurs", () => {
+      type Page = { rows: unknown[]; next: string | null };
+      /** Une ligne de la liste officielle d'un joueur, avec un pseudo et un identifiant de partie qui ne doivent jamais être gardés. */
+      const row = (gameId: string, gameStart: string, over: Record<string, unknown> = {}) => ({ gameId, gameStart, gameEnd: gameStart, gameType: "Public", gameMode: "Team", gameRankedType: "unranked", clientId: "ClientSecret", username: "NomAPI", clanTag: "GAL", hasWon: true, ...over });
+      /** Les pages de la liste d'un joueur : « debut » sans curseur, les suivantes par leur curseur. */
+      const pages =
+        (id: string, book: Record<string, Page>): Route =>
+        (url) => {
+          if (url.pathname !== `/public/player/${id}/sessions`) return undefined;
+          const page = book[url.searchParams.get("cursor") ?? "debut"];
+          return page ? { body: { results: page.rows, nextCursor: page.next } } : { status: 404 };
+        };
+      const either =
+        (...routes: Route[]): Route =>
+        (url) =>
+          routes.reduce<ReturnType<Route>>((found, route) => found ?? route(url), undefined);
+      const resultsPath = () => join(dir, "cache", "results.json");
+      const results = () => JSON.parse(readFileSync(resultsPath(), "utf8"));
+      const sessionCalls = () => calls.filter((c) => /\/player\/[^/]+\/sessions/.test(c));
+      const once = (id: string, gameId: string, gameStart: string) => pages(id, { debut: { rows: [row(gameId, gameStart)], next: null } });
+
+      it("garde les parties d'équipe sous le tag d'un membre avec pseudo, hors de data/, sans anonyme, ni pseudo, ni autre mode", async () => {
+        const book = {
+          debut: {
+            rows: [
+              row("g2", "2026-11-04T20:00:00.000Z", { hasWon: false }),
+              row("ffa", "2026-11-04T19:00:00.000Z", { gameMode: "Free For All", clanTag: null }),
+              row("g1", "2026-11-04T18:00:00.000Z"),
+              row("bss", "2026-11-04T17:00:00.000Z", { clanTag: "BSS" }),
+              row("privee", "2026-11-04T16:00:00.000Z", { gameType: "Private" }),
+            ],
+            next: null,
+          },
+        };
+        const { errors } = await runPipeline(deps(withMembers([withRecord("id1", "Alpha", 1, 1), withRecord("SECRET", null, 3, 3)], pages("id1", book))));
+        expect(errors).toEqual([]);
+        expect(results()).toEqual({
+          id1: {
+            seen: 2,
+            // L'heure de la lecture, pas celle d'une partie : rien de ce qui est joué hors du tag n'est gardé.
+            readAt: now.toISOString(),
+            older: null,
+            games: [
+              ["g2", "2026-11-04T20:00:00.000Z", 0],
+              ["g1", "2026-11-04T18:00:00.000Z", 1],
+            ],
+          },
+        });
+        const raw = readFileSync(resultsPath(), "utf8");
+        for (const absent of ["SECRET", "NomAPI", "ClientSecret", "ffa", "bss", "privee", "Free For All"]) expect(raw).not.toContain(absent);
+        expect(sessionCalls()).toEqual(["/public/player/id1/sessions"]);
+        expect(existsSync(join(dir, "results.json"))).toBe(false);
+        expect(read("meta.json").memberResults.lastSuccessAt).toBe(now.toISOString());
+      });
+
+      it("remonte le temps page après page jusqu'au début de l'archive, dans la limite du passage", async () => {
+        const book = {
+          debut: { rows: [row("g5", "2026-11-04T20:00:00.000Z")], next: "p2" },
+          p2: { rows: [row("g4", "2026-11-04T10:00:00.000Z", { hasWon: false })], next: "p3" },
+          p3: { rows: [row("g3", "2026-11-03T10:00:00.000Z"), row("avant", "2026-11-02T23:00:00.000Z")], next: "p4" },
+        };
+        const route = withMembers([withRecord("id1", "Alpha", 2, 1)], pages("id1", book));
+        await runPipeline({ ...deps(route), memberResultsCallsPerRun: 2 });
+        expect(sessionCalls()).toEqual(["/public/player/id1/sessions", "/public/player/id1/sessions?cursor=p2"]);
+        expect(results().id1.older).toBe("p3");
+
+        // stats.team n'a pas bougé : la remontée seule continue, et s'arrête au début de l'archive, sans rien garder d'avant.
+        calls = [];
+        now = new Date("2026-11-05T11:00:00.000Z");
+        await runPipeline({ ...deps(route), memberResultsCallsPerRun: 2 });
+        expect(sessionCalls()).toEqual(["/public/player/id1/sessions?cursor=p3"]);
+        expect(results().id1.older).toBeNull();
+        expect(results().id1.games.map((g: [string]) => g[0])).toEqual(["g5", "g4", "g3"]);
+
+        calls = [];
+        now = new Date("2026-11-05T12:00:00.000Z");
+        await runPipeline(deps(route));
+        expect(sessionCalls()).toEqual([]);
+      });
+
+      it("relit ses nouvelles parties quand stats.team a bougé, jusqu'à six heures avant la lecture précédente, sans doublon", async () => {
+        now = new Date("2026-11-04T10:05:00.000Z");
+        const first = { debut: { rows: [row("a", "2026-11-04T10:00:00.000Z"), row("b", "2026-11-04T09:00:00.000Z", { hasWon: false })], next: null } };
+        await runPipeline(deps(withMembers([withRecord("id1", "Alpha", 1, 1)], pages("id1", first))));
+        expect(results().id1.readAt).toBe("2026-11-04T10:05:00.000Z");
+
+        // Une nouvelle partie, et une autre commencée avant la lecture mais finie après : elle arrive à sa place. « loin » est plus de six heures avant.
+        const second = {
+          debut: {
+            rows: [row("c", "2026-11-05T06:00:00.000Z"), row("a", "2026-11-04T10:00:00.000Z"), row("tard", "2026-11-04T09:30:00.000Z", { hasWon: false }), row("b", "2026-11-04T09:00:00.000Z", { hasWon: false }), row("loin", "2026-11-04T03:00:00.000Z")],
+            next: "p2",
+          },
+        };
+        calls = [];
+        now = new Date("2026-11-05T07:00:00.000Z");
+        await runPipeline(deps(withMembers([withRecord("id1", "Alpha", 2, 2)], pages("id1", second))));
+        expect(sessionCalls()).toEqual(["/public/player/id1/sessions"]);
+        expect(results().id1).toEqual({
+          seen: 4,
+          readAt: "2026-11-05T07:00:00.000Z",
+          older: null,
+          games: [
+            ["c", "2026-11-05T06:00:00.000Z", 1],
+            ["a", "2026-11-04T10:00:00.000Z", 1],
+            ["tard", "2026-11-04T09:30:00.000Z", 0],
+            ["b", "2026-11-04T09:00:00.000Z", 0],
+          ],
+        });
+      });
+
+      it("repart de ses dernières pages, sans trou, quand trop de nouvelles parties le séparent de ce qui est gardé", async () => {
+        await runPipeline(deps(withMembers([withRecord("id1", "Alpha", 1, 0)], once("id1", "ancienne", "2026-11-03T10:00:00.000Z"))));
+        const book: Record<string, Page> = {};
+        for (let i = 0; i <= 10; i++) {
+          const start = new Date(Date.parse("2026-11-05T20:00:00.000Z") - i * 60_000).toISOString();
+          book[i === 0 ? "debut" : `n${i}`] = { rows: i === 10 ? [row(`x${i}`, start), row("ancienne", "2026-11-03T10:00:00.000Z")] : [row(`x${i}`, start)], next: i === 10 ? null : `n${i + 1}` };
+        }
+        calls = [];
+        now = new Date("2026-11-06T09:00:00.000Z");
+        await runPipeline(deps(withMembers([withRecord("id1", "Alpha", 2, 0)], pages("id1", book))));
+        expect(sessionCalls()).toHaveLength(11);
+        const entry = results().id1;
+        expect(entry.older).toBeNull();
+        expect(entry.games.map((g: [string]) => g[0])).toEqual([...Array.from({ length: 11 }, (_, i) => `x${i}`), "ancienne"]);
+      });
+
+      it("oublie un membre parti ou qui a retiré son pseudo", async () => {
+        await runPipeline(deps(withMembers([withRecord("id1", "Alpha", 1, 0), withRecord("id2", "Bravo", 1, 0)], once("id1", "g1", "2026-11-04T10:00:00.000Z"))));
+        expect(Object.keys(results()).sort()).toEqual(["id1", "id2"]);
+        now = new Date("2026-11-06T11:00:00.000Z");
+        await runPipeline(deps(withMembers([withRecord("id1", null, 1, 0)])));
+        expect(results()).toEqual({});
+      });
+
+      it("retire aussitôt un compte supprimé, sans plus lire sa liste", async () => {
+        const book = once("id1", "g1", "2026-11-04T10:00:00.000Z");
+        await runPipeline(deps(withMembers([withRecord("id1", "Alpha", 1, 0)], book)));
+        expect(results().id1).toBeDefined();
+        calls = [];
+        now = new Date("2026-11-05T11:00:00.000Z");
+        const deleted: Route = (url) => (url.pathname.endsWith("/players/recently-deleted") ? { body: [{ publicId: "id1" }] } : undefined);
+        await runPipeline(deps(withMembers([withRecord("id1", "Alpha", 1, 0)], either(deleted, book))));
+        expect(results()).toEqual({});
+        expect(sessionCalls()).toEqual([]);
+      });
+
+      it("ne lit aucune liste si celle des comptes supprimés ne répond pas, et le signale", async () => {
+        const route = withMembers([withRecord("id1", "Alpha", 1, 1)], (url) => (url.pathname.endsWith("/players/recently-deleted") ? { status: 500 } : undefined));
+        const { errors } = await runPipeline(deps(route));
+        expect(errors.some((e) => e.startsWith("podiums des joueurs : HTTP 500"))).toBe(true);
+        expect(sessionCalls()).toEqual([]);
+        expect(existsSync(resultsPath())).toBe(false);
+        expect(read("meta.json").memberResults.lastError).toContain("HTTP 500");
+      });
+
+      it("passe à la suite après une liste illisible, la relit ensuite et n'annonce pas de panne", async () => {
+        const broken: Route = (url) => (url.pathname === "/public/player/id1/sessions" ? { status: 404 } : undefined);
+        const list = [withRecord("id1", "Alpha", 1, 0), withRecord("id2", "Bravo", 1, 0)];
+        const { errors } = await runPipeline(deps(withMembers(list, either(broken, once("id2", "g2", "2026-11-04T10:00:00.000Z")))));
+        expect(errors).toEqual(["listes de parties sans réponse lisible, à relire : 1"]);
+        expect(Object.keys(results())).toEqual(["id2"]);
+        expect(read("meta.json").memberResults.lastError).toBeNull();
+
+        calls = [];
+        now = new Date("2026-11-05T11:00:00.000Z");
+        await runPipeline(deps(withMembers(list, once("id1", "g1", "2026-11-04T09:00:00.000Z"))));
+        expect(sessionCalls()).toEqual(["/public/player/id1/sessions"]);
+        expect(Object.keys(results()).sort()).toEqual(["id1", "id2"]);
+      });
+
+      it("signale une panne de la route sans rien écrire, et sans identifiant dans le message public", async () => {
+        const list = ["id1", "id2", "id3", "id4", "id5"].map((id) => withRecord(id, id.toUpperCase(), 1, 0));
+        const { errors } = await runPipeline(deps(withMembers(list, (url) => (/\/player\/[^/]+\/sessions$/.test(url.pathname) ? { status: 404 } : undefined))));
+        const meta = read("meta.json");
+        expect(meta.memberResults.lastError).toContain("HTTP 404");
+        for (const id of ["id1", "id5"]) expect(meta.memberResults.lastError).not.toContain(id);
+        expect(errors.some((e) => e.startsWith("podiums des joueurs :"))).toBe(true);
+        expect(existsSync(resultsPath())).toBe(false);
+      });
+    });
   });
 
   it("n'interroge jamais une fenêtre de plus d'un jour ni une date future", async () => {
     await runPipeline(deps(healthy));
-    for (const c of calls.filter((x) => x.includes("/sessions"))) {
+    // Les sessions du clan, lues par fenêtre ; la liste des parties d'un joueur, elle, se lit par curseur.
+    for (const c of calls.filter((x) => x.includes("/clan/GAL/sessions"))) {
       const url = new URL(c, "https://x");
       const span = Date.parse(url.searchParams.get("end") ?? "") - Date.parse(url.searchParams.get("start") ?? "");
       expect(span).toBeLessThanOrEqual(86_400_000);

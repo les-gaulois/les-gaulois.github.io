@@ -1,51 +1,11 @@
 import type { StoredSession } from "./schemas";
-import { winRate } from "./stats";
 import { addDays, parisParts } from "./time";
 
 /** Même fenêtre que le classement officiel, pour décrire le clan tel qu'il joue aujourd'hui. */
 export const RESULTS_DAYS = 90;
 
-export interface FormatResult {
-  key: string;
-  label: string;
-  games: number;
-  wins: number;
-  winRate: number;
-  /** Taux d'une équipe prise au hasard, en % : moyenne de 1 ÷ nombre d'équipes sur ces parties. */
-  chance: number | null;
-  /** Mêmes chiffres depuis le début de l'archive. */
-  allTime: { games: number; winRate: number };
-}
-
-export interface FormatResults {
-  /** Formats à nombre d'équipes fixe : « 2 » signifie deux équipes. */
-  byTeams: FormatResult[];
-  /** Formats à taille d'équipe fixe : Duos, Trios, Quads. */
-  bySize: FormatResult[];
-  from: string;
-  to: string;
-}
-
-const SIZE_FORMATS = ["Duos", "Trios", "Quads"];
-
 /** Le nom d'un format : « 2 » signifie deux équipes, « Duos » reste « Duos ». */
 export const formatLabel = (key: string) => (/^\d+$/.test(key) ? `${key} équipes` : key);
-
-function tally(sessions: readonly StoredSession[]) {
-  const rows = new Map<string, { games: number; wins: number; chanceSum: number; chanceGames: number }>();
-  for (const s of sessions) {
-    if (s.playerTeams === null) continue;
-    const row = rows.get(s.playerTeams) ?? { games: 0, wins: 0, chanceSum: 0, chanceGames: 0 };
-    row.games++;
-    if (s.hasWon) row.wins++;
-    if (s.numTeams >= 2) {
-      row.chanceSum += 1 / s.numTeams;
-      row.chanceGames++;
-    }
-    rows.set(s.playerTeams, row);
-  }
-  return rows;
-}
 
 /** Les `RESULTS_DAYS` derniers jours couverts, en jours de Paris, et le test d'appartenance d'une partie. */
 export function resultsWindow(coveredUntil: string) {
@@ -56,42 +16,6 @@ export function resultsWindow(coveredUntil: string) {
     return day >= from && day <= to;
   };
   return { from, to, includes };
-}
-
-/**
- * Taux de victoire par format, sur les `RESULTS_DAYS` derniers jours couverts.
- * Un format sous `minGames` parties sur cette fenêtre n'est pas retenu.
- * Le repère de hasard est indispensable : gagner 48 % à 2 équipes vaut moins que 33 % à 7 équipes.
- */
-export function formatResults(sessions: readonly StoredSession[], coveredUntil: string | null, minGames = 30): FormatResults | null {
-  if (!coveredUntil) return null;
-  const { from, to, includes } = resultsWindow(coveredUntil);
-  const recent = tally(sessions.filter((s) => includes(s.gameStart)));
-  const allTime = tally(sessions);
-  const rows = [...recent].flatMap(([key, r]) => {
-    const rate = winRate(r.wins, r.games);
-    const total = allTime.get(key);
-    const totalRate = total ? winRate(total.wins, total.games) : null;
-    if (r.games < minGames || rate === null || !total || totalRate === null) return [];
-    const row: FormatResult = {
-      key,
-      label: formatLabel(key),
-      games: r.games,
-      wins: r.wins,
-      winRate: rate,
-      chance: r.chanceGames > 0 ? (r.chanceSum / r.chanceGames) * 100 : null,
-      allTime: { games: total.games, winRate: totalRate },
-    };
-    return [row];
-  });
-  if (rows.length === 0) return null;
-  const sizeIndex = (key: string) => SIZE_FORMATS.indexOf(key);
-  return {
-    byTeams: rows.filter((r) => sizeIndex(r.key) < 0).sort((a, b) => Number(a.key) - Number(b.key) || a.key.localeCompare(b.key)),
-    bySize: rows.filter((r) => sizeIndex(r.key) >= 0).sort((a, b) => sizeIndex(a.key) - sizeIndex(b.key)),
-    from,
-    to,
-  };
 }
 
 export interface ClanRecords {

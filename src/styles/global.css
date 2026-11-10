@@ -867,36 +867,6 @@ th.fx-cross {
 .meter-other > i {
   background: #6f7fb3;
 }
-/* Repère sur une jauge : sa valeur est toujours écrite à côté, en texte. */
-.meter-tick {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: var(--color-red);
-  /* Le rouge seul se perd sur le dégradé de la jauge : un liseré sombre le détache. */
-  box-shadow: 0 0 0 1px var(--color-night);
-}
-/* Les issues d'un face-à-face, sur un même total : chacune est écrite à côté, en texte. Posée sur l'indigo de sa scène,
-   la barre a un fond sombre : les fentes de 2 px entre deux issues séparent nettement les couleurs (victoires 4,7:1,
-   défaites 5:1, autre équipe 7,8:1 contre ce fond). */
-.split-bar {
-  display: flex;
-  gap: 2px;
-  height: 10px;
-  overflow: hidden;
-  border-radius: 5px;
-  background: color-mix(in srgb, var(--color-night) 55%, transparent);
-}
-.split-bar > i {
-  display: block;
-  width: var(--v);
-}
-/* Une autre équipe gagne : un gris bleuté clair, 5,5:1 sur l'indigo le plus clair de la scène, plus clair que le bleu des
-   victoires et l'orange des défaites qu'il côtoie. Le gris des bordures (--color-line) s'y perdait (1,1:1). */
-.split-other {
-  background: #a9b4d0;
-}
 .score-bar {
   position: absolute;
   top: 0.25rem;

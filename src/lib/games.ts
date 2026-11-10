@@ -1,5 +1,5 @@
 /**
- * Détail des parties : ce que le site en garde, puis les résultats par carte et les face-à-face.
+ * Détail des parties : ce que le site en garde, puis les face-à-face.
  *
  * `placeClans` est adapté de `assignTeams` dans OpenFront (packages/engine-lib/src/game/TeamAssignment.ts,
  * commit 31a2119, AGPL-3.0, © OpenFront and Contributors), réécrit et réduit au placement des clans
@@ -11,17 +11,8 @@ import { winRate } from "./stats";
 
 /** En dessous, un tag n'est pas un groupe : il peut désigner une seule personne, et ne fait pas un face-à-face. */
 export const MIN_CLAN_PLAYERS = 2;
-export const MAP_MIN_GAMES = 50;
-/** Une carte n'est dite forte ou faible qu'à partir de cet écart. La page recalcule une quarantaine de cartes chaque jour : un seuil plus bas donnerait de fausses alertes. Mesures : docs/API_AUDIT.md. */
-export const MAP_SIGNAL_Z = 4;
-/** 4 joueurs ou plus forment une seule catégorie : plus fin, il resterait trop peu de parties dans chacune. */
-const GROUP_CAP = 4;
-/** Tranches de taille de salon, en joueurs. Le taux du clan en dépend, et la taille du salon dépend de la carte. */
-const LOBBY_LIMITS = [20, 40, 80];
 export const FACE_OFF_MIN_MEETINGS = 30;
 export const FACE_OFF_MAX_ROWS = 12;
-/** Les clans montrés d'abord, les plus rencontrés : les autres restent dans la page, repliés. Sur téléphone, douze cartes font plus de quatre écrans. */
-export const FACE_OFF_FIRST_ROWS = 3;
 /** Au-delà de cette part de parties écartées parmi les plus récentes, la règle de placement du jeu a sans doute changé. */
 export const FACE_OFF_MAX_DOUBT = 0.05;
 /** Le contrôle porte sur les dernières parties, pour réagir vite à un changement, et attend d'en avoir assez pour juger. */
@@ -124,117 +115,6 @@ const coverageOf = (entries: readonly Entry[]): GameCoverage => ({ total: entrie
 function readingState(all: readonly Entry[], recent: readonly Entry[]): ReadingState {
   const archive = coverageOf(all);
   return { coverage: coverageOf(recent), archive, reading: archive.total - archive.read > NEARLY_READ };
-}
-
-export interface MapResult {
-  map: string;
-  games: number;
-  wins: number;
-  winRate: number;
-  /** Ce que le clan gagne d'habitude sur ces mêmes parties, en % : son taux au même format, avec autant de joueurs, dans un salon de taille proche. */
-  usual: number;
-  /** L'écart avec `usual`, rapporté à ce que le hasard peut produire sur ce nombre de parties. */
-  z: number;
-  medianSeconds: number;
-  /** Depuis le début de l'archive. `null` tant qu'il reste trop de parties à lire. */
-  allTime: { games: number; winRate: number } | null;
-}
-
-export interface MapResults extends ReadingState {
-  /** Des cartes les plus jouées aux moins jouées. */
-  rows: MapResult[];
-  /** Les seules cartes dont l'écart avec les habitudes du clan ne s'explique plus par le hasard. Le plus souvent, aucune. */
-  strong: MapResult[];
-  weak: MapResult[];
-  from: string;
-  to: string;
-}
-
-function median(sorted: readonly number[]): number {
-  const middle = Math.floor(sorted.length / 2);
-  const high = sorted[middle] ?? 0;
-  return sorted.length % 2 === 1 ? high : ((sorted[middle - 1] ?? high) + high) / 2;
-}
-
-/** Le taux du clan sur ces parties, par format, nombre de joueurs du clan et taille de salon : ce que donnerait une carte sans aucun effet. */
-function usualRates(list: readonly Entry[]) {
-  const lobby = (players: number) => LOBBY_LIMITS.filter((limit) => players > limit).length;
-  const key = ({ session }: Entry) => `${session.playerTeams}|${Math.min(session.clanPlayerCount, GROUP_CAP)}|${lobby(session.totalPlayerCount)}`;
-  const cells = new Map<string, { wins: number; games: number }>();
-  for (const entry of list) {
-    const cell = cells.get(key(entry)) ?? { wins: 0, games: 0 };
-    cell.games++;
-    if (entry.session.hasWon) cell.wins++;
-    cells.set(key(entry), cell);
-  }
-  return (entry: Entry) => {
-    const cell = cells.get(key(entry));
-    return cell ? cell.wins / cell.games : 0;
-  };
-}
-
-/**
- * Taux de victoire par carte sur les `RESULTS_DAYS` derniers jours. Une carte sous `minGames` parties sur cette fenêtre n'est pas retenue.
- * Comparer les taux entre eux ou au hasard ne dirait rien : le format, la taille du salon et le nombre de joueurs du clan pèsent davantage,
- * et les deux premiers changent d'une carte à l'autre. Chaque carte est donc comparée au taux habituel du clan dans les mêmes conditions.
- */
-export function mapResults(sessions: readonly StoredSession[], games: readonly StoredGame[], coveredUntil: string | null, minGames = MAP_MIN_GAMES): MapResults | null {
-  if (!coveredUntil) return null;
-  const { from, to, includes } = resultsWindow(coveredUntil);
-  const entries = withDetails(sessions, games);
-  const recent = entries.filter((e) => includes(e.session.gameStart));
-  const state = readingState(entries, recent);
-
-  const allTime = new Map<string, { wins: number; games: number }>();
-  for (const { session, game } of entries) {
-    if (!game) continue;
-    const row = allTime.get(game.map) ?? { wins: 0, games: 0 };
-    row.games++;
-    if (session.hasWon) row.wins++;
-    allTime.set(game.map, row);
-  }
-
-  const usual = usualRates(recent.filter((e) => e.game));
-  const maps = new Map<string, { wins: number; expected: number; variance: number; seconds: number[] }>();
-  for (const entry of recent) {
-    if (!entry.game) continue;
-    const row = maps.get(entry.game.map) ?? { wins: 0, expected: 0, variance: 0, seconds: [] };
-    const rate = usual(entry);
-    if (entry.session.hasWon) row.wins++;
-    row.expected += rate;
-    row.variance += rate * (1 - rate);
-    row.seconds.push(entry.game.seconds);
-    maps.set(entry.game.map, row);
-  }
-
-  const rows = [...maps].flatMap(([map, row]): MapResult[] => {
-    const played = row.seconds.length;
-    const rate = winRate(row.wins, played);
-    if (played < minGames || rate === null) return [];
-    const total = allTime.get(map);
-    const totalRate = total ? winRate(total.wins, total.games) : null;
-    return [
-      {
-        map,
-        games: played,
-        wins: row.wins,
-        winRate: rate,
-        usual: (row.expected / played) * 100,
-        z: row.variance > 0 ? (row.wins - row.expected) / Math.sqrt(row.variance) : 0,
-        medianSeconds: median(row.seconds.sort((a, b) => a - b)),
-        allTime: !state.reading && total && totalRate !== null ? { games: total.games, winRate: totalRate } : null,
-      },
-    ];
-  });
-  rows.sort((a, b) => b.games - a.games || a.map.localeCompare(b.map));
-  return {
-    rows,
-    strong: rows.filter((r) => r.z >= MAP_SIGNAL_Z).sort((a, b) => b.z - a.z),
-    weak: rows.filter((r) => r.z <= -MAP_SIGNAL_Z).sort((a, b) => a.z - b.z),
-    from,
-    to,
-    ...state,
-  };
 }
 
 export interface FaceOffCount {

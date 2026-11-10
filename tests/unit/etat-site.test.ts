@@ -39,7 +39,8 @@ describe("l'état du site", () => {
     expect(health.level).toBe("ok");
     expect(health.lines.map((l) => l.label)).toEqual(["Collecte des données", "API d'OpenFront", "Liste officielle", "Gazette sur Discord"]);
     expect(line(health, "Collecte des données")?.text).toMatch(/^dernière collecte publiée il y a 20 min \(/);
-    expect(line(health, "API d'OpenFront")?.text).toBe("les 7 sources sont à jour");
+    // Depuis le 10 novembre 2026, les podiums des joueurs sont une source de plus.
+    expect(line(health, "API d'OpenFront")?.text).toBe("les 8 sources sont à jour");
     expect(line(health, "Liste officielle")?.text).toMatch(/^relue il y a 1 h \(.*\), 31 membres$/);
     expect(health.sources.every((s) => s.level === "ok")).toBe(true);
   });

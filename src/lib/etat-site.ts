@@ -27,6 +27,7 @@ export const SOURCES: readonly { key: SourceKey; label: string }[] = [
   { key: "games", label: "Détail des parties" },
   { key: "members", label: "Liste des membres" },
   { key: "memberGames", label: "Fiches des membres" },
+  { key: "memberResults", label: "Podiums des joueurs" },
   { key: "ranked", label: "Classé" },
   { key: "clanmap", label: "Carte des clans" },
 ];

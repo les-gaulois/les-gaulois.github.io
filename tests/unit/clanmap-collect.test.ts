@@ -72,6 +72,7 @@ describe("collecte de la carte", () => {
 
   const deps = (route: Route = () => undefined, extra: Partial<ClanMapDeps> = {}): ClanMapDeps => ({
     memberGamesFile: "inutile-ici.json",
+    memberResultsFile: "inutile-ici-aussi.json",
     fetch: (async (input: string) => {
       const url = new URL(input);
       calls.push(url.pathname + url.search);

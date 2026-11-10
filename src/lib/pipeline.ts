@@ -9,12 +9,14 @@ import {
   ApiLeaderboard,
   ApiMembersPage,
   ApiPlayerGames,
+  ApiPlayerSessions,
   ApiRankedPage,
   ApiSessionsPage,
   Meta,
   StoredGame,
   StoredGameFile,
   StoredMemberGames,
+  StoredMemberResults,
   StoredMemberWeeks,
   StoredMemberRecent,
   StoredMembers,
@@ -23,12 +25,14 @@ import {
   type DatasetState,
   type HistorySnapshot,
   type RivalsSnapshot,
+  type ApiPlayerSession,
   type StoredLeaderboard,
   type StoredMemberGame,
   type StoredSession,
 } from "./schemas";
 import { gamesOf, MEMBER_RECENT_GAMES, memberGamesUnderTag, toStoredMember } from "./members";
 import { forgetMilestoneMembers, MilestoneState } from "./paliers-franchis";
+import { forgetInMemberResults, teamRowsOf } from "./podiums";
 import { RANKED_MODES, rankedCounts } from "./ranked";
 import { mergeSessions } from "./sessions";
 import { findClan, withOfficialRanks } from "./stats";
@@ -52,6 +56,15 @@ const OUTAGE_FAILURES = 5;
 const MEMBER_CALLS_PER_RUN = 150;
 /** Pages lues au plus pour un joueur, de 10 parties chacune. Plus loin, ce qu'il a joué sous le tag est ancien : la fiche le dit. */
 const MEMBER_PAGES_MAX = 3;
+/** Appels par passage pour les podiums des joueurs, de 100 parties chacun. Tout l'historique des membres, 1 079 pages mesurées le 10 novembre 2026, se lit en huit passages. */
+const RESULTS_CALLS_PER_RUN = 150;
+/** Pages lues au plus pour rattraper les nouvelles parties d'un joueur. Au-delà, sa liste repart de ces pages et se relit en remontant le temps : jamais de trou. */
+const RESULTS_NEW_PAGES_MAX = 10;
+/**
+ * Les nouvelles parties se relisent jusqu'à six heures avant la lecture précédente. Une partie n'apparaît qu'une fois finie, et un
+ * joueur éliminé en rejoint souvent une autre avant la fin de la première : commencée avant cette lecture, elle arrive ensuite, à sa place.
+ */
+const RESULTS_OVERLAP_MS = 6 * 3_600_000;
 
 export interface Deps {
   fetch: typeof fetch;
@@ -63,8 +76,11 @@ export interface Deps {
   delayMs: number;
   gamesPerRun?: number;
   memberCallsPerRun?: number;
+  memberResultsCallsPerRun?: number;
   /** Les parties de chaque membre : hors de `data/`, donc hors de Git. */
   memberGamesFile: string;
+  /** Les parties sous le tag de chaque membre, pour ses podiums : hors de Git aussi. */
+  memberResultsFile: string;
   /** Le plus ancien relevé de la liste des membres fait entre deux instants, gardé dans l'historique Git. Absent hors de GitHub. */
   memberHistory?: (from: string, to: string) => Promise<StoredMembers | null>;
   log: (msg: string) => void;
@@ -308,16 +324,29 @@ async function writeMemberGames(deps: Deps, players: ReadonlyMap<string, StoredM
   await writeJson(deps.memberGamesFile, Object.fromEntries(players));
 }
 
+const readMemberResults = async (deps: Deps): Promise<StoredMemberResults> => (await readJson(deps.memberResultsFile, StoredMemberResults)) ?? {};
+
+async function writeMemberResults(deps: Deps, results: StoredMemberResults): Promise<void> {
+  await mkdir(dirname(deps.memberResultsFile), { recursive: true });
+  // Une seule ligne invalide ferait rejeter tout le fichier à la lecture : il est vérifié avant d'être écrit.
+  await writeJson(deps.memberResultsFile, StoredMemberResults.parse(results));
+}
+
 /**
  * Oublie un membre parti, ou qui a retiré son pseudo : il n'a plus de fiche, et son identifiant ne doit rester nulle part.
  * Aucun appel à l'API : cela reste vrai quand une route est en panne. Le fichier des paliers franchis est nettoyé ici aussi,
- * car son envoi sur Discord ne tourne pas sans lien.
+ * car son envoi sur Discord ne tourne pas sans lien, comme celui des podiums.
  */
 async function forgetFormerMembers(deps: Deps, members: StoredMembers): Promise<Map<string, StoredMemberRecent>> {
   const stored = (await readJson(deps.memberGamesFile, StoredMemberGames)) ?? {};
   const current = new Set(members.members.flatMap((m) => (m.username && m.publicId ? [m.publicId] : [])));
   const players = new Map(Object.entries(stored).filter(([id]) => current.has(id)));
   if (players.size !== Object.keys(stored).length) await writeMemberGames(deps, players);
+  const results = await readJson(deps.memberResultsFile, StoredMemberResults);
+  if (results) {
+    const keptResults = forgetInMemberResults(results, current);
+    if (keptResults !== results) await writeMemberResults(deps, keptResults);
+  }
   const weeks = await readMemberWeeks(deps);
   const kept = forgetInMemberWeeks(weeks, current);
   if (kept !== weeks) await writeMemberWeeks(deps, kept);
@@ -414,6 +443,110 @@ export async function fetchMemberGames(api: ApiClient, deps: Deps, members: Stor
   return { read, left: todo.length - read, unreadable };
 }
 
+type ResultRows = StoredMemberResults[string]["games"];
+
+/** Les parties de plusieurs lectures, sans doublon, des plus récentes aux plus anciennes. */
+function mergeResultRows(...lists: ResultRows[]): ResultRows {
+  const byId = new Map<string, ResultRows[number]>();
+  for (const list of lists) for (const row of list) if (!byId.has(row[0])) byId.set(row[0], row);
+  return [...byId.values()].sort((a, b) => (a[1] < b[1] ? 1 : a[1] > b[1] ? -1 : a[0] < b[0] ? 1 : -1));
+}
+
+/**
+ * Pour les podiums des joueurs : les parties sous le tag de chaque membre avec pseudo, lues dans sa liste officielle, 100 par page
+ * (`/public/player/:id/sessions`). Un joueur est relu quand ses parties selon `stats.team` ont bougé, de la plus récente jusqu'à
+ * six heures avant la lecture précédente. Sa liste se lit ensuite en remontant le temps, page après page, jusqu'au début de
+ * l'archive. Ceux jamais lus passent d'abord. Rien n'est écrit pour un anonyme, ni rien de ce qu'il joue hors du tag, pas même le
+ * nombre de ces parties. Une page qui ne répond pas est simplement relue plus tard : ce qui est gardé reste.
+ */
+export async function fetchMemberResults(api: ApiClient, deps: Deps, members: StoredMembers): Promise<{ read: number; left: number; unreadable: number }> {
+  const results = await readMemberResults(deps);
+  const named = members.members.flatMap((m) => (m.username && m.publicId ? [{ id: m.publicId, games: gamesOf(m) ?? 0 }] : []));
+  const budget = deps.memberResultsCallsPerRun ?? RESULTS_CALLS_PER_RUN;
+  let calls = 0;
+  let read = 0;
+  let unreadable = 0;
+  let lastFailure = "";
+  let changed = false;
+  const page = async (id: string, cursor: string | null) => {
+    calls++;
+    const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+    const res = await api.get(`/player/${encodeURIComponent(id)}/sessions${query}`, ApiPlayerSessions);
+    read++;
+    return { rows: res.results, next: res.nextCursor ?? null };
+  };
+  // Avant le début de l'archive, aucune session du clan ne permettrait de reconnaître une victoire : la lecture s'arrête là.
+  const finished = (rows: readonly ApiPlayerSession[], next: string | null) => next === null || rows.length === 0 || (rows.at(-1)?.gameStart ?? "") < deps.archiveStart;
+  const fail = (e: unknown, id: string) => {
+    unreadable++;
+    // Ce message finit dans `meta.json` et dans le journal de l'Action, tous deux publics : sans l'identifiant du joueur, ni le curseur de l'API.
+    lastFailure = (e instanceof Error ? e.message : String(e)).replaceAll(id, "…").replace(/\?\S*/g, "").slice(0, 300);
+    deps.log(`podiums : liste sans réponse lisible : ${lastFailure}`);
+  };
+
+  const fresh = named.filter((m) => m.games > 0 && results[m.id]?.seen !== m.games).sort((a, b) => Number(a.id in results) - Number(b.id in results));
+  try {
+    for (const { id, games } of fresh) {
+      if (calls >= budget || unreadable >= MAX_FAILURES_PER_RUN) break;
+      const known = results[id];
+      try {
+        const stop = known ? new Date(Date.parse(known.readAt) - RESULTS_OVERLAP_MS).toISOString() : null;
+        const readAt = deps.now().toISOString();
+        const found: ApiPlayerSession[] = [];
+        let cursor: string | null = null;
+        let pages = 0;
+        let reached = false;
+        do {
+          const res = await page(id, cursor);
+          pages++;
+          for (const row of res.rows) {
+            if (stop !== null && row.gameStart < stop) {
+              reached = true;
+              break;
+            }
+            found.push(row);
+          }
+          cursor = res.next;
+          // Premier relevé : une page, la suite se lit en remontant le temps.
+        } while (known && !reached && cursor !== null && pages < RESULTS_NEW_PAGES_MAX && calls < budget);
+        // Budget du passage épuisé avant de rejoindre les parties déjà gardées : ce joueur reprendra au passage suivant.
+        if (known && !reached && cursor !== null && pages < RESULTS_NEW_PAGES_MAX) continue;
+        const rows = teamRowsOf(found, deps.tag, deps.archiveStart);
+        if (known && (reached || cursor === null)) {
+          results[id] = { seen: games, readAt, older: known.older, games: mergeResultRows(rows, known.games) };
+        } else {
+          // Premier relevé, ou trop de nouvelles parties pour rejoindre les anciennes : la liste repart de là, sans trou.
+          results[id] = { seen: games, readAt, older: finished(found, cursor) ? null : cursor, games: mergeResultRows(rows) };
+        }
+        changed = true;
+      } catch (e) {
+        fail(e, id);
+      }
+    }
+    for (const { id } of named) {
+      let entry = results[id];
+      while (entry?.older && calls < budget && unreadable < MAX_FAILURES_PER_RUN) {
+        try {
+          const res = await page(id, entry.older);
+          entry = { ...entry, older: finished(res.rows, res.next) ? null : res.next, games: mergeResultRows(entry.games, teamRowsOf(res.rows, deps.tag, deps.archiveStart)) };
+          results[id] = entry;
+          changed = true;
+        } catch (e) {
+          fail(e, id);
+          break;
+        }
+      }
+    }
+  } finally {
+    if (changed) await writeMemberResults(deps, results);
+  }
+  if (unreadable >= MAX_FAILURES_PER_RUN || (read === 0 && unreadable >= OUTAGE_FAILURES)) {
+    throw new Error(`${unreadable} listes de parties sans réponse lisible, ${read} pages lues, dernière erreur : ${lastFailure}`);
+  }
+  const left = named.filter((m) => m.games > 0 && (results[m.id]?.seen !== m.games || results[m.id]?.older)).length;
+  return { read, left, unreadable };
+}
+
 export interface RunSummary {
   errors: string[];
 }
@@ -454,6 +587,7 @@ export async function runPipeline(deps: Deps): Promise<RunSummary> {
     failed("membres", meta.members, e);
     failed("parties", meta.games, e);
     failed("fiches des membres", meta.memberGames, e);
+    failed("podiums des joueurs", meta.memberResults, e);
   }
 
   if (clanExists) {
@@ -491,10 +625,14 @@ export async function runPipeline(deps: Deps): Promise<RunSummary> {
   let members = await readJson(join(deps.dataDir, "members.json"), StoredMembers);
 
   if (members) {
+    // Les comptes supprimés sont retirés avant toute lecture par joueur : sans leur liste, ni fiches ni podiums ne sont lus.
+    let cleaned = false;
+    let cleaning: unknown = null;
     try {
       await forgetFormerMembers(deps, members);
       if (clanExists) {
         members = await dropDeletedMembers(api, deps, members);
+        cleaned = true;
         const warning = await noteMemberWeek(deps, members);
         if (warning) errors.push(warning);
         const { read, left, unreadable } = await fetchMemberGames(api, deps, members);
@@ -504,6 +642,19 @@ export async function runPipeline(deps: Deps): Promise<RunSummary> {
       }
     } catch (e) {
       failed("fiches des membres", meta.memberGames, e);
+      if (!cleaned) cleaning = e;
+    }
+    if (clanExists && cleaned) {
+      try {
+        const { read, left, unreadable } = await fetchMemberResults(api, deps, members);
+        if (read > 0 || unreadable === 0) markOk(meta.memberResults, at);
+        deps.log(`podiums des joueurs : ${read} pages lues, ${left} joueurs restent à lire`);
+        if (unreadable > 0) errors.push(`listes de parties sans réponse lisible, à relire : ${unreadable}`);
+      } catch (e) {
+        failed("podiums des joueurs", meta.memberResults, e);
+      }
+    } else if (clanExists && cleaning !== null) {
+      failed("podiums des joueurs", meta.memberResults, cleaning);
     }
   }
 

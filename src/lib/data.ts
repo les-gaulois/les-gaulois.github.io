@@ -17,6 +17,7 @@ import {
   StoredGameFile,
   StoredLeaderboard,
   StoredMemberGames,
+  StoredMemberResults,
   StoredMemberWeeks,
   StoredMembers,
   StoredRanked,
@@ -59,6 +60,9 @@ export const loadRanked = () => read("data/ranked.json", StoredRanked);
 /** Hors de `data/` et de Git : les lignes de chaque joueur ne doivent pas rester pour toujours dans l'historique public. */
 export const MEMBER_GAMES_FILE = ".cache/member-games/players.json";
 export const loadMemberGames = () => read(MEMBER_GAMES_FILE, StoredMemberGames) ?? {};
+/** Les parties de chaque membre pour ses podiums, dans le même cache : voir `src/lib/podiums.ts`. */
+export const MEMBER_RESULTS_FILE = ".cache/member-games/results.json";
+export const loadMemberResults = () => read(MEMBER_RESULTS_FILE, StoredMemberResults) ?? {};
 /** Les relevés du lundi : voir `src/lib/week-players.ts`. */
 export const loadMemberWeeks = () => read("data/member-weeks.json", StoredMemberWeeks) ?? EMPTY_MEMBER_WEEKS;
 export const loadClanMapFilm = () => read("data/clanmap/film.json", StoredClanMapFilm);

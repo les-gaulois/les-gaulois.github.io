@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fmtCount, fmtMinutes } from "../../src/lib/format";
-import { digestGame, FACE_OFF_MAX_ROWS, faceOffs, type MapResult, mapResults, placeClans } from "../../src/lib/games";
+import { digestGame, FACE_OFF_MAX_ROWS, faceOffs, placeClans } from "../../src/lib/games";
 import { mapLabel } from "../../src/lib/map-names";
 import { ApiGame, type StoredGame, type StoredSession } from "../../src/lib/schemas";
 
@@ -32,18 +32,6 @@ function apiGame(tags: (string | null)[], team: string, winners: number[], over:
       })),
     },
   });
-}
-
-/** `count` parties lues sur une carte, dont `wins` gagnées. */
-function onMap(map: string, count: number, wins: number, over: Partial<StoredSession> = {}) {
-  const ids = Array.from({ length: count }, (_, i) => `${map}|${over.playerTeams ?? ""}|${over.clanPlayerCount ?? ""}|${over.gameStart ?? ""}|${i}`);
-  return {
-    sessions: ids.map((gameId, i) => session({ gameId, hasWon: i < wins, ...over })),
-    games: ids.map((id, i) => stored({ id, map, seconds: 300 + i })),
-  };
-}
-function combine(...parts: { sessions: StoredSession[]; games: StoredGame[] }[]) {
-  return { sessions: parts.flatMap((p) => p.sessions), games: parts.flatMap((p) => p.games) };
 }
 
 describe("placeClans", () => {
@@ -161,128 +149,6 @@ describe("digestGame", () => {
   it("ne dit rien non plus sur une partie sans vainqueur", () => {
     const game = ApiGame.parse({ info: { config: { gameMap: "World" }, duration: 10, players: [{ clientID: "a", clanTag: "GAL", stats: {} }] } });
     expect(digestGame(game, session({ gameId: "g", hasWon: false }), "GAL").win).toBeNull();
-  });
-});
-
-describe("mapResults", () => {
-  it("calcule le taux, les victoires et la durée médiane", () => {
-    const { sessions, games } = onMap("World", 4, 2);
-    const row = mapResults(sessions, games, covered, 1)?.rows[0];
-    expect(row).toMatchObject({ map: "World", games: 4, wins: 2, winRate: 50, medianSeconds: 301.5 });
-  });
-  it("prend la valeur du milieu pour un nombre impair de parties", () => {
-    const { sessions, games } = onMap("World", 3, 1);
-    expect(mapResults(sessions, games, covered, 1)?.rows[0]?.medianSeconds).toBe(301);
-  });
-  it("trie les cartes de la plus à la moins jouée, sans classer par taux", () => {
-    const { sessions, games } = combine(onMap("Rare", 10, 10), onMap("Courante", 30, 3));
-    expect(mapResults(sessions, games, covered, 1)?.rows.map((r) => r.map)).toEqual(["Courante", "Rare"]);
-  });
-  it("écarte une carte sous le seuil de parties sur la période", () => {
-    const { sessions, games } = combine(onMap("Assez", 50, 10), onMap("Peu", 49, 10));
-    expect(mapResults(sessions, games, covered)?.rows.map((r) => r.map)).toEqual(["Assez"]);
-  });
-  it("écarte les parties seul contre des robots et celles sans nombre d'équipes", () => {
-    const { sessions, games } = combine(onMap("World", 2, 1), onMap("Seul", 2, 2, { totalPlayerCount: 1 }), onMap("Rien", 2, 2, { numTeams: 0 }));
-    const out = mapResults(sessions, games, covered, 1);
-    expect(out?.rows.map((r) => r.map)).toEqual(["World"]);
-    expect(out?.coverage.total).toBe(2);
-  });
-
-  describe("comparaison aux habitudes du clan", () => {
-    const expectUsual = (row: MapResult | undefined, usual: number) => {
-      expect(row?.usual).toBeCloseTo(usual);
-      expect(row?.z).toBeCloseTo(0);
-    };
-
-    it("ne voit aucun écart entre deux cartes qui ne diffèrent que par leur format", () => {
-      const { sessions, games } = combine(onMap("Facile", 100, 80, { playerTeams: "2" }), onMap("Dure", 100, 20, { playerTeams: "Trios", numTeams: 30 }));
-      const out = mapResults(sessions, games, covered, 1);
-      expectUsual(out?.rows.find((r) => r.map === "Facile"), 80);
-      expectUsual(out?.rows.find((r) => r.map === "Dure"), 20);
-      expect(out?.strong).toEqual([]);
-      expect(out?.weak).toEqual([]);
-    });
-    it("tient compte de la taille du groupe, et réunit les groupes de 4 joueurs ou plus", () => {
-      const { sessions, games } = combine(onMap("Seul", 100, 20, { clanPlayerCount: 1 }), onMap("Groupe", 50, 40, { clanPlayerCount: 4 }), onMap("GrandGroupe", 50, 40, { clanPlayerCount: 9 }));
-      const out = mapResults(sessions, games, covered, 1);
-      expectUsual(out?.rows.find((r) => r.map === "Seul"), 20);
-      expectUsual(out?.rows.find((r) => r.map === "Groupe"), 80);
-      expectUsual(out?.rows.find((r) => r.map === "GrandGroupe"), 80);
-    });
-    it("moyenne le taux habituel selon les parties jouées sur la carte", () => {
-      const { sessions, games } = combine(onMap("Mêlée", 10, 8, { playerTeams: "2" }), onMap("Mêlée", 10, 2, { playerTeams: "Trios", numTeams: 30 }));
-      const row = mapResults(sessions, games, covered, 1)?.rows[0];
-      expect(row).toMatchObject({ games: 20, winRate: 50 });
-      expectUsual(row, 50);
-    });
-    it("distingue les salons de taille différente, à format et groupe égaux", () => {
-      const { sessions, games } = combine(onMap("Petit", 100, 80, { totalPlayerCount: 20 }), onMap("Moyen", 100, 40, { totalPlayerCount: 21 }), onMap("Grand", 100, 20, { totalPlayerCount: 81 }));
-      const out = mapResults(sessions, games, covered, 1);
-      expectUsual(out?.rows.find((r) => r.map === "Petit"), 80);
-      expectUsual(out?.rows.find((r) => r.map === "Moyen"), 40);
-      expectUsual(out?.rows.find((r) => r.map === "Grand"), 20);
-    });
-    it("réunit les salons d'une même tranche", () => {
-      const { sessions, games } = combine(onMap("A", 100, 60, { totalPlayerCount: 21 }), onMap("B", 100, 40, { totalPlayerCount: 40 }));
-      expect(mapResults(sessions, games, covered, 1)?.rows.map((r) => r.usual)).toEqual([50, 50]);
-    });
-    it("ne désigne pas une carte juste sous le seuil", () => {
-      // Taux habituel de 50 % sur 200 parties : 69 % sur 100 parties reste à 3,8 écarts.
-      const { sessions, games } = combine(onMap("Haute", 100, 69), onMap("Basse", 100, 31));
-      const out = mapResults(sessions, games, covered, 1);
-      expect(out?.rows.find((r) => r.map === "Haute")?.z).toBeCloseTo(3.8);
-      expect(out?.rows.find((r) => r.map === "Basse")?.z).toBeCloseTo(-3.8);
-      expect(out?.strong).toEqual([]);
-      expect(out?.weak).toEqual([]);
-    });
-    it("désigne une carte à partir du seuil, de part et d'autre", () => {
-      // Taux habituel de 50 % sur 200 parties : (70 − 50) ÷ 5 = 4.
-      const { sessions, games } = combine(onMap("Forte", 100, 70), onMap("Faible", 100, 30));
-      const out = mapResults(sessions, games, covered, 1);
-      expect(out?.strong.map((r) => r.map)).toEqual(["Forte"]);
-      expect(out?.strong[0]?.z).toBeCloseTo(4);
-      expect(out?.weak.map((r) => r.map)).toEqual(["Faible"]);
-      expect(out?.weak[0]?.z).toBeCloseTo(-4);
-    });
-    it("n'utilise pas les parties d'avant la période pour le taux habituel", () => {
-      const { sessions, games } = combine(onMap("World", 10, 5), onMap("World", 90, 90, { gameStart: old }));
-      expect(mapResults(sessions, games, covered, 1)?.rows[0]).toMatchObject({ games: 10, usual: 50 });
-    });
-    it("ne fait pas de division par zéro quand toutes les parties sont gagnées", () => {
-      const { sessions, games } = onMap("World", 10, 10);
-      expect(mapResults(sessions, games, covered, 1)?.rows[0]).toMatchObject({ winRate: 100, usual: 100, z: 0 });
-    });
-  });
-
-  it("ne donne le total depuis le début qu'une fois l'archive lue", () => {
-    const recent = onMap("World", 30, 30);
-    const past = onMap("World", 30, 0, { gameStart: old });
-    const { sessions, games } = combine(recent, past);
-    const done = mapResults(sessions, games, covered, 1);
-    expect(done?.rows[0]).toMatchObject({ games: 30, winRate: 100, allTime: { games: 60, winRate: 50 } });
-    expect(done?.reading).toBe(false);
-    const unread = mapResults(sessions, recent.games, covered, 1);
-    expect(unread?.rows[0]).toMatchObject({ games: 30, allTime: null });
-    expect(unread?.reading).toBe(true);
-  });
-  it("tolère quelques parties pas encore lues : elles ne changent plus rien", () => {
-    const recent = onMap("World", 2, 1);
-    const unread = (count: number) => Array.from({ length: count }, (_, i) => session({ gameId: `u${i}`, gameStart: old }));
-    const few = mapResults([...recent.sessions, ...unread(20)], recent.games, covered, 1);
-    expect(few?.reading).toBe(false);
-    expect(few?.rows[0]?.allTime).toEqual({ games: 2, winRate: 50 });
-    expect(mapResults([...recent.sessions, ...unread(21)], recent.games, covered, 1)?.reading).toBe(true);
-  });
-  it("dit combien de parties sont lues, sur la période et depuis le début", () => {
-    const read = onMap("World", 2, 1);
-    const sessions = [...read.sessions, session({ gameId: "attente" }), session({ gameId: "ancienne", gameStart: old })];
-    const out = mapResults(sessions, read.games, covered, 1);
-    expect(out?.coverage).toEqual({ total: 3, read: 2 });
-    expect(out?.archive).toEqual({ total: 4, read: 2 });
-  });
-  it("ne renvoie rien sans date de couverture", () => {
-    expect(mapResults([], [], null)).toBeNull();
   });
 });
 
@@ -407,6 +273,21 @@ describe("faceOffs", () => {
     const out = faceOffs([recent.session, ...unread], [recent.game], "GAL", ["UN"], covered, 1);
     expect(out?.rows[0]?.allTime).toBeNull();
     expect(out?.reading).toBe(true);
+  });
+  it("tolère quelques parties pas encore lues : elles ne changent plus rien", () => {
+    const recent = face("a", 0, duel);
+    const unread = (count: number) => Array.from({ length: count }, (_, i) => session({ gameId: `u${i}`, gameStart: old }));
+    const few = faceOffs([recent.session, ...unread(20)], [recent.game], "GAL", ["UN"], covered, 1);
+    expect(few?.reading).toBe(false);
+    expect(few?.rows[0]?.allTime).toEqual({ meetings: 1, ours: 1, theirs: 0, others: 0 });
+    expect(faceOffs([recent.session, ...unread(21)], [recent.game], "GAL", ["UN"], covered, 1)?.reading).toBe(true);
+  });
+  it("dit combien de parties sont lues, sur la période et depuis le début", () => {
+    const read = [face("a", 0, duel), face("b", 1, duel)];
+    const sessions = [...read.map((r) => r.session), session({ gameId: "attente" }), session({ gameId: "ancienne", gameStart: old })];
+    const out = faceOffs(sessions, read.map((r) => r.game), "GAL", ["UN"], covered, 1);
+    expect(out?.coverage).toEqual({ total: 3, read: 2 });
+    expect(out?.archive).toEqual({ total: 4, read: 2 });
   });
   it("ne renvoie rien sans date de couverture", () => {
     expect(faceOffs([], [], "GAL", ["UN"], null)).toBeNull();

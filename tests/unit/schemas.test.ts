@@ -4,6 +4,7 @@ import {
   ApiLeaderboard,
   ApiGame,
   ApiMembersPage,
+  ApiPlayerSessions,
   ApiRankedPage,
   ApiSessionsPage,
   HistorySnapshot,
@@ -112,6 +113,14 @@ describe("schémas de l'API", () => {
   it("accepte une partie sans vainqueur et refuse une partie sans carte", () => {
     expect(ApiGame.safeParse({ info: { ...gameBody.info, winner: undefined } }).success).toBe(true);
     expect(ApiGame.safeParse({ info: { ...gameBody.info, config: {} } }).success).toBe(false);
+  });
+  // Forme relevée le 10 novembre 2026, valeurs remplacées.
+  it("lit la liste des parties d'un joueur sans en garder ni le pseudo, ni l'identifiant de joueur dans la partie", () => {
+    const line = { gameId: "g1", gameStart: "2026-11-08T23:10:00.000Z", gameEnd: "2026-11-08T23:20:00.000Z", gameType: "Public", gameMode: "Team", gameRankedType: "unranked", clientId: "ClientSecret", username: "NomSecret", clanTag: "GAL", hasWon: false };
+    const page = ApiPlayerSessions.parse({ results: [line, { ...line, gameId: "g2", clanTag: null, hasWon: null }], nextCursor: "abc" });
+    expect(page.results[0]).toEqual({ gameId: "g1", gameStart: line.gameStart, gameType: "Public", gameMode: "Team", gameRankedType: "unranked", clanTag: "GAL", hasWon: false });
+    expect(JSON.stringify(page)).not.toMatch(/Secret/);
+    expect(ApiPlayerSessions.safeParse({ results: [{ ...line, gameStart: "hier" }], nextCursor: null }).success).toBe(false);
   });
   it("refuse un rôle inconnu", () => {
     const bad = { ...members, results: [{ ...members.results[1], role: "roi" }] };

@@ -3,15 +3,17 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { clan } from "../../config/clan";
 import { worldTerritory } from "../../src/lib/carte-monde";
-import { loadClanMapFilm, loadTerritoryReadings, loadGames, loadHistory, loadMemberGames, loadMembers, loadMemberWeeks, loadMeta, loadNouveautes, loadSessions } from "../../src/lib/data";
+import { loadClanMapFilm, loadTerritoryReadings, loadGames, loadHistory, loadMemberGames, loadMemberResults, loadMembers, loadMemberWeeks, loadMeta, loadNouveautes, loadSessions } from "../../src/lib/data";
 import { fmtCount, fmtGap, fmtInt, fmtRank, fmtScore } from "../../src/lib/format";
 import type { LeaderboardEntry } from "../../src/lib/schemas";
 import { withOfficialRanks } from "../../src/lib/stats";
-import { FACE_OFF_FIRST_ROWS, faceOffs, mapResults } from "../../src/lib/games";
+import { firstRival } from "../../src/lib/compare";
+import { faceOffs } from "../../src/lib/games";
 import { editionLead, GAZETTE_RECENT_EDITIONS, gazetteEditions, playersPeriod, rankWords, standingDetails, territoryDetails, weekLabel } from "../../src/lib/gazette";
 import { bestGameOf, bestGameSentence, yesterdayOf } from "../../src/lib/belle-partie";
 import { clanJournal, JOURNAL_FIRST_ROWS, journalChoices, journalCount, NO_FILTER, replayUrl } from "../../src/lib/journal";
 import { recentRecordKeys, weekRecordKeys } from "../../src/lib/records-battus";
+import { playerPodiums, podiumDates } from "../../src/lib/podiums";
 import { playerRecords } from "../../src/lib/records-joueurs";
 import { clanRecords } from "../../src/lib/results";
 import { currentWeek, currentWeekComparison, currentWeekLead } from "../../src/lib/semaine";
@@ -318,7 +320,7 @@ test("la période et les réserves restent visibles, le périmètre se lit dans 
   await page.goto("/rivaux");
   await expect(page.getByTestId("compare-rate-note")).toBeVisible();
   await page.goto("/records");
-  await expect(page.getByTestId("format-period")).toBeVisible();
+  if (playerPodiums(loadMemberResults(), loadSessions(), loadMembers(), loadMeta().sessions.coveredUntil).since !== null) await expect(page.getByTestId("podiums-period")).toBeVisible();
   await page.goto("/parties");
   await expect(page.getByTestId("journal-link-note")).toBeVisible();
   await expect(page.getByTestId("journal-link-note")).toContainText("Rejoindre un salon privé");
@@ -669,74 +671,62 @@ test("la course avec les voisins part du premier relevé", async ({ page }) => {
   await expect(race.getByRole("table").locator("tbody tr")).toHaveCount(readdirSync("data/rivals").length);
 });
 
-test("les résultats par format donnent le repère du hasard et les records", async ({ page }) => {
+// Le 10 novembre 2026, à la demande du pilote : la page Records ne garde que les joueurs et les records ; Nos rivaux perd le bloc des face-à-face.
+test("les records du clan disent ce qu'ils ne comptent pas, sans résultats par format ni par carte", async ({ page }) => {
   await page.goto("/records");
-  const formats = page.getByTestId("format-results");
-  await expect(formats.getByTestId("format-row").first()).toContainText("au hasard");
-  await expect(formats).toContainText("à 2 équipes, le hasard donne déjà 50 %");
   await expect(page.getByTestId("clan-record")).toHaveCount(4);
   await expect(page.getByTestId("clan-records")).toContainText("n'est pas comptée");
+  for (const gone of ["format-results", "map-results"]) await expect(page.getByTestId(gone)).toHaveCount(0);
 });
 
-// Le détail des parties se lit petit à petit : tant qu'aucune carte ni aucun clan n'atteint son seuil, rien ne s'affiche.
-test("les résultats par carte de jeu se comparent aux habitudes du clan et disent ce qui est lu", async ({ page }) => {
+test("les podiums des Gaulois reprennent les chiffres calculés, chaque joueur menant à sa fiche", async ({ page }) => {
+  const podiums = playerPodiums(loadMemberResults(), loadSessions(), loadMembers(), loadMeta().sessions.coveredUntil);
   await page.goto("/records");
-  const block = page.getByTestId("map-results");
-  const results = mapResults(loadSessions(), loadGames(), loadMeta().sessions.coveredUntil);
-  if (!results || results.rows.length === 0) {
-    await expect(block.getByTestId("map-row")).toHaveCount(0);
+  const block = page.getByTestId("player-podiums");
+  await expect(block.getByRole("heading", { level: 2 })).toHaveText("Les podiums des Gaulois");
+  await expect(block.getByTestId("data-status")).toBeVisible();
+  if (podiums.since === null) {
+    await expect(block).toContainText("Pas de données");
+    await expect(block.getByTestId("podium-row")).toHaveCount(0);
     return;
   }
-  await expect(block).toContainText("à ne pas confondre avec la carte des clans");
-  await expect(block).toContainText("CC BY-SA 4.0");
-  await expect(block).toContainText("Dernière mise à jour");
-  // La couverture ne s'écrit que lorsqu'il manque des parties.
-  const partial = results.coverage.read < results.coverage.total || results.archive.read < results.archive.total || results.reading;
-  if (partial) expect(digits(await block.getByTestId("games-coverage").textContent())).toContain(String(results.coverage.read));
-  else await expect(block.getByTestId("games-coverage")).toHaveCount(0);
-  const signals = results.strong.length + results.weak.length;
-  await expect(block.getByTestId("map-row")).toHaveCount(results.rows.length + signals);
-  // Aucune carte n'est dite forte ou faible sans écart que le hasard n'explique pas ; sans elles, rien ne s'affiche.
-  await expect(block.getByTestId("maps-strong").getByTestId("map-row")).toHaveCount(results.strong.length);
-  await expect(block.getByTestId("maps-weak").getByTestId("map-row")).toHaveCount(results.weak.length);
-  const mostPlayed = results.rows[0];
-  const row = block.getByTestId("map-row").nth(signals);
-  await expect(row).toContainText(mapLabel(mostPlayed?.map ?? ""));
-  await expect(row).toContainText(`${fmtCount(mostPlayed?.wins ?? 0, "victoire")} sur ${fmtCount(mostPlayed?.games ?? 0, "partie")} · d'habitude`);
+  for (const [testId, rows] of [
+    ["podium-streaks", podiums.streaks],
+    ["podium-days", podiums.days],
+  ] as const) {
+    const lines = block.getByTestId(testId).getByTestId("podium-row");
+    await expect(lines).toHaveCount(rows.length);
+    for (const [i, row] of rows.entries()) {
+      const line = lines.nth(i);
+      await expect(line).toContainText(fmtRank(row.place));
+      await expect(line.getByRole("link", { name: row.username, exact: true })).toHaveAttribute("href", `/membres/${encodeURIComponent(row.id)}`);
+      await expect(line.getByTestId("podium-value")).toHaveText(fmtCount(row.value, "victoire"));
+      await expect(line.getByTestId("podium-dates")).toHaveText(podiumDates(row));
+    }
+  }
+  // La période reste écrite ; le périmètre et la réserve sur le niveau sont dans le repli.
+  await expect(block.getByTestId("podiums-period")).toBeVisible();
+  await expect(block.getByTestId("reading-note")).toContainText("ce n'est pas un classement de niveau");
 });
 
-test("les face-à-face reprennent les chiffres calculés, sans aucun joueur", async ({ page }) => {
+test("le face-à-face ne reste que dans le comparateur, avec sa méthode, sa date, ses chiffres et sa suspension", async ({ page }) => {
+  const result = faceOffs(loadSessions(), loadGames(), clan.tag, lb.clans.map((c: { clanTag: string }) => c.clanTag), loadMeta().sessions.coveredUntil);
   await page.goto("/rivaux");
-  const block = page.getByTestId("face-offs");
-  const panels = block.getByTestId("face-off");
-  const result = faceOffs(loadSessions(), loadGames(), "GAL", lb.clans.map((c: { clanTag: string }) => c.clanTag), loadMeta().sessions.coveredUntil);
-  if (!result?.reliable || result.rows.length === 0) {
-    await expect(panels).toHaveCount(0);
+  await expect(page.getByTestId("face-offs")).toHaveCount(0);
+  await expect(page.getByTestId("compare-notes")).toContainText("L'API ne donne pas l'équipe des perdants");
+  await expect(page.getByTestId("compare-games-status").getByTestId("data-status")).toBeVisible();
+  await expect(page.getByTestId("compare-face-off-suspended")).toHaveCount(result && !result.reliable ? 1 : 0);
+  await hydrated(page);
+  // Le clan comparé d'abord : sa ligne de face-à-face reprend le calcul, ou dit qu'il n'y en a pas.
+  const rival = firstRival(withOfficialRanks(lb.clans as LeaderboardEntry[]), clan.tag);
+  const row = result?.reliable ? result.rows.find((r) => r.tag === rival?.clanTag) : undefined;
+  const line = page.getByTestId("compare-face-off");
+  if (!row) {
+    await expect(line).toContainText("Pas de face-à-face à afficher");
     return;
   }
-  await expect(block).toContainText("L'API ne donne pas toujours l'équipe des perdants");
-  await expect(block).toContainText("Dernière mise à jour");
-  await expect(panels).toHaveCount(result.rows.length);
-  // Les clans les plus rencontrés d'abord, visibles ; les suivants restent dans la page, repliés d'un seul tenant.
-  await expect(block.getByTestId("face-offs-first").getByTestId("face-off")).toHaveCount(Math.min(FACE_OFF_FIRST_ROWS, result.rows.length));
-  const more = block.getByTestId("face-offs-more");
-  if (result.rows.length > FACE_OFF_FIRST_ROWS) {
-    await expect(more.getByTestId("face-off")).toHaveCount(result.rows.length - FACE_OFF_FIRST_ROWS);
-    await expect(panels.nth(FACE_OFF_FIRST_ROWS)).toBeHidden();
-    await more.locator("summary").click();
-    await expect(panels.nth(result.rows.length - 1)).toBeVisible();
-  } else {
-    await expect(more).toHaveCount(0);
-  }
-  for (const [i, row] of result.rows.entries()) {
-    const panel = panels.nth(i);
-    await expect(panel.getByRole("heading")).toHaveText(`[${row.tag}]`);
-    expect(digits(await panel.getByTestId("face-off-meetings").textContent())).toBe(String(row.meetings));
-    expect(digits(await panel.getByTestId("face-off-ours").textContent())).toBe(String(row.ours));
-    expect(digits(await panel.getByTestId("face-off-theirs").textContent())).toBe(String(row.theirs));
-    expect(digits(await panel.getByTestId("face-off-others").textContent())).toBe(String(row.others));
-  }
-  await expect(block.getByRole("link")).toHaveCount(0);
+  await expect(line).toContainText(fmtCount(row.meetings, "partie"));
+  await expect(line).toContainText(`gagne ${fmtInt(row.ours)} fois, celle de [${row.tag}] ${fmtInt(row.theirs)} fois, une autre équipe ${fmtInt(row.others)} fois`);
 });
 
 test("le comparateur met côte à côte deux clans de la liste officielle", async ({ page }) => {

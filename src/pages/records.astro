@@ -2,36 +2,25 @@
 import Base from "../layouts/Base.astro";
 import ClanResults from "../components/ClanResults.astro";
 import DataStatus from "../components/DataStatus.astro";
-import Empty from "../components/Empty.astro";
-import MapResults from "../components/MapResults.astro";
 import PageHeader from "../components/PageHeader.astro";
+import PlayerPodiums from "../components/PlayerPodiums.astro";
 import PlayerRecords from "../components/PlayerRecords.astro";
-import { loadGames, loadMembers, loadMemberWeeks, loadMeta, loadSessions } from "../lib/data";
+import { loadMeta } from "../lib/data";
 import { MAX_AGE_HOURS } from "../lib/freshness";
-import { mapResults } from "../lib/games";
-import { playerRecords } from "../lib/records-joueurs";
-import { clanRecords, formatResults } from "../lib/results";
 
 const meta = loadMeta();
-const sessions = loadSessions();
-const results = formatResults(sessions, meta.sessions.coveredUntil);
-const hasFormats = results !== null && results.byTeams.length + results.bySize.length > 0;
-const hasMaps = (mapResults(sessions, loadGames(), meta.sessions.coveredUntil)?.rows.length ?? 0) > 0 || meta.games.lastError !== null;
-const players = playerRecords(loadMemberWeeks(), loadMembers());
-const hasPlayers = players.bestWeek !== null || players.busiestWeek !== null || players.mostWins !== null;
-const empty = clanRecords(sessions) === null && !hasFormats && !hasMaps && !hasPlayers;
 ---
 
-<Base title="Records" description="Les records des joueurs et du clan GAL, ses résultats par format et par carte de jeu.">
+<Base title="Records" description="Les podiums et les records des joueurs du clan GAL, et les records du clan.">
   <div class="wrap">
     <PageHeader title="Records">
       <div class="mt-4">
         <DataStatus state={meta.sessions} maxAgeHours={MAX_AGE_HOURS.sessions} />
       </div>
     </PageHeader>
-    {empty && <Empty title="Pas de données">Les records et les résultats apparaîtront avec les premières parties enregistrées.</Empty>}
+    {/* Les podiums écrivent eux-mêmes « Pas de données » : la page n'est jamais vide. */}
+    <PlayerPodiums />
     <PlayerRecords />
     <ClanResults />
-    <MapResults />
   </div>
 </Base>

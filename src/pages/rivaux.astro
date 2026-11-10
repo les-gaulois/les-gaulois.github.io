@@ -3,16 +3,16 @@ import Base from "../layouts/Base.astro";
 import ClanCompare from "../components/ClanCompare.tsx";
 import DataStatus from "../components/DataStatus.astro";
 import Empty from "../components/Empty.astro";
-import FaceOffs from "../components/FaceOffs.astro";
 import PageHeader from "../components/PageHeader.astro";
 import PageJumps from "../components/PageJumps.astro";
 import ReadingNote from "../components/ReadingNote.astro";
 import RivalRace from "../components/RivalRace.tsx";
 import { clan } from "../../config/clan";
 import { loadGames, loadLeaderboard, loadMeta, loadRivals, loadSessions } from "../lib/data";
-import { fmtDate, fmtScore } from "../lib/format";
+import { fmtCount, fmtDate, fmtInt, fmtScore } from "../lib/format";
 import { MAX_AGE_HOURS } from "../lib/freshness";
-import { FACE_OFF_MIN_MEETINGS, faceOffs } from "../lib/games";
+import { FACE_OFF_MAX_ROWS, FACE_OFF_MIN_MEETINGS, faceOffs, MIN_CLAN_PLAYERS } from "../lib/games";
+import { RESULTS_DAYS } from "../lib/results";
 import { rivalSeries } from "../lib/rivals";
 import { findClan, neighbours, withOfficialRanks } from "../lib/stats";
 
@@ -30,11 +30,10 @@ const meetings = leaderboard ? faceOffs(loadSessions(), loadGames(), clan.tag, l
 const jumps = [
   { href: "#race-title", label: "La course", show: race !== null && race.length > 0 },
   { href: "#compare-title", label: "Comparer un clan", show: me !== null && clans.length > 1 },
-  { href: "#face-offs-title", label: "Face-à-face", show: meetings !== null && (meetings.rows.length > 0 || !meetings.reliable || meta.games.lastError !== null) },
 ].filter((jump) => jump.show);
 ---
 
-<Base title="Nos rivaux" description="Les clans autour de GAL au classement officiel : la course jour après jour, le comparateur et les face-à-face.">
+<Base title="Nos rivaux" description="Les clans autour de GAL au classement officiel : la course jour après jour et le comparateur.">
   <div class="wrap">
     <PageHeader title="Nos rivaux">
       <div class="mt-4">
@@ -81,16 +80,28 @@ const jumps = [
                 <ClanCompare client:load clans={clans} tag={clan.tag} faceOffs={meetings?.reliable ? meetings.rows : []} src={`${base}/classement-scores.json`} />
               </div>
               <noscript><p class="mt-3 text-sm text-muted">JavaScript est nécessaire pour changer de clan.</p></noscript>
+              {meetings && !meetings.reliable && (
+                <p class="mt-4 max-w-3xl font-semibold text-warn" role="status" data-testid="compare-face-off-suspended">
+                  Les face-à-face sont suspendus : {fmtInt(meetings.checkedDoubtful)} des {fmtCount(meetings.checked, "partie")} les plus récentes ne concordent pas avec les vainqueurs officiels. La façon dont le jeu forme les équipes a peut-être changé.
+                </p>
+              )}
               <p class="mt-4 max-w-3xl text-sm text-muted" data-testid="compare-rate-note">Un taux dépend surtout du format et du nombre de joueurs : il ne dit pas qui joue le mieux.</p>
               <details class="mt-6 max-w-3xl text-sm text-muted" data-testid="compare-notes">
                 <summary class="cursor-pointer font-semibold">Comment lire ces chiffres</summary>
                 <p class="mt-2">
-                  Le rang, le score, les parties, les victoires, les défaites et leur rapport pondéré viennent de la liste officielle, sans recalcul ni note, sur 90 jours glissants, hors classé et hors Humains contre Nations. Le taux vaut victoires ÷ parties, et les joueurs par partie, sessions de joueurs ÷ parties. L'écart se relève une fois par jour : l'API ne donne pas le passé du classement. Un face-à-face n'apparaît qu'à partir de {FACE_OFF_MIN_MEETINGS} parties l'un contre l'autre, et seulement pour les clans du bloc suivant.
+                  Le rang, le score, les parties, les victoires, les défaites et leur rapport pondéré viennent de la liste officielle, sans recalcul ni note, sur 90 jours glissants, hors classé et hors Humains contre Nations. Le taux vaut victoires ÷ parties, et les joueurs par partie, sessions de joueurs ÷ parties. L'écart se relève une fois par jour : l'API ne donne pas le passé du classement.
+                </p>
+                <p class="mt-2">
+                  Un face-à-face compte, sur {RESULTS_DAYS} jours, les parties publiques en équipe où [{clan.tag}] et l'autre clan avaient chacun au moins {MIN_CLAN_PLAYERS} joueurs, dans des équipes différentes. Il n'apparaît qu'à partir de {FACE_OFF_MIN_MEETINGS} rencontres, pour les {FACE_OFF_MAX_ROWS} clans les plus rencontrés. L'API ne donne pas l'équipe des perdants : le site la calcule avec la règle du jeu, qui place tout un clan dans une seule équipe, et écarte une partie où ce calcul contredit les vainqueurs officiels.
                 </p>
               </details>
+              {/* Le face-à-face vient du détail des parties : sa date de mise à jour et ses pannes restent visibles. */}
+              <div class="mt-4" data-testid="compare-games-status">
+                <p class="text-sm font-semibold text-muted">Le détail des parties</p>
+                <DataStatus state={meta.games} maxAgeHours={MAX_AGE_HOURS.games} />
+              </div>
             </section>
           )}
-          <FaceOffs />
         </>
       )
     }

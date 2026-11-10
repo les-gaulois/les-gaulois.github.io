@@ -41,7 +41,8 @@ jobs:
           path: .cache/clanmap
           key: clanmap-${{ github.run_id }}
           restore-keys: clanmap-
-      # Les parties de chaque membre restent hors de Git : l'historique public les garderait pour toujours. Perdues, elles se relisent en quelques passages.
+      # Les parties de chaque membre restent hors de Git : l'historique public les garderait pour toujours. Perdues, elles se relisent
+      # en quelques passages : les fiches (players.json) comme les parties des podiums (results.json).
       - name: Restaurer les parties des membres
         uses: actions/cache/restore@v6
         with:
@@ -53,13 +54,14 @@ jobs:
         env:
           # Le jeton de l'Action, qui peut écrire : la collecte ne s'en sert que pour lire l'historique du dépôt, départ des joueurs de la semaine.
           GITHUB_TOKEN: ${{ github.token }}
+      # La clé suit les deux fichiers du dossier : un cache n'est jamais réécrit sous la même clé.
       - name: Conserver les parties des membres
-        if: ${{ !cancelled() && hashFiles('.cache/member-games/players.json') != '' }}
+        if: ${{ !cancelled() && hashFiles('.cache/member-games/*.json') != '' }}
         continue-on-error: true
         uses: actions/cache/save@v6
         with:
           path: .cache/member-games
-          key: member-games-${{ hashFiles('.cache/member-games/players.json') }}
+          key: member-games-${{ hashFiles('.cache/member-games/*.json') }}
       - name: Conserver l'historique de la carte
         if: ${{ !cancelled() && hashFiles('.cache/clanmap/events.bin') != '' }}
         continue-on-error: true
@@ -207,7 +209,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
-      # Sans ce cache, les fiches écrivent « Pas de données » pour les dernières parties : le site se publie quand même.
+      # Sans ce cache, les fiches et les podiums des joueurs écrivent « Pas de données » : le site se publie quand même.
       - name: Restaurer les parties des membres
         uses: actions/cache/restore@v6
         with:

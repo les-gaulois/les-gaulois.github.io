@@ -49,7 +49,7 @@ const { rows, sides, coverage } = clanJournal({
             <p>« Gaulois » donne les joueurs du clan et ceux de la partie, tels qu'OpenFront les compte : un joueur parti très tôt peut ne pas y figurer.</p>
             {sides && (
               <p data-testid="journal-clans-note">
-                « Contre » et « Avec » ne citent que les clans de la liste officielle, avec au moins {MIN_CLAN_PLAYERS} joueurs dans la partie, et leur nombre entre parenthèses. Les autres tags ne sont pas repris : chacun choisit le sien librement. L'API ne donne pas l'équipe des perdants : elle est calculée avec la règle du jeu, et rien n'est écrit si le calcul contredit le résultat officiel. Les <a href={`${base}/rivaux`}>face-à-face de la page Nos rivaux</a> utilisent ce calcul, mais ils ne gardent que les parties à {MIN_CLAN_PLAYERS} Gaulois ou plus, sur 90 jours : leurs chiffres ne sont pas ceux du filtre « Contre le clan ».
+                « Contre » et « Avec » ne citent que les clans de la liste officielle, avec au moins {MIN_CLAN_PLAYERS} joueurs dans la partie, et leur nombre entre parenthèses. Les autres tags ne sont pas repris : chacun choisit le sien librement. L'API ne donne pas l'équipe des perdants : elle est calculée avec la règle du jeu, et rien n'est écrit si le calcul contredit le résultat officiel. Le face-à-face du <a href={`${base}/rivaux#compare-title`}>comparateur de clans</a> utilise ce calcul, mais il ne garde que les parties à {MIN_CLAN_PLAYERS} Gaulois ou plus, sur 90 jours : ses chiffres ne sont pas ceux du filtre « Contre le clan ».
               </p>
             )}
             <p>« — » : le détail de cette partie n'est pas encore lu. C'est lui qui donne la carte, la durée et les autres clans.</p>

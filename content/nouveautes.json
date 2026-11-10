@@ -1,6 +1,26 @@
 [
   {
     "date": "2026-11-10",
+    "kind": "nouveau",
+    "title": "Les podiums des Gaulois",
+    "body": "La page Records a deux podiums de 5 joueurs du clan : les plus longues séries de victoires et le plus de victoires en une journée. L'historique de chacun s'y ajoute dans les heures qui suivent.",
+    "link": {
+      "href": "/records",
+      "label": "Voir les podiums"
+    }
+  },
+  {
+    "date": "2026-11-10",
+    "kind": "retire",
+    "title": "Moins de blocs dans Résultats",
+    "body": "Les résultats par format et par carte de jeu quittent la page Records, et le bloc des face-à-face quitte Nos rivaux. Le comparateur de clans garde sa ligne de face-à-face.",
+    "link": {
+      "href": "/rivaux",
+      "label": "Voir nos rivaux"
+    }
+  },
+  {
+    "date": "2026-11-10",
     "kind": "ameliore",
     "title": "Tout plus grand, des graphiques sans case",
     "body": "Le texte et les chiffres clés sont plus grands dans les pages. Les graphiques et les grands tableaux se posent sur le décor, sans cadre autour.",

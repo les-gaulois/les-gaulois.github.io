@@ -120,6 +120,25 @@ export const ApiPlayerGames = z.object({
   nextCursor: z.string().nullable(),
 });
 
+/**
+ * Une ligne de `GET /public/player/:id/sessions` : 100 par page, de la plus récente à la plus ancienne, tous modes confondus.
+ * Ni le pseudo de la partie, ni l'identifiant de joueur dans la partie ne sont lus. `hasWon` vaut `null` si le jeu ne le dit pas.
+ */
+const ApiPlayerSession = z.object({
+  gameId: z.string().min(1),
+  gameStart: isoDate,
+  gameType: z.string(),
+  gameMode: z.string(),
+  gameRankedType: z.string().nullable().optional(),
+  clanTag: z.string().nullable().optional(),
+  hasWon: z.boolean().nullable().optional(),
+});
+export type ApiPlayerSession = z.output<typeof ApiPlayerSession>;
+export const ApiPlayerSessions = z.object({
+  results: z.array(ApiPlayerSession),
+  nextCursor: z.string().nullable().optional(),
+});
+
 /** `GET /public/players/recently-deleted` : OpenFront demande de retirer ces joueurs de ce qui a été collecté. */
 export const ApiDeletedPlayers = z.array(z.object({ publicId: z.string().min(1) }));
 
@@ -207,6 +226,25 @@ export type StoredMemberRecent = z.infer<typeof StoredMemberRecent>;
 /** Clé : le `publicId` d'un membre avec pseudo. Un anonyme n'y figure jamais. */
 export const StoredMemberGames = z.record(z.string().min(1), StoredMemberRecent);
 export type StoredMemberGames = z.infer<typeof StoredMemberGames>;
+
+/**
+ * Pour les podiums des joueurs : les parties de chaque membre avec pseudo qui comptent dans `stats.team`, lues dans sa liste
+ * officielle (`/public/player/:id/sessions`). Hors de `data/` et de Git, comme les fiches. Voir src/lib/podiums.ts.
+ * Clé : le `publicId` d'un membre avec pseudo. Un anonyme n'y figure jamais.
+ */
+export const StoredMemberResult = z.object({
+  // Ses parties selon `stats.team` à la dernière lecture de ses nouvelles parties : tant que ce nombre ne bouge pas, inutile de relire.
+  seen: z.number().int().nonnegative(),
+  // L'heure de cette lecture, à l'horloge du robot : la suivante relit à partir de six heures plus tôt. Rien de ce que le joueur fait hors du tag.
+  readAt: isoDate,
+  // Pour remonter le temps : le curseur de la page suivante, plus ancienne. `null` : tout est lu jusqu'au début de l'archive.
+  older: z.string().min(1).nullable(),
+  // Ses parties publiques en équipe sous le tag, hors classé, des plus récentes aux plus anciennes : [partie, début, 1 victoire ou 0 défaite].
+  games: z.array(z.tuple([z.string().min(1), isoDate, z.union([z.literal(0), z.literal(1)])])),
+});
+export type StoredMemberResult = z.infer<typeof StoredMemberResult>;
+export const StoredMemberResults = z.record(z.string().min(1), StoredMemberResult);
+export type StoredMemberResults = z.infer<typeof StoredMemberResults>;
 
 /**
  * Les relevés du lundi pour les joueurs de la semaine. Dans `data/`, car perdus ils ne se reliraient pas, et ces victoires
@@ -417,6 +455,7 @@ export const Meta = z.object({
   ranked: DatasetState.default(EMPTY_STATE),
   games: DatasetState.default(EMPTY_STATE),
   memberGames: DatasetState.default(EMPTY_STATE),
+  memberResults: DatasetState.default(EMPTY_STATE),
 });
 export type Meta = z.infer<typeof Meta>;
 
@@ -430,6 +469,7 @@ export function emptyMeta(): Meta {
     ranked: { ...EMPTY_STATE },
     games: { ...EMPTY_STATE },
     memberGames: { ...EMPTY_STATE },
+    memberResults: { ...EMPTY_STATE },
   };
 }
 
