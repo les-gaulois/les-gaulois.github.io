@@ -2568,3 +2568,472 @@ main .fx-in,
     display: none;
   }
 }
+
+/* ---------- Le menu déroulant de l'onglet Discord, à la Direction ---------- */
+/* Une rubrique par ligne : son titre et une phrase. Au clic ou au clavier (<details>), son contenu se déroule dessous, de
+   haut en bas, une fois et lentement ; le menu entier se déroule ainsi quand l'onglet s'ouvre. Le bouton pause
+   (.fx-off *) et le réglage « réduire les animations » coupent ces mouvements, comme toute animation du site. */
+.menu-deroulant {
+  display: grid;
+  gap: 1rem;
+  animation: deroule 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.deroule {
+  min-width: 0;
+}
+.deroule > summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 1rem;
+  row-gap: 0.375rem;
+  min-height: 5rem;
+  padding: 1.125rem clamp(1rem, 3vw, 1.5rem);
+  cursor: pointer;
+  list-style: none;
+  border-radius: inherit;
+}
+.deroule > summary::-webkit-details-marker {
+  display: none;
+}
+.deroule > summary::after {
+  content: "+";
+  /* Le signe est décoratif : les lecteurs d'écran disent déjà « réduit » ou « développé ». */
+  content: "+" / "";
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  font-family: var(--font-display);
+  font-size: 2.25rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.deroule[open] > summary::after {
+  content: "−";
+  content: "−" / "";
+}
+.deroule[open] > summary {
+  border-bottom: 1px solid var(--color-line);
+  border-end-start-radius: 0;
+  border-end-end-radius: 0;
+}
+.deroule-titre {
+  grid-column: 1;
+  font-size: var(--text-2xl);
+}
+.deroule-aide {
+  grid-column: 1;
+  color: var(--color-muted);
+}
+.deroule-contenu {
+  padding: clamp(1rem, 3vw, 1.75rem);
+}
+.deroule[open] > .deroule-contenu {
+  animation: deroule 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes deroule {
+  from {
+    opacity: 0.35;
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+/* ---------- Les messages Discord de la Direction ---------- */
+/* Le formulaire, puis l'aperçu, puis l'envoi. Sur grand écran, l'aperçu passe à droite et reste à l'écran pendant qu'on
+   écrit ; s'il est plus haut que l'écran, il défile dans son cadre. */
+.message-grille {
+  display: grid;
+  gap: 1.75rem;
+}
+@media (min-width: 80rem) {
+  .message-grille {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 28rem);
+    align-items: start;
+  }
+  .message-apercu {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    position: sticky;
+    top: 6rem;
+    max-height: calc(100dvh - 7rem);
+    overflow-y: auto;
+  }
+}
+/* Un embed du formulaire : sa barre prend la couleur choisie, comme dans Discord. */
+.embed-editeur {
+  display: grid;
+  gap: 1.25rem;
+  min-width: 0;
+  padding: clamp(1rem, 3vw, 1.5rem);
+  background: var(--color-night);
+  border: 1px solid var(--color-line);
+  border-left: 6px solid var(--embed-couleur, var(--color-line-strong));
+  border-radius: 1rem;
+}
+.champ-embed {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.75rem;
+}
+.champ-embed > legend {
+  padding-inline: 0.5rem;
+}
+/* Un nom de champ qui n'est pas un <label> (groupe de pastilles, image, légende) : même chasse fixe que les labels, dans
+   l'ambiance console. */
+:root[data-ambiance="console"] .espace .nom-champ {
+  font-family: var(--font-console);
+}
+
+/* Les couleurs toutes prêtes : une pastille par couleur. La choisie a un anneau blanc, séparé d'elle par le fond. */
+.pastille-couleur {
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: none;
+  background: var(--pastille);
+  border: 2px solid var(--color-line-strong);
+  border-radius: 999px;
+}
+.pastille-couleur[aria-pressed="true"] {
+  box-shadow:
+    0 0 0 3px var(--color-navy),
+    0 0 0 6px #fff;
+}
+.pastille-couleur:focus-visible {
+  outline-offset: 7px;
+}
+.pastille-autre {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0.25rem 0.875rem 0.25rem 0.25rem;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.pastille-autre:focus-within {
+  outline: 3px solid #fff;
+}
+.pastille-autre input {
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.pastille-autre input:focus-visible {
+  outline: none;
+}
+.pastille-autre input::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.pastille-autre input::-webkit-color-swatch {
+  border: 0;
+  border-radius: 999px;
+}
+.pastille-autre input::-moz-color-swatch {
+  border: 0;
+  border-radius: 999px;
+}
+
+/* La barre de mise en forme : de petits boutons, assez grands pour le doigt (40 px). */
+.outils {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+.outil {
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  padding: 0.25rem 0.75rem;
+  color: #fff;
+  background: var(--color-night);
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.625rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1.2;
+}
+.outil:hover {
+  background: var(--color-surface-2);
+}
+.outil[aria-pressed="true"],
+.outil[aria-expanded="true"] {
+  color: var(--color-navy);
+  background: #fff;
+  border-color: #fff;
+}
+.outil-b {
+  font-weight: 800;
+}
+.outil-i {
+  font-style: italic;
+}
+.outil-u {
+  text-decoration: underline;
+}
+.outil-s {
+  text-decoration: line-through;
+}
+.outil-panneau {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--color-night);
+  border: 1px solid var(--color-line);
+  border-radius: 0.75rem;
+}
+@media (min-width: 40rem) {
+  .outil-panneau {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Une image du message : un cadre en pointillés, où l'on peut aussi déposer un fichier. */
+.image-choix {
+  min-width: 0;
+  padding: 0.875rem;
+  border: 1px dashed var(--color-line-strong);
+  border-radius: 0.75rem;
+}
+.image-choix-survol {
+  background: var(--color-surface-2);
+  border-style: solid;
+  border-color: #fff;
+}
+.image-choix-vignette {
+  width: 3rem;
+  height: 3rem;
+  flex: none;
+  object-fit: cover;
+  background: var(--color-night);
+  border-radius: 0.5rem;
+}
+
+/* L'aperçu : la mise en page de Discord, avec les couleurs du site. */
+.apercu {
+  display: grid;
+  grid-template-columns: 2.75rem minmax(0, 1fr);
+  gap: 0.875rem;
+  padding: 1rem;
+  font-size: 1rem;
+  line-height: 1.45;
+  background: var(--color-night);
+  border: 1px solid var(--color-line);
+  border-radius: 1rem;
+}
+.apercu-avatar {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 800;
+  background: var(--color-surface-2);
+  border-radius: 999px;
+}
+.apercu-avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.apercu-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.5rem;
+}
+.apercu-nom {
+  font-weight: 700;
+}
+.apercu-badge {
+  padding: 0 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-navy);
+  background: var(--color-blue-text);
+  border-radius: 0.25rem;
+}
+.apercu-heure,
+.apercu-fil {
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+.apercu-corps {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+.apercu a,
+.embed a {
+  color: var(--color-blue-text);
+  text-decoration: underline;
+}
+.apercu-image-absente {
+  display: block;
+  padding: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--color-warn);
+  border: 1px dashed var(--color-line-strong);
+  border-radius: 0.375rem;
+}
+.embed {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.625rem;
+  max-width: 32rem;
+  padding: 0.75rem 1rem 1rem 0.875rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-left: 4px solid var(--embed-couleur, var(--color-line-strong));
+  border-radius: 0.5rem;
+}
+.embed-avec-miniature {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.embed-corps {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.embed-miniature {
+  grid-column: 2;
+  grid-row: 1;
+  width: 5rem;
+  height: 5rem;
+  object-fit: contain;
+  border-radius: 0.375rem;
+}
+.embed-image {
+  grid-column: 1 / -1;
+  width: 100%;
+  max-height: 20rem;
+  object-fit: contain;
+  object-position: left top;
+  border-radius: 0.375rem;
+}
+.embed-auteur {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.embed-auteur-icone {
+  width: 1.5rem;
+  height: 1.5rem;
+  object-fit: cover;
+  border-radius: 999px;
+}
+.embed-titre {
+  font-weight: 700;
+}
+.embed-champs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem 1rem;
+}
+.embed-champ {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+.embed-champ-ligne {
+  grid-column: auto;
+}
+.embed-champ-nom {
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+.embed-pied {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+.embed-pied-icone {
+  width: 1.25rem;
+  height: 1.25rem;
+  object-fit: cover;
+  border-radius: 999px;
+}
+/* La mise en forme de Discord dans l'aperçu. Les titres n'y sont pas ceux du site : ni capitales, ni police des titres. */
+.apercu-texte > * + *,
+.embed-description > * + *,
+.embed-champ-valeur > * + * {
+  margin-top: 0.25rem;
+}
+.md-h {
+  font-weight: 800;
+  line-height: 1.25;
+}
+.md-h1 {
+  font-size: 1.5em;
+}
+.md-h2 {
+  font-size: 1.25em;
+}
+.md-h3 {
+  font-size: 1.0625em;
+}
+.md-sub {
+  font-size: 0.8125em;
+  color: var(--color-muted);
+}
+.md-quote {
+  padding-left: 0.75rem;
+  border-left: 4px solid var(--color-line-strong);
+}
+.md-pre {
+  padding: 0.625rem;
+  font-family: var(--font-console);
+  font-size: 0.875em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--color-navy);
+  border: 1px solid var(--color-line);
+  border-radius: 0.375rem;
+}
+.md-code {
+  padding: 0.05em 0.3em;
+  font-family: var(--font-console);
+  font-size: 0.875em;
+  background: var(--color-navy);
+  border-radius: 0.25rem;
+}
+.md-spoiler {
+  padding: 0 0.2em;
+  background: var(--color-line);
+  border-radius: 0.25rem;
+}
+.md-mention {
+  padding: 0 0.2em;
+  font-weight: 600;
+  color: var(--color-blue-text);
+  background: color-mix(in srgb, var(--color-blue-text) 16%, transparent);
+  border-radius: 0.25rem;
+}
+.md-time {
+  padding: 0 0.2em;
+  background: var(--color-surface-2);
+  border-radius: 0.25rem;
+}
+.md-list {
+  padding-left: 1.5rem;
+  list-style: disc;
+}
+.md-list-ol {
+  list-style: decimal;
+}

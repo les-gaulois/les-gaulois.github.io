@@ -9,8 +9,9 @@ import { PartieTete } from "./Onglets";
  * Le salon vocal du clan, pour les admins et le fondateur : son lien devient le bouton « Rejoindre le vocal » de l'onglet
  * « Salons » du QG. Le serveur ne garde qu'un lien de salon Discord (`save_voice_channel`) et ne le donne qu'aux membres
  * validés (`get_qg_tools`). Le retirer ôte seulement le bouton : à part, sous un filet, au second clic.
+ * `bare` : sans son titre, quand le menu de l'onglet Discord le donne déjà.
  */
-export default function DirectionVocal() {
+export default function DirectionVocal({ bare = false }: { bare?: boolean }) {
   // `undefined` tant que ce n'est pas lu ; `null` : pas de lien réglé.
   const [current, setCurrent] = useState<string | null | undefined>(undefined);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -65,11 +66,13 @@ export default function DirectionVocal() {
   };
 
   return (
-    <section aria-labelledby="vocal-title" data-testid="direction-vocal">
-      <PartieTete id="vocal-title" title="Le salon vocal">
-        <p>Le bouton « Rejoindre le vocal » de l'onglet Salons du QG.</p>
-      </PartieTete>
-      <div class="mt-6 grid items-start gap-6 lg:grid-cols-2">
+    <section aria-labelledby={bare ? undefined : "vocal-title"} aria-label={bare ? "Le salon vocal" : undefined} data-testid="direction-vocal">
+      {!bare && (
+        <PartieTete id="vocal-title" title="Le salon vocal">
+          <p>Le bouton « Rejoindre le vocal » de l'onglet Salons du QG.</p>
+        </PartieTete>
+      )}
+      <div class={`${bare ? "" : "mt-6"} grid items-start gap-6 lg:grid-cols-2`}>
         <form
           class="card grid gap-4 p-5"
           onSubmit={(e) => {

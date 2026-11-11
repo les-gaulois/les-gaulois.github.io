@@ -25,6 +25,7 @@ const HEALTHY: Record<string, Route> = {
   "/rest/v1/site_announcements": { status: 401, body: {} },
   "/rest/v1/polls": { status: 401, body: {} },
   "/rest/v1/app_state": { status: 200, body: [{ value: {} }] },
+  "/storage/v1/bucket/discord-images": { status: 200, body: { id: "discord-images", public: true, file_size_limit: 8388608 } },
 };
 
 const SITE = "https://exemple.supabase.co";
@@ -147,6 +148,26 @@ describe("le contrôle de la mise en ligne", () => {
     // Un refus de la fonction elle-même ne suffit pas : le droit d'appel doit être fermé.
     expect(await statusOf({ ...salons, "/rest/v1/rpc/robot_discord_salons": { status: 200, body: { nouvelles: null, encadrement: null } } }, "reçoit pas les liens des salons")).toBe("fail");
     expect(await statusOf({ ...salons, "/rest/v1/rpc/note_discord_salon": { status: 200, body: { ok: false } } }, "note pas de contrôle des salons")).toBe("fail");
+  });
+
+  it("bloque si un visiteur lit ou envoie un message Discord, ou ajoute un salon", async () => {
+    for (const label of ["lit pas les messages Discord", "envoie pas de message Discord", "ajoute pas de salon pour les messages"]) expect(await statusOf(HEALTHY, label)).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_discord_messages": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "lit pas les messages Discord")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_discord_messages": { status: 200, body: { ok: true, salons: [], messages: [] } } }, "lit pas les messages Discord")).toBe("fail");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/send_discord_message": { status: 200, body: { ok: true, id: 1 } } }, "envoie pas de message Discord")).toBe("fail");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/add_discord_message_salon": { status: 200, body: { ok: true } } }, "ajoute pas de salon pour les messages")).toBe("fail");
+  });
+
+  it("bloque si un visiteur liste les images des messages, et contrôle leur espace avec la clé secrète", async () => {
+    expect(await statusOf(HEALTHY, "liste pas les images")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/storage/v1/object/list/discord-images": { status: 200, body: [] } }, "liste pas les images")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/storage/v1/object/list/discord-images": { status: 200, body: [{ name: "0f1e2d3c-4b5a-4978-8796-a5b4c3d2e1f0.png" }] } }, "liste pas les images")).toBe("fail");
+    const bucketOf = async (routes: Record<string, Route>) => (await run(routes, "sb_secret_x")).find((c) => c.label.includes("espace des images"))?.status;
+    expect(await bucketOf(HEALTHY)).toBe("ok");
+    expect(await bucketOf({ ...HEALTHY, "/storage/v1/bucket/discord-images": { status: 404, body: {} } })).toBe("warn");
+    expect(await bucketOf({ ...HEALTHY, "/storage/v1/bucket/discord-images": { status: 200, body: { public: false, file_size_limit: 8388608 } } })).toBe("fail");
+    // Sans la clé secrète, l'espace n'est pas lu.
+    expect((await run()).some((c) => c.label.includes("espace des images"))).toBe(false);
   });
 
   it("bloque si un visiteur lit une table privée, mais pas si elle est vide", async () => {

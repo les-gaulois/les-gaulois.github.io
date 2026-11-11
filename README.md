@@ -225,6 +225,8 @@ Les membres se connectent avec Discord, un officier valide leur compte au QG, et
 
 Les appels du QG peuvent aussi partir dans un salon Discord du clan, avec un ping du rôle quand l'appel le demande : ce n'est pas le robot qui les poste, mais le serveur, dès l'appel, avec un lien réglé dans l'onglet « Discord » de `/direction`. Voir « Les appels sur Discord » dans [docs/DIRECTION.md](docs/DIRECTION.md).
 
+Depuis le 11 novembre 2026, cet onglet est un menu dont les rubriques se déroulent, et sa première, « Message Discord », permet aux admins et au fondateur d'écrire un message mis en forme, avec des embeds et des images, et de l'envoyer dans un salon du clan. Là encore, c'est le serveur qui poste, par le webhook du salon. Voir « Les messages Discord » dans [docs/DIRECTION.md](docs/DIRECTION.md).
+
 **La Conquête des Gaulois, un jeu de territoires, a été retirée du site le 6 novembre 2026. Ses tables restent dans le projet Supabase en ligne, inutilisées, et ses fichiers déjà appliqués restent dans `supabase/migrations/`, jusqu'à ce que le clan s'en occupe.** Le fichier `config/conquete.json` reste lui aussi, sans plus servir.
 
 ## La gazette sur Discord

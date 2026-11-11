@@ -72,7 +72,7 @@ Node 22 ou plus. Sous Windows, le shell est Git Bash : chemins avec `/`.
 
 ### Serveur Supabase
 
-- Le serveur décide de tout : droits et résultats vérifiés en SQL, jamais en masquant un bouton. Le navigateur n'appelle que des fonctions SQL via `src/lib/compte/api.ts`.
+- Le serveur décide de tout : droits et résultats vérifiés en SQL, jamais en masquant un bouton. Le navigateur n'appelle que des fonctions SQL via `src/lib/compte/api.ts`. Seule exception, dans ce même fichier : `uploadDiscordImage` dépose une image des messages Discord, sous la règle d'accès du stockage (admins et fondateur).
 - L'identité vient de `auth.identities`, jamais de `raw_user_meta_data`. Un compte sans Discord ne peut rien demander.
 - Une migration appliquée ne se modifie jamais : on en ajoute une nouvelle. Détail et mise en ligne : skill `supabase`.
 

@@ -16,7 +16,7 @@ const FOLLOW_UP_MS = [1_500, 4_000, 10_000, 30_000];
  * le serveur le garde, et le champ se vide après l'enregistrement. Chaque enregistrement envoie un essai, sans mention ;
  * la page relit ensuite la réponse de Discord, et montre le dernier contrôle du robot, fait à chaque passage.
  */
-export default function DirectionSalons() {
+export default function DirectionSalons({ level = 2 }: { level?: 2 | 3 }) {
   const [salons, setSalons] = useState<RobotSalon[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const timers = useRef<number[]>([]);
@@ -69,13 +69,13 @@ export default function DirectionSalons() {
       {loadError && <Problem message={loadError} onRetry={() => void load()} />}
       {ROBOT_SALON_TEXTS.map((text) => {
         const salon = salons.find((s) => s.id === text.id);
-        return salon ? <SalonPart key={text.id} text={text} salon={salon} reload={reload} /> : null;
+        return salon ? <SalonPart key={text.id} text={text} salon={salon} reload={reload} level={level} /> : null;
       })}
     </>
   );
 }
 
-function SalonPart({ text, salon, reload }: { text: RobotSalonText; salon: RobotSalon; reload: () => Promise<void> }) {
+function SalonPart({ text, salon, reload, level }: { text: RobotSalonText; salon: RobotSalon; reload: () => Promise<void>; level: 2 | 3 }) {
   const [link, setLink] = useState("");
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -118,7 +118,7 @@ function SalonPart({ text, salon, reload }: { text: RobotSalonText; salon: Robot
 
   return (
     <section aria-labelledby={`${id}-title`} data-testid={`direction-${id}`}>
-      <PartieTete id={`${id}-title`} title={text.title}>
+      <PartieTete id={`${id}-title`} title={text.title} level={level}>
         <p>{text.intro}</p>
       </PartieTete>
       <div class="mt-6 grid items-start gap-6 lg:grid-cols-2">

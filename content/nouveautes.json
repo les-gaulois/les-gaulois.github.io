@@ -1,6 +1,12 @@
 [
   {
     "date": "2026-11-11",
+    "kind": "nouveau",
+    "title": "Des messages Discord écrits depuis la Direction",
+    "body": "Pour l'encadrement : l'onglet Discord de la Direction devient un menu. « Message Discord » y envoie, dans un salon du clan, un message mis en forme avec embeds et images."
+  },
+  {
+    "date": "2026-11-11",
     "kind": "ameliore",
     "title": "La Direction en mode terminal, avec un menu des parties",
     "body": "Pour l'encadrement : la Direction passe en style terminal, avec le logo du guerrier en mode Matrix et une commande au-dessus de chaque partie. Un menu déroulant donne toutes les parties d'un coup."

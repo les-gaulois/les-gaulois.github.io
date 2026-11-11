@@ -161,6 +161,24 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   if (await refused(guess)) add("Un visiteur ne fait pas de pronostic", "ok");
   else add("Un visiteur ne fait pas de pronostic", "fail", `Réponse ${guess.status}. Ne mettez pas en ligne : seuls les membres validés font un pronostic.`);
 
+  // Les messages Discord de la Direction : seuls les admins et le fondateur les lisent, les envoient et règlent leurs
+  // salons. Le salon et le lien donnés n'existent pas : même si le droit d'appel était mal posé, rien ne partirait.
+  // Leur installation se lit avec `supabase migration list`.
+  const messages = await rpc("get_discord_messages");
+  if (await refused(messages)) add("Un visiteur ne lit pas les messages Discord", "ok");
+  else add("Un visiteur ne lit pas les messages Discord", "fail", `Réponse ${messages.status}. Ne mettez pas en ligne : seuls les admins et le fondateur lisent les messages.`);
+  const message = await rpc("send_discord_message", { p_salon: "verification", p_message: {} });
+  if (await refused(message)) add("Un visiteur n'envoie pas de message Discord", "ok");
+  else add("Un visiteur n'envoie pas de message Discord", "fail", `Réponse ${message.status}. Ne mettez pas en ligne : seuls les admins et le fondateur envoient un message.`);
+  const messageSalon = await rpc("add_discord_message_salon", { p_name: "verification", p_webhook: "verification" });
+  if (await refused(messageSalon)) add("Un visiteur n'ajoute pas de salon pour les messages", "ok");
+  else add("Un visiteur n'ajoute pas de salon pour les messages", "fail", `Réponse ${messageSalon.status}. Ne mettez pas en ligne : seuls les admins et le fondateur ajoutent un salon.`);
+  // Les images des messages : chacune se lit à son adresse, mais un visiteur ne doit pas pouvoir en dresser la liste.
+  const imageList = await fetcher(`${base}/storage/v1/object/list/discord-images`, { method: "POST", headers: anonHeaders, body: JSON.stringify({ prefix: "", limit: 1 }) });
+  const listed = imageList.ok ? ((await imageList.json().catch(() => null)) as unknown) : null;
+  if (isClosed(imageList.status) || (imageList.ok && Array.isArray(listed) && listed.length === 0)) add("Un visiteur ne liste pas les images des messages Discord", "ok");
+  else add("Un visiteur ne liste pas les images des messages Discord", "fail", `Réponse ${imageList.status}. Ne mettez pas en ligne : la règle de lecture de l'espace discord-images est trop ouverte.`);
+
   // Les réponses « Je viens », les votes, les idées et leurs soutiens sont dans le schéma `internal`, que l'API ne montre pas : rien à lire ici.
   for (const table of ["profiles", "private_links", "admin_log", "clan_roster", "site_announcements", "polls"]) {
     const res = await fetcher(`${base}/rest/v1/${table}?select=*&limit=1`, { headers: anonHeaders });
@@ -180,6 +198,13 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   if (founderRows === null) add("Le clan a un fondateur", "fail", `Lecture refusée (${founders.status}). Vérifiez SUPABASE_SECRET_KEY.`);
   else if (founderRows.length === 0) add("Le clan a un fondateur", "warn", "Pas encore : connectez-vous une fois sur le site, puis lancez bootstrap_founder (docs/DIRECTION.md, étape 4).");
   else add("Le clan a un fondateur", "ok");
+
+  // L'espace des images des messages Discord : public, 8 Mo au plus, images seulement (migration 20261111000600).
+  const bucket = await fetcher(`${base}/storage/v1/bucket/discord-images`, { headers: { ...secretHeaders, Authorization: `Bearer ${secretKey}` } });
+  const bucketAnswer = bucket.ok ? ((await bucket.json().catch(() => null)) as { public?: unknown; file_size_limit?: unknown } | null) : null;
+  if (bucketAnswer?.public === true && bucketAnswer.file_size_limit === 8 * 1024 * 1024) add("L'espace des images des messages Discord est en place", "ok");
+  else if (bucket.status === 404 || bucket.status === 400) add("L'espace des images des messages Discord est en place", "warn", "Pas encore : la migration 20261111000600_messages_discord.sql n'est pas installée.");
+  else add("L'espace des images des messages Discord est en place", "fail", `Réponse ${bucket.status}. L'espace discord-images doit être public et limité à 8 Mo.`);
 
   const roster = await fetcher(`${base}/rest/v1/app_state?select=value&key=eq.roster`, { headers: secretHeaders });
   const rosterRows = roster.ok ? ((await roster.json()) as unknown[]) : [];

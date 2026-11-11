@@ -18,7 +18,7 @@ const sentence = (r: LogRow) => {
 };
 
 // Les migrations des fonctions que le site appelle encore. « Effacer mon compte » est dans celle des dons.
-const SITE_SQL = ["20261105000100_comptes_et_roles", "20261105000200_validation_des_membres", "20261105000900_direction", "20261106000100_roles_prevus", "20261108000200_vie_du_clan", "20261109000100_qg_des_membres", "20261109000200_gaulois_de_la_semaine", "20261109000400_refaire_la_demande", "20261111000100_appels_sur_discord", "20261111000200_appels_discord_ping_au_choix", "20261111000300_salons_discord", "20261111000400_outils_du_qg"]
+const SITE_SQL = ["20261105000100_comptes_et_roles", "20261105000200_validation_des_membres", "20261105000900_direction", "20261106000100_roles_prevus", "20261108000200_vie_du_clan", "20261109000100_qg_des_membres", "20261109000200_gaulois_de_la_semaine", "20261109000400_refaire_la_demande", "20261111000100_appels_sur_discord", "20261111000200_appels_discord_ping_au_choix", "20261111000300_salons_discord", "20261111000400_outils_du_qg", "20261111000600_messages_discord"]
   .map((name) => readFileSync(`supabase/migrations/${name}.sql`, "utf8"))
   .join("\n");
 const SITE_CODES = new Set([...[...SITE_SQL.matchAll(/log_admin\([^,]+,\s*'([a-z_]+)'/g)].map((m) => m[1]!), "account_deleted"]);
@@ -73,6 +73,18 @@ describe("le journal en clair", () => {
     expect(sentence(row("voice_channel_cleared", {}, "Chef", null))).toBe("Chef a retiré le lien du salon vocal.");
     expect(categoryOf("discord_salon_saved")).toBe("settings");
     expect(categoryOf("discord_calls_saved")).toBe("settings");
+    // Les messages Discord de la Direction : le salon seulement, jamais le texte ni le lien du webhook.
+    expect(sentence(row("discord_message_sent", { salon: "robot:nouvelles" }, "Chef", null))).toBe("Chef a envoyé un message dans le salon Discord des nouvelles.");
+    expect(sentence(row("discord_message_sent", { salon: "appels" }, "Chef", null))).toBe("Chef a envoyé un message dans le salon Discord des appels.");
+    expect(sentence(row("discord_message_sent", { salon: "message:3", name: "#annonces" }, "Chef", null))).toBe("Chef a envoyé un message dans le salon Discord « #annonces ».");
+    expect(sentence(row("discord_message_sent", { salon: "robot:toString" }, "Chef", null))).toBe("Chef a envoyé un message dans un salon Discord du robot.");
+    expect(sentence(row("discord_message_sent", { salon: "appels", unsent: true }, "Chef", null))).toBe("Chef a voulu envoyer un message dans le salon Discord des appels, qui n'a pas pu partir du serveur.");
+    expect(sentence(row("discord_message_removed", { salon: "message:3", name: "#annonces" }, "Chef", null))).toBe("Chef a retiré un message du salon Discord « #annonces ».");
+    expect(sentence(row("discord_message_removed", { salon: "message:3" }, "Chef", null))).toBe("Chef a retiré un message d'un salon Discord.");
+    expect(sentence(row("discord_message_salon_added", { name: "#annonces" }, "Chef", null))).toBe("Chef a ajouté le salon Discord « #annonces » pour les messages.");
+    expect(sentence(row("discord_message_salon_removed", { name: "#annonces" }, "Chef", null))).toBe("Chef a retiré le salon Discord « #annonces » des messages.");
+    expect(categoryOf("discord_message_sent")).toBe("news");
+    expect(categoryOf("discord_message_salon_added")).toBe("settings");
   });
 
   it("n'écrit pas un détail que le serveur n'a pas donné", () => {

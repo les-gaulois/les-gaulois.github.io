@@ -17,7 +17,7 @@ export const LOG_CATEGORIES: readonly { id: LogCategory; label: string }[] = [
   { id: "requests", label: "Demandes" },
   { id: "roles", label: "Rôles" },
   { id: "suspensions", label: "Suspensions" },
-  { id: "news", label: "Publications : annonces, événements, sondages, mot d'accueil, idées, Gaulois et objectif de la semaine" },
+  { id: "news", label: "Publications : annonces, événements, sondages, mot d'accueil, idées, Gaulois et objectif de la semaine, messages Discord" },
   { id: "settings", label: "Réglages : les salons Discord et le salon vocal" },
   { id: "other", label: "Autres" },
 ];
@@ -53,6 +53,10 @@ const CATEGORIES: Record<string, LogCategory> = {
   discord_salon_cleared: "settings",
   voice_channel_saved: "settings",
   voice_channel_cleared: "settings",
+  discord_message_sent: "news",
+  discord_message_removed: "news",
+  discord_message_salon_added: "settings",
+  discord_message_salon_removed: "settings",
 };
 
 /** Les salons du robot, comme le journal les nomme. Un salon inconnu reste « un salon Discord du robot ». */
@@ -62,6 +66,18 @@ const ROBOT_SALONS: Record<string, string> = { nouvelles: "le salon Discord des 
 const IDEA_DECISIONS: Record<string, string> = { open: "a remis à l'étude", kept: "a retenu", declined: "a écarté", done: "a noté comme faite" };
 
 export const categoryOf = (action: string): LogCategory => CATEGORIES[action] ?? "other";
+
+/** Le salon d'un message Discord, comme le journal le nomme : celui du robot, celui des appels, ou un salon ajouté, par son nom. */
+function messageSalon(details: Record<string, unknown>): string {
+  const salon = textOf(details, "salon");
+  const name = textOf(details, "name");
+  if (salon === "appels") return "le salon Discord des appels";
+  if (salon?.startsWith("robot:")) {
+    const robot = salon.slice("robot:".length);
+    return (Object.hasOwn(ROBOT_SALONS, robot) ? ROBOT_SALONS[robot] : null) ?? "un salon Discord du robot";
+  }
+  return name ? `le salon Discord « ${name} »` : "un salon Discord";
+}
 
 /** Un compte supprimé n'a plus de nom : le journal le dit, sans en inventer un. */
 export const GONE_SUBJECT = "Un compte supprimé";
@@ -198,6 +214,20 @@ export function describe(row: LogRow, when: (iso: string) => string): LogLine {
       const salon = textOf(details, "salon");
       const name = salon !== null && Object.hasOwn(ROBOT_SALONS, salon) ? ROBOT_SALONS[salon] : "un salon Discord du robot";
       return { who, what: `${row.action === "discord_salon_saved" ? "a branché" : "a débranché"} ${name}.` };
+    }
+    // Les messages Discord écrits dans la Direction : le salon seulement, jamais le texte ni le lien du webhook.
+    case "discord_message_sent":
+      // `unsent` : le serveur a noté le message, mais n'a pas pu l'envoyer à Discord.
+      return details["unsent"] === true
+        ? { who, what: `a voulu envoyer un message dans ${messageSalon(details)}, qui n'a pas pu partir du serveur.` }
+        : { who, what: `a envoyé un message dans ${messageSalon(details)}.` };
+    case "discord_message_removed":
+      return { who, what: `a retiré un message ${messageSalon(details).replace(/^le /, "du ").replace(/^un /, "d'un ")}.` };
+    case "discord_message_salon_added":
+    case "discord_message_salon_removed": {
+      const name = textOf(details, "name");
+      const salon = name ? `le salon Discord « ${name} »` : "un salon Discord";
+      return { who, what: row.action === "discord_message_salon_added" ? `a ajouté ${salon} pour les messages.` : `a retiré ${salon} des messages.` };
     }
     case "account_deleted":
       return { who: row.actor ?? "Un membre", what: "a supprimé son compte." };

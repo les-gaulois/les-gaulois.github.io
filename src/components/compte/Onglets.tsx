@@ -340,14 +340,16 @@ export function Partie({ prefix, id, active, slide, staff = false, children }: {
 }
 
 /** Le haut d'une partie : son titre, une phrase pour dire à quoi elle sert, et une commande à droite si besoin. */
-export function PartieTete({ id, title, eyebrow, children, aside }: { id: string; title: string; eyebrow?: string; children?: ComponentChildren; aside?: ComponentChildren }) {
+export function PartieTete({ id, title, eyebrow, children, aside, level = 2 }: { id: string; title: string; eyebrow?: string; children?: ComponentChildren; aside?: ComponentChildren; level?: 2 | 3 }) {
+  // `level` 3 : une partie rangée sous une rubrique qui a déjà son titre (le menu de l'onglet Discord).
+  const Titre = level === 3 ? "h3" : "h2";
   return (
     <div class="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
       <div class="min-w-0 max-w-3xl">
         {eyebrow && <p class="partie-surtitre">{eyebrow}</p>}
-        <h2 id={id} class="text-2xl">
+        <Titre id={id} class="text-2xl">
           {title}
-        </h2>
+        </Titre>
         {children && <div class="mt-2 text-muted">{children}</div>}
       </div>
       {aside}

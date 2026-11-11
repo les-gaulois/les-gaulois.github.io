@@ -20,7 +20,7 @@ Le fonctionnement, les rôles et l'installation sont décrits dans `docs/DIRECTI
 
 ## Ce qui ne se négocie pas
 
-- Le serveur décide de tout : chaque droit se vérifie dans la fonction SQL, jamais en masquant un bouton. Le navigateur n'appelle que des fonctions via `call()` de `src/lib/compte/api.ts`.
+- Le serveur décide de tout : chaque droit se vérifie dans la fonction SQL, jamais en masquant un bouton. Le navigateur n'appelle que des fonctions via `call()` de `src/lib/compte/api.ts`. Seule exception : `uploadDiscordImage`, du même fichier, dépose une image des messages Discord dans l'espace `discord-images`, dont la règle d'accès (`storage.objects`, migration `20261111000600_messages_discord.sql`) n'admet que les admins et le fondateur.
 - L'identité vient de `auth.identities`, jamais de `raw_user_meta_data`, qu'un utilisateur peut écrire lui-même. Un compte sans Discord ne peut rien demander. Une suspension ne se lève que par un admin de rang supérieur. Personne ne change son propre rôle. Toute publication, modification ou suppression va au journal.
 - Les tests de droits sur un vrai Postgres ont été retirés avec le jeu : ces règles ne sont plus vérifiées automatiquement. Avant de toucher au serveur, relire la section « L'identité Discord : les règles à garder » de `docs/DIRECTION.md`, et après, les contrôler à la main (ci-dessous).
 - Les identifiants Discord de l'encadrement (`internal.role_presets`) s'écrivent dans l'éditeur SQL de Supabase, jamais dans le dépôt, jamais dans un test.
