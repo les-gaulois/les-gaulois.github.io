@@ -17,6 +17,7 @@ export default function LineChart({
   invert,
   format,
   showValue = true,
+  lastLabel = "Dernière mesure",
 }: {
   title: string;
   points: LinePoint[];
@@ -24,6 +25,8 @@ export default function LineChart({
   format: (n: number) => string;
   /** `false` quand la page écrit déjà la dernière valeur juste au-dessus (le comparateur de clans) : elle n'est pas répétée en grand. */
   showValue?: boolean;
+  /** Le nom du dernier point : « Dernière mesure », ou « Projection » pour une courbe calculée (le simulateur du QG). */
+  lastLabel?: string;
 }) {
   // Les dégradés de chaque courbe ont leur propre identifiant : plusieurs courbes, et plusieurs îlots, se partagent une page.
   const id = `${useId()}-${title.normalize("NFD").replace(/[^A-Za-z0-9]+/g, "-")}`;
@@ -74,13 +77,15 @@ export default function LineChart({
       {showValue && (
         <p class="kpi-value kpi-value-sm">
           {format(last.value)}
-          <span class="sr-only">, dernière mesure le {fmtDay(last.date)}</span>
+          <span class="sr-only">
+            , {lastLabel.toLocaleLowerCase("fr")} le {fmtDay(last.date)}
+          </span>
         </p>
       )}
       <p class="tnum mt-2 min-h-6 text-sm text-muted" aria-hidden="true">
         {shown
           ? `${fmtDay(shown.date)} : ${shown.value === null ? "hors classement" : format(shown.value)}`
-          : `Dernière mesure, ${fmtDay(last.date)}${showValue ? "" : ` : ${format(last.value)}`}`}
+          : `${lastLabel}, ${fmtDay(last.date)}${showValue ? "" : ` : ${format(last.value)}`}`}
       </p>
       {measured < 2 ? (
         <p class="mt-3 text-sm text-muted">

@@ -8,6 +8,32 @@
   {
     "date": "2026-11-11",
     "kind": "nouveau",
+    "title": "Le simulateur de classement",
+    "body": "Au QG, l'onglet Simulateur refait le score d'OpenFront et montre où serait GAL selon les parties jouées seul ou en groupe, et ce qu'il faudrait pour passer devant un clan.",
+    "link": {
+      "href": "/qg",
+      "label": "Ouvrir le QG"
+    }
+  },
+  {
+    "date": "2026-11-11",
+    "kind": "nouveau",
+    "title": "Seul ou en groupe, sur chaque fiche",
+    "body": "La fiche de chaque membre montre ses victoires seul, à 2, à 3 ou à 4 et plus, et par format.",
+    "link": {
+      "href": "/membres",
+      "label": "Voir les membres"
+    }
+  },
+  {
+    "date": "2026-11-11",
+    "kind": "nouveau",
+    "title": "Jouer ensemble, chaque semaine sur Discord",
+    "body": "Dès le mardi 14 h, le salon Discord de la gazette peut recevoir la part des parties jouées à plusieurs et les duos qui ont le plus gagné ensemble."
+  },
+  {
+    "date": "2026-11-11",
+    "kind": "nouveau",
     "title": "Sept outils de plus au QG",
     "body": "Au QG : votre place sans taper votre pseudo, « Ce soir je joue », l'objectif et le pronostic de la semaine, les GG, les parrains, et un bouton vers le salon vocal quand l'encadrement le règle.",
     "link": {

@@ -37,6 +37,7 @@ import QgMur from "./QgMur";
 import QgPolls from "./QgPolls";
 import QgSalons from "./QgSalons";
 import QgSemaine from "./QgSemaine";
+import QgSimulateur from "./QgSimulateur";
 
 /** Les décisions passées montrées d'abord ; les suivantes restent repliées, à portée. */
 const PAST_SHOWN = 2;
@@ -52,6 +53,7 @@ const QG_TABS = [
   { id: "salons", label: "Salons" },
   { id: "ce-soir", label: "Ce soir" },
   { id: "semaine", label: "La semaine" },
+  { id: "simulateur", label: "Simulateur" },
   { id: "decisions", label: "Décisions" },
   { id: "evenements", label: "Événements" },
   { id: "idees", label: "Idées" },
@@ -529,6 +531,11 @@ function Inside({ me, rank }: { me: Me; rank: number }) {
               />
             </Partie>
           )}
+
+          {/* Le simulateur ne lit que des données publiques : il ne dépend ni de get_qg ni des outils. Lu au premier passage. */}
+          <Partie {...part} id="simulateur">
+            {opened.has("simulateur") && <QgSimulateur />}
+          </Partie>
 
           {data && data.polls.length > 0 && (
             <Partie {...part} id="decisions">

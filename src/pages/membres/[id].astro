@@ -7,7 +7,7 @@ import MapNamesCredit from "../../components/MapNamesCredit.astro";
 import PageHeader from "../../components/PageHeader.astro";
 import ReadingNote from "../../components/ReadingNote.astro";
 import { clan } from "../../../config/clan";
-import { loadMemberGames, loadMembers, loadMeta } from "../../lib/data";
+import { loadMemberGames, loadMemberResultsOnce, loadMembers, loadMeta, loadSessionIndex } from "../../lib/data";
 import { fmtCount, fmtDate, fmtInt, fmtPct } from "../../lib/format";
 import { ficheFacts, ficheImageAlt } from "../../lib/fiche-image";
 import { MAX_AGE_HOURS } from "../../lib/freshness";
@@ -16,6 +16,8 @@ import { gamesOf, rateOf, recentGamesTitle, singlePseudos } from "../../lib/memb
 import { nextTier, tierOf } from "../../lib/paliers";
 import { formatLabel } from "../../lib/results";
 import type { StoredMember } from "../../lib/schemas";
+import { groupSentence, groupStats, winRateOf } from "../../lib/seul-groupe";
+import { GROUP_LABELS, GROUP_SIZES } from "../../lib/simulateur";
 import { parisParts } from "../../lib/time";
 
 /** Une fiche par membre avec pseudo : un anonyme n'en a pas, et son identifiant n'est écrit nulle part. */
@@ -49,6 +51,9 @@ const image = hasImage ? `${base}/generated/fiches/${member.publicId}.png` : und
 // Une photo Discord ne va qu'à côté d'un pseudo porté par un seul membre : jamais à côté d'un homonyme (src/scripts/visages.ts).
 const face = list && singlePseudos(list.members).has(username) ? username : undefined;
 const imageAlt = hasImage && facts && list ? ficheImageAlt(facts, clan.tag, list.fetchedAt) : undefined;
+// Seul ou en groupe : ses parties de sa liste officielle, rangées selon le nombre de Gaulois de la session du clan (src/lib/seul-groupe.ts).
+const groupe = member.publicId ? groupStats(loadMemberResultsOnce()[member.publicId], loadSessionIndex()) : null;
+const groupLine = groupe ? groupSentence(groupe, username, fmtPct) : null;
 const tiles = member.team
   ? [
       { label: "Victoires", value: fmtInt(member.team.wins) },
@@ -109,6 +114,74 @@ const tiles = member.team
         </p>
       </ReadingNote>
     </section>
+
+    {
+      groupe && (
+        <section class="stage stage-indigo reveal mt-6" aria-labelledby="member-group-title" data-testid="member-group">
+          <h2 id="member-group-title" class="section-title">Seul ou en groupe</h2>
+          {groupLine && (
+            <p class="mt-4 max-w-3xl text-lg font-semibold" data-testid="member-group-line">
+              {groupLine}
+            </p>
+          )}
+          <div class="mt-6 overflow-x-auto" tabindex="0" role="region" aria-label="Seul ou en groupe : victoires selon le nombre de Gaulois">
+            <table class="tnum w-full max-w-2xl text-left [overflow-wrap:normal]">
+              <thead>
+                <tr class="text-sm text-muted">
+                  <th scope="col" class="py-2 pr-4 font-semibold">Gaulois dans la partie</th>
+                  <th scope="col" class="py-2 pr-4 font-semibold">Parties</th>
+                  <th scope="col" class="py-2 pr-4 font-semibold">Victoires</th>
+                  <th scope="col" class="py-2 font-semibold">Taux</th>
+                </tr>
+              </thead>
+              <tbody>
+                {GROUP_SIZES.map((size) => (
+                  <tr class="whitespace-nowrap border-t border-line" data-testid="member-group-row">
+                    <th scope="row" class="py-2 pr-4 text-left font-semibold">{GROUP_LABELS[size]}</th>
+                    <td class="py-2 pr-4">{fmtInt(groupe.bySize[size].games)}</td>
+                    <td class="py-2 pr-4">{fmtInt(groupe.bySize[size].wins)}</td>
+                    <td class="py-2">{fmtPct(winRateOf(groupe.bySize[size]))}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {groupe.byFormat.length > 0 && (
+            <details class="fold mt-4 max-w-2xl" data-testid="member-group-formats">
+              <summary class="font-semibold">Par format</summary>
+              <div class="overflow-x-auto" tabindex="0" role="region" aria-label="Victoires par format">
+                <table class="tnum mt-2 w-full text-left [overflow-wrap:normal]">
+                  <thead>
+                    <tr class="text-sm text-muted">
+                      <th scope="col" class="py-2 pr-4 font-semibold">Format</th>
+                      <th scope="col" class="py-2 pr-4 font-semibold">Parties</th>
+                      <th scope="col" class="py-2 pr-4 font-semibold">Victoires</th>
+                      <th scope="col" class="py-2 font-semibold">Taux</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {groupe.byFormat.map((row) => (
+                      <tr class="whitespace-nowrap border-t border-line">
+                        <th scope="row" class="py-2 pr-4 text-left font-semibold">{row.format}</th>
+                        <td class="py-2 pr-4">{fmtInt(row.games)}</td>
+                        <td class="py-2 pr-4">{fmtInt(row.wins)}</td>
+                        <td class="py-2">{fmtPct(winRateOf(row))}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          )}
+          <ReadingNote>
+            <p>
+              Parties sous le tag du {fmtDate(groupe.from)} au {fmtDate(groupe.to)}, retrouvées dans les sessions du clan : {fmtInt(groupe.matched)}
+              {groupe.complete ? "." : " ; les plus anciennes ne sont pas encore relues."} Le nombre de Gaulois compte tous les joueurs sous le tag dans la partie, avec ou sans pseudo. Un lien, pas une preuve : le taux dépend aussi du format, de l'heure et des adversaires.
+            </p>
+          </ReadingNote>
+        </section>
+      )
+    }
 
     {
       games !== null && games > 0 && (

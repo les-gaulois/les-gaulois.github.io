@@ -77,6 +77,14 @@ export function loadSessions(): StoredSession[] {
   return listJson("data/sessions").flatMap((f) => read(`data/sessions/${f}`, StoredSessionFile)?.sessions ?? []);
 }
 
+// Les fiches des membres lisent toutes les mêmes sessions et les mêmes listes : une seule lecture par build.
+let sessionIndex: Map<string, StoredSession> | null = null;
+let memberResults: StoredMemberResults | null = null;
+/** Les sessions du clan par partie, lues une fois. */
+export const loadSessionIndex = (): Map<string, StoredSession> => (sessionIndex ??= new Map(loadSessions().map((s) => [s.gameId, s])));
+/** Les listes de parties des membres, lues une fois. */
+export const loadMemberResultsOnce = (): StoredMemberResults => (memberResults ??= loadMemberResults());
+
 /** Les mois de sessions illisibles. Une page les ignore et se corrige au build suivant ; un message posté ne se corrige pas. */
 export function unreadableSessionFiles(): string[] {
   return listJson("data/sessions").filter((f) => !read(`data/sessions/${f}`, StoredSessionFile));
