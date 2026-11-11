@@ -156,12 +156,20 @@ jobs:
         run: npm run nouveautes:envoyer
         env:
           DISCORD_WEBHOOK_GAZETTE: ${{ secrets.DISCORD_WEBHOOK_GAZETTE }}
+      # La course du soir dès 21 h : place, score et écarts au classement, points gagnés depuis la veille à 20 h.
+      - name: Envoyer la course du soir sur Discord
+        if: github.ref_name == 'main'
+        continue-on-error: true
+        timeout-minutes: 2
+        run: npm run course:envoyer
+        env:
+          DISCORD_WEBHOOK_GAZETTE: ${{ secrets.DISCORD_WEBHOOK_GAZETTE }}
       # Les données sont déjà enregistrées : un échec ici n'empêche pas de reconstruire le site, et se lit dans l'avertissement.
       - name: Noter les envois sur Discord
         if: github.ref_name == 'main'
         continue-on-error: true
         run: |
-          for fichier in data/discord-lien.json data/gazette-envoi.json data/alertes-envoi.json data/paliers-envoi.json data/records-envoi.json data/hier-envoi.json data/bienvenue-envoi.json data/actifs-envoi.json data/nouveautes-envoi.json; do
+          for fichier in data/discord-lien.json data/gazette-envoi.json data/alertes-envoi.json data/paliers-envoi.json data/records-envoi.json data/hier-envoi.json data/bienvenue-envoi.json data/actifs-envoi.json data/nouveautes-envoi.json data/course-envoi.json; do
             if [ -f "$fichier" ]; then git add -- "$fichier"; fi
           done
           if git diff --cached --quiet; then
@@ -175,7 +183,7 @@ jobs:
             fi
             sleep 20
           done
-          echo "::warning::Discord : état des envois non noté. Un message déjà envoyé (gazette, alerte, paliers ou message du jour) repartira une fois au passage suivant, si l'enregistrement remarche."
+          echo "::warning::Discord : état des envois non noté. Un message déjà envoyé (gazette, alerte, paliers, message du jour ou course du soir) repartira une fois au passage suivant, si l'enregistrement remarche."
           exit 1
       # La connexion compare chaque demande à cette liste. Sans réglages, l'étape ne s'exécute pas, et une panne n'empêche jamais le site de se publier.
       - name: Relire la liste des membres

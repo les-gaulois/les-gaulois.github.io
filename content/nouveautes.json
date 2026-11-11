@@ -2,6 +2,16 @@
   {
     "date": "2026-11-11",
     "kind": "nouveau",
+    "title": "La course du soir sur Discord",
+    "body": "Chaque soir à partir de 21 h, le salon Discord de la gazette peut recevoir la place de GAL, son score, l'écart avec ses voisins et les points gagnés depuis la veille.",
+    "link": {
+      "href": "/classement",
+      "label": "Voir le classement"
+    }
+  },
+  {
+    "date": "2026-11-11",
+    "kind": "nouveau",
     "title": "Plus de nouvelles sur Discord",
     "body": "Le salon Discord de la gazette peut recevoir chaque jour le bilan de la veille, la bienvenue aux nouveaux, les plus actifs et les nouveautés du site. Les paliers y partent dès 50 victoires."
   },

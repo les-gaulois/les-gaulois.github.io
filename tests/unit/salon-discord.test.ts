@@ -21,7 +21,7 @@ describe("sendWindow", () => {
     expect(sendWindow(at("2026-11-12T08:53:00.000Z"), 9, "2026-11-11").open).toBe(true);
   });
   it("étale les messages dans la journée, du matin au soir", () => {
-    expect(Object.values(SEND_FROM_HOUR)).toEqual([9, 12, 17, 19]);
+    expect(Object.values(SEND_FROM_HOUR)).toEqual([9, 12, 17, 19, 21]);
   });
 });
 

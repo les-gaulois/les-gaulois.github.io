@@ -13,8 +13,8 @@ import { parisParts } from "./time";
 /** Un jour de Paris, AAAA-MM-JJ. */
 export const ParisDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
-/** L'heure de Paris à partir de laquelle part chaque message. */
-export const SEND_FROM_HOUR = { hier: 9, bienvenue: 12, actifs: 17, nouveautes: 19 } as const;
+/** L'heure de Paris à partir de laquelle part chaque message. La course du soir (`course-soir.ts`) suit les mêmes règles. */
+export const SEND_FROM_HOUR = { hier: 9, bienvenue: 12, actifs: 17, nouveautes: 19, course: 21 } as const;
 
 /** Le message peut-il partir maintenant ? Jamais la nuit, pas avant son heure, et une fois par jour à Paris. */
 export function sendWindow(now: Date, fromHour: number, lastSentOn: string | null): { open: boolean; reason: string } {

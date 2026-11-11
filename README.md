@@ -56,6 +56,7 @@ Le site s'ouvre sur http://localhost:4321. Aucun secret n'est nécessaire.
 | `npm run records:envoyer` | Envoie un message si le clan a battu un de ses records, sur le salon de la gazette. Sans son lien, ne fait rien : voir « Les alertes de record ». |
 | `npm run paliers:envoyer` | Envoie les paliers franchis par les membres, sur le salon de la gazette. Sans son lien, elle ne fait rien : voir « Les paliers franchis sur Discord ». |
 | `npm run hier:envoyer` · `bienvenue:envoyer` · `actifs:envoyer` · `nouveautes:envoyer` | Envoient les messages du jour sur le salon de la gazette : le bilan de la veille, la bienvenue aux nouveaux, les plus actifs et les nouveautés du site. Sans leur lien, elles ne font rien : voir « Les messages du jour sur Discord ». |
+| `npm run course:envoyer` | Envoie la course du soir sur le salon de la gazette, à partir de 21 h : place, score, écarts et points gagnés. Sans son lien, elle ne fait rien : voir « La course du soir ». |
 | `npm run verifier:ligne` | Contrôle le vrai projet Supabase, sans rien y écrire : voir [docs/DIRECTION.md](docs/DIRECTION.md) |
 | `npm run build` | Génère le favicon, l'image de partage, les fichiers du film et l'image d'aperçu de chaque fiche de membre, puis construit `dist/` |
 | `npm run preview` | Sert le dossier `dist/` |
@@ -164,6 +165,7 @@ Tous les calculs sont dans `src/lib/` et testés :
 
 - **Rang :** position dans la liste de l'API, sans recalcul.
 - **Score :** champ `weightedWins` de l'API.
+- **Points gagnés de la course du soir :** somme des `score` positifs des sessions du clan, de 20 h la veille à 20 h, à plusieurs ou seul sous le tag d'après `clanPlayerCount`. Ce n'est pas la hausse du score, qui perd aussi chaque jour une part de sa valeur : le message donne les deux. Voir « La course du soir ».
 - **Taux de victoire :** `victoires ÷ parties`. Sans partie, il n'y a pas de taux.
 - **Écart avec un voisin :** différence de `weightedWins`.
 - **Stats d'un membre :** champ `stats.team` de l'API.
@@ -291,6 +293,18 @@ Le robot poste aussi un message quand le clan bat un de ses records (`src/lib/re
 - **En texte,** avec une ligne par record, sa date, l'ancienne marque, un lien vers `/records` et la date de la collecte. Personne ne peut être mentionné.
 
 Les records annoncés et les envois du jour sont notés dans `data/records-envoi.json`, écrit par le robot seulement. S'il devient illisible, les records du moment servent de nouveau départ, avec un avertissement.
+
+## La course du soir
+
+Chaque soir, le robot poste aussi la course au classement (`src/lib/course-soir.ts`, script `scripts/envoyer-course.ts`). C'est ce que le clan a gardé de son ancien rapport, le 11 novembre 2026 ; ses autres nouvelles ont leurs propres messages, sans doublon. Même salon et même secret que la gazette.
+
+- **Quand :** une fois par jour, à partir de 21 h à Paris, jamais de 23 h à 8 h, comme les messages du jour (`SEND_FROM_HOUR.course`) : vers 21 h 53. Il faut un classement relu depuis moins de deux heures, et des sessions relues après 21 h. Sinon, rien ne part ce soir-là, et le lendemain ne rattrape pas la veille.
+- **La course :** la place de GAL parmi cinq lignes de la liste officielle, GAL compris, avec leur score, puis l'écart avec le clan juste devant et celui juste derrière. Le score et les écarts sont comparés au message de la veille, avec le même voisin et du même côté. Le changement d'un écart s'écrit en mots (« retard en hausse de… ») : un signe se lirait à l'envers pour un retard. Sans message la veille, rien n'est comparé.
+- **Les points gagnés :** de 20 h la veille à 20 h, heure de Paris, la somme des `score` positifs des sessions du clan, ce que chaque partie a ajouté aux victoires pondérées au moment où elle s'est jouée. Ils sont séparés entre les parties à plusieurs Gaulois et celles d'un Gaulois seul sous le tag. Deux soirs de suite ne sautent ni ne comptent deux fois aucune partie, changement d'heure compris. Une partie n'est relevée qu'une fois finie, et 99 % des parties du clan durent moins d'une heure : d'où l'attente de sessions relues après 21 h.
+- **Ce que le message ne dit pas :** les scores négatifs vont aux défaites pondérées, qui ne comptent pas pour la place, et il ne les montre pas. Il ne donne jamais de points par joueur : l'API ne les donne pas, et le site ne publie d'un membre que `stats.team`. Il ne cite aucun pseudo.
+- **Les points ne sont pas la hausse du score.** Le score perd chaque jour une part de sa valeur (demi-vie de 30 jours) et oublie les parties de plus de 90 jours. Le 10 novembre 2026, 60,13 points ont été gagnés pour un score monté de 2,25 seulement. Le message donne donc la vraie variation du score officiel à côté des points, et le dit en toutes lettres.
+
+Le message est en texte, avec une image (`src/lib/course-soir-image.ts`, même dessin que les alertes de place) et un bouton vers `/classement`. Il ne peut mentionner personne, et les tags des autres clans sont échappés. Le jour du dernier message, le score et les écarts qu'il donnait sont notés dans `data/course-envoi.json`, écrit par le robot seulement. Un état illisible fait partir le message sans comparaison, avec un avertissement. Une panne laisse un avertissement qui commence par « Course : » sur l'étape « Envoyer la course du soir sur Discord ».
 
 ## Animations
 
