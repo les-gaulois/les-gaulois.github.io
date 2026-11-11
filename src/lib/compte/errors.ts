@@ -62,6 +62,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   invalid_webhook: "Collez le lien d'un webhook de Discord : une adresse https://discord.com/api/webhooks/…, copiée dans les réglages du salon.",
   invalid_role: "Collez l'identifiant du rôle : un nombre de 17 à 20 chiffres, pas son nom.",
   discord_not_set: "Aucun salon Discord n'est réglé : enregistrez d'abord un lien.",
+  invalid_salon: "Ce salon n'existe pas sur le site.",
   test_too_soon: "Un essai vient de partir : attendez quelques secondes avant le suivant.",
   no_live_call: "Votre appel est terminé : lancez-en un nouveau pour faire un ping.",
 };

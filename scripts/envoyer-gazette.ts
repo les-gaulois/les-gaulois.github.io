@@ -1,13 +1,15 @@
 /**
  * Envoie la dernière gazette sur un salon Discord, lancé par la GitHub Action après la collecte.
  *   npm run gazette:envoyer
- * Avec DISCORD_WEBHOOK_GAZETTE dans l'environnement. Sans lui, ne fait rien. La dernière édition envoyée est notée dans data/gazette-envoi.json.
+ * Avec le lien du salon des nouvelles, réglé dans Direction > Discord (lu avec SUPABASE_URL et SUPABASE_SECRET_KEY), sinon
+ * le secret DISCORD_WEBHOOK_GAZETTE. Sans lien, ne fait rien. La dernière édition envoyée est notée dans data/gazette-envoi.json.
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { clan } from "../config/clan";
 import { loadHistory, loadMembers, loadMemberWeeks, loadMeta, loadSessions, loadTerritoryReadings, unreadableSessionFiles } from "../src/lib/data";
 import { gazetteEditions } from "../src/lib/gazette";
 import { GazetteSendState, lastSentEdition, sendLatestGazette } from "../src/lib/gazette-discord";
+import { salonLink } from "../src/lib/salon-lien";
 
 const STATE_FILE = "data/gazette-envoi.json";
 
@@ -19,9 +21,11 @@ function readState(): GazetteSendState | null {
   return parsed.data;
 }
 
-const webhook = process.env["DISCORD_WEBHOOK_GAZETTE"];
+// Le lien réglé dans la Direction, sinon le secret DISCORD_WEBHOOK_GAZETTE : voir src/lib/salon-lien.ts.
+const { link: webhook, warning: linkWarning } = await salonLink("nouvelles");
+if (linkWarning) console.log(`Gazette : ${linkWarning}.`);
 if (!webhook) {
-  console.log("Pas de DISCORD_WEBHOOK_GAZETTE : rien à envoyer.");
+  console.log("Pas de lien pour le salon des nouvelles, ni dans la Direction ni dans DISCORD_WEBHOOK_GAZETTE : rien à envoyer.");
   process.exit(0);
 }
 

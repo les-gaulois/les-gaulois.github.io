@@ -123,6 +123,23 @@ describe("le contrôle de la mise en ligne", () => {
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/ping_lobby_call": { status: 200, body: { ok: true, ping: "sent" } } }, "fait pas de ping")).toBe("fail");
   });
 
+  it("bloque si un visiteur lit ou change le réglage des salons du robot, ou reçoit leurs liens", async () => {
+    const salons = {
+      ...HEALTHY,
+      "/rest/v1/rpc/get_discord_salons": { status: 401, body: {} },
+      "/rest/v1/rpc/save_discord_salon": { status: 401, body: {} },
+      "/rest/v1/rpc/robot_discord_salons": { status: 401, body: {} },
+      "/rest/v1/rpc/note_discord_salon": { status: 401, body: {} },
+    };
+    for (const label of ["lit pas le réglage des salons", "règle pas les salons", "reçoit pas les liens des salons", "note pas de contrôle des salons"]) expect(await statusOf(salons, label)).toBe("ok");
+    expect(await statusOf({ ...salons, "/rest/v1/rpc/get_discord_salons": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "lit pas le réglage des salons")).toBe("ok");
+    expect(await statusOf({ ...salons, "/rest/v1/rpc/get_discord_salons": { status: 200, body: { ok: true, salons: [] } } }, "lit pas le réglage des salons")).toBe("fail");
+    expect(await statusOf({ ...salons, "/rest/v1/rpc/save_discord_salon": { status: 200, body: { ok: true } } }, "règle pas les salons")).toBe("fail");
+    // Un refus de la fonction elle-même ne suffit pas : le droit d'appel doit être fermé.
+    expect(await statusOf({ ...salons, "/rest/v1/rpc/robot_discord_salons": { status: 200, body: { nouvelles: null, encadrement: null } } }, "reçoit pas les liens des salons")).toBe("fail");
+    expect(await statusOf({ ...salons, "/rest/v1/rpc/note_discord_salon": { status: 200, body: { ok: false } } }, "note pas de contrôle des salons")).toBe("fail");
+  });
+
   it("bloque si un visiteur lit une table privée, mais pas si elle est vide", async () => {
     expect(await statusOf({ ...HEALTHY, "/rest/v1/private_links": { status: 200, body: [{ discord_id: "1" }] } }, "private_links")).toBe("fail");
     expect(await statusOf({ ...HEALTHY, "/rest/v1/private_links": { status: 200, body: [] } }, "private_links")).toBe("ok");

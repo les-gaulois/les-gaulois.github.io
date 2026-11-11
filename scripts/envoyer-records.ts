@@ -1,6 +1,7 @@
 /**
  * Envoie sur Discord une alerte quand le clan bat un de ses records, sur le même salon que la gazette.
- * Avec DISCORD_WEBHOOK_GAZETTE dans l'environnement. Sans lui, ne fait rien. Les records annoncés sont notés dans data/records-envoi.json.
+ * Avec le lien du salon des nouvelles, réglé dans Direction > Discord (lu avec SUPABASE_URL et SUPABASE_SECRET_KEY), sinon
+ * le secret DISCORD_WEBHOOK_GAZETTE. Sans lien, ne fait rien. Les records annoncés sont notés dans data/records-envoi.json.
  * Le lien vaut un mot de passe pour ce salon : il n'est écrit dans aucun message, même d'erreur.
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -9,16 +10,18 @@ import { loadMeta, loadSessions, unreadableSessionFiles } from "../src/lib/data"
 import { isWebhookUrl, lastSentAnyFormat } from "../src/lib/gazette-discord";
 import { parseRecordAlertState, postRecordMessage, recordAlertPass, recordPayload } from "../src/lib/records-discord";
 import { clanRecords } from "../src/lib/results";
+import { salonLink } from "../src/lib/salon-lien";
 
 const STATE_FILE = "data/records-envoi.json";
 const GAZETTE_FILE = "data/gazette-envoi.json";
 
 const readText = (path: string) => (existsSync(path) ? readFileSync(path, "utf8") : null);
 
-// Un copier-coller peut laisser une espace ou un retour à la ligne autour du lien.
-const link = process.env["DISCORD_WEBHOOK_GAZETTE"]?.trim();
+// Le lien réglé dans la Direction, sinon le secret DISCORD_WEBHOOK_GAZETTE : voir src/lib/salon-lien.ts.
+const { link, warning: linkWarning } = await salonLink("nouvelles");
+if (linkWarning) console.log(`Records : ${linkWarning}.`);
 if (!link) {
-  console.log("Pas de DISCORD_WEBHOOK_GAZETTE : aucune alerte de record.");
+  console.log("Pas de lien pour le salon des nouvelles, ni dans la Direction ni dans DISCORD_WEBHOOK_GAZETTE : aucune alerte de record.");
   process.exit(0);
 }
 if (!isWebhookUrl(link)) {

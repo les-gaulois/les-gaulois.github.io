@@ -18,7 +18,7 @@ const sentence = (r: LogRow) => {
 };
 
 // Les migrations des fonctions que le site appelle encore. « Effacer mon compte » est dans celle des dons.
-const SITE_SQL = ["20261105000100_comptes_et_roles", "20261105000200_validation_des_membres", "20261105000900_direction", "20261106000100_roles_prevus", "20261108000200_vie_du_clan", "20261109000100_qg_des_membres", "20261109000200_gaulois_de_la_semaine", "20261109000400_refaire_la_demande", "20261111000100_appels_sur_discord", "20261111000200_appels_discord_ping_au_choix"]
+const SITE_SQL = ["20261105000100_comptes_et_roles", "20261105000200_validation_des_membres", "20261105000900_direction", "20261106000100_roles_prevus", "20261108000200_vie_du_clan", "20261109000100_qg_des_membres", "20261109000200_gaulois_de_la_semaine", "20261109000400_refaire_la_demande", "20261111000100_appels_sur_discord", "20261111000200_appels_discord_ping_au_choix", "20261111000300_salons_discord"]
   .map((name) => readFileSync(`supabase/migrations/${name}.sql`, "utf8"))
   .join("\n");
 const SITE_CODES = new Set([...[...SITE_SQL.matchAll(/log_admin\([^,]+,\s*'([a-z_]+)'/g)].map((m) => m[1]!), "account_deleted"]);
@@ -61,6 +61,11 @@ describe("le journal en clair", () => {
     expect(sentence(row("discord_calls_saved", { mention: false }, "Chef", null))).toBe("Chef a branché le salon Discord des appels, sans rôle pour les pings.");
     expect(sentence(row("discord_calls_saved", {}, "Chef", null))).toBe("Chef a branché le salon Discord des appels.");
     expect(sentence(row("discord_calls_cleared", {}, "Chef", null))).toBe("Chef a débranché le salon Discord des appels.");
+    expect(sentence(row("discord_salon_saved", { salon: "nouvelles" }, "Chef", null))).toBe("Chef a branché le salon Discord des nouvelles.");
+    expect(sentence(row("discord_salon_saved", { salon: "encadrement" }, "Chef", null))).toBe("Chef a branché le salon Discord de l'encadrement.");
+    expect(sentence(row("discord_salon_cleared", { salon: "nouvelles" }, "Chef", null))).toBe("Chef a débranché le salon Discord des nouvelles.");
+    expect(sentence(row("discord_salon_cleared", { salon: "autre" }, "Chef", null))).toBe("Chef a débranché un salon Discord du robot.");
+    expect(categoryOf("discord_salon_saved")).toBe("settings");
     expect(categoryOf("discord_calls_saved")).toBe("settings");
   });
 

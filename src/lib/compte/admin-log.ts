@@ -17,7 +17,7 @@ export const LOG_CATEGORIES: readonly { id: LogCategory; label: string }[] = [
   { id: "roles", label: "Rôles" },
   { id: "suspensions", label: "Suspensions" },
   { id: "news", label: "Publications : annonces, événements, sondages, mot d'accueil, idées, Gaulois de la semaine" },
-  { id: "settings", label: "Réglages : les appels sur Discord" },
+  { id: "settings", label: "Réglages : les salons Discord" },
   { id: "other", label: "Autres" },
 ];
 
@@ -46,7 +46,12 @@ const CATEGORIES: Record<string, LogCategory> = {
   weekly_pick_deleted: "news",
   discord_calls_saved: "settings",
   discord_calls_cleared: "settings",
+  discord_salon_saved: "settings",
+  discord_salon_cleared: "settings",
 };
+
+/** Les salons du robot, comme le journal les nomme. Un salon inconnu reste « un salon Discord du robot ». */
+const ROBOT_SALONS: Record<string, string> = { nouvelles: "le salon Discord des nouvelles", encadrement: "le salon Discord de l'encadrement" };
 
 /** Les décisions de la boîte à idées, comme le journal les écrit. Mêmes codes que `IDEA_STATUS_LABELS` du QG. */
 const IDEA_DECISIONS: Record<string, string> = { open: "a remis à l'étude", kept: "a retenu", declined: "a écarté", done: "a noté comme faite" };
@@ -167,6 +172,13 @@ export function describe(row: LogRow, when: (iso: string) => string): LogLine {
     }
     case "discord_calls_cleared":
       return { who, what: "a débranché le salon Discord des appels." };
+    // Le lien du webhook n'est jamais dans le journal : seulement le salon du robot.
+    case "discord_salon_saved":
+    case "discord_salon_cleared": {
+      const salon = textOf(details, "salon");
+      const name = salon !== null && Object.hasOwn(ROBOT_SALONS, salon) ? ROBOT_SALONS[salon] : "un salon Discord du robot";
+      return { who, what: `${row.action === "discord_salon_saved" ? "a branché" : "a débranché"} ${name}.` };
+    }
     case "account_deleted":
       return { who: row.actor ?? "Un membre", what: "a supprimé son compte." };
     default:

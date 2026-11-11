@@ -46,7 +46,7 @@ describe("checkWebhookLink", () => {
   it.each([400, 401, 404])("un lien que Discord ne reconnaît pas (%i) laisse un avertissement et sera revérifié", async (status) => {
     const { deps, logs } = setup({}, async () => new Response("non", { status }));
     expect(await checkWebhookLink(deps)).toEqual({ state: null, ok: false });
-    expect(logs).toEqual([`::warning::Lien Discord : Discord ne reconnaît pas ce lien (HTTP ${status}). Vérifiez le secret DISCORD_WEBHOOK_GAZETTE.`]);
+    expect(logs).toEqual([`::warning::Lien Discord : Discord ne reconnaît pas ce lien (HTTP ${status}). Vérifiez le lien du salon des nouvelles dans Direction > Discord, ou le secret DISCORD_WEBHOOK_GAZETTE.`]);
     noSecret(logs);
   });
   it.each([429, 503])("une limite ou une panne de Discord (%i) ne met pas le lien en cause", async (status) => {

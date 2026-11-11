@@ -50,12 +50,15 @@ jobs:
           if-no-files-found: error
       # « faite » si le fichier chiffré est gardé ; « reglage » si la sauvegarde a tourné sans rien écrire (phrase ou
       # réglage absent) ; « ratee » pour toute panne. Pas de compte rendu la nuit, ni pour une exécution annulée.
-      # Sans le secret DISCORD_WEBHOOK_ENCADREMENT, rien n'est envoyé. Un envoi raté ne fait pas échouer la sauvegarde.
+      # Le lien réglé dans la Direction, sinon le secret DISCORD_WEBHOOK_ENCADREMENT ; sans l'un ni l'autre, rien n'est envoyé.
+      # Un envoi raté ne fait pas échouer la sauvegarde.
       - name: Prévenir l'encadrement
         if: ${{ !cancelled() }}
         continue-on-error: true
         timeout-minutes: 2
         run: npm run sauvegarde:compte-rendu
         env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           DISCORD_WEBHOOK_ENCADREMENT: ${{ secrets.DISCORD_WEBHOOK_ENCADREMENT }}
           ISSUE_SAUVEGARDE: ${{ steps.envoi.outcome == 'success' && 'faite' || ((steps.sauvegarde.outcome == 'success' && steps.sauvegarde.outputs.file == '') && 'reglage' || 'ratee') }}

@@ -1,7 +1,8 @@
 /**
  * Envoie une alerte de place sur le salon de la gazette, lancé par la GitHub Action après la collecte.
  *   npm run alertes:envoyer
- * Avec DISCORD_WEBHOOK_GAZETTE dans l'environnement. Sans lui, ne fait rien, et ne note rien.
+ * Avec le lien du salon des nouvelles, réglé dans Direction > Discord (lu avec SUPABASE_URL et SUPABASE_SECRET_KEY), sinon
+ * le secret DISCORD_WEBHOOK_GAZETTE. Sans lien, ne fait rien, et ne note rien.
  * Les places annoncées, celle en attente et les envois du jour sont notés dans data/alertes-envoi.json : voir src/lib/alerts.ts.
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -10,16 +11,18 @@ import { mapReading, parseAlertState, rankReading } from "../src/lib/alerts";
 import { alertPass, sendPlaceAlert } from "../src/lib/alerts-discord";
 import { loadClanMapFilm, loadLeaderboard } from "../src/lib/data";
 import { isWebhookUrl, lastSentAnyFormat } from "../src/lib/gazette-discord";
+import { salonLink } from "../src/lib/salon-lien";
 
 const STATE_FILE = "data/alertes-envoi.json";
 const GAZETTE_FILE = "data/gazette-envoi.json";
 
 const readText = (path: string) => (existsSync(path) ? readFileSync(path, "utf8") : null);
 
-// Un copier-coller peut laisser une espace ou un retour à la ligne autour du lien.
-const link = process.env["DISCORD_WEBHOOK_GAZETTE"]?.trim();
+// Le lien réglé dans la Direction, sinon le secret DISCORD_WEBHOOK_GAZETTE : voir src/lib/salon-lien.ts.
+const { link, warning: linkWarning } = await salonLink("nouvelles");
+if (linkWarning) console.log(`Alertes : ${linkWarning}.`);
 if (!link) {
-  console.log("Pas de DISCORD_WEBHOOK_GAZETTE : aucune alerte.");
+  console.log("Pas de lien pour le salon des nouvelles, ni dans la Direction ni dans DISCORD_WEBHOOK_GAZETTE : aucune alerte.");
   process.exit(0);
 }
 if (!isWebhookUrl(link)) {

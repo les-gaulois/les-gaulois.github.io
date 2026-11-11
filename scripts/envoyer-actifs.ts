@@ -1,7 +1,8 @@
 /**
  * Envoie les plus actifs sur le salon de la gazette, lancé par la GitHub Action après la collecte.
  *   npm run actifs:envoyer
- * Avec DISCORD_WEBHOOK_GAZETTE dans l'environnement. Sans lui, ne fait rien, et ne note rien.
+ * Avec le lien du salon des nouvelles, réglé dans Direction > Discord (lu avec SUPABASE_URL et SUPABASE_SECRET_KEY), sinon
+ * le secret DISCORD_WEBHOOK_GAZETTE. Sans lien, ne fait rien, et ne note rien.
  * Le relevé de départ (parties et victoires de chaque membre avec pseudo) et le jour du dernier message sont notés dans
  * data/actifs-envoi.json : voir src/lib/actifs.ts. La collecte en retire les membres partis, même sans lien.
  */
@@ -12,16 +13,18 @@ import { activePass, sendActive } from "../src/lib/actifs-discord";
 import { loadMembers } from "../src/lib/data";
 import { isWebhookUrl, lastSentAnyFormat } from "../src/lib/gazette-discord";
 import { parseNoted } from "../src/lib/salon-discord";
+import { salonLink } from "../src/lib/salon-lien";
 
 const STATE_FILE = "data/actifs-envoi.json";
 const GAZETTE_FILE = "data/gazette-envoi.json";
 
 const readText = (path: string) => (existsSync(path) ? readFileSync(path, "utf8") : null);
 
-// Un copier-coller peut laisser une espace ou un retour à la ligne autour du lien.
-const link = process.env["DISCORD_WEBHOOK_GAZETTE"]?.trim();
+// Le lien réglé dans la Direction, sinon le secret DISCORD_WEBHOOK_GAZETTE : voir src/lib/salon-lien.ts.
+const { link, warning: linkWarning } = await salonLink("nouvelles");
+if (linkWarning) console.log(`Plus actifs : ${linkWarning}.`);
 if (!link) {
-  console.log("Pas de DISCORD_WEBHOOK_GAZETTE : aucun message des plus actifs envoyé.");
+  console.log("Pas de lien pour le salon des nouvelles, ni dans la Direction ni dans DISCORD_WEBHOOK_GAZETTE : aucun message des plus actifs envoyé.");
   process.exit(0);
 }
 if (!isWebhookUrl(link)) {

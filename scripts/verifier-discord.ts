@@ -1,12 +1,14 @@
 /**
  * Vérifie le lien Discord sans rien envoyer, une seule fois par nouveau lien, lancé par la GitHub Action.
  *   npm run discord:verifier
- * Avec DISCORD_WEBHOOK_GAZETTE dans l'environnement. Sans lui, ne fait rien. La date de création du webhook vérifié
+ * Avec le lien du salon des nouvelles, réglé dans Direction > Discord (lu avec SUPABASE_URL et SUPABASE_SECRET_KEY), sinon
+ * le secret DISCORD_WEBHOOK_GAZETTE. Sans lien, ne fait rien. La date de création du webhook vérifié
  * est notée dans data/discord-lien.json : voir src/lib/discord-check.ts.
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { checkWebhookLink, LinkCheckState } from "../src/lib/discord-check";
 import { isWebhookUrl } from "../src/lib/gazette-discord";
+import { salonLink } from "../src/lib/salon-lien";
 
 const STATE_FILE = "data/discord-lien.json";
 
@@ -21,14 +23,15 @@ function readState(): LinkCheckState | null {
   }
 }
 
-// Un copier-coller peut laisser une espace ou un retour à la ligne autour du lien.
-const link = process.env["DISCORD_WEBHOOK_GAZETTE"]?.trim();
+// Le lien réglé dans la Direction, sinon le secret DISCORD_WEBHOOK_GAZETTE : voir src/lib/salon-lien.ts.
+const { link, warning: linkWarning } = await salonLink("nouvelles");
+if (linkWarning) console.log(`Lien Discord : ${linkWarning}.`);
 if (!link) {
-  console.log("Pas de DISCORD_WEBHOOK_GAZETTE : rien à vérifier.");
+  console.log("Pas de lien pour le salon des nouvelles, ni dans la Direction ni dans DISCORD_WEBHOOK_GAZETTE : rien à vérifier.");
   process.exit(0);
 }
 if (!isWebhookUrl(link)) {
-  console.log("::warning::Lien Discord : il n'a pas la forme attendue. Vérifiez le secret DISCORD_WEBHOOK_GAZETTE.");
+  console.log("::warning::Lien Discord : il n'a pas la forme attendue. Vérifiez le lien du salon des nouvelles dans Direction > Discord, ou le secret DISCORD_WEBHOOK_GAZETTE.");
   process.exit(1);
 }
 

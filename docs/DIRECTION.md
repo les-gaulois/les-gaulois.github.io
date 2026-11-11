@@ -134,9 +134,9 @@ Le robot horaire signale les demandes d'adhésion qui attendent, sur un salon Di
 **Pour l'activer**, une seule fois :
 
 1. Dans Discord, sur le salon privé de l'encadrement : **Modifier le salon → Intégrations → Webhooks → Nouveau webhook**, puis **Copier l'URL du webhook**.
-2. Sur GitHub, **Settings → Secrets and variables → Actions → New repository secret** : nom `DISCORD_WEBHOOK_ENCADREMENT`, valeur l'adresse copiée.
+2. Sur le site, `/direction#discord`, partie « Le salon de l'encadrement » : collez l'adresse, puis **Enregistrer et envoyer un essai** (voir « Les salons du robot sur Discord », plus bas). Avant le 11 novembre 2026, elle allait dans le secret GitHub `DISCORD_WEBHOOK_ENCADREMENT`, qui ne sert plus que si rien n'est réglé sur le site.
 
-Ce lien permet d'écrire dans le salon : il ne va que dans ce secret, jamais dans le dépôt ni dans une conversation. Sans lui, rien n'est envoyé.
+Ce lien permet d'écrire dans le salon : il ne se colle que dans ce formulaire, ou dans le secret, jamais dans le dépôt ni dans une conversation. Sans l'un ni l'autre, rien n'est envoyé.
 
 ## Les appels sur Discord
 
@@ -169,6 +169,18 @@ Depuis le 11 novembre 2026, à la demande du pilote : chaque appel lancé au QG 
 
 Ce lien permet d'écrire dans le salon : il ne se colle que dans ce formulaire, jamais dans le dépôt, une capture ou une conversation. Pour en changer, créez un nouveau webhook, collez son lien, puis supprimez l'ancien dans Discord.
 
+## Les salons du robot sur Discord
+
+Depuis le 11 novembre 2026, à la demande du pilote (« que tous les salons soient configurables ») : les deux salons où poste le robot de la GitHub Action se règlent aussi dans l'onglet « Discord » de `/direction`, au-dessus des appels. Migration `20261111000300_salons_discord.sql` ; page `src/components/compte/DirectionSalons.tsx`, `src/lib/compte/discord-salons.ts` ; robot `src/lib/salon-lien.ts`. Ce jour-là, le webhook du salon des nouvelles avait été supprimé dans Discord, et rien ne le montrait : Discord répondait 404 à chaque envoi.
+
+- **Les salons :** le salon des nouvelles (la gazette, les alertes de place et de record, les paliers franchis, les messages du jour, la course du soir) et le salon de l'encadrement (les demandes qui attendent et le compte rendu des sauvegardes). Le salon des appels garde son propre réglage, plus haut.
+- **Le lien :** rangé comme celui des appels, sous la forme `https://discord.com/api/webhooks/<numéro>/<jeton>` (`internal.discord_salons`, une ligne par salon). La page ne le relit jamais, le journal ne note que le salon, et la sauvegarde ne le contient pas (`export_site` ne lit pas cette table). Seul le robot le reçoit, par `robot_discord_salons`, réservée à la clé de service.
+- **Le robot :** chaque script prend le lien réglé sur le site, sinon le secret GitHub d'avant (`DISCORD_WEBHOOK_GAZETTE`, `DISCORD_WEBHOOK_ENCADREMENT`), qui reste en secours : s'il existe, il doit viser le même salon que le lien réglé ici, car il sert aussi quand Supabase ne répond pas (dix secondes au plus d'attente). Si Supabase ne répond pas, ou avant l'installation de la migration, le secret sert et le journal de l'Action le dit.
+- **Le contrôle :** à chaque passage, l'étape « Vérifier les salons Discord » (`npm run salons:verifier`) demande à Discord si le webhook de chaque salon existe, par une simple lecture : rien n'est posté. Elle note pour l'onglet d'où venait le lien, ce qu'a répondu Discord et le nom du webhook (`note_discord_salon`, réservée à la clé de service ; `internal.discord_salon_checks`). Un webhook supprimé s'affiche alors en avant : « Discord ne connaît pas ce lien : le webhook a sans doute été supprimé. Collez le lien d'un nouveau webhook. » Sans lecture de la Direction, rien n'est noté, pour ne pas montrer une source fausse.
+- **Le réglage**, pour les admins et le fondateur (`get_discord_salons`, `save_discord_salon`, `test_discord_salon`, `clear_discord_salon`) : comme pour les appels, chaque enregistrement envoie un essai sans mention, que la page relit ; « Renvoyer un essai » attend 15 secondes ; « Débrancher le salon », sous un filet et en deux clics, efface le réglage, et le robot reprend alors le secret GitHub s'il en reste un. Un nouveau lien efface le contrôle noté pour l'ancien.
+
+**Pour brancher un salon**, une fois la migration installée : dans Discord, **Modifier le salon → Intégrations → Webhooks → Nouveau webhook**, **Copier l'URL du webhook**, puis sur `/direction#discord`, dans la partie du salon, collez-la et **Enregistrer et envoyer un essai**. Un même webhook peut servir à plusieurs réglages s'ils postent dans le même salon.
+
 ## La sauvegarde chiffrée
 
 Supabase ne sauvegarde rien sur le forfait gratuit. Chaque semaine, l'Action **Sauvegarde chiffrée** (`.github/workflows/sauvegarde.yml`) copie ce que le site garde et qui ne se retrouve nulle part ailleurs :
@@ -199,7 +211,7 @@ Comment elle est gardée :
   - « …n'a rien gardé : la phrase de passe ou un autre réglage manque… » ;
   - « …a échoué… », avec le lien de l'exécution.
 
-  Une exécution finie entre 23 h et 8 h n'a pas de compte rendu, et il n'est pas reporté au matin. Une exécution annulée ou arrêtée par son délai n'en a pas non plus. Le robot lance celle de la semaine de jour. Sans le secret `DISCORD_WEBHOOK_ENCADREMENT`, il n'y a pas de compte rendu, et un envoi raté ne fait pas échouer la sauvegarde.
+  Une exécution finie entre 23 h et 8 h n'a pas de compte rendu, et il n'est pas reporté au matin. Une exécution annulée ou arrêtée par son délai n'en a pas non plus. Le robot lance celle de la semaine de jour. Sans lien pour le salon de l'encadrement, ni dans la Direction ni dans le secret `DISCORD_WEBHOOK_ENCADREMENT`, il n'y a pas de compte rendu, et un envoi raté ne fait pas échouer la sauvegarde.
 
 **Pour l'activer**, une seule fois :
 
@@ -408,7 +420,7 @@ Sur GitHub, **Settings → Secrets and variables → Actions**.
 | Variables | `SUPABASE_URL` | L'adresse du projet |
 | Variables | `SUPABASE_PUBLISHABLE_KEY` | La clé `sb_publishable_…` |
 | Secrets | `SUPABASE_SECRET_KEY` | La clé `sb_secret_…` |
-| Secrets, facultatif | `DISCORD_WEBHOOK_ENCADREMENT` | Le lien d'un salon privé de l'encadrement : voir « Prévenir l'encadrement sur Discord » |
+| Secrets, facultatif | `DISCORD_WEBHOOK_ENCADREMENT` | En secours seulement : le lien du salon de l'encadrement se règle dans la Direction. Voir « Les salons du robot sur Discord » |
 | Secrets, facultatif | `SAUVEGARDE_CLE` | La phrase de passe de la sauvegarde : voir « La sauvegarde chiffrée » |
 
 Relancez ensuite **Données et site** dans l'onglet **Actions**. Le bouton « Se connecter » apparaît dans l'en-tête.

@@ -60,7 +60,7 @@ export async function checkWebhookLink({ link, stored, now, fetch: get, log }: L
       // Un lien faux ou supprimé répond 400, 401 ou 404. Une limite (429) ou une panne de Discord ne dit rien du lien.
       log(
         UNKNOWN_LINK.includes(response.status)
-          ? `::warning::Lien Discord : Discord ne reconnaît pas ce lien (HTTP ${response.status}). Vérifiez le secret DISCORD_WEBHOOK_GAZETTE.`
+          ? `::warning::Lien Discord : Discord ne reconnaît pas ce lien (HTTP ${response.status}). Vérifiez le lien du salon des nouvelles dans Direction > Discord, ou le secret DISCORD_WEBHOOK_GAZETTE.`
           : `::warning::Lien Discord : Discord a répondu ${response.status}. Nouvel essai au prochain passage.`,
       );
       return { state: null, ok: false };

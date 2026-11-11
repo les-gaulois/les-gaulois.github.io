@@ -1,7 +1,8 @@
 /**
  * Envoie les paliers franchis sur le salon de la gazette, lancé par la GitHub Action après la collecte.
  *   npm run paliers:envoyer
- * Avec DISCORD_WEBHOOK_GAZETTE dans l'environnement. Sans lui, ne fait rien, et ne note rien.
+ * Avec le lien du salon des nouvelles, réglé dans Direction > Discord (lu avec SUPABASE_URL et SUPABASE_SECRET_KEY), sinon
+ * le secret DISCORD_WEBHOOK_GAZETTE. Sans lien, ne fait rien, et ne note rien.
  * Le palier de chaque membre avec pseudo à la dernière relecture, les paliers en attente et le jour du dernier message
  * sont notés dans data/paliers-envoi.json : voir src/lib/paliers-franchis.ts.
  */
@@ -11,16 +12,18 @@ import { loadMembers } from "../src/lib/data";
 import { isWebhookUrl, lastSentAnyFormat } from "../src/lib/gazette-discord";
 import { parseMilestoneState } from "../src/lib/paliers-franchis";
 import { milestonePass, sendMilestones } from "../src/lib/paliers-franchis-discord";
+import { salonLink } from "../src/lib/salon-lien";
 
 const STATE_FILE = "data/paliers-envoi.json";
 const GAZETTE_FILE = "data/gazette-envoi.json";
 
 const readText = (path: string) => (existsSync(path) ? readFileSync(path, "utf8") : null);
 
-// Un copier-coller peut laisser une espace ou un retour à la ligne autour du lien.
-const link = process.env["DISCORD_WEBHOOK_GAZETTE"]?.trim();
+// Le lien réglé dans la Direction, sinon le secret DISCORD_WEBHOOK_GAZETTE : voir src/lib/salon-lien.ts.
+const { link, warning: linkWarning } = await salonLink("nouvelles");
+if (linkWarning) console.log(`Paliers : ${linkWarning}.`);
 if (!link) {
-  console.log("Pas de DISCORD_WEBHOOK_GAZETTE : aucun palier envoyé.");
+  console.log("Pas de lien pour le salon des nouvelles, ni dans la Direction ni dans DISCORD_WEBHOOK_GAZETTE : aucun palier envoyé.");
   process.exit(0);
 }
 if (!isWebhookUrl(link)) {

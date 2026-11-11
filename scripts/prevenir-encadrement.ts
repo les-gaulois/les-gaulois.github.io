@@ -1,18 +1,22 @@
 /**
  * Prévient l'encadrement, sur un salon Discord privé, des demandes d'adhésion qui attendent. Lancé par la GitHub Action.
  *   npm run encadrement:prevenir
- * Avec SUPABASE_URL, SUPABASE_SECRET_KEY et DISCORD_WEBHOOK_ENCADREMENT. Sans eux, ne fait rien.
+ * Avec SUPABASE_URL, SUPABASE_SECRET_KEY et le lien du salon de l'encadrement, réglé dans Direction > Discord, sinon le
+ * secret DISCORD_WEBHOOK_ENCADREMENT. Sans eux, ne fait rien.
  * Le message ne contient ni nom ni identifiant : voir src/lib/encadrement-discord.ts.
  */
 import { createClient } from "@supabase/supabase-js";
 import { clan } from "../config/clan";
 import { sendStaffNotice, type StaffDigest } from "../src/lib/encadrement-discord";
+import { salonLink } from "../src/lib/salon-lien";
 
 const url = process.env["SUPABASE_URL"];
 const key = process.env["SUPABASE_SECRET_KEY"];
-const webhook = process.env["DISCORD_WEBHOOK_ENCADREMENT"];
-if (!webhook?.trim()) {
-  console.log("Pas de DISCORD_WEBHOOK_ENCADREMENT : rien à envoyer.");
+// Le lien réglé dans la Direction, sinon le secret DISCORD_WEBHOOK_ENCADREMENT : voir src/lib/salon-lien.ts.
+const { link: webhook, warning: linkWarning } = await salonLink("encadrement");
+if (linkWarning) console.log(`Encadrement : ${linkWarning}.`);
+if (!webhook) {
+  console.log("Pas de lien pour le salon de l'encadrement, ni dans la Direction ni dans DISCORD_WEBHOOK_ENCADREMENT : rien à envoyer.");
   process.exit(0);
 }
 if (!url || !key) {

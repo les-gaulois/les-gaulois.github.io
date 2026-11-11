@@ -1,6 +1,12 @@
 [
   {
     "date": "2026-11-11",
+    "kind": "ameliore",
+    "title": "Les salons Discord se règlent à la Direction",
+    "body": "Les admins branchent maintenant le salon des nouvelles et celui de l'encadrement dans l'onglet Discord de la Direction. Le site y montre aussi si le lien d'un salon ne marche plus."
+  },
+  {
+    "date": "2026-11-11",
     "kind": "nouveau",
     "title": "La course du soir sur Discord",
     "body": "Chaque soir à partir de 21 h, le salon Discord de la gazette peut recevoir la place de GAL, son score, l'écart avec ses voisins et les points gagnés depuis la veille.",

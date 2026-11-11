@@ -1,7 +1,8 @@
 /**
  * Envoie la course du soir sur le salon de la gazette, lancé par la GitHub Action après la collecte.
  *   npm run course:envoyer
- * Avec DISCORD_WEBHOOK_GAZETTE dans l'environnement. Sans lui, ne fait rien, et ne note rien.
+ * Avec le lien du salon des nouvelles, réglé dans Direction > Discord (lu avec SUPABASE_URL et SUPABASE_SECRET_KEY), sinon
+ * le secret DISCORD_WEBHOOK_GAZETTE. Sans lien, ne fait rien, et ne note rien.
  * Le jour du dernier message, le score de GAL et ses écarts avec les clans voisins sont notés dans data/course-envoi.json : voir src/lib/course-soir.ts.
  * Le lien vaut un mot de passe pour ce salon : il n'est écrit dans aucun message, même d'erreur.
  */
@@ -11,15 +12,17 @@ import { parseCourseState } from "../src/lib/course-soir";
 import { coursePass, sendCourse } from "../src/lib/course-soir-discord";
 import { loadLeaderboard, loadMeta, loadSessions, unreadableSessionFiles } from "../src/lib/data";
 import { isWebhookUrl } from "../src/lib/gazette-discord";
+import { salonLink } from "../src/lib/salon-lien";
 
 const STATE_FILE = "data/course-envoi.json";
 
 const readText = (path: string) => (existsSync(path) ? readFileSync(path, "utf8") : null);
 
-// Un copier-coller peut laisser une espace ou un retour à la ligne autour du lien.
-const link = process.env["DISCORD_WEBHOOK_GAZETTE"]?.trim();
+// Le lien réglé dans la Direction, sinon le secret DISCORD_WEBHOOK_GAZETTE : voir src/lib/salon-lien.ts.
+const { link, warning: linkWarning } = await salonLink("nouvelles");
+if (linkWarning) console.log(`Course : ${linkWarning}.`);
 if (!link) {
-  console.log("Pas de DISCORD_WEBHOOK_GAZETTE : pas de course du soir.");
+  console.log("Pas de lien pour le salon des nouvelles, ni dans la Direction ni dans DISCORD_WEBHOOK_GAZETTE : pas de course du soir.");
   process.exit(0);
 }
 if (!isWebhookUrl(link)) {

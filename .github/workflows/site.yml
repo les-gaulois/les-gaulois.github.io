@@ -88,9 +88,24 @@ jobs:
         timeout-minutes: 1
         run: npm run discord:verifier
         env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           DISCORD_WEBHOOK_GAZETTE: ${{ secrets.DISCORD_WEBHOOK_GAZETTE }}
+      # À chaque passage, demande à Discord si le webhook de chaque salon du robot existe, sans rien poster, et note la réponse
+      # pour l'espace Direction (onglet Discord) : un webhook supprimé s'y voit. Le lien réglé dans la Direction, sinon le secret.
+      - name: Vérifier les salons Discord
+        if: github.ref_name == 'main'
+        continue-on-error: true
+        timeout-minutes: 1
+        run: npm run salons:verifier
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          DISCORD_WEBHOOK_GAZETTE: ${{ secrets.DISCORD_WEBHOOK_GAZETTE }}
+          DISCORD_WEBHOOK_ENCADREMENT: ${{ secrets.DISCORD_WEBHOOK_ENCADREMENT }}
       # Après l'enregistrement : si le robot ne peut plus pousser sur main, l'étape est sautée. Sans cela, faute de trace, la même édition repartirait à chaque passage.
-      # Sans ce secret, l'étape ne fait rien. Une panne de Discord ne bloque rien : le passage suivant réessaie.
+      # Le lien du salon des nouvelles est celui réglé dans la Direction, sinon le secret DISCORD_WEBHOOK_GAZETTE ; sans l'un ni
+      # l'autre, l'étape ne fait rien. Une panne de Discord ne bloque rien : le passage suivant réessaie.
       - name: Envoyer la gazette sur Discord
         # Sur une autre branche, la trace de l'envoi ne reviendrait pas sur main, et l'édition repartirait.
         if: github.ref_name == 'main'
@@ -98,6 +113,8 @@ jobs:
         timeout-minutes: 2
         run: npm run gazette:envoyer
         env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           DISCORD_WEBHOOK_GAZETTE: ${{ secrets.DISCORD_WEBHOOK_GAZETTE }}
       # Même salon et même secret que la gazette, et seulement après la gazette du 9 novembre 2026. Au premier passage, les places du moment servent de départ : rien n'est envoyé.
       - name: Envoyer les alertes de place sur Discord
@@ -106,6 +123,8 @@ jobs:
         timeout-minutes: 2
         run: npm run alertes:envoyer
         env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           DISCORD_WEBHOOK_GAZETTE: ${{ secrets.DISCORD_WEBHOOK_GAZETTE }}
       # Même salon, même secret et même lancement. Un message par jour au plus, quand des membres avec pseudo passent un palier.
       - name: Envoyer les paliers franchis sur Discord
@@ -114,6 +133,8 @@ jobs:
         timeout-minutes: 2
         run: npm run paliers:envoyer
         env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           DISCORD_WEBHOOK_GAZETTE: ${{ secrets.DISCORD_WEBHOOK_GAZETTE }}
       # Même salon : un message quand le clan bat un de ses records. Au premier passage, les records du moment servent de départ.
       - name: Envoyer les alertes de record sur Discord
@@ -122,6 +143,8 @@ jobs:
         timeout-minutes: 2
         run: npm run records:envoyer
         env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           DISCORD_WEBHOOK_GAZETTE: ${{ secrets.DISCORD_WEBHOOK_GAZETTE }}
       # Les messages du jour, même salon et même secret : chacun au plus une fois par jour, à partir de son heure, jamais la nuit.
       # Le bilan de la veille dès 9 h, quand la collecte a fini la journée.
@@ -131,6 +154,8 @@ jobs:
         timeout-minutes: 2
         run: npm run hier:envoyer
         env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           DISCORD_WEBHOOK_GAZETTE: ${{ secrets.DISCORD_WEBHOOK_GAZETTE }}
       # Les nouveaux membres dès 12 h, après une relecture de la liste.
       - name: Envoyer la bienvenue sur Discord
@@ -139,6 +164,8 @@ jobs:
         timeout-minutes: 2
         run: npm run bienvenue:envoyer
         env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           DISCORD_WEBHOOK_GAZETTE: ${{ secrets.DISCORD_WEBHOOK_GAZETTE }}
       # Les plus actifs entre deux relevés de la liste, dès 17 h.
       - name: Envoyer les plus actifs sur Discord
@@ -147,6 +174,8 @@ jobs:
         timeout-minutes: 2
         run: npm run actifs:envoyer
         env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           DISCORD_WEBHOOK_GAZETTE: ${{ secrets.DISCORD_WEBHOOK_GAZETTE }}
       # Les nouveautés du site dès 19 h, en texte.
       - name: Envoyer les nouveautés du site sur Discord
@@ -155,6 +184,8 @@ jobs:
         timeout-minutes: 2
         run: npm run nouveautes:envoyer
         env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           DISCORD_WEBHOOK_GAZETTE: ${{ secrets.DISCORD_WEBHOOK_GAZETTE }}
       # La course du soir dès 21 h : place, score et écarts au classement, points gagnés depuis la veille à 20 h.
       - name: Envoyer la course du soir sur Discord
@@ -163,6 +194,8 @@ jobs:
         timeout-minutes: 2
         run: npm run course:envoyer
         env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           DISCORD_WEBHOOK_GAZETTE: ${{ secrets.DISCORD_WEBHOOK_GAZETTE }}
       # Les données sont déjà enregistrées : un échec ici n'empêche pas de reconstruire le site, et se lit dans l'avertissement.
       - name: Noter les envois sur Discord
@@ -194,7 +227,8 @@ jobs:
           SUPABASE_URL: ${{ vars.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
       # Prévient l'encadrement, sur un salon Discord privé, des demandes d'adhésion qui attendent. Ni nom ni identifiant dans le message.
-      # Sans le secret DISCORD_WEBHOOK_ENCADREMENT, rien n'est envoyé. Ce qui a été annoncé est noté dans Supabase, pas dans data/.
+      # Le lien réglé dans la Direction, sinon le secret DISCORD_WEBHOOK_ENCADREMENT ; sans l'un ni l'autre, rien n'est envoyé.
+      # Ce qui a été annoncé est noté dans Supabase, pas dans data/.
       - name: Prévenir l'encadrement sur Discord
         if: ${{ !cancelled() && github.ref_name == 'main' && vars.SUPABASE_URL != '' }}
         continue-on-error: true

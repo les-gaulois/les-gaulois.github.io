@@ -116,6 +116,28 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   if (isClosed(pinged.status) || (pinged.ok && pingedAnswer?.ok === false)) add("Un visiteur ne fait pas de ping sur Discord", "ok");
   else add("Un visiteur ne fait pas de ping sur Discord", "fail", `Réponse ${pinged.status}. Ne mettez pas en ligne : seuls les membres validés font un ping.`);
 
+  // Les salons du robot : leur réglage contient les liens qui écrivent dans les salons. Seuls les admins et le fondateur
+  // le règlent, et seule la clé de service, celle du robot, reçoit les liens. Leur installation se lit avec `supabase migration list`.
+  const salonsState = await rpc("get_discord_salons");
+  const salonsStateAnswer = salonsState.ok ? ((await salonsState.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (isClosed(salonsState.status) || (salonsState.ok && salonsStateAnswer?.ok === false)) add("Un visiteur ne lit pas le réglage des salons du robot", "ok");
+  else add("Un visiteur ne lit pas le réglage des salons du robot", "fail", `Réponse ${salonsState.status}. Ne mettez pas en ligne : seuls les admins et le fondateur lisent ce réglage.`);
+
+  const salonSaved = await rpc("save_discord_salon", { p_salon: "nouvelles", p_webhook: "verification" });
+  const salonSavedAnswer = salonSaved.ok ? ((await salonSaved.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (isClosed(salonSaved.status) || (salonSaved.ok && salonSavedAnswer?.ok === false)) add("Un visiteur ne règle pas les salons du robot", "ok");
+  else add("Un visiteur ne règle pas les salons du robot", "fail", `Réponse ${salonSaved.status}. Ne mettez pas en ligne : seuls les admins et le fondateur règlent les salons.`);
+
+  // Ces deux-là ne s'ouvrent qu'à la clé de service : un visiteur doit être refusé par le droit d'appel lui-même.
+  const robotLinks = await rpc("robot_discord_salons");
+  if (isClosed(robotLinks.status)) add("Un visiteur ne reçoit pas les liens des salons du robot", "ok");
+  else add("Un visiteur ne reçoit pas les liens des salons du robot", "fail", `Réponse ${robotLinks.status}. Ne mettez pas en ligne : retirez le droit d'appeler robot_discord_salons.`);
+
+  // Un salon qui n'existe pas : même si le droit était mal posé, la fonction refuserait sans rien écrire.
+  const robotNote = await rpc("note_discord_salon", { p_salon: "verification", p_source: "none", p_status: null, p_name: null });
+  if (isClosed(robotNote.status)) add("Un visiteur ne note pas de contrôle des salons", "ok");
+  else add("Un visiteur ne note pas de contrôle des salons", "fail", `Réponse ${robotNote.status}. Ne mettez pas en ligne : retirez le droit d'appeler note_discord_salon.`);
+
   // « Refaire la demande » : seul un admin remet un compte en attente. Son installation se lit avec `supabase migration list`.
   const reset = await rpc("reset_member_link", { p_user: "00000000-0000-0000-0000-000000000000" });
   const resetAnswer = reset.ok ? ((await reset.json().catch(() => null)) as { ok?: boolean } | null) : null;
