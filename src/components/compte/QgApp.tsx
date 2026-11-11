@@ -38,6 +38,7 @@ import QgPolls from "./QgPolls";
 import QgSalons from "./QgSalons";
 import QgSemaine from "./QgSemaine";
 import QgSimulateur from "./QgSimulateur";
+import Telemetrie from "./Telemetrie";
 
 /** Les décisions passées montrées d'abord ; les suivantes restent repliées, à portée. */
 const PAST_SHOWN = 2;
@@ -278,9 +279,10 @@ function IdeaForm({ openMine, busy, refusal, onSend }: { openMine: number; busy:
  * l'encadrement s'y voit membre sans grade, sans ses onglets ni ses commandes de décision). Le serveur revérifie chaque action.
  * Les salons et les onglets de l'encadrement ne dépendent pas de la lecture du QG (`get_qg`) : si elle échoue, l'encadrement
  * garde ses demandes, ses comptes et son journal. Les onglets attendent la réponse des outils (`get_qg_tools`), six secondes
- * au plus : au-delà, le QG s'ouvre sans eux, et ils paraissent à leur réponse.
+ * au plus : au-delà, le QG s'ouvre sans eux, et ils paraissent à leur réponse. `lastRunAt` : la dernière collecte publiée,
+ * que la fenêtre « session » donne à côté de l'heure (style Terminal, voir docs/DESIGN.md).
  */
-function Inside({ me, rank }: { me: Me; rank: number }) {
+function Inside({ me, rank, lastRunAt }: { me: Me; rank: number; lastRunAt: string | null }) {
   const staff = rank >= 2;
   const [state, setState] = useState<Loadable<QgData>>({ status: "loading" });
   // Les outils du QG : un serveur d'avant leur migration répond par un refus, et leurs onglets ne paraissent pas.
@@ -447,14 +449,15 @@ function Inside({ me, rank }: { me: Me; rank: number }) {
   return (
     <div class="grid grid-cols-1 gap-6" data-testid="qg">
       <div class={`grid grid-cols-1 items-start gap-4 ${data?.welcome ? "lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]" : ""}`}>
-        <section class="card flex flex-wrap items-center gap-4 p-5" aria-label="Vous, au QG" data-testid="qg-me">
+        {/* `data-titre` : le nom de la fenêtre, écrit dans sa barre de titre par le style Terminal (décoratif). */}
+        <section class="card flex flex-wrap items-center gap-4 p-5" aria-label="Vous, au QG" data-testid="qg-me" data-titre="session">
           <Avatar name={name} avatar={data?.me.avatar ?? null} large />
           {/* Le nom garde sa largeur : faute de place, les liens passent dessous. */}
           <div class="min-w-0 flex-[1_1_11rem]">
             <p class="font-display text-2xl font-extrabold [overflow-wrap:anywhere]" data-testid="qg-name">
               {name}
             </p>
-            <p class="text-muted">{ROLE_LABELS[me.role ?? "member"]}</p>
+            <Telemetrie role={ROLE_LABELS[me.role ?? "member"]} lastRunAt={lastRunAt} testId="qg" />
           </div>
           {/* Sur téléphone, l'en-tête n'a que « QG » : le compte et la Direction s'ouvrent d'ici, même en panne. */}
           <div class="flex flex-wrap gap-2">
@@ -470,7 +473,8 @@ function Inside({ me, rank }: { me: Me; rank: number }) {
         </section>
 
         {data?.welcome && (
-          <section class="card p-5" aria-labelledby="welcome-title" data-testid="qg-welcome">
+          // « motd » : le message du jour qu'un terminal affiche à l'ouverture d'une session.
+          <section class="card p-5" aria-labelledby="welcome-title" data-testid="qg-welcome" data-titre="motd">
             <h2 id="welcome-title" class="text-xl">
               Le mot de l'encadrement
             </h2>
@@ -664,12 +668,13 @@ function Inside({ me, rank }: { me: Me; rank: number }) {
 /**
  * Le QG des membres, et depuis le 10 novembre 2026 l'administration de l'encadrement. Rien de ce qui s'affiche ici ne
  * protège quoi que ce soit : le serveur ne donne le contenu qu'à un compte validé, et revérifie chaque action.
+ * `lastRunAt` : la dernière collecte publiée, lue au moment de la construction du site (voir qg.astro).
  */
-export default function QgApp() {
+export default function QgApp({ lastRunAt = null }: { lastRunAt?: string | null }) {
   const { me, failed, refresh } = useMe();
 
   if (me === null) return <Loading label="Lecture de votre compte…" />;
   if (failed) return <Problem message="Votre compte n'a pas pu être lu pour l'instant. Réessayez dans un moment." onRetry={() => void refresh()} />;
   if (!me.signed_in || me.status !== "validated") return <Door me={me} />;
-  return <Inside me={me} rank={me.rank ?? 0} />;
+  return <Inside me={me} rank={me.rank ?? 0} lastRunAt={lastRunAt} />;
 }

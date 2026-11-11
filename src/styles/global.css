@@ -1,6 +1,6 @@
 @import "@fontsource-variable/outfit";
 @import "@fontsource-variable/inter";
-/* La chasse fixe de l'ambiance console (Direction seulement) : déclarée ici, elle n'est téléchargée que là où elle sert. */
+/* La chasse fixe de l'ambiance console (Direction et QG) : déclarée ici, elle n'est téléchargée que là où elle sert. */
 @import "@fontsource-variable/jetbrains-mono";
 @import "tailwindcss";
 
@@ -1992,8 +1992,9 @@ main .fx-in,
   text-decoration: underline;
 }
 
-/* ---------- Ambiance console : la Direction ---------- */
-/* /direction passe ambiance="console" à Base.astro, en plus du thème rouge : data-ambiance="console" sur <html>.
+/* ---------- Ambiance console : la Direction et le QG ---------- */
+/* /direction passe ambiance="console" à Base.astro, en plus du thème rouge : data-ambiance="console" sur <html>. Le QG
+   la prend aussi depuis le 12 novembre 2026, en bleu, la couleur des membres (« Le style Terminal », plus bas).
    Un poste de commandement posé sur le décor du site, qui garde ses couleurs, ses titres et son tricolore : la grille des
    cases de conquête se dessine, l'écran a ses lignes de balayage, et ce que dit la machine (invite, onglets, libellés,
    chiffres, états) s'écrit en chasse fixe. Rien ne bouge seul, sauf à l'ouverture : l'invite s'écrit et une bande de
@@ -2106,13 +2107,14 @@ main .fx-in,
   font-weight: 700;
   color: var(--color-blue-text);
 }
+/* Le curseur est rouge, le marqueur du site, sur les deux pages : sa lueur aussi, même où la lueur de la page est bleue. */
 .console-curseur {
   display: inline-block;
   width: 0.6em;
   height: 1.15em;
   margin-left: 0.4em;
   background: var(--color-red);
-  box-shadow: 0 0 0.75rem var(--console-lueur);
+  box-shadow: 0 0 0.75rem color-mix(in srgb, var(--color-red) 55%, transparent);
 }
 @keyframes console-frappe {
   from {
@@ -2280,9 +2282,29 @@ main .fx-in,
   animation-timing-function: steps(30, end);
 }
 
-/* Un écran plus noir. Contrastes : texte secondaire 11,6:1 et liens 9,9:1 sur une carte, contour des champs 3,6:1,
-   « OK » en vert vif 11,1:1. */
+/* Un écran plus noir, dans la couleur de la page. Bleu au QG, la page des membres : texte secondaire 11:1 et liens 9,6:1
+   sur une carte, contour des champs 4,1:1, « OK » en vert vif 10,5:1. Rouge à la Direction, et au QG dans les onglets et
+   les parties de l'encadrement (data-theme="rouge") : texte secondaire 11,6:1 et liens 9,9:1 sur une carte, contour des
+   champs 3,6:1, « OK » 11,1:1. */
 :root[data-ambiance="console"][data-console="terminal"] {
+  --color-navy: #050b1d;
+  --color-night: #02050f;
+  --color-surface: #0a1330;
+  --color-surface-2: #12204a;
+  --color-line: #1e2f63;
+  --color-line-strong: #5b74c4;
+  --glow: rgb(11 95 255 / 0.2);
+  --reflection: rgb(255 26 46 / 0.06);
+  /* La grille et la lueur des champs, dans le bleu du drapeau : au QG, c'est le bleu qui mène. */
+  --console-grille: color-mix(in srgb, var(--color-flag-blue) 13%, transparent);
+  --console-grille-forte: color-mix(in srgb, var(--color-flag-blue) 22%, transparent);
+  --console-lueur: color-mix(in srgb, var(--color-flag-blue) 60%, transparent);
+  /* Le vert d'un terminal : ce qui va bien (les « OK », le voyant de la session), les commandes et les chiffres, et la
+     chute du logo Matrix. */
+  --console-vert: #4ade80;
+}
+:root[data-ambiance="console"][data-console="terminal"][data-theme="rouge"],
+:root[data-ambiance="console"][data-console="terminal"] [data-theme="rouge"] {
   --color-navy: #13040a;
   --color-night: #0a0205;
   --color-surface: #1c060c;
@@ -2293,9 +2315,7 @@ main .fx-in,
   --reflection: rgb(11 95 255 / 0.07);
   --console-grille: color-mix(in srgb, var(--color-red) 12%, transparent);
   --console-grille-forte: color-mix(in srgb, var(--color-red) 20%, transparent);
-  /* Le vert d'un terminal : ce qui va bien (les « OK », le voyant de la session), les commandes et les chiffres, et la
-     chute du logo Matrix. */
-  --console-vert: #4ade80;
+  --console-lueur: color-mix(in srgb, var(--color-red) 55%, transparent);
 }
 :root[data-ambiance="console"][data-console="terminal"] body::after {
   background:
@@ -2356,10 +2376,11 @@ main .fx-in,
   color: var(--color-muted);
 }
 
-/* Une ligne de commande au-dessus de chaque partie : « gal@direction:~$ ./annonces ». Elle s'écrit quand la partie
-   paraît, en même temps que son glissement ; avec le bouton pause ou « réduire les animations », elle est là d'emblée. */
+/* Une ligne de commande au-dessus de chaque partie : « gal@direction:~$ ./annonces », « gal@qg:~$ ./salons ». La
+   machine vient de la page (--console-hote, posé par direction.astro et qg.astro). Elle s'écrit quand la partie paraît,
+   en même temps que son glissement ; avec le bouton pause ou « réduire les animations », elle est là d'emblée. */
 :root[data-ambiance="console"][data-console="terminal"] .espace .partie::before {
-  content: "gal@direction:~$ ./" attr(data-partie) / "";
+  content: "gal@" var(--console-hote) ":~$ ./" attr(data-partie) / "";
   display: block;
   width: fit-content;
   max-width: 100%;
@@ -2396,7 +2417,9 @@ main .fx-in,
 :root[data-ambiance="console"][data-console="terminal"] main .btn-ghost::before {
   color: var(--console-vert);
 }
-:root[data-ambiance="console"][data-console="terminal"] .espace .tnum:not(.text-warn, .onglet-nombre, .field) {
+/* Une pastille (.chip) est un bouton : elle garde ses couleurs, même avec des chiffres (« 30 jours », « 21 h » au QG).
+   En vert, la pastille choisie, blanche, n'aurait que 1,9:1. */
+:root[data-ambiance="console"][data-console="terminal"] .espace .tnum:not(.text-warn, .onglet-nombre, .field, .chip) {
   color: var(--console-vert);
 }
 :root[data-ambiance="console"][data-console="terminal"] .console-valeur:not(.text-warn) {
@@ -2429,7 +2452,7 @@ main .fx-in,
   border-radius: 0.25rem;
 }
 :root[data-ambiance="console"][data-console="terminal"] .onglets-menu-ouverte::before {
-  content: "~/direction/" / "";
+  content: "~/" var(--console-hote) "/" / "";
   flex: none;
   margin-right: -0.5rem;
   font-weight: 500;
@@ -2442,7 +2465,7 @@ main .fx-in,
   }
 }
 :root[data-ambiance="console"][data-console="terminal"] .onglets-liste::before {
-  content: "~/direction" / "";
+  content: "~/" var(--console-hote) / "";
   padding: 0.375rem 1rem 0.25rem;
   font-family: var(--font-console);
   font-weight: 700;
@@ -2464,6 +2487,25 @@ main .fx-in,
 }
 :root[data-ambiance="console"][data-console="terminal"] .onglets-choix[aria-current="true"]::before {
   color: #fff;
+}
+
+/* La barre d'onglets du QG, qui garde sa barre (pas de menu) : des noms en chasse fixe, l'onglet ouvert en vidéo inversée,
+   comme la partie ouverte du menu de la Direction. Un onglet de l'encadrement, qui porte data-theme="rouge", s'inverse
+   en rouge. Blanc sur le bleu du bouton principal : 5,1:1 ; sur son rouge : 5,3:1. */
+:root[data-ambiance="console"][data-console="terminal"] .onglet {
+  font-family: var(--font-console);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  border-radius: 0.25rem;
+}
+:root[data-ambiance="console"][data-console="terminal"] .onglet[aria-selected="true"] {
+  background: var(--color-blue);
+  box-shadow: none;
+}
+/* Les parties de l'encadrement, au QG : une fenêtre rouge aux coins nets et au double trait, comme les cartes. */
+:root[data-ambiance="console"][data-console="terminal"] .zone-encadrement {
+  border: 3px double var(--color-line-strong);
+  border-radius: 0.375rem;
 }
 
 /* ---------- Le logo du guerrier en mode Matrix ---------- */
@@ -2556,6 +2598,28 @@ main .fx-in,
     min-height: 18.5rem;
   }
 }
+/* Au QG, le titre est court : le logo tient à sa droite à toutes les largeurs, plus petit sur téléphone (7 rem), en grand
+   sur grand écran (17 rem, comme à la Direction). L'en-tête grandit juste assez pour lui : sur téléphone, quelques pixels,
+   au lieu des 260 px qu'il prendrait sous le titre. */
+.console-tete-court {
+  --logo-tete: clamp(7rem, 22vw, 17rem);
+}
+.console-tete-court .console-logo-tete {
+  position: absolute;
+  top: 1rem;
+  right: 0;
+  width: var(--logo-tete);
+  margin: 0;
+}
+.console-tete-court > header {
+  min-height: calc(var(--logo-tete) + 1.5rem);
+}
+@media (min-width: 64rem) {
+  .console-tete-court .console-logo-tete {
+    right: 1rem;
+  }
+}
+
 /* En petit, en tête du menu des parties. */
 .console-logo-menu {
   flex: none;

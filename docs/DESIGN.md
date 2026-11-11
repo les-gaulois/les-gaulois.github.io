@@ -76,11 +76,11 @@ Les jetons sont définis dans `src/styles/global.css`.
 - Les effets s'inversent : le rouge mène et le bleu répond. Clic gauche et toucher rouges, clic droit bleu, traînée du curseur et territoires ambiants surtout rouges.
 - `.form-problem`, un refus du serveur ou un avertissement comme « Absent de la liste », s'y écrit en jaune `warn`, la couleur de « Plus dans la liste » : en rose, il se perdrait dans le décor.
 - `/compte` reste bleu : c'est la page de chaque membre, pas un espace de l'encadrement.
-- Un test e2e vérifie que `/direction` est rouge et que toutes les autres pages restent bleues. Axe contrôle aussi ses contrastes, mais les tests construisent le site sans serveur de connexion : il n'y voit que la carte « connexion pas ouverte ». Les vrais écrans (tuiles, formulaires, tableau, onglets, refus en jaune) ont été contrôlés par axe avec un faux serveur, sur bureau et téléphone : le 8 novembre 2026, puis le 10 novembre pour chaque onglet du QG et de la Direction.
+- Un test e2e vérifie que `/direction` est rouge, que `/qg` reste bleu dans son style Terminal et que toutes les autres pages restent bleues. Axe contrôle aussi ses contrastes, mais les tests construisent le site sans serveur de connexion : il n'y voit que la carte « connexion pas ouverte ». Les vrais écrans (tuiles, formulaires, tableau, onglets, refus en jaune) ont été contrôlés par axe avec un faux serveur, sur bureau et téléphone : le 8 novembre 2026, puis le 10 novembre pour chaque onglet du QG et de la Direction.
 
-### Ambiance console de la Direction
+### Ambiance console de la Direction et du QG
 
-Depuis le 11 novembre 2026, à la demande du pilote (« un thème un peu hacker, admin, trop cool », « il faut que ça fonde avec le reste »), `/direction` ajoute au rouge l'ambiance d'un poste de commandement. La page passe `ambiance="console"` à `Base.astro`, qui pose `data-ambiance="console"` sur `<html>`. Tout est dans `global.css`, section « Ambiance console », sous ce sélecteur : sans lui, les classes `console-*` ne font rien. Les couleurs, les titres en Outfit, le tricolore, les boutons, l'en-tête, le pied de page et le fond animé restent ceux du site. Les onglets de l'encadrement au QG restent rouges, sans cette ambiance.
+Depuis le 11 novembre 2026, à la demande du pilote (« un thème un peu hacker, admin, trop cool », « il faut que ça fonde avec le reste »), `/direction` ajoute au rouge l'ambiance d'un poste de commandement. La page passe `ambiance="console"` à `Base.astro`, qui pose `data-ambiance="console"` sur `<html>`. Tout est dans `global.css`, section « Ambiance console », sous ce sélecteur : sans lui, les classes `console-*` ne font rien. Les couleurs, les titres en Outfit, le tricolore, les boutons, l'en-tête, le pied de page et le fond animé restent ceux du site. Le QG la prend aussi depuis le 12 novembre 2026, en bleu : voir « Le QG en style Terminal », plus bas.
 
 | Élément | Rendu |
 |---|---|
@@ -88,7 +88,7 @@ Depuis le 11 novembre 2026, à la demande du pilote (« un thème un peu hacker,
 | Écran | Lignes de balayage fixes (noir à 15 %, une tous les 4 px) et coins assombris, derrière le contenu |
 | Invite | `gal@direction:~$` en chasse fixe au-dessus du titre, et un curseur en pavé fixe. Décorative : masquée aux lecteurs d'écran |
 | Titre | Un léger décalage bleu et rouge, le tricolore vu à travers un écran, fixe, et une lueur rouge |
-| Chasse fixe | JetBrains Mono (OFL-1.1), jeton `--font-console` : menu des parties, libellés et chiffres des tuiles, rôle, état du site, dates et nombres (`.tnum`), noms des champs. Pas `--font-mono`, dont se sert le calculateur des guides : la police (40 Ko) n'est téléchargée et préchargée que sur la Direction |
+| Chasse fixe | JetBrains Mono (OFL-1.1), jeton `--font-console` : menu des parties, libellés et chiffres des tuiles, rôle, état du site, dates et nombres (`.tnum`), noms des champs. Pas `--font-mono`, dont se sert le calculateur des guides : la police (40 Ko) n'est téléchargée et préchargée que sur la Direction et le QG |
 | Cartes | Des repères aux quatre coins, comme un viseur (`--console-repere`), décoratifs. Le style Terminal les remplace par des cadres en traits doubles |
 | Tuiles | Libellé en capitales espacées, chiffre en chasse fixe avec une lueur, jaune quand des demandes attendent |
 | Compte | Un voyant vert allumé devant le rôle |
@@ -118,6 +118,22 @@ Le soir même, le pilote a demandé « davantage hacker » et « différents sty
 - **Mouvement :** l'invite et la commande d'une partie s'écrivent une fois, la bande de lumière passe une fois à l'ouverture. Rien ne bouge en continu, rien ne clignote. Le bouton pause et « réduire les animations » coupent tout.
 - Contrôlé le 11 novembre 2026 avec un faux serveur : axe sans défaut sur bureau et téléphone, menu fermé et ouvert ; aucun débordement de 360 à 1 920 px.
 
+#### Le QG en style Terminal
+
+Le 12 novembre 2026, le pilote a demandé : « tu peux rendre le QG design hacker comme la Direction ». `/qg` passe `ambiance="console"` à `Base.astro`, sans le thème rouge : le rouge reste le signe de l'encadrement, le bleu celui des membres. Tout le style Terminal ci-dessus vaut pour le QG, avec ces différences.
+
+| Élément | Rendu |
+|---|---|
+| Écran | Le même noir, en bleu (`navy` `#050B1D`, que la barre du navigateur reprend ; `surface` `#0A1330`, `surface-2` `#12204A`, `line` `#1E2F63`, `line-strong` `#5B74C4`). Sur une carte : texte secondaire 11:1, liens 9,6:1, vert 10,5:1, contour des champs 4,1:1. La grille et la lueur des champs prennent le bleu du drapeau ; le curseur de l'invite reste rouge, le marqueur du site |
+| Encadrement | Les onglets Demandes, Comptes et Journal et leurs parties portent toujours `data-theme="rouge"` : ils prennent les jetons rouges du Terminal de la Direction, et leurs parties deviennent des fenêtres rouges aux traits doubles |
+| Machine | `gal@qg` : l'invite écrit `gal@qg:~$ ./qg`, chaque partie `gal@qg:~$ ./salons`. Le nom vient de `--console-hote`, posé par chaque page sur son `.console-tete` (« direction » à la Direction) |
+| Barre d'onglets | Le QG garde sa barre, pas de menu. Noms en chasse fixe, l'onglet ouvert en vidéo inversée (blanc sur le bleu du bouton principal, 5,1:1 ; sur son rouge pour un onglet de l'encadrement, 5,3:1), comme la partie ouverte du menu de la Direction |
+| Fenêtres | « session » pour le compte, avec la même ligne que la Direction (voyant, rôle, heure, collecte : `Telemetrie.tsx`, commun aux deux pages) ; « motd », le message du jour d'un terminal, pour le mot de l'encadrement |
+| Logo Matrix | Le titre est court : le logo tient à sa droite à toutes les largeurs (`.console-tete-court`, de 7 rem sur téléphone à 17 rem sur grand écran). Sur téléphone, l'en-tête ne grandit que de quelques pixels, au lieu des 260 px que le logo prendrait sous le titre. Pas de petit logo dans la barre : la place y va aux onglets |
+| Pastilles | Une pastille (`.chip`) garde ses couleurs même avec des chiffres (« 30 jours », « 21 h ») : en vert, la pastille choisie, blanche, n'aurait que 1,9:1 |
+
+- Contrôlé le 12 novembre 2026 avec un faux serveur, pour un fondateur et pour un membre : axe sans défaut sur chaque onglet, sur bureau et téléphone, et sur la porte du QG ; aucun débordement de 360 à 1 920 px, onglet par onglet ; le logo ne touche ni le titre, ni l'invite, ni la fenêtre « session ». La Direction est restée identique au pixel près.
+
 ### Le menu des parties
 
 Le pilote ne voyait pas la fin de la barre d'onglets de la Direction : neuf parties pour le fondateur, elle s'arrêtait à « Gaulois de la semaine ». Il a demandé un menu déroulant, puis le menu seul, sans barre. `Onglets.tsx` a une option `menu`, que seule la Direction active : la barre d'onglets est remplacée par un menu déroulant, à toutes les largeurs.
@@ -125,7 +141,7 @@ Le pilote ne voyait pas la fin de la barre d'onglets de la Direction : neuf part
 - **La liste** donne toutes les parties d'un coup, avec leurs nombres, la partie ouverte marquée comme l'était l'onglet ouvert. En style Terminal, c'est une arborescence : `~/direction`, puis « ├── » devant chaque partie. Si elle devait sortir de l'écran, la barre remonte sous l'en-tête pour la montrer entière.
 - **Au clavier :** flèche bas ouvre, flèches haut et bas, Début et Fin passent d'une partie à l'autre, Entrée ouvre la partie, Échap ferme et rend le focus au bouton. Un clic ailleurs ferme aussi le menu, tout comme le focus qui en sort par la touche Tab, après la dernière partie. Après un choix, le focus revient au bouton. Une perte de focus sans destination ne ferme rien : Safari et Firefox sur Mac ne donnent pas le focus au bouton cliqué, et le menu se refermerait avant le clic.
 - Les onglets restent dans la page, masqués : chaque partie garde le nom de son onglet, et l'adresse garde la partie ouverte (`#annonces`).
-- Le QG garde sa barre d'onglets : le pilote n'a pas demandé de menu pour lui.
+- Le QG garde sa barre d'onglets, aussi en style Terminal : le pilote n'a pas demandé de menu pour lui.
 
 ## Scènes
 

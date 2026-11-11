@@ -15,9 +15,10 @@ const logoGrand = await logoMatriceDepuisImage(48);
 const logoPetit = await logoMatriceDepuisImage(24);
 ---
 
-{/* `espace` : tout y est plus grand, voir global.css. `console` : le poste de commandement en style Terminal, voir docs/DESIGN.md. */}
+{/* `espace` : tout y est plus grand, voir global.css. `console` : le poste de commandement en style Terminal, voir docs/DESIGN.md.
+    `--console-hote` : la machine des lignes de commande (« gal@direction:~$ ./annonces »). */}
 <Base title="Direction" description="L'espace des officiers et des chefs du clan GAL." noindex theme="rouge" ambiance="console">
-  <div class="wrap console-tete">
+  <div class="wrap console-tete" style='--console-hote: "direction"'>
     <PageHeader title="Direction" compact>
       {/* Décorative : le titre dit déjà où l'on est. */}
       <p slot="avant-titre" class="console-invite" aria-hidden="true">

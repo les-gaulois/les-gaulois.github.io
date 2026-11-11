@@ -1,18 +1,34 @@
 ---
 import Base from "../layouts/Base.astro";
 import PageHeader from "../components/PageHeader.astro";
+import LogoMatrice from "../components/LogoMatrice";
 import NotOpen from "../components/compte/NotOpen.astro";
 import QgApp from "../components/compte/QgApp";
 import { AUTH_ENABLED } from "../lib/compte/api";
+import { loadMeta } from "../lib/data";
+import { logoMatriceDepuisImage } from "../lib/logo-matrice-image";
+
+// La dernière collecte publiée, que la fenêtre « session » donne à côté de l'heure. Son âge se calcule dans le navigateur.
+const lastRunAt = loadMeta().lastRunAt;
+// Le logo du guerrier en mode Matrix, comme à la Direction : ici à droite du titre, court, à toutes les largeurs (docs/DESIGN.md).
+const logoGrand = await logoMatriceDepuisImage(48);
 ---
 
 {/* La face privée du site, et depuis le 10 novembre 2026 l'administration de l'encadrement : cette page ne contient que la porte.
-    Le contenu vient du serveur, pour un membre validé seulement. `espace` : tout y est plus grand, voir global.css. */}
-<Base title="Le QG" description="Le QG des membres du clan GAL : salons à rejoindre, décisions, boîte à idées et événements, réservé aux membres reconnus." noindex>
-  <div class="wrap">
-    <PageHeader title="Le QG" compact />
+    Le contenu vient du serveur, pour un membre validé seulement. `espace` : tout y est plus grand, voir global.css.
+    `console` : depuis le 12 novembre 2026, le style Terminal de la Direction, en bleu, la couleur des membres (docs/DESIGN.md).
+    `--console-hote` : la machine des lignes de commande (« gal@qg:~$ ./salons »). */}
+<Base title="Le QG" description="Le QG des membres du clan GAL : salons à rejoindre, décisions, boîte à idées et événements, réservé aux membres reconnus." noindex ambiance="console">
+  <div class="wrap console-tete console-tete-court" style='--console-hote: "qg"'>
+    <PageHeader title="Le QG" compact>
+      {/* Décorative : le titre dit déjà où l'on est. */}
+      <p slot="avant-titre" class="console-invite" aria-hidden="true">
+        <span class="console-hote">gal@qg</span>:~$<span class="console-commande">&nbsp;./qg</span><span class="console-curseur"></span>
+      </p>
+    </PageHeader>
+    {logoGrand && <LogoMatrice data={logoGrand} id="logo-tete" class="console-logo-tete" />}
     <div class="espace">
-      {AUTH_ENABLED ? <QgApp client:only="preact" /> : <NotOpen />}
+      {AUTH_ENABLED ? <QgApp client:only="preact" lastRunAt={lastRunAt} /> : <NotOpen />}
     </div>
   </div>
 </Base>

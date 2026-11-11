@@ -1,5 +1,15 @@
 [
   {
+    "date": "2026-11-12",
+    "kind": "ameliore",
+    "title": "Le QG en mode terminal, comme la Direction",
+    "body": "Le QG passe en style terminal, en bleu : le logo du guerrier en mode Matrix, une commande au-dessus de chaque onglet, l'heure dans la fenêtre de session. L'encadrement garde son rouge.",
+    "link": {
+      "href": "/qg",
+      "label": "Ouvrir le QG"
+    }
+  },
+  {
     "date": "2026-11-11",
     "kind": "nouveau",
     "title": "Chaque victoire sur Discord, avec la carte",

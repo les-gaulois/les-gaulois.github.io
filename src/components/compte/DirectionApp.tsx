@@ -4,8 +4,8 @@ import { toLocalInput } from "../../lib/compte/news";
 import { pendingWords } from "../../lib/compte/pending";
 import { ROLE_LABELS, type MemberRow, type Role } from "../../lib/compte/types";
 import { setPlayerView } from "../../lib/compte/vue-joueur";
-import { heureDeCollecte, type SiteHealthInput } from "../../lib/etat-site";
-import { fmtDate, fmtDateTime, fmtEpochTime, fmtInt } from "../../lib/format";
+import type { SiteHealthInput } from "../../lib/etat-site";
+import { fmtDate, fmtDateTime, fmtInt } from "../../lib/format";
 import type { LogoMatriceData } from "../../lib/logo-matrice";
 import { tabsFor } from "../../lib/onglets";
 import LogoMatrice from "../LogoMatrice";
@@ -17,6 +17,7 @@ import DirectionWelcome from "./DirectionWelcome";
 import DirectionWeeklyPick, { EMPTY_WEEKLY_PICK, type WeeklyPickDraft } from "./DirectionWeeklyPick";
 import { Onglets, Partie, PartieTete, useTabs, type TabItem } from "./Onglets";
 import SiteHealth from "./SiteHealth";
+import Telemetrie from "./Telemetrie";
 
 interface NewsRow {
   id: number;
@@ -63,45 +64,6 @@ function Tile({ label, value, href, alert = false }: { label: string; value: num
       <span class="console-libelle font-semibold text-muted">{label}</span>
       <span class={`console-valeur tnum mt-1 block font-display text-4xl font-extrabold ${alert ? "text-warn" : ""}`}>{fmtInt(value)}</span>
     </a>
-  );
-}
-
-/** L'heure qui change à la minute pile, pas une minute après l'ouverture de la page. */
-function useMinute(): Date {
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    let timer = 0;
-    const tick = () => {
-      setNow(new Date());
-      timer = window.setTimeout(tick, 60_000 - (Date.now() % 60_000) + 50);
-    };
-    timer = window.setTimeout(tick, 60_000 - (Date.now() % 60_000) + 50);
-    return () => window.clearTimeout(timer);
-  }, []);
-  return now;
-}
-
-/**
- * Le rôle, derrière un voyant vert : la session est ouverte. La ligne donne aussi l'heure de Paris et celle de la
- * dernière collecte publiée, datée si ce n'est pas aujourd'hui et en jaune si elle est en retard (`heureDeCollecte`) :
- * des valeurs vraies, décoratives pour les lecteurs d'écran, qui trouvent la collecte dans l'état du site.
- */
-function Telemetrie({ role, lastRunAt }: { role: string; lastRunAt: string | null }) {
-  const now = useMinute();
-  const collecte = lastRunAt ? heureDeCollecte(lastRunAt, now) : null;
-  return (
-    <p class="console-acces text-muted">
-      <span class="console-voyant" aria-hidden="true" />
-      <span>{role}</span>
-      <span class="console-heure tnum" aria-hidden="true">
-        {fmtEpochTime(now.getTime() / 1000)}
-      </span>
-      {collecte && (
-        <span class={`console-collecte tnum ${collecte.enRetard ? "text-warn" : ""}`} aria-hidden="true" data-testid="direction-collecte">
-          collecte {collecte.texte}
-        </span>
-      )}
-    </p>
   );
 }
 
@@ -498,7 +460,7 @@ export default function DirectionApp({ health, logo }: { health: Omit<SiteHealth
       <section class="card flex flex-wrap items-center justify-between gap-4 p-5" aria-label="Vous, à la Direction" data-testid="direction-me" data-titre="session">
         <div class="min-w-0 flex-[1_1_11rem]">
           <p class="font-display text-2xl font-extrabold [overflow-wrap:anywhere]">{me.name}</p>
-          <Telemetrie role={ROLE_LABELS[me.role as Role]} lastRunAt={health.meta.lastRunAt} />
+          <Telemetrie role={ROLE_LABELS[me.role as Role]} lastRunAt={health.meta.lastRunAt} testId="direction" />
         </div>
         <div class="flex flex-wrap gap-2">
           {/* Les demandes, les comptes, le journal et les idées des membres se traitent au QG, là où les membres les lisent. */}

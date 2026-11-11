@@ -3,7 +3,7 @@ import "../styles/global.css";
 // Les deux polices du site, préchargées : le texte s'affiche presque toujours directement dans sa police.
 import interFont from "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url";
 import outfitFont from "@fontsource-variable/outfit/files/outfit-latin-wght-normal.woff2?url";
-// La chasse fixe de l'ambiance console, préchargée seulement sur la page qui s'en sert.
+// La chasse fixe de l'ambiance console, préchargée seulement sur les pages qui s'en servent (Direction et QG).
 import consoleFont from "@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2?url";
 import { clan, SITE_DISCLAIMER, SITE_LICENSE_NOTICE } from "../../config/clan";
 import { brandFile } from "../lib/brand";
@@ -25,7 +25,10 @@ interface Props {
   noindex?: boolean;
   /** Les pages de l'encadrement passent au rouge : voir « Thème rouge de l'encadrement » dans docs/DESIGN.md. */
   theme?: "rouge";
-  /** La Direction, en plus du rouge : l'ambiance d'un poste de commandement. Voir « Ambiance console » dans docs/DESIGN.md. */
+  /**
+   * La Direction et, depuis le 12 novembre 2026, le QG : l'ambiance d'un poste de commandement, en style Terminal, dans la
+   * couleur de la page (rouge à la Direction, bleu au QG). Voir « Ambiance console » dans docs/DESIGN.md.
+   */
   ambiance?: "console";
   /** L'image d'aperçu du lien, à la place de celle du site : un chemin qui commence par la base, et ce qu'elle montre. */
   image?: string;
@@ -46,14 +49,14 @@ const nouveautesMarker = newsMarker(loadNouveautes());
 ---
 
 <!doctype html>
-{/* La console de la Direction est en style Terminal (data-console), voir « Ambiance console » dans docs/DESIGN.md. */}
+{/* La console de la Direction et du QG est en style Terminal (data-console), voir « Ambiance console » dans docs/DESIGN.md. */}
 <html lang="fr" data-theme={theme} data-ambiance={ambiance} data-console={ambiance === "console" ? "terminal" : undefined}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark" />
     {/* La barre du navigateur sur téléphone prend le fond de la page : le jeton navy de chaque thème (Terminal pour la console). */}
-    <meta name="theme-color" content={theme === "rouge" ? (ambiance === "console" ? "#13040A" : "#300A10") : "#0A1230"} />
+    <meta name="theme-color" content={theme === "rouge" ? (ambiance === "console" ? "#13040A" : "#300A10") : ambiance === "console" ? "#050B1D" : "#0A1230"} />
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
     {noindex && <meta name="robots" content="noindex" />}

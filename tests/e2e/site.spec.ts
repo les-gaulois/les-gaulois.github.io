@@ -76,7 +76,8 @@ test("le QG n'est pas indexé, et sa page ne contient rien de privé", async ({ 
   for (const id of ["qg", "qg-salons", "qg-decisions", "qg-ideas", "qg-wall", "qg-events", "admin-requests", "admin-members", "admin-log"]) await expect(page.getByTestId(id)).toHaveCount(0);
 });
 
-// L'encadrement sait d'un coup d'œil où il est. Le compte d'un membre reste bleu, comme le reste du site.
+// L'encadrement sait d'un coup d'œil où il est. Le compte d'un membre reste bleu, comme le reste du site, et le QG aussi,
+// dans l'ambiance console de la Direction.
 test("seules les pages de l'encadrement passent au rouge", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "Même thème sur mobile.");
   const look = async (path: string) => {
@@ -96,25 +97,31 @@ test("seules les pages de l'encadrement passent au rouge", async ({ page }, test
   expect(blue.ambiance).toBeNull();
   expect(blue.style).toBeNull();
   expect(blue.background).toBe(rgbOf(blue.bar));
-  for (const path of ["/direction"]) {
-    const red = await look(path);
-    expect(red.theme, path).toBe("rouge");
-    // La Direction a en plus l'ambiance console (docs/DESIGN.md), dans son seul style, Terminal : son fond est le jeton
-    // navy de ce style, que la barre du navigateur reprend.
-    expect(red.ambiance, path).toBe("console");
-    expect(red.style, path).toBe("terminal");
-    expect(red.background, path).not.toBe(blue.background);
-    expect(red.background, path).toBe(rgbOf(red.bar));
-  }
-  for (const path of [...PAGES, "/compte", "/confidentialite"]) {
+  const red = await look("/direction");
+  expect(red.theme).toBe("rouge");
+  // La Direction a en plus l'ambiance console (docs/DESIGN.md), dans son seul style, Terminal : son fond est le jeton
+  // navy de ce style, que la barre du navigateur reprend.
+  expect(red.ambiance).toBe("console");
+  expect(red.style).toBe("terminal");
+  expect(red.background).not.toBe(blue.background);
+  expect(red.background).toBe(rgbOf(red.bar));
+  // Le QG prend la même console depuis le 12 novembre 2026, sans le rouge : le Terminal bleu des membres.
+  const qg = await look("/qg");
+  expect(qg.theme).toBeNull();
+  expect(qg.ambiance).toBe("console");
+  expect(qg.style).toBe("terminal");
+  expect(qg.background).not.toBe(blue.background);
+  expect(qg.background).not.toBe(red.background);
+  expect(qg.background).toBe(rgbOf(qg.bar));
+  for (const path of [...PAGES.filter((path) => path !== "/qg"), "/compte", "/confidentialite"]) {
     expect(await look(path), path).toEqual(blue);
   }
 });
 
-// L'ambiance console de la Direction (docs/DESIGN.md) : sa police ne pèse que sur cette page, son invite est décorative,
-// et la pause comme « réduire les animations » arrêtent aussi la bande de lumière, portée par <html> lui-même, que
-// `.fx-off *` ne vise pas.
-test("l'ambiance console ne pèse que sur la Direction, et la pause l'arrête", async ({ page }, testInfo) => {
+// L'ambiance console de la Direction et du QG (docs/DESIGN.md) : sa police ne pèse que sur ces pages, leur invite est
+// décorative, et la pause comme « réduire les animations » arrêtent aussi la bande de lumière, portée par <html> lui-même,
+// que `.fx-off *` ne vise pas.
+test("l'ambiance console ne pèse que sur la Direction et le QG, et la pause l'arrête", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "Même rendu sur mobile.");
   const fonts: string[] = [];
   page.on("request", (r) => {
@@ -123,9 +130,13 @@ test("l'ambiance console ne pèse que sur la Direction, et la pause l'arrête", 
   await page.goto("/");
   await page.waitForLoadState("networkidle");
   expect(fonts).toEqual([]);
-  await page.goto("/direction");
+  await page.goto("/qg");
   await page.waitForLoadState("networkidle");
   expect(fonts.length).toBeGreaterThan(0);
+  await expect(page.locator(".console-invite")).toHaveAttribute("aria-hidden", "true");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Le QG");
+  await page.goto("/direction");
+  await page.waitForLoadState("networkidle");
   await expect(page.locator(".console-invite")).toHaveAttribute("aria-hidden", "true");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Direction");
   const moving = () =>
