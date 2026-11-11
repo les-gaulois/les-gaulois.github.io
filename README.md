@@ -96,8 +96,9 @@ Déposez les fichiers sous ces noms, en `.svg`, `.webp`, `.png`, `.jpg` ou `.jpe
 | `logo-vertical` | Grand visuel de l'accueil et de la page Rejoindre |
 | `badge` | En-tête et favicon (recadré en cercle) |
 | `logo-horizontal` | Non utilisé pour l'instant |
+| `tete` | La tête du guerrier dans son cercle, sans texte : le logo en mode Matrix de la Direction, redessiné en caractères au moment du build |
 
-Pour changer de version, remplacez le fichier sous le même nom : le prochain build en tire des images légères (`npm run brand`). Sans ces fichiers, le site affiche un lettrage provisoire. Les six originaux sont conservés dans `brand-sources/`, qui n'est pas publié.
+Pour changer de version, remplacez le fichier sous le même nom : le prochain build en tire des images légères (`npm run brand`). Sans ces fichiers, le site affiche un lettrage provisoire ; sans `tete`, la Direction n'a pas de logo Matrix. Les six originaux sont conservés dans `brand-sources/`, qui n'est pas publié.
 
 ### L'environnement : `.env.example`
 

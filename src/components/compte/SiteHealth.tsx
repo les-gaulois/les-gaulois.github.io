@@ -22,7 +22,7 @@ export default function SiteHealth(props: SiteHealthInput) {
   const warnings = health.lines.filter((line) => line.level === "warn").length;
 
   return (
-    <section class="console-journal card p-5" aria-labelledby="health-title" data-testid="direction-health">
+    <section class="console-journal card p-5" aria-labelledby="health-title" data-testid="direction-health" data-titre="etat-du-site.log">
       <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <h2 id="health-title" class="text-xl">
           État du site

@@ -6,10 +6,11 @@
  * Le site est statique : si le robot s'arrête, la page n'est plus reconstruite. L'âge se calcule donc
  * dans le navigateur du lecteur, avec `now`, et une page restée en l'état vieillit à l'écran.
  */
-import { fmtCount, fmtDateTime, fmtDay, fmtDuration } from "./format";
+import { fmtCount, fmtDateTime, fmtDay, fmtDayAndTime, fmtDuration, fmtEpochTime } from "./format";
 import { MAX_AGE_HOURS, freshness } from "./freshness";
 import type { GazetteSendState } from "./gazette-discord";
 import type { DatasetState, Meta } from "./schemas";
+import { parisParts } from "./time";
 
 const HOUR_MS = 3_600_000;
 
@@ -31,6 +32,19 @@ export const SOURCES: readonly { key: SourceKey; label: string }[] = [
   { key: "ranked", label: "Classé" },
   { key: "clanmap", label: "Carte des clans" },
 ];
+
+/**
+ * L'heure de la dernière collecte publiée, sur la ligne du rôle à la Direction : l'heure seule le jour même à Paris, le
+ * jour et l'heure sinon, pour ne jamais faire lire une vieille heure comme celle d'aujourd'hui. `enRetard` au-delà du
+ * délai du robot : si la collecte s'arrête, la page n'est plus reconstruite, et la ligne passe au jaune des avertissements.
+ */
+export function heureDeCollecte(lastRunAt: string, now: Date): { texte: string; enRetard: boolean } {
+  const memeJour = parisParts(lastRunAt).date === parisParts(now).date;
+  return {
+    texte: memeJour ? fmtEpochTime(Date.parse(lastRunAt) / 1000) : fmtDayAndTime(lastRunAt),
+    enRetard: now.getTime() - Date.parse(lastRunAt) > RUN_MAX_AGE_HOURS * HOUR_MS,
+  };
+}
 
 /** Un âge en toutes lettres : « il y a 24 min », « il y a 5 h », « il y a 3 jours ». */
 export const ago = (ms: number): string => (ms < 60_000 ? "à l'instant" : `il y a ${fmtDuration(ms)}`);

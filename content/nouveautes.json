@@ -2,6 +2,12 @@
   {
     "date": "2026-11-11",
     "kind": "ameliore",
+    "title": "La Direction en mode terminal, avec un menu des parties",
+    "body": "Pour l'encadrement : la Direction passe en style terminal, avec le logo du guerrier en mode Matrix et une commande au-dessus de chaque partie. Un menu déroulant donne toutes les parties d'un coup."
+  },
+  {
+    "date": "2026-11-11",
+    "kind": "ameliore",
     "title": "La Direction prend des airs de poste de commandement",
     "body": "Pour l'encadrement : la page Direction garde son rouge et passe en ambiance console, avec une grille, une écriture de terminal et des étiquettes [ OK ] ou [ À VOIR ] dans l'état du site."
   },

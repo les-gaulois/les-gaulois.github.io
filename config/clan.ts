@@ -34,6 +34,8 @@ export const clan = {
     horizontal: "logo-horizontal",
     badge: "badge",
     vertical: "logo-vertical",
+    /** La tête du guerrier dans son cercle, sans texte : le logo en mode Matrix de la Direction. */
+    tete: "tete",
   },
 
   /**

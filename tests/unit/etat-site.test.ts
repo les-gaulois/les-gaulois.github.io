@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ROSTER_MAX_AGE_HOURS, RUN_MAX_AGE_HOURS, SOURCES, ago, siteHealth, sourceHealth, type SiteHealthInput } from "../../src/lib/etat-site";
+import { ROSTER_MAX_AGE_HOURS, RUN_MAX_AGE_HOURS, SOURCES, ago, heureDeCollecte, siteHealth, sourceHealth, type SiteHealthInput } from "../../src/lib/etat-site";
 import { MAX_AGE_HOURS } from "../../src/lib/freshness";
 import { emptyMeta, type Meta } from "../../src/lib/schemas";
 
@@ -102,5 +102,25 @@ describe("l'état du site", () => {
   it("lit chaque source que la collecte écrit dans data/meta.json", () => {
     const tracked = Object.keys(emptyMeta()).filter((key) => key !== "lastRunAt");
     expect(SOURCES.map((s) => s.key).sort()).toEqual(tracked.sort());
+  });
+});
+
+// La ligne du rôle, à la Direction : une heure de collecte ne doit jamais se lire comme celle d'aujourd'hui si elle est d'hier.
+describe("l'heure de la dernière collecte", () => {
+  it("donne l'heure seule le jour même à Paris, sans retard", () => {
+    expect(heureDeCollecte("2026-11-11T19:53:00Z", new Date("2026-11-11T21:10:00Z"))).toEqual({ texte: "20:53", enRetard: false });
+  });
+
+  it("date une collecte d'un autre jour à Paris, même à moins d'une heure de distance", () => {
+    // 22 h 50 à Paris le 11, lue à 0 h 10 le 12 : l'heure seule ferait croire à une collecte du jour.
+    const { texte, enRetard } = heureDeCollecte("2026-11-11T21:50:00Z", new Date("2026-11-11T23:10:00Z"));
+    expect(texte).toBe("11 nov., 22:50");
+    expect(enRetard).toBe(false);
+  });
+
+  it("passe en retard au-delà du délai du robot", () => {
+    const base = Date.parse("2026-11-11T08:00:00Z");
+    expect(heureDeCollecte("2026-11-11T08:00:00Z", new Date(base + RUN_MAX_AGE_HOURS * 3_600_000)).enRetard).toBe(false);
+    expect(heureDeCollecte("2026-11-11T08:00:00Z", new Date(base + RUN_MAX_AGE_HOURS * 3_600_000 + 60_000)).enRetard).toBe(true);
   });
 });

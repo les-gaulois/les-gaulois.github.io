@@ -1820,6 +1820,105 @@ main .fx-in,
   background: var(--color-red);
 }
 
+/* Le menu déroulant des parties (option `menu` d'Onglets, la Direction) : il remplace la barre d'onglets, sur toutes
+   les largeurs. Son bouton dit la partie ouverte, sa liste les donne toutes. Les onglets restent dans la page, masqués :
+   chaque partie garde le nom de son onglet. La liste se place sous toute la barre (.onglets est son bloc de référence). */
+.onglets-avec-menu {
+  display: flex;
+  align-items: center;
+}
+.onglets-avec-menu .onglets-defile {
+  display: none;
+}
+.onglets-menu {
+  flex: 1;
+  min-width: 0;
+  padding: 0.375rem;
+}
+.onglets-menu-bouton,
+.onglets-choix {
+  /* Le texte réservé aux lecteurs d'écran reste dans le bouton : rien ne déborde de la page. */
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  min-height: 3.25rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.875rem;
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: left;
+  color: #fff;
+  cursor: pointer;
+}
+.onglets-menu-bouton:hover,
+.onglets-menu-bouton[aria-expanded="true"] {
+  background: var(--color-surface-2);
+}
+.onglets-menu-ouverte {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+/* Un nom trop long pour le bouton se termine par « … » au lieu de se couper au milieu d'un mot. */
+.onglets-menu-nom {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.onglets-menu-ouverte .onglet-nombre {
+  flex: none;
+}
+.onglets-menu-fleche {
+  flex: none;
+  transition: rotate 0.2s;
+}
+.onglets-menu-bouton[aria-expanded="true"] .onglets-menu-fleche {
+  rotate: 180deg;
+}
+.onglets-liste {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 0.375rem;
+  z-index: 30;
+  display: grid;
+  gap: 0.125rem;
+  width: min(26rem, calc(100% - 0.75rem));
+  max-height: min(70vh, 36rem);
+  overflow-y: auto;
+  padding: 0.375rem;
+  background: var(--color-night);
+  border: 1px solid var(--color-line-strong);
+  border-radius: 1rem;
+  box-shadow: 0 1.25rem 2.5rem -1rem rgb(0 0 0 / 0.7);
+}
+.onglets-liste[hidden] {
+  display: none;
+}
+.onglets-choix {
+  color: var(--color-muted);
+}
+.onglets-choix:hover {
+  color: #fff;
+  background: rgb(255 255 255 / 0.07);
+}
+/* La partie ouverte : fond plus clair et filet rouge à gauche, comme l'onglet ouvert. */
+.onglets-choix[aria-current="true"] {
+  color: #fff;
+  background: var(--color-surface-2);
+  box-shadow: inset 3px 0 0 var(--color-red);
+}
+.onglets-choix:focus-visible,
+.onglets-menu-bouton:focus-visible {
+  outline-offset: -4px;
+}
+
 /* Une partie sous ses onglets. Le « roulement » : la partie choisie glisse doucement du côté de son onglet, une fois,
    de moins que la marge de la page (rien ne déborde). Le bouton pause (.fx-off *) et le réglage « réduire les animations »
    le coupent, comme toute animation du site. */
@@ -2050,29 +2149,6 @@ main .fx-in,
   background-repeat: no-repeat;
 }
 
-/* Les onglets s'écrivent en chasse fixe ; l'ouvert prend l'invite « > » (masquée aux lecteurs d'écran) et une lueur.
-   Chaque onglet garde la place du « > » : la barre ne bouge pas quand on change d'onglet. */
-:root[data-ambiance="console"] .onglet {
-  font-family: var(--font-console);
-  font-size: 1.0625rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-:root[data-ambiance="console"] .onglet::before {
-  content: ">" / "";
-  font-weight: 800;
-  color: var(--color-blue-text);
-  opacity: 0;
-}
-:root[data-ambiance="console"] .onglet[aria-selected="true"]::before {
-  opacity: 1;
-}
-:root[data-ambiance="console"] .onglet[aria-selected="true"] {
-  box-shadow:
-    inset 0 -3px 0 var(--color-red),
-    0 0 1.5rem -0.5rem var(--console-lueur);
-}
-
 /* Ce que dit la machine : libellés en capitales espacées, chiffres en grand avec une lueur, dates et heures.
    Espacement des libellés : « ENCADREMENT » tient sur une ligne dans sa tuile dès 360 px (105,6 px pour 108,2). */
 :root[data-ambiance="console"] .console-libelle {
@@ -2165,4 +2241,330 @@ main .fx-in,
 }
 :root[data-ambiance="console"] .field:focus {
   box-shadow: 0 0 1.5rem -0.375rem var(--console-lueur);
+}
+
+/* ---------- Le style Terminal de la console ---------- */
+/* La Direction est en style Terminal : data-console="terminal" sur <html>, posé par Base.astro avec l'ambiance console.
+   Le 11 novembre 2026, le pilote a vu trois styles et n'a gardé que celui-ci, « encore plus hacker » (docs/DESIGN.md).
+   Tout ce qui est écrit en décor (« ## », « > », chemins, branches, commandes, noms de fenêtre) passe par
+   `content: … / ""`, que les lecteurs d'écran ne lisent pas. */
+
+/* Ce que seul le style montre : la commande de l'invite, l'heure et la collecte. */
+.console-commande,
+.console-heure,
+.console-collecte {
+  display: none;
+}
+:root[data-ambiance="console"][data-console] .console-commande,
+:root[data-ambiance="console"][data-console] .console-heure,
+:root[data-ambiance="console"][data-console] .console-collecte {
+  display: inline;
+}
+:root[data-ambiance="console"][data-console] .console-heure::before,
+:root[data-ambiance="console"][data-console] .console-collecte::before {
+  content: "·" / "";
+  margin-right: 0.625rem;
+  opacity: 0.7;
+}
+/* Sur téléphone, la ligne passe à la ligne entre deux valeurs, jamais au milieu d'une. */
+:root[data-ambiance="console"][data-console] .console-acces {
+  flex-wrap: wrap;
+  row-gap: 0.25rem;
+}
+:root[data-ambiance="console"][data-console] .console-acces > * {
+  white-space: nowrap;
+}
+/* L'invite, plus longue avec sa commande, s'écrit au même rythme. */
+:root[data-ambiance="console"][data-console] .console-invite {
+  animation-duration: 1.5s;
+  animation-timing-function: steps(30, end);
+}
+
+/* Un écran plus noir. Contrastes : texte secondaire 11,6:1 et liens 9,9:1 sur une carte, contour des champs 3,6:1,
+   « OK » en vert vif 11,1:1. */
+:root[data-ambiance="console"][data-console="terminal"] {
+  --color-navy: #13040a;
+  --color-night: #0a0205;
+  --color-surface: #1c060c;
+  --color-surface-2: #2f0b15;
+  --color-line: #5c1a26;
+  --color-line-strong: #b04656;
+  --glow: rgb(255 26 46 / 0.22);
+  --reflection: rgb(11 95 255 / 0.07);
+  --console-grille: color-mix(in srgb, var(--color-red) 12%, transparent);
+  --console-grille-forte: color-mix(in srgb, var(--color-red) 20%, transparent);
+  /* Le vert d'un terminal : ce qui va bien (les « OK », le voyant de la session), les commandes et les chiffres, et la
+     chute du logo Matrix. */
+  --console-vert: #4ade80;
+}
+:root[data-ambiance="console"][data-console="terminal"] body::after {
+  background:
+    radial-gradient(ellipse 110% 85% at 50% 40%, transparent 50%, rgb(0 0 0 / 0.55)),
+    repeating-linear-gradient(rgb(0 0 0 / 0.4) 0 1px, transparent 1px 3px);
+}
+:root[data-ambiance="console"][data-console="terminal"] ::selection {
+  background: var(--color-blue);
+  color: #fff;
+}
+
+/* Toute la page en chasse fixe, sauf le grand titre, qui reste celui du site. */
+:root[data-ambiance="console"][data-console="terminal"] main {
+  font-family: var(--font-console);
+}
+:root[data-ambiance="console"][data-console="terminal"] main :is(h2, h3) {
+  font-family: var(--font-console);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+/* Les titres comme en Markdown : « ## » en rouge. */
+:root[data-ambiance="console"][data-console="terminal"] .espace h2::before {
+  content: "## " / "";
+  color: var(--color-red);
+}
+
+/* Des fenêtres aux coins nets, encadrées de traits doubles comme un terminal en mode texte. Les repères de viseur de la
+   console laissent la place au double trait. */
+:root[data-ambiance="console"][data-console="terminal"] main :is(.card, .btn, .field),
+:root[data-ambiance="console"][data-console="terminal"] :is(.onglets, .onglets-liste) {
+  border-radius: 0.375rem;
+}
+:root[data-ambiance="console"][data-console="terminal"] main .card,
+:root[data-ambiance="console"][data-console="terminal"] :is(.onglets, .onglets-liste) {
+  border: 3px double var(--color-line-strong);
+}
+:root[data-ambiance="console"][data-console="terminal"] main .card:hover {
+  border-color: var(--color-blue-text);
+}
+:root[data-ambiance="console"][data-console="terminal"] main .card:not([data-titre])::after {
+  display: none;
+}
+/* Une fenêtre qui a un nom (data-titre) : sa barre de titre. */
+:root[data-ambiance="console"][data-console="terminal"] main .card[data-titre] {
+  border-top: 1.875rem solid var(--color-surface-2);
+}
+:root[data-ambiance="console"][data-console="terminal"] main .card[data-titre]::after {
+  content: "■ " attr(data-titre) / "";
+  inset: -1.875rem 0 auto;
+  display: flex;
+  align-items: center;
+  height: 1.875rem;
+  padding-inline: 0.875rem;
+  background: none;
+  font-family: var(--font-console);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+/* Une ligne de commande au-dessus de chaque partie : « gal@direction:~$ ./annonces ». Elle s'écrit quand la partie
+   paraît, en même temps que son glissement ; avec le bouton pause ou « réduire les animations », elle est là d'emblée. */
+:root[data-ambiance="console"][data-console="terminal"] .espace .partie::before {
+  content: "gal@direction:~$ ./" attr(data-partie) / "";
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin-bottom: 0.875rem;
+  overflow: hidden;
+  font-family: var(--font-console);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--color-blue-text);
+}
+:root[data-ambiance="console"][data-console="terminal"] .espace :is(.partie-droite, .partie-gauche)::before {
+  animation: console-frappe 0.7s steps(28, end) 0.1s backwards;
+}
+
+/* Les boutons comme des commandes : « > » devant, vidéo inversée au survol. */
+:root[data-ambiance="console"][data-console="terminal"] main .btn-ghost::before {
+  content: ">" / "";
+  color: var(--color-blue-text);
+}
+:root[data-ambiance="console"][data-console="terminal"] main .btn-ghost:hover {
+  background: var(--color-blue);
+  border-color: var(--color-blue);
+}
+:root[data-ambiance="console"][data-console="terminal"] main .btn-ghost:hover::before {
+  color: #fff;
+}
+
+/* Le vert d'un terminal : les commandes (invites, « > » des boutons, chemins du menu) et les chiffres (tuiles, dates,
+   heures, nombres). Ce qui a déjà un sens garde sa couleur : le jaune de ce qui attend et des avertissements, le
+   chiffre en pastille. */
+:root[data-ambiance="console"][data-console="terminal"] .console-hote,
+:root[data-ambiance="console"][data-console="terminal"] .espace .partie::before,
+:root[data-ambiance="console"][data-console="terminal"] main .btn-ghost::before {
+  color: var(--console-vert);
+}
+:root[data-ambiance="console"][data-console="terminal"] .espace .tnum:not(.text-warn, .onglet-nombre, .field) {
+  color: var(--console-vert);
+}
+:root[data-ambiance="console"][data-console="terminal"] .console-valeur:not(.text-warn) {
+  color: var(--console-vert);
+  text-shadow: 0 0 1.25rem color-mix(in srgb, var(--console-vert) 45%, transparent);
+}
+
+/* Ce qui va bien, en vert de terminal : les « OK » de l'état du site, le voyant de la session. */
+:root[data-ambiance="console"][data-console="terminal"] .console-etat-ok {
+  color: var(--console-vert);
+  text-shadow: 0 0 0.625rem color-mix(in srgb, var(--console-vert) 55%, transparent);
+}
+:root[data-ambiance="console"][data-console="terminal"] .console-voyant {
+  background: var(--console-vert);
+  box-shadow: 0 0 0.625rem color-mix(in srgb, var(--console-vert) 70%, transparent);
+}
+/* « Lecture en cours » comme une ligne de journal. */
+:root[data-ambiance="console"] .espace [role="status"].text-muted::before {
+  content: "[ .. ] " / "";
+  font-family: var(--font-console);
+  font-weight: 800;
+}
+
+/* Le menu des parties : le petit logo Matrix en tête, le bouton écrit le chemin de la partie ouverte, en vert comme une
+   commande ; la liste en arborescence, « ~/direction » puis « ├── ». */
+:root[data-ambiance="console"][data-console="terminal"] :is(.onglets-menu-bouton, .onglets-choix) {
+  font-family: var(--font-console);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  border-radius: 0.25rem;
+}
+:root[data-ambiance="console"][data-console="terminal"] .onglets-menu-ouverte::before {
+  content: "~/direction/" / "";
+  flex: none;
+  margin-right: -0.5rem;
+  font-weight: 500;
+  color: var(--console-vert);
+}
+/* Sur téléphone, la place manque : le bouton garde le logo et le nom de la partie, sans le chemin. */
+@media (max-width: 47.999rem) {
+  :root[data-ambiance="console"][data-console="terminal"] .onglets-menu-ouverte::before {
+    display: none;
+  }
+}
+:root[data-ambiance="console"][data-console="terminal"] .onglets-liste::before {
+  content: "~/direction" / "";
+  padding: 0.375rem 1rem 0.25rem;
+  font-family: var(--font-console);
+  font-weight: 700;
+  color: var(--console-vert);
+}
+:root[data-ambiance="console"][data-console="terminal"] .onglets-choix::before {
+  content: "├──" / "";
+  flex: none;
+  white-space: nowrap;
+  color: var(--color-line-strong);
+}
+:root[data-ambiance="console"][data-console="terminal"] .onglets-liste > li:last-child .onglets-choix::before {
+  content: "└──" / "";
+}
+:root[data-ambiance="console"][data-console="terminal"] .onglets-choix[aria-current="true"] {
+  color: #fff;
+  background: var(--color-blue);
+  box-shadow: none;
+}
+:root[data-ambiance="console"][data-console="terminal"] .onglets-choix[aria-current="true"]::before {
+  color: #fff;
+}
+
+/* ---------- Le logo du guerrier en mode Matrix ---------- */
+/* LogoMatrice.tsx : le logo envoyé par le pilote, dessiné en 0, 1 et lettres du tag (src/lib/logo-matrice.ts). À son
+   apparition, chaque colonne tombe de haut en bas avec son propre retard, en vert, puis le logo prend son bleu, son blanc
+   et son rouge. Une seule fois, en moins de 3,5 s ; ensuite plus rien ne bouge. Avec le bouton pause ou « réduire les
+   animations », il est là d'emblée, dans ses couleurs. Décoratif. */
+@property --logo-blanc {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #ffffff;
+}
+@property --logo-bleu {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #4a86ff;
+}
+@property --logo-rouge {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #ff2a3d;
+}
+/* Les couleurs du logo viennent des jetons : le bleu du drapeau éclairci pour se lire sur le noir, le rouge du marqueur.
+   (Les valeurs de @property ci-dessus ne servent que si un navigateur ne connaît pas color-mix.) Ses caractères ne
+   se sélectionnent pas : un copier-coller de la page ne les emporte pas. */
+.console-logo {
+  --logo-blanc: #fff;
+  --logo-bleu: color-mix(in srgb, var(--color-flag-blue) 72%, #fff);
+  --logo-rouge: var(--color-red);
+  display: block;
+  pointer-events: none;
+  user-select: none;
+  animation: console-logo-couleurs 1.4s ease-in-out 1.7s backwards;
+}
+.console-logo text {
+  font-family: var(--font-console);
+  font-size: 13px;
+  font-weight: 800;
+}
+.console-logo-w {
+  fill: var(--logo-blanc);
+}
+.console-logo-b {
+  fill: var(--logo-bleu);
+}
+.console-logo-r {
+  fill: var(--logo-rouge);
+}
+/* Chaque colonne du masque se déroule de haut en bas : les caractères tombent. */
+.console-goutte {
+  transform-box: fill-box;
+  transform-origin: top;
+  animation: console-goutte 1s cubic-bezier(0.35, 0.7, 0.45, 1) var(--goutte, 0ms) backwards;
+}
+@keyframes console-goutte {
+  from {
+    transform: scaleY(0);
+  }
+}
+/* D'abord le vert de Matrix, le vert de terminal du style, plus clair là où le logo est blanc ; puis ses couleurs. */
+@keyframes console-logo-couleurs {
+  from {
+    --logo-blanc: color-mix(in srgb, var(--console-vert) 40%, #fff);
+    --logo-bleu: color-mix(in srgb, var(--console-vert) 80%, #000);
+    --logo-rouge: var(--console-vert);
+  }
+}
+/* En grand : sous le titre sur téléphone et tablette ; à sa droite sur grand écran, où l'en-tête grandit pour lui. */
+.console-tete {
+  position: relative;
+}
+/* Une lueur autour des caractères, comme sur un écran au phosphore. */
+.console-logo-tete,
+.console-logo-menu {
+  filter: drop-shadow(0 0 0.1875rem rgb(255 255 255 / 0.35)) drop-shadow(0 0 0.875rem rgb(255 255 255 / 0.12));
+}
+.console-logo-tete {
+  width: min(16rem, 70%);
+  margin: 0 0 1.5rem;
+}
+@media (min-width: 64rem) {
+  .console-logo-tete {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: 17rem;
+    margin: 0;
+  }
+  .console-tete > header {
+    min-height: 18.5rem;
+  }
+}
+/* En petit, en tête du menu des parties. */
+.console-logo-menu {
+  flex: none;
+  width: 3.5rem;
+  height: 3.5rem;
+  margin-left: 0.375rem;
+}
+@media (forced-colors: active) {
+  .console-logo {
+    display: none;
+  }
 }

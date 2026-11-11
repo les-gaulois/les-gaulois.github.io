@@ -84,6 +84,7 @@ test("seules les pages de l'encadrement passent au rouge", async ({ page }, test
     return page.evaluate(() => ({
       theme: document.documentElement.dataset.theme ?? null,
       ambiance: document.documentElement.dataset.ambiance ?? null,
+      style: document.documentElement.dataset.console ?? null,
       background: getComputedStyle(document.body).backgroundColor,
       bar: document.querySelector('meta[name="theme-color"]')?.getAttribute("content") ?? "",
     }));
@@ -93,12 +94,15 @@ test("seules les pages de l'encadrement passent au rouge", async ({ page }, test
   const blue = await look("/");
   expect(blue.theme).toBeNull();
   expect(blue.ambiance).toBeNull();
+  expect(blue.style).toBeNull();
   expect(blue.background).toBe(rgbOf(blue.bar));
   for (const path of ["/direction"]) {
     const red = await look(path);
     expect(red.theme, path).toBe("rouge");
-    // La Direction a en plus l'ambiance console (docs/DESIGN.md) : son fond reste le jeton navy du thème rouge.
+    // La Direction a en plus l'ambiance console (docs/DESIGN.md), dans son seul style, Terminal : son fond est le jeton
+    // navy de ce style, que la barre du navigateur reprend.
     expect(red.ambiance, path).toBe("console");
+    expect(red.style, path).toBe("terminal");
     expect(red.background, path).not.toBe(blue.background);
     expect(red.background, path).toBe(rgbOf(red.bar));
   }

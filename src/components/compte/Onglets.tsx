@@ -79,10 +79,51 @@ export function useTabs(ids: readonly string[]) {
  * La barre d'onglets : une seule ligne, qui défile de côté dans son cadre quand la place manque, sans élargir la page.
  * Au clavier : flèches, Début et Fin, comme dans tout groupe d'onglets. Un nombre dit ce qui attend derrière un onglet.
  * `call` : augmenté quand un lien a demandé un onglet, la barre revient alors à l'écran.
+ * `menu` : la barre est remplacée par un menu déroulant, sur toutes les largeurs. Son bouton dit la partie ouverte, et
+ * sa liste donne toutes les parties d'un coup (la Direction : le pilote ne voyait pas la fin de la barre). Les onglets
+ * restent dans la page, masqués : chaque partie garde le nom de son onglet.
  */
-export function Onglets({ label, prefix, tabs, active, onSelect, call = 0 }: { label: string; prefix: string; tabs: TabItem[]; active: string; onSelect: (id: string) => void; call?: number }) {
+export function Onglets({
+  label,
+  prefix,
+  tabs,
+  active,
+  onSelect,
+  call = 0,
+  menu = false,
+  debut,
+}: {
+  label: string;
+  prefix: string;
+  tabs: TabItem[];
+  active: string;
+  onSelect: (id: string) => void;
+  call?: number;
+  menu?: boolean;
+  /** Ce qui se place en tête de la barre, avant les onglets ou le menu : à la Direction, le petit logo. */
+  debut?: ComponentChildren;
+}) {
   const strip = useRef<HTMLDivElement>(null);
+  const bar = useRef<HTMLDivElement>(null);
+  const toggle = useRef<HTMLButtonElement>(null);
+  const list = useRef<HTMLUListElement>(null);
   const [edges, setEdges] = useState({ start: false, end: false });
+  const [open, setOpen] = useState(false);
+
+  // Le menu se ferme d'un clic ou d'un toucher ailleurs. À son ouverture, le focus va sur la partie ouverte, et si la liste
+  // sort de l'écran (sur téléphone, la barre est souvent en bas), la barre remonte sous l'en-tête pour la montrer entière.
+  useEffect(() => {
+    if (!open) return;
+    list.current?.querySelector<HTMLButtonElement>('[aria-current="true"]')?.focus({ preventScroll: true });
+    if ((list.current?.getBoundingClientRect().bottom ?? 0) > window.innerHeight) {
+      bar.current?.scrollIntoView({ block: "start", behavior: reducedMotion() ? "auto" : "smooth" });
+    }
+    const away = (e: PointerEvent) => {
+      if (!bar.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", away);
+    return () => document.removeEventListener("pointerdown", away);
+  }, [open]);
 
   // Les bords qui cachent encore des onglets s'estompent : on voit qu'il y en a d'autres à faire défiler.
   useEffect(() => {
@@ -137,8 +178,49 @@ export function Onglets({ label, prefix, tabs, active, onSelect, call = 0 }: { l
     document.getElementById(`${prefix}-onglet-${tab.id}`)?.focus();
   };
 
+  // Une partie choisie dans le menu : le focus va sur son onglet, ou revient au bouton du menu quand la barre est cachée.
+  const fromMenu = (id: string) => {
+    setOpen(false);
+    choose(id);
+    requestAnimationFrame(() => {
+      const tab = document.getElementById(`${prefix}-onglet-${id}`);
+      (tab && tab.offsetParent !== null ? tab : toggle.current)?.focus();
+    });
+  };
+
+  // Échap : le menu se ferme et le focus revient au bouton, une fois la liste masquée (elle a pu le prendre entre-temps).
+  const closeMenu = () => {
+    setOpen(false);
+    requestAnimationFrame(() => toggle.current?.focus());
+  };
+
+  // Dans le menu : flèches haut et bas, en boucle, Début et Fin ; Échap le ferme et rend le focus au bouton.
+  const onMenuKey = (e: KeyboardEvent, index: number) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      closeMenu();
+      return;
+    }
+    const next = tabKeyTarget(e.key === "ArrowDown" ? "ArrowRight" : e.key === "ArrowUp" ? "ArrowLeft" : e.key, index, tabs.length);
+    if (next === null) return;
+    e.preventDefault();
+    list.current?.querySelectorAll<HTMLButtonElement>("button")[next]?.focus();
+  };
+
+  const opened = tabs.find((tab) => tab.id === active);
+
   return (
-    <div class={`onglets ${edges.start ? "onglets-avant" : ""} ${edges.end ? "onglets-apres" : ""}`}>
+    <div
+      ref={bar}
+      class={`onglets ${edges.start ? "onglets-avant" : ""} ${edges.end ? "onglets-apres" : ""} ${menu ? "onglets-avec-menu" : ""}`}
+      onFocusOut={(e) => {
+        // Le focus part vers un élément hors de la barre (touche Tab) : le menu se ferme. Sans destination, rien : Safari
+        // et Firefox sur Mac ne donnent pas le focus au bouton cliqué, et fermer ici masquerait la liste avant le clic.
+        // Un clic hors de la barre ferme déjà le menu (pointerdown, plus haut).
+        if (open && e.relatedTarget && !bar.current?.contains(e.relatedTarget as Node)) setOpen(false);
+      }}
+    >
+      {debut}
       <div ref={strip} class="onglets-defile" role="tablist" aria-label={label} data-testid={`${prefix}-onglets`}>
         {tabs.map((tab, i) => {
           const selected = tab.id === active;
@@ -174,7 +256,61 @@ export function Onglets({ label, prefix, tabs, active, onSelect, call = 0 }: { l
           );
         })}
       </div>
+      {menu && (
+        <div class="onglets-menu">
+          <button
+            ref={toggle}
+            type="button"
+            class="onglets-menu-bouton"
+            aria-expanded={open}
+            aria-controls={`${prefix}-menu`}
+            data-testid={`${prefix}-menu-bouton`}
+            onClick={() => setOpen(!open)}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowDown" && !open) {
+                e.preventDefault();
+                setOpen(true);
+              } else if (e.key === "Escape" && open) {
+                e.preventDefault();
+                closeMenu();
+              }
+            }}
+          >
+            <span class="onglets-menu-ouverte">
+              <span class="sr-only">Partie ouverte : </span>
+              <span class="onglets-menu-nom">{opened?.label}</span>
+              <Nombre count={opened?.count} />
+            </span>
+            <svg class="onglets-menu-fleche" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+              <path d="M3.5 6 8 10.5 12.5 6" fill="none" stroke="currentColor" stroke-width="2" />
+            </svg>
+          </button>
+          <ul ref={list} id={`${prefix}-menu`} class="onglets-liste" hidden={!open} data-testid={`${prefix}-menu`}>
+            {tabs.map((tab, i) => (
+              <li key={tab.id}>
+                <button type="button" class="onglets-choix" aria-current={tab.id === active ? "true" : undefined} onClick={() => fromMenu(tab.id)} onKeyDown={(e) => onMenuKey(e, i)}>
+                  <span class="min-w-0">{tab.label}</span>
+                  <Nombre count={tab.count} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
+  );
+}
+
+/** Ce qui attend derrière une partie, dans le menu : le nombre, et ce qu'il compte pour les lecteurs d'écran. Rien à zéro. */
+function Nombre({ count }: { count: TabItem["count"] | undefined }) {
+  if (!count || count.value <= 0) return null;
+  return (
+    <>
+      <span class={`onglet-nombre tnum ${count.tone ? `onglet-nombre-${count.tone}` : ""}`} aria-hidden="true">
+        {fmtInt(count.value)}
+      </span>
+      <span class="sr-only">, {count.words}</span>
+    </>
   );
 }
 
@@ -194,6 +330,8 @@ export function Partie({ prefix, id, active, slide, staff = false, children }: {
       hidden={!shown}
       class={`partie ${shown && slide ? `partie-${slide}` : ""} ${staff ? "zone-encadrement" : ""}`}
       data-theme={staff ? "rouge" : undefined}
+      // Le nom court de la partie, que l'ambiance console de la Direction écrit en commande au-dessus d'elle.
+      data-partie={id}
       data-testid={`partie-${id}`}
     >
       {children}

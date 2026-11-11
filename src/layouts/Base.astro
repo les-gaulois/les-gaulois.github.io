@@ -46,13 +46,14 @@ const nouveautesMarker = newsMarker(loadNouveautes());
 ---
 
 <!doctype html>
-<html lang="fr" data-theme={theme} data-ambiance={ambiance}>
+{/* La console de la Direction est en style Terminal (data-console), voir « Ambiance console » dans docs/DESIGN.md. */}
+<html lang="fr" data-theme={theme} data-ambiance={ambiance} data-console={ambiance === "console" ? "terminal" : undefined}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark" />
-    {/* La barre du navigateur sur téléphone prend le fond de la page : le jeton navy de chaque thème. */}
-    <meta name="theme-color" content={theme === "rouge" ? "#300A10" : "#0A1230"} />
+    {/* La barre du navigateur sur téléphone prend le fond de la page : le jeton navy de chaque thème (Terminal pour la console). */}
+    <meta name="theme-color" content={theme === "rouge" ? (ambiance === "console" ? "#13040A" : "#300A10") : "#0A1230"} />
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
     {noindex && <meta name="robots" content="noindex" />}
