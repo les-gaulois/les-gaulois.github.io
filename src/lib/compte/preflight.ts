@@ -110,6 +110,12 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   if (isClosed(discordSaved.status) || (discordSaved.ok && discordSavedAnswer?.ok === false)) add("Un visiteur ne règle pas les appels sur Discord", "ok");
   else add("Un visiteur ne règle pas les appels sur Discord", "fail", `Réponse ${discordSaved.status}. Ne mettez pas en ligne : seuls les admins et le fondateur règlent l'envoi.`);
 
+  // Le bouton « Ping sur Discord » du QG : seul un membre validé, pour son propre appel.
+  const pinged = await rpc("ping_lobby_call");
+  const pingedAnswer = pinged.ok ? ((await pinged.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (isClosed(pinged.status) || (pinged.ok && pingedAnswer?.ok === false)) add("Un visiteur ne fait pas de ping sur Discord", "ok");
+  else add("Un visiteur ne fait pas de ping sur Discord", "fail", `Réponse ${pinged.status}. Ne mettez pas en ligne : seuls les membres validés font un ping.`);
+
   // « Refaire la demande » : seul un admin remet un compte en attente. Son installation se lit avec `supabase migration list`.
   const reset = await rpc("reset_member_link", { p_user: "00000000-0000-0000-0000-000000000000" });
   const resetAnswer = reset.ok ? ((await reset.json().catch(() => null)) as { ok?: boolean } | null) : null;

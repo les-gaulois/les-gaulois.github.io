@@ -1,7 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { call } from "../../lib/compte/api";
 import { errorMessage } from "../../lib/compte/errors";
-import { callKey, callSentence, lobbyIdOf, lobbyUrl, seatsNote, sinceLabel, type LobbyCall } from "../../lib/compte/salons";
+import { PING_RULE, callKey, callSentence, lobbyIdOf, lobbyUrl, pingRefusal, seatsNote, sinceLabel, type LobbyCall } from "../../lib/compte/salons";
 import { chime, refreshAfterWrite, setSound, start, subscribe, unlockAudio, type AppelsState } from "./appels";
 import { Avatar, Problem, messageOf } from "./common";
 import { PartieTete } from "./Onglets";
@@ -36,6 +36,10 @@ export default function QgSalons() {
   const [link, setLink] = useState("");
   const [formProblem, setFormProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Le ping est un choix de chaque appel, décoché au départ (migration 20261111000200_appels_discord_ping_au_choix.sql).
+  const [ping, setPing] = useState(false);
+  // Pourquoi le dernier ping demandé n'est pas parti : l'anti-spam du serveur, un rôle absent, une panne.
+  const [pingNote, setPingNote] = useState<string | null>(null);
   const [, setTick] = useState(0);
 
   useEffect(() => {
@@ -59,21 +63,53 @@ export default function QgSalons() {
     if (next) tryAudio();
   };
 
+  /**
+   * Lance l'appel. Le serveur décide de tout : il ne renvoie rien pour un même salon, sauf un ping demandé après coup, si
+   * l'anti-spam le permet. `discord` : le message est parti vers Discord, sans savoir encore ce que Discord en fait ;
+   * `ping` : 'sent', ou la raison d'un ping refusé. `p_ping` n'est envoyé que coché : la page marche aussi avec un serveur
+   * d'avant la migration 20261111000200_appels_discord_ping_au_choix.sql, qui ne connaît pas ce paramètre.
+   */
   const submit = async () => {
     const game = lobbyIdOf(link);
     if (game === null) return setFormProblem(errorMessage("invalid_game"));
+    const withPing = ping && data?.pingPossible === true;
     setBusy(true);
     setFormProblem(null);
+    setPingNote(null);
     setSaid("");
     try {
       // Plus de format à choisir (migration 20261110000100_appels_sans_format.sql) : le lien suffit.
-      const answer = await call<{ discord?: boolean }>("save_lobby_call", { p_game: game, p_format: null });
+      const answer = await call<{ discord?: boolean; ping?: unknown }>("save_lobby_call", { p_game: game, p_format: null, ...(withPing ? { p_ping: true } : {}) });
       setLink("");
+      setPing(false);
       await refreshAfterWrite();
-      // `discord` : le message est parti vers Discord, sans savoir encore ce que Discord en fait.
-      setSaid(answer?.discord === true ? "Les Gaulois sont prévenus. L'appel part aussi sur Discord." : "Les Gaulois sont prévenus.");
+      const refusal = pingRefusal(answer?.ping);
+      setPingNote(refusal);
+      const discord = answer?.ping === "sent" ? " L'appel part aussi sur Discord, avec un ping." : answer?.discord === true ? " L'appel part aussi sur Discord." : "";
+      setSaid(`Les Gaulois sont prévenus.${discord}${refusal ? ` ${refusal}` : ""}`);
     } catch (e) {
       setFormProblem(messageOf(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /** Le bouton « Ping sur Discord » : un ping pour l'appel en cours, et lui seul (`ping_lobby_call`). Un appel fini ne repart pas. */
+  const pingNow = async () => {
+    setBusy(true);
+    setFormProblem(null);
+    setPingNote(null);
+    setSaid("");
+    try {
+      const answer = await call<{ ping?: unknown }>("ping_lobby_call");
+      await refreshAfterWrite();
+      const refusal = pingRefusal(answer?.ping);
+      setPingNote(refusal);
+      setSaid(answer?.ping === "sent" ? "Ping parti sur Discord." : (refusal ?? ""));
+    } catch (e) {
+      const problem = messageOf(e);
+      setPingNote(problem);
+      setSaid(problem);
     } finally {
       setBusy(false);
     }
@@ -82,6 +118,7 @@ export default function QgSalons() {
   const withdraw = async () => {
     setBusy(true);
     setFormProblem(null);
+    setPingNote(null);
     setSaid("");
     try {
       await call("end_lobby_call");
@@ -146,10 +183,24 @@ export default function QgSalons() {
             <div class="card mt-3 p-5" data-testid="qg-salons-mine">
               <p>
                 <strong>Votre appel</strong>, lancé {sinceLabel(mine.createdAt, now)}, dure 15 minutes au plus.
+                {mine.ping && " Ping parti sur Discord."}
               </p>
-              <button type="button" class="chip mt-3" aria-disabled={busy || undefined} onClick={() => !busy && void withdraw()} data-testid="qg-salons-withdraw">
-                Retirer mon appel
-              </button>
+              <div class="mt-3 flex flex-wrap gap-3">
+                <button type="button" class="chip" aria-disabled={busy || undefined} onClick={() => !busy && void withdraw()} data-testid="qg-salons-withdraw">
+                  Retirer mon appel
+                </button>
+                {/* Le ping après coup, pour cet appel : le serveur refait son message Discord avec la mention, si l'anti-spam le permet. */}
+                {data?.pingPossible && !mine.ping && (
+                  <button type="button" class="chip" aria-disabled={busy || undefined} onClick={() => !busy && void pingNow()} data-testid="qg-salons-ping-now">
+                    Ping sur Discord
+                  </button>
+                )}
+              </div>
+              {pingNote && (
+                <p class="mt-3 text-sm text-muted" data-testid="qg-salons-ping-note">
+                  {pingNote}
+                </p>
+              )}
             </div>
           )}
           <form
@@ -173,6 +224,18 @@ export default function QgSalons() {
               Salons en équipes ou privés seulement : en chacun pour soi, OpenFront interdit de s'entendre hors de la partie. Les membres verront votre pseudo pendant l'appel.
               {data?.discord && " L'appel part aussi sur Discord, avec votre pseudo ; le message y reste, sauf si vous retirez l'appel."}
             </p>
+            {/* Le ping n'est proposé que si un rôle est réglé : sans lui, il ne pourrait pas partir. */}
+            {data?.pingPossible && (
+              <div>
+                <label class="flex min-h-11 items-center gap-3 font-semibold">
+                  <input type="checkbox" class="size-5" checked={ping} aria-describedby="salon-ping-regle" onChange={(e) => setPing(e.currentTarget.checked)} data-testid="qg-salons-ping" />
+                  Ping du rôle sur Discord
+                </label>
+                <p id="salon-ping-regle" class="text-sm text-muted">
+                  {PING_RULE}
+                </p>
+              </div>
+            )}
             <div>
               <button type="submit" class="btn btn-primary" disabled={busy || data === null}>
                 Prévenir les Gaulois

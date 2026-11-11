@@ -214,7 +214,7 @@ export default function AppelsGaulois() {
               {!ended && item.mine && (
                 <p class="mt-1 text-sm text-white/85">
                   {/* Le message est parti vers Discord : le serveur ne dit pas ici si Discord l'a accepté. */}
-                  Les membres connectés reçoivent la même alerte{item.discord ? " ; l'appel part aussi sur Discord" : ""}.
+                  Les membres connectés reçoivent la même alerte{item.discord ? ` ; l'appel part aussi sur Discord${item.ping ? ", avec un ping" : ""}` : ""}.
                 </p>
               )}
               {seats && <p class="mt-1 text-sm text-white/85">{seats}</p>}

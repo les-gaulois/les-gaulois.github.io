@@ -82,6 +82,8 @@ export interface LobbyCall {
   mine: boolean;
   /** Son message est parti vers le salon Discord des appels. Le serveur ne dit pas ici ce que Discord a répondu. */
   discord: boolean;
+  /** Son message Discord est parti avec la mention du rôle des appels : un ping (migration `20261111000200_appels_discord_ping_au_choix.sql`). Le serveur ne dit pas si Discord a notifié quelqu'un. */
+  ping: boolean;
   /** Le pseudo d'aujourd'hui de celui qui appelle, ou le nom de son compte. */
   name: string;
   /** Sa photo Discord, s'il a choisi de se montrer. `null` : la page montre son initiale. */
@@ -93,6 +95,8 @@ export interface LobbyCalls {
   now: number;
   /** Les appels partent aussi dans un salon Discord du clan, avec le pseudo de qui appelle (migration `20261111000100_appels_sur_discord.sql`). */
   discord: boolean;
+  /** Un rôle est réglé : un appel peut demander un ping. */
+  pingPossible: boolean;
   calls: LobbyCall[];
 }
 
@@ -107,7 +111,8 @@ function callOf(raw: unknown): LobbyCall | null {
   if (format !== null && format !== undefined && !isFormat(format)) return null;
   if (typeof createdAt !== "string" || timeOf(createdAt) === null || typeof expiresAt !== "string" || timeOf(expiresAt) === null) return null;
   if (typeof name !== "string" || name.trim() === "") return null;
-  return { id, game, format: isFormat(format) ? format : null, createdAt, expiresAt, mine: raw["mine"] === true, discord: raw["discord"] === true, name, avatar: safeAvatar(raw["avatar"]) };
+  const discord = raw["discord"] === true;
+  return { id, game, format: isFormat(format) ? format : null, createdAt, expiresAt, mine: raw["mine"] === true, discord, ping: discord && raw["ping"] === true, name, avatar: safeAvatar(raw["avatar"]) };
 }
 
 /** La réponse de `get_lobby_calls`, relue : un appel illisible n'est pas montré. `null` : la réponse n'a pas la forme attendue. */
@@ -115,8 +120,39 @@ export function parseLobbyCalls(raw: unknown): LobbyCalls | null {
   if (!isRecord(raw) || !Array.isArray(raw["calls"])) return null;
   const now = timeOf(raw["now"]);
   if (now === null) return null;
-  // Avant la migration des appels sur Discord, le serveur ne donne pas `discord` : rien ne part sur Discord.
-  return { now, discord: raw["discord"] === true, calls: raw["calls"].flatMap((call) => callOf(call) ?? []) };
+  // Avant la migration des appels sur Discord, le serveur ne donne pas `discord` : rien ne part sur Discord. Sans
+  // `ping_possible`, la page ne propose pas le ping.
+  const discord = raw["discord"] === true;
+  return { now, discord, pingPossible: discord && raw["ping_possible"] === true, calls: raw["calls"].flatMap((call) => callOf(call) ?? []) };
+}
+
+/**
+ * L'anti-spam du ping, tel que le serveur l'applique (`internal.discord_ping_state`, migration
+ * `20261111000200_appels_discord_ping_au_choix.sql`) : un test compare ces nombres aux siens.
+ */
+export const PING_WAIT_MEMBER_MINUTES = 10;
+export const PING_WAIT_CLAN_MINUTES = 2;
+
+/** La règle, en une phrase, sous la case du ping. */
+export const PING_RULE = `Mentionne le rôle sur Discord. Au plus un ping toutes les ${PING_WAIT_CLAN_MINUTES} minutes pour le clan, et toutes les ${PING_WAIT_MEMBER_MINUTES} minutes par membre.`;
+
+/**
+ * Ce que la page dit du ping après un appel, d'après la réponse de `save_lobby_call` (`ping`) : `null` s'il n'était pas
+ * demandé ou s'il est parti, sinon pourquoi il n'est pas parti. Un code inconnu ne dit rien plutôt que de deviner.
+ */
+export function pingRefusal(ping: unknown): string | null {
+  switch (ping) {
+    case "member":
+      return `Pas de ping : vous en avez déjà fait un il y a moins de ${PING_WAIT_MEMBER_MINUTES} minutes.`;
+    case "clan":
+      return `Pas de ping : un ping est déjà parti il y a moins de ${PING_WAIT_CLAN_MINUTES} minutes.`;
+    case "none":
+      return "Pas de ping : aucun rôle n'est réglé pour Discord.";
+    case "failed":
+      return "Pas de ping : l'envoi sur Discord a échoué.";
+    default:
+      return null;
+  }
 }
 
 /** Les refus du serveur qui ne passeront pas en réessayant : plus de session, compte pas encore validé, compte suspendu. La relecture s'arrête là. */

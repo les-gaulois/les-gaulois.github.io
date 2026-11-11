@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-11",
+    "kind": "ameliore",
+    "title": "Le ping des appels au choix",
+    "body": "Au QG, une case « Ping du rôle sur Discord » choisit si l'appel mentionne le rôle. Au plus un ping toutes les 2 minutes pour le clan, et 10 minutes par membre.",
+    "link": {
+      "href": "/qg#salons",
+      "label": "Voir les salons"
+    }
+  },
+  {
+    "date": "2026-11-11",
     "kind": "nouveau",
     "title": "Les appels partent sur Discord",
     "body": "Un appel lancé au QG peut aussi partir dans un salon Discord du clan, en mentionnant un rôle. Les admins branchent ce salon dans l'onglet Discord de la Direction.",

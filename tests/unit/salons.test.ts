@@ -1,14 +1,14 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { ERROR_MESSAGES } from "../../src/lib/compte/errors";
-import { FORMAT_ORDER, GAME_ID_PATTERN, LOBBY_FORMATS, TEAM_SIZE, callKey, isFinalRefusal, ownCallSentence, endedCallSentence, callSentence, freshCalls, waitingOthers, lobbyIdOf, lobbyUrl, parseLobbyCalls, salonOf, seatsNote, sinceLabel, type LobbyCall } from "../../src/lib/compte/salons";
+import { FORMAT_ORDER, GAME_ID_PATTERN, LOBBY_FORMATS, TEAM_SIZE, callKey, isFinalRefusal, ownCallSentence, endedCallSentence, callSentence, freshCalls, waitingOthers, lobbyIdOf, lobbyUrl, parseLobbyCalls, pingRefusal, salonOf, seatsNote, sinceLabel, PING_RULE, PING_WAIT_CLAN_MINUTES, PING_WAIT_MEMBER_MINUTES, type LobbyCall } from "../../src/lib/compte/salons";
 
 const SQL = readFileSync("supabase/migrations/20261109000300_appels_aux_salons.sql", "utf8");
 const SANS_FORMAT = readFileSync("supabase/migrations/20261110000100_appels_sans_format.sql", "utf8");
 
 const AVATAR = "https://cdn.discordapp.com/avatars/123456789012345678/a_0f1e2d3c4b5a69788796a5b4c3d2e1f0.png";
 const row = { id: 3, game: "cA4qqR72uf", format: "trios", created_at: "2026-11-09T20:00:00Z", expires_at: "2026-11-09T20:15:00Z", mine: false, name: "Recrue", avatar: AVATAR };
-const call = (over: Partial<LobbyCall> = {}): LobbyCall => ({ id: 3, game: "cA4qqR72uf", format: "trios", createdAt: "2026-11-09T20:00:00Z", expiresAt: "2026-11-09T20:15:00Z", mine: false, discord: false, name: "Recrue", avatar: null, ...over });
+const call = (over: Partial<LobbyCall> = {}): LobbyCall => ({ id: 3, game: "cA4qqR72uf", format: "trios", createdAt: "2026-11-09T20:00:00Z", expiresAt: "2026-11-09T20:15:00Z", mine: false, discord: false, ping: false, name: "Recrue", avatar: null, ...over });
 
 describe("le lien collé par un membre", () => {
   it("donne l'identifiant de la partie, quelle que soit la forme que le jeu a copiée", () => {
@@ -53,7 +53,8 @@ describe("la réponse des appels", () => {
     expect(parseLobbyCalls({ ok: true, now: "2026-11-09T20:03:00Z", calls: [row] })).toEqual({
       now: Date.parse("2026-11-09T20:03:00Z"),
       discord: false,
-      calls: [{ id: 3, game: "cA4qqR72uf", format: "trios", createdAt: "2026-11-09T20:00:00Z", expiresAt: "2026-11-09T20:15:00Z", mine: false, discord: false, name: "Recrue", avatar: AVATAR }],
+      pingPossible: false,
+      calls: [{ id: 3, game: "cA4qqR72uf", format: "trios", createdAt: "2026-11-09T20:00:00Z", expiresAt: "2026-11-09T20:15:00Z", mine: false, discord: false, ping: false, name: "Recrue", avatar: AVATAR }],
     });
   });
 
@@ -86,6 +87,32 @@ describe("la réponse des appels", () => {
   it("dit, appel par appel, si son message est parti vers Discord", () => {
     const answer = parseLobbyCalls({ ok: true, now: "2026-11-11T14:00:00Z", discord: true, calls: [{ ...row, mine: true, discord: true }, { ...row, id: 4, discord: "oui" }, { ...row, id: 5 }] });
     expect(answer?.calls.map((c) => c.discord)).toEqual([true, false, false]);
+  });
+
+  it("ne propose le ping que si un rôle est réglé, et ne le croit parti qu'avec le message", () => {
+    const answer = (raw: Record<string, unknown>) => parseLobbyCalls({ ok: true, now: "2026-11-11T15:00:00Z", calls: [], ...raw });
+    expect(answer({ discord: true, ping_possible: true })?.pingPossible).toBe(true);
+    expect(answer({ discord: true, ping_possible: false })?.pingPossible).toBe(false);
+    // Avant la migration 20261111000200_appels_discord_ping_au_choix.sql, le serveur ne donne pas ping_possible : pas de case.
+    expect(answer({ discord: true })?.pingPossible).toBe(false);
+    expect(answer({ discord: false, ping_possible: true })?.pingPossible).toBe(false);
+    const calls = parseLobbyCalls({ ok: true, now: "2026-11-11T15:00:00Z", discord: true, calls: [{ ...row, discord: true, ping: true }, { ...row, id: 4, discord: false, ping: true }, { ...row, id: 5, discord: true }] })?.calls;
+    expect(calls?.map((c) => c.ping)).toEqual([true, false, false]);
+  });
+
+  it("dit pourquoi un ping demandé n'est pas parti, et rien s'il est parti", () => {
+    expect(pingRefusal("member")).toBe("Pas de ping : vous en avez déjà fait un il y a moins de 10 minutes.");
+    expect(pingRefusal("clan")).toBe("Pas de ping : un ping est déjà parti il y a moins de 2 minutes.");
+    expect(pingRefusal("none")).toBe("Pas de ping : aucun rôle n'est réglé pour Discord.");
+    expect(pingRefusal("failed")).toBe("Pas de ping : l'envoi sur Discord a échoué.");
+    for (const quiet of ["sent", null, undefined, "inconnu", 3]) expect(pingRefusal(quiet), String(quiet)).toBeNull();
+    expect(PING_RULE).toBe("Mentionne le rôle sur Discord. Au plus un ping toutes les 2 minutes pour le clan, et toutes les 10 minutes par membre.");
+  });
+
+  it("suit l'anti-spam du serveur", () => {
+    const sql = readFileSync("supabase/migrations/20261111000200_appels_discord_ping_au_choix.sql", "utf8");
+    expect(sql).toContain(`if v_mine > now() - interval '${PING_WAIT_MEMBER_MINUTES} minutes' then return 'member'; end if;`);
+    expect(sql).toContain(`if v_hook.last_ping_at > now() - interval '${PING_WAIT_CLAN_MINUTES} minutes' then return 'clan'; end if;`);
   });
 
   it("dit qu'une réponse sans heure ni liste est illisible", () => {

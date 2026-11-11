@@ -1,8 +1,9 @@
 /**
  * Les appels aux salons sur Discord, réglés dans l'espace Direction par les admins et le fondateur. Le serveur poste
- * lui-même chaque nouvel appel par le webhook du salon choisi, en mentionnant le rôle réglé (migration
- * `20261111000100_appels_sur_discord.sql`) : la page ne voit jamais le lien, qui permet d'écrire dans le salon. Ici, de
- * quoi vérifier ce qu'on colle avant l'envoi et lire la réponse du serveur sans rien inventer.
+ * lui-même chaque nouvel appel par le webhook du salon choisi (migration `20261111000100_appels_sur_discord.sql`), avec la
+ * mention du rôle réglé quand l'appel demande un ping (`20261111000200_appels_discord_ping_au_choix.sql`) : la page ne
+ * voit jamais le lien, qui permet d'écrire dans le salon. Ici, de quoi vérifier ce qu'on colle avant l'envoi et lire la
+ * réponse du serveur sans rien inventer.
  */
 
 /** Un lien de webhook de Discord, tel que le serveur l'accepte (`internal.discord_webhook_of`) : un test compare les deux. */

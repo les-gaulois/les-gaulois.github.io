@@ -199,3 +199,86 @@ describe("les appels sur Discord, côté serveur", () => {
     for (const code of codes) expect(ERROR_MESSAGES[code], code).toBeTruthy();
   });
 });
+
+describe("le ping au choix et l'anti-spam, côté serveur", () => {
+  // Les fins de ligne de Windows, que Git peut remettre dans le dossier de travail, ne comptent pas.
+  const PING = readFileSync("supabase/migrations/20261111000200_appels_discord_ping_au_choix.sql", "utf8").replaceAll(String.fromCharCode(13), "");
+  const fn = (name: string) => {
+    const start = PING.indexOf(`create or replace function ${name}(`);
+    return PING.slice(start, PING.indexOf("$$;", PING.indexOf("$$", start) + 2));
+  };
+  const internals = ["internal.discord_ping_state", "internal.discord_post_call", "internal.lobby_call_ping", "internal.discord_post_test"];
+  const publics = ["public.save_lobby_call", "public.ping_lobby_call", "public.get_lobby_calls"];
+
+  it("ne retire que les anciennes signatures des deux fonctions remplacées, jamais une donnée", () => {
+    expect([...PING.matchAll(/\bdrop\s+\w+/gi)].map((m) => m[0].toLowerCase())).toEqual(["drop function", "drop function"]);
+    expect(PING).toContain("drop function if exists internal.discord_post_call(uuid, text, timestamptz);");
+    expect(PING).toContain("drop function if exists public.save_lobby_call(text, text);");
+    expect(PING).not.toMatch(/\btruncate\b/i);
+    expect(PING).not.toMatch(/create function /);
+    expect([...PING.matchAll(/create or replace function ([a-z_.]+)\(/g)].map((m) => m[1]).sort()).toEqual([...internals, ...publics].sort());
+  });
+
+  it("garde l'heure des pings à part, et ne rattrape les appels en cours qu'une fois", () => {
+    expect(PING).toContain("create table if not exists internal.discord_member_pings (");
+    expect(PING).toContain("alter table internal.discord_member_pings enable row level security;");
+    expect(PING).toContain("revoke all on internal.discord_member_pings from public, anon, authenticated;");
+    // Les colonnes et le rattrapage, ensemble, seulement si la colonne n'existe pas encore : rejouée, la migration ne fait rien.
+    const block = PING.slice(PING.indexOf("do $$"), PING.indexOf("end $$;", PING.indexOf("do $$")));
+    expect(block).toContain("if not exists (select 1 from information_schema.columns where table_schema = 'internal' and table_name = 'lobby_calls' and column_name = 'discord_ping') then");
+    expect(block).toContain("alter table internal.lobby_calls add column discord_ping boolean not null default false;");
+    // Seuls les appels partis avec un rôle réglé avaient mentionné ce rôle.
+    expect(block).toContain("update internal.lobby_calls set discord_ping = true");
+    expect(block).toContain("where discord_request is not null and expires_at > now() and exists (select 1 from internal.discord_calls where role_id is not null);");
+    expect(PING).not.toContain("discord_pinged_at");
+  });
+
+  it("ferme chaque fonction à tout le monde, puis n'ouvre que celles du site aux comptes connectés", () => {
+    for (const signature of ["internal.discord_ping_state(uuid)", "internal.discord_post_call(uuid, text, timestamptz, boolean)", "internal.lobby_call_ping(internal.lobby_calls)", "internal.discord_post_test()", "public.save_lobby_call(text, text, boolean)", "public.ping_lobby_call()", "public.get_lobby_calls()"]) {
+      expect(PING, signature).toContain(`revoke all on function ${signature} from public, anon, authenticated;`);
+    }
+    for (const signature of ["public.save_lobby_call(text, text, boolean)", "public.ping_lobby_call()", "public.get_lobby_calls()"]) {
+      expect(PING, signature).toContain(`grant execute on function ${signature} to authenticated;`);
+    }
+    expect(PING).not.toMatch(/grant execute on function internal\./);
+    expect(PING).not.toMatch(/to [^;]*\banon\b[^;]*;/);
+    for (const name of internals) expect(fn(name), name).not.toContain("security definer");
+    for (const name of publics) {
+      expect(fn(name), name).toContain("security definer set search_path = public, pg_temp");
+      expect(fn(name), name).toContain("internal.require_rank(1)");
+    }
+  });
+
+  it("laisse le ping au choix de l'appel, faux pour les pages d'avant", () => {
+    expect(PING).toContain("create or replace function public.save_lobby_call(p_game text, p_format text, p_ping boolean default false) returns jsonb");
+    expect(fn("internal.discord_post_call")).toContain("v_ping := coalesce(p_ping, false) and v_role is not null;");
+    expect(fn("internal.discord_post_call")).toContain("case when v_ping then '<@&' || v_role || '> ' else '' end");
+    expect(fn("public.save_lobby_call")).toContain("if coalesce(p_ping, false) then v_ping := internal.discord_ping_state(v_actor); end if;");
+    // Deux pings simultanés passent l'un après l'autre, et l'heure du membre vient de sa table.
+    expect(fn("internal.discord_ping_state")).toContain("select * into v_hook from internal.discord_calls where id for update;");
+    expect(fn("internal.discord_ping_state")).toContain("from internal.discord_member_pings m where m.user_id = p_user;");
+    // L'essai ne promet plus la mention à chaque appel, et ne notifie personne.
+    expect(fn("internal.discord_post_test")).toContain("Ceux qui demandent un ping mentionneront <@&");
+    expect(fn("internal.discord_post_test")).toMatch(/false\s*\);\s*end/);
+  });
+
+  it("ne fait le ping du bouton que pour l'appel en cours", () => {
+    const ping = fn("public.ping_lobby_call");
+    expect(ping).toContain("select * into v_call from internal.lobby_calls where user_id = v_actor and ended_at is null and expires_at > now();");
+    expect(ping).toContain("if not found then perform internal.fail('no_live_call'); end if;");
+    expect(ping).not.toMatch(/insert into internal\.lobby_calls/);
+    expect(ERROR_MESSAGES["no_live_call"]).toBeTruthy();
+  });
+
+  it("garde les règles des appels et dit au QG ce qu'il peut proposer", () => {
+    const save = fn("public.save_lobby_call");
+    expect(save).toContain("v_game !~ '^[A-Za-z0-9]{8,10}$'");
+    expect(save).toContain("now() + interval '15 minutes'");
+    expect(save).toContain("interval '1 minute' then perform internal.fail('call_too_soon')");
+    const read = fn("public.get_lobby_calls");
+    expect(read).toContain("'ping_possible', exists (select 1 from internal.discord_calls where role_id is not null)");
+    expect(read).toContain("k.discord_request is not null and k.discord_ping as ping,");
+    expect(read).toContain("case when p.show_to_members then internal.discord_avatar(p.user_id) end as avatar");
+    expect(read).toContain("p.status = 'validated'");
+  });
+});

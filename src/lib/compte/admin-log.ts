@@ -160,10 +160,10 @@ export function describe(row: LogRow, when: (iso: string) => string): LogLine {
       const player = textOf(details, "player");
       return { who, what: player ? `a retiré ${player} du Gaulois de la semaine.` : "a retiré le Gaulois de la semaine." };
     }
-    // Le lien du webhook n'est jamais dans le journal : seulement s'il y a un rôle à mentionner.
+    // Le lien du webhook n'est jamais dans le journal : seulement s'il y a un rôle pour les pings.
     case "discord_calls_saved": {
       const mention = details["mention"];
-      return { who, what: `a branché le salon Discord des appels${mention === true ? ", avec la mention d'un rôle" : mention === false ? ", sans mention de rôle" : ""}.` };
+      return { who, what: `a branché le salon Discord des appels${mention === true ? ", avec un rôle pour les pings" : mention === false ? ", sans rôle pour les pings" : ""}.` };
     }
     case "discord_calls_cleared":
       return { who, what: "a débranché le salon Discord des appels." };

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { call } from "../../lib/compte/api";
 import { isWaiting, isWebhookLink, lastSendSentence, parseDiscordCalls, roleOf, type DiscordCalls } from "../../lib/compte/discord-appels";
 import { errorMessage } from "../../lib/compte/errors";
+import { PING_WAIT_CLAN_MINUTES, PING_WAIT_MEMBER_MINUTES } from "../../lib/compte/salons";
 import { fmtDateTime } from "../../lib/format";
 import { Loading, Problem, Success, messageOf } from "./common";
 import { PartieTete } from "./Onglets";
@@ -103,7 +104,7 @@ export default function DirectionDiscord() {
   return (
     <section aria-labelledby="discord-title" data-testid="direction-discord">
       <PartieTete id="discord-title" title="Les appels sur Discord">
-        <p>Un salon Discord du clan peut recevoir chaque appel lancé au QG, avec la mention d'un rôle.</p>
+        <p>Un salon Discord du clan peut recevoir chaque appel lancé au QG, avec un ping du rôle quand l'appel le demande.</p>
       </PartieTete>
       {loadError && (
         <div class="mt-6">
@@ -164,7 +165,7 @@ export default function DirectionDiscord() {
                 onInput={(e) => setRole(e.currentTarget.value)}
               />
               <p id="discord-role-note" class="mt-1 text-sm text-muted">
-                Vide : le message ne mentionne personne.
+                Vide : pas de ping possible.
               </p>
             </div>
             <div>
@@ -177,7 +178,7 @@ export default function DirectionDiscord() {
               <ol class="mt-2 grid list-decimal gap-2 pl-5 text-muted">
                 <li>Le lien : dans Discord, Modifier le salon → Intégrations → Webhooks → Nouveau webhook, puis Copier l'URL du webhook. Il permet d'écrire dans le salon : ne le montrez à personne.</li>
                 <li>Le rôle : Paramètres utilisateur → Avancés → Mode développeur. Puis Paramètres du serveur → Rôles, clic droit sur le rôle → Copier l'identifiant du rôle. Si l'essai n'affiche pas le nom du rôle, l'identifiant n'est pas le bon.</li>
-                <li>Si un appel ne notifie personne : dans les réglages du rôle, autorisez tout le monde à le mentionner.</li>
+                <li>Si un ping ne notifie personne : dans les réglages du rôle, autorisez tout le monde à le mentionner.</li>
               </ol>
             </details>
           </form>
@@ -188,12 +189,17 @@ export default function DirectionDiscord() {
               <p>
                 {state.role ? (
                   <>
-                    Rôle mentionné : <span class="tnum">{state.role}</span>
+                    Rôle des pings : <span class="tnum">{state.role}</span>
                   </>
                 ) : (
-                  "Aucun rôle mentionné."
+                  "Aucun rôle : pas de ping possible."
                 )}
               </p>
+              {state.role && (
+                <p class="text-sm text-muted" data-testid="direction-discord-ping-rule">
+                  Le ping est une case de chaque appel, au QG : au plus un toutes les {PING_WAIT_CLAN_MINUTES} minutes pour le clan, et toutes les {PING_WAIT_MEMBER_MINUTES} minutes par membre.
+                </p>
+              )}
               {state.updatedAt && (
                 <p class="tnum text-sm text-muted">
                   Réglé le {fmtDateTime(state.updatedAt)}
