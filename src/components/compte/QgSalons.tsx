@@ -28,9 +28,10 @@ function CallBody({ call: item, now }: { call: LobbyCall; now: number }) {
  * Rejoindre un Gaulois, au QG : la liste des appels en cours et le formulaire pour prévenir les autres. Le pop-up et le son
  * sont communs aux pages du site (`AppelsGaulois.tsx`), et le relevé des appels aussi (`appels.ts`). Le site ne lit
  * rien chez OpenFront. Le serveur revérifie chaque appel (`save_lobby_call`). C'est l'onglet « Salons » du QG : sans `id`,
- * l'adresse #salons ouvre l'onglet (`Onglets.tsx`) au lieu de faire défiler la page.
+ * l'adresse #salons ouvre l'onglet (`Onglets.tsx`) au lieu de faire défiler la page. `voice` : le salon vocal du clan,
+ * réglé dans la Direction (`get_qg_tools`), pour se retrouver avant de lancer la partie ; `null`, pas de bouton.
  */
-export default function QgSalons() {
+export default function QgSalons({ voice = null }: { voice?: string | null }) {
   const [appels, setAppels] = useState<AppelsState | null>(null);
   const [said, setSaid] = useState("");
   const [link, setLink] = useState("");
@@ -144,6 +145,12 @@ export default function QgSalons() {
         title="Rejoindre un Gaulois"
         aside={
           <div class="flex flex-wrap items-center gap-3">
+            {/* Texte seul, sans logo ni couleur de Discord (CLAUDE.md, Licences). */}
+            {voice && (
+              <a class="btn btn-ghost" href={voice} target="_blank" rel="noopener" data-testid="qg-salons-vocal">
+                Rejoindre le vocal<span class="sr-only"> (Discord, nouvel onglet)</span>
+              </a>
+            )}
             <button type="button" class="chip" aria-pressed={soundOn} onClick={toggleSound} data-testid="qg-salons-sound">
               Son des appels
             </button>

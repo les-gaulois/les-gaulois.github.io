@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-11",
+    "kind": "nouveau",
+    "title": "Sept outils de plus au QG",
+    "body": "Au QG : votre place sans taper votre pseudo, « Ce soir je joue », l'objectif et le pronostic de la semaine, les GG, les parrains, et un bouton vers le salon vocal quand l'encadrement le règle.",
+    "link": {
+      "href": "/qg",
+      "label": "Ouvrir le QG"
+    }
+  },
+  {
+    "date": "2026-11-11",
     "kind": "ameliore",
     "title": "Les salons Discord se règlent à la Direction",
     "body": "Les admins branchent maintenant le salon des nouvelles et celui de l'encadrement dans l'onglet Discord de la Direction. Le site y montre aussi si le lien d'un salon ne marche plus."

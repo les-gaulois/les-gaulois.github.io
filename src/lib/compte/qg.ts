@@ -91,7 +91,8 @@ export function safeAvatar(url: unknown): string | null {
   return typeof url === "string" && /^https:\/\/cdn\.discordapp\.com\/avatars\/[0-9]{5,25}\/[A-Za-z0-9_]{1,80}\.(?:png|gif|webp|jpg)$/.test(url) ? url : null;
 }
 
-function faceOf(raw: unknown): Face | null {
+/** Un visage lu dans une réponse du serveur : nom, rôle connu, photo revérifiée. `null` : illisible. */
+export function faceOf(raw: unknown): Face | null {
   if (!isRecord(raw)) return null;
   const { name, role } = raw;
   if (typeof name !== "string" || name === "" || typeof role !== "string" || !Object.hasOwn(ROLE_LABELS, role)) return null;

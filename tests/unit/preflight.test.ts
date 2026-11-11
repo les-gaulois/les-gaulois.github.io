@@ -72,6 +72,15 @@ describe("le contrôle de la mise en ligne", () => {
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/bootstrap_founder": { status: 200, body: { ok: false } } }, "fondateur")).toBe("fail");
   });
 
+  it("bloque si un visiteur peut lire ou régler les outils du QG", async () => {
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_qg_tools": { status: 200, body: { ok: true, wall: [] } } }, "outils du QG")).toBe("fail");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_qg_tools": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "outils du QG")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/save_weekly_goal": { status: 200, body: { ok: true } } }, "objectif")).toBe("fail");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/save_voice_channel": { status: 200, body: { ok: true } } }, "salon vocal")).toBe("fail");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/save_prediction": { status: 200, body: { ok: true } } }, "pronostic")).toBe("fail");
+    expect(await statusOf(HEALTHY, "pronostic")).toBe("ok");
+  });
+
   it("bloque si un visiteur peut exporter les données du site", async () => {
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/export_site": { status: 200, body: { ok: true, profiles: [] } } }, "exporter")).toBe("fail");
     expect(await statusOf(HEALTHY, "exporter")).toBe("ok");

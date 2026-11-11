@@ -144,6 +144,23 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   if (isClosed(reset.status) || (reset.ok && resetAnswer?.ok === false)) add("Un visiteur ne remet pas un compte en attente", "ok");
   else add("Un visiteur ne remet pas un compte en attente", "fail", `Réponse ${reset.status}. Ne mettez pas en ligne : seul un admin remet un compte en attente.`);
 
+  // Les outils du QG : lus par les seuls membres validés ; l'objectif de la semaine se fixe par l'encadrement, le salon vocal
+  // par les admins et le fondateur. Les valeurs envoyées sont refusées par la fonction elle-même : même si le droit d'appel
+  // était mal posé, rien ne serait écrit. Leur installation se lit avec `supabase migration list`.
+  const refused = async (res: Response) => isClosed(res.status) || (res.ok && ((await res.json().catch(() => null)) as { ok?: boolean } | null)?.ok === false);
+  const tools = await rpc("get_qg_tools");
+  if (await refused(tools)) add("Un visiteur ne lit pas les outils du QG", "ok");
+  else add("Un visiteur ne lit pas les outils du QG", "fail", `Réponse ${tools.status}. Ne mettez pas en ligne : les outils du QG ne vont qu'aux membres validés.`);
+  const goal = await rpc("save_weekly_goal", { p_kind: "verification", p_wins: null, p_clan: null });
+  if (await refused(goal)) add("Un visiteur ne fixe pas l'objectif de la semaine", "ok");
+  else add("Un visiteur ne fixe pas l'objectif de la semaine", "fail", `Réponse ${goal.status}. Ne mettez pas en ligne : seul l'encadrement fixe l'objectif.`);
+  const voice = await rpc("save_voice_channel", { p_url: "verification" });
+  if (await refused(voice)) add("Un visiteur ne règle pas le salon vocal", "ok");
+  else add("Un visiteur ne règle pas le salon vocal", "fail", `Réponse ${voice.status}. Ne mettez pas en ligne : seuls les admins et le fondateur règlent le salon vocal.`);
+  const guess = await rpc("save_prediction", { p_wins: -1 });
+  if (await refused(guess)) add("Un visiteur ne fait pas de pronostic", "ok");
+  else add("Un visiteur ne fait pas de pronostic", "fail", `Réponse ${guess.status}. Ne mettez pas en ligne : seuls les membres validés font un pronostic.`);
+
   // Les réponses « Je viens », les votes, les idées et leurs soutiens sont dans le schéma `internal`, que l'API ne montre pas : rien à lire ici.
   for (const table of ["profiles", "private_links", "admin_log", "clan_roster", "site_announcements", "polls"]) {
     const res = await fetcher(`${base}/rest/v1/${table}?select=*&limit=1`, { headers: anonHeaders });

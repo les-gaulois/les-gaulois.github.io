@@ -3,6 +3,7 @@
  * Le serveur garde les codes (`role_changed`…) et leurs détails. Rien n'est inventé ici :
  * un détail absent n'est pas écrit, et un code sans libellé reste affiché tel quel.
  */
+import { fmtCount } from "../format";
 import { ROLE_LABELS, type LogRow, type Role } from "./types";
 
 /** Le serveur ne lit pas plus de lignes que cela (`list_admin_log`). */
@@ -16,8 +17,8 @@ export const LOG_CATEGORIES: readonly { id: LogCategory; label: string }[] = [
   { id: "requests", label: "Demandes" },
   { id: "roles", label: "Rôles" },
   { id: "suspensions", label: "Suspensions" },
-  { id: "news", label: "Publications : annonces, événements, sondages, mot d'accueil, idées, Gaulois de la semaine" },
-  { id: "settings", label: "Réglages : les salons Discord" },
+  { id: "news", label: "Publications : annonces, événements, sondages, mot d'accueil, idées, Gaulois et objectif de la semaine" },
+  { id: "settings", label: "Réglages : les salons Discord et le salon vocal" },
   { id: "other", label: "Autres" },
 ];
 
@@ -44,10 +45,14 @@ const CATEGORIES: Record<string, LogCategory> = {
   idea_removed: "news",
   weekly_pick_saved: "news",
   weekly_pick_deleted: "news",
+  weekly_goal_saved: "news",
+  weekly_goal_deleted: "news",
   discord_calls_saved: "settings",
   discord_calls_cleared: "settings",
   discord_salon_saved: "settings",
   discord_salon_cleared: "settings",
+  voice_channel_saved: "settings",
+  voice_channel_cleared: "settings",
 };
 
 /** Les salons du robot, comme le journal les nomme. Un salon inconnu reste « un salon Discord du robot ». */
@@ -165,6 +170,21 @@ export function describe(row: LogRow, when: (iso: string) => string): LogLine {
       const player = textOf(details, "player");
       return { who, what: player ? `a retiré ${player} du Gaulois de la semaine.` : "a retiré le Gaulois de la semaine." };
     }
+    // L'objectif de la semaine : un nombre de victoires, ou le tag d'un clan du classement officiel.
+    case "weekly_goal_saved": {
+      const wins = details["wins"];
+      const clan = textOf(details, "clan");
+      if (details["kind"] === "wins" && typeof wins === "number") return { who, what: `a fixé l'objectif de la semaine : ${fmtCount(wins, "victoire")}.` };
+      if (details["kind"] === "clan" && clan) return { who, what: `a fixé l'objectif de la semaine : face au clan ${clan}.` };
+      return { who, what: "a fixé l'objectif de la semaine." };
+    }
+    case "weekly_goal_deleted":
+      return { who, what: "a retiré l'objectif de la semaine." };
+    // Le lien du salon vocal n'est pas dans le journal.
+    case "voice_channel_saved":
+      return { who, what: "a réglé le lien du salon vocal." };
+    case "voice_channel_cleared":
+      return { who, what: "a retiré le lien du salon vocal." };
     // Le lien du webhook n'est jamais dans le journal : seulement s'il y a un rôle pour les pings.
     case "discord_calls_saved": {
       const mention = details["mention"];

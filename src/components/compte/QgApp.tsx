@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { basePath, call } from "../../lib/compte/api";
+import { othersPlanned, parseQgTools, type QgTools } from "../../lib/compte/outils";
 import { seriesNote } from "../../lib/compte/news";
 import { pendingWords } from "../../lib/compte/pending";
 import {
@@ -15,7 +16,6 @@ import {
   parseQg,
   pollsAwaitingVote,
   supportLabel,
-  type Face,
   type IdeaStatus,
   type QgData,
   type QgEvent,
@@ -25,12 +25,18 @@ import { waitingOthers } from "../../lib/compte/salons";
 import { ROLE_LABELS, type Me } from "../../lib/compte/types";
 import { fmtDate, fmtDateTime, fmtInt } from "../../lib/format";
 import { tabsFor } from "../../lib/onglets";
+import type { StoredMembers } from "../../lib/schemas";
+import type { ClanWeekFile } from "../../lib/semaine-du-clan";
 import { Log, Members, Requests } from "./AdminPanels";
 import { subscribe } from "./appels";
-import { Avatar, DeleteButton, DiscordButton, Loading, Problem, messageOf, useMe, usePendingCount, type Loadable } from "./common";
+import { Avatar, DeleteButton, DiscordButton, Loading, Problem, messageOf, useMe, useNow, usePendingCount, type Loadable } from "./common";
 import { Onglets, Partie, PartieTete, useTabs, type TabItem } from "./Onglets";
+import QgCeSoir from "./QgCeSoir";
+import QgMoi from "./QgMoi";
+import QgMur from "./QgMur";
 import QgPolls from "./QgPolls";
 import QgSalons from "./QgSalons";
+import QgSemaine from "./QgSemaine";
 
 /** Les décisions passées montrées d'abord ; les suivantes restent repliées, à portée. */
 const PAST_SHOWN = 2;
@@ -38,9 +44,14 @@ const PAST_SHOWN = 2;
 /**
  * Les onglets du QG. Ceux de l'encadrement viennent après : l'administration (demandes, comptes, journal) a rejoint le QG
  * le 10 novembre 2026. L'affichage suit le rang, mais chaque fonction du serveur revérifie : masquer un onglet ne protège rien.
+ * « Moi », « Ce soir » et « La semaine » viennent des outils du QG (11 novembre 2026, `get_qg_tools`) : sans eux, le QG
+ * s'ouvre sur « Salons », comme avant.
  */
 const QG_TABS = [
+  { id: "moi", label: "Moi" },
   { id: "salons", label: "Salons" },
+  { id: "ce-soir", label: "Ce soir" },
+  { id: "semaine", label: "La semaine" },
   { id: "decisions", label: "Décisions" },
   { id: "evenements", label: "Événements" },
   { id: "idees", label: "Idées" },
@@ -50,8 +61,6 @@ const QG_TABS = [
   { id: "comptes", label: "Comptes", rank: 2, staff: true },
   { id: "journal", label: "Journal", rank: 3, staff: true },
 ] as const;
-
-const roleNote = (face: Face) => (face.role === "member" ? null : ROLE_LABELS[face.role]);
 
 /** La porte du QG, pour un visiteur ou un compte pas encore validé : ce qu'il y a derrière, et comment entrer. */
 function Door({ me }: { me: Me }) {
@@ -266,11 +275,20 @@ function IdeaForm({ openMine, busy, refusal, onSend }: { openMine: number; busy:
  * Le QG, pour un membre validé : une partie à la fois, sous ses onglets. `rank` : celui du compte affiché (en vue joueur,
  * l'encadrement s'y voit membre sans grade, sans ses onglets ni ses commandes de décision). Le serveur revérifie chaque action.
  * Les salons et les onglets de l'encadrement ne dépendent pas de la lecture du QG (`get_qg`) : si elle échoue, l'encadrement
- * garde ses demandes, ses comptes et son journal.
+ * garde ses demandes, ses comptes et son journal. Les onglets attendent la réponse des outils (`get_qg_tools`), six secondes
+ * au plus : au-delà, le QG s'ouvre sans eux, et ils paraissent à leur réponse.
  */
 function Inside({ me, rank }: { me: Me; rank: number }) {
   const staff = rank >= 2;
   const [state, setState] = useState<Loadable<QgData>>({ status: "loading" });
+  // Les outils du QG : un serveur d'avant leur migration répond par un refus, et leurs onglets ne paraissent pas.
+  const [tools, setTools] = useState<Loadable<QgTools>>({ status: "loading" });
+  // Les données publiques que lisent « Moi » et « La semaine » : `undefined` en lecture, `null` si illisibles.
+  const [members, setMembers] = useState<StoredMembers | null | undefined>(undefined);
+  const [weekFile, setWeekFile] = useState<ClanWeekFile | null | undefined>(undefined);
+  const [toolsLate, setToolsLate] = useState(false);
+  // Chaque minute : une heure de « Ce soir » qui finit quitte le nombre de son onglet.
+  const now = useNow(60_000);
   const [busy, setBusy] = useState(false);
   // Le refus du serveur s'affiche à l'endroit de l'action, dans sa partie : un message en haut de page ne se verrait pas.
   const [error, setError] = useState<{ at: string; message: string } | null>(null);
@@ -282,6 +300,7 @@ function Inside({ me, rank }: { me: Me; rank: number }) {
   const [waiting, setWaiting] = useState(0);
   const pending = usePendingCount(staff);
   const data = state.status === "ready" ? state.data : null;
+  const kit = tools.status === "ready" ? tools.data : null;
   // Une partie vide n'a pas d'onglet : décisions et événements n'en ont un qu'une fois lus, s'il y a quelque chose. Le mur garde
   // le sien, qui porte le choix de se montrer. Si le QG ne se lit pas, ses parties s'effacent ; les salons et l'encadrement restent.
   // Un lien vers un onglet absent au premier rendu l'ouvre dès qu'il paraît.
@@ -289,10 +308,11 @@ function Inside({ me, rank }: { me: Me; rank: number }) {
     if (id === "decisions") return (data?.polls.length ?? 0) > 0;
     if (id === "evenements") return (data?.events.length ?? 0) > 0;
     if (id === "idees" || id === "mur") return state.status !== "error";
+    if (id === "moi" || id === "ce-soir" || id === "semaine") return kit !== null;
     return true;
   };
   const tabs = tabsFor(QG_TABS, rank).filter((tab) => present(tab.id));
-  const { active, slide, shown: opened, select, call: called } = useTabs(tabs.map((tab) => tab.id));
+  const { active, slide, shown: opened, select, call: called, hold } = useTabs(tabs.map((tab) => tab.id));
   const base = basePath();
   const name = me.name ?? "Membre";
 
@@ -313,15 +333,57 @@ function Inside({ me, rank }: { me: Me; rank: number }) {
     return message;
   }, []);
 
+  /** Relit les outils du QG. Même règle que `load` : déjà lus, ils restent à l'écran si la relecture échoue. */
+  const loadTools = useCallback(async (): Promise<string | null> => {
+    let message: string;
+    try {
+      const read = parseQgTools(await call<unknown>("get_qg_tools"));
+      if (read) {
+        setTools({ status: "ready", data: read });
+        return null;
+      }
+      message = "La réponse du serveur est illisible. Rechargez la page.";
+    } catch (e) {
+      message = messageOf(e);
+    }
+    setTools((s) => (s.status === "ready" ? s : { status: "error", message }));
+    return message;
+  }, []);
+
   useEffect(() => {
     void load();
-  }, [load]);
+    void loadTools();
+    const late = window.setTimeout(() => setToolsLate(true), 6_000);
+    return () => window.clearTimeout(late);
+  }, [load, loadTools]);
+
+  // Le QG s'est ouvert sans les outils : l'onglet affiché reste, même quand « Moi » paraît en tête à leur réponse.
+  const toolsPending = tools.status === "loading";
+  useEffect(() => {
+    if (toolsLate && toolsPending) hold();
+  }, [toolsLate, toolsPending, hold]);
+
+  // Les chiffres publics du site, lus une fois que les outils répondent : sans eux, rien ne les affiche.
+  const toolsReady = kit !== null;
+  useEffect(() => {
+    if (!toolsReady) return;
+    const base = basePath();
+    const read = <T,>(path: string) =>
+      fetch(`${base}${path}`)
+        .then((res) => (res.ok ? (res.json() as Promise<T>) : null))
+        .catch(() => null);
+    void read<StoredMembers>("/data/members.json").then((list) => setMembers(list && Array.isArray(list.members) ? list : null));
+    void read<ClanWeekFile>("/semaine-du-clan.json").then((file) => setWeekFile(file && Array.isArray(file.weeks) ? file : null));
+  }, [toolsReady]);
 
   // Le relevé des appels est celui de tout le site (`appels.ts`) : l'onglet compte ceux des autres Gaulois.
   useEffect(() => subscribe((next) => setWaiting(waitingOthers(next.data?.calls ?? []))), []);
 
-  /** Une action, puis une relecture : ce qui s'affiche vient toujours du serveur, jamais d'un calcul fait ici. */
-  const act = async (at: string, action: () => Promise<unknown>, done: string): Promise<boolean> => {
+  /**
+   * Une action, puis une relecture : ce qui s'affiche vient toujours du serveur, jamais d'un calcul fait ici. `reread` :
+   * ce que l'action change, le QG (`get_qg`) ou ses outils (`get_qg_tools`) ; se montrer change les deux.
+   */
+  const act = async (at: string, action: () => Promise<unknown>, done: string, reread: "qg" | "outils" | "tout" = "qg"): Promise<boolean> => {
     if (busy) return false;
     setBusy(true);
     setError(null);
@@ -334,7 +396,8 @@ function Inside({ me, rank }: { me: Me; rank: number }) {
         return false;
       }
       // Le serveur a accepté. Si la relecture échoue, l'écran garde l'état d'avant : il le dit.
-      if ((await load()) !== null) setError({ at, message: "C'est enregistré, mais l'affichage n'a pas pu être relu. Rechargez la page." });
+      const [qgFailed, toolsFailed] = await Promise.all([reread === "outils" ? null : load(), reread === "qg" ? null : loadTools()]);
+      if (qgFailed !== null || toolsFailed !== null) setError({ at, message: "C'est enregistré, mais l'affichage n'a pas pu être relu. Rechargez la page." });
       setSaid(done);
       return true;
     } finally {
@@ -355,6 +418,8 @@ function Inside({ me, rank }: { me: Me; rank: number }) {
   // Le nombre d'un onglet dit ce qui attend le membre derrière lui, jamais un total à lire : il disparaît une fois l'affaire faite.
   const counts: Partial<Record<string, TabItem["count"]>> = {
     salons: { value: waiting, words: counted(waiting, "Gaulois attend dans un salon", "Gaulois attendent dans un salon"), tone: "vif" },
+    "ce-soir": kit ? { value: othersPlanned(kit.plans, now), words: counted(othersPlanned(kit.plans, now), "autre Gaulois a dit son heure", "autres Gaulois ont dit leur heure") } : null,
+    semaine: kit?.predictions && kit.predictions.mine === null ? { value: 1, words: "1 pronostic à faire" } : null,
     decisions: { value: notVoted, words: counted(notVoted, "sondage attend votre voix", "sondages attendent votre voix") },
     idees: staff ? { value: ideasOpen.length, words: counted(ideasOpen.length, "idée à trancher", "idées à trancher") } : null,
     demandes: pending !== null && pending > 0 ? { value: pending, words: `${fmtInt(pending)} ${pendingWords(pending) ?? ""}`, tone: "alerte" } : null,
@@ -423,165 +488,168 @@ function Inside({ me, rank }: { me: Me; rank: number }) {
         {said}
       </p>
 
-      <div class="grid grid-cols-1 gap-5">
-        <Onglets label="Les parties du QG" prefix="qg" tabs={items} active={active} onSelect={(id) => select(id)} call={called} />
+      {/* Les onglets attendent la réponse des outils, refus compris : sinon la page s'ouvrirait sur « Salons », puis sauterait sur « Moi ». */}
+      {tools.status === "loading" && !toolsLate ? (
+        opening
+      ) : (
+        <div class="grid grid-cols-1 gap-5">
+          <Onglets label="Les parties du QG" prefix="qg" tabs={items} active={active} onSelect={(id) => select(id)} call={called} />
 
-        <Partie {...part} id="salons">
-          <QgSalons />
-        </Partie>
+          {kit && (
+            <Partie {...part} id="moi">
+              <QgMoi me={kit.me} members={members} file={weekFile} />
+            </Partie>
+          )}
 
-        {data && data.polls.length > 0 && (
-          <Partie {...part} id="decisions">
-            <section aria-labelledby="decisions-titre" data-testid="qg-decisions">
-              <PartieTete id="decisions-titre" title="Décisions">
-                <p>Vote secret, modifiable tant que le sondage est ouvert.</p>
-              </PartieTete>
-              {openPolls.length > 0 && (
-                <>
-                  <h3 class="mt-6 text-lg">Sondages ouverts</h3>
-                  <QgPolls polls={openPolls} busy={busy} onVote={vote} testId="qg-polls-open" />
-                </>
-              )}
-              <Problem message={problemAt("polls")} />
-              {pastPolls.length > 0 && (
-                <>
-                  <h3 class="mt-8 text-lg">Décisions passées</h3>
-                  <QgPolls polls={pastPolls.slice(0, PAST_SHOWN)} busy={busy} onVote={vote} testId="qg-polls-past" />
-                  {pastPolls.length > PAST_SHOWN && (
-                    <details class="fold mt-4">
-                      <summary class="font-semibold">Voir les {fmtInt(pastPolls.length - PAST_SHOWN)} autres</summary>
-                      <QgPolls polls={pastPolls.slice(PAST_SHOWN)} busy={busy} onVote={vote} testId="qg-polls-older" />
-                    </details>
-                  )}
-                </>
-              )}
-            </section>
+          <Partie {...part} id="salons">
+            <QgSalons voice={kit?.voice ?? null} />
           </Partie>
-        )}
 
-        {data && data.events.length > 0 && (
-          <Partie {...part} id="evenements">
-            <section aria-labelledby="evenements-titre" data-testid="qg-events">
-              <PartieTete id="evenements-titre" title="Événements à venir" />
-              <Events
-                events={data.events}
+          {kit && (
+            <Partie {...part} id="ce-soir">
+              <QgCeSoir
+                plans={kit.plans}
                 busy={busy}
-                problemAt={problemAt}
-                onAnswer={(event, going) => void act(`event-${event}`, () => call("set_attendance", { p_event: event, p_going: going }), going ? "Votre présence est notée." : "Votre présence est retirée.")}
+                problem={problemAt("plan")}
+                onChoose={(at) => void act("plan", () => call("set_play_plan", { p_at: at }), at === null ? "Votre heure est retirée." : "Votre heure est notée.", "outils")}
               />
-            </section>
-          </Partie>
-        )}
+            </Partie>
+          )}
 
-        {present("idees") && (
-          <Partie {...part} id="idees">
-            {data ? (
-              <section aria-labelledby="idees-titre" data-testid="qg-ideas">
-                <PartieTete id="idees-titre" title="Boîte à idées">
-                  <p>L'encadrement tranche. Les soutiens restent anonymes.</p>
-                </PartieTete>
-                <div class="mt-6 grid items-start gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-                  <IdeaForm openMine={openMine} busy={busy} refusal={problemAt("idea-form")} onSend={(body) => act("idea-form", () => call("save_idea", { p_body: body }), "Idée proposée.")} />
-                  <div>
-                    {ideasOpen.length > 0 && (
-                      <>
-                        <h3 class="text-lg">À l'étude</h3>
-                        <ul class="mt-3 grid gap-4" data-testid="qg-ideas-open">
-                          {ideaList(ideasOpen)}
-                        </ul>
-                      </>
-                    )}
-                    {ideasDecided.length > 0 && (
-                      <>
-                        <h3 class={`${ideasOpen.length > 0 ? "mt-8 " : ""}text-lg`}>Idées tranchées</h3>
-                        <ul class="mt-3 grid gap-4" data-testid="qg-ideas-decided">
-                          {ideaList(ideasDecided.slice(0, PAST_SHOWN))}
-                        </ul>
-                        {ideasDecided.length > PAST_SHOWN && (
-                          <details class="fold mt-4">
-                            <summary class="font-semibold">Voir les {fmtInt(ideasDecided.length - PAST_SHOWN)} autres</summary>
-                            <ul class="mt-1 grid gap-4">{ideaList(ideasDecided.slice(PAST_SHOWN))}</ul>
-                          </details>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
-              </section>
-            ) : (
-              opening
-            )}
-          </Partie>
-        )}
+          {kit && (
+            <Partie {...part} id="semaine">
+              <QgSemaine
+                goal={kit.goal}
+                predictions={kit.predictions}
+                file={weekFile}
+                busy={busy}
+                problem={problemAt("pronostic")}
+                onPredict={(wins) => act("pronostic", () => call("save_prediction", { p_wins: wins }), "Pronostic enregistré.", "outils")}
+                onExpired={() => void loadTools()}
+              />
+            </Partie>
+          )}
 
-        {present("mur") && (
-          <Partie {...part} id="mur">
-            {data ? (
-              <section aria-labelledby="mur-titre" data-testid="qg-wall">
-                <PartieTete id="mur-titre" title="Le mur des membres">
-                  {data.wall.length > 0 && (
-                    <p class="tnum" data-testid="qg-wall-count">
-                      {fmtInt(data.wall.length)} sur {fmtInt(data.members)} membres reconnus {data.wall.length > 1 ? "se montrent" : "se montre"}.
-                    </p>
-                  )}
+          {data && data.polls.length > 0 && (
+            <Partie {...part} id="decisions">
+              <section aria-labelledby="decisions-titre" data-testid="qg-decisions">
+                <PartieTete id="decisions-titre" title="Décisions">
+                  <p>Vote secret, modifiable tant que le sondage est ouvert.</p>
                 </PartieTete>
-                <div class="card mt-6 max-w-4xl p-5" data-testid="qg-visibility">
-                  <button
-                    type="button"
-                    class="chip"
-                    aria-pressed={data.me.visible}
-                    aria-disabled={busy || undefined}
-                    data-testid="qg-visible"
-                    onClick={() => void act("me", () => call("set_member_visibility", { p_on: !data.me.visible }), data.me.visible ? "Vous n'êtes plus montré aux autres membres." : "Vous êtes montré aux autres membres.")}
-                  >
-                    Me montrer aux autres membres
-                  </button>
-                  {/* Le détail, dont l'identifiant Discord que contient l'adresse de la photo, est sur la page de confidentialité. */}
-                  <p class="mt-3 text-sm text-muted">
-                    {data.me.visible
-                      ? "Les membres validés voient votre nom, votre rôle et votre photo Discord."
-                      : "Si vous l'activez, les membres validés verront votre nom, votre rôle et votre photo Discord, dont l'adresse contient votre identifiant Discord."}{" "}
-                    <a href={`${base}/confidentialite#avec-un-compte`}>Détails</a>
-                  </p>
-                  <Problem message={problemAt("me")} />
-                </div>
-                {data.wall.length > 0 && (
-                  <ul class="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3" data-testid="qg-wall-list">
-                    {data.wall.map((face, i) => (
-                      <li key={i} class="card flex items-center gap-3 p-4">
-                        <Avatar name={face.name} avatar={face.avatar} large />
-                        <div class="min-w-0">
-                          <p class="font-semibold [overflow-wrap:anywhere]">{face.name}</p>
-                          {roleNote(face) && <p class="text-sm text-muted">{roleNote(face)}</p>}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
+                {openPolls.length > 0 && (
+                  <>
+                    <h3 class="mt-6 text-lg">Sondages ouverts</h3>
+                    <QgPolls polls={openPolls} busy={busy} onVote={vote} testId="qg-polls-open" />
+                  </>
+                )}
+                <Problem message={problemAt("polls")} />
+                {pastPolls.length > 0 && (
+                  <>
+                    <h3 class="mt-8 text-lg">Décisions passées</h3>
+                    <QgPolls polls={pastPolls.slice(0, PAST_SHOWN)} busy={busy} onVote={vote} testId="qg-polls-past" />
+                    {pastPolls.length > PAST_SHOWN && (
+                      <details class="fold mt-4">
+                        <summary class="font-semibold">Voir les {fmtInt(pastPolls.length - PAST_SHOWN)} autres</summary>
+                        <QgPolls polls={pastPolls.slice(PAST_SHOWN)} busy={busy} onVote={vote} testId="qg-polls-older" />
+                      </details>
+                    )}
+                  </>
                 )}
               </section>
-            ) : (
-              opening
-            )}
-          </Partie>
-        )}
+            </Partie>
+          )}
 
-        {/* L'administration : lue au premier passage sur son onglet, puis gardée, avec ses champs remplis. */}
-        {staff && (
-          <Partie {...part} id="demandes" staff>
-            {opened.has("demandes") && <Requests />}
-          </Partie>
-        )}
-        {staff && (
-          <Partie {...part} id="comptes" staff>
-            {opened.has("comptes") && <Members me={me} />}
-          </Partie>
-        )}
-        {rank >= 3 && (
-          <Partie {...part} id="journal" staff>
-            {opened.has("journal") && <Log />}
-          </Partie>
-        )}
-      </div>
+          {data && data.events.length > 0 && (
+            <Partie {...part} id="evenements">
+              <section aria-labelledby="evenements-titre" data-testid="qg-events">
+                <PartieTete id="evenements-titre" title="Événements à venir" />
+                <Events
+                  events={data.events}
+                  busy={busy}
+                  problemAt={problemAt}
+                  onAnswer={(event, going) => void act(`event-${event}`, () => call("set_attendance", { p_event: event, p_going: going }), going ? "Votre présence est notée." : "Votre présence est retirée.")}
+                />
+              </section>
+            </Partie>
+          )}
+
+          {present("idees") && (
+            <Partie {...part} id="idees">
+              {data ? (
+                <section aria-labelledby="idees-titre" data-testid="qg-ideas">
+                  <PartieTete id="idees-titre" title="Boîte à idées">
+                    <p>L'encadrement tranche. Les soutiens restent anonymes.</p>
+                  </PartieTete>
+                  <div class="mt-6 grid items-start gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+                    <IdeaForm openMine={openMine} busy={busy} refusal={problemAt("idea-form")} onSend={(body) => act("idea-form", () => call("save_idea", { p_body: body }), "Idée proposée.")} />
+                    <div>
+                      {ideasOpen.length > 0 && (
+                        <>
+                          <h3 class="text-lg">À l'étude</h3>
+                          <ul class="mt-3 grid gap-4" data-testid="qg-ideas-open">
+                            {ideaList(ideasOpen)}
+                          </ul>
+                        </>
+                      )}
+                      {ideasDecided.length > 0 && (
+                        <>
+                          <h3 class={`${ideasOpen.length > 0 ? "mt-8 " : ""}text-lg`}>Idées tranchées</h3>
+                          <ul class="mt-3 grid gap-4" data-testid="qg-ideas-decided">
+                            {ideaList(ideasDecided.slice(0, PAST_SHOWN))}
+                          </ul>
+                          {ideasDecided.length > PAST_SHOWN && (
+                            <details class="fold mt-4">
+                              <summary class="font-semibold">Voir les {fmtInt(ideasDecided.length - PAST_SHOWN)} autres</summary>
+                              <ul class="mt-1 grid gap-4">{ideaList(ideasDecided.slice(PAST_SHOWN))}</ul>
+                            </details>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </section>
+              ) : (
+                opening
+              )}
+            </Partie>
+          )}
+
+          {present("mur") && (
+            <Partie {...part} id="mur">
+              {data ? (
+                <QgMur
+                  data={data}
+                  tools={kit}
+                  busy={busy}
+                  problemAt={problemAt}
+                  onVisible={(on) => void act("me", () => call("set_member_visibility", { p_on: on }), on ? "Vous êtes montré aux autres membres." : "Vous n'êtes plus montré aux autres membres.", "tout")}
+                  onGg={(member) => void act("gg", () => call("give_gg", { p_member: member.number, p_on: !member.given }), member.given ? `GG retiré à ${member.name}.` : `GG envoyé à ${member.name}.`, "outils")}
+                  onMentor={(on) => void act("mentor", () => call("set_mentor", { p_on: on }), on ? "Vous êtes parrain." : "Vous n'êtes plus parrain.", "outils")}
+                />
+              ) : (
+                opening
+              )}
+            </Partie>
+          )}
+
+          {/* L'administration : lue au premier passage sur son onglet, puis gardée, avec ses champs remplis. */}
+          {staff && (
+            <Partie {...part} id="demandes" staff>
+              {opened.has("demandes") && <Requests />}
+            </Partie>
+          )}
+          {staff && (
+            <Partie {...part} id="comptes" staff>
+              {opened.has("comptes") && <Members me={me} />}
+            </Partie>
+          )}
+          {rank >= 3 && (
+            <Partie {...part} id="journal" staff>
+              {opened.has("journal") && <Log />}
+            </Partie>
+          )}
+        </div>
+      )}
     </div>
   );
 }

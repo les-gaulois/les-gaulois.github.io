@@ -65,6 +65,14 @@ export const ERROR_MESSAGES: Record<string, string> = {
   invalid_salon: "Ce salon n'existe pas sur le site.",
   test_too_soon: "Un essai vient de partir : attendez quelques secondes avant le suivant.",
   no_live_call: "Votre appel est terminé : lancez-en un nouveau pour faire un ping.",
+
+  invalid_plan: "Choisissez l'heure en cours ou l'une des onze suivantes. Rechargez la page si l'heure a changé.",
+  member_not_shown: "Ce membre ne se montre plus sur le mur : il ne reçoit pas de GG.",
+  own_gg: "On ne s'envoie pas de GG à soi-même.",
+  invalid_goal: "Indiquez de 1 à 10 000 victoires, ou un clan du classement, autre que GAL.",
+  goal_not_found: "Aucun objectif n'est fixé pour cette semaine.",
+  invalid_voice: "Collez le lien d'un salon du serveur Discord : une adresse https://discord.com/channels/…, copiée par un clic droit sur le salon.",
+  invalid_prediction: "Indiquez un nombre de victoires, de 0 à 10 000.",
 };
 
 export function errorMessage(code: string): string {

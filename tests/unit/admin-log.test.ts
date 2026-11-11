@@ -18,7 +18,7 @@ const sentence = (r: LogRow) => {
 };
 
 // Les migrations des fonctions que le site appelle encore. « Effacer mon compte » est dans celle des dons.
-const SITE_SQL = ["20261105000100_comptes_et_roles", "20261105000200_validation_des_membres", "20261105000900_direction", "20261106000100_roles_prevus", "20261108000200_vie_du_clan", "20261109000100_qg_des_membres", "20261109000200_gaulois_de_la_semaine", "20261109000400_refaire_la_demande", "20261111000100_appels_sur_discord", "20261111000200_appels_discord_ping_au_choix", "20261111000300_salons_discord"]
+const SITE_SQL = ["20261105000100_comptes_et_roles", "20261105000200_validation_des_membres", "20261105000900_direction", "20261106000100_roles_prevus", "20261108000200_vie_du_clan", "20261109000100_qg_des_membres", "20261109000200_gaulois_de_la_semaine", "20261109000400_refaire_la_demande", "20261111000100_appels_sur_discord", "20261111000200_appels_discord_ping_au_choix", "20261111000300_salons_discord", "20261111000400_outils_du_qg"]
   .map((name) => readFileSync(`supabase/migrations/${name}.sql`, "utf8"))
   .join("\n");
 const SITE_CODES = new Set([...[...SITE_SQL.matchAll(/log_admin\([^,]+,\s*'([a-z_]+)'/g)].map((m) => m[1]!), "account_deleted"]);
@@ -65,6 +65,12 @@ describe("le journal en clair", () => {
     expect(sentence(row("discord_salon_saved", { salon: "encadrement" }, "Chef", null))).toBe("Chef a branché le salon Discord de l'encadrement.");
     expect(sentence(row("discord_salon_cleared", { salon: "nouvelles" }, "Chef", null))).toBe("Chef a débranché le salon Discord des nouvelles.");
     expect(sentence(row("discord_salon_cleared", { salon: "autre" }, "Chef", null))).toBe("Chef a débranché un salon Discord du robot.");
+    expect(sentence(row("weekly_goal_saved", { week: "2026-11-09", kind: "wins", wins: 300 }, "Chef", null))).toBe("Chef a fixé l'objectif de la semaine : 300 victoires.");
+    expect(sentence(row("weekly_goal_saved", { week: "2026-11-09", kind: "clan", clan: "ITA" }, "Chef", null))).toBe("Chef a fixé l'objectif de la semaine : face au clan ITA.");
+    expect(sentence(row("weekly_goal_saved", {}, "Chef", null))).toBe("Chef a fixé l'objectif de la semaine.");
+    expect(sentence(row("weekly_goal_deleted", { week: "2026-11-09" }, "Chef", null))).toBe("Chef a retiré l'objectif de la semaine.");
+    expect(sentence(row("voice_channel_saved", {}, "Chef", null))).toBe("Chef a réglé le lien du salon vocal.");
+    expect(sentence(row("voice_channel_cleared", {}, "Chef", null))).toBe("Chef a retiré le lien du salon vocal.");
     expect(categoryOf("discord_salon_saved")).toBe("settings");
     expect(categoryOf("discord_calls_saved")).toBe("settings");
   });

@@ -9,6 +9,7 @@ import { fmtDate, fmtDateTime, fmtInt } from "../../lib/format";
 import { tabsFor } from "../../lib/onglets";
 import { DeleteButton, DiscordButton, Loading, Problem, Success, messageOf, useMe, useRun } from "./common";
 import DirectionDiscord from "./DirectionDiscord";
+import DirectionObjectif from "./DirectionObjectif";
 import DirectionPolls, { EMPTY_POLL, type PollDraft } from "./DirectionPolls";
 import DirectionWelcome from "./DirectionWelcome";
 import DirectionWeeklyPick, { EMPTY_WEEKLY_PICK, type WeeklyPickDraft } from "./DirectionWeeklyPick";
@@ -48,6 +49,7 @@ const DIRECTION_TABS = [
   { id: "sondages", label: "Sondages" },
   { id: "accueil", label: "Mot d'accueil" },
   { id: "semaine", label: "Gaulois de la semaine" },
+  { id: "objectif", label: "Objectif" },
   { id: "discord", label: "Discord", rank: 3 },
   { id: "fondateur", label: "Fondateur", rank: 4 },
 ] as const;
@@ -513,6 +515,11 @@ export default function DirectionApp({ health }: { health: Omit<SiteHealthInput,
 
           <Partie {...part} id="semaine">
             {shown.has("semaine") && <DirectionWeeklyPick draft={pickDraft} setDraft={setPickDraft} />}
+          </Partie>
+
+          {/* L'objectif de la semaine, que les membres voient au QG (outils du QG, 11 novembre 2026). */}
+          <Partie {...part} id="objectif">
+            {shown.has("objectif") && <DirectionObjectif />}
           </Partie>
 
           {/* Le serveur refuse le réglage sous le rang d'admin : l'onglet n'est qu'une commodité. */}

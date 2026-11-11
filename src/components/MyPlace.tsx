@@ -12,7 +12,8 @@ const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const ordinal = (n: number) => `${n}${n === 1 ? "er" : "e"}`;
 const nameOf = (m: StoredMember) => m.username ?? "un membre anonyme";
 
-function Result({ members, member }: { members: readonly StoredMember[]; member: StoredMember }) {
+/** La place d'un membre : aussi montrée au QG, dans l'onglet « Moi », où le site connaît déjà le membre. */
+export function Result({ members, member }: { members: readonly StoredMember[]; member: StoredMember }) {
   const place = placeOf(members, member);
   if (!place) {
     return (

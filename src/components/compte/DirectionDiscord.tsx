@@ -6,6 +6,7 @@ import { PING_WAIT_CLAN_MINUTES, PING_WAIT_MEMBER_MINUTES } from "../../lib/comp
 import { fmtDateTime } from "../../lib/format";
 import { Loading, Problem, Success, messageOf } from "./common";
 import DirectionSalons from "./DirectionSalons";
+import DirectionVocal from "./DirectionVocal";
 import { PartieTete } from "./Onglets";
 
 /** Les relectures qui suivent un essai, le temps que Discord réponde : pg_net envoie d'ordinaire en moins d'une seconde. */
@@ -251,6 +252,8 @@ export default function DirectionDiscord() {
           </div>
         )}
       </section>
+      {/* Le salon vocal : le bouton « Rejoindre le vocal » du QG. Rien n'y est posté. */}
+      <DirectionVocal />
     </div>
   );
 }

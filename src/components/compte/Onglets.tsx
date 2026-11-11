@@ -18,12 +18,15 @@ const reducedMotion = () => document.documentElement.classList.contains("fx-off"
  * L'onglet ouvert, tenu dans l'adresse (`#demandes`) sans ajouter de page à l'historique : un lien peut ouvrir un
  * onglet, et la page rechargée le garde. Une adresse qui ne nomme pas d'onglet (le lien « Aller au contenu ») ne change rien.
  * `shown` : les onglets déjà ouverts une fois, pour ne lire le serveur qu'au premier passage.
+ * Tant que personne n'a choisi d'onglet, ni par un clic ni par l'adresse, c'est le premier qui est ouvert, même s'il ne
+ * paraît qu'après une lecture du serveur (« Moi », au QG).
  */
 export function useTabs(ids: readonly string[]) {
   const key = ids.join(" ");
   const [state, setState] = useState(() => {
-    const first = tabOfHash(location.hash, ids) ?? ids[0] ?? "";
-    return { active: first, slide: null as Slide | null, shown: new Set([first]), call: 0 };
+    const named = tabOfHash(location.hash, ids);
+    const first = named ?? ids[0] ?? "";
+    return { active: first, slide: null as Slide | null, shown: new Set([first]), call: 0, chosen: named !== null };
   });
 
   const select = useCallback(
@@ -32,7 +35,9 @@ export function useTabs(ids: readonly string[]) {
         const list = key.split(" ");
         if (!list.includes(id)) return s;
         const shown = s.shown.has(id) ? s.shown : new Set([...s.shown, id]);
-        return { active: id, slide: slideFrom(list.indexOf(s.active), list.indexOf(id)), shown, call: bringIntoView ? s.call + 1 : s.call };
+        // Sans choix, l'onglet affiché est le premier : le glissement part de lui.
+        const previous = s.chosen && list.includes(s.active) ? s.active : (list[0] ?? s.active);
+        return { active: id, slide: slideFrom(list.indexOf(previous), list.indexOf(id)), shown, call: bringIntoView ? s.call + 1 : s.call, chosen: true };
       });
       if (location.hash !== `#${id}`) history.replaceState(history.state, "", `#${id}`);
     },
@@ -46,14 +51,28 @@ export function useTabs(ids: readonly string[]) {
     };
     // Un onglet nommé par l'adresse peut n'apparaître qu'une fois le compte lu (celui du fondateur, par exemple).
     const named = tabOfHash(location.hash, key.split(" "));
-    if (named) setState((s) => (s.active === named ? s : { ...s, active: named, shown: new Set([...s.shown, named]) }));
+    if (named) setState((s) => (s.active === named ? s : { ...s, active: named, shown: new Set([...s.shown, named]), chosen: true }));
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, [key, select]);
 
-  // Un onglet qui n'existe plus pour ce compte (vue joueur) : on revient au premier.
-  const active = ids.includes(state.active) ? state.active : (ids[0] ?? "");
-  return { active, slide: state.slide, shown: state.shown, select, call: state.call };
+  /**
+   * Garde l'onglet affiché, comme si on l'avait choisi : un onglet qui paraît ensuite en tête ne prend pas sa place sous les
+   * yeux du membre (au QG, quand les outils répondent après l'ouverture).
+   */
+  const hold = useCallback(() => {
+    setState((s) => {
+      if (s.chosen) return s;
+      const first = key.split(" ")[0] ?? "";
+      return { ...s, active: first, shown: new Set([...s.shown, first]), chosen: true };
+    });
+  }, [key]);
+
+  // Un onglet qui n'existe plus pour ce compte (vue joueur) : on revient au premier. Sans choix, le premier, toujours.
+  const first = ids[0] ?? "";
+  const active = state.chosen && ids.includes(state.active) ? state.active : first;
+  const shown = state.shown.has(active) ? state.shown : new Set([...state.shown, active]);
+  return { active, slide: state.chosen ? state.slide : null, shown, select, call: state.call, hold };
 }
 
 /**
