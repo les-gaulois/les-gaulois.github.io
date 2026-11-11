@@ -12,6 +12,8 @@ const hasLongWord = title.split(" ").some((word) => word.length >= 14);
 
 <header class:list={["reveal", compact ? "pb-5 pt-6 md:pb-6 md:pt-8" : "pb-8 pt-8 md:pb-10 md:pt-12"]}>
   <span class:list={["tribar", compact ? "mb-4" : "mb-6"]}></span>
+  {/* Ce qui précède le titre : l'invite de la Direction, par exemple. */}
+  <slot name="avant-titre" />
   <h1 class:list={["page-title", { "page-title-long": hasLongWord, "page-title-compact": compact }]}>{title}</h1>
   {intro && <p class="mt-5 max-w-3xl text-lg text-muted">{intro}</p>}
   <slot />

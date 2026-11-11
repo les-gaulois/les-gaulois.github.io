@@ -3,6 +3,8 @@ import "../styles/global.css";
 // Les deux polices du site, préchargées : le texte s'affiche presque toujours directement dans sa police.
 import interFont from "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url";
 import outfitFont from "@fontsource-variable/outfit/files/outfit-latin-wght-normal.woff2?url";
+// La chasse fixe de l'ambiance console, préchargée seulement sur la page qui s'en sert.
+import consoleFont from "@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2?url";
 import { clan, SITE_DISCLAIMER, SITE_LICENSE_NOTICE } from "../../config/clan";
 import { brandFile } from "../lib/brand";
 import { AUTH_ENABLED } from "../lib/compte/api";
@@ -23,11 +25,13 @@ interface Props {
   noindex?: boolean;
   /** Les pages de l'encadrement passent au rouge : voir « Thème rouge de l'encadrement » dans docs/DESIGN.md. */
   theme?: "rouge";
+  /** La Direction, en plus du rouge : l'ambiance d'un poste de commandement. Voir « Ambiance console » dans docs/DESIGN.md. */
+  ambiance?: "console";
   /** L'image d'aperçu du lien, à la place de celle du site : un chemin qui commence par la base, et ce qu'elle montre. */
   image?: string;
   imageAlt?: string;
 }
-const { title, description = `${clan.tagline} Classement, progression, membres et activité du clan.`, noindex = false, theme, image, imageAlt } = Astro.props;
+const { title, description = `${clan.tagline} Classement, progression, membres et activité du clan.`, noindex = false, theme, ambiance, image, imageAlt } = Astro.props;
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const fullTitle = title ? `${title} · [${clan.tag}] ${clan.name}` : `[${clan.tag}] ${clan.name} · Clan OpenFront`;
@@ -42,7 +46,7 @@ const nouveautesMarker = newsMarker(loadNouveautes());
 ---
 
 <!doctype html>
-<html lang="fr" data-theme={theme}>
+<html lang="fr" data-theme={theme} data-ambiance={ambiance}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -64,6 +68,7 @@ const nouveautesMarker = newsMarker(loadNouveautes());
     <link rel="manifest" href={`${base}/manifest.webmanifest`} />
     <link rel="preload" href={outfitFont} as="font" type="font/woff2" crossorigin />
     <link rel="preload" href={interFont} as="font" type="font/woff2" crossorigin />
+    {ambiance === "console" && <link rel="preload" href={consoleFont} as="font" type="font/woff2" crossorigin />}
     <script is:inline>
       // Avant le premier affichage : un visiteur ayant mis en pause ne voit aucune animation,
       // et les autres ne voient pas les blocs s'afficher puis disparaître avant leur apparition en fondu.

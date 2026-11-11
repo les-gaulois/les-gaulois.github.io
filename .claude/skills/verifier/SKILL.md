@@ -17,11 +17,11 @@ Tout doit passer avant qu'un changement parte. Si un contrôle échoue : corrige
 6. Coup d'œil visuel sur ce qui a changé : avec `dist/` servi sur <http://127.0.0.1:4321> (`npm run preview -- --host 127.0.0.1 --port 4321`, ou le serveur que Playwright a laissé), capturer la page en mobile et en desktop, puis regarder les images :
 
    ```bash
-   npx playwright screenshot --viewport-size=375,812 --full-page http://127.0.0.1:4321/la-page test-results/la-page-mobile.png
-   npx playwright screenshot --viewport-size=1280,800 --full-page http://127.0.0.1:4321/la-page test-results/la-page-desktop.png
+   npx playwright screenshot --wait-for-timeout=4000 --viewport-size=375,812 --full-page http://127.0.0.1:4321/la-page test-results/la-page-mobile.png
+   npx playwright screenshot --wait-for-timeout=4000 --viewport-size=1280,800 --full-page http://127.0.0.1:4321/la-page test-results/la-page-desktop.png
    ```
 
-   Chercher : texte coupé, bloc vide, contraste faible, chevauchement, valeur « 0 » là où il faudrait « Pas de données », mention de licence disparue. `test-results/` est ignoré par Git.
+   Sans `--wait-for-timeout`, la capture part avant la fin des fondus d'entrée : titres et blocs y paraissent pâles. Chercher : texte coupé, bloc vide, contraste faible, chevauchement, valeur « 0 » là où il faudrait « Pas de données », mention de licence disparue. `test-results/` est ignoré par Git.
 
 ## Ce que les tests ne voient pas
 

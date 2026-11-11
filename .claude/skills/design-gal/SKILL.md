@@ -29,10 +29,13 @@ Un univers de jeu sombre, pas une page de statistiques : grands titres en capita
 | `red` `#FF1A2E` | Filets, marqueur de page et de ligne active. Jamais de texte blanc dessus en petite taille |
 | `muted` `#C0C9E2` | Texte secondaire |
 | `warn` `#FFC857` | Données périmées et erreurs de collecte, et ce qui attend l'encadrement (demandes à traiter, pastille `.count-pill`, état du site) |
+| `ok` `#A6E3B4` | Une réussite : message après un envoi (`.form-success`), `[ OK ]` de l'état du site |
 
 Pas de couleur en dur dans un composant : un jeton, ou une classe de `global.css`. Les couleurs des territoires sur la carte sont celles des clans dans le jeu, pas des jetons.
 
 **Thème rouge de l'encadrement :** `/direction` passe `theme="rouge"` à `Base.astro`, qui pose `data-theme="rouge"` sur `<html>`, et `fx.ts` inverse ses couleurs : le rouge mène, le bleu répond. Au QG, seuls les onglets de l'encadrement (Demandes, Comptes, Journal) et leurs parties portent `data-theme="rouge"`, dans un cadre `.zone-encadrement`. `global.css` redonne alors à chaque jeton une teinte rouge, rôle pour rôle, pour la page ou pour l'élément (valeurs et contrastes dans `docs/DESIGN.md`). `/admin` ne fait plus que mener au QG. Une future page de l'encadrement passe la même option ; une page de membre, comme `/compte`, reste bleue. Le tricolore garde `flag-blue`, et `.form-problem` (refus du serveur, « Absent de la liste ») s'y écrit en jaune `warn`.
+
+**Ambiance console de la Direction (11 novembre 2026) :** `/direction` passe aussi `ambiance="console"` (`data-ambiance="console"` sur `<html>`) : grille des cases de conquête et lignes de balayage fixes derrière le contenu, invite `gal@direction:~$` décorative, chasse fixe JetBrains Mono (`--font-console`, jamais `--font-mono`) pour ce que dit la machine, « > » sur l'onglet ouvert, repères aux coins des cartes, `[ OK ]` dans l'état du site. Seuls mouvements : l'invite qui s'écrit et une bande de lumière, une fois à l'ouverture. Les classes `console-*` ne font rien sans l'ambiance. Pas de capitales sur un texte qu'il faut retaper. Détail dans `docs/DESIGN.md`.
 
 ## Scènes, cartes, boutons
 

@@ -52,6 +52,7 @@ Les jetons sont définis dans `src/styles/global.css`.
 | `red` | `#FF1A2E` | Filet, marqueur de page et de ligne active |
 | `muted` | `#C0C9E2` | Texte secondaire |
 | `warn` | `#FFC857` | Données périmées et erreurs de collecte, et ce qui attend l'encadrement : demandes à traiter, pastille, points de l'état du site |
+| `ok` | `#A6E3B4` | Une réussite : le message après un envoi (`.form-success`), et les `[ OK ]` de l'état du site à la Direction |
 
 **Règle du tricolore :** en accent dans l'interface (filets, soulignement de la page active, loader). Pas de texte blanc sur le rouge vif, trop peu contrasté à petite taille.
 
@@ -76,6 +77,27 @@ Les jetons sont définis dans `src/styles/global.css`.
 - `.form-problem`, un refus du serveur ou un avertissement comme « Absent de la liste », s'y écrit en jaune `warn`, la couleur de « Plus dans la liste » : en rose, il se perdrait dans le décor.
 - `/compte` reste bleu : c'est la page de chaque membre, pas un espace de l'encadrement.
 - Un test e2e vérifie que `/direction` est rouge et que toutes les autres pages restent bleues. Axe contrôle aussi ses contrastes, mais les tests construisent le site sans serveur de connexion : il n'y voit que la carte « connexion pas ouverte ». Les vrais écrans (tuiles, formulaires, tableau, onglets, refus en jaune) ont été contrôlés par axe avec un faux serveur, sur bureau et téléphone : le 8 novembre 2026, puis le 10 novembre pour chaque onglet du QG et de la Direction.
+
+### Ambiance console de la Direction
+
+Depuis le 11 novembre 2026, à la demande du pilote (« un thème un peu hacker, admin, trop cool », « il faut que ça fonde avec le reste »), `/direction` ajoute au rouge l'ambiance d'un poste de commandement. La page passe `ambiance="console"` à `Base.astro`, qui pose `data-ambiance="console"` sur `<html>`. Tout est dans `global.css`, section « Ambiance console », sous ce sélecteur : sans lui, les classes `console-*` ne font rien. Les couleurs, les titres en Outfit, le tricolore, les boutons, l'en-tête, le pied de page et le fond animé restent ceux du site. Les onglets de l'encadrement au QG restent rouges, sans cette ambiance.
+
+| Élément | Rendu |
+|---|---|
+| Grille | Le pas des cases de conquête (28 px), un trait plus marqué toutes les 4 cases, le rouge du marqueur à 9 et 16 %, qui s'efface vers les bords : les cases qui s'allument au passage du curseur tombent dedans |
+| Écran | Lignes de balayage fixes (noir à 15 %, une tous les 4 px) et coins assombris, derrière le contenu |
+| Invite | `gal@direction:~$` en chasse fixe au-dessus du titre, et un curseur en pavé fixe. Décorative : masquée aux lecteurs d'écran |
+| Titre | Un léger décalage bleu et rouge, le tricolore vu à travers un écran, fixe, et une lueur rouge |
+| Chasse fixe | JetBrains Mono (OFL-1.1), jeton `--font-console` : onglets, libellés et chiffres des tuiles, rôle, état du site, dates et nombres (`.tnum`), noms des champs. Pas `--font-mono`, dont se sert le calculateur des guides : la police (40 Ko) n'est téléchargée et préchargée que sur la Direction |
+| Onglet ouvert | Un « > » devant son nom (`content: ">" / ""`, que les lecteurs d'écran n'entendent pas) et une lueur rouge. Chaque onglet garde la place du « > » : la barre ne bouge pas d'un onglet à l'autre |
+| Cartes | Des repères aux quatre coins, comme un viseur (`--console-repere`), décoratifs |
+| Tuiles | Libellé en capitales espacées, chiffre en chasse fixe avec une lueur, jaune quand des demandes attendent |
+| Compte | Un voyant vert allumé devant le rôle |
+| État du site | `[ OK ]` en vert (jeton `ok`, le vert des réussites : 10,9:1 sur une carte), `[ À VOIR ]` en jaune `warn`, `[ INFO ]` en `muted`, devant chaque ligne et chaque source. Masqués aux lecteurs d'écran, qui lisent l'état dans le texte |
+| Champs | Curseur de saisie rouge, lueur autour du champ où l'on écrit. Pas de capitales sur le nom d'un champ : « Retapez « Nom » pour confirmer » doit montrer le nom tel qu'il faut le taper |
+
+- **Mouvement :** à l'ouverture, l'invite s'écrit lettre à lettre en 0,9 s, et une bande de lumière descend une fois l'écran en 2,8 s, derrière le contenu, puis s'éteint. Rien d'autre ne bouge, et le curseur ne clignote pas. Avec le bouton pause ou « réduire les animations », l'invite est entière d'emblée et la bande n'apparaît jamais : au repos, elle est invisible. Elle est portée par `<html>` lui-même, que `.fx-off *` ne vise pas : une règle à part l'arrête.
+- **Contrastes :** la grille, l'écran et la bande sont des calques fixes sous `main` et le pied de page (z-index 1) : aucun texte n'y perd. Ils disparaissent à l'impression et en contraste élevé. Le 11 novembre 2026, avec un faux serveur, axe n'a trouvé aucun défaut sur les onglets Vue d'ensemble, Annonces et Événements, sur bureau et téléphone, et aucune largeur de 360 à 1 920 px ne déborde.
 
 ## Scènes
 

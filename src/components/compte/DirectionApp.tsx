@@ -57,8 +57,9 @@ const DIRECTION_TABS = [
 function Tile({ label, value, href, alert = false }: { label: string; value: number; href: string; alert?: boolean }) {
   return (
     <a href={href} class="card block p-5 hover:border-white" data-testid="direction-tile">
-      <span class="font-semibold text-muted">{label}</span>
-      <span class={`tnum mt-1 block font-display text-4xl font-extrabold ${alert ? "text-warn" : ""}`}>{fmtInt(value)}</span>
+      {/* `console-*` : l'ambiance console de la page, voir global.css. */}
+      <span class="console-libelle font-semibold text-muted">{label}</span>
+      <span class={`console-valeur tnum mt-1 block font-display text-4xl font-extrabold ${alert ? "text-warn" : ""}`}>{fmtInt(value)}</span>
     </a>
   );
 }
@@ -456,7 +457,11 @@ export default function DirectionApp({ health }: { health: Omit<SiteHealthInput,
       <section class="card flex flex-wrap items-center justify-between gap-4 p-5" aria-label="Vous, à la Direction" data-testid="direction-me">
         <div class="min-w-0 flex-[1_1_11rem]">
           <p class="font-display text-2xl font-extrabold [overflow-wrap:anywhere]">{me.name}</p>
-          <p class="text-muted">{ROLE_LABELS[me.role as Role]}</p>
+          {/* Le voyant vert : la session est ouverte. Décoratif, comme dans tout poste de commandement. */}
+          <p class="console-acces text-muted">
+            <span class="console-voyant" aria-hidden="true" />
+            {ROLE_LABELS[me.role as Role]}
+          </p>
         </div>
         <div class="flex flex-wrap gap-2">
           {/* Les demandes, les comptes, le journal et les idées des membres se traitent au QG, là où les membres les lisent. */}

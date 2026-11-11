@@ -83,6 +83,7 @@ test("seules les pages de l'encadrement passent au rouge", async ({ page }, test
     await page.goto(path);
     return page.evaluate(() => ({
       theme: document.documentElement.dataset.theme ?? null,
+      ambiance: document.documentElement.dataset.ambiance ?? null,
       background: getComputedStyle(document.body).backgroundColor,
       bar: document.querySelector('meta[name="theme-color"]')?.getAttribute("content") ?? "",
     }));
@@ -91,16 +92,52 @@ test("seules les pages de l'encadrement passent au rouge", async ({ page }, test
   const rgbOf = (hex: string) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(", ")})`;
   const blue = await look("/");
   expect(blue.theme).toBeNull();
+  expect(blue.ambiance).toBeNull();
   expect(blue.background).toBe(rgbOf(blue.bar));
   for (const path of ["/direction"]) {
     const red = await look(path);
     expect(red.theme, path).toBe("rouge");
+    // La Direction a en plus l'ambiance console (docs/DESIGN.md) : son fond reste le jeton navy du thème rouge.
+    expect(red.ambiance, path).toBe("console");
     expect(red.background, path).not.toBe(blue.background);
     expect(red.background, path).toBe(rgbOf(red.bar));
   }
   for (const path of [...PAGES, "/compte", "/confidentialite"]) {
     expect(await look(path), path).toEqual(blue);
   }
+});
+
+// L'ambiance console de la Direction (docs/DESIGN.md) : sa police ne pèse que sur cette page, son invite est décorative,
+// et la pause comme « réduire les animations » arrêtent aussi la bande de lumière, portée par <html> lui-même, que
+// `.fx-off *` ne vise pas.
+test("l'ambiance console ne pèse que sur la Direction, et la pause l'arrête", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "Même rendu sur mobile.");
+  const fonts: string[] = [];
+  page.on("request", (r) => {
+    if (r.url().includes("jetbrains-mono")) fonts.push(new URL(r.url()).pathname);
+  });
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+  expect(fonts).toEqual([]);
+  await page.goto("/direction");
+  await page.waitForLoadState("networkidle");
+  expect(fonts.length).toBeGreaterThan(0);
+  await expect(page.locator(".console-invite")).toHaveAttribute("aria-hidden", "true");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Direction");
+  const moving = () =>
+    page.evaluate(() => ({
+      band: getComputedStyle(document.documentElement, "::after").animationName,
+      prompt: getComputedStyle(document.querySelector(".console-invite")!).animationName,
+    }));
+  expect(await moving()).toEqual({ band: "console-balayage", prompt: "console-frappe" });
+  // « Réduire les animations » du système : la règle globale vise aussi <html>.
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.reload();
+  expect(await moving()).toEqual({ band: "none", prompt: "none" });
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.evaluate(() => localStorage.setItem("gal-fx", "off"));
+  await page.reload();
+  expect(await moving()).toEqual({ band: "none", prompt: "none" });
 });
 
 test("parcours principal", async ({ page }, testInfo) => {

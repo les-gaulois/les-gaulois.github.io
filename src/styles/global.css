@@ -1,5 +1,7 @@
 @import "@fontsource-variable/outfit";
 @import "@fontsource-variable/inter";
+/* La chasse fixe de l'ambiance console (Direction seulement) : déclarée ici, elle n'est téléchargée que là où elle sert. */
+@import "@fontsource-variable/jetbrains-mono";
 @import "tailwindcss";
 
 @theme {
@@ -20,8 +22,12 @@
   --color-win: #4c86f5;
   --color-loss: #d9742e;
   --color-warn: #ffc857;
+  /* Une réussite : le message après un envoi, et les « OK » de l'état du site à la Direction. */
+  --color-ok: #a6e3b4;
   --font-display: "Outfit Variable", system-ui, sans-serif;
   --font-sans: "Inter Variable", system-ui, sans-serif;
+  /* Pas --font-mono : le calculateur des guides s'en sert, il ne doit pas télécharger cette police. */
+  --font-console: "JetBrains Mono Variable", ui-monospace, "Cascadia Mono", Consolas, monospace;
 }
 
 /* Le décor de la page : une lueur bleue, un reflet rouge et le halo qui suit le curseur. */
@@ -1644,7 +1650,7 @@ main .fx-in,
 }
 .form-success {
   margin-top: 0.5rem;
-  color: #a6e3b4;
+  color: var(--color-ok);
   font-weight: 600;
 }
 .form-success:empty {
@@ -1885,4 +1891,278 @@ main .fx-in,
 .text-page a {
   color: var(--color-blue-text);
   text-decoration: underline;
+}
+
+/* ---------- Ambiance console : la Direction ---------- */
+/* /direction passe ambiance="console" à Base.astro, en plus du thème rouge : data-ambiance="console" sur <html>.
+   Un poste de commandement posé sur le décor du site, qui garde ses couleurs, ses titres et son tricolore : la grille des
+   cases de conquête se dessine, l'écran a ses lignes de balayage, et ce que dit la machine (invite, onglets, libellés,
+   chiffres, états) s'écrit en chasse fixe. Rien ne bouge seul, sauf à l'ouverture : l'invite s'écrit et une bande de
+   lumière descend, une fois. Le bouton pause et « réduire les animations » coupent les deux. Rien ne clignote.
+   Voir docs/DESIGN.md, « Ambiance console ». */
+:root[data-ambiance="console"] {
+  --console-grille: color-mix(in srgb, var(--color-red) 9%, transparent);
+  --console-grille-forte: color-mix(in srgb, var(--color-red) 16%, transparent);
+  /* La lueur des chiffres et de l'onglet ouvert : le rouge du marqueur, adouci. */
+  --console-lueur: color-mix(in srgb, var(--color-red) 55%, transparent);
+  /* Les repères aux coins des cartes, décoratifs. */
+  --console-repere: color-mix(in srgb, var(--color-blue-text) 70%, transparent);
+}
+/* Deux calques fixes derrière le contenu (main et le pied de page sont au-dessus, z-index 1) : la grille, puis l'écran. */
+:root[data-ambiance="console"] body::before,
+:root[data-ambiance="console"] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+/* La grille : le pas des cases de conquête (28 px, TILE_SIZE de src/lib/fx/territory.ts), donc les cases qui s'allument
+   tombent dedans ; un trait plus marqué toutes les quatre cases. Elle s'efface vers les bords. */
+:root[data-ambiance="console"] body::before {
+  background-image:
+    linear-gradient(var(--console-grille-forte) 1px, transparent 1px),
+    linear-gradient(90deg, var(--console-grille-forte) 1px, transparent 1px),
+    linear-gradient(var(--console-grille) 1px, transparent 1px),
+    linear-gradient(90deg, var(--console-grille) 1px, transparent 1px);
+  background-size:
+    112px 112px,
+    112px 112px,
+    28px 28px,
+    28px 28px;
+  -webkit-mask-image: radial-gradient(ellipse 90% 75% at 50% 30%, #000 30%, transparent 100%);
+  mask-image: radial-gradient(ellipse 90% 75% at 50% 30%, #000 30%, transparent 100%);
+}
+/* L'écran : de fines lignes de balayage et des coins assombris. Derrière le texte : aucun contraste n'y perd. */
+:root[data-ambiance="console"] body::after {
+  background:
+    radial-gradient(ellipse 110% 85% at 50% 40%, transparent 55%, rgb(0 0 0 / 0.42)),
+    repeating-linear-gradient(rgb(0 0 0 / 0.15) 0 1px, transparent 1px 4px);
+}
+/* À l'ouverture de la page, une seule bande de lumière descend l'écran, lentement, derrière le contenu, puis s'éteint.
+   Au repos elle est invisible : sans animation (bouton pause, « réduire les animations »), elle n'apparaît jamais. */
+:root[data-ambiance="console"]::after {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 0;
+  height: 45vh;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(
+    transparent,
+    color-mix(in srgb, var(--color-red) 9%, transparent) 75%,
+    color-mix(in srgb, var(--color-blue-text) 16%, transparent) 97%,
+    transparent
+  );
+  animation: console-balayage 2.8s cubic-bezier(0.45, 0, 0.3, 1) 0.5s;
+}
+/* `.fx-off *` ne vise que les descendants de <html> : la bande, portée par <html> lui-même, s'arrête ici. */
+:root.fx-off[data-ambiance="console"]::after {
+  animation: none;
+}
+@keyframes console-balayage {
+  from {
+    opacity: 1;
+    transform: translateY(-45vh);
+  }
+  80% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(100vh);
+  }
+}
+@media print, (forced-colors: active) {
+  :root[data-ambiance="console"] body::before,
+  :root[data-ambiance="console"] body::after,
+  :root[data-ambiance="console"]::after {
+    display: none;
+  }
+}
+
+/* L'invite au-dessus du titre, décorative (aria-hidden) : elle s'écrit une fois, lettre à lettre, puis reste. Le curseur
+   est un pavé fixe : il ne clignote pas. */
+:root[data-ambiance="console"] .console-invite {
+  display: flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  margin-bottom: 0.625rem;
+  font-family: var(--font-console);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+  color: var(--color-muted);
+  animation: console-frappe 0.9s steps(18, end) 0.2s backwards;
+}
+.console-invite {
+  display: none;
+}
+.console-hote {
+  font-weight: 700;
+  color: var(--color-blue-text);
+}
+.console-curseur {
+  display: inline-block;
+  width: 0.6em;
+  height: 1.15em;
+  margin-left: 0.4em;
+  background: var(--color-red);
+  box-shadow: 0 0 0.75rem var(--console-lueur);
+}
+@keyframes console-frappe {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+/* Le titre : un léger décalage bleu et rouge, fixe, le tricolore vu à travers un écran, et une lueur rouge. */
+:root[data-ambiance="console"] .page-title {
+  text-shadow:
+    -0.035em 0 0 color-mix(in srgb, var(--color-flag-blue) 65%, transparent),
+    0.035em 0 0 color-mix(in srgb, var(--color-red) 65%, transparent),
+    0 0 0.5em color-mix(in srgb, var(--color-red) 35%, transparent);
+}
+
+/* Les repères aux quatre coins des cartes, comme un viseur. Décoratifs, peints par-dessus la carte mais dans sa marge
+   intérieure (de 7 à 21 px du bord) : ils ne touchent pas son contenu. */
+:root[data-ambiance="console"] main .card::after {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--console-repere) 0 0) left top / 14px 2px,
+    linear-gradient(var(--console-repere) 0 0) left top / 2px 14px,
+    linear-gradient(var(--console-repere) 0 0) right top / 14px 2px,
+    linear-gradient(var(--console-repere) 0 0) right top / 2px 14px,
+    linear-gradient(var(--console-repere) 0 0) left bottom / 14px 2px,
+    linear-gradient(var(--console-repere) 0 0) left bottom / 2px 14px,
+    linear-gradient(var(--console-repere) 0 0) right bottom / 14px 2px,
+    linear-gradient(var(--console-repere) 0 0) right bottom / 2px 14px;
+  background-repeat: no-repeat;
+}
+
+/* Les onglets s'écrivent en chasse fixe ; l'ouvert prend l'invite « > » (masquée aux lecteurs d'écran) et une lueur.
+   Chaque onglet garde la place du « > » : la barre ne bouge pas quand on change d'onglet. */
+:root[data-ambiance="console"] .onglet {
+  font-family: var(--font-console);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+:root[data-ambiance="console"] .onglet::before {
+  content: ">" / "";
+  font-weight: 800;
+  color: var(--color-blue-text);
+  opacity: 0;
+}
+:root[data-ambiance="console"] .onglet[aria-selected="true"]::before {
+  opacity: 1;
+}
+:root[data-ambiance="console"] .onglet[aria-selected="true"] {
+  box-shadow:
+    inset 0 -3px 0 var(--color-red),
+    0 0 1.5rem -0.5rem var(--console-lueur);
+}
+
+/* Ce que dit la machine : libellés en capitales espacées, chiffres en grand avec une lueur, dates et heures.
+   Espacement des libellés : « ENCADREMENT » tient sur une ligne dans sa tuile dès 360 px (105,6 px pour 108,2). */
+:root[data-ambiance="console"] .console-libelle {
+  font-family: var(--font-console);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+:root[data-ambiance="console"] .console-valeur {
+  font-family: var(--font-console);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  text-shadow: 0 0 1.25rem var(--console-lueur);
+}
+:root[data-ambiance="console"] .console-valeur.text-warn {
+  text-shadow: 0 0 1.25rem color-mix(in srgb, var(--color-warn) 45%, transparent);
+}
+:root[data-ambiance="console"] .espace .tnum {
+  font-family: var(--font-console);
+  letter-spacing: -0.01em;
+}
+/* Le compte connecté : un voyant vert allumé, puis l'accès, en chasse fixe. */
+:root[data-ambiance="console"] .console-acces {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-family: var(--font-console);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.console-voyant {
+  display: none;
+}
+:root[data-ambiance="console"] .console-voyant {
+  display: inline-block;
+  flex: none;
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 999px;
+  background: var(--color-ok);
+  box-shadow: 0 0 0.625rem color-mix(in srgb, var(--color-ok) 70%, transparent);
+}
+
+/* L'état du site, comme un journal de démarrage : [ OK ], [ À VOIR ], [ INFO ] devant chaque ligne. L'étiquette est
+   masquée aux lecteurs d'écran, qui lisent déjà l'état dans le texte. */
+.console-etat {
+  display: none;
+}
+:root[data-ambiance="console"] .console-etat {
+  display: inline-block;
+  margin-right: 0.625rem;
+  font-family: var(--font-console);
+  font-size: 0.875rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+:root[data-ambiance="console"] .console-etat::before {
+  content: "[ ";
+}
+:root[data-ambiance="console"] .console-etat::after {
+  content: " ]";
+}
+/* « OK » : le vert des réussites du site, 10,9:1 sur une carte rouge. */
+.console-etat-ok {
+  color: var(--color-ok);
+}
+.console-etat-warn {
+  color: var(--color-warn);
+}
+.console-etat-info {
+  color: var(--color-muted);
+}
+/* 16 px en chasse fixe : à l'œil, la taille du texte courant de l'espace (17 px en Inter). */
+:root[data-ambiance="console"] .console-journal dd {
+  font-family: var(--font-console);
+  font-size: 1rem;
+}
+
+/* Un champ : son nom en chasse fixe, le curseur de saisie rouge, et une lueur autour du champ où l'on écrit. Pas de
+   capitales sur le nom : « Retapez « Nom » pour confirmer » doit montrer le nom tel qu'il faut le taper. */
+:root[data-ambiance="console"] .espace label[for] {
+  font-family: var(--font-console);
+}
+:root[data-ambiance="console"] .field {
+  caret-color: var(--color-red);
+}
+:root[data-ambiance="console"] .field:focus {
+  box-shadow: 0 0 1.5rem -0.375rem var(--console-lueur);
 }
