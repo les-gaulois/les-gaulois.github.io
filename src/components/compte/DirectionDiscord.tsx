@@ -97,7 +97,7 @@ export default function DirectionDiscord() {
 
   const stop = async () => {
     setArmed(false);
-    await act(() => call("clear_discord_calls"), "Envoi arrêté : les appels ne partent plus sur Discord.");
+    await act(() => call("clear_discord_calls"), "Salon débranché : les appels ne partent plus sur Discord.");
   };
 
   return (
@@ -203,14 +203,33 @@ export default function DirectionDiscord() {
               <p role="status" data-testid="direction-discord-last">
                 {state.last ? lastSendSentence(state.last, fmtDateTime) : ""}
               </p>
-              <div class="flex flex-wrap gap-3">
+              <div>
                 <button type="button" class="btn btn-ghost" disabled={busy} onClick={() => void act(() => call("test_discord_calls"), state.role ? "Essai envoyé : il montre la mention sans notifier personne." : "Essai envoyé.")}>
                   Renvoyer un essai
                 </button>
-                {/* L'arrêt efface le réglage, lien compris : il ne part qu'au second clic. */}
-                <button type="button" class="btn btn-ghost" disabled={busy} onClick={() => (armed ? void stop() : setArmed(true))} onBlur={() => setArmed(false)} data-testid="direction-discord-stop">
-                  {armed ? "Confirmer l'arrêt" : "Arrêter l'envoi"}
-                </button>
+              </div>
+              {/* Débrancher efface le réglage, lien compris : à part, sous un filet, et seulement au second clic. Le 11 novembre
+                  2026, « Arrêter l'envoi », à côté de « Dernier envoi : l'essai », a été lu comme la fin de l'essai. */}
+              {/* L'avertissement vient sous le bouton : le bouton ne bouge pas entre les deux clics. */}
+              <div class="grid gap-2 border-t border-line pt-4">
+                <div>
+                  <button
+                    type="button"
+                    class="btn btn-ghost"
+                    disabled={busy}
+                    aria-describedby={armed ? "discord-stop-note" : undefined}
+                    onClick={() => (armed ? void stop() : setArmed(true))}
+                    onBlur={() => setArmed(false)}
+                    data-testid="direction-discord-stop"
+                  >
+                    {armed ? "Confirmer : débrancher" : "Débrancher le salon"}
+                  </button>
+                </div>
+                {armed && (
+                  <p id="discord-stop-note" class="text-sm text-warn">
+                    Les appels ne partiront plus sur Discord, et il faudra recoller le lien du webhook pour rebrancher le salon.
+                  </p>
+                )}
               </div>
             </div>
           )}

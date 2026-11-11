@@ -57,10 +57,10 @@ describe("le journal en clair", () => {
     expect(sentence(row("weekly_pick_saved", { week: "2026-11-09", player: "Ancien Gaulois" }, "Chef", null))).toBe("Chef a choisi Ancien Gaulois comme Gaulois de la semaine.");
     expect(sentence(row("weekly_pick_deleted", { week: "2026-11-09", player: "Ancien Gaulois" }, "Chef", null))).toBe("Chef a retiré Ancien Gaulois du Gaulois de la semaine.");
     // Les appels sur Discord : jamais le lien du webhook, seulement s'il y a un rôle à mentionner.
-    expect(sentence(row("discord_calls_saved", { mention: true }, "Chef", null))).toBe("Chef a réglé l'envoi des appels sur Discord, avec la mention d'un rôle.");
-    expect(sentence(row("discord_calls_saved", { mention: false }, "Chef", null))).toBe("Chef a réglé l'envoi des appels sur Discord, sans mention de rôle.");
-    expect(sentence(row("discord_calls_saved", {}, "Chef", null))).toBe("Chef a réglé l'envoi des appels sur Discord.");
-    expect(sentence(row("discord_calls_cleared", {}, "Chef", null))).toBe("Chef a arrêté l'envoi des appels sur Discord.");
+    expect(sentence(row("discord_calls_saved", { mention: true }, "Chef", null))).toBe("Chef a branché le salon Discord des appels, avec la mention d'un rôle.");
+    expect(sentence(row("discord_calls_saved", { mention: false }, "Chef", null))).toBe("Chef a branché le salon Discord des appels, sans mention de rôle.");
+    expect(sentence(row("discord_calls_saved", {}, "Chef", null))).toBe("Chef a branché le salon Discord des appels.");
+    expect(sentence(row("discord_calls_cleared", {}, "Chef", null))).toBe("Chef a débranché le salon Discord des appels.");
     expect(categoryOf("discord_calls_saved")).toBe("settings");
   });
 

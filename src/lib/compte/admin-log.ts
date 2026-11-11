@@ -163,10 +163,10 @@ export function describe(row: LogRow, when: (iso: string) => string): LogLine {
     // Le lien du webhook n'est jamais dans le journal : seulement s'il y a un rôle à mentionner.
     case "discord_calls_saved": {
       const mention = details["mention"];
-      return { who, what: `a réglé l'envoi des appels sur Discord${mention === true ? ", avec la mention d'un rôle" : mention === false ? ", sans mention de rôle" : ""}.` };
+      return { who, what: `a branché le salon Discord des appels${mention === true ? ", avec la mention d'un rôle" : mention === false ? ", sans mention de rôle" : ""}.` };
     }
     case "discord_calls_cleared":
-      return { who, what: "a arrêté l'envoi des appels sur Discord." };
+      return { who, what: "a débranché le salon Discord des appels." };
     case "account_deleted":
       return { who: row.actor ?? "Un membre", what: "a supprimé son compte." };
     default:
