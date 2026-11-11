@@ -2282,27 +2282,32 @@ main .fx-in,
   animation-timing-function: steps(30, end);
 }
 
-/* Un écran plus noir, dans la couleur de la page. Bleu au QG, la page des membres : texte secondaire 11:1 et liens 9,6:1
-   sur une carte, contour des champs 4,1:1, « OK » en vert vif 10,5:1. Rouge à la Direction, et au QG dans les onglets et
-   les parties de l'encadrement (data-theme="rouge") : texte secondaire 11,6:1 et liens 9,9:1 sur une carte, contour des
-   champs 3,6:1, « OK » 11,1:1. */
+/* Un écran plus noir, dans la couleur de la page. Bleu au QG, la page des membres, aussi sombre que le rouge de la
+   Direction (« bleu un peu plus foncé », a demandé le pilote) : texte secondaire 11,6:1 et liens 10,1:1 sur une carte,
+   contour des champs 3,6:1, « OK » en vert vif 11:1 ; le bleu des boutons et de l'onglet ouvert est foncé d'un cran
+   (blanc dessus : 6,8:1). Rouge à la Direction, et au QG dans les onglets et les parties de l'encadrement
+   (data-theme="rouge") : texte secondaire 11,6:1 et liens 9,9:1 sur une carte, contour des champs 3,6:1, « OK » 11,1:1. */
 :root[data-ambiance="console"][data-console="terminal"] {
-  --color-navy: #050b1d;
-  --color-night: #02050f;
-  --color-surface: #0a1330;
-  --color-surface-2: #12204a;
-  --color-line: #1e2f63;
-  --color-line-strong: #5b74c4;
-  --glow: rgb(11 95 255 / 0.2);
-  --reflection: rgb(255 26 46 / 0.06);
+  --color-navy: #03081a;
+  --color-night: #010410;
+  --color-surface: #060d26;
+  --color-surface-2: #0c1736;
+  --color-line: #17254f;
+  --color-line-strong: #4f67b5;
+  --color-blue: #0a4fd6;
+  --color-blue-hover: #083fae;
+  --glow: rgb(11 95 255 / 0.13);
+  --reflection: rgb(255 26 46 / 0.05);
   /* La grille et la lueur des champs, dans le bleu du drapeau : au QG, c'est le bleu qui mène. */
-  --console-grille: color-mix(in srgb, var(--color-flag-blue) 13%, transparent);
-  --console-grille-forte: color-mix(in srgb, var(--color-flag-blue) 22%, transparent);
+  --console-grille: color-mix(in srgb, var(--color-flag-blue) 10%, transparent);
+  --console-grille-forte: color-mix(in srgb, var(--color-flag-blue) 18%, transparent);
   --console-lueur: color-mix(in srgb, var(--color-flag-blue) 60%, transparent);
   /* Le vert d'un terminal : ce qui va bien (les « OK », le voyant de la session), les commandes et les chiffres, et la
      chute du logo Matrix. */
   --console-vert: #4ade80;
 }
+/* Le bouton garde le rouge du thème de l'encadrement : la règle bleue ci-dessus, plus forte que [data-theme="rouge"],
+   l'emporterait sinon sur la racine de la Direction. */
 :root[data-ambiance="console"][data-console="terminal"][data-theme="rouge"],
 :root[data-ambiance="console"][data-console="terminal"] [data-theme="rouge"] {
   --color-navy: #13040a;
@@ -2311,6 +2316,8 @@ main .fx-in,
   --color-surface-2: #2f0b15;
   --color-line: #5c1a26;
   --color-line-strong: #b04656;
+  --color-blue: #d4132f;
+  --color-blue-hover: #b00f27;
   --glow: rgb(255 26 46 / 0.22);
   --reflection: rgb(11 95 255 / 0.07);
   --console-grille: color-mix(in srgb, var(--color-red) 12%, transparent);
@@ -2491,7 +2498,7 @@ main .fx-in,
 
 /* La barre d'onglets du QG, qui garde sa barre (pas de menu) : des noms en chasse fixe, l'onglet ouvert en vidéo inversée,
    comme la partie ouverte du menu de la Direction. Un onglet de l'encadrement, qui porte data-theme="rouge", s'inverse
-   en rouge. Blanc sur le bleu du bouton principal : 5,1:1 ; sur son rouge : 5,3:1. */
+   en rouge. Blanc sur le bleu des boutons du QG : 6,8:1 ; sur le rouge de l'encadrement : 5,3:1. */
 :root[data-ambiance="console"][data-console="terminal"] .onglet {
   font-family: var(--font-console);
   font-size: 1.0625rem;
