@@ -1,13 +1,13 @@
 /**
  * Les salons Discord du robot, réglés dans l'espace Direction par les admins et le fondateur (migration
- * `20261111000300_salons_discord.sql`) : le salon des nouvelles et celui de l'encadrement. Le robot de la GitHub Action y
- * poste avec le lien réglé ici, sinon avec le secret GitHub ; à chaque passage, il demande à Discord si le webhook existe,
- * sans rien poster, et note la réponse. La page ne voit jamais le lien. Ici, de quoi relire la réponse du serveur sans
- * rien inventer.
+ * `20261111000300_salons_discord.sql`) : le salon des nouvelles et celui de l'encadrement, puis celui des victoires (migration
+ * `20261111000500_salon_des_victoires.sql`). Le robot de la GitHub Action y poste avec le lien réglé ici, sinon avec le secret
+ * GitHub ; à chaque passage, il demande à Discord si le webhook existe, sans rien poster, et note la réponse. La page ne voit
+ * jamais le lien. Ici, de quoi relire la réponse du serveur sans rien inventer.
  */
 import { lastSendSentence, outcomeSentence, type LastSend, type SendOutcome } from "./discord-appels";
 
-export type RobotSalonId = "nouvelles" | "encadrement";
+export type RobotSalonId = "nouvelles" | "encadrement" | "victoires";
 
 export interface RobotSalonText {
   id: RobotSalonId;
@@ -15,6 +15,8 @@ export interface RobotSalonText {
   intro: string;
   /** Le secret GitHub qui sert quand rien n'est réglé ici, et en secours si Supabase ne répond pas. */
   secret: string;
+  /** Ajouté après les autres : un serveur sans sa migration ne le rend pas, et la page ne le montre pas. */
+  optional?: boolean;
 }
 
 export const ROBOT_SALON_TEXTS: readonly RobotSalonText[] = [
@@ -29,6 +31,13 @@ export const ROBOT_SALON_TEXTS: readonly RobotSalonText[] = [
     title: "Le salon de l'encadrement",
     intro: "Les demandes qui attendent et le compte rendu de chaque sauvegarde, sans nom. Choisissez un salon privé de l'encadrement.",
     secret: "DISCORD_WEBHOOK_ENCADREMENT",
+  },
+  {
+    id: "victoires",
+    title: "Le salon des victoires",
+    intro: "Chaque victoire du clan, avec l'image de la carte et tous les Gaulois de la partie, postée par le robot du site peu après la partie, jour et nuit : une quarantaine de messages par jour. Prenez un salon à part.",
+    secret: "DISCORD_WEBHOOK_VICTOIRES",
+    optional: true,
   },
 ];
 
@@ -94,7 +103,10 @@ function checkOf(raw: unknown): RobotCheck | null {
   };
 }
 
-/** La réponse de `get_discord_salons`, relue ; l'âge d'un essai se compte à l'heure du serveur. `null` : réponse illisible. */
+/**
+ * La réponse de `get_discord_salons`, relue ; l'âge d'un essai se compte à l'heure du serveur. `null` : réponse illisible.
+ * Un salon ajouté après les autres (`optional`) peut manquer : le serveur n'a pas encore sa migration, la page s'en passe.
+ */
 export function parseDiscordSalons(raw: unknown): RobotSalon[] | null {
   if (!isRecord(raw) || !Array.isArray(raw["salons"])) return null;
   const now = timeOf(raw["now"]);
@@ -102,6 +114,7 @@ export function parseDiscordSalons(raw: unknown): RobotSalon[] | null {
   const salons: RobotSalon[] = [];
   for (const text of ROBOT_SALON_TEXTS) {
     const row = raw["salons"].find((item): item is Record<string, unknown> => isRecord(item) && item["salon"] === text.id);
+    if (!row && text.optional) continue;
     if (!row || typeof row["set"] !== "boolean") return null;
     salons.push({
       id: text.id,

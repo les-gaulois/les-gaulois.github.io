@@ -98,6 +98,42 @@ export const ApiGame = z.object({
 });
 export type ApiGame = z.output<typeof ApiGame>;
 
+/**
+ * Le même détail, lu par le message de chaque victoire (`src/lib/victoires.ts`) : la carte, la durée et les Gaulois de la partie.
+ * D'un joueur, seuls son tag, son nom dans la partie, son `publicID` et le fait d'avoir des stats sont lus. Le nom d'un Gaulois
+ * paraît dans le message, à la demande du pilote (11 novembre 2026 : « nomme-les comme ils s'appellent en partie »). Le
+ * `publicID` sert seulement à relier un membre avec pseudo à sa fiche, déjà publique. Rien de cela n'est écrit dans `data/`.
+ */
+const ApiVictoryPlayer = z
+  .object({
+    clanTag: z.string().nullable().optional(),
+    username: z.string().nullable().optional(),
+    publicID: z.string().nullable().optional(),
+    // Absent : le jeu n'a rien enregistré pour ce joueur, parti tôt ou jamais apparu.
+    stats: z.unknown().optional(),
+  })
+  .transform(({ clanTag, username, publicID, stats }) => ({ clanTag: clanTag ?? null, username: username ?? null, publicID: publicID ?? null, hasStats: stats !== undefined && stats !== null }));
+export const ApiVictoryGame = z.object({
+  info: z.object({
+    config: z.object({ gameMap: z.string().min(1) }),
+    duration: z.number().nonnegative(),
+    players: z.array(ApiVictoryPlayer),
+  }),
+});
+export type ApiVictoryGame = z.output<typeof ApiVictoryGame>;
+
+/**
+ * La fiche publique d'un joueur (`GET /public/player/:id`), lue seulement pour vérifier qu'un porteur du tag est membre du clan
+ * avant de le nommer dans le message d'une victoire : seuls les tags de ses clans sont gardés, et rien n'est écrit. Un champ
+ * `clans` absent n'est pas « aucun clan » : la fiche est illisible, et la victoire attend plutôt que de dire un membre hors du clan.
+ */
+export const ApiPlayerClans = z.object({
+  clans: z
+    .array(z.object({ tag: z.string() }))
+    .nullable()
+    .transform((v) => v ?? []),
+});
+
 const PlayerGameResult = z.enum(["victory", "defeat", "incomplete"]);
 /** Une ligne de `GET /public/player/:id/games`. Le pseudo et l'identifiant de la partie ne sont pas lus. */
 const ApiPlayerGame = z.object({

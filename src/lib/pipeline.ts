@@ -88,7 +88,7 @@ export interface Deps {
 }
 
 export class ApiClient {
-  constructor(private deps: Deps) {}
+  constructor(private deps: Pick<Deps, "fetch" | "sleep" | "delayMs">) {}
 
   /** Espace les appels et réessaie sur 429 ou 5xx, avec un délai croissant. */
   private async request(url: string, path: string): Promise<Response> {
@@ -195,7 +195,15 @@ async function fetchRanked(api: ApiClient, deps: Deps, at: string, members: Stor
 }
 
 export async function fetchDaySessions(api: ApiClient, tag: string, day: string): Promise<StoredSession[]> {
-  const q = `start=${day}T00:00:00.000Z&end=${day}T23:59:59.999Z&limit=${PAGE_SIZE}`;
+  return fetchSessionsBetween(api, tag, `${day}T00:00:00.000Z`, `${day}T23:59:59.999Z`, `du ${day}`);
+}
+
+/**
+ * Les sessions du clan commencées entre deux instants, 24 heures d'écart au plus (limite de l'API). `label` nomme la période
+ * dans l'erreur, comme « du 2026-11-11 ». Aussi lue par l'envoi des victoires, sur les dernières heures.
+ */
+export async function fetchSessionsBetween(api: ApiClient, tag: string, start: string, end: string, label: string): Promise<StoredSession[]> {
+  const q = `start=${start}&end=${end}&limit=${PAGE_SIZE}`;
   const byId = new Map<string, StoredSession>();
   let total = 0;
   for (let page = 1; ; page++) {
@@ -215,7 +223,7 @@ export async function fetchDaySessions(api: ApiClient, tag: string, day: string)
     }
     if (res.results.length === 0 || byId.size >= total) break;
   }
-  if (byId.size < total) throw new Error(`sessions du ${day} incomplètes : ${byId.size} sur ${total}`);
+  if (byId.size < total) throw new Error(`sessions ${label} incomplètes : ${byId.size} sur ${total}`);
   return [...byId.values()];
 }
 

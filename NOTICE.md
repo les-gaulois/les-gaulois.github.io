@@ -19,6 +19,7 @@ Code source de la version en ligne : <https://github.com/les-gaulois/les-gaulois
 | Terrain de la carte « World » d'OpenFront, copié tel quel (`manifest.json`, `map4x.bin`, commit `a0abccc` du 6 novembre 2026) | `public/carte-monde/` | CC BY-SA 4.0, attribution « OpenFront » : la page affiche sa source et sa licence |
 | Code des couleurs du terrain et du dessin des territoires, repris du client d'OpenFront (commit `a0abccc`) et modifié les 6 et 7 novembre 2026 : fichiers d'origine listés en tête de la page | `public/carte-monde/index.html` | AGPL-3.0, avec les conditions de la section « OpenFront » ci-dessous |
 | Noms français des cartes du jeu, repris de `resources/lang/fr.json` d'OpenFront (commit `31a2119`) et modifiés le 7 novembre 2026 : seules les entrées qui nomment une carte sont gardées | `src/lib/map-names.ts` | CC BY-SA 4.0, attribution « OpenFront » : le bloc qui les affiche cite leur source et leur licence |
+| Vignettes des cartes du jeu, `resources/maps/<carte>/thumbnail.webp` d'OpenFront (branche `main`), lues par le robot au moment de chaque envoi, jamais copiées dans ce dépôt : redimensionnées, aux coins arrondis, posées sur la couleur de la mer du jeu, depuis le 11 novembre 2026 | Image de chaque message du salon Discord des victoires (`src/lib/victoires-image.ts`) | CC BY-SA 4.0, attribution « OpenFront » : l'image et le message citent la source, la licence et le redimensionnement ; la vignette ainsi modifiée reste sous la même licence |
 | Placement des clans dans les équipes, adapté de `assignTeams` d'OpenFront (commit `31a2119`), réécrit et réduit le 7 novembre 2026 | `placeClans` dans `src/lib/games.ts` | AGPL-3.0, avec les conditions de la section « OpenFront » ci-dessous |
 | Dépendances et polices | `package-lock.json` | Leur propre licence (polices Inter, Outfit et JetBrains Mono : OFL-1.1) |
 
@@ -26,7 +27,7 @@ Code source de la version en ligne : <https://github.com/les-gaulois/les-gaulois
 
 Ce site est communautaire et non officiel : il n'a aucun lien avec les éditeurs d'OpenFront et n'a pas reçu leur approbation.
 
-En dehors de ce que liste le tableau ci-dessus, aucun fichier de code ni aucune image d'OpenFront n'est copié ici à ce jour. Le calculateur et le graphique de croissance de `/debuter` sont adaptés de son code, lui-même sous AGPL-3.0, puis réécrits : voir `docs/API_AUDIT.md`. Le bas de page affiche la mention « © OpenFront and Contributors ».
+En dehors de ce que liste le tableau ci-dessus, aucun fichier de code ni aucune image d'OpenFront n'est copié ici à ce jour, ni utilisé par le robot. Le calculateur et le graphique de croissance de `/debuter` sont adaptés de son code, lui-même sous AGPL-3.0, puis réécrits : voir `docs/API_AUDIT.md`. Le bas de page affiche la mention « © OpenFront and Contributors ».
 
 Si un morceau de code d'OpenFront est repris :
 

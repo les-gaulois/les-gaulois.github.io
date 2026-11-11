@@ -75,3 +75,22 @@ describe("les phrases", () => {
     expect(testSentence({ kind: "test", at: NOW, outcome: { state: "accepted" } }, when)).toBe(`Dernier envoi : l'essai, le [${NOW}]. Discord a accepté l'essai : il est dans le salon.`);
   });
 });
+
+describe("le salon des victoires", () => {
+  const WINS = ROBOT_SALON_TEXTS.find((t) => t.id === "victoires")!;
+  it("vient après les deux autres, avec son secret de secours", () => {
+    expect(ROBOT_SALON_TEXTS.map((t) => t.id)).toEqual(["nouvelles", "encadrement", "victoires"]);
+    expect(WINS.secret).toBe("DISCORD_WEBHOOK_VICTOIRES");
+  });
+  it("un serveur sans sa migration ne le rend pas : la page montre les deux autres, sans erreur", () => {
+    expect(parseDiscordSalons(answer([unset("nouvelles"), unset("encadrement")]))?.map((s) => s.id)).toEqual(["nouvelles", "encadrement"]);
+  });
+  it("avec sa migration, il se relit comme les autres", () => {
+    const parsed = parseDiscordSalons(answer([unset("nouvelles"), unset("encadrement"), unset("victoires", { at: NOW, source: "none", status: null, name: null })]));
+    expect(parsed?.map((s) => s.id)).toEqual(["nouvelles", "encadrement", "victoires"]);
+    expect(checkSentence(parsed![2]!.check!, WINS, when)).toBe(`Contrôle du robot, le [${NOW}] : aucun lien, ni ici ni dans le secret GitHub DISCORD_WEBHOOK_VICTOIRES. Rien ne part dans ce salon.`);
+  });
+  it("les deux premiers restent obligatoires : sans eux, la réponse est illisible", () => {
+    expect(parseDiscordSalons(answer([unset("nouvelles"), unset("victoires")]))).toBeNull();
+  });
+});

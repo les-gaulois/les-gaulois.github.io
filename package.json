@@ -34,6 +34,7 @@
     "nouveautes:envoyer": "tsx scripts/envoyer-nouveautes.ts",
     "course:envoyer": "tsx scripts/envoyer-course.ts",
     "groupes:envoyer": "tsx scripts/envoyer-groupes.ts",
+    "victoires:envoyer": "tsx scripts/envoyer-victoires.ts",
     "verifier:ligne": "tsx scripts/verifier-mise-en-ligne.ts",
     "lint": "eslint .",
     "typecheck": "astro check && tsc --noEmit",

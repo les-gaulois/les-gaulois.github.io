@@ -8,7 +8,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { create, type Font } from "fontkit";
-import sharp from "sharp";
+import sharp, { type OverlayOptions } from "sharp";
 import { brandFile } from "./brand";
 import { fmtCount, fmtDay, fmtInt, fmtPct, fmtPoints, fmtRank } from "./format";
 import { comparisonSentence, playersPeriod, rankWords, type GazetteEdition, weekLabel } from "./gazette";
@@ -272,6 +272,8 @@ const FONT_FILES: Record<CardFont, string[]> = {
 
 /** Les espaces insécables des nombres français. L'espace fine les remplace si la police la connaît, sinon l'espace ordinaire : le rendu reste le même partout. */
 const NUMBER_SPACES = new RegExp(`[${String.fromCodePoint(0xa0, 0x202f)}]`, "g");
+/** Les mêmes, un par un : `runs` les remplace avant de chercher une police. */
+const NUMBER_SPACE_CHARS = new Set([String.fromCodePoint(0xa0), String.fromCodePoint(0x202f)]);
 const THIN_SPACE = String.fromCodePoint(0x2009);
 
 export class GazetteFonts {
@@ -305,6 +307,15 @@ export class GazetteFonts {
 
   width: Measure = (text, font, size) => this.runs(text, font).reduce((sum, run) => sum + (run.font.layout(run.text).advanceWidth * size) / run.font.unitsPerEm, 0);
 
+  /**
+   * Le texte, dont chaque caractère qu'aucune police du site ne sait dessiner (émoji, idéogramme…) devient « ? ». Pour un nom
+   * libre, comme celui d'un joueur dans une partie : l'image se dessine quand même, et le message garde le nom entier.
+   */
+  drawable(text: string, font: CardFont): string {
+    const fonts = this.fontsOf(font);
+    return [...text].map((char) => (NUMBER_SPACE_CHARS.has(char) || fonts.some((f) => f.hasGlyphForCodePoint(char.codePointAt(0) ?? 0)) ? char : "?")).join("");
+  }
+
   paths(item: CardText): string {
     const total = this.width(item.text, item.font, item.size);
     let x = item.anchor === "end" ? item.x - total : item.anchor === "middle" ? item.x - total / 2 : item.x;
@@ -331,13 +342,17 @@ async function logoLayer(root: string, size: number): Promise<Buffer | null> {
   return sharp(join(root, "public", badge)).trim().resize(size, size, { fit: "cover" }).composite([{ input: mask, blend: "dest-in" }]).png().toBuffer();
 }
 
-/** Dessine la carte en PNG. `root` est la racine du dépôt, où se trouvent les polices et le badge. */
-export async function renderGazetteCard(card: GazetteCard, fonts: GazetteFonts, root: string): Promise<Buffer> {
+/**
+ * Dessine la carte en PNG. `root` est la racine du dépôt, où se trouvent les polices et le badge. `layers` : des images posées
+ * par-dessus le fond, comme la vignette de la carte d'une victoire (`victoires-image.ts`).
+ */
+export async function renderGazetteCard(card: GazetteCard, fonts: GazetteFonts, root: string, layers: OverlayOptions[] = []): Promise<Buffer> {
   const rects = card.rects.map((r) => `<rect x="${r.x}" y="${r.y}" width="${r.width}" height="${r.height}" rx="${r.radius}" fill="${r.color}"/>`).join("");
   const texts = card.texts.map((t) => fonts.paths(t)).join("");
   const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${card.width}" height="${card.height}" viewBox="0 0 ${card.width} ${card.height}">${rects}${texts}</svg>`);
   const logo = await logoLayer(root, card.logo.size);
+  const overlays = logo ? [...layers, { input: logo, left: card.logo.x, top: card.logo.y }] : layers;
   const image = sharp(svg);
-  if (logo) image.composite([{ input: logo, left: card.logo.x, top: card.logo.y }]);
+  if (overlays.length > 0) image.composite(overlays);
   return image.png({ compressionLevel: 9 }).toBuffer();
 }

@@ -69,6 +69,8 @@ jobs:
         with:
           path: .cache/clanmap
           key: clanmap-${{ hashFiles('.cache/clanmap/events.bin') }}
+      # L'envoi des victoires (victoires.yml) enregistre aussi son état sur main, toutes les 5 minutes : un push refusé parce
+      # qu'il est passé entre les deux commandes se réessaie, au lieu de faire échouer la mise à jour et la publication de l'heure.
       - name: Enregistrer les données
         run: |
           git config user.name "github-actions[bot]"
@@ -76,11 +78,17 @@ jobs:
           git add data
           if git diff --cached --quiet; then
             echo "Aucun changement."
-          else
-            git commit -m "data: mise à jour automatique"
-            git pull --rebase origin "${GITHUB_REF_NAME}"
-            git push
+            exit 0
           fi
+          git commit -m "data: mise à jour automatique"
+          for essai in 1 2 3 4 5; do
+            if git pull --rebase origin "${GITHUB_REF_NAME}" && git push; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::Données : enregistrement impossible sur ${GITHUB_REF_NAME} après cinq essais."
+          exit 1
       # Une seule fois par nouveau lien : demande à Discord si le webhook existe, sans rien envoyer. Le journal dit son nom et sa date de création.
       - name: Vérifier le lien Discord
         if: github.ref_name == 'main'
@@ -103,6 +111,7 @@ jobs:
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           DISCORD_WEBHOOK_GAZETTE: ${{ secrets.DISCORD_WEBHOOK_GAZETTE }}
           DISCORD_WEBHOOK_ENCADREMENT: ${{ secrets.DISCORD_WEBHOOK_ENCADREMENT }}
+          DISCORD_WEBHOOK_VICTOIRES: ${{ secrets.DISCORD_WEBHOOK_VICTOIRES }}
       # Après l'enregistrement : si le robot ne peut plus pousser sur main, l'étape est sautée. Sans cela, faute de trace, la même édition repartirait à chaque passage.
       # Le lien du salon des nouvelles est celui réglé dans la Direction, sinon le secret DISCORD_WEBHOOK_GAZETTE ; sans l'un ni
       # l'autre, l'étape ne fait rien. Une panne de Discord ne bloque rien : le passage suivant réessaie.
@@ -248,6 +257,24 @@ jobs:
           SUPABASE_URL: ${{ vars.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           DISCORD_WEBHOOK_ENCADREMENT: ${{ secrets.DISCORD_WEBHOOK_ENCADREMENT }}
+
+  # Les victoires partent par leur propre workflow (victoires.yml), lancé toutes les 5 minutes par la tâche « Victoires GAL » de
+  # cron-job.org. Chaque passage du robot le lance aussi, en secours, une fois ses données enregistrées, pour ne pas pousser sur
+  # main en même temps : sans la tâche, les victoires partent à chaque passage de la collecte. Job à part, avec le seul droit
+  # Actions (lancer une exécution) : il n'écrit rien dans le dépôt.
+  victoires-en-secours:
+    needs: update-data
+    if: ${{ !cancelled() && github.event_name != 'push' && github.ref_name == 'main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      actions: write
+    steps:
+      - name: Lancer l'envoi des victoires
+        continue-on-error: true
+        run: gh workflow run victoires.yml --repo "$GITHUB_REPOSITORY" --ref main
+        env:
+          GH_TOKEN: ${{ github.token }}
 
   # Lance la sauvegarde chiffrée de la semaine si elle manque : le planning de GitHub saute la plupart de ses passages,
   # le robot horaire passe toutes les heures. Règles : src/lib/sauvegarde-relance.ts. Job à part, avec le seul droit

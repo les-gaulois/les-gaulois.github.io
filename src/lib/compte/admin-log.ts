@@ -60,7 +60,7 @@ const CATEGORIES: Record<string, LogCategory> = {
 };
 
 /** Les salons du robot, comme le journal les nomme. Un salon inconnu reste « un salon Discord du robot ». */
-const ROBOT_SALONS: Record<string, string> = { nouvelles: "le salon Discord des nouvelles", encadrement: "le salon Discord de l'encadrement" };
+const ROBOT_SALONS: Record<string, string> = { nouvelles: "le salon Discord des nouvelles", encadrement: "le salon Discord de l'encadrement", victoires: "le salon Discord des victoires" };
 
 /** Les décisions de la boîte à idées, comme le journal les écrit. Mêmes codes que `IDEA_STATUS_LABELS` du QG. */
 const IDEA_DECISIONS: Record<string, string> = { open: "a remis à l'étude", kept: "a retenu", declined: "a écarté", done: "a noté comme faite" };

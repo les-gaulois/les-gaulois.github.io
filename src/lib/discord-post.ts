@@ -1,5 +1,6 @@
 /**
- * L'envoi d'un message du robot sur le salon de la gazette, pour les alertes, les paliers franchis et les messages du jour.
+ * L'envoi d'un message du robot sur un de ses salons : celui de la gazette, pour les alertes, les paliers franchis et les
+ * messages du jour, et celui des victoires.
  * Avec l'image d'abord, en texte si elle ne se dessine pas ou si Discord refuse ce format. La gazette garde son propre envoi.
  * Le lien vaut un mot de passe pour ce salon : il n'est écrit dans aucun message, même d'erreur.
  */

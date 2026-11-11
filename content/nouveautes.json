@@ -2,6 +2,12 @@
   {
     "date": "2026-11-11",
     "kind": "nouveau",
+    "title": "Chaque victoire sur Discord, avec la carte",
+    "body": "Chaque victoire du clan peut partir dans un salon Discord à part, peu après la partie, avec l'image de la carte, tous les Gaulois sous leur nom en partie et les points gagnés."
+  },
+  {
+    "date": "2026-11-11",
+    "kind": "nouveau",
     "title": "Des messages Discord écrits depuis la Direction",
     "body": "Pour l'encadrement : l'onglet Discord de la Direction devient un menu. « Message Discord » y envoie, dans un salon du clan, un message mis en forme avec embeds et images."
   },

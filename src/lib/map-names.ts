@@ -137,7 +137,10 @@ const FRENCH_NAMES: Record<string, string> = {
   yenisei: "Ienisseï",
 };
 
+/** « Four Islands » donne « fourislands » : la clé de la traduction, et le nom du dossier de la carte dans le dépôt du jeu (`resources/maps/`). */
+export const mapKey = (map: string) => map.toLowerCase().replace(/[^a-z0-9]/g, "");
+
 /** Le nom d'une carte dans la traduction du jeu, ou son nom d'origine si elle n'en a pas encore. */
 export function mapLabel(map: string): string {
-  return FRENCH_NAMES[map.toLowerCase().replace(/[^a-z0-9]/g, "")] ?? map;
+  return FRENCH_NAMES[mapKey(map)] ?? map;
 }

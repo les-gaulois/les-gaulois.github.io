@@ -11,7 +11,8 @@ import { PartieTete } from "./Onglets";
 const FOLLOW_UP_MS = [1_500, 4_000, 10_000, 30_000];
 
 /**
- * Les salons Discord du robot, pour les admins et le fondateur : le salon des nouvelles et celui de l'encadrement.
+ * Les salons Discord du robot, pour les admins et le fondateur : le salon des nouvelles, celui de l'encadrement et, quand le
+ * serveur a sa migration, celui des victoires.
  * Le robot de la GitHub Action y poste avec le lien réglé ici, sinon avec le secret GitHub. Le lien n'est jamais relu :
  * le serveur le garde, et le champ se vide après l'enregistrement. Chaque enregistrement envoie un essai, sans mention ;
  * la page relit ensuite la réponse de Discord, et montre le dernier contrôle du robot, fait à chaque passage.
@@ -115,6 +116,8 @@ function SalonPart({ text, salon, reload, level }: { text: RobotSalonText; salon
   };
 
   const failing = checkFails(salon.check);
+  // Un cran sous le titre du salon : h4 quand ce titre est un h3, sous une rubrique du menu Discord.
+  const Sous = level === 3 ? "h4" : "h3";
 
   return (
     <section aria-labelledby={`${id}-title`} data-testid={`direction-${id}`}>
@@ -130,7 +133,7 @@ function SalonPart({ text, salon, reload, level }: { text: RobotSalonText; salon
             if (!busy) void save();
           }}
         >
-          <h3 class="text-lg">{salon.set ? "Changer le lien" : "Brancher un salon"}</h3>
+          <Sous class="text-lg">{salon.set ? "Changer le lien" : "Brancher un salon"}</Sous>
           <div>
             <label for={`${id}-lien`} class="text-sm font-semibold">
               Lien du webhook du salon
@@ -161,7 +164,7 @@ function SalonPart({ text, salon, reload, level }: { text: RobotSalonText; salon
 
         {(salon.set || salon.check) && (
           <div class="card grid gap-3 p-5" data-testid={`direction-${id}-state`}>
-            <h3 class="text-lg">{salon.set ? "Réglage en place" : "Pas de lien réglé ici"}</h3>
+            <Sous class="text-lg">{salon.set ? "Réglage en place" : "Pas de lien réglé ici"}</Sous>
             {salon.set ? (
               salon.updatedAt && (
                 <p class="tnum text-sm text-muted">

@@ -1,0 +1,87 @@
+name: Victoires sur Discord
+
+# Chaque victoire du clan dans le salon des victoires, quelques minutes après la partie (demande du pilote, 11 novembre 2026 :
+# « au maximum 10 min après la victoire »). Lancé toutes les 5 minutes par la tâche « Victoires GAL » de cron-job.org, et à
+# chaque passage du workflow du site, en secours : sans la tâche, les victoires partent à chaque passage de la collecte.
+# Le planning de GitHub n'est pas utilisé : il saute la plupart de ses passages sur ce dépôt. Voir src/lib/victoires.ts.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Un seul envoi à la fois : deux envois en même temps posteraient la même victoire deux fois. Un lancement qui arrive pendant
+# un envoi attend son tour.
+concurrency:
+  group: victoires
+  cancel-in-progress: false
+
+jobs:
+  envoyer:
+    # Sur une autre branche, la trace des envois ne reviendrait pas sur main, et les victoires repartiraient.
+    if: github.ref_name == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Une seconde copie de l'état des envois, hors de Git : si l'enregistrement sur main échoue, les victoires déjà parties sont
+      # notées quand même, et ne repartent pas toutes les 5 minutes. Le fichier ne contient que des identifiants de partie et des
+      # heures de début, déjà publics.
+      - name: Restaurer l'état des envois
+        uses: actions/cache/restore@v6
+        with:
+          path: .cache/victoires-envoi.json
+          key: victoires-envoi-${{ github.run_id }}
+          restore-keys: victoires-envoi-
+      # Le lien réglé dans la Direction, sinon le secret DISCORD_WEBHOOK_VICTOIRES ; sans l'un ni l'autre, l'étape ne fait rien.
+      # Au premier passage, les victoires du moment servent de départ. Une panne de Discord ou de l'API ne bloque rien : le
+      # passage suivant réessaie.
+      - name: Envoyer les nouvelles victoires
+        continue-on-error: true
+        timeout-minutes: 6
+        run: npm run victoires:envoyer
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          DISCORD_WEBHOOK_VICTOIRES: ${{ secrets.DISCORD_WEBHOOK_VICTOIRES }}
+      # Avant l'enregistrement sur main, qui peut échouer. La clé suit le contenu : un état inchangé ne crée pas de nouveau cache.
+      - name: Conserver l'état des envois
+        if: ${{ !cancelled() && hashFiles('.cache/victoires-envoi.json') != '' }}
+        continue-on-error: true
+        uses: actions/cache/save@v6
+        with:
+          path: .cache/victoires-envoi.json
+          key: victoires-envoi-${{ hashFiles('.cache/victoires-envoi.json') }}
+      # Le fichier est noté après chaque message accepté : même un envoi coupé en route garde ce qui est parti.
+      - name: Noter les victoires envoyées
+        if: ${{ !cancelled() }}
+        run: |
+          if [ ! -f data/victoires-envoi.json ]; then
+            echo "Aucun envoi à noter."
+            exit 0
+          fi
+          git add -- data/victoires-envoi.json
+          if git diff --cached --quiet; then
+            echo "Aucun envoi à noter."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "data: note les victoires envoyées sur Discord"
+          for essai in 1 2 3 4 5; do
+            if git pull --rebase origin "${GITHUB_REF_NAME}" && git push; then
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::warning::Victoires : état des envois non enregistré sur main. Sa copie gardée en cache évite de renvoyer ces victoires ; il sera de nouveau enregistré avec le prochain envoi."
+          exit 1

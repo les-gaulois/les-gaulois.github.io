@@ -4,20 +4,22 @@
  * GitHub, comme avant.
  * - Le salon des nouvelles : la gazette, les alertes, les paliers, les messages du jour et la course du soir.
  * - Le salon de l'encadrement : les demandes qui attendent et le compte rendu des sauvegardes.
+ * - Le salon des victoires, depuis le 11 novembre 2026 (migration `20261111000500_salon_des_victoires.sql`) : chaque victoire du
+ *   clan, avec l'image de la carte. Un serveur sans cette migration ne le connaît pas : le robot prend alors son secret.
  * À chaque passage, le robot lit aussi chaque webhook sans rien poster (`probeWebhook`) et note la réponse de Discord pour
  * l'espace Direction : un webhook supprimé s'y voit.
  * Le lien vaut un mot de passe pour le salon : il n'est écrit dans aucun journal, même d'erreur.
  */
 import { isWebhookUrl } from "./gazette-discord";
 
-export type RobotSalon = "nouvelles" | "encadrement";
-export const ROBOT_SALONS: readonly RobotSalon[] = ["nouvelles", "encadrement"];
+export type RobotSalon = "nouvelles" | "encadrement" | "victoires";
+export const ROBOT_SALONS: readonly RobotSalon[] = ["nouvelles", "encadrement", "victoires"];
 
 /** Le secret GitHub de chaque salon, qui sert quand rien n'est réglé dans la Direction. */
-export const SALON_SECRETS: Record<RobotSalon, string> = { nouvelles: "DISCORD_WEBHOOK_GAZETTE", encadrement: "DISCORD_WEBHOOK_ENCADREMENT" };
+export const SALON_SECRETS: Record<RobotSalon, string> = { nouvelles: "DISCORD_WEBHOOK_GAZETTE", encadrement: "DISCORD_WEBHOOK_ENCADREMENT", victoires: "DISCORD_WEBHOOK_VICTOIRES" };
 
 /** « Salon des nouvelles », pour le journal de l'Action. */
-export const SALON_LABELS: Record<RobotSalon, string> = { nouvelles: "Salon des nouvelles", encadrement: "Salon de l'encadrement" };
+export const SALON_LABELS: Record<RobotSalon, string> = { nouvelles: "Salon des nouvelles", encadrement: "Salon de l'encadrement", victoires: "Salon des victoires" };
 
 /** D'où vient le lien : réglé dans la Direction, secret GitHub, ou aucun. */
 export type LinkSource = "direction" | "secret" | "none";
@@ -29,7 +31,7 @@ export interface SalonLink {
   warning: string | null;
 }
 
-/** Les liens réglés dans la Direction, salon par salon. `null` pour un salon : rien de réglé. */
+/** Les liens réglés dans la Direction, salon par salon. `null` pour un salon : rien de réglé. Absent : le serveur ne connaît pas ce salon. */
 export type DirectionLinks = Partial<Record<RobotSalon, string | null>>;
 
 /** Lit `robot_discord_salons` avec la clé de service. Lève une erreur si le serveur refuse ou ne répond pas. */
@@ -83,6 +85,8 @@ export async function readDirectionLinks(url: string | undefined, key: string | 
     const record = data as Record<string, unknown>;
     const links: DirectionLinks = {};
     for (const salon of ROBOT_SALONS) {
+      // Un salon que le serveur ne rend pas lui est inconnu : sa migration n'est pas encore installée.
+      if (!Object.hasOwn(record, salon)) continue;
       const value = record[salon];
       links[salon] = typeof value === "string" && isWebhookUrl(value) ? value : null;
     }
@@ -169,8 +173,9 @@ export interface CheckDeps {
 }
 
 /**
- * Le contrôle des deux salons, à chaque passage. `false` : un salon au moins a un lien que Discord ne connaît pas, ou
- * le contrôle n'a pas pu être noté. Sans Supabase, le contrôle se lit seulement dans le journal de l'Action.
+ * Le contrôle des salons, à chaque passage. `false` : un salon au moins a un lien que Discord ne connaît pas, ou le contrôle
+ * n'a pas pu être noté. Sans Supabase, le contrôle se lit seulement dans le journal de l'Action. Un salon que le serveur ne
+ * connaît pas encore se contrôle sans être noté : la Direction ne peut pas le montrer.
  */
 export async function checkSalons({ env, fetch: get, log, call = callSupabase, note = noteSupabase }: CheckDeps): Promise<boolean> {
   const url = env["SUPABASE_URL"];
@@ -185,6 +190,10 @@ export async function checkSalons({ env, fetch: get, log, call = callSupabase, n
     if (link.link && (probe.status === null || UNKNOWN_LINK.includes(probe.status))) fine = false;
     // Sans lecture de la Direction, la source notée serait peut-être fausse : rien n'est noté.
     if (!url || !key || links === null) continue;
+    if (!Object.hasOwn(links, salon)) {
+      log(`${SALON_LABELS[salon]} : le serveur du site ne connaît pas encore ce salon (mise à jour du serveur à installer), le contrôle n'est pas noté pour la Direction.`);
+      continue;
+    }
     try {
       await withTimeout(note(url, key, { p_salon: salon, p_source: link.source, p_status: probe.status, p_name: probe.name }), DIRECTION_TIMEOUT_MS);
     } catch (e) {

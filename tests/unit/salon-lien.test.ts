@@ -164,3 +164,72 @@ describe("la migration des salons", () => {
     }
   });
 });
+
+describe("le salon des victoires", () => {
+  const WINS = "https://discord.com/api/webhooks/423456789012345678/victoiresvictoiresvictoires";
+  const SECRET = "https://discord.com/api/webhooks/523456789012345678/secretsecretsecretsecretse";
+  it("un serveur sans sa migration ne le connaît pas : le robot prend le secret DISCORD_WEBHOOK_VICTOIRES", async () => {
+    const before = answering({ nouvelles: NEWS, encadrement: null });
+    expect((await readDirectionLinks("u", "k", before)).links).toEqual({ nouvelles: NEWS, encadrement: null });
+    expect(await salonLink("victoires", { ...ENV, DISCORD_WEBHOOK_VICTOIRES: SECRET }, before)).toEqual({ link: SECRET, source: "secret", warning: null });
+    expect(await salonLink("victoires", ENV, before)).toEqual({ link: null, source: "none", warning: null });
+  });
+  it("réglé dans la Direction, son lien passe avant le secret", async () => {
+    const after = answering({ nouvelles: NEWS, encadrement: null, victoires: WINS });
+    expect(await salonLink("victoires", { ...ENV, DISCORD_WEBHOOK_VICTOIRES: SECRET }, after)).toEqual({ link: WINS, source: "direction", warning: null });
+  });
+  it("le contrôle du passage ne le note pour la Direction que si le serveur le connaît", async () => {
+    const run = async (call: DirectionCall) => {
+      const logs: string[] = [];
+      const noted: Parameters<NoteCall>[2][] = [];
+      const get = vi.fn(async () => new Response(JSON.stringify({ name: "Victoires" }), { status: 200 }));
+      const fine = await checkSalons({ env: { ...ENV, DISCORD_WEBHOOK_VICTOIRES: SECRET }, fetch: get as unknown as typeof fetch, log: (l) => logs.push(l), call, note: async (_u, _k, args) => void noted.push(args) });
+      return { fine, logs, noted, get };
+    };
+    const before = await run(answering({ nouvelles: NEWS, encadrement: null }));
+    expect(before.fine).toBe(true);
+    expect(before.get).toHaveBeenCalledWith(SECRET, { method: "GET", redirect: "error" });
+    expect(before.noted.map((n) => n.p_salon)).toEqual(["nouvelles", "encadrement"]);
+    expect(before.logs.join("\n")).toContain("Salon des victoires : le serveur du site ne connaît pas encore ce salon");
+    expect(before.logs.join("\n")).not.toContain("::warning::Salon des victoires");
+    const after = await run(answering({ nouvelles: NEWS, encadrement: null, victoires: WINS }));
+    expect(after.noted.at(-1)).toEqual({ p_salon: "victoires", p_source: "direction", p_status: 200, p_name: "Victoires" });
+  });
+});
+
+describe("la migration du salon des victoires", () => {
+  const SQL = readFileSync("supabase/migrations/20261111000500_salon_des_victoires.sql", "utf8");
+  const FIRST = readFileSync("supabase/migrations/20261111000300_salons_discord.sql", "utf8");
+  /** Le texte hors des corps de fonction : ce qui s'exécute au moment de coller la migration. */
+  const outside = SQL.split("$$").filter((_, i) => i % 2 === 0).join(" ");
+  it("n'efface aucune ligne : ses seuls « drop » retirent les deux anciens contrôles des salons, aussitôt remplacés", () => {
+    expect(SQL).not.toMatch(/\b(truncate|drop\s+(table|column|function|schema|policy))\b/i);
+    expect(outside).not.toMatch(/\b(delete|update)\b/i);
+    expect(outside.match(/\bdrop\b/gi)).toHaveLength(2);
+    expect(outside).toContain("alter table internal.discord_salons drop constraint if exists discord_salons_salon_check;");
+    expect(outside).toContain("alter table internal.discord_salon_checks drop constraint if exists discord_salon_checks_salon_check;");
+  });
+  it("permet les trois salons partout où la première migration en listait deux", () => {
+    expect(SQL).not.toContain("'nouvelles', 'encadrement')");
+    expect(SQL.match(/'nouvelles', 'encadrement', 'victoires'/g)).toHaveLength(FIRST.match(/'nouvelles', 'encadrement'/g)!.length);
+    expect(SQL).toContain("'victoires', (select webhook_url from internal.discord_salons where salon = 'victoires')");
+  });
+  it("remplace les sept fonctions, et repose leurs droits : le robot seul reçoit les liens", () => {
+    const created = [...SQL.matchAll(/create or replace function ((?:public|internal)\.[a-z_]+)\(/g)].map((m) => m[1]!);
+    expect(created).toEqual([...FIRST.matchAll(/create or replace function ((?:public|internal)\.[a-z_]+)\(/g)].map((m) => m[1]!));
+    for (const name of created) expect(SQL, name).toMatch(new RegExp(`revoke all on function ${name.replace(".", "\\.")}\\([^)]*\\) from public, anon, authenticated;`));
+    expect(SQL).toContain("grant execute on function public.robot_discord_salons() to service_role;");
+    expect(SQL).not.toMatch(/to anon\b/);
+    expect(SQL).not.toMatch(/grant execute on function public\.(robot_discord_salons|note_discord_salon)\([^)]*\) to (authenticated|anon)/);
+  });
+  it("garde le reste des fonctions de la première migration à l'identique", () => {
+    const bodies = (sql: string) => sql.split("$$").filter((_, i) => i % 2 === 1).map((b) => b.split("'nouvelles', 'encadrement', 'victoires'").join("'nouvelles', 'encadrement'").replace(/\s*when 'victoires' then [^\n]*\n/, "\n").replace(/\r\n/g, "\n"));
+    const before = bodies(FIRST);
+    const after = bodies(SQL);
+    expect(after).toHaveLength(before.length);
+    after.forEach((body, i) => {
+      if (body.includes("jsonb_build_object(\n    'nouvelles'")) return;
+      expect(body, `fonction ${i + 1}`).toBe(before[i]);
+    });
+  });
+});
