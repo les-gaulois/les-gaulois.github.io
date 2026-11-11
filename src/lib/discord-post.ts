@@ -1,5 +1,5 @@
 /**
- * L'envoi d'un message du robot sur le salon de la gazette, pour les alertes de place et les paliers franchis.
+ * L'envoi d'un message du robot sur le salon de la gazette, pour les alertes, les paliers franchis et les messages du jour.
  * Avec l'image d'abord, en texte si elle ne se dessine pas ou si Discord refuse ce format. La gazette garde son propre envoi.
  * Le lien vaut un mot de passe pour ce salon : il n'est écrit dans aucun message, même d'erreur.
  */
@@ -22,6 +22,19 @@ export interface PostDeps {
   label: string;
   fetch: typeof fetch;
   log: (line: string) => void;
+}
+
+/** Envoie un message en texte seul, comme les nouveautés du site. `true` : Discord l'a accepté. Un échec se retente au passage suivant. */
+export async function postText({ link, text, label, fetch: post, log }: Omit<PostDeps, "image">): Promise<boolean> {
+  try {
+    // Une redirection changerait l'envoi en simple lecture, qui répondrait « OK » sans poster de message.
+    const response = await post(link, { method: "POST", redirect: "error", headers: { "Content-Type": "application/json" }, body: JSON.stringify(text) });
+    if (response.ok) return true;
+    log(`::warning::${label} : Discord a répondu ${response.status}. Nouvel essai au prochain passage.`);
+  } catch {
+    log(`::warning::${label} : Discord n'a pas répondu. Nouvel essai au prochain passage.`);
+  }
+  return false;
 }
 
 /** `true` : Discord a accepté le message. Un échec se retente au passage suivant. */

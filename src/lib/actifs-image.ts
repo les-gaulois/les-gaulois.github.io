@@ -1,0 +1,34 @@
+/**
+ * L'image des plus actifs : une ligne par joueur, sa place dans le badge, ses parties et ses victoires à droite.
+ * Chargée seulement au moment d'envoyer, comme les autres images du robot : si elle ne se dessine pas, le message part en texte.
+ */
+import { ACTIVE_NOTE, ACTIVE_TITLE, activityWords, type ActivePlayer } from "./actifs";
+import type { ActivePeriod } from "./actifs-discord";
+import { fmtDayAndTime, fmtRank } from "./format";
+import type { GazetteCard, Measure } from "./gazette-image";
+import { periodWords } from "./paliers-franchis";
+import { shownAddress } from "./salon-discord";
+import { rowsCard } from "./salon-image";
+
+/** Quoi écrire et où : se teste sans police. Cinq joueurs au plus, comme le podium de la semaine. */
+export function activeCard(players: readonly ActivePlayer[], period: ActivePeriod, tag: string, siteUrl: string, measure: Measure): GazetteCard {
+  return rowsCard(
+    {
+      kicker: `Parties en équipe sous le tag [${tag}]`,
+      title: ACTIVE_TITLE,
+      period: `Entre les relevés de la liste du ${fmtDayAndTime(period.since)} et du ${fmtDayAndTime(period.until)}`,
+      rows: players.map((p) => ({ badge: fmtRank(p.place), strong: p.place === 1, name: p.username, detail: activityWords(p) })),
+      footnotes: [],
+      address: shownAddress(siteUrl, "/membres"),
+      note: ACTIVE_NOTE,
+      badgeWidth: 120,
+    },
+    measure,
+  );
+}
+
+/** Ce que l'image dit, pour un lecteur d'écran : Discord le lit comme description du fichier. */
+export function activeImageAlt(players: readonly ActivePlayer[], period: ActivePeriod, tag: string): string {
+  const names = players.map((p) => `${fmtRank(p.place)}, ${p.username} : ${activityWords(p)}`).join(" ; ");
+  return `${ACTIVE_TITLE} chez [${tag}], parties en équipe sous le tag, ${periodWords(period)}. ${names}. ${ACTIVE_NOTE}`.slice(0, 1024);
+}

@@ -1,7 +1,8 @@
 /**
- * Les paliers franchis : un message sur Discord quand des membres avec pseudo passent 100, 250, 500, 1 000, 2 500 ou 5 000 victoires
- * en équipe sous le tag. Ce sont les paliers du site (`paliers.ts`), à partir de 100 : en dessous, ils tombent presque chaque jour,
- * surtout chez les nouveaux (relevés du 5 au 8 novembre 2026 : README).
+ * Les paliers franchis : un message sur Discord quand des membres avec pseudo passent 50, 100, 250, 500, 1 000, 2 500 ou 5 000
+ * victoires en équipe sous le tag. Ce sont les paliers du site (`paliers.ts`), à partir de 50 depuis le 11 novembre 2026, à la
+ * demande du pilote, pour que le salon vive : à ce seuil, un message part presque chaque jour, surtout pour les nouveaux.
+ * Jusque-là, ils partaient à partir de 100 (relevés du 5 au 8 novembre 2026 : README). Le bilan de la semaine garde 100.
  *
  * - La liste des membres est relue environ une fois par jour. Chaque relecture est comparée à la précédente : un membre avec pseudo
  *   présent aux deux, qui a franchi un palier entre elles, est noté. Un nouveau membre ou un pseudo apparu n'a pas de point de départ :
@@ -21,17 +22,28 @@ import { WIN_TIERS } from "./paliers";
 import type { StoredMembers } from "./schemas";
 import { parisParts } from "./time";
 
-/** Les paliers du site annoncés sur Discord. */
+/** Les paliers cités dans le bilan de la semaine (gazette et accueil, `week-players.ts`) : ceux du site à partir de 100. */
 export const ANNOUNCED_TIERS: readonly number[] = WIN_TIERS.filter((tier) => tier >= 100);
 
-/** Le plus haut palier annoncé atteint, 0 en dessous du premier. */
+/** Le plus haut palier de la semaine atteint, 0 en dessous du premier. */
 export const announcedTier = (wins: number) => ANNOUNCED_TIERS.findLast((tier) => wins >= tier) ?? 0;
+
+/** Le premier palier annoncé sur Discord, depuis le 11 novembre 2026. Avant, c'était 100. */
+export const FIRST_DISCORD_TIER = 50;
+
+/** Les paliers du site annoncés sur Discord. */
+export const DISCORD_TIERS: readonly number[] = WIN_TIERS.filter((tier) => tier >= FIRST_DISCORD_TIER);
+
+/** Le plus haut palier annoncé sur Discord atteint, 0 en dessous du premier. */
+export const discordTier = (wins: number) => DISCORD_TIERS.findLast((tier) => wins >= tier) ?? 0;
 
 const isoDate = z.iso.datetime();
 
 export const MilestoneState = z.object({
   /** La dernière relecture de la liste : son heure, et le plus haut palier annoncé de chaque membre avec pseudo, 0 en dessous du premier. */
   reading: z.object({ at: isoDate, tiers: z.record(z.string(), z.number().int().nonnegative()) }),
+  /** Le premier palier annoncé quand ces paliers ont été notés. Absent : 100, avant le 11 novembre 2026. */
+  tiersFrom: z.number().int().positive().optional(),
   /** Les paliers notés et pas encore envoyés, franchis entre la relecture `since` et la relecture `until`. */
   pending: z
     .object({ since: isoDate, until: isoDate, players: z.array(z.object({ id: z.string(), tier: z.number().int().positive() })).min(1) })
@@ -56,7 +68,24 @@ export function parseMilestoneState(raw: string | null): { state: MilestoneState
 
 /** Le palier annoncé de chaque membre avec pseudo et stats. Jamais un anonyme. */
 export function namedTiers(members: StoredMembers): Record<string, number> {
-  return Object.fromEntries(members.members.flatMap((m) => (m.username && m.publicId && m.team ? [[m.publicId, announcedTier(m.team.wins)]] : [])));
+  return Object.fromEntries(members.members.flatMap((m) => (m.username && m.publicId && m.team ? [[m.publicId, discordTier(m.team.wins)]] : [])));
+}
+
+/**
+ * Passe des paliers notés à partir de 100 à ceux à partir de 50, une seule fois. Un membre noté 0 avait moins de 100 victoires :
+ * on ne sait pas quand il a passé 50. Il part donc de 50 s'il y est aujourd'hui, et rien n'est annoncé pour ce palier-là ;
+ * un passage à 100 ou plus depuis la relecture notée l'est toujours. Renvoie le même objet s'il n'y a rien à changer.
+ */
+export function rescaleTiers(state: MilestoneState, members: StoredMembers): MilestoneState {
+  if (state.tiersFrom === FIRST_DISCORD_TIER) return state;
+  const wins = new Map(members.members.flatMap((m) => (m.publicId && m.team ? [[m.publicId, m.team.wins] as const] : [])));
+  const tiers = Object.fromEntries(
+    Object.entries(state.reading.tiers).map(([id, tier]) => {
+      const now = wins.get(id);
+      return [id, tier === 0 && now !== undefined ? Math.min(discordTier(now), FIRST_DISCORD_TIER) : tier];
+    }),
+  );
+  return { ...state, reading: { ...state.reading, tiers }, tiersFrom: FIRST_DISCORD_TIER };
 }
 
 /**
@@ -76,8 +105,8 @@ export function forgetMilestoneMembers(state: MilestoneState, current: ReadonlyS
  */
 export function observeMembers(stored: MilestoneState | null, members: StoredMembers): MilestoneState {
   const current = namedTiers(members);
-  if (!stored) return { reading: { at: members.fetchedAt, tiers: current }, pending: null, lastSentOn: null };
-  const pruned = forgetMilestoneMembers(stored, new Set(Object.keys(current)));
+  if (!stored) return { reading: { at: members.fetchedAt, tiers: current }, tiersFrom: FIRST_DISCORD_TIER, pending: null, lastSentOn: null };
+  const pruned = forgetMilestoneMembers(rescaleTiers(stored, members), new Set(Object.keys(current)));
   if (Date.parse(members.fetchedAt) <= Date.parse(stored.reading.at)) return pruned;
 
   const kept = pruned.reading.tiers;
@@ -92,7 +121,7 @@ export function observeMembers(stored: MilestoneState | null, members: StoredMem
   }
   const players = [...crossed].map(([id, tier]) => ({ id, tier }));
   const since = pruned.pending ? pruned.pending.since : stored.reading.at;
-  return { reading: { at: members.fetchedAt, tiers }, pending: players.length > 0 ? { since, until: members.fetchedAt, players } : null, lastSentOn: stored.lastSentOn };
+  return { reading: { at: members.fetchedAt, tiers }, tiersFrom: FIRST_DISCORD_TIER, pending: players.length > 0 ? { since, until: members.fetchedAt, players } : null, lastSentOn: stored.lastSentOn };
 }
 
 /**

@@ -1,6 +1,12 @@
 [
   {
     "date": "2026-11-11",
+    "kind": "nouveau",
+    "title": "Plus de nouvelles sur Discord",
+    "body": "Le salon Discord de la gazette peut recevoir chaque jour le bilan de la veille, la bienvenue aux nouveaux, les plus actifs et les nouveautés du site. Les paliers y partent dès 50 victoires."
+  },
+  {
+    "date": "2026-11-11",
     "kind": "ameliore",
     "title": "Le ping des appels au choix",
     "body": "Au QG, une case « Ping du rôle sur Discord » choisit si l'appel mentionne le rôle. Au plus un ping toutes les 2 minutes pour le clan, et 10 minutes par membre.",

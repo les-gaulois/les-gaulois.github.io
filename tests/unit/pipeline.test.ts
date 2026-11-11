@@ -727,6 +727,15 @@ describe("runPipeline", () => {
       expect(readFileSync(milestonesPath, "utf8")).not.toContain("id2");
     });
 
+    it("oublie aussi un membre parti dans le fichier des plus actifs, sans lien Discord ni envoi", async () => {
+      const activePath = join(dir, "actifs-envoi.json");
+      const base = { at: "2026-11-05T09:00:00.000Z", games: { id1: 10, id2: 20 }, wins: { id1: 5, id2: 12 } };
+      writeFileSync(activePath, JSON.stringify({ base, lastSentOn: "2026-11-05" }));
+      await runPipeline(deps(withMembers([withRecord("id1", "Alpha", 1, 1), withRecord("id2", null, 1, 1)], answering({ id1: 2 }))));
+      expect(JSON.parse(readFileSync(activePath, "utf8"))).toEqual({ base: { at: base.at, games: { id1: 10 }, wins: { id1: 5 } }, lastSentOn: "2026-11-05" });
+      expect(readFileSync(activePath, "utf8")).not.toContain("id2");
+    });
+
     it("oublie un membre qui retire son pseudo, même si la liste des comptes supprimés est en panne", async () => {
       await runPipeline(deps(withMembers([withRecord("id1", "Alpha", 1, 1), withRecord("id2", "Bravo", 1, 1)], answering({ id1: 2, id2: 2 }))));
       now = new Date("2026-11-06T09:00:00.000Z");
