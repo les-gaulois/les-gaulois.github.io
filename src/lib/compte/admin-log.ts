@@ -10,13 +10,14 @@ export const LOG_LIMIT = 500;
 /** Les lignes montrées d'abord, puis à chaque « Afficher plus ». */
 export const LOG_PAGE = 50;
 
-export type LogCategory = "requests" | "roles" | "suspensions" | "news" | "other";
+export type LogCategory = "requests" | "roles" | "suspensions" | "news" | "settings" | "other";
 
 export const LOG_CATEGORIES: readonly { id: LogCategory; label: string }[] = [
   { id: "requests", label: "Demandes" },
   { id: "roles", label: "Rôles" },
   { id: "suspensions", label: "Suspensions" },
   { id: "news", label: "Publications : annonces, événements, sondages, mot d'accueil, idées, Gaulois de la semaine" },
+  { id: "settings", label: "Réglages : les appels sur Discord" },
   { id: "other", label: "Autres" },
 ];
 
@@ -43,6 +44,8 @@ const CATEGORIES: Record<string, LogCategory> = {
   idea_removed: "news",
   weekly_pick_saved: "news",
   weekly_pick_deleted: "news",
+  discord_calls_saved: "settings",
+  discord_calls_cleared: "settings",
 };
 
 /** Les décisions de la boîte à idées, comme le journal les écrit. Mêmes codes que `IDEA_STATUS_LABELS` du QG. */
@@ -157,6 +160,13 @@ export function describe(row: LogRow, when: (iso: string) => string): LogLine {
       const player = textOf(details, "player");
       return { who, what: player ? `a retiré ${player} du Gaulois de la semaine.` : "a retiré le Gaulois de la semaine." };
     }
+    // Le lien du webhook n'est jamais dans le journal : seulement s'il y a un rôle à mentionner.
+    case "discord_calls_saved": {
+      const mention = details["mention"];
+      return { who, what: `a réglé l'envoi des appels sur Discord${mention === true ? ", avec la mention d'un rôle" : mention === false ? ", sans mention de rôle" : ""}.` };
+    }
+    case "discord_calls_cleared":
+      return { who, what: "a arrêté l'envoi des appels sur Discord." };
     case "account_deleted":
       return { who: row.actor ?? "Un membre", what: "a supprimé son compte." };
     default:

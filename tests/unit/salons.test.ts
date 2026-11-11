@@ -8,7 +8,7 @@ const SANS_FORMAT = readFileSync("supabase/migrations/20261110000100_appels_sans
 
 const AVATAR = "https://cdn.discordapp.com/avatars/123456789012345678/a_0f1e2d3c4b5a69788796a5b4c3d2e1f0.png";
 const row = { id: 3, game: "cA4qqR72uf", format: "trios", created_at: "2026-11-09T20:00:00Z", expires_at: "2026-11-09T20:15:00Z", mine: false, name: "Recrue", avatar: AVATAR };
-const call = (over: Partial<LobbyCall> = {}): LobbyCall => ({ id: 3, game: "cA4qqR72uf", format: "trios", createdAt: "2026-11-09T20:00:00Z", expiresAt: "2026-11-09T20:15:00Z", mine: false, name: "Recrue", avatar: null, ...over });
+const call = (over: Partial<LobbyCall> = {}): LobbyCall => ({ id: 3, game: "cA4qqR72uf", format: "trios", createdAt: "2026-11-09T20:00:00Z", expiresAt: "2026-11-09T20:15:00Z", mine: false, discord: false, name: "Recrue", avatar: null, ...over });
 
 describe("le lien collé par un membre", () => {
   it("donne l'identifiant de la partie, quelle que soit la forme que le jeu a copiée", () => {
@@ -52,7 +52,8 @@ describe("la réponse des appels", () => {
   it("se lit telle que le serveur la donne", () => {
     expect(parseLobbyCalls({ ok: true, now: "2026-11-09T20:03:00Z", calls: [row] })).toEqual({
       now: Date.parse("2026-11-09T20:03:00Z"),
-      calls: [{ id: 3, game: "cA4qqR72uf", format: "trios", createdAt: "2026-11-09T20:00:00Z", expiresAt: "2026-11-09T20:15:00Z", mine: false, name: "Recrue", avatar: AVATAR }],
+      discord: false,
+      calls: [{ id: 3, game: "cA4qqR72uf", format: "trios", createdAt: "2026-11-09T20:00:00Z", expiresAt: "2026-11-09T20:15:00Z", mine: false, discord: false, name: "Recrue", avatar: AVATAR }],
     });
   });
 
@@ -73,6 +74,18 @@ describe("la réponse des appels", () => {
     expect(answer?.calls.map((c) => c.id)).toEqual([3, 8]);
     // Une photo hors du serveur d'images de Discord laisse la place à l'initiale.
     expect(answer?.calls[1]?.avatar).toBeNull();
+  });
+
+  it("dit si les appels partent aussi sur Discord, et non quand le serveur ne le dit pas", () => {
+    expect(parseLobbyCalls({ ok: true, now: "2026-11-11T14:00:00Z", discord: true, calls: [] })?.discord).toBe(true);
+    expect(parseLobbyCalls({ ok: true, now: "2026-11-11T14:00:00Z", discord: "oui", calls: [] })?.discord).toBe(false);
+    // Avant la migration 20261111000100_appels_sur_discord.sql, le serveur ne donne pas cette case.
+    expect(parseLobbyCalls({ ok: true, now: "2026-11-11T14:00:00Z", calls: [] })?.discord).toBe(false);
+  });
+
+  it("dit, appel par appel, si son message est parti vers Discord", () => {
+    const answer = parseLobbyCalls({ ok: true, now: "2026-11-11T14:00:00Z", discord: true, calls: [{ ...row, mine: true, discord: true }, { ...row, id: 4, discord: "oui" }, { ...row, id: 5 }] });
+    expect(answer?.calls.map((c) => c.discord)).toEqual([true, false, false]);
   });
 
   it("dit qu'une réponse sans heure ni liste est illisible", () => {

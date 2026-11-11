@@ -99,6 +99,17 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   if (isClosed(callSaved.status) || (callSaved.ok && callSavedAnswer?.ok === false)) add("Un visiteur ne lance pas d'appel", "ok");
   else add("Un visiteur ne lance pas d'appel", "fail", `Réponse ${callSaved.status}. Ne mettez pas en ligne : seuls les membres validés appellent.`);
 
+  // Les appels sur Discord : le réglage contient le lien qui écrit dans le salon. Seuls les admins et le fondateur le règlent.
+  const discordState = await rpc("get_discord_calls");
+  const discordStateAnswer = discordState.ok ? ((await discordState.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (isClosed(discordState.status) || (discordState.ok && discordStateAnswer?.ok === false)) add("Un visiteur ne lit pas le réglage Discord des appels", "ok");
+  else add("Un visiteur ne lit pas le réglage Discord des appels", "fail", `Réponse ${discordState.status}. Ne mettez pas en ligne : seuls les admins et le fondateur lisent ce réglage.`);
+
+  const discordSaved = await rpc("save_discord_calls", { p_webhook: "verification", p_role: null });
+  const discordSavedAnswer = discordSaved.ok ? ((await discordSaved.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (isClosed(discordSaved.status) || (discordSaved.ok && discordSavedAnswer?.ok === false)) add("Un visiteur ne règle pas les appels sur Discord", "ok");
+  else add("Un visiteur ne règle pas les appels sur Discord", "fail", `Réponse ${discordSaved.status}. Ne mettez pas en ligne : seuls les admins et le fondateur règlent l'envoi.`);
+
   // « Refaire la demande » : seul un admin remet un compte en attente. Son installation se lit avec `supabase migration list`.
   const reset = await rpc("reset_member_link", { p_user: "00000000-0000-0000-0000-000000000000" });
   const resetAnswer = reset.ok ? ((await reset.json().catch(() => null)) as { ok?: boolean } | null) : null;

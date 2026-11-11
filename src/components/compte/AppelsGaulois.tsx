@@ -211,7 +211,12 @@ export default function AppelsGaulois() {
               </div>
               {!ended && <p class="tnum mt-2 text-sm text-white/85">Appel lancé {sinceLabel(item.createdAt, now)}.</p>}
               {/* Celui qui appelle a une fenêtre comme celle des autres : la phrase le lui dit. */}
-              {!ended && item.mine && <p class="mt-1 text-sm text-white/85">Les membres connectés reçoivent la même alerte.</p>}
+              {!ended && item.mine && (
+                <p class="mt-1 text-sm text-white/85">
+                  {/* Le message est parti vers Discord : le serveur ne dit pas ici si Discord l'a accepté. */}
+                  Les membres connectés reçoivent la même alerte{item.discord ? " ; l'appel part aussi sur Discord" : ""}.
+                </p>
+              )}
               {seats && <p class="mt-1 text-sm text-white/85">{seats}</p>}
               <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 sm:mt-4">
                 {/* Celui qui appelle est déjà dans son salon : son bouton mène au QG, où il peut retirer l'appel. */}

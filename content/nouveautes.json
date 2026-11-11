@@ -1,5 +1,15 @@
 [
   {
+    "date": "2026-11-11",
+    "kind": "nouveau",
+    "title": "Les appels partent sur Discord",
+    "body": "Un appel lancé au QG peut aussi partir dans un salon Discord du clan, en mentionnant un rôle. Les admins branchent ce salon dans l'onglet Discord de la Direction.",
+    "link": {
+      "href": "/qg#salons",
+      "label": "Voir les salons"
+    }
+  },
+  {
     "date": "2026-11-10",
     "kind": "nouveau",
     "title": "Les podiums des Gaulois",

@@ -8,6 +8,7 @@ import type { SiteHealthInput } from "../../lib/etat-site";
 import { fmtDate, fmtDateTime, fmtInt } from "../../lib/format";
 import { tabsFor } from "../../lib/onglets";
 import { DeleteButton, DiscordButton, Loading, Problem, Success, messageOf, useMe, useRun } from "./common";
+import DirectionDiscord from "./DirectionDiscord";
 import DirectionPolls, { EMPTY_POLL, type PollDraft } from "./DirectionPolls";
 import DirectionWelcome from "./DirectionWelcome";
 import DirectionWeeklyPick, { EMPTY_WEEKLY_PICK, type WeeklyPickDraft } from "./DirectionWeeklyPick";
@@ -39,7 +40,7 @@ interface Overview {
   events: EventRow[];
 }
 
-/** Les onglets de la Direction. Le dernier n'est montré qu'au fondateur. */
+/** Les onglets de la Direction. Discord n'est montré qu'aux admins et au fondateur, le dernier qu'au fondateur. */
 const DIRECTION_TABS = [
   { id: "ensemble", label: "Vue d'ensemble" },
   { id: "annonces", label: "Annonces" },
@@ -47,6 +48,7 @@ const DIRECTION_TABS = [
   { id: "sondages", label: "Sondages" },
   { id: "accueil", label: "Mot d'accueil" },
   { id: "semaine", label: "Gaulois de la semaine" },
+  { id: "discord", label: "Discord", rank: 3 },
   { id: "fondateur", label: "Fondateur", rank: 4 },
 ] as const;
 
@@ -512,6 +514,13 @@ export default function DirectionApp({ health }: { health: Omit<SiteHealthInput,
           <Partie {...part} id="semaine">
             {shown.has("semaine") && <DirectionWeeklyPick draft={pickDraft} setDraft={setPickDraft} />}
           </Partie>
+
+          {/* Le serveur refuse le réglage sous le rang d'admin : l'onglet n'est qu'une commodité. */}
+          {rank >= 3 && (
+            <Partie {...part} id="discord">
+              {shown.has("discord") && <DirectionDiscord />}
+            </Partie>
+          )}
 
           {me.role === "founder" && (
             <Partie {...part} id="fondateur">

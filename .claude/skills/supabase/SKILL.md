@@ -32,6 +32,7 @@ Le fonctionnement, les rôles et l'installation sont décrits dans `docs/DIRECTI
 - Nouvelle table dans `public` : Supabase l'ouvre à `anon` et `authenticated`. La migration active RLS puis fait `revoke all on table … from anon, authenticated;`. Les tables privées vont dans le schéma `internal`.
 - Garder un `WHERE` sur chaque `update` et `delete` : Supabase refuse sinon.
 - Une fonction appelée depuis le site renvoie `{ ok: true, … }` ou `{ ok: false, error: "code" }` ; le code a son message en français dans `src/lib/compte/errors.ts`, avec son test dans `tests/unit/compte-errors.test.ts`.
+- Une requête sortante du serveur passe par pg_net, après l'enregistrement, et ne fait jamais échouer l'action qui la lance (`internal.discord_post`, migration `20261111000100_appels_sur_discord.sql`). Son adresse est rangée sous une forme vérifiée (aujourd'hui seulement `https://discord.com/api/webhooks/…`), jamais choisie par le navigateur. pg_net n'existe pas sur PGlite : le simuler pour essayer une migration.
 
 ## Mettre en ligne un changement de schéma
 

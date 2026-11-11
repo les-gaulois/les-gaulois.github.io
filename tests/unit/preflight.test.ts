@@ -14,6 +14,8 @@ const HEALTHY: Record<string, Route> = {
   "/rest/v1/rpc/get_qg": { status: 401, body: {} },
   "/rest/v1/rpc/get_lobby_calls": { status: 401, body: {} },
   "/rest/v1/rpc/save_lobby_call": { status: 401, body: {} },
+  "/rest/v1/rpc/get_discord_calls": { status: 401, body: {} },
+  "/rest/v1/rpc/save_discord_calls": { status: 401, body: {} },
   "/rest/v1/rpc/reset_member_link": { status: 401, body: {} },
   "/rest/v1/profiles": { status: 401, body: {} },
   "/rest/v1/private_links": { status: 401, body: {} },
@@ -108,6 +110,14 @@ describe("le contrôle de la mise en ligne", () => {
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_lobby_calls": { status: 200, body: { ok: true, now: "2026-11-09T20:00:00Z", calls: [] } } }, "voit pas les appels")).toBe("fail");
     expect(await statusOf(HEALTHY, "lance pas d'appel")).toBe("ok");
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/save_lobby_call": { status: 200, body: { ok: true } } }, "lance pas d'appel")).toBe("fail");
+  });
+
+  it("bloque si un visiteur lit ou change le réglage des appels sur Discord", async () => {
+    expect(await statusOf(HEALTHY, "lit pas le réglage Discord")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_discord_calls": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "lit pas le réglage Discord")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_discord_calls": { status: 200, body: { ok: true, set: true, role: null } } }, "lit pas le réglage Discord")).toBe("fail");
+    expect(await statusOf(HEALTHY, "règle pas les appels sur Discord")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/save_discord_calls": { status: 200, body: { ok: true } } }, "règle pas les appels sur Discord")).toBe("fail");
   });
 
   it("bloque si un visiteur lit une table privée, mais pas si elle est vide", async () => {

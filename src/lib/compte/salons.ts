@@ -80,6 +80,8 @@ export interface LobbyCall {
   expiresAt: string;
   /** L'appel du membre connecté. */
   mine: boolean;
+  /** Son message est parti vers le salon Discord des appels. Le serveur ne dit pas ici ce que Discord a répondu. */
+  discord: boolean;
   /** Le pseudo d'aujourd'hui de celui qui appelle, ou le nom de son compte. */
   name: string;
   /** Sa photo Discord, s'il a choisi de se montrer. `null` : la page montre son initiale. */
@@ -89,6 +91,8 @@ export interface LobbyCall {
 export interface LobbyCalls {
   /** L'heure du serveur au moment de la réponse, en millisecondes. */
   now: number;
+  /** Les appels partent aussi dans un salon Discord du clan, avec le pseudo de qui appelle (migration `20261111000100_appels_sur_discord.sql`). */
+  discord: boolean;
   calls: LobbyCall[];
 }
 
@@ -103,7 +107,7 @@ function callOf(raw: unknown): LobbyCall | null {
   if (format !== null && format !== undefined && !isFormat(format)) return null;
   if (typeof createdAt !== "string" || timeOf(createdAt) === null || typeof expiresAt !== "string" || timeOf(expiresAt) === null) return null;
   if (typeof name !== "string" || name.trim() === "") return null;
-  return { id, game, format: isFormat(format) ? format : null, createdAt, expiresAt, mine: raw["mine"] === true, name, avatar: safeAvatar(raw["avatar"]) };
+  return { id, game, format: isFormat(format) ? format : null, createdAt, expiresAt, mine: raw["mine"] === true, discord: raw["discord"] === true, name, avatar: safeAvatar(raw["avatar"]) };
 }
 
 /** La réponse de `get_lobby_calls`, relue : un appel illisible n'est pas montré. `null` : la réponse n'a pas la forme attendue. */
@@ -111,7 +115,8 @@ export function parseLobbyCalls(raw: unknown): LobbyCalls | null {
   if (!isRecord(raw) || !Array.isArray(raw["calls"])) return null;
   const now = timeOf(raw["now"]);
   if (now === null) return null;
-  return { now, calls: raw["calls"].flatMap((call) => callOf(call) ?? []) };
+  // Avant la migration des appels sur Discord, le serveur ne donne pas `discord` : rien ne part sur Discord.
+  return { now, discord: raw["discord"] === true, calls: raw["calls"].flatMap((call) => callOf(call) ?? []) };
 }
 
 /** Les refus du serveur qui ne passeront pas en réessayant : plus de session, compte pas encore validé, compte suspendu. La relecture s'arrête là. */

@@ -67,10 +67,11 @@ export default function QgSalons() {
     setSaid("");
     try {
       // Plus de format à choisir (migration 20261110000100_appels_sans_format.sql) : le lien suffit.
-      await call("save_lobby_call", { p_game: game, p_format: null });
+      const answer = await call<{ discord?: boolean }>("save_lobby_call", { p_game: game, p_format: null });
       setLink("");
       await refreshAfterWrite();
-      setSaid("Les Gaulois sont prévenus.");
+      // `discord` : le message est parti vers Discord, sans savoir encore ce que Discord en fait.
+      setSaid(answer?.discord === true ? "Les Gaulois sont prévenus. L'appel part aussi sur Discord." : "Les Gaulois sont prévenus.");
     } catch (e) {
       setFormProblem(messageOf(e));
     } finally {
@@ -156,7 +157,7 @@ export default function QgSalons() {
             data-testid="qg-salons-form"
             onSubmit={(e) => {
               e.preventDefault();
-              if (!busy) void submit();
+              if (!busy && data !== null) void submit();
             }}
           >
             <div>
@@ -165,10 +166,15 @@ export default function QgSalons() {
               </label>
               <input id="salon-lien" class="field mt-1" inputMode="url" autoComplete="off" spellcheck={false} placeholder="https://openfront.io/game/…" value={link} onInput={(e) => setLink(e.currentTarget.value)} />
             </div>
-            {/* Le site ne peut pas vérifier le mode du salon : cette phrase est le seul garde-fou contre le chacun pour soi public. */}
-            <p class="text-sm text-muted">Salons en équipes ou privés seulement : en chacun pour soi, OpenFront interdit de s'entendre hors de la partie. Les membres verront votre pseudo pendant l'appel.</p>
+            {/* Le site ne peut pas vérifier le mode du salon : cette phrase est le seul garde-fou contre le chacun pour soi public.
+                Le message Discord reste dans le salon après l'appel, sauf si l'appel est retiré : la phrase le dit avant l'appel,
+                et le bouton attend le premier relevé, qui seul dit si les appels partent sur Discord. */}
+            <p class="text-sm text-muted" data-testid="qg-salons-privacy">
+              Salons en équipes ou privés seulement : en chacun pour soi, OpenFront interdit de s'entendre hors de la partie. Les membres verront votre pseudo pendant l'appel.
+              {data?.discord && " L'appel part aussi sur Discord, avec votre pseudo ; le message y reste, sauf si vous retirez l'appel."}
+            </p>
             <div>
-              <button type="submit" class="btn btn-primary" disabled={busy}>
+              <button type="submit" class="btn btn-primary" disabled={busy || data === null}>
                 Prévenir les Gaulois
               </button>
             </div>

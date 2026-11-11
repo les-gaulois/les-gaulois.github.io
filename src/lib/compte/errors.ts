@@ -58,6 +58,11 @@ export const ERROR_MESSAGES: Record<string, string> = {
   invalid_game: "Collez le lien de votre salon, copié dans OpenFront : une adresse https://openfront.io/ qui contient /game/, ou le code de la partie.",
   invalid_format: "Ce format de salon n'existe pas. Rechargez la page.",
   call_too_soon: "Vous venez de prévenir les Gaulois : attendez une minute avant un nouvel appel.",
+
+  invalid_webhook: "Collez le lien d'un webhook de Discord : une adresse https://discord.com/api/webhooks/…, copiée dans les réglages du salon.",
+  invalid_role: "Collez l'identifiant du rôle : un nombre de 17 à 20 chiffres, pas son nom.",
+  discord_not_set: "Aucun salon Discord n'est réglé : enregistrez d'abord un lien.",
+  test_too_soon: "Un essai vient de partir : attendez quelques secondes avant le suivant.",
 };
 
 export function errorMessage(code: string): string {
