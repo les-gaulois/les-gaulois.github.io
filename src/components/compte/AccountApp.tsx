@@ -195,7 +195,7 @@ export default function AccountApp() {
         </p>
         {me.status === "validated" && (
           <div class="mt-4 flex flex-wrap gap-3">
-            {/* Le mot de l'encadrement, les sondages, les idées et le mur sont au QG, réservé aux membres validés. L'administration y est aussi, dans les onglets de l'encadrement. */}
+            {/* Le mot de l'encadrement, les sondages, les idées et le mur sont au QG, réservé aux membres validés. L'administration est dans la Direction. */}
             <a class="btn btn-primary" href={`${basePath()}/qg`} data-testid="account-qg">
               Entrer dans le QG
             </a>

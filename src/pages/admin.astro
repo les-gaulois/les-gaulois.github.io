@@ -2,19 +2,20 @@
 import Base from "../layouts/Base.astro";
 import PageHeader from "../components/PageHeader.astro";
 
-// L'administration a rejoint le QG le 10 novembre 2026. L'adresse reste, pour les liens déjà donnés (Discord, favoris) et le
-// retour d'une connexion commencée ici : la suite de l'adresse (?code=… de Discord, #comptes) suit jusqu'au QG.
-const qg = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/qg`;
+// L'administration est dans la Direction depuis le 12 novembre 2026 (au QG du 10 au 12). L'adresse reste, pour les liens
+// déjà donnés (Discord, favoris) et le retour d'une connexion commencée ici : la suite de l'adresse (?code=… de Discord,
+// #comptes) suit jusqu'à la Direction.
+const direction = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/direction`;
 ---
 
-<Base title="Administration" description="L'administration du clan GAL est maintenant au QG." noindex>
+<Base title="Administration" description="L'administration du clan GAL est maintenant dans la Direction." noindex>
   <div class="wrap">
     <PageHeader title="Administration" compact />
     <p class="card max-w-3xl p-6 text-lg" data-testid="admin-moved">
-      L'administration est maintenant au QG, dans les onglets de l'encadrement. <a href={`${qg}#demandes`}>Ouvrir les demandes au QG</a>
+      L'administration est maintenant dans la Direction. <a href={`${direction}#demandes`}>Ouvrir les demandes</a>
     </p>
   </div>
-  <script is:inline define:vars={{ qg }}>
-    location.replace(`${qg}${location.search}${location.hash || "#demandes"}`);
+  <script is:inline define:vars={{ direction }}>
+    location.replace(`${direction}${location.search}${location.hash || "#demandes"}`);
   </script>
 </Base>

@@ -1,4 +1,5 @@
-import { useEffect, useState } from "preact/hooks";
+import type { ComponentChildren } from "preact";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { basePath, call } from "../../lib/compte/api";
 import { toLocalInput } from "../../lib/compte/news";
 import { pendingWords } from "../../lib/compte/pending";
@@ -9,7 +10,8 @@ import { fmtDate, fmtDateTime, fmtInt } from "../../lib/format";
 import type { LogoMatriceData } from "../../lib/logo-matrice";
 import { tabsFor } from "../../lib/onglets";
 import LogoMatrice from "../LogoMatrice";
-import { DeleteButton, DiscordButton, Loading, Problem, Success, messageOf, useMe, useRun } from "./common";
+import { Log, Members, Requests } from "./AdminPanels";
+import { DeleteButton, DiscordButton, Loading, Problem, Success, messageOf, useMe, usePendingCount, useRun } from "./common";
 import DirectionDiscord from "./DirectionDiscord";
 import DirectionObjectif from "./DirectionObjectif";
 import DirectionPolls, { EMPTY_POLL, type PollDraft } from "./DirectionPolls";
@@ -44,9 +46,17 @@ interface Overview {
   events: EventRow[];
 }
 
-/** Les onglets de la Direction. Discord n'est montré qu'aux admins et au fondateur, le dernier qu'au fondateur. */
+/**
+ * Les onglets de la Direction. Le journal et Discord ne sont montrés qu'aux admins et au fondateur, le dernier qu'au fondateur.
+ * Demandes, Comptes et Journal : l'administration, au QG du 10 au 12 novembre 2026, ici depuis (demande du pilote : elle est
+ * destinée à l'encadrement). L'affichage suit le rang, mais chaque fonction du serveur revérifie : masquer un onglet ne protège rien.
+ */
 const DIRECTION_TABS = [
   { id: "ensemble", label: "Vue d'ensemble" },
+  { id: "demandes", label: "Demandes" },
+  // « Comptes » : les comptes du site, validés, en attente ou suspendus, et non la page publique des membres.
+  { id: "comptes", label: "Comptes" },
+  { id: "journal", label: "Journal", rank: 3 },
   { id: "annonces", label: "Annonces" },
   { id: "evenements", label: "Événements" },
   { id: "sondages", label: "Sondages" },
@@ -57,9 +67,22 @@ const DIRECTION_TABS = [
   { id: "fondateur", label: "Fondateur", rank: 4 },
 ] as const;
 
-function Tile({ label, value, href, alert = false }: { label: string; value: number; href: string; alert?: boolean }) {
+/**
+ * Une case de la vue d'ensemble : elle ouvre la partie où l'on décide. C'est un vrai lien (`#demandes`) : le clic droit et
+ * l'ouverture dans un nouvel onglet restent. Au clic simple, `onOpen` ouvre la partie et y mène le focus.
+ */
+function Tile({ label, value, part, onOpen, alert = false }: { label: string; value: number; part: string; onOpen: (part: string) => void; alert?: boolean }) {
   return (
-    <a href={href} class="card block p-5 hover:border-white" data-testid="direction-tile">
+    <a
+      href={`#${part}`}
+      class="card block p-5 hover:border-white"
+      data-testid="direction-tile"
+      onClick={(e) => {
+        if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        e.preventDefault();
+        onOpen(part);
+      }}
+    >
       {/* `console-*` : l'ambiance console de la page, voir global.css. */}
       <span class="console-libelle font-semibold text-muted">{label}</span>
       <span class={`console-valeur tnum mt-1 block font-display text-4xl font-extrabold ${alert ? "text-warn" : ""}`}>{fmtInt(value)}</span>
@@ -387,7 +410,8 @@ function FounderTransfer({ onDone }: { onDone: () => Promise<void> }) {
 
 /**
  * L'espace Direction, en onglets : une partie à la fois. `health` : l'état de la collecte et de la gazette, lu au moment
- * de la construction du site (voir direction.astro). Les demandes et les comptes se traitent au QG.
+ * de la construction du site (voir direction.astro). Seules la vue d'ensemble, les annonces et les événements attendent
+ * `get_direction_overview` : si elle échoue, les autres parties restent, et l'on peut toujours valider un membre.
  */
 export default function DirectionApp({ health, logo }: { health: Omit<SiteHealthInput, "roster">; logo?: LogoMatriceData }) {
   const { me, failed, refresh } = useMe();
@@ -406,25 +430,43 @@ export default function DirectionApp({ health, logo }: { health: Omit<SiteHealth
   const base = basePath();
   const tabs = tabsFor(DIRECTION_TABS, rank);
   const { active, slide, shown, select, call: called } = useTabs(tabs.map((tab) => tab.id));
+  // Le nombre de l'onglet Demandes, relu dès qu'une demande est traitée, comme la pastille de l'en-tête.
+  const pending = usePendingCount(rank >= 2);
+  // Revenir à la vue d'ensemble la relit : une demande, un rôle ou une suspension traités ailleurs changent ses cases.
+  const away = useRef(false);
+  // Chaque lecture a son numéro : la réponse d'une lecture dépassée par une plus récente est écartée, sans remettre l'ancien état.
+  const reads = useRef(0);
 
   const load = async () => {
+    const mine = ++reads.current;
+    let next: Overview | null = null;
+    let problem: string | null = null;
     try {
-      setOverview(await call<Overview>("get_direction_overview"));
-      setError(null);
+      next = await call<Overview>("get_direction_overview");
     } catch (e) {
-      setError(messageOf(e));
+      problem = messageOf(e);
     }
+    if (mine !== reads.current) return;
+    if (next) setOverview(next);
+    setError(problem);
+    let people: Map<number, string[]> | null = null;
     try {
       const data = await call<{ rows: { event_id: number; names: string[] }[] }>("list_event_attendance");
-      setAttendance(new Map(data.rows.map((r) => [r.event_id, r.names])));
+      people = new Map(data.rows.map((r) => [r.event_id, r.names]));
     } catch {
-      setAttendance(null);
+      // Pas de réponse : `null`, et la liste des événements le dit.
     }
+    if (mine === reads.current) setAttendance(people);
   };
 
   useEffect(() => {
     if (rank >= 2) void load();
   }, [rank]);
+
+  useEffect(() => {
+    if (active !== "ensemble") away.current = true;
+    else if (away.current && rank >= 2) void load();
+  }, [active]);
 
   if (me === null) return <Loading />;
   if (failed) return <Problem message="Le service de connexion ne répond pas pour l'instant. Le reste du site continue de fonctionner." onRetry={() => void refresh()} />;
@@ -447,13 +489,26 @@ export default function DirectionApp({ health, logo }: { health: Omit<SiteHealth
   }
 
   const qg = `${base}/qg`;
-  const pending = overview?.pending_requests ?? 0;
   const items: TabItem[] = tabs.map((tab) => ({
     id: tab.id,
     label: tab.label,
-    count: tab.id === "ensemble" && pending > 0 ? { value: pending, words: `${fmtInt(pending)} ${pendingWords(pending) ?? ""}`, tone: "alerte" } : null,
+    count: tab.id === "demandes" && pending !== null && pending > 0 ? { value: pending, words: `${fmtInt(pending)} ${pendingWords(pending) ?? ""}`, tone: "alerte" } : null,
   }));
   const part = { prefix: "direction", active, slide };
+
+  // Une case de la vue d'ensemble ouvre sa partie, et le focus y va : la case elle-même vient d'être masquée.
+  const open = (id: string) => {
+    select(id, true);
+    requestAnimationFrame(() => document.getElementById(`direction-partie-${id}`)?.focus({ preventScroll: true }));
+  };
+
+  // Les parties lues par `get_direction_overview` : son refus s'affiche dans chacune, là où l'on regarde.
+  const withOverview = (render: (data: Overview) => ComponentChildren) => (
+    <>
+      <Problem message={error} onRetry={() => void load()} />
+      {overview ? <div class={error ? "mt-4" : undefined}>{render(overview)}</div> : !error && <Loading />}
+    </>
+  );
 
   return (
     <div class="grid grid-cols-1 gap-6" data-testid="direction">
@@ -463,7 +518,7 @@ export default function DirectionApp({ health, logo }: { health: Omit<SiteHealth
           <Telemetrie role={ROLE_LABELS[me.role as Role]} lastRunAt={health.meta.lastRunAt} testId="direction" />
         </div>
         <div class="flex flex-wrap gap-2">
-          {/* Les demandes, les comptes, le journal et les idées des membres se traitent au QG, là où les membres les lisent. */}
+          {/* Les idées des membres se tranchent au QG, là où les membres les proposent. */}
           <a class="btn btn-ghost" href={qg} data-testid="direction-qg">
             Le QG
           </a>
@@ -476,88 +531,100 @@ export default function DirectionApp({ health, logo }: { health: Omit<SiteHealth
           </button>
         </div>
       </section>
-      <Problem message={error} onRetry={() => void load()} />
-      {overview === null ? (
-        !error && <Loading />
-      ) : (
-        <div class="grid grid-cols-1 gap-5">
-          {/* `menu` : neuf parties pour le fondateur, la barre ne les montrait pas toutes ; à la place, un menu déroulant, à toutes les largeurs. */}
-          {/* `debut` : le petit logo du guerrier en mode Matrix, en tête du menu (style Terminal). */}
-          <Onglets
-            label="Les parties de la Direction"
-            prefix="direction"
-            tabs={items}
-            active={active}
-            onSelect={(id) => select(id)}
-            call={called}
-            menu
-            debut={logo && <LogoMatrice data={logo} id="logo-menu" class="console-logo-menu" points />}
-          />
+      <div class="grid grid-cols-1 gap-5">
+        {/* `menu` : douze parties pour le fondateur, la barre ne les montrait pas toutes ; à la place, un menu déroulant, à toutes les largeurs. */}
+        {/* `debut` : le petit logo du guerrier en mode Matrix, en tête du menu (style Terminal). */}
+        <Onglets
+          label="Les parties de la Direction"
+          prefix="direction"
+          tabs={items}
+          active={active}
+          onSelect={(id) => select(id)}
+          call={called}
+          menu
+          debut={logo && <LogoMatrice data={logo} id="logo-menu" class="console-logo-menu" points />}
+        />
 
-          <Partie {...part} id="ensemble">
+        <Partie {...part} id="ensemble">
+          {withOverview((data) => (
             <section aria-labelledby="ensemble-titre">
-              <PartieTete id="ensemble-titre" title="Ce qui attend une décision">
-                <p>Les demandes et les comptes se traitent au QG.</p>
-              </PartieTete>
+              <PartieTete id="ensemble-titre" title="Ce qui attend une décision" />
               <div class="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
-                <Tile label="Demandes à traiter" value={overview.pending_requests} href={`${qg}#demandes`} alert={overview.pending_requests > 0} />
-                <Tile label="Membres validés" value={overview.members} href={`${qg}#comptes`} />
-                <Tile label="Encadrement" value={overview.officers} href={`${qg}#comptes`} />
-                <Tile label="Suspendus" value={overview.suspended} href={`${qg}#comptes`} />
+                <Tile label="Demandes à traiter" value={data.pending_requests} part="demandes" onOpen={open} alert={data.pending_requests > 0} />
+                <Tile label="Membres validés" value={data.members} part="comptes" onOpen={open} />
+                <Tile label="Encadrement" value={data.officers} part="comptes" onOpen={open} />
+                <Tile label="Suspendus" value={data.suspended} part="comptes" onOpen={open} />
               </div>
               <div class="mt-6">
-                <SiteHealth meta={health.meta} gazette={health.gazette} roster={overview.roster} />
+                <SiteHealth meta={health.meta} gazette={health.gazette} roster={data.roster} />
               </div>
             </section>
+          ))}
+        </Partie>
+
+        {/* L'administration : lue au premier passage sur son onglet, puis gardée, avec ses champs remplis. */}
+        <Partie {...part} id="demandes">
+          {shown.has("demandes") && <Requests />}
+        </Partie>
+        <Partie {...part} id="comptes">
+          {shown.has("comptes") && <Members me={me} />}
+        </Partie>
+        {rank >= 3 && (
+          <Partie {...part} id="journal">
+            {shown.has("journal") && <Log />}
           </Partie>
+        )}
 
-          <Partie {...part} id="annonces">
-            <Announcements rows={overview.announcements} reload={load} form={announcementDraft} setForm={setAnnouncementDraft} />
+        <Partie {...part} id="annonces">
+          {withOverview((data) => (
+            <Announcements rows={data.announcements} reload={load} form={announcementDraft} setForm={setAnnouncementDraft} />
+          ))}
+        </Partie>
+
+        <Partie {...part} id="evenements">
+          {withOverview((data) => (
+            <Events rows={data.events} attendance={attendance} reload={load} form={eventDraft} setForm={setEventDraft} />
+          ))}
+        </Partie>
+
+        {/* Les parties suivantes lisent le serveur au premier passage sur leur onglet, puis restent dans la page. */}
+        <Partie {...part} id="sondages">
+          {shown.has("sondages") && <DirectionPolls form={pollDraft} setForm={setPollDraft} />}
+        </Partie>
+
+        <Partie {...part} id="accueil">
+          {shown.has("accueil") && <DirectionWelcome draft={welcomeDraft} setDraft={setWelcomeDraft} />}
+        </Partie>
+
+        <Partie {...part} id="semaine">
+          {shown.has("semaine") && <DirectionWeeklyPick draft={pickDraft} setDraft={setPickDraft} />}
+        </Partie>
+
+        {/* L'objectif de la semaine, que les membres voient au QG (outils du QG, 11 novembre 2026). */}
+        <Partie {...part} id="objectif">
+          {shown.has("objectif") && <DirectionObjectif />}
+        </Partie>
+
+        {/* Le serveur refuse le réglage sous le rang d'admin : l'onglet n'est qu'une commodité. */}
+        {rank >= 3 && (
+          <Partie {...part} id="discord">
+            {shown.has("discord") && <DirectionDiscord />}
           </Partie>
+        )}
 
-          <Partie {...part} id="evenements">
-            <Events rows={overview.events} attendance={attendance} reload={load} form={eventDraft} setForm={setEventDraft} />
+        {me.role === "founder" && (
+          <Partie {...part} id="fondateur">
+            {shown.has("fondateur") && (
+              <FounderTransfer
+                onDone={async () => {
+                  await refresh();
+                  await load();
+                }}
+              />
+            )}
           </Partie>
-
-          {/* Les parties suivantes lisent le serveur au premier passage sur leur onglet, puis restent dans la page. */}
-          <Partie {...part} id="sondages">
-            {shown.has("sondages") && <DirectionPolls form={pollDraft} setForm={setPollDraft} />}
-          </Partie>
-
-          <Partie {...part} id="accueil">
-            {shown.has("accueil") && <DirectionWelcome draft={welcomeDraft} setDraft={setWelcomeDraft} />}
-          </Partie>
-
-          <Partie {...part} id="semaine">
-            {shown.has("semaine") && <DirectionWeeklyPick draft={pickDraft} setDraft={setPickDraft} />}
-          </Partie>
-
-          {/* L'objectif de la semaine, que les membres voient au QG (outils du QG, 11 novembre 2026). */}
-          <Partie {...part} id="objectif">
-            {shown.has("objectif") && <DirectionObjectif />}
-          </Partie>
-
-          {/* Le serveur refuse le réglage sous le rang d'admin : l'onglet n'est qu'une commodité. */}
-          {rank >= 3 && (
-            <Partie {...part} id="discord">
-              {shown.has("discord") && <DirectionDiscord />}
-            </Partie>
-          )}
-
-          {me.role === "founder" && (
-            <Partie {...part} id="fondateur">
-              {shown.has("fondateur") && (
-                <FounderTransfer
-                  onDone={async () => {
-                    await refresh();
-                    await load();
-                  }}
-                />
-              )}
-            </Partie>
-          )}
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

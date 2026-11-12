@@ -12,13 +12,24 @@ import { logoMatriceDepuisImage } from "../lib/logo-matrice-image";
 const lastRunAt = loadMeta().lastRunAt;
 // Le logo du guerrier en mode Matrix, comme à la Direction : ici à droite du titre, court, à toutes les largeurs (docs/DESIGN.md).
 const logoGrand = await logoMatriceDepuisImage(48);
+// L'administration, au QG du 10 au 12 novembre 2026, est dans la Direction.
+const direction = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/direction`;
 ---
 
-{/* La face privée du site, et depuis le 10 novembre 2026 l'administration de l'encadrement : cette page ne contient que la porte.
+{/* La face privée du site : cette page ne contient que la porte.
     Le contenu vient du serveur, pour un membre validé seulement. `espace` : tout y est plus grand, voir global.css.
     `console` : depuis le 12 novembre 2026, le style Terminal de la Direction, en bleu, la couleur des membres (docs/DESIGN.md).
     `--console-hote` : la machine des lignes de commande (« gal@qg:~$ ./salons »). */}
 <Base title="Le QG" description="Le QG des membres du clan GAL : salons à rejoindre, décisions, boîte à idées et événements, réservé aux membres reconnus." noindex ambiance="console">
+  {/* Un ancien lien vers un onglet de l'administration au QG (un avis Discord déjà envoyé, un favori) mène à la Direction,
+      avec la suite de l'adresse. Aussi quand seule l'ancre change, page déjà ouverte : le navigateur ne la recharge pas. */}
+  <script is:inline define:vars={{ direction }}>
+    const moved = () => {
+      if (["#demandes", "#comptes", "#journal"].includes(location.hash)) location.replace(`${direction}${location.search}${location.hash}`);
+    };
+    moved();
+    addEventListener("hashchange", moved);
+  </script>
   <div class="wrap console-tete console-tete-court" style='--console-hote: "qg"'>
     <PageHeader title="Le QG" compact>
       {/* Décorative : le titre dit déjà où l'on est. */}

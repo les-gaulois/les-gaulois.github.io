@@ -6,7 +6,7 @@ import { usePlayerView } from "./compte/common";
 
 /**
  * Quand la bande disparaît, le focus revient au bouton qui l'avait ouverte, sinon au lien Direction de l'en-tête, ou au
- * lien QG sur téléphone, où le lien Direction est masqué.
+ * lien QG s'il est le seul affiché.
  */
 function focusAfterLeaving() {
   const links = [...document.querySelectorAll<HTMLElement>("[data-direction-link], [data-qg-link]")];

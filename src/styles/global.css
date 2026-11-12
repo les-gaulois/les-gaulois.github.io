@@ -45,8 +45,8 @@
 }
 
 /* ---------- Thème rouge : l'encadrement ---------- */
-/* /direction passe theme="rouge" à Base.astro, qui pose data-theme="rouge" sur <html>. Au QG, seules les parties de
-   l'encadrement le portent (Demandes, Comptes, Journal), avec leurs onglets : les jetons rouges valent alors pour eux seuls.
+/* /direction passe theme="rouge" à Base.astro, qui pose data-theme="rouge" sur <html>. Du 10 au 12 novembre 2026, les
+   parties de l'encadrement du QG le portaient aussi : elles sont depuis dans la Direction.
    Chaque jeton garde son rôle et prend une teinte rouge : aucun composant ne change.
    Contrastes vérifiés dans docs/DESIGN.md, section « Thème rouge de l'encadrement ». */
 [data-theme="rouge"] {
@@ -1800,22 +1800,6 @@ main .fx-in,
   background: var(--color-warn);
   color: var(--color-navy);
 }
-/* Au QG, les onglets de l'encadrement viennent après un trait, marqués d'un point rouge. Ils portent data-theme="rouge" :
-   ouverts, ils prennent la surface du thème rouge, comme leur partie. */
-.onglets-separation {
-  flex: none;
-  width: 1px;
-  margin: 0.625rem 0.375rem;
-  background: var(--color-line-strong);
-}
-.onglet-encadrement::before {
-  content: "";
-  flex: none;
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 999px;
-  background: var(--color-red);
-}
 
 /* Le menu déroulant des parties (option `menu` d'Onglets, la Direction) : il remplace la barre d'onglets, sur toutes
    les largeurs. Son bouton dit la partie ouverte, sa liste les donne toutes. Les onglets restent dans la page, masqués :
@@ -1940,32 +1924,6 @@ main .fx-in,
     opacity: 0;
     transform: translateX(-0.75rem);
   }
-}
-/* Les parties de l'encadrement, au QG : posées dans la page bleue, aux couleurs du thème rouge (data-theme="rouge"). */
-.zone-encadrement {
-  background: var(--color-navy);
-  border: 1px solid var(--color-line);
-  border-radius: 1.5rem;
-  padding: clamp(1rem, 3vw, 1.75rem);
-}
-.partie-surtitre {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-  font-family: var(--font-display);
-  font-size: 0.9375rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-}
-.partie-surtitre::before {
-  content: "";
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 999px;
-  background: var(--color-red);
 }
 
 /* ---------- Une page de texte : la confidentialité ---------- */
@@ -2290,8 +2248,8 @@ main .fx-in,
 /* Un écran plus noir, dans la couleur de la page. Bleu au QG, la page des membres, aussi sombre que le rouge de la
    Direction (« bleu un peu plus foncé », a demandé le pilote) : texte secondaire 11,6:1 et liens 10,1:1 sur une carte,
    contour des champs 3,6:1, « OK » en vert vif 11:1 ; le bleu des boutons et de l'onglet ouvert est foncé d'un cran
-   (blanc dessus : 6,8:1). Rouge à la Direction, et au QG dans les onglets et les parties de l'encadrement
-   (data-theme="rouge") : texte secondaire 11,6:1 et liens 9,9:1 sur une carte, contour des champs 3,6:1, « OK » 11,1:1. */
+   (blanc dessus : 6,8:1). Rouge à la Direction (data-theme="rouge") :
+   texte secondaire 11,6:1 et liens 9,9:1 sur une carte, contour des champs 3,6:1, « OK » 11,1:1. */
 :root[data-ambiance="console"][data-console="terminal"] {
   --color-navy: #03081a;
   --color-night: #010410;
@@ -2502,8 +2460,7 @@ main .fx-in,
 }
 
 /* La barre d'onglets du QG, qui garde sa barre (pas de menu) : des noms en chasse fixe, l'onglet ouvert en vidéo inversée,
-   comme la partie ouverte du menu de la Direction. Un onglet de l'encadrement, qui porte data-theme="rouge", s'inverse
-   en rouge. Blanc sur le bleu des boutons du QG : 6,8:1 ; sur le rouge de l'encadrement : 5,3:1. */
+   comme la partie ouverte du menu de la Direction. Blanc sur le bleu des boutons du QG : 6,8:1. */
 :root[data-ambiance="console"][data-console="terminal"] .onglet {
   font-family: var(--font-console);
   font-size: 1.0625rem;
@@ -2511,24 +2468,16 @@ main .fx-in,
   border-radius: 0.25rem;
 }
 /* Pas seulement une couleur : comme le filet rouge des onglets du site, un filet blanc sous l'onglet ouvert, visible sur
-   son bleu comme sur le rouge de l'encadrement (son fond seul n'a que 3:1 sur la barre). */
+   son bleu (son fond seul n'a que 3:1 sur la barre). */
 :root[data-ambiance="console"][data-console="terminal"] .onglet[aria-selected="true"] {
   background: var(--color-blue);
   box-shadow: inset 0 -3px 0 #fff;
 }
-/* Dans l'onglet ouvert, le point rouge de l'encadrement et la pastille bleue « quelqu'un attend » se fondraient dans le
-   fond : ils passent au blanc (chiffre bleu sur blanc : 6,8:1). */
-:root[data-ambiance="console"][data-console="terminal"] .onglet-encadrement[aria-selected="true"]::before {
-  background: #fff;
-}
+/* Dans l'onglet ouvert, la pastille bleue « quelqu'un attend » se fondrait dans le fond : elle passe au blanc (chiffre
+   bleu sur blanc : 6,8:1). */
 :root[data-ambiance="console"][data-console="terminal"] .onglet[aria-selected="true"] .onglet-nombre-vif {
   background: #fff;
   color: var(--color-blue);
-}
-/* Les parties de l'encadrement, au QG : une fenêtre rouge aux coins nets et au double trait, comme les cartes. */
-:root[data-ambiance="console"][data-console="terminal"] .zone-encadrement {
-  border: 3px double var(--color-line-strong);
-  border-radius: 0.375rem;
 }
 
 /* ---------- Le logo du guerrier en mode Matrix ---------- */

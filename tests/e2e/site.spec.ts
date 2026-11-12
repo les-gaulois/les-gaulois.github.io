@@ -57,22 +57,38 @@ test("sans serveur configuré, la connexion n'apparaît pas et le site reste sta
   expect(calls).toEqual([]);
 });
 
-// L'administration a rejoint le QG : l'ancienne adresse y mène, avec la suite de l'adresse (le code d'un retour de Discord, un onglet).
-test("l'ancienne adresse de l'administration mène aux demandes du QG", async ({ page }) => {
+// L'administration est dans la Direction depuis le 12 novembre 2026 (au QG du 10 au 12) : ses anciennes adresses y mènent,
+// avec la suite de l'adresse (le code d'un retour de Discord, un onglet). Les autres onglets du QG restent au QG.
+test("les anciennes adresses de l'administration mènent à la Direction", async ({ page }) => {
+  const atDirection = (search: string, hash: string) => (url: URL) => /^\/direction\/?$/.test(url.pathname) && url.search === search && url.hash === hash;
   await page.goto("/admin");
-  await page.waitForURL((url) => /^\/qg\/?$/.test(url.pathname) && url.hash === "#demandes");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Le QG");
+  await page.waitForURL(atDirection("", "#demandes"));
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Direction");
   await page.goto("/admin?code=essai#comptes");
-  await page.waitForURL((url) => /^\/qg\/?$/.test(url.pathname) && url.search === "?code=essai" && url.hash === "#comptes");
+  await page.waitForURL(atDirection("?code=essai", "#comptes"));
+  for (const hash of ["#demandes", "#comptes", "#journal"]) {
+    await page.goto(`/qg?code=essai${hash}`);
+    await page.waitForURL(atDirection("?code=essai", hash));
+  }
+  await page.goto("/qg#salons");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Le QG");
+  expect(new URL(page.url()).hash).toBe("#salons");
+  // Page déjà ouverte, seule l'ancre change : le navigateur ne recharge pas la page, le renvoi a lieu quand même.
+  await page.goto("/qg#comptes");
+  await page.waitForURL(atDirection("", "#comptes"));
 });
 
-// La face privée : la page publiée ne contient que la porte. Son contenu vient du serveur, pour un membre validé.
-test("le QG n'est pas indexé, et sa page ne contient rien de privé", async ({ page }) => {
+// Les faces privées : les pages publiées ne contiennent que la porte. Leur contenu vient du serveur, pour un membre validé
+// au QG, pour l'encadrement à la Direction, qui a aussi l'administration.
+test("le QG et la Direction ne sont pas indexés, et leur page ne contient rien de privé", async ({ page }) => {
   await page.goto("/qg");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Le QG");
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex");
-  // L'administration y est aussi depuis le 10 novembre 2026 : rien d'elle non plus dans la page publiée.
-  for (const id of ["qg", "qg-salons", "qg-decisions", "qg-ideas", "qg-wall", "qg-events", "admin-requests", "admin-members", "admin-log"]) await expect(page.getByTestId(id)).toHaveCount(0);
+  for (const id of ["qg", "qg-salons", "qg-decisions", "qg-ideas", "qg-wall", "qg-events"]) await expect(page.getByTestId(id)).toHaveCount(0);
+  await page.goto("/direction");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Direction");
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex");
+  for (const id of ["direction", "admin-requests", "admin-members", "admin-log"]) await expect(page.getByTestId(id)).toHaveCount(0);
 });
 
 // L'encadrement sait d'un coup d'œil où il est. Le compte d'un membre reste bleu, comme le reste du site, et le QG aussi,

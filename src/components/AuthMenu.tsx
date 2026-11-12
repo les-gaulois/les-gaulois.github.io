@@ -55,19 +55,11 @@ export default function AuthMenu() {
   const validated = me.status === "validated";
   return (
     <>
-      {/* Sur téléphone, la place manque : l'encadrement garde « QG », où se traitent les demandes, et ouvre la Direction depuis le QG. */}
+      {/* L'administration est à la Direction (au QG du 10 au 12 novembre 2026) : quand des demandes attendent, la pastille les
+          compte et le lien ouvre leur partie. Les lecteurs d'écran entendent « Direction 2 demandes à traiter ». */}
       {canDirect && (
-        <span class="hidden sm:inline-flex">
-          <a href={`${base}/direction`} class={LINK} data-testid="auth-direction" data-direction-link>
-            Direction
-          </a>
-        </span>
-      )}
-      {/* Le QG, à un clic de toutes les pages pour un membre validé. L'administration y est aussi : quand des demandes attendent,
-          la pastille les compte et le lien ouvre leur onglet. Les lecteurs d'écran entendent « QG 2 demandes à traiter ». */}
-      {validated && (
-        <a href={waiting ? `${base}/qg#demandes` : `${base}/qg`} class={LINK} data-testid="auth-qg" data-qg-link>
-          QG
+        <a href={waiting ? `${base}/direction#demandes` : `${base}/direction`} class={LINK} data-testid="auth-direction" data-direction-link>
+          Direction
           {waiting && pending !== null && (
             <span class="count-pill tnum" data-testid="auth-pending">
               {fmtInt(pending)}
@@ -75,6 +67,15 @@ export default function AuthMenu() {
             </span>
           )}
         </a>
+      )}
+      {/* Le QG, à un clic de toutes les pages pour un membre validé. Sur téléphone, la place manque : l'encadrement garde
+          « Direction », où se traitent les demandes, et ouvre le QG depuis la Direction. */}
+      {validated && (
+        <span class={canDirect ? "hidden sm:inline-flex" : "inline-flex"}>
+          <a href={`${base}/qg`} class={LINK} data-testid="auth-qg" data-qg-link>
+            QG
+          </a>
+        </span>
       )}
       {/* Le nom mène au compte. L'encadrement, qui a déjà deux liens, ouvre le sien depuis le QG ou la Direction ; sur téléphone, un membre validé aussi. */}
       {!canDirect && (

@@ -1,4 +1,4 @@
-import { Fragment, type ComponentChildren } from "preact";
+import type { ComponentChildren } from "preact";
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { fmtInt } from "../../lib/format";
 import { slideFrom, tabKeyTarget, tabOfHash, type Slide } from "../../lib/onglets";
@@ -8,8 +8,6 @@ export interface TabItem {
   label: string;
   /** Ce qui attend sur cet onglet : un nombre, et ce qu'il compte pour un lecteur d'écran (« 2 demandes à traiter »). Rien à zéro. */
   count?: { value: number; words: string; tone?: "alerte" | "vif" } | null;
-  /** Un onglet de l'encadrement, au QG : rangé après les autres, marqué de rouge. */
-  staff?: boolean;
 }
 
 const reducedMotion = () => document.documentElement.classList.contains("fx-off") || matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -226,33 +224,29 @@ export function Onglets({
           const selected = tab.id === active;
           const count = tab.count && tab.count.value > 0 ? tab.count : null;
           return (
-            <Fragment key={tab.id}>
-              {tab.staff && !tabs[i - 1]?.staff && <span class="onglets-separation" aria-hidden="true" />}
-              <button
-                type="button"
-                role="tab"
-                id={`${prefix}-onglet-${tab.id}`}
-                aria-selected={selected}
-                aria-controls={`${prefix}-partie-${tab.id}`}
-                tabIndex={selected ? 0 : -1}
-                class={`onglet ${tab.staff ? "onglet-encadrement" : ""}`}
-                // Un onglet de l'encadrement prend les jetons du thème rouge, comme sa partie.
-                data-theme={tab.staff ? "rouge" : undefined}
-                data-testid={`onglet-${tab.id}`}
-                onClick={() => choose(tab.id)}
-                onKeyDown={(e) => onKey(e, i)}
-              >
-                {tab.label}
-                {count && (
-                  <>
-                    <span class={`onglet-nombre tnum ${count.tone ? `onglet-nombre-${count.tone}` : ""}`} aria-hidden="true">
-                      {fmtInt(count.value)}
-                    </span>
-                    <span class="sr-only">, {count.words}</span>
-                  </>
-                )}
-              </button>
-            </Fragment>
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              id={`${prefix}-onglet-${tab.id}`}
+              aria-selected={selected}
+              aria-controls={`${prefix}-partie-${tab.id}`}
+              tabIndex={selected ? 0 : -1}
+              class="onglet"
+              data-testid={`onglet-${tab.id}`}
+              onClick={() => choose(tab.id)}
+              onKeyDown={(e) => onKey(e, i)}
+            >
+              {tab.label}
+              {count && (
+                <>
+                  <span class={`onglet-nombre tnum ${count.tone ? `onglet-nombre-${count.tone}` : ""}`} aria-hidden="true">
+                    {fmtInt(count.value)}
+                  </span>
+                  <span class="sr-only">, {count.words}</span>
+                </>
+              )}
+            </button>
           );
         })}
       </div>
@@ -317,9 +311,9 @@ function Nombre({ count }: { count: TabItem["count"] | undefined }) {
 /**
  * Une partie de l'espace, sous son onglet. Masquée, elle reste dans la page : un brouillon ou un appel en cours ne se
  * perd pas d'un onglet à l'autre. Elle glisse doucement du côté de son onglet ; le bouton pause et le réglage
- * « réduire les animations » coupent ce mouvement. `staff` : une partie de l'encadrement, aux couleurs du thème rouge.
+ * « réduire les animations » coupent ce mouvement.
  */
-export function Partie({ prefix, id, active, slide, staff = false, children }: { prefix: string; id: string; active: string; slide: Slide | null; staff?: boolean; children: ComponentChildren }) {
+export function Partie({ prefix, id, active, slide, children }: { prefix: string; id: string; active: string; slide: Slide | null; children: ComponentChildren }) {
   const shown = id === active;
   return (
     <div
@@ -328,8 +322,7 @@ export function Partie({ prefix, id, active, slide, staff = false, children }: {
       aria-labelledby={`${prefix}-onglet-${id}`}
       tabIndex={0}
       hidden={!shown}
-      class={`partie ${shown && slide ? `partie-${slide}` : ""} ${staff ? "zone-encadrement" : ""}`}
-      data-theme={staff ? "rouge" : undefined}
+      class={`partie ${shown && slide ? `partie-${slide}` : ""}`}
       // Le nom court de la partie, que l'ambiance console de la Direction écrit en commande au-dessus d'elle.
       data-partie={id}
       data-testid={`partie-${id}`}
@@ -340,13 +333,12 @@ export function Partie({ prefix, id, active, slide, staff = false, children }: {
 }
 
 /** Le haut d'une partie : son titre, une phrase pour dire à quoi elle sert, et une commande à droite si besoin. */
-export function PartieTete({ id, title, eyebrow, children, aside, level = 2 }: { id: string; title: string; eyebrow?: string; children?: ComponentChildren; aside?: ComponentChildren; level?: 2 | 3 }) {
+export function PartieTete({ id, title, children, aside, level = 2 }: { id: string; title: string; children?: ComponentChildren; aside?: ComponentChildren; level?: 2 | 3 }) {
   // `level` 3 : une partie rangée sous une rubrique qui a déjà son titre (le menu de l'onglet Discord).
   const Titre = level === 3 ? "h3" : "h2";
   return (
     <div class="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
       <div class="min-w-0 max-w-3xl">
-        {eyebrow && <p class="partie-surtitre">{eyebrow}</p>}
         <Titre id={id} class="text-2xl">
           {title}
         </Titre>

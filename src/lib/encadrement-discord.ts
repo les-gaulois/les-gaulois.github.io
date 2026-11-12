@@ -43,8 +43,8 @@ export function isQuietHour(now: Date): boolean {
 
 export function staffNotice(digest: StaffDigest, now: Date, siteUrl: string): StaffDecision {
   const quiet = isQuietHour(now);
-  // Les demandes se traitent au QG depuis le 10 novembre 2026 ; l'ancienne adresse /admin y mène aussi.
-  const link = `${siteUrl.replace(/\/$/, "")}/qg#demandes`;
+  // Les demandes se traitent dans la Direction depuis le 12 novembre 2026 ; les anciennes adresses (/admin, /qg#demandes) y mènent aussi.
+  const link = `${siteUrl.replace(/\/$/, "")}/direction#demandes`;
   if (digest.pending < 1) {
     // Rien n'a encore jamais été noté : le lien vient d'être posé. Une seule fois, de jour.
     if (digest.notice === null && !quiet) {

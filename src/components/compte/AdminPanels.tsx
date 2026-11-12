@@ -1,6 +1,6 @@
 /**
- * L'administration, au QG depuis le 10 novembre 2026 : les onglets Demandes, Comptes et Journal de l'encadrement.
- * L'affichage suit le rôle (voir `QgApp.tsx`), mais chaque fonction du serveur revérifie : masquer un onglet ne protège rien.
+ * L'administration : les onglets Demandes, Comptes et Journal de la Direction (au QG du 10 au 12 novembre 2026).
+ * L'affichage suit le rôle (voir `DirectionApp.tsx`), mais chaque fonction du serveur revérifie : masquer un onglet ne protège rien.
  */
 import { useEffect, useState } from "preact/hooks";
 import { LOG_CATEGORIES, LOG_LIMIT, LOG_PAGE, describe, filterLog, logPeople, type LogCategory } from "../../lib/compte/admin-log";
@@ -12,8 +12,6 @@ import { ROLE_LABELS, type LogRow, type Me, type MemberRow, type RequestRow, typ
 import { fmtCount, fmtDateTime, fmtInt } from "../../lib/format";
 import { Empty, Loading, Problem, Success, messageOf, useNow } from "./common";
 import { PartieTete } from "./Onglets";
-
-const STAFF = "Encadrement";
 
 const STATUS_LABELS = { pending: "En attente", validated: "Validé", suspended: "Suspendu" } as const;
 
@@ -77,7 +75,7 @@ export function Requests() {
 
   return (
     <section aria-labelledby="demandes-titre" data-testid="admin-requests">
-      <PartieTete id="demandes-titre" eyebrow={STAFF} title="Demandes d'adhésion">
+      <PartieTete id="demandes-titre" title="Demandes d'adhésion">
         <p>
           {roster ? `Liste officielle relue le ${fmtDateTime(roster.read_at)} : ${fmtInt(roster.total)} ${roster.total > 1 ? "membres" : "membre"}.` : "La liste officielle n'a encore jamais été relue : aucun contrôle automatique pour l'instant."} Cette liste est publique : y figurer ne prouve pas qu'on est ce membre. Vérifiez sur Discord.
         </p>
@@ -195,7 +193,7 @@ export function Members({ me }: { me: Me }) {
 
   return (
     <section aria-labelledby="membres-titre" data-testid="admin-members">
-      <PartieTete id="membres-titre" eyebrow={STAFF} title="Comptes du site" />
+      <PartieTete id="membres-titre" title="Comptes du site" />
       {/* Toujours présente : un lecteur d'écran annonce ce qui change dans une zone qui existait déjà. */}
       <p class="sr-only" role="status">
         {draft && drafted ? `Rôle de ${drafted.name} : ${ROLE_LABELS[drafted.role]} → ${ROLE_LABELS[draft.role]}. Confirmez ou annulez.` : ""}
@@ -382,7 +380,7 @@ export function Log() {
 
   return (
     <section aria-labelledby="journal-titre" data-testid="admin-log">
-      <PartieTete id="journal-titre" eyebrow={STAFF} title="Journal" />
+      <PartieTete id="journal-titre" title="Journal" />
       <Problem message={list.error} onRetry={() => void list.reload()} />
       {list.rows === null ? (
         !list.error && (

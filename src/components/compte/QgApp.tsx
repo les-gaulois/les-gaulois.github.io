@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { basePath, call } from "../../lib/compte/api";
 import { othersPlanned, parseQgTools, type QgTools } from "../../lib/compte/outils";
 import { seriesNote } from "../../lib/compte/news";
-import { pendingWords } from "../../lib/compte/pending";
 import {
   IDEA_MAX,
   IDEA_NOTE_MAX,
@@ -24,12 +23,10 @@ import {
 import { waitingOthers } from "../../lib/compte/salons";
 import { ROLE_LABELS, type Me } from "../../lib/compte/types";
 import { fmtDate, fmtDateTime, fmtInt } from "../../lib/format";
-import { tabsFor } from "../../lib/onglets";
 import type { StoredMembers } from "../../lib/schemas";
 import type { ClanWeekFile } from "../../lib/semaine-du-clan";
-import { Log, Members, Requests } from "./AdminPanels";
 import { subscribe } from "./appels";
-import { Avatar, DeleteButton, DiscordButton, Loading, Problem, messageOf, useMe, useNow, usePendingCount, type Loadable } from "./common";
+import { Avatar, DeleteButton, DiscordButton, Loading, Problem, messageOf, useMe, useNow, type Loadable } from "./common";
 import { Onglets, Partie, PartieTete, useTabs, type TabItem } from "./Onglets";
 import QgCeSoir from "./QgCeSoir";
 import QgMoi from "./QgMoi";
@@ -44,8 +41,8 @@ import Telemetrie from "./Telemetrie";
 const PAST_SHOWN = 2;
 
 /**
- * Les onglets du QG. Ceux de l'encadrement viennent après : l'administration (demandes, comptes, journal) a rejoint le QG
- * le 10 novembre 2026. L'affichage suit le rang, mais chaque fonction du serveur revérifie : masquer un onglet ne protège rien.
+ * Les onglets du QG, ceux des membres. L'administration (demandes, comptes, journal), au QG du 10 au 12 novembre 2026, est
+ * dans la Direction : elle est réservée à l'encadrement (`DirectionApp.tsx`).
  * « Moi », « Ce soir » et « La semaine » viennent des outils du QG (11 novembre 2026, `get_qg_tools`) : sans eux, le QG
  * s'ouvre sur « Salons », comme avant.
  */
@@ -59,10 +56,6 @@ const QG_TABS = [
   { id: "evenements", label: "Événements" },
   { id: "idees", label: "Idées" },
   { id: "mur", label: "Le mur" },
-  { id: "demandes", label: "Demandes", rank: 2, staff: true },
-  // « Comptes » et non « Membres » : l'onglet de rubrique « Membres », juste au-dessus, mène à la page publique des membres.
-  { id: "comptes", label: "Comptes", rank: 2, staff: true },
-  { id: "journal", label: "Journal", rank: 3, staff: true },
 ] as const;
 
 /** La porte du QG, pour un visiteur ou un compte pas encore validé : ce qu'il y a derrière, et comment entrer. */
@@ -276,11 +269,11 @@ function IdeaForm({ openMine, busy, refusal, onSend }: { openMine: number; busy:
 
 /**
  * Le QG, pour un membre validé : une partie à la fois, sous ses onglets. `rank` : celui du compte affiché (en vue joueur,
- * l'encadrement s'y voit membre sans grade, sans ses onglets ni ses commandes de décision). Le serveur revérifie chaque action.
- * Les salons et les onglets de l'encadrement ne dépendent pas de la lecture du QG (`get_qg`) : si elle échoue, l'encadrement
- * garde ses demandes, ses comptes et son journal. Les onglets attendent la réponse des outils (`get_qg_tools`), six secondes
- * au plus : au-delà, le QG s'ouvre sans eux, et ils paraissent à leur réponse. `lastRunAt` : la dernière collecte publiée,
- * que la fenêtre « session » donne à côté de l'heure (style Terminal, voir docs/DESIGN.md).
+ * l'encadrement s'y voit membre sans grade, sans ses commandes de décision). Le serveur revérifie chaque action.
+ * Les salons ne dépendent pas de la lecture du QG (`get_qg`) : si elle échoue, ils restent. Les onglets attendent la
+ * réponse des outils (`get_qg_tools`), six secondes au plus : au-delà, le QG s'ouvre sans eux, et ils paraissent à leur
+ * réponse. `lastRunAt` : la dernière collecte publiée, que la fenêtre « session » donne à côté de l'heure (style Terminal,
+ * voir docs/DESIGN.md).
  */
 function Inside({ me, rank, lastRunAt }: { me: Me; rank: number; lastRunAt: string | null }) {
   const staff = rank >= 2;
@@ -302,11 +295,10 @@ function Inside({ me, rank, lastRunAt }: { me: Me; rank: number; lastRunAt: stri
   const [said, setSaid] = useState("");
   // Les autres Gaulois qui attendent dans un salon, d'après la dernière lecture des appels.
   const [waiting, setWaiting] = useState(0);
-  const pending = usePendingCount(staff);
   const data = state.status === "ready" ? state.data : null;
   const kit = tools.status === "ready" ? tools.data : null;
   // Une partie vide n'a pas d'onglet : décisions et événements n'en ont un qu'une fois lus, s'il y a quelque chose. Le mur garde
-  // le sien, qui porte le choix de se montrer. Si le QG ne se lit pas, ses parties s'effacent ; les salons et l'encadrement restent.
+  // le sien, qui porte le choix de se montrer. Si le QG ne se lit pas, ses parties s'effacent ; les salons et le simulateur restent.
   // Un lien vers un onglet absent au premier rendu l'ouvre dès qu'il paraît.
   const present = (id: string) => {
     if (id === "decisions") return (data?.polls.length ?? 0) > 0;
@@ -315,7 +307,7 @@ function Inside({ me, rank, lastRunAt }: { me: Me; rank: number; lastRunAt: stri
     if (id === "moi" || id === "ce-soir" || id === "semaine") return kit !== null;
     return true;
   };
-  const tabs = tabsFor(QG_TABS, rank).filter((tab) => present(tab.id));
+  const tabs = QG_TABS.filter((tab) => present(tab.id));
   const { active, slide, shown: opened, select, call: called, hold } = useTabs(tabs.map((tab) => tab.id));
   const base = basePath();
   const name = me.name ?? "Membre";
@@ -426,9 +418,8 @@ function Inside({ me, rank, lastRunAt }: { me: Me; rank: number; lastRunAt: stri
     semaine: kit?.predictions && kit.predictions.mine === null ? { value: 1, words: "1 pronostic à faire" } : null,
     decisions: { value: notVoted, words: counted(notVoted, "sondage attend votre voix", "sondages attendent votre voix") },
     idees: staff ? { value: ideasOpen.length, words: counted(ideasOpen.length, "idée à trancher", "idées à trancher") } : null,
-    demandes: pending !== null && pending > 0 ? { value: pending, words: `${fmtInt(pending)} ${pendingWords(pending) ?? ""}`, tone: "alerte" } : null,
   };
-  const items: TabItem[] = tabs.map((tab) => ({ id: tab.id, label: tab.label, staff: "staff" in tab ? tab.staff : false, count: counts[tab.id] ?? null }));
+  const items: TabItem[] = tabs.map((tab) => ({ id: tab.id, label: tab.label, count: counts[tab.id] ?? null }));
   const part = { prefix: "qg", active, slide };
   const opening = <Loading label="Ouverture du QG…" />;
 
@@ -459,7 +450,7 @@ function Inside({ me, rank, lastRunAt }: { me: Me; rank: number; lastRunAt: stri
             </p>
             <Telemetrie role={ROLE_LABELS[me.role ?? "member"]} lastRunAt={lastRunAt} testId="qg" />
           </div>
-          {/* Sur téléphone, l'en-tête n'a que « QG » : le compte et la Direction s'ouvrent d'ici, même en panne. */}
+          {/* Sur téléphone, l'en-tête n'a qu'un lien (« QG », ou « Direction » pour l'encadrement) : le compte et la Direction s'ouvrent aussi d'ici, même en panne. */}
           <div class="flex flex-wrap gap-2">
             <a class="btn btn-ghost" href={`${base}/compte`}>
               Mon compte
@@ -642,23 +633,6 @@ function Inside({ me, rank, lastRunAt }: { me: Me; rank: number; lastRunAt: stri
               )}
             </Partie>
           )}
-
-          {/* L'administration : lue au premier passage sur son onglet, puis gardée, avec ses champs remplis. */}
-          {staff && (
-            <Partie {...part} id="demandes" staff>
-              {opened.has("demandes") && <Requests />}
-            </Partie>
-          )}
-          {staff && (
-            <Partie {...part} id="comptes" staff>
-              {opened.has("comptes") && <Members me={me} />}
-            </Partie>
-          )}
-          {rank >= 3 && (
-            <Partie {...part} id="journal" staff>
-              {opened.has("journal") && <Log />}
-            </Partie>
-          )}
         </div>
       )}
     </div>
@@ -666,8 +640,8 @@ function Inside({ me, rank, lastRunAt }: { me: Me; rank: number; lastRunAt: stri
 }
 
 /**
- * Le QG des membres, et depuis le 10 novembre 2026 l'administration de l'encadrement. Rien de ce qui s'affiche ici ne
- * protège quoi que ce soit : le serveur ne donne le contenu qu'à un compte validé, et revérifie chaque action.
+ * Le QG des membres. Rien de ce qui s'affiche ici ne protège quoi que ce soit : le serveur ne donne le contenu qu'à un
+ * compte validé, et revérifie chaque action.
  * `lastRunAt` : la dernière collecte publiée, lue au moment de la construction du site (voir qg.astro).
  */
 export default function QgApp({ lastRunAt = null }: { lastRunAt?: string | null }) {

@@ -21,7 +21,7 @@ export function useNow(every = 60_000): Date {
 }
 
 /**
- * Les demandes d'adhésion qui attendent, pour la pastille de l'en-tête et l'onglet Demandes du QG. Le serveur ne donne ce
+ * Les demandes d'adhésion qui attendent, pour la pastille de l'en-tête et l'onglet Demandes de la Direction. Le serveur ne donne ce
  * nombre qu'à l'encadrement (`count_pending_requests`) ; il se relit quand une demande est traitée sur la page.
  * `null` : pas demandé (`enabled` faux) ou pas de réponse : rien ne s'affiche.
  */
