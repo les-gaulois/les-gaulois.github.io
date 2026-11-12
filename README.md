@@ -365,7 +365,9 @@ Depuis le 12 novembre 2026, à la demande du pilote (« reproduire ça mais avec
 
 Pour arrêter : supprimer le secret, ou retirer le robot du serveur. Les images déjà postées restent ; un modérateur les supprime comme tout message. Pour changer une phrase : `PHRASES` dans `src/lib/arrivees.ts`.
 
-**Jamais essayé avec le vrai Discord** au 12 novembre 2026 : le robot n'était pas encore créé. Les règles, le dessin et les appels sont testés avec un faux Discord (`tests/unit/arrivees*.test.ts`) : l'ordre des appels, les droits, les refus, les pannes, et le dessin de chaque décor avec les vraies polices. Restent à voir en vrai : que Discord garde le nom du fichier joint, sur lequel repose « jamais deux images », que la fiche du robot dit bien si son compte a la double authentification, et l'allure du message dans le salon.
+**Premier essai réel, le 12 novembre 2026.** Le pilote a ajouté un robot au serveur et collé son jeton dans GitHub. Jusqu'à 16 h 05, chaque passage disait « il manque au robot : « Envoyer des messages » » : le salon est fermé en écriture, et le rôle d'administrateur que le pilote avait créé n'était pas encore donné au robot. Au passage de 16 h 10, une fois ce rôle donné : « 2 messages d'arrivée remplacés par une image, 1 laissé tel quel » (lu sur la page de l'exécution, où le robot écrit ce qu'il a changé). Discord a donc accepté l'image et le retrait. Restent à voir : l'allure du message dans le salon, que seul le pilote a vue ; que Discord garde le nom du fichier joint, sur lequel repose « jamais deux images » quand un retrait échoue ; et la double authentification, que rien n'a mise à l'épreuve.
+
+**Deux écarts avec ce qui est conseillé plus haut, au 12 novembre 2026 :** le robot a reçu le droit « Administrateur » par un rôle, bien plus que ses cinq droits dans le salon, et rien ne dit ici s'il est une application à part ou « Le Gaulois ». La question est posée au pilote. Tant qu'elle n'est pas tranchée, qui tiendrait le jeton pourrait tout sur le serveur.
 
 ## Animations
 
