@@ -2876,6 +2876,20 @@ main .fx-in,
 .inventaire-vignette span {
   overflow-wrap: anywhere;
 }
+/* La recherche, en tête de la liste : elle couvre le haut du cadre et reste visible quand les vignettes défilent. */
+.inventaire-chercher {
+  position: sticky;
+  top: -0.75rem;
+  z-index: 1;
+  grid-column: 1 / -1;
+  margin: -0.75rem -0.75rem 0;
+  padding: 0.75rem 0.75rem 0.25rem;
+  background: var(--color-night);
+}
+/* Une vignette qui prend le focus en remontant ne passe pas sous la recherche. */
+.inventaire-choix:has(.inventaire-chercher) {
+  scroll-padding-top: 4rem;
+}
 /* La rubrique « Inventaire d'images » : une carte par image, l'image en haut, en entier. */
 .inventaire-grille {
   display: grid;
@@ -2884,15 +2898,48 @@ main .fx-in,
 }
 .inventaire-carte {
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-areas: "image" "texte" "actions";
+  grid-template-rows: auto auto 1fr;
   min-width: 0;
   overflow: hidden;
   background: var(--color-surface);
   border: 1px solid var(--color-line);
   border-radius: 1rem;
 }
+.inventaire-carte-texte {
+  grid-area: texte;
+  min-width: 0;
+  padding: 1rem 1rem 0;
+}
+.inventaire-carte-actions {
+  display: grid;
+  grid-area: actions;
+  align-content: start;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 0.75rem 1rem 1rem;
+}
+/* Sur un téléphone, la vignette passe à gauche du nom : une carte deux fois moins haute. */
+@media (max-width: 39.99rem) {
+  .inventaire-carte {
+    grid-template-columns: 5.5rem minmax(0, 1fr);
+    grid-template-areas: "image texte" "actions actions";
+    grid-template-rows: auto 1fr;
+  }
+  .inventaire-carte .inventaire-carte-image {
+    align-self: start;
+    aspect-ratio: 1;
+    border-right: 1px solid var(--color-line);
+    border-bottom: 1px solid var(--color-line);
+    border-bottom-right-radius: 0.75rem;
+  }
+  .inventaire-carte-texte {
+    padding: 0.75rem 0.75rem 0;
+  }
+}
 /* Une case de même forme pour toutes les images, quelle que soit leur taille : l'image y tient en entier. */
 .inventaire-carte-image {
+  grid-area: image;
   position: relative;
   display: flex;
   align-items: center;

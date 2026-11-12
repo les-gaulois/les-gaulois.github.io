@@ -6,9 +6,13 @@
  */
 import { errorMessage } from "./errors";
 
-/** Les limites du serveur : 60 caractères par nom, 50 images en tout. */
+/**
+ * Les limites du serveur : 60 caractères par nom, 200 images et 500 Mo en tout (migration
+ * `20261112000300_inventaire_200_images.sql`). Les fichiers comptent dans le 1 Go du forfait gratuit de Supabase.
+ */
 export const IMAGE_NAME_MAX = 60;
-export const INVENTORY_MAX = 50;
+export const INVENTORY_MAX = 200;
+export const INVENTORY_MAX_BYTES = 500 * 1024 * 1024;
 
 /** L'espace de fichiers des images des messages (migration `20261111000600_messages_discord.sql`). */
 export const DISCORD_IMAGES_BUCKET = "discord-images";
@@ -85,6 +89,29 @@ export function parseInventory(raw: unknown, base: string): SavedImage[] | null 
     });
   }
   return sortImages(images);
+}
+
+/** Le poids de l'inventaire, compté comme le serveur : un poids inconnu compte pour rien. */
+export const inventoryWeight = (images: readonly SavedImage[]): number => images.reduce((sum, image) => sum + (image.size ?? 0), 0);
+
+/** Pourquoi l'inventaire ne peut pas prendre un fichier de plus de ce poids (`null` : inconnu), ou `null` s'il le peut. */
+export function inventoryRoomProblem(images: readonly SavedImage[], size: number | null): string | null {
+  if (images.length >= INVENTORY_MAX) return errorMessage("inventory_full");
+  if (size !== null && inventoryWeight(images) + size > INVENTORY_MAX_BYTES) return errorMessage("inventory_too_heavy");
+  return null;
+}
+
+/** Au-delà de ce nombre d'images, une recherche par nom aide à s'y retrouver ; la rubrique les montre par paquets. */
+export const SEARCH_FROM = 12;
+export const INVENTORY_PAGE = 12;
+
+/** Un nom comparé sans accents ni majuscules : « Bannière » se trouve en tapant « banniere ». */
+export const searchKey = (text: string): string => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+/** Les images dont le nom contient la recherche, dans le même ordre ; toutes si la recherche est vide. */
+export function filterImages(images: readonly SavedImage[], query: string): SavedImage[] {
+  const key = searchKey(query);
+  return key === "" ? [...images] : images.filter((image) => searchKey(image.name).includes(key));
 }
 
 /** Les images qu'on peut choisir dans un message : celles dont le fichier est toujours dans l'espace. */

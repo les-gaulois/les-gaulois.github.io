@@ -4,15 +4,20 @@ import { describe, expect, it } from "vitest";
 import {
   cleanImageName,
   DISCORD_IMAGES_BUCKET,
+  filterImages,
   IMAGE_NAME_MAX,
   IMAGE_PATH,
   imageNameProblem,
   imagePathOf,
   imageUrl,
   INVENTORY_MAX,
+  INVENTORY_MAX_BYTES,
+  inventoryRoomProblem,
+  inventoryWeight,
   nameLength,
   parseInventory,
   savedImageAt,
+  searchKey,
   suggestedName,
   usableImages,
   type SavedImage,
@@ -131,6 +136,41 @@ describe("l'inventaire lu sur le serveur", () => {
   });
 });
 
+describe("la recherche dans l'inventaire", () => {
+  it("compare les noms sans accents ni majuscules", () => {
+    expect(searchKey("  Bannière ÉTÉ ")).toBe("banniere ete");
+    expect(searchKey("Logo GAL")).toBe("logo gal");
+  });
+
+  it("garde les images dont le nom contient la recherche, dans le même ordre", () => {
+    const images = [image(1, "Bannière"), image(2, "Logo GAL"), image(3, "Logo du clan"), image(4, "Écusson")];
+    expect(filterImages(images, "").map((i) => i.id)).toEqual([1, 2, 3, 4]);
+    expect(filterImages(images, "   ").map((i) => i.id)).toEqual([1, 2, 3, 4]);
+    expect(filterImages(images, "LOGO").map((i) => i.id)).toEqual([2, 3]);
+    expect(filterImages(images, "banniere").map((i) => i.id)).toEqual([1]);
+    expect(filterImages(images, "ecus").map((i) => i.id)).toEqual([4]);
+    expect(filterImages(images, "zzz")).toEqual([]);
+  });
+});
+
+describe("la place dans l'inventaire", () => {
+  it("compte le poids comme le serveur : un poids inconnu compte pour rien", () => {
+    expect(inventoryWeight([])).toBe(0);
+    expect(inventoryWeight([image(1, "A", { size: 1000 }), image(2, "B", { size: null }), image(3, "C", { size: 24 })])).toBe(1024);
+  });
+
+  it("refuse une image de trop, en nombre ou en poids, avant tout dépôt", () => {
+    const many = Array.from({ length: INVENTORY_MAX }, (_, i) => image(i + 1, `Image ${i + 1}`, { size: 1 }));
+    expect(inventoryRoomProblem(many, 1)).toBe(errorMessage("inventory_full"));
+    expect(inventoryRoomProblem(many.slice(1), 1)).toBeNull();
+    const heavy = [image(1, "Lourde", { size: INVENTORY_MAX_BYTES - 10 })];
+    expect(inventoryRoomProblem(heavy, 10)).toBeNull();
+    expect(inventoryRoomProblem(heavy, 11)).toBe(errorMessage("inventory_too_heavy"));
+    // Le poids d'une image déjà déposée : le serveur le connaît, pas la page.
+    expect(inventoryRoomProblem(heavy, null)).toBeNull();
+  });
+});
+
 describe("la migration de l'inventaire", () => {
   const SQL = readFileSync("supabase/migrations/20261112000200_inventaire_images_discord.sql", "utf8").replaceAll("\r\n", "\n");
   const body = (name: string) => {
@@ -178,7 +218,8 @@ describe("la migration de l'inventaire", () => {
   it("a les mêmes limites que la page", () => {
     expect(SQL).toContain(`check (char_length(name) between 1 and ${IMAGE_NAME_MAX})`);
     expect(body("internal.discord_image_name")).toContain(`between 1 and ${IMAGE_NAME_MAX}`);
-    expect(body("public.save_discord_image")).toContain(`(select count(*) from internal.discord_images) >= ${INVENTORY_MAX}`);
+    // Le nombre d'images : 50 au départ, 200 depuis la migration 20261112000300 (plus bas).
+    expect(body("public.save_discord_image")).toContain("(select count(*) from internal.discord_images) >= 50");
     // Le nom d'un fichier : celui que la règle d'accès du stockage impose au dépôt.
     const rule = `'${IMAGE_PATH.source}'`;
     expect(SQL).toContain(`check (path ~ ${rule})`);
@@ -201,6 +242,43 @@ describe("la migration de l'inventaire", () => {
   it("a un message en français pour chacun de ses refus", () => {
     const codes = new Set([...SQL.matchAll(/internal\.(?:fail|error_json)\('([a-z_]+)'/g)].map((m) => m[1]!));
     expect([...codes].sort()).toEqual(["image_already_saved", "image_name_taken", "image_not_on_server", "invalid_image", "invalid_image_name", "inventory_full", "rate_limited", "saved_image_not_found"]);
+    expect([...codes].filter((code) => !(code in ERROR_MESSAGES))).toEqual([]);
+  });
+});
+
+describe("la migration des 200 images", () => {
+  const SQL = readFileSync("supabase/migrations/20261112000300_inventaire_200_images.sql", "utf8").replaceAll("\r\n", "\n");
+  const save = SQL.slice(SQL.indexOf("function public.save_discord_image("), SQL.indexOf("$$;"));
+
+  it("ne remplace qu'une fonction, sans toucher aux tables ni aux données", () => {
+    expect([...SQL.matchAll(/\bas \$\$/g)]).toHaveLength(1);
+    expect([...SQL.matchAll(/^(?:end )?\$\$;$/gm)]).toHaveLength(1);
+    expect([...SQL.matchAll(/create or replace function ([a-z_.]+)\(/g)].map((m) => m[1])).toEqual(["public.save_discord_image"]);
+    expect(SQL).not.toMatch(/\b(create|alter|drop)\s+(table|index|policy)\b/i);
+    expect(SQL).not.toMatch(/\btruncate\b|\bdelete from\b|\bupdate\s+[a-z_.]+\s+set\b/i);
+    expect(SQL).not.toMatch(/\b(update|delete from|insert into)\s+storage\./i);
+  });
+
+  it("reste fermée aux visiteurs et réservée aux admins et au fondateur", () => {
+    expect(SQL).toContain("revoke all on function public.save_discord_image(text, text) from public, anon, authenticated;");
+    expect(SQL).toContain("grant execute on function public.save_discord_image(text, text) to authenticated;");
+    expect([...SQL.matchAll(/^grant /gm)]).toHaveLength(1);
+    expect(save).toContain("internal.require_rank(3)");
+    expect(save).toContain("security definer set search_path = public, pg_temp");
+  });
+
+  it("a les limites de la page : 200 images, 500 Mo, le même nom de fichier", () => {
+    expect(save).toContain(`(select count(*) from internal.discord_images) >= ${INVENTORY_MAX}`);
+    expect(save).toContain(`) > ${INVENTORY_MAX_BYTES} then`);
+    expect(save).toContain(`p_path !~ '${IMAGE_PATH.source}'`);
+    expect(save).toContain("from storage.objects o where o.bucket_id = 'discord-images' and o.name = p_path;");
+    expect(save).toContain("if not found then perform internal.fail('image_not_on_server'); end if;");
+  });
+
+  it("garde le journal et les refus de la première version, plus le poids", () => {
+    expect(save).toContain("perform internal.log_admin(v_actor, 'discord_image_saved', null, jsonb_build_object('name', v_name));");
+    const codes = new Set([...SQL.matchAll(/internal\.(?:fail|error_json)\('([a-z_]+)'/g)].map((m) => m[1]!));
+    expect([...codes].sort()).toEqual(["image_already_saved", "image_name_taken", "image_not_on_server", "invalid_image", "invalid_image_name", "inventory_full", "inventory_too_heavy", "rate_limited"]);
     expect([...codes].filter((code) => !(code in ERROR_MESSAGES))).toEqual([]);
   });
 });

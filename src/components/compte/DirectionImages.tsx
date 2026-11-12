@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "preact/hooks";
-import { cleanImageName, IMAGE_NAME_MAX, imageNameProblem, INVENTORY_MAX, suggestedName, type SavedImage } from "../../lib/compte/discord-images";
+import { cleanImageName, filterImages, IMAGE_NAME_MAX, imageNameProblem, INVENTORY_MAX, INVENTORY_MAX_BYTES, INVENTORY_PAGE, inventoryRoomProblem, inventoryWeight, SEARCH_FROM, suggestedName, type SavedImage } from "../../lib/compte/discord-images";
 import { IMAGE_TYPES, imageFileProblem, type ImageType } from "../../lib/compte/discord-message";
 import { errorMessage } from "../../lib/compte/errors";
 import { fmtDate, fmtInt } from "../../lib/format";
@@ -31,6 +31,9 @@ function Ajouter({ inventaire, images, onDone }: { inventaire: Inventaire; image
   const [problem, setProblem] = useState<string | null>(null);
   const [over, setOver] = useState(false);
   const full = images.length >= INVENTORY_MAX;
+  const weight = inventoryWeight(images);
+  // Presque plein en poids : moins d'un Mo de libre.
+  const heavy = weight > INVENTORY_MAX_BYTES - 1024 * 1024;
 
   // La vignette n'existe que dans cette page : son adresse est rendue quand le fichier change ou que la page se ferme.
   const src = file?.src;
@@ -58,7 +61,7 @@ function Ajouter({ inventaire, images, onDone }: { inventaire: Inventaire; image
 
   const submit = async () => {
     if (busy || !file) return;
-    const issue = full ? errorMessage("inventory_full") : imageNameProblem(name, images);
+    const issue = inventoryRoomProblem(images, file.blob.size) ?? imageNameProblem(name, images);
     if (issue) return setProblem(issue);
     setBusy(true);
     setProblem(null);
@@ -103,8 +106,8 @@ function Ajouter({ inventaire, images, onDone }: { inventaire: Inventaire; image
         <p id="di-ajouter" class="nom-champ font-semibold" tabIndex={-1}>
           Ajouter une image
         </p>
-        <p class={`tnum text-sm ${full ? "font-semibold text-warn" : "text-muted"}`}>
-          {fmtInt(images.length)} / {fmtInt(INVENTORY_MAX)} images
+        <p class={`tnum text-sm ${full || heavy ? "font-semibold text-warn" : "text-muted"}`}>
+          {fmtInt(images.length)} / {fmtInt(INVENTORY_MAX)} images · {weight === 0 ? "0 Mo" : fileSize(weight)} / {fileSize(INVENTORY_MAX_BYTES)}
         </p>
       </div>
       {file === null ? (
@@ -201,19 +204,19 @@ function Carte({ image, images, inventaire, busy, act }: { image: SavedImage; im
   return (
     <li class="inventaire-carte" data-testid="direction-image">
       {image.missing ? (
-        <div class="inventaire-carte-image">
-          <p class="p-3 text-center text-sm font-semibold text-warn">Fichier introuvable sur le serveur</p>
-        </div>
+        // Le fichier manque : une case vide, et le mot sous le nom, lisible même dans la petite case du téléphone.
+        <div class="inventaire-carte-image" />
       ) : (
         <a class="inventaire-carte-image" href={image.url} target="_blank" rel="noopener noreferrer">
           <img src={image.url} alt={`${image.name}, en grand dans un nouvel onglet`} loading="lazy" decoding="async" />
         </a>
       )}
-      <div class="grid gap-3 p-4">
-        <div>
-          <p class="font-semibold [overflow-wrap:anywhere]">{image.name}</p>
-          {about && <p class="tnum text-sm text-muted">{about}</p>}
-        </div>
+      <div class="inventaire-carte-texte">
+        <p class="font-semibold [overflow-wrap:anywhere]">{image.name}</p>
+        {image.missing && <p class="text-sm font-semibold text-warn">Fichier introuvable sur le serveur</p>}
+        {about && <p class="tnum text-sm text-muted">{about}</p>}
+      </div>
+      <div class="inventaire-carte-actions">
         {renaming ? (
           <form
             class="grid gap-2"
@@ -297,11 +300,16 @@ export default function DirectionImages() {
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [shown, setShown] = useState(INVENTORY_PAGE);
   useEffect(() => inventaire?.ensure(), []);
 
   if (!inventaire) return null;
   const { images } = inventaire;
   if (images === null) return inventaire.problem ? <Problem message={inventaire.problem} onRetry={() => void inventaire.reload()} /> : <Loading />;
+
+  // La recherche ne filtre que tant que son champ est là : sous treize images, il disparaît, et elle avec.
+  const found = images.length > SEARCH_FROM ? filterImages(images, query) : images;
 
   const act: Act = async (action, success) => {
     setBusy(true);
@@ -332,12 +340,48 @@ export default function DirectionImages() {
       {inventaire.problem && <Problem message={inventaire.problem} onRetry={() => void inventaire.reload()} />}
       <Problem message={problem} />
       {done && <Success message={done} />}
-      {images.length > 0 && (
-        <ul class="inventaire-grille">
-          {images.map((image) => (
+      {images.length > SEARCH_FROM && (
+        <div>
+          <label for="di-chercher" class="text-sm font-semibold">
+            Chercher une image
+          </label>
+          <input
+            id="di-chercher"
+            class="field mt-1"
+            type="search"
+            autoComplete="off"
+            value={query}
+            onInput={(e) => {
+              setQuery(e.currentTarget.value);
+              setShown(INVENTORY_PAGE);
+            }}
+          />
+          {/* Toujours là tant que la recherche l'est : le « aucune image » s'y lit à voix haute. */}
+          <div role="status">{found.length === 0 && <p class="mt-2 text-muted">Aucune image de ce nom.</p>}</div>
+        </div>
+      )}
+      {found.length > 0 && (
+        <ul class="inventaire-grille" data-testid="direction-images-liste">
+          {found.slice(0, shown).map((image) => (
             <Carte key={image.id} image={image} images={images} inventaire={inventaire} busy={busy} act={act} />
           ))}
         </ul>
+      )}
+      {found.length > shown && (
+        <div>
+          <button
+            type="button"
+            class="btn btn-ghost"
+            onClick={() => {
+              const next = found[shown];
+              setShown(shown + INVENTORY_PAGE);
+              // Le dernier paquet fait disparaître ce bouton : le focus va à la première carte ajoutée.
+              if (next && found.length <= shown + INVENTORY_PAGE) focusLater(`di-renommer-${next.id}-bouton`);
+            }}
+          >
+            Afficher {fmtInt(Math.min(INVENTORY_PAGE, found.length - shown))} de plus
+          </button>
+        </div>
       )}
     </div>
   );

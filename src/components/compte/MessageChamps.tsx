@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { SUPABASE_URL } from "../../lib/compte/api";
-import { cleanImageName, IMAGE_NAME_MAX, imageNameProblem, imagePathOf, INVENTORY_MAX, savedImageAt, suggestedName, usableImages, type SavedImage } from "../../lib/compte/discord-images";
+import { cleanImageName, filterImages, IMAGE_NAME_MAX, imageNameProblem, imagePathOf, inventoryRoomProblem, savedImageAt, SEARCH_FROM, suggestedName, usableImages, type SavedImage } from "../../lib/compte/discord-images";
 import { applyEditTo, codeBlockEdit, formatDiscordTime, insertEdit, linesEdit, linkEdit, mentionCode, timeCode, TIME_STYLES, wrapEdit, type Edit, type MentionKind, type Selection, type TimeStyle } from "../../lib/compte/discord-markdown";
 import { IMAGE_TYPES, imageFileProblem, textLength, type ImageSlot } from "../../lib/compte/discord-message";
-import { errorMessage } from "../../lib/compte/errors";
 import { fmtInt } from "../../lib/format";
 import { frNumber } from "../../lib/nombre";
 import { messageOf, Problem, Success } from "./common";
@@ -362,7 +361,7 @@ export function ImageChoix({
   };
 
   const src = preview(slot);
-  // « Inventaire » : la liste des images gardées, sous le champ. Là où « Changer d'image » remplace l'image, il la remplace aussi.
+  // « Inventaire » : la liste des images gardées, sous le champ. Une image déjà choisie se remplace d'un clic, sans la retirer d'abord.
   const toggle =
     gardees.length > 0 ? (
       <button
@@ -374,8 +373,13 @@ export function ImageChoix({
         aria-describedby={`${id}-nom`}
         onClick={() => {
           setOuvert(!ouvert);
-          // La liste s'ouvre sous le champ : le focus va à sa première image ; Échap le rend à ce bouton.
-          if (!ouvert) window.requestAnimationFrame(() => document.getElementById(`${id}-inventaire`)?.querySelector("button")?.focus());
+          // La liste s'ouvre sous le champ : le focus va à sa recherche, ou à sa première image ; Échap le rend à ce bouton.
+          // Au doigt, le clavier de l'écran couvrirait les vignettes : le focus va alors à la première, sans l'ouvrir.
+          if (!ouvert)
+            window.requestAnimationFrame(() => {
+              const fine = window.matchMedia("(pointer: fine)").matches;
+              document.getElementById(`${id}-inventaire`)?.querySelector<HTMLElement>(fine ? "input, button" : "button")?.focus();
+            });
         }}
       >
         Inventaire
@@ -410,7 +414,7 @@ export function ImageChoix({
           <button type="button" id={id} class="btn btn-ghost" aria-describedby={`${id}-nom`} onClick={() => (change ? input.current?.click() : onChange({ kind: "none" }))}>
             {change ? "Changer d'image" : "Retirer l'image"}
           </button>
-          {change && toggle}
+          {toggle}
         </div>
       ) : gardee ? (
         // Une image de l'inventaire : comme un fichier choisi, avec son nom dans l'inventaire.
@@ -422,7 +426,7 @@ export function ImageChoix({
           <button type="button" id={id} class="btn btn-ghost" aria-describedby={`${id}-nom`} onClick={() => (change ? input.current?.click() : onChange({ kind: "none" }))}>
             {change ? "Changer d'image" : "Retirer l'image"}
           </button>
-          {change && toggle}
+          {toggle}
         </div>
       ) : (
         // Les boutons, puis l'adresse : sur la même ligne s'il reste 16 rem pour l'adresse, sinon dessous.
@@ -470,7 +474,7 @@ export function ImageChoix({
           e.currentTarget.value = "";
         }}
       />
-      {toggle && ouvert && (change || (slot.kind !== "file" && !gardee)) && (
+      {toggle && ouvert && (
         <ListeInventaire
           id={`${id}-inventaire`}
           label={label}
@@ -492,8 +496,14 @@ export function ImageChoix({
   );
 }
 
-/** Les images de l'inventaire, en vignettes : un clic en choisit une pour ce champ. Échap referme la liste. */
+/**
+ * Les images de l'inventaire, en vignettes : un clic en choisit une pour ce champ. Au-delà de douze, une recherche par
+ * nom en tête de liste, qui reste visible quand la liste défile. Échap referme la liste.
+ */
 function ListeInventaire({ id, label, images, onPick, onClose }: { id: string; label: string; images: readonly SavedImage[]; onPick: (image: SavedImage) => void; onClose: () => void }) {
+  const [query, setQuery] = useState("");
+  // La recherche ne filtre que tant que son champ est là.
+  const found = images.length > SEARCH_FROM ? filterImages(images, query) : images;
   return (
     <div
       id={id}
@@ -506,7 +516,13 @@ function ListeInventaire({ id, label, images, onPick, onClose }: { id: string; l
         onClose();
       }}
     >
-      {images.map((image) => (
+      {images.length > SEARCH_FROM && (
+        <div class="inventaire-chercher">
+          <input type="search" class="field" aria-label="Chercher une image par son nom" placeholder="Chercher…" autoComplete="off" value={query} onInput={(e) => setQuery(e.currentTarget.value)} />
+          <div role="status">{found.length === 0 && <p class="mt-2 text-sm text-muted">Aucune image de ce nom.</p>}</div>
+        </div>
+      )}
+      {found.map((image) => (
         <button key={image.id} type="button" class="inventaire-vignette" onClick={() => onPick(image)} data-testid="inventaire-choix-image">
           <img src={image.url} alt="" loading="lazy" decoding="async" />
           <span>{image.name}</span>
@@ -566,8 +582,8 @@ function GarderImage({ id, slot, src, inventaire, onKept }: { id: string; slot: 
 
   const submit = async () => {
     if (busy || images === null) return;
-    // Plein : rien n'est déposé pour rien.
-    const issue = images.length >= INVENTORY_MAX ? errorMessage("inventory_full") : imageNameProblem(name, images);
+    // Plein, en nombre ou en poids : rien n'est déposé pour rien. Le poids d'une image déjà déposée, le serveur le connaît.
+    const issue = inventoryRoomProblem(images, slot.kind === "file" ? slot.size : null) ?? imageNameProblem(name, images);
     if (issue) return setProblem(issue);
     const before = shown;
     setBusy(true);
