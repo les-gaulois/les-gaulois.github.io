@@ -53,7 +53,7 @@ Pas de couleur en dur dans un composant : un jeton, ou une classe de `global.css
 - Chiffres clés : `.kpi-row` > `.kpi` (`.kpi-label`, `.kpi-value` et ses tailles `-xl` `-md` `-sm`, `.kpi-hint`), un filet à gauche, `.kpi-accent` pour le premier d'une liste classée. Le chiffre ne se coupe pas : vérifier qu'il tient de 360 à 1 920 px.
 - Cartes : `.card`, pour les listes et les espaces de travail ; pas autour d'un graphique. Largeur de page : `.wrap`. Un graphique ou un tableau posé sur le fond porte `.fx-block` pour apparaître en fondu.
 - Boutons : `.btn-primary` (bleu plein, l'action principale, rejoindre le Discord), `.btn-secondary` (blanc plein, jouer à OpenFront), `.btn-ghost` (contour blanc, liens dans les scènes). Coins 6 px, `.btn-lg` pour les appels principaux. `.btn` écrase `hidden` : masquer via un conteneur.
-- Menus déroulants : tout ce qui se déplie est un `<details class="fold">`, sur le modèle de « Détails et formules » du guide (filet, libellé en chasse fixe dans le bleu des liens, « + » au bout, voir `docs/DESIGN.md`). Les menus de navigation (en-tête, menu des parties, sommaire du guide) gardent leur bouton.
+- Menus déroulants : tout ce qui se déplie est un `<details class="fold">`, sur le modèle de « Détails et formules » du guide (filet, libellé en chasse fixe dans le bleu des liens, « + » au bout, voir `docs/DESIGN.md`). Les menus de navigation (en-tête, menu des parties, sommaire du guide) gardent leur bouton, et la Direction son dessin d'avant.
 - Bouton Discord : texte seul, pas de logo ni de couleur de la marque.
 
 ## Typographie

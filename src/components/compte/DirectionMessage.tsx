@@ -107,7 +107,7 @@ function Repli({ title, startOpen, children }: { title: string; startOpen: boole
   }, []);
   return (
     <details ref={ref} class="fold">
-      <summary>{title}</summary>
+      <summary class="font-semibold">{title}</summary>
       <div class="mt-3 grid gap-4">{children}</div>
     </details>
   );
@@ -486,9 +486,9 @@ function GererSalons({ state, reload, onAdded }: { state: MessagesState; reload:
             Ajouter le salon
           </button>
         </div>
-        <details class="fold">
-          <summary>Où trouver le lien ?</summary>
-          <p class="text-sm text-muted">
+        <details class="text-sm">
+          <summary class="cursor-pointer font-semibold">Où trouver le lien ?</summary>
+          <p class="mt-2 text-muted">
             Dans Discord : Modifier le salon → Intégrations → Webhooks → Nouveau webhook, puis Copier l'URL du webhook. Le nom et l'image du webhook sont ceux du robot dans le salon. Le lien permet d'écrire dans le salon : ne le montrez à personne.
           </p>
         </details>

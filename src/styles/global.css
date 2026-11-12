@@ -1206,17 +1206,16 @@ th.fx-cross {
    reste lisible sans JavaScript. Le 12 novembre 2026, le pilote a demandé « tout les menu déroulant fais les comme ca », en
    montrant « Détails et formules » du guide : un filet au-dessus, le libellé en chasse fixe dans le bleu clair des liens
    (blanc au survol), un grand « + » au bout de la ligne, « − » une fois ouvert. Le libellé prend la taille du texte courant
-   de la page, même dans une note en petit texte. Les rubriques de l'onglet Discord de la Direction (.deroule) ont le même
-   dessin, un cran plus grand, dans leur fenêtre. Les menus de navigation (« Menu » et « Nouveautés » de l'en-tête, menu
-   des parties du QG et de la Direction, sommaire du guide) ouvrent une liste de liens : ils gardent leur bouton. */
+   de la page, même dans une note en petit texte. Les menus de navigation (« Menu » et « Nouveautés » de l'en-tête, menu
+   des parties du QG et de la Direction, sommaire du guide) ouvrent une liste de liens : ils gardent leur bouton.
+   La Direction garde le dessin d'avant : le 13 novembre 2026, le pilote a demandé « les ceux de la direction comme avant ».
+   Ce dessin ne vaut donc que hors du thème rouge ; à la Direction, un repli garde l'écriture, la taille et la couleur que
+   lui donnent le texte qui l'entoure et ses classes, et son air au-dessus et au-dessous. */
 .fold-list {
   border-bottom: 1px solid var(--color-line);
 }
 .fold {
   border-top: 1px solid var(--color-line);
-}
-.fold[open] {
-  padding-bottom: 1rem;
 }
 .fold > summary {
   display: flex;
@@ -1224,16 +1223,24 @@ th.fx-cross {
   justify-content: space-between;
   gap: 1rem;
   min-height: 2.75rem;
+  cursor: pointer;
+  list-style: none;
+}
+:root:not([data-theme="rouge"]) .fold[open] {
+  padding-bottom: 1rem;
+}
+:root:not([data-theme="rouge"]) .fold > summary {
   font-family: var(--font-console);
   font-size: var(--text-base);
   font-weight: 600;
   line-height: 1.5;
   color: var(--color-blue-text);
-  cursor: pointer;
-  list-style: none;
 }
-.fold > summary:hover {
+:root:not([data-theme="rouge"]) .fold > summary:hover {
   color: #fff;
+}
+:root[data-theme="rouge"] .fold {
+  padding-block: 0.875rem;
 }
 .fold > summary::-webkit-details-marker {
   display: none;
@@ -1260,7 +1267,7 @@ th.fx-cross {
 .stage .fold-list {
   border-bottom-color: var(--hairline);
 }
-.stage-blue .fold > summary {
+:root:not([data-theme="rouge"]) .stage-blue .fold > summary {
   color: #fff;
 }
 /* Le texte de la page peut se couper partout : un chiffre ou un tag de clan, non. */
@@ -2592,9 +2599,8 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 /* ---------- Le menu déroulant de l'onglet Discord, à la Direction ---------- */
 /* Une rubrique par ligne : son titre et une phrase. Au clic ou au clavier (<details>), son contenu se déroule dessous, de
    haut en bas, une fois et lentement ; le menu entier se déroule ainsi quand l'onglet s'ouvre. Le bouton pause
-   (.fx-off *) et le réglage « réduire les animations » coupent ces mouvements, comme toute animation du site. Depuis le
-   12 novembre 2026, la ligne de titre a le dessin de tous les menus déroulants (.fold, « Détails et formules » du guide) :
-   le titre en chasse fixe, dans la couleur des liens, sans capitales ni « ## », et le même « + » au bout. */
+   (.fx-off *) et le réglage « réduire les animations » coupent ces mouvements, comme toute animation du site. Les
+   rubriques gardent leurs grands titres : le 13 novembre 2026, le pilote a voulu les menus de la Direction « comme avant ». */
 .menu-deroulant {
   display: grid;
   gap: 1rem;
@@ -2608,16 +2614,12 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   column-gap: 1rem;
-  row-gap: 0.125rem;
-  min-height: 2.75rem;
-  padding: 1rem clamp(1rem, 3vw, 1.5rem);
-  color: var(--color-blue-text);
+  row-gap: 0.375rem;
+  min-height: 5rem;
+  padding: 1.125rem clamp(1rem, 3vw, 1.5rem);
   cursor: pointer;
   list-style: none;
   border-radius: inherit;
-}
-.deroule > summary:hover {
-  color: #fff;
 }
 .deroule > summary::-webkit-details-marker {
   display: none;
@@ -2629,7 +2631,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   grid-column: 2;
   grid-row: 1 / span 2;
   font-family: var(--font-display);
-  font-size: 1.75rem;
+  font-size: 2.25rem;
   font-weight: 800;
   line-height: 1;
 }
@@ -2642,26 +2644,9 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   border-end-start-radius: 0;
   border-end-end-radius: 0;
 }
-/* Un cran plus grand que le libellé d'un .fold : c'est le titre d'une rubrique, au-dessus de sa phrase d'aide, dans un
-   espace de travail où tout est en grand (« tout est extrêmement petit », a dit le pilote le 10 novembre 2026). */
 .deroule-titre {
   grid-column: 1;
-  font-family: var(--font-console);
-  font-size: var(--text-xl);
-  font-weight: 600;
-  line-height: 1.3;
-  letter-spacing: normal;
-  text-transform: none;
-  text-wrap: wrap;
-  color: inherit;
-}
-/* Dans le style Terminal, un titre prend sinon la graisse des titres et son « ## ». */
-:root[data-ambiance="console"][data-console="terminal"] .deroule-titre {
-  font-weight: 600;
-  letter-spacing: normal;
-}
-:root[data-ambiance="console"][data-console="terminal"] .espace .deroule-titre::before {
-  content: none;
+  font-size: var(--text-2xl);
 }
 .deroule-aide {
   grid-column: 1;
