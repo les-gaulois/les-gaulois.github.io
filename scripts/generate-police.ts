@@ -11,7 +11,7 @@ import { join } from "node:path";
 import opentype from "opentype.js";
 import { compress } from "wawoff2";
 import { TAILLE_TEXTES, casesPleines, contours, tailler, type Taille } from "../src/lib/police/cases";
-import { APPROCHE, CASE, ESPACE, ESPACE_FINE, ESPACE_INSECABLE, ONCIALE, caracteresDe, chasse, glyphesOnciale } from "../src/lib/police/onciale";
+import { APPROCHE, CASE, ESPACE, ESPACE_FINE, ESPACE_INSECABLE, ONCIALE, chasse, glyphesOnciale } from "../src/lib/police/onciale";
 
 /** Le joint entre deux cases, en unités de chaque côté d'une case de 70 : 12 unités entre deux cases voisines. */
 const JOINT = 6;
@@ -53,16 +53,9 @@ function police(famille: string, forme: { joint: number } | { taille: Taille }):
         path.close();
       }
     }
-    const [code, ...autres] = caracteresDe(ch).map((c) => c.codePointAt(0) as number);
-    const glyphe = new opentype.Glyph({
-      name: `uni${(ch.codePointAt(0) as number).toString(16).toUpperCase().padStart(4, "0")}`,
-      unicode: code,
-      advanceWidth: chasse(d) * CASE,
-      path,
-    });
-    // La minuscule : opentype.js 1.3 ignore l'option « unicodes » du constructeur, addUnicode l'ajoute bien.
-    for (const c of autres) glyphe.addUnicode(c);
-    glyphes.push(glyphe);
+    // Un dessin par caractère : capitales et minuscules ont chacune le leur.
+    const code = ch.codePointAt(0) as number;
+    glyphes.push(new opentype.Glyph({ name: `uni${code.toString(16).toUpperCase().padStart(4, "0")}`, unicode: code, advanceWidth: chasse(d) * CASE, path }));
   }
   return new opentype.Font({
     familyName: famille,

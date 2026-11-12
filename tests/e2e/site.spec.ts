@@ -27,6 +27,7 @@ import { meVisitLines } from "../../src/lib/moi-visite";
 import { SECTIONS } from "../../src/lib/nav";
 import { latestNews, newsDays, newsMarker, NOUVEAUTES_KEY, splitDays } from "../../src/lib/nouveautes";
 import { nextTier, tierOf, tierRows } from "../../src/lib/paliers";
+import { LETTRINE_TITRE, largeurTexte } from "../../src/lib/police/largeur";
 import { CHOOSE_NAME_URL } from "../../src/lib/pseudo-openfront";
 import { SITE_URL, ficheImageUrl, ficheUrl, parseFiches } from "../../supabase/functions/code-discord/index";
 import { currentMilestonesPeriod, homeMilestones, recentRecordLines, recentTerritoryRecord } from "../../src/lib/vie-du-clan";
@@ -287,8 +288,105 @@ test("l'onciale de cases écrit les titres des pages ouvertes à tous, pas ceux 
   expect(polices).toEqual([]);
 });
 
+// Les vraies minuscules et les lettrines (12 novembre 2026, choisies par le pilote sur captures) : les titres des pages
+// ouvertes à tous ne sont plus en capitales ; la première lettre d'un titre de page est plus grande et rouge, celle d'un
+// titre de section plus grande. La Carte, en console, garde ses capitales sans lettrine, comme le QG et la Direction.
+// Le pseudo d'une fiche de membre n'a pas de lettrine non plus : un nom s'écrit tel quel.
+// Deux cas à tenir : avec les effets, fx.ts pose chaque mot du titre dans un bloc (.fx-word) et la lettrine est la première
+// lettre de ce bloc ; en mouvement réduit, c'est celle du titre lui-même. Une règle écrite pour un seul des deux cas ne
+// montrait la lettrine qu'en mouvement réduit.
+test("les titres ont de vraies minuscules et une lettrine, sauf en console, au QG et à la Direction", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "Même rendu sur mobile.");
+  // La première lettre du titre comparée à la deuxième, telles qu'elles sont dessinées : le rapport de leurs hauteurs est
+  // la taille de la lettrine. La couleur est lue sur le bloc qui porte la lettre (le mot, ou le titre).
+  const titre = (selecteur: string) =>
+    page.evaluate((sel) => {
+      const el = document.querySelector(sel);
+      if (!el) return null;
+      const marche = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      let noeud = marche.nextNode();
+      while (noeud && (noeud.textContent ?? "").trim().length < 2) noeud = marche.nextNode();
+      if (!noeud) return null;
+      const lettres = noeud;
+      const texte = lettres.textContent ?? "";
+      const debut = texte.length - texte.trimStart().length;
+      const hauteur = (i: number) => {
+        const r = document.createRange();
+        r.setStart(lettres, i);
+        r.setEnd(lettres, i + 1);
+        return r.getBoundingClientRect().height;
+      };
+      const style = getComputedStyle(el);
+      const porteur = lettres.parentElement ?? el;
+      return {
+        casse: style.textTransform,
+        lettrine: hauteur(debut) / hauteur(debut + 1),
+        rouge: getComputedStyle(porteur, "::first-letter").color === "rgb(255, 26, 46)",
+        interligne: Math.round((parseFloat(style.lineHeight) / parseFloat(style.fontSize)) * 100) / 100,
+        motsAnimes: el.querySelectorAll(".fx-word").length,
+      };
+    }, selecteur);
+  const ouvrir = async (path: string) => {
+    await page.goto(path);
+    await page.waitForLoadState("networkidle");
+    await page.evaluate(() => document.fonts.ready);
+    // Les mots d'un titre entrent un à un, légèrement inclinés : on mesure une fois leur entrée finie.
+    await page.evaluate(() => {
+      for (const animation of document.getAnimations()) {
+        if (animation.effect?.getComputedTiming().iterations !== Infinity) animation.finish();
+      }
+    });
+  };
+  for (const mouvement of ["no-preference", "reduce"] as const) {
+    await page.emulateMedia({ reducedMotion: mouvement });
+    await ouvrir("/classement");
+    const page1 = await titre("main h1");
+    expect(page1, mouvement).toMatchObject({ casse: "none", rouge: true, interligne: 1.15 });
+    expect(page1?.lettrine, mouvement).toBeCloseTo(LETTRINE_TITRE, 1);
+    expect((page1?.motsAnimes ?? 0) > 0, mouvement).toBe(mouvement === "no-preference");
+    // Un titre de section : une lettrine plus petite, sans le rouge du titre de page.
+    await ouvrir("/activite");
+    const section = await titre("main .section-title");
+    expect(section, mouvement).toMatchObject({ casse: "none", rouge: false, interligne: 1.15 });
+    expect(section?.lettrine, mouvement).toBeCloseTo(1.3, 1);
+  }
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  // Une étiquette garde ses capitales, même posée sur un titre : le libellé d'une courbe (.kpi-label sur un h3), la date
+  // d'un jour des nouveautés (.uppercase sur un h2). La règle des minuscules ne pèse pas plus qu'une balise.
+  await ouvrir("/progression");
+  expect(await page.evaluate(() => getComputedStyle(document.querySelector("main h3.kpi-label")!).textTransform)).toBe("uppercase");
+  await ouvrir("/nouveautes");
+  expect(await page.evaluate(() => getComputedStyle(document.querySelector('main [data-testid="nouveautes-day"] h2')!).textTransform)).toBe("uppercase");
+  // La police a un dessin pour chaque minuscule : un mot a la largeur de ses dessins, plus étroite en minuscules.
+  await ouvrir("/classement");
+  const largeurs = await page.evaluate(() => {
+    const ctx = document.createElement("canvas").getContext("2d")!;
+    ctx.font = '100px "GAL Onciale Cases"';
+    return { minuscules: ctx.measureText("classement").width / 100, capitales: ctx.measureText("CLASSEMENT").width / 100 };
+  });
+  expect(largeurs.minuscules).toBeCloseTo(largeurTexte("classement"), 2);
+  expect(largeurs.capitales).toBeCloseTo(largeurTexte("CLASSEMENT"), 2);
+  expect(largeurs.minuscules).toBeLessThan(largeurs.capitales);
+  // La Carte, le QG et la Direction : des capitales, pas de lettrine.
+  for (const path of ["/carte", "/qg", "/direction"]) {
+    await ouvrir(path);
+    const enConsole = await titre("main h1");
+    expect(enConsole, path).toMatchObject({ casse: "uppercase", rouge: false });
+    expect(enConsole?.lettrine, path).toBeCloseTo(1, 1);
+  }
+  // Une fiche de membre : son titre est un pseudo, qui s'écrit tel quel, sans lettrine. Agrandie, la minuscule de « nico »
+  // se lisait comme une capitale.
+  const nomme = members.members.find((m: { username: string | null; publicId: string | null }) => m.publicId && /^[A-Za-z0-9]{2}/.test(m.username ?? ""));
+  await ouvrir(`/membres/${nomme.publicId}`);
+  const fiche = await titre("main h1");
+  expect(fiche).toMatchObject({ casse: "none", rouge: false, interligne: 1.15 });
+  expect(fiche?.lettrine).toBeCloseTo(1, 1);
+  // Les titres de section de la fiche gardent la leur.
+  expect((await titre("main .section-title"))?.lettrine).toBeCloseTo(1.3, 1);
+});
+
 // L'onciale est plus large qu'Outfit : sur un téléphone de 360 px, chaque titre de page prend la taille qui laisse son plus
-// long mot sur une ligne (--mot-em, PageHeader.astro), au lieu de le couper en deux.
+// long mot sur une ligne (--mot-em, PageHeader.astro), lettrine comprise, au lieu de le couper en deux.
 test("à 360 px, aucun titre de page ne coupe un mot en deux", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "Largeur testée une seule fois.");
   await page.setViewportSize({ width: 360, height: 800 });
@@ -305,8 +403,14 @@ test("à 360 px, aucun titre de page ne coupe un mot en deux", async ({ page }, 
             const r = document.createRange();
             r.setStart(n, mot.index ?? 0);
             r.setEnd(n, (mot.index ?? 0) + mot[0].length);
-            const lignes = new Set([...r.getClientRects()].filter((x) => x.width > 0).map((x) => Math.round(x.top)));
-            if (lignes.size > 1) out.push(mot[0]);
+            // Deux morceaux d'un mot sont sur la même ligne quand leurs bas sont proches : la lettrine, plus grande, descend
+            // à peine plus bas que la suite de son mot, alors qu'une ligne de plus descend d'une hauteur de ligne entière.
+            const morceaux = [...r.getClientRects()].filter((x) => x.width > 0).sort((a, b) => a.bottom - b.bottom);
+            const coupe = morceaux.some((x, i) => {
+              const avant = morceaux[i - 1];
+              return avant !== undefined && x.bottom - avant.bottom > Math.min(x.height, avant.height) / 2;
+            });
+            if (coupe) out.push(mot[0]);
           }
         }
       }

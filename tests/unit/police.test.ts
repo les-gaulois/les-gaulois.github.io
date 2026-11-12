@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { TAILLE_TEXTES, aire, casesPleines, contours, tailler, type Case, type Point } from "../../src/lib/police/cases";
 import {
@@ -10,18 +11,19 @@ import {
   ESPACE_INSECABLE,
   LETTRES,
   MARQUES,
-  caracteresDe,
+  MINUSCULES,
+  OEIL,
   chasse,
   composer,
   dessin,
   glyphesOnciale,
   largeur,
 } from "../../src/lib/police/onciale";
-import { largeurTexte, motLePlusLong } from "../../src/lib/police/largeur";
+import { LETTRINE_TITRE, largeurTexte, lettrineDe, motLePlusLong } from "../../src/lib/police/largeur";
 
 const glyphes = glyphesOnciale();
-/** Tous les caractères qu'écrit la police, minuscules comprises. */
-const ecrits = new Set([...glyphes.keys()].flatMap(caracteresDe));
+/** Tous les caractères qu'écrit la police : chacun a son dessin, minuscules comprises. */
+const ecrits = new Set(glyphes.keys());
 const bas = (d: { haut: number; rangees: readonly string[] }) => d.haut - d.rangees.length + 1;
 
 describe("l'onciale de cases : les dessins", () => {
@@ -71,11 +73,32 @@ describe("l'onciale de cases : les dessins", () => {
     for (const c of [...attendus, ...attendus.toLowerCase(), ...extra]) expect(ecrits.has(c), JSON.stringify(c)).toBe(true);
   });
 
-  it("une minuscule s'écrit comme sa majuscule, et les mots ont la même largeur dans les deux cas", () => {
-    expect(caracteresDe("E")).toEqual(["E", "e"]);
-    expect(caracteresDe("É")).toEqual(["É", "é"]);
-    expect(caracteresDe("7")).toEqual(["7"]);
-    expect(largeurTexte("Classement")).toBe(largeurTexte("CLASSEMENT"));
+  it("chaque minuscule a son propre dessin, de a à z, et un mot en minuscules est plus étroit qu'en capitales", () => {
+    expect(Object.keys(MINUSCULES).sort().join("")).toBe("abcdefghijklmnopqrstuvwxyzœ");
+    for (const ch of Object.keys(MINUSCULES)) {
+      expect(glyphes.get(ch), ch).toBe(MINUSCULES[ch]);
+      expect(glyphes.get(ch)!.rangees.join("\n"), ch).not.toBe(glyphes.get(ch.toUpperCase())!.rangees.join("\n"));
+    }
+    expect(largeurTexte("classement")).toBeLessThan(largeurTexte("CLASSEMENT"));
+  });
+
+  it("les minuscules ont un œil de 8 rangées, des hampes à la hauteur des capitales et des jambages jusqu'à -3", () => {
+    // Le pilote trouvait une lettre plus haute que ses voisines « trop grande » : aucune hampe ne dépasse les capitales.
+    const hampes = new Set("bdfhkl");
+    const jambages = new Set("gjpqy");
+    for (const [ch, d] of Object.entries(MINUSCULES)) {
+      const haut = hampes.has(ch) ? CORPS - 1 : ch === "t" ? OEIL : ch === "i" || ch === "j" ? OEIL + 2 : OEIL - 1;
+      expect(d.haut, `${ch} : le haut`).toBe(haut);
+      expect(bas(d), `${ch} : le bas`).toBe(jambages.has(ch) ? -3 : 0);
+      expect(d.rangees[d.haut], `${ch} : la rangée de la ligne de base`).toContain("#");
+    }
+    // Le point du i et du j : deux rangées, séparées de la lettre par une rangée d'air.
+    for (const ch of "ij") {
+      const d = MINUSCULES[ch]!;
+      expect(d.rangees[0], ch).toContain("#");
+      expect(d.rangees[1], ch).toContain("#");
+      expect(d.rangees[2], ch).toMatch(/^\.+$/);
+    }
   });
 });
 
@@ -94,6 +117,24 @@ describe("l'onciale de cases : les accents", () => {
     const c = glyphes.get("Ç")!;
     expect(bas(c)).toBe(bas(MARQUES.cedille));
     expect(c.haut).toBe(LETTRES.C!.haut);
+    const petit = glyphes.get("ç")!;
+    expect(bas(petit)).toBe(bas(MARQUES.cedille));
+    expect(petit.haut).toBe(OEIL - 1);
+  });
+
+  it("l'accent d'une minuscule se pose au-dessus de l'œil, avec une rangée d'air, et le i y perd son point", () => {
+    const e = glyphes.get("é")!;
+    expect(e.haut).toBe(MARQUES.aigu.haut - (CORPS - OEIL));
+    expect(e.rangees[e.haut - OEIL], "la rangée y = 8").toMatch(/^\.+$/);
+    expect(e.rangees.slice(e.haut - (OEIL - 1)).join("\n").replace(/\./g, "")).toBe(MINUSCULES.e!.rangees.join("\n").replace(/\./g, ""));
+    // « î » : l'accent, une rangée d'air, puis le fût seul, sans point.
+    const i = glyphes.get("î")!;
+    const pleines = (d: { rangees: readonly string[] }) => d.rangees.join("").split("#").length - 1;
+    expect(i.haut).toBe(MARQUES.circonflexe.haut - (CORPS - OEIL));
+    expect(i.rangees[i.haut - OEIL]).toMatch(/^\.+$/);
+    expect(pleines(i)).toBe(pleines(MARQUES.circonflexe) + 3 * OEIL);
+    // Chaque capitale accentuée a sa minuscule.
+    for (const ch of glyphes.keys()) if (ch.toLowerCase() !== ch) expect(glyphes.has(ch.toLowerCase()), ch).toBe(true);
   });
 
   it("une marque plus large que la lettre élargit le dessin au lieu de déborder", () => {
@@ -295,6 +336,24 @@ describe("la largeur des titres", () => {
   it("donne une largeur aux caractères qu'elle n'a pas, sans s'arrêter", () => {
     expect(largeurTexte("Ж")).toBeGreaterThan(0);
     expect(largeurTexte("AЖ")).toBeGreaterThan(largeurTexte("A"));
+  });
+
+  it("la lettrine élargit le premier mot du titre, avec la ponctuation qui touche sa première lettre", () => {
+    expect(lettrineDe("Membres")).toBe("M");
+    expect(lettrineDe("L'encadrement")).toBe("L'");
+    expect(lettrineDe("[GAL]")).toBe("[G");
+    expect(lettrineDe("1 000")).toBe("1");
+    expect(lettrineDe("")).toBe("");
+    expect(motLePlusLong("Membres", LETTRINE_TITRE)).toBeCloseTo(largeurTexte("Membres") + (LETTRINE_TITRE - 1) * largeurTexte("M"));
+    // Seul le premier mot grandit : un autre mot, plus long, décide encore.
+    expect(motLePlusLong("La confidentialité", LETTRINE_TITRE)).toBe(largeurTexte("confidentialité"));
+    expect(motLePlusLong("Membres", 1)).toBe(largeurTexte("Membres"));
+  });
+
+  it("la lettrine a la même taille dans la feuille de style et dans le calcul des largeurs", () => {
+    const css = readFileSync("src/styles/global.css", "utf8");
+    const regle = css.match(/main h1:not\(\.sans-lettrine\)::first-letter \{\s*font-size: ([\d.]+)em;/);
+    expect(regle?.[1]).toBe(String(LETTRINE_TITRE));
   });
 
   it("le plus long mot d'un titre décide de sa taille ; l'espace insécable lie ses voisins", () => {

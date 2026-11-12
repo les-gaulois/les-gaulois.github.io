@@ -1,6 +1,12 @@
 [
   {
     "date": "2026-11-12",
+    "kind": "ameliore",
+    "title": "Des titres en minuscules, avec une grande première lettre",
+    "body": "Les titres ne sont plus tout en capitales : chaque lettre a sa minuscule, plus facile à lire. La première lettre du titre d'une page est plus grande et rouge, comme dans un vieux manuscrit."
+  },
+  {
+    "date": "2026-11-12",
     "kind": "nouveau",
     "title": "Sans pseudo ? Le lien pour en choisir un",
     "body": "La liste des membres et « Ma place » mènent à la fenêtre d'OpenFront où l'on choisit son nom d'utilisateur. Sans lui, pas de fiche ni de nom dans les podiums.",

@@ -1,19 +1,19 @@
 /**
  * L'onciale de cases (« GAL Onciale ») : la police des titres de toutes les pages sauf le QG et la Direction, depuis le
  * 12 novembre 2026. Le pilote voulait des lettres « dans le design gaulois - hacker » : l'onciale des vieux manuscrits,
- * posée case par case comme un territoire d'OpenFront. Chaque lettre est dessinée ici en cases (« # » pleine, « . » vide) ;
- * scripts/generate-police.ts en tire la police à chaque construction : en cases visibles pour les grands titres, taillée
- * (sans marches d'escalier) pour les petits textes. Deux cases d'un dessin se touchent toujours par un côté, jamais par un
- * seul coin : taillé, le signe se déferait (seule exception, dans le « @ », entre son anneau et sa lettre, qui ne se
- * touchent pas). Voir « Typographie » dans docs/DESIGN.md.
+ * posée case par case comme un territoire d'OpenFront. Chaque signe est dessiné ici en cases (« # » pleine, « . » vide),
+ * capitales et minuscules chacune avec le leur ; scripts/generate-police.ts en tire la police à chaque construction : en
+ * cases visibles pour les grands titres, taillée (sans marches d'escalier) pour les petits textes. Deux cases d'un dessin
+ * se touchent toujours par un côté, jamais par un seul coin : taillé, le signe se déferait (seule exception, dans le
+ * « @ », entre son anneau et sa lettre, qui ne se touchent pas). Voir « Typographie » dans docs/DESIGN.md.
  *
  * Licence : ce fichier et les polices qui en sont tirées sont sous SIL Open Font License 1.1, pas sous l'AGPL du site ;
  * les outils qui les fabriquent ou les mesurent (cases.ts, largeur.ts, scripts/generate-police.ts) restent sous l'AGPL.
  * Texte complet et notice dans OFL.txt, à côté. Les formes viennent de la police Uncial Antiqua, passée sur une grille de
  * cases puis redessinée à la main le 12 novembre 2026 :
  * Copyright (c) 2011 by Brian J. Bonislawsky DBA Astigmatic (AOETI) (astigma@astigmatic.com), with Reserved Font Names
- * "Uncial Antiqua". Modifiée par le clan [GAL] : grille de cases, chiffres alignés, accents, signes. Ce nom réservé ne
- * s'emploie pas pour cette version.
+ * "Uncial Antiqua". Modifiée par le clan [GAL] : grille de cases, minuscules, chiffres alignés, accents, signes. Ce nom
+ * réservé ne s'emploie pas pour cette version.
  */
 
 /** Un dessin : la hauteur de sa première rangée (0 = la rangée posée sur la ligne de base), puis ses rangées de haut en bas. */
@@ -27,7 +27,9 @@ export interface Dessin {
 /**
  * Le corps des lettres : 10 rangées, de y = 0 à y = 9. Toutes les capitales ont cette hauteur, depuis que le pilote a trouvé
  * le L « trop grand par rapport aux autres lettres » : seuls les accents montent au-dessus (jusqu'à 12), et la queue du Q,
- * la cédille et la virgule descendent sous la ligne de base (jusqu'à -3).
+ * la cédille et la virgule descendent sous la ligne de base (jusqu'à -3). Les minuscules ont leurs propres hauteurs : les
+ * hampes s'arrêtent à la hauteur des capitales, le point du i et du j et les accents montent une rangée plus haut
+ * (y = 10), et cinq jambages descendent à -3 (voir MINUSCULES).
  */
 export const CORPS = 10;
 /** Unités de police par case : le corps fait 700 unités sur 1 000, comme la capitale d'Outfit qu'elle remplace. */
@@ -47,7 +49,7 @@ export const ONCIALE = {
   version: "1.000",
   // La notice d'origine, telle quelle (condition 2 de la licence), puis la modification : voir OFL.txt, à côté.
   copyright:
-    'Copyright (c) 2011 by Brian J. Bonislawsky DBA Astigmatic (AOETI) (astigma@astigmatic.com), with Reserved Font Names "Uncial Antiqua". Modified version by the [GAL] clan, 2026: pixel grid, lining figures, accents and signs; the Reserved Font Name is not used.',
+    'Copyright (c) 2011 by Brian J. Bonislawsky DBA Astigmatic (AOETI) (astigma@astigmatic.com), with Reserved Font Names "Uncial Antiqua". Modified version by the [GAL] clan, 2026: pixel grid, lowercase letters, lining figures, accents and signs; the Reserved Font Name is not used.',
   licence: "This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: https://openfontlicense.org",
   licenceUrl: "https://openfontlicense.org",
 } as const;
@@ -825,7 +827,7 @@ export const MARQUES = {
 
 export type Marque = keyof typeof MARQUES;
 
-/** Les lettres accentuées : une lettre et sa marque. Leurs minuscules prennent le même dessin, comme toutes les lettres. */
+/** Les lettres accentuées : une capitale et sa marque. La minuscule se compose de même, sur sa minuscule (glyphesOnciale). */
 export const COMPOSEES: Readonly<Record<string, readonly [string, Marque]>> = {
   À: ["A", "grave"],
   Á: ["A", "aigu"],
@@ -857,6 +859,310 @@ export const COMPOSEES: Readonly<Record<string, readonly [string, Marque]>> = {
 
 /** Le centre optique des lettres asymétriques, en cases depuis la gauche : l'accent se pose là. */
 const CENTRES: Readonly<Record<string, number>> = { A: 5, C: 4.5, E: 4.5, I: 1.5, U: 5, Y: 4.5 };
+
+/** L'œil des minuscules : 8 rangées, de y = 0 à y = 7. */
+export const OEIL = 8;
+
+/**
+ * Les minuscules, depuis le 12 novembre 2026 : le pilote a choisi « de vraies minuscules » sur captures, plus lisibles
+ * que le tout-capitales. Un œil de 8 rangées, des hampes à la hauteur des capitales (b, d, f, h, k, l), un t d'une rangée
+ * de moins, des jambages jusqu'à y = -3 (g, j, p, q, y), le point du i et du j à la hauteur des accents. Des formes
+ * courantes, qu'on reconnaît du premier coup : il lisait le d onciale comme un a. Le l a un pied recourbé, pour ne pas
+ * se confondre avec le I, dont il ne différait que d'une case.
+ */
+export const MINUSCULES: Readonly<Record<string, Dessin>> = {
+  a: dessin(7, `
+    .######..
+    ##...###.
+    ......###
+    .########
+    ###...###
+    ###...###
+    ###.#####
+    .####.###`),
+  b: dessin(9, `
+    ###......
+    ###......
+    ########.
+    ####..###
+    ###...###
+    ###...###
+    ###...###
+    ###...###
+    ####..###
+    ########.`),
+  c: dessin(7, `
+    ..#####.
+    .###..##
+    ###.....
+    ###.....
+    ###.....
+    ###.....
+    .###..##
+    ..#####.`),
+  d: dessin(9, `
+    ......###
+    ......###
+    .########
+    ###..####
+    ###...###
+    ###...###
+    ###...###
+    ###...###
+    ###..####
+    .########`),
+  e: dessin(7, `
+    ..#####..
+    .##...##.
+    ###...###
+    #########
+    ###......
+    ###......
+    .###...##
+    ..######.`),
+  f: dessin(9, `
+    ..#####
+    .###...
+    ######.
+    .###...
+    .###...
+    .###...
+    .###...
+    .###...
+    .###...
+    .###...`),
+  g: dessin(7, `
+    ..#######
+    .###..###
+    ###...###
+    ###...###
+    ###...###
+    ###...###
+    .###..###
+    ..#######
+    ......###
+    ##...###.
+    .######..`),
+  h: dessin(9, `
+    ###......
+    ###......
+    ########.
+    ####..###
+    ###...###
+    ###...###
+    ###...###
+    ###...###
+    ###...###
+    ###...###`),
+  i: dessin(10, `
+    ###
+    ###
+    ...
+    ###
+    ###
+    ###
+    ###
+    ###
+    ###
+    ###
+    ###`),
+  j: dessin(10, `
+    ..###
+    ..###
+    .....
+    ..###
+    ..###
+    ..###
+    ..###
+    ..###
+    ..###
+    ..###
+    ..###
+    ..###
+    .###.
+    ###..`),
+  k: dessin(9, `
+    ###......
+    ###......
+    ###...###
+    ###..###.
+    ###.###..
+    ######...
+    ######...
+    ###.###..
+    ###..###.
+    ###...###`),
+  l: dessin(9, `
+    ###..
+    ###..
+    ###..
+    ###..
+    ###..
+    ###..
+    ###..
+    ###..
+    ####.
+    .####`),
+  m: dessin(7, `
+    ##############.
+    ####..####..###
+    ###...###...###
+    ###...###...###
+    ###...###...###
+    ###...###...###
+    ###...###...###
+    ###...###...###`),
+  n: dessin(7, `
+    ########.
+    ####..###
+    ###...###
+    ###...###
+    ###...###
+    ###...###
+    ###...###
+    ###...###`),
+  o: dessin(7, `
+    ..#####..
+    .###.###.
+    ###...###
+    ###...###
+    ###...###
+    ###...###
+    .###.###.
+    ..#####..`),
+  p: dessin(7, `
+    ########.
+    ####..###
+    ###...###
+    ###...###
+    ###...###
+    ###...###
+    ####..###
+    ########.
+    ###......
+    ###......
+    ###......`),
+  q: dessin(7, `
+    .########
+    ###..####
+    ###...###
+    ###...###
+    ###...###
+    ###...###
+    ###..####
+    .########
+    ......###
+    ......###
+    ......###`),
+  r: dessin(7, `
+    ###..###
+    ########
+    ####....
+    ###.....
+    ###.....
+    ###.....
+    ###.....
+    ###.....`),
+  s: dessin(7, `
+    .######.
+    ###...##
+    ###.....
+    .#####..
+    ...#####
+    .....###
+    ##...###
+    .######.`),
+  t: dessin(8, `
+    .###...
+    #######
+    .###...
+    .###...
+    .###...
+    .###...
+    .###...
+    .###..#
+    ..#####`),
+  u: dessin(7, `
+    ###...###
+    ###...###
+    ###...###
+    ###...###
+    ###...###
+    ###...###
+    ###..####
+    .########`),
+  v: dessin(7, `
+    ###...###
+    ###...###
+    ###...###
+    .###.###.
+    .###.###.
+    ..#####..
+    ..#####..
+    ...###...`),
+  w: dessin(7, `
+    ###...###...###
+    ###...###...###
+    ###...###...###
+    ###...###...###
+    ###...###...###
+    ###...###...###
+    .###.#####.###.
+    ..####...####..`),
+  x: dessin(7, `
+    ###...###
+    .###.###.
+    ..#####..
+    ...###...
+    ...###...
+    ..#####..
+    .###.###.
+    ###...###`),
+  y: dessin(7, `
+    ###...###
+    ###...###
+    ###...###
+    ###...###
+    ###...###
+    ###...###
+    .###.####
+    ..#######
+    ......###
+    ##...###.
+    .######..`),
+  z: dessin(7, `
+    ########
+    .....###
+    ....###.
+    ...###..
+    ..###...
+    .###....
+    ###.....
+    ########`),
+  œ: dessin(7, `
+    ..###########..
+    .###.####...##.
+    ###...###...###
+    ###...#########
+    ###...###......
+    ###...###......
+    .###.#####...##
+    ..############.`),
+};
+
+/** Le i sans son point, pour porter un accent. */
+const I_SANS_POINT = dessin(OEIL - 1, `
+    ###
+    ###
+    ###
+    ###
+    ###
+    ###
+    ###
+    ###`);
+
+/** L'accent d'une minuscule : celui des capitales, deux rangées plus bas (au-dessus de l'œil, avec une rangée d'air). */
+const marqueBasse = (m: Marque): Dessin => (m === "cedille" ? MARQUES[m] : { ...MARQUES[m], haut: MARQUES[m].haut - (CORPS - OEIL) });
 
 /** Largeur d'un dessin, en cases. */
 export function largeur(d: Dessin): number {
@@ -896,10 +1202,11 @@ export function composer(base: Dessin, marque: Dessin, centre = largeur(base) / 
   return { haut, rangees };
 }
 
-/** Tous les signes de la police, lettres accentuées comprises, par caractère. */
+/** Tous les signes de la police, capitales, minuscules et lettres accentuées comprises, par caractère. */
 export function glyphesOnciale(): Map<string, Dessin> {
   const tous = new Map<string, Dessin>([
     ...Object.entries(LETTRES),
+    ...Object.entries(MINUSCULES),
     ...Object.entries(CHIFFRES).map(([c, d]): [string, Dessin] => [c, { ...d, approche: APPROCHE_CHIFFRES }]),
     ...Object.entries(SIGNES),
   ]);
@@ -907,15 +1214,11 @@ export function glyphesOnciale(): Map<string, Dessin> {
     const base = LETTRES[b];
     if (!base) throw new Error(`Lettre de base inconnue : ${b}`);
     tous.set(ch, composer(base, MARQUES[m], CENTRES[b]));
+    // La même lettre en minuscule : sa base, et la marque posée au-dessus de l'œil. Le i perd son point sous l'accent.
+    const petite = b.toLowerCase();
+    const basePetite = petite === "i" && m !== "cedille" ? I_SANS_POINT : MINUSCULES[petite];
+    if (!basePetite) throw new Error(`Minuscule de base inconnue : ${petite}`);
+    tous.set(ch.toLowerCase(), composer(basePetite, marqueBasse(m)));
   }
   return tous;
-}
-
-/**
- * Les caractères qu'écrit un dessin : le sien et, pour une lettre, sa minuscule. L'onciale n'a qu'une forme par lettre,
- * comme les manuscrits : « Classement » et « CLASSEMENT » s'écrivent de la même façon.
- */
-export function caracteresDe(ch: string): string[] {
-  const min = ch.toLowerCase();
-  return min !== ch && [...min].length === 1 ? [ch, min] : [ch];
 }

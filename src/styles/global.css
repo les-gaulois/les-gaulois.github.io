@@ -3742,6 +3742,47 @@ footer h2 {
   overflow-wrap: break-word;
 }
 
+/* Les vraies minuscules (12 novembre 2026, choisies par le pilote sur captures, avec les lettrines) : les titres ne sont
+   plus en capitales, et la police a un dessin pour chaque minuscule. Plus lisible, et un titre prend moins de lignes. Une
+   étiquette qui porte `.uppercase` garde ses capitales, et les pages en console (QG, Direction, Carte) gardent les leurs :
+   la règle ne vaut que sans ambiance. Elle ne pèse pas plus qu'une balise (le `:not` est dans un `:where`) : une classe
+   qui demande des capitales les garde, comme `.kpi-label` posée sur un h2 ou un h3 (libellés des courbes). */
+:where([data-lettres="onciale"]:not([data-ambiance])) main :is(h1, h2, h3):where(:not(.uppercase)) {
+  text-transform: none;
+}
+/* Avec des minuscules, les lignes d'un titre ont besoin d'air. En capitales, rien ne dépassait de la ligne et les titres
+   étaient serrés (0,92 à 1). Mesuré sur le site construit, avec la hauteur exacte de chaque signe : sur deux lignes, la
+   jambe d'un g ou d'un p arrivait à une demi-rangée du point d'un i ou de l'accent d'un é de la ligne du dessous. À 1,15,
+   il reste au moins une rangée et demie partout, même sous la cédille de « français », au-dessus du crochet de « [GAL] »
+   sur l'accueil (un crochet monte deux rangées plus haut qu'une capitale), et une capitale accentuée ne touche pas le
+   jambage du dessus. Un titre qui règle lui-même son interligne avec une classe le garde (le guide du clan). */
+:where([data-lettres="onciale"]:not([data-ambiance])) main :is(h1, h2, h3),
+:where([data-lettres="onciale"]:not([data-ambiance])) main .page-title {
+  line-height: 1.15;
+}
+/* Les lettrines : la première lettre d'un titre de page, plus grande et rouge, comme l'initiale peinte d'un manuscrit ;
+   celle d'un titre de section, plus grande, dans le bleu du drapeau éclairci sur le fond de la page (7,5:1), en blanc
+   dans une scène colorée, où le bleu se perdrait. Le facteur du titre de page est aussi LETTRINE_TITRE
+   (src/lib/police/largeur.ts), pour que son premier mot tienne encore sur sa ligne : un test compare les deux.
+   Deux écritures par règle : quand les effets sont actifs, fx.ts pose chaque mot du titre dans un bloc à part (.fx-word)
+   pour le faire entrer mot à mot, et la première lettre du titre est alors celle du premier bloc ; sans effets
+   (mouvement réduit), c'est celle du titre lui-même. Jamais les deux à la fois. Pas de lettrine sur un pseudo, titre
+   d'une fiche de membre (.sans-lettrine, posée par PageHeader.astro) : un nom s'écrit tel quel. */
+:where([data-lettres="onciale"]:not([data-ambiance])) main h1:not(.sans-lettrine) > .fx-word:first-child::first-letter,
+:where([data-lettres="onciale"]:not([data-ambiance])) main h1:not(.sans-lettrine)::first-letter {
+  font-size: 1.45em;
+  color: var(--color-red);
+}
+:where([data-lettres="onciale"]:not([data-ambiance])) main .section-title > .fx-word:first-child::first-letter,
+:where([data-lettres="onciale"]:not([data-ambiance])) main .section-title::first-letter {
+  font-size: 1.3em;
+  color: color-mix(in srgb, var(--color-flag-blue) 60%, #fff);
+}
+:where([data-lettres="onciale"]:not([data-ambiance])) main .stage .section-title > .fx-word:first-child::first-letter,
+:where([data-lettres="onciale"]:not([data-ambiance])) main .stage .section-title::first-letter {
+  color: inherit;
+}
+
 /* ---------- Le guide du clan (/debuter) ---------- */
 /* Le 12 novembre 2026, le pilote a demandé un guide du clan « interactif, très intuitif et facile à comprendre pour les
    joueurs débutants », « pas surchargé », « avec un design de hacker gaulois ». Un chapitre à la fois, dans une fenêtre

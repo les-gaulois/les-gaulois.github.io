@@ -12,7 +12,7 @@ const id = `jour-${day.date}`;
 ---
 
 <section class="card scroll-mt-24 p-5 md:p-6" id={id} aria-labelledby={`${id}-titre`} data-testid="nouveautes-day">
-  <h2 id={`${id}-titre`} class="text-sm tracking-wide text-muted">{fmtLongDay(day.date)}</h2>
+  <h2 id={`${id}-titre`} class="text-sm uppercase tracking-wide text-muted">{fmtLongDay(day.date)}</h2>
   <ul class="divide-y divide-line">
     {
       day.entries.map((entry) => (

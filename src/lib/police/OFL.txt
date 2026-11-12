@@ -1,5 +1,5 @@
 GAL Onciale and GAL Onciale Cases: a modified version of Uncial Antiqua, drawn on a pixel grid by the [GAL] clan
-(Les Gaulois) in November 2026, with lining figures, accents and signs added. Glyph drawings in onciale.ts, fonts
+(Les Gaulois) in November 2026, with lowercase letters, lining figures, accents and signs added. Glyph drawings in onciale.ts, fonts
 built by scripts/generate-police.ts. The Reserved Font Name "Uncial Antiqua" is not used for this version.
 
 Copyright (c) 2011 by Brian J. Bonislawsky DBA Astigmatic (AOETI)
