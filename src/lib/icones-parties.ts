@@ -3,7 +3,8 @@
  * village gaulois, dessinés en pixels comme sur un vieil écran. Demande du pilote, le 12 novembre 2026 : « des petites
  * icônes dans le thème gaulois et hacker pour chaque section ». Décoratives : le nom de la partie est écrit à côté.
  * Aucune ne reprend un personnage ni un objet d'une œuvre protégée : casque ailé du logo du clan, cor, bannière, coq…
- * Les chapitres du guide du clan (/debuter) ont aussi la leur, dessinée dans la même grille, en fin de liste.
+ * Les chapitres du guide du clan (/debuter) ont aussi la leur, dessinée dans la même grille, à la suite ; puis viennent
+ * celles des fenêtres de la console de la page Carte, depuis le même jour (`src/lib/carte-console.ts`).
  *
  * Chaque icône est une grille de 13 cases sur 13, écrite ligne à ligne : « # » une case pleine, « + » une case en
  * demi-teinte, « . » une case vide. Un nombre impair de cases laisse une colonne au milieu pour les objets symétriques.
@@ -437,6 +438,140 @@ export const ICONES_PARTIES = {
     "........####.",
     ".........###.",
     "..........##.",
+  ],
+
+  /* ---------- La console de la page Carte (12 novembre 2026) : une icône par fenêtre ---------- */
+
+  /** Carte · Clans : trois boucliers ronds, un par clan sur la carte. */
+  boucliers: [
+    ".............",
+    "....#####....",
+    "...#######...",
+    "...###+###...",
+    "...#######...",
+    "....#####....",
+    ".............",
+    ".####...####.",
+    "######.######",
+    "##++##.##++##",
+    "######.######",
+    ".####...####.",
+    ".............",
+  ],
+  /** Carte · Moments : le sablier, le temps qui a passé sur la carte. */
+  sablier: [
+    ".###########.",
+    ".###########.",
+    "..#.......#..",
+    "..#+++++++#..",
+    "...#+++++#...",
+    "....#+++#....",
+    ".....#+#.....",
+    "....#.+.#....",
+    "...#..+..#...",
+    "..#..+++..#..",
+    "..#.+++++.#..",
+    ".###########.",
+    ".###########.",
+  ],
+  /** Carte · Zones : le fanion planté sur la butte, un territoire tenu. */
+  fanion: [
+    "....#........",
+    "....#####....",
+    "....#######..",
+    "....#####....",
+    "....#........",
+    "....#........",
+    "....#........",
+    "....#........",
+    "..#####......",
+    ".######++....",
+    "########+++..",
+    "#########+++.",
+    "##########+++",
+  ],
+  /** Carte · Fronts : deux épées croisées, là où deux clans se touchent. */
+  epees: [
+    "#...........#",
+    "##.........##",
+    ".##.......##.",
+    "..##.....##..",
+    "...##...##...",
+    "....##.##....",
+    ".....###.....",
+    "....##.##....",
+    ".#.##...##.#.",
+    "..##.....##..",
+    "..+.#...#.+..",
+    ".+.........+.",
+    "#...........#",
+  ],
+  /** Carte · Chiffres : le bâton à encoches, quatre traits et un cinquième en travers. */
+  encoches: [
+    ".............",
+    ".#..#..#..#..",
+    ".#..#..#..#.#",
+    ".#..#..#..##.",
+    ".#..#..#.##..",
+    ".#..#..##.#..",
+    ".#..#.##..#..",
+    ".#..##.#..#..",
+    ".#.##..#..#..",
+    ".##.#..#..#..",
+    "##..#..#..#..",
+    ".#..#..#..#..",
+    ".............",
+  ],
+  /**
+   * Carte · Réglages : la roue du char, pour la vitesse du film. Huit rayons de même force, tous tenus à la jante : avec
+   * quatre rayons seulement, ou des diagonales plus faibles, le dessin deviendrait une croix cerclée, un autre emblème.
+   */
+  roue: [
+    "....#####....",
+    "..##..#..##..",
+    ".###..#..###.",
+    ".#.##.#.##.#.",
+    "#...#####...#",
+    "#...#####...#",
+    "######+######",
+    "#...#####...#",
+    "#...#####...#",
+    ".#.##.#.##.#.",
+    ".###..#..###.",
+    "..##..#..##..",
+    "....#####....",
+  ],
+  /** Carte · Légende : le rouleau, où l'on lit comment la carte est faite. */
+  rouleau: [
+    ".###########.",
+    "##.........##",
+    ".###########.",
+    "..#.......#..",
+    "..#.+++++.#..",
+    "..#.......#..",
+    "..#.++++..#..",
+    "..#.......#..",
+    "..#.+++++.#..",
+    "..#.......#..",
+    ".###########.",
+    "##.........##",
+    ".###########.",
+  ],
+  /** Carte · À propos : le torque, le collier ouvert que portaient les Gaulois, une boule à chaque bout. */
+  torque: [
+    "....#####....",
+    "..#########..",
+    ".###.....###.",
+    ".##.......##.",
+    "##.........##",
+    "##.........##",
+    "##.........##",
+    "##.........##",
+    ".##.......##.",
+    ".##.......##.",
+    "..#.......#..",
+    ".###.....###.",
+    ".###.....###.",
   ],
 } as const satisfies Record<string, readonly string[]>;
 

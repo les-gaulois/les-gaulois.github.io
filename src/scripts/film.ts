@@ -7,11 +7,16 @@
  * Les grands moments viennent des chiffres de chaque image. La caméra glisse sans à-coup
  * (`src/lib/fx/camera.ts`) et ne s'approche seule que de quelques grands moments, jamais coup sur coup.
  * La vitesse va de × 0,1 à × 1 (`src/lib/fx/speed.ts`) : le film ne va jamais plus vite que × 1.
+ *
+ * Depuis le 12 novembre 2026, la carte se manie aussi : molette ou pincement pour le zoom, glisser ou flèches pour se
+ * déplacer, clic sur un territoire pour nommer son clan (`src/lib/clanmap/vue.ts`). Une vue choisie par le visiteur reste
+ * pendant la lecture : la caméra ne la reprend pas.
  */
 import { clanRgb, type DecodedFrames } from "../lib/clanmap/codec";
 import { filmDayMarks, placeDayLabels } from "../lib/clanmap/days";
 import { findMoments, type Moment } from "../lib/clanmap/moments";
 import { filmResume } from "../lib/clanmap/reprise";
+import { borner, cadreDuClan, decaler, estVueDEnsemble, ligneDuClan, pointDeCarte, positionSurLaCarte, zoomer } from "../lib/clanmap/vue";
 import { fmtDay, fmtEpochDay, fmtEpochHour } from "../lib/format";
 import { CAMERA_CLICK_MS, CAMERA_SMOOTH_MS, FILM_MS, SHOT_MAX_ZOOM, SHOT_MS, SHOT_SPACING_MS, moveCamera, pickShots, placeCamera, type Camera } from "../lib/fx/camera";
 import { motionAllowed } from "../lib/fx/motion";
@@ -22,7 +27,6 @@ import { nextVisitState, readVisitState, VISIT_KEY, type VisitSnapshot } from ".
 import { loadFilmData } from "./film-data";
 
 const AUTOPLAY_DELAY_MS = 1_500;
-const ROW_HEIGHT = 38;
 const GAIN = "#7dd3fc";
 const MAX_PULSES = 4;
 const BLOOM_DIVISOR = 6;
@@ -40,6 +44,18 @@ const DAY_REPLAY_MS = 4_000;
 const RESUME_MIN_MS = 6_000;
 /** Après un saut dans le film, l'ancienne image s'efface en fondu pendant ce temps. */
 const FADE_MS = 500;
+/** Le zoom ne s'approche pas plus : quatre pixels d'écran par case du film. */
+const MAX_CELL_PX = 4;
+/** Un cran de zoom, pour une touche ou un bouton. */
+const ZOOM_STEP = 1.6;
+/** Quand le visiteur manie la carte lui-même, la caméra le suit de près, toujours sans à-coup. */
+const CAMERA_FREE_MS = 140;
+/** En deçà, un appui est un clic ; au-delà, un déplacement. En pixels CSS. */
+const DRAG_PX = 5;
+/** Le pas d'une flèche du clavier : une part de la largeur affichée. */
+const KEY_PAN = 0.18;
+/** Le quadrillage de la carte, comme sur une table d'état-major : seize colonnes. */
+const GRID_COLUMNS = 16;
 
 const fmt = frNumber();
 const fmtPct = frNumber({ minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -85,6 +101,7 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
   const GAL = film.gal;
   const totalEvents = film.frames[F - 1]?.ev ?? 0;
   const { offsets, cells, owners } = frames;
+  const monde = { width: W, height: H };
 
   const [layer, layerCtx] = makeLayer(W, H);
   const [glowCanvas, glowCtx] = makeLayer(W, H);
@@ -113,6 +130,9 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
   const speedInput = one<HTMLInputElement>("[data-film-speed]");
   const speedValue = one<HTMLElement>("[data-film-speed-value]");
   const worldChip = one<HTMLButtonElement>("[data-film-world]");
+  const mire = one<HTMLElement>("[data-film-mire]");
+  const coords = one<HTMLElement>("[data-film-coords]");
+  const [mireV, mireH] = [...mire.querySelectorAll<HTMLElement>("i")];
 
   /* ---------- Couleurs et état de la carte ---------- */
 
@@ -172,6 +192,7 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
 
   /* ---------- Lueurs de conquête : douces, sans étincelle ni éclair ---------- */
 
+  // Les couleurs des lueurs sont aussi celles de la légende de la page (`.carte-lueur-*` dans global.css).
   const GLOW_GAIN = 1;
   const GLOW_LOSS = 2;
   const GLOW_OTHER = 3;
@@ -295,7 +316,7 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
 
   const moments = findMoments(film.frames);
   const momentAt = new Map<number, Moment>(moments.map((m) => [m.frame, m]));
-  // La liste des grands moments est sous le film, hors de son bloc : on la cherche dans toute la page.
+  // La liste des grands moments est dans sa fenêtre : on la cherche dans toute la page.
   const momentButtons = [...document.querySelectorAll<HTMLButtonElement>("[data-film-moment]")];
   /** Les moments filmés de près : les plus importants, jamais coup sur coup. Plus lent que × 1, ils s'espacent encore. */
   const shotFrames = pickShots(moments, FILM_MS / F);
@@ -358,8 +379,15 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
   /* ---------- Caméra : des mouvements lents, sans à-coup ---------- */
 
   const camera: Camera = { x: W / 2, y: H / 2, s: 1, vx: 0, vy: 0, vz: 0 };
+  /** Une vue choisie : par un regard posé sur une zone, un front ou un clan, ou par le visiteur lui-même (`free`). */
   let manual: View | null = null;
+  /** `true` : le visiteur a zoomé ou déplacé la carte. Sa vue reste pendant la lecture, et rien ne la décale. */
+  let free = false;
   let dpr = 1;
+  /** La largeur du dessin que couvre la fenêtre ouverte quand elle est posée sur la carte : une cible se centre dans le reste. */
+  let covered = 0;
+
+  const ecran = () => ({ width: view.width, height: view.height });
 
   function worldView(): View {
     return { x: W / 2, y: H / 2, s: Math.min(view.width / W, view.height / H) };
@@ -370,13 +398,21 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     const world = worldView().s;
     const halfW = Math.max(c[2] * 2.7, 255);
     const halfH = Math.max(c[3] * 2.7, 165);
-    const fit = Math.min(view.width / (2 * halfW), view.height / (2 * halfH));
+    const fit = Math.min((view.width - covered) / (2 * halfW), view.height / (2 * halfH));
     return { x: c[0], y: c[1], s: Math.min(Math.max(fit, world), 3 * dpr, world * maxZoom) };
   }
 
+  /** Un endroit de la carte d'aujourd'hui, cadré dans la partie du dessin qu'aucune fenêtre ne couvre. */
+  function lookAt(x: number, y: number, halfWidth: number, halfHeight: number): View {
+    const halfW = Math.max(halfWidth, 130);
+    const halfH = Math.max(halfHeight, 85);
+    const fit = Math.min((view.width - covered) / (2.4 * halfW), view.height / (2.4 * halfH));
+    return { x, y, s: Math.min(Math.max(fit, worldView().s), MAX_CELL_PX * dpr) };
+  }
+
   function cameraTarget(): View {
-    if (manual) return manual;
-    if (shot) return shot;
+    if (manual) return free ? manual : decaler(manual, covered);
+    if (shot) return decaler(shot, covered);
     return worldView();
   }
 
@@ -387,11 +423,29 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
       placeCamera(camera, target);
       return moved;
     }
-    return moveCamera(camera, target, dt, manual ? CAMERA_CLICK_MS : CAMERA_SMOOTH_MS);
+    return moveCamera(camera, target, dt, manual ? (free ? CAMERA_FREE_MS : CAMERA_CLICK_MS) : CAMERA_SMOOTH_MS);
+  }
+
+  /** Mesure ce que la fenêtre ouverte couvre de la carte : rien quand elle est sous la carte, ou fermée. */
+  function measure(): void {
+    const fenetre = root.querySelector<HTMLElement>("[data-fenetre].est-ouverte");
+    const m = map.getBoundingClientRect();
+    const f = fenetre?.getBoundingClientRect();
+    covered = !f || f.width === 0 || m.width === 0 || f.bottom <= m.top || f.top >= m.bottom ? 0 : Math.max(0, m.right - f.left) * (view.width / m.width);
+    if (manual && free) manual = borner(manual, monde, ecran(), MAX_CELL_PX * dpr, covered);
+  }
+
+  /** La page défile-t-elle ? Seulement sur un écran trop bas pour la console, ou si elle n'a pas pu se poser. */
+  const pageScrolls = () => document.documentElement.scrollHeight > window.innerHeight + 1;
+
+  /** Sur un écran si bas que la page défile, le doigt garde le défilement vertical ; ailleurs, il déplace la carte. */
+  function syncTouch(): void {
+    view.style.touchAction = pageScrolls() ? "pan-y" : "";
   }
 
   function resize(): void {
     const r = map.getBoundingClientRect();
+    syncTouch();
     dpr = Math.min(window.devicePixelRatio || 1, 2) * (lowPower ? LOW_POWER_RESOLUTION : 1);
     const width = Math.max(1, Math.round(r.width * dpr));
     const height = Math.max(1, Math.round(r.height * dpr));
@@ -399,6 +453,7 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     view.width = width;
     view.height = height;
     fade = 0;
+    measure();
     stepCamera(0, true);
     invalidate();
   }
@@ -415,6 +470,21 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     c.imageSmoothingEnabled = camera.s < 1;
     c.drawImage(terrain, 0, 0, W, H);
     c.drawImage(layer, 0, 0);
+
+    // Le quadrillage de la carte : fixe sur le monde, il suit la caméra. Décoratif.
+    const pas = W / GRID_COLUMNS;
+    c.beginPath();
+    for (let x = pas; x < W - 1; x += pas) {
+      c.moveTo(x, 0);
+      c.lineTo(x, H);
+    }
+    for (let y = pas; y < H - 1; y += pas) {
+      c.moveTo(0, y);
+      c.lineTo(W, y);
+    }
+    c.lineWidth = dpr / camera.s;
+    c.strokeStyle = "rgb(125 170 255 / 0.1)";
+    c.stroke();
 
     if (effects) {
       c.globalCompositeOperation = "lighter";
@@ -458,12 +528,12 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     c.setTransform(1, 0, 0, 1, 0, 0);
     if (cam && !manual) {
       const size = 12 * dpr;
-      c.font = `700 ${size}px "Outfit Variable", system-ui, sans-serif`;
+      c.font = `700 ${size}px "JetBrains Mono Variable", ui-monospace, monospace`;
       const pillW = c.measureText("GAL").width + 12 * dpr;
       const pillH = size + 8 * dpr;
       const sx = view.width / 2 + (cam[0] - camera.x) * camera.s;
       const sy = view.height / 2 + (cam[1] - camera.y) * camera.s - pillH;
-      c.fillStyle = "rgb(6 11 34 / 0.88)";
+      c.fillStyle = "rgb(1 4 16 / 0.88)";
       c.fillRect(sx - pillW / 2, sy - pillH / 2, pillW, pillH);
       c.strokeStyle = "#fff";
       c.lineWidth = dpr;
@@ -481,9 +551,12 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
       c.globalAlpha = 1;
     }
 
-    // Le zoom par rapport à la vue d'ensemble, lu par les tests : 1 tant que la caméra ne s'approche pas.
+    // Le zoom par rapport à la vue d'ensemble, lu par les tests : 1 tant que la caméra ne s'approche pas. Et le centre de
+    // la vue, en cases du film : il ne bouge que si la carte se déplace.
     const zoom = (camera.s / worldView().s).toFixed(2);
     if (view.dataset.zoom !== zoom) view.dataset.zoom = zoom;
+    const centre = `${Math.round(camera.x)},${Math.round(camera.y)}`;
+    if (view.dataset.centre !== centre) view.dataset.centre = centre;
   }
 
   /* ---------- Boucle : elle s'arrête dès qu'il n'y a plus rien à animer ---------- */
@@ -575,7 +648,7 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     const el = document.createElement("li");
     el.className = clan === GAL ? "film-row is-gal" : "film-row";
     const rank = document.createElement("span");
-    rank.className = "text-muted";
+    rank.className = "film-row-rank";
     const tag = document.createElement("span");
     tag.className = "truncate font-semibold";
     tag.textContent = film.clans[clan]?.tag ?? "Clan supprimé";
@@ -612,7 +685,8 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
       shown.add(clan);
       const row = rowFor(clan);
       row.el.hidden = false;
-      row.el.style.transform = `translateY(${position * ROW_HEIGHT}px)`;
+      // La place de la ligne : sa hauteur est dans la feuille de style, le podium se resserre sur un écran bas.
+      row.el.style.setProperty("--rang", String(position));
       row.rank.textContent = String(position + 1);
       row.value.textContent = fmt.format(pixels);
       row.fill.style.width = `${((pixels / lead) * 100).toFixed(1)}%`;
@@ -653,16 +727,58 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     window.clearTimeout(autoplayTimer);
   }
 
-  /** Retire tout regard posé sur un front ou une zone. */
-  function releaseView(): void {
-    manual = null;
-    worldChip.hidden = true;
-    hideCaption();
-    if (highlighted !== null) {
-      highlighted = null;
+  /* ---------- Le clan choisi : mis en évidence sur la carte, et dans la liste des clans ---------- */
+
+  // Ce que la carte dit de chaque clan : sa place et son territoire au dernier relevé du film (`standings`).
+  const clanLines = film.clans.map((c, i) => (i === 0 ? "" : ligneDuClan(c.tag, film.standings)));
+  const clanButtons = [...document.querySelectorAll<HTMLButtonElement>("[data-film-clan]")];
+
+  function markClan(clan: number | null): void {
+    for (const button of clanButtons) {
+      if (clan !== null && Number(button.dataset.filmClan) === clan) button.setAttribute("aria-current", "true");
+      else button.removeAttribute("aria-current");
+    }
+  }
+
+  /** Le bouton « Vue d'ensemble » n'est là que s'il y a quelque chose à quitter : une vue choisie, ou un clan mis en évidence. */
+  function syncWorldChip(): void {
+    worldChip.hidden = manual === null && highlighted === null;
+  }
+
+  function highlight(clan: number | null): void {
+    if (highlighted !== clan) {
+      highlighted = clan;
       buildPalette();
       repaint();
     }
+    markClan(clan);
+    syncWorldChip();
+  }
+
+  /** Nomme le clan choisi d'un clic sur la carte, sans bouger la caméra : le visiteur a choisi l'endroit. */
+  function selectClan(clan: number | null): void {
+    highlight(clan);
+    if (clan === null) {
+      hideCaption();
+    } else {
+      const line = clanLines[clan] ?? "";
+      showCaption(line, true);
+      status.textContent = line;
+    }
+    invalidate();
+  }
+
+  /**
+   * Retire tout regard posé sur un front, une zone ou un clan. `keepFree` : une vue que le visiteur a choisie lui-même
+   * (zoom, déplacement) reste en place.
+   */
+  function releaseView(keepFree = false): void {
+    if (!(keepFree && free)) {
+      manual = null;
+      free = false;
+    }
+    hideCaption();
+    highlight(null);
     invalidate();
   }
 
@@ -672,7 +788,8 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
       setPlaying(false);
       return;
     }
-    releaseView();
+    // Le film se regarde d'où le visiteur a mis la carte.
+    releaseView(true);
     markMoment(null);
     requestedMoment = 0;
     if (cur >= F) {
@@ -708,7 +825,7 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     invalidate();
   });
 
-  worldChip.addEventListener("click", releaseView);
+  worldChip.addEventListener("click", () => releaseView());
 
   function revealMap(): void {
     map.scrollIntoView({ block: "start", behavior: motionAllowed() ? "smooth" : "auto" });
@@ -760,33 +877,46 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     button.addEventListener("click", () => replayDay(Number(button.dataset.filmDay), Number(button.dataset.filmDayEnd), button.dataset.filmDayLabel ?? ""));
   }
 
+  /** La carte d'aujourd'hui, à l'arrêt : un regard sur une zone, un front ou un clan se pose sur elle. */
+  function showToday(): void {
+    cancelAutoplay();
+    shot = null;
+    setPlaying(false);
+    markMoment(null);
+    if (cur < F) {
+      crossfade();
+      seek(F);
+    }
+  }
+
+  /** Pose un regard : la caméra cadre l'endroit, la légende reste, et « Vue d'ensemble » permet d'en sortir. */
+  function look(target: View | null, clan: number | null, label: string): void {
+    manual = target;
+    free = false;
+    highlight(clan);
+    showCaption(label, true);
+    status.textContent = label;
+    revealMap();
+    invalidate();
+  }
+
   // Regarder un front ou une zone : la carte d'aujourd'hui, cadrée sur cet endroit.
   for (const button of document.querySelectorAll<HTMLElement>("[data-film-look]")) {
     button.addEventListener("click", () => {
-      cancelAutoplay();
-      shot = null;
-      setPlaying(false);
-      markMoment(null);
-      if (cur < F) {
-        crossfade();
-        seek(F);
-      }
-      const halfW = Math.max(Number(button.dataset.halfWidth), 130);
-      const halfH = Math.max(Number(button.dataset.halfHeight), 85);
+      showToday();
       const clan = button.dataset.clan;
-      highlighted = clan === undefined ? null : Number(clan);
-      buildPalette();
-      repaint();
-      manual = {
-        x: Number(button.dataset.x),
-        y: Number(button.dataset.y),
-        s: Math.min(Math.max(Math.min(view.width / (2.4 * halfW), view.height / (2.4 * halfH)), worldView().s), 4 * dpr),
-      };
-      worldChip.hidden = false;
-      showCaption(button.dataset.filmLook ?? "", true);
-      status.textContent = button.dataset.filmLook ?? "";
-      revealMap();
-      invalidate();
+      look(lookAt(Number(button.dataset.x), Number(button.dataset.y), Number(button.dataset.halfWidth), Number(button.dataset.halfHeight)), clan === undefined ? null : Number(clan), button.dataset.filmLook ?? "");
+    });
+  }
+
+  // Regarder un clan de la liste : la carte d'aujourd'hui, cadrée sur son territoire. Le cadre vient du film affiché, et
+  // ne sert qu'à la caméra ; les chiffres dits sont ceux du dernier relevé (`standings`), comptés sur la carte complète.
+  for (const button of clanButtons) {
+    button.addEventListener("click", () => {
+      const clan = Number(button.dataset.filmClan);
+      showToday();
+      const cadre = cadreDuClan(owner, W, H, clan);
+      look(cadre ? lookAt(cadre.x, cadre.y, cadre.halfWidth, cadre.halfHeight) : null, clan, clanLines[clan] ?? "");
     });
   }
 
@@ -803,14 +933,60 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     if (e.matches && playing) setPlaying(false);
   });
 
-  /* ---------- Survol : quel clan occupe ce territoire ---------- */
+  /* ---------- La carte se manie : zoom, déplacement, clic sur un territoire ---------- */
 
+  /** La position d'un pointeur dans le dessin, en pixels du dessin. */
+  const inCanvas = (e: { clientX: number; clientY: number }): [number, number] => {
+    const r = view.getBoundingClientRect();
+    const k = r.width === 0 ? 1 : view.width / r.width;
+    return [(e.clientX - r.left) * k, (e.clientY - r.top) * k];
+  };
+
+  /** La vue d'où part un geste du visiteur : celle qu'il a déjà choisie, sinon celle qu'il a sous les yeux. */
+  const currentView = (): View => (manual && free ? manual : { x: camera.x, y: camera.y, s: camera.s });
+
+  /** Pose une vue choisie par le visiteur. Revenue à la carte entière, elle rend la main à la caméra. */
+  function setFree(target: View, snap: boolean): void {
+    const bornee = borner(target, monde, ecran(), MAX_CELL_PX * dpr, covered);
+    shot = null;
+    if (estVueDEnsemble(bornee, monde, ecran())) {
+      manual = null;
+      free = false;
+    } else {
+      manual = bornee;
+      free = true;
+    }
+    syncWorldChip();
+    if (snap) placeCamera(camera, cameraTarget());
+    invalidate();
+  }
+
+  /** Zoome autour d'un point du dessin : par défaut, le milieu de ce qu'aucune fenêtre ne couvre. */
+  function zoomBy(factor: number, px = (view.width - covered) / 2, py = view.height / 2): void {
+    const from = currentView();
+    const echelle = Math.min(Math.max(from.s * factor, worldView().s), MAX_CELL_PX * dpr);
+    setFree(zoomer(from, echelle, px, py, ecran()), false);
+  }
+
+  /** Déplace la carte de (dx, dy) pixels du dessin, comme si on la tirait. */
+  function panBy(dx: number, dy: number, snap: boolean): void {
+    const from = currentView();
+    setFree({ x: from.x - dx / from.s, y: from.y - dy / from.s, s: from.s }, snap);
+  }
+
+  /** Le clan qui occupe la case sous un pointeur. 0 : la mer, une terre neutre, ou hors de la carte. */
+  function clanUnder(e: { clientX: number; clientY: number }): number {
+    const [px, py] = inCanvas(e);
+    const [mx, my] = pointDeCarte(camera, px, py, ecran());
+    const x = Math.floor(mx);
+    const y = Math.floor(my);
+    return x >= 0 && y >= 0 && x < W && y < H ? owner[y * W + x]! : 0;
+  }
+
+  /* Survol : quel clan occupe ce territoire, et où l'on est sur la carte complète. */
   function showTip(e: PointerEvent): void {
     const r = view.getBoundingClientRect();
-    const scale = view.width / r.width;
-    const x = Math.floor(((e.clientX - r.left) * scale - view.width / 2) / camera.s + camera.x);
-    const y = Math.floor(((e.clientY - r.top) * scale - view.height / 2) / camera.s + camera.y);
-    const clan = x >= 0 && y >= 0 && x < W && y < H ? owner[y * W + x]! : 0;
+    const clan = clanUnder(e);
     if (clan === 0) {
       tip.hidden = true;
       return;
@@ -820,11 +996,179 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     const left = Math.min(r.width - tip.offsetWidth - 4, e.clientX - r.left + 12);
     tip.style.transform = `translate(${Math.max(4, left)}px, ${Math.max(4, e.clientY - r.top - 30)}px)`;
   }
-  view.addEventListener("pointermove", showTip);
-  view.addEventListener("pointerdown", showTip);
-  view.addEventListener("pointerleave", () => {
+
+  /** La mire suit la souris, et la position sur la carte complète s'écrit à côté de la date (`film.scale` pixels par case du film). */
+  function showAim(e: PointerEvent): void {
+    if (e.pointerType !== "mouse") return;
+    const r = view.getBoundingClientRect();
+    mire.hidden = false;
+    if (mireV) mireV.style.transform = `translateX(${Math.round(e.clientX - r.left)}px)`;
+    if (mireH) mireH.style.transform = `translateY(${Math.round(e.clientY - r.top)}px)`;
+    const [px, py] = inCanvas(e);
+    const [mx, my] = pointDeCarte(camera, px, py, ecran());
+    const position = positionSurLaCarte(mx, my, monde, film.scale);
+    coords.textContent = position ?? "";
+    coords.hidden = position === null;
+  }
+
+  function hideAim(): void {
     tip.hidden = true;
+    mire.hidden = true;
+    coords.hidden = true;
+  }
+
+  const pointers = new Map<number, { x: number; y: number }>();
+  /** Un doigt ou la souris : le point de départ, le dernier point, et si le geste est devenu un déplacement. */
+  let drag: { x0: number; y0: number; x: number; y: number; moved: boolean } | null = null;
+  /** Deux doigts : l'écart et la vue du début du pincement. */
+  let pinch: { distance: number; from: View; x: number; y: number } | null = null;
+  /** Après un déplacement, le clic que le navigateur envoie quand même ne compte pas. */
+  let swallowClick = false;
+
+  const twoFingers = () => {
+    const [a, b] = [...pointers.values()];
+    return a && b ? { distance: Math.hypot(a.x - b.x, a.y - b.y), x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } : null;
+  };
+
+  view.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    const [x, y] = inCanvas(e);
+    pointers.set(e.pointerId, { x, y });
+    try {
+      // Le geste continue même si le pointeur sort de la carte.
+      view.setPointerCapture(e.pointerId);
+    } catch {
+      // Un pointeur déjà relâché ne se capture pas : le geste reste suivi tant qu'il est sur la carte.
+    }
+    swallowClick = false;
+    if (pointers.size === 1) {
+      drag = { x0: x, y0: y, x, y, moved: false };
+      showTip(e);
+    } else {
+      // Un deuxième doigt : le geste devient un pincement, plus un clic.
+      const fingers = twoFingers();
+      pinch = fingers ? { ...fingers, from: currentView() } : null;
+      drag = null;
+      swallowClick = true;
+      hideAim();
+    }
   });
+
+  view.addEventListener("pointermove", (e) => {
+    const held = pointers.get(e.pointerId);
+    if (!held) {
+      showTip(e);
+      showAim(e);
+      return;
+    }
+    const [x, y] = inCanvas(e);
+    held.x = x;
+    held.y = y;
+    if (pinch) {
+      const fingers = twoFingers();
+      if (!fingers || pinch.distance === 0) return;
+      // Le point de la carte tenu entre les deux doigts au départ reste entre eux.
+      const echelle = Math.min(Math.max(pinch.from.s * (fingers.distance / pinch.distance), worldView().s), MAX_CELL_PX * dpr);
+      const [mx, my] = pointDeCarte(pinch.from, pinch.x, pinch.y, ecran());
+      setFree({ x: mx - (fingers.x - view.width / 2) / echelle, y: my - (fingers.y - view.height / 2) / echelle, s: echelle }, true);
+      return;
+    }
+    if (!drag) return;
+    if (!drag.moved && Math.hypot(x - drag.x0, y - drag.y0) < DRAG_PX * dpr) return;
+    if (!drag.moved) {
+      drag.moved = true;
+      view.classList.add("est-saisie");
+      hideAim();
+    }
+    panBy(x - drag.x, y - drag.y, true);
+    drag.x = x;
+    drag.y = y;
+  });
+
+  const release = (e: PointerEvent) => {
+    if (!pointers.delete(e.pointerId)) return;
+    if (pointers.size < 2) pinch = null;
+    if (pointers.size === 1) {
+      // Un doigt reste après un pincement : il continue en déplacement, sans clic au bout.
+      const [rest] = [...pointers.values()];
+      drag = rest ? { x0: rest.x, y0: rest.y, x: rest.x, y: rest.y, moved: true } : null;
+      return;
+    }
+    view.classList.remove("est-saisie");
+    const clicked = drag !== null && !drag.moved && !swallowClick && e.type === "pointerup";
+    if (drag?.moved) swallowClick = true;
+    drag = null;
+    if (!clicked) return;
+    // Un clic sur un territoire nomme son clan ; un deuxième clic, ou un clic ailleurs, le relâche.
+    const clan = clanUnder(e);
+    if (clan === 0 || clan === highlighted) {
+      if (highlighted !== null) selectClan(null);
+    } else {
+      selectClan(clan);
+    }
+  };
+  view.addEventListener("pointerup", release);
+  view.addEventListener("pointercancel", release);
+  view.addEventListener("pointerleave", (e) => {
+    if (!pointers.has(e.pointerId)) hideAim();
+  });
+  // Les effets du site lancent une onde à chaque clic : pas au bout d'un déplacement de la carte.
+  view.addEventListener("click", (e) => {
+    if (!swallowClick) return;
+    swallowClick = false;
+    e.stopPropagation();
+  });
+  // Au doigt, le navigateur envoie son clic après coup, à ce qui se trouve alors sous le doigt : le bouton « Vue
+  // d'ensemble », qui vient d'apparaître, relâcherait aussitôt le clan qu'on vient de toucher. La carte a déjà traité le
+  // toucher : ce clic n'a pas lieu.
+  view.addEventListener("touchend", (e) => {
+    if (e.cancelable) e.preventDefault();
+  });
+
+  view.addEventListener(
+    "wheel",
+    (e) => {
+      // Sur un écran si bas que la page défile, la molette garde son rôle : Ctrl + molette zoome alors la carte.
+      if (!e.ctrlKey && pageScrolls()) return;
+      e.preventDefault();
+      const delta = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaY;
+      const [px, py] = inCanvas(e);
+      // Un pavé tactile pince par petits pas (Ctrl + molette) : ils comptent davantage.
+      zoomBy(Math.exp(-delta / (e.ctrlKey ? 110 : 320)), px, py);
+    },
+    { passive: false },
+  );
+
+  for (const button of root.querySelectorAll<HTMLButtonElement>("[data-film-zoom]")) {
+    button.addEventListener("click", () => zoomBy(Number(button.dataset.filmZoom) > 0 ? ZOOM_STEP : 1 / ZOOM_STEP));
+  }
+
+  // Au clavier, une fois la carte choisie : flèches, plus et moins, zéro pour la vue d'ensemble. La ligne d'aide de la
+  // page le dit aux lecteurs d'écran.
+  map.tabIndex = 0;
+  map.setAttribute("aria-describedby", "carte-clavier");
+  map.addEventListener("keydown", (e) => {
+    if (e.target !== map || e.ctrlKey || e.metaKey || e.altKey) return;
+    const stepX = view.width * KEY_PAN;
+    const stepY = view.height * KEY_PAN;
+    if (e.key === "ArrowLeft") panBy(stepX, 0, false);
+    else if (e.key === "ArrowRight") panBy(-stepX, 0, false);
+    else if (e.key === "ArrowUp") panBy(0, stepY, false);
+    else if (e.key === "ArrowDown") panBy(0, -stepY, false);
+    else if (e.key === "+" || e.key === "=") zoomBy(ZOOM_STEP);
+    else if (e.key === "-") zoomBy(1 / ZOOM_STEP);
+    // La touche du zéro, avec ou sans Maj : sur un clavier français, elle écrit « à » sans elle.
+    else if (e.key === "0" || e.code === "Digit0" || e.code === "Numpad0") releaseView();
+    else return;
+    e.preventDefault();
+  });
+
+  // Une fenêtre s'ouvre, se ferme ou change de place : ce qu'elle couvre de la carte change (src/scripts/carte-console.ts).
+  root.addEventListener("carte:fenetre", () => {
+    measure();
+    invalidate();
+  });
+  window.addEventListener("resize", syncTouch);
 
   /* ---------- Démarrage : la carte finale d'abord, puis le film s'il est visible ---------- */
 
@@ -904,6 +1248,7 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
   for (const el of document.querySelectorAll<HTMLElement>("[data-film-ready]")) el.hidden = false;
   new ResizeObserver(resize).observe(map);
   resize();
+  measure();
   stepCamera(0, true);
   invalidate();
 

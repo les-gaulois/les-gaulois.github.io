@@ -2,6 +2,16 @@
   {
     "date": "2026-11-12",
     "kind": "ameliore",
+    "title": "La carte devient une console",
+    "body": "La page Carte tient dans l'écran, dans le style du QG. On zoome, on déplace la carte, on clique un territoire pour nommer son clan, et le reste s'ouvre en fenêtres depuis la rangée du bas.",
+    "link": {
+      "href": "/carte",
+      "label": "Ouvrir la carte"
+    }
+  },
+  {
+    "date": "2026-11-12",
+    "kind": "ameliore",
     "title": "Des lettres plus nettes et plus lisibles",
     "body": "Les petits textes en lettres gauloises ne sont plus en cases : lettres taillées, sans marches d'escalier. Le D, le L, le H et d'autres sont redessinés : toutes les lettres ont la même hauteur."
   },

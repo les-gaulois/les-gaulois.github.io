@@ -132,7 +132,10 @@ test("seules les pages de l'encadrement passent au rouge", async ({ page }, test
   expect(qg.background).not.toBe(blue.background);
   expect(qg.background).not.toBe(red.background);
   expect(qg.background).toBe(rgbOf(qg.bar));
-  for (const path of [...PAGES.filter((path) => path !== "/qg"), "/compte", "/confidentialite"]) {
+  // La page Carte est une console depuis le 12 novembre 2026, à la demande du pilote (« un design hacker très prononcé ») :
+  // le même Terminal bleu que le QG, sans le rouge de l'encadrement.
+  expect(await look("/carte")).toEqual(qg);
+  for (const path of [...PAGES.filter((path) => path !== "/qg" && path !== "/carte"), "/compte", "/confidentialite"]) {
     expect(await look(path), path).toEqual(blue);
   }
 });
@@ -1754,6 +1757,9 @@ test("chaque page donne le code source, la mention d'OpenFront et les mentions l
   test.skip(testInfo.project.name !== "desktop", "Même pied de page sur mobile.");
   for (const path of [...PAGES, "/confidentialite", "/compte", "/direction"]) {
     await page.goto(path);
+    // La page Carte est une console qui tient dans l'écran, sans bas de page : son pied de page se lit dans la fenêtre
+    // « À propos », ouverte depuis la rangée du bas (tests/e2e/carte.spec.ts contrôle aussi cette fenêtre).
+    if (path === "/carte") await page.getByTestId("carte-dock").getByRole("link", { name: "À propos" }).click();
     const footer = page.locator("footer");
     await expect(footer.getByRole("link", { name: "Code source", exact: true }), path).toHaveAttribute("href", "https://github.com/les-gaulois/les-gaulois.github.io");
     await expect(footer, path).toContainText("© OpenFront and Contributors");

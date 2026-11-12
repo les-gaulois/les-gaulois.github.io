@@ -3,17 +3,20 @@ import Base from "../layouts/Base.astro";
 import DataStatus from "../components/DataStatus.astro";
 import Empty from "../components/Empty.astro";
 import Invite from "../components/Invite.astro";
-import PageJumps from "../components/PageJumps.astro";
 import TerritoryChart from "../components/TerritoryChart.tsx";
+import Fenetre from "../components/carte/Fenetre.astro";
+import IconePartie from "../components/compte/IconePartie";
 import { clan } from "../../config/clan";
+import { FENETRES, type FenetreId } from "../lib/carte-console";
 import { clanRgb } from "../lib/clanmap/codec";
 import { NEUTRAL_PIXEL_TROOPS, RULES_CHECKED_ON, TROOPS_PER_CAP, capsToTroops, neutralPixelsFor, objectiveFor } from "../lib/clanmap/economy";
 import { FILM_MS, SHOT_SPACING_MS } from "../lib/fx/camera";
 import { SPEED_MAX, SPEED_MIN, SPEED_STEP, speedLabel, speedText } from "../lib/fx/speed";
 import { changeSinceLastDay, dayHighlights, dayRows, parisDayOf, territorySeries, type DayRow } from "../lib/clanmap/days";
 import { findMoments, nextThreshold } from "../lib/clanmap/moments";
+import { indexDesClans } from "../lib/clanmap/vue";
 import { loadClanMapFilm, loadClanMapJournal, loadMeta } from "../lib/data";
-import { fmtDate, fmtDay, fmtDec1, fmtEpochDay, fmtEpochTime, fmtInt, fmtRank } from "../lib/format";
+import { fmtDate, fmtDay, fmtDec1, fmtEpochDay, fmtEpochHour, fmtEpochTime, fmtInt, fmtRank } from "../lib/format";
 import { endingOn } from "../lib/gazette";
 import { MAX_AGE_HOURS } from "../lib/freshness";
 import { loadVisitSnapshot } from "../lib/visite-snapshot";
@@ -43,7 +46,6 @@ const { gain: bestDay } = dayHighlights(days);
 const dayLabel = (day: DayRow) => `Le ${fmtDay(day.date)} : ${signed(day.net)} pixels`;
 const dayReplay = (day: DayRow) => ({ "data-film-day": day.start, "data-film-day-end": day.frame, "data-film-day-label": dayLabel(day) });
 const dayCards = bestDay ? [{ row: bestDay, title: "Le jour où GAL a le plus progressé" }] : [];
-const hasHistory = moments.length > 0 || dayCards.length > 0 || (gal?.zones.length ?? 0) > 0;
 // La dernière journée terminée se rejoue d'un clic : un nouveau mini-film chaque jour.
 const lastDay = [...days].reverse().find((d) => d.complete) ?? null;
 const threshold = gal ? nextThreshold(gal.pixels) : null;
@@ -70,13 +72,6 @@ const reserveGoal =
         ? `Il en manque ${fmtInt(objective.gap - reservePixels)} pour l'objectif.`
         : null;
 
-// La page se lit de haut en bas : revoir l'histoire, où en est GAL, puis le détail.
-const jumps = [
-  { href: "#histoire", label: "Revoir l'histoire", show: hasHistory },
-  { href: "#objectif", label: "Où en est GAL", show: gal !== null },
-  { href: "#details", label: "Les détails", show: true },
-].filter((jump) => jump.show);
-
 const journal = loadClanMapJournal();
 const today = journal.at(-1);
 const previousDay = journal.at(-2);
@@ -88,9 +83,24 @@ const sinceLine =
     : today && previousDay
       ? `${signed(today.pixels - previousDay.pixels)} pixels depuis le ${fmtDay(previousDay.date).replace(/\.$/, "")}.`
       : null;
+
+// Tous les clans de la carte, du plus grand territoire au plus petit, comme sur la carte officielle. L'index du clan dans
+// le film le retrouve sur la carte : un clan supprimé, sans tag, ou un tag porté par deux clans n'a pas de bouton.
+const clanIndex = indexDesClans(film?.clans ?? []);
+const clanRows = standings.map((s, i) => ({ ...s, rank: i + 1, index: s.tag === null ? null : (clanIndex.get(s.tag) ?? null) }));
+
+// La console : une fenêtre n'existe, avec son entrée dans la rangée du bas, que si elle a quelque chose à montrer.
+const presentes = new Set<FenetreId>(["clans", "reglages", "legende", "a-propos"]);
+if (gal) presentes.add("objectif").add("chiffres");
+if (moments.length > 0) presentes.add("moments");
+if (days.length > 0) presentes.add("journees");
+if (gal && gal.zones.length > 0) presentes.add("zones");
+if (gal && gal.fronts.length > 0) presentes.add("fronts");
+const dock = FENETRES.filter((f) => presentes.has(f.id));
 ---
 
-<Base title="Carte" description="Le territoire du clan GAL sur la carte officielle des clans d'OpenFront, rejoué du premier pixel au dernier, et l'objectif du moment.">
+{/* La carte en console (docs/DESIGN.md) : avec le film, la page prend le style Terminal du QG et de la Direction. */}
+<Base title="Carte" description="Le territoire du clan GAL sur la carte officielle des clans d'OpenFront, rejoué du premier pixel au dernier, et l'objectif du moment." ambiance={film ? "console" : undefined}>
   {
     !film ? (
       <div class="wrap pt-12">
@@ -104,40 +114,141 @@ const sinceLine =
         </div>
       </div>
     ) : (
-      <>
-        <section data-film data-assets={assets} data-visit={visit ? JSON.stringify(visit) : undefined} aria-labelledby="map-page-title">
-          <div class="film-hero">
-            <div class="film-title">
-              <Invite path="/carte" />
-              <h1 id="map-page-title">La carte des clans</h1>
-              <DataStatus state={meta.clanmap} maxAgeHours={MAX_AGE_HOURS.clanmap} />
-            </div>
+      <section class="carte" data-carte data-film data-assets={assets} data-visit={visit ? JSON.stringify(visit) : undefined} aria-labelledby="map-page-title" style='--console-hote: "carte"'>
+        {/* Avant le premier affichage : la page tient dans l'écran, tout se passe sur la carte. Si le script de la page
+            n'arrive pas, elle redevient une page ordinaire, qui défile, avec toutes ses fenêtres l'une sous l'autre. */}
+        <script is:inline>
+          document.documentElement.classList.add("carte-console");
+          setTimeout(function () {
+            if (!document.documentElement.hasAttribute("data-carte-prete")) document.documentElement.classList.remove("carte-console");
+          }, 6000);
+        </script>
 
-            <div class="film-map" data-film-map data-testid="film-map">
-              <img
-                src={`${assets}finale-1400.webp`}
-                srcset={`${assets}finale-800.webp 800w, ${assets}finale-1400.webp 1400w`}
-                sizes="100vw"
-                width="1400"
-                height={stillHeight}
-                alt={`La carte officielle des clans à la fin de l'historique. ${galLine}`}
+        {/* L'écran : la carte, et ce qui se pose dessus. */}
+        <div class="carte-ecran">
+          <div class="carte-session">
+            {/* Décorative : le titre dit déjà où l'on est. */}
+            <p class="console-invite" aria-hidden="true">
+              <span class="console-hote">gal@carte</span>:~$<span class="console-commande">&nbsp;./carte</span><span class="console-curseur"></span>
+            </p>
+            <h1 id="map-page-title">La carte des clans</h1>
+            <DataStatus state={meta.clanmap} maxAgeHours={MAX_AGE_HOURS.clanmap} />
+          </div>
+
+          {/* La carte se manie aussi au clavier, une fois choisie : c'est un groupe, que le film rend atteignable au clavier
+              et décrit par la ligne d'aide placée après lui. Sans le film, il n'y a rien à manier. */}
+          <div class="film-map" data-film-map data-testid="film-map" role="group" aria-label="Carte des territoires">
+            <img
+              src={`${assets}finale-1400.webp`}
+              srcset={`${assets}finale-800.webp 800w, ${assets}finale-1400.webp 1400w`}
+              sizes="100vw"
+              width="1400"
+              height={stillHeight}
+              alt={`La carte officielle des clans à la fin de l'historique. ${galLine}`}
+            />
+            <canvas data-film-canvas hidden role="img" aria-label="Carte animée des territoires de clans. Les mêmes chiffres sont donnés en texte dans les fenêtres de la page."></canvas>
+            {/* Décoratifs : la bande de lumière qui passe une fois à l'ouverture, et la mire, deux traits qui suivent la souris. */}
+            <span class="carte-balayage" aria-hidden="true"></span>
+            <span class="carte-mire" data-film-mire hidden aria-hidden="true"><i></i><i></i></span>
+            <p class="film-hud tnum" data-film-ready hidden aria-hidden="true">
+              <strong class="film-hud-date" data-film-date data-testid="film-date" hidden></strong>
+              <span>Événement <span data-film-event></span></span>
+              <span class="film-hud-coords" data-film-coords hidden></span>
+            </p>
+            <div class="carte-outils" data-film-ready hidden>
+              <button type="button" class="carte-touche" data-film-zoom="1" aria-label="Zoomer sur la carte"><span aria-hidden="true">+</span></button>
+              <button type="button" class="carte-touche" data-film-zoom="-1" aria-label="Dézoomer la carte"><span aria-hidden="true">−</span></button>
+              <button type="button" class="carte-touche carte-touche-large" data-film-world hidden>
+                <IconePartie nom="tour" />
+                Vue d'ensemble
+              </button>
+            </div>
+            <p class="film-caption" data-film-caption hidden aria-hidden="true"></p>
+            <div class="film-tip" data-film-tip hidden aria-hidden="true"></div>
+            {/* Le crédit de la carte, toujours sous les yeux, comme sur toute carte en ligne : il mène à la légende, qui
+                donne la source et la licence en entier. Le reste du pied de page est dans la fenêtre « À propos ». */}
+            <a class="carte-credit" href="#legende" data-testid="map-credit">© OpenFront and Contributors · CC BY-SA 4.0</a>
+          </div>
+          {/* Cachée : elle n'est lue que comme description de la carte, une fois que le film l'a rendue maniable. */}
+          <p id="carte-clavier" hidden>Au clavier : les flèches déplacent la carte, plus et moins changent le zoom, zéro revient à la vue d'ensemble.</p>
+
+          <div class="carte-alerte" role="status" data-film-message hidden>
+            <span data-film-message-text></span>
+            <button type="button" class="btn btn-ghost !min-h-10 !py-1.5" data-film-retry>Réessayer</button>
+          </div>
+        </div>
+
+        {/* La lecture du film. */}
+        <div class="carte-transport" data-film-ready hidden>
+          <button type="button" class="btn btn-primary film-play" data-film-play data-testid="film-play">
+            <svg viewBox="0 0 14 14" width="14" height="14" fill="currentColor" aria-hidden="true"><path data-film-play-icon d="M2 1l11 6-11 6z"></path></svg>
+            <span data-film-play-label>Lancer le film</span>
+          </button>
+          <div class="film-scrub">
+            <svg data-film-curve preserveAspectRatio="none" aria-hidden="true" style={{ "--gal": rgb(film.gal === null ? null : (film.clans[film.gal]?.color ?? null)) }}><path></path></svg>
+            <span class="film-ticks" data-film-ticks aria-hidden="true"></span>
+            <input type="range" min="0" value="0" step="1" data-film-pos data-testid="film-pos" aria-label="Position dans le film" />
+            <span class="film-dates tnum" data-film-dates data-testid="film-dates" aria-hidden="true"></span>
+          </div>
+        </div>
+
+        {/* Les réglages du film : posés à côté de la frise sur un grand écran, dans leur fenêtre ailleurs. */}
+        <Fenetre id="reglages" film class="carte-reglages">
+          <Fragment slot="titre">Réglages du film</Fragment>
+          <div class="carte-reglages-corps">
+            {lastDay && (
+              <button type="button" class="btn btn-ghost" {...dayReplay(lastDay)} data-testid="film-last-day" aria-label={`Revoir le ${fmtDay(lastDay.date)}, la dernière journée terminée`}>
+                Revoir le {fmtDay(lastDay.date)}
+              </button>
+            )}
+            <div class="film-speed">
+              <label for="film-speed">Vitesse</label>
+              <input
+                id="film-speed"
+                class="film-range"
+                type="range"
+                min={SPEED_MIN}
+                max={SPEED_MAX}
+                step={SPEED_STEP}
+                value={SPEED_MAX}
+                aria-valuetext={speedText(SPEED_MAX)}
+                data-film-speed
+                data-testid="film-speed"
               />
-              <canvas data-film-canvas hidden role="img" aria-label="Carte animée des territoires de clans. Les mêmes chiffres sont donnés en texte à côté et sous la carte."></canvas>
-              <p class="film-hud tnum" data-film-ready hidden aria-hidden="true"><strong class="film-hud-date" data-film-date data-testid="film-date" hidden></strong>Événement <span data-film-event></span></p>
-              <button type="button" class="chip film-world" data-film-world hidden>Vue d'ensemble</button>
-              <p class="film-caption" data-film-caption hidden aria-hidden="true"></p>
-              <div class="film-tip" data-film-tip hidden aria-hidden="true"></div>
+              {/* La valeur écrite pour les yeux ; le curseur la donne déjà aux lecteurs d'écran. */}
+              <output for="film-speed" class="tnum" aria-hidden="true" data-film-speed-value>{speedLabel(SPEED_MAX)}</output>
             </div>
+            <button type="button" class="chip" data-film-focus aria-pressed="false">Griser les autres</button>
+          </div>
+        </Fenetre>
 
-            <aside class="card film-ladder p-4" aria-labelledby="ladder-title">
-              <h2 id="ladder-title" class="text-base">Le territoire à cet instant</h2>
-              <p class="mt-1 text-xs text-muted">Pixels peints sur la carte, pas le classement des clans.</p>
-              <p class="tnum mt-1 text-xs text-muted"><span data-film-land>{fmtDec1(landShare)}</span> % des terres · <span data-film-clans>{fmtInt(clansOnMap)}</span> clans</p>
-              <ol class="film-rows tnum mt-2" data-film-rows>
+        {/* La rangée du bas : une entrée par fenêtre. Des liens : sans script, ils mènent à la partie de la page. */}
+        <nav class="carte-dock" aria-label="Fenêtres de la carte" data-testid="carte-dock">
+          <ul>
+            {dock.map((f) => (
+              <li class:list={["etroit" in f && f.etroit && "carte-dock-etroit"]} data-film-ready={"film" in f && f.film ? "" : undefined} hidden={"film" in f && f.film} data-console-seulement={f.id === "a-propos" ? "" : undefined}>
+                <a href={`#${f.id}`} class="carte-dock-entree" data-ouvre={f.id}>
+                  <IconePartie nom={f.icon} />
+                  <span>{f.label}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
+        {/* Les fenêtres. Sur un grand écran, le podium reste posé sur la carte ; ailleurs, il est avec les clans. */}
+        <div class="carte-panneaux" data-carte-panneaux>
+          <aside class="carte-fenetre carte-podium" aria-labelledby="ladder-title">
+            <div class="carte-fenetre-barre"><span aria-hidden="true">podium</span></div>
+            <div class="carte-fenetre-corps">
+              <h2 id="ladder-title">Le territoire à cet instant</h2>
+              <p class="carte-podium-note">Pixels peints sur la carte, pas le classement des clans.</p>
+              <p class="tnum carte-podium-mesure"><span data-film-land>{fmtDec1(landShare)}</span> % des terres · <span data-film-clans>{fmtInt(clansOnMap)}</span> clans</p>
+              <ol class="film-rows tnum" data-film-rows>
                 {
                   standings.slice(0, 5).map((c, i) => (
-                    <li class:list={["film-row", c.tag === clan.tag && "is-gal"]} style={{ transform: `translateY(${i * 38}px)` }}>
-                      <span class="text-muted">{i + 1}</span>
+                    <li class:list={["film-row", c.tag === clan.tag && "is-gal"]} style={{ "--rang": i }}>
+                      <span class="film-row-rank">{i + 1}</span>
                       <span class="truncate font-semibold">{c.tag ?? "Clan supprimé"}</span>
                       <span>{fmtInt(c.pixels)}</span>
                       <span class="film-bar"><i style={{ width: `${(c.pixels / lead) * 100}%`, background: rgb(c.color) }}></i></span>
@@ -145,377 +256,326 @@ const sinceLine =
                   ))
                 }
               </ol>
-              <p class="tnum border-t border-line pt-2 text-sm font-semibold" data-film-pinned data-testid="film-gal">{galLine}</p>
-            </aside>
-
-            <div class="film-controls" data-film-ready hidden>
-              <div class="film-deck">
-                <button type="button" class="btn btn-primary film-play" data-film-play data-testid="film-play">
-                  <svg viewBox="0 0 14 14" width="14" height="14" fill="currentColor" aria-hidden="true"><path data-film-play-icon d="M2 1l11 6-11 6z"></path></svg>
-                  <span data-film-play-label>Lancer le film</span>
-                </button>
-                {lastDay && (
-                  <button type="button" class="btn btn-ghost" {...dayReplay(lastDay)} data-testid="film-last-day" aria-label={`Revoir le ${fmtDay(lastDay.date)}, la dernière journée terminée`}>
-                    Revoir le {fmtDay(lastDay.date)}
-                  </button>
-                )}
-                <div class="film-scrub">
-                  <svg data-film-curve preserveAspectRatio="none" aria-hidden="true" style={{ "--gal": rgb(film.gal === null ? null : (film.clans[film.gal]?.color ?? null)) }}><path></path></svg>
-                  <span class="film-ticks" data-film-ticks aria-hidden="true"></span>
-                  <input type="range" min="0" value="0" step="1" data-film-pos data-testid="film-pos" aria-label="Position dans le film" />
-                  <span class="film-dates tnum" data-film-dates data-testid="film-dates" aria-hidden="true"></span>
-                </div>
-                <div class="film-speed">
-                  <label for="film-speed" class="text-sm font-semibold text-muted">Vitesse</label>
-                  <input
-                    id="film-speed"
-                    class="film-range"
-                    type="range"
-                    min={SPEED_MIN}
-                    max={SPEED_MAX}
-                    step={SPEED_STEP}
-                    value={SPEED_MAX}
-                    aria-valuetext={speedText(SPEED_MAX)}
-                    data-film-speed
-                    data-testid="film-speed"
-                  />
-                  {/* La valeur écrite pour les yeux ; le curseur la donne déjà aux lecteurs d'écran. */}
-                  <output for="film-speed" class="tnum text-sm font-semibold" aria-hidden="true" data-film-speed-value>{speedLabel(SPEED_MAX)}</output>
-                </div>
-                <div class="film-opts">
-                  <button type="button" class="chip" data-film-focus aria-pressed="false">Griser les autres</button>
-                </div>
-              </div>
+              <p class="tnum carte-podium-gal" data-film-pinned data-testid="film-gal">{galLine}</p>
             </div>
-          </div>
+          </aside>
 
-          <p class="sr-only" role="status" data-film-status></p>
-          <div class="wrap mt-3 flex flex-wrap items-center gap-3 text-sm font-semibold text-warn" role="status" data-film-message hidden>
-            <span data-film-message-text></span>
-            <button type="button" class="btn btn-ghost !min-h-10 !py-1.5" data-film-retry>Réessayer</button>
-          </div>
-
-          <div class="wrap mt-2">
-            <PageJumps links={jumps} />
-          </div>
-        </section>
-
-        <div class="wrap mt-10 grid grid-cols-1 gap-12 md:gap-16">
           {
-            hasHistory && (
-              <section class="scroll-mt-24" id="histoire" aria-labelledby="history-title">
-                <h2 id="history-title" class="section-title section-title-sm">Revoir l'histoire</h2>
-                {/* Large et peu haut : les grands moments en tuiles sur toute la largeur, puis la journée et les zones côte à côte. */}
-                {
-                  moments.length > 0 && (
-                    <div class="card mt-5 p-4 sm:p-5" data-film-ready hidden data-testid="map-moments">
-                      <h3 class="text-lg">Les grands moments</h3>
-                      <ol class="film-tiles mt-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-                        {moments.map((m) => (
-                          <li>
-                            <button type="button" class="film-tile" data-film-moment={m.frame}>
-                              <span class="tnum text-xs text-muted">{m.at === null ? "" : fmtEpochDay(m.at)}</span>
-                              {/* Le dernier relevé n'a pas besoin de ses chiffres ici : ils sont juste au-dessus, sous la carte. Le film les garde dans sa légende. */}
-                              <span class="font-semibold">{m.kind === "now" ? "Dernier relevé" : m.title}</span>
-                            </button>
-                          </li>
-                        ))}
-                      </ol>
-                    </div>
-                  )
-                }
-                {
-                  (dayCards.length > 0 || (gal?.zones.length ?? 0) > 0) && (
-                    <div class="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
-                      {
-                        dayCards.length > 0 && (
-                          <div class="card p-4 sm:p-5" data-testid="map-days">
-                            <h3 class="text-lg">La plus belle journée</h3>
-                            {dayCards.map(({ row, title }) => (
-                              <div class="mt-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-3" data-testid="map-day">
-                                <div>
-                                  <p class="text-sm font-semibold text-muted">{title}</p>
-                                  <p class="tnum mt-1 font-display text-2xl font-extrabold">{signed(row.net)} pixels</p>
-                                  <p class="tnum mt-1 text-sm text-muted">Le {fmtDay(row.date)} : {fmtInt(row.taken)} pris, {fmtInt(row.lost)} perdus.</p>
-                                </div>
-                                <div data-film-ready hidden>
-                                  <button type="button" class="btn btn-ghost !min-h-10 !py-1.5 !text-sm" {...dayReplay(row)} aria-label={`Revoir cette journée, le ${fmtDay(row.date)}`}>Revoir cette journée</button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )
-                      }
-                      {
-                        gal && gal.zones.length > 0 && (
-                          <div class="card p-4 sm:p-5" data-film-ready hidden>
-                            <h3 class="text-lg">Nos territoires</h3>
-                            <p class="tnum mt-1 text-sm text-muted">Les {fmtInt(gal.zones.length)} plus grandes, sur {fmtInt(gal.zoneCount)} zones d'un seul tenant.</p>
-                            <ul class="film-tiles mt-3 grid-cols-[repeat(auto-fill,minmax(8rem,1fr))]">
-                              {gal.zones.map((z, i) => (
-                                <li>
-                                  <button type="button" class="film-tile" data-film-look={`Zone ${i + 1} : ${fmtInt(z.pixels)} pixels`} data-x={z.x} data-y={z.y} data-half-width={z.halfWidth} data-half-height={z.halfHeight}>
-                                    {/* Le nom lu reprend le texte visible, avec une pause entre le numéro et les pixels. */}
-                                    <span class="text-xs text-muted">Zone {i + 1}<span class="sr-only"> :</span></span>
-                                    <span class="tnum font-semibold">{fmtInt(z.pixels)} pixels</span>
-                                  </button>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )
-                      }
-                    </div>
-                  )
-                }
-              </section>
+            gal && (
+              <Fenetre id="objectif" testid="map-goal">
+                {/* Le film peut montrer un autre jour à côté : cette fenêtre dit de quand sont ses chiffres. */}
+                {objective && <p slot="avant" class="carte-sur">{ordinal(objective.rank)} sur la carte, au dernier relevé</p>}
+                <Fragment slot="titre">
+                  {objective ? (objective.above && objective.gap !== null ? <>Prochain objectif&nbsp;: dépasser {objective.above.tag ?? "le clan suivant"}</> : "GAL occupe le plus grand territoire") : "GAL sur la carte"}
+                </Fragment>
+                {objective ? (
+                  <>
+                    {objective.above && objective.gap !== null ? (
+                      <>
+                        <p class="tnum carte-chiffre" data-testid="map-gap" data-count={objective.gap}>{fmtInt(objective.gap)}</p>
+                        <p class="carte-suite">pixels à gagner pour passer {ordinal(objective.rank - 1)}.</p>
+                        <div class="meter meter-lg mt-4" aria-hidden="true"><i style={{ "--v": `${goalProgress}%` }}></i></div>
+                        <p class="tnum mt-2">GAL <span data-testid="map-pixels">{fmtInt(objective.me.pixels)}</span> · {objective.above.tag} {fmtInt(objective.above.pixels)}</p>
+                      </>
+                    ) : (
+                      <p class="tnum carte-suite"><span data-testid="map-pixels">{fmtInt(objective.me.pixels)}</span> pixels.</p>
+                    )}
+                    {objective.below && objective.lead !== null && (
+                      <p class="tnum mt-3 text-muted">{objective.below.tag ?? "Le clan suivant"} suit à {fmtInt(objective.lead)} pixels.</p>
+                    )}
+                  </>
+                ) : (
+                  <p class="tnum carte-suite"><span data-testid="map-pixels">{fmtInt(gal.pixels)}</span> pixels{gal.rank === null && " : plus aucun sur la carte"}.</p>
+                )}
+                {/* Territoire et place ne sont écrits qu'ici, et dans le podium : « Chiffres » ne les répète pas. */}
+                {sinceLine && <p class="tnum mt-3 font-semibold" data-testid="map-journal">{sinceLine}</p>}
+                {threshold && (
+                  <p class="tnum mt-3 font-semibold" data-testid="map-next-threshold">
+                    Prochain palier : {fmtInt(threshold.threshold)} pixels, encore {fmtInt(threshold.remaining)}.
+                  </p>
+                )}
+              </Fenetre>
+            )
+          }
+
+          <Fenetre id="clans">
+            <Fragment slot="titre">{fmtInt(standings.length)} clans sur la carte</Fragment>
+            <div class="carte-table-cadre">
+              <table class="data-table carte-table film-fronts tnum" data-testid="map-clans">
+                <caption>
+                  Le territoire de chaque clan au dernier relevé{lastAt !== undefined && `, le ${fmtEpochHour(lastAt)}`}, du plus grand au plus petit.
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Rang</th>
+                    <th scope="col">Clan</th>
+                    <th scope="col" class="num">Pixels</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {clanRows.map((c) => (
+                    <tr class:list={[c.tag === clan.tag && "est-gal"]}>
+                      <td>{c.rank}</td>
+                      <td class="font-semibold">
+                        <span class="carte-pastille" style={{ background: rgb(c.color) }} aria-hidden="true"></span>
+                        {c.index === null ? (
+                          (c.tag ?? "Clan supprimé")
+                        ) : (
+                          <button type="button" class="film-front-link" data-film-clan={c.index} aria-label={`Voir ${c.tag} sur la carte`}>{c.tag}</button>
+                        )}
+                      </td>
+                      <td class="num">{fmtInt(c.pixels)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p class="carte-aide" data-film-ready hidden>Un clic sur un clan le montre sur la carte.</p>
+          </Fenetre>
+
+          {
+            moments.length > 0 && (
+              <Fenetre id="moments" film>
+                <Fragment slot="titre">Les grands moments</Fragment>
+                <ol class="carte-liste" data-testid="map-moments">
+                  {moments.map((m) => (
+                    <li>
+                      <button type="button" class="film-tile" data-film-moment={m.frame}>
+                        <span class="tnum carte-date">{m.at === null ? "" : fmtEpochDay(m.at)}</span>
+                        {/* Le dernier relevé n'a pas besoin de ses chiffres ici : ils sont dans le podium. Le film les garde dans sa légende. */}
+                        <span class="font-semibold">{m.kind === "now" ? "Dernier relevé" : m.title}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              </Fenetre>
+            )
+          }
+
+          {
+            days.length > 0 && (
+              <Fenetre id="journees">
+                <Fragment slot="titre">Jour après jour</Fragment>
+                {dayCards.length > 0 && (
+                  <div class="carte-bloc" data-testid="map-days">
+                    <h3>La plus belle journée</h3>
+                    {dayCards.map(({ row, title }) => (
+                      <div class="mt-2" data-testid="map-day">
+                        <p class="text-muted">{title}</p>
+                        <p class="tnum carte-chiffre carte-chiffre-sm">{signed(row.net)} pixels</p>
+                        <p class="tnum text-muted">Le {fmtDay(row.date)} : {fmtInt(row.taken)} pris, {fmtInt(row.lost)} perdus.</p>
+                        <div class="mt-3" data-film-ready hidden>
+                          <button type="button" class="btn btn-ghost !min-h-10 !py-1.5" {...dayReplay(row)} aria-label={`Revoir cette journée, le ${fmtDay(row.date)}`}>Revoir cette journée</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div class="carte-bloc">
+                  <TerritoryChart client:visible points={territorySeries(days)} />
+                </div>
+                <div class="carte-table-cadre">
+                  <table class="data-table carte-table film-fronts tnum" data-testid="film-days">
+                    <caption>Les journées de GAL sur la carte depuis son premier pixel, la plus récente d'abord, en heure de Paris. Territoire et place à la fin de la journée.</caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">Jour</th>
+                        <th scope="col" class="num hidden sm:table-cell">Pris</th>
+                        <th scope="col" class="num hidden sm:table-cell">Perdus</th>
+                        <th scope="col" class="num">Solde</th>
+                        <th scope="col" class="num">Territoire</th>
+                        <th scope="col" class="num">Place</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {recentDays.map((d) => (
+                        <tr>
+                          <td class="font-semibold">
+                            <button type="button" class="film-front-link" {...dayReplay(d)} aria-label={`Revoir la journée du ${fmtDay(d.date)} sur la carte`}>{fmtDay(d.date)}</button>
+                            {!d.complete && lastAt !== undefined && <span class="block font-normal text-muted carte-petit" data-testid="film-day-partial">relevée jusqu'à {fmtEpochTime(lastAt)}</span>}
+                          </td>
+                          <td class="num hidden sm:table-cell">{fmtInt(d.taken)}</td>
+                          <td class="num hidden sm:table-cell">{fmtInt(d.lost)}</td>
+                          <td class="num font-semibold">{signed(d.net)}</td>
+                          <td class="num">{fmtInt(d.pixels)}</td>
+                          <td class="num">{d.rank === null ? "—" : fmtRank(d.rank)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p class="carte-aide" data-film-ready hidden>Un clic sur un jour le rejoue sur la carte.</p>
+              </Fenetre>
+            )
+          }
+
+          {
+            gal && gal.zones.length > 0 && (
+              <Fenetre id="zones" film>
+                <Fragment slot="titre">Nos territoires</Fragment>
+                <p class="tnum text-muted">Les {fmtInt(gal.zones.length)} plus grandes, sur {fmtInt(gal.zoneCount)} zones d'un seul tenant.</p>
+                <ul class="carte-liste mt-3">
+                  {gal.zones.map((z, i) => (
+                    <li>
+                      <button type="button" class="film-tile" data-film-look={`Zone ${i + 1} : ${fmtInt(z.pixels)} pixels`} data-x={z.x} data-y={z.y} data-half-width={z.halfWidth} data-half-height={z.halfHeight}>
+                        {/* Le nom lu reprend le texte visible, avec une pause entre le numéro et les pixels. */}
+                        <span class="carte-date">Zone {i + 1}<span class="sr-only"> :</span></span>
+                        <span class="tnum font-semibold">{fmtInt(z.pixels)} pixels</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </Fenetre>
+            )
+          }
+
+          {
+            gal && gal.fronts.length > 0 && (
+              <Fenetre id="fronts">
+                <Fragment slot="titre">Les fronts de GAL</Fragment>
+                <div class="carte-table-cadre">
+                  <table class="data-table carte-table film-fronts tnum" data-testid="film-fronts">
+                    <caption>Les {gal.fronts.length} clans avec lesquels GAL a échangé le plus de pixels, hors terres neutres.</caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">Clan</th>
+                        <th scope="col" class="num">Pris</th>
+                        <th scope="col" class="num">Perdus</th>
+                        <th scope="col" class="num">Solde</th>
+                        <th scope="col" class="num">Frontière</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {gal.fronts.map((f) => (
+                        <tr>
+                          <td class="font-semibold">
+                            {f.at ? (
+                              <button
+                                type="button"
+                                class="film-front-link"
+                                data-film-look={`Front ${f.tag ?? "Clan supprimé"} : ${fmtInt(f.border)} pixels de frontière`}
+                                data-x={f.at[0]}
+                                data-y={f.at[1]}
+                                data-half-width="200"
+                                data-half-height="130"
+                                data-clan={f.clan}
+                                aria-label={`Voir le front avec ${f.tag ?? "ce clan"} sur la carte`}
+                              >
+                                {f.tag ?? "Clan supprimé"}
+                              </button>
+                            ) : (
+                              (f.tag ?? "Clan supprimé")
+                            )}
+                          </td>
+                          <td class="num">{fmtInt(f.taken)}</td>
+                          <td class="num">{fmtInt(f.lost)}</td>
+                          <td class="num font-semibold">{signed(f.taken - f.lost)}</td>
+                          <td class="num">{f.border > 0 ? fmtInt(f.border) : "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p class="carte-aide">Un clic sur un clan montre ce front sur la carte.</p>
+              </Fenetre>
             )
           }
 
           {
             gal && (
-              <section class="stage stage-blue grid scroll-mt-24 grid-cols-1 items-start gap-8 md:grid-cols-2" id="objectif" aria-labelledby="goal-title" data-testid="map-goal">
-                <div>
-                  {objective ? (
-                    <>
-                      <p class="text-sm font-semibold uppercase tracking-wide text-muted">{ordinal(objective.rank)} sur la carte</p>
-                      {objective.above && objective.gap !== null ? (
-                        <>
-                          <h2 id="goal-title" class="section-title mt-2">Prochain objectif&nbsp;: dépasser {objective.above.tag ?? "le clan suivant"}</h2>
-                          <p class="tnum mt-4 font-display text-5xl font-extrabold" data-testid="map-gap" data-count={objective.gap}>{fmtInt(objective.gap)}</p>
-                          <p class="mt-1 text-lg text-muted">pixels à gagner pour passer {ordinal(objective.rank - 1)}.</p>
-                          <div class="meter meter-lg mt-5" aria-hidden="true"><i style={{ "--v": `${goalProgress}%` }}></i></div>
-                          <p class="tnum mt-2 text-sm text-muted">GAL <span data-testid="map-pixels">{fmtInt(objective.me.pixels)}</span> · {objective.above.tag} {fmtInt(objective.above.pixels)}</p>
-                        </>
-                      ) : (
-                        <>
-                          <h2 id="goal-title" class="section-title mt-2">GAL occupe le plus grand territoire</h2>
-                          <p class="tnum mt-2 text-lg text-muted"><span data-testid="map-pixels">{fmtInt(objective.me.pixels)}</span> pixels.</p>
-                        </>
-                      )}
-                      {objective.below && objective.lead !== null && (
-                        <p class="tnum mt-3 text-sm text-muted">{objective.below.tag ?? "Le clan suivant"} suit à {fmtInt(objective.lead)} pixels.</p>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <h2 id="goal-title" class="section-title mt-2">GAL sur la carte</h2>
-                      <p class="tnum mt-2 text-lg text-muted"><span data-testid="map-pixels">{fmtInt(gal.pixels)}</span> pixels{gal.rank === null && " : plus aucun sur la carte"}.</p>
-                    </>
-                  )}
-                  {/* Territoire et place ne sont écrits qu'ici, et sous le film : « GAL en chiffres » ne les répète pas. */}
-                  {sinceLine && <p class="tnum mt-3 text-sm font-semibold" data-testid="map-journal">{sinceLine}</p>}
-                  {threshold && (
-                    <p class="tnum mt-4 font-semibold" data-testid="map-next-threshold">
-                      Prochain palier : {fmtInt(threshold.threshold)} pixels, encore {fmtInt(threshold.remaining)}.
-                    </p>
-                  )}
-                </div>
-                <div class="panel">
-                  {/* Sur téléphone, ces chiffres se replient : le rang et le territoire du moment restent écrits au-dessus, et dans l'encart du film. Sans script, tout reste ouvert. */}
-                  <details class="fold-phone" open data-fold-phone data-testid="fold-figures">
-                    <summary><h3 class="text-sm tracking-wide text-muted">GAL en chiffres</h3></summary>
-                  <dl class="tnum mt-3 grid grid-cols-1 gap-5 sm:grid-cols-2">
-                    <div data-testid="map-figure">
-                      <dt class="text-sm text-muted">Plus grand territoire</dt>
-                      <dd class="mt-1 font-display text-2xl font-extrabold" data-testid="map-peak">{fmtInt(gal.peak.pixels)} pixels</dd>
-                      {gal.peak.pixels === gal.pixels ? (
-                        <dd class="mt-1 text-sm text-muted">C'est son territoire actuel.</dd>
-                      ) : (
-                        gal.peak.at !== undefined && <dd class="mt-1 text-sm text-muted">Atteint le {endingOn(parisDayOf(gal.peak.at))}</dd>
-                      )}
-                    </div>
-                    <div data-testid="map-figure">
-                      <dt class="text-sm text-muted">Pris et perdus</dt>
-                      <dd class="mt-1 font-display text-2xl font-extrabold">+{fmtInt(gal.taken)} / −{fmtInt(gal.lost)}</dd>
-                      <dd class="mt-1 text-sm text-muted">Dont {fmtInt(gal.neutralTaken)} pixels pris sur des terres neutres.</dd>
-                    </div>
-                    <div data-testid="map-figure">
-                      <dt class="text-sm text-muted">Premier pixel</dt>
-                      <dd class="mt-1 font-display text-2xl font-extrabold" data-testid="map-first">{gal.firstAt === undefined ? `Événement n° ${fmtInt(gal.firstEvent)}` : fmtDate(new Date(gal.firstAt * 1000).toISOString())}</dd>
-                      <dd class="mt-1 text-sm text-muted">{gal.firstAt !== undefined && `Événement n° ${fmtInt(gal.firstEvent)}, sur `}{gal.firstAt === undefined && "Sur "}{fmtInt(film.events)} changements de main au total.</dd>
-                    </div>
-                    {/* La fiche du clan ne répond pas toujours à la collecte : sans chiffre, pas de grande case vide, mais une ligne sous les chiffres le dit. */}
-                    {reservePixels !== null && (
-                      <div data-testid="map-figure">
-                        <dt class="text-sm text-muted">Réserves du clan</dt>
-                        <dd class="mt-1 font-display text-2xl font-extrabold">{reserveComplete ? "Environ" : "Au moins"} {fmtInt(reservePixels)} pixels neutres</dd>
-                        <dd class="mt-1 text-sm text-muted" data-testid="map-reserves">Troupes prêtes : {troopsText}. Capsules au trésor : {capsText}.</dd>
-                        {reserveGoal && <dd class="mt-1 text-sm font-semibold">{reserveGoal}</dd>}
-                      </div>
+              <Fenetre id="chiffres">
+                <Fragment slot="titre">GAL en chiffres</Fragment>
+                <dl class="tnum carte-chiffres">
+                  <div data-testid="map-figure">
+                    <dt>Plus grand territoire</dt>
+                    <dd class="carte-chiffre carte-chiffre-sm" data-testid="map-peak">{fmtInt(gal.peak.pixels)} pixels</dd>
+                    {gal.peak.pixels === gal.pixels ? (
+                      <dd class="text-muted">C'est son territoire actuel.</dd>
+                    ) : (
+                      gal.peak.at !== undefined && <dd class="text-muted">Atteint le {endingOn(parisDayOf(gal.peak.at))}</dd>
                     )}
-                  </dl>
-                  {gal.neutralBorder !== null && <p class="tnum mt-5 text-sm text-muted" data-testid="map-neutral-border">{fmtInt(gal.neutralBorder)} pixels de terre neutre touchent déjà notre territoire.</p>}
-                  {reservePixels === null && <p class="mt-2 text-sm text-muted" data-testid="map-no-reserves">Réserves du clan : pas de données.</p>}
-                  {
-                    (reservePixels !== null || gal.neutralBorder !== null) && (
-                      <p class="mt-2 text-xs text-muted">
-                        {reservePixels === null ? "Repère indicatif" : "Repères indicatifs"}, selon les règles du jeu lues le {fmtDate(`${RULES_CHECKED_ON}T12:00:00Z`)}.
-                      </p>
-                    )
-                  }
-                  </details>
-                  <script is:inline>
-                    (function (fold) {
-                      if (fold && matchMedia("(width < 48rem)").matches) fold.open = false;
-                    })(document.currentScript.previousElementSibling);
-                  </script>
-                </div>
-              </section>
+                  </div>
+                  <div data-testid="map-figure">
+                    <dt>Pris et perdus</dt>
+                    <dd class="carte-chiffre carte-chiffre-sm">+{fmtInt(gal.taken)} / −{fmtInt(gal.lost)}</dd>
+                    <dd class="text-muted">Dont {fmtInt(gal.neutralTaken)} pixels pris sur des terres neutres.</dd>
+                  </div>
+                  <div data-testid="map-figure">
+                    <dt>Premier pixel</dt>
+                    <dd class="carte-chiffre carte-chiffre-sm" data-testid="map-first">{gal.firstAt === undefined ? `Événement n° ${fmtInt(gal.firstEvent)}` : fmtDate(new Date(gal.firstAt * 1000).toISOString())}</dd>
+                    <dd class="text-muted">{gal.firstAt !== undefined && `Événement n° ${fmtInt(gal.firstEvent)}, sur `}{gal.firstAt === undefined && "Sur "}{fmtInt(film.events)} changements de main au total.</dd>
+                  </div>
+                  {/* La fiche du clan ne répond pas toujours à la collecte : sans chiffre, pas de case vide, mais une ligne sous les chiffres le dit. */}
+                  {reservePixels !== null && (
+                    <div data-testid="map-figure">
+                      <dt>Réserves du clan</dt>
+                      <dd class="carte-chiffre carte-chiffre-sm">{reserveComplete ? "Environ" : "Au moins"} {fmtInt(reservePixels)} pixels neutres</dd>
+                      <dd class="text-muted" data-testid="map-reserves">Troupes prêtes : {troopsText}. Capsules au trésor : {capsText}.</dd>
+                      {reserveGoal && <dd class="font-semibold">{reserveGoal}</dd>}
+                    </div>
+                  )}
+                </dl>
+                {gal.neutralBorder !== null && <p class="tnum mt-4 text-muted" data-testid="map-neutral-border">{fmtInt(gal.neutralBorder)} pixels de terre neutre touchent déjà notre territoire.</p>}
+                {reservePixels === null && <p class="mt-2 text-muted" data-testid="map-no-reserves">Réserves du clan : pas de données.</p>}
+                {
+                  (reservePixels !== null || gal.neutralBorder !== null) && (
+                    <p class="mt-2 text-muted carte-petit">
+                      {reservePixels === null ? "Repère indicatif" : "Repères indicatifs"}, selon les règles du jeu lues le {fmtDate(`${RULES_CHECKED_ON}T12:00:00Z`)}.
+                    </p>
+                  )
+                }
+              </Fenetre>
             )
           }
 
-          <section class="scroll-mt-24" id="details" aria-labelledby="details-title">
-            <h2 id="details-title" class="section-title section-title-sm">Les détails</h2>
-            <div class="fold-list mt-4">
+          <Fenetre id="legende" testid="map-read">
+            <Fragment slot="titre">Comment lire cette carte</Fragment>
+            {/* Les lueurs du film : les mêmes couleurs que dans src/scripts/film.ts. */}
+            <ul class="carte-legende">
+              <li><i class="carte-lueur carte-lueur-gain" aria-hidden="true"></i>Lueur bleu pâle : des pixels que GAL vient de prendre.</li>
+              <li><i class="carte-lueur carte-lueur-perte" aria-hidden="true"></i>Lueur rouge : des pixels que GAL vient de perdre.</li>
+              <li><i class="carte-lueur carte-lueur-autre" aria-hidden="true"></i>Lueur blanche, discrète : un pixel pris par un autre clan.</li>
+            </ul>
+            <ul class="carte-notes">
+              <li><strong>La carte se manie.</strong> La molette ou deux doigts changent le zoom, glisser déplace la carte, et un clic sur un territoire nomme son clan. Au clavier, une fois la carte choisie : les flèches, plus, moins, et zéro pour la vue d'ensemble.</li>
+              <li><strong>Une autre vue.</strong> <a href={`${base}/carte-monde/`}>La carte « World »</a> reporte la part des terres de GAL sur la carte du monde du jeu.</li>
+              <li><strong>Ce n'est pas le classement des clans.</strong> La carte compte des pixels peints, pas des victoires. L'ordre des clans suit celui de la carte officielle. Le classement du clan reste sur la page <a href={`${base}/classement`}>Classement</a>.</li>
               {
-                days.length > 0 && (
-                  <details class="fold" data-testid="fold-days">
-                    <summary><h3 class="text-xl">Jour après jour</h3></summary>
-                    <div class="mt-4">
-                      <TerritoryChart client:visible points={territorySeries(days)} />
-                    </div>
-                    <div class="card mt-4 overflow-x-auto">
-                      <table class="data-table film-fronts tnum w-full" data-testid="film-days">
-                        <caption class="p-3 text-left text-sm text-muted">Les journées de GAL sur la carte depuis son premier pixel, la plus récente d'abord, en heure de Paris. Territoire et place à la fin de la journée.</caption>
-                        <thead>
-                          <tr>
-                            <th scope="col">Jour</th>
-                            <th scope="col" class="num hidden sm:table-cell">Pris</th>
-                            <th scope="col" class="num hidden sm:table-cell">Perdus</th>
-                            <th scope="col" class="num">Solde</th>
-                            <th scope="col" class="num">Territoire</th>
-                            <th scope="col" class="num">Place</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {recentDays.map((d) => (
-                            <tr>
-                              <td class="font-semibold">
-                                <button type="button" class="film-front-link" {...dayReplay(d)} aria-label={`Revoir la journée du ${fmtDay(d.date)} sur la carte`}>{fmtDay(d.date)}</button>
-                                {!d.complete && lastAt !== undefined && <span class="block text-xs font-normal text-muted" data-testid="film-day-partial">relevée jusqu'à {fmtEpochTime(lastAt)}</span>}
-                              </td>
-                              <td class="num hidden sm:table-cell">{fmtInt(d.taken)}</td>
-                              <td class="num hidden sm:table-cell">{fmtInt(d.lost)}</td>
-                              <td class="num font-semibold">{signed(d.net)}</td>
-                              <td class="num">{fmtInt(d.pixels)}</td>
-                              <td class="num">{d.rank === null ? "—" : fmtRank(d.rank)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    <p class="mt-2 text-sm text-muted" data-film-ready hidden>Cliquez sur un jour pour le rejouer sur la carte.</p>
-                  </details>
+                lastAt === undefined ? (
+                  <li><strong>Pas de dates dans le film.</strong> La frise suit l'ordre réel des changements, pas le temps.</li>
+                ) : (
+                  <li><strong>Des dates, mais pas une horloge.</strong> Chaque image porte la date de son dernier changement, donnée par OpenFront et écrite en heure de Paris. Le film suit le rythme des changements : une journée très active prend plus de place sur la frise qu'une journée calme.</li>
                 )
               }
+              <li><strong>Une vitesse au choix.</strong> À {speedLabel(SPEED_MAX)}, le film entier dure {FILM_MS / 1000} secondes. Le curseur « Vitesse » le ralentit pas à pas jusqu'à {speedLabel(SPEED_MIN)}, {Math.round(SPEED_MAX / SPEED_MIN)} fois plus lent.</li>
+              <li><strong>Une caméra posée.</strong> La caméra glisse sans à-coup. Elle s'approche lentement de GAL sur quelques grands moments, au plus une fois toutes les {SHOT_SPACING_MS / 1000} secondes, et revient d'elle-même à la vue d'ensemble. Tant que vous avez zoomé ou déplacé la carte, elle reste où vous l'avez mise. Avec « réduire les animations », elle ne s'approche jamais et passe directement d'un cadre à l'autre.</li>
+              <li><strong>Le film reprend où vous l'aviez laissé.</strong> Votre navigateur garde la date de la dernière image vue, sur cet appareil seulement : au retour, le film ne rejoue que la suite, et « Rejouer » redonne le film entier. Rien n'est envoyé au site.</li>
+              <li><strong>Une mise à jour par jour.</strong> Ce ne sont pas des données en temps réel. La carte vient de l'historique public documenté par OpenFront, lu par la collecte du site et jamais par votre navigateur. Les réserves du clan viennent de sa fiche, une route non documentée : quand elle ne répond pas à la collecte, la fenêtre « Chiffres » le dit en une ligne, sans chiffre{reservePixels === null && ", comme en ce moment"}.</li>
+              <li><strong>Vérifié à chaque mise à jour.</strong> Chaque événement officiel annonce l'ancien propriétaire du pixel. Rejoué depuis le premier pixel, l'historique retombe dessus, avec {fmtInt(film.check.mismatches)} écart sur {fmtInt(film.check.events)} événements. En cas d'écart, le film n'est pas mis à jour.</li>
+              <li><strong>Des paliers du site.</strong> Le prochain palier de pixels est un repère du site, pas du jeu : les mêmes paliers que les grands moments du film.</li>
+              <li><strong>Ce que l'historique ne donne pas.</strong> Il ne dit pas les troupes des autres clans. Le site n'affiche donc pas le coût exact d'un pixel ennemi.</li>
+              <li><strong>Des coûts indicatifs.</strong> Les réserves du clan sont converties avec les règles lues dans le code de la carte : 1 capsule = {fmtInt(TROOPS_PER_CAP)} troupes, 1 pixel neutre = {fmtInt(NEUTRAL_PIXEL_TROOPS)} troupes. Ces coûts ne tiennent pas compte de la forme du territoire ni des pixels verrouillés, et le jeu peut les changer.</li>
+              <li><strong>Image allégée.</strong> Les chiffres sont calculés sur la carte complète, {fmtInt(film.width)} × {fmtInt(film.height)} pixels : la position écrite à côté de la date, au passage de la souris, est comptée sur elle. Seul le film est affiché en résolution réduite.</li>
+              <li><strong>Dessins des joueurs.</strong> Les motifs visibles sont peints par les joueurs, et le site ne les filtre pas.</li>
+            </ul>
+            <p class="mt-4 text-muted">Carte, terrain et données © OpenFront et ses contributeurs. <a href="https://clanmap.openfront.io/" rel="noopener">Voir la carte officielle</a>.</p>
+            <p class="mt-2 text-muted" data-testid="map-license">Le fond de carte et la surface de terre viennent de <a href="https://github.com/openfrontio/OpenFrontIO/tree/main/resources/maps/giantworldmap" rel="noopener">Giant World Map</a>, une carte d'OpenFront sous licence <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.fr" rel="noopener">CC BY-SA 4.0</a>. Ce site a réduit et assombri le fond de carte, qui reste sous la même licence.</p>
+          </Fenetre>
 
-              {
-                gal && gal.fronts.length > 0 && (
-                  <details class="fold" data-testid="fold-fronts">
-                    <summary><h3 class="text-xl">Les fronts de GAL</h3></summary>
-                    <div class="card mt-4 overflow-x-auto">
-                      <table class="data-table film-fronts tnum w-full" data-testid="film-fronts">
-                        <caption class="p-3 text-left text-sm text-muted">Les {gal.fronts.length} clans avec lesquels GAL a échangé le plus de pixels, hors terres neutres.</caption>
-                        <thead>
-                          <tr>
-                            <th scope="col">Clan</th>
-                            <th scope="col" class="num">Pris</th>
-                            <th scope="col" class="num">Perdus</th>
-                            <th scope="col" class="num">Solde</th>
-                            <th scope="col" class="num">Frontière</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {gal.fronts.map((f) => (
-                            <tr>
-                              <td class="font-semibold">
-                                {f.at ? (
-                                  <button
-                                    type="button"
-                                    class="film-front-link"
-                                    data-film-look={`Front ${f.tag ?? "Clan supprimé"} : ${fmtInt(f.border)} pixels de frontière`}
-                                    data-x={f.at[0]}
-                                    data-y={f.at[1]}
-                                    data-half-width="200"
-                                    data-half-height="130"
-                                    data-clan={f.clan}
-                                    aria-label={`Voir le front avec ${f.tag ?? "ce clan"} sur la carte`}
-                                  >
-                                    {f.tag ?? "Clan supprimé"}
-                                  </button>
-                                ) : (
-                                  (f.tag ?? "Clan supprimé")
-                                )}
-                              </td>
-                              <td class="num">{fmtInt(f.taken)}</td>
-                              <td class="num">{fmtInt(f.lost)}</td>
-                              <td class="num font-semibold">{signed(f.taken - f.lost)}</td>
-                              <td class="num">{f.border > 0 ? fmtInt(f.border) : "—"}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    <p class="mt-2 text-sm text-muted">Cliquez sur un clan pour voir ce front sur la carte.</p>
-                  </details>
-                )
-              }
-
-              <details class="fold" data-testid="fold-read">
-                <summary><h3 class="text-xl">Comment lire cette carte</h3></summary>
-                <ul class="mt-4 max-w-prose list-disc space-y-3 pl-5 text-muted">
-                  <li><strong class="text-white">Une autre vue.</strong> <a href={`${base}/carte-monde/`}>La carte « World »</a> reporte la part des terres de GAL sur la carte du monde du jeu.</li>
-                  <li><strong class="text-white">Ce n'est pas le classement des clans.</strong> La carte compte des pixels peints, pas des victoires. L'ordre des clans suit celui de la carte officielle. Le classement du clan reste sur la page <a href={`${base}/classement`}>Classement</a>.</li>
-                  {
-                    lastAt === undefined ? (
-                      <li><strong class="text-white">Pas de dates dans le film.</strong> La frise suit l'ordre réel des changements, pas le temps.</li>
-                    ) : (
-                      <li><strong class="text-white">Des dates, mais pas une horloge.</strong> Chaque image porte la date de son dernier changement, donnée par OpenFront et écrite en heure de Paris. Le film suit le rythme des changements : une journée très active prend plus de place sur la frise qu'une journée calme.</li>
-                    )
-                  }
-                  <li><strong class="text-white">Une vitesse au choix.</strong> À {speedLabel(SPEED_MAX)}, le film entier dure {FILM_MS / 1000} secondes. Le curseur « Vitesse » le ralentit pas à pas jusqu'à {speedLabel(SPEED_MIN)}, {Math.round(SPEED_MAX / SPEED_MIN)} fois plus lent.</li>
-                  <li><strong class="text-white">Une caméra posée.</strong> La caméra glisse sans à-coup. Elle s'approche lentement de GAL sur quelques grands moments, au plus une fois toutes les {SHOT_SPACING_MS / 1000} secondes, et revient d'elle-même à la vue d'ensemble. Avec « réduire les animations », elle ne s'approche jamais et passe directement d'un cadre à l'autre.</li>
-                  <li><strong class="text-white">Le film reprend où vous l'aviez laissé.</strong> Votre navigateur garde la date de la dernière image vue, sur cet appareil seulement : au retour, le film ne rejoue que la suite, et « Rejouer » redonne le film entier. Rien n'est envoyé au site.</li>
-                  <li><strong class="text-white">Une mise à jour par jour.</strong> Ce ne sont pas des données en temps réel. La carte vient de l'historique public documenté par OpenFront, lu par la collecte du site et jamais par votre navigateur. Les réserves du clan viennent de sa fiche, une route non documentée : quand elle ne répond pas à la collecte, « GAL en chiffres » le dit en une ligne, sans chiffre{reservePixels === null && ", comme en ce moment"}.</li>
-                  <li><strong class="text-white">Vérifié à chaque mise à jour.</strong> Chaque événement officiel annonce l'ancien propriétaire du pixel. Rejoué depuis le premier pixel, l'historique retombe dessus, avec {fmtInt(film.check.mismatches)} écart sur {fmtInt(film.check.events)} événements. En cas d'écart, le film n'est pas mis à jour.</li>
-                  <li><strong class="text-white">Des paliers du site.</strong> Le prochain palier de pixels est un repère du site, pas du jeu : les mêmes paliers que les grands moments du film.</li>
-                  <li><strong class="text-white">Ce que l'historique ne donne pas.</strong> Il ne dit pas les troupes des autres clans. Le site n'affiche donc pas le coût exact d'un pixel ennemi.</li>
-                  <li><strong class="text-white">Des coûts indicatifs.</strong> Les réserves du clan sont converties avec les règles lues dans le code de la carte : 1 capsule = {fmtInt(TROOPS_PER_CAP)} troupes, 1 pixel neutre = {fmtInt(NEUTRAL_PIXEL_TROOPS)} troupes. Ces coûts ne tiennent pas compte de la forme du territoire ni des pixels verrouillés, et le jeu peut les changer.</li>
-                  <li><strong class="text-white">Image allégée.</strong> Les chiffres sont calculés sur la carte complète, {fmtInt(film.width)} × {fmtInt(film.height)} pixels. Seul le film est affiché en résolution réduite.</li>
-                  <li><strong class="text-white">Dessins des joueurs.</strong> Les motifs visibles sont peints par les joueurs, et le site ne les filtre pas.</li>
-                </ul>
-                <p class="mt-4 text-sm text-muted">Carte, terrain et données © OpenFront et ses contributeurs. <a href="https://clanmap.openfront.io/" rel="noopener">Voir la carte officielle</a>.</p>
-                <p class="mt-2 text-sm text-muted" data-testid="map-license">Le fond de carte et la surface de terre viennent de <a href="https://github.com/openfrontio/OpenFrontIO/tree/main/resources/maps/giantworldmap" rel="noopener">Giant World Map</a>, une carte d'OpenFront sous licence <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.fr" rel="noopener">CC BY-SA 4.0</a>. Ce site a réduit et assombri le fond de carte, qui reste sous la même licence.</p>
-              </details>
-            </div>
-          </section>
+          {/* Le pied de page du site : la console n'a pas de bas de page, le script le range dans cette fenêtre. */}
+          <Fenetre id="a-propos" consoleSeulement>
+            <Fragment slot="titre">À propos du site</Fragment>
+            <div data-carte-pied></div>
+          </Fenetre>
         </div>
-      </>
+
+        <p class="sr-only" role="status" data-film-status></p>
+      </section>
     )
   }
 </Base>
 
 <script>
+  import "../scripts/carte-console";
   import "../scripts/film";
-
-  // Les blocs repliés sur téléphone seulement : au-delà de 48rem, ils sont toujours ouverts et leur titre ne prend pas le focus.
-  // Un écran qui s'élargit (rotation) les rouvre ; un écran qui rétrécit les laisse comme ils sont.
-  const narrow = matchMedia("(width < 48rem)");
-  const folds = document.querySelectorAll<HTMLDetailsElement>("details[data-fold-phone]");
-  const sync = () => {
-    for (const fold of folds) {
-      if (!narrow.matches) fold.open = true;
-      const summary = fold.querySelector("summary");
-      if (summary) summary.tabIndex = narrow.matches ? 0 : -1;
-    }
-  };
-  sync();
-  narrow.addEventListener("change", sync);
-  // Sur grand écran, le titre n'est pas un bouton : aucune activation, aide technique comprise, ne referme le bloc.
-  for (const fold of folds) {
-    fold.querySelector("summary")?.addEventListener("click", (event) => {
-      if (!narrow.matches && fold.open) event.preventDefault();
-    });
-  }
 </script>

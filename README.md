@@ -18,7 +18,7 @@ Le plan est dans `src/lib/nav.ts`. Une rubrique répond à une question de visit
 | Actu | `/gazette`, `/parties`, `/nouveautes` | Le bilan de la semaine, les parties une par une, les mises à jour du site expliquées |
 | Résultats | `/classement`, `/rivaux`, `/progression`, `/records` | La liste officielle, la course et le comparateur, les courbes, les podiums des joueurs et les records |
 | Membres | `/membres`, `/liste`, `/membres/:id`, `/qg` | Les paliers, l'encadrement et le classé ; la liste officielle, avec recherche et tri, et les fiches ; le QG, face privée réservée aux membres validés, en onglets ; l'administration de l'encadrement est dans `/direction` |
-| Carte | `/carte` | Le film, puis revoir l'histoire, où en est GAL et le détail |
+| Carte | `/carte` | Une console qui tient dans l'écran : le film de la carte, à manier (zoom, déplacement, clic sur un clan), et le reste dans des fenêtres ouvertes depuis la carte (objectif, clans, moments, journées, zones, fronts, chiffres, légende) |
 | Guides | `/debuter`, `/activite` | Le guide du clan, un chapitre à la fois, avec ses essais ; quand jouer et le jeu en groupe |
 | Rejoindre | `/rejoindre` | Les étapes pour entrer dans le clan |
 
@@ -384,7 +384,7 @@ Sur l'accueil, le guerrier prend du relief (`src/scripts/holo.ts`, chargé sur c
 - Une alerte de place n'est pas instantanée : le robot passe une à deux fois par heure, un changement au classement attend le calcul suivant d'OpenFront, la carte n'est relevée qu'une fois par jour, puis son alerte attend le passage suivant. La nuit, l'alerte attend 8 h.
 - Le détail des parties se lit petit à petit, des plus récentes aux plus anciennes : les pages disent combien sont lues, et les totaux depuis le début n'apparaissent qu'à la fin de cette lecture. Une partie qui ne répond pas reste à lire : rien de définitif n'est écrit. Après 25 échecs dans un passage, ou 5 sans aucune partie lue, la page signale une panne. Les équipes des clans sont retrouvées par calcul tant que les fiches ne les donnent pas : si OpenFront change sa façon de les former, il faudra adapter `placeClans`.
 - La route documentée de la carte ne donne pas les troupes des clans. Le site n'affiche donc pas le coût exact d'un pixel ennemi. Le message prévu pour OpenFront, à la section 10 de [docs/API_AUDIT.md](docs/API_AUDIT.md), demande cette donnée.
-- Le trésor vient de `/clans/GAL`, une route non documentée. Elle n'a pas répondu à la collecte sur GitHub le 6 novembre 2026. Depuis le 9 novembre 2026, la page Carte ne donne pas de case vide aux réserves : une ligne sous « GAL en chiffres » dit qu'il n'y a pas de données.
+- Le trésor vient de `/clans/GAL`, une route non documentée. Elle n'a pas répondu à la collecte sur GitHub le 6 novembre 2026. Depuis le 9 novembre 2026, la page Carte ne donne pas de case vide aux réserves : une ligne sous « GAL en chiffres », dans la fenêtre « Chiffres », dit qu'il n'y a pas de données.
 - Le film ne filtre pas les dessins peints par les joueurs sur la carte.
 - Le jeu ne publie pas qui a peint quel pixel : le site ne peut classer personne pour sa peinture.
 - De la connexion, seules la connexion Discord d'un compte et la désignation du fondateur ont été essayées en vrai. Il n'y a plus de test automatique des droits côté serveur : voir [docs/DIRECTION.md](docs/DIRECTION.md).

@@ -8,7 +8,7 @@ paths:
 
 # Tests e2e (Playwright)
 
-Trois fichiers dans `tests/e2e/` : `site.spec.ts` (parcours, données affichées, accessibilité, défilement horizontal, pied de page, clavier), `carte.spec.ts` (film de la carte), `fx.spec.ts` (effets). Deux projets dans `playwright.config.ts` : `desktop` (1280 × 800) et `mobile` (375 × 812, tactile). Les tests lisent `data/leaderboard.json` et `data/members.json` et comparent la page aux fichiers.
+Trois fichiers dans `tests/e2e/` : `site.spec.ts` (parcours, données affichées, accessibilité, défilement horizontal, pied de page, clavier), `carte.spec.ts` (console et film de la carte : fenêtres, zoom, clic sur un clan, accessibilité de chaque fenêtre), `fx.spec.ts` (effets). Deux projets dans `playwright.config.ts` : `desktop` (1280 × 800) et `mobile` (375 × 812, tactile). Les tests lisent `data/leaderboard.json` et `data/members.json` et comparent la page aux fichiers.
 
 ## Avant de lancer
 
