@@ -1,9 +1,10 @@
+import { existsSync, readFileSync } from "node:fs";
 import sharp from "sharp";
 import { describe, expect, it, vi } from "vitest";
 import { GazetteFonts, type CardText, type GazetteCard, type Measure } from "../../src/lib/gazette-image";
 import { ApiClient } from "../../src/lib/pipeline";
 import { ApiVictoryGame, type StoredMembers, type StoredSession } from "../../src/lib/schemas";
-import { crewName, FORGET_MS, isClanMember, isVictory, MAX_PER_PASS, mergeStates, passSessions, PAUSE_MS, readRecentSessions, readVictoryGame, toVerify, victoryOf, victoryPass, WINDOW_MS, type Victory, type VictoryPassDeps } from "../../src/lib/victoires";
+import { crewName, FORGET_MS, isClanMember, isVictory, MAX_PER_PASS, MAX_RESEND, mergeStates, parseResend, passSessions, PAUSE_MS, readRecentSessions, readVictoryGame, toVerify, victoryOf, victoryPass, VictoryState, WINDOW_MS, type Victory, type VictoryPassDeps } from "../../src/lib/victoires";
 import { frenchList, gameLength, sendVictory, victoryContent, victoryPayload } from "../../src/lib/victoires-discord";
 import { CHIP_STEPS, MAP_NOTE, NAME_NOTE, openAround, readThumbnail, renderVictoryCard, SEA, thumbnailUrl, tileLength, victoryCard, victoryImageAlt } from "../../src/lib/victoires-image";
 
@@ -211,6 +212,45 @@ describe("passSessions et mergeStates", () => {
     expect(mergeStates(null, { done: [] })).toEqual({ done: [] });
     expect(mergeStates(null, null)).toBeNull();
   });
+  it("réunit aussi les renvois des deux copies ; sans renvoi, l'état garde sa forme d'avant", () => {
+    expect(mergeStates({ done: [["a", a.gameStart]], resent: [["a", a.gameStart]] }, { done: [["b", b.gameStart]] })).toStrictEqual({
+      done: [
+        ["a", a.gameStart],
+        ["b", b.gameStart],
+      ],
+      resent: [["a", a.gameStart]],
+    });
+    expect(mergeStates({ done: [["a", a.gameStart]] }, null)).toStrictEqual({ done: [["a", a.gameStart]] });
+  });
+  it("un état noté avant les renvois se lit toujours, un état avec renvois aussi", () => {
+    expect(VictoryState.parse({ done: [["a", a.gameStart]] })).toStrictEqual({ done: [["a", a.gameStart]] });
+    expect(VictoryState.parse({ done: [["a", a.gameStart]], resent: [["a", a.gameStart]] }).resent).toEqual([["a", a.gameStart]]);
+  });
+});
+
+describe("parseResend", () => {
+  it("lit les parties à renvoyer ; sans fichier, aucune", () => {
+    expect(parseResend(JSON.stringify({ pourquoi: "essai", parties: ["cFEn6wJydj", "cY2FwBXwUA"] }))).toEqual({ games: new Set(["cFEn6wJydj", "cY2FwBXwUA"]), warning: null });
+    expect(parseResend(null)).toEqual({ games: new Set(), warning: null });
+  });
+  it("un fichier illisible, sans raison, avec une partie mal écrite ou écrite deux fois n'en donne aucune, avec un avertissement", () => {
+    const bad = [
+      "{",
+      JSON.stringify({ parties: ["cFEn6wJydj"] }),
+      JSON.stringify({ pourquoi: "essai", parties: ["cFEn 6wJydj"] }),
+      JSON.stringify({ pourquoi: "essai", parties: ["cFEn6wJydj", "cFEn6wJydj"] }),
+      JSON.stringify({ pourquoi: "essai", parties: Array.from({ length: MAX_RESEND + 1 }, (_, i) => `game${i}`) }),
+    ];
+    for (const raw of bad) {
+      const { games, warning } = parseResend(raw);
+      expect(games.size).toBe(0);
+      expect(warning).toBe("config/victoires-rattrapage.json est illisible, aucune victoire n'est renvoyée");
+    }
+  });
+  it("le fichier du dépôt se lit, s'il existe encore", () => {
+    const path = "config/victoires-rattrapage.json";
+    expect(parseResend(existsSync(path) ? readFileSync(path, "utf8") : null).warning).toBeNull();
+  });
 });
 
 describe("victoryPass", () => {
@@ -339,6 +379,81 @@ describe("victoryPass", () => {
     expect(sent).toEqual([]);
     expect(logs[0]).toBe("::warning::Victoires : un Gaulois de la partie a n'a pas pu être vérifié sur l'API. Nouvel essai au prochain passage.");
     expect(logs.join(" ")).not.toMatch(/id-anonyme|id-vide/);
+  });
+
+  describe("les renvois de config/victoires-rattrapage.json", () => {
+    it("renvoie une victoire demandée, déjà notée et plus vieille que six heures, dans l'ordre des débuts, puis la note renvoyée", async () => {
+      const night = session("a", ago(11));
+      const fresh = session("b", ago(1));
+      const saved: unknown[] = [];
+      const { deps, sent, logs } = setup([fresh, night], { stored: { done: [["a", night.gameStart]] }, resend: new Set(["a"]), progress: (state) => void saved.push(state) });
+      const result = await victoryPass(deps);
+      expect(sent).toEqual(["a", "b"]);
+      expect(result).toStrictEqual({
+        state: {
+          done: [
+            ["a", night.gameStart],
+            ["b", fresh.gameStart],
+          ],
+          resent: [["a", night.gameStart]],
+        },
+        failed: false,
+      });
+      expect(saved[0]).toStrictEqual({ done: [["a", night.gameStart]], resent: [["a", night.gameStart]] });
+      expect(logs).toContain("Victoires : 1 victoire à renvoyer (config/victoires-rattrapage.json).");
+      expect(logs.join(" ")).not.toContain("trop ancienne");
+    });
+    it("une victoire renvoyée ne repart plus", async () => {
+      const night = session("a", ago(11));
+      const { deps, sent } = setup([night], { stored: { done: [["a", night.gameStart]], resent: [["a", night.gameStart]] }, resend: new Set(["a"]) });
+      expect(await victoryPass(deps)).toEqual({ state: null, failed: false });
+      expect(sent).toEqual([]);
+    });
+    it("une victoire demandée jamais partie part une seule fois, notée envoyée et renvoyée", async () => {
+      const first = setup([session("a", ago(1))], { resend: new Set(["a"]) });
+      const result = await victoryPass(first.deps);
+      expect(result.state).toStrictEqual({ done: [["a", ago(1)]], resent: [["a", ago(1)]] });
+      const second = setup([session("a", ago(1))], { stored: result.state, resend: new Set(["a"]) });
+      expect(await victoryPass(second.deps)).toEqual({ state: null, failed: false });
+      expect([...first.sent, ...second.sent]).toEqual(["a"]);
+    });
+    it("une victoire demandée, jamais partie et plus vieille que six heures, n'est pas dite trop ancienne : elle part", async () => {
+      const old = session("a", ago(WINDOW_MS / 3_600_000 + 2));
+      const { deps, sent, logs } = setup([old], { resend: new Set(["a"]) });
+      expect((await victoryPass(deps)).state).toStrictEqual({ done: [["a", old.gameStart]], resent: [["a", old.gameStart]] });
+      expect(sent).toEqual(["a"]);
+      expect(logs.join(" ")).not.toContain("trop ancienne");
+    });
+    it("après un refus de Discord, la victoire demandée attend le passage suivant", async () => {
+      const night = session("a", ago(11));
+      const { deps } = setup([night], { stored: { done: [["a", night.gameStart]] }, resend: new Set(["a"]), send: async () => false });
+      expect(await victoryPass(deps)).toEqual({ state: null, failed: true });
+    });
+    it("une victoire demandée qui a commencé il y a plus d'un jour ne repart pas", async () => {
+      const old = session("a", new Date(NOW.getTime() - FORGET_MS - 60_000).toISOString());
+      const { deps, sent } = setup([old], { resend: new Set(["a"]) });
+      expect(await victoryPass(deps)).toEqual({ state: null, failed: false });
+      expect(sent).toEqual([]);
+    });
+    it("oublie les renvois notés depuis plus d'un jour", async () => {
+      const gone = new Date(NOW.getTime() - FORGET_MS - 60_000).toISOString();
+      const { deps } = setup([session("b", ago(1))], { stored: { done: [["a", gone]], resent: [["a", gone]] } });
+      expect((await victoryPass(deps)).state).toStrictEqual({ done: [["b", ago(1)]] });
+    });
+    it("au premier passage, une victoire demandée sert de départ comme les autres : rien ne part, ni ensuite", async () => {
+      const first = setup([session("a", ago(11)), session("b", ago(1))], { stored: null, resend: new Set(["a"]) });
+      const result = await victoryPass(first.deps);
+      expect(result.state).toStrictEqual({
+        done: [
+          ["a", ago(11)],
+          ["b", ago(1)],
+        ],
+        resent: [["a", ago(11)]],
+      });
+      const second = setup([session("a", ago(11)), session("b", ago(1))], { stored: result.state, resend: new Set(["a"]) });
+      await victoryPass(second.deps);
+      expect([...first.sent, ...second.sent]).toEqual([]);
+    });
   });
 });
 

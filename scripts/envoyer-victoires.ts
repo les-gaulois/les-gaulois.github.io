@@ -7,6 +7,7 @@
  * Les sessions des dernières heures sont lues sur l'API, plus fraîches que celles de la collecte horaire, qui servent aussi.
  * Les victoires passées sont notées dans data/victoires-envoi.json, enregistré sur main par le workflow, et dans
  * .cache/victoires-envoi.json, gardé par le cache du workflow : si l'enregistrement sur main échoue, rien ne repart.
+ * Les victoires de config/victoires-rattrapage.json repartent une fois, même déjà notées : pour un salon qui ne les a pas reçues.
  * Voir src/lib/victoires.ts.
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -18,11 +19,12 @@ import { ApiClient } from "../src/lib/pipeline";
 import { parseNoted } from "../src/lib/salon-discord";
 import { salonLink } from "../src/lib/salon-lien";
 import type { StoredSession } from "../src/lib/schemas";
-import { isClanMember, mergeStates, passSessions, readRecentSessions, readVictoryGame, VictoryState, victoryPass, type VictoryState as State } from "../src/lib/victoires";
+import { isClanMember, mergeStates, parseResend, passSessions, readRecentSessions, readVictoryGame, VictoryState, victoryPass, type VictoryState as State } from "../src/lib/victoires";
 import { sendVictory } from "../src/lib/victoires-discord";
 
 const STATE_FILE = "data/victoires-envoi.json";
 const CACHED_STATE_FILE = ".cache/victoires-envoi.json";
+const RESEND_FILE = "config/victoires-rattrapage.json";
 
 const readText = (path: string) => (existsSync(path) ? readFileSync(path, "utf8") : null);
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -53,6 +55,8 @@ try {
   const noted = parseNoted(VictoryState, readText(STATE_FILE), cached.state ? "sa copie gardée en cache sert" : "les victoires du moment servent de départ, sans rien envoyer");
   if (noted.warning) console.log(`::warning::Victoires : ${noted.warning}.`);
   const stored = mergeStates(noted.state, cached.state);
+  const { games: resend, warning: resendWarning } = parseResend(readText(RESEND_FILE));
+  if (resendWarning) console.log(`::warning::Victoires : ${resendWarning}.`);
   const now = new Date();
   const api = new ApiClient({ fetch, sleep, delayMs: 300 });
   let fresh: StoredSession[] | null = null;
@@ -109,6 +113,7 @@ try {
     // Noté après chaque message : si l'étape est coupée en route, ce qui est parti ne repart pas.
     progress: writeState,
     log: console.log,
+    resend,
   });
   if (result.state) writeState(result.state);
   if (result.failed) process.exitCode = 1;

@@ -11,6 +11,9 @@
  *   des débuts. Au plus `MAX_PER_PASS` messages par passage, les autres au suivant. Une victoire commencée depuis plus de
  *   `WINDOW_MS` n'est plus annoncée : un envoi arrêté quelques heures ne déverse pas son retard dans le salon.
  * - Au premier passage, les victoires du moment servent de départ : rien n'est envoyé.
+ * - Une victoire déjà notée ne repart pas, sauf si `config/victoires-rattrapage.json` la demande : elle repart alors une seule
+ *   fois, jusqu'à `FORGET_MS` après son début. Pour un salon qui ne l'a pas reçue : le 12 novembre 2026, le lien du salon des
+ *   victoires était mal réglé, et les deux victoires de la nuit étaient parties ailleurs.
  * - Les Gaulois cités sont les membres du clan qui ont des stats dans la partie (comme `clanPlayerCount`), sous le nom qu'ils y
  *   portaient, anonymes compris. Un membre avec pseudo est reconnu dans la liste du clan par son identifiant public, et relié à
  *   sa fiche. Les autres porteurs du tag sont vérifiés un par un dans leur fiche publique d'OpenFront (`clans`) : le jeu retire
@@ -33,11 +36,43 @@ export const PAUSE_MS = 2_000;
 /** Un nom de partie plus long est coupé : le jeu en limite la taille, et un message reste lisible. */
 const NAME_MAX = 40;
 
+/** Une victoire notée : [partie, début]. */
+const Noted = z.tuple([z.string().min(1), z.iso.datetime()]);
+
 export const VictoryState = z.object({
   /** Les victoires passées, annoncées ou déjà là au premier passage : [partie, début]. Oubliées au bout de `FORGET_MS`. */
-  done: z.array(z.tuple([z.string().min(1), z.iso.datetime()])),
+  done: z.array(Noted),
+  /** Les victoires renvoyées à la demande de `config/victoires-rattrapage.json`, oubliées de même. Absent : aucun renvoi. */
+  resent: z.array(Noted).optional(),
 });
 export type VictoryState = z.infer<typeof VictoryState>;
+
+/** Au plus tant de parties à renvoyer : un peu plus que la plus grosse journée du clan, 78 victoires. */
+export const MAX_RESEND = 100;
+
+/**
+ * `config/victoires-rattrapage.json` : les victoires à renvoyer une fois, bien qu'elles soient notées comme parties, avec la
+ * raison. Un identifiant de partie du jeu : des lettres et des chiffres.
+ */
+export const VictoryResend = z.object({
+  pourquoi: z.string().min(1),
+  parties: z
+    .array(z.string().regex(/^[A-Za-z0-9]{4,20}$/))
+    .max(MAX_RESEND)
+    .refine((ids) => new Set(ids).size === ids.length, "une partie est écrite deux fois"),
+});
+
+/** Les parties à renvoyer. Sans fichier, aucune. Un fichier illisible n'en donne aucune, avec un avertissement : rien ne part au hasard. */
+export function parseResend(raw: string | null): { games: ReadonlySet<string>; warning: string | null } {
+  if (raw === null) return { games: new Set(), warning: null };
+  try {
+    const parsed = VictoryResend.safeParse(JSON.parse(raw));
+    if (parsed.success) return { games: new Set(parsed.data.parties), warning: null };
+  } catch {
+    // Même suite qu'un fichier au mauvais format.
+  }
+  return { games: new Set(), warning: "config/victoires-rattrapage.json est illisible, aucune victoire n'est renvoyée" };
+}
 
 export interface CrewMember {
   /** Le nom porté dans la partie. */
@@ -188,13 +223,24 @@ export function passSessions(collected: readonly StoredSession[] | null, fresh: 
   return { sessions: mergeSessions(collected ?? [], fresh ?? []), warning };
 }
 
-/** Deux états notés (dans `data/` et dans le cache du workflow), réunis : une victoire notée dans l'un ne repart pas. */
+/** Des listes notées réunies, chaque partie une fois, dans l'ordre des débuts. */
+function unionNoted(lists: readonly (readonly (readonly [string, string])[])[]): [string, string][] {
+  const byId = new Map<string, string>();
+  for (const list of lists) for (const [id, start] of list) if (!byId.has(id)) byId.set(id, start);
+  return [...byId].sort((a, b) => a[1].localeCompare(b[1]) || a[0].localeCompare(b[0]));
+}
+
+/** L'état à écrire : sans renvoi, le fichier garde sa forme d'avant les renvois. */
+const stateOf = (done: [string, string][], resent: [string, string][]): VictoryState => (resent.length > 0 ? { done: [...done], resent: [...resent] } : { done: [...done] });
+
+/** Deux états notés (dans `data/` et dans le cache du workflow), réunis : une victoire notée ou renvoyée dans l'un ne repart pas. */
 export function mergeStates(...states: readonly (VictoryState | null)[]): VictoryState | null {
   const present = states.filter((s): s is VictoryState => s !== null);
   if (present.length === 0) return null;
-  const byId = new Map<string, string>();
-  for (const s of present) for (const [id, start] of s.done) if (!byId.has(id)) byId.set(id, start);
-  return { done: [...byId].sort((a, b) => a[1].localeCompare(b[1]) || a[0].localeCompare(b[0])) };
+  return stateOf(
+    unionNoted(present.map((s) => s.done)),
+    unionNoted(present.map((s) => s.resent ?? [])),
+  );
 }
 
 export interface VictoryPassDeps {
@@ -214,13 +260,16 @@ export interface VictoryPassDeps {
   /** Après chaque message accepté, l'état à écrire tout de suite : un passage coupé en route ne renverra pas ce qui est parti. */
   progress?: (state: VictoryState) => void;
   log: (line: string) => void;
+  /** Les parties à renvoyer une fois, même déjà notées : `config/victoires-rattrapage.json`. */
+  resend?: ReadonlySet<string>;
 }
 
 /**
  * Un passage. `state` : l'état à écrire, `null` s'il n'a pas changé. Une victoire dont le détail ne se lit pas, ou que Discord
- * refuse, reste à annoncer : le passage suivant réessaie, tant qu'elle a moins de `WINDOW_MS`.
+ * refuse, reste à annoncer : le passage suivant réessaie, tant qu'elle a moins de `WINDOW_MS`, ou moins de `FORGET_MS` si elle
+ * est à renvoyer.
  */
-export async function victoryPass({ stored, sessions, members, tag, now, readGame, isMember, send, pause, progress, log }: VictoryPassDeps): Promise<{ state: VictoryState | null; failed: boolean }> {
+export async function victoryPass({ stored, sessions, members, tag, now, readGame, isMember, send, pause, progress, log, resend = new Set() }: VictoryPassDeps): Promise<{ state: VictoryState | null; failed: boolean }> {
   if (!sessions) {
     log("::warning::Victoires : aucune session lisible, rien n'est envoyé.");
     return { state: null, failed: false };
@@ -228,17 +277,26 @@ export async function victoryPass({ stored, sessions, members, tag, now, readGam
   // Une partie ne part qu'une fois, même si les sessions la répétaient.
   const wins = mergeSessions([], sessions.filter(isVictory));
   const recent = (s: StoredSession) => ageOf(s, now) <= FORGET_MS;
+  const noted = (s: StoredSession): [string, string] => [s.gameId, s.gameStart];
   if (!stored) {
-    const done = wins.filter(recent).sort(byStart).map((s): [string, string] => [s.gameId, s.gameStart]);
+    // Sans état, on ne sait pas ce qui est déjà parti : les victoires à renvoyer servent de départ elles aussi, sans rien envoyer.
+    const done = wins.filter(recent).sort(byStart).map(noted);
     log(`Victoires : premier passage, les victoires du moment servent de départ (${done.length}). Les suivantes partiront.`);
-    return { state: { done }, failed: false };
+    return { state: stateOf(done, done.filter(([id]) => resend.has(id))), failed: false };
   }
-  const done = stored.done.filter(([, start]) => now.getTime() - Date.parse(start) <= FORGET_MS);
+  const kept = ([, start]: readonly [string, string]) => now.getTime() - Date.parse(start) <= FORGET_MS;
+  const done = stored.done.filter(kept);
+  const resent = (stored.resent ?? []).filter(kept);
   const seen = new Set(done.map(([id]) => id));
-  const late = wins.filter((s) => !seen.has(s.gameId) && recent(s) && ageOf(s, now) > WINDOW_MS);
+  const seenAgain = new Set(resent.map(([id]) => id));
+  // Demandée par le fichier des renvois, pas encore renvoyée, et commencée il y a moins d'un jour.
+  const again = (s: StoredSession) => resend.has(s.gameId) && !seenAgain.has(s.gameId) && recent(s);
+  const late = wins.filter((s) => !seen.has(s.gameId) && recent(s) && ageOf(s, now) > WINDOW_MS && !again(s));
   if (late.length > 0) log(`::warning::Victoires : ${late.length > 1 ? `${late.length} victoires trop anciennes ne seront pas annoncées` : "1 victoire trop ancienne ne sera pas annoncée"}.`);
-  for (const s of late) done.push([s.gameId, s.gameStart]);
-  const todo = wins.filter((s) => !seen.has(s.gameId) && ageOf(s, now) <= WINDOW_MS).sort(byStart);
+  for (const s of late) done.push(noted(s));
+  const todo = wins.filter((s) => again(s) || (!seen.has(s.gameId) && ageOf(s, now) <= WINDOW_MS)).sort(byStart);
+  const asked = todo.filter(again).length;
+  if (asked > 0) log(`Victoires : ${asked > 1 ? `${asked} victoires à renvoyer` : "1 victoire à renvoyer"} (config/victoires-rattrapage.json).`);
   if (todo.length > MAX_PER_PASS) log(`Victoires : ${todo.length - MAX_PER_PASS} de plus attendent le passage suivant.`);
   // Un même joueur revient souvent dans la soirée : il n'est vérifié qu'une fois par passage.
   const checked = new Map<string, boolean>();
@@ -278,9 +336,11 @@ export async function victoryPass({ stored, sessions, members, tag, now, readGam
       break;
     }
     sent++;
-    done.push([session.gameId, session.gameStart]);
-    progress?.({ done: [...done] });
+    if (!seen.has(session.gameId)) done.push(noted(session));
+    // Une victoire demandée qui part, renvoi ou premier envoi, est notée renvoyée : elle ne repartira plus.
+    if (resend.has(session.gameId)) resent.push(noted(session));
+    progress?.(stateOf(done, resent));
   }
   log(todo.length === 0 ? "Victoires : aucune nouvelle victoire." : `Victoires : ${sent > 1 ? `${sent} victoires annoncées` : `${sent} victoire annoncée`}.`);
-  return { state: sent > 0 || late.length > 0 ? { done } : null, failed };
+  return { state: sent > 0 || late.length > 0 ? stateOf(done, resent) : null, failed };
 }
