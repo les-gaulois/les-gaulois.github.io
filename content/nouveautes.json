@@ -1,6 +1,12 @@
 [
   {
     "date": "2026-11-12",
+    "kind": "ameliore",
+    "title": "Les images du robot aux couleurs du site",
+    "body": "Sur Discord, la gazette, les alertes, les victoires et les autres images du robot prennent l'allure du site : fond quadrillé, invite gal@clan, titres en lettres à cases."
+  },
+  {
+    "date": "2026-11-12",
     "kind": "nouveau",
     "title": "Six commandes de plus sur Discord",
     "body": "Dans le Discord du clan, /clan, /records, /carte, /guide, /rival et /moi montrent en image le classement, les records, la carte, un chapitre du guide, un rival, ou votre fiche si le site vous connaît."

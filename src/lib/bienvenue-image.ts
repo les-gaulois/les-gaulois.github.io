@@ -34,6 +34,8 @@ export function welcomeCard(arrivals: Arrivals, tag: string, siteUrl: string, me
       address: shownAddress(siteUrl, "/liste"),
       note: WELCOME_NOTE,
       badgeWidth: 280,
+      // Une heure, dans la voix de la machine.
+      badgeFont: "monoStrong",
     },
     measure,
   );

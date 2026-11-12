@@ -4,18 +4,18 @@
  *
  * Depuis le 12 novembre 2026, un message est une image sans texte : l'image nomme donc tout le monde. Au-delà de ce qui tient
  * en lignes, les noms passent en pastilles, plus petites s'ils sont nombreux, comme les Gaulois d'une victoire.
+ * Le même soir, les images ont pris l'allure du site, « le poste de commandement » : voir `gazette-image.ts`.
  */
-import { CARD_COLORS as C, fitted, type CardRect, type CardText, type GazetteCard, type Measure } from "./gazette-image";
+import { CARD_COLORS as C, fitted, LOGO, MARGIN, pageFoot, pageHead, pathOf, type CardFont, type CardParts, type CardRect, type CardText, type GazetteCard, type Measure } from "./gazette-image";
+
+export type { CardParts } from "./gazette-image";
 
 export const CARD_WIDTH = 1200;
-export const CARD_MARGIN = 36;
-/** Le haut du contenu, sous l'en-tête. */
-export const BODY_TOP = 196;
+export const CARD_MARGIN = MARGIN;
 const CONTENT_WIDTH = CARD_WIDTH - 2 * CARD_MARGIN;
-const LOGO = { x: CARD_MARGIN, y: 34, size: 104 };
-const FOOTNOTE_HEIGHT = 44;
+const FOOTNOTE_HEIGHT = 42;
 /** Sous le contenu : l'adresse du site et la note. */
-export const FOOTER_HEIGHT = 96;
+export const FOOTER_HEIGHT = 92;
 
 /** Au-delà, les lignes deviennent plus basses, ou les noms passent en pastilles. */
 export const MAX_ROWS = 5;
@@ -24,49 +24,34 @@ export const MAX_COMPACT_ROWS = 10;
 /** Le plus de pastilles dans une image : au-delà, les autres sont comptés. */
 export const MAX_CHIPS = 50;
 
-/** Les rectangles et les textes d'un morceau d'image. */
-export interface CardParts {
-  rects: CardRect[];
-  texts: CardText[];
-}
-
 export interface CardHead {
   kicker: string;
   title: string;
   period: string;
 }
 
-/** L'en-tête : au-dessus du titre, ce que l'image compte ; dessous, sa période. Le logo se pose à gauche. */
-export function headParts(head: CardHead, measure: Measure): CardParts {
-  const x = LOGO.x + LOGO.size + 24;
-  const room = CARD_WIDTH - CARD_MARGIN - x;
-  return {
-    rects: [],
-    texts: [
-      { ...fitted(head.kicker, "strong", 26, 20, room, measure), x, y: 64, font: "strong", color: C.BLUE_TEXT },
-      { ...fitted(head.title, "title", 56, 36, room, measure), x, y: 122, font: "title", color: C.WHITE },
-      { ...fitted(head.period, "body", 24, 16, room, measure), x, y: 164, font: "body", color: C.MUTED },
-    ],
-  };
+/**
+ * Le haut du contenu sous un en-tête complet, avec ce que l'image compte et sa période : `headParts(...).bottom`. Gardé pour
+ * les images qui posent leur contenu à une hauteur fixe ; un test le garde égal à l'en-tête.
+ */
+export const BODY_TOP = 230;
+
+/**
+ * L'en-tête : l'invite de la page où mène l'image (`address`, l'adresse écrite en bas ; sans elle, celle de l'accueil), le
+ * titre, puis ce que l'image compte et sa période. Le logo se pose à gauche. `bottom` : le haut du contenu.
+ */
+export function headParts(head: CardHead, measure: Measure, address = ""): CardParts & { bottom: number } {
+  return pageHead({ path: address ? pathOf(address) : "/", title: head.title, kicker: head.kicker, period: head.period }, measure);
 }
 
 /** Le bas de l'image : l'adresse du site à gauche, sans « https:// », et la note à droite, réduite pour tenir à côté. */
 export function footParts(address: string, note: string, height: number, measure: Measure): CardParts {
-  const texts: CardText[] = [{ text: address, x: CARD_MARGIN, y: height - 22, size: 26, font: "strong", color: C.BLUE_TEXT }];
-  if (note) texts.push({ ...fitted(note, "body", 22, 16, CONTENT_WIDTH - measure(address, "strong", 26) - 24, measure), x: CARD_WIDTH - CARD_MARGIN, y: height - 22, font: "body", color: C.MUTED, anchor: "end" });
-  return { rects: [], texts };
+  return pageFoot(address, note, height - 24, measure);
 }
 
-/** L'image entière : le fond, la bande tricolore du haut, puis les morceaux dans l'ordre. */
+/** L'image entière : les morceaux dans l'ordre, sur la table des cartes que dessine `renderGazetteCard`. */
 export function assembleCard(height: number, parts: readonly CardParts[]): GazetteCard {
-  const third = CARD_WIDTH / 3;
-  const rects: CardRect[] = [
-    { x: 0, y: 0, width: CARD_WIDTH, height, radius: 0, color: C.NAVY },
-    { x: 0, y: 0, width: third, height: 8, radius: 0, color: C.BLUE },
-    { x: third, y: 0, width: third, height: 8, radius: 0, color: C.WHITE },
-    { x: 2 * third, y: 0, width: third, height: 8, radius: 0, color: C.RED },
-  ];
-  return { width: CARD_WIDTH, height, rects: [...rects, ...parts.flatMap((p) => p.rects)], texts: parts.flatMap((p) => p.texts), logo: LOGO };
+  return { width: CARD_WIDTH, height, rects: parts.flatMap((p) => p.rects), texts: parts.flatMap((p) => p.texts), logo: LOGO };
 }
 
 /* ---------- Les lignes ---------- */
@@ -82,19 +67,28 @@ export interface CardRow {
 }
 
 /** Les mesures d'une ligne : hautes pour cinq lignes au plus, basses au-delà. */
-const ROW = { height: 80, gap: 12, inset: 12, baseline: 51, badge: 30, name: 32, detail: 26 } as const;
-const COMPACT_ROW = { height: 60, gap: 8, inset: 9, baseline: 39, badge: 23, name: 27, detail: 22 } as const;
+const ROW = { height: 78, gap: 10, inset: 11, baseline: 50, badge: 30, name: 31, detail: 25 } as const;
+const COMPACT_ROW = { height: 58, gap: 8, inset: 8, baseline: 38, badge: 23, name: 26, detail: 21 } as const;
 
-/** Les lignes, à partir de `top` : le badge, le nom, et le détail à droite. `bottom` : le bas de la dernière, ou `top` sans ligne. */
-export function rowParts(rows: readonly CardRow[], top: number, badgeWidth: number, compact: boolean, measure: Measure): CardParts & { bottom: number } {
+/**
+ * Les lignes, à partir de `top` : le badge, le nom, et le détail à droite. `bottom` : le bas de la dernière, ou `top` sans
+ * ligne. `badgeFont` : l'onciale taillée pour un rang ou un palier, la chasse fixe pour une heure ou une étiquette.
+ */
+export function rowParts(rows: readonly CardRow[], top: number, badgeWidth: number, compact: boolean, measure: Measure, badgeFont: CardFont = "onciale"): CardParts & { bottom: number } {
   const m = compact ? COMPACT_ROW : ROW;
   const rects: CardRect[] = [];
   const texts: CardText[] = [];
+  // La chasse fixe est plus large que l'onciale : un cran plus petite, dans la même case.
+  const badgeSize = badgeFont === "onciale" ? m.badge : m.badge - 2;
   rows.forEach((row, i) => {
     const y = top + i * (m.height + m.gap);
-    rects.push({ x: CARD_MARGIN, y, width: CONTENT_WIDTH, height: m.height, radius: 14, color: C.SURFACE });
-    rects.push({ x: CARD_MARGIN + m.inset, y: y + m.inset, width: badgeWidth, height: m.height - 2 * m.inset, radius: 12, color: row.strong ? C.BLUE : C.SURFACE_2 });
-    texts.push({ ...fitted(row.badge, "title", m.badge, m.badge - 10, badgeWidth - 24, measure), x: CARD_MARGIN + m.inset + badgeWidth / 2, y: y + m.baseline, font: "title", color: C.WHITE, anchor: "middle" });
+    rects.push({ x: CARD_MARGIN, y, width: CONTENT_WIDTH, height: m.height, radius: 8, color: C.SURFACE, stroke: C.LINE });
+    rects.push(
+      row.strong
+        ? { x: CARD_MARGIN + m.inset, y: y + m.inset, width: badgeWidth, height: m.height - 2 * m.inset, radius: 6, color: C.BLUE }
+        : { x: CARD_MARGIN + m.inset, y: y + m.inset, width: badgeWidth, height: m.height - 2 * m.inset, radius: 6, color: C.SURFACE_2, stroke: C.LINE_STRONG },
+    );
+    texts.push({ ...fitted(row.badge, badgeFont, badgeSize, badgeSize - 10, badgeWidth - 24, measure), x: CARD_MARGIN + m.inset + badgeWidth / 2, y: y + m.baseline, font: badgeFont, color: C.WHITE, anchor: "middle" });
     const nameX = CARD_MARGIN + m.inset + badgeWidth + 24;
     const right = CARD_MARGIN + CONTENT_WIDTH - 24;
     let nameRoom = right - nameX;
@@ -166,7 +160,7 @@ export function chipLayout(items: readonly ChipItem[], measure: Measure, width: 
 /** La hauteur que prennent les pastilles. 0 : aucune. */
 export const chipsHeight = (layout: ChipLayout) => (layout.rows.length > 0 ? layout.rows.length * layout.height + (layout.rows.length - 1) * CHIP_GAP : 0);
 
-/** Les pastilles dessinées à partir du coin (`left`, `top`). */
+/** Les pastilles dessinées à partir du coin (`left`, `top`) : les coins nets du site (6 pixels). */
 export function chipParts(layout: ChipLayout, left: number, top: number): CardParts {
   const rects: CardRect[] = [];
   const texts: CardText[] = [];
@@ -174,7 +168,7 @@ export function chipParts(layout: ChipLayout, left: number, top: number): CardPa
   layout.rows.forEach((row, r) => {
     const y = top + r * (layout.height + CHIP_GAP);
     for (const chip of row) {
-      rects.push({ x: left + chip.x, y, width: chip.width, height: layout.height, radius: 14, color: chip.named ? C.BLUE : C.SURFACE });
+      rects.push(chip.named ? { x: left + chip.x, y, width: chip.width, height: layout.height, radius: 6, color: C.BLUE } : { x: left + chip.x, y, width: chip.width, height: layout.height, radius: 6, color: C.SURFACE, stroke: C.LINE_STRONG });
       texts.push({ text: chip.text, size: chip.size, x: left + chip.x + padding, y: Math.round(y + layout.height / 2 + layout.font * 0.36), font: "strong", color: chip.named ? C.WHITE : C.MUTED });
     }
   });
@@ -192,29 +186,32 @@ export interface RowsCardText extends CardHead {
   chips?: readonly string[];
   /** Sous les lignes et les pastilles : ce que l'image ne nomme pas, comme les anonymes. */
   footnotes: readonly string[];
-  /** L'adresse écrite en bas, sans « https:// ». */
+  /** L'adresse écrite en bas, sans « https:// ». Son chemin donne l'invite de l'en-tête. */
   address: string;
   /** À droite de l'adresse. Vide : rien. */
   note: string;
   badgeWidth: number;
+  /** La police des badges : l'onciale taillée par défaut. */
+  badgeFont?: CardFont;
 }
 
 /** Quoi écrire et où : se teste sans police. */
 export function rowsCard(card: RowsCardText, measure: Measure): GazetteCard {
   const compact = card.compact ?? false;
-  const rows = rowParts(card.rows.slice(0, compact ? MAX_COMPACT_ROWS : MAX_ROWS), BODY_TOP, card.badgeWidth, compact, measure);
+  const head = headParts(card, measure, card.address);
+  const rows = rowParts(card.rows.slice(0, compact ? MAX_COMPACT_ROWS : MAX_ROWS), head.bottom, card.badgeWidth, compact, measure, card.badgeFont);
   const hasRows = card.rows.length > 0;
   const layout = chipLayout(
     (card.chips ?? []).slice(0, MAX_CHIPS).map((text) => ({ text, named: true })),
     measure,
     CONTENT_WIDTH,
   );
-  const chipsTop = hasRows ? rows.bottom + 24 : BODY_TOP;
+  const chipsTop = hasRows ? rows.bottom + 24 : head.bottom;
   // Sans ligne ni pastille, les notes remontent sous l'en-tête.
-  const bottom = layout.rows.length > 0 ? chipsTop + chipsHeight(layout) : hasRows ? rows.bottom : BODY_TOP - ROW.gap;
+  const bottom = layout.rows.length > 0 ? chipsTop + chipsHeight(layout) : hasRows ? rows.bottom : head.bottom - ROW.gap;
   const notes: CardText[] = card.footnotes.map((line, i) => ({ ...fitted(line, "body", 26, 18, CONTENT_WIDTH, measure), x: CARD_MARGIN, y: bottom + 40 + i * FOOTNOTE_HEIGHT, font: "body", color: C.MUTED }));
   const height = bottom + card.footnotes.length * FOOTNOTE_HEIGHT + (card.footnotes.length > 0 ? 12 : 0) + FOOTER_HEIGHT;
-  return assembleCard(height, [headParts(card, measure), rows, chipParts(layout, CARD_MARGIN, chipsTop), { rects: [], texts: notes }, footParts(card.address, card.note, height, measure)]);
+  return assembleCard(height, [head, rows, chipParts(layout, CARD_MARGIN, chipsTop), { rects: [], texts: notes }, footParts(card.address, card.note, height, measure)]);
 }
 
 /* ---------- L'image en faits ---------- */
@@ -231,19 +228,19 @@ export interface CardFact {
 const FACT_HEIGHT = 90;
 const FACT_GAP = 10;
 
-/** Des faits, à partir de `top` : l'étiquette et le détail sur une ligne, le fait en grand dessous. */
+/** Des faits, à partir de `top` : l'étiquette et le détail sur une ligne, le fait en grand dessous, en onciale taillée. */
 export function factParts(facts: readonly CardFact[], top: number, measure: Measure): CardParts & { bottom: number } {
   const rects: CardRect[] = [];
   const texts: CardText[] = [];
   facts.forEach((fact, i) => {
     const y = top + i * (FACT_HEIGHT + FACT_GAP);
-    rects.push({ x: CARD_MARGIN, y, width: CONTENT_WIDTH, height: FACT_HEIGHT, radius: 16, color: C.SURFACE });
-    const inner = CONTENT_WIDTH - 48;
+    rects.push({ x: CARD_MARGIN, y, width: CONTENT_WIDTH, height: FACT_HEIGHT, radius: 8, color: C.SURFACE, stroke: C.LINE });
+    const inner = CONTENT_WIDTH - 44;
     // Le détail passe d'abord, à sa taille : c'est l'étiquette qui se réduit à côté de lui.
     const detailWidth = fact.detail ? measure(fact.detail, "strong", 26) + 24 : 0;
-    if (fact.detail) texts.push({ text: fact.detail, size: 26, x: CARD_MARGIN + CONTENT_WIDTH - 24, y: y + 34, font: "strong", color: C.BLUE_TEXT, anchor: "end" });
-    texts.push({ ...fitted(fact.label, "body", 26, 18, inner - detailWidth, measure), x: CARD_MARGIN + 24, y: y + 34, font: "body", color: C.MUTED });
-    texts.push({ ...fitted(fact.value, "title", 38, 24, inner, measure), x: CARD_MARGIN + 24, y: y + 74, font: "title", color: C.WHITE });
+    if (fact.detail) texts.push({ text: fact.detail, size: 26, x: CARD_MARGIN + CONTENT_WIDTH - 22, y: y + 34, font: "strong", color: C.BLUE_TEXT, anchor: "end" });
+    texts.push({ ...fitted(fact.label, "body", 26, 18, inner - detailWidth, measure), x: CARD_MARGIN + 22, y: y + 34, font: "body", color: C.MUTED });
+    texts.push({ ...fitted(fact.value, "onciale", 36, 22, inner, measure), x: CARD_MARGIN + 22, y: y + 75, font: "onciale", color: C.WHITE });
   });
   return { rects, texts, bottom: facts.length > 0 ? top + facts.length * (FACT_HEIGHT + FACT_GAP) - FACT_GAP : top };
 }
@@ -256,7 +253,8 @@ export interface FactsCardText extends CardHead {
 
 /** Quoi écrire et où : se teste sans police. */
 export function factsCard(card: FactsCardText, measure: Measure): GazetteCard {
-  const facts = factParts(card.facts, BODY_TOP, measure);
+  const head = headParts(card, measure, card.address);
+  const facts = factParts(card.facts, head.bottom, measure);
   const height = facts.bottom + FOOTER_HEIGHT;
-  return assembleCard(height, [headParts(card, measure), facts, footParts(card.address, card.note, height, measure)]);
+  return assembleCard(height, [head, facts, footParts(card.address, card.note, height, measure)]);
 }

@@ -584,11 +584,11 @@ describe("victoryCard", () => {
   it("dessine l'en-tête, la carte sur la mer, les trois chiffres, tous les Gaulois et le crédit", () => {
     const card = victoryCard(VICTORY, "GAL", SITE, measure, SQUARE);
     const texts = card.texts.map((t) => plain(t.text));
-    for (const expected of ["Victoire de [GAL] · 4 équipes", "Quatre Îles", "Mercredi 11 novembre à 18:04, heure de Paris", "6", "Gaulois sur 23 joueurs", "+1,81", "point gagné", "16 min", "de partie", "alpha", "Caché", "Zoé en jeu", "1 Gaulois sans nom", "1 joueur sous le tag, hors du clan", "x.test/parties", MAP_NOTE]) {
+    for (const expected of ["Victoire de [GAL] · 4 équipes", "Quatre Îles", "Mercredi 11 novembre à 18:04, heure de Paris", "GAULOIS", "6", "sur 23 joueurs", "POINT GAGNÉ", "+1,81", "DURÉE", "16 min", "de partie", "alpha", "Caché", "Zoé en jeu", "1 Gaulois sans nom", "1 joueur sous le tag, hors du clan", "x.test/parties", MAP_NOTE]) {
       expect(texts).toContain(expected);
     }
     // La vignette : agrandie dans son cadre, au centre, sur la mer.
-    expect(card.map).toEqual({ x: 170, y: 210, width: 392, height: 392, radius: 12 });
+    expect(card.map).toEqual({ x: 170, y: 244, width: 392, height: 392, radius: 6 });
     expect(card.rects).toContainEqual({ ...card.map, color: SEA });
     expectClean(card);
   });
@@ -598,7 +598,7 @@ describe("victoryCard", () => {
   });
   it("une carte entourée d'eau baigne dans la mer jusqu'au bord du cadre", () => {
     const card = victoryCard(VICTORY, "GAL", SITE, measure, { ...SQUARE, open: true });
-    expect(card.rects).toContainEqual({ x: 36, y: 196, width: 660, height: 420, radius: 20, color: SEA });
+    expect(card.rects).toContainEqual({ x: 36, y: 230, width: 660, height: 420, radius: 8, color: SEA });
     expect(card.rects.filter((r) => r.color === SEA)).toHaveLength(1);
   });
   it("une petite vignette ne grossit pas plus du double, une grande se réduit", () => {

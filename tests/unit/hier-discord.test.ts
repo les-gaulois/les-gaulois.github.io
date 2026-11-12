@@ -180,7 +180,7 @@ describe("hierCard", () => {
     const card = hierCard(REPORT, "GAL", SITE, measure);
     const texts = card.texts.map((t) => plain(t.text));
     // Sans texte dans le message, l'image dit elle-même que ses jours et ses heures sont ceux de Paris.
-    for (const expected of ["Parties du clan sous le tag [GAL]", "Hier chez les Gaulois", "Mardi 10 novembre, heure de Paris", "6", "victoires", "+5", "7", "parties", "85,7 %", "+35,7 pts", "Écarts par rapport à la veille, lundi 9 novembre", "Plus longue série", "3 victoires d'affilée", "Belle partie", "5 Gaulois ensemble, victoire", "à 12:00, en 25 min", "x.test/parties"]) {
+    for (const expected of ["Parties du clan sous le tag [GAL]", "Hier chez les Gaulois", "Mardi 10 novembre, heure de Paris", "6", "VICTOIRES", "+5", "7", "PARTIES", "85,7 %", "TAUX DE VICTOIRE", "+35,7 pts", "Écarts par rapport à la veille, lundi 9 novembre", "Plus longue série", "3 victoires d'affilée", "Belle partie", "5 Gaulois ensemble, victoire", "à 12:00, en 25 min", "x.test/parties"]) {
       expect(texts).toContain(expected);
     }
     expectClean(card);

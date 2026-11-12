@@ -56,7 +56,7 @@ describe("ficheCard", () => {
     const long = ficheCard({ ...facts, username: "Vercingétorix-le-grand-chef-des-Arvernes-et-de-toute-la-Gaule" }, "GAL", "https://les-gaulois.github.io", LISTED, measure);
     const title = long.texts.find((t) => t.text.endsWith("…"))!;
     expect(title.font).toBe("strong");
-    expect(title.size).toBe(36);
+    expect(title.size).toBe(32);
   });
 });
 

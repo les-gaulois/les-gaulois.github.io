@@ -100,7 +100,8 @@ describe("les images des commandes", () => {
 
   it("/carte : la place au nombre de pixels, la couleur de GAL, et le crédit de la carte écrit sur l'image", () => {
     const card = mapCard(INPUT.map!.facts, "GAL", SITE, INPUT.map!.shape, measure);
-    expect(card.map).toEqual({ left: 36, top: 196, width: 1128, height: Math.round((1128 * 664) / 1400) });
+    // Sous l'en-tête, comme le contenu des autres images du robot.
+    expect(card.map).toEqual({ left: 36, top: 230, width: 1128, height: Math.round((1128 * 664) / 1400) });
     expect(card.rects.some((r) => r.color === "#38bdf8")).toBe(true);
     const text = textsOf(card);
     expect(text).toContain("5e sur 49 clans");
@@ -186,7 +187,7 @@ describe("l'index des commandes", () => {
   it("une image par commande, par chapitre et par clan de la liste officielle, GAL excepté", () => {
     const images = commandImages(INPUT, measure);
     expect(images.map((i) => i.name)).toEqual(["records", "carte", "guide-03-attaque", "rival-UN", "rival-LUX"]);
-    expect(images.find((i) => i.kind === "carte")?.map).toMatchObject({ file: INPUT.map!.file, left: 36, top: 196 });
+    expect(images.find((i) => i.kind === "carte")?.map).toMatchObject({ file: INPUT.map!.file, left: 36, top: 230 });
   });
 
   it("rien pour ce qui manque : pas de records, pas de carte, GAL hors de la liste, ni pour un aide-mémoire", () => {

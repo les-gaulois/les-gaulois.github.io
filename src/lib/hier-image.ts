@@ -3,15 +3,12 @@
  * longue série et la belle partie. Même dessin que l'image de la semaine (`gazette-image.ts`). Ce qui manque n'est pas dessiné.
  */
 import { fmtInt, fmtMinutes, fmtPct, fmtPoints } from "./format";
-import { CARD_COLORS as C, fitted, type CardRect, type CardText, type GazetteCard, type Measure } from "./gazette-image";
+import { CARD_COLORS as C, fitted, kpiParts, LOGO, MARGIN, pageFoot, pageHead, type CardRect, type CardText, type GazetteCard, type Kpi, type Measure } from "./gazette-image";
 import { bestWhen, bestWords, dayTitle, HIER_NOTE, HIER_TITLE, resultWords, streakWords, type DayCount, type DayReport } from "./hier-discord";
 import { shownAddress } from "./salon-discord";
 import { winRate } from "./stats";
 
 const WIDTH = 1200;
-const MARGIN = 36;
-const STATS_TOP = 196;
-const TILE_HEIGHT = 200;
 const ROW_HEIGHT = 90;
 const ROW_GAP = 10;
 
@@ -24,21 +21,20 @@ const shownRate = (day: DayCount) => {
   return rate === null ? null : Math.round(rate * 10) / 10;
 };
 
-interface Stat {
-  value: string;
-  label: string;
-  delta: { text: string; color: string } | null;
-}
-
-function dayStats(report: DayReport): Stat[] {
+function dayStats(report: DayReport): Kpi[] {
   const before = report.previous;
   const rateNow = shownRate(report);
   const rateBefore = before ? shownRate(before) : null;
   const rateGap = rateNow !== null && rateBefore !== null ? Math.round((rateNow - rateBefore) * 10) / 10 : null;
+  const delta = (n: number) => ({ text: signedInt(n), color: deltaColor(n), strong: true });
   return [
-    { value: fmtInt(report.wins), label: report.wins > 1 ? "victoires" : "victoire", delta: before && { text: signedInt(report.wins - before.wins), color: deltaColor(report.wins - before.wins) } },
-    { value: fmtInt(report.games), label: report.games > 1 ? "parties" : "partie", delta: before && { text: signedInt(report.games - before.games), color: deltaColor(report.games - before.games) } },
-    { value: fmtPct(winRate(report.wins, report.games)), label: "de victoires", delta: rateGap === null ? null : { text: rateGap === 0 ? "autant" : fmtPoints(rateGap).replace(/\s*points?$/, " pts"), color: deltaColor(rateGap) } },
+    { label: report.wins > 1 ? "Victoires" : "Victoire", value: fmtInt(report.wins), hint: before && delta(report.wins - before.wins) },
+    { label: report.games > 1 ? "Parties" : "Partie", value: fmtInt(report.games), hint: before && delta(report.games - before.games) },
+    {
+      label: "Taux de victoire",
+      value: fmtPct(winRate(report.wins, report.games)),
+      hint: rateGap === null ? null : { text: rateGap === 0 ? "autant" : fmtPoints(rateGap).replace(/\s*points?$/, " pts"), color: deltaColor(rateGap), strong: true },
+    },
   ];
 }
 
@@ -61,61 +57,43 @@ function infoRows(report: DayReport): InfoRow[] {
 
 /** Quoi écrire et où, à partir du bilan seul : se teste sans police. */
 export function hierCard(report: DayReport, tag: string, siteUrl: string, measure: Measure): GazetteCard {
-  const stats = dayStats(report);
-  const hasDelta = stats.some((stat) => stat.delta);
-  const rows = infoRows(report);
-  const rowsTop = STATS_TOP + TILE_HEIGHT + (hasDelta ? 56 : 24);
-  const contentBottom = rows.length > 0 ? rowsTop + rows.length * (ROW_HEIGHT + ROW_GAP) - ROW_GAP : STATS_TOP + TILE_HEIGHT + (hasDelta ? 44 : 0);
-  const height = contentBottom + 76;
-  const rects: CardRect[] = [{ x: 0, y: 0, width: WIDTH, height, radius: 0, color: C.NAVY }];
-  const texts: CardText[] = [];
-  const third = WIDTH / 3;
-  rects.push({ x: 0, y: 0, width: third, height: 8, radius: 0, color: C.BLUE }, { x: third, y: 0, width: third, height: 8, radius: 0, color: C.WHITE }, { x: 2 * third, y: 0, width: third, height: 8, radius: 0, color: C.RED });
-
-  // L'en-tête.
-  const logo = { x: MARGIN, y: 34, size: 104 };
-  const headerX = logo.x + logo.size + 24;
-  const room = WIDTH - MARGIN - headerX;
-  texts.push({ ...fitted(`Parties du clan sous le tag [${tag}]`, "strong", 26, 20, room, measure), x: headerX, y: 64, font: "strong", color: C.BLUE_TEXT });
-  texts.push({ ...fitted(HIER_TITLE, "title", 56, 36, room, measure), x: headerX, y: 122, font: "title", color: C.WHITE });
   // Le message n'a plus de texte pour le dire : les jours et les heures de l'image sont ceux de Paris.
-  texts.push({ ...fitted(`${dayTitle(report.day)}, heure de Paris`, "body", 28, 20, room, measure), x: headerX, y: 166, font: "body", color: C.MUTED });
+  const head = pageHead({ path: "/parties", title: HIER_TITLE, kicker: `Parties du clan sous le tag [${tag}]`, period: `${dayTitle(report.day)}, heure de Paris` }, measure);
+  const rects: CardRect[] = [...head.rects];
+  const texts: CardText[] = [...head.texts];
 
   // Les trois grands chiffres.
-  const gap = 16;
-  const tileWidth = (WIDTH - 2 * MARGIN - 2 * gap) / 3;
-  stats.forEach((stat, i) => {
-    const x = MARGIN + i * (tileWidth + gap);
-    rects.push({ x, y: STATS_TOP, width: tileWidth, height: TILE_HEIGHT, radius: 20, color: C.SURFACE });
-    texts.push({ ...fitted(stat.value, "title", 88, 56, tileWidth - 48, measure), x: x + 24, y: STATS_TOP + 88, font: "title", color: C.WHITE });
-    texts.push({ text: stat.label, x: x + 24, y: STATS_TOP + 134, size: 32, font: "body", color: C.MUTED });
-    if (stat.delta) texts.push({ ...fitted(stat.delta.text, "strong", 30, 22, tileWidth - 48, measure), x: x + 24, y: STATS_TOP + 176, font: "strong", color: stat.delta.color });
-  });
+  const stats = dayStats(report);
+  const kpis = kpiParts(stats, { x: MARGIN, y: head.bottom, width: WIDTH - 2 * MARGIN, valueSize: 80 }, measure);
+  rects.push(...kpis.rects);
+  texts.push(...kpis.texts);
+  const hasDelta = stats.some((stat) => stat.hint);
+  let bottom = kpis.bottom;
   if (hasDelta && report.previous) {
     const note = `Écarts par rapport à la veille, ${dayTitle(report.previous.day).toLowerCase()}`;
-    texts.push({ ...fitted(note, "body", 24, 18, WIDTH - 2 * MARGIN, measure), x: MARGIN, y: STATS_TOP + TILE_HEIGHT + 34, font: "body", color: C.MUTED });
+    bottom += 32;
+    texts.push({ ...fitted(note, "body", 22, 17, WIDTH - 2 * MARGIN, measure), x: MARGIN, y: bottom, font: "body", color: C.MUTED });
   }
 
   // La série et la belle partie.
   const width = WIDTH - 2 * MARGIN;
+  const rows = infoRows(report);
+  const rowsTop = bottom + 22;
   rows.forEach((row, i) => {
     const y = rowsTop + i * (ROW_HEIGHT + ROW_GAP);
-    rects.push({ x: MARGIN, y, width, height: ROW_HEIGHT, radius: 16, color: C.SURFACE });
-    texts.push({ text: row.label, x: MARGIN + 24, y: y + 34, size: 26, font: "body", color: C.MUTED });
+    rects.push({ x: MARGIN, y, width, height: ROW_HEIGHT, radius: 8, color: C.SURFACE, stroke: C.LINE });
+    texts.push({ text: row.label, x: MARGIN + 22, y: y + 34, size: 26, font: "body", color: C.MUTED });
     if (row.detail) {
-      const detailRoom = width - 48 - measure(row.label, "body", 26) - 24;
-      texts.push({ ...fitted(row.detail, "strong", 26, 20, detailRoom, measure), x: MARGIN + width - 24, y: y + 34, font: "strong", color: C.BLUE_TEXT, anchor: "end" });
+      const detailRoom = width - 44 - measure(row.label, "body", 26) - 24;
+      texts.push({ ...fitted(row.detail, "strong", 26, 19, detailRoom, measure), x: MARGIN + width - 22, y: y + 34, font: "strong", color: C.BLUE_TEXT, anchor: "end" });
     }
-    texts.push({ ...fitted(row.value, "title", 38, 28, width - 48, measure), x: MARGIN + 24, y: y + 74, font: "title", color: C.WHITE });
+    texts.push({ ...fitted(row.value, "onciale", 36, 24, width - 44, measure), x: MARGIN + 22, y: y + 75, font: "onciale", color: C.WHITE });
   });
+  if (rows.length > 0) bottom = rowsTop + rows.length * (ROW_HEIGHT + ROW_GAP) - ROW_GAP;
 
-  const url = shownAddress(siteUrl, "/parties");
-  texts.push({ text: url, x: MARGIN, y: height - 22, size: 26, font: "strong", color: C.BLUE_TEXT });
-  if (report.best) {
-    const note = fitted(HIER_NOTE, "body", 22, 16, width - measure(url, "strong", 26) - 24, measure);
-    texts.push({ ...note, x: WIDTH - MARGIN, y: height - 22, font: "body", color: C.MUTED, anchor: "end" });
-  }
-  return { width: WIDTH, height, rects, texts, logo };
+  const height = bottom + 72;
+  texts.push(...pageFoot(shownAddress(siteUrl, "/parties"), report.best ? HIER_NOTE : "", height - 22, measure).texts);
+  return { width: WIDTH, height, rects, texts, logo: LOGO };
 }
 
 /** Ce que l'image dit, pour un lecteur d'écran : Discord le lit comme description du fichier. */

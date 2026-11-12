@@ -31,13 +31,13 @@ describe("groupsCard", () => {
       "des points gagnés viennent de ces parties",
       "Points par partie, selon le nombre de Gaulois",
       "0,04",
-      "seul",
+      "SEUL",
       "0,31",
-      "à 2",
+      "À 2",
       "0,72",
-      "à 3",
+      "À 3",
       "1,86",
-      "à 4 et plus",
+      "À 4 ET PLUS",
       "Les duos qui ont le plus gagné ensemble",
       "12 victoires",
       "Alpha et Bravo",
@@ -62,10 +62,10 @@ describe("groupsCard", () => {
     const card = groupsCard({ ...WEEK, duos: [], perGame: { "1": 0.04, "2": null, "3": 0.72, "4": null } }, "GAL", SITE, approx);
     const text = words(card);
     expect(text.join(" ")).not.toMatch(/duos/i);
-    expect(text).toContain("seul");
-    expect(text).toContain("à 3");
-    expect(text).not.toContain("à 2");
-    expect(text).not.toContain("à 4 et plus");
+    expect(text).toContain("SEUL");
+    expect(text).toContain("À 3");
+    expect(text).not.toContain("À 2");
+    expect(text).not.toContain("À 4 ET PLUS");
     expect(card.height).toBeLessThan(groupsCard(WEEK, "GAL", SITE, approx).height);
     expectClean(card);
   });

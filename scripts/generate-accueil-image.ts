@@ -38,7 +38,7 @@ if (!facts) {
     const fonts = new GazetteFonts(root);
     const png = await renderGazetteCard(accueilCard(facts, clan.tag, clan.name, clan.tagline, clan.links.site, fonts.width), fonts, root);
     mkdirSync(dirname(out), { recursive: true });
-    // Des aplats et du texte : une palette suffit, et divise le poids par deux.
+    // Une palette de 256 couleurs, tramée, garde le rendu net malgré les dégradés du fond et divise le poids par plus de deux.
     writeFileSync(out, await sharp(png).png({ palette: true, compressionLevel: 9 }).toBuffer());
     console.log("Accueil : image d'aperçu dessinée.");
   } catch (e) {

@@ -11,7 +11,7 @@
  */
 import sharp, { type OverlayOptions } from "sharp";
 import { fmtCount, fmtEpochTime, fmtInt, fmtMinutes, fmtScore } from "./format";
-import { CARD_COLORS as C, fitted, renderGazetteCard, type CardRect, type CardText, type GazetteCard, type GazetteFonts, type Measure } from "./gazette-image";
+import { CARD_COLORS as C, fitted, kpiHeight, kpiParts, LOGO, MARGIN, pageFoot, pageHead, renderGazetteCard, type CardRect, type CardText, type GazetteCard, type GazetteFonts, type Kpi, type Measure } from "./gazette-image";
 import { dayTitle } from "./hier-discord";
 import { mapKey, mapLabel } from "./map-names";
 import { formatLabel } from "./results";
@@ -22,19 +22,17 @@ import type { Victory } from "./victoires";
 import { countedWords, countWords, crewList, gameLength, LICENSE_URL, mapSource, MAPS_SOURCE, OPENFRONT_CREDIT, pointsLabel, pointsWords, restWords, victoryTitle } from "./victoires-discord";
 
 const WIDTH = 1200;
-const MARGIN = 36;
-const BODY_TOP = 196;
 /** Avec la vignette : la carte à gauche, les chiffres empilés à droite. */
 const MAP_BOX_WIDTH = 660;
 const BODY_HEIGHT = 420;
 const MAP_PADDING = 14;
 /** La vignette ne grossit pas au-delà : elle deviendrait floue. */
 const MAX_ZOOM = 2;
-const GAP = 16;
-/** Sans la vignette : les chiffres côte à côte. */
-const ROW_TILE_HEIGHT = 200;
+const GAP = 28;
+/** Sans la vignette : les chiffres côte à côte, en grand. */
+const ROW_VALUE_SIZE = 80;
 /** Sous le contenu : l'adresse du site et le crédit de la carte, puis les adresses de sa source et de sa licence. */
-const FOOTER_HEIGHT = 108;
+const FOOTER_HEIGHT = 104;
 /** Les adresses du crédit ne s'écrivent pas plus petit : au-delà, celle du dossier de toutes les cartes remplace celle de la carte. */
 const CREDIT_MIN_SIZE = 14;
 
@@ -72,18 +70,14 @@ export interface VictoryCard extends GazetteCard {
   map: MapPlacement | null;
 }
 
-interface Tile {
-  value: string;
-  label: string;
-}
-
 /** « 16 min », arrondi à la minute ; « 2 h 51 min » au-delà d'une heure, comme le texte de secours. */
 export const tileLength = (seconds: number) => (seconds >= 3600 ? gameLength(seconds) : fmtMinutes(seconds));
 
-function victoryTiles(v: Victory): Tile[] {
-  const tiles: Tile[] = [{ value: fmtInt(v.gaulois), label: `Gaulois sur ${fmtCount(v.players, "joueur")}` }];
-  if (v.points !== null) tiles.push({ value: `+${fmtScore(v.points)}`, label: pointsLabel(v.points) });
-  tiles.push({ value: tileLength(v.seconds), label: "de partie" });
+/** Les chiffres de la partie, comme les chiffres clés du site : le libellé de la machine, le chiffre, puis ce qu'il compte. */
+function victoryTiles(v: Victory): Kpi[] {
+  const tiles: Kpi[] = [{ label: "Gaulois", value: fmtInt(v.gaulois), hint: { text: `sur ${fmtCount(v.players, "joueur")}` } }];
+  if (v.points !== null) tiles.push({ label: pointsLabel(v.points), value: `+${fmtScore(v.points)}` });
+  tiles.push({ label: "Durée", value: tileLength(v.seconds), hint: { text: "de partie" } });
   return tiles;
 }
 
@@ -101,56 +95,44 @@ export interface ThumbnailShape {
 export function victoryCard(v: Victory, tag: string, siteUrl: string, measure: Measure, thumbnail: ThumbnailShape | null): VictoryCard {
   const tiles = victoryTiles(v);
   const contentWidth = WIDTH - 2 * MARGIN;
+
+  // L'en-tête : la victoire et son format, le nom de la carte en titre, puis l'heure de la partie.
+  const head = pageHead({ path: "/parties", title: mapLabel(v.map), kicker: `${victoryTitle(tag)}${v.format ? ` · ${formatLabel(v.format)}` : ""}`, period: `${victoryWhen(v)}, heure de Paris` }, measure);
+  const top = head.bottom;
+  const rects: CardRect[] = [...head.rects];
+  const texts: CardText[] = [...head.texts];
+
   // Tous les Gaulois de la partie, en pastilles sous leur nom en partie, jamais « et autres » ; puis ceux qui sont seulement comptés.
   const chips = chipLayout([...v.crew.map((p) => ({ text: p.name, named: true })), ...countedWords(v).map((text) => ({ text, named: false }))], measure, contentWidth);
-  const bodyBottom = BODY_TOP + (thumbnail ? BODY_HEIGHT : ROW_TILE_HEIGHT);
-  const chipsTop = bodyBottom + 24;
+  const bodyBottom = top + (thumbnail ? BODY_HEIGHT : kpiHeight(ROW_VALUE_SIZE));
+  const chipsTop = bodyBottom + 28;
   const contentBottom = chips.rows.length > 0 ? chipsTop + chipsHeight(chips) : bodyBottom;
   const height = contentBottom + FOOTER_HEIGHT;
-  const rects: CardRect[] = [{ x: 0, y: 0, width: WIDTH, height, radius: 0, color: C.NAVY }];
-  const texts: CardText[] = [];
-  const third = WIDTH / 3;
-  rects.push({ x: 0, y: 0, width: third, height: 8, radius: 0, color: C.BLUE }, { x: third, y: 0, width: third, height: 8, radius: 0, color: C.WHITE }, { x: 2 * third, y: 0, width: third, height: 8, radius: 0, color: C.RED });
-
-  // L'en-tête.
-  const logo = { x: MARGIN, y: 34, size: 104 };
-  const headerX = logo.x + logo.size + 24;
-  const room = WIDTH - MARGIN - headerX;
-  const kicker = `${victoryTitle(tag)}${v.format ? ` · ${formatLabel(v.format)}` : ""}`;
-  texts.push({ ...fitted(kicker, "strong", 26, 20, room, measure), x: headerX, y: 64, font: "strong", color: C.BLUE_TEXT });
-  texts.push({ ...fitted(mapLabel(v.map), "title", 56, 36, room, measure), x: headerX, y: 122, font: "title", color: C.WHITE });
-  texts.push({ ...fitted(`${victoryWhen(v)}, heure de Paris`, "body", 28, 20, room, measure), x: headerX, y: 166, font: "body", color: C.MUTED });
 
   let map: MapPlacement | null = null;
   if (thumbnail) {
     // La vignette, aussi grande que possible dans son cadre, au centre, sur la mer du jeu. Une carte entourée d'eau baigne dans
     // la mer jusqu'au bord du cadre ; les autres s'arrêtent à leur bord, pour ne pas couper une terre net au milieu de l'eau.
-    rects.push({ x: MARGIN, y: BODY_TOP, width: MAP_BOX_WIDTH, height: BODY_HEIGHT, radius: 20, color: thumbnail.open ? SEA : C.SURFACE });
+    rects.push(thumbnail.open ? { x: MARGIN, y: top, width: MAP_BOX_WIDTH, height: BODY_HEIGHT, radius: 8, color: SEA } : { x: MARGIN, y: top, width: MAP_BOX_WIDTH, height: BODY_HEIGHT, radius: 8, color: C.SURFACE, stroke: C.LINE });
     const zoom = Math.min((MAP_BOX_WIDTH - 2 * MAP_PADDING) / thumbnail.width, (BODY_HEIGHT - 2 * MAP_PADDING) / thumbnail.height, MAX_ZOOM);
     const width = Math.max(1, Math.round(thumbnail.width * zoom));
     const mapHeight = Math.max(1, Math.round(thumbnail.height * zoom));
-    map = { x: MARGIN + Math.round((MAP_BOX_WIDTH - width) / 2), y: BODY_TOP + Math.round((BODY_HEIGHT - mapHeight) / 2), width, height: mapHeight, radius: 12 };
+    map = { x: MARGIN + Math.round((MAP_BOX_WIDTH - width) / 2), y: top + Math.round((BODY_HEIGHT - mapHeight) / 2), width, height: mapHeight, radius: 6 };
     if (!thumbnail.open) rects.push({ ...map, color: SEA });
-    // Les chiffres, empilés à droite.
+    // Les chiffres, empilés à droite, comme les chiffres clés du site.
     const x = MARGIN + MAP_BOX_WIDTH + GAP;
-    const tileWidth = WIDTH - MARGIN - x;
-    const tileHeight = (BODY_HEIGHT - (tiles.length - 1) * 15) / tiles.length;
+    const valueSize = 56;
+    const step = (BODY_HEIGHT - kpiHeight(valueSize)) / Math.max(1, tiles.length - 1);
     tiles.forEach((tile, i) => {
-      const y = BODY_TOP + i * (tileHeight + 15);
-      const middle = Math.round(y + tileHeight / 2);
-      rects.push({ x, y, width: tileWidth, height: tileHeight, radius: 20, color: C.SURFACE });
-      texts.push({ ...fitted(tile.value, "title", 64, 40, tileWidth - 48, measure), x: x + 24, y: middle + 6, font: "title", color: C.WHITE });
-      texts.push({ ...fitted(tile.label, "body", 26, 18, tileWidth - 48, measure), x: x + 24, y: middle + 46, font: "body", color: C.MUTED });
+      const kpi = kpiParts([tile], { x, y: Math.round(top + i * Math.min(step, kpiHeight(valueSize) + 24)), width: WIDTH - MARGIN - x, valueSize, minValueSize: 34 }, measure);
+      rects.push(...kpi.rects);
+      texts.push(...kpi.texts);
     });
   } else {
     // Les chiffres, côte à côte.
-    const tileWidth = (contentWidth - (tiles.length - 1) * GAP) / tiles.length;
-    tiles.forEach((tile, i) => {
-      const x = MARGIN + i * (tileWidth + GAP);
-      rects.push({ x, y: BODY_TOP, width: tileWidth, height: ROW_TILE_HEIGHT, radius: 20, color: C.SURFACE });
-      texts.push({ ...fitted(tile.value, "title", 88, 56, tileWidth - 48, measure), x: x + 24, y: BODY_TOP + 96, font: "title", color: C.WHITE });
-      texts.push({ ...fitted(tile.label, "body", 30, 20, tileWidth - 48, measure), x: x + 24, y: BODY_TOP + 150, font: "body", color: C.MUTED });
-    });
+    const kpis = kpiParts(tiles, { x: MARGIN, y: top, width: contentWidth, valueSize: ROW_VALUE_SIZE }, measure);
+    rects.push(...kpis.rects);
+    texts.push(...kpis.texts);
   }
 
   // Les Gaulois de la partie, en pastilles, sous leur nom en partie.
@@ -159,13 +141,10 @@ export function victoryCard(v: Victory, tag: string, siteUrl: string, measure: M
   texts.push(...drawn.texts);
 
   // L'adresse du site et le crédit de la carte, puis, dessous, les adresses de la source et de la licence.
-  const url = shownAddress(siteUrl, "/parties");
-  texts.push({ text: url, x: MARGIN, y: height - 54, size: 26, font: "strong", color: C.BLUE_TEXT });
-  const note = fitted(thumbnail ? MAP_NOTE : NAME_NOTE, "body", 22, 16, contentWidth - measure(url, "strong", 26) - 24, measure);
-  texts.push({ ...note, x: WIDTH - MARGIN, y: height - 54, font: "body", color: C.MUTED, anchor: "end" });
+  texts.push(...pageFoot(shownAddress(siteUrl, "/parties"), thumbnail ? MAP_NOTE : NAME_NOTE, height - 54, measure).texts);
   const addresses = creditAddresses(v.map, (line) => measure(line, "body", CREDIT_MIN_SIZE) <= contentWidth);
   texts.push({ ...fitted(addresses, "body", 20, CREDIT_MIN_SIZE, contentWidth, measure), x: WIDTH - MARGIN, y: height - 22, font: "body", color: C.MUTED, anchor: "end" });
-  return { width: WIDTH, height, rects, texts, logo, map };
+  return { width: WIDTH, height, rects, texts, logo: LOGO, map };
 }
 
 /**

@@ -56,9 +56,9 @@ function expectClean(card: GazetteCard, width: Measure = measure): void {
 describe("gazetteCard", () => {
   it("écrit le titre, la semaine et les trois grands chiffres, avec leur écart à la semaine d'avant", () => {
     const text = words(gazetteCard(edition(), "GAL", SITE, measure));
-    expect(text).toContain("LA GAZETTE DE [GAL]");
+    expect(text).toContain("La gazette de [GAL]");
     expect(text).toContain("Semaine du 2 nov. au 8 nov. 2026");
-    for (const expected of ["269", "victoires", "+52", "671", "parties", "+55", "40,1 %", "de victoires", "+4,9 pts", "Écarts par rapport à la semaine d'avant"]) expect(text).toContain(expected);
+    for (const expected of ["269", "VICTOIRES", "+52", "671", "PARTIES", "+55", "40,1 %", "TAUX DE VICTOIRE", "+4,9 pts", "Écarts par rapport à la semaine d'avant"]) expect(text).toContain(expected);
   });
 
   it("n'écrit aucun écart sans semaine d'avant comparable", () => {
@@ -245,7 +245,7 @@ describe("renderGazetteCard", () => {
     const card = gazetteCard(edition({ players: [player("Judom FR", 1807, 1), player("Nonex.5264", 778, 2), player("Flooo", 738, 3)] }), "GAL", SITE, fonts.width);
     const png = await renderGazetteCard(card, fonts, root);
     const info = await sharp(png).metadata();
-    expect(info).toMatchObject({ format: "png", width: 1200, height: 744 });
+    expect(info).toMatchObject({ format: "png", width: 1200, height: 784 });
     expect(png.length).toBeGreaterThan(20_000);
     expect(png.length).toBeLessThan(2_000_000);
     // Le logo : sa zone porte d'autres couleurs que le fond uni de l'image.

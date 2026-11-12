@@ -38,6 +38,7 @@
     "victoires:envoyer": "tsx scripts/envoyer-victoires.ts",
     "arrivees:accueillir": "tsx scripts/accueillir-arrivees.ts",
     "arrivees:apercu": "tsx scripts/apercu-arrivees.ts",
+    "images:apercu": "tsx scripts/apercu-images.ts",
     "verifier:ligne": "tsx scripts/verifier-mise-en-ligne.ts",
     "lint": "eslint .",
     "typecheck": "astro check && tsc --noEmit",

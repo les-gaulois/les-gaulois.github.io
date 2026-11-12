@@ -8,7 +8,7 @@
  */
 import { fmtCount, fmtDate, fmtInt, fmtRank, fmtScore } from "./format";
 import { playersPeriod, weekLabel, type GazetteEdition } from "./gazette";
-import { CARD_COLORS as C, fitted, PODIUM_NOTE, podiumParts, type CardRect, type CardText, type GazetteCard, type Measure } from "./gazette-image";
+import { CARD_COLORS as C, fitted, fittedDrawn, LOGO, MARGIN, pageFoot, pageHead, PODIUM_NOTE, podiumParts, STAGES, type CardRect, type CardText, type GazetteCard, type Measure } from "./gazette-image";
 import type { StoredLeaderboard } from "./schemas";
 import { findClan, withOfficialRanks } from "./stats";
 import type { WeekPlayer } from "./week-players";
@@ -19,7 +19,6 @@ export const ACCUEIL_IMAGE = "generated/accueil.png";
 /** Le format des aperçus de lien : Discord, comme les autres, attend 1200 × 630. */
 const WIDTH = 1200;
 const HEIGHT = 630;
-const MARGIN = 48;
 
 export interface AccueilFacts {
   /** Le classement officiel : `rank` vaut `null` si le clan n'est pas dans la liste. `at` : l'heure où la liste a été arrêtée. */
@@ -45,63 +44,51 @@ export function accueilFacts(ranking: AccueilFacts["ranking"], edition: GazetteE
 
 /** Quoi écrire et où, à partir des faits seuls : se teste sans police. */
 export function accueilCard(facts: AccueilFacts, tag: string, name: string, tagline: string, siteUrl: string, measure: Measure): GazetteCard {
-  const rects: CardRect[] = [{ x: 0, y: 0, width: WIDTH, height: HEIGHT, radius: 0, color: C.NAVY }];
-  const texts: CardText[] = [];
-  const third = WIDTH / 3;
-  rects.push({ x: 0, y: 0, width: third, height: 8, radius: 0, color: C.BLUE }, { x: third, y: 0, width: third, height: 8, radius: 0, color: C.WHITE }, { x: 2 * third, y: 0, width: third, height: 8, radius: 0, color: C.RED });
-
-  // L'en-tête : le clan, et sa phrase.
-  const logo = { x: MARGIN, y: 36, size: 104 };
-  const headerX = logo.x + logo.size + 24;
-  const headerWidth = WIDTH - MARGIN - headerX;
-  texts.push({ ...fitted(`[${tag}] ${name}`.toLocaleUpperCase("fr"), "title", 64, 40, headerWidth, measure), x: headerX, y: 94, font: "title", color: C.WHITE });
-  texts.push({ ...fitted(tagline, "body", 30, 22, headerWidth, measure), x: headerX, y: 134, font: "body", color: C.MUTED });
+  // L'en-tête : l'invite de l'accueil, le clan, et sa phrase.
+  const head = pageHead({ path: "/", title: `[${tag}] ${name}`, period: tagline }, measure);
+  const rects: CardRect[] = [...head.rects];
+  const texts: CardText[] = [...head.texts];
 
   const { ranking, podium } = facts;
-  const top = 184;
-  const base = HEIGHT - 92;
-  const rankingWidth = podium ? 496 : WIDTH - 2 * MARGIN;
+  const top = head.bottom;
+  const base = HEIGHT - 80;
+  const rankingWidth = podium ? 480 : WIDTH - 2 * MARGIN;
 
-  // Le classement officiel, à gauche : le rang en très grand, puis le score et l'heure de la liste.
+  // Le classement officiel, à gauche, dans la scène bleue de l'accueil du site : le rang en très grand, puis le score et l'heure de la liste.
   if (ranking) {
-    rects.push({ x: MARGIN, y: top, width: rankingWidth, height: base - top, radius: 20, color: C.SURFACE });
-    rects.push({ x: MARGIN + 14, y: top + 16, width: 6, height: base - top - 32, radius: 3, color: C.BLUE });
-    const inner = MARGIN + 40;
+    rects.push({ x: MARGIN, y: top, width: rankingWidth, height: base - top, radius: 10, ...STAGES.blue, cut: 28 });
+    const inner = MARGIN + 32;
     const room = rankingWidth - 64;
-    texts.push({ ...fitted("Classement officiel des clans", "body", 26, 20, room, measure), x: inner, y: top + 52, font: "body", color: C.MUTED });
+    const label = fittedDrawn({ text: "Classement officiel des clans".toLocaleUpperCase("fr"), font: "monoStrong", tracking: 0.06 }, 18, 13, room, measure);
+    texts.push({ ...label, x: inner, y: top + 46, font: "monoStrong", color: C.STAGE_MUTED, tracking: 0.06 });
     if (ranking.rank === null) {
-      texts.push({ ...fitted("Hors classement", "title", 64, 36, room, measure), x: inner, y: top + 150, font: "title", color: C.WHITE });
-      texts.push({ ...fitted(`${fmtInt(ranking.listed)} clans listés`, "body", 28, 20, room, measure), x: inner, y: top + 196, font: "body", color: C.MUTED });
+      texts.push({ ...fitted("Hors classement", "cases", 60, 34, room, measure), x: inner, y: top + 140, font: "cases", color: C.WHITE, glow: true });
+      texts.push({ ...fitted(`${fmtInt(ranking.listed)} clans listés`, "body", 27, 20, room, measure), x: inner, y: top + 184, font: "body", color: C.STAGE_MUTED });
     } else {
-      const rank = fitted(fmtRank(ranking.rank), "title", 128, 64, room / 2, measure);
-      texts.push({ ...rank, x: inner, y: top + 168, font: "title", color: C.WHITE });
-      const after = inner + measure(rank.text, "title", rank.size) + 20;
-      texts.push({ ...fitted(`sur ${fmtInt(ranking.listed)} clans`, "body", 30, 20, inner + room - after, measure), x: after, y: top + 164, font: "body", color: C.MUTED });
-      if (ranking.score !== null) texts.push({ ...fitted(`Score ${fmtScore(ranking.score)}`, "strong", 34, 24, room, measure), x: inner, y: top + 232, font: "strong", color: C.WHITE });
+      const rank = fitted(fmtRank(ranking.rank), "cases", 112, 60, room / 2, measure);
+      texts.push({ ...rank, x: inner, y: top + 160, font: "cases", color: C.WHITE, glow: true });
+      const after = inner + measure(rank.text, "cases", rank.size) + 22;
+      texts.push({ ...fitted(`sur ${fmtInt(ranking.listed)} clans`, "body", 29, 20, inner + room - after, measure), x: after, y: top + 156, font: "body", color: C.STAGE_MUTED });
+      if (ranking.score !== null) texts.push({ ...fitted(`Score ${fmtScore(ranking.score)}`, "strong", 33, 24, room, measure), x: inner, y: top + 220, font: "strong", color: C.WHITE });
     }
-    texts.push({ ...fitted(`Liste arrêtée au ${fmtDate(ranking.at)}`, "body", 24, 18, room, measure), x: inner, y: base - 24, font: "body", color: C.MUTED });
+    texts.push({ ...fitted(`Liste arrêtée au ${fmtDate(ranking.at)}`, "body", 23, 17, room, measure), x: inner, y: base - 26, font: "body", color: C.STAGE_MUTED });
   }
 
   // Le podium de la semaine, à droite : le même que sur l'accueil et dans la gazette.
   if (podium) {
     const x = ranking ? MARGIN + rankingWidth + 32 : MARGIN;
     const width = WIDTH - MARGIN - x;
-    texts.push({ ...fitted(`Le plus de victoires ${podium.period}`, "strong", 30, 22, width, measure), x, y: top + 24, font: "strong", color: C.WHITE });
-    texts.push({ ...fitted(`Semaine ${podium.week}`, "body", 24, 18, width, measure), x, y: top + 58, font: "body", color: C.MUTED });
-    const parts = podiumParts(podium.players, { x, width, base, listTop: top + 110 }, measure);
+    texts.push({ ...fitted(`Le plus de victoires ${podium.period}`, "onciale", 26, 18, width, measure), x, y: top + 26, font: "onciale", color: C.WHITE });
+    texts.push({ ...fitted(`Semaine ${podium.week}`, "body", 23, 17, width, measure), x, y: top + 58, font: "body", color: C.MUTED });
+    const parts = podiumParts(podium.players, { x, width, base, listTop: top + 106 }, measure);
     rects.push(...parts.rects);
     texts.push(...parts.texts);
   }
 
   // Le pied : l'adresse du site, et la réserve du podium.
-  const footer = HEIGHT - 40;
   const url = siteUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
-  texts.push({ text: url, x: MARGIN, y: footer, size: 28, font: "strong", color: C.BLUE_TEXT });
-  if (podium) {
-    const room = WIDTH - 2 * MARGIN - measure(url, "strong", 28) - 32;
-    texts.push({ ...fitted(PODIUM_NOTE, "body", 22, 18, room, measure), x: WIDTH - MARGIN, y: footer, font: "body", color: C.MUTED, anchor: "end" });
-  }
-  return { width: WIDTH, height: HEIGHT, rects, texts, logo };
+  texts.push(...pageFoot(url, podium ? PODIUM_NOTE : "", HEIGHT - 30, measure).texts);
+  return { width: WIDTH, height: HEIGHT, rects, texts, logo: LOGO };
 }
 
 /** Ce que l'image dit, pour un lecteur d'écran et pour la description du lien. Discord n'en garde que 1 024 caractères. */

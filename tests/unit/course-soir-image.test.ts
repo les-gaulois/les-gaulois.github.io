@@ -84,7 +84,9 @@ describe("courseCard", () => {
     const card = courseCard(RACE, "GAL", SITE, measure);
     const marks = card.rects.filter((r) => r.width === 6 && r.color === CARD_COLORS.RED);
     expect(marks).toHaveLength(1);
-    expect(marks[0]?.y).toBe(200 + 82 + 12);
+    // Le filet rouge est dans la ligne de GAL, la deuxième : sa ligne de base est 47 pixels sous le haut de la ligne.
+    const gal = card.texts.find((t) => t.text === "[GAL]")!;
+    expect(marks[0]?.y).toBe(gal.y - 47 + 12);
   });
   it("ne déborde pas et ne chevauche rien, avec de longs tags et de très grands chiffres", () => {
     expectClean(courseCard(WIDE, "GAL", SITE, measure));

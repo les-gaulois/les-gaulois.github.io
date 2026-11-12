@@ -15,7 +15,7 @@ import { RECORD_KEYS } from "./records-battus";
 import { RECORD_KICKER, RECORD_LABELS, recordCollected, recordMark, recordScope } from "./records-discord";
 import type { ClanRecords } from "./results";
 import { shownAddress } from "./salon-discord";
-import { assembleCard, BODY_TOP, CARD_MARGIN, CARD_WIDTH, factParts, factsCard, FOOTER_HEIGHT, footParts, headParts, type CardFact } from "./salon-image";
+import { assembleCard, CARD_MARGIN, CARD_WIDTH, factParts, factsCard, FOOTER_HEIGHT, footParts, headParts, type CardFact } from "./salon-image";
 import { OPENFRONT_CREDIT } from "./victoires-discord";
 
 const CONTENT_WIDTH = CARD_WIDTH - 2 * CARD_MARGIN;
@@ -73,14 +73,16 @@ export function rivalFacts(mine: ClanFigures, theirs: ClanFigures, faceOff: Face
 
 /** Les faits du comparateur, puis, sur sa propre ligne pour être lue en entier, la réserve sur le taux. */
 export function rivalCard(mine: ClanFigures, theirs: ClanFigures, faceOff: FaceOff | null, listedAt: string, siteUrl: string, measure: Measure): GazetteCard {
-  const facts = factParts(rivalFacts(mine, theirs, faceOff), BODY_TOP, measure);
+  const address = shownAddress(siteUrl, "/rivaux");
+  const head = headParts({ kicker: RIVAL_KICKER, title: `[${mine.tag}] face à [${theirs.tag}]`, period: `Liste arrêtée au ${fmtDateTime(listedAt)}` }, measure, address);
+  const facts = factParts(rivalFacts(mine, theirs, faceOff), head.bottom, measure);
   const note: CardText = { ...fittedLine(RATE_NOTE, "body", 24, 16, CONTENT_WIDTH, measure), x: CARD_MARGIN, y: facts.bottom + 40, font: "body", color: C.MUTED };
   const height = facts.bottom + 56 + FOOTER_HEIGHT;
   return assembleCard(height, [
-    headParts({ kicker: RIVAL_KICKER, title: `[${mine.tag}] face à [${theirs.tag}]`, period: `Liste arrêtée au ${fmtDateTime(listedAt)}` }, measure),
+    head,
     facts,
     { rects: [], texts: [note] },
-    footParts(shownAddress(siteUrl, "/rivaux"), "", height, measure),
+    footParts(address, "", height, measure),
   ]);
 }
 
@@ -120,7 +122,9 @@ export interface MapCard extends GazetteCard {
 }
 
 export function mapCard(facts: MapFacts, tag: string, siteUrl: string, shape: MapShape, measure: Measure): MapCard {
-  const map = { left: CARD_MARGIN, top: BODY_TOP, width: CONTENT_WIDTH, height: Math.round((CONTENT_WIDTH * shape.height) / shape.width) };
+  const address = shownAddress(siteUrl, "/carte");
+  const head = headParts({ kicker: MAP_KICKER, title: `Le territoire de [${tag}]`, period: `Image du ${fmtDateTime(facts.at)}` }, measure, address);
+  const map = { left: CARD_MARGIN, top: head.bottom, width: CONTENT_WIDTH, height: Math.round((CONTENT_WIDTH * shape.height) / shape.width) };
   const legendY = map.top + map.height + 40;
   const legend: { rects: CardRect[]; texts: CardText[] } = {
     rects: [{ x: CARD_MARGIN, y: legendY - 22, width: 28, height: 28, radius: 6, color: facts.color }],
@@ -142,12 +146,12 @@ export function mapCard(facts: MapFacts, tag: string, siteUrl: string, shape: Ma
   ];
   const height = factList.bottom + 70 + FOOTER_HEIGHT;
   const card = assembleCard(height, [
-    headParts({ kicker: MAP_KICKER, title: `Le territoire de [${tag}]`, period: `Image du ${fmtDateTime(facts.at)}` }, measure),
+    head,
     { rects: [{ x: map.left, y: map.top, width: map.width, height: map.height, radius: 0, color: C.SURFACE }], texts: [] },
     legend,
     factList,
     { rects: [], texts: creditTexts },
-    footParts(shownAddress(siteUrl, "/carte"), MAP_NOTE, height, measure),
+    footParts(address, MAP_NOTE, height, measure),
   ]);
   return { ...card, map };
 }
@@ -277,14 +281,16 @@ export function guideCard(chapter: GuideChapter, siteUrl: string, measure: Measu
   const inner = CONTENT_WIDTH - 2 * t.pad;
   const rects: CardRect[] = [];
   const texts: CardText[] = [];
-  let top = BODY_TOP;
+  const address = shownAddress(siteUrl, "/debuter");
+  const head = headParts({ kicker: `${GUIDE_KICKER}, chapitre ${chapter.order}`, title: chapter.court, period: chapter.chapeau ?? chapter.title }, measure, address);
+  let top = head.bottom;
   /** Une case de texte sur toute la largeur ; `accent` : celle de l'encadré, plus claire, avec un trait bleu à gauche. */
   const box = (segments: readonly Segment[], accent = false) => {
     const indent = accent ? 8 : 0;
     const body = paragraph(segments, CARD_MARGIN + t.pad + indent, top + t.pad + t.size - 4, inner - indent, t.size, t.line, measure);
     const height = body.bottom - top + t.pad + 8;
-    rects.push({ x: CARD_MARGIN, y: top, width: CONTENT_WIDTH, height, radius: 16, color: accent ? C.SURFACE_2 : C.SURFACE });
-    if (accent) rects.push({ x: CARD_MARGIN, y: top, width: 8, height, radius: 4, color: C.BLUE });
+    rects.push(accent ? { x: CARD_MARGIN, y: top, width: CONTENT_WIDTH, height, radius: 8, color: C.SURFACE_2, stroke: C.LINE_STRONG } : { x: CARD_MARGIN, y: top, width: CONTENT_WIDTH, height, radius: 8, color: C.SURFACE, stroke: C.LINE });
+    if (accent) rects.push({ x: CARD_MARGIN, y: top, width: 8, height, radius: 0, color: C.BLUE });
     texts.push(...body.texts);
     top += height + t.gap;
   };
@@ -309,10 +315,10 @@ export function guideCard(chapter: GuideChapter, siteUrl: string, measure: Measu
   if (chapter.retenir) box([{ text: `${chapter.retenir.titre} : `, font: "strong", color: C.BLUE_TEXT }, ...segmentsOf(chapter.retenir.texte, C.WHITE)], true);
   const height = top - t.gap + FOOTER_HEIGHT;
   return assembleCard(height, [
-    headParts({ kicker: `${GUIDE_KICKER}, chapitre ${chapter.order}`, title: chapter.court, period: chapter.chapeau ?? chapter.title }, measure),
+    head,
     { rects, texts },
     // Le titre complet en bas, sauf s'il est déjà écrit en haut, à la place d'une phrase d'entrée : rien alors.
-    footParts(shownAddress(siteUrl, "/debuter"), chapter.chapeau ? chapter.title : "", height, measure),
+    footParts(address, chapter.chapeau ? chapter.title : "", height, measure),
   ]);
 }
 

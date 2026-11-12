@@ -133,7 +133,7 @@ describe("renderGazetteCard, pour une alerte", () => {
   it("dessine une vraie image PNG à la bonne taille, avec le logo", async () => {
     const card = alertCard(mapGain, "GAL", SITE, fonts.width);
     const png = await renderGazetteCard(card, fonts, root);
-    expect(await sharp(png).metadata()).toMatchObject({ format: "png", width: 1200, height: 700 });
+    expect(await sharp(png).metadata()).toMatchObject({ format: "png", width: 1200, height: card.height });
     expect(png.length).toBeGreaterThan(20_000);
     expect(png.length).toBeLessThan(2_000_000);
     const { x, y, size } = card.logo;

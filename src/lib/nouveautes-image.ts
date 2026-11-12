@@ -41,6 +41,8 @@ export function newsCard(entries: readonly Nouveaute[], siteUrl: string, measure
       address: shownAddress(siteUrl, "/nouveautes"),
       note: "",
       badgeWidth: 170,
+      // Une étiquette, dans la voix de la machine.
+      badgeFont: "monoStrong",
     },
     measure,
   );

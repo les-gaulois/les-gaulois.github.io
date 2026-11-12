@@ -38,7 +38,7 @@ for (let i = 0; i < todo.length; i += BATCH) {
     todo.slice(i, i + BATCH).map(async ({ id, facts }) => {
       try {
         const png = await renderGazetteCard(ficheCard(facts, clan.tag, clan.links.site, list.fetchedAt, fonts.width), fonts, root);
-        // Des aplats et du texte : une palette suffit, et divise le poids par deux.
+        // Une palette de 256 couleurs, tramée, garde le rendu net malgré les dégradés du fond et divise le poids par plus de deux.
         writeFileSync(join(out, `${id}.png`), await sharp(png).png({ palette: true, compressionLevel: 9 }).toBuffer());
         drawn++;
       } catch (e) {

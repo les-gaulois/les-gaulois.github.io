@@ -93,7 +93,7 @@ describe("accueilCard", () => {
 
   it("écrit le clan, le rang sur la liste, le score, l'heure de la liste et le podium", () => {
     const text = words(card(full));
-    expect(text).toContain("[GAL] LES GAULOIS");
+    expect(text).toContain("[GAL] Les Gaulois");
     expect(text).toContain(TAGLINE);
     expect(text).toContain("2e");
     expect(text).toContain("sur 3 clans");
@@ -130,7 +130,7 @@ describe("accueilCard", () => {
   it("sans classement, le podium prend toute la largeur", () => {
     const drawn = card(accueilFacts(null, edition({ players: podium }))!);
     expect(words(drawn).some((t) => t.startsWith("Classement"))).toBe(false);
-    expect(drawn.texts.find((t) => t.text.startsWith("Le plus de victoires"))!.x).toBe(48);
+    expect(drawn.texts.find((t) => t.text.startsWith("Le plus de victoires"))!.x).toBe(36);
     expectClean(drawn);
   });
 
