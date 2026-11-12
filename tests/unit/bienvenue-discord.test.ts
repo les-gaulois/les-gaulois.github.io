@@ -96,8 +96,10 @@ describe("le message", () => {
     expect(written).toBe(MAX_NAMES);
     expect(content).toContain("Et 3 autres membres avec pseudo.");
   });
-  it("avec l'image : le fichier joint et un bouton vers les membres", () => {
-    expect(welcomePayload(ARRIVALS, "GAL", SITE, { alt: "Description.", filename: "bienvenue.png" })).toMatchObject({
+  it("avec l'image : le fichier joint et un bouton vers les membres, sans aucun texte", () => {
+    expect(welcomePayload(ARRIVALS, "GAL", SITE, { alt: "Description.", filename: "bienvenue.png" })).toEqual({
+      avatar_url: "https://x.test/generated/icon-192.png",
+      allowed_mentions: { parse: [] },
       attachments: [{ id: 0, filename: "bienvenue.png", description: "Description." }],
       components: [{ type: 1, components: [{ type: 2, style: 5, label: "Voir les membres du clan", url: "https://x.test/membres/" }] }],
     });
@@ -153,29 +155,60 @@ describe("welcomePass", () => {
 
 describe("welcomeCard", () => {
   it("écrit le titre, la période, chaque pseudo avec l'heure de son arrivée, et compte les anonymes, sans rien faire déborder", () => {
-    const card = welcomeCard(ARRIVALS, "GAL", SITE, measure, true);
+    const card = welcomeCard(ARRIVALS, "GAL", SITE, measure);
     const texts = card.texts.map((t) => plain(t.text));
-    for (const expected of ["Arrivées dans le clan [GAL]", "Bienvenue chez les Gaulois", "Entre les relevés de la liste du 10 nov., 18:54 et du 11 nov., 14:54", "10 nov., 21:12", "Éloïse", "11 nov., 10:12", "Zoé", "Et 2 joueurs sans pseudo public.", "x.test/membres"]) {
+    // L'en-tête dit qui est compté : sans texte dans le message, rien d'autre ne le dirait.
+    for (const expected of ["Arrivées dans le clan [GAL], encore là au dernier relevé", "Bienvenue chez les Gaulois", "Entre les relevés de la liste du 10 nov., 18:54 et du 11 nov., 14:54", "10 nov., 21:12", "Éloïse", "11 nov., 10:12", "Zoé", "Et 2 joueurs sans pseudo public.", "x.test/membres"]) {
       expect(texts).toContain(expected);
     }
     expectClean(card);
   });
-  it("au-delà de cinq pseudos, montre les premiers et compte les autres", () => {
-    const named = Array.from({ length: 8 }, (_, i) => ({ id: `${i}`, username: `Joueur${i}`, joinedAt: T1 }));
-    const texts = welcomeCard({ ...ARRIVALS, named, anonymous: 0 }, "GAL", SITE, measure, true).texts.map((t) => t.text);
-    expect(texts).toContain("Joueur4");
-    expect(texts).not.toContain("Joueur5");
-    expect(texts).toContain("Et 3 autres membres avec pseudo. La liste complète est dans le message.");
+  it("au-delà de cinq pseudos, les écrit tous en pastilles, sans en compter aucun ni renvoyer à un texte", () => {
+    // Quatorze arrivées avec pseudo, comme le 3 novembre 2026.
+    const named = Array.from({ length: 14 }, (_, i) => ({ id: `${i}`, username: `Joueur${i}`, joinedAt: T1 }));
+    const card = welcomeCard({ ...ARRIVALS, named, anonymous: 3 }, "GAL", SITE, measure);
+    const texts = card.texts.map((t) => plain(t.text));
+    for (const p of named) expect(texts).toContain(p.username);
+    expect(texts).toContain("Et 3 joueurs sans pseudo public.");
+    expect(texts.join(" ")).not.toMatch(/autres? membres?|dans le message/);
+    // Les pastilles tiennent moins de place que quatorze lignes : l'image reste lisible dans Discord.
+    expect(card.height).toBeLessThan(welcomeCard({ ...ARRIVALS, named: named.slice(0, 5), anonymous: 3 }, "GAL", SITE, measure).height);
+    expectClean(card);
+  });
+  it("ne compte des pseudos sans les écrire qu'au-delà de cinquante", () => {
+    const named = Array.from({ length: 53 }, (_, i) => ({ id: `${i}`, username: `J${i}`, joinedAt: T1 }));
+    const card = welcomeCard({ ...ARRIVALS, named, anonymous: 0 }, "GAL", SITE, measure);
+    const texts = card.texts.map((t) => t.text);
+    expect(texts).toContain("J49");
+    expect(texts).not.toContain("J50");
+    expect(texts).toContain("Et 3 autres membres avec pseudo.");
+    expectClean(card);
   });
   it("dit l'essentiel à un lecteur d'écran", () => {
     expect(plain(welcomeImageAlt(ARRIVALS, "GAL"))).toBe(
-      "Bienvenue chez les Gaulois : arrivées dans le clan [GAL] entre les relevés de la liste des membres du 10 nov., 18:54 et du 11 nov., 14:54. Éloïse (arrivée : 10 nov., 21:12) ; Zoé (arrivée : 11 nov., 10:12). Et 2 joueurs sans pseudo public.",
+      "Bienvenue chez les Gaulois : arrivées dans le clan [GAL] entre les relevés de la liste des membres du 10 nov., 18:54 et du 11 nov., 14:54, de ceux qui sont encore là au dernier relevé. Éloïse (arrivée : 10 nov., 21:12) ; Zoé (arrivée : 11 nov., 10:12). Et 2 joueurs sans pseudo public.",
     );
+  });
+  it("une longue liste ne coupe aucun pseudo dans la description : les autres sont comptés, les anonymes aussi", () => {
+    const named = Array.from({ length: 30 }, (_, i) => ({ id: `${i}`, username: `Capitaine Barbe GOAT.${7000 + i}`, joinedAt: T1 }));
+    const alt = plain(welcomeImageAlt({ ...ARRIVALS, named, anonymous: 2 }, "GAL"));
+    expect(alt.length).toBeLessThanOrEqual(1024);
+    const written = named.filter((p) => alt.includes(`${p.username} (arrivée : 11 nov., 14:54)`)).length;
+    expect(written).toBeGreaterThan(10);
+    expect(written).toBeLessThan(30);
+    // Le dernier pseudo écrit est entier, puis viennent le compte des autres et celui des anonymes.
+    expect(alt.endsWith(`${named[written - 1]!.username} (arrivée : 11 nov., 14:54). Et ${30 - written} autres membres avec pseudo. Et 2 joueurs sans pseudo public.`)).toBe(true);
+    expect(alt).not.toContain(named[written]!.username);
+    // Sans pseudo du tout : une phrase entière pour les anonymes.
+    expect(plain(welcomeImageAlt({ ...ARRIVALS, named: [], anonymous: 1 }, "GAL"))).toMatch(/dernier relevé\. 1 joueur sans pseudo public a rejoint le clan\.$/);
   });
   it("se dessine avec les polices du site", async () => {
     const root = process.cwd();
     const fonts = new GazetteFonts(root);
-    const card = welcomeCard(ARRIVALS, "GAL", SITE, fonts.width, true);
+    const card = welcomeCard(ARRIVALS, "GAL", SITE, fonts.width);
     expect(await sharp(await renderGazetteCard(card, fonts, root)).metadata()).toMatchObject({ width: card.width, height: card.height, format: "png" });
+    const named = Array.from({ length: 14 }, (_, i) => ({ id: `${i}`, username: `Joueur.${i}`, joinedAt: T1 }));
+    const crowd = welcomeCard({ ...ARRIVALS, named, anonymous: 0 }, "GAL", SITE, fonts.width);
+    expect(await sharp(await renderGazetteCard(crowd, fonts, root)).metadata()).toMatchObject({ width: crowd.width, height: crowd.height, format: "png" });
   });
 });

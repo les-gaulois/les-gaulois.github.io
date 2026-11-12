@@ -27,16 +27,21 @@ describe("milestonePayload", () => {
     expect(payload).toMatchObject({ allowed_mentions: { parse: [] }, avatar_url: "https://x.test/generated/icon-192.png" });
     expect(payload).not.toHaveProperty("components");
   });
-  it("avec l'image : un seul joueur, le bouton ouvre sa fiche ; plusieurs, la page des paliers", () => {
+  it("avec l'image : aucun texte ; un seul joueur, le bouton ouvre sa fiche ; plusieurs, la page des paliers", () => {
     const one = milestonePayload([players[0]!], PENDING, "GAL", SITE, { alt: "Description.", filename: "paliers-franchis.png" });
-    expect(String(one["content"])).toContain("**Palier franchi chez [GAL]**");
-    expect(one).toMatchObject({
+    expect(one).toEqual({
+      avatar_url: "https://x.test/generated/icon-192.png",
       allowed_mentions: { parse: [] },
       attachments: [{ id: 0, filename: "paliers-franchis.png", description: "Description." }],
       components: [{ type: 1, components: [{ type: 2, style: 5, label: "Voir la fiche de Marc", url: "https://x.test/membres/c%2F1/" }] }],
     });
     const many = milestonePayload(players, PENDING, "GAL", SITE, { alt: "Description.", filename: "paliers-franchis.png" });
     expect(many).toMatchObject({ components: [{ type: 1, components: [{ label: "Voir les paliers du clan", url: "https://x.test/membres/#paliers" }] }] });
+    expect(many).not.toHaveProperty("content");
+  });
+  it("le texte de secours accorde son titre : au singulier pour un seul joueur", () => {
+    expect(String(milestonePayload([players[0]!], PENDING, "GAL", SITE, null)["content"])).toContain("**Palier franchi chez [GAL]**");
+    expect(String(milestonePayload(players, PENDING, "GAL", SITE, null)["content"])).toContain("**Paliers franchis chez [GAL]**");
   });
   it("un pseudo ne peut ni mettre en forme le message, ni y glisser un lien ou une mention", () => {
     const odd: MilestonePlayer = { id: "o", username: "*x*](<https://y.test>) @everyone", tier: 250 };
@@ -83,13 +88,18 @@ describe("sendMilestones", () => {
     expect(url).toBe(`${WEBHOOK}?with_components=true`);
     expect(init.redirect).toBe("error");
     const form = init.body as FormData;
-    expect(JSON.parse(String(form.get("payload_json")))).toMatchObject({ attachments: [{ filename: "paliers-franchis.png" }] });
+    const sent = JSON.parse(String(form.get("payload_json")));
+    expect(sent).toMatchObject({ attachments: [{ filename: "paliers-franchis.png" }] });
+    // Le message est l'image seule : aucun texte ne l'accompagne.
+    expect(sent).not.toHaveProperty("content");
     expect((form.get("files[0]") as File).type).toBe("image/png");
   });
   it("si l'image ne se dessine pas, ou si Discord refuse son format, le message part en texte", async () => {
     const broken = setup({ renderImage: async () => { throw new Error("un caractère ne peut pas être dessiné"); } });
     expect(await sendMilestones(broken.deps)).toBe(true);
-    expect((broken.post.mock.calls[0] as unknown as [string])[0]).toBe(WEBHOOK);
+    const [url, init] = broken.post.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe(WEBHOOK);
+    expect(String(JSON.parse(String(init.body)).content)).toContain("**Paliers franchis chez [GAL]**");
     expect(broken.logs.join(" ")).toContain("Paliers : image impossible à dessiner");
     const answers = [new Response("non", { status: 413 }), new Response(null, { status: 204 })];
     const refused = setup({ fetch: vi.fn(async () => answers.shift()!) as unknown as typeof fetch });

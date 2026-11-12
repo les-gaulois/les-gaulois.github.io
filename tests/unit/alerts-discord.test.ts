@@ -36,15 +36,20 @@ describe("alertPayload", () => {
     expect(payload).not.toHaveProperty("attachments");
     expect(payload).not.toHaveProperty("components");
   });
-  it("avec l'image, joint le fichier, sa description et un bouton vers la page", () => {
+  it("avec l'image, joint le fichier, sa description et un bouton vers la page, sans aucun texte", () => {
     const payload = alertPayload(mapLoss, "GAL", "https://x.test", { alt: "Description.", filename: "alerte-carte.png" });
-    expect(plain(String(payload["content"]))).toContain("**[GAL] recule à la 5e place sur la carte des clans**\n1 200 pixels de retard sur [AST], 4e.");
-    expect(String(payload["content"])).toContain("-# Carte au relevé du 7 nov., 18:00. Territoire en pixels, ce n'est pas le classement des clans.");
-    expect(payload).toMatchObject({
+    expect(payload).toEqual({
+      avatar_url: "https://x.test/generated/icon-192.png",
       allowed_mentions: { parse: [] },
       attachments: [{ id: 0, filename: "alerte-carte.png", description: "Description." }],
       components: [{ type: 1, components: [{ type: 2, style: 5, label: "Voir la carte", url: "https://x.test/carte" }] }],
     });
+    expect(payload).not.toHaveProperty("content");
+  });
+  it("le texte de secours dit la même alerte, avec un lien à la place du bouton", () => {
+    const content = String(alertPayload(mapLoss, "GAL", "https://x.test", null)["content"]);
+    expect(plain(content)).toContain("**[GAL] recule à la 5e place sur la carte des clans**\n1 200 pixels de retard sur [AST], 4e.");
+    expect(content).toContain("-# Carte au relevé du 7 nov., 18:00. Territoire en pixels, ce n'est pas le classement des clans.");
   });
   it("le tag d'un autre clan ne peut ni mettre en forme le message, ni y glisser un lien ou une mention", () => {
     const odd: PlaceAlert = { ...gain, reading: { ...official, below: { tag: "*_[x](<https://y.test>)@here", rank: 3, gap: 1 } } };
@@ -75,7 +80,10 @@ describe("sendPlaceAlert", () => {
     // L'en-tête et sa frontière viennent de `fetch` : en poser un casserait l'envoi.
     expect(init.headers).toBeUndefined();
     const form = init.body as FormData;
-    expect(JSON.parse(String(form.get("payload_json")))).toMatchObject({ attachments: [{ id: 0, filename: "alerte-classement.png", description: "Description de l'image." }] });
+    const sent = JSON.parse(String(form.get("payload_json")));
+    expect(sent).toMatchObject({ attachments: [{ id: 0, filename: "alerte-classement.png", description: "Description de l'image." }] });
+    // Le message est l'image seule : aucun texte ne l'accompagne.
+    expect(sent).not.toHaveProperty("content");
     const file = form.get("files[0]") as File;
     expect(file.type).toBe("image/png");
     expect([...new Uint8Array(await file.arrayBuffer())]).toEqual([137, 80, 78, 71]);
@@ -86,7 +94,9 @@ describe("sendPlaceAlert", () => {
     expect(await sendPlaceAlert(deps)).toBe(true);
     const [url, init] = post.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe(WEBHOOK);
-    expect(JSON.parse(String(init.body))).toMatchObject({ allowed_mentions: { parse: [] } });
+    const sent = JSON.parse(String(init.body));
+    expect(sent).toMatchObject({ allowed_mentions: { parse: [] } });
+    expect(String(sent.content)).toContain("monte à la 2e place du classement des clans");
     expect(logs.join(" ")).toContain("part en texte");
   });
   it.each([400, 403, 413])("si Discord refuse le format du message (%i), il le renvoie aussitôt en texte", async (status) => {

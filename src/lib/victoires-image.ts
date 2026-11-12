@@ -5,8 +5,9 @@
  *
  * La vignette est `resources/maps/<carte>/thumbnail.webp` du dépôt d'OpenFront, lue au moment de l'envoi : CC BY-SA 4.0,
  * attribution « OpenFront », agrandie ou réduite, aux coins arrondis, posée sur la couleur de la mer du jeu là où son eau est
- * transparente. L'image et le message le disent, avec la mention « © OpenFront and Contributors ». Jamais le CDN du jeu : voir
- * NOTICE.md.
+ * transparente. Le message n'a plus de texte depuis le 12 novembre 2026 : c'est l'image qui porte tout le crédit, avec la
+ * mention « © OpenFront and Contributors », la licence, ce que le robot a changé, et les adresses de la source et de la
+ * licence, écrites en toutes lettres. Jamais le CDN du jeu : voir NOTICE.md.
  */
 import sharp, { type OverlayOptions } from "sharp";
 import { fmtCount, fmtEpochTime, fmtInt, fmtMinutes, fmtScore } from "./format";
@@ -14,10 +15,11 @@ import { CARD_COLORS as C, fitted, renderGazetteCard, type CardRect, type CardTe
 import { dayTitle } from "./hier-discord";
 import { mapKey, mapLabel } from "./map-names";
 import { formatLabel } from "./results";
-import { shownAddress } from "./salon-discord";
+import { fittedAlt, shownAddress } from "./salon-discord";
+import { chipLayout, chipParts, chipsHeight } from "./salon-image";
 import { parisParts } from "./time";
 import type { Victory } from "./victoires";
-import { countedWords, countWords, crewList, gameLength, OPENFRONT_CREDIT, pointsLabel, pointsWords, victoryTitle } from "./victoires-discord";
+import { countedWords, countWords, crewList, gameLength, LICENSE_URL, mapSource, MAPS_SOURCE, OPENFRONT_CREDIT, pointsLabel, pointsWords, restWords, victoryTitle } from "./victoires-discord";
 
 const WIDTH = 1200;
 const MARGIN = 36;
@@ -31,7 +33,10 @@ const MAX_ZOOM = 2;
 const GAP = 16;
 /** Sans la vignette : les chiffres côte à côte. */
 const ROW_TILE_HEIGHT = 200;
-const CHIP_GAP = 12;
+/** Sous le contenu : l'adresse du site et le crédit de la carte, puis les adresses de sa source et de sa licence. */
+const FOOTER_HEIGHT = 108;
+/** Les adresses du crédit ne s'écrivent pas plus petit : au-delà, celle du dossier de toutes les cartes remplace celle de la carte. */
+const CREDIT_MIN_SIZE = 14;
 
 /** La mer du jeu, là où l'eau de la vignette est transparente : l'océan du client d'OpenFront, #4785b5 assombri de 10 par canal. */
 export const SEA = "#3D7BAB";
@@ -39,6 +44,19 @@ export const SEA = "#3D7BAB";
 /** Le crédit de la carte, en bas de l'image : la mention que demande OpenFront, la licence, et ce que le robot a changé. */
 export const MAP_NOTE = `Carte : ${OPENFRONT_CREDIT}, CC BY-SA 4.0, redimensionnée`;
 export const NAME_NOTE = `Nom de la carte : ${OPENFRONT_CREDIT}, CC BY-SA 4.0`;
+
+const shownUrl = (url: string) => url.replace(/^https?:\/\//, "");
+
+/**
+ * Les adresses de la source et de la licence, sous le crédit : sans texte dans le message, l'image les écrit elle-même, comme
+ * le demande la licence CC BY-SA. `fits` : l'adresse du dossier de la carte tient-elle sur la ligne ? Sinon, celle du dossier
+ * de toutes les cartes, toujours assez courte.
+ */
+export function creditAddresses(map: string, fits: (line: string) => boolean): string {
+  const line = (source: string) => `${shownUrl(source)} · ${shownUrl(LICENSE_URL)}`;
+  const precise = line(mapSource(map));
+  return fits(precise) ? precise : line(MAPS_SOURCE);
+}
 
 /** Où poser la vignette, à sa taille dans l'image. */
 export interface MapPlacement {
@@ -59,7 +77,7 @@ interface Tile {
   label: string;
 }
 
-/** « 16 min », arrondi à la minute ; « 2 h 51 min » au-delà d'une heure, comme le texte du message. */
+/** « 16 min », arrondi à la minute ; « 2 h 51 min » au-delà d'une heure, comme le texte de secours. */
 export const tileLength = (seconds: number) => (seconds >= 3600 ? gameLength(seconds) : fmtMinutes(seconds));
 
 function victoryTiles(v: Victory): Tile[] {
@@ -67,56 +85,6 @@ function victoryTiles(v: Victory): Tile[] {
   if (v.points !== null) tiles.push({ value: `+${fmtScore(v.points)}`, label: pointsLabel(v.points) });
   tiles.push({ value: tileLength(v.seconds), label: "de partie" });
   return tiles;
-}
-
-interface Chip {
-  text: string;
-  size: number;
-  /** Un nom ; sinon, le compte de ceux qui ne sont pas nommés. */
-  named: boolean;
-  x: number;
-  width: number;
-}
-
-/** Des pastilles grandes jusqu'à trois lignes, puis plus petites : tous les Gaulois de la partie y sont, jamais « et autres ». */
-export const CHIP_STEPS = [
-  { font: 28, height: 56, rows: 3 },
-  { font: 24, height: 48, rows: 4 },
-  { font: 20, height: 42, rows: Number.POSITIVE_INFINITY },
-] as const;
-
-interface ChipLayout {
-  rows: Chip[][];
-  font: number;
-  height: number;
-}
-
-/** Les noms en pastilles, ligne après ligne, à la plus grande taille qui tient dans ses lignes. */
-function chipLayout(v: Victory, measure: Measure, width: number): ChipLayout {
-  const items = [...v.crew.map((p) => ({ text: p.name, named: true })), ...countedWords(v).map((text) => ({ text, named: false }))];
-  const place = (font: number): Chip[][] => {
-    const padding = Math.round(font * 0.8);
-    const rows: Chip[][] = [[]];
-    let x = 0;
-    for (const item of items) {
-      const text = fitted(item.text, "strong", font, font - 6, width - 2 * padding, measure);
-      const chipWidth = Math.ceil(measure(text.text, "strong", text.size)) + 2 * padding;
-      if (x > 0 && x + chipWidth > width) {
-        rows.push([]);
-        x = 0;
-      }
-      rows.at(-1)?.push({ ...text, named: item.named, x, width: chipWidth });
-      x += chipWidth + CHIP_GAP;
-    }
-    return rows;
-  };
-  if (items.length === 0) return { rows: [], font: CHIP_STEPS[0].font, height: CHIP_STEPS[0].height };
-  for (const step of CHIP_STEPS) {
-    const rows = place(step.font);
-    if (rows.length <= step.rows) return { rows, font: step.font, height: step.height };
-  }
-  const last = CHIP_STEPS[CHIP_STEPS.length - 1]!;
-  return { rows: place(last.font), font: last.font, height: last.height };
 }
 
 /** « Mardi 11 novembre à 18:04 », à l'heure de Paris. */
@@ -133,12 +101,12 @@ export interface ThumbnailShape {
 export function victoryCard(v: Victory, tag: string, siteUrl: string, measure: Measure, thumbnail: ThumbnailShape | null): VictoryCard {
   const tiles = victoryTiles(v);
   const contentWidth = WIDTH - 2 * MARGIN;
-  const chips = chipLayout(v, measure, contentWidth);
-  const rows = chips.rows;
+  // Tous les Gaulois de la partie, en pastilles sous leur nom en partie, jamais « et autres » ; puis ceux qui sont seulement comptés.
+  const chips = chipLayout([...v.crew.map((p) => ({ text: p.name, named: true })), ...countedWords(v).map((text) => ({ text, named: false }))], measure, contentWidth);
   const bodyBottom = BODY_TOP + (thumbnail ? BODY_HEIGHT : ROW_TILE_HEIGHT);
   const chipsTop = bodyBottom + 24;
-  const contentBottom = rows.length > 0 ? chipsTop + rows.length * chips.height + (rows.length - 1) * CHIP_GAP : bodyBottom;
-  const height = contentBottom + 76;
+  const contentBottom = chips.rows.length > 0 ? chipsTop + chipsHeight(chips) : bodyBottom;
+  const height = contentBottom + FOOTER_HEIGHT;
   const rects: CardRect[] = [{ x: 0, y: 0, width: WIDTH, height, radius: 0, color: C.NAVY }];
   const texts: CardText[] = [];
   const third = WIDTH / 3;
@@ -186,33 +154,36 @@ export function victoryCard(v: Victory, tag: string, siteUrl: string, measure: M
   }
 
   // Les Gaulois de la partie, en pastilles, sous leur nom en partie.
-  const padding = Math.round(chips.font * 0.8);
-  rows.forEach((row, r) => {
-    const y = chipsTop + r * (chips.height + CHIP_GAP);
-    for (const chip of row) {
-      rects.push({ x: MARGIN + chip.x, y, width: chip.width, height: chips.height, radius: 14, color: chip.named ? C.BLUE : C.SURFACE });
-      texts.push({ text: chip.text, size: chip.size, x: MARGIN + chip.x + padding, y: Math.round(y + chips.height / 2 + chips.font * 0.36), font: "strong", color: chip.named ? C.WHITE : C.MUTED });
-    }
-  });
+  const drawn = chipParts(chips, MARGIN, chipsTop);
+  rects.push(...drawn.rects);
+  texts.push(...drawn.texts);
 
+  // L'adresse du site et le crédit de la carte, puis, dessous, les adresses de la source et de la licence.
   const url = shownAddress(siteUrl, "/parties");
-  texts.push({ text: url, x: MARGIN, y: height - 22, size: 26, font: "strong", color: C.BLUE_TEXT });
+  texts.push({ text: url, x: MARGIN, y: height - 54, size: 26, font: "strong", color: C.BLUE_TEXT });
   const note = fitted(thumbnail ? MAP_NOTE : NAME_NOTE, "body", 22, 16, contentWidth - measure(url, "strong", 26) - 24, measure);
-  texts.push({ ...note, x: WIDTH - MARGIN, y: height - 22, font: "body", color: C.MUTED, anchor: "end" });
+  texts.push({ ...note, x: WIDTH - MARGIN, y: height - 54, font: "body", color: C.MUTED, anchor: "end" });
+  const addresses = creditAddresses(v.map, (line) => measure(line, "body", CREDIT_MIN_SIZE) <= contentWidth);
+  texts.push({ ...fitted(addresses, "body", 20, CREDIT_MIN_SIZE, contentWidth, measure), x: WIDTH - MARGIN, y: height - 22, font: "body", color: C.MUTED, anchor: "end" });
   return { width: WIDTH, height, rects, texts, logo, map };
 }
 
-/** Ce que l'image dit, pour un lecteur d'écran : Discord le lit comme description du fichier. */
+/**
+ * Ce que l'image dit, pour un lecteur d'écran : Discord le lit comme description du fichier. Elle dit aussi d'où viennent les
+ * noms, que l'image n'écrit pas. Sans couper un nom : au-delà de ce que Discord accepte, les autres Gaulois sont comptés, et
+ * le crédit de la carte reste entier.
+ */
 export function victoryImageAlt(v: Victory, tag: string, withMap: boolean): string {
-  const parts = [`${victoryTitle(tag)} sur la carte ${mapLabel(v.map)}${v.format ? `, ${formatLabel(v.format)}` : ""}, ${victoryWhen(v).toLowerCase()}, heure de Paris.`];
-  parts.push(`${countWords(v)}${v.points === null ? "" : `, ${pointsWords(v.points)}`}, partie de ${tileLength(v.seconds)}.`);
-  const crew = crewList(
-    v.crew.map((p) => p.name),
-    countedWords(v),
-  );
-  if (crew) parts.push(`Gaulois de la partie : ${crew}.`);
-  parts.push(withMap ? `Image et nom de la carte : ${OPENFRONT_CREDIT}, CC BY-SA 4.0, image redimensionnée.` : `Nom de la carte : ${OPENFRONT_CREDIT}, CC BY-SA 4.0.`);
-  return parts.join(" ").slice(0, 1024);
+  const head = `${victoryTitle(tag)} sur la carte ${mapLabel(v.map)}${v.format ? `, ${formatLabel(v.format)}` : ""}, ${victoryWhen(v).toLowerCase()}, heure de Paris.`;
+  const figures = `${countWords(v)}${v.points === null ? "" : `, ${pointsWords(v.points)}`}, partie de ${tileLength(v.seconds)}.`;
+  const credit = withMap ? `Image et nom de la carte : ${OPENFRONT_CREDIT}, CC BY-SA 4.0, image redimensionnée.` : `Nom de la carte : ${OPENFRONT_CREDIT}, CC BY-SA 4.0.`;
+  return fittedAlt(v.crew, (shown, rest) => {
+    const crew = crewList(
+      shown.map((p) => p.name),
+      [...(rest > 0 ? [restWords(rest, shown.length)] : []), ...countedWords(v)],
+    );
+    return [head, figures, ...(crew ? [`Gaulois de la partie, sous leur nom en partie : ${crew}.`] : []), credit].join(" ");
+  });
 }
 
 /* ---------- La vignette ---------- */

@@ -49,7 +49,9 @@ try {
       const { GazetteFonts, gazetteCard, gazetteImageAlt, renderGazetteCard } = await import("../src/lib/gazette-image");
       const root = process.cwd();
       const fonts = new GazetteFonts(root);
-      return { png: await renderGazetteCard(gazetteCard(edition, clan.tag, clan.links.site, fonts.width), fonts, root), alt: gazetteImageAlt(edition, clan.tag) };
+      // Un caractère qu'aucune police ne sait dessiner devient « ? » sur l'image ; sa description garde le pseudo entier.
+      const drawn = edition.players ? { ...edition, players: edition.players.map((p) => ({ ...p, username: fonts.drawable(p.username, "strong") })) } : edition;
+      return { png: await renderGazetteCard(gazetteCard(drawn, clan.tag, clan.links.site, fonts.width), fonts, root), alt: gazetteImageAlt(edition, clan.tag) };
     },
     lastSent: lastSentEdition(readState()),
     tag: clan.tag,

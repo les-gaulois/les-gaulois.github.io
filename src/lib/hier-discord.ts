@@ -10,11 +10,12 @@
  * - Le message attend que la collecte ait fini la journée (`completeThrough`) : un message posté ne se corrige pas.
  * - À partir de 9 h, jamais la nuit, une fois par jour. Une journée sans partie n'envoie rien : il n'y aurait rien à raconter.
  *   Un jour manqué n'est pas rattrapé.
+ * - Le message est une image et un bouton, sans texte : le texte ne part que si l'image ne se dessine pas.
  */
 import { z } from "zod";
 import { alertsStarted } from "./alerts";
 import { bestGameOf } from "./belle-partie";
-import { postWithImage } from "./discord-post";
+import { imageMessage, postWithImage, textMessage } from "./discord-post";
 import { fmtCount, fmtInt, fmtLongDay, fmtMinutes, fmtPct } from "./format";
 import type { RenderedImage } from "./gazette-discord";
 import type { JournalRow } from "./journal";
@@ -113,7 +114,7 @@ export function bestWords(row: JournalRow): string {
 
 export const HIER_NOTE = "Belle partie : celle où le plus de Gaulois jouaient ensemble.";
 
-/** Le texte du message. */
+/** Le texte de secours. */
 export function hierContent(report: DayReport, tag: string, siteUrl: string): string {
   const lines = [`**${HIER_TITLE}** · ${dayTitle(report.day)}`, `🎯 ${resultWords(report)}.`];
   if (report.streak >= 2) lines.push(`🔥 Plus longue série : ${streakWords(report.streak)}.`);
@@ -122,15 +123,10 @@ export function hierContent(report: DayReport, tag: string, siteUrl: string): st
   return lines.join("\n");
 }
 
-/** Le message. `image` : le fichier joint et sa description ; sans lui, le message part en texte, sans bouton. */
+/** Le message. `image` : le fichier joint et sa description, avec un bouton, sans texte. Sans elle, le secours en texte, sans bouton. */
 export function hierPayload(report: DayReport, tag: string, siteUrl: string, image: { alt: string; filename: string } | null): Record<string, unknown> {
-  const base = { content: hierContent(report, tag, siteUrl), avatar_url: siteLink(siteUrl, "/generated/icon-192.png"), allowed_mentions: { parse: [] } };
-  if (!image) return base;
-  return {
-    ...base,
-    attachments: [{ id: 0, filename: image.filename, description: image.alt }],
-    components: [{ type: 1, components: [{ type: 2, style: 5, label: "Voir les dernières parties", url: siteLink(siteUrl, "/parties") }] }],
-  };
+  if (!image) return textMessage(siteUrl, hierContent(report, tag, siteUrl));
+  return imageMessage(siteUrl, image, [{ label: "Voir les dernières parties", url: siteLink(siteUrl, "/parties") }]);
 }
 
 export interface HierSendDeps {
@@ -145,7 +141,7 @@ export interface HierSendDeps {
   log: (line: string) => void;
 }
 
-/** Envoie le message, avec l'image d'abord : voir `postWithImage`. Un échec se retente au passage suivant. */
+/** Envoie le message en image, ou en texte si elle ne se dessine pas : voir `postWithImage`. Un échec se retente au passage suivant. */
 export function sendHier({ link, report, renderImage, tag, siteUrl, fetch, log }: HierSendDeps): Promise<boolean> {
   return postWithImage({
     link,

@@ -4,14 +4,16 @@
  *
  * - Une entrée se reconnaît à son jour et à son titre. Une entrée dont le titre est corrigé repart, si elle a moins de trois
  *   jours. Plus ancienne, ce n'est plus une nouvelle : elle est notée sans être envoyée.
- * - À partir de 19 h, jamais la nuit, une fois par jour. Le message est en texte, avec le lien de chaque page.
+ * - À partir de 19 h, jamais la nuit, une fois par jour. Le message est une image (`nouveautes-image.ts`), avec le titre de
+ *   chaque nouveauté, et un bouton vers la page, sans texte. La phrase de chacune se lit sur le site. Le texte, avec la phrase
+ *   et le lien de chaque page, ne part que si l'image ne se dessine pas.
  * - Au premier passage, les entrées du moment servent de départ : rien n'est envoyé.
  */
 import { z } from "zod";
 import { alertsStarted } from "./alerts";
-import { postText } from "./discord-post";
+import { imageMessage, postWithImage, textMessage } from "./discord-post";
 import { fmtCount } from "./format";
-import { escapeDiscord } from "./gazette-discord";
+import { escapeDiscord, type RenderedImage } from "./gazette-discord";
 import { MAX_CONTENT } from "./paliers-franchis-discord";
 import { ParisDay, SEND_FROM_HOUR, sendWindow, siteLink } from "./salon-discord";
 import type { Nouveaute } from "./schemas";
@@ -43,10 +45,10 @@ export function unseenNews(entries: readonly Nouveaute[], state: NewsState, toda
 export const NEWS_TITLE = "Nouveau sur le site du clan";
 
 /** « Et 2 autres nouveautés. » */
-const otherNewsWords = (count: number) => (count > 1 ? `Et ${count} autres nouveautés.` : "Et 1 autre nouveauté.");
+export const otherNewsWords = (count: number) => (count > 1 ? `Et ${count} autres nouveautés.` : "Et 1 autre nouveauté.");
 
 /**
- * Le texte du message : chaque titre, sa phrase et le lien de sa page. S'il est trop long pour Discord, les titres seuls,
+ * Le texte de secours : chaque titre, sa phrase et le lien de sa page. S'il est trop long pour Discord, les titres seuls,
  * puis moins d'entrées, et les autres sont comptées. Les textes sont échappés : ils ne peuvent ni mettre en forme ni mentionner.
  */
 export function newsContent(entries: readonly Nouveaute[], siteUrl: string): string {
@@ -69,12 +71,11 @@ export function newsContent(entries: readonly Nouveaute[], siteUrl: string): str
   return build(written, false);
 }
 
-/** Le message, en texte seul. */
-export const newsPayload = (entries: readonly Nouveaute[], siteUrl: string): Record<string, unknown> => ({
-  content: newsContent(entries, siteUrl),
-  avatar_url: siteLink(siteUrl, "/generated/icon-192.png"),
-  allowed_mentions: { parse: [] },
-});
+/** Le message. `image` : le fichier joint et sa description, avec un bouton vers la page, sans texte. Sans elle, le secours en texte. */
+export function newsPayload(entries: readonly Nouveaute[], siteUrl: string, image: { alt: string; filename: string } | null): Record<string, unknown> {
+  if (!image) return textMessage(siteUrl, newsContent(entries, siteUrl));
+  return imageMessage(siteUrl, image, [{ label: "Toutes les nouveautés", url: siteLink(siteUrl, "/nouveautes") }]);
+}
 
 export interface NewsPassDeps {
   /** L'état noté au passage précédent. `null` : premier passage. */
@@ -121,10 +122,25 @@ export interface NewsSendDeps {
   /** Un lien déjà vérifié par `isWebhookUrl`. */
   link: string;
   entries: readonly Nouveaute[];
+  /** Dessine l'image. Si elle échoue, le message part en texte. */
+  renderImage: (entries: readonly Nouveaute[]) => Promise<RenderedImage>;
   siteUrl: string;
   fetch: typeof fetch;
   log: (line: string) => void;
 }
 
-/** Envoie le message en texte. Un échec se retente au passage suivant. */
-export const sendNews = ({ link, entries, siteUrl, fetch, log }: NewsSendDeps) => postText({ link, text: newsPayload(entries, siteUrl), label: "Nouveautés", fetch, log });
+/** Envoie le message en image, ou en texte si elle ne se dessine pas : voir `postWithImage`. Un échec se retente au passage suivant. */
+export function sendNews({ link, entries, renderImage, siteUrl, fetch, log }: NewsSendDeps): Promise<boolean> {
+  return postWithImage({
+    link,
+    label: "Nouveautés",
+    text: newsPayload(entries, siteUrl, null),
+    image: async () => {
+      const { png, alt } = await renderImage(entries);
+      const filename = "nouveautes-du-site.png";
+      return { payload: newsPayload(entries, siteUrl, { alt, filename }), png, filename };
+    },
+    fetch,
+    log,
+  });
+}

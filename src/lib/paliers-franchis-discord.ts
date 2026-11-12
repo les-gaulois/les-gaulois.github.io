@@ -1,9 +1,10 @@
 /**
- * Le message des paliers franchis, sur le salon de la gazette : les pseudos, chacun relié à sa fiche, l'image et un bouton.
- * Le message ne peut mentionner personne, et un pseudo ne peut ni le mettre en forme ni y glisser un lien.
+ * Le message des paliers franchis, sur le salon de la gazette : l'image, qui écrit chaque pseudo et son palier, et un bouton.
+ * Le message de secours, en texte, relie chaque pseudo à sa fiche : il ne peut mentionner personne, et un pseudo ne peut ni le
+ * mettre en forme ni y glisser un lien.
  */
 import { alertsStarted } from "./alerts";
-import { postWithImage } from "./discord-post";
+import { imageMessage, postWithImage, textMessage } from "./discord-post";
 import { escapeDiscord, type RenderedImage } from "./gazette-discord";
 import {
   crossingWords,
@@ -19,21 +20,20 @@ import {
   type MilestoneState,
   type PendingMilestones,
 } from "./paliers-franchis";
+import { NAMED_ONLY } from "./salon-discord";
 import type { StoredMembers } from "./schemas";
 
-/** Au plus tant de pseudos écrits ; les autres sont comptés. */
+/** Au plus tant de pseudos écrits dans le texte de secours ; les autres sont comptés. */
 export const MAX_NAMES = 15;
 /** Discord refuse un texte de plus de 2 000 caractères : le message garde de la marge, et retire des pseudos s'il le faut. */
 export const MAX_CONTENT = 1900;
-/** La limite de Discord pour le texte d'un bouton. */
-const BUTTON_LABEL_MAX = 80;
 
 export const profileUrl = (site: string, id: string) => `${site}/membres/${encodeURIComponent(id)}/`;
 export const tiersUrl = (site: string) => `${site}/membres/#paliers`;
 
 /**
- * Le texte du message, et le nombre de pseudos qu'il écrit : quinze au plus, moins si de longs pseudos le rendaient trop long.
- * Les autres sont comptés. L'image a besoin de ce nombre pour ne pas renvoyer au message des pseudos qu'il n'écrit pas.
+ * Le texte de secours, et le nombre de pseudos qu'il écrit : quinze au plus, moins si de longs pseudos le rendaient trop long.
+ * Les autres sont comptés.
  */
 export function milestoneContent(players: readonly MilestonePlayer[], pending: PendingMilestones, tag: string, siteUrl: string): { content: string; written: number } {
   const site = siteUrl.replace(/\/$/, "");
@@ -44,7 +44,7 @@ export function milestoneContent(players: readonly MilestonePlayer[], pending: P
       `**${milestoneTitle(players.length)} chez [${escapeDiscord(tag)}]**`,
       ...lines,
       `[Voir les paliers du clan sur le site](<${tiersUrl(site)}>)`,
-      `-# Victoires en équipe sous le tag, ${periodWords(pending)}. Membres avec pseudo public seulement. ${MILESTONE_NOTE}`,
+      `-# Victoires en équipe sous le tag, ${periodWords(pending)}. ${NAMED_ONLY} ${MILESTONE_NOTE}`,
     ].join("\n");
   };
   let written = Math.min(players.length, MAX_NAMES);
@@ -53,21 +53,12 @@ export function milestoneContent(players: readonly MilestonePlayer[], pending: P
   return { content: build(written), written };
 }
 
-/** Le message. `image` : le fichier joint et sa description ; sans lui, le message part en texte, sans bouton. */
+/** Le message. `image` : le fichier joint et sa description, avec un bouton, sans texte. Sans elle, le secours en texte, sans bouton. */
 export function milestonePayload(players: readonly MilestonePlayer[], pending: PendingMilestones, tag: string, siteUrl: string, image: { alt: string; filename: string } | null): Record<string, unknown> {
   const site = siteUrl.replace(/\/$/, "");
-  const { content } = milestoneContent(players, pending, tag, site);
-  const base = { content, avatar_url: `${site}/generated/icon-192.png`, allowed_mentions: { parse: [] } };
-  if (!image) return base;
+  if (!image) return textMessage(site, milestoneContent(players, pending, tag, site).content);
   const only = players.length === 1 ? players[0] : undefined;
-  const button = only
-    ? { label: `Voir la fiche de ${only.username}`.slice(0, BUTTON_LABEL_MAX), url: profileUrl(site, only.id) }
-    : { label: "Voir les paliers du clan", url: tiersUrl(site) };
-  return {
-    ...base,
-    attachments: [{ id: 0, filename: image.filename, description: image.alt }],
-    components: [{ type: 1, components: [{ type: 2, style: 5, ...button }] }],
-  };
+  return imageMessage(site, image, [only ? { label: `Voir la fiche de ${only.username}`, url: profileUrl(site, only.id) } : { label: "Voir les paliers du clan", url: tiersUrl(site) }]);
 }
 
 export interface MilestoneSendDeps {
@@ -75,23 +66,22 @@ export interface MilestoneSendDeps {
   link: string;
   players: readonly MilestonePlayer[];
   pending: PendingMilestones;
-  /** Dessine l'image. `allNamed` : le texte écrit tous les pseudos. Si elle échoue, le message part en texte. */
-  renderImage: (players: readonly MilestonePlayer[], pending: PendingMilestones, allNamed: boolean) => Promise<RenderedImage>;
+  /** Dessine l'image. Si elle échoue, le message part en texte. */
+  renderImage: (players: readonly MilestonePlayer[], pending: PendingMilestones) => Promise<RenderedImage>;
   tag: string;
   siteUrl: string;
   fetch: typeof fetch;
   log: (line: string) => void;
 }
 
-/** Envoie le message, avec l'image d'abord : voir `postWithImage`. Un échec se retente au passage suivant. */
+/** Envoie le message en image, ou en texte si elle ne se dessine pas : voir `postWithImage`. Un échec se retente au passage suivant. */
 export function sendMilestones({ link, players, pending, renderImage, tag, siteUrl, fetch, log }: MilestoneSendDeps): Promise<boolean> {
   return postWithImage({
     link,
     label: "Paliers",
     text: milestonePayload(players, pending, tag, siteUrl, null),
     image: async () => {
-      const { written } = milestoneContent(players, pending, tag, siteUrl);
-      const { png, alt } = await renderImage(players, pending, written === players.length);
+      const { png, alt } = await renderImage(players, pending);
       const filename = "paliers-franchis.png";
       return { payload: milestonePayload(players, pending, tag, siteUrl, { alt, filename }), png, filename };
     },

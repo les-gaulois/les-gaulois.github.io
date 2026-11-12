@@ -4,13 +4,14 @@
  * - Les arrivées se lisent dans la liste des membres, relue environ une fois par jour : la date d'arrivée de chacun (`joinedAt`).
  *   Un message couvre les arrivées entre le relevé de la liste du message précédent et le dernier, de ceux qui sont encore dans
  *   le clan au dernier relevé. Si la liste donne une nouvelle date d'arrivée à un joueur parti puis revenu, il est de nouveau accueilli.
- * - Un membre avec pseudo est cité, relié à sa fiche. Un anonyme est seulement compté : ni nom ni identifiant publiés.
+ * - Un membre avec pseudo est cité. Un anonyme est seulement compté : ni nom ni identifiant publiés.
+ * - Le message est une image et un bouton, sans texte ; le texte de secours relie chaque pseudo à sa fiche.
  * - À partir de 12 h, jamais la nuit, une fois par jour, et pas avant que le site montre les fiches des nouveaux.
  * - Au premier passage, le relevé du moment sert de départ : rien n'est envoyé.
  */
 import { z } from "zod";
 import { alertsStarted, MAP_SITE_DELAY_MS } from "./alerts";
-import { postWithImage } from "./discord-post";
+import { imageMessage, postWithImage, textMessage } from "./discord-post";
 import { escapeDiscord, type RenderedImage } from "./gazette-discord";
 import { periodWords } from "./paliers-franchis";
 import { MAX_CONTENT, MAX_NAMES, profileUrl } from "./paliers-franchis-discord";
@@ -69,6 +70,10 @@ export function welcomeDue(state: WelcomeState, members: StoredMembers, now: Dat
 
 export const WELCOME_TITLE = "Bienvenue chez les Gaulois";
 
+/** Qui est compté : un joueur arrivé puis reparti entre les deux relevés n'y est pas. En phrase, puis à la suite d'un titre. */
+export const STILL_HERE = "de ceux qui sont encore là au dernier relevé";
+export const STILL_HERE_SHORT = "encore là au dernier relevé";
+
 /** « Et 2 joueurs sans pseudo public. », ou la phrase entière quand personne n'a de pseudo. */
 export function anonymousWords(count: number, afterNames: boolean): string {
   if (afterNames) return count > 1 ? `Et ${count} joueurs sans pseudo public.` : "Et 1 joueur sans pseudo public.";
@@ -79,8 +84,8 @@ export function anonymousWords(count: number, afterNames: boolean): string {
 export const otherNewcomersWords = (count: number) => (count > 1 ? `Et ${count} autres membres avec pseudo.` : "Et 1 autre membre avec pseudo.");
 
 /**
- * Le texte du message, et le nombre de pseudos qu'il écrit : quinze au plus, moins si de longs pseudos le rendaient trop long.
- * Les autres sont comptés. L'image a besoin de ce nombre pour ne pas renvoyer au message des pseudos qu'il n'écrit pas.
+ * Le texte de secours, et le nombre de pseudos qu'il écrit : quinze au plus, moins si de longs pseudos le rendaient trop long.
+ * Les autres sont comptés.
  */
 export function welcomeContent(arrivals: Arrivals, tag: string, siteUrl: string): { content: string; written: number } {
   const site = siteUrl.replace(/\/$/, "");
@@ -88,7 +93,7 @@ export function welcomeContent(arrivals: Arrivals, tag: string, siteUrl: string)
     const lines = [`**${WELCOME_TITLE} !**`, ...arrivals.named.slice(0, written).map((p) => `👋 [**${escapeDiscord(p.username)}**](<${profileUrl(site, p.id)}>)`)];
     if (arrivals.named.length > written) lines.push(otherNewcomersWords(arrivals.named.length - written));
     if (arrivals.anonymous > 0) lines.push(anonymousWords(arrivals.anonymous, arrivals.named.length > 0));
-    lines.push(`[Voir les membres du clan](<${siteLink(site, "/membres/")}>)`, `-# Arrivées dans le clan [${escapeDiscord(tag)}] ${periodWords(arrivals)}, de ceux qui sont encore là au dernier relevé.`);
+    lines.push(`[Voir les membres du clan](<${siteLink(site, "/membres/")}>)`, `-# Arrivées dans le clan [${escapeDiscord(tag)}] ${periodWords(arrivals)}, ${STILL_HERE}.`);
     return lines.join("\n");
   };
   let written = Math.min(arrivals.named.length, MAX_NAMES);
@@ -97,39 +102,33 @@ export function welcomeContent(arrivals: Arrivals, tag: string, siteUrl: string)
   return { content: build(written), written };
 }
 
-/** Le message. `image` : le fichier joint et sa description ; sans lui, le message part en texte, sans bouton. */
+/** Le message. `image` : le fichier joint et sa description, avec un bouton, sans texte. Sans elle, le secours en texte, sans bouton. */
 export function welcomePayload(arrivals: Arrivals, tag: string, siteUrl: string, image: { alt: string; filename: string } | null): Record<string, unknown> {
   const site = siteUrl.replace(/\/$/, "");
-  const base = { content: welcomeContent(arrivals, tag, site).content, avatar_url: siteLink(site, "/generated/icon-192.png"), allowed_mentions: { parse: [] } };
-  if (!image) return base;
-  return {
-    ...base,
-    attachments: [{ id: 0, filename: image.filename, description: image.alt }],
-    components: [{ type: 1, components: [{ type: 2, style: 5, label: "Voir les membres du clan", url: siteLink(site, "/membres/") }] }],
-  };
+  if (!image) return textMessage(site, welcomeContent(arrivals, tag, site).content);
+  return imageMessage(site, image, [{ label: "Voir les membres du clan", url: siteLink(site, "/membres/") }]);
 }
 
 export interface WelcomeSendDeps {
   /** Un lien déjà vérifié par `isWebhookUrl`. */
   link: string;
   arrivals: Arrivals;
-  /** Dessine l'image. `allNamed` : le texte écrit tous les pseudos. Si elle échoue, le message part en texte. */
-  renderImage: (arrivals: Arrivals, allNamed: boolean) => Promise<RenderedImage>;
+  /** Dessine l'image. Si elle échoue, le message part en texte. */
+  renderImage: (arrivals: Arrivals) => Promise<RenderedImage>;
   tag: string;
   siteUrl: string;
   fetch: typeof fetch;
   log: (line: string) => void;
 }
 
-/** Envoie le message, avec l'image d'abord : voir `postWithImage`. Un échec se retente au passage suivant. */
+/** Envoie le message en image, ou en texte si elle ne se dessine pas : voir `postWithImage`. Un échec se retente au passage suivant. */
 export function sendWelcome({ link, arrivals, renderImage, tag, siteUrl, fetch, log }: WelcomeSendDeps): Promise<boolean> {
   return postWithImage({
     link,
     label: "Bienvenue",
     text: welcomePayload(arrivals, tag, siteUrl, null),
     image: async () => {
-      const { written } = welcomeContent(arrivals, tag, siteUrl);
-      const { png, alt } = await renderImage(arrivals, written === arrivals.named.length);
+      const { png, alt } = await renderImage(arrivals);
       const filename = "bienvenue.png";
       return { payload: welcomePayload(arrivals, tag, siteUrl, { alt, filename }), png, filename };
     },

@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import sharp from "sharp";
 import { GazetteFonts, renderGazetteCard, type CardText, type GazetteCard, type Measure } from "../../src/lib/gazette-image";
 import type { MilestonePlayer, PendingMilestones } from "../../src/lib/paliers-franchis";
-import { MAX_ROWS, milestoneCard, milestoneImageAlt } from "../../src/lib/paliers-franchis-image";
+import { milestoneCard, milestoneImageAlt } from "../../src/lib/paliers-franchis-image";
+import { MAX_CHIPS, MAX_COMPACT_ROWS, MAX_ROWS } from "../../src/lib/salon-image";
 
 /** Une largeur approchée, pour tester la mise en page sans police. */
 const measure: Measure = (text, font, size) => [...text].length * size * (font === "body" ? 0.52 : 0.58);
@@ -40,34 +41,53 @@ function expectClean(card: GazetteCard, width: Measure = measure): void {
 
 describe("milestoneCard", () => {
   it("écrit le titre, ce que comptent les paliers, la période, et chaque palier avec son pseudo", () => {
-    const card = milestoneCard([player("Marc", 1000), player("Alpha", 100)], PENDING, "GAL", SITE, measure, true);
+    const card = milestoneCard([player("Marc", 1000), player("Alpha", 100)], PENDING, "GAL", SITE, measure);
     const text = words(card);
-    expect(text).toContain("Victoires en équipe sous le tag [GAL]");
+    // L'en-tête dit ce qui est compté et qui peut être cité : sans texte dans le message, rien d'autre ne le dirait.
+    expect(text).toContain("Victoires en équipe sous le tag [GAL], membres avec pseudo public");
     expect(text).toContain("Paliers franchis");
     expect(text).toContain("Entre les relevés de la liste du 8 nov., 02:53 et du 8 nov., 22:53");
     for (const expected of ["1 000 victoires", "Marc", "100 victoires", "Alpha", "les-gaulois.github.io/membres", "Un palier compte d'abord les parties jouées, pas le niveau."]) expect(text).toContain(expected);
     expectClean(card);
   });
   it("au singulier pour un seul joueur, et l'image est plus courte", () => {
-    const one = milestoneCard([player("Marc", 250)], PENDING, "GAL", SITE, measure, true);
+    const one = milestoneCard([player("Marc", 250)], PENDING, "GAL", SITE, measure);
     expect(words(one)).toContain("Palier franchi");
-    expect(one.height).toBeLessThan(milestoneCard([player("Marc", 250), player("Alpha", 100)], PENDING, "GAL", SITE, measure, true).height);
+    expect(one.height).toBeLessThan(milestoneCard([player("Marc", 250), player("Alpha", 100)], PENDING, "GAL", SITE, measure).height);
   });
-  it("au-delà de cinq joueurs, montre les premiers et compte les autres", () => {
-    const crowd = Array.from({ length: MAX_ROWS + 2 }, (_, i) => player(`Joueur${i}`, 100));
-    const text = words(milestoneCard(crowd, PENDING, "GAL", SITE, measure, true));
-    expect(text).toContain("Joueur4");
-    expect(text).not.toContain("Joueur5");
-    expect(text).toContain("Et 2 autres membres. La liste complète est dans le message.");
+  it("de six à dix joueurs, nomme tout le monde sur des lignes plus basses, sans compter personne", () => {
+    const five = milestoneCard(Array.from({ length: MAX_ROWS }, (_, i) => player(`Joueur${i}`, 100)), PENDING, "GAL", SITE, measure);
+    const crowd = Array.from({ length: MAX_COMPACT_ROWS }, (_, i) => player(`Joueur${i}`, 100));
+    const card = milestoneCard(crowd, PENDING, "GAL", SITE, measure);
+    const text = words(card);
+    for (const p of crowd) expect(text).toContain(p.username);
+    expect(text.filter((t) => t === "100 victoires")).toHaveLength(MAX_COMPACT_ROWS);
+    expect(text.join(" ")).not.toMatch(/autres? membres?/);
+    // Deux fois plus de joueurs, mais pas une image deux fois plus haute : les lignes sont plus basses.
+    expect(card.height).toBeLessThan(2 * five.height);
+    expectClean(card);
   });
-  it("ne renvoie pas au message pour des pseudos qu'il n'écrit pas", () => {
-    const crowd = Array.from({ length: 20 }, (_, i) => player(`Joueur${i}`, 100));
-    const text = words(milestoneCard(crowd, PENDING, "GAL", SITE, measure, false));
-    expect(text).toContain("Et 15 autres membres.");
-    expect(text.join(" ")).not.toContain("dans le message");
+  it("au-delà de dix joueurs, les dix plus hauts paliers en lignes, les autres en pastilles avec leur palier : tous nommés", () => {
+    const crowd = Array.from({ length: 20 }, (_, i) => player(`Joueur${i}`, i < 10 ? 500 : 50));
+    const card = milestoneCard(crowd, PENDING, "GAL", SITE, measure);
+    const text = words(card);
+    for (let i = 0; i < 10; i++) expect(text).toContain(`Joueur${i}`);
+    for (let i = 10; i < 20; i++) expect(text).toContain(`Joueur${i} · 50 victoires`);
+    // Le message n'a plus de texte : l'image ne peut renvoyer à rien d'autre qu'elle-même.
+    expect(text.join(" ")).not.toMatch(/autres? membres?|dans le message/);
+    expectClean(card);
   });
-  it("ne déborde pas et ne chevauche rien, avec de longs pseudos et le plus haut palier", () => {
-    expectClean(milestoneCard(LONG_NAMES.slice(0, 5).map((n) => player(n, 5000)), PENDING, "GAL", SITE, measure, true));
+  it("ne compte des membres sans les nommer qu'au-delà de ce qu'une image peut porter", () => {
+    const crowd = Array.from({ length: MAX_COMPACT_ROWS + MAX_CHIPS + 3 }, (_, i) => player(`J${i}`, 50));
+    const card = milestoneCard(crowd, PENDING, "GAL", SITE, measure);
+    expect(words(card)).toContain("Et 3 autres membres.");
+    expect(words(card).join(" ")).not.toContain("dans le message");
+    expectClean(card);
+  });
+  it("ne déborde pas et ne chevauche rien, avec de longs pseudos et le plus haut palier, en lignes comme en pastilles", () => {
+    expectClean(milestoneCard(LONG_NAMES.slice(0, 5).map((n) => player(n, 5000)), PENDING, "GAL", SITE, measure));
+    expectClean(milestoneCard(LONG_NAMES.map((n) => player(n, 5000)), PENDING, "GAL", SITE, measure));
+    expectClean(milestoneCard([...LONG_NAMES, ...LONG_NAMES, ...LONG_NAMES].map((n, i) => player(`${n}${i}`, 5000)), PENDING, "GAL", SITE, measure));
   });
 });
 
@@ -75,9 +95,18 @@ describe("milestoneImageAlt", () => {
   it("dit tout ce que l'image montre, et tient dans la limite de Discord", () => {
     const alt = plain(milestoneImageAlt([player("Marc", 1000), player("Alpha", 100)], PENDING, "GAL"));
     expect(alt).toBe(
-      "Paliers franchis chez [GAL], entre les relevés de la liste des membres du 8 nov., 02:53 et du 8 nov., 22:53. Marc passe le cap des 1 000 victoires ; Alpha passe le cap des 100 victoires. Un palier compte d'abord les parties jouées, pas le niveau.",
+      "Paliers franchis chez [GAL] : victoires en équipe sous le tag, entre les relevés de la liste des membres du 8 nov., 02:53 et du 8 nov., 22:53. Marc passe le cap des 1 000 victoires ; Alpha passe le cap des 100 victoires. Membres avec pseudo public seulement. Un palier compte d'abord les parties jouées, pas le niveau.",
     );
-    expect(milestoneImageAlt(Array.from({ length: 40 }, (_, i) => player("x".repeat(40) + i, 100)), PENDING, "GAL").length).toBeLessThanOrEqual(1024);
+  });
+  it("une longue liste ne coupe aucun pseudo : les autres sont comptés, et les réserves de la fin restent entières", () => {
+    const crowd = Array.from({ length: 40 }, (_, i) => player(`${"x".repeat(40)}${i}`, 100));
+    const alt = plain(milestoneImageAlt(crowd, PENDING, "GAL"));
+    expect(alt.length).toBeLessThanOrEqual(1024);
+    const written = crowd.filter((p) => alt.includes(`${p.username} passe le cap des 100 victoires`)).length;
+    expect(written).toBeGreaterThan(5);
+    expect(written).toBeLessThan(40);
+    expect(alt.endsWith(`${crowd[written - 1]!.username} passe le cap des 100 victoires. Et ${40 - written} autres membres. Membres avec pseudo public seulement. Un palier compte d'abord les parties jouées, pas le niveau.`)).toBe(true);
+    expect(alt).not.toContain(crowd[written]!.username);
   });
 });
 
@@ -86,11 +115,13 @@ describe("renderGazetteCard, pour les paliers", () => {
   const fonts = new GazetteFonts(root);
 
   it("ne déborde pas et ne chevauche rien avec la vraie police, avec les pseudos les plus longs", () => {
-    expectClean(milestoneCard(LONG_NAMES.map((n, i) => player(n, [5000, 2500, 1000, 500, 250, 100][i] ?? 100)), PENDING, "GAL", SITE, fonts.width, true), fonts.width);
-    expectClean(milestoneCard([player("Brennus.5264", 100)], PENDING, "GAL", SITE, fonts.width, true), fonts.width);
+    expectClean(milestoneCard(LONG_NAMES.map((n, i) => player(n, [5000, 2500, 1000, 500, 250, 100][i] ?? 100)), PENDING, "GAL", SITE, fonts.width), fonts.width);
+    expectClean(milestoneCard(LONG_NAMES.slice(0, 5).map((n) => player(n, 5000)), PENDING, "GAL", SITE, fonts.width), fonts.width);
+    expectClean(milestoneCard([...LONG_NAMES, ...LONG_NAMES, ...LONG_NAMES].map((n, i) => player(`${n}${i}`, 5000)), PENDING, "GAL", SITE, fonts.width), fonts.width);
+    expectClean(milestoneCard([player("Brennus.5264", 100)], PENDING, "GAL", SITE, fonts.width), fonts.width);
   });
   it("dessine une vraie image PNG, avec le logo", async () => {
-    const card = milestoneCard([player("Vercingé FR", 1000), player("Floooo", 250)], PENDING, "GAL", SITE, fonts.width, true);
+    const card = milestoneCard([player("Vercingé FR", 1000), player("Floooo", 250)], PENDING, "GAL", SITE, fonts.width);
     const png = await renderGazetteCard(card, fonts, root);
     expect(await sharp(png).metadata()).toMatchObject({ format: "png", width: 1200, height: card.height });
     const { x, y, size } = card.logo;

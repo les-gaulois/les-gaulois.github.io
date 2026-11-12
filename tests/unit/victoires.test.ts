@@ -6,7 +6,8 @@ import { ApiClient } from "../../src/lib/pipeline";
 import { ApiVictoryGame, type StoredMembers, type StoredSession } from "../../src/lib/schemas";
 import { crewName, FORGET_MS, isClanMember, isVictory, MAX_PER_PASS, MAX_RESEND, mergeStates, parseResend, passSessions, PAUSE_MS, readRecentSessions, readVictoryGame, toVerify, victoryOf, victoryPass, VictoryState, WINDOW_MS, type Victory, type VictoryPassDeps } from "../../src/lib/victoires";
 import { frenchList, gameLength, sendVictory, victoryContent, victoryPayload } from "../../src/lib/victoires-discord";
-import { CHIP_STEPS, MAP_NOTE, NAME_NOTE, openAround, readThumbnail, renderVictoryCard, SEA, thumbnailUrl, tileLength, victoryCard, victoryImageAlt } from "../../src/lib/victoires-image";
+import { CHIP_STEPS } from "../../src/lib/salon-image";
+import { creditAddresses, MAP_NOTE, NAME_NOTE, openAround, readThumbnail, renderVictoryCard, SEA, thumbnailUrl, tileLength, victoryCard, victoryImageAlt } from "../../src/lib/victoires-image";
 
 const WEBHOOK = "https://discord.com/api/webhooks/123456/abc-DEF_123";
 const SITE = "https://x.test/";
@@ -457,39 +458,39 @@ describe("victoryPass", () => {
   });
 });
 
-describe("le message", () => {
+describe("le texte de secours", () => {
   it("dit la carte, le format, tous les Gaulois de la partie, la durée et les points, avec le crédit de la carte", () => {
-    expect(plain(victoryContent(VICTORY, "GAL", SITE, true).content).split("\n")).toEqual([
+    expect(plain(victoryContent(VICTORY, "GAL", SITE).content).split("\n")).toEqual([
       "**Victoire de [GAL]** · Quatre Îles",
       "⚔️ 4 équipes · 6 Gaulois sur 23 joueurs",
       "👥 [**alpha**](<https://x.test/membres/id-alpha/>), **Caché**, [**Zoé en jeu**](<https://x.test/membres/id-zoe/>), 1 Gaulois sans nom et 1 joueur sous le tag, hors du clan",
       "⏱️ 15 min 43 s, commencée à <t:1794416698:t> · +1,81 point gagné",
       "[Revoir la partie](<https://openfront.io/game/dVEWLLQHx1>) · [Dernières parties](<https://x.test/parties>)",
-      "-# Noms portés dans la partie. Carte : [© OpenFront and Contributors](<https://github.com/openfrontio/OpenFrontIO/tree/main/resources/maps/fourislands>), [CC BY-SA 4.0](<https://creativecommons.org/licenses/by-sa/4.0/deed.fr>), vignette redimensionnée.",
+      "-# Noms portés dans la partie. Carte : [© OpenFront and Contributors](<https://github.com/openfrontio/OpenFrontIO/tree/main/resources/maps/fourislands>), [CC BY-SA 4.0](<https://creativecommons.org/licenses/by-sa/4.0/deed.fr>).",
     ]);
   });
-  it("sans « autres » : une liste en français ; sans image, pas de vignette dans le crédit ; personne : pas de ligne des noms", () => {
+  it("sans « autres » : une liste en français ; sans image, donc sans vignette à créditer ; personne : pas de ligne des noms", () => {
     const all: Victory = { ...VICTORY, format: "Trios", crew: VICTORY.crew.slice(0, 2), unnamed: 0, outsiders: 0, points: 2.24 };
-    const lines = plain(victoryContent(all, "GAL", SITE, false).content).split("\n");
+    const lines = plain(victoryContent(all, "GAL", SITE).content).split("\n");
     expect(lines[1]).toBe("⚔️ Trios · 6 Gaulois sur 23 joueurs");
     expect(lines[2]).toBe("👥 [**alpha**](<https://x.test/membres/id-alpha/>) et **Caché**");
     expect(lines[3]).toContain("· +2,24 points gagnés");
     expect(lines.at(-1)).toBe("-# Noms portés dans la partie. Carte : [© OpenFront and Contributors](<https://github.com/openfrontio/OpenFrontIO/tree/main/resources/maps/fourislands>), [CC BY-SA 4.0](<https://creativecommons.org/licenses/by-sa/4.0/deed.fr>).");
-    expect(victoryContent({ ...all, map: "???" }, "GAL", SITE, false).content).toContain("(<https://github.com/openfrontio/OpenFrontIO/tree/main/resources/maps>)");
-    const nobody = plain(victoryContent({ ...VICTORY, crew: [], unnamed: 0, outsiders: 0, format: null, points: null }, "GAL", SITE, true).content);
+    expect(victoryContent({ ...all, map: "???" }, "GAL", SITE).content).toContain("(<https://github.com/openfrontio/OpenFrontIO/tree/main/resources/maps>)");
+    const nobody = plain(victoryContent({ ...VICTORY, crew: [], unnamed: 0, outsiders: 0, format: null, points: null }, "GAL", SITE).content);
     expect(nobody).not.toContain("👥");
     expect(nobody).toContain("⚔️ 6 Gaulois sur 23 joueurs");
     expect(nobody).not.toContain("point");
   });
   it("un nom ne met rien en forme et ne glisse ni lien ni mention", () => {
     const sly: Victory = { ...VICTORY, crew: [{ id: null, name: "**gras** [lien](https://pirate.test) @everyone" }], unnamed: 0, outsiders: 0 };
-    const content = victoryContent(sly, "GAL", SITE, true).content;
+    const content = victoryContent(sly, "GAL", SITE).content;
     expect(content).toContain("\\*\\*gras\\*\\* \\[lien\\]\\(https\\:\\/\\/pirate.test\\) \\@everyone");
     expect(victoryPayload(sly, "GAL", SITE, null)).toMatchObject({ allowed_mentions: { parse: [] }, avatar_url: "https://x.test/generated/icon-192.png" });
   });
   it("beaucoup de longs noms : tous écrits, sans lien s'il le faut pour tenir dans la limite de Discord", () => {
     const crowd: Victory = { ...VICTORY, crew: Array.from({ length: 20 }, (_, i) => ({ id: `id-${"x".repeat(40)}-${i}`, name: `${"Ω".repeat(30)}${i}` })), unnamed: 0, outsiders: 0 };
-    const { content, written } = victoryContent(crowd, "GAL", SITE, true);
+    const { content, written } = victoryContent(crowd, "GAL", SITE);
     expect(content.length).toBeLessThanOrEqual(1900);
     expect(written).toBe(20);
     expect(content).not.toContain("/membres/");
@@ -498,18 +499,20 @@ describe("le message", () => {
   });
   it("au-delà de ce que Discord accepte, et seulement là, compte ceux qu'il ne peut plus écrire", () => {
     const huge: Victory = { ...VICTORY, crew: Array.from({ length: 80 }, (_, i) => ({ id: null, name: `${"Ω".repeat(38)}${i}` })), unnamed: 0, outsiders: 0 };
-    const { content, written } = victoryContent(huge, "GAL", SITE, true);
+    const { content, written } = victoryContent(huge, "GAL", SITE);
     expect(content.length).toBeLessThanOrEqual(1900);
     expect(content).toContain(`et ${80 - written} autres Gaulois`);
   });
   it("compte au singulier comme au pluriel ceux qui ne sont pas nommés", () => {
-    const counted = (unnamed: number, outsiders: number) => plain(victoryContent({ ...VICTORY, crew: [], unnamed, outsiders }, "GAL", SITE, true).content).split("\n")[2];
+    const counted = (unnamed: number, outsiders: number) => plain(victoryContent({ ...VICTORY, crew: [], unnamed, outsiders }, "GAL", SITE).content).split("\n")[2];
     expect(counted(2, 0)).toBe("👥 2 Gaulois sans nom");
     expect(counted(0, 2)).toBe("👥 2 joueurs sous le tag, hors du clan");
     expect(counted(1, 1)).toBe("👥 1 Gaulois sans nom et 1 joueur sous le tag, hors du clan");
   });
-  it("avec l'image : le fichier joint et deux boutons, la partie sur OpenFront et les dernières parties", () => {
-    expect(victoryPayload(VICTORY, "GAL", SITE, { alt: "Description.", filename: "victoire.png", withMap: true })).toMatchObject({
+  it("avec l'image : le fichier joint et deux boutons, la partie sur OpenFront et les dernières parties, sans aucun texte", () => {
+    expect(victoryPayload(VICTORY, "GAL", SITE, { alt: "Description.", filename: "victoire.png" })).toEqual({
+      avatar_url: "https://x.test/generated/icon-192.png",
+      allowed_mentions: { parse: [] },
       attachments: [{ id: 0, filename: "victoire.png", description: "Description." }],
       components: [
         {
@@ -529,16 +532,22 @@ describe("le message", () => {
     const ok = await sendVictory({ link: WEBHOOK, victory: VICTORY, renderImage: () => Promise.reject(new Error("police")), tag: "GAL", siteUrl: SITE, fetch: post as unknown as typeof fetch, log: (l) => logs.push(l) });
     expect(ok).toBe(true);
     expect(post).toHaveBeenCalledTimes(1);
+    // Le secours garde le crédit de la carte, avec ses deux liens.
+    const [, init] = post.mock.calls[0] as unknown as [string, RequestInit];
+    expect(String(JSON.parse(String(init.body)).content)).toContain("[CC BY-SA 4.0](<https://creativecommons.org/licenses/by-sa/4.0/deed.fr>)");
     for (const line of logs) expect(line).not.toContain("abc-DEF_123");
   });
-  it("avec l'image, l'envoie d'abord, jointe sous le nom de la partie", async () => {
+  it("avec l'image, l'envoie seule, jointe sous le nom de la partie", async () => {
     const post = vi.fn(async (_url: string, init: RequestInit) => new Response(null, { status: init.body instanceof FormData ? 200 : 500 }));
-    const ok = await sendVictory({ link: WEBHOOK, victory: VICTORY, renderImage: async () => ({ png: new Uint8Array([1]), alt: "Image.", withMap: false }), tag: "GAL", siteUrl: SITE, fetch: post as unknown as typeof fetch, log: () => {} });
+    const ok = await sendVictory({ link: WEBHOOK, victory: VICTORY, renderImage: async () => ({ png: new Uint8Array([1]), alt: "Image." }), tag: "GAL", siteUrl: SITE, fetch: post as unknown as typeof fetch, log: () => {} });
     expect(ok).toBe(true);
     expect(post).toHaveBeenCalledTimes(1);
     const [url, init] = post.mock.calls[0]!;
     expect(url).toBe(`${WEBHOOK}?with_components=true`);
-    expect(JSON.parse((init.body as FormData).get("payload_json") as string).attachments[0].filename).toBe("victoire-dVEWLLQHx1.png");
+    const sent = JSON.parse((init.body as FormData).get("payload_json") as string);
+    expect(sent.attachments[0].filename).toBe("victoire-dVEWLLQHx1.png");
+    // Le message est l'image seule : aucun texte ne l'accompagne.
+    expect(sent).not.toHaveProperty("content");
   });
   it("écrit la durée comme on la dit", () => {
     expect([gameLength(943.4), gameLength(420), gameLength(45), gameLength(3_877), gameLength(7_477)]).toEqual(["15 min 43 s", "7 min", "45 s", "1 h 04 min", "2 h 04 min"]);
@@ -627,10 +636,19 @@ describe("victoryCard", () => {
   });
   it("dit tout à un lecteur d'écran, crédit compris", () => {
     expect(plain(victoryImageAlt(VICTORY, "GAL", true))).toBe(
-      "Victoire de [GAL] sur la carte Quatre Îles, 4 équipes, mercredi 11 novembre à 18:04, heure de Paris. 6 Gaulois sur 23 joueurs, +1,81 point gagné, partie de 16 min. Gaulois de la partie : alpha, Caché, Zoé en jeu, 1 Gaulois sans nom et 1 joueur sous le tag, hors du clan. Image et nom de la carte : © OpenFront and Contributors, CC BY-SA 4.0, image redimensionnée.",
+      "Victoire de [GAL] sur la carte Quatre Îles, 4 équipes, mercredi 11 novembre à 18:04, heure de Paris. 6 Gaulois sur 23 joueurs, +1,81 point gagné, partie de 16 min. Gaulois de la partie, sous leur nom en partie : alpha, Caché, Zoé en jeu, 1 Gaulois sans nom et 1 joueur sous le tag, hors du clan. Image et nom de la carte : © OpenFront and Contributors, CC BY-SA 4.0, image redimensionnée.",
     );
     expect(victoryImageAlt(VICTORY, "GAL", false)).toContain("Nom de la carte : © OpenFront and Contributors, CC BY-SA 4.0.");
     expect(victoryImageAlt({ ...VICTORY, seconds: 10_253 }, "GAL", true)).toContain("partie de 2 h 50 min.");
+  });
+  it("beaucoup de longs noms : la description n'en coupe aucun, compte les autres, et garde le crédit de la carte en entier", () => {
+    const huge: Victory = { ...VICTORY, crew: Array.from({ length: 80 }, (_, i) => ({ id: null, name: `Capitaine Barbe GOAT.${7000 + i}` })), unnamed: 1, outsiders: 0 };
+    const alt = plain(victoryImageAlt(huge, "GAL", true));
+    expect(alt.length).toBeLessThanOrEqual(1024);
+    const written = huge.crew.filter((p) => alt.includes(p.name)).length;
+    expect(written).toBeGreaterThan(10);
+    expect(written).toBeLessThan(80);
+    expect(alt.endsWith(`${huge.crew[written - 1]!.name}, ${80 - written} autres Gaulois et 1 Gaulois sans nom. Image et nom de la carte : © OpenFront and Contributors, CC BY-SA 4.0, image redimensionnée.`)).toBe(true);
   });
 });
 
@@ -690,5 +708,26 @@ describe("la vignette de la carte", () => {
       expect(credit?.text).toBe(note);
       expect(credit?.size).toBeGreaterThanOrEqual(18);
     }
+  });
+  it("sans texte dans le message, l'image écrit elle-même l'adresse de la source et celle de la licence, en entier", () => {
+    const fonts = new GazetteFonts(process.cwd());
+    const expected = "github.com/openfrontio/OpenFrontIO/tree/main/resources/maps/fourislands · creativecommons.org/licenses/by-sa/4.0/deed.fr";
+    for (const shape of [{ width: 60, height: 30, open: false }, null]) {
+      const card = victoryCard(VICTORY, "GAL", "https://les-gaulois.github.io", fonts.width, shape);
+      const addresses = card.texts.find((t) => t.text.includes("creativecommons.org"));
+      expect(addresses?.text).toBe(expected);
+      expect(addresses?.size).toBeGreaterThanOrEqual(14);
+      // Sous le crédit, pas sur la même ligne que lui ni que l'adresse du site.
+      expect(addresses?.y).toBeGreaterThan(card.texts.find((t) => t.text.includes("OpenFront and Contributors"))?.y ?? Infinity);
+    }
+  });
+  it("une carte au nom trop long pour la ligne garde une adresse entière : celle du dossier de toutes les cartes", () => {
+    const all = "github.com/openfrontio/OpenFrontIO/tree/main/resources/maps · creativecommons.org/licenses/by-sa/4.0/deed.fr";
+    expect(creditAddresses("Four Islands", () => true)).toBe("github.com/openfrontio/OpenFrontIO/tree/main/resources/maps/fourislands · creativecommons.org/licenses/by-sa/4.0/deed.fr");
+    expect(creditAddresses("Four Islands", () => false)).toBe(all);
+    // Un nom qui ne donne pas de dossier possible : le dossier de toutes les cartes, déjà.
+    expect(creditAddresses("???", () => true)).toBe(all);
+    const long = victoryCard({ ...VICTORY, map: "a".repeat(60) }, "GAL", SITE, measure, null).texts.find((t) => t.text.includes("creativecommons.org"));
+    expect(long?.text).toBe(all);
   });
 });

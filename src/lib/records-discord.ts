@@ -10,11 +10,13 @@
  * - Après un envoi, seuls les records battus deviennent les records annoncés : une valeur lue trop basse un jour ne fait jamais
  *   redescendre un record annoncé, donc ne peut pas le faire « battre » de nouveau.
  * Les records eux-mêmes viennent de `clanRecords` (`results.ts`) : ce module compare, il ne recalcule rien.
+ * Le message est une image (`records-image.ts`) et un bouton, sans texte : le texte ne part que si elle ne se dessine pas.
  */
 import { z } from "zod";
 import { alertsStarted, QUIET_FROM_HOUR, QUIET_UNTIL_HOUR } from "./alerts";
+import { imageMessage, postWithImage, textMessage } from "./discord-post";
 import { fmtCount, fmtDate, fmtDateTime, fmtInt } from "./format";
-import { escapeDiscord } from "./gazette-discord";
+import { escapeDiscord, type RenderedImage } from "./gazette-discord";
 import { RECORD_KEYS, type RecordKey } from "./records-battus";
 import type { ClanRecords } from "./results";
 import { parisParts } from "./time";
@@ -111,57 +113,93 @@ export function markRecordsSent(state: RecordAlertState, alert: RecordAlert, now
   };
 }
 
-/* ---------- Les mots du message ---------- */
+/* ---------- Les mots du message, pour l'image et pour le texte ---------- */
 
-const LABELS: Record<RecordKey, string> = {
+export const RECORD_LABELS: Record<RecordKey, string> = {
   streak: "Plus longue série de victoires",
   bestDay: "Meilleure journée",
   biggestGroup: "Le plus de Gaulois dans une partie gagnée",
   mostTeams: "Victoire avec le plus d'équipes en jeu",
 };
 
-/** Une ligne par record battu : la nouvelle marque, sa date, et l'ancienne marque. */
-export function recordLine({ key, before }: BeatenRecord, records: ClanRecords): string {
+/** La nouvelle marque et sa date : « 13 victoires d'affilée, la dernière le 12 nov. 2026 ». */
+export function recordMark(key: RecordKey, records: ClanRecords): string {
   switch (key) {
     case "streak":
-      return `${LABELS.streak} : ${fmtCount(records.streak.wins, "victoire")} d'affilée, la dernière le ${fmtDate(records.streak.endedAt)}. Avant : ${fmtInt(before)}.`;
+      return `${fmtCount(records.streak.wins, "victoire")} d'affilée, la dernière le ${fmtDate(records.streak.endedAt)}`;
     case "bestDay":
-      return `${LABELS.bestDay} : ${fmtCount(records.bestDay.wins, "victoire")} sur ${fmtCount(records.bestDay.games, "partie")}, le ${fmtDate(`${records.bestDay.date}T12:00:00Z`)}. Avant : ${fmtInt(before)}.`;
+      return `${fmtCount(records.bestDay.wins, "victoire")} sur ${fmtCount(records.bestDay.games, "partie")}, le ${fmtDate(`${records.bestDay.date}T12:00:00Z`)}`;
     case "biggestGroup":
-      return `${LABELS.biggestGroup} : ${fmtCount(records.biggestGroup.players, "joueur")}, le ${fmtDate(records.biggestGroup.at)}. Avant : ${fmtInt(before)}.`;
+      return `${fmtCount(records.biggestGroup.players, "joueur")}, le ${fmtDate(records.biggestGroup.at)}`;
     case "mostTeams":
-      return `${LABELS.mostTeams} : ${fmtCount(records.mostTeams.teams, "équipe")}, ${fmtCount(records.mostTeams.players, "joueur")} dans la partie, le ${fmtDate(records.mostTeams.at)}. Avant : ${fmtInt(before)}.`;
+      return `${fmtCount(records.mostTeams.teams, "équipe")}, ${fmtCount(records.mostTeams.players, "joueur")} dans la partie, le ${fmtDate(records.mostTeams.at)}`;
   }
 }
 
+/** L'ancienne marque : « Avant : 12 ». */
+export const recordBefore = (before: number) => `Avant : ${fmtInt(before)}`;
+
+/** Une ligne par record battu : la nouvelle marque, sa date, et l'ancienne marque. */
+export const recordLine = ({ key, before }: BeatenRecord, records: ClanRecords) => `${RECORD_LABELS[key]} : ${recordMark(key, records)}. ${recordBefore(before)}.`;
+
 export const recordHeadline = (alert: RecordAlert, tag: string) => `[${tag}] bat ${alert.beaten.length > 1 ? `${fmtInt(alert.beaten.length)} records` : "un record"} du clan`;
 
-/** Le message, en texte : une ligne par record, un lien vers la page, et la source en petit. Personne n'est mentionné. */
-export function recordPayload(alert: RecordAlert, tag: string, siteUrl: string, archiveStart: string, coveredUntil: string): Record<string, unknown> {
+/** Ce que comptent les records. */
+export const RECORD_KICKER = "Parties publiques en équipe sous le tag";
+/** « Depuis le 10 avr. 2026, tous joueurs du clan confondus ». */
+export const recordScope = (archiveStart: string) => `Depuis le ${fmtDate(`${archiveStart}T12:00:00Z`)}, tous joueurs du clan confondus`;
+/** « Collecte du 12 nov. 2026, 12:53 ». */
+export const recordCollected = (coveredUntil: string) => `Collecte du ${fmtDateTime(coveredUntil)}`;
+
+/**
+ * Le message. `image` : le fichier joint et sa description, avec un bouton vers la page, sans texte. Sans elle, le secours en
+ * texte : une ligne par record, un lien vers la page, et la source en petit. Personne n'est mentionné.
+ */
+export function recordPayload(alert: RecordAlert, tag: string, siteUrl: string, archiveStart: string, coveredUntil: string, image: { alt: string; filename: string } | null): Record<string, unknown> {
   const site = siteUrl.replace(/\/$/, "");
+  if (image) return imageMessage(site, image, [{ label: "Voir les records", url: `${site}/records` }]);
   const content = [
     `**${recordHeadline(alert, escapeDiscord(tag))}**`,
     ...alert.beaten.map((b) => `• ${recordLine(b, alert.records)}`),
     `[Les records sur le site](<${site}/records>)`,
-    `-# Depuis le ${fmtDate(`${archiveStart}T12:00:00Z`)}, parties publiques en équipe sous le tag, tous joueurs du clan confondus. Collecte du ${fmtDateTime(coveredUntil)}.`,
+    `-# Depuis le ${fmtDate(`${archiveStart}T12:00:00Z`)}, parties publiques en équipe sous le tag, tous joueurs du clan confondus. ${recordCollected(coveredUntil)}.`,
   ].join("\n");
-  return { content, avatar_url: `${site}/generated/icon-192.png`, allowed_mentions: { parse: [] } };
+  return textMessage(site, content);
+}
+
+export interface RecordSendDeps {
+  /** Un lien déjà vérifié par `isWebhookUrl`. */
+  link: string;
+  alert: RecordAlert;
+  /** Dessine l'image. Si elle échoue, le message part en texte. */
+  renderImage: (alert: RecordAlert) => Promise<RenderedImage>;
+  tag: string;
+  siteUrl: string;
+  /** Le jour où commencent les archives du clan, AAAA-MM-JJ. */
+  archiveStart: string;
+  /** L'heure de la collecte qui a donné ces records. */
+  coveredUntil: string;
+  fetch: typeof fetch;
+  log: (line: string) => void;
 }
 
 /**
- * Poste le message. `true` : Discord l'a accepté. Comme les autres envois du robot : une redirection changerait l'envoi en simple
- * lecture, qui répondrait « OK » sans poster, et le record serait marqué annoncé pour rien ; une panne se retente au passage suivant.
- * Le lien vaut un mot de passe pour ce salon : il n'est écrit dans aucun message, même d'erreur.
+ * Envoie le message en image, ou en texte si elle ne se dessine pas : voir `postWithImage`. `true` : Discord l'a accepté ; une
+ * panne se retente au passage suivant. Le lien vaut un mot de passe pour ce salon : il n'est écrit dans aucun message.
  */
-export async function postRecordMessage(link: string, payload: Record<string, unknown>, post: typeof fetch, log: (line: string) => void): Promise<boolean> {
-  try {
-    const response = await post(link, { method: "POST", redirect: "error", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-    if (response.ok) return true;
-    log(`::warning::Records : Discord a répondu ${response.status}. Nouvel essai au prochain passage.`);
-  } catch {
-    log("::warning::Records : Discord n'a pas répondu. Nouvel essai au prochain passage.");
-  }
-  return false;
+export function sendRecords({ link, alert, renderImage, tag, siteUrl, archiveStart, coveredUntil, fetch, log }: RecordSendDeps): Promise<boolean> {
+  return postWithImage({
+    link,
+    label: "Records",
+    text: recordPayload(alert, tag, siteUrl, archiveStart, coveredUntil, null),
+    image: async () => {
+      const { png, alt } = await renderImage(alert);
+      const filename = "record-du-clan.png";
+      return { payload: recordPayload(alert, tag, siteUrl, archiveStart, coveredUntil, { alt, filename }), png, filename };
+    },
+    fetch,
+    log,
+  });
 }
 
 export interface RecordPassDeps {

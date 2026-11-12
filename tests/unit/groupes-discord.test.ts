@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { groupsContent, groupsPass, groupsPayload, weekGroups, weekReady, weekToSend, type GroupsState, type WeekGroups } from "../../src/lib/groupes-discord";
+import { describe, expect, it, vi } from "vitest";
+import { groupsContent, groupsPass, groupsPayload, sendGroups, weekGroups, weekReady, weekToSend, type GroupsState, type WeekGroups } from "../../src/lib/groupes-discord";
 import type { StoredMemberResults, StoredMembers, StoredSession } from "../../src/lib/schemas";
 
 const SITE = "https://les-gaulois.github.io";
@@ -76,8 +76,36 @@ describe("le bilan de la semaine", () => {
     expect(text).toContain("👥 À plusieurs : 60 % des 5 parties, pour 95 % des points gagnés.");
     expect(text).toContain("📈 Points par partie : seul : 0,10 ; à 2 : 0,75 ; à 3 : 2,50.");
     expect(text).toContain("1. [**Alpha**](<https://les-gaulois.github.io/membres/aaa>) et [**Bra\\*vo**](<https://les-gaulois.github.io/membres/bbb>) : 2 victoires ensemble, sur 3 parties");
-    expect(text).toContain("pas un niveau");
-    expect(groupsPayload(week, SITE)).toMatchObject({ allowed_mentions: { parse: [] } });
+    expect(text).toContain("Les duos comptent d'abord le temps passé à jouer à deux, pas un niveau.");
+    expect(groupsPayload(week, SITE, null)).toEqual({ content: groupsContent(week, SITE), avatar_url: "https://les-gaulois.github.io/generated/icon-192.png", allowed_mentions: { parse: [] } });
+  });
+
+  it("avec l'image : le fichier joint et un bouton vers les membres, sans aucun texte", () => {
+    expect(groupsPayload(week, SITE, { alt: "Description.", filename: "jouer-ensemble.png" })).toEqual({
+      avatar_url: "https://les-gaulois.github.io/generated/icon-192.png",
+      allowed_mentions: { parse: [] },
+      attachments: [{ id: 0, filename: "jouer-ensemble.png", description: "Description." }],
+      components: [{ type: 1, components: [{ type: 2, style: 5, label: "Voir les membres du clan", url: "https://les-gaulois.github.io/membres" }] }],
+    });
+  });
+
+  it("part en image, et en texte seulement si elle ne se dessine pas, sans jamais écrire le lien", async () => {
+    const WEBHOOK = "https://discord.com/api/webhooks/123456/abc-DEF_123";
+    const logs: string[] = [];
+    const post = vi.fn(async () => new Response(null, { status: 204 }));
+    const deps = { link: WEBHOOK, week, siteUrl: SITE, fetch: post as unknown as typeof fetch, log: (l: string) => logs.push(l) };
+    expect(await sendGroups({ ...deps, renderImage: async () => ({ png: Uint8Array.of(137, 80, 78, 71), alt: "Description de l'image." }) })).toBe(true);
+    const [url, init] = post.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe(`${WEBHOOK}?with_components=true`);
+    const sent = JSON.parse(String((init.body as FormData).get("payload_json")));
+    expect(sent).toMatchObject({ attachments: [{ id: 0, filename: "jouer-ensemble.png", description: "Description de l'image." }] });
+    expect(sent).not.toHaveProperty("content");
+    expect(await sendGroups({ ...deps, renderImage: () => Promise.reject(new Error("police")) })).toBe(true);
+    const [fallbackUrl, fallback] = post.mock.calls[1] as unknown as [string, RequestInit];
+    expect(fallbackUrl).toBe(WEBHOOK);
+    expect(JSON.parse(String(fallback.body)).content).toBe(groupsContent(week, SITE));
+    expect(logs.join(" ")).toContain("Jouer ensemble : image impossible à dessiner");
+    for (const line of logs) expect(line).not.toContain("abc-DEF_123");
   });
 });
 

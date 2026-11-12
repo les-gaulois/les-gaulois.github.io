@@ -142,30 +142,16 @@ describe("gazettePayload", () => {
 });
 
 describe("imagePayload", () => {
-  const payload = (e: GazetteEdition = edition()) => imagePayload(e, "GAL", "https://les-gaulois.github.io/", "Description.", "gazette.png") as { content: string; avatar_url: string; allowed_mentions: unknown; attachments: unknown[]; components: unknown[] };
-
-  it("donne le titre, un lien sans aperçu en double, et ce que le podium compte", () => {
-    const { content } = payload();
-    const lines = content.replace(/[\s\u00a0\u202f]+/g, " ");
-    expect(lines).toContain("**La gazette de [GAL]** : semaine du 2 nov. au 8 nov. 2026");
-    expect(content).toContain("(<https://les-gaulois.github.io/gazette>)");
-    const withPodium = payload(edition({ players: [{ id: "a", username: "Alpha", wins: 3, place: 1 }] })).content;
-    expect(withPodium).toContain("-# Podium : victoires en équipe sous le tag entre deux relevés, membres avec pseudo présents aux deux. Cela compte d'abord le temps de jeu, pas le niveau.");
-  });
-
-  it("ne parle pas d'un podium quand il n'y en a pas", () => {
-    const { content } = payload(edition());
-    expect(content).toContain("-# Données publiques d'OpenFront.");
-    expect(content).not.toContain("Podium");
-  });
-
-  it("ajoute un bouton vers la page, décrit l'image et interdit toute mention", () => {
-    expect(payload()).toMatchObject({
+  it("n'est que l'image, sa description et un bouton vers la page : aucun texte, aucune mention possible", () => {
+    const payload = imagePayload("https://les-gaulois.github.io/", "Description.", "gazette.png");
+    expect(payload).toEqual({
       avatar_url: "https://les-gaulois.github.io/generated/icon-192.png",
       allowed_mentions: { parse: [] },
       attachments: [{ id: 0, filename: "gazette.png", description: "Description." }],
       components: [{ type: 1, components: [{ type: 2, style: 5, label: "Voir toute la semaine", url: "https://les-gaulois.github.io/gazette" }] }],
     });
+    expect(payload).not.toHaveProperty("content");
+    expect(payload).not.toHaveProperty("embeds");
   });
 });
 
@@ -307,6 +293,9 @@ describe("sendLatestGazette", () => {
       attachments: [{ id: 0, filename: "gazette-2026-11-02.png", description: "Description de l'image." }],
       components: [{ type: 1, components: [{ type: 2, style: 5, url: "https://x.test/gazette" }] }],
     });
+    // Le message est l'image seule : ni texte ni bloc ne l'accompagne.
+    expect(payload).not.toHaveProperty("content");
+    expect(payload).not.toHaveProperty("embeds");
     const file = form.get("files[0]") as File;
     expect(file.name).toBe("gazette-2026-11-02.png");
     expect(file.type).toBe("image/png");

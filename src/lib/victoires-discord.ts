@@ -1,12 +1,13 @@
 /**
- * Le message d'une victoire, dans le salon des victoires : comme les autres messages du robot, un texte court, l'image et des
- * boutons, ou le texte seul si l'image ne se dessine pas. Il ne peut mentionner personne, et un nom ne peut ni le mettre en
- * forme ni y glisser un lien. Ce qui part, et quand : `victoires.ts`.
+ * Le message d'une victoire, dans le salon des victoires : comme les autres messages du robot, l'image et des boutons, sans
+ * texte, ou le texte seul si l'image ne se dessine pas. Le texte de secours ne peut mentionner personne, et un nom ne peut ni
+ * le mettre en forme ni y glisser un lien. Ce qui part, et quand : `victoires.ts`.
  *
- * Le nom français de la carte et sa vignette viennent d'OpenFront, sous licence CC BY-SA 4.0 : le message les crédite, avec la
- * mention « © OpenFront and Contributors », la source et le lien de la licence (voir NOTICE.md).
+ * Le nom français de la carte et sa vignette viennent d'OpenFront, sous licence CC BY-SA 4.0 : l'image les crédite elle-même,
+ * avec la mention « © OpenFront and Contributors », l'adresse de la source et celle de la licence (`victoires-image.ts`), et le
+ * texte de secours aussi (voir NOTICE.md).
  */
-import { postWithImage } from "./discord-post";
+import { imageMessage, postWithImage, textMessage } from "./discord-post";
 import { fmtCount, fmtInt, fmtScore } from "./format";
 import { escapeDiscord, type RenderedImage } from "./gazette-discord";
 import { replayUrl } from "./journal";
@@ -60,6 +61,9 @@ export const unnamedWords = (count: number) => (count > 1 ? `${fmtInt(count)} Ga
 /** « 1 joueur sous le tag, hors du clan » : le jeu lui a laissé le tag, sa fiche ne le donne pas membre. Jamais nommé. */
 export const outsidersWords = (count: number) => (count > 1 ? `${fmtInt(count)} joueurs sous le tag, hors du clan` : "1 joueur sous le tag, hors du clan");
 
+/** « 3 autres Gaulois », pour ceux qu'un message trop long ne peut plus nommer ; « 3 Gaulois » s'il n'en nomme aucun. */
+export const restWords = (rest: number, named: number) => (named > 0 ? `${fmtInt(rest)} ${rest > 1 ? "autres Gaulois" : "autre Gaulois"}` : `${fmtInt(rest)} Gaulois`);
+
 /** Ceux qui sont seulement comptés : sans nom lisible, puis hors du clan. */
 export const countedWords = (v: Pick<Victory, "unnamed" | "outsiders">) => [...(v.unnamed > 0 ? [unnamedWords(v.unnamed)] : []), ...(v.outsiders > 0 ? [outsidersWords(v.outsiders)] : [])];
 
@@ -69,24 +73,24 @@ export function crewList(names: readonly string[], counted: readonly string[]): 
   return all.length > 0 ? frenchList(all) : null;
 }
 
-/** Le pied du message : d'où viennent les noms, et le crédit de la carte. */
-export function victoryNote(v: Victory, withMap: boolean): string {
-  return `-# Noms portés dans la partie. Carte : [${OPENFRONT_CREDIT}](<${mapSource(v.map)}>), [CC BY-SA 4.0](<${LICENSE_URL}>)${withMap ? ", vignette redimensionnée" : ""}.`;
+/** Le pied du texte de secours : d'où viennent les noms, et le crédit du nom de la carte. Sans image, pas de vignette à créditer. */
+export function victoryNote(v: Victory): string {
+  return `-# Noms portés dans la partie. Carte : [${OPENFRONT_CREDIT}](<${mapSource(v.map)}>), [CC BY-SA 4.0](<${LICENSE_URL}>).`;
 }
 
 /**
- * Le texte du message, et le nombre de noms qu'il écrit : tous. Chacun est relié à sa fiche s'il en a une ; si les liens
+ * Le texte de secours, et le nombre de noms qu'il écrit : tous. Chacun est relié à sa fiche s'il en a une ; si les liens
  * rendaient le message trop long pour Discord, les noms partent sans lien. La liste n'est coupée que si les noms seuls
- * dépassaient la limite. `withMap` : l'image jointe montre la vignette de la carte.
+ * dépassaient la limite.
  */
-export function victoryContent(v: Victory, tag: string, siteUrl: string, withMap: boolean): { content: string; written: number } {
+export function victoryContent(v: Victory, tag: string, siteUrl: string): { content: string; written: number } {
   const site = siteUrl.replace(/\/$/, "");
   const start = Math.floor(Date.parse(v.start) / 1000);
   const build = (written: number, links: boolean) => {
     const names = v.crew.slice(0, written).map((p) => (links && p.id ? `[**${escapeDiscord(p.name)}**](<${profileUrl(site, p.id)}>)` : `**${escapeDiscord(p.name)}**`));
     // Couper n'arrive que si les noms seuls dépassaient la limite de Discord : plus de 50 Gaulois aux noms les plus longs.
     const rest = v.crew.length - written;
-    const cut = rest > 0 ? [written > 0 ? `${fmtInt(rest)} ${rest > 1 ? "autres Gaulois" : "autre Gaulois"}` : `${fmtInt(rest)} Gaulois`] : [];
+    const cut = rest > 0 ? [restWords(rest, written)] : [];
     const crew = crewList(names, [...cut, ...countedWords(v)]);
     const lines = [
       `**${victoryTitle(escapeDiscord(tag))}** · ${escapeDiscord(mapLabel(v.map))}`,
@@ -94,7 +98,7 @@ export function victoryContent(v: Victory, tag: string, siteUrl: string, withMap
       ...(crew ? [`👥 ${crew}`] : []),
       `⏱️ ${gameLength(v.seconds)}, commencée à <t:${start}:t>${v.points === null ? "" : ` · ${pointsWords(v.points)}`}`,
       `[Revoir la partie](<${replayUrl(v.id)}>) · [Dernières parties](<${siteLink(site, "/parties")}>)`,
-      victoryNote(v, withMap),
+      victoryNote(v),
     ];
     return lines.join("\n");
   };
@@ -106,48 +110,41 @@ export function victoryContent(v: Victory, tag: string, siteUrl: string, withMap
   return { content: build(written, false), written };
 }
 
-/** Le message. `image` : le fichier joint, sa description, et s'il montre la vignette ; sans lui, le message part en texte, sans bouton. */
-export function victoryPayload(v: Victory, tag: string, siteUrl: string, image: { alt: string; filename: string; withMap: boolean } | null): Record<string, unknown> {
+/**
+ * Le message. `image` : le fichier joint et sa description, avec deux boutons, sans texte : l'image porte elle-même le crédit
+ * de la carte. Sans elle, le secours en texte, sans bouton ni vignette.
+ */
+export function victoryPayload(v: Victory, tag: string, siteUrl: string, image: { alt: string; filename: string } | null): Record<string, unknown> {
   const site = siteUrl.replace(/\/$/, "");
-  const base = { content: victoryContent(v, tag, site, image?.withMap ?? false).content, avatar_url: siteLink(site, "/generated/icon-192.png"), allowed_mentions: { parse: [] } };
-  if (!image) return base;
-  return {
-    ...base,
-    attachments: [{ id: 0, filename: image.filename, description: image.alt }],
-    components: [
-      {
-        type: 1,
-        components: [
-          { type: 2, style: 5, label: "Revoir la partie", url: replayUrl(v.id) },
-          { type: 2, style: 5, label: "Dernières parties", url: siteLink(site, "/parties") },
-        ],
-      },
-    ],
-  };
+  if (!image) return textMessage(site, victoryContent(v, tag, site).content);
+  return imageMessage(site, image, [
+    { label: "Revoir la partie", url: replayUrl(v.id) },
+    { label: "Dernières parties", url: siteLink(site, "/parties") },
+  ]);
 }
 
 export interface VictorySendDeps {
   /** Un lien déjà vérifié par `isWebhookUrl`. */
   link: string;
   victory: Victory;
-  /** Dessine l'image, avec ou sans la vignette de la carte (`withMap`). Si elle échoue, le message part en texte. */
-  renderImage: (victory: Victory) => Promise<RenderedImage & { withMap: boolean }>;
+  /** Dessine l'image, avec ou sans la vignette de la carte. Si elle échoue, le message part en texte. */
+  renderImage: (victory: Victory) => Promise<RenderedImage>;
   tag: string;
   siteUrl: string;
   fetch: typeof fetch;
   log: (line: string) => void;
 }
 
-/** Envoie le message, avec l'image d'abord : voir `postWithImage`. Un échec se retente au passage suivant. */
+/** Envoie le message en image, ou en texte si elle ne se dessine pas : voir `postWithImage`. Un échec se retente au passage suivant. */
 export function sendVictory({ link, victory, renderImage, tag, siteUrl, fetch, log }: VictorySendDeps): Promise<boolean> {
   return postWithImage({
     link,
     label: "Victoires",
     text: victoryPayload(victory, tag, siteUrl, null),
     image: async () => {
-      const { png, alt, withMap } = await renderImage(victory);
+      const { png, alt } = await renderImage(victory);
       const filename = `victoire-${victory.id.replace(/[^A-Za-z0-9]/g, "")}.png`;
-      return { payload: victoryPayload(victory, tag, siteUrl, { alt, filename, withMap }), png, filename };
+      return { payload: victoryPayload(victory, tag, siteUrl, { alt, filename }), png, filename };
     },
     fetch,
     log,

@@ -99,10 +99,10 @@ try {
             thumbnails.set(v.map, thumbnail);
           }
           const thumb = await thumbnail;
-          // Un caractère qu'aucune police ne sait dessiner devient « ? » sur l'image ; le texte du message garde le nom entier.
+          // Un caractère qu'aucune police ne sait dessiner devient « ? » sur l'image ; sa description garde le nom entier.
           const drawn = { ...v, crew: v.crew.map((p) => ({ ...p, name: fonts.drawable(p.name, "strong") })) };
           const card = image.victoryCard(drawn, clan.tag, clan.links.site, fonts.width, thumb);
-          return { png: await image.renderVictoryCard(card, fonts, root, thumb), alt: image.victoryImageAlt(v, clan.tag, card.map !== null), withMap: card.map !== null };
+          return { png: await image.renderVictoryCard(card, fonts, root, thumb), alt: image.victoryImageAlt(v, clan.tag, card.map !== null) };
         },
         tag: clan.tag,
         siteUrl: clan.links.site,

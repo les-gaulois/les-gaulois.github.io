@@ -1,10 +1,10 @@
 /**
  * L'envoi de la gazette sur un salon Discord, par un lien d'envoi automatique (webhook) que le clan crée lui-même.
- * Sans ce lien, rien ne part. Le message est une image, ou des blocs de texte si elle échoue. Il reprend les chiffres de la page et ne peut mentionner personne.
+ * Sans ce lien, rien ne part. Le message est une image et un bouton, sans texte, ou des blocs de texte si elle échoue. Il reprend les chiffres de la page et ne peut mentionner personne.
  */
 import { z } from "zod";
 import { fmtCount, fmtDay, fmtInt, fmtPct, fmtRank } from "./format";
-import { comparisonSentence, endingOn, type GazetteEdition, playersPeriod, rankWords, weekLabel } from "./gazette";
+import { comparisonSentence, DATA_SOURCE, endingOn, type GazetteEdition, playersPeriod, PODIUM_METHOD, rankWords, weekLabel } from "./gazette";
 import { addDays, parisParts } from "./time";
 import type { WeekPlayer } from "./week-players";
 
@@ -111,7 +111,7 @@ export function gazettePayload(edition: GazetteEdition, tag: string, siteUrl: st
   if (edition.arrivals) fields.push({ name: "Arrivées", value: `**${fmtInt(edition.arrivals.count)}** encore dans le clan` });
   const period = playersPeriod(edition);
   if (edition.players && period) fields.push({ name: `Le plus de victoires ${period}`, value: playerLines(edition.players) });
-  const whoCounts = edition.players ? "Victoires en équipe sous le tag entre deux relevés, membres avec pseudo présents aux deux. " : "";
+  const whoCounts = edition.players ? `${PODIUM_METHOD} ` : "";
   return {
     avatar_url: `${site}/generated/icon-192.png`,
     allowed_mentions: { parse: [] },
@@ -122,7 +122,7 @@ export function gazettePayload(edition: GazetteEdition, tag: string, siteUrl: st
         description: `Semaine ${weekLabel(edition)}`,
         color: COLOR,
         fields,
-        footer: { text: `${whoCounts}Données publiques d'OpenFront.` },
+        footer: { text: `${whoCounts}${DATA_SOURCE}` },
       },
     ],
   };
@@ -148,17 +148,14 @@ export function editionToSend(editions: readonly GazetteEdition[], lastSent: str
   return { send: true, edition: latest };
 }
 
-/** Le message avec l'image de la semaine : du texte court, l'image et un bouton vers la page. */
-export function imagePayload(edition: GazetteEdition, tag: string, siteUrl: string, alt: string, filename: string): Record<string, unknown> {
+/**
+ * Le message avec l'image de la semaine : l'image et un bouton vers la page, sans texte, à la demande du pilote le 12 novembre
+ * 2026. L'image dit sa semaine et la réserve du podium ; sa description (`gazetteImageAlt`), pour les lecteurs d'écran, la
+ * redit et garde ce que le texte ajoutait : ce que compte le podium, et d'où viennent les chiffres.
+ */
+export function imagePayload(siteUrl: string, alt: string, filename: string): Record<string, unknown> {
   const site = siteUrl.replace(/\/$/, "");
-  // Lisible sur un téléphone, où le texte de l'image est petit.
-  const podium = edition.players ? "Podium : victoires en équipe sous le tag entre deux relevés, membres avec pseudo présents aux deux. Cela compte d'abord le temps de jeu, pas le niveau. " : "";
   return {
-    content: [
-      `**La gazette de [${tag}]** : semaine ${weekLabel(edition)}`,
-      `[Voir les stats sur le site](<${site}/gazette>)`,
-      `-# ${podium}Données publiques d'OpenFront.`,
-    ].join("\n"),
     avatar_url: `${site}/generated/icon-192.png`,
     allowed_mentions: { parse: [] },
     attachments: [{ id: 0, filename, description: alt }],
@@ -219,7 +216,7 @@ export async function sendLatestGazette({ webhook, editions, unreadable, renderI
     const { png, alt } = await renderImage(decision.edition);
     const filename = `gazette-${decision.edition.from}.png`;
     const form = new FormData();
-    form.append("payload_json", JSON.stringify(imagePayload(decision.edition, tag, siteUrl, alt, filename)));
+    form.append("payload_json", JSON.stringify(imagePayload(siteUrl, alt, filename)));
     form.append("files[0]", new Blob([Buffer.from(png)], { type: "image/png" }), filename);
     // Sans ce réglage, Discord ignore le bouton.
     requests.unshift({ url: `${link}?with_components=true`, init: { body: form } });

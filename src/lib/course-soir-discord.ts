@@ -1,11 +1,12 @@
 /**
- * L'envoi de la course du soir, sur le même salon que la gazette : le titre, le score et les écarts, les points, l'image et un bouton
- * vers le classement. Le message ne peut mentionner personne, et le tag d'un autre clan ne peut rien y mettre en forme.
- * L'envoi est celui de `discord-post.ts` : l'image d'abord, le texte seul si elle ne se dessine pas ou si Discord la refuse.
+ * L'envoi de la course du soir, sur le même salon que la gazette : l'image et un bouton vers le classement, sans texte.
+ * Le message de secours, en texte, donne le titre, le score et les écarts, et les points : il ne peut mentionner personne, et le
+ * tag d'un autre clan ne peut rien y mettre en forme.
+ * L'envoi est celui de `discord-post.ts` : l'image, ou le texte seul si elle ne se dessine pas ou si Discord la refuse.
  */
 import { readingNote, readingWhen } from "./alerts";
 import { COURSE_TITLE, markCourseSent, periodWords, placeLine, planCourse, pointsWords, POINTS_NOTE, raceParts, scoreLine, type CourseInputs, type CourseState, type EveningRace } from "./course-soir";
-import { postWithImage } from "./discord-post";
+import { imageMessage, postWithImage, textMessage } from "./discord-post";
 import { fmtRank, fmtScore } from "./format";
 import { escapeDiscord, type RenderedImage } from "./gazette-discord";
 
@@ -13,9 +14,10 @@ const discordTag = (tag: string | null) => (tag === null ? "un clan supprimé" :
 const sentence = (part: string) => `${part.charAt(0).toUpperCase()}${part.slice(1)}.`;
 const BUTTON = "Voir le classement";
 
-/** Le message. `image` : le fichier joint et sa description ; sans lui, le message part en texte, avec un lien à la place du bouton. */
+/** Le message. `image` : le fichier joint et sa description, avec un bouton, sans texte. Sans elle, le secours en texte, avec un lien à la place du bouton. */
 export function coursePayload(race: EveningRace, tag: string, siteUrl: string, image: { alt: string; filename: string } | null): Record<string, unknown> {
   const site = siteUrl.replace(/\/$/, "");
+  if (image) return imageMessage(site, image, [{ label: BUTTON, url: `${site}/classement` }]);
   const { reading, points, changes } = race;
   const content = [
     `**${COURSE_TITLE} : ${placeLine(reading, escapeDiscord(tag))}**`,
@@ -24,13 +26,7 @@ export function coursePayload(race: EveningRace, tag: string, siteUrl: string, i
     `[${BUTTON} sur le site](<${site}/classement>)`,
     `-# ${readingWhen(reading)}. ${readingNote("rank")}. ${POINTS_NOTE}`,
   ].join("\n");
-  const base = { content, avatar_url: `${site}/generated/icon-192.png`, allowed_mentions: { parse: [] } };
-  if (!image) return base;
-  return {
-    ...base,
-    attachments: [{ id: 0, filename: image.filename, description: image.alt }],
-    components: [{ type: 1, components: [{ type: 2, style: 5, label: BUTTON, url: `${site}/classement` }] }],
-  };
+  return textMessage(site, content);
 }
 
 export interface CourseSendDeps {
@@ -45,7 +41,7 @@ export interface CourseSendDeps {
   log: (line: string) => void;
 }
 
-/** Envoie le message, avec l'image d'abord : voir `postWithImage`. Un échec se retente au passage suivant, avant 23 h. */
+/** Envoie le message en image, ou en texte si elle ne se dessine pas : voir `postWithImage`. Un échec se retente au passage suivant, avant 23 h. */
 export function sendCourse({ link, race, renderImage, tag, siteUrl, fetch, log }: CourseSendDeps): Promise<boolean> {
   return postWithImage({
     link,

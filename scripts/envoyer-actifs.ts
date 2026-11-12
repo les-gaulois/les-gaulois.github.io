@@ -51,7 +51,9 @@ try {
           const { activeCard, activeImageAlt } = await import("../src/lib/actifs-image");
           const root = process.cwd();
           const fonts = new GazetteFonts(root);
-          return { png: await renderGazetteCard(activeCard(p, range, clan.tag, clan.links.site, fonts.width), fonts, root), alt: activeImageAlt(p, range, clan.tag) };
+          // Un caractère qu'aucune police ne sait dessiner devient « ? » sur l'image ; sa description garde le pseudo entier.
+          const drawn = p.map((player) => ({ ...player, username: fonts.drawable(player.username, "strong") }));
+          return { png: await renderGazetteCard(activeCard(drawn, range, clan.tag, clan.links.site, fonts.width), fonts, root), alt: activeImageAlt(p, range, clan.tag) };
         },
         tag: clan.tag,
         siteUrl: clan.links.site,

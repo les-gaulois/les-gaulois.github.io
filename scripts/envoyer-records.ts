@@ -1,5 +1,5 @@
 /**
- * Envoie sur Discord une alerte quand le clan bat un de ses records, sur le même salon que la gazette.
+ * Envoie sur Discord une alerte, en image, quand le clan bat un de ses records, sur le même salon que la gazette.
  * Avec le lien du salon des nouvelles, réglé dans Direction > Discord (lu avec SUPABASE_URL et SUPABASE_SECRET_KEY), sinon
  * le secret DISCORD_WEBHOOK_GAZETTE. Sans lien, ne fait rien. Les records annoncés sont notés dans data/records-envoi.json.
  * Le lien vaut un mot de passe pour ce salon : il n'est écrit dans aucun message, même d'erreur.
@@ -8,7 +8,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { clan } from "../config/clan";
 import { loadMeta, loadSessions, unreadableSessionFiles } from "../src/lib/data";
 import { isWebhookUrl, lastSentAnyFormat } from "../src/lib/gazette-discord";
-import { parseRecordAlertState, postRecordMessage, recordAlertPass, recordPayload } from "../src/lib/records-discord";
+import { parseRecordAlertState, recordAlertPass, sendRecords } from "../src/lib/records-discord";
 import { clanRecords } from "../src/lib/results";
 import { salonLink } from "../src/lib/salon-lien";
 
@@ -32,6 +32,7 @@ const webhook = link;
 
 try {
   const coveredUntil = loadMeta().sessions.coveredUntil;
+  const collected = coveredUntil ?? new Date().toISOString();
   const { state: stored, warning } = parseRecordAlertState(readText(STATE_FILE));
   if (warning) console.log(`::warning::Records : ${warning}.`);
   const result = await recordAlertPass({
@@ -41,13 +42,31 @@ try {
     unreadable: unreadableSessionFiles(),
     gazetteLastSent: lastSentAnyFormat(readText(GAZETTE_FILE)),
     now: new Date(),
-    send: (alert) => postRecordMessage(webhook, recordPayload(alert, clan.tag, clan.links.site, clan.archiveStart, coveredUntil ?? new Date().toISOString()), fetch, console.log),
+    send: (alert) =>
+      sendRecords({
+        link: webhook,
+        alert,
+        // Chargé seulement au moment d'envoyer : si le dessin ne marche pas, le message part quand même, en texte.
+        renderImage: async (a) => {
+          const { GazetteFonts, renderGazetteCard } = await import("../src/lib/gazette-image");
+          const { recordCard, recordImageAlt } = await import("../src/lib/records-image");
+          const root = process.cwd();
+          const fonts = new GazetteFonts(root);
+          return { png: await renderGazetteCard(recordCard(a, clan.tag, clan.links.site, clan.archiveStart, collected, fonts.width), fonts, root), alt: recordImageAlt(a, clan.tag, clan.archiveStart, collected) };
+        },
+        tag: clan.tag,
+        siteUrl: clan.links.site,
+        archiveStart: clan.archiveStart,
+        coveredUntil: collected,
+        fetch,
+        log: console.log,
+      }),
     log: console.log,
   });
   if (result.state) writeFileSync(STATE_FILE, `${JSON.stringify(result.state)}\n`);
   if (result.failed) process.exitCode = 1;
 } catch (e) {
-  // Le message d'une erreur ne contient jamais le lien : seul l'appel à Discord le reçoit, et `postRecordMessage` ne laisse rien sortir de cet appel.
+  // Le message d'une erreur ne contient jamais le lien : seul l'appel à Discord le reçoit, et `postWithImage` ne laisse rien sortir de cet appel.
   console.log(`::warning::Records : ${e instanceof Error ? e.message : "erreur inconnue"}.`);
   process.exitCode = 1;
 }

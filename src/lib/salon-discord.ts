@@ -37,6 +37,26 @@ export function parseNoted<T>(schema: z.ZodType<T>, raw: string | null, restart:
   return { state: null, warning: `l'état noté est illisible : ${restart}` };
 }
 
+/** Qui un message peut citer : la réserve de ceux qui nomment des membres, en phrase, puis à la suite de ce que l'image compte. */
+export const NAMED_ONLY = "Membres avec pseudo public seulement.";
+export const NAMED_ONLY_SHORT = "membres avec pseudo public";
+
+/** La limite de Discord pour la description d'un fichier joint. */
+export const ALT_MAX = 1024;
+
+/**
+ * La description d'une image qui cite des noms, sans en couper un : autant de noms que la limite de Discord en laisse, les
+ * autres comptés, et la fin de la description en entier. `write(shown, rest)` écrit la description avec ces noms-là, et
+ * `rest` autres à compter.
+ */
+export function fittedAlt<T>(items: readonly T[], write: (shown: readonly T[], rest: number) => string): string {
+  for (let count = items.length; count >= 0; count--) {
+    const text = write(items.slice(0, count), items.length - count);
+    if (text.length <= ALT_MAX) return text;
+  }
+  return write([], items.length).slice(0, ALT_MAX);
+}
+
 /** Le lien d'une page du site, sans barre en trop. */
 export const siteLink = (siteUrl: string, path: string) => `${siteUrl.replace(/\/$/, "")}${path}`;
 

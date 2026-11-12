@@ -1,5 +1,5 @@
 /**
- * Envoie les paliers franchis sur le salon de la gazette, lancé par la GitHub Action après la collecte.
+ * Envoie les paliers franchis sur le salon de la gazette, en image, lancé par la GitHub Action après la collecte.
  *   npm run paliers:envoyer
  * Avec le lien du salon des nouvelles, réglé dans Direction > Discord (lu avec SUPABASE_URL et SUPABASE_SECRET_KEY), sinon
  * le secret DISCORD_WEBHOOK_GAZETTE. Sans lien, ne fait rien, et ne note rien.
@@ -45,12 +45,14 @@ try {
         players,
         pending,
         // Chargé seulement au moment d'envoyer : si le dessin ne marche pas, le message part quand même, en texte.
-        renderImage: async (p, period, allNamed) => {
+        renderImage: async (p, period) => {
           const { GazetteFonts, renderGazetteCard } = await import("../src/lib/gazette-image");
           const { milestoneCard, milestoneImageAlt } = await import("../src/lib/paliers-franchis-image");
           const root = process.cwd();
           const fonts = new GazetteFonts(root);
-          return { png: await renderGazetteCard(milestoneCard(p, period, clan.tag, clan.links.site, fonts.width, allNamed), fonts, root), alt: milestoneImageAlt(p, period, clan.tag) };
+          // Un caractère qu'aucune police ne sait dessiner devient « ? » sur l'image ; sa description garde le pseudo entier.
+          const drawn = p.map((player) => ({ ...player, username: fonts.drawable(player.username, "strong") }));
+          return { png: await renderGazetteCard(milestoneCard(drawn, period, clan.tag, clan.links.site, fonts.width), fonts, root), alt: milestoneImageAlt(p, period, clan.tag) };
         },
         tag: clan.tag,
         siteUrl: clan.links.site,

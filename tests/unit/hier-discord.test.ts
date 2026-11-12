@@ -117,8 +117,10 @@ describe("le message", () => {
     const bare: DayReport = { ...REPORT, streak: 1, best: null };
     expect(hierContent(bare, "GAL", SITE)).not.toMatch(/série|Belle partie/);
   });
-  it("avec l'image : le fichier joint et un bouton vers les dernières parties", () => {
-    expect(hierPayload(REPORT, "GAL", SITE, { alt: "Description.", filename: "hier.png" })).toMatchObject({
+  it("avec l'image : le fichier joint et un bouton vers les dernières parties, sans aucun texte", () => {
+    expect(hierPayload(REPORT, "GAL", SITE, { alt: "Description.", filename: "hier.png" })).toEqual({
+      avatar_url: "https://x.test/generated/icon-192.png",
+      allowed_mentions: { parse: [] },
       attachments: [{ id: 0, filename: "hier.png", description: "Description." }],
       components: [{ type: 1, components: [{ type: 2, style: 5, label: "Voir les dernières parties", url: "https://x.test/parties" }] }],
     });
@@ -177,7 +179,8 @@ describe("hierCard", () => {
   it("dessine les trois chiffres avec leur écart, la série, la belle partie et l'adresse, sans rien faire déborder", () => {
     const card = hierCard(REPORT, "GAL", SITE, measure);
     const texts = card.texts.map((t) => plain(t.text));
-    for (const expected of ["Parties du clan sous le tag [GAL]", "Hier chez les Gaulois", "Mardi 10 novembre", "6", "victoires", "+5", "7", "parties", "85,7 %", "+35,7 pts", "Écarts par rapport à la veille, lundi 9 novembre", "Plus longue série", "3 victoires d'affilée", "Belle partie", "5 Gaulois ensemble, victoire", "à 12:00, en 25 min", "x.test/parties"]) {
+    // Sans texte dans le message, l'image dit elle-même que ses jours et ses heures sont ceux de Paris.
+    for (const expected of ["Parties du clan sous le tag [GAL]", "Hier chez les Gaulois", "Mardi 10 novembre, heure de Paris", "6", "victoires", "+5", "7", "parties", "85,7 %", "+35,7 pts", "Écarts par rapport à la veille, lundi 9 novembre", "Plus longue série", "3 victoires d'affilée", "Belle partie", "5 Gaulois ensemble, victoire", "à 12:00, en 25 min", "x.test/parties"]) {
       expect(texts).toContain(expected);
     }
     expectClean(card);
@@ -191,7 +194,7 @@ describe("hierCard", () => {
   });
   it("dit l'essentiel à un lecteur d'écran", () => {
     expect(plain(hierImageAlt(REPORT, "GAL"))).toBe(
-      "Hier chez les Gaulois, mardi 10 novembre, parties du clan sous le tag [GAL]. 6 victoires sur 7 parties, soit 85,7 %. La veille : 1 victoire sur 2 parties, soit 50,0 %. Plus longue série : 3 victoires d'affilée. Belle partie à 12:00 : 5 Gaulois ensemble, victoire en 25 min. Belle partie : celle où le plus de Gaulois jouaient ensemble.",
+      "Hier chez les Gaulois, mardi 10 novembre, heure de Paris, parties du clan sous le tag [GAL]. 6 victoires sur 7 parties, soit 85,7 %. La veille : 1 victoire sur 2 parties, soit 50,0 %. Plus longue série : 3 victoires d'affilée. Belle partie à 12:00 : 5 Gaulois ensemble, victoire en 25 min. Belle partie : celle où le plus de Gaulois jouaient ensemble.",
     );
   });
   it("se dessine avec les polices du site", async () => {

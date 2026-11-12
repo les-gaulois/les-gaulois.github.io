@@ -7,14 +7,17 @@ import type { ActivePeriod } from "./actifs-discord";
 import { fmtDayAndTime, fmtRank } from "./format";
 import type { GazetteCard, Measure } from "./gazette-image";
 import { periodWords } from "./paliers-franchis";
-import { shownAddress } from "./salon-discord";
+import { ALT_MAX, NAMED_ONLY, NAMED_ONLY_SHORT, shownAddress } from "./salon-discord";
 import { rowsCard } from "./salon-image";
 
-/** Quoi écrire et où : se teste sans police. Cinq joueurs au plus, comme le podium de la semaine. */
+/**
+ * Quoi écrire et où : se teste sans police. Cinq joueurs au plus, comme le podium de la semaine.
+ * L'en-tête dit qui est compté : sans texte dans le message, « 1er » se lirait comme le plus actif de tout le clan.
+ */
 export function activeCard(players: readonly ActivePlayer[], period: ActivePeriod, tag: string, siteUrl: string, measure: Measure): GazetteCard {
   return rowsCard(
     {
-      kicker: `Parties en équipe sous le tag [${tag}]`,
+      kicker: `Parties en équipe sous le tag [${tag}], ${NAMED_ONLY_SHORT}`,
       title: ACTIVE_TITLE,
       period: `Entre les relevés de la liste du ${fmtDayAndTime(period.since)} et du ${fmtDayAndTime(period.until)}`,
       rows: players.map((p) => ({ badge: fmtRank(p.place), strong: p.place === 1, name: p.username, detail: activityWords(p) })),
@@ -30,5 +33,5 @@ export function activeCard(players: readonly ActivePlayer[], period: ActivePerio
 /** Ce que l'image dit, pour un lecteur d'écran : Discord le lit comme description du fichier. */
 export function activeImageAlt(players: readonly ActivePlayer[], period: ActivePeriod, tag: string): string {
   const names = players.map((p) => `${fmtRank(p.place)}, ${p.username} : ${activityWords(p)}`).join(" ; ");
-  return `${ACTIVE_TITLE} chez [${tag}], parties en équipe sous le tag, ${periodWords(period)}. ${names}. ${ACTIVE_NOTE}`.slice(0, 1024);
+  return `${ACTIVE_TITLE} chez [${tag}], parties en équipe sous le tag, ${periodWords(period)}. ${names}. ${NAMED_ONLY} ${ACTIVE_NOTE}`.slice(0, ALT_MAX);
 }

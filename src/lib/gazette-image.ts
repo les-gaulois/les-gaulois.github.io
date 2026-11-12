@@ -11,7 +11,7 @@ import { create, type Font } from "fontkit";
 import sharp, { type OverlayOptions } from "sharp";
 import { brandFile } from "./brand";
 import { fmtCount, fmtDay, fmtInt, fmtPct, fmtPoints, fmtRank } from "./format";
-import { comparisonSentence, playersPeriod, rankWords, type GazetteEdition, weekLabel } from "./gazette";
+import { comparisonSentence, DATA_SOURCE, playersPeriod, PODIUM_METHOD, rankWords, type GazetteEdition, weekLabel } from "./gazette";
 import type { WeekPlayer } from "./week-players";
 
 const WIDTH = 1200;
@@ -272,8 +272,10 @@ export function gazetteImageAlt(edition: GazetteEdition, tag: string): string {
   const period = playersPeriod(edition);
   if (players.length > 0 && period) {
     const names = players.map((p) => `${p.username}, ${fmtCount(p.wins, "victoire")}`).join(" ; ");
-    parts.push(`Le plus de victoires ${period} : ${names}. Cela compte d'abord le temps de jeu, pas le niveau.`);
+    // Le message n'a plus de texte : la description garde ce que compte le podium, que l'image n'a pas la place d'écrire.
+    parts.push(`Le plus de victoires ${period} : ${names}. ${PODIUM_METHOD} Cela compte d'abord le temps de jeu, pas le niveau.`);
   }
+  parts.push(DATA_SOURCE);
   return parts.join(" ").slice(0, 1024);
 }
 
@@ -326,7 +328,7 @@ export class GazetteFonts {
 
   /**
    * Le texte, dont chaque caractère qu'aucune police du site ne sait dessiner (émoji, idéogramme…) devient « ? ». Pour un nom
-   * libre, comme celui d'un joueur dans une partie : l'image se dessine quand même, et le message garde le nom entier.
+   * libre, comme celui d'un joueur dans une partie : l'image se dessine quand même, et sa description garde le nom entier.
    */
   drawable(text: string, font: CardFont): string {
     const fonts = this.fontsOf(font);

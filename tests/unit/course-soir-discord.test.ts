@@ -39,8 +39,9 @@ describe("coursePayload", () => {
     expect(payload).not.toHaveProperty("components");
     expect(String(payload["content"]).length).toBeLessThan(2000);
   });
-  it("avec l'image, joint le fichier, sa description et un bouton vers le classement", () => {
-    expect(coursePayload(RACE, "GAL", "https://x.test", { alt: "Description.", filename: "course-du-soir.png" })).toMatchObject({
+  it("avec l'image, joint le fichier, sa description et un bouton vers le classement, sans aucun texte", () => {
+    expect(coursePayload(RACE, "GAL", "https://x.test", { alt: "Description.", filename: "course-du-soir.png" })).toEqual({
+      avatar_url: "https://x.test/generated/icon-192.png",
       allowed_mentions: { parse: [] },
       attachments: [{ id: 0, filename: "course-du-soir.png", description: "Description." }],
       components: [{ type: 1, components: [{ type: 2, style: 5, label: "Voir le classement", url: "https://x.test/classement" }] }],
@@ -78,7 +79,10 @@ describe("sendCourse", () => {
     expect(url).toBe(`${WEBHOOK}?with_components=true`);
     expect(init.redirect).toBe("error");
     const form = init.body as FormData;
-    expect(JSON.parse(String(form.get("payload_json")))).toMatchObject({ attachments: [{ id: 0, filename: "course-du-soir.png", description: "Description de l'image." }] });
+    const sent = JSON.parse(String(form.get("payload_json")));
+    expect(sent).toMatchObject({ attachments: [{ id: 0, filename: "course-du-soir.png", description: "Description de l'image." }] });
+    // Le message est l'image seule : aucun texte ne l'accompagne.
+    expect(sent).not.toHaveProperty("content");
     expect((form.get("files[0]") as File).type).toBe("image/png");
     noSecret(logs);
   });

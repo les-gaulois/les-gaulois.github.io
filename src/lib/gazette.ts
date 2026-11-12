@@ -143,6 +143,10 @@ export function playersPeriod({ from, to, players, playersSince }: Pick<GazetteE
   return start <= from ? "de la semaine" : `du ${fmtDay(start)} au ${fmtDay(to)}`;
 }
 
+/** Ce que compte le podium, puis d'où viennent les chiffres : pour le message Discord, dans la description de son image et dans son texte de secours. */
+export const PODIUM_METHOD = "Victoires en équipe sous le tag entre deux relevés, membres avec pseudo présents aux deux.";
+export const DATA_SOURCE = "Données publiques d'OpenFront.";
+
 /** Les éditions précédentes montrées d'abord sur la page de la gazette : les plus anciennes restent dans la page, repliées ensemble. */
 export const GAZETTE_RECENT_EDITIONS = 6;
 

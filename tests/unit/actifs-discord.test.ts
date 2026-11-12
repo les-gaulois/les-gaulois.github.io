@@ -119,7 +119,10 @@ describe("le message", () => {
   it("avec l'image : un seul joueur, le bouton ouvre sa fiche ; plusieurs, la page des membres", () => {
     const image = { alt: "Description.", filename: "plus-actifs.png" };
     expect(activePayload(PLAYERS.slice(0, 1), PERIOD, "GAL", SITE, image)).toMatchObject({ components: [{ type: 1, components: [{ label: "Voir la fiche de Alpha", url: "https://x.test/membres/a/" }] }] });
-    expect(activePayload(PLAYERS, PERIOD, "GAL", SITE, image)).toMatchObject({
+    // Le message est l'image seule, avec son bouton : aucun texte ne l'accompagne.
+    expect(activePayload(PLAYERS, PERIOD, "GAL", SITE, image)).toEqual({
+      avatar_url: "https://x.test/generated/icon-192.png",
+      allowed_mentions: { parse: [] },
       attachments: [{ id: 0, filename: "plus-actifs.png", description: "Description." }],
       components: [{ type: 1, components: [{ type: 2, style: 5, label: "Voir les membres du clan", url: "https://x.test/membres/" }] }],
     });
@@ -186,7 +189,8 @@ describe("activeCard", () => {
   it("écrit le titre, la période et chaque joueur avec sa place, ses parties et ses victoires, sans rien faire déborder", () => {
     const card = activeCard(PLAYERS, PERIOD, "GAL", SITE, measure);
     const texts = card.texts.map((t) => plain(t.text));
-    for (const expected of ["Parties en équipe sous le tag [GAL]", "Les plus actifs", "Entre les relevés de la liste du 10 nov., 18:54 et du 11 nov., 14:54", "1er", "Alpha", "40 parties, 20 victoires", "2e", "Delta", "x.test/membres", "Compte le temps de jeu, pas le niveau."]) {
+    // L'en-tête dit qui est compté : sans texte dans le message, « 1er » se lirait comme le plus actif de tout le clan.
+    for (const expected of ["Parties en équipe sous le tag [GAL], membres avec pseudo public", "Les plus actifs", "Entre les relevés de la liste du 10 nov., 18:54 et du 11 nov., 14:54", "1er", "Alpha", "40 parties, 20 victoires", "2e", "Delta", "x.test/membres", "Compte le temps de jeu, pas le niveau."]) {
       expect(texts).toContain(expected);
     }
     expectClean(card);
@@ -197,7 +201,7 @@ describe("activeCard", () => {
   });
   it("dit l'essentiel à un lecteur d'écran", () => {
     expect(plain(activeImageAlt(PLAYERS.slice(0, 1), PERIOD, "GAL"))).toBe(
-      "Les plus actifs chez [GAL], parties en équipe sous le tag, entre les relevés de la liste des membres du 10 nov., 18:54 et du 11 nov., 14:54. 1er, Alpha : 40 parties, 20 victoires. Compte le temps de jeu, pas le niveau.",
+      "Les plus actifs chez [GAL], parties en équipe sous le tag, entre les relevés de la liste des membres du 10 nov., 18:54 et du 11 nov., 14:54. 1er, Alpha : 40 parties, 20 victoires. Membres avec pseudo public seulement. Compte le temps de jeu, pas le niveau.",
     );
   });
   it("se dessine avec les polices du site", async () => {

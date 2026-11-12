@@ -44,12 +44,14 @@ try {
         link,
         arrivals,
         // Chargé seulement au moment d'envoyer : si le dessin ne marche pas, le message part quand même, en texte.
-        renderImage: async (a, allNamed) => {
+        renderImage: async (a) => {
           const { GazetteFonts, renderGazetteCard } = await import("../src/lib/gazette-image");
           const { welcomeCard, welcomeImageAlt } = await import("../src/lib/bienvenue-image");
           const root = process.cwd();
           const fonts = new GazetteFonts(root);
-          return { png: await renderGazetteCard(welcomeCard(a, clan.tag, clan.links.site, fonts.width, allNamed), fonts, root), alt: welcomeImageAlt(a, clan.tag) };
+          // Un caractère qu'aucune police ne sait dessiner devient « ? » sur l'image ; sa description garde le pseudo entier.
+          const drawn = { ...a, named: a.named.map((p) => ({ ...p, username: fonts.drawable(p.username, "strong") })) };
+          return { png: await renderGazetteCard(welcomeCard(drawn, clan.tag, clan.links.site, fonts.width), fonts, root), alt: welcomeImageAlt(a, clan.tag) };
         },
         tag: clan.tag,
         siteUrl: clan.links.site,

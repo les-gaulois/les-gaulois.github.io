@@ -78,7 +78,8 @@ export function hierCard(report: DayReport, tag: string, siteUrl: string, measur
   const room = WIDTH - MARGIN - headerX;
   texts.push({ ...fitted(`Parties du clan sous le tag [${tag}]`, "strong", 26, 20, room, measure), x: headerX, y: 64, font: "strong", color: C.BLUE_TEXT });
   texts.push({ ...fitted(HIER_TITLE, "title", 56, 36, room, measure), x: headerX, y: 122, font: "title", color: C.WHITE });
-  texts.push({ ...fitted(dayTitle(report.day), "body", 28, 20, room, measure), x: headerX, y: 166, font: "body", color: C.MUTED });
+  // Le message n'a plus de texte pour le dire : les jours et les heures de l'image sont ceux de Paris.
+  texts.push({ ...fitted(`${dayTitle(report.day)}, heure de Paris`, "body", 28, 20, room, measure), x: headerX, y: 166, font: "body", color: C.MUTED });
 
   // Les trois grands chiffres.
   const gap = 16;
@@ -119,7 +120,7 @@ export function hierCard(report: DayReport, tag: string, siteUrl: string, measur
 
 /** Ce que l'image dit, pour un lecteur d'écran : Discord le lit comme description du fichier. */
 export function hierImageAlt(report: DayReport, tag: string): string {
-  const parts = [`${HIER_TITLE}, ${dayTitle(report.day).toLowerCase()}, parties du clan sous le tag [${tag}].`, `${resultWords(report)}.`];
+  const parts = [`${HIER_TITLE}, ${dayTitle(report.day).toLowerCase()}, heure de Paris, parties du clan sous le tag [${tag}].`, `${resultWords(report)}.`];
   if (report.previous) {
     parts.push(`La veille : ${resultWords(report.previous)}.`);
   }

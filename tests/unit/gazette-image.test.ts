@@ -205,6 +205,15 @@ describe("gazetteImageAlt", () => {
     expect(alt).not.toContain("..");
   });
 
+  it("garde ce que le texte du message ajoutait : ce que compte le podium, et d'où viennent les chiffres", () => {
+    const withPodium = plain(gazetteImageAlt(edition({ players: [player("Alpha", 33, 1)] }), "GAL"));
+    expect(withPodium.endsWith("Le plus de victoires de la semaine : Alpha, 33 victoires. Victoires en équipe sous le tag entre deux relevés, membres avec pseudo présents aux deux. Cela compte d'abord le temps de jeu, pas le niveau. Données publiques d'OpenFront.")).toBe(true);
+    // Sans podium, rien à dire de ce qu'il compte.
+    const bare = plain(gazetteImageAlt(edition(), "GAL"));
+    expect(bare.endsWith("Données publiques d'OpenFront.")).toBe(true);
+    expect(bare).not.toContain("entre deux relevés");
+  });
+
   it("tient dans la limite de Discord", () => {
     const players = Array.from({ length: 5 }, (_, i) => player("x".repeat(300), 9, i + 1));
     expect(gazetteImageAlt(edition({ players }), "GAL").length).toBeLessThanOrEqual(1024);

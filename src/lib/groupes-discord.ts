@@ -14,12 +14,14 @@
  * - Un message posté ne se corrige pas : il attend que la collecte ait fini le dimanche, que la liste des membres ait été relue
  *   depuis, et que la liste de parties de chaque membre soit à jour. Sinon, il réessaie au passage suivant, jusqu'au dimanche.
  * - Une semaine sans partie relevée n'envoie rien, et elle est notée comme passée.
+ * - Le message est une image (`groupes-image.ts`) et un bouton, sans texte : le texte, où chaque pseudo est relié à sa fiche,
+ *   ne part que si l'image ne se dessine pas.
  */
 import { z } from "zod";
 import { alertsStarted } from "./alerts";
-import { postText } from "./discord-post";
+import { imageMessage, postWithImage, textMessage } from "./discord-post";
 import { fmtDec1, fmtDay, fmtInt, fmtScore } from "./format";
-import { escapeDiscord } from "./gazette-discord";
+import { escapeDiscord, type RenderedImage } from "./gazette-discord";
 import { ParisDay, sendWindow, siteLink } from "./salon-discord";
 import type { StoredMemberResults, StoredMembers, StoredSession } from "./schemas";
 import { GROUP_SIZES, groupOf, type GroupSize } from "./simulateur";
@@ -135,33 +137,52 @@ export function weekGroups({ monday, sessions, results, members }: { monday: str
   };
 }
 
-const share = (part: number, total: number) => (total > 0 ? `${fmtInt(Math.round((100 * part) / total))} %` : "—");
+/* ---------- Les mots du message, pour l'image et pour le texte ---------- */
+
+export const GROUPS_TITLE = "Jouer ensemble";
+export const DUOS_HEADING = "Les duos qui ont le plus gagné ensemble";
+/** La réserve qui accompagne toujours les duos. */
+export const DUOS_NOTE = "Les duos comptent d'abord le temps passé à jouer à deux, pas un niveau.";
+
+/** « 61 % », arrondi à l'unité. */
+export const share = (part: number, total: number) => (total > 0 ? `${fmtInt(Math.round((100 * part) / total))} %` : "—");
 const SIZE_WORDS: Record<GroupSize, string> = { "1": "seul", "2": "à 2", "3": "à 3", "4": "à 4 et plus" };
 
-/** Le texte du message. Les pseudos sont échappés et reliés à leur fiche ; personne n'est mentionné. */
+/** « du 2 nov. au 8 nov. » : la semaine, du lundi au dimanche. */
+export const weekSpan = (week: Pick<WeekGroups, "monday">) => `du ${fmtDay(week.monday)} au ${fmtDay(addDays(week.monday, 6))}`;
+
+/** Les points par partie des tailles de groupe qui ont des parties, de seul à quatre et plus. */
+export const perGameParts = (week: Pick<WeekGroups, "perGame">): { words: string; points: string }[] =>
+  GROUP_SIZES.flatMap((size) => (week.perGame[size] === null ? [] : [{ words: SIZE_WORDS[size], points: fmtScore(week.perGame[size]) }]));
+
+/** « 12 victoires ensemble, sur 15 parties ». */
+export const duoWords = (duo: Pick<Duo, "wins" | "games">) => `${fmtInt(duo.wins)} victoire${duo.wins > 1 ? "s" : ""} ensemble, sur ${fmtInt(duo.games)} partie${duo.games > 1 ? "s" : ""}`;
+
+/** Le texte de secours. Les pseudos sont échappés et reliés à leur fiche ; personne n'est mentionné. */
 export function groupsContent(week: WeekGroups, siteUrl: string): string {
   const site = siteUrl.replace(/\/$/, "");
   const who = (p: { id: string; name: string }) => `[**${escapeDiscord(p.name)}**](<${siteLink(site, `/membres/${encodeURIComponent(p.id)}`)}>)`;
-  const perGame = GROUP_SIZES.flatMap((s) => (week.perGame[s] === null ? [] : [`${SIZE_WORDS[s]} : ${fmtScore(week.perGame[s])}`]));
   const lines = [
-    `**Jouer ensemble, la semaine du ${fmtDay(week.monday)} au ${fmtDay(addDays(week.monday, 6))}**`,
+    `**${GROUPS_TITLE}, la semaine ${weekSpan(week)}**`,
     `👥 À plusieurs : ${share(week.groupGames, week.games)} des ${fmtInt(week.games)} parties, pour ${share(week.groupPoints, week.points)} des points gagnés.`,
-    `📈 Points par partie : ${perGame.join(" ; ")}.`,
+    `📈 Points par partie : ${perGameParts(week)
+      .map((p) => `${p.words} : ${p.points}`)
+      .join(" ; ")}.`,
   ];
   if (week.duos.length > 0) {
-    lines.push("🤝 Les duos qui ont le plus gagné ensemble :");
-    week.duos.forEach((d, i) => lines.push(`${i + 1}. ${who(d.a)} et ${who(d.b)} : ${fmtInt(d.wins)} victoire${d.wins > 1 ? "s" : ""} ensemble, sur ${fmtInt(d.games)} partie${d.games > 1 ? "s" : ""}`));
-    lines.push("Ces nombres comptent d'abord le temps passé à jouer à deux, pas un niveau.");
+    lines.push(`🤝 ${DUOS_HEADING} :`);
+    week.duos.forEach((d, i) => lines.push(`${i + 1}. ${who(d.a)} et ${who(d.b)} : ${duoWords(d)}`));
+    lines.push(DUOS_NOTE);
   }
   lines.push(`[Seul ou en groupe, sur la fiche de chaque membre](<${siteLink(site, "/membres")}>)`);
   return lines.join("\n");
 }
 
-export const groupsPayload = (week: WeekGroups, siteUrl: string): Record<string, unknown> => ({
-  content: groupsContent(week, siteUrl),
-  avatar_url: siteLink(siteUrl, "/generated/icon-192.png"),
-  allowed_mentions: { parse: [] },
-});
+/** Le message. `image` : le fichier joint et sa description, avec un bouton vers les membres, sans texte. Sans elle, le secours en texte. */
+export function groupsPayload(week: WeekGroups, siteUrl: string, image: { alt: string; filename: string } | null): Record<string, unknown> {
+  if (!image) return textMessage(siteUrl, groupsContent(week, siteUrl));
+  return imageMessage(siteUrl, image, [{ label: "Voir les membres du clan", url: siteLink(siteUrl, "/membres") }]);
+}
 
 /**
  * Les données d'une semaine sont-elles complètes ? `null` : oui ; sinon, ce qui manque. La collecte doit avoir fini le dimanche,
@@ -235,10 +256,25 @@ export interface GroupsSendDeps {
   /** Un lien déjà vérifié par `isWebhookUrl`. */
   link: string;
   week: WeekGroups;
+  /** Dessine l'image. Si elle échoue, le message part en texte. */
+  renderImage: (week: WeekGroups) => Promise<RenderedImage>;
   siteUrl: string;
   fetch: typeof fetch;
   log: (line: string) => void;
 }
 
-/** Envoie le message en texte. Un échec se retente au passage suivant. */
-export const sendGroups = ({ link, week, siteUrl, fetch, log }: GroupsSendDeps) => postText({ link, text: groupsPayload(week, siteUrl), label: "Jouer ensemble", fetch, log });
+/** Envoie le message en image, ou en texte si elle ne se dessine pas : voir `postWithImage`. Un échec se retente au passage suivant. */
+export function sendGroups({ link, week, renderImage, siteUrl, fetch, log }: GroupsSendDeps): Promise<boolean> {
+  return postWithImage({
+    link,
+    label: "Jouer ensemble",
+    text: groupsPayload(week, siteUrl, null),
+    image: async () => {
+      const { png, alt } = await renderImage(week);
+      const filename = "jouer-ensemble.png";
+      return { payload: groupsPayload(week, siteUrl, { alt, filename }), png, filename };
+    },
+    fetch,
+    log,
+  });
+}

@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { markRecordsSent, parseRecordAlertState, planRecordAlert, postRecordMessage, recordAlertPass, recordHeadline, recordLine, recordPayload, type RecordAlert } from "../../src/lib/records-discord";
+import { describe, expect, it, vi } from "vitest";
+import { markRecordsSent, parseRecordAlertState, planRecordAlert, recordAlertPass, recordHeadline, recordLine, recordPayload, sendRecords, type RecordAlert, type RecordSendDeps } from "../../src/lib/records-discord";
 import type { ClanRecords } from "../../src/lib/results";
 
 const records = (over: Partial<ClanRecords> = {}): ClanRecords => ({
@@ -72,34 +72,68 @@ describe("le message", () => {
     expect(plain(recordLine(alert.beaten[0]!, after))).toBe("Plus longue série de victoires : 7 victoires d'affilée, la dernière le 7 nov. 2026. Avant : 5.");
     expect(plain(recordLine(alert.beaten[1]!, after))).toBe("Meilleure journée : 41 victoires sur 80 parties, le 7 nov. 2026. Avant : 40.");
   });
-  it("part en texte, avec le lien de la page, la source datée et sans mention possible", () => {
-    const payload = recordPayload(alert, "GAL", "https://les-gaulois.github.io/", "2026-04-10", "2026-11-07T13:53:00.000Z") as { content: string; allowed_mentions: unknown };
+  it("avec l'image : le fichier joint et un bouton vers les records, sans aucun texte", () => {
+    expect(recordPayload(alert, "GAL", "https://les-gaulois.github.io/", "2026-04-10", "2026-11-07T13:53:00.000Z", { alt: "Description.", filename: "record-du-clan.png" })).toEqual({
+      avatar_url: "https://les-gaulois.github.io/generated/icon-192.png",
+      allowed_mentions: { parse: [] },
+      attachments: [{ id: 0, filename: "record-du-clan.png", description: "Description." }],
+      components: [{ type: 1, components: [{ type: 2, style: 5, label: "Voir les records", url: "https://les-gaulois.github.io/records" }] }],
+    });
+  });
+  it("le texte de secours donne le lien de la page, la source datée, et ne peut mentionner personne", () => {
+    const payload = recordPayload(alert, "GAL", "https://les-gaulois.github.io/", "2026-04-10", "2026-11-07T13:53:00.000Z", null) as { content: string; allowed_mentions: unknown };
     expect(payload.content).toContain("**[GAL] bat 2 records du clan**");
     expect(payload.content).toContain("(<https://les-gaulois.github.io/records>)");
-    expect(plain(payload.content)).toContain("Collecte du 7 nov. 2026, 14:53.");
+    expect(plain(payload.content)).toContain("-# Depuis le 10 avr. 2026, parties publiques en équipe sous le tag, tous joueurs du clan confondus. Collecte du 7 nov. 2026, 14:53.");
     expect(payload.allowed_mentions).toEqual({ parse: [] });
+    expect(payload).not.toHaveProperty("components");
   });
 });
 
-describe("postRecordMessage", () => {
+describe("sendRecords", () => {
   const link = "https://discord.com/api/webhooks/1/secret";
-  it("refuse les redirections et ne laisse jamais sortir le lien", async () => {
-    const calls: { url: string; init: RequestInit }[] = [];
+  const alert: RecordAlert = { beaten: [{ key: "streak", before: 5, after: 7 }], records: better };
+  const setup = (over: Partial<RecordSendDeps> = {}) => {
     const lines: string[] = [];
-    const ok = await postRecordMessage(link, { content: "x" }, (async (url: string, init: RequestInit) => {
-      calls.push({ url, init });
-      return new Response(null, { status: 204 });
-    }) as unknown as typeof fetch, (l) => lines.push(l));
-    expect(ok).toBe(true);
-    expect(calls[0]?.init.redirect).toBe("error");
-    expect(calls[0]?.init.method).toBe("POST");
+    const post = vi.fn(async () => new Response(null, { status: 204 }));
+    const deps: RecordSendDeps = { link, alert, renderImage: async () => ({ png: Uint8Array.of(137, 80, 78, 71), alt: "Description de l'image." }), tag: "GAL", siteUrl: "https://x.test", archiveStart: "2026-04-10", coveredUntil: "2026-11-07T13:53:00.000Z", fetch: post as unknown as typeof fetch, log: (l) => lines.push(l), ...over };
+    return { deps, lines, post };
+  };
+  it("envoie l'image seule et son bouton, refuse les redirections et ne laisse jamais sortir le lien", async () => {
+    const { deps, post, lines } = setup();
+    expect(await sendRecords(deps)).toBe(true);
+    expect(post).toHaveBeenCalledTimes(1);
+    const [url, init] = post.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe(`${link}?with_components=true`);
+    expect(init.redirect).toBe("error");
+    expect(init.method).toBe("POST");
+    const form = init.body as FormData;
+    const sent = JSON.parse(String(form.get("payload_json")));
+    expect(sent).toMatchObject({ attachments: [{ id: 0, filename: "record-du-clan.png", description: "Description de l'image." }] });
+    expect(sent).not.toHaveProperty("content");
+    expect((form.get("files[0]") as File).type).toBe("image/png");
     expect(lines).toEqual([]);
   });
+  it("part en texte si l'image ne se dessine pas", async () => {
+    const { deps, post, lines } = setup({ renderImage: () => Promise.reject(new Error("police")) });
+    expect(await sendRecords(deps)).toBe(true);
+    const [url, init] = post.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe(link);
+    // Le secours aussi refuse les redirections : sinon, un record serait noté annoncé sans message posté.
+    expect(init.redirect).toBe("error");
+    expect(init.method).toBe("POST");
+    expect(String(JSON.parse(String(init.body)).content)).toContain("**[GAL] bat un record du clan**");
+    expect(lines.join(" ")).toContain("Records : image impossible à dessiner");
+    expect(lines.join(" ")).not.toContain("secret");
+  });
   it("dit un refus ou une panne sans le lien, et rend faux", async () => {
-    const lines: string[] = [];
-    expect(await postRecordMessage(link, {}, (async () => new Response("", { status: 429 })) as unknown as typeof fetch, (l) => lines.push(l))).toBe(false);
-    expect(await postRecordMessage(link, {}, (async () => { throw new TypeError("fetch failed"); }) as unknown as typeof fetch, (l) => lines.push(l))).toBe(false);
+    const refused = setup({ fetch: (async () => new Response("", { status: 429 })) as unknown as typeof fetch });
+    expect(await sendRecords(refused.deps)).toBe(false);
+    const down = setup({ fetch: (async () => { throw new TypeError(`fetch failed ${link}`); }) as unknown as typeof fetch });
+    expect(await sendRecords(down.deps)).toBe(false);
+    const lines = [...refused.lines, ...down.lines];
     expect(lines).toHaveLength(2);
+    expect(lines.join(" ")).toContain("Records");
     expect(lines.join(" ")).not.toContain("secret");
   });
 });

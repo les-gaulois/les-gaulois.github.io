@@ -1,6 +1,7 @@
 /**
- * Le message des plus actifs, sur le salon de la gazette : les pseudos, chacun relié à sa fiche, l'image et un bouton.
- * Le message ne peut mentionner personne, et un pseudo ne peut ni le mettre en forme ni y glisser un lien. Règles : `actifs.ts`.
+ * Le message des plus actifs, sur le salon de la gazette : l'image, qui écrit chaque pseudo, et un bouton, sans texte.
+ * Le message de secours, en texte, relie chaque pseudo à sa fiche : il ne peut mentionner personne, et un pseudo ne peut ni le
+ * mettre en forme ni y glisser un lien. Règles : `actifs.ts`.
  */
 import {
   ACTIVE_NOTE,
@@ -16,11 +17,11 @@ import {
   type ActiveState,
 } from "./actifs";
 import { alertsStarted } from "./alerts";
-import { postWithImage } from "./discord-post";
+import { imageMessage, postWithImage, textMessage } from "./discord-post";
 import { escapeDiscord, type RenderedImage } from "./gazette-discord";
 import { periodWords } from "./paliers-franchis";
 import { profileUrl } from "./paliers-franchis-discord";
-import { siteLink } from "./salon-discord";
+import { NAMED_ONLY, siteLink } from "./salon-discord";
 import type { StoredMembers } from "./schemas";
 
 /** La période du message : du relevé de départ au relevé du moment. */
@@ -30,31 +31,24 @@ export interface ActivePeriod {
 }
 
 const MEDALS = ["🥇", "🥈", "🥉"];
-const BUTTON_LABEL_MAX = 80;
 
-/** Le texte du message. Cinq joueurs au plus : il reste loin de la limite de Discord. */
+/** Le texte de secours. Cinq joueurs au plus : il reste loin de la limite de Discord. */
 export function activeContent(players: readonly ActivePlayer[], period: ActivePeriod, tag: string, siteUrl: string): string {
   const site = siteUrl.replace(/\/$/, "");
   return [
     `**${ACTIVE_TITLE} chez [${escapeDiscord(tag)}]**`,
     ...players.map((p) => `${MEDALS[p.place - 1] ?? "🏅"} [**${escapeDiscord(p.username)}**](<${profileUrl(site, p.id)}>) : ${activityWords(p)}`),
     `[Voir les membres du clan](<${siteLink(site, "/membres/")}>)`,
-    `-# Parties en équipe sous le tag, ${periodWords(period)}. Membres avec pseudo public seulement. ${ACTIVE_NOTE}`,
+    `-# Parties en équipe sous le tag, ${periodWords(period)}. ${NAMED_ONLY} ${ACTIVE_NOTE}`,
   ].join("\n");
 }
 
-/** Le message. `image` : le fichier joint et sa description ; sans lui, le message part en texte, sans bouton. */
+/** Le message. `image` : le fichier joint et sa description, avec un bouton, sans texte. Sans elle, le secours en texte, sans bouton. */
 export function activePayload(players: readonly ActivePlayer[], period: ActivePeriod, tag: string, siteUrl: string, image: { alt: string; filename: string } | null): Record<string, unknown> {
   const site = siteUrl.replace(/\/$/, "");
-  const base = { content: activeContent(players, period, tag, site), avatar_url: siteLink(site, "/generated/icon-192.png"), allowed_mentions: { parse: [] } };
-  if (!image) return base;
+  if (!image) return textMessage(site, activeContent(players, period, tag, site));
   const only = players.length === 1 ? players[0] : undefined;
-  const button = only ? { label: `Voir la fiche de ${only.username}`.slice(0, BUTTON_LABEL_MAX), url: profileUrl(site, only.id) } : { label: "Voir les membres du clan", url: siteLink(site, "/membres/") };
-  return {
-    ...base,
-    attachments: [{ id: 0, filename: image.filename, description: image.alt }],
-    components: [{ type: 1, components: [{ type: 2, style: 5, ...button }] }],
-  };
+  return imageMessage(site, image, [only ? { label: `Voir la fiche de ${only.username}`, url: profileUrl(site, only.id) } : { label: "Voir les membres du clan", url: siteLink(site, "/membres/") }]);
 }
 
 export interface ActiveSendDeps {
@@ -70,7 +64,7 @@ export interface ActiveSendDeps {
   log: (line: string) => void;
 }
 
-/** Envoie le message, avec l'image d'abord : voir `postWithImage`. Un échec se retente au passage suivant. */
+/** Envoie le message en image, ou en texte si elle ne se dessine pas : voir `postWithImage`. Un échec se retente au passage suivant. */
 export function sendActive({ link, players, period, renderImage, tag, siteUrl, fetch, log }: ActiveSendDeps): Promise<boolean> {
   return postWithImage({
     link,

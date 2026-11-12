@@ -1,10 +1,10 @@
 /**
- * L'envoi d'une alerte de place, sur le même salon que la gazette : une phrase, l'image et un bouton vers la page.
- * Le message ne peut mentionner personne, et le tag d'un autre clan ne peut rien y mettre en forme.
+ * L'envoi d'une alerte de place, sur le même salon que la gazette : l'image et un bouton vers la page, sans texte.
+ * Le message de secours, en texte, ne peut mentionner personne, et le tag d'un autre clan ne peut rien y mettre en forme.
  * L'envoi est celui de `discord-post.ts`, partagé avec les paliers franchis. La gazette garde le sien : le message du lundi n'en dépend pas.
  */
 import { alertHeadline, alertsStarted, gapParts, gapSentences, markSent, planAlert, sourceLine, type AlertState, type PlaceAlert, type PlaceReading } from "./alerts";
-import { postWithImage } from "./discord-post";
+import { imageMessage, postWithImage, textMessage } from "./discord-post";
 import { fmtRank } from "./format";
 import { escapeDiscord, type RenderedImage } from "./gazette-discord";
 
@@ -13,19 +13,13 @@ const discordTag = (tag: string | null) => (tag === null ? "un clan supprimé" :
 const pageOf = (alert: PlaceAlert, site: string) =>
   alert.kind === "rank" ? { url: `${site}/classement`, label: "Voir le classement" } : { url: `${site}/carte`, label: "Voir la carte" };
 
-/** Le message. `image` : le fichier joint et sa description ; sans lui, le message part en texte, avec un lien à la place du bouton. */
+/** Le message. `image` : le fichier joint et sa description, avec un bouton, sans texte. Sans elle, le secours en texte, avec un lien à la place du bouton. */
 export function alertPayload(alert: PlaceAlert, tag: string, siteUrl: string, image: { alt: string; filename: string } | null): Record<string, unknown> {
   const site = siteUrl.replace(/\/$/, "");
   const page = pageOf(alert, site);
+  if (image) return imageMessage(site, image, [page]);
   const gaps = gapSentences(gapParts(alert, discordTag));
-  const content = [`**${alertHeadline(alert, escapeDiscord(tag))}**`, ...(gaps ? [gaps] : []), `[${page.label} sur le site](<${page.url}>)`, `-# ${sourceLine(alert.reading)}`].join("\n");
-  const base = { content, avatar_url: `${site}/generated/icon-192.png`, allowed_mentions: { parse: [] } };
-  if (!image) return base;
-  return {
-    ...base,
-    attachments: [{ id: 0, filename: image.filename, description: image.alt }],
-    components: [{ type: 1, components: [{ type: 2, style: 5, label: page.label, url: page.url }] }],
-  };
+  return textMessage(site, [`**${alertHeadline(alert, escapeDiscord(tag))}**`, ...(gaps ? [gaps] : []), `[${page.label} sur le site](<${page.url}>)`, `-# ${sourceLine(alert.reading)}`].join("\n"));
 }
 
 export interface AlertSendDeps {
@@ -40,7 +34,7 @@ export interface AlertSendDeps {
   log: (line: string) => void;
 }
 
-/** Envoie l'alerte, avec l'image d'abord : voir `postWithImage`. Un échec se retente au passage suivant. */
+/** Envoie l'alerte en image, ou en texte si elle ne se dessine pas : voir `postWithImage`. Un échec se retente au passage suivant. */
 export function sendPlaceAlert({ link, alert, renderImage, tag, siteUrl, fetch, log }: AlertSendDeps): Promise<boolean> {
   return postWithImage({
     link,
