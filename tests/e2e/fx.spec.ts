@@ -229,7 +229,7 @@ test.describe("à la souris", () => {
     await expect.poll(lit, { timeout: 1000 }).toBeGreaterThan(500);
   });
 
-  test("les blocs s'inclinent et un halo suit le curseur, puis tout revient", async ({ page }) => {
+  test("les blocs s'inclinent sans s'allumer, puis tout revient", async ({ page }) => {
     const stage = page.locator(".stage-blue");
     await centerOnScreen(stage);
     await blocksSettled(page);
@@ -237,9 +237,11 @@ test.describe("à la souris", () => {
     await page.mouse.move(box.x + box.width * 0.85, box.y + box.height * 0.2, { steps: 4 });
     await expect.poll(() => stage.evaluate((el: HTMLElement) => el.style.transform)).toContain("perspective");
     expect(await stage.evaluate((el: HTMLElement) => el.style.getPropertyValue("--spot"))).toBe("1");
-    await expect
-      .poll(() => stage.evaluate((el) => getComputedStyle(el, "::before").animationName))
-      .toBe("frontier");
+    // Plus de surbrillance depuis le 13 novembre 2026 (remarque transmise par le pilote) : ni halo dessiné sous le curseur,
+    // ni frontière tricolore qui fait le tour du bloc.
+    expect(await stage.evaluate((el) => getComputedStyle(el).backgroundImage)).not.toContain("radial-gradient");
+    expect(await stage.evaluate((el) => getComputedStyle(el, "::before").animationName)).toBe("none");
+    expect(await stage.evaluate((el) => getComputedStyle(el, "::before").opacity)).toBe("0");
 
     await page.mouse.move(4, 4);
     await expect.poll(() => stage.evaluate((el: HTMLElement) => el.style.transform), { timeout: 3000 }).toBe("");

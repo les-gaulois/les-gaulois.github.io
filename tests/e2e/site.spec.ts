@@ -135,11 +135,11 @@ test("seules les pages de l'encadrement passent au rouge", async ({ page }, test
   expect(qg.background).not.toBe(blue.background);
   expect(qg.background).not.toBe(red.background);
   expect(qg.background).toBe(rgbOf(qg.bar));
-  // La page Carte est une console depuis le 12 novembre 2026, à la demande du pilote (« un design hacker très prononcé ») :
-  // le même Terminal bleu que le QG, sans le rouge de l'encadrement.
-  expect(await look("/carte")).toEqual(qg);
-  // Le guide du clan aussi, depuis le soir même : le pilote l'a voulu « comme la Carte ».
-  expect(await look("/debuter")).toEqual(qg);
+  // La page Carte est une console depuis le 12 novembre 2026, à la demande du pilote (« un design hacker très prononcé »),
+  // sans le rouge de l'encadrement ; le guide du clan aussi, le soir même (« comme la Carte »). Depuis le 13 novembre, leur
+  // fond est le bleu du site, et non plus le noir du Terminal (« garder la même DA du bleu en bg sur TOUT le site, arrêter
+  // le noir et le bleu foncé ») : la barre du navigateur le reprend.
+  for (const path of ["/carte", "/debuter"]) expect(await look(path), path).toEqual({ ...qg, background: blue.background, bar: blue.bar });
   for (const path of [...PAGES.filter((path) => path !== "/qg" && path !== "/carte" && path !== "/debuter"), "/compte", "/confidentialite"]) {
     expect(await look(path), path).toEqual(blue);
   }
@@ -189,9 +189,9 @@ test("au QG et à la Direction, aucun texte ni chiffre n'est vert", async ({ pag
 });
 
 // Le poste de commandement (docs/DESIGN.md) : depuis le 12 novembre 2026, la chasse fixe de la console est préchargée sur
-// toutes les pages, chacune a son invite décorative, et une lumière passe une fois sur le titre. La Direction et le QG
-// gardent leur console. La pause comme « réduire les animations » arrêtent l'invite, la lumière du titre, la chute du
-// guerrier de l'accueil et la bande de la console, portée par <html> lui-même, que `.fx-off *` ne vise pas.
+// toutes les pages, et chacune a son invite décorative (la lumière qui passait sur le titre est retirée le 13 novembre
+// 2026). La Direction et le QG gardent leur console. La pause comme « réduire les animations » arrêtent l'invite, la chute
+// du guerrier de l'accueil et la bande de la console, portée par <html> lui-même, que `.fx-off *` ne vise pas.
 test("l'invite et la console sont décoratives, et la pause arrête leurs animations", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "Même rendu sur mobile.");
   const fonts: string[] = [];
@@ -205,7 +205,8 @@ test("l'invite et la console sont décoratives, et la pause arrête leurs animat
   // Le guerrier de l'accueil tombe en colonnes à l'ouverture : la pause et « réduire les animations » l'arrêtent aussi.
   const falling = () => page.evaluate(() => getComputedStyle(document.querySelector(".holo-logo .console-goutte")!).animationName);
   expect(await falling()).toBe("console-goutte");
-  // Une page de lecture : la rubrique en dossier, la page en commande, et la lumière du titre.
+  // Une page de lecture : la rubrique en dossier, la page en commande. La lumière qui passait sur le titre est retirée
+  // depuis le 13 novembre 2026, avec la surbrillance : plus rien n'est dessiné par-dessus lui.
   await page.goto("/classement");
   await expect(page.locator(".invite")).toHaveAttribute("aria-hidden", "true");
   await expect(page.locator(".invite")).toHaveText(/^gal@clan:~\/resultats\$\s\.\/classement$/);
@@ -214,7 +215,8 @@ test("l'invite et la console sont décoratives, et la pause arrête leurs animat
       light: getComputedStyle(document.querySelector("h1")!, "::after").animationName,
       prompt: getComputedStyle(document.querySelector(".invite")!).animationName,
     }));
-  expect(await reading()).toEqual({ light: "titre-lecture", prompt: "console-frappe" });
+  expect(await page.evaluate(() => getComputedStyle(document.querySelector("h1")!, "::after").content)).toBe("none");
+  expect(await reading()).toEqual({ light: "none", prompt: "console-frappe" });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.reload();
   expect(await reading()).toEqual({ light: "none", prompt: "none" });
@@ -351,10 +353,11 @@ test("les titres ont de vraies minuscules et une lettrine, sauf en console, au Q
     expect(page1, mouvement).toMatchObject({ casse: "none", rouge: true, interligne: 1.15 });
     expect(page1?.lettrine, mouvement).toBeCloseTo(LETTRINE_TITRE, 1);
     expect((page1?.motsAnimes ?? 0) > 0, mouvement).toBe(mouvement === "no-preference");
-    // Un titre de section : une lettrine plus petite, sans le rouge du titre de page.
+    // Un titre de section : une lettrine plus petite, rouge elle aussi depuis le 13 novembre 2026 (« plus utiliser la
+    // seconde couleur qui est le rouge », remarque transmise par le pilote).
     await ouvrir("/activite");
     const section = await titre("main .section-title");
-    expect(section, mouvement).toMatchObject({ casse: "none", rouge: false, interligne: 1.15 });
+    expect(section, mouvement).toMatchObject({ casse: "none", rouge: true, interligne: 1.15 });
     expect(section?.lettrine, mouvement).toBeCloseTo(1.3, 1);
   }
   await page.emulateMedia({ reducedMotion: "no-preference" });
@@ -1645,7 +1648,7 @@ test("un bouton de filtre actif reste lisible au survol", async ({ page }, testI
   const active = page.getByRole("button", { name: "Toutes", exact: true });
   await expect(active).toBeEnabled();
   await active.hover();
-  await expect(active).toHaveCSS("color", "rgb(5, 11, 31)");
+  await expect(active).toHaveCSS("color", "rgb(10, 18, 48)");
   await expect(active).toHaveCSS("background-color", "rgb(255, 255, 255)");
 });
 

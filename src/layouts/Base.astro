@@ -75,8 +75,8 @@ const onciale = lettresOnciale
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark" />
-    {/* La barre du navigateur sur téléphone prend le fond de la page : le jeton navy de chaque thème (Terminal pour la console). */}
-    <meta name="theme-color" content={theme === "rouge" ? (ambiance === "console" ? "#13040A" : "#300A10") : ambiance === "console" ? "#03081A" : "#050B1F"} />
+    {/* La barre du navigateur prend le fond de la page : le noir du Terminal au QG et à la Direction, le bleu du site ailleurs, Carte et guide compris. */}
+    <meta name="theme-color" content={theme === "rouge" ? (ambiance === "console" ? "#13040A" : "#300A10") : ambiance === "console" && !lettresOnciale ? "#03081A" : "#0A1230"} />
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
     {noindex && <meta name="robots" content="noindex" />}

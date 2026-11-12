@@ -21,17 +21,48 @@ const hasLongWord = title.split(" ").some((word) => word.length >= 14);
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const path = Astro.url.pathname.replace(base, "").replace(/\/$/, "") || "/";
 const ownPrompt = Astro.slots.has("avant-titre");
+const hasInfos = Boolean(intro) || Astro.slots.has("default");
 // L'onciale de cases est plus large qu'Outfit : sur les pages ouvertes à tous, le titre se réduit juste assez pour que son
 // plus long mot tienne sur une ligne (« Confidentialité » sur un téléphone de 360 px), lettrine du premier mot comprise.
 // Voir global.css, « L'onciale de cases ».
 const motEm = `--mot-em:${motLePlusLong(title, lettrine ? LETTRINE_TITRE : 1).toFixed(2)}`;
+const titleClass = ["page-title", { "page-title-long": hasLongWord, "page-title-compact": compact, "sans-lettrine": !lettrine }];
 ---
 
-<header class:list={["reveal", compact ? "pb-5 pt-6 md:pb-6 md:pt-8" : "pb-8 pt-8 md:pb-10 md:pt-12"]}>
-  <span class:list={["tribar", compact ? "mb-4" : "mb-6"]}></span>
-  {/* Ce qui précède le titre : l'invite de la Direction ou du QG, sinon celle du site. */}
-  {ownPrompt ? <slot name="avant-titre" /> : <Invite path={path} />}
-  <h1 class:list={["page-title", { "page-title-long": hasLongWord, "page-title-compact": compact, "sans-lettrine": !lettrine }]} style={motEm}>{title}</h1>
-  {intro && <p class="mt-5 max-w-3xl text-lg text-muted">{intro}</p>}
-  <slot />
-</header>
+{
+  compact ? (
+    <header class="reveal pb-5 pt-6 md:pb-6 md:pt-8">
+      <span class="tribar mb-4" />
+      {/* Ce qui précède le titre : l'invite de la Direction ou du QG, sinon celle du site. */}
+      {ownPrompt ? <slot name="avant-titre" /> : <Invite path={path} />}
+      <h1 class:list={titleClass} style={motEm}>
+        {title}
+      </h1>
+      {intro && <p class="mt-5 max-w-3xl text-lg text-muted">{intro}</p>}
+      <slot />
+    </header>
+  ) : (
+    /*
+     * Le haut d'une page, plus court (remarque reçue le 12 novembre 2026 : « réagencer les hauts de pages pour fluidifier
+     * la lecture du titre et ne pas perdre d'espace à côté du titre ») : le filet et l'invite sur une ligne, un titre moins
+     * grand, et à sa droite, quand la place le permet, l'introduction et la date ; sinon, elles passent dessous.
+     */
+    <header class="page-tete reveal pb-6 pt-6 md:pb-8 md:pt-8">
+      <div class="page-tete-ligne">
+        <span class="tribar" />
+        {ownPrompt ? <slot name="avant-titre" /> : <Invite path={path} />}
+      </div>
+      <div class="page-tete-corps">
+        <h1 class:list={titleClass} style={motEm}>
+          {title}
+        </h1>
+        {hasInfos && (
+          <div class="page-tete-infos">
+            {intro && <p class="max-w-3xl text-lg text-muted">{intro}</p>}
+            <slot />
+          </div>
+        )}
+      </div>
+    </header>
+  )
+}

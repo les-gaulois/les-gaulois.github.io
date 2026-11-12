@@ -2,6 +2,12 @@
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "title": "Un site plus calme, tout en bleu",
+    "body": "Des hauts de page plus courts, des tableaux sur un fond à eux, des blocs de couleur presque unis, sans lueur au survol, un peu plus de rouge, et un seul bleu de fond, Carte et guide compris."
+  },
+  {
+    "date": "2026-11-13",
+    "kind": "ameliore",
     "title": "Des pages plus larges et plus aérées",
     "body": "Sur ordinateur, les pages prennent toute la largeur de l'écran. Sur téléphone comme sur ordinateur, leurs parties sont bien plus espacées. Le QG, la Direction et le guide gardent leur colonne."
   },
