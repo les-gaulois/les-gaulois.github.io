@@ -211,8 +211,8 @@ export function CodeLogin() {
       </form>
       <Problem message={error} />
       <p class="mt-3 text-sm text-muted">
-        Le site ne garde que votre identifiant et votre nom Discord, pour qu'un officier vous reconnaisse{NBSP}: ni e-mail, ni
-        accès à votre compte.
+        Par ce chemin, le site ne garde que votre identifiant et votre nom d'utilisateur Discord, pour qu'un officier vous
+        reconnaisse{NBSP}: ni e-mail, ni accès à votre compte.
       </p>
     </section>
   );

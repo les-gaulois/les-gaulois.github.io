@@ -25,10 +25,21 @@ const SNOWFLAKE = /^[0-9]{17,20}$/;
 export const isSnowflake = (value: string): boolean => SNOWFLAKE.test(value);
 
 /**
- * Un jeton de robot Discord a trois morceaux séparés par des points. Sert à reconnaître celui que le pilote a copié dans le
- * presse-papiers, sans jamais l'afficher, plutôt que de lui faire taper.
+ * Le jeton du robot de cette application : trois morceaux séparés par des points, dont le premier est le numéro du robot
+ * écrit en base64, celui de l'application pour une application récente. Sert à reconnaître celui que le pilote a copié dans
+ * le presse-papiers, sans jamais l'afficher. Une clé d'un autre service (un JWT de Supabase, par exemple) n'est jamais prise
+ * pour lui : elle ne commence pas par ce numéro.
  */
-export const looksLikeBotToken = (text: string): boolean => /^[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]{20,}$/.test(text.trim());
+export function looksLikeBotToken(text: string, applicationId: string): boolean {
+  const parts = text.trim().split(".");
+  const [first = "", second = "", third = ""] = parts;
+  if (parts.length !== 3 || !parts.every((part) => /^[A-Za-z0-9_-]+$/.test(part)) || second.length < 4 || third.length < 20) return false;
+  try {
+    return atob(first.replace(/-/g, "+").replace(/_/g, "/")) === applicationId;
+  } catch {
+    return false;
+  }
+}
 
 /** L'adresse qui crée la commande, ou la remplace si elle existe déjà, sur le seul serveur du clan. */
 export function commandUrl(applicationId: string, guildId: string): string {

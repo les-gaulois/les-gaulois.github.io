@@ -44,17 +44,23 @@ describe("la commande /code", () => {
 });
 
 describe("le jeton copié dans le presse-papiers", () => {
-  // Des valeurs inventées, de la seule forme d'un jeton : trois morceaux séparés par des points.
-  const fake = `${"A".repeat(26)}.${"b".repeat(6)}.${"c".repeat(38)}`;
+  // Des valeurs inventées : le premier morceau d'un jeton est le numéro du robot en base64, les deux autres sont faux.
+  const head = (id: string) => btoa(id).replace(/=+$/, "");
+  const fake = (id: string) => `${head(id)}.${"G".repeat(6)}.${"c".repeat(38)}`;
 
-  it("est reconnu à sa forme, espaces autour compris", () => {
-    expect(looksLikeBotToken(fake)).toBe(true);
-    expect(looksLikeBotToken(`  ${fake}\r\n`)).toBe(true);
+  it("est reconnu à son premier morceau, le numéro de l'application, espaces autour compris", () => {
+    expect(head(APPLICATION_ID)).toBe("MTQ3MzA1OTA0ODU0NjEwNzQzNA");
+    expect(looksLikeBotToken(fake(APPLICATION_ID), APPLICATION_ID)).toBe(true);
+    expect(looksLikeBotToken(`  ${fake(APPLICATION_ID)}\r\n`, APPLICATION_ID)).toBe(true);
   });
 
-  it("n'est pas confondu avec autre chose", () => {
-    for (const text of ["", "pas un jeton", "https://discord.com/developers/applications", `${"A".repeat(26)}.${"c".repeat(38)}`, `${fake} ${fake}`, "AAAA.bbbb.cccc"]) {
-      expect(looksLikeBotToken(text), text).toBe(false);
+  it("n'est pas confondu avec le jeton d'une autre application, ni avec une clé d'un autre service", () => {
+    expect(looksLikeBotToken(fake(APP), APPLICATION_ID)).toBe(false);
+    // La forme d'une ancienne clé de Supabase (un JWT) : trois morceaux aussi, mais pas ce numéro.
+    const jwt = `${btoa('{"alg":"HS256","typ":"JWT"}').replace(/=+$/, "")}.${btoa('{"role":"service_role"}').replace(/=+$/, "")}.${"s".repeat(43)}`;
+    expect(looksLikeBotToken(jwt, APPLICATION_ID)).toBe(false);
+    for (const text of ["", "pas un jeton", "https://discord.com/developers/applications", `${head(APPLICATION_ID)}.${"c".repeat(38)}`, `${fake(APPLICATION_ID)} ${fake(APPLICATION_ID)}`, `${head(APPLICATION_ID)}.GG.${"c".repeat(38)}`, `${"A".repeat(26)}.${"b".repeat(6)}.${"c".repeat(38)}`]) {
+      expect(looksLikeBotToken(text, APPLICATION_ID), text).toBe(false);
     }
   });
 });

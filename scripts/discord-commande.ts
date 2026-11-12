@@ -4,8 +4,9 @@
  *   npm run discord:commande
  * L'application « Le Gaulois » et le serveur du clan sont ceux de src/lib/discord-commande.ts, sauf DISCORD_APPLICATION_ID
  * et DISCORD_GUILD_ID. Le jeton du robot vient de DISCORD_BOT_TOKEN, sinon du presse-papiers de Windows (copié par le
- * bouton « Copy » du portail développeur, puis effacé), sinon de l'écran, où chaque signe tapé s'affiche en étoile. Il
- * n'est jamais affiché ni gardé.
+ * bouton « Copy » du portail développeur, puis remplacé), sinon de l'écran, où chaque signe tapé s'affiche en étoile. Il
+ * ne s'affiche jamais, mais l'historique du presse-papiers de Windows peut le garder : le script demande donc de le
+ * régénérer après usage (« Reset Token »), ce qui l'annule. La commande, elle, reste.
  */
 import { execFileSync } from "node:child_process";
 import { APPLICATION_ID, CODE_COMMAND, GUILD_ID, commandUrl, explainRefusal, looksLikeBotToken } from "../src/lib/discord-commande";
@@ -29,21 +30,24 @@ function tokenFromClipboard(): string {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
     }).trim();
-    return looksLikeBotToken(text) ? text : "";
+    return looksLikeBotToken(text, applicationId) ? text : "";
   } catch {
     return "";
   }
 }
 
-/** Remplace le jeton par une espace dans le presse-papiers : il n'y traîne pas après usage. */
+/** Remplace le jeton par une espace dans le presse-papiers. L'historique de Windows (Win+V) peut encore le garder. */
 function clearClipboard(): void {
   try {
     execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", "Set-Clipboard -Value ' '"], { stdio: "ignore" });
-    console.log("Presse-papiers vidé.");
+    console.log("Presse-papiers vidé. L'historique du presse-papiers de Windows (Win+V) peut encore garder le jeton.");
   } catch {
     console.log("Le presse-papiers n'a pas pu être vidé : copiez autre chose par-dessus le jeton.");
   }
 }
+
+const RESET =
+  "Dernière étape, obligatoire : portail développeur, onglet Bot, cliquez de nouveau sur « Reset Token », sans copier. Le jeton qui vient de servir ne vaudra plus rien ; la commande, elle, reste.";
 
 const ENTER = [String.fromCharCode(13), String.fromCharCode(10)];
 const CTRL_C = String.fromCharCode(3);
@@ -118,6 +122,7 @@ if (response === null) {
 
 if (response.ok) {
   console.log(`La commande /${CODE_COMMAND.name} est en place sur le serveur du clan. Essayez-la : tapez /${CODE_COMMAND.name} dans un salon.`);
+  console.log(RESET);
   process.exit(0);
 }
 console.error(explainRefusal(response.status, await response.text(), applicationId));
