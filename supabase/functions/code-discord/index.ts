@@ -11,8 +11,14 @@
  *   d'application, avec une adresse tirée au sort, puis lui donne son identifiant (`discord_code_attach`). Elle demande
  *   ensuite à Supabase de quoi ouvrir sa session : un lien magique qui n'est envoyé nulle part, dont elle vérifie qu'il
  *   ouvre bien ce compte, et dont le navigateur échange l'empreinte contre sa session (`verifyOtp`).
- * - `GET …/code-discord/etat` : dit si les réglages sont posés, sans en montrer aucun, et si le moteur sait vérifier une
- *   signature (essayé sur l'exemple de la RFC 8032).
+ * - `GET …/code-discord/etat` : dit si les réglages sont posés, sans en montrer aucun, si le moteur sait vérifier une
+ *   signature (essayé sur l'exemple de la RFC 8032) et si les fiches du site se lisent.
+ *
+ * La porte de Discord répond aussi à /fiche (docs/DIRECTION.md, « La commande /fiche ») : pendant que le joueur tape un
+ * pseudo, la fonction propose ceux des membres qui ont une fiche, lus dans `/fiches.json`, que le site publie avec ses pages
+ * (`src/lib/fiches-discord.ts`) ; à l'envoi, elle montre à tout le salon l'image de la fiche, en grand, et un bouton vers sa
+ * page. Elle ne lit rien d'autre, n'écrit rien, et ne connaît aucun membre sans pseudo : le site ne publie pas leur
+ * identifiant.
  *
  * Réglages : aucun. Le serveur du clan et la clé publique de l'application sont écrits plus bas, publics tous deux ; les
  * secrets `DISCORD_GUILD_ID` et `DISCORD_PUBLIC_KEY` les remplacent s'ils sont posés. Supabase donne lui-même `SUPABASE_URL`
@@ -58,6 +64,8 @@ export interface Deps {
   deleteUser(id: string): Promise<void>;
   /** L'empreinte du lien magique du compte à cette adresse, et le numéro de ce compte, ou `null`. Rien n'est envoyé. */
   magicLink(email: string): Promise<{ tokenHash: string; userId: string } | null>;
+  /** Les fiches que publie le site (`FICHES_URL`), ou `null` s'il ne répond pas et qu'il ne reste aucune lecture de moins de deux heures. */
+  fiches(): Promise<FicheList | null>;
   log(message: string): void;
 }
 
@@ -187,6 +195,174 @@ export const MESSAGES = {
 const record = (value: unknown): Record<string, unknown> | null =>
   value !== null && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
 
+/* ---------- La fiche d'un membre : /fiche ---------- */
+
+/** La commande qui montre la fiche d'un membre, et son option. `scripts/discord-commande.ts` les crée sur le serveur du clan. */
+export const FICHE_COMMAND_NAME = "fiche";
+export const FICHE_OPTION = "pseudo";
+/** Les fiches que le site publie avec ses pages : une par membre avec pseudo (`src/lib/fiches-discord.ts`). */
+export const FICHES_URL = `${SITE_URL}/fiches.json`;
+/**
+ * La fenêtre d'OpenFront où un joueur choisit son nom d'utilisateur, qui est son pseudo public dans la liste du clan
+ * (`src/lib/pseudo-openfront.ts` : la même adresse, un test compare les deux).
+ */
+export const CHOOSE_NAME_URL = "https://openfront.io/#modal=change-username";
+/** Discord montre 25 propositions au plus pendant la saisie. */
+export const MAX_CHOICES = 25;
+/** Un message « Components V2 » : l'image en grand, comme celle qu'enverrait un membre. */
+const COMPONENTS_V2 = 32768;
+/** Le temps laissé au site pour donner ses fiches : Discord attend une réponse en trois secondes, démarrage compris. */
+const FICHES_TIMEOUT_MS = 1500;
+/**
+ * Des fiches lues servent cinq minutes. Si le site ne répond plus, celles d'avant servent encore deux heures, pas plus : un
+ * membre parti, devenu anonyme ou dont le compte est supprimé ne doit pas rester proposé plus longtemps que sur le site. Après
+ * un échec, la fonction ne réessaie pas avant trente secondes : chaque frappe n'attend pas le délai.
+ */
+export const FICHES_FRESH_MS = 5 * 60_000;
+export const FICHES_STALE_MS = 2 * 60 * 60_000;
+export const FICHES_RETRY_MS = 30_000;
+
+export interface Fiche {
+  /** L'identifiant public du membre, celui de l'adresse de sa fiche et de son image. */
+  id: string;
+  pseudo: string;
+  /** La description de l'image, lue aux lecteurs d'écran ; `null` : pas d'image, le message part en texte. */
+  alt: string | null;
+}
+
+export interface FicheList {
+  /** L'heure de la liste des membres, que l'image écrit. */
+  listedAt: string;
+  fiches: Fiche[];
+}
+
+/** L'identifiant public d'un membre : des lettres et des chiffres, huit au 12 novembre 2026. */
+const FICHE_ID = /^[A-Za-z0-9]{1,32}$/;
+
+/** Le fichier du site, relu sans lui faire confiance : `null` s'il n'a pas la forme attendue. Une fiche mal formée est écartée. */
+export function parseFiches(value: unknown): FicheList | null {
+  const body = record(value);
+  const listedAt = body?.["listedAt"];
+  const list = body?.["fiches"];
+  if (typeof listedAt !== "string" || !Number.isFinite(Date.parse(listedAt)) || !Array.isArray(list)) return null;
+  const fiches: Fiche[] = [];
+  for (const item of list) {
+    const entry = record(item);
+    const id = entry?.["id"];
+    const pseudo = entry?.["pseudo"];
+    const alt = entry?.["alt"];
+    if (typeof id !== "string" || !FICHE_ID.test(id) || typeof pseudo !== "string" || pseudo.trim() === "" || pseudo.length > 64) continue;
+    fiches.push({ id, pseudo, alt: typeof alt === "string" && alt.trim() !== "" ? alt.slice(0, 1024) : null });
+  }
+  return { listedAt, fiches };
+}
+
+/** Deux pseudos se comparent sans accents ni majuscules, espaces autour retirés. */
+export const foldName = (text: string): string => text.normalize("NFKD").replace(/\p{Diacritic}/gu, "").toLowerCase().trim();
+
+/**
+ * Un pseudo sans le nombre que le jeu ajoute à certains noms, comme dans « Brennos.1234 » : la forme numérotée d'un nom
+ * gratuit, ou d'un nom déjà pris par un abonné (src/client/components/UsernamePanel.ts du jeu, commit aac56bb).
+ */
+const baseName = (pseudo: string): string => pseudo.replace(/\.\d+$/, "");
+
+/** Les propositions pendant la saisie : les pseudos qui commencent par ce qui est tapé, puis ceux qui le contiennent. */
+export function ficheChoices(list: FicheList, typed: string): { name: string; value: string }[] {
+  const query = foldName(typed);
+  const ranked = list.fiches.flatMap((fiche) => {
+    const name = foldName(fiche.pseudo);
+    const rank = name.startsWith(query) ? 0 : name.includes(query) ? 1 : -1;
+    return rank < 0 ? [] : [{ fiche, rank }];
+  });
+  ranked.sort((a, b) => a.rank - b.rank || a.fiche.pseudo.localeCompare(b.fiche.pseudo, "fr"));
+  return ranked.slice(0, MAX_CHOICES).map(({ fiche }) => ({ name: fiche.pseudo.slice(0, 100), value: fiche.id }));
+}
+
+export type FicheMatch = { kind: "one"; fiche: Fiche } | { kind: "many" } | { kind: "none" };
+
+/**
+ * Le membre demandé. Une proposition choisie porte son identifiant ; un pseudo tapé en entier se reconnaît sans accents ni
+ * majuscules, ou sans le nombre que le jeu ajoute à certains noms. Si deux pseudos conviennent, la commande demande de choisir.
+ */
+export function findFiche(list: FicheList, typed: string): FicheMatch {
+  const value = typed.trim();
+  const byId = list.fiches.find((fiche) => fiche.id === value);
+  if (byId) return { kind: "one", fiche: byId };
+  const query = foldName(value);
+  if (query === "") return { kind: "none" };
+  for (const same of [(fiche: Fiche) => foldName(fiche.pseudo) === query, (fiche: Fiche) => foldName(baseName(fiche.pseudo)) === query]) {
+    const [first, second] = list.fiches.filter(same);
+    if (first && !second) return { kind: "one", fiche: first };
+    if (second) return { kind: "many" };
+  }
+  return { kind: "none" };
+}
+
+/** Un texte tapé par un joueur, redit dans une réponse : sur une ligne, court, sans mise en forme ni lien possibles. */
+export const escapeDiscord = (text: string): string =>
+  text
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 40)
+    .replace(/[\\*_~`|>#\-[\]():/<@]/g, "\\$&");
+
+/** La page de la fiche, comme dans les autres messages du robot (`profileUrl`, src/lib/paliers-franchis-discord.ts). */
+export const ficheUrl = (id: string): string => `${SITE_URL}/membres/${encodeURIComponent(id)}/`;
+
+/** L'image de la fiche, dessinée à la construction du site. Sa version suit la liste des membres : Discord ne montre pas l'ancienne. */
+export const ficheImageUrl = (id: string, listedAt: string): string => `${SITE_URL}/generated/fiches/${encodeURIComponent(id)}.png?v=${Date.parse(listedAt).toString(36)}`;
+
+/** Ce que voit tout le salon : l'image de la fiche en grand et un bouton vers sa page. Sans image, une ligne de texte. */
+export function ficheMessage(fiche: Fiche, listedAt: string): Record<string, unknown> {
+  const button = { type: 1, components: [{ type: 2, style: 5, label: `Voir la fiche de ${fiche.pseudo}`.slice(0, 80), url: ficheUrl(fiche.id) }] };
+  if (fiche.alt === null) return { content: `La fiche de ${escapeDiscord(fiche.pseudo)} :`, components: [button], allowed_mentions: { parse: [] } };
+  return {
+    flags: COMPONENTS_V2,
+    components: [{ type: 12, items: [{ media: { url: ficheImageUrl(fiche.id, listedAt) }, description: fiche.alt }] }, button],
+    allowed_mentions: { parse: [] },
+  };
+}
+
+export const FICHE_MESSAGES = {
+  wrongPlace: "Tapez /fiche dans le serveur Discord du clan.",
+  down: "La liste des fiches ne répond pas pour l'instant. Réessayez dans un moment.",
+  many: (typed: string): string => `Plusieurs pseudos s'écrivent « ${escapeDiscord(typed)} » : choisissez le bon dans la liste qui s'ouvre pendant que vous tapez.`,
+  // Les adresses entre chevrons : Discord ne les déplie pas en cartes d'aperçu.
+  none: (typed: string): string =>
+    [
+      `Aucune fiche à ce nom : « ${escapeDiscord(typed)} ».`,
+      `Un membre sans pseudo public n'en a pas. Pour choisir le sien, avec le compte qui est dans le clan : <${CHOOSE_NAME_URL}>`,
+      `Le site relit la liste des membres une fois par jour : <${SITE_URL}/liste/>`,
+    ].join("\n"),
+};
+
+const choicesReply = (choices: { name: string; value: string }[]): Response => json({ type: 8, data: { choices } });
+
+/** La valeur d'une option de la commande, telle que Discord l'envoie. */
+function optionValue(data: Record<string, unknown>, name: string): string {
+  const options = data["options"];
+  if (!Array.isArray(options)) return "";
+  for (const option of options) {
+    const entry = record(option);
+    const value = entry?.["value"];
+    if (entry?.["name"] === name && typeof value === "string") return value.slice(0, 100);
+  }
+  return "";
+}
+
+/** /fiche : les propositions pendant la saisie (type 4), puis la fiche à l'envoi (type 2). Rien n'est écrit nulle part. */
+async function ficheRoute(interaction: Record<string, unknown>, data: Record<string, unknown>, deps: Deps): Promise<Response> {
+  const typing = interaction["type"] === 4;
+  if (deps.guildId === "" || interaction["guild_id"] !== deps.guildId) return typing ? choicesReply([]) : ephemeral(FICHE_MESSAGES.wrongPlace);
+  const typed = optionValue(data, FICHE_OPTION);
+  const list = await deps.fiches();
+  if (typing) return choicesReply(list ? ficheChoices(list, typed) : []);
+  if (!list) return ephemeral(FICHE_MESSAGES.down);
+  const found = findFiche(list, typed);
+  if (found.kind === "one") return json({ type: 4, data: ficheMessage(found.fiche, list.listedAt) });
+  return ephemeral(found.kind === "many" ? FICHE_MESSAGES.many(typed) : FICHE_MESSAGES.none(typed));
+}
+
 async function discordRoute(req: Request, deps: Deps): Promise<Response> {
   const body = await req.text();
   const timestamp = req.headers.get("x-signature-timestamp") ?? "";
@@ -207,7 +383,9 @@ async function discordRoute(req: Request, deps: Deps): Promise<Response> {
   if (!interaction) return new Response("Requête illisible.", { status: 400 });
   // Discord vérifie l'adresse avant de l'accepter : il attend la même réponse à son « ping ».
   if (interaction["type"] === 1) return json({ type: 1 });
-  if (interaction["type"] !== 2 || record(interaction["data"])?.["name"] !== COMMAND_NAME) return ephemeral(MESSAGES.unknown);
+  const data = record(interaction["data"]);
+  if (data?.["name"] === FICHE_COMMAND_NAME && (interaction["type"] === 2 || interaction["type"] === 4)) return ficheRoute(interaction, data, deps);
+  if (interaction["type"] !== 2 || data?.["name"] !== COMMAND_NAME) return ephemeral(MESSAGES.unknown);
 
   const user = record(record(interaction["member"])?.["user"]);
   if (deps.guildId === "" || interaction["guild_id"] !== deps.guildId || !user) return ephemeral(MESSAGES.wrongPlace);
@@ -304,7 +482,8 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
     // clé de service et la migration installée.
     const probe = deps.serviceReady ? await deps.rpc("discord_code_redeem", { p_code_hash: "etat" }) : null;
     const service = probe?.["error"] === "invalid_request";
-    return json({ ok: true, discord, service, signature: await signatureWorks() }, 200, CORS);
+    const fiches = (await deps.fiches()) !== null;
+    return json({ ok: true, discord, service, signature: await signatureWorks(), fiches }, 200, CORS);
   }
   if (req.method !== "POST") return new Response("Méthode refusée.", { status: 405 });
   if (path.endsWith("/discord")) return discordRoute(req, deps);
@@ -326,6 +505,46 @@ function serviceKey(env: Env): string {
     // Illisible : l'ancienne clé, plus bas.
   }
   return env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+}
+
+/** Ce que la fonction retient des fiches, par moyen de lecture : le `fetch` du moteur en vrai, un faux dans chaque test. */
+interface FichesKept {
+  list: FicheList | null;
+  /** L'heure de la dernière lecture réussie. */
+  at: number;
+  /** L'heure du dernier échec, ou `null`. */
+  failedAt: number | null;
+}
+const fichesKept = new WeakMap<typeof fetch, FichesKept>();
+
+/**
+ * Les fiches du site : gardées cinq minutes ; si le site ne répond plus, la dernière lecture de moins de deux heures. Après un
+ * échec, rien n'est redemandé pendant trente secondes.
+ */
+async function readFiches(fetcher: typeof fetch, log: (message: string) => void): Promise<FicheList | null> {
+  const now = Date.now();
+  const kept = fichesKept.get(fetcher) ?? { list: null, at: 0, failedAt: null };
+  if (kept.list && now - kept.at < FICHES_FRESH_MS) return kept.list;
+  const lastGood = kept.list && now - kept.at < FICHES_STALE_MS ? kept.list : null;
+  if (kept.failedAt !== null && now - kept.failedAt < FICHES_RETRY_MS) return lastGood;
+  try {
+    const res = await fetcher(FICHES_URL, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(FICHES_TIMEOUT_MS) });
+    if (!res.ok) {
+      log(`fiches : ${res.status}`);
+    } else {
+      // Le délai court aussi pendant la lecture du corps : dépassé, il tombe dans le `catch`, comme un site injoignable.
+      const list = parseFiches(await res.json());
+      if (list) {
+        fichesKept.set(fetcher, { list, at: now, failedAt: null });
+        return list;
+      }
+      log("fiches : fichier illisible");
+    }
+  } catch (e) {
+    log(e instanceof SyntaxError ? "fiches : fichier illisible" : `fiches injoignables : ${e instanceof Error ? e.message : String(e)}`);
+  }
+  fichesKept.set(fetcher, { ...kept, failedAt: now });
+  return lastGood;
 }
 
 export function liveDeps(env: Env, fetcher: typeof fetch = fetch): Deps {
@@ -395,6 +614,7 @@ export function liveDeps(env: Env, fetcher: typeof fetch = fetch): Deps {
       }
       return { tokenHash, userId };
     },
+    fiches: () => readFiches(fetcher, log),
   };
 }
 

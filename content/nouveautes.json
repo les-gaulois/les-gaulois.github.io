@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-12",
+    "kind": "nouveau",
+    "title": "Sans pseudo ? Le lien pour en choisir un",
+    "body": "La liste des membres et « Ma place » mènent à la fenêtre d'OpenFront où l'on choisit son nom d'utilisateur. Sans lui, pas de fiche ni de nom dans les podiums.",
+    "link": {
+      "href": "/liste",
+      "label": "Voir la liste"
+    }
+  },
+  {
+    "date": "2026-11-12",
     "kind": "ameliore",
     "title": "Moins de vert au QG",
     "body": "Au QG, les phrases, les dates, les tableaux et les chiffres reprennent leur couleur, blanc ou gris. Le vert reste aux lignes de commande et aux icônes du menu, comme sur la carte.",

@@ -3,6 +3,7 @@ import { fmtDate, fmtInt, fmtPct } from "../lib/format";
 import { motionAllowed } from "../lib/fx/motion";
 import { filterMembers, gamesOf, rateOf, sortMembers, type SortDir, type SortKey } from "../lib/members";
 import type { StoredMember, StoredMembers } from "../lib/schemas";
+import { ChoisirPseudo } from "./ChoisirPseudo";
 
 /**
  * Les membres montrés d'abord, le reste d'un clic, comme pour le classement. Sur téléphone, chaque membre est une carte :
@@ -159,7 +160,8 @@ export default function MembersTable({ src }: { src: string }) {
   return (
     <div>
       <p class="tnum text-sm text-muted">
-        {fmtInt(state.data.total)} membres dans la liste officielle, dont {fmtInt(members.length - named)} sans pseudo public.
+        {fmtInt(state.data.total)} membres dans la liste officielle, dont {fmtInt(members.length - named)} sans pseudo public, donc sans fiche ni nom dans les podiums.{" "}
+        <ChoisirPseudo />
       </p>
       <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
         <label class="block flex-1 sm:max-w-sm" htmlFor="member-search">

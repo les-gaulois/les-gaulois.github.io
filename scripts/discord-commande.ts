@@ -1,7 +1,9 @@
 /**
- * Crée la commande /code sur le serveur Discord du clan, ou la remet à jour (docs/DIRECTION.md, « Se connecter avec un
- * code »). Une seule fois, après avoir ajouté l'application au serveur :
+ * Crée les commandes /code et /fiche sur le serveur Discord du clan, ou les remet à jour (docs/DIRECTION.md, « Se connecter
+ * avec un code » et « La commande /fiche »). Une fois, après avoir ajouté l'application au serveur, puis à chaque nouvelle
+ * commande :
  *   npm run discord:commande
+ * Chaque commande s'envoie à part : Discord crée celle qui manque et remplace celle qui existe, sans toucher aux autres.
  * L'application « Le Gaulois » et le serveur du clan sont ceux de src/lib/discord-commande.ts, sauf DISCORD_APPLICATION_ID
  * et DISCORD_GUILD_ID. Le jeton du robot vient de DISCORD_BOT_TOKEN, sinon du presse-papiers de Windows (copié par le
  * bouton « Copy » du portail développeur, puis remplacé), sinon de l'écran, où chaque signe tapé s'affiche en étoile. Il
@@ -9,7 +11,7 @@
  * régénérer après usage (« Reset Token »), ce qui l'annule. La commande, elle, reste.
  */
 import { execFileSync } from "node:child_process";
-import { APPLICATION_ID, CODE_COMMAND, GUILD_ID, commandUrl, explainRefusal, looksLikeBotToken } from "../src/lib/discord-commande";
+import { APPLICATION_ID, COMMANDS, GUILD_ID, commandUrl, explainRefusal, looksLikeBotToken } from "../src/lib/discord-commande";
 
 const applicationId = (process.env["DISCORD_APPLICATION_ID"] ?? "").trim() || APPLICATION_ID;
 const guildId = (process.env["DISCORD_GUILD_ID"] ?? "").trim() || GUILD_ID;
@@ -102,28 +104,35 @@ if (token === "") {
   process.exit(2);
 }
 
-let response: Response | null = null;
-let failure = "";
-try {
-  response = await fetch(url, {
-    method: "POST",
-    headers: { authorization: `Bot ${token}`, "content-type": "application/json" },
-    body: JSON.stringify(CODE_COMMAND),
-  });
-} catch (e) {
-  failure = e instanceof Error ? e.message : String(e);
+// Une commande après l'autre ; au premier refus, les suivantes n'auraient pas plus de chance (jeton, application absente).
+const answers: { name: string; response: Response | null; failure: string }[] = [];
+for (const command of COMMANDS) {
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { authorization: `Bot ${token}`, "content-type": "application/json" },
+      body: JSON.stringify(command),
+    });
+    answers.push({ name: command.name, response, failure: "" });
+    if (!response.ok) break;
+  } catch (e) {
+    answers.push({ name: command.name, response: null, failure: e instanceof Error ? e.message : String(e) });
+    break;
+  }
 }
 // Le jeton ne traîne pas dans le presse-papiers, que Discord ait répondu ou non.
 if (fromClipboard) clearClipboard();
-if (response === null) {
-  console.error(`Discord ne répond pas : ${failure}`);
-  process.exit(1);
-}
 
-if (response.ok) {
-  console.log(`La commande /${CODE_COMMAND.name} est en place sur le serveur du clan. Essayez-la : tapez /${CODE_COMMAND.name} dans un salon.`);
-  console.log(RESET);
-  process.exit(0);
+// Discord a accepté le jeton au moins une fois : il faut l'annuler, même si une commande suivante est refusée.
+const tokenUsed = answers.some(({ response }) => response?.ok === true);
+for (const { name, response, failure } of answers) {
+  if (response === null || !response.ok) {
+    console.error(`/${name} : ${response === null ? `Discord ne répond pas : ${failure}` : explainRefusal(response.status, await response.text(), applicationId)}`);
+    if (tokenUsed) console.log(RESET);
+    process.exit(1);
+  }
+  console.log(`La commande /${name} est en place sur le serveur du clan.`);
 }
-console.error(explainRefusal(response.status, await response.text(), applicationId));
-process.exit(1);
+console.log("Essayez-les : tapez /fiche dans un salon, puis le début d'un pseudo.");
+console.log(RESET);
+process.exit(0);

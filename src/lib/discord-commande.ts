@@ -1,7 +1,8 @@
 /**
- * La commande /code du serveur Discord du clan (docs/DIRECTION.md, « Se connecter avec un code »). Le pilote la crée une
- * fois avec `npm run discord:commande` (`scripts/discord-commande.ts`), qui envoie cette définition à Discord. Son nom est
- * celui qu'attend la fonction serveur (`COMMAND_NAME` de `supabase/functions/code-discord/index.ts`) : un test le vérifie.
+ * Les commandes du serveur Discord du clan : /code (docs/DIRECTION.md, « Se connecter avec un code ») et /fiche (« La
+ * commande /fiche »). Le pilote les crée avec `npm run discord:commande` (`scripts/discord-commande.ts`), qui envoie ces
+ * définitions à Discord. Leurs noms sont ceux qu'attend la fonction serveur (`COMMAND_NAME`, `FICHE_COMMAND_NAME` et
+ * `FICHE_OPTION` de `supabase/functions/code-discord/index.ts`) : un test le vérifie.
  */
 
 export const CODE_COMMAND = {
@@ -10,6 +11,31 @@ export const CODE_COMMAND = {
   type: 1,
   description: "Un code pour vous connecter au site du clan, sans lier votre compte Discord",
 } as const;
+
+/**
+ * La commande /fiche (docs/DIRECTION.md, « La commande /fiche ») : la fiche d'un membre, montrée à tout le salon. Pendant la
+ * saisie, Discord demande des propositions à la fonction serveur (`autocomplete`), qui les lit dans les fiches du site. Ses
+ * noms sont ceux qu'attend la fonction (`FICHE_COMMAND_NAME`, `FICHE_OPTION`) : un test le vérifie.
+ */
+export const FICHE_COMMAND = {
+  name: "fiche",
+  type: 1,
+  description: "Montrer à tous la fiche d'un membre du clan : ses parties sous le tag",
+  options: [
+    {
+      // 3 : du texte.
+      type: 3,
+      name: "pseudo",
+      description: "Son pseudo dans la liste du clan : tapez le début, puis choisissez",
+      required: true,
+      autocomplete: true,
+      max_length: 40,
+    },
+  ],
+} as const;
+
+/** Les commandes que le script crée ou remet à jour, chacune à part : une autre commande de l'application ne bouge pas. */
+export const COMMANDS = [CODE_COMMAND, FICHE_COMMAND] as const;
 
 /**
  * L'application de la connexion, « Le Gaulois », et le serveur Discord du clan : publics, lus le 12 novembre 2026 (le premier

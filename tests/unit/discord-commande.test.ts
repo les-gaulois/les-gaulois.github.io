@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { APPLICATION_ID, CODE_COMMAND, GUILD_ID, commandUrl, explainRefusal, installUrl, isSnowflake, looksLikeBotToken } from "../../src/lib/discord-commande";
-import { COMMAND_NAME, GAL_GUILD_ID } from "../../supabase/functions/code-discord/index";
+import { APPLICATION_ID, CODE_COMMAND, COMMANDS, FICHE_COMMAND, GUILD_ID, commandUrl, explainRefusal, installUrl, isSnowflake, looksLikeBotToken } from "../../src/lib/discord-commande";
+import { COMMAND_NAME, FICHE_COMMAND_NAME, FICHE_OPTION, GAL_GUILD_ID } from "../../supabase/functions/code-discord/index";
 
 const APP = "123456789012345678";
 const GUILD = "987654321098765432";
@@ -40,6 +40,35 @@ describe("la commande /code", () => {
     expect(url.searchParams.get("client_id")).toBe(APP);
     expect(url.searchParams.get("scope")).toBe("applications.commands");
     expect(url.searchParams.has("permissions")).toBe(false);
+  });
+});
+
+describe("la commande /fiche", () => {
+  const [option] = FICHE_COMMAND.options;
+
+  it("porte les noms qu'attend la fonction serveur", () => {
+    expect(FICHE_COMMAND.name).toBe(FICHE_COMMAND_NAME);
+    expect(option.name).toBe(FICHE_OPTION);
+  });
+
+  it("demande un pseudo, avec des propositions pendant la saisie", () => {
+    expect(FICHE_COMMAND.type).toBe(1);
+    expect(FICHE_COMMAND.options).toHaveLength(1);
+    // 3 : du texte. Les propositions viennent de la fonction serveur, qui lit les fiches du site.
+    expect(option).toMatchObject({ type: 3, required: true, autocomplete: true });
+  });
+
+  it("tient dans les limites de Discord", () => {
+    for (const name of [FICHE_COMMAND.name, option.name]) expect(name).toMatch(/^[a-z0-9_-]{1,32}$/);
+    for (const description of [FICHE_COMMAND.description, option.description]) {
+      expect(description.length).toBeGreaterThan(0);
+      expect(description.length).toBeLessThanOrEqual(100);
+    }
+    expect(option.max_length).toBeLessThanOrEqual(100);
+  });
+
+  it("part avec /code, chacune à part, sans doublon", () => {
+    expect(COMMANDS.map((c) => c.name)).toEqual([CODE_COMMAND.name, FICHE_COMMAND.name]);
   });
 });
 

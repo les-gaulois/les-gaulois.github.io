@@ -1,22 +1,39 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { existsSync } from "node:fs";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { ERROR_MESSAGES } from "../../src/lib/compte/errors";
+import { ficheIndex } from "../../src/lib/fiches-discord";
+import { profileUrl } from "../../src/lib/paliers-franchis-discord";
+import { CHOOSE_NAME_URL as SITE_CHOOSE_NAME_URL } from "../../src/lib/pseudo-openfront";
+import type { StoredMembers } from "../../src/lib/schemas";
 import {
   APP_PUBLIC_KEY,
+  CHOOSE_NAME_URL,
   CODE_ALPHABET,
+  FICHES_FRESH_MS,
+  FICHES_RETRY_MS,
+  FICHES_STALE_MS,
+  FICHES_URL,
+  FICHE_MESSAGES,
   GAL_GUILD_ID,
+  MAX_CHOICES,
   MESSAGES,
   SITE_URL,
   codeAccountEmail,
   ed25519Spki,
+  ficheImageUrl,
+  ficheUrl,
   formatCode,
   handle,
   liveDeps,
   newCode,
   normalizeCode,
+  parseFiches,
   sha256Hex,
   signatureWorks,
   verifyDiscordSignature,
   type Deps,
+  type Fiche,
+  type FicheList,
 } from "../../supabase/functions/code-discord/index";
 
 const NOW = 1_794_000_000;
@@ -42,6 +59,21 @@ const sign = async (timestamp: string, body: string, pair: CryptoKeyPair = keys)
 
 type Answers = Record<string, (args: Record<string, unknown>) => Record<string, unknown> | null>;
 
+// Des fiches inventées, comme celles que le site publie : des pseudos, dont deux portent le nombre que le jeu ajoute.
+const LISTED_AT = "2026-11-12T10:53:37.089Z";
+const fiche = (id: string, pseudo: string, alt: string | null = `${pseudo}, membre de [GAL] : 3e sur 300 membres aux victoires sous le tag.`): Fiche => ({ id, pseudo, alt });
+const FICHES: FicheList = {
+  listedAt: LISTED_AT,
+  fiches: [
+    fiche("Ab12Cd34", "Brennos"),
+    fiche("Ef56Gh78", "Brennos.4821"),
+    fiche("Ij90Kl12", "Épona.1234", null),
+    fiche("Mn34Op56", "Ambiorix.0042"),
+    fiche("Qr78St90", "Ambiorix.7313"),
+    fiche("Uv12Wx34", "Taranis_Sky"),
+  ],
+};
+
 function world(answers: Answers = {}, over: Partial<Deps> = {}) {
   const calls = {
     rpc: [] as { name: string; args: Record<string, unknown> }[],
@@ -49,6 +81,7 @@ function world(answers: Answers = {}, over: Partial<Deps> = {}) {
     deleted: [] as string[],
     links: [] as string[],
     logs: [] as string[],
+    fiches: 0,
   };
   // Les comptes de Supabase, par adresse : le lien magique ouvre celui de l'adresse donnée.
   const accounts = new Map([
@@ -81,6 +114,10 @@ function world(answers: Answers = {}, over: Partial<Deps> = {}) {
     magicLink: async (email) => {
       calls.links.push(email);
       return { tokenHash: "empreinte-du-lien", userId: accounts.get(email) ?? "compte-inconnu" };
+    },
+    fiches: async () => {
+      calls.fiches++;
+      return FICHES;
     },
     log: (message) => calls.logs.push(message),
     ...over,
@@ -275,6 +312,188 @@ describe("la commande /code, envoyée par Discord", () => {
   });
 });
 
+describe("la commande /fiche, envoyée par Discord", () => {
+  type Choices = { type: number; data: { choices: { name: string; value: string }[] } };
+  type Button = { type: number; style: number; label: string; url: string };
+  type Shown = {
+    type: number;
+    data: { flags?: number; content?: string; allowed_mentions: unknown; components: { type: number; items?: unknown[]; components?: Button[] }[] };
+  };
+  const options = (value: string, focused = false) => [{ name: "pseudo", type: 3, value, ...(focused ? { focused: true } : {}) }];
+  /** Le joueur tape : Discord demande des propositions (type 4). */
+  const typing = (value: string, over: Record<string, unknown> = {}) => command({ type: 4, data: { name: "fiche", options: options(value, true) }, ...over });
+  /** Le joueur envoie la commande (type 2). */
+  const sending = (value: string, over: Record<string, unknown> = {}) => command({ data: { name: "fiche", options: options(value) }, ...over });
+  const choices = async (res: Response) => ((await res.json()) as Choices).data.choices;
+  const shown = async (res: Response) => (await res.json()) as Shown;
+
+  it("propose pendant la saisie les pseudos qui commencent par ce qui est tapé, puis ceux qui le contiennent", async () => {
+    const { deps } = world();
+    const res = await handle(await fromDiscord(typing("BREN")), deps);
+    const body = (await res.clone().json()) as Choices;
+    expect(body.type).toBe(8);
+    expect(body.data.choices).toEqual([
+      { name: "Brennos", value: "Ab12Cd34" },
+      { name: "Brennos.4821", value: "Ef56Gh78" },
+    ]);
+    expect((await choices(await handle(await fromDiscord(typing("a")), deps))).map((c) => c.name)).toEqual(["Ambiorix.0042", "Ambiorix.7313", "Épona.1234", "Taranis_Sky"]);
+    // Sans accents ni majuscules.
+    expect((await choices(await handle(await fromDiscord(typing("ep")), deps))).map((c) => c.value)).toEqual(["Ij90Kl12"]);
+    // Rien de tapé : tout, dans l'ordre alphabétique.
+    expect((await choices(await handle(await fromDiscord(typing("")), deps))).map((c) => c.name)).toEqual(["Ambiorix.0042", "Ambiorix.7313", "Brennos", "Brennos.4821", "Épona.1234", "Taranis_Sky"]);
+    expect(await choices(await handle(await fromDiscord(typing("zzz")), deps))).toEqual([]);
+  });
+
+  it("ne propose jamais plus de 25 pseudos", async () => {
+    const many: FicheList = { listedAt: LISTED_AT, fiches: Array.from({ length: 40 }, (_, i) => fiche(`Id${String(i).padStart(6, "0")}`, `Gaulois${String(i).padStart(2, "0")}`)) };
+    const { deps } = world({}, { fiches: async () => many });
+    const list = await choices(await handle(await fromDiscord(typing("gau")), deps));
+    expect(list).toHaveLength(MAX_CHOICES);
+    expect(list[0]).toEqual({ name: "Gaulois00", value: "Id000000" });
+  });
+
+  it("ne propose rien hors du serveur du clan, ni quand le site ne répond pas", async () => {
+    const { deps, calls } = world();
+    expect(await choices(await handle(await fromDiscord(typing("bren", { guild_id: "111111111111111111" })), deps))).toEqual([]);
+    expect(calls.fiches).toBe(0);
+    const down = world({}, { fiches: async () => null });
+    expect(await choices(await handle(await fromDiscord(typing("bren")), down.deps))).toEqual([]);
+  });
+
+  it("montre la fiche choisie à tout le salon : son image en grand, et un bouton vers sa page", async () => {
+    const { deps } = world();
+    const body = await shown(await handle(await fromDiscord(sending("Ab12Cd34")), deps));
+    expect(body.type).toBe(4);
+    // Pas de drapeau 64, que seul le joueur verrait : 32768, l'image en grand, comme celle qu'enverrait un membre.
+    expect(body.data.flags).toBe(32768);
+    expect(body.data.content).toBeUndefined();
+    expect(body.data.components).toEqual([
+      { type: 12, items: [{ media: { url: ficheImageUrl("Ab12Cd34", LISTED_AT) }, description: FICHES.fiches[0]?.alt }] },
+      { type: 1, components: [{ type: 2, style: 5, label: "Voir la fiche de Brennos", url: `${SITE_URL}/membres/Ab12Cd34/` }] },
+    ]);
+    // L'adresse de l'image change avec la liste des membres : Discord ne montre pas l'image de la veille.
+    expect(ficheImageUrl("Ab12Cd34", LISTED_AT)).toBe(`${SITE_URL}/generated/fiches/Ab12Cd34.png?v=${Date.parse(LISTED_AT).toString(36)}`);
+    expect(ficheImageUrl("Ab12Cd34", "2026-11-13T10:53:37.089Z")).not.toBe(ficheImageUrl("Ab12Cd34", LISTED_AT));
+    expect(body.data.allowed_mentions).toEqual({ parse: [] });
+  });
+
+  it("reconnaît un pseudo tapé en entier, sans accents ni majuscules, ou sans le nombre que le jeu y ajoute", async () => {
+    const { deps } = world();
+    const page = async (typed: string) => (await shown(await handle(await fromDiscord(sending(typed)), deps))).data.components.at(-1)?.components?.[0]?.url;
+    // Le pseudo exact passe avant celui qui porte un nombre.
+    expect(await page("brennos")).toBe(ficheUrl("Ab12Cd34"));
+    expect(await page(" Brennos.4821 ")).toBe(ficheUrl("Ef56Gh78"));
+    expect(await page("EPONA")).toBe(ficheUrl("Ij90Kl12"));
+    expect(await page("taranis_sky")).toBe(ficheUrl("Uv12Wx34"));
+  });
+
+  it("sans image, montre la fiche en une ligne de texte, avec le bouton", async () => {
+    const { deps } = world();
+    const body = await shown(await handle(await fromDiscord(sending("Ij90Kl12")), deps));
+    expect(body.data.flags).toBeUndefined();
+    expect(body.data.content).toBe("La fiche de Épona.1234 :");
+    expect(body.data.components).toEqual([{ type: 1, components: [{ type: 2, style: 5, label: "Voir la fiche de Épona.1234", url: ficheUrl("Ij90Kl12") }] }]);
+    expect(body.data.allowed_mentions).toEqual({ parse: [] });
+  });
+
+  it("demande de choisir quand deux pseudos conviennent", async () => {
+    const { deps } = world();
+    const body = await content(await handle(await fromDiscord(sending("ambiorix")), deps));
+    expect(body.data.flags).toBe(64);
+    expect(body.data.content).toBe(FICHE_MESSAGES.many("ambiorix"));
+  });
+
+  it("dit qu'aucune fiche n'a ce nom, et où un membre sans pseudo choisit le sien, sans rien mettre en forme de ce qui est tapé", async () => {
+    const { deps } = world();
+    const body = await content(await handle(await fromDiscord(sending("**Inconnu** @everyone https://x.y")), deps));
+    expect(body.data.flags).toBe(64);
+    // Entre chevrons : Discord n'en fait pas des cartes d'aperçu.
+    expect(body.data.content).toContain(`<${CHOOSE_NAME_URL}>`);
+    expect(body.data.content).toContain(`<${SITE_URL}/liste/>`);
+    expect(body.data.content).toContain("« \\*\\*Inconnu\\*\\* \\@everyone https\\:\\/\\/x.y »");
+    expect(body.data.allowed_mentions).toEqual({ parse: [] });
+  });
+
+  it("dit quand les fiches ne répondent pas, et ne répond que dans le serveur du clan", async () => {
+    const down = world({}, { fiches: async () => null });
+    expect((await content(await handle(await fromDiscord(sending("Brennos")), down.deps))).data.content).toBe(FICHE_MESSAGES.down);
+    const { deps, calls } = world();
+    for (const interaction of [sending("Brennos", { guild_id: "111111111111111111" }), sending("Brennos", { guild_id: undefined, member: undefined, user: { id: PLAYER, username: "asterion" } })]) {
+      const body = await content(await handle(await fromDiscord(interaction), deps));
+      expect(body.data.content).toBe(FICHE_MESSAGES.wrongPlace);
+      expect(body.data.flags).toBe(64);
+    }
+    expect(calls.fiches).toBe(0);
+  });
+
+  it("refuse une saisie ou une commande mal signée, ou trop ancienne, sans rien lire", async () => {
+    const { deps, calls } = world();
+    expect((await handle(await fromDiscord(typing("bren"), { pair: otherKeys }), deps)).status).toBe(401);
+    expect((await handle(await fromDiscord(sending("Brennos"), { timestamp: NOW - 301 }), deps)).status).toBe(401);
+    expect(calls.fiches).toBe(0);
+  });
+
+  it("ne demande rien à la base et n'écrit rien", async () => {
+    const { deps, calls } = world();
+    await handle(await fromDiscord(typing("bren")), deps);
+    await handle(await fromDiscord(sending("Brennos")), deps);
+    expect(calls.rpc).toEqual([]);
+    expect(calls.created).toEqual([]);
+    expect(calls.links).toEqual([]);
+  });
+});
+
+describe("les fiches publiées par le site", () => {
+  const members: StoredMembers = {
+    fetchedAt: LISTED_AT,
+    total: 4,
+    members: [
+      { role: "member", joinedAt: "2026-05-03T20:17:40.935Z", publicId: "Ab12Cd34", username: "Taranis", team: { wins: 120, losses: 80 } },
+      { role: "officer", joinedAt: "2026-06-01T10:00:00.000Z", publicId: "Ef56Gh78", username: "Épona.1234", team: { wins: 3, losses: 1 } },
+      { role: "member", joinedAt: "2026-07-01T10:00:00.000Z", publicId: null, username: null, team: { wins: 10, losses: 2 } },
+      { role: "member", joinedAt: "2026-08-01T10:00:00.000Z", publicId: "Ij90Kl12", username: "Brennos", team: null },
+    ],
+  };
+
+  it("se relisent telles que le site les écrit : une par membre avec pseudo, jamais un anonyme", () => {
+    const index = ficheIndex(members, "GAL", (id) => id !== "Ef56Gh78");
+    expect(index.listedAt).toBe(LISTED_AT);
+    expect(index.fiches.map((f) => [f.id, f.pseudo])).toEqual([
+      ["Ij90Kl12", "Brennos"],
+      ["Ef56Gh78", "Épona.1234"],
+      ["Ab12Cd34", "Taranis"],
+    ]);
+    // Une description seulement avec une image : celle du site, ou rien.
+    expect(index.fiches.find((f) => f.id === "Ab12Cd34")?.alt).toMatch(/^Taranis, membre de \[GAL\] : /);
+    expect(index.fiches.find((f) => f.id === "Ef56Gh78")?.alt).toBeNull();
+    expect(index.fiches.find((f) => f.id === "Ij90Kl12")?.alt).toBeNull();
+    expect(parseFiches(JSON.parse(JSON.stringify(index)))).toEqual(index);
+  });
+
+  it("écartent une fiche mal formée, et un fichier qui n'a pas la forme attendue ne vaut rien", () => {
+    for (const bad of [null, [], { listedAt: null, fiches: [] }, { listedAt: "hier", fiches: [] }, { listedAt: LISTED_AT }]) expect(parseFiches(bad)).toBeNull();
+    expect(
+      parseFiches({
+        listedAt: LISTED_AT,
+        fiches: [{ id: "Ab12Cd34", pseudo: "Brennos", alt: "a" }, { id: "../x", pseudo: "Faux", alt: null }, { id: "Ef56Gh78", pseudo: "  ", alt: null }, { id: "Ij90Kl12", pseudo: "Sans image", alt: 4 }, "rien"],
+      }),
+    ).toEqual({
+      listedAt: LISTED_AT,
+      fiches: [
+        { id: "Ab12Cd34", pseudo: "Brennos", alt: "a" },
+        { id: "Ij90Kl12", pseudo: "Sans image", alt: null },
+      ],
+    });
+  });
+
+  it("mènent aux mêmes adresses que le site et les autres messages du robot", () => {
+    expect(CHOOSE_NAME_URL).toBe(SITE_CHOOSE_NAME_URL);
+    expect(ficheUrl("Ab12Cd34")).toBe(profileUrl(SITE_URL, "Ab12Cd34"));
+    expect(FICHES_URL).toBe(`${SITE_URL}/fiches.json`);
+    expect(existsSync("src/pages/fiches.json.ts")).toBe(true);
+  });
+});
+
 describe("le code tapé sur le site", () => {
   const redeemed = (over: Record<string, unknown> = {}) => () => ({
     ok: true,
@@ -296,16 +515,18 @@ describe("le code tapé sur le site", () => {
     expect((await handle(fromSite({ code: "ABCDEFGH" }, "POST", "/ailleurs"), deps)).status).toBe(404);
   });
 
-  it("dit si tout est en place, sans rien montrer : la base répond-elle avec la clé de service ?", async () => {
+  it("dit si tout est en place, sans rien montrer : la base répond-elle avec la clé de service, les fiches se lisent-elles ?", async () => {
     const ready = world({ discord_code_redeem: () => ({ ok: false, error: "invalid_request" }) });
-    expect(await reply(await handle(fromSite(null, "GET", "/etat"), ready.deps))).toEqual({ ok: true, discord: true, service: true, signature: true });
+    expect(await reply(await handle(fromSite(null, "GET", "/etat"), ready.deps))).toEqual({ ok: true, discord: true, service: true, signature: true, fiches: true });
     // Une empreinte mal formée : la fonction SQL la refuse sans rien écrire.
     expect(ready.calls.rpc).toEqual([{ name: "discord_code_redeem", args: { p_code_hash: "etat" } }]);
     const noBase = world();
     expect(await reply(await handle(fromSite(null, "GET", "/etat"), noBase.deps))).toMatchObject({ service: false });
     const unset = world({ discord_code_redeem: () => ({ ok: false, error: "invalid_request" }) });
-    expect(await reply(await handle(fromSite(null, "GET", "/etat"), { ...unset.deps, guildId: "", serviceReady: false }))).toEqual({ ok: true, discord: false, service: false, signature: true });
+    expect(await reply(await handle(fromSite(null, "GET", "/etat"), { ...unset.deps, guildId: "", serviceReady: false }))).toEqual({ ok: true, discord: false, service: false, signature: true, fiches: true });
     expect(unset.calls.rpc).toEqual([]);
+    const noSite = world({}, { fiches: async () => null });
+    expect(await reply(await handle(fromSite(null, "GET", "/etat"), noSite.deps))).toMatchObject({ fiches: false });
   });
 
   it("refuse ce qui ne peut pas être un code, sans rien demander au serveur", async () => {
@@ -506,6 +727,68 @@ describe("le vrai monde", () => {
     expect(sent[1]).toMatchObject({ url: "https://p.supabase.co/auth/v1/admin/generate_link", body: { type: "magiclink", email } });
     await deps.deleteUser("u-1");
     expect(sent[2]).toMatchObject({ url: "https://p.supabase.co/auth/v1/admin/users/u-1", method: "DELETE" });
+  });
+
+  it("lit les fiches du site, les garde cinq minutes, puis sert la dernière lecture deux heures si le site ne répond plus", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const quiet = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      const start = Date.parse("2026-11-12T20:00:00Z");
+      vi.setSystemTime(start);
+      let up = true;
+      const { sent, fetcher } = server(() => (up ? json(FICHES) : new Error("réseau")));
+      const deps = liveDeps(env({}), fetcher);
+      expect(await deps.fiches()).toEqual(FICHES);
+      expect(sent.map((s) => [s.url, s.method])).toEqual([[FICHES_URL, "GET"]]);
+      expect(await deps.fiches()).toEqual(FICHES);
+      expect(sent).toHaveLength(1);
+      // Cinq minutes plus tard, la fonction relit ; le site ne répond pas : la lecture d'avant sert encore.
+      vi.setSystemTime(start + FICHES_FRESH_MS);
+      up = false;
+      expect(await deps.fiches()).toEqual(FICHES);
+      expect(sent).toHaveLength(2);
+      // Juste après un échec, la frappe suivante n'attend pas le site : rien n'est redemandé pendant trente secondes.
+      expect(await deps.fiches()).toEqual(FICHES);
+      expect(sent).toHaveLength(2);
+      vi.setSystemTime(start + FICHES_FRESH_MS + FICHES_RETRY_MS);
+      expect(await deps.fiches()).toEqual(FICHES);
+      expect(sent).toHaveLength(3);
+      // Deux heures après la dernière lecture réussie : plus rien, un membre parti ne reste pas proposé.
+      vi.setSystemTime(start + FICHES_STALE_MS);
+      expect(await deps.fiches()).toBeNull();
+      expect(sent).toHaveLength(4);
+      // Le site revient : la fonction relit, une fois les trente secondes passées.
+      up = true;
+      vi.setSystemTime(start + FICHES_STALE_MS + FICHES_RETRY_MS);
+      expect(await deps.fiches()).toEqual(FICHES);
+      expect(sent).toHaveLength(5);
+    } finally {
+      quiet.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it("ne garde ni un fichier illisible ni une erreur du site, et le note dans ses journaux", async () => {
+    const logs: string[] = [];
+    const quiet = vi.spyOn(console, "log").mockImplementation((message: string) => void logs.push(message));
+    // Un délai dépassé pendant la lecture du corps : le site est lent, pas le fichier illisible.
+    const slow = { ok: true, status: 200, json: async () => Promise.reject(new DOMException("The operation timed out.", "TimeoutError")) } as unknown as Response;
+    try {
+      expect(await liveDeps(env({}), server(() => json({ listedAt: null, fiches: [] })).fetcher).fiches()).toBeNull();
+      expect(await liveDeps(env({}), server(() => new Response("pas du json")).fetcher).fiches()).toBeNull();
+      expect(await liveDeps(env({}), server(() => json({}, 500)).fetcher).fiches()).toBeNull();
+      expect(await liveDeps(env({}), server(() => new Error("réseau")).fetcher).fiches()).toBeNull();
+      expect(await liveDeps(env({}), server(() => slow).fetcher).fiches()).toBeNull();
+    } finally {
+      quiet.mockRestore();
+    }
+    expect(logs).toEqual([
+      "code-discord : fiches : fichier illisible",
+      "code-discord : fiches : fichier illisible",
+      "code-discord : fiches : 500",
+      "code-discord : fiches injoignables : réseau",
+      "code-discord : fiches injoignables : The operation timed out.",
+    ]);
   });
 
   it("refuse un lien de session dont la réponse ne dit pas quel compte il ouvre", async () => {

@@ -27,6 +27,8 @@ import { meVisitLines } from "../../src/lib/moi-visite";
 import { SECTIONS } from "../../src/lib/nav";
 import { latestNews, newsDays, newsMarker, NOUVEAUTES_KEY, splitDays } from "../../src/lib/nouveautes";
 import { nextTier, tierOf, tierRows } from "../../src/lib/paliers";
+import { CHOOSE_NAME_URL } from "../../src/lib/pseudo-openfront";
+import { SITE_URL, ficheImageUrl, ficheUrl, parseFiches } from "../../supabase/functions/code-discord/index";
 import { currentMilestonesPeriod, homeMilestones, recentRecordLines, recentTerritoryRecord } from "../../src/lib/vie-du-clan";
 import { milestonesSinceMonday } from "../../src/lib/week-players";
 
@@ -364,6 +366,8 @@ test("parcours principal", async ({ page }, testInfo) => {
   await page.goto("/liste");
   await hydrated(page);
   await expect(page.getByTestId("member-count")).toContainText(fmtInt(members.total));
+  // Un membre sans pseudo n'a jamais choisi le nom de son compte : le lien ouvre la fenêtre du jeu où il le choisit.
+  await expect(page.getByTestId("choose-name")).toHaveAttribute("href", CHOOSE_NAME_URL);
   // Trente membres d'abord, dix sur téléphone où chacun est une carte : le reste d'un clic, la page reste courte.
   const firstPage = mobile ? 10 : 30;
   // La liste que le visiteur voit : des cartes sur téléphone, les lignes du tableau au-delà.
@@ -487,6 +491,22 @@ test("la page Membres présente l'encadrement, et chacun mène à sa fiche", asy
   await expect(block.getByTestId("command-member")).toHaveCount(command.length);
   for (const m of command) {
     if (m.username) await expect(block.getByRole("link", { name: m.username, exact: true })).toHaveAttribute("href", new RegExp(`/membres/${m.publicId}$`));
+  }
+});
+
+// La commande /fiche de Discord lit ce fichier : les fiches des pages des membres, rien de plus, et jamais un anonyme.
+test("les fiches de la commande /fiche sont celles des pages des membres", async ({ request }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "Un fichier, lu une fois.");
+  const res = await request.get("/fiches.json");
+  expect(res.ok()).toBe(true);
+  const list = parseFiches(await res.json());
+  expect(list?.listedAt).toBe(members.fetchedAt);
+  const named = members.members.filter((m: { username: string | null; publicId: string | null }) => m.username && m.publicId);
+  expect(list?.fiches.map((f) => f.id).sort()).toEqual(named.map((m: { publicId: string }) => m.publicId).sort());
+  const shown = list?.fiches.find((f) => f.alt !== null);
+  if (shown) {
+    expect((await request.get(ficheImageUrl(shown.id, list?.listedAt ?? "").replace(SITE_URL, ""))).ok()).toBe(true);
+    expect((await request.get(ficheUrl(shown.id).replace(SITE_URL, ""))).ok()).toBe(true);
   }
 });
 
@@ -998,6 +1018,11 @@ test("Ma place ne charge la liste qu'à la demande, et retient seulement le pseu
   await page.reload();
   await hydrated(page);
   await expect(result).toHaveCount(0);
+
+  // Un pseudo que personne ne porte : le lien pour choisir le sien dans OpenFront.
+  await field.fill("zz-aucun-gaulois-zz");
+  await expect(page.getByTestId("my-place").getByRole("status")).toContainText("Aucun membre avec ce pseudo");
+  await expect(page.getByTestId("my-place").getByTestId("choose-name")).toHaveAttribute("href", CHOOSE_NAME_URL);
 
   await field.fill(named.username);
   await page.getByTestId("my-place-remember").click();

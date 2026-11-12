@@ -5,6 +5,7 @@ import { hasLeftList, ME_KEY, rememberedMember } from "../lib/moi";
 import { ME_VISIT_KEY, meVisitLines, nextMeVisitState, readMeVisitState, type MeSnapshot } from "../lib/moi-visite";
 import { nextTier } from "../lib/paliers";
 import type { StoredMember, StoredMembers } from "../lib/schemas";
+import { ChoisirPseudo } from "./ChoisirPseudo";
 
 type State = { status: "loading" } | { status: "error" } | { status: "ready"; data: StoredMembers };
 
@@ -260,9 +261,15 @@ export default function MyPlace({ src }: { src: string }) {
         </p>
       )}
       {query.trim() !== "" && state.status === "ready" && matches.length === 0 && (
-        <p class="mt-3 text-sm text-muted" role="status">
-          Aucun membre avec ce pseudo. Un membre sans pseudo public ne peut pas être cherché.
-        </p>
+        <>
+          <p class="mt-3 text-sm text-muted" role="status">
+            Aucun membre avec ce pseudo. Un membre sans pseudo public ne peut pas être cherché.
+          </p>
+          {/* Hors de la zone annoncée : le lecteur d'écran dit seulement qu'aucun membre n'a ce pseudo. */}
+          <p class="mt-1 text-sm text-muted">
+            <ChoisirPseudo />
+          </p>
+        </>
       )}
       {!chosen && matches.length > 1 && (
         <ul class="film-moments mt-3" aria-label="Pseudos trouvés">
