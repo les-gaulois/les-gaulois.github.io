@@ -2,6 +2,12 @@
   {
     "date": "2026-11-12",
     "kind": "ameliore",
+    "title": "Des titres en lettres gauloises",
+    "body": "Titres et gros chiffres s'écrivent dans une police dessinée pour le clan : l'onciale des vieux manuscrits, posée case par case comme un territoire d'OpenFront. Le QG et la Direction ne changent pas."
+  },
+  {
+    "date": "2026-11-12",
+    "kind": "ameliore",
     "title": "La liste des membres a son onglet",
     "body": "La liste de tous les membres, avec la recherche par pseudo et le tri, a son onglet « La liste », entre Membres et le QG. La page Membres garde les paliers, l'encadrement et le classé.",
     "link": {

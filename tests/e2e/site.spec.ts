@@ -200,6 +200,76 @@ test("l'invite et la console sont décoratives, et la pause arrête leurs animat
   expect(await moving()).toEqual({ band: "none", prompt: "none" });
 });
 
+// L'onciale de cases (docs/DESIGN.md, « Typographie ») : depuis le 12 novembre 2026, les titres et les gros chiffres des
+// pages ouvertes à tous, les grands titres et les chiffres clés en cases visibles, choisies par le pilote. Le pied de page
+// garde ses titres en chasse fixe, et le QG et la Direction gardent Outfit : ils ne chargent pas l'onciale.
+test("l'onciale de cases écrit les titres des pages ouvertes à tous, pas ceux du QG ni de la Direction", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "Même rendu sur mobile.");
+  const polices: string[] = [];
+  page.on("request", (r) => {
+    if (r.url().includes("/generated/polices/")) polices.push(new URL(r.url()).pathname);
+  });
+  const familles = () =>
+    page.evaluate(() => {
+      const premiere = (selecteur: string) => {
+        const el = document.querySelector(selecteur);
+        return el ? (getComputedStyle(el).fontFamily.split(",")[0] ?? "").replace(/"/g, "").trim() : null;
+      };
+      const chargees = [...document.fonts].filter((f) => f.status === "loaded").map((f) => f.family.replace(/"/g, ""));
+      return { titre: premiere("main h1"), chiffre: premiere(".kpi-value"), pied: premiere("footer h2"), chargees };
+    });
+  await page.goto("/classement");
+  await page.waitForLoadState("networkidle");
+  await page.evaluate(() => document.fonts.ready);
+  // Toutes les pages sauf le QG et la Direction, même une page en ambiance console : c'est data-lettres qui décide.
+  await expect(page.locator("html")).toHaveAttribute("data-lettres", "onciale");
+  const publique = await familles();
+  expect({ titre: publique.titre, chiffre: publique.chiffre, pied: publique.pied }).toEqual({ titre: "GAL Onciale Cases", chiffre: "GAL Onciale Cases", pied: "JetBrains Mono Variable" });
+  expect(publique.chargees).toContain("GAL Onciale Cases");
+  expect(polices.some((p) => p.endsWith("/onciale-cases.woff2"))).toBe(true);
+  // Les petits titres de l'accueil, en cases pleines.
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+  expect(await page.evaluate(() => getComputedStyle(document.querySelector("main h3")!).fontFamily)).toMatch(/^"GAL Onciale",/);
+  polices.length = 0;
+  for (const path of ["/qg", "/direction"]) {
+    await page.goto(path);
+    await page.waitForLoadState("networkidle");
+    await expect(page.locator("html"), path).not.toHaveAttribute("data-lettres", /.*/);
+    expect((await familles()).titre, path).toBe("Outfit Variable");
+  }
+  expect(polices).toEqual([]);
+});
+
+// L'onciale est plus large qu'Outfit : sur un téléphone de 360 px, chaque titre de page prend la taille qui laisse son plus
+// long mot sur une ligne (--mot-em, PageHeader.astro), au lieu de le couper en deux.
+test("à 360 px, aucun titre de page ne coupe un mot en deux", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "Largeur testée une seule fois.");
+  await page.setViewportSize({ width: 360, height: 800 });
+  for (const path of [...PAGES.filter((path) => path !== "/qg"), "/confidentialite", "/compte"]) {
+    await page.goto(path);
+    await page.waitForLoadState("networkidle");
+    await page.evaluate(() => document.fonts.ready);
+    const coupes = await page.evaluate(() => {
+      const out: string[] = [];
+      for (const h1 of document.querySelectorAll("main h1")) {
+        const marche = document.createTreeWalker(h1, NodeFilter.SHOW_TEXT);
+        for (let n = marche.nextNode(); n; n = marche.nextNode()) {
+          for (const mot of (n.textContent ?? "").matchAll(/[^ \t\r\n]+/g)) {
+            const r = document.createRange();
+            r.setStart(n, mot.index ?? 0);
+            r.setEnd(n, (mot.index ?? 0) + mot[0].length);
+            const lignes = new Set([...r.getClientRects()].filter((x) => x.width > 0).map((x) => Math.round(x.top)));
+            if (lignes.size > 1) out.push(mot[0]);
+          }
+        }
+      }
+      return out;
+    });
+    expect(coupes, path).toEqual([]);
+  }
+});
+
 test("parcours principal", async ({ page }, testInfo) => {
   const mobile = testInfo.project.name === "mobile";
   const apiCalls: string[] = [];

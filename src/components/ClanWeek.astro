@@ -63,7 +63,7 @@ const faces = singlePseudos(loadMembers()?.members ?? []);
           <ol class="tnum mt-3 space-y-2">
             {players.map((p) => (
               <li class="flex flex-wrap items-baseline gap-x-3 [overflow-wrap:anywhere]" data-testid="home-podium-player">
-                <span class="w-8 flex-none font-display text-lg font-extrabold">{fmtRank(p.place)}</span>
+                <span class="w-12 flex-none font-display text-lg font-extrabold">{fmtRank(p.place)}</span>
                 <span class="min-w-0 text-lg font-semibold">
                   {/* Vide pour un visiteur : la photo Discord d'un membre qui se montre, pour un membre validé connecté (src/scripts/visages.ts). */}
                   <span class="face-slot mr-2" aria-hidden="true" data-face={faces.has(p.username) ? p.username : undefined} hidden></span>
@@ -80,7 +80,7 @@ const faces = singlePseudos(loadMembers()?.members ?? []);
                 <ol class="tnum mt-3 space-y-2">
                   {active.map((p) => (
                     <li class="flex flex-wrap items-baseline gap-x-3 [overflow-wrap:anywhere]" data-testid="home-active-player">
-                      <span class="w-8 flex-none font-display text-lg font-extrabold">{fmtRank(p.place)}</span>
+                      <span class="w-12 flex-none font-display text-lg font-extrabold">{fmtRank(p.place)}</span>
                       <span class="min-w-0 text-lg font-semibold">
                         <span class="face-slot mr-2" aria-hidden="true" data-face={faces.has(p.username) ? p.username : undefined} hidden></span>
                         <a href={fiche(p.id)}>{p.username}</a>

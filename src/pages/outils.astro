@@ -3,8 +3,11 @@ import Base from "../layouts/Base.astro";
 import BotCalculator from "../components/BotCalculator.tsx";
 import PageHeader from "../components/PageHeader.astro";
 import { loadLinks } from "../lib/data";
+import { motLePlusLong } from "../lib/police/largeur";
 
 const tools = loadLinks().tools;
+// « Communautaires » en onciale de cases : le titre se réduit juste assez pour tenir sur un téléphone (global.css).
+const titreOutils = "Outils communautaires";
 ---
 
 <Base title="Calculateur et outils" description="Le calculateur de troupes à envoyer contre un bot, et les outils de la communauté OpenFront.">
@@ -19,7 +22,7 @@ const tools = loadLinks().tools;
     </section>
 
     <section class="mt-12 scroll-mt-24" aria-labelledby="outils" id="outils-section">
-      <h2 id="outils" class="section-title">Outils communautaires</h2>
+      <h2 id="outils" class="section-title" style={`--mot-em:${motLePlusLong(titreOutils).toFixed(2)}`}>{titreOutils}</h2>
       {
         tools.length === 0 ? (
           <p class="card mt-4 p-5 text-muted">Aucun outil répertorié pour le moment.</p>

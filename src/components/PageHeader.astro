@@ -1,5 +1,6 @@
 ---
 import Invite from "./Invite.astro";
+import { motLePlusLong } from "../lib/police/largeur";
 
 interface Props {
   title: string;
@@ -14,13 +15,16 @@ const hasLongWord = title.split(" ").some((word) => word.length >= 14);
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const path = Astro.url.pathname.replace(base, "").replace(/\/$/, "") || "/";
 const ownPrompt = Astro.slots.has("avant-titre");
+// L'onciale de cases est plus large qu'Outfit : sur les pages ouvertes à tous, le titre se réduit juste assez pour que son
+// plus long mot tienne sur une ligne (« Confidentialité » sur un téléphone de 360 px). Voir global.css, « L'onciale de cases ».
+const motEm = `--mot-em:${motLePlusLong(title).toFixed(2)}`;
 ---
 
 <header class:list={["reveal", compact ? "pb-5 pt-6 md:pb-6 md:pt-8" : "pb-8 pt-8 md:pb-10 md:pt-12"]}>
   <span class:list={["tribar", compact ? "mb-4" : "mb-6"]}></span>
   {/* Ce qui précède le titre : l'invite de la Direction ou du QG, sinon celle du site. */}
   {ownPrompt ? <slot name="avant-titre" /> : <Invite path={path} />}
-  <h1 class:list={["page-title", { "page-title-long": hasLongWord, "page-title-compact": compact }]}>{title}</h1>
+  <h1 class:list={["page-title", { "page-title-long": hasLongWord, "page-title-compact": compact }]} style={motEm}>{title}</h1>
   {intro && <p class="mt-5 max-w-3xl text-lg text-muted">{intro}</p>}
   <slot />
 </header>

@@ -3676,3 +3676,48 @@ footer h2 {
     display: flex;
   }
 }
+
+/* ---------- L'onciale de cases : les lettres de tout le site, sauf le QG et la Direction ---------- */
+/* Le 12 novembre 2026, le pilote a demandé pour le texte du site, hors QG et Direction, « un style artistique dans le
+   caractère des lettres, dans le design gaulois - hacker ». Les titres et les gros chiffres s'écrivent dans l'onciale de
+   cases (src/lib/police/onciale.ts, déclarée et préchargée par Base.astro) : l'onciale des vieux manuscrits, posée case
+   par case comme un territoire d'OpenFront. Entre trois versions, il a choisi celle aux cases visibles : les grands titres
+   (h1, .section-title) et les chiffres clés montrent le joint entre leurs cases ; le reste (petits h2, h3, tags) est en
+   cases pleines, où un joint d'un demi-pixel ne ferait que griser la lettre. Un caractère qu'elle n'a pas passe à
+   Outfit, puis à la police de l'appareil (le cyrillique, qu'Outfit n'a pas non plus). Le texte à lire reste en Inter,
+   la machine en JetBrains Mono ; le QG et la Direction gardent Outfit. Base.astro pose data-lettres="onciale" sur
+   toutes les pages sauf ces deux-là : une page qui passerait en ambiance console garderait l'onciale.
+   Voir « Typographie », docs/DESIGN.md. */
+[data-lettres="onciale"] {
+  --font-display: "GAL Onciale", "Outfit Variable", system-ui, sans-serif;
+  --font-cases: "GAL Onciale Cases", "GAL Onciale", "Outfit Variable", system-ui, sans-serif;
+}
+/* Sans spécificité de plus que les règles de base : le pied de page garde ses titres en chasse fixe (footer h2). */
+:where([data-lettres="onciale"]) :is(h1, .section-title),
+:where([data-lettres="onciale"]) .kpi-value {
+  font-family: var(--font-cases);
+}
+/* L'onciale est plus large qu'Outfit (0,8 em la lettre contre 0,65). Un titre qui connaît son plus long mot (--mot-em, en
+   em, calculé au build par motLePlusLong) se réduit juste assez pour qu'il tienne sur une ligne : la largeur du contenu
+   (.wrap, 75 rem au plus, moins ses marges), avec une marge de plus pour la barre de défilement. Sous 1,5 rem, le mot se
+   coupe plutôt que de rapetisser encore (un très long pseudo sur une fiche). */
+:where([data-lettres="onciale"]) .page-title {
+  font-size: max(1.5rem, min(clamp(2.5rem, 8.5vw, 6rem), (min(100vw, 75rem) - 3rem) / var(--mot-em, 0.01)));
+}
+:where([data-lettres="onciale"]) .page-title.page-title-compact {
+  font-size: max(1.5rem, min(clamp(2.25rem, 5.5vw, 3.5rem), (min(100vw, 75rem) - 3rem) / var(--mot-em, 0.01)));
+}
+/* Un titre de section au mot très long, si sa page lui pose --mot-em. Les titres de scène (.section-title-sm) gardent leur
+   taille. */
+:where([data-lettres="onciale"]) .section-title:not(.section-title-sm) {
+  font-size: min(clamp(2rem, 5vw, 4rem), (min(100vw, 75rem) - 3rem) / var(--mot-em, 0.01));
+}
+/* Les cinq créneaux de Quand jouer, en colonnes étroites : « 21 h – 22 h » tient dans la sienne de 1 024 à 1 920 px. */
+:where([data-lettres="onciale"]) .kpi-value-md {
+  font-size: clamp(1.625rem, 2.2vw, 2.125rem);
+}
+/* Filet de sécurité : un mot de titre plus large que sa colonne passe à la ligne plutôt que d'élargir la page. Sans effet
+   tant que chaque mot tient, comme pour Outfit. */
+:where([data-lettres="onciale"]) :is(h1, h2, h3) {
+  overflow-wrap: break-word;
+}

@@ -1,6 +1,7 @@
 ---
 import "../styles/global.css";
-// Les trois polices du site, préchargées : le texte s'affiche presque toujours directement dans sa police.
+// Les polices du site, préchargées : le texte s'affiche presque toujours directement dans sa police. Outfit ne l'est plus
+// que pour le QG et la Direction : les autres pages écrivent leurs titres dans l'onciale de cases (plus bas).
 import interFont from "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url";
 import outfitFont from "@fontsource-variable/outfit/files/outfit-latin-wght-normal.woff2?url";
 // La chasse fixe du poste de commandement : depuis le 12 novembre 2026, la machine du QG parle sur toutes les pages
@@ -47,11 +48,29 @@ const lastRun = loadMeta().lastRunAt;
 const usefulTools = loadLinks().tools.length > 0;
 // La marque de la dernière mise à jour du site : src/scripts/nouveautes.ts la compare à celle que le visiteur a vue.
 const nouveautesMarker = newsMarker(loadNouveautes());
+// L'onciale de cases (src/lib/police/onciale.ts), fabriquée à chaque construction : les titres et les gros chiffres de toutes
+// les pages sauf le QG et la Direction, comme l'a demandé le pilote le 12 novembre 2026 (« en dehors du QG et DIRECTION ») ;
+// une page qui passerait en ambiance console la garderait. En cases pleines et en cases visibles (grands titres, chiffres clés). Le QG
+// et la Direction gardent Outfit, dans leur style Terminal. Voir « Typographie » dans docs/DESIGN.md.
+const lettresOnciale = !["/qg", "/direction"].includes(path);
+const onciale = lettresOnciale
+  ? [
+      { famille: "GAL Onciale", url: `${base}/generated/polices/onciale.woff2` },
+      { famille: "GAL Onciale Cases", url: `${base}/generated/polices/onciale-cases.woff2` },
+    ]
+  : null;
 ---
 
 <!doctype html>
 {/* La console de la Direction et du QG est en style Terminal (data-console), voir « Ambiance console » dans docs/DESIGN.md. */}
-<html lang="fr" data-theme={theme} data-ambiance={ambiance} data-console={ambiance === "console" ? "terminal" : undefined}>
+{/* data-lettres : les pages écrites dans l'onciale de cases, toutes sauf le QG et la Direction (global.css, « L'onciale de cases »). */}
+<html
+  lang="fr"
+  data-theme={theme}
+  data-ambiance={ambiance}
+  data-console={ambiance === "console" ? "terminal" : undefined}
+  data-lettres={lettresOnciale ? "onciale" : undefined}
+>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -71,7 +90,21 @@ const nouveautesMarker = newsMarker(loadNouveautes());
     <link rel="icon" type="image/png" sizes="32x32" href={`${base}/generated/favicon-32.png`} />
     <link rel="apple-touch-icon" href={`${base}/generated/apple-touch-icon.png`} />
     <link rel="manifest" href={`${base}/manifest.webmanifest`} />
-    <link rel="preload" href={outfitFont} as="font" type="font/woff2" crossorigin />
+    {
+      onciale ? (
+        <>
+          {onciale.map((p) => (
+            <link rel="preload" href={p.url} as="font" type="font/woff2" crossorigin />
+          ))}
+          <style
+            is:inline
+            set:html={onciale.map((p) => `@font-face{font-family:"${p.famille}";src:url("${p.url}") format("woff2");font-weight:100 900;font-display:swap}`).join("")}
+          />
+        </>
+      ) : (
+        <link rel="preload" href={outfitFont} as="font" type="font/woff2" crossorigin />
+      )
+    }
     <link rel="preload" href={interFont} as="font" type="font/woff2" crossorigin />
     <link rel="preload" href={consoleFont} as="font" type="font/woff2" crossorigin />
     <script is:inline>

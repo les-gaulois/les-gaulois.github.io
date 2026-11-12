@@ -1,0 +1,931 @@
+/**
+ * L'onciale de cases (« GAL Onciale ») : la police des titres de toutes les pages sauf le QG et la Direction, depuis le
+ * 12 novembre 2026. Le pilote voulait des lettres « dans le design gaulois - hacker » : l'onciale des vieux manuscrits,
+ * posée case par case comme un territoire d'OpenFront. Chaque lettre est dessinée ici en cases (« # » pleine, « . » vide) ;
+ * scripts/generate-police.ts en tire la police à chaque construction. Voir « Typographie » dans docs/DESIGN.md.
+ *
+ * Licence : ce fichier et les polices qui en sont tirées sont sous SIL Open Font License 1.1, pas sous l'AGPL du site ;
+ * les outils qui les fabriquent ou les mesurent (cases.ts, largeur.ts, scripts/generate-police.ts) restent sous l'AGPL.
+ * Texte complet et notice dans OFL.txt, à côté. Les formes viennent de la police Uncial Antiqua, passée sur une grille de
+ * cases puis redessinée à la main le 12 novembre 2026 :
+ * Copyright (c) 2011 by Brian J. Bonislawsky DBA Astigmatic (AOETI) (astigma@astigmatic.com), with Reserved Font Names
+ * "Uncial Antiqua". Modifiée par le clan [GAL] : grille de cases, chiffres alignés, accents, signes. Ce nom réservé ne
+ * s'emploie pas pour cette version.
+ */
+
+/** Un dessin : la hauteur de sa première rangée (0 = la rangée posée sur la ligne de base), puis ses rangées de haut en bas. */
+export interface Dessin {
+  readonly haut: number;
+  readonly rangees: readonly string[];
+  /** Cases vides de chaque côté, si ce n'est pas APPROCHE. */
+  readonly approche?: number;
+}
+
+/** Le corps des lettres : 10 rangées, de y = 0 à y = 9. Les hampes montent jusqu'à 12, les jambages descendent à -3. */
+export const CORPS = 10;
+/** Unités de police par case : le corps fait 700 unités sur 1 000, comme la capitale d'Outfit qu'elle remplace. */
+export const CASE = 70;
+/** Cases vides de chaque côté d'un signe : deux cases entre deux lettres. */
+export const APPROCHE = 1;
+/** Les chiffres se serrent davantage (une case entre deux) : un nombre garde à peu près la largeur qu'il avait en Outfit. */
+export const APPROCHE_CHIFFRES = 0.5;
+/** Chasse des espaces, en cases : l'espace entre deux mots, l'espace insécable des milliers et des unités, les fines. */
+export const ESPACE = 4;
+export const ESPACE_INSECABLE = 3;
+export const ESPACE_FINE = 2;
+
+export const ONCIALE = {
+  famille: "GAL Onciale",
+  familleCases: "GAL Onciale Cases",
+  version: "1.000",
+  // La notice d'origine, telle quelle (condition 2 de la licence), puis la modification : voir OFL.txt, à côté.
+  copyright:
+    'Copyright (c) 2011 by Brian J. Bonislawsky DBA Astigmatic (AOETI) (astigma@astigmatic.com), with Reserved Font Names "Uncial Antiqua". Modified version by the [GAL] clan, 2026: pixel grid, lining figures, accents and signs; the Reserved Font Name is not used.',
+  licence: "This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: https://openfontlicense.org",
+  licenceUrl: "https://openfontlicense.org",
+} as const;
+
+/** Lit un dessin écrit en colonnes de « # » et de « . », une rangée par ligne. */
+export function dessin(haut: number, texte: string): Dessin {
+  const rangees = texte
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+  return { haut, rangees };
+}
+
+export const LETTRES: Readonly<Record<string, Dessin>> = {
+  A: dessin(9, `
+    ..##.......
+    ..###......
+    ...###.....
+    ...###.....
+    ...####....
+    ..##.###...
+    ..##..##...
+    .########..
+    .##....###.
+    ###....####`),
+  B: dessin(9, `
+    ######...
+    ###..##..
+    ###..##..
+    ###.##...
+    ######...
+    ###..###.
+    ###...###
+    ###...###
+    ###..###.
+    #######..`),
+  C: dessin(9, `
+    ....####.
+    ..###..##
+    .###.....
+    ###......
+    ###......
+    ###......
+    ###......
+    .###.....
+    ..###..##
+    ....####.`),
+  // Le D onciale : la panse ronde, et le trait de droite qui monte puis revient vers la gauche.
+  D: dessin(12, `
+    ..######...
+    .......###.
+    ........###
+    ...########
+    .###....###
+    ###.....###
+    ###.....###
+    ###.....###
+    ###.....###
+    ###.....###
+    ###.....###
+    .###...###.
+    ...#####...`),
+  E: dessin(9, `
+    ....####.
+    ..###..##
+    .###.....
+    ###......
+    #######..
+    ###......
+    ###......
+    .###.....
+    ..###..##
+    ....####.`),
+  F: dessin(9, `
+    ########
+    ###..###
+    ###.....
+    ###.....
+    ######..
+    ###.....
+    ###.....
+    ###.....
+    ###.....
+    ###.....
+    ###.....
+    ##......`),
+  G: dessin(9, `
+    ....####..
+    ..###..##.
+    .###......
+    ###.......
+    ###.......
+    ###..#####
+    ###....###
+    .###...###
+    ..###.###.
+    ....####..`),
+  H: dessin(11, `
+    ###.......
+    ###.......
+    ###.####..
+    #####..##.
+    ###....###
+    ###....###
+    ###....###
+    ###....###
+    ###....###
+    ###....###
+    ###....###
+    ###....###`),
+  I: dessin(9, `
+    ####
+    ###.
+    ###.
+    ###.
+    ###.
+    ###.
+    ###.
+    ###.
+    ###.
+    ####`),
+  J: dessin(9, `
+    .####
+    ..###
+    ..###
+    ..###
+    ..###
+    ..###
+    ..###
+    ..###
+    ..###
+    ..###
+    ..##.
+    .##..
+    ##...`),
+  K: dessin(11, `
+    ###.......
+    ###.......
+    ###...###.
+    ###..###..
+    ###.###...
+    ######....
+    #####.....
+    ######....
+    ###.###...
+    ###..###..
+    ###...###.
+    ###....###`),
+  L: dessin(11, `
+    ###....
+    ###....
+    ###....
+    ###....
+    ###....
+    ###....
+    ###....
+    ###....
+    ###....
+    ###....
+    ###....
+    #######`),
+  // Le M onciale : deux arches rondes autour du trait du milieu.
+  M: dessin(9, `
+    ..####...####..
+    .##..#####..##.
+    ##....###....##
+    ##....###....##
+    ##....###....##
+    ##....###....##
+    ##....###....##
+    ###...###...###
+    .###..###..###.
+    ..##..###..##..`),
+  N: dessin(9, `
+    ###.....##
+    ####....##
+    #####...##
+    ##.###..##
+    ##..###.##
+    ##...#####
+    ##....####
+    ##.....###
+    ##......##
+    ###.....##`),
+  O: dessin(9, `
+    ...####...
+    .###..###.
+    ###....###
+    ###....###
+    ###....###
+    ###....###
+    ###....###
+    ###....###
+    .###..###.
+    ...####...`),
+  P: dessin(9, `
+    ######....
+    ###..###..
+    ###...###.
+    ###....###
+    ###....###
+    ###...###.
+    ###..###..
+    ######....
+    ###.......
+    ###.......
+    ###.......
+    ##........`),
+  Q: dessin(9, `
+    ...#######
+    .###...###
+    ###....###
+    ###....###
+    ###....###
+    ###....###
+    ###....###
+    ###....###
+    .###..####
+    ...#######
+    .......###
+    .......###
+    ........##`),
+  R: dessin(9, `
+    ######....
+    ###..###..
+    ###...###.
+    ###...###.
+    ###..###..
+    ######....
+    ###.###...
+    ###..###..
+    ###...###.
+    ###....###`),
+  S: dessin(9, `
+    ...#####.
+    .###...##
+    ###......
+    ###......
+    .#####...
+    ...#####.
+    ......###
+    ......###
+    ##...###.
+    .#####...`),
+  T: dessin(9, `
+    .#########.
+    ###.###.###
+    ##..###...#
+    #...###....
+    ....###....
+    ....###....
+    ....###....
+    ....###....
+    ....###....
+    ...#####...`),
+  U: dessin(9, `
+    ###....###
+    ###....###
+    ###....###
+    ###....###
+    ###....###
+    ###....###
+    ###....###
+    ###....###
+    .###..####
+    ...#######`),
+  V: dessin(9, `
+    ###.....##
+    ###.....##
+    .###....##
+    .###...##.
+    ..###..##.
+    ..###.##..
+    ...#####..
+    ...####...
+    ....###...
+    ....##....`),
+  W: dessin(9, `
+    ###...###...###
+    ###...###...###
+    ###...###...###
+    ###...###...###
+    ###...###...###
+    ###...###...###
+    ###...###...###
+    .##...###...##.
+    .###.#####.###.
+    ..####...####..`),
+  X: dessin(9, `
+    ###.....##
+    .###...##.
+    ..###.##..
+    ...####...
+    ....###...
+    ...#####..
+    ..##.###..
+    .##...###.
+    ##.....###
+    ##.....###`),
+  Y: dessin(9, `
+    ###.....##
+    .###...##.
+    ..###.##..
+    ...####...
+    ...###....
+    ...###....
+    ...###....
+    ...###....
+    ...###....
+    ..#####...`),
+  Z: dessin(9, `
+    #########
+    #.....###
+    .....###.
+    ....###..
+    ...###...
+    ..###....
+    .###.....
+    ###.....#
+    ###....##
+    #########`),
+  Œ: dessin(9, `
+    ...###########
+    .###...###..##
+    ###....###....
+    ###....###....
+    ###....######.
+    ###....###....
+    ###....###....
+    ###....###....
+    .###...###..##
+    ...###########`),
+};
+
+/**
+ * Chiffres alignés, tous de la même chasse (7 cases) : les colonnes de nombres restent droites. Plus fins que les
+ * lettres, comme l'affichage d'une machine : un nombre garde la largeur qu'il avait en Outfit, et une rangée de chiffres
+ * clés tient sur la même ligne qu'avant.
+ */
+export const CHIFFRES: Readonly<Record<string, Dessin>> = {
+  "0": dessin(9, `
+    .#####.
+    ##...##
+    ##...##
+    ##...##
+    ##...##
+    ##...##
+    ##...##
+    ##...##
+    ##...##
+    .#####.`),
+  "1": dessin(9, `
+    ...##..
+    .####..
+    ##.##..
+    ...##..
+    ...##..
+    ...##..
+    ...##..
+    ...##..
+    ...##..
+    .######`),
+  "2": dessin(9, `
+    .#####.
+    ##...##
+    .....##
+    .....##
+    ....##.
+    ...##..
+    ..##...
+    .##....
+    ##.....
+    #######`),
+  "3": dessin(9, `
+    .#####.
+    ##...##
+    .....##
+    .....##
+    ..####.
+    .....##
+    .....##
+    .....##
+    ##...##
+    .#####.`),
+  "4": dessin(9, `
+    ....##.
+    ...###.
+    ..####.
+    .##.##.
+    ##..##.
+    ##..##.
+    #######
+    ....##.
+    ....##.
+    ....##.`),
+  "5": dessin(9, `
+    #######
+    ##.....
+    ##.....
+    ######.
+    .....##
+    .....##
+    .....##
+    .....##
+    ##...##
+    .#####.`),
+  "6": dessin(9, `
+    ..####.
+    .##....
+    ##.....
+    ##.....
+    ######.
+    ##...##
+    ##...##
+    ##...##
+    ##...##
+    .#####.`),
+  "7": dessin(9, `
+    #######
+    .....##
+    .....##
+    ....##.
+    ....##.
+    ...##..
+    ...##..
+    ..##...
+    ..##...
+    ..##...`),
+  "8": dessin(9, `
+    .#####.
+    ##...##
+    ##...##
+    ##...##
+    .#####.
+    ##...##
+    ##...##
+    ##...##
+    ##...##
+    .#####.`),
+  "9": dessin(9, `
+    .#####.
+    ##...##
+    ##...##
+    ##...##
+    ##...##
+    .######
+    .....##
+    .....##
+    ....##.
+    .####..`),
+};
+
+export const SIGNES: Readonly<Record<string, Dessin>> = {
+  ".": dessin(1, `
+    ##
+    ##`),
+  ",": dessin(1, `
+    ##
+    ##
+    .#
+    #.`),
+  ":": dessin(6, `
+    ##
+    ##
+    ..
+    ..
+    ..
+    ##
+    ##`),
+  ";": dessin(6, `
+    ##
+    ##
+    ..
+    ..
+    ..
+    ##
+    ##
+    .#
+    #.`),
+  "!": dessin(9, `
+    ###
+    ###
+    ###
+    ###
+    ###
+    .#.
+    .#.
+    ...
+    ###
+    ###`),
+  "?": dessin(9, `
+    .#####.
+    ##...##
+    .....##
+    ....##.
+    ...##..
+    ..##...
+    ..##...
+    .......
+    ..##...
+    ..##...`),
+  "'": dessin(9, `
+    ##
+    ##
+    .#
+    #.`),
+  // apostrophe
+  [String.fromCharCode(0x2019)]: dessin(9, `
+    ##
+    ##
+    .#
+    #.`),
+  // guillemet simple ouvrant
+  [String.fromCharCode(0x2018)]: dessin(9, `
+    .#
+    #.
+    ##
+    ##`),
+  '"': dessin(9, `
+    ##.##
+    ##.##
+    .#..#
+    #..#.`),
+  // guillemet anglais ouvrant
+  [String.fromCharCode(0x201c)]: dessin(9, `
+    .#..#
+    #..#.
+    ##.##
+    ##.##`),
+  // guillemet anglais fermant
+  [String.fromCharCode(0x201d)]: dessin(9, `
+    ##.##
+    ##.##
+    .#..#
+    #..#.`),
+  "«": dessin(7, `
+    ...##..##
+    ..##..##.
+    .##..##..
+    ##..##...
+    .##..##..
+    ..##..##.
+    ...##..##`),
+  "»": dessin(7, `
+    ##..##...
+    .##..##..
+    ..##..##.
+    ...##..##
+    ..##..##.
+    .##..##..
+    ##..##...`),
+  "(": dessin(11, `
+    ..##
+    .##.
+    ##..
+    ##..
+    ##..
+    ##..
+    ##..
+    ##..
+    ##..
+    ##..
+    ##..
+    ##..
+    .##.
+    ..##`),
+  ")": dessin(11, `
+    ##..
+    .##.
+    ..##
+    ..##
+    ..##
+    ..##
+    ..##
+    ..##
+    ..##
+    ..##
+    ..##
+    ..##
+    .##.
+    ##..`),
+  "[": dessin(11, `
+    ####
+    ##..
+    ##..
+    ##..
+    ##..
+    ##..
+    ##..
+    ##..
+    ##..
+    ##..
+    ##..
+    ##..
+    ##..
+    ####`),
+  "]": dessin(11, `
+    ####
+    ..##
+    ..##
+    ..##
+    ..##
+    ..##
+    ..##
+    ..##
+    ..##
+    ..##
+    ..##
+    ..##
+    ..##
+    ####`),
+  "-": dessin(5, `
+    #####
+    #####`),
+  // Tiret demi-cadratin (« 21 h – 22 h ») et signe moins : la même barre, de la largeur et de l'approche d'un chiffre.
+  [String.fromCharCode(0x2013)]: { ...dessin(5, `
+    #######
+    #######`), approche: APPROCHE_CHIFFRES },
+  // signe moins
+  [String.fromCharCode(0x2212)]: { ...dessin(5, `
+    #######
+    #######`), approche: APPROCHE_CHIFFRES },
+  // tiret cadratin
+  [String.fromCharCode(0x2014)]: dessin(5, `
+    #############
+    #############`),
+  "+": dessin(8, `
+    ...##...
+    ...##...
+    ...##...
+    ########
+    ########
+    ...##...
+    ...##...
+    ...##...`),
+  "=": dessin(7, `
+    ########
+    ########
+    ........
+    ........
+    ########
+    ########`),
+  "×": dessin(7, `
+    ##...##
+    .##.##.
+    ..###..
+    ..###..
+    .##.##.
+    ##...##`),
+  "/": dessin(11, `
+    ......##
+    ......##
+    .....##.
+    .....##.
+    ....##..
+    ....##..
+    ...##...
+    ...##...
+    ..##....
+    ..##....
+    .##.....
+    .##.....
+    ##......
+    ##......`),
+  "%": dessin(9, `
+    .##.....##
+    ####...##.
+    ####..##..
+    .##..##...
+    ....##....
+    ...##.....
+    ..##...##.
+    .##...####
+    ##....####
+    .......##.`),
+  "#": dessin(8, `
+    ..##..##..
+    ..##..##..
+    ##########
+    ..##..##..
+    ..##..##..
+    ##########
+    ..##..##..
+    ..##..##..`),
+  "&": dessin(9, `
+    ..####.....
+    .##..##....
+    .##..##....
+    ..####.....
+    .####...##.
+    ##..##.##..
+    ##...###...
+    ##....###..
+    .##..##.##.
+    ..###....##`),
+  "@": dessin(9, `
+    ...#####...
+    .##.....##.
+    ##..####.##
+    ##.##..#.##
+    ##.##..#.##
+    ##.##..#.##
+    ##..####.#.
+    .##........
+    ..######...`),
+  _: dessin(-1, `
+    ########`),
+  "·": dessin(5, `
+    ##
+    ##`),
+  "…": dessin(1, `
+    ##..##..##
+    ##..##..##`),
+  "°": dessin(9, `
+    .##.
+    #..#
+    #..#
+    .##.`),
+  "€": dessin(9, `
+    ....#####
+    ..###...#
+    .###.....
+    #######..
+    ###......
+    #######..
+    ###......
+    .###.....
+    ..###...#
+    ....#####`),
+  "*": dessin(9, `
+    ...#...
+    #..#..#
+    .#####.
+    ..###..
+    .##.##.
+    ##...##`),
+  "|": dessin(11, `
+    ##
+    ##
+    ##
+    ##
+    ##
+    ##
+    ##
+    ##
+    ##
+    ##
+    ##
+    ##
+    ##
+    ##`),
+  "<": dessin(8, `
+    .....##
+    ...##..
+    .##....
+    ##.....
+    .##....
+    ...##..
+    .....##`),
+  ">": dessin(8, `
+    ##.....
+    ..##...
+    ....##.
+    .....##
+    ....##.
+    ..##...
+    ##.....`),
+};
+
+/** Les accents des capitales, au-dessus du corps avec une rangée d'air ; la cédille sous la ligne de base. */
+export const MARQUES = {
+  aigu: dessin(12, `
+    .##
+    ##.`),
+  grave: dessin(12, `
+    ##.
+    .##`),
+  circonflexe: dessin(12, `
+    .###.
+    ##.##`),
+  trema: dessin(12, `
+    ##.##
+    ##.##`),
+  tilde: dessin(12, `
+    .##..#
+    #..##.`),
+  cedille: dessin(-1, `
+    .##
+    ..#
+    ##.`),
+} as const satisfies Record<string, Dessin>;
+
+export type Marque = keyof typeof MARQUES;
+
+/** Les lettres accentuées : une lettre et sa marque. Leurs minuscules prennent le même dessin, comme toutes les lettres. */
+export const COMPOSEES: Readonly<Record<string, readonly [string, Marque]>> = {
+  À: ["A", "grave"],
+  Á: ["A", "aigu"],
+  Â: ["A", "circonflexe"],
+  Ã: ["A", "tilde"],
+  Ä: ["A", "trema"],
+  Ç: ["C", "cedille"],
+  È: ["E", "grave"],
+  É: ["E", "aigu"],
+  Ê: ["E", "circonflexe"],
+  Ë: ["E", "trema"],
+  Ì: ["I", "grave"],
+  Í: ["I", "aigu"],
+  Î: ["I", "circonflexe"],
+  Ï: ["I", "trema"],
+  Ñ: ["N", "tilde"],
+  Ò: ["O", "grave"],
+  Ó: ["O", "aigu"],
+  Ô: ["O", "circonflexe"],
+  Õ: ["O", "tilde"],
+  Ö: ["O", "trema"],
+  Ù: ["U", "grave"],
+  Ú: ["U", "aigu"],
+  Û: ["U", "circonflexe"],
+  Ü: ["U", "trema"],
+  Ý: ["Y", "aigu"],
+  Ÿ: ["Y", "trema"],
+};
+
+/** Le centre optique des lettres asymétriques, en cases depuis la gauche : l'accent se pose là. */
+const CENTRES: Readonly<Record<string, number>> = { A: 5, C: 4.5, E: 4.5, I: 1.5, U: 5, Y: 4.5 };
+
+/** Largeur d'un dessin, en cases. */
+export function largeur(d: Dessin): number {
+  return Math.max(0, ...d.rangees.map((r) => r.length));
+}
+
+/** Chasse d'un signe, en cases : son dessin et une approche de chaque côté. */
+export function chasse(d: Dessin): number {
+  return largeur(d) + 2 * (d.approche ?? APPROCHE);
+}
+
+/** Pose une marque sur une lettre, centrée sur elle ; le dessin s'élargit si la marque dépasse. */
+export function composer(base: Dessin, marque: Dessin, centre = largeur(base) / 2): Dessin {
+  const lb = largeur(base);
+  const lm = largeur(marque);
+  let xb = 0;
+  let xm = Math.round(centre - lm / 2);
+  if (xm < 0) {
+    xb = -xm;
+    xm = 0;
+  }
+  const l = Math.max(xb + lb, xm + lm);
+  const haut = Math.max(base.haut, marque.haut);
+  const bas = Math.min(base.haut - base.rangees.length + 1, marque.haut - marque.rangees.length + 1);
+  const rangees: string[] = [];
+  for (let y = haut; y >= bas; y--) {
+    const ligne = Array<string>(l).fill(".");
+    const poser = (d: Dessin, dx: number) => {
+      const r = d.rangees[d.haut - y];
+      if (r === undefined) return;
+      for (let x = 0; x < r.length; x++) if (r[x] === "#") ligne[dx + x] = "#";
+    };
+    poser(base, xb);
+    poser(marque, xm);
+    rangees.push(ligne.join(""));
+  }
+  return { haut, rangees };
+}
+
+/** Tous les signes de la police, lettres accentuées comprises, par caractère. */
+export function glyphesOnciale(): Map<string, Dessin> {
+  const tous = new Map<string, Dessin>([
+    ...Object.entries(LETTRES),
+    ...Object.entries(CHIFFRES).map(([c, d]): [string, Dessin] => [c, { ...d, approche: APPROCHE_CHIFFRES }]),
+    ...Object.entries(SIGNES),
+  ]);
+  for (const [ch, [b, m]] of Object.entries(COMPOSEES)) {
+    const base = LETTRES[b];
+    if (!base) throw new Error(`Lettre de base inconnue : ${b}`);
+    tous.set(ch, composer(base, MARQUES[m], CENTRES[b]));
+  }
+  return tous;
+}
+
+/**
+ * Les caractères qu'écrit un dessin : le sien et, pour une lettre, sa minuscule. L'onciale n'a qu'une forme par lettre,
+ * comme les manuscrits : « Classement » et « CLASSEMENT » s'écrivent de la même façon.
+ */
+export function caracteresDe(ch: string): string[] {
+  const min = ch.toLowerCase();
+  return min !== ch && [...min].length === 1 ? [ch, min] : [ch];
+}
