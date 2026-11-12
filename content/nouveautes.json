@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-12",
+    "kind": "nouveau",
+    "title": "Se connecter sans lier son compte Discord",
+    "body": "Tapez /code dans le Discord du clan, puis recopiez le code sur Mon compte : pas de page « Autoriser » de Discord, et par ce chemin le site ne garde que votre identifiant et votre nom Discord.",
+    "link": {
+      "href": "/compte",
+      "label": "Mon compte"
+    }
+  },
+  {
+    "date": "2026-11-12",
     "kind": "ameliore",
     "title": "Le site prend l'allure du QG",
     "body": "Tout le site passe dans l'univers du QG, en plus calme : fond quadrillé comme une carte, ligne de commande au-dessus des titres, et sur l'accueil le guerrier du clan dessiné en caractères."
