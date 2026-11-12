@@ -213,13 +213,16 @@ export function comparisonSentence({ totals, previous }: GazetteEdition): string
   return `${games} Taux de victoire : ${fmtPoints(shown(totals.winRate) - shown(previous.winRate))}.`;
 }
 
-/** Le chapeau de l'édition : ce qu'elle dit d'abord, sans aucun commentaire. */
-export function editionLead(edition: GazetteEdition, tag: string): string {
+/**
+ * Le chapeau de l'édition : ce qu'elle dit d'abord, sans aucun commentaire.
+ * Sur l'accueil, `standing: false` : le bloc du classement officiel, plus bas, donne le rang du moment ; la gazette garde l'évolution.
+ */
+export function editionLead(edition: GazetteEdition, tag: string, { standing = true }: { standing?: boolean } = {}): string {
   const { games, wins, winRate: rate } = edition.totals;
   const sentences = [games === 0 ? "Aucune partie enregistrée cette semaine-là." : `${fmtCount(games, "partie")} et ${fmtCount(wins, "victoire")}, soit ${fmtPct(rate)}.`];
   const before = edition.previous;
   if (before && before.games > 0) sentences.push(`La semaine d'avant : ${fmtCount(before.games, "partie")}, ${fmtPct(before.winRate)}.`);
-  const standing = standingSentence(edition.standing, tag);
-  if (standing) sentences.push(standing);
+  const rank = standing ? standingSentence(edition.standing, tag) : null;
+  if (rank) sentences.push(rank);
   return sentences.join(" ");
 }

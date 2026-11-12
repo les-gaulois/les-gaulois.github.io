@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   bestSlots,
-  slotsOfDay,
   bucketize,
   buildHeatmap,
   dailySeries,
@@ -148,37 +147,6 @@ describe("heatmap", () => {
     expect(map.from).toBe("2026-08-05");
   });
   it("renvoie null sans couverture", () => expect(buildHeatmap([], null)).toBeNull());
-});
-
-describe("slotsOfDay", () => {
-  const empty = () => Array.from({ length: 7 }, () => new Array<number>(24).fill(0));
-  const grid = empty();
-  const players = empty();
-  const put = (day: number, hour: number, games: number, total: number) => {
-    (grid[day] as number[])[hour] = games;
-    (players[day] as number[])[hour] = total;
-  };
-  put(5, 18, 89, 222);
-  put(5, 20, 80, 232);
-  put(5, 17, 68, 156);
-  put(5, 3, 4, 8);
-  put(1, 21, 120, 300);
-  const map = { grid, players, total: 361, max: 120, from: "2026-08-10", to: "2026-11-07" };
-  it("ne garde que les créneaux du jour demandé, du plus joué au moins joué", () => {
-    expect(slotsOfDay(map, 5).map((s) => [s.hour, s.games])).toEqual([
-      [18, 89],
-      [20, 80],
-      [17, 68],
-    ]);
-  });
-  it("s'arrête au nombre demandé, et écarte les créneaux trop rares", () => {
-    expect(slotsOfDay(map, 5, 1).map((s) => s.hour)).toEqual([18]);
-    expect(slotsOfDay(map, 5, 10).map((s) => s.hour)).not.toContain(3);
-  });
-  it("ne donne rien sans partie ce jour-là, ni sans données", () => {
-    expect(slotsOfDay(map, 0)).toEqual([]);
-    expect(slotsOfDay(null, 5)).toEqual([]);
-  });
 });
 
 describe("bestSlots", () => {

@@ -2,7 +2,6 @@
 import Base from "../layouts/Base.astro";
 import ClanWeek from "../components/ClanWeek.astro";
 import DataStatus from "../components/DataStatus.astro";
-import MapNamesCredit from "../components/MapNamesCredit.astro";
 import MyPlace from "../components/MyPlace.tsx";
 import NewsBoard from "../components/NewsBoard";
 import SinceLastVisit from "../components/SinceLastVisit.tsx";
@@ -10,17 +9,13 @@ import { AUTH_ENABLED } from "../lib/compte/api";
 import { clan } from "../../config/clan";
 import { bestGameOf, bestGameSentence, yesterdayOf } from "../lib/belle-partie";
 import { brandFile } from "../lib/brand";
-import { objectiveFor } from "../lib/clanmap/economy";
 import { loadAnnouncements, loadClanMapFilm, loadEvents, loadGames, loadHistory, loadLeaderboard, loadMembers, loadMemberWeeks, loadMeta, loadSessions, loadTerritoryReadings } from "../lib/data";
-import { fmtDate, fmtDateTime, fmtDay, fmtDayAndTime, fmtDec1, fmtInt, fmtPct, fmtRank, fmtScore } from "../lib/format";
+import { fmtDateTime, fmtInt, fmtPct, fmtRank, fmtScore } from "../lib/format";
 import { MAX_AGE_HOURS } from "../lib/freshness";
 import { gazetteEditions } from "../lib/gazette";
 import { clanJournal } from "../lib/journal";
-import { mapLabel } from "../lib/map-names";
 import { clanRecords } from "../lib/results";
-import { bestSlots, buildHeatmap, dailySeries, slotsOfDay } from "../lib/sessions";
 import { findClan, neighbours, winRate, withOfficialRanks } from "../lib/stats";
-import { parisParts, WEEKDAYS_FR } from "../lib/time";
 import { recentRecordLines, recentTerritoryRecord } from "../lib/vie-du-clan";
 import { milestonesSinceMonday } from "../lib/week-players";
 import { loadVisitSnapshot } from "../lib/visite-snapshot";
@@ -46,13 +41,13 @@ const cards = [
   { label: "Taux de victoire", value: rate === null ? null : fmtPct(rate), hint: "victoires ÷ parties" },
 ];
 
-// Chaque bloc résume une page et y renvoie : uniquement des données collectées.
+// Chaque bloc résume une page et y renvoie : uniquement des données collectées. La carte, les dernières parties
+// et les créneaux ont chacun leur page : l'accueil ne les recopie plus depuis le 12 novembre 2026.
 const sessions = loadSessions();
 const games = loadGames();
 const members = loadMembers();
 const film = loadClanMapFilm();
 const onMap = film?.galSummary ?? null;
-const objective = objectiveFor(film?.standings ?? [], clan.tag);
 const memberWeeks = loadMemberWeeks();
 const gazette = gazetteEditions({ sessions, history: loadHistory(), territory: loadTerritoryReadings(), weekTops: memberWeeks.tops, members, archiveStart: clan.archiveStart, completeThrough: meta.sessions.completeThrough })[0] ?? null;
 // Le fil du clan : les paliers franchis depuis le relevé du lundi, et les records des sept derniers jours. Règles dans src/lib/vie-du-clan.ts.
@@ -60,21 +55,9 @@ const currentMilestones = milestonesSinceMonday(memberWeeks.reading, members);
 const recordLines = recentRecordLines(clanRecords(sessions), meta.sessions.coveredUntil);
 const territoryRecord = recentTerritoryRecord(onMap?.peak ?? null, film?.fetchedAt ?? null);
 
-const recent = dailySeries(sessions, clan.archiveStart, meta.sessions.coveredUntil).slice(-14);
-const recentMax = Math.max(1, ...recent.map((d) => d.games));
-const recentGames = recent.reduce((n, d) => n + d.games, 0);
-const recentWins = recent.reduce((n, d) => n + d.wins, 0);
-const { rows: journal } = clanJournal({ sessions, games, coveredUntil: meta.sessions.coveredUntil, tag: clan.tag, officialTags: clans.map((c) => c.clanTag) });
-const lastGames = journal.slice(0, 5);
 // La belle partie d'hier : le plus de Gaulois ensemble la veille de la collecte, règle dans src/lib/belle-partie.ts.
+const { rows: journal } = clanJournal({ sessions, games, coveredUntil: meta.sessions.coveredUntil, tag: clan.tag, officialTags: clans.map((c) => c.clanTag) });
 const bestYesterday = meta.sessions.coveredUntil ? bestGameOf(journal, yesterdayOf(meta.sessions.coveredUntil)) : null;
-const creditMaps = lastGames.some((game) => game.map !== null);
-
-const heat = buildHeatmap(sessions, meta.sessions.coveredUntil);
-const weekday = parisParts(now).weekday;
-const todaySlots = slotsOfDay(heat, weekday, 3);
-const slots = todaySlots.length > 0 ? todaySlots : bestSlots(heat, 3);
-const dayName = (WEEKDAYS_FR[weekday] ?? "").toLowerCase();
 
 // Le même relevé que sur la page Carte, où il fait reprendre le film.
 const snapshot = loadVisitSnapshot();
@@ -209,116 +192,7 @@ const snapshot = loadVisitSnapshot();
       </div>
     </section>
 
-    {
-      film && onMap && onMap.pixels > 0 && (
-        <section class="stage stage-night reveal grid items-center gap-8 md:grid-cols-2" aria-labelledby="map-title">
-          <div>
-            <h2 id="map-title" class="section-title section-title-sm">{fmtInt(onMap.pixels)} pixels sur la carte</h2>
-            {onMap.rank !== null && <p class="mt-4 max-w-md text-lg text-muted">{fmtRank(onMap.rank)} sur la carte des clans le {fmtDate(film.fetchedAt)} : ce n'est pas le classement.</p>}
-            {
-              objective?.above && (
-                <p class="tnum mt-3 max-w-md font-semibold" data-testid="home-objective">
-                  Prochain objectif : dépasser [{objective.above.tag}], encore {fmtInt(objective.above.pixels - objective.me.pixels + 1)} pixels.
-                </p>
-              )
-            }
-            <a href={`${base}/carte`} class="btn btn-ghost mt-6">Voir le film de la conquête</a>
-          </div>
-          <img
-            src={`${base}/generated/carte/finale-800.webp`}
-            srcset={`${base}/generated/carte/finale-800.webp 800w, ${base}/generated/carte/finale-1400.webp 1400w`}
-            sizes="(min-width: 768px) 560px, calc(100vw - 5rem)"
-            width="1400"
-            height={Math.round((1400 * film.rows) / film.cols)}
-            loading="lazy"
-            alt="La carte officielle des clans, où chaque clan occupe un territoire de sa couleur."
-            class="h-auto w-full rounded-2xl"
-          />
-        </section>
-      )
-    }
-
-    {
-      recent.length > 0 && (
-        <section class="stage stage-indigo reveal grid gap-8 md:grid-cols-2" aria-labelledby="progress-title" data-testid="home-parties">
-          <div>
-            <h2 id="progress-title" class="section-title section-title-sm">{fmtInt(recentGames)} parties en 14 jours</h2>
-            <p class="mt-3 max-w-md text-lg text-muted">
-              {fmtInt(recentWins)} victoires, soit {fmtPct(winRate(recentWins, recentGames))}.
-            </p>
-            {
-              lastGames.length > 0 && (
-                <ul class="tnum mt-4 divide-y divide-white/10 text-sm" data-testid="home-games">
-                  {lastGames.map((game) => (
-                    <li class="flex flex-wrap items-baseline justify-between gap-x-4 py-1.5">
-                      <span class="min-w-0">{fmtDayAndTime(game.at)}{game.map !== null && <span class="text-muted"> sur {mapLabel(game.map)}</span>}</span>
-                      <span class="ml-auto font-semibold">{game.won ? "Victoire" : "Défaite"}</span>
-                    </li>
-                  ))}
-                </ul>
-              )
-            }
-            {creditMaps && <MapNamesCredit />}
-            <div class="mt-6 flex flex-wrap gap-3">
-              <a href={`${base}/parties`} class="btn btn-ghost">Voir les dernières parties</a>
-              <a href={`${base}/progression`} class="btn btn-ghost">Voir la progression</a>
-            </div>
-          </div>
-          {/* Les barres se posent sur le décor de la scène : pas de cadre, un filet au-dessus. */}
-          <div class="panel self-center">
-            <div class="fx-bars flex h-52 items-end" aria-hidden="true" data-ripple-group>
-              {
-                recent.map((d, i) => (
-                  <div class="flex h-full flex-1 flex-col justify-end px-0.5" title={`${fmtDay(d.date)} : ${fmtInt(d.games)} parties, ${fmtInt(d.wins)} victoires`}>
-                    <div class="fx-grow flex flex-col gap-0.5" data-ripple="glow" style={{ height: `${(d.games / recentMax) * 100}%`, opacity: d.partial ? 0.55 : 1, "--i": i }}>
-                      {d.losses > 0 && <div class="min-h-px rounded-t bg-loss" style={{ flexGrow: d.losses, flexBasis: 0 }} />}
-                      {d.wins > 0 && <div class:list={["min-h-px bg-win", d.losses === 0 && "rounded-t"]} style={{ flexGrow: d.wins, flexBasis: 0 }} />}
-                    </div>
-                  </div>
-                ))
-              }
-            </div>
-            <div class="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
-              <span class="flex items-center gap-1.5"><i class="inline-block size-3 rounded-sm bg-win" aria-hidden="true"></i>Victoires</span>
-              <span class="flex items-center gap-1.5"><i class="inline-block size-3 rounded-sm bg-loss" aria-hidden="true"></i>Défaites</span>
-              <span class="tnum ml-auto">{fmtDay(recent[0]?.date ?? "")} au {fmtDay(recent[recent.length - 1]?.date ?? "")}</span>
-            </div>
-          </div>
-        </section>
-      )
-    }
-
-    {
-      slots.length > 0 && (
-        <section class="stage stage-wine reveal grid items-center gap-8 md:grid-cols-2" aria-labelledby="slots-title">
-          <div>
-            <h2 id="slots-title" class="section-title section-title-sm">{todaySlots.length > 0 ? `Quand jouer le ${dayName}` : "Quand le clan joue le plus"}</h2>
-            <p class="mt-4 max-w-md text-lg text-muted">Les créneaux les plus joués sur 90 jours, heure de Paris.</p>
-            <div class="mt-6 flex flex-wrap gap-3">
-              <a href={clan.links.discord} class="btn btn-secondary" rel="noopener">Trouver un groupe sur Discord</a>
-              <a href={`${base}/activite`} class="btn btn-ghost">Voir quand jouer</a>
-            </div>
-          </div>
-          <ol class="panel space-y-3">
-            {
-              slots.map((s) => (
-                <li data-testid="home-slot">
-                  <div class="flex flex-wrap items-baseline justify-between gap-x-4">
-                    <span class="font-display text-2xl font-extrabold uppercase">{WEEKDAYS_FR[s.weekday]} {s.hour} h</span>
-                    <span class="tnum text-sm text-muted">{fmtInt(s.games)} parties · {fmtDec1(s.avgPlayers)} joueurs du clan</span>
-                  </div>
-                  <div class="meter mt-2" aria-hidden="true">
-                    <i style={{ "--v": `${(s.games / (slots[0]?.games ?? s.games)) * 100}%` }}></i>
-                  </div>
-                </li>
-              ))
-            }
-          </ol>
-        </section>
-      )
-    }
-
-    <section class="stage stage-night reveal grid items-center gap-8 md:grid-cols-2" aria-labelledby="join-title">
+    <section class="stage stage-night reveal grid items-center gap-8 md:grid-cols-2" aria-labelledby="join-title" data-testid="home-join">
       <div>
         <h2 id="join-title" class="section-title section-title-sm">Rejoignez les Gaulois</h2>
         <p class="mt-4 max-w-md text-lg text-muted">

@@ -48,7 +48,7 @@ const faces = singlePseudos(loadMembers()?.members ?? []);
 <section class="stage stage-indigo reveal" aria-labelledby="week-title" data-testid="home-week">
   <h2 id="week-title" class="section-title section-title-sm">Les Gaulois de la semaine</h2>
   <p class="tnum mt-4 text-sm font-semibold text-muted">Semaine {week}</p>
-  <p class="mt-1 max-w-3xl text-lg text-muted" data-testid="home-week-lead">{editionLead(edition, clan.tag)}</p>
+  <p class="mt-1 max-w-3xl text-lg text-muted" data-testid="home-week-lead">{editionLead(edition, clan.tag, { standing: false })}</p>
 
 
   <div class:list={["mt-6 grid gap-6", players && hasFeed && "lg:grid-cols-2"]}>

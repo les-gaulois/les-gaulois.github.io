@@ -1,6 +1,12 @@
 [
   {
     "date": "2026-11-12",
+    "kind": "retire",
+    "title": "Un accueil sans doublon",
+    "body": "La carte des clans, les parties des 14 derniers jours et les créneaux du jour quittent l'accueil : ils restent sur leurs pages. Le résumé de la semaine ne répète plus le rang."
+  },
+  {
+    "date": "2026-11-12",
     "kind": "ameliore",
     "title": "Le QG en mode terminal, comme la Direction",
     "body": "Le QG passe en style terminal, en bleu : le logo du guerrier en mode Matrix, une commande au-dessus de chaque onglet, l'heure dans la fenêtre de session. L'encadrement garde son rouge.",

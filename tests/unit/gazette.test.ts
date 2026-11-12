@@ -299,6 +299,12 @@ describe("les phrases", () => {
     expect(editionLead({ ...plain, totals, previous: { games: 616, wins: 217, winRate: 35.2 } }, "GAL")).toContain("La semaine d'avant : 616 parties, 35,2\u00a0%.");
     expect(editionLead({ ...plain, totals, standing: { start: snapshot("2026-10-25"), end: snapshot("2026-11-01") } }, "GAL")).toContain("Au classement officiel, [GAL] est 2e le 25 oct. et 2e le 1 nov.");
   });
+  it("sur l'accueil, laisse le rang au bloc du classement officiel", () => {
+    const totals = { games: 671, wins: 269, winRate: (269 / 671) * 100 };
+    const ranked = { ...plain, totals, standing: { start: snapshot("2026-10-25"), end: snapshot("2026-11-01") } };
+    expect(editionLead(ranked, "GAL", { standing: false })).not.toContain("classement");
+    expect(editionLead(ranked, "GAL", { standing: false })).toBe(editionLead({ ...plain, totals }, "GAL"));
+  });
   it("dit qu'aucune partie n'a eu lieu, et n'annonce pas de taux sans partie", () => {
     expect(editionLead(plain, "GAL")).toBe("Aucune partie enregistrée cette semaine-là.");
     expect(editionLead({ ...plain, previous: { games: 0, wins: 0, winRate: null } }, "GAL")).toBe("Aucune partie enregistrée cette semaine-là.");

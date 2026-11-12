@@ -1,7 +1,7 @@
 /**
  * « Hier chez les Gaulois » : chaque matin, sur le salon de la gazette, le bilan de la veille.
  *
- * - Les parties et les victoires du jour de Paris, comptées comme la courbe des jours de l'accueil (`dailySeries`) : chaque partie
+ * - Les parties et les victoires du jour de Paris, comptées comme les barres des jours de la page Progression (`dailySeries`) : chaque partie
  *   du clan relevée, au jour de son début. L'écart est donné avec le jour d'avant, s'il a des parties relevées.
  * - La plus longue série de victoires d'affilée dans la journée, dans l'ordre des débuts de partie, comme le record du clan
  *   (`clanRecords`) : une partie jouée seul contre des robots n'y compte pas. Une série en cours à minuit repart de zéro.

@@ -710,13 +710,6 @@ test.describe("film de la carte", () => {
     if (!next) await expect(line).toHaveCount(0);
     else await expect(line).toHaveText(`Prochain palier : ${fmtInt(next.threshold)} pixels, encore ${fmtInt(next.remaining)}.`);
   });
-
-  test("l'accueil renvoie vers le film", async ({ page }) => {
-    await page.goto("/");
-    await expect(page.getByRole("heading", { name: /pixels sur la carte/i })).toBeVisible();
-    await page.getByRole("link", { name: "Voir le film de la conquête" }).click();
-    await expect(page).toHaveURL(/carte/);
-  });
 });
 
 test("sur téléphone, le film part de la carte entière, sans déborder", async ({ page }, testInfo) => {

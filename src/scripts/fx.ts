@@ -798,7 +798,7 @@ function init(): void {
   // Hors animation, le navigateur affiche les `title` : aucune information n'est perdue.
   function useCustomTips(on: boolean): void {
     if (on) {
-      for (const el of document.querySelectorAll<HTMLElement>("main td[title], main .fx-bars [title]")) {
+      for (const el of document.querySelectorAll<HTMLElement>("main td[title]")) {
         el.dataset.tip = el.title;
         el.removeAttribute("title");
       }

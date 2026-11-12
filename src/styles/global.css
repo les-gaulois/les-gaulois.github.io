@@ -746,9 +746,6 @@ main .card:hover::before {
 th.fx-cross {
   color: #fff;
 }
-.fx-bars > div:hover {
-  background-color: rgb(255 255 255 / 0.08);
-}
 
 /* Graphique des parties : balayage, colonne survolée, repère de valeur. */
 .chart-sweep {

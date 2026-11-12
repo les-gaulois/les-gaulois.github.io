@@ -281,7 +281,7 @@ test.describe("à la souris", () => {
   });
 
   test("les blocs apparaissent en fondu, sans découpe case par case", async ({ page }) => {
-    const stage = page.locator(".stage-wine");
+    const stage = page.getByTestId("home-join");
     await expect(stage).toHaveClass(/fx-hidden/);
     // Avant le 8 novembre 2026, des cases recouvraient le bloc à son apparition : plus aucune découpe ne doit passer.
     const sawClip = stage.evaluate(
@@ -549,7 +549,7 @@ test("sans JavaScript, tout le contenu reste visible", async ({ browser }, testI
   const page = await context.newPage();
   await page.goto("/");
   await expect(page.getByTestId("stat-card")).toHaveCount(5);
-  await expect(page.locator(".stage-wine")).toHaveCSS("opacity", "1");
+  await expect(page.getByTestId("home-join")).toHaveCSS("opacity", "1");
   await expect(page.locator("[data-fx-toggle]")).toBeHidden();
   await expect(page.locator("#fx-territory")).toHaveCount(0);
   await context.close();
