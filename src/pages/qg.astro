@@ -10,8 +10,10 @@ import { logoMatriceDepuisImage } from "../lib/logo-matrice-image";
 
 // La dernière collecte publiée, que la fenêtre « session » donne à côté de l'heure. Son âge se calcule dans le navigateur.
 const lastRunAt = loadMeta().lastRunAt;
-// Le logo du guerrier en mode Matrix, comme à la Direction : ici à droite du titre, court, à toutes les largeurs (docs/DESIGN.md).
+// Le logo du guerrier en mode Matrix, comme à la Direction : ici à droite du titre, court, à toutes les largeurs, et en
+// petit dans le menu des parties (docs/DESIGN.md).
 const logoGrand = await logoMatriceDepuisImage(48);
+const logoPetit = await logoMatriceDepuisImage(24);
 // L'administration, au QG du 10 au 12 novembre 2026, est dans la Direction.
 const direction = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/direction`;
 ---
@@ -39,7 +41,7 @@ const direction = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/direction`;
     </PageHeader>
     {logoGrand && <LogoMatrice data={logoGrand} id="logo-tete" class="console-logo-tete" />}
     <div class="espace">
-      {AUTH_ENABLED ? <QgApp client:only="preact" lastRunAt={lastRunAt} /> : <NotOpen />}
+      {AUTH_ENABLED ? <QgApp client:only="preact" lastRunAt={lastRunAt} logo={logoPetit ?? undefined} /> : <NotOpen />}
     </div>
   </div>
 </Base>

@@ -1804,7 +1804,7 @@ main .fx-in,
   color: var(--color-navy);
 }
 
-/* Le menu déroulant des parties (option `menu` d'Onglets, la Direction) : il remplace la barre d'onglets, sur toutes
+/* Le menu déroulant des parties (option `menu` d'Onglets, la Direction et le QG) : il remplace la barre d'onglets, sur toutes
    les largeurs. Son bouton dit la partie ouverte, sa liste les donne toutes. Les onglets restent dans la page, masqués :
    chaque partie garde le nom de son onglet. La liste se place sous toute la barre (.onglets est son bloc de référence). */
 .onglets-avec-menu {
@@ -1885,6 +1885,24 @@ main .fx-in,
 .onglets-liste[hidden] {
   display: none;
 }
+/* Sous une partie courte (« Moi » au QG, un formulaire seul), la liste ouverte descend plus bas que la page : `main`
+   passe alors au-dessus du pied de page, qui la couvrirait (les deux sont au même plan, le pied de page vient après). */
+main:has(.onglets-menu-bouton[aria-expanded="true"]) {
+  z-index: 2;
+}
+/* Sur téléphone, la liste prend toute la largeur de la barre et resserre ses lignes : avec son icône, le plus long nom
+   (« Gaulois de la semaine ») tient sur une ligne dès 360 px. Dans une fenêtre étroite d'ordinateur, l'ascenseur de la
+   liste lui prend cette place : le nom passe sur deux lignes, sans rien faire déborder. */
+@media (max-width: 47.999rem) {
+  .onglets-liste {
+    left: 0;
+    width: 100%;
+  }
+  .onglets-choix {
+    gap: 0.5rem;
+    padding-inline: 0.625rem;
+  }
+}
 .onglets-choix {
   color: var(--color-muted);
 }
@@ -1901,6 +1919,13 @@ main .fx-in,
 .onglets-choix:focus-visible,
 .onglets-menu-bouton:focus-visible {
   outline-offset: -4px;
+}
+/* La petite icône d'une partie, devant son nom dans le bouton et dans la liste (IconePartie.tsx) : treize cases de 2 px,
+   dans la couleur du texte. Elle garde sa taille quand la place manque : c'est le nom qui se coupe. */
+.icone-partie {
+  flex: none;
+  width: 1.625rem;
+  height: 1.625rem;
 }
 
 /* Une partie sous ses onglets. Le « roulement » : la partie choisie glisse doucement du côté de son onglet, une fois,
@@ -2250,7 +2275,7 @@ main .fx-in,
 
 /* Un écran plus noir, dans la couleur de la page. Bleu au QG, la page des membres, aussi sombre que le rouge de la
    Direction (« bleu un peu plus foncé », a demandé le pilote) : texte secondaire 11,6:1 et liens 10,1:1 sur une carte,
-   contour des champs 3,6:1, « OK » en vert vif 11:1 ; le bleu des boutons et de l'onglet ouvert est foncé d'un cran
+   contour des champs 3,6:1, « OK » en vert vif 11:1 ; le bleu des boutons et de la partie ouverte du menu est foncé d'un cran
    (blanc dessus : 6,8:1). Rouge à la Direction (data-theme="rouge") :
    texte secondaire 11,6:1 et liens 9,9:1 sur une carte, contour des champs 3,6:1, « OK » 11,1:1. */
 :root[data-ambiance="console"][data-console="terminal"] {
@@ -2416,8 +2441,9 @@ main .fx-in,
   font-weight: 800;
 }
 
-/* Le menu des parties : le petit logo Matrix en tête, le bouton écrit le chemin de la partie ouverte, en vert comme une
-   commande ; la liste en arborescence, « ~/direction » puis « ├── ». */
+/* Le menu des parties, à la Direction et au QG : le petit logo Matrix en tête, le bouton écrit le chemin de la partie
+   ouverte, en vert comme une commande ; la liste en arborescence, « ~/direction » ou « ~/qg », puis « ├── », l'icône de
+   la partie et son nom. */
 :root[data-ambiance="console"][data-console="terminal"] :is(.onglets-menu-bouton, .onglets-choix) {
   font-family: var(--font-console);
   font-size: 1.0625rem;
@@ -2453,6 +2479,15 @@ main .fx-in,
 :root[data-ambiance="console"][data-console="terminal"] .onglets-liste > li:last-child .onglets-choix::before {
   content: "└──" / "";
 }
+/* Sur téléphone, une branche plus courte laisse la place à l'icône et au nom. */
+@media (max-width: 47.999rem) {
+  :root[data-ambiance="console"][data-console="terminal"] .onglets-choix::before {
+    content: "├─" / "";
+  }
+  :root[data-ambiance="console"][data-console="terminal"] .onglets-liste > li:last-child .onglets-choix::before {
+    content: "└─" / "";
+  }
+}
 :root[data-ambiance="console"][data-console="terminal"] .onglets-choix[aria-current="true"] {
   color: #fff;
   background: var(--color-blue);
@@ -2461,26 +2496,38 @@ main .fx-in,
 :root[data-ambiance="console"][data-console="terminal"] .onglets-choix[aria-current="true"]::before {
   color: #fff;
 }
-
-/* La barre d'onglets du QG, qui garde sa barre (pas de menu) : des noms en chasse fixe, l'onglet ouvert en vidéo inversée,
-   comme la partie ouverte du menu de la Direction. Blanc sur le bleu des boutons du QG : 6,8:1. */
-:root[data-ambiance="console"][data-console="terminal"] .onglet {
-  font-family: var(--font-console);
-  font-size: 1.0625rem;
-  font-weight: 600;
-  border-radius: 0.25rem;
-}
-/* Pas seulement une couleur : comme le filet rouge des onglets du site, un filet blanc sous l'onglet ouvert, visible sur
-   son bleu (son fond seul n'a que 3:1 sur la barre). */
-:root[data-ambiance="console"][data-console="terminal"] .onglet[aria-selected="true"] {
-  background: var(--color-blue);
-  box-shadow: inset 0 -3px 0 #fff;
-}
-/* Dans l'onglet ouvert, la pastille bleue « quelqu'un attend » se fondrait dans le fond : elle passe au blanc (chiffre
-   bleu sur blanc : 6,8:1). */
-:root[data-ambiance="console"][data-console="terminal"] .onglet[aria-selected="true"] .onglet-nombre-vif {
+/* Dans la partie ouverte, la pastille bleue « quelqu'un attend » (les Salons du QG) se fondrait dans le fond : elle
+   passe au blanc (chiffre bleu sur blanc : 6,8:1). */
+:root[data-ambiance="console"][data-console="terminal"] .onglets-choix[aria-current="true"] .onglet-nombre-vif {
   background: #fff;
   color: var(--color-blue);
+}
+
+/* Les icônes des parties : en vert de terminal, comme une commande, avec la lueur d'un écran au phosphore. Dans la
+   partie ouverte, en vidéo inversée, l'icône est blanche comme son nom. Rien ne bouge. */
+:root[data-ambiance="console"][data-console="terminal"] .icone-partie {
+  color: var(--console-vert);
+  filter: drop-shadow(0 0 0.3125rem color-mix(in srgb, var(--console-vert) 45%, transparent));
+}
+:root[data-ambiance="console"][data-console="terminal"] .onglets-choix[aria-current="true"] .icone-partie {
+  color: #fff;
+  filter: none;
+}
+/* Dans le bouton, l'icône suit le chemin (« ~/qg/ », puis l'icône et le nom) : un petit écart les sépare. Sur téléphone,
+   sans le chemin, elle vient juste après le logo. */
+@media (min-width: 48rem) {
+  :root[data-ambiance="console"][data-console="terminal"] .onglets-menu-ouverte .icone-partie {
+    margin-left: 0.25rem;
+  }
+}
+/* En contraste élevé, le système impose ses couleurs au texte, pas à un <svg> : l'icône reprend donc celle du texte qui
+   la porte (blanche sur un fond clair, celle de la partie ouverte ne se verrait plus), et perd sa lueur. */
+@media (forced-colors: active) {
+  :root[data-ambiance="console"][data-console="terminal"] .icone-partie,
+  :root[data-ambiance="console"][data-console="terminal"] .onglets-choix[aria-current="true"] .icone-partie {
+    color: inherit;
+    filter: none;
+  }
 }
 
 /* ---------- Le logo du guerrier en mode Matrix ---------- */
@@ -3389,7 +3436,7 @@ html {
   color: #fff;
 }
 
-/* Les onglets d'une rubrique (SectionNav.astro), en chasse fixe comme la barre d'onglets du QG : l'onglet ouvert, plus
+/* Les onglets d'une rubrique (SectionNav.astro), en chasse fixe comme le menu des parties du QG : l'onglet ouvert, plus
    clair, porte le filet rouge du marqueur de page, pas seulement une couleur. */
 .rubrique {
   display: flex;

@@ -50,21 +50,23 @@ interface Overview {
  * Les onglets de la Direction. Le journal et Discord ne sont montrés qu'aux admins et au fondateur, le dernier qu'au fondateur.
  * Demandes, Comptes et Journal : l'administration, au QG du 10 au 12 novembre 2026, ici depuis (demande du pilote : elle est
  * destinée à l'encadrement). L'affichage suit le rang, mais chaque fonction du serveur revérifie : masquer un onglet ne protège rien.
+ * `icon` : la petite icône de la partie dans le menu (`src/lib/icones-parties.ts`). Événements et Sondages ont celles des
+ * Événements et des Décisions du QG : c'est la même chose, vue de l'autre côté.
  */
 const DIRECTION_TABS = [
-  { id: "ensemble", label: "Vue d'ensemble" },
-  { id: "demandes", label: "Demandes" },
+  { id: "ensemble", label: "Vue d'ensemble", icon: "tour" },
+  { id: "demandes", label: "Demandes", icon: "porte" },
   // « Comptes » : les comptes du site, validés, en attente ou suspendus, et non la page publique des membres.
-  { id: "comptes", label: "Comptes" },
-  { id: "journal", label: "Journal", rank: 3 },
-  { id: "annonces", label: "Annonces" },
-  { id: "evenements", label: "Événements" },
-  { id: "sondages", label: "Sondages" },
-  { id: "accueil", label: "Mot d'accueil" },
-  { id: "semaine", label: "Gaulois de la semaine" },
-  { id: "objectif", label: "Objectif" },
-  { id: "discord", label: "Discord", rank: 3 },
-  { id: "fondateur", label: "Fondateur", rank: 4 },
+  { id: "comptes", label: "Comptes", icon: "bouclier" },
+  { id: "journal", label: "Journal", icon: "tablette", rank: 3 },
+  { id: "annonces", label: "Annonces", icon: "cor" },
+  { id: "evenements", label: "Événements", icon: "banniere" },
+  { id: "sondages", label: "Sondages", icon: "balance" },
+  { id: "accueil", label: "Mot d'accueil", icon: "hutte" },
+  { id: "semaine", label: "Gaulois de la semaine", icon: "coq" },
+  { id: "objectif", label: "Objectif", icon: "cible" },
+  { id: "discord", label: "Discord", icon: "corbeau", rank: 3 },
+  { id: "fondateur", label: "Fondateur", icon: "cle", rank: 4 },
 ] as const;
 
 /**
@@ -492,6 +494,7 @@ export default function DirectionApp({ health, logo }: { health: Omit<SiteHealth
   const items: TabItem[] = tabs.map((tab) => ({
     id: tab.id,
     label: tab.label,
+    icon: tab.icon,
     count: tab.id === "demandes" && pending !== null && pending > 0 ? { value: pending, words: `${fmtInt(pending)} ${pendingWords(pending) ?? ""}`, tone: "alerte" } : null,
   }));
   const part = { prefix: "direction", active, slide };

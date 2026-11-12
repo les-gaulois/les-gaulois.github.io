@@ -1,11 +1,15 @@
 import type { ComponentChildren } from "preact";
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { fmtInt } from "../../lib/format";
+import type { IconePartieNom } from "../../lib/icones-parties";
 import { slideFrom, tabKeyTarget, tabOfHash, type Slide } from "../../lib/onglets";
+import IconePartie from "./IconePartie";
 
 export interface TabItem {
   id: string;
   label: string;
+  /** La petite icône de la partie, dans le menu : devant son nom, dans le bouton et dans la liste. Décorative. */
+  icon?: IconePartieNom;
   /** Ce qui attend sur cet onglet : un nombre, et ce qu'il compte pour un lecteur d'écran (« 2 demandes à traiter »). Rien à zéro. */
   count?: { value: number; words: string; tone?: "alerte" | "vif" } | null;
 }
@@ -78,8 +82,9 @@ export function useTabs(ids: readonly string[]) {
  * Au clavier : flèches, Début et Fin, comme dans tout groupe d'onglets. Un nombre dit ce qui attend derrière un onglet.
  * `call` : augmenté quand un lien a demandé un onglet, la barre revient alors à l'écran.
  * `menu` : la barre est remplacée par un menu déroulant, sur toutes les largeurs. Son bouton dit la partie ouverte, et
- * sa liste donne toutes les parties d'un coup (la Direction : le pilote ne voyait pas la fin de la barre). Les onglets
- * restent dans la page, masqués : chaque partie garde le nom de son onglet.
+ * sa liste donne toutes les parties d'un coup (la Direction : le pilote ne voyait pas la fin de la barre ; le QG a le
+ * même menu depuis le 12 novembre 2026, à sa demande). Les onglets restent dans la page, masqués : chaque partie garde
+ * le nom de son onglet. Dans le menu, chaque partie est précédée de sa petite icône (`icon`).
  */
 export function Onglets({
   label,
@@ -98,7 +103,7 @@ export function Onglets({
   onSelect: (id: string) => void;
   call?: number;
   menu?: boolean;
-  /** Ce qui se place en tête de la barre, avant les onglets ou le menu : à la Direction, le petit logo. */
+  /** Ce qui se place en tête de la barre, avant les onglets ou le menu : à la Direction et au QG, le petit logo. */
   debut?: ComponentChildren;
 }) {
   const strip = useRef<HTMLDivElement>(null);
@@ -272,6 +277,7 @@ export function Onglets({
           >
             <span class="onglets-menu-ouverte">
               <span class="sr-only">Partie ouverte : </span>
+              {opened?.icon && <IconePartie nom={opened.icon} />}
               <span class="onglets-menu-nom">{opened?.label}</span>
               <Nombre count={opened?.count} />
             </span>
@@ -283,6 +289,7 @@ export function Onglets({
             {tabs.map((tab, i) => (
               <li key={tab.id}>
                 <button type="button" class="onglets-choix" aria-current={tab.id === active ? "true" : undefined} onClick={() => fromMenu(tab.id)} onKeyDown={(e) => onMenuKey(e, i)}>
+                  {tab.icon && <IconePartie nom={tab.icon} />}
                   <span class="min-w-0">{tab.label}</span>
                   <Nombre count={tab.count} />
                 </button>

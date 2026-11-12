@@ -23,8 +23,10 @@ import {
 import { waitingOthers } from "../../lib/compte/salons";
 import { ROLE_LABELS, type Me } from "../../lib/compte/types";
 import { fmtDate, fmtDateTime, fmtInt } from "../../lib/format";
+import type { LogoMatriceData } from "../../lib/logo-matrice";
 import type { StoredMembers } from "../../lib/schemas";
 import type { ClanWeekFile } from "../../lib/semaine-du-clan";
+import LogoMatrice from "../LogoMatrice";
 import { subscribe } from "./appels";
 import { Avatar, CodeLogin, DeleteButton, DiscordButton, DiscordGives, Loading, Problem, messageOf, useMe, useNow, type Loadable } from "./common";
 import { Onglets, Partie, PartieTete, useTabs, type TabItem } from "./Onglets";
@@ -45,17 +47,19 @@ const PAST_SHOWN = 2;
  * dans la Direction : elle est réservée à l'encadrement (`DirectionApp.tsx`).
  * « Moi », « Ce soir » et « La semaine » viennent des outils du QG (11 novembre 2026, `get_qg_tools`) : sans eux, le QG
  * s'ouvre sur « Salons », comme avant.
+ * `icon` : la petite icône de la partie dans le menu (`src/lib/icones-parties.ts`). Décisions et Événements ont celles
+ * des Sondages et des Événements de la Direction : c'est la même chose, vue de l'autre côté.
  */
 const QG_TABS = [
-  { id: "moi", label: "Moi" },
-  { id: "salons", label: "Salons" },
-  { id: "ce-soir", label: "Ce soir" },
-  { id: "semaine", label: "La semaine" },
-  { id: "simulateur", label: "Simulateur" },
-  { id: "decisions", label: "Décisions" },
-  { id: "evenements", label: "Événements" },
-  { id: "idees", label: "Idées" },
-  { id: "mur", label: "Le mur" },
+  { id: "moi", label: "Moi", icon: "casque" },
+  { id: "salons", label: "Salons", icon: "feu" },
+  { id: "ce-soir", label: "Ce soir", icon: "lune" },
+  { id: "semaine", label: "La semaine", icon: "calendrier" },
+  { id: "simulateur", label: "Simulateur", icon: "abaque" },
+  { id: "decisions", label: "Décisions", icon: "balance" },
+  { id: "evenements", label: "Événements", icon: "banniere" },
+  { id: "idees", label: "Idées", icon: "eclair" },
+  { id: "mur", label: "Le mur", icon: "mur" },
 ] as const;
 
 /** La porte du QG, pour un visiteur ou un compte pas encore validé : ce qu'il y a derrière, et comment entrer. */
@@ -273,9 +277,9 @@ function IdeaForm({ openMine, busy, refusal, onSend }: { openMine: number; busy:
  * Les salons ne dépendent pas de la lecture du QG (`get_qg`) : si elle échoue, ils restent. Les onglets attendent la
  * réponse des outils (`get_qg_tools`), six secondes au plus : au-delà, le QG s'ouvre sans eux, et ils paraissent à leur
  * réponse. `lastRunAt` : la dernière collecte publiée, que la fenêtre « session » donne à côté de l'heure (style Terminal,
- * voir docs/DESIGN.md).
+ * voir docs/DESIGN.md). `logo` : le petit logo du guerrier en mode Matrix, en tête du menu des parties, comme à la Direction.
  */
-function Inside({ me, rank, lastRunAt }: { me: Me; rank: number; lastRunAt: string | null }) {
+function Inside({ me, rank, lastRunAt, logo }: { me: Me; rank: number; lastRunAt: string | null; logo?: LogoMatriceData }) {
   const staff = rank >= 2;
   const [state, setState] = useState<Loadable<QgData>>({ status: "loading" });
   // Les outils du QG : un serveur d'avant leur migration répond par un refus, et leurs onglets ne paraissent pas.
@@ -419,7 +423,7 @@ function Inside({ me, rank, lastRunAt }: { me: Me; rank: number; lastRunAt: stri
     decisions: { value: notVoted, words: counted(notVoted, "sondage attend votre voix", "sondages attendent votre voix") },
     idees: staff ? { value: ideasOpen.length, words: counted(ideasOpen.length, "idée à trancher", "idées à trancher") } : null,
   };
-  const items: TabItem[] = tabs.map((tab) => ({ id: tab.id, label: tab.label, count: counts[tab.id] ?? null }));
+  const items: TabItem[] = tabs.map((tab) => ({ id: tab.id, label: tab.label, icon: tab.icon, count: counts[tab.id] ?? null }));
   const part = { prefix: "qg", active, slide };
   const opening = <Loading label="Ouverture du QG…" />;
 
@@ -490,7 +494,18 @@ function Inside({ me, rank, lastRunAt }: { me: Me; rank: number; lastRunAt: stri
         opening
       ) : (
         <div class="grid grid-cols-1 gap-5">
-          <Onglets label="Les parties du QG" prefix="qg" tabs={items} active={active} onSelect={(id) => select(id)} call={called} />
+          {/* `menu` : le menu déroulant de la Direction, à la place de la barre d'onglets (demande du pilote, 12 novembre 2026). */}
+          {/* `debut` : le petit logo du guerrier en mode Matrix, en tête du menu, comme à la Direction. */}
+          <Onglets
+            label="Les parties du QG"
+            prefix="qg"
+            tabs={items}
+            active={active}
+            onSelect={(id) => select(id)}
+            call={called}
+            menu
+            debut={logo && <LogoMatrice data={logo} id="logo-menu" class="console-logo-menu" points />}
+          />
 
           {kit && (
             <Partie {...part} id="moi">
@@ -643,12 +658,13 @@ function Inside({ me, rank, lastRunAt }: { me: Me; rank: number; lastRunAt: stri
  * Le QG des membres. Rien de ce qui s'affiche ici ne protège quoi que ce soit : le serveur ne donne le contenu qu'à un
  * compte validé, et revérifie chaque action.
  * `lastRunAt` : la dernière collecte publiée, lue au moment de la construction du site (voir qg.astro).
+ * `logo` : le petit logo du menu des parties, dessiné au même moment.
  */
-export default function QgApp({ lastRunAt = null }: { lastRunAt?: string | null }) {
+export default function QgApp({ lastRunAt = null, logo }: { lastRunAt?: string | null; logo?: LogoMatriceData }) {
   const { me, failed, refresh } = useMe();
 
   if (me === null) return <Loading label="Lecture de votre compte…" />;
   if (failed) return <Problem message="Votre compte n'a pas pu être lu pour l'instant. Réessayez dans un moment." onRetry={() => void refresh()} />;
   if (!me.signed_in || me.status !== "validated") return <Door me={me} />;
-  return <Inside me={me} rank={me.rank ?? 0} lastRunAt={lastRunAt} />;
+  return <Inside me={me} rank={me.rank ?? 0} lastRunAt={lastRunAt} logo={logo} />;
 }

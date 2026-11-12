@@ -2,6 +2,16 @@
   {
     "date": "2026-11-12",
     "kind": "ameliore",
+    "title": "Un menu et des icônes au QG",
+    "body": "Au QG, un menu déroulant remplace la barre d'onglets, comme à la Direction. Chaque partie des deux menus a sa petite icône gauloise dessinée en pixels : casque, feu de camp, bannière, coq.",
+    "link": {
+      "href": "/qg",
+      "label": "Ouvrir le QG"
+    }
+  },
+  {
+    "date": "2026-11-12",
+    "kind": "ameliore",
     "title": "Sur Discord, des images sans texte",
     "body": "Les messages du site sur Discord (gazette, alertes, paliers, bienvenue, victoires…) ne sont plus qu'une image et son bouton. Records, nouveautés et « Jouer ensemble » ont maintenant leur image."
   },
