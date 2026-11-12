@@ -1,6 +1,12 @@
 [
   {
     "date": "2026-11-12",
+    "kind": "nouveau",
+    "title": "Six commandes de plus sur Discord",
+    "body": "Dans le Discord du clan, /clan, /records, /carte, /guide, /rival et /moi montrent en image le classement, les records, la carte, un chapitre du guide, un rival, ou votre fiche si le site vous connaît."
+  },
+  {
+    "date": "2026-11-12",
     "kind": "ameliore",
     "title": "Le guide du clan en console, comme la Carte",
     "body": "Le guide du clan prend le style console de la Carte et du QG : écran de terminal, fenêtres en traits doubles, une ligne de commande par chapitre. Textes et chiffres restent en blanc et en gris.",

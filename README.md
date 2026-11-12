@@ -227,7 +227,7 @@ Pour les joueurs qui refusent de lier leur compte Discord, une connexion par cod
 
 La même application a une seconde commande, `/fiche`, installée le 12 novembre 2026 : un pseudo, et tout le salon voit l'image de la fiche de ce membre, avec un bouton vers sa page. La fonction `code-discord` la lit dans `/fiches.json`, que le site publie avec ses pages. Voir « La commande /fiche » dans [docs/DIRECTION.md](docs/DIRECTION.md).
 
-Six autres commandes, `/clan`, `/records`, `/carte`, `/guide`, `/rival` et `/moi`, sont prêtes depuis le 12 novembre 2026, à installer par le pilote : chacune montre une image que le site dessine à chaque construction (`/commandes/…png`, index `/commandes.json`), et `/moi` la fiche de qui la tape, que le serveur retrouve pour un membre validé. Voir « Les commandes du robot » dans [docs/DIRECTION.md](docs/DIRECTION.md).
+Six autres commandes, `/clan`, `/records`, `/carte`, `/guide`, `/rival` et `/moi`, sont installées depuis le 12 novembre 2026 : chacune montre une image que le site dessine à chaque construction (`/commandes/…png`, index `/commandes.json`), et `/moi` la fiche de qui la tape, que le serveur retrouve pour un membre validé. Voir « Les commandes du robot » dans [docs/DIRECTION.md](docs/DIRECTION.md).
 
 Les appels du QG peuvent aussi partir dans un salon Discord du clan, avec un ping du rôle quand l'appel le demande : ce n'est pas le robot qui les poste, mais le serveur, dès l'appel, avec un lien réglé dans l'onglet « Discord » de `/direction`. Voir « Les appels sur Discord » dans [docs/DIRECTION.md](docs/DIRECTION.md).
 

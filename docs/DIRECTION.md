@@ -410,7 +410,7 @@ L'encadrement choisit où elle peut servir dans **Paramètres du serveur → Int
 
 Choisies par le pilote le 12 novembre 2026 (« 1 à 6 », dans une liste de sept où /appel n'a pas été retenue) : six commandes de plus dans l'application « Le Gaulois », servies par la même fonction `code-discord` que /code et /fiche. Chacune répond par une image en grand et un bouton vers la page du site, comme /fiche.
 
-**Prêtes le 12 novembre 2026, pas encore installées** : elles marchent une fois le fichier de /moi collé, la fonction remise en ligne et les commandes créées par le pilote (plus bas).
+**Installées le 12 novembre 2026 au soir** : le pilote a collé le fichier de /moi, remis la fonction en ligne (`/etat` disait `"commandes":true` et `"moi":true` à 22 h 26), créé les commandes et les a essayées (« Oui, ça marche »). Le « Reset Token » de cette installation a de nouveau touché les images de bienvenue : voir l'encadré « Attention » plus bas.
 
 | Commande | Ce qu'elle montre | D'où vient l'image |
 |---|---|---|
