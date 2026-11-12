@@ -82,8 +82,51 @@ export const TICKETS_COMMAND = {
   ],
 } as const;
 
+/** Le concours à choisir, pour terminer, annuler ou remplacer un gagnant : proposé pendant la saisie. */
+const CONCOURS_OPTION = { type: 3, name: "concours", description: "Le concours : tapez le début de son titre, puis choisissez", required: true, autocomplete: true, max_length: 100 } as const;
+
+/**
+ * La commande des concours (docs/DIRECTION.md, « Les concours sur Discord ») : lancer un concours dans le salon où elle est
+ * tapée, le terminer, l'annuler, remplacer un gagnant. Réservée par Discord à qui peut « Gérer le serveur » (32) ; les
+ * réglages des intégrations du serveur peuvent l'ouvrir à un rôle. Ses noms sont ceux qu'attend la fonction serveur
+ * (`supabase/functions/code-discord/concours.ts`) : un test le vérifie.
+ */
+export const CONCOURS_COMMAND = {
+  name: "concours",
+  type: 1,
+  description: "Les concours du clan : un bouton pour participer, un tirage au sort à la fin",
+  default_member_permissions: "32",
+  options: [
+    {
+      // 1 : une sous-commande.
+      type: 1,
+      name: "lancer",
+      description: "Lancer un concours dans ce salon",
+      options: [
+        { type: 3, name: "lot", description: "Ce qui est à gagner, par exemple : une clef Steam d'OpenFront", required: true, max_length: 100 },
+        { type: 3, name: "fin", description: "Quand tirer au sort : « 3 jours », « 12 h », « 1 j 6 h », ou une date, « 14/11 20:30 »", required: true, autocomplete: true, max_length: 40 },
+        // 4 : un nombre entier.
+        { type: 4, name: "gagnants", description: "Combien de gagnants : 1 si rien n'est choisi", min_value: 1, max_value: 20 },
+        // 8 : un rôle du serveur.
+        { type: 8, name: "participants", description: "Le rôle qu'il faut avoir pour participer ; sans rôle, tout le serveur" },
+        { type: 8, name: "notifier", description: "Le rôle à prévenir au lancement, celui des alertes de concours par exemple" },
+        { type: 3, name: "image", description: "Une image gardée dans l'inventaire de la Direction", autocomplete: true, max_length: 100 },
+      ],
+    },
+    { type: 1, name: "terminer", description: "Tirer au sort maintenant, sans attendre la fin", options: [CONCOURS_OPTION] },
+    { type: 1, name: "annuler", description: "Annuler un concours ouvert, sans tirage au sort", options: [CONCOURS_OPTION] },
+    {
+      type: 1,
+      name: "remplacer",
+      description: "Nouveau tirage : remplacer un gagnant par le suivant tiré au sort",
+      // 6 : un membre du serveur.
+      options: [CONCOURS_OPTION, { type: 6, name: "gagnant", description: "Le gagnant à remplacer ; sans lui, tous ceux qui n'ont pas confirmé" }],
+    },
+  ],
+} as const;
+
 /** Les commandes que le script crée ou remet à jour, chacune à part : une autre commande de l'application ne bouge pas. */
-export const COMMANDS = [CODE_COMMAND, FICHE_COMMAND, CLAN_COMMAND, RECORDS_COMMAND, CARTE_COMMAND, GUIDE_COMMAND, RIVAL_COMMAND, MOI_COMMAND, ROLES_COMMAND, TICKETS_COMMAND] as const;
+export const COMMANDS = [CODE_COMMAND, FICHE_COMMAND, CLAN_COMMAND, RECORDS_COMMAND, CARTE_COMMAND, GUIDE_COMMAND, RIVAL_COMMAND, MOI_COMMAND, ROLES_COMMAND, TICKETS_COMMAND, CONCOURS_COMMAND] as const;
 
 /**
  * Le temps à attendre quand Discord répond « trop de demandes » (429) : son `retry_after`, en secondes, borné à 30 s. `null` :

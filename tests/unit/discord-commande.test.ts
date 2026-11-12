@@ -93,7 +93,7 @@ describe("la commande /fiche", () => {
 
   it("part avec /code et les commandes du robot, chacune à part, sans doublon", () => {
     const names = COMMANDS.map((c) => c.name);
-    expect(names).toEqual([CODE_COMMAND.name, FICHE_COMMAND.name, "clan", "records", "carte", "guide", "rival", "moi", "roles", "tickets"]);
+    expect(names).toEqual([CODE_COMMAND.name, FICHE_COMMAND.name, "clan", "records", "carte", "guide", "rival", "moi", "roles", "tickets", "concours"]);
     expect(new Set(names).size).toBe(names.length);
   });
 });
@@ -106,8 +106,9 @@ describe("la commande /roles", () => {
   it("n'est proposée qu'à qui peut gérer les rôles : le même droit que la fonction vérifie", () => {
     expect(ROLES_COMMAND.default_member_permissions).toBe(MANAGE_ROLES);
     expect(BigInt(MANAGE_ROLES)).toBe(1n << 28n);
-    // Les seules commandes réservées : /roles et /tickets, à l'encadrement ; les autres restent ouvertes à tous les membres.
-    expect(COMMANDS.filter((c) => "default_member_permissions" in c).map((c) => c.name)).toEqual(["roles", "tickets"]);
+    // Les seules commandes réservées, à l'encadrement : /roles, /tickets et /concours (gérer le serveur, vérifié dans
+    // tests/unit/concours-discord.test.ts) ; les autres restent ouvertes à tous les membres.
+    expect(COMMANDS.filter((c) => "default_member_permissions" in c).map((c) => c.name)).toEqual(["roles", "tickets", "concours"]);
   });
 });
 
@@ -140,7 +141,8 @@ describe("les commandes du robot", () => {
   });
 
   it("tiennent dans les limites de Discord, et chaque option de texte propose pendant la saisie", () => {
-    for (const command of COMMANDS) {
+    // /concours a des sous-commandes, contrôlées dans tests/unit/concours-discord.test.ts.
+    for (const command of COMMANDS.filter((c) => c.name !== "concours")) {
       expect(command.name).toMatch(/^[a-z0-9_-]{1,32}$/);
       expect(command.type).toBe(1);
       expect(command.description.length).toBeGreaterThan(0);

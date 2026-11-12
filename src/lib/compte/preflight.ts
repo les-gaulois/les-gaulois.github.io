@@ -198,6 +198,9 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
     ["discord_code_attach", { p_user: "00000000-0000-0000-0000-000000000000", p_discord_id: "000000000000000000", p_discord_name: "verification" }, "Un visiteur ne donne pas d'identifiant Discord à un compte"],
     // La commande /moi (migration 20261112000700) : relie un identifiant Discord, que tout le serveur voit, à un pseudo.
     ["discord_moi", { p_discord_id: "000000000000000000" }, "Un visiteur ne retrouve pas le pseudo d'un compte Discord"],
+    // Les concours (migration 20261112000800) : réservés à la fonction code-discord, qui reçoit les clics signés par Discord.
+    ["concours_participer", { p_id: 0, p_discord_id: "000000000000000000", p_roles: [] }, "Un visiteur ne participe pas à un concours à la place d'un membre"],
+    ["concours_travail", { p_limite: 1, p_id: 0 }, "Un visiteur ne commande pas le robot des concours"],
   ] as const;
   for (const [fn, body, label] of codeCalls) {
     const res = await rpc(fn, body);
@@ -211,7 +214,7 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   const notReady = CODE_LOGIN_OPEN ? "fail" : "warn";
   try {
     const etat = await fetcher(`${base}/functions/v1/code-discord/etat`);
-    const answer = etat.ok ? ((await etat.json().catch(() => null)) as { discord?: unknown; service?: unknown; signature?: unknown; robot?: unknown } | null) : null;
+    const answer = etat.ok ? ((await etat.json().catch(() => null)) as { discord?: unknown; service?: unknown; signature?: unknown; robot?: unknown; concours?: unknown } | null) : null;
     if (!answer) add(codeLabel, notReady, `La fonction code-discord répond ${etat.status} : elle n'est pas encore déployée. Voir docs/DIRECTION.md, « Se connecter avec un code ».`);
     else if (answer.discord === true && answer.service === true && answer.signature === true) add(codeLabel, "ok");
     else {
@@ -222,11 +225,14 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
       ].filter((reason) => reason !== null);
       add(codeLabel, notReady, `La fonction répond, mais ${missing.join(", ")}.`);
     }
-    // Le panneau des rôles et les tickets (docs/DIRECTION.md) : le jeton de « Le Gaulois », que Discord doit accepter. À
+    // Le panneau des rôles, les tickets et les concours (docs/DIRECTION.md) : le jeton de « Le Gaulois », que Discord doit accepter. À
     // regarder, jamais bloquant.
     if (answer) {
-      if (answer.robot === true) add("Le robot a son jeton, pour les rôles et les tickets", "ok");
-      else add("Le robot a son jeton, pour les rôles et les tickets", "warn", "Discord n'accepte aucun jeton de « Le Gaulois » pour le robot (secret LE_GAULOIS_BOT_TOKEN de la fonction, absent, périmé ou d'un autre robot) : ni les boutons des rôles ni les tickets ne marchent. Voir docs/DIRECTION.md, « Les rôles sur Discord » et « Les tickets d'assistance ».");
+      if (answer.robot === true) add("Le robot a son jeton, pour les rôles, les tickets et les concours", "ok");
+      else add("Le robot a son jeton, pour les rôles, les tickets et les concours", "warn", "Discord n'accepte aucun jeton de « Le Gaulois » pour le robot (secret LE_GAULOIS_BOT_TOKEN de la fonction, absent, périmé ou d'un autre robot) : ni les boutons des rôles, ni les tickets, ni les concours ne marchent. Voir docs/DIRECTION.md, « Les rôles sur Discord » et « Les tickets d'assistance ».");
+      // Les concours : leur migration, que la fonction appelle. À regarder, jamais bloquant.
+      if (answer.concours === true) add("Les concours ont leur base", "ok");
+      else add("Les concours ont leur base", "warn", "La fonction code-discord ne trouve pas les fonctions des concours : migration 20261112000800 absente. Voir docs/DIRECTION.md, « Les concours sur Discord ».");
     }
   } catch {
     add(codeLabel, notReady, "La fonction code-discord ne répond pas.");

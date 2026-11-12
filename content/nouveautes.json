@@ -2,6 +2,16 @@
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "title": "Confidentialité : les concours sur Discord",
+    "body": "La page Confidentialité dit ce que garde un concours de l'encadrement sur le Discord du clan : le numéro des participants, effacé 30 jours après le tirage, et celui des gagnants, un an.",
+    "link": {
+      "href": "/confidentialite#serveur-discord",
+      "label": "Lire la page"
+    }
+  },
+  {
+    "date": "2026-11-13",
+    "kind": "ameliore",
     "title": "Les blocs à déplier, tous pareils",
     "body": "Dans les pages, tout ce qui se déplie a l'allure de « Détails et formules » du guide : une ligne, et un « + » au bout. Dans le guide, « Précédent » et « Suivant » ont aussi le même dessin.",
     "link": {

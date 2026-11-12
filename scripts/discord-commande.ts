@@ -1,7 +1,8 @@
 /**
  * Crée les commandes du serveur Discord du clan, ou les remet à jour : /code, /fiche, les commandes du robot (/clan,
- * /records, /carte, /guide, /rival, /moi), /roles et /tickets ; voir docs/DIRECTION.md, « Se connecter avec un code »,
- * « La commande /fiche », « Les commandes du robot », « Les rôles sur Discord » et « Les tickets d'assistance ». Une fois,
+ * /records, /carte, /guide, /rival, /moi), /roles, /tickets et /concours ; voir docs/DIRECTION.md, « Se connecter avec un
+ * code », « La commande /fiche », « Les commandes du robot », « Les rôles sur Discord », « Les tickets d'assistance » et
+ * « Les concours sur Discord ». Une fois,
  * après avoir ajouté l'application au serveur, puis à chaque nouvelle commande :
  *   npm run discord:commande
  * Chaque commande s'envoie à part : Discord crée celle qui manque et remplace celle qui existe, sans toucher aux autres.
@@ -9,7 +10,7 @@
  * et DISCORD_GUILD_ID. Le jeton du robot vient de LE_GAULOIS_BOT_TOKEN, sinon du presse-papiers de Windows (copié par le
  * bouton « Copy » du portail développeur, puis remplacé), sinon de l'écran, où chaque signe tapé s'affiche en étoile. Il
  * ne s'affiche jamais. Depuis le panneau des rôles, la fonction garde ce jeton : le script le laisse donc dans le
- * presse-papiers et dit, à la fin, de le coller aussi dans le secret LE_GAULOIS_BOT_TOKEN de Supabase, pour les rôles et les tickets, puis de vider
+ * presse-papiers et dit, à la fin, de le coller aussi dans le secret LE_GAULOIS_BOT_TOKEN de Supabase, pour les rôles, les tickets et les concours, puis de vider
  * l'historique du presse-papiers de Windows (Win+V), sans nouveau « Reset Token ». Les commandes, elles, restent.
  */
 import { execFileSync } from "node:child_process";
@@ -41,10 +42,10 @@ function tokenFromClipboard(): string {
 }
 
 const RESET = [
-  "Dernière étape, obligatoire : le jeton qui vient de servir reste valable, et la fonction en a besoin pour les boutons des rôles et pour les tickets.",
+  "Dernière étape, obligatoire : le jeton qui vient de servir reste valable, et la fonction en a besoin pour les boutons des rôles, pour les tickets et pour les concours.",
   "- Collez-le maintenant dans Supabase, dans le secret LE_GAULOIS_BOT_TOKEN de la fonction (Edge Functions, puis Secrets), et enregistrez. S'il n'est plus dans le presse-papiers, refaites « Reset Token » puis « Copy », et collez le nouveau : les commandes restent.",
-  "- Puis videz l'historique du presse-papiers de Windows (Win+V, puis « Effacer tout »). Pas de nouveau « Reset Token » : il arrêterait les rôles et les tickets jusqu'à ce que le nouveau jeton soit recollé dans le secret.",
-  "Les images de bienvenue ont leur propre robot : ce jeton ne les touche pas. Voir docs/DIRECTION.md, « Les rôles sur Discord » et « Les tickets d'assistance ».",
+  "- Puis videz l'historique du presse-papiers de Windows (Win+V, puis « Effacer tout »). Pas de nouveau « Reset Token » : il arrêterait les rôles, les tickets et les concours jusqu'à ce que le nouveau jeton soit recollé dans le secret.",
+  "Les images de bienvenue ont leur propre robot : ce jeton ne les touche pas. Voir docs/DIRECTION.md, « Les rôles sur Discord », « Les tickets d'assistance » et « Les concours sur Discord ».",
 ].join("\n");
 
 const ENTER = [String.fromCharCode(13), String.fromCharCode(10)];
@@ -144,5 +145,6 @@ for (const { name, response, failure } of answers) {
 console.log("Essayez-les : tapez /fiche dans un salon, puis le début d'un pseudo ; ou /clan, /records, /carte, /guide, /rival, /moi.");
 console.log("Le panneau des rôles : /roles, tapé par l'encadrement dans le salon où il doit rester.");
 console.log("/tickets, réservée à qui gère le serveur, pose le guichet des tickets dans le salon où elle est tapée.");
+console.log("/concours, réservée à qui gère le serveur : /concours lancer dans le salon du concours, puis terminer, annuler, remplacer.");
 console.log(RESET);
 process.exit(0);

@@ -27,7 +27,7 @@ const HEALTHY: Record<string, Route> = {
   "/rest/v1/polls": { status: 401, body: {} },
   "/rest/v1/app_state": { status: 200, body: [{ value: {} }] },
   "/storage/v1/bucket/discord-images": { status: 200, body: { id: "discord-images", public: true, file_size_limit: 8388608 } },
-  "/functions/v1/code-discord/etat": { status: 200, body: { ok: true, discord: true, service: true, signature: true, robot: true } },
+  "/functions/v1/code-discord/etat": { status: 200, body: { ok: true, discord: true, service: true, signature: true, robot: true, concours: true } },
 };
 
 const SITE = "https://exemple.supabase.co";
@@ -140,13 +140,22 @@ describe("le contrôle de la mise en ligne", () => {
     expect(noBase.find((c) => c.label.includes("connexion par code est en place"))?.detail).toContain("migration 20261112000500");
   });
 
-  it("dit si le robot a son jeton, pour les rôles et les tickets, sans jamais bloquer", async () => {
+  it("dit si le robot a son jeton, pour les rôles, les tickets et les concours, sans jamais bloquer", async () => {
     expect(await statusOf(HEALTHY, "robot a son jeton")).toBe("ok");
     const noToken = await run({ ...HEALTHY, "/functions/v1/code-discord/etat": { status: 200, body: { ok: true, discord: true, service: true, signature: true, robot: false } } });
     expect(noToken.find((c) => c.label.includes("robot a son jeton"))).toMatchObject({ status: "warn", detail: expect.stringContaining("LE_GAULOIS_BOT_TOKEN") });
     // La fonction absente : la ligne de la connexion par code le dit déjà.
     const absent = await run({ ...HEALTHY, "/functions/v1/code-discord/etat": { status: 404 } });
     expect(absent.some((c) => c.label.includes("robot a son jeton"))).toBe(false);
+  });
+
+  it("dit si les concours ont leur base, sans jamais bloquer, et bloque si un visiteur peut les appeler", async () => {
+    expect(await statusOf(HEALTHY, "concours ont leur base")).toBe("ok");
+    const sansMigration = await run({ ...HEALTHY, "/functions/v1/code-discord/etat": { status: 200, body: { ok: true, discord: true, service: true, signature: true, robot: true, concours: false } } });
+    expect(sansMigration.find((c) => c.label.includes("concours ont leur base"))).toMatchObject({ status: "warn", detail: expect.stringContaining("20261112000800") });
+    expect(await statusOf(HEALTHY, "ne participe pas à un concours")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/concours_participer": { status: 200, body: { ok: false, error: "inconnu" } } }, "ne participe pas à un concours")).toBe("fail");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/concours_travail": { status: 200, body: { ok: true, taches: [] } } }, "ne commande pas le robot des concours")).toBe("fail");
   });
 
   it("bloque si un visiteur peut remettre un compte en attente", async () => {

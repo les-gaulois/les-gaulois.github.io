@@ -32,17 +32,23 @@
  * Et aux tickets d'assistance (« Les tickets d'assistance », `tickets.ts`) : /tickets pose le guichet, ses boutons et ses
  * formulaires ouvrent un salon privé par demande, puis le ferment, avec le même jeton (`deps.discord`).
  *
- * Réglages : le jeton du robot « Le Gaulois », dans le secret `LE_GAULOIS_BOT_TOKEN` (`BOT_TOKEN_SECRET`), pour les rôles et
- * les tickets ; sans lui, tout le reste marche. Le serveur du clan, l'application et sa clé publique sont écrits plus bas,
+ * Et aux concours (« Les concours sur Discord », `concours.ts`) : /concours, ses boutons et son formulaire. Une autre
+ * porte, `POST …/code-discord/concours/tic`, sert à la base, qui la réveille chaque minute quand un concours a besoin du
+ * robot.
+ *
+ * Réglages : le jeton du robot « Le Gaulois », dans le secret `LE_GAULOIS_BOT_TOKEN` (`BOT_TOKEN_SECRET`), pour les rôles,
+ * les tickets et les concours ; sans lui, tout le reste marche. Le serveur du clan, l'application et sa clé publique sont écrits plus bas,
  * publics tous trois ; les secrets `DISCORD_GUILD_ID`, `DISCORD_APPLICATION_ID` et `DISCORD_PUBLIC_KEY` les remplacent
  * s'ils sont posés. Supabase donne lui-même `SUPABASE_URL` et la clé de service. Déployée sans vérification de jeton
  * (`verify_jwt = false`, `supabase/config.toml`) : Discord n'en envoie pas, et la fonction vérifie elle-même chaque appel.
  * Elle ne note jamais un code, une adresse ni un jeton dans ses journaux.
  *
- * Deux fichiers, `index.ts` et `tickets.ts`, que la commande `supabase functions deploy` envoie ensemble ; les tests du
- * dépôt les lisent avec Node (`tests/unit/code-discord.test.ts`, `tests/unit/tickets-discord.test.ts`).
+ * Trois fichiers, `index.ts`, `tickets.ts` et `concours.ts`, que la commande `supabase functions deploy` envoie ensemble ;
+ * les tests du dépôt les lisent avec Node (`tests/unit/code-discord.test.ts`, `tests/unit/tickets-discord.test.ts`,
+ * `tests/unit/concours-discord.test.ts`).
  */
 import { TICKET_PREFIX, TICKETS_COMMAND_NAME, ticketInteraction, ticketsCommand } from "./tickets.ts";
+import { CONCOURS_COMMAND_NAME, CONCOURS_PREFIX, concoursCommand, concoursInteraction, concoursTic } from "./concours.ts";
 
 /** Le nom de la commande, tel que le joueur la tape. `scripts/discord-commande.ts` la crée sur le serveur du clan. */
 export const COMMAND_NAME = "code";
@@ -178,6 +184,8 @@ export interface Deps {
   /** Fait durer une tâche après la réponse à Discord (`EdgeRuntime.waitUntil`). Ses erreurs vont au journal. */
   background(task: Promise<unknown>): void;
   sleep(ms: number): Promise<void>;
+  /** L'adresse du projet Supabase (`SUPABASE_URL`) : les concours y trouvent les images de l'inventaire et l'adresse de leur réveil. */
+  projectUrl?: string;
 }
 
 /* ---------- Le code ---------- */
@@ -1052,10 +1060,12 @@ async function discordRoute(req: Request, deps: Deps): Promise<Response> {
     const customId = data?.["custom_id"];
     if (interaction["type"] === 3 && typeof customId === "string" && customId.startsWith(ROLE_BUTTON)) return roleButton(interaction, customId, sentAt, deps);
     if (typeof customId === "string" && customId.startsWith(TICKET_PREFIX)) return ticketInteraction(interaction, deps);
+    if (typeof customId === "string" && customId.startsWith(CONCOURS_PREFIX)) return concoursInteraction(interaction, deps);
     return ephemeral(MESSAGES.unknown);
   }
   if (interaction["type"] === 2 && name === ROLES_COMMAND) return rolesCommand(interaction, sentAt, deps);
   if (interaction["type"] === 2 && name === TICKETS_COMMAND_NAME) return ticketsCommand(interaction, deps);
+  if ((interaction["type"] === 2 || interaction["type"] === 4) && name === CONCOURS_COMMAND_NAME) return concoursCommand(interaction, deps);
   if (data && typeof name === "string" && ROBOT_COMMANDS.has(name) && (interaction["type"] === 2 || interaction["type"] === 4)) return robotRoute(name, interaction, data, deps);
   if (interaction["type"] !== 2 || name !== COMMAND_NAME) return ephemeral(MESSAGES.unknown);
 
@@ -1160,9 +1170,12 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
     const moi = deps.serviceReady ? (await deps.rpc("discord_moi", { p_discord_id: "etat" }))?.["error"] === "invalid_request" : false;
     // Le jeton du robot, posé et accepté par Discord : les tickets en ont besoin.
     const robot = await deps.botAccepted();
-    return json({ ok: true, discord, service, signature: await signatureWorks(), fiches, commandes, moi, robot }, 200, CORS);
+    // Les concours : un serveur mal formé, refusé sans rien lire, prouve que leur migration est installée.
+    const concours = deps.serviceReady ? (await deps.rpc("concours_liste", { p_guild: "etat", p_filtre: null }))?.["error"] === "invalid_request" : false;
+    return json({ ok: true, discord, service, signature: await signatureWorks(), fiches, commandes, moi, robot, concours }, 200, CORS);
   }
   if (req.method !== "POST") return new Response("Méthode refusée.", { status: 405 });
+  if (path.endsWith("/concours/tic")) return concoursTic(deps);
   if (path.endsWith("/discord")) return discordRoute(req, deps);
   if (path.endsWith("/session")) return sessionRoute(req, deps);
   return new Response("Adresse inconnue.", { status: 404 });
@@ -1401,6 +1414,7 @@ export function liveDeps(env: Env, fetcher: typeof fetch = fetch): Deps {
     },
     sleep: wait,
     siteImage: (path) => readSiteImage(fetcher, path, log),
+    projectUrl: url === "" ? undefined : url,
   };
 }
 
