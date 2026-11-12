@@ -172,10 +172,10 @@ const tiles: { key: RecordKey; label: string; value: string; hint: string }[] = 
           <p class="tnum mt-2 font-display text-4xl font-extrabold">{fmtInt(arrivals.count)}</p>
           {arrivals.count > 0 && <p class="tnum mt-1 text-sm text-muted">{fmtInt(arrivals.anonymous)} sans pseudo public.</p>}
           {arrivals.named.length > 0 && (
-            <details class="mt-2 text-sm">
-              <summary class="cursor-pointer font-semibold">Voir {arrivals.named.length > 1 ? `les ${fmtInt(arrivals.named.length)} pseudos` : "le pseudo"}</summary>
+            <details class="fold mt-2">
+              <summary>Voir {arrivals.named.length > 1 ? `les ${fmtInt(arrivals.named.length)} pseudos` : "le pseudo"}</summary>
               {/* Chaque pseudo mène à sa fiche, comme dans les paliers : un par ligne de lien, assez haut pour le doigt. */}
-              <ul class="mt-1 flex flex-wrap gap-x-4" data-testid="gazette-names">
+              <ul class="mt-1 flex flex-wrap gap-x-4 text-sm" data-testid="gazette-names">
                 {arrivals.named.map((p) => (
                   <li class="min-w-0 [overflow-wrap:anywhere]">
                     {p.id ? (

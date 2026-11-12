@@ -172,8 +172,8 @@ export default function ProgressCharts({ days, history }: Props) {
       <section class="fx-block mt-10">
         {/* La clé relance la pousse des barres et le balayage à chaque changement de période. */}
         <GamesChart key={range} buckets={buckets} weekly={weekly} />
-        <details class="mt-4">
-          <summary class="cursor-pointer font-semibold">Voir le tableau des parties</summary>
+        <details class="fold mt-4">
+          <summary>Voir le tableau des parties</summary>
           <div class="mt-3 max-h-96 overflow-auto" tabIndex={0} aria-label="Tableau des parties, zone défilante">
             <table class="data-table tnum w-full text-sm">
               <caption class="sr-only">Parties, victoires, défaites et taux par période</caption>
@@ -217,8 +217,8 @@ export default function ProgressCharts({ days, history }: Props) {
         <LineChart title="Membres" points={snaps.map((h) => ({ date: h.date, value: h.membersTotal }))} format={fmtInt} />
       </div>
       {snaps.length > 0 && (
-        <details class="mt-4">
-          <summary class="cursor-pointer font-semibold">Voir le tableau des relevés</summary>
+        <details class="fold mt-4">
+          <summary>Voir le tableau des relevés</summary>
           <div class="mt-3 max-h-96 overflow-auto" tabIndex={0} aria-label="Tableau des relevés, zone défilante">
             <table class="data-table tnum w-full text-sm">
               <caption class="sr-only">Rang, score et nombre de membres relevés chaque jour</caption>

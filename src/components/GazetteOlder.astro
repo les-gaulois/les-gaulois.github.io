@@ -15,10 +15,16 @@ interface Props {
 const { edition, records, firstStanding, firstTerritory, membersAt } = Astro.props;
 ---
 
-<details class="card p-5" data-testid="gazette-older">
-  <summary class="cursor-pointer font-semibold">
-    Semaine {weekLabel(edition)}
-    <span class="tnum font-normal text-muted"> · {fmtCount(edition.totals.games, "partie")}, {fmtCount(edition.totals.wins, "victoire")}{edition.totals.winRate !== null && `, ${fmtPct(edition.totals.winRate)}`}</span>
+<details class="fold" data-testid="gazette-older">
+  <summary>
+    <span>
+      Semaine {weekLabel(edition)}
+      <span class="tnum font-normal text-muted"> · {fmtCount(edition.totals.games, "partie")}, {fmtCount(edition.totals.wins, "victoire")}{edition.totals.winRate !== null && `, ${fmtPct(edition.totals.winRate)}`}</span>
+    </span>
   </summary>
-  <GazetteEditionBlock edition={edition} records={records} firstStanding={firstStanding} firstTerritory={firstTerritory} membersAt={membersAt} />
+  {/* En retrait derrière un filet, comme une branche : les replis de l'édition (« Comment lire ces chiffres ») ont le dessin
+      d'une ligne d'édition et ne doivent pas passer pour l'édition suivante. */}
+  <div class="border-l border-line pl-4 sm:pl-6">
+    <GazetteEditionBlock edition={edition} records={records} firstStanding={firstStanding} firstTerritory={firstTerritory} membersAt={membersAt} />
+  </div>
 </details>

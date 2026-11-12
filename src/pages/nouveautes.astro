@@ -25,7 +25,7 @@ const foldedCount = folded.reduce((n, d) => n + d.entries.length, 0);
           ))}
           {folded.length > 0 && (
             <details class="fold" data-testid="nouveautes-older">
-              <summary class="font-semibold">
+              <summary>
                 <span>
                   Mises à jour plus anciennes <span class="tnum text-muted">({foldedCount})</span>
                 </span>

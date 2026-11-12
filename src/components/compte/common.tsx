@@ -131,7 +131,7 @@ const NBSP = String.fromCharCode(0xa0);
 export function DiscordGives() {
   return (
     <details class="fold mt-4" data-testid="discord-gives">
-      <summary class="font-semibold">Ce que Discord donne au site</summary>
+      <summary>Ce que Discord donne au site</summary>
       <div class="mt-1 space-y-2 text-muted">
         <p>
           Votre identifiant et votre nom Discord, votre photo de profil et votre adresse e-mail. Jamais votre mot de passe, vos

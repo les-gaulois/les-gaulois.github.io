@@ -152,7 +152,7 @@ const premier = chapitres[0];
                     </div>
                   )}
                   {c.aDuTexte && !c.ouvert && (
-                    <details class="guide-details">
+                    <details class="fold guide-details">
                       <summary>Détails et formules</summary>
                       <div class="guide-body">
                         <Content />
@@ -169,7 +169,7 @@ const premier = chapitres[0];
                     </a>
                   )}
                   {apres && (
-                    <a class="btn btn-primary guide-pas-suite" href={`#${apres.ancre}`} rel="next" data-testid="guide-apres">
+                    <a class="btn btn-ghost guide-pas-suite" href={`#${apres.ancre}`} rel="next" data-testid="guide-apres">
                       Suivant : {apres.court}
                     </a>
                   )}

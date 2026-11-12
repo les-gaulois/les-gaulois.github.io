@@ -2,6 +2,16 @@
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "title": "Les blocs à déplier, tous pareils",
+    "body": "Dans les pages, tout ce qui se déplie a l'allure de « Détails et formules » du guide : une ligne, et un « + » au bout. Dans le guide, « Précédent » et « Suivant » ont aussi le même dessin.",
+    "link": {
+      "href": "/debuter",
+      "label": "Voir le guide"
+    }
+  },
+  {
+    "date": "2026-11-13",
+    "kind": "ameliore",
     "title": "Des pages plus calmes à lire",
     "body": "Moins de gras dans les phrases, des pseudos blancs qui passent au jaune au survol et mènent tous à leur fiche, des jauges d'une seule couleur, et les dates de mise à jour en petit."
   },

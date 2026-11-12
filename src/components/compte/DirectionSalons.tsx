@@ -154,9 +154,9 @@ function SalonPart({ text, salon, reload, level }: { text: RobotSalonText; salon
               Enregistrer et envoyer un essai
             </button>
           </div>
-          <details class="text-sm">
-            <summary class="cursor-pointer font-semibold">Où trouver le lien ?</summary>
-            <p class="mt-2 text-muted">
+          <details class="fold">
+            <summary>Où trouver le lien ?</summary>
+            <p class="text-sm text-muted">
               Dans Discord : Modifier le salon → Intégrations → Webhooks → Nouveau webhook, puis Copier l'URL du webhook. Il permet d'écrire dans le salon : ne le montrez à personne. Un même webhook peut servir à plusieurs réglages du site s'ils postent dans le même salon.
             </p>
           </details>

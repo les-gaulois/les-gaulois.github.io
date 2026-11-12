@@ -43,8 +43,8 @@ export default function SiteHealth(props: SiteHealthInput) {
           </div>
         ))}
       </dl>
-      <details class="fold mt-4 !pb-0">
-        <summary class="text-sm font-semibold">Les {health.sources.length} sources de l'API, une par une</summary>
+      <details class="fold mt-4">
+        <summary>Les {health.sources.length} sources de l'API, une par une</summary>
         <dl class="grid gap-y-2 pb-1">
           {health.sources.map((source) => (
             <div key={source.key} class="grid gap-x-4 sm:grid-cols-[12rem_1fr]" data-testid="health-source" data-level={source.level}>

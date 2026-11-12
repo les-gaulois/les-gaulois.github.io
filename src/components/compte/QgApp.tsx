@@ -566,7 +566,7 @@ function Inside({ me, rank, lastRunAt, logo }: { me: Me; rank: number; lastRunAt
                     <QgPolls polls={pastPolls.slice(0, PAST_SHOWN)} busy={busy} onVote={vote} testId="qg-polls-past" />
                     {pastPolls.length > PAST_SHOWN && (
                       <details class="fold mt-4">
-                        <summary class="font-semibold">Voir les {fmtInt(pastPolls.length - PAST_SHOWN)} autres</summary>
+                        <summary>Voir les {fmtInt(pastPolls.length - PAST_SHOWN)} autres</summary>
                         <QgPolls polls={pastPolls.slice(PAST_SHOWN)} busy={busy} onVote={vote} testId="qg-polls-older" />
                       </details>
                     )}
@@ -616,7 +616,7 @@ function Inside({ me, rank, lastRunAt, logo }: { me: Me; rank: number; lastRunAt
                           </ul>
                           {ideasDecided.length > PAST_SHOWN && (
                             <details class="fold mt-4">
-                              <summary class="font-semibold">Voir les {fmtInt(ideasDecided.length - PAST_SHOWN)} autres</summary>
+                              <summary>Voir les {fmtInt(ideasDecided.length - PAST_SHOWN)} autres</summary>
                               <ul class="mt-1 grid gap-4">{ideaList(ideasDecided.slice(PAST_SHOWN))}</ul>
                             </details>
                           )}

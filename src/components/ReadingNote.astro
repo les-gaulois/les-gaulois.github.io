@@ -6,7 +6,7 @@ const { label = "Comment lire ces chiffres" } = Astro.props;
 ---
 
 {/* Les précisions restent dans la page et se lisent sans JavaScript, sans noyer les chiffres. */}
-<details class="mt-4 max-w-3xl text-sm text-muted" data-testid="reading-note">
-  <summary class="cursor-pointer font-semibold">{label}</summary>
-  <div class="mt-2 space-y-2"><slot /></div>
+<details class="fold mt-4" data-testid="reading-note">
+  <summary>{label}</summary>
+  <div class="max-w-3xl space-y-2 text-sm text-muted"><slot /></div>
 </details>

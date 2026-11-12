@@ -77,24 +77,27 @@ const failures = [
           {older.length > 0 && (
             <section class="reveal mt-10" aria-labelledby="gazette-older-title">
               <h2 id="gazette-older-title" class="section-title">Les éditions précédentes</h2>
-              <div class="mt-6 space-y-3">
+              {/* Une ligne par édition, comme tous les menus déroulants du site : un filet, la semaine, le « + ». */}
+              <div class="fold-list mt-6">
                 {recentOlder.map((edition) => (
                   <GazetteOlder edition={edition} records={records} {...context} />
                 ))}
+                {oldest && (
+                  <details class="fold" data-testid="gazette-ancient">
+                    <summary>
+                      <span>
+                        {ancient.length > 1 ? `Voir les ${fmtInt(ancient.length)} éditions plus anciennes` : "Voir l'édition la plus ancienne"}
+                        <span class="tnum font-normal text-muted"> · depuis la semaine {weekLabel(oldest)}</span>
+                      </span>
+                    </summary>
+                    <div>
+                      {ancient.map((edition) => (
+                        <GazetteOlder edition={edition} records={records} {...context} />
+                      ))}
+                    </div>
+                  </details>
+                )}
               </div>
-              {oldest && (
-                <details class="mt-5" data-testid="gazette-ancient">
-                  <summary class="cursor-pointer font-semibold">
-                    {ancient.length > 1 ? `Voir les ${fmtInt(ancient.length)} éditions plus anciennes` : "Voir l'édition la plus ancienne"}
-                    <span class="tnum font-normal text-muted"> · depuis la semaine {weekLabel(oldest)}</span>
-                  </summary>
-                  <div class="mt-4 space-y-3">
-                    {ancient.map((edition) => (
-                      <GazetteOlder edition={edition} records={records} {...context} />
-                    ))}
-                  </div>
-                </details>
-              )}
             </section>
           )}
         </>

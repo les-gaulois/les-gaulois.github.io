@@ -100,8 +100,8 @@ export default function ClanCompare({ clans, tag, faceOffs, src }: Props) {
           {/* L'écart du jour est écrit juste au-dessus : la courbe ne le répète pas en grand. */}
           {points.length > 0 && <LineChart key={theirs.tag} title={`Écart de score avec [${theirs.tag}], jour après jour`} points={points} format={fmtGap} showValue={false} />}
           {points.length > 1 && (
-            <details data-testid="compare-gap-table">
-              <summary class="cursor-pointer font-semibold">Voir le tableau de l'écart</summary>
+            <details class="fold" data-testid="compare-gap-table">
+              <summary>Voir le tableau de l'écart</summary>
               <div class="mt-3 max-h-96 overflow-auto" tabIndex={0} aria-label="Tableau de l'écart, zone défilante">
                 <table class="data-table tnum w-full text-sm">
                   <caption class="sr-only">Écart de score entre [{mine.tag}] et [{theirs.tag}], relevé chaque jour. Positif : [{mine.tag}] est devant.</caption>

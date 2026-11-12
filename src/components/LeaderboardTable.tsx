@@ -120,8 +120,8 @@ export default function LeaderboardTable({ clans, tag }: Props) {
         <>
           <Rows clans={first} tag={tag} share={share} caption="Classement officiel des clans OpenFront" />
           {rest.length > 0 && (
-            <details class="mt-4" data-testid="leaderboard-more" onToggle={(e) => setMoreOpen(e.currentTarget.open)}>
-              <summary class="btn btn-ghost w-fit cursor-pointer list-none">{moreOpen ? "Masquer" : "Voir"} les {rest.length} autres clans</summary>
+            <details class="fold mt-4" data-testid="leaderboard-more" onToggle={(e) => setMoreOpen(e.currentTarget.open)}>
+              <summary>{moreOpen ? "Masquer" : "Voir"} les {rest.length} autres clans</summary>
               <Rows clans={rest} tag={tag} share={share} caption="Classement officiel, clans suivants" />
             </details>
           )}

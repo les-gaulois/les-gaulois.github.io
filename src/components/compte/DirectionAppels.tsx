@@ -171,9 +171,9 @@ export default function DirectionAppels() {
                   Enregistrer et envoyer un essai
                 </button>
               </div>
-              <details class="text-sm">
-                <summary class="cursor-pointer font-semibold">Où trouver le lien et l'identifiant ?</summary>
-                <ol class="mt-2 grid list-decimal gap-2 pl-5 text-muted">
+              <details class="fold">
+                <summary>Où trouver le lien et l'identifiant ?</summary>
+                <ol class="grid list-decimal gap-2 pl-5 text-sm text-muted">
                   <li>Le lien : dans Discord, Modifier le salon → Intégrations → Webhooks → Nouveau webhook, puis Copier l'URL du webhook. Il permet d'écrire dans le salon : ne le montrez à personne.</li>
                   <li>Le rôle : Paramètres utilisateur → Avancés → Mode développeur. Puis Paramètres du serveur → Rôles, clic droit sur le rôle → Copier l'identifiant du rôle. Si l'essai n'affiche pas le nom du rôle, l'identifiant n'est pas le bon.</li>
                   <li>Si un ping ne notifie personne : dans les réglages du rôle, autorisez tout le monde à le mentionner.</li>

@@ -90,14 +90,16 @@ const jumps = [
                 </p>
               )}
               <p class="mt-4 max-w-3xl text-sm text-muted" data-testid="compare-rate-note">Un taux dépend surtout du format et du nombre de joueurs : il ne dit pas qui joue le mieux.</p>
-              <details class="mt-6 max-w-3xl text-sm text-muted" data-testid="compare-notes">
-                <summary class="cursor-pointer font-semibold">Comment lire ces chiffres</summary>
-                <p class="mt-2">
-                  Le rang, le score, les parties, les victoires, les défaites et leur rapport pondéré viennent de la liste officielle, sans recalcul ni note, sur 90 jours glissants, hors classé et hors Humains contre Nations. Le taux vaut victoires ÷ parties, et les joueurs par partie, sessions de joueurs ÷ parties. L'écart se relève une fois par jour : l'API ne donne pas le passé du classement.
-                </p>
-                <p class="mt-2">
-                  Un face-à-face compte, sur {RESULTS_DAYS} jours, les parties publiques en équipe où [{clan.tag}] et l'autre clan avaient chacun au moins {MIN_CLAN_PLAYERS} joueurs, dans des équipes différentes. Il n'apparaît qu'à partir de {FACE_OFF_MIN_MEETINGS} rencontres, pour les {FACE_OFF_MAX_ROWS} clans les plus rencontrés. L'API ne donne pas l'équipe des perdants : le site la calcule avec la règle du jeu, qui place tout un clan dans une seule équipe, et écarte une partie où ce calcul contredit les vainqueurs officiels.
-                </p>
+              <details class="fold mt-6" data-testid="compare-notes">
+                <summary>Comment lire ces chiffres</summary>
+                <div class="max-w-3xl space-y-2 text-sm text-muted">
+                  <p>
+                    Le rang, le score, les parties, les victoires, les défaites et leur rapport pondéré viennent de la liste officielle, sans recalcul ni note, sur 90 jours glissants, hors classé et hors Humains contre Nations. Le taux vaut victoires ÷ parties, et les joueurs par partie, sessions de joueurs ÷ parties. L'écart se relève une fois par jour : l'API ne donne pas le passé du classement.
+                  </p>
+                  <p>
+                    Un face-à-face compte, sur {RESULTS_DAYS} jours, les parties publiques en équipe où [{clan.tag}] et l'autre clan avaient chacun au moins {MIN_CLAN_PLAYERS} joueurs, dans des équipes différentes. Il n'apparaît qu'à partir de {FACE_OFF_MIN_MEETINGS} rencontres, pour les {FACE_OFF_MAX_ROWS} clans les plus rencontrés. L'API ne donne pas l'équipe des perdants : le site la calcule avec la règle du jeu, qui place tout un clan dans une seule équipe, et écarte une partie où ce calcul contredit les vainqueurs officiels.
+                  </p>
+                </div>
               </details>
               {/* Le face-à-face vient du détail des parties : sa date de mise à jour et ses pannes restent visibles. */}
               <div class="mt-4" data-testid="compare-games-status">

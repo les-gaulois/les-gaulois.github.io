@@ -33,8 +33,8 @@ const profile = (publicId: string | null) => `${base}/membres/${encodeURICompone
                 </ul>
               )}
               {row.named.length > OPEN_NAMES && (
-                <details>
-                  <summary class="cursor-pointer py-1.5 font-semibold">Voir les {row.named.length} pseudos</summary>
+                <details class="fold">
+                  <summary>Voir les {row.named.length} pseudos</summary>
                   <ul class="mt-0.5 flex flex-wrap gap-x-4">
                     {row.named.map((m) => (
                       <li class="min-w-0 [overflow-wrap:anywhere]"><a class="pseudo inline-block py-1.5" href={profile(m.publicId)}>{m.username}</a></li>

@@ -347,7 +347,7 @@ export default function QgSimulateur() {
 
       {/* La méthode, repliée. */}
       <details class="fold mt-6" data-testid="sim-methode">
-        <summary class="font-semibold">Comment lire ce calcul</summary>
+        <summary>Comment lire ce calcul</summary>
         <div class="mt-3 grid max-w-3xl gap-3 text-muted">
           <p>
             Le score d'OpenFront additionne les points de chaque victoire, qui perdent la moitié de leur valeur tous les 30 jours et sortent du classement au bout de 90 jours. Refait à partir des parties de {data.tag} :{" "}
