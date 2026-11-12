@@ -1,6 +1,12 @@
 [
   {
     "date": "2026-11-12",
+    "kind": "ameliore",
+    "title": "Une image de bienvenue, six couleurs",
+    "body": "Sur le Discord du clan, l'image de bienvenue garde un seul décor, l'étendard du clan, en six couleurs : bleu, bleu royal, indigo, lie-de-vin, nuit et acier."
+  },
+  {
+    "date": "2026-11-12",
     "kind": "corrige",
     "title": "« 1er » sur une seule ligne dans les podiums",
     "body": "Dans les podiums des Gaulois de la page Records, « 1er » s'écrivait sur deux lignes depuis la nouvelle police des titres. Sa colonne est un peu plus large.",

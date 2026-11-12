@@ -338,7 +338,7 @@ describe("arrivalsPass", () => {
 
   it("ne refait pas une image déjà dans le salon : il retire seulement le message de Discord", async () => {
     const arrival = minutesAgo(8);
-    const image = { id: minutesAgo(7), type: 0, content: "", author: { id: BOT, username: "Le Gaulois", bot: true }, attachments: [{ filename: markerName(arrival, BRENNOS.id, { phrase: 2, decor: "foret" }) }] };
+    const image = { id: minutesAgo(7), type: 0, content: "", author: { id: BOT, username: "Le Gaulois", bot: true }, attachments: [{ filename: markerName(arrival, BRENNOS.id, { phrase: 2, decor: "nuit" }) }] };
     const discord = fakeDiscord({ members: [BRENNOS], messages: [image, joinMessage(arrival, BRENNOS)] });
     const { all, logs, drawings } = deps(discord);
     expect(await arrivalsPass(all)).toEqual({ replaced: 0, cleaned: 1, left: 0, failed: false });
@@ -564,7 +564,7 @@ describe("le passage entier, avec le vrai dessin", () => {
     const arrival = minutesAgo(3);
     const discord = fakeDiscord({ members: [luern], messages: [joinMessage(arrival, luern)] });
     const { all } = deps(discord, {
-      draws: (char) => fonts.draws(char, "name") && fonts.draws(char, "monoStrong"),
+      draws: (char) => fonts.draws(char, "name"),
       render: (drawing, avatar) => renderArrival(drawing, "https://les-gaulois.github.io", fonts, warrior, avatar),
       alt: (phrase, fullName) => arrivalAlt(phrase, fullName, "GAL"),
     });
@@ -680,9 +680,10 @@ describe("ce que la relecture a trouvé", () => {
     expect(discord.messages.filter((m) => m["type"] === JOIN_MESSAGE_TYPE)).toEqual([]);
   });
 
-  it("retire, même après deux heures, le message de Discord resté à côté de son image", async () => {
+  it("retire, même après deux heures, le message de Discord resté à côté de son image, même d'un décor retiré depuis", async () => {
     const old = snowflake(NOW - MAX_AGE_MS - 5 * 60_000);
-    const image = { id: snowflake(NOW - MAX_AGE_MS - 4 * 60_000), type: 0, content: "", author: { id: BOT, username: "Le Guetteur", bot: true }, attachments: [{ filename: markerName(old, BRENNOS.id, { phrase: 2, decor: "foret" }) }] };
+    // Une image du premier jour, dans le décor de la forêt, retiré depuis : son fichier est écrit tel quel.
+    const image = { id: snowflake(NOW - MAX_AGE_MS - 4 * 60_000), type: 0, content: "", author: { id: BOT, username: "Le Guetteur", bot: true }, attachments: [{ filename: `arrivee-${old}-${BRENNOS.id}-2-foret.png` }] };
     const discord = fakeDiscord({ members: [BRENNOS], messages: [image, joinMessage(old, BRENNOS)] });
     expect(await arrivalsPass(deps(discord).all)).toEqual({ replaced: 0, cleaned: 1, left: 0, failed: false });
     expect(discord.ops()).toEqual([`DELETE /channels/${CHANNEL}/messages/${old}`]);

@@ -2,7 +2,7 @@
  * Les arrivées sur le serveur Discord du clan : le robot remplace le message d'arrivée de Discord (« Un … sauvage apparaît. »)
  * par une image de bienvenue au nom du nouveau venu, dans le même salon. Demandé par le pilote le 12 novembre 2026.
  *
- * Ici, ce qui se calcule sans réseau ni dessin : les phrases, le choix de la phrase et du décor d'un message, le nom à écrire,
+ * Ici, ce qui se calcule sans réseau ni dessin : les phrases, le choix de la phrase et de la couleur d'un message, le nom à écrire,
  * et les messages à remplacer. L'image est dans `arrivees-image.ts`, les appels à Discord dans `arrivees-discord.ts`.
  *
  * Rien n'est gardé : ni dans `data/`, ni ailleurs. Le salon lui-même dit ce qui reste à faire. Un message d'arrivée encore là
@@ -10,17 +10,19 @@
  */
 import { z } from "zod";
 
-/* ---------- Les décors et les phrases ---------- */
+/* ---------- Les couleurs de l'étendard et les phrases ---------- */
 
-/** Les décors de l'image : voir `arrivees-decors.ts`. */
-export const DECORS = ["etendard", "matrice", "bouclier", "foret", "carte", "terminal"] as const;
+/**
+ * Les six couleurs de l'étendard, le seul décor de l'image : voir `arrivees-decors.ts`. Le 12 novembre 2026 au soir, le pilote
+ * a gardé ce décor et demandé de le décliner en couleurs, en gardant ses formes. Le nom de chacune entre dans le nom du fichier
+ * de l'image.
+ */
+export const DECORS = ["etendard", "royal", "indigo", "vin", "nuit", "acier"] as const;
 export type Decor = (typeof DECORS)[number];
 
 export interface Phrase {
   /** La phrase entière, où `{nom}` marque la place du nom. */
   texte: string;
-  /** Les décors qui vont avec elle. */
-  decors: readonly Decor[];
 }
 
 export const NAME_SLOT = "{nom}";
@@ -32,24 +34,25 @@ const NBSP = String.fromCharCode(0xa0);
  * Aucune ne dit rien du joueur : elles n'accordent ni le genre ni le nombre avec son nom. Aucune n'affirme non plus un fait qui
  * pourrait être faux : rejoindre le serveur Discord n'est pas entrer dans le clan, personne n'a tapé de mot de passe, et
  * l'image peut partir alors que le joueur n'est plus en ligne. Le serveur est « le village » ; le clan n'y est pas nommé.
+ * Toutes vont avec toutes les couleurs.
  */
 export const PHRASES: readonly Phrase[] = [
-  { texte: "Un {nom} sauvage surgit de la forêt.", decors: ["foret"] },
-  { texte: "{nom} vient de franchir la palissade.", decors: ["foret", "bouclier"] },
-  { texte: "{nom} pousse la porte du village.", decors: ["foret", "etendard"] },
-  { texte: `Une place près du feu pour {nom}${NBSP}!`, decors: ["foret"] },
-  { texte: `Sonnez le carnyx${NBSP}: {nom} est là${NBSP}!`, decors: ["etendard", "bouclier"] },
-  { texte: "{nom} rejoint le village.", decors: ["etendard", "bouclier"] },
-  { texte: "Les guetteurs annoncent {nom}.", decors: ["etendard", "carte", "foret"] },
-  { texte: `Un bouclier de plus au village${NBSP}: {nom}.`, decors: ["bouclier"] },
-  { texte: "{nom} vient de se glisser derrière nos boucliers.", decors: ["bouclier"] },
-  { texte: "{nom} a trouvé le chemin de l'oppidum.", decors: ["carte"] },
-  { texte: `Nouveau point sur la carte${NBSP}: {nom}.`, decors: ["carte"] },
-  { texte: `Transmission reçue${NBSP}: {nom} arrive au village.`, decors: ["terminal", "matrice"] },
-  { texte: "Liaison établie avec {nom}.", decors: ["matrice", "terminal"] },
-  { texte: `Signal capté${NBSP}: {nom} est parmi nous.`, decors: ["matrice", "carte"] },
-  { texte: `Nouvelle entrée au journal du village${NBSP}: {nom}.`, decors: ["terminal"] },
-  { texte: `Nouvelle arrivée détectée${NBSP}: {nom}.`, decors: ["matrice", "terminal", "carte"] },
+  { texte: "Un {nom} sauvage surgit de la forêt." },
+  { texte: "{nom} vient de franchir la palissade." },
+  { texte: "{nom} pousse la porte du village." },
+  { texte: `Une place près du feu pour {nom}${NBSP}!` },
+  { texte: `Sonnez le carnyx${NBSP}: {nom} est là${NBSP}!` },
+  { texte: "{nom} rejoint le village." },
+  { texte: "Les guetteurs annoncent {nom}." },
+  { texte: `Un bouclier de plus au village${NBSP}: {nom}.` },
+  { texte: "{nom} vient de se glisser derrière nos boucliers." },
+  { texte: "{nom} a trouvé le chemin de l'oppidum." },
+  { texte: `Nouveau point sur la carte${NBSP}: {nom}.` },
+  { texte: `Transmission reçue${NBSP}: {nom} arrive au village.` },
+  { texte: "Liaison établie avec {nom}." },
+  { texte: `Signal capté${NBSP}: {nom} est parmi nous.` },
+  { texte: `Nouvelle entrée au journal du village${NBSP}: {nom}.` },
+  { texte: `Nouvelle arrivée détectée${NBSP}: {nom}.` },
 ];
 
 /** Ce qui s'écrit avant et après le nom sur l'image. Une fin qui n'est qu'un point ou un « ! » ne s'y écrit pas. */
@@ -66,9 +69,9 @@ export function phraseParts(phrase: Phrase): { avant: string; apres: string } {
 export const sentence = (phrase: Phrase, name: string): string => phrase.texte.replace(NAME_SLOT, () => name);
 
 /**
- * Un tirage stable, sur 32 bits : le même message donne toujours la même phrase et le même décor. FNV-1a, puis le brassage
+ * Un tirage stable, sur 32 bits : le même message donne toujours la même phrase et la même couleur. FNV-1a, puis le brassage
  * final de MurmurHash3 : sans lui, les bits de poids faible de deux tirages du même numéro se suivent (le dernier n'est que la
- * parité des caractères), et certaines phrases ne sortiraient jamais avec certains décors.
+ * parité des caractères).
  */
 export function stableHash(text: string): number {
   let h = 0x811c9dc5;
@@ -90,33 +93,47 @@ export interface ArrivalStyle {
   decor: Decor;
 }
 
-/** Combien des dernières phrases, et des derniers décors, ne reviennent pas. */
+/**
+ * Le style d'une image déjà dans le salon, lu dans le nom de son fichier. Son décor peut être un de ceux du premier jour
+ * (matrice, bouclier, forêt, carte, terminal), retirés depuis : il ne sert plus qu'à ne pas répéter.
+ */
+export interface PastStyle {
+  phrase: number;
+  decor: string;
+}
+
+/** Combien des dernières phrases, et des dernières couleurs, ne reviennent pas. */
 export const NO_REPEAT = 8;
 export const NO_REPEAT_DECORS = 2;
 
 /**
- * Le décor et la phrase d'un message d'arrivée, tirés de son numéro : le décor d'abord, pour que les six sortent aussi
- * souvent les uns que les autres, puis une des phrases qui vont avec lui. `recent` : les dernières images du robot dans le
- * salon, de la plus récente à la plus ancienne. Aucun des deux derniers décors ne revient, ni aucune des huit dernières
- * phrases : les arrivées qui se suivent ne se ressemblent pas. Avec seize phrases et six décors, c'est toujours possible.
+ * Parmi `items`, celui que désigne le tirage, en écartant d'abord ceux de `avoid`, puis, si rien ne reste, de moins en moins
+ * d'entre eux : la règle se relâche plutôt que de ne rien rendre.
  */
-export function arrivalStyle(messageId: string, recent: readonly ArrivalStyle[] = []): ArrivalStyle {
-  const turn = stableHash(`decor:${messageId}`) % DECORS.length;
-  const pick = stableHash(`phrase:${messageId}`);
-  const lastDecors = recent.slice(0, NO_REPEAT_DECORS).map((r) => r.decor);
-  const lastPhrases = recent.slice(0, NO_REPEAT).map((r) => r.phrase);
-  // Si les règles ne laissaient rien (des phrases retirées un jour), elles se relâchent une à une : les phrases d'abord.
-  for (const avoidDecors of [lastDecors, lastDecors.slice(0, 1), []]) {
-    for (const avoidPhrases of [lastPhrases, lastPhrases.slice(0, 1), []]) {
-      for (let k = 0; k < DECORS.length; k++) {
-        const decor = DECORS[(turn + k) % DECORS.length]!;
-        if (avoidDecors.includes(decor)) continue;
-        const options = PHRASES.flatMap((phrase, index) => (phrase.decors.includes(decor) && !avoidPhrases.includes(index) ? [index] : []));
-        if (options.length > 0) return { phrase: options[pick % options.length]!, decor };
-      }
-    }
+function choose<T>(items: readonly T[], draw: number, avoid: readonly T[]): T {
+  for (let keep = avoid.length; keep >= 0; keep--) {
+    const options = items.filter((item) => !avoid.slice(0, keep).includes(item));
+    if (options.length > 0) return options[draw % options.length]!;
   }
-  return { phrase: 0, decor: PHRASES[0]?.decors[0] ?? "etendard" };
+  return items[draw % items.length]!;
+}
+
+/**
+ * La couleur et la phrase d'un message d'arrivée, tirées de son numéro, chacune de son côté. `recent` : les dernières images
+ * du robot dans le salon, de la plus récente à la plus ancienne. Aucune des deux dernières couleurs ne revient, ni aucune des
+ * huit dernières phrases : les arrivées qui se suivent ne se ressemblent pas, et les six couleurs sortent aussi souvent les
+ * unes que les autres.
+ */
+export function arrivalStyle(messageId: string, recent: readonly PastStyle[] = []): ArrivalStyle {
+  const lastDecors = recent.slice(0, NO_REPEAT_DECORS).flatMap((r) => DECORS.filter((d) => d === r.decor));
+  const lastPhrases = recent.slice(0, NO_REPEAT).map((r) => r.phrase);
+  const decor = choose(DECORS, stableHash(`decor:${messageId}`), lastDecors);
+  const phrase = choose(
+    PHRASES.map((_, index) => index),
+    stableHash(`phrase:${messageId}`),
+    lastPhrases,
+  );
+  return { phrase, decor };
 }
 
 /* ---------- Le fichier de l'image, qui dit quel message elle remplace ---------- */
@@ -124,20 +141,20 @@ export function arrivalStyle(messageId: string, recent: readonly ArrivalStyle[] 
 const MARKER = /^arrivee-([0-9]{17,20})-([0-9]{17,20})-([0-9]{1,3})-([a-z]{3,20})\.png$/;
 
 /**
- * Le nom du fichier de l'image : le numéro du message qu'elle remplace, celui du joueur accueilli, sa phrase et son décor.
+ * Le nom du fichier de l'image : le numéro du message qu'elle remplace, celui du joueur accueilli, sa phrase et sa couleur.
  * Le message du robot n'a pas de texte : c'est ce nom qui dit au passage suivant ce qui est déjà fait, et pour qui. Le numéro
  * d'un joueur n'est pas un secret : tout membre du serveur peut le copier.
  */
 export const markerName = (messageId: string, userId: string, style: ArrivalStyle): string => `arrivee-${messageId}-${userId}-${style.phrase}-${style.decor}.png`;
 
-/** Ce que dit le nom d'un fichier joint, ou `null` si ce n'est pas une image de bienvenue. */
-export function readMarker(filename: string): { messageId: string; userId: string; style: ArrivalStyle } | null {
+/**
+ * Ce que dit le nom d'un fichier joint, ou `null` si ce n'est pas une image de bienvenue. Une image d'un décor retiré, ou d'une
+ * phrase retirée, reste reconnue : elle dit toujours quel message elle a remplacé et qui elle a accueilli.
+ */
+export function readMarker(filename: string): { messageId: string; userId: string; style: PastStyle } | null {
   const found = MARKER.exec(filename);
   if (!found) return null;
-  const phrase = Number(found[3]);
-  const decor = DECORS.find((d) => d === found[4]);
-  if (!decor || phrase >= PHRASES.length) return null;
-  return { messageId: found[1] ?? "", userId: found[2] ?? "", style: { phrase, decor } };
+  return { messageId: found[1] ?? "", userId: found[2] ?? "", style: { phrase: Number(found[3]), decor: found[4] ?? "" } };
 }
 
 /* ---------- Ce que Discord donne ---------- */
@@ -192,7 +209,7 @@ export interface ArrivalPlan {
   /** À traiter, de la plus ancienne arrivée à la plus récente. */
   tasks: ArrivalTask[];
   /** Les styles des dernières images du robot, de la plus récente à la plus ancienne. */
-  recent: ArrivalStyle[];
+  recent: PastStyle[];
   /** Les messages d'arrivée laissés tels quels, et pourquoi. Aucun nom n'y est écrit. */
   left: { id: string; reason: string }[];
   /** Les arrivées remises au passage suivant : plus de cinq images d'un coup. */
@@ -212,7 +229,7 @@ export function arrivalPlan(messages: readonly ChannelMessage[], botId: string, 
   const ours = messages.filter((m) => m.author.id === botId).sort((a, b) => older(b.id, a.id));
   const replaced = new Set<string>();
   const welcomed = new Set<string>();
-  const recent: ArrivalStyle[] = [];
+  const recent: PastStyle[] = [];
   for (const message of ours) {
     for (const file of message.attachments ?? []) {
       const marker = readMarker(file.filename);

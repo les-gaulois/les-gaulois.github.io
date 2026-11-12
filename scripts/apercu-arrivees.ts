@@ -1,6 +1,6 @@
 /**
- * Dessine des exemples de l'image de bienvenue du serveur Discord, sans rien envoyer : une image par phrase et par décor,
- * dans test-results/arrivees/ (ignoré par Git).
+ * Dessine des exemples de l'image de bienvenue du serveur Discord, sans rien envoyer : chaque couleur de l'étendard avec
+ * plusieurs phrases, et les seize phrases en tout, dans test-results/arrivees/ (ignoré par Git).
  *   npm run arrivees:apercu
  *   npm run arrivees:apercu -- "Un nom à essayer" "Un autre"
  * Sans nom donné, des noms d'exemple, inventés : aucun n'est celui d'un membre. Les photos de profil sont des dessins faits ici.
@@ -10,11 +10,14 @@ import { join } from "node:path";
 import sharp from "sharp";
 import { clan } from "../config/clan";
 import { DECORS, drawnName, PHRASES, sentence, stableHash } from "../src/lib/arrivees";
+import { PALETTES } from "../src/lib/arrivees-decors";
 import { renderArrival, WarriorAssets } from "../src/lib/arrivees-image";
 import { GazetteFonts } from "../src/lib/gazette-image";
 
 const OUT = join("test-results", "arrivees");
 const SAMPLE_NAMES = ["Brennos", "Epona la Rapide", "lug_du_nord", "Sucellos", "[GAL] Taranis", "Belisama", "Un nom très long pour bien voir", "nx"];
+/** Assez d'images pour que chaque couleur ait plusieurs phrases, et que chaque phrase sorte au moins une fois. */
+const PER_DECOR = Math.ceil(PHRASES.length / DECORS.length);
 
 /** Une fausse photo de profil : un dégradé et une forme, différents pour chaque nom. */
 async function fakeAvatar(seed: number): Promise<Buffer> {
@@ -35,14 +38,14 @@ mkdirSync(OUT, { recursive: true });
 
 let count = 0;
 for (const decor of DECORS) {
-  const phrases = PHRASES.filter((p) => p.decors.includes(decor));
-  for (const [i, phrase] of phrases.entries()) {
+  console.log(`— ${PALETTES[decor].nom}`);
+  for (let i = 0; i < PER_DECOR; i++) {
+    const phrase = PHRASES[count % PHRASES.length]!;
     const raw = names[count % names.length] ?? "Brennos";
-    const name = drawnName(raw, "gaulois", (char) => fonts.draws(char, "name") && fonts.draws(char, "monoStrong"));
-    const seed = stableHash(`${decor}:${i}:${raw}`);
+    const name = drawnName(raw, "gaulois", (char) => fonts.draws(char, "name"));
     // Une image sur quatre sans photo : l'initiale du nom la remplace.
-    const avatar = count % 4 === 3 ? null : await fakeAvatar(seed);
-    const png = await renderArrival({ decor, seed, phrase, name }, clan.links.site, fonts, warrior, avatar);
+    const avatar = count % 4 === 3 ? null : await fakeAvatar(stableHash(`${decor}:${i}:${raw}`));
+    const png = await renderArrival({ decor, phrase, name }, clan.links.site, fonts, warrior, avatar);
     const file = join(OUT, `${decor}-${i + 1}.png`);
     writeFileSync(file, png);
     console.log(`${file} · ${Math.round(png.length / 1024)} Ko · ${sentence(phrase, name)}`);

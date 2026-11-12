@@ -26,6 +26,7 @@ import {
   tidyName,
   type ArrivalStyle,
   type ChannelMessage,
+  type PastStyle,
 } from "../../src/lib/arrivees";
 
 const NBSP = String.fromCodePoint(0xa0);
@@ -41,78 +42,76 @@ const user = (id: string, username = "joueur", bot = false) => ({ id, username, 
 const join = (id: string, author = user("222222222222222222")): ChannelMessage => ({ id, type: JOIN_MESSAGE_TYPE, author, attachments: [] });
 const chat = (id: string, author = user("333333333333333333")): ChannelMessage => ({ id, type: 0, author, attachments: [] });
 /** Une image de bienvenue du robot, sans texte : le nom du fichier dit quel message elle remplace, et qui elle accueille. */
-const welcome = (id: string, replaced: string, userId: string, style: ArrivalStyle = { phrase: 0, decor: "foret" }): ChannelMessage => ({
+const welcome = (id: string, replaced: string, userId: string, style: ArrivalStyle = { phrase: 0, decor: "etendard" }): ChannelMessage => ({
   id,
   type: 0,
   author: user(BOT, "Le Gaulois", true),
   attachments: [{ filename: markerName(replaced, userId, style) }],
 });
+/** Une image du premier jour, avec un décor retiré depuis : son fichier est écrit tel quel. */
+const pastWelcome = (id: string, replaced: string, userId: string, phrase: number, decor: string): ChannelMessage => ({
+  id,
+  type: 0,
+  author: user(BOT, "Le Gaulois", true),
+  attachments: [{ filename: `arrivee-${replaced}-${userId}-${phrase}-${decor}.png` }],
+});
 
 describe("les phrases", () => {
-  it("ont chacune une place pour le nom, une seule, et au moins un décor connu", () => {
+  it("ont chacune une place pour le nom, une seule, et restent courtes", () => {
     // Le README en annonce seize.
     expect(PHRASES).toHaveLength(16);
     for (const phrase of PHRASES) {
       expect(phrase.texte.split(NAME_SLOT), phrase.texte).toHaveLength(2);
-      expect(phrase.decors.length, phrase.texte).toBeGreaterThan(0);
-      for (const decor of phrase.decors) expect(DECORS).toContain(decor);
       // Une phrase tient en peu de mots : elle s'écrit en grand sur l'image.
       expect(phrase.texte.length, phrase.texte).toBeLessThanOrEqual(60);
     }
     expect(new Set(PHRASES.map((p) => p.texte)).size).toBe(PHRASES.length);
-  });
-  it("donnent à chaque décor au moins trois phrases", () => {
-    for (const decor of DECORS) expect(PHRASES.filter((p) => p.decors.includes(decor)).length, decor).toBeGreaterThanOrEqual(3);
   });
   it("ne se coupent jamais devant « : » ou « ! » : l'espace y est insécable", () => {
     for (const phrase of PHRASES) expect(phrase.texte, phrase.texte).not.toMatch(/ [:!?;]/);
     expect(PHRASES.some((p) => p.texte.includes(`${NBSP}:`))).toBe(true);
   });
   it("se séparent en ce qui précède et ce qui suit le nom, sans la ponctuation seule", () => {
-    expect(phraseParts({ texte: "Un {nom} sauvage surgit de la forêt.", decors: ["foret"] })).toEqual({ avant: "Un", apres: "sauvage surgit de la forêt." });
-    expect(phraseParts({ texte: "{nom} rejoint la tribu.", decors: ["etendard"] })).toEqual({ avant: "", apres: "rejoint la tribu." });
-    expect(phraseParts({ texte: `Une place près du feu pour {nom}${NBSP}!`, decors: ["foret"] })).toEqual({ avant: "Une place près du feu pour", apres: "" });
-    expect(phraseParts({ texte: "Connexion établie avec {nom}.", decors: ["matrice"] })).toEqual({ avant: "Connexion établie avec", apres: "" });
-    expect(phraseParts({ texte: `Sonnez le carnyx${NBSP}: {nom} est là${NBSP}!`, decors: ["etendard"] })).toEqual({ avant: `Sonnez le carnyx${NBSP}:`, apres: `est là${NBSP}!` });
+    expect(phraseParts({ texte: "Un {nom} sauvage surgit de la forêt." })).toEqual({ avant: "Un", apres: "sauvage surgit de la forêt." });
+    expect(phraseParts({ texte: "{nom} rejoint le village." })).toEqual({ avant: "", apres: "rejoint le village." });
+    expect(phraseParts({ texte: `Une place près du feu pour {nom}${NBSP}!` })).toEqual({ avant: "Une place près du feu pour", apres: "" });
+    expect(phraseParts({ texte: "Liaison établie avec {nom}." })).toEqual({ avant: "Liaison établie avec", apres: "" });
+    expect(phraseParts({ texte: `Sonnez le carnyx${NBSP}: {nom} est là${NBSP}!` })).toEqual({ avant: `Sonnez le carnyx${NBSP}:`, apres: `est là${NBSP}!` });
   });
   it("s'écrivent en entier avec le nom, pour la description de l'image", () => {
-    expect(sentence({ texte: "Un {nom} sauvage surgit de la forêt.", decors: ["foret"] }, "Brennos")).toBe("Un Brennos sauvage surgit de la forêt.");
+    expect(sentence({ texte: "Un {nom} sauvage surgit de la forêt." }, "Brennos")).toBe("Un Brennos sauvage surgit de la forêt.");
+  });
+});
+
+describe("les couleurs", () => {
+  it("sont six, l'étendard en tête : celui que le pilote a gardé", () => {
+    expect(DECORS).toEqual(["etendard", "royal", "indigo", "vin", "nuit", "acier"]);
   });
 });
 
 describe("arrivalStyle", () => {
-  it("donne toujours la même phrase et le même décor au même message", () => {
+  it("donne toujours la même phrase et la même couleur au même message", () => {
     const id = minutesAgo(3);
     expect(arrivalStyle(id)).toEqual(arrivalStyle(id));
     expect(stableHash("a")).toBe(stableHash("a"));
     expect(stableHash("a")).not.toBe(stableHash("b"));
   });
-  it("choisit un décor qui va avec la phrase", () => {
-    for (let i = 0; i < 200; i++) {
-      const style = arrivalStyle(minutesAgo(i));
-      expect(PHRASES[style.phrase]?.decors).toContain(style.decor);
-    }
-  });
-  it("varie : toutes les phrases et tous les décors sortent, et chaque phrase avec chacun de ses décors", () => {
-    const styles = Array.from({ length: 1500 }, (_, i) => arrivalStyle(minutesAgo(i)));
+  it("varie : toutes les phrases et toutes les couleurs sortent, et chaque phrase avec chaque couleur", () => {
+    const styles = Array.from({ length: 3000 }, (_, i) => arrivalStyle(minutesAgo(i)));
     expect(new Set(styles.map((s) => s.phrase)).size).toBe(PHRASES.length);
     expect(new Set(styles.map((s) => s.decor)).size).toBe(DECORS.length);
-    const pairs = new Set(styles.map((s) => `${s.phrase}:${s.decor}`));
-    PHRASES.forEach((phrase, index) => {
-      for (const decor of phrase.decors) expect(pairs.has(`${index}:${decor}`), `${phrase.texte} · ${decor}`).toBe(true);
-    });
+    expect(new Set(styles.map((s) => `${s.phrase}:${s.decor}`)).size).toBe(PHRASES.length * DECORS.length);
   });
-  it("ne reprend aucune des huit dernières phrases, ni aucun des deux derniers décors", () => {
+  it("ne reprend aucune des huit dernières phrases, ni aucune des deux dernières couleurs", () => {
     const recent: ArrivalStyle[] = [];
     for (let i = 0; i < 600; i++) {
       const style = arrivalStyle(minutesAgo(i), recent);
       expect(recent.slice(0, NO_REPEAT).map((r) => r.phrase), `tirage ${i}`).not.toContain(style.phrase);
       expect(recent.slice(0, NO_REPEAT_DECORS).map((r) => r.decor), `tirage ${i}`).not.toContain(style.decor);
-      expect(PHRASES[style.phrase]?.decors, `tirage ${i}`).toContain(style.decor);
       recent.unshift(style);
     }
   });
-  it("sort les six décors à peu près aussi souvent, à la suite comme sans mémoire", () => {
+  it("sort les six couleurs à peu près aussi souvent, à la suite comme sans mémoire", () => {
     const recent: ArrivalStyle[] = [];
     const chained = new Map<string, number>();
     const alone = new Map<string, number>();
@@ -126,33 +125,49 @@ describe("arrivalStyle", () => {
     }
     for (const counts of [chained, alone]) {
       for (const decor of DECORS) {
-        // Un sixième chacun, soit 200 : entre 130 et 270, aucun décor n'est rare ni envahissant.
+        // Un sixième chacune, soit 200 : entre 130 et 270, aucune couleur n'est rare ni envahissante.
         expect(counts.get(decor) ?? 0, decor).toBeGreaterThan(130);
         expect(counts.get(decor) ?? 0, decor).toBeLessThan(270);
       }
     }
   });
+  it("ne tient pas compte d'une image d'un décor retiré pour la couleur, mais bien pour la phrase", () => {
+    const past: PastStyle[] = [{ phrase: 4, decor: "foret" }];
+    for (let i = 0; i < 100; i++) {
+      const style = arrivalStyle(minutesAgo(i), past);
+      expect(style.phrase).not.toBe(4);
+      expect(DECORS).toContain(style.decor);
+    }
+  });
   it("rend quand même un style quand ses règles ne laissent rien", () => {
-    // Toutes les phrases et tous les décors viennent de servir : les règles se relâchent, la phrase reste assortie au décor.
-    const everything: ArrivalStyle[] = PHRASES.map((phrase, index) => ({ phrase: index, decor: phrase.decors[0]! }));
+    // Toutes les phrases et toutes les couleurs viennent de servir : les règles se relâchent.
+    const everything: ArrivalStyle[] = PHRASES.map((_, index) => ({ phrase: index, decor: DECORS[index % DECORS.length]! }));
     const style = arrivalStyle(minutesAgo(1), everything);
-    expect(PHRASES[style.phrase]?.decors).toContain(style.decor);
+    expect(PHRASES[style.phrase]).toBeDefined();
+    expect(DECORS).toContain(style.decor);
   });
 });
 
 describe("le nom du fichier", () => {
-  it("dit quel message l'image remplace, qui elle accueille, sa phrase et son décor", () => {
+  it("dit quel message l'image remplace, qui elle accueille, sa phrase et sa couleur", () => {
     const id = minutesAgo(2);
     const player = "222222222222222250";
-    const name = markerName(id, player, { phrase: 7, decor: "bouclier" });
-    expect(name).toBe(`arrivee-${id}-${player}-7-bouclier.png`);
-    expect(readMarker(name)).toEqual({ messageId: id, userId: player, style: { phrase: 7, decor: "bouclier" } });
+    const name = markerName(id, player, { phrase: 7, decor: "vin" });
+    expect(name).toBe(`arrivee-${id}-${player}-7-vin.png`);
+    expect(readMarker(name)).toEqual({ messageId: id, userId: player, style: { phrase: 7, decor: "vin" } });
+  });
+  it("reconnaît encore une image d'un décor ou d'une phrase retirés depuis", () => {
+    const id = minutesAgo(2);
+    const player = "222222222222222250";
+    expect(readMarker(`arrivee-${id}-${player}-3-foret.png`)).toEqual({ messageId: id, userId: player, style: { phrase: 3, decor: "foret" } });
+    expect(readMarker(`arrivee-${id}-${player}-99-terminal.png`)).toEqual({ messageId: id, userId: player, style: { phrase: 99, decor: "terminal" } });
   });
   it("ne reconnaît pas un autre fichier", () => {
     const id = minutesAgo(2);
     const player = "222222222222222250";
-    // Sans le numéro du joueur, avec un décor ou une phrase inconnus, un numéro trop court, ou autre chose autour du nom.
-    for (const name of ["bienvenue.png", `arrivee-${id}.png`, `arrivee-${id}-1-foret.png`, `arrivee-${id}-${player}-7-inconnu.png`, `arrivee-${id}-${player}-999-foret.png`, `arrivee-12-${player}-1-foret.png`, `arrivee-${id}-12-1-foret.png`, `x-arrivee-${id}-${player}-1-foret.png`, `arrivee-${id}-${player}-1-foret.png.exe`]) {
+    // Sans le numéro du joueur, une phrase de quatre chiffres, un décor en capitales ou trop court, un numéro trop court, ou
+    // autre chose autour du nom.
+    for (const name of ["bienvenue.png", `arrivee-${id}.png`, `arrivee-${id}-1-foret.png`, `arrivee-${id}-${player}-1000-foret.png`, `arrivee-${id}-${player}-1-Foret.png`, `arrivee-${id}-${player}-1-ab.png`, `arrivee-12-${player}-1-foret.png`, `arrivee-${id}-12-1-foret.png`, `x-arrivee-${id}-${player}-1-foret.png`, `arrivee-${id}-${player}-1-foret.png.exe`]) {
       expect(readMarker(name), name).toBeNull();
     }
   });
@@ -188,10 +203,15 @@ describe("arrivalPlan", () => {
   });
   it("ne refait pas une image déjà postée : il ne reste qu'à retirer le message de Discord", () => {
     const arrival = join(minutesAgo(8));
-    const style: ArrivalStyle = { phrase: 3, decor: "foret" };
+    const style: ArrivalStyle = { phrase: 3, decor: "nuit" };
     const plan = arrivalPlan([welcome(minutesAgo(7), arrival.id, arrival.author.id, style), arrival], BOT, NOW);
     expect(plan.tasks).toEqual([{ message: arrival, posted: true }]);
     expect(plan.recent).toEqual([style]);
+    // De même pour une image du premier jour, dont le décor est retiré depuis.
+    const old = join(minutesAgo(6), user("222222222222222209"));
+    const past = arrivalPlan([pastWelcome(minutesAgo(5), old.id, old.author.id, 3, "foret"), old], BOT, NOW);
+    expect(past.tasks).toEqual([{ message: old, posted: true }]);
+    expect(past.recent).toEqual([{ phrase: 3, decor: "foret" }]);
   });
   it("n'accueille pas deux fois un joueur qui sort et revient", () => {
     const player = user("222222222222222204");
@@ -232,7 +252,7 @@ describe("arrivalPlan", () => {
     expect(plan.later).toBe(2);
   });
   it("donne les styles des dernières images, de la plus récente à la plus ancienne", () => {
-    const a: ArrivalStyle = { phrase: 1, decor: "bouclier" };
+    const a: ArrivalStyle = { phrase: 1, decor: "acier" };
     const b: ArrivalStyle = { phrase: 5, decor: "etendard" };
     const plan = arrivalPlan([welcome(minutesAgo(50), minutesAgo(52), "222222222222222206", a), welcome(minutesAgo(10), minutesAgo(12), "222222222222222207", b)], BOT, NOW);
     expect(plan.recent).toEqual([b, a]);

@@ -41,8 +41,8 @@ try {
     channelId: ARRIVALS_CHANNEL_ID,
     fetch,
     now: Date.now(),
-    // Le nom s'écrit dans la police des titres ou dans la chasse fixe, selon le décor : il faut que les deux le dessinent.
-    draws: (char) => fonts.draws(char, "name") && fonts.draws(char, "monoStrong"),
+    // Le nom s'écrit dans la police des titres : seuls les caractères qu'elle dessine restent.
+    draws: (char) => fonts.draws(char, "name"),
     render: (drawing, avatar) => renderArrival(drawing, clan.links.site, fonts, warrior, avatar),
     alt: (phrase, fullName) => arrivalAlt(phrase, fullName, clan.tag),
     log: console.log,

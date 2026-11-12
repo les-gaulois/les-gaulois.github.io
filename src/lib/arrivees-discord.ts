@@ -24,9 +24,8 @@ import {
   markerName,
   MAX_AVATAR_BYTES,
   PHRASES,
-  stableHash,
   tidyName,
-  type ArrivalStyle,
+  type PastStyle,
   type Decor,
   type Phrase,
 } from "./arrivees";
@@ -152,7 +151,6 @@ export const logName = (name: string): string =>
 /** Ce que le passage demande au dessin : voir `ArrivalImage` dans `arrivees-image.ts`. */
 export interface ArrivalDrawing {
   decor: Decor;
-  seed: number;
   phrase: Phrase;
   name: string;
 }
@@ -384,7 +382,7 @@ export async function arrivalsPass(deps: ArrivalsDeps): Promise<ArrivalsResult> 
     return result;
   }
 
-  const recent: ArrivalStyle[] = [...plan.recent];
+  const recent: PastStyle[] = [...plan.recent];
   for (const task of plan.tasks) {
     const { message } = task;
 
@@ -417,7 +415,7 @@ export async function arrivalsPass(deps: ArrivalsDeps): Promise<ArrivalsResult> 
       let problem = "erreur inconnue";
       for (const name of names) {
         try {
-          png = await deps.render({ decor: style.decor, seed: stableHash(`graine:${message.id}`), phrase, name }, avatar);
+          png = await deps.render({ decor: style.decor, phrase, name }, avatar);
           break;
         } catch (e) {
           if (e instanceof Error) problem = e.message;
