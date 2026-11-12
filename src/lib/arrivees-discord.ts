@@ -353,6 +353,12 @@ export async function arrivalsPass(deps: ArrivalsDeps): Promise<ArrivalsResult> 
     const rolesCount = memberRoles.length;
     return stop(`dans le salon des arrivées, il manque au robot : ${quoted(missing)} (Modifier le salon, Permissions). Rien n'est remplacé tant que ces droits manquent.${who} Il a ${rolesCount > 1 ? `${rolesCount} rôles` : rolesCount === 1 ? "1 rôle" : "aucun rôle"} sur le serveur, sans le droit « Administrateur ».`);
   }
+  // Un robot administrateur a tout, bien au-delà de ses cinq droits dans ce salon : qui tiendrait son jeton pourrait tout sur
+  // le serveur. Le passage continue, mais le dit sur la page de l'exécution tant que c'est le cas : la note disparaît d'elle-même
+  // une fois le rôle retiré.
+  if (granted === ~0n) {
+    log(`::notice::Arrivées : le robot est administrateur du serveur, bien plus qu'il ne lui faut. Mieux vaut lui donner ses cinq droits dans le seul salon des arrivées (${quoted(NEEDED_PERMISSIONS.map((p) => p.label))}), puis lui retirer ce rôle.${who}`);
+  }
   // Le droit ne suffit pas partout : un serveur qui exige la double authentification pour modérer la demande aussi au compte
   // qui possède le robot. Discord le dit dans la fiche du robot ; s'il ne le dit pas, le retrait le dira.
   if (server["mfa_level"] === MFA_REQUIRED && bot.data.mfa_enabled === false) return stop(`${MFA_HELP} Rien n'est remplacé d'ici là.${who}`);

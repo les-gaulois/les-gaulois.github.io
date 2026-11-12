@@ -723,3 +723,28 @@ describe("le nom du robot dans le journal", () => {
     expect((await arrivalsPass(deps(discord).all)).replaced).toBe(1);
   });
 });
+
+describe("un robot administrateur", () => {
+  it("travaille, mais le dit à chaque passage tant qu'il l'est", async () => {
+    const discord = fakeDiscord({ members: [BRENNOS], messages: [joinMessage(minutesAgo(3), BRENNOS)], botPermissions: "8" });
+    const { all, logs } = deps(discord);
+    expect((await arrivalsPass(all)).replaced).toBe(1);
+    expect(logs).toHaveLength(2);
+    expect(logs[0]).toBe(
+      "::notice::Arrivées : le robot est administrateur du serveur, bien plus qu'il ne lui faut. Mieux vaut lui donner ses cinq droits dans le seul salon des arrivées (« Voir le salon », « Voir les anciens messages », « Envoyer des messages », « Joindre des fichiers », « Gérer les messages »), puis lui retirer ce rôle. Le robot qui porte ce jeton s'appelle « Le Guetteur ».",
+    );
+    expect(logs[1]).toBe("::notice::Arrivées : 1 message d'arrivée remplacé par une image.");
+  });
+
+  it("ne dit rien de tel quand il n'a que ses cinq droits, par ses rôles ou par le salon", async () => {
+    const byRole = fakeDiscord({ messages: [] });
+    const first = deps(byRole);
+    await arrivalsPass(first.all);
+    expect(first.logs).toEqual(["Arrivées : aucun message d'arrivée à remplacer."]);
+    // Aucun droit sur le serveur, les cinq donnés au robot lui-même dans le salon : le réglage conseillé.
+    const byChannel = fakeDiscord({ messages: [], botPermissions: "0", overwrites: [{ id: BOT, type: 1, allow: NEEDED_PERMISSIONS_VALUE.toString(), deny: "0" }] });
+    const second = deps(byChannel);
+    expect(await arrivalsPass(second.all)).toEqual({ replaced: 0, cleaned: 0, left: 0, failed: false });
+    expect(second.logs).toEqual(["Arrivées : aucun message d'arrivée à remplacer."]);
+  });
+});
