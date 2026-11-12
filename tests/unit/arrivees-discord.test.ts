@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { JOIN_MESSAGE_TYPE, markerName, MAX_AGE_MS, PHRASES, readMarker } from "../../src/lib/arrivees";
-import { ARRIVALS_CHANNEL_ID, arrivalPayload, arrivalsPass, botInstallUrl, looksLikeToken, channelPermissions, DISCORD_API, missingPermissions, NEEDED_PERMISSIONS, NEEDED_PERMISSIONS_VALUE, readAvatar, REMOVAL_REASON, USER_AGENT, type ArrivalDrawing, type ArrivalsDeps } from "../../src/lib/arrivees-discord";
+import { ARRIVALS_CHANNEL_ID, arrivalPayload, arrivalsPass, botInstallUrl, logName, looksLikeToken, channelPermissions, DISCORD_API, missingPermissions, NEEDED_PERMISSIONS, NEEDED_PERMISSIONS_VALUE, readAvatar, REMOVAL_REASON, USER_AGENT, type ArrivalDrawing, type ArrivalsDeps } from "../../src/lib/arrivees-discord";
 
 const TOKEN = "jeton.tres.secret";
 const GUILD = "135090549460002409";
@@ -362,7 +362,7 @@ describe("arrivalsPass", () => {
     expect(await arrivalsPass(all)).toEqual({ replaced: 0, cleaned: 0, left: 0, failed: true });
     expect(discord.ops()).toEqual([]);
     expect(drawings).toEqual([]);
-    expect(logs).toEqual(["::warning::Arrivées : dans le salon des arrivées, il manque au robot : « Gérer les messages » (Modifier le salon, Permissions). Rien n'est remplacé tant que ces droits manquent."]);
+    expect(logs).toEqual(["::warning::Arrivées : dans le salon des arrivées, il manque au robot : « Gérer les messages » (Modifier le salon, Permissions). Rien n'est remplacé tant que ces droits manquent. Le robot qui porte ce jeton s'appelle « Le Guetteur ». Il a 1 rôle sur le serveur, sans le droit « Administrateur »."]);
   });
 
   it("tient compte des réglages du salon lui-même", async () => {
@@ -388,7 +388,7 @@ describe("arrivalsPass", () => {
     const discord = fakeDiscord({ force: (method, path) => (path === `/guilds/${GUILD}` ? { status: 403, body: { code: 50001, message: "Missing Access" } } : null) });
     const { all, logs } = deps(discord);
     expect((await arrivalsPass(all)).failed).toBe(true);
-    expect(logs).toEqual([`::warning::Arrivées : le robot n'est pas sur le serveur du clan. Qui gère le serveur l'y ajoute par ce lien : ${botInstallUrl(BOT, GUILD)}`]);
+    expect(logs).toEqual([`::warning::Arrivées : le robot n'est pas sur le serveur du clan. Le robot qui porte ce jeton s'appelle « Le Guetteur ». Qui gère le serveur l'y ajoute par ce lien : ${botInstallUrl(BOT, GUILD)}`]);
   });
 
   it("ne fait rien, sans erreur, quand le serveur n'a pas de salon des messages système", async () => {
@@ -595,7 +595,7 @@ describe("ce que la relecture a trouvé", () => {
     const discord = fakeDiscord({ messages: [], botPermissions: without("Voir les anciens messages") });
     const { all, logs } = deps(discord);
     expect(await arrivalsPass(all)).toEqual({ replaced: 0, cleaned: 0, left: 0, failed: true });
-    expect(logs).toEqual(["::warning::Arrivées : dans le salon des arrivées, il manque au robot : « Voir les anciens messages » (Modifier le salon, Permissions). Rien n'est remplacé tant que ces droits manquent."]);
+    expect(logs).toEqual(["::warning::Arrivées : dans le salon des arrivées, il manque au robot : « Voir les anciens messages » (Modifier le salon, Permissions). Rien n'est remplacé tant que ces droits manquent. Le robot qui porte ce jeton s'appelle « Le Guetteur ». Il a 1 rôle sur le serveur, sans le droit « Administrateur »."]);
     // Le salon n'est même pas lu.
     expect(discord.calls.some((c) => c.path.endsWith("/messages?limit=100"))).toBe(false);
   });
@@ -616,7 +616,7 @@ describe("ce que la relecture a trouvé", () => {
     const { all, logs } = deps(discord);
     expect((await arrivalsPass(all)).failed).toBe(true);
     expect(discord.ops()).toEqual([]);
-    expect(logs).toEqual(["::warning::Arrivées : le robot ne voit pas le salon des arrivées. Dans ce salon (Modifier le salon, Permissions), il lui faut : « Voir le salon », « Voir les anciens messages », « Envoyer des messages », « Joindre des fichiers », « Gérer les messages »."]);
+    expect(logs).toEqual(["::warning::Arrivées : le robot ne voit pas le salon des arrivées. Dans ce salon (Modifier le salon, Permissions), il lui faut : « Voir le salon », « Voir les anciens messages », « Envoyer des messages », « Joindre des fichiers », « Gérer les messages ». Le robot qui porte ce jeton s'appelle « Le Guetteur »."]);
   });
 
   it("ne poste rien si le serveur exige la double authentification et que le compte du robot ne l'a pas", async () => {
@@ -695,5 +695,31 @@ describe("ce que la relecture a trouvé", () => {
     expect(logs.join(" ")).toContain(`client_id=${BOT}`);
     expect(logs.join(" ")).not.toContain(BRENNOS.id);
     expect(logs.join(" ")).not.toContain(TOKEN);
+  });
+});
+
+describe("le nom du robot dans le journal", () => {
+  it("garde les lettres, les chiffres et quelques signes, et rien qui ferait une commande ou une ligne de plus", () => {
+    expect(logName("Le Guetteur")).toBe("Le Guetteur");
+    expect(logName("Robot d'accueil n° 2_bis.")).toBe("Robot d'accueil n 2_bis.");
+    expect(logName(`Le${String.fromCodePoint(0x0a)}::error::Guetteur`)).toBe("Le errorGuetteur");
+    expect(logName("::warning::")).toBe("warning");
+    expect(logName(String.fromCodePoint(0x1f409))).toBe("sans nom");
+    expect(logName("x".repeat(80))).toHaveLength(32);
+  });
+
+  it("dit à quel robot donner le droit qui manque, et qu'il n'est pas administrateur", async () => {
+    const discord = fakeDiscord({ messages: [], botPermissions: without("Envoyer des messages") });
+    const { all, logs } = deps(discord);
+    await arrivalsPass(all);
+    expect(logs).toEqual([
+      "::warning::Arrivées : dans le salon des arrivées, il manque au robot : « Envoyer des messages » (Modifier le salon, Permissions). Rien n'est remplacé tant que ces droits manquent. Le robot qui porte ce jeton s'appelle « Le Guetteur ». Il a 1 rôle sur le serveur, sans le droit « Administrateur ».",
+    ]);
+  });
+
+  it("travaille dès que le robot est administrateur, même si le salon lui retire un droit", async () => {
+    const closed = [{ id: GUILD, type: 0, allow: "0", deny: NEEDED_PERMISSIONS_VALUE.toString() }];
+    const discord = fakeDiscord({ members: [BRENNOS], messages: [joinMessage(minutesAgo(3), BRENNOS)], botPermissions: "8", overwrites: closed });
+    expect((await arrivalsPass(deps(discord).all)).replaced).toBe(1);
   });
 });

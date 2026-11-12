@@ -136,6 +136,17 @@ export const missingPermissions = (granted: bigint): string[] => NEEDED_PERMISSI
 
 const quoted = (labels: readonly string[]): string => labels.map((label) => `« ${label} »`).join(", ");
 
+/**
+ * Le nom du robot, pour le journal de l'Action : seulement des lettres, des chiffres, des espaces et quelques signes, 32 au
+ * plus. Rien n'y reste qui pourrait passer pour une commande du journal (« :: ») ou pour une ligne de plus.
+ */
+export const logName = (name: string): string =>
+  [...tidyName(name)]
+    .filter((char) => /[\p{L}\p{N} ._'-]/u.test(char))
+    .slice(0, 32)
+    .join("")
+    .trim() || "sans nom";
+
 /* ---------- Le message ---------- */
 
 /** Ce que le passage demande au dessin : voir `ArrivalImage` dans `arrivees-image.ts`. */
@@ -283,13 +294,16 @@ export async function arrivalsPass(deps: ArrivalsDeps): Promise<ArrivalsResult> 
   const bot = DiscordUser.safeParse(me.body);
   if (me.status !== 200 || !bot.success) return stop(`Discord a répondu ${me.status} à la lecture du robot. ${RETRY}`);
   const botId = bot.data.id;
+  // Le nom du robot qui porte ce jeton : quand un droit manque, il dit à quel compte du serveur le donner. C'est le nom d'une
+  // application, pas celui d'un joueur.
+  const who = ` Le robot qui porte ce jeton s'appelle « ${logName(bot.data.username)} ».`;
 
   // Le serveur : le robot y est-il, et le serveur écrit-il toujours ses arrivées dans le salon confié au robot ?
   const guild = await api.get(`/guilds/${guildId}`);
   if (!guild) return stop(`Discord n'a pas répondu. ${RETRY}`);
   if (guild.status === 403 || guild.status === 404) {
     // Le lien porte le numéro du robot et celui du serveur : publics tous deux, et aucun n'est celui d'un joueur.
-    return stop(`le robot n'est pas sur le serveur du clan. Qui gère le serveur l'y ajoute par ce lien : ${botInstallUrl(botId, guildId)}`);
+    return stop(`le robot n'est pas sur le serveur du clan.${who} Qui gère le serveur l'y ajoute par ce lien : ${botInstallUrl(botId, guildId)}`);
   }
   const server = record(guild.body);
   if (guild.status !== 200 || !server) return stop(`Discord a répondu ${guild.status} à la lecture du serveur. ${RETRY}`);
@@ -312,7 +326,7 @@ export async function arrivalsPass(deps: ArrivalsDeps): Promise<ArrivalsResult> 
   const [member, channel] = await Promise.all([api.get(`/guilds/${guildId}/members/${botId}`), api.get(`/channels/${channelId}`)]);
   if (!member || !channel) return stop(`Discord n'a pas répondu. ${RETRY}`);
   if (channel.status === 403 || channel.status === 404) {
-    return stop(`le robot ne voit pas le salon des arrivées. Dans ce salon (Modifier le salon, Permissions), il lui faut : ${quoted(NEEDED_PERMISSIONS.map((p) => p.label))}.`);
+    return stop(`le robot ne voit pas le salon des arrivées. Dans ce salon (Modifier le salon, Permissions), il lui faut : ${quoted(NEEDED_PERMISSIONS.map((p) => p.label))}.${who}`);
   }
   const roles = server["roles"];
   const memberRoles = record(member.body)?.["roles"];
@@ -334,10 +348,14 @@ export async function arrivalsPass(deps: ArrivalsDeps): Promise<ArrivalsResult> 
     }),
   );
   const missing = missingPermissions(granted);
-  if (missing.length > 0) return stop(`dans le salon des arrivées, il manque au robot : ${quoted(missing)} (Modifier le salon, Permissions). Rien n'est remplacé tant que ces droits manquent.`);
+  if (missing.length > 0) {
+    // Ce que le robot a sur le serveur aide à comprendre : un rôle d'administrateur donné à un autre compte ne lui sert à rien.
+    const rolesCount = memberRoles.length;
+    return stop(`dans le salon des arrivées, il manque au robot : ${quoted(missing)} (Modifier le salon, Permissions). Rien n'est remplacé tant que ces droits manquent.${who} Il a ${rolesCount > 1 ? `${rolesCount} rôles` : rolesCount === 1 ? "1 rôle" : "aucun rôle"} sur le serveur, sans le droit « Administrateur ».`);
+  }
   // Le droit ne suffit pas partout : un serveur qui exige la double authentification pour modérer la demande aussi au compte
   // qui possède le robot. Discord le dit dans la fiche du robot ; s'il ne le dit pas, le retrait le dira.
-  if (server["mfa_level"] === MFA_REQUIRED && bot.data.mfa_enabled === false) return stop(`${MFA_HELP} Rien n'est remplacé d'ici là.`);
+  if (server["mfa_level"] === MFA_REQUIRED && bot.data.mfa_enabled === false) return stop(`${MFA_HELP} Rien n'est remplacé d'ici là.${who}`);
 
   const listed = await api.get(`/channels/${channelId}/messages?limit=100`);
   if (!listed) return stop(`Discord n'a pas répondu. ${RETRY}`);
