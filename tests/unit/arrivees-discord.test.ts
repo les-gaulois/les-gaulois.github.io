@@ -269,7 +269,7 @@ describe("arrivalsPass", () => {
     expect(discord.calls.find((c) => c.method === "DELETE")?.reason).toBe(encodeURIComponent(REMOVAL_REASON));
     // Le salon ne garde que l'image.
     expect(discord.messages.map((m) => m["type"])).toEqual([0]);
-    expect(logs).toEqual(["Arrivées : 1 message d'arrivée remplacé par une image."]);
+    expect(logs).toEqual(["::notice::Arrivées : 1 message d'arrivée remplacé par une image."]);
   });
 
   it("ne donne le jeton qu'à Discord, jamais au serveur des photos, et se présente comme un robot", async () => {
@@ -291,7 +291,7 @@ describe("arrivalsPass", () => {
     await arrivalsPass(all);
     const journal = logs.join("\n");
     for (const secret of [TOKEN, BRENNOS.id, BRENNOS.username, "Brennos", EPONA.id, EPONA.username, gone.username, CHANNEL, GUILD]) expect(journal).not.toContain(secret);
-    expect(logs).toEqual(["Arrivées : 2 messages d'arrivée remplacés par une image, 1 laissé tel quel."]);
+    expect(logs).toEqual(["::notice::Arrivées : 2 messages d'arrivée remplacés par une image, 1 laissé tel quel."]);
   });
 
   it("quand personne n'est arrivé, ne fait que lire : le robot, le serveur, ses droits, le salon", async () => {
@@ -344,7 +344,7 @@ describe("arrivalsPass", () => {
     expect(await arrivalsPass(all)).toEqual({ replaced: 0, cleaned: 1, left: 0, failed: false });
     expect(discord.ops()).toEqual([`DELETE /channels/${CHANNEL}/messages/${arrival}`]);
     expect(drawings).toEqual([]);
-    expect(logs).toEqual(["Arrivées : aucun message d'arrivée remplacé, 1 message de Discord retiré après coup."]);
+    expect(logs).toEqual(["::notice::Arrivées : aucun message d'arrivée remplacé, 1 message de Discord retiré après coup."]);
   });
 
   it("au passage suivant, ne trouve plus rien à faire", async () => {
@@ -665,7 +665,7 @@ describe("ce que la relecture a trouvé", () => {
     expect(await arrivalsPass(all)).toEqual({ replaced: 2, cleaned: 0, left: 2, failed: false });
     expect(drawings.map((d) => d.drawing.name)).toEqual(["Un nom sage", "epona"]);
     expect(discord.messages.filter((m) => m["type"] === JOIN_MESSAGE_TYPE)).toHaveLength(2);
-    expect(logs).toEqual(["Arrivées : 2 messages d'arrivée remplacés par une image, 2 laissés tels quels."]);
+    expect(logs).toEqual(["::notice::Arrivées : 2 messages d'arrivée remplacés par une image, 2 laissés tels quels."]);
   });
 
   it("au-delà de cinq arrivées, remet les suivantes au passage d'après, et le dit", async () => {
@@ -673,10 +673,10 @@ describe("ce que la relecture a trouvé", () => {
     const discord = fakeDiscord({ members, messages: members.map((m, i) => joinMessage(minutesAgo(20 - i), m)) });
     const first = deps(discord);
     expect((await arrivalsPass(first.all)).replaced).toBe(5);
-    expect(first.logs).toEqual(["Arrivées : 5 messages d'arrivée remplacés par une image, 2 remis au passage suivant."]);
+    expect(first.logs).toEqual(["::notice::Arrivées : 5 messages d'arrivée remplacés par une image, 2 remis au passage suivant."]);
     const second = deps(discord);
     expect((await arrivalsPass(second.all)).replaced).toBe(2);
-    expect(second.logs).toEqual(["Arrivées : 2 messages d'arrivée remplacés par une image."]);
+    expect(second.logs).toEqual(["::notice::Arrivées : 2 messages d'arrivée remplacés par une image."]);
     expect(discord.messages.filter((m) => m["type"] === JOIN_MESSAGE_TYPE)).toEqual([]);
   });
 

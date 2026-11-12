@@ -439,6 +439,8 @@ export async function arrivalsPass(deps: ArrivalsDeps): Promise<ArrivalsResult> 
   if (result.cleaned > 0) parts.push(plural(result.cleaned, "message de Discord retiré après coup", "messages de Discord retirés après coup"));
   if (result.left > 0) parts.push(plural(result.left, "laissé tel quel", "laissés tels quels"));
   if (plan.later > 0) parts.push(plural(plan.later, "remis au passage suivant", "remis au passage suivant"));
-  log(`Arrivées : ${parts.join(", ")}.`);
+  // Un passage qui a changé le salon se lit sur la page de l'exécution, sans ouvrir son journal : le pilote ne développe pas,
+  // et qui l'aide n'a pas toujours accès au journal. Toujours sans nom ni numéro de joueur.
+  log(`${result.replaced + result.cleaned > 0 ? "::notice::" : ""}Arrivées : ${parts.join(", ")}.`);
   return result;
 }
