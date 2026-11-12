@@ -35,7 +35,7 @@ Node 22 ou plus. Sous Windows, le shell est Git Bash : chemins avec `/`.
 - `src/pages/*.astro` : une page par fichier, mise en page `src/layouts/Base.astro` (en-tête, navigation, pied de page). Le plan du site, rubriques et onglets, est dans `src/lib/nav.ts`. Pages personnelles `compte`, `qg`, `direction` et fiches `membres/[id]` en `noindex` ; `admin` ne fait plus que mener à la Direction, où est l'administration.
 - `src/components/` : `.astro` statiques, `.tsx` Preact hydratés (`client:idle`, `client:visible` ou `client:only="preact"`). `src/components/compte/` : écrans de la connexion.
 - `src/lib/` : calculs purs et testés. `schemas.ts` (Zod), `data.ts` (lecture de `data/` et `content/`), `compte/` (client Supabase `api.ts`, `preflight.ts`, `roster.ts`), `clanmap/` (carte des clans), `fx/` (logique des effets).
-- `src/scripts/` : scripts navigateur — `fx.ts` effets, `film.ts` film de la carte, `nouveautes.ts` point des nouveautés du site.
+- `src/scripts/` : scripts navigateur — `fx.ts` effets, `holo.ts` guerrier en relief de l'accueil (répliques dans `src/lib/fx/repliques.ts`), `film.ts` film de la carte, `nouveautes.ts` point des nouveautés du site.
 - `src/styles/global.css` : jetons de couleur et classes `.stage`, `.card`, `.btn-*`, `.wrap`.
 - `content/` : textes du clan, JSON et Markdown (skill `contenu-clan`). `content/nouveautes.json` : le journal des mises à jour du site, que tu tiens (skill `publier`). `data/` : écrit par la collecte, jamais à la main.
 - `scripts/` : collecte et outils Node (`tsx`). `supabase/migrations/` : schéma, figé une fois appliqué. `supabase/functions/code-discord/` : la seule fonction serveur (Deno), la connexion par un code demandé dans le Discord du clan, mise en ligne par le pilote.

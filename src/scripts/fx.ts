@@ -20,6 +20,7 @@ import {
   type Grid,
 } from "../lib/fx/territory";
 import { frNumber } from "../lib/nombre";
+import type { Holo } from "./holo";
 
 const STORAGE_KEY = "gal-fx";
 /** Le clic droit garde son menu habituel sur ces éléments, et sur le texte sélectionné. */
@@ -426,6 +427,34 @@ function init(): void {
     tipTarget = null;
   }
 
+  /* ---------- Le guerrier de l'accueil, en relief ---------- */
+
+  // Son script ne se charge que sur la page qui le montre, et seulement quand les effets sont permis : il prend alors
+  // le relais du dessin à plat (src/scripts/holo.ts). S'il ne se charge pas, ou si le dessin n'est pas affiché
+  // (contraste élevé), le relief est hors service : le logo reste à plat, et suit le curseur comme les autres logos.
+  const holoEl = document.querySelector<HTMLElement>("[data-holo]");
+  let holo: Holo | null = null;
+  let holoAsked = false;
+  let holoOut = false;
+
+  function wakeHolo(): void {
+    if (holo) {
+      holo.reveil();
+      return;
+    }
+    if (!holoEl || holoAsked) return;
+    holoAsked = true;
+    import("./holo")
+      .then(({ monterHolo }) => {
+        holo = monterHolo(holoEl);
+        holoOut = holo === null;
+        if (!enabled) holo?.veille();
+      })
+      .catch(() => {
+        holoOut = true;
+      });
+  }
+
   function clearCross(): void {
     for (const cell of crossCells) cell.classList.remove("fx-cross");
     crossTable?.classList.remove("fx-crosshair");
@@ -491,9 +520,14 @@ function init(): void {
       if (r.width === 0 || r.bottom < 0 || r.top > height) continue;
       const nx = Math.max(-1, Math.min(1, (x - (r.left + r.width / 2)) / (width / 2)));
       const ny = Math.max(-1, Math.min(1, (y - (r.top + r.height / 2)) / (height / 2)));
-      const tilt = tiltFor(logo, 900);
-      tilt.targetRx = -ny * 10;
-      tilt.targetRy = nx * 14;
+      if (logo === holoEl && !holoOut) {
+        // Le guerrier en relief tourne la tête lui-même : l'incliner à plat en plus le déformerait.
+        holo?.viser(x, y);
+      } else {
+        const tilt = tiltFor(logo, 900);
+        tilt.targetRx = -ny * 10;
+        tilt.targetRy = nx * 14;
+      }
       const glow = logo.closest(".fx-stage")?.querySelector<HTMLElement>(".hero-glow");
       if (glow) glow.style.translate = `${nx * 28}px ${ny * 28}px`;
     }
@@ -592,6 +626,7 @@ function init(): void {
     drawOverlay(now, dt);
     updateTilts(dt);
     updateAurora(dt);
+    holo?.image(dt);
   }
 
   function start(): void {
@@ -637,13 +672,15 @@ function init(): void {
     { passive: true },
   );
 
-  root.addEventListener("pointerleave", () => {
+  root.addEventListener("pointerleave", (e) => {
     releaseTilt(tiltTarget);
     tiltTarget = null;
     clearSpot();
     clearMagnet();
     hideTip();
     clearCross();
+    // Un doigt qui se lève « quitte » aussi la page : seul le départ de la souris rend la tête à sa flânerie.
+    if (e.pointerType === "mouse") holo?.lacher();
   });
 
   window.addEventListener("pointerdown", (e) => {
@@ -667,8 +704,13 @@ function init(): void {
     if (block) launchLocal(block, e.clientX, e.clientY, side);
     const group = target?.closest("[data-ripple-group]");
     if (group) ripple(group, e.clientX, e.clientY, side);
+    const inRelief = logo === holoEl ? holo : null;
     if (logo && side === "left") {
       logo.animate([{ scale: 1 }, { scale: 1.1 }, { scale: 0.96 }, { scale: 1 }], { duration: 520, easing: "ease-out" });
+      inRelief?.reagir("clic");
+    } else if (inRelief?.tour()) {
+      // Le guerrier en relief fait son tour lui-même, dans l'espace.
+      inRelief.reagir("tour");
     } else if (logo) {
       logo.animate([{ rotate: "y 0deg" }, { rotate: "y 360deg" }], { duration: 900, easing: "cubic-bezier(0.3, 0.7, 0.2, 1)" });
     }
@@ -843,6 +885,7 @@ function init(): void {
     clearCross();
     for (const glow of document.querySelectorAll<HTMLElement>(".hero-glow")) glow.style.translate = "";
     for (const stage of document.querySelectorAll<HTMLElement>(".fx-stage")) stage.style.translate = "";
+    holo?.veille();
     revealAll();
   }
 
@@ -854,6 +897,7 @@ function init(): void {
     useCustomTips(on);
     if (on) {
       scrollDirty = true;
+      wakeHolo();
       start();
     } else {
       stop();
@@ -876,7 +920,10 @@ function init(): void {
     if (el.dataset.count) counterObserver.observe(el);
   }
   useCustomTips(enabled);
-  if (enabled) prepareReveal();
+  if (enabled) {
+    prepareReveal();
+    wakeHolo();
+  }
   root.classList.remove("fx-wait");
   start();
 

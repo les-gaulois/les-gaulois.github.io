@@ -21,12 +21,12 @@ Depuis le 12 novembre 2026, à la demande du pilote (« le site dans le design h
 | Onglets de rubrique | En chasse fixe et carrés, comme le menu des parties du QG (`.rubrique-onglet`) ; l'onglet ouvert, plus clair, porte le filet rouge dessous |
 | Scènes | Des territoires éclairés : coins de 10 px, et le coin haut droit coupé comme un dossier d'état-major (`clip-path`), souligné d'un trait de lumière. Une trame de carte s'allume dans leur haut, de ce côté |
 | Chiffres clés | Libellés en chasse fixe, un trait blanc en haut de chaque filet, comme le repère d'une jauge, et une lueur bleue autour du chiffre |
-| Guerrier de l'accueil | Le logo du QG et de la Direction en mode Matrix (`LogoMatrice.tsx`, 72 colonnes), en grand : ses colonnes tombent une fois, lentement, directement dans ses couleurs, sans le vert de la console, puis il flotte au-dessus d'un socle de lumière, comme projeté par la table. Il garde les gestes du logo (il suit le curseur, clic gauche et droit) et un nom pour les lecteurs d'écran. Le logo vertical reste sur la page Rejoindre, et revient sur l'accueil si le fichier du guerrier manque. En contraste élevé, le dessin disparaît, comme au QG et à la Direction ; son nom reste lu |
+| Guerrier de l'accueil | Le logo du QG et de la Direction en mode Matrix (`LogoMatrice.tsx`, 72 colonnes), en grand : ses colonnes tombent une fois, lentement, directement dans ses couleurs, sans le vert de la console, puis il flotte au-dessus d'un socle de lumière, comme projeté par la table. Depuis le 12 novembre 2026, à la demande du pilote, il prend ensuite du relief : il tourne la tête vers le curseur, le suit du regard et parle dans une petite bulle (« Le guerrier en relief », plus bas). Il garde les gestes du logo (clic gauche et droit) et un nom pour les lecteurs d'écran. Le logo vertical reste sur la page Rejoindre, et revient sur l'accueil si le fichier du guerrier manque. En contraste élevé, le dessin disparaît, comme au QG et à la Direction ; son nom reste lu |
 | Formes | Cartes 8 px, boutons, champs et pastilles 6 px : des coins nets de machine plutôt que des bulles |
 
-- **Mouvement :** l'invite s'écrit une fois (0,85 s) ; une seule lumière passe sur le titre de la page, de gauche à droite (1,5 s), puis s'éteint ; à l'accueil, le guerrier tombe en colonnes en un peu plus de 2 s. Rien ne clignote ni ne se répète. Le bouton pause et « réduire les animations » coupent tout : l'invite est entière d'emblée, la lumière n'apparaît jamais, le guerrier est là. Un test e2e le vérifie.
+- **Mouvement :** l'invite s'écrit une fois (0,85 s) ; une seule lumière passe sur le titre de la page, de gauche à droite (1,5 s), puis s'éteint ; à l'accueil, le guerrier tombe en colonnes en un peu plus de 2 s, puis prend son relief. Rien ne clignote ni ne se répète coup sur coup. Le bouton pause et « réduire les animations » coupent tout : l'invite est entière d'emblée, la lumière n'apparaît jamais, le guerrier est là, à plat, sans bulle. Des tests e2e le vérifient.
 - **Gardé :** les scènes colorées, le fond animé et ses cases, les titres en capitales (en onciale de cases depuis le soir même, voir « Typographie »), le tricolore, le bouton pause, les gros chiffres et les graphiques sans case.
-- **Poids :** la chasse fixe (40 Ko) est préchargée sur toutes les pages. Le guerrier est dessiné dans la page (63 Ko, 12,6 Ko compressés) à la place de l'image du logo vertical (99 Ko).
+- **Poids :** la chasse fixe (40 Ko) est préchargée sur toutes les pages. Le guerrier est dessiné dans la page (63 Ko, 12,6 Ko compressés) à la place de l'image du logo vertical (99 Ko). Son relief ne pèse rien dans la page : il relit la grille sur le dessin, et son script (12 Ko, 5,5 Ko compressés) ne se charge que sur l'accueil, quand les effets sont permis.
 - **Moins agressif que la console :** ni lignes d'écran, ni décalage de couleur sur le titre, ni vert, ni cadres doubles. Ne pas les ajouter aux pages ouvertes à tous sans la demande du pilote.
 
 ### Le guide du clan
@@ -324,26 +324,47 @@ L'idée centrale reprend le principe d'OpenFront, la conquête de territoire : d
 
 | Geste | Effet |
 |---|---|
-| Déplacer la souris | Les cases s'allument sur son passage, un halo suit le curseur dans les blocs, les blocs s'inclinent, les boutons sont attirés, le logo suit le curseur |
+| Déplacer la souris | Les cases s'allument sur son passage, un halo suit le curseur dans les blocs, les blocs s'inclinent, les boutons sont attirés, le logo suit le curseur. À l'accueil, le guerrier tourne la tête vers lui et le suit du regard |
 | Survoler un bloc | Une frontière tricolore fait le tour de sa bordure |
 | Clic gauche | Vague de conquête bleue, onde de choc et éclats. L'onde traverse aussi le bloc cliqué. |
 | Clic droit sur le fond | Vague de conquête rouge, onde de choc et éclats. L'onde traverse aussi le bloc cliqué. |
-| Clic gauche sur le logo | Pulsation et vague plus grande |
-| Clic droit sur le logo | Tour complet du logo et vague rouge plus grande |
-| Toucher un écran | Vague bleue. Pas d'effet de survol. |
+| Clic gauche sur le logo | Pulsation et vague plus grande. À l'accueil, le guerrier répond dans sa bulle |
+| Clic droit sur le logo | Tour complet du logo et vague rouge plus grande. À l'accueil, le guerrier fait son tour dans l'espace : on le voit de dos |
+| Toucher un écran | Vague bleue. Pas d'effet de survol. À l'accueil, le guerrier regarde un moment l'endroit touché |
 | Défiler | Blocs qui apparaissent en fondu, titres mot à mot, barre de progression, compteurs |
 | Survoler le graphique des parties | Colonne glissante, repère de valeur, barres voisines éclairées |
 | Cliquer sur un graphique ou la heatmap | Une onde se propage depuis le clic, bleue ou rouge selon le bouton |
 | Survoler la heatmap | Réticule sur le jour et l'heure, infobulle qui suit le curseur |
 | Changer de période | Barres qui repoussent, balayage tricolore, chiffres qui défilent |
 | Trier les membres | Les lignes glissent vers leur nouvelle place |
-| Rien | Lente flottaison du logo, petits territoires qui naissent et disparaissent seuls |
-| Ouvrir une page | L'invite s'écrit, puis une lumière passe une fois sur le titre. À l'accueil, le guerrier tombe en colonnes, dans ses couleurs |
+| Rien | Lente flottaison du logo, petits territoires qui naissent et disparaissent seuls. À l'accueil, sans curseur, le guerrier regarde lentement autour de lui, et dit une réplique de temps en temps |
+| Ouvrir une page | L'invite s'écrit, puis une lumière passe une fois sur le titre. À l'accueil, le guerrier tombe en colonnes, dans ses couleurs, puis prend son relief |
 | Ouvrir un chapitre du guide | Le chapitre glisse de 12 px, du côté d'où il vient, et sa commande s'écrit dans la barre de sa fenêtre, une fois |
 
 **Depuis le 8 novembre 2026, les blocs ne sont plus conquis case par case à leur apparition, et la frontière ne fait plus le tour d'un bloc toute seule.** Le pilote trouvait ces mouvements agressifs : des cases recouvraient ce qu'on lisait. Les blocs apparaissent en fondu, et la conquête reste pour les gestes du visiteur, ses clics et la première vague de l'accueil. Un graphique ou un tableau posé sur le fond sans case (`.fx-block`) apparaît en fondu comme un bloc, et ses animations attendent qu'il entre à l'écran ; dans une scène, il apparaît avec elle. Il n'a ni halo ni onde à lui : leur bord dessinerait la case qu'il n'a plus.
 
 Sur les pages rouges de l'encadrement, le bleu et le rouge échangent leurs rôles dans tous ces gestes : traînée du curseur, clic gauche, toucher et territoires ambiants y sont rouges, le clic droit et l'onde qu'il lance bleus.
+
+### Le guerrier en relief
+
+Depuis le 12 novembre 2026, à la demande du pilote (« transformer ce logo holographique en 3D, avec le personnage qui fixe la pointe de la souris, et dit des répliques type gaulois OpenFront avec une petite bulle comme dans des mangas, version hacker »). Décoratif de bout en bout : aucune donnée, aucun chiffre.
+
+| Élément | Rendu |
+|---|---|
+| Relief | Une fois ses colonnes tombées, le dessin à plat passe le relais, en fondu (0,4 s), à une toile où chaque caractère a sa profondeur. Le relief est un dôme centré sur le cercle du logo, qui s'arrête avant l'anneau : la joue et le casque sortent d'un cinquième de la largeur, le nez et les pointes des plumes, des cheveux et de la barbe rejoignent l'anneau, au fond. Chaque forme est un peu bombée, et chaque caractère a une épaisseur : on voit son flanc quand la tête tourne. **Tête droite, chaque caractère retombe à sa place du dessin à plat : le logo du clan n'est jamais déformé de face.** Le script relit cette place sur le dessin lui-même, caractère par caractère : le navigateur ne les pose pas au bord de leur case (jusqu'à 0,22 case d'écart, mesuré dans Chromium) |
+| Tête | Elle fait face au curseur, jusqu'à 30° de côté et 20° en hauteur, et lève ou baisse un peu le menton vers un curseur devant elle. Elle suit sa cible comme la caméra du film, un ressort amorti qui ne dépasse jamais : elle arrive en une seconde environ. Ce qui s'éloigne pâlit |
+| Regard | Une pupille de lumière, blanche au cœur et rouge autour (le marqueur du site), glisse dans la fente de l'œil vers le curseur ; derrière lui, il le regarde du coin de l'œil. Le regard précède la tête. Elle s'allume en douceur et ne clignote pas. L'œil est mesuré sur le logo du clan (`OEIL`, `src/lib/fx/holo.ts`) : si le logo change, un test le signale, et la page n'allume pas de regard là où il n'y a plus de fente |
+| Sans curseur | Sur téléphone, ou tant que la souris n'a pas bougé : la tête regarde autour d'elle, de 10° au plus, en dix-sept secondes par aller-retour. Un toucher lui fait regarder l'endroit touché pendant trois secondes et demie |
+| Clic droit | Le tour complet se fait dans l'espace, en 1,6 s, départ et arrivée en douceur : on voit le guerrier de dos |
+| Bulle | Une bulle de manga passée par la machine : angles coupés et queue en éclair, comme la voix d'un appareil dans une planche ; fond d'encre, trait `blue-text`, chasse fixe. Les paroles sont en capitales, les commandes comme on les tape, en `blue-text`. La réplique s'écrit lettre à lettre (34 ms par lettre), puis le pavé rouge de la machine se pose, fixe. En haut à droite du guerrier, du côté où il regarde ; elle ne prend aucun clic |
+| Répliques | Onze, dans `src/lib/fx/repliques.ts` : la première dit le regard (« Je te vois. »), puis les autres dans un ordre tiré au sort, jamais deux fois la même à la suite. Sur un écran tactile, sans curseur à suivre, celle qui en parle (« Tu bouges, je te suis. ») n'est pas dite. Trois réponses aux gestes : un clic sur lui, son tour complet, le curseur qui vient sur son casque (une fois par page). Une réplique reste de 3,2 à 7 s selon sa longueur ; le silence qui suit dure de 11,5 à 24 s, et s'allonge |
+
+- **Ce que les répliques ne disent jamais :** aucun chiffre (ni rang, ni score, ni résultat : une réplique n'est pas une donnée), aucune référence à Astérix, ni argent ni monnaie du jeu, pas d'emoji : un test le vérifie. Et aucun conseil de jeu, rien qui laisse entendre qu'on peut tricher (le « hacker » est dans la forme, pas dans le propos) : cela, aucun test ne sait le voir, il faut le relire à chaque ajout. Ce sont des bravades de personnage, pas des faits : le pilote peut en demander le remplacement.
+- **Accessibilité :** la bulle est masquée aux lecteurs d'écran (`aria-hidden`) et vide dans la page publiée ; le logo garde son nom. Texte blanc sur l'encre. Avec le bouton pause, « réduire les animations » ou sans JavaScript : ni toile, ni bulle, le dessin à plat reste. En contraste élevé, ni toile ni bulle non plus, et le dessin disparaît comme avant : le nom du logo reste lu. La bulle est du contenu qui change seul : c'est le bouton pause qui l'arrête, comme l'exige le critère WCAG 2.2.2.
+- **Calme :** rien ne clignote, la tête ne part ni ne s'arrête d'un coup. Dans un tour, chaque réplique passe une fois ; d'un tour au suivant, l'ordre est tiré de nouveau, et seule la répétition immédiate est interdite. Une même réponse à un geste ne revient pas avant cinq secondes.
+- **Repli :** si le script du relief ne se charge pas, le logo de l'accueil reste à plat et suit le curseur comme les autres logos ; un test e2e le vérifie.
+- **Coût :** la toile ne se redessine que si la tête ou le regard a bougé ; pour un curseur immobile, rien n'est redessiné (la visée se compte depuis la scène, qui ne flotte pas). La flânerie se contente d'une image sur trois, vingt par seconde sur un écran à 60 images. Le flanc est la face recopiée et décalée, pas un second dessin, et un flanc d'un demi-pixel à peine n'est pas dessiné : c'est le cas de la flânerie sur téléphone. La lueur large du dessin est une aura fixe, floutée une fois. Hors de l'écran, tout s'arrête. Une machine lente (plus de 7 ms par dessin en moyenne) passe d'elle-même sans flancs, à une image sur quatre, quinze par seconde. Mesuré le 12 novembre 2026 dans un Chromium sans carte graphique, processeur ralenti quatre fois, donc le pire cas : 60 images par seconde sur téléphone pendant la flânerie ; sur bureau, la tête qui suit le curseur y passe au régime économe, et la page prend 23 ms par image, contre 39 ms avec l'ancien logo incliné à plat. Sur une vraie carte graphique, non mesuré.
+- **Code :** `src/scripts/holo.ts`, chargé par `fx.ts` sur la seule page d'accueil ; calculs dans `src/lib/fx/holo.ts`, répliques et rythme dans `src/lib/fx/repliques.ts`, testés. Rien n'est écrit deux fois dans la page : le script lit la grille, les couleurs et la police sur le dessin (`LogoMatrice.tsx`).
 
 ### Le film de la carte
 
@@ -398,7 +419,7 @@ Ma place, sur l'accueil, donne le rang d'un membre, le prochain joueur à dépas
 
 **Un effet ne peut pas masquer du contenu.** La conquête d'un bloc couvre toutes ses cases, ce que des tests vérifient. Un bloc très haut ou une longue liste apparaît en fondu, et un bloc n'attend jamais plus de 0,4 s avant d'apparaître. Si le script ne se charge pas, les blocs s'affichent seuls au bout de 1,5 s.
 
-Le code est dans `src/scripts/fx.ts`, et sa logique testable dans `src/lib/fx/territory.ts`. Les composants Preact utilisent `src/lib/fx/motion.ts` pour savoir si les animations sont permises. Le script pèse environ 15 Ko et la boucle d'animation s'arrête quand l'onglet est masqué.
+Le code est dans `src/scripts/fx.ts`, et sa logique testable dans `src/lib/fx/territory.ts`. Les composants Preact utilisent `src/lib/fx/motion.ts` pour savoir si les animations sont permises. Le script pèse environ 16 Ko (plus 12 Ko pour le guerrier en relief, sur l'accueil seulement) et la boucle d'animation s'arrête quand l'onglet est masqué.
 
 **Trois façons de couper les effets :** le bouton pause de l'en-tête (le choix est mémorisé), le réglage « réduire les animations » du système, ou l'absence de JavaScript. Dans tous les cas, le contenu reste complet et les valeurs finales sont déjà dans le HTML.
 

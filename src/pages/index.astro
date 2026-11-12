@@ -103,14 +103,17 @@ const imageAlt = hasImage && imageFacts ? accueilImageAlt(imageFacts, clan.tag, 
           logoHeros ? (
             /* Le guerrier du QG et de la Direction, dessiné en 0, en 1 et en lettres du tag : il tombe une fois en colonnes,
                directement dans ses couleurs, puis flotte au-dessus de son socle de lumière, comme projeté par la table
-               des cartes (« Le poste de commandement », docs/DESIGN.md). */
+               des cartes (« Le poste de commandement », docs/DESIGN.md). Avec les effets, il prend ensuite du relief
+               (`data-holo`, src/scripts/holo.ts) : il tourne la tête vers le curseur et parle dans sa bulle, vide et
+               cachée dans la page publiée. */
             <div class="holo-scene relative w-56 sm:w-72 md:w-full md:max-w-lg">
               <div class="holo-socle" aria-hidden="true"></div>
               <div class="float relative">
-                <div class="holo" role="img" aria-label="Logo du clan GAL, Les Gaulois : un guerrier gaulois de profil, au casque à plumes tricolore, dessiné en caractères." data-fx-logo>
+                <div class="holo" role="img" aria-label="Logo du clan GAL, Les Gaulois : un guerrier gaulois de profil, au casque à plumes tricolore, dessiné en caractères." data-fx-logo data-holo>
                   <LogoMatrice data={logoHeros} id="logo-accueil" class="holo-logo" />
                 </div>
               </div>
+              <p class="holo-bulle" aria-hidden="true" data-holo-bulle hidden></p>
             </div>
           ) : hasLogo ? (
             <div class="float relative w-36 sm:w-56 md:w-full md:max-w-sm">

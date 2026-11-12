@@ -370,6 +370,8 @@ Pour arrêter : supprimer le secret, ou retirer le robot du serveur. Les images 
 
 Les effets au curseur et aux clics sont dans `src/scripts/fx.ts`. Ils sont décrits dans [docs/DESIGN.md](docs/DESIGN.md). Les visiteurs peuvent les couper avec le bouton pause de l'en-tête ou le réglage « réduire les animations » de leur système.
 
+Sur l'accueil, le guerrier prend du relief (`src/scripts/holo.ts`, chargé sur cette seule page) : il tourne la tête vers le curseur, le suit du regard et dit des répliques dans une bulle. Les répliques sont dans `src/lib/fx/repliques.ts` : aucun chiffre ni référence à Astérix, ce qu'un test vérifie, et aucun conseil de jeu, ce qui se relit à chaque ajout. Détail dans [docs/DESIGN.md](docs/DESIGN.md), « Le guerrier en relief ».
+
 ## Limites connues
 
 - La route de la liste des membres n'est pas documentée par OpenFront et peut changer. En cas de panne, le site garde la dernière liste valide.

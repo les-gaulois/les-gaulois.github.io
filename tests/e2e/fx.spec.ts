@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { REACTIONS, REPLIQUES } from "../../src/lib/fx/repliques";
 
 const PAGES = ["/", "/gazette", "/parties", "/classement", "/rivaux", "/progression", "/records", "/membres", "/liste", "/carte", "/activite", "/debuter", "/rejoindre"];
 
@@ -97,6 +98,13 @@ const watchContextMenu = (page: Page) =>
 const menuPrevented = (page: Page) => page.evaluate(() => (window as unknown as { __prevented?: boolean }).__prevented);
 
 const pauseButton = (page: Page) => page.getByRole("button", { name: "Mettre les animations en pause" });
+
+/** Attend que le guerrier de l'accueil ait pris son relief : ses colonnes tombent d'abord, en un peu plus de deux secondes. */
+const holoAwake = (page: Page) => expect(page.locator("[data-fx-logo]")).toHaveAttribute("data-holo", "vif", { timeout: 10_000 });
+
+/** La pose que le guerrier vient de dessiner, en degrés (src/scripts/holo.ts la pose sur sa toile pour ces tests). */
+const holoPose = (page: Page) =>
+  page.locator(".holo-toile").evaluate((el) => (el as HTMLCanvasElement & { pose?: { lacet: number; tangage: number; roulis: number; tour: boolean } }).pose ?? null);
 
 /** Fait défiler toute la page, comme un visiteur, puis revient en haut. */
 const scrollThrough = (page: Page) =>
@@ -259,7 +267,104 @@ test.describe("à la souris", () => {
     await expect.poll(painted, { timeout: 1000 }).toBeGreaterThan(1000);
   });
 
-  test("le logo suit le curseur et réagit aux deux boutons", async ({ page }) => {
+  test("le guerrier de l'accueil prend du relief, tourne la tête vers le curseur et réagit aux deux boutons", async ({ page }) => {
+    const logo = page.locator("[data-fx-logo]");
+    const toile = page.locator(".holo-toile");
+    const bulle = page.locator(".holo-bulle");
+    // Le relief prend le relais du dessin à plat une fois ses colonnes tombées : le dessin garde sa place, caché.
+    await holoAwake(page);
+    await expect(toile).toBeVisible();
+    await expect(page.locator(".holo-logo")).toBeHidden();
+    // Il est bien dessiné : des milliers de pixels allumés sur la toile.
+    const lit = await toile.evaluate((el: HTMLCanvasElement) => {
+      const data = el.getContext("2d")!.getImageData(0, 0, el.width, el.height).data;
+      let count = 0;
+      for (let i = 3; i < data.length; i += 4) if (data[i]! > 60) count++;
+      return count;
+    });
+    expect(lit).toBeGreaterThan(5000);
+
+    // La tête se tourne vers le curseur : à gauche, à droite, en haut, en bas.
+    await page.mouse.move(60, 300, { steps: 4 });
+    await expect.poll(async () => (await holoPose(page))?.lacet ?? 0).toBeLessThan(-10);
+    await page.mouse.move(1275, 300, { steps: 4 });
+    await expect.poll(async () => (await holoPose(page))?.lacet ?? 0).toBeGreaterThan(5);
+    await page.mouse.move(1000, 2, { steps: 4 });
+    await expect.poll(async () => (await holoPose(page))?.tangage ?? 0).toBeGreaterThan(3);
+    await page.mouse.move(1000, 795, { steps: 4 });
+    await expect.poll(async () => (await holoPose(page))?.tangage ?? 0).toBeLessThan(-3);
+    // Elle tourne dans l'espace : le cadre du dessin, lui, n'est pas incliné à plat.
+    expect(await logo.evaluate((el: HTMLElement) => el.style.transform)).toBe("");
+
+    // Le logo flotte en permanence : on clique à ses coordonnées, sans attendre qu'il s'immobilise.
+    const box = (await logo.boundingBox())!;
+    const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+
+    const pulse = seesScriptAnimation(logo);
+    await page.mouse.click(center.x, center.y);
+    expect(await pulse).toBe(true);
+    await expect(bulle).toHaveText(REACTIONS.clic);
+    await expect.poll(() => logo.evaluate((el) => el.getAnimations().length)).toBe(0);
+
+    // Clic droit : le tour complet se fait dans l'espace, sans menu ; puis la tête revient.
+    await watchContextMenu(page);
+    await page.mouse.click(center.x, center.y, { button: "right" });
+    expect(await menuPrevented(page)).toBe(true);
+    await expect.poll(async () => (await holoPose(page))?.tour).toBe(true);
+    await expect(bulle).toHaveText(REACTIONS.tour);
+    await expect.poll(async () => (await holoPose(page))?.tour, { timeout: 4000 }).toBe(false);
+    await expect.poll(async () => Math.abs((await holoPose(page))?.lacet ?? 99)).toBeLessThan(3);
+  });
+
+  test("le guerrier parle dans sa bulle, lettre à lettre, sans rien dire aux lecteurs d'écran", async ({ page }) => {
+    const bulle = page.locator(".holo-bulle");
+    // Dans la page publiée, la bulle est vide et cachée.
+    await expect(bulle).toHaveAttribute("aria-hidden", "true");
+    await holoAwake(page);
+    // Sa première réplique : il fixe le curseur.
+    await expect(bulle).toBeVisible({ timeout: 6000 });
+    await expect(bulle).toHaveText(REPLIQUES[0]!);
+    await expect(bulle.locator(".holo-lettre").first()).toHaveCSS("animation-name", "holo-frappe");
+    // Le pavé de la machine ne clignote pas : une seule animation, celle qui l'écrit.
+    await expect(bulle.locator(".holo-pave")).toHaveCount(1);
+    expect(await bulle.locator(".holo-pave").evaluate((el) => getComputedStyle(el).animationIterationCount)).toBe("1");
+    // La bulle reste dans l'écran, et ne prend aucun clic au guerrier.
+    const box = (await bulle.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(1280);
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    await expect(bulle).toHaveCSS("pointer-events", "none");
+    // Puis elle se tait : le silence dure plus de dix secondes.
+    await expect(bulle).toBeHidden({ timeout: 8000 });
+    await page.waitForTimeout(1500);
+    await expect(bulle).toBeHidden();
+  });
+
+  test("la pause rend le dessin à plat et fait taire la bulle ; la reprise réveille le guerrier", async ({ page }) => {
+    const logo = page.locator("[data-fx-logo]");
+    await holoAwake(page);
+    await expect(page.locator(".holo-bulle")).toBeVisible({ timeout: 6000 });
+    await pauseButton(page).click();
+    await expect(logo).toHaveAttribute("data-holo", "");
+    await expect(page.locator(".holo-toile")).toBeHidden();
+    await expect(page.locator(".holo-bulle")).toBeHidden();
+    await expect(page.locator(".holo-bulle")).toBeEmpty();
+    await expect(page.locator(".holo-logo")).toBeVisible();
+    // En pause, le curseur ne fait plus rien tourner.
+    await page.mouse.move(60, 300, { steps: 4 });
+    await page.waitForTimeout(400);
+    await expect(logo).toHaveAttribute("data-holo", "");
+    // Le même bouton relance les animations : les colonnes retombent, puis le relief revient.
+    await pauseButton(page).click();
+    await expect(page.locator("html")).not.toHaveClass(/fx-off/);
+    await holoAwake(page);
+    await expect(page.locator(".holo-toile")).toBeVisible();
+    await expect(page.locator(".holo-logo")).toBeHidden();
+  });
+
+  test("sur Rejoindre, le logo à plat suit le curseur et réagit aux deux boutons", async ({ page }) => {
+    await page.goto("/rejoindre");
+    await page.waitForLoadState("networkidle");
     const logo = page.locator("[data-fx-logo]");
     await page.mouse.move(1200, 100, { steps: 4 });
     await expect.poll(() => logo.evaluate((el: HTMLElement) => el.style.transform)).toContain("rotateY");
@@ -488,6 +593,29 @@ test("si le script échoue, les blocs s'affichent quand même", async ({ page },
   await expect(page.locator(".stage-blue")).toHaveCSS("opacity", "1", { timeout: 4000 });
 });
 
+test("si le script du relief ne se charge pas, le guerrier reste à plat et suit le curseur comme les autres logos", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "La souris est testée sur desktop.");
+  await page.route("**/_astro/holo*", (route) => route.abort());
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+  const logo = page.locator("[data-fx-logo]");
+  // Même après le temps de la chute : ni toile, ni bulle, le dessin est là.
+  await page.waitForTimeout(3500);
+  await expect(page.locator(".holo-toile")).toHaveCount(0);
+  await expect(page.locator(".holo-logo")).toBeVisible();
+  await expect(page.locator(".holo-bulle")).toBeHidden();
+  await expect(logo).toHaveAttribute("data-holo", "");
+  // Il retrouve les gestes du logo à plat : il s'incline vers le curseur, et le clic droit lui fait faire son tour.
+  await page.mouse.move(1200, 100, { steps: 4 });
+  await expect.poll(() => logo.evaluate((el: HTMLElement) => el.style.transform)).toContain("rotateY");
+  const box = (await logo.boundingBox())!;
+  await watchContextMenu(page);
+  const spin = seesScriptAnimation(logo);
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2, { button: "right" });
+  expect(await spin).toBe(true);
+  expect(await menuPrevented(page)).toBe(true);
+});
+
 test("au toucher, une pression lance une vague et aucun effet de survol n'apparaît", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile", "Le toucher est testé sur mobile.");
   await page.goto("/");
@@ -495,6 +623,31 @@ test("au toucher, une pression lance une vague et aucun effet de survol n'appara
   await expect(page.locator("[data-fx-hint]")).toBeHidden();
   await page.touchscreen.tap(8, 300);
   expect(await seesTile(page, 8, 300, "blue")).toBe(true);
+});
+
+test("au toucher, le guerrier flâne, puis regarde l'endroit touché ; sa bulle tient dans l'écran", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile", "Le toucher est testé sur mobile.");
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+  await holoAwake(page);
+  // Sans curseur, la tête tourne seule, lentement, de dix degrés au plus.
+  await expect.poll(async () => Math.abs((await holoPose(page))?.lacet ?? 0), { timeout: 6000 }).toBeGreaterThan(1);
+  expect(Math.abs((await holoPose(page))?.lacet ?? 99)).toBeLessThanOrEqual(10.5);
+  // La première réplique, entière dans l'écran du téléphone.
+  const bulle = page.locator(".holo-bulle");
+  await expect(bulle).toBeVisible({ timeout: 6000 });
+  await expect(bulle).toHaveText(REPLIQUES[0]!);
+  const box = (await bulle.boundingBox())!;
+  const viewport = page.viewportSize()!;
+  expect(box.x).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
+  expect(box.y).toBeGreaterThanOrEqual(0);
+  // Un toucher à gauche du guerrier, hors de lui : il s'y tourne, au-delà de sa flânerie.
+  await page.touchscreen.tap(6, 300);
+  await expect.poll(async () => (await holoPose(page))?.lacet ?? 0).toBeLessThan(-11);
+  expect(errors).toEqual([]);
 });
 
 test("avec « réduire les animations », aucun effet n'est lancé", async ({ page }) => {
@@ -510,6 +663,13 @@ test("avec « réduire les animations », aucun effet n'est lancé", async ({ pa
   await page.mouse.click(BACKGROUND.x, BACKGROUND.y, { button: "right" });
   expect(await menuPrevented(page)).toBe(false);
   await expect(page.locator("[data-fx-hint]")).toBeHidden();
+  // Le guerrier reste le dessin à plat : ni toile en relief, ni bulle, même après le temps de sa chute.
+  await page.waitForTimeout(3500);
+  await expect(page.locator(".holo-toile")).toHaveCount(0);
+  await expect(page.locator(".holo-logo")).toBeVisible();
+  await expect(page.locator(".holo-bulle")).toBeHidden();
+  await expect(page.locator(".holo-bulle")).toBeEmpty();
+  await expect(page.locator("[data-fx-logo]")).toHaveAttribute("data-holo", "");
 });
 
 test("sans JavaScript, tout le contenu reste visible", async ({ browser }, testInfo) => {
@@ -520,5 +680,8 @@ test("sans JavaScript, tout le contenu reste visible", async ({ browser }, testI
   await expect(page.getByTestId("home-join")).toHaveCSS("opacity", "1");
   await expect(page.locator("[data-fx-toggle]")).toBeHidden();
   await expect(page.locator("#fx-territory")).toHaveCount(0);
+  // Le guerrier est là, à plat ; sa bulle, vide, ne paraît pas.
+  await expect(page.locator(".holo-logo")).toBeVisible();
+  await expect(page.locator(".holo-bulle")).toBeHidden();
   await context.close();
 });

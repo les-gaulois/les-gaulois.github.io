@@ -3625,6 +3625,173 @@ footer h2 {
 /* En contraste élevé, comme au QG et à la Direction, le dessin du guerrier disparaît (.console-logo) : le nom du logo reste
    lu par les lecteurs d'écran. */
 
+/* Le guerrier en relief (src/scripts/holo.ts) : une toile posée sur le dessin, où chaque caractère a sa profondeur. Elle
+   dépasse du dessin, pour que rien ne soit coupé quand la tête tourne, et prend son relais une fois les colonnes
+   tombées : le dessin garde sa place, caché. Avec le bouton pause ou « réduire les animations », la toile n'existe pas
+   ou reste cachée, et le dessin à plat est là.
+   Les deux lueurs du dessin sont partagées : la lueur serrée suit les caractères, sur la toile ; la lueur large est
+   une aura fixe, la silhouette du logo en bleu, floutée une seule fois. Recalculer ce grand flou à chaque image
+   coûtait plus cher que tout le reste. */
+.holo-toile,
+.holo-aura {
+  position: absolute;
+  inset: -10%;
+  width: 120%;
+  height: 120%;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+}
+/* La même lueur serrée que le dessin : le jeton blue-text, à 45 %. */
+.holo-toile {
+  filter: drop-shadow(0 0 0.1875rem color-mix(in srgb, var(--color-blue-text) 45%, transparent));
+}
+.holo-aura {
+  filter: blur(1.25rem);
+}
+/* Le relais se fait en fondu, tête droite : la toile et le dessin se superposent exactement, puis le dessin se cache. */
+[data-holo="vif"] .holo-toile,
+[data-holo="vif"] .holo-aura {
+  visibility: visible;
+  transition: opacity 0.4s ease;
+}
+[data-holo="vif"] .holo-toile {
+  opacity: 1;
+}
+[data-holo="vif"] .holo-aura {
+  opacity: 0.16;
+}
+[data-holo="vif"] .holo-logo {
+  visibility: hidden;
+  transition: visibility 0s linear 0.4s;
+}
+.fx-off .holo-toile,
+.fx-off .holo-aura,
+.fx-off .holo-bulle {
+  display: none;
+}
+.fx-off [data-holo] .holo-logo {
+  visibility: visible;
+}
+
+/* La bulle du guerrier : une bulle de manga passée par la machine. Des angles coupés et une queue en éclair, comme la
+   voix d'un appareil dans une planche ; l'encre du site, un trait clair, la chasse fixe. Les paroles sont en capitales,
+   les commandes comme on les tape. Elle s'écrit lettre à lettre, puis son pavé se pose : il ne clignote pas.
+   Décorative (aria-hidden) : elle ne paraît qu'avec les effets, en haut à droite du guerrier, du côté où il regarde. */
+.holo-bulle {
+  --coupe: 0.4375rem;
+  --pointe: 0.8125rem;
+  --queue: 58%;
+  --trait: var(--color-blue-text);
+  position: absolute;
+  top: -0.875rem;
+  right: -0.25rem;
+  z-index: 2;
+  max-width: min(15rem, 94%);
+  margin: 0;
+  padding: 0.5rem 0.75rem calc(0.4375rem + var(--pointe));
+  font-family: var(--font-console);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+  color: #fff;
+  pointer-events: none;
+  user-select: none;
+  isolation: isolate;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(0.25rem) scale(0.96);
+  transform-origin: var(--queue) 100%;
+  /* Le trait : quatre ombres nettes d'un pixel font le tour de la forme, queue comprise ; puis la lueur de l'hologramme. */
+  filter: drop-shadow(1px 0 0 var(--trait)) drop-shadow(-1px 0 0 var(--trait)) drop-shadow(0 1px 0 var(--trait)) drop-shadow(0 -1px 0 var(--trait))
+    drop-shadow(0 0 0.75rem color-mix(in srgb, var(--color-flag-blue) 50%, transparent));
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease,
+    visibility 0s linear 0.3s;
+}
+.holo-bulle.parle {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition:
+    opacity 0.2s ease-out,
+    transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1),
+    visibility 0s;
+}
+.holo-bulle::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--color-night);
+  clip-path: polygon(
+    var(--coupe) 0,
+    calc(100% - var(--coupe)) 0,
+    100% var(--coupe),
+    100% calc(100% - var(--pointe) - var(--coupe)),
+    calc(100% - var(--coupe)) calc(100% - var(--pointe)),
+    calc(var(--queue) + 0.875rem) calc(100% - var(--pointe)),
+    calc(var(--queue) + 0.375rem) calc(100% - var(--pointe) * 0.55),
+    calc(var(--queue) + 0.625rem) calc(100% - var(--pointe) * 0.55),
+    calc(var(--queue) - 0.125rem) 100%,
+    calc(var(--queue) + 0.125rem) calc(100% - var(--pointe) * 0.68),
+    calc(var(--queue) - 0.125rem) calc(100% - var(--pointe) * 0.68),
+    calc(var(--queue) + 0.0625rem) calc(100% - var(--pointe)),
+    var(--coupe) calc(100% - var(--pointe)),
+    0 calc(100% - var(--pointe) - var(--coupe)),
+    0 var(--coupe)
+  );
+}
+.holo-commande,
+.holo-parole {
+  display: block;
+}
+.holo-commande {
+  font-weight: 500;
+  color: var(--color-blue-text);
+}
+.holo-parole {
+  text-transform: uppercase;
+}
+.holo-fin {
+  white-space: nowrap;
+}
+.holo-lettre {
+  animation: holo-frappe 1ms linear both;
+}
+@keyframes holo-frappe {
+  from {
+    opacity: 0;
+  }
+}
+.holo-pave {
+  display: inline-block;
+  width: 0.55em;
+  height: 1em;
+  margin-left: 0.3em;
+  vertical-align: -0.12em;
+  background: var(--color-red);
+}
+/* Sur téléphone, le guerrier est petit et centré : la bulle prend sa largeur, et dépasse d'un rien à droite, dans la marge
+   de la page. Une réplique y tient sur une ligne, et ne couvre que le haut du cercle. */
+@media (max-width: 47.99rem) {
+  .holo-bulle {
+    top: -0.75rem;
+    right: -1rem;
+    max-width: 15rem;
+    font-size: 0.75rem;
+  }
+}
+@media (forced-colors: active) {
+  .holo-toile,
+  .holo-aura,
+  .holo-bulle {
+    display: none;
+  }
+}
+
 /* La page Carte : l'invite se pose sur la carte avec le titre, sur grand écran seulement. En dessous, le titre est
    au-dessus de la carte, et chaque ligne de plus la repousse (tests/e2e/carte.spec.ts lui laisse 200 px, panne comprise). */
 .film-title .invite {

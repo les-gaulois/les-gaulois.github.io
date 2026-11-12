@@ -156,7 +156,8 @@ describe("content/nouveautes.json", () => {
     for (const e of entries) {
       if (!e.link) continue;
       const path = e.link.href.split("#")[0] ?? "";
-      const file = path.endsWith("/") ? `public${path}index.html` : `src/pages${path}.astro`;
+      // L'accueil est « / » ; un dossier servi tel quel finit par « / » ; le reste est une page du site.
+      const file = path === "/" ? "src/pages/index.astro" : path.endsWith("/") ? `public${path}index.html` : `src/pages${path}.astro`;
       expect(existsSync(file), e.link.href).toBe(true);
     }
   });

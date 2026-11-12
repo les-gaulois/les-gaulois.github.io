@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-12",
+    "kind": "nouveau",
+    "title": "Le guerrier de l'accueil prend du relief",
+    "body": "Sur l'accueil, le guerrier est en relief : il tourne la tête vers votre souris ou votre doigt, vous suit du regard et parle dans une petite bulle. Le bouton pause le remet à plat.",
+    "link": {
+      "href": "/",
+      "label": "Voir l'accueil"
+    }
+  },
+  {
+    "date": "2026-11-12",
     "kind": "ameliore",
     "title": "Le guide du clan, chapitre par chapitre, avec des essais",
     "body": "Le guide du clan se lit un chapitre à la fois : l'essentiel en quelques phrases, puis un essai à manipuler (attaque, croissance, bâtiments, bateaux, trains). Les fiches par mode sont retirées.",
