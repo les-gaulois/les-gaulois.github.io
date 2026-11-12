@@ -235,6 +235,8 @@ export interface Fiche {
   pseudo: string;
   /** La description de l'image, lue aux lecteurs d'écran ; `null` : pas d'image, le message part en texte. */
   alt: string | null;
+  /** La version de l'image, tirée de son dessin par le site : `null` s'il ne la donne pas (voir `ficheImageUrl`). */
+  v: string | null;
 }
 
 export interface FicheList {
@@ -245,6 +247,8 @@ export interface FicheList {
 
 /** L'identifiant public d'un membre : des lettres et des chiffres, huit au 12 novembre 2026. */
 const FICHE_ID = /^[A-Za-z0-9]{1,32}$/;
+/** La version d'une image, comme celles des images des commandes : des chiffres et des lettres minuscules. */
+const FICHE_VERSION = /^[0-9a-z]{1,32}$/;
 
 /** Le fichier du site, relu sans lui faire confiance : `null` s'il n'a pas la forme attendue. Une fiche mal formée est écartée. */
 export function parseFiches(value: unknown): FicheList | null {
@@ -258,8 +262,9 @@ export function parseFiches(value: unknown): FicheList | null {
     const id = entry?.["id"];
     const pseudo = entry?.["pseudo"];
     const alt = entry?.["alt"];
+    const v = entry?.["v"];
     if (typeof id !== "string" || !FICHE_ID.test(id) || typeof pseudo !== "string" || pseudo.trim() === "" || pseudo.length > 64) continue;
-    fiches.push({ id, pseudo, alt: typeof alt === "string" && alt.trim() !== "" ? alt.slice(0, 1024) : null });
+    fiches.push({ id, pseudo, alt: typeof alt === "string" && alt.trim() !== "" ? alt.slice(0, 1024) : null, v: typeof v === "string" && FICHE_VERSION.test(v) ? v : null });
   }
   return { listedAt, fiches };
 }
@@ -316,8 +321,13 @@ export const escapeDiscord = (text: string): string =>
 /** La page de la fiche, comme dans les autres messages du robot (`profileUrl`, src/lib/paliers-franchis-discord.ts). */
 export const ficheUrl = (id: string): string => `${SITE_URL}/membres/${encodeURIComponent(id)}/`;
 
-/** L'image de la fiche, dessinée à la construction du site. Sa version suit la liste des membres : Discord ne montre pas l'ancienne. */
-export const ficheImageUrl = (id: string, listedAt: string): string => `${SITE_URL}/generated/fiches/${encodeURIComponent(id)}.png?v=${Date.parse(listedAt).toString(36)}`;
+/**
+ * L'image de la fiche, dessinée à la construction du site. Sa version est celle que le site tire de son dessin (`v`) : quand
+ * l'image change, chiffres ou style, l'adresse change, et Discord ne montre pas celle qu'il a gardée. Sans `v` (un site
+ * d'avant le 12 novembre 2026), elle suit la liste des membres, relue une fois par jour.
+ */
+export const ficheImageUrl = (id: string, listedAt: string, v: string | null = null): string =>
+  `${SITE_URL}/generated/fiches/${encodeURIComponent(id)}.png?v=${v ?? Date.parse(listedAt).toString(36)}`;
 
 /** Ce que voit tout le salon : l'image de la fiche en grand et un bouton vers sa page. Sans image, une ligne de texte. */
 export function ficheMessage(fiche: Fiche, listedAt: string): Record<string, unknown> {
@@ -325,7 +335,7 @@ export function ficheMessage(fiche: Fiche, listedAt: string): Record<string, unk
   if (fiche.alt === null) return { content: `La fiche de ${escapeDiscord(fiche.pseudo)} :`, components: [button], allowed_mentions: { parse: [] } };
   return {
     flags: COMPONENTS_V2,
-    components: [{ type: 12, items: [{ media: { url: ficheImageUrl(fiche.id, listedAt) }, description: fiche.alt }] }, button],
+    components: [{ type: 12, items: [{ media: { url: ficheImageUrl(fiche.id, listedAt, fiche.v) }, description: fiche.alt }] }, button],
     allowed_mentions: { parse: [] },
   };
 }

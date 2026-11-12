@@ -703,7 +703,9 @@ test("les fiches de la commande /fiche sont celles des pages des membres", async
   expect(list?.fiches.map((f) => f.id).sort()).toEqual(named.map((m: { publicId: string }) => m.publicId).sort());
   const shown = list?.fiches.find((f) => f.alt !== null);
   if (shown) {
-    expect((await request.get(ficheImageUrl(shown.id, list?.listedAt ?? "").replace(SITE_URL, ""))).ok()).toBe(true);
+    // Chaque image a la version de son dessin : sans elle, /moi et /fiche montreraient l'image que Discord a gardée.
+    expect(shown.v).toMatch(/^[0-9a-f]{12}$/);
+    expect((await request.get(ficheImageUrl(shown.id, list?.listedAt ?? "", shown.v).replace(SITE_URL, ""))).ok()).toBe(true);
     expect((await request.get(ficheUrl(shown.id).replace(SITE_URL, ""))).ok()).toBe(true);
   }
 });
@@ -1387,8 +1389,11 @@ test("une fiche de membre se partage : un bouton copie son lien, et l'aperçu du
   await page.goto(`/membres/${named.publicId}`);
   // L'image d'aperçu, dessinée au build, est bien servie et décrite.
   // L'adresse est absolue, sur le domaine du site : on ne garde que le chemin pour l'interroger ici.
-  const image = new URL((await page.locator('meta[property="og:image"]').getAttribute("content"))!).pathname;
+  const og = new URL((await page.locator('meta[property="og:image"]').getAttribute("content"))!);
+  const image = og.pathname;
   expect(image).toBe(`/generated/fiches/${named.publicId}.png`);
+  // Sa version suit son dessin : quand l'image change, Discord ne garde pas l'ancienne.
+  expect(og.search).toMatch(/^\?v=[0-9a-f]{12}$/);
   const served = await page.request.get(image);
   expect(served.status()).toBe(200);
   expect(served.headers()["content-type"]).toContain("image/png");

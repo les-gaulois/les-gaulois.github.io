@@ -1,7 +1,10 @@
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { ERROR_MESSAGES } from "../../src/lib/compte/errors";
-import { ficheIndex } from "../../src/lib/fiches-discord";
+import { ficheImageVersion, ficheIndex } from "../../src/lib/fiches-discord";
 import { profileUrl } from "../../src/lib/paliers-franchis-discord";
 import { CHOOSE_NAME_URL as SITE_CHOOSE_NAME_URL } from "../../src/lib/pseudo-openfront";
 import type { StoredMembers } from "../../src/lib/schemas";
@@ -23,6 +26,7 @@ import {
   codeAccountEmail,
   ed25519Spki,
   ficheImageUrl,
+  ficheMessage,
   ficheUrl,
   formatCode,
   handle,
@@ -66,7 +70,7 @@ type Answers = Record<string, (args: Record<string, unknown>) => Record<string, 
 
 // Des fiches inventées, comme celles que le site publie : des pseudos, dont deux portent le nombre que le jeu ajoute.
 const LISTED_AT = "2026-11-12T10:53:37.089Z";
-const fiche = (id: string, pseudo: string, alt: string | null = `${pseudo}, membre de [GAL] : 3e sur 300 membres aux victoires sous le tag.`): Fiche => ({ id, pseudo, alt });
+const fiche = (id: string, pseudo: string, alt: string | null = `${pseudo}, membre de [GAL] : 3e sur 300 membres aux victoires sous le tag.`): Fiche => ({ id, pseudo, alt, v: null });
 const FICHES: FicheList = {
   listedAt: LISTED_AT,
   fiches: [
@@ -402,6 +406,9 @@ describe("la commande /fiche, envoyée par Discord", () => {
     // L'adresse de l'image change avec la liste des membres : Discord ne montre pas l'image de la veille.
     expect(ficheImageUrl("Ab12Cd34", LISTED_AT)).toBe(`${SITE_URL}/generated/fiches/Ab12Cd34.png?v=${Date.parse(LISTED_AT).toString(36)}`);
     expect(ficheImageUrl("Ab12Cd34", "2026-11-13T10:53:37.089Z")).not.toBe(ficheImageUrl("Ab12Cd34", LISTED_AT));
+    // Avec la version que le site tire du dessin, l'adresse change aussi quand seul le dessin change, la liste restant la même.
+    expect(ficheImageUrl("Ab12Cd34", LISTED_AT, "0123456789ab")).toBe(`${SITE_URL}/generated/fiches/Ab12Cd34.png?v=0123456789ab`);
+    expect(ficheImageUrl("Ab12Cd34", LISTED_AT, "ba9876543210")).not.toBe(ficheImageUrl("Ab12Cd34", LISTED_AT, "0123456789ab"));
     expect(body.data.allowed_mentions).toEqual({ parse: [] });
   });
 
@@ -659,8 +666,28 @@ describe("les fiches publiées par le site", () => {
     ],
   };
 
+  it("donnent à chaque image la version de son fichier : un nouveau dessin change l'adresse que montrent /fiche et /moi", () => {
+    const root = mkdtempSync(join(tmpdir(), "fiches-"));
+    try {
+      const dir = join(root, "public", "generated", "fiches");
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, "Ab12Cd34.png"), "ancien dessin");
+      const before = ficheImageVersion("Ab12Cd34", root);
+      expect(before).toBe(createHash("sha256").update("ancien dessin").digest("hex").slice(0, 12));
+      writeFileSync(join(dir, "Ab12Cd34.png"), "nouveau dessin");
+      const after = ficheImageVersion("Ab12Cd34", root);
+      expect(after).not.toBe(before);
+      expect(ficheImageVersion("Ef56Gh78", root)).toBeNull();
+      // La fonction met cette version dans l'adresse de l'image, et la liste des membres n'a pas à changer.
+      const shown = (v: string | null) => JSON.stringify(ficheMessage({ id: "Ab12Cd34", pseudo: "Brennos", alt: "a", v }, LISTED_AT));
+      expect(shown(after)).toContain(`/generated/fiches/Ab12Cd34.png?v=${after}`);
+      expect(shown(after)).not.toBe(shown(before));
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
   it("se relisent telles que le site les écrit : une par membre avec pseudo, jamais un anonyme", () => {
-    const index = ficheIndex(members, "GAL", (id) => id !== "Ef56Gh78");
+    const index = ficheIndex(members, "GAL", (id) => (id !== "Ef56Gh78" ? "0123456789ab" : null));
     expect(index.listedAt).toBe(LISTED_AT);
     expect(index.fiches.map((f) => [f.id, f.pseudo])).toEqual([
       ["Ij90Kl12", "Brennos"],
@@ -671,6 +698,12 @@ describe("les fiches publiées par le site", () => {
     expect(index.fiches.find((f) => f.id === "Ab12Cd34")?.alt).toMatch(/^Taranis, membre de \[GAL\] : /);
     expect(index.fiches.find((f) => f.id === "Ef56Gh78")?.alt).toBeNull();
     expect(index.fiches.find((f) => f.id === "Ij90Kl12")?.alt).toBeNull();
+    // La version de l'image, seulement avec une image.
+    expect(index.fiches.map((f) => [f.id, f.v])).toEqual([
+      ["Ij90Kl12", null],
+      ["Ef56Gh78", null],
+      ["Ab12Cd34", "0123456789ab"],
+    ]);
     expect(parseFiches(JSON.parse(JSON.stringify(index)))).toEqual(index);
   });
 
@@ -679,13 +712,16 @@ describe("les fiches publiées par le site", () => {
     expect(
       parseFiches({
         listedAt: LISTED_AT,
-        fiches: [{ id: "Ab12Cd34", pseudo: "Brennos", alt: "a" }, { id: "../x", pseudo: "Faux", alt: null }, { id: "Ef56Gh78", pseudo: "  ", alt: null }, { id: "Ij90Kl12", pseudo: "Sans image", alt: 4 }, "rien"],
+        fiches: [{ id: "Ab12Cd34", pseudo: "Brennos", alt: "a", v: "0123456789ab" }, { id: "../x", pseudo: "Faux", alt: null }, { id: "Ef56Gh78", pseudo: "  ", alt: null }, { id: "Ij90Kl12", pseudo: "Sans image", alt: 4, v: "../x" }, { id: "Mn34Op56", pseudo: "Version bizarre", alt: "b", v: 42 }, { id: "Qr78St90", pseudo: "Ancien site", alt: "c" }, "rien"],
       }),
     ).toEqual({
       listedAt: LISTED_AT,
       fiches: [
-        { id: "Ab12Cd34", pseudo: "Brennos", alt: "a" },
-        { id: "Ij90Kl12", pseudo: "Sans image", alt: null },
+        { id: "Ab12Cd34", pseudo: "Brennos", alt: "a", v: "0123456789ab" },
+        { id: "Ij90Kl12", pseudo: "Sans image", alt: null, v: null },
+        { id: "Mn34Op56", pseudo: "Version bizarre", alt: "b", v: null },
+        // Une fiche d'un site d'avant la version : l'adresse suit alors l'heure de la liste, comme avant.
+        { id: "Qr78St90", pseudo: "Ancien site", alt: "c", v: null },
       ],
     });
   });

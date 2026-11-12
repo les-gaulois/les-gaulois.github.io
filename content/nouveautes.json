@@ -1,6 +1,12 @@
 [
   {
     "date": "2026-11-12",
+    "kind": "corrige",
+    "title": "L'aperçu d'une fiche suit son image du jour",
+    "body": "Quand Discord relit la page d'une fiche, l'aperçu du lien prend l'image du jour au lieu d'en garder une ancienne."
+  },
+  {
+    "date": "2026-11-12",
     "kind": "ameliore",
     "title": "Une image de bienvenue, six couleurs",
     "body": "Sur le Discord du clan, l'image de bienvenue garde un seul décor, l'étendard du clan, en six couleurs : bleu, bleu royal, indigo, lie-de-vin, nuit et acier."

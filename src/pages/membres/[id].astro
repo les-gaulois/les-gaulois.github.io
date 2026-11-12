@@ -1,6 +1,4 @@
 ---
-import { existsSync } from "node:fs";
-import { join } from "node:path";
 import Base from "../../layouts/Base.astro";
 import DataStatus from "../../components/DataStatus.astro";
 import MapNamesCredit from "../../components/MapNamesCredit.astro";
@@ -10,6 +8,7 @@ import { clan } from "../../../config/clan";
 import { loadMemberGames, loadMemberResultsOnce, loadMembers, loadMeta, loadSessionIndex } from "../../lib/data";
 import { fmtCount, fmtDate, fmtInt, fmtPct } from "../../lib/format";
 import { ficheFacts, ficheImageAlt } from "../../lib/fiche-image";
+import { ficheImageVersion } from "../../lib/fiches-discord";
 import { MAX_AGE_HOURS } from "../../lib/freshness";
 import { mapLabel } from "../../lib/map-names";
 import { gamesOf, rateOf, recentGamesTitle, singlePseudos } from "../../lib/members";
@@ -46,8 +45,10 @@ const atDay = (date: string) => fmtDate(`${date}T12:00:00Z`);
 // L'image d'aperçu du lien, dessinée au build (scripts/generate-fiches.ts) : sans elle, celle du site.
 const list = loadMembers();
 const facts = list ? ficheFacts(list.members, member) : null;
-const hasImage = facts !== null && member.publicId !== null && existsSync(join("public", "generated", "fiches", `${member.publicId}.png`));
-const image = hasImage ? `${base}/generated/fiches/${member.publicId}.png` : undefined;
+// Son adresse porte la version de son dessin : quand l'image change, Discord ne montre pas celle qu'il a gardée.
+const imageVersion = facts !== null && member.publicId !== null ? ficheImageVersion(member.publicId) : null;
+const hasImage = imageVersion !== null;
+const image = hasImage ? `${base}/generated/fiches/${member.publicId}.png?v=${imageVersion}` : undefined;
 // Une photo Discord ne va qu'à côté d'un pseudo porté par un seul membre : jamais à côté d'un homonyme (src/scripts/visages.ts).
 const face = list && singlePseudos(list.members).has(username) ? username : undefined;
 const imageAlt = hasImage && facts && list ? ficheImageAlt(facts, clan.tag, list.fetchedAt) : undefined;
