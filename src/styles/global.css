@@ -3676,7 +3676,7 @@ footer h2 {
 
 /* La bulle du guerrier : une bulle de manga passée par la machine. Des angles coupés et une queue en éclair, comme la
    voix d'un appareil dans une planche ; l'encre du site, un trait clair, la chasse fixe. Les paroles sont en capitales,
-   les commandes comme on les tape. Elle s'écrit lettre à lettre, puis son pavé se pose : il ne clignote pas.
+   les lignes de la machine en minuscules. Elle s'écrit lettre à lettre, puis son pavé se pose : il ne clignote pas.
    Décorative (aria-hidden) : elle ne paraît qu'avec les effets, en haut à droite du guerrier, du côté où il regarde. */
 .holo-bulle {
   --coupe: 0.4375rem;
@@ -3744,11 +3744,12 @@ footer h2 {
     0 var(--coupe)
   );
 }
-.holo-commande,
+.holo-machine,
 .holo-parole {
   display: block;
 }
-.holo-commande {
+/* Ce que la machine affiche, avant la réponse du guerrier : en minuscules, plus léger, dans la couleur des liens. */
+.holo-machine {
   font-weight: 500;
   color: var(--color-blue-text);
 }

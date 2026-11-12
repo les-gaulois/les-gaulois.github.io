@@ -328,7 +328,7 @@ export function monterHolo(el: HTMLElement): Holo | null {
 
   function dire(replique: string): void {
     if (!bulle) return;
-    const { commande, parole } = decouper(replique);
+    const { machine, parole } = decouper(replique);
     let rang = 0;
     const ecrire = (dans: HTMLElement, texte: string): void => {
       for (const caractere of texte) {
@@ -340,11 +340,11 @@ export function monterHolo(el: HTMLElement): Holo | null {
       }
     };
     const lignes: HTMLSpanElement[] = [];
-    if (commande) {
-      const tapee = document.createElement("span");
-      tapee.className = "holo-commande";
-      ecrire(tapee, commande);
-      lignes.push(tapee);
+    if (machine) {
+      const affichee = document.createElement("span");
+      affichee.className = "holo-machine";
+      ecrire(affichee, machine);
+      lignes.push(affichee);
     }
     // Le curseur de la machine, un pavé fixe, se pose quand la réplique est écrite. Il tient à son dernier mot : il ne
     // passe jamais seul à la ligne.

@@ -47,18 +47,31 @@ describe("les répliques du guerrier", () => {
     expect(auToucher.length).toBeGreaterThanOrEqual(8);
   });
 
-  it("séparent la commande tapée de la réponse, et collent la ponctuation double à son mot", () => {
-    expect(decouper("$ whoami\nGaulois.")).toEqual({ commande: "$ whoami", parole: "Gaulois." });
-    expect(decouper("Je te vois.")).toEqual({ commande: null, parole: "Je te vois." });
+  it("séparent la ligne de la machine de la réponse du guerrier, et collent la ponctuation double à son mot", () => {
     const insecable = String.fromCharCode(160);
+    expect(decouper("> identité ?\nGaulois.")).toEqual({ machine: `> identité${insecable}?`, parole: "Gaulois." });
+    expect(decouper("> ordre : tenir la ligne\nReçu.")).toEqual({ machine: `> ordre${insecable}: tenir la ligne`, parole: "Reçu." });
+    expect(decouper("Je te vois.")).toEqual({ machine: null, parole: "Je te vois." });
     expect(decouper("Encore une partie ?").parole).toBe(`Encore une partie${insecable}?`);
     expect(decouper("Tous au front !").parole).toBe(`Tous au front${insecable}!`);
-    // Chaque réplique à commande a bien sa réponse.
+    // Chaque échange avec la machine a bien sa réponse, et il y en a.
     for (const replique of TOUTES) {
-      const { commande, parole } = decouper(replique);
+      const { machine, parole } = decouper(replique);
       expect(parole.length, replique).toBeGreaterThan(0);
-      if (commande) expect(commande.startsWith("$ "), replique).toBe(true);
-      expect(lettres(replique)).toBe((commande?.length ?? 0) + parole.length);
+      if (machine) expect(machine.startsWith("> "), replique).toBe(true);
+      expect(lettres(replique)).toBe((machine?.length ?? 0) + parole.length);
+    }
+    expect(REPLIQUES.filter((replique) => decouper(replique).machine !== null).length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("parlent français, en mots que tout joueur comprend : ni commande d'informaticien, ni anglais", () => {
+    for (const replique of TOUTES) {
+      // Les commandes d'un terminal et leurs signes : le pilote et les visiteurs ne lisent pas ce jargon.
+      expect(replique, replique).not.toMatch(/[$#|&\\/{}[\]<=*~`_@]/);
+      expect(replique, replique).not.toMatch(/\b(sudo|whoami|rm|grep|ping|ssh|ls|cd|cat|echo|exit|root|admin|kill|git|npm)\b/i);
+      expect(replique, replique).not.toMatch(/\b(the|you|is|are|access|granted|denied|error|loading|target|locked|hello|world|game over)\b/i);
+      // Le seul signe permis est le chevron de la machine, en tête de sa ligne.
+      expect(replique.replace(/^> /, ""), replique).not.toContain(">");
     }
   });
 
@@ -70,7 +83,7 @@ describe("les répliques du guerrier", () => {
       // Une fois écrite, il reste au moins une seconde et demie pour la lire.
       expect(duree - lettres(replique) * FRAPPE_MS).toBeGreaterThanOrEqual(1_500);
     }
-    expect(dureeReplique("$ sudo tenir la ligne\nAccordé.")).toBeGreaterThan(dureeReplique("Je te vois."));
+    expect(dureeReplique("> ordre : tenir la ligne\nReçu.")).toBeGreaterThan(dureeReplique("Je te vois."));
     expect(dureeReplique("x".repeat(500))).toBe(7_000);
   });
 
