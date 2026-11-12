@@ -386,7 +386,7 @@ L'encadrement choisit où la commande peut servir dans **Paramètres du serveur 
 
 Choisie par le pilote le 12 novembre 2026, parmi des idées pour les membres : dans le serveur Discord du clan, `/fiche` suivi d'un pseudo montre à tout le salon la carte d'un membre, l'image d'aperçu de sa fiche (`src/lib/fiche-image.ts`), avec un bouton vers sa page. C'est ce que donne déjà le lien de la fiche collé dans un salon, en plus court.
 
-**Prête le 12 novembre 2026, pas encore installée** : elle marche une fois la fonction remise en ligne et la commande créée par le pilote (plus bas).
+**Installée le 12 novembre 2026** : le pilote a remis la fonction en ligne (`/etat` disait `"fiches":true` à 20 h 55, heure de Paris), créé la commande et l'a essayée (« ça marche »).
 
 **Pour le joueur :** il tape `/fiche`, puis le début d'un pseudo. Discord propose jusqu'à 25 membres qui ont une fiche : ceux dont le pseudo commence par ce qui est tapé, puis ceux qui le contiennent, sans compter les accents ni les majuscules. Il en choisit un et envoie : tout le salon voit l'image. Un pseudo tapé en entier marche aussi, même sans le nombre que le jeu ajoute à certains noms, gratuits ou déjà pris par un abonné (« Brennos » pour « Brennos.1234 ») ; si deux pseudos conviennent, la réponse demande de choisir. Un nom inconnu reçoit une réponse que lui seul voit : un membre sans pseudo public n'a pas de fiche, et le lien de la fenêtre d'OpenFront où il choisit son pseudo (`src/lib/pseudo-openfront.ts`).
 

@@ -225,7 +225,7 @@ Les membres se connectent avec Discord, un officier valide leur compte dans `/di
 
 Pour les joueurs qui refusent de lier leur compte Discord, une connexion par code est ouverte depuis le 12 novembre 2026 : `/code` dans le Discord du clan, puis le code sur le site. Voir « Se connecter avec un code » dans [docs/DIRECTION.md](docs/DIRECTION.md). Sous le bouton de connexion, un bloc dit aussi ce que Discord donne au site.
 
-La même application a une seconde commande, `/fiche`, prête le 12 novembre 2026 et à installer par le pilote : un pseudo, et tout le salon voit l'image de la fiche de ce membre, avec un bouton vers sa page. La fonction `code-discord` la lit dans `/fiches.json`, que le site publie avec ses pages. Voir « La commande /fiche » dans [docs/DIRECTION.md](docs/DIRECTION.md).
+La même application a une seconde commande, `/fiche`, installée le 12 novembre 2026 : un pseudo, et tout le salon voit l'image de la fiche de ce membre, avec un bouton vers sa page. La fonction `code-discord` la lit dans `/fiches.json`, que le site publie avec ses pages. Voir « La commande /fiche » dans [docs/DIRECTION.md](docs/DIRECTION.md).
 
 Les appels du QG peuvent aussi partir dans un salon Discord du clan, avec un ping du rôle quand l'appel le demande : ce n'est pas le robot qui les poste, mais le serveur, dès l'appel, avec un lien réglé dans l'onglet « Discord » de `/direction`. Voir « Les appels sur Discord » dans [docs/DIRECTION.md](docs/DIRECTION.md).
 

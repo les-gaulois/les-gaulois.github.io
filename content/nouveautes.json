@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-12",
+    "kind": "nouveau",
+    "title": "La commande /fiche sur Discord",
+    "body": "Dans le Discord du clan, tapez /fiche puis le début d'un pseudo et choisissez : tout le salon voit la fiche de ce membre, avec un bouton vers sa page.",
+    "link": {
+      "href": "/liste",
+      "label": "Voir les membres"
+    }
+  },
+  {
+    "date": "2026-11-12",
     "kind": "ameliore",
     "title": "Des titres en minuscules, avec une grande première lettre",
     "body": "Les titres ne sont plus tout en capitales : chaque lettre a sa minuscule, plus facile à lire. La première lettre du titre d'une page est plus grande et rouge, comme dans un vieux manuscrit."
