@@ -1,8 +1,13 @@
-import { useRef, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
+import { SUPABASE_URL } from "../../lib/compte/api";
+import { cleanImageName, IMAGE_NAME_MAX, imageNameProblem, imagePathOf, INVENTORY_MAX, savedImageAt, suggestedName, usableImages, type SavedImage } from "../../lib/compte/discord-images";
 import { applyEditTo, codeBlockEdit, formatDiscordTime, insertEdit, linesEdit, linkEdit, mentionCode, timeCode, TIME_STYLES, wrapEdit, type Edit, type MentionKind, type Selection, type TimeStyle } from "../../lib/compte/discord-markdown";
-import { imageFileProblem, textLength, type ImageSlot } from "../../lib/compte/discord-message";
+import { IMAGE_TYPES, imageFileProblem, textLength, type ImageSlot } from "../../lib/compte/discord-message";
+import { errorMessage } from "../../lib/compte/errors";
 import { fmtInt } from "../../lib/format";
 import { frNumber } from "../../lib/nombre";
+import { messageOf, Problem, Success } from "./common";
+import { useInventaire, type Inventaire } from "./inventaire";
 
 /**
  * Les champs du formulaire des messages Discord : un texte avec sa barre de mise en forme, le choix d'une image, et le
@@ -330,6 +335,12 @@ export function ImageChoix({
   const input = useRef<HTMLInputElement>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [over, setOver] = useState(false);
+  // L'inventaire de l'onglet Discord, s'il est là : une image gardée se choisit d'un clic, et celle-ci peut s'y garder.
+  const inventaire = useInventaire();
+  const [ouvert, setOuvert] = useState(false);
+  const gardees = usableImages(inventaire?.images ?? null);
+  const gardee = slot.kind === "link" ? savedImageAt(gardees, SUPABASE_URL, slot.url) : null;
+  useEffect(() => inventaire?.ensure(), []);
 
   const take = (file: File | null | undefined) => {
     if (!file) return;
@@ -338,10 +349,38 @@ export function ImageChoix({
     const added = addFile(file);
     if (typeof added === "string") return setProblem(added);
     setProblem(null);
+    setOuvert(false);
     onChange(added);
   };
 
+  const pick = (image: SavedImage) => {
+    setOuvert(false);
+    setProblem(null);
+    onChange({ kind: "link", url: image.url });
+    // Le bouton cliqué disparaît : le focus va au bouton qui retire l'image, à sa place.
+    window.requestAnimationFrame(() => document.getElementById(id)?.focus());
+  };
+
   const src = preview(slot);
+  // « Inventaire » : la liste des images gardées, sous le champ. Là où « Changer d'image » remplace l'image, il la remplace aussi.
+  const toggle =
+    gardees.length > 0 ? (
+      <button
+        type="button"
+        id={`${id}-inventaire-bouton`}
+        class="btn btn-ghost"
+        aria-expanded={ouvert}
+        aria-controls={`${id}-inventaire`}
+        aria-describedby={`${id}-nom`}
+        onClick={() => {
+          setOuvert(!ouvert);
+          // La liste s'ouvre sous le champ : le focus va à sa première image ; Échap le rend à ce bouton.
+          if (!ouvert) window.requestAnimationFrame(() => document.getElementById(`${id}-inventaire`)?.querySelector("button")?.focus());
+        }}
+      >
+        Inventaire
+      </button>
+    ) : null;
   return (
     <div
       class={`image-choix ${over ? "image-choix-survol" : ""}`}
@@ -371,15 +410,30 @@ export function ImageChoix({
           <button type="button" id={id} class="btn btn-ghost" aria-describedby={`${id}-nom`} onClick={() => (change ? input.current?.click() : onChange({ kind: "none" }))}>
             {change ? "Changer d'image" : "Retirer l'image"}
           </button>
+          {change && toggle}
+        </div>
+      ) : gardee ? (
+        // Une image de l'inventaire : comme un fichier choisi, avec son nom dans l'inventaire.
+        <div class="mt-2 flex flex-wrap items-center gap-3">
+          <img src={gardee.url} alt="" class="image-choix-vignette" />
+          <p class="min-w-0 flex-1 text-sm [overflow-wrap:anywhere]">
+            {gardee.name} <span class="text-muted">· inventaire</span>
+          </p>
+          <button type="button" id={id} class="btn btn-ghost" aria-describedby={`${id}-nom`} onClick={() => (change ? input.current?.click() : onChange({ kind: "none" }))}>
+            {change ? "Changer d'image" : "Retirer l'image"}
+          </button>
+          {change && toggle}
         </div>
       ) : (
-        <div class="mt-2 grid gap-2 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center">
-          <div>
+        // Les boutons, puis l'adresse : sur la même ligne s'il reste 16 rem pour l'adresse, sinon dessous.
+        <div class="mt-2 flex flex-wrap items-center gap-2">
+          <div class="flex flex-wrap gap-2">
             <button type="button" class="btn btn-ghost" aria-describedby={`${id}-nom`} onClick={() => input.current?.click()}>
               Choisir une image
             </button>
+            {toggle}
           </div>
-          <div class="flex items-center gap-3">
+          <div class="flex min-w-0 flex-[1_1_16rem] items-center gap-3">
             {src && <img src={src} alt="" class="image-choix-vignette" />}
             <input
               id={id}
@@ -416,11 +470,193 @@ export function ImageChoix({
           e.currentTarget.value = "";
         }}
       />
+      {toggle && ouvert && (change || (slot.kind !== "file" && !gardee)) && (
+        <ListeInventaire
+          id={`${id}-inventaire`}
+          label={label}
+          images={gardees}
+          onPick={pick}
+          onClose={() => {
+            setOuvert(false);
+            document.getElementById(`${id}-inventaire-bouton`)?.focus();
+          }}
+        />
+      )}
+      {inventaire && <GarderImage id={id} slot={slot} src={src} inventaire={inventaire} onKept={(image) => onChange({ kind: "link", url: image.url })} />}
       {problem && (
         <p class="form-problem" role="alert">
           {problem}
         </p>
       )}
     </div>
+  );
+}
+
+/** Les images de l'inventaire, en vignettes : un clic en choisit une pour ce champ. Échap referme la liste. */
+function ListeInventaire({ id, label, images, onPick, onClose }: { id: string; label: string; images: readonly SavedImage[]; onPick: (image: SavedImage) => void; onClose: () => void }) {
+  return (
+    <div
+      id={id}
+      class="inventaire-choix"
+      role="group"
+      aria-label={`Inventaire d'images : ${label}`}
+      onKeyDown={(e) => {
+        if (e.key !== "Escape") return;
+        e.preventDefault();
+        onClose();
+      }}
+    >
+      {images.map((image) => (
+        <button key={image.id} type="button" class="inventaire-vignette" onClick={() => onPick(image)} data-testid="inventaire-choix-image">
+          <img src={image.url} alt="" loading="lazy" decoding="async" />
+          <span>{image.name}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * « Enregistrer dans l'inventaire », sous un fichier choisi ou sous une image déjà déposée qui n'y est pas encore. Le
+ * fichier part tout de suite dans l'espace des images, puis l'inventaire le garde sous le nom donné ; le champ montre
+ * alors l'image gardée, et le message s'en servira sans la déposer de nouveau.
+ */
+function GarderImage({ id, slot, src, inventaire, onKept }: { id: string; slot: ImageSlot; src: string | null; inventaire: Inventaire; onKept: (image: SavedImage) => void }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [kept, setKept] = useState<string | null>(null);
+  const field = `${id}-garder`;
+  const images = inventaire.images;
+  const path = slot.kind === "link" ? imagePathOf(SUPABASE_URL, slot.url) : null;
+  const savable = images !== null && ((slot.kind === "file" && src !== null) || (path !== null && !images.some((image) => image.path === path)));
+  const shown = slot.kind === "file" ? slot.id : slot.kind === "link" ? slot.url : "";
+
+  // Le dépôt d'une grande image prend quelques secondes, pendant lesquelles le champ peut changer (autre image, embed
+  // déplacé ou retiré) : la fin de l'enregistrement lit ces valeurs-ci, celles du dernier affichage.
+  const latest = useRef({ id, shown, onKept });
+  latest.current = { id, shown, onKept };
+  const mounted = useRef(true);
+  useEffect(
+    () => () => {
+      mounted.current = false;
+    },
+    [],
+  );
+
+  // Le champ change d'image : le nom en cours d'écriture pour l'ancienne n'a plus d'objet, ni le « Enregistrée » d'avant.
+  useEffect(() => {
+    setOpen(false);
+    setProblem(null);
+    setKept((before) => (before !== null && before === path ? before : null));
+  }, [shown]);
+
+  const start = () => {
+    setName(slot.kind === "file" ? suggestedName(slot.name) : "");
+    setProblem(null);
+    setOpen(true);
+    window.requestAnimationFrame(() => {
+      const el = document.getElementById(field);
+      if (!(el instanceof HTMLInputElement)) return;
+      el.focus();
+      el.select();
+    });
+  };
+
+  const submit = async () => {
+    if (busy || images === null) return;
+    // Plein : rien n'est déposé pour rien.
+    const issue = images.length >= INVENTORY_MAX ? errorMessage("inventory_full") : imageNameProblem(name, images);
+    if (issue) return setProblem(issue);
+    const before = shown;
+    setBusy(true);
+    setProblem(null);
+    try {
+      let image: SavedImage;
+      if (slot.kind === "file") {
+        // Déjà déposé, pour un envoi du message ou un essai refusé (nom pris…) : il ne repart pas.
+        let filePath = imagePathOf(SUPABASE_URL, inventaire.uploads.get(slot.id) ?? "");
+        if (filePath === null) {
+          // Le fichier choisi est dans la page, à l'adresse de sa vignette : il se relit de là.
+          const blob = src ? await fetch(src).then((r) => r.blob()).catch(() => null) : null;
+          if (!blob) throw new Error("fichier perdu");
+          filePath = await inventaire.upload(blob, IMAGE_TYPES[slot.type], slot.id);
+        }
+        image = await inventaire.keep(filePath, cleanImageName(name));
+      } else if (path !== null) {
+        image = await inventaire.keep(path, cleanImageName(name));
+      } else {
+        return;
+      }
+      // L'image est dans l'inventaire. Le champ ne la reçoit que s'il montre toujours celle d'avant : un autre choix fait
+      // entre-temps reste.
+      if (!mounted.current || latest.current.shown !== before) return;
+      setKept(image.path);
+      latest.current.onKept(image);
+      window.requestAnimationFrame(() => document.getElementById(latest.current.id)?.focus());
+    } catch (e) {
+      setProblem(e instanceof Error && e.message === "fichier perdu" ? "Cette image n'est plus lisible : choisissez-la de nouveau." : messageOf(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (kept !== null && path === kept) {
+    return (
+      <div class="mt-2">
+        <Success message="Enregistrée dans l'inventaire." />
+      </div>
+    );
+  }
+  if (!savable) return null;
+  if (!open) {
+    return (
+      <div class="mt-2">
+        <button type="button" id={`${field}-bouton`} class="btn btn-ghost" aria-describedby={`${id}-nom`} onClick={start}>
+          Enregistrer dans l'inventaire
+        </button>
+      </div>
+    );
+  }
+  // Un vrai formulaire : la touche Entrée enregistre l'image dans l'inventaire, ce qui ne publie rien.
+  return (
+    <form
+      class="mt-3 grid gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void submit();
+      }}
+    >
+      <div class="flex flex-wrap items-baseline justify-between gap-x-4">
+        <label for={field} class="text-sm font-semibold">
+          Nom dans l'inventaire
+        </label>
+        <Compteur id={`${field}-compte`} text={name} max={IMAGE_NAME_MAX} />
+      </div>
+      <input id={field} class="field" autoComplete="off" aria-describedby={`${field}-compte`} value={name} onInput={(e) => setName(e.currentTarget.value)} />
+      <div class="flex flex-wrap gap-2">
+        <button type="submit" class="btn btn-ghost" disabled={busy}>
+          Enregistrer
+        </button>
+        <button
+          type="button"
+          class="btn btn-ghost"
+          disabled={busy}
+          onClick={() => {
+            setOpen(false);
+            window.requestAnimationFrame(() => document.getElementById(`${field}-bouton`)?.focus());
+          }}
+        >
+          Annuler
+        </button>
+      </div>
+      {busy && (
+        <p role="status" class="text-sm text-muted">
+          Enregistrement…
+        </p>
+      )}
+      <Problem message={problem} />
+    </form>
   );
 }

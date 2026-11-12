@@ -158,6 +158,13 @@ describe("le contrôle de la mise en ligne", () => {
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/add_discord_message_salon": { status: 200, body: { ok: true } } }, "ajoute pas de salon pour les messages")).toBe("fail");
   });
 
+  it("bloque si un visiteur lit l'inventaire d'images ou y garde une image", async () => {
+    for (const label of ["lit pas l'inventaire d'images", "garde pas d'image dans l'inventaire"]) expect(await statusOf(HEALTHY, label)).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_discord_images": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "lit pas l'inventaire d'images")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_discord_images": { status: 200, body: { ok: true, images: [] } } }, "lit pas l'inventaire d'images")).toBe("fail");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/save_discord_image": { status: 200, body: { ok: true, id: 1 } } }, "garde pas d'image dans l'inventaire")).toBe("fail");
+  });
+
   it("bloque si un visiteur liste les images des messages, et contrôle leur espace avec la clé secrète", async () => {
     expect(await statusOf(HEALTHY, "liste pas les images")).toBe("ok");
     expect(await statusOf({ ...HEALTHY, "/storage/v1/object/list/discord-images": { status: 200, body: [] } }, "liste pas les images")).toBe("ok");

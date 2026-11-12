@@ -18,7 +18,7 @@ export const LOG_CATEGORIES: readonly { id: LogCategory; label: string }[] = [
   { id: "roles", label: "Rôles" },
   { id: "suspensions", label: "Suspensions" },
   { id: "news", label: "Publications : annonces, événements, sondages, mot d'accueil, idées, Gaulois et objectif de la semaine, messages Discord" },
-  { id: "settings", label: "Réglages : les salons Discord et le salon vocal" },
+  { id: "settings", label: "Réglages : les salons Discord, le salon vocal et l'inventaire d'images" },
   { id: "other", label: "Autres" },
 ];
 
@@ -57,6 +57,9 @@ const CATEGORIES: Record<string, LogCategory> = {
   discord_message_removed: "news",
   discord_message_salon_added: "settings",
   discord_message_salon_removed: "settings",
+  discord_image_saved: "settings",
+  discord_image_renamed: "settings",
+  discord_image_removed: "settings",
 };
 
 /** Les salons du robot, comme le journal les nomme. Un salon inconnu reste « un salon Discord du robot ». */
@@ -228,6 +231,18 @@ export function describe(row: LogRow, when: (iso: string) => string): LogLine {
       const name = textOf(details, "name");
       const salon = name ? `le salon Discord « ${name} »` : "un salon Discord";
       return { who, what: row.action === "discord_message_salon_added" ? `a ajouté ${salon} pour les messages.` : `a retiré ${salon} des messages.` };
+    }
+    // L'inventaire d'images des messages Discord : le nom de l'image seulement, jamais son adresse.
+    case "discord_image_saved":
+    case "discord_image_removed": {
+      const name = textOf(details, "name");
+      const image = name ? `l'image « ${name} »` : "une image";
+      return { who, what: row.action === "discord_image_saved" ? `a enregistré ${image} dans l'inventaire des messages Discord.` : `a retiré ${image} de l'inventaire des messages Discord.` };
+    }
+    case "discord_image_renamed": {
+      const name = textOf(details, "name");
+      const from = textOf(details, "from");
+      return { who, what: name && from ? `a renommé l'image « ${from} » en « ${name} » dans l'inventaire des messages Discord.` : "a renommé une image de l'inventaire des messages Discord." };
     }
     case "account_deleted":
       return { who: row.actor ?? "Un membre", what: "a supprimé son compte." };

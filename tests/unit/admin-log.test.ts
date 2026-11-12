@@ -18,7 +18,7 @@ const sentence = (r: LogRow) => {
 };
 
 // Les migrations des fonctions que le site appelle encore. « Effacer mon compte » est dans celle des dons.
-const SITE_SQL = ["20261105000100_comptes_et_roles", "20261105000200_validation_des_membres", "20261105000900_direction", "20261106000100_roles_prevus", "20261108000200_vie_du_clan", "20261109000100_qg_des_membres", "20261109000200_gaulois_de_la_semaine", "20261109000400_refaire_la_demande", "20261111000100_appels_sur_discord", "20261111000200_appels_discord_ping_au_choix", "20261111000300_salons_discord", "20261111000400_outils_du_qg", "20261111000500_salon_des_victoires", "20261111000600_messages_discord", "20261112000100_messages_discord_images_en_grand"]
+const SITE_SQL = ["20261105000100_comptes_et_roles", "20261105000200_validation_des_membres", "20261105000900_direction", "20261106000100_roles_prevus", "20261108000200_vie_du_clan", "20261109000100_qg_des_membres", "20261109000200_gaulois_de_la_semaine", "20261109000400_refaire_la_demande", "20261111000100_appels_sur_discord", "20261111000200_appels_discord_ping_au_choix", "20261111000300_salons_discord", "20261111000400_outils_du_qg", "20261111000500_salon_des_victoires", "20261111000600_messages_discord", "20261112000100_messages_discord_images_en_grand", "20261112000200_inventaire_images_discord"]
   .map((name) => readFileSync(`supabase/migrations/${name}.sql`, "utf8"))
   .join("\n");
 const SITE_CODES = new Set([...[...SITE_SQL.matchAll(/log_admin\([^,]+,\s*'([a-z_]+)'/g)].map((m) => m[1]!), "account_deleted"]);
@@ -86,6 +86,12 @@ describe("le journal en clair", () => {
     expect(sentence(row("discord_message_salon_removed", { name: "#annonces" }, "Chef", null))).toBe("Chef a retiré le salon Discord « #annonces » des messages.");
     expect(categoryOf("discord_message_sent")).toBe("news");
     expect(categoryOf("discord_message_salon_added")).toBe("settings");
+    expect(sentence(row("discord_image_saved", { name: "Logo GAL" }, "Chef", null))).toBe("Chef a enregistré l'image « Logo GAL » dans l'inventaire des messages Discord.");
+    expect(sentence(row("discord_image_renamed", { name: "Logo du clan", from: "Logo GAL" }, "Chef", null))).toBe("Chef a renommé l'image « Logo GAL » en « Logo du clan » dans l'inventaire des messages Discord.");
+    expect(sentence(row("discord_image_renamed", { name: "Logo du clan" }, "Chef", null))).toBe("Chef a renommé une image de l'inventaire des messages Discord.");
+    expect(sentence(row("discord_image_removed", { name: "Logo GAL" }, "Chef", null))).toBe("Chef a retiré l'image « Logo GAL » de l'inventaire des messages Discord.");
+    expect(sentence(row("discord_image_removed", {}, "Chef", null))).toBe("Chef a retiré une image de l'inventaire des messages Discord.");
+    expect(categoryOf("discord_image_saved")).toBe("settings");
   });
 
   it("n'écrit pas un détail que le serveur n'a pas donné", () => {

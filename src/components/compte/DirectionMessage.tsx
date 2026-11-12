@@ -45,6 +45,7 @@ import { errorMessage } from "../../lib/compte/errors";
 import { fmtDateTime, fmtInt } from "../../lib/format";
 import { Loading, Problem, Success, messageOf, useNow } from "./common";
 import DiscordApercu from "./DiscordApercu";
+import { useInventaire } from "./inventaire";
 import { Compteur, ImageChoix, TexteMisEnForme } from "./MessageChamps";
 
 /** Les relectures qui suivent un envoi, le temps que Discord réponde : pg_net envoie d'ordinaire en moins d'une seconde. */
@@ -113,7 +114,7 @@ function Repli({ title, startOpen, children }: { title: string; startOpen: boole
 }
 
 /** Une action qui efface, au second clic seulement, avec ce qui sera perdu écrit dessous. Le bouton ne bouge pas. */
-function SecondClic({ id, label, confirm, warning, busy, onConfirm }: { id: string; label: string; confirm: string; warning: string; busy: boolean; onConfirm: () => void }) {
+export function SecondClic({ id, label, confirm, warning, busy, onConfirm }: { id: string; label: string; confirm: string; warning: string; busy: boolean; onConfirm: () => void }) {
   const [armed, setArmed] = useState(false);
   return (
     <div class="grid gap-2">
@@ -570,7 +571,10 @@ export default function DirectionMessage() {
   const [draft, setDraft] = useState<MessageDraft>(() => readSavedDraft() ?? emptyDraft());
   const files = useRef(new Map<string, File>());
   const previews = useRef(new Map<string, string>());
-  const uploaded = useRef(new Map<string, string>());
+  // Les fichiers déjà déposés, partagés avec l'inventaire d'images : un fichier gardé dans l'inventaire ne repart pas à
+  // l'envoi, ni un fichier envoyé quand on le garde ensuite.
+  const inventaire = useInventaire();
+  const uploaded = useRef(inventaire?.uploads ?? new Map<string, string>());
   const [busy, setBusy] = useState(false);
   const [step, setStep] = useState<string | null>(null);
   // Après un envoi arrêté, la liste de ce qui manque se met à jour à chaque correction, et part quand tout est bon.
@@ -760,6 +764,7 @@ export default function DirectionMessage() {
   return (
     <div class="grid gap-8" data-testid="direction-message">
       {loadError && <Problem message={loadError} onRetry={() => void load()} />}
+      {inventaire?.problem && <Problem message={`Inventaire d'images illisible : ${inventaire.problem.charAt(0).toLowerCase()}${inventaire.problem.slice(1)}`} onRetry={() => void inventaire.reload()} />}
       {salons.length === 0 ? (
         <section class="card grid gap-4 p-5" aria-labelledby="dm-premier-salon">
           <h3 id="dm-premier-salon" class="text-lg">

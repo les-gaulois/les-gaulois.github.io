@@ -1,6 +1,12 @@
 [
   {
     "date": "2026-11-12",
+    "kind": "nouveau",
+    "title": "Un inventaire d'images pour les messages Discord",
+    "body": "Pour l'encadrement : une image d'un message, comme le logo du clan, se garde sous un nom et se reprend d'un clic dans tout champ d'image. La rubrique « Inventaire d'images » les range."
+  },
+  {
+    "date": "2026-11-12",
     "kind": "ameliore",
     "title": "Demandes, comptes et journal passent dans la Direction",
     "body": "Pour l'encadrement : les demandes d'adhésion, les comptes et le journal quittent le QG pour la Direction. La pastille des demandes revient sur le lien « Direction »."

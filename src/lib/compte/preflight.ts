@@ -173,6 +173,14 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   const messageSalon = await rpc("add_discord_message_salon", { p_name: "verification", p_webhook: "verification" });
   if (await refused(messageSalon)) add("Un visiteur n'ajoute pas de salon pour les messages", "ok");
   else add("Un visiteur n'ajoute pas de salon pour les messages", "fail", `Réponse ${messageSalon.status}. Ne mettez pas en ligne : seuls les admins et le fondateur ajoutent un salon.`);
+  // L'inventaire d'images des messages (migration 20261112000200) : seuls les admins et le fondateur le lisent et y
+  // gardent une image. Le fichier donné n'existe pas : même si le droit d'appel était mal posé, rien ne serait écrit.
+  const inventory = await rpc("get_discord_images");
+  if (await refused(inventory)) add("Un visiteur ne lit pas l'inventaire d'images", "ok");
+  else add("Un visiteur ne lit pas l'inventaire d'images", "fail", `Réponse ${inventory.status}. Ne mettez pas en ligne : seuls les admins et le fondateur lisent l'inventaire.`);
+  const kept = await rpc("save_discord_image", { p_path: "verification", p_name: "verification" });
+  if (await refused(kept)) add("Un visiteur ne garde pas d'image dans l'inventaire", "ok");
+  else add("Un visiteur ne garde pas d'image dans l'inventaire", "fail", `Réponse ${kept.status}. Ne mettez pas en ligne : seuls les admins et le fondateur gardent une image.`);
   // Les images des messages : chacune se lit à son adresse, mais un visiteur ne doit pas pouvoir en dresser la liste.
   const imageList = await fetcher(`${base}/storage/v1/object/list/discord-images`, { method: "POST", headers: anonHeaders, body: JSON.stringify({ prefix: "", limit: 1 }) });
   const listed = imageList.ok ? ((await imageList.json().catch(() => null)) as unknown) : null;
