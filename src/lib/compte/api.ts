@@ -1,5 +1,6 @@
 /**
- * Le seul point de contact entre le navigateur et le serveur de connexion (Supabase).
+ * Le seul point de contact entre le navigateur et le serveur de connexion (Supabase) : ses fonctions SQL, le dépôt d'une
+ * image des messages Discord, et la fonction serveur de la connexion par code (`signInWithCode`).
  * Le code de Supabase n'est chargé que pour un visiteur qui a une session ou qui ouvre une page de compte.
  * Rien de ce qui s'affiche ici ne protège quoi que ce soit : chaque fonction du serveur
  * revérifie l'appelant. Masquer un bouton n'est qu'une politesse.
@@ -127,6 +128,39 @@ export async function signInWithDiscord(returnPath: string): Promise<void> {
     options: { redirectTo: `${location.origin}${basePath()}${returnPath}` },
   });
   if (error) throw new ServerError("network");
+}
+
+export { CODE_LOGIN_OPEN } from "./connexion-code";
+
+/**
+ * Le second chemin du navigateur vers le serveur, à côté des fonctions SQL : la fonction `code-discord` vérifie le code et
+ * rend de quoi ouvrir la session, que Supabase échange ensuite contre la session elle-même. Le serveur décide de tout : un
+ * code faux, usé ou de plus de cinq minutes est refusé là-bas.
+ */
+export async function signInWithCode(code: string): Promise<void> {
+  let response: Response;
+  try {
+    response = await fetch(`${SUPABASE_URL}/functions/v1/code-discord/session`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ code }),
+    });
+  } catch {
+    throw new ServerError("code_unavailable");
+  }
+  let result: { ok?: unknown; error?: unknown; token_hash?: unknown } | null;
+  try {
+    result = (await response.json()) as typeof result;
+  } catch {
+    result = null;
+  }
+  if (result?.ok !== true || typeof result.token_hash !== "string") {
+    throw new ServerError(typeof result?.error === "string" ? result.error : "code_unavailable");
+  }
+  // Le lien vient d'être créé pour ce compte : s'il est refusé, la panne est chez le serveur, pas dans le code tapé.
+  const sb = await supabase();
+  const { error } = await sb.auth.verifyOtp({ token_hash: result.token_hash, type: "magiclink" });
+  if (error) throw new ServerError("code_unavailable");
 }
 
 export async function signOut(): Promise<void> {

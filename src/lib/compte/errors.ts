@@ -110,6 +110,15 @@ export const ERROR_MESSAGES: Record<string, string> = {
   image_description_too_long: "La description d'une image dépasse 1 024 caractères.",
   gallery_with_embeds: "Les images en grand et les embeds ne vont pas dans un même message : envoyez-les en deux messages.",
   gallery_too_long: "Le texte et les descriptions des images dépassent 4 000 caractères en tout.",
+
+  // La connexion par un code tapé dans le Discord du clan (supabase/functions/code-discord).
+  code_format: "Recopiez les 8 signes du code que le robot vous a montré, avec ou sans le tiret.",
+  code_invalid: "Ce code n'est pas bon, a déjà servi ou a plus de 5 minutes. Tapez de nouveau /code dans le Discord du clan.",
+  code_busy: "Trop de codes faux ont été essayés en une minute : patientez un instant, puis réessayez.",
+  code_unavailable: "La connexion par code ne répond pas pour l'instant. Dans un moment, tapez de nouveau /code dans le Discord du clan, ou connectez-vous avec Discord.",
+  code_replayed: "Ce code n'a pas pu être créé. Tapez de nouveau /code dans le Discord du clan.",
+  too_many_codes: "Cinq codes en dix minutes : attendez un peu avant d'en demander un autre.",
+  discord_taken: "Votre compte Discord a déjà un compte sur le site, ouvert avec un code. Déconnectez-vous, puis connectez-vous avec un code : tapez /code dans le Discord du clan.",
 };
 
 export function errorMessage(code: string): string {

@@ -1,6 +1,6 @@
 # [GAL] Les Gaulois — site du clan
 
-Site statique Astro du clan OpenFront [GAL], publié sur GitHub Pages : <https://les-gaulois.github.io/> (dépôt `les-gaulois/les-gaulois.github.io`, branche `main`). La GitHub Action `.github/workflows/site.yml` collecte l'API OpenFront toutes les heures dans `data/`, puis reconstruit et publie le site. Seuls la connexion Discord et l'espace Direction ont un serveur (Supabase). La Conquête des Gaulois, ancien jeu de territoires, a été retirée le 6 novembre 2026 : ne pas la reproposer, ne pas réutiliser son code ni `config/conquete.json`.
+Site statique Astro du clan OpenFront [GAL], publié sur GitHub Pages : <https://les-gaulois.github.io/> (dépôt `les-gaulois/les-gaulois.github.io`, branche `main`). La GitHub Action `.github/workflows/site.yml` collecte l'API OpenFront toutes les heures dans `data/`, puis reconstruit et publie le site. Seuls la connexion (avec Discord, ou par un code) et l'espace Direction ont un serveur (Supabase). La Conquête des Gaulois, ancien jeu de territoires, a été retirée le 6 novembre 2026 : ne pas la reproposer, ne pas réutiliser son code ni `config/conquete.json`.
 
 Détails : `README.md`, `docs/API_AUDIT.md` (API), `docs/DESIGN.md` (design), `docs/DIRECTION.md` (connexion, rôles, Supabase), `NOTICE.md` (licences).
 
@@ -38,7 +38,7 @@ Node 22 ou plus. Sous Windows, le shell est Git Bash : chemins avec `/`.
 - `src/scripts/` : scripts navigateur — `fx.ts` effets, `film.ts` film de la carte, `nouveautes.ts` point des nouveautés du site.
 - `src/styles/global.css` : jetons de couleur et classes `.stage`, `.card`, `.btn-*`, `.wrap`.
 - `content/` : textes du clan, JSON et Markdown (skill `contenu-clan`). `content/nouveautes.json` : le journal des mises à jour du site, que tu tiens (skill `publier`). `data/` : écrit par la collecte, jamais à la main.
-- `scripts/` : collecte et outils Node (`tsx`). `supabase/migrations/` : schéma, figé une fois appliqué.
+- `scripts/` : collecte et outils Node (`tsx`). `supabase/migrations/` : schéma, figé une fois appliqué. `supabase/functions/code-discord/` : la seule fonction serveur (Deno), la connexion par un code demandé dans le Discord du clan, mise en ligne par le pilote.
 - `tests/unit/` Vitest ; `tests/e2e/` Playwright, `site.spec.ts` liste les pages contrôlées.
 - `public/brand/` logos source, `public/generated/` dérivés (ignoré par Git), `public/carte-monde/` page HTML autonome.
 - `.claude/worktrees/` : d'autres sessions y travaillent. Ne jamais arrêter un processus par son nom ou sa ligne de commande : vérifier le port et le chemin, puis arrêter ce processus-là seulement.
@@ -72,8 +72,8 @@ Node 22 ou plus. Sous Windows, le shell est Git Bash : chemins avec `/`.
 
 ### Serveur Supabase
 
-- Le serveur décide de tout : droits et résultats vérifiés en SQL, jamais en masquant un bouton. Le navigateur n'appelle que des fonctions SQL via `src/lib/compte/api.ts`. Seule exception, dans ce même fichier : `uploadDiscordImage` dépose une image des messages Discord, sous la règle d'accès du stockage (admins et fondateur).
-- L'identité vient de `auth.identities`, jamais de `raw_user_meta_data`. Un compte sans Discord ne peut rien demander.
+- Le serveur décide de tout : droits et résultats vérifiés en SQL, jamais en masquant un bouton. Le navigateur n'appelle que des fonctions SQL via `src/lib/compte/api.ts`. Deux exceptions, dans ce même fichier : `uploadDiscordImage` dépose une image des messages Discord, sous la règle d'accès du stockage (admins et fondateur), et `signInWithCode` envoie un code de connexion à la fonction serveur `code-discord`.
+- L'identité vient de `auth.identities`, ou, pour la connexion par code, d'une commande `/code` signée par Discord et vérifiée par `code-discord` ; jamais de `raw_user_meta_data` ni de l'adresse e-mail, qu'un joueur peut choisir. Un compte sans Discord ne peut rien demander. Un compte Discord n'a qu'un compte sur le site.
 - Une migration appliquée ne se modifie jamais : on en ajoute une nouvelle. Détail et mise en ligne : skill `supabase`.
 
 ## Skills et sous-agent du projet

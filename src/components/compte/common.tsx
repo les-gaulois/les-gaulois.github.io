@@ -1,6 +1,6 @@
 import type { ComponentChildren } from "preact";
 import { useCallback, useEffect, useState } from "preact/hooks";
-import { ServerError, basePath, call, getSession, signInWithDiscord, supabase } from "../../lib/compte/api";
+import { CODE_LOGIN_OPEN, ServerError, basePath, call, getSession, signInWithCode, signInWithDiscord, supabase } from "../../lib/compte/api";
 import { PENDING_CHANGED } from "../../lib/compte/pending";
 import { initialOf } from "../../lib/compte/qg";
 import type { Me } from "../../lib/compte/types";
@@ -146,6 +146,75 @@ export function DiscordGives() {
         </p>
       </div>
     </details>
+  );
+}
+
+/** La connexion par code s'affiche une fois ouverte à tous, ou à l'adresse `/compte#code`, pour l'essai d'avant. */
+export const codeLoginShown = (): boolean => CODE_LOGIN_OPEN || location.hash === "#code";
+
+/**
+ * Se connecter sans lier son compte Discord : le joueur tape /code dans le Discord du clan, et recopie ici le code que le
+ * robot lui montre, à lui seul. Le serveur vérifie le code ; la session ouverte, la page de compte se recharge.
+ */
+export function CodeLogin() {
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const send = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await signInWithCode(code);
+      location.assign(`${basePath()}/compte`);
+    } catch (e) {
+      setError(messageOf(e));
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section class="border-t border-line pt-5" aria-labelledby="code-titre" data-testid="code-login">
+      <h3 id="code-titre" class="text-lg">
+        Sans lier votre compte Discord
+      </h3>
+      <ol class="mt-2 list-decimal space-y-1 pl-6 text-muted">
+        <li>Dans le Discord du clan, tapez /code.</li>
+        <li>Recopiez ici le code que le robot vous montre, à vous seul.</li>
+      </ol>
+      <form
+        class="mt-3 flex flex-wrap items-end gap-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void send();
+        }}
+      >
+        <div class="w-full max-w-56">
+          <label for="code-discord" class="text-sm font-semibold">
+            Code
+          </label>
+          <input
+            id="code-discord"
+            class="field mt-1 font-mono tracking-widest"
+            required
+            maxLength={12}
+            autocomplete="one-time-code"
+            autocapitalize="characters"
+            spellcheck={false}
+            value={code}
+            onInput={(e) => setCode(e.currentTarget.value.toUpperCase())}
+          />
+        </div>
+        <button type="submit" class="btn btn-ghost" disabled={busy || code.trim() === ""}>
+          {busy ? "Connexion…" : "Se connecter"}
+        </button>
+      </form>
+      <Problem message={error} />
+      <p class="mt-3 text-sm text-muted">
+        Le site ne garde que votre identifiant et votre nom Discord, pour qu'un officier vous reconnaisse{NBSP}: ni e-mail, ni
+        accès à votre compte.
+      </p>
+    </section>
   );
 }
 

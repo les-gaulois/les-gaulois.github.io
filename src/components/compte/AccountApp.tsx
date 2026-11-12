@@ -2,7 +2,7 @@ import { useState } from "preact/hooks";
 import { basePath, call, signOut } from "../../lib/compte/api";
 import { ROLE_LABELS, type Me } from "../../lib/compte/types";
 import { fmtDate } from "../../lib/format";
-import { DiscordButton, DiscordGives, Loading, Problem, messageOf, useMe } from "./common";
+import { CodeLogin, DiscordButton, DiscordGives, Loading, Problem, codeLoginShown, messageOf, useMe } from "./common";
 
 /** Lier son profil OpenFront et demander sa validation. */
 function MembershipRequest({ me, onChange }: { me: Me; onChange: () => Promise<void> }) {
@@ -149,6 +149,7 @@ export default function AccountApp() {
           <DiscordButton returnPath="/compte" />
         </div>
         <DiscordGives />
+        {codeLoginShown() && <CodeLogin />}
       </section>
     );
   }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
-import { basePath, call } from "../../lib/compte/api";
+import { CODE_LOGIN_OPEN, basePath, call } from "../../lib/compte/api";
 import { othersPlanned, parseQgTools, type QgTools } from "../../lib/compte/outils";
 import { seriesNote } from "../../lib/compte/news";
 import {
@@ -26,7 +26,7 @@ import { fmtDate, fmtDateTime, fmtInt } from "../../lib/format";
 import type { StoredMembers } from "../../lib/schemas";
 import type { ClanWeekFile } from "../../lib/semaine-du-clan";
 import { subscribe } from "./appels";
-import { Avatar, DeleteButton, DiscordButton, DiscordGives, Loading, Problem, messageOf, useMe, useNow, type Loadable } from "./common";
+import { Avatar, CodeLogin, DeleteButton, DiscordButton, DiscordGives, Loading, Problem, messageOf, useMe, useNow, type Loadable } from "./common";
 import { Onglets, Partie, PartieTete, useTabs, type TabItem } from "./Onglets";
 import QgCeSoir from "./QgCeSoir";
 import QgMoi from "./QgMoi";
@@ -66,7 +66,7 @@ function Door({ me }: { me: Me }) {
       <h2 class="text-2xl">Réservé aux membres de GAL</h2>
       <p class="mt-3 text-muted">Salons, sondages, idées, événements et mur des membres.</p>
       <ol class="mt-4 list-decimal space-y-2 pl-6">
-        <li>Connectez-vous avec Discord.</li>
+        <li>{CODE_LOGIN_OPEN ? "Connectez-vous avec Discord, ou avec un code demandé dans le Discord du clan." : "Connectez-vous avec Discord."}</li>
         <li>Indiquez votre pseudo ou votre identifiant OpenFront dans « Mon compte ».</li>
         <li>Le site vérifie qu'il figure dans la liste des membres de GAL.</li>
         <li>Un officier confirme que c'est bien vous. Ensuite, le site vous reconnaît à chaque visite.</li>
@@ -78,6 +78,7 @@ function Door({ me }: { me: Me }) {
           </div>
           <p class="mt-3 text-sm text-muted">Le site ne reçoit jamais votre mot de passe.</p>
           <DiscordGives />
+          {CODE_LOGIN_OPEN && <CodeLogin />}
         </>
       )}
       {me.signed_in && me.status === "pending" && (

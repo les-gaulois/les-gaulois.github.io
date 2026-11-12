@@ -23,6 +23,7 @@
     "sauvegarde:relancer": "tsx scripts/relancer-sauvegarde.ts",
     "sauvegarde:compte-rendu": "tsx scripts/rendre-compte-sauvegarde.ts",
     "discord:verifier": "tsx scripts/verifier-discord.ts",
+    "discord:commande": "tsx scripts/discord-commande.ts",
     "salons:verifier": "tsx scripts/verifier-salons.ts",
     "gazette:envoyer": "tsx scripts/envoyer-gazette.ts",
     "alertes:envoyer": "tsx scripts/envoyer-alertes.ts",

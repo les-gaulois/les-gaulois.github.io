@@ -12,6 +12,7 @@ paths:
   - "scripts/ouvrir-sauvegarde.ts"
   - "scripts/relancer-sauvegarde.ts"
   - "scripts/rendre-compte-sauvegarde.ts"
+  - "scripts/discord-commande.ts"
 ---
 
 # Supabase : la connexion et l'espace Direction
@@ -20,8 +21,8 @@ Le fonctionnement, les rôles et l'installation sont décrits dans `docs/DIRECTI
 
 ## Ce qui ne se négocie pas
 
-- Le serveur décide de tout : chaque droit se vérifie dans la fonction SQL, jamais en masquant un bouton. Le navigateur n'appelle que des fonctions via `call()` de `src/lib/compte/api.ts`. Seule exception : `uploadDiscordImage`, du même fichier, dépose une image des messages Discord dans l'espace `discord-images`, dont la règle d'accès (`storage.objects`, migration `20261111000600_messages_discord.sql`) n'admet que les admins et le fondateur.
-- L'identité vient de `auth.identities`, jamais de `raw_user_meta_data`, qu'un utilisateur peut écrire lui-même. Un compte sans Discord ne peut rien demander. Une suspension ne se lève que par un admin de rang supérieur. Personne ne change son propre rôle. Toute publication, modification ou suppression va au journal.
+- Le serveur décide de tout : chaque droit se vérifie dans la fonction SQL, jamais en masquant un bouton. Le navigateur n'appelle que des fonctions via `call()` de `src/lib/compte/api.ts`. Deux exceptions, du même fichier : `uploadDiscordImage` dépose une image des messages Discord dans l'espace `discord-images`, dont la règle d'accès (`storage.objects`, migration `20261111000600_messages_discord.sql`) n'admet que les admins et le fondateur ; `signInWithCode` envoie un code de connexion à la fonction serveur `code-discord`.
+- L'identité vient de `auth.identities`, ou, pour la connexion par code, d'une commande `/code` signée par Discord et vérifiée par `code-discord` ; jamais de `raw_user_meta_data`, qu'un utilisateur peut écrire lui-même. Un compte sans Discord ne peut rien demander. Un compte Discord n'a qu'un compte sur le site (index unique sur `private_links.discord_id`). Jamais reconnaître un compte à son adresse e-mail ni à `raw_user_meta_data`, qu'un joueur choisit : seulement à l'identifiant Discord déjà posé, ou aux métadonnées d'application (`raw_app_meta_data`), que seule la clé de service écrit. Une suspension ne se lève que par un admin de rang supérieur. Personne ne change son propre rôle. Toute publication, modification ou suppression va au journal.
 - Les tests de droits sur un vrai Postgres ont été retirés avec le jeu : ces règles ne sont plus vérifiées automatiquement. Avant de toucher au serveur, relire la section « L'identité Discord : les règles à garder » de `docs/DIRECTION.md`, et après, les contrôler à la main (ci-dessous).
 - Les identifiants Discord de l'encadrement (`internal.role_presets`) s'écrivent dans l'éditeur SQL de Supabase, jamais dans le dépôt, jamais dans un test.
 
@@ -65,4 +66,11 @@ Si `npx supabase` demande de se connecter (`supabase login`) ou de relier le pro
 - `scripts/relancer-sauvegarde.ts` (`npm run sauvegarde:relancer`) : job `sauvegarde-de-la-semaine` de `site.yml`, à chaque passage du robot. Le planning de GitHub saute la plupart de ses passages : c'est ce job qui lance l'Action de sauvegarde si la semaine (depuis le lundi 7 h UTC, après les heures de silence) n'a pas de fichier gardé, trois essais au plus par semaine (`src/lib/sauvegarde-relance.ts`). Il ne reçoit que `SAUVEGARDE_CLE_POSEE`, jamais la phrase, et n'a que le droit `actions: write`.
 - `scripts/rendre-compte-sauvegarde.ts` (`npm run sauvegarde:compte-rendu`) : dernière étape de `sauvegarde.yml`. Il dit au salon privé de l'encadrement si la sauvegarde est faite (jusqu'à quand GitHub la garde) ou ratée (lien de l'exécution), jamais la nuit (`src/lib/sauvegarde-discord.ts`).
 - `scripts/ouvrir-sauvegarde.ts` (`npm run sauvegarde:verifier fichier.bin` ou `npm run sauvegarde:ouvrir fichier.bin`) : demande la phrase à l'écran ; `verifier` n'écrit rien et donne les nombres de lignes, `ouvrir` écrit le contenu en clair dans `.cache/sauvegarde/`. La phrase se tape dans le terminal du pilote, jamais dans une conversation : ne jamais la demander, ni lire le terminal pendant qu'elle se tape.
+- `scripts/discord-commande.ts` (`npm run discord:commande`) : crée la commande `/code` sur le serveur du clan, une fois, depuis le poste du pilote (application et serveur de `src/lib/discord-commande.ts`) ; le jeton du robot se colle quand il le demande, sans s'afficher. Comme la phrase de la sauvegarde : ne jamais demander ce jeton, ni lire le terminal pendant qu'il se tape.
 - Le site reste entièrement statique sans `PUBLIC_SUPABASE_URL` et `PUBLIC_SUPABASE_KEY` : un test e2e le vérifie. Toute nouvelle fonctionnalité serveur doit garder ce comportement.
+
+## La fonction serveur
+
+- `supabase/functions/code-discord/index.ts` : la connexion par code (`docs/DIRECTION.md`, « Se connecter avec un code »). Sans import, pour se coller telle quelle dans l'éditeur de Supabase ; sa logique se teste avec Node (`tests/unit/code-discord.test.ts`). Déployée sans vérification de jeton (`supabase/config.toml`) : elle vérifie elle-même la signature de Discord. Elle ne note jamais un code, une adresse ni un jeton dans ses journaux.
+- Sa mise en ligne (`npx supabase functions deploy code-discord --remote=zxavwcupauheheqxfdez --use-api --no-verify-jwt --yes`, `--use-api` pour se passer de Docker) se fait chez Supabase : à faire faire par le pilote si la commande est refusée, comme `db push`. Aucun secret à poser : le serveur du clan et la clé publique de « Le Gaulois » sont écrits dans la fonction (`DISCORD_GUILD_ID` et `DISCORD_PUBLIC_KEY` les remplacent). `GET …/functions/v1/code-discord/etat` dit, sans rien montrer, si tout est en place, et `npm run verifier:ligne` le lit.
+- La partie de l'écran ne s'ouvre à tous qu'avec `CODE_LOGIN_OPEN` (`src/lib/compte/connexion-code.ts`), une fois l'essai réel fait à `/compte#code`.

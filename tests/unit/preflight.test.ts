@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { CODE_LOGIN_OPEN } from "../../src/lib/compte/connexion-code";
 import { runPreflight } from "../../src/lib/compte/preflight";
 
 type Route = { status: number; body?: unknown };
@@ -26,6 +27,7 @@ const HEALTHY: Record<string, Route> = {
   "/rest/v1/polls": { status: 401, body: {} },
   "/rest/v1/app_state": { status: 200, body: [{ value: {} }] },
   "/storage/v1/bucket/discord-images": { status: 200, body: { id: "discord-images", public: true, file_size_limit: 8388608 } },
+  "/functions/v1/code-discord/etat": { status: 200, body: { ok: true, discord: true, service: true, signature: true } },
 };
 
 const SITE = "https://exemple.supabase.co";
@@ -107,6 +109,30 @@ describe("le contrôle de la mise en ligne", () => {
     // Le serveur répond 200 avec un refus : le QG reste fermé.
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_qg": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "QG")).toBe("ok");
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_qg": { status: 200, body: { ok: true, polls: [], ideas: [], wall: [] } } }, "QG")).toBe("fail");
+  });
+
+  it("bloque si un visiteur peut appeler la connexion par code", async () => {
+    expect(await statusOf(HEALTHY, "crée pas de code de connexion")).toBe("ok");
+    expect(await statusOf(HEALTHY, "essaie pas de code de connexion")).toBe("ok");
+    expect(await statusOf(HEALTHY, "identifiant Discord à un compte")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/discord_code_issue": { status: 200, body: { ok: true } } }, "crée pas de code de connexion")).toBe("fail");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/discord_code_redeem": { status: 200, body: { ok: false, error: "code_invalid" } } }, "essaie pas de code de connexion")).toBe("fail");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/discord_code_attach": { status: 200, body: { ok: false } } }, "identifiant Discord à un compte")).toBe("fail");
+  });
+
+  it("dit si la fonction code-discord est déployée et réglée, et ne bloque qu'une fois la connexion par code ouverte", async () => {
+    expect(await statusOf(HEALTHY, "connexion par code est en place")).toBe("ok");
+    const notReady = CODE_LOGIN_OPEN ? "fail" : "warn";
+    const absent = await run({ ...HEALTHY, "/functions/v1/code-discord/etat": { status: 404 } });
+    expect(absent.find((c) => c.label.includes("connexion par code est en place"))).toMatchObject({ status: notReady, detail: expect.stringContaining("pas encore déployée") });
+    const unset = await run({ ...HEALTHY, "/functions/v1/code-discord/etat": { status: 200, body: { ok: true, discord: false, service: true, signature: false } } });
+    const check = unset.find((c) => c.label.includes("connexion par code est en place"));
+    expect(check?.status).toBe(notReady);
+    expect(check?.detail).toContain("clé publique");
+    expect(check?.detail).toContain("signatures");
+    expect(check?.detail).not.toContain("migration");
+    const noBase = await run({ ...HEALTHY, "/functions/v1/code-discord/etat": { status: 200, body: { ok: true, discord: true, service: false, signature: true } } });
+    expect(noBase.find((c) => c.label.includes("connexion par code est en place"))?.detail).toContain("migration 20261112000500");
   });
 
   it("bloque si un visiteur peut remettre un compte en attente", async () => {

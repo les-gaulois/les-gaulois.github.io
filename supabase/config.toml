@@ -1,2 +1,7 @@
 # Le schéma de la Conquête des Gaulois. Mise en ligne : docs/CONQUETE.md
 project_id = "gal-conquete"
+
+# La connexion par un code tapé dans le Discord du clan (docs/DIRECTION.md, « Se connecter avec un code ») : Discord
+# n'envoie pas de jeton de Supabase, la fonction vérifie elle-même la signature de chaque commande.
+[functions.code-discord]
+verify_jwt = false

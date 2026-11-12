@@ -3,6 +3,8 @@
  * la connexion Discord est-elle active, le schéma est-il installé, les portes sont-elles fermées ?
  * Lancé par scripts/verifier-mise-en-ligne.ts. N'écrit rien et n'affiche jamais une clé.
  */
+import { CODE_LOGIN_OPEN } from "./connexion-code";
+
 export interface PreflightOptions {
   url: string;
   publishableKey: string;
@@ -186,6 +188,41 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   const listed = imageList.ok ? ((await imageList.json().catch(() => null)) as unknown) : null;
   if (isClosed(imageList.status) || (imageList.ok && Array.isArray(listed) && listed.length === 0)) add("Un visiteur ne liste pas les images des messages Discord", "ok");
   else add("Un visiteur ne liste pas les images des messages Discord", "fail", `Réponse ${imageList.status}. Ne mettez pas en ligne : la règle de lecture de l'espace discord-images est trop ouverte.`);
+
+  // La connexion par code (migration 20261112000500) : ses trois fonctions ne s'ouvrent qu'à la clé de service, celle de la
+  // fonction code-discord. Les valeurs données ne sont celles d'aucun code ni d'aucun compte. Leur installation se lit avec
+  // `supabase migration list`.
+  const codeCalls = [
+    ["discord_code_issue", { p_code_hash: "0".repeat(64), p_discord_id: "000000000000000000", p_discord_name: "verification", p_interaction_id: "000000000000000000" }, "Un visiteur ne crée pas de code de connexion"],
+    ["discord_code_redeem", { p_code_hash: "0".repeat(64) }, "Un visiteur n'essaie pas de code de connexion"],
+    ["discord_code_attach", { p_user: "00000000-0000-0000-0000-000000000000", p_discord_id: "000000000000000000", p_discord_name: "verification" }, "Un visiteur ne donne pas d'identifiant Discord à un compte"],
+  ] as const;
+  for (const [fn, body, label] of codeCalls) {
+    const res = await rpc(fn, body);
+    if (isClosed(res.status)) add(label, "ok");
+    else add(label, "fail", `Réponse ${res.status}. Ne mettez pas en ligne : retirez le droit d'appeler ${fn}.`);
+  }
+
+  // La fonction serveur code-discord : ses réglages, et un moteur qui sait vérifier les signatures de Discord. À regarder
+  // tant que la connexion par code n'est pas ouverte ; bloquant une fois ouverte.
+  const codeLabel = "La connexion par code est en place";
+  const notReady = CODE_LOGIN_OPEN ? "fail" : "warn";
+  try {
+    const etat = await fetcher(`${base}/functions/v1/code-discord/etat`);
+    const answer = etat.ok ? ((await etat.json().catch(() => null)) as { discord?: unknown; service?: unknown; signature?: unknown } | null) : null;
+    if (!answer) add(codeLabel, notReady, `La fonction code-discord répond ${etat.status} : elle n'est pas encore déployée. Voir docs/DIRECTION.md, « Se connecter avec un code ».`);
+    else if (answer.discord === true && answer.service === true && answer.signature === true) add(codeLabel, "ok");
+    else {
+      const missing = [
+        answer.discord === true ? null : "il lui manque le serveur du clan ou la clé publique de l'application",
+        answer.service === true ? null : "la base ne lui répond pas : migration 20261112000500 absente, ou clé de service refusée",
+        answer.signature === true ? null : "son moteur ne sait pas vérifier les signatures de Discord",
+      ].filter((reason) => reason !== null);
+      add(codeLabel, notReady, `La fonction répond, mais ${missing.join(", ")}.`);
+    }
+  } catch {
+    add(codeLabel, notReady, "La fonction code-discord ne répond pas.");
+  }
 
   // Les réponses « Je viens », les votes, les idées et leurs soutiens sont dans le schéma `internal`, que l'API ne montre pas : rien à lire ici.
   for (const table of ["profiles", "private_links", "admin_log", "clan_roster", "site_announcements", "polls"]) {
