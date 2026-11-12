@@ -3,10 +3,12 @@
  * code »). Une seule fois, après avoir ajouté l'application au serveur :
  *   npm run discord:commande
  * L'application « Le Gaulois » et le serveur du clan sont ceux de src/lib/discord-commande.ts, sauf DISCORD_APPLICATION_ID
- * et DISCORD_GUILD_ID. Le jeton du robot se colle quand le script le demande : il ne s'affiche pas et n'est gardé nulle
- * part. Il peut aussi venir de DISCORD_BOT_TOKEN.
+ * et DISCORD_GUILD_ID. Le jeton du robot vient de DISCORD_BOT_TOKEN, sinon du presse-papiers de Windows (copié par le
+ * bouton « Copy » du portail développeur, puis effacé), sinon de l'écran, où chaque signe tapé s'affiche en étoile. Il
+ * n'est jamais affiché ni gardé.
  */
-import { APPLICATION_ID, CODE_COMMAND, GUILD_ID, commandUrl, explainRefusal } from "../src/lib/discord-commande";
+import { execFileSync } from "node:child_process";
+import { APPLICATION_ID, CODE_COMMAND, GUILD_ID, commandUrl, explainRefusal, looksLikeBotToken } from "../src/lib/discord-commande";
 
 const applicationId = (process.env["DISCORD_APPLICATION_ID"] ?? "").trim() || APPLICATION_ID;
 const guildId = (process.env["DISCORD_GUILD_ID"] ?? "").trim() || GUILD_ID;
@@ -19,13 +21,39 @@ try {
   process.exit(2);
 }
 
+/** Le presse-papiers de Windows, s'il contient un jeton de robot. Rien n'est affiché. */
+function tokenFromClipboard(): string {
+  if (process.platform !== "win32") return "";
+  try {
+    const text = execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", "Get-Clipboard -Raw"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    return looksLikeBotToken(text) ? text : "";
+  } catch {
+    return "";
+  }
+}
+
+/** Remplace le jeton par une espace dans le presse-papiers : il n'y traîne pas après usage. */
+function clearClipboard(): void {
+  try {
+    execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", "Set-Clipboard -Value ' '"], { stdio: "ignore" });
+    console.log("Presse-papiers vidé.");
+  } catch {
+    console.log("Le presse-papiers n'a pas pu être vidé : copiez autre chose par-dessus le jeton.");
+  }
+}
+
 const ENTER = [String.fromCharCode(13), String.fromCharCode(10)];
 const CTRL_C = String.fromCharCode(3);
 const ERASE = [String.fromCharCode(8), String.fromCharCode(127)];
 
-/** Lit le jeton sans l'afficher. Hors d'un vrai terminal, lit simplement la première ligne. */
+/** Lit le jeton à l'écran : chaque signe s'affiche en étoile. Hors d'un vrai terminal, lit simplement la première ligne. */
 function askToken(): Promise<string> {
-  process.stdout.write("Jeton du robot (onglet « Bot » du portail développeur, rien ne s'affiche) : ");
+  console.log("Aucun jeton dans le presse-papiers. Copiez-le (portail développeur, onglet Bot, « Reset Token » puis « Copy ») et");
+  console.log("relancez la commande, ou collez-le ici puis appuyez sur Entrée.");
+  process.stdout.write("Jeton du robot : ");
   const stdin = process.stdin;
   return new Promise((resolve) => {
     let value = "";
@@ -33,6 +61,7 @@ function askToken(): Promise<string> {
       if (stdin.isTTY) stdin.setRawMode(false);
       stdin.pause();
       stdin.off("data", onData);
+      stdin.off("end", done);
       process.stdout.write("\n");
       resolve(value.trim());
     };
@@ -40,22 +69,37 @@ function askToken(): Promise<string> {
       for (const c of chunk.toString()) {
         if (ENTER.includes(c)) return done();
         if (c === CTRL_C) process.exit(130);
-        value = ERASE.includes(c) ? value.slice(0, -1) : value + c;
+        if (ERASE.includes(c)) {
+          if (value.length > 0 && stdin.isTTY) process.stdout.write("\b \b");
+          value = value.slice(0, -1);
+        } else {
+          value += c;
+          if (stdin.isTTY) process.stdout.write("*");
+        }
       }
     };
     if (stdin.isTTY) stdin.setRawMode(true);
     stdin.resume();
     stdin.on("data", onData);
+    stdin.on("end", done);
   });
 }
 
-const token = (process.env["DISCORD_BOT_TOKEN"] ?? "").trim() || (await askToken());
+let token = (process.env["DISCORD_BOT_TOKEN"] ?? "").trim();
+let fromClipboard = false;
+if (token === "") {
+  token = tokenFromClipboard();
+  fromClipboard = token !== "";
+  if (fromClipboard) console.log("Jeton du robot lu dans le presse-papiers (il ne s'affiche pas).");
+}
+if (token === "") token = await askToken();
 if (token === "") {
   console.error("Aucun jeton : rien n'est envoyé.");
   process.exit(2);
 }
 
-let response: Response;
+let response: Response | null = null;
+let failure = "";
 try {
   response = await fetch(url, {
     method: "POST",
@@ -63,7 +107,12 @@ try {
     body: JSON.stringify(CODE_COMMAND),
   });
 } catch (e) {
-  console.error(`Discord ne répond pas : ${e instanceof Error ? e.message : String(e)}`);
+  failure = e instanceof Error ? e.message : String(e);
+}
+// Le jeton ne traîne pas dans le presse-papiers, que Discord ait répondu ou non.
+if (fromClipboard) clearClipboard();
+if (response === null) {
+  console.error(`Discord ne répond pas : ${failure}`);
   process.exit(1);
 }
 

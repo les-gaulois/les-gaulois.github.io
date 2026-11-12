@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { APPLICATION_ID, CODE_COMMAND, GUILD_ID, commandUrl, explainRefusal, installUrl, isSnowflake } from "../../src/lib/discord-commande";
+import { APPLICATION_ID, CODE_COMMAND, GUILD_ID, commandUrl, explainRefusal, installUrl, isSnowflake, looksLikeBotToken } from "../../src/lib/discord-commande";
 import { COMMAND_NAME, GAL_GUILD_ID } from "../../supabase/functions/code-discord/index";
 
 const APP = "123456789012345678";
@@ -40,6 +40,22 @@ describe("la commande /code", () => {
     expect(url.searchParams.get("client_id")).toBe(APP);
     expect(url.searchParams.get("scope")).toBe("applications.commands");
     expect(url.searchParams.has("permissions")).toBe(false);
+  });
+});
+
+describe("le jeton copié dans le presse-papiers", () => {
+  // Des valeurs inventées, de la seule forme d'un jeton : trois morceaux séparés par des points.
+  const fake = `${"A".repeat(26)}.${"b".repeat(6)}.${"c".repeat(38)}`;
+
+  it("est reconnu à sa forme, espaces autour compris", () => {
+    expect(looksLikeBotToken(fake)).toBe(true);
+    expect(looksLikeBotToken(`  ${fake}\r\n`)).toBe(true);
+  });
+
+  it("n'est pas confondu avec autre chose", () => {
+    for (const text of ["", "pas un jeton", "https://discord.com/developers/applications", `${"A".repeat(26)}.${"c".repeat(38)}`, `${fake} ${fake}`, "AAAA.bbbb.cccc"]) {
+      expect(looksLikeBotToken(text), text).toBe(false);
+    }
   });
 });
 

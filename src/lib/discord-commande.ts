@@ -24,6 +24,12 @@ const SNOWFLAKE = /^[0-9]{17,20}$/;
 /** Un numéro de Discord : application, serveur, salon ou membre. */
 export const isSnowflake = (value: string): boolean => SNOWFLAKE.test(value);
 
+/**
+ * Un jeton de robot Discord a trois morceaux séparés par des points. Sert à reconnaître celui que le pilote a copié dans le
+ * presse-papiers, sans jamais l'afficher, plutôt que de lui faire taper.
+ */
+export const looksLikeBotToken = (text: string): boolean => /^[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]{20,}$/.test(text.trim());
+
 /** L'adresse qui crée la commande, ou la remplace si elle existe déjà, sur le seul serveur du clan. */
 export function commandUrl(applicationId: string, guildId: string): string {
   if (!isSnowflake(applicationId)) throw new Error("Le numéro de l'application Discord est un nombre de 17 à 20 chiffres (Application ID).");
