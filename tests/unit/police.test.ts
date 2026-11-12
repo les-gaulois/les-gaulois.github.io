@@ -25,7 +25,7 @@ const ecrits = new Set([...glyphes.keys()].flatMap(caracteresDe));
 const bas = (d: { haut: number; rangees: readonly string[] }) => d.haut - d.rangees.length + 1;
 
 describe("l'onciale de cases : les dessins", () => {
-  it("chaque dessin est une grille régulière de cases, sans rangée vide au bord", () => {
+  it("chaque dessin est une grille régulière de cases, sans rangée ni colonne vide au bord", () => {
     for (const [ch, d] of glyphes) {
       expect(d.rangees.length, ch).toBeGreaterThan(0);
       for (const r of d.rangees) {
@@ -34,6 +34,9 @@ describe("l'onciale de cases : les dessins", () => {
       }
       expect(d.rangees[0], ch).toContain("#");
       expect(d.rangees.at(-1), ch).toContain("#");
+      // Ni colonne vide au bord : la lettre aurait un blanc de trop d'un côté (le P en a eu un, « OP ENFRONT »).
+      expect(d.rangees.some((r) => r[0] === "#"), `${ch} : colonne de gauche`).toBe(true);
+      expect(d.rangees.some((r) => r.at(-1) === "#"), `${ch} : colonne de droite`).toBe(true);
       // Rien au-dessus de y = 12 (les accents) ni sous y = -3 (la cédille) : la ligne de texte garde sa hauteur.
       expect(d.haut, ch).toBeLessThanOrEqual(12);
       expect(bas(d), ch).toBeGreaterThanOrEqual(-3);
