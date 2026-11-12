@@ -4,6 +4,9 @@
  * Il part quand une nouvelle demande arrive, puis une fois par jour au plus tant qu'une demande attend depuis plus de 24 h.
  * Au tout premier passage, s'il n'y a aucune demande à annoncer, un message de mise en service part une seule fois :
  * il prouve que le lien du salon marche, sans attendre une vraie demande. Rien la nuit, comme les alertes de place.
+ * Depuis le 12 novembre 2026, le serveur annonce lui-même une demande dès son arrivée quand le lien du salon est réglé dans
+ * la Direction (migration `20261112000600_demandes_annoncees_aussitot.sql`) ; `staff_digest` compte alors cet avis comme
+ * annoncé, et le robot ne le double pas. Il garde la nuit, les rappels, le secret GitHub et les avis que Discord a refusés.
  */
 import { QUIET_FROM_HOUR, QUIET_UNTIL_HOUR } from "./alerts";
 import { fmtDuration } from "./format";
@@ -24,6 +27,19 @@ export interface StaffDigest {
   newest_id: number | null;
   /** Ce qui a déjà été annoncé. `null` au tout premier passage. */
   notice: StaffNoticeState | null;
+  /** Ce que ce passage vient de relire des avis postés par le serveur dès la demande. Absent avant la migration 20261112000600. */
+  instant?: { accepted: number; refused: number };
+}
+
+/**
+ * Les notes (« notice ») du passage sur les avis partis dès la demande, lisibles sans compte GitHub : l'avis du serveur n'en
+ * laisse aucune lui-même. Ni nombre, ni nom, ni lien.
+ */
+export function instantNotes(digest: Pick<StaffDigest, "instant">): string[] {
+  const lines: string[] = [];
+  if ((digest.instant?.accepted ?? 0) > 0) lines.push("::notice::Encadrement : avis parti dès la demande, accepté par Discord.");
+  if ((digest.instant?.refused ?? 0) > 0) lines.push("::notice::Encadrement : avis parti dès la demande, refusé par Discord ou resté sans réponse : il ne compte pas comme annoncé.");
+  return lines;
 }
 export interface StaffNoticeState {
   newest_id: number | null;

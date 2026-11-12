@@ -173,7 +173,9 @@ function SalonPart({ text, salon, reload, level }: { text: RobotSalonText; salon
                 </p>
               )
             ) : (
-              <p class="text-sm text-muted">Le robot prend le secret GitHub {text.secret}, s'il existe.</p>
+              <p class="text-sm text-muted">
+                Le robot prend le secret GitHub {text.secret}, s'il existe.{text.secretNote ? ` ${text.secretNote}` : ""}
+              </p>
             )}
             {salon.last && (
               <p role="status" data-testid={`direction-${id}-last`}>

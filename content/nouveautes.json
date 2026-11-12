@@ -2,8 +2,14 @@
   {
     "date": "2026-11-12",
     "kind": "ameliore",
+    "title": "Les demandes annoncées dès leur arrivée",
+    "body": "Pour l'encadrement : une nouvelle demande d'adhésion est annoncée sur Discord dès qu'elle arrive, quand le salon de l'encadrement est réglé dans la Direction. La nuit, l'avis part après 8 h."
+  },
+  {
+    "date": "2026-11-12",
+    "kind": "ameliore",
     "title": "Le salon des demandes se trouve mieux",
-    "body": "Pour l'encadrement : dans la Direction, onglet Discord, « Salons du robot » dit qu'on y choisit le salon des demandes d'adhésion, et quand elles y arrivent : dans l'heure, jamais de 23 h à 8 h."
+    "body": "Pour l'encadrement : dans la Direction, onglet Discord, « Salons du robot » dit maintenant qu'on y choisit le salon où arrivent les demandes d'adhésion."
   },
   {
     "date": "2026-11-12",

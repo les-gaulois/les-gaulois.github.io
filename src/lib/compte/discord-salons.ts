@@ -15,6 +15,8 @@ export interface RobotSalonText {
   intro: string;
   /** Le secret GitHub qui sert quand rien n'est réglé ici, et en secours si Supabase ne répond pas. */
   secret: string;
+  /** Ce que le secret ne fait pas, dit quand rien n'est réglé ici. */
+  secretNote?: string;
   /** Ajouté après les autres : un serveur sans sa migration ne le rend pas, et la page ne le montre pas. */
   optional?: boolean;
 }
@@ -29,10 +31,12 @@ export const ROBOT_SALON_TEXTS: readonly RobotSalonText[] = [
   {
     id: "encadrement",
     title: "Le salon de l'encadrement",
-    // Le robot passe une fois par heure : une demande n'est pas annoncée à la seconde. Le 12 novembre 2026, le pilote n'avait rien
-    // vu arriver dans le salon voulu et cherchait où le régler : l'intro dit ce qui part, et quand.
-    intro: "Chaque nouvelle demande d'adhésion, dans l'heure (rien de 23 h à 8 h), un rappel par jour pour une demande qui attend plus de 24 h, et le compte rendu des sauvegardes. Sans aucun nom : choisissez un salon privé de l'encadrement.",
+    // Le 12 novembre 2026, le pilote n'avait rien vu arriver dans le salon voulu et cherchait où le régler : l'intro dit ce qui
+    // part, et quand. Le serveur annonce une demande dès son arrivée avec le lien réglé ici (migration
+    // 20261112000600_demandes_annoncees_aussitot.sql) ; avec le seul secret, c'est le robot horaire, dans l'heure.
+    intro: "Chaque nouvelle demande d'adhésion dès son arrivée (la nuit, après 8 h), un rappel par jour pour une demande qui attend plus de 24 h, et le compte rendu des sauvegardes. Sans aucun nom : choisissez un salon privé de l'encadrement.",
     secret: "DISCORD_WEBHOOK_ENCADREMENT",
+    secretNote: "Avec ce secret, une demande n'est annoncée qu'au passage du robot, dans l'heure : collez le lien ici pour qu'elle le soit dès son arrivée.",
   },
   {
     id: "victoires",

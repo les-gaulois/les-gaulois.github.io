@@ -1,5 +1,7 @@
 /**
  * Prévient l'encadrement, sur un salon Discord privé, des demandes d'adhésion qui attendent. Lancé par la GitHub Action.
+ * Le serveur annonce déjà chaque demande dès son arrivée quand le lien est réglé dans la Direction ; ce script fait le reste
+ * (la nuit, les rappels, le secret GitHub, les avis refusés) et note ce qu'il relit de ces avis.
  *   npm run encadrement:prevenir
  * Avec SUPABASE_URL, SUPABASE_SECRET_KEY et le lien du salon de l'encadrement, réglé dans Direction > Discord, sinon le
  * secret DISCORD_WEBHOOK_ENCADREMENT. Sans eux, ne fait rien.
@@ -7,7 +9,7 @@
  */
 import { createClient } from "@supabase/supabase-js";
 import { clan } from "../config/clan";
-import { sendStaffNotice, type StaffDigest } from "../src/lib/encadrement-discord";
+import { instantNotes, sendStaffNotice, type StaffDigest } from "../src/lib/encadrement-discord";
 import { salonLink } from "../src/lib/salon-lien";
 
 const url = process.env["SUPABASE_URL"];
@@ -34,6 +36,8 @@ const sb = createClient(url, key, { auth: { persistSession: false, autoRefreshTo
 try {
   const { data, error } = await sb.rpc("staff_digest");
   if (error) throw new Error(`staff_digest : ${error.message}`);
+  // Les avis postés par le serveur dès la demande, relus à ce passage (migration 20261112000600).
+  for (const line of instantNotes(data as StaffDigest)) console.log(line);
   const result = await sendStaffNotice({
     webhook,
     digest: data as StaffDigest,

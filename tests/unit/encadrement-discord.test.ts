@@ -1,5 +1,9 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { REMIND_AFTER_HOURS, sendStaffNotice, staffNotice, type StaffDigest } from "../../src/lib/encadrement-discord";
+import { clan } from "../../config/clan";
+import { QUIET_FROM_HOUR, QUIET_UNTIL_HOUR } from "../../src/lib/alerts";
+import { instantNotes, REMIND_AFTER_HOURS, sendStaffNotice, staffNotice, type StaffDigest } from "../../src/lib/encadrement-discord";
+import { fmtDuration } from "../../src/lib/format";
 
 const SITE = "https://les-gaulois.github.io";
 // 15 h à Paris, le 8 novembre 2026 (heure d'hiver : UTC+1).
@@ -168,5 +172,85 @@ describe("l'envoi à l'encadrement", () => {
     const invalid = await run(async () => new Response(null, { status: 204 }), { webhook: "https://exemple.fr/webhook" });
     expect(invalid.result).toBe("invalid");
     expect(invalid.calls).toEqual([]);
+  });
+});
+
+describe("les notes sur les avis partis dès la demande", () => {
+  it("ne disent rien sans avis relu, ni avec un serveur d'avant la migration", () => {
+    expect(instantNotes({})).toEqual([]);
+    expect(instantNotes({ instant: { accepted: 0, refused: 0 } })).toEqual([]);
+  });
+  it("disent qu'un avis a été accepté ou refusé, sans nombre ni lien", () => {
+    const lines = instantNotes({ instant: { accepted: 2, refused: 1 } });
+    expect(lines).toEqual([
+      "::notice::Encadrement : avis parti dès la demande, accepté par Discord.",
+      "::notice::Encadrement : avis parti dès la demande, refusé par Discord ou resté sans réponse : il ne compte pas comme annoncé.",
+    ]);
+    expect(lines.join("\n")).not.toMatch(/\d|https?:/);
+  });
+});
+
+describe("les demandes annoncées dès leur arrivée (migration 20261112000600)", () => {
+  const SQL = readFileSync("supabase/migrations/20261112000600_demandes_annoncees_aussitot.sql", "utf8").replaceAll("\r\n", "\n");
+  const body = (name: string) => {
+    const start = SQL.indexOf(`create or replace function ${name}(`);
+    const open = SQL.indexOf("$$", start);
+    return SQL.slice(start, SQL.indexOf("$$;", open + 2) + 3);
+  };
+  const trigger = body("internal.announce_request_now");
+  const content = trigger.slice(trigger.indexOf("'content',"), trigger.indexOf("'allowed_mentions'"));
+
+  it("ne fait qu'ajouter : rien n'est retiré, sauf ses propres lignes de plus de deux jours", () => {
+    expect(SQL).not.toMatch(/\b(drop|truncate)\b/i);
+    expect([...SQL.matchAll(/delete from ([\w.]+)/g)].map((m) => m[1])).toEqual(["internal.staff_instant_notices"]);
+  });
+  it("ferme sa table et ses fonctions : seule la clé de service lit staff_digest", () => {
+    expect(SQL).toContain("alter table internal.staff_instant_notices enable row level security;");
+    expect(SQL).toContain("revoke all on internal.staff_instant_notices from public, anon, authenticated;");
+    for (const sig of ["internal.staff_quiet_hour(timestamptz)", "internal.announce_request_now()", "public.staff_digest()"]) {
+      expect(SQL, sig).toContain(`revoke all on function ${sig} from public, anon, authenticated;`);
+    }
+    expect(SQL).toContain("grant execute on function public.staff_digest() to service_role;");
+    expect(SQL).not.toMatch(/grant [^;]* to [^;]*\b(anon|authenticated|public)\b/);
+    for (const name of ["internal.announce_request_now", "public.staff_digest"]) expect(body(name), name).toContain("security definer set search_path = public, pg_temp");
+  });
+  it("se tait aux mêmes heures que le robot", () => {
+    const quiet = body("internal.staff_quiet_hour");
+    expect(quiet).toContain("'Europe/Paris'");
+    expect(quiet).toContain(`>= ${QUIET_FROM_HOUR}`);
+    expect(quiet).toContain(`< ${QUIET_UNTIL_HOUR}`);
+    expect(trigger).toContain("if internal.staff_quiet_hour(now()) then return null; end if;");
+  });
+  it("poste le même avis que le robot, vers les demandes de la Direction, sans nom et sans mention", () => {
+    expect(trigger).toContain("'allowed_mentions', jsonb_build_object('parse', jsonb_build_array())");
+    expect(content).not.toMatch(/new\.|discord_name|display_name|roster_username|claimed_text|user_id|\bnote\b/);
+    // Le lien écrit dans le SQL est celui du robot.
+    const link = `${clan.links.site}/direction#demandes`;
+    expect(content).toContain(`' À traiter : ${link}'`);
+    expect(staffNotice({ pending: 2, oldest_at: hoursAgo(26), newest_id: 12, notice: null }, NOW, SITE)).toMatchObject({
+      send: true,
+      text: `2 demandes d'adhésion attendent sur le site du clan. La plus ancienne attend depuis 26 h. À traiter : ${link}`,
+    });
+    // L'âge de la plus ancienne, au-delà de REMIND_AFTER_HOURS, écrit comme fmtDuration : des heures jusqu'à 48, puis des jours.
+    expect(content).toContain(`now() - v_oldest > interval '${REMIND_AFTER_HOURS} hours'`);
+    expect(content).toContain("' La plus ancienne attend depuis ' || case when v_hours < 48 then v_hours || ' h' else (v_hours / 24) || ' jours' end || '.'");
+    expect([fmtDuration(47 * 3_600_000), fmtDuration(48 * 3_600_000)]).toEqual(["47 h", "2 jours"]);
+    expect(content).toContain("' demandes attendent'");
+  });
+  it("passe après la validation par un rôle prévu, relit le statut, et n'arrête jamais la demande", () => {
+    expect(SQL).toContain("create or replace trigger membership_staff_notice after insert on public.membership_requests");
+    // Les déclencheurs d'un même moment passent dans l'ordre alphabétique de leur nom.
+    expect("membership_staff_notice" > "membership_planned_role").toBe(true);
+    expect(trigger).toContain("where id = new.id and status = 'pending'");
+    expect(trigger).toContain("if auth.uid() is null or auth.uid() <> new.user_id then return null; end if;");
+    expect(trigger).toMatch(/begin\n {2}begin\n[\s\S]*exception when others then\n {4}null;\n {2}end;\n {2}return null;\nend \$\$;$/);
+  });
+  it("rend la même réponse au robot, lit les demandes d'abord, et survit à une panne de pg_net", () => {
+    const digestSql = body("public.staff_digest");
+    for (const key of ["'ok'", "'pending'", "'oldest_at'", "'newest_id'", "'notice'", "'instant'"]) expect(digestSql, key).toContain(key);
+    expect(digestSql.indexOf("from public.membership_requests")).toBeLessThan(digestSql.indexOf("net._http_response"));
+    const read = digestSql.slice(digestSql.indexOf("net._http_response") - 400, digestSql.indexOf("net._http_response") + 400);
+    expect(read).toContain("exception when others then");
+    expect(SQL).toContain("notify pgrst, 'reload schema';");
   });
 });
