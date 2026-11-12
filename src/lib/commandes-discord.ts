@@ -1,7 +1,8 @@
 /**
  * Ce que le site publie pour les commandes du robot sur Discord (docs/DIRECTION.md, « Les commandes du robot »), à chaque
- * construction : une image pour /records et /carte, une par chapitre du guide (/guide) et une par clan de la liste
- * officielle (/rival), dessinées par `src/pages/commandes/[nom].png.ts` ; et l'index `/commandes.json`
+ * construction : une image pour /records et /carte, une par chapitre du guide (/guide), une par clan de la liste
+ * officielle (/rival) et celle du panneau des rôles (/roles, `roles-discord.ts`), dessinées par
+ * `src/pages/commandes/[nom].png.ts` ; et l'index `/commandes.json`
  * (`src/pages/commandes.json.ts`), seul fichier que lit la fonction `code-discord`. /clan montre l'image d'aperçu de
  * l'accueil, déjà dessinée par `scripts/generate-accueil-image.ts`. Les dessins sont dans `commandes-image.ts`.
  *
@@ -23,6 +24,7 @@ import { gazetteEditions } from "./gazette";
 import { GazetteFonts, renderGazetteCard, type GazetteCard, type Measure } from "./gazette-image";
 import { ancreDuChapitre } from "./guide";
 import { clanRecords, type ClanRecords } from "./results";
+import { rolesCard, rolesImageAlt } from "./roles-discord";
 import { findClan, withOfficialRanks, type RankedClan } from "./stats";
 
 /** L'image de la carte finale, dessinée par `scripts/generate-clanmap.ts` avant la construction des pages. */
@@ -37,6 +39,12 @@ export interface CommandEntry {
   page: string;
 }
 
+/** L'image du panneau des rôles : ses boutons donnent les rôles, il ne mène sur aucune page. */
+export interface PanelEntry {
+  image: string;
+  alt: string;
+}
+
 export interface CommandIndex {
   builtAt: string;
   clan: CommandEntry | null;
@@ -44,12 +52,13 @@ export interface CommandIndex {
   carte: CommandEntry | null;
   guide: (CommandEntry & { id: string; court: string })[];
   rivaux: (CommandEntry & { tag: string; rank: number })[];
+  roles: PanelEntry | null;
 }
 
-export type CommandImageKind = { kind: "records" } | { kind: "carte" } | { kind: "guide"; id: string; court: string } | { kind: "rival"; tag: string; rank: number };
+export type CommandImageKind = { kind: "records" } | { kind: "carte" } | { kind: "guide"; id: string; court: string } | { kind: "rival"; tag: string; rank: number } | { kind: "roles" };
 
 export type CommandImage = CommandImageKind & {
-  /** Le nom du fichier, sans « .png » : « records », « carte », « guide-03-attaque », « rival-UN ». */
+  /** Le nom du fichier, sans « .png » : « records », « carte », « guide-03-attaque », « rival-UN », « roles ». */
   name: string;
   card: GazetteCard;
   alt: string;
@@ -133,6 +142,8 @@ export function commandImages(input: CommandInput, measure: Measure, skipped: (n
       }));
     }
   }
+  // Le panneau des rôles ne lit aucune donnée : il se dessine à chaque construction.
+  add("roles", () => ({ kind: "roles", name: "roles", card: rolesCard(input.siteUrl, measure), alt: rolesImageAlt(input.siteUrl) }));
   return images;
 }
 
@@ -147,6 +158,7 @@ export function commandIndex(images: readonly CommandImage[], clanEntry: Command
   const entry = (image: CommandImage, page: string): CommandEntry => ({ image: commandImagePath(image, extraOf(image)), alt: image.alt, page });
   const records = images.find((i) => i.kind === "records");
   const carte = images.find((i) => i.kind === "carte");
+  const roles = images.find((i) => i.kind === "roles");
   return {
     builtAt,
     clan: clanEntry,
@@ -154,6 +166,7 @@ export function commandIndex(images: readonly CommandImage[], clanEntry: Command
     carte: carte ? entry(carte, "/carte") : null,
     guide: images.flatMap((i) => (i.kind === "guide" ? [{ id: i.id, court: i.court, ...entry(i, `/debuter#${ancreDuChapitre(i.id)}`) }] : [])),
     rivaux: images.flatMap((i) => (i.kind === "rival" ? [{ tag: i.tag, rank: i.rank, ...entry(i, "/rivaux") }] : [])),
+    roles: roles ? { image: commandImagePath(roles, extraOf(roles)), alt: roles.alt } : null,
   };
 }
 

@@ -1,6 +1,6 @@
 /**
  * Les commandes du serveur Discord du clan : /code (docs/DIRECTION.md, « Se connecter avec un code »), /fiche (« La
- * commande /fiche ») et les commandes du robot (« Les commandes du robot »). Le pilote les crée avec
+ * commande /fiche »), les commandes du robot (« Les commandes du robot ») et /roles (« Les rôles sur Discord »). Le pilote les crée avec
  * `npm run discord:commande` (`scripts/discord-commande.ts`), qui envoie ces définitions à Discord. Leurs noms et leurs
  * options sont ceux qu'attend la fonction serveur (`supabase/functions/code-discord/index.ts`) : un test le vérifie.
  */
@@ -55,8 +55,17 @@ export const RIVAL_COMMAND = {
 } as const;
 export const MOI_COMMAND = { name: "moi", type: 1, description: "Votre fiche, si le site vous a reconnu comme membre du clan" } as const;
 
+/** Le droit « Gérer les rôles » de Discord (1 << 28), en chiffres. */
+export const MANAGE_ROLES = "268435456";
+
+/**
+ * /roles (docs/DIRECTION.md, « Les rôles sur Discord ») : poste le panneau des rôles dans le salon où on la tape. Discord ne
+ * la propose qu'à qui a le droit « Gérer les rôles » (`default_member_permissions`), et la fonction serveur le vérifie aussi.
+ */
+export const ROLES_COMMAND = { name: "roles", type: 1, description: "Poster ici le panneau des rôles, un bouton par rôle (encadrement)", default_member_permissions: MANAGE_ROLES } as const;
+
 /** Les commandes que le script crée ou remet à jour, chacune à part : une autre commande de l'application ne bouge pas. */
-export const COMMANDS = [CODE_COMMAND, FICHE_COMMAND, CLAN_COMMAND, RECORDS_COMMAND, CARTE_COMMAND, GUIDE_COMMAND, RIVAL_COMMAND, MOI_COMMAND] as const;
+export const COMMANDS = [CODE_COMMAND, FICHE_COMMAND, CLAN_COMMAND, RECORDS_COMMAND, CARTE_COMMAND, GUIDE_COMMAND, RIVAL_COMMAND, MOI_COMMAND, ROLES_COMMAND] as const;
 
 /**
  * Le temps à attendre quand Discord répond « trop de demandes » (429) : son `retry_after`, en secondes, borné à 30 s. `null` :

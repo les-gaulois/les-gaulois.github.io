@@ -4,7 +4,8 @@
  * icônes dans le thème gaulois et hacker pour chaque section ». Décoratives : le nom de la partie est écrit à côté.
  * Aucune ne reprend un personnage ni un objet d'une œuvre protégée : casque ailé du logo du clan, cor, bannière, coq…
  * Les chapitres du guide du clan (/debuter) ont aussi la leur, dessinée dans la même grille, à la suite ; puis viennent
- * celles des fenêtres de la console de la page Carte, depuis le même jour (`src/lib/carte-console.ts`).
+ * celles des fenêtres de la console de la page Carte, depuis le même jour (`src/lib/carte-console.ts`), et le cadeau du
+ * panneau des rôles sur Discord, qui reprend aussi le cor, les deux épées et le bouclier (`src/lib/roles-discord.ts`).
  *
  * Chaque icône est une grille de 13 cases sur 13, écrite ligne à ligne : « # » une case pleine, « + » une case en
  * demi-teinte, « . » une case vide. Un nombre impair de cases laisse une colonne au milieu pour les objets symétriques.
@@ -572,6 +573,22 @@ export const ICONES_PARTIES = {
     "..#.......#..",
     ".###.....###.",
     ".###.....###.",
+  ],
+  /** Rôles Discord · Giveaway : le cadeau, son nœud en haut, son ruban en demi-teinte. */
+  cadeau: [
+    "..###...###..",
+    ".#...#.#...#.",
+    ".#....#....#.",
+    "..####+####..",
+    "######+######",
+    "######+######",
+    ".#####+#####.",
+    ".#####+#####.",
+    ".#####+#####.",
+    ".#####+#####.",
+    ".#####+#####.",
+    ".#####+#####.",
+    ".#####+#####.",
   ],
 } as const satisfies Record<string, readonly string[]>;
 

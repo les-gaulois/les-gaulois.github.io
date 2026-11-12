@@ -1,14 +1,16 @@
 /**
- * Crée les commandes du serveur Discord du clan, ou les remet à jour : /code, /fiche et les commandes du robot (/clan,
- * /records, /carte, /guide, /rival, /moi) ; voir docs/DIRECTION.md, « Se connecter avec un code », « La commande /fiche »
- * et « Les commandes du robot ». Une fois, après avoir ajouté l'application au serveur, puis à chaque nouvelle commande :
+ * Crée les commandes du serveur Discord du clan, ou les remet à jour : /code, /fiche, les commandes du robot (/clan,
+ * /records, /carte, /guide, /rival, /moi) et /roles ; voir docs/DIRECTION.md, « Se connecter avec un code », « La commande
+ * /fiche », « Les commandes du robot » et « Les rôles sur Discord ». Une fois, après avoir ajouté l'application au serveur,
+ * puis à chaque nouvelle commande :
  *   npm run discord:commande
  * Chaque commande s'envoie à part : Discord crée celle qui manque et remplace celle qui existe, sans toucher aux autres.
  * L'application « Le Gaulois » et le serveur du clan sont ceux de src/lib/discord-commande.ts, sauf DISCORD_APPLICATION_ID
  * et DISCORD_GUILD_ID. Le jeton du robot vient de DISCORD_BOT_TOKEN, sinon du presse-papiers de Windows (copié par le
  * bouton « Copy » du portail développeur, puis remplacé), sinon de l'écran, où chaque signe tapé s'affiche en étoile. Il
- * ne s'affiche jamais, mais l'historique du presse-papiers de Windows peut le garder : le script demande donc de le
- * régénérer après usage (« Reset Token »), ce qui l'annule. La commande, elle, reste.
+ * ne s'affiche jamais. Depuis le panneau des rôles, la fonction garde ce jeton : le script le laisse donc dans le
+ * presse-papiers et dit, à la fin, de le coller aussi dans le secret LE_GAULOIS_BOT_TOKEN de Supabase, puis de vider
+ * l'historique du presse-papiers de Windows (Win+V), sans nouveau « Reset Token ». Les commandes, elles, restent.
  */
 import { execFileSync } from "node:child_process";
 import { APPLICATION_ID, COMMANDS, GUILD_ID, commandUrl, explainRefusal, looksLikeBotToken, retryAfterMs } from "../src/lib/discord-commande";
@@ -38,19 +40,11 @@ function tokenFromClipboard(): string {
   }
 }
 
-/** Remplace le jeton par une espace dans le presse-papiers. L'historique de Windows (Win+V) peut encore le garder. */
-function clearClipboard(): void {
-  try {
-    execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", "Set-Clipboard -Value ' '"], { stdio: "ignore" });
-    console.log("Presse-papiers vidé. L'historique du presse-papiers de Windows (Win+V) peut encore garder le jeton.");
-  } catch {
-    console.log("Le presse-papiers n'a pas pu être vidé : copiez autre chose par-dessus le jeton.");
-  }
-}
-
 const RESET = [
-  "Dernière étape, obligatoire : portail développeur, onglet Bot, cliquez de nouveau sur « Reset Token », sans copier. Le jeton qui vient de servir ne vaudra plus rien ; la commande, elle, reste.",
-  "Attention : tant que les images de bienvenue tournent avec le jeton de « Le Gaulois », ce Reset Token les arrête. Voir docs/DIRECTION.md, « Les commandes du robot ».",
+  "Dernière étape, obligatoire : le jeton qui vient de servir reste valable, et la fonction en a besoin pour les boutons des rôles.",
+  "- Collez-le maintenant dans Supabase, dans le secret LE_GAULOIS_BOT_TOKEN de la fonction (Edge Functions, puis Secrets), et enregistrez. S'il n'est plus dans le presse-papiers, refaites « Reset Token » puis « Copy », et collez le nouveau : les commandes restent.",
+  "- Puis videz l'historique du presse-papiers de Windows (Win+V, puis « Effacer tout »). Pas de nouveau « Reset Token » : il arrêterait les boutons des rôles jusqu'à ce que le nouveau jeton soit recollé dans le secret.",
+  "Les images de bienvenue ont leur propre robot : ce jeton ne les touche pas. Voir docs/DIRECTION.md, « Les rôles sur Discord ».",
 ].join("\n");
 
 const ENTER = [String.fromCharCode(13), String.fromCharCode(10)];
@@ -59,8 +53,8 @@ const ERASE = [String.fromCharCode(8), String.fromCharCode(127)];
 
 /** Lit le jeton à l'écran : chaque signe s'affiche en étoile. Hors d'un vrai terminal, lit simplement la première ligne. */
 function askToken(): Promise<string> {
-  console.log("Aucun jeton dans le presse-papiers. Copiez-le (portail développeur, onglet Bot, « Reset Token » puis « Copy ») et");
-  console.log("relancez la commande, ou collez-le ici puis appuyez sur Entrée.");
+  console.log("Aucun jeton dans le presse-papiers. Copiez-le (portail développeur, onglet Bot, « Reset Token » puis « Copy »),");
+  console.log("puis collez-le ici (clic droit) et appuyez sur Entrée. Ne copiez rien d'autre avant de l'avoir aussi collé dans Supabase.");
   process.stdout.write("Jeton du robot : ");
   const stdin = process.stdin;
   return new Promise((resolve) => {
@@ -133,10 +127,10 @@ for (const command of COMMANDS) {
     break;
   }
 }
-// Le jeton ne traîne pas dans le presse-papiers, que Discord ait répondu ou non.
-if (fromClipboard) clearClipboard();
+// Le jeton reste dans le presse-papiers : il va aussi dans le secret de la fonction, puis l'historique se vide à la main
+// (RESET). Le vider ici obligerait à refaire un Reset Token pour le secret.
 
-// Discord a accepté le jeton au moins une fois : il faut l'annuler, même si une commande suivante est refusée.
+// Discord a accepté le jeton au moins une fois : la marche à suivre pour lui, même si une commande suivante est refusée.
 const tokenUsed = answers.some(({ response }) => response?.ok === true);
 for (const { name, response, failure } of answers) {
   if (response === null || !response.ok) {
@@ -147,5 +141,6 @@ for (const { name, response, failure } of answers) {
   console.log(`La commande /${name} est en place sur le serveur du clan.`);
 }
 console.log("Essayez-les : tapez /fiche dans un salon, puis le début d'un pseudo ; ou /clan, /records, /carte, /guide, /rival, /moi.");
+console.log("Le panneau des rôles : /roles, tapé par l'encadrement dans le salon où il doit rester.");
 console.log(RESET);
 process.exit(0);

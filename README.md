@@ -230,6 +230,8 @@ La même application a une seconde commande, `/fiche`, installée le 12 novembre
 
 Six autres commandes, `/clan`, `/records`, `/carte`, `/guide`, `/rival` et `/moi`, sont installées depuis le 12 novembre 2026 : chacune montre une image que le site dessine à chaque construction (`/commandes/…png`, index `/commandes.json`), et `/moi` la fiche de qui la tape, que le serveur retrouve pour un membre validé. Voir « Les commandes du robot » dans [docs/DIRECTION.md](docs/DIRECTION.md).
 
+Le panneau des rôles, prêt le 12 novembre 2026 et à installer par le pilote : `/roles`, tapée par l'encadrement, poste dans le salon une image (`/commandes/roles.png`) et un bouton par rôle (Rassemblement, Giveaway, Tournois, Membre GAL) ; un clic donne le rôle, un second le retire, et le robot le dit au seul membre qui a cliqué. Il faut pour cela le jeton de « Le Gaulois » dans le secret `LE_GAULOIS_BOT_TOKEN` de la fonction, dans Supabase, jamais dans GitHub. Voir « Les rôles sur Discord » dans [docs/DIRECTION.md](docs/DIRECTION.md).
+
 Les appels du QG peuvent aussi partir dans un salon Discord du clan, avec un ping du rôle quand l'appel le demande : ce n'est pas le robot qui les poste, mais le serveur, dès l'appel, avec un lien réglé dans l'onglet « Discord » de `/direction`. Voir « Les appels sur Discord » dans [docs/DIRECTION.md](docs/DIRECTION.md).
 
 Depuis le 11 novembre 2026, cet onglet est un menu dont les rubriques se déroulent, et sa première, « Message Discord », permet aux admins et au fondateur d'écrire un message mis en forme, avec des embeds et des images, et de l'envoyer dans un salon du clan. Là encore, c'est le serveur qui poste, par le webhook du salon. Voir « Les messages Discord » dans [docs/DIRECTION.md](docs/DIRECTION.md).

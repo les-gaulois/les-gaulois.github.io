@@ -7,6 +7,7 @@ import { ERROR_MESSAGES } from "../../src/lib/compte/errors";
 import { ficheImageVersion, ficheIndex } from "../../src/lib/fiches-discord";
 import { profileUrl } from "../../src/lib/paliers-franchis-discord";
 import { CHOOSE_NAME_URL as SITE_CHOOSE_NAME_URL } from "../../src/lib/pseudo-openfront";
+import { PANEL_ROLES as SITE_PANEL_ROLES } from "../../src/lib/roles-discord";
 import type { StoredMembers } from "../../src/lib/schemas";
 import {
   APP_PUBLIC_KEY,
@@ -24,6 +25,11 @@ import {
   GAL_GUILD_ID,
   MAX_CHOICES,
   MESSAGES,
+  PANEL_FILE,
+  PANEL_RIGHTS,
+  PANEL_ROLES,
+  ROLE_AUDIT_REASON,
+  ROLE_MESSAGES,
   SITE_URL,
   botIdOf,
   codeAccountEmail,
@@ -36,15 +42,21 @@ import {
   liveDeps,
   newCode,
   normalizeCode,
+  panelMessage,
   parseCommandes,
   parseFiches,
   pathForLog,
+  permissionBits,
+  roleSetup,
+  setupLines,
   sha256Hex,
   signatureWorks,
   verifyDiscordSignature,
   type CommandEntry,
   type CommandIndex,
   type Deps,
+  type DiscordCall,
+  type DiscordReply,
   type Fiche,
   type FicheList,
 } from "../../supabase/functions/code-discord/index";
@@ -103,7 +115,12 @@ const COMMANDES: CommandIndex = {
     { tag: "LUX", rank: 3, ...entry("/commandes/rival-LUX.png?v=222222222222", "/rivaux") },
     { tag: "ULT", rank: 9, ...entry("/commandes/rival-ULT.png?v=333333333333", "/rivaux") },
   ],
+  roles: { image: "/commandes/roles.png?v=444444444444", alt: "Choisissez vos rôles, sur le serveur Discord du clan." },
 };
+/** Le numéro de l'application et de son robot dans les tests, que la fonction lit dans le jeton. */
+const APP = "222233334444555566";
+/** Les octets d'une image : leur contenu ne compte pas ici. */
+const PNG = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
 
 function world(answers: Answers = {}, over: Partial<Deps> = {}) {
   const calls = {
@@ -114,6 +131,7 @@ function world(answers: Answers = {}, over: Partial<Deps> = {}) {
     logs: [] as string[],
     fiches: 0,
     commandes: 0,
+    images: [] as string[],
   };
   // Les comptes de Supabase, par adresse : le lien magique ouvre celui de l'adresse donnée.
   const accounts = new Map([
@@ -155,6 +173,10 @@ function world(answers: Answers = {}, over: Partial<Deps> = {}) {
       calls.commandes++;
       return COMMANDES;
     },
+    siteImage: async (path) => {
+      calls.images.push(path);
+      return PNG;
+    },
     log: (message) => calls.logs.push(message),
     // Sans jeton du robot : aucune commande ci-dessous n'appelle l'API de Discord.
     botId: "",
@@ -166,6 +188,19 @@ function world(answers: Answers = {}, over: Partial<Deps> = {}) {
     ...over,
   };
   return { deps, calls };
+}
+
+/**
+ * Un faux Discord pour le robot, avec son jeton : il note chaque requête et répond par `answer`, 204 sans corps par défaut.
+ * `over` se passe à `world`.
+ */
+function fakeDiscord(answer: (method: string, path: string, call: DiscordCall | undefined) => DiscordReply | null = () => ({ status: 204, body: null })) {
+  const sent: { method: string; path: string; call: DiscordCall | undefined }[] = [];
+  const discord: Deps["discord"] = async (method, path, call) => {
+    sent.push({ method, path, call });
+    return answer(method, path, call);
+  };
+  return { over: { botId: APP, discord } satisfies Partial<Deps>, sent };
 }
 
 async function fromDiscord(interaction: unknown, options: { timestamp?: number; pair?: CryptoKeyPair; signature?: string } = {}) {
@@ -640,6 +675,7 @@ describe("l'index des commandes publié par le site", () => {
       carte: null,
       guide: [{ ...ok, id: "03-attaque", court: "L'attaque" }],
       rivaux: [{ ...ok, tag: "LUX", rank: 3 }],
+      roles: null,
     });
     for (const bad of [null, [], { guide: [] }, { rivaux: [] }]) expect(parseCommandes(bad)).toBeNull();
   });
@@ -891,6 +927,450 @@ describe("le code tapé sur le site", () => {
 
   it("chaque refus a son message en français sur le site", () => {
     for (const code of ["code_format", "code_invalid", "code_busy", "code_unavailable"]) expect(ERROR_MESSAGES[code], code).toBeTruthy();
+  });
+});
+
+/* ---------- Les rôles du serveur ---------- */
+
+// Les numéros des rôles, par leur nom dans les boutons.
+const ROLE = Object.fromEntries(PANEL_ROLES.map((role) => [role.key, role.id])) as Record<"rassemblement" | "giveaway" | "tournois" | "membre", string>;
+const CHANNEL = "555566667777888899";
+const OTHER_ROLE = "444455556666777788";
+const bit = (n: number) => 1n << BigInt(n);
+const rights = (...bits: number[]) => String(bits.reduce((sum, n) => sum | bit(n), 0n));
+// Voir le salon, envoyer des messages, joindre des fichiers ; gérer les rôles.
+const CHANNEL_RIGHTS = rights(10, 11, 15);
+const MANAGE_ROLES = rights(28);
+
+const click = (customId: string, roles: string[] = [], over: Record<string, unknown> = {}) => ({
+  id: "999900001111222233",
+  type: 3,
+  guild_id: GUILD,
+  channel_id: CHANNEL,
+  application_id: APP,
+  token: "jeton-de-l-interaction",
+  data: { custom_id: customId, component_type: 2 },
+  member: { user: { id: PLAYER, username: "asterion" }, roles, permissions: "0" },
+  ...over,
+});
+
+const rolesCommand = (over: Record<string, unknown> = {}) => ({
+  id: "999900001111222244",
+  type: 2,
+  guild_id: GUILD,
+  channel_id: CHANNEL,
+  application_id: APP,
+  token: "jeton-de-l-interaction",
+  app_permissions: CHANNEL_RIGHTS,
+  data: { name: "roles" },
+  member: { user: { id: PLAYER, username: "chef" }, roles: [], permissions: MANAGE_ROLES },
+  ...over,
+});
+
+/** Les rôles du serveur : celui du robot tout en haut avec « Gérer les rôles », ceux du panneau dessous. */
+const BOT_ROLE = "333344445555666677";
+const guildRoles = (over: Record<string, Record<string, unknown>> = {}) =>
+  [
+    { id: GUILD, position: 0, permissions: "0", managed: false },
+    { id: ROLE.membre, position: 1, permissions: "0", managed: false },
+    { id: ROLE.rassemblement, position: 2, permissions: "0", managed: false },
+    { id: ROLE.giveaway, position: 3, permissions: "0", managed: false },
+    { id: ROLE.tournois, position: 4, permissions: "0", managed: false },
+    { id: BOT_ROLE, position: 5, permissions: MANAGE_ROLES, managed: true },
+  ].map((role) => ({ ...role, ...over[role.id] }));
+
+/** Un Discord où tout va bien pour /roles : la liste des rôles, le robot, puis le panneau accepté. */
+const panelDiscord = (post: DiscordReply | null = { status: 200, body: { id: "1" } }, roles: unknown = guildRoles()) =>
+  fakeDiscord((method, path) => {
+    if (method === "GET" && path === `/guilds/${GUILD}/roles`) return { status: 200, body: roles };
+    if (method === "GET" && path === `/guilds/${GUILD}/members/${APP}`) return { status: 200, body: { roles: [BOT_ROLE] } };
+    if (method === "POST" && path === `/channels/${CHANNEL}/messages`) return post;
+    return { status: 404, body: { code: 0 } };
+  });
+
+/**
+ * Une interaction jusqu'au bout : la réponse à Discord, puis la tâche de fond, et ce qui a remplacé la réponse d'attente. `text` :
+ * ce que lit la personne qui a cliqué ou tapé la commande, la réponse d'attente remplacée ou la réponse tout de suite.
+ */
+async function answered(interaction: unknown, over: Partial<Deps> = {}, signed: { timestamp?: number } = {}) {
+  const tasks: Promise<unknown>[] = [];
+  const hooks: { method: string; path: string; call: DiscordCall | undefined }[] = [];
+  const { deps, calls } = world(
+    {},
+    {
+      background: (task) => void tasks.push(task),
+      webhook: async (method, path, call) => {
+        hooks.push({ method, path, call });
+        return { status: 200, body: {} };
+      },
+      ...over,
+    },
+  );
+  const body = (await (await handle(await fromDiscord(interaction, signed), deps)).json()) as { type: number; data: { content?: string; flags: number } };
+  await Promise.all(tasks);
+  const edited = hooks[0]?.call?.body as { content?: string } | undefined;
+  return { body, hooks, calls, tasks, text: body.type === 5 ? (edited?.content ?? "") : (body.data.content ?? "") };
+}
+
+describe("les rôles du panneau", () => {
+  it("sont ceux que le pilote a donnés, et l'image du site écrit les mêmes, dans le même ordre", () => {
+    expect(PANEL_ROLES.map((role) => [role.key, role.id, role.label])).toEqual([
+      ["rassemblement", "1353811132766224414", "Rassemblement"],
+      ["giveaway", "1358882521986629793", "Giveaway"],
+      ["tournois", "1516822966845968507", "Tournois"],
+      ["membre", "1350921119871402166", "Membre GAL"],
+    ]);
+    expect(SITE_PANEL_ROLES.map((role) => [role.key, role.label])).toEqual(PANEL_ROLES.map((role) => [role.key, role.label]));
+  });
+
+  it("partent en image jointe, un bouton par rôle et « Mes rôles », sans mention possible", () => {
+    const message = panelMessage("La description");
+    expect(message["flags"]).toBe(32768);
+    expect(message["allowed_mentions"]).toEqual({ parse: [] });
+    expect(message["attachments"]).toEqual([{ id: 0, filename: PANEL_FILE, description: "La description" }]);
+    const [gallery, row] = message["components"] as [Record<string, unknown>, { type: number; components: Record<string, unknown>[] }];
+    expect(gallery).toEqual({ type: 12, items: [{ media: { url: `attachment://${PANEL_FILE}` }, description: "La description" }] });
+    expect(row.type).toBe(1);
+    // Cinq boutons au plus dans une rangée, des numéros de 100 signes au plus, des noms de 80.
+    expect(row.components).toHaveLength(5);
+    expect(row.components.map((b) => b["custom_id"])).toEqual(["roles:rassemblement", "roles:giveaway", "roles:tournois", "roles:membre", "roles:voir"]);
+    expect(row.components.map((b) => b["label"])).toEqual(["Rassemblement", "Giveaway", "Tournois", "Membre GAL", "Mes rôles"]);
+    for (const button of row.components) {
+      expect(button["type"]).toBe(2);
+      expect(String(button["custom_id"]).length).toBeLessThanOrEqual(100);
+      expect(String(button["label"]).length).toBeLessThanOrEqual(80);
+    }
+    expect(row.components.slice(0, 4).every((b) => b["style"] === 1 && typeof (b["emoji"] as { name?: unknown }).name === "string")).toBe(true);
+    expect(row.components[4]).toMatchObject({ style: 2 });
+  });
+
+  it("accordent leurs phrases au nombre de droits ou de rôles qui manquent", () => {
+    expect(ROLE_MESSAGES.channelRights(["Joindre des fichiers"])).toContain("« Joindre des fichiers ». Donnez-le-lui");
+    expect(ROLE_MESSAGES.channelRights(["Voir le salon", "Joindre des fichiers"])).toContain("« Voir le salon », « Joindre des fichiers ». Donnez-les-lui");
+    expect(ROLE_MESSAGES.setupMissing(["Giveaway"])).toBe("Attention : « Giveaway » n'existe pas sur ce serveur, ou ne peut pas se donner : ce bouton ne donne rien.");
+    expect(ROLE_MESSAGES.setupMissing(["Giveaway", "Membre GAL"])).toBe("Attention : « Giveaway », « Membre GAL » n'existent pas sur ce serveur, ou ne peuvent pas se donner : ces boutons ne donnent rien.");
+    // Un code d'erreur se dit en mots, avec ce qu'il faut faire.
+    expect(ROLE_MESSAGES.postRefused(400)).toContain("avec le code d'erreur 400 : rien n'est parti. Relancez /roles");
+  });
+
+  it("lit les droits de Discord écrits en chiffres, rien d'autre", () => {
+    expect(permissionBits("268435456")).toBe(bit(28));
+    expect(permissionBits(CHANNEL_RIGHTS)).toBe(bit(10) | bit(11) | bit(15));
+    for (const bad of [undefined, null, 8, "", "-1", "8n", "1".repeat(31)]) expect(permissionBits(bad), String(bad)).toBe(0n);
+    expect(PANEL_RIGHTS.map((right) => right.label)).toEqual(["Voir le salon", "Envoyer des messages", "Joindre des fichiers"]);
+  });
+});
+
+describe("un clic sur un bouton du panneau", () => {
+  it("répond « en cours » à lui seul, donne le rôle à qui ne l'a pas, puis le lui dit", async () => {
+    const { over, sent } = fakeDiscord();
+    const { body, hooks, text } = await answered(click("roles:tournois", [OTHER_ROLE]), over);
+    // Discord attend une réponse en trois secondes, démarrage compris : d'abord « en cours », éphémère.
+    expect(body).toEqual({ type: 5, data: { flags: 64 } });
+    expect(sent).toEqual([{ method: "PUT", path: `/guilds/${GUILD}/members/${PLAYER}/roles/${ROLE.tournois}`, call: { reason: ROLE_AUDIT_REASON } }]);
+    expect(hooks).toEqual([
+      {
+        method: "PATCH",
+        path: `/webhooks/${APP}/jeton-de-l-interaction/messages/@original`,
+        call: { body: { content: `${ROLE_MESSAGES.added(ROLE.tournois)}\nVos rôles du panneau : <@&${ROLE.tournois}>.`, allowed_mentions: { parse: [] } } },
+      },
+    ]);
+    expect(text).toBe(`${ROLE_MESSAGES.added(ROLE.tournois)}\nVos rôles du panneau : <@&${ROLE.tournois}>.`);
+  });
+
+  it("retire le rôle à qui l'a, et redit ceux qui lui restent, dans l'ordre des boutons", async () => {
+    const { over, sent } = fakeDiscord();
+    const first = await answered(click("roles:tournois", [ROLE.membre, ROLE.tournois, OTHER_ROLE, ROLE.rassemblement]), over);
+    expect(sent.map((s) => [s.method, s.path])).toEqual([["DELETE", `/guilds/${GUILD}/members/${PLAYER}/roles/${ROLE.tournois}`]]);
+    expect(first.text).toBe(`${ROLE_MESSAGES.removed(ROLE.tournois)}\nVos rôles du panneau : <@&${ROLE.rassemblement}>, <@&${ROLE.membre}>.`);
+    const last = await answered(click("roles:membre", [ROLE.membre]), over);
+    expect(last.text).toBe(`${ROLE_MESSAGES.removed(ROLE.membre)}\nVous n'avez aucun rôle du panneau.`);
+  });
+
+  it("« Mes rôles » montre tout de suite ses rôles du panneau, sans rien changer, même sans jeton", async () => {
+    const shown = await answered(click("roles:voir", [ROLE.membre, OTHER_ROLE, ROLE.giveaway]));
+    expect(shown.body).toMatchObject({ type: 4, data: { flags: 64 } });
+    expect(shown.text).toBe(`Vos rôles du panneau : <@&${ROLE.giveaway}>, <@&${ROLE.membre}>.`);
+    expect(shown.tasks).toEqual([]);
+    expect((await answered(click("roles:voir"))).text).toBe("Vous n'avez aucun rôle du panneau.");
+  });
+
+  it("ne donne que les rôles de sa liste : un autre numéro de bouton ne fait rien", async () => {
+    const { over, sent } = fakeDiscord();
+    const { deps } = world({}, over);
+    for (const customId of ["roles:admin", `roles:${ROLE.membre}`, "roles:", "roles:Tournois"]) {
+      expect((await content(await handle(await fromDiscord(click(customId)), deps))).data.content, customId).toBe(ROLE_MESSAGES.oldButton);
+    }
+    expect((await content(await handle(await fromDiscord(click("autre:tournois")), deps))).data.content).toBe(MESSAGES.unknown);
+    // Une fenêtre envoyée (5) n'est jamais un clic du panneau.
+    expect((await content(await handle(await fromDiscord({ ...click("roles:tournois"), type: 5 }), deps))).data.content).toBe(MESSAGES.unknown);
+    expect(sent).toEqual([]);
+  });
+
+  it("ne sert que sur le serveur du clan, à un membre qui n'est pas un robot", async () => {
+    const { over, sent } = fakeDiscord();
+    const cases = [
+      click("roles:tournois", [], { guild_id: "111111111111111111" }),
+      click("roles:tournois", [], { guild_id: undefined }),
+      click("roles:tournois", [], { member: undefined, user: { id: PLAYER } }),
+      click("roles:tournois", [], { member: { user: { id: PLAYER, bot: true }, roles: [] } }),
+      click("roles:tournois", [], { member: { user: { id: "pas-un-numero" }, roles: [] } }),
+      // Sans de quoi remplacer la réponse d'attente, rien ne commence.
+      click("roles:tournois", [], { token: "" }),
+      click("roles:tournois", [], { application_id: "x" }),
+    ];
+    for (const interaction of cases) {
+      const { text, tasks } = await answered(interaction, over);
+      expect(text).toBe(ROLE_MESSAGES.wrongPlace);
+      expect(tasks).toEqual([]);
+    }
+    expect(sent).toEqual([]);
+  });
+
+  it("refuse un clic que Discord n'a pas signé", async () => {
+    const { over, sent } = fakeDiscord();
+    const { deps } = world({}, over);
+    expect((await handle(await fromDiscord(click("roles:tournois"), { pair: otherKeys }), deps)).status).toBe(401);
+    expect(sent).toEqual([]);
+  });
+
+  it("dit tout de suite que les boutons ne sont pas branchés tant que le jeton manque", async () => {
+    const { body, text, tasks } = await answered(click("roles:giveaway"));
+    expect(body.type).toBe(4);
+    expect(text).toBe(ROLE_MESSAGES.notReady);
+    expect(tasks).toEqual([]);
+  });
+
+  it("dit pourquoi Discord refuse, et le note au journal sans le numéro du membre", async () => {
+    const cases: [DiscordReply | null, string][] = [
+      [{ status: 403, body: { code: 50013, message: "Missing Permissions" } }, ROLE_MESSAGES.noRight(ROLE.tournois)],
+      [{ status: 401, body: { code: 0 } }, ROLE_MESSAGES.badToken],
+      [{ status: 404, body: { code: 10011, message: "Unknown Role" } }, ROLE_MESSAGES.unknownRole],
+      [{ status: 404, body: { code: 10007, message: "Unknown Member" } }, ROLE_MESSAGES.down],
+      [{ status: 429, body: { retry_after: 1.2 } }, ROLE_MESSAGES.busy],
+      [{ status: 500, body: null }, ROLE_MESSAGES.down],
+      // Sans réponse à temps, le rôle a pu changer : la phrase le dit, pour qu'un nouveau clic ne le défasse pas.
+      [null, ROLE_MESSAGES.unsure],
+    ];
+    for (const [reply, expected] of cases) {
+      const { over } = fakeDiscord(() => reply);
+      const { text, calls } = await answered(click("roles:tournois"), over);
+      expect(text).toBe(expected);
+      expect(calls.logs).toHaveLength(1);
+      expect(calls.logs[0]).toMatch(/^bouton tournois : /);
+      expect(calls.logs[0]).not.toContain(PLAYER);
+    }
+    const { over } = fakeDiscord(() => ({ status: 403, body: { code: 50013 } }));
+    expect((await answered(click("roles:tournois"), over)).calls.logs).toEqual(["bouton tournois : 403 (code 50013)"]);
+  });
+
+  it("réessaie une fois, une seconde plus tard, de remplacer la réponse d'attente, puis le note au journal", async () => {
+    const { over } = fakeDiscord();
+    const tries: string[] = [];
+    const naps: number[] = [];
+    const failing = await answered(click("roles:tournois"), {
+      ...over,
+      sleep: async (ms) => void naps.push(ms),
+      webhook: async (method) => {
+        tries.push(method);
+        return null;
+      },
+    });
+    expect(tries).toEqual(["PATCH", "PATCH"]);
+    expect(naps).toEqual([1000]);
+    expect(failing.calls.logs).toEqual(["bouton tournois : la réponse d'attente n'a pas pu être remplacée"]);
+    // Discord ne connaissait pas encore la réponse d'attente : la seconde tentative passe, rien au journal.
+    let first = true;
+    const again = await answered(click("roles:tournois"), {
+      ...over,
+      webhook: async () => {
+        const reply = first ? { status: 404, body: { code: 10015 } } : { status: 200, body: {} };
+        first = false;
+        return reply;
+      },
+    });
+    expect(again.calls.logs).toEqual([]);
+    // Un refus net ne se réessaie pas.
+    let refused = 0;
+    await answered(click("roles:tournois"), {
+      ...over,
+      webhook: async () => {
+        refused += 1;
+        return { status: 400, body: { code: 50035 } };
+      },
+    });
+    expect(refused).toBe(1);
+  });
+
+  it("refuse un jeton qui n'est pas celui de l'application du panneau", async () => {
+    const { over, sent } = fakeDiscord();
+    const { text, calls, tasks } = await answered(click("roles:tournois"), { ...over, botId: "135792468013579246" });
+    expect(text).toBe(ROLE_MESSAGES.wrongBot);
+    expect(tasks).toEqual([]);
+    expect(sent).toEqual([]);
+    expect(calls.logs).toEqual(["bouton : le jeton du secret n'est pas celui de cette application"]);
+  });
+
+  it("ne change rien pour un clic arrivé après le délai de Discord", async () => {
+    const { over, sent } = fakeDiscord();
+    const late = await answered(click("roles:tournois"), over, { timestamp: NOW - 4 });
+    expect(late.text).toBe(ROLE_MESSAGES.late);
+    expect(late.tasks).toEqual([]);
+    expect(sent).toEqual([]);
+    // Trois secondes au compteur, qui compte à la seconde : peut-être deux et un peu, encore à temps.
+    expect((await answered(click("roles:tournois"), over, { timestamp: NOW - 3 })).body.type).toBe(5);
+  });
+});
+
+describe("la commande /roles", () => {
+  it("répond « en cours », poste le panneau dans le salon, l'image jointe, puis remplace l'attente par le résultat", async () => {
+    const { over, sent } = panelDiscord();
+    const { body, hooks, calls, text } = await answered(rolesCommand(), over);
+    // D'abord « en cours », que l'encadrement est seul à voir.
+    expect(body).toEqual({ type: 5, data: { flags: 64 } });
+    expect(calls.images).toEqual([COMMANDES.roles!.image]);
+    const post = sent.find((s) => s.method === "POST");
+    expect(post?.path).toBe(`/channels/${CHANNEL}/messages`);
+    expect(post?.call?.body).toEqual(panelMessage(COMMANDES.roles!.alt));
+    expect(post?.call?.files).toEqual([{ name: PANEL_FILE, type: "image/png", bytes: PNG }]);
+    // Le contrôle lit les rôles du serveur et ceux du robot, numéro tiré de son jeton.
+    expect(sent.filter((s) => s.method === "GET").map((s) => s.path)).toEqual([`/guilds/${GUILD}/roles`, `/guilds/${GUILD}/members/${APP}`]);
+    expect(hooks).toEqual([
+      {
+        method: "PATCH",
+        path: `/webhooks/${APP}/jeton-de-l-interaction/messages/@original`,
+        call: { body: { content: `${ROLE_MESSAGES.posted}\n${ROLE_MESSAGES.ready}`, allowed_mentions: { parse: [] } } },
+      },
+    ]);
+    expect(text).toBe(`${ROLE_MESSAGES.posted}\n${ROLE_MESSAGES.ready}`);
+  });
+
+  it("note au journal une réponse d'attente que Discord n'a pas laissé remplacer", async () => {
+    const { over } = panelDiscord();
+    const tasks: Promise<unknown>[] = [];
+    const { deps, calls } = world({}, { ...over, background: (task) => void tasks.push(task), webhook: async () => null });
+    await handle(await fromDiscord(rolesCommand()), deps);
+    await Promise.all(tasks);
+    expect(calls.logs).toEqual(["panneau des rôles : la réponse d'attente n'a pas pu être remplacée"]);
+  });
+
+  it("est réservée à qui peut gérer les rôles, ou à un administrateur", async () => {
+    const { over, sent } = panelDiscord();
+    for (const permissions of ["0", rights(13), rights(5), undefined]) {
+      const { text, tasks } = await answered(rolesCommand({ member: { user: { id: PLAYER }, roles: [], permissions } }), over);
+      expect(text, String(permissions)).toBe(ROLE_MESSAGES.notStaff);
+      expect(tasks).toEqual([]);
+    }
+    expect(sent).toEqual([]);
+    const admin = await answered(rolesCommand({ member: { user: { id: PLAYER }, roles: [], permissions: rights(3) } }), over);
+    expect(admin.text).toContain(ROLE_MESSAGES.posted);
+  });
+
+  it("ne part pas s'il manque au robot un droit dans le salon, et nomme ceux qui manquent", async () => {
+    const { over, sent } = panelDiscord();
+    expect((await answered(rolesCommand({ app_permissions: rights(10, 11) }), over)).text).toBe(ROLE_MESSAGES.channelRights(["Joindre des fichiers"]));
+    expect((await answered(rolesCommand({ app_permissions: "0" }), over)).text).toBe(ROLE_MESSAGES.channelRights(["Voir le salon", "Envoyer des messages", "Joindre des fichiers"]));
+    expect(sent).toEqual([]);
+    // Un robot administrateur a tout ; sans le champ, Discord dira lui-même s'il refuse.
+    for (const app_permissions of [rights(3), undefined]) {
+      expect((await answered(rolesCommand({ app_permissions }), over)).text).toContain(ROLE_MESSAGES.posted);
+    }
+  });
+
+  it("refuse le jeton d'un autre robot, et une commande arrivée après le délai de Discord", async () => {
+    const { over, sent } = panelDiscord();
+    // Le jeton de « Bienvenue Gaulois », par exemple : le panneau serait posté par lui, et ses clics iraient à lui.
+    const other = await answered(rolesCommand(), { ...over, botId: "135792468013579246" });
+    expect(other.text).toBe(ROLE_MESSAGES.otherBotToken);
+    expect(ROLE_MESSAGES.otherBotToken).toContain(BOT_TOKEN_SECRET);
+    const late = await answered(rolesCommand(), over, { timestamp: NOW - 5 });
+    expect(late.text).toBe(ROLE_MESSAGES.late);
+    expect([...other.tasks, ...late.tasks]).toEqual([]);
+    expect(sent).toEqual([]);
+  });
+
+  it("redemande les trois droits du salon si Discord refuse sans les avoir joints à la commande", async () => {
+    const { over } = panelDiscord({ status: 403, body: { code: 50001 } });
+    expect((await answered(rolesCommand({ app_permissions: undefined }), over)).text).toBe(ROLE_MESSAGES.channelRights(["Voir le salon", "Envoyer des messages", "Joindre des fichiers"]));
+  });
+
+  it("ne sert que sur le serveur du clan, et dit quand le jeton manque", async () => {
+    expect((await answered(rolesCommand())).text).toBe(ROLE_MESSAGES.noToken);
+    expect(ROLE_MESSAGES.noToken).toContain(BOT_TOKEN_SECRET);
+    const { over, sent } = panelDiscord();
+    for (const wrong of [{ guild_id: "111111111111111111" }, { channel_id: undefined }, { token: "" }, { application_id: "x" }]) {
+      expect((await answered(rolesCommand(wrong), over)).text).toBe(ROLE_MESSAGES.commandWrongPlace);
+    }
+    expect(sent).toEqual([]);
+  });
+
+  it("ne poste rien sans l'image du site", async () => {
+    const { over, sent } = panelDiscord();
+    expect((await answered(rolesCommand(), { ...over, commandes: async () => null })).text).toBe(ROLE_MESSAGES.noImage);
+    expect((await answered(rolesCommand(), { ...over, commandes: async () => ({ ...COMMANDES, roles: null }) })).text).toBe(ROLE_MESSAGES.noImage);
+    expect((await answered(rolesCommand(), { ...over, siteImage: async () => null })).text).toBe(ROLE_MESSAGES.noImage);
+    expect(sent).toEqual([]);
+  });
+
+  it("dit ce que Discord refuse : droit, jeton, attente", async () => {
+    const cases: [DiscordReply | null, string][] = [
+      // Les trois droits étaient dans la commande : le refus vient d'ailleurs, et la réponse ne les redemande pas.
+      [{ status: 403, body: { code: 50001, message: "Missing Access" } }, ROLE_MESSAGES.postForbidden(" (code d'erreur 50001)")],
+      [{ status: 401, body: { code: 0 } }, ROLE_MESSAGES.postToken],
+      [{ status: 429, body: { retry_after: 3 } }, ROLE_MESSAGES.postBusy],
+      [{ status: 400, body: { code: 50035 } }, ROLE_MESSAGES.postRefused(400)],
+      [null, ROLE_MESSAGES.down],
+    ];
+    for (const [answer, expected] of cases) {
+      const { over } = panelDiscord(answer);
+      const { text, calls } = await answered(rolesCommand(), over);
+      expect(text).toBe(expected);
+      expect(calls.logs[0]).toMatch(/^panneau des rôles : /);
+    }
+  });
+
+  it("dit ce qui empêcherait encore les boutons de marcher", async () => {
+    const tooHigh = guildRoles({ [ROLE.tournois]: { position: 6 }, [ROLE.giveaway]: { position: 5 } });
+    const { over } = panelDiscord(undefined, tooHigh);
+    expect((await answered(rolesCommand(), over)).text.split("\n")).toEqual([ROLE_MESSAGES.posted, ROLE_MESSAGES.setupTooHigh([ROLE.giveaway, ROLE.tournois])]);
+    // La liste des rôles illisible : le panneau est posté, le contrôle ne se fait pas.
+    const unreadable = fakeDiscord((method) => (method === "POST" ? { status: 200, body: {} } : { status: 500, body: null }));
+    expect((await answered(rolesCommand(), unreadable.over)).text).toBe(`${ROLE_MESSAGES.posted}\n${ROLE_MESSAGES.setupUnknown}`);
+  });
+});
+
+describe("le contrôle des droits du robot sur les rôles", () => {
+  it("tout est prêt : « Gérer les rôles », et un rôle plus haut que ceux du panneau", () => {
+    expect(roleSetup(guildRoles(), [BOT_ROLE], GUILD)).toEqual({ manageRoles: true, tooHigh: [], missing: [] });
+    expect(setupLines({ manageRoles: true, tooHigh: [], missing: [] })).toEqual([ROLE_MESSAGES.ready]);
+  });
+
+  it("sans « Gérer les rôles » le robot ne peut rien ; le droit vient aussi du rôle de tout le monde, ou de l'administration", () => {
+    const setup = roleSetup(guildRoles({ [BOT_ROLE]: { permissions: rights(10, 11) } }), [BOT_ROLE], GUILD);
+    expect(setup?.manageRoles).toBe(false);
+    expect(setupLines(setup)).toEqual([ROLE_MESSAGES.setupManage]);
+    expect(roleSetup(guildRoles({ [GUILD]: { permissions: MANAGE_ROLES }, [BOT_ROLE]: { permissions: "0" } }), [BOT_ROLE], GUILD)?.manageRoles).toBe(true);
+    expect(roleSetup(guildRoles({ [BOT_ROLE]: { permissions: rights(3) } }), [BOT_ROLE], GUILD)?.manageRoles).toBe(true);
+  });
+
+  it("un rôle du panneau à la hauteur du robot ou au-dessus ne se donne pas, même par un administrateur", () => {
+    const roles = guildRoles({ [BOT_ROLE]: { permissions: rights(3), position: 3 } });
+    expect(roleSetup(roles, [BOT_ROLE], GUILD)?.tooHigh).toEqual([ROLE.giveaway, ROLE.tournois]);
+    // Un robot sans rôle à lui est tout en bas.
+    expect(roleSetup(guildRoles(), [], GUILD)?.tooHigh).toEqual([ROLE.rassemblement, ROLE.giveaway, ROLE.tournois, ROLE.membre]);
+  });
+
+  it("un rôle absent du serveur ou tenu par une intégration est nommé", () => {
+    const roles = guildRoles({ [ROLE.giveaway]: { managed: true } }).filter((role) => role.id !== ROLE.membre);
+    const setup = roleSetup(roles, [BOT_ROLE], GUILD);
+    expect(setup?.missing).toEqual([ROLE.giveaway, ROLE.membre]);
+    expect(setupLines(setup)).toEqual([ROLE_MESSAGES.setupMissing(["Giveaway", "Membre GAL"])]);
+  });
+
+  it("une liste illisible ne se contrôle pas", () => {
+    expect(roleSetup(null, [BOT_ROLE], GUILD)).toBeNull();
+    expect(roleSetup(guildRoles(), "pas une liste", GUILD)).toBeNull();
+    expect(setupLines(null)).toEqual([ROLE_MESSAGES.setupUnknown]);
   });
 });
 
@@ -1201,6 +1681,68 @@ describe("le vrai monde", () => {
         expect(line).not.toContain("jeton-tres-secret");
       }
       expect(pathForLog(`/webhooks/${BOT}/a.b-c_d/messages/1`)).toBe(`/webhooks/${BOT}/…/messages/1`);
+    });
+
+    it("ne note pas non plus le numéro du membre dont un rôle change", async () => {
+      const logs: string[] = [];
+      const quiet = vi.spyOn(console, "log").mockImplementation((message: string) => void logs.push(message));
+      try {
+        await withBot(server(() => json({ code: 50013 }, 403)).fetcher).discord("PUT", `/guilds/${GUILD}/members/${PLAYER}/roles/${OTHER_ROLE}`, { reason: ROLE_AUDIT_REASON });
+      } finally {
+        quiet.mockRestore();
+      }
+      expect(logs).toEqual([`code-discord : Discord PUT /guilds/${GUILD}/members/…/roles/${OTHER_ROLE} : 403`]);
+      expect(pathForLog(`/guilds/${GUILD}/members/${PLAYER}`)).toBe(`/guilds/${GUILD}/members/…`);
+      // Ni un compte, ni ses droits dans un salon ; « @me » et les autres numéros restent.
+      expect(pathForLog(`/users/${PLAYER}`)).toBe("/users/…");
+      expect(pathForLog(`/channels/${CHANNEL}/permissions/${PLAYER}`)).toBe(`/channels/${CHANNEL}/permissions/…`);
+      expect(pathForLog("/users/@me")).toBe("/users/@me");
+    });
+
+    it("joint un fichier en plusieurs parties, son JSON à part, sans écrire le type de contenu à la main", async () => {
+      const sent: { headers: Record<string, string>; body: unknown }[] = [];
+      const fetcher = (async (_input: string | URL | Request, init?: RequestInit) => {
+        sent.push({ headers: (init?.headers ?? {}) as Record<string, string>, body: init?.body });
+        return json({ id: "1" });
+      }) as typeof fetch;
+      const deps = withBot(fetcher);
+      const reply = await deps.discord("POST", `/channels/${CHANNEL}/messages`, { body: panelMessage("d"), files: [{ name: PANEL_FILE, type: "image/png", bytes: PNG }] });
+      expect(reply).toEqual({ status: 200, body: { id: "1" } });
+      expect(sent[0]?.headers["content-type"]).toBeUndefined();
+      expect(sent[0]?.headers["authorization"]).toBe(`Bot ${token()}`);
+      const form = sent[0]?.body as FormData;
+      expect(form).toBeInstanceOf(FormData);
+      expect(JSON.parse(String(form.get("payload_json")))).toEqual(panelMessage("d"));
+      const file = form.get("files[0]") as File;
+      expect(file.name).toBe(PANEL_FILE);
+      expect(file.type).toBe("image/png");
+      expect(new Uint8Array(await file.arrayBuffer())).toEqual(PNG);
+      // Sans fichier, rien ne change : du JSON.
+      await deps.discord("POST", `/channels/${CHANNEL}/messages`, { body: { content: "x" }, files: [] });
+      expect(sent[1]?.headers["content-type"]).toBe("application/json");
+      expect(sent[1]?.body).toBe('{"content":"x"}');
+    });
+  });
+
+  describe("l'image du panneau des rôles, lue sur le site", () => {
+    it("lit un PNG du site, et seulement un PNG du site", async () => {
+      const png = (status = 200, type = "image/png") => new Response(PNG, { status, headers: { "content-type": type } });
+      const quiet = vi.spyOn(console, "log").mockImplementation(() => undefined);
+      try {
+        const ok = server(() => png());
+        expect(await liveDeps(env({}), ok.fetcher).siteImage("/commandes/roles.png?v=abc")).toEqual(PNG);
+        expect(ok.sent[0]?.url).toBe(`${SITE_URL}/commandes/roles.png?v=abc`);
+        for (const path of ["https://ailleurs.example/x.png", "//ailleurs.example/x.png", "/commandes/../x.png"]) {
+          const outside = server(() => png());
+          expect(await liveDeps(env({}), outside.fetcher).siteImage(path), path).toBeNull();
+          expect(outside.sent).toEqual([]);
+        }
+        expect(await liveDeps(env({}), server(() => png(404)).fetcher).siteImage("/commandes/roles.png")).toBeNull();
+        expect(await liveDeps(env({}), server(() => png(200, "text/html")).fetcher).siteImage("/commandes/roles.png")).toBeNull();
+        expect(await liveDeps(env({}), server(() => new Error("réseau")).fetcher).siteImage("/commandes/roles.png")).toBeNull();
+      } finally {
+        quiet.mockRestore();
+      }
     });
   });
 });

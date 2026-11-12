@@ -726,8 +726,10 @@ test("les images des commandes du robot sont publiées, chacune à son adresse",
   expect(index?.clan).not.toBeNull();
   expect(index?.records).not.toBeNull();
   expect(index?.carte).not.toBeNull();
+  // Le panneau des rôles (/roles) ne lit aucune donnée : son image est toujours là.
+  expect(index?.roles?.image).toMatch(/^\/commandes\/roles\.png\?v=[0-9a-f]{12}$/);
   const height = (png: Buffer) => png.readUInt32BE(20);
-  for (const entry of [index?.clan, index?.records, index?.carte, ...(index?.guide ?? []), index?.rivaux[0]]) {
+  for (const entry of [index?.clan, index?.records, index?.carte, ...(index?.guide ?? []), index?.rivaux[0], index?.roles]) {
     if (!entry) continue;
     const image = await request.get(entry.image);
     expect(image.ok(), entry.image).toBe(true);

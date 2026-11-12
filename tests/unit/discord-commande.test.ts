@@ -8,9 +8,11 @@ import {
   FICHE_COMMAND,
   GUIDE_COMMAND,
   GUILD_ID,
+  MANAGE_ROLES,
   MOI_COMMAND,
   RECORDS_COMMAND,
   RIVAL_COMMAND,
+  ROLES_COMMAND,
   commandUrl,
   explainRefusal,
   installUrl,
@@ -88,8 +90,21 @@ describe("la commande /fiche", () => {
 
   it("part avec /code et les commandes du robot, chacune à part, sans doublon", () => {
     const names = COMMANDS.map((c) => c.name);
-    expect(names).toEqual([CODE_COMMAND.name, FICHE_COMMAND.name, "clan", "records", "carte", "guide", "rival", "moi"]);
+    expect(names).toEqual([CODE_COMMAND.name, FICHE_COMMAND.name, "clan", "records", "carte", "guide", "rival", "moi", "roles"]);
     expect(new Set(names).size).toBe(names.length);
+  });
+});
+
+describe("la commande /roles", () => {
+  it("porte le nom qu'attend la fonction serveur", () => {
+    expect(ROLES_COMMAND.name).toBe(fonction.ROLES_COMMAND);
+  });
+
+  it("n'est proposée qu'à qui peut gérer les rôles : le même droit que la fonction vérifie", () => {
+    expect(ROLES_COMMAND.default_member_permissions).toBe(MANAGE_ROLES);
+    expect(BigInt(MANAGE_ROLES)).toBe(1n << 28n);
+    // Seule commande réservée : les autres restent ouvertes à tous les membres.
+    expect(COMMANDS.filter((c) => "default_member_permissions" in c).map((c) => c.name)).toEqual(["roles"]);
   });
 });
 

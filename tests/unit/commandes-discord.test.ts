@@ -7,6 +7,7 @@ import type { FaceOff } from "../../src/lib/games";
 import type { CardText, GazetteCard, Measure } from "../../src/lib/gazette-image";
 import { RECORD_LABELS } from "../../src/lib/records-discord";
 import type { ClanRecords } from "../../src/lib/results";
+import { rolesImageAlt } from "../../src/lib/roles-discord";
 import type { RankedClan } from "../../src/lib/stats";
 import { parseCommandes } from "../../supabase/functions/code-discord/index";
 
@@ -186,13 +187,13 @@ describe("les images des commandes", () => {
 describe("l'index des commandes", () => {
   it("une image par commande, par chapitre et par clan de la liste officielle, GAL excepté", () => {
     const images = commandImages(INPUT, measure);
-    expect(images.map((i) => i.name)).toEqual(["records", "carte", "guide-03-attaque", "rival-UN", "rival-LUX"]);
+    expect(images.map((i) => i.name)).toEqual(["records", "carte", "guide-03-attaque", "rival-UN", "rival-LUX", "roles"]);
     expect(images.find((i) => i.kind === "carte")?.map).toMatchObject({ file: INPUT.map!.file, left: 36, top: 230 });
   });
 
   it("rien pour ce qui manque : pas de records, pas de carte, GAL hors de la liste, ni pour un aide-mémoire", () => {
     const images = commandImages({ ...INPUT, records: null, map: null, chapters: [CHAPTER, MEMO], clans: CLANS.filter((c) => c.clanTag !== "GAL") }, measure);
-    expect(images.map((i) => i.name)).toEqual(["guide-03-attaque"]);
+    expect(images.map((i) => i.name)).toEqual(["guide-03-attaque", "roles"]);
   });
 
   it("une image qui ne se dessine pas est sautée, et n'arrête jamais les autres", () => {
@@ -205,7 +206,7 @@ describe("l'index des commandes", () => {
     const skipped: string[] = [];
     const images = commandImages({ ...INPUT, chapters: [arrow], clans: [...CLANS, ranked(4, "X/Y")] }, strict, (name) => skipped.push(name));
     expect(skipped).toEqual(["guide-03-attaque", "rival-X/Y"]);
-    expect(images.map((i) => i.name)).toEqual(["records", "carte", "rival-UN", "rival-LUX"]);
+    expect(images.map((i) => i.name)).toEqual(["records", "carte", "rival-UN", "rival-LUX", "roles"]);
   });
 
   it("l'adresse d'une image change avec son dessin, et avec l'image posée dessus", () => {
@@ -224,7 +225,9 @@ describe("l'index des commandes", () => {
       ["UN", 1, "/rivaux"],
       ["LUX", 3, "/rivaux"],
     ]);
+    // Le panneau des rôles : son image et sa description, sans page.
+    expect(index.roles).toEqual({ image: expect.stringMatching(/^\/commandes\/roles\.png\?v=[0-9a-f]{12}$/), alt: rolesImageAlt(SITE) });
     // Tout ce que la fonction lit revient à l'identique ; l'heure de construction ne la regarde pas.
-    expect(parseCommandes(JSON.parse(JSON.stringify(index)))).toEqual({ clan: index.clan, records: index.records, carte: index.carte, guide: index.guide, rivaux: index.rivaux });
+    expect(parseCommandes(JSON.parse(JSON.stringify(index)))).toEqual({ clan: index.clan, records: index.records, carte: index.carte, guide: index.guide, rivaux: index.rivaux, roles: index.roles });
   });
 });

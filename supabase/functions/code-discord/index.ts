@@ -12,8 +12,8 @@
  *   ensuite à Supabase de quoi ouvrir sa session : un lien magique qui n'est envoyé nulle part, dont elle vérifie qu'il
  *   ouvre bien ce compte, et dont le navigateur échange l'empreinte contre sa session (`verifyOtp`).
  * - `GET …/code-discord/etat` : dit si les réglages sont posés, sans en montrer aucun, si le moteur sait vérifier une
- *   signature (essayé sur l'exemple de la RFC 8032), si les fiches et l'index des commandes du site se lisent, et si la
- *   fonction SQL de /moi est installée.
+ *   signature (essayé sur l'exemple de la RFC 8032), si les fiches et l'index des commandes du site se lisent, si la
+ *   fonction SQL de /moi est installée, et si Discord accepte le jeton du robot (`robot`).
  *
  * La porte de Discord répond aussi à /fiche (docs/DIRECTION.md, « La commande /fiche ») : pendant que le joueur tape un
  * pseudo, la fonction propose ceux des membres qui ont une fiche, lus dans `/fiches.json`, que le site publie avec ses pages
@@ -25,9 +25,14 @@
  * le site dessine à chaque construction, lue dans `/commandes.json` (`src/lib/commandes-discord.ts`) ; /moi demande au
  * serveur le pseudo du membre validé lié au Discord de qui la tape (`discord_moi`, clé de service), puis montre sa fiche.
  *
- * Réglages : aucun. Le serveur du clan et la clé publique de l'application sont écrits plus bas, publics tous deux ; les
- * secrets `DISCORD_GUILD_ID` et `DISCORD_PUBLIC_KEY` les remplacent s'ils sont posés. Supabase donne lui-même `SUPABASE_URL`
- * et la clé de service. Déployée
+ * Et au panneau des rôles (« Les rôles sur Discord ») : /roles, réservée à qui peut gérer les rôles, poste dans le salon
+ * l'image du panneau et ses boutons ; chaque bouton donne son rôle au membre qui clique, ou le lui retire, et le lui dit à lui
+ * seul. Seuls les rôles écrits ici (`PANEL_ROLES`) se donnent. Il y faut le jeton du robot (`BOT_TOKEN_SECRET`).
+ *
+ * Réglages : le jeton du robot « Le Gaulois », dans le secret `LE_GAULOIS_BOT_TOKEN` (`BOT_TOKEN_SECRET`), pour les rôles. Le
+ * serveur du clan et la clé publique de l'application sont écrits plus bas, publics tous deux ; les secrets
+ * `DISCORD_GUILD_ID` et `DISCORD_PUBLIC_KEY` les remplacent s'ils sont posés. Supabase donne lui-même `SUPABASE_URL` et la
+ * clé de service. Déployée
  * sans vérification de jeton (`verify_jwt = false`, `supabase/config.toml`) : Discord n'en envoie pas, et la fonction
  * vérifie elle-même chaque appel. Elle ne note jamais un code, une adresse ni un jeton dans ses journaux.
  *
@@ -78,10 +83,19 @@ export interface DiscordReply {
   body: unknown;
 }
 
+/** Un fichier joint à un message : son nom, son type et ses octets. */
+export interface DiscordFile {
+  name: string;
+  type: string;
+  bytes: Uint8Array<ArrayBuffer>;
+}
+
 /** Les options d'un appel à l'API de Discord. */
 export interface DiscordCall {
-  /** Envoyé en JSON. */
+  /** Envoyé en JSON ; avec des fichiers joints, dans la partie `payload_json`. */
   body?: unknown;
+  /** Des fichiers joints : l'appel part alors en plusieurs parties, le n-ième fichier sous `files[n]`. */
+  files?: DiscordFile[];
   /** La raison écrite au journal d'audit du serveur Discord, 512 signes au plus. */
   reason?: string;
   /** Le délai, en millisecondes : huit secondes sans autre précision. Avant une réponse due en trois secondes, bien moins. */
@@ -101,8 +115,16 @@ export function botIdOf(token: string): string {
   }
 }
 
-/** Un chemin de l'API tel que le journal l'écrit : sans le jeton d'une interaction, qui ouvre ses réponses pendant quinze minutes. */
-export const pathForLog = (path: string): string => path.replace(/^(\/webhooks\/[0-9]+\/)[^/?]+/, "$1…").split("?")[0] ?? "";
+/**
+ * Un chemin de l'API tel que le journal l'écrit : sans le jeton d'une interaction, qui ouvre ses réponses pendant quinze
+ * minutes, ni le numéro d'un joueur (un rôle donné ou retiré : « /guilds/…/members/<membre>/roles/… » ; un compte ; ses
+ * droits dans un salon : « /channels/…/permissions/<joueur> »). Règle commune aux rôles, aux tickets et au concours.
+ */
+export const pathForLog = (path: string): string =>
+  path
+    .replace(/^(\/webhooks\/[0-9]+\/)[^/?]+/, "$1…")
+    .replace(/\/(members|users|permissions)\/[0-9]{17,20}/g, "/$1/…")
+    .split("?")[0] ?? "";
 
 /** Ce dont la fonction a besoin du monde : remplacé dans les tests. */
 export interface Deps {
@@ -122,6 +144,8 @@ export interface Deps {
   fiches(): Promise<FicheList | null>;
   /** L'index des commandes que publie le site (`COMMANDES_URL`), aux mêmes conditions que les fiches. */
   commandes(): Promise<CommandIndex | null>;
+  /** Une image PNG du site, par son chemin : ses octets, ou `null` si le site ne la donne pas. */
+  siteImage(path: string): Promise<Uint8Array<ArrayBuffer> | null>;
   log(message: string): void;
   /** Le numéro du robot, lu dans son jeton (`BOT_TOKEN_SECRET`) ; "" sans jeton lisible. */
   botId: string;
@@ -477,6 +501,13 @@ export interface CommandIndex {
   carte: CommandEntry | null;
   guide: (CommandEntry & { id: string; court: string })[];
   rivaux: (CommandEntry & { tag: string; rank: number })[];
+  /** L'image du panneau des rôles (/roles), sans page : ses boutons donnent les rôles. */
+  roles: PanelEntry | null;
+}
+
+export interface PanelEntry {
+  image: string;
+  alt: string;
 }
 
 /** Un chemin du site, sans hôte, sans « .. » et sans rien d'autre qu'une version et une ancre : un bouton ne mène que sur le site. */
@@ -510,7 +541,15 @@ export function parseCommandes(value: unknown): CommandIndex | null {
     const rank = record(item)?.["rank"];
     return entry && typeof tag === "string" && /^[A-Z0-9]{1,10}$/.test(tag) && typeof rank === "number" && Number.isInteger(rank) && rank >= 1 ? [{ ...entry, tag, rank }] : [];
   });
-  return { clan: parseEntry(body["clan"]), records: parseEntry(body["records"]), carte: parseEntry(body["carte"]), guide, rivaux };
+  return { clan: parseEntry(body["clan"]), records: parseEntry(body["records"]), carte: parseEntry(body["carte"]), guide, rivaux, roles: parsePanel(body["roles"]) };
+}
+
+function parsePanel(value: unknown): PanelEntry | null {
+  const entry = record(value);
+  const image = sitePath(entry?.["image"]);
+  const alt = entry?.["alt"];
+  if (!image || typeof alt !== "string" || alt.trim() === "") return null;
+  return { image, alt: alt.slice(0, 1024) };
 }
 
 /** Ce que voit tout le salon : l'image du site en grand et un bouton vers sa page. */
@@ -640,6 +679,337 @@ async function robotRoute(name: string, interaction: Record<string, unknown>, da
   }
 }
 
+/* ---------- Les rôles du serveur : /roles et les boutons du panneau ---------- */
+
+/** La commande qui poste le panneau des rôles dans le salon où on la tape. `scripts/discord-commande.ts` la crée. */
+export const ROLES_COMMAND = "roles";
+/** Le début du numéro de chaque bouton du panneau, suivi du rôle (« roles:tournois ») ou de `ROLE_SHOW`. */
+export const ROLE_BUTTON = "roles:";
+/** Le bouton « Mes rôles » : il montre ses rôles du panneau au seul membre qui clique. */
+export const ROLE_SHOW = "voir";
+/** L'image du panneau, jointe au message : Discord la garde, et le panneau ne dépend plus du site. */
+export const PANEL_FILE = "roles.png";
+/** Ce que le journal des actions du serveur écrit à côté de chaque rôle donné ou retiré. */
+export const ROLE_AUDIT_REASON = "Panneau des rôles : clic du membre";
+
+/**
+ * Les rôles que donnent et retirent les boutons du panneau, et eux seuls : leur numéro est écrit ici, côté serveur, jamais lu
+ * dans le bouton ni dans un fichier du site. Numéros donnés par le pilote le 12 novembre 2026. Le nom et l'émoji sont ceux
+ * des boutons ; l'image du panneau (`src/lib/roles-discord.ts`) écrit les mêmes noms dans le même ordre : un test le vérifie.
+ */
+export const PANEL_ROLES: readonly { key: string; id: string; label: string; emoji: string }[] = [
+  { key: "rassemblement", id: "1353811132766224414", label: "Rassemblement", emoji: String.fromCodePoint(0x1f4ef) },
+  { key: "giveaway", id: "1358882521986629793", label: "Giveaway", emoji: String.fromCodePoint(0x1f381) },
+  { key: "tournois", id: "1516822966845968507", label: "Tournois", emoji: String.fromCodePoint(0x2694, 0xfe0f) },
+  { key: "membre", id: "1350921119871402166", label: "Membre GAL", emoji: String.fromCodePoint(0x1f6e1, 0xfe0f) },
+];
+
+const SNOWFLAKE = /^[0-9]{17,20}$/;
+
+/** Les droits de Discord dont le panneau a besoin. */
+const RIGHTS = {
+  administrator: 1n << 3n,
+  viewChannel: 1n << 10n,
+  sendMessages: 1n << 11n,
+  attachFiles: 1n << 15n,
+  manageRoles: 1n << 28n,
+} as const;
+
+/** Ce qu'il faut au robot dans le salon pour y poster le panneau, et le nom de chaque droit dans Discord en français. */
+export const PANEL_RIGHTS: readonly { bit: bigint; label: string }[] = [
+  { bit: RIGHTS.viewChannel, label: "Voir le salon" },
+  { bit: RIGHTS.sendMessages, label: "Envoyer des messages" },
+  { bit: RIGHTS.attachFiles, label: "Joindre des fichiers" },
+];
+
+/** Un champ de droits de Discord, écrit en chiffres ; aucun droit s'il ne l'est pas. */
+export const permissionBits = (value: unknown): bigint => (typeof value === "string" && /^[0-9]{1,30}$/.test(value) ? BigInt(value) : 0n);
+
+/** Un administrateur a tous les droits. */
+const allows = (granted: bigint, bit: bigint): boolean => (granted & RIGHTS.administrator) !== 0n || (granted & bit) !== 0n;
+
+const mention = (id: string): string => `<@&${id}>`;
+const quoted = (labels: readonly string[]): string => labels.map((label) => `« ${label} »`).join(", ");
+
+export const ROLE_MESSAGES = {
+  wrongPlace: "Ces boutons ne servent que sur le serveur Discord du clan.",
+  commandWrongPlace: "Tapez /roles dans un salon du serveur Discord du clan.",
+  oldButton: "Ce bouton ne sert plus : l'encadrement peut reposter le panneau avec /roles.",
+  notReady: "Les boutons des rôles ne sont pas encore branchés : l'encadrement finit leur installation.",
+  added: (id: string): string => `Rôle ajouté : ${mention(id)}. Un second clic sur le même bouton le retire.`,
+  removed: (id: string): string => `Rôle retiré : ${mention(id)}. Un clic sur le même bouton le redonne.`,
+  held: (ids: readonly string[]): string => (ids.length === 0 ? "Vous n'avez aucun rôle du panneau." : `Vos rôles du panneau : ${ids.map(mention).join(", ")}.`),
+  noRight: (id: string): string => `Le robot n'a pas le droit de donner ${mention(id)}. Prévenez l'encadrement : il lui faut le droit « Gérer les rôles », et un rôle placé plus haut que celui-ci dans la liste des rôles.`,
+  badToken: "Le robot ne peut plus donner de rôles : son jeton a changé. Prévenez l'encadrement.",
+  unknownRole: "Ce rôle n'existe plus sur le serveur. Prévenez l'encadrement.",
+  busy: "Discord demande d'attendre un peu : réessayez dans quelques secondes.",
+  down: "Discord ne répond pas pour l'instant : réessayez dans un moment.",
+  /** Discord n'a pas répondu à temps : le rôle a pu changer quand même. Recliquer tout de suite pourrait le défaire. */
+  unsure: "Discord n'a pas répondu à temps : le rôle a peut-être changé. Vérifiez avec « Mes rôles » avant de recliquer.",
+  /** Le clic est arrivé après les trois secondes de Discord, qui a déjà affiché un échec : rien n'est changé. */
+  late: "Le clic est arrivé trop tard : rien n'a changé. Recliquez.",
+  wrongBot: "Les boutons des rôles sont mal branchés : prévenez l'encadrement.",
+  notStaff: "Seul l'encadrement, avec le droit « Gérer les rôles », peut poster le panneau des rôles.",
+  noToken: `Le robot n'a pas encore son jeton dans Supabase (secret ${BOT_TOKEN_SECRET}) : le panneau ne peut pas partir.`,
+  otherBotToken: `Le jeton du secret ${BOT_TOKEN_SECRET} n'est pas celui de « Le Gaulois » : recollez celui de « Le Gaulois » (portail développeur, onglet Bot), puis relancez /roles.`,
+  postForbidden: (code: string): string => `Discord refuse au robot de poster dans ce salon${code}, alors qu'il en a les droits : regardez si le salon n'est pas un fil fermé, ou si une permission du robot n'y est pas refusée ailleurs, puis relancez /roles.`,
+  channelRights: (labels: readonly string[]): string =>
+    `Il manque au robot, dans ce salon : ${quoted(labels)}. ${labels.length > 1 ? "Donnez-les-lui" : "Donnez-le-lui"} (Modifier le salon, puis Permissions), puis relancez /roles.`,
+  noImage: "L'image du panneau ne se lit pas sur le site pour l'instant : relancez /roles dans un moment.",
+  postToken: `Discord ne reconnaît pas le jeton du robot : recollez-le dans Supabase (secret ${BOT_TOKEN_SECRET}), puis relancez /roles.`,
+  postBusy: "Discord demande d'attendre : relancez /roles dans une minute.",
+  postRefused: (status: number): string => `Discord a refusé le panneau, avec le code d'erreur ${status} : rien n'est parti. Relancez /roles dans un moment ; si le refus revient, notez ce code pour le signaler.`,
+  posted: "Panneau posté dans ce salon.",
+  ready: "Les rôles du panneau sont prêts : essayez un bouton.",
+  setupUnknown: "Le contrôle des droits du robot n'a pas pu se faire : essayez un bouton.",
+  setupManage: "Attention : le robot n'a pas le droit « Gérer les rôles » sur le serveur. Donnez-lui un rôle qui l'a (Paramètres du serveur, puis Rôles) : les boutons ne donnent rien avant.",
+  setupMissing: (labels: readonly string[]): string =>
+    labels.length > 1
+      ? `Attention : ${quoted(labels)} n'existent pas sur ce serveur, ou ne peuvent pas se donner : ces boutons ne donnent rien.`
+      : `Attention : ${quoted(labels)} n'existe pas sur ce serveur, ou ne peut pas se donner : ce bouton ne donne rien.`,
+  setupTooHigh: (ids: readonly string[]): string => `Attention : le plus haut rôle du robot doit passer au-dessus de ${ids.map(mention).join(", ")} dans la liste des rôles (Paramètres du serveur, puis Rôles, en le faisant glisser) : sinon ces boutons ne donnent rien.`,
+};
+
+/** Ses rôles du panneau, dans l'ordre des boutons. */
+const heldText = (held: ReadonlySet<string>): string => ROLE_MESSAGES.held(PANEL_ROLES.filter((role) => held.has(role.id)).map((role) => role.id));
+
+/** Le message du panneau : l'image en grand, jointe, puis un bouton par rôle et « Mes rôles ». `alt` : sa description. */
+export function panelMessage(alt: string): Record<string, unknown> {
+  return {
+    flags: COMPONENTS_V2,
+    components: [
+      { type: 12, items: [{ media: { url: `attachment://${PANEL_FILE}` }, description: alt }] },
+      {
+        type: 1,
+        components: [
+          ...PANEL_ROLES.map((role) => ({ type: 2, style: 1, label: role.label, emoji: { name: role.emoji }, custom_id: `${ROLE_BUTTON}${role.key}` })),
+          { type: 2, style: 2, label: "Mes rôles", custom_id: `${ROLE_BUTTON}${ROLE_SHOW}` },
+        ],
+      },
+    ],
+    attachments: [{ id: 0, filename: PANEL_FILE, description: alt }],
+    allowed_mentions: { parse: [] },
+  };
+}
+
+export interface RoleSetup {
+  /** Le robot a « Gérer les rôles » sur le serveur. */
+  manageRoles: boolean;
+  /** Les rôles du panneau placés à la hauteur du plus haut rôle du robot, ou au-dessus : il ne peut pas les donner. */
+  tooHigh: string[];
+  /** Les rôles du panneau absents du serveur, ou tenus par une intégration : personne ne peut les donner. */
+  missing: string[];
+}
+
+/**
+ * Ce que Discord laisse faire au robot avec les rôles du panneau, d'après les rôles du serveur et les siens : il lui faut
+ * « Gérer les rôles », et un rôle placé plus haut que chacun d'eux. `null` : une liste illisible.
+ */
+export function roleSetup(guildRoles: unknown, botRoles: unknown, guildId: string): RoleSetup | null {
+  if (!Array.isArray(guildRoles) || !Array.isArray(botRoles)) return null;
+  const roles = new Map<string, { position: number; permissions: bigint; managed: boolean }>();
+  for (const item of guildRoles) {
+    const role = record(item);
+    const id = role?.["id"];
+    const position = role?.["position"];
+    if (typeof id === "string" && typeof position === "number") roles.set(id, { position, permissions: permissionBits(role?.["permissions"]), managed: role?.["managed"] === true });
+  }
+  let granted = roles.get(guildId)?.permissions ?? 0n;
+  let top = 0;
+  for (const id of botRoles) {
+    const role = typeof id === "string" ? roles.get(id) : undefined;
+    if (!role) continue;
+    granted |= role.permissions;
+    top = Math.max(top, role.position);
+  }
+  const tooHigh: string[] = [];
+  const missing: string[] = [];
+  for (const wanted of PANEL_ROLES) {
+    const role = roles.get(wanted.id);
+    if (!role || role.managed) missing.push(wanted.id);
+    else if (role.position >= top) tooHigh.push(wanted.id);
+  }
+  return { manageRoles: allows(granted, RIGHTS.manageRoles), tooHigh, missing };
+}
+
+/** Ce que la réponse à /roles ajoute sous « Panneau posté » : ce qui empêcherait encore les boutons de marcher. */
+export function setupLines(setup: RoleSetup | null): string[] {
+  if (!setup) return [ROLE_MESSAGES.setupUnknown];
+  const lines: string[] = [];
+  if (!setup.manageRoles) lines.push(ROLE_MESSAGES.setupManage);
+  const missing = PANEL_ROLES.filter((role) => setup.missing.includes(role.id)).map((role) => role.label);
+  if (missing.length > 0) lines.push(ROLE_MESSAGES.setupMissing(missing));
+  if (setup.tooHigh.length > 0) lines.push(ROLE_MESSAGES.setupTooHigh(setup.tooHigh));
+  return lines.length > 0 ? lines : [ROLE_MESSAGES.ready];
+}
+
+const discordCode = (reply: DiscordReply): unknown => record(reply.body)?.["code"];
+
+/**
+ * Ce que dit au membre un clic que Discord a refusé. 50013 : droit manquant, ou rôle plus haut que celui du robot. Sans
+ * réponse à temps, Discord a pu changer le rôle quand même : la phrase le dit, pour qu'un nouveau clic ne le défasse pas.
+ */
+function clickRefusal(reply: DiscordReply | null, roleId: string): string {
+  if (!reply) return ROLE_MESSAGES.unsure;
+  if (reply.status === 401) return ROLE_MESSAGES.badToken;
+  if (reply.status === 403) return ROLE_MESSAGES.noRight(roleId);
+  if (reply.status === 404 && discordCode(reply) === 10011) return ROLE_MESSAGES.unknownRole;
+  if (reply.status === 429) return ROLE_MESSAGES.busy;
+  return ROLE_MESSAGES.down;
+}
+
+/**
+ * Ce que dit à l'encadrement un panneau que Discord a refusé. `rightsShown` : Discord a joint à la commande les droits du
+ * robot dans le salon, et les trois y étaient ; un refus vient alors d'ailleurs, et la réponse ne les redemande pas.
+ */
+function postRefusal(reply: DiscordReply | null, rightsShown: boolean): string {
+  if (!reply) return ROLE_MESSAGES.down;
+  if (reply.status === 401) return ROLE_MESSAGES.postToken;
+  if (reply.status === 403) {
+    const code = discordCode(reply);
+    return rightsShown ? ROLE_MESSAGES.postForbidden(typeof code === "number" ? ` (code d'erreur ${code})` : "") : ROLE_MESSAGES.channelRights(PANEL_RIGHTS.map((right) => right.label));
+  }
+  if (reply.status === 429) return ROLE_MESSAGES.postBusy;
+  return ROLE_MESSAGES.postRefused(reply.status);
+}
+
+/** Une seconde avant de réessayer de remplacer la réponse d'attente : le temps que Discord ait noté cette réponse. */
+const REPLACE_RETRY_MS = 1000;
+
+/**
+ * Remplace la réponse d'attente d'une interaction par `text`, que seule la personne qui a cliqué ou tapé la commande voit.
+ * Le jeton de l'interaction suffit, pas celui du robot. La tâche part avant que Discord ait reçu la réponse d'attente :
+ * s'il ne la connaît pas encore (404), ne répond pas, ou tombe en panne, une seconde tentative part une seconde plus tard.
+ * `label` commence la ligne du journal si Discord refuse encore.
+ */
+async function replaceWaiting(applicationId: string, token: string, text: string, label: string, deps: Deps): Promise<void> {
+  const path = `/webhooks/${applicationId}/${encodeURIComponent(token)}/messages/@original`;
+  const call = { body: { content: text, allowed_mentions: { parse: [] } } };
+  let edited = await deps.webhook("PATCH", path, call);
+  if (!edited || edited.status === 404 || edited.status >= 500) {
+    await deps.sleep(REPLACE_RETRY_MS);
+    edited = await deps.webhook("PATCH", path, call);
+  }
+  if (!edited || edited.status >= 300) deps.log(`${label} : la réponse d'attente n'a pas pu être remplacée`);
+}
+
+/**
+ * Discord donne trois secondes pour répondre, envoi compris ; l'heure signée de l'interaction, à la seconde, dit quand il l'a
+ * envoyée. À quatre secondes ou plus, il a déjà affiché un échec : mieux vaut ne rien changer qu'un rôle changé en silence.
+ */
+const LATE_SECONDS = 4;
+const tooLate = (sentAt: number, deps: Deps): boolean => deps.nowSeconds() - sentAt >= LATE_SECONDS;
+
+/**
+ * Le rôle donné ou retiré, et la phrase qui le dit. Il l'a : le robot le retire ; il ne l'a pas : le robot le donne. Deux
+ * clics trop rapprochés voient les mêmes rôles et demandent la même chose : rien ne se croise. Si Discord demande d'attendre
+ * quelques secondes, l'appel repart une fois (`deps.discord`).
+ */
+async function toggleRole(role: (typeof PANEL_ROLES)[number], userId: string, held: Set<string>, deps: Deps): Promise<string> {
+  const had = held.has(role.id);
+  const reply = await deps.discord(had ? "DELETE" : "PUT", `/guilds/${deps.guildId}/members/${userId}/roles/${role.id}`, { reason: ROLE_AUDIT_REASON });
+  if (reply && reply.status >= 200 && reply.status < 300) {
+    if (had) held.delete(role.id);
+    else held.add(role.id);
+    return `${had ? ROLE_MESSAGES.removed(role.id) : ROLE_MESSAGES.added(role.id)}\n${heldText(held)}`;
+  }
+  const code = reply ? discordCode(reply) : null;
+  deps.log(`bouton ${role.key} : ${reply ? `${reply.status}${typeof code === "number" ? ` (code ${code})` : ""}` : "Discord ne répond pas"}`);
+  return clickRefusal(reply, role.id);
+}
+
+/**
+ * Un clic sur un bouton du panneau. Le membre et ses rôles viennent de l'interaction signée par Discord ; le rôle, de la
+ * liste écrite ici. « Mes rôles » répond tout de suite. Un rôle à changer demande Discord, qui peut tarder au-delà des trois
+ * secondes qu'il laisse, démarrage de la fonction compris : la fonction répond d'abord « en cours », à lui seul, puis
+ * remplace cette réponse par le résultat. Sans cela, un rôle pourrait changer pendant que Discord affiche un échec. Le jeton
+ * gardé dans Supabase doit être celui de l'application qui a posté le panneau : le numéro de son robot est celui de
+ * l'application. `sentAt` : l'heure signée de l'interaction.
+ */
+async function roleButton(interaction: Record<string, unknown>, customId: string, sentAt: number, deps: Deps): Promise<Response> {
+  if (deps.guildId === "" || interaction["guild_id"] !== deps.guildId) return ephemeral(ROLE_MESSAGES.wrongPlace);
+  const member = record(interaction["member"]);
+  const user = record(member?.["user"]);
+  const userId = user?.["id"];
+  if (!member || user?.["bot"] === true || typeof userId !== "string" || !SNOWFLAKE.test(userId)) return ephemeral(ROLE_MESSAGES.wrongPlace);
+  const list = member["roles"];
+  const held = new Set(Array.isArray(list) ? list.filter((id): id is string => typeof id === "string") : []);
+  const key = customId.slice(ROLE_BUTTON.length);
+  if (key === ROLE_SHOW) return ephemeral(heldText(held));
+  const role = PANEL_ROLES.find((r) => r.key === key);
+  if (!role) return ephemeral(ROLE_MESSAGES.oldButton);
+  if (deps.botId === "") return ephemeral(ROLE_MESSAGES.notReady);
+  const applicationId = interaction["application_id"];
+  const token = interaction["token"];
+  if (typeof applicationId !== "string" || !SNOWFLAKE.test(applicationId) || typeof token !== "string" || token === "") return ephemeral(ROLE_MESSAGES.wrongPlace);
+  if (deps.botId !== applicationId) {
+    deps.log("bouton : le jeton du secret n'est pas celui de cette application");
+    return ephemeral(ROLE_MESSAGES.wrongBot);
+  }
+  if (tooLate(sentAt, deps)) return ephemeral(ROLE_MESSAGES.late);
+  deps.background(toggleRole(role, userId, held, deps).then((text) => replaceWaiting(applicationId, token, text, `bouton ${role.key}`, deps)));
+  return json({ type: 5, data: { flags: EPHEMERAL } });
+}
+
+/**
+ * Le panneau posté par le robot dans le salon, l'image jointe ; en même temps, le contrôle de ses droits sur les rôles. La
+ * réponse pour l'encadrement : posté ou non, et ce qui manque encore. Ne lève jamais d'erreur.
+ */
+async function postPanel(guildId: string, channelId: string, rightsShown: boolean, deps: Deps): Promise<string> {
+  try {
+    const index = await deps.commandes();
+    const panel = index?.roles ?? null;
+    const image = panel ? await deps.siteImage(panel.image) : null;
+    if (!panel || !image) return ROLE_MESSAGES.noImage;
+    const [roles, me, posted] = await Promise.all([
+      deps.discord("GET", `/guilds/${guildId}/roles`),
+      deps.discord("GET", `/guilds/${guildId}/members/${deps.botId}`),
+      deps.discord("POST", `/channels/${channelId}/messages`, { body: panelMessage(panel.alt), files: [{ name: PANEL_FILE, type: "image/png", bytes: image }] }),
+    ]);
+    if (!posted || posted.status < 200 || posted.status >= 300) {
+      const code = posted ? discordCode(posted) : null;
+      deps.log(`panneau des rôles : ${posted ? `${posted.status}${typeof code === "number" ? ` (code ${code})` : ""}` : "Discord ne répond pas"}`);
+      return postRefusal(posted, rightsShown);
+    }
+    const setup = roles?.status === 200 && me?.status === 200 ? roleSetup(roles.body, record(me.body)?.["roles"], guildId) : null;
+    return [ROLE_MESSAGES.posted, ...setupLines(setup)].join("\n");
+  } catch (e) {
+    deps.log(`panneau des rôles : ${e instanceof Error ? e.message : String(e)}`);
+    return ROLE_MESSAGES.down;
+  }
+}
+
+/**
+ * /roles : le panneau, dans le salon où la commande est tapée, par qui peut gérer les rôles (Discord la cache aux autres, et la
+ * fonction le vérifie). Rien ne part s'il manque au robot un droit dans le salon : Discord les joint à la commande. Le
+ * panneau et le contrôle prennent plus que les trois secondes de Discord : la fonction répond d'abord « en cours », puis
+ * remplace cette réponse. Le jeton gardé dans Supabase doit être celui de cette application : sinon le panneau serait
+ * posté par un autre robot, et ses clics iraient à cet autre robot. `sentAt` : l'heure signée de l'interaction.
+ */
+async function rolesCommand(interaction: Record<string, unknown>, sentAt: number, deps: Deps): Promise<Response> {
+  if (deps.guildId === "" || interaction["guild_id"] !== deps.guildId) return ephemeral(ROLE_MESSAGES.commandWrongPlace);
+  const member = record(interaction["member"]);
+  if (!member || !allows(permissionBits(member["permissions"]), RIGHTS.manageRoles)) return ephemeral(ROLE_MESSAGES.notStaff);
+  const channelId = interaction["channel_id"] ?? record(interaction["channel"])?.["id"];
+  const applicationId = interaction["application_id"];
+  const token = interaction["token"];
+  if (typeof channelId !== "string" || !SNOWFLAKE.test(channelId) || typeof applicationId !== "string" || !SNOWFLAKE.test(applicationId) || typeof token !== "string" || token === "") {
+    return ephemeral(ROLE_MESSAGES.commandWrongPlace);
+  }
+  if (deps.botId === "") return ephemeral(ROLE_MESSAGES.noToken);
+  if (deps.botId !== applicationId) return ephemeral(ROLE_MESSAGES.otherBotToken);
+  const rightsShown = typeof interaction["app_permissions"] === "string";
+  if (rightsShown) {
+    const granted = permissionBits(interaction["app_permissions"]);
+    const missing = PANEL_RIGHTS.filter((right) => !allows(granted, right.bit)).map((right) => right.label);
+    if (missing.length > 0) return ephemeral(ROLE_MESSAGES.channelRights(missing));
+  }
+  // Discord a déjà affiché un échec : un panneau posté maintenant serait relancé, et posté deux fois.
+  if (tooLate(sentAt, deps)) return ephemeral(ROLE_MESSAGES.late);
+  deps.background(postPanel(deps.guildId, channelId, rightsShown, deps).then((text) => replaceWaiting(applicationId, token, text, "panneau des rôles", deps)));
+  return json({ type: 5, data: { flags: EPHEMERAL } });
+}
+
 async function discordRoute(req: Request, deps: Deps): Promise<Response> {
   const body = await req.text();
   const timestamp = req.headers.get("x-signature-timestamp") ?? "";
@@ -662,6 +1032,13 @@ async function discordRoute(req: Request, deps: Deps): Promise<Response> {
   if (interaction["type"] === 1) return json({ type: 1 });
   const data = record(interaction["data"]);
   const name = data?.["name"];
+  // Un clic sur un bouton (3) ou l'envoi d'une fenêtre (5) d'un message de l'application, reconnu au début de son numéro.
+  if (interaction["type"] === 3 || interaction["type"] === 5) {
+    const customId = data?.["custom_id"];
+    if (interaction["type"] === 3 && typeof customId === "string" && customId.startsWith(ROLE_BUTTON)) return roleButton(interaction, customId, sentAt, deps);
+    return ephemeral(MESSAGES.unknown);
+  }
+  if (interaction["type"] === 2 && name === ROLES_COMMAND) return rolesCommand(interaction, sentAt, deps);
   if (data && typeof name === "string" && ROBOT_COMMANDS.has(name) && (interaction["type"] === 2 || interaction["type"] === 4)) return robotRoute(name, interaction, data, deps);
   if (interaction["type"] !== 2 || name !== COMMAND_NAME) return ephemeral(MESSAGES.unknown);
 
@@ -839,6 +1216,37 @@ async function readSiteFile<T>(fetcher: typeof fetch, url: string, parse: (value
   return lastGood;
 }
 
+/** L'image du panneau des rôles : quelques centaines de kilo-octets au plus, loin des limites de Discord. */
+const MAX_PANEL_BYTES = 5_000_000;
+/** Le temps laissé au site pour donner l'image : /roles a déjà répondu « en cours », rien ne presse. */
+const SITE_IMAGE_TIMEOUT_MS = 8000;
+
+/** L'image du panneau, lue sur le site : un PNG, ou `null`, et la raison au journal. */
+async function readSiteImage(fetcher: typeof fetch, path: string, log: (message: string) => void): Promise<Uint8Array<ArrayBuffer> | null> {
+  if (!sitePath(path)) return null;
+  try {
+    const res = await fetcher(`${SITE_URL}${path}`, { signal: AbortSignal.timeout(SITE_IMAGE_TIMEOUT_MS) });
+    if (!res.ok) {
+      log(`image du panneau : ${res.status}`);
+      return null;
+    }
+    const type = res.headers.get("content-type") ?? "";
+    if (!type.startsWith("image/png")) {
+      log(`image du panneau : pas un PNG (${type.split(";")[0] || "type inconnu"})`);
+      return null;
+    }
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    if (bytes.length === 0 || bytes.length > MAX_PANEL_BYTES) {
+      log(`image du panneau : ${bytes.length} octets, hors des limites`);
+      return null;
+    }
+    return bytes;
+  } catch (e) {
+    log(`image du panneau injoignable : ${e instanceof Error ? e.message : String(e)}`);
+    return null;
+  }
+}
+
 export function liveDeps(env: Env, fetcher: typeof fetch = fetch): Deps {
   const url = (env.get("SUPABASE_URL") ?? "").replace(/\/$/, "");
   const key = serviceKey(env);
@@ -851,15 +1259,24 @@ export function liveDeps(env: Env, fetcher: typeof fetch = fetch): Deps {
   /** Un appel à l'API de Discord ; `auth` : l'en-tête du jeton du robot, ou `null` pour le webhook d'une interaction. */
   async function discordCall(method: string, path: string, call: DiscordCall, auth: string | null): Promise<DiscordReply | null> {
     const callHeaders: Record<string, string> = { "user-agent": DISCORD_USER_AGENT };
+    const files = call.files ?? [];
     if (auth !== null) callHeaders["authorization"] = auth;
-    if (call.body !== undefined) callHeaders["content-type"] = "application/json";
+    // Avec des fichiers joints, `fetch` écrit lui-même le type de contenu, avec la frontière entre les parties.
+    if (call.body !== undefined && files.length === 0) callHeaders["content-type"] = "application/json";
     if (call.reason) callHeaders["x-audit-log-reason"] = encodeURIComponent(call.reason.slice(0, 512));
+    const payload = (): BodyInit | undefined => {
+      if (files.length === 0) return call.body === undefined ? undefined : JSON.stringify(call.body);
+      const form = new FormData();
+      form.append("payload_json", JSON.stringify(call.body ?? {}));
+      files.forEach((file, i) => form.append(`files[${i}]`, new Blob([file.bytes], { type: file.type }), file.name));
+      return form;
+    };
     for (let attempt = 0; ; attempt++) {
       try {
         const res = await fetcher(`${DISCORD_API}${path}`, {
           method,
           headers: callHeaders,
-          body: call.body === undefined ? undefined : JSON.stringify(call.body),
+          body: payload(),
           signal: AbortSignal.timeout(call.timeoutMs ?? DISCORD_TIMEOUT_MS),
         });
         const text = await res.text();
@@ -965,6 +1382,7 @@ export function liveDeps(env: Env, fetcher: typeof fetch = fetch): Deps {
       if (typeof runtime?.waitUntil === "function") runtime.waitUntil(kept);
     },
     sleep: wait,
+    siteImage: (path) => readSiteImage(fetcher, path, log),
   };
 }
 
