@@ -43,8 +43,9 @@ const boards: { title: string; rows: PodiumPlace[]; testId: string }[] = podiums
                 <p class="mt-4 font-display text-lg font-bold">Pas de données</p>
               ) : (
                 <ol class="mt-4 space-y-4">
+                  {/* La colonne du rang tient « 1er », le plus large des rangs : 2 em dans l'onciale, 41 px en text-xl. À 2,25 rem, il passait sur deux lignes. */}
                   {board.rows.map((row) => (
-                    <li class="grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-x-2 sm:gap-x-3" data-testid="podium-row">
+                    <li class="grid grid-cols-[3rem_minmax(0,1fr)_auto] items-center gap-x-2 sm:gap-x-3" data-testid="podium-row">
                       <span class="font-display text-xl font-extrabold">{fmtRank(row.place)}</span>
                       <span class="min-w-0 [overflow-wrap:anywhere]">
                         <span class="text-lg font-semibold">

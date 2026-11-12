@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-12",
+    "kind": "corrige",
+    "title": "« 1er » sur une seule ligne dans les podiums",
+    "body": "Dans les podiums des Gaulois de la page Records, « 1er » s'écrivait sur deux lignes depuis la nouvelle police des titres. Sa colonne est un peu plus large.",
+    "link": {
+      "href": "/records",
+      "label": "Voir les podiums"
+    }
+  },
+  {
+    "date": "2026-11-12",
     "kind": "ameliore",
     "title": "Les images du robot aux couleurs du site",
     "body": "Sur Discord, la gazette, les alertes, les victoires et les autres images du robot prennent l'allure du site : fond quadrillé, invite gal@clan, titres en lettres à cases."

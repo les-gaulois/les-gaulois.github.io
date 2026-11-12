@@ -8,7 +8,7 @@ import { worldTerritory } from "../../src/lib/carte-monde";
 import { loadClanMapFilm, loadTerritoryReadings, loadGames, loadHistory, loadMemberGames, loadMemberResults, loadMembers, loadMemberWeeks, loadMeta, loadNouveautes, loadSessions } from "../../src/lib/data";
 import { fmtCount, fmtGap, fmtInt, fmtRank, fmtScore } from "../../src/lib/format";
 import type { LeaderboardEntry } from "../../src/lib/schemas";
-import { withOfficialRanks } from "../../src/lib/stats";
+import { neighbours, withOfficialRanks } from "../../src/lib/stats";
 import { firstRival } from "../../src/lib/compare";
 import { faceOffs } from "../../src/lib/games";
 import { editionLead, GAZETTE_RECENT_EDITIONS, gazetteEditions, playersPeriod, rankWords, standingDetails, territoryDetails, weekLabel } from "../../src/lib/gazette";
@@ -424,6 +424,93 @@ test("à 360 px, aucun titre de page ne coupe un mot en deux", async ({ page }, 
       return out;
     });
     expect(coupes, path).toEqual([]);
+  }
+});
+
+// Même cause pour les colonnes étroites : un rang ou un tag qui tenait en Outfit se coupe en deux dans l'onciale. Le
+// 12 novembre 2026, dans les podiums de Records, « 1er » passait sur deux lignes (« 1e » puis « r ») dans sa colonne de
+// 2,25 rem. Dans « Le score autour de [GAL] » de Nos rivaux, la moitié des tags du classement ne tenaient pas dans la
+// colonne fixe : on y écrit le plus large d'entre eux, qui doit garder sa ligne, à côté de sa barre, et les barres partir
+// toutes du même point.
+test("un rang de podium ou un tag de clan tient sur une ligne et dans sa colonne, de 360 à 1 920 px", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "Largeurs testées une seule fois.");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  // Sans les lettres taillées, tout se mesurerait en Outfit, plus étroite, et passerait.
+  const ouvrir = async (path: string) => {
+    await page.goto(path);
+    await page.waitForLoadState("networkidle");
+    await page.evaluate(() => document.fonts.ready);
+    const chargee = await page.evaluate(() => [...document.fonts].some((f) => f.family.replace(/"/g, "") === "GAL Onciale" && f.status === "loaded"));
+    expect(chargee, `${path} : police GAL Onciale chargée`).toBe(true);
+  };
+  // Pour chaque élément : sa police, son nombre de lignes (sa hauteur rapportée à son interligne) et de combien son texte
+  // dépasse à droite de sa colonne.
+  const mesurer = (selecteur: string) =>
+    page.locator(selecteur).evaluateAll((els) =>
+      els.map((el) => {
+        const style = getComputedStyle(el);
+        const boite = el.getBoundingClientRect();
+        const texte = document.createRange();
+        texte.selectNodeContents(el);
+        return {
+          texte: el.textContent?.trim() ?? "",
+          police: style.fontFamily,
+          lignes: Math.round(boite.height / parseFloat(style.lineHeight)),
+          depasse: texte.getBoundingClientRect().right - boite.right,
+        };
+      }),
+    );
+  const tenir = (mesures: Awaited<ReturnType<typeof mesurer>>, ou: string) => {
+    for (const m of mesures) {
+      expect(m.police, `« ${m.texte} », ${ou}`).toMatch(/^"GAL Onciale"/);
+      expect(m.lignes, `« ${m.texte} », ${ou}`).toBe(1);
+      expect(m.depasse, `« ${m.texte} », ${ou}`).toBeLessThanOrEqual(0.5);
+    }
+  };
+  // Combien de rangs et de lignes chaque page doit montrer, d'après les mêmes calculs qu'elle : rien ne passe à vide.
+  const podiums = playerPodiums(loadMemberResults(), loadSessions(), loadMembers(), loadMeta().sessions.coveredUntil);
+  const derniere = gazetteEditions({ sessions: loadSessions(), history: loadHistory(), territory: loadTerritoryReadings(), weekTops: loadMemberWeeks().tops, members: loadMembers(), archiveStart: clan.archiveStart, completeThrough: loadMeta().sessions.completeThrough })[0];
+  const voisins = neighbours(withOfficialRanks(lb.clans as LeaderboardEntry[]), clan.tag);
+  const attendus = {
+    records: podiums.since === null ? 0 : podiums.streaks.length + podiums.days.length,
+    accueil: derniere?.players ? derniere.players.length + (derniere.active?.length ?? 0) : 0,
+    rivaux: voisins ? 1 + (voisins.above ? 1 : 0) + (voisins.below ? 1 : 0) : 0,
+  };
+  const tags: string[] = lb.clans.map((c: { clanTag: string }) => `[${c.clanTag}]`);
+  const plusLarge = tags.reduce((a, b) => (largeurTexte(b) > largeurTexte(a) ? b : a));
+  for (const width of [360, 375, 768, 1024, 1280, 1920]) {
+    await page.setViewportSize({ width, height: 900 });
+    await ouvrir("/records");
+    const records = await mesurer('[data-testid="podium-row"] > :first-child');
+    expect(records, `/records à ${width} px`).toHaveLength(attendus.records);
+    tenir(records, `/records à ${width} px`);
+    await ouvrir("/");
+    const accueil = await mesurer(':is([data-testid="home-podium-player"], [data-testid="home-active-player"]) > :first-child');
+    expect(accueil, `accueil à ${width} px`).toHaveLength(attendus.accueil);
+    tenir(accueil, `accueil à ${width} px`);
+    await ouvrir("/rivaux");
+    const lignes = page.locator('[data-testid="score-lanes"] li');
+    await expect(lignes, `/rivaux à ${width} px`).toHaveCount(attendus.rivaux);
+    if (attendus.rivaux === 0) continue;
+    await lignes.first().locator(":scope > :first-child").evaluate((el, tag) => (el.textContent = tag), plusLarge);
+    tenir(await mesurer('[data-testid="score-lanes"] li > :first-child'), `/rivaux à ${width} px avec ${plusLarge}`);
+    // Tag, barre et score côte à côte sur chaque ligne (sans subgrid, ils s'empileraient), et toutes les barres alignées.
+    const placees = await lignes.evaluateAll((lis) =>
+      lis.map((li) => {
+        const boite = (i: number) => li.children[i]!.getBoundingClientRect();
+        const tag = boite(0);
+        const barre = boite(1);
+        const score = boite(2);
+        const milieu = (r: DOMRect) => r.top + r.height / 2;
+        return {
+          coteACote: barre.left >= tag.right - 0.5 && score.left >= barre.right - 0.5,
+          memeLigne: Math.abs(milieu(barre) - milieu(tag)) <= 2 && Math.abs(milieu(score) - milieu(tag)) <= 2,
+          depart: Math.round(barre.left),
+        };
+      }),
+    );
+    for (const p of placees) expect({ coteACote: p.coteACote, memeLigne: p.memeLigne }, `/rivaux à ${width} px`).toEqual({ coteACote: true, memeLigne: true });
+    expect(new Set(placees.map((p) => p.depart)).size, `barres de /rivaux à ${width} px`).toBe(1);
   }
 });
 

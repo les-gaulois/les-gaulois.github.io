@@ -50,9 +50,13 @@ const jumps = [
           {lanes.length > 0 && (
             <section class="chart-open reveal mb-10" data-testid="score-lanes" aria-labelledby="lanes-title">
               <h2 id="lanes-title" class="kpi-label">Le score autour de [{clan.tag}]</h2>
-              <ul class="mt-4 space-y-3">
+              {/* Les lignes partagent leurs colonnes (subgrid) : celle des tags prend la largeur du plus long, au moins 3,5 rem (4,5 rem
+                  dès sm), et les barres commencent et finissent au même point. Dans l'onciale, la moitié des tags du classement ne tenaient
+                  pas dans la colonne fixe sur téléphone, et [GAL] y tenait à peine. Sans subgrid (navigateurs d'avant 2023), tag, barre et
+                  score s'empilent : c'est le repli voulu, lisible et sans débordement. */}
+              <ul class="mt-4 grid grid-cols-[minmax(3.5rem,auto)_1fr_auto] gap-3 sm:grid-cols-[minmax(4.5rem,auto)_1fr_6rem]">
                 {lanes.map((lane) => (
-                  <li class="grid grid-cols-[3.5rem_1fr_auto] items-center gap-3 sm:grid-cols-[4.5rem_1fr_6rem]">
+                  <li class="col-span-full grid grid-cols-subgrid items-center">
                     <span class:list={["font-display font-bold", lane.clanTag !== clan.tag && "text-muted"]}>[{lane.clanTag}]</span>
                     <span class:list={["meter meter-lg", lane.clanTag === clan.tag ? "meter-gal" : "meter-other"]} aria-hidden="true">
                       <i style={{ "--v": `${(lane.weightedWins / laneMax) * 100}%` }}></i>
