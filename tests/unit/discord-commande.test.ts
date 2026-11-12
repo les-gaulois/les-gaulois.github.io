@@ -13,6 +13,7 @@ import {
   RECORDS_COMMAND,
   RIVAL_COMMAND,
   ROLES_COMMAND,
+  TICKETS_COMMAND,
   commandUrl,
   explainRefusal,
   installUrl,
@@ -21,7 +22,8 @@ import {
   retryAfterMs,
 } from "../../src/lib/discord-commande";
 import * as fonction from "../../supabase/functions/code-discord/index";
-import { COMMAND_NAME, FICHE_COMMAND_NAME, FICHE_OPTION, GAL_GUILD_ID } from "../../supabase/functions/code-discord/index";
+import { COMMAND_NAME, FICHE_COMMAND_NAME, FICHE_OPTION, GAL_APPLICATION_ID, GAL_GUILD_ID } from "../../supabase/functions/code-discord/index";
+import { PERMISSIONS as TICKET_PERMISSIONS, TICKETS_COMMAND_NAME, TICKETS_OPTIONS } from "../../supabase/functions/code-discord/tickets";
 
 const APP = "123456789012345678";
 const GUILD = "987654321098765432";
@@ -33,6 +35,7 @@ describe("la commande /code", () => {
 
   it("se crée sur le serveur même que la fonction attend", () => {
     expect(GUILD_ID).toBe(GAL_GUILD_ID);
+    expect(APPLICATION_ID).toBe(GAL_APPLICATION_ID);
     expect(isSnowflake(APPLICATION_ID)).toBe(true);
     expect(commandUrl(APPLICATION_ID, GUILD_ID)).toContain(`/applications/${APPLICATION_ID}/guilds/${GUILD_ID}/`);
   });
@@ -90,7 +93,7 @@ describe("la commande /fiche", () => {
 
   it("part avec /code et les commandes du robot, chacune à part, sans doublon", () => {
     const names = COMMANDS.map((c) => c.name);
-    expect(names).toEqual([CODE_COMMAND.name, FICHE_COMMAND.name, "clan", "records", "carte", "guide", "rival", "moi", "roles"]);
+    expect(names).toEqual([CODE_COMMAND.name, FICHE_COMMAND.name, "clan", "records", "carte", "guide", "rival", "moi", "roles", "tickets"]);
     expect(new Set(names).size).toBe(names.length);
   });
 });
@@ -103,8 +106,24 @@ describe("la commande /roles", () => {
   it("n'est proposée qu'à qui peut gérer les rôles : le même droit que la fonction vérifie", () => {
     expect(ROLES_COMMAND.default_member_permissions).toBe(MANAGE_ROLES);
     expect(BigInt(MANAGE_ROLES)).toBe(1n << 28n);
-    // Seule commande réservée : les autres restent ouvertes à tous les membres.
-    expect(COMMANDS.filter((c) => "default_member_permissions" in c).map((c) => c.name)).toEqual(["roles"]);
+    // Les seules commandes réservées : /roles et /tickets, à l'encadrement ; les autres restent ouvertes à tous les membres.
+    expect(COMMANDS.filter((c) => "default_member_permissions" in c).map((c) => c.name)).toEqual(["roles", "tickets"]);
+  });
+});
+
+describe("la commande /tickets", () => {
+  it("porte le nom et les options qu'attend la fonction serveur", () => {
+    expect(TICKETS_COMMAND.name).toBe(TICKETS_COMMAND_NAME);
+    expect(TICKETS_COMMAND.options.map((o) => o.name)).toEqual([TICKETS_OPTIONS.category, TICKETS_OPTIONS.journal, TICKETS_OPTIONS.staff]);
+  });
+
+  it("demande une catégorie, un salon écrit et un rôle, et ne se montre qu'à qui gère le serveur", () => {
+    const [category, journal, staff] = TICKETS_COMMAND.options;
+    expect(category).toMatchObject({ type: 7, required: true, channel_types: [4] });
+    expect(journal).toMatchObject({ type: 7, required: true, channel_types: [0] });
+    expect(staff).toMatchObject({ type: 8, required: true });
+    // 32 : le droit « Gérer le serveur », celui que la fonction vérifie.
+    expect(BigInt(TICKETS_COMMAND.default_member_permissions)).toBe(TICKET_PERMISSIONS.MANAGE_GUILD);
   });
 });
 
@@ -120,7 +139,7 @@ describe("les commandes du robot", () => {
     expect(MOI_COMMAND.name).toBe(fonction.MOI_COMMAND);
   });
 
-  it("tiennent dans les limites de Discord, et chaque option propose pendant la saisie", () => {
+  it("tiennent dans les limites de Discord, et chaque option de texte propose pendant la saisie", () => {
     for (const command of COMMANDS) {
       expect(command.name).toMatch(/^[a-z0-9_-]{1,32}$/);
       expect(command.type).toBe(1);
@@ -129,7 +148,10 @@ describe("les commandes du robot", () => {
       for (const option of "options" in command ? command.options : []) {
         expect(option.name).toMatch(/^[a-z0-9_-]{1,32}$/);
         expect(option.description.length).toBeLessThanOrEqual(100);
-        expect(option).toMatchObject({ type: 3, required: true, autocomplete: true });
+        expect(option.required).toBe(true);
+        // Du texte : la fonction propose pendant la saisie. Un salon ou un rôle : Discord les propose lui-même.
+        if (option.type === 3) expect(option).toMatchObject({ autocomplete: true });
+        else expect([7, 8]).toContain(option.type);
       }
     }
   });

@@ -211,7 +211,7 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   const notReady = CODE_LOGIN_OPEN ? "fail" : "warn";
   try {
     const etat = await fetcher(`${base}/functions/v1/code-discord/etat`);
-    const answer = etat.ok ? ((await etat.json().catch(() => null)) as { discord?: unknown; service?: unknown; signature?: unknown } | null) : null;
+    const answer = etat.ok ? ((await etat.json().catch(() => null)) as { discord?: unknown; service?: unknown; signature?: unknown; robot?: unknown } | null) : null;
     if (!answer) add(codeLabel, notReady, `La fonction code-discord répond ${etat.status} : elle n'est pas encore déployée. Voir docs/DIRECTION.md, « Se connecter avec un code ».`);
     else if (answer.discord === true && answer.service === true && answer.signature === true) add(codeLabel, "ok");
     else {
@@ -221,6 +221,12 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
         answer.signature === true ? null : "son moteur ne sait pas vérifier les signatures de Discord",
       ].filter((reason) => reason !== null);
       add(codeLabel, notReady, `La fonction répond, mais ${missing.join(", ")}.`);
+    }
+    // Le panneau des rôles et les tickets (docs/DIRECTION.md) : le jeton de « Le Gaulois », que Discord doit accepter. À
+    // regarder, jamais bloquant.
+    if (answer) {
+      if (answer.robot === true) add("Le robot a son jeton, pour les rôles et les tickets", "ok");
+      else add("Le robot a son jeton, pour les rôles et les tickets", "warn", "Discord n'accepte aucun jeton de « Le Gaulois » pour le robot (secret LE_GAULOIS_BOT_TOKEN de la fonction, absent, périmé ou d'un autre robot) : ni les boutons des rôles ni les tickets ne marchent. Voir docs/DIRECTION.md, « Les rôles sur Discord » et « Les tickets d'assistance ».");
     }
   } catch {
     add(codeLabel, notReady, "La fonction code-discord ne répond pas.");

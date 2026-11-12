@@ -105,6 +105,7 @@ const COMMANDES: CommandIndex = {
   clan: entry("/generated/accueil.png?v=aaaaaaaaaaaa", "/classement"),
   records: entry("/commandes/records.png?v=bbbbbbbbbbbb", "/records"),
   carte: entry("/commandes/carte.png?v=cccccccccccc", "/carte"),
+  guichet: entry("/commandes/guichet.png?v=999999999999", "/rejoindre"),
   guide: [
     { id: "01-bases", court: "Les bases", ...entry("/commandes/guide-01-bases.png?v=dddddddddddd", "/debuter#chapitre-01-bases") },
     { id: "03-attaque", court: "L'attaque", ...entry("/commandes/guide-03-attaque.png?v=eeeeeeeeeeee", "/debuter#chapitre-03-attaque") },
@@ -658,6 +659,7 @@ describe("l'index des commandes publié par le site", () => {
         clan: { ...ok, image: "https://ailleurs.example/x.png" },
         records: { ...ok, image: "//ailleurs.example/x.png" },
         carte: { ...ok, image: "/commandes/../secret.png" },
+        guichet: { ...ok, page: "https://ailleurs.example/" },
         guide: [
           { ...ok, id: "01-bases", court: "Les bases", page: "javascript:alert(1)" },
           { ...ok, id: "../x", court: "Faux" },
@@ -673,6 +675,7 @@ describe("l'index des commandes publié par le site", () => {
       clan: null,
       records: null,
       carte: null,
+      guichet: null,
       guide: [{ ...ok, id: "03-attaque", court: "L'attaque" }],
       rivaux: [{ ...ok, tag: "LUX", rank: 3 }],
       roles: null,
@@ -1556,7 +1559,8 @@ describe("le vrai monde", () => {
     // Un faux jeton, fabriqué ici pour n'avoir dans le fichier aucun texte qui ressemble à un vrai.
     const BOT = "246813579024681357";
     const token = (id = BOT) => [btoa(id).replace(/=+$/, ""), "Fabcde", "s".repeat(30)].join(".");
-    const withBot = (fetcher: typeof fetch, value = token()) => liveDeps(env({ [BOT_TOKEN_SECRET]: ` ${value} ` }), fetcher);
+    // Le numéro de l'application est celui du robot de ce faux jeton : sans lui, `/etat` refuserait un autre robot.
+    const withBot = (fetcher: typeof fetch, value = token()) => liveDeps(env({ [BOT_TOKEN_SECRET]: ` ${value} `, DISCORD_APPLICATION_ID: BOT }), fetcher);
 
     it("lit le numéro du robot dans son jeton, et rien dans ce qui n'en est pas un", () => {
       expect(botIdOf(token())).toBe(BOT);
@@ -1634,6 +1638,10 @@ describe("le vrai monde", () => {
         vi.setSystemTime(start + 10 * 60_000);
         expect(await withBot(fetcher).botAccepted()).toBe(true);
         expect(sent).toHaveLength(2);
+        // Le jeton d'une autre application, comme celle des images de bienvenue : refusé sans rien demander.
+        const before = sent.length;
+        expect(await liveDeps(env({ [BOT_TOKEN_SECRET]: token("135792468013579246") }), fetcher).botAccepted()).toBe(false);
+        expect(sent).toHaveLength(before);
         // Un jeton refusé, ou celui d'un autre robot.
         expect(await withBot(server(() => json({ message: "401: Unauthorized" }, 401)).fetcher).botAccepted()).toBe(false);
         expect(await withBot(server(() => json({ id: "135792468013579246" })).fetcher).botAccepted()).toBe(false);
@@ -1681,6 +1689,9 @@ describe("le vrai monde", () => {
         expect(line).not.toContain("jeton-tres-secret");
       }
       expect(pathForLog(`/webhooks/${BOT}/a.b-c_d/messages/1`)).toBe(`/webhooks/${BOT}/…/messages/1`);
+      // Ni le joueur d'un ticket, ni un compte : leurs numéros ne vont pas au journal.
+      expect(pathForLog(`/channels/1/permissions/${PLAYER}`)).toBe("/channels/1/permissions/…");
+      expect(pathForLog(`/users/${PLAYER}`)).toBe("/users/…");
     });
 
     it("ne note pas non plus le numéro du membre dont un rôle change", async () => {

@@ -64,8 +64,26 @@ export const MANAGE_ROLES = "268435456";
  */
 export const ROLES_COMMAND = { name: "roles", type: 1, description: "Poster ici le panneau des rôles, un bouton par rôle (encadrement)", default_member_permissions: MANAGE_ROLES } as const;
 
+/**
+ * /tickets (docs/DIRECTION.md, « Les tickets d'assistance ») : pose le guichet des tickets dans le salon où elle est tapée.
+ * Seuls la voient ceux qui peuvent gérer le serveur (`default_member_permissions`, 32 : « Gérer le serveur ») ; la fonction
+ * le vérifie de nouveau. Ses options sont celles qu'attend `supabase/functions/code-discord/tickets.ts` : un test le vérifie.
+ */
+export const TICKETS_COMMAND = {
+  name: "tickets",
+  type: 1,
+  description: "Poser dans ce salon le guichet des tickets d'assistance (encadrement)",
+  default_member_permissions: "32",
+  options: [
+    // 7 : un salon, ici une catégorie (4) ou un salon écrit (0) ; 8 : un rôle.
+    { type: 7, name: "categorie", description: "La catégorie privée où s'ouvrent les tickets", required: true, channel_types: [4] },
+    { type: 7, name: "journal", description: "Le salon privé où le robot note chaque ticket ouvert et fermé", required: true, channel_types: [0] },
+    { type: 8, name: "encadrement", description: "Le rôle prévenu à chaque ticket, qui peut les prendre et les fermer", required: true },
+  ],
+} as const;
+
 /** Les commandes que le script crée ou remet à jour, chacune à part : une autre commande de l'application ne bouge pas. */
-export const COMMANDS = [CODE_COMMAND, FICHE_COMMAND, CLAN_COMMAND, RECORDS_COMMAND, CARTE_COMMAND, GUIDE_COMMAND, RIVAL_COMMAND, MOI_COMMAND, ROLES_COMMAND] as const;
+export const COMMANDS = [CODE_COMMAND, FICHE_COMMAND, CLAN_COMMAND, RECORDS_COMMAND, CARTE_COMMAND, GUIDE_COMMAND, RIVAL_COMMAND, MOI_COMMAND, ROLES_COMMAND, TICKETS_COMMAND] as const;
 
 /**
  * Le temps à attendre quand Discord répond « trop de demandes » (429) : son `retry_after`, en secondes, borné à 30 s. `null` :
@@ -131,7 +149,7 @@ export function explainRefusal(status: number, body: string, applicationId: stri
   } catch {
     code = null;
   }
-  if (status === 401) return "Discord ne reconnaît pas le jeton : dans le portail développeur, onglet « Bot », cliquez sur « Reset Token » et collez le nouveau.";
+  if (status === 401) return "Discord ne reconnaît pas le jeton : dans le portail développeur, onglet « Bot », cliquez sur « Reset Token », collez le nouveau dans le secret LE_GAULOIS_BOT_TOKEN de la fonction (Supabase), puis relancez la commande.";
   if (code === 50001 || status === 403) {
     return `L'application n'est pas encore sur le serveur du clan. Ouvrez ce lien, choisissez le serveur, puis relancez la commande : ${installUrl(applicationId)}`;
   }

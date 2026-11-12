@@ -24,6 +24,7 @@ import { ficheCard, ficheFacts } from "../src/lib/fiche-image";
 import { gazetteEditions } from "../src/lib/gazette";
 import { GazetteFonts, gazetteCard, renderGazetteCard, type GazetteCard } from "../src/lib/gazette-image";
 import { groupsCard } from "../src/lib/groupes-image";
+import { guichetCard } from "../src/lib/guichet-image";
 import { hierCard } from "../src/lib/hier-image";
 import { newsCard } from "../src/lib/nouveautes-image";
 import { milestoneCard } from "../src/lib/paliers-franchis-image";
@@ -212,6 +213,8 @@ await save("14-accueil.png", () => {
   const facts = accueilFacts(accueilRanking(leaderboard, TAG), edition);
   return facts ? accueilCard(facts, TAG, clan.name, clan.tagline, SITE, measure) : null;
 });
+// Le guichet des tickets, que pose /tickets : il ne lit aucune donnée.
+await save("15-guichet-tickets.png", () => guichetCard(SITE, measure));
 
 // La victoire, avec la vignette de la carte si elle se lit.
 const victory = {

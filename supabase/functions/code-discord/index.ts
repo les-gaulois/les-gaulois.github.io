@@ -29,16 +29,20 @@
  * l'image du panneau et ses boutons ; chaque bouton donne son rôle au membre qui clique, ou le lui retire, et le lui dit à lui
  * seul. Seuls les rôles écrits ici (`PANEL_ROLES`) se donnent. Il y faut le jeton du robot (`BOT_TOKEN_SECRET`).
  *
- * Réglages : le jeton du robot « Le Gaulois », dans le secret `LE_GAULOIS_BOT_TOKEN` (`BOT_TOKEN_SECRET`), pour les rôles. Le
- * serveur du clan et la clé publique de l'application sont écrits plus bas, publics tous deux ; les secrets
- * `DISCORD_GUILD_ID` et `DISCORD_PUBLIC_KEY` les remplacent s'ils sont posés. Supabase donne lui-même `SUPABASE_URL` et la
- * clé de service. Déployée
- * sans vérification de jeton (`verify_jwt = false`, `supabase/config.toml`) : Discord n'en envoie pas, et la fonction
- * vérifie elle-même chaque appel. Elle ne note jamais un code, une adresse ni un jeton dans ses journaux.
+ * Et aux tickets d'assistance (« Les tickets d'assistance », `tickets.ts`) : /tickets pose le guichet, ses boutons et ses
+ * formulaires ouvrent un salon privé par demande, puis le ferment, avec le même jeton (`deps.discord`).
  *
- * Sans import : elle se colle telle quelle dans l'éditeur de Supabase, et les tests du dépôt la lisent avec Node
- * (`tests/unit/code-discord.test.ts`).
+ * Réglages : le jeton du robot « Le Gaulois », dans le secret `LE_GAULOIS_BOT_TOKEN` (`BOT_TOKEN_SECRET`), pour les rôles et
+ * les tickets ; sans lui, tout le reste marche. Le serveur du clan, l'application et sa clé publique sont écrits plus bas,
+ * publics tous trois ; les secrets `DISCORD_GUILD_ID`, `DISCORD_APPLICATION_ID` et `DISCORD_PUBLIC_KEY` les remplacent
+ * s'ils sont posés. Supabase donne lui-même `SUPABASE_URL` et la clé de service. Déployée sans vérification de jeton
+ * (`verify_jwt = false`, `supabase/config.toml`) : Discord n'en envoie pas, et la fonction vérifie elle-même chaque appel.
+ * Elle ne note jamais un code, une adresse ni un jeton dans ses journaux.
+ *
+ * Deux fichiers, `index.ts` et `tickets.ts`, que la commande `supabase functions deploy` envoie ensemble ; les tests du
+ * dépôt les lisent avec Node (`tests/unit/code-discord.test.ts`, `tests/unit/tickets-discord.test.ts`).
  */
+import { TICKET_PREFIX, TICKETS_COMMAND_NAME, ticketInteraction, ticketsCommand } from "./tickets.ts";
 
 /** Le nom de la commande, tel que le joueur la tape. `scripts/discord-commande.ts` la crée sur le serveur du clan. */
 export const COMMAND_NAME = "code";
@@ -55,6 +59,12 @@ export const SITE_URL = "https://les-gaulois.github.io";
  */
 export const GAL_GUILD_ID = "1350905494600024094";
 export const APP_PUBLIC_KEY = "d9d55bd88a96ebd72728cfd0a87b494065dd9b094f1a9254e24640ee02441855";
+/**
+ * Le numéro de l'application « Le Gaulois », public lui aussi (celui de `src/lib/discord-commande.ts`) : c'est aussi celui de
+ * son robot. Le jeton gardé pour les tickets doit être le sien, sinon `/etat` dit `"robot":false`. Le secret
+ * DISCORD_APPLICATION_ID le remplace.
+ */
+export const GAL_APPLICATION_ID = "1473059048546107434";
 /** Discord date chaque commande qu'il signe : au-delà de cinq minutes d'écart, elle ne vaut plus. */
 const MAX_SKEW_SECONDS = 300;
 /** Une réponse que seul le joueur voit. */
@@ -160,7 +170,10 @@ export interface Deps {
    * l'interaction> ». Il modifie la réponse (`/messages/@original`) ou envoie une suite, dans les quinze minutes.
    */
   webhook(method: string, path: string, call?: DiscordCall): Promise<DiscordReply | null>;
-  /** Discord accepte-t-il le jeton du robot ? Demandé au plus une fois toutes les dix minutes ; `false` sans jeton. */
+  /**
+   * Discord accepte-t-il le jeton du robot, et est-ce bien celui de « Le Gaulois » ? Demandé au plus une fois toutes les dix
+   * minutes ; `false` sans jeton, ou avec celui d'un autre robot.
+   */
   botAccepted(): Promise<boolean>;
   /** Fait durer une tâche après la réponse à Discord (`EdgeRuntime.waitUntil`). Ses erreurs vont au journal. */
   background(task: Promise<unknown>): void;
@@ -499,6 +512,8 @@ export interface CommandIndex {
   clan: CommandEntry | null;
   records: CommandEntry | null;
   carte: CommandEntry | null;
+  /** L'image du guichet des tickets, que pose /tickets (`tickets.ts`). */
+  guichet: CommandEntry | null;
   guide: (CommandEntry & { id: string; court: string })[];
   rivaux: (CommandEntry & { tag: string; rank: number })[];
   /** L'image du panneau des rôles (/roles), sans page : ses boutons donnent les rôles. */
@@ -541,7 +556,7 @@ export function parseCommandes(value: unknown): CommandIndex | null {
     const rank = record(item)?.["rank"];
     return entry && typeof tag === "string" && /^[A-Z0-9]{1,10}$/.test(tag) && typeof rank === "number" && Number.isInteger(rank) && rank >= 1 ? [{ ...entry, tag, rank }] : [];
   });
-  return { clan: parseEntry(body["clan"]), records: parseEntry(body["records"]), carte: parseEntry(body["carte"]), guide, rivaux, roles: parsePanel(body["roles"]) };
+  return { clan: parseEntry(body["clan"]), records: parseEntry(body["records"]), carte: parseEntry(body["carte"]), guichet: parseEntry(body["guichet"]), guide, rivaux, roles: parsePanel(body["roles"]) };
 }
 
 function parsePanel(value: unknown): PanelEntry | null {
@@ -1036,9 +1051,11 @@ async function discordRoute(req: Request, deps: Deps): Promise<Response> {
   if (interaction["type"] === 3 || interaction["type"] === 5) {
     const customId = data?.["custom_id"];
     if (interaction["type"] === 3 && typeof customId === "string" && customId.startsWith(ROLE_BUTTON)) return roleButton(interaction, customId, sentAt, deps);
+    if (typeof customId === "string" && customId.startsWith(TICKET_PREFIX)) return ticketInteraction(interaction, deps);
     return ephemeral(MESSAGES.unknown);
   }
   if (interaction["type"] === 2 && name === ROLES_COMMAND) return rolesCommand(interaction, sentAt, deps);
+  if (interaction["type"] === 2 && name === TICKETS_COMMAND_NAME) return ticketsCommand(interaction, deps);
   if (data && typeof name === "string" && ROBOT_COMMANDS.has(name) && (interaction["type"] === 2 || interaction["type"] === 4)) return robotRoute(name, interaction, data, deps);
   if (interaction["type"] !== 2 || name !== COMMAND_NAME) return ephemeral(MESSAGES.unknown);
 
@@ -1254,6 +1271,7 @@ export function liveDeps(env: Env, fetcher: typeof fetch = fetch): Deps {
   const log = (message: string): void => console.log(`code-discord : ${message}`);
   const botToken = (env.get(BOT_TOKEN_SECRET) ?? "").trim();
   const botId = botIdOf(botToken);
+  const applicationId = (env.get("DISCORD_APPLICATION_ID") ?? "").trim() || GAL_APPLICATION_ID;
   const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
   /** Un appel à l'API de Discord ; `auth` : l'en-tête du jeton du robot, ou `null` pour le webhook d'une interaction. */
@@ -1368,7 +1386,7 @@ export function liveDeps(env: Env, fetcher: typeof fetch = fetch): Deps {
     discord: (method, path, call = {}) => (botToken !== "" && botId !== "" ? discordCall(method, path, call, `Bot ${botToken}`) : Promise.resolve(null)),
     webhook: (method, path, call = {}) => (path.startsWith("/webhooks/") ? discordCall(method, path, call, null) : Promise.resolve(null)),
     async botAccepted() {
-      if (botToken === "" || botId === "") return false;
+      if (botToken === "" || botId === "" || botId !== applicationId) return false;
       const kept = botChecks.get(fetcher);
       if (kept && Date.now() - kept.at < BOT_CHECK_MS) return kept.ok;
       const res = await discordCall("GET", "/users/@me", { timeoutMs: 2000 }, `Bot ${botToken}`);

@@ -23,6 +23,7 @@ import { faceOffs, type FaceOff } from "./games";
 import { gazetteEditions } from "./gazette";
 import { GazetteFonts, renderGazetteCard, type GazetteCard, type Measure } from "./gazette-image";
 import { ancreDuChapitre } from "./guide";
+import { guichetCard, guichetImageAlt } from "./guichet-image";
 import { clanRecords, type ClanRecords } from "./results";
 import { rolesCard, rolesImageAlt } from "./roles-discord";
 import { findClan, withOfficialRanks, type RankedClan } from "./stats";
@@ -50,12 +51,14 @@ export interface CommandIndex {
   clan: CommandEntry | null;
   records: CommandEntry | null;
   carte: CommandEntry | null;
+  /** L'image du guichet des tickets, que pose /tickets (docs/DIRECTION.md, « Les tickets d'assistance »). */
+  guichet: CommandEntry | null;
   guide: (CommandEntry & { id: string; court: string })[];
   rivaux: (CommandEntry & { tag: string; rank: number })[];
   roles: PanelEntry | null;
 }
 
-export type CommandImageKind = { kind: "records" } | { kind: "carte" } | { kind: "guide"; id: string; court: string } | { kind: "rival"; tag: string; rank: number } | { kind: "roles" };
+export type CommandImageKind = { kind: "records" } | { kind: "carte" } | { kind: "guide"; id: string; court: string } | { kind: "rival"; tag: string; rank: number } | { kind: "roles" } | { kind: "guichet" };
 
 export type CommandImage = CommandImageKind & {
   /** Le nom du fichier, sans « .png » : « records », « carte », « guide-03-attaque », « rival-UN », « roles ». */
@@ -144,6 +147,8 @@ export function commandImages(input: CommandInput, measure: Measure, skipped: (n
   }
   // Le panneau des rôles ne lit aucune donnée : il se dessine à chaque construction.
   add("roles", () => ({ kind: "roles", name: "roles", card: rolesCard(input.siteUrl, measure), alt: rolesImageAlt(input.siteUrl) }));
+  // Le guichet des tickets ne dépend d'aucune donnée : il se dessine toujours.
+  add("guichet", () => ({ kind: "guichet", name: "guichet", card: guichetCard(input.siteUrl, measure), alt: guichetImageAlt() }));
   return images;
 }
 
@@ -159,11 +164,13 @@ export function commandIndex(images: readonly CommandImage[], clanEntry: Command
   const records = images.find((i) => i.kind === "records");
   const carte = images.find((i) => i.kind === "carte");
   const roles = images.find((i) => i.kind === "roles");
+  const guichet = images.find((i) => i.kind === "guichet");
   return {
     builtAt,
     clan: clanEntry,
     records: records ? entry(records, "/records") : null,
     carte: carte ? entry(carte, "/carte") : null,
+    guichet: guichet ? entry(guichet, "/rejoindre") : null,
     guide: images.flatMap((i) => (i.kind === "guide" ? [{ id: i.id, court: i.court, ...entry(i, `/debuter#${ancreDuChapitre(i.id)}`) }] : [])),
     rivaux: images.flatMap((i) => (i.kind === "rival" ? [{ tag: i.tag, rank: i.rank, ...entry(i, "/rivaux") }] : [])),
     roles: roles ? { image: commandImagePath(roles, extraOf(roles)), alt: roles.alt } : null,

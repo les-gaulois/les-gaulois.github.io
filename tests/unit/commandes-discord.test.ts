@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { commandImages, commandIndex, commandImagePath, imageVersion, type CommandInput } from "../../src/lib/commandes-discord";
+import { GUICHET_ROWS, guichetCard, guichetImageAlt } from "../../src/lib/guichet-image";
+import { KINDS, TICKET_KINDS } from "../../supabase/functions/code-discord/tickets";
 import { guideCard, guideImageAlt, mapCard, MAP_CREDIT, MAP_NOTE, MAP_SOURCES, paragraph, plainPhrase, POSTE_EN_MOTS, RATE_NOTE, recordsCard, rivalCard, rivalFacts, type GuideChapter } from "../../src/lib/commandes-image";
 import { POSTE } from "../../src/lib/guide-clan";
 import { clanFigures } from "../../src/lib/compare";
@@ -187,13 +189,13 @@ describe("les images des commandes", () => {
 describe("l'index des commandes", () => {
   it("une image par commande, par chapitre et par clan de la liste officielle, GAL excepté", () => {
     const images = commandImages(INPUT, measure);
-    expect(images.map((i) => i.name)).toEqual(["records", "carte", "guide-03-attaque", "rival-UN", "rival-LUX", "roles"]);
+    expect(images.map((i) => i.name)).toEqual(["records", "carte", "guide-03-attaque", "rival-UN", "rival-LUX", "roles", "guichet"]);
     expect(images.find((i) => i.kind === "carte")?.map).toMatchObject({ file: INPUT.map!.file, left: 36, top: 230 });
   });
 
-  it("rien pour ce qui manque : pas de records, pas de carte, GAL hors de la liste, ni pour un aide-mémoire", () => {
+  it("rien pour ce qui manque : pas de records, pas de carte, GAL hors de la liste, ni pour un aide-mémoire ; le guichet, toujours", () => {
     const images = commandImages({ ...INPUT, records: null, map: null, chapters: [CHAPTER, MEMO], clans: CLANS.filter((c) => c.clanTag !== "GAL") }, measure);
-    expect(images.map((i) => i.name)).toEqual(["guide-03-attaque", "roles"]);
+    expect(images.map((i) => i.name)).toEqual(["guide-03-attaque", "roles", "guichet"]);
   });
 
   it("une image qui ne se dessine pas est sautée, et n'arrête jamais les autres", () => {
@@ -206,7 +208,7 @@ describe("l'index des commandes", () => {
     const skipped: string[] = [];
     const images = commandImages({ ...INPUT, chapters: [arrow], clans: [...CLANS, ranked(4, "X/Y")] }, strict, (name) => skipped.push(name));
     expect(skipped).toEqual(["guide-03-attaque", "rival-X/Y"]);
-    expect(images.map((i) => i.name)).toEqual(["records", "carte", "rival-UN", "rival-LUX", "roles"]);
+    expect(images.map((i) => i.name)).toEqual(["records", "carte", "rival-UN", "rival-LUX", "roles", "guichet"]);
   });
 
   it("l'adresse d'une image change avec son dessin, et avec l'image posée dessus", () => {
@@ -228,6 +230,31 @@ describe("l'index des commandes", () => {
     // Le panneau des rôles : son image et sa description, sans page.
     expect(index.roles).toEqual({ image: expect.stringMatching(/^\/commandes\/roles\.png\?v=[0-9a-f]{12}$/), alt: rolesImageAlt(SITE) });
     // Tout ce que la fonction lit revient à l'identique ; l'heure de construction ne la regarde pas.
-    expect(parseCommandes(JSON.parse(JSON.stringify(index)))).toEqual({ clan: index.clan, records: index.records, carte: index.carte, guide: index.guide, rivaux: index.rivaux, roles: index.roles });
+    expect(index.guichet).toEqual({ image: expect.stringMatching(/^\/commandes\/guichet\.png\?v=[0-9a-f]{12}$/), alt: guichetImageAlt(), page: "/rejoindre" });
+    expect(parseCommandes(JSON.parse(JSON.stringify(index)))).toEqual({ clan: index.clan, records: index.records, carte: index.carte, guichet: index.guichet, guide: index.guide, rivaux: index.rivaux, roles: index.roles });
+  });
+});
+
+describe("l'image du guichet des tickets", () => {
+  it("nomme les trois boutons du guichet, dans leur ordre, et rien d'autre", () => {
+    expect(GUICHET_ROWS.map((r) => r.name)).toEqual(TICKET_KINDS.map((kind) => KINDS[kind].button));
+    const card = guichetCard("https://les-gaulois.github.io", measure);
+    const texts = card.texts.map((t) => t.text);
+    for (const row of GUICHET_ROWS) expect(texts).toEqual(expect.arrayContaining([row.name, row.detail]));
+    expect(texts).toEqual(expect.arrayContaining(["Besoin d'aide ?", "Le guichet des Gaulois", "./aide", "les-gaulois.github.io"]));
+    // Chaque texte tient dans l'image, sans dépasser à droite.
+    for (const t of card.texts) {
+      const width = measure(t.text, t.font, t.size);
+      const left = t.anchor === "end" ? t.x - width : t.anchor === "middle" ? t.x - width / 2 : t.x;
+      expect(left, t.text).toBeGreaterThanOrEqual(0);
+      expect(left + width, t.text).toBeLessThanOrEqual(card.width);
+      expect(t.y, t.text).toBeLessThan(card.height);
+    }
+  });
+
+  it("se décrit aux lecteurs d'écran avec tout ce qu'elle écrit", () => {
+    const alt = guichetImageAlt();
+    for (const row of GUICHET_ROWS) expect(alt).toContain(`${row.name} : ${row.detail}.`);
+    expect(alt.length).toBeLessThanOrEqual(1024);
   });
 });
