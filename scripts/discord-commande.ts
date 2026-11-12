@@ -1,7 +1,7 @@
 /**
- * Crée les commandes /code et /fiche sur le serveur Discord du clan, ou les remet à jour (docs/DIRECTION.md, « Se connecter
- * avec un code » et « La commande /fiche »). Une fois, après avoir ajouté l'application au serveur, puis à chaque nouvelle
- * commande :
+ * Crée les commandes du serveur Discord du clan, ou les remet à jour : /code, /fiche et les commandes du robot (/clan,
+ * /records, /carte, /guide, /rival, /moi) ; voir docs/DIRECTION.md, « Se connecter avec un code », « La commande /fiche »
+ * et « Les commandes du robot ». Une fois, après avoir ajouté l'application au serveur, puis à chaque nouvelle commande :
  *   npm run discord:commande
  * Chaque commande s'envoie à part : Discord crée celle qui manque et remplace celle qui existe, sans toucher aux autres.
  * L'application « Le Gaulois » et le serveur du clan sont ceux de src/lib/discord-commande.ts, sauf DISCORD_APPLICATION_ID
@@ -11,7 +11,7 @@
  * régénérer après usage (« Reset Token »), ce qui l'annule. La commande, elle, reste.
  */
 import { execFileSync } from "node:child_process";
-import { APPLICATION_ID, COMMANDS, GUILD_ID, commandUrl, explainRefusal, looksLikeBotToken } from "../src/lib/discord-commande";
+import { APPLICATION_ID, COMMANDS, GUILD_ID, commandUrl, explainRefusal, looksLikeBotToken, retryAfterMs } from "../src/lib/discord-commande";
 
 const applicationId = (process.env["DISCORD_APPLICATION_ID"] ?? "").trim() || APPLICATION_ID;
 const guildId = (process.env["DISCORD_GUILD_ID"] ?? "").trim() || GUILD_ID;
@@ -48,8 +48,10 @@ function clearClipboard(): void {
   }
 }
 
-const RESET =
-  "Dernière étape, obligatoire : portail développeur, onglet Bot, cliquez de nouveau sur « Reset Token », sans copier. Le jeton qui vient de servir ne vaudra plus rien ; la commande, elle, reste.";
+const RESET = [
+  "Dernière étape, obligatoire : portail développeur, onglet Bot, cliquez de nouveau sur « Reset Token », sans copier. Le jeton qui vient de servir ne vaudra plus rien ; la commande, elle, reste.",
+  "Attention : tant que les images de bienvenue tournent avec le jeton de « Le Gaulois », ce Reset Token les arrête. Voir docs/DIRECTION.md, « Les commandes du robot ».",
+].join("\n");
 
 const ENTER = [String.fromCharCode(13), String.fromCharCode(10)];
 const CTRL_C = String.fromCharCode(3);
@@ -104,15 +106,26 @@ if (token === "") {
   process.exit(2);
 }
 
-// Une commande après l'autre ; au premier refus, les suivantes n'auraient pas plus de chance (jeton, application absente).
-const answers: { name: string; response: Response | null; failure: string }[] = [];
-for (const command of COMMANDS) {
-  try {
+/** Une commande, envoyée à Discord. S'il répond « trop de demandes » (429), elle repart après l'attente qu'il demande, trois fois au plus. */
+async function send(command: (typeof COMMANDS)[number]): Promise<Response> {
+  for (let attempt = 0; ; attempt++) {
     const response = await fetch(url, {
       method: "POST",
       headers: { authorization: `Bot ${token}`, "content-type": "application/json" },
       body: JSON.stringify(command),
     });
+    const wait = attempt < 3 ? retryAfterMs(response.status, await response.clone().text()) : null;
+    if (wait === null) return response;
+    console.log(`/${command.name} : Discord demande d'attendre ${Math.ceil(wait / 1000)} s, puis la commande repart.`);
+    await new Promise((resolve) => setTimeout(resolve, wait));
+  }
+}
+
+// Une commande après l'autre ; au premier refus, les suivantes n'auraient pas plus de chance (jeton, application absente).
+const answers: { name: string; response: Response | null; failure: string }[] = [];
+for (const command of COMMANDS) {
+  try {
+    const response = await send(command);
     answers.push({ name: command.name, response, failure: "" });
     if (!response.ok) break;
   } catch (e) {
@@ -133,6 +146,6 @@ for (const { name, response, failure } of answers) {
   }
   console.log(`La commande /${name} est en place sur le serveur du clan.`);
 }
-console.log("Essayez-les : tapez /fiche dans un salon, puis le début d'un pseudo.");
+console.log("Essayez-les : tapez /fiche dans un salon, puis le début d'un pseudo ; ou /clan, /records, /carte, /guide, /rival, /moi.");
 console.log(RESET);
 process.exit(0);

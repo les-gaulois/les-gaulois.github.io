@@ -196,6 +196,8 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
     ["discord_code_issue", { p_code_hash: "0".repeat(64), p_discord_id: "000000000000000000", p_discord_name: "verification", p_interaction_id: "000000000000000000" }, "Un visiteur ne crée pas de code de connexion"],
     ["discord_code_redeem", { p_code_hash: "0".repeat(64) }, "Un visiteur n'essaie pas de code de connexion"],
     ["discord_code_attach", { p_user: "00000000-0000-0000-0000-000000000000", p_discord_id: "000000000000000000", p_discord_name: "verification" }, "Un visiteur ne donne pas d'identifiant Discord à un compte"],
+    // La commande /moi (migration 20261112000700) : relie un identifiant Discord, que tout le serveur voit, à un pseudo.
+    ["discord_moi", { p_discord_id: "000000000000000000" }, "Un visiteur ne retrouve pas le pseudo d'un compte Discord"],
   ] as const;
   for (const [fn, body, label] of codeCalls) {
     const res = await rpc(fn, body);

@@ -9,6 +9,8 @@ import {
   APP_PUBLIC_KEY,
   CHOOSE_NAME_URL,
   CODE_ALPHABET,
+  COMMANDES_URL,
+  COMMAND_MESSAGES,
   FICHES_FRESH_MS,
   FICHES_RETRY_MS,
   FICHES_STALE_MS,
@@ -27,10 +29,13 @@ import {
   liveDeps,
   newCode,
   normalizeCode,
+  parseCommandes,
   parseFiches,
   sha256Hex,
   signatureWorks,
   verifyDiscordSignature,
+  type CommandEntry,
+  type CommandIndex,
   type Deps,
   type Fiche,
   type FicheList,
@@ -74,6 +79,24 @@ const FICHES: FicheList = {
   ],
 };
 
+// L'index des commandes, comme le site le publie : des chemins du site, des descriptions, deux chapitres et trois clans.
+const entry = (image: string, page: string, alt = `Description de ${image}`): CommandEntry => ({ image, alt, page });
+const COMMANDES: CommandIndex = {
+  clan: entry("/generated/accueil.png?v=aaaaaaaaaaaa", "/classement"),
+  records: entry("/commandes/records.png?v=bbbbbbbbbbbb", "/records"),
+  carte: entry("/commandes/carte.png?v=cccccccccccc", "/carte"),
+  guide: [
+    { id: "01-bases", court: "Les bases", ...entry("/commandes/guide-01-bases.png?v=dddddddddddd", "/debuter#chapitre-01-bases") },
+    { id: "03-attaque", court: "L'attaque", ...entry("/commandes/guide-03-attaque.png?v=eeeeeeeeeeee", "/debuter#chapitre-03-attaque") },
+    { id: "07-bateaux", court: "Bateaux", ...entry("/commandes/guide-07-bateaux.png?v=ffffffffffff", "/debuter#chapitre-07-bateaux") },
+  ],
+  rivaux: [
+    { tag: "UN", rank: 1, ...entry("/commandes/rival-UN.png?v=111111111111", "/rivaux") },
+    { tag: "LUX", rank: 3, ...entry("/commandes/rival-LUX.png?v=222222222222", "/rivaux") },
+    { tag: "ULT", rank: 9, ...entry("/commandes/rival-ULT.png?v=333333333333", "/rivaux") },
+  ],
+};
+
 function world(answers: Answers = {}, over: Partial<Deps> = {}) {
   const calls = {
     rpc: [] as { name: string; args: Record<string, unknown> }[],
@@ -82,6 +105,7 @@ function world(answers: Answers = {}, over: Partial<Deps> = {}) {
     links: [] as string[],
     logs: [] as string[],
     fiches: 0,
+    commandes: 0,
   };
   // Les comptes de Supabase, par adresse : le lien magique ouvre celui de l'adresse donnée.
   const accounts = new Map([
@@ -118,6 +142,10 @@ function world(answers: Answers = {}, over: Partial<Deps> = {}) {
     fiches: async () => {
       calls.fiches++;
       return FICHES;
+    },
+    commandes: async () => {
+      calls.commandes++;
+      return COMMANDES;
     },
     log: (message) => calls.logs.push(message),
     ...over,
@@ -443,6 +471,182 @@ describe("la commande /fiche, envoyée par Discord", () => {
   });
 });
 
+describe("les commandes du robot, envoyées par Discord", () => {
+  type Button = { type: number; style: number; label: string; url: string };
+  type Shown = {
+    type: number;
+    data: { flags?: number; content?: string; allowed_mentions: unknown; components: { type: number; items?: { media: { url: string }; description: string }[]; components?: Button[] }[] };
+  };
+  const run = (name: string, options: unknown[] = [], over: Record<string, unknown> = {}) => command({ data: { name, options }, ...over });
+  const typingFor = (name: string, option: string, value: string) => command({ type: 4, data: { name, options: [{ name: option, type: 3, value, focused: true }] } });
+  const opt = (name: string, value: string) => [{ name, type: 3, value }];
+  const shown = async (res: Response) => (await res.json()) as Shown;
+  const choices = async (res: Response) => ((await res.json()) as { type: number; data: { choices: { name: string; value: string }[] } }).data.choices;
+
+  it("montrent à tout le salon l'image du site en grand, avec un bouton vers sa page", async () => {
+    const { deps } = world();
+    for (const [name, shownEntry, label] of [
+      ["clan", COMMANDES.clan, "Voir le classement"],
+      ["records", COMMANDES.records, "Voir les records"],
+      ["carte", COMMANDES.carte, "Voir la carte"],
+    ] as const) {
+      const body = await shown(await handle(await fromDiscord(run(name)), deps));
+      expect(body.type).toBe(4);
+      // Pas de drapeau 64 : tout le salon la voit. 32768 : l'image en grand.
+      expect(body.data.flags).toBe(32768);
+      expect(body.data.components).toEqual([
+        { type: 12, items: [{ media: { url: `${SITE_URL}${shownEntry?.image}` }, description: shownEntry?.alt }] },
+        { type: 1, components: [{ type: 2, style: 5, label, url: `${SITE_URL}${shownEntry?.page}` }] },
+      ]);
+      expect(body.data.allowed_mentions).toEqual({ parse: [] });
+    }
+  });
+
+  it("disent quand le site n'a pas encore l'image, ou ne répond pas", async () => {
+    const empty = world({}, { commandes: async () => ({ ...COMMANDES, records: null }) });
+    const missing = await content(await handle(await fromDiscord(run("records")), empty.deps));
+    expect(missing.data.content).toBe(COMMAND_MESSAGES.missing);
+    expect(missing.data.flags).toBe(64);
+    const down = world({}, { commandes: async () => null });
+    expect((await content(await handle(await fromDiscord(run("clan")), down.deps))).data.content).toBe(COMMAND_MESSAGES.down);
+    expect(await choices(await handle(await fromDiscord(typingFor("guide", "chapitre", "a")), down.deps))).toEqual([]);
+  });
+
+  it("/guide propose les chapitres pendant la saisie, et montre celui qui est choisi", async () => {
+    const { deps } = world();
+    expect(await choices(await handle(await fromDiscord(typingFor("guide", "chapitre", "")), deps))).toEqual([
+      { name: "Les bases", value: "01-bases" },
+      { name: "L'attaque", value: "03-attaque" },
+      { name: "Bateaux", value: "07-bateaux" },
+    ]);
+    expect((await choices(await handle(await fromDiscord(typingFor("guide", "chapitre", "ATTA")), deps))).map((c) => c.value)).toEqual(["03-attaque"]);
+    const body = await shown(await handle(await fromDiscord(run("guide", opt("chapitre", "03-attaque"))), deps));
+    expect(body.data.components[0]?.items?.[0]?.media.url).toBe(`${SITE_URL}/commandes/guide-03-attaque.png?v=eeeeeeeeeeee`);
+    expect(body.data.components[1]?.components?.[0]).toMatchObject({ label: "Lire « L'attaque »", url: `${SITE_URL}/debuter#chapitre-03-attaque` });
+    // Un nom tapé en entier, ou un morceau qui ne désigne qu'un chapitre, marche aussi.
+    expect((await shown(await handle(await fromDiscord(run("guide", opt("chapitre", "bateaux"))), deps))).data.components[1]?.components?.[0]?.url).toBe(`${SITE_URL}/debuter#chapitre-07-bateaux`);
+    const none = await content(await handle(await fromDiscord(run("guide", opt("chapitre", "**rien**"))), deps));
+    expect(none.data.flags).toBe(64);
+    expect(none.data.content).toBe(COMMAND_MESSAGES.guideNone("**rien**"));
+    expect(none.data.content).toContain("« \\*\\*rien\\*\\* »");
+  });
+
+  it("/rival propose les clans par tag puis par rang, et montre celui qui est choisi", async () => {
+    const { deps } = world();
+    expect((await choices(await handle(await fromDiscord(typingFor("rival", "clan", "u")), deps))).map((c) => c.value)).toEqual(["UN", "ULT", "LUX"]);
+    expect((await choices(await handle(await fromDiscord(typingFor("rival", "clan", "")), deps)))[0]).toEqual({ name: "[UN], 1er au classement", value: "UN" });
+    const body = await shown(await handle(await fromDiscord(run("rival", opt("clan", "[lux]"))), deps));
+    expect(body.data.components[0]?.items?.[0]?.media.url).toBe(`${SITE_URL}/commandes/rival-LUX.png?v=222222222222`);
+    expect(body.data.components[1]?.components?.[0]).toMatchObject({ label: "Comparer sur le site", url: `${SITE_URL}/rivaux` });
+    expect((await content(await handle(await fromDiscord(run("rival", opt("clan", "GAL"))), deps))).data.content).toBe(COMMAND_MESSAGES.rivalNone("GAL"));
+  });
+
+  it("/moi montre la fiche du membre validé lié au Discord qui tape la commande", async () => {
+    const { deps, calls } = world({ discord_moi: () => ({ ok: true, pseudo: "Brennos" }) });
+    const body = await shown(await handle(await fromDiscord(run("moi")), deps));
+    expect(calls.rpc).toEqual([{ name: "discord_moi", args: { p_discord_id: PLAYER } }]);
+    expect(body.data.flags).toBe(32768);
+    expect(body.data.components[1]?.components?.[0]?.url).toBe(ficheUrl("Ab12Cd34"));
+  });
+
+  it("/moi dit à qui n'est pas reconnu comment se faire reconnaître, et à qui n'a pas de pseudo comment en choisir un", async () => {
+    for (const [answer, message] of [
+      [{ ok: false, error: "not_member" }, COMMAND_MESSAGES.notMember],
+      [{ ok: false, error: "no_pseudo" }, COMMAND_MESSAGES.noPseudo],
+      [{ ok: false, error: "shared_pseudo" }, COMMAND_MESSAGES.sharedPseudo],
+      [{ ok: true, pseudo: "Parti.0001" }, COMMAND_MESSAGES.noFiche],
+    ] as const) {
+      const { deps } = world({ discord_moi: () => answer });
+      const body = await content(await handle(await fromDiscord(run("moi")), deps));
+      expect(body.data.content).toBe(message);
+      expect(body.data.flags).toBe(64);
+    }
+    expect(COMMAND_MESSAGES.noPseudo).toContain(`<${CHOOSE_NAME_URL}>`);
+    // Le serveur ne répond pas : la fonction SQL rend null.
+    expect((await content(await handle(await fromDiscord(run("moi")), world().deps))).data.content).toBe(COMMAND_MESSAGES.down);
+  });
+
+  it("/moi ne montre jamais une fiche dont le pseudo est aussi celui d'un autre membre", async () => {
+    const twins: FicheList = { listedAt: LISTED_AT, fiches: [...FICHES.fiches, fiche("Zz99Yy88", "BRENNOS")] };
+    const { deps } = world({ discord_moi: () => ({ ok: true, pseudo: "Brennos" }) }, { fiches: async () => twins });
+    const body = await content(await handle(await fromDiscord(run("moi")), deps));
+    expect(body.data.content).toBe(COMMAND_MESSAGES.sharedPseudo);
+    expect(body.data.flags).toBe(64);
+  });
+
+  it("/moi ne prend l'identifiant que de la commande signée, ni hors du serveur du clan ni pour un robot", async () => {
+    const { deps, calls } = world({ discord_moi: () => ({ ok: true, pseudo: "Brennos" }) });
+    for (const interaction of [
+      run("moi", [], { guild_id: "111111111111111111" }),
+      run("moi", [], { member: { user: { id: PLAYER, username: "robot", bot: true } } }),
+      run("moi", opt("pseudo", "Brennos"), { member: { user: { id: "pas-un-numero", username: "x" } } }),
+    ]) {
+      expect((await content(await handle(await fromDiscord(interaction), deps))).data.content).toBe(COMMAND_MESSAGES.wrongPlace);
+    }
+    expect(calls.rpc).toEqual([]);
+  });
+
+  it("ne répondent que dans le serveur du clan, et refusent une commande mal signée, sans rien lire", async () => {
+    const { deps, calls } = world();
+    for (const name of ["clan", "records", "carte", "guide", "rival"]) {
+      expect((await content(await handle(await fromDiscord(run(name, [], { guild_id: "111111111111111111" })), deps))).data.content).toBe(COMMAND_MESSAGES.wrongPlace);
+      expect((await handle(await fromDiscord(run(name), { pair: otherKeys }), deps)).status).toBe(401);
+    }
+    expect(calls.commandes).toBe(0);
+    expect(calls.rpc).toEqual([]);
+  });
+});
+
+describe("l'index des commandes publié par le site", () => {
+  it("écarte une entrée qui mènerait hors du site, et refuse un fichier qui n'a pas la forme attendue", () => {
+    const ok = { image: "/commandes/records.png?v=abc123", alt: "a", page: "/records" };
+    expect(
+      parseCommandes({
+        clan: { ...ok, image: "https://ailleurs.example/x.png" },
+        records: { ...ok, image: "//ailleurs.example/x.png" },
+        carte: { ...ok, image: "/commandes/../secret.png" },
+        guide: [
+          { ...ok, id: "01-bases", court: "Les bases", page: "javascript:alert(1)" },
+          { ...ok, id: "../x", court: "Faux" },
+          { ...ok, id: "03-attaque", court: "L'attaque" },
+        ],
+        rivaux: [
+          { ...ok, tag: "un", rank: 1 },
+          { ...ok, tag: "UN", rank: 0 },
+          { ...ok, tag: "LUX", rank: 3 },
+        ],
+      }),
+    ).toEqual({
+      clan: null,
+      records: null,
+      carte: null,
+      guide: [{ ...ok, id: "03-attaque", court: "L'attaque" }],
+      rivaux: [{ ...ok, tag: "LUX", rank: 3 }],
+    });
+    for (const bad of [null, [], { guide: [] }, { rivaux: [] }]) expect(parseCommandes(bad)).toBeNull();
+  });
+
+  it("se lit comme les fiches : gardé cinq minutes, avec son propre journal", async () => {
+    const logs: string[] = [];
+    const quiet = vi.spyOn(console, "log").mockImplementation((message: string) => void logs.push(message));
+    try {
+      const sent: string[] = [];
+      const fetcher = (async (input: string | URL | Request) => {
+        sent.push(String(input));
+        return String(input) === COMMANDES_URL ? new Response(JSON.stringify(COMMANDES)) : new Response("{}", { status: 500 });
+      }) as typeof fetch;
+      const deps = liveDeps({ get: () => undefined }, fetcher);
+      expect(await deps.commandes()).toEqual(COMMANDES);
+      expect(await deps.commandes()).toEqual(COMMANDES);
+      expect(await deps.fiches()).toBeNull();
+      expect(sent).toEqual([COMMANDES_URL, FICHES_URL]);
+    } finally {
+      quiet.mockRestore();
+    }
+    expect(logs).toEqual(["code-discord : fiches : 500"]);
+  });
+});
+
 describe("les fiches publiées par le site", () => {
   const members: StoredMembers = {
     fetchedAt: LISTED_AT,
@@ -516,17 +720,20 @@ describe("le code tapé sur le site", () => {
   });
 
   it("dit si tout est en place, sans rien montrer : la base répond-elle avec la clé de service, les fiches se lisent-elles ?", async () => {
-    const ready = world({ discord_code_redeem: () => ({ ok: false, error: "invalid_request" }) });
-    expect(await reply(await handle(fromSite(null, "GET", "/etat"), ready.deps))).toEqual({ ok: true, discord: true, service: true, signature: true, fiches: true });
-    // Une empreinte mal formée : la fonction SQL la refuse sans rien écrire.
-    expect(ready.calls.rpc).toEqual([{ name: "discord_code_redeem", args: { p_code_hash: "etat" } }]);
+    const ready = world({ discord_code_redeem: () => ({ ok: false, error: "invalid_request" }), discord_moi: () => ({ ok: false, error: "invalid_request" }) });
+    expect(await reply(await handle(fromSite(null, "GET", "/etat"), ready.deps))).toEqual({ ok: true, discord: true, service: true, signature: true, fiches: true, commandes: true, moi: true });
+    // Une empreinte et un identifiant mal formés : les fonctions SQL les refusent sans rien lire ni écrire.
+    expect(ready.calls.rpc).toEqual([
+      { name: "discord_code_redeem", args: { p_code_hash: "etat" } },
+      { name: "discord_moi", args: { p_discord_id: "etat" } },
+    ]);
     const noBase = world();
-    expect(await reply(await handle(fromSite(null, "GET", "/etat"), noBase.deps))).toMatchObject({ service: false });
+    expect(await reply(await handle(fromSite(null, "GET", "/etat"), noBase.deps))).toMatchObject({ service: false, moi: false });
     const unset = world({ discord_code_redeem: () => ({ ok: false, error: "invalid_request" }) });
-    expect(await reply(await handle(fromSite(null, "GET", "/etat"), { ...unset.deps, guildId: "", serviceReady: false }))).toEqual({ ok: true, discord: false, service: false, signature: true, fiches: true });
+    expect(await reply(await handle(fromSite(null, "GET", "/etat"), { ...unset.deps, guildId: "", serviceReady: false }))).toEqual({ ok: true, discord: false, service: false, signature: true, fiches: true, commandes: true, moi: false });
     expect(unset.calls.rpc).toEqual([]);
-    const noSite = world({}, { fiches: async () => null });
-    expect(await reply(await handle(fromSite(null, "GET", "/etat"), noSite.deps))).toMatchObject({ fiches: false });
+    const noSite = world({}, { fiches: async () => null, commandes: async () => null });
+    expect(await reply(await handle(fromSite(null, "GET", "/etat"), noSite.deps))).toMatchObject({ fiches: false, commandes: false });
   });
 
   it("refuse ce qui ne peut pas être un code, sans rien demander au serveur", async () => {

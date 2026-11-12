@@ -1,8 +1,8 @@
 /**
- * Les commandes du serveur Discord du clan : /code (docs/DIRECTION.md, « Se connecter avec un code ») et /fiche (« La
- * commande /fiche »). Le pilote les crée avec `npm run discord:commande` (`scripts/discord-commande.ts`), qui envoie ces
- * définitions à Discord. Leurs noms sont ceux qu'attend la fonction serveur (`COMMAND_NAME`, `FICHE_COMMAND_NAME` et
- * `FICHE_OPTION` de `supabase/functions/code-discord/index.ts`) : un test le vérifie.
+ * Les commandes du serveur Discord du clan : /code (docs/DIRECTION.md, « Se connecter avec un code »), /fiche (« La
+ * commande /fiche ») et les commandes du robot (« Les commandes du robot »). Le pilote les crée avec
+ * `npm run discord:commande` (`scripts/discord-commande.ts`), qui envoie ces définitions à Discord. Leurs noms et leurs
+ * options sont ceux qu'attend la fonction serveur (`supabase/functions/code-discord/index.ts`) : un test le vérifie.
  */
 
 export const CODE_COMMAND = {
@@ -34,8 +34,43 @@ export const FICHE_COMMAND = {
   ],
 } as const;
 
+/**
+ * Les commandes du robot (docs/DIRECTION.md, « Les commandes du robot ») : une image que le site dessine à chaque
+ * construction, et /moi, la fiche de qui la tape. Leurs noms et options sont ceux qu'attend la fonction serveur.
+ */
+export const CLAN_COMMAND = { name: "clan", type: 1, description: "La place de GAL au classement officiel, et le podium de la dernière semaine complète" } as const;
+export const RECORDS_COMMAND = { name: "records", type: 1, description: "Les records du clan : plus longue série de victoires, meilleure journée…" } as const;
+export const CARTE_COMMAND = { name: "carte", type: 1, description: "Le territoire de GAL sur la carte des clans d'OpenFront" } as const;
+export const GUIDE_COMMAND = {
+  name: "guide",
+  type: 1,
+  description: "Un chapitre du guide du clan, l'essentiel en une image",
+  options: [{ type: 3, name: "chapitre", description: "Le chapitre : tapez le début de son nom, puis choisissez", required: true, autocomplete: true, max_length: 60 }],
+} as const;
+export const RIVAL_COMMAND = {
+  name: "rival",
+  type: 1,
+  description: "GAL face à un clan de la liste officielle : rang, score, parties, face-à-face",
+  options: [{ type: 3, name: "clan", description: "Le tag du clan : tapez le début, puis choisissez", required: true, autocomplete: true, max_length: 10 }],
+} as const;
+export const MOI_COMMAND = { name: "moi", type: 1, description: "Votre fiche, si le site vous a reconnu comme membre du clan" } as const;
+
 /** Les commandes que le script crée ou remet à jour, chacune à part : une autre commande de l'application ne bouge pas. */
-export const COMMANDS = [CODE_COMMAND, FICHE_COMMAND] as const;
+export const COMMANDS = [CODE_COMMAND, FICHE_COMMAND, CLAN_COMMAND, RECORDS_COMMAND, CARTE_COMMAND, GUIDE_COMMAND, RIVAL_COMMAND, MOI_COMMAND] as const;
+
+/**
+ * Le temps à attendre quand Discord répond « trop de demandes » (429) : son `retry_after`, en secondes, borné à 30 s. `null` :
+ * pas une réponse 429 lisible, il ne faut pas réessayer.
+ */
+export function retryAfterMs(status: number, body: string): number | null {
+  if (status !== 429) return null;
+  try {
+    const wait = (JSON.parse(body) as { retry_after?: unknown }).retry_after;
+    return typeof wait === "number" && Number.isFinite(wait) && wait >= 0 ? Math.min(Math.ceil(wait * 1000), 30_000) : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * L'application de la connexion, « Le Gaulois », et le serveur Discord du clan : publics, lus le 12 novembre 2026 (le premier

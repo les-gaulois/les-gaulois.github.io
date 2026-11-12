@@ -120,6 +120,11 @@ describe("le contrôle de la mise en ligne", () => {
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/discord_code_attach": { status: 200, body: { ok: false } } }, "identifiant Discord à un compte")).toBe("fail");
   });
 
+  it("bloque si un visiteur peut retrouver le pseudo d'un compte Discord, la fonction de /moi", async () => {
+    expect(await statusOf(HEALTHY, "pseudo d'un compte Discord")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/discord_moi": { status: 200, body: { ok: false, error: "not_member" } } }, "pseudo d'un compte Discord")).toBe("fail");
+  });
+
   it("dit si la fonction code-discord est déployée et réglée, et ne bloque qu'une fois la connexion par code ouverte", async () => {
     expect(await statusOf(HEALTHY, "connexion par code est en place")).toBe("ok");
     const notReady = CODE_LOGIN_OPEN ? "fail" : "warn";

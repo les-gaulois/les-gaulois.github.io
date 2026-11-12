@@ -15,7 +15,7 @@ const CONTENT_WIDTH = CARD_WIDTH - 2 * CARD_MARGIN;
 const LOGO = { x: CARD_MARGIN, y: 34, size: 104 };
 const FOOTNOTE_HEIGHT = 44;
 /** Sous le contenu : l'adresse du site et la note. */
-const FOOTER_HEIGHT = 96;
+export const FOOTER_HEIGHT = 96;
 
 /** Au-delà, les lignes deviennent plus basses, ou les noms passent en pastilles. */
 export const MAX_ROWS = 5;

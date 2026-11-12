@@ -1,5 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { APPLICATION_ID, CODE_COMMAND, COMMANDS, FICHE_COMMAND, GUILD_ID, commandUrl, explainRefusal, installUrl, isSnowflake, looksLikeBotToken } from "../../src/lib/discord-commande";
+import {
+  APPLICATION_ID,
+  CARTE_COMMAND,
+  CLAN_COMMAND,
+  CODE_COMMAND,
+  COMMANDS,
+  FICHE_COMMAND,
+  GUIDE_COMMAND,
+  GUILD_ID,
+  MOI_COMMAND,
+  RECORDS_COMMAND,
+  RIVAL_COMMAND,
+  commandUrl,
+  explainRefusal,
+  installUrl,
+  isSnowflake,
+  looksLikeBotToken,
+  retryAfterMs,
+} from "../../src/lib/discord-commande";
+import * as fonction from "../../supabase/functions/code-discord/index";
 import { COMMAND_NAME, FICHE_COMMAND_NAME, FICHE_OPTION, GAL_GUILD_ID } from "../../supabase/functions/code-discord/index";
 
 const APP = "123456789012345678";
@@ -67,8 +86,47 @@ describe("la commande /fiche", () => {
     expect(option.max_length).toBeLessThanOrEqual(100);
   });
 
-  it("part avec /code, chacune à part, sans doublon", () => {
-    expect(COMMANDS.map((c) => c.name)).toEqual([CODE_COMMAND.name, FICHE_COMMAND.name]);
+  it("part avec /code et les commandes du robot, chacune à part, sans doublon", () => {
+    const names = COMMANDS.map((c) => c.name);
+    expect(names).toEqual([CODE_COMMAND.name, FICHE_COMMAND.name, "clan", "records", "carte", "guide", "rival", "moi"]);
+    expect(new Set(names).size).toBe(names.length);
+  });
+});
+
+describe("les commandes du robot", () => {
+  it("portent les noms et les options qu'attend la fonction serveur", () => {
+    expect(CLAN_COMMAND.name).toBe(fonction.CLAN_COMMAND);
+    expect(RECORDS_COMMAND.name).toBe(fonction.RECORDS_COMMAND);
+    expect(CARTE_COMMAND.name).toBe(fonction.CARTE_COMMAND);
+    expect(GUIDE_COMMAND.name).toBe(fonction.GUIDE_COMMAND);
+    expect(GUIDE_COMMAND.options[0].name).toBe(fonction.GUIDE_OPTION);
+    expect(RIVAL_COMMAND.name).toBe(fonction.RIVAL_COMMAND);
+    expect(RIVAL_COMMAND.options[0].name).toBe(fonction.RIVAL_OPTION);
+    expect(MOI_COMMAND.name).toBe(fonction.MOI_COMMAND);
+  });
+
+  it("tiennent dans les limites de Discord, et chaque option propose pendant la saisie", () => {
+    for (const command of COMMANDS) {
+      expect(command.name).toMatch(/^[a-z0-9_-]{1,32}$/);
+      expect(command.type).toBe(1);
+      expect(command.description.length).toBeGreaterThan(0);
+      expect(command.description.length).toBeLessThanOrEqual(100);
+      for (const option of "options" in command ? command.options : []) {
+        expect(option.name).toMatch(/^[a-z0-9_-]{1,32}$/);
+        expect(option.description.length).toBeLessThanOrEqual(100);
+        expect(option).toMatchObject({ type: 3, required: true, autocomplete: true });
+      }
+    }
+  });
+});
+
+describe("Discord qui demande d'attendre", () => {
+  it("le script attend ce que dit Discord, sans dépasser trente secondes, et seulement pour une réponse 429", () => {
+    expect(retryAfterMs(429, '{"message": "You are being rate limited.", "retry_after": 1.25, "global": false}')).toBe(1250);
+    expect(retryAfterMs(429, '{"retry_after": 600}')).toBe(30_000);
+    expect(retryAfterMs(429, "illisible")).toBeNull();
+    expect(retryAfterMs(429, '{"retry_after": -1}')).toBeNull();
+    expect(retryAfterMs(403, '{"retry_after": 1}')).toBeNull();
   });
 });
 

@@ -29,7 +29,7 @@ import { latestNews, newsDays, newsMarker, NOUVEAUTES_KEY, splitDays } from "../
 import { nextTier, tierOf, tierRows } from "../../src/lib/paliers";
 import { LETTRINE_TITRE, largeurTexte } from "../../src/lib/police/largeur";
 import { CHOOSE_NAME_URL } from "../../src/lib/pseudo-openfront";
-import { SITE_URL, ficheImageUrl, ficheUrl, parseFiches } from "../../supabase/functions/code-discord/index";
+import { SITE_URL, ficheImageUrl, ficheUrl, parseCommandes, parseFiches } from "../../supabase/functions/code-discord/index";
 import { currentMilestonesPeriod, homeMilestones, recentRecordLines, recentTerritoryRecord } from "../../src/lib/vie-du-clan";
 import { milestonesSinceMonday } from "../../src/lib/week-players";
 
@@ -618,6 +618,33 @@ test("les fiches de la commande /fiche sont celles des pages des membres", async
   if (shown) {
     expect((await request.get(ficheImageUrl(shown.id, list?.listedAt ?? "").replace(SITE_URL, ""))).ok()).toBe(true);
     expect((await request.get(ficheUrl(shown.id).replace(SITE_URL, ""))).ok()).toBe(true);
+  }
+});
+
+// Les commandes du robot lisent cet index : une image par commande, par chapitre du guide et par clan de la liste officielle.
+test("les images des commandes du robot sont publiées, chacune à son adresse", async ({ request }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "Des fichiers, lus une fois.");
+  const res = await request.get("/commandes.json");
+  expect(res.ok()).toBe(true);
+  const index = parseCommandes(await res.json());
+  expect(index).not.toBeNull();
+  const listed: { clanTag: string }[] = JSON.parse(readFileSync("data/leaderboard.json", "utf8")).clans;
+  expect(index?.rivaux.map((r) => r.tag)).toEqual(listed.some((c) => c.clanTag === clan.tag) ? listed.map((c) => c.clanTag).filter((t) => t !== clan.tag) : []);
+  // Un chapitre par fichier du guide, sauf les aide-mémoire, qui ne sont qu'un tableau.
+  const chapters = readdirSync("content/guide-clan").filter((f) => f.endsWith(".md") && !/^ouvert: true$/m.test(readFileSync(`content/guide-clan/${f}`, "utf8")));
+  expect(index?.guide.map((g) => `${g.id}.md`)).toEqual(chapters);
+  // Les données du dépôt donnent le classement, les records et la carte : les trois images doivent exister.
+  expect(index?.clan).not.toBeNull();
+  expect(index?.records).not.toBeNull();
+  expect(index?.carte).not.toBeNull();
+  const height = (png: Buffer) => png.readUInt32BE(20);
+  for (const entry of [index?.clan, index?.records, index?.carte, ...(index?.guide ?? []), index?.rivaux[0]]) {
+    if (!entry) continue;
+    const image = await request.get(entry.image);
+    expect(image.ok(), entry.image).toBe(true);
+    expect(image.headers()["content-type"]).toContain("image/png");
+    // Sous l'en-tête et au-dessus du bas, au moins une case : une image de chapitre n'est jamais vide (vide, elle fait 278 px).
+    if (entry.image.startsWith("/commandes/guide-")) expect(height(await image.body()), entry.image).toBeGreaterThan(300);
   }
 });
 

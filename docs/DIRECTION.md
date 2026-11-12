@@ -406,6 +406,47 @@ Choisie par le pilote le 12 novembre 2026, parmi des idées pour les membres : d
 
 L'encadrement choisit où elle peut servir dans **Paramètres du serveur → Intégrations**, comme /code.
 
+## Les commandes du robot
+
+Choisies par le pilote le 12 novembre 2026 (« 1 à 6 », dans une liste de sept où /appel n'a pas été retenue) : six commandes de plus dans l'application « Le Gaulois », servies par la même fonction `code-discord` que /code et /fiche. Chacune répond par une image en grand et un bouton vers la page du site, comme /fiche.
+
+**Prêtes le 12 novembre 2026, pas encore installées** : elles marchent une fois le fichier de /moi collé, la fonction remise en ligne et les commandes créées par le pilote (plus bas).
+
+| Commande | Ce qu'elle montre | D'où vient l'image |
+|---|---|---|
+| `/clan` | La place de GAL au classement officiel, son score et le podium de la dernière semaine complète | L'image d'aperçu de l'accueil (`scripts/generate-accueil-image.ts`) |
+| `/records` | Les quatre records du clan de la page Records, avec leur date | `recordsCard` (`src/lib/commandes-image.ts`) |
+| `/carte` | Le territoire de GAL : la dernière image du film de la carte, sa place au nombre de pixels et ses pixels, avec le crédit d'OpenFront écrit sur l'image (CC BY-SA 4.0, adresses de la source et de la licence) | `mapCard` |
+| `/guide chapitre` | Un chapitre du guide du clan : sa phrase d'entrée, l'essentiel, les repères de son bloc (ou l'essai à faire sur le site) et l'encadré, tels qu'ils sont dans le chapitre. Les deux aide-mémoire, qui ne sont qu'un tableau, n'ont pas d'image : /guide ne les propose pas | `guideCard`, chapitres de `content/guide-clan/` |
+| `/rival clan` | GAL face à un clan de la liste officielle : les chiffres du comparateur de la page Nos rivaux, l'écart de score, le face-à-face quand il est publié, et la réserve sur le taux | `rivalCard` |
+| `/moi` | La fiche de qui la tape, s'il est un membre validé sur le site | L'image de sa fiche, comme /fiche |
+
+**Comment ça marche :**
+
+- À chaque construction, le site dessine les images (`src/pages/commandes/[nom].png.ts` : une pour /records et /carte, une par chapitre, une par clan de la liste officielle, environ 120, une trentaine de secondes de construction) et publie leur index, `/commandes.json` (`src/pages/commandes.json.ts`, `src/lib/commandes-discord.ts`) : l'adresse de chaque image, sa description et la page du bouton. L'adresse porte une version tirée du dessin : quand un chiffre change, Discord ne montre pas l'ancienne image. Rien n'est recalculé : chaque chiffre vient d'un calcul déjà publié sur le site.
+- La fonction lit cet index comme les fiches : gardé cinq minutes, deux heures au plus si le site ne répond plus, et chaque chemin vérifié, pour qu'une image ou un bouton ne mène que sur le site.
+- `/guide` et `/rival` proposent pendant la saisie : les chapitres dans l'ordre du guide, les clans par tag puis par rang. Un nom ou un tag tapé en entier marche aussi.
+- `/moi` : la fonction demande au serveur, avec la clé de service, le pseudo du membre validé lié au Discord de qui tape la commande (`discord_moi`, migration `20261112000700_commande_discord_moi.sql`) : le même chemin que les photos des membres, par l'empreinte de l'identifiant OpenFront dans la liste du clan. L'identifiant Discord vient de la commande signée par Discord. Rien n'est écrit. Un compte que le site ne reconnaît pas reçoit la marche à suivre, un membre sans pseudo public le lien pour en choisir un : des réponses qu'il est seul à voir. Comme pour les photos, un pseudo porté par deux membres ne désigne personne : la commande l'envoie vers /fiche, plutôt que de montrer peut-être la fiche de l'autre. `npm run verifier:ligne` contrôle qu'un visiteur ne peut pas appeler `discord_moi`.
+- Une image dont un texte ne peut pas être dessiné (un signe qu'aucune police du site ne connaît) est sautée, et son nom va au journal de la construction : elle n'arrête jamais la publication du site. /records et /carte répondent alors « Pas de données » ; /guide et /rival ne proposent pas le chapitre ou le clan.
+- Hors du serveur du clan, ou pour une commande mal signée, rien n'est lu. `GET …/code-discord/etat` dit aussi `"commandes":true` quand l'index se lit, et `"moi":true` quand `discord_moi` est installée.
+
+**Installer**, une fois, par le pilote, après la mise en ligne du site qui publie `/commandes.json` :
+
+1. Coller le fichier préparé par Claude (`.cache/a-coller-commande-moi.sql`, hors de Git) dans l'éditeur SQL de Supabase, puis **Run**. Sa dernière ligne doit dire : « discord_moi : oui, visiteurs et membres fermés : oui, clé de service ouverte : oui, migration notée : oui ».
+2. Remettre la fonction en ligne, comme pour /fiche.
+3. Ouvrir `https://zxavwcupauheheqxfdez.supabase.co/functions/v1/code-discord/etat` : il doit dire `"commandes":true` et `"moi":true` en plus du reste.
+4. `npm run discord:commande` entre deux **Reset Token**, comme pour /fiche : il crée les six commandes et remet /code et /fiche à jour, chacune à part ; si Discord demande d'attendre, il attend. Lire d'abord l'encadré qui suit.
+5. Essayer chacune dans un salon.
+
+**Attention, au 12 novembre 2026 : le jeton de « Le Gaulois » sert aussi aux images de bienvenue.** Le paragraphe suivant et le README (« Les arrivées sur le serveur Discord ») décrivent l'organisation prévue : une application à part pour les images. Ce soir-là, elles tournent encore avec le jeton de « Le Gaulois », gardé dans le secret GitHub `DISCORD_BOT_TOKEN`. Chaque **Reset Token** sur « Le Gaulois » les arrête donc : c'est arrivé vers 20 h 50 avec l'installation de /fiche, et deux arrivées n'ont pas eu d'image. Tant que les images n'ont pas leur application, l'étape 4 a deux suites, au choix du pilote :
+
+- faire le second **Reset Token**, comme prévu : les commandes marchent, et les images restent arrêtées jusqu'à ce qu'elles aient leur propre application ;
+- à la place du second Reset Token, coller le nouveau jeton dans le secret `DISCORD_BOT_TOKEN` : les images repartent, mais le jeton de « Le Gaulois » reste gardé dans GitHub, ce que l'organisation prévue évite, parce qu'il permet de changer l'adresse où Discord envoie /code.
+
+Le plus sûr : donner d'abord aux images leur propre application, puis installer les commandes, avec les deux Reset Token.
+
+Essayé le 12 novembre 2026 avant toute installation : le fichier à coller, deux fois de suite sur PGlite, un Postgres local, avec une copie réduite des trois tables qu'il lit (12 contrôles : chaque réponse, pseudo partagé compris, droits fermés aux visiteurs et aux membres, ouverts à la clé de service) ; la fonction, par ses tests (`tests/unit/code-discord.test.ts`) ; les images, à l'œil sur la construction.
+
 **Le robot des arrivées** (12 novembre 2026), qui remplace le message d'arrivée de Discord par une image de bienvenue, est une autre application Discord, à part. Il lui faut un jeton gardé en permanence dans GitHub, et celui de « Le Gaulois » ne doit pas l'être : ce jeton permet de changer l'adresse des interactions de l'application, donc de se glisser entre Discord et la fonction `code-discord`. C'est pourquoi l'étape 6 l'annule après usage. Avec une application à part, les deux ne se croisent jamais : un « Reset Token » sur « Le Gaulois » n'arrête pas les images, et le jeton du robot des arrivées ne peut rien sur la connexion. Ses étapes sont dans le README, « Les arrivées sur le serveur Discord ».
 
 ## Après avoir créé les comptes : le contrôle

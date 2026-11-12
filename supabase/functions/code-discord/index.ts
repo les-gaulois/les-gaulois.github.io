@@ -12,13 +12,18 @@
  *   ensuite à Supabase de quoi ouvrir sa session : un lien magique qui n'est envoyé nulle part, dont elle vérifie qu'il
  *   ouvre bien ce compte, et dont le navigateur échange l'empreinte contre sa session (`verifyOtp`).
  * - `GET …/code-discord/etat` : dit si les réglages sont posés, sans en montrer aucun, si le moteur sait vérifier une
- *   signature (essayé sur l'exemple de la RFC 8032) et si les fiches du site se lisent.
+ *   signature (essayé sur l'exemple de la RFC 8032), si les fiches et l'index des commandes du site se lisent, et si la
+ *   fonction SQL de /moi est installée.
  *
  * La porte de Discord répond aussi à /fiche (docs/DIRECTION.md, « La commande /fiche ») : pendant que le joueur tape un
  * pseudo, la fonction propose ceux des membres qui ont une fiche, lus dans `/fiches.json`, que le site publie avec ses pages
  * (`src/lib/fiches-discord.ts`) ; à l'envoi, elle montre à tout le salon l'image de la fiche, en grand, et un bouton vers sa
  * page. Elle ne lit rien d'autre, n'écrit rien, et ne connaît aucun membre sans pseudo : le site ne publie pas leur
  * identifiant.
+ *
+ * Et aux commandes du robot (« Les commandes du robot ») : /clan, /records, /carte, /guide et /rival montrent une image que
+ * le site dessine à chaque construction, lue dans `/commandes.json` (`src/lib/commandes-discord.ts`) ; /moi demande au
+ * serveur le pseudo du membre validé lié au Discord de qui la tape (`discord_moi`, clé de service), puis montre sa fiche.
  *
  * Réglages : aucun. Le serveur du clan et la clé publique de l'application sont écrits plus bas, publics tous deux ; les
  * secrets `DISCORD_GUILD_ID` et `DISCORD_PUBLIC_KEY` les remplacent s'ils sont posés. Supabase donne lui-même `SUPABASE_URL`
@@ -66,6 +71,8 @@ export interface Deps {
   magicLink(email: string): Promise<{ tokenHash: string; userId: string } | null>;
   /** Les fiches que publie le site (`FICHES_URL`), ou `null` s'il ne répond pas et qu'il ne reste aucune lecture de moins de deux heures. */
   fiches(): Promise<FicheList | null>;
+  /** L'index des commandes que publie le site (`COMMANDES_URL`), aux mêmes conditions que les fiches. */
+  commandes(): Promise<CommandIndex | null>;
   log(message: string): void;
 }
 
@@ -363,6 +370,199 @@ async function ficheRoute(interaction: Record<string, unknown>, data: Record<str
   return ephemeral(found.kind === "many" ? FICHE_MESSAGES.many(typed) : FICHE_MESSAGES.none(typed));
 }
 
+/* ---------- Les commandes du robot : /clan, /records, /carte, /guide, /rival, /moi ---------- */
+
+/** Leurs noms et leurs options, tels que `scripts/discord-commande.ts` les crée : un test le vérifie. */
+export const CLAN_COMMAND = "clan";
+export const RECORDS_COMMAND = "records";
+export const CARTE_COMMAND = "carte";
+export const GUIDE_COMMAND = "guide";
+export const GUIDE_OPTION = "chapitre";
+export const RIVAL_COMMAND = "rival";
+export const RIVAL_OPTION = "clan";
+export const MOI_COMMAND = "moi";
+const ROBOT_COMMANDS: ReadonlySet<string> = new Set([FICHE_COMMAND_NAME, CLAN_COMMAND, RECORDS_COMMAND, CARTE_COMMAND, GUIDE_COMMAND, RIVAL_COMMAND, MOI_COMMAND]);
+/** L'index des commandes que le site publie avec ses pages (`src/lib/commandes-discord.ts`). */
+export const COMMANDES_URL = `${SITE_URL}/commandes.json`;
+
+export interface CommandEntry {
+  /** L'adresse de l'image depuis la racine du site, avec sa version. */
+  image: string;
+  /** Sa description, lue aux lecteurs d'écran. */
+  alt: string;
+  /** La page du site où mène le bouton. */
+  page: string;
+}
+
+export interface CommandIndex {
+  clan: CommandEntry | null;
+  records: CommandEntry | null;
+  carte: CommandEntry | null;
+  guide: (CommandEntry & { id: string; court: string })[];
+  rivaux: (CommandEntry & { tag: string; rank: number })[];
+}
+
+/** Un chemin du site, sans hôte, sans « .. » et sans rien d'autre qu'une version et une ancre : un bouton ne mène que sur le site. */
+const SITE_PATH = /^\/(?!\/)[A-Za-z0-9/_.-]*(\?v=[0-9a-z]{1,32})?(#[A-Za-z0-9_-]{1,80})?$/;
+const sitePath = (value: unknown): string | null => (typeof value === "string" && SITE_PATH.test(value) && !value.includes("..") ? value : null);
+
+function parseEntry(value: unknown): CommandEntry | null {
+  const entry = record(value);
+  const image = sitePath(entry?.["image"]);
+  const page = sitePath(entry?.["page"]);
+  const alt = entry?.["alt"];
+  if (!image || !page || typeof alt !== "string" || alt.trim() === "") return null;
+  return { image, page, alt: alt.slice(0, 1024) };
+}
+
+/** L'index du site, relu sans lui faire confiance : `null` s'il n'a pas la forme attendue ; une entrée mal formée est écartée. */
+export function parseCommandes(value: unknown): CommandIndex | null {
+  const body = record(value);
+  const guideList = body?.["guide"];
+  const rivalList = body?.["rivaux"];
+  if (!body || !Array.isArray(guideList) || !Array.isArray(rivalList)) return null;
+  const guide = guideList.flatMap((item) => {
+    const entry = parseEntry(item);
+    const id = record(item)?.["id"];
+    const court = record(item)?.["court"];
+    return entry && typeof id === "string" && /^[0-9]{2}-[a-z0-9-]{1,60}$/.test(id) && typeof court === "string" && court.trim() !== "" && court.length <= 60 ? [{ ...entry, id, court }] : [];
+  });
+  const rivaux = rivalList.flatMap((item) => {
+    const entry = parseEntry(item);
+    const tag = record(item)?.["tag"];
+    const rank = record(item)?.["rank"];
+    return entry && typeof tag === "string" && /^[A-Z0-9]{1,10}$/.test(tag) && typeof rank === "number" && Number.isInteger(rank) && rank >= 1 ? [{ ...entry, tag, rank }] : [];
+  });
+  return { clan: parseEntry(body["clan"]), records: parseEntry(body["records"]), carte: parseEntry(body["carte"]), guide, rivaux };
+}
+
+/** Ce que voit tout le salon : l'image du site en grand et un bouton vers sa page. */
+export function commandImageMessage(entry: CommandEntry, label: string): Record<string, unknown> {
+  return {
+    flags: COMPONENTS_V2,
+    components: [
+      { type: 12, items: [{ media: { url: `${SITE_URL}${entry.image}` }, description: entry.alt }] },
+      { type: 1, components: [{ type: 2, style: 5, label: label.slice(0, 80), url: `${SITE_URL}${entry.page}` }] },
+    ],
+    allowed_mentions: { parse: [] },
+  };
+}
+
+const rankWords = (rank: number): string => `${rank}${rank === 1 ? "er" : "e"}`;
+
+/** Les chapitres proposés pendant la saisie : ceux dont le nom contient ce qui est tapé, dans l'ordre du guide. */
+export function guideChoices(index: CommandIndex, typed: string): { name: string; value: string }[] {
+  const query = foldName(typed);
+  return index.guide
+    .filter((c) => foldName(c.court).includes(query) || c.id.includes(query))
+    .slice(0, MAX_CHOICES)
+    .map((c) => ({ name: c.court.slice(0, 100), value: c.id }));
+}
+
+/** Le chapitre demandé : la proposition choisie porte son identifiant ; un nom tapé se reconnaît s'il ne désigne qu'un chapitre. */
+export function findChapter(index: CommandIndex, typed: string): CommandIndex["guide"][number] | null {
+  const value = typed.trim();
+  const query = foldName(value);
+  const exact = index.guide.find((c) => c.id === value) ?? index.guide.find((c) => foldName(c.court) === query);
+  if (exact) return exact;
+  if (query === "") return null;
+  const [first, second] = index.guide.filter((c) => foldName(c.court).includes(query) || c.id.includes(query));
+  return first && !second ? first : null;
+}
+
+/** Un tag tapé, avec ou sans crochets. */
+const tagOf = (typed: string): string => typed.trim().replace(/^\[|\]$/g, "").trim().toUpperCase();
+
+/** Les clans proposés pendant la saisie : les tags qui commencent par ce qui est tapé, puis ceux qui le contiennent, par rang. */
+export function rivalChoices(index: CommandIndex, typed: string): { name: string; value: string }[] {
+  const query = tagOf(typed);
+  const ranked = index.rivaux.flatMap((r) => {
+    const order = r.tag.startsWith(query) ? 0 : r.tag.includes(query) ? 1 : -1;
+    return order < 0 ? [] : [{ r, order }];
+  });
+  ranked.sort((a, b) => a.order - b.order || a.r.rank - b.r.rank);
+  return ranked.slice(0, MAX_CHOICES).map(({ r }) => ({ name: `[${r.tag}], ${rankWords(r.rank)} au classement`, value: r.tag }));
+}
+
+export const findRival = (index: CommandIndex, typed: string): CommandIndex["rivaux"][number] | null => index.rivaux.find((r) => r.tag === tagOf(typed)) ?? null;
+
+export const COMMAND_MESSAGES = {
+  wrongPlace: "Tapez cette commande dans le serveur Discord du clan.",
+  down: "Le site ne répond pas pour l'instant. Réessayez dans un moment.",
+  missing: "Pas de données pour l'instant : le site n'a pas encore cette image.",
+  guideNone: (typed: string): string => `Aucun chapitre du guide à ce nom : « ${escapeDiscord(typed)} ». Choisissez dans la liste qui s'ouvre pendant que vous tapez, ou lisez le guide : <${SITE_URL}/debuter>`,
+  rivalNone: (typed: string): string => `Aucun clan de la liste officielle, en dehors du nôtre, n'a ce tag : « ${escapeDiscord(typed)} ». Le classement : <${SITE_URL}/classement>`,
+  notMember: `Le site ne sait pas encore qui vous êtes dans le clan. Connectez-vous sur <${SITE_URL}/compte> et faites-vous reconnaître : un officier confirme ensuite que c'est bien vous. En attendant, /fiche montre la fiche de n'importe quel membre.`,
+  noPseudo: `Votre compte OpenFront n'a pas de pseudo public, donc pas de fiche. Pour en choisir un, avec le compte qui est dans le clan : <${CHOOSE_NAME_URL}>`,
+  sharedPseudo: "Deux membres du clan portent votre pseudo : le site ne sait pas laquelle des deux fiches est la vôtre. Utilisez /fiche et choisissez-la dans la liste.",
+  noFiche: "Votre fiche n'est pas encore sur le site : il relit la liste des membres une fois par jour.",
+};
+
+const entryReply = (entry: CommandEntry | null, label: string): Response => (entry ? json({ type: 4, data: commandImageMessage(entry, label) }) : ephemeral(COMMAND_MESSAGES.missing));
+
+/**
+ * /moi : le serveur donne le pseudo du membre validé lié à ce Discord, d'après la liste du clan qu'il relit (`discord_moi`,
+ * clé de service seulement) ; la fiche vient ensuite du site, comme pour /fiche. L'identifiant Discord vient de la commande
+ * signée par Discord, jamais d'autre chose.
+ */
+async function moiRoute(discordId: string, deps: Deps): Promise<Response> {
+  const found = await deps.rpc("discord_moi", { p_discord_id: discordId });
+  if (!found) return ephemeral(COMMAND_MESSAGES.down);
+  if (found["ok"] !== true) {
+    const error = found["error"];
+    return ephemeral(error === "no_pseudo" ? COMMAND_MESSAGES.noPseudo : error === "shared_pseudo" ? COMMAND_MESSAGES.sharedPseudo : COMMAND_MESSAGES.notMember);
+  }
+  const pseudo = found["pseudo"];
+  if (typeof pseudo !== "string") return ephemeral(COMMAND_MESSAGES.down);
+  const list = await deps.fiches();
+  if (!list) return ephemeral(COMMAND_MESSAGES.down);
+  // Une seule fiche à ce pseudo, sinon celle d'un autre membre pourrait partir dans le salon.
+  const [fiche, other] = list.fiches.filter((f) => foldName(f.pseudo) === foldName(pseudo));
+  if (other) return ephemeral(COMMAND_MESSAGES.sharedPseudo);
+  return fiche && fiche.pseudo === pseudo ? json({ type: 4, data: ficheMessage(fiche, list.listedAt) }) : ephemeral(COMMAND_MESSAGES.noFiche);
+}
+
+/** Les commandes du robot : les propositions pendant la saisie (type 4), puis la réponse à l'envoi (type 2). */
+async function robotRoute(name: string, interaction: Record<string, unknown>, data: Record<string, unknown>, deps: Deps): Promise<Response> {
+  if (name === FICHE_COMMAND_NAME) return ficheRoute(interaction, data, deps);
+  const typing = interaction["type"] === 4;
+  if (deps.guildId === "" || interaction["guild_id"] !== deps.guildId) return typing ? choicesReply([]) : ephemeral(COMMAND_MESSAGES.wrongPlace);
+  if (name === MOI_COMMAND) {
+    const user = record(record(interaction["member"])?.["user"]);
+    const id = user?.["id"];
+    if (typing || user?.["bot"] === true || typeof id !== "string" || !/^[0-9]{17,20}$/.test(id)) return typing ? choicesReply([]) : ephemeral(COMMAND_MESSAGES.wrongPlace);
+    return moiRoute(id, deps);
+  }
+  const index = await deps.commandes();
+  if (typing) {
+    if (!index) return choicesReply([]);
+    if (name === GUIDE_COMMAND) return choicesReply(guideChoices(index, optionValue(data, GUIDE_OPTION)));
+    if (name === RIVAL_COMMAND) return choicesReply(rivalChoices(index, optionValue(data, RIVAL_OPTION)));
+    return choicesReply([]);
+  }
+  if (!index) return ephemeral(COMMAND_MESSAGES.down);
+  switch (name) {
+    case CLAN_COMMAND:
+      return entryReply(index.clan, "Voir le classement");
+    case RECORDS_COMMAND:
+      return entryReply(index.records, "Voir les records");
+    case CARTE_COMMAND:
+      return entryReply(index.carte, "Voir la carte");
+    case GUIDE_COMMAND: {
+      const typed = optionValue(data, GUIDE_OPTION);
+      const chapter = findChapter(index, typed);
+      return chapter ? entryReply(chapter, `Lire « ${chapter.court} »`) : ephemeral(COMMAND_MESSAGES.guideNone(typed));
+    }
+    case RIVAL_COMMAND: {
+      const typed = optionValue(data, RIVAL_OPTION);
+      const rival = findRival(index, typed);
+      return rival ? entryReply(rival, "Comparer sur le site") : ephemeral(COMMAND_MESSAGES.rivalNone(typed));
+    }
+    default:
+      return ephemeral(MESSAGES.unknown);
+  }
+}
+
 async function discordRoute(req: Request, deps: Deps): Promise<Response> {
   const body = await req.text();
   const timestamp = req.headers.get("x-signature-timestamp") ?? "";
@@ -384,8 +584,9 @@ async function discordRoute(req: Request, deps: Deps): Promise<Response> {
   // Discord vérifie l'adresse avant de l'accepter : il attend la même réponse à son « ping ».
   if (interaction["type"] === 1) return json({ type: 1 });
   const data = record(interaction["data"]);
-  if (data?.["name"] === FICHE_COMMAND_NAME && (interaction["type"] === 2 || interaction["type"] === 4)) return ficheRoute(interaction, data, deps);
-  if (interaction["type"] !== 2 || data?.["name"] !== COMMAND_NAME) return ephemeral(MESSAGES.unknown);
+  const name = data?.["name"];
+  if (data && typeof name === "string" && ROBOT_COMMANDS.has(name) && (interaction["type"] === 2 || interaction["type"] === 4)) return robotRoute(name, interaction, data, deps);
+  if (interaction["type"] !== 2 || name !== COMMAND_NAME) return ephemeral(MESSAGES.unknown);
 
   const user = record(record(interaction["member"])?.["user"]);
   if (deps.guildId === "" || interaction["guild_id"] !== deps.guildId || !user) return ephemeral(MESSAGES.wrongPlace);
@@ -483,7 +684,10 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
     const probe = deps.serviceReady ? await deps.rpc("discord_code_redeem", { p_code_hash: "etat" }) : null;
     const service = probe?.["error"] === "invalid_request";
     const fiches = (await deps.fiches()) !== null;
-    return json({ ok: true, discord, service, signature: await signatureWorks(), fiches }, 200, CORS);
+    const commandes = (await deps.commandes()) !== null;
+    // De même pour /moi : un identifiant mal formé, refusé sans rien lire, prouve que discord_moi est installée.
+    const moi = deps.serviceReady ? (await deps.rpc("discord_moi", { p_discord_id: "etat" }))?.["error"] === "invalid_request" : false;
+    return json({ ok: true, discord, service, signature: await signatureWorks(), fiches, commandes, moi }, 200, CORS);
   }
   if (req.method !== "POST") return new Response("Méthode refusée.", { status: 405 });
   if (path.endsWith("/discord")) return discordRoute(req, deps);
@@ -507,43 +711,50 @@ function serviceKey(env: Env): string {
   return env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 }
 
-/** Ce que la fonction retient des fiches, par moyen de lecture : le `fetch` du moteur en vrai, un faux dans chaque test. */
-interface FichesKept {
-  list: FicheList | null;
+/** Ce que la fonction retient d'un fichier du site : sa dernière lecture réussie et son dernier échec. */
+interface Kept {
+  value: unknown;
   /** L'heure de la dernière lecture réussie. */
   at: number;
   /** L'heure du dernier échec, ou `null`. */
   failedAt: number | null;
 }
-const fichesKept = new WeakMap<typeof fetch, FichesKept>();
+/** Par moyen de lecture (le `fetch` du moteur en vrai, un faux dans chaque test), puis par adresse. */
+const keptFiles = new WeakMap<typeof fetch, Map<string, Kept>>();
 
 /**
- * Les fiches du site : gardées cinq minutes ; si le site ne répond plus, la dernière lecture de moins de deux heures. Après un
- * échec, rien n'est redemandé pendant trente secondes.
+ * Un fichier du site, les fiches ou l'index des commandes : gardé cinq minutes ; si le site ne répond plus, la dernière
+ * lecture de moins de deux heures. Après un échec, rien n'est redemandé pendant trente secondes. `label` commence les lignes
+ * du journal.
  */
-async function readFiches(fetcher: typeof fetch, log: (message: string) => void): Promise<FicheList | null> {
+async function readSiteFile<T>(fetcher: typeof fetch, url: string, parse: (value: unknown) => T | null, label: string, log: (message: string) => void): Promise<T | null> {
   const now = Date.now();
-  const kept = fichesKept.get(fetcher) ?? { list: null, at: 0, failedAt: null };
-  if (kept.list && now - kept.at < FICHES_FRESH_MS) return kept.list;
-  const lastGood = kept.list && now - kept.at < FICHES_STALE_MS ? kept.list : null;
+  let byUrl = keptFiles.get(fetcher);
+  if (!byUrl) {
+    byUrl = new Map();
+    keptFiles.set(fetcher, byUrl);
+  }
+  const kept = byUrl.get(url) ?? { value: null, at: 0, failedAt: null };
+  if (kept.value !== null && now - kept.at < FICHES_FRESH_MS) return kept.value as T;
+  const lastGood = kept.value !== null && now - kept.at < FICHES_STALE_MS ? (kept.value as T) : null;
   if (kept.failedAt !== null && now - kept.failedAt < FICHES_RETRY_MS) return lastGood;
   try {
-    const res = await fetcher(FICHES_URL, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(FICHES_TIMEOUT_MS) });
+    const res = await fetcher(url, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(FICHES_TIMEOUT_MS) });
     if (!res.ok) {
-      log(`fiches : ${res.status}`);
+      log(`${label} : ${res.status}`);
     } else {
       // Le délai court aussi pendant la lecture du corps : dépassé, il tombe dans le `catch`, comme un site injoignable.
-      const list = parseFiches(await res.json());
-      if (list) {
-        fichesKept.set(fetcher, { list, at: now, failedAt: null });
-        return list;
+      const value = parse(await res.json());
+      if (value !== null) {
+        byUrl.set(url, { value, at: now, failedAt: null });
+        return value;
       }
-      log("fiches : fichier illisible");
+      log(`${label} : fichier illisible`);
     }
   } catch (e) {
-    log(e instanceof SyntaxError ? "fiches : fichier illisible" : `fiches injoignables : ${e instanceof Error ? e.message : String(e)}`);
+    log(e instanceof SyntaxError ? `${label} : fichier illisible` : `${label} injoignables : ${e instanceof Error ? e.message : String(e)}`);
   }
-  fichesKept.set(fetcher, { ...kept, failedAt: now });
+  byUrl.set(url, { ...kept, failedAt: now });
   return lastGood;
 }
 
@@ -614,7 +825,8 @@ export function liveDeps(env: Env, fetcher: typeof fetch = fetch): Deps {
       }
       return { tokenHash, userId };
     },
-    fiches: () => readFiches(fetcher, log),
+    fiches: () => readSiteFile(fetcher, FICHES_URL, parseFiches, "fiches", log),
+    commandes: () => readSiteFile(fetcher, COMMANDES_URL, parseCommandes, "commandes", log),
   };
 }
 
