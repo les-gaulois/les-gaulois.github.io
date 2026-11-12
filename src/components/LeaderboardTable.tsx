@@ -110,7 +110,7 @@ export default function LeaderboardTable({ clans, tag }: Props) {
           onInput={(e) => setQuery(e.currentTarget.value)}
         />
       </label>
-      <p class="tnum mt-2 text-sm text-muted" role="status">
+      <p class="info-discrete tnum mt-2" role="status">
         {rows.length} clan{rows.length > 1 ? "s" : ""} sur {clans.length}
       </p>
 

@@ -45,8 +45,16 @@ export default function WeeklyPickCard({ membersSrc, fichesBase, class: placemen
   return (
     <div class={placement ? `panel ${placement}` : "panel"} data-testid="weekly-pick">
       <h3 class="text-xl">À l'honneur</h3>
-      <p class="tnum mt-1 text-sm text-muted">Choisi par l'encadrement, pour {pickWeekEnding(pick.week)}</p>
-      <p class="mt-3 font-display text-2xl font-extrabold [overflow-wrap:anywhere]">{place.kind === "link" ? <a href={place.href}>{pick.player}</a> : pick.player}</p>
+      <p class="info-discrete tnum mt-1">Choisi par l'encadrement, pour {pickWeekEnding(pick.week)}</p>
+      <p class="mt-3 font-display text-2xl font-extrabold [overflow-wrap:anywhere]">
+        {place.kind === "link" ? (
+          <a class="pseudo" href={place.href}>
+            {pick.player}
+          </a>
+        ) : (
+          pick.player
+        )}
+      </p>
       {pick.note && <p class="mt-2 max-w-3xl whitespace-pre-line text-muted [overflow-wrap:anywhere]">« {pick.note} »</p>}
     </div>
   );

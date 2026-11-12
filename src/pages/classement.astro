@@ -23,7 +23,7 @@ const near = neighbours(clans, clan.tag);
     <PageHeader title="Classement">
       <div class="mt-4">
         <DataStatus state={meta.leaderboard} maxAgeHours={MAX_AGE_HOURS.leaderboard} asOf={leaderboard?.end} asOfLabel="Classement arrêté au" />
-        {leaderboard && <p class="mt-1 text-sm text-muted">Période : {fmtDate(leaderboard.start)} au {fmtDate(leaderboard.end)}.</p>}
+        {leaderboard && <p class="info-discrete mt-1">Période : {fmtDate(leaderboard.start)} au {fmtDate(leaderboard.end)}.</p>}
       </div>
     </PageHeader>
 

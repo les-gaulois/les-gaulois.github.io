@@ -184,7 +184,21 @@ describe("gazetteEditions", () => {
 
     it("compte les arrivées de la semaine, sépare les pseudos et les anonymes, dans l'ordre d'arrivée", () => {
       const members = list(member("2026-10-29T10:00:00.000Z", "Bravo"), member("2026-10-27T10:00:00.000Z", "Alpha"), member("2026-10-28T10:00:00.000Z", null), member("2026-10-20T10:00:00.000Z", "Ancien"), member("2026-11-03T10:00:00.000Z", "Nouveau"));
-      expect(gazetteEditions(sources({ members }))[0]?.arrivals).toEqual({ count: 3, named: ["Alpha", "Bravo"], anonymous: 1 });
+      expect(gazetteEditions(sources({ members }))[0]?.arrivals).toEqual({
+        count: 3,
+        named: [
+          { username: "Alpha", id: "Alpha" },
+          { username: "Bravo", id: "Bravo" },
+        ],
+        anonymous: 1,
+      });
+    });
+    it("garde l'identifiant d'un arrivant avec pseudo, pour mener à sa fiche, et rien pour un pseudo sans fiche", () => {
+      const members = list({ ...member("2026-10-27T10:00:00.000Z", "Alpha"), publicId: "IdAlpha" }, { ...member("2026-10-28T10:00:00.000Z", "Bravo"), publicId: null });
+      expect(gazetteEditions(sources({ members }))[0]?.arrivals?.named).toEqual([
+        { username: "Alpha", id: "IdAlpha" },
+        { username: "Bravo", id: null },
+      ]);
     });
     it("n'écrit jamais d'identifiant de joueur", () => {
       const members = list({ ...member("2026-10-27T10:00:00.000Z", null), publicId: "IdSecret" });
@@ -193,8 +207,8 @@ describe("gazetteEditions", () => {
     it("range une arrivée selon l'heure de Paris", () => {
       const members = list(member("2026-11-01T23:30:00.000Z", "Lundi"), member("2026-11-01T22:30:00.000Z", "Dimanche"));
       const [latest, before] = gazetteEditions(sources({ members, completeThrough: "2026-11-08" }));
-      expect(latest?.arrivals?.named).toEqual(["Lundi"]);
-      expect(before?.arrivals?.named).toEqual(["Dimanche"]);
+      expect(latest?.arrivals?.named.map((m) => m.username)).toEqual(["Lundi"]);
+      expect(before?.arrivals?.named.map((m) => m.username)).toEqual(["Dimanche"]);
     });
     it("n'annonce pas de zéro tant que la liste ne couvre pas toute la semaine", () => {
       const arrivalsWith = (fetchedAt: string) => gazetteEditions(sources({ members: { ...list(member("2026-10-20T10:00:00.000Z", "Premier")), fetchedAt } }))[0]?.arrivals;

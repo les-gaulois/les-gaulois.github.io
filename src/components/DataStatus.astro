@@ -13,10 +13,11 @@ const { state, maxAgeHours, asOf = null, asOfLabel = "Données arrêtées au" } 
 const { lastSuccessAt, lastError, lastErrorAt } = state;
 ---
 
+{/* La date est une information de service : petite, en italique et en gris. Les avertissements, en jaune, gardent leur taille. */}
 <div class="text-sm text-muted tnum" data-last-success={lastSuccessAt ?? undefined} data-max-age-hours={maxAgeHours} data-testid="data-status">
   {
     lastSuccessAt ? (
-      <p>
+      <p class="info-discrete">
         {asOf && <>{asOfLabel} {fmtDateTime(asOf)} · </>}
         Dernière mise à jour : {fmtDateTime(lastSuccessAt)}, heure de Paris.
       </p>

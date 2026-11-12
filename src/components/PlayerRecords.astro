@@ -43,7 +43,10 @@ const tiles: { label: string; holders: RecordHolder[]; value: string; hint: stri
                       {h.username ? (
                         <span class="inline-flex items-center gap-2">
                           <span class="face-slot" aria-hidden="true" data-face={faces.has(h.username) ? h.username : undefined} hidden></span>
-                          <a href={fiche(h.id)}>{h.username}</a>
+                          {/* À plusieurs, les pseudos forment une phrase (« A, B et C ») : chacun garde un trait pâle. */}
+                          <a class:list={["pseudo", { "pseudo-phrase": t.holders.length > 1 }]} href={fiche(h.id)}>
+                            {h.username}
+                          </a>
                         </span>
                       ) : (
                         "un membre sans pseudo public"

@@ -22,10 +22,16 @@ export interface Evolution<T> {
   end: T;
 }
 
+/** Un arrivant avec un pseudo public, et l'identifiant de sa fiche quand il en a une. Un anonyme n'en a jamais. */
+export interface WeekArrival {
+  username: string;
+  id: string | null;
+}
+
 export interface WeekArrivals {
   count: number;
   /** Les pseudos publics, dans l'ordre d'arrivée. */
-  named: string[];
+  named: WeekArrival[];
   anonymous: number;
 }
 
@@ -100,7 +106,10 @@ export function gazetteEditions({ sessions, history, territory, weekTops, member
 
   const snapshots = byDate(history);
   const readings = byDate(territory);
-  const joined = [...(members?.members ?? [])].map((m) => ({ date: parisParts(m.joinedAt).date, at: m.joinedAt, username: m.username })).sort((a, b) => a.at.localeCompare(b.at));
+  // L'identifiant n'est gardé que pour un pseudo public, pour mener à sa fiche : celui d'un anonyme n'est jamais écrit.
+  const joined = [...(members?.members ?? [])]
+    .map((m) => ({ date: parisParts(m.joinedAt).date, at: m.joinedAt, username: m.username, id: m.username ? (m.publicId ?? null) : null }))
+    .sort((a, b) => a.at.localeCompare(b.at));
   const firstJoin = joined[0]?.date ?? null;
   const listDate = members ? parisParts(members.fetchedAt).date : null;
 
@@ -108,7 +117,7 @@ export function gazetteEditions({ sessions, history, territory, weekTops, member
   for (let from = last; from >= first; from = addDays(from, -7)) {
     const to = addDays(from, 6);
     const arrivals = joined.filter((m) => m.date >= from && m.date <= to);
-    const named = arrivals.flatMap((m) => (m.username ? [m.username] : []));
+    const named = arrivals.flatMap((m) => (m.username ? [{ username: m.username, id: m.id }] : []));
     // Une liste relevée avant la fin de la semaine ne connaît pas toutes ses arrivées : son décompte serait un faux chiffre.
     const known = firstJoin !== null && listDate !== null && to >= firstJoin && listDate > to;
     editions.push({

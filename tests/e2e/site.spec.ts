@@ -766,8 +766,11 @@ test("les pseudos de la page Membres se touchent du doigt", async ({ page }, tes
   const tierLink = page.getByTestId("win-tier").locator("a").first();
   if ((await tierLink.count()) > 0) {
     expect((await tierLink.boundingBox())!.height).toBeGreaterThanOrEqual(24);
-    // Plus haut, il garde l'allure d'un lien : souligné, de la couleur des liens.
-    expect(await tierLink.evaluate((a) => getComputedStyle(a).textDecorationLine)).toBe("underline");
+    // Plus haut, il garde l'allure des pseudos du site : blanc, sans trait, jaune et souligné au survol.
+    expect(await tierLink.evaluate((a) => getComputedStyle(a).textDecorationLine)).toBe("none");
+    await tierLink.hover();
+    await expect(tierLink).toHaveCSS("color", "rgb(255, 200, 87)");
+    await expect(tierLink).toHaveCSS("text-decoration-line", "underline");
   }
   // L'encadrement : toute la ligne mène à la fiche, jusqu'au bord opposé au pseudo.
   const staff = page.getByTestId("command-member").filter({ has: page.locator("a") }).first();
@@ -784,6 +787,47 @@ test("les pseudos de la page Membres se touchent du doigt", async ({ page }, tes
   await card.scrollIntoViewIfNeeded();
   const box = (await card.boundingBox())!;
   expect(await linkAt(page, box.x + box.width - 8, box.y + box.height - 8)).toBe(await card.locator("a").getAttribute("href"));
+});
+
+test("un pseudo qui mène à une fiche a la même allure sur toutes les pages", async ({ page }) => {
+  // Remarque reçue le 12 novembre 2026 : un pseudo avait trois allures selon la page (bleu souligné, blanc souligné, blanc
+  // en gras). Tous portent la classe `pseudo` : blancs, jaunes et soulignés au survol.
+  let seen = 0;
+  for (const path of ["/", "/gazette", "/records", "/membres", "/liste"]) {
+    await page.goto(path);
+    await hydrated(page);
+    if (path === "/liste") await expect(page.locator("main a.pseudo").first()).toBeAttached();
+    const links = await page.locator("main").evaluate((main) =>
+      [...main.querySelectorAll<HTMLAnchorElement>("a[href]")]
+        .filter((a) => /\/membres\/[^/#?]+/.test(a.getAttribute("href") ?? ""))
+        .map((a) => ({ href: a.getAttribute("href"), pseudo: a.classList.contains("pseudo"), color: getComputedStyle(a).color })),
+    );
+    for (const link of links) {
+      expect(link.pseudo, `${path} : ${link.href}`).toBe(true);
+      expect(link.color, `${path} : ${link.href}`).toBe("rgb(255, 255, 255)");
+    }
+    seen += links.length;
+    // Au milieu d'une phrase, un pseudo garde un trait pâle : sa couleur seule ne le distinguerait pas du texte (WCAG 1.4.1).
+    const inSentence = await page.locator("main a.pseudo-phrase").evaluateAll((list) => list.map((a) => getComputedStyle(a).textDecorationLine));
+    for (const line of inSentence) expect(line, path).toBe("underline");
+  }
+  expect(seen).toBeGreaterThan(0);
+});
+
+test("les jauges n'ont qu'une couleur, et la date de mise à jour reste discrète", async ({ page }) => {
+  // Remarque reçue le 12 novembre 2026 : une jauge passait du bleu au blanc, celle de GAL par les trois couleurs.
+  for (const path of ["/activite", "/rivaux"]) {
+    await page.goto(path);
+    const bars = await page.locator("main .meter > i").evaluateAll((list) => list.map((i) => getComputedStyle(i).backgroundImage));
+    expect(bars.length, path).toBeGreaterThan(0);
+    for (const image of bars) expect(image, path).toBe("none");
+  }
+  // La date de mise à jour : toujours écrite, en petit, en italique et en gris.
+  await page.goto("/classement");
+  const date = page.getByTestId("data-status").locator("p").first();
+  await expect(date).toContainText("Dernière mise à jour");
+  await expect(date).toHaveCSS("font-style", "italic");
+  await expect(date).toHaveCSS("font-size", "13px");
 });
 
 test("le bloc de jeu en groupe mène au Discord", async ({ page }) => {
@@ -1342,7 +1386,7 @@ test("Ma place ne charge la liste qu'à la demande, et retient seulement le pseu
   await field.fill(named.username);
   await expect(result).toContainText(named.username);
   await expect(page.getByTestId("my-place-tier")).toContainText("Prochain palier");
-  await expect(result.getByRole("link", { name: named.username })).toHaveAttribute("href", new RegExp(`/membres/${named.publicId}$`));
+  await expect(result.getByRole("link", { name: named.username, exact: true }).first()).toHaveAttribute("href", new RegExp(`/membres/${named.publicId}$`));
 
   // Chercher un pseudo ne le retient pas.
   await page.reload();
@@ -1884,7 +1928,12 @@ test("l'accueil nomme les Gaulois de la semaine d'après la dernière gazette, s
     expect(digits((await arrivals.locator("strong").textContent())?.split("arrivée")[0] ?? "")).toBe(String(latest.arrivals.count));
     // Le périmètre du chiffre reste écrit : seuls ceux encore dans le clan sont comptés.
     await expect(arrivals).toContainText("encore dans le clan");
-    if (latest.arrivals.named[0]) await expect(arrivals).toContainText(latest.arrivals.named[0]);
+    const first = latest.arrivals.named[0];
+    if (first) {
+      await expect(arrivals).toContainText(first.username);
+      // Le pseudo d'un arrivant mène à sa fiche, comme partout sur le site (remarque reçue le 12 novembre 2026).
+      if (first.id) await expect(arrivals.getByRole("link", { name: first.username, exact: true }).first()).toHaveAttribute("href", `/membres/${encodeURIComponent(first.id)}`);
+    }
   } else {
     await expect(arrivals).toHaveCount(0);
   }

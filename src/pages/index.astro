@@ -186,7 +186,7 @@ const imageAlt = hasImage && imageFacts ? accueilImageAlt(imageFacts, clan.tag, 
       }
       {
         me && near && (near.above || near.below) && (
-          <ul class="tnum mt-6 flex flex-wrap gap-x-8 gap-y-1 font-semibold" data-testid="home-race">
+          <ul class="tnum mt-6 flex flex-wrap gap-x-8 gap-y-1" data-testid="home-race">
             {near.above && <li>{fmtScore(near.above.gap)} de retard sur [{near.above.clan.clanTag}], {fmtRank(near.above.clan.rank)}</li>}
             {near.below && <li>{fmtScore(near.below.gap)} d'avance sur [{near.below.clan.clanTag}], {fmtRank(near.below.clan.rank)}</li>}
           </ul>

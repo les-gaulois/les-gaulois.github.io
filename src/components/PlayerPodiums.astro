@@ -48,10 +48,10 @@ const boards: { title: string; rows: PodiumPlace[]; testId: string }[] = podiums
                     <li class="grid grid-cols-[3rem_minmax(0,1fr)_auto] items-center gap-x-2 sm:gap-x-3" data-testid="podium-row">
                       <span class="font-display text-xl font-extrabold">{fmtRank(row.place)}</span>
                       <span class="min-w-0 [overflow-wrap:anywhere]">
-                        <span class="text-lg font-semibold">
+                        <span class="text-lg">
                           {/* Vide pour un visiteur : la photo Discord d'un membre qui se montre, pour un membre validé connecté (src/scripts/visages.ts). */}
                           <span class="face-slot mr-2" aria-hidden="true" data-face={faces.has(row.username) ? row.username : undefined} hidden></span>
-                          <a href={fiche(row.id)}>{row.username}</a>
+                          <a class="pseudo" href={fiche(row.id)}>{row.username}</a>
                         </span>
                         <span class="tnum block text-xs text-muted" data-testid="podium-dates">{podiumDates(row)}</span>
                       </span>
@@ -67,7 +67,7 @@ const boards: { title: string; rows: PodiumPlace[]; testId: string }[] = podiums
             </div>
           ))}
         </div>
-        <p class="tnum mt-6 max-w-3xl text-sm text-muted" data-testid="podiums-period">
+        <p class="info-discrete tnum mt-6 max-w-3xl" data-testid="podiums-period">
           Parties depuis le {fmtDate(`${podiums.since}T12:00:00Z`)}.{podiums.pending > 0 && ` L'historique de ${fmtCount(podiums.pending, "joueur")} se lit encore : ces podiums vont changer.`}
         </p>
         <ReadingNote>

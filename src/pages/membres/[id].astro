@@ -121,7 +121,7 @@ const tiles = member.team
         <section class="stage stage-indigo reveal mt-6" aria-labelledby="member-group-title" data-testid="member-group">
           <h2 id="member-group-title" class="section-title">Seul ou en groupe</h2>
           {groupLine && (
-            <p class="mt-4 max-w-3xl text-lg font-semibold" data-testid="member-group-line">
+            <p class="mt-4 max-w-3xl text-lg" data-testid="member-group-line">
               {groupLine}
             </p>
           )}
@@ -217,7 +217,7 @@ const tiles = member.team
                     </tbody>
                   </table>
                 </div>
-              <p class="mt-4 max-w-3xl text-sm text-muted">Relevé le {atDay(recent.readOn)}{recent.seen !== games && " : ses parties les plus récentes n'y sont pas encore"}.</p>
+              <p class="info-discrete mt-4 max-w-3xl">Relevé le {atDay(recent.readOn)}{recent.seen !== games && " : ses parties les plus récentes n'y sont pas encore"}.</p>
               <ReadingNote>
                 <p>
                   Le résultat est celui qu'OpenFront compte pour ce joueur : s'il quitte la partie avant la fin, une victoire de son équipe peut compter comme une défaite pour lui. La fiche n'affiche que le jour, mais la page <a href={`${base}/parties`}>Dernières parties</a> permet souvent de retrouver cette partie, avec son heure et son lien vers OpenFront.{recent.recent.some((game) => game.date < joinedOn) && " Certaines parties sont antérieures à son arrivée dans la liste officielle."}

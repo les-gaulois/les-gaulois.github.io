@@ -31,7 +31,7 @@ function Name({ m, stretch = false }: { m: StoredMember; stretch?: boolean }) {
   if (!m.username) return <span class="text-muted italic">Membre anonyme</span>;
   return (
     <a
-      class={`font-semibold underline-offset-2 hover:underline${stretch ? " after:absolute after:inset-0 after:content-['']" : ""}`}
+      class={`pseudo${stretch ? " after:absolute after:inset-0 after:content-['']" : ""}`}
       href={`${BASE}/membres/${encodeURIComponent(m.publicId ?? "")}`}
     >
       {m.username}
@@ -180,7 +180,7 @@ export default function MembersTable({ src }: { src: string }) {
           </button>
         </div>
       </div>
-      <p class="tnum mt-2 text-sm text-muted" role="status" data-testid="member-count">
+      <p class="info-discrete tnum mt-2" role="status" data-testid="member-count">
         {fmtInt(rows.length)} résultat{rows.length > 1 ? "s" : ""}, {fmtInt(visible.length)} affiché{visible.length > 1 ? "s" : ""}
       </p>
 

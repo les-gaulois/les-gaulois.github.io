@@ -39,6 +39,8 @@ const milestonesWhen = milestones === null ? "" : milestones.when === "current" 
 const fiche = (id: string) => `${base}/membres/${encodeURIComponent(id)}`;
 const arrivalNames = arrivals ? arrivals.named.slice(0, NAMES_SHOWN) : [];
 const arrivalRest = arrivals ? restAfter(arrivals.count, arrivalNames.length) : null;
+// Les pseudos des arrivants mènent à leur fiche : la phrase se termine par un point, sauf si son dernier mot en porte un.
+const arrivalDot = (arrivalRest ?? arrivalNames.at(-1)?.username ?? "").endsWith(".") ? "" : ".";
 const hasFeed = milestones !== null || records.length > 0 || territoryRecord !== null || bestGame !== null || (arrivals !== null && arrivals.count > 0);
 // Podium et fil côte à côte sur grand écran. Avec le serveur, le seul cas où le Gaulois mis à l'honneur peut paraître,
 // le fil, plus long, tient deux rangées, et ce Gaulois prend la place libre sous le podium.
@@ -51,7 +53,7 @@ const faces = singlePseudos(loadMembers()?.members ?? []);
 
 <section class="stage stage-indigo reveal" aria-labelledby="week-title" data-testid="home-week">
   <h2 id="week-title" class="section-title section-title-sm">Les Gaulois de la semaine</h2>
-  <p class="tnum mt-4 text-sm font-semibold text-muted">Semaine {week}</p>
+  <p class="info-discrete tnum mt-4">Semaine {week}</p>
   <p class="mt-1 max-w-3xl text-lg text-muted" data-testid="home-week-lead">{editionLead(edition, clan.tag, { standing: false })}</p>
 
 
@@ -64,10 +66,10 @@ const faces = singlePseudos(loadMembers()?.members ?? []);
             {players.map((p) => (
               <li class="flex flex-wrap items-baseline gap-x-3 [overflow-wrap:anywhere]" data-testid="home-podium-player">
                 <span class="w-12 flex-none font-display text-lg font-extrabold">{fmtRank(p.place)}</span>
-                <span class="min-w-0 text-lg font-semibold">
+                <span class="min-w-0 text-lg">
                   {/* Vide pour un visiteur : la photo Discord d'un membre qui se montre, pour un membre validé connecté (src/scripts/visages.ts). */}
                   <span class="face-slot mr-2" aria-hidden="true" data-face={faces.has(p.username) ? p.username : undefined} hidden></span>
-                  <a href={fiche(p.id)}>{p.username}</a>
+                  <a class="pseudo" href={fiche(p.id)}>{p.username}</a>
                 </span>
                 <span class="ml-auto text-sm text-muted">{fmtCount(p.wins, "victoire")}</span>
               </li>
@@ -81,9 +83,9 @@ const faces = singlePseudos(loadMembers()?.members ?? []);
                   {active.map((p) => (
                     <li class="flex flex-wrap items-baseline gap-x-3 [overflow-wrap:anywhere]" data-testid="home-active-player">
                       <span class="w-12 flex-none font-display text-lg font-extrabold">{fmtRank(p.place)}</span>
-                      <span class="min-w-0 text-lg font-semibold">
+                      <span class="min-w-0 text-lg">
                         <span class="face-slot mr-2" aria-hidden="true" data-face={faces.has(p.username) ? p.username : undefined} hidden></span>
-                        <a href={fiche(p.id)}>{p.username}</a>
+                        <a class="pseudo" href={fiche(p.id)}>{p.username}</a>
                       </span>
                       <span class="ml-auto text-sm text-muted">{fmtCount(p.games, "partie")}</span>
                     </li>
@@ -103,7 +105,7 @@ const faces = singlePseudos(loadMembers()?.members ?? []);
           <ul class="mt-3 space-y-3">
             {milestones && (
               <li class="tnum [overflow-wrap:anywhere]" data-testid="home-feed-milestones">
-                <strong>Paliers franchis {endSentence(milestonesWhen)}</strong>{" "}
+                <strong class="font-normal text-white">Paliers franchis {endSentence(milestonesWhen)}</strong>{" "}
                 <span class="text-muted">
                   {milestones.groups.map((group, g) => (
                     <>
@@ -112,7 +114,7 @@ const faces = singlePseudos(loadMembers()?.members ?? []);
                       {group.players.map((p, i) => (
                         <>
                           {i > 0 && ", "}
-                          <a href={fiche(p.id)}>{p.username}</a>
+                          <a class="pseudo pseudo-phrase" href={fiche(p.id)}>{p.username}</a>
                         </>
                       ))}
                     </>
@@ -122,12 +124,12 @@ const faces = singlePseudos(loadMembers()?.members ?? []);
             )}
             {records.length > 0 && (
               <li class="tnum" data-testid="home-feed-records">
-                <strong>{records.length > 1 ? "Records du clan battus." : "Record du clan battu."}</strong> <span class="text-muted">{records.map(capital).map(endSentence).join(" ")}</span>
+                <strong class="font-normal text-white">{records.length > 1 ? "Records du clan battus." : "Record du clan battu."}</strong> <span class="text-muted">{records.map(capital).map(endSentence).join(" ")}</span>
               </li>
             )}
             {territoryRecord && (
               <li class="tnum" data-testid="home-feed-territory">
-                <strong>
+                <strong class="font-normal text-white">
                   Plus grand territoire sur la <a href={`${base}/carte`}>carte des clans</a>.
                 </strong>{" "}
                 <span class="text-muted">{endSentence(territoryRecord)}</span>
@@ -135,15 +137,35 @@ const faces = singlePseudos(loadMembers()?.members ?? []);
             )}
             {bestGame && (
               <li class="tnum" data-testid="home-best-game">
-                <strong>La belle partie d'hier.</strong> <span class="text-muted">{bestGame}</span>
+                <strong class="font-normal text-white">La belle partie d'hier.</strong> <span class="text-muted">{bestGame}</span>
               </li>
             )}
             {arrivals && arrivals.count > 0 && (
               <li class="tnum [overflow-wrap:anywhere]" data-testid="home-feed-arrivals">
-                <strong>
+                <strong class="font-normal text-white">
                   {fmtInt(arrivals.count)} {arrivals.count > 1 ? "arrivées" : "arrivée"} la semaine {week}, encore dans le clan.
                 </strong>
-                {arrivalNames.length > 0 && <span class="text-muted"> {endSentence([arrivalNames.join(", "), arrivalRest].filter(Boolean).join(" "))}</span>}
+                {
+                  arrivalNames.length > 0 && (
+                    <span class="text-muted">
+                      {" "}
+                      {arrivalNames.map((p, i) => (
+                        <>
+                          {i > 0 && ", "}
+                          {p.id ? (
+                            <a class="pseudo pseudo-phrase" href={fiche(p.id)}>
+                              {p.username}
+                            </a>
+                          ) : (
+                            p.username
+                          )}
+                        </>
+                      ))}
+                      {arrivalRest && ` ${arrivalRest}`}
+                      {arrivalDot}
+                    </span>
+                  )
+                }
               </li>
             )}
           </ul>

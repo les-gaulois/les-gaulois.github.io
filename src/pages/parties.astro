@@ -58,7 +58,7 @@ const { rows, sides, coverage } = clanJournal({
           {coverage.read < coverage.total && <p class="tnum mt-2 text-sm text-muted" data-testid="journal-coverage">Détail lu pour {fmtInt(coverage.read)} parties sur {fmtInt(coverage.total)}.</p>}
           <MapNamesCredit />
           <div class="mt-4">
-            <p class="text-sm font-semibold text-muted">Le détail des parties</p>
+            <p class="info-discrete">Le détail des parties</p>
             <DataStatus state={meta.games} maxAgeHours={MAX_AGE_HOURS.games} />
           </div>
         </>

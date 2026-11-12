@@ -88,9 +88,10 @@ describe("gazettePayload", () => {
   });
 
   it("donne le nombre d'arrivées sans citer les arrivants", () => {
-    const e = edition({ arrivals: { count: 92, named: ["Secret.1234"], anonymous: 91 } });
+    const e = edition({ arrivals: { count: 92, named: [{ username: "Secret.1234", id: "IdSecret" }], anonymous: 91 } });
     expect(field(e, "Arrivées")).toBe("**92** encore dans le clan");
     expect(JSON.stringify(gazettePayload(e, "GAL", "https://x.test"))).not.toContain("Secret.1234");
+    expect(JSON.stringify(gazettePayload(e, "GAL", "https://x.test"))).not.toContain("IdSecret");
   });
 
   it("met en valeur les joueurs de la semaine, une même médaille pour une même place", () => {

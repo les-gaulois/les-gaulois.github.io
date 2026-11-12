@@ -118,7 +118,7 @@ const tiles: { key: RecordKey; label: string; value: string; hint: string }[] = 
               <li class="min-w-0 [overflow-wrap:anywhere]" data-testid="gazette-player">
                 <span class="text-muted">{fmtRank(p.place)}</span>{" "}
                 <span class="face-slot mr-1.5" aria-hidden="true" data-face={faces.has(p.username) ? p.username : undefined} hidden></span>
-                <a href={`${base}/membres/${encodeURIComponent(p.id)}`}>{p.username}</a>
+                <a class="pseudo" href={`${base}/membres/${encodeURIComponent(p.id)}`}>{p.username}</a>
                 <span class="block text-sm text-muted">{fmtCount(p.wins, "victoire")}</span>
               </li>
             ))}
@@ -130,7 +130,7 @@ const tiles: { key: RecordKey; label: string; value: string; hint: string }[] = 
                 <ol class="tnum mt-2 grid gap-x-6 gap-y-2 sm:grid-cols-3">
                   {active.map((p) => (
                     <li class="min-w-0 [overflow-wrap:anywhere]" data-testid="gazette-active">
-                      <span class="text-muted">{fmtRank(p.place)}</span> <span class="face-slot mr-1.5" aria-hidden="true" data-face={faces.has(p.username) ? p.username : undefined} hidden></span><a href={`${base}/membres/${encodeURIComponent(p.id)}`}>{p.username}</a>
+                      <span class="text-muted">{fmtRank(p.place)}</span> <span class="face-slot mr-1.5" aria-hidden="true" data-face={faces.has(p.username) ? p.username : undefined} hidden></span><a class="pseudo" href={`${base}/membres/${encodeURIComponent(p.id)}`}>{p.username}</a>
                       <span class="block text-sm text-muted">{fmtCount(p.games, "partie")}</span>
                     </li>
                   ))}
@@ -146,7 +146,7 @@ const tiles: { key: RecordKey; label: string; value: string; hint: string }[] = 
                 <ul class="tnum mt-2 grid gap-x-6 gap-y-2 sm:grid-cols-3">
                   {milestones.map((p) => (
                     <li class="min-w-0 [overflow-wrap:anywhere]" data-testid="gazette-milestone">
-                      <a href={`${base}/membres/${encodeURIComponent(p.id)}`}>{p.username}</a>
+                      <a class="pseudo" href={`${base}/membres/${encodeURIComponent(p.id)}`}>{p.username}</a>
                       <span class="block text-sm text-muted">{fmtCount(p.tier, "victoire")}</span>
                     </li>
                   ))}
@@ -174,10 +174,23 @@ const tiles: { key: RecordKey; label: string; value: string; hint: string }[] = 
           {arrivals.named.length > 0 && (
             <details class="mt-2 text-sm">
               <summary class="cursor-pointer font-semibold">Voir {arrivals.named.length > 1 ? `les ${fmtInt(arrivals.named.length)} pseudos` : "le pseudo"}</summary>
-              <p class="mt-2 text-muted [overflow-wrap:anywhere]" data-testid="gazette-names">{arrivals.named.join(", ")}</p>
+              {/* Chaque pseudo mène à sa fiche, comme dans les paliers : un par ligne de lien, assez haut pour le doigt. */}
+              <ul class="mt-1 flex flex-wrap gap-x-4" data-testid="gazette-names">
+                {arrivals.named.map((p) => (
+                  <li class="min-w-0 [overflow-wrap:anywhere]">
+                    {p.id ? (
+                      <a class="pseudo inline-block py-1.5" href={`${base}/membres/${encodeURIComponent(p.id)}`}>
+                        {p.username}
+                      </a>
+                    ) : (
+                      <span class="inline-block py-1.5 text-muted">{p.username}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
             </details>
           )}
-          <p class="mt-2 text-xs text-muted">Encore dans le clan{membersAt ? ` le ${fmtDate(membersAt)}` : ""}.{members !== null && ` Effectif le ${fmtDay(standing?.end.date ?? "")} : ${fmtInt(members)}.`}</p>
+          <p class="info-discrete mt-2">Encore dans le clan{membersAt ? ` le ${fmtDate(membersAt)}` : ""}.{members !== null && ` Effectif le ${fmtDay(standing?.end.date ?? "")} : ${fmtInt(members)}.`}</p>
         </>
       ) : (
         <>

@@ -52,9 +52,9 @@ const jumps = [
                   <span class="avatar overflow-hidden" aria-hidden="true" data-face={m.username && faces.has(m.username) ? m.username : undefined}>{m.username?.charAt(0) ?? "?"}</span>
                   <span class="min-w-0">
                     {m.username && m.publicId ? (
-                      <a class="block truncate after:absolute after:inset-0 after:content-['']" href={`${base}/membres/${encodeURIComponent(m.publicId)}`}>{m.username}</a>
+                      <a class="pseudo block truncate after:absolute after:inset-0 after:content-['']" href={`${base}/membres/${encodeURIComponent(m.publicId)}`}>{m.username}</a>
                     ) : (
-                      <span class="block truncate font-semibold">Membre anonyme</span>
+                      <span class="block truncate italic text-muted">Membre anonyme</span>
                     )}
                     <span class="block text-xs text-muted">{ROLE[m.role]}</span>
                   </span>

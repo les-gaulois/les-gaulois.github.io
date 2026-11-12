@@ -82,7 +82,7 @@ describe("gazetteCard", () => {
 
   it("donne la carte, le classement et les arrivées, datés", () => {
     const end = { date: "2026-11-08", pixels: 121976, rank: 4, final: true };
-    const text = words(gazetteCard(edition({ standing: { start: null, end: snap("2026-11-08", 2) }, territory: { start: { ...end, date: "2026-11-01", pixels: 53077 }, end }, arrivals: { count: 92, named: ["Secret.1"], anonymous: 91 } }), "GAL", SITE, measure));
+    const text = words(gazetteCard(edition({ standing: { start: null, end: snap("2026-11-08", 2) }, territory: { start: { ...end, date: "2026-11-01", pixels: 53077 }, end }, arrivals: { count: 92, named: [{ username: "Secret.1", id: "IdSecret" }], anonymous: 91 } }), "GAL", SITE, measure));
     for (const expected of ["Carte, le 8 nov.", "4e avec 121 976 pixels", "+68 899 depuis le 1 nov.", "Classement, le 8 nov.", "officiel, sur 90 jours", "2e", "Arrivées", "92", "encore dans le clan"]) expect(text).toContain(expected);
     expect(text.join(" ")).not.toContain("Secret.1");
   });

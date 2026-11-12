@@ -12,13 +12,22 @@ type State = { status: "loading" } | { status: "error" } | { status: "ready"; da
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const ordinal = (n: number) => `${n}${n === 1 ? "er" : "e"}`;
 const nameOf = (m: StoredMember) => m.username ?? "un membre anonyme";
+/** Un pseudo cité dans une phrase mène à sa fiche, comme partout sur le site ; un membre sans fiche garde son nom écrit. */
+function Name({ m }: { m: StoredMember }) {
+  if (!m.username || !m.publicId) return <>{nameOf(m)}</>;
+  return (
+    <a class="pseudo pseudo-phrase" href={`${BASE}/membres/${encodeURIComponent(m.publicId)}`}>
+      {m.username}
+    </a>
+  );
+}
 
 /** La place d'un membre : aussi montrée au QG, dans l'onglet « Moi », où le site connaît déjà le membre. */
 export function Result({ members, member }: { members: readonly StoredMember[]; member: StoredMember }) {
   const place = placeOf(members, member);
   if (!place) {
     return (
-      <p class="mt-4 font-semibold" data-testid="my-place-result">
+      <p class="mt-4" data-testid="my-place-result">
         {member.username} : pas de données pour ce membre.
       </p>
     );
@@ -26,7 +35,7 @@ export function Result({ members, member }: { members: readonly StoredMember[]; 
   const games = gamesOf(member) ?? 0;
   if (games === 0) {
     return (
-      <p class="mt-4 font-semibold" data-testid="my-place-result">
+      <p class="mt-4" data-testid="my-place-result">
         {member.username} : aucune partie sous le tag pour l'instant. Une victoire avec le tag GAL, et vous entrez dans le classement.
       </p>
     );
@@ -36,8 +45,14 @@ export function Result({ members, member }: { members: readonly StoredMember[]; 
   return (
     <div class="mt-4 grid gap-4 sm:grid-cols-2" data-testid="my-place-result">
       <div>
-        <p class="truncate text-sm font-semibold text-muted">
-          {member.publicId ? <a href={`${BASE}/membres/${encodeURIComponent(member.publicId)}`}>{member.username}</a> : member.username}
+        <p class="truncate text-sm">
+          {member.publicId ? (
+            <a class="pseudo" href={`${BASE}/membres/${encodeURIComponent(member.publicId)}`}>
+              {member.username}
+            </a>
+          ) : (
+            <span class="text-muted">{member.username}</span>
+          )}
         </p>
         {/* `console-valeur` : au QG (onglet « Moi »), le grand chiffre de la console, avec sa lueur ; sans effet sur l'accueil. */}
         <p class="console-valeur tnum font-display text-4xl font-extrabold">{ordinal(place.rank)}</p>
@@ -54,7 +69,9 @@ export function Result({ members, member }: { members: readonly StoredMember[]; 
       <div>
         {place.next && place.missing !== null ? (
           <>
-            <p class="font-semibold">Prochain à dépasser : {nameOf(place.next)}</p>
+            <p>
+              Prochain à dépasser : <Name m={place.next} />
+            </p>
             <p class="tnum text-sm text-muted">
               Encore {fmtInt(place.missing)} {place.missing > 1 ? "victoires" : "victoire"} sous le tag.
             </p>
@@ -63,11 +80,11 @@ export function Result({ members, member }: { members: readonly StoredMember[]; 
             </div>
           </>
         ) : (
-          <p class="font-semibold">Personne devant : vous menez le clan aux victoires sous le tag.</p>
+          <p>Personne devant : vous menez le clan aux victoires sous le tag.</p>
         )}
         {place.behind && place.lead !== null && (
           <p class="tnum mt-2 text-sm text-muted">
-            Juste derrière : {nameOf(place.behind)}, à {fmtInt(place.lead)} {place.lead > 1 ? "victoires" : "victoire"}.
+            Juste derrière : <Name m={place.behind} />, à {fmtInt(place.lead)} {place.lead > 1 ? "victoires" : "victoire"}.
           </p>
         )}
       </div>
