@@ -38,7 +38,8 @@ export function Result({ members, member }: { members: readonly StoredMember[]; 
         <p class="truncate text-sm font-semibold text-muted">
           {member.publicId ? <a href={`${BASE}/membres/${encodeURIComponent(member.publicId)}`}>{member.username}</a> : member.username}
         </p>
-        <p class="tnum font-display text-4xl font-extrabold">{ordinal(place.rank)}</p>
+        {/* `console-valeur` : au QG (onglet « Moi »), le grand chiffre de la console, avec sa lueur ; sans effet sur l'accueil. */}
+        <p class="console-valeur tnum font-display text-4xl font-extrabold">{ordinal(place.rank)}</p>
         <p class="tnum text-sm text-muted">sur {fmtInt(place.ranked)} membres, aux victoires sous le tag</p>
         <p class="tnum mt-2 text-sm">
           {fmtInt(place.wins)} victoires · {fmtInt(member.team?.losses ?? 0)} défaites · {fmtPct(rateOf(member))}

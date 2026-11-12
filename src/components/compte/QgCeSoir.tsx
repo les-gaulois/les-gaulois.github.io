@@ -43,7 +43,7 @@ export default function QgCeSoir({ plans, busy, problem, onChoose }: { plans: Qg
             const others = planOthersLabel(hour.count, hour.faces.length);
             return (
               <li key={hour.at} class={`card p-5 ${peak && sameHour(peak.at, hour.at) ? "!border-line-strong" : ""}`}>
-                <p class="font-display text-3xl font-extrabold tnum">{planLabel(hour.at, now)}</p>
+                <p class="console-valeur font-display text-3xl font-extrabold tnum">{planLabel(hour.at, now)}</p>
                 <p class="tnum text-muted">{counted(hour.count, "Gaulois", "Gaulois")}</p>
                 {hour.faces.length > 0 && (
                   <ul class="mt-3 flex flex-wrap gap-x-4 gap-y-2" aria-label={`Ils jouent : ${planLabel(hour.at, now)}`}>

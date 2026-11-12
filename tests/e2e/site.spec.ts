@@ -140,6 +140,45 @@ test("seules les pages de l'encadrement passent au rouge", async ({ page }, test
   }
 });
 
+// Au QG, les phrases, les dates et les tableaux portent des chiffres (.tnum) : le 12 novembre 2026, une règle les mettait
+// tous en vert, et le pilote a trouvé « un peu trop de vert dans les écritures ». Comme sur la page Carte, le vert n'y est
+// plus que la voix de la machine (invite, ligne de commande d'une partie, « ~/qg », « > », icônes) ; la Direction garde ses
+// chiffres verts. Les tests construisent le site sans serveur de connexion : le QG n'y montre que sa porte. Le contrôle
+// pose donc dans chaque page le balisage des écrans connectés (une phrase, un texte, un tableau, un grand chiffre).
+test("au QG, aucun texte ni chiffre n'est vert ; la Direction garde ses chiffres verts", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "Même rendu sur mobile.");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const SONDES = ["phrase", "texte", "tableau", "grand"];
+  const couleurs = async (path: string) => {
+    await page.goto(path);
+    return page.evaluate(() => {
+      const sonde = document.createElement("div");
+      sonde.innerHTML = `
+        <p data-sonde="phrase" class="tnum text-sm text-muted">Mis à jour le 11 nov. 2026</p>
+        <p data-sonde="texte" class="tnum">3 sur 12 membres reconnus se montrent.</p>
+        <table class="tnum"><tbody><tr><td data-sonde="tableau">2 311</td></tr></tbody></table>
+        <p data-sonde="grand" class="console-valeur tnum font-display text-4xl font-extrabold">40e</p>
+        <span data-sonde="vert" style="color: var(--console-vert)">vert</span>`;
+      document.querySelector(".espace")!.append(sonde);
+      const lu: Record<string, string> = {};
+      for (const el of sonde.querySelectorAll<HTMLElement>("[data-sonde]")) lu[el.dataset.sonde ?? ""] = getComputedStyle(el).color;
+      const hote = document.querySelector(".console-hote");
+      lu.hote = hote ? getComputedStyle(hote).color : "";
+      lu.espace = getComputedStyle(document.querySelector(".espace")!).color;
+      sonde.remove();
+      return lu;
+    });
+  };
+  const qg = await couleurs("/qg");
+  // Une vraie couleur, et pas celle du texte de la page : sans quoi le contrôle ne prouverait rien.
+  expect(qg.vert).toBeTruthy();
+  expect(qg.vert).not.toBe(qg.espace);
+  expect(qg.hote, "l'invite du QG reste verte").toBe(qg.vert);
+  for (const sonde of SONDES) expect(qg[sonde], `QG, ${sonde}`).not.toBe(qg.vert);
+  const direction = await couleurs("/direction");
+  for (const sonde of SONDES) expect(direction[sonde], `Direction, ${sonde}`).toBe(direction.vert);
+});
+
 // Le poste de commandement (docs/DESIGN.md) : depuis le 12 novembre 2026, la chasse fixe de la console est préchargée sur
 // toutes les pages, chacune a son invite décorative, et une lumière passe une fois sur le titre. La Direction et le QG
 // gardent leur console. La pause comme « réduire les animations » arrêtent l'invite, la lumière du titre, la chute du

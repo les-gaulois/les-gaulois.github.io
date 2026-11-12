@@ -214,7 +214,7 @@ export default function QgSimulateur() {
           <h3 id="sim-resultat" class="text-xl">
             Au rythme choisi, le {fmtLongDay(end)}
           </h3>
-          <p class="font-display text-5xl font-extrabold tnum" data-testid="sim-score">
+          <p class="console-valeur font-display text-5xl font-extrabold tnum" data-testid="sim-score">
             {approx(galEnd)}
           </p>
           <p class="tnum text-lg">

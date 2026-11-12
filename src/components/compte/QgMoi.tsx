@@ -42,7 +42,7 @@ export default function QgMoi({ me, members, file }: { me: QgTools["me"]; member
           {gained !== undefined && file?.gains && (
             <div class="card p-5" data-testid="qg-moi-semaine">
               <p class="text-sm font-semibold text-muted">Cette semaine</p>
-              <p class="font-display text-4xl font-extrabold tnum">
+              <p class="console-valeur font-display text-4xl font-extrabold tnum">
                 +{fmtInt(gained)} <span class="text-xl text-muted">{gained > 1 ? "victoires" : "victoire"}</span>
               </p>
               <p class="tnum mt-1 text-sm text-muted">
@@ -53,7 +53,7 @@ export default function QgMoi({ me, members, file }: { me: QgTools["me"]; member
           {me.gg > 0 && (
             <div class="card p-5" data-testid="qg-moi-gg">
               <p class="text-sm font-semibold text-muted">GG reçus cette semaine</p>
-              <p class="font-display text-4xl font-extrabold tnum">{me.gg}</p>
+              <p class="console-valeur font-display text-4xl font-extrabold tnum">{me.gg}</p>
             </div>
           )}
         </div>

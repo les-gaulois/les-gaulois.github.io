@@ -2145,8 +2145,9 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   --console-grille: color-mix(in srgb, var(--color-flag-blue) 10%, transparent);
   --console-grille-forte: color-mix(in srgb, var(--color-flag-blue) 18%, transparent);
   --console-lueur: color-mix(in srgb, var(--color-flag-blue) 60%, transparent);
-  /* Le vert d'un terminal : ce qui va bien (les « OK », le voyant de la session), les commandes et les chiffres, et la
-     chute du logo Matrix. Sur la page Carte, les commandes et les icônes seulement : ses chiffres restent blancs. */
+  /* Le vert d'un terminal : ce qui va bien (les « OK », le voyant de la session), les commandes, les icônes et les
+     chiffres, et la chute du logo Matrix. Au QG et sur la page Carte, ni textes ni chiffres : ils restent blancs ou
+     gris. Les chiffres verts ne sont plus qu'à la Direction. */
   --console-vert: #4ade80;
 }
 /* Le bouton garde le rouge du thème de l'encadrement : la règle bleue ci-dessus, plus forte que [data-theme="rouge"],
@@ -2259,22 +2260,31 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   color: #fff;
 }
 
-/* Le vert d'un terminal : les commandes (invites, « > » des boutons, chemins du menu) et les chiffres (tuiles, dates,
-   heures, nombres). Ce qui a déjà un sens garde sa couleur : le jaune de ce qui attend et des avertissements, le
-   chiffre en pastille. */
+/* Le vert d'un terminal : les commandes (invites, « > » des boutons, chemins du menu) et les chiffres. Ce qui a déjà un
+   sens garde sa couleur : le jaune de ce qui attend et des avertissements, le chiffre en pastille. */
 :root[data-ambiance="console"][data-console="terminal"] .console-hote,
 :root[data-ambiance="console"][data-console="terminal"] .espace .partie::before,
 :root[data-ambiance="console"][data-console="terminal"] main .btn-ghost::before {
   color: var(--console-vert);
 }
-/* Une pastille (.chip) est un bouton : elle garde ses couleurs, même avec des chiffres (« 30 jours », « 21 h » au QG).
-   En vert, la pastille choisie, blanche, n'aurait que 1,7:1. */
-:root[data-ambiance="console"][data-console="terminal"] .espace .tnum:not(.text-warn, .onglet-nombre, .field, .chip) {
+/* Les chiffres en vert : à la Direction seulement, tous (tuiles, dates, heures, nombres), avec la phrase ou le tableau
+   qui les porte (.tnum). Au QG, comme sur la page Carte, le vert n'est que la voix de la machine (commandes, « ~/qg »,
+   « > », icônes) : il y mettait des phrases entières en vert, et le pilote a trouvé « un peu trop de vert dans les
+   écritures » (12 novembre 2026). Les grands chiffres du QG (.console-valeur) restent blancs, avec la lueur bleue des
+   champs.
+   Une pastille (.chip) est un bouton : elle garde ses couleurs, même avec des chiffres (« 30 jours »). En vert, la
+   pastille choisie, blanche, n'aurait que 1,7:1. Précaution seulement : aucune pastille de la Direction n'a de
+   chiffres aujourd'hui. */
+:root[data-ambiance="console"][data-console="terminal"][data-theme="rouge"] .espace .tnum:not(.text-warn, .onglet-nombre, .field, .chip) {
   color: var(--console-vert);
 }
-:root[data-ambiance="console"][data-console="terminal"] .console-valeur:not(.text-warn) {
+:root[data-ambiance="console"][data-console="terminal"][data-theme="rouge"] .console-valeur:not(.text-warn) {
   color: var(--console-vert);
   text-shadow: 0 0 1.25rem color-mix(in srgb, var(--console-vert) 45%, transparent);
+}
+/* Le mot gris qui suit un grand chiffre (« +36 victoires », « 152 / 300 ») ne prend pas sa lueur. */
+:root[data-ambiance="console"] .console-valeur .text-muted {
+  text-shadow: none;
 }
 
 /* Ce qui va bien, en vert de terminal : les « OK » de l'état du site, le voyant de la session. */

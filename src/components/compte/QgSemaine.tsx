@@ -36,7 +36,7 @@ function Goal({ goal, file }: { goal: WeeklyGoal; file: WeekFile }) {
     body =
       progress && file?.until ? (
         <>
-          <p class="mt-3 font-display text-4xl font-extrabold tnum" data-testid="qg-objectif-chiffre">
+          <p class="console-valeur mt-3 font-display text-4xl font-extrabold tnum" data-testid="qg-objectif-chiffre">
             {fmtInt(progress.done)} <span class="text-xl text-muted">/ {fmtInt(progress.target)}</span>
           </p>
           <div class="meter meter-lg mt-3" aria-hidden="true">
