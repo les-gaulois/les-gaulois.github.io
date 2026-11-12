@@ -1,6 +1,6 @@
 import type { ComponentChildren } from "preact";
 import { useCallback, useEffect, useState } from "preact/hooks";
-import { ServerError, call, getSession, signInWithDiscord, supabase } from "../../lib/compte/api";
+import { ServerError, basePath, call, getSession, signInWithDiscord, supabase } from "../../lib/compte/api";
 import { PENDING_CHANGED } from "../../lib/compte/pending";
 import { initialOf } from "../../lib/compte/qg";
 import type { Me } from "../../lib/compte/types";
@@ -117,6 +117,35 @@ export function DiscordButton({ returnPath, label = "Se connecter avec Discord" 
       </button>
       <Problem message={error} />
     </>
+  );
+}
+
+/** L'espace insécable avant « : » : une ligne ne commence jamais par les deux-points. */
+const NBSP = String.fromCharCode(0xa0);
+
+/**
+ * Sous le bouton de connexion, pour qui hésite à lier son compte : ce que Discord donne au site. Les portées sont celles
+ * que l'outil de connexion de Supabase demande toujours à Discord, `identify` et `email` (lues dans son code le
+ * 12 novembre 2026). Après la connexion, le site n'a plus besoin de cet accès : la session est celle de Supabase.
+ */
+export function DiscordGives() {
+  return (
+    <details class="fold mt-4" data-testid="discord-gives">
+      <summary class="font-semibold">Ce que Discord donne au site</summary>
+      <div class="mt-1 space-y-2 text-muted">
+        <p>
+          Votre identifiant et votre nom Discord, votre photo de profil et votre adresse e-mail. Jamais votre mot de passe, vos
+          messages, vos serveurs ni vos amis{NBSP}: le site ne peut rien écrire en votre nom.
+        </p>
+        <p>
+          Une fois connecté, vous pouvez retirer cet accès dans Discord, sous Paramètres puis Applications autorisées{NBSP}: vous
+          restez connecté sur cet appareil.
+        </p>
+        <p>
+          <a href={`${basePath()}/confidentialite#avec-un-compte`}>Ce que le site conserve</a>
+        </p>
+      </div>
+    </details>
   );
 }
 

@@ -26,7 +26,7 @@ import { fmtDate, fmtDateTime, fmtInt } from "../../lib/format";
 import type { StoredMembers } from "../../lib/schemas";
 import type { ClanWeekFile } from "../../lib/semaine-du-clan";
 import { subscribe } from "./appels";
-import { Avatar, DeleteButton, DiscordButton, Loading, Problem, messageOf, useMe, useNow, type Loadable } from "./common";
+import { Avatar, DeleteButton, DiscordButton, DiscordGives, Loading, Problem, messageOf, useMe, useNow, type Loadable } from "./common";
 import { Onglets, Partie, PartieTete, useTabs, type TabItem } from "./Onglets";
 import QgCeSoir from "./QgCeSoir";
 import QgMoi from "./QgMoi";
@@ -76,9 +76,8 @@ function Door({ me }: { me: Me }) {
           <div class="mt-6">
             <DiscordButton returnPath="/compte" />
           </div>
-          <p class="mt-3 text-sm text-muted">
-            Le site ne reçoit jamais votre mot de passe. <a href={`${base}/confidentialite`}>Ce qu'il conserve</a>
-          </p>
+          <p class="mt-3 text-sm text-muted">Le site ne reçoit jamais votre mot de passe.</p>
+          <DiscordGives />
         </>
       )}
       {me.signed_in && me.status === "pending" && (

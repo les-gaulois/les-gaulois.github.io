@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-12",
+    "kind": "ameliore",
+    "title": "Ce que Discord donne au site",
+    "body": "Sous le bouton « Se connecter avec Discord », un encadré dit ce que le site reçoit, ce qu'il ne reçoit jamais, et comment lui retirer cet accès une fois connecté.",
+    "link": {
+      "href": "/compte",
+      "label": "Mon compte"
+    }
+  },
+  {
+    "date": "2026-11-12",
     "kind": "nouveau",
     "title": "Un aperçu du site sur Discord",
     "body": "Le lien de l'accueil collé sur Discord montre le rang du clan au classement officiel et le podium de la semaine, redessinés à chaque mise à jour du site."
