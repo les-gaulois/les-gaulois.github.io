@@ -2,6 +2,8 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { clan } from "../../config/clan";
+import { accueilFacts, accueilImageAlt, accueilRanking } from "../../src/lib/accueil-image";
+import { GazetteFonts } from "../../src/lib/gazette-image";
 import { worldTerritory } from "../../src/lib/carte-monde";
 import { loadClanMapFilm, loadTerritoryReadings, loadGames, loadHistory, loadMemberGames, loadMemberResults, loadMembers, loadMemberWeeks, loadMeta, loadNouveautes, loadSessions } from "../../src/lib/data";
 import { fmtCount, fmtGap, fmtInt, fmtRank, fmtScore } from "../../src/lib/format";
@@ -291,6 +293,60 @@ test("l'accueil n'affiche que des données collectées", async ({ page }) => {
   const above = clans[(me?.rank ?? 2) - 2];
   if (me && above) await expect(page.getByTestId("home-race")).toContainText(`${fmtScore(above.weightedWins - me.weightedWins)} de retard sur [${above.clanTag}]`);
   await expect(page.getByRole("link", { name: "Lire les guides" })).toHaveAttribute("href", /\/debuter$/);
+});
+
+test("l'accueil donne d'abord le classement, et remonte Ma place pour qui a dit « C'est moi »", async ({ page }) => {
+  const titles = () => page.locator("main h2").allTextContents();
+  const at = (list: string[], text: string) => list.findIndex((t) => t.includes(text));
+  await page.goto("/");
+  const visitor = await titles();
+  expect(at(visitor, "Le clan au classement officiel")).toBeGreaterThanOrEqual(0);
+  expect(at(visitor, "Le clan au classement officiel")).toBeLessThan(at(visitor, "Ma place dans le clan"));
+  if (at(visitor, "Les Gaulois de la semaine") >= 0) {
+    expect(at(visitor, "Le clan au classement officiel")).toBeLessThan(at(visitor, "Les Gaulois de la semaine"));
+    expect(at(visitor, "Les Gaulois de la semaine")).toBeLessThan(at(visitor, "Ma place dans le clan"));
+  }
+
+  const named = members.members.find((m: { username: string | null; publicId: string | null; team: unknown }) => m.username && m.publicId && m.team);
+  await page.evaluate((id) => localStorage.setItem("gal-moi", id), named.publicId);
+  await page.reload();
+  await hydrated(page);
+  // Déplacée dans la page, pas seulement à l'écran : le clavier et les lecteurs d'écran la trouvent aussi avant le classement.
+  const member = await titles();
+  expect(at(member, "Ma place dans le clan")).toBeLessThan(at(member, "Le clan au classement officiel"));
+  await expect(page.getByTestId("my-place-result")).toContainText(named.username);
+  const row = (await page.getByTestId("home-me-row").boundingBox())!;
+  const ranking = (await page.locator("#classement-clan").boundingBox())!;
+  expect(row.y + row.height).toBeLessThanOrEqual(ranking.y);
+});
+
+test("un lien vers l'accueil montre le rang du clan et le podium de la semaine, dessinés à la construction", async ({ page, request }) => {
+  const meta = loadMeta();
+  const latest = gazetteEditions({ sessions: loadSessions(), history: loadHistory(), territory: loadTerritoryReadings(), weekTops: loadMemberWeeks().tops, members: loadMembers(), archiveStart: clan.archiveStart, completeThrough: meta.sessions.completeThrough })[0] ?? null;
+  const facts = accueilFacts(accueilRanking(lb, clan.tag), latest);
+  // Un pseudo du podium que les polices du site ne savent pas écrire fait garder l'image du site, comme le veut le script.
+  const fonts = new GazetteFonts(process.cwd());
+  const drawable = (name: string) => {
+    try {
+      fonts.width(name, "strong", 27);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  await page.goto("/");
+  const og = page.locator('meta[property="og:image"]');
+  if (!facts || !(facts.podium?.players ?? []).every((p) => drawable(p.username))) {
+    await expect(og).toHaveAttribute("content", /\/generated\/og\.jpg$/);
+    return;
+  }
+  // L'adresse change avec l'image : Discord ne peut pas garder l'ancienne.
+  await expect(og).toHaveAttribute("content", /\/generated\/accueil\.png\?v=[0-9a-f]{12}$/);
+  const url = new URL((await og.getAttribute("content"))!);
+  const image = await request.get(`${url.pathname}${url.search}`);
+  expect(image.status()).toBe(200);
+  expect(image.headers()["content-type"]).toContain("image/png");
+  await expect(page.locator('meta[property="og:image:alt"]')).toHaveAttribute("content", accueilImageAlt(facts, clan.tag, clan.name));
 });
 
 test("la page Membres présente l'encadrement, et chacun mène à sa fiche", async ({ page }) => {

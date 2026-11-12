@@ -40,6 +40,10 @@ const fiche = (id: string) => `${base}/membres/${encodeURIComponent(id)}`;
 const arrivalNames = arrivals ? arrivals.named.slice(0, NAMES_SHOWN) : [];
 const arrivalRest = arrivals ? restAfter(arrivals.count, arrivalNames.length) : null;
 const hasFeed = milestones !== null || records.length > 0 || territoryRecord !== null || bestGame !== null || (arrivals !== null && arrivals.count > 0);
+// Podium et fil côte à côte sur grand écran. Avec le serveur, le seul cas où le Gaulois mis à l'honneur peut paraître,
+// le fil, plus long, tient deux rangées, et ce Gaulois prend la place libre sous le podium.
+const twoColumns = Boolean(players) && hasFeed;
+const pickSlot = twoColumns && live;
 const capital = (text: string) => text.charAt(0).toLocaleUpperCase("fr") + text.slice(1);
 // Une photo Discord ne va qu'à côté d'un pseudo porté par un seul membre : jamais à côté d'un homonyme (src/scripts/visages.ts).
 const faces = singlePseudos(loadMembers()?.members ?? []);
@@ -51,7 +55,7 @@ const faces = singlePseudos(loadMembers()?.members ?? []);
   <p class="mt-1 max-w-3xl text-lg text-muted" data-testid="home-week-lead">{editionLead(edition, clan.tag, { standing: false })}</p>
 
 
-  <div class:list={["mt-6 grid gap-6", players && hasFeed && "lg:grid-cols-2"]}>
+  <div class:list={["mt-6 grid gap-6", twoColumns && "lg:grid-cols-2", pickSlot && "lg:grid-rows-[auto_1fr]"]}>
     {
       players && (
         <div class="panel" data-testid="home-podium">
@@ -94,7 +98,7 @@ const faces = singlePseudos(loadMembers()?.members ?? []);
 
     {
       hasFeed && (
-        <div class="panel" data-testid="home-feed">
+        <div class:list={["panel", pickSlot && "lg:row-span-2"]} data-testid="home-feed">
           <h3 class="text-xl">Le fil du clan</h3>
           <ul class="mt-3 space-y-3">
             {milestones && (
@@ -147,10 +151,16 @@ const faces = singlePseudos(loadMembers()?.members ?? []);
         </div>
       )
     }
-  </div>
 
-  {/* Le Gaulois de la semaine, choisi par l'encadrement : il vient du serveur au chargement, rien n'en est écrit dans la page. Placé sous le podium, il ne le pousse pas quand il apparaît. */}
-  {live && <WeeklyPickCard client:idle membersSrc={`${base}/data/members.json`} fichesBase={`${base}/membres`} />}
+    {
+      /*
+       * Le Gaulois de la semaine, choisi par l'encadrement : il vient du serveur au chargement, rien n'en est écrit dans la page.
+       * Sur grand écran, il prend la place libre sous le podium, à côté du fil ; ailleurs, il vient après le fil. Placé après le
+       * podium, il ne le pousse pas quand il apparaît. Sans choix, il n'ajoute aucun espace : son îlot n'a pas de boîte à lui.
+       */
+      live && <WeeklyPickCard client:idle membersSrc={`${base}/data/members.json`} fichesBase={`${base}/membres`} class={pickSlot ? "lg:col-start-1 lg:row-start-2" : undefined} />
+    }
+  </div>
 
   <div class="mt-6 flex flex-wrap gap-3">
     <a href={`${base}/gazette`} class="btn btn-secondary">Lire la gazette</a>

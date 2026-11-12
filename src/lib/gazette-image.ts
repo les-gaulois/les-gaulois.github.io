@@ -147,6 +147,51 @@ function infoRows({ standing, territory, arrivals }: GazetteEdition): InfoRow[] 
   return rows;
 }
 
+/** La réserve qui accompagne toujours le podium des victoires. */
+export const PODIUM_NOTE = "Compte d'abord le temps de jeu, pas le niveau.";
+
+/**
+ * Le podium des Gaulois de la semaine, dans une colonne de `width` à partir de `x` : le premier au milieu et le plus haut,
+ * sur des marches posées sur `base`. Plus de trois lignes à cause d'égalités : une liste à partir de `listTop`, sans écarter
+ * personne. Sert à l'image de la gazette et à celle de l'accueil.
+ */
+export function podiumParts(players: readonly WeekPlayer[], { x, width, base, listTop }: { x: number; width: number; base: number; listTop: number }, measure: Measure): { rects: CardRect[]; texts: CardText[] } {
+  const rects: CardRect[] = [];
+  const texts: CardText[] = [];
+  if (players.length <= 3) {
+    // Le premier au milieu, comme sur un podium. À égalité, les marches ont la même hauteur.
+    const stepGap = 10;
+    const stepWidth = (width - 2 * stepGap) / 3;
+    const slots = [1, 0, 2];
+    const stepHeight = (place: number) => (place === 1 ? 228 : place === 2 ? 198 : 172);
+    players.forEach((player, i) => {
+      const slot = slots[i] ?? i;
+      const stepX = x + slot * (stepWidth + stepGap);
+      const height = stepHeight(player.place);
+      const top = base - height;
+      const first = player.place === 1;
+      rects.push({ x: stepX, y: top, width: stepWidth, height, radius: 14, color: first ? BLUE : SURFACE_2 });
+      const center = stepX + stepWidth / 2;
+      texts.push({ text: fmtRank(player.place), x: center, y: top + 40, size: 34, font: "title", color: first ? WHITE : MUTED, anchor: "middle" });
+      const name = nameLines(player.username, "strong", 27, stepWidth - 16, measure);
+      name.lines.forEach((line, n) => texts.push({ text: line, x: center, y: top + 78 + n * 31, size: name.size, font: "strong", color: WHITE, anchor: "middle" }));
+      const wins = fitted(fmtCount(player.wins, "victoire"), "body", 25, 19, stepWidth - 16, measure);
+      texts.push({ ...wins, x: center, y: base - 16, font: "body", color: first ? WHITE : MUTED, anchor: "middle" });
+    });
+  } else {
+    // Trop d'égalités pour un podium : une liste, sans en écarter aucune. Le pseudo prend la place que laissent ses victoires.
+    players.forEach((player, i) => {
+      const y = listTop + i * 44;
+      texts.push({ text: fmtRank(player.place), x, y, size: 28, font: "title", color: MUTED });
+      const wins = fmtCount(player.wins, "victoire");
+      const name = fitted(player.username, "strong", 28, 22, width - 70 - measure(wins, "body", 26) - 24, measure);
+      texts.push({ ...name, x: x + 70, y, font: "strong", color: WHITE });
+      texts.push({ text: wins, x: x + width, y, size: 26, font: "body", color: MUTED, anchor: "end" });
+    });
+  }
+  return { rects, texts };
+}
+
 /** Quoi écrire et où. Le titre du podium dit sa période : voir `playersPeriod`. */
 export function gazetteCard(edition: GazetteEdition, tag: string, siteUrl: string, measure: Measure): GazetteCard {
   const rects: CardRect[] = [{ x: 0, y: 0, width: WIDTH, height: HEIGHT, radius: 0, color: NAVY }];
@@ -204,38 +249,10 @@ export function gazetteCard(edition: GazetteEdition, tag: string, siteUrl: strin
     const width = WIDTH - MARGIN - x;
     const heading = fitted(`Le plus de victoires ${period}`, "strong", 30, 22, width, measure);
     texts.push({ ...heading, x, y: columnTop + 24, font: "strong", color: WHITE });
-    const base = HEIGHT - 44;
-    if (players.length <= 3) {
-      // Le premier au milieu, comme sur un podium. À égalité, les marches ont la même hauteur.
-      const stepGap = 10;
-      const stepWidth = (width - 2 * stepGap) / 3;
-      const slots = [1, 0, 2];
-      const stepHeight = (place: number) => (place === 1 ? 228 : place === 2 ? 198 : 172);
-      players.forEach((player, i) => {
-        const slot = slots[i] ?? i;
-        const stepX = x + slot * (stepWidth + stepGap);
-        const height = stepHeight(player.place);
-        const top = base - height;
-        const first = player.place === 1;
-        rects.push({ x: stepX, y: top, width: stepWidth, height, radius: 14, color: first ? BLUE : SURFACE_2 });
-        const center = stepX + stepWidth / 2;
-        texts.push({ text: fmtRank(player.place), x: center, y: top + 40, size: 34, font: "title", color: first ? WHITE : MUTED, anchor: "middle" });
-        const name = nameLines(player.username, "strong", 27, stepWidth - 16, measure);
-        name.lines.forEach((line, n) => texts.push({ text: line, x: center, y: top + 78 + n * 31, size: name.size, font: "strong", color: WHITE, anchor: "middle" }));
-        const wins = fitted(fmtCount(player.wins, "victoire"), "body", 25, 19, stepWidth - 16, measure);
-        texts.push({ ...wins, x: center, y: base - 16, font: "body", color: first ? WHITE : MUTED, anchor: "middle" });
-      });
-    } else {
-      // Trop d'égalités pour un podium : une liste, sans en écarter aucune.
-      players.forEach((player, i) => {
-        const y = columnTop + 72 + i * 44;
-        texts.push({ text: fmtRank(player.place), x, y, size: 28, font: "title", color: MUTED });
-        const name = fitted(player.username, "strong", 28, 22, width - 70 - 190, measure);
-        texts.push({ ...name, x: x + 70, y, font: "strong", color: WHITE });
-        texts.push({ text: fmtCount(player.wins, "victoire"), x: x + width, y, size: 26, font: "body", color: MUTED, anchor: "end" });
-      });
-    }
-    texts.push({ text: "Compte d'abord le temps de jeu, pas le niveau.", x: WIDTH - MARGIN, y: HEIGHT - 14, size: 22, font: "body", color: MUTED, anchor: "end" });
+    const podium = podiumParts(players, { x, width, base: HEIGHT - 44, listTop: columnTop + 72 }, measure);
+    rects.push(...podium.rects);
+    texts.push(...podium.texts);
+    texts.push({ text: PODIUM_NOTE, x: WIDTH - MARGIN, y: HEIGHT - 14, size: 22, font: "body", color: MUTED, anchor: "end" });
   }
   texts.push({ text: `${siteUrl.replace(/^https?:\/\//, "").replace(/\/$/, "")}/gazette`, x: MARGIN, y: HEIGHT - 14, size: 26, font: "strong", color: BLUE_TEXT });
   return { width: WIDTH, height: HEIGHT, rects, texts, logo };

@@ -14,7 +14,7 @@ Le plan est dans `src/lib/nav.ts`. Une rubrique répond à une question de visit
 
 | Rubrique | Pages | Ce qu'on y cherche |
 |---|---|---|
-| Accueil | `/` | Ce qui a changé depuis la dernière visite, les Gaulois de la semaine (podium, plus actifs, fil du clan), sa place dans le clan, la porte du QG, le clan au classement officiel |
+| Accueil | `/` | Ce qui a changé depuis la dernière visite, les annonces et événements, le clan au classement officiel, les Gaulois de la semaine (podium, plus actifs, fil du clan, Gaulois mis à l'honneur), sa place dans le clan et la porte du QG (avant le classement pour qui a dit « C'est moi ») |
 | Actu | `/gazette`, `/parties`, `/nouveautes` | Le bilan de la semaine, les parties une par une, les mises à jour du site expliquées |
 | Résultats | `/classement`, `/rivaux`, `/progression`, `/records` | La liste officielle, la course et le comparateur, les courbes, les podiums des joueurs et les records |
 | Membres | `/membres`, `/membres/:id`, `/qg` | Les paliers, l'encadrement, le classé, la liste, les fiches ; le QG, face privée réservée aux membres validés, en onglets ; l'administration de l'encadrement est dans `/direction` |
@@ -58,7 +58,7 @@ Le site s'ouvre sur http://localhost:4321. Aucun secret n'est nécessaire.
 | `npm run hier:envoyer` · `bienvenue:envoyer` · `actifs:envoyer` · `nouveautes:envoyer` | Envoient les messages du jour sur le salon de la gazette : le bilan de la veille, la bienvenue aux nouveaux, les plus actifs et les nouveautés du site. Sans leur lien, elles ne font rien : voir « Les messages du jour sur Discord ». |
 | `npm run course:envoyer` | Envoie la course du soir sur le salon de la gazette, à partir de 21 h : place, score, écarts et points gagnés. Sans son lien, elle ne fait rien : voir « La course du soir ». |
 | `npm run verifier:ligne` | Contrôle le vrai projet Supabase, sans rien y écrire : voir [docs/DIRECTION.md](docs/DIRECTION.md) |
-| `npm run build` | Génère le favicon, l'image de partage, les fichiers du film et l'image d'aperçu de chaque fiche de membre, puis construit `dist/` |
+| `npm run build` | Génère le favicon, l'image de partage, les fichiers du film, l'image d'aperçu de chaque fiche de membre et celle de l'accueil, puis construit `dist/` |
 | `npm run preview` | Sert le dossier `dist/` |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `astro check` et `tsc` |

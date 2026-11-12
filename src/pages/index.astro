@@ -1,4 +1,7 @@
 ---
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import Base from "../layouts/Base.astro";
 import ClanWeek from "../components/ClanWeek.astro";
 import DataStatus from "../components/DataStatus.astro";
@@ -7,6 +10,7 @@ import NewsBoard from "../components/NewsBoard";
 import SinceLastVisit from "../components/SinceLastVisit.tsx";
 import { AUTH_ENABLED } from "../lib/compte/api";
 import { clan } from "../../config/clan";
+import { ACCUEIL_IMAGE, accueilFacts, accueilImageAlt, accueilRanking } from "../lib/accueil-image";
 import { bestGameOf, bestGameSentence, yesterdayOf } from "../lib/belle-partie";
 import { brandFile } from "../lib/brand";
 import { loadAnnouncements, loadClanMapFilm, loadEvents, loadGames, loadHistory, loadLeaderboard, loadMembers, loadMemberWeeks, loadMeta, loadSessions, loadTerritoryReadings } from "../lib/data";
@@ -14,6 +18,7 @@ import { fmtDateTime, fmtInt, fmtPct, fmtRank, fmtScore } from "../lib/format";
 import { MAX_AGE_HOURS } from "../lib/freshness";
 import { gazetteEditions } from "../lib/gazette";
 import { clanJournal } from "../lib/journal";
+import { ME_KEY } from "../lib/moi";
 import { clanRecords } from "../lib/results";
 import { findClan, neighbours, winRate, withOfficialRanks } from "../lib/stats";
 import { recentRecordLines, recentTerritoryRecord } from "../lib/vie-du-clan";
@@ -61,9 +66,17 @@ const bestYesterday = meta.sessions.coveredUntil ? bestGameOf(journal, yesterday
 
 // Le même relevé que sur la page Carte, où il fait reprendre le film.
 const snapshot = loadVisitSnapshot();
+
+// L'image d'aperçu d'un lien vers l'accueil : le rang et le podium de la semaine, dessinés au build (scripts/generate-accueil-image.ts).
+// Son adresse change avec son contenu, pour que Discord ne garde pas l'ancienne. Sans elle, celle du site.
+const imageFile = join("public", ACCUEIL_IMAGE);
+const imageFacts = accueilFacts(accueilRanking(leaderboard, clan.tag), gazette);
+const hasImage = imageFacts !== null && existsSync(imageFile);
+const image = hasImage ? `${base}/${ACCUEIL_IMAGE}?v=${createHash("sha256").update(readFileSync(imageFile)).digest("hex").slice(0, 12)}` : undefined;
+const imageAlt = hasImage && imageFacts ? accueilImageAlt(imageFacts, clan.tag, clan.name) : undefined;
 ---
 
-<Base>
+<Base image={image} imageAlt={imageAlt}>
   <section class="relative overflow-hidden">
     <div class="wrap relative grid items-center gap-6 pb-8 pt-6 md:grid-cols-[3fr_2fr] md:gap-10 md:pb-10 md:pt-10">
       <div class="reveal order-2 md:order-1">
@@ -114,34 +127,8 @@ const snapshot = loadVisitSnapshot();
       )
     }
 
-    {/* Ce que les membres viennent de faire : le résumé de la dernière gazette, et ce qui s'est passé depuis. */}
-    {gazette && <ClanWeek edition={gazette} currentMilestones={currentMilestones} records={recordLines} territoryRecord={territoryRecord} bestGame={bestYesterday ? bestGameSentence(bestYesterday) : null} creditMaps={(bestYesterday?.map ?? null) !== null} live={AUTH_ENABLED} />}
-
-    {/* Ce qui est à chacun : sa place dans le clan, et la porte de la face privée. */}
-    <div class:list={["grid gap-6", AUTH_ENABLED && "lg:grid-cols-2"]}>
-      <section class="stage stage-night reveal scroll-mt-24" id="ma-place" aria-labelledby="place-title" data-testid="my-place">
-        <h2 id="place-title" class="section-title section-title-sm">Ma place dans le clan</h2>
-        <div class="mt-4">
-          <MyPlace client:idle src={`${base}/data/members.json`} />
-        </div>
-        <noscript><p class="mt-3 text-sm text-muted">JavaScript est nécessaire pour chercher un pseudo. La liste complète reste sur la page <a href={`${base}/membres`}>Membres</a>.</p></noscript>
-      </section>
-
-      {/* La porte de la face privée : le contenu du QG n'est pas dans cette page, le serveur ne le donne qu'aux membres validés. */}
-      {
-        AUTH_ENABLED && (
-          <section class="stage stage-night reveal flex flex-col items-start" aria-labelledby="qg-title" data-testid="home-qg">
-            <h2 id="qg-title" class="section-title section-title-sm">Le QG des membres</h2>
-            <p class="mt-3 max-w-xl text-muted">Salons, sondages, idées et mur des membres : réservé aux membres de GAL.</p>
-            {/* Vide dans la page publiée : pour un membre validé connecté, ce qui l'attend au QG (src/scripts/visages.ts). */}
-            <p class="tnum mt-3 font-semibold" data-qg-waiting data-testid="home-qg-waiting" hidden></p>
-            <a href={`${base}/qg`} class="btn btn-secondary mt-6">Entrer dans le QG</a>
-          </section>
-        )
-      }
-    </div>
-
-    <section class="stage stage-blue reveal" aria-labelledby="stats-title">
+    {/* Le clan au classement officiel, d'abord : le rang dit tout de suite où en est GAL. */}
+    <section class="stage stage-blue reveal" id="classement-clan" aria-labelledby="stats-title">
       <h2 id="stats-title" class="section-title section-title-sm">Le clan au classement officiel</h2>
       {/* Les chiffres en grand, sans case : un filet à gauche de chacun. La rangée passe à la ligne quand la place manque. */}
       <div class="kpi-row mt-8">
@@ -191,6 +178,49 @@ const snapshot = loadVisitSnapshot();
         <DataStatus state={meta.leaderboard} maxAgeHours={MAX_AGE_HOURS.leaderboard} asOf={leaderboard?.end} asOfLabel="Classement arrêté au" />
       </div>
     </section>
+
+    {/* Ce que les membres viennent de faire : le résumé de la dernière gazette, et ce qui s'est passé depuis. */}
+    {gazette && <ClanWeek edition={gazette} currentMilestones={currentMilestones} records={recordLines} territoryRecord={territoryRecord} bestGame={bestYesterday ? bestGameSentence(bestYesterday) : null} creditMaps={(bestYesterday?.map ?? null) !== null} live={AUTH_ENABLED} />}
+
+    {/* Ce qui est à chacun : sa place dans le clan, et la porte de la face privée. */}
+    <div class:list={["grid gap-6", AUTH_ENABLED && "lg:grid-cols-2"]} id="rangee-moi" data-testid="home-me-row">
+      {/*
+        « C'est moi » : le membre qui a retenu son pseudo (src/lib/moi.ts) retrouve sa place, et la porte du QG, avant le classement.
+        Premier enfant de la rangée, ce script la déplace avant que la page la remplisse : « Ma place » ne se réveille qu'une fois,
+        à sa vraie place, et l'ordre de la page reste celui qu'on voit et qu'on parcourt au clavier. Sans stockage ni JavaScript, rien ne bouge.
+      */}
+      <script is:inline define:vars={{ meKey: ME_KEY }}>
+        try {
+          if (localStorage.getItem(meKey)) {
+            const row = document.getElementById("rangee-moi");
+            const ranking = document.getElementById("classement-clan");
+            if (row && ranking) ranking.before(row);
+          }
+        } catch {
+          // Stockage indisponible : l'ordre reste celui de tous.
+        }
+      </script>
+      <section class="stage stage-night reveal scroll-mt-24" id="ma-place" aria-labelledby="place-title" data-testid="my-place">
+        <h2 id="place-title" class="section-title section-title-sm">Ma place dans le clan</h2>
+        <div class="mt-4">
+          <MyPlace client:idle src={`${base}/data/members.json`} />
+        </div>
+        <noscript><p class="mt-3 text-sm text-muted">JavaScript est nécessaire pour chercher un pseudo. La liste complète reste sur la page <a href={`${base}/membres`}>Membres</a>.</p></noscript>
+      </section>
+
+      {/* La porte de la face privée : le contenu du QG n'est pas dans cette page, le serveur ne le donne qu'aux membres validés. */}
+      {
+        AUTH_ENABLED && (
+          <section class="stage stage-night reveal flex flex-col items-start" aria-labelledby="qg-title" data-testid="home-qg">
+            <h2 id="qg-title" class="section-title section-title-sm">Le QG des membres</h2>
+            <p class="mt-3 max-w-xl text-muted">Salons, sondages, idées et mur des membres : réservé aux membres de GAL.</p>
+            {/* Vide dans la page publiée : pour un membre validé connecté, ce qui l'attend au QG (src/scripts/visages.ts). */}
+            <p class="tnum mt-3 font-semibold" data-qg-waiting data-testid="home-qg-waiting" hidden></p>
+            <a href={`${base}/qg`} class="btn btn-secondary mt-6">Entrer dans le QG</a>
+          </section>
+        )
+      }
+    </div>
 
     <section class="stage stage-night reveal grid items-center gap-8 md:grid-cols-2" aria-labelledby="join-title" data-testid="home-join">
       <div>

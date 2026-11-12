@@ -2,6 +2,18 @@
   {
     "date": "2026-11-12",
     "kind": "nouveau",
+    "title": "Un aperçu du site sur Discord",
+    "body": "Le lien de l'accueil collé sur Discord montre le rang du clan au classement officiel et le podium de la semaine, redessinés à chaque mise à jour du site."
+  },
+  {
+    "date": "2026-11-12",
+    "kind": "ameliore",
+    "title": "L'accueil commence par le classement",
+    "body": "Le classement du clan passe en haut de l'accueil. Ceux qui ont cliqué « C'est moi » voient leur place en premier, et le Gaulois mis à l'honneur se range sous le podium."
+  },
+  {
+    "date": "2026-11-12",
+    "kind": "nouveau",
     "title": "Un inventaire d'images pour les messages Discord",
     "body": "Pour l'encadrement : une image d'un message, comme le logo du clan, se garde sous un nom et se reprend d'un clic dans tout champ d'image. La rubrique « Inventaire d'images » les range."
   },

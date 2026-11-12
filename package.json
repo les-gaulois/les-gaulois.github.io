@@ -11,7 +11,7 @@
     "dev": "npm run assets && astro dev",
     "build": "npm run assets && astro build",
     "preview": "astro preview",
-    "assets": "npm run brand && tsx scripts/generate-clanmap.ts && tsx scripts/generate-fiches.ts",
+    "assets": "npm run brand && tsx scripts/generate-clanmap.ts && tsx scripts/generate-fiches.ts && tsx scripts/generate-accueil-image.ts",
     "brand": "tsx scripts/generate-brand.ts",
     "data:fetch": "tsx scripts/fetch-data.ts",
     "data:carte": "tsx scripts/fetch-data.ts --carte",
