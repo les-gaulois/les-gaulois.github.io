@@ -1,6 +1,12 @@
 [
   {
     "date": "2026-11-12",
+    "kind": "ameliore",
+    "title": "Le salon des demandes se trouve mieux",
+    "body": "Pour l'encadrement : dans la Direction, onglet Discord, « Salons du robot » dit qu'on y choisit le salon des demandes d'adhésion, et quand elles y arrivent : dans l'heure, jamais de 23 h à 8 h."
+  },
+  {
+    "date": "2026-11-12",
     "kind": "retire",
     "title": "Le calculateur et les outils sont retirés",
     "body": "La page « Calculateur et outils » quitte la rubrique Guides, avec le calculateur de troupes contre un bot et la liste des outils de la communauté. Les guides et « Quand jouer » restent."

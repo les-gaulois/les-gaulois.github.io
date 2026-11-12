@@ -143,12 +143,13 @@ Le robot horaire signale les demandes d'adhésion qui attendent, sur un salon Di
 - **La mise en service :** au premier passage de jour du robot où rien n'a encore jamais été noté, s'il n'y a aucune demande à annoncer, un message part : « L'avis à l'encadrement est en place… ». Il prouve que le lien marche et que c'est le bon salon, sans attendre une vraie demande. Il est noté avant l'envoi : il part une fois au plus, et si Discord le refuse, l'exécution du robot l'affiche en avertissement, sans le renvoyer. Changer ensuite le lien pour un autre salon ne le renvoie pas.
 - **Les sauvegardes :** le même salon reçoit le compte rendu de chaque sauvegarde chiffrée (voir plus bas).
 - **Où c'est noté :** ce qui a été annoncé reste dans Supabase (`app_state`, clé `staff_notice`), jamais dans le dépôt public. Un envoi raté n'est pas noté : il repart au passage suivant.
+- **Ce qui se lit sans compte GitHub**, depuis le 12 novembre 2026 : chaque avis de demande parti (nouvelle, rappel, mise en service) laisse une note (`::notice::`) dans l'exécution du robot, « Encadrement : message « nouvelle » envoyé sur Discord (lien réglé dans la Direction) », ou « (lien du secret GitHub) ». Sans aucun lien pour ce salon, une note le dit aussi. Le compte rendu des sauvegardes, qui va dans le même salon, n'en laisse pas. Les journaux demandent une connexion, pas les annotations (`check-runs/<id de la tâche>/annotations`). Ni nombre, ni nom, ni lien. Ce jour-là, le pilote n'avait rien vu arriver dans le salon voulu et ne trouvait pas le réglage : rien ne permettait de dire d'ici si un message était parti, ni par quel lien.
 - **Les fonctions :** `staff_digest` et `note_staff_notice` (migration `20261108000300_encadrement_et_sauvegarde.sql`), réservées à la clé de service.
 
 **Pour l'activer**, une seule fois :
 
 1. Dans Discord, sur le salon privé de l'encadrement : **Modifier le salon → Intégrations → Webhooks → Nouveau webhook**, puis **Copier l'URL du webhook**.
-2. Sur le site, `/direction#discord`, partie « Le salon de l'encadrement » : collez l'adresse, puis **Enregistrer et envoyer un essai** (voir « Les salons du robot sur Discord », plus bas). Avant le 11 novembre 2026, elle allait dans le secret GitHub `DISCORD_WEBHOOK_ENCADREMENT`, qui ne sert plus que si rien n'est réglé sur le site.
+2. Sur le site, `/direction#discord`, rubrique « Salons du robot » (fermée au départ : un clic sur son titre la déroule), partie « Le salon de l'encadrement » : collez l'adresse, puis **Enregistrer et envoyer un essai** (voir « Les salons du robot sur Discord », plus bas). Avant le 11 novembre 2026, elle allait dans le secret GitHub `DISCORD_WEBHOOK_ENCADREMENT`, qui ne sert plus que si rien n'est réglé sur le site.
 
 Ce lien permet d'écrire dans le salon : il ne se colle que dans ce formulaire, ou dans le secret, jamais dans le dépôt ni dans une conversation. Sans l'un ni l'autre, rien n'est envoyé.
 

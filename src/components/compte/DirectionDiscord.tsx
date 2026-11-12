@@ -11,7 +11,8 @@ import { InventaireProvider } from "./inventaire";
 const RUBRIQUES = [
   { id: "message", title: "Message Discord", hint: "Un message avec embeds et images, dans le salon choisi." },
   { id: "images", title: "Inventaire d'images", hint: "Les images gardées pour les messages, comme le logo du clan." },
-  { id: "salons", title: "Salons du robot", hint: "Les salons où poste le robot du site." },
+  // Le 12 novembre 2026, le pilote cherchait ici le salon des demandes d'adhésion sans le trouver : l'aide les nomme.
+  { id: "salons", title: "Salons du robot", hint: "Où le robot annonce les demandes d'adhésion, les nouvelles et les victoires." },
   { id: "appels", title: "Appels sur Discord", hint: "Chaque appel lancé au QG part dans un salon, avec un ping du rôle au choix." },
   { id: "vocal", title: "Salon vocal", hint: "Le bouton « Rejoindre le vocal » de l'onglet Salons du QG." },
 ] as const;

@@ -8,6 +8,7 @@
 import { QUIET_FROM_HOUR, QUIET_UNTIL_HOUR } from "./alerts";
 import { fmtDuration } from "./format";
 import { isWebhookUrl } from "./gazette-discord";
+import { sourceWords, type LinkSource } from "./salon-lien";
 import { parisParts } from "./time";
 
 const HOUR_MS = 3_600_000;
@@ -88,13 +89,15 @@ export interface StaffSendDeps {
   fetch: typeof fetch;
   note: (state: StaffNoticeState) => Promise<void>;
   log: (line: string) => void;
+  /** D'où vient le lien, pour la note de l'envoi. Une provenance et non un texte : aucun lien ne peut s'y glisser. */
+  via?: LinkSource;
 }
 
 /**
  * Envoie le message s'il y a lieu, puis note ce qui a été annoncé. Le lien du salon vaut un mot de passe :
  * il n'est écrit dans aucun message, même d'erreur. Un envoi raté n'est pas noté : il repart au passage suivant.
  */
-export async function sendStaffNotice({ webhook, digest, now, siteUrl, fetch: post, note, log }: StaffSendDeps): Promise<"off" | "invalid" | "quiet" | "sent" | "failed"> {
+export async function sendStaffNotice({ webhook, digest, now, siteUrl, fetch: post, note, log, via }: StaffSendDeps): Promise<"off" | "invalid" | "quiet" | "sent" | "failed"> {
   const link = webhook?.trim();
   if (!link) {
     log("Pas de lien Discord pour l'encadrement : rien à envoyer.");
@@ -118,7 +121,9 @@ export async function sendStaffNotice({ webhook, digest, now, siteUrl, fetch: po
     if (!(await postStaffMessage(link, decision.text, post, log, "Nouvel essai au prochain passage."))) return "failed";
     await note(decision.note);
   }
-  log(`Encadrement : message « ${decision.kind} » envoyé.`);
+  // Une note (« notice ») se lit sans compte GitHub, dans les annotations de l'exécution, quand les journaux en demandent un :
+  // le 12 novembre 2026, rien ne permettait de dire d'ici si l'avis d'une demande était parti, ni par quel lien.
+  log(`::notice::Encadrement : message « ${decision.kind} » envoyé sur Discord${via ? ` (${sourceWords(via)})` : ""}.`);
   return "sent";
 }
 

@@ -107,6 +107,17 @@ describe("l'envoi à l'encadrement", () => {
     expect(lines.join("\n")).not.toContain("jeton-faux");
   });
 
+  it("laisse une note lisible sans compte GitHub quand le message part, avec la provenance du lien mais jamais le lien", async () => {
+    const { lines } = await run(async () => new Response(null, { status: 204 }), { via: "direction" });
+    expect(lines).toContain("::notice::Encadrement : message « nouvelle » envoyé sur Discord (lien réglé dans la Direction).");
+    expect(lines.join("\n")).not.toContain("jeton-faux");
+    const secret = await run(async () => new Response(null, { status: 204 }), { via: "secret" });
+    expect(secret.lines).toContain("::notice::Encadrement : message « nouvelle » envoyé sur Discord (lien du secret GitHub).");
+    // Rien d'envoyé, pas de note : Discord refuse.
+    const refused = await run(async () => new Response(null, { status: 500 }), { via: "secret" });
+    expect(refused.lines.some((line) => line.startsWith("::notice::"))).toBe(false);
+  });
+
   it("ne note rien si Discord refuse ou ne répond pas : le message repartira", async () => {
     const refused = await run(async () => new Response(null, { status: 500 }));
     expect(refused.result).toBe("failed");

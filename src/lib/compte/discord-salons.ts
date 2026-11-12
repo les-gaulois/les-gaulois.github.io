@@ -29,7 +29,9 @@ export const ROBOT_SALON_TEXTS: readonly RobotSalonText[] = [
   {
     id: "encadrement",
     title: "Le salon de l'encadrement",
-    intro: "Les demandes qui attendent et le compte rendu de chaque sauvegarde, sans nom. Choisissez un salon privé de l'encadrement.",
+    // Le robot passe une fois par heure : une demande n'est pas annoncée à la seconde. Le 12 novembre 2026, le pilote n'avait rien
+    // vu arriver dans le salon voulu et cherchait où le régler : l'intro dit ce qui part, et quand.
+    intro: "Chaque nouvelle demande d'adhésion, dans l'heure (rien de 23 h à 8 h), un rappel par jour pour une demande qui attend plus de 24 h, et le compte rendu des sauvegardes. Sans aucun nom : choisissez un salon privé de l'encadrement.",
     secret: "DISCORD_WEBHOOK_ENCADREMENT",
   },
   {
