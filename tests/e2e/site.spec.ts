@@ -135,10 +135,11 @@ test("seules les pages de l'encadrement passent au rouge", async ({ page }, test
   }
 });
 
-// L'ambiance console de la Direction et du QG (docs/DESIGN.md) : sa police ne pèse que sur ces pages, leur invite est
-// décorative, et la pause comme « réduire les animations » arrêtent aussi la bande de lumière, portée par <html> lui-même,
-// que `.fx-off *` ne vise pas.
-test("l'ambiance console ne pèse que sur la Direction et le QG, et la pause l'arrête", async ({ page }, testInfo) => {
+// Le poste de commandement (docs/DESIGN.md) : depuis le 12 novembre 2026, la chasse fixe de la console est préchargée sur
+// toutes les pages, chacune a son invite décorative, et une lumière passe une fois sur le titre. La Direction et le QG
+// gardent leur console. La pause comme « réduire les animations » arrêtent l'invite, la lumière du titre, la chute du
+// guerrier de l'accueil et la bande de la console, portée par <html> lui-même, que `.fx-off *` ne vise pas.
+test("l'invite et la console sont décoratives, et la pause arrête leurs animations", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "Même rendu sur mobile.");
   const fonts: string[] = [];
   page.on("request", (r) => {
@@ -146,10 +147,37 @@ test("l'ambiance console ne pèse que sur la Direction et le QG, et la pause l'a
   });
   await page.goto("/");
   await page.waitForLoadState("networkidle");
-  expect(fonts).toEqual([]);
+  expect(fonts.length).toBeGreaterThan(0);
+  await expect(page.locator(".invite")).toHaveAttribute("aria-hidden", "true");
+  // Le guerrier de l'accueil tombe en colonnes à l'ouverture : la pause et « réduire les animations » l'arrêtent aussi.
+  const falling = () => page.evaluate(() => getComputedStyle(document.querySelector(".holo-logo .console-goutte")!).animationName);
+  expect(await falling()).toBe("console-goutte");
+  // Une page de lecture : la rubrique en dossier, la page en commande, et la lumière du titre.
+  await page.goto("/classement");
+  await expect(page.locator(".invite")).toHaveAttribute("aria-hidden", "true");
+  await expect(page.locator(".invite")).toHaveText(/^gal@clan:~\/resultats\$\s\.\/classement$/);
+  const reading = () =>
+    page.evaluate(() => ({
+      light: getComputedStyle(document.querySelector("h1")!, "::after").animationName,
+      prompt: getComputedStyle(document.querySelector(".invite")!).animationName,
+    }));
+  expect(await reading()).toEqual({ light: "titre-lecture", prompt: "console-frappe" });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.reload();
+  expect(await reading()).toEqual({ light: "none", prompt: "none" });
+  await page.goto("/");
+  expect(await falling()).toBe("none");
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.evaluate(() => localStorage.setItem("gal-fx", "off"));
+  await page.reload();
+  expect(await falling()).toBe("none");
+  await page.goto("/classement");
+  expect(await reading()).toEqual({ light: "none", prompt: "none" });
+  await page.evaluate(() => localStorage.removeItem("gal-fx"));
   await page.goto("/qg");
   await page.waitForLoadState("networkidle");
-  expect(fonts.length).toBeGreaterThan(0);
+  // La console a sa propre invite : celle du site ne s'y ajoute pas.
+  await expect(page.locator(".invite")).toHaveCount(0);
   await expect(page.locator(".console-invite")).toHaveAttribute("aria-hidden", "true");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Le QG");
   await page.goto("/direction");
@@ -904,7 +932,7 @@ test("un bouton de filtre actif reste lisible au survol", async ({ page }, testI
   const active = page.getByRole("button", { name: "Toutes", exact: true });
   await expect(active).toBeEnabled();
   await active.hover();
-  await expect(active).toHaveCSS("color", "rgb(10, 18, 48)");
+  await expect(active).toHaveCSS("color", "rgb(5, 11, 31)");
   await expect(active).toHaveCSS("background-color", "rgb(255, 255, 255)");
 });
 

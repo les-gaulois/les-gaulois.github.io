@@ -8,11 +8,32 @@ Cette approche s'inspire de la façon dont les grands sites de la culture gaming
 
 **Lisible et ouvert, depuis le 10 novembre 2026.** Le pilote aimait la lisibilité du site du clan [FR] : tout écrit en gros, des graphiques qui se fondent dans le décor au lieu d'être enfermés dans une case, une page propre. Le site en reprend les principes, courants dans la mise en page, sans copier ce site : ni sa police, ni ses textes, ni ses visuels, ni l'agencement de ses pages. Le texte est plus grand, les chiffres clés s'écrivent en très grand, les graphiques et les groupes d'une scène se posent sur le décor, séparés par un filet. Les scènes colorées, le fond animé, les capitales d'Outfit, le tricolore et le bouton pause restent ceux du clan.
 
+## Le poste de commandement
+
+Depuis le 12 novembre 2026, à la demande du pilote (« le site dans le design hacker », « moins agressif », « dans le thème QG et Direction », « une vraie direction artistique », que les visiteurs soient « époustouflés »), tout le site prend l'univers du QG et de la Direction, en plus calme. L'idée : **le site est la table des cartes du clan, la nuit.** La lumière vient des données, le tricolore reste un signal, et la machine du QG parle en chasse fixe. Le QG et la Direction gardent leur style Terminal (lignes d'écran, vert de terminal, cadres doubles, titre décalé) : il reste la marque des espaces de travail. Tout est dans `global.css`, section « Le poste de commandement » ; ce qui ne vaut que pour les pages ouvertes à tous est sous `:root:not([data-ambiance])`.
+
+| Élément | Rendu |
+|---|---|
+| Encre | Le fond passe de `#0A1230` à `#050B1F`, et les surfaces suivent (voir « Couleurs ») : la couleur des scènes ressort davantage |
+| Table des cartes | Une croix toutes les quatre cases de conquête (112 px), sur une trame à peine visible, plus marquée en haut de l'écran, et des coins assombris. Deux calques fixes sous le contenu, qui restent avec la pause : ils ne bougent pas |
+| Barre de commande | L'en-tête est une vitre sombre, avec un horizon tricolore d'un pixel dessous. Les rubriques s'écrivent en chasse fixe, en `muted` ; la rubrique ouverte en blanc, avec le filet rouge du marqueur de page |
+| Invite | Au-dessus du titre de chaque page, `gal@clan:~/resultats$ ./classement` : la même machine que le QG (`gal@qg`) et la Direction (`gal@direction`), « clan » pour les pages ouvertes à tous (`Invite.astro`). Le dossier est la rubrique quand elle a plusieurs pages, sinon `~` ; la commande est la page (`invite()` dans `src/lib/nav.ts`, testée). Une fiche de membre s'écrit `./fiche` : l'identifiant du joueur n'y paraît jamais. Décorative, masquée aux lecteurs d'écran. Le QG et la Direction gardent la leur. Sur la page Carte, elle se pose sur la carte avec le titre, sur grand écran seulement : en dessous, chaque ligne de plus repousserait la carte |
+| Onglets de rubrique | En chasse fixe et carrés, comme la barre d'onglets du QG (`.rubrique-onglet`) ; l'onglet ouvert, plus clair, porte le filet rouge dessous |
+| Scènes | Des territoires éclairés : coins de 10 px, et le coin haut droit coupé comme un dossier d'état-major (`clip-path`), souligné d'un trait de lumière. Une trame de carte s'allume dans leur haut, de ce côté |
+| Chiffres clés | Libellés en chasse fixe, un trait blanc en haut de chaque filet, comme le repère d'une jauge, et une lueur bleue autour du chiffre |
+| Guerrier de l'accueil | Le logo du QG et de la Direction en mode Matrix (`LogoMatrice.tsx`, 72 colonnes), en grand : ses colonnes tombent une fois, lentement, directement dans ses couleurs, sans le vert de la console, puis il flotte au-dessus d'un socle de lumière, comme projeté par la table. Il garde les gestes du logo (il suit le curseur, clic gauche et droit) et un nom pour les lecteurs d'écran. Le logo vertical reste sur la page Rejoindre, et revient sur l'accueil si le fichier du guerrier manque. En contraste élevé, le dessin disparaît, comme au QG et à la Direction ; son nom reste lu |
+| Formes | Cartes 8 px, boutons, champs et pastilles 6 px : des coins nets de machine plutôt que des bulles |
+
+- **Mouvement :** l'invite s'écrit une fois (0,85 s) ; une seule lumière passe sur le titre de la page, de gauche à droite (1,5 s), puis s'éteint ; à l'accueil, le guerrier tombe en colonnes en un peu plus de 2 s. Rien ne clignote ni ne se répète. Le bouton pause et « réduire les animations » coupent tout : l'invite est entière d'emblée, la lumière n'apparaît jamais, le guerrier est là. Un test e2e le vérifie.
+- **Gardé :** les scènes colorées, le fond animé et ses cases, les titres en Outfit, le tricolore, le bouton pause, les gros chiffres et les graphiques sans case.
+- **Poids :** la chasse fixe (40 Ko) est préchargée sur toutes les pages. Le guerrier est dessiné dans la page (63 Ko, 12,6 Ko compressés) à la place de l'image du logo vertical (99 Ko).
+- **Moins agressif que la console :** ni lignes d'écran, ni décalage de couleur sur le titre, ni vert, ni cadres doubles. Ne pas les ajouter aux pages ouvertes à tous sans la demande du pilote.
+
 ## Organisation du site
 
 Le visiteur doit savoir où chercher, et avoir une raison de revenir. Le plan est dans `src/lib/nav.ts`, et le README en donne le tableau.
 
-- **Six rubriques dans le menu, pas une de plus.** Avec le bouton « Nouveautés », l'en-tête connecté le plus chargé est celui d'un membre validé (lien « QG », nom du compte au plus long) : il garde 117 px de marge à partir de 1 280 px. Celui de l'encadrement (lien « Direction » avec sa pastille à deux chiffres, lien « QG ») en garde 147. Mesurés le 9 novembre 2026 avec un faux serveur : la pastille est passée sur « QG » du 10 au 12 novembre, puis revenue sur « Direction », sans changer de largeur. Une septième rubrique mangerait presque toute cette marge : mesurer de nouveau avant d'en ajouter une. Une rubrique répond à une question : que s'est-il passé, où en est-on, qui sommes-nous, la carte, comment jouer, comment entrer. Son nom ne doit pas se confondre avec un autre : « Guides » plutôt que « Jouer », à cause du bouton « Jouer à OpenFront ».
+- **Six rubriques dans le menu, pas une de plus.** Avec le bouton « Nouveautés », l'en-tête connecté le plus chargé est celui d'un membre validé (lien « QG », nom du compte au plus long) : il garde 117 px de marge à partir de 1 280 px. Celui de l'encadrement (lien « Direction » avec sa pastille à deux chiffres, lien « QG ») en garde 147. Mesurés le 9 novembre 2026 avec un faux serveur : la pastille est passée sur « QG » du 10 au 12 novembre, puis revenue sur « Direction », sans changer de largeur. Le 12 novembre 2026, le menu passe en chasse fixe (poste de commandement) : il prend 29 px de plus à 1 280 px (471 → 500 px, mesuré sans serveur), soit environ 88 px de marge pour un membre validé et 118 pour l'encadrement. Une septième rubrique mangerait presque toute cette marge : mesurer de nouveau avant d'en ajouter une. Une rubrique répond à une question : que s'est-il passé, où en est-on, qui sommes-nous, la carte, comment jouer, comment entrer. Son nom ne doit pas se confondre avec un autre : « Guides » plutôt que « Jouer », à cause du bouton « Jouer à OpenFront ».
 - **Des onglets dans chaque rubrique.** `SectionNav.astro` les place en haut de page : on passe d'une page à l'autre sans repasser par le menu.
 - **Un contenu, une page.** L'accueil résume et renvoie ; il ne recopie pas un bloc entier. Une autre page peut citer un chiffre, en renvoyant à sa page.
 - **Une face publique, une face privée.** Le QG (`/qg`, onglet de la rubrique Membres) est réservé aux membres validés : sondages, boîte à idées, mur. Sa page ne contient que la porte, et l'accueil n'en montre qu'un bloc d'entrée. Dans l'en-tête, un membre validé a un lien « QG » avant son nom ; l'encadrement a « Direction » et « QG », sans son nom, et ouvre son compte depuis le QG ou la Direction. La pastille des demandes en attente est sur « Direction », où elles se traitent, et le lien mène alors à leur partie. Sur téléphone, il ne reste qu'un lien : « QG » pour un membre, « Direction » pour l'encadrement, qui ouvre le QG depuis la Direction. Le QG reste bleu : le rouge est réservé à l'encadrement et à sa Direction, où est l'administration. Au QG, le refus du serveur s'écrit à l'endroit de l'action, pas en haut de la page, et une photo Discord absente laisse la place à l'initiale du nom : le logo de Discord ne s'affiche jamais. Ailleurs, un membre validé connecté voit la photo de ceux qui se montrent à côté de leur pseudo (podiums, records, encadrement, fiche) : la page publiée n'a qu'un emplacement vide et masqué, `.face-slot` (`.face-slot-lg` sur la fiche), ou l'initiale de `.avatar`, que `src/scripts/visages.ts` remplit. Un visiteur ne voit aucune différence.
@@ -20,7 +41,7 @@ Le visiteur doit savoir où chercher, et avoir une raison de revenir. Le plan es
 - **Le chiffre d'abord, l'explication à la demande.** Les précisions de méthode et le périmètre des parties (« parties publiques en équipe jouées avec le tag ») sont dans `ReadingNote.astro`, repliés mais dans le HTML. Ce qui reste visible ne s'y met jamais : mentions de licence, date de mise à jour, pannes et suspensions, couverture de la lecture quand il manque des parties, la période d'un chiffre et une réserve courte sur un taux (« Un lien, pas une preuve »). Pas d'intro qui redit le titre, ni de mode d'emploi évident, ni de rappel « pas du temps réel » sous chaque bloc : le pied de page le dit une fois. Le pilote l'a demandé le 10 novembre 2026 (« il y a beaucoup trop d'écriture »).
 - **Une page courte.** Une longue liste montre ses premières lignes et garde le reste à portée : 25 clans au classement, 25 parties dans le journal, les chapitres du guide en sommaire qui s'ouvre, les 6 dernières éditions précédentes de la gazette (`GAZETTE_RECENT_EDITIONS`), et 30 membres, 10 sur téléphone où chacun est une carte. La suite des éditions reste dans le HTML, dans un `<details>` « Voir les N autres » ; la liste des membres et la suite du journal sont chargées par le navigateur (`data/members.json`, `/parties.json`). Sur téléphone, les trois modes du classé tiennent sur une ligne. Mesuré le 9 novembre 2026 à 375 × 812 : Rivaux passe de 10,3 à 7,1 écrans, Membres de 9,7 à 6,8, la Gazette de 8,7 à 5,8. Le pied de page compte pour 1,1 écran de chacune. La page Carte passe de 9,2 à 8,2 : « GAL en chiffres » se replie sur téléphone seulement (`.fold-phone`). Le HTML le donne ouvert, un petit script en ligne le referme sous 48rem avant le premier affichage, et sans script rien n'est caché. Son film et ses grands moments ne se replient pas. Le même jour, elle passe à 8,1 écrans : le territoire et la place de GAL n'y sont écrits qu'une fois hors du film, un bloc sans donnée n'est pas affiché, les réserves sans réponse de la fiche du clan tiennent en une ligne « pas de données », et seule la plus belle journée est mise en avant. Le soir, à la demande du pilote, elle passe à 5,4 écrans : « Faire grandir GAL » et son simulateur sont retirés, et « Revoir l'histoire » se range en tuiles sur toute la largeur. Sur Membres, un pseudo des paliers fait 32 pixels de haut au lieu de 17, toute la ligne d'un membre de l'encadrement mène à sa fiche, et sur téléphone toute la carte d'un membre de la liste aussi.
 - **Les espaces de travail en onglets.** Depuis le 10 novembre 2026, à la demande du pilote (« rien n'est rangé », « tout est extrêmement petit »), le QG et la Direction montrent une partie à la fois sous une barre d'onglets (`src/components/compte/Onglets.tsx`, règles dans `src/lib/onglets.ts`), et l'administration a rejoint le QG. Elle est passée dans la Direction le 12 novembre 2026 (« il est destiné au staff ») : `/admin` et les anciens `/qg#demandes`, `#comptes` et `#journal` mènent à `/direction`. Depuis le 11 novembre 2026, la Direction remplace sa barre par un menu déroulant (voir « Le menu des parties ») ; le QG garde la sienne.
-  - **La barre :** une ligne de grands onglets (Outfit 700, 18 px, 52 px de haut), sur fond `night`. L'onglet ouvert a le fond `surface-2` et le filet rouge dessous, le marqueur de page du site. Quand la place manque (téléphone), la barre défile de côté dans son cadre et ses bords s'estompent du côté où d'autres onglets attendent : la page ne s'élargit jamais. Ce ne sont pas des pastilles : elles restent aux onglets de rubrique, qui changent de page.
+  - **La barre :** une ligne de grands onglets (Outfit 700, 18 px, 52 px de haut), sur fond `night`. L'onglet ouvert a le fond `surface-2` et le filet rouge dessous, le marqueur de page du site. Quand la place manque (téléphone), la barre défile de côté dans son cadre et ses bords s'estompent du côté où d'autres onglets attendent : la page ne s'élargit jamais. Ce ne sont pas les onglets de rubrique (`.rubrique-onglet`, en chasse fixe depuis le 12 novembre 2026), qui changent de page.
   - **Les nombres :** un onglet compte ce qui attend le membre derrière lui (« Salons 1 » : un Gaulois attend ; « Décisions 1 » : un sondage sans sa voix ; « Idées 2 » à trancher pour l'encadrement ; à la Direction, « Demandes 2 »), en bleu pour un appel, en jaune pour les demandes. Le nombre disparaît une fois l'affaire faite, et les lecteurs d'écran entendent la phrase entière.
   - **L'administration** (Demandes, Comptes, Journal) est dans la Direction, rouge en entier, depuis le 12 novembre 2026. Du 10 au 12, elle était au QG, dans des onglets rangés après un trait, marqués d'un point rouge, avec un cadre bordeaux : ce marquage est parti avec elle.
   - **L'adresse** garde l'onglet ouvert (`#decisions`) sans ajouter de page à l'historique : un lien peut ouvrir un onglet, et un onglet que le compte n'a pas laisse le premier. Au clavier, les flèches, Début et Fin passent d'un onglet à l'autre ; Tab entre dans la partie.
@@ -40,12 +61,12 @@ Les jetons sont définis dans `src/styles/global.css`.
 
 | Jeton | Valeur | Usage |
 |---|---|---|
-| `navy` | `#0A1230` | Environnement de la page, avec une lueur bleue et un reflet rouge |
-| `night` | `#060B22` | Pied de page, scènes nocturnes, champs, barre d'onglets |
-| `surface` | `#121C3F` | Cartes |
-| `surface-2` | `#1A2650` | État actif, avatars |
-| `line` | `#2C3A6B` | Bordures |
-| `line-strong` | `#5D6C9E` | Contour des champs, carte survolée : 3,2:1 sur une carte |
+| `navy` | `#050B1F` | Environnement de la page, avec une lueur bleue et un reflet rouge. Blanc 19,6:1. `#0A1230` avant le 12 novembre 2026 |
+| `night` | `#020614` | Pied de page, scènes nocturnes, champs, barre d'onglets |
+| `surface` | `#0A1433` | Cartes, onglets de rubrique. Texte secondaire 10,9:1, liens 9,5:1 |
+| `surface-2` | `#13214D` | État actif, avatars |
+| `line` | `#1B2B5E` | Bordures |
+| `line-strong` | `#5469AE` | Contour des champs, carte survolée : 3,45:1 sur une carte |
 | `blue` | `#0B5FFF` | **Bouton principal uniquement** |
 | `blue-text` | `#9DBCFF` | Liens : le bleu du logo n'est pas assez contrasté sur le fond marine |
 | `flag-blue` | `#0B5FFF` | Le bleu du drapeau : filet tricolore, frontière, barre de progression. Il ne change pas avec le thème |
@@ -88,7 +109,7 @@ Depuis le 11 novembre 2026, à la demande du pilote (« un thème un peu hacker,
 | Écran | Lignes de balayage fixes (noir à 15 %, une tous les 4 px) et coins assombris, derrière le contenu |
 | Invite | `gal@direction:~$` en chasse fixe au-dessus du titre, et un curseur en pavé fixe. Décorative : masquée aux lecteurs d'écran |
 | Titre | Un léger décalage bleu et rouge, le tricolore vu à travers un écran, fixe, et une lueur rouge |
-| Chasse fixe | JetBrains Mono (OFL-1.1), jeton `--font-console` : menu des parties, libellés et chiffres des tuiles, rôle, état du site, dates et nombres (`.tnum`), noms des champs. Pas `--font-mono`, dont se sert le calculateur des guides : la police (40 Ko) n'est téléchargée et préchargée que sur la Direction et le QG |
+| Chasse fixe | JetBrains Mono (OFL-1.1), jeton `--font-console` : menu des parties, libellés et chiffres des tuiles, rôle, état du site, dates et nombres (`.tnum`), noms des champs. Pas `--font-mono`, dont se sert le calculateur des guides. La police (40 Ko) n'était préchargée que sur la Direction et le QG ; depuis le 12 novembre 2026, elle l'est sur toutes les pages, où le poste de commandement s'en sert |
 | Cartes | Des repères aux quatre coins, comme un viseur (`--console-repere`), décoratifs. Le style Terminal les remplace par des cadres en traits doubles |
 | Tuiles | Libellé en capitales espacées, chiffre en chasse fixe avec une lueur, jaune quand des demandes attendent |
 | Compte | Un voyant vert allumé devant le rôle |
@@ -146,7 +167,7 @@ Le pilote ne voyait pas la fin de la barre d'onglets de la Direction : neuf part
 
 ## Scènes
 
-Les grandes sections sont des blocs `.stage` à coins de 24 px. La profondeur vient de la couleur, sans ombre portée.
+Les grandes sections sont des blocs `.stage` à coins de 10 px, le coin haut droit coupé (« Le poste de commandement », plus haut ; 24 px et sans coupe avant le 12 novembre 2026). La profondeur vient de la couleur, sans ombre portée.
 
 | Classe | Décor | Usage sur l'accueil |
 |---|---|---|
@@ -163,6 +184,7 @@ Une scène associe un texte et des groupes `.panel`. **Pas de case dans la case 
 
 - **Titres :** Outfit, graisse 800, en capitales, interligne serré, approche -0,01 em. Le rendu est proche du lettrage du logo, avec une police libre de droits.
 - **Texte :** Inter.
+- **Machine :** JetBrains Mono (`--font-console`), depuis le 12 novembre 2026 sur toutes les pages : invite, menu des rubriques, onglets de rubrique, libellés des chiffres clés, titres du pied de page. Le texte à lire reste en Inter, les titres en Outfit.
 - **Tailles :** dans `main`, chaque taille de texte de Tailwind monte d'un cran : `text-xs` 13 px, `text-sm` 15 px, le texte courant 17 px, `text-lg` 20 px. L'en-tête, le pied de page et les espaces de travail (`.espace`) gardent les leurs. Le titre d'une page va jusqu'à 96 px (`.page-title`), celui d'une section jusqu'à 64 px (`.section-title`), 44 px dans une scène (`.section-title-sm`). Les titres passent à la ligne en lignes équilibrées (`text-wrap: balance`) : pas de mot seul sur la dernière.
 - **Chiffres clés :** `.kpi-row` aligne des `.kpi`, chacun avec un libellé court en capitales (`.kpi-label`), le chiffre en très grand (`.kpi-value`, jusqu'à 56 px) et une ligne d'explication (`.kpi-hint`). `.kpi-value-xl` (jusqu'à 72 px) sert aux chiffres du haut d'une page, `.kpi-value-md` à cinq colonnes étroites, `.kpi-value-sm` à la dernière mesure d'une courbe. Pas de case : un filet à gauche de chacun, blanc et plus épais pour le premier d'une liste classée (`.kpi-accent`). Le chiffre ne se coupe jamais ; la rangée passe à la ligne quand la place manque. Mesuré le 10 novembre 2026 : aucun débordement sur 15 pages de 360 à 1 920 px.
 - **Chiffres :** chiffres tabulaires (`.tnum`) pour que les colonnes s'alignent. Les milliers sont séparés par l'espace insécable de `src/lib/nombre.ts` : Outfit et Inter ne contiennent pas l'espace fine de `Intl`.
@@ -178,7 +200,7 @@ Une scène associe un texte et des groupes `.panel`. **Pas de case dans la case 
 | `.btn-secondary` | Blanc plein | L'action associée, jouer à OpenFront |
 | `.btn-ghost` | Contour blanc | Liens vers les pages, dans les scènes colorées |
 
-Les boutons ont des coins de 12 px, et `.btn-lg` les agrandit pour les appels principaux.
+Les boutons ont des coins de 6 px (12 px avant le 12 novembre 2026), et `.btn-lg` les agrandit pour les appels principaux. Le bouton principal a un reflet d'un pixel en haut et rayonne de son bleu au survol.
 
 La pastille `.count-pill` donne, à côté du lien « Direction », le nombre de demandes en attente, et le lien mène alors à leur partie : fond jaune `warn`, texte `navy`, 11,6:1 au moins dans les deux thèmes. Les lecteurs d'écran entendent le texte visible suivi de ce qu'il compte : « Direction 2 demandes à traiter ». Du 10 au 12 novembre 2026, elle était à côté du lien « QG ».
 
@@ -186,7 +208,7 @@ La pastille `.count-pill` donne, à côté du lien « Direction », le nombre de
 
 | Fichier | Où |
 |---|---|
-| Logo vertical | Grand visuel de l'accueil et de la page Rejoindre, sur une lueur bleue |
+| Logo vertical | Grand visuel de la page Rejoindre, sur une lueur bleue. L'accueil montre le guerrier en mode Matrix depuis le 12 novembre 2026, et ne reprend ce logo que si le fichier du guerrier manque |
 | Bannière | Bas de l'accueil, image de partage |
 | Badge rond | En-tête, favicon recadré en cercle |
 
@@ -227,6 +249,7 @@ L'idée centrale reprend le principe d'OpenFront, la conquête de territoire : d
 | Trier les membres | Les lignes glissent vers leur nouvelle place |
 | Modifier le calculateur | L'attaque se rejoue : le bot est conquis pendant que les troupes fondent |
 | Rien | Lente flottaison du logo, petits territoires qui naissent et disparaissent seuls |
+| Ouvrir une page | L'invite s'écrit, puis une lumière passe une fois sur le titre. À l'accueil, le guerrier tombe en colonnes, dans ses couleurs |
 
 **Depuis le 8 novembre 2026, les blocs ne sont plus conquis case par case à leur apparition, et la frontière ne fait plus le tour d'un bloc toute seule.** Le pilote trouvait ces mouvements agressifs : des cases recouvraient ce qu'on lisait. Les blocs apparaissent en fondu, et la conquête reste pour les gestes du visiteur, ses clics et la première vague de l'accueil. Un graphique ou un tableau posé sur le fond sans case (`.fx-block`) apparaît en fondu comme un bloc, et ses animations attendent qu'il entre à l'écran ; dans une scène, il apparaît avec elle. Il n'a ni halo ni onde à lui : leur bord dessinerait la case qu'il n'a plus.
 

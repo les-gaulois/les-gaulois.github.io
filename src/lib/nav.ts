@@ -37,3 +37,27 @@ export function sectionOf(path: string): NavSection | null {
   const clean = path.replace(/\/$/, "") || "/";
   return SECTIONS.find((s) => s.pages.some((p) => clean === p.href || clean.startsWith(`${p.href}/`))) ?? null;
 }
+
+/** Un nom de dossier ou de commande : sans accent, en minuscules, un tiret entre les mots. */
+const nomMachine = (texte: string): string =>
+  texte
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+
+/**
+ * L'invite décorative au-dessus du titre d'une page, celle du poste de commandement (docs/DESIGN.md) :
+ * `gal@clan:~/resultats$ ./classement`. Le dossier est la rubrique quand elle a plusieurs pages, sinon la racine ; la
+ * commande est la page de l'adresse. Une fiche de membre s'écrit `./fiche` : l'identifiant du joueur n'y paraît jamais.
+ */
+export function invite(path: string): { dossier: string; commande: string } {
+  const clean = path.replace(/\/$/, "") || "/";
+  const section = sectionOf(clean);
+  const morceaux = clean.split("/").filter(Boolean);
+  return {
+    dossier: section && section.pages.length > 1 ? `~/${nomMachine(section.label)}` : "~",
+    commande: morceaux.length > 1 && morceaux[0] === "membres" ? "fiche" : nomMachine(morceaux[0] ?? "accueil"),
+  };
+}

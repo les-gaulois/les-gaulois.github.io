@@ -1,4 +1,6 @@
 ---
+import Invite from "./Invite.astro";
+
 interface Props {
   title: string;
   intro?: string;
@@ -8,12 +10,16 @@ interface Props {
 const { title, intro, compact = false } = Astro.props;
 // « Confidentialité », « Administration » : un si long mot ne peut pas passer à la ligne.
 const hasLongWord = title.split(" ").some((word) => word.length >= 14);
+// Le QG et la Direction écrivent leur propre invite (avant-titre) ; les autres pages prennent celle du site.
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const path = Astro.url.pathname.replace(base, "").replace(/\/$/, "") || "/";
+const ownPrompt = Astro.slots.has("avant-titre");
 ---
 
 <header class:list={["reveal", compact ? "pb-5 pt-6 md:pb-6 md:pt-8" : "pb-8 pt-8 md:pb-10 md:pt-12"]}>
   <span class:list={["tribar", compact ? "mb-4" : "mb-6"]}></span>
-  {/* Ce qui précède le titre : l'invite de la Direction, par exemple. */}
-  <slot name="avant-titre" />
+  {/* Ce qui précède le titre : l'invite de la Direction ou du QG, sinon celle du site. */}
+  {ownPrompt ? <slot name="avant-titre" /> : <Invite path={path} />}
   <h1 class:list={["page-title", { "page-title-long": hasLongWord, "page-title-compact": compact }]}>{title}</h1>
   {intro && <p class="mt-5 max-w-3xl text-lg text-muted">{intro}</p>}
   <slot />

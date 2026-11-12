@@ -14,15 +14,17 @@ Un univers de jeu sombre, pas une page de statistiques : grands titres en capita
 
 **Lisible et ouvert (10 novembre 2026) :** tout écrit en gros, chiffres clés en très grand, graphiques et groupes posés sur le décor sans case, séparés par un filet. Principes inspirés du site du clan [FR], jamais copiés (ni police, ni textes, ni visuels, ni agencement). Les scènes colorées, le fond animé et le bouton pause restent : le pilote a rejeté une refonte sobre le 9 novembre.
 
+**Le poste de commandement (12 novembre 2026) :** tout le site prend l'univers du QG et de la Direction, en plus calme : « le site est la table des cartes du clan, la nuit ». Encre `#050B1F` quadrillée de croix toutes les quatre cases (calques fixes `body::before` et `::after`, pages ouvertes à tous seulement : `:root:not([data-ambiance])`), en-tête en vitre sombre avec un horizon tricolore, rubriques et onglets de rubrique (`.rubrique-onglet`) en chasse fixe, invite décorative `gal@clan:~/rubrique$ ./page` au-dessus de chaque titre (`Invite.astro`, `invite()` de `src/lib/nav.ts` ; jamais l'identifiant d'un joueur), une lumière qui passe une fois sur le titre, scènes au coin haut droit coupé, libellés des chiffres en chasse fixe, et à l'accueil le guerrier en mode Matrix (72 colonnes) qui tombe dans ses couleurs au-dessus d'un socle de lumière. JetBrains Mono est préchargée sur toutes les pages. Pas de lignes d'écran, de titre décalé, de vert ni de cadres doubles hors du QG et de la Direction. Détail dans `docs/DESIGN.md`, « Le poste de commandement ».
+
 ## Jetons (`src/styles/global.css`)
 
 | Jeton | Usage |
 |---|---|
-| `navy` `#0A1230` | Fond de page |
-| `night` `#060B22` | Pied de page, scènes nocturnes, champs, barre d'onglets |
-| `surface` `#121C3F` / `surface-2` `#1A2650` | Cartes / état actif, avatars |
-| `line` `#2C3A6B` | Bordures |
-| `line-strong` `#5D6C9E` | Contour des champs, carte survolée (3:1 au moins sur une carte) |
+| `navy` `#050B1F` | Fond de page (l'encre du poste de commandement ; `#0A1230` avant le 12 novembre 2026) |
+| `night` `#020614` | Pied de page, scènes nocturnes, champs, barre d'onglets |
+| `surface` `#0A1433` / `surface-2` `#13214D` | Cartes / état actif, avatars |
+| `line` `#1B2B5E` | Bordures |
+| `line-strong` `#5469AE` | Contour des champs, carte survolée (3,45:1 sur une carte) |
 | `blue` `#0B5FFF` | **Bouton principal seulement** |
 | `blue-text` `#9DBCFF` | Liens (le bleu du logo manque de contraste sur le marine) |
 | `flag-blue` `#0B5FFF` | Bleu du drapeau : filet tricolore, frontière, barre de progression. Ne change jamais avec le thème |
@@ -41,10 +43,10 @@ Pas de couleur en dur dans un composant : un jeton, ou une classe de `global.css
 
 ## Scènes, cartes, boutons
 
-- Grandes sections : `.stage` à coins de 24 px, décor `.stage-blue`, `.stage-indigo`, `.stage-night`, `.stage-wine`. Profondeur par la couleur, sans ombre portée. Un groupe `.panel` dans une scène n'a ni fond ni cadre : un filet au-dessus (`--hairline`). Il n'affiche que des données collectées : aucune maquette, aucune valeur fictive. Sur `.stage-blue`, les liens sont blancs soulignés.
+- Grandes sections : `.stage` à coins de 10 px, coin haut droit coupé, décor `.stage-blue`, `.stage-indigo`, `.stage-night`, `.stage-wine`. Profondeur par la couleur, sans ombre portée. Un groupe `.panel` dans une scène n'a ni fond ni cadre : un filet au-dessus (`--hairline`). Il n'affiche que des données collectées : aucune maquette, aucune valeur fictive. Sur `.stage-blue`, les liens sont blancs soulignés.
 - Chiffres clés : `.kpi-row` > `.kpi` (`.kpi-label`, `.kpi-value` et ses tailles `-xl` `-md` `-sm`, `.kpi-hint`), un filet à gauche, `.kpi-accent` pour le premier d'une liste classée. Le chiffre ne se coupe pas : vérifier qu'il tient de 360 à 1 920 px.
 - Cartes : `.card`, pour les listes et les espaces de travail ; pas autour d'un graphique. Largeur de page : `.wrap`. Un graphique ou un tableau posé sur le fond porte `.fx-block` pour apparaître en fondu.
-- Boutons : `.btn-primary` (bleu plein, l'action principale, rejoindre le Discord), `.btn-secondary` (blanc plein, jouer à OpenFront), `.btn-ghost` (contour blanc, liens dans les scènes). Coins 12 px, `.btn-lg` pour les appels principaux. `.btn` écrase `hidden` : masquer via un conteneur.
+- Boutons : `.btn-primary` (bleu plein, l'action principale, rejoindre le Discord), `.btn-secondary` (blanc plein, jouer à OpenFront), `.btn-ghost` (contour blanc, liens dans les scènes). Coins 6 px, `.btn-lg` pour les appels principaux. `.btn` écrase `hidden` : masquer via un conteneur.
 - Bouton Discord : texte seul, pas de logo ni de couleur de la marque.
 
 ## Typographie

@@ -2,6 +2,7 @@
 import Base from "../layouts/Base.astro";
 import DataStatus from "../components/DataStatus.astro";
 import Empty from "../components/Empty.astro";
+import Invite from "../components/Invite.astro";
 import PageJumps from "../components/PageJumps.astro";
 import TerritoryChart from "../components/TerritoryChart.tsx";
 import { clan } from "../../config/clan";
@@ -93,6 +94,7 @@ const sinceLine =
   {
     !film ? (
       <div class="wrap pt-12">
+        <Invite path="/carte" />
         <h1 class="page-title">La carte des clans</h1>
         <div class="mt-4">
           <DataStatus state={meta.clanmap} maxAgeHours={MAX_AGE_HOURS.clanmap} />
@@ -106,6 +108,7 @@ const sinceLine =
         <section data-film data-assets={assets} data-visit={visit ? JSON.stringify(visit) : undefined} aria-labelledby="map-page-title">
           <div class="film-hero">
             <div class="film-title">
+              <Invite path="/carte" />
               <h1 id="map-page-title">La carte des clans</h1>
               <DataStatus state={meta.clanmap} maxAgeHours={MAX_AGE_HOURS.clanmap} />
             </div>

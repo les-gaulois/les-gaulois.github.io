@@ -15,8 +15,9 @@ export const GET: APIRoute = () => {
     start_url: `${base}/`,
     scope: `${base}/`,
     display: "standalone",
-    background_color: "#0A1230",
-    theme_color: "#0A1230",
+    // Le fond du site, le jeton navy du poste de commandement (docs/DESIGN.md) : le site installé démarre dans sa couleur.
+    background_color: "#050B1F",
+    theme_color: "#050B1F",
     icons: [
       { src: `${base}/generated/icon-192.png`, sizes: "192x192", type: "image/png" },
       { src: `${base}/generated/icon-512.png`, sizes: "512x512", type: "image/png" },

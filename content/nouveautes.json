@@ -2,6 +2,12 @@
   {
     "date": "2026-11-12",
     "kind": "ameliore",
+    "title": "Le site prend l'allure du QG",
+    "body": "Tout le site passe dans l'univers du QG, en plus calme : fond quadrillé comme une carte, ligne de commande au-dessus des titres, et sur l'accueil le guerrier du clan dessiné en caractères."
+  },
+  {
+    "date": "2026-11-12",
+    "kind": "ameliore",
     "title": "L'inventaire d'images passe à 200 images",
     "body": "Pour l'encadrement : l'inventaire tient 200 images (500 Mo en tout) et se cherche par nom. Dans un message, une image déjà choisie se remplace d'un clic par une de l'inventaire."
   },

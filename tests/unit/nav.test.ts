@@ -1,6 +1,22 @@
 import { readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { SECTIONS, sectionOf } from "../../src/lib/nav";
+import { SECTIONS, invite, sectionOf } from "../../src/lib/nav";
+
+describe("invite", () => {
+  it("écrit la rubrique en dossier et la page en commande", () => {
+    expect(invite("/classement")).toEqual({ dossier: "~/resultats", commande: "classement" });
+    expect(invite("/parties/")).toEqual({ dossier: "~/actu", commande: "parties" });
+    expect(invite("/outils")).toEqual({ dossier: "~/guides", commande: "outils" });
+  });
+  it("reste à la racine pour une rubrique d'une seule page, l'accueil et les pages à part", () => {
+    expect(invite("/carte")).toEqual({ dossier: "~", commande: "carte" });
+    expect(invite("/")).toEqual({ dossier: "~", commande: "accueil" });
+    expect(invite("/mentions-legales")).toEqual({ dossier: "~", commande: "mentions-legales" });
+  });
+  it("n'écrit jamais l'identifiant du joueur d'une fiche", () => {
+    expect(invite("/membres/AbC123")).toEqual({ dossier: "~/membres", commande: "fiche" });
+  });
+});
 
 describe("sectionOf", () => {
   it("trouve la rubrique d'une page, avec ou sans barre finale", () => {

@@ -5,6 +5,8 @@ import { join } from "node:path";
 import Base from "../layouts/Base.astro";
 import ClanWeek from "../components/ClanWeek.astro";
 import DataStatus from "../components/DataStatus.astro";
+import Invite from "../components/Invite.astro";
+import LogoMatrice from "../components/LogoMatrice";
 import MyPlace from "../components/MyPlace.tsx";
 import NewsBoard from "../components/NewsBoard";
 import SinceLastVisit from "../components/SinceLastVisit.tsx";
@@ -24,8 +26,12 @@ import { findClan, neighbours, winRate, withOfficialRanks } from "../lib/stats";
 import { recentRecordLines, recentTerritoryRecord } from "../lib/vie-du-clan";
 import { milestonesSinceMonday } from "../lib/week-players";
 import { loadVisitSnapshot } from "../lib/visite-snapshot";
+import { logoMatriceDepuisImage } from "../lib/logo-matrice-image";
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+// Le logo du guerrier en mode Matrix, plus fin qu'au QG (72 colonnes) : c'est le grand visuel de l'accueil. Sans le
+// fichier du logo, l'accueil garde le logo vertical.
+const logoHeros = await logoMatriceDepuisImage(72);
 const meta = loadMeta();
 const leaderboard = loadLeaderboard();
 const clans = leaderboard ? withOfficialRanks(leaderboard.clans) : [];
@@ -78,9 +84,10 @@ const imageAlt = hasImage && imageFacts ? accueilImageAlt(imageFacts, clan.tag, 
 
 <Base image={image} imageAlt={imageAlt}>
   <section class="relative overflow-hidden">
-    <div class="wrap relative grid items-center gap-6 pb-8 pt-6 md:grid-cols-[3fr_2fr] md:gap-10 md:pb-10 md:pt-10">
+    <div class="wrap relative grid items-center gap-4 pb-8 pt-5 md:grid-cols-[3fr_2fr] md:gap-10 md:pb-10 md:pt-10">
       <div class="reveal order-2 md:order-1">
-        <span class="tribar mb-6"></span>
+        <span class="tribar mb-4 md:mb-6"></span>
+        <Invite path="/" />
         <h1 class="text-[2.75rem] !leading-[0.95] sm:text-6xl md:text-5xl lg:text-6xl xl:text-7xl">{clan.tagline}</h1>
         {clan.description && <p class="mt-5 max-w-md text-lg text-muted">{clan.description}</p>}
         {/* Deux gestes qui servent d'abord aux membres : retrouver le clan sur Discord et lancer une partie. L'appel à rejoindre le clan est en bas de page. */}
@@ -93,7 +100,19 @@ const imageAlt = hasImage && imageFacts ? accueilImageAlt(imageFacts, clan.tag, 
       <div class="fx-stage reveal relative order-1 flex justify-center md:order-2">
         <div class="hero-glow" aria-hidden="true"></div>
         {
-          hasLogo ? (
+          logoHeros ? (
+            /* Le guerrier du QG et de la Direction, dessiné en 0, en 1 et en lettres du tag : il tombe une fois en colonnes,
+               directement dans ses couleurs, puis flotte au-dessus de son socle de lumière, comme projeté par la table
+               des cartes (« Le poste de commandement », docs/DESIGN.md). */
+            <div class="holo-scene relative w-56 sm:w-72 md:w-full md:max-w-lg">
+              <div class="holo-socle" aria-hidden="true"></div>
+              <div class="float relative">
+                <div class="holo" role="img" aria-label="Logo du clan GAL, Les Gaulois : un guerrier gaulois de profil, au casque à plumes tricolore, dessiné en caractères." data-fx-logo>
+                  <LogoMatrice data={logoHeros} id="logo-accueil" class="holo-logo" />
+                </div>
+              </div>
+            </div>
+          ) : hasLogo ? (
             <div class="float relative w-36 sm:w-56 md:w-full md:max-w-sm">
               <img
                 src={`${base}/generated/logo-vertical-720.webp`}

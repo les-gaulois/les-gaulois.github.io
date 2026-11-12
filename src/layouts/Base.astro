@@ -1,9 +1,10 @@
 ---
 import "../styles/global.css";
-// Les deux polices du site, préchargées : le texte s'affiche presque toujours directement dans sa police.
+// Les trois polices du site, préchargées : le texte s'affiche presque toujours directement dans sa police.
 import interFont from "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url";
 import outfitFont from "@fontsource-variable/outfit/files/outfit-latin-wght-normal.woff2?url";
-// La chasse fixe de l'ambiance console, préchargée seulement sur les pages qui s'en servent (Direction et QG).
+// La chasse fixe du poste de commandement : depuis le 12 novembre 2026, la machine du QG parle sur toutes les pages
+// (invite, menu, onglets, libellés). Voir « Le poste de commandement » dans docs/DESIGN.md.
 import consoleFont from "@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2?url";
 import { clan, SITE_DISCLAIMER, SITE_LICENSE_NOTICE } from "../../config/clan";
 import { brandFile } from "../lib/brand";
@@ -56,7 +57,7 @@ const nouveautesMarker = newsMarker(loadNouveautes());
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark" />
     {/* La barre du navigateur sur téléphone prend le fond de la page : le jeton navy de chaque thème (Terminal pour la console). */}
-    <meta name="theme-color" content={theme === "rouge" ? (ambiance === "console" ? "#13040A" : "#300A10") : ambiance === "console" ? "#03081A" : "#0A1230"} />
+    <meta name="theme-color" content={theme === "rouge" ? (ambiance === "console" ? "#13040A" : "#300A10") : ambiance === "console" ? "#03081A" : "#050B1F"} />
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
     {noindex && <meta name="robots" content="noindex" />}
@@ -72,7 +73,7 @@ const nouveautesMarker = newsMarker(loadNouveautes());
     <link rel="manifest" href={`${base}/manifest.webmanifest`} />
     <link rel="preload" href={outfitFont} as="font" type="font/woff2" crossorigin />
     <link rel="preload" href={interFont} as="font" type="font/woff2" crossorigin />
-    {ambiance === "console" && <link rel="preload" href={consoleFont} as="font" type="font/woff2" crossorigin />}
+    <link rel="preload" href={consoleFont} as="font" type="font/woff2" crossorigin />
     <script is:inline>
       // Avant le premier affichage : un visiteur ayant mis en pause ne voit aucune animation,
       // et les autres ne voient pas les blocs s'afficher puis disparaître avant leur apparition en fondu.
@@ -90,7 +91,8 @@ const nouveautesMarker = newsMarker(loadNouveautes());
       class="absolute left-2 top-[-4rem] z-50 rounded bg-white px-3 py-2 font-semibold text-navy focus:top-2"
       >Aller au contenu</a
     >
-    <header class="sticky top-0 z-40 bg-navy/80 backdrop-blur-md">
+    {/* La barre de commande : une vitre sombre, et l'horizon tricolore dessous (« Le poste de commandement », docs/DESIGN.md). */}
+    <header class="barre sticky top-0 z-40">
       <div class="wrap flex min-h-16 items-center justify-between gap-4">
         <a href={`${base}/`} class="flex items-center gap-3 font-display font-extrabold">
           {
@@ -109,14 +111,7 @@ const nouveautesMarker = newsMarker(loadNouveautes());
             {
               SECTIONS.map((s) => (
                 <li>
-                  <a
-                    href={`${base}${s.href}`}
-                    aria-current={path === s.href ? "page" : currentSection === s ? "true" : undefined}
-                    class:list={[
-                      "block whitespace-nowrap rounded px-3 py-2 text-sm font-semibold text-white hover:underline hover:underline-offset-8",
-                      currentSection === s && "underline decoration-red decoration-2 underline-offset-8",
-                    ]}
-                  >
+                  <a href={`${base}${s.href}`} aria-current={path === s.href ? "page" : currentSection === s ? "true" : undefined} class="barre-lien">
                     {s.label}
                   </a>
                 </li>

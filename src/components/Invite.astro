@@ -1,0 +1,15 @@
+---
+import { invite } from "../lib/nav";
+
+interface Props {
+  /** L'adresse de la page, sans la base : elle donne le dossier et la commande. */
+  path: string;
+}
+const { dossier, commande } = invite(Astro.props.path);
+---
+
+{/* L'invite du poste de commandement, au-dessus du titre (docs/DESIGN.md) : la même machine que le QG et la Direction,
+    « gal@clan » pour les pages ouvertes à tous. Décorative : le titre dit déjà où l'on est. Elle s'écrit une fois. */}
+<p class="invite" aria-hidden="true">
+  <span class="invite-hote">gal@clan</span>:<span class="invite-dossier">{dossier}</span>$&nbsp;<span class="invite-commande">./{commande}</span><span class="console-curseur"></span>
+</p>
