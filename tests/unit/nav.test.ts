@@ -6,7 +6,7 @@ describe("invite", () => {
   it("écrit la rubrique en dossier et la page en commande", () => {
     expect(invite("/classement")).toEqual({ dossier: "~/resultats", commande: "classement" });
     expect(invite("/parties/")).toEqual({ dossier: "~/actu", commande: "parties" });
-    expect(invite("/outils")).toEqual({ dossier: "~/guides", commande: "outils" });
+    expect(invite("/activite")).toEqual({ dossier: "~/guides", commande: "activite" });
     expect(invite("/liste")).toEqual({ dossier: "~/membres", commande: "liste" });
   });
   it("reste à la racine pour une rubrique d'une seule page, l'accueil et les pages à part", () => {

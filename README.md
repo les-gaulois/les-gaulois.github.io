@@ -19,7 +19,7 @@ Le plan est dans `src/lib/nav.ts`. Une rubrique répond à une question de visit
 | Résultats | `/classement`, `/rivaux`, `/progression`, `/records` | La liste officielle, la course et le comparateur, les courbes, les podiums des joueurs et les records |
 | Membres | `/membres`, `/liste`, `/membres/:id`, `/qg` | Les paliers, l'encadrement et le classé ; la liste officielle, avec recherche et tri, et les fiches ; le QG, face privée réservée aux membres validés, en onglets ; l'administration de l'encadrement est dans `/direction` |
 | Carte | `/carte` | Le film, puis revoir l'histoire, où en est GAL et le détail |
-| Guides | `/debuter`, `/activite`, `/outils` | Les guides, quand jouer et le jeu en groupe, le calculateur et les outils |
+| Guides | `/debuter`, `/activite` | Les guides, quand jouer et le jeu en groupe |
 | Rejoindre | `/rejoindre` | Les étapes pour entrer dans le clan |
 
 Hors des rubriques, dans le pied de page de chaque page : `/mentions-legales` (l'éditeur et les hébergeurs, exigés par la loi ; version anonyme choisie par le pilote) et `/confidentialite` quand la connexion est ouverte.
@@ -117,7 +117,6 @@ Tout se modifie depuis GitHub, sans outil particulier. L'enregistrement relance 
 |---|---|---|
 | Annonces | `content/announcements.json` | `[{ "date": "2026-11-05", "title": "…", "body": "…", "url": "https://… (facultatif)" }]` |
 | Événements | `content/events.json` | `[{ "start": "2026-11-20T20:00:00.000Z", "title": "…", "description": "… (facultatif)", "url": "https://… (facultatif)" }]` |
-| Outils communautaires | `content/links.json` | `{ "tools": [{ "name": "…", "url": "https://…", "description": "…" }] }` |
 | Guides par mode | `content/guide/*.md` | Markdown |
 | Guide du clan, chapitre par chapitre | `content/guide-clan/*.md` | Markdown |
 | Nouveautés du site | `content/nouveautes.json` | `[{ "date": "2026-11-08", "kind": "nouveau", "title": "…", "body": "…", "link": { "href": "/page", "label": "…" } (facultatif) }]` — `kind` : `nouveau`, `ameliore`, `corrige` ou `retire` ; la plus récente en tête |
@@ -205,8 +204,6 @@ Tous les calculs sont dans `src/lib/` et testés :
 - **Coûts de la carte :** 1 capsule = 100 troupes, 1 pixel neutre = 1 000 troupes. Ils traduisent les réserves du clan en pixels neutres. Règles lues dans le code de la carte, dans `src/lib/clanmap/economy.ts`. **Si le jeu les change, il faut les mettre à jour à la main.**
 - **Grands moments du film :** déduits des chiffres de chaque image dans `src/lib/clanmap/moments.ts`, sans texte écrit à la main. Chacun porte la date de son image.
 - **Journées de GAL :** les dates viennent de l'historique officiel et se comptent en jours de Paris (`src/lib/clanmap/replay.ts`, `days.ts`). Le solde d'une journée est ses pixels pris moins ses pixels perdus. Les deux records ne regardent que les journées terminées. La gazette prend le territoire à la fin de ces journées, et le relevé quotidien de `journal.json` pour le reste.
-
-Le calculateur de troupes est documenté dans `src/lib/calculator.ts`. Il reprend les constantes du jeu au commit `5b75bd3`. **Si le jeu change ses règles d'attaque, il faut les mettre à jour à la main.**
 
 ## Déploiement sur GitHub Pages
 

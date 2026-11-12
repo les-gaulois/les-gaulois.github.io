@@ -80,10 +80,6 @@ const jumps = [
 </Base>
 
 <script>
-  // Le calculateur et les outils ont changé de page : les anciens liens y mènent encore.
-  if (["#calculateur", "#outils-section", "#outils"].includes(location.hash)) {
-    location.replace(`${import.meta.env.BASE_URL.replace(/\/$/, "")}/outils${location.hash}`);
-  }
   // Un lien du sommaire ouvre le chapitre visé, même déjà visité. Sans script, le chapitre s'ouvre d'un clic.
   function openChapter(hash: string): void {
     const target = hash ? document.getElementById(decodeURIComponent(hash.slice(1))) : null;

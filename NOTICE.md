@@ -28,7 +28,7 @@ Code source de la version en ligne : <https://github.com/les-gaulois/les-gaulois
 
 Ce site est communautaire et non officiel : il n'a aucun lien avec les éditeurs d'OpenFront et n'a pas reçu leur approbation.
 
-En dehors de ce que liste le tableau ci-dessus, aucun fichier de code ni aucune image d'OpenFront n'est copié ici à ce jour, ni utilisé par le robot. Le calculateur et le graphique de croissance de `/debuter` sont adaptés de son code, lui-même sous AGPL-3.0, puis réécrits : voir `docs/API_AUDIT.md`. Le bas de page affiche la mention « © OpenFront and Contributors ».
+En dehors de ce que liste le tableau ci-dessus, aucun fichier de code ni aucune image d'OpenFront n'est copié ici à ce jour, ni utilisé par le robot. Le graphique de croissance de `/debuter` est adapté de son code, lui-même sous AGPL-3.0, puis réécrit : voir l'en-tête de `src/lib/growth.ts`. Le bas de page affiche la mention « © OpenFront and Contributors ».
 
 Si un morceau de code d'OpenFront est repris :
 

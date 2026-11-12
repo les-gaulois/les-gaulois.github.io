@@ -28,7 +28,7 @@ import { nextTier, tierOf, tierRows } from "../../src/lib/paliers";
 import { currentMilestonesPeriod, homeMilestones, recentRecordLines, recentTerritoryRecord } from "../../src/lib/vie-du-clan";
 import { milestonesSinceMonday } from "../../src/lib/week-players";
 
-const PAGES = ["/", "/gazette", "/parties", "/nouveautes", "/classement", "/rivaux", "/progression", "/records", "/membres", "/liste", "/qg", "/carte", "/activite", "/debuter", "/outils", "/rejoindre", "/mentions-legales"];
+const PAGES = ["/", "/gazette", "/parties", "/nouveautes", "/classement", "/rivaux", "/progression", "/records", "/membres", "/liste", "/qg", "/carte", "/activite", "/debuter", "/rejoindre", "/mentions-legales"];
 const lb = JSON.parse(readFileSync("data/leaderboard.json", "utf8"));
 const members = JSON.parse(readFileSync("data/members.json", "utf8"));
 const gal = lb.clans.find((c: { clanTag: string }) => c.clanTag === "GAL");
@@ -355,20 +355,6 @@ test("parcours principal", async ({ page }, testInfo) => {
   // Le wiki est sous CC BY-SA : sa mention ne doit pas disparaître de la page.
   await expect(page.getByTestId("guide-sources").getByRole("link", { name: "CC BY-SA 4.0" })).toBeVisible();
 
-  // Calculateur : il réagit et ne dépend pas de la frontière.
-  await page.goto("/outils");
-  await hydrated(page);
-  await expect(page.getByText("Repère indicatif, pas une garantie.")).toBeVisible();
-  const minimum = page.getByTestId("calc-minimum");
-  await expect(minimum).not.toBeEmpty();
-  const plains = await minimum.textContent();
-  await page.getByLabel("Frontière").fill("500");
-  await expect(minimum).toHaveText(plains ?? "");
-  await page.getByLabel("Terrain").selectOption("mountain");
-  await expect(minimum).not.toHaveText(plains ?? "");
-  await page.getByLabel("Taille du bot").fill("0");
-  await expect(page.getByTestId("calc-result").getByRole("alert")).toBeVisible();
-
   // Rejoindre.
   await page.goto("/rejoindre");
   await expect(page.getByTestId("join-steps").locator("li")).toHaveCount(4);
@@ -522,12 +508,18 @@ test("Rejoindre donne l'argument du jeu en groupe et renvoie vers son détail", 
   await expect(page.getByTestId("join-guides").getByRole("link")).toHaveAttribute("href", /\/debuter$/);
 });
 
-test("les anciens liens vers le calculateur et les outils y mènent encore", async ({ page }) => {
-  await page.goto("/debuter#calculateur");
-  await expect(page).toHaveURL(/\/outils\/?#calculateur$/);
-  await expect(page.getByRole("heading", { name: "Troupes à envoyer contre un bot" })).toBeInViewport();
-  await page.goto("/debuter#outils-section");
-  await expect(page).toHaveURL(/\/outils\/?#outils-section$/);
+// « Calculateur et outils » a été retiré le 12 novembre 2026, à la demande du pilote : ne pas le remettre sans sa demande.
+test("le calculateur et les outils sont retirés, et plus rien n'y mène", async ({ page }) => {
+  const gone = await page.goto("/outils");
+  expect(gone?.status()).toBe(404);
+  // Un ancien lien vers le calculateur ouvre les guides, sans renvoi vers la page disparue.
+  const guides = await page.goto("/debuter#calculateur");
+  expect(guides?.status()).toBe(200);
+  await page.waitForLoadState("networkidle");
+  await expect(page.locator("main h1")).toBeVisible();
+  await expect(page).toHaveURL(/\/debuter\/?#calculateur$/);
+  // Ni le menu, ni les onglets, ni le pied de page, ni un chapitre du guide, même replié.
+  await expect(page.locator('a[href*="/outils"]')).toHaveCount(0);
 });
 
 test("le sommaire des guides rouvre un chapitre refermé", async ({ page }) => {

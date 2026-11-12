@@ -16,7 +16,7 @@ import NouveautesMenu from "../components/NouveautesMenu.astro";
 import PlayerViewBar from "../components/PlayerViewBar";
 import SectionNav from "../components/SectionNav.astro";
 import { SECTIONS, sectionOf } from "../lib/nav";
-import { loadMeta, loadLinks, loadNouveautes } from "../lib/data";
+import { loadMeta, loadNouveautes } from "../lib/data";
 import { fmtDateTime } from "../lib/format";
 import { newsMarker } from "../lib/nouveautes";
 
@@ -45,7 +45,6 @@ const currentSection = sectionOf(path);
 const badge = brandFile("badge");
 const ogImage = new URL(image ?? `${base}/generated/og.jpg`, Astro.site).href;
 const lastRun = loadMeta().lastRunAt;
-const usefulTools = loadLinks().tools.length > 0;
 // La marque de la dernière mise à jour du site : src/scripts/nouveautes.ts la compare à celle que le visiteur a vue.
 const nouveautesMarker = newsMarker(loadNouveautes());
 // L'onciale de cases (src/lib/police/onciale.ts), fabriquée à chaque construction : les titres et les gros chiffres de toutes
@@ -254,7 +253,6 @@ const onciale = lettresOnciale
           <ul class="mt-3 space-y-2 text-sm">
             <li><a href={clan.links.discord} rel="noopener">Discord du clan</a></li>
             <li><a href={clan.links.openfront} rel="noopener">Jouer à OpenFront</a></li>
-            {usefulTools && <li><a href={`${base}/outils#outils-section`}>Outils communautaires</a></li>}
             {AUTH_ENABLED && <li><a href={`${base}/confidentialite`}>Confidentialité</a></li>}
             {/* La loi du 21 juin 2004 (article 1-1) met l'éditeur et l'hébergeur à la disposition du public : le lien est sur chaque page, serveur ou non. */}
             <li><a href={`${base}/mentions-legales`}>Mentions légales</a></li>

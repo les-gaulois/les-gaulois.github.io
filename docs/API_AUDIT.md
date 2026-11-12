@@ -368,6 +368,8 @@ Ces parties antérieures à la création du clan sont liées au **tag**, pas for
 
 ## 5. Calculateur de troupes contre un bot
 
+> Le calculateur a été retiré du site le 12 novembre 2026, à la demande du pilote, avec son code (`src/lib/calculator.ts`). Cette section reste comme trace de la lecture de la formule d'attaque dans le code du jeu.
+
 Formule lue dans `EngineConfig.attackLogic` (commit `5b75bd3`). Pour un humain attaquant un bot, **sur chaque case conquise** :
 
 ```text

@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-const PAGES = ["/", "/gazette", "/parties", "/classement", "/rivaux", "/progression", "/records", "/membres", "/liste", "/carte", "/activite", "/debuter", "/outils", "/rejoindre"];
+const PAGES = ["/", "/gazette", "/parties", "/classement", "/rivaux", "/progression", "/records", "/membres", "/liste", "/carte", "/activite", "/debuter", "/rejoindre"];
 
 /** Couleur franche de la case sous un point. Les vagues ambiantes, plus pâles, ne comptent pas. */
 const tileAt = (page: Page, x: number, y: number) =>
@@ -396,28 +396,6 @@ test.describe("à la souris", () => {
     await expect(page.getByTestId("score-lanes").locator("li")).toHaveCount(3);
   });
 
-  test("le calculateur rejoue l'attaque et le rejeu reste cohérent", async ({ page }) => {
-    await page.goto("/outils");
-    await hydrated(page);
-    const replay = page.getByTestId("attack-replay");
-    await centerOnScreen(replay);
-    const troops = page.getByTestId("replay-troops");
-    const number = async () => Number((await troops.textContent())?.replace(/\D/g, "") ?? 0);
-    await expect.poll(number, { timeout: 2000 }).toBeGreaterThan(0);
-    const values = new Set<number>();
-    await expect
-      .poll(
-        async () => {
-          values.add(await number());
-          return values.size;
-        },
-        { timeout: 6000, intervals: [120] },
-      )
-      .toBeGreaterThan(2);
-    const minimum = Number((await page.getByTestId("calc-minimum").textContent())?.replace(/\D/g, ""));
-    expect(Math.max(...values)).toBeLessThanOrEqual(minimum);
-  });
-
   test("trier les membres fait glisser les lignes", async ({ page }) => {
     await page.goto("/liste");
     await expect(page.getByTestId("member-row").first()).toBeVisible();
@@ -459,13 +437,6 @@ test.describe("à la souris", () => {
     await expect(page.locator("html")).toHaveClass(/fx-off/);
     await expect(page.locator(".fx-hidden")).toHaveCount(0);
     await expect(page.locator("[data-testid=heatmap] td[title]").first()).toBeAttached();
-
-    await page.goto("/outils");
-    const troops = page.getByTestId("replay-troops");
-    await expect(troops).not.toBeEmpty();
-    const frozen = await troops.textContent();
-    await page.waitForTimeout(400);
-    expect(await troops.textContent()).toBe(frozen);
 
     await pauseButton(page).click();
     await expect(page.locator("html")).not.toHaveClass(/fx-off/);
@@ -539,9 +510,6 @@ test("avec « réduire les animations », aucun effet n'est lancé", async ({ pa
   await page.mouse.click(BACKGROUND.x, BACKGROUND.y, { button: "right" });
   expect(await menuPrevented(page)).toBe(false);
   await expect(page.locator("[data-fx-hint]")).toBeHidden();
-
-  await page.goto("/outils");
-  await expect(page.getByTestId("replay-troops")).not.toBeEmpty();
 });
 
 test("sans JavaScript, tout le contenu reste visible", async ({ browser }, testInfo) => {

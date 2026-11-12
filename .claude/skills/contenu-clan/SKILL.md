@@ -1,6 +1,6 @@
 ---
 name: contenu-clan
-description: Modifie les textes et listes du clan — annonces, événements, outils communautaires, guides par mode, guide du clan (content/) et fiche du clan (config/clan.ts) — avec les bons formats JSON et Markdown, sans rien inventer. À utiliser pour « ajouter une annonce », « un événement », « un chapitre », « changer la description du clan ».
+description: Modifie les textes et listes du clan — annonces, événements, guides par mode, guide du clan (content/) et fiche du clan (config/clan.ts) — avec les bons formats JSON et Markdown, sans rien inventer. À utiliser pour « ajouter une annonce », « un événement », « un chapitre », « changer la description du clan ».
 paths:
   - "content/**"
   - "config/clan.ts"
@@ -16,7 +16,6 @@ Ces fichiers parlent au nom du clan. Leur contenu vient du clan : un message de 
 |---|---|---|
 | Annonces | `content/announcements.json` | `[{ "date": "2026-11-05", "title": "…", "body": "…", "url": "https://… (facultatif)" }]` |
 | Événements | `content/events.json` | `[{ "start": "2026-11-20T20:00:00.000Z", "title": "…", "description": "… (facultatif)", "url": "https://… (facultatif)" }]` — `start` en UTC ; un événement passé disparaît au build suivant |
-| Outils communautaires | `content/links.json` | `{ "tools": [{ "name": "…", "url": "https://…", "description": "…" }] }` |
 | Guides par mode | `content/guide/*.md` | Markdown, en-tête `title`, `order`, `draft` (retirer `draft: true` pour publier), `wide` |
 | Guide du clan | `content/guide-clan/NN-nom.md` | Markdown, en-tête `title`, `order`, `growthChart` (graphique calculé du chapitre 2, ne pas copier ailleurs), `wide` |
 | Fiche du clan | `config/clan.ts` | `description`, `history`, `values`, `entryConditions` ; `join.inviteOnly` et `checkedOn` relevés à la main dans le jeu |

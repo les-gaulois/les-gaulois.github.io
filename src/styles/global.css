@@ -29,7 +29,7 @@
   --color-ok: #a6e3b4;
   --font-display: "Outfit Variable", system-ui, sans-serif;
   --font-sans: "Inter Variable", system-ui, sans-serif;
-  /* Pas --font-mono, dont se sert le calculateur des guides : sa chasse fixe à lui reste celle du système. */
+  /* Pas --font-mono, dont se servent le champ du code de connexion et les formules des guides : leur chasse fixe reste celle du système. */
   --font-console: "JetBrains Mono Variable", ui-monospace, "Cascadia Mono", Consolas, monospace;
 }
 

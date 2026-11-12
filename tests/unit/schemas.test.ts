@@ -8,7 +8,6 @@ import {
   ApiRankedPage,
   ApiSessionsPage,
   HistorySnapshot,
-  Links,
   Meta,
   emptyMeta,
 } from "../../src/lib/schemas";
@@ -143,6 +142,5 @@ describe("fichiers du site", () => {
   it("valide les contenus éditables", () => {
     expect(Announcements.safeParse([{ date: "2026-11-05", title: "T", body: "B" }]).success).toBe(true);
     expect(Announcements.safeParse([{ date: "demain", title: "T", body: "B" }]).success).toBe(false);
-    expect(Links.safeParse({ tools: [{ name: "X", url: "pas une url", description: "D" }] }).success).toBe(false);
   });
 });

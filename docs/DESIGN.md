@@ -110,7 +110,7 @@ Depuis le 11 novembre 2026, à la demande du pilote (« un thème un peu hacker,
 | Écran | Lignes de balayage fixes (noir à 15 %, une tous les 4 px) et coins assombris, derrière le contenu |
 | Invite | `gal@direction:~$` en chasse fixe au-dessus du titre, et un curseur en pavé fixe. Décorative : masquée aux lecteurs d'écran |
 | Titre | Un léger décalage bleu et rouge, le tricolore vu à travers un écran, fixe, et une lueur rouge |
-| Chasse fixe | JetBrains Mono (OFL-1.1), jeton `--font-console` : menu des parties, libellés et chiffres des tuiles, rôle, état du site, dates et nombres (`.tnum`), noms des champs. Pas `--font-mono`, dont se sert le calculateur des guides. La police (40 Ko) n'était préchargée que sur la Direction et le QG ; depuis le 12 novembre 2026, elle l'est sur toutes les pages, où le poste de commandement s'en sert |
+| Chasse fixe | JetBrains Mono (OFL-1.1), jeton `--font-console` : menu des parties, libellés et chiffres des tuiles, rôle, état du site, dates et nombres (`.tnum`), noms des champs. Pas `--font-mono`, dont se servent le champ du code de connexion et les formules des guides. La police (40 Ko) n'était préchargée que sur la Direction et le QG ; depuis le 12 novembre 2026, elle l'est sur toutes les pages, où le poste de commandement s'en sert |
 | Cartes | Des repères aux quatre coins, comme un viseur (`--console-repere`), décoratifs. Le style Terminal les remplace par des cadres en traits doubles |
 | Tuiles | Libellé en capitales espacées, chiffre en chasse fixe avec une lueur, jaune quand des demandes attendent |
 | Compte | Un voyant vert allumé devant le rôle |
@@ -301,7 +301,6 @@ L'idée centrale reprend le principe d'OpenFront, la conquête de territoire : d
 | Survoler la heatmap | Réticule sur le jour et l'heure, infobulle qui suit le curseur |
 | Changer de période | Barres qui repoussent, balayage tricolore, chiffres qui défilent |
 | Trier les membres | Les lignes glissent vers leur nouvelle place |
-| Modifier le calculateur | L'attaque se rejoue : le bot est conquis pendant que les troupes fondent |
 | Rien | Lente flottaison du logo, petits territoires qui naissent et disparaissent seuls |
 | Ouvrir une page | L'invite s'écrit, puis une lumière passe une fois sur le titre. À l'accueil, le guerrier tombe en colonnes, dans ses couleurs |
 
@@ -358,7 +357,7 @@ Ma place, sur l'accueil, donne le rang d'un membre, le prochain joueur à dépas
 
 **Le clic droit garde son menu habituel** sur les liens, les boutons, les champs, les images autres que le logo et le texte sélectionné. Maj + clic droit l'ouvre partout.
 
-**Les animations ne touchent jamais aux valeurs.** Une barre ne change pas de hauteur au survol, et l'onde d'un clic ne fait que l'éclairer. Les nouvelles jauges (taux de victoire, créneaux, scores du classement) ont une longueur calculée à partir des données. Le rejeu du calculateur vient de `simulateTrace`, et reste un repère indicatif.
+**Les animations ne touchent jamais aux valeurs.** Une barre ne change pas de hauteur au survol, et l'onde d'un clic ne fait que l'éclairer. Les nouvelles jauges (taux de victoire, créneaux, scores du classement) ont une longueur calculée à partir des données.
 
 **Un effet ne peut pas masquer du contenu.** La conquête d'un bloc couvre toutes ses cases, ce que des tests vérifient. Un bloc très haut ou une longue liste apparaît en fondu, et un bloc n'attend jamais plus de 0,4 s avant d'apparaître. Si le script ne se charge pas, les blocs s'affichent seuls au bout de 1,5 s.
 

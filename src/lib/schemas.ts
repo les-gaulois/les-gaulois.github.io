@@ -529,10 +529,6 @@ export const Events = z.array(
   }),
 );
 export type Events = z.infer<typeof Events>;
-export const Links = z.object({
-  tools: z.array(z.object({ name: z.string().min(1), url: z.url(), description: z.string().min(1) })),
-});
-export type Links = z.infer<typeof Links>;
 /**
  * Le journal des mises à jour du site, de la plus récente à la plus ancienne : une entrée par changement
  * qu'un visiteur ou l'encadrement peut remarquer. Les données collectées chaque heure n'y figurent pas.
