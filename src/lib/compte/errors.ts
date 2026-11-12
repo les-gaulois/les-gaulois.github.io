@@ -75,7 +75,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   invalid_prediction: "Indiquez un nombre de victoires, de 0 à 10 000.",
 
   invalid_message: "Ce message n'est pas valable. Rechargez la page.",
-  message_empty: "Écrivez un texte ou ajoutez un embed.",
+  message_empty: "Écrivez un texte, ou ajoutez un embed ou une image en grand.",
   message_too_long: "Le texte du message dépasse 2 000 caractères.",
   too_many_embeds: "10 embeds au plus par message.",
   embed_empty: "Un embed est vide : donnez-lui un titre, une description, un champ, une image, un auteur ou un pied de page.",
@@ -99,6 +99,10 @@ export const ERROR_MESSAGES: Record<string, string> = {
   image_too_large: "Cette image dépasse 8 Mo : réduisez-la avant de l'envoyer.",
   invalid_image: "Choisissez une image PNG, JPEG, GIF ou WebP.",
   image_upload_failed: "L'image n'a pas pu être déposée sur le serveur. Réessayez dans un moment.",
+  too_many_images: "10 images en grand au plus par message.",
+  image_description_too_long: "La description d'une image dépasse 1 024 caractères.",
+  gallery_with_embeds: "Les images en grand et les embeds ne vont pas dans un même message : envoyez-les en deux messages.",
+  gallery_too_long: "Le texte et les descriptions des images dépassent 4 000 caractères en tout.",
 };
 
 export function errorMessage(code: string): string {

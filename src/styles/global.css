@@ -2904,6 +2904,16 @@ main .fx-in,
   background: var(--color-night);
   border-radius: 0.5rem;
 }
+/* Une image en grand du formulaire : un cadre comme celui d'un embed, sans barre de couleur. */
+.image-en-grand {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  padding: clamp(1rem, 3vw, 1.5rem);
+  background: var(--color-night);
+  border: 1px solid var(--color-line);
+  border-radius: 1rem;
+}
 
 /* L'aperçu : la mise en page de Discord, avec les couleurs du site. */
 .apercu {
@@ -2973,6 +2983,56 @@ main .fx-in,
   color: var(--color-warn);
   border: 1px dashed var(--color-line-strong);
   border-radius: 0.375rem;
+}
+/* Les images en grand : toute la largeur du message, plus large qu'une image d'embed. Seule, l'image garde ses
+   proportions ; à plusieurs, chacune est rognée à sa case, sur six colonnes (mosaicRows). */
+.apercu-galerie {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.25rem;
+  max-width: 34rem;
+}
+.apercu-galerie-case {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--color-surface);
+  border-radius: 0.5rem;
+}
+.apercu-galerie-image {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+.apercu-galerie-seule .apercu-galerie-case {
+  justify-self: start;
+  background: none;
+}
+.apercu-galerie-seule .apercu-galerie-image {
+  width: auto;
+  max-width: 100%;
+  max-height: 22rem;
+  aspect-ratio: auto;
+  object-fit: contain;
+}
+/* Un spoiler : l'image floutée et le mot au milieu, comme Discord avant le clic. Aucun mouvement. */
+.apercu-spoiler .apercu-galerie-image {
+  filter: blur(1.25rem);
+}
+.apercu-spoiler-mot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  padding: 0.25rem 0.625rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #fff;
+  background: var(--color-night);
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
 }
 .embed {
   display: grid;

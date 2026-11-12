@@ -15,6 +15,7 @@ import {
   embedsLength,
   emptyDraft,
   fieldId,
+  galleryLength,
   IMAGE_TYPES,
   isHttpsLink,
   isMessageWaiting,
@@ -23,14 +24,17 @@ import {
   messageSummary,
   newEmbed,
   newField,
+  newGalleryItem,
   nextKey,
   NOTIFY_LABELS,
   outcomeSentence,
   parseMessages,
   removeSentence,
   salonLabel,
+  type DraftMode,
   type EmbedDraft,
   type FieldDraft,
+  type GalleryItemDraft,
   type ImageSlot,
   type MessageDraft,
   type MessagesState,
@@ -52,8 +56,12 @@ function readSavedDraft(): MessageDraft | null {
   try {
     const raw: unknown = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? "null");
     if (typeof raw !== "object" || raw === null) return null;
-    const saved = raw as { salon?: unknown; message?: unknown };
-    return draftOfMessage(saved.message, typeof saved.salon === "string" ? saved.salon : "");
+    const saved = raw as { salon?: unknown; message?: unknown; mode?: unknown; gallery?: unknown };
+    const salon = typeof saved.salon === "string" ? saved.salon : "";
+    const draft = draftOfMessage(saved.message, salon);
+    const mode: DraftMode = saved.mode === "images" ? "images" : "embeds";
+    const gallery = draftOfMessage({ gallery: saved.gallery }, salon).gallery;
+    return { ...draft, mode, gallery: mode === "images" && gallery.length === 0 ? [newGalleryItem()] : gallery };
   } catch {
     return null;
   }
@@ -61,8 +69,20 @@ function readSavedDraft(): MessageDraft | null {
 
 function saveDraft(draft: MessageDraft, uploaded: Map<string, string>) {
   try {
-    if (!draftHasContent(draft)) localStorage.removeItem(DRAFT_KEY);
-    else localStorage.setItem(DRAFT_KEY, JSON.stringify({ salon: draft.salon, message: messageBody(draft, (id) => uploaded.get(id) ?? null) }));
+    if (!draftHasContent(draft)) {
+      localStorage.removeItem(DRAFT_KEY);
+      return;
+    }
+    // Les embeds et les images en grand sont gardés tous les deux : passer de l'un à l'autre ne perd rien, même au rechargement.
+    const message = messageBody({ ...draft, mode: "embeds" }, (id) => uploaded.get(id) ?? null);
+    // Chaque image en grand garde sa description et son spoiler, même sans adresse : la place d'un fichier pas encore
+    // déposé reste, vide, à remplir de nouveau.
+    const gallery = draft.gallery.map((g) => ({
+      url: g.image.kind === "link" ? g.image.url : g.image.kind === "file" ? (uploaded.get(g.image.id) ?? "") : "",
+      description: g.description,
+      spoiler: g.spoiler,
+    }));
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ salon: draft.salon, mode: draft.mode, message, gallery }));
   } catch {
     // Stockage refusé (navigation privée) : le brouillon vit seulement dans la page.
   }
@@ -322,6 +342,53 @@ function EmbedEditeur({
           busy={false}
           onConfirm={onRemove}
         />
+      </div>
+    </div>
+  );
+}
+
+/** Une image en grand du message : l'image, sa description pour les lecteurs d'écran, le spoiler, sa place. */
+function ImageEnGrand({
+  item,
+  index,
+  count,
+  images,
+  onChange,
+  onMove,
+  onRemove,
+}: {
+  item: GalleryItemDraft;
+  index: number;
+  count: number;
+  images: Images;
+  onChange: (patch: Partial<GalleryItemDraft>) => void;
+  onMove: (to: number) => void;
+  onRemove: () => void;
+}) {
+  const n = index + 1;
+  const id = fieldId.galleryImage(index);
+  return (
+    <div role="group" class="image-en-grand" aria-labelledby={`${id}-nom`} data-testid="direction-message-image">
+      <ImageChoix id={id} label={count > 1 ? `Image ${n}` : "Image"} slot={item.image} onChange={(image) => onChange({ image })} change {...images} />
+      <Ligne id={fieldId.galleryDescription(index)} label="Description, lue par les lecteurs d'écran (facultative)" value={item.description} onChange={(description) => onChange({ description })} max={LIMITS.imageDescription} />
+      <label class="flex min-h-11 items-center gap-3 font-semibold">
+        <input type="checkbox" class="size-5" checked={item.spoiler} onChange={(e) => onChange({ spoiler: e.currentTarget.checked })} />
+        Cachée jusqu'au clic (spoiler)
+      </label>
+      <div class="flex flex-wrap gap-2">
+        {count > 1 && (
+          <>
+            <button type="button" class="btn btn-ghost" disabled={index === 0} onClick={() => onMove(index - 1)} aria-label={`Monter l'image ${n}`}>
+              Monter
+            </button>
+            <button type="button" class="btn btn-ghost" disabled={index === count - 1} onClick={() => onMove(index + 1)} aria-label={`Descendre l'image ${n}`}>
+              Descendre
+            </button>
+          </>
+        )}
+        <button type="button" class="btn btn-ghost" onClick={onRemove} aria-label={count > 1 ? `Retirer l'image ${n}` : undefined}>
+          Retirer l'image
+        </button>
       </div>
     </div>
   );
@@ -596,6 +663,16 @@ export default function DirectionMessage() {
       const copy: EmbedDraft = { ...source, key: nextKey(), fields: source.fields.map((f) => ({ ...f, key: nextKey() })) };
       return { ...d, embeds: [...d.embeds.slice(0, i + 1), copy, ...d.embeds.slice(i + 1)] };
     });
+  // Passer aux images en grand offre tout de suite une place pour la première ; les embeds restent, cachés, et reviennent.
+  const setMode = (mode: DraftMode) => setDraft((d) => ({ ...d, mode, gallery: mode === "images" && d.gallery.length === 0 ? [newGalleryItem()] : d.gallery }));
+  const patchImage = (i: number, change: Partial<GalleryItemDraft>) => setDraft((d) => ({ ...d, gallery: d.gallery.map((g, j) => (j === i ? { ...g, ...change } : g)) }));
+  const moveImage = (i: number, to: number) =>
+    setDraft((d) => {
+      const gallery = [...d.gallery];
+      const [moved] = gallery.splice(i, 1);
+      if (moved) gallery.splice(to, 0, moved);
+      return { ...d, gallery };
+    });
 
   const salons = state?.salons ?? [];
 
@@ -624,11 +701,19 @@ export default function DirectionMessage() {
         return;
       }
       const where = salonLabel(draft.salon, salons);
-      setDraft(emptyDraft(draft.salon));
+      // Le message envoyé quitte le formulaire ; l'autre liste, laissée de côté, reste avec ses fichiers : une bannière
+      // envoyée en images en grand laisse ses embeds prêts pour le message suivant.
+      const next = emptyDraft(draft.salon, draft.mode);
+      const kept: MessageDraft = draft.mode === "images" ? { ...next, embeds: draft.embeds } : { ...next, gallery: draft.gallery };
+      const keptFiles = new Set(draftFiles({ ...kept, mode: draft.mode === "images" ? "embeds" : "images" }).map((f) => f.id));
+      setDraft(kept);
       setChecked(false);
-      for (const url of previews.current.values()) URL.revokeObjectURL(url);
-      previews.current.clear();
-      files.current.clear();
+      for (const [id, url] of previews.current) {
+        if (keptFiles.has(id)) continue;
+        URL.revokeObjectURL(url);
+        previews.current.delete(id);
+      }
+      for (const id of [...files.current.keys()]) if (!keptFiles.has(id)) files.current.delete(id);
       setDone(`Message parti vers ${where.charAt(0).toLowerCase()}${where.slice(1)}. La réponse de Discord s'affiche dans « Derniers messages ».`);
       await reload();
     } catch (e) {
@@ -668,6 +753,7 @@ export default function DirectionMessage() {
   }
 
   const total = embedsLength(draft);
+  const textTotal = galleryLength(draft);
   const problems = checked ? draftProblems(draft, salons.map((s) => s.key)) : [];
   const name = botName(draft, salons);
 
@@ -706,31 +792,80 @@ export default function DirectionMessage() {
               </div>
             </div>
 
-            <TexteMisEnForme id={fieldId.content} label="Texte du message, au-dessus des embeds" value={draft.content} onChange={(content) => patch({ content })} max={LIMITS.content} rows={4} />
+            <TexteMisEnForme id={fieldId.content} label={`Texte du message, au-dessus des ${draft.mode === "images" ? "images" : "embeds"}`} value={draft.content} onChange={(content) => patch({ content })} max={LIMITS.content} rows={4} />
 
-            {draft.embeds.map((embed, i) => (
-              <EmbedEditeur
-                key={embed.key}
-                embed={embed}
-                index={i}
-                count={draft.embeds.length}
-                images={images}
-                onChange={(change) => patchEmbed(i, change)}
-                onMove={(to) => moveEmbed(i, to)}
-                onCopy={() => copyEmbed(i)}
-                onRemove={() => setDraft((d) => ({ ...d, embeds: d.embeds.filter((_, j) => j !== i) }))}
-              />
-            ))}
-            <div class="flex flex-wrap items-center justify-between gap-3">
-              <button type="button" class="btn btn-ghost" disabled={draft.embeds.length >= LIMITS.embeds} onClick={() => patch({ embeds: [...draft.embeds, newEmbed()] })}>
-                Ajouter un embed
-              </button>
-              {draft.embeds.length > 0 && (
-                <p class={`tnum text-sm ${total > LIMITS.total ? "font-semibold text-warn" : "text-muted"}`}>
-                  Embeds : {fmtInt(total)} / {fmtInt(LIMITS.total)} caractères
-                </p>
-              )}
-            </div>
+            <fieldset aria-describedby="dm-forme-aide" data-testid="direction-message-forme">
+              <legend class="nom-champ text-sm font-semibold">Sous le texte</legend>
+              <div class="mt-1 flex flex-wrap gap-x-6">
+                {(
+                  [
+                    ["embeds", "Des embeds"],
+                    ["images", "Des images en grand"],
+                  ] as const
+                ).map(([value, text]) => (
+                  <label key={value} class="flex min-h-11 items-center gap-3">
+                    <input type="radio" class="size-5" name="dm-forme" value={value} checked={draft.mode === value} onChange={() => setMode(value)} />
+                    {text}
+                  </label>
+                ))}
+              </div>
+              <p id="dm-forme-aide" class="mt-1 text-sm text-muted">
+                Dans un embed, Discord montre une image en petit. Pas les deux dans un même message.
+              </p>
+            </fieldset>
+
+            {draft.mode === "images" ? (
+              <>
+                {draft.gallery.map((item, i) => (
+                  <ImageEnGrand
+                    key={item.key}
+                    item={item}
+                    index={i}
+                    count={draft.gallery.length}
+                    images={images}
+                    onChange={(change) => patchImage(i, change)}
+                    onMove={(to) => moveImage(i, to)}
+                    onRemove={() => setDraft((d) => ({ ...d, gallery: d.gallery.filter((_, j) => j !== i) }))}
+                  />
+                ))}
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                  <button type="button" class="btn btn-ghost" disabled={draft.gallery.length >= LIMITS.gallery} onClick={() => patch({ gallery: [...draft.gallery, newGalleryItem()] })}>
+                    Ajouter une image
+                  </button>
+                  {draft.gallery.some((g) => g.description.trim() !== "") && (
+                    <p class={`tnum text-sm ${textTotal > LIMITS.galleryText ? "font-semibold text-warn" : "text-muted"}`}>
+                      Texte et descriptions : {fmtInt(textTotal)} / {fmtInt(LIMITS.galleryText)} caractères
+                    </p>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                {draft.embeds.map((embed, i) => (
+                  <EmbedEditeur
+                    key={embed.key}
+                    embed={embed}
+                    index={i}
+                    count={draft.embeds.length}
+                    images={images}
+                    onChange={(change) => patchEmbed(i, change)}
+                    onMove={(to) => moveEmbed(i, to)}
+                    onCopy={() => copyEmbed(i)}
+                    onRemove={() => setDraft((d) => ({ ...d, embeds: d.embeds.filter((_, j) => j !== i) }))}
+                  />
+                ))}
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                  <button type="button" class="btn btn-ghost" disabled={draft.embeds.length >= LIMITS.embeds} onClick={() => patch({ embeds: [...draft.embeds, newEmbed()] })}>
+                    Ajouter un embed
+                  </button>
+                  {draft.embeds.length > 0 && (
+                    <p class={`tnum text-sm ${total > LIMITS.total ? "font-semibold text-warn" : "text-muted"}`}>
+                      Embeds : {fmtInt(total)} / {fmtInt(LIMITS.total)} caractères
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
 
             <div class="fold-list">
               <Repli title="Le robot et l'envoi : nom, photo, notifications, fil" startOpen={draft.username.trim() !== "" || draft.avatar.kind !== "none" || draft.notify !== "none" || draft.silent || draft.thread.trim() !== ""}>
@@ -804,7 +939,7 @@ export default function DirectionMessage() {
                   warning="Le texte, les embeds et les images choisies seront retirés du formulaire. Rien n'est envoyé."
                   busy={busy}
                   onConfirm={() => {
-                    setDraft(emptyDraft(draft.salon));
+                    setDraft(emptyDraft(draft.salon, draft.mode));
                     setChecked(false);
                   }}
                 />

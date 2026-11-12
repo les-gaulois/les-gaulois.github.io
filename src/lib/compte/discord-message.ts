@@ -1,8 +1,11 @@
 /**
- * Les messages Discord de l'encadrement, écrits dans l'espace Direction (migration `20261111000600_messages_discord.sql`) :
- * un texte, jusqu'à dix embeds, et pour ce message le nom et la photo du robot. Ici, le brouillon du formulaire, les
- * contrôles faits avant l'envoi avec les limites de Discord (le serveur refait chacun d'eux et refait le message), le
- * message envoyé au serveur, et la relecture de sa réponse sans rien inventer. La page ne voit jamais un lien de webhook.
+ * Les messages Discord de l'encadrement, écrits dans l'espace Direction (migrations `20261111000600_messages_discord.sql`
+ * et `20261112000100_messages_discord_images_en_grand.sql`) : un texte, puis jusqu'à dix embeds ou jusqu'à dix images en
+ * grand (pas les deux : la galerie part en Components V2, où Discord refuse les embeds), et pour ce message le nom et la
+ * photo du robot. Ici, le
+ * brouillon du formulaire, les contrôles faits avant l'envoi avec les limites de Discord (le serveur refait chacun d'eux et
+ * refait le message), le message envoyé au serveur, et la relecture de sa réponse sans rien inventer. La page ne voit
+ * jamais un lien de webhook.
  */
 import { frNumber } from "../nombre";
 import { ROBOT_SALON_TEXTS } from "./discord-salons";
@@ -24,6 +27,10 @@ export const LIMITS = {
   link: 2000,
   salonName: 60,
   salons: 20,
+  /** Les images en grand d'un message, leur description, et le texte du message avec ces descriptions. */
+  gallery: 10,
+  imageDescription: 1024,
+  galleryText: 4000,
 } as const;
 
 /** Les images que l'espace du serveur accepte, et leur extension dans le nom tiré au sort. */
@@ -82,6 +89,25 @@ export interface EmbedDraft {
   date: string;
 }
 
+/**
+ * Une image en grand : hors des embeds, Discord la montre comme l'image d'un membre, plus grande que dans un embed. Une
+ * place sans image est laissée de côté à l'envoi.
+ */
+export interface GalleryItemDraft {
+  key: number;
+  image: ImageSlot;
+  /** Lue par les lecteurs d'écran, à la place de l'image. */
+  description: string;
+  /** Cachée jusqu'au clic. */
+  spoiler: boolean;
+}
+
+/**
+ * Ce que le message montre sous son texte : des embeds, ou des images en grand. Pas les deux : les images en grand partent
+ * en galerie (Components V2), où Discord refuse les embeds.
+ */
+export type DraftMode = "embeds" | "images";
+
 export interface MessageDraft {
   /** La clé du salon : `robot:<salon>`, `appels` ou `message:<numéro>`. */
   salon: string;
@@ -91,7 +117,10 @@ export interface MessageDraft {
   notify: Notify;
   silent: boolean;
   thread: string;
+  mode: DraftMode;
+  /** Les embeds et les images en grand restent tous deux dans le brouillon ; seuls ceux de `mode` partent. */
   embeds: EmbedDraft[];
+  gallery: GalleryItemDraft[];
 }
 
 /** Le bleu du drapeau, couleur par défaut d'un nouvel embed. */
@@ -131,7 +160,24 @@ export const newEmbed = (): EmbedDraft => ({
   date: "",
 });
 
-export const emptyDraft = (salon = ""): MessageDraft => ({ salon, content: "", username: "", avatar: NO_IMAGE, notify: "none", silent: false, thread: "", embeds: [newEmbed()] });
+export const newGalleryItem = (): GalleryItemDraft => ({ key: nextKey(), image: NO_IMAGE, description: "", spoiler: false });
+
+/** Un brouillon vide : un embed à remplir, ou une place pour une image en grand. */
+export const emptyDraft = (salon = "", mode: DraftMode = "embeds"): MessageDraft => ({
+  salon,
+  content: "",
+  username: "",
+  avatar: NO_IMAGE,
+  notify: "none",
+  silent: false,
+  thread: "",
+  mode,
+  embeds: mode === "embeds" ? [newEmbed()] : [],
+  gallery: mode === "images" ? [newGalleryItem()] : [],
+});
+
+/** Les images en grand qui partiront : celles qui ont une image. */
+export const galleryShown = (draft: MessageDraft): GalleryItemDraft[] => draft.gallery.filter((g) => g.image.kind !== "none");
 
 /* ---------- Le texte, compté comme Discord ---------- */
 
@@ -148,6 +194,8 @@ export function embedLength(embed: EmbedDraft): number {
   return textLength(embed.title) + textLength(embed.description) + textLength(embed.authorName) + textLength(embed.footerText) + embed.fields.reduce((sum, f) => sum + textLength(f.name) + textLength(f.value), 0);
 }
 export const embedsLength = (draft: MessageDraft): number => draft.embeds.reduce((sum, e) => sum + embedLength(e), 0);
+/** Le texte du message et les descriptions des images en grand qui partiront, comptés ensemble pour la limite de 4 000. */
+export const galleryLength = (draft: MessageDraft): number => textLength(draft.content) + galleryShown(draft).reduce((sum, g) => sum + textLength(g.description), 0);
 
 /* ---------- Les couleurs ---------- */
 
@@ -192,6 +240,8 @@ export const fieldId = {
   date: (e: number) => `dm-e${e}-date`,
   fieldName: (e: number, f: number) => `dm-e${e}-f${f}-name`,
   fieldValue: (e: number, f: number) => `dm-e${e}-f${f}-value`,
+  galleryImage: (g: number) => `dm-g${g}-image`,
+  galleryDescription: (g: number) => `dm-g${g}-description`,
 };
 
 const over = (text: string, max: number) => textLength(text) > max;
@@ -207,6 +257,11 @@ export function draftProblems(draft: MessageDraft, salons: readonly string[]): D
   else if (/discord|clyde/i.test(username) || ["everyone", "here"].includes(username.toLowerCase())) add(fieldId.username, "Discord refuse un nom de robot qui contient « discord » ou « clyde », ou qui est « everyone » ou « here ».");
   if (draft.avatar.kind === "link" && slotUrl(draft.avatar) !== null && !isHttpsLink(draft.avatar.url)) add(fieldId.avatar, "La photo du robot : collez une adresse qui commence par https://.");
   if (over(draft.thread, LIMITS.thread)) add(fieldId.thread, `Le nom du fil dépasse ${LIMITS.thread} caractères.`);
+  if (draft.mode === "images") {
+    // Les embeds restent dans le brouillon mais ne partent pas : seules les images en grand sont vérifiées.
+    galleryProblems(draft, add);
+    return problems;
+  }
   if (draft.embeds.length > LIMITS.embeds) add(fieldId.content, `${LIMITS.embeds} embeds au plus par message.`);
 
   draft.embeds.forEach((embed, i) => {
@@ -246,6 +301,21 @@ export function draftProblems(draft: MessageDraft, salons: readonly string[]): D
   return problems;
 }
 
+/** Les contrôles des images en grand. Une place sans image ni description est simplement laissée de côté. */
+function galleryProblems(draft: MessageDraft, add: (at: string, message: string) => void) {
+  if (draft.gallery.length > LIMITS.gallery) add(fieldId.content, `${LIMITS.gallery} images en grand au plus par message.`);
+  draft.gallery.forEach((item, i) => {
+    const where = draft.gallery.length > 1 ? `Image ${i + 1} : ` : "Image : ";
+    if (item.image.kind === "link" && !isHttpsLink(item.image.url)) add(fieldId.galleryImage(i), `${where}l'adresse doit commencer par https:// et ne contenir aucune espace.`);
+    if (over(item.description, LIMITS.imageDescription)) add(fieldId.galleryDescription(i), `${where}la description dépasse ${fmt(LIMITS.imageDescription)} caractères.`);
+    else if (item.image.kind === "none" && textLength(item.description) > 0) add(fieldId.galleryImage(i), `${where}choisissez l'image, ou effacez sa description.`);
+  });
+  const shown = galleryShown(draft);
+  const length = galleryLength(draft);
+  if (shown.length > 0 && length > LIMITS.galleryText) add(fieldId.content, `Le texte et les descriptions des images dépassent ${fmt(LIMITS.galleryText)} caractères en tout (${fmt(length)}).`);
+  if (textLength(draft.content) === 0 && shown.length === 0) add(draft.gallery.length > 0 ? fieldId.galleryImage(0) : fieldId.content, "Écrivez un texte ou choisissez une image.");
+}
+
 /** Un embed montre-t-il quelque chose ? Une couleur ou une date seules ne suffisent pas à Discord. */
 export function embedShows(embed: EmbedDraft): boolean {
   return textLength(embed.title) > 0 || textLength(embed.description) > 0 || embed.fields.length > 0 || embed.image.kind !== "none" || embed.thumbnail.kind !== "none" || textLength(embed.authorName) > 0 || textLength(embed.footerText) > 0;
@@ -263,12 +333,20 @@ export function dateIso(local: string): string | null {
 
 /* ---------- Le message envoyé au serveur ---------- */
 
+/** Une image en grand, telle que le serveur la reçoit : il en fait la galerie du message pour Discord. */
+export interface GalleryBody {
+  url: string;
+  description?: string;
+  spoiler?: boolean;
+}
+
 /** Le message de `send_discord_message`, au format de Discord : seulement ce qui est rempli. */
 export interface MessageBody {
   content?: string;
   username?: string;
   avatar_url?: string;
   embeds?: Record<string, unknown>[];
+  gallery?: GalleryBody[];
   notify: Notify;
   silent?: boolean;
   thread_name?: string;
@@ -291,6 +369,20 @@ export function messageBody(draft: MessageDraft, fileUrl: (id: string) => string
   if (draft.silent) body.silent = true;
   const thread = text(draft.thread);
   if (thread) body.thread_name = thread;
+  if (draft.mode === "images") {
+    // Les images en grand seulement : Discord refuserait des embeds avec elles.
+    const gallery = draft.gallery.flatMap((item): GalleryBody[] => {
+      const url = image(item.image);
+      if (!url) return [];
+      const out: GalleryBody = { url };
+      const description = text(item.description);
+      if (description) out.description = description;
+      if (item.spoiler) out.spoiler = true;
+      return [out];
+    });
+    if (gallery.length > 0) body.gallery = gallery;
+    return body;
+  }
   const embeds = draft.embeds.map((embed) => {
     const out: Record<string, unknown> = {};
     const put = (key: string, value: unknown) => {
@@ -331,9 +423,10 @@ export function messageBody(draft: MessageDraft, fileUrl: (id: string) => string
   return body;
 }
 
-/** Les fichiers à déposer avant l'envoi, dans l'ordre du formulaire, chacun une fois. */
+/** Les fichiers à déposer avant l'envoi, dans l'ordre du formulaire, chacun une fois : seulement ceux qui partent. */
 export function draftFiles(draft: MessageDraft): Extract<ImageSlot, { kind: "file" }>[] {
-  const slots: ImageSlot[] = [draft.avatar, ...draft.embeds.flatMap((e) => [e.authorIcon, e.image, e.thumbnail, e.footerIcon])];
+  const sent: ImageSlot[] = draft.mode === "images" ? draft.gallery.map((g) => g.image) : draft.embeds.flatMap((e) => [e.authorIcon, e.image, e.thumbnail, e.footerIcon]);
+  const slots: ImageSlot[] = [draft.avatar, ...sent];
   const seen = new Set<string>();
   const files: Extract<ImageSlot, { kind: "file" }>[] = [];
   for (const slot of slots) {
@@ -347,7 +440,14 @@ export function draftFiles(draft: MessageDraft): Extract<ImageSlot, { kind: "fil
 
 /** Le brouillon a-t-il quelque chose d'écrit ou d'ajouté ? Sert à ne pas l'écraser sans prévenir. */
 export function draftHasContent(draft: MessageDraft): boolean {
-  return textLength(draft.content) > 0 || textLength(draft.username) > 0 || draft.avatar.kind !== "none" || textLength(draft.thread) > 0 || draft.embeds.some((e) => embedShows(e) || cleanText(e.url) !== "");
+  return (
+    textLength(draft.content) > 0 ||
+    textLength(draft.username) > 0 ||
+    draft.avatar.kind !== "none" ||
+    textLength(draft.thread) > 0 ||
+    draft.embeds.some((e) => embedShows(e) || cleanText(e.url) !== "") ||
+    draft.gallery.some((g) => g.image.kind !== "none" || textLength(g.description) > 0)
+  );
 }
 
 /* ---------- Relire un message envoyé ---------- */
@@ -393,6 +493,10 @@ export function draftOfMessage(raw: unknown, salon: string): MessageDraft {
       date: typeof timestamp === "string" && timestamp !== "now" ? localInput(timestamp) : "",
     };
   });
+  const gallery = (Array.isArray(message["gallery"]) ? message["gallery"] : [])
+    .filter(isRecord)
+    .slice(0, LIMITS.gallery)
+    .map((g): GalleryItemDraft => ({ ...newGalleryItem(), image: linkSlot(g["url"]), description: str(g["description"]), spoiler: g["spoiler"] === true }));
   return {
     salon,
     content: str(message["content"]),
@@ -401,7 +505,9 @@ export function draftOfMessage(raw: unknown, salon: string): MessageDraft {
     notify,
     silent: message["silent"] === true,
     thread: str(message["thread_name"]),
+    mode: gallery.length > 0 ? "images" : "embeds",
     embeds,
+    gallery,
   };
 }
 
@@ -604,8 +710,15 @@ const PARTS: Record<string, string> = {
   "thumbnail.url": "la miniature",
 };
 
-/** Un chemin d'erreur de Discord (`embeds.0.image.url`) dit avec les mots du formulaire. */
+/**
+ * Un chemin d'erreur de Discord (`embeds.0.image.url`) dit avec les mots du formulaire. Pour les images en grand, le
+ * serveur envoie `components` : le bloc du texte (s'il y en a un), puis la galerie, dont `items` sont les images.
+ */
 export function partName(path: string): string {
+  const item = /^components\.\d+\.items\.(\d+)(?:\.(.+))?$/.exec(path);
+  if (item) return `l'image en grand ${Number(item[1]) + 1}${item[2] === "description" ? " (description)" : ""}`;
+  if (/^components\.\d+\.content$/.test(path)) return PARTS["content"] ?? path;
+  if (/^components(?:\.|$)/.test(path)) return "les images en grand";
   const embed = /^embeds\.(\d+)(?:\.(.+))?$/.exec(path);
   if (!embed) return PARTS[path] ?? path;
   const n = Number(embed[1]) + 1;
@@ -705,11 +818,26 @@ export function blockedSentence(message: SentMessage): string | null {
 export function messageSummary(raw: unknown): string {
   const message = isRecord(raw) ? raw : {};
   const embeds = Array.isArray(message["embeds"]) ? message["embeds"].filter(isRecord) : [];
+  const images = Array.isArray(message["gallery"]) ? message["gallery"].filter(isRecord).length : 0;
   const first = embeds[0] ?? {};
   const author = isRecord(first["author"]) ? first["author"] : {};
   const candidates = [first["title"], message["content"], author["name"], first["description"]];
   const text = candidates.map((c) => (typeof c === "string" ? c.replace(/\s+/g, " ").trim() : "")).find((c) => c !== "");
-  if (!text) return embeds.length > 0 ? "Embed sans texte" : "Message sans texte";
+  if (!text) return embeds.length > 0 ? "Embed sans texte" : images > 1 ? `${images} images en grand` : images === 1 ? "Une image en grand" : "Message sans texte";
   const chars = Array.from(text);
   return chars.length > 90 ? `${chars.slice(0, 89).join("")}…` : text;
+}
+
+/**
+ * Comment l'aperçu range les images en grand, à peu près comme Discord : le nombre d'images de chaque rangée, de haut en
+ * bas. Une ou deux images côte à côte ; au-delà, des rangées de trois, sous une rangée plus courte s'il le faut.
+ */
+export function mosaicRows(count: number): number[] {
+  const n = Math.max(0, Math.min(LIMITS.gallery, Math.trunc(count)));
+  if (n === 0) return [];
+  if (n <= 2) return [n];
+  if (n === 3) return [1, 2];
+  if (n === 4) return [2, 2];
+  const head = n % 3;
+  return [...(head === 0 ? [] : [head]), ...Array.from({ length: Math.floor(n / 3) }, () => 3)];
 }

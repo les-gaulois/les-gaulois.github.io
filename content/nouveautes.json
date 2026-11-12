@@ -1,6 +1,12 @@
 [
   {
     "date": "2026-11-12",
+    "kind": "ameliore",
+    "title": "Des images en grand dans les messages Discord",
+    "body": "Pour l'encadrement : « Message Discord » envoie aussi des images hors des embeds, où Discord les montre en petit, pour qu'elles s'affichent en grand. Jusqu'à dix, avec description et spoiler."
+  },
+  {
+    "date": "2026-11-12",
     "kind": "retire",
     "title": "Un accueil sans doublon",
     "body": "La carte des clans, les parties des 14 derniers jours et les créneaux du jour quittent l'accueil : ils restent sur leurs pages. Le résumé de la semaine ne répète plus le rang."

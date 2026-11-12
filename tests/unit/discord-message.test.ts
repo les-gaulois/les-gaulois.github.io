@@ -17,6 +17,7 @@ import {
   embedLength,
   emptyDraft,
   fieldId,
+  galleryLength,
   imageFileProblem,
   IMAGE_MAX_BYTES,
   isHttpsLink,
@@ -24,8 +25,11 @@ import {
   LIMITS,
   messageBody,
   messageSummary,
+  mosaicRows,
   newEmbed,
   newField,
+  newGalleryItem,
+  NO_IMAGE,
   outcomeSentence,
   parseMessages,
   partName,
@@ -33,6 +37,7 @@ import {
   salonLabel,
   textLength,
   type EmbedDraft,
+  type GalleryItemDraft,
   type MessageDraft,
   type MessageSalon,
 } from "../../src/lib/compte/discord-message";
@@ -448,5 +453,177 @@ describe("la migration", () => {
     const codes = new Set([...SQL.matchAll(/internal\.(?:fail|error_json)\('([a-z_]+)'/g)].map((m) => m[1]!));
     expect(codes.size).toBeGreaterThan(15);
     expect([...codes].filter((code) => !(code in ERROR_MESSAGES))).toEqual([]);
+  });
+});
+
+describe("les images en grand", () => {
+  const file = (id: string) => ({ kind: "file" as const, id, name: `${id}.png`, size: 1, type: "image/png" as const });
+  const link = (url: string) => ({ kind: "link" as const, url });
+  const images = (over: Partial<MessageDraft> = {}, items: Partial<GalleryItemDraft>[] = [{ image: link("https://a.fr/g.png") }]): MessageDraft => ({
+    ...emptyDraft("message:3", "images"),
+    gallery: items.map((item) => ({ ...newGalleryItem(), ...item })),
+    ...over,
+  });
+
+  it("commencent par une place à remplir, sans embed", () => {
+    const fresh = emptyDraft("appels", "images");
+    expect(fresh.mode).toBe("images");
+    expect(fresh.embeds).toEqual([]);
+    expect(fresh.gallery).toHaveLength(1);
+    expect(emptyDraft("appels").gallery).toEqual([]);
+    expect(emptyDraft("appels").mode).toBe("embeds");
+  });
+
+  it("laissent partir une image seule, ou un texte seul, sans regarder les embeds laissés de côté", () => {
+    expect(draftProblems(images(), SALONS)).toEqual([]);
+    expect(draftProblems(images({ embeds: [newEmbed()] }), SALONS)).toEqual([]);
+    expect(draftProblems(images({ content: "Salut" }, [{}]), SALONS)).toEqual([]);
+  });
+
+  it("disent ce qui manque, et où", () => {
+    expect(draftProblems(images({}, [{}]), SALONS)).toEqual([{ at: fieldId.galleryImage(0), message: "Écrivez un texte ou choisissez une image." }]);
+    expect(draftProblems(images({}, []), SALONS)).toEqual([{ at: fieldId.content, message: "Écrivez un texte ou choisissez une image." }]);
+    expect(draftProblems(images({}, [{ image: link("https://a.fr/g.png") }, { description: "Bannière" }]), SALONS)).toEqual([{ at: fieldId.galleryImage(1), message: "Image 2 : choisissez l'image, ou effacez sa description." }]);
+    expect(draftProblems(images({}, [{ image: link("http://a.fr/g.png") }]), SALONS)).toEqual([{ at: fieldId.galleryImage(0), message: "Image : l'adresse doit commencer par https:// et ne contenir aucune espace." }]);
+  });
+
+  it("suivent les limites de Discord", () => {
+    expect(draftProblems(images({}, [{ image: link("https://a.fr/g.png"), description: "d".repeat(1025) }]), SALONS)).toEqual([{ at: fieldId.galleryDescription(0), message: `Image : la description dépasse 1${NBSP}024 caractères.` }]);
+    const eleven = images({}, Array.from({ length: 11 }, () => ({ image: link("https://a.fr/g.png") })));
+    expect(draftProblems(eleven, SALONS)[0]?.message).toBe("10 images en grand au plus par message.");
+    const long = images({ content: "c".repeat(2000) }, [
+      { image: link("https://a.fr/1.png"), description: "d".repeat(1024) },
+      { image: link("https://a.fr/2.png"), description: "d".repeat(977) },
+    ]);
+    expect(draftProblems(long, SALONS)).toEqual([{ at: fieldId.content, message: `Le texte et les descriptions des images dépassent 4${NBSP}000 caractères en tout (4${NBSP}001).` }]);
+    long.gallery[1]!.description = "d".repeat(976);
+    expect(galleryLength(long)).toBe(4000);
+    expect(draftProblems(long, SALONS)).toEqual([]);
+  });
+
+  it("partent sans embeds, chaque image avec son adresse, sa description et son spoiler", () => {
+    const d = images({ content: " Grades ", embeds: [{ ...newEmbed(), title: "caché" }] }, [
+      { image: file("f1"), description: "  Bannière GAL ", spoiler: false },
+      {},
+      { image: link(" https://a.fr/2.png "), spoiler: true },
+      { image: file("perdu") },
+    ]);
+    expect(messageBody(d, (id) => (id === "f1" ? "https://x.supabase.co/storage/v1/object/public/discord-images/a.png" : null))).toEqual({
+      notify: "none",
+      content: "Grades",
+      gallery: [{ url: "https://x.supabase.co/storage/v1/object/public/discord-images/a.png", description: "Bannière GAL" }, { url: "https://a.fr/2.png", spoiler: true }],
+    });
+    // Ne se déposent que la photo du robot et les fichiers des images en grand : pas ceux des embeds laissés de côté.
+    const withFiles = images({ avatar: file("p"), embeds: [{ ...newEmbed(), image: file("e") }] }, [{ image: file("g1") }, { image: file("p") }]);
+    expect(draftFiles(withFiles).map((f) => f.id)).toEqual(["p", "g1"]);
+    expect(draftFiles({ ...withFiles, mode: "embeds" }).map((f) => f.id)).toEqual(["p", "e"]);
+    expect(messageBody({ ...withFiles, mode: "embeds" }, () => null)).not.toHaveProperty("gallery");
+  });
+
+  it("reviennent dans le formulaire (« Reprendre ») ; un message d'embeds reste un message d'embeds", () => {
+    const sent = { content: "Grades", notify: "none", gallery: [{ url: "https://a.fr/1.png", description: "Bannière" }, { url: "https://a.fr/2.png", spoiler: true }, "x", { url: 5 }] };
+    const back = draftOfMessage(sent, "appels");
+    expect(back.mode).toBe("images");
+    expect(back.gallery.map((g) => [g.image, g.description, g.spoiler])).toEqual([
+      [link("https://a.fr/1.png"), "Bannière", false],
+      [link("https://a.fr/2.png"), "", true],
+      [NO_IMAGE, "", false],
+    ]);
+    expect(messageBody(back, () => null)).toEqual({ content: "Grades", notify: "none", gallery: [{ url: "https://a.fr/1.png", description: "Bannière" }, { url: "https://a.fr/2.png", spoiler: true }] });
+    expect(draftOfMessage({ content: "x", embeds: [{ title: "t" }] }, "appels").mode).toBe("embeds");
+  });
+
+  it("comptent dans le brouillon à ne pas écraser, même laissées de côté", () => {
+    expect(draftHasContent(images({}, [{}]))).toBe(false);
+    expect(draftHasContent(images())).toBe(true);
+    expect(draftHasContent(images({}, [{ description: "x" }]))).toBe(true);
+    expect(draftHasContent({ ...images(), mode: "embeds" })).toBe(true);
+  });
+
+  it("se résument pour la liste, et se rangent en rangées comme sur Discord", () => {
+    expect(messageSummary({ gallery: [{ url: "https://a.fr/1.png" }] })).toBe("Une image en grand");
+    expect(messageSummary({ gallery: [{ url: "https://a.fr/1.png" }, { url: "https://a.fr/2.png" }] })).toBe("2 images en grand");
+    expect(messageSummary({ content: "Grades", gallery: [{ url: "https://a.fr/1.png" }] })).toBe("Grades");
+    expect([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((n) => mosaicRows(n))).toEqual([[], [1], [2], [1, 2], [2, 2], [2, 3], [3, 3], [1, 3, 3], [2, 3, 3], [3, 3, 3], [1, 3, 3, 3], [1, 3, 3, 3]]);
+  });
+
+  it("nomment l'image que Discord refuse", () => {
+    expect(partName("components.1.items.0.media.url")).toBe("l'image en grand 1");
+    expect(partName("components.0.items.2.description")).toBe("l'image en grand 3 (description)");
+    expect(partName("components.0.content")).toBe("le texte du message");
+    expect(partName("components")).toBe("les images en grand");
+    expect(discordErrorText(JSON.stringify({ errors: { components: { 1: { items: { 0: { media: { url: { _errors: [{ message: "Not a well formed URL." }] } } } } } } } }))).toBe("l'image en grand 1 : « Not a well formed URL. »");
+  });
+});
+
+describe("la migration des images en grand", () => {
+  const IMAGES_SQL = readFileSync("supabase/migrations/20261112000100_messages_discord_images_en_grand.sql", "utf8");
+  const bodyOf = (sql: string, name: string) => {
+    const start = sql.indexOf(`function ${name}(`);
+    expect(start, name).toBeGreaterThan(-1);
+    const end = sql.indexOf("$$;", start);
+    expect(end, name).toBeGreaterThan(start);
+    return sql.slice(start, end);
+  };
+  // Le texte SQL sans ses différences d'espaces : pour comparer ce qui est repris de la migration d'avant.
+  const flat = (sql: string) => sql.replace(/\s+/g, " ").replace(/\( /g, "(").replace(/ \)/g, ")").trim();
+
+  it("suit les limites du formulaire, et garde celles du reste du message", () => {
+    expect(IMAGES_SQL).toContain(`if jsonb_array_length(p_value) > ${LIMITS.gallery} then perform internal.fail('too_many_images')`);
+    expect(IMAGES_SQL).toContain(`internal.discord_message_text(v_item -> 'description', ${LIMITS.imageDescription}, 'image_description_too_long')`);
+    expect(IMAGES_SQL).toContain(`> ${LIMITS.galleryText} then`);
+    expect(IMAGES_SQL).toContain(`internal.discord_message_text(p_message -> 'content', ${LIMITS.content}, 'message_too_long')`);
+    expect(IMAGES_SQL).toContain(`internal.discord_message_text(p_message -> 'username', ${LIMITS.username}, 'invalid_username')`);
+    expect(IMAGES_SQL).toContain(`internal.discord_message_text(p_message -> 'thread_name', ${LIMITS.thread}, 'invalid_thread')`);
+    expect(IMAGES_SQL).toContain(`jsonb_array_length(p_message -> 'embeds') > ${LIMITS.embeds}`);
+    expect(IMAGES_SQL).toContain(`if v_total > ${LIMITS.total} then`);
+  });
+
+  it("ferme chaque délimiteur de fonction, et ne retire rien", () => {
+    const opens = [...IMAGES_SQL.matchAll(/\bas \$\$/g)].length;
+    const closes = [...IMAGES_SQL.matchAll(/^(?:end )?\$\$;$/gm)].length;
+    expect(opens).toBe(4);
+    expect(closes).toBe(opens);
+    expect(IMAGES_SQL).not.toMatch(/\b(drop|truncate|delete|update|alter)\b/i);
+    // La seule écriture : l'envoi note le message, comme avant.
+    expect([...IMAGES_SQL.matchAll(/\binsert into ([a-z_.]+)/gi)].map((m) => m[1])).toEqual(["internal.discord_messages"]);
+  });
+
+  it("refuse les images en grand avec des embeds, comme Discord", () => {
+    expect(bodyOf(IMAGES_SQL, "internal.discord_message_clean")).toContain("if v_out ? 'embeds' then perform internal.fail('gallery_with_embeds'); end if;");
+  });
+
+  it("fait un message Components V2 pour les images en grand, et le message d'avant pour le reste", () => {
+    const payload = bodyOf(IMAGES_SQL, "internal.discord_message_payload");
+    expect(payload).toContain("'flags', 32768 + case when (p_clean ->> 'silent')::boolean then 4096 else 0 end");
+    expect(payload).toContain("jsonb_build_object('type', 10, 'content', p_clean -> 'content')");
+    expect(payload).toContain("jsonb_build_object('type', 12, 'items'");
+    const before = flat(bodyOf(SQL, "internal.discord_message_payload")).split(" as $$ select ")[1];
+    expect(before).toBeTruthy();
+    expect(flat(payload)).toContain(before!);
+  });
+
+  it("ne poste que par le webhook du salon, et ne change de l'envoi que son adresse", () => {
+    const send = bodyOf(IMAGES_SQL, "public.send_discord_message");
+    expect(send).toContain("v_url := internal.discord_message_hook(p_salon);");
+    expect(send).toContain("url := v_url || case when v_clean ? 'gallery' then '?wait=true&with_components=true' else '?wait=true' end,");
+    const before = flat(bodyOf(SQL, "public.send_discord_message")).replace("url := v_url || '?wait=true',", "url := v_url || case when v_clean ? 'gallery' then '?wait=true&with_components=true' else '?wait=true' end,");
+    expect(flat(send)).toBe(before);
+  });
+
+  it("garde ses outils fermés et l'envoi aux seuls comptes connectés", () => {
+    for (const name of ["discord_message_gallery", "discord_message_clean", "discord_message_payload"]) {
+      expect(IMAGES_SQL).toContain(`revoke all on function internal.${name}(jsonb) from public, anon, authenticated;`);
+    }
+    expect(IMAGES_SQL).toContain("revoke all on function public.send_discord_message(text, jsonb) from public, anon, authenticated;");
+    expect([...IMAGES_SQL.matchAll(/^grant .+$/gm)].map((m) => m[0])).toEqual(["grant execute on function public.send_discord_message(text, jsonb) to authenticated;"]);
+    expect(bodyOf(IMAGES_SQL, "public.send_discord_message")).toContain("internal.require_rank(3)");
+  });
+
+  it("a un message en français pour chacun de ses refus", () => {
+    // Les refus directs, et ceux d'un texte trop long, que discord_message_text lève avec le code donné.
+    const codes = new Set([...IMAGES_SQL.matchAll(/internal\.(?:fail|error_json)\('([a-z_]+)'|internal\.discord_message_text\([^)]*, \d+, '([a-z_]+)'\)/g)].map((m) => (m[1] ?? m[2])!));
+    expect([...codes].filter((code) => !(code in ERROR_MESSAGES))).toEqual([]);
+    for (const code of ["too_many_images", "image_description_too_long", "gallery_with_embeds", "gallery_too_long"]) expect(codes.has(code), code).toBe(true);
   });
 });

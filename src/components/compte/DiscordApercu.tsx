@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "preact/hooks";
 import { formatDiscordTime, parseBlocks, parseInline, READ_CONTENT, READ_DESCRIPTION, READ_FIELD_VALUE, READ_TITLE, type Block, type Inline, type ReadOptions } from "../../lib/compte/discord-markdown";
-import { cleanText, dateIso, isHttpsLink, type EmbedDraft, type ImageSlot, type MessageDraft } from "../../lib/compte/discord-message";
+import { cleanText, dateIso, galleryShown, isHttpsLink, mosaicRows, type EmbedDraft, type GalleryItemDraft, type ImageSlot, type MessageDraft } from "../../lib/compte/discord-message";
 
 /**
- * L'aperçu d'un message Discord de l'espace Direction : le texte et les embeds tels que Discord les montrera, à peu près.
+ * L'aperçu d'un message Discord de l'espace Direction : le texte, puis les embeds ou les images en grand, tels que Discord
+ * les montrera, à peu près.
  * Il ne montre que ce qu'on a écrit ou choisi, rien d'autre. Les couleurs sont celles du site, pas celles de Discord :
  * l'aperçu montre la mise en page et la mise en forme, il n'imite pas l'application.
  */
@@ -245,12 +246,38 @@ function EmbedPreview({ embed, url, now }: { embed: EmbedDraft; url: PreviewUrl;
   );
 }
 
-/** L'aperçu entier : le robot, son nom, le texte puis les embeds. */
+/**
+ * Les images en grand : comme les images d'un membre, sur toute la largeur du message ; à plusieurs, en rangées, chacune
+ * rognée à sa case. La description sert de texte de remplacement, comme sur Discord.
+ */
+function Galerie({ items, url }: { items: GalleryItemDraft[]; url: PreviewUrl }) {
+  const shown = items.flatMap((item) => {
+    const src = url(item.image);
+    return src ? [{ item, src }] : [];
+  });
+  if (shown.length === 0) return null;
+  // Six colonnes : une image seule les prend toutes, deux en prennent trois chacune, trois en prennent deux.
+  const spans = mosaicRows(shown.length).flatMap((row) => Array.from({ length: row }, () => 6 / row));
+  return (
+    <div class={`apercu-galerie ${shown.length === 1 ? "apercu-galerie-seule" : ""}`} data-testid="direction-message-apercu-galerie">
+      {shown.map(({ item, src }, i) => (
+        <div key={item.key} class={`apercu-galerie-case ${item.spoiler ? "apercu-spoiler" : ""}`} style={{ gridColumn: `span ${spans[i] ?? 6}` }}>
+          <PreviewImage src={src} alt={cleanText(item.description) || (shown.length > 1 ? `Image en grand ${i + 1}` : "Image en grand")} class="apercu-galerie-image" />
+          {item.spoiler && <span class="apercu-spoiler-mot">Spoiler</span>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** L'aperçu entier : le robot, son nom, le texte puis les embeds, ou les images en grand. */
 export default function DiscordApercu({ draft, name, url, now }: { draft: MessageDraft; name: string; url: PreviewUrl; now: number }) {
   const avatar = url(draft.avatar);
   const content = cleanText(draft.content);
-  const shown = draft.embeds.filter((e) => cleanText(e.title) || cleanText(e.description) || e.fields.length || e.image.kind !== "none" || e.thumbnail.kind !== "none" || cleanText(e.authorName) || cleanText(e.footerText));
-  const empty = content === "" && shown.length === 0;
+  const images = draft.mode === "images";
+  const shown = images ? [] : draft.embeds.filter((e) => cleanText(e.title) || cleanText(e.description) || e.fields.length || e.image.kind !== "none" || e.thumbnail.kind !== "none" || cleanText(e.authorName) || cleanText(e.footerText));
+  const gallery = images ? galleryShown(draft) : [];
+  const empty = content === "" && shown.length === 0 && gallery.length === 0;
   const clock = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(now);
   return (
     <div class="apercu" data-testid="direction-message-apercu">
@@ -274,6 +301,7 @@ export default function DiscordApercu({ draft, name, url, now }: { draft: Messag
             {shown.map((embed) => (
               <EmbedPreview key={embed.key} embed={embed} url={url} now={now} />
             ))}
+            {images && <Galerie items={gallery} url={url} />}
           </div>
         )}
       </div>

@@ -313,6 +313,7 @@ export function ImageChoix({
   onChange,
   addFile,
   preview,
+  change = false,
 }: {
   id: string;
   label: string;
@@ -320,6 +321,11 @@ export function ImageChoix({
   onChange: (slot: ImageSlot) => void;
   addFile: (file: File) => ImageSlot | string;
   preview: (slot: ImageSlot) => string | null;
+  /**
+   * Vrai là où un autre bouton retire l'image : le bouton d'un fichier choisi devient « Changer d'image » et ouvre le
+   * choix d'un autre fichier ; si on n'en choisit pas, l'image reste.
+   */
+  change?: boolean;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [problem, setProblem] = useState<string | null>(null);
@@ -362,8 +368,8 @@ export function ImageChoix({
           <p class="min-w-0 flex-1 text-sm [overflow-wrap:anywhere]">
             {slot.name} <span class="tnum text-muted">· {fileSize(slot.size)}</span>
           </p>
-          <button type="button" id={id} class="btn btn-ghost" aria-describedby={`${id}-nom`} onClick={() => onChange({ kind: "none" })}>
-            Retirer l'image
+          <button type="button" id={id} class="btn btn-ghost" aria-describedby={`${id}-nom`} onClick={() => (change ? input.current?.click() : onChange({ kind: "none" }))}>
+            {change ? "Changer d'image" : "Retirer l'image"}
           </button>
         </div>
       ) : (
@@ -372,16 +378,6 @@ export function ImageChoix({
             <button type="button" class="btn btn-ghost" aria-describedby={`${id}-nom`} onClick={() => input.current?.click()}>
               Choisir une image
             </button>
-            <input
-              ref={input}
-              type="file"
-              accept="image/png,image/jpeg,image/gif,image/webp"
-              hidden
-              onChange={(e) => {
-                take(e.currentTarget.files?.[0]);
-                e.currentTarget.value = "";
-              }}
-            />
           </div>
           <div class="flex items-center gap-3">
             {src && <img src={src} alt="" class="image-choix-vignette" />}
@@ -409,6 +405,17 @@ export function ImageChoix({
           </div>
         </div>
       )}
+      {/* Le choix d'un fichier, pour « Choisir une image » comme pour « Changer d'image ». */}
+      <input
+        ref={input}
+        type="file"
+        accept="image/png,image/jpeg,image/gif,image/webp"
+        hidden
+        onChange={(e) => {
+          take(e.currentTarget.files?.[0]);
+          e.currentTarget.value = "";
+        }}
+      />
       {problem && (
         <p class="form-problem" role="alert">
           {problem}
