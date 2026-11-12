@@ -18,7 +18,7 @@ export interface Holo {
   lacher(): void;
   /** Une image de la boucle des effets, `dt` secondes après la précédente. */
   image(dt: number): void;
-  /** Le tour complet du clic droit. Faux tant que le relief n'a pas pris le relais du dessin. */
+  /** Le tour complet du clic droit, et la réponse qui va avec. Faux tant que le relief n'a pas pris le relais du dessin. */
   tour(): boolean;
   /** Une réplique en réponse à un geste. */
   reagir(geste: Reaction): void;
@@ -66,7 +66,8 @@ const ALLUMAGE_S = 0.9;
 /** Le curseur sur le casque : à moins de cette part de la largeur du centre, une fois, et pas dès le réveil. */
 const SURVOL = 0.3;
 const SURVOL_APRES_S = 2.5;
-const REACTION_ECART_MS = 5_000;
+/** Entre deux réponses au même geste : le temps d'écrire la première et de la lire, même si l'on clique sans arrêt. */
+const REACTION_ECART_MS = 1_500;
 
 interface Logo {
   colonnes: number;
@@ -411,13 +412,22 @@ export function monterHolo(el: HTMLElement): Holo | null {
     if (bulle) bulle.hidden = false;
   }
 
+  // Chaque geste a ses réponses, et son propre tirage : la première de sa liste d'abord, puis les autres au sort,
+  // jamais deux fois la même à la suite.
+  const reponses: Record<Reaction, () => number> = {
+    clic: tirage(REACTIONS.clic.length, Math.random),
+    tour: tirage(REACTIONS.tour.length, Math.random),
+    survol: tirage(REACTIONS.survol.length, Math.random),
+  };
+
   function reagir(geste: Reaction): void {
     if (!vif || (geste === derniereReaction && depuisReaction < REACTION_ECART_MS)) return;
     // Une fois qu'on l'a touché, il ne prévient plus de ne pas toucher : sa réponse au clic ne serait plus lue.
     if (geste !== "survol") survole = true;
     derniereReaction = geste;
     depuisReaction = 0;
-    dire(REACTIONS[geste]);
+    const liste: readonly string[] = REACTIONS[geste];
+    dire(liste[reponses[geste]()] ?? liste[0] ?? "");
   }
 
   // Au toucher, pas de curseur à suivre : la tête regarde un moment l'endroit touché.
@@ -439,7 +449,11 @@ export function monterHolo(el: HTMLElement): Holo | null {
     },
     tour() {
       if (!vif) return false;
-      if (avancee < 0) avancee = 0;
+      // Un clic droit pendant un tour ne le relance pas, et n'appelle pas de nouvelle réponse : une réponse par tour.
+      if (avancee < 0) {
+        avancee = 0;
+        reagir("tour");
+      }
       return true;
     },
     reagir,

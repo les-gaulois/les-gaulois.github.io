@@ -709,8 +709,7 @@ function init(): void {
       logo.animate([{ scale: 1 }, { scale: 1.1 }, { scale: 0.96 }, { scale: 1 }], { duration: 520, easing: "ease-out" });
       inRelief?.reagir("clic");
     } else if (inRelief?.tour()) {
-      // Le guerrier en relief fait son tour lui-même, dans l'espace.
-      inRelief.reagir("tour");
+      // Le guerrier en relief fait son tour lui-même, dans l'espace, et y répond dans sa bulle.
     } else if (logo) {
       logo.animate([{ rotate: "y 0deg" }, { rotate: "y 360deg" }], { duration: 900, easing: "cubic-bezier(0.3, 0.7, 0.2, 1)" });
     }

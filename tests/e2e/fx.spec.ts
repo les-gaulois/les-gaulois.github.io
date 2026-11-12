@@ -300,10 +300,22 @@ test.describe("à la souris", () => {
     const box = (await logo.boundingBox())!;
     const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 
+    /** Ce que dit la bulle, espaces ramenées à une seule. */
+    const said = async () => ((await bulle.textContent()) ?? "").replace(/\s+/g, " ").trim();
+
     const pulse = seesScriptAnimation(logo);
     await page.mouse.click(center.x, center.y);
     expect(await pulse).toBe(true);
-    await expect(bulle).toHaveText(REACTIONS.clic);
+    await expect(bulle).toHaveText(REACTIONS.clic[0]);
+    await expect.poll(() => logo.evaluate((el) => el.getAnimations().length)).toBe(0);
+    // Un second clic, une fois la première réponse lue : il ne redit pas la même, il en a d'autres. Un clic trop tôt
+    // ne change rien (une seconde et demie entre deux réponses, comptée en images) : on reclique jusqu'à la suivante.
+    await page.waitForTimeout(1600);
+    await expect(async () => {
+      await page.mouse.click(center.x, center.y);
+      await expect(bulle).not.toHaveText(REACTIONS.clic[0], { timeout: 700 });
+    }).toPass({ timeout: 10_000 });
+    expect(REACTIONS.clic.slice(1)).toContain(await said());
     await expect.poll(() => logo.evaluate((el) => el.getAnimations().length)).toBe(0);
 
     // Clic droit : le tour complet se fait dans l'espace, sans menu ; puis la tête revient.
@@ -311,9 +323,14 @@ test.describe("à la souris", () => {
     await page.mouse.click(center.x, center.y, { button: "right" });
     expect(await menuPrevented(page)).toBe(true);
     await expect.poll(async () => (await holoPose(page))?.tour).toBe(true);
-    await expect(bulle).toHaveText(REACTIONS.tour);
+    await expect(bulle).toHaveText(REACTIONS.tour[0]);
     await expect.poll(async () => (await holoPose(page))?.tour, { timeout: 4000 }).toBe(false);
     await expect.poll(async () => Math.abs((await holoPose(page))?.lacet ?? 99)).toBeLessThan(3);
+    // Un second tour : une autre réponse.
+    await page.mouse.click(center.x, center.y, { button: "right" });
+    await expect.poll(async () => (await holoPose(page))?.tour).toBe(true);
+    await expect(bulle).not.toHaveText(REACTIONS.tour[0]);
+    expect(REACTIONS.tour.slice(1)).toContain(await said());
   });
 
   test("le guerrier parle dans sa bulle, lettre à lettre, sans rien dire aux lecteurs d'écran", async ({ page }) => {

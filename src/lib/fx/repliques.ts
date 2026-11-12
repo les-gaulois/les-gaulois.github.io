@@ -35,12 +35,17 @@ export function repliquesPour(souris: boolean): readonly string[] {
   return souris ? REPLIQUES : REPLIQUES.filter((replique) => !REPLIQUES_SOURIS.includes(replique));
 }
 
-/** Ce qu'il répond quand on le touche : un clic sur lui, le tour complet du clic droit, le curseur qui vient sur son casque. */
+/**
+ * Ce qu'il répond quand on le touche : un clic sur lui, le tour complet du clic droit, le curseur qui vient sur son
+ * casque. Plusieurs réponses par geste depuis le 12 novembre 2026 au soir : le pilote a remarqué qu'il redisait la
+ * même à chaque clic. La première de chaque liste est dite au premier geste, puis les autres sortent dans un ordre
+ * tiré au sort, jamais deux fois la même à la suite (`tirage`). Mêmes règles que les répliques.
+ */
 export const REACTIONS = {
-  clic: "Même pas mal.",
-  tour: "Je surveille mes arrières.",
-  survol: "Pas touche au casque.",
-} as const;
+  clic: ["Même pas mal.", "Ça chatouille.", "Touché. Pas coulé.", "Il en faut plus que ça.", "Mon casque tient bon."],
+  tour: ["Je surveille mes arrières.", "J'ai l'œil partout.", "Rien dans mon dos.", "Un tour, et je reviens."],
+  survol: ["Pas touche au casque."],
+} as const satisfies Record<string, readonly string[]>;
 export type Reaction = keyof typeof REACTIONS;
 
 /**

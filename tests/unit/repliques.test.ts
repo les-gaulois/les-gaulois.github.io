@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { FRAPPE_MS, REACTIONS, REPLIQUES, REPLIQUES_SOURIS, REPLIQUE_LIGNE_MAX, decouper, dureeReplique, lettres, pauseAvant, repliquesPour, tirage } from "../../src/lib/fx/repliques";
 import { aleatoire } from "../../src/lib/logo-matrice";
 
-const TOUTES = [...REPLIQUES, ...Object.values(REACTIONS)];
+const TOUTES: string[] = [...REPLIQUES, ...Object.values(REACTIONS).flat()];
 
 describe("les répliques du guerrier", () => {
   it("sont courtes : deux lignes au plus, qui tiennent dans la bulle", () => {
@@ -32,6 +32,31 @@ describe("les répliques du guerrier", () => {
 
   it("commencent par le regard : le guerrier fixe le curseur", () => {
     expect(REPLIQUES[0]).toBe("Je te vois.");
+  });
+
+  it("répondent aux gestes sans se répéter : plusieurs réponses au clic et au tour complet", () => {
+    // Le pilote a remarqué, le 12 novembre 2026, qu'il redisait la même à chaque clic.
+    expect(REACTIONS.clic.length).toBeGreaterThanOrEqual(4);
+    expect(REACTIONS.tour.length).toBeGreaterThanOrEqual(4);
+    expect(REACTIONS.survol.length).toBeGreaterThanOrEqual(1);
+    // Aucune réponse ne sert à deux gestes, ni ne redit une réplique.
+    const reponses: string[] = Object.values(REACTIONS).flat();
+    expect(new Set(reponses).size).toBe(reponses.length);
+    for (const reponse of reponses) expect(REPLIQUES).not.toContain(reponse);
+    // Une réponse tient sur une ligne : elle ne parle pas à la machine.
+    for (const reponse of reponses) expect(decouper(reponse).machine, reponse).toBeNull();
+    // Dix clics de suite, avec le tirage de chaque geste : jamais deux fois la même réponse à la suite.
+    for (const liste of [REACTIONS.clic, REACTIONS.tour]) {
+      const suivante = tirage(liste.length, aleatoire(11));
+      const dites = Array.from({ length: 10 }, () => liste[suivante()]);
+      expect(dites[0]).toBe(liste[0]);
+      dites.forEach((reponse, i) => {
+        expect(reponse).toBeDefined();
+        if (i > 0) expect(reponse).not.toBe(dites[i - 1]);
+      });
+      // Et toutes y passent avant qu'une ne revienne.
+      expect(new Set(dites.slice(0, liste.length)).size).toBe(liste.length);
+    }
   });
 
   it("ne parlent du curseur qu'à ceux qui en ont un", () => {
