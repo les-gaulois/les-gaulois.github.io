@@ -3,6 +3,7 @@
  * village gaulois, dessinés en pixels comme sur un vieil écran. Demande du pilote, le 12 novembre 2026 : « des petites
  * icônes dans le thème gaulois et hacker pour chaque section ». Décoratives : le nom de la partie est écrit à côté.
  * Aucune ne reprend un personnage ni un objet d'une œuvre protégée : casque ailé du logo du clan, cor, bannière, coq…
+ * Les chapitres du guide du clan (/debuter) ont aussi la leur, dessinée dans la même grille, en fin de liste.
  *
  * Chaque icône est une grille de 13 cases sur 13, écrite ligne à ligne : « # » une case pleine, « + » une case en
  * demi-teinte, « . » une case vide. Un nombre impair de cases laisse une colonne au milieu pour les objets symétriques.
@@ -320,6 +321,122 @@ export const ICONES_PARTIES = {
     "......#......",
     "......####...",
     "......#......",
+  ],
+
+  // Le guide du clan (/debuter), depuis le 12 novembre 2026 : une icône par chapitre, dans le sommaire et en tête du
+  // chapitre. Les bases reprennent le casque, le poste de défense la tour, les deux aide-mémoire le bouclier et l'abaque.
+
+  /** Guide, croissance de la population : l'épi de blé. */
+  epi: [
+    "......#......",
+    ".....###.....",
+    "..#...#...#..",
+    "..##..#..##..",
+    "...##.#.##...",
+    "..#.#####.#..",
+    "..##..#..##..",
+    "...##.#.##...",
+    "..#.#####.#..",
+    "..##..#..##..",
+    "...##.#.##...",
+    "....#####....",
+    "......#......",
+  ],
+  /** Guide, comprendre une attaque : l'épée, pointe en l'air. */
+  epee: [
+    "..........###",
+    ".........####",
+    "........####.",
+    ".......####..",
+    "......####...",
+    ".....####....",
+    ".#..####.....",
+    ".##.###......",
+    "..####.......",
+    "...###.......",
+    "..##+##......",
+    ".##...##.....",
+    "##...........",
+  ],
+  /** Guide, les réflexes avant d'attaquer : l'œil, regarder avant de cliquer. */
+  oeil: [
+    ".............",
+    ".............",
+    "....#####....",
+    "..##.....##..",
+    ".#...###...#.",
+    "#...#####...#",
+    "#...##+##...#",
+    "#...#####...#",
+    ".#...###...#.",
+    "..##.....##..",
+    "....#####....",
+    ".............",
+    ".............",
+  ],
+  /** Guide, l'or : la bourse. */
+  bourse: [
+    ".............",
+    "...##...##...",
+    "....#####....",
+    ".....###.....",
+    "....#####....",
+    "...#######...",
+    "..#########..",
+    ".###########.",
+    ".####+++####.",
+    ".###+###+###.",
+    ".####+++####.",
+    ".###########.",
+    "..#########..",
+  ],
+  /** Guide, les bateaux de trade, et le Port : le bateau à voile carrée. */
+  bateau: [
+    "......#......",
+    "...#######...",
+    "...#######...",
+    "...#######...",
+    "...#######...",
+    "...#######...",
+    "......#......",
+    "#.....#.....#",
+    "#############",
+    ".###########.",
+    "..#########..",
+    ".............",
+    "+.++.++.++.+.",
+  ],
+  /** Guide, les trains, et l'Usine : la locomotive sur son rail. */
+  train: [
+    ".............",
+    "..##.........",
+    "..##...#####.",
+    "..##...#+++#.",
+    ".####..#+++#.",
+    ".###########.",
+    ".###########.",
+    ".###########.",
+    "#############",
+    "..##..##..##.",
+    ".#..##..##..#",
+    "..##..##..##.",
+    "+++++++++++++",
+  ],
+  /** Guide, la trahison : le poignard, pointe en bas. */
+  poignard: [
+    "###..........",
+    "####.........",
+    "#####........",
+    ".#####...#...",
+    "..#####.##...",
+    "...######....",
+    "....####.....",
+    "...######....",
+    "..##..####...",
+    ".##....####..",
+    "........####.",
+    ".........###.",
+    "..........##.",
   ],
 } as const satisfies Record<string, readonly string[]>;
 

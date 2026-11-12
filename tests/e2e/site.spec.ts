@@ -13,6 +13,8 @@ import { firstRival } from "../../src/lib/compare";
 import { faceOffs } from "../../src/lib/games";
 import { editionLead, GAZETTE_RECENT_EDITIONS, gazetteEditions, playersPeriod, rankWords, standingDetails, territoryDetails, weekLabel } from "../../src/lib/gazette";
 import { bestGameOf, bestGameSentence, yesterdayOf } from "../../src/lib/belle-partie";
+import { GROWTH_REFERENCE_CAPACITY, gainVersusPeak } from "../../src/lib/growth";
+import { chantier, orBateau, orTrain, partageAttaque } from "../../src/lib/guide-clan";
 import { clanJournal, JOURNAL_FIRST_ROWS, journalChoices, journalCount, NO_FILTER, replayUrl } from "../../src/lib/journal";
 import { recentRecordKeys, weekRecordKeys } from "../../src/lib/records-battus";
 import { playerPodiums, podiumDates } from "../../src/lib/podiums";
@@ -344,16 +346,18 @@ test("parcours principal", async ({ page }, testInfo) => {
   await expect(page.getByText("Parties enregistrées, heure de Paris.")).toBeVisible();
   await expect(page.getByTestId("best-slot").first()).toBeVisible();
 
-  // Guides : tout est dans la page, et le sommaire ouvre le chapitre visé.
+  // Guide du clan : tous les chapitres sont dans la page, un seul se montre, et le sommaire ouvre le chapitre visé.
   await page.goto("/debuter");
   await hydrated(page);
-  await expect(page.getByTestId("guide-card")).toHaveCount(5);
   await expect(page.getByTestId("guide-chapter")).toHaveCount(11);
+  await expect(page.getByTestId("guide-chapter").filter({ visible: true })).toHaveCount(1);
+  if (mobile) await page.getByRole("button", { name: /Chapitres/ }).click();
   await page.getByRole("navigation", { name: "Chapitres du guide du clan" }).getByRole("link", { name: /Croissance/ }).click();
   await expect(page.getByTestId("growth-chart").locator("svg")).toBeVisible();
-  await expect(page.getByText("Ce guide reste à rédiger")).toHaveCount(0);
-  // Le wiki est sous CC BY-SA : sa mention ne doit pas disparaître de la page.
-  await expect(page.getByTestId("guide-sources").getByRole("link", { name: "CC BY-SA 4.0" })).toBeVisible();
+  // Les fiches par mode, adaptées du wiki, sont retirées depuis le 12 novembre 2026 : il ne reste que le guide du clan,
+  // et la mention de sa source sous lui.
+  await expect(page.getByTestId("guide-card")).toHaveCount(0);
+  await expect(page.getByTestId("guide-source")).toContainText("Texte réservé au clan");
 
   // Rejoindre.
   await page.goto("/rejoindre");
@@ -376,7 +380,7 @@ test("l'accueil n'affiche que des données collectées", async ({ page }) => {
   const me = clans.find((c) => c.clanTag === clan.tag);
   const above = clans[(me?.rank ?? 2) - 2];
   if (me && above) await expect(page.getByTestId("home-race")).toContainText(`${fmtScore(above.weightedWins - me.weightedWins)} de retard sur [${above.clanTag}]`);
-  await expect(page.getByRole("link", { name: "Lire les guides" })).toHaveAttribute("href", /\/debuter$/);
+  await expect(page.getByRole("link", { name: "Lire le guide du clan" })).toHaveAttribute("href", /\/debuter$/);
 });
 
 test("l'accueil donne d'abord le classement, et remonte Ma place pour qui a dit « C'est moi »", async ({ page }) => {
@@ -522,16 +526,201 @@ test("le calculateur et les outils sont retirés, et plus rien n'y mène", async
   await expect(page.locator('a[href*="/outils"]')).toHaveCount(0);
 });
 
-test("le sommaire des guides rouvre un chapitre refermé", async ({ page }) => {
+// Le 12 novembre 2026, à la demande du pilote : il ne reste que le guide du clan, « interactif, très intuitif », un
+// chapitre à la fois (docs/DESIGN.md, « Le guide du clan »).
+test("le guide du clan avance chapitre par chapitre, et l'adresse garde le chapitre ouvert", async ({ page }, testInfo) => {
+  const mobile = testInfo.project.name === "mobile";
+  const ouvert = page.getByTestId("guide-chapter").filter({ visible: true });
+  const titre = ouvert.getByRole("heading", { level: 2 });
   await page.goto("/debuter");
-  const link = page.getByRole("navigation", { name: "Chapitres du guide du clan" }).getByRole("link", { name: /Trains/ });
-  const chapter = page.getByTestId("guide-chapter").filter({ has: page.getByRole("heading", { name: /Trains/ }) });
-  await link.click();
-  await expect(chapter).toHaveAttribute("open", "");
-  await chapter.locator("summary").first().click();
-  await expect(chapter).not.toHaveAttribute("open", "");
-  await link.click();
-  await expect(chapter).toHaveAttribute("open", "");
+  await page.waitForLoadState("networkidle");
+  await expect(ouvert).toHaveCount(1);
+  await expect(titre).toHaveText("Les bases");
+  // Le premier chapitre n'a pas de « Précédent ».
+  await expect(ouvert.getByTestId("guide-avant")).toHaveCount(0);
+
+  // « Suivant » ouvre le chapitre d'après, l'écrit dans l'adresse, y amène la page et le focus.
+  await ouvert.getByTestId("guide-apres").click();
+  await expect(page).toHaveURL(/#chapitre-02-croissance$/);
+  await expect(ouvert).toHaveCount(1);
+  await expect(titre).toHaveText("Croissance de la population");
+  await expect(titre).toBeFocused();
+  await expect(titre).toBeInViewport();
+
+  // Le bouton Retour du navigateur revient au chapitre d'avant.
+  await page.goBack();
+  await expect(titre).toHaveText("Les bases");
+
+  // Le sommaire ouvre un chapitre et le marque. Sur téléphone, il attend sous son bouton, qui dit le chapitre ouvert.
+  const plan = page.getByRole("navigation", { name: "Chapitres du guide du clan" });
+  const bouton = plan.getByRole("button", { name: /Chapitres/ });
+  if (mobile) {
+    await expect(plan.getByRole("link", { name: /Trains/ })).toBeHidden();
+    await bouton.click();
+    await expect(bouton).toHaveAttribute("aria-expanded", "true");
+  } else {
+    await expect(bouton).toBeHidden();
+  }
+  await plan.getByRole("link", { name: /Trains/ }).click();
+  await expect(titre).toHaveText("Trains");
+  await expect(plan.locator('[aria-current="step"]')).toHaveCount(1);
+  if (mobile) {
+    await expect(bouton).toHaveAttribute("aria-expanded", "false");
+    await expect(bouton).toContainText("08 · Trains");
+  } else {
+    await expect(plan.locator('[aria-current="step"]')).toContainText("Trains");
+  }
+
+  // Une adresse qui nomme un chapitre l'ouvre d'emblée ; le dernier n'a pas de « Suivant ».
+  await page.goto("/debuter#chapitre-11-memo-economie");
+  await expect(titre).toHaveText("Aide-mémoire économie");
+  await expect(ouvert.getByTestId("guide-apres")).toHaveCount(0);
+  await expect(ouvert.getByTestId("guide-avant")).toHaveAttribute("href", "#chapitre-10-memo-combat");
+  // Une autre ancre ne ferme rien : le chapitre ouvert reste, le même.
+  await page.goto("/debuter#contenu");
+  await expect(page).toHaveURL(/#contenu$/);
+  await expect(ouvert).toHaveCount(1);
+  await expect(titre).toHaveText("Aide-mémoire économie");
+});
+
+// Le script du guide ajoute le sommaire du téléphone, le focus et le défilement ; les chapitres, eux, ne dépendent que
+// du script écrit dans la page.
+test("si le script du guide ne se charge pas, ses liens ouvrent encore les chapitres", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "Testé une seule fois.");
+  await page.route("**/_astro/*script*", (route) => route.abort());
+  const ouvert = page.getByTestId("guide-chapter").filter({ visible: true });
+  const titre = ouvert.getByRole("heading", { level: 2 });
+  await page.goto("/debuter");
+  await expect(ouvert).toHaveCount(1);
+  await expect(titre).toHaveText("Les bases");
+  await ouvert.getByTestId("guide-apres").click();
+  await expect(page).toHaveURL(/#chapitre-02-croissance$/);
+  await expect(ouvert).toHaveCount(1);
+  await expect(titre).toHaveText("Croissance de la population");
+  await page.getByRole("navigation", { name: "Chapitres du guide du clan" }).getByRole("link", { name: /Trahison/ }).click();
+  await expect(titre).toHaveText("Trahison");
+  await page.goBack();
+  await expect(titre).toHaveText("Croissance de la population");
+});
+
+test("les essais du guide du clan donnent les chiffres de ses calculs", async ({ page }) => {
+  const ouvrir = async (ancre: string) => {
+    await page.goto(`/debuter#${ancre}`);
+    await expect(page.locator(`#${ancre}`)).toBeVisible();
+  };
+  await page.goto("/debuter");
+  await hydrated(page);
+
+  // Chapitre 1 : l'exemple du guide, déjà dans la page, puis un autre nombre. La règle est écrite en clair : une troupe
+  // sur cinq, sans signe de division (le pilote ne comprenait pas « ÷ 5 » et « ÷ 20 », le 12 novembre 2026).
+  const attaque = page.getByTestId("essai-attaque");
+  await expect(page.getByTestId("guide-bloc-attaque")).toContainText("1 troupe sur 5 part, le reste demeure en défense");
+  await expect(page.getByTestId("guide-bloc-attaque")).not.toContainText("÷");
+  await expect(attaque.getByTestId("essai-attaque-part")).toHaveText(fmtInt(10_000));
+  await expect(attaque.getByTestId("essai-attaque-reste")).toHaveText(fmtInt(40_000));
+  await expect(attaque.getByTestId("essai-attaque-pions").locator("svg")).toHaveCount(5);
+  await attaque.getByLabel("Vos troupes").fill("200000");
+  await expect(attaque.getByTestId("essai-attaque-part")).toHaveText(fmtInt(partageAttaque(200_000).attaque));
+  await expect(attaque.getByTestId("essai-attaque-reste")).toHaveText(fmtInt(partageAttaque(200_000).defense));
+
+  // Chapitre 2 : la courbe s'ouvre sur son sommet ; à 80 %, le gain annoncé par le chapitre.
+  await ouvrir("chapitre-02-croissance");
+  const gain = page.getByTestId("essai-croissance-gain");
+  await expect(gain).toHaveText(`${fmtInt(100)} %`);
+  await page.getByLabel("Votre réserve").fill("80");
+  await expect(gain).toHaveText(`${fmtInt(gainVersusPeak(80, GROWTH_REFERENCE_CAPACITY))} %`);
+  await expect(gain).toHaveText("55 %");
+
+  // Chapitre 5 : six questions, chacune avec le lien du chapitre qui l'explique ; le lien ouvre ce chapitre.
+  await ouvrir("chapitre-05-reflexes");
+  const questions = page.getByTestId("guide-bloc-reflexes").getByRole("listitem");
+  await expect(questions).toHaveCount(6);
+  await expect(page.getByTestId("guide-bloc-reflexes").getByRole("link")).toHaveCount(6);
+  await questions.filter({ hasText: "Y a-t-il un poste ?" }).getByRole("link", { name: "Chapitre 4 : Poste et neutre" }).click();
+  await expect(page).toHaveURL(/#chapitre-04-poste-neutre$/);
+  await expect(page.getByTestId("guide-chapter").filter({ visible: true }).getByRole("heading", { level: 2 })).toHaveText("Poste de défense et terrain neutre");
+
+  // Chapitre 6 : un Port fait monter le prix de l'Usine, pas celui de la Ville.
+  await ouvrir("chapitre-06-economie");
+  const batiments = page.getByTestId("essai-batiments");
+  const prix = (id: string) => batiments.getByTestId(`essai-batiments-${id}`);
+  for (const id of ["ville", "port", "usine"]) await expect(prix(id)).toHaveText(fmtInt(125_000));
+  await batiments.getByRole("button", { name: "Construire : Port" }).click();
+  const apresPort = chantier(["port"]);
+  await expect(prix("usine")).toHaveText(fmtInt(apresPort.prochain.usine));
+  await expect(prix("usine")).toHaveText(fmtInt(250_000));
+  await expect(prix("ville")).toHaveText(fmtInt(apresPort.prochain.ville));
+  await expect(batiments.getByTestId("essai-batiments-total")).toContainText(fmtInt(apresPort.depense));
+  // « Remettre à zéro » garde le focus après le clic : inactif, il n'est pas retiré du clavier.
+  const zero = batiments.getByRole("button", { name: "Remettre à zéro" });
+  await expect(zero).toHaveAttribute("aria-disabled", "false");
+  await zero.click();
+  await expect(prix("port")).toHaveText(fmtInt(125_000));
+  await expect(prix("usine")).toHaveText(fmtInt(125_000));
+  await expect(zero).toHaveAttribute("aria-disabled", "true");
+  await expect(zero).toBeFocused();
+  await expect(batiments.getByRole("status")).toContainText("Chantier remis à zéro");
+
+  // Chapitre 7 : un repère du chapitre.
+  await ouvrir("chapitre-07-bateaux");
+  const bateau = page.getByTestId("essai-bateau-or");
+  await expect(bateau).toHaveText(fmtInt(52_500));
+  await page.getByLabel("Distance").fill("500");
+  await expect(bateau).toHaveText(fmtInt(Math.round(orBateau(500))));
+  await expect(bateau).toHaveText(fmtInt(99_815));
+
+  // Chapitre 8 : l'exemple du chapitre chez un allié, puis chez soi.
+  await ouvrir("chapitre-08-trains");
+  const train = page.getByTestId("essai-train-or");
+  await expect(train).toHaveText(fmtInt(30_000));
+  await page.getByLabel("Arrêt n°").fill("12");
+  await expect(train).toHaveText(fmtInt(orTrain(35_000, 12)));
+  await page.getByTestId("essai-train").getByRole("button", { name: "Vous-même" }).click();
+  await expect(train).toHaveText(fmtInt(orTrain(10_000, 12)));
+  await expect(page.getByTestId("essai-train-barres").locator(".guide-barre-arret")).toHaveCount(20);
+});
+
+test("sans JavaScript, le guide du clan donne tous ses chapitres à la suite", async ({ browser }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "Même page sur mobile.");
+  const context = await browser.newContext({ javaScriptEnabled: false, baseURL: testInfo.project.use.baseURL });
+  const page = await context.newPage();
+  await page.goto("/debuter");
+  const chapitres = page.getByTestId("guide-chapter");
+  await expect(chapitres).toHaveCount(11);
+  await expect(chapitres.filter({ visible: true })).toHaveCount(11);
+  // Le sommaire est ouvert, sans bouton, et chaque essai montre déjà son état de départ.
+  const plan = page.getByRole("navigation", { name: "Chapitres du guide du clan" });
+  await expect(plan.getByRole("link")).toHaveCount(11);
+  await expect(plan.getByRole("link", { name: /Trahison/ })).toBeVisible();
+  await expect(plan.getByRole("button")).toHaveCount(0);
+  await expect(page.getByTestId("essai-attaque-part")).toHaveText(fmtInt(10_000));
+  await expect(page.getByTestId("essai-bateau-or")).toHaveText(fmtInt(52_500));
+  await expect(page.getByTestId("essai-train-or")).toHaveText(fmtInt(30_000));
+  await context.close();
+});
+
+// Les tests d'accessibilité et de largeur n'ouvrent que le premier chapitre : chacun des autres passe ici.
+test("chaque chapitre du guide du clan tient dans un téléphone et passe les contrôles d'accessibilité", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "Les deux largeurs sont testées ici.");
+  test.slow();
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/debuter");
+  await page.waitForLoadState("networkidle");
+  const ancres = await page.getByTestId("guide-chapter").evaluateAll((chapitres) => chapitres.map((c) => c.id));
+  expect(ancres).toHaveLength(11);
+  for (const ancre of ancres) {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto(`/debuter#${ancre}`);
+    await expect(page.locator(`#${ancre}`)).toBeVisible();
+    await openFolds(page);
+    const { violations } = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+    expect(violations.map((v) => `${ancre} : ${v.id}: ${v.nodes.map((n) => n.target).join(" ; ")}`)).toEqual([]);
+    for (const width of [360, 768, 1024]) {
+      await page.setViewportSize({ width, height: 800 });
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      expect(overflow, `${ancre} à ${width} px`).toBeLessThanOrEqual(0);
+    }
+  }
 });
 
 // Le 10 novembre 2026, à la demande du pilote : le périmètre des parties passe dans les précisions repliées, qui restent dans la page.

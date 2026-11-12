@@ -2,6 +2,16 @@
   {
     "date": "2026-11-12",
     "kind": "ameliore",
+    "title": "Le guide du clan, chapitre par chapitre, avec des essais",
+    "body": "Le guide du clan se lit un chapitre à la fois : l'essentiel en quelques phrases, puis un essai à manipuler (attaque, croissance, bâtiments, bateaux, trains). Les fiches par mode sont retirées.",
+    "link": {
+      "href": "/debuter",
+      "label": "Ouvrir le guide"
+    }
+  },
+  {
+    "date": "2026-11-12",
+    "kind": "ameliore",
     "title": "Les demandes annoncées dès leur arrivée",
     "body": "Pour l'encadrement : une nouvelle demande d'adhésion est annoncée sur Discord dès qu'elle arrive, quand le salon de l'encadrement est réglé dans la Direction. La nuit, l'avis part après 8 h."
   },

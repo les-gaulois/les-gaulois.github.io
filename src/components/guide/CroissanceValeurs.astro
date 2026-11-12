@@ -1,0 +1,50 @@
+---
+import { fmtInt } from "../../lib/format";
+import { GROWTH_REFERENCE_CAPACITY, gainVersusPeak, peakPercent } from "../../lib/growth";
+
+const CAPACITES = [2_500, 10_000, 25_000, 100_000, 250_000, 1_000_000, 2_500_000];
+const RESERVES = [10, 20, 35, 42, 50, 65, 80, 100];
+const pct = (n: number) => `${fmtInt(n)} %`;
+---
+
+{/* Les chiffres de la courbe du chapitre 2, en tableau : calculés par src/lib/growth.ts, comme la courbe elle-même. */}
+<div class="grid gap-x-8 gap-y-4 sm:grid-cols-2" data-testid="growth-values">
+  <table>
+    <caption class="sr-only">Gain de troupes selon le remplissage, pour une capacité de {fmtInt(GROWTH_REFERENCE_CAPACITY)} troupes</caption>
+    <thead>
+      <tr>
+        <th scope="col">Remplissage</th>
+        <th scope="col">Gain</th>
+      </tr>
+    </thead>
+    <tbody>
+      {
+        RESERVES.map((reserve) => (
+          <tr>
+            <td>{pct(reserve)}</td>
+            <td>{pct(gainVersusPeak(reserve, GROWTH_REFERENCE_CAPACITY))}</td>
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
+  <table>
+    <caption class="sr-only">Remplissage où le gain est le plus fort, selon la capacité maximale</caption>
+    <thead>
+      <tr>
+        <th scope="col">Capacité max</th>
+        <th scope="col">Pic à</th>
+      </tr>
+    </thead>
+    <tbody>
+      {
+        CAPACITES.map((capacite) => (
+          <tr>
+            <td>{fmtInt(capacite)}</td>
+            <td>{pct(peakPercent(capacite))}</td>
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
+</div>

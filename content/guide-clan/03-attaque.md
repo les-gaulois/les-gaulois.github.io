@@ -1,27 +1,29 @@
 ---
 title: "Comprendre une attaque"
 order: 3
+court: "L'attaque"
+groupe: combat
+icone: epee
+chapeau: "Pour comprendre un combat, regardez surtout quatre choses :"
+essentiel:
+  - "**Ratio :** les troupes du défenseur comparées à celles de votre attaque. Une grosse attaque fait baisser ce ratio."
+  - "**Densité :** beaucoup de troupes sur peu de tuiles, c'est une défense concentrée."
+  - "**Terrain :** plaine, colline (highland) et montagne n'ont pas le même coût de combat."
+  - "**Bonus :** poste de défense, taille du territoire, statut de traître."
+bloc: terrain
+blocTitre: "Valeurs de terrain à connaître"
+# Dans l'ordre des terrains de src/lib/guide-clan.ts : plaine, colline, montagne.
+points:
+  - titre: "Plaine"
+    texte: "Base de référence"
+  - titre: "Colline"
+    texte: "Plus coûteux"
+  - titre: "Montagne"
+    texte: "Encore plus coûteux"
+retenir:
+  titre: "Réflexe"
+  texte: "Avant une attaque, ne regardez pas seulement le nombre de troupes. Une défense concentrée, un terrain difficile ou un poste peuvent changer fortement le résultat."
 ---
-
-Pour comprendre un combat, regardez surtout quatre choses :
-
-- **Ratio :** défenseur ÷ attaque. Une grosse attaque fait baisser ce ratio.
-- **Densité :** troupes du défenseur ÷ nombre de tuiles défendues.
-- **Terrain :** plaine, highland (colline) et montagne n'ont pas le même coût de combat.
-- **Bonus :** poste de défense, taille du territoire, statut de traître.
-
-#### Valeurs de terrain à connaître
-
-| Terrain | Mag | Coût de tuile | Lecture |
-|---|---|---|---|
-| Plaine | 80 | 16,5 | Base de référence |
-| Highland | 100 | 20 | Plus coûteux |
-| Montagne | 120 | 25 | Encore plus coûteux |
-
-> **Réflexe.** Avant une attaque, ne regardez pas seulement le nombre de troupes. Une défense concentrée, un terrain difficile ou un poste peuvent changer fortement le résultat.
-
-<details>
-<summary>Formules détaillées</summary>
 
 **Densité.** Une forte concentration de troupes sur peu de tuiles augmente le terme de densité utilisé dans le calcul des pertes.
 
@@ -44,5 +46,3 @@ Un Civil ou une Nation qui attaque un Bot paie 0,7 × mag.
 coût de vitesse = borne(R ; 0,82 ; 7,5) × borne(R ÷ 20 ; 1 ; 50) ÷ 8,55
 part du tick pour une tuile = coût de vitesse × coût de tuile × bonus de taille × modificateur de traître ÷ taille du front
 ```
-
-</details>

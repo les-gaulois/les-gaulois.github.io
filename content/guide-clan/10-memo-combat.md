@@ -1,17 +1,20 @@
 ---
 title: "Aide-mémoire combat"
 order: 10
+court: "Mémo combat"
+groupe: memo
+icone: bouclier
+chapeau: "Gardez ce tableau sous les yeux pendant une partie."
+ouvert: true
 ---
-
-Gardez ce tableau sous les yeux pendant une partie.
 
 | Élément | Valeur ou règle |
 |---|---|
-| Attaque Civil | troupes ÷ 5 |
-| Attaque Bot | troupes ÷ 20 |
+| Attaque Civil | 1 troupe sur 5 (troupes ÷ 5) |
+| Attaque Bot | 1 troupe sur 20 (troupes ÷ 20) |
 | Densité du défenseur | troupes ÷ nombre de tuiles |
 | Plaine | mag 80, coût 16,5 |
-| Highland | mag 100, coût 20 |
+| Colline (highland) | mag 100, coût 20 |
 | Montagne | mag 120, coût 25 |
 | Ratio des pertes | borne(défenseur ÷ attaque ; 0,6 ; 2) |
 | Base des pertes | 0,463 |

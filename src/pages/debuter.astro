@@ -2,92 +2,213 @@
 import { getCollection, render } from "astro:content";
 import Base from "../layouts/Base.astro";
 import PageHeader from "../components/PageHeader.astro";
-import PageJumps from "../components/PageJumps.astro";
-import GrowthChart from "../components/GrowthChart.tsx";
-import { clan } from "../../config/clan";
+import IconePartie from "../components/compte/IconePartie";
+import CroissanceValeurs from "../components/guide/CroissanceValeurs.astro";
+import GuideBloc from "../components/guide/GuideBloc.astro";
+import { ancreDuChapitre, commandeDuChapitre, morceauxGras, numeroDuChapitre, parGroupe, titreEnDeux } from "../lib/guide";
+import { invite } from "../lib/nav";
 
-const entries = (await getCollection("guide")).sort((a, b) => a.data.order - b.data.order);
-const guides = await Promise.all(entries.map(async (entry) => ({ entry, Content: (await render(entry)).Content })));
-const chapterEntries = (await getCollection("guideClan")).sort((a, b) => a.data.order - b.data.order);
-const chapters = await Promise.all(chapterEntries.map(async (entry) => ({ entry, Content: (await render(entry)).Content })));
-const jumps = [
-  { href: "#guide-title", label: "Guide par mode" },
-  { href: "#guide-clan-title", label: "Le guide du clan" },
-];
+// Le guide du clan : un chapitre par fichier de content/guide-clan/, dans l'ordre de leur numéro.
+const entries = (await getCollection("guideClan")).sort((a, b) => a.data.order - b.data.order);
+const total = entries.length;
+const chapitres = await Promise.all(
+  entries.map(async (entry, index) => ({
+    ...entry.data,
+    id: entry.id,
+    index,
+    ancre: ancreDuChapitre(entry.id),
+    numero: numeroDuChapitre(index + 1),
+    commande: commandeDuChapitre(entry.id),
+    enDeux: titreEnDeux(entry.data.title),
+    // Un chapitre peut n'avoir que son en-tête : alors, rien à déplier.
+    aDuTexte: Boolean(entry.body?.trim()),
+    Content: (await render(entry)).Content,
+  })),
+);
+const groupes = parGroupe(chapitres);
+// Le dossier et la commande de l'invite au-dessus du titre (« gal@clan:~/guides$ ./debuter ») : la barre d'un chapitre
+// écrit la même commande, suivie du chapitre, et le sommaire en fait un dossier.
+const { dossier, commande } = invite("/debuter");
+// Une ligne d'un bloc peut renvoyer au chapitre qui l'explique : un nom de fichier mal écrit arrête la construction.
+for (const c of chapitres) {
+  for (const p of c.points) {
+    if (p.renvoi && !chapitres.some((autre) => autre.id === p.renvoi)) throw new Error(`${c.id} : le renvoi « ${p.renvoi} » ne nomme aucun chapitre`);
+  }
+}
+const premier = chapitres[0];
 ---
 
-<Base title="Guides" description="Pour débuter ou progresser sur OpenFront : stratégies par mode et guide du clan sur le combat et l'économie.">
+<Base title="Guide du clan" description="Le guide du clan GAL pour débuter sur OpenFront : combat, économie et alliances, un chapitre à la fois, avec des essais à manipuler.">
   <div class="wrap">
-    <PageHeader title="Les guides">
-      <PageJumps links={jumps} />
-    </PageHeader>
+    <PageHeader title="Le guide du clan" intro="Commencez par les chapitres 1 à 5. Le chapitre 9 aide à éviter les erreurs d'alliance." />
 
-    <section aria-labelledby="guide-title">
-      <h2 id="guide-title" class="section-title scroll-mt-24">Guide par mode</h2>
-      <div class="mt-4 space-y-3">
-        {
-          guides.map(({ entry, Content }) => (
-            <details class="card guide-fold scroll-mt-24 p-5" id={`guide-${entry.id}`} data-testid="guide-card" data-tilt="0">
-              <summary><h3 class="text-xl">{entry.data.title}</h3></summary>
-              {entry.data.draft ? (
-                <p class="mt-2 text-sm text-muted">
-                  Ce guide reste à rédiger par le clan.{" "}
-                  <a href={clan.links.discord} rel="noopener">En attendant, posez vos questions sur le Discord.</a>
+    {/* Un chapitre à la fois, dans une fenêtre de terminal, avec son sommaire (docs/DESIGN.md, « Le guide du clan »).
+        Sans JavaScript, la page donne tous les chapitres à la suite : rien n'est caché tant que le script n'a pas pris la main. */}
+    <div class="guide fx-block" data-guide>
+      <nav class="guide-plan" aria-label="Chapitres du guide du clan" data-guide-plan>
+        {/* Sur téléphone, le sommaire se replie sous ce bouton, qui dit le chapitre ouvert. Sans script, il reste caché et le sommaire, ouvert. */}
+        <button type="button" class="guide-plan-bouton" data-guide-bouton aria-expanded="false" aria-controls="guide-plan-liste">
+          <span class="guide-etiquette">Chapitres</span>
+          <span class="guide-plan-ici" data-guide-ici>{premier && `${premier.numero} · ${premier.court}`}</span>
+          <svg class="guide-plan-fleche" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M3 6l5 5 5-5"></path>
+          </svg>
+        </button>
+        <div class="guide-plan-liste" id="guide-plan-liste">
+          <p class="guide-plan-racine" aria-hidden="true">{dossier}/{commande}</p>
+          {
+            groupes.map((g) => (
+              <div class="guide-plan-groupe">
+                <p class="guide-etiquette" id={`guide-groupe-${g.id}`}>
+                  {g.nom}
                 </p>
-              ) : (
-                <div class:list={["guide-body mt-2 text-muted", entry.data.wide ? "guide-columns" : "max-w-3xl"]}>
-                  <Content />
-                </div>
-              )}
-            </details>
-          ))
-        }
-      </div>
-      <p class="mt-3 text-xs text-muted" data-testid="guide-sources">
-        Stratégies traduites et adaptées du <a href="https://openfront.wiki/Main_Page" rel="noopener">wiki OpenFront</a>, sous licence{" "}
-        <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.fr" rel="noopener">CC BY-SA 4.0</a> : ce texte adapté reste sous la même licence. Formats et chiffres vérifiés sur le{" "}
-        <a href="https://github.com/openfrontio/OpenFrontIO" rel="noopener">code public du jeu</a>, v0.35.12, le 6 novembre 2026.
-      </p>
-    </section>
-
-    <section class="mt-12" aria-labelledby="guide-clan-title">
-      <h2 id="guide-clan-title" class="section-title scroll-mt-24">Le guide du clan</h2>
-      <p class="mt-2 max-w-3xl text-muted">Commencez par les chapitres 1 à 5. Le chapitre 9 aide à éviter les erreurs d'alliance.</p>
-      <nav class="card mt-4 p-5" aria-label="Chapitres du guide du clan" data-tilt="0">
-        <ol class="guide-toc">
-          {chapters.map(({ entry }) => <li><a href={`#chapitre-${entry.id}`}>{entry.data.title}</a></li>)}
-        </ol>
-      </nav>
-      <div class="mt-3 space-y-3">
-        {
-          chapters.map(({ entry, Content }) => (
-            <details class="card guide-fold scroll-mt-24 p-5" id={`chapitre-${entry.id}`} data-testid="guide-chapter" data-tilt="0">
-              <summary><h3 class="text-xl"><span class="tnum">{entry.data.order}.</span> {entry.data.title}</h3></summary>
-              <div class:list={["guide-body mt-3 text-muted", entry.data.wide ? "guide-columns" : "max-w-3xl"]}>
-                {entry.data.growthChart && <GrowthChart client:load />}
-                <Content />
+                <ul aria-labelledby={`guide-groupe-${g.id}`}>
+                  {g.chapitres.map((c) => (
+                    <li>
+                      <a class="guide-plan-lien" href={`#${c.ancre}`} data-guide-lien={c.ancre}>
+                        <IconePartie nom={c.icone} classe="guide-plan-icone" />
+                        <span class="guide-plan-numero tnum">{c.numero}</span>
+                        <span>{c.court}</span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
               </div>
-            </details>
-          ))
+            ))
+          }
+        </div>
+      </nav>
+
+      <div class="guide-ecran">
+        {
+          chapitres.map((c) => {
+            const avant = chapitres[c.index - 1];
+            const apres = chapitres[c.index + 1];
+            const { Content } = c;
+            return (
+              <section class="guide-chapitre" id={c.ancre} aria-labelledby={`titre-${c.id}`} data-guide-chapitre data-court={`${c.numero} · ${c.court}`} data-testid="guide-chapter">
+                {/* La barre de la fenêtre : la commande du chapitre et l'avancée dans le guide. Décorative : le titre et « Chapitre 3 sur 11 » le disent. */}
+                <p class="guide-barre" aria-hidden="true">
+                  <span class="guide-commande">
+                    <span class="guide-commande-hote">
+                      <span class="invite-hote">gal@clan</span>:{dossier}$&nbsp;
+                    </span>
+                    <span class="invite-commande">
+                      ./{commande} {c.commande}
+                    </span>
+                  </span>
+                  <span class="guide-avance">
+                    <span class="guide-jalons">
+                      {chapitres.map((autre) => (
+                        <i class:list={{ "guide-jalon-fait": autre.index <= c.index }} />
+                      ))}
+                    </span>
+                    <span class="tnum">
+                      {c.numero}/{numeroDuChapitre(total)}
+                    </span>
+                  </span>
+                </p>
+
+                <div class="guide-corps">
+                  <header class="guide-tete">
+                    <IconePartie nom={c.icone} classe="guide-icone" />
+                    <div class="min-w-0">
+                      <p class="guide-etiquette">
+                        Chapitre {c.index + 1} sur {total}
+                      </p>
+                      <h2 id={`titre-${c.id}`} class="guide-titre" tabindex="-1" data-guide-titre>
+                        {c.enDeux.titre}
+                      </h2>
+                      {c.enDeux.precision && <p class="guide-precision">{c.enDeux.precision}</p>}
+                    </div>
+                  </header>
+
+                  {c.chapeau && <p class="guide-chapeau">{c.chapeau}</p>}
+                  {c.essentiel.length > 0 && (
+                    <ul class="guide-essentiel">
+                      {c.essentiel.map((phrase) => (
+                        <li>{morceauxGras(phrase).map((m) => (m.gras ? <strong>{m.texte}</strong> : m.texte))}</li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {c.bloc && <GuideBloc bloc={c.bloc} titre={c.blocTitre} texte={c.blocTexte} points={c.points} chapitres={chapitres} />}
+
+                  {c.retenir && (
+                    <p class="guide-retenir">
+                      <strong>{c.retenir.titre}.</strong> {c.retenir.texte}
+                    </p>
+                  )}
+
+                  {c.aDuTexte && c.ouvert && (
+                    <div class="guide-body guide-texte">
+                      <Content />
+                    </div>
+                  )}
+                  {c.aDuTexte && !c.ouvert && (
+                    <details class="guide-details">
+                      <summary>Détails et formules</summary>
+                      <div class="guide-body">
+                        <Content />
+                        {c.bloc === "croissance" && <CroissanceValeurs />}
+                      </div>
+                    </details>
+                  )}
+                </div>
+
+                <p class="guide-pas">
+                  {avant && (
+                    <a class="btn btn-ghost" href={`#${avant.ancre}`} rel="prev" data-testid="guide-avant">
+                      Précédent
+                    </a>
+                  )}
+                  {apres && (
+                    <a class="btn btn-primary guide-pas-suite" href={`#${apres.ancre}`} rel="next" data-testid="guide-apres">
+                      Suivant : {apres.court}
+                    </a>
+                  )}
+                </p>
+              </section>
+            );
+          })
         }
       </div>
-      <p class="mt-3 text-xs text-muted">
-        Guide Gaulois [GAL], octobre 2026, écrit sur la v0.35.2 du jeu et vérifié le 6 novembre 2026 sur la v0.35.12. Texte réservé au clan : sa copie et sa diffusion à d'autres clans sont interdites.
-      </p>
-    </section>
+    </div>
 
+    {/* Avant le premier affichage : un seul chapitre reste ouvert, celui que nomme l'adresse ou le premier, et le sommaire
+        se replie sur téléphone. Ce script suit aussi l'adresse : si src/scripts/guide.ts ne se charge pas, « Précédent »,
+        « Suivant » et les liens des chapitres ouvrent encore le bon chapitre. guide.ts ajoute le reste : le sommaire du
+        téléphone, le chapitre marqué, la page et le focus qui suivent. Sans JavaScript du tout, la page reste entière. */}
+    <script is:inline>
+      (() => {
+        const guide = document.querySelector("[data-guide]");
+        if (!guide) return;
+        const chapitres = [...guide.querySelectorAll("[data-guide-chapitre]")];
+        const montrer = () => {
+          let nomme = null;
+          try {
+            nomme = location.hash.length > 1 ? document.getElementById(decodeURIComponent(location.hash.slice(1))) : null;
+          } catch {
+            // Une adresse mal écrite : comme une adresse sans chapitre.
+          }
+          if (nomme && !nomme.matches("[data-guide-chapitre]")) nomme = null;
+          // Une autre ancre (« Aller au contenu ») garde le chapitre ouvert ; sans ancre, le premier.
+          const cible = nomme || (location.hash.length > 1 && guide.querySelector(".guide-ouvert")) || chapitres[0];
+          for (const chapitre of chapitres) chapitre.classList.toggle("guide-ouvert", chapitre === cible);
+        };
+        if (chapitres.length === 0) return;
+        montrer();
+        guide.classList.add("guide-pas-a-pas");
+        addEventListener("hashchange", montrer);
+      })();
+    </script>
+
+    <p class="mt-4 text-xs text-muted" data-testid="guide-source">
+      Guide Gaulois [GAL], octobre 2026, écrit sur la v0.35.2 du jeu et vérifié le 6 novembre 2026 sur la v0.35.12. Texte réservé au clan : sa copie et sa diffusion à d'autres clans sont interdites.
+    </p>
   </div>
 </Base>
 
 <script>
-  // Un lien du sommaire ouvre le chapitre visé, même déjà visité. Sans script, le chapitre s'ouvre d'un clic.
-  function openChapter(hash: string): void {
-    const target = hash ? document.getElementById(decodeURIComponent(hash.slice(1))) : null;
-    if (target instanceof HTMLDetailsElement) target.open = true;
-  }
-  addEventListener("hashchange", () => openChapter(location.hash));
-  openChapter(location.hash);
-  for (const link of document.querySelectorAll<HTMLAnchorElement>('main a[href^="#"]')) {
-    link.addEventListener("click", () => openChapter(link.hash));
-  }
+  import "../scripts/guide";
 </script>

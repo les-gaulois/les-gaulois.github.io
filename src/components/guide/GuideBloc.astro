@@ -1,0 +1,141 @@
+---
+import Essai, { ESSAIS, type EssaiType } from "./Essai";
+import { morceauxGras } from "../../lib/guide";
+import { POSTE, TERRAINS } from "../../lib/guide-clan";
+import { frNumber } from "../../lib/nombre";
+
+interface Point {
+  titre: string;
+  texte: string;
+  marque?: string;
+  ton?: "danger" | "attention" | "calme";
+  renvoi?: string;
+}
+interface Props {
+  bloc: EssaiType | "terrain" | "poste" | "reflexes" | "trahison";
+  titre?: string;
+  /** La phrase qui répond au titre, avant l'essai. */
+  texte?: string;
+  /** Les lignes du bloc, écrites dans le chapitre. */
+  points: Point[];
+  /** Les chapitres du guide, pour le lien d'une ligne vers celui qui l'explique. */
+  chapitres: { id: string; ancre: string; index: number; court: string }[];
+}
+const { bloc, titre, texte, points, chapitres } = Astro.props;
+const essai = (ESSAIS as readonly string[]).includes(bloc) ? (bloc as EssaiType) : null;
+
+const nombre = frNumber({ maximumFractionDigits: 1 });
+// Les barres du terrain se comparent à la plus forte valeur de leur colonne.
+const magMax = Math.max(...TERRAINS.map((t) => t.mag));
+const coutMax = Math.max(...TERRAINS.map((t) => t.coutTuile));
+// Les valeurs du poste, dans l'ordre de ses lignes dans le chapitre : portée, pertes, vitesse.
+const poste = [{ valeur: String(POSTE.portee), unite: "tuiles" }, { valeur: `×${POSTE.pertes}` }, { valeur: `×${POSTE.vitesse}` }];
+---
+
+{/* Le bloc d'un chapitre du guide du clan : un essai à manipuler (Essai.tsx), ou des repères, une liste, des situations,
+    écrits ici sans script. L'étiquette « essai », posée sur le bord, ne marque que ce qui se manipule. */}
+<div class="guide-outil" data-etiquette={essai ? "essai" : undefined} data-testid={`guide-bloc-${bloc}`}>
+  {titre && <h3 class="guide-outil-titre">{titre}</h3>}
+  {texte && <p class="guide-outil-texte">{morceauxGras(texte).map((m) => (m.gras ? <strong>{m.texte}</strong> : m.texte))}</p>}
+
+  {essai && <Essai client:idle type={essai} points={points} />}
+
+  {
+    bloc === "terrain" && (
+      <table class="guide-terrains tnum">
+        <thead>
+          <tr>
+            <th scope="col">Terrain</th>
+            <th scope="col">
+              Mag <span class="guide-terrain-role">pertes</span>
+            </th>
+            <th scope="col">
+              Coût de tuile <span class="guide-terrain-role">vitesse</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {TERRAINS.map((t, i) => (
+            <tr>
+              <th scope="row">
+                {points[i]?.titre ?? t.id}
+                <span class="guide-terrain-lecture">{points[i]?.texte}</span>
+              </th>
+              <td>
+                <span class="meter meter-lg" aria-hidden="true">
+                  <i style={`--v: ${(t.mag / magMax) * 100}%`} />
+                </span>
+                {nombre.format(t.mag)}
+              </td>
+              <td>
+                <span class="meter meter-lg" aria-hidden="true">
+                  <i style={`--v: ${(t.coutTuile / coutMax) * 100}%`} />
+                </span>
+                {nombre.format(t.coutTuile)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    )
+  }
+
+  {
+    bloc === "poste" && (
+      <div class="kpi-row guide-mesures">
+        {points.map((p, i) => (
+          <div class="kpi">
+            <p class="kpi-label">{p.titre}</p>
+            <p class="kpi-value kpi-value-sm">
+              {poste[i]?.valeur}
+              {poste[i]?.unite && <span class="guide-unite"> {poste[i]?.unite}</span>}
+            </p>
+            <p class="kpi-hint">{p.texte}</p>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  {
+    bloc === "reflexes" && (
+      <ol class="guide-questions">
+        {points.map((p, i) => {
+          const vers = chapitres.find((c) => c.id === p.renvoi);
+          return (
+            <li class="guide-question">
+              <span class="guide-question-numero tnum" aria-hidden="true">
+                {i + 1}
+              </span>
+              <div class="min-w-0">
+                <p class="guide-question-titre">{p.titre}</p>
+                <p class="guide-question-texte">{p.texte}</p>
+                {vers && (
+                  <a class="link guide-question-lien" href={`#${vers.ancre}`}>
+                    Chapitre {vers.index + 1} : {vers.court}
+                  </a>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    )
+  }
+
+  {
+    bloc === "trahison" && (
+      <ul class="guide-situations">
+        {points.map((p) => (
+          <li class="guide-situation" data-ton={p.ton}>
+            <p class="guide-situation-titre">{p.titre}</p>
+            <p class="guide-situation-effet">
+              {p.marque && <strong class="guide-marque">{p.marque}</strong>}
+              <span>{p.texte}</span>
+            </p>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+</div>

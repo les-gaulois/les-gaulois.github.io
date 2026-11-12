@@ -19,7 +19,7 @@ Le plan est dans `src/lib/nav.ts`. Une rubrique répond à une question de visit
 | Résultats | `/classement`, `/rivaux`, `/progression`, `/records` | La liste officielle, la course et le comparateur, les courbes, les podiums des joueurs et les records |
 | Membres | `/membres`, `/liste`, `/membres/:id`, `/qg` | Les paliers, l'encadrement et le classé ; la liste officielle, avec recherche et tri, et les fiches ; le QG, face privée réservée aux membres validés, en onglets ; l'administration de l'encadrement est dans `/direction` |
 | Carte | `/carte` | Le film, puis revoir l'histoire, où en est GAL et le détail |
-| Guides | `/debuter`, `/activite` | Les guides, quand jouer et le jeu en groupe |
+| Guides | `/debuter`, `/activite` | Le guide du clan, un chapitre à la fois, avec ses essais ; quand jouer et le jeu en groupe |
 | Rejoindre | `/rejoindre` | Les étapes pour entrer dans le clan |
 
 Hors des rubriques, dans le pied de page de chaque page : `/mentions-legales` (l'éditeur et les hébergeurs, exigés par la loi ; version anonyme choisie par le pilote) et `/confidentialite` quand la connexion est ouverte.
@@ -117,17 +117,16 @@ Tout se modifie depuis GitHub, sans outil particulier. L'enregistrement relance 
 |---|---|---|
 | Annonces | `content/announcements.json` | `[{ "date": "2026-11-05", "title": "…", "body": "…", "url": "https://… (facultatif)" }]` |
 | Événements | `content/events.json` | `[{ "start": "2026-11-20T20:00:00.000Z", "title": "…", "description": "… (facultatif)", "url": "https://… (facultatif)" }]` |
-| Guides par mode | `content/guide/*.md` | Markdown |
-| Guide du clan, chapitre par chapitre | `content/guide-clan/*.md` | Markdown |
+| Guide du clan, un chapitre par fichier | `content/guide-clan/NN-nom.md` | Markdown. L'en-tête porte ce qu'un débutant lit d'abord : `court` (nom du sommaire), `groupe`, `icone`, `essentiel` (quatre phrases au plus), `bloc` (l'essai ou les repères du chapitre), `blocTexte` (la phrase qui l'explique), `points`, `retenir`. Le texte sous l'en-tête se déplie sous « Détails et formules » |
 | Nouveautés du site | `content/nouveautes.json` | `[{ "date": "2026-11-08", "kind": "nouveau", "title": "…", "body": "…", "link": { "href": "/page", "label": "…" } (facultatif) }]` — `kind` : `nouveau`, `ameliore`, `corrige` ou `retire` ; la plus récente en tête |
 
 **Les nouveautés du site expliquent chaque mise à jour.** Chaque changement qu'un visiteur ou l'encadrement peut remarquer ajoute son entrée en tête de `content/nouveautes.json`, le jour de sa mise en ligne : un titre, puis une ou deux phrases simples, 200 caractères au plus, sur ce qui change pour le visiteur. Les données collectées chaque heure n'y vont pas. Le bouton « Nouveautés » de l'en-tête, sur grand écran, montre les trois dernières ; sur téléphone, elles sont dans le menu ; la page `/nouveautes` les donne toutes, par jour. Un point rouge signale au visiteur une entrée parue depuis son dernier passage : son navigateur garde seulement la marque de la dernière vue (`gal-nouveautes`). À la première visite, cette marque est retenue sans allumer de point : rien n'est nouveau pour ce visiteur.
 
 **Les donateurs se recopient à la main.** Le jeu les réserve aux membres du clan : fiche de [GAL], onglet « Dons », puis « Top donateurs ». Aucune route publique ne les donne, et le site n'utilise aucun compte. Publier ces noms rend publique une information que le jeu garde entre membres : c'est au clan d'en décider. Tant que le fichier est vide, la page n'affiche aucun nom et renvoie vers le jeu.
 
-Pour publier un guide, écrivez le texte dans le fichier, puis retirez la ligne `draft: true` en tête. Un événement passé disparaît au build suivant. Un fichier JSON au mauvais format est ignoré : la section s'affiche alors comme vide, et le build le signale dans ses journaux.
+Un événement passé disparaît au build suivant. Un fichier JSON au mauvais format est ignoré : la section s'affiche alors comme vide, et le build le signale dans ses journaux.
 
-**D'où viennent les guides de `/debuter`.** Le guide du clan reprend les deux PDF Guide Gaulois d'octobre 2026. Les fiches par mode viennent du [wiki OpenFront](https://openfront.wiki/Main_Page), sous licence CC BY-SA 4.0 : garder sa mention sous la section, et réécrire plutôt que copier (voir `NOTICE.md`). Ce wiki a des pages périmées : quand deux sources divergent, c'est le code public du jeu qui tranche. Le graphique du chapitre 2 est calculé par `src/lib/growth.ts`, il ne se modifie pas à la main.
+**D'où vient le guide de `/debuter`.** Le guide du clan reprend les deux PDF Guide Gaulois d'octobre 2026 : chaque phrase de la page est la sienne, raccourcie ou réécrite en clair sans changer le sens, jamais inventée. Les fiches par mode, adaptées du wiki OpenFront, ont été retirées le 12 novembre 2026, à la demande du pilote : ne pas les remettre sans sa demande. Les essais (attaque, croissance, bâtiments, bateaux, trains) et les repères (terrain, poste) sont calculés par `src/lib/guide-clan.ts` et `src/lib/growth.ts` : ils ne se modifient pas à la main, et un test relit les tableaux des chapitres pour qu'un essai ne contredise jamais le texte. Quand le guide et le code public du jeu divergent, c'est le code qui tranche : corriger alors le chapitre et le calcul ensemble.
 
 ## Les données
 
@@ -166,6 +165,7 @@ Le film compte 480 images au plus, 5 000 événements par image pour l'instant, 
 
 Tous les calculs sont dans `src/lib/` et testés :
 
+- **Essais du guide du clan :** les règles du jeu que le guide écrit, vérifiées par le clan sur le code public du jeu (v0.35.12, le 6 novembre 2026), dans `src/lib/guide-clan.ts` : troupes d'un joueur qui partent avec une attaque (une sur cinq : son curseur d'attaque est réglé à 20 % par défaut), prix du prochain bâtiment (`min(1 000 000 ; 125 000 × 2^n)`, un compteur pour la Ville, un autre pour le Port et l'Usine), or d'un bateau de trade selon la distance, or d'un arrêt de train (plein tarif dix fois, puis 5 000 de moins par arrêt, jamais sous 5 000), valeurs du terrain et du poste de défense. La croissance des troupes est dans `src/lib/growth.ts`. Tout est avant le multiplicateur d'or de la partie. Si le jeu change, corriger le chapitre et le calcul ensemble, et noter la version.
 - **Rang :** position dans la liste de l'API, sans recalcul.
 - **Score :** champ `weightedWins` de l'API.
 - **Points gagnés de la course du soir :** somme des `score` positifs des sessions du clan, de 20 h la veille à 20 h, à plusieurs ou seul sous le tag d'après `clanPlayerCount`. Ce n'est pas la hausse du score, qui perd aussi chaque jour une part de sa valeur : le message donne les deux. Voir « La course du soir ».

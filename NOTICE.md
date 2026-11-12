@@ -12,8 +12,7 @@ Code source de la version en ligne : <https://github.com/les-gaulois/les-gaulois
 | Quoi | Où | Statut |
 |---|---|---|
 | Nom, tag, logos et images du clan | `public/brand/`, `brand-sources/` | Réservés au clan |
-| Textes et listes du clan, dont le guide du clan | `content/`, sauf `content/guide/` | Réservés au clan |
-| Stratégies par mode, traduites et adaptées du [wiki OpenFront](https://openfront.wiki/Main_Page) | `content/guide/` | CC BY-SA 4.0, attribution « OpenFront Wiki » : cette adaptation reste sous la même licence |
+| Textes et listes du clan, dont le guide du clan | `content/` | Réservés au clan |
 | Données collectées auprès d'OpenFront, dont le film de la carte des clans | `data/`, et leur copie publiée dans `public/generated/carte/` | © OpenFront et ses contributeurs |
 | Fond de la carte des clans : Giant World Map d'OpenFront, réduite et assombrie | `data/clanmap/terrain.webp`, et sa copie publiée | CC BY-SA 4.0, attribution « OpenFront » : voir « Licences » dans `docs/API_AUDIT.md` |
 | Terrain de la carte « World » d'OpenFront, copié tel quel (`manifest.json`, `map4x.bin`, commit `a0abccc` du 6 novembre 2026) | `public/carte-monde/` | CC BY-SA 4.0, attribution « OpenFront » : la page affiche sa source et sa licence |
@@ -28,7 +27,7 @@ Code source de la version en ligne : <https://github.com/les-gaulois/les-gaulois
 
 Ce site est communautaire et non officiel : il n'a aucun lien avec les éditeurs d'OpenFront et n'a pas reçu leur approbation.
 
-En dehors de ce que liste le tableau ci-dessus, aucun fichier de code ni aucune image d'OpenFront n'est copié ici à ce jour, ni utilisé par le robot. Le graphique de croissance de `/debuter` est adapté de son code, lui-même sous AGPL-3.0, puis réécrit : voir l'en-tête de `src/lib/growth.ts`. Le bas de page affiche la mention « © OpenFront and Contributors ».
+En dehors de ce que liste le tableau ci-dessus, aucun fichier de code ni aucune image d'OpenFront n'est copié ici à ce jour, ni utilisé par le robot. Le graphique de croissance de `/debuter` est adapté de son code, lui-même sous AGPL-3.0, puis réécrit : voir l'en-tête de `src/lib/growth.ts`. Les autres essais du guide du clan, sur la même page, calculent des règles du jeu telles que le guide les écrit, vérifiées par le clan sur ce même code (v0.35.12, le 6 novembre 2026), puis réécrites : voir l'en-tête de `src/lib/guide-clan.ts`. Les fiches par mode adaptées du wiki OpenFront (CC BY-SA 4.0) ont été retirées du site le 12 novembre 2026. Le bas de page affiche la mention « © OpenFront and Contributors ».
 
 Si un morceau de code d'OpenFront est repris :
 

@@ -1,15 +1,32 @@
 ---
 title: "Les réflexes avant d'attaquer"
 order: 5
+court: "Les réflexes"
+groupe: combat
+icone: oeil
+chapeau: "Pas besoin de refaire les formules du jeu à chaque attaque. Utilisez cette liste."
+bloc: reflexes
+# `renvoi` : le chapitre qui explique la question (le nom de son fichier, sans « .md »).
+points:
+  - titre: "Combien de troupes ai-je ?"
+    texte: "Assurez-vous de ne pas vider inutilement votre défense."
+    renvoi: "01-bases"
+  - titre: "Quel est le ratio ?"
+    texte: "Comparez rapidement les troupes du défenseur et votre force d'attaque."
+    renvoi: "03-attaque"
+  - titre: "Quelle est la densité ?"
+    texte: "Beaucoup de troupes sur peu de tuiles : la défense est concentrée."
+    renvoi: "03-attaque"
+  - titre: "Quel est le terrain ?"
+    texte: "Le combat coûte plus cher en montagne qu'en colline, et plus cher en colline qu'en plaine."
+    renvoi: "03-attaque"
+  - titre: "Y a-t-il un poste ?"
+    texte: "Un poste de défense peut multiplier fortement les pertes et ralentir la prise."
+    renvoi: "04-poste-neutre"
+  - titre: "Est-ce un allié ?"
+    texte: "Une attaque sur un allié connecté peut déclencher le statut de traître."
+    renvoi: "09-trahison"
+retenir:
+  titre: "Pour un débutant"
+  texte: "Le meilleur réflexe est d'identifier la situation avant de cliquer : joueur, neutre, poste ou allié."
 ---
-
-Pas besoin de refaire les formules du jeu à chaque attaque. Utilisez cette liste.
-
-1. **Combien de troupes ai-je ?** Assurez-vous de ne pas vider inutilement votre défense.
-2. **Quel est le ratio ?** Comparez rapidement défenseur et force d'attaque.
-3. **Quelle est la densité ?** Beaucoup de troupes sur peu de tuiles = défense concentrée.
-4. **Quel est le terrain ?** Montagne > Highland > Plaine en coût de terrain.
-5. **Y a-t-il un poste ?** Un poste peut multiplier fortement les pertes et ralentir la prise.
-6. **Est-ce un allié ?** Une attaque sur un allié connecté peut déclencher le statut de traître.
-
-> **Pour un débutant.** Le meilleur réflexe est d'identifier la situation avant de cliquer : joueur, neutre, poste ou allié.

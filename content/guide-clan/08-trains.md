@@ -1,9 +1,19 @@
 ---
 title: "Trains"
 order: 8
+court: "Trains"
+groupe: economie
+icone: train
+essentiel:
+  - "Les Usines alimentent le réseau ferroviaire. Les Villes et les Ports servent d'arrêts commerciaux."
+  - "Une Usine elle-même ne donne pas de paiement commercial à un train qui s'y arrête."
+  - "Les 10 premiers arrêts commerciaux ne subissent pas de pénalité. À partir du 11e, le paiement baisse de 5 000 or par arrêt supplémentaire, avec un plancher à 5 000."
+bloc: train
+blocTitre: "Paiement par arrêt"
+retenir:
+  titre: "Double revenu"
+  texte: "Quand un train visite la Ville ou le Port d'un autre joueur, le propriétaire du train et celui de la station reçoivent chacun le même paiement."
 ---
-
-Les Usines alimentent le réseau ferroviaire. Les Villes et les Ports servent d'arrêts commerciaux. Une Usine elle-même ne donne pas de paiement commercial à un train qui s'y arrête.
 
 | Élément | À quoi ça sert |
 |---|---|
@@ -12,8 +22,6 @@ Les Usines alimentent le réseau ferroviaire. Les Villes et les Ports servent d'
 | Ville ou Port | Arrêt commercial qui peut déclencher un paiement. |
 | Train standard | Environ 7 unités : 1 moteur, 1 arrière et 5 wagons. |
 
-#### Paiement par arrêt
-
 | Relation | Or de base par arrêt |
 |---|---|
 | Self (vous-même) | 10 000 |
@@ -21,12 +29,7 @@ Les Usines alimentent le réseau ferroviaire. Les Villes et les Ports servent d'
 | Other (autre joueur) | 25 000 |
 | Ally (allié) | 35 000 |
 
-> **Attention.** Les 10 premiers arrêts commerciaux ne subissent pas de pénalité. À partir du 11e, le paiement baisse de 5 000 or par arrêt supplémentaire, avec un plancher à 5 000. Exemple chez un allié : 35k pendant 10 arrêts, 30k au 11e, 25k au 12e, et ainsi de suite.
-
-> **Double revenu.** Quand un train visite la Ville ou le Port d'un autre joueur, le propriétaire du train et celui de la station reçoivent chacun le même paiement.
-
-<details>
-<summary>Formules détaillées</summary>
+Exemple chez un allié : 35k pendant 10 arrêts, 30k au 11e, 25k au 12e, et ainsi de suite.
 
 **Cadence (v0.35.12).** U est le nombre d'unités de train dans le monde, n le nombre de niveaux de vos Usines.
 
@@ -41,5 +44,3 @@ bonus(n) = 1 + 0,5 × borne((6 − n) ÷ 5 ; 0 ; 1) ÷ n
 **Niveau.** Le code effectue un test de spawn pour chaque niveau de l'Usine : un niveau supérieur ajoute donc des occasions de spawn.
 
 **Évolutions.** La v0.34.5 a accéléré les trains en milieu et fin de partie, la v0.34.12 a augmenté la cadence en début et milieu de partie, et la v0.35 accélère les joueurs qui ont peu d'Usines.
-
-</details>

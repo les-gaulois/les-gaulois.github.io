@@ -1,32 +1,35 @@
 ---
 title: "Poste de défense et terrain neutre"
 order: 4
+court: "Poste et neutre"
+groupe: combat
+icone: tour
+chapeau: "Ces deux situations ne se jouent pas comme une attaque classique contre une tuile normale."
+essentiel:
+  - "**Territoire neutre :** une tuile qui n'appartient pas à un joueur. Après la prise, elle devient votre territoire."
+bloc: poste
+blocTitre: "Poste de défense"
+# Dans l'ordre des valeurs du poste de src/lib/guide-clan.ts : portée, pertes, vitesse.
+points:
+  - titre: "Portée"
+    texte: "Le poste protège et agit dans cette portée."
+  - titre: "Pertes de l'attaquant"
+    texte: "Une attaque contre le poste coûte beaucoup plus cher en pertes."
+  - titre: "Coût de vitesse"
+    texte: "La prise de la tuile est ralentie."
+retenir:
+  titre: "À retenir"
+  texte: "Ne traitez pas une tuile neutre comme si elle avait un défenseur joueur : la logique et les pertes sont différentes."
 ---
 
-Ces deux situations ne se jouent pas comme une attaque classique contre une tuile normale.
+### Territoire neutre
 
-#### Poste de défense
-
-| Élément | Valeur | Ce que ça veut dire |
-|---|---|---|
-| Portée | 30 tuiles | Le poste protège et agit dans cette portée. |
-| Pertes de l'attaquant | ×5 | Une attaque contre le poste coûte beaucoup plus cher en pertes. |
-| Coût de vitesse | ×3 | La prise de la tuile est ralentie. |
-
-#### Territoire neutre
-
-Un territoire neutre est une tuile qui n'appartient pas à un joueur. Le calcul est différent d'un combat de joueur contre joueur.
+Le calcul est différent d'un combat de joueur contre joueur.
 
 | Situation | Règle simple |
 |---|---|
 | Civil contre neutre | Les pertes utilisent mag ÷ 5. |
 | Bot contre neutre | Les pertes utilisent mag ÷ 10. |
-| Après la prise | La tuile devient votre territoire. |
-
-> **À retenir.** Ne traitez pas une tuile neutre comme si elle avait un défenseur joueur : la logique et les pertes sont différentes.
-
-<details>
-<summary>Formules détaillées</summary>
 
 **Vitesse en territoire neutre.** Elle dépend des troupes envoyées.
 
@@ -41,5 +44,3 @@ part du tick = coût de la tuile ÷ budget de tick
 ```
 modificateur = 5 − 2 × ratio de fallout
 ```
-
-</details>

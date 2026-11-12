@@ -31,7 +31,8 @@ export const SECTIONS: NavSection[] = [
   section("Membres", { href: "/membres", label: "Membres" }, { href: "/liste", label: "La liste" }, { href: "/qg", label: "Le QG" }),
   section("Carte", { href: "/carte", label: "Carte" }),
   // « Calculateur et outils » a été retiré le 12 novembre 2026, à la demande du pilote : ne pas le remettre sans sa demande.
-  section("Guides", { href: "/debuter", label: "Guides" }, { href: "/activite", label: "Quand jouer" }),
+  // Le même jour, les guides par mode aussi : il ne reste que le guide du clan, qui donne son nom à l'onglet.
+  section("Guides", { href: "/debuter", label: "Guide du clan" }, { href: "/activite", label: "Quand jouer" }),
   section("Rejoindre", { href: "/rejoindre", label: "Rejoindre" }),
 ];
 

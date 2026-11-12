@@ -1,6 +1,6 @@
 ---
 name: contenu-clan
-description: Modifie les textes et listes du clan — annonces, événements, guides par mode, guide du clan (content/) et fiche du clan (config/clan.ts) — avec les bons formats JSON et Markdown, sans rien inventer. À utiliser pour « ajouter une annonce », « un événement », « un chapitre », « changer la description du clan ».
+description: Modifie les textes et listes du clan — annonces, événements, guide du clan (content/) et fiche du clan (config/clan.ts) — avec les bons formats JSON et Markdown, sans rien inventer. À utiliser pour « ajouter une annonce », « un événement », « un chapitre », « changer la description du clan ».
 paths:
   - "content/**"
   - "config/clan.ts"
@@ -16,8 +16,7 @@ Ces fichiers parlent au nom du clan. Leur contenu vient du clan : un message de 
 |---|---|---|
 | Annonces | `content/announcements.json` | `[{ "date": "2026-11-05", "title": "…", "body": "…", "url": "https://… (facultatif)" }]` |
 | Événements | `content/events.json` | `[{ "start": "2026-11-20T20:00:00.000Z", "title": "…", "description": "… (facultatif)", "url": "https://… (facultatif)" }]` — `start` en UTC ; un événement passé disparaît au build suivant |
-| Guides par mode | `content/guide/*.md` | Markdown, en-tête `title`, `order`, `draft` (retirer `draft: true` pour publier), `wide` |
-| Guide du clan | `content/guide-clan/NN-nom.md` | Markdown, en-tête `title`, `order`, `growthChart` (graphique calculé du chapitre 2, ne pas copier ailleurs), `wide` |
+| Guide du clan | `content/guide-clan/NN-nom.md` | Markdown. En-tête : `title`, `order`, `court` (nom du sommaire), `groupe` (`combat`, `economie`, `alliances`, `memo`), `icone` (un dessin de `src/lib/icones-parties.ts`), `chapeau`, `essentiel` (quatre phrases au plus, `**gras**` permis), `bloc`, `blocTitre` et `blocTexte`, `points` (avec `renvoi` vers le chapitre qui explique une ligne), `retenir`, `ouvert`. Le texte sous l'en-tête se déplie sous « Détails et formules » |
 | Fiche du clan | `config/clan.ts` | `description`, `history`, `values`, `entryConditions` ; `join.inviteOnly` et `checkedOn` relevés à la main dans le jeu |
 | Nouveautés du site | `content/nouveautes.json` | `[{ "date": "2026-11-08", "kind": "nouveau", "title": "…", "body": "…", "link": { "href": "/page", "label": "…" } }]` — la plus récente en tête, `link` facultatif |
 
@@ -28,10 +27,10 @@ Les schémas exacts sont dans `src/lib/schemas.ts` et `src/content.config.ts`. U
 ## Règles
 
 - Les annonces et événements publiés depuis `/direction` vivent dans Supabase et s'ajoutent à ceux de ces fichiers. Les deux voies restent valables.
-- `content/guide/` adapte le wiki OpenFront (CC BY-SA 4.0) : réécrire, ne pas copier, et garder la mention de licence sur la page `/debuter`. Quand le wiki et le code public du jeu divergent, le code tranche. `content/guide-clan/` est au clan, tous droits réservés.
+- Le guide du clan (`content/guide-clan/`) est au clan, tous droits réservés : il reprend les PDF du Guide Gaulois. Depuis le 12 novembre 2026, la page `/debuter` le donne un chapitre à la fois : l'en-tête du fichier porte ce qu'un débutant lit d'abord, le texte du fichier ce qui se déplie. Raccourcir une phrase du guide pour `essentiel`, oui ; en écrire une que le guide ne dit pas, non. Ce qui se lit d'abord s'écrit en mots, pas en signes (« 1 troupe sur 5 », jamais « ÷ 5 ») : le pilote ne comprenait pas ces signes, le 12 novembre 2026. Les chiffres d'un essai (`bloc`) viennent de `src/lib/guide-clan.ts` et `src/lib/growth.ts`, et `tests/unit/guide-clan.test.ts` les compare aux tableaux des chapitres : changer un chiffre du guide demande de changer le calcul avec lui. Quand le guide et le code public du jeu divergent, le code tranche. Les fiches par mode (`content/guide/`, adaptées du wiki) ont été retirées ce jour-là, à la demande du pilote : ne pas les remettre sans sa demande.
 - Donateurs : le site n'en affiche plus depuis le 9 novembre 2026. S'ils reviennent un jour : seulement une liste fournie par le clan, qui a décidé de la publier. Capsules uniquement, jamais de montant en argent, jamais de renvoi vers le Plutonium.
 - Pas de référence à Astérix, pas d'emoji dans les textes du site.
 
 ## Les tests qui comptent
 
-`tests/e2e/site.spec.ts` vérifie le nombre de fiches (`guide-card`, 5 aujourd'hui) et de chapitres (`guide-chapter`, 11) sur `/debuter`, et l'adresse du Discord. Ajouter un guide ou changer un lien demande de mettre ces valeurs à jour dans le test, puis `verifier`.
+`tests/e2e/site.spec.ts` vérifie le nombre de chapitres (`guide-chapter`, 11) sur `/debuter`, leurs titres, les chiffres de chaque essai et l'adresse du Discord. Ajouter un chapitre, changer un titre ou un lien demande de mettre ces valeurs à jour dans le test, puis `verifier`. `tests/unit/guide.test.ts` refuse un chapitre sans nom court, sans groupe ou avec une icône qui n'existe pas.

@@ -1,15 +1,23 @@
 ---
 title: "Bateaux de trade"
 order: 7
+court: "Bateaux"
+groupe: economie
+icone: bateau
+essentiel:
+  - "Un bateau de trade relie deux Ports compatibles."
+  - "La distance influence fortement le paiement."
+  - "À l'arrivée d'un bateau non capturé, le Port source et le Port de destination reçoivent chacun le même montant."
+bloc: bateau
+blocTitre: "Repères de paiement, avant multiplicateur"
+retenir:
+  titre: "Piraterie"
+  texte: "Si le bateau a été capturé, son propriétaire au moment de l'arrivée reçoit le paiement comme revenu de piraterie."
 ---
-
-Un bateau de trade relie deux Ports compatibles. La distance influence fortement le paiement.
 
 1. **Départ :** le Port source doit pouvoir lancer le commerce.
 2. **Trajet :** le bateau parcourt la distance entre les Ports.
 3. **Arrivée :** le paiement dépend de la distance et du multiplicateur d'or.
-
-#### Repères de paiement, avant multiplicateur
 
 | Distance | Or approximatif |
 |---|---|
@@ -21,16 +29,9 @@ Un bateau de trade relie deux Ports compatibles. La distance influence fortement
 | 750 | 112 500 |
 | 1 000 | 125 000 |
 
-> **Paiement.** À l'arrivée d'un bateau non capturé, le Port source et le Port de destination reçoivent chacun le même montant.
-
-> **Piraterie.** Si le bateau a été capturé, son propriétaire au moment de l'arrivée reçoit le paiement comme revenu de piraterie.
-
 Le nombre mondial de bateaux ralentit progressivement les nouveaux spawns : c'est la saturation.
 
 > **Mise à jour v0.35.** Les premiers Ports font apparaître les bateaux plus vite : avec un seul Port, comptez environ 8 s entre deux bateaux, contre 12 s auparavant. Cela concerne la cadence, pas le paiement à chaque arrivée.
-
-<details>
-<summary>Formules détaillées</summary>
 
 **Spawn.** Le Port vérifie le spawn toutes les 10 ticks, soit chaque seconde. Chaque niveau du Port ajoute une tentative lors du contrôle.
 
@@ -51,5 +52,3 @@ bonus(n) = 1 + 0,5 × borne((6 − n) ÷ 5 ; 0 ; 1) ÷ n
 ```
 
 Lecture simple : les petites économies reçoivent un bonus, qui s'efface à 6 niveaux, puis une saturation progressive s'installe quand la flotte mondiale grossit. Un plateau bas subsiste dans la zone très élevée. Après des refus successifs, la chance de spawn augmente.
-
-</details>

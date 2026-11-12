@@ -1,14 +1,17 @@
 ---
 title: "Aide-mémoire économie"
 order: 11
+court: "Mémo économie"
+groupe: memo
+icone: abaque
+chapeau: "Les valeurs à garder en tête pour gagner et dépenser son or."
+ouvert: true
 ---
-
-Les valeurs à garder en tête pour gagner et dépenser son or.
 
 | Mécanique | Valeur ou règle |
 |---|---|
-| Revenu passif Civil | 100 or/tick = 60 000/min |
-| Revenu passif Bot | 50 or/tick = 30 000/min |
+| Revenu passif Civil | 100 or par tick, soit 60 000 par minute |
+| Revenu passif Bot | 50 or par tick, soit 30 000 par minute |
 | Ville | 125k → 250k → 500k → 1M, compteur propre |
 | Port + Usine | 125k → 250k → 500k → 1M, compteur partagé |
 | Bateau de trade | Paiement fortement lié à la distance, seuil à 300 |
