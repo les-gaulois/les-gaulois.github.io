@@ -55,6 +55,55 @@ const MAX_SKEW_SECONDS = 300;
 /** Une réponse que seul le joueur voit. */
 const EPHEMERAL = 64;
 
+/* ---------- Le robot : ses appels à l'API de Discord ---------- */
+
+/** L'API de Discord, version 10. */
+export const DISCORD_API = "https://discord.com/api/v10";
+/** Ce que les règles de Discord demandent qu'un robot dise de lui à chaque appel. */
+const DISCORD_USER_AGENT = `DiscordBot (${SITE_URL}, 1.0)`;
+/**
+ * Le secret de la fonction qui garde le jeton du robot « Le Gaulois » : les tickets s'en servent pour ouvrir et fermer des
+ * salons. À ne pas confondre avec le secret GitHub DISCORD_BOT_TOKEN, qui est celui d'une autre application, « Bienvenue
+ * Gaulois », le robot des images de bienvenue.
+ */
+export const BOT_TOKEN_SECRET = "LE_GAULOIS_BOT_TOKEN";
+/** Le délai d'un appel à Discord, faute d'autre : dans une tâche de fond, rien ne presse. */
+const DISCORD_TIMEOUT_MS = 8000;
+/** Au plus une fois toutes les dix minutes, `/etat` demande à Discord s'il accepte le jeton : la page est publique. */
+const BOT_CHECK_MS = 10 * 60_000;
+
+/** Une réponse de l'API de Discord : son statut, et son corps lu en JSON (`null` s'il est vide ou illisible). */
+export interface DiscordReply {
+  status: number;
+  body: unknown;
+}
+
+/** Les options d'un appel à l'API de Discord. */
+export interface DiscordCall {
+  /** Envoyé en JSON. */
+  body?: unknown;
+  /** La raison écrite au journal d'audit du serveur Discord, 512 signes au plus. */
+  reason?: string;
+  /** Le délai, en millisecondes : huit secondes sans autre précision. Avant une réponse due en trois secondes, bien moins. */
+  timeoutMs?: number;
+}
+
+/** Le numéro du robot : le premier morceau de son jeton, écrit en base64. "" si le jeton n'a pas cette forme. */
+export function botIdOf(token: string): string {
+  const parts = token.split(".");
+  const [first = ""] = parts;
+  if (parts.length !== 3 || !/^[A-Za-z0-9_-]+$/.test(first)) return "";
+  try {
+    const id = atob(first.replace(/-/g, "+").replace(/_/g, "/"));
+    return /^[0-9]{17,20}$/.test(id) ? id : "";
+  } catch {
+    return "";
+  }
+}
+
+/** Un chemin de l'API tel que le journal l'écrit : sans le jeton d'une interaction, qui ouvre ses réponses pendant quinze minutes. */
+export const pathForLog = (path: string): string => path.replace(/^(\/webhooks\/[0-9]+\/)[^/?]+/, "$1…").split("?")[0] ?? "";
+
 /** Ce dont la fonction a besoin du monde : remplacé dans les tests. */
 export interface Deps {
   publicKey: string;
@@ -74,6 +123,24 @@ export interface Deps {
   /** L'index des commandes que publie le site (`COMMANDES_URL`), aux mêmes conditions que les fiches. */
   commandes(): Promise<CommandIndex | null>;
   log(message: string): void;
+  /** Le numéro du robot, lu dans son jeton (`BOT_TOKEN_SECRET`) ; "" sans jeton lisible. */
+  botId: string;
+  /**
+   * Un appel à l'API de Discord avec le jeton du robot : `path` commence par « / », sans « /api/v10 » (« /guilds/… »).
+   * `null` : pas de jeton, Discord injoignable ou délai dépassé. Si Discord demande d'attendre (429) cinq secondes au plus,
+   * l'appel repart une fois. Le jeton ne s'écrit jamais dans les journaux.
+   */
+  discord(method: string, path: string, call?: DiscordCall): Promise<DiscordReply | null>;
+  /**
+   * Un appel au webhook d'une interaction, sans le jeton du robot : `path` commence par « /webhooks/<application>/<jeton de
+   * l'interaction> ». Il modifie la réponse (`/messages/@original`) ou envoie une suite, dans les quinze minutes.
+   */
+  webhook(method: string, path: string, call?: DiscordCall): Promise<DiscordReply | null>;
+  /** Discord accepte-t-il le jeton du robot ? Demandé au plus une fois toutes les dix minutes ; `false` sans jeton. */
+  botAccepted(): Promise<boolean>;
+  /** Fait durer une tâche après la réponse à Discord (`EdgeRuntime.waitUntil`). Ses erreurs vont au journal. */
+  background(task: Promise<unknown>): void;
+  sleep(ms: number): Promise<void>;
 }
 
 /* ---------- Le code ---------- */
@@ -697,7 +764,9 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
     const commandes = (await deps.commandes()) !== null;
     // De même pour /moi : un identifiant mal formé, refusé sans rien lire, prouve que discord_moi est installée.
     const moi = deps.serviceReady ? (await deps.rpc("discord_moi", { p_discord_id: "etat" }))?.["error"] === "invalid_request" : false;
-    return json({ ok: true, discord, service, signature: await signatureWorks(), fiches, commandes, moi }, 200, CORS);
+    // Le jeton du robot, posé et accepté par Discord : les tickets en ont besoin.
+    const robot = await deps.botAccepted();
+    return json({ ok: true, discord, service, signature: await signatureWorks(), fiches, commandes, moi, robot }, 200, CORS);
   }
   if (req.method !== "POST") return new Response("Méthode refusée.", { status: 405 });
   if (path.endsWith("/discord")) return discordRoute(req, deps);
@@ -731,6 +800,8 @@ interface Kept {
 }
 /** Par moyen de lecture (le `fetch` du moteur en vrai, un faux dans chaque test), puis par adresse. */
 const keptFiles = new WeakMap<typeof fetch, Map<string, Kept>>();
+/** La dernière réponse de Discord sur le jeton du robot, par moyen de lecture : une fonction neuve sert chaque requête. */
+const botChecks = new WeakMap<typeof fetch, { at: number; ok: boolean }>();
 
 /**
  * Un fichier du site, les fiches ou l'index des commandes : gardé cinq minutes ; si le site ne répond plus, la dernière
@@ -773,6 +844,45 @@ export function liveDeps(env: Env, fetcher: typeof fetch = fetch): Deps {
   const key = serviceKey(env);
   const headers = { apikey: key, authorization: `Bearer ${key}`, "content-type": "application/json" };
   const log = (message: string): void => console.log(`code-discord : ${message}`);
+  const botToken = (env.get(BOT_TOKEN_SECRET) ?? "").trim();
+  const botId = botIdOf(botToken);
+  const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+  /** Un appel à l'API de Discord ; `auth` : l'en-tête du jeton du robot, ou `null` pour le webhook d'une interaction. */
+  async function discordCall(method: string, path: string, call: DiscordCall, auth: string | null): Promise<DiscordReply | null> {
+    const callHeaders: Record<string, string> = { "user-agent": DISCORD_USER_AGENT };
+    if (auth !== null) callHeaders["authorization"] = auth;
+    if (call.body !== undefined) callHeaders["content-type"] = "application/json";
+    if (call.reason) callHeaders["x-audit-log-reason"] = encodeURIComponent(call.reason.slice(0, 512));
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const res = await fetcher(`${DISCORD_API}${path}`, {
+          method,
+          headers: callHeaders,
+          body: call.body === undefined ? undefined : JSON.stringify(call.body),
+          signal: AbortSignal.timeout(call.timeoutMs ?? DISCORD_TIMEOUT_MS),
+        });
+        const text = await res.text();
+        let body: unknown = null;
+        try {
+          body = text === "" ? null : JSON.parse(text);
+        } catch {
+          body = null;
+        }
+        const retryAfter = record(body)?.["retry_after"];
+        // Une seule reprise, et seulement pour un appel qui a le temps d'attendre.
+        if (res.status === 429 && attempt === 0 && (call.timeoutMs ?? DISCORD_TIMEOUT_MS) >= 5000 && typeof retryAfter === "number" && retryAfter >= 0 && retryAfter <= 5) {
+          await wait(Math.ceil(retryAfter * 1000));
+          continue;
+        }
+        if (res.status >= 400) log(`Discord ${method} ${pathForLog(path)} : ${res.status}`);
+        return { status: res.status, body };
+      } catch (e) {
+        log(`Discord ${method} ${pathForLog(path)} injoignable : ${e instanceof Error ? e.name : "erreur"}`);
+        return null;
+      }
+    }
+  }
 
   async function call(path: string, init: RequestInit): Promise<{ status: number; body: unknown } | null> {
     try {
@@ -837,6 +947,24 @@ export function liveDeps(env: Env, fetcher: typeof fetch = fetch): Deps {
     },
     fiches: () => readSiteFile(fetcher, FICHES_URL, parseFiches, "fiches", log),
     commandes: () => readSiteFile(fetcher, COMMANDES_URL, parseCommandes, "commandes", log),
+    botId,
+    discord: (method, path, call = {}) => (botToken !== "" && botId !== "" ? discordCall(method, path, call, `Bot ${botToken}`) : Promise.resolve(null)),
+    webhook: (method, path, call = {}) => (path.startsWith("/webhooks/") ? discordCall(method, path, call, null) : Promise.resolve(null)),
+    async botAccepted() {
+      if (botToken === "" || botId === "") return false;
+      const kept = botChecks.get(fetcher);
+      if (kept && Date.now() - kept.at < BOT_CHECK_MS) return kept.ok;
+      const res = await discordCall("GET", "/users/@me", { timeoutMs: 2000 }, `Bot ${botToken}`);
+      const ok = res?.status === 200 && record(res.body)?.["id"] === botId;
+      botChecks.set(fetcher, { at: Date.now(), ok });
+      return ok;
+    },
+    background(task) {
+      const kept = task.catch((e: unknown) => log(`tâche de fond : ${e instanceof Error ? e.message : String(e)}`));
+      const runtime = (globalThis as unknown as { EdgeRuntime?: { waitUntil?(promise: Promise<unknown>): void } }).EdgeRuntime;
+      if (typeof runtime?.waitUntil === "function") runtime.waitUntil(kept);
+    },
+    sleep: wait,
   };
 }
 

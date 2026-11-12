@@ -10,10 +10,12 @@ import { CHOOSE_NAME_URL as SITE_CHOOSE_NAME_URL } from "../../src/lib/pseudo-op
 import type { StoredMembers } from "../../src/lib/schemas";
 import {
   APP_PUBLIC_KEY,
+  BOT_TOKEN_SECRET,
   CHOOSE_NAME_URL,
   CODE_ALPHABET,
   COMMANDES_URL,
   COMMAND_MESSAGES,
+  DISCORD_API,
   FICHES_FRESH_MS,
   FICHES_RETRY_MS,
   FICHES_STALE_MS,
@@ -23,6 +25,7 @@ import {
   MAX_CHOICES,
   MESSAGES,
   SITE_URL,
+  botIdOf,
   codeAccountEmail,
   ed25519Spki,
   ficheImageUrl,
@@ -35,6 +38,7 @@ import {
   normalizeCode,
   parseCommandes,
   parseFiches,
+  pathForLog,
   sha256Hex,
   signatureWorks,
   verifyDiscordSignature,
@@ -152,6 +156,13 @@ function world(answers: Answers = {}, over: Partial<Deps> = {}) {
       return COMMANDES;
     },
     log: (message) => calls.logs.push(message),
+    // Sans jeton du robot : aucune commande ci-dessous n'appelle l'API de Discord.
+    botId: "",
+    discord: async () => null,
+    webhook: async () => null,
+    botAccepted: async () => false,
+    background: () => undefined,
+    sleep: async () => undefined,
     ...over,
   };
   return { deps, calls };
@@ -756,8 +767,8 @@ describe("le code tapé sur le site", () => {
   });
 
   it("dit si tout est en place, sans rien montrer : la base répond-elle avec la clé de service, les fiches se lisent-elles ?", async () => {
-    const ready = world({ discord_code_redeem: () => ({ ok: false, error: "invalid_request" }), discord_moi: () => ({ ok: false, error: "invalid_request" }) });
-    expect(await reply(await handle(fromSite(null, "GET", "/etat"), ready.deps))).toEqual({ ok: true, discord: true, service: true, signature: true, fiches: true, commandes: true, moi: true });
+    const ready = world({ discord_code_redeem: () => ({ ok: false, error: "invalid_request" }), discord_moi: () => ({ ok: false, error: "invalid_request" }) }, { botAccepted: async () => true });
+    expect(await reply(await handle(fromSite(null, "GET", "/etat"), ready.deps))).toEqual({ ok: true, discord: true, service: true, signature: true, fiches: true, commandes: true, moi: true, robot: true });
     // Une empreinte et un identifiant mal formés : les fonctions SQL les refusent sans rien lire ni écrire.
     expect(ready.calls.rpc).toEqual([
       { name: "discord_code_redeem", args: { p_code_hash: "etat" } },
@@ -766,7 +777,7 @@ describe("le code tapé sur le site", () => {
     const noBase = world();
     expect(await reply(await handle(fromSite(null, "GET", "/etat"), noBase.deps))).toMatchObject({ service: false, moi: false });
     const unset = world({ discord_code_redeem: () => ({ ok: false, error: "invalid_request" }) });
-    expect(await reply(await handle(fromSite(null, "GET", "/etat"), { ...unset.deps, guildId: "", serviceReady: false }))).toEqual({ ok: true, discord: false, service: false, signature: true, fiches: true, commandes: true, moi: false });
+    expect(await reply(await handle(fromSite(null, "GET", "/etat"), { ...unset.deps, guildId: "", serviceReady: false }))).toEqual({ ok: true, discord: false, service: false, signature: true, fiches: true, commandes: true, moi: false, robot: false });
     expect(unset.calls.rpc).toEqual([]);
     const noSite = world({}, { fiches: async () => null, commandes: async () => null });
     expect(await reply(await handle(fromSite(null, "GET", "/etat"), noSite.deps))).toMatchObject({ fiches: false, commandes: false });
@@ -1059,5 +1070,137 @@ describe("le vrai monde", () => {
       expect(line).not.toContain("secret-k");
       expect(line).not.toContain("empreinte");
     }
+  });
+
+  describe("le robot et l'API de Discord", () => {
+    // Un faux jeton, fabriqué ici pour n'avoir dans le fichier aucun texte qui ressemble à un vrai.
+    const BOT = "246813579024681357";
+    const token = (id = BOT) => [btoa(id).replace(/=+$/, ""), "Fabcde", "s".repeat(30)].join(".");
+    const withBot = (fetcher: typeof fetch, value = token()) => liveDeps(env({ [BOT_TOKEN_SECRET]: ` ${value} ` }), fetcher);
+
+    it("lit le numéro du robot dans son jeton, et rien dans ce qui n'en est pas un", () => {
+      expect(botIdOf(token())).toBe(BOT);
+      for (const other of ["", "abc", token().replace(/\./g, "-"), [btoa("pas un nombre"), "a", "b"].join("."), [btoa("12"), "a", "b"].join(".")]) {
+        expect(botIdOf(other), other).toBe("");
+      }
+    });
+
+    it("appelle l'API avec le jeton du robot, se présente, et écrit la raison au journal d'audit", async () => {
+      const { sent, fetcher } = server(() => json({ id: "1" }, 201));
+      const deps = withBot(fetcher);
+      expect(deps.botId).toBe(BOT);
+      expect(await deps.discord("POST", `/guilds/${GUILD}/channels`, { body: { name: "question-brennos" }, reason: "Ticket ouvert : « Question »" })).toEqual({ status: 201, body: { id: "1" } });
+      expect(sent[0]).toMatchObject({ url: `${DISCORD_API}/guilds/${GUILD}/channels`, method: "POST", body: { name: "question-brennos" } });
+      expect(sent[0]?.headers["authorization"]).toBe(`Bot ${token()}`);
+      expect(sent[0]?.headers["user-agent"]).toMatch(/^DiscordBot \(https:\/\/les-gaulois\.github\.io, /);
+      expect(sent[0]?.headers["content-type"]).toBe("application/json");
+      expect(decodeURIComponent(sent[0]?.headers["x-audit-log-reason"] ?? "")).toBe("Ticket ouvert : « Question »");
+      // Sans corps, ni type de contenu ni corps.
+      await deps.discord("DELETE", "/channels/1");
+      expect(sent[1]?.headers["content-type"]).toBeUndefined();
+      expect(sent[1]?.body).toBeNull();
+    });
+
+    it("n'appelle rien sans jeton lisible, et le webhook d'une interaction part sans le jeton du robot", async () => {
+      const { sent, fetcher } = server(() => json({}));
+      for (const deps of [liveDeps(env({}), fetcher), withBot(fetcher, "pas-un-jeton")]) {
+        expect(deps.botId).toBe("");
+        expect(await deps.discord("GET", "/users/@me")).toBeNull();
+        expect(await deps.botAccepted()).toBe(false);
+      }
+      expect(sent).toEqual([]);
+      const deps = withBot(fetcher);
+      expect(await deps.webhook("PATCH", `/webhooks/${BOT}/jeton-de-l-interaction/messages/@original`, { body: { content: "ok" } })).toEqual({ status: 200, body: {} });
+      expect(sent[0]?.url).toBe(`${DISCORD_API}/webhooks/${BOT}/jeton-de-l-interaction/messages/@original`);
+      expect(sent[0]?.headers["authorization"]).toBeUndefined();
+      // Le webhook n'appelle que des webhooks.
+      expect(await deps.webhook("GET", "/users/@me")).toBeNull();
+      expect(sent).toHaveLength(1);
+    });
+
+    it("repart une fois si Discord demande d'attendre un peu, sauf pour un appel pressé", async () => {
+      vi.useFakeTimers();
+      const quiet = vi.spyOn(console, "log").mockImplementation(() => undefined);
+      try {
+        let answers = [json({ retry_after: 0.25 }, 429), json({ id: "1" })];
+        const { sent, fetcher } = server(() => answers.shift() ?? json({}, 500));
+        const deps = withBot(fetcher);
+        const call = deps.discord("GET", "/channels/1");
+        await vi.advanceTimersByTimeAsync(250);
+        expect(await call).toEqual({ status: 200, body: { id: "1" } });
+        expect(sent).toHaveLength(2);
+        // Pressé, ou une attente trop longue : la réponse 429 revient telle quelle.
+        answers = [json({ retry_after: 0.25 }, 429)];
+        expect((await deps.discord("GET", "/channels/1", { timeoutMs: 1200 }))?.status).toBe(429);
+        answers = [json({ retry_after: 30 }, 429)];
+        expect((await deps.discord("GET", "/channels/1"))?.status).toBe(429);
+        expect(sent).toHaveLength(4);
+      } finally {
+        quiet.mockRestore();
+        vi.useRealTimers();
+      }
+    });
+
+    it("demande à Discord s'il accepte le jeton au plus une fois toutes les dix minutes", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      try {
+        const start = Date.parse("2026-11-12T22:00:00Z");
+        vi.setSystemTime(start);
+        const { sent, fetcher } = server(() => json({ id: BOT, bot: true }));
+        expect(await withBot(fetcher).botAccepted()).toBe(true);
+        // Une fonction neuve sert chaque requête : la réponse est gardée hors d'elle.
+        expect(await withBot(fetcher).botAccepted()).toBe(true);
+        expect(sent.map((s) => s.url)).toEqual([`${DISCORD_API}/users/@me`]);
+        vi.setSystemTime(start + 10 * 60_000);
+        expect(await withBot(fetcher).botAccepted()).toBe(true);
+        expect(sent).toHaveLength(2);
+        // Un jeton refusé, ou celui d'un autre robot.
+        expect(await withBot(server(() => json({ message: "401: Unauthorized" }, 401)).fetcher).botAccepted()).toBe(false);
+        expect(await withBot(server(() => json({ id: "135792468013579246" })).fetcher).botAccepted()).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("fait durer une tâche après la réponse, et note son erreur", async () => {
+      const logs: string[] = [];
+      const quiet = vi.spyOn(console, "log").mockImplementation((message: string) => void logs.push(message));
+      const kept: Promise<unknown>[] = [];
+      const global = globalThis as unknown as { EdgeRuntime?: { waitUntil(promise: Promise<unknown>): void } };
+      global.EdgeRuntime = { waitUntil: (promise) => void kept.push(promise) };
+      try {
+        const deps = liveDeps(env({}), server(() => json({})).fetcher);
+        deps.background(Promise.reject(new Error("salon introuvable")));
+        expect(kept).toHaveLength(1);
+        await kept[0];
+        expect(logs).toEqual(["code-discord : tâche de fond : salon introuvable"]);
+      } finally {
+        delete global.EdgeRuntime;
+        quiet.mockRestore();
+      }
+    });
+
+    it("ne note jamais le jeton du robot ni celui d'une interaction dans ses journaux", async () => {
+      const logs: string[] = [];
+      const quiet = vi.spyOn(console, "log").mockImplementation((message: string) => void logs.push(message));
+      try {
+        const deps = withBot(server(() => json({ message: "Missing Permissions", code: 50013 }, 403)).fetcher);
+        await deps.discord("POST", "/channels/1/messages", { body: { content: "x" } });
+        await deps.webhook("PATCH", `/webhooks/${BOT}/jeton-tres-secret/messages/@original?with_components=true`, { body: {} });
+        await withBot(server(() => new Error("réseau")).fetcher).webhook("POST", `/webhooks/${BOT}/jeton-tres-secret`);
+      } finally {
+        quiet.mockRestore();
+      }
+      expect(logs).toEqual([
+        "code-discord : Discord POST /channels/1/messages : 403",
+        `code-discord : Discord PATCH /webhooks/${BOT}/…/messages/@original : 403`,
+        `code-discord : Discord POST /webhooks/${BOT}/… injoignable : Error`,
+      ]);
+      for (const line of logs) {
+        expect(line).not.toContain(token());
+        expect(line).not.toContain("jeton-tres-secret");
+      }
+      expect(pathForLog(`/webhooks/${BOT}/a.b-c_d/messages/1`)).toBe(`/webhooks/${BOT}/…/messages/1`);
+    });
   });
 });
