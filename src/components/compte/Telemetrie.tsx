@@ -34,9 +34,11 @@ export default function Telemetrie({ role, lastRunAt, testId }: { role: string; 
       <span class="console-heure tnum" aria-hidden="true">
         {fmtEpochTime(now.getTime() / 1000)}
       </span>
+      {/* La date ne se coupe jamais ; la ligne peut passer à la ligne avant elle (au QG, sur téléphone, l'avatar laisse
+          moins de place, et une collecte d'un autre jour est plus longue : « collecte 30 sept., 22:50 »). */}
       {collecte && (
         <span class={`console-collecte tnum ${collecte.enRetard ? "text-warn" : ""}`} aria-hidden="true" data-testid={`${testId}-collecte`}>
-          collecte {collecte.texte}
+          collecte <span class="console-collecte-date">{collecte.texte}</span>
         </span>
       )}
     </p>

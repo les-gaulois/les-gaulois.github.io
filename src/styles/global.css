@@ -2276,6 +2276,14 @@ main .fx-in,
 :root[data-ambiance="console"][data-console] .console-acces > * {
   white-space: nowrap;
 }
+/* La collecte, datée quand elle n'est pas du jour, peut encore passer à la ligne entre « collecte » et sa date, qui ne se
+   coupe jamais : au QG, sur un téléphone de 360 px, l'avatar ne laisse qu'environ 200 px à la ligne. */
+:root[data-ambiance="console"][data-console] .console-acces > .console-collecte {
+  white-space: normal;
+}
+.console-collecte-date {
+  white-space: nowrap;
+}
 /* L'invite, plus longue avec sa commande, s'écrit au même rythme. */
 :root[data-ambiance="console"][data-console] .console-invite {
   animation-duration: 1.5s;
@@ -2425,7 +2433,7 @@ main .fx-in,
   color: var(--console-vert);
 }
 /* Une pastille (.chip) est un bouton : elle garde ses couleurs, même avec des chiffres (« 30 jours », « 21 h » au QG).
-   En vert, la pastille choisie, blanche, n'aurait que 1,9:1. */
+   En vert, la pastille choisie, blanche, n'aurait que 1,7:1. */
 :root[data-ambiance="console"][data-console="terminal"] .espace .tnum:not(.text-warn, .onglet-nombre, .field, .chip) {
   color: var(--console-vert);
 }
@@ -2505,9 +2513,20 @@ main .fx-in,
   font-weight: 600;
   border-radius: 0.25rem;
 }
+/* Pas seulement une couleur : comme le filet rouge des onglets du site, un filet blanc sous l'onglet ouvert, visible sur
+   son bleu comme sur le rouge de l'encadrement (son fond seul n'a que 3:1 sur la barre). */
 :root[data-ambiance="console"][data-console="terminal"] .onglet[aria-selected="true"] {
   background: var(--color-blue);
-  box-shadow: none;
+  box-shadow: inset 0 -3px 0 #fff;
+}
+/* Dans l'onglet ouvert, le point rouge de l'encadrement et la pastille bleue « quelqu'un attend » se fondraient dans le
+   fond : ils passent au blanc (chiffre bleu sur blanc : 6,8:1). */
+:root[data-ambiance="console"][data-console="terminal"] .onglet-encadrement[aria-selected="true"]::before {
+  background: #fff;
+}
+:root[data-ambiance="console"][data-console="terminal"] .onglet[aria-selected="true"] .onglet-nombre-vif {
+  background: #fff;
+  color: var(--color-blue);
 }
 /* Les parties de l'encadrement, au QG : une fenêtre rouge aux coins nets et au double trait, comme les cartes. */
 :root[data-ambiance="console"][data-console="terminal"] .zone-encadrement {
