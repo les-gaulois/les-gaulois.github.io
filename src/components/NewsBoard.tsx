@@ -112,21 +112,25 @@ export default function NewsBoard({ announcements, events, now, live = false }: 
   };
 
   return (
-    <section class="grid gap-6 md:grid-cols-2" aria-label="Annonces et événements" data-testid="news-board">
-      {allAnnouncements.length > 0 && (
-        <div>
-          <h2 class="text-2xl">Annonces</h2>
-          <Items items={allAnnouncements} date={fmtDate} testId="news-announcements" />
-        </div>
-      )}
-      {allEvents.length > 0 && (
-        <div>
-          <h2 class="text-2xl">Événements à venir</h2>
-          <Items items={allEvents} date={fmtDateTime} testId="news-events" extra={eventExtra} />
-        </div>
-      )}
+    <section aria-label="Annonces et événements" data-testid="news-board">
+      {/* Les annonces et les événements, deux parties : l'écart entre parties quand elles s'empilent sur téléphone. */}
+      <div class="grid gap-x-6 gap-y-section md:grid-cols-2">
+        {allAnnouncements.length > 0 && (
+          <div>
+            <h2 class="text-2xl">Annonces</h2>
+            <Items items={allAnnouncements} date={fmtDate} testId="news-announcements" />
+          </div>
+        )}
+        {allEvents.length > 0 && (
+          <div>
+            <h2 class="text-2xl">Événements à venir</h2>
+            <Items items={allEvents} date={fmtDateTime} testId="news-events" extra={eventExtra} />
+          </div>
+        )}
+      </div>
+      {/* Hors de la grille : le refus du serveur reste près du bouton « Je viens » qui l'a provoqué. */}
       {error && (
-        <p class="form-problem md:col-span-2" role="alert">
+        <p class="form-problem mt-4" role="alert">
           {error}
         </p>
       )}

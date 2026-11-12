@@ -31,6 +31,10 @@
   --font-sans: "Inter Variable", system-ui, sans-serif;
   /* Pas --font-mono, dont se servent le champ du code de connexion et les formules des guides : leur chasse fixe reste celle du système. */
   --font-console: "JetBrains Mono Variable", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  /* L'air entre deux parties d'une page (à la demande du pilote, le 12 novembre 2026 : « laisser respirer », puis le 13 :
+     « encore plus d'air ») : 80 px sur téléphone, puis 10 % de la largeur, jusqu'à 160 px sur grand écran. Donne mt-section,
+     mb-section et gap-section. */
+  --spacing-section: clamp(5rem, 10vw, 10rem);
 }
 
 /* Le décor de la page : une lueur bleue, un reflet rouge et le halo qui suit le curseur. */
@@ -47,6 +51,17 @@
   /* Le trait d'une courbe s'éclaircit vers sa fin : le bleu des victoires, puis un bleu pâle, puis le blanc. */
   --chart-trait-milieu: #8db0ff;
   --chart-trait-fin: #fff;
+  /* La largeur des pages (.wrap) : depuis le 13 novembre 2026, à la demande du pilote (« prends toute la place disponible
+     sur l'écran », « tu n'utilises que la dimension d'un A4 »), le contenu va jusqu'à 120 rem (1 920 px), avec des marges
+     de côté qui grandissent avec l'écran (16 px sur téléphone, 4 % de la largeur, 80 px au plus). */
+  --wrap-max: 120rem;
+  --wrap-marge: clamp(1rem, 4vw, 5rem);
+}
+/* Les espaces de travail et les pages en console (QG, Direction, guide, Carte) gardent leur colonne de 75 rem : formulaires,
+   menus et chapitres s'y lisent mieux. L'en-tête et le pied de page prennent toute la largeur partout. */
+[data-ambiance="console"] main {
+  --wrap-max: 75rem;
+  --wrap-marge: 1rem;
 }
 
 /* ---------- Thème rouge : l'encadrement ---------- */
@@ -209,11 +224,12 @@ a.link:hover {
 .tnum {
   font-variant-numeric: tabular-nums;
 }
+/* La largeur et les marges viennent de --wrap-max et --wrap-marge (:root, plus haut). */
 .wrap {
   width: 100%;
-  max-width: 75rem;
+  max-width: var(--wrap-max);
   margin-inline: auto;
-  padding-inline: 1rem;
+  padding-inline: var(--wrap-marge);
 }
 /* Les pages se lisent en grand : dans le contenu, chaque taille de texte de Tailwind monte d'un cran (17 px pour le texte
    courant, 15 px pour le petit texte, 13 px pour le plus petit). L'en-tête et le pied de page gardent les leurs, et les
@@ -261,6 +277,13 @@ main {
   min-width: 0;
   padding-left: 1rem;
   border-left: 1px solid var(--hairline);
+}
+/* Sur grand écran, les chiffres se répartissent sur toute leur rangée au lieu de se serrer à gauche : les pages prennent
+   toute la largeur depuis le 13 novembre 2026. Le guide, en console, garde les siens serrés. */
+@media (min-width: 80rem) {
+  :root:not([data-ambiance]) .kpi-row > .kpi {
+    flex: 1 1 auto;
+  }
 }
 .kpi-label {
   font-family: var(--font-display);
@@ -406,7 +429,8 @@ main .card:hover::before {
   position: relative;
   overflow: hidden;
   border-radius: 0.625rem;
-  padding: clamp(1.5rem, 4vw, 3rem);
+  /* De l'air dedans aussi : 24 px sur téléphone, 64 px à 1 280 px, 80 px au plus (« encore plus d'air », 13 novembre 2026). */
+  padding: clamp(1.5rem, 5vw, 5rem);
 }
 .stage-blue {
   --stage-bg: linear-gradient(135deg, #0f46c4, #0b2169 75%);
@@ -1899,8 +1923,9 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 }
 
 /* ---------- Une page de texte : la confidentialité ---------- */
+/* Une partie du texte par titre : de l'air avant chacun (48 px sur téléphone, 64 sur grand écran). */
 .text-page h2 {
-  margin-top: 2.5rem;
+  margin-top: clamp(3rem, 5vw, 4rem);
   font-size: clamp(1.5rem, 3.5vw, 2.25rem);
 }
 .text-page p,
@@ -3799,18 +3824,18 @@ footer h2 {
 }
 /* L'onciale est plus large qu'Outfit (0,8 em la lettre contre 0,65). Un titre qui connaît son plus long mot (--mot-em, en
    em, calculé au build par motLePlusLong) se réduit juste assez pour qu'il tienne sur une ligne : la largeur du contenu
-   (.wrap, 75 rem au plus, moins ses marges), avec une marge de plus pour la barre de défilement. Sous 1,5 rem, le mot se
-   coupe plutôt que de rapetisser encore (un très long pseudo sur une fiche). */
+   (.wrap, --wrap-max au plus, moins ses deux marges --wrap-marge), avec une marge de plus pour la barre de défilement.
+   Sous 1,5 rem, le mot se coupe plutôt que de rapetisser encore (un très long pseudo sur une fiche). */
 :where([data-lettres="onciale"]) .page-title {
-  font-size: max(1.5rem, min(clamp(2.5rem, 8.5vw, 6rem), (min(100vw, 75rem) - 3rem) / var(--mot-em, 0.01)));
+  font-size: max(1.5rem, min(clamp(2.5rem, 8.5vw, 6rem), (min(100vw, var(--wrap-max)) - 2 * var(--wrap-marge) - 1rem) / var(--mot-em, 0.01)));
 }
 :where([data-lettres="onciale"]) .page-title.page-title-compact {
-  font-size: max(1.5rem, min(clamp(2.25rem, 5.5vw, 3.5rem), (min(100vw, 75rem) - 3rem) / var(--mot-em, 0.01)));
+  font-size: max(1.5rem, min(clamp(2.25rem, 5.5vw, 3.5rem), (min(100vw, var(--wrap-max)) - 2 * var(--wrap-marge) - 1rem) / var(--mot-em, 0.01)));
 }
 /* Un titre de section au mot très long, si sa page lui pose --mot-em. Les titres de scène (.section-title-sm) gardent leur
    taille. */
 :where([data-lettres="onciale"]) .section-title:not(.section-title-sm) {
-  font-size: min(clamp(2rem, 5vw, 4rem), (min(100vw, 75rem) - 3rem) / var(--mot-em, 0.01));
+  font-size: min(clamp(2rem, 5vw, 4rem), (min(100vw, var(--wrap-max)) - 2 * var(--wrap-marge) - 1rem) / var(--mot-em, 0.01));
 }
 /* Les cinq créneaux de Quand jouer, en colonnes étroites : « 21 h – 22 h » tient dans la sienne de 1 024 à 1 920 px. */
 :where([data-lettres="onciale"]) .kpi-value-md {

@@ -14,7 +14,7 @@ const profile = (publicId: string | null) => `${base}/membres/${encodeURICompone
 
 {
   rows.length > 0 && (
-    <section class="stage stage-indigo reveal mb-6 scroll-mt-24" id="paliers" aria-labelledby="tiers-title" data-testid="win-tiers">
+    <section class="stage stage-indigo reveal mb-section scroll-mt-24" id="paliers" aria-labelledby="tiers-title" data-testid="win-tiers">
       <h2 id="tiers-title" class="section-title">Les paliers du clan</h2>
       <ul class="mt-6 space-y-3">
         {rows.map((row) => (

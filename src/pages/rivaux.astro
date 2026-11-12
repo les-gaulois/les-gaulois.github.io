@@ -48,7 +48,7 @@ const jumps = [
       ) : (
         <>
           {lanes.length > 0 && (
-            <section class="chart-open reveal mb-10" data-testid="score-lanes" aria-labelledby="lanes-title">
+            <section class="chart-open reveal mb-section" data-testid="score-lanes" aria-labelledby="lanes-title">
               <h2 id="lanes-title" class="kpi-label">Le score autour de [{clan.tag}]</h2>
               {/* Les lignes partagent leurs colonnes (subgrid) : celle des tags prend la largeur du plus long, au moins 3,5 rem (4,5 rem
                   dès sm), et les barres commencent et finissent au même point. Dans l'onciale, la moitié des tags du classement ne tenaient
@@ -68,7 +68,7 @@ const jumps = [
             </section>
           )}
           {race && race.length > 0 && (
-            <section class="reveal mb-8 scroll-mt-24" aria-labelledby="race-title" data-testid="rival-race">
+            <section class="reveal mb-section scroll-mt-24" aria-labelledby="race-title" data-testid="rival-race">
               <h2 id="race-title" class="section-title scroll-mt-24">La course avec nos voisins</h2>
               <p class="mb-4 mt-2 max-w-3xl text-sm text-muted">Relevé chaque jour depuis le {fmtDate(`${snapshots[0]?.date}T12:00:00Z`)}.</p>
               <RivalRace client:load series={race} />

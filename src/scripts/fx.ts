@@ -34,6 +34,11 @@ const MAX_ALPHA = 0.5;
 /** Inclinaison maximale d'une grande scène, en degrés : au-delà, le texte perd en netteté. */
 const STAGE_TILT = 0.8;
 const CARD_TILT = 3;
+/**
+ * La largeur de l'ancienne colonne du site (1 168 px). Depuis que les pages prennent toute la largeur (13 novembre 2026), un
+ * bloc plus large s'incline d'autant moins : son bord ne bouge pas plus qu'avant, le pilote veut des mouvements calmes.
+ */
+const TILT_REF_WIDTH = 1_168;
 /** Au-delà de cette hauteur, l'onde d'un clic ne traverse plus le bloc : son tracé serait trop lourd. */
 const LOCAL_WAVE_MAX_HEIGHT = 1_350;
 const LOCAL_TTL = 0.7;
@@ -496,7 +501,7 @@ function init(): void {
     }
     if (tiltEl) {
       const r = tiltEl.getBoundingClientRect();
-      const max = Number(tiltEl.dataset.tilt ?? (tiltEl.classList.contains("stage") ? STAGE_TILT : CARD_TILT));
+      const max = Number(tiltEl.dataset.tilt ?? (tiltEl.classList.contains("stage") ? STAGE_TILT : CARD_TILT)) * Math.min(1, TILT_REF_WIDTH / r.width);
       const tilt = tiltFor(tiltEl, 1200);
       tilt.targetRx = -((y - r.top) / r.height - 0.5) * max * 2;
       tilt.targetRy = ((x - r.left) / r.width - 0.5) * max * 2;

@@ -202,7 +202,7 @@ export default function ProgressCharts({ days, history }: Props) {
         </details>
       </section>
 
-      <h2 class="section-title mt-16">Relevés de chaque jour</h2>
+      <h2 class="section-title mt-section">Relevés de chaque jour</h2>
       <p class="mt-3 max-w-3xl text-sm text-muted">
         Rang et score du classement officiel, sur 90 jours glissants. Chaque courbe a sa propre échelle.
       </p>

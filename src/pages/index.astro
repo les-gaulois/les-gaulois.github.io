@@ -84,7 +84,7 @@ const imageAlt = hasImage && imageFacts ? accueilImageAlt(imageFacts, clan.tag, 
 
 <Base image={image} imageAlt={imageAlt}>
   <section class="relative overflow-hidden">
-    <div class="wrap relative grid items-center gap-4 pb-8 pt-5 md:grid-cols-[3fr_2fr] md:gap-10 md:pb-10 md:pt-10">
+    <div class="wrap relative grid items-center gap-4 pb-16 pt-5 md:grid-cols-[3fr_2fr] md:gap-10 md:pb-12 md:pt-10">
       <div class="reveal order-2 md:order-1">
         <span class="tribar mb-4 md:mb-6"></span>
         <Invite path="/" />
@@ -138,7 +138,8 @@ const imageAlt = hasImage && imageFacts ? accueilImageAlt(imageFacts, clan.tag, 
     </div>
   </section>
 
-  <div class="wrap grid grid-cols-1 gap-6">
+  {/* Entre deux parties, de l'air (jeton --spacing-section de global.css) ; la rangée « Ma place » et QG garde sa gouttière. */}
+  <div class="wrap grid grid-cols-1 gap-section">
     {snapshot && <SinceLastVisit client:load snapshot={snapshot} gazetteHref={`${base}/gazette`} />}
 
     {
@@ -205,7 +206,7 @@ const imageAlt = hasImage && imageFacts ? accueilImageAlt(imageFacts, clan.tag, 
     {gazette && <ClanWeek edition={gazette} currentMilestones={currentMilestones} records={recordLines} territoryRecord={territoryRecord} bestGame={bestYesterday ? bestGameSentence(bestYesterday) : null} creditMaps={(bestYesterday?.map ?? null) !== null} live={AUTH_ENABLED} />}
 
     {/* Ce qui est à chacun : sa place dans le clan, et la porte de la face privée. */}
-    <div class:list={["grid gap-6", AUTH_ENABLED && "lg:grid-cols-2"]} id="rangee-moi" data-testid="home-me-row">
+    <div class:list={["grid gap-x-6 gap-y-section", AUTH_ENABLED && "lg:grid-cols-2"]} id="rangee-moi" data-testid="home-me-row">
       {/*
         « C'est moi » : le membre qui a retenu son pseudo (src/lib/moi.ts) retrouve sa place, et la porte du QG, avant le classement.
         Premier enfant de la rangée, ce script la déplace avant que la page la remplisse : « Ma place » ne se réveille qu'une fois,
@@ -261,7 +262,7 @@ const imageAlt = hasImage && imageFacts ? accueilImageAlt(imageFacts, clan.tag, 
           <img
             src={`${base}/generated/banner-1600.webp`}
             srcset={`${base}/generated/banner-800.webp 800w, ${base}/generated/banner-1600.webp 1600w`}
-            sizes="(min-width: 768px) 560px, calc(100vw - 5rem)"
+            sizes="(min-width: 768px) 45vw, calc(100vw - 5rem)"
             width="1672"
             height="941"
             loading="lazy"

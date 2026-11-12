@@ -118,7 +118,7 @@ const tiles = member.team
 
     {
       groupe && (
-        <section class="stage stage-indigo reveal mt-6" aria-labelledby="member-group-title" data-testid="member-group">
+        <section class="stage stage-indigo reveal mt-section" aria-labelledby="member-group-title" data-testid="member-group">
           <h2 id="member-group-title" class="section-title">Seul ou en groupe</h2>
           {groupLine && (
             <p class="mt-4 max-w-3xl text-lg" data-testid="member-group-line">
@@ -186,7 +186,7 @@ const tiles = member.team
 
     {
       games !== null && games > 0 && (
-        <section class="stage stage-night reveal mt-6" aria-labelledby="member-recent-title" data-testid="member-recent">
+        <section class="stage stage-night reveal mt-section" aria-labelledby="member-recent-title" data-testid="member-recent">
           <h2 id="member-recent-title" class="section-title">Ses dernières parties</h2>
           {recent && recentTitle ? (
             <>
@@ -242,7 +242,7 @@ const tiles = member.team
       )
     }
 
-    <div class="reveal mt-8 flex flex-col gap-3 sm:flex-row">
+    <div class="reveal mt-section flex flex-col gap-3 sm:flex-row">
       <button type="button" class="btn btn-secondary" data-copy-link data-testid="copy-link" hidden>Copier le lien de cette fiche</button>
       <a href={`${base}/liste`} class="btn btn-ghost">Retour à la liste</a>
       <a href={`https://openfront.io/#modal=profile&publicID=${encodeURIComponent(member.publicId ?? "")}`} class="btn btn-ghost" rel="noopener">Son profil sur OpenFront</a>

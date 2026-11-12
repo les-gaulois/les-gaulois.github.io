@@ -57,7 +57,7 @@ const failures = [
 
     {
       week && (
-        <section class="card card-accent p-5 md:p-6" aria-labelledby="gazette-now-title" data-testid="gazette-now">
+        <section class="card card-accent mb-section p-5 md:p-6" aria-labelledby="gazette-now-title" data-testid="gazette-now">
           <h2 id="gazette-now-title" class="text-2xl">Semaine en cours, {weekLabel(week)}</h2>
           <p class="tnum mt-2 text-lg" data-testid="gazette-now-lead">{currentWeekLead(week)}</p>
           {weekComparison && <p class="tnum mt-1 text-sm text-muted" data-testid="gazette-now-comparison">{weekComparison}</p>}
@@ -69,13 +69,13 @@ const failures = [
     {
       latest ? (
         <>
-          <article class="stage stage-blue reveal mt-8" aria-labelledby="gazette-latest-title" data-testid="gazette-latest">
+          <article class="stage stage-blue reveal" aria-labelledby="gazette-latest-title" data-testid="gazette-latest">
             <h2 id="gazette-latest-title" class="section-title">Semaine {weekLabel(latest)}</h2>
             <GazetteEditionBlock edition={latest} records={records} {...context} />
           </article>
 
           {older.length > 0 && (
-            <section class="reveal mt-10" aria-labelledby="gazette-older-title">
+            <section class="reveal mt-section" aria-labelledby="gazette-older-title">
               <h2 id="gazette-older-title" class="section-title">Les éditions précédentes</h2>
               {/* Une ligne par édition, comme tous les menus déroulants du site : un filet, la semaine, le « + ». */}
               <div class="fold-list mt-6">
