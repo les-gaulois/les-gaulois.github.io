@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { GROUPES, ancreDuChapitre, chapitreDeLAdresse, commandeDuChapitre, doitDefiler, morceauxGras, numeroDuChapitre, parGroupe, sensDuPassage, titreEnDeux } from "../../src/lib/guide";
+import { GROUPES, ancreDuChapitre, chapitreDeLAdresse, commandeDuChapitre, doitDefiler, morceauxGras, motsComposes, numeroDuChapitre, parGroupe, sensDuPassage, titreEnDeux } from "../../src/lib/guide";
 import { ICONES_PARTIES } from "../../src/lib/icones-parties";
 
 const ANCRES = ["chapitre-01-bases", "chapitre-02-croissance", "chapitre-03-attaque"];
@@ -117,6 +117,35 @@ describe("titreEnDeux", () => {
   });
   it("ne coupe qu'au premier deux-points", () => {
     expect(titreEnDeux("Économie : gagner : dépenser")).toEqual({ titre: "Économie", precision: "gagner : dépenser" });
+  });
+});
+
+describe("motsComposes", () => {
+  it("garde d'un seul tenant un mot à trait d'union", () => {
+    expect(motsComposes("Aide-mémoire combat")).toEqual([
+      { texte: "Aide-mémoire", insecable: true },
+      { texte: " combat", insecable: false },
+    ]);
+    expect(
+      motsComposes("Un face-à-face au corps-à-corps")
+        .filter((m) => m.insecable)
+        .map((m) => m.texte),
+    ).toEqual(["face-à-face", "corps-à-corps"]);
+  });
+  it("laisse tel quel un titre sans mot composé, et rien pour un titre vide", () => {
+    expect(motsComposes("Comprendre une attaque")).toEqual([{ texte: "Comprendre une attaque", insecable: false }]);
+    expect(motsComposes("")).toEqual([]);
+    // Un tiret isolé n'est pas un mot composé.
+    expect(motsComposes("Bateaux - trains").some((m) => m.insecable)).toBe(false);
+  });
+  it("ne perd ni n'ajoute aucun caractère", () => {
+    for (const titre of ["Aide-mémoire économie", "Poste de défense et terrain neutre", "Un face-à-face au corps-à-corps", "- tiret seul -", "Ratio 3:1"]) {
+      expect(
+        motsComposes(titre)
+          .map((m) => m.texte)
+          .join(""),
+      ).toBe(titre);
+    }
   });
 });
 

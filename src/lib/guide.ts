@@ -59,6 +59,18 @@ export function titreEnDeux(titre: string): { titre: string; precision: string |
   return coupe?.[1] && coupe[2] ? { titre: coupe[1], precision: coupe[2] } : { titre, precision: null };
 }
 
+/**
+ * Les morceaux d'un titre, pour qu'un mot composé (« Aide-mémoire ») ne se coupe pas à son trait d'union : sans cela, un
+ * téléphone écrit « AIDE- » sur une ligne et « MÉMOIRE COMBAT » sur la suivante. Mis bout à bout, les morceaux redonnent
+ * le titre, au caractère près.
+ */
+export function motsComposes(titre: string): { texte: string; insecable: boolean }[] {
+  return titre
+    .split(/(\S+-\S+)/)
+    .map((texte, i) => ({ texte, insecable: i % 2 === 1 }))
+    .filter((m) => m.texte !== "");
+}
+
 export interface Morceau {
   texte: string;
   gras: boolean;

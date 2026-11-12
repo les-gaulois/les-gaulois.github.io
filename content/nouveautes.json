@@ -2,6 +2,16 @@
   {
     "date": "2026-11-12",
     "kind": "ameliore",
+    "title": "Le guide du clan en console, comme la Carte",
+    "body": "Le guide du clan prend le style console de la Carte et du QG : écran de terminal, fenêtres en traits doubles, une ligne de commande par chapitre. Textes et chiffres restent en blanc et en gris.",
+    "link": {
+      "href": "/debuter",
+      "label": "Ouvrir le guide"
+    }
+  },
+  {
+    "date": "2026-11-12",
+    "kind": "ameliore",
     "title": "Moins de vert à la Direction",
     "body": "Pour l'encadrement : à la Direction aussi, les phrases, les dates et les chiffres reprennent leur couleur, blanc ou gris, comme au QG."
   },

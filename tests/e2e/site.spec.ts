@@ -138,7 +138,9 @@ test("seules les pages de l'encadrement passent au rouge", async ({ page }, test
   // La page Carte est une console depuis le 12 novembre 2026, à la demande du pilote (« un design hacker très prononcé ») :
   // le même Terminal bleu que le QG, sans le rouge de l'encadrement.
   expect(await look("/carte")).toEqual(qg);
-  for (const path of [...PAGES.filter((path) => path !== "/qg" && path !== "/carte"), "/compte", "/confidentialite"]) {
+  // Le guide du clan aussi, depuis le soir même : le pilote l'a voulu « comme la Carte ».
+  expect(await look("/debuter")).toEqual(qg);
+  for (const path of [...PAGES.filter((path) => path !== "/qg" && path !== "/carte" && path !== "/debuter"), "/compte", "/confidentialite"]) {
     expect(await look(path), path).toEqual(blue);
   }
 });
@@ -294,7 +296,8 @@ test("l'onciale de cases écrit les titres des pages ouvertes à tous, pas ceux 
 
 // Les vraies minuscules et les lettrines (12 novembre 2026, choisies par le pilote sur captures) : les titres des pages
 // ouvertes à tous ne sont plus en capitales ; la première lettre d'un titre de page est plus grande et rouge, celle d'un
-// titre de section plus grande. La Carte, en console, garde ses capitales sans lettrine, comme le QG et la Direction.
+// titre de section plus grande. La Carte et le guide du clan, en console, gardent leurs capitales sans lettrine, comme le
+// QG et la Direction.
 // Le pseudo d'une fiche de membre n'a pas de lettrine non plus : un nom s'écrit tel quel.
 // Deux cas à tenir : avec les effets, fx.ts pose chaque mot du titre dans un bloc (.fx-word) et la lettrine est la première
 // lettre de ce bloc ; en mouvement réduit, c'est celle du titre lui-même. Une règle écrite pour un seul des deux cas ne
@@ -371,8 +374,8 @@ test("les titres ont de vraies minuscules et une lettrine, sauf en console, au Q
   expect(largeurs.minuscules).toBeCloseTo(largeurTexte("classement"), 2);
   expect(largeurs.capitales).toBeCloseTo(largeurTexte("CLASSEMENT"), 2);
   expect(largeurs.minuscules).toBeLessThan(largeurs.capitales);
-  // La Carte, le QG et la Direction : des capitales, pas de lettrine.
-  for (const path of ["/carte", "/qg", "/direction"]) {
+  // La Carte, le guide du clan, le QG et la Direction : des capitales, pas de lettrine.
+  for (const path of ["/carte", "/debuter", "/qg", "/direction"]) {
     await ouvrir(path);
     const enConsole = await titre("main h1");
     expect(enConsole, path).toMatchObject({ casse: "uppercase", rouge: false });
@@ -751,6 +754,107 @@ test("le guide du clan avance chapitre par chapitre, et l'adresse garde le chapi
   await expect(page).toHaveURL(/#contenu$/);
   await expect(ouvert).toHaveCount(1);
   await expect(titre).toHaveText("Aide-mémoire économie");
+});
+
+// Le guide est en console depuis le 12 novembre 2026 (« comme la Carte »). Sur la Carte, le pilote a trouvé « trop de verts
+// dans les textes » : le vert de terminal n'est que la voix de la machine. Trois lignes s'écrivent en vert, l'invite de la
+// page, la ligne de commande de chaque chapitre et le dossier du sommaire ; hors d'elles, seuls des signes (« > »), les
+// icônes et les jalons sont verts. Aucune phrase, aucun chiffre, aucun libellé ne l'est, dans aucun chapitre : ni le texte
+// de la page, ni un mot écrit par la feuille de style (l'étiquette « essai »), ni un vert voisin du jeton.
+test("dans le guide du clan, le vert ne sert qu'aux lignes de commande, jamais aux textes ni aux chiffres", async ({ page }, testInfo) => {
+  const mobile = testInfo.project.name === "mobile";
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/debuter");
+  await page.waitForLoadState("networkidle");
+  await hydrated(page);
+  const vert = await page.locator("[data-guide]").evaluate((guide) => {
+    const sonde = document.createElement("i");
+    sonde.style.color = "var(--console-vert)";
+    guide.append(sonde);
+    const couleur = getComputedStyle(sonde).color;
+    sonde.remove();
+    return couleur;
+  });
+  // Une vraie couleur, et pas celle du texte : sans quoi le contrôle ne prouverait rien.
+  expect(vert).not.toBe(await page.locator("[data-guide]").evaluate((guide) => getComputedStyle(guide).color));
+  const textesVerts = () =>
+    page.evaluate((vert) => {
+      // Vert : le jeton, ou toute couleur où le vert domine le rouge et le bleu de plus de 40. Le vert des réussites du
+      // site (--color-ok, #A6E3B4) domine de 47 ; le bleu clair, les gris, le jaune et le blanc restent loin dessous.
+      const estVert = (couleur: string) => {
+        if (couleur === vert) return true;
+        const rvb = /^rgba?\((\d+), (\d+), (\d+)/.exec(couleur);
+        return rvb !== null && Number(rvb[2]) - Math.max(Number(rvb[1]), Number(rvb[3])) > 40;
+      };
+      const verts: string[] = [];
+      for (const el of document.querySelectorAll<HTMLElement>("main *")) {
+        if (el.closest(".console-invite, .guide-commande, .guide-plan-racine, .sr-only") || el.getClientRects().length === 0) continue;
+        const nom = `${el.tagName.toLowerCase()}.${el.getAttribute("class") ?? ""}`;
+        const texte = [...el.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE).map((n) => n.textContent ?? "").join("").trim();
+        if (texte && estVert(getComputedStyle(el).color)) verts.push(`${nom} : ${texte.slice(0, 40)}`);
+        // Ce que la feuille de style écrit : un signe peut être vert (« > »), un mot ou un chiffre non.
+        for (const pseudo of ["::before", "::after"]) {
+          const style = getComputedStyle(el, pseudo);
+          if (style.content !== "none" && style.content !== "normal" && /[\p{L}\p{N}]/u.test(style.content) && estVert(style.color)) verts.push(`${nom}${pseudo} : ${style.content}`);
+        }
+      }
+      return verts;
+    }, vert);
+  // Sur téléphone, le sommaire s'ouvre d'abord : ses lignes passent le contrôle avec le premier chapitre.
+  if (mobile) await page.getByRole("navigation", { name: "Chapitres du guide du clan" }).getByRole("button", { name: /Chapitres/ }).click();
+  expect(await textesVerts(), "premier chapitre").toEqual([]);
+  const ancres = await page.getByTestId("guide-chapter").evaluateAll((chapitres) => chapitres.map((c) => c.id));
+  for (const ancre of ancres) {
+    await page.goto(`/debuter#${ancre}`);
+    await expect(page.locator(`#${ancre}`)).toBeVisible();
+    await openFolds(page);
+    expect(await textesVerts(), ancre).toEqual([]);
+  }
+  // La voix de la machine, elle, est verte : la ligne de commande du chapitre ouvert et le dossier du sommaire.
+  const couleurDe = (selecteur: string, pseudo?: string) => page.locator(selecteur).first().evaluate((el, p) => getComputedStyle(el, p).color, pseudo);
+  expect(await couleurDe(".guide-ouvert .guide-commande")).toBe(vert);
+  if (mobile) await page.getByRole("navigation", { name: "Chapitres du guide du clan" }).getByRole("button", { name: /Chapitres/ }).click();
+  expect(await couleurDe(".guide-plan-racine")).toBe(vert);
+  await expect(page.locator(".guide-ouvert .guide-commande")).toHaveText(/^gal@guide:~\$ \.\/memo-economie$/);
+  // Deux témoins pour ce que la feuille de style écrit : le « > » de l'essentiel est vert, c'est un signe ; l'étiquette
+  // « essai » est un mot, que le contrôle lit bien, et elle n'est pas verte.
+  await page.goto("/debuter#chapitre-01-bases");
+  await expect(page.locator("#chapitre-01-bases")).toBeVisible();
+  expect(await couleurDe(".guide-ouvert .guide-essentiel > li", "::before")).toBe(vert);
+  const etiquette = await page.locator(".guide-ouvert .guide-outil[data-etiquette]").first().evaluate((el) => {
+    const style = getComputedStyle(el, "::before");
+    return { mot: style.content, couleur: style.color };
+  });
+  expect(etiquette.mot).toContain("essai");
+  expect(etiquette.couleur).not.toBe(vert);
+});
+
+// « À l'impression, le guide entier » : les onze chapitres, « Détails et formules » dépliés, sans le sommaire ni les
+// boutons « Précédent » et « Suivant », qui ne mènent nulle part sur le papier.
+test("à l'impression, le guide du clan donne tous ses chapitres, détails dépliés", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "Le papier n'a qu'une largeur.");
+  await page.goto("/debuter");
+  await page.waitForLoadState("networkidle");
+  // À l'écran, un seul chapitre et des détails repliés : sans quoi la suite ne prouverait rien.
+  await expect(page.getByTestId("guide-chapter").filter({ visible: true })).toHaveCount(1);
+  const visibles = (selecteur: string) => page.locator(selecteur).evaluateAll((els) => els.filter((el) => el.checkVisibility()).length);
+  const details = await page.locator(".guide-details").count();
+  expect(details).toBeGreaterThan(0);
+  expect(await visibles(".guide-ouvert .guide-details > .guide-body")).toBe(0);
+  // Un détail ouvert à l'écran avant d'imprimer : sur le papier, il ne garde pas son « − », ni les autres leur « + ».
+  await page.locator(".guide-ouvert .guide-details > summary").click();
+  await expect(page.locator(".guide-ouvert .guide-details")).toHaveAttribute("open", "");
+  const signes = () => page.locator(".guide-details > summary").evaluateAll((els) => [...new Set(els.map((el) => getComputedStyle(el, "::after").content))]);
+  // À l'écran, deux signes : celui des détails repliés et celui du détail ouvert.
+  const aLEcran = await signes();
+  expect(aLEcran).toHaveLength(2);
+  expect(aLEcran).not.toContain("none");
+  await page.emulateMedia({ media: "print" });
+  expect(await visibles("[data-guide-chapitre]")).toBe(await page.getByTestId("guide-chapter").count());
+  expect(await visibles(".guide-details > .guide-body")).toBe(details);
+  expect(await visibles(".guide-pas")).toBe(0);
+  expect(await visibles(".guide-plan")).toBe(0);
+  expect(await signes()).toEqual(["none"]);
 });
 
 // Le script du guide ajoute le sommaire du téléphone, le focus et le défilement ; les chapitres, eux, ne dépendent que

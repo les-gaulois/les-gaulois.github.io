@@ -5,8 +5,7 @@ import PageHeader from "../components/PageHeader.astro";
 import IconePartie from "../components/compte/IconePartie";
 import CroissanceValeurs from "../components/guide/CroissanceValeurs.astro";
 import GuideBloc from "../components/guide/GuideBloc.astro";
-import { ancreDuChapitre, commandeDuChapitre, morceauxGras, numeroDuChapitre, parGroupe, titreEnDeux } from "../lib/guide";
-import { invite } from "../lib/nav";
+import { ancreDuChapitre, commandeDuChapitre, morceauxGras, motsComposes, numeroDuChapitre, parGroupe, titreEnDeux } from "../lib/guide";
 
 // Le guide du clan : un chapitre par fichier de content/guide-clan/, dans l'ordre de leur numéro.
 const entries = (await getCollection("guideClan")).sort((a, b) => a.data.order - b.data.order);
@@ -26,9 +25,6 @@ const chapitres = await Promise.all(
   })),
 );
 const groupes = parGroupe(chapitres);
-// Le dossier et la commande de l'invite au-dessus du titre (« gal@clan:~/guides$ ./debuter ») : la barre d'un chapitre
-// écrit la même commande, suivie du chapitre, et le sommaire en fait un dossier.
-const { dossier, commande } = invite("/debuter");
 // Une ligne d'un bloc peut renvoyer au chapitre qui l'explique : un nom de fichier mal écrit arrête la construction.
 for (const c of chapitres) {
   for (const p of c.points) {
@@ -38,9 +34,21 @@ for (const c of chapitres) {
 const premier = chapitres[0];
 ---
 
-<Base title="Guide du clan" description="Le guide du clan GAL pour débuter sur OpenFront : combat, économie et alliances, un chapitre à la fois, avec des essais à manipuler.">
+{/* `console` : depuis le 12 novembre 2026, à la demande du pilote (« comme la Carte »), le guide est dans le style Terminal du
+    QG et de la Carte, en bleu (docs/DESIGN.md, « Le guide du clan »). Ses lignes de commande (« gal@guide:~$ ./bases ») sont
+    écrites dans la page, décoratives et cachées aux lecteurs d'écran. */}
+<Base
+  title="Guide du clan"
+  description="Le guide du clan GAL pour débuter sur OpenFront : combat, économie et alliances, un chapitre à la fois, avec des essais à manipuler."
+  ambiance="console"
+>
   <div class="wrap">
-    <PageHeader title="Le guide du clan" intro="Commencez par les chapitres 1 à 5. Le chapitre 9 aide à éviter les erreurs d'alliance." />
+    <PageHeader title="Le guide du clan" intro="Commencez par les chapitres 1 à 5. Le chapitre 9 aide à éviter les erreurs d'alliance.">
+      {/* Décorative : le titre dit déjà où l'on est. */}
+      <p slot="avant-titre" class="console-invite" aria-hidden="true">
+        <span class="console-hote">gal@guide</span>:~$<span class="console-commande">&nbsp;./guide</span><span class="console-curseur"></span>
+      </p>
+    </PageHeader>
 
     {/* Un chapitre à la fois, dans une fenêtre de terminal, avec son sommaire (docs/DESIGN.md, « Le guide du clan »).
         Sans JavaScript, la page donne tous les chapitres à la suite : rien n'est caché tant que le script n'a pas pris la main. */}
@@ -55,7 +63,7 @@ const premier = chapitres[0];
           </svg>
         </button>
         <div class="guide-plan-liste" id="guide-plan-liste">
-          <p class="guide-plan-racine" aria-hidden="true">{dossier}/{commande}</p>
+          <p class="guide-plan-racine" aria-hidden="true">~/guide</p>
           {
             groupes.map((g) => (
               <div class="guide-plan-groupe">
@@ -87,16 +95,9 @@ const premier = chapitres[0];
             const { Content } = c;
             return (
               <section class="guide-chapitre" id={c.ancre} aria-labelledby={`titre-${c.id}`} data-guide-chapitre data-court={`${c.numero} · ${c.court}`} data-testid="guide-chapter">
-                {/* La barre de la fenêtre : la commande du chapitre et l'avancée dans le guide. Décorative : le titre et « Chapitre 3 sur 11 » le disent. */}
+                {/* La barre de la fenêtre : son nom et l'avancée dans le guide. Décorative : le titre et « Chapitre 3 sur 11 » le disent. */}
                 <p class="guide-barre" aria-hidden="true">
-                  <span class="guide-commande">
-                    <span class="guide-commande-hote">
-                      <span class="invite-hote">gal@clan</span>:{dossier}$&nbsp;
-                    </span>
-                    <span class="invite-commande">
-                      ./{commande} {c.commande}
-                    </span>
-                  </span>
+                  <span class="guide-barre-nom">■ {c.commande}</span>
                   <span class="guide-avance">
                     <span class="guide-jalons">
                       {chapitres.map((autre) => (
@@ -110,14 +111,19 @@ const premier = chapitres[0];
                 </p>
 
                 <div class="guide-corps">
+                  {/* La ligne de commande du chapitre, la voix de la machine : elle s'écrit quand il s'ouvre. Décorative. */}
+                  <p class="guide-commande" aria-hidden="true">
+                    <span class="console-hote">gal@guide</span>:~$ ./{c.commande}
+                  </p>
                   <header class="guide-tete">
                     <IconePartie nom={c.icone} classe="guide-icone" />
                     <div class="min-w-0">
                       <p class="guide-etiquette">
                         Chapitre {c.index + 1} sur {total}
                       </p>
+                      {/* Un mot composé (« Aide-mémoire ») ne se coupe pas à son trait d'union. */}
                       <h2 id={`titre-${c.id}`} class="guide-titre" tabindex="-1" data-guide-titre>
-                        {c.enDeux.titre}
+                        {motsComposes(c.enDeux.titre).map((m) => (m.insecable ? <span class="guide-insecable">{m.texte}</span> : m.texte))}
                       </h2>
                       {c.enDeux.precision && <p class="guide-precision">{c.enDeux.precision}</p>}
                     </div>
