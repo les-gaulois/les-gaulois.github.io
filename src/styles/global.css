@@ -2146,7 +2146,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   --console-grille-forte: color-mix(in srgb, var(--color-flag-blue) 18%, transparent);
   --console-lueur: color-mix(in srgb, var(--color-flag-blue) 60%, transparent);
   /* Le vert d'un terminal : ce qui va bien (les « OK », le voyant de la session), les commandes et les chiffres, et la
-     chute du logo Matrix. */
+     chute du logo Matrix. Sur la page Carte, les commandes et les icônes seulement : ses chiffres restent blancs. */
   --console-vert: #4ade80;
 }
 /* Le bouton garde le rouge du thème de l'encadrement : la règle bleue ci-dessus, plus forte que [data-theme="rouge"],
@@ -4711,11 +4711,9 @@ footer h2 {
   --carte-vitre: color-mix(in srgb, var(--color-night) 88%, transparent);
   font-size: 0.9375rem;
 }
-/* Les chiffres en vert de terminal, comme au QG. Ce qui a déjà sa couleur la garde : un texte secondaire, un avertissement,
-   une pastille ou un bouton. */
-.carte .tnum:not(.text-muted, .text-warn, .chip, .btn) {
-  color: var(--console-vert);
-}
+/* Le vert de terminal n'est que la voix de la machine : les lignes de commande, « ~/carte », les « > » et les icônes. Les
+   textes et les chiffres restent en blanc et en gris : le soir de la mise en ligne, le 12 novembre 2026, le pilote a
+   trouvé « trop de verts dans les textes », quand tous les chiffres de la page étaient verts. */
 
 /* La session : l'invite, le titre de la page et la date des données. */
 .carte-session {
@@ -5143,7 +5141,9 @@ footer h2 {
   line-height: 1;
   letter-spacing: -0.03em;
   white-space: nowrap;
-  text-shadow: 0 0 1.25rem color-mix(in srgb, var(--console-vert) 45%, transparent);
+  color: #fff;
+  /* La lueur bleue des champs du QG, pas le vert : le chiffre clé reste blanc. */
+  text-shadow: 0 0 1.25rem var(--console-lueur, transparent);
 }
 /* Une valeur en mots (« Environ 12 000 pixels neutres ») peut passer à la ligne entre deux mots. */
 .carte-chiffre-sm {
@@ -5165,16 +5165,16 @@ footer h2 {
 .carte-petit {
   font-size: 0.8125rem;
 }
-/* La dernière mesure d'une courbe (LineChart.tsx), dans une fenêtre : la voix de la machine, comme les autres chiffres,
-   au lieu de l'onciale des pages de lecture. */
+/* La dernière mesure d'une courbe (LineChart.tsx), dans une fenêtre : en chasse fixe, comme les autres chiffres de la
+   console, au lieu de l'onciale des pages de lecture ; en blanc, avec la lueur du chiffre clé. */
 .carte .kpi-value {
   margin-top: 0.25rem;
   font-family: var(--font-console);
   font-size: 1.375rem;
   line-height: 1.2;
   letter-spacing: -0.03em;
-  color: var(--console-vert);
-  text-shadow: 0 0 1.25rem color-mix(in srgb, var(--console-vert) 45%, transparent);
+  color: #fff;
+  text-shadow: 0 0 1.25rem var(--console-lueur, transparent);
 }
 .carte .kpi-label {
   font-size: 1rem;
@@ -5340,9 +5340,6 @@ footer h2 {
 }
 .carte-podium .film-rows {
   margin-top: 0.5rem;
-}
-.carte .film-row.is-gal {
-  color: #fff;
 }
 .carte .carte-podium-gal {
   margin-top: 0.25rem;

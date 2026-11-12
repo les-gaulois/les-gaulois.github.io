@@ -1146,6 +1146,47 @@ test.describe("film de la carte", () => {
     expect(violations.map((v) => `clan choisi — ${v.id}: ${v.nodes.map((n) => n.target).join(" ; ")}`)).toEqual([]);
   });
 
+  // Le soir de la mise en ligne, tous les chiffres de la page étaient en vert de terminal, et le pilote a trouvé « trop de
+  // verts dans les textes ». Le vert n'est plus que la voix de la machine : la ligne de commande de chaque fenêtre,
+  // « ~/carte », les « > » et les icônes. Aucun texte ni aucun chiffre n'est vert, dans aucune fenêtre.
+  test("le vert ne sert qu'aux lignes de commande et aux icônes, jamais aux textes ni aux chiffres", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/carte");
+    await expect(playButton(page)).toBeVisible();
+    // Le vert de la console, tel que le navigateur l'écrit dans la page Carte (une sonde posée dedans voit aussi un vert
+    // redéfini pour elle seule).
+    const vert = await page.locator("[data-carte]").evaluate((carte) => {
+      const sonde = document.createElement("i");
+      sonde.style.color = "var(--console-vert)";
+      carte.append(sonde);
+      const couleur = getComputedStyle(sonde).color;
+      sonde.remove();
+      return couleur;
+    });
+    // Une vraie couleur, et pas le blanc du texte : sans quoi le contrôle ne prouverait rien.
+    expect(vert).not.toBe(await page.locator("[data-carte]").evaluate((carte) => getComputedStyle(carte).color));
+    const textesVerts = () =>
+      page.evaluate((vert) => {
+        const verts: string[] = [];
+        for (const el of document.querySelectorAll<HTMLElement>("[data-carte] *")) {
+          // L'invite de la session (« gal@carte:~$ ./carte ») est une commande. Les textes décoratifs cachés aux lecteurs
+          // d'écran, comme la date posée sur la carte, sont contrôlés : ils se voient.
+          if (el.closest(".console-invite, .sr-only") || el.getClientRects().length === 0) continue;
+          const texte = [...el.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE).map((n) => n.textContent ?? "").join("").trim();
+          if (texte && getComputedStyle(el).color === vert) verts.push(`${el.tagName.toLowerCase()}.${el.className} : ${texte.slice(0, 40)}`);
+        }
+        return verts;
+      }, vert);
+    expect(await textesVerts(), "à l'arrivée").toEqual([]);
+    for (const id of await dock(page).getByRole("link").filter({ visible: true }).evaluateAll((links) => links.map((link) => link.getAttribute("data-ouvre") ?? ""))) {
+      await openWindow(page, id);
+      expect(await textesVerts(), id).toEqual([]);
+    }
+    // La voix de la machine, elle, reste verte : la ligne de commande d'une fenêtre.
+    await openWindow(page, "clans");
+    expect(await windowOf(page, "clans").locator(".carte-fenetre-corps[data-commande]").evaluate((el) => getComputedStyle(el, "::before").color)).toBe(vert);
+  });
+
   // La mention d'OpenFront et la licence du fond de carte ne sont jamais à plus d'un regard : un crédit posé sur la carte,
   // comme sur toute carte en ligne, quelle que soit la fenêtre ouverte. Il mène à la légende, qui dit tout.
   test("le crédit de la carte reste sous les yeux, et mène à la légende", async ({ page }) => {

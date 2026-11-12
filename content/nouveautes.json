@@ -2,6 +2,16 @@
   {
     "date": "2026-11-12",
     "kind": "ameliore",
+    "title": "Moins de vert sur la carte",
+    "body": "Sur la page Carte, les textes et les chiffres s'écrivent maintenant en blanc et en gris. Le vert reste surtout sur les icônes et les lignes « gal@carte ».",
+    "link": {
+      "href": "/carte",
+      "label": "Ouvrir la carte"
+    }
+  },
+  {
+    "date": "2026-11-12",
+    "kind": "ameliore",
     "title": "La carte devient une console",
     "body": "La page Carte tient dans l'écran, dans le style du QG. On zoome, on déplace la carte, on clique un territoire pour nommer son clan, et le reste s'ouvre en fenêtres depuis la rangée du bas.",
     "link": {
