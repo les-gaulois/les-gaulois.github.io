@@ -2,7 +2,10 @@
  * L'onciale de cases (« GAL Onciale ») : la police des titres de toutes les pages sauf le QG et la Direction, depuis le
  * 12 novembre 2026. Le pilote voulait des lettres « dans le design gaulois - hacker » : l'onciale des vieux manuscrits,
  * posée case par case comme un territoire d'OpenFront. Chaque lettre est dessinée ici en cases (« # » pleine, « . » vide) ;
- * scripts/generate-police.ts en tire la police à chaque construction. Voir « Typographie » dans docs/DESIGN.md.
+ * scripts/generate-police.ts en tire la police à chaque construction : en cases visibles pour les grands titres, taillée
+ * (sans marches d'escalier) pour les petits textes. Deux cases d'un dessin se touchent toujours par un côté, jamais par un
+ * seul coin : taillé, le signe se déferait (seule exception, dans le « @ », entre son anneau et sa lettre, qui ne se
+ * touchent pas). Voir « Typographie » dans docs/DESIGN.md.
  *
  * Licence : ce fichier et les polices qui en sont tirées sont sous SIL Open Font License 1.1, pas sous l'AGPL du site ;
  * les outils qui les fabriquent ou les mesurent (cases.ts, largeur.ts, scripts/generate-police.ts) restent sous l'AGPL.
@@ -21,7 +24,11 @@ export interface Dessin {
   readonly approche?: number;
 }
 
-/** Le corps des lettres : 10 rangées, de y = 0 à y = 9. Les hampes montent jusqu'à 12, les jambages descendent à -3. */
+/**
+ * Le corps des lettres : 10 rangées, de y = 0 à y = 9. Toutes les capitales ont cette hauteur, depuis que le pilote a trouvé
+ * le L « trop grand par rapport aux autres lettres » : seuls les accents montent au-dessus (jusqu'à 12), et la queue du Q,
+ * la cédille et la virgule descendent sous la ligne de base (jusqu'à -3).
+ */
 export const CORPS = 10;
 /** Unités de police par case : le corps fait 700 unités sur 1 000, comme la capitale d'Outfit qu'elle remplace. */
 export const CASE = 70;
@@ -88,21 +95,18 @@ export const LETTRES: Readonly<Record<string, Dessin>> = {
     .###.....
     ..###..##
     ....####.`),
-  // Le D onciale : la panse ronde, et le trait de droite qui monte puis revient vers la gauche.
-  D: dessin(12, `
-    ..######...
-    .......###.
-    ........###
-    ...########
-    .###....###
-    ###.....###
-    ###.....###
-    ###.....###
-    ###.....###
-    ###.....###
-    ###.....###
-    .###...###.
-    ...#####...`),
+  // Un D courant, depuis le 12 novembre 2026 : le D onciale, dont le trait revenait vers la gauche, se lisait comme un A.
+  D: dessin(9, `
+    #######...
+    ###..####.
+    ###....###
+    ###....###
+    ###....###
+    ###....###
+    ###....###
+    ###....###
+    ###..####.
+    #######...`),
   E: dessin(9, `
     ....####.
     ..###..##
@@ -124,9 +128,7 @@ export const LETTRES: Readonly<Record<string, Dessin>> = {
     ###.....
     ###.....
     ###.....
-    ###.....
-    ###.....
-    ##......`),
+    ###.....`),
   G: dessin(9, `
     ....####..
     ..###..##.
@@ -138,15 +140,13 @@ export const LETTRES: Readonly<Record<string, Dessin>> = {
     .###...###
     ..###.###.
     ....####..`),
-  H: dessin(11, `
-    ###.......
-    ###.......
-    ###.####..
-    #####..##.
+  H: dessin(9, `
     ###....###
     ###....###
     ###....###
     ###....###
+    ##########
+    ##########
     ###....###
     ###....###
     ###....###
@@ -163,22 +163,17 @@ export const LETTRES: Readonly<Record<string, Dessin>> = {
     ###.
     ####`),
   J: dessin(9, `
-    .####
-    ..###
-    ..###
-    ..###
-    ..###
-    ..###
-    ..###
-    ..###
-    ..###
-    ..###
-    ..##.
-    .##..
-    ##...`),
-  K: dessin(11, `
-    ###.......
-    ###.......
+    ...####
+    ....###
+    ....###
+    ....###
+    ....###
+    ....###
+    ....###
+    ##..###
+    ###.###
+    .#####.`),
+  K: dessin(9, `
     ###...###.
     ###..###..
     ###.###...
@@ -189,20 +184,18 @@ export const LETTRES: Readonly<Record<string, Dessin>> = {
     ###..###..
     ###...###.
     ###....###`),
-  L: dessin(11, `
-    ###....
-    ###....
-    ###....
-    ###....
-    ###....
-    ###....
-    ###....
-    ###....
-    ###....
-    ###....
-    ###....
-    #######`),
-  // Le M onciale : deux arches rondes autour du trait du milieu.
+  L: dessin(9, `
+    ###.....
+    ###.....
+    ###.....
+    ###.....
+    ###.....
+    ###.....
+    ###.....
+    ###.....
+    ###...##
+    ########`),
+  // Le M onciale : deux arches rondes autour du trait du milieu, les jambes droites.
   M: dessin(9, `
     ..####...####..
     .##..#####..##.
@@ -211,9 +204,9 @@ export const LETTRES: Readonly<Record<string, Dessin>> = {
     ##....###....##
     ##....###....##
     ##....###....##
-    ###...###...###
-    .###..###..###.
-    ..##..###..##..`),
+    ##....###....##
+    ##....###....##
+    ##....###....##`),
   N: dessin(9, `
     ###.....##
     ####....##
@@ -236,33 +229,30 @@ export const LETTRES: Readonly<Record<string, Dessin>> = {
     ###....###
     .###..###.
     ...####...`),
+  // La panse du R et quatre rangées de jambe : avec une panse plus grande, le P se lisait comme un D.
   P: dessin(9, `
     ######....
     ###..###..
     ###...###.
-    ###....###
-    ###....###
     ###...###.
     ###..###..
     ######....
     ###.......
     ###.......
     ###.......
-    ##........`),
+    ###.......`),
   Q: dessin(9, `
-    ...#######
-    .###...###
+    ...####...
+    .###..###.
     ###....###
     ###....###
     ###....###
     ###....###
     ###....###
-    ###....###
-    .###..####
-    ...#######
-    .......###
-    .......###
-    ........##`),
+    ###..#.###
+    .###.####.
+    ...######.
+    ......####`),
   R: dessin(9, `
     ######....
     ###..###..
@@ -319,8 +309,8 @@ export const LETTRES: Readonly<Record<string, Dessin>> = {
     ....###...
     ....##....`),
   W: dessin(9, `
-    ###...###...###
-    ###...###...###
+    ###.........###
+    ###.........###
     ###...###...###
     ###...###...###
     ###...###...###
@@ -498,10 +488,10 @@ export const SIGNES: Readonly<Record<string, Dessin>> = {
     ##
     ##`),
   ",": dessin(1, `
-    ##
-    ##
-    .#
-    #.`),
+    .##
+    .##
+    .#.
+    ##.`),
   ":": dessin(6, `
     ##
     ##
@@ -511,15 +501,15 @@ export const SIGNES: Readonly<Record<string, Dessin>> = {
     ##
     ##`),
   ";": dessin(6, `
-    ##
-    ##
-    ..
-    ..
-    ..
-    ##
-    ##
-    .#
-    #.`),
+    .##
+    .##
+    ...
+    ...
+    ...
+    .##
+    .##
+    .#.
+    ##.`),
   "!": dessin(9, `
     ###
     ###
@@ -543,39 +533,39 @@ export const SIGNES: Readonly<Record<string, Dessin>> = {
     ..##...
     ..##...`),
   "'": dessin(9, `
-    ##
-    ##
-    .#
-    #.`),
+    .##
+    .##
+    .#.
+    ##.`),
   // apostrophe
   [String.fromCharCode(0x2019)]: dessin(9, `
-    ##
-    ##
-    .#
-    #.`),
+    .##
+    .##
+    .#.
+    ##.`),
   // guillemet simple ouvrant
   [String.fromCharCode(0x2018)]: dessin(9, `
-    .#
-    #.
-    ##
-    ##`),
+    .##
+    .#.
+    ##.
+    ##.`),
   '"': dessin(9, `
-    ##.##
-    ##.##
-    .#..#
-    #..#.`),
+    .##..##
+    .##..##
+    .#...#.
+    ##..##.`),
   // guillemet anglais ouvrant
   [String.fromCharCode(0x201c)]: dessin(9, `
-    .#..#
-    #..#.
-    ##.##
-    ##.##`),
+    .##..##
+    .#...#.
+    ##..##.
+    ##..##.`),
   // guillemet anglais fermant
   [String.fromCharCode(0x201d)]: dessin(9, `
-    ##.##
-    ##.##
-    .#..#
-    #..#.`),
+    .##..##
+    .##..##
+    .#...#.
+    ##..##.`),
   "«": dessin(7, `
     ...##..##
     ..##..##.
@@ -735,9 +725,9 @@ export const SIGNES: Readonly<Record<string, Dessin>> = {
     ##...###...
     ##....###..
     .##..##.##.
-    ..###....##`),
+    ..####...##`),
   "@": dessin(9, `
-    ...#####...
+    ..#######..
     .##.....##.
     ##..####.##
     ##.##..#.##
@@ -755,10 +745,10 @@ export const SIGNES: Readonly<Record<string, Dessin>> = {
     ##..##..##
     ##..##..##`),
   "°": dessin(9, `
-    .##.
-    #..#
-    #..#
-    .##.`),
+    .###.
+    ##.##
+    ##.##
+    .###.`),
   "€": dessin(9, `
     ....#####
     ..###...#
@@ -772,7 +762,7 @@ export const SIGNES: Readonly<Record<string, Dessin>> = {
     ....#####`),
   "*": dessin(9, `
     ...#...
-    #..#..#
+    ##.#.##
     .#####.
     ..###..
     .##.##.
@@ -794,19 +784,19 @@ export const SIGNES: Readonly<Record<string, Dessin>> = {
     ##`),
   "<": dessin(8, `
     .....##
-    ...##..
-    .##....
+    ...###.
+    .###...
     ##.....
-    .##....
-    ...##..
+    .###...
+    ...###.
     .....##`),
   ">": dessin(8, `
     ##.....
-    ..##...
-    ....##.
+    .###...
+    ...###.
     .....##
-    ....##.
-    ..##...
+    ...###.
+    .###...
     ##.....`),
 };
 
@@ -825,12 +815,12 @@ export const MARQUES = {
     ##.##
     ##.##`),
   tilde: dessin(12, `
-    .##..#
-    #..##.`),
+    .##..##
+    ######.`),
   cedille: dessin(-1, `
     .##
     ..#
-    ##.`),
+    ###`),
 } as const satisfies Record<string, Dessin>;
 
 export type Marque = keyof typeof MARQUES;

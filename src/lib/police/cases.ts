@@ -1,6 +1,7 @@
 /**
  * Des cases aux contours d'une police : scripts/generate-police.ts s'en sert pour fabriquer l'onciale de cases
- * (src/lib/police/onciale.ts). Calcul pur, testé dans tests/unit/police.test.ts.
+ * (src/lib/police/onciale.ts), en cases pour les grands titres, taillée pour les petits textes. Calcul pur, testé dans
+ * tests/unit/police.test.ts.
  */
 import type { Dessin } from "./onciale";
 
@@ -87,4 +88,81 @@ export function aire(boucle: readonly Point[]): number {
     s += a[0] * b[1] - b[0] * a[1];
   }
   return s / 2;
+}
+
+/** Ce qui adoucit un contour en marches d'escalier, en cases. */
+export interface Taille {
+  /** Le biseau d'un vrai coin, entre deux longs côtés. */
+  readonly coin: number;
+  /** La coupe la plus longue sur un long côté qui touche une marche : la pente par laquelle il rejoint l'escalier. */
+  readonly rampe: number;
+}
+
+/**
+ * Le contour taillé des petits textes (« GAL Onciale ») : un biseau de 0,3 case aux vrais coins, une pente d'une case au
+ * plus vers une marche. scripts/generate-police.ts fabrique la police avec ce réglage, et les tests le contrôlent.
+ */
+export const TAILLE_TEXTES: Taille = { coin: 0.3, rampe: 1 };
+
+const distance = (a: Point, b: Point) => Math.hypot(b[0] - a[0], b[1] - a[1]);
+/** Le point à la distance `d` de `de`, en allant vers `vers`. */
+const avance = (de: Point, vers: Point, d: number): Point => {
+  const l = distance(de, vers);
+  return [de[0] + ((vers[0] - de[0]) / l) * d, de[1] + ((vers[1] - de[1]) / l) * d];
+};
+
+/** Retire d'une boucle fermée les points confondus, puis les points alignés avec leurs voisins. */
+function sansPointsInutiles(points: readonly Point[]): Point[] {
+  const eps = 1e-6;
+  let p = points.filter((q, i) => distance(q, points[(i + 1) % points.length] as Point) > eps);
+  // Retirer un point aligné peut en aligner un autre : quelques passes suffisent pour un signe.
+  for (let passe = 0; passe < 3; passe++) {
+    p = p.filter((q, i) => {
+      const a = p[(i - 1 + p.length) % p.length] as Point;
+      const b = p[(i + 1) % p.length] as Point;
+      return Math.abs((q[0] - a[0]) * (b[1] - q[1]) - (q[1] - a[1]) * (b[0] - q[0])) > eps;
+    });
+  }
+  return p;
+}
+
+/**
+ * Le contour « taillé » d'une boucle de `contours` : les petits textes ne s'écrivent pas en cases, illisibles à 15 px.
+ * Chaque marche d'escalier est remplacée par une droite qui passe par son milieu : un escalier régulier devient un pan
+ * coupé bien droit. Une marche est un côté d'une case entre un coin saillant et un coin rentrant, ou de deux cases s'il
+ * touche une marche d'une case (un escalier de pente 2 pour 1) : deux côtés de deux cases qui se suivent sont le bout d'un
+ * trait (les barres du « # », la jambe d'un P), pas un escalier, et restent droits. Un long côté qui touche une marche
+ * la rejoint par une pente (`rampe`), et un vrai coin, entre deux longs côtés, ne garde qu'un petit biseau (`coin`). Le
+ * sens de la boucle ne change pas, et sa surface à peine.
+ */
+export function tailler(boucle: readonly Point[], { coin, rampe }: Taille): Point[] {
+  const n = boucle.length;
+  const pt = (i: number) => boucle[((i % n) + n) % n] as Point;
+  // Le sens du virage à chaque sommet : +1 saillant, -1 rentrant (la région pleine est à gauche du trait).
+  const virages = boucle.map((p, i) => {
+    const a = pt(i - 1);
+    const b = pt(i + 1);
+    return Math.sign((p[0] - a[0]) * (b[1] - p[1]) - (p[1] - a[1]) * (b[0] - p[0]));
+  });
+  const virage = (i: number) => virages[((i % n) + n) % n] as number;
+  // Le côté i va du sommet i au sommet i + 1.
+  const longueur = (i: number) => distance(pt(i), pt(i + 1));
+  // Entre un coin saillant et un coin rentrant, sur une case au plus : la marche d'un escalier.
+  const petiteMarche = (i: number) => virage(i) !== virage(i + 1) && longueur(i) <= 1;
+  const marche = (i: number) =>
+    petiteMarche(i) || (virage(i) !== virage(i + 1) && longueur(i) <= 2 && (petiteMarche(i - 1) || petiteMarche(i + 1)));
+  // La coupe d'un côté à l'un de ses bouts, selon le côté voisin à ce bout.
+  const coupe = (i: number, voisin: number) => {
+    const l = longueur(i);
+    if (marche(i)) return l / 2;
+    if (marche(voisin)) return Math.min(l / 3, rampe);
+    return Math.min(coin, l / 2);
+  };
+  const out: Point[] = [];
+  for (let i = 0; i < n; i++) {
+    // Sur le côté qui arrive au sommet, puis sur celui qui en part.
+    out.push(avance(pt(i), pt(i - 1), coupe(i - 1, i)));
+    out.push(avance(pt(i), pt(i + 1), coupe(i, i - 1)));
+  }
+  return sansPointsInutiles(out);
 }

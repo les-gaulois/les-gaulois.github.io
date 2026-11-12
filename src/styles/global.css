@@ -3808,8 +3808,9 @@ footer h2 {
    caractère des lettres, dans le design gaulois - hacker ». Les titres et les gros chiffres s'écrivent dans l'onciale de
    cases (src/lib/police/onciale.ts, déclarée et préchargée par Base.astro) : l'onciale des vieux manuscrits, posée case
    par case comme un territoire d'OpenFront. Entre trois versions, il a choisi celle aux cases visibles : les grands titres
-   (h1, .section-title) et les chiffres clés montrent le joint entre leurs cases ; le reste (petits h2, h3, tags) est en
-   cases pleines, où un joint d'un demi-pixel ne ferait que griser la lettre. Un caractère qu'elle n'a pas passe à
+   (h1, .section-title) et les chiffres clés montrent le joint entre leurs cases ; le reste (petits h2, h3, tags) s'écrit
+   dans les mêmes lettres taillées, sans marches d'escalier : il aimait les cases des grands titres, mais trouvait les
+   textes trop pixélisés (scripts/generate-police.ts). Un caractère qu'elle n'a pas passe à
    Outfit, puis à la police de l'appareil (le cyrillique, qu'Outfit n'a pas non plus). Le texte à lire reste en Inter,
    la machine en JetBrains Mono ; le QG et la Direction gardent Outfit. Base.astro pose data-lettres="onciale" sur
    toutes les pages sauf ces deux-là : une page qui passerait en ambiance console garderait l'onciale.

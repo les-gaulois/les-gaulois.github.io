@@ -1,20 +1,23 @@
 /**
  * Fabrique l'onciale de cases (src/lib/police/onciale.ts) dans public/generated/polices/, à chaque construction :
- * - onciale.woff2, les cases fusionnées en contours pleins : tous les titres et les gros chiffres des pages ouvertes à tous ;
- * - onciale-cases.woff2, chaque case séparée de ses voisines par un joint, comme la grille de conquête.
+ * - onciale-cases.woff2, chaque case séparée de ses voisines par un joint, comme la grille de conquête : les grands
+ *   titres et les chiffres clés ;
+ * - onciale.woff2, les mêmes lettres « taillées » : le contour des cases, ses marches d'escalier remplacées par des pans
+ *   coupés (tailler, dans src/lib/police/cases.ts). Les petits titres et les textes, que le pilote trouvait trop pixélisés.
  * Les deux sont sous SIL Open Font License 1.1 (voir l'en-tête de onciale.ts et NOTICE.md).
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import opentype from "opentype.js";
 import { compress } from "wawoff2";
-import { casesPleines, contours } from "../src/lib/police/cases";
+import { TAILLE_TEXTES, casesPleines, contours, tailler, type Taille } from "../src/lib/police/cases";
 import { APPROCHE, CASE, ESPACE, ESPACE_FINE, ESPACE_INSECABLE, ONCIALE, caracteresDe, chasse, glyphesOnciale } from "../src/lib/police/onciale";
 
 /** Le joint entre deux cases, en unités de chaque côté d'une case de 70 : 12 unités entre deux cases voisines. */
 const JOINT = 6;
 
-function police(famille: string, joint: number): opentype.Font {
+/** `joint` : les cases séparées, de ce joint ; sinon `taille` : le contour des cases, taillé. */
+function police(famille: string, forme: { joint: number } | { taille: Taille }): opentype.Font {
   const vide = (nom: string, unicode: number | undefined, cases: number) =>
     new opentype.Glyph({ name: nom, unicode, advanceWidth: cases * CASE, path: new opentype.Path() });
   const glyphes: opentype.Glyph[] = [
@@ -28,7 +31,8 @@ function police(famille: string, joint: number): opentype.Font {
     const path = new opentype.Path();
     const dx = (d.approche ?? APPROCHE) * CASE;
     const cases = casesPleines(d);
-    if (joint > 0) {
+    if ("joint" in forme) {
+      const { joint } = forme;
       for (const [x, y] of cases) {
         const x0 = dx + x * CASE + joint;
         const y0 = y * CASE + joint;
@@ -41,8 +45,11 @@ function police(famille: string, joint: number): opentype.Font {
         path.close();
       }
     } else {
+      // Des unités entières : une coupe d'un tiers de case ne tombe pas juste.
+      const X = (x: number) => Math.round(dx + x * CASE);
+      const Y = (y: number) => Math.round(y * CASE);
       for (const boucle of contours(cases)) {
-        boucle.forEach(([x, y], i) => (i === 0 ? path.moveTo(dx + x * CASE, y * CASE) : path.lineTo(dx + x * CASE, y * CASE)));
+        tailler(boucle, forme.taille).forEach(([x, y], i) => (i === 0 ? path.moveTo(X(x), Y(y)) : path.lineTo(X(x), Y(y))));
         path.close();
       }
     }
@@ -73,11 +80,11 @@ function police(famille: string, joint: number): opentype.Font {
 
 const dossier = join("public", "generated", "polices");
 mkdirSync(dossier, { recursive: true });
-for (const [fichier, famille, joint] of [
-  ["onciale.woff2", ONCIALE.famille, 0],
-  ["onciale-cases.woff2", ONCIALE.familleCases, JOINT],
+for (const [fichier, famille, forme] of [
+  ["onciale.woff2", ONCIALE.famille, { taille: TAILLE_TEXTES }],
+  ["onciale-cases.woff2", ONCIALE.familleCases, { joint: JOINT }],
 ] as const) {
-  const otf = new Uint8Array(police(famille, joint).toArrayBuffer());
+  const otf = new Uint8Array(police(famille, forme).toArrayBuffer());
   const woff2 = await compress(otf);
   writeFileSync(join(dossier, fichier), woff2);
   console.log(`Police ${famille} : ${dossier}/${fichier} (${woff2.length} octets)`);

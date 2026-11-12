@@ -1,6 +1,12 @@
 [
   {
     "date": "2026-11-12",
+    "kind": "ameliore",
+    "title": "Des lettres plus nettes et plus lisibles",
+    "body": "Les petits textes en lettres gauloises ne sont plus en cases : lettres taillées, sans marches d'escalier. Le D, le L, le H et d'autres sont redessinés : toutes les lettres ont la même hauteur."
+  },
+  {
+    "date": "2026-11-12",
     "kind": "nouveau",
     "title": "Le guerrier de l'accueil prend du relief",
     "body": "Sur l'accueil, le guerrier est en relief : il tourne la tête vers votre souris ou votre doigt, vous suit du regard et parle dans une petite bulle. Le bouton pause le remet à plat.",

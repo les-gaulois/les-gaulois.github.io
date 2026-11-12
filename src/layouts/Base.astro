@@ -49,8 +49,9 @@ const lastRun = loadMeta().lastRunAt;
 const nouveautesMarker = newsMarker(loadNouveautes());
 // L'onciale de cases (src/lib/police/onciale.ts), fabriquée à chaque construction : les titres et les gros chiffres de toutes
 // les pages sauf le QG et la Direction, comme l'a demandé le pilote le 12 novembre 2026 (« en dehors du QG et DIRECTION ») ;
-// une page qui passerait en ambiance console la garderait. En cases pleines et en cases visibles (grands titres, chiffres clés). Le QG
-// et la Direction gardent Outfit, dans leur style Terminal. Voir « Typographie » dans docs/DESIGN.md.
+// une page qui passerait en ambiance console la garderait. En cases visibles pour les grands titres et les chiffres clés,
+// taillée (sans marches d'escalier) pour les petits textes. Le QG et la Direction gardent Outfit, dans leur style Terminal.
+// Voir « Typographie » dans docs/DESIGN.md.
 const lettresOnciale = !["/qg", "/direction"].includes(path);
 const onciale = lettresOnciale
   ? [

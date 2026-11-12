@@ -229,7 +229,7 @@ test("l'onciale de cases écrit les titres des pages ouvertes à tous, pas ceux 
   expect({ titre: publique.titre, chiffre: publique.chiffre, pied: publique.pied }).toEqual({ titre: "GAL Onciale Cases", chiffre: "GAL Onciale Cases", pied: "JetBrains Mono Variable" });
   expect(publique.chargees).toContain("GAL Onciale Cases");
   expect(polices.some((p) => p.endsWith("/onciale-cases.woff2"))).toBe(true);
-  // Les petits titres de l'accueil, en cases pleines.
+  // Les petits titres de l'accueil, dans les mêmes lettres taillées, sans cases.
   await page.goto("/");
   await page.waitForLoadState("networkidle");
   expect(await page.evaluate(() => getComputedStyle(document.querySelector("main h3")!).fontFamily)).toMatch(/^"GAL Onciale",/);
