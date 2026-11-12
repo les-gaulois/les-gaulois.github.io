@@ -74,7 +74,7 @@ function MembershipRequest({ me, onChange }: { me: Me; onChange: () => Promise<v
       {/* Une demande acceptée, et pourtant un compte en attente : l'encadrement l'a remis en attente avec « Refaire la demande ». */}
       {request?.status === "approved" && (
         <p class="form-problem mt-3" data-testid="request-redo">
-          Refaites votre demande : votre profil n'a pas été trouvé dans la liste des membres. Indiquez votre pseudo exact, tel qu'il apparaît sur la page <a href={`${basePath()}/membres`}>Membres</a>, ou votre identifiant public si vous y figurez comme « Membre anonyme ».
+          Refaites votre demande : votre profil n'a pas été trouvé dans la liste des membres. Indiquez votre pseudo exact, tel qu'il apparaît dans la <a href={`${basePath()}/liste`}>liste des membres</a>, ou votre identifiant public si vous y figurez comme « Membre anonyme ».
         </p>
       )}
       <form

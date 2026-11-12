@@ -129,7 +129,7 @@ export interface MemberPlace {
 }
 
 /**
- * La place d'un membre dans le tri de la page Membres, par victoires en équipe sous le tag.
+ * La place d'un membre dans le tri de la liste des membres, par victoires en équipe sous le tag.
  * `null` si l'API n'a pas donné ses stats : pas de données, ce n'est pas une dernière place.
  */
 export function placeOf(members: readonly StoredMember[], member: StoredMember): MemberPlace | null {

@@ -38,7 +38,7 @@ export function activeContent(players: readonly ActivePlayer[], period: ActivePe
   return [
     `**${ACTIVE_TITLE} chez [${escapeDiscord(tag)}]**`,
     ...players.map((p) => `${MEDALS[p.place - 1] ?? "🏅"} [**${escapeDiscord(p.username)}**](<${profileUrl(site, p.id)}>) : ${activityWords(p)}`),
-    `[Voir les membres du clan](<${siteLink(site, "/membres/")}>)`,
+    `[Voir les membres du clan](<${siteLink(site, "/liste/")}>)`,
     `-# Parties en équipe sous le tag, ${periodWords(period)}. ${NAMED_ONLY} ${ACTIVE_NOTE}`,
   ].join("\n");
 }
@@ -48,7 +48,7 @@ export function activePayload(players: readonly ActivePlayer[], period: ActivePe
   const site = siteUrl.replace(/\/$/, "");
   if (!image) return textMessage(site, activeContent(players, period, tag, site));
   const only = players.length === 1 ? players[0] : undefined;
-  return imageMessage(site, image, [only ? { label: `Voir la fiche de ${only.username}`, url: profileUrl(site, only.id) } : { label: "Voir les membres du clan", url: siteLink(site, "/membres/") }]);
+  return imageMessage(site, image, [only ? { label: `Voir la fiche de ${only.username}`, url: profileUrl(site, only.id) } : { label: "Voir les membres du clan", url: siteLink(site, "/liste/") }]);
 }
 
 export interface ActiveSendDeps {

@@ -174,14 +174,14 @@ export function groupsContent(week: WeekGroups, siteUrl: string): string {
     week.duos.forEach((d, i) => lines.push(`${i + 1}. ${who(d.a)} et ${who(d.b)} : ${duoWords(d)}`));
     lines.push(DUOS_NOTE);
   }
-  lines.push(`[Seul ou en groupe, sur la fiche de chaque membre](<${siteLink(site, "/membres")}>)`);
+  lines.push(`[Seul ou en groupe, sur la fiche de chaque membre](<${siteLink(site, "/liste")}>)`);
   return lines.join("\n");
 }
 
 /** Le message. `image` : le fichier joint et sa description, avec un bouton vers les membres, sans texte. Sans elle, le secours en texte. */
 export function groupsPayload(week: WeekGroups, siteUrl: string, image: { alt: string; filename: string } | null): Record<string, unknown> {
   if (!image) return textMessage(siteUrl, groupsContent(week, siteUrl));
-  return imageMessage(siteUrl, image, [{ label: "Voir les membres du clan", url: siteLink(siteUrl, "/membres") }]);
+  return imageMessage(siteUrl, image, [{ label: "Voir les membres du clan", url: siteLink(siteUrl, "/liste") }]);
 }
 
 /**

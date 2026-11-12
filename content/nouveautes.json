@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-12",
+    "kind": "ameliore",
+    "title": "La liste des membres a son onglet",
+    "body": "La liste de tous les membres, avec la recherche par pseudo et le tri, a son onglet « La liste », entre Membres et le QG. La page Membres garde les paliers, l'encadrement et le classé.",
+    "link": {
+      "href": "/liste",
+      "label": "Voir la liste"
+    }
+  },
+  {
+    "date": "2026-11-12",
     "kind": "nouveau",
     "title": "Une image de bienvenue sur le Discord du clan",
     "body": "Le robot du clan peut remplacer le message d'arrivée de Discord par une image au nom du nouveau venu, dans six décors. Il attend que l'encadrement l'ajoute au serveur.",
@@ -143,7 +153,7 @@
     "title": "Seul ou en groupe, sur chaque fiche",
     "body": "La fiche de chaque membre montre ses victoires seul, à 2, à 3 ou à 4 et plus, et par format.",
     "link": {
-      "href": "/membres",
+      "href": "/liste",
       "label": "Voir les membres"
     }
   },
@@ -423,7 +433,7 @@
     "title": "Des fiches de membre à coller sur Discord",
     "body": "Chaque fiche a un bouton « Copier le lien ». Collé sur Discord, le lien montre une image avec le pseudo, la place aux victoires sous le tag et le palier, mise à jour à chaque passage.",
     "link": {
-      "href": "/membres",
+      "href": "/liste",
       "label": "Trouver sa fiche"
     }
   },
@@ -471,7 +481,7 @@
     "title": "Un site plus fluide et plus calme",
     "body": "Chaque page se précharge au survol de son lien, et les blocs apparaissent en fondu au lieu de se construire case par case. La liste des membres montre les 30 premiers, puis un bouton.",
     "link": {
-      "href": "/membres",
+      "href": "/liste",
       "label": "Voir les membres"
     }
   },
@@ -617,7 +627,7 @@
     "title": "Une fiche pour chaque membre",
     "body": "Chaque membre avec pseudo a sa fiche : stats d'équipe, date d'arrivée et dernières parties sous le tag. Un membre anonyme n'a pas de fiche.",
     "link": {
-      "href": "/membres",
+      "href": "/liste",
       "label": "Voir les membres"
     }
   },

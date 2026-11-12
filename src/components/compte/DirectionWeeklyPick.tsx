@@ -98,7 +98,7 @@ export default function DirectionWeeklyPick({ draft, setDraft }: { draft: Weekly
                 <option key={name} value={name} />
               ))}
             </datalist>
-            <p class="mt-1 text-sm text-muted">Tel qu'il est dans la liste officielle du clan, sur la page Membres.</p>
+            <p class="mt-1 text-sm text-muted">Tel qu'il est dans la liste des membres.</p>
           </div>
           <div>
             <label for="pick-note" class="text-sm font-semibold">

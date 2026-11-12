@@ -1,7 +1,7 @@
 /**
  * « Depuis votre dernière visite », pour le membre qui a retenu son pseudo : ce qui a changé pour lui.
  * Même mécanique que le résumé du clan (`visite.ts`) : le navigateur garde ses chiffres de la visite précédente, rien ne quitte l'appareil.
- * Ses chiffres sont ceux de la page Membres (`stats.team`), jamais autre chose.
+ * Ses chiffres sont ceux de la liste des membres (`stats.team`), jamais autre chose.
  */
 import { fmtCount, fmtInt, fmtRank } from "./format";
 import { tierOf } from "./paliers";

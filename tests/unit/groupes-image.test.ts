@@ -46,7 +46,7 @@ describe("groupsCard", () => {
       "sur 14 parties",
       "Bravo et Delta",
       "sur 10 parties",
-      "les-gaulois.github.io/membres",
+      "les-gaulois.github.io/liste",
       "Les duos comptent d'abord le temps passé à jouer à deux, pas un niveau.",
     ]) {
       expect(text).toContain(expected);

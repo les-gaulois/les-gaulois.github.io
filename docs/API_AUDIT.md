@@ -502,7 +502,7 @@ Lu dans le code de la page de la carte (`clanmap.openfront.io`) et du jeu, le 5 
 
 - **Le « joueur qui a le plus participé » à la carte n'est pas mesurable.** La page n'affiche donc aucun classement de peinture.
 - **Le top donateurs ne peut pas être collecté.** Il faudrait le compte d'un membre, ce qui est exclu pour ce site. De plus, le jeu indique : « Les dons sont uniquement visibles aux yeux des membres du clan ». Le site n'affiche donc aucun donateur. La liste que le clan pouvait remplir à la main pour la page Carte (`content/carte-heros.json`) a été retirée le 9 novembre 2026, avec « Faire grandir GAL ».
-- **Le top des victoires reste public.** Il vient de `stats.team`, déjà affiché sur la page Membres.
+- **Le top des victoires reste public.** Il vient de `stats.team`, déjà affiché dans la liste des membres.
 
 ### Licences
 

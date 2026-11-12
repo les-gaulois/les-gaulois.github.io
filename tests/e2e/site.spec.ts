@@ -28,7 +28,7 @@ import { nextTier, tierOf, tierRows } from "../../src/lib/paliers";
 import { currentMilestonesPeriod, homeMilestones, recentRecordLines, recentTerritoryRecord } from "../../src/lib/vie-du-clan";
 import { milestonesSinceMonday } from "../../src/lib/week-players";
 
-const PAGES = ["/", "/gazette", "/parties", "/nouveautes", "/classement", "/rivaux", "/progression", "/records", "/membres", "/qg", "/carte", "/activite", "/debuter", "/outils", "/rejoindre", "/mentions-legales"];
+const PAGES = ["/", "/gazette", "/parties", "/nouveautes", "/classement", "/rivaux", "/progression", "/records", "/membres", "/liste", "/qg", "/carte", "/activite", "/debuter", "/outils", "/rejoindre", "/mentions-legales"];
 const lb = JSON.parse(readFileSync("data/leaderboard.json", "utf8"));
 const members = JSON.parse(readFileSync("data/members.json", "utf8"));
 const gal = lb.clans.find((c: { clanTag: string }) => c.clanTag === "GAL");
@@ -246,8 +246,8 @@ test("parcours principal", async ({ page }, testInfo) => {
   await page.getByText("Voir le tableau des parties").click();
   await expect(page.getByRole("table").filter({ visible: true }).locator("tbody tr")).toHaveCount(7);
 
-  // Membres : liste officielle, anonymes, recherche, tri.
-  await page.goto("/membres");
+  // La liste des membres, onglet de la rubrique Membres : liste officielle, anonymes, recherche, tri.
+  await page.goto("/liste");
   await hydrated(page);
   await expect(page.getByTestId("member-count")).toContainText(fmtInt(members.total));
   // Trente membres d'abord, dix sur téléphone où chacun est une carte : le reste d'un clic, la page reste courte.
@@ -388,6 +388,22 @@ test("la page Membres présente l'encadrement, et chacun mène à sa fiche", asy
   }
 });
 
+// Le 12 novembre 2026, à la demande du pilote : la liste a son onglet, entre la page Membres et le QG, et n'est qu'à un endroit.
+test("la liste des membres a son onglet, entre la page Membres et le QG", async ({ page }) => {
+  await page.goto("/membres");
+  const tabs = page.getByTestId("section-nav").locator("a");
+  await expect(tabs).toHaveText(["Membres", "La liste", "Le QG"]);
+  await expect(page.locator('astro-island[component-url*="MembersTable"]')).toHaveCount(0);
+  await tabs.filter({ hasText: "La liste" }).click();
+  await expect(page).toHaveURL(/\/liste\/?$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Liste des membres");
+  await expect(page.getByTestId("data-status").first()).toContainText("Dernière mise à jour");
+  await expect(page.locator('astro-island[component-url*="MembersTable"]')).toHaveCount(1);
+  // Un ancien lien vers la liste, en bas de la page Membres, mène à son onglet.
+  await page.goto("/membres#liste");
+  await expect(page).toHaveURL(/\/liste\/?$/);
+});
+
 /** Le lien que le doigt touche en un point d'un élément : celui du dessus, comme un vrai toucher. */
 const linkAt = async (page: Page, x: number, y: number) =>
   page.evaluate(([px, py]) => document.elementFromPoint(px!, py!)?.closest("a")?.getAttribute("href") ?? null, [x, y]);
@@ -410,7 +426,9 @@ test("les pseudos de la page Membres se touchent du doigt", async ({ page }, tes
     expect(await linkAt(page, box.x + box.width - 4, box.y + box.height - 4)).toMatch(/^\/membres\/./);
   }
   if (testInfo.project.name !== "mobile") return;
-  // Sur téléphone, toute la carte d'un membre avec pseudo mène à sa fiche, pas seulement ses 20 pixels de pseudo.
+  // Sur téléphone, dans la liste des membres, toute la carte d'un membre avec pseudo mène à sa fiche, pas seulement ses 20 pixels de pseudo.
+  await page.goto("/liste");
+  await hydrated(page);
   const card = page.getByTestId("member-card").filter({ has: page.locator("a") }).first();
   await card.scrollIntoViewIfNeeded();
   const box = (await card.boundingBox())!;
@@ -456,7 +474,7 @@ test("le sommaire des guides rouvre un chapitre refermé", async ({ page }) => {
 
 // Le 10 novembre 2026, à la demande du pilote : le périmètre des parties passe dans les précisions repliées, qui restent dans la page.
 test("la période et les réserves restent visibles, le périmètre se lit dans les précisions repliées", async ({ page }) => {
-  await page.goto("/membres");
+  await page.goto("/liste");
   const scope = page.getByTestId("members-scope");
   await expect(scope).toContainText("sans le classé");
   await expect(scope).toBeHidden();
@@ -1392,8 +1410,8 @@ test.describe("fiches des membres", () => {
       await expect(block.getByTestId("member-game")).toHaveCount(0);
     }
     await expect(page.getByRole("link", { name: "Son profil sur OpenFront" })).toHaveAttribute("href", `https://openfront.io/#modal=profile&publicID=${active.publicId}`);
-    await page.getByRole("link", { name: "Retour aux membres" }).click();
-    await expect(page).toHaveURL(/\/membres\/?$/);
+    await page.getByRole("link", { name: "Retour à la liste" }).click();
+    await expect(page).toHaveURL(/\/liste\/?$/);
   });
 
   test("un membre sans partie sous le tag n'a pas de faux zéro", async ({ page }) => {
@@ -1405,7 +1423,7 @@ test.describe("fiches des membres", () => {
   });
 
   test("le tableau des membres mène à la fiche, et un anonyme n'en a pas", async ({ page }) => {
-    await page.goto("/membres");
+    await page.goto("/liste");
     await hydrated(page);
     const link = page.getByRole("link", { name: active?.username ?? "", exact: true }).filter({ visible: true }).first();
     await expect(link).toHaveAttribute("href", new RegExp(`/membres/${active?.publicId}$`));
@@ -1445,7 +1463,7 @@ test("signale les données périmées au visiteur", async ({ page }) => {
 
 test("affiche une erreur si la liste des membres ne charge pas", async ({ page }) => {
   await page.route("**/data/members.json", (r) => r.abort());
-  await page.goto("/membres");
+  await page.goto("/liste");
   await expect(page.getByRole("alert")).toContainText("n'a pas pu être chargée");
   await page.unroute("**/data/members.json");
   await page.getByRole("button", { name: "Réessayer" }).click();

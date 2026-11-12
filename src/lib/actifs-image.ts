@@ -22,7 +22,7 @@ export function activeCard(players: readonly ActivePlayer[], period: ActivePerio
       period: `Entre les relevés de la liste du ${fmtDayAndTime(period.since)} et du ${fmtDayAndTime(period.until)}`,
       rows: players.map((p) => ({ badge: fmtRank(p.place), strong: p.place === 1, name: p.username, detail: activityWords(p) })),
       footnotes: [],
-      address: shownAddress(siteUrl, "/membres"),
+      address: shownAddress(siteUrl, "/liste"),
       note: ACTIVE_NOTE,
       badgeWidth: 120,
     },

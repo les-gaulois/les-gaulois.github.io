@@ -7,6 +7,7 @@ describe("invite", () => {
     expect(invite("/classement")).toEqual({ dossier: "~/resultats", commande: "classement" });
     expect(invite("/parties/")).toEqual({ dossier: "~/actu", commande: "parties" });
     expect(invite("/outils")).toEqual({ dossier: "~/guides", commande: "outils" });
+    expect(invite("/liste")).toEqual({ dossier: "~/membres", commande: "liste" });
   });
   it("reste à la racine pour une rubrique d'une seule page, l'accueil et les pages à part", () => {
     expect(invite("/carte")).toEqual({ dossier: "~", commande: "carte" });
@@ -29,6 +30,10 @@ describe("sectionOf", () => {
   });
   it("range le QG, la face privée, avec les membres", () => {
     expect(sectionOf("/qg")?.label).toBe("Membres");
+  });
+  it("met la liste des membres entre la page Membres et le QG", () => {
+    expect(sectionOf("/liste")?.label).toBe("Membres");
+    expect(SECTIONS.find((s) => s.label === "Membres")?.pages.map((p) => p.href)).toEqual(["/membres", "/liste", "/qg"]);
   });
   it("ne range ni l'accueil ni les pages personnelles", () => {
     expect(sectionOf("/")).toBeNull();

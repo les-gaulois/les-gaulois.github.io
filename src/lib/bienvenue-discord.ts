@@ -93,7 +93,7 @@ export function welcomeContent(arrivals: Arrivals, tag: string, siteUrl: string)
     const lines = [`**${WELCOME_TITLE} !**`, ...arrivals.named.slice(0, written).map((p) => `👋 [**${escapeDiscord(p.username)}**](<${profileUrl(site, p.id)}>)`)];
     if (arrivals.named.length > written) lines.push(otherNewcomersWords(arrivals.named.length - written));
     if (arrivals.anonymous > 0) lines.push(anonymousWords(arrivals.anonymous, arrivals.named.length > 0));
-    lines.push(`[Voir les membres du clan](<${siteLink(site, "/membres/")}>)`, `-# Arrivées dans le clan [${escapeDiscord(tag)}] ${periodWords(arrivals)}, ${STILL_HERE}.`);
+    lines.push(`[Voir les membres du clan](<${siteLink(site, "/liste/")}>)`, `-# Arrivées dans le clan [${escapeDiscord(tag)}] ${periodWords(arrivals)}, ${STILL_HERE}.`);
     return lines.join("\n");
   };
   let written = Math.min(arrivals.named.length, MAX_NAMES);
@@ -106,7 +106,7 @@ export function welcomeContent(arrivals: Arrivals, tag: string, siteUrl: string)
 export function welcomePayload(arrivals: Arrivals, tag: string, siteUrl: string, image: { alt: string; filename: string } | null): Record<string, unknown> {
   const site = siteUrl.replace(/\/$/, "");
   if (!image) return textMessage(site, welcomeContent(arrivals, tag, site).content);
-  return imageMessage(site, image, [{ label: "Voir les membres du clan", url: siteLink(site, "/membres/") }]);
+  return imageMessage(site, image, [{ label: "Voir les membres du clan", url: siteLink(site, "/liste/") }]);
 }
 
 export interface WelcomeSendDeps {

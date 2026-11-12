@@ -85,7 +85,7 @@ describe("le bilan de la semaine", () => {
       avatar_url: "https://les-gaulois.github.io/generated/icon-192.png",
       allowed_mentions: { parse: [] },
       attachments: [{ id: 0, filename: "jouer-ensemble.png", description: "Description." }],
-      components: [{ type: 1, components: [{ type: 2, style: 5, label: "Voir les membres du clan", url: "https://les-gaulois.github.io/membres" }] }],
+      components: [{ type: 1, components: [{ type: 2, style: 5, label: "Voir les membres du clan", url: "https://les-gaulois.github.io/liste" }] }],
     });
   });
 

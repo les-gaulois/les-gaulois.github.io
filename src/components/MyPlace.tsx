@@ -73,7 +73,7 @@ export function Result({ members, member }: { members: readonly StoredMember[]; 
   );
 }
 
-/** Chaque membre retrouve sa place à partir de son pseudo, avec les données déjà publiées sur la page Membres. */
+/** Chaque membre retrouve sa place à partir de son pseudo, avec les données déjà publiées dans la liste des membres. */
 export default function MyPlace({ src }: { src: string }) {
   const [state, setState] = useState<State>({ status: "loading" });
   const [query, setQuery] = useState("");

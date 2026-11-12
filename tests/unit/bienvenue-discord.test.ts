@@ -80,7 +80,7 @@ describe("le message", () => {
       "👋 [**Éloïse**](<https://x.test/membres/e/>)",
       "👋 [**Zoé**](<https://x.test/membres/z/>)",
       "Et 2 joueurs sans pseudo public.",
-      "[Voir les membres du clan](<https://x.test/membres/>)",
+      "[Voir les membres du clan](<https://x.test/liste/>)",
       "-# Arrivées dans le clan [GAL] entre les relevés de la liste des membres du 10 nov., 18:54 et du 11 nov., 14:54, de ceux qui sont encore là au dernier relevé.",
     ]);
     expect(welcomePayload(ARRIVALS, "GAL", SITE, null)).toMatchObject({ allowed_mentions: { parse: [] } });
@@ -101,7 +101,7 @@ describe("le message", () => {
       avatar_url: "https://x.test/generated/icon-192.png",
       allowed_mentions: { parse: [] },
       attachments: [{ id: 0, filename: "bienvenue.png", description: "Description." }],
-      components: [{ type: 1, components: [{ type: 2, style: 5, label: "Voir les membres du clan", url: "https://x.test/membres/" }] }],
+      components: [{ type: 1, components: [{ type: 2, style: 5, label: "Voir les membres du clan", url: "https://x.test/liste/" }] }],
     });
   });
   it("part en texte si l'image ne se dessine pas, et n'écrit jamais le lien", async () => {
@@ -158,7 +158,7 @@ describe("welcomeCard", () => {
     const card = welcomeCard(ARRIVALS, "GAL", SITE, measure);
     const texts = card.texts.map((t) => plain(t.text));
     // L'en-tête dit qui est compté : sans texte dans le message, rien d'autre ne le dirait.
-    for (const expected of ["Arrivées dans le clan [GAL], encore là au dernier relevé", "Bienvenue chez les Gaulois", "Entre les relevés de la liste du 10 nov., 18:54 et du 11 nov., 14:54", "10 nov., 21:12", "Éloïse", "11 nov., 10:12", "Zoé", "Et 2 joueurs sans pseudo public.", "x.test/membres"]) {
+    for (const expected of ["Arrivées dans le clan [GAL], encore là au dernier relevé", "Bienvenue chez les Gaulois", "Entre les relevés de la liste du 10 nov., 18:54 et du 11 nov., 14:54", "10 nov., 21:12", "Éloïse", "11 nov., 10:12", "Zoé", "Et 2 joueurs sans pseudo public.", "x.test/liste"]) {
       expect(texts).toContain(expected);
     }
     expectClean(card);

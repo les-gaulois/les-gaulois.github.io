@@ -31,7 +31,7 @@ export function welcomeCard(arrivals: Arrivals, tag: string, siteUrl: string, me
       rows: many ? [] : named.map((p) => ({ badge: fmtDayAndTime(p.joinedAt), strong: true, name: p.username, detail: null })),
       chips: many ? named.slice(0, MAX_CHIPS).map((p) => p.username) : [],
       footnotes,
-      address: shownAddress(siteUrl, "/membres"),
+      address: shownAddress(siteUrl, "/liste"),
       note: WELCOME_NOTE,
       badgeWidth: 280,
     },

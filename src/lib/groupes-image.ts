@@ -80,7 +80,7 @@ export function groupsCard(week: WeekGroups, tag: string, siteUrl: string, measu
 
   const height = bottom + FOOTER_HEIGHT;
   const head = headParts({ kicker: `Parties du clan sous le tag [${tag}]`, title: GROUPS_TITLE, period: `Semaine ${weekSpan(week)}` }, measure);
-  return assembleCard(height, [head, { rects, texts }, duos, footParts(shownAddress(siteUrl, "/membres"), week.duos.length > 0 ? DUOS_NOTE : "", height, measure)]);
+  return assembleCard(height, [head, { rects, texts }, duos, footParts(shownAddress(siteUrl, "/liste"), week.duos.length > 0 ? DUOS_NOTE : "", height, measure)]);
 }
 
 /** Ce que l'image dit, pour un lecteur d'écran : Discord le lit comme description du fichier. */

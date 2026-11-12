@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-const PAGES = ["/", "/gazette", "/parties", "/classement", "/rivaux", "/progression", "/records", "/membres", "/carte", "/activite", "/debuter", "/outils", "/rejoindre"];
+const PAGES = ["/", "/gazette", "/parties", "/classement", "/rivaux", "/progression", "/records", "/membres", "/liste", "/carte", "/activite", "/debuter", "/outils", "/rejoindre"];
 
 /** Couleur franche de la case sous un point. Les vagues ambiantes, plus pâles, ne comptent pas. */
 const tileAt = (page: Page, x: number, y: number) =>
@@ -419,7 +419,7 @@ test.describe("à la souris", () => {
   });
 
   test("trier les membres fait glisser les lignes", async ({ page }) => {
-    await page.goto("/membres");
+    await page.goto("/liste");
     await expect(page.getByTestId("member-row").first()).toBeVisible();
     await page.waitForTimeout(800);
     // Trier par parties garde en grande partie les mêmes lignes : elles changent seulement de place.

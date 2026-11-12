@@ -3,11 +3,8 @@ import Base from "../layouts/Base.astro";
 import DataStatus from "../components/DataStatus.astro";
 import PageHeader from "../components/PageHeader.astro";
 import PageJumps from "../components/PageJumps.astro";
-import MembersTable from "../components/MembersTable.tsx";
 import RankedPlayers from "../components/RankedPlayers.astro";
-import ReadingNote from "../components/ReadingNote.astro";
 import WinTiers from "../components/WinTiers.astro";
-import { clan } from "../../config/clan";
 import { loadMembers, loadMeta, loadRanked } from "../lib/data";
 import { singlePseudos } from "../lib/members";
 import { tierRows } from "../lib/paliers";
@@ -15,7 +12,6 @@ import { MAX_AGE_HOURS } from "../lib/freshness";
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const meta = loadMeta();
-const src = `${base}/data/members.json`;
 const ROLE = { leader: "Chef", officer: "Officier", member: "Membre" } as const;
 const list = loadMembers()?.members ?? [];
 // Une photo Discord ne va qu'à côté d'un pseudo porté par un seul membre : jamais à côté d'un homonyme (src/scripts/visages.ts).
@@ -25,11 +21,15 @@ const jumps = [
   { href: "#paliers", label: "Les paliers", show: tierRows(list).length > 0 },
   { href: "#encadrement", label: "L'encadrement", show: command.length > 0 },
   { href: "#classe", label: "Au classé", show: loadRanked() !== null || meta.ranked.lastError !== null },
-  { href: "#liste", label: "Toute la liste", show: true },
 ].filter((jump) => jump.show);
+// La liste officielle a son onglet, « La liste » (src/pages/liste.astro), depuis le 12 novembre 2026.
 ---
 
-<Base title="Membres" description="Les membres du clan GAL sur OpenFront : les paliers, l'encadrement et la liste officielle.">
+<Base title="Membres" description="Les membres du clan GAL sur OpenFront : les paliers de victoires, l'encadrement et la présence au classé.">
+  {/* Un ancien lien vers la liste, en bas de cette page jusqu'au 12 novembre 2026 (un favori, un lien copié), mène à son onglet. */}
+  <script is:inline define:vars={{ liste: `${base}/liste` }}>
+    if (location.hash === "#liste") location.replace(liste);
+  </script>
   <div class="wrap">
     <PageHeader title="Membres">
       <div class="mt-4">
@@ -67,17 +67,5 @@ const jumps = [
     }
 
     <RankedPlayers />
-
-    <section class="mt-8 scroll-mt-24" id="liste" aria-labelledby="list-title">
-      <h2 id="list-title" class="section-title">Toute la liste</h2>
-      <div class="mb-4">
-        <ReadingNote>
-          <p data-testid="members-scope">La liste officielle du clan dans OpenFront. Parties publiques en équipe jouées avec le tag {clan.tag}, sans le classé, le FFA ni Humains contre Nations.</p>
-          <p>« 0 » signifie aucune partie sous le tag, ce qui ne veut pas dire que le joueur est inactif. « — » signifie pas de données, ou pas de taux sans partie jouée. Un pseudo mène à la fiche du membre.</p>
-        </ReadingNote>
-      </div>
-      <MembersTable client:load src={src} />
-      <noscript><p class="card mt-4 p-5">JavaScript est nécessaire pour afficher et trier la liste des membres.</p></noscript>
-    </section>
   </div>
 </Base>

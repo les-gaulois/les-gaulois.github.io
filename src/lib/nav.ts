@@ -25,8 +25,10 @@ export const SECTIONS: NavSection[] = [
     { href: "/progression", label: "Progression" },
     { href: "/records", label: "Records" },
   ),
-  // Le QG : la face privée du site. Sa page ne montre que la porte tant que le serveur n'a pas reconnu un membre validé.
-  section("Membres", { href: "/membres", label: "Membres" }, { href: "/qg", label: "Le QG" }),
+  // La liste officielle a son onglet depuis le 12 novembre 2026, à la demande du pilote : la page Membres garde les paliers,
+  // l'encadrement et le classé. Le QG : la face privée du site. Sa page ne montre que la porte tant que le serveur n'a pas
+  // reconnu un membre validé.
+  section("Membres", { href: "/membres", label: "Membres" }, { href: "/liste", label: "La liste" }, { href: "/qg", label: "Le QG" }),
   section("Carte", { href: "/carte", label: "Carte" }),
   section("Guides", { href: "/debuter", label: "Guides" }, { href: "/activite", label: "Quand jouer" }, { href: "/outils", label: "Calculateur et outils" }),
   section("Rejoindre", { href: "/rejoindre", label: "Rejoindre" }),

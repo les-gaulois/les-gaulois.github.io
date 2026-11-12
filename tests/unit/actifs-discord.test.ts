@@ -105,7 +105,7 @@ describe("le message", () => {
       "🥇 [**Alpha**](<https://x.test/membres/a/>) : 40 parties, 20 victoires",
       "🥈 [**Beta**](<https://x.test/membres/b/>) : 20 parties, 10 victoires",
       "🥈 [**Delta**](<https://x.test/membres/d/>) : 20 parties, 10 victoires",
-      "[Voir les membres du clan](<https://x.test/membres/>)",
+      "[Voir les membres du clan](<https://x.test/liste/>)",
       "-# Parties en équipe sous le tag, entre les relevés de la liste des membres du 10 nov., 18:54 et du 11 nov., 14:54. Membres avec pseudo public seulement. Compte le temps de jeu, pas le niveau.",
     ]);
     expect(activePayload(PLAYERS, PERIOD, "GAL", SITE, null)).toMatchObject({ allowed_mentions: { parse: [] } });
@@ -124,7 +124,7 @@ describe("le message", () => {
       avatar_url: "https://x.test/generated/icon-192.png",
       allowed_mentions: { parse: [] },
       attachments: [{ id: 0, filename: "plus-actifs.png", description: "Description." }],
-      components: [{ type: 1, components: [{ type: 2, style: 5, label: "Voir les membres du clan", url: "https://x.test/membres/" }] }],
+      components: [{ type: 1, components: [{ type: 2, style: 5, label: "Voir les membres du clan", url: "https://x.test/liste/" }] }],
     });
   });
   it("part en texte si l'image ne se dessine pas, et n'écrit jamais le lien", async () => {
@@ -190,7 +190,7 @@ describe("activeCard", () => {
     const card = activeCard(PLAYERS, PERIOD, "GAL", SITE, measure);
     const texts = card.texts.map((t) => plain(t.text));
     // L'en-tête dit qui est compté : sans texte dans le message, « 1er » se lirait comme le plus actif de tout le clan.
-    for (const expected of ["Parties en équipe sous le tag [GAL], membres avec pseudo public", "Les plus actifs", "Entre les relevés de la liste du 10 nov., 18:54 et du 11 nov., 14:54", "1er", "Alpha", "40 parties, 20 victoires", "2e", "Delta", "x.test/membres", "Compte le temps de jeu, pas le niveau."]) {
+    for (const expected of ["Parties en équipe sous le tag [GAL], membres avec pseudo public", "Les plus actifs", "Entre les relevés de la liste du 10 nov., 18:54 et du 11 nov., 14:54", "1er", "Alpha", "40 parties, 20 victoires", "2e", "Delta", "x.test/liste", "Compte le temps de jeu, pas le niveau."]) {
       expect(texts).toContain(expected);
     }
     expectClean(card);

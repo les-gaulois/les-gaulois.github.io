@@ -11,7 +11,7 @@ const plain = (s: string) => s.replace(/\u00a0/g, " ");
 const LISTED = "2026-11-08T08:53:00.000Z";
 
 describe("ficheFacts", () => {
-  it("reprend la place, les chiffres et le palier de la page Membres", () => {
+  it("reprend la place et les chiffres de la liste des membres, et le palier", () => {
     expect(ficheFacts(members, members[0]!)).toEqual({ username: "Alpha", rank: 3, ranked: 4, wins: 738, losses: 619, games: 1357, rate: (738 / 1357) * 100, tier: 500, nextTier: { wins: 1000, missing: 262 } });
   });
   it("n'a rien à dire d'un anonyme ni d'un membre sans stats", () => {

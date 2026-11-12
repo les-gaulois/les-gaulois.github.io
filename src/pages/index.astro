@@ -224,7 +224,7 @@ const imageAlt = hasImage && imageFacts ? accueilImageAlt(imageFacts, clan.tag, 
         <div class="mt-4">
           <MyPlace client:idle src={`${base}/data/members.json`} />
         </div>
-        <noscript><p class="mt-3 text-sm text-muted">JavaScript est nécessaire pour chercher un pseudo. La liste complète reste sur la page <a href={`${base}/membres`}>Membres</a>.</p></noscript>
+        <noscript><p class="mt-3 text-sm text-muted">JavaScript est nécessaire pour chercher un pseudo.</p></noscript>
       </section>
 
       {/* La porte de la face privée : le contenu du QG n'est pas dans cette page, le serveur ne le donne qu'aux membres validés. */}
