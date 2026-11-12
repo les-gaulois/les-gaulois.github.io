@@ -1,6 +1,12 @@
 [
   {
     "date": "2026-11-12",
+    "kind": "ameliore",
+    "title": "Moins de vert à la Direction",
+    "body": "Pour l'encadrement : à la Direction aussi, les phrases, les dates et les chiffres reprennent leur couleur, blanc ou gris, comme au QG."
+  },
+  {
+    "date": "2026-11-12",
     "kind": "nouveau",
     "title": "La commande /fiche sur Discord",
     "body": "Dans le Discord du clan, tapez /fiche puis le début d'un pseudo et choisissez : tout le salon voit la fiche de ce membre, avec un bouton vers sa page.",

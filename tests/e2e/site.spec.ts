@@ -143,12 +143,13 @@ test("seules les pages de l'encadrement passent au rouge", async ({ page }, test
   }
 });
 
-// Au QG, les phrases, les dates et les tableaux portent des chiffres (.tnum) : le 12 novembre 2026, une règle les mettait
-// tous en vert, et le pilote a trouvé « un peu trop de vert dans les écritures ». Comme sur la page Carte, le vert n'y est
-// plus que la voix de la machine (invite, ligne de commande d'une partie, « ~/qg », « > », icônes) ; la Direction garde ses
-// chiffres verts. Les tests construisent le site sans serveur de connexion : le QG n'y montre que sa porte. Le contrôle
-// pose donc dans chaque page le balisage des écrans connectés (une phrase, un texte, un tableau, un grand chiffre).
-test("au QG, aucun texte ni chiffre n'est vert ; la Direction garde ses chiffres verts", async ({ page }, testInfo) => {
+// Au QG et à la Direction, les phrases, les dates et les tableaux portent des chiffres (.tnum) : le 12 novembre 2026, une
+// règle les mettait tous en vert ; le pilote a trouvé « un peu trop de vert dans les écritures » au QG, et la Direction a
+// suivi avec son accord. Comme sur la page Carte, le vert n'y est plus que la voix de la machine (invite, ligne de
+// commande d'une partie, « ~/qg », « > », icônes). Les tests construisent le site sans serveur de connexion : ces pages
+// n'y montrent que leur porte. Le contrôle pose donc dans chacune le balisage des écrans connectés (une phrase, un texte,
+// un tableau, un grand chiffre).
+test("au QG et à la Direction, aucun texte ni chiffre n'est vert", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "Même rendu sur mobile.");
   await page.emulateMedia({ reducedMotion: "reduce" });
   const SONDES = ["phrase", "texte", "tableau", "grand"];
@@ -172,14 +173,17 @@ test("au QG, aucun texte ni chiffre n'est vert ; la Direction garde ses chiffres
       return lu;
     });
   };
-  const qg = await couleurs("/qg");
-  // Une vraie couleur, et pas celle du texte de la page : sans quoi le contrôle ne prouverait rien.
-  expect(qg.vert).toBeTruthy();
-  expect(qg.vert).not.toBe(qg.espace);
-  expect(qg.hote, "l'invite du QG reste verte").toBe(qg.vert);
-  for (const sonde of SONDES) expect(qg[sonde], `QG, ${sonde}`).not.toBe(qg.vert);
-  const direction = await couleurs("/direction");
-  for (const sonde of SONDES) expect(direction[sonde], `Direction, ${sonde}`).toBe(direction.vert);
+  for (const [nom, path] of [
+    ["QG", "/qg"],
+    ["Direction", "/direction"],
+  ] as const) {
+    const lu = await couleurs(path);
+    // Une vraie couleur, et pas celle du texte de la page : sans quoi le contrôle ne prouverait rien.
+    expect(lu.vert, nom).toBeTruthy();
+    expect(lu.vert, nom).not.toBe(lu.espace);
+    expect(lu.hote, `l'invite, voix de la machine, reste verte (${nom})`).toBe(lu.vert);
+    for (const sonde of SONDES) expect(lu[sonde], `${nom}, ${sonde}`).not.toBe(lu.vert);
+  }
 });
 
 // Le poste de commandement (docs/DESIGN.md) : depuis le 12 novembre 2026, la chasse fixe de la console est préchargée sur
