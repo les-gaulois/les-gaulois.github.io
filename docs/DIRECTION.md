@@ -375,6 +375,8 @@ Ensuite, rien ne change : la demande, la liste officielle, la confirmation d'un 
 
 L'encadrement choisit où la commande peut servir dans **Paramètres du serveur → Intégrations**, comme pour toute application.
 
+**Le robot des arrivées** (12 novembre 2026), qui remplace le message d'arrivée de Discord par une image de bienvenue, est une autre application Discord, à part. Il lui faut un jeton gardé en permanence dans GitHub, et celui de « Le Gaulois » ne doit pas l'être : ce jeton permet de changer l'adresse des interactions de l'application, donc de se glisser entre Discord et la fonction `code-discord`. C'est pourquoi l'étape 6 l'annule après usage. Avec une application à part, les deux ne se croisent jamais : un « Reset Token » sur « Le Gaulois » n'arrête pas les images, et le jeton du robot des arrivées ne peut rien sur la connexion. Ses étapes sont dans le README, « Les arrivées sur le serveur Discord ».
+
 ## Après avoir créé les comptes : le contrôle
 
 En plus des étapes d'installation ci-dessous, il faut :

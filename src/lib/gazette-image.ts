@@ -32,7 +32,11 @@ const LOSS = "#D9742E";
 /** Les mêmes couleurs, pour les autres images du robot. `WIN` : le bleu des victoires dans les graphiques. */
 export const CARD_COLORS = { NAVY, SURFACE, SURFACE_2, BLUE, BLUE_TEXT, RED, MUTED, WHITE, LOSS, WIN: "#4C86F5" } as const;
 
-export type CardFont = "title" | "strong" | "body";
+/**
+ * `mono`, `monoStrong` et `name` servent aux images de bienvenue (`arrivees-image.ts`) : la chasse fixe de la machine du site,
+ * et les capitales d'Outfit pour un nom libre, relayées par Inter pour le cyrillique et le grec.
+ */
+export type CardFont = "title" | "strong" | "body" | "mono" | "monoStrong" | "name";
 
 export interface CardText {
   text: string;
@@ -287,6 +291,9 @@ const FONT_FILES: Record<CardFont, string[]> = {
   title: SUBSETS.title.map((subset) => `@fontsource/outfit/files/outfit-${subset}-800-normal.woff`),
   strong: SUBSETS.text.map((subset) => `@fontsource/inter/files/inter-${subset}-700-normal.woff`),
   body: SUBSETS.text.map((subset) => `@fontsource/inter/files/inter-${subset}-500-normal.woff`),
+  mono: SUBSETS.text.map((subset) => `@fontsource/jetbrains-mono/files/jetbrains-mono-${subset}-500-normal.woff`),
+  monoStrong: SUBSETS.text.map((subset) => `@fontsource/jetbrains-mono/files/jetbrains-mono-${subset}-700-normal.woff`),
+  name: [...SUBSETS.title.map((subset) => `@fontsource/outfit/files/outfit-${subset}-800-normal.woff`), ...["cyrillic", "greek"].map((subset) => `@fontsource/inter/files/inter-${subset}-800-normal.woff`)],
 };
 
 /** Les espaces insécables des nombres français. L'espace fine les remplace si la police la connaît, sinon l'espace ordinaire : le rendu reste le même partout. */
@@ -294,6 +301,8 @@ const NUMBER_SPACES = new RegExp(`[${String.fromCodePoint(0xa0, 0x202f)}]`, "g")
 /** Les mêmes, un par un : `runs` les remplace avant de chercher une police. */
 const NUMBER_SPACE_CHARS = new Set([String.fromCodePoint(0xa0), String.fromCodePoint(0x202f)]);
 const THIN_SPACE = String.fromCodePoint(0x2009);
+/** Les réglages OpenType qui coupent les ligatures : voir `shape`. */
+const NO_LIGATURES = { liga: false, clig: false, calt: false };
 
 export class GazetteFonts {
   private readonly loaded = new Map<CardFont, Font[]>();
@@ -324,7 +333,21 @@ export class GazetteFonts {
     return runs;
   }
 
-  width: Measure = (text, font, size) => this.runs(text, font).reduce((sum, run) => sum + (run.font.layout(run.text).advanceWidth * size) / run.font.unitsPerEm, 0);
+  /**
+   * Les glyphes d'un texte dans une police. La chasse fixe s'écrit sans ligature, comme dans un terminal : « -- » y reste deux
+   * tirets. Ses ligatures passent d'ailleurs par des glyphes vides que la bibliothèque de dessin ne sait pas lire : « -- »,
+   * « :: » ou « != » feraient échouer l'image.
+   */
+  private shape(font: Font, text: string, kind: CardFont) {
+    return kind === "mono" || kind === "monoStrong" ? font.layout(text, NO_LIGATURES) : font.layout(text);
+  }
+
+  width: Measure = (text, font, size) => this.runs(text, font).reduce((sum, run) => sum + (this.shape(run.font, run.text, font).advanceWidth * size) / run.font.unitsPerEm, 0);
+
+  /** Une police du site sait-elle dessiner ce caractère ? Pour retirer d'un nom libre ce qui ne se dessine pas. */
+  draws(char: string, font: CardFont): boolean {
+    return NUMBER_SPACE_CHARS.has(char) || this.fontsOf(font).some((f) => f.hasGlyphForCodePoint(char.codePointAt(0) ?? 0));
+  }
 
   /**
    * Le texte, dont chaque caractère qu'aucune police du site ne sait dessiner (émoji, idéogramme…) devient « ? ». Pour un nom
@@ -340,7 +363,7 @@ export class GazetteFonts {
     let x = item.anchor === "end" ? item.x - total : item.anchor === "middle" ? item.x - total / 2 : item.x;
     let out = "";
     for (const part of this.runs(item.text, item.font)) {
-      const run = part.font.layout(part.text);
+      const run = this.shape(part.font, part.text, item.font);
       const scale = item.size / part.font.unitsPerEm;
       run.glyphs.forEach((glyph, i) => {
         const position = run.positions[i];

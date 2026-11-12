@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-12",
+    "kind": "nouveau",
+    "title": "Une image de bienvenue sur le Discord du clan",
+    "body": "Le robot du clan peut remplacer le message d'arrivée de Discord par une image au nom du nouveau venu, dans six décors. Il attend que l'encadrement l'ajoute au serveur.",
+    "link": {
+      "href": "/confidentialite#serveur-discord",
+      "label": "Ce que le robot lit"
+    }
+  },
+  {
+    "date": "2026-11-12",
     "kind": "ameliore",
     "title": "Un menu et des icônes au QG",
     "body": "Au QG, un menu déroulant remplace la barre d'onglets, comme à la Direction. Chaque partie des deux menus a sa petite icône gauloise dessinée en pixels : casque, feu de camp, bannière, coq.",

@@ -1,9 +1,12 @@
-name: Victoires sur Discord
+name: Victoires et arrivées sur Discord
 
 # Chaque victoire du clan dans le salon des victoires, quelques minutes après la partie (demande du pilote, 11 novembre 2026 :
 # « au maximum 10 min après la victoire »). Lancé toutes les 5 minutes par la tâche « Victoires GAL » de cron-job.org, et à
 # chaque passage du workflow du site, en secours : sans la tâche, les victoires partent à chaque passage de la collecte.
 # Le planning de GitHub n'est pas utilisé : il saute la plupart de ses passages sur ce dépôt. Voir src/lib/victoires.ts.
+#
+# Le même passage remplace les messages d'arrivée du serveur Discord par une image de bienvenue (demande du pilote, 12 novembre
+# 2026) : une arrivée est donc remplacée dans les 5 minutes. Voir src/lib/arrivees.ts.
 on:
   workflow_dispatch:
 
@@ -21,7 +24,7 @@ jobs:
     # Sur une autre branche, la trace des envois ne reviendrait pas sur main, et les victoires repartiraient.
     if: github.ref_name == 'main'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     permissions:
       contents: write
     steps:
@@ -33,6 +36,16 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Les arrivées d'abord : elles n'attendent pas l'envoi des victoires. Le robot du clan lit le salon des messages système du
+      # serveur Discord, poste une image de bienvenue pour chaque arrivée de moins de deux heures, puis retire le message de
+      # Discord. Avec le jeton du robot (secret DISCORD_BOT_TOKEN) ; sans lui, l'étape ne fait rien. Rien n'est noté dans le
+      # dépôt : le salon dit lui-même ce qui reste à faire. Une panne de Discord ne bloque rien : le passage suivant réessaie.
+      - name: Accueillir les arrivées sur Discord
+        continue-on-error: true
+        timeout-minutes: 2
+        run: npm run arrivees:accueillir
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
       # Une seconde copie de l'état des envois, hors de Git : si l'enregistrement sur main échoue, les victoires déjà parties sont
       # notées quand même, et ne repartent pas toutes les 5 minutes. Le fichier ne contient que des identifiants de partie et des
       # heures de début, déjà publics.
