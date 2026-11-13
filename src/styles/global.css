@@ -3322,7 +3322,97 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 /* Les règles propres à cet onglet (DirectionPolls.tsx), sous la classe `dir-sondages`. */
 
 /* ---------- Direction, onglet Mot d'accueil ---------- */
-/* Les règles propres à cet onglet (DirectionWelcome.tsx), sous la classe `dir-accueil`. */
+/* Les règles propres à cet onglet (DirectionWelcome.tsx), sous la classe `dir-accueil`. L'état du mot est en pastille à
+   côté du titre. Dessous, le champ et ce que le QG montre : côte à côte dès 1 024 px, l'un sous l'autre avant. La fenêtre
+   « motd » reprend celle du QG (`qg-welcome`) ; elle grandit avec le texte, comme au QG. */
+.dir-accueil-grille {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+.dir-accueil-champ,
+.dir-accueil-vue {
+  display: grid;
+  align-content: start;
+  gap: 0.5rem;
+  min-width: 0;
+}
+/* La ligne au-dessus de chaque colonne : « Texte » et son compteur, « Au QG, en ce moment ». Même hauteur des deux côtés. */
+.dir-accueil-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.125rem 1rem;
+  min-height: 1.5rem;
+}
+.dir-accueil-tete :is(label, h3) {
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.5rem;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.dir-accueil-tete h3::before {
+  content: none;
+}
+.dir-accueil-compte {
+  font-size: 0.8125rem;
+  color: var(--ton);
+}
+.dir-accueil textarea.field {
+  display: block;
+  min-height: 12rem;
+  resize: vertical;
+  line-height: 1.5;
+}
+.dir-accueil-pied {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin-top: 0.25rem;
+}
+.dir-accueil-motd {
+  padding: 1.25rem;
+}
+.dir-accueil-motd-titre {
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+.dir-accueil-motd-texte {
+  margin-top: 0.5rem;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+/* Un mot long (`welcomeIsTall`) défile dans son cadre : l'onglet tient dans un écran. Au QG, il s'affiche en entier. */
+.dir-accueil-motd-long {
+  max-height: 15rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.5rem;
+  scrollbar-width: thin;
+}
+/* Sans mot, le QG n'a pas de fenêtre : un cadre en pointillé tient sa place, sans rien imiter. */
+.dir-accueil-rien {
+  padding: 1.25rem;
+  border: 1px dashed var(--color-line-strong);
+  border-radius: 0.375rem;
+  color: var(--color-muted);
+}
+.dir-accueil-aide {
+  margin-top: 1.5rem;
+}
+@media (min-width: 64rem) {
+  .dir-accueil-grille {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 2rem;
+  }
+}
 
 /* ---------- Direction, onglet Gaulois de la semaine ---------- */
 /* Les règles propres à cet onglet (DirectionWeeklyPick.tsx), sous la classe `dir-semaine`. */
