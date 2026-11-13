@@ -62,13 +62,15 @@ jobs:
         with:
           path: .cache/member-games
           key: member-games-${{ hashFiles('.cache/member-games/*.json') }}
+      # L'historique se complète à chaque passage pour la carte de l'alliance : la clé suit aussi l'heure du relevé, que le
+      # build lit. Le job ranger-caches ne garde ensuite que les derniers, pour ne pas remplir l'espace des caches du dépôt.
       - name: Conserver l'historique de la carte
         if: ${{ !cancelled() && hashFiles('.cache/clanmap/events.bin') != '' }}
         continue-on-error: true
         uses: actions/cache/save@v6
         with:
           path: .cache/clanmap
-          key: clanmap-${{ hashFiles('.cache/clanmap/events.bin') }}
+          key: clanmap-${{ hashFiles('.cache/clanmap/events.bin', '.cache/clanmap/releve.json') }}
       # L'envoi des victoires (victoires.yml) enregistre aussi son état sur main, toutes les 5 minutes : un push refusé parce
       # qu'il est passé entre les deux commandes se réessaie, au lieu de faire échouer la mise à jour et la publication de l'heure.
       - name: Enregistrer les données
@@ -276,6 +278,25 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
+  # Depuis le 13 novembre 2026, l'historique de la carte se garde à chaque passage (plusieurs dizaines de Mo chaque fois) :
+  # seuls les trois plus récents restent, pour ne pas remplir l'espace des caches du dépôt (10 Go), où GitHub effacerait
+  # sinon d'autres caches. Job à part, avec le seul droit Actions : il n'écrit rien dans le dépôt.
+  ranger-caches:
+    needs: update-data
+    if: ${{ !cancelled() && github.event_name != 'push' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      actions: write
+    steps:
+      - name: Effacer les anciens historiques de la carte
+        continue-on-error: true
+        run: |
+          gh cache list --repo "$GITHUB_REPOSITORY" --ref "refs/heads/${GITHUB_REF_NAME}" --key clanmap- --sort created_at --order desc --limit 100 --json id --jq '.[3:][].id' |
+            while read -r id; do gh cache delete "$id" --repo "$GITHUB_REPOSITORY"; done
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   # Lance la sauvegarde chiffrée de la semaine si elle manque : le planning de GitHub saute la plupart de ses passages,
   # le robot horaire passe toutes les heures. Règles : src/lib/sauvegarde-relance.ts. Job à part, avec le seul droit
   # Actions de GitHub (lancer une exécution, mais aussi en annuler ou en effacer une avec ses fichiers) : il ne peut pas
@@ -328,8 +349,9 @@ jobs:
           path: .cache/member-games
           key: member-games-${{ github.run_id }}
           restore-keys: member-games-
-      # L'historique de la carte, pour son état pixel par pixel, que lit la carte de l'alliance. Le build ne rejoue que
-      # jusqu'au dernier événement du film. Sans ce cache, la carte de l'alliance le dit, et le site se publie quand même.
+      # L'historique de la carte, pour son état pixel par pixel, que lit la carte de l'alliance : rejoué jusqu'au dernier
+      # événement relu par le robot, avec ce qui a changé en 24 heures. Sans ce cache, la carte de l'alliance le dit, et le
+      # site se publie quand même.
       - name: Restaurer l'historique de la carte
         uses: actions/cache/restore@v6
         with:

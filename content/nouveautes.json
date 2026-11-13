@@ -2,6 +2,16 @@
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "title": "Carte de l'alliance : à jour chaque heure",
+    "body": "Elle suit chaque passage du robot et montre ce que l'alliance a pris et perdu en 24 heures, nos voisins, le coût des zones en capsules et si les troupes déclarées suffisent.",
+    "link": {
+      "href": "/carte#alliance",
+      "label": "Ouvrir la carte"
+    }
+  },
+  {
+    "date": "2026-11-13",
+    "kind": "ameliore",
     "title": "Carte de l'alliance : le relief aussi",
     "body": "Dans la fenêtre Alliance, les clans en couleur montrent eux aussi le relief du terrain : plus sombres dans les plaines, plus clairs sur les montagnes.",
     "link": {

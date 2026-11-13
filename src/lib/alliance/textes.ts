@@ -152,6 +152,43 @@ export interface Textes {
   envoyer: string;
   caracteresRestants: (n: number) => string;
   piedDiscussion: string;
+
+  /** Ce qui a bougé en 24 heures (13 novembre 2026). */
+  modeEvolution: string;
+  legendePris: string;
+  legendePerdu: string;
+  legendeNotre: string;
+  en24h: string;
+  /** Après le nombre de pixels pris, écrit en grand. */
+  prisEtPerdus: (pris: number, perdus: string, nPerdus: number) => string;
+  /** Le solde d'un clan en 24 heures, sous son territoire ; `n` n'est jamais nul. */
+  solde24h: (n: number, texte: string) => string;
+  comparaison: (date: string) => string;
+  zone24h: (pris: number, perdus: number, nombre: (n: number) => string) => string;
+  /** Dans la bulle d'un pixel, carte colorée « en 24 heures ». */
+  pixelPris: string;
+  pixelPerdu: string;
+
+  /** Les troupes déclarées depuis plus de trois jours. */
+  ancienne: string;
+  dontAnciennes: (n: number) => string;
+  enCapsules: string;
+  /** Une capsule du trésor donne `n` troupes, selon le jeu. */
+  parCapsule: (n: string) => string;
+  troupesZone: (n: string, quand: string) => string;
+  troupesZoneAlliance: (n: string, declares: number, clans: number, quand: string) => string;
+  declarationAncienneZone: string;
+  pasDeclareZone: (tag: string) => string;
+  aucuneDeclarationZone: string;
+  assez: string;
+  assezMinimum: string;
+  manque: (n: string) => string;
+  manqueAuMoins: (n: string) => string;
+
+  voisinsTitre: string;
+  voisinsAide: string;
+  auContact: (n: number) => string;
+  voisinsAutres: (n: number) => string;
 }
 
 /** L'heure d'un message, dans une langue : « 14:05 », « hier, 14:05 », puis « 12 nov., 14:05 ». */
@@ -198,6 +235,8 @@ export function ordinalAnglais(n: number): string {
 export const ordinalFrancais = (n: number): string => `${n}${n === 1 ? "re" : "e"}`;
 
 const pluriel = (n: number, un: string, plusieurs: string) => (n > 1 ? plusieurs : un);
+/** En anglais, seul 1 est au singulier : « 0 pixels ». */
+const pluralEn = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
 export const FR: Textes = {
   langue: "fr",
@@ -331,6 +370,37 @@ export const FR: Textes = {
   envoyer: "Envoyer",
   caracteresRestants: (n) => `${n} caractères restants`,
   piedDiscussion: "Lue par les Gaulois et les alliés invités ; effacée au bout de 30 jours.",
+
+  modeEvolution: "En 24 heures",
+  legendePris: "Pris en 24 heures",
+  legendePerdu: "Perdu en 24 heures",
+  legendeNotre: "Notre alliance",
+  en24h: "En 24 heures",
+  prisEtPerdus: (pris, perdus, nPerdus) => `${pluriel(pris, "pixel pris", "pixels pris")}, ${perdus} ${pluriel(nPerdus, "perdu", "perdus")}`,
+  solde24h: (n, texte) => (n > 0 ? `${texte} de plus en 24 heures` : `${texte} de moins en 24 heures`),
+  comparaison: (date) => `« En 24 heures » : comparée à la carte du ${date}.`,
+  zone24h: (pris, perdus, nombre) => `En 24 heures : ${nombre(pris)} ${pluriel(pris, "pixel pris", "pixels pris")}, ${nombre(perdus)} ${pluriel(perdus, "perdu", "perdus")}.`,
+  pixelPris: "pris en 24 heures",
+  pixelPerdu: "perdu en 24 heures",
+
+  ancienne: "ancienne, à redéclarer",
+  dontAnciennes: (n) => `dont ${n} ${pluriel(n, "ancienne", "anciennes")}`,
+  enCapsules: "En capsules",
+  parCapsule: (n) => `Une capsule du trésor donne ${n} troupes.`,
+  troupesZone: (n, quand) => `Troupes déclarées : ${n}, le ${quand}.`,
+  troupesZoneAlliance: (n, declares, clans, quand) => `Troupes déclarées par ${declares} ${pluriel(declares, "clan", "clans")} sur ${clans} : ${n}, la plus ancienne le ${quand}.`,
+  declarationAncienneZone: "Déclaration ancienne : à redéclarer.",
+  pasDeclareZone: (tag) => `${tag} n'a pas déclaré ses troupes.`,
+  aucuneDeclarationZone: "Aucun clan de l'alliance n'a déclaré ses troupes.",
+  assez: "Assez pour la prendre.",
+  assezMinimum: "Assez pour le minimum. Les pixels d'autres clans coûtent plus, selon leurs troupes, que le site ne connaît pas.",
+  manque: (n) => `Il en manque ${n}.`,
+  manqueAuMoins: (n) => `Il en manque au moins ${n}.`,
+
+  voisinsTitre: "Nos voisins",
+  voisinsAide: "Les clans qui touchent notre alliance. Un clic centre la carte sur leur principal point de contact.",
+  auContact: (n) => pluriel(n, "pixel au contact", "pixels au contact"),
+  voisinsAutres: (n) => `Les ${n} autres`,
 };
 
 export const EN: Textes = {
@@ -465,6 +535,37 @@ export const EN: Textes = {
   envoyer: "Send",
   caracteresRestants: (n) => `${n} characters left`,
   piedDiscussion: "Read by GAL members and invited allies; deleted after 30 days.",
+
+  modeEvolution: "Last 24 hours",
+  legendePris: "Taken in 24 hours",
+  legendePerdu: "Lost in 24 hours",
+  legendeNotre: "Our alliance",
+  en24h: "Last 24 hours",
+  prisEtPerdus: (pris, perdus) => `${pluralEn(pris, "pixel taken", "pixels taken")}, ${perdus} lost`,
+  solde24h: (n, texte) => (n > 0 ? `${texte} more in 24 hours` : `${texte} fewer in 24 hours`),
+  comparaison: (date) => `“Last 24 hours”: compared with the map of ${date} (Paris time).`,
+  zone24h: (pris, perdus, nombre) => `Last 24 hours: ${nombre(pris)} ${pluralEn(pris, "pixel taken", "pixels taken")}, ${nombre(perdus)} lost.`,
+  pixelPris: "taken in 24 hours",
+  pixelPerdu: "lost in 24 hours",
+
+  ancienne: "old, please declare again",
+  dontAnciennes: (n) => `${n} of them old`,
+  enCapsules: "In capsules",
+  parCapsule: (n) => `One treasury capsule gives ${n} troops.`,
+  troupesZone: (n, quand) => `Declared troops: ${n}, on ${quand}.`,
+  troupesZoneAlliance: (n, declares, clans, quand) => `Troops declared by ${declares} of ${clans} ${pluriel(clans, "clan", "clans")}: ${n}, the oldest on ${quand}.`,
+  declarationAncienneZone: "Old declaration: please declare again.",
+  pasDeclareZone: (tag) => `${tag} has not declared its troops.`,
+  aucuneDeclarationZone: "No clan of the alliance has declared its troops.",
+  assez: "Enough to take it.",
+  assezMinimum: "Enough for the minimum. Pixels of other clans cost more, depending on their troops, which the site does not know.",
+  manque: (n) => `Short by ${n}.`,
+  manqueAuMoins: (n) => `Short by at least ${n}.`,
+
+  voisinsTitre: "Our neighbours",
+  voisinsAide: "Clans touching our alliance. A click centres the map on their main point of contact.",
+  auContact: (n) => pluralEn(n, "pixel in contact", "pixels in contact"),
+  voisinsAutres: (n) => `The other ${n}`,
 };
 
 export const textesDe = (langue: Langue): Textes => (langue === "en" ? EN : FR);

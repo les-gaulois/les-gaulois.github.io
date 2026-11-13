@@ -16,8 +16,8 @@ import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 import sharp from "sharp";
 import { clanRgb, decodeFrames } from "../src/lib/clanmap/codec";
-import { parseEventLog } from "../src/lib/clanmap/collect";
-import { encoderEtat, etatAuRelevé, etatConforme } from "../src/lib/clanmap/etat";
+import { RELEVE_FILE, Releve, parseEventLog } from "../src/lib/clanmap/collect";
+import { classementDeLEtat, encoderEtat, encoderVeille, etatConforme, rejouerEtat, type EtatRejoue, type ReleveCarte } from "../src/lib/clanmap/etat";
 import { OFFICIAL_MAP, TERRAIN_ORIGIN, TERRAIN_PATH, blendOwners, countLand, merDuJeu, reliefDuFond } from "../src/lib/clanmap/terrain";
 import { StoredClanMapFilm } from "../src/lib/schemas";
 
@@ -104,23 +104,105 @@ for (const width of [800, 1400]) {
 console.log(`Carte : film de ${film.frames.length} images, ${film.events} événements.`);
 
 /*
- * La carte de l'alliance : l'état complet, pixel par pixel, au dernier événement du film (`src/lib/clanmap/etat.ts`). Il se
- * refait depuis l'historique public déjà collecté, gardé hors de Git ; sans lui, ou s'il ne redonne pas les pixels du film,
- * il n'est pas publié, et la carte de l'alliance le dit au lieu de compter faux. Le site se construit quand même.
+ * La carte de l'alliance : l'état complet, pixel par pixel (`src/lib/clanmap/etat.ts`), refait depuis l'historique public
+ * déjà collecté, gardé hors de Git. Depuis le 13 novembre 2026, au dernier événement relu par le robot (`releve.json`),
+ * plus récent que le film, avec ce qui a changé de main en 24 heures (`veille.bin.gz`). L'état n'est publié que si chaque
+ * événement rejoué retombe sur l'ancien propriétaire qu'il annonce, et, au relevé du film, s'il redonne ses pixels clan
+ * par clan. Sinon, l'état du film, comme avant ; sans rien de bon, rien : la carte de l'alliance le dit au lieu de compter
+ * faux. Le site se construit quand même.
  */
+const VEILLE_SECONDES = 86_400;
+
+/** Le relevé noté par la collecte, s'il correspond à l'historique local. */
+function releveDuCache(dernier: number): { at: string; seq: number } | null {
+  const path = join(cache, RELEVE_FILE);
+  if (!existsSync(path)) return null;
+  try {
+    const lu = Releve.safeParse(JSON.parse(readFileSync(path, "utf8")));
+    return lu.success && lu.data.seq === dernier && !Number.isNaN(Date.parse(lu.data.at)) ? lu.data : null;
+  } catch {
+    return null;
+  }
+}
+
+/** L'annuaire des clans de la carte, gardé par la collecte : `null` s'il manque. */
+function annuaire(): Record<string, { tag: string | null; color: number | null }> | null {
+  const path = join(cache, "clans.json");
+  if (!existsSync(path)) return null;
+  try {
+    const lu: unknown = JSON.parse(readFileSync(path, "utf8"));
+    return typeof lu === "object" && lu !== null ? (lu as Record<string, { tag: string | null; color: number | null }>) : null;
+  } catch {
+    return null;
+  }
+}
+
+function publierEtat(rejoue: EtatRejoue, releve: ReleveCarte): string {
+  const bytes = gzipSync(encoderEtat(rejoue.etat), { level: 9 });
+  writeFileSync(join(out, "etat.bin.gz"), bytes);
+  let veille = "sans comparaison sur 24 heures";
+  if (rejoue.veille && releve.veille) {
+    const v = gzipSync(encoderVeille(rejoue.veille), { level: 9 });
+    writeFileSync(join(out, "veille.bin.gz"), v);
+    veille = `${rejoue.veille.index.length} pixels changés en 24 heures (${Math.round(v.length / 1024)} Ko)`;
+  }
+  writeFileSync(join(out, "etat.json"), JSON.stringify(releve));
+  return `état pixel par pixel à l'événement n° ${rejoue.etat.seq}, relevé le ${releve.fetchedAt}, ${Math.round(bytes.length / 1024)} Ko, ${veille}.`;
+}
+
 const etatMessage = (() => {
   const events = join(cache, "events.bin");
   const terrainPath = join(cache, "terrain.bin");
   if (!existsSync(events) || !existsSync(terrainPath)) return "pas d'historique local, pas d'état pixel par pixel.";
   const log = parseEventLog(readFileSync(events));
-  if (!log) return "historique local illisible, pas d'état pixel par pixel.";
+  if (!log || log.length === 0) return "historique local illisible, pas d'état pixel par pixel.";
   const terrain = readFileSync(terrainPath);
   if (countLand(terrain) !== OFFICIAL_MAP.land) return "terrain local inattendu, pas d'état pixel par pixel.";
-  const etat = etatAuRelevé(log, film.seq, film.width, film.height, terrain);
-  if (!etat) return `l'historique local ne va pas jusqu'à l'événement n° ${film.seq} du film, pas d'état pixel par pixel.`;
-  if (!etatConforme(etat.valeurs, film.clans, film.standings)) return "l'état rejoué ne redonne pas les pixels du film : il n'est pas publié.";
-  const bytes = gzipSync(encoderEtat(etat), { level: 9 });
-  writeFileSync(join(out, "etat.bin.gz"), bytes);
-  return `état pixel par pixel à l'événement n° ${film.seq}, ${Math.round(bytes.length / 1024)} Ko.`;
+  const veilleDe = (iso: string) => Math.floor(Date.parse(iso) / 1000) - VEILLE_SECONDES;
+  const releveVeille = (r: EtatRejoue) => (r.veille ? { depuis: new Date(r.veille.depuis * 1000).toISOString(), seq: r.veille.seq } : null);
+
+  // Au dernier événement relu par le robot.
+  const releve = releveDuCache(log.seq[log.length - 1]!);
+  const clans = annuaire();
+  let raison = !releve ? "pas de relevé récent dans le cache" : "pas d'annuaire des clans dans le cache";
+  if (releve && clans) {
+    const rejoue = rejouerEtat(log, film.width, film.height, terrain, { depuis: veilleDe(releve.at) });
+    if (!rejoue) raison = "historique impossible à rejouer";
+    else if (rejoue.ecarts > 0) raison = `le rejeu contredit l'historique sur ${rejoue.ecarts} événements`;
+    else {
+      const lesClans = rejoue.clanIds.map((id) => (id === 0 ? { tag: null, color: null } : { tag: clans[String(id)]?.tag ?? null, color: clans[String(id)]?.color ?? null }));
+      const standings = classementDeLEtat(rejoue.etat.valeurs, lesClans);
+      if (rejoue.etat.seq === film.seq && !etatConforme(rejoue.etat.valeurs, film.clans, film.standings)) raison = "l'état rejoué ne redonne pas les pixels du film";
+      else
+        return publierEtat(rejoue, {
+          version: 1,
+          fetchedAt: releve.at,
+          seq: rejoue.etat.seq,
+          width: film.width,
+          height: film.height,
+          clans: lesClans,
+          standings,
+          claimed: standings.reduce((n, s) => n + s.pixels, 0),
+          veille: releveVeille(rejoue),
+        });
+    }
+  }
+
+  // Sinon, comme avant : au dernier événement du film, s'il redonne ses pixels.
+  console.log(`::warning::Carte de l'alliance : ${raison}, état du film à la place.`);
+  const rejoue = rejouerEtat(log, film.width, film.height, terrain, { seq: film.seq, depuis: veilleDe(film.fetchedAt) });
+  if (!rejoue) return `l'historique local ne va pas jusqu'à l'événement n° ${film.seq} du film, pas d'état pixel par pixel.`;
+  if (rejoue.ecarts > 0 || !etatConforme(rejoue.etat.valeurs, film.clans, film.standings)) return "l'état rejoué ne redonne pas les pixels du film : il n'est pas publié.";
+  return publierEtat(rejoue, {
+    version: 1,
+    fetchedAt: film.fetchedAt,
+    seq: film.seq,
+    width: film.width,
+    height: film.height,
+    clans: film.clans,
+    standings: film.standings,
+    claimed: film.claimed,
+    veille: releveVeille(rejoue),
+  });
 })();
 console.log(`Carte de l'alliance : ${etatMessage}`);

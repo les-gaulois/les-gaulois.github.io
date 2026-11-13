@@ -17,20 +17,22 @@ import { bilanZone, totauxAlliances, type BilanZone } from "../../../lib/allianc
 import { TEXTES_CAPTURE } from "../../../lib/alliance/capture";
 import { COULEUR_TOUTE_L_ALLIANCE, couleurDeZone, couleursDesClans, legendeDeTout } from "../../../lib/alliance/couleurs";
 import { dernierNumero, nonLus } from "../../../lib/alliance/discussion";
+import { mouvementZone, mouvements, type Mouvement } from "../../../lib/alliance/evolution";
 import { INVITATION_KEY, RETOUR_CARTE_KEY, invitationDeLAncre, jetonValable } from "../../../lib/alliance/invitation";
 import { LANGUE_KEY, langueDeDepart, type Langue } from "../../../lib/alliance/langue";
 import { masqueDeLaZone } from "../../../lib/alliance/masque";
 import { FR, textesDe, type Textes } from "../../../lib/alliance/textes";
 import type { AccesCarte, AllianceLigne, CarteAlliance, MessageAlliance } from "../../../lib/alliance/types";
+import { voisinsDe } from "../../../lib/alliance/voisins";
 import { ServerError, call, mayHaveSession, signOut, supabase } from "../../../lib/compte/api";
-import { ecranAlliance, type Chargement, type Survol, type ZoneAffichee } from "../../../scripts/alliance-ecran";
+import { COULEUR_PERDU, COULEUR_PRIS, ecranAlliance, type Chargement, type Survol, type ZoneAffichee } from "../../../scripts/alliance-ecran";
 import { CodeLogin, DiscordButton, DiscordGives, Problem, codeLoginShown, messageIn, usePlayerView } from "../../compte/common";
 import AllianceCapture from "./AllianceCapture";
 import AllianceGestion from "./AllianceGestion";
 import AllianceMessages from "./AllianceMessages";
 import AllianceVue from "./AllianceVue";
 import AllianceZones from "./AllianceZones";
-import { CalqueCarte, ChoixLangue, TextesContexte, type Calque, type Contexte, type EntreeLegende, type ModeCouleurs } from "./commun";
+import { CalqueCarte, ChoixLangue, TextesContexte, type Calque, type Contexte, type EntreeLegende, type Evolution, type ModeCouleurs } from "./commun";
 
 type Onglet = "vue" | "zones" | "messages" | "capture" | "gestion";
 const VU_KEY = "gal-alliance-vu";
@@ -40,6 +42,8 @@ const GRIS_AUTRES = 0x4b5570;
 const COULEUR_NEUTRE = 0x3f4441;
 /** En « Tout », la légende nomme les plus grands clans ; la bulle du survol nomme chacun des autres. */
 const LEGENDE_TOUT = 8;
+/** « En 24 heures » : nos clans d'une seule teinte pâle, pour que ce qu'ils ont pris et perdu se voie (alliance-ecran.ts). */
+const COULEUR_NOTRE_24H = 0x93c5fd;
 
 const lireStockage = (stockage: () => Storage, cle: string): string | null => {
   try {
@@ -228,7 +232,7 @@ export default function AllianceApp() {
     bouton.addEventListener("click", clic);
     return () => bouton.removeEventListener("click", clic);
   }, [root]);
-  const [mode, setMode] = useState<ModeCouleurs>("clans");
+  const [modeChoisi, setMode] = useState<ModeCouleurs>("clans");
   const [selection, setSelection] = useState<number | null>(null);
   const [edition, setEdition] = useState<{ id: number | null; titre: string; tag: string } | null>(null);
   const [messages, setMessages] = useState<MessageAlliance[] | null>(null);
@@ -354,9 +358,12 @@ export default function AllianceApp() {
   const ours = donnees?.ours ?? null;
   const notres = useMemo(() => new Set(alliances.find((a) => a.id === ours)?.clans ?? []), [alliances, ours]);
   // GAL est toujours des nôtres, même avant d'être rangé dans une alliance : ses pixels ne sont jamais à prendre, et il a sa couleur.
-  const pourBilan = useMemo(() => new Set([...notres, "GAL"]), [notres]);
+  // La même liste de tags garde le même ensemble : les calculs sur toute la carte (voisins, 24 heures) ne se refont pas à
+  // chaque relecture des alliances, chaque minute pour l'encadrement.
+  const clefNotres = [...notres, "GAL"].sort().join(",");
+  const pourBilan = useMemo(() => new Set(clefNotres.split(",")), [clefNotres]);
   const couleursClans = useMemo(() => couleursDesClans(pourBilan), [pourBilan]);
-  const totaux = useMemo(() => (charge ? totauxAlliances(alliances, charge.film.standings, charge.film.claimed) : []), [alliances, charge]);
+  const totaux = useMemo(() => (charge ? totauxAlliances(alliances, charge.releve.standings, charge.releve.claimed) : []), [alliances, charge]);
   const zones = useMemo(() => donnees?.zones ?? [], [donnees]);
 
   const bilans = useMemo(() => {
@@ -364,10 +371,30 @@ export default function AllianceApp() {
     if (!charge?.etat) return out;
     for (const z of zones) {
       const m = masqueDeLaZone(z);
-      if (m) out.set(z.id, bilanZone(m, charge.etat.valeurs, charge.etat.width, charge.film.clans, pourBilan));
+      if (m) out.set(z.id, bilanZone(m, charge.etat.valeurs, charge.etat.width, charge.releve.clans, pourBilan));
     }
     return out;
   }, [zones, charge, pourBilan]);
+
+  // Ce qui a bougé en 24 heures : notre alliance, chaque clan, chaque zone. Sans comparaison publiée, rien.
+  const evolution = useMemo<Evolution | null>(() => {
+    const compare = charge?.releve.veille;
+    if (!charge?.etat || !charge.veille || !compare) return null;
+    const { etat, veille, releve } = charge;
+    const m = mouvements(veille, etat.valeurs, releve.clans, pourBilan);
+    const parZone = new Map<number, Mouvement>();
+    for (const z of zones) {
+      const masque = masqueDeLaZone(z);
+      if (masque) parZone.set(z.id, mouvementZone(veille, etat.valeurs, etat.width, masque, releve.clans, pourBilan));
+    }
+    return { depuis: compare.depuis, alliance: m.alliance, parClan: m.parClan, zones: parZone };
+  }, [charge, zones, pourBilan]);
+  // Sans comparaison, la carte « en 24 heures » n'existe pas : celle de nos clans à la place.
+  const mode: ModeCouleurs = modeChoisi === "evolution" && !evolution ? "clans" : modeChoisi;
+
+  // Les clans qui touchent notre alliance, au dernier relevé.
+  const voisins = useMemo(() => (charge?.etat ? voisinsDe(charge.etat.valeurs, charge.etat.width, charge.releve.clans, pourBilan) : []), [charge, pourBilan]);
+  const viser = useCallback((cadre: { x: number; y: number; w: number; h: number }) => ecran?.viser(cadre), [ecran]);
 
   // La carte de l'alliance à la place du film, tant que la fenêtre est ouverte. Un dessin en cours reste, fenêtre fermée :
   // il se retrouve à la réouverture.
@@ -379,14 +406,15 @@ export default function AllianceApp() {
   // Les couleurs de la carte : nos clans chacun dans la sienne, ou chaque alliance dans la sienne, les autres en gris ; ou
   // « Tout » : chaque clan dans sa couleur du jeu, clans neutres compris (l'écran les prend dans le film, par index).
   const couleursCarte = useMemo(() => {
-    if (mode === "clans" || mode === "tout") return couleursClans;
+    if (mode === "evolution") return new Map([...pourBilan].map((tag) => [tag, COULEUR_NOTRE_24H]));
+    if (mode !== "alliances") return couleursClans;
     const m = new Map<string, number>();
     for (const a of alliances) for (const tag of a.clans) m.set(tag, a.color);
     return m;
-  }, [mode, couleursClans, alliances]);
+  }, [mode, couleursClans, alliances, pourBilan]);
   useEffect(() => {
-    if (ecran && charge) ecran.regler(couleursCarte, mode === "tout");
-  }, [ecran, charge, couleursCarte, mode]);
+    if (ecran && charge) ecran.regler(couleursCarte, mode === "tout", mode === "evolution" ? pourBilan : null);
+  }, [ecran, charge, couleursCarte, mode, pourBilan]);
 
   // Les zones à dessiner ne se refont qu'à la relecture du serveur : choisir une zone ne redécode pas les masques.
   const affichees = useMemo(() => {
@@ -406,13 +434,21 @@ export default function AllianceApp() {
   const legende = useMemo<EntreeLegende[]>(() => {
     if (!charge) return [];
     if (mode === "tout") {
-      const entrees: EntreeLegende[] = legendeDeTout(charge.film.standings, LEGENDE_TOUT);
+      const entrees: EntreeLegende[] = legendeDeTout(charge.releve.standings, LEGENDE_TOUT);
       if (zones.some((z) => z.tag === null)) entrees.push({ couleur: COULEUR_TOUTE_L_ALLIANCE, nom: t.touteLAlliance });
       entrees.push({ couleur: COULEUR_NEUTRE, nom: t.terreNeutre });
       return entrees;
     }
     const entrees: EntreeLegende[] =
-      mode === "clans" ? [...couleursClans].map(([tag, couleur]) => ({ couleur, nom: tag })) : [...totaux].sort((a, b) => a.rang - b.rang).map((a) => ({ couleur: a.color, nom: a.name }));
+      mode === "alliances"
+        ? [...totaux].sort((a, b) => a.rang - b.rang).map((a) => ({ couleur: a.color, nom: a.name }))
+        : mode === "evolution"
+          ? [
+              { couleur: COULEUR_PRIS, nom: t.legendePris },
+              { couleur: COULEUR_PERDU, nom: t.legendePerdu },
+              { couleur: COULEUR_NOTRE_24H, nom: t.legendeNotre },
+            ]
+          : [...couleursClans].map(([tag, couleur]) => ({ couleur, nom: tag }));
     if (zones.some((z) => z.tag === null)) entrees.push({ couleur: COULEUR_TOUTE_L_ALLIANCE, nom: t.touteLAlliance });
     entrees.push({ couleur: GRIS_AUTRES, nom: t.legendeAutres });
     return entrees;
@@ -420,8 +456,8 @@ export default function AllianceApp() {
 
   // Ce que la fenêtre écrit sur la carte : la légende, et la bulle du survol, redessinée à chaque mouvement de la souris
   // sans redessiner la fenêtre. Les valeurs du moment sont gardées ici pour le rappel du survol.
-  const pourLeCalque = useRef({ t, legende, zones, bilans, couleursClans, alliances, edition: false });
-  pourLeCalque.current = { t, legende, zones, bilans, couleursClans, alliances, edition: edition !== null };
+  const pourLeCalque = useRef({ t, legende, zones, bilans, evolution, couleursClans, alliances, edition: false });
+  pourLeCalque.current = { t, legende, zones, bilans, evolution, couleursClans, alliances, edition: edition !== null };
   const survolRef = useRef<Survol | null>(null);
   const peindreCalque = useCallback(() => {
     if (!calque || !ecran) return;
@@ -437,6 +473,7 @@ export default function AllianceApp() {
       libre: { largeur: ecran.largeurLibre(), hauteur: calque.getBoundingClientRect().height },
       zone,
       bilan: zone ? (p.bilans.get(zone.id) ?? null) : null,
+      mouvement: zone ? (p.evolution?.zones.get(zone.id) ?? null) : null,
       couleurZone: zone ? couleurDeZone(zone.tag, p.couleursClans) : 0,
       alliance: tag === null ? null : (p.alliances.find((a) => a.clans.includes(tag))?.name ?? null),
     };
@@ -444,7 +481,7 @@ export default function AllianceApp() {
   }, [calque, ecran]);
   useEffect(() => {
     peindreCalque();
-  }, [peindreCalque, t, legende, zones, bilans, couleursClans, alliances, edition]);
+  }, [peindreCalque, t, legende, zones, bilans, evolution, couleursClans, alliances, edition]);
   useEffect(
     () => () => {
       if (calque) render(null, calque);
@@ -651,7 +688,7 @@ export default function AllianceApp() {
         </>
       );
 
-    const ctx: Contexte = { donnees: { ...donnees, access }, film: charge.film, etat: charge.etat, staff, totaux, notres, couleursClans, bilans, relire };
+    const ctx: Contexte = { donnees: { ...donnees, access }, releve: charge.releve, etat: charge.etat, staff, totaux, notres, couleursClans, bilans, evolution, voisins, viser, relire };
     const onglets: { id: Onglet; label: string; compte?: number; mots?: string }[] = [
       { id: "vue", label: t.onglets.vue },
       { id: "zones", label: t.onglets.zones },

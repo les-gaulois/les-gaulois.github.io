@@ -74,15 +74,17 @@ export default function AllianceCapture({
           pct: t.pct,
           vue,
           monde: source.monde,
-          releve: ctx.film.fetchedAt,
+          releve: ctx.releve.fetchedAt,
           maintenant,
           notreAlliance: notre?.name ?? null,
           legende: legendeDeCapture({
             legende,
-            mode,
+            // « En 24 heures » : nos clans d'une teinte pâle, le jaune et le rose de ce qui a bougé ; aucune de ces lignes
+            // ne désigne un clan, et la légende n'écrit de chiffre que pour un clan ou une alliance reconnus.
+            mode: mode === "evolution" ? "clans" : mode,
             couleursClans: ctx.couleursClans,
             totaux: ctx.totaux,
-            standings: ctx.film.standings,
+            standings: ctx.releve.standings,
             avecZones: zonesAussi,
             touteLAlliance: t.touteLAlliance,
             pixels: (n) => tc.pixels(t.nombre(n)),

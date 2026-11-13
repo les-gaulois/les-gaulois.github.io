@@ -6793,6 +6793,35 @@ footer h2 {
   grid-column: 1 / -1;
   font-size: 0.75rem;
 }
+/* Nos voisins : chaque ligne est un bouton qui centre la carte sur le contact, posé comme une ligne des autres alliances. */
+.alliance-autres > li:has(> .alliance-voisin) {
+  display: block;
+}
+.alliance-voisin {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0 0.75rem;
+  align-items: baseline;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.25rem 0;
+  text-align: left;
+}
+.alliance-voisin:hover strong {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+/* « En 24 heures » : les deux couleurs de la carte nommées sous le chiffre, car la légende de la carte est cachée sur téléphone. */
+.alliance-24h-legende {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  margin-top: 0.25rem;
+}
+.alliance-24h-legende > span {
+  display: inline-flex;
+  align-items: center;
+}
 
 /* Les zones : une carte par zone, sa couleur, son nom et sa part déjà prise en grand ; ouverte, son tableau. */
 .alliance-zones {

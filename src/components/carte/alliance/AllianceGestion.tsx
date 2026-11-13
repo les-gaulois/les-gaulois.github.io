@@ -160,7 +160,7 @@ function Rangement({ ctx }: { ctx: Contexte }) {
   for (const a of alliances) for (const tag of a.clans) range.set(tag, a.id);
   // Les clans de la carte, du plus grand au plus petit : un tag porté par deux clans n'est proposé qu'une fois.
   const pixels = new Map<string, number>();
-  for (const s of ctx.film.standings) if (s.tag !== null) pixels.set(s.tag, (pixels.get(s.tag) ?? 0) + s.pixels);
+  for (const s of ctx.releve.standings) if (s.tag !== null) pixels.set(s.tag, (pixels.get(s.tag) ?? 0) + s.pixels);
   const libres = [...pixels.keys()].filter((tag) => !range.has(tag));
 
   const ranger = (tag: string, alliance: number | null) => {

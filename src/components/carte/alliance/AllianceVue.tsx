@@ -1,13 +1,42 @@
 /**
- * Les alliances au dernier relevé de la carte : la nôtre en grand (territoire, place, troupes déclarées, puis ses clans en
- * tableau, chacun dans sa couleur), les autres en une ligne chacune. OpenFront ne donne pas les troupes au site : elles sont
- * écrites comme des déclarations, avec leur auteur et leur heure.
+ * Les alliances au dernier relevé de la carte : la nôtre en grand (territoire, place, troupes déclarées, ce qu'elle a pris
+ * et perdu en 24 heures, puis ses clans en tableau, chacun dans sa couleur), nos voisins, puis les autres alliances en une
+ * ligne chacune. OpenFront ne donne pas les troupes au site : elles sont écrites comme des déclarations, avec leur auteur et
+ * leur heure ; plus de trois jours après, en gris, « à redéclarer ».
  */
 import { useState } from "preact/hooks";
-import { lireTroupes, troupesDeLAlliance } from "../../../lib/alliance/bilan";
+import { declarationAncienne, lireTroupes, troupesDeLAlliance } from "../../../lib/alliance/bilan";
+import type { Voisin } from "../../../lib/alliance/voisins";
+import { COULEUR_PERDU, COULEUR_PRIS } from "../../../scripts/alliance-ecran";
 import { call } from "../../../lib/compte/api";
 import { Problem, messageIn } from "../../compte/common";
-import { Pastille, useTextes, type Contexte, type ModeCouleurs } from "./commun";
+import { Pastille, nomDuClan, useTextes, type Contexte, type ModeCouleurs } from "./commun";
+
+/** Les voisins montrés d'emblée ; les autres sont repliés. */
+const VOISINS_VUS = 6;
+
+/** Un clan voisin : un bouton qui centre la carte sur son contact avec notre alliance. */
+function LigneVoisin({ v, ctx }: { v: Voisin; ctx: Contexte }) {
+  const t = useTextes();
+  const nom = nomDuClan(v.tag, t);
+  const alliance = v.tag === null ? null : ((ctx.donnees.alliances ?? []).find((a) => a.clans.includes(v.tag!))?.name ?? null);
+  const territoire = v.tag === null ? null : ctx.releve.standings.filter((s) => s.tag === v.tag).reduce((n, s) => n + s.pixels, 0);
+  return (
+    <li>
+      <button type="button" class="alliance-voisin" aria-describedby="alliance-voisins-aide" onClick={() => ctx.viser(v.cadre)} data-testid="alliance-voisin">
+        <span class="alliance-autres-nom">
+          <strong>{nom}</strong>
+        </span>
+        <span class="alliance-autres-chiffre tnum">
+          {t.nombre(v.contact)} <span class="text-muted">{t.auContact(v.contact)}</span>
+        </span>
+        <span class="alliance-autres-detail text-muted tnum">
+          {[alliance, territoire === null ? null : `${t.territoire} ${t.nombre(territoire)} ${t.pixels}`].filter((x) => x !== null).join(" · ")}
+        </span>
+      </button>
+    </li>
+  );
+}
 
 /** Une seule déclaration pour tous les clans qu'on peut déclarer : un allié, le sien ; l'encadrement, ceux de notre alliance. */
 function Declaration({ clans, ctx }: { clans: string[]; ctx: Contexte }) {
@@ -87,6 +116,12 @@ export default function AllianceVue({ ctx, mode, setMode }: { ctx: Contexte; mod
   const notre = totaux.find((a) => a.id === ours) ?? null;
   const autres = totaux.filter((a) => a.id !== ours).sort((a, b) => a.rang - b.rang);
   const troupes = notre ? troupesDeLAlliance(notre.clans.map((c) => c.tag), donnees.troops ?? []) : null;
+  const maintenant = new Date();
+  const anciennes = notre ? (donnees.troops ?? []).filter((d) => notre.clans.some((c) => c.tag === d.tag) && declarationAncienne(d.at, maintenant)).length : 0;
+  const evolution = ctx.evolution;
+  // « En 24 heures » seulement avec une comparaison publiée.
+  const modes: ModeCouleurs[] = evolution ? ["clans", "alliances", "tout", "evolution"] : ["clans", "alliances", "tout"];
+  const voisins = ctx.voisins;
   const declarables = notre ? notre.clans.map((c) => c.tag).filter((tag) => ctx.staff || (access.kind === "allie" && access.tag === tag)) : [];
 
   return (
@@ -96,9 +131,9 @@ export default function AllianceVue({ ctx, mode, setMode }: { ctx: Contexte; mod
           <span class="carte-petit text-muted" aria-hidden="true">
             {t.couleursCarte}
           </span>
-          {(["clans", "alliances", "tout"] as const).map((m) => (
+          {modes.map((m) => (
             <button type="button" aria-pressed={mode === m} onClick={() => setMode(m)}>
-              {m === "clans" ? t.modeClans : m === "alliances" ? t.modeAlliances : t.modeTout}
+              {m === "clans" ? t.modeClans : m === "alliances" ? t.modeAlliances : m === "tout" ? t.modeTout : t.modeEvolution}
             </button>
           ))}
         </div>
@@ -130,8 +165,30 @@ export default function AllianceVue({ ctx, mode, setMode }: { ctx: Contexte; mod
               <dd class="alliance-kpi tnum" data-testid="alliance-troupes">
                 {troupes.declares > 0 ? t.nombre(troupes.total) : "—"}
               </dd>
-              <dd class="carte-petit text-muted">{troupes.declares > 0 ? t.parClans(troupes.declares, troupes.clans) : t.aucuneDeclaration}</dd>
+              <dd class="carte-petit text-muted">
+                {troupes.declares > 0 ? t.parClans(troupes.declares, troupes.clans) : t.aucuneDeclaration}
+                {anciennes > 0 ? ` · ${t.dontAnciennes(anciennes)}` : ""}
+              </dd>
             </div>
+            {evolution && (
+              <div data-testid="alliance-24h">
+                <dt>{t.en24h}</dt>
+                <dd class="alliance-kpi tnum">{t.nombre(evolution.alliance.pris)}</dd>
+                <dd class="carte-petit text-muted tnum">{t.prisEtPerdus(evolution.alliance.pris, t.nombre(evolution.alliance.perdus), evolution.alliance.perdus)}</dd>
+                {mode === "evolution" && (
+                  <dd class="alliance-24h-legende carte-petit">
+                    <span>
+                      <Pastille couleur={COULEUR_PRIS} />
+                      {t.legendePris}
+                    </span>
+                    <span>
+                      <Pastille couleur={COULEUR_PERDU} />
+                      {t.legendePerdu}
+                    </span>
+                  </dd>
+                )}
+              </div>
+            )}
           </dl>
 
           <table class="alliance-table tnum">
@@ -145,19 +202,28 @@ export default function AllianceVue({ ctx, mode, setMode }: { ctx: Contexte; mod
             <tbody>
               {notre.clans.map((c) => {
                 const declare = donnees.troops?.find((d) => d.tag === c.tag) ?? null;
+                const bouge = evolution?.parClan.get(c.tag);
+                const solde = bouge ? bouge.pris - bouge.perdus : 0;
+                const vieille = declare !== null && declarationAncienne(declare.at, maintenant);
                 return (
                   <tr>
                     <th scope="row">
                       <Pastille couleur={couleursClans.get(c.tag) ?? 0} />
                       {c.tag}
                     </th>
-                    <td>{t.nombre(c.pixels)}</td>
+                    <td>
+                      {t.nombre(c.pixels)}
+                      {solde !== 0 && <span class="alliance-table-detail">{t.solde24h(solde, t.nombre(Math.abs(solde)))}</span>}
+                    </td>
                     <td>
                       {declare ? (
-                        <>
+                        <span class={vieille ? "text-muted" : undefined} data-ancienne={vieille ? "" : undefined}>
                           {t.nombre(declare.troops)}
-                          <span class="alliance-table-detail">{t.declarePar(declare.by, t.dateHeure(declare.at))}</span>
-                        </>
+                          <span class="alliance-table-detail">
+                            {t.declarePar(declare.by, t.dateHeure(declare.at))}
+                            {vieille ? ` · ${t.ancienne}` : ""}
+                          </span>
+                        </span>
                       ) : (
                         <span class="text-muted">{t.nonDeclare}</span>
                       )}
@@ -169,6 +235,30 @@ export default function AllianceVue({ ctx, mode, setMode }: { ctx: Contexte; mod
           </table>
           <p class="carte-aide">{t.troupesAide}</p>
           {declarables.length > 0 && <Declaration clans={declarables} ctx={ctx} />}
+        </section>
+      )}
+
+      {notre && voisins.length > 0 && (
+        <section class="carte-bloc" aria-labelledby="alliance-voisins" data-testid="alliance-voisins">
+          <h3 id="alliance-voisins">{t.voisinsTitre}</h3>
+          <p class="carte-aide" id="alliance-voisins-aide">
+            {t.voisinsAide}
+          </p>
+          <ul class="alliance-autres">
+            {voisins.slice(0, VOISINS_VUS).map((v) => (
+              <LigneVoisin v={v} ctx={ctx} />
+            ))}
+          </ul>
+          {voisins.length > VOISINS_VUS && (
+            <details class="fold mt-2">
+              <summary>{t.voisinsAutres(voisins.length - VOISINS_VUS)}</summary>
+              <ul class="alliance-autres">
+                {voisins.slice(VOISINS_VUS).map((v) => (
+                  <LigneVoisin v={v} ctx={ctx} />
+                ))}
+              </ul>
+            </details>
+          )}
         </section>
       )}
 
@@ -193,7 +283,10 @@ export default function AllianceVue({ ctx, mode, setMode }: { ctx: Contexte; mod
           </ul>
         </section>
       )}
-      <p class="carte-aide tnum">{t.releve(t.dateHeure(ctx.film.fetchedAt))}</p>
+      <p class="carte-aide tnum">
+        {t.releve(t.dateHeure(ctx.releve.fetchedAt))}
+        {evolution ? ` ${t.comparaison(t.dateHeure(evolution.depuis))}` : ""}
+      </p>
     </div>
   );
 }

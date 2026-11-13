@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { adresseVersionnee } from "../../src/lib/clanmap/adresse";
-import { versionDeLaCarte } from "../../src/lib/clanmap/version";
+import { FICHIERS_DE_L_ETAT, versionDeLaCarte } from "../../src/lib/clanmap/version";
 
 describe("la version des fichiers de la carte", () => {
   const dossiers: string[] = [];
@@ -42,6 +42,19 @@ describe("la version des fichiers de la carte", () => {
     // Le fichier des vagues disparaît : la version redevient celle d'avant lui.
     rmSync(join(d, "vagues.webp"));
     expect(versionDeLaCarte(d)).toBe(bleu);
+  });
+
+  it("ne change pas pour le film quand seul l'état de la carte de l'alliance change, qui a sa propre version", () => {
+    const d = dossier();
+    writeFileSync(join(d, "film.json"), "{}");
+    writeFileSync(join(d, "etat.bin.gz"), "état de 15 h");
+    const film = versionDeLaCarte(d);
+    const etat = versionDeLaCarte(d, FICHIERS_DE_L_ETAT);
+    writeFileSync(join(d, "etat.bin.gz"), "état de 16 h");
+    writeFileSync(join(d, "veille.bin.gz"), "veille");
+    expect(versionDeLaCarte(d)).toBe(film);
+    expect(versionDeLaCarte(d, FICHIERS_DE_L_ETAT)).not.toBe(etat);
+    expect(versionDeLaCarte(d, FICHIERS_DE_L_ETAT)).toMatch(/^[0-9a-f]{12}$/);
   });
 
   it("n'existe pas sans fichier", () => {

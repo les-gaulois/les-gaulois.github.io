@@ -1,5 +1,6 @@
 /**
- * Collecte de la carte officielle des clans, une fois par jour.
+ * Collecte de la carte officielle des clans : le film une fois par jour, l'historique à chaque passage du robot, pour la
+ * carte de l'alliance (`releve.json` dans le cache dit de quand il est).
  *
  * L'historique vient de `/public/clanmap/history`, la route documentée par OpenFront
  * pour construire ce genre de film, et le terrain du dépôt public du jeu. Ils restent
@@ -146,10 +147,14 @@ async function resumePoint(logPath: string, deps: ClanMapDeps): Promise<number> 
   return kept > 0 ? log.seq[kept - 1]! : 0;
 }
 
-/** Complète l'historique local. Chaque page lue est conservée, même si la suite échoue. */
-async function downloadHistory(api: ApiClient, deps: ClanMapDeps, width: number, height: number, clans: ClanDirectory): Promise<void> {
+/**
+ * Complète l'historique local. Chaque page lue est conservée, même si la suite échoue. Rend le numéro du dernier
+ * événement de l'historique local.
+ */
+async function downloadHistory(api: ApiClient, deps: ClanMapDeps, width: number, height: number, clans: ClanDirectory): Promise<number> {
   const logPath = join(deps.cacheDir, "events.bin");
   let after = await resumePoint(logPath, deps);
+  let stored = after;
   for (let page = 0; ; page++) {
     if (page >= MAX_PAGES_PER_RUN) throw new Error(`historique incomplet après ${page} pages, reprise au prochain passage`);
     const res = await api.get(`/clanmap/history?after=${after}`, ApiClanMapHistory);
@@ -162,12 +167,38 @@ async function downloadHistory(api: ApiClient, deps: ClanMapDeps, width: number,
       lastSeq = Number(seq);
     }
     for (const [id, clan] of Object.entries(res.clans)) clans[id] = { tag: clan.tag, color: clan.color ?? null };
-    if (res.events.length > 0) await appendFile(logPath, encodeRecords(res.events));
-    if (res.next === null || res.events.length === 0) return;
+    if (res.events.length > 0) {
+      await appendFile(logPath, encodeRecords(res.events));
+      stored = lastSeq;
+    }
+    if (res.next === null || res.events.length === 0) return stored;
     // La documentation demande de suivre `next` plutôt que de compter : les numéros ont des trous.
     if (Number(res.next) <= after) throw new Error(`page suivante ${res.next} qui n'avance pas après ${after}`);
     after = Number(res.next);
   }
+}
+
+/** Ce que le build lit pour dater l'état de la carte de l'alliance : l'heure de la lecture et le dernier événement lu. */
+export const Releve = z.object({ at: z.string(), seq: z.number().int().nonnegative() });
+export const RELEVE_FILE = "releve.json";
+
+/**
+ * Entre deux films, l'historique se complète quand même à chaque passage, sans rien écrire dans `data/` : la carte de
+ * l'alliance, refaite au build depuis cet historique, suit ainsi la carte d'heure en heure (demande du pilote, 13
+ * novembre 2026). Seulement si l'historique local existe déjà : sinon, c'est le film suivant qui le télécharge en entier.
+ */
+async function refreshHistory(api: ApiClient, deps: ClanMapDeps, at: string): Promise<void> {
+  if (!existsSync(join(deps.cacheDir, "events.bin"))) return;
+  const map = deps.map ?? OFFICIAL_MAP;
+  const directoryPath = join(deps.cacheDir, "clans.json");
+  const clans: ClanDirectory = (await readJson(directoryPath, ClanDirectory)) ?? {};
+  let seq: number;
+  try {
+    seq = await downloadHistory(api, deps, map.width, map.height, clans);
+  } finally {
+    await writeJson(directoryPath, clans);
+  }
+  await writeJson(join(deps.cacheDir, RELEVE_FILE), { at, seq });
 }
 
 async function updateClanMap(api: ApiClient, deps: ClanMapDeps, at: string): Promise<StoredClanMapFilm> {
@@ -188,6 +219,7 @@ async function updateClanMap(api: ApiClient, deps: ClanMapDeps, at: string): Pro
   const logPath = join(deps.cacheDir, "events.bin");
   const log = existsSync(logPath) ? parseEventLog(await readFile(logPath)) : null;
   if (!log || log.length === 0) throw new Error("historique de la carte vide ou abîmé");
+  await writeJson(join(deps.cacheDir, RELEVE_FILE), { at, seq: log.seq[log.length - 1]! });
 
   const galEntry = Object.entries(clans).find(([, c]) => c.tag === deps.tag);
   const result = replayHistory(log, { width, height, scale: SCALE, galId: galEntry ? Number(galEntry[0]) : null });
@@ -291,10 +323,22 @@ export async function runClanMap(deps: ClanMapDeps): Promise<ClanMapRun> {
   const meta = (await readJson(metaPath, Meta)) ?? emptyMeta();
   const last = meta.clanmap.lastSuccessAt ? Date.parse(meta.clanmap.lastSuccessAt) : 0;
   const recent = deps.now().getTime() - last < MIN_INTERVAL_MS;
-  // Le premier passage du lundi refait le film : la gazette du matin a ainsi le territoire exact de la fin du dimanche.
-  if (!deps.force && recent && !isFirstOfMonday(meta.clanmap.lastSuccessAt, deps.now()) && !(await filmIsOutdated(deps))) return { errors: [], updated: false };
-
   const at = deps.now().toISOString();
+  // Le premier passage du lundi refait le film : la gazette du matin a ainsi le territoire exact de la fin du dimanche.
+  if (!deps.force && recent && !isFirstOfMonday(meta.clanmap.lastSuccessAt, deps.now()) && !(await filmIsOutdated(deps))) {
+    // Le film attend sa journée ; l'historique, lui, se complète. Une panne ne touche ni au film ni à `meta.json`, et
+    // l'avertissement reste dans le journal de l'Action. L'historique a pu être coupé à sa dernière page complète avant la
+    // panne : il ne correspond plus à `releve.json`, et le build reprend alors l'état du film, daté du film.
+    try {
+      await refreshHistory(new ApiClient(deps), deps, at);
+      return { errors: [], updated: false };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      deps.log(`ÉCHEC historique de la carte : ${msg}`);
+      return { errors: [`carte de l'alliance : historique non relu (${msg})`], updated: false };
+    }
+  }
+
   const errors: string[] = [];
   let updated = false;
   try {

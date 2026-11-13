@@ -246,15 +246,52 @@ describe("collecte de la carte", () => {
     expect(meta().leaderboard.lastSuccessAt).toBe("2026-11-05T09:00:00.000Z");
   });
 
-  it("ne relit la carte qu'une fois par jour", async () => {
+  it("ne refait le film qu'une fois par jour", async () => {
     await runClanMap(deps());
+    const before = readFileSync(join(dir, "clanmap", "film.json"), "utf8");
+    const metaBefore = readFileSync(join(dir, "meta.json"), "utf8");
     calls = [];
     now = new Date("2026-11-05T11:00:00.000Z");
     expect(await runClanMap(deps())).toEqual({ errors: [], updated: false });
-    expect(calls).toEqual([]);
+    // Entre deux films, seul l'historique se complète : ni le terrain ni la fiche du clan, et rien dans data/.
+    expect(calls).toEqual(["/public/clanmap/history?after=0"]);
+    expect(readFileSync(join(dir, "clanmap", "film.json"), "utf8")).toBe(before);
+    expect(readFileSync(join(dir, "meta.json"), "utf8")).toBe(metaBefore);
     now = new Date("2026-11-06T07:00:00.000Z");
     expect((await runClanMap(deps())).updated).toBe(true);
-    expect(calls.length).toBeGreaterThan(0);
+    expect(calls).toContain("/clans/GAL");
+  });
+
+  it("complète l'historique à chaque passage pour la carte de l'alliance, et date ce relevé", async () => {
+    await runClanMap(deps());
+    expect(JSON.parse(readFileSync(join(cache, "releve.json"), "utf8"))).toEqual({ at: "2026-11-05T10:00:00.000Z", seq: 5 });
+    history.push([7, 3, 0, 43], [9, 4, 0, 9]);
+    now = new Date("2026-11-05T11:53:00.000Z");
+    expect(await runClanMap(deps())).toEqual({ errors: [], updated: false });
+    const log = parseEventLog(readFileSync(join(cache, "events.bin")));
+    expect([...(log?.seq ?? [])]).toEqual([1, 2, 4, 5, 7, 9]);
+    expect(JSON.parse(readFileSync(join(cache, "releve.json"), "utf8"))).toEqual({ at: "2026-11-05T11:53:00.000Z", seq: 9 });
+    // Le film, lui, reste celui de 10 h.
+    expect(film().seq).toBe(5);
+  });
+
+  it("garde le dernier relevé si l'historique ne se relit pas entre deux films, sans toucher au film", async () => {
+    await runClanMap(deps());
+    now = new Date("2026-11-05T11:53:00.000Z");
+    const run = await runClanMap(deps((url) => (isHistory(url) ? { status: 500 } : undefined)));
+    expect(run.updated).toBe(false);
+    expect(run.errors[0]).toContain("carte de l'alliance");
+    expect(JSON.parse(readFileSync(join(cache, "releve.json"), "utf8"))).toEqual({ at: "2026-11-05T10:00:00.000Z", seq: 5 });
+    expect(meta().clanmap.lastError).toBeNull();
+  });
+
+  it("ne télécharge pas tout l'historique entre deux films s'il manque : le film suivant s'en charge", async () => {
+    await runClanMap(deps());
+    rmSync(join(cache, "events.bin"));
+    calls = [];
+    now = new Date("2026-11-05T11:53:00.000Z");
+    expect(await runClanMap(deps())).toEqual({ errors: [], updated: false });
+    expect(calls).toEqual([]);
   });
 
   it("refait le film au premier passage du lundi, pour la gazette du matin, et une seule fois", async () => {

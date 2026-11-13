@@ -427,6 +427,7 @@ Tests du 5 novembre 2026, entre 14 h 30 et 15 h 10 UTC, sauf mention contraire. 
 
 Depuis le 6 novembre 2026, la collecte lit `GET /public/clanmap/history`, documentée dans `docs/API.md` « pour construire des timelapses ». Elle répondait 404 le 5 novembre à 14 h 38 UTC, et 200 le 6 novembre à 12 h 13 UTC.
 
+- Le film se refait une fois par jour. Depuis le 13 novembre 2026, l'historique, lui, se complète à chaque passage du robot pour la carte de l'alliance : quelques pages nouvelles par heure (environ 150 000 événements par jour au 13 novembre 2026, soit 30 pages de 5 000), toujours à partir de la dernière page complète.
 - Chaque événement vaut `[seq, x, y, clanId, previousClanId, createdAt]`.
 - La collecte suit `next` et garde la taille de page par défaut : la documentation indique que seules ces pages tombent dans le cache d'OpenFront. Après une interruption, elle reprend donc à la dernière page complète.
 - `previousClanId` sert de contrôle à chaque mise à jour : si le rejeu ne retombe pas sur l'ancien propriétaire annoncé, le film n'est pas remplacé.

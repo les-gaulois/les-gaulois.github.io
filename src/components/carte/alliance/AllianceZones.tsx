@@ -13,17 +13,39 @@
  * ancien ne le dit pas, et le dessin reste alors à l'encadrement.
  */
 import { useEffect, useState } from "preact/hooks";
-import { bilanZone, type BilanZone } from "../../../lib/alliance/bilan";
+import { bilanZone, declarationAncienne, suffisance, troupesDeZone, type BilanZone } from "../../../lib/alliance/bilan";
 import { couleurDeZone } from "../../../lib/alliance/couleurs";
 import { CADRE_MAX, encoderBits, masqueDeLaZone, type Masque } from "../../../lib/alliance/masque";
 import type { ZoneLigne } from "../../../lib/alliance/types";
-import { ENEMY_PIXEL_BASE_TROOPS, NEUTRAL_PIXEL_TROOPS, RULES_CHECKED_ON } from "../../../lib/clanmap/economy";
+import { ENEMY_PIXEL_BASE_TROOPS, NEUTRAL_PIXEL_TROOPS, RULES_CHECKED_ON, TROOPS_PER_CAP } from "../../../lib/clanmap/economy";
 import type { IconePartieNom } from "../../../lib/icones-parties";
 import { ServerError, call } from "../../../lib/compte/api";
 import type { EcranAlliance, EtatDessin, Outil } from "../../../scripts/alliance-ecran";
 import IconePartie from "../../compte/IconePartie";
 import { Problem, messageIn } from "../../compte/common";
 import { Barre, Pastille, TableauZone, useTextes, type Contexte } from "./commun";
+
+/**
+ * Les troupes déclarées pour une zone, et si elles suffisent pour ce qui reste à prendre (demande du pilote, 13 novembre
+ * 2026). Rien ne s'écrit pour une zone déjà toute à nous.
+ */
+function Suffisance({ zone, bilan, ctx }: { zone: ZoneLigne; bilan: BilanZone; ctx: Contexte }) {
+  const t = useTextes();
+  const s = suffisance(bilan, 0);
+  if (s.besoin === 0) return null;
+  const clans = [...ctx.notres];
+  const d = troupesDeZone(zone.tag, clans, ctx.donnees.troops ?? []);
+  if (!d) return <p class="carte-aide">{zone.tag ? t.pasDeclareZone(zone.tag) : t.aucuneDeclarationZone}</p>;
+  const r = suffisance(bilan, d.troupes);
+  const quand = t.dateHeure(d.plusAncienne);
+  const verdict = r.manque > 0 ? (r.exact ? t.manque(t.nombre(r.manque)) : t.manqueAuMoins(t.nombre(r.manque))) : r.exact ? t.assez : t.assezMinimum;
+  return (
+    <p class="carte-aide" data-testid="zone-suffisance">
+      {zone.tag ? t.troupesZone(t.nombre(d.troupes), quand) : t.troupesZoneAlliance(t.nombre(d.troupes), d.declares, d.clans, quand)}
+      {declarationAncienne(d.plusAncienne, new Date()) ? ` ${t.declarationAncienneZone}` : ""} {verdict}
+    </p>
+  );
+}
 
 /** Les tailles du pinceau et de la gomme, en pixels de côté, de « Fin » à « Très gros ». */
 const TAILLES = [1, 5, 13, 25] as const;
@@ -76,7 +98,7 @@ export default function AllianceZones({
   setEdition: (e: Edition | null) => void;
 }) {
   const t = useTextes();
-  const { donnees, film, etat, notres, bilans, couleursClans } = ctx;
+  const { donnees, releve, etat, notres, bilans, couleursClans } = ctx;
   const zones = donnees.zones ?? [];
   const clansNotres = [...notres].sort((a, b) => (a === "GAL" ? -1 : b === "GAL" ? 1 : a.localeCompare(b)));
   const sansAlliance = (donnees.ours ?? null) === null;
@@ -98,9 +120,9 @@ export default function AllianceZones({
     ecran.onDessin = (e) => {
       setDessin(e);
       const m = e.pixels > 0 ? ecran.masqueEdite() : null;
-      setApercu(m && etat ? bilanZone(m, etat.valeurs, etat.width, film.clans, pourBilan) : null);
+      setApercu(m && etat ? bilanZone(m, etat.valeurs, etat.width, releve.clans, pourBilan) : null);
     };
-  }, [ecran, etat, film, notres]);
+  }, [ecran, etat, releve, notres]);
 
   useEffect(() => {
     if (edition) ecran.choisirOutil(outil, taille);
@@ -330,6 +352,12 @@ export default function AllianceZones({
                 {choisie && (
                   <div class="alliance-zone-detail">
                     {bilan && <TableauZone bilan={bilan} t={t} />}
+                    {bilan && <Suffisance zone={z} bilan={bilan} ctx={ctx} />}
+                    {ctx.evolution?.zones.get(z.id) && (
+                      <p class="carte-aide" data-testid="zone-24h">
+                        {t.zone24h(ctx.evolution.zones.get(z.id)!.pris, ctx.evolution.zones.get(z.id)!.perdus, t.nombre)}
+                      </p>
+                    )}
                     <p class="carte-aide">{t.misAJour(t.dateHeure(z.updated_at), z.by)}</p>
                     {peutModifier(z) && etat && (
                       <div class="alliance-ligne mt-2">
@@ -351,7 +379,7 @@ export default function AllianceZones({
       <Problem message={erreur} />
       {zones.length > 0 && etat && (
         <p class="carte-aide tnum">
-          {t.releve(t.dateHeure(film.fetchedAt))} {t.regles(t.nombre(NEUTRAL_PIXEL_TROOPS), t.nombre(ENEMY_PIXEL_BASE_TROOPS), t.jour(`${RULES_CHECKED_ON}T12:00:00Z`))}
+          {t.releve(t.dateHeure(releve.fetchedAt))} {t.regles(t.nombre(NEUTRAL_PIXEL_TROOPS), t.nombre(ENEMY_PIXEL_BASE_TROOPS), t.jour(`${RULES_CHECKED_ON}T12:00:00Z`))} {t.parCapsule(t.nombre(TROOPS_PER_CAP))}
         </p>
       )}
     </div>

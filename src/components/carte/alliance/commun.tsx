@@ -1,25 +1,38 @@
 /** Ce que partagent les parties de la fenêtre « Alliance » de la carte, et ce qu'elle écrit sur la carte elle-même. */
 import { createContext } from "preact";
 import { useContext, useLayoutEffect, useRef } from "preact/hooks";
-import type { BilanZone, TotalAlliance } from "../../../lib/alliance/bilan";
+import { troupesEnCapsules, type BilanZone, type TotalAlliance } from "../../../lib/alliance/bilan";
 import { cssDe } from "../../../lib/alliance/couleurs";
+import type { Mouvement } from "../../../lib/alliance/evolution";
+import type { Voisin } from "../../../lib/alliance/voisins";
 import { LANGUES, type Langue } from "../../../lib/alliance/langue";
 import { FR, type Textes } from "../../../lib/alliance/textes";
 import type { AccesCarte, CarteAlliance, ZoneLigne } from "../../../lib/alliance/types";
-import type { EtatCarte } from "../../../lib/clanmap/etat";
-import type { StoredClanMapFilm } from "../../../lib/schemas";
+import type { EtatCarte, ReleveCarte } from "../../../lib/clanmap/etat";
 import type { Survol } from "../../../scripts/alliance-ecran";
 
 /**
- * La carte se colore par nos clans, chacun dans sa couleur, par alliance, ou « tout » : chaque clan de la carte dans sa
- * couleur du jeu, les clans neutres (hors de toute alliance) compris.
+ * La carte se colore par nos clans, chacun dans sa couleur, par alliance, « tout » (chaque clan de la carte dans sa couleur
+ * du jeu, les clans neutres, hors de toute alliance, compris), ou « en 24 heures » : nos clans d'une teinte pâle, et ce que
+ * notre alliance a pris et perdu depuis la veille.
  */
-export type ModeCouleurs = "clans" | "alliances" | "tout";
+export type ModeCouleurs = "clans" | "alliances" | "tout" | "evolution";
+
+/** Ce qui a bougé en 24 heures, au dernier relevé (`src/lib/alliance/evolution.ts`). */
+export interface Evolution {
+  /** Le moment comparé : 24 heures avant le relevé. */
+  depuis: string;
+  alliance: Mouvement;
+  parClan: Map<string, Mouvement>;
+  /** Chaque zone, par son numéro. */
+  zones: Map<number, Mouvement>;
+}
 
 /** Tout ce que lit une partie de la fenêtre : le serveur, la carte publiée, et qui regarde. */
 export interface Contexte {
   donnees: CarteAlliance & { access: AccesCarte };
-  film: StoredClanMapFilm;
+  /** Le relevé de la carte de l'alliance : celui de l'état, plus récent que le film, ou celui du film. */
+  releve: ReleveCarte;
   /** `null` : l'état pixel par pixel n'est pas publié pour ce relevé ; les zones ne se comptent ni ne se dessinent. */
   etat: EtatCarte | null;
   /** L'encadrement de GAL, hors vue joueur : il range les clans, dessine les zones et invite. */
@@ -31,6 +44,12 @@ export interface Contexte {
   couleursClans: Map<string, number>;
   /** Le bilan de chaque zone au dernier relevé, par son numéro ; vide sans l'état pixel par pixel. */
   bilans: Map<number, BilanZone>;
+  /** `null` : pas de comparaison publiée avec la carte de la veille. */
+  evolution: Evolution | null;
+  /** Les clans qui touchent notre alliance, du plus long contact au plus court ; vide sans l'état pixel par pixel. */
+  voisins: Voisin[];
+  /** Cadre la carte sur un morceau de la carte complète. */
+  viser: (cadre: { x: number; y: number; w: number; h: number }) => void;
   relire: () => Promise<void>;
 }
 
@@ -117,6 +136,13 @@ export function TableauZone({ bilan, t }: { bilan: BilanZone; t: Textes }) {
           <td>{t.nombre(bilan.pixels)}</td>
           <td>{bilan.ennemis > 0 ? t.auMoins(t.nombre(total)) : t.nombre(total)}</td>
         </tr>
+        {total > 0 && (
+          <tr>
+            <th scope="row">{t.enCapsules}</th>
+            <td></td>
+            <td data-testid="zone-capsules">{bilan.ennemis > 0 ? t.auMoins(t.nombre(troupesEnCapsules(total))) : t.nombre(troupesEnCapsules(total))}</td>
+          </tr>
+        )}
       </tfoot>
     </table>
   );
@@ -149,6 +175,8 @@ export interface Calque {
   libre: { largeur: number; hauteur: number };
   zone: ZoneLigne | null;
   bilan: BilanZone | null;
+  /** Ce que notre alliance a pris et perdu dans la zone en 24 heures. */
+  mouvement: Mouvement | null;
   couleurZone: number;
   /** L'alliance du clan sous la souris. */
   alliance: string | null;
@@ -174,7 +202,8 @@ function Bulle({ c }: { c: Calque & { survol: Survol } }) {
     if (y + h > c.libre.hauteur - 4) y = survol.y - ecart - h;
     el.style.transform = `translate(${Math.round(Math.max(4, x))}px, ${Math.round(Math.max(4, y))}px)`;
   });
-  const ici = info.sorte === "mer" ? t.merCourt : info.sorte === "neutre" ? t.terreNeutre : `${nomDuClan(info.tag, t)} · ${c.alliance ?? t.sansAlliance}`;
+  const lieu = info.sorte === "mer" ? t.merCourt : info.sorte === "neutre" ? t.terreNeutre : `${nomDuClan(info.tag, t)} · ${c.alliance ?? t.sansAlliance}`;
+  const ici = info.bouge === "pris" ? `${lieu} · ${t.pixelPris}` : info.bouge === "perdu" ? `${lieu} · ${t.pixelPerdu}` : lieu;
   if (!zone)
     return (
       <div ref={ref} class="alliance-bulle alliance-bulle-ici">
@@ -197,6 +226,7 @@ function Bulle({ c }: { c: Calque & { survol: Survol } }) {
           <TableauZone bilan={bilan} t={t} />
         </>
       )}
+      {c.mouvement && <p class="alliance-bulle-pied">{t.zone24h(c.mouvement.pris, c.mouvement.perdus, t.nombre)}</p>}
       <p class="alliance-bulle-pied">
         {t.ici} {ici}
       </p>

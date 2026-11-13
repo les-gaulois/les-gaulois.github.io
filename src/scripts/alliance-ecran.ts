@@ -29,7 +29,8 @@ import {
   type Pinceau,
   type Retouche,
 } from "../lib/alliance/masque";
-import { ETAT_MER, ETAT_NEUTRE, auLittoral, decoderEtat, type EtatCarte } from "../lib/clanmap/etat";
+import { sortDuPixel } from "../lib/alliance/evolution";
+import { ETAT_MER, ETAT_NEUTRE, auLittoral, decoderEtat, decoderVeille, releveValable, type EtatCarte, type ReleveCarte, type Veille } from "../lib/clanmap/etat";
 import { OCEAN_SHORE, OPEN_SEA_CSS, RELIEF_NIVEAUX, reliefAuPixel, reliefDuNiveau, teinteAuRelief, type Rgb } from "../lib/clanmap/terrain";
 import { borner, decaler, echelleDuMonde, estVueDEnsemble, pointDeCarte, zoomer, type Monde } from "../lib/clanmap/vue";
 import type { StoredClanMapFilm } from "../lib/schemas";
@@ -65,6 +66,8 @@ export interface InfoPixel {
   tag: string | null;
   /** La zone sous le pointeur, la plus récente quand plusieurs se chevauchent. */
   zone: number | null;
+  /** Carte colorée « en 24 heures » : ce pixel pris ou perdu par notre alliance depuis la veille, sinon `null`. */
+  bouge: "pris" | "perdu" | null;
 }
 
 /** Le dessin en cours. */
@@ -82,6 +85,10 @@ export interface Chargement {
   film: StoredClanMapFilm;
   /** `null` : l'état pixel par pixel n'est pas publié pour ce relevé. */
   etat: EtatCarte | null;
+  /** De quand est la carte de l'alliance, et à qui sont ses index : le relevé de l'état, sinon celui du film. */
+  releve: ReleveCarte;
+  /** Ce qui a changé de main en 24 heures ; `null` sans comparaison publiée. */
+  veille: Veille | null;
 }
 
 interface Vue {
@@ -108,27 +115,82 @@ const TEXTE_ETIQUETTE = "#0a1230";
 const centreDeZone = pointCentral;
 
 const rgba = (r: number, g: number, b: number, a: number) => ((a << 24) | (b << 16) | (g << 8) | r) >>> 0;
+/**
+ * Carte colorée « en 24 heures » : ce que notre alliance a pris, en jaune, et perdu, en rose vif. Ni le blanc des zones de
+ * toute l'alliance, ni le rouge d'un clan : nos clans y sont d'une seule teinte pâle (`COULEUR_NOTRE_24H`).
+ */
+export const COULEUR_PRIS = 0xfde047;
+export const COULEUR_PERDU = 0xf43f5e;
+const PRIS = rgba(0xfd, 0xe0, 0x47, 255);
+const PERDU = rgba(0xf4, 0x3f, 0x5e, 255);
+
+/** Le relevé du film, quand le build n'a pas publié le sien (`etat.json`) : comme avant le 13 novembre 2026. */
+export const releveDuFilm = (film: StoredClanMapFilm): ReleveCarte => ({
+  version: 1,
+  fetchedAt: film.fetchedAt,
+  seq: film.seq,
+  width: film.width,
+  height: film.height,
+  clans: film.clans,
+  standings: film.standings,
+  claimed: film.claimed,
+  veille: null,
+});
+
+/** Un fichier compressé du site ; `null` s'il manque. Un hébergeur peut l'avoir déjà décompressé en route. */
+async function lireGz(url: string): Promise<Uint8Array | null> {
+  const res = await fetch(url);
+  if (!res.ok) return null;
+  let bytes = new Uint8Array(await res.arrayBuffer());
+  if (bytes[0] === 0x1f && bytes[1] === 0x8b) {
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+    bytes = new Uint8Array(await new Response(stream).arrayBuffer());
+  }
+  return bytes;
+}
 
 /**
- * L'état pixel par pixel de la carte. `null` s'il manque, s'il est abîmé, ou s'il n'est pas du même relevé que le film
- * (un cache de l'hébergeur peut garder l'un plus longtemps que l'autre) : les zones ne se comptent alors pas, mais la
- * discussion et les troupes restent.
+ * L'état pixel par pixel de la carte, son relevé et ce qui a changé en 24 heures. Le relevé publié avec l'état
+ * (`etat.json`) est plus récent que le film ; sans lui, celui du film. L'état est `null` s'il manque, s'il est abîmé, ou
+ * s'il n'est pas de ce relevé (un cache de l'hébergeur peut garder un fichier plus longtemps que l'autre) : les zones ne se
+ * comptent alors pas, mais la discussion et les troupes restent. La veille manque de même sans rien casser.
  */
-async function chargerEtat(assets: string, version: string | undefined, film: StoredClanMapFilm): Promise<EtatCarte | null> {
+async function chargerEtat(assets: string, version: string | undefined, film: StoredClanMapFilm): Promise<Omit<Chargement, "film">> {
+  const fichier = (nom: string) => adresseVersionnee(assets, nom, version);
+  const duFilm = { etat: null, releve: releveDuFilm(film), veille: null };
+  let releve = duFilm.releve;
   try {
-    const res = await fetch(adresseVersionnee(assets, "etat.bin.gz", version));
-    if (!res.ok) return null;
-    let bytes = new Uint8Array(await res.arrayBuffer());
-    // Un hébergeur peut avoir déjà décompressé le fichier en route, comme celui du film.
-    if (bytes[0] === 0x1f && bytes[1] === 0x8b) {
-      const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
-      bytes = new Uint8Array(await new Response(stream).arrayBuffer());
-    }
-    const etat = decoderEtat(bytes);
-    return etat.seq === film.seq && etat.width === film.width && etat.height === film.height ? etat : null;
+    const res = await fetch(fichier("etat.json"));
+    const lu: unknown = res.ok ? await res.json() : null;
+    if (releveValable(lu) && lu.width === film.width && lu.height === film.height) releve = lu;
   } catch {
-    return null;
+    // Le relevé du film.
   }
+  let etat: EtatCarte | null = null;
+  try {
+    const bytes = await lireGz(fichier("etat.bin.gz"));
+    const lu = bytes ? decoderEtat(bytes) : null;
+    if (lu && lu.seq === releve.seq && lu.width === releve.width && lu.height === releve.height) {
+      // Une valeur au-delà des clans du relevé : un autre historique, qui nommerait les clans de travers.
+      let max = 0;
+      for (let p = 0; p < lu.valeurs.length; p++) if (lu.valeurs[p]! > max) max = lu.valeurs[p]!;
+      if (max <= releve.clans.length) etat = lu;
+    }
+  } catch {
+    // Pas d'état.
+  }
+  if (!etat) return duFilm;
+  let veille: Veille | null = null;
+  if (releve.veille) {
+    try {
+      const bytes = await lireGz(fichier("veille.bin.gz"));
+      const lue = bytes ? decoderVeille(bytes, etat.valeurs.length) : null;
+      if (lue && lue.seqEtat === etat.seq && lue.seq === releve.veille.seq) veille = lue;
+    } catch {
+      // Pas de comparaison.
+    }
+  }
+  return { etat, releve, veille };
 }
 
 export class EcranAlliance {
@@ -136,12 +198,18 @@ export class EcranAlliance {
   private readonly assets: string;
   /** La version des fichiers publiés de la carte (`data-version`), ajoutée à leur adresse. */
   private readonly version: string | undefined;
+  /** Celle des fichiers de l'état (`data-version-etat`), qui changent chaque heure. */
+  private readonly versionEtat: string | undefined;
   private readonly root: HTMLElement;
   private readonly map: HTMLElement;
   private readonly canvas: HTMLCanvasElement;
   private readonly ctx: CanvasRenderingContext2D;
   private film: StoredClanMapFilm | null = null;
   private etat: EtatCarte | null = null;
+  private releve: ReleveCarte | null = null;
+  private veille: Veille | null = null;
+  /** Carte colorée « en 24 heures » : les tags de notre alliance ; `null` sinon. */
+  private evolution: ReadonlySet<string> | null = null;
   private terrain: HTMLImageElement | null = null;
   /** Le niveau de relief de chaque pixel (`reliefAuPixel`), qui nuance la couleur des clans ; `null` sans `relief.webp`. */
   private niveaux: Uint8Array | null = null;
@@ -190,7 +258,7 @@ export class EcranAlliance {
   onClic: (info: InfoPixel) => void = () => {};
   onDessin: (etat: EtatDessin) => void = () => {};
 
-  constructor(root: HTMLElement, assets: string, version?: string) {
+  constructor(root: HTMLElement, assets: string, version?: string, versionEtat?: string) {
     this.root = root;
     const map = root.querySelector<HTMLElement>("[data-film-map]");
     const canvas = root.querySelector<HTMLCanvasElement>("[data-alliance-canvas]");
@@ -201,6 +269,7 @@ export class EcranAlliance {
     this.ctx = ctx;
     this.assets = assets;
     this.version = version;
+    this.versionEtat = versionEtat;
   }
 
   /**
@@ -209,18 +278,20 @@ export class EcranAlliance {
    */
   charger(): Promise<Chargement> {
     this.pret ??= loadFilmData(this.assets, this.version)
-      .then(async (data) => ({ data, etat: await chargerEtat(this.assets, this.version, data.film) }))
-      .then(({ data, etat }) => {
+      .then(async (data) => ({ data, lu: await chargerEtat(this.assets, this.versionEtat, data.film) }))
+      .then(({ data, lu }) => {
         this.film = data.film;
         this.terrain = data.terrain;
         this.niveaux = data.relief ? reliefAuPixel(data.relief, data.film.cols, data.film.rows, data.film.width, data.film.height) : null;
-        this.etat = etat;
+        this.etat = lu.etat;
+        this.releve = lu.releve;
+        this.veille = lu.veille;
         this.W = data.film.width;
         this.H = data.film.height;
         // La carte se peint au premier réglage des couleurs (`regler`), pas deux fois.
         this.brancher();
         this.vue = this.vueDEnsemble();
-        return { film: data.film, etat: this.etat };
+        return { film: data.film, ...lu };
       })
       .catch((e: unknown) => {
         this.pret = null;
@@ -252,10 +323,12 @@ export class EcranAlliance {
   /**
    * La couleur des clans colorés, par leur tag (nos clans, ou les clans de chaque alliance) ; les autres restent gris.
    * `jeu` : chaque clan de la carte dans sa couleur du jeu, comme sur le film, clans neutres compris.
+   * `evolution` : les tags de notre alliance, pour colorer en plus ce qu'elle a pris et perdu en 24 heures.
    */
-  regler(couleurs: Map<string, number>, jeu = false): void {
+  regler(couleurs: Map<string, number>, jeu = false, evolution: ReadonlySet<string> | null = null): void {
     this.couleurs = couleurs;
     this.couleursDuJeu = jeu;
+    this.evolution = evolution && this.veille ? evolution : null;
     this.peindreBase();
     this.dessiner();
   }
@@ -456,8 +529,10 @@ export class EcranAlliance {
 
   /** Les clans colorés dans leur couleur (tous dans celle du jeu en « Tout »), les autres en gris ; la mer et la terre neutre au pixel près. */
   private peindreBase(): void {
-    if (!this.film || !this.etat) return;
-    const clans = this.film.clans;
+    if (!this.releve || !this.etat) return;
+    const clans = this.releve.clans;
+    // « En 24 heures » : nos clans plus pâles, pour que ce qui a bougé se voie.
+    const alpha = this.evolution ? 110 : 205;
     // Une couleur par valeur de l'état et par niveau de relief : `palette[v * RELIEF_NIVEAUX + niveau]`. Les clans colorés
     // sont nuancés par le relief, comme sur le film (`teinteAuRelief`) ; le gris des autres et la terre neutre, déjà
     // translucides, laissent voir celui du fond.
@@ -478,7 +553,7 @@ export class EcranAlliance {
       for (let n = 0; n < L; n++) {
         const [tr, tg, tb] = niveaux ? teinteAuRelief(rgb, reliefDuNiveau(n)) : rgb;
         // Un peu moins que plein : les zones, hachurées par-dessus, restent visibles même sur la terre de leur clan.
-        palette[(i + 1) * L + n] = rgba(tr, tg, tb, 205);
+        palette[(i + 1) * L + n] = rgba(tr, tg, tb, alpha);
       }
     }
     // La terre neutre, un voile gris qui laisse voir le relief. La mer laisse voir celle du fond, claire dans les mers et
@@ -495,6 +570,12 @@ export class EcranAlliance {
     for (let p = 0; p < valeurs.length; p++) {
       const v = valeurs[p]!;
       pix[p] = v === ETAT_MER ? (auLittoral(valeurs, W, p) ? littoral : 0) : (palette[v * L + (niveaux ? niveaux[p]! : 0)] ?? 0);
+    }
+    if (this.evolution && this.veille) {
+      for (let k = 0; k < this.veille.index.length; k++) {
+        const sort = sortDuPixel(this.veille, valeurs, k, clans, this.evolution);
+        if (sort) pix[this.veille.index[k]!] = sort === "pris" ? PRIS : PERDU;
+      }
     }
     ctx.putImageData(image, 0, 0);
   }
@@ -651,14 +732,32 @@ export class EcranAlliance {
     return [(e.clientX - r.left) * (this.canvas.width / r.width), (e.clientY - r.top) * (this.canvas.height / r.height)];
   }
 
+  /** Carte colorée « en 24 heures » : ce pixel pris ou perdu par notre alliance. Les pixels changés sont dans l'ordre. */
+  private bouge(p: number): "pris" | "perdu" | null {
+    const veille = this.veille;
+    if (!veille || !this.evolution || !this.etat || !this.releve) return null;
+    let bas = 0;
+    let haut = veille.index.length - 1;
+    while (bas <= haut) {
+      const milieu = (bas + haut) >> 1;
+      const q = veille.index[milieu]!;
+      if (q === p) return sortDuPixel(veille, this.etat.valeurs, milieu, this.releve.clans, this.evolution);
+      if (q < p) bas = milieu + 1;
+      else haut = milieu - 1;
+    }
+    return null;
+  }
+
   private info(x: number, y: number): InfoPixel | null {
-    if (!this.film || !this.etat || x < 0 || y < 0 || x >= this.W || y >= this.H) return null;
-    const v = this.etat.valeurs[y * this.W + x]!;
+    if (!this.releve || !this.etat || x < 0 || y < 0 || x >= this.W || y >= this.H) return null;
+    const p = y * this.W + x;
+    const v = this.etat.valeurs[p]!;
     let zone: number | null = null;
     for (const z of this.zones) if (dansLeMasque(z.masque, x, y)) zone = z.id;
-    if (v === ETAT_MER) return { x, y, sorte: "mer", tag: null, zone };
-    if (v === ETAT_NEUTRE) return { x, y, sorte: "neutre", tag: null, zone };
-    return { x, y, sorte: "clan", tag: this.film.clans[v - 1]?.tag ?? null, zone };
+    const bouge = this.bouge(p);
+    if (v === ETAT_MER) return { x, y, sorte: "mer", tag: null, zone, bouge };
+    if (v === ETAT_NEUTRE) return { x, y, sorte: "neutre", tag: null, zone, bouge };
+    return { x, y, sorte: "clan", tag: this.releve.clans[v - 1]?.tag ?? null, zone, bouge };
   }
 
   /* ---------- Le dessin à l'écran ---------- */
@@ -1011,6 +1110,6 @@ export function ecranAlliance(): EcranAlliance | null {
   const root = document.querySelector<HTMLElement>("[data-carte]");
   const assets = root?.dataset.assets;
   if (!root || !assets) return null;
-  ecran = new EcranAlliance(root, assets, root.dataset.version);
+  ecran = new EcranAlliance(root, assets, root.dataset.version, root.dataset.versionEtat);
   return ecran;
 }
