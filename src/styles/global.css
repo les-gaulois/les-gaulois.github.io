@@ -6939,3 +6939,29 @@ footer h2 {
   border: 1px solid var(--color-line);
   border-radius: 0.25rem;
 }
+
+/* La capture de la carte de l'alliance (AllianceCapture.tsx) : l'aperçu de l'image à la largeur de la fenêtre, puis ce qu'on
+   en fait. Le résultat reçoit le clavier après une capture prise depuis la carte : son contour le montre. */
+.alliance-capture-resultat {
+  margin-top: 1rem;
+  border-radius: 0.375rem;
+}
+.alliance-capture-resultat:focus-visible {
+  outline: 2px solid var(--color-blue-text);
+  outline-offset: 4px;
+}
+.alliance-capture-apercu {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.375rem;
+}
+/* Sur un écran empilé (téléphone, tablette debout), l'onglet Capture est juste sous la carte : son bouton ne la couvre pas.
+   Sous 1 280 px, la rangée des outils, posée à gauche de la fenêtre ouverte, n'a pas la place d'un quatrième bouton sans
+   couvrir le titre de la page : l'onglet suffit. */
+@media not all and (min-aspect-ratio: 5/4) and (min-width: 80rem) {
+  [data-alliance-capture] {
+    display: none;
+  }
+}

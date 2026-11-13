@@ -9,10 +9,11 @@
  * La carte se manie comme celle du film (`src/lib/clanmap/vue.ts`) : molette ou deux doigts pour le zoom, glisser pour se
  * déplacer, flèches, plus, moins et zéro au clavier. Avec un outil de dessin, un doigt dessine et deux doigts déplacent.
  */
+import { cadreVisible, type Rect } from "../lib/alliance/capture";
 import { cssDe } from "../lib/alliance/couleurs";
 import { CADRE_MAX, annuler, cadreDuCalque, dansLeMasque, forEachPixel, masqueDuCalque, pointCentral, poserMasque, rectangle, trait, type Masque, type Pinceau, type Retouche } from "../lib/alliance/masque";
 import { ETAT_MER, ETAT_NEUTRE, decoderEtat, type EtatCarte } from "../lib/clanmap/etat";
-import { borner, decaler, echelleDuMonde, estVueDEnsemble, pointDeCarte, zoomer } from "../lib/clanmap/vue";
+import { borner, decaler, echelleDuMonde, estVueDEnsemble, pointDeCarte, zoomer, type Monde } from "../lib/clanmap/vue";
 import type { StoredClanMapFilm } from "../lib/schemas";
 import { loadFilmData } from "./film-data";
 
@@ -269,6 +270,37 @@ export class EcranAlliance {
 
   zoom(facteur: number): void {
     this.zoomerAutour(facteur, (this.canvas.width - this.covered) / 2, this.canvas.height / 2);
+  }
+
+  /**
+   * Pour la capture (`alliance-capture.ts`) : le morceau de la carte complète que le joueur voit, sans ce que couvre la
+   * fenêtre ouverte, et la taille de la carte. `null` tant que la carte n'est pas chargée.
+   */
+  sourceDeCapture(): { cadre: Rect; monde: Monde } | null {
+    if (!this.film || !this.base) return null;
+    this.mesurer();
+    const monde = { width: this.W, height: this.H };
+    // À la vue d'ensemble, la fenêtre ouverte cache l'est du monde : la capture prend alors toute la carte.
+    if (estVueDEnsemble(this.vue, monde, this.ecran())) return { cadre: { x: 0, y: 0, w: this.W, h: this.H }, monde };
+    return { cadre: cadreVisible(this.vue, this.ecran(), this.covered, monde), monde };
+  }
+
+  /**
+   * Peint la carte dans un autre dessin, pour la capture : le relief, les clans dans leurs couleurs et, au choix, les zones,
+   * comme à l'écran. Sans le dessin en cours, le quadrillage ni les étiquettes de l'écran : la capture pose les siennes.
+   */
+  peindreCapture(c: CanvasRenderingContext2D, vue: Vue, sortie: Monde, zones: boolean): void {
+    c.fillStyle = FOND;
+    c.fillRect(0, 0, sortie.width, sortie.height);
+    if (!this.base || !this.terrain) return;
+    c.save();
+    c.transform(vue.s, 0, 0, vue.s, sortie.width / 2 - vue.x * vue.s, sortie.height / 2 - vue.y * vue.s);
+    c.imageSmoothingEnabled = vue.s < 1;
+    c.drawImage(this.terrain, 0, 0, this.W, this.H);
+    c.drawImage(this.base, 0, 0);
+    c.imageSmoothingEnabled = false;
+    if (zones) for (const zone of this.zones) c.drawImage(this.dessinDeZone(zone), zone.masque.x, zone.masque.y);
+    c.restore();
   }
 
   /** Commence le dessin d'une zone, vide ou reprise d'une zone existante, dans la couleur du clan qui la prendra. */

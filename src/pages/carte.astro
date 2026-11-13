@@ -196,6 +196,12 @@ const dock = FENETRES.filter((f) => presentes.has(f.id));
                       <IconePartie nom="tour" />
                       <span data-alliance-monde-texte>Vue d'ensemble</span>
                     </button>
+                    {/* La capture de la carte telle qu'elle est cadrée, avec le logo de GAL, à envoyer sur Discord : ouvre
+                        l'onglet « Capture » de la fenêtre et la prend aussitôt (AllianceCapture.tsx). */}
+                    <button type="button" class="carte-touche carte-touche-large" data-alliance-capture data-testid="alliance-capture-carte">
+                      <IconePartie nom="oeil" />
+                      <span data-alliance-capture-texte>Capture</span>
+                    </button>
                   </div>
                   <div class="alliance-calque" aria-hidden="true" data-alliance-calque></div>
                 </>

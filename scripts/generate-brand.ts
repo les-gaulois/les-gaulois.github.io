@@ -60,6 +60,11 @@ const vertical = brandFile("vertical");
 if (vertical) {
   await sharp(join("public", vertical)).trim().resize(720, 720, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } }).webp({ quality: 88 }).toFile(join(out, "logo-vertical-720.webp"));
 }
+// Le petit logo en haut de la capture de la carte de l'alliance (src/scripts/alliance-capture.ts), sans ses marges vides.
+const horizontal = brandFile("horizontal");
+if (horizontal) {
+  await sharp(join("public", horizontal)).trim().resize({ height: 160 }).webp({ quality: 90 }).toFile(join(out, "logo-horizontal-160.webp"));
+}
 if (banner) {
   for (const width of [800, 1600]) {
     await sharp(join("public", banner)).resize({ width }).webp({ quality: 82 }).toFile(join(out, `banner-${width}.webp`));

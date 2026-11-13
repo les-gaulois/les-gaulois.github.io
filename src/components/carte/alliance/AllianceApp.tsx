@@ -14,6 +14,7 @@
 import { render, type ComponentChildren } from "preact";
 import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { bilanZone, totauxAlliances, type BilanZone } from "../../../lib/alliance/bilan";
+import { TEXTES_CAPTURE } from "../../../lib/alliance/capture";
 import { COULEUR_TOUTE_L_ALLIANCE, couleurDeZone, couleursDesClans } from "../../../lib/alliance/couleurs";
 import { dernierNumero, nonLus } from "../../../lib/alliance/discussion";
 import { INVITATION_KEY, RETOUR_CARTE_KEY, invitationDeLAncre, jetonValable } from "../../../lib/alliance/invitation";
@@ -24,13 +25,14 @@ import type { AccesCarte, AllianceLigne, CarteAlliance, MessageAlliance } from "
 import { ServerError, call, mayHaveSession, signOut, supabase } from "../../../lib/compte/api";
 import { ecranAlliance, type Chargement, type Survol, type ZoneAffichee } from "../../../scripts/alliance-ecran";
 import { CodeLogin, DiscordButton, DiscordGives, Problem, codeLoginShown, messageIn, usePlayerView } from "../../compte/common";
+import AllianceCapture from "./AllianceCapture";
 import AllianceGestion from "./AllianceGestion";
 import AllianceMessages from "./AllianceMessages";
 import AllianceVue from "./AllianceVue";
 import AllianceZones from "./AllianceZones";
 import { CalqueCarte, ChoixLangue, TextesContexte, type Calque, type Contexte, type EntreeLegende, type ModeCouleurs } from "./commun";
 
-type Onglet = "vue" | "zones" | "messages" | "gestion";
+type Onglet = "vue" | "zones" | "messages" | "capture" | "gestion";
 const VU_KEY = "gal-alliance-vu";
 /** Le gris des autres clans tel qu'il paraît sur la carte : le gris voilé d'alliance-ecran.ts posé sur le fond sombre. */
 const GRIS_AUTRES = 0x4b5570;
@@ -96,6 +98,8 @@ function traduireLaPage(root: HTMLElement, t: Textes): void {
   root.querySelector('[data-alliance-zoom="-1"]')?.setAttribute("aria-label", t.zoomMoins);
   const monde = root.querySelector("[data-alliance-monde-texte]");
   if (monde) monde.textContent = t.vueDEnsemble;
+  const capture = root.querySelector("[data-alliance-capture-texte]");
+  if (capture) capture.textContent = TEXTES_CAPTURE[t.langue].boutonCarte;
   const outils = root.querySelector<HTMLElement>("[data-alliance-outils]");
   if (outils) {
     if (t.langue === "fr") outils.removeAttribute("lang");
@@ -208,6 +212,18 @@ export default function AllianceApp() {
   const [chargeErreur, setChargeErreur] = useState(false);
   const [ouverte, setOuverte] = useState(() => fenetreOuverte(root));
   const [onglet, setOnglet] = useState<Onglet>("vue");
+  // Chaque clic sur « Capture », posé sur la carte, ouvre l'onglet Capture et y prend la capture.
+  const [demandeCapture, setDemandeCapture] = useState(0);
+  useEffect(() => {
+    const bouton = root?.querySelector<HTMLButtonElement>("[data-alliance-capture]");
+    if (!bouton) return;
+    const clic = () => {
+      setOnglet("capture");
+      setDemandeCapture((n) => n + 1);
+    };
+    bouton.addEventListener("click", clic);
+    return () => bouton.removeEventListener("click", clic);
+  }, [root]);
   const [mode, setMode] = useState<ModeCouleurs>("clans");
   const [selection, setSelection] = useState<number | null>(null);
   const [edition, setEdition] = useState<{ id: number | null; titre: string; tag: string } | null>(null);
@@ -628,6 +644,8 @@ export default function AllianceApp() {
       { id: "vue", label: t.onglets.vue },
       { id: "zones", label: t.onglets.zones },
       { id: "messages", label: t.onglets.messages, compte: nouveaux, mots: t.nouveaux(nouveaux) },
+      // La capture repeint la carte pixel par pixel : sans elle, pas d'onglet Capture (la fenêtre dit déjà pourquoi).
+      ...(charge.etat ? [{ id: "capture" as const, label: TEXTES_CAPTURE[t.langue].onglet }] : []),
       ...(staff ? [{ id: "gestion" as const, label: t.onglets.gestion, compte: attentes, mots: FR.alliesAttendent(attentes) }] : []),
     ];
 
@@ -683,6 +701,11 @@ export default function AllianceApp() {
         <div id="alliance-partie-messages" role="tabpanel" aria-labelledby="alliance-onglet-messages" hidden={onglet !== "messages"}>
           <AllianceMessages messages={messages} erreurLecture={erreurMessages === null ? null : messageIn(erreurMessages, langue)} relire={lireMessages} />
         </div>
+        {charge.etat && (
+          <div id="alliance-partie-capture" role="tabpanel" aria-labelledby="alliance-onglet-capture" hidden={onglet !== "capture"}>
+            {ecran && <AllianceCapture ctx={ctx} ecran={ecran} legende={legende} mode={mode} zones={affichees} demande={demandeCapture} />}
+          </div>
+        )}
         {staff && (
           // La gestion est réservée à l'encadrement de GAL : elle reste en français.
           <div id="alliance-partie-gestion" role="tabpanel" aria-labelledby="alliance-onglet-gestion" hidden={onglet !== "gestion"} lang={langue !== "fr" ? "fr" : undefined}>
