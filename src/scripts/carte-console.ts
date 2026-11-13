@@ -83,16 +83,6 @@ function init(): void {
   }
   for (const bouton of root.querySelectorAll<HTMLButtonElement>("[data-ferme]")) bouton.addEventListener("click", () => fermer());
 
-  // Un autre lien de la page vers une fenêtre (le crédit de la carte mène à la légende) l'ouvre comme son entrée.
-  root.addEventListener("click", (event) => {
-    const lien = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>('a[href^="#"]:not([data-ouvre])') : null;
-    if (!lien || !clicSimple(event)) return;
-    const demandee = fenetreDeLAncre(lien.hash);
-    if (!demandee || !fenetreExiste(demandee, ecran())) return;
-    event.preventDefault();
-    montrer(demandee, { focus: true, adresse: true });
-  });
-
   // Échap ferme la fenêtre ouverte, après ce qui passe avant elle : un menu de l'en-tête ou un pop-up des appels, qui
   // écoutent aussi cette touche. À la capture : les menus se ferment à la remontée, et paraîtraient déjà fermés ici.
   document.addEventListener(
@@ -136,12 +126,6 @@ function init(): void {
   html.dataset.cartePrete = "";
   html.classList.add("carte-console");
   montrer(fenetreInitiale(location.hash, ecran()));
-
-  // En dernier, une fois la console sûre de tenir : elle n'a pas de bas de page, et le pied de page du site se range dans
-  // la fenêtre « À propos ». Si quelque chose casse plus haut, il reste à sa place, sous une page qui défile.
-  const pied = document.querySelector<HTMLElement>("body > footer");
-  const place = root.querySelector<HTMLElement>("[data-carte-pied]");
-  if (pied && place) place.append(pied);
 }
 
 init();

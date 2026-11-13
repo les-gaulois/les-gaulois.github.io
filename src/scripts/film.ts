@@ -192,7 +192,6 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
 
   /* ---------- Lueurs de conquête : douces, sans étincelle ni éclair ---------- */
 
-  // Les couleurs des lueurs sont aussi celles de la légende de la page (`.carte-lueur-*` dans global.css).
   const GLOW_GAIN = 1;
   const GLOW_LOSS = 2;
   const GLOW_OTHER = 3;

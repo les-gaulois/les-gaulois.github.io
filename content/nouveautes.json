@@ -1,6 +1,26 @@
 [
   {
     "date": "2026-11-13",
+    "kind": "corrige",
+    "title": "Carte sur téléphone : boutons rangés",
+    "body": "Sur téléphone, les boutons + et − de la carte sont côte à côte : la phrase qui nomme un clan touché ne passe plus sous le bouton « Vue d'ensemble ».",
+    "link": {
+      "href": "/carte",
+      "label": "Voir la carte"
+    }
+  },
+  {
+    "date": "2026-11-13",
+    "kind": "retire",
+    "title": "Carte : deux fenêtres en moins",
+    "body": "La page Carte n'a plus ses fenêtres « Légende » et « À propos ». Le crédit d'OpenFront reste sur la carte. Le code source et les mentions légales aussi, ou au bas de la fenêtre ouverte sur téléphone.",
+    "link": {
+      "href": "/carte",
+      "label": "Voir la carte"
+    }
+  },
+  {
+    "date": "2026-11-13",
     "kind": "ameliore",
     "title": "Les alliés acceptés par l'encadrement",
     "body": "Un joueur allié qui ouvre son lien d'invitation attend maintenant l'accord de l'encadrement, qui le reconnaît à son nom Discord. Dans la Direction, les comptes des alliés portent le repère « Allié »."

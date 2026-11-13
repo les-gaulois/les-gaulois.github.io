@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
-import { FENETRES } from "../../src/lib/carte-console";
+import { clan } from "../../config/clan";
+import { ECRAN_POSE, FENETRES } from "../../src/lib/carte-console";
 import { changeSinceLastDay, dayHighlights, dayRows, filmDayMarks, parisDayOf } from "../../src/lib/clanmap/days";
 import { findMoments, nextThreshold } from "../../src/lib/clanmap/moments";
 import { filmResume } from "../../src/lib/clanmap/reprise";
@@ -139,11 +140,6 @@ test.describe("film de la carte", () => {
 
     await openWindow(page, "fronts");
     await expect(page.getByTestId("film-fronts").locator("tbody tr")).toHaveCount(film.galSummary.fronts.length);
-
-    await openWindow(page, "legende");
-    await expect(page.getByText(`${film.check.mismatches} écart sur`)).toBeVisible();
-    // La licence du fond de carte reste citée.
-    await expect(page.getByTestId("map-license").getByRole("link", { name: "CC BY-SA 4.0" })).toBeVisible();
 
     // Un chiffre si le terrain est connu, sinon aucune phrase : jamais un zéro inventé.
     await openWindow(page, "chiffres");
@@ -298,6 +294,9 @@ test.describe("film de la carte", () => {
         const podium = (await page.locator(".carte-podium").boundingBox())!;
         expect(podium.y).toBeGreaterThanOrEqual(session.y + session.height + 8);
         expect(await page.locator(".carte-podium").evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(0);
+        // Le crédit, sur ses deux lignes, ne passe pas sous le podium.
+        const credit = (await page.getByTestId("map-credit").boundingBox())!;
+        expect(credit.x).toBeGreaterThanOrEqual(podium.x + podium.width);
         await expect(page.getByTestId("film-gal")).toBeInViewport({ ratio: 1 });
         // L'objectif, qui s'ouvre seul dès 1 360 px de large, se lit entier dès 650 px de haut : il n'a pas à défiler dans
         // son cadre sur un portable.
@@ -558,10 +557,6 @@ test.describe("film de la carte", () => {
     await lines.nth(2).getByRole("button").click();
     expect(await position(page)).toBe(day.frame);
     await expect(caption(page)).toContainText(fmtDay(day.date));
-    // La phrase de lecture décrit la frise datée.
-    await openWindow(page, "legende");
-    await expect(page.getByText("Des dates, mais pas une horloge.")).toBeVisible();
-    await expect(page.getByText("Pas de dates dans le film.")).toHaveCount(0);
   });
 
   test("revoir le premier pixel de GAL", async ({ page }) => {
@@ -924,12 +919,12 @@ test.describe("film de la carte", () => {
     expect(await pageScroll(page)).toBeGreaterThan(0);
     await expect(page.locator("body > footer").getByRole("link", { name: "Mentions légales", exact: true })).toBeVisible();
     await expect(page.getByTestId("map-credit")).toBeVisible();
-    await expect(page.getByTestId("map-credit")).toHaveAttribute("href", "#legende");
+    await expect(page.getByTestId("map-credit").getByRole("link", { name: "© OpenFront and Contributors · CC BY-SA 4.0" })).toHaveAttribute("href", "/mentions-legales#credits");
     // Les réserves n'ont leur case que si la fiche du clan a répondu : jamais une case « Pas de données » de plus.
     const reservesKnown = (film.treasury?.troops ?? null) !== null || (film.treasury?.caps ?? null) !== null;
     await expect(page.getByTestId("map-figure")).toHaveCount(reservesKnown ? 4 : 3);
     // Rien n'est caché : tout ce qui ne demande pas le film se lit, l'un sous l'autre.
-    for (const id of ["map-peak", "map-pixels", "film-gal", "film-fronts", "map-clans", "map-license"]) await expect(page.getByTestId(id)).toBeVisible();
+    for (const id of ["map-peak", "map-pixels", "film-gal", "film-fronts", "map-clans"]) await expect(page.getByTestId(id)).toBeVisible();
     // Sans réponse de la fiche du clan, une ligne le dit au lieu d'une case vide ; avec, la case des réserves suffit.
     await expect(page.getByTestId("map-no-reserves")).toHaveCount(reservesKnown ? 0 : 1);
     if (!reservesKnown) await expect(page.getByTestId("map-no-reserves")).toBeVisible();
@@ -943,7 +938,7 @@ test.describe("film de la carte", () => {
     }
     // Ce qui ne sert qu'avec le film n'est pas là : ni lecture, ni fenêtre vide, ni bouton pour fermer.
     await expect(playButton(page)).toBeHidden();
-    for (const id of ["moments", "zones", "reglages", "a-propos"]) await expect(windowOf(page, id)).toBeHidden();
+    for (const id of ["moments", "zones", "reglages"]) await expect(windowOf(page, id)).toBeHidden();
     await expect(page.getByRole("button", { name: /^Fermer la fenêtre/ })).toHaveCount(0);
     // La rangée reste une liste de liens vers les parties de la page.
     await dock(page).getByRole("link", { name: "Fronts" }).click();
@@ -1189,45 +1184,89 @@ test.describe("film de la carte", () => {
   });
 
   // La mention d'OpenFront et la licence du fond de carte ne sont jamais à plus d'un regard : un crédit posé sur la carte,
-  // comme sur toute carte en ligne, quelle que soit la fenêtre ouverte. Il mène à la légende, qui dit tout.
-  test("le crédit de la carte reste sous les yeux, et mène à la légende", async ({ page }) => {
+  // comme sur toute carte en ligne, quelle que soit la fenêtre ouverte. Il mène aux crédits des mentions légales, qui
+  // disent tout. La console n'a pas de bas de page : sur un écran large, le code source et les mentions légales sont sur
+  // la carte, eux aussi ; sur téléphone, où la carte est trop petite pour deux lignes, au bas de la fenêtre ouverte.
+  // « Légende » et « À propos », retirées le 13 novembre 2026 à la demande du pilote, ne reviennent pas dans la rangée.
+  test("le crédit de la carte reste sous les yeux, avec le code source et les mentions légales", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/carte");
     await expect(playButton(page)).toBeVisible();
+    await expect(dock(page).getByRole("link", { name: /Légende|À propos/ })).toHaveCount(0);
+    const pose = await page.evaluate((media) => matchMedia(media).matches, ECRAN_POSE);
     const credit = page.getByTestId("map-credit");
-    await expect(credit).toHaveText("© OpenFront and Contributors · CC BY-SA 4.0");
-    await expect(credit).toBeInViewport({ ratio: 1 });
-    // Une cible assez haute pour le doigt.
-    expect((await credit.boundingBox())!.height).toBeGreaterThanOrEqual(24);
+    const pied = page.getByTestId("carte-pied");
+    const mention = credit.getByRole("link", { name: "© OpenFront and Contributors · CC BY-SA 4.0", exact: true });
+    const source = (pose ? credit : pied).getByRole("link", { name: "Code source", exact: true });
+    const mentions = (pose ? credit : pied).getByRole("link", { name: "Mentions légales", exact: true });
+    await expect(source).toHaveAttribute("href", clan.links.source);
+    // Un seul des deux exemplaires se voit, selon l'écran.
+    await expect(page.locator("[data-carte]").getByRole("link", { name: "Code source", exact: true })).toHaveCount(1);
+    await expect(page.locator("[data-carte]").getByRole("link", { name: "Mentions légales", exact: true })).toHaveCount(1);
+    for (const link of pose ? [mention, source, mentions] : [mention]) {
+      await expect(link).toBeInViewport({ ratio: 1 });
+      // Une cible assez haute pour le doigt.
+      expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(24);
+    }
+    if (!pose) {
+      // Sur téléphone, la carte ne garde que la mention, sur une ligne : la légende des grands moments passe au-dessus,
+      // sous le bouton « Vue d'ensemble ».
+      expect((await credit.boundingBox())!.height).toBeLessThan(40);
+      await expect(pied).toContainText("Site communautaire non officiel");
+      await expect(pied).toContainText("Code sous licence AGPL-3.0");
+      await source.scrollIntoViewIfNeeded();
+      await expect(source).toBeInViewport();
+      await expect(mentions).toBeInViewport();
+      expect(await pageScroll(page)).toBe(0);
+    }
     // Une fenêtre ouverte ne le recouvre pas : il se clique encore.
     await openWindow(page, "clans");
     await expect(credit).toBeInViewport({ ratio: 1 });
-    await credit.click();
-    await expect(windowOf(page, "legende")).toBeVisible();
-    await expect(windowOf(page, "legende")).toBeFocused();
-    await expect(entry(page, "legende")).toHaveAttribute("aria-current", "true");
-    expect(new URL(page.url()).hash).toBe("#legende");
-    await expect(page.getByTestId("map-license").getByRole("link", { name: "CC BY-SA 4.0" })).toBeVisible();
-    await expect(windowOf(page, "legende")).toContainText("© OpenFront et ses contributeurs");
+    await mention.click();
+    await expect(page).toHaveURL(/\/mentions-legales\/?#credits$/);
+    const license = page.getByTestId("map-license");
+    await expect(license).toBeInViewport();
+    await expect(license).toContainText("© OpenFront and Contributors");
+    await expect(license).toContainText("Ce site a réduit et assombri le fond de carte");
+    await expect(license.getByRole("link", { name: "CC BY-SA 4.0" })).toHaveAttribute("href", "https://creativecommons.org/licenses/by-sa/4.0/deed.fr");
+    await expect(license.getByRole("link", { name: "Giant World Map" })).toHaveAttribute("href", /resources\/maps\/giantworldmap$/);
+    // Et les mentions légales elles-mêmes.
+    await page.goBack();
+    await expect(playButton(page)).toBeVisible();
+    await mentions.click();
+    await expect(page).toHaveURL(/\/mentions-legales\/?$/);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Mentions légales");
   });
 
-  // La console n'a pas de bas de page : le pied de page du site, avec le code source, la mention d'OpenFront et les
-  // mentions légales, se lit dans la fenêtre « À propos ».
-  test("le pied de page du site se lit dans la fenêtre « À propos »", async ({ page }) => {
-    await page.emulateMedia({ reducedMotion: "reduce" });
-    await page.goto("/carte");
-    await expect(dock(page).getByRole("link", { name: "À propos" })).toBeVisible();
-    await openWindow(page, "a-propos");
-    const footer = windowOf(page, "a-propos").locator("footer");
-    await expect(footer.getByRole("link", { name: "Code source", exact: true })).toBeVisible();
-    await expect(footer.getByRole("link", { name: "Mentions légales", exact: true })).toBeVisible();
-    await expect(footer).toContainText("© OpenFront and Contributors");
-    await expect(footer).toContainText("Site communautaire non officiel");
-    // Rien n'y déborde : ses colonnes de grand écran tiennent dans la fenêtre.
-    expect(await windowOf(page, "a-propos").evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
-    await footer.getByRole("link", { name: "Mentions légales", exact: true }).click();
-    await expect(page).toHaveURL(/\/mentions-legales\/?$/);
-  });
+  // Une fenêtre ouverte laisse peu de place entre elle et le podium : la mention passe sur deux lignes au lieu de glisser
+  // sous le podium, et sous 1 008 px le crédit passe dans le coin, sous la fenêtre raccourcie. La légende des grands
+  // moments reste au-dessus de lui.
+  for (const [width, height] of [
+    [800, 600],
+    [900, 700],
+    [1024, 768],
+    [1100, 800],
+    [1280, 720],
+  ] as const) {
+    test(`à ${width} × ${height}, une fenêtre ouverte, le crédit ne passe ni sous le podium ni sous la fenêtre`, async ({ page }, testInfo) => {
+      test.skip(testInfo.project.name !== "desktop", "Formats testés une seule fois.");
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await page.setViewportSize({ width, height });
+      await page.goto("/carte#clans");
+      await expect(windowOf(page, "clans")).toBeVisible();
+      type Boite = { x: number; y: number; width: number; height: number };
+      const separees = (a: Boite, b: Boite) => a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y;
+      const credit = (await page.getByTestId("map-credit").boundingBox())!;
+      const podium = (await page.locator(".carte-podium").boundingBox())!;
+      const fenetre = (await windowOf(page, "clans").boundingBox())!;
+      expect(separees(credit, podium), "podium").toBe(true);
+      expect(separees(credit, fenetre), "fenêtre").toBe(true);
+      await expect(page.getByTestId("map-credit").getByRole("link", { name: "Code source", exact: true })).toBeInViewport({ ratio: 1 });
+      const legende = await page.locator(".film-caption").evaluate((el) => getComputedStyle(el).bottom);
+      const carte = (await page.getByTestId("film-map").boundingBox())!;
+      expect(carte.y + carte.height - parseFloat(legende)).toBeLessThanOrEqual(credit.y);
+    });
+  }
 });
 
 test("sur téléphone, le film part de la carte entière, sans déborder", async ({ page }, testInfo) => {
@@ -1252,6 +1291,11 @@ test("sur téléphone, un toucher nomme le clan, et deux doigts zooment la carte
   await page.touchscreen.tap(x, y);
   await expect(caption(page)).toContainText("au dernier relevé");
   await expect(page.getByRole("button", { name: "Vue d'ensemble" })).toBeVisible();
+  // La phrase du clan se pose entre le bouton « Vue d'ensemble » et le crédit, sans couvrir ni l'un ni l'autre.
+  const phrase = (await caption(page).boundingBox())!;
+  const bouton = (await page.getByRole("button", { name: "Vue d'ensemble" }).boundingBox())!;
+  expect(phrase.y).toBeGreaterThanOrEqual(bouton.y + bouton.height);
+  expect(phrase.y + phrase.height).toBeLessThanOrEqual((await page.getByTestId("map-credit").boundingBox())!.y);
   await page.getByRole("button", { name: "Vue d'ensemble" }).tap();
   await expect(caption(page)).toBeHidden();
 

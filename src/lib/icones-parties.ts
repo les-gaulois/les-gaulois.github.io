@@ -542,7 +542,7 @@ export const ICONES_PARTIES = {
     "..##..#..##..",
     "....#####....",
   ],
-  /** Carte · Légende : le rouleau, où l'on lit comment la carte est faite. */
+  /** Le rouleau, où l'on lit comment une chose est faite. Celui de la fenêtre « Légende » de la carte, retirée le 13 novembre 2026. */
   rouleau: [
     ".###########.",
     "##.........##",
@@ -558,7 +558,7 @@ export const ICONES_PARTIES = {
     "##.........##",
     ".###########.",
   ],
-  /** Carte · À propos : le torque, le collier ouvert que portaient les Gaulois, une boule à chaque bout. */
+  /** Le torque, le collier ouvert que portaient les Gaulois, une boule à chaque bout. Celui de la fenêtre « À propos » de la carte, retirée le 13 novembre 2026. */
   torque: [
     "....#####....",
     "..#########..",

@@ -8,11 +8,10 @@ import Fenetre from "../components/carte/Fenetre.astro";
 import AllianceApp from "../components/carte/alliance/AllianceApp";
 import { AUTH_ENABLED } from "../lib/compte/api";
 import IconePartie from "../components/compte/IconePartie";
-import { clan } from "../../config/clan";
+import { SITE_DISCLAIMER, SITE_LICENSE_NOTICE, clan } from "../../config/clan";
 import { FENETRES, type FenetreId } from "../lib/carte-console";
 import { clanRgb } from "../lib/clanmap/codec";
-import { ENEMY_PIXEL_BASE_TROOPS, NEUTRAL_PIXEL_TROOPS, RULES_CHECKED_ON, TROOPS_PER_CAP, capsToTroops, neutralPixelsFor, objectiveFor } from "../lib/clanmap/economy";
-import { FILM_MS, SHOT_SPACING_MS } from "../lib/fx/camera";
+import { NEUTRAL_PIXEL_TROOPS, RULES_CHECKED_ON, TROOPS_PER_CAP, capsToTroops, neutralPixelsFor, objectiveFor } from "../lib/clanmap/economy";
 import { SPEED_MAX, SPEED_MIN, SPEED_STEP, speedLabel, speedText } from "../lib/fx/speed";
 import { changeSinceLastDay, dayHighlights, dayRows, parisDayOf, territorySeries, type DayRow } from "../lib/clanmap/days";
 import { findMoments, nextThreshold } from "../lib/clanmap/moments";
@@ -92,7 +91,7 @@ const clanIndex = indexDesClans(film?.clans ?? []);
 const clanRows = standings.map((s, i) => ({ ...s, rank: i + 1, index: s.tag === null ? null : (clanIndex.get(s.tag) ?? null) }));
 
 // La console : une fenêtre n'existe, avec son entrée dans la rangée du bas, que si elle a quelque chose à montrer.
-const presentes = new Set<FenetreId>(["clans", "reglages", "legende", "a-propos"]);
+const presentes = new Set<FenetreId>(["clans", "reglages"]);
 // La carte de l'alliance n'existe qu'avec la connexion du site (Supabase) : sans elle, le site reste entièrement statique.
 const allianceOn = AUTH_ENABLED && film !== null;
 if (allianceOn) presentes.add("alliance");
@@ -170,9 +169,18 @@ const dock = FENETRES.filter((f) => presentes.has(f.id));
             </div>
             <p class="film-caption" data-film-caption hidden aria-hidden="true"></p>
             <div class="film-tip" data-film-tip hidden aria-hidden="true"></div>
-            {/* Le crédit de la carte, toujours sous les yeux, comme sur toute carte en ligne : il mène à la légende, qui
-                donne la source et la licence en entier. Le reste du pied de page est dans la fenêtre « À propos ». */}
-            <a class="carte-credit" href="#legende" data-testid="map-credit">© OpenFront and Contributors · CC BY-SA 4.0</a>
+            {/* Le crédit de la carte, toujours sous les yeux, comme sur toute carte en ligne : il mène aux crédits des
+                mentions légales, qui donnent la source, la licence et ce que le site a changé au fond de carte. La console
+                n'a pas de bas de page : sur un écran large, le code source et les mentions légales, que l'AGPL et la loi
+                veulent sur chaque page, sont sur la ligne au-dessus ; sur téléphone, au bout de la fenêtre ouverte. */}
+            <p class="carte-credit" data-testid="map-credit">
+              <span class="carte-credit-liens">
+                <a href={clan.links.source} rel="noopener">Code source</a>
+                <span aria-hidden="true">·</span>
+                <a href={`${base}/mentions-legales`}>Mentions légales</a>
+              </span>
+              <span><a class="carte-credit-mention" href={`${base}/mentions-legales#credits`}>© OpenFront and Contributors · CC BY-SA 4.0</a></span>
+            </p>
             {/* La carte de l'alliance, à la place du film quand sa fenêtre est ouverte (src/scripts/alliance-ecran.ts) : la
                 carte complète au dernier relevé, pixel par pixel, ses zones à prendre et, au passage de la souris, ce qu'il
                 y a sous elle. Les mêmes chiffres sont écrits dans la fenêtre. */}
@@ -250,7 +258,7 @@ const dock = FENETRES.filter((f) => presentes.has(f.id));
         <nav class="carte-dock" aria-label="Fenêtres de la carte" data-testid="carte-dock">
           <ul>
             {dock.map((f) => (
-              <li class:list={["etroit" in f && f.etroit && "carte-dock-etroit"]} data-film-ready={"film" in f && f.film ? "" : undefined} hidden={"film" in f && f.film} data-console-seulement={f.id === "a-propos" || f.id === "alliance" ? "" : undefined}>
+              <li class:list={["etroit" in f && f.etroit && "carte-dock-etroit"]} data-film-ready={"film" in f && f.film ? "" : undefined} hidden={"film" in f && f.film} data-console-seulement={f.id === "alliance" ? "" : undefined}>
                 <a href={`#${f.id}`} class="carte-dock-entree" data-ouvre={f.id}>
                   <IconePartie nom={f.icon} />
                   <span>{f.label}</span>
@@ -327,7 +335,8 @@ const dock = FENETRES.filter((f) => presentes.has(f.id));
             <div class="carte-table-cadre">
               <table class="data-table carte-table film-fronts tnum" data-testid="map-clans">
                 <caption>
-                  Le territoire de chaque clan au dernier relevé{lastAt !== undefined && `, le ${fmtEpochHour(lastAt)}`}, du plus grand au plus petit.
+                  {/* Sous 640 px de haut, le podium perd sa note : ce tableau la redit. */}
+                  Le territoire de chaque clan au dernier relevé{lastAt !== undefined && `, le ${fmtEpochHour(lastAt)}`}, du plus grand au plus petit : des pixels peints, pas le classement des clans.
                 </caption>
                 <thead>
                   <tr>
@@ -355,6 +364,8 @@ const dock = FENETRES.filter((f) => presentes.has(f.id));
               </table>
             </div>
             <p class="carte-aide" data-film-ready hidden>Un clic sur un clan le montre sur la carte.</p>
+            {/* Le seul lien de la page vers la carte « World », depuis le retrait de la fenêtre « Légende ». */}
+            <p class="carte-aide"><a href={`${base}/carte-monde/`}>La carte « World »</a> reporte la part des terres de GAL sur la carte du monde du jeu.</p>
           </Fenetre>
 
           {/* La carte de l'alliance (13 novembre 2026) : la porte pour tous, puis, pour les Gaulois validés et les alliés
@@ -555,7 +566,8 @@ const dock = FENETRES.filter((f) => presentes.has(f.id));
                 {
                   (reservePixels !== null || gal.neutralBorder !== null) && (
                     <p class="mt-2 text-muted carte-petit">
-                      {reservePixels === null ? "Repère indicatif" : "Repères indicatifs"}, selon les règles du jeu lues le {fmtDate(`${RULES_CHECKED_ON}T12:00:00Z`)}.
+                      {reservePixels === null ? "Repère indicatif" : "Repères indicatifs"}, selon les règles du jeu lues le {fmtDate(`${RULES_CHECKED_ON}T12:00:00Z`)}
+                      {reservePixels !== null && ` : une capsule vaut ${fmtInt(TROOPS_PER_CAP)} troupes, un pixel neutre en coûte ${fmtInt(NEUTRAL_PIXEL_TROOPS)}`}.
                     </p>
                   )
                 }
@@ -563,48 +575,11 @@ const dock = FENETRES.filter((f) => presentes.has(f.id));
             )
           }
 
-          <Fenetre id="legende" testid="map-read">
-            <Fragment slot="titre">Comment lire cette carte</Fragment>
-            {/* Les lueurs du film : les mêmes couleurs que dans src/scripts/film.ts. */}
-            <ul class="carte-legende">
-              <li><i class="carte-lueur carte-lueur-gain" aria-hidden="true"></i>Lueur bleu pâle : des pixels que GAL vient de prendre.</li>
-              <li><i class="carte-lueur carte-lueur-perte" aria-hidden="true"></i>Lueur rouge : des pixels que GAL vient de perdre.</li>
-              <li><i class="carte-lueur carte-lueur-autre" aria-hidden="true"></i>Lueur blanche, discrète : un pixel pris par un autre clan.</li>
-            </ul>
-            <ul class="carte-notes">
-              <li><strong>La carte se manie.</strong> La molette ou deux doigts changent le zoom, glisser déplace la carte, et un clic sur un territoire nomme son clan. Au clavier, une fois la carte choisie : les flèches, plus, moins, et zéro pour la vue d'ensemble.</li>
-              <li><strong>Une autre vue.</strong> <a href={`${base}/carte-monde/`}>La carte « World »</a> reporte la part des terres de GAL sur la carte du monde du jeu.</li>
-              <li><strong>Ce n'est pas le classement des clans.</strong> La carte compte des pixels peints, pas des victoires. L'ordre des clans suit celui de la carte officielle. Le classement du clan reste sur la page <a href={`${base}/classement`}>Classement</a>.</li>
-              {
-                lastAt === undefined ? (
-                  <li><strong>Pas de dates dans le film.</strong> La frise suit l'ordre réel des changements, pas le temps.</li>
-                ) : (
-                  <li><strong>Des dates, mais pas une horloge.</strong> Chaque image porte la date de son dernier changement, donnée par OpenFront et écrite en heure de Paris. Le film suit le rythme des changements : une journée très active prend plus de place sur la frise qu'une journée calme.</li>
-                )
-              }
-              <li><strong>Une vitesse au choix.</strong> À {speedLabel(SPEED_MAX)}, le film entier dure {FILM_MS / 1000} secondes. Le curseur « Vitesse » le ralentit pas à pas jusqu'à {speedLabel(SPEED_MIN)}, {Math.round(SPEED_MAX / SPEED_MIN)} fois plus lent.</li>
-              <li><strong>Une caméra posée.</strong> La caméra glisse sans à-coup. Elle s'approche lentement de GAL sur quelques grands moments, au plus une fois toutes les {SHOT_SPACING_MS / 1000} secondes, et revient d'elle-même à la vue d'ensemble. Tant que vous avez zoomé ou déplacé la carte, elle reste où vous l'avez mise. Avec « réduire les animations », elle ne s'approche jamais et passe directement d'un cadre à l'autre.</li>
-              <li><strong>Le film reprend où vous l'aviez laissé.</strong> Votre navigateur garde la date de la dernière image vue, sur cet appareil seulement : au retour, le film ne rejoue que la suite, et « Rejouer » redonne le film entier. Rien n'est envoyé au site.</li>
-              <li><strong>Une mise à jour par jour.</strong> Ce ne sont pas des données en temps réel. La carte vient de l'historique public documenté par OpenFront, lu par la collecte du site et jamais par votre navigateur. Les réserves du clan viennent de sa fiche, une route non documentée : quand elle ne répond pas à la collecte, la fenêtre « Chiffres » le dit en une ligne, sans chiffre{reservePixels === null && ", comme en ce moment"}.</li>
-              <li><strong>Vérifié à chaque mise à jour.</strong> Chaque événement officiel annonce l'ancien propriétaire du pixel. Rejoué depuis le premier pixel, l'historique retombe dessus, avec {fmtInt(film.check.mismatches)} écart sur {fmtInt(film.check.events)} événements. En cas d'écart, le film n'est pas mis à jour.</li>
-              <li><strong>Des paliers du site.</strong> Le prochain palier de pixels est un repère du site, pas du jeu : les mêmes paliers que les grands moments du film.</li>
-              <li><strong>Ce que l'historique ne donne pas.</strong> Il ne dit pas les troupes des autres clans. Le site n'affiche donc pas le coût exact d'un pixel ennemi.</li>
-              <li><strong>Des coûts indicatifs.</strong> Les réserves du clan sont converties avec les règles lues dans le code de la carte : 1 capsule = {fmtInt(TROOPS_PER_CAP)} troupes, 1 pixel neutre = {fmtInt(NEUTRAL_PIXEL_TROOPS)} troupes. Ces coûts ne tiennent pas compte de la forme du territoire ni des pixels verrouillés, et le jeu peut les changer.</li>
-              {allianceOn && (
-                <li><strong>La carte de l'alliance.</strong> Ses zones se comptent sur la carte complète, pixel par pixel, au même relevé que le film, avec les mêmes règles : {fmtInt(NEUTRAL_PIXEL_TROOPS)} troupes par pixel neutre, et au moins {fmtInt(ENEMY_PIXEL_BASE_TROOPS)} par pixel d'un autre clan, dont les troupes ne sont pas connues. Les troupes des clans alliés sont déclarées par eux, jamais relevées.</li>
-              )}
-              <li><strong>Image allégée.</strong> Les chiffres sont calculés sur la carte complète, {fmtInt(film.width)} × {fmtInt(film.height)} pixels : la position écrite à côté de la date, au passage de la souris, est comptée sur elle. Seul le film est affiché en résolution réduite.</li>
-              <li><strong>Dessins des joueurs.</strong> Les motifs visibles sont peints par les joueurs, et le site ne les filtre pas.</li>
-            </ul>
-            <p class="mt-4 text-muted">Carte, terrain et données © OpenFront et ses contributeurs. <a href="https://clanmap.openfront.io/" rel="noopener">Voir la carte officielle</a>.</p>
-            <p class="mt-2 text-muted" data-testid="map-license">Le fond de carte et la surface de terre viennent de <a href="https://github.com/openfrontio/OpenFrontIO/tree/main/resources/maps/giantworldmap" rel="noopener">Giant World Map</a>, une carte d'OpenFront sous licence <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.fr" rel="noopener">CC BY-SA 4.0</a>. Ce site a réduit et assombri le fond de carte, qui reste sous la même licence.</p>
-          </Fenetre>
-
-          {/* Le pied de page du site : la console n'a pas de bas de page, le script le range dans cette fenêtre. */}
-          <Fenetre id="a-propos" consoleSeulement>
-            <Fragment slot="titre">À propos du site</Fragment>
-            <div data-carte-pied></div>
-          </Fenetre>
+          {/* Le bas de la console quand tout s'empile (téléphone) : au bout de la fenêtre ouverte, comme le bas d'une page.
+              Sur un écran large, le crédit posé sur la carte en tient lieu ; sans script, le pied de page du site est là. */}
+          <p class="carte-pied" data-console-seulement data-testid="carte-pied">
+            {SITE_DISCLAIMER} {SITE_LICENSE_NOTICE} <a href={clan.links.source} rel="noopener">Code source</a> · <a href={`${base}/mentions-legales`}>Mentions légales</a>
+          </p>
         </div>
 
         <p class="sr-only" role="status" data-film-status></p>

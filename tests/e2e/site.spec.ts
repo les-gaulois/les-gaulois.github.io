@@ -2219,10 +2219,9 @@ test("chaque page donne le code source, la mention d'OpenFront et les mentions l
   test.skip(testInfo.project.name !== "desktop", "Même pied de page sur mobile.");
   for (const path of [...PAGES, "/confidentialite", "/compte", "/direction"]) {
     await page.goto(path);
-    // La page Carte est une console qui tient dans l'écran, sans bas de page : son pied de page se lit dans la fenêtre
-    // « À propos », ouverte depuis la rangée du bas (tests/e2e/carte.spec.ts contrôle aussi cette fenêtre).
-    if (path === "/carte") await page.getByTestId("carte-dock").getByRole("link", { name: "À propos" }).click();
-    const footer = page.locator("footer");
+    // La page Carte est une console qui tient dans l'écran, sans bas de page : le crédit posé sur la carte donne les trois
+    // (tests/e2e/carte.spec.ts le contrôle aussi).
+    const footer = path === "/carte" ? page.getByTestId("map-credit") : page.locator("footer");
     await expect(footer.getByRole("link", { name: "Code source", exact: true }), path).toHaveAttribute("href", "https://github.com/les-gaulois/les-gaulois.github.io");
     await expect(footer, path).toContainText("© OpenFront and Contributors");
     await expect(footer.getByRole("link", { name: "Mentions légales", exact: true }), path).toHaveAttribute("href", "/mentions-legales");

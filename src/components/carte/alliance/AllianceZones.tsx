@@ -7,9 +7,9 @@ import { useEffect, useMemo, useState } from "preact/hooks";
 import { bilanZone, type BilanZone } from "../../../lib/alliance/bilan";
 import { CADRE_MAX, encoderBits, masqueDeLaZone, type Masque } from "../../../lib/alliance/masque";
 import type { ZoneLigne } from "../../../lib/alliance/types";
-import { ENEMY_PIXEL_BASE_TROOPS, NEUTRAL_PIXEL_TROOPS } from "../../../lib/clanmap/economy";
+import { ENEMY_PIXEL_BASE_TROOPS, NEUTRAL_PIXEL_TROOPS, RULES_CHECKED_ON } from "../../../lib/clanmap/economy";
 import { call } from "../../../lib/compte/api";
-import { fmtDateTime, fmtInt, fmtPct } from "../../../lib/format";
+import { fmtDate, fmtDateTime, fmtInt, fmtPct } from "../../../lib/format";
 import type { EcranAlliance, EtatDessin, Outil } from "../../../scripts/alliance-ecran";
 import { DeleteButton, Problem, messageOf } from "../../compte/common";
 import { nomDuClan, type Contexte } from "./commun";
@@ -311,7 +311,7 @@ export default function AllianceZones({
       <Problem message={erreur} />
       {zones.length > 0 && etat && (
         <p class="carte-aide tnum">
-          Au relevé du {fmtDateTime(film.fetchedAt)}. {fmtInt(NEUTRAL_PIXEL_TROOPS)} troupes par pixel neutre, au moins {fmtInt(ENEMY_PIXEL_BASE_TROOPS)} par pixel d'un autre clan.
+          Au relevé du {fmtDateTime(film.fetchedAt)}. {fmtInt(NEUTRAL_PIXEL_TROOPS)} troupes par pixel neutre, au moins {fmtInt(ENEMY_PIXEL_BASE_TROOPS)} par pixel d'un autre clan, selon les règles du jeu lues le {fmtDate(`${RULES_CHECKED_ON}T12:00:00Z`)}.
         </p>
       )}
     </div>

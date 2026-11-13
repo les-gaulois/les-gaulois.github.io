@@ -5014,6 +5014,13 @@ footer h2 {
   align-items: flex-start;
   gap: 0.25rem;
 }
+/* Quand tout s'empile (téléphone), + et − côte à côte, « Vue d'ensemble » dessous : sur une carte de 190 px de haut, la
+   phrase d'un clan touché, posée en bas, passait sous ce bouton. */
+.carte-outils:not(.alliance-outils) {
+  flex-direction: row;
+  flex-wrap: wrap;
+  width: 4.75rem;
+}
 .carte-touche {
   display: inline-flex;
   align-items: center;
@@ -5041,6 +5048,8 @@ footer h2 {
 }
 .carte-touche-large {
   font-size: 0.8125rem;
+  /* Sur téléphone, il dépasse la colonne de + et − : sur une ligne quand même. */
+  white-space: nowrap;
 }
 .carte-touche .icone-partie {
   width: 1.21875rem;
@@ -5065,32 +5074,65 @@ footer h2 {
   font-weight: 600;
   color: var(--color-warn);
 }
-/* Le crédit de la carte, toujours sous les yeux, comme sur toute carte en ligne : la mention d'OpenFront et la licence du
-   fond de carte. Il mène à la légende, qui donne la source et la licence en entier. La légende des grands moments se pose
-   au-dessus de lui. */
+/* Le crédit de la carte, toujours sous les yeux, comme sur toute carte en ligne : la mention d'OpenFront et la licence
+   du fond de carte, qui mènent aux crédits des mentions légales. Sur un écran large, une seconde ligne au-dessus donne
+   le code source et les mentions légales, que la console, sans bas de page, ne montre pas ailleurs ; sur téléphone, ils
+   sont au bout de la fenêtre ouverte (`.carte-pied`), et la carte, trop petite, ne garde que la mention. La légende des
+   grands moments se pose au-dessus. Entre les deux lignes, la carte reste cliquable. */
 .carte-credit {
   position: absolute;
   right: 0.5rem;
   bottom: 0.375rem;
   z-index: 3;
-  display: inline-flex;
-  align-items: center;
-  min-height: 1.5rem;
-  padding: 0 0.5rem;
-  border-radius: 0.25rem;
-  background: var(--carte-vitre);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
   font-family: var(--font-console);
   font-size: 0.6875rem;
   white-space: nowrap;
   color: var(--color-muted);
+  pointer-events: none;
+}
+.carte-credit > span {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 1.5rem;
+  padding: 0 0.5rem;
+  border-radius: 0.25rem;
+  background: var(--carte-vitre);
+  pointer-events: auto;
+}
+.carte-credit a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  color: inherit;
   text-decoration: underline;
   text-underline-offset: 3px;
 }
-.carte-credit:hover {
+/* La mention seule peut passer sur deux lignes, quand la place manque à côté du podium. */
+.carte-credit-mention {
+  white-space: normal;
+  text-align: right;
+}
+.carte-credit a:hover {
   color: #fff;
+}
+.carte-credit > .carte-credit-liens {
+  display: none;
 }
 .carte .film-caption {
   bottom: 2.25rem;
+}
+/* Le bas de la console quand tout s'empile (téléphone) : au bout de la fenêtre ouverte, comme le bas d'une page. */
+.carte-pied {
+  margin-top: 1rem;
+  padding: 0.75rem 0.25rem 0.25rem;
+  border-top: 1px solid var(--color-line);
+  font-size: 0.8125rem;
+  color: var(--color-muted);
 }
 
 /* La lecture du film : le bouton et la frise. */
@@ -5448,46 +5490,6 @@ footer h2 {
 .carte-chiffres dd:not(.carte-chiffre) {
   font-size: 0.875rem;
 }
-/* La légende des lueurs du film : les couleurs de src/scripts/film.ts. */
-.carte-legende {
-  display: grid;
-  gap: 0.375rem;
-  margin-top: 0.75rem;
-}
-.carte-legende > li {
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-}
-.carte-lueur {
-  flex: none;
-  width: 0.75rem;
-  height: 0.75rem;
-  border-radius: 999px;
-  translate: 0 1px;
-}
-.carte-lueur-gain {
-  background: #d2f5ff;
-  box-shadow: 0 0 0.5rem #d2f5ff;
-}
-.carte-lueur-perte {
-  background: #ff4655;
-  box-shadow: 0 0 0.5rem #ff4655;
-}
-.carte-lueur-autre {
-  background: rgb(255 255 255 / 0.5);
-}
-.carte-notes {
-  display: grid;
-  gap: 0.625rem;
-  margin-top: 0.875rem;
-  padding-top: 0.875rem;
-  border-top: 1px solid var(--color-line);
-  color: var(--color-muted);
-}
-.carte-notes strong {
-  color: #fff;
-}
 
 /* Le podium du film. */
 .carte-podium .carte-fenetre-corps {
@@ -5515,19 +5517,6 @@ footer h2 {
   font-weight: 700;
 }
 
-/* Le pied de page du site, rangé dans la fenêtre « À propos » : une seule colonne, sans son fond ni ses marges. */
-.carte-fenetre footer {
-  margin: 0.75rem 0 0;
-  border: 0;
-  background: none;
-}
-.carte-fenetre footer > .wrap {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 1.25rem;
-  padding: 0;
-}
-
 /* Sans la console : la page défile. La carte, la rangée de liens, puis les fenêtres l'une sous l'autre. */
 :root:not(.carte-console) [data-console-seulement],
 :root:not(.carte-console) .carte-fermer {
@@ -5548,9 +5537,9 @@ footer h2 {
 
 /* La page ne défile plus : l'en-tête, puis la console sur tout le reste de l'écran. Sur un écran trop bas pour elle, la
    console garde sa hauteur minimale et la page défile un peu, plutôt que de tout écraser : sous 544 px de haut quand tout
-   s'empile, sous 560 px quand la carte prend tout, sous 368 px sur un téléphone couché. Le pied de page est rangé par le
-   script dans la fenêtre « À propos ». Les unités `dvh` et `svh` ont un repli en `vh` pour les navigateurs qui ne les
-   connaissent pas. */
+   s'empile, sous 560 px quand la carte prend tout, sous 368 px sur un téléphone couché. Le pied de page du site est
+   caché : le crédit posé sur la carte garde la mention d'OpenFront et le lien des mentions légales. Les unités `dvh` et
+   `svh` ont un repli en `vh` pour les navigateurs qui ne les connaissent pas. */
 :root.carte-console body {
   height: 100vh;
   height: 100dvh;
@@ -5738,17 +5727,23 @@ footer h2 {
     right: calc(0.75rem + var(--fenetre-large));
     left: auto;
     flex-direction: row-reverse;
+    flex-wrap: nowrap;
+    width: auto;
   }
-  /* La légende des grands moments et le crédit, en bas de la carte, entre le podium et la fenêtre ouverte. */
+  /* La légende des grands moments et le crédit, en bas de la carte, entre le podium et la fenêtre ouverte. Quand la place
+     manque entre les deux (moins de 1 100 px de large, une fenêtre ouverte), la mention passe sur deux lignes plutôt que
+     de glisser sous le podium, et le crédit garde au moins 15rem, la largeur de la ligne du code source ; sous 1 008 px,
+     il passe dans le coin, sous la fenêtre (règle suivante). */
   :root.carte-console .film-caption {
     right: calc(0.75rem + var(--fenetre-large));
-    bottom: 2.5rem;
+    bottom: 4.75rem;
     left: 17.5rem;
     max-width: none;
   }
   :root.carte-console .carte-credit {
     right: calc(0.75rem + var(--fenetre-large));
     bottom: 0.5rem;
+    max-width: max(15rem, calc(100% - 18rem - var(--fenetre-large)));
     font-size: 0.75rem;
   }
   :root.carte-console .carte-alerte {
@@ -5837,6 +5832,27 @@ footer h2 {
   :root.carte-console .carte-fermer {
     display: inline-flex;
   }
+  /* Sur la carte, le crédit garde aussi le code source et les mentions légales : le pied de console n'est que pour le
+     téléphone. */
+  :root.carte-console .carte-credit > .carte-credit-liens {
+    display: flex;
+  }
+  :root.carte-console .carte .carte-pied {
+    display: none;
+  }
+}
+
+/* De 768 à 1 007 px de large, une fenêtre ouverte ne laisse pas 15rem entre elle et le podium : le crédit passe dans le
+   coin de la carte, sous la fenêtre, qui raccourcit d'autant. */
+@media (min-aspect-ratio: 5/4) and (min-width: 48rem) and (max-width: 62.9375rem) {
+  :root.carte-console .carte-credit {
+    right: 0.75rem;
+    max-width: none;
+  }
+  :root.carte-console .carte-panneaux > [data-fenetre].est-ouverte,
+  :root.carte-console .carte-reglages.est-ouverte {
+    max-height: calc(100% - 7rem);
+  }
 }
 
 /* Un écran large de moins de 800 px de haut (la plupart des portables) : la session perd son invite et son titre tient
@@ -5881,7 +5897,7 @@ footer h2 {
 }
 
 /* Moins de 640 px de haut : le podium ne garde que son titre, ses cinq lignes et celle de GAL. Sa note (« pas le
-   classement des clans ») et la part des terres restent dans les fenêtres « Légende » et « Clans ». */
+   classement des clans ») reste dans la légende du tableau « Clans ». */
 @media (min-aspect-ratio: 5/4) and (min-width: 48rem) and (max-height: 39.9375rem) {
   :root.carte-console .carte-podium-note,
   :root.carte-console .carte-podium-mesure {
@@ -5928,7 +5944,7 @@ footer h2 {
     border: 0;
   }
   :root.carte-console .film-caption {
-    bottom: 3.5rem;
+    bottom: 4.75rem;
     left: 0.75rem;
   }
   :root.carte-console .carte-dock-entree {
@@ -6471,10 +6487,6 @@ footer h2 {
   padding: 0.5rem;
   border: 1px solid var(--color-line-strong);
   border-radius: 0.25rem;
-}
-/* Onze entrées dans la rangée avec l'alliance : trois lignes de quatre au plus sur téléphone, plutôt qu'une entrée seule. */
-.carte-dock > ul:has(> li:nth-child(11)) {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 /* Les nouveaux messages de l'alliance, sur l'entrée de la rangée : dans son coin, sans changer sa hauteur. */
 .carte-dock-entree:has(> .alliance-pastille) {

@@ -23,8 +23,11 @@ describe("les fenêtres de la console de la carte", () => {
     }
     // Deux fenêtres ne partagent pas la même icône.
     expect(new Set(FENETRES.map((f) => f.icon)).size).toBe(FENETRES.length);
-    // Onze entrées avec l'alliance : trois lignes de quatre au plus sur téléphone ; dix sans la connexion du site, deux lignes de cinq.
-    expect(FENETRES).toHaveLength(11);
+    // Neuf entrées avec l'alliance, huit sans la connexion du site : deux lignes de cinq au plus sur téléphone. « Légende » et
+    // « À propos », retirées le 13 novembre 2026 à la demande du pilote, ne reviennent pas.
+    expect(FENETRES).toHaveLength(9);
+    expect(FENETRES.map((f) => f.id)).not.toContain("legende");
+    expect(FENETRES.map((f) => f.id)).not.toContain("a-propos");
   });
 
   it("le lien d'invitation d'un joueur allié ouvre la fenêtre de l'alliance", () => {
@@ -35,7 +38,10 @@ describe("les fenêtres de la console de la carte", () => {
 
   it("une ancre de l'adresse ouvre sa fenêtre, une ancienne ancre aussi, une inconnue rien", () => {
     expect(fenetreDeLAncre("#objectif")).toBe("objectif");
-    expect(fenetreDeLAncre("#a-propos")).toBe("a-propos");
+    expect(fenetreDeLAncre("#chiffres")).toBe("chiffres");
+    // Une fenêtre retirée n'ouvre plus rien : l'écran garde sa fenêtre par défaut.
+    expect(fenetreDeLAncre("#legende")).toBeNull();
+    expect(fenetreDeLAncre("#a-propos")).toBeNull();
     expect(fenetreDeLAncre("clans")).toBe("clans");
     // La page d'avant : « Revoir l'histoire » et « Les détails ».
     expect(fenetreDeLAncre("#histoire")).toBe("moments");

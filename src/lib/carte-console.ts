@@ -31,8 +31,8 @@ export const FENETRES = [
   { id: "fronts", label: "Fronts", icon: "epees" },
   { id: "chiffres", label: "Chiffres", icon: "encoches" },
   { id: "reglages", label: "Réglages", icon: "roue", film: true, etroit: true },
-  { id: "legende", label: "Légende", icon: "rouleau" },
-  { id: "a-propos", label: "À propos", icon: "torque" },
+  // « Légende » et « À propos », retirées le 13 novembre 2026 à la demande du pilote (« de trop ») : le crédit posé sur la
+  // carte mène aux mentions légales, où sont la licence du fond de carte et le lien que la loi veut sur chaque page.
 ] as const satisfies readonly Fenetre[];
 
 export type FenetreId = (typeof FENETRES)[number]["id"];
