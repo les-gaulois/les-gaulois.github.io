@@ -6590,6 +6590,11 @@ footer h2 {
   border-top: 0;
   border-left: 1px solid var(--color-line);
 }
+/* Les longs libellés de ce qui efface (« Supprimer la zone, version acceptée comprise ») passent à la ligne sur téléphone. */
+.alliance-a-part .btn {
+  white-space: normal;
+  text-align: start;
+}
 .alliance-retirer {
   margin-left: 0.5rem;
   font-size: 0.8125rem;
@@ -7037,8 +7042,9 @@ footer h2 {
   text-align: left;
   color: var(--color-muted);
 }
+/* Les intitulés passent à la ligne quand la place manque (téléphone, partie « En attente de l'accord ») ; les nombres, jamais. */
 .alliance-bilan :is(thead th, tbody th, tfoot th) {
-  white-space: nowrap;
+  white-space: normal;
 }
 .alliance-bilan td {
   text-align: right;

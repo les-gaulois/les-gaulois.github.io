@@ -163,14 +163,19 @@ export default function AllianceZones({
   const clanDeLAllie = donnees.access.kind === "allie" ? donnees.access.tag : null;
   const peutDessiner = ctx.staff || (clanDeLAllie !== null && donnees.can_draw === true);
   const peutModifier = (z: ZoneLigne) => ctx.staff || (clanDeLAllie !== null && z.can_edit === true);
-  // L'ordre des priorités : celui des zones reçues, que le serveur range par leur place.
-  const ordre = zones.map((z) => z.id);
+  // Les zones qui comptent, et celles des alliés qui attendent l'accord de l'encadrement (migration 20261113001100).
+  const acceptees = zones.filter((z) => z.pending !== true);
+  const enAttente = zones.filter((z) => z.pending === true);
+  // L'ordre des priorités : celui des zones acceptées reçues, que le serveur range par leur place.
+  const ordre = acceptees.map((z) => z.id);
   const [outil, setOutil] = useState<Outil>("crayon");
   const [taille, setTaille] = useState<number>(TAILLES[1]);
   const [dessin, setDessin] = useState<EtatDessin>({ pixels: 0, cadre: null, tropGrand: false, annulable: false, retires: 0 });
   const [apercu, setApercu] = useState<BilanZone | null>(null);
   const [busy, setBusy] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+  // Après l'enregistrement d'une zone d'allié : elle attend l'accord.
+  const [info, setInfo] = useState<string | null>(null);
   const couleurEdition = couleurDeZone(edition?.tag ? edition.tag : null, couleursClans);
 
   // Le dessin en cours se compte à chaque geste fini. GAL est toujours des nôtres dans un bilan.
@@ -223,7 +228,8 @@ export default function AllianceZones({
     setBusy(true);
     setErreur(null);
     try {
-      const r = await call<{ id: number }>("save_alliance_zone", {
+      setInfo(null);
+      const r = await call<{ id: number; pending?: boolean }>("save_alliance_zone", {
         p_id: edition.id,
         p_title: edition.titre,
         p_tag: edition.tag || null,
@@ -238,10 +244,28 @@ export default function AllianceZones({
       setApercu(null);
       await ctx.relire();
       choisir(r.id, false);
+      if (r.pending === true && !ctx.staff) setInfo(t.zoneEnvoyee);
     } catch (e) {
       setErreur(messageIn(e, t.langue));
       // Une autre zone enregistrée entre-temps : la carte se relit, et ses pixels quittent le dessin.
       if (e instanceof ServerError && e.code === "zone_overlap") void ctx.relire();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // L'encadrement accepte ou refuse une zone d'allié qui attend, dans la version qu'il a sous les yeux : si l'allié l'a
+  // modifiée depuis la dernière lecture de la carte, le serveur refuse (zone_changed) et la carte se relit.
+  const repondre = async (z: ZoneLigne, accepter: boolean) => {
+    setBusy(true);
+    setErreur(null);
+    try {
+      await call("review_alliance_zone", { p_id: z.id, p_approve: accepter, p_seen: z.updated_at });
+      if (!accepter && selection === z.id) choisir(null, false);
+      await ctx.relire();
+    } catch (e) {
+      setErreur(messageIn(e, t.langue));
+      if (e instanceof ServerError && ["zone_overlap_review", "zone_changed", "zone_not_found"].includes(e.code)) void ctx.relire();
     } finally {
       setBusy(false);
     }
@@ -385,59 +409,17 @@ export default function AllianceZones({
           <span aria-hidden="true">+</span> {t.nouvelleZone}
         </button>
       )}
-      {zones.length > 0 && (
-        <ul class="alliance-zones">
-          {zones.map((z) => {
-            const bilan = bilans.get(z.id) ?? null;
-            const couleur = couleurDeZone(z.tag, couleursClans);
-            const choisie = selection === z.id;
-            return (
-              <li key={z.id} class="alliance-zone" data-choisie={choisie ? "" : undefined} data-etat={z.state} data-testid="zone">
-                <button type="button" class="alliance-zone-tete" aria-expanded={choisie} onClick={() => choisir(choisie ? null : z.id, !choisie)}>
-                  <span class="alliance-zone-nom">
-                    <Pastille couleur={couleur} />
-                    <span>
-                      <strong>{z.title}</strong>
-                      <span class="alliance-zone-clan">
-                        {z.tag ?? t.touteLAlliance}
-                        {z.state ? ` · ${t.etats[z.state]}` : ""}
-                      </span>
-                    </span>
-                  </span>
-                  {bilan && (
-                    <span class="alliance-zone-part tnum">
-                      {t.pct(bilan.part)} <span class="alliance-zone-prise">{t.prise}</span>
-                    </span>
-                  )}
-                </button>
-                {bilan && <Barre part={bilan.part} couleur={couleur} />}
-                {choisie && (
-                  <div class="alliance-zone-detail">
-                    {bilan && <TableauZone bilan={bilan} t={t} />}
-                    {bilan && <Suffisance zone={z} bilan={bilan} ctx={ctx} />}
-                    {ctx.evolution?.zones.get(z.id) && (
-                      <p class="carte-aide" data-testid="zone-24h">
-                        {t.zone24h(ctx.evolution.zones.get(z.id)!.pris, ctx.evolution.zones.get(z.id)!.perdus, t.nombre)}
-                      </p>
-                    )}
-                    <p class="carte-aide">{t.misAJour(t.dateHeure(z.updated_at), z.by)}</p>
-                    {ctx.staff && z.state !== undefined && <ReglageZone zone={z} ordre={ordre} relire={ctx.relire} />}
-                    {peutModifier(z) && etat && (
-                      <div class="alliance-ligne mt-2">
-                        <button type="button" class="btn btn-ghost !min-h-10 !py-1.5 !text-sm" onClick={() => commencer(z)}>
-                          {t.modifier}
-                        </button>
-                        <span class="alliance-a-part">
-                          <EnDeuxTemps busy={busy} texte={t.supprimer} confirmer={t.confirmerSuppression} aria={t.supprimerAria(z.title)} ariaConfirmer={t.confirmerSuppressionAria(z.title)} onConfirm={() => void supprimer(z.id)} />
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+      {/* Toujours là, vide d'abord : un lecteur d'écran annonce le texte qui y arrive. */}
+      <p class={info ? "carte-aide mt-2" : undefined} role="status" data-testid="zone-envoyee">
+        {info}
+      </p>
+      {acceptees.length > 0 && <ul class="alliance-zones">{acceptees.map((z) => ligne(z))}</ul>}
+      {enAttente.length > 0 && (
+        <section class="carte-bloc" aria-labelledby="zones-en-attente" data-testid="zones-en-attente">
+          <h3 id="zones-en-attente">{t.enAttenteTitre}</h3>
+          <p class="carte-aide">{ctx.staff ? t.enAttenteAideStaff : t.enAttenteAideAllie}</p>
+          <ul class="alliance-zones">{enAttente.map((z) => ligne(z))}</ul>
+        </section>
       )}
       <Problem message={erreur} />
       {zones.length > 0 && etat && (
@@ -447,4 +429,78 @@ export default function AllianceZones({
       )}
     </div>
   );
+
+  /** Une zone de la liste : son nom, son clan, son état ou son attente, sa part prise ; choisie, son détail. */
+  function ligne(z: ZoneLigne) {
+    const bilan = bilans.get(z.id) ?? null;
+    const couleur = couleurDeZone(z.tag, couleursClans);
+    const choisie = selection === z.id;
+    return (
+      <li key={z.id} class="alliance-zone" data-choisie={choisie ? "" : undefined} data-etat={z.state} data-testid="zone">
+        <button type="button" class="alliance-zone-tete" aria-expanded={choisie} onClick={() => choisir(choisie ? null : z.id, !choisie)}>
+          <span class="alliance-zone-nom">
+            <Pastille couleur={couleur} />
+            <span>
+              <strong>{z.title}</strong>
+              <span class="alliance-zone-clan">
+                {z.tag ?? t.touteLAlliance}
+                {z.pending ? ` · ${t.enAttenteCourt}` : z.state ? ` · ${t.etats[z.state]}` : ""}
+              </span>
+            </span>
+          </span>
+          {bilan && (
+            <span class="alliance-zone-part tnum">
+              {t.pct(bilan.part)} <span class="alliance-zone-prise">{t.prise}</span>
+            </span>
+          )}
+        </button>
+        {bilan && <Barre part={bilan.part} couleur={couleur} />}
+        {choisie && (
+          <div class="alliance-zone-detail">
+            {bilan && <TableauZone bilan={bilan} t={t} />}
+            {bilan && <Suffisance zone={z} bilan={bilan} ctx={ctx} />}
+            {ctx.evolution?.zones.get(z.id) && (
+              <p class="carte-aide" data-testid="zone-24h">
+                {t.zone24h(ctx.evolution.zones.get(z.id)!.pris, ctx.evolution.zones.get(z.id)!.perdus, t.nombre)}
+              </p>
+            )}
+            <p class="carte-aide">{t.misAJour(t.dateHeure(z.updated_at), z.by)}</p>
+            {z.pending && !ctx.staff && <p class="carte-aide">{t.enAttenteAccord}</p>}
+            {z.pending && z.previous && <p class="carte-aide">{t.modifEnAttente}</p>}
+            {z.pending && ctx.staff && (
+              <div class="mt-2" data-testid="zone-accord">
+                <button type="button" class="btn btn-primary !min-h-10 !py-1.5 !text-sm" aria-disabled={busy ? "true" : undefined} aria-label={t.accepterZoneAria(z.title)} onClick={() => !busy && void repondre(z, true)}>
+                  {t.accepterZone}
+                </button>
+                {/* Refuser efface une zone nouvelle, ou rend la version acceptée d'une zone modifiée : à part, sous un filet, en deux temps. */}
+                <div class="alliance-a-part mt-3">
+                  {z.previous ? (
+                    <EnDeuxTemps busy={busy} texte={t.refuserModif} confirmer={t.refuserModifConfirmer} aria={t.refuserModifAria(z.title)} ariaConfirmer={t.refuserModifConfirmerAria(z.title)} onConfirm={() => void repondre(z, false)} />
+                  ) : (
+                    <EnDeuxTemps busy={busy} texte={t.refuserZone} confirmer={t.refuserZoneConfirmer} aria={t.refuserZoneAria(z.title)} ariaConfirmer={t.refuserZoneConfirmerAria(z.title)} onConfirm={() => void repondre(z, false)} />
+                  )}
+                </div>
+              </div>
+            )}
+            {ctx.staff && !z.pending && z.state !== undefined && <ReglageZone zone={z} ordre={ordre} relire={ctx.relire} />}
+            {peutModifier(z) && etat && (
+              <div class="alliance-ligne mt-2">
+                <button type="button" class="btn btn-ghost !min-h-10 !py-1.5 !text-sm" onClick={() => commencer(z)}>
+                  {t.modifier}
+                </button>
+                <span class="alliance-a-part">
+                  {/* Une zone dont la modification attend : supprimer emporte aussi la version acceptée, que tous voient. */}
+                  {z.pending && z.previous ? (
+                    <EnDeuxTemps busy={busy} texte={t.supprimerTout} confirmer={t.supprimerToutConfirmer} aria={t.supprimerToutAria(z.title)} ariaConfirmer={t.supprimerToutConfirmerAria(z.title)} onConfirm={() => void supprimer(z.id)} />
+                  ) : (
+                    <EnDeuxTemps busy={busy} texte={t.supprimer} confirmer={t.confirmerSuppression} aria={t.supprimerAria(z.title)} ariaConfirmer={t.confirmerSuppressionAria(z.title)} onConfirm={() => void supprimer(z.id)} />
+                  )}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+      </li>
+    );
+  }
 }

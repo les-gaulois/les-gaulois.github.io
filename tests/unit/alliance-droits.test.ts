@@ -6,7 +6,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const MIGRATIONS = ["20261113000400_alliances_sur_la_carte", "20261113000500_allies_acceptes_par_l_encadrement", "20261113000600_zones_sans_chevauchement", "20261113000700_allies_dessinent_leurs_zones", "20261113001000_zones_etats_epingle_annonces"];
+const MIGRATIONS = ["20261113000400_alliances_sur_la_carte", "20261113000500_allies_acceptes_par_l_encadrement", "20261113000600_zones_sans_chevauchement", "20261113000700_allies_dessinent_leurs_zones", "20261113001000_zones_etats_epingle_annonces", "20261113001100_zones_des_allies_acceptees"];
 const sql = Object.fromEntries(MIGRATIONS.map((name) => [name, readFileSync(`supabase/migrations/${name}.sql`, "utf8").replace(/\r\n/g, "\n")]));
 const accordSql = sql["20261113000500_allies_acceptes_par_l_encadrement"]!;
 
@@ -23,6 +23,27 @@ function corps(nom: string): string {
 }
 
 describe("la carte de l'alliance, côté serveur", () => {
+  it("fait attendre l'accord de l'encadrement à toute zone créée ou modifiée par un allié", () => {
+    const zone = corps("public.save_alliance_zone");
+    // Créée par un allié : ni accord ni place ; modifiée par un allié : l'accord tombe.
+    expect(zone).toContain("case when v_staff then now() end");
+    expect(zone).toContain("approved_at = case when v_staff then approved_at end");
+    // Seule une zone de l'encadrement s'annonce à l'enregistrement.
+    expect(zone).toContain("if p_id is null and v_staff then perform internal.announce_zone(v_id, true); end if;");
+    // Le chevauchement ne compte que les zones acceptées.
+    expect(zone).toMatch(/where \(p_id is null or z\.id <> p_id\)\s*(--[^\n]*\n\s*)+and z\.approved_at is not null/);
+    // La version acceptée d'une zone modifiée qui attend compte encore, et revient si l'encadrement refuse.
+    expect(zone).toContain("cross join lateral internal.zone_previous(z.previous) v");
+    expect(corps("public.review_alliance_zone")).toContain("elsif v_zone.previous is not null then");
+    const accord = corps("public.review_alliance_zone");
+    expect(accord).toContain("v_actor := internal.require_rank(2);");
+    // L'accord ne vaut que pour la version que l'encadrement a regardée.
+    expect(accord).toContain("if v_zone.updated_at is distinct from p_seen then perform internal.fail('zone_changed'); end if;");
+    expect(accord).toContain("internal.zone_overlaps(p_id,");
+    // Une zone qui attend ne se voit que de l'encadrement et des alliés de son clan.
+    expect(corps("public.get_alliance_map")).toContain("where z.approved_at is not null or v_staff or coalesce(z.tag = v_clan, false)");
+  });
+
   it("n'ouvre aucune fonction aux visiteurs, et ferme chacune avant de l'ouvrir aux comptes connectés", () => {
     for (const [name, texte] of Object.entries(sql)) {
       expect(texte, name).not.toMatch(/grant [^;]* to [^;]*\banon\b/);

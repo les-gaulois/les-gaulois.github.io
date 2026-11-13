@@ -423,10 +423,25 @@ export default function AllianceApp() {
     const out: ZoneAffichee[] = [];
     for (const z of zones) {
       const masque = masqueDeLaZone(z);
-      if (masque) out.push({ id: z.id, title: z.title, masque, couleur: couleurDeZone(z.tag, couleursClans), etiquette: z.tag ? `${z.tag} · ${z.title}` : z.title });
+      // Une zone d'allié qui attend l'accord le dit sur la carte (migration 20261113001100).
+      const nom = z.tag ? `${z.tag} · ${z.title}` : z.title;
+      if (masque) out.push({ id: z.id, title: z.title, masque, couleur: couleurDeZone(z.tag, couleursClans), etiquette: z.pending ? `${t.enAttenteCourt} · ${nom}` : nom, enAttente: z.pending === true, precedent: z.previous ? masqueDeLaZone(z.previous) : null });
     }
     return out;
-  }, [zones, couleursClans]);
+  }, [zones, couleursClans, t]);
+  // La capture, envoyée à tous : les zones acceptées et, pour une zone dont la modification attend, sa version acceptée,
+  // celle que voient les autres joueurs. Une zone nouvelle qui attend n'y entre pas.
+  const pourCapture = useMemo(
+    () =>
+      affichees.flatMap((z): ZoneAffichee[] => {
+        if (!z.enAttente) return [z];
+        if (!z.precedent) return [];
+        const ligne = zones.find((l) => l.id === z.id);
+        const titre = ligne?.previous?.title ?? z.title;
+        return [{ ...z, title: titre, masque: z.precedent, etiquette: ligne?.tag ? `${ligne.tag} · ${titre}` : titre, enAttente: false, precedent: null }];
+      }),
+    [affichees, zones],
+  );
   useEffect(() => {
     if (ecran && charge) ecran.montrerZones(affichees, selection);
   }, [ecran, charge, affichees, selection]);
@@ -565,6 +580,8 @@ export default function AllianceApp() {
   // Pour l'encadrement : les joueurs alliés qui ont ouvert leur lien et attendent son accord.
   // `approved === false` seulement : un serveur d'avant l'accord ne donne pas ce champ, et personne n'y attend.
   const attentes = staff ? (donnees?.allies ?? []).filter((a) => a.approved === false).length : 0;
+  // Pour l'encadrement : les zones d'alliés qui attendent son accord (migration 20261113001100).
+  const zonesEnAttente = staff ? (donnees?.zones ?? []).filter((z) => z.pending === true).length : 0;
 
   // Pour l'encadrement, la carte se relit chaque minute, fenêtre ouverte : un allié qui commence à attendre s'y compte.
   useEffect(() => {
@@ -578,8 +595,12 @@ export default function AllianceApp() {
   // Les nouveaux messages, et pour l'encadrement les alliés qui attendent, se voient aussi sur l'entrée « Alliance » de la
   // rangée du bas, fenêtre fermée.
   useEffect(() => {
-    const total = nouveaux + attentes;
-    const mots = [nouveaux > 0 ? `${t.nombre(nouveaux)} ${t.nouveaux(nouveaux)}` : null, attentes > 0 ? `${t.nombre(attentes)} ${t.alliesAttendent(attentes)}` : null]
+    const total = nouveaux + attentes + zonesEnAttente;
+    const mots = [
+      nouveaux > 0 ? `${t.nombre(nouveaux)} ${t.nouveaux(nouveaux)}` : null,
+      attentes > 0 ? `${t.nombre(attentes)} ${t.alliesAttendent(attentes)}` : null,
+      zonesEnAttente > 0 ? `${t.nombre(zonesEnAttente)} ${t.zonesAttendent(zonesEnAttente)}` : null,
+    ]
       .filter((m) => m !== null)
       .join(", ");
     for (const lien of document.querySelectorAll<HTMLElement>('.carte-dock [data-ouvre="alliance"]')) {
@@ -606,7 +627,7 @@ export default function AllianceApp() {
       chiffre.textContent = t.nombre(total);
       pastille.append(chiffre, mot);
     }
-  }, [nouveaux, attentes, t]);
+  }, [nouveaux, attentes, zonesEnAttente, t]);
 
   const langues = <ChoixLangue langue={langue} choisir={choisirLangue} t={t} />;
   const enTete = (moi?: ComponentChildren) => (
@@ -694,7 +715,7 @@ export default function AllianceApp() {
     const ctx: Contexte = { donnees: { ...donnees, access }, releve: charge.releve, etat: charge.etat, staff, totaux, notres, couleursClans, bilans, evolution, voisins, viser, relire };
     const onglets: { id: Onglet; label: string; compte?: number; mots?: string }[] = [
       { id: "vue", label: t.onglets.vue },
-      { id: "zones", label: t.onglets.zones },
+      { id: "zones", label: t.onglets.zones, compte: zonesEnAttente, mots: t.zonesAttendent(zonesEnAttente) },
       { id: "messages", label: t.onglets.messages, compte: nouveaux, mots: t.nouveaux(nouveaux) },
       // La capture repeint la carte pixel par pixel : sans elle, pas d'onglet Capture (la fenêtre dit déjà pourquoi).
       ...(charge.etat ? [{ id: "capture" as const, label: TEXTES_CAPTURE[t.langue].onglet }] : []),
@@ -760,7 +781,7 @@ export default function AllianceApp() {
         </div>
         {charge.etat && (
           <div id="alliance-partie-capture" role="tabpanel" aria-labelledby="alliance-onglet-capture" hidden={onglet !== "capture"}>
-            {ecran && <AllianceCapture ctx={ctx} ecran={ecran} legende={legende} mode={mode} zones={affichees} demande={demandeCapture} />}
+            {ecran && <AllianceCapture ctx={ctx} ecran={ecran} legende={legende} mode={mode} zones={pourCapture} demande={demandeCapture} />}
           </div>
         )}
         {staff && (

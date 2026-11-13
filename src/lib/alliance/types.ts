@@ -56,6 +56,17 @@ export interface ZoneLigne {
    */
   state?: EtatZone;
   rank?: number | null;
+  /**
+   * Depuis la migration 20261113001100 : une zone créée ou modifiée par un allié, qui attend l'accord de l'encadrement. Elle
+   * ne se voit que de l'encadrement et des alliés de son clan, et ne compte pas encore. Absent d'un serveur d'avant : acceptée.
+   */
+  pending?: boolean;
+  /**
+   * Pour une zone acceptée qu'un allié a modifiée depuis, et qui attend : le cadre et le masque de sa version acceptée, qui
+   * revient si l'encadrement refuse la modification. Seuls l'encadrement et les alliés de son clan la reçoivent ; les autres
+   * reçoivent cette version acceptée à la place de la zone.
+   */
+  previous?: { title?: string; x: number; y: number; w: number; h: number; mask: string } | null;
 }
 
 /** L'état d'une zone, choisi par l'encadrement. */

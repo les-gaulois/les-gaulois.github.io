@@ -48,6 +48,10 @@ export interface ZoneAffichee {
   couleur: number;
   /** Ce qui est écrit sur la carte : le tag du clan et le nom de la zone. */
   etiquette: string;
+  /** Une zone d'allié qui attend l'accord de l'encadrement : pas dans la capture, et elle n'arrête pas le pinceau. */
+  enAttente?: boolean;
+  /** La version acceptée d'une zone modifiée qui attend : elle compte encore, le pinceau s'arrête à son bord. */
+  precedent?: Masque | null;
 }
 
 /** Ce qu'il y a sous le pointeur, et où : en pixels CSS depuis le coin de la carte. `toucher` : un doigt, qui ne survole pas. */
@@ -363,10 +367,14 @@ export class EcranAlliance {
     this.dessiner();
   }
 
-  /** Les pixels des zones autres que celle qu'on dessine. */
+  /**
+   * Les pixels des zones autres que celle qu'on dessine, comme le serveur les compte : les zones acceptées, et la version
+   * acceptée d'une zone modifiée qui attend ; une zone qui attend l'accord n'arrête pas le pinceau (migration 20261113001100).
+   */
   private occuper(): void {
+    const autres = this.zones.filter((z) => z.id !== this.editee);
     this.occupe = occupation(
-      this.zones.filter((z) => z.id !== this.editee).map((z) => z.masque),
+      [...autres.filter((z) => !z.enAttente).map((z) => z.masque), ...autres.flatMap((z) => (z.enAttente && z.precedent ? [z.precedent] : []))],
       this.W,
       this.H,
     );
@@ -433,7 +441,14 @@ export class EcranAlliance {
     c.drawImage(this.terrain, 0, 0, this.W, this.H);
     c.drawImage(this.base, 0, 0);
     c.imageSmoothingEnabled = false;
-    if (zones) for (const zone of this.zones) c.drawImage(this.dessinDeZone(zone), zone.masque.x, zone.masque.y);
+    // Une zone qui attend l'accord n'entre pas dans la capture, envoyée à tous sur Discord ; une zone dont la modification
+    // attend y entre dans sa version acceptée, celle que voient les autres joueurs.
+    if (zones) {
+      for (const zone of this.zones) {
+        if (!zone.enAttente) c.drawImage(this.dessinDeZone(zone), zone.masque.x, zone.masque.y);
+        else if (zone.precedent) c.drawImage(this.dessinDeZone(zone, zone.precedent), zone.precedent.x, zone.precedent.y);
+      }
+    }
     c.restore();
   }
 
@@ -585,12 +600,12 @@ export class EcranAlliance {
    * Une zone, dans la couleur du clan qui la prend : un bord plein, des hachures de sa couleur séparées d'un voile sombre,
    * qui la détachent même posée sur la terre de son clan. Choisie ou survolée, elle s'éclaire et son bord devient blanc.
    */
-  private dessinDeZone(zone: ZoneAffichee): HTMLCanvasElement {
+  private dessinDeZone(zone: ZoneAffichee, masque: Masque = zone.masque): HTMLCanvasElement {
     const vive = zone.id === this.selection || zone.id === this.survolee;
-    const cle = `${zone.id}:${vive ? 1 : 0}`;
+    // La version acceptée d'une zone qui attend (capture) a son propre dessin.
+    const cle = `${zone.id}:${vive ? 1 : 0}${masque === zone.masque ? "" : ":acceptee"}`;
     const deja = this.dessins.get(cle);
     if (deja) return deja;
-    const { masque } = zone;
     const [canvas, ctx] = this.calqueCanvas(masque.w, masque.h);
     const image = ctx.createImageData(masque.w, masque.h);
     const pix = new Uint32Array(image.data.buffer);

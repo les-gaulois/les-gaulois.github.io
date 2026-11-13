@@ -111,6 +111,11 @@ export interface Textes {
   confirmerSuppression: string;
   supprimerAria: (nom: string) => string;
   confirmerSuppressionAria: (nom: string) => string;
+  /** Supprimer une zone dont la modification attend : la version acceptée part aussi. */
+  supprimerTout: string;
+  supprimerToutConfirmer: string;
+  supprimerToutAria: (nom: string) => string;
+  supprimerToutConfirmerAria: (nom: string) => string;
   /** Les règles du jeu qui comptent une zone, et le jour où elles ont été lues dans son code. */
   regles: (neutre: string, ennemi: string, lues: string) => string;
   ici: string;
@@ -193,6 +198,28 @@ export interface Textes {
   etatZone: string;
   etats: { a_prendre: string; en_cours: string; tenue: string; abandonnee: string };
   etatZoneAria: (nom: string) => string;
+  /** L'accord des zones des alliés (migration 20261113001100). */
+  enAttenteTitre: string;
+  enAttenteAideStaff: string;
+  enAttenteAideAllie: string;
+  /** Écrit à côté du clan d'une zone qui attend, et sur la carte. */
+  enAttenteCourt: string;
+  enAttenteAccord: string;
+  accepterZone: string;
+  accepterZoneAria: (nom: string) => string;
+  refuserZone: string;
+  refuserZoneConfirmer: string;
+  refuserZoneAria: (nom: string) => string;
+  refuserZoneConfirmerAria: (nom: string) => string;
+  /** Une zone acceptée qu'un allié a modifiée : refuser rend la version acceptée. */
+  refuserModif: string;
+  refuserModifConfirmer: string;
+  refuserModifAria: (nom: string) => string;
+  refuserModifConfirmerAria: (nom: string) => string;
+  modifEnAttente: string;
+  zoneEnvoyee: string;
+  /** Pour l'encadrement, après un nombre : « 2 zones attendent votre accord ». */
+  zonesAttendent: (n: number) => string;
   /** Dans la bulle d'une zone : « État : en cours ». */
   etatLigne: (etat: string) => string;
   priorite: (n: number, total: number) => string;
@@ -343,6 +370,10 @@ export const FR: Textes = {
   confirmerSuppression: "Confirmer la suppression",
   supprimerAria: (nom) => `Supprimer « ${nom} »`,
   confirmerSuppressionAria: (nom) => `Confirmer la suppression de « ${nom} »`,
+  supprimerTout: "Supprimer la zone, version acceptée comprise",
+  supprimerToutConfirmer: "Confirmer : tout supprimer",
+  supprimerToutAria: (nom) => `Supprimer la zone, version acceptée comprise : « ${nom} »`,
+  supprimerToutConfirmerAria: (nom) => `Confirmer : tout supprimer, la zone « ${nom} » et sa version acceptée`,
   regles: (neutre, ennemi, lues) => `${neutre} troupes par pixel neutre, au moins ${ennemi} par pixel d'un autre clan, selon les règles du jeu lues le ${lues}.`,
   ici: `Ici${NBSP}:`,
   terreDuClan: (tag) => `terre de ${tag}`,
@@ -420,6 +451,24 @@ export const FR: Textes = {
   etats: { a_prendre: "à prendre", en_cours: "en cours", tenue: "tenue", abandonnee: "abandonnée" },
   etatZoneAria: (nom) => `État de « ${nom} »`,
   etatLigne: (etat) => `État${NBSP}: ${etat}`,
+  enAttenteTitre: "En attente de l'accord",
+  enAttenteAideStaff: "Dessinées ou modifiées par des joueurs alliés : elles comptent une fois acceptées.",
+  enAttenteAideAllie: "Elles comptent une fois acceptées par l'encadrement de GAL. Seuls l'encadrement et les joueurs de votre clan les voient.",
+  enAttenteCourt: "en attente",
+  enAttenteAccord: "En attente de l'accord de l'encadrement de GAL.",
+  accepterZone: "Accepter",
+  accepterZoneAria: (nom) => `Accepter la zone « ${nom} »`,
+  refuserZone: "Refuser et effacer",
+  refuserZoneConfirmer: "Confirmer : effacer la zone",
+  refuserZoneAria: (nom) => `Refuser et effacer la zone « ${nom} »`,
+  refuserZoneConfirmerAria: (nom) => `Confirmer : effacer la zone « ${nom} »`,
+  refuserModif: "Refuser la modification",
+  refuserModifConfirmer: "Confirmer : revenir à la version acceptée",
+  refuserModifAria: (nom) => `Refuser la modification de la zone « ${nom} »`,
+  refuserModifConfirmerAria: (nom) => `Confirmer : revenir à la version acceptée de la zone « ${nom} »`,
+  modifEnAttente: "Zone acceptée, modifiée depuis par un joueur allié. Les autres joueurs voient encore sa version acceptée ; refusée, la modification disparaît et cette version revient.",
+  zoneEnvoyee: "Zone enregistrée : elle comptera une fois acceptée par l'encadrement de GAL.",
+  zonesAttendent: (n) => (n > 1 ? "zones attendent votre accord" : "zone attend votre accord"),
   priorite: (n, total) => `Priorité ${n} sur ${total}`,
   monter: "Monter",
   descendre: "Descendre",
@@ -521,6 +570,10 @@ export const EN: Textes = {
   confirmerSuppression: "Confirm deletion",
   supprimerAria: (nom) => `Delete “${nom}”`,
   confirmerSuppressionAria: (nom) => `Confirm deletion of “${nom}”`,
+  supprimerTout: "Delete the zone, accepted version included",
+  supprimerToutConfirmer: "Confirm: delete everything",
+  supprimerToutAria: (nom) => `Delete the zone, accepted version included: “${nom}”`,
+  supprimerToutConfirmerAria: (nom) => `Confirm: delete everything, the zone “${nom}” and its accepted version`,
   regles: (neutre, ennemi, lues) => `${neutre} troops per neutral pixel, at least ${ennemi} per pixel of another clan, per the game rules read on ${lues}.`,
   ici: "Here:",
   terreDuClan: (tag) => `${tag} land`,
@@ -598,6 +651,24 @@ export const EN: Textes = {
   etats: { a_prendre: "to take", en_cours: "in progress", tenue: "held", abandonnee: "dropped" },
   etatZoneAria: (nom) => `Status of “${nom}”`,
   etatLigne: (etat) => `Status: ${etat}`,
+  enAttenteTitre: "Awaiting approval",
+  enAttenteAideStaff: "Drawn or edited by allied players: they count once accepted.",
+  enAttenteAideAllie: "They count once accepted by the GAL leadership. Only the leadership and the players of your clan see them.",
+  enAttenteCourt: "pending",
+  enAttenteAccord: "Awaiting the GAL leadership's approval.",
+  accepterZone: "Accept",
+  accepterZoneAria: (nom) => `Accept the zone “${nom}”`,
+  refuserZone: "Refuse and delete",
+  refuserZoneConfirmer: "Confirm: delete the zone",
+  refuserZoneAria: (nom) => `Refuse and delete the zone “${nom}”`,
+  refuserZoneConfirmerAria: (nom) => `Confirm: delete the zone “${nom}”`,
+  refuserModif: "Refuse the change",
+  refuserModifConfirmer: "Confirm: go back to the accepted version",
+  refuserModifAria: (nom) => `Refuse the change to the zone “${nom}”`,
+  refuserModifConfirmerAria: (nom) => `Confirm: go back to the accepted version of the zone “${nom}”`,
+  modifEnAttente: "Accepted zone, since changed by an allied player. The other players still see its accepted version; if refused, the change goes and that version comes back.",
+  zoneEnvoyee: "Zone saved: it will count once accepted by the GAL leadership.",
+  zonesAttendent: (n) => (n === 1 ? "zone awaits your approval" : "zones await your approval"),
   priorite: (n, total) => `Priority ${n} of ${total}`,
   monter: "Move up",
   descendre: "Move down",

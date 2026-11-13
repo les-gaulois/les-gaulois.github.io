@@ -76,6 +76,8 @@ const CATEGORIES: Record<string, LogCategory> = {
   alliance_zone_saved: "alliance",
   alliance_zone_deleted: "alliance",
   alliance_zone_state: "alliance",
+  alliance_zone_approved: "alliance",
+  alliance_zone_refused: "alliance",
   alliance_zones_ordered: "alliance",
   alliance_message_deleted: "alliance",
   alliance_message_pinned: "alliance",
@@ -335,6 +337,17 @@ export function describe(row: LogRow, when: (iso: string) => string): LogLine {
       const state = textOf(details, "state");
       const label = state && Object.hasOwn(ZONE_STATES, state) ? ZONE_STATES[state] : null;
       return { who, what: `a passé ${title ? `la zone « ${title} »` : "une zone"} de la carte de l'alliance${label ? ` à « ${label} »` : " à un autre état"}.` };
+    }
+    // Depuis la migration 20261113001100 : la zone d'un allié acceptée ou refusée par l'encadrement.
+    case "alliance_zone_approved":
+    case "alliance_zone_refused": {
+      const tag = textOf(details, "tag");
+      const zone = `${title ? `la zone « ${title} »` : "une zone"}${tag ? ` de ${tag}` : ""}`;
+      const par = row.target ?? GONE_OBJECT;
+      // Une zone acceptée puis modifiée par un allié : c'est sa modification qui est acceptée, ou refusée et défaite.
+      if (row.action === "alliance_zone_refused" && details["restored"] === true) return { who, what: `a refusé la modification de ${zone}, faite par ${par} : sa version acceptée est revenue sur la carte de l'alliance.` };
+      if (row.action === "alliance_zone_approved" && details["new"] === false) return { who, what: `a accepté la modification de ${zone}, faite par ${par}, sur la carte de l'alliance.` };
+      return { who, what: `${row.action === "alliance_zone_approved" ? "a accepté" : "a refusé"} ${zone}, dessinée par ${par}, sur la carte de l'alliance.` };
     }
     case "alliance_zones_ordered":
       return { who, what: "a changé l'ordre des priorités des zones de la carte de l'alliance." };

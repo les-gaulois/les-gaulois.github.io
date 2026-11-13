@@ -200,6 +200,8 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
     ["set_alliance_zone_state", { p_id: 0, p_state: "tenue" }, "Un visiteur ne change pas l'état d'une zone de l'alliance"],
     ["order_alliance_zones", { p_ids: [] }, "Un visiteur ne range pas les zones de l'alliance"],
     ["pin_alliance_message", { p_id: 0 }, "Un visiteur n'épingle pas de message de l'alliance"],
+    // L'accord des zones des alliés (migration 20261113001100) : aucune zone n'a le numéro 0.
+    ["review_alliance_zone", { p_id: 0, p_approve: false, p_seen: "2026-01-01T00:00:00Z" }, "Un visiteur n'accepte ni ne refuse de zone de l'alliance"],
   ] as const;
   for (const [fn, body, label] of allianceCalls) {
     const res = await rpc(fn, body);

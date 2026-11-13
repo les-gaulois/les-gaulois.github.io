@@ -18,7 +18,7 @@ const sentence = (r: LogRow) => {
 };
 
 // Les migrations des fonctions que le site appelle encore. « Effacer mon compte » est dans celle des dons.
-const SITE_SQL = ["20261105000100_comptes_et_roles", "20261105000200_validation_des_membres", "20261105000900_direction", "20261106000100_roles_prevus", "20261108000200_vie_du_clan", "20261109000100_qg_des_membres", "20261109000200_gaulois_de_la_semaine", "20261109000400_refaire_la_demande", "20261111000100_appels_sur_discord", "20261111000200_appels_discord_ping_au_choix", "20261111000300_salons_discord", "20261111000400_outils_du_qg", "20261111000500_salon_des_victoires", "20261111000600_messages_discord", "20261112000100_messages_discord_images_en_grand", "20261112000200_inventaire_images_discord", "20261112000300_inventaire_200_images", "20261113000400_alliances_sur_la_carte", "20261113000500_allies_acceptes_par_l_encadrement", "20261113000700_allies_dessinent_leurs_zones", "20261113001000_zones_etats_epingle_annonces"]
+const SITE_SQL = ["20261105000100_comptes_et_roles", "20261105000200_validation_des_membres", "20261105000900_direction", "20261106000100_roles_prevus", "20261108000200_vie_du_clan", "20261109000100_qg_des_membres", "20261109000200_gaulois_de_la_semaine", "20261109000400_refaire_la_demande", "20261111000100_appels_sur_discord", "20261111000200_appels_discord_ping_au_choix", "20261111000300_salons_discord", "20261111000400_outils_du_qg", "20261111000500_salon_des_victoires", "20261111000600_messages_discord", "20261112000100_messages_discord_images_en_grand", "20261112000200_inventaire_images_discord", "20261112000300_inventaire_200_images", "20261113000400_alliances_sur_la_carte", "20261113000500_allies_acceptes_par_l_encadrement", "20261113000700_allies_dessinent_leurs_zones", "20261113001000_zones_etats_epingle_annonces", "20261113001100_zones_des_allies_acceptees"]
   .map((name) => readFileSync(`supabase/migrations/${name}.sql`, "utf8"))
   .join("\n");
 const SITE_CODES = new Set([...[...SITE_SQL.matchAll(/log_admin\([^,]+,\s*'([a-z_]+)'/g)].map((m) => m[1]!), "account_deleted"]);
@@ -193,6 +193,10 @@ describe("l'état, l'ordre et l'épinglé de la carte de l'alliance", () => {
     expect(sentence(row("alliance_zones_ordered", { zones: 4 }, "Chef", null))).toBe("Chef a changé l'ordre des priorités des zones de la carte de l'alliance.");
     expect(sentence(row("alliance_message_pinned", { tag: "LUX" }, "Chef", "Allie"))).toBe("Chef a épinglé un message de Allie en haut de la discussion de l'alliance.");
     expect(sentence(row("alliance_message_unpinned", {}, "Chef", null))).toBe("Chef a désépinglé le message en haut de la discussion de l'alliance.");
+    expect(sentence(row("alliance_zone_approved", { zone: 7, title: "Col du Nord", tag: "LUX" }, "Chef", "Allie"))).toBe("Chef a accepté la zone « Col du Nord » de LUX, dessinée par Allie, sur la carte de l'alliance.");
+    expect(sentence(row("alliance_zone_refused", { zone: 7, title: "Col du Nord", tag: "LUX" }, "Chef", null))).toBe("Chef a refusé la zone « Col du Nord » de LUX, dessinée par un compte supprimé, sur la carte de l'alliance.");
+    expect(sentence(row("alliance_zone_refused", { zone: 7, title: "Col du Nord", tag: "LUX", restored: true }, "Chef", "Allie"))).toBe("Chef a refusé la modification de la zone « Col du Nord » de LUX, faite par Allie : sa version acceptée est revenue sur la carte de l'alliance.");
+    expect(sentence(row("alliance_zone_approved", { zone: 7, title: "Col du Nord", tag: "LUX", new: false }, "Chef", "Allie"))).toBe("Chef a accepté la modification de la zone « Col du Nord » de LUX, faite par Allie, sur la carte de l'alliance.");
   });
 });
 

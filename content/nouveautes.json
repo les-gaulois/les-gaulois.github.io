@@ -2,6 +2,16 @@
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "title": "Carte de l'alliance : les zones des alliés acceptées par l'encadrement",
+    "body": "Une zone dessinée par un joueur allié attend l'accord de l'encadrement de GAL avant de compter. Modifiée, elle garde sa version acceptée tant que l'encadrement n'a pas répondu.",
+    "link": {
+      "href": "/carte#alliance",
+      "label": "Ouvrir la carte"
+    }
+  },
+  {
+    "date": "2026-11-13",
+    "kind": "ameliore",
     "title": "Victoires sur Discord : les clans d'en face en rouge",
     "body": "Sur l'image de chaque victoire postée dans le Discord du clan, après les Gaulois : « contre », puis, dans des cases rouges, les clans du classement officiel qui jouaient dans une autre équipe."
   },
