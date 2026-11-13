@@ -889,12 +889,17 @@ export async function ticketInteraction(interaction: Record<string, unknown>, de
 
   if (button && parsed.action === "ouvrir") {
     // Un ticket déjà ouvert, ou trois en 24 heures, se disent avant le formulaire, si Discord répond assez vite ; sinon, à l'envoi.
-    const [channels, journal] = await Promise.all([readChannels(deps, PRECHECK_TIMEOUT_MS), deps.discord("GET", `/channels/${parsed.journal}/messages?limit=50`, { timeoutMs: PRECHECK_TIMEOUT_MS })]);
+    // La limite des 24 heures ne vaut pas pour l'encadrement : elle le protège des ouvertures en boucle d'un joueur.
+    const limited = !isStaff(member, parsed.staff);
+    const [channels, journal] = await Promise.all([
+      readChannels(deps, PRECHECK_TIMEOUT_MS),
+      limited ? deps.discord("GET", `/channels/${parsed.journal}/messages?limit=50`, { timeoutMs: PRECHECK_TIMEOUT_MS }) : Promise.resolve(null),
+    ]);
     const category = channels?.find((c) => c.id === parsed.category);
     if (category && barred(category, member.id)) return ephemeral(TICKET_MESSAGES.barred);
     const already = channels ? openTicketOf(channels, parsed.category, member.id) : null;
     if (already) return ephemeral(TICKET_MESSAGES.already(already));
-    if (ok(journal) && recentTicketsOf(journal?.body, deps.botId, member.id, deps.nowSeconds()) >= TICKETS_PER_DAY) return ephemeral(TICKET_MESSAGES.tooMany);
+    if (limited && ok(journal) && recentTicketsOf(journal?.body, deps.botId, member.id, deps.nowSeconds()) >= TICKETS_PER_DAY) return ephemeral(TICKET_MESSAGES.tooMany);
     return json(formModal(parsed.kind, parsed));
   }
   // Dans un ticket, le bouton doit être dans ce salon même : c'est lui que ferme « Fermer le ticket ».
@@ -989,7 +994,9 @@ async function abandon(deps: Deps, channel: string, journal: string): Promise<bo
 }
 
 async function openTicket(deps: Deps, hook: string, config: Extract<TicketAction, { action: "form" }>, member: Member, answers: readonly Answer[]): Promise<void> {
-  const [channels, roles, journal] = await Promise.all([readChannels(deps), readRoles(deps), deps.discord("GET", `/channels/${config.journal}/messages?limit=50`)]);
+  // L'encadrement n'a pas la limite des 24 heures : ses essais, ou plusieurs demandes à la suite, ne le bloquent pas.
+  const limited = !isStaff(member, config.staff);
+  const [channels, roles, journal] = await Promise.all([readChannels(deps), readRoles(deps), limited ? deps.discord("GET", `/channels/${config.journal}/messages?limit=50`) : Promise.resolve(null)]);
   if (!channels || !roles) return answer(deps, hook, TICKET_MESSAGES.down);
   const category = channels.find((c) => c.id === config.category && c.type === 4);
   if (!category) return answer(deps, hook, TICKET_MESSAGES.categoryGone);
@@ -1000,7 +1007,7 @@ async function openTicket(deps: Deps, hook: string, config: Extract<TicketAction
   if (channels.filter((c) => c.parentId === category.id).length >= CATEGORY_LIMIT) return answer(deps, hook, TICKET_MESSAGES.full);
   const openedAt = deps.nowSeconds();
   // Un journal illisible ne bloque personne : il ne sert ici qu'à freiner les ouvertures en boucle.
-  if (ok(journal) && recentTicketsOf(journal?.body, deps.botId, member.id, openedAt) >= TICKETS_PER_DAY) return answer(deps, hook, TICKET_MESSAGES.tooMany);
+  if (limited && ok(journal) && recentTicketsOf(journal?.body, deps.botId, member.id, openedAt) >= TICKETS_PER_DAY) return answer(deps, hook, TICKET_MESSAGES.tooMany);
 
   const spec = KINDS[config.kind];
   const name = ticketChannelName(config.kind, member.username);

@@ -724,6 +724,26 @@ describe("un ticket, du guichet à la fermeture", () => {
     expect((await openQuestion(ok)).channel).toBeDefined();
   });
 
+  it("ne freine pas l'encadrement : ses essais ne le bloquent pas après trois tickets", async () => {
+    // Le pilote, le 13 novembre 2026 : bloqué par la limite en essayant « Je m'en occupe ».
+    const opened = (n: number, at: number) => ({
+      id: snowflakeAt(at, n),
+      author: { id: BOT },
+      components: [{ type: 17, components: [{ type: 10, content: `**Ticket ouvert** : Une question, <#1> (\`question\`)\nPar <@${OFFICER}> (\`x\`), <t:${at}:f>` }] }],
+    });
+    const w = world();
+    w.g.messages.set(JOURNAL, [opened(1, NOW - 600), opened(2, NOW - 3600), opened(3, NOW - 7200), opened(4, NOW - 9000)]);
+    const button = await send(w.deps, click(ticketCustomId({ action: "ouvrir", kind: "question", ...desk }), OFFICER, panelComponents()));
+    expect(button.type).toBe(9);
+    // Le journal n'est même pas lu pour l'encadrement.
+    expect(w.g.sent.some((s) => s.method === "GET" && s.path.startsWith(`/channels/${JOURNAL}/messages`))).toBe(false);
+    await send(w.deps, submit(ticketCustomId({ action: "form", kind: "question", ...desk }), OFFICER, { question: "Un essai de l'encadrement" }, panelComponents()));
+    await w.settle();
+    const channel = w.g.channels.find((c) => c.parent_id === CATEGORY);
+    expect(channel).toBeDefined();
+    expect(hookContents(w.hooks)).toEqual([TICKET_MESSAGES.opened(channel!.id)]);
+  });
+
   it("retire le salon si le joueur ne peut pas y être ajouté, ou si l'accueil ne peut pas y être posté", async () => {
     const noGrant = world();
     noGrant.g.failures.set("PUT /channels/" + snowflakeAt(NOW, 1) + "/permissions/" + PLAYER, 403);
