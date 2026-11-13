@@ -6522,8 +6522,9 @@ footer h2 {
     flex-wrap: wrap;
     max-width: calc(100% - 1.5rem - var(--fenetre-large, 0rem));
   }
+  /* Sous la rangée d'outils telle qu'elle est (une ligne ou deux), mesurée par alliance-ecran.ts. */
   :root.carte-console .film-map[data-vue="alliance"] .alliance-legende {
-    top: calc(var(--alliance-haut, 0px) + 3.5rem);
+    top: calc(var(--alliance-sous-outils, calc(var(--alliance-haut, 0px) + 2.75rem)) + 0.75rem);
     bottom: auto;
     left: 0.75rem;
     max-width: calc(100% - 1.5rem - var(--fenetre-large, 0rem));

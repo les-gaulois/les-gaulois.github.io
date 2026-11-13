@@ -529,6 +529,9 @@ export class EcranAlliance {
     const session = this.root.querySelector<HTMLElement>(".carte-session")?.getBoundingClientRect();
     const sous = session && session.height > 0 && session.top < m.bottom && session.bottom > m.top ? Math.max(0, session.bottom - m.top) : 0;
     this.map.style.setProperty("--alliance-haut", `${Math.round(sous)}px`);
+    // La légende se pose sous la rangée d'outils telle qu'elle est, sur une ligne ou deux quand la place manque.
+    const outils = this.root.querySelector<HTMLElement>("[data-alliance-outils]")?.getBoundingClientRect();
+    if (outils && outils.height > 0) this.map.style.setProperty("--alliance-sous-outils", `${Math.round(Math.max(0, outils.bottom - m.top))}px`);
   }
 
   private redimensionner(): void {
@@ -895,7 +898,11 @@ export class EcranAlliance {
       new ResizeObserver(() => this.redimensionner()).observe(this.map);
       // Le cadre du titre change de hauteur avec sa police ou une date plus longue : les outils suivent.
       const session = this.root.querySelector<HTMLElement>(".carte-session");
-      if (session) new ResizeObserver(() => this.mesurer()).observe(session);
+      // La rangée d'outils aussi : un bouton de plus la fait passer sur deux lignes, et la légende descend.
+      const outils = this.root.querySelector<HTMLElement>("[data-alliance-outils]");
+      const suivre = new ResizeObserver(() => this.mesurer());
+      if (session) suivre.observe(session);
+      if (outils) suivre.observe(outils);
     } else addEventListener("resize", () => this.redimensionner());
     this.root.addEventListener("carte:fenetre", () => {
       this.mesurer();
