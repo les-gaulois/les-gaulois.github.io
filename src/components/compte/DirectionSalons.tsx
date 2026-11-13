@@ -12,7 +12,7 @@ const FOLLOW_UP_MS = [1_500, 4_000, 10_000, 30_000];
 
 /**
  * Les salons Discord du robot, pour les admins et le fondateur : le salon des nouvelles, celui de l'encadrement et, quand le
- * serveur a sa migration, celui des victoires.
+ * serveur a leur migration, celui des victoires et celui de l'alliance (où le serveur poste lui-même, sans secret GitHub).
  * Le robot de la GitHub Action y poste avec le lien réglé ici, sinon avec le secret GitHub. Le lien n'est jamais relu :
  * le serveur le garde, et le champ se vide après l'enregistrement. Chaque enregistrement envoie un essai, sans mention ;
  * la page relit ensuite la réponse de Discord, et montre le dernier contrôle du robot, fait à chaque passage.
@@ -112,7 +112,7 @@ function SalonPart({ text, salon, reload, level }: { text: RobotSalonText; salon
 
   const stop = async () => {
     setArmed(false);
-    await act(() => call("clear_discord_salon", { p_salon: text.id }), `Salon débranché. Le robot reprend le secret GitHub ${text.secret}, s'il existe.`);
+    await act(() => call("clear_discord_salon", { p_salon: text.id }), text.secret ? `Salon débranché. Le robot reprend le secret GitHub ${text.secret}, s'il existe.` : "Salon débranché. Plus rien n'y part.");
   };
 
   const failing = checkFails(salon.check);
@@ -174,7 +174,7 @@ function SalonPart({ text, salon, reload, level }: { text: RobotSalonText; salon
               )
             ) : (
               <p class="text-sm text-muted">
-                Le robot prend le secret GitHub {text.secret}, s'il existe.{text.secretNote ? ` ${text.secretNote}` : ""}
+                {text.secret ? `Le robot prend le secret GitHub ${text.secret}, s'il existe.${text.secretNote ? ` ${text.secretNote}` : ""}` : "Rien ne part dans ce salon tant qu'il n'est pas branché ici."}
               </p>
             )}
             {salon.last && (
@@ -212,7 +212,7 @@ function SalonPart({ text, salon, reload, level }: { text: RobotSalonText; salon
                   </div>
                   {armed && (
                     <p id={`${id}-stop-note`} class="text-sm text-warn">
-                      Le robot reprendra le secret GitHub {text.secret} s'il existe ; sinon, plus rien ne partira dans ce salon. Il faudra recoller le lien du webhook pour le régler de nouveau ici.
+                      {text.secret ? `Le robot reprendra le secret GitHub ${text.secret} s'il existe ; sinon, plus rien ne partira dans ce salon.` : "Plus rien ne partira dans ce salon."} Il faudra recoller le lien du webhook pour le régler de nouveau ici.
                     </p>
                   )}
                 </div>

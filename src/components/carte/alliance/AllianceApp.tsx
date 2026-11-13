@@ -22,7 +22,7 @@ import { INVITATION_KEY, RETOUR_CARTE_KEY, invitationDeLAncre, jetonValable } fr
 import { LANGUE_KEY, langueDeDepart, type Langue } from "../../../lib/alliance/langue";
 import { masqueDeLaZone } from "../../../lib/alliance/masque";
 import { FR, textesDe, type Textes } from "../../../lib/alliance/textes";
-import type { AccesCarte, AllianceLigne, CarteAlliance, MessageAlliance } from "../../../lib/alliance/types";
+import type { AccesCarte, AllianceLigne, CarteAlliance, MessageAlliance, MessageEpingle } from "../../../lib/alliance/types";
 import { voisinsDe } from "../../../lib/alliance/voisins";
 import { ServerError, call, mayHaveSession, signOut, supabase } from "../../../lib/compte/api";
 import { COULEUR_PERDU, COULEUR_PRIS, ecranAlliance, type Chargement, type Survol, type ZoneAffichee } from "../../../scripts/alliance-ecran";
@@ -236,6 +236,8 @@ export default function AllianceApp() {
   const [selection, setSelection] = useState<number | null>(null);
   const [edition, setEdition] = useState<{ id: number | null; titre: string; tag: string } | null>(null);
   const [messages, setMessages] = useState<MessageAlliance[] | null>(null);
+  // Le message épinglé par l'encadrement (migration 20261113001000) ; absent d'un serveur d'avant.
+  const [epingle, setEpingle] = useState<MessageEpingle | null>(null);
   const [erreurMessages, setErreurMessages] = useState<unknown>(null);
   const [vu, setVu] = useState<number | null>(() => {
     const v = Number(lireStockage(local, VU_KEY));
@@ -517,8 +519,9 @@ export default function AllianceApp() {
   // La discussion : relue toutes les 10 secondes quand elle est sous les yeux, chaque minute sinon, pour le nombre de nouveaux.
   const lireMessages = useCallback(async () => {
     try {
-      const r = await call<{ messages: MessageAlliance[] }>("get_alliance_messages");
+      const r = await call<{ messages: MessageAlliance[]; pinned?: MessageEpingle | null }>("get_alliance_messages");
       setMessages(r.messages);
+      setEpingle(r.pinned ?? null);
       setErreurMessages(null);
     } catch (e) {
       setErreurMessages(e);
@@ -753,7 +756,7 @@ export default function AllianceApp() {
           {ecran && <AllianceZones ctx={ctx} ecran={ecran} selection={selection} choisir={choisir} edition={edition} setEdition={setEdition} />}
         </div>
         <div id="alliance-partie-messages" role="tabpanel" aria-labelledby="alliance-onglet-messages" hidden={onglet !== "messages"}>
-          <AllianceMessages messages={messages} erreurLecture={erreurMessages === null ? null : messageIn(erreurMessages, langue)} relire={lireMessages} />
+          <AllianceMessages messages={messages} epingle={epingle} staff={staff} erreurLecture={erreurMessages === null ? null : messageIn(erreurMessages, langue)} relire={lireMessages} />
         </div>
         {charge.etat && (
           <div id="alliance-partie-capture" role="tabpanel" aria-labelledby="alliance-onglet-capture" hidden={onglet !== "capture"}>

@@ -6,7 +6,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const MIGRATIONS = ["20261113000400_alliances_sur_la_carte", "20261113000500_allies_acceptes_par_l_encadrement", "20261113000600_zones_sans_chevauchement", "20261113000700_allies_dessinent_leurs_zones"];
+const MIGRATIONS = ["20261113000400_alliances_sur_la_carte", "20261113000500_allies_acceptes_par_l_encadrement", "20261113000600_zones_sans_chevauchement", "20261113000700_allies_dessinent_leurs_zones", "20261113001000_zones_etats_epingle_annonces"];
 const sql = Object.fromEntries(MIGRATIONS.map((name) => [name, readFileSync(`supabase/migrations/${name}.sql`, "utf8").replace(/\r\n/g, "\n")]));
 const accordSql = sql["20261113000500_allies_acceptes_par_l_encadrement"]!;
 

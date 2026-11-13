@@ -75,11 +75,23 @@ const CATEGORIES: Record<string, LogCategory> = {
   alliance_ally_left: "alliance",
   alliance_zone_saved: "alliance",
   alliance_zone_deleted: "alliance",
+  alliance_zone_state: "alliance",
+  alliance_zones_ordered: "alliance",
   alliance_message_deleted: "alliance",
+  alliance_message_pinned: "alliance",
+  alliance_message_unpinned: "alliance",
 };
 
 /** Les salons du robot, comme le journal les nomme. Un salon inconnu reste « un salon Discord du robot ». */
-const ROBOT_SALONS: Record<string, string> = { nouvelles: "le salon Discord des nouvelles", encadrement: "le salon Discord de l'encadrement", victoires: "le salon Discord des victoires" };
+const ROBOT_SALONS: Record<string, string> = {
+  nouvelles: "le salon Discord des nouvelles",
+  encadrement: "le salon Discord de l'encadrement",
+  victoires: "le salon Discord des victoires",
+  alliance: "le salon Discord de l'alliance",
+};
+
+/** L'état d'une zone de l'alliance, comme le journal l'écrit (migration 20261113001000). */
+const ZONE_STATES: Record<string, string> = { a_prendre: "à prendre", en_cours: "en cours", tenue: "tenue", abandonnee: "abandonnée" };
 
 /** Les décisions de la boîte à idées, comme le journal les écrit. Mêmes codes que `IDEA_STATUS_LABELS` du QG. */
 const IDEA_DECISIONS: Record<string, string> = { open: "a remis à l'étude", kept: "a retenu", declined: "a écarté", done: "a noté comme faite" };
@@ -318,8 +330,20 @@ export function describe(row: LogRow, when: (iso: string) => string): LogLine {
       if (row.action === "alliance_zone_deleted") return { who, what: `a supprimé ${zone} de la carte de l'alliance${pour}.` };
       return { who, what: `${details["new"] === true ? "a dessiné" : "a modifié"} ${zone} sur la carte de l'alliance${pour}.` };
     }
+    // Depuis la migration 20261113001000 : l'état et l'ordre des zones, le message épinglé.
+    case "alliance_zone_state": {
+      const state = textOf(details, "state");
+      const label = state && Object.hasOwn(ZONE_STATES, state) ? ZONE_STATES[state] : null;
+      return { who, what: `a passé ${title ? `la zone « ${title} »` : "une zone"} de la carte de l'alliance${label ? ` à « ${label} »` : " à un autre état"}.` };
+    }
+    case "alliance_zones_ordered":
+      return { who, what: "a changé l'ordre des priorités des zones de la carte de l'alliance." };
     case "alliance_message_deleted":
       return { who, what: `a retiré un message ${ofTarget} de la discussion de l'alliance.` };
+    case "alliance_message_pinned":
+      return { who, what: `a épinglé un message ${ofTarget} en haut de la discussion de l'alliance.` };
+    case "alliance_message_unpinned":
+      return { who, what: "a désépinglé le message en haut de la discussion de l'alliance." };
     case "account_deleted":
       return { who: row.actor ?? "Un membre", what: "a supprimé son compte." };
     default:

@@ -538,14 +538,18 @@ main .card:hover::before {
 .btn:hover::after {
   translate: 120% 0;
 }
-/* Un bouton inactif doit se voir : sinon, il a seulement l'air de ne pas répondre. */
-.btn:disabled {
+/* Un bouton inactif doit se voir : sinon, il a seulement l'air de ne pas répondre. `aria-disabled` : inactif, mais il garde le
+   focus du clavier (réglages d'une zone de l'alliance). */
+.btn:disabled,
+.btn[aria-disabled="true"],
+.alliance-mode > button[aria-disabled="true"] {
   cursor: not-allowed;
   opacity: 0.55;
   transform: none;
   scale: 1;
 }
-.btn:disabled::after {
+.btn:disabled::after,
+.btn[aria-disabled="true"]::after {
   display: none;
 }
 .btn-lg {
@@ -7442,6 +7446,21 @@ footer h2 {
 .alliance-voisin:hover strong {
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+/* L'état et l'ordre d'une zone, réglés par l'encadrement ; une zone abandonnée s'efface un peu dans la liste. */
+.alliance-reglage {
+  margin-top: 0.75rem;
+}
+.alliance-zone[data-etat="abandonnee"] .alliance-zone-tete {
+  opacity: 0.7;
+}
+/* Le message épinglé, au-dessus du fil de la discussion. */
+.alliance-epingle {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-line);
+  border-left-width: 3px;
+  border-radius: 0.25rem;
 }
 /* « En 24 heures » : les deux couleurs de la carte nommées sous le chiffre, car la légende de la carte est cachée sur téléphone. */
 .alliance-24h-legende {

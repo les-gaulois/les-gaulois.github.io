@@ -16,7 +16,7 @@ import { useEffect, useState } from "preact/hooks";
 import { bilanZone, declarationAncienne, suffisance, troupesDeZone, type BilanZone } from "../../../lib/alliance/bilan";
 import { couleurDeZone } from "../../../lib/alliance/couleurs";
 import { CADRE_MAX, encoderBits, masqueDeLaZone, type Masque } from "../../../lib/alliance/masque";
-import type { ZoneLigne } from "../../../lib/alliance/types";
+import { ETATS_ZONE, type ZoneLigne } from "../../../lib/alliance/types";
 import { ENEMY_PIXEL_BASE_TROOPS, NEUTRAL_PIXEL_TROOPS, RULES_CHECKED_ON, TROOPS_PER_CAP } from "../../../lib/clanmap/economy";
 import type { IconePartieNom } from "../../../lib/icones-parties";
 import { ServerError, call } from "../../../lib/compte/api";
@@ -76,6 +76,63 @@ function EnDeuxTemps({ busy, texte, confirmer, aria, ariaConfirmer, onConfirm }:
   );
 }
 
+/**
+ * Pour l'encadrement : l'état d'une zone (à prendre, en cours, tenue, abandonnée) et sa place dans l'ordre des priorités
+ * (migration 20261113001000, idée choisie par le pilote le 13 novembre 2026). Le serveur annonce un changement d'état sur
+ * Discord, si le salon de l'alliance est réglé dans la Direction. `ordre` : les zones dans l'ordre reçu du serveur.
+ */
+function ReglageZone({ zone, ordre, relire }: { zone: ZoneLigne; ordre: readonly number[]; relire: () => Promise<void> }) {
+  const t = useTextes();
+  const [busy, setBusy] = useState(false);
+  const [erreur, setErreur] = useState<string | null>(null);
+  const i = ordre.indexOf(zone.id);
+  const agir = async (fonction: string, args: Record<string, unknown>) => {
+    setBusy(true);
+    setErreur(null);
+    try {
+      await call(fonction, args);
+      await relire();
+    } catch (e) {
+      setErreur(messageIn(e, t.langue));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const deplacer = (pas: -1 | 1) => {
+    const n = [...ordre];
+    const j = i + pas;
+    if (i < 0 || j < 0 || j >= n.length) return;
+    [n[i], n[j]] = [n[j]!, n[i]!];
+    void agir("order_alliance_zones", { p_ids: n });
+  };
+  return (
+    <div class="alliance-reglage" data-testid="zone-reglage">
+      <div class="alliance-mode" role="group" aria-label={t.etatZoneAria(zone.title)}>
+        <span class="carte-petit text-muted" aria-hidden="true">
+          {t.etatZone}
+        </span>
+        {ETATS_ZONE.map((e) => (
+          <button type="button" aria-pressed={zone.state === e} aria-disabled={busy ? "true" : undefined} onClick={() => !busy && zone.state !== e && void agir("set_alliance_zone_state", { p_id: zone.id, p_state: e })}>
+            {t.etats[e]}
+          </button>
+        ))}
+      </div>
+      {ordre.length > 1 && i >= 0 && (
+        <div class="alliance-ligne mt-2">
+          <span class="carte-petit text-muted tnum">{t.priorite(i + 1, ordre.length)}</span>
+          <button type="button" class="btn btn-ghost !min-h-10 !py-1.5 !text-sm" aria-disabled={busy || i === 0 ? "true" : undefined} aria-label={t.monterAria(zone.title)} onClick={() => !busy && deplacer(-1)}>
+            <span aria-hidden="true">↑</span> {t.monter}
+          </button>
+          <button type="button" class="btn btn-ghost !min-h-10 !py-1.5 !text-sm" aria-disabled={busy || i === ordre.length - 1 ? "true" : undefined} aria-label={t.descendreAria(zone.title)} onClick={() => !busy && deplacer(1)}>
+            <span aria-hidden="true">↓</span> {t.descendre}
+          </button>
+        </div>
+      )}
+      <Problem message={erreur} />
+    </div>
+  );
+}
+
 interface Edition {
   id: number | null;
   titre: string;
@@ -106,6 +163,8 @@ export default function AllianceZones({
   const clanDeLAllie = donnees.access.kind === "allie" ? donnees.access.tag : null;
   const peutDessiner = ctx.staff || (clanDeLAllie !== null && donnees.can_draw === true);
   const peutModifier = (z: ZoneLigne) => ctx.staff || (clanDeLAllie !== null && z.can_edit === true);
+  // L'ordre des priorités : celui des zones reçues, que le serveur range par leur place.
+  const ordre = zones.map((z) => z.id);
   const [outil, setOutil] = useState<Outil>("crayon");
   const [taille, setTaille] = useState<number>(TAILLES[1]);
   const [dessin, setDessin] = useState<EtatDessin>({ pixels: 0, cadre: null, tropGrand: false, annulable: false, retires: 0 });
@@ -333,13 +392,16 @@ export default function AllianceZones({
             const couleur = couleurDeZone(z.tag, couleursClans);
             const choisie = selection === z.id;
             return (
-              <li key={z.id} class="alliance-zone" data-choisie={choisie ? "" : undefined} data-testid="zone">
+              <li key={z.id} class="alliance-zone" data-choisie={choisie ? "" : undefined} data-etat={z.state} data-testid="zone">
                 <button type="button" class="alliance-zone-tete" aria-expanded={choisie} onClick={() => choisir(choisie ? null : z.id, !choisie)}>
                   <span class="alliance-zone-nom">
                     <Pastille couleur={couleur} />
                     <span>
                       <strong>{z.title}</strong>
-                      <span class="alliance-zone-clan">{z.tag ?? t.touteLAlliance}</span>
+                      <span class="alliance-zone-clan">
+                        {z.tag ?? t.touteLAlliance}
+                        {z.state ? ` · ${t.etats[z.state]}` : ""}
+                      </span>
                     </span>
                   </span>
                   {bilan && (
@@ -359,6 +421,7 @@ export default function AllianceZones({
                       </p>
                     )}
                     <p class="carte-aide">{t.misAJour(t.dateHeure(z.updated_at), z.by)}</p>
+                    {ctx.staff && z.state !== undefined && <ReglageZone zone={z} ordre={ordre} relire={ctx.relire} />}
                     {peutModifier(z) && etat && (
                       <div class="alliance-ligne mt-2">
                         <button type="button" class="btn btn-ghost !min-h-10 !py-1.5 !text-sm" onClick={() => commencer(z)}>

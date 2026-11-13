@@ -79,7 +79,7 @@ describe("les phrases", () => {
 describe("le salon des victoires", () => {
   const WINS = ROBOT_SALON_TEXTS.find((t) => t.id === "victoires")!;
   it("vient après les deux autres, avec son secret de secours", () => {
-    expect(ROBOT_SALON_TEXTS.map((t) => t.id)).toEqual(["nouvelles", "encadrement", "victoires"]);
+    expect(ROBOT_SALON_TEXTS.map((t) => t.id)).toEqual(["nouvelles", "encadrement", "victoires", "alliance"]);
     expect(WINS.secret).toBe("DISCORD_WEBHOOK_VICTOIRES");
   });
   it("un serveur sans sa migration ne le rend pas : la page montre les deux autres, sans erreur", () => {
@@ -92,5 +92,22 @@ describe("le salon des victoires", () => {
   });
   it("les deux premiers restent obligatoires : sans eux, la réponse est illisible", () => {
     expect(parseDiscordSalons(answer([unset("nouvelles"), unset("victoires")]))).toBeNull();
+  });
+});
+
+describe("le salon de l'alliance", () => {
+  const ALLIANCE = ROBOT_SALON_TEXTS.find((t) => t.id === "alliance")!;
+  it("vient en dernier, sans secret GitHub : c'est le serveur qui y poste", () => {
+    expect(ROBOT_SALON_TEXTS.at(-1)?.id).toBe("alliance");
+    expect(ALLIANCE.secret).toBeNull();
+    expect(ALLIANCE.optional).toBe(true);
+  });
+  it("un serveur sans sa migration ne le rend pas ; avec elle, il se relit comme les autres", () => {
+    expect(parseDiscordSalons(answer([unset("nouvelles"), unset("encadrement"), unset("victoires")]))?.map((s) => s.id)).toEqual(["nouvelles", "encadrement", "victoires"]);
+    const parsed = parseDiscordSalons(answer([unset("nouvelles"), unset("encadrement"), unset("victoires"), unset("alliance")]));
+    expect(parsed?.map((s) => s.id)).toEqual(["nouvelles", "encadrement", "victoires", "alliance"]);
+  });
+  it("sans lien, la phrase ne parle d'aucun secret", () => {
+    expect(checkSentence({ at: NOW, source: "none", status: null, name: null }, ALLIANCE, when)).toBe(`Contrôle du robot, le [${NOW}] : aucun lien. Rien ne part dans ce salon.`);
   });
 });

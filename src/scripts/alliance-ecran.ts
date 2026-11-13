@@ -65,7 +65,7 @@ export interface InfoPixel {
   /** Mer, terre neutre, ou un clan (son tag, `null` pour un clan supprimé). */
   sorte: "mer" | "neutre" | "clan";
   tag: string | null;
-  /** La zone sous le pointeur, la plus récente quand plusieurs se chevauchent. */
+  /** La zone sous le pointeur ; quand d'anciennes zones se chevauchent, la dernière dans l'ordre reçu du serveur. */
   zone: number | null;
   /** Carte colorée « en 24 heures » : ce pixel pris ou perdu par notre alliance depuis la veille, sinon `null`. */
   bouge: "pris" | "perdu" | null;

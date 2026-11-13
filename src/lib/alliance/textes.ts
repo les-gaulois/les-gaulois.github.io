@@ -189,6 +189,21 @@ export interface Textes {
   voisinsAide: string;
   auContact: (n: number) => string;
   voisinsAutres: (n: number) => string;
+  /** L'état et l'ordre des zones, le message épinglé (migration 20261113001000). */
+  etatZone: string;
+  etats: { a_prendre: string; en_cours: string; tenue: string; abandonnee: string };
+  etatZoneAria: (nom: string) => string;
+  /** Dans la bulle d'une zone : « État : en cours ». */
+  etatLigne: (etat: string) => string;
+  priorite: (n: number, total: number) => string;
+  monter: string;
+  descendre: string;
+  monterAria: (nom: string) => string;
+  descendreAria: (nom: string) => string;
+  epingle: string;
+  epingler: string;
+  epinglerAria: (nom: string) => string;
+  desepingler: string;
 }
 
 /** L'heure d'un message, dans une langue : « 14:05 », « hier, 14:05 », puis « 12 nov., 14:05 ». */
@@ -378,8 +393,8 @@ export const FR: Textes = {
   en24h: "En 24 heures",
   prisEtPerdus: (pris, perdus, nPerdus) => `${pluriel(pris, "pixel pris", "pixels pris")}, ${perdus} ${pluriel(nPerdus, "perdu", "perdus")}`,
   solde24h: (n, texte) => (n > 0 ? `${texte} de plus en 24 heures` : `${texte} de moins en 24 heures`),
-  comparaison: (date) => `« En 24 heures » : comparée à la carte du ${date}.`,
-  zone24h: (pris, perdus, nombre) => `En 24 heures : ${nombre(pris)} ${pluriel(pris, "pixel pris", "pixels pris")}, ${nombre(perdus)} ${pluriel(perdus, "perdu", "perdus")}.`,
+  comparaison: (date) => `« En 24 heures »${NBSP}: comparée à la carte du ${date}.`,
+  zone24h: (pris, perdus, nombre) => `En 24 heures${NBSP}: ${nombre(pris)} ${pluriel(pris, "pixel pris", "pixels pris")}, ${nombre(perdus)} ${pluriel(perdus, "perdu", "perdus")}.`,
   pixelPris: "pris en 24 heures",
   pixelPerdu: "perdu en 24 heures",
 
@@ -387,9 +402,9 @@ export const FR: Textes = {
   dontAnciennes: (n) => `dont ${n} ${pluriel(n, "ancienne", "anciennes")}`,
   enCapsules: "En capsules",
   parCapsule: (n) => `Une capsule du trésor donne ${n} troupes.`,
-  troupesZone: (n, quand) => `Troupes déclarées : ${n}, le ${quand}.`,
-  troupesZoneAlliance: (n, declares, clans, quand) => `Troupes déclarées par ${declares} ${pluriel(declares, "clan", "clans")} sur ${clans} : ${n}, la plus ancienne le ${quand}.`,
-  declarationAncienneZone: "Déclaration ancienne : à redéclarer.",
+  troupesZone: (n, quand) => `Troupes déclarées${NBSP}: ${n}, le ${quand}.`,
+  troupesZoneAlliance: (n, declares, clans, quand) => `Troupes déclarées par ${declares} ${pluriel(declares, "clan", "clans")} sur ${clans}${NBSP}: ${n}, la plus ancienne le ${quand}.`,
+  declarationAncienneZone: `Déclaration ancienne${NBSP}: à redéclarer.`,
   pasDeclareZone: (tag) => `${tag} n'a pas déclaré ses troupes.`,
   aucuneDeclarationZone: "Aucun clan de l'alliance n'a déclaré ses troupes.",
   assez: "Assez pour la prendre.",
@@ -401,6 +416,19 @@ export const FR: Textes = {
   voisinsAide: "Les clans qui touchent notre alliance. Un clic centre la carte sur leur principal point de contact.",
   auContact: (n) => pluriel(n, "pixel au contact", "pixels au contact"),
   voisinsAutres: (n) => `Les ${n} autres`,
+  etatZone: "État",
+  etats: { a_prendre: "à prendre", en_cours: "en cours", tenue: "tenue", abandonnee: "abandonnée" },
+  etatZoneAria: (nom) => `État de « ${nom} »`,
+  etatLigne: (etat) => `État${NBSP}: ${etat}`,
+  priorite: (n, total) => `Priorité ${n} sur ${total}`,
+  monter: "Monter",
+  descendre: "Descendre",
+  monterAria: (nom) => `Monter « ${nom} » dans l'ordre des priorités`,
+  descendreAria: (nom) => `Descendre « ${nom} » dans l'ordre des priorités`,
+  epingle: "Épinglé",
+  epingler: "épingler",
+  epinglerAria: (nom) => `Épingler le message de ${nom} en haut de la discussion`,
+  desepingler: "désépingler",
 };
 
 export const EN: Textes = {
@@ -566,6 +594,19 @@ export const EN: Textes = {
   voisinsAide: "Clans touching our alliance. A click centres the map on their main point of contact.",
   auContact: (n) => pluralEn(n, "pixel in contact", "pixels in contact"),
   voisinsAutres: (n) => `The other ${n}`,
+  etatZone: "Status",
+  etats: { a_prendre: "to take", en_cours: "in progress", tenue: "held", abandonnee: "dropped" },
+  etatZoneAria: (nom) => `Status of “${nom}”`,
+  etatLigne: (etat) => `Status: ${etat}`,
+  priorite: (n, total) => `Priority ${n} of ${total}`,
+  monter: "Move up",
+  descendre: "Move down",
+  monterAria: (nom) => `Move up “${nom}” in the priority order`,
+  descendreAria: (nom) => `Move down “${nom}” in the priority order`,
+  epingle: "Pinned",
+  epingler: "pin",
+  epinglerAria: (nom) => `Pin ${nom}'s message at the top of the chat`,
+  desepingler: "unpin",
 };
 
 export const textesDe = (langue: Langue): Textes => (langue === "en" ? EN : FR);

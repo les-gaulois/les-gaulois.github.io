@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-13",
+    "kind": "nouveau",
+    "title": "Carte de l'alliance : état des zones et message épinglé",
+    "body": "L'encadrement donne à chaque zone un état (à prendre, en cours, tenue, abandonnée) et un ordre de priorité, épingle un message, et les zones s'annoncent dans un salon Discord s'il est branché.",
+    "link": {
+      "href": "/carte#alliance",
+      "label": "Ouvrir la carte"
+    }
+  },
+  {
+    "date": "2026-11-13",
     "kind": "ameliore",
     "title": "Carte de l'alliance : une fenêtre qu'on déplace",
     "body": "Sur un grand écran, la fenêtre « Alliance » se déplace par sa barre, change de taille par ses bords, s'agrandit ou se réduit, et garde sa place. La langue se choisit d'un drapeau.",

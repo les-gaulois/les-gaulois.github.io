@@ -7,14 +7,17 @@
  */
 import { lastSendSentence, outcomeSentence, type LastSend, type SendOutcome } from "./discord-appels";
 
-export type RobotSalonId = "nouvelles" | "encadrement" | "victoires";
+export type RobotSalonId = "nouvelles" | "encadrement" | "victoires" | "alliance";
 
 export interface RobotSalonText {
   id: RobotSalonId;
   title: string;
   intro: string;
-  /** Le secret GitHub qui sert quand rien n'est réglé ici, et en secours si Supabase ne répond pas. */
-  secret: string;
+  /**
+   * Le secret GitHub qui sert quand rien n'est réglé ici, et en secours si Supabase ne répond pas. `null` : un salon où
+   * poste le serveur lui-même, sans robot ni secret ; sans lien réglé ici, rien n'y part.
+   */
+  secret: string | null;
   /** Ce que le secret ne fait pas, dit quand rien n'est réglé ici. */
   secretNote?: string;
   /** Ajouté après les autres : un serveur sans sa migration ne le rend pas, et la page ne le montre pas. */
@@ -43,6 +46,16 @@ export const ROBOT_SALON_TEXTS: readonly RobotSalonText[] = [
     title: "Le salon des victoires",
     intro: "Chaque victoire du clan, avec l'image de la carte et tous les Gaulois de la partie, postée par le robot du site peu après la partie, jour et nuit : une quarantaine de messages par jour. Prenez un salon à part.",
     secret: "DISCORD_WEBHOOK_VICTOIRES",
+    optional: true,
+  },
+  {
+    // Migration 20261113001000 : le serveur y poste lui-même chaque zone nouvelle (dessinée par l'encadrement ou par un
+    // allié) et chaque changement d'état, dix au plus en dix minutes. Les alliés d'autres pays le lisent : les messages sont
+    // en français et en anglais.
+    id: "alliance",
+    title: "Le salon de l'alliance",
+    intro: "Chaque zone nouvelle de la carte de l'alliance, et chaque zone dont l'état change (à prendre, en cours, tenue, abandonnée), en français et en anglais, avec le lien de la carte. Sans mention. Prenez un salon que lisent les alliés.",
+    secret: null,
     optional: true,
   },
 ];
@@ -146,7 +159,7 @@ const webhookWords = (name: string | null) => (name ? `le webhook « ${name} »`
  */
 export function checkSentence(check: RobotCheck, salon: RobotSalonText, when: (iso: string) => string): string {
   const head = `Contrôle du robot, le ${when(check.at)}`;
-  if (check.source === "none") return `${head} : aucun lien, ni ici ni dans le secret GitHub ${salon.secret}. Rien ne part dans ce salon.`;
+  if (check.source === "none") return `${head} : aucun lien${salon.secret ? `, ni ici ni dans le secret GitHub ${salon.secret}` : ""}. Rien ne part dans ce salon.`;
   // La carte nomme déjà le secret quand rien n'est réglé ici : la phrase reste courte, et se coupe mieux sur téléphone.
   const from = check.source === "secret" ? " (lien du secret GitHub)" : "";
   if (check.status === null) return `${head}${from} : le lien n'a pas la forme d'un webhook de Discord. Collez le lien d'un nouveau webhook.`;

@@ -195,6 +195,11 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
     // L'accord de l'encadrement (migration 20261113000500) : le numéro 0 n'est celui d'aucun compte.
     ["approve_alliance_ally", { p_number: 0, p_approve: true }, "Un visiteur n'accepte pas de joueur allié"],
     ["list_alliance_allies", {}, "Un visiteur ne lit pas la liste des joueurs alliés"],
+    // L'état et l'ordre des zones, le message épinglé (migration 20261113001000) : l'encadrement seul. Aucune zone ni aucun
+    // message n'a le numéro 0, et une liste vide n'est pas un ordre valable : rien ne serait écrit.
+    ["set_alliance_zone_state", { p_id: 0, p_state: "tenue" }, "Un visiteur ne change pas l'état d'une zone de l'alliance"],
+    ["order_alliance_zones", { p_ids: [] }, "Un visiteur ne range pas les zones de l'alliance"],
+    ["pin_alliance_message", { p_id: 0 }, "Un visiteur n'épingle pas de message de l'alliance"],
   ] as const;
   for (const [fn, body, label] of allianceCalls) {
     const res = await rpc(fn, body);

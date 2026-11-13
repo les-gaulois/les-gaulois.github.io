@@ -135,6 +135,8 @@ export const ERROR_MESSAGES: Record<string, string> = {
   too_many_clan_zones: "20 zones au plus par clan : supprimez-en une de votre clan d'abord.",
   no_alliance: "Rangez d'abord GAL dans une alliance : les zones sont celles de notre alliance.",
   zone_not_found: "Cette zone n'existe plus. Rechargez la page.",
+  invalid_state: "Cet état de zone n'existe pas. Rechargez la page.",
+  invalid_order: "L'ordre des zones a changé entre-temps. Rechargez la page.",
   too_fast: "Doucement : un message toutes les deux secondes, quinze par minute au plus.",
 
   // La connexion par un code tapé dans le Discord du clan (supabase/functions/code-discord).
@@ -188,6 +190,8 @@ export const ERROR_MESSAGES_EN: Record<string, string> = {
   too_many_clan_zones: "20 zones at most per clan: delete one of your clan's first.",
   no_alliance: "First put GAL in an alliance: the zones belong to our alliance.",
   zone_not_found: "This zone no longer exists. Reload the page.",
+  invalid_state: "This zone status does not exist. Reload the page.",
+  invalid_order: "The order of the zones has changed in the meantime. Reload the page.",
   too_fast: "Slow down: one message every two seconds, fifteen per minute at most.",
   invalid_message: "This message is not valid. Reload the page.",
   message_not_found: "This message is no longer in the list. Reload the page.",

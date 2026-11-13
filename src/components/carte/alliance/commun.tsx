@@ -261,6 +261,7 @@ function Bulle({ c }: { c: Calque & { survol: Survol } }) {
           <TableauZone bilan={bilan} t={t} />
         </>
       )}
+      {zone.state && <p class="alliance-bulle-pied">{t.etatLigne(t.etats[zone.state])}</p>}
       {c.mouvement && <p class="alliance-bulle-pied">{t.zone24h(c.mouvement.pris, c.mouvement.perdus, t.nombre)}</p>}
       <p class="alliance-bulle-pied">
         {t.ici} {ici}

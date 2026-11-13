@@ -1,10 +1,13 @@
 /**
  * La discussion de l'alliance, entre les Gaulois validés et les joueurs alliés invités. Le serveur garde les 30 derniers
  * jours ; la page relit les 80 derniers messages toutes les 10 secondes tant que la discussion est sous les yeux.
+ *
+ * Depuis la migration 20261113001000 (idée choisie par le pilote le 13 novembre 2026) : l'encadrement épingle un message,
+ * qui reste en haut de la discussion, même au-delà des 80 derniers et des 30 jours, tant qu'il est épinglé.
  */
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { MESSAGE_MAX } from "../../../lib/alliance/discussion";
-import type { MessageAlliance } from "../../../lib/alliance/types";
+import type { MessageAlliance, MessageEpingle } from "../../../lib/alliance/types";
 import { call } from "../../../lib/compte/api";
 import { Problem, messageIn, useNow } from "../../compte/common";
 import { useTextes } from "./commun";
@@ -29,7 +32,21 @@ function Retirer({ nom, onConfirm }: { nom: string; onConfirm: () => void }) {
   );
 }
 
-export default function AllianceMessages({ messages, erreurLecture, relire }: { messages: MessageAlliance[] | null; erreurLecture: string | null; relire: () => Promise<void> }) {
+export default function AllianceMessages({
+  messages,
+  epingle,
+  staff,
+  erreurLecture,
+  relire,
+}: {
+  messages: MessageAlliance[] | null;
+  /** Le message épinglé par l'encadrement ; `null` : aucun. */
+  epingle: MessageEpingle | null;
+  /** L'encadrement de GAL, hors vue joueur : il épingle et désépingle. */
+  staff: boolean;
+  erreurLecture: string | null;
+  relire: () => Promise<void>;
+}) {
   const [texte, setTexte] = useState("");
   const [busy, setBusy] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -81,12 +98,46 @@ export default function AllianceMessages({ messages, erreurLecture, relire }: { 
     }
   };
 
+  // Épingler remplace le message épinglé d'avant ; `null` désépingle.
+  const epingler = async (id: number | null) => {
+    setErreur(null);
+    try {
+      await call("pin_alliance_message", { p_id: id });
+      await relire();
+    } catch (e) {
+      setErreur(messageIn(e, t.langue));
+    }
+  };
+
   return (
     <div class="alliance-discussion" data-testid="alliance-messages">
       {messages === null && (
         <p class="text-muted" role="status">
           {t.lectureMessages}
         </p>
+      )}
+      {epingle && (
+        <section class="alliance-epingle" aria-labelledby="alliance-epingle-titre" data-testid="alliance-epingle">
+          <p class="alliance-auteur">
+            <strong id="alliance-epingle-titre" class="alliance-marque">
+              {t.epingle}
+            </strong>
+            <strong>
+              [{epingle.tag}] {epingle.name}
+            </strong>
+            {epingle.staff && <span class="alliance-marque">{t.marqueEncadrement}</span>}
+            <time dateTime={epingle.at} class="text-muted">
+              {t.heureMessage(epingle.at, maintenant)}
+            </time>
+            {staff && (
+              <button type="button" class="alliance-retirer" onClick={() => void epingler(null)} data-testid="alliance-desepingler">
+                {t.desepingler}
+              </button>
+            )}
+            {epingle.can_delete && <Retirer nom={epingle.name} onConfirm={() => void retirer(epingle.id)} />}
+          </p>
+          <p class="alliance-corps">{epingle.body}</p>
+        </section>
       )}
       <ol class="alliance-fil" ref={liste} aria-label={t.filAria} tabIndex={0}>
         {(messages ?? []).map((m) => (
@@ -99,6 +150,11 @@ export default function AllianceMessages({ messages, erreurLecture, relire }: { 
               <time dateTime={m.at} class="text-muted">
                 {t.heureMessage(m.at, maintenant)}
               </time>
+              {staff && epingle?.id !== m.id && (
+                <button type="button" class="alliance-retirer" aria-label={t.epinglerAria(m.name)} onClick={() => void epingler(m.id)}>
+                  {t.epingler}
+                </button>
+              )}
               {m.can_delete && <Retirer nom={m.name} onConfirm={() => void retirer(m.id)} />}
             </p>
             <p class="alliance-corps">{m.body}</p>

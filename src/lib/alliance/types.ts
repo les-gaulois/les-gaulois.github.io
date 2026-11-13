@@ -50,7 +50,17 @@ export interface ZoneLigne {
   by?: string | null;
   /** L'appelant peut la modifier : l'encadrement, ou un allié pour une zone de son clan. Absent d'un serveur plus ancien. */
   can_edit?: boolean;
+  /**
+   * Depuis la migration 20261113001000 : son état, réglé par l'encadrement, et sa place dans l'ordre des priorités (1 pour
+   * la première). Absents d'un serveur d'avant : la zone n'a pas d'état affiché, et l'ordre est celui reçu.
+   */
+  state?: EtatZone;
+  rank?: number | null;
 }
+
+/** L'état d'une zone, choisi par l'encadrement. */
+export type EtatZone = "a_prendre" | "en_cours" | "tenue" | "abandonnee";
+export const ETATS_ZONE: readonly EtatZone[] = ["a_prendre", "en_cours", "tenue", "abandonnee"];
 
 export interface AllieLigne {
   number: number;
@@ -105,4 +115,17 @@ export interface MessageAlliance {
   body: string;
   mine: boolean;
   can_delete: boolean;
+}
+
+/** Le message épinglé par l'encadrement en haut de la discussion (migration 20261113001000). */
+export interface MessageEpingle {
+  id: number;
+  at: string;
+  tag: string;
+  name: string;
+  staff: boolean;
+  body: string;
+  pinned_at: string;
+  /** Son auteur ou l'encadrement peut le retirer ; absent d'un serveur plus ancien. */
+  can_delete?: boolean;
 }
