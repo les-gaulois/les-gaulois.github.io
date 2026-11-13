@@ -5,7 +5,9 @@
  * forme plus courte : le cadre qui la contient et un bit par pixel de ce cadre, ligne après ligne, le premier dans le bit
  * de poids faible, en base 64 (`save_alliance_zone`). Le cadre ne dépasse pas un million de pixels.
  *
- * Seule la terre se dessine : la mer ne se prend pas sur la carte des clans. Le dessin ne change aucune donnée collectée.
+ * Seule la terre se dessine : la mer ne se prend pas sur la carte des clans. Une zone ne passe jamais sur une autre
+ * (13 novembre 2026) : un pixel de la carte n'appartient qu'à une zone, et le serveur le vérifie aussi. Le dessin ne change
+ * aucune donnée collectée.
  */
 
 /** La plus grande surface de cadre que le serveur accepte, en pixels. */
@@ -67,6 +69,34 @@ export function poserMasque(calque: Uint8Array, width: number, masque: Masque): 
   forEachPixel(masque, (x, y) => {
     calque[y * width + x] = 1;
   });
+}
+
+/** Les pixels pris par ces zones, sur un calque de la carte entière : 1 où l'une d'elles passe. */
+export function occupation(masques: Iterable<Masque>, width: number, height: number): Uint8Array {
+  const occupe = new Uint8Array(width * height);
+  for (const masque of masques) {
+    forEachPixel(masque, (x, y) => {
+      if (x < width && y < height) occupe[y * width + x] = 1;
+    });
+  }
+  return occupe;
+}
+
+/**
+ * Retire du calque les pixels déjà pris par une autre zone : tous, ou seulement ceux de `parmi` (les pixels d'un geste
+ * qu'on annule). Rend leur nombre.
+ */
+export function retirerOccupes(calque: Uint8Array, occupe: Uint8Array, parmi?: Iterable<number>): number {
+  let retires = 0;
+  const retirer = (p: number) => {
+    if (calque[p] && occupe[p]) {
+      calque[p] = 0;
+      retires++;
+    }
+  };
+  if (parmi) for (const p of parmi) retirer(p);
+  else for (let p = 0; p < calque.length; p++) retirer(p);
+  return retires;
 }
 
 /** Chaque pixel d'un masque, en coordonnées de la carte. */
@@ -154,7 +184,7 @@ export interface Pinceau {
   taille: number;
   /** 1 pour peindre, 0 pour gommer. */
   valeur: 0 | 1;
-  /** Ce pixel peut-il entrer dans la zone ? La mer ne peut pas. La gomme efface partout. */
+  /** Ce pixel peut-il entrer dans la zone ? La mer et les autres zones ne peuvent pas. La gomme efface partout. */
   permis: (p: number) => boolean;
 }
 

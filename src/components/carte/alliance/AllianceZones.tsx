@@ -5,7 +5,8 @@
  * (`src/lib/clanmap/economy.ts`).
  *
  * Le dessin (13 novembre 2026, « que les outils soient mieux compris ») : quatre gros boutons illustrés, une phrase pour
- * l'outil choisi, quatre tailles en mots, et le dessin en cours dans la couleur du clan choisi.
+ * l'outil choisi, quatre tailles en mots, et le dessin en cours dans la couleur du clan choisi. Le pinceau et le rectangle
+ * ne passent jamais sur une autre zone (« impossible de repasser sur une zone déjà existante ») ; le serveur le vérifie.
  */
 import { useEffect, useState } from "preact/hooks";
 import { bilanZone, type BilanZone } from "../../../lib/alliance/bilan";
@@ -14,7 +15,7 @@ import { CADRE_MAX, encoderBits, masqueDeLaZone, type Masque } from "../../../li
 import type { ZoneLigne } from "../../../lib/alliance/types";
 import { ENEMY_PIXEL_BASE_TROOPS, NEUTRAL_PIXEL_TROOPS, RULES_CHECKED_ON } from "../../../lib/clanmap/economy";
 import type { IconePartieNom } from "../../../lib/icones-parties";
-import { call } from "../../../lib/compte/api";
+import { ServerError, call } from "../../../lib/compte/api";
 import type { EcranAlliance, EtatDessin, Outil } from "../../../scripts/alliance-ecran";
 import IconePartie from "../../compte/IconePartie";
 import { Problem, messageIn } from "../../compte/common";
@@ -77,7 +78,7 @@ export default function AllianceZones({
   const sansAlliance = (donnees.ours ?? null) === null;
   const [outil, setOutil] = useState<Outil>("crayon");
   const [taille, setTaille] = useState<number>(TAILLES[1]);
-  const [dessin, setDessin] = useState<EtatDessin>({ pixels: 0, cadre: null, tropGrand: false, annulable: false });
+  const [dessin, setDessin] = useState<EtatDessin>({ pixels: 0, cadre: null, tropGrand: false, annulable: false, retires: 0 });
   const [apercu, setApercu] = useState<BilanZone | null>(null);
   const [busy, setBusy] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -107,7 +108,7 @@ export default function AllianceZones({
     const masque: Masque | null = zone ? masqueDeLaZone(zone) : null;
     setEdition({ id: zone?.id ?? null, titre: zone?.title ?? "", tag: zone?.tag ?? "" });
     choisir(zone?.id ?? null, zone !== null);
-    ecran.editer(masque, couleurDeZone(zone?.tag ?? null, couleursClans));
+    ecran.editer(masque, couleurDeZone(zone?.tag ?? null, couleursClans), zone?.id ?? null);
     setOutil(zone ? "main" : "crayon");
   };
 
@@ -149,6 +150,8 @@ export default function AllianceZones({
       choisir(r.id, false);
     } catch (e) {
       setErreur(messageIn(e, t.langue));
+      // Une autre zone enregistrée entre-temps : la carte se relit, et ses pixels quittent le dessin.
+      if (e instanceof ServerError && e.code === "zone_overlap") void ctx.relire();
     } finally {
       setBusy(false);
     }
@@ -249,6 +252,11 @@ export default function AllianceZones({
               <span class="text-muted">{t.pixelsDessines}</span>
             </p>
             {dessin.tropGrand && <p class="form-problem">{t.tropGrand}</p>}
+            {dessin.retires > 0 && (
+              <p class="carte-aide" data-testid="zone-retires">
+                {t.retiresAutreZone(dessin.retires)}
+              </p>
+            )}
             {apercu && <TableauZone bilan={apercu} t={t} />}
           </div>
 

@@ -14,9 +14,11 @@ import {
   encoderBits,
   masqueDeLaZone,
   masqueDuCalque,
+  occupation,
   pixelsDuMasque,
   poserMasque,
   rectangle,
+  retirerOccupes,
   tamponner,
   trait,
   type Pinceau,
@@ -108,6 +110,70 @@ describe("le dessin", () => {
     expect(masqueDuCalque(calque, W)).toMatchObject({ x: 0, y: 0, w: 2, h: 2 });
     expect(annuler(calque, premier)).toBe(-4);
     expect(calque.every((v) => v === 0)).toBe(true);
+  });
+});
+
+describe("une zone ne passe jamais sur une autre", () => {
+  // Deux zones déjà enregistrées : un carré de 2 × 2 en haut à gauche, et un pixel seul en (7, 4).
+  const carre = masqueDuCalque(Uint8Array.from({ length: W * H }, (_, p) => (p % W < 2 && p < 2 * W ? 1 : 0)), W)!;
+  const seul = { x: 7, y: 4, w: 1, h: 1, bits: Uint8Array.from([1]) };
+
+  it("relève les pixels pris par les autres zones, sans sortir de la carte", () => {
+    const debord = { x: 9, y: 5, w: 3, h: 2, bits: Uint8Array.from([0b111111]) };
+    const occupe = occupation([carre, seul, debord], W, H);
+    expect([...occupe].reduce((n, v) => n + v, 0)).toBe(6);
+    expect(occupe[0]).toBe(1);
+    expect(occupe[1 * W + 1]).toBe(1);
+    expect(occupe[4 * W + 7]).toBe(1);
+    expect(occupe[5 * W + 9]).toBe(1);
+    expect(occupe[2 * W + 2]).toBe(0);
+    expect(occupation([], W, H).every((v) => v === 0)).toBe(true);
+  });
+
+  it("ne peint ni au pinceau ni au rectangle sur une autre zone, mais la gomme efface partout", () => {
+    const occupe = occupation([carre, seul], W, H);
+    const libre: Pinceau = { ...partout, permis: (p) => occupe[p] === 0 };
+    const calque = new Uint8Array(W * H);
+    // Toute la carte au rectangle : 60 pixels, moins les 5 des deux zones.
+    expect(rectangle(calque, libre, 0, 0, W - 1, H - 1, new Map())).toBe(55);
+    expect([...calque].every((v, p) => v === 0 || occupe[p] === 0)).toBe(true);
+    const autre = new Uint8Array(W * H);
+    expect(tamponner(autre, { ...libre, taille: 3 }, 1, 1, new Map())).toBe(5);
+    expect(autre[0]).toBe(0);
+    expect(autre[2 * W + 2]).toBe(1);
+    expect(rectangle(calque, { ...libre, valeur: 0 }, 0, 0, W - 1, H - 1, new Map())).toBe(55);
+  });
+
+  it("retire d'une zone reprise les pixels qu'elle partageait avec une autre, d'avant la règle", () => {
+    const occupe = occupation([carre], W, H);
+    const calque = new Uint8Array(W * H);
+    // La zone reprise couvre les trois premières colonnes des trois premières lignes : 4 de ses 9 pixels sont au carré.
+    rectangle(calque, partout, 0, 0, 2, 2, new Map());
+    expect(retirerOccupes(calque, occupe)).toBe(4);
+    expect([...calque].reduce((n, v) => n + v, 0)).toBe(5);
+    expect([...calque].every((v, p) => v === 0 || occupe[p] === 0)).toBe(true);
+    expect(retirerOccupes(calque, occupe)).toBe(0);
+  });
+
+  it("à l'annulation d'un geste, ne rend pas un pixel pris entre-temps par une autre zone", () => {
+    const calque = new Uint8Array(W * H);
+    rectangle(calque, partout, 0, 0, 3, 0, new Map());
+    // La gomme efface la ligne, puis une autre zone prend les deux premiers pixels avant qu'on annule la gomme.
+    const gomme: Retouche = new Map();
+    rectangle(calque, { ...partout, valeur: 0 }, 0, 0, 3, 0, gomme);
+    const occupe = occupation([{ x: 0, y: 0, w: 2, h: 1, bits: Uint8Array.from([0b11]) }], W, H);
+    expect(annuler(calque, gomme)).toBe(4);
+    // Seuls les pixels du geste annulé se relisent : un pixel pris hors du geste n'est pas touché.
+    calque[5 * W + 9] = 1;
+    occupe[5 * W + 9] = 1;
+    expect(retirerOccupes(calque, occupe, gomme.keys())).toBe(2);
+    expect([...calque.subarray(0, 4)]).toEqual([0, 0, 1, 1]);
+    expect(calque[5 * W + 9]).toBe(1);
+  });
+
+  it("est vérifiée aussi par le serveur, à chaque enregistrement", () => {
+    const sql = readFileSync("supabase/migrations/20261113000600_zones_sans_chevauchement.sql", "utf8");
+    expect(sql).toContain("perform internal.fail('zone_overlap')");
   });
 });
 

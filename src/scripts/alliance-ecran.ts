@@ -11,7 +11,23 @@
  */
 import { cadreVisible, type Rect } from "../lib/alliance/capture";
 import { cssDe } from "../lib/alliance/couleurs";
-import { CADRE_MAX, annuler, cadreDuCalque, dansLeMasque, forEachPixel, masqueDuCalque, pointCentral, poserMasque, rectangle, trait, type Masque, type Pinceau, type Retouche } from "../lib/alliance/masque";
+import {
+  CADRE_MAX,
+  annuler,
+  cadreDuCalque,
+  dansLeMasque,
+  forEachPixel,
+  masqueDuCalque,
+  occupation,
+  pointCentral,
+  poserMasque,
+  rectangle,
+  retirerOccupes,
+  trait,
+  type Masque,
+  type Pinceau,
+  type Retouche,
+} from "../lib/alliance/masque";
 import { ETAT_MER, ETAT_NEUTRE, auLittoral, decoderEtat, type EtatCarte } from "../lib/clanmap/etat";
 import { OCEAN_SHORE, OPEN_SEA_CSS } from "../lib/clanmap/terrain";
 import { borner, decaler, echelleDuMonde, estVueDEnsemble, pointDeCarte, zoomer, type Monde } from "../lib/clanmap/vue";
@@ -57,6 +73,8 @@ export interface EtatDessin {
   /** Le cadre dépasse ce que le serveur accepte. */
   tropGrand: boolean;
   annulable: boolean;
+  /** Les pixels retirés du dessin parce qu'une autre zone les tient déjà : une zone ne passe jamais sur une autre. */
+  retires: number;
 }
 
 export interface Chargement {
@@ -146,6 +164,11 @@ export class EcranAlliance {
 
   // Le dessin d'une zone par l'encadrement.
   private calque: Uint8Array | null = null;
+  /** La zone reprise, `null` pour une nouvelle. */
+  private editee: number | null = null;
+  /** Les pixels des autres zones : le pinceau et le rectangle n'y entrent pas. */
+  private occupe: Uint8Array | null = null;
+  private retires = 0;
   private brouillon: HTMLCanvasElement | null = null;
   private pixels = 0;
   private gestes: Retouche[] = [];
@@ -230,6 +253,7 @@ export class EcranAlliance {
 
   /** Les zones à dessiner, et celle qui est choisie. */
   montrerZones(zones: ZoneAffichee[], selection: number | null): void {
+    const nouvelles = zones !== this.zones;
     this.zones = zones;
     this.selection = selection;
     this.dessins.clear();
@@ -242,7 +266,27 @@ export class EcranAlliance {
       this.centres.set(zone.id, centre);
     }
     if (this.survolee !== null && !zones.some((z) => z.id === this.survolee)) this.survolee = null;
+    // Une zone enregistrée ailleurs pendant ce dessin : ses pixels quittent le dessin, qui ne passe jamais sur elle.
+    if (this.calque && nouvelles) {
+      this.occuper();
+      const retires = retirerOccupes(this.calque, this.occupe!);
+      if (retires > 0) {
+        this.pixels -= retires;
+        this.retires += retires;
+        this.majBrouillon(0, 0, this.W - 1, this.H - 1);
+        this.annoncer();
+      }
+    }
     this.dessiner();
+  }
+
+  /** Les pixels des zones autres que celle qu'on dessine. */
+  private occuper(): void {
+    this.occupe = occupation(
+      this.zones.filter((z) => z.id !== this.editee).map((z) => z.masque),
+      this.W,
+      this.H,
+    );
   }
 
   /** La largeur de la carte, en pixels CSS, que ne couvre pas la fenêtre ouverte : la bulle du survol y reste. */
@@ -310,13 +354,19 @@ export class EcranAlliance {
     c.restore();
   }
 
-  /** Commence le dessin d'une zone, vide ou reprise d'une zone existante, dans la couleur du clan qui la prendra. */
-  editer(masque: Masque | null, couleur: number): void {
+  /**
+   * Commence le dessin d'une zone, vide ou reprise d'une zone existante (`id`), dans la couleur du clan qui la prendra. Les
+   * pixels que la zone reprise partageait avec une autre, d'avant la règle, lui sont retirés : l'autre les garde.
+   */
+  editer(masque: Masque | null, couleur: number, id: number | null): void {
     if (!this.etat) return;
     this.couleurDessin = couleur;
     this.survolee = null;
+    this.editee = masque ? id : null;
     this.calque = new Uint8Array(this.W * this.H);
     if (masque) poserMasque(this.calque, this.W, masque);
+    this.occuper();
+    this.retires = masque ? retirerOccupes(this.calque, this.occupe!) : 0;
     this.pixels = masque ? this.compter() : 0;
     this.gestes = [];
     const [brouillon] = this.calqueCanvas(this.W, this.H);
@@ -329,6 +379,9 @@ export class EcranAlliance {
   /** Arrête le dessin, enregistré ou abandonné. */
   finirEdition(): void {
     this.calque = null;
+    this.editee = null;
+    this.occupe = null;
+    this.retires = 0;
     this.brouillon = null;
     this.gestes = [];
     this.geste = null;
@@ -348,6 +401,12 @@ export class EcranAlliance {
     const dernier = this.gestes.pop();
     if (!dernier || !this.calque) return;
     this.pixels += annuler(this.calque, dernier);
+    // Un pixel gommé puis pris entre-temps par une autre zone ne revient pas.
+    if (this.occupe) {
+      const retires = retirerOccupes(this.calque, this.occupe, dernier.keys());
+      this.pixels -= retires;
+      this.retires += retires;
+    }
     this.majRetouche(dernier);
     this.annoncer();
     this.dessiner();
@@ -493,7 +552,7 @@ export class EcranAlliance {
 
   private annoncer(): void {
     const cadre = this.calque && this.pixels > 0 ? cadreDuCalque(this.calque, this.W) : null;
-    this.onDessin({ pixels: this.pixels, cadre, tropGrand: cadre !== null && cadre.w * cadre.h > CADRE_MAX, annulable: this.gestes.length > 0 });
+    this.onDessin({ pixels: this.pixels, cadre, tropGrand: cadre !== null && cadre.w * cadre.h > CADRE_MAX, annulable: this.gestes.length > 0, retires: this.retires });
   }
 
   /* ---------- La vue ---------- */
@@ -602,7 +661,7 @@ export class EcranAlliance {
     c.drawImage(this.base, 0, 0);
     c.imageSmoothingEnabled = false;
     for (const zone of this.zones) {
-      if (this.calque && zone.id === this.selection) continue;
+      if (this.calque && zone.id === this.editee) continue;
       c.drawImage(this.dessinDeZone(zone), zone.masque.x, zone.masque.y);
     }
     if (this.brouillon) c.drawImage(this.brouillon, 0, 0);
@@ -654,7 +713,7 @@ export class EcranAlliance {
     const posees: { g: number; h: number; d: number; b: number }[] = [];
     const ecart = 2 * this.dpr;
     for (const zone of ordre) {
-      if (this.calque && zone.id === this.selection) continue;
+      if (this.calque && zone.id === this.editee) continue;
       const { masque } = zone;
       const [px, py] = this.centres.get(zone.id) ?? [masque.x + masque.w / 2, masque.y + masque.h / 2];
       const cx = (px + 0.5 - x) * s + cw / 2;
@@ -702,7 +761,10 @@ export class EcranAlliance {
 
   private pinceau(valeur: 0 | 1): Pinceau {
     const valeurs = this.etat!.valeurs;
-    return { width: this.W, height: this.H, taille: this.outil === "rectangle" ? 1 : this.taille, valeur, permis: (p) => valeurs[p] !== ETAT_MER };
+    const occupe = this.occupe;
+    // Ni la mer, ni une autre zone : un pixel n'appartient qu'à une zone.
+    const permis = occupe ? (p: number) => valeurs[p] !== ETAT_MER && occupe[p] === 0 : (p: number) => valeurs[p] !== ETAT_MER;
+    return { width: this.W, height: this.H, taille: this.outil === "rectangle" ? 1 : this.taille, valeur, permis };
   }
 
   private appliquer(x0: number, y0: number, x1: number, y1: number): void {

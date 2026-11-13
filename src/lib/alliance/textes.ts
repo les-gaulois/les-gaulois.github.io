@@ -131,6 +131,8 @@ export interface Textes {
   /** Après le nombre de pixels du dessin en cours, écrit en grand. */
   pixelsDessines: string;
   tropGrand: string;
+  /** Les pixels retirés du dessin : une autre zone les tient déjà. */
+  retiresAutreZone: (n: number) => string;
   zoneVide: string;
   enregistrer: string;
   abandonner: string;
@@ -298,8 +300,8 @@ export const FR: Textes = {
   outils: { main: "Déplacer", crayon: "Pinceau", rectangle: "Rectangle", gomme: "Gomme" },
   aideOutil: {
     main: "Glissez pour déplacer la carte, molette ou deux doigts pour zoomer.",
-    crayon: "Maintenez le clic et passez sur la terre : elle se colore. La mer ne se peint pas.",
-    rectangle: "Cliquez à un coin, tirez jusqu'au coin opposé, relâchez : toute la terre du rectangle se colore.",
+    crayon: "Maintenez le clic et passez sur la terre : elle se colore. La mer et les autres zones ne se peignent pas.",
+    rectangle: "Cliquez à un coin, tirez jusqu'au coin opposé, relâchez : la terre du rectangle se colore, sauf les autres zones.",
     gomme: "Maintenez le clic et passez sur la zone pour en retirer des pixels.",
   },
   taille: "Taille du pinceau et de la gomme",
@@ -308,6 +310,7 @@ export const FR: Textes = {
   toutEffacer: "Tout effacer",
   pixelsDessines: "pixels dessinés",
   tropGrand: "La zone est trop étendue : son cadre dépasse un million de pixels. Coupez-la en plusieurs zones.",
+  retiresAutreZone: (n) => (n > 1 ? `${frInt.format(n)} pixels, déjà dans une autre zone, ont été retirés du dessin.` : "1 pixel, déjà dans une autre zone, a été retiré du dessin."),
   zoneVide: "La zone est vide : dessinez au moins un pixel de terre.",
   enregistrer: "Enregistrer la zone",
   abandonner: "Abandonner le dessin",
@@ -430,8 +433,8 @@ export const EN: Textes = {
   outils: { main: "Move", crayon: "Brush", rectangle: "Rectangle", gomme: "Eraser" },
   aideOutil: {
     main: "Drag to move the map; mouse wheel or two fingers to zoom.",
-    crayon: "Hold the click and move over land: it gets coloured. Sea cannot be painted.",
-    rectangle: "Click a corner, drag to the opposite corner, release: all land in the rectangle gets coloured.",
+    crayon: "Hold the click and move over land: it gets coloured. Sea and other zones cannot be painted.",
+    rectangle: "Click a corner, drag to the opposite corner, release: the land in the rectangle gets coloured, except other zones.",
     gomme: "Hold the click and move over the zone to remove pixels.",
   },
   taille: "Brush and eraser size",
@@ -440,6 +443,7 @@ export const EN: Textes = {
   toutEffacer: "Clear all",
   pixelsDessines: "pixels drawn",
   tropGrand: "The zone is too large: its frame is over one million pixels. Split it into several zones.",
+  retiresAutreZone: (n) => (n > 1 ? `${enInt.format(n)} pixels already in another zone were removed from the drawing.` : "1 pixel already in another zone was removed from the drawing."),
   zoneVide: "The zone is empty: draw at least one land pixel.",
   enregistrer: "Save the zone",
   abandonner: "Discard the drawing",

@@ -6,9 +6,9 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const MIGRATIONS = ["20261113000400_alliances_sur_la_carte", "20261113000500_allies_acceptes_par_l_encadrement"];
+const MIGRATIONS = ["20261113000400_alliances_sur_la_carte", "20261113000500_allies_acceptes_par_l_encadrement", "20261113000600_zones_sans_chevauchement"];
 const sql = Object.fromEntries(MIGRATIONS.map((name) => [name, readFileSync(`supabase/migrations/${name}.sql`, "utf8").replace(/\r\n/g, "\n")]));
-const derniere = sql[MIGRATIONS.at(-1)!]!;
+const accordSql = sql["20261113000500_allies_acceptes_par_l_encadrement"]!;
 
 /** Le corps de la dernière version d'une fonction, dans l'ordre des migrations. */
 function corps(nom: string): string {
@@ -56,6 +56,19 @@ describe("la carte de l'alliance, côté serveur", () => {
   });
 
   it("n'accepte d'avance que les alliés entrés avant l'accord, une seule fois", () => {
-    expect(derniere).toMatch(/if not exists \(\s*select 1 from information_schema\.columns[\s\S]*column_name = 'approved_at'\s*\) then[\s\S]*update internal\.alliance_allies set approved_at = joined_at where approved_at is null;\s*end if;/);
+    expect(accordSql).toMatch(/if not exists \(\s*select 1 from information_schema\.columns[\s\S]*column_name = 'approved_at'\s*\) then[\s\S]*update internal\.alliance_allies set approved_at = joined_at where approved_at is null;\s*end if;/);
+  });
+
+  it("réserve les zones à l'encadrement et refuse une zone posée sur une autre, sous le verrou des zones", () => {
+    const zone = corps("public.save_alliance_zone");
+    expect(zone).toContain("v_actor := internal.require_rank(2);");
+    const verrou = zone.indexOf("perform pg_advisory_xact_lock(hashtext('gal_alliance_zones'));");
+    const regle = zone.indexOf("perform internal.fail('zone_overlap');");
+    expect(verrou).toBeGreaterThan(0);
+    // La règle se vérifie après le verrou et avant l'écriture : deux enregistrements en même temps ne se croisent pas.
+    expect(regle).toBeGreaterThan(verrou);
+    expect(regle).toBeLessThan(zone.indexOf("insert into internal.alliance_zones"));
+    // Une zone reprise ne se compare pas à elle-même.
+    expect(zone).toContain("where (p_id is null or z.id <> p_id)");
   });
 });

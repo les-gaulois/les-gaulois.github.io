@@ -180,7 +180,7 @@ describe("la langue de la fenêtre", () => {
 
 describe("les refus du serveur en anglais", () => {
   it("couvrent chaque refus de la carte de l'alliance et de la connexion par code", () => {
-    const sql = ["20261113000400_alliances_sur_la_carte", "20261113000500_allies_acceptes_par_l_encadrement"].map((n) => readFileSync(`supabase/migrations/${n}.sql`, "utf8")).join("\n");
+    const sql = ["20261113000400_alliances_sur_la_carte", "20261113000500_allies_acceptes_par_l_encadrement", "20261113000600_zones_sans_chevauchement"].map((n) => readFileSync(`supabase/migrations/${n}.sql`, "utf8")).join("\n");
     const codes = new Set([...sql.matchAll(/internal\.(?:fail|error_json)\('([a-z_]+)'/g)].map((m) => m[1]!));
     for (const m of sql.matchAll(/internal\.clean_label\(p_\w+, \d+, \d+, '([a-z_]+)'\)/g)) codes.add(m[1]!);
     // Ceux de la connexion par code, renvoyés par la fonction code-discord.

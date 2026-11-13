@@ -2,6 +2,16 @@
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "title": "Carte de l'alliance : une zone ne passe plus sur une autre",
+    "body": "En dessinant une zone, le pinceau et le rectangle s'arrêtent au bord des autres zones. Une zone qui en chevauchait déjà une autre perd la partie commune quand on la modifie.",
+    "link": {
+      "href": "/carte#alliance",
+      "label": "Ouvrir la carte"
+    }
+  },
+  {
+    "date": "2026-11-13",
+    "kind": "ameliore",
     "title": "Carte : les mers ressortent sur l'océan",
     "body": "Les mers fermées par un détroit (Méditerranée, mer Noire, Baltique, mer Rouge…) et les lacs sont plus clairs ; le grand océan est plus foncé jusqu'aux côtes, sans halo autour des continents.",
     "link": {
