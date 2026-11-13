@@ -6978,9 +6978,9 @@ footer h2 {
   border-radius: 0.375rem;
 }
 /* Sur un écran empilé (téléphone, tablette debout), l'onglet Capture est juste sous la carte : son bouton ne la couvre pas.
-   Sous 1 280 px, la rangée des outils, posée à gauche de la fenêtre ouverte, n'a pas la place d'un quatrième bouton sans
-   couvrir le titre de la page : l'onglet suffit. */
-@media not all and (min-aspect-ratio: 5/4) and (min-width: 80rem) {
+   Sous 960 px, la rangée des outils, posée sous le titre, passerait à la ligne avec lui, sous la légende des couleurs :
+   l'onglet suffit. */
+@media not all and (min-aspect-ratio: 5/4) and (min-width: 60rem) {
   [data-alliance-capture] {
     display: none;
   }
