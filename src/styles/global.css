@@ -3316,7 +3316,235 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 /* Les règles propres à cet onglet (DirectionAnnonces.tsx), sous la classe `dir-annonces`. */
 
 /* ---------- Direction, onglet Événements ---------- */
-/* Les règles propres à cet onglet (DirectionEvenements.tsx), sous la classe `dir-evenements`. */
+/* Les règles propres à cet onglet (DirectionEvenements.tsx), sous la classe `dir-evenements`. Le formulaire et la liste côte
+   à côte dès 1 024 px ; une ligne serrée par événement : la date d'abord, un trait et un mot en couleur pour ce qui est
+   proche (jaune aujourd'hui, bleu demain, gris dans la semaine), le nombre de « Je viens » en pastille verte, qui déplie
+   les noms. Les mots et les couleurs sont décidés dans `src/lib/compte/direction-evenements.ts`. */
+.dir-evenements .evt-plan {
+  display: grid;
+  align-items: start;
+  gap: 1.5rem;
+  margin-top: 1.25rem;
+}
+.dir-evenements .evt-form {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem 1.125rem 1.125rem;
+}
+.dir-evenements .evt-form textarea {
+  resize: vertical;
+}
+.dir-evenements .evt-serie,
+.dir-evenements .evt-semaines {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+}
+@media (min-width: 64rem) {
+  .dir-evenements .evt-plan {
+    grid-template-columns: minmax(0, 23rem) minmax(0, 1fr);
+  }
+}
+/* Sur un écran assez haut, le formulaire reste en vue pendant qu'on descend la liste. */
+@media (min-width: 64rem) and (min-height: 48rem) {
+  .dir-evenements .evt-form {
+    position: sticky;
+    top: calc(var(--dir-haut, 4rem) + 1rem);
+  }
+}
+
+/* La liste mesure sa propre largeur : à côté du formulaire, elle est plus étroite que l'écran. */
+.dir-evenements .evt-liste {
+  min-width: 0;
+  container-type: inline-size;
+}
+.dir-evenements .evt-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+}
+.dir-evenements .evt-tete .dir-nombre {
+  color: var(--color-muted);
+}
+.dir-evenements .evt-panne {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 0.75rem;
+  font-size: 0.9375rem;
+  color: var(--color-warn);
+}
+.dir-evenements .evt-panne .dir-pastille {
+  flex: none;
+}
+
+/* Une ligne : la date, puis le nom et sa suite (qui vient, l'auteur, le lien), puis les commandes. Étroite, elle s'empile
+   en petite carte ; rien ne défile de côté. */
+.dir-evenements .evt-ligne {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  gap: 0.25rem 1rem;
+  padding-block: 0.5rem;
+  font-size: 0.9375rem;
+  line-height: 1.35;
+}
+.dir-evenements .evt-ligne[data-editing] {
+  background: rgb(255 255 255 / 0.08);
+}
+.dir-evenements .evt-quand {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.625rem;
+}
+.dir-evenements .evt-jour {
+  font-weight: 700;
+  white-space: nowrap;
+}
+.dir-evenements .evt-heure {
+  white-space: nowrap;
+}
+.dir-evenements .evt-quand .dir-point {
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.dir-evenements .evt-quoi {
+  min-width: 0;
+}
+.dir-evenements .evt-nom {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.dir-evenements .evt-suite {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.125rem 0.75rem;
+  margin-top: 0.125rem;
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+.dir-evenements .evt-suite:empty {
+  display: none;
+}
+.dir-evenements .evt-auteur {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.dir-evenements .evt-lien {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  color: #fff;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+/* Le nombre de « Je viens » : une pastille qui se clique. Dépliée, elle est pleine. */
+.dir-evenements .evt-viennent {
+  min-height: 1.75rem;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+}
+.dir-evenements .evt-viennent:hover {
+  background: color-mix(in srgb, var(--ton) 26%, transparent);
+}
+.dir-evenements .evt-viennent[aria-expanded="true"] {
+  border-color: var(--ton);
+  background: var(--ton);
+  color: var(--color-night);
+}
+.dir-evenements .evt-noms {
+  padding: 0.375rem 0.625rem;
+  border-left: 2px solid var(--color-ok);
+  background: rgb(255 255 255 / 0.05);
+  overflow-wrap: anywhere;
+}
+.dir-evenements .evt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+/* Les commandes ne prennent pas la couleur de la ligne. « Supprimer » est sur presque chaque ligne : gris, il ne passe au
+   rouge que sous la souris, au clavier, ou armé (« Confirmer la suppression »). */
+.dir-evenements .evt-modifier {
+  --ton: #fff;
+}
+.dir-evenements .evt-modifier[aria-pressed="true"] {
+  background: #fff;
+  color: var(--color-night);
+}
+.dir-evenements .evt-supprimer {
+  --ton: var(--color-muted);
+}
+.dir-evenements .evt-supprimer:is(:hover, :focus-visible, [data-armed]):where(:not(:disabled)) {
+  --ton: var(--color-danger);
+}
+.dir-evenements .evt-supprimer[data-armed] {
+  border-color: var(--ton);
+  background: var(--ton);
+  color: var(--color-night);
+}
+.dir-evenements .evt-aide {
+  margin-top: 1rem;
+}
+@container (min-width: 34rem) {
+  .dir-evenements .evt-ligne {
+    grid-template-columns: 11.5rem minmax(0, 1fr);
+  }
+  .dir-evenements .evt-quand {
+    align-self: start;
+  }
+  .dir-evenements .evt-quoi,
+  .dir-evenements .evt-actions,
+  .dir-evenements .evt-noms {
+    grid-column: 2;
+  }
+  /* Les heures s'alignent d'une ligne à l'autre, que le jour s'écrive « dim. 6 déc. » ou « sam. 14 sept. ». */
+  .dir-evenements .evt-jour {
+    min-width: 13ch;
+  }
+  .dir-evenements .evt-quand .dir-point {
+    flex-basis: 100%;
+  }
+}
+/* Assez large, les commandes passent au bout de la ligne ; sinon elles restent sous le nom, qui garde sa place. */
+@container (min-width: 46rem) {
+  .dir-evenements .evt-ligne {
+    grid-template-columns: 11.5rem minmax(0, 1fr) auto;
+  }
+  .dir-evenements .evt-actions {
+    grid-column: 3;
+    justify-content: flex-end;
+  }
+  .dir-evenements .evt-noms {
+    grid-column: 2 / -1;
+  }
+}
+@media (pointer: coarse) {
+  .dir-evenements .evt-viennent,
+  .dir-evenements .evt-lien {
+    min-height: 2.75rem;
+  }
+}
+@media (max-width: 47.9375rem) {
+  .dir-evenements .evt-viennent,
+  .dir-evenements .evt-lien {
+    min-height: 2.75rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dir-evenements .evt-viennent {
+    transition: none;
+  }
+}
 
 /* ---------- Direction, onglet Sondages ---------- */
 /* Les règles propres à cet onglet (DirectionPolls.tsx), sous la classe `dir-sondages`. */
