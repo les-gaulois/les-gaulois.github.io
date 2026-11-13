@@ -59,6 +59,7 @@ import { newSyncState, syncCommands, type SyncState } from "./inscription.ts";
 import { TICKET_PREFIX, TICKETS_COMMAND_NAME, ticketInteraction, ticketsCommand } from "./tickets.ts";
 import { CONCOURS_COMMAND_NAME, CONCOURS_PREFIX, concoursCommand, concoursImage, concoursInteraction, concoursTic } from "./concours.ts";
 import { buttonEmoji, ensureEmojis, vignetteUrl, type EmojiIds } from "./emojis.ts";
+import { decrireGaulois, lireTenue, pngDuGaulois, type Tenue } from "./gaulois.ts";
 
 /** Le nom de la commande, tel que le joueur la tape. `definitions.ts` la décrit ; la fonction la crée sur le serveur du clan (`inscription.ts`). */
 export const COMMAND_NAME = "code";
@@ -521,7 +522,8 @@ export const GUIDE_OPTION = "chapitre";
 export const RIVAL_COMMAND = "rival";
 export const RIVAL_OPTION = "clan";
 export const MOI_COMMAND = "moi";
-const ROBOT_COMMANDS: ReadonlySet<string> = new Set([FICHE_COMMAND_NAME, CLAN_COMMAND, RECORDS_COMMAND, CARTE_COMMAND, GUIDE_COMMAND, RIVAL_COMMAND, MOI_COMMAND]);
+export const GAULOIS_COMMAND = "gaulois";
+const ROBOT_COMMANDS: ReadonlySet<string> = new Set([FICHE_COMMAND_NAME, CLAN_COMMAND, RECORDS_COMMAND, CARTE_COMMAND, GUIDE_COMMAND, RIVAL_COMMAND, MOI_COMMAND, GAULOIS_COMMAND]);
 /** L'index des commandes que le site publie avec ses pages (`src/lib/commandes-discord.ts`). */
 export const COMMANDES_URL = `${SITE_URL}/commandes.json`;
 
@@ -711,16 +713,64 @@ async function moiRoute(discordId: string, deps: Deps): Promise<Response> {
   return fiche && fiche.pseudo === pseudo ? json({ type: 4, data: ficheMessage(fiche, list.listedAt) }) : ephemeral(COMMAND_MESSAGES.noFiche);
 }
 
+/** Ce que /gaulois dit au seul joueur qui la tape, quand il n'y a pas de Gaulois à montrer. */
+export const GAULOIS_MESSAGES = {
+  none: `Vous n'avez pas encore de Gaulois. Habillez-le au village du site : <${SITE_URL}/village>. Connectez-vous avec Discord, ou avec un code que donne /code ici.`,
+  unreadable: `Votre Gaulois n'a pas pu être dessiné. Enregistrez de nouveau sa tenue au village du site : <${SITE_URL}/village>`,
+};
+
+/** Le nom de l'image de /gaulois, jointe à la réponse. */
+export const GAULOIS_FILE = "gaulois.png";
+
+/** Ce que voit tout le salon après /gaulois : le Gaulois en grand, et un bouton vers le village pour l'habiller. */
+export function gauloisMessage(tenue: Tenue): Record<string, unknown> {
+  const description = decrireGaulois(tenue).slice(0, 1024);
+  return {
+    flags: COMPONENTS_V2,
+    components: [
+      { type: 12, items: [{ media: { url: `attachment://${GAULOIS_FILE}` }, description }] },
+      { type: 1, components: [{ type: 2, style: 5, label: "Habiller mon Gaulois", url: `${SITE_URL}/village` }] },
+    ],
+    attachments: [{ id: 0, filename: GAULOIS_FILE, description }],
+    allowed_mentions: { parse: [] },
+  };
+}
+
+/** Une réponse à l'interaction avec un fichier joint : en plusieurs parties, comme Discord le demande pour un envoi de fichier. */
+function fileReply(data: Record<string, unknown>, file: DiscordFile): Response {
+  const form = new FormData();
+  form.append("payload_json", JSON.stringify({ type: 4, data }));
+  form.append("files[0]", new Blob([file.bytes], { type: file.type }), file.name);
+  return new Response(form);
+}
+
+/**
+ * /gaulois : le serveur donne la tenue du compte lié à ce Discord (`discord_gaulois`, clé de service seulement), la fonction
+ * dessine le Gaulois et le montre à tout le salon. Sans compte ni Gaulois, elle dit au seul joueur où l'habiller.
+ * L'identifiant Discord vient de la commande signée par Discord, jamais d'autre chose.
+ */
+async function gauloisRoute(discordId: string, deps: Deps): Promise<Response> {
+  const found = await deps.rpc("discord_gaulois", { p_discord_id: discordId });
+  if (!found) return ephemeral(COMMAND_MESSAGES.down);
+  if (found["ok"] !== true) {
+    const error = found["error"];
+    return ephemeral(error === "no_account" || error === "no_gaulois" ? GAULOIS_MESSAGES.none : COMMAND_MESSAGES.down);
+  }
+  const tenue = lireTenue(found["tenue"]);
+  if (!tenue) return ephemeral(GAULOIS_MESSAGES.unreadable);
+  return fileReply(gauloisMessage(tenue), { name: GAULOIS_FILE, type: "image/png", bytes: await pngDuGaulois(tenue) });
+}
+
 /** Les commandes du robot : les propositions pendant la saisie (type 4), puis la réponse à l'envoi (type 2). */
 async function robotRoute(name: string, interaction: Record<string, unknown>, data: Record<string, unknown>, deps: Deps): Promise<Response> {
   if (name === FICHE_COMMAND_NAME) return ficheRoute(interaction, data, deps);
   const typing = interaction["type"] === 4;
   if (deps.guildId === "" || interaction["guild_id"] !== deps.guildId) return typing ? choicesReply([]) : ephemeral(COMMAND_MESSAGES.wrongPlace);
-  if (name === MOI_COMMAND) {
+  if (name === MOI_COMMAND || name === GAULOIS_COMMAND) {
     const user = record(record(interaction["member"])?.["user"]);
     const id = user?.["id"];
     if (typing || user?.["bot"] === true || typeof id !== "string" || !/^[0-9]{17,20}$/.test(id)) return typing ? choicesReply([]) : ephemeral(COMMAND_MESSAGES.wrongPlace);
-    return moiRoute(id, deps);
+    return name === MOI_COMMAND ? moiRoute(id, deps) : gauloisRoute(id, deps);
   }
   const index = await deps.commandes();
   if (typing) {
@@ -1275,6 +1325,8 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
     const commandes = (await deps.commandes()) !== null;
     // De même pour /moi : un identifiant mal formé, refusé sans rien lire, prouve que discord_moi est installée.
     const moi = deps.serviceReady ? (await deps.rpc("discord_moi", { p_discord_id: "etat" }))?.["error"] === "invalid_request" : false;
+    // De même pour /gaulois : la migration du village est installée.
+    const gaulois = deps.serviceReady ? (await deps.rpc("discord_gaulois", { p_discord_id: "etat" }))?.["error"] === "invalid_request" : false;
     // Le jeton du robot, posé et accepté par Discord : les tickets en ont besoin.
     const robot = await deps.botAccepted();
     // Les concours : un serveur mal formé, refusé sans rien lire, prouve que leur migration est installée.
@@ -1282,7 +1334,7 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
     // Les commandes du serveur Discord, comparées à celles du code : juste après une mise en ligne, cette page attend la fin
     // de la comparaison, quinze secondes au plus (elle continue en tâche de fond), et dit si elles sont à jour.
     const inscription = deps.commandSync ? await Promise.race([deps.commandSync(), deps.sleep(ETAT_SYNC_WAIT_MS).then(() => false)]) : false;
-    return json({ ok: true, discord, service, signature: await signatureWorks(), fiches, commandes, moi, robot, concours, inscription }, 200, CORS);
+    return json({ ok: true, discord, service, signature: await signatureWorks(), fiches, commandes, moi, gaulois, robot, concours, inscription }, 200, CORS);
   }
   if (req.method === "GET" || req.method === "HEAD") {
     const billet = await concoursImage(path, req.method === "HEAD", deps);

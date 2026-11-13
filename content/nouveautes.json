@@ -2,6 +2,16 @@
   {
     "date": "2026-11-13",
     "kind": "nouveau",
+    "title": "Le village : votre Gaulois en pixels",
+    "body": "Chaque membre connecté habille son Gaulois : cheveux, barbe, coiffe, haut, bas, bottes et arme. Les premiers objets sont gratuits, les autres attendent la boutique. Sur Discord, /gaulois le montre.",
+    "link": {
+      "href": "/village",
+      "label": "Habiller mon Gaulois"
+    }
+  },
+  {
+    "date": "2026-11-13",
+    "kind": "nouveau",
     "title": "Le site compte ses visites",
     "body": "Chaque page ouverte s'ajoute aux totaux du jour, sans cookie ni adresse IP, que l'encadrement lit dans la Direction. Pour ne plus être compté : un bouton sur la page Confidentialité.",
     "link": {
