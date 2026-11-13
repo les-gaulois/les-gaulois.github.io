@@ -2924,7 +2924,8 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
    (pastilles des pièces communes) ; le choix de la couleur et du mot est dans `src/lib/compte/direction-ensemble.ts`. */
 
 /* Les quatre cases : des liens vers la partie où l'on décide. Le trait de gauche et la pastille disent l'état ; le nombre
-   reste blanc. Au survol et au clavier, la bordure prend la couleur de l'état. */
+   reste blanc. Au survol et au clavier, la bordure prend la couleur de l'état. Le nom sur sa ligne, puis le nombre et la
+   pastille ; si un grand nombre ne laisse pas la place, la pastille passe dessous au lieu de le chevaucher. */
 .dir-ensemble .dir-ensemble-cases {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2932,11 +2933,8 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   margin-top: 1rem;
 }
 .dir-ensemble .dir-ensemble-case {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas:
-    "nom nom"
-    "nombre etat";
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.125rem 0.75rem;
   min-height: 5.25rem;
@@ -2955,20 +2953,23 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   background: color-mix(in srgb, var(--ton) 9%, var(--color-surface));
 }
 .dir-ensemble .dir-ensemble-nom {
+  flex: 1 1 100%;
   grid-area: nom;
   min-width: 0;
   font-weight: 600;
   color: var(--color-muted);
 }
 .dir-ensemble .dir-ensemble-nombre {
+  flex: none;
   grid-area: nombre;
   font-size: 2rem;
   line-height: 1.15;
   white-space: nowrap;
 }
 .dir-ensemble .dir-ensemble-etat {
+  flex: none;
   grid-area: etat;
-  justify-self: end;
+  margin-left: auto;
   font-size: 0.875rem;
   white-space: nowrap;
 }
@@ -3051,6 +3052,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
     gap: 0.5rem;
   }
   .dir-ensemble .dir-ensemble-case {
+    display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
       "nom nombre"
@@ -3061,6 +3063,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   }
   .dir-ensemble .dir-ensemble-etat {
     justify-self: start;
+    margin-left: 0;
   }
   .dir-ensemble .dir-ensemble-nombre {
     font-size: 1.75rem;

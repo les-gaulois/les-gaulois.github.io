@@ -28,7 +28,7 @@ function Ligne({ line, testid, plain = false }: { line: HealthLine; testid: stri
  */
 export default function SiteHealth(props: SiteHealthInput) {
   const health = siteHealth(props, useNow());
-  const resume = etatResume(health.lines.filter((line) => line.level === "warn").length);
+  const resume = etatResume(health.lines);
 
   return (
     <section class="dir-ensemble-site console-journal card" aria-labelledby="health-title" data-testid="direction-health" data-titre="etat-du-site.log">

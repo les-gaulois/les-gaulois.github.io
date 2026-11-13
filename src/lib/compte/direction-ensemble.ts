@@ -9,7 +9,10 @@
 import type { HealthLevel } from "../etat-site";
 import type { MemberFilter } from "./admin-members";
 
-/** Les couleurs d'état de la Direction : le même ensemble que `DirTon` de `direction-kit.tsx`. */
+/**
+ * Les couleurs d'état de la Direction : le même ensemble que `DirTon` de `direction-kit.tsx`, recopié ici pour que
+ * `src/lib` ne dépende pas d'un composant. Le test `direction-ensemble.test.ts` vérifie que les deux restent identiques.
+ */
 export type EnsembleTon = "ok" | "warn" | "danger" | "ally" | "muted";
 
 /** Les quatre nombres de `get_direction_overview` que montrent les cases. */
@@ -32,6 +35,9 @@ export interface EnsembleCase {
   filter?: MemberFilter;
 }
 
+/** Le mot accordé au nombre de la case : `aucun` à zéro, `un` à un, `plusieurs` au-delà (« Aucun suspendu », « Suspendu », « Suspendus »). */
+const accorde = (n: number, un: string, plusieurs: string, aucun: string): string => (n > 1 ? plusieurs : n === 1 ? un : aucun);
+
 /**
  * Les quatre cases, dans l'ordre de l'écran. Seules les demandes attendent une décision : elles passent au jaune dès qu'il y
  * en a une. Les suspendus passent au rouge, comme dans Comptes. À zéro, une case est grise : il n'y a rien à y faire.
@@ -46,7 +52,15 @@ export function ensembleCases(data: EnsembleNombres): EnsembleCase[] {
       mot: data.pending_requests > 0 ? "À traiter" : "Rien à faire",
       part: "demandes",
     },
-    { id: "membres", label: "Membres", value: data.members, ton: data.members > 0 ? "ok" : "muted", mot: "Validés", part: "comptes", filter: "validated" },
+    {
+      id: "membres",
+      label: "Membres",
+      value: data.members,
+      ton: data.members > 0 ? "ok" : "muted",
+      mot: accorde(data.members, "Validé", "Validés", "Aucun validé"),
+      part: "comptes",
+      filter: "validated",
+    },
     // Les comptes validés d'un rôle au-dessus de membre : officiers, admins et fondateur.
     { id: "encadrement", label: "Encadrement", value: data.officers, ton: data.officers > 0 ? "ally" : "muted", mot: "Avec un rôle", part: "comptes", filter: "staff" },
     {
@@ -54,7 +68,7 @@ export function ensembleCases(data: EnsembleNombres): EnsembleCase[] {
       label: "Comptes",
       value: data.suspended,
       ton: data.suspended > 0 ? "danger" : "muted",
-      mot: data.suspended > 0 ? (data.suspended > 1 ? "Suspendus" : "Suspendu") : "Aucun suspendu",
+      mot: accorde(data.suspended, "Suspendu", "Suspendus", "Aucun suspendu"),
       part: "comptes",
       filter: "suspended",
     },
@@ -68,8 +82,13 @@ export const ETAT_PASTILLE: Record<HealthLevel, { ton: EnsembleTon; mot: string 
   info: { ton: "ally", mot: "Info" },
 };
 
-/** Le résumé en tête de l'état du site : le nombre de lignes à surveiller, en mots. */
-export function etatResume(warnings: number): { ton: EnsembleTon; mot: string } {
-  if (warnings <= 0) return { ton: "ok", mot: "Rien à signaler" };
+/**
+ * Le résumé en tête de l'état du site : le nombre de lignes à surveiller, en mots. On lui passe les quatre lignes de
+ * `siteHealth`, pas les sources : une source en retard compte déjà dans la ligne « API d'OpenFront ». `info` (la gazette)
+ * n'est jamais à surveiller.
+ */
+export function etatResume(lines: readonly { level: HealthLevel }[]): { ton: EnsembleTon; mot: string } {
+  const warnings = lines.filter((line) => line.level === "warn").length;
+  if (warnings === 0) return { ton: "ok", mot: "Rien à signaler" };
   return { ton: "warn", mot: warnings === 1 ? "1 point à surveiller" : `${warnings} points à surveiller` };
 }
