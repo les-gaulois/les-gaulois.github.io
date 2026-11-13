@@ -7721,3 +7721,108 @@ footer h2 {
     display: none;
   }
 }
+
+/* ---------- Le village des Gaulois : le vestiaire (13 novembre 2026) ---------- */
+/* Le Gaulois à gauche, ses habits à droite ; l'un sous l'autre sur téléphone. Le Gaulois reste en vue pendant qu'on
+   l'habille, sur un grand écran. */
+.vestiaire {
+  display: grid;
+  gap: 2.5rem;
+  align-items: start;
+}
+@media (min-width: 768px) {
+  .vestiaire {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .vestiaire-scene {
+    position: sticky;
+    top: 6rem;
+  }
+}
+.vestiaire-scene {
+  display: grid;
+  justify-items: center;
+  gap: 1.25rem;
+}
+/* Une case du Gaulois fait 8 pixels, 5 sur téléphone : les bords tombent sur les pixels de l'écran, sans flou. */
+.gaulois-apercu {
+  width: 192px;
+  height: 256px;
+  image-rendering: pixelated;
+  padding: 1.5rem;
+  box-sizing: content-box;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: 0.625rem;
+}
+/* Sur téléphone, le Gaulois reste en haut de l'écran, sous la barre du site, pendant qu'on descend l'habiller : une case
+   y fait 5 pixels, et « Au hasard » se met à côté. */
+@media (max-width: 767px) {
+  .vestiaire-scene {
+    position: sticky;
+    top: 4.5rem;
+    z-index: 10;
+    grid-auto-flow: column;
+    justify-content: start;
+    align-items: center;
+    padding-block: 0.5rem;
+    background: var(--color-navy);
+    border-bottom: 1px solid var(--hairline);
+  }
+  .vestiaire-scene .gaulois-apercu {
+    width: 120px;
+    height: 160px;
+    padding: 0.5rem;
+  }
+}
+.vestiaire-porte {
+  max-width: 40rem;
+}
+.vestiaire-choix {
+  display: grid;
+  gap: 1.75rem;
+}
+.vestiaire-emplacement {
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--hairline);
+}
+/* Une couleur à choisir : sa pastille et son nom, la couleur n'est jamais le seul repère. La choisie est en blanc plein. */
+.vestiaire-teinte {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+  padding: 0.25rem 0.875rem 0.25rem 0.375rem;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--color-muted);
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    background-color 0.15s,
+    border-color 0.15s;
+}
+.vestiaire-teinte:hover {
+  color: #fff;
+  border-color: #fff;
+}
+.vestiaire-teinte[aria-pressed="true"] {
+  color: var(--color-navy);
+  background: #fff;
+  border-color: #fff;
+}
+.vestiaire-teinte-rond {
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: none;
+  border: 2px solid var(--color-line-strong);
+  border-radius: 999px;
+}
+.vestiaire-envoi {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding-top: 0.5rem;
+}

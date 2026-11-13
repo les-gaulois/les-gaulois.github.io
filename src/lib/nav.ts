@@ -27,8 +27,9 @@ export const SECTIONS: NavSection[] = [
   ),
   // La liste officielle a son onglet depuis le 12 novembre 2026, à la demande du pilote : la page Membres garde les paliers,
   // l'encadrement et le classé. Le QG : la face privée du site. Sa page ne montre que la porte tant que le serveur n'a pas
-  // reconnu un membre validé.
-  section("Membres", { href: "/membres", label: "Membres" }, { href: "/liste", label: "La liste" }, { href: "/qg", label: "Le QG" }),
+  // reconnu un membre validé. Le village (13 novembre 2026) : le Gaulois en pixels de chaque membre, ouvert à tout compte
+  // lié à Discord.
+  section("Membres", { href: "/membres", label: "Membres" }, { href: "/liste", label: "La liste" }, { href: "/village", label: "Le village" }, { href: "/qg", label: "Le QG" }),
   section("Carte", { href: "/carte", label: "Carte" }),
   // « Calculateur et outils » a été retiré le 12 novembre 2026, à la demande du pilote : ne pas le remettre sans sa demande.
   // Le même jour, les guides par mode aussi : il ne reste que le guide du clan, qui donne son nom à l'onglet.

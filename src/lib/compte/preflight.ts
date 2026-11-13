@@ -127,6 +127,14 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   else if (isClosed(activity.status) || (activity.ok && activityAnswer?.ok === false)) add("Un visiteur ne lit pas l'activité du site", "ok");
   else add("Un visiteur ne lit pas l'activité du site", "fail", `Réponse ${activity.status}. Ne mettez pas en ligne : seuls les officiers et au-dessus lisent les visites.`);
 
+  // Le vestiaire du village : seul un compte connecté lit ou enregistre son Gaulois. Une fonction absente répond 404 : la
+  // migration n'est pas collée, et le vestiaire dirait à chaque compte connecté que le serveur ne répond pas.
+  const gaulois = await rpc("get_mon_gaulois");
+  const gauloisAnswer = gaulois.ok ? ((await gaulois.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (gaulois.status === 404) add("Le vestiaire du village est installé", "warn", "get_mon_gaulois est absente : collez la migration 20261113001700_village_des_gaulois_vestiaire.sql avant de mettre le site en ligne.");
+  else if (isClosed(gaulois.status) || (gaulois.ok && gauloisAnswer?.ok === false)) add("Un visiteur ne lit pas de Gaulois", "ok");
+  else add("Un visiteur ne lit pas de Gaulois", "fail", `Réponse ${gaulois.status}. Ne mettez pas en ligne : seul un compte connecté lit son Gaulois.`);
+
   // Les salons du robot : leur réglage contient les liens qui écrivent dans les salons. Seuls les admins et le fondateur
   // le règlent, et seule la clé de service, celle du robot, reçoit les liens. Leur installation se lit avec `supabase migration list`.
   const salonsState = await rpc("get_discord_salons");
@@ -232,6 +240,8 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
     ["discord_code_attach", { p_user: "00000000-0000-0000-0000-000000000000", p_discord_id: "000000000000000000", p_discord_name: "verification" }, "Un visiteur ne donne pas d'identifiant Discord à un compte"],
     // La commande /moi (migration 20261112000700) : relie un identifiant Discord, que tout le serveur voit, à un pseudo.
     ["discord_moi", { p_discord_id: "000000000000000000" }, "Un visiteur ne retrouve pas le pseudo d'un compte Discord"],
+    // La commande /gaulois (migration 20261113001700) : relie un identifiant Discord à la tenue d'un compte.
+    ["discord_gaulois", { p_discord_id: "000000000000000000" }, "Un visiteur ne retrouve pas le Gaulois d'un compte Discord"],
     // Les concours (migration 20261112000800) : réservés à la fonction code-discord, qui reçoit les clics signés par Discord.
     ["concours_participer", { p_id: 0, p_discord_id: "000000000000000000", p_roles: [] }, "Un visiteur ne participe pas à un concours à la place d'un membre"],
     ["concours_travail", { p_limite: 1, p_id: 0 }, "Un visiteur ne commande pas le robot des concours"],

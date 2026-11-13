@@ -20,6 +20,7 @@ const HEALTHY: Record<string, Route> = {
   "/rest/v1/rpc/ping_lobby_call": { status: 401, body: {} },
   "/rest/v1/rpc/reset_member_link": { status: 401, body: {} },
   "/rest/v1/rpc/get_site_activity": { status: 401, body: {} },
+  "/rest/v1/rpc/get_mon_gaulois": { status: 401, body: {} },
   "/rest/v1/profiles": { status: 401, body: {} },
   "/rest/v1/private_links": { status: 401, body: {} },
   "/rest/v1/admin_log": { status: 401, body: {} },
@@ -124,6 +125,18 @@ describe("le contrôle de la mise en ligne", () => {
   it("bloque si un visiteur peut retrouver le pseudo d'un compte Discord, la fonction de /moi", async () => {
     expect(await statusOf(HEALTHY, "pseudo d'un compte Discord")).toBe("ok");
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/discord_moi": { status: 200, body: { ok: false, error: "not_member" } } }, "pseudo d'un compte Discord")).toBe("fail");
+  });
+
+  it("bloque si un visiteur peut retrouver le Gaulois d'un compte Discord, la fonction de /gaulois", async () => {
+    expect(await statusOf(HEALTHY, "Gaulois d'un compte Discord")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/discord_gaulois": { status: 200, body: { ok: false, error: "no_account" } } }, "Gaulois d'un compte Discord")).toBe("fail");
+  });
+
+  it("bloque si un visiteur lit un Gaulois, et signale le vestiaire pas encore installé", async () => {
+    expect(await statusOf(HEALTHY, "ne lit pas de Gaulois")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_mon_gaulois": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "ne lit pas de Gaulois")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_mon_gaulois": { status: 200, body: { ok: true, tenue: null } } }, "ne lit pas de Gaulois")).toBe("fail");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_mon_gaulois": { status: 404, body: {} } }, "vestiaire du village")).toBe("warn");
   });
 
   it("dit si la fonction code-discord est déployée et réglée, et ne bloque qu'une fois la connexion par code ouverte", async () => {

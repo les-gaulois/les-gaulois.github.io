@@ -392,7 +392,7 @@ Trois failles ont été trouvées et corrigées le 6 novembre 2026, avant toute 
 
 ## Les commandes Discord se créent seules
 
-Depuis le 13 novembre 2026, à la demande du pilote (« j'en ai marre je dois tout le temps reset le token »), la fonction `code-discord` crée elle-même les commandes du serveur du clan : /code, /fiche, /clan, /records, /carte, /guide, /rival, /moi, /roles, /tickets et /concours. Leurs définitions sont dans `supabase/functions/code-discord/definitions.ts`. `inscription.ts` les compare à celles que Discord connaît au premier appel de chaque instance de la fonction : Supabase en démarre une neuve après chaque mise en ligne, et une instance ne vit que quelques minutes. Ce premier appel est une commande tapée, un clic, le réveil d'un concours ou l'ouverture de `/etat`. Celles qui diffèrent sont mises à jour une à une, avec le jeton que la fonction garde (`LE_GAULOIS_BOT_TOKEN`) : une commande qui existe se modifie, seule une commande absente se crée, car Discord limite les créations à 200 par jour et par serveur. Discord rend chaque commande telle qu'il l'a gardée ; si elle diffère encore du code, `/etat` le dit (`"inscription":false`). Rien n'est retiré : une commande que le code ne connaît plus reste sur le serveur. Discord ne laisse pas un serveur supprimer la commande d'une application : on peut seulement la masquer (**Paramètres du serveur → Intégrations**), ou la retirer par l'API de Discord.
+Depuis le 13 novembre 2026, à la demande du pilote (« j'en ai marre je dois tout le temps reset le token »), la fonction `code-discord` crée elle-même les commandes du serveur du clan : /code, /fiche, /clan, /records, /carte, /guide, /rival, /moi, /gaulois, /roles, /tickets et /concours. Leurs définitions sont dans `supabase/functions/code-discord/definitions.ts`. `inscription.ts` les compare à celles que Discord connaît au premier appel de chaque instance de la fonction : Supabase en démarre une neuve après chaque mise en ligne, et une instance ne vit que quelques minutes. Ce premier appel est une commande tapée, un clic, le réveil d'un concours ou l'ouverture de `/etat`. Celles qui diffèrent sont mises à jour une à une, avec le jeton que la fonction garde (`LE_GAULOIS_BOT_TOKEN`) : une commande qui existe se modifie, seule une commande absente se crée, car Discord limite les créations à 200 par jour et par serveur. Discord rend chaque commande telle qu'il l'a gardée ; si elle diffère encore du code, `/etat` le dit (`"inscription":false`). Rien n'est retiré : une commande que le code ne connaît plus reste sur le serveur. Discord ne laisse pas un serveur supprimer la commande d'une application : on peut seulement la masquer (**Paramètres du serveur → Intégrations**), ou la retirer par l'API de Discord.
 
 **Pour une commande nouvelle ou changée :** remettre la fonction en ligne depuis un dossier du projet à jour (`npx supabase functions deploy code-discord --remote=zxavwcupauheheqxfdez --use-api --no-verify-jwt --yes`), puis ouvrir `https://zxavwcupauheheqxfdez.supabase.co/functions/v1/code-discord/etat`. `"inscription":true` dit que les commandes du serveur sont celles du code. Ni « Reset Token », ni `npm run discord:commande`, ni copie de jeton. `"inscription":false` juste après : réessayer cinq minutes plus tard (Discord limite les créations) ; avec `"robot":false`, c'est le jeton de la fonction qui manque.
 
@@ -477,6 +477,7 @@ Choisies par le pilote le 12 novembre 2026 (« 1 à 6 », dans une liste de sept
 | `/guide chapitre` | Un chapitre du guide du clan : sa phrase d'entrée, l'essentiel, les repères de son bloc (ou l'essai à faire sur le site) et l'encadré, tels qu'ils sont dans le chapitre. Les deux aide-mémoire, qui ne sont qu'un tableau, n'ont pas d'image : /guide ne les propose pas | `guideCard`, chapitres de `content/guide-clan/` |
 | `/rival clan` | GAL face à un clan de la liste officielle : les chiffres du comparateur de la page Nos rivaux, l'écart de score, le face-à-face quand il est publié, et la réserve sur le taux | `rivalCard` |
 | `/moi` | La fiche de qui la tape, s'il est un membre validé sur le site | L'image de sa fiche, comme /fiche |
+| `/gaulois` | Le Gaulois en pixels de qui la tape, habillé au village (13 novembre 2026, voir « Le village des Gaulois ») | Dessinée par la fonction elle-même (`gaulois.ts`), jointe à la réponse |
 
 **Comment ça marche :**
 
@@ -651,6 +652,21 @@ Un formulaire demande ensuite le titre (le lot, au départ) et un texte facultat
 2. Remettre la fonction en ligne, comme à l'étape 3 de « Les rôles sur Discord » : elle a maintenant sept fichiers, `index.ts`, `tickets.ts`, `concours.ts`, `billets.ts`, `emojis.ts`, `definitions.ts` et `inscription.ts`, que la commande envoie ensemble. Ni jeton, ni `npm run discord:commande` : la commande `/concours` ne change pas.
 3. Ouvrir `https://zxavwcupauheheqxfdez.supabase.co/functions/v1/code-discord/concours/billet/17.png` : un billet n° 017 doit s'afficher.
 4. Essayer : `/concours lancer` avec la fin à « 2 min », « Prendre un billet », attendre le tirage.
+
+## Le village des Gaulois
+
+Demandé par le pilote le 13 novembre 2026 : chaque membre a son Gaulois en pixels, qu'il habille, puis, dans les lots suivants, une monnaie gagnée par les points des victoires où il a joué (le statère), une boutique d'objets par rareté, des échanges entre membres et la page du village. Construit lot par lot ; seul le premier est fait.
+
+**Lot 1, le vestiaire et /gaulois.**
+
+- **Le Gaulois** : 24 cases sur 32, dessiné case par case dans `supabase/functions/code-discord/gaulois.ts`, commun au site et au robot. Emplacements : peau (4), cheveux (5 coupes, 6 couleurs que la barbe reprend), barbe (5), tête (5), haut (4), bas (4), pieds (3). Tous gratuits. Dessins originaux, sans emprunt à une œuvre existante : un objet ou une teinte nouvelle se juge aussi assemblé avec les autres (le bleu et blanc des braies a été retiré pour cela).
+- **Le vestiaire**, sur `/village` (rubrique Membres) : tout compte connecté lié à Discord, même en attente de validation, habille son Gaulois et l'enregistre. Un visiteur voit le Gaulois de départ et la porte : connexion avec Discord, qui ramène au village par la page de compte, ou par un code.
+- **Le serveur** (migration `20261113001700_village_des_gaulois_vestiaire.sql`) garde une tenue par compte (`internal.gaulois`) et sa propre liste des objets (`internal.gaulois_objets`). `enregistrer_mon_gaulois` refuse toute tenue incomplète, un objet hors de la liste, une teinte que l'objet n'a pas, ou une clé en trop (`invalid_tenue`). Un test garde la liste du serveur identique à celle du dessin. `discord_gaulois` (clé de service seulement) donne la tenue du compte lié à un Discord. Rien n'est écrit au journal : c'est l'habit d'un joueur, pas une décision.
+- **/gaulois** sur Discord : le robot dessine le Gaulois de qui la tape (image de 496 × 320, une case vaut 8 pixels) et le montre à tout le salon, avec un bouton « Habiller mon Gaulois ». Sans compte ou sans Gaulois, il dit au seul joueur où aller. `/etat` dit `"gaulois":true` quand la migration est installée.
+
+**Mise en ligne :** coller la migration dans l'éditeur SQL de Supabase avant de publier le site, puis remettre la fonction en ligne (`npx supabase functions deploy code-discord --remote=zxavwcupauheheqxfdez --use-api --no-verify-jwt --yes`) : /gaulois se crée seule sur le serveur Discord, sans Reset Token.
+
+**Essayé sans vrai compte** : la migration sur un Postgres en mémoire (PGlite, 429 contrôles : droits, refus, tenues au hasard, chaque objet), le vestiaire avec un faux serveur dans Chromium, la réponse de /gaulois dans les tests du robot. Jamais avec un vrai compte ni dans le vrai Discord.
 
 ## Après avoir créé les comptes : le contrôle
 
