@@ -1,28 +1,34 @@
 /**
  * Le Gaulois de chaque membre, premier lot du village des Gaulois (13 novembre 2026, demande du pilote : « leur perso
  * gaulois […] customisé avec des assets gratuit (chapeau, casque) (plastron ou veste, ou t shirt) (pantalon ect...)
- * chausurres »). Un personnage en pixels, 24 cases sur 32, qu'on habille par emplacements : la peau, les cheveux et leur
- * couleur, la barbe, la tête, le haut, le bas, les pieds. Ici, les objets gratuits, ouverts à tout compte lié à Discord ;
- * la monnaie et la boutique viendront dans les lots suivants (docs/DIRECTION.md, « Le village des Gaulois »).
+ * chausurres »). Un personnage en pixels, 48 cases sur 64, qu'on habille par emplacements : la peau, les cheveux et leur
+ * couleur, la barbe, puis les objets : la tête, le haut, le bas, les pieds, l'arme.
+ *
+ * Les objets sont des cases à l'apparence fixe, chacune d'une rareté (demande du pilote, le même jour : « des petite case
+ * avec image - la case coloré en fonction la rareté commun bleu peu commun bleu foncé épique violet mystique rouge
+ * légendaire doré et je veux 2 haut 2 bas et 1 botte gratuit commun », puis « tout qui peu se mettre sur la tete meme un
+ * slip et créer une catégorie arme avec des truc wtf , médieval ou armée », puis « plus de pixel au personnage »). Les
+ * objets gratuits se portent dès maintenant ; les autres sont au catalogue pour la boutique des lots suivants
+ * (docs/DIRECTION.md, « Le village des Gaulois ») : le vestiaire les montre verrouillés, sans prix.
  *
  * Des données et des calculs purs : la fonction code-discord (Deno) dessine l'image de /gaulois, le site (Node et
  * navigateur) dessine le vestiaire avec les mêmes grilles (`src/lib/gaulois.ts`). Le serveur garde sa propre liste des
  * objets (table `internal.gaulois_objets`) et refuse toute tenue qui n'y est pas : un test garde les deux listes identiques.
  *
  * Les dessins sont originaux, faits pour le clan [GAL] le 13 novembre 2026. Aucun n'emprunte un personnage, un objet ni
- * une tenue à une œuvre existante : un nouvel objet ou une nouvelle teinte se juge aussi assemblé avec les autres.
+ * une tenue à une œuvre existante : ni casque ailé, ni menhir, ni serpe, ni potion ; un nouvel objet se juge aussi
+ * assemblé avec les autres.
  *
- * Une grille s'écrit rangée par rangée, 24 cases de large ; « . » est une case vide, chaque autre lettre une couleur :
- * k le contour ; s, S la peau et son ombre ; h, H les cheveux et la barbe ; p, P la teinte de l'objet ; q, Q sa seconde
- * teinte, ou le lin ; u, U le lin ; l, L le cuir ; g, G l'or ; m, M, n le métal ; f, F la fourrure ; b, B le bleu, w, W
- * le blanc et r, R le rouge du clan.
+ * Une grille s'écrit rangée par rangée, 48 cases de large ; « . » est une case vide, chaque autre lettre une couleur
+ * (`FIXES`, la peau, les cheveux, puis les couleurs propres à l'objet). Une minuscule est la couleur, sa majuscule son
+ * ombre ; n, y et z sont des lumières.
  */
 import { ecrirePng, type Image } from "./billets.ts";
 
-export const GAULOIS_LARGEUR = 24;
-export const GAULOIS_HAUTEUR = 32;
+export const GAULOIS_LARGEUR = 48;
+export const GAULOIS_HAUTEUR = 64;
 
-/** Un calque : sa première rangée sur la grille du Gaulois, puis ses rangées, de 24 cases chacune. */
+/** Un calque : sa première rangée sur la grille du Gaulois, puis ses rangées, de 48 cases chacune. */
 export interface Calque {
   y: number;
   lignes: readonly string[];
@@ -36,28 +42,56 @@ export interface Teinte {
 
 /** Les couleurs qui ne changent pas d'un Gaulois à l'autre. */
 const FIXES: Readonly<Record<string, string>> = {
+  // Le contour, et la bouche.
   k: "#1a1410",
+  e: "#4a2418",
+  // Le lin.
   u: "#d9cfb4",
   U: "#b3a585",
+  // Le cuir.
   l: "#8a5a2b",
   L: "#5e3b1a",
+  // L'or et sa lumière.
   g: "#d4a017",
   G: "#9c7410",
+  y: "#ffe07a",
+  // Le fer et sa lumière.
   m: "#b8c0cc",
   M: "#7d8796",
   n: "#eef2f7",
+  // Le fer noirci.
+  d: "#5a6270",
+  D: "#3c424d",
+  // Le bronze.
+  c: "#c98a3c",
+  C: "#8f5a22",
+  // La fourrure et le bois.
   f: "#9a6b3f",
   F: "#6e4a28",
+  // La fourrure blanche.
+  x: "#f4f1e8",
+  X: "#cfc8b8",
+  // Le bleu, le blanc et le rouge du clan.
   b: "#1f5fe0",
   B: "#16449f",
   w: "#f2f2f2",
   W: "#c9cfdc",
   r: "#e0283a",
   R: "#a51c2a",
+  // Le kaki.
+  v: "#6b7a3a",
+  V: "#4a562a",
+  // L'orange.
+  o: "#f08a24",
+  O: "#c2661a",
+  // La croûte du pain et sa mie.
+  a: "#e0a85a",
+  A: "#b67a32",
+  z: "#f6e2b0",
+  // Le caoutchouc jaune.
+  j: "#f4d03f",
+  J: "#c9a51e",
 };
-
-/** La seconde teinte d'un objet d'une seule couleur : le lin, comme le bord du bonnet. */
-const LIN: Readonly<Record<string, string>> = { q: "#d9cfb4", Q: "#b3a585" };
 
 export const PEAUX = {
   claire: { nom: "Claire", couleurs: { s: "#f2c9a0", S: "#d9a77c" } },
@@ -66,7 +100,7 @@ export const PEAUX = {
   foncee: { nom: "Foncée", couleurs: { s: "#7d4e30", S: "#5c3822" } },
 } as const satisfies Record<string, Teinte>;
 
-/** Les couleurs des cheveux, que la barbe reprend. */
+/** Les couleurs des cheveux, que la barbe et les sourcils reprennent. */
 export const POILS = {
   roux: { nom: "Roux", couleurs: { h: "#c4561f", H: "#8e3a12" } },
   blond: { nom: "Blond", couleurs: { h: "#e3c25b", H: "#b69636" } },
@@ -76,59 +110,91 @@ export const POILS = {
   blanc: { nom: "Blanc", couleurs: { h: "#ececec", H: "#c4c4c4" } },
 } as const satisfies Record<string, Teinte>;
 
-/** Les tissus d'une seule couleur, teints comme on teignait la laine et le lin : garance, guède, gaude. */
-export const TISSUS = {
-  rouge: { nom: "Rouge", couleurs: { p: "#b8322a", P: "#87241e" } },
-  bleu: { nom: "Bleu", couleurs: { p: "#2f5fa8", P: "#1f4278" } },
-  vert: { nom: "Vert", couleurs: { p: "#4f7d3a", P: "#36572a" } },
-  jaune: { nom: "Jaune", couleurs: { p: "#d1a52e", P: "#9c7a1f" } },
-  brun: { nom: "Brun", couleurs: { p: "#7a5232", P: "#573a23" } },
-  blanc: { nom: "Blanc", couleurs: { p: "#e8e2d0", P: "#bdb6a2" } },
-} as const satisfies Record<string, Teinte>;
+/** Les teintures des tissus, comme on teignait la laine et le lin : garance, guède, gaude. */
+const ROUGE = { p: "#b8322a", P: "#87241e" };
+const BLEU = { p: "#2f5fa8", P: "#1f4278" };
+const VERT = { p: "#4f7d3a", P: "#36572a" };
+const BRUN = { p: "#7a5232", P: "#573a23" };
+const ECRU = { p: "#e8e2d0", P: "#bdb6a2" };
+const PAILLE = { p: "#e3c25b", P: "#b69636" };
+const BLEU_NUIT = { p: "#3b55a0", P: "#2a3d78" };
+/** La seconde couleur d'un objet. */
+const SECOND_LIN = { q: "#d9cfb4", Q: "#b3a585" };
+const SECOND_JAUNE = { q: "#d1a52e", Q: "#9c7a1f" };
+const SECOND_ROUGE = { q: "#b8322a", Q: "#87241e" };
 
-/** Les tissus à deux couleurs : carreaux et rayures. */
-export const MOTIFS = {
-  "vert-jaune": { nom: "Vert et jaune", couleurs: { p: "#4f7d3a", P: "#36572a", q: "#d1a52e", Q: "#9c7a1f" } },
-  "rouge-jaune": { nom: "Rouge et jaune", couleurs: { p: "#b8322a", P: "#87241e", q: "#d1a52e", Q: "#9c7a1f" } },
-  "bleu-jaune": { nom: "Bleu et jaune", couleurs: { p: "#2f5fa8", P: "#1f4278", q: "#d1a52e", Q: "#9c7a1f" } },
-  "brun-rouge": { nom: "Brun et rouge", couleurs: { p: "#7a5232", P: "#573a23", q: "#b8322a", Q: "#87241e" } },
-} as const satisfies Record<string, Teinte>;
+/**
+ * Les raretés, de la plus courante à la plus rare. `rang` compte de 1 à 5 : le vestiaire en fait un repère de forme, pour
+ * que la rareté ne se lise pas qu'à la couleur. Les couleurs sont des jetons de la feuille de style (`--rarete-…`).
+ */
+export const RARETES = {
+  commun: { nom: "Commun", rang: 1 },
+  "peu-commun": { nom: "Peu commun", rang: 2 },
+  epique: { nom: "Épique", rang: 3 },
+  mystique: { nom: "Mystique", rang: 4 },
+  legendaire: { nom: "Légendaire", rang: 5 },
+} as const;
+export type Rarete = keyof typeof RARETES;
+export const ORDRE_RARETES = Object.keys(RARETES) as readonly Rarete[];
 
-/** Une gamme : la liste de teintes où un objet choisit la sienne. */
-export type Gamme = "poils" | "tissus" | "motifs";
-export const GAMMES: Readonly<Record<Gamme, Readonly<Record<string, Teinte>>>> = { poils: POILS, tissus: TISSUS, motifs: MOTIFS };
-
-// Les dessins : écrits par un petit atelier de dessin (traits symétriques, puis grilles imprimées), regardés agrandis.
+// Les dessins : écrits par l'atelier de dessin (dessins de 24 cases sur 32 agrandis deux fois, contours affinés, ombres,
+// matières et visage ajoutés), regardés agrandis, seuls et portés.
 // <dessins>
 const CORPS: Calque = {
-  y: 5,
+  y: 10,
   lignes: [
-    "........kkkkkkkk........",
-    ".......kssssssssk.......",
-    "......kssssssssssk......",
-    "......ksssssssssSk......",
-    "......ksssssssssSk......",
-    ".....kssskssssksSsk.....",
-    ".....kssskssssksSsk.....",
-    "......kssssSSsssSk......",
-    "......kssssSSsssSk......",
-    ".......ksssssssSk.......",
-    "........kkkkkkkk........",
-    ".........kSSSSk.........",
-    "......kkkksssskkkk......",
-    ".....kssssssssssssk.....",
-    "....kssSssssssssSssk....",
-    "....kssSssssssssSssk....",
-    "....kssSssssssssSssk....",
-    "....kssSssssssssSssk....",
-    "....ksskuuuuuuuukssk....",
-    ".....kkkuuuUUuuUkkk.....",
-    ".......kssSkkssSk.......",
-    ".......kssskksssk.......",
-    ".......kssskksssk.......",
-    ".......kssskksssk.......",
-    "......ksssskkssssk......",
-    "......kkkkkkkkkkkk......",
+    ".................kkkkkkkkkkkkkk.................",
+    "...............kksssssssssssssSkk...............",
+    "...............ksssssssssssssssSk...............",
+    ".............kksssssssssssssssssSkk.............",
+    ".............ksssssssssssssssssssSk.............",
+    "............ksssssssssssssssssssssSk............",
+    "............kssssssssssssssssssssSSk............",
+    "............ksssHHHHssssssssHHHHSSSk............",
+    "............ksssssssssssssssssssSSSk............",
+    "...........kssssssssssssssssssssSSSkk...........",
+    "...........kssssssnkssssssssnkssSSsSk...........",
+    "..........kssssssskksssssssskkssSSssSk..........",
+    "..........kSsssssskksssssssskkssSSssSk..........",
+    "...........ksssssssssssssSssssssSSsSk...........",
+    "...........kSssssssssssssSssssssSSSkk...........",
+    "............ksssssssssSSSSssssssSSSk............",
+    "............kSssssssssssssssssssSSSk............",
+    ".............kSsssssessssssesssSSSk.............",
+    ".............kksssssseeeeeessssSSkk.............",
+    "...............kSsssssssssssssSSk...............",
+    "...............kkSSSSSSSSSSSSSSkk...............",
+    ".................kkkkkkkkkkkkkk.................",
+    "..................kkSSSSSSSSkk..................",
+    "..................kSSSSSSSSSSk..................",
+    ".............kkkkkksssssssssSkkkkkk.............",
+    "...........kksssssssssssssssssssssSkk...........",
+    "...........ksssssssssssssssssssssssSk...........",
+    ".........kksssssssssssssssssssssssssSkk.........",
+    ".........kssssSSssssssssssssssssSSsssSk.........",
+    "........ksssssSSsSSSSSssssSSSSSsSSssssSk........",
+    "........ksssssSSssssssssssssssssSSssssSk........",
+    "........ksssssSSssssssssssssssssSSssssSk........",
+    "........ksssssSSssssssssssssssssSSssssSk........",
+    "........ksssssSSssssssssssssssssSSssssSk........",
+    "........ksssssSSsssssssSSsssssssSSssssSk........",
+    "........ksssssSSssssssssssssssssSSssssSk........",
+    "........kSsssssSuuuuuuuuuuuuuuuuuSssssSk........",
+    ".........kSssSkuuuuuuuuuuuuuuuuuUkSssSk.........",
+    ".........kkSSkkuuuuuuuuUUuuuuuuUUkkSSkk.........",
+    "...........kkkkuuuuuuuUUUUuuuuUUUkkkk...........",
+    ".............kksssssSSSUUUssssSSSkk.............",
+    "..............kssssssSSkkssssssSSk..............",
+    "..............ksssssssSkksssssssSk..............",
+    "..............ksssssssSkksssssssSk..............",
+    "..............ksssssssSkksssssssSk..............",
+    "..............ksssssssSkksssssssSk..............",
+    "..............ksssssssSkksssssssSk..............",
+    ".............kssssssssSkkssssssssSk.............",
+    ".............kssssssssSkkSsssssssSk.............",
+    "............kssssssssSkkkkSsssssssSk............",
+    "............kkSSSSSSSkkkkkkSSSSSSSkk............",
+    ".............kkkkkkkkkkkkkkkkkkkkkk.............",
   ],
 };
 
@@ -136,289 +202,1575 @@ const CORPS: Calque = {
 const DESSINS = {
   cheveux: {
     "courts": {
-      y: 4,
+      y: 8,
       lignes: [
-        "........kkkkkkkk........",
-        ".......khhhhhhhhk.......",
-        "......khhhhhhhhhhk......",
-        ".....khhhHHhhHHhhhk.....",
-        ".....khH........Hhk.....",
-        ".....kh..........hk.....",
+        ".................kkkkkkkkkkkkkk.................",
+        "...............kkhhhhhhhhhhhhhHkk...............",
+        "...............khhHhhhhHhhhhHhhHk...............",
+        ".............kkhhhHhhhhHhhhhHhhhHkk.............",
+        ".............khhhHhhhhHhhhhHhhhhHHk.............",
+        "...........kkhhhhHhhhhHhhhhHhhhhHhHkk...........",
+        "...........khhhhhHhHHhHhhhhHHhhhHhhHk...........",
+        "..........khHhhhHHHHHHHHHHHHHHHHHhhhHk..........",
+        "..........kHhhhH................HhhhHk..........",
+        "..........kHhhH..................HhhHk..........",
+        "..........kHhH....................HhHk..........",
+        "...........kH......................Hk...........",
       ],
     },
     "longs": {
-      y: 4,
+      y: 8,
       lignes: [
-        "........kkkkkkkk........",
-        ".......khhhhhhhhk.......",
-        "......khhhhhhhhhhk......",
-        ".....khhhHHhhHHhhhk.....",
-        ".....khH........Hhk.....",
-        "....kkh..........hkk....",
-        "....khH..........Hhk....",
-        "....khH..........Hhk....",
-        "....khH..........Hhk....",
-        "....khH..........Hhk....",
-        "....khH..........Hhk....",
-        "....khh..........hhk....",
-        "....khh..........hhk....",
-        "....khh..........hhk....",
-        "....kkk..........kkk....",
+        ".................kkkkkkkkkkkkkk.................",
+        "...............kkhhhhhhhhhhhhhHkk...............",
+        "...............khhHhhhhHhhhhHhhHk...............",
+        ".............kkhhhHhhhhHhhhhHhhhHkk.............",
+        ".............khhhHhhhhHhhhhHhhhhHHk.............",
+        "...........kkhhhhHhhhhHhhhhHhhhhHhHkk...........",
+        "...........khhhhhHhHHhHhhhhHHhhhHhhHk...........",
+        "..........khHhhhHHHHHHHHHHHHHHHHHhhhHk..........",
+        "..........kHhhhH................HhhhHk..........",
+        ".........kkHhhH..................HhhHkk.........",
+        ".........kkHhH....................hhHkk.........",
+        "........kkhHhH....................hhHHkk........",
+        "........kkHhhH....................HHhHkk........",
+        "........khHhHH....................HHhhHk........",
+        "........khHhHH....................HHhhHk........",
+        "........khHhHH....................HHhhHk........",
+        "........kHhhHH....................HHhhHk........",
+        "........kHhhHH....................HHhhHk........",
+        "........kHhhHH....................HHhhHk........",
+        "........kHhhHH....................HHhhHk........",
+        "........khhhHH....................HHhhHk........",
+        "........khhhhH....................HhhhHk........",
+        "........khhhhH....................hhhhHk........",
+        "........khhhhH....................hhhhHk........",
+        "........khhhHH....................hhhHHk........",
+        "........khhhHH....................hhhHHk........",
+        "........kHhhHH....................hhhHHk........",
+        "........kkHhHH....................HhhHkk........",
+        "........kkkHHk....................kHHkkk........",
+        ".........kkkk......................kkkk.........",
       ],
     },
     "tresses": {
-      y: 4,
+      y: 8,
       lignes: [
-        "........kkkkkkkk........",
-        ".......khhhhhhhhk.......",
-        "......khhhhhhhhhhk......",
-        ".....khhhHHhhHHhhhk.....",
-        ".....khH........Hhk.....",
-        ".....kh..........hk.....",
-        "....kHk..........kHk....",
-        "....khk..........khk....",
-        "....kHk..........kHk....",
-        "....khk..........khk....",
-        "....kHk..........kHk....",
-        "....khk..........khk....",
-        "....kHk..........kHk....",
-        "....khk..........khk....",
-        "....kHk..........kHk....",
-        "....khk..........khk....",
-        "....klk..........klk....",
-        "....khk..........khk....",
-        ".....k............k.....",
+        ".................kkkkkkkkkkkkkk.................",
+        "...............kkhhhhhhhhhhhhhHkk...............",
+        "...............khhhhhhhhhhhhhhhHk...............",
+        ".............kkhhhhhhhhhhhhhhhhhHkk.............",
+        ".............khhhhhhhhhhhhhhhhhhhHk.............",
+        "...........kkhhhhhhhhhhhhhhhhhhhhhHkk...........",
+        "...........khhhhhhhHHhhhhhhHHhhhhhhHk...........",
+        "..........khhhhhHHHHHHHHHHHHHHHHhhhhHk..........",
+        "..........khhhhH................HhhhHk..........",
+        "..........khhhH..................HhhHk..........",
+        "..........khhH....................hhHk..........",
+        ".........kHHhH....................HhHHk.........",
+        ".........kHHHk....................kHHHk.........",
+        "........kHHHHk....................kHHHHk........",
+        "........khhhHk....................khhhHk........",
+        "........khhhHk....................khhhHk........",
+        "........kHHHHk....................kHHHHk........",
+        "........kHHHHk....................kHHHHk........",
+        "........khhhHk....................khhhHk........",
+        "........khhhHk....................khhhHk........",
+        "........kHHHHk....................kHHHHk........",
+        "........kHHHHk....................kHHHHk........",
+        "........khhhHk....................khhhHk........",
+        "........khhhHk....................khhhHk........",
+        "........kHHHHk....................kHHHHk........",
+        "........kHHHHk....................kHHHHk........",
+        "........khhhHk....................khhhHk........",
+        "........khhhHk....................khhhHk........",
+        "........kHHHHk....................kHHHHk........",
+        "........kHHHHk....................kHHHHk........",
+        "........khhhHk....................khhhHk........",
+        "........khhhHk....................khhhHk........",
+        "........klllLk....................klllLk........",
+        "........klllLk....................klllLk........",
+        "........khhhHk....................khhhHk........",
+        ".........khHk......................khHk.........",
+        ".........kHHk......................kHHk.........",
+        "..........kk........................kk..........",
       ],
     },
     "herisses": {
       y: 0,
       lignes: [
-        "...........kk...........",
-        "......k...khhk...k......",
-        ".....khk.khhhhk.khk.....",
-        ".....khhkhhHHhhkhhk.....",
-        ".....khhhhhhhhhhhhk.....",
-        ".....khhhhhhhhhhhhk.....",
-        "......khhhhhhhhhhk......",
-        ".....khhhHHhhHHhhhk.....",
-        ".....khH........Hhk.....",
-        ".....kh..........hk.....",
+        ".......................kk.......................",
+        ".....................kkhHkk.....................",
+        "............kk.......khhhHk.......kk............",
+        "...........khHk....kkhhhhHHkk....khHk...........",
+        "...........khHk....khhhhHhhHk....kHHk...........",
+        "..........khhhHk..khhhhhHhhhHk..khHhHk..........",
+        "..........khhhHHkkhHhhHHHHhhhHkkhhHhHk..........",
+        "..........khhhHhhhhHhhHHHHhhhHhhhhHhHk..........",
+        "..........khhHhhhhHhhhhHhhhhHhhhhHhhHk..........",
+        "..........khhHhhhhHhhhhHhhhhHhhhhHhhHk..........",
+        "..........kHhHhhhhHhhhhHhhhhHhhhhHhhHk..........",
+        "...........kHHhhhhHhhhhHhhhhHhhhhHhHk...........",
+        "............khhhhHhhhhHhhhhHhhhhHhHk............",
+        "............khhhhHhhhhHhhhhHhhhhHhHk............",
+        "...........khhhhhHhHHhHhhhhHHhhhHhhHk...........",
+        "..........khHhhhHHHHHHHHHHHHHHHHHhhhHk..........",
+        "..........kHhhhH................HhhhHk..........",
+        "..........kHhhH..................HhhHk..........",
+        "..........kHhH....................HhHk..........",
+        "...........kH......................Hk...........",
       ],
     },
   },
   barbe: {
     "moustache": {
-      y: 13,
+      y: 26,
       lignes: [
-        ".........hhhhhh.........",
-        "........hH....Hh........",
-        "........H......H........",
+        "...................hhhhhhhhhH...................",
+        ".................hhhHHHHHHHHhhH.................",
+        ".................hhH........HhH.................",
+        "................hHH..........HHh................",
+        "................HHH..........HHH................",
+        "................HH............HH................",
       ],
     },
     "longue-moustache": {
-      y: 13,
+      y: 26,
       lignes: [
-        ".........hhhhhh.........",
-        "........hH....Hh........",
-        ".......khk....khk.......",
-        ".......khk....khk.......",
-        ".......kHk....kHk.......",
-        "........k......k........",
+        "...................hhhhhhhhhH...................",
+        ".................hhhHHHHHHHHhhH.................",
+        ".................hhH........HhH.................",
+        "................hhHH........HHhH................",
+        "...............khhHk........kHhHk...............",
+        "..............khhhHk........khhhHk..............",
+        "..............khhhHk........khhhHk..............",
+        "..............khhhHk........khhhHk..............",
+        "..............kHHHHk........kHHHHk..............",
+        "...............kHHk..........kHHk...............",
+        "...............kHHk..........kHHk...............",
+        "................kk............kk................",
       ],
     },
     "courte": {
-      y: 12,
+      y: 24,
       lignes: [
-        "......kh........hk......",
-        "......kh.hhhhhh.hk......",
-        ".......khhHkkHhhk.......",
-        "........hhHHHHhh........",
-        "........khhhhhhk........",
-        ".........kkkkkk.........",
+        ".............kH..................hk.............",
+        "............khHH................hhHk............",
+        "............kHHH...HhhhhHhhhH...hhHk............",
+        ".............kHH..hHhhhhHhhhhH..hHk.............",
+        ".............kkHhhHhhHHHHHHhHhhhHkk.............",
+        "...............khhHhHHHHkHHHHhhHk...............",
+        "................hhHhHHHHHHHHHhhH................",
+        "................HhHhhHHHHHHhHhhH................",
+        "................kHhhhhHhhhhHhhHk................",
+        ".................kHhhhHhhhhHhHk.................",
+        ".................kkHHHHHHHHHHkk.................",
+        "...................kkkkkkkkkk...................",
       ],
     },
     "grande": {
-      y: 11,
+      y: 22,
       lignes: [
-        "......kh........hk......",
-        "......kh........hk......",
-        "......kh.hhhhhh.hk......",
-        "......khhhhkkhhhhk......",
-        "......khhhHHHHhhhk......",
-        "......khhhhhhhhhhk......",
-        "......khhhHHHHhhhk......",
-        ".......khhhhhhhhk.......",
-        "........khHHHHhk........",
-        ".........kkkkkk.........",
+        ".............kh..................hk.............",
+        "............khhH................hhHk............",
+        "............khHH................hhHk............",
+        "............khHH................hhHk............",
+        "............khHH...HhhhhHhhhH...hhHk............",
+        "............khHH..hHhhhhHhhhhH..hhHk............",
+        "............kHhhhhHhhhhHHhhhHhhhhHHk............",
+        "............kHhhhhHhhhHkkhhhHhhhhHHk............",
+        "............kHhhhhHhHHHHHHHHHhhhhHHk............",
+        "............kHhhhhHhHHHHHHHHHhhhhHHk............",
+        "............khhhhHhhhhHhhhhHhhhhHhHk............",
+        "............khhhhHhhhhHhhhhHhhhhHhHk............",
+        "............kHhhhHhhHHHHHHHHhhhhHhHk............",
+        ".............kHhhHhhHHHHHHHHhhhhHHk.............",
+        ".............kkHHhhhhHhhhhHhhhhHHkk.............",
+        "...............kHhhhhHhhhhHhhhhHk...............",
+        "...............kkHhhhHHHHHHhhhHkk...............",
+        ".................kHhHHHHHHHHhHk.................",
+        ".................kkHHHHHHHHHHkk.................",
+        "...................kkkkkkkkkk...................",
       ],
     },
   },
   tete: {
     "bonnet": {
-      y: 2,
+      y: 4,
       lignes: [
-        ".........kkkkkk.........",
-        "........kpppppPk........",
-        ".......kPPppppPPk.......",
-        "......kPPPppppPPPk......",
-        ".....kQQQQQQQQQQQQk.....",
-        ".....kQQQQQQQQQQQQk.....",
-        "......kkkkkkkkkkkk......",
+        "...................kkkkkkkkkk...................",
+        ".................kkppPppPppPPkk.................",
+        ".................kPppPppPppPpPk.................",
+        "...............kkpPppPppPppPppPkk...............",
+        "...............kPPPppPppPppPpPPPk...............",
+        ".............kkPPPPPpPppPppPPPPPPkk.............",
+        ".............kPPPPPPpPppPppPPPPPPPk.............",
+        "...........kkPPPPPPPpPppPppPPPPPPPPkk...........",
+        "...........kqQQqQQqQQqQQqQQqQQqQQqQQk...........",
+        "..........kQqQQqQQqQQqQQqQQqQQqQQqQQqk..........",
+        "..........kQqQQqQQqQQqQQqQQqQQqQQqQQqk..........",
+        "...........kqQQqQQqQQqQQqQQqQQqQQqQQk...........",
+        "...........kkQQqQQqQQqQQqQQqQQqQQqQkk...........",
+        ".............kkkkkkkkkkkkkkkkkkkkkk.............",
+      ],
+    },
+    "bandeau": {
+      y: 10,
+      lignes: [
+        ".............kkkkkkkkkkkkkkkkkkkkkk.............",
+        "...........kkpppppppppppppppppppppPkk...........",
+        "...........kpppppppppppppppppppppppPk...........",
+        "..........kpppppppppppppppppppppppppPk..........",
+        "..........kPPPPPPPPPPPPPPPPPPPPPPPPPPkpPk.......",
+        "...........kPPPPPPPPPPPPPPPPPPPPPPPPkkppPkk.....",
+        "...........kkPPPPPPPPPPPPPPPPPPPPPPkk.PppPk.....",
+        ".............kkkkkkkkkkkkkkkkkkkkkk...PPPpPk....",
+        "......................................kPPPPk....",
+        ".......................................kPPk.....",
+        ".......................................kPPk.....",
+        "........................................kk......",
+      ],
+    },
+    "capuche": {
+      y: 4,
+      lignes: [
+        ".................kkkkkkkkkkkkkk.................",
+        "...............kkpppppppppppppPkk...............",
+        "...............kpppppppppppppppPk...............",
+        ".............kkpppppppppppppppppPkk.............",
+        ".............kpppppppppppppppppppPk.............",
+        "...........kkpppppppppppppppppppppPkk...........",
+        "...........kPPPPPPPppppppppppPPPPPPPk...........",
+        ".........kkPPPPPPPPPPppppppPPPPPPPPPPkk.........",
+        ".........kPPPPPPPPPPPPPPPPPPPPPPPPPPPPk.........",
+        "........kPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPk........",
+        "........kppPPPPPPPPPPPPPPPPPPPPPPPPPPpPk........",
+        "........kpppPPkkkkkkkkkkkkkkkkkkkkPPppPk........",
+        "........kpppPP....................PPppPk........",
+        "........kpppPP....................PPppPk........",
+        "........kpppPP....................PPppPk........",
+        "........kpppPP....................PPppPk........",
+        "........kpppPP....................PPppPk........",
+        "........kpppPP....................PPppPk........",
+        "........kpppPP....................PPppPk........",
+        "........kpppPP....................PPppPk........",
+        "........kpppPP....................PPppPk........",
+        "........kpppPP....................PPppPk........",
+        "........kpppPP....................PPppPk........",
+        "........kpppPP....................PPppPk........",
+        "........kpppPP....................PPppPk........",
+        "........kpppPP....................PPppPk........",
+        "........kpppPP....................PPppPk........",
+        "........kpppPPP..................PPPppPk........",
+        "........kPppPPPPP..............PPPPPppPk........",
+        "........kkPpPPPPPP............PPPPPPpPkk........",
+        "........kkkPPPPPPPkk........kkPPPPPPPkkk........",
+        ".........kkkkkkkkkkk........kkkkkkkkkkk.........",
       ],
     },
     "casque": {
       y: 0,
       lignes: [
-        "...........kk...........",
-        "..........kggk..........",
-        ".........knmmmk.........",
-        ".......kknnmmmmkk.......",
-        "......kMMMmmmmMMMk......",
-        "......kMMmmmmmmMMk......",
-        ".....kGGGGGGGGGGGGk.....",
-        ".....kkkkkkkkkkkkkk.....",
-        ".....km..........Mk.....",
-        ".....km..........Mk.....",
-        ".....km..........Mk.....",
-        ".....km..........Mk.....",
-        ".....kk..........kk.....",
+        ".......................kk.......................",
+        ".....................kkyGkk.....................",
+        ".....................kyggGk.....................",
+        "...................kkyggggGkk...................",
+        "...................knnmmmmmMk...................",
+        ".................kknnnmmmmmmMkk.................",
+        "...............kkknnnnmmmmmmmMkkk...............",
+        ".............kkMMnnnnmmmmmmmmmmMMkk.............",
+        ".............kMMMMMMmmmmmmmmMMMMMMk.............",
+        "............kMMMMMMmmmmmmmmmMMMMMMMk............",
+        "............kMMMMMMmmmmmmmmmmMMMMMMk............",
+        "...........kGMMMMMmmmmmmmmmmmmMMMMMGk...........",
+        "...........kGGGGGGGGGGGGGGGGGGGGGGGGk...........",
+        "..........kGGGGGGGGGGGGGGGGGGGGGGGGGGk..........",
+        "..........kkGGGGGGGGGGGGGGGGGGGGGGGGkk..........",
+        "..........kkkkkkkkkkkkkkkkkkkkkkkkkkkk..........",
+        "..........kknM....................MMkk..........",
+        "..........knmM....................MMMk..........",
+        "..........knmM....................MMMk..........",
+        "..........knmM....................MMMk..........",
+        "..........knmM....................MMMk..........",
+        "..........knmM....................MMMk..........",
+        "..........kMmM....................MMMk..........",
+        "..........kkMM....................MMkk..........",
+        "..........kkkk....................kkkk..........",
+        "...........kk......................kk...........",
       ],
     },
-    "bandeau": {
-      y: 5,
+    "casque-crete": {
+      y: 0,
       lignes: [
-        "......kkkkkkkkkkkk......",
-        ".....kppppppppppppk.....",
-        ".....kPPPPPPPPPPPPkpk...",
-        "......kkkkkkkkkkkk.Ppk..",
-        "...................kPk..",
-        "....................k...",
+        ".................kkkkkkkkkkkkkk.................",
+        "...............kkrRRrrrrrrrrRRrkk...............",
+        "...............krrRRrrrrrrrrRRrRk...............",
+        "..............krrrRRRrrrrrrRRRrrRk..............",
+        "..............kRrrrRRRrrrrRRRrrrRk..............",
+        "...............kRrrrRRrrrrRRrrrRk...............",
+        "................krrrRRrrrrRRrrRk................",
+        "................krrrRRrrrrRRrrRk................",
+        "...............kycyyyRrrrrrRyycCk...............",
+        ".............kkyccyyykrrrrRkyyccCkk.............",
+        ".............kCCccyycycccccyyyccCCk.............",
+        "...........kkCCCccyyccccccccyyccCCCkk...........",
+        "...........kyggggggggggggggggggggggGk...........",
+        "..........kyggggggggggggggggggggggggGk..........",
+        "..........kkGGGGGGGGGGGGGGGGGGGGGGGGkk..........",
+        "..........kkkkkkkkkkkkkkkkkkkkkkkkkkkk..........",
+        "..........kkyC....................yCkk..........",
+        "..........kycC....................ycCk..........",
+        "..........kycC....................ycCk..........",
+        "..........kycC....................ycCk..........",
+        "..........kycC....................ycCk..........",
+        "..........kycC....................ycCk..........",
+        "..........kCCC....................CCCk..........",
+        "..........kkCC....................CCkk..........",
+        "..........kkkk....................kkkk..........",
+        "...........kk......................kk...........",
       ],
     },
-    "capuche": {
+    "casque-or": {
+      y: 0,
+      lignes: [
+        ".....................kkkkkk.....................",
+        "...................kkyyyyyykk...................",
+        "...................kyyggggyyk...................",
+        ".................kkyyggggggyykk.................",
+        ".................kkyggggggggGkk.................",
+        "...............kkyyggggggggggyykk...............",
+        "...............kyyggggggggggggyyk...............",
+        ".............kkyyggggggggggggggyykk.............",
+        ".............kyyygrrggggggggrrgyyyk.............",
+        "...........kkyyyggrrggggggggrrggyyykk...........",
+        "...........kygrrggrrgggrrgggrrggrrgGk...........",
+        ".........kkyggrrggrrggrrrrggrrggrrggGkk.........",
+        ".........kGGGGGGGGGGGGGGGGGGGGGGGGGGGGk.........",
+        "........kGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGk........",
+        "........kkGGGGGGGGGGGGGGGGGGGGGGGGGGGGkk........",
+        "........kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk........",
+        "........kkyyyy....................yyyGkk........",
+        "........kyggyy....................yyggGk........",
+        "........kyggrR....................rrggGk........",
+        "........kyggrR....................rrggGk........",
+        "........kyggyy....................yyggGk........",
+        "........kygggy....................ygggGk........",
+        "........kygggG....................ygggGk........",
+        "........kygggG....................ygggGk........",
+        "........kGGGGG....................GGGGGk........",
+        ".........kGGGG....................GGGGk.........",
+        ".........kkGGk....................kGGkk.........",
+        "...........kk......................kk...........",
+      ],
+    },
+    "chapeau-paille": {
+      y: 4,
+      lignes: [
+        "...................kkkkkkkkkk...................",
+        ".................kkPppPPPPPPPkk.................",
+        ".................kppPpPpPPppPPk.................",
+        "...............kkppPPppPPPPpPpPkk...............",
+        "...............kppPPpPPPPPPPPPpPk...............",
+        ".............kkpppPPpPPpppppPPppPkk.............",
+        ".......kkkkkkkkqqqqqqqqqqqqqqqqqQkkkkkkkk.......",
+        ".....kkpPPppPPpqqqqqqqqqqqqqqqqqqpPPpPPPpkk.....",
+        "....kpPPPPPPPPPpPPpPPPPpppPPppPPppPPppPPPPPk....",
+        "....kPPPPPPpPPppPPppPPppPpPPppPPpPPPppPPpPPk....",
+        ".....kkPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPkk.....",
+        ".......kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk.......",
+      ],
+    },
+    "beret": {
+      y: 4,
+      lignes: [
+        ".......................kk.......................",
+        ".....................kkkkkk.....................",
+        ".................kkkkkkkkkkkkkk.................",
+        "...............kkpppppppppppppPkk...............",
+        ".............kkpppppppppppppppppPkk.............",
+        "...........kkpppppppppppppppppppppPkk...........",
+        "...........kpppppppppppppppppppppppPk...........",
+        "..........kpppppppppppppppppppppppppPk..........",
+        "..........kPPPPPPPPPPPPPPPPPPPPPPPPPPk..........",
+        "...........kPPPPPPPPPPPPPPPPPPPPPPPPk...........",
+        "...........kkPPPPPPPPPPPPPPPPPPPPPPkk...........",
+        ".............kkkkkkkkkkkkkkkkkkkkkk.............",
+      ],
+    },
+    "casque-cuir": {
+      y: 6,
+      lignes: [
+        ".................kkkkkkkkkkkkkk.................",
+        "...............kklllllnnnnllllLkk...............",
+        "...............kllllllnnnnlllllLk...............",
+        ".............kkllllllllnnlllllllLkk.............",
+        ".............kllllLLllllllllLLlllLk.............",
+        "...........kkllllLLLLllllllLLLLlllLkk...........",
+        "...........kLLLLLLLLLLLLLLLLLLLLLLLLk...........",
+        "..........kLLLLLLLLLLLLLLLLLLLLLLLLLLk..........",
+        "..........kkLLLLLLLLLLLLLLLLLLLLLLLLkk..........",
+        "..........kkkkkkkkkkkkkkkkkkkkkkkkkkkk..........",
+        "..........kklL....................lLkk..........",
+        "..........kllL....................llLk..........",
+        "..........kllL....................llLk..........",
+        "..........kllL....................llLk..........",
+        "..........kLLL....................LLLk..........",
+        "..........kkLL....................LLkk..........",
+        "..........kkkk....................kkkk..........",
+        "...........kk......................kk...........",
+      ],
+    },
+    "marmite": {
       y: 2,
       lignes: [
-        "........kkkkkkkk........",
-        ".......kppppppppk.......",
-        "......kppppppppppk......",
-        ".....kPPPPppppPPPPk.....",
-        "....kPPPPPPPPPPPPPPk....",
-        "....kpPkkkkkkkkkkPPk....",
-        "....kpP..........PPk....",
-        "....kpP..........PPk....",
-        "....kpP..........PPk....",
-        "....kpP..........PPk....",
-        "....kpP..........PPk....",
-        "....kpP..........PPk....",
-        "....kpP..........PPk....",
-        "....kpP..........PPk....",
-        "....kpPPP......PPPPk....",
-        "....kkkkkk....kkkkkk....",
+        "...................kkkkkkkkkk...................",
+        ".................kkdddddddddDkk.................",
+        "...............kkkdddddddddddDkkk...............",
+        ".............kkdnddddddddddddddndkk.............",
+        ".............kddnnddddddddddddnndDk.............",
+        "...........kkdddnnddddddddddddnnddDkk...........",
+        ".........kkkkdddddddddddddddddddddDkkkk.........",
+        "........kkkkkdddddddddddddddddddddDkkkkk........",
+        "........kk..kddddDDDDDDDDDDDDDDdddDk..kk........",
+        "........kk..kdddDDDDDDDDDDDDDDDDddDk..kk........",
+        "........kkkknmMMmmMMmmMMMMmmMMmmMMmMkkkk........",
+        ".........kknmmMMmmMMmmMMMMmmMMmmMMmmMkk.........",
+        ".........kkkMMMMMMMMMMMMMMMMMMMMMMMMkkk.........",
+        "...........kkkkkkkkkkkkkkkkkkkkkkkkkk...........",
+      ],
+    },
+    "toque": {
+      y: 0,
+      lignes: [
+        "...............kkkkkkkkkkkkkkkkkk...............",
+        ".............kkwwwwwwwwwwwwwwwwwWkk.............",
+        "...........kkwwwwwwwwwwwwwwwwwwwwwWkk...........",
+        ".........kkwwwwwwwwwwwwwwwwwwwwwwwwwWkk.........",
+        ".........kwwwwwwWWwwwwwwwwwwwwWWwwwwwWk.........",
+        "........kwwwwwwwWWwwwwwwwwwwwwWWwwwwwwWk........",
+        "........kWwwWWwwwwwwwwwwwwwwwwwwwwWWwwWk........",
+        "........kkwwWWwwwwwwwwwwwwwwwwwwwwWWwWkk........",
+        "........kkWwwwwwwwWWwwwwwwwwWWwwwwwwwWkk........",
+        ".........kkwwwwwwWWWWwwwwwwWWWWwwwwwWkk.........",
+        ".........kkWWWwwWWwwWWwwwwWWwwWWwwWWWkk.........",
+        "..........kWWWwwWWwwWWwwwwWWwwWWwwWWWk..........",
+        "..........kwwwwwwwwwwwwwwwwwwwwwwwwwWk..........",
+        "..........kwwwwwwwwwwwwwwwwwwwwwwwwwWk..........",
+        "..........kWWWWWWWWWWWWWWWWWWWWWWWWWWk..........",
+        "...........kWWWWWWWWWWWWWWWWWWWWWWWWk...........",
+        "...........kkWWWWWWWWWWWWWWWWWWWWWWkk...........",
+        ".............kkkkkkkkkkkkkkkkkkkkkk.............",
+      ],
+    },
+    "casque-armee": {
+      y: 4,
+      lignes: [
+        "...................kkkkkkkkkk...................",
+        ".................kkvvvvvvvvvVkk.................",
+        "...............kkvvvvvvvvvvvvvVkk...............",
+        ".............kkvvvvvvvvvvvvvvvvvVkk.............",
+        ".............kvvvvVVvvvvvvvvVVvvvVk.............",
+        "...........kkvvvvvVVvvvvvvvvVVvvvvVkk...........",
+        "...........kvvVVvvvvvvvvvvvvvvvvVVvVk...........",
+        ".........kkvvVVVVvvvvvvvvvvvvvvVVVVvVkk.........",
+        ".........kVVVVVVVVVVVVVVVVVVVVVVVVVVVVk.........",
+        "........kVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVk........",
+        "........kkVVVVVVVVVVVVVVVVVVVVVVVVVVVVkk........",
+        ".........kkkkkkkkkkkkkkkkkkkkkkkkkkkkkk.........",
+        "............LL....................LL............",
+        "............LL....................LL............",
+        "............LL....................LL............",
+        "............LL....................LL............",
+        "............LL....................LL............",
+        "............LL....................LL............",
+        "............LL....................LL............",
+        "............LL....................LL............",
+        "............LL....................LL............",
+        "............LL....................LL............",
+      ],
+    },
+    "slip": {
+      y: 2,
+      lignes: [
+        "...............kkkkkkkkkkkkkkkkkk...............",
+        ".............kkwwwwwwwwwwwwwwwwwWkk.............",
+        ".............kwwwwwwwwwwwwwwwwwwwWk.............",
+        "...........kkwwWWWWwwwwwwwwwwWWWWwWkk...........",
+        "...........kwwWk..kwwwwWWwwwWk..kwwWk...........",
+        "..........kwwwWk..kwwwWWWWwwWk..kwwwWk..........",
+        "..........kwwwWk..kwwwWWWWwwWk..kwwwWk..........",
+        "..........kwwwWk..kwwWwWWwWwWk..kwwwWk..........",
+        "..........kwwwwWkkwwWWWwwWWWwWkkwwwwWk..........",
+        "..........kwwwwwwwwWWWwwwwWWWwwwwwwwWk..........",
+        "..........kwwwwwwwWWWwwwwwwWWWwwwwwwWk..........",
+        "..........kwwwwwwwWWwwwwwwwwWWwwwwwwWk..........",
+        "..........kbbbbbbbbbbbbbbbbbbbbbbbbbBk..........",
+        "...........kBbbbbbbbbbbbbbbbbbbbbbbBk...........",
+        "...........kkBBBBBBBBBBBBBBBBBBBBBBkk...........",
+        ".............kkkkkkkkkkkkkkkkkkkkkk.............",
+      ],
+    },
+    "cone": {
+      y: 0,
+      lignes: [
+        ".....................koooOk.....................",
+        "....................koooooOk....................",
+        "....................koooooOk....................",
+        "...................koooooooOk...................",
+        "...................koooooooOk...................",
+        "..................koooooooooOk..................",
+        "..................kwwwwwwwwwWk..................",
+        ".................kkwwwwwwwwwWkk.................",
+        ".................koooooooooooOk.................",
+        "...............kkoooooooooooooOkk...............",
+        "...............kwwwwwwwwwwwwwwwWk...............",
+        "..............kwwwwwwwwwwwwwwwwwWk..............",
+        "..............koooooooooooooooooOk..............",
+        "..............koooooooooooooooooOk..............",
+        "........kkOOOOOOOOOOOOOOOOOOOOOOOOOOOOkk........",
+        "........kkOOOOOOOOOOOOOOOOOOOOOOOOOOOOkk........",
+        ".........kkOOOOOOOOOOOOOOOOOOOOOOOOOOkk.........",
+        "...........kkkkkkkkkkkkkkkkkkkkkkkkkk...........",
+      ],
+    },
+    "tricorne": {
+      y: 6,
+      lignes: [
+        ".......kk........kkkkkkkkkkkkkk........kk.......",
+        "......kkdkk....kkdddddddddddddDkk....kkdkk......",
+        "......kdddDkkkkdddddddddddddddddDkkkkdddDk......",
+        "......kdddddDDddddddddddddddddddddDDddddDk......",
+        "......kDddddDDddddddddddddddddddddDDddddDk......",
+        ".......kDdddDDddddddddddddddddddddDDdddDk.......",
+        ".......kkDggggggggggggggggggggggggggggGkk.......",
+        ".........kGggggggggggggggggggggggggggGk.........",
+        ".........kkGGGGGGGGGGGGGGGGGGGGGGGGGGkk.........",
+        "...........kkkkkkkkkkkkkkkkkkkkkkkkkk...........",
+      ],
+    },
+    "couronne": {
+      y: 4,
+      lignes: [
+        "............kk....kk...kk...kk....kk............",
+        "...........kyyk..kyk..kyGk..kyk..kyyk...........",
+        "...........kyyykkyyykkyggGkkyyykkyyyk...........",
+        "..........kyyyybyyyyyrgggggryyyybyyyyk..........",
+        "..........kyggbbggggrrggggrrggggbbggGk..........",
+        "..........kyggbbggggrrggggrrggggbbggGk..........",
+        "..........kyggggggggggggggggggggggggGk..........",
+        "..........kyggggggggggggggggggggggggGk..........",
+        "..........kGGGGGGGGGGGGGGGGGGGGGGGGGGk..........",
+        "..........kkGGGGGGGGGGGGGGGGGGGGGGGGkk..........",
+        "..........kkkGGGGGGGGGGGGGGGGGGGGGGkkk..........",
+        "...........kkkkkkkkkkkkkkkkkkkkkkkkkk...........",
       ],
     },
   },
   haut: {
     "tunique": {
-      y: 17,
+      y: 34,
       lignes: [
-        "......kkkk....kkkk......",
-        ".....kppppP..Pppppk.....",
-        "....kppPppppppppPppk....",
-        "....kPPPppppppppPPPk....",
-        ".......kppppppppk.......",
-        ".......klllgGlllk.......",
-        ".......kppppppppk.......",
-        ".......kPPPPPPPPk.......",
+        ".............kkkkkk..........kkkkkk.............",
+        "...........kkpppppPk........kpppppPkk...........",
+        "...........kppppppppP......PpppppppPk...........",
+        ".........kkppppppppppP....PpppppppppPkk.........",
+        ".........kppppPPppppppppppppppppPPpppPk.........",
+        "........kppppPPPppppppppppppppppPPPpppPk........",
+        "........kPPPPPPPppppppppppppppppPPPPPPPk........",
+        ".........kPPPPPPppppppppppppppppPPPPPPk.........",
+        "..............kPppppppppppppppppPk..............",
+        "..............kpppppppppppppppppPk..............",
+        "..............klllllllggggllllllLk..............",
+        "..............klllllllggggllllllLk..............",
+        "..............kpppppppppppppppppPk..............",
+        "..............kpppppppppppppppppPk..............",
+        "..............kPPPPPPPPPPPPPPPPPPk..............",
+        "...............kPPPPPPPPPPPPPPPPk...............",
+      ],
+    },
+    "chemise": {
+      y: 34,
+      lignes: [
+        ".............kkkkkk..........kkkkkk.............",
+        "...........kkpppppPk........kpppppPkk...........",
+        "...........kppppppppP......PpppppppPk...........",
+        ".........kkppppppppppP....PpppppppppPkk.........",
+        ".........kppppPPppppppLLLLppppppPPpppPk.........",
+        "........kpppppPPpppppppLLpppppppPPppppPk........",
+        "........kpppppPPppppppppppppppppPPppppPk........",
+        "........kpppppPPppppppppppppppppPPppppPk........",
+        "........kpppppPPppppppppppppppppPPppppPk........",
+        "........kppppPPPppppppppppppppppPPPpppPk........",
+        "........kPPPPPPPppppppppppppppppPPPPPPPk........",
+        ".........kPPPPPPppppppppppppppppPPPPPPk.........",
+        "..............kPLLllLLllllLLllLLLk..............",
+        "..............kLLLllLLllllLLllLLLk..............",
+        "..............kPPPPPPPPPPPPPPPPPPk..............",
+        "...............kPPPPPPPPPPPPPPPPk...............",
+      ],
+    },
+    "tunique-rouge": {
+      y: 34,
+      lignes: [
+        ".............kkkkkk..........kkkkkk.............",
+        "...........kkpppppPk........kpppppPkk...........",
+        "...........kppppppppq......qpppppppPk...........",
+        ".........kkppppppppppq....qpppppppppPkk.........",
+        ".........kppppPPppppppppppppppppPPpppPk.........",
+        "........kpppppPPppppppppppppppppPPppppPk........",
+        "........kqqqqqqqppppppppppppppppqqqqqqQk........",
+        ".........kQQQQQqppppppppppppppppqQQQQQk.........",
+        "..............kqppppppppppppppppPk..............",
+        "..............kpppppppppppppppppPk..............",
+        "..............klllllllggggllllllLk..............",
+        "..............klllllllggggllllllLk..............",
+        "..............kpppppppppppppppppPk..............",
+        "..............kpppppppppppppppppPk..............",
+        "..............kqqqqqqqqqqqqqqqqqQk..............",
+        "...............kQQQQQQQQQQQQQQQQk...............",
       ],
     },
     "veste-peau": {
-      y: 17,
+      y: 34,
       lignes: [
-        "......kkkk....kkkk......",
-        ".....kfffF....Ffffk.....",
-        "....kffFfF....FfFffk....",
-        "....kFFFff....ffFFFk....",
-        ".......kffk..kffk.......",
-        ".......kfFk..kFfk.......",
-        ".......klllgGlllk.......",
+        ".............kkkkkk..........kkkkkk.............",
+        "...........kkfffffFk........kFFFffFkk...........",
+        "...........kFffFfFFF........FFfffFFFk...........",
+        ".........kkffFfFfFFF........FFffffffFkk.........",
+        ".........kffFfFFffFF........FFffFFfFfFk.........",
+        "........kffFfFFFFfFF........FfFfFFFffFFk........",
+        "........kFFFFFFFFfFF........fFFFFFFFFFFk........",
+        ".........kFFFFFFfffF........ffffFFFFFFk.........",
+        "..............kFFFFFk......kfFffFk..............",
+        "..............kfFFFfFk....kFffFFFk..............",
+        "..............kFfffFFk....kFFFFFFk..............",
+        "..............kFffFFFk....kFFFFfFk..............",
+        "..............klllllllyyyyllllllLk..............",
+        "...............kLLLLLLGGGGLLLLLLk...............",
+      ],
+    },
+    "cotte-mailles": {
+      y: 34,
+      lignes: [
+        ".............kkkkkk..........kkkkkk.............",
+        "...........kkMmMmMmk........kMmMmMmkk...........",
+        "...........kMmMmMmMmMmMmMmMmMmMmMmMmk...........",
+        ".........kkMmMmMmMmMmMmMmMmMmMmMmMmMmkk.........",
+        ".........kMmMmMmMmMmMmMmMmMmMmMmMmMmMmk.........",
+        "........kMmMmMmkmMmMmMmMmMmMmMmMmkmMmMmk........",
+        "........kmMmMmMkMmMmMmMmMmMmMmMmMkMmMmMk........",
+        ".........kmMmMmkmMmMmMmMmMmMmMmMmkmMmMk.........",
+        "..............kmMmMmMmMmMmMmMmMmMk..............",
+        "..............kMmMmMmMmMmMmMmMmMmk..............",
+        "..............kLLLLLLLggggLLLLLLLk..............",
+        "..............kLLLLLLLggggLLLLLLLk..............",
+        "..............kmMmMmMmMmMmMmMmMmMk..............",
+        "..............kMmMmMmMmMmMmMmMmMmk..............",
+        "..............kmMmMmMmMmMmMmMmMmMk..............",
+        "..............kMmMmMmMmMmMmMmMmMmk..............",
+        "..............kmMmMmMmMmMmMmMmMmMk..............",
+        "..............kkmMmMmMmMmMmMmMmMkk..............",
+        "..............kkkmMmMmMmMmMmMmMkkk..............",
+        "...............kkkkkkkkkkkkkkkkkk...............",
       ],
     },
     "maillot-clan": {
-      y: 17,
+      y: 34,
       lignes: [
-        "......kkkk....kkkk......",
-        ".....kbbbbwwwwrrrrk.....",
-        "....kbbkbbwwwwrrkrrk....",
-        "....kBBkbbwwwwrrkRRk....",
-        ".......kbbwwwwrrk.......",
-        ".......kbbwwwwrrk.......",
-        ".......kbbwwwwrrk.......",
-        ".......kBBWWWWRRk.......",
+        ".............kkkkkk..........kkkkkk.............",
+        "...........kkbbbbbBk........krrrrrRkk...........",
+        "...........kbbbbbbbbwwwwwwwwrrrrrrrRk...........",
+        ".........kkbbbbbbbbbwwwwwwwwrrrrrrrrRkk.........",
+        ".........kbbbbbBbbbbwwwwwwwwrrrrrRrrrRk.........",
+        "........kbbbbbBkbbbbwwwwwwwwrrrrRkrrrrRk........",
+        "........kBBBBBBkbbbbwwwwwwwwrrrrRkRRRRRk........",
+        ".........kBBBBBkbbbbwwwwwwwwrrrrRkRRRRk.........",
+        "..............kbbbbbwwwwwwwwrrrrRk..............",
+        "..............kbbbbbwwwwwwwwrrrrRk..............",
+        "..............kbbbbbwwwwwwwwrrrrRk..............",
+        "..............kbbbbbwwwwwwwwrrrrRk..............",
+        "..............kbbbbbwwwwwwwwrrrrRk..............",
+        "..............kbbbbbwwwwwwwwrrrrRk..............",
+        "..............kBBBBBWWWWWWWWRRRRRk..............",
+        "...............kBBBBWWWWWWWWRRRRk...............",
+      ],
+    },
+    "cape-chef": {
+      y: 34,
+      lignes: [
+        ".......kkkkkkkkkkkk..........kkkkkkkkkkkk.......",
+        ".....kkRrRkkkrrrrrRk........krrrrrRkkkrrRkk.....",
+        ".....kRRrrRkrrrrrrrry......yrrrrrrrRkrrrRRk.....",
+        "....kRRRrrrrrrrrrrrrgG....ygrrrrrrrrRkrrRRRk....",
+        "....kRRRrrrrrrRRrrrrccyyyyccrrrrRRrrrrrRRRRk....",
+        "....kRRRRRrrrRRRrrrccccccccccrrrRRRrrrRkRRRk....",
+        "....kRRRRkRRRRRRrrrccyyyyyyccrrrRRRRRRRkRRRk....",
+        "....kRRRRkRRRRRRrrccyyyyyyyyccrrRRRRRRRkRRRk....",
+        "....kRRRRk....kRrrccyyyyyyyyccrrRk....kRRRRk....",
+        "....kRRRRk....krrrrcyyyyyyyycrrrRk....kRRRRk....",
+        "....kRRRRk....krrrrrCCCCCCCCrrrrRk....kRRRRk....",
+        "....kRRRRk....krrrrrCCCCCCCCrrrrRk....kRRRRk....",
+        "....kRRRRk....klllllllggggllllllLk....kRRRRk....",
+        "....kRRRRRk..kklllllllggggllllllLkk..kRRRRRk....",
+        "....kRRRRRkkkkkrrrrrrrrrrrrrrrrrRkkkkkRRRRRk....",
+        "....kRRRRRRrRkkrrrrrrrrrrrrrrrrrRkkrrRRRRRRk....",
+        "....kRRRRrrrrRkRRRRRRRRRRRRRRRRRRkrrrrrRRRRk....",
+        "....kRRRrrrrrrRkRRRRRRRRRRRRRRRRRkrrrrrrRRRk....",
+        "....kRRRrrrrrrRk................krrrrrrrRRRk....",
+        "....kRRRrrrrrrRk................krrrrrrrRRRk....",
+        "....kRRRrrrrrrRk................krrrrrrrRRRk....",
+        ".....kRRRrrrrrRk................krrrrrrRRRk.....",
+        ".....kkRRrrrrrRk................kRrrrrrRRkk.....",
+        ".......kRRrrrRk..................kRrrrRRk.......",
+        ".......kkRRRRkk..................kkRRRRkk.......",
+        ".........kkkk......................kkkk.........",
+      ],
+    },
+    "torque-or": {
+      y: 34,
+      lignes: [
+        ".......kkkkkkkkkkkkky......ykkkkkkkkkkkkk.......",
+        ".....kkxxXxxxXxxxXxggG....yggXxxxXxxxXxxXkk.....",
+        ".....kxxXxxxXxxxXxxxGGyyyyGGXxxxXxxxXxxxXXk.....",
+        "....kxxXxxxXxxxXxxxXGGyyyyGGxxxXxxxXxxxXxxXk....",
+        "....kxXxXXXxXXXxxXwwwwwwwwwwwwXxxxXXxxXXxxXk....",
+        "....kXxxXXXXXXXxXwwwwwwwwwwwwwwXxXXXXXXXxXXk....",
+        "....kyggGk....kxwwwwwwwwwwwwwwwwWk....kXggGk....",
+        "....kyggGk....kwwwwwwwwwwwwwwwwwWk....kyggGk....",
+        "....kyggGkyyGGGkwwwwwwwwwwwwwwwwWkGGyyykygGk....",
+        "....kyggGkyyGGGkwwwwwwwwwwwwwwwwWkGGyyykygGk....",
+        "....kyggGk....kyggyyggyyyyggyyggGk....kyggGk....",
+        "....kyggGk....kyggyyggyyyyggyyggGk....kyggGk....",
+        "....kyggGk....kwwwwwwwwwwwwwwwwwWk....kyggGk....",
+        "....kyggGkk..kkwwwwwwwwwwwwwwwwwWkk..kkyggGk....",
+        "....kyggGGkkkkkyggggggggggggggggGkkkkkGGggGk....",
+        "....kygggGGyGkkGGGGGGGGGGGGGGGGGGkkGyGGgggGk....",
+        "....kyggggggGGkk................kkGGggggggGk....",
+        "....kyggggggGGGk................kGGGggggggGk....",
+        "....kyggggggGGGk................kGGGggggggGk....",
+        "....kyggggggGGGk................kGGGggggggGk....",
+        "....kGggggggGGGk................kGGGggggggGk....",
+        ".....kGggggGGGGk................kGGGGggggGk.....",
+        ".....kkGgggGGGGk................kGGGGgggGkk.....",
+        ".......kGgGGGGk..................kGGGGgGk.......",
+        ".......kkGGGGkk..................kkGGGGkk.......",
+        ".........kkkk......................kkkk.........",
       ],
     },
   },
   bas: {
     "braies": {
-      y: 24,
+      y: 48,
       lignes: [
-        ".......kPPPPPPPPk.......",
-        ".......kppPkkPpPk.......",
-        ".......kppPkkPppk.......",
-        ".......kppPkkPppk.......",
-        ".......kppPkkPppk.......",
+        "...............kPPPPPPPPPPPPPPPPk...............",
+        "..............kPPPPPPPPPPPPPPPPPPk..............",
+        "..............kppppPPPPPPPPPPpppPk..............",
+        "..............kpppppPPPkkPPPppppPk..............",
+        "..............kpppppPPPkkPPPppppPk..............",
+        "..............kpppppPPPkkPPPppppPk..............",
+        "..............kpppppPPPkkPPPppppPk..............",
+        "..............kpppppPPPkkPPPppppPk..............",
+        "..............kPppppPPPkkPPPppppPk..............",
+        "...............kPPPPPPkkkkPPPPPPk...............",
       ],
     },
     "braies-carreaux": {
-      y: 24,
+      y: 48,
       lignes: [
-        ".......kPPPPPPPPk.......",
-        ".......kqpPkkqpPk.......",
-        ".......kpqpkkpqpk.......",
-        ".......kqpqkkqpqk.......",
-        ".......kpqpkkpqpk.......",
+        "...............kPPPPPPPPPPPPPPPPk...............",
+        "..............kPPPPPPPPPPPPPPPPPPk..............",
+        "..............kqqqpPPPPPPPqqpPPPPk..............",
+        "..............kqqpqppPPkkqqpqppPPk..............",
+        "..............kpppqqppPkkpppqqppPk..............",
+        "..............kpppqqqpPkkpppqqqpPk..............",
+        "..............kqqqppqqQkkqqqppqqQk..............",
+        "..............kqqqppqqQkkqqqppqqQk..............",
+        "..............kppqqqqpPkkppqqqqpPk..............",
+        "...............kPpQQpPkkkkPpQQpPk...............",
+      ],
+    },
+    "braies-bleues": {
+      y: 48,
+      lignes: [
+        "...............kqqqqqqqqqqqqqqqQk...............",
+        "..............kqqqqqqqqqqqqqqqqqQk..............",
+        "..............kpppppPPPQQqPPppppPk..............",
+        "..............kpppppPPPkkPPPppppPk..............",
+        "..............kpppppPPPkkPPPppppPk..............",
+        "..............kpppppPPPkkPPPppppPk..............",
+        "..............kpppppPPPkkPPPppppPk..............",
+        "..............kpppppPPPkkPPPppppPk..............",
+        "..............kqqqqqqqQkkqqqqqqqQk..............",
+        "...............kQQQQQQkkkkQQQQQQk...............",
       ],
     },
     "braies-rayees": {
-      y: 24,
+      y: 48,
       lignes: [
-        ".......kPPPPPPPPk.......",
-        ".......kqqPkkqqPk.......",
-        ".......kpppkkpppk.......",
-        ".......kqqqkkqqqk.......",
-        ".......kpppkkpppk.......",
+        "...............kPPPPPPPPPPPPPPPPk...............",
+        "..............kPPPPPPPPPPPPPPPPPPk..............",
+        "..............kqqqqPPPPPPPqqqPPPPk..............",
+        "..............kqqqqqPPPkkqqqqqPPPk..............",
+        "..............kpppppppPkkpppppppPk..............",
+        "..............kpppppppPkkpppppppPk..............",
+        "..............kqqqqqqqQkkqqqqqqqQk..............",
+        "..............kqqqqqqqQkkqqqqqqqQk..............",
+        "..............kpppppppPkkpppppppPk..............",
+        "...............kPPPPPPkkkkPPPPPPk...............",
+      ],
+    },
+    "braies-cuir": {
+      y: 48,
+      lignes: [
+        "...............knnLLnnLLLLnnLLnnk...............",
+        "..............knnnLLnnLLLLnnLLnnnk..............",
+        "..............kllllLLLLLLLLLLlllLk..............",
+        ".............knlllllLLLkkLLLlllllnk.............",
+        "............knmmmmnnMMMkkMMMnnmmmmMk............",
+        "............kMmmmmnnMMMkkMMMnnmmmmMk............",
+        ".............kMmllnnLLLkkLLLnnlllMk.............",
+        "..............kllllnLLLkkLLLnlllLk..............",
+        "..............kLllllLLLkkLLLllllLk..............",
+        "...............kLLLLLLkkkkLLLLLLk...............",
+      ],
+    },
+    "jambieres-bronze": {
+      y: 48,
+      lignes: [
+        "...............kyyyyCCrrrrCCyyyCk...............",
+        "..............kyccyyCCrrrrCCyyccCk..............",
+        "..............kRRRRRRRrrrrRRRRRRRk..............",
+        ".............kyRRRRRRRrrrrRRRRRRRyk.............",
+        "............kyccccyyCCCRRrCCyyccccCk............",
+        "............kCccccyyCCCkkCCCyyccccCk............",
+        ".............kCcccyyCCCkkCCCyycccCk.............",
+        "..............kyccyCCCCkkCCCCyccCk..............",
+        "..............kCCCCCCCCkkCCCCCCCCk..............",
+        "...............kCCCCCCkkkkCCCCCCk...............",
+      ],
+    },
+    "braies-or": {
+      y: 48,
+      lignes: [
+        "...............kyyyyyyyyyyyyyyyGk...............",
+        "..............kyggyyggyyyyggyyggGk..............",
+        "..............kyggwwWWyyyyWWwwggGk..............",
+        "..............kyggwwWWyyyyWWwwggGk..............",
+        "..............kyggwwWWWyyyWWwwggGk..............",
+        "..............kyggwwWWWkkWWWwwggGk..............",
+        "..............kyggwwWWWkkWWWwwggGk..............",
+        "..............kygggwWWWkkWWWwgggGk..............",
+        "..............kGggggggGkkyggggggGk..............",
+        "...............kGGGGGGkkkkGGGGGGk...............",
       ],
     },
   },
   pieds: {
-    "sandales": {
-      y: 28,
+    "bottes": {
+      y: 54,
       lignes: [
-        "........LLL..LLL........",
-        ".......lsll..llsl.......",
+        "...............kkkkkkkkkkkkkkkkkk...............",
+        "..............kkkLLLLkkkkkkLLLLkkk..............",
+        "..............kkLLLLLLkkkkLLLLLLkk..............",
+        ".............klLLLLLLLLkkLLLLLLLLlk.............",
+        ".............klllllLLLLkkLLLLllllLk.............",
+        "............klllllllLLkkkkLLllllllLk............",
+        "............kkLLLLLLLkkkkkkLLLLLLLkk............",
+        ".............kkkkkkkkkkkkkkkkkkkkkk.............",
       ],
     },
-    "bottes": {
-      y: 27,
+    "sandales": {
+      y: 56,
       lignes: [
-        ".......kLLLkkLLLk.......",
-        ".......klllkklllk.......",
-        "......klllLkkLlllk......",
-        "......kkkkkkkkkkkk......",
+        ".................LLLL......LLLL.................",
+        "................LLLLLL....LLLLLL................",
+        "..............llsslllL....llllsslL..............",
+        "..............LLSSLLL......LLLSSLL..............",
+      ],
+    },
+    "bottes-fourrees": {
+      y: 52,
+      lignes: [
+        "............kkFfFFfffFkkkkfFFfFFfFkk............",
+        "............kkFfFFFfFFFkkfffFFFFFFkk............",
+        ".............kkfLLLLLLLkkLLLLLLLLkk.............",
+        "..............kLLLLLLLLkkLLLLLLLLk..............",
+        "..............klllllllLkklllllllLk..............",
+        ".............kllllllllLkkllllllllLk.............",
+        ".............klllllllLLkkLLllllllLk.............",
+        "............klllllllLLkkkkLLllllllLk............",
+        "............kkLLLLLLLkkkkkkLLLLLLLkk............",
+        ".............kkkkkkkkkkkkkkkkkkkkkk.............",
+      ],
+    },
+    "bottes-fer": {
+      y: 50,
+      lignes: [
+        "...............knnnnnMkkkknnnnnMk...............",
+        "..............knmmmmmmMkknmmmmmmMk..............",
+        "..............kLLLnnLLLkkLLLnnLLLk..............",
+        "..............kLLLnnLLLkkLLLnnLLLk..............",
+        "..............kLLLmmLLLkkLLLmmLLLk..............",
+        "..............kLLLmmLLLkkLLLmmLLLk..............",
+        "..............kLLLLLLLLkkLLLLLLLLk..............",
+        ".............knLLLLLLLLkkLLLLLLLLnk.............",
+        ".............knmmmlLLLLkkLLLLlmmmMk.............",
+        "............knmmmmllLLkkkkLLllmmmmMk............",
+        "............kkMMMMLLLkkkkkkLLLMMMMkk............",
+        ".............kkkkkkkkkkkkkkkkkkkkkk.............",
+      ],
+    },
+    "bottes-ecarlates": {
+      y: 50,
+      lignes: [
+        "............kkrrrrrrrRkkkkrrrrrrrRkk............",
+        "............kkRrrrrrrrRkkrrrrrrrrRkk............",
+        ".............kkrRrrrrRRkkRRrrrrRRkk.............",
+        "..............kRRRrrRRRkkRRRrrRRRk..............",
+        "..............kRRRggRRRkkRRRggRRRk..............",
+        "..............kRRRggRRRkkRRRggRRRk..............",
+        "..............krrrrrrrRkkrrrrrrrRk..............",
+        ".............krrrrrrrrRkkrrrrrrrrRk.............",
+        ".............krrrrrrrRRkkRRrrrrrrRk.............",
+        "............krrrrrrrRRkkkkRRrrrrrrRk............",
+        "............kkRRRRRRRkkkkkkRRRRRRRkk............",
+        ".............kkkkkkkkkkkkkkkkkkkkkk.............",
+      ],
+    },
+    "bottes-or": {
+      y: 50,
+      lignes: [
+        "............kkXxxxXxxXkkkkXxxxXxxXkk............",
+        "............kkXxxXxxxXXkkXxxxXxxxXkk............",
+        ".............kkxggyyggGkkyggyyggGkk.............",
+        "..............kyggyyggGkkyggyyggGk..............",
+        "..............kyggyyggGkkyggyyggGk..............",
+        "..............kyggyyggGkkyggyyggGk..............",
+        "..............kyggGGggGkkyggGGggGk..............",
+        "..............kyggGGGgGkkygGGGggGk..............",
+        "...........kyyyggggGgGGkkGGgGggggyyyk...........",
+        "..........kkyyggggggGGkkkkGGggggggyykk..........",
+        "..........kkkyGGGGGGGkkkkkkGGGGGGGykkk..........",
+        "...........kkkkkkkkkkkkkkkkkkkkkkkkkk...........",
+      ],
+    },
+  },
+  arme: {
+    "gourdin": {
+      y: 20,
+      lignes: [
+        ".......................................kkkk.....",
+        ".....................................kkFffFkk...",
+        ".....................................kfFfffFk...",
+        "....................................kffFffffFk..",
+        "....................................kfffFFfFFk..",
+        "....................................kfffFFFFFk..",
+        "....................................kfffffFFFk..",
+        "....................................kfffffFFFk..",
+        "....................................kfFFFFFFFk..",
+        "....................................kfFFFFFFFk..",
+        "....................................kFFFffFFFk..",
+        ".....................................kFFffFFk...",
+        ".....................................kkfFFFkk...",
+        "......................................kFFFFk....",
+        "......................................kfffFk....",
+        "......................................kfffFk....",
+        "......................................kffFFk....",
+        "......................................kffFFk....",
+        "......................................kffFFk....",
+        "......................................kffFFk....",
+        "......................................kfffFk....",
+        "......................................kfffFk....",
+        "......................................kfffFk....",
+        "......................................kfffFk....",
+        "......................................kffFFk....",
+        "......................................kffFFk....",
+        "......................................ssfFFk....",
+        "......................................SsfFFk....",
+        "......................................kSFFFk....",
+        ".......................................kFFk.....",
+        ".......................................kFFk.....",
+        "........................................kk......",
+      ],
+    },
+    "baguette": {
+      y: 14,
+      lignes: [
+        ".........................................kk.....",
+        ".......................................kkaAkk...",
+        ".......................................kaaaAk...",
+        "......................................kaaaaaAk..",
+        "......................................kzzzaaAk..",
+        "......................................kzzzzaAk..",
+        "......................................kaazzzzk..",
+        "......................................kaaazzzk..",
+        "......................................kaaaaaAk..",
+        "......................................kaaaaaAk..",
+        "......................................kzzzaaAk..",
+        "......................................kzzzzaAk..",
+        "......................................kaazzzzk..",
+        "......................................kaaazzzk..",
+        "......................................kaaaaaAk..",
+        "......................................kaaaaaAk..",
+        "......................................kzzzaaAk..",
+        "......................................kzzzzaAk..",
+        "......................................kaazzzzk..",
+        "......................................kaaazzzk..",
+        "......................................kaaaaaAk..",
+        "......................................kaaaaaAk..",
+        "......................................kzzzaaAk..",
+        "......................................kzzzzaAk..",
+        "......................................kaazzzzk..",
+        "......................................kaaazzzk..",
+        "......................................kaaaaaAk..",
+        "......................................kaaaaaAk..",
+        "......................................kaaaaAAk..",
+        "......................................kaaaAAAk..",
+        "......................................kaaaAAAk..",
+        "......................................kaaaAAAk..",
+        "......................................ssaaAAAk..",
+        "......................................SsaAAAAk..",
+        "......................................kSAAAAAk..",
+        ".......................................kAAAAk...",
+        ".......................................kkAAkk...",
+        ".........................................kk.....",
+      ],
+    },
+    "poele": {
+      y: 20,
+      lignes: [
+        ".......................................kkkk.....",
+        ".....................................kkdddDkk...",
+        ".....................................kdddddDk...",
+        "....................................kdddddddDk..",
+        "....................................kddddnDDDk..",
+        "....................................kdddnDDDDk..",
+        "....................................kdddDDDDDk..",
+        "....................................kddddDDDDk..",
+        "....................................kDddddddDk..",
+        ".....................................kdddddDk...",
+        ".....................................kDddddDk...",
+        "......................................kdddDk....",
+        "......................................kdddDk....",
+        "......................................kdddDk....",
+        "......................................kdddDk....",
+        "......................................kdddDk....",
+        "......................................kdddDk....",
+        "......................................kdddDk....",
+        "......................................kdddDk....",
+        "......................................kdddDk....",
+        "......................................kdddDk....",
+        "......................................kdddDk....",
+        "......................................kdddDk....",
+        "......................................kdddDk....",
+        "......................................kdddDk....",
+        "......................................kdddDk....",
+        "......................................ssddDk....",
+        "......................................SsddDk....",
+        "......................................kSLLLk....",
+        ".......................................kLLk.....",
+        ".......................................kLLk.....",
+        "........................................kk......",
+      ],
+    },
+    "hache": {
+      y: 16,
+      lignes: [
+        ".......................................kk.......",
+        "......................................kkfkk.....",
+        "......................................kffFFkk...",
+        "......................................kffFfnMkk.",
+        "......................................kFffmmmMk.",
+        "......................................kFffmmmmMk",
+        "......................................kFffmmmnnk",
+        "......................................kFffmmnnnk",
+        "......................................kfffmmnnnk",
+        "......................................kfffmmmnnk",
+        "......................................kfffmmmmMk",
+        "......................................kfffmmmMk.",
+        "......................................kFffFMMkk.",
+        "......................................kFffFkk...",
+        "......................................kFffFkk...",
+        "......................................kFffFk....",
+        "......................................kfffFk....",
+        "......................................kfffFk....",
+        "......................................kfffFk....",
+        "......................................kfffFk....",
+        "......................................kffFFk....",
+        "......................................kffFFk....",
+        "......................................kffFFk....",
+        "......................................kffFFk....",
+        "......................................kfffFk....",
+        "......................................kfffFk....",
+        "......................................kfffFk....",
+        "......................................kfffFk....",
+        "......................................kffFFk....",
+        "......................................kffFFk....",
+        "......................................ssfFFk....",
+        "......................................SsfFFk....",
+        "......................................kSFFFk....",
+        ".......................................kFFk.....",
+        ".......................................kFFk.....",
+        "........................................kk......",
+      ],
+    },
+    "bouclier-bois": {
+      y: 34,
+      lignes: [
+        "...................................kkkkkk.......",
+        ".................................kkFFfffFkk.....",
+        ".................................kfFFffffFk.....",
+        "...............................kkFfFFffffFFkk...",
+        "...............................kfFfFFFfffFfFk...",
+        "..............................kffFfFFFfffFffFk..",
+        "..............................kFffFFFmnnFFffFk..",
+        "..............................kFffFFmmmnFFffFk..",
+        "..............................kFffffMmmmffffFk..",
+        "..............................kFfffffMmfffffFk..",
+        "..............................kFFfFFffFfFFFfFk..",
+        "...............................kFfFFffFfFFFFk...",
+        "...............................kkFfFffFffFFkk...",
+        ".................................kFFffFffFk.....",
+        ".................................kkFFFFFFkk.....",
+        "...................................kkkkkk.......",
+      ],
+    },
+    "poulet": {
+      y: 16,
+      lignes: [
+        ".........................................rrrR...",
+        "........................................rrrrrR..",
+        ".......................................kjjjjjJk.",
+        "......................................kjjjjjjjJk",
+        "......................................kjjjjJjjoO",
+        "......................................kjjjJkjjoO",
+        "......................................kjjjjjjrRk",
+        "......................................kjjjjJrRk.",
+        "......................................kjjjJk....",
+        "......................................kjjjJk....",
+        "......................................kjjjJk....",
+        ".....................................kjjjjjJk...",
+        ".....................................kjjjjjJk...",
+        "....................................kjjjjjjjJkk.",
+        "....................................kjjjjjjjjJk.",
+        "....................................kjjjjjjjjjJk",
+        "....................................kjjjJJjjjjJk",
+        "....................................kjjjJJJjjJk.",
+        "....................................kJjjjJjJJkk.",
+        ".....................................kjjjjJJk...",
+        ".....................................kJjjjJkk...",
+        "......................................kjjjJk....",
+        "......................................koooOk....",
+        "......................................koooOk....",
+        "......................................koooOk....",
+        "......................................koooOk....",
+        "......................................koooOk....",
+        "......................................koooOk....",
+        "......................................koooOk....",
+        "......................................koooOk....",
+        "......................................ssooOk....",
+        "......................................sooooOk...",
+        "....................................kkooooooOk..",
+        "....................................kkOooooOOk..",
+        ".....................................kkOOOOkk...",
+        ".......................................kkkk.....",
+      ],
+    },
+    "talkie": {
+      y: 22,
+      lignes: [
+        "..........................................kk....",
+        "..........................................kk....",
+        "..........................................nM....",
+        "..........................................nM....",
+        "..........................................nM....",
+        "..........................................nM....",
+        "..........................................nM....",
+        "..........................................nM....",
+        "..........................................nM....",
+        "..........................................nM....",
+        "..........................................nM....",
+        "..........................................nM....",
+        ".......................................kkkMMk...",
+        "......................................kkkvkkkk..",
+        "......................................kkvvvVkk..",
+        "......................................kvvvvvVk..",
+        "......................................kvvvvnnk..",
+        "......................................kvvvnnnk..",
+        "......................................kVVVVVVk..",
+        "......................................kVVVVVVk..",
+        "......................................kvvvvvVk..",
+        "......................................kvvvvvVk..",
+        "......................................kVVVVVVk..",
+        "......................................kVVVVVVk..",
+        "......................................ssvvvvVk..",
+        "......................................SsvvvVkk..",
+        "......................................kSVVVkkk..",
+        ".......................................kkkkkk...",
+      ],
+    },
+    "epee": {
+      y: 12,
+      lignes: [
+        ".........................................kk.....",
+        ".......................................kknnkk...",
+        ".......................................knnmMk...",
+        "......................................knnnmmMk..",
+        "......................................knnnmmMk..",
+        "......................................knnnmmMk..",
+        "......................................knnnmmMk..",
+        "......................................knnnmmMk..",
+        "......................................knnnmmMk..",
+        "......................................knnnmmMk..",
+        "......................................knnnmmMk..",
+        "......................................knnnmmMk..",
+        "......................................knnnmmMk..",
+        "......................................knnnmmMk..",
+        "......................................knnnmmMk..",
+        "......................................knnnmmMk..",
+        "......................................knnnmmMk..",
+        "......................................knnnmmMk..",
+        "......................................knnnmmMk..",
+        "......................................knnnmmMk..",
+        "......................................knnnmmMk..",
+        "......................................knnnmmMk..",
+        "......................................knnnmmMk..",
+        "......................................knnnmmMk..",
+        "......................................knnnmmMk..",
+        ".....................................kynnnmmmyk.",
+        "....................................kyggggGGggGk",
+        "....................................kGggggGGggGk",
+        ".....................................kGgLLlllGk.",
+        "......................................kLLLllLk..",
+        "......................................kLLLllLk..",
+        "......................................kLLLllLk..",
+        "......................................kLLLllLk..",
+        "......................................kLLLllLk..",
+        "......................................ssLLllLk..",
+        "......................................SsLLllLk..",
+        "......................................kSggGGGk..",
+        ".......................................kGgGGk...",
+        ".......................................kkGGkk...",
+        ".........................................kk.....",
+      ],
+    },
+    "arc": {
+      y: 30,
+      lignes: [
+        "...........................................kfFk.",
+        ".........................................kkFffFk",
+        ".........................................kfffuUk",
+        "........................................kfffuUk.",
+        "........................................kfffuU..",
+        ".......................................kfffFuU..",
+        ".......................................kfFF.uU..",
+        "......................................kffF..uU..",
+        "......................................kffF..uU..",
+        "......................................kffF..uU..",
+        "......................................kffF..uU..",
+        "......................................kffF..uU..",
+        "......................................kffF..uU..",
+        "......................................kffF..uU..",
+        "......................................kffF..uU..",
+        "......................................kffF..uU..",
+        "......................................ssfF..uU..",
+        "......................................SsfF..uU..",
+        "......................................ksFF..uU..",
+        "......................................kfFF..uU..",
+        "......................................kfFF..uU..",
+        "......................................kfFF..uU..",
+        "......................................kffF..uU..",
+        "......................................kffF..uU..",
+        "......................................kFfF..uU..",
+        ".......................................kffF.uU..",
+        ".......................................kFfFfuU..",
+        "........................................kfFfuU..",
+        "........................................kFFfuUk.",
+        ".........................................kFffuUk",
+        ".........................................kkFffFk",
+        "...........................................kFFk.",
+      ],
+    },
+    "drapeau": {
+      y: 12,
+      lignes: [
+        "........................................kk......",
+        ".......................................kyGk.....",
+        ".......................................kyGk.....",
+        "......................................kyggGkk...",
+        "......................................kffFFkkkk.",
+        "......................................kffFfbwwrk",
+        "......................................kffFbbwwrR",
+        "......................................kffFbbwwrR",
+        "......................................kFffbbwwrR",
+        "......................................kFffbbwwrR",
+        "......................................kFffbbwwrR",
+        "......................................kFffbbwwrR",
+        "......................................kfffbbwwrR",
+        "......................................kfffbbwwrR",
+        "......................................kfffbbwwrR",
+        "......................................kfffbbwwrR",
+        "......................................kFffFBWWRk",
+        "......................................kFffFkkkk.",
+        "......................................kFffFkk...",
+        "......................................kFffFk....",
+        "......................................kfffFk....",
+        "......................................kfffFk....",
+        "......................................kfffFk....",
+        "......................................kfffFk....",
+        "......................................kffFFk....",
+        "......................................kffFFk....",
+        "......................................kffFFk....",
+        "......................................kffFFk....",
+        "......................................kfffFk....",
+        "......................................kfffFk....",
+        "......................................kfffFk....",
+        "......................................kfffFk....",
+        "......................................kffFFk....",
+        "......................................kffFFk....",
+        "......................................ssfFFk....",
+        "......................................SsfFFk....",
+        "......................................kSFFFk....",
+        ".......................................kFFk.....",
+        ".......................................kFFk.....",
+        "........................................kk......",
+      ],
+    },
+    "masse": {
+      y: 12,
+      lignes: [
+        "........................................nn......",
+        "........................................nn......",
+        ".......................................knnk.....",
+        ".....................................kkdkkdkk...",
+        ".....................................kddnndDk...",
+        "....................................kddmmmddDk..",
+        "..................................nnnknmmdDDDknn",
+        "..................................nnnknmdDDDDknn",
+        "....................................kdddDDDdDk..",
+        ".....................................kDdDDdDk...",
+        ".....................................kkDDDDkk...",
+        "......................................kkkkkk....",
+        "......................................kfffFk....",
+        "......................................kfffFk....",
+        "......................................kfffFk....",
+        "......................................kfffFk....",
+        "......................................kFffFk....",
+        "......................................kFffFk....",
+        "......................................kFffFk....",
+        "......................................kFffFk....",
+        "......................................kfffFk....",
+        "......................................kfffFk....",
+        "......................................kfffFk....",
+        "......................................kfffFk....",
+        "......................................kffFFk....",
+        "......................................kffFFk....",
+        "......................................kffFFk....",
+        "......................................kffFFk....",
+        "......................................kfffFk....",
+        "......................................kfffFk....",
+        "......................................kfffFk....",
+        "......................................kfffFk....",
+        "......................................kffFFk....",
+        "......................................kffFFk....",
+        "......................................ssfFFk....",
+        "......................................SsfFFk....",
+        "......................................kSFFFk....",
+        ".......................................kFFk.....",
+        ".......................................kFFk.....",
+        "........................................kk......",
+      ],
+    },
+    "lance-patates": {
+      y: 12,
+      lignes: [
+        ".........................................kkkk...",
+        ".......................................kkaaaAkk.",
+        ".......................................kaaaaAAk.",
+        "......................................kaaaaaAAAk",
+        "......................................kvvvvvVVVk",
+        "......................................kvvvvvVVVk",
+        "......................................kyyyyyyyyk",
+        "......................................kyyyyyyyyk",
+        "......................................kvvvvvVVVk",
+        "......................................kvvvvvVVVk",
+        "......................................kvvvvvVVVk",
+        ".....................................kkvvvvvVVVk",
+        "....................................kkkvvvvvVVVk",
+        "....................................kkkvvvvvVVVk",
+        ".....................................kkvvvvvVVVk",
+        "......................................kvvvvvVVVk",
+        "......................................kvvvvvVVVk",
+        "......................................kvvvvvVVVk",
+        "......................................kvvvvvVVVk",
+        "......................................kvvvvvVVVk",
+        "......................................kvvvvvVVVk",
+        "......................................kvvvvvVVVk",
+        "......................................kvvvvvVVVk",
+        "......................................kvvvvVVVVk",
+        "......................................kVVVVVVVVk",
+        "......................................kVVVVVVVVk",
+        "......................................kvvvvVVVVk",
+        "......................................kvvvvvVVVk",
+        "......................................kvvvvvVVVk",
+        "......................................kvvvvvVVVk",
+        "......................................kvvvvvVVVk",
+        "......................................kvvvvvVVVk",
+        "......................................kvvvvvVVVk",
+        "......................................kvvvvvVVVk",
+        "......................................ssvvvvVVVk",
+        "......................................SsvvvVVVVk",
+        "......................................kSVVVVVVVk",
+        ".......................................kVVVVVVk.",
+        ".......................................kkVVVVkk.",
+        ".........................................kkkk...",
+      ],
+    },
+    "bouclier-bronze": {
+      y: 28,
+      lignes: [
+        ".....................................kkkk.......",
+        "...................................kkryyRkk.....",
+        "...................................krrccRRk.....",
+        ".................................kkrrrccRRRkk...",
+        ".................................krrrrccrRRRk...",
+        "................................krrrrrccrrRRRk..",
+        "................................krrrrrccrrRRRk..",
+        "...............................krrrrrrccrrrRRRk.",
+        "...............................krrrrrrccrrrRRRk.",
+        "..............................krrrrrrccccrrrRRRk",
+        "..............................krrrrrrcyycrrrRRRk",
+        "..............................krrrrccyyyyccrRRRk",
+        "..............................krrrccyyyyyyccRRRk",
+        "..............................krrrccyyyyyyccRRRk",
+        "..............................krrrrccyyyyccrRRRk",
+        "..............................krrrrrrcyycrrrRRRk",
+        "..............................kRrrrrrccccrrrRRRk",
+        "...............................krrrrrrccrrrRRRk.",
+        "...............................kRrrrrrccrrrRRRk.",
+        "................................krrrrrccrrRRRk..",
+        "................................kRrrrrccrrRRRk..",
+        ".................................kRrrrccrRRRk...",
+        ".................................kkRrrccRRRkk...",
+        "...................................kRrccRRk.....",
+        "...................................kkRCCRkk.....",
+        ".....................................kkkk.......",
+      ],
+    },
+    "epee-or": {
+      y: 12,
+      lignes: [
+        ".........................................kk.....",
+        ".......................................kkyykk...",
+        ".......................................kyygGk...",
+        "......................................kyyyggGk..",
+        "......................................kyyyggGk..",
+        "......................................kyyyggGk..",
+        "......................................kyyyggGk..",
+        "......................................kyyyggGk..",
+        "......................................kyyyggGk..",
+        "......................................kyyyggGk..",
+        "......................................kyyyggGk..",
+        "......................................kyyyggGk..",
+        "......................................kyyyggGk..",
+        "......................................kyyyggGk..",
+        "......................................kyyyggGk..",
+        "......................................kyyyggGk..",
+        "......................................kyyyggGk..",
+        "......................................kyyyggGk..",
+        "......................................kyyyggGk..",
+        "......................................kyyyggGk..",
+        "......................................kyyyggGk..",
+        "......................................kyyyggGk..",
+        "......................................kyyyggGk..",
+        ".....................................kkyyyggGkk.",
+        ".....................................kkyyyggGkk.",
+        "....................................kkyyyygggGkk",
+        "....................................kyggrrrgggGk",
+        ".....................................kygrrrrgGk.",
+        ".....................................kGgLLlllGk.",
+        "......................................kLLLllLk..",
+        "......................................kLLLllLk..",
+        "......................................kLLLllLk..",
+        "......................................kLLLllLk..",
+        "......................................kLLLllLk..",
+        "......................................ssLLllLk..",
+        "......................................SsLLllLk..",
+        "......................................kSggyyyk..",
+        ".......................................kGgyyk...",
+        ".......................................kkGykk...",
+        ".........................................kk.....",
+      ],
+    },
+    "carnyx": {
+      y: 12,
+      lignes: [
+        ".........................................kkkkkk.",
+        ".......................................kkyyyyyGk",
+        ".......................................kyygggggG",
+        "......................................kyyggggggG",
+        "......................................kygggGgggG",
+        "......................................kyggGkyggG",
+        "......................................kygggygrrR",
+        "......................................kyggggrrrR",
+        "......................................kyygggGGGG",
+        "......................................kyyygGGGGG",
+        "......................................kyyyGGGGGk",
+        "......................................kyyyGGGkk.",
+        "......................................kyyyGGGkk.",
+        "......................................kyyyGGGk..",
+        "......................................kyyyGGGk..",
+        "......................................kyyyGGGk..",
+        "......................................kyyyGGGk..",
+        "......................................kyyGGGGk..",
+        "......................................kGGGGGGk..",
+        "......................................kGGGGGGk..",
+        "......................................kyyGGGGk..",
+        "......................................kyyyGGGk..",
+        "......................................kyyyGGGk..",
+        "......................................kyyyGGGk..",
+        "......................................kyyyGGGk..",
+        "......................................kyyyGGGk..",
+        "......................................kyyyGGGk..",
+        "......................................kyyGGGGk..",
+        "......................................kGGGGGGk..",
+        "......................................kGGGGGGk..",
+        "......................................kyyGGGGk..",
+        "......................................kyyyGGGk..",
+        "......................................kyyyGGGk..",
+        "......................................kyyyGGGk..",
+        "......................................ssyyGGGk..",
+        "......................................SsyGGGGk..",
+        "......................................kSGGGGGk..",
+        ".......................................kGGGGk...",
+        ".......................................kkGGkk...",
+        ".........................................kk.....",
       ],
     },
   },
 } as const satisfies Record<string, Record<string, Calque>>;
 // </dessins>
 
-/** Un objet du vestiaire : son nom, la gamme où il choisit sa teinte (aucune s'il n'en change pas), son dessin. */
+/**
+ * Un objet du vestiaire : son nom, son dessin (aucun pour « rien »), ses couleurs propres, sa rareté et s'il est gratuit.
+ * Le corps (peau, cheveux, barbe) et les cases « rien » sont gratuits et sans rareté.
+ */
 export interface Objet {
   nom: string;
-  gamme: Gamme | null;
   dessin: Calque | null;
+  couleurs: Readonly<Record<string, string>>;
+  rarete: Rarete | null;
+  gratuit: boolean;
+  /** Pour un objet de tête : cache le haut des cheveux, qui dépasserait d'un bonnet ou d'un casque. */
+  couvre?: boolean;
 }
 
-export const EMPLACEMENTS = ["peau", "cheveux", "barbe", "tete", "haut", "bas", "pieds"] as const;
+export const EMPLACEMENTS = ["peau", "cheveux", "barbe", "tete", "haut", "bas", "pieds", "arme"] as const;
 export type Emplacement = (typeof EMPLACEMENTS)[number];
+
+/** Les emplacements du corps, puis ceux des objets à rareté. */
+export const EMPLACEMENTS_CORPS = ["peau", "cheveux", "barbe"] as const satisfies readonly Emplacement[];
+export const EMPLACEMENTS_OBJETS = ["tete", "haut", "bas", "pieds", "arme"] as const satisfies readonly Emplacement[];
 
 export const NOMS_EMPLACEMENTS: Readonly<Record<Emplacement, string>> = {
   peau: "Peau",
@@ -428,68 +1780,125 @@ export const NOMS_EMPLACEMENTS: Readonly<Record<Emplacement, string>> = {
   haut: "Haut",
   bas: "Bas",
   pieds: "Pieds",
+  arme: "Arme",
 };
 
-const objet = (nom: string, gamme: Gamme | null, dessin: Calque | null): Objet => ({ nom, gamme, dessin });
+type Couleurs = Readonly<Record<string, string>>;
+const corps = (nom: string, dessin: Calque | null): Objet => ({ nom, dessin, couleurs: {}, rarete: null, gratuit: true });
+const rien = (nom: string): Objet => corps(nom, null);
+const gratuit = (nom: string, dessin: Calque, couleurs: Couleurs = {}): Objet => ({ nom, dessin, couleurs, rarete: "commun", gratuit: true });
+const boutique = (nom: string, rarete: Rarete, dessin: Calque, couleurs: Couleurs = {}): Objet => ({ nom, dessin, couleurs, rarete, gratuit: false });
+/** Une coiffe qui cache le haut des cheveux. */
+const couvrant = (objet: Objet): Objet => ({ ...objet, couvre: true });
 
 /**
- * Le vestiaire gratuit, emplacement par emplacement, dans l'ordre où le vestiaire les montre. Les cheveux choisissent
- * toujours une couleur, même rasés : la barbe la reprend.
+ * Le catalogue, emplacement par emplacement, dans l'ordre où le vestiaire le montre : les gratuits, puis la boutique de la
+ * rareté la plus courante à la plus rare. Les cheveux choisissent toujours une couleur, même rasés : la barbe la reprend.
  */
 export const OBJETS: Readonly<Record<Emplacement, Readonly<Record<string, Objet>>>> = {
-  peau: Object.fromEntries(Object.entries(PEAUX).map(([id, teinte]) => [id, objet(teinte.nom, null, null)])),
+  peau: Object.fromEntries(Object.entries(PEAUX).map(([id, teinte]) => [id, rien(teinte.nom)])),
   cheveux: {
-    aucun: objet("Rasés", "poils", null),
-    courts: objet("Courts", "poils", DESSINS.cheveux.courts),
-    longs: objet("Longs", "poils", DESSINS.cheveux.longs),
-    tresses: objet("Tresses", "poils", DESSINS.cheveux.tresses),
-    herisses: objet("Hérissés", "poils", DESSINS.cheveux.herisses),
+    aucun: rien("Rasés"),
+    courts: corps("Courts", DESSINS.cheveux.courts),
+    longs: corps("Longs", DESSINS.cheveux.longs),
+    tresses: corps("Tresses", DESSINS.cheveux.tresses),
+    herisses: corps("Hérissés", DESSINS.cheveux.herisses),
   },
   barbe: {
-    aucune: objet("Aucune", null, null),
-    moustache: objet("Moustache", null, DESSINS.barbe.moustache),
-    "longue-moustache": objet("Longue moustache", null, DESSINS.barbe["longue-moustache"]),
-    courte: objet("Barbe courte", null, DESSINS.barbe.courte),
-    grande: objet("Grande barbe", null, DESSINS.barbe.grande),
+    aucune: rien("Aucune"),
+    moustache: corps("Moustache", DESSINS.barbe.moustache),
+    "longue-moustache": corps("Longue moustache", DESSINS.barbe["longue-moustache"]),
+    courte: corps("Barbe courte", DESSINS.barbe.courte),
+    grande: corps("Grande barbe", DESSINS.barbe.grande),
   },
   tete: {
-    aucun: objet("Rien", null, null),
-    bonnet: objet("Bonnet", "tissus", DESSINS.tete.bonnet),
-    casque: objet("Casque", null, DESSINS.tete.casque),
-    bandeau: objet("Bandeau", "tissus", DESSINS.tete.bandeau),
-    capuche: objet("Capuche", "tissus", DESSINS.tete.capuche),
+    aucun: rien("Tête nue"),
+    bonnet: couvrant(gratuit("Bonnet de laine", DESSINS.tete.bonnet, { ...ROUGE, ...SECOND_LIN })),
+    bandeau: boutique("Bandeau", "commun", DESSINS.tete.bandeau, ROUGE),
+    "chapeau-paille": couvrant(boutique("Chapeau de paille", "commun", DESSINS.tete["chapeau-paille"], { ...PAILLE, ...SECOND_ROUGE })),
+    beret: couvrant(boutique("Béret", "commun", DESSINS.tete.beret, BLEU_NUIT)),
+    capuche: couvrant(boutique("Capuche", "peu-commun", DESSINS.tete.capuche, VERT)),
+    "casque-cuir": couvrant(boutique("Casque de cuir", "peu-commun", DESSINS.tete["casque-cuir"])),
+    marmite: couvrant(boutique("Marmite", "peu-commun", DESSINS.tete.marmite)),
+    casque: couvrant(boutique("Casque de fer", "epique", DESSINS.tete.casque)),
+    toque: couvrant(boutique("Toque de cuisinier", "epique", DESSINS.tete.toque)),
+    "casque-armee": couvrant(boutique("Casque kaki", "epique", DESSINS.tete["casque-armee"])),
+    slip: boutique("Slip", "epique", DESSINS.tete.slip),
+    "casque-crete": couvrant(boutique("Casque à crête", "mystique", DESSINS.tete["casque-crete"])),
+    cone: couvrant(boutique("Cône de chantier", "mystique", DESSINS.tete.cone)),
+    tricorne: couvrant(boutique("Tricorne", "mystique", DESSINS.tete.tricorne)),
+    "casque-or": couvrant(boutique("Casque d'or", "legendaire", DESSINS.tete["casque-or"])),
+    couronne: boutique("Couronne", "legendaire", DESSINS.tete.couronne),
   },
   haut: {
-    aucun: objet("Torse nu", null, null),
-    tunique: objet("Tunique", "tissus", DESSINS.haut.tunique),
-    "veste-peau": objet("Veste en peau", null, DESSINS.haut["veste-peau"]),
-    "maillot-clan": objet("Maillot du clan", null, DESSINS.haut["maillot-clan"]),
+    aucun: rien("Torse nu"),
+    tunique: gratuit("Tunique bleue", DESSINS.haut.tunique, BLEU),
+    chemise: gratuit("Chemise de lin", DESSINS.haut.chemise, ECRU),
+    "tunique-rouge": boutique("Tunique rouge", "commun", DESSINS.haut["tunique-rouge"], { ...ROUGE, ...SECOND_JAUNE }),
+    "veste-peau": boutique("Veste en peau", "peu-commun", DESSINS.haut["veste-peau"]),
+    "cotte-mailles": boutique("Cotte de mailles", "epique", DESSINS.haut["cotte-mailles"]),
+    "maillot-clan": boutique("Maillot du clan", "epique", DESSINS.haut["maillot-clan"]),
+    "cape-chef": boutique("Cape de chef", "mystique", DESSINS.haut["cape-chef"]),
+    "torque-or": boutique("Torque d'or", "legendaire", DESSINS.haut["torque-or"]),
   },
   bas: {
-    aucun: objet("Pagne", null, null),
-    braies: objet("Braies", "tissus", DESSINS.bas.braies),
-    "braies-carreaux": objet("Braies à carreaux", "motifs", DESSINS.bas["braies-carreaux"]),
-    "braies-rayees": objet("Braies rayées", "motifs", DESSINS.bas["braies-rayees"]),
+    aucun: rien("Pagne"),
+    braies: gratuit("Braies brunes", DESSINS.bas.braies, BRUN),
+    "braies-carreaux": gratuit("Braies à carreaux", DESSINS.bas["braies-carreaux"], { ...VERT, ...SECOND_JAUNE }),
+    "braies-bleues": boutique("Braies bleues", "commun", DESSINS.bas["braies-bleues"], { ...BLEU, ...SECOND_LIN }),
+    "braies-rayees": boutique("Braies rayées", "peu-commun", DESSINS.bas["braies-rayees"], { ...BRUN, ...SECOND_ROUGE }),
+    "braies-cuir": boutique("Braies cloutées", "epique", DESSINS.bas["braies-cuir"]),
+    "jambieres-bronze": boutique("Jambières de bronze", "mystique", DESSINS.bas["jambieres-bronze"]),
+    "braies-or": boutique("Braies brodées d'or", "legendaire", DESSINS.bas["braies-or"]),
   },
   pieds: {
-    nus: objet("Pieds nus", null, null),
-    sandales: objet("Sandales", null, DESSINS.pieds.sandales),
-    bottes: objet("Bottes", null, DESSINS.pieds.bottes),
+    nus: rien("Pieds nus"),
+    bottes: gratuit("Bottes de cuir", DESSINS.pieds.bottes),
+    sandales: boutique("Sandales", "commun", DESSINS.pieds.sandales),
+    "bottes-fourrees": boutique("Bottes fourrées", "peu-commun", DESSINS.pieds["bottes-fourrees"]),
+    "bottes-fer": boutique("Bottes ferrées", "epique", DESSINS.pieds["bottes-fer"]),
+    "bottes-ecarlates": boutique("Bottes écarlates", "mystique", DESSINS.pieds["bottes-ecarlates"]),
+    "bottes-or": boutique("Bottes dorées", "legendaire", DESSINS.pieds["bottes-or"]),
+  },
+  arme: {
+    aucune: rien("Mains nues"),
+    gourdin: gratuit("Gourdin", DESSINS.arme.gourdin),
+    baguette: boutique("Baguette de pain", "commun", DESSINS.arme.baguette),
+    poele: boutique("Poêle", "commun", DESSINS.arme.poele),
+    hache: boutique("Hache", "peu-commun", DESSINS.arme.hache),
+    "bouclier-bois": boutique("Bouclier de bois", "peu-commun", DESSINS.arme["bouclier-bois"]),
+    poulet: boutique("Poulet en caoutchouc", "peu-commun", DESSINS.arme.poulet),
+    talkie: boutique("Talkie-walkie", "peu-commun", DESSINS.arme.talkie),
+    epee: boutique("Épée de fer", "epique", DESSINS.arme.epee),
+    arc: boutique("Arc", "epique", DESSINS.arme.arc),
+    drapeau: boutique("Drapeau du clan", "epique", DESSINS.arme.drapeau),
+    masse: boutique("Masse d'armes", "mystique", DESSINS.arme.masse),
+    "lance-patates": boutique("Lance-patates", "mystique", DESSINS.arme["lance-patates"]),
+    "bouclier-bronze": boutique("Bouclier de bronze", "mystique", DESSINS.arme["bouclier-bronze"]),
+    "epee-or": boutique("Épée d'or", "legendaire", DESSINS.arme["epee-or"]),
+    carnyx: boutique("Carnyx d'or", "legendaire", DESSINS.arme.carnyx),
   },
 };
 
-/** L'ordre des calques, du fond vers le devant : les bottes sur les braies, la barbe sur la tunique, la capuche sur tout. */
-const ORDRE: readonly Emplacement[] = ["bas", "pieds", "haut", "barbe", "cheveux", "tete"];
+/**
+ * L'ordre des calques, du fond vers le devant : les bottes sur les braies, la barbe sur la tunique, la capuche sur les
+ * cheveux, l'arme par-dessus tout.
+ */
+const ORDRE: readonly Emplacement[] = ["bas", "pieds", "haut", "barbe", "cheveux", "tete", "arme"];
+
+/** Sous une coiffe qui couvre, les cheveux ne se dessinent qu'à partir de cette rangée : les tempes et la nuque. */
+const HAUT_DES_CHEVEUX = 14;
+
+/** La clé de la couleur des cheveux, seule couleur au choix d'une tenue. */
+export const TEINTE_CHEVEUX = "teinte_cheveux";
 
 /**
- * Une tenue : pour chaque emplacement, l'objet porté ; pour un objet qui a une gamme, sa teinte sous `teinte_<emplacement>`.
- * Rien d'autre : le serveur refuse une clé en trop (`internal.gaulois_tenue_valide`).
+ * Une tenue : pour chaque emplacement, l'objet porté, et la couleur des cheveux sous `teinte_cheveux`. Rien d'autre : le
+ * serveur refuse une clé en trop (`internal.gaulois_tenue_valide`).
  */
 export type Tenue = Readonly<Record<string, string>>;
 
-export const cleTeinte = (emplacement: Emplacement): string => `teinte_${emplacement}`;
-
-/** Le Gaulois proposé à qui n'en a pas encore : roux, moustachu, en tunique bleue et braies à carreaux. */
+/** Le Gaulois proposé à qui n'en a pas encore, tout en objets gratuits : roux, moustachu, en tunique bleue. */
 export const TENUE_DE_DEPART: Tenue = {
   peau: "claire",
   cheveux: "courts",
@@ -497,85 +1906,68 @@ export const TENUE_DE_DEPART: Tenue = {
   barbe: "moustache",
   tete: "aucun",
   haut: "tunique",
-  teinte_haut: "bleu",
   bas: "braies-carreaux",
-  teinte_bas: "vert-jaune",
   pieds: "bottes",
+  arme: "gourdin",
 };
 
 const aCle = (objetJson: object, cle: string): boolean => Object.prototype.hasOwnProperty.call(objetJson, cle);
 
-/** Une tenue complète, faite d'objets du vestiaire et de teintes de leur gamme, sans rien d'autre ; sinon `null`. */
+/** Une tenue complète, faite d'objets du catalogue et d'une couleur de cheveux, sans rien d'autre ; sinon `null`. */
 export function lireTenue(valeur: unknown): Tenue | null {
   if (valeur === null || typeof valeur !== "object" || Array.isArray(valeur)) return null;
   const brute = valeur as Record<string, unknown>;
   const tenue: Record<string, string> = {};
   for (const emplacement of EMPLACEMENTS) {
     const id = brute[emplacement];
-    const objets = OBJETS[emplacement];
-    if (typeof id !== "string" || !aCle(objets, id)) return null;
+    if (typeof id !== "string" || !aCle(OBJETS[emplacement], id)) return null;
     tenue[emplacement] = id;
-    const gamme = objets[id]?.gamme ?? null;
-    const cle = cleTeinte(emplacement);
-    if (gamme) {
-      const teinte = brute[cle];
-      if (typeof teinte !== "string" || !aCle(GAMMES[gamme], teinte)) return null;
-      tenue[cle] = teinte;
-    } else if (aCle(brute, cle)) {
-      return null;
-    }
   }
+  const teinte = brute[TEINTE_CHEVEUX];
+  if (typeof teinte !== "string" || !aCle(POILS, teinte)) return null;
+  tenue[TEINTE_CHEVEUX] = teinte;
   return Object.keys(brute).length === Object.keys(tenue).length ? tenue : null;
 }
 
-/**
- * La tenue après le choix d'un autre objet : la teinte reste si la nouvelle gamme la connaît, sinon la première de la
- * gamme ; elle disparaît pour un objet sans gamme.
- */
+/** L'objet est-il gratuit ? Faux aussi pour un objet inconnu. */
+export const estGratuit = (emplacement: Emplacement, id: string): boolean => OBJETS[emplacement][id]?.gratuit === true;
+
+/** La tenue ne porte-t-elle que des objets gratuits ? Les seules que le serveur enregistre tant que la boutique n'existe pas. */
+export const tenueGratuite = (tenue: Tenue): boolean => EMPLACEMENTS.every((emplacement) => estGratuit(emplacement, tenue[emplacement] ?? ""));
+
+/** La tenue après le choix d'un autre objet ; inchangée si l'objet n'existe pas. */
 export function changerObjet(tenue: Tenue, emplacement: Emplacement, id: string): Tenue {
-  const choisi = OBJETS[emplacement][id];
-  if (!choisi) return tenue;
-  const suite: Record<string, string> = { ...tenue, [emplacement]: id };
-  const cle = cleTeinte(emplacement);
-  if (choisi.gamme) {
-    const gamme = GAMMES[choisi.gamme];
-    const actuelle = tenue[cle];
-    suite[cle] = actuelle !== undefined && aCle(gamme, actuelle) ? actuelle : (Object.keys(gamme)[0] ?? "");
-  } else {
-    delete suite[cle];
-  }
-  return suite;
+  return aCle(OBJETS[emplacement], id) ? { ...tenue, [emplacement]: id } : tenue;
 }
 
-/** Une tenue tirée au hasard dans le vestiaire. `hasard` rend un nombre de 0 inclus à 1 exclu, comme `Math.random`. */
+/** Une tenue tirée au hasard parmi les objets gratuits. `hasard` rend un nombre de 0 inclus à 1 exclu, comme `Math.random`. */
 export function tenueAuHasard(hasard: () => number): Tenue {
   const pioche = <T>(liste: readonly T[]): T => liste[Math.min(liste.length - 1, Math.floor(hasard() * liste.length))] as T;
-  let tenue: Tenue = TENUE_DE_DEPART;
+  const tenue: Record<string, string> = {};
   for (const emplacement of EMPLACEMENTS) {
-    tenue = changerObjet(tenue, emplacement, pioche(Object.keys(OBJETS[emplacement])));
-    const gamme = OBJETS[emplacement][tenue[emplacement] ?? ""]?.gamme;
-    if (gamme) tenue = { ...tenue, [cleTeinte(emplacement)]: pioche(Object.keys(GAMMES[gamme])) };
+    tenue[emplacement] = pioche(Object.keys(OBJETS[emplacement]).filter((id) => estGratuit(emplacement, id)));
   }
+  tenue[TEINTE_CHEVEUX] = pioche(Object.keys(POILS));
   return tenue;
 }
 
-/** Les couleurs d'un objet porté : celles de sa teinte, sur le lin pour la seconde teinte d'un objet d'une couleur. */
-function couleursDe(tenue: Tenue, emplacement: Emplacement, porte: Objet): Readonly<Record<string, string>> {
-  if (!porte.gamme || porte.gamme === "poils") return {};
-  return { ...LIN, ...(GAMMES[porte.gamme][tenue[cleTeinte(emplacement)] ?? ""]?.couleurs ?? {}) };
+/** Les couleurs communes à tous les calques d'un Gaulois : les fixes, sa peau, ses cheveux. */
+function couleursDeBase(tenue: Tenue): Couleurs {
+  const peau = PEAUX[tenue["peau"] as keyof typeof PEAUX]?.couleurs ?? PEAUX.claire.couleurs;
+  const poils = POILS[tenue[TEINTE_CHEVEUX] as keyof typeof POILS]?.couleurs ?? POILS.roux.couleurs;
+  return { ...FIXES, ...peau, ...poils };
 }
 
 /**
- * Le Gaulois case par case, rangée par rangée : 24 × 32 couleurs « #rrggbb », `null` pour une case vide. La tenue doit
+ * Le Gaulois case par case, rangée par rangée : 48 × 64 couleurs « #rrggbb », `null` pour une case vide. La tenue doit
  * être lue par `lireTenue` ; une lettre sans couleur laisserait la case vide (un test l'interdit).
  */
 export function casesDuGaulois(tenue: Tenue): (string | null)[] {
   const cases: (string | null)[] = new Array<string | null>(GAULOIS_LARGEUR * GAULOIS_HAUTEUR).fill(null);
-  const peau = PEAUX[tenue["peau"] as keyof typeof PEAUX]?.couleurs ?? PEAUX.claire.couleurs;
-  const poils = POILS[tenue["teinte_cheveux"] as keyof typeof POILS]?.couleurs ?? POILS.roux.couleurs;
-  const base = { ...FIXES, ...peau, ...poils, ...LIN };
-  const poser = (calque: Calque, couleurs: Readonly<Record<string, string>>) => {
+  const base = couleursDeBase(tenue);
+  const poser = (calque: Calque, couleurs: Couleurs, depuis = 0) => {
     calque.lignes.forEach((ligne, dy) => {
+      if (calque.y + dy < depuis) return;
       for (let x = 0; x < GAULOIS_LARGEUR; x++) {
         const lettre = ligne[x];
         if (lettre === undefined || lettre === ".") continue;
@@ -585,11 +1977,46 @@ export function casesDuGaulois(tenue: Tenue): (string | null)[] {
     });
   };
   poser(CORPS, base);
+  const coiffe = OBJETS.tete[tenue["tete"] ?? ""]?.couvre === true;
   for (const emplacement of ORDRE) {
     const porte = OBJETS[emplacement][tenue[emplacement] ?? ""];
-    if (porte?.dessin) poser(porte.dessin, { ...base, ...couleursDe(tenue, emplacement, porte) });
+    if (porte?.dessin) poser(porte.dessin, { ...base, ...porte.couleurs }, emplacement === "cheveux" && coiffe ? HAUT_DES_CHEVEUX : 0);
   }
   return cases;
+}
+
+/** L'image d'un objet seul : ses cases, rognées à son contour. */
+export interface Vignette {
+  largeur: number;
+  hauteur: number;
+  cases: (string | null)[];
+}
+
+/**
+ * Un objet seul, rogné à son contour, pour l'image de sa case dans le vestiaire ; `null` pour un objet sans dessin
+ * (« rien »). La tenue ne sert qu'aux couleurs de la peau et des cheveux, pour une coupe ou une barbe.
+ */
+export function vignetteDeLObjet(emplacement: Emplacement, id: string, tenue: Tenue = TENUE_DE_DEPART): Vignette | null {
+  const objet = OBJETS[emplacement][id];
+  const dessin = objet?.dessin;
+  if (!objet || !dessin) return null;
+  let gauche = GAULOIS_LARGEUR;
+  let droite = -1;
+  for (const ligne of dessin.lignes) {
+    for (let x = 0; x < GAULOIS_LARGEUR; x++) {
+      if ((ligne[x] ?? ".") === ".") continue;
+      gauche = Math.min(gauche, x);
+      droite = Math.max(droite, x);
+    }
+  }
+  if (droite < gauche) return null;
+  const couleurs = { ...couleursDeBase(tenue), ...objet.couleurs };
+  const largeur = droite - gauche + 1;
+  const cases: (string | null)[] = [];
+  for (const ligne of dessin.lignes) {
+    for (let x = gauche; x <= droite; x++) cases.push(couleurs[ligne[x] ?? "."] ?? null);
+  }
+  return { largeur, hauteur: dessin.lignes.length, cases };
 }
 
 /** L'espace insécable avant « : », selon l'usage français. */
@@ -600,8 +2027,7 @@ export function decrireGaulois(tenue: Tenue): string {
   const parties = EMPLACEMENTS.map((emplacement) => {
     const porte = OBJETS[emplacement][tenue[emplacement] ?? ""];
     if (!porte) return null;
-    const gamme = porte.gamme;
-    const teinte = gamme ? GAMMES[gamme][tenue[cleTeinte(emplacement)] ?? ""]?.nom : undefined;
+    const teinte = emplacement === "cheveux" ? POILS[tenue[TEINTE_CHEVEUX] as keyof typeof POILS]?.nom : undefined;
     const mots = [porte.nom, teinte].filter(Boolean).join(", ").toLowerCase();
     return `${NOMS_EMPLACEMENTS[emplacement]}${NBSP}: ${mots}`;
   }).filter(Boolean);
@@ -613,9 +2039,10 @@ export function decrireGaulois(tenue: Tenue): string {
 /**
  * L'image que /gaulois montre dans Discord, au style des autres images du robot : le fond bleu nuit du site, ses croix de
  * repère, le petit drapeau du haut. 496 × 320 : au moins 1,55 fois plus large que haut, comme les autres
- * images du robot, que Discord montre à 550 pixels de large au plus. Une case du Gaulois y fait 8 pixels.
+ * images du robot, que Discord montre à 550 pixels de large au plus. Une case du Gaulois y fait 4 pixels : il occupe
+ * 192 × 256, comme avant le passage à 48 cases sur 64.
  */
-export const IMAGE_GAULOIS = { largeur: 496, hauteur: 320, echelle: 8 } as const;
+export const IMAGE_GAULOIS = { largeur: 496, hauteur: 320, echelle: 4 } as const;
 
 const FOND = "#0a1230";
 const REPERE = "#24346b";
@@ -653,9 +2080,9 @@ export function imageDuGaulois(tenue: Tenue): Image {
   });
   const ox = Math.round((largeur - GAULOIS_LARGEUR * echelle) / 2);
   const oy = hauteur - GAULOIS_HAUTEUR * echelle - 24;
-  // Son ombre au sol, une ellipse sous les pieds.
+  // Son ombre au sol, une ellipse sous les pieds, à la rangée 62 de la grille.
   const ombre = rgb(OMBRE_SOL);
-  const sol = { x: largeur / 2, y: oy + 31 * echelle, rx: 9 * echelle, ry: 1.4 * echelle };
+  const sol = { x: largeur / 2, y: oy + 62 * echelle, rx: 18 * echelle, ry: 2.8 * echelle };
   for (let y = Math.floor(sol.y - sol.ry); y <= sol.y + sol.ry; y++) {
     for (let x = Math.floor(sol.x - sol.rx); x <= sol.x + sol.rx; x++) {
       if (((x - sol.x) / sol.rx) ** 2 + ((y - sol.y) / sol.ry) ** 2 <= 1) peindre(x, y, ombre);
