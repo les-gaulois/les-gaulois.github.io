@@ -9,7 +9,7 @@
     "date": "2026-11-14",
     "kind": "ameliore",
     "title": "Direction : les comptes en couleurs",
-    "body": "L'onglet Comptes s'ouvre sur la liste : une ligne par compte, une recherche dès la première lettre, des filtres chiffrés, des couleurs (vert validé, jaune en attente, rouge suspendu, bleu allié)."
+    "body": "L'onglet Comptes s'ouvre sur la liste, qui se relit seule : une recherche à chaque lettre, des filtres chiffrés, des couleurs (vert validé, jaune en attente, rouge suspendu, bleu allié)."
   },
   {
     "date": "2026-11-13",
