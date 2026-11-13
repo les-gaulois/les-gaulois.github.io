@@ -159,6 +159,16 @@ export const ERROR_MESSAGES: Record<string, string> = {
   objet_gratuit: "Cet objet est gratuit : il est déjà dans votre vestiaire.",
   deja_possede: "Vous avez déjà cet objet.",
   solde_insuffisant: "Vous n'avez pas assez de statères.",
+
+  // Le marché du village (contrat : `RefusMarche` de src/lib/village/contrat.ts). Les refus qu'il partage avec la boutique
+  // (`deja_possede`, `solde_insuffisant`) sont à la boutique ; le marché a ses propres mots dans `ecran-marche.ts`.
+  pas_possede: "Cet objet n'est plus dans votre inventaire.",
+  objet_porte: "Votre Gaulois porte cet objet : enlevez-le d'abord, dans « Mon Gaulois ».",
+  achete_au_marche: "Un objet acheté au marché ne se remet pas en vente.",
+  prix_invalide: "Ce prix n'est pas accepté : un nombre entier, de 1 statère au prix de la boutique.",
+  trop_d_offres: "Vous avez déjà toutes vos offres ouvertes : retirez-en une d'abord.",
+  offre_fermee: "Cette offre n'est plus ouverte : elle est vendue, retirée ou finie.",
+  offre_a_soi: "C'est votre offre : elle se retire, elle ne s'achète pas.",
 };
 
 export function errorMessage(code: string): string {
