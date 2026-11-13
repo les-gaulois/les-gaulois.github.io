@@ -21,6 +21,8 @@ const HEALTHY: Record<string, Route> = {
   "/rest/v1/rpc/reset_member_link": { status: 401, body: {} },
   "/rest/v1/rpc/get_site_activity": { status: 401, body: {} },
   "/rest/v1/rpc/get_mon_gaulois": { status: 401, body: {} },
+  "/rest/v1/rpc/get_mes_stateres": { status: 401, body: {} },
+  "/rest/v1/rpc/get_ma_boutique": { status: 401, body: {} },
   "/rest/v1/profiles": { status: 401, body: {} },
   "/rest/v1/private_links": { status: 401, body: {} },
   "/rest/v1/admin_log": { status: 401, body: {} },
@@ -32,20 +34,25 @@ const HEALTHY: Record<string, Route> = {
   "/functions/v1/code-discord/etat": { status: 200, body: { ok: true, discord: true, service: true, signature: true, robot: true, concours: true, inscription: true } },
 };
 
-const SITE = "https://exemple.supabase.co";
-const seen: { url: string; apikey: string | null }[] = [];
+/** Ce qui s'ouvre avec la clé secrète, et à elle seule : la table des profils, la lecture des parties notées pour les statères. */
+const SECRET: Record<string, Route> = {
+  "/rest/v1/profiles": { status: 200, body: [{ gaul_number: 1 }] },
+  "/rest/v1/rpc/stateres_parties_notees": { status: 200, body: { ok: true, parties: [] } },
+};
 
-const fakeFetch = (routes: Record<string, Route>) =>
+const SITE = "https://exemple.supabase.co";
+const seen: { url: string; apikey: string | null; body: string | null }[] = [];
+
+const fakeFetch = (routes: Record<string, Route>, secret: Record<string, Route> = SECRET) =>
   (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input));
     const headers = new Headers(init?.headers);
-    seen.push({ url: url.href, apikey: headers.get("apikey") });
-    // Avec la clé secrète, la table des profils s'ouvre.
-    const route = url.pathname === "/rest/v1/profiles" && headers.get("apikey") === "sb_secret_x" ? { status: 200, body: [{ gaul_number: 1 }] } : routes[url.pathname];
+    seen.push({ url: url.href, apikey: headers.get("apikey"), body: typeof init?.body === "string" ? init.body : null });
+    const route = headers.get("apikey") === "sb_secret_x" && Object.hasOwn(secret, url.pathname) ? secret[url.pathname] : routes[url.pathname];
     return new Response(JSON.stringify(route?.body ?? {}), { status: route?.status ?? 404 });
   }) as typeof fetch;
 
-const run = (routes: Record<string, Route> = HEALTHY, secretKey?: string) => runPreflight({ url: `${SITE}/`, publishableKey: "sb_publishable_x", secretKey, fetcher: fakeFetch(routes) });
+const run = (routes: Record<string, Route> = HEALTHY, secretKey?: string, secret: Record<string, Route> = SECRET) => runPreflight({ url: `${SITE}/`, publishableKey: "sb_publishable_x", secretKey, fetcher: fakeFetch(routes, secret) });
 const statusOf = async (routes: Record<string, Route>, label: string) => (await run(routes)).find((c) => c.label.includes(label))?.status;
 
 describe("le contrôle de la mise en ligne", () => {
@@ -137,6 +144,70 @@ describe("le contrôle de la mise en ligne", () => {
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_mon_gaulois": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "ne lit pas de Gaulois")).toBe("ok");
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_mon_gaulois": { status: 200, body: { ok: true, tenue: null } } }, "ne lit pas de Gaulois")).toBe("fail");
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_mon_gaulois": { status: 404, body: {} } }, "vestiaire du village")).toBe("warn");
+  });
+
+  it("bloque si un visiteur lit un solde de statères, et signale les statères pas encore installés", async () => {
+    expect(await statusOf(HEALTHY, "ne lit pas de solde de statères")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_mes_stateres": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "ne lit pas de solde de statères")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_mes_stateres": { status: 200, body: { ok: true, solde: 0 } } }, "ne lit pas de solde de statères")).toBe("fail");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_mes_stateres": { status: 404, body: {} } }, "statères du village sont installés")).toBe("warn");
+  });
+
+  it("bloque si un visiteur peut appeler les fonctions des statères réservées à la clé de service", async () => {
+    expect(await statusOf(HEALTHY, "ne donne pas de statères")).toBe("ok");
+    expect(await statusOf(HEALTHY, "parties notées pour les statères")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/noter_victoires_stateres": { status: 401, body: {} }, "/rest/v1/rpc/stateres_parties_notees": { status: 403, body: {} } }, "ne donne pas de statères")).toBe("ok");
+    // Un refus de la fonction elle-même ne suffit pas : le droit d'appel doit être fermé.
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/noter_victoires_stateres": { status: 200, body: { ok: false, error: "invalid_parties" } } }, "ne donne pas de statères")).toBe("fail");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/noter_victoires_stateres": { status: 200, body: { ok: true, notees: 0 } } }, "ne donne pas de statères")).toBe("fail");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/stateres_parties_notees": { status: 200, body: { ok: true, parties: [] } } }, "parties notées pour les statères")).toBe("fail");
+  });
+
+  it("appelle les fonctions des statères sans rien pouvoir noter, et les trois à chaque contrôle", async () => {
+    seen.length = 0;
+    await run();
+    const appels = seen.filter((s) => /stateres/.test(s.url));
+    expect(appels.map((s) => new URL(s.url).pathname).sort()).toEqual(["/rest/v1/rpc/get_mes_stateres", "/rest/v1/rpc/noter_victoires_stateres", "/rest/v1/rpc/stateres_parties_notees"]);
+    // Une partie sans début ni points : le serveur refuserait l'envoi entier, même si le droit était mal posé.
+    const noter = appels.find((s) => s.url.endsWith("noter_victoires_stateres"));
+    expect(JSON.parse(noter?.body ?? "null")).toEqual({ p_parties: [{ partie: "verification" }] });
+    // Aucune partie ne commence en 2100 : rien à lire.
+    expect(JSON.parse(appels.find((s) => s.url.endsWith("stateres_parties_notees"))?.body ?? "null")).toEqual({ p_depuis: "2100-01-01T00:00:00Z" });
+    expect(appels.every((s) => s.apikey === "sb_publishable_x")).toBe(true);
+  });
+
+  it("dit, avec la clé secrète, si le workflow peut noter les parties pour les statères, sans jamais bloquer", async () => {
+    const label = "workflow peut noter les parties pour les statères";
+    const avecCle = async (secret: Record<string, Route>) => (await run(HEALTHY, "sb_secret_x", secret)).find((c) => c.label.includes(label));
+    expect((await avecCle(SECRET))?.status).toBe("ok");
+    expect(await avecCle({ ...SECRET, "/rest/v1/rpc/stateres_parties_notees": { status: 404, body: {} } })).toMatchObject({ status: "warn", detail: expect.stringContaining("20261113001800") });
+    expect(await avecCle({ ...SECRET, "/rest/v1/rpc/stateres_parties_notees": { status: 403, body: {} } })).toMatchObject({ status: "warn", detail: expect.stringContaining("Réponse 403") });
+    expect((await avecCle({ ...SECRET, "/rest/v1/rpc/stateres_parties_notees": { status: 200, body: { ok: false, error: "invalid_request" } } }))?.status).toBe("warn");
+    // Avec la clé secrète, seule la lecture des parties notées est appelée : jamais noter_victoires_stateres.
+    seen.length = 0;
+    await run(HEALTHY, "sb_secret_x");
+    expect(seen.filter((s) => s.apikey === "sb_secret_x" && /stateres/.test(s.url)).map((s) => new URL(s.url).pathname)).toEqual(["/rest/v1/rpc/stateres_parties_notees"]);
+    // Sans la clé secrète, ce contrôle n'est pas fait.
+    expect((await run()).some((c) => c.label.includes(label))).toBe(false);
+  });
+
+  it("bloque si un visiteur lit une boutique, et signale la boutique pas encore installée", async () => {
+    expect(await statusOf(HEALTHY, "ne lit pas de boutique")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_ma_boutique": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "ne lit pas de boutique")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_ma_boutique": { status: 200, body: { ok: true, solde: 0, inventaire: [] } } }, "ne lit pas de boutique")).toBe("fail");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_ma_boutique": { status: 404, body: {} } }, "boutique du village est installée")).toBe("warn");
+  });
+
+  it("bloque si un visiteur achète un objet ou ouvre une pochette surprise", async () => {
+    expect(await statusOf(HEALTHY, "n'achète pas d'objet")).toBe("ok");
+    expect(await statusOf(HEALTHY, "n'ouvre pas de pochette")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/acheter_objet": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "n'achète pas d'objet")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/acheter_objet": { status: 200, body: { ok: true, solde: 0 } } }, "n'achète pas d'objet")).toBe("fail");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/ouvrir_pochette": { status: 200, body: { ok: true, solde: 0 } } }, "n'ouvre pas de pochette")).toBe("fail");
+    // Le visiteur ne demande jamais un objet qui existe : rien ne serait débité même si le droit était mal posé.
+    seen.length = 0;
+    await run();
+    expect(JSON.parse(seen.find((s) => s.url.endsWith("/rpc/acheter_objet"))?.body ?? "null")).toEqual({ p_emplacement: "tete", p_objet: "verification" });
   });
 
   it("dit si la fonction code-discord est déployée et réglée, et ne bloque qu'une fois la connexion par code ouverte", async () => {
