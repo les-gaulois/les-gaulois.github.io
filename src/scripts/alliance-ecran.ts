@@ -13,9 +13,10 @@ import { cadreVisible, type Rect } from "../lib/alliance/capture";
 import { cssDe } from "../lib/alliance/couleurs";
 import { CADRE_MAX, annuler, cadreDuCalque, dansLeMasque, forEachPixel, masqueDuCalque, pointCentral, poserMasque, rectangle, trait, type Masque, type Pinceau, type Retouche } from "../lib/alliance/masque";
 import { ETAT_MER, ETAT_NEUTRE, auLittoral, decoderEtat, type EtatCarte } from "../lib/clanmap/etat";
-import { OCEAN_SHORE, SEA_FAR_CSS } from "../lib/clanmap/terrain";
+import { OCEAN_SHORE, OPEN_SEA_CSS } from "../lib/clanmap/terrain";
 import { borner, decaler, echelleDuMonde, estVueDEnsemble, pointDeCarte, zoomer, type Monde } from "../lib/clanmap/vue";
 import type { StoredClanMapFilm } from "../lib/schemas";
+import { adresseVersionnee } from "../lib/clanmap/adresse";
 import { loadFilmData } from "./film-data";
 
 export type Outil = "main" | "crayon" | "gomme" | "rectangle";
@@ -80,7 +81,7 @@ const GRILLE_CSS_PX = 10;
 /** Une zone plus petite que cela à l'écran, en pixels CSS, reçoit un repère pour être vue de loin. */
 const REPERE_CSS_PX = 14;
 /** Autour du monde, le large ; autour des repères et des noms des zones, un contour sombre qui les détache de la carte. */
-const FOND = SEA_FAR_CSS;
+const FOND = OPEN_SEA_CSS;
 const CONTOUR = "#091426";
 const DIM = [120, 130, 155, 80] as const;
 /** Le texte des étiquettes des zones, sombre sur la couleur vive de leur clan. */
@@ -94,9 +95,9 @@ const rgba = (r: number, g: number, b: number, a: number) => ((a << 24) | (b << 
  * (un cache de l'hébergeur peut garder l'un plus longtemps que l'autre) : les zones ne se comptent alors pas, mais la
  * discussion et les troupes restent.
  */
-async function chargerEtat(assets: string, film: StoredClanMapFilm): Promise<EtatCarte | null> {
+async function chargerEtat(assets: string, version: string | undefined, film: StoredClanMapFilm): Promise<EtatCarte | null> {
   try {
-    const res = await fetch(`${assets}etat.bin.gz`);
+    const res = await fetch(adresseVersionnee(assets, "etat.bin.gz", version));
     if (!res.ok) return null;
     let bytes = new Uint8Array(await res.arrayBuffer());
     // Un hébergeur peut avoir déjà décompressé le fichier en route, comme celui du film.
@@ -114,6 +115,8 @@ async function chargerEtat(assets: string, film: StoredClanMapFilm): Promise<Eta
 export class EcranAlliance {
   private pret: Promise<Chargement> | null = null;
   private readonly assets: string;
+  /** La version des fichiers publiés de la carte (`data-version`), ajoutée à leur adresse. */
+  private readonly version: string | undefined;
   private readonly root: HTMLElement;
   private readonly map: HTMLElement;
   private readonly canvas: HTMLCanvasElement;
@@ -160,7 +163,7 @@ export class EcranAlliance {
   onClic: (info: InfoPixel) => void = () => {};
   onDessin: (etat: EtatDessin) => void = () => {};
 
-  constructor(root: HTMLElement, assets: string) {
+  constructor(root: HTMLElement, assets: string, version?: string) {
     this.root = root;
     const map = root.querySelector<HTMLElement>("[data-film-map]");
     const canvas = root.querySelector<HTMLCanvasElement>("[data-alliance-canvas]");
@@ -170,6 +173,7 @@ export class EcranAlliance {
     this.canvas = canvas;
     this.ctx = ctx;
     this.assets = assets;
+    this.version = version;
   }
 
   /**
@@ -177,8 +181,8 @@ export class EcranAlliance {
    * télécharge pas l'état pixel par pixel. Après un échec, un nouvel appel recommence.
    */
   charger(): Promise<Chargement> {
-    this.pret ??= loadFilmData(this.assets)
-      .then(async (data) => ({ data, etat: await chargerEtat(this.assets, data.film) }))
+    this.pret ??= loadFilmData(this.assets, this.version)
+      .then(async (data) => ({ data, etat: await chargerEtat(this.assets, this.version, data.film) }))
       .then(({ data, etat }) => {
         this.film = data.film;
         this.terrain = data.terrain;
@@ -393,8 +397,8 @@ export class EcranAlliance {
       // Un peu moins que plein : les zones, hachurées par-dessus, restent visibles même sur la terre de leur clan.
       palette[i + 1] = couleur === undefined ? rgba(DIM[0], DIM[1], DIM[2], DIM[3]) : rgba((couleur >> 16) & 0xff, (couleur >> 8) & 0xff, couleur & 0xff, 205);
     }
-    // La terre neutre, un voile gris qui laisse voir le relief. La mer laisse voir celle du fond, claire près des côtes et
-    // plus sombre au large ; le fond, réduit de moitié, ne dessine la côte que par carrés de deux pixels : le littoral se
+    // La terre neutre, un voile gris qui laisse voir le relief. La mer laisse voir celle du fond, claire dans les mers et
+    // plus foncée au large ; le fond, réduit de moitié, ne dessine la côte que par carrés de deux pixels : le littoral se
     // peint ici au pixel près, d'après l'état.
     palette[ETAT_NEUTRE] = rgba(60, 64, 63, 120);
     const littoral = rgba(OCEAN_SHORE[0], OCEAN_SHORE[1], OCEAN_SHORE[2], 255);
@@ -920,6 +924,6 @@ export function ecranAlliance(): EcranAlliance | null {
   const root = document.querySelector<HTMLElement>("[data-carte]");
   const assets = root?.dataset.assets;
   if (!root || !assets) return null;
-  ecran = new EcranAlliance(root, assets);
+  ecran = new EcranAlliance(root, assets, root.dataset.version);
   return ecran;
 }

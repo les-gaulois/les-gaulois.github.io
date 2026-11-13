@@ -3,15 +3,16 @@ import { ETAT_MER, ETAT_NEUTRE, auLittoral } from "../../src/lib/clanmap/etat";
 import {
   DARK_SEA,
   FAR_TILES,
+  INLAND_SEA,
   LAND,
   NEAR_TILES,
   OCEAN,
   OCEAN_SHORE,
-  SEA_FAR,
-  SEA_FAR_CSS,
-  SEA_NEAR,
+  OPEN_SEA,
+  OPEN_SEA_CSS,
   SHORE,
   distanceToLand,
+  enMer,
   largeur,
   merDuJeu,
   seaColor,
@@ -27,15 +28,17 @@ describe("la mer de la carte", () => {
     expect(OCEAN_SHORE).toEqual(OCEAN.map((c) => Math.round(0.7 * c + 0.3 * 255)));
   });
 
-  it("éclaircit un peu les mers et assombrit un peu le large, autour de l'océan du jeu", () => {
+  it("éclaircit un peu les mers et assombrit le large, autour de l'océan du jeu", () => {
     for (let k = 0; k < 3; k++) {
-      expect(SEA_NEAR[k]).toBeGreaterThan(OCEAN[k]!);
-      expect(SEA_FAR[k]).toBeLessThan(OCEAN[k]!);
-      // Un contraste léger : moins de 15 % d'écart avec l'océan du jeu, de chaque côté.
-      expect(Math.abs(SEA_NEAR[k]! - OCEAN[k]!) / OCEAN[k]!).toBeLessThan(0.15);
-      expect(Math.abs(SEA_FAR[k]! - OCEAN[k]!) / OCEAN[k]!).toBeLessThan(0.15);
+      expect(INLAND_SEA[k]).toBeGreaterThan(OCEAN[k]!);
+      expect(OPEN_SEA[k]).toBeLessThan(OCEAN[k]!);
+      // Un contraste mesuré : les mers à moins de 15 % de l'océan du jeu ; le large, plus foncé à la demande du pilote,
+      // à moins de 30 %. Toujours bleus : le bleu reste le plus fort, le rouge le plus faible.
+      expect(Math.abs(INLAND_SEA[k]! - OCEAN[k]!) / OCEAN[k]!).toBeLessThan(0.15);
+      expect(Math.abs(OPEN_SEA[k]! - OCEAN[k]!) / OCEAN[k]!).toBeLessThan(0.3);
     }
-    expect(SEA_FAR_CSS).toBe(hex(SEA_FAR));
+    for (const c of [INLAND_SEA, OPEN_SEA]) expect(c[2]! > c[1]! && c[1]! > c[0]!).toBe(true);
+    expect(OPEN_SEA_CSS).toBe(hex(OPEN_SEA));
   });
 
   it("mesure la distance à la terre, à 6 % près de la ligne droite", () => {
@@ -57,21 +60,55 @@ describe("la mer de la carte", () => {
     expect(distanceToLand(new Uint8Array(4), 2, 2)[0]).toBe(Infinity);
   });
 
-  it("passe en douceur de la mer claire au large", () => {
+  it("donne aux vagues leur force, de la côte au large, et à chaque case d'eau sa couleur", () => {
     expect(largeur(0)).toBe(0);
     expect(largeur(NEAR_TILES)).toBe(0);
     expect(largeur(FAR_TILES)).toBe(1);
     expect(largeur(Infinity)).toBe(1);
     const milieu = largeur((NEAR_TILES + FAR_TILES) / 2);
     expect(milieu).toBeCloseTo(0.5, 5);
-    expect(seaColor(0, 0)).toEqual(SEA_NEAR);
-    expect(seaColor(0, Infinity)).toEqual(SEA_FAR);
+    expect(seaColor(0, 0)).toEqual(OPEN_SEA);
+    expect(seaColor(0, 1)).toEqual(INLAND_SEA);
+    expect(seaColor(0, 0.5)).toEqual([0, 1, 2].map((k) => (OPEN_SEA[k]! + INLAND_SEA[k]!) / 2));
     expect(seaColor(SHORE, 0)).toEqual(OCEAN_SHORE);
+  });
+
+  it("sépare les mers du grand océan par leurs détroits, sans halo le long des côtes ouvertes", () => {
+    // Un grand océan de 600 × 300 cases ; à l'est, un bloc de terre qui enferme une mer de 60 × 60, reliée à l'océan par un
+    // détroit de 4 cases, et un lac sans issue.
+    const width = 600;
+    const height = 300;
+    const terrain = new Uint8Array(width * height);
+    const poser = (x0: number, x1: number, y0: number, y1: number, v: number) => {
+      for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) terrain[y * width + x] = v;
+    };
+    poser(300, 399, 100, 199, LAND);
+    poser(320, 379, 120, 179, 0);
+    poser(300, 319, 148, 151, 0);
+    poser(305, 308, 105, 108, 0);
+    const mer = enMer(terrain, distanceToLand(terrain, width, height), width, height);
+    const a = (x: number, y: number) => mer[y * width + x]!;
+    expect(a(50, 50)).toBe(0);
+    // Le long d'une côte ouverte, à deux cases de la terre : encore le large.
+    expect(a(298, 115)).toBe(0);
+    expect(a(401, 150)).toBe(0);
+    expect(a(350, 201)).toBe(0);
+    // Dans le détroit, en s'éloignant de l'océan, la limite se fond : du large à la mer, sans retour en arrière.
+    const sortie = Array.from({ length: 17 }, (_, i) => a(296 + i, 150));
+    expect(sortie[0]).toBe(0);
+    expect(sortie.at(-1)).toBe(1);
+    expect(sortie.some((v) => v > 0 && v < 1)).toBe(true);
+    for (let i = 1; i < sortie.length; i++) expect(sortie[i]!).toBeGreaterThanOrEqual(sortie[i - 1]!);
+    // La mer enfermée, jusqu'à ses côtes, et le lac.
+    expect(a(350, 150)).toBe(1);
+    expect(a(322, 122)).toBe(1);
+    expect(a(306, 106)).toBe(1);
   });
 
   it("recolore la mer du fond case par case, sans toucher la terre", () => {
     // Un fond de 2 × 1 pixels, donc un terrain de 4 × 2 cases. Pixel de gauche : quatre cases de terre.
-    // Pixel de droite : deux cases de terre, une de littoral, une d'eau loin de la terre (à une case seulement ici).
+    // Pixel de droite : deux cases de terre, une de littoral, une d'eau. Si petite, la carte n'a pas de grand océan :
+    // l'eau y est une mer (seaColor(0, 1)).
     const terre = [50, 55, 54];
     const background = Uint8Array.from([...terre, ...DARK_SEA]);
     const terrain = Uint8Array.from([LAND, LAND, LAND, SHORE, LAND, LAND, LAND, 0]);
@@ -92,7 +129,7 @@ describe("la mer de la carte", () => {
     const background = new Uint8Array(width * 2 * 3);
     for (let p = 0; p < width * 2; p++) background.set(DARK_SEA, p * 3);
     const mer = merDuJeu(background, width, 2, terrain)!;
-    expect([...mer.image.slice(0, 3)]).toEqual([...SEA_FAR]);
+    expect([...mer.image.slice(0, 3)]).toEqual([...OPEN_SEA]);
     expect(mer.vagues[0]).toBe(255);
   });
 

@@ -21,7 +21,7 @@ import { fmtDay, fmtEpochDay, fmtEpochHour } from "../lib/format";
 import { CAMERA_CLICK_MS, CAMERA_SMOOTH_MS, FILM_MS, SHOT_MAX_ZOOM, SHOT_MS, SHOT_SPACING_MS, moveCamera, pickShots, placeCamera, type Camera } from "../lib/fx/camera";
 import { motionAllowed } from "../lib/fx/motion";
 import { decalage, FORCE_MIN, respiration, traitsVisibles, vaguelettes, type Vaguelette } from "../lib/fx/vagues";
-import { SEA_FAR_CSS } from "../lib/clanmap/terrain";
+import { OPEN_SEA_CSS } from "../lib/clanmap/terrain";
 import { filmSpeed, speedLabel, speedText } from "../lib/fx/speed";
 import { frNumber } from "../lib/nombre";
 import type { StoredClanMapFilm } from "../lib/schemas";
@@ -511,7 +511,7 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     c.setTransform(1, 0, 0, 1, 0, 0);
     c.globalCompositeOperation = "source-over";
     c.globalAlpha = 1;
-    c.fillStyle = SEA_FAR_CSS;
+    c.fillStyle = OPEN_SEA_CSS;
     c.fillRect(0, 0, view.width, view.height);
     c.setTransform(camera.s, 0, 0, camera.s, view.width / 2 - camera.x * camera.s, view.height / 2 - camera.y * camera.s);
     c.imageSmoothingEnabled = camera.s < 1;
@@ -1414,7 +1414,7 @@ function init(): void {
   const start = async () => {
     if (message) message.hidden = true;
     try {
-      const { film, frames, terrain, vagues } = await loadFilmData(root.dataset.assets ?? "");
+      const { film, frames, terrain, vagues } = await loadFilmData(root.dataset.assets ?? "", root.dataset.version);
       mount(root, film, frames, terrain, vagues);
     } catch (e) {
       console.warn("Film de la carte indisponible :", e);

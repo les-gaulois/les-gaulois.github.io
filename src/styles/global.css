@@ -947,8 +947,8 @@ th.fx-cross {
   aspect-ratio: 1.75 / 1;
   width: 100%;
   scroll-margin-top: 4rem;
-  /* Le large de la carte, `SEA_FAR_CSS` (src/lib/clanmap/terrain.ts) : autour du monde, la mer continue. */
-  background-color: #3e7aac;
+  /* Le large de la carte, `OPEN_SEA_CSS` (src/lib/clanmap/terrain.ts) : autour du monde, la mer continue. */
+  background-color: #346a98;
 }
 .film-map > img,
 .film-map > canvas {

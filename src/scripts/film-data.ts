@@ -1,4 +1,5 @@
 /** Charge une seule fois les fichiers du film pour son lecteur ; après un échec, « Réessayer » relance le chargement. */
+import { adresseVersionnee } from "../lib/clanmap/adresse";
 import { decodeFrames, type DecodedFrames } from "../lib/clanmap/codec";
 import type { StoredClanMapFilm } from "../lib/schemas";
 
@@ -22,8 +23,9 @@ async function optionnelle(src: string): Promise<HTMLImageElement | null> {
   }
 }
 
-async function load(assets: string): Promise<FilmData> {
-  const [meta, bin] = await Promise.all([fetch(`${assets}film.json`), fetch(`${assets}film.bin.gz`)]);
+async function load(assets: string, version: string | undefined): Promise<FilmData> {
+  const fichier = (nom: string) => adresseVersionnee(assets, nom, version);
+  const [meta, bin] = await Promise.all([fetch(fichier("film.json")), fetch(fichier("film.bin.gz"))]);
   if (!meta.ok || !bin.ok) throw new Error("fichiers du film absents");
   const film = (await meta.json()) as StoredClanMapFilm;
   let bytes = new Uint8Array(await bin.arrayBuffer());
@@ -34,15 +36,16 @@ async function load(assets: string): Promise<FilmData> {
   }
   const frames = decodeFrames(bytes, film.frames.length, film.totalChanges);
   const terrain = new Image();
-  terrain.src = `${assets}terrain.webp`;
-  const [, vagues] = await Promise.all([terrain.decode(), optionnelle(`${assets}vagues.webp`)]);
+  terrain.src = fichier("terrain.webp");
+  const [, vagues] = await Promise.all([terrain.decode(), optionnelle(fichier("vagues.webp"))]);
   return { film, frames, terrain, vagues };
 }
 
 let pending: Promise<FilmData> | null = null;
 
-export function loadFilmData(assets: string): Promise<FilmData> {
-  pending ??= load(assets).catch((e) => {
+/** `version` : celle des fichiers publiés (`data-version` de la page), ajoutée à leur adresse. */
+export function loadFilmData(assets: string, version?: string): Promise<FilmData> {
+  pending ??= load(assets, version).catch((e) => {
     // Un nouvel essai reste possible après un échec.
     pending = null;
     throw e;

@@ -16,6 +16,8 @@ import { SPEED_MAX, SPEED_MIN, SPEED_STEP, speedLabel, speedText } from "../lib/
 import { changeSinceLastDay, dayHighlights, dayRows, parisDayOf, territorySeries, type DayRow } from "../lib/clanmap/days";
 import { findMoments, nextThreshold } from "../lib/clanmap/moments";
 import { indexDesClans } from "../lib/clanmap/vue";
+import { adresseVersionnee } from "../lib/clanmap/adresse";
+import { versionDeLaCarte } from "../lib/clanmap/version";
 import { loadClanMapFilm, loadClanMapJournal, loadMeta } from "../lib/data";
 import { fmtDate, fmtDay, fmtDec1, fmtEpochDay, fmtEpochHour, fmtEpochTime, fmtInt, fmtRank } from "../lib/format";
 import { endingOn } from "../lib/gazette";
@@ -27,6 +29,10 @@ const meta = loadMeta();
 const film = loadClanMapFilm();
 const gal = film?.galSummary ?? null;
 const assets = `${base}/generated/carte/`;
+// Les fichiers de la carte gardent leur nom d'un build à l'autre : leur version, ajoutée à leur adresse, empêche un
+// navigateur de mêler un ancien fond au nouveau script (src/lib/clanmap/version.ts).
+const version = versionDeLaCarte("public/generated/carte");
+const fichier = (nom: string) => adresseVersionnee(assets, nom, version);
 const ordinal = (n: number) => `${n}${n === 1 ? "er" : "e"}`;
 const signed = (n: number) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${fmtInt(Math.abs(n))}`;
 const rgb = (color: number | null) => `rgb(${clanRgb(color).join(" ")})`;
@@ -118,7 +124,7 @@ const dock = FENETRES.filter((f) => presentes.has(f.id));
         </div>
       </div>
     ) : (
-      <section class="carte" data-carte data-film data-assets={assets} data-visit={visit ? JSON.stringify(visit) : undefined} aria-labelledby="map-page-title" style='--console-hote: "carte"'>
+      <section class="carte" data-carte data-film data-assets={assets} data-version={version ?? undefined} data-visit={visit ? JSON.stringify(visit) : undefined} aria-labelledby="map-page-title" style='--console-hote: "carte"'>
         {/* Avant le premier affichage : la page tient dans l'écran, tout se passe sur la carte. Si le script de la page
             n'arrive pas, elle redevient une page ordinaire, qui défile, avec toutes ses fenêtres l'une sous l'autre. */}
         <script is:inline>
@@ -143,8 +149,8 @@ const dock = FENETRES.filter((f) => presentes.has(f.id));
               et décrit par la ligne d'aide placée après lui. Sans le film, il n'y a rien à manier. */}
           <div class="film-map" data-film-map data-testid="film-map" role="group" aria-label="Carte des territoires">
             <img
-              src={`${assets}finale-1400.webp`}
-              srcset={`${assets}finale-800.webp 800w, ${assets}finale-1400.webp 1400w`}
+              src={fichier("finale-1400.webp")}
+              srcset={`${fichier("finale-800.webp")} 800w, ${fichier("finale-1400.webp")} 1400w`}
               sizes="100vw"
               width="1400"
               height={stillHeight}

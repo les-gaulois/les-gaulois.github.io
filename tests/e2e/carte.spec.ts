@@ -874,8 +874,24 @@ test.describe("film de la carte", () => {
     await expect(page.getByRole("button", { name: "Vue d'ensemble" })).toBeVisible();
   });
 
+  test("les fichiers de la carte portent leur version : un navigateur ne mêle pas un ancien fond au nouveau script", async ({ page }) => {
+    const lus: string[] = [];
+    page.on("request", (r) => {
+      if (r.url().includes("/generated/carte/")) lus.push(r.url());
+    });
+    await page.goto("/carte");
+    await expect(playButton(page)).toBeVisible();
+    const version = await page.locator("[data-film]").getAttribute("data-version");
+    expect(version).toMatch(/^[0-9a-f]{12}$/);
+    for (const nom of ["film.json", "film.bin.gz", "terrain.webp", "vagues.webp"]) {
+      expect(lus.filter((u) => u.includes(`/${nom}`)), nom).toEqual([expect.stringContaining(`/${nom}?v=${version}`)]);
+    }
+    await expect(page.locator("[data-testid=film-map] img")).toHaveAttribute("src", new RegExp(`finale-1400\\.webp\\?v=${version}$`));
+  });
+
   test("si le film ne charge pas, la carte finale reste et on peut réessayer", async ({ page }) => {
-    await page.route("**/generated/carte/film.bin.gz", (r) => r.abort());
+    // L'adresse porte la version des fichiers (« ?v=… ») : le motif l'accepte.
+    await page.route("**/generated/carte/film.bin.gz*", (r) => r.abort());
     await page.goto("/carte");
     await expect(page.getByText("Le film n'a pas pu être chargé.")).toBeVisible();
     await expect(page.locator("[data-testid=film-map] img")).toBeVisible();
@@ -897,7 +913,7 @@ test.describe("film de la carte", () => {
     await expect(entry(page, "moments")).toBeHidden();
     expect(await pageScroll(page)).toBe(0);
     errors = [];
-    await page.unroute("**/generated/carte/film.bin.gz");
+    await page.unroute("**/generated/carte/film.bin.gz*");
     await page.getByRole("button", { name: "Réessayer" }).click();
     await expect(playButton(page)).toBeVisible();
     await expect(page.getByText("Le film n'a pas pu être chargé.")).toBeHidden();

@@ -2,6 +2,16 @@
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "title": "Carte : les mers ressortent sur l'océan",
+    "body": "Les mers fermées par un détroit (Méditerranée, mer Noire, Baltique, mer Rouge…) et les lacs sont plus clairs ; le grand océan est plus foncé jusqu'aux côtes, sans halo autour des continents.",
+    "link": {
+      "href": "/carte",
+      "label": "Voir la carte"
+    }
+  },
+  {
+    "date": "2026-11-13",
+    "kind": "ameliore",
     "title": "Carte : la mer redevient bleue",
     "body": "La mer reprend le bleu du jeu au lieu du presque noir : plus claire le long des côtes, un peu plus foncée au large. De petites vagues y dérivent doucement ; le bouton pause les arrête.",
     "link": {
