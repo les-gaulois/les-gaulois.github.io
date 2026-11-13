@@ -1,6 +1,7 @@
 import type { ComponentChildren } from "preact";
 import { useCallback, useEffect, useState } from "preact/hooks";
 import { CODE_LOGIN_OPEN, ServerError, basePath, call, getSession, signInWithCode, signInWithDiscord, supabase } from "../../lib/compte/api";
+import { ERROR_MESSAGES_EN, errorMessageEn } from "../../lib/compte/errors";
 import { PENDING_CHANGED } from "../../lib/compte/pending";
 import { initialOf } from "../../lib/compte/qg";
 import type { Me } from "../../lib/compte/types";
@@ -9,6 +10,16 @@ import { onPlayerViewChange, readPlayerView, viewedAccount } from "../../lib/com
 export type Loadable<T> = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; data: T };
 
 export const messageOf = (e: unknown): string => (e instanceof ServerError ? e.message : "Le serveur ne répond pas pour l'instant. Réessayez dans un moment.");
+
+/**
+ * Les écrans que lit aussi un joueur allié, dans la fenêtre « Alliance » de la carte, se lisent en français ou en anglais
+ * (`src/lib/alliance/langue.ts`). Partout ailleurs, le site reste en français : c'est la valeur par défaut.
+ */
+export type LangueEcran = "fr" | "en";
+
+/** Le refus du serveur dans la langue de l'écran. */
+export const messageIn = (e: unknown, langue: LangueEcran = "fr"): string =>
+  langue === "fr" ? messageOf(e) : e instanceof ServerError ? errorMessageEn(e.code) : ERROR_MESSAGES_EN["network"]!;
 
 /** L'heure, relue chaque minute : une durée affichée reste juste dans une page laissée ouverte. */
 export function useNow(every = 60_000): Date {
@@ -104,7 +115,7 @@ export function useMe(): { me: Me | null; failed: boolean; userId: string | null
  * `avant` : juste avant de partir vers Discord. La carte de l'alliance y note qu'il faut y revenir : Discord ne ramène qu'aux
  * adresses de retour admises par le serveur, la page de compte et la Direction.
  */
-export function DiscordButton({ returnPath, label = "Se connecter avec Discord", avant }: { returnPath: string; label?: string; avant?: () => void }) {
+export function DiscordButton({ returnPath, label = "Se connecter avec Discord", avant, langue = "fr" }: { returnPath: string; label?: string; avant?: () => void; langue?: LangueEcran }) {
   const [error, setError] = useState<string | null>(null);
   return (
     <>
@@ -115,7 +126,7 @@ export function DiscordButton({ returnPath, label = "Se connecter avec Discord",
         onClick={() => {
           setError(null);
           avant?.();
-          signInWithDiscord(returnPath).catch((e: unknown) => setError(messageOf(e)));
+          signInWithDiscord(returnPath).catch((e: unknown) => setError(messageIn(e, langue)));
         }}
       >
         {label}
@@ -133,7 +144,25 @@ const NBSP = String.fromCharCode(0xa0);
  * que l'outil de connexion de Supabase demande toujours à Discord, `identify` et `email` (lues dans son code le
  * 12 novembre 2026). Après la connexion, le site n'a plus besoin de cet accès : la session est celle de Supabase.
  */
-export function DiscordGives() {
+export function DiscordGives({ langue = "fr" }: { langue?: LangueEcran } = {}) {
+  if (langue === "en")
+    return (
+      <details class="fold mt-4" data-testid="discord-gives">
+        <summary>What Discord gives the site</summary>
+        <div class="mt-1 space-y-2 text-muted">
+          <p>
+            Your Discord ID and name, your profile picture and your e-mail address. Never your password, your messages, your
+            servers or your friends: the site cannot write anything on your behalf.
+          </p>
+          <p>Once signed in, you can remove this access in Discord, under Settings then Authorized Apps: you stay signed in on this device.</p>
+          <p>
+            <a href={`${basePath()}/confidentialite#avec-un-compte`} hreflang="fr">
+              What the site keeps (in French)
+            </a>
+          </p>
+        </div>
+      </details>
+    );
   return (
     <details class="fold mt-4" data-testid="discord-gives">
       <summary>Ce que Discord donne au site</summary>
@@ -162,10 +191,11 @@ export const codeLoginShown = (): boolean => CODE_LOGIN_OPEN || location.hash ==
  * robot lui montre, à lui seul. Le serveur vérifie le code ; la session ouverte, la page de compte se recharge.
  * `connecte` : la session ouverte, la page reste où elle est (la carte de l'alliance), au lieu d'aller au compte.
  */
-export function CodeLogin({ connecte }: { connecte?: () => void } = {}) {
+export function CodeLogin({ connecte, langue = "fr" }: { connecte?: () => void; langue?: LangueEcran } = {}) {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const en = langue === "en";
 
   const send = async () => {
     setBusy(true);
@@ -179,7 +209,7 @@ export function CodeLogin({ connecte }: { connecte?: () => void } = {}) {
       }
       location.assign(`${basePath()}/compte`);
     } catch (e) {
-      setError(messageOf(e));
+      setError(messageIn(e, langue));
       setBusy(false);
     }
   };
@@ -187,11 +217,11 @@ export function CodeLogin({ connecte }: { connecte?: () => void } = {}) {
   return (
     <section class="border-t border-line pt-5" aria-labelledby="code-titre" data-testid="code-login">
       <h3 id="code-titre" class="text-lg">
-        Sans lier votre compte Discord
+        {en ? "Without linking your Discord account" : "Sans lier votre compte Discord"}
       </h3>
       <ol class="mt-2 list-decimal space-y-1 pl-6 text-muted">
-        <li>Dans le Discord du clan, tapez /code.</li>
-        <li>Recopiez ici le code que le robot vous montre, à vous seul.</li>
+        <li>{en ? "In the clan's Discord, type /code." : "Dans le Discord du clan, tapez /code."}</li>
+        <li>{en ? "Copy here the code the bot shows you, and only you." : "Recopiez ici le code que le robot vous montre, à vous seul."}</li>
       </ol>
       <form
         class="mt-3 flex flex-wrap items-end gap-3"
@@ -217,26 +247,32 @@ export function CodeLogin({ connecte }: { connecte?: () => void } = {}) {
           />
         </div>
         <button type="submit" class="btn btn-ghost" disabled={busy || code.trim() === ""}>
-          {busy ? "Connexion…" : "Se connecter"}
+          {busy ? (en ? "Signing in…" : "Connexion…") : en ? "Sign in" : "Se connecter"}
         </button>
       </form>
       <Problem message={error} />
       <p class="mt-3 text-sm text-muted">
-        Par ce chemin, le site ne garde que votre identifiant et votre nom d'utilisateur Discord, pour qu'un officier vous
-        reconnaisse{NBSP}: ni e-mail, ni accès à votre compte.
+        {en ? (
+          "This way the site only keeps your Discord ID and username, so that an officer can recognise you: no e-mail, no access to your account."
+        ) : (
+          <>
+            Par ce chemin, le site ne garde que votre identifiant et votre nom d'utilisateur Discord, pour qu'un officier vous
+            reconnaisse{NBSP}: ni e-mail, ni accès à votre compte.
+          </>
+        )}
       </p>
     </section>
   );
 }
 
-export function Problem({ message, onRetry }: { message: string | null; onRetry?: () => void }) {
+export function Problem({ message, onRetry, retryLabel = "Réessayer" }: { message: string | null; onRetry?: () => void; retryLabel?: string }) {
   if (!message) return null;
   return (
     <p class="form-problem" role="alert">
       {message}{" "}
       {onRetry && (
         <button type="button" class="underline" onClick={onRetry}>
-          Réessayer
+          {retryLabel}
         </button>
       )}
     </p>

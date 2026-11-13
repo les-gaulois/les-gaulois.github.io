@@ -9,3 +9,12 @@ export function frNumber(options?: Intl.NumberFormatOptions): { format: (n: numb
   const inner = new Intl.NumberFormat("fr-FR", options);
   return { format: (n) => inner.format(n).replace(/\u202f/g, "\u00a0") };
 }
+
+/**
+ * Le format anglais des nombres (« 1,500,000 », « 42.4 »), pour la seule fenêtre « Alliance » de la carte, qui se lit aussi
+ * en anglais (`src/lib/alliance/textes.ts`). Le reste du site est en français.
+ */
+export function enNumber(options?: Intl.NumberFormatOptions): { format: (n: number) => string } {
+  const inner = new Intl.NumberFormat("en-GB", options);
+  return { format: (n) => inner.format(n) };
+}

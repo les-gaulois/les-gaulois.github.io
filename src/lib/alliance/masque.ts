@@ -77,6 +77,25 @@ export function forEachPixel(masque: Masque, visit: (x: number, y: number) => vo
   }
 }
 
+/**
+ * Le pixel de la zone le plus proche du centre de son cadre, où écrire son nom sur la carte : pour une zone en croissant
+ * ou en anneau, le centre du cadre tomberait hors d'elle. Le centre du cadre pour un masque vide.
+ */
+export function pointCentral(masque: Masque): [number, number] {
+  const cx = masque.x + (masque.w - 1) / 2;
+  const cy = masque.y + (masque.h - 1) / 2;
+  let meilleur: [number, number] = [Math.round(cx), Math.round(cy)];
+  let distance = Infinity;
+  forEachPixel(masque, (x, y) => {
+    const d = (x - cx) ** 2 + (y - cy) ** 2;
+    if (d < distance) {
+      distance = d;
+      meilleur = [x, y];
+    }
+  });
+  return meilleur;
+}
+
 export function pixelsDuMasque(masque: Masque): number {
   let n = 0;
   for (const octet of masque.bits) {

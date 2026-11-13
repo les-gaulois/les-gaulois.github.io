@@ -148,3 +148,55 @@ export const ERROR_MESSAGES: Record<string, string> = {
 export function errorMessage(code: string): string {
   return ERROR_MESSAGES[code] ?? "Une erreur inattendue est survenue.";
 }
+
+/**
+ * Les refus que peut voir un joueur allié dans la fenêtre « Alliance » de la carte, en anglais (13 novembre 2026 : la
+ * fenêtre se lit en français ou en anglais, `src/lib/alliance/langue.ts`). Un test vérifie que chaque refus de la carte de
+ * l'alliance et de la connexion par code y est. La gestion, réservée à l'encadrement, reste en français.
+ */
+export const ERROR_MESSAGES_EN: Record<string, string> = {
+  network: "The server is not responding right now. Try again in a moment.",
+  not_signed_in: "Sign in with Discord first.",
+  suspended: "This account is suspended.",
+  forbidden: "Your role does not allow this action.",
+  rate_limited: "Too many actions in one minute: wait a moment.",
+  invalid_request: "This request is not valid. Reload the page.",
+  discord_required: "Sign in with Discord: that is where an officer recognises you.",
+
+  no_map_access: "This account has no access to the alliance map. A player from an allied clan joins with the invitation link given by the GAL leadership.",
+  invalid_alliance: "Give the alliance a name of 2 to 40 characters and pick a colour.",
+  alliance_name_taken: "An alliance already has this name.",
+  alliance_not_found: "This alliance no longer exists. Reload the page.",
+  too_many_alliances: "12 alliances at most: delete one first.",
+  invalid_clan: "A clan tag has 2 to 5 letters or digits, as on the map.",
+  too_many_clans: "30 clans at most per alliance.",
+  clan_not_allied: "This clan is not in GAL's alliance.",
+  invalid_invite: "Give the invited player's name, 2 to 24 characters.",
+  too_many_invites: "30 invitations are already waiting: cancel one, or wait until they are used.",
+  invite_not_found: "This invitation is no longer waiting. Reload the page.",
+  already_gaulois: "You are already a validated GAL member: the alliance map is open to you without an invitation.",
+  invite_invalid: "This invitation link has already been used, was cancelled, is more than 7 days old, or its clan is no longer allied. Ask the GAL leadership for a new one.",
+  invalid_alias: "Choose a name of 2 to 24 characters for the alliance map.",
+  ally_not_found: "This player is no longer in the list, or their request has already been handled. Reload the page.",
+  invalid_troops: "Enter a number of troops, from 0 to 1,000 billion.",
+  invalid_zone: "This zone is not valid: give it a name of 2 to 40 characters, and draw it within a frame of one million pixels at most.",
+  empty_zone: "The zone is empty: draw at least one land pixel.",
+  too_many_zones: "80 zones at most: delete one first.",
+  no_alliance: "First put GAL in an alliance: the zones belong to our alliance.",
+  zone_not_found: "This zone no longer exists. Reload the page.",
+  too_fast: "Slow down: one message every two seconds, fifteen per minute at most.",
+  invalid_message: "This message is not valid. Reload the page.",
+  message_not_found: "This message is no longer in the list. Reload the page.",
+
+  code_format: "Copy the 8 characters of the code the bot showed you, with or without the dash.",
+  code_invalid: "This code is wrong, has already been used or is more than 5 minutes old. Type /code again in the clan's Discord.",
+  code_busy: "Too many wrong codes were tried in one minute: wait a moment, then try again.",
+  code_unavailable: "Sign-in by code is not responding right now. In a moment, type /code again in the clan's Discord, or sign in with Discord.",
+  code_replayed: "This code could not be created. Type /code again in the clan's Discord.",
+  too_many_codes: "Five codes in ten minutes: wait a little before asking for another one.",
+  discord_taken: "Your Discord account already has an account on the site, opened with a code. Sign out, then sign in with a code: type /code in the clan's Discord.",
+};
+
+export function errorMessageEn(code: string): string {
+  return ERROR_MESSAGES_EN[code] ?? "Something unexpected went wrong.";
+}

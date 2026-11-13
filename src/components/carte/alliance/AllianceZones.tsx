@@ -1,68 +1,51 @@
 /**
- * Les zones que l'alliance doit prendre, dessinées pixel par pixel par l'encadrement de GAL. Chacune se compte sur la vraie
- * carte, au dernier relevé : ce que l'alliance en tient déjà, la terre neutre qui reste et les pixels des autres clans,
- * avec le coût en troupes selon les règles du jeu (`src/lib/clanmap/economy.ts`).
+ * Les zones que l'alliance doit prendre, dessinées pixel par pixel par l'encadrement de GAL, chacune dans la couleur du clan
+ * qui la prend. Chacune se compte sur la vraie carte, au dernier relevé : ce que l'alliance en tient déjà, la terre neutre
+ * qui reste et les pixels des autres clans, avec les troupes à prévoir selon les règles du jeu
+ * (`src/lib/clanmap/economy.ts`).
+ *
+ * Le dessin (13 novembre 2026, « que les outils soient mieux compris ») : quatre gros boutons illustrés, une phrase pour
+ * l'outil choisi, quatre tailles en mots, et le dessin en cours dans la couleur du clan choisi.
  */
-import { useEffect, useMemo, useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import { bilanZone, type BilanZone } from "../../../lib/alliance/bilan";
+import { couleurDeZone } from "../../../lib/alliance/couleurs";
 import { CADRE_MAX, encoderBits, masqueDeLaZone, type Masque } from "../../../lib/alliance/masque";
 import type { ZoneLigne } from "../../../lib/alliance/types";
 import { ENEMY_PIXEL_BASE_TROOPS, NEUTRAL_PIXEL_TROOPS, RULES_CHECKED_ON } from "../../../lib/clanmap/economy";
+import type { IconePartieNom } from "../../../lib/icones-parties";
 import { call } from "../../../lib/compte/api";
-import { fmtDate, fmtDateTime, fmtInt, fmtPct } from "../../../lib/format";
 import type { EcranAlliance, EtatDessin, Outil } from "../../../scripts/alliance-ecran";
-import { DeleteButton, Problem, messageOf } from "../../compte/common";
-import { nomDuClan, type Contexte } from "./commun";
+import IconePartie from "../../compte/IconePartie";
+import { Problem, messageIn } from "../../compte/common";
+import { Barre, Pastille, TableauZone, useTextes, type Contexte } from "./commun";
 
-const TAILLES = [1, 3, 5, 9, 15, 25] as const;
-const OUTILS: { id: Outil; label: string }[] = [
-  { id: "main", label: "Déplacer" },
-  { id: "crayon", label: "Crayon" },
-  { id: "gomme", label: "Gomme" },
-  { id: "rectangle", label: "Rectangle" },
+/** Les tailles du pinceau et de la gomme, en pixels de côté, de « Fin » à « Très gros ». */
+const TAILLES = [1, 5, 13, 25] as const;
+const OUTILS: { id: Outil; icone: IconePartieNom }[] = [
+  { id: "main", icone: "fleches" },
+  { id: "crayon", icone: "pinceau" },
+  { id: "rectangle", icone: "cadre" },
+  { id: "gomme", icone: "gomme" },
 ];
 
-function Reste({ bilan }: { bilan: BilanZone }) {
-  const autres = bilan.autres.slice(0, 4).map((a) => `${nomDuClan(a.tag)} ${fmtInt(a.pixels)}`);
-  const plus = bilan.autres.length > 4 ? `, et ${bilan.autres.length - 4} autres clans` : "";
-  return (
-    <ul class="alliance-reste tnum">
-      <li>Déjà à l'alliance : {fmtInt(bilan.alliance)} pixels.</li>
-      <li>Terre neutre : {fmtInt(bilan.neutres)} pixels, soit {fmtInt(bilan.coutNeutres)} troupes.</li>
-      {bilan.ennemis > 0 && (
-        <li>
-          Aux autres clans : {fmtInt(bilan.ennemis)} pixels ({autres.join(", ")}
-          {plus}), soit au moins {fmtInt(bilan.coutEnnemisMinimum)} troupes.
-        </li>
-      )}
-      {bilan.mer > 0 && <li>En mer, qui ne se prend pas : {fmtInt(bilan.mer)} pixels.</li>}
-    </ul>
-  );
-}
-
-function Abandon({ busy, onConfirm }: { busy: boolean; onConfirm: () => void }) {
+/** Un clic de trop perd le dessin : le bouton demande une confirmation, et se désarme quand on le quitte. */
+function EnDeuxTemps({ busy, texte, confirmer, aria, ariaConfirmer, onConfirm }: { busy: boolean; texte: string; confirmer: string; aria?: string; ariaConfirmer?: string; onConfirm: () => void }) {
   const [arme, setArme] = useState(false);
   return (
     <button
       type="button"
       class="btn btn-ghost !min-h-10 !py-1.5 !text-sm"
       disabled={busy}
+      aria-label={arme ? ariaConfirmer : aria}
       onBlur={() => setArme(false)}
       onClick={() => {
         if (arme) onConfirm();
         else setArme(true);
       }}
     >
-      {arme ? "Confirmer : jeter le dessin" : "Abandonner le dessin"}
+      {arme ? confirmer : texte}
     </button>
-  );
-}
-
-function Barre({ part }: { part: number }) {
-  return (
-    <span class="alliance-barre" aria-hidden="true">
-      <i style={{ width: `${Math.round(part * 1000) / 10}%` }}></i>
-    </span>
   );
 }
 
@@ -87,48 +70,44 @@ export default function AllianceZones({
   edition: Edition | null;
   setEdition: (e: Edition | null) => void;
 }) {
-  const { donnees, film, etat, notres } = ctx;
+  const t = useTextes();
+  const { donnees, film, etat, notres, bilans, couleursClans } = ctx;
   const zones = donnees.zones ?? [];
-  const clansNotres = [...notres].sort();
-  // GAL est toujours des nôtres dans un bilan, même avant d'être rangé dans une alliance : ses pixels ne sont jamais à prendre.
-  const pourBilan = useMemo(() => new Set([...notres, "GAL"]), [notres]);
+  const clansNotres = [...notres].sort((a, b) => (a === "GAL" ? -1 : b === "GAL" ? 1 : a.localeCompare(b)));
   const sansAlliance = (donnees.ours ?? null) === null;
   const [outil, setOutil] = useState<Outil>("crayon");
-  const [taille, setTaille] = useState(3);
+  const [taille, setTaille] = useState<number>(TAILLES[1]);
   const [dessin, setDessin] = useState<EtatDessin>({ pixels: 0, cadre: null, tropGrand: false, annulable: false });
   const [apercu, setApercu] = useState<BilanZone | null>(null);
   const [busy, setBusy] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+  const couleurEdition = couleurDeZone(edition?.tag ? edition.tag : null, couleursClans);
 
-  const bilans = useMemo(() => {
-    const out = new Map<number, BilanZone>();
-    if (!etat) return out;
-    for (const z of zones) {
-      const m = masqueDeLaZone(z);
-      if (m) out.set(z.id, bilanZone(m, etat.valeurs, etat.width, film.clans, pourBilan));
-    }
-    return out;
-  }, [zones, etat, film, pourBilan]);
-
-  // Le dessin en cours se compte à chaque geste fini.
+  // Le dessin en cours se compte à chaque geste fini. GAL est toujours des nôtres dans un bilan.
   useEffect(() => {
+    const pourBilan = new Set([...notres, "GAL"]);
     ecran.onDessin = (e) => {
       setDessin(e);
       const m = e.pixels > 0 ? ecran.masqueEdite() : null;
       setApercu(m && etat ? bilanZone(m, etat.valeurs, etat.width, film.clans, pourBilan) : null);
     };
-  }, [ecran, etat, film, pourBilan]);
+  }, [ecran, etat, film, notres]);
 
   useEffect(() => {
     if (edition) ecran.choisirOutil(outil, taille);
   }, [ecran, edition, outil, taille]);
+
+  // Le dessin prend la couleur du clan choisi, dès qu'on le change.
+  useEffect(() => {
+    if (edition) ecran.colorerDessin(couleurEdition);
+  }, [ecran, edition, couleurEdition]);
 
   const commencer = (zone: ZoneLigne | null) => {
     setErreur(null);
     const masque: Masque | null = zone ? masqueDeLaZone(zone) : null;
     setEdition({ id: zone?.id ?? null, titre: zone?.title ?? "", tag: zone?.tag ?? "" });
     choisir(zone?.id ?? null, zone !== null);
-    ecran.editer(masque);
+    ecran.editer(masque, couleurDeZone(zone?.tag ?? null, couleursClans));
     setOutil(zone ? "main" : "crayon");
   };
 
@@ -143,11 +122,11 @@ export default function AllianceZones({
     if (!edition) return;
     const m = ecran.masqueEdite();
     if (!m) {
-      setErreur("La zone est vide : dessinez au moins un pixel de terre.");
+      setErreur(t.zoneVide);
       return;
     }
     if (m.w * m.h > CADRE_MAX) {
-      setErreur("La zone est trop étendue : son cadre dépasse un million de pixels. Coupez-la en plusieurs zones.");
+      setErreur(t.tropGrand);
       return;
     }
     setBusy(true);
@@ -169,7 +148,7 @@ export default function AllianceZones({
       await ctx.relire();
       choisir(r.id, false);
     } catch (e) {
-      setErreur(messageOf(e));
+      setErreur(messageIn(e, t.langue));
     } finally {
       setBusy(false);
     }
@@ -183,84 +162,105 @@ export default function AllianceZones({
       if (selection === id) choisir(null, false);
       await ctx.relire();
     } catch (e) {
-      setErreur(messageOf(e));
+      setErreur(messageIn(e, t.langue));
     } finally {
       setBusy(false);
     }
   };
 
   if (edition) {
+    const tailleVisible = outil === "crayon" || outil === "gomme";
     return (
       <section aria-labelledby="zone-edition-titre" data-testid="zone-edition">
-        <h3 id="zone-edition-titre">{edition.id === null ? "Nouvelle zone" : "Modifier la zone"}</h3>
+        <h3 id="zone-edition-titre">{edition.id === null ? t.titreNouvelleZone : t.titreModifierZone}</h3>
         <form
-          class="mt-3 grid gap-3"
+          class="mt-3 grid gap-4"
           onSubmit={(e) => {
             e.preventDefault();
             void enregistrer();
           }}
         >
-          <div>
-            <label for="zone-titre" class="text-sm font-semibold">
-              Nom de la zone
-            </label>
-            <input id="zone-titre" class="field mt-1" required minLength={2} maxLength={40} value={edition.titre} onInput={(e) => setEdition({ ...edition, titre: e.currentTarget.value })} />
-          </div>
-          <div>
-            <label for="zone-clan" class="text-sm font-semibold">
-              Qui la prend
-            </label>
-            <select id="zone-clan" class="field mt-1" value={edition.tag} onChange={(e) => setEdition({ ...edition, tag: e.currentTarget.value })}>
-              <option value="">Toute l'alliance</option>
-              {clansNotres.map((tag) => (
-                <option value={tag}>{tag}</option>
-              ))}
-            </select>
-          </div>
-          <fieldset class="alliance-outils-dessin">
-            <legend class="text-sm font-semibold">Outil sur la carte</legend>
-            {OUTILS.map((o) => (
-              <label>
-                <input type="radio" name="zone-outil" value={o.id} checked={outil === o.id} onChange={() => setOutil(o.id)} />
-                {o.label}
+          <div class="alliance-deux">
+            <div>
+              <label for="zone-titre" class="text-sm font-semibold">
+                {t.nomZone}
               </label>
-            ))}
-          </fieldset>
-          <div>
-            <label for="zone-taille" class="text-sm font-semibold">
-              Taille du crayon et de la gomme
-            </label>
-            <select id="zone-taille" class="field mt-1" value={String(taille)} onChange={(e) => setTaille(Number(e.currentTarget.value))}>
-              {TAILLES.map((t) => (
-                <option value={String(t)}>{t === 1 ? "1 pixel" : `${t} × ${t} pixels`}</option>
+              <input id="zone-titre" class="field mt-1" required minLength={2} maxLength={40} value={edition.titre} onInput={(e) => setEdition({ ...edition, titre: e.currentTarget.value })} />
+            </div>
+            <div>
+              <label for="zone-clan" class="text-sm font-semibold">
+                {t.pourQui}
+              </label>
+              <div class="alliance-choix-clan mt-1">
+                <Pastille couleur={couleurEdition} />
+                <select id="zone-clan" class="field" value={edition.tag} onChange={(e) => setEdition({ ...edition, tag: e.currentTarget.value })}>
+                  <option value="">{t.touteLAlliance}</option>
+                  {clansNotres.map((tag) => (
+                    <option value={tag}>{tag}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <fieldset class="alliance-outils-dessin">
+            <legend class="text-sm font-semibold">{t.outil}</legend>
+            <div class="alliance-boutons-outils">
+              {OUTILS.map((o) => (
+                <label class="alliance-bouton-outil" data-outil={o.id}>
+                  <input type="radio" name="zone-outil" value={o.id} checked={outil === o.id} onChange={() => setOutil(o.id)} />
+                  <IconePartie nom={o.icone} classe="alliance-icone-outil" />
+                  <span>{t.outils[o.id]}</span>
+                </label>
               ))}
-            </select>
-          </div>
-          <p class="carte-aide">
-            La mer ne se dessine pas.
-          </p>
+            </div>
+            <p class="alliance-astuce" aria-live="polite" data-testid="zone-astuce">
+              {t.aideOutil[outil]}
+            </p>
+          </fieldset>
+
+          {tailleVisible && (
+            <fieldset class="alliance-outils-dessin">
+              <legend class="text-sm font-semibold">{t.taille}</legend>
+              <div class="alliance-tailles">
+                {TAILLES.map((n, i) => (
+                  <label class="alliance-bouton-taille">
+                    <input type="radio" name="zone-taille" value={String(n)} checked={taille === n} onChange={() => setTaille(n)} />
+                    <i aria-hidden="true" style={{ width: `${0.375 + i * 0.25}rem`, height: `${0.375 + i * 0.25}rem` }}></i>
+                    <span>{t.tailles[i]}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          )}
+
           <div class="alliance-ligne">
-            <button type="button" class="btn btn-ghost" disabled={!dessin.annulable} onClick={() => ecran.annulerGeste()}>
-              Annuler le dernier geste
+            <button type="button" class="btn btn-ghost !min-h-10 !py-1.5 !text-sm" disabled={!dessin.annulable} onClick={() => ecran.annulerGeste()} aria-keyshortcuts="Control+Z">
+              <span aria-hidden="true">↶</span> {t.annulerGeste}
             </button>
-            <button type="button" class="btn btn-ghost" disabled={dessin.pixels === 0} onClick={() => ecran.effacerTout()}>
-              Tout effacer
+            <button type="button" class="btn btn-ghost !min-h-10 !py-1.5 !text-sm" disabled={dessin.pixels === 0} onClick={() => ecran.effacerTout()}>
+              {t.toutEffacer}
             </button>
           </div>
-          <div class="carte-bloc" aria-live="polite" data-testid="zone-compte">
-            <p class="font-semibold tnum">{fmtInt(dessin.pixels)} pixels dessinés.</p>
-            {dessin.tropGrand && <p class="form-problem">Le cadre de la zone dépasse un million de pixels : coupez-la en plusieurs zones.</p>}
-            {apercu && <Reste bilan={apercu} />}
+
+          <div class="alliance-compte" aria-live="polite" data-testid="zone-compte">
+            <p>
+              <span class="alliance-kpi tnum">{t.nombre(dessin.pixels)}</span>
+              <span class="text-muted">{t.pixelsDessines}</span>
+            </p>
+            {dessin.tropGrand && <p class="form-problem">{t.tropGrand}</p>}
+            {apercu && <TableauZone bilan={apercu} t={t} />}
           </div>
+
           <div>
             <button type="submit" class="btn btn-primary" disabled={busy || dessin.pixels === 0 || dessin.tropGrand || edition.titre.trim().length < 2}>
-              Enregistrer la zone
+              {t.enregistrer}
             </button>
           </div>
           <Problem message={erreur} />
           {/* Abandonner perd le dessin : à part, sous un filet, et en deux temps. */}
           <div class="alliance-a-part">
-            <Abandon busy={busy} onConfirm={abandonner} />
+            <EnDeuxTemps busy={busy} texte={t.abandonner} confirmer={t.abandonnerConfirmer} onConfirm={abandonner} />
           </div>
         </form>
       </section>
@@ -269,38 +269,50 @@ export default function AllianceZones({
 
   return (
     <div data-testid="alliance-zones">
-      {!etat && <p class="form-problem">La carte pixel par pixel n'est pas publiée pour ce relevé : les zones ne se comptent ni ne se dessinent. Elle revient à la prochaine mise à jour de la carte.</p>}
-      {ctx.staff && etat && sansAlliance && <p class="carte-aide">Rangez d'abord GAL dans une alliance, dans Gestion.</p>}
+      {!etat && <p class="form-problem">{t.sansEtatZones}</p>}
+      {ctx.staff && etat && sansAlliance && <p class="carte-aide">{t.rangerGal}</p>}
       {ctx.staff && etat && !sansAlliance && (
         <button type="button" class="btn btn-primary" onClick={() => commencer(null)} data-testid="zone-nouvelle">
-          Dessiner une nouvelle zone
+          <span aria-hidden="true">+</span> {t.nouvelleZone}
         </button>
       )}
       {zones.length > 0 && (
-        <ul class="carte-liste">
+        <ul class="alliance-zones">
           {zones.map((z) => {
             const bilan = bilans.get(z.id) ?? null;
+            const couleur = couleurDeZone(z.tag, couleursClans);
+            const choisie = selection === z.id;
             return (
-              <li key={z.id} class="alliance-zone" data-choisie={selection === z.id ? "" : undefined} data-testid="zone">
-                <button type="button" class="film-tile" aria-current={selection === z.id ? "true" : undefined} onClick={() => choisir(selection === z.id ? null : z.id, selection !== z.id)}>
-                  <span class="font-semibold">{z.title}</span>
-                  <span class="carte-date">{z.tag ?? "Toute l'alliance"}</span>
-                </button>
-                <p class="tnum carte-petit">
-                  {fmtInt(z.pixels)} pixels
-                  {bilan && <> · prise à {fmtPct(bilan.part * 100)}</>}
-                </p>
-                {bilan && <Barre part={bilan.part} />}
-                {selection === z.id && bilan && <Reste bilan={bilan} />}
-                {selection === z.id && <p class="carte-aide">Dessinée ou modifiée le {fmtDateTime(z.updated_at)}.</p>}
-                {selection === z.id && ctx.staff && etat && (
-                  <div class="alliance-ligne mt-2">
-                    <button type="button" class="btn btn-ghost" onClick={() => commencer(z)}>
-                      Modifier
-                    </button>
-                    <span class="alliance-a-part">
-                      <DeleteButton busy={busy} label={z.title} onConfirm={() => void supprimer(z.id)} />
+              <li key={z.id} class="alliance-zone" data-choisie={choisie ? "" : undefined} data-testid="zone">
+                <button type="button" class="alliance-zone-tete" aria-expanded={choisie} onClick={() => choisir(choisie ? null : z.id, !choisie)}>
+                  <span class="alliance-zone-nom">
+                    <Pastille couleur={couleur} />
+                    <span>
+                      <strong>{z.title}</strong>
+                      <span class="alliance-zone-clan">{z.tag ?? t.touteLAlliance}</span>
                     </span>
+                  </span>
+                  {bilan && (
+                    <span class="alliance-zone-part tnum">
+                      {t.pct(bilan.part)} <span class="alliance-zone-prise">{t.prise}</span>
+                    </span>
+                  )}
+                </button>
+                {bilan && <Barre part={bilan.part} couleur={couleur} />}
+                {choisie && (
+                  <div class="alliance-zone-detail">
+                    {bilan && <TableauZone bilan={bilan} t={t} />}
+                    <p class="carte-aide">{t.misAJour(t.dateHeure(z.updated_at))}</p>
+                    {ctx.staff && etat && (
+                      <div class="alliance-ligne mt-2">
+                        <button type="button" class="btn btn-ghost !min-h-10 !py-1.5 !text-sm" onClick={() => commencer(z)}>
+                          {t.modifier}
+                        </button>
+                        <span class="alliance-a-part">
+                          <EnDeuxTemps busy={busy} texte={t.supprimer} confirmer={t.confirmerSuppression} aria={t.supprimerAria(z.title)} ariaConfirmer={t.confirmerSuppressionAria(z.title)} onConfirm={() => void supprimer(z.id)} />
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
               </li>
@@ -311,7 +323,7 @@ export default function AllianceZones({
       <Problem message={erreur} />
       {zones.length > 0 && etat && (
         <p class="carte-aide tnum">
-          Au relevé du {fmtDateTime(film.fetchedAt)}. {fmtInt(NEUTRAL_PIXEL_TROOPS)} troupes par pixel neutre, au moins {fmtInt(ENEMY_PIXEL_BASE_TROOPS)} par pixel d'un autre clan, selon les règles du jeu lues le {fmtDate(`${RULES_CHECKED_ON}T12:00:00Z`)}.
+          {t.releve(t.dateHeure(film.fetchedAt))} {t.regles(t.nombre(NEUTRAL_PIXEL_TROOPS), t.nombre(ENEMY_PIXEL_BASE_TROOPS), t.jour(`${RULES_CHECKED_ON}T12:00:00Z`))}
         </p>
       )}
     </div>

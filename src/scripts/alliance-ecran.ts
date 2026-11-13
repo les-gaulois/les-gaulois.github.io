@@ -1,27 +1,39 @@
 /**
  * L'écran de la carte de l'alliance, à la place du film quand la fenêtre « Alliance » est ouverte : la carte complète au
- * dernier relevé, pixel par pixel (`src/lib/clanmap/etat.ts`), les clans en couleur de leur alliance, les zones à prendre,
- * et, pour l'encadrement, le dessin d'une zone au pixel près.
+ * dernier relevé, pixel par pixel (`src/lib/clanmap/etat.ts`), nos clans chacun dans sa couleur (ou les alliances dans la
+ * leur), les zones à prendre dans la couleur du clan qui les prend, avec leur nom écrit dessus, et, pour l'encadrement, le
+ * dessin d'une zone au pixel près.
  *
  * Ce script ne change aucune valeur : il dessine l'état publié par le site et les zones du serveur. Le dessin d'une zone
  * reste dans ce navigateur jusqu'à son enregistrement, que le serveur vérifie (`save_alliance_zone`).
  * La carte se manie comme celle du film (`src/lib/clanmap/vue.ts`) : molette ou deux doigts pour le zoom, glisser pour se
  * déplacer, flèches, plus, moins et zéro au clavier. Avec un outil de dessin, un doigt dessine et deux doigts déplacent.
  */
-import { CADRE_MAX, annuler, cadreDuCalque, dansLeMasque, forEachPixel, masqueDuCalque, poserMasque, rectangle, trait, type Masque, type Pinceau, type Retouche } from "../lib/alliance/masque";
-import { clanRgb } from "../lib/clanmap/codec";
+import { cssDe } from "../lib/alliance/couleurs";
+import { CADRE_MAX, annuler, cadreDuCalque, dansLeMasque, forEachPixel, masqueDuCalque, pointCentral, poserMasque, rectangle, trait, type Masque, type Pinceau, type Retouche } from "../lib/alliance/masque";
 import { ETAT_MER, ETAT_NEUTRE, decoderEtat, type EtatCarte } from "../lib/clanmap/etat";
 import { borner, decaler, echelleDuMonde, estVueDEnsemble, pointDeCarte, zoomer } from "../lib/clanmap/vue";
 import type { StoredClanMapFilm } from "../lib/schemas";
 import { loadFilmData } from "./film-data";
 
 export type Outil = "main" | "crayon" | "gomme" | "rectangle";
-export type Couleurs = "alliances" | "clans";
 
 export interface ZoneAffichee {
   id: number;
   title: string;
   masque: Masque;
+  /** La couleur du clan qui la prend, 0xRRGGBB (`couleurDeZone`). */
+  couleur: number;
+  /** Ce qui est écrit sur la carte : le tag du clan et le nom de la zone. */
+  etiquette: string;
+}
+
+/** Ce qu'il y a sous le pointeur, et où : en pixels CSS depuis le coin de la carte. `toucher` : un doigt, qui ne survole pas. */
+export interface Survol {
+  info: InfoPixel;
+  x: number;
+  y: number;
+  toucher: boolean;
 }
 
 /** Ce qu'il y a sous le pointeur, sur la carte complète. */
@@ -67,6 +79,9 @@ const GRILLE_CSS_PX = 10;
 const REPERE_CSS_PX = 14;
 const FOND = "#091426";
 const DIM = [120, 130, 155, 80] as const;
+/** Le texte des étiquettes des zones, sombre sur la couleur vive de leur clan. */
+const TEXTE_ETIQUETTE = "#0a1230";
+const centreDeZone = pointCentral;
 
 const rgba = (r: number, g: number, b: number, a: number) => ((a << 24) | (b << 16) | (g << 8) | r) >>> 0;
 
@@ -112,10 +127,15 @@ export class EcranAlliance {
   private demande = 0;
 
   private couleurs = new Map<string, number>();
-  private mode: Couleurs = "alliances";
   private zones: ZoneAffichee[] = [];
+  /** Le point de chaque zone où écrire son nom : celui de ses pixels le plus près du centre de son cadre. */
+  private centres = new Map<number, [number, number]>();
+  private readonly masquesVus = new WeakMap<Masque, [number, number]>();
   private selection: number | null = null;
+  private survolee: number | null = null;
   private dessins = new Map<string, HTMLCanvasElement>();
+  /** La couleur du dessin en cours : celle du clan qui prendra la zone. */
+  private couleurDessin = 0x7dd3fc;
 
   // Le dessin d'une zone par l'encadrement.
   private calque: Uint8Array | null = null;
@@ -130,8 +150,9 @@ export class EcranAlliance {
   private glisse: { x0: number; y0: number; x: number; y: number; bouge: boolean } | null = null;
   private pince: { distance: number; x: number; y: number; depuis: Vue } | null = null;
   private survolPx: [number, number] | null = null;
+  private survolInfo: InfoPixel | null = null;
 
-  onSurvol: (info: InfoPixel | null) => void = () => {};
+  onSurvol: (survol: Survol | null) => void = () => {};
   onClic: (info: InfoPixel) => void = () => {};
   onDessin: (etat: EtatDessin) => void = () => {};
 
@@ -192,10 +213,9 @@ export class EcranAlliance {
     }
   }
 
-  /** La couleur de chaque clan rangé dans une alliance, par son tag, et la façon de colorer la carte. */
-  regler(couleurs: Map<string, number>, mode: Couleurs): void {
+  /** La couleur des clans colorés, par leur tag (nos clans, ou les clans de chaque alliance) ; les autres restent gris. */
+  regler(couleurs: Map<string, number>): void {
     this.couleurs = couleurs;
-    this.mode = mode;
     this.peindreBase();
     this.dessiner();
   }
@@ -205,6 +225,29 @@ export class EcranAlliance {
     this.zones = zones;
     this.selection = selection;
     this.dessins.clear();
+    // Le point d'écriture de chaque zone ne se recalcule que pour un masque nouveau : choisir une zone ne relit pas tout.
+    this.centres = new Map();
+    for (const zone of zones) {
+      const deja = this.masquesVus.get(zone.masque);
+      const centre = deja ?? centreDeZone(zone.masque);
+      if (!deja) this.masquesVus.set(zone.masque, centre);
+      this.centres.set(zone.id, centre);
+    }
+    if (this.survolee !== null && !zones.some((z) => z.id === this.survolee)) this.survolee = null;
+    this.dessiner();
+  }
+
+  /** La largeur de la carte, en pixels CSS, que ne couvre pas la fenêtre ouverte : la bulle du survol y reste. */
+  largeurLibre(): number {
+    const largeur = this.map.getBoundingClientRect().width;
+    return this.canvas.width > 0 ? largeur - this.covered * (largeur / this.canvas.width) : largeur;
+  }
+
+  /** La couleur du dessin en cours : celle du clan choisi pour la zone. */
+  colorerDessin(couleur: number): void {
+    if (couleur === this.couleurDessin) return;
+    this.couleurDessin = couleur;
+    if (this.calque) this.majBrouillon(0, 0, this.W - 1, this.H - 1);
     this.dessiner();
   }
 
@@ -228,9 +271,11 @@ export class EcranAlliance {
     this.zoomerAutour(facteur, (this.canvas.width - this.covered) / 2, this.canvas.height / 2);
   }
 
-  /** Commence le dessin d'une zone, vide ou reprise d'une zone existante. */
-  editer(masque: Masque | null): void {
+  /** Commence le dessin d'une zone, vide ou reprise d'une zone existante, dans la couleur du clan qui la prendra. */
+  editer(masque: Masque | null, couleur: number): void {
     if (!this.etat) return;
+    this.couleurDessin = couleur;
+    this.survolee = null;
     this.calque = new Uint8Array(this.W * this.H);
     if (masque) poserMasque(this.calque, this.W, masque);
     this.pixels = masque ? this.compter() : 0;
@@ -302,22 +347,16 @@ export class EcranAlliance {
     return [canvas, ctx];
   }
 
-  /** Les clans, de la couleur de leur alliance (les autres en gris), ou de leur propre couleur ; la mer et la terre neutre au pixel près. */
+  /** Les clans colorés dans leur couleur, les autres en gris ; la mer et la terre neutre au pixel près. */
   private peindreBase(): void {
     if (!this.film || !this.etat) return;
     const clans = this.film.clans;
     const palette = new Uint32Array(clans.length + 1);
     for (let i = 1; i < clans.length; i++) {
       const tag = clans[i]?.tag ?? null;
-      const alliance = tag === null ? undefined : this.couleurs.get(tag);
-      if (this.mode === "clans") {
-        const [r, g, b] = clanRgb(clans[i]?.color ?? null);
-        palette[i + 1] = rgba(r, g, b, alliance === undefined ? 150 : 225);
-      } else if (alliance !== undefined) {
-        palette[i + 1] = rgba((alliance >> 16) & 0xff, (alliance >> 8) & 0xff, alliance & 0xff, 230);
-      } else {
-        palette[i + 1] = rgba(DIM[0], DIM[1], DIM[2], DIM[3]);
-      }
+      const couleur = tag === null ? undefined : this.couleurs.get(tag);
+      // Un peu moins que plein : les zones, hachurées par-dessus, restent visibles même sur la terre de leur clan.
+      palette[i + 1] = couleur === undefined ? rgba(DIM[0], DIM[1], DIM[2], DIM[3]) : rgba((couleur >> 16) & 0xff, (couleur >> 8) & 0xff, couleur & 0xff, 205);
     }
     // La mer et la terre au pixel près, d'après l'état : le fond de carte, réduit de moitié, ne dessine la côte que par
     // carrés de deux pixels. La mer prend la couleur de celle du fond ; la terre neutre, un voile gris qui laisse voir le relief.
@@ -332,24 +371,28 @@ export class EcranAlliance {
     ctx.putImageData(image, 0, 0);
   }
 
-  /** Une zone : des hachures blanches, qui laissent voir à qui est chaque pixel, et un bord plein. Jaune quand elle est choisie. */
+  /**
+   * Une zone, dans la couleur du clan qui la prend : un bord plein, des hachures de sa couleur séparées d'un voile sombre,
+   * qui la détachent même posée sur la terre de son clan. Choisie ou survolée, elle s'éclaire et son bord devient blanc.
+   */
   private dessinDeZone(zone: ZoneAffichee): HTMLCanvasElement {
-    const cle = `${zone.id}:${zone.id === this.selection ? 1 : 0}`;
+    const vive = zone.id === this.selection || zone.id === this.survolee;
+    const cle = `${zone.id}:${vive ? 1 : 0}`;
     const deja = this.dessins.get(cle);
     if (deja) return deja;
     const { masque } = zone;
     const [canvas, ctx] = this.calqueCanvas(masque.w, masque.h);
     const image = ctx.createImageData(masque.w, masque.h);
     const pix = new Uint32Array(image.data.buffer);
-    const choisie = zone.id === this.selection;
-    const bord = choisie ? rgba(250, 204, 21, 255) : rgba(255, 255, 255, 235);
-    const raie = choisie ? rgba(250, 204, 21, 190) : rgba(255, 255, 255, 150);
-    const voile = choisie ? rgba(250, 204, 21, 55) : rgba(255, 255, 255, 30);
+    const [r, g, b] = [(zone.couleur >> 16) & 0xff, (zone.couleur >> 8) & 0xff, zone.couleur & 0xff];
+    const bord = vive ? rgba(255, 255, 255, 255) : rgba(r, g, b, 255);
+    const raie = rgba(r, g, b, vive ? 245 : 215);
+    const voile = vive ? rgba(r, g, b, 110) : rgba(9, 20, 38, 120);
     forEachPixel(masque, (x, y) => {
       const lx = x - masque.x;
       const ly = y - masque.y;
       const auBord = !dansLeMasque(masque, x - 1, y) || !dansLeMasque(masque, x + 1, y) || !dansLeMasque(masque, x, y - 1) || !dansLeMasque(masque, x, y + 1);
-      pix[ly * masque.w + lx] = auBord ? bord : (x + y) % 4 === 0 ? raie : voile;
+      pix[ly * masque.w + lx] = auBord ? bord : (x + y) % 3 === 0 ? raie : voile;
     });
     ctx.putImageData(image, 0, 0);
     this.dessins.set(cle, canvas);
@@ -369,11 +412,14 @@ export class EcranAlliance {
     const ctx = this.brouillon.getContext("2d")!;
     const image = ctx.createImageData(w, h);
     const pix = new Uint32Array(image.data.buffer);
+    const c = this.couleurDessin;
+    const plein = rgba((c >> 16) & 0xff, (c >> 8) & 0xff, c & 0xff, 245);
+    const clair = rgba((c >> 16) & 0xff, (c >> 8) & 0xff, c & 0xff, 140);
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         const gx = gauche + x;
         const gy = haut + y;
-        if (this.calque[gy * this.W + gx]) pix[y * w + x] = (gx + gy) % 3 === 0 ? rgba(125, 211, 252, 240) : rgba(125, 211, 252, 120);
+        if (this.calque[gy * this.W + gx]) pix[y * w + x] = (gx + gy) % 3 === 0 ? plein : clair;
       }
     }
     ctx.putImageData(image, gauche, haut);
@@ -528,10 +574,10 @@ export class EcranAlliance {
       c.stroke();
     }
 
-    // L'aperçu du pinceau ou du rectangle.
+    // L'aperçu du pinceau ou du rectangle : blanc, la gomme en rouge.
     if (this.calque && this.outil !== "main") {
       c.lineWidth = 2 / s;
-      c.strokeStyle = this.outil === "gomme" ? "#f87171" : "#7dd3fc";
+      c.strokeStyle = this.outil === "gomme" ? "#f87171" : "#ffffff";
       if (this.outil === "rectangle" && this.geste) {
         const [ax, ay] = this.geste.ancre;
         const [bx, by] = this.geste.fin;
@@ -543,31 +589,59 @@ export class EcranAlliance {
       }
     }
 
-    // De loin, une petite zone serait invisible : un losange la signale, avec son nom.
+    // Le nom de chaque zone, écrit sur la carte dans une étiquette de la couleur de son clan : on voit au premier coup
+    // d'œil quel clan prend quoi. De loin, une petite zone serait invisible : un losange de sa couleur la signale en plus.
+    // Deux étiquettes ne se chevauchent jamais : la zone choisie ou survolée passe d'abord, puis les plus grandes ; une
+    // étiquette qui en couvrirait une autre n'est pas écrite (son losange reste), elle paraît en zoomant ou au survol.
     c.setTransform(1, 0, 0, 1, 0, 0);
-    c.font = `${Math.round(12 * this.dpr)}px ui-monospace, monospace`;
+    const police = Math.round(12 * this.dpr);
+    c.font = `700 ${police}px ui-monospace, monospace`;
     c.textBaseline = "middle";
-    for (const zone of this.zones) {
+    const vive = (z: ZoneAffichee) => z.id === this.selection || z.id === this.survolee;
+    const ordre = [...this.zones].sort((a, b) => Number(vive(b)) - Number(vive(a)) || b.masque.w * b.masque.h - a.masque.w * a.masque.h);
+    const posees: { g: number; h: number; d: number; b: number }[] = [];
+    const ecart = 2 * this.dpr;
+    for (const zone of ordre) {
+      if (this.calque && zone.id === this.selection) continue;
       const { masque } = zone;
-      if (Math.max(masque.w, masque.h) * cssPx >= REPERE_CSS_PX * 4) continue;
-      const cx = (masque.x + masque.w / 2 - x) * s + cw / 2;
-      const cy = (masque.y + masque.h / 2 - y) * s + ch / 2;
-      if (cx < -50 || cy < -50 || cx > cw + 50 || cy > ch + 50) continue;
-      const r = 6 * this.dpr;
+      const [px, py] = this.centres.get(zone.id) ?? [masque.x + masque.w / 2, masque.y + masque.h / 2];
+      const cx = (px + 0.5 - x) * s + cw / 2;
+      const cy = (py + 0.5 - y) * s + ch / 2;
+      if (cx < -300 * this.dpr || cy < -50 || cx > cw + 300 * this.dpr || cy > ch + 50) continue;
+      const couleur = cssDe(zone.couleur);
+      const petite = Math.max(masque.w, masque.h) * cssPx < REPERE_CSS_PX * 4;
+      const marge = 4 * this.dpr;
+      const largeur = c.measureText(zone.etiquette).width + 2 * marge;
+      const hauteur = police + 6 * this.dpr;
+      let gauche = cx - largeur / 2;
+      if (petite) {
+        const r = 6 * this.dpr;
+        c.beginPath();
+        c.moveTo(cx, cy - r);
+        c.lineTo(cx + r, cy);
+        c.lineTo(cx, cy + r);
+        c.lineTo(cx - r, cy);
+        c.closePath();
+        c.fillStyle = couleur;
+        c.strokeStyle = vive(zone) ? "#ffffff" : FOND;
+        c.lineWidth = 2 * this.dpr;
+        c.stroke();
+        c.fill();
+        gauche = cx + r + 4 * this.dpr;
+      }
+      const cadre = { g: gauche - ecart, h: cy - hauteur / 2 - ecart, d: gauche + largeur + ecart, b: cy + hauteur / 2 + ecart };
+      if (posees.some((p) => cadre.g < p.d && cadre.d > p.g && cadre.h < p.b && cadre.b > p.h)) continue;
+      posees.push(cadre);
       c.beginPath();
-      c.moveTo(cx, cy - r);
-      c.lineTo(cx + r, cy);
-      c.lineTo(cx, cy + r);
-      c.lineTo(cx - r, cy);
-      c.closePath();
-      c.fillStyle = zone.id === this.selection ? "#facc15" : "#ffffff";
-      c.strokeStyle = FOND;
-      c.lineWidth = 2 * this.dpr;
-      c.stroke();
+      if (typeof c.roundRect === "function") c.roundRect(gauche, cy - hauteur / 2, largeur, hauteur, 3 * this.dpr);
+      else c.rect(gauche, cy - hauteur / 2, largeur, hauteur);
+      c.fillStyle = couleur;
       c.fill();
-      c.lineWidth = 3 * this.dpr;
-      c.strokeText(zone.title, cx + r + 4 * this.dpr, cy);
-      c.fillText(zone.title, cx + r + 4 * this.dpr, cy);
+      c.lineWidth = (vive(zone) ? 2 : 1) * this.dpr;
+      c.strokeStyle = vive(zone) ? "#ffffff" : FOND;
+      c.stroke();
+      c.fillStyle = TEXTE_ETIQUETTE;
+      c.fillText(zone.etiquette, gauche + marge, cy + this.dpr / 2);
     }
     this.canvas.dataset.zoom = (s / this.vueDEnsemble().s).toFixed(2);
   }
@@ -650,9 +724,21 @@ export class EcranAlliance {
       const [mx, my] = this.pixelSous(e);
       if (!this.survolPx || this.survolPx[0] !== mx || this.survolPx[1] !== my) {
         this.survolPx = [mx, my];
-        this.onSurvol(this.info(mx, my));
+        this.survolInfo = this.info(mx, my);
+        // La zone sous la souris s'éclaire, sauf pendant un dessin, où elle gênerait.
+        const zone = this.calque || e.pointerType === "touch" ? null : (this.survolInfo?.zone ?? null);
+        if (zone !== this.survolee) {
+          this.survolee = zone;
+          this.dessiner();
+        }
         if (this.calque && this.outil !== "main") this.dessiner();
       }
+      // La bulle suit la souris à chaque mouvement ; elle se cache pendant qu'on déplace la carte ou qu'on dessine.
+      const occupe = this.geste !== null || this.pince !== null || (this.glisse?.bouge ?? false);
+      if (this.survolInfo && !occupe) {
+        const r = this.map.getBoundingClientRect();
+        this.onSurvol({ info: this.survolInfo, x: e.clientX - r.left, y: e.clientY - r.top, toucher: e.pointerType === "touch" });
+      } else this.onSurvol(null);
       if (!tenu) return;
       const [x, y] = this.dansLeDessin(e);
       tenu.x = x;
@@ -711,6 +797,8 @@ export class EcranAlliance {
     canvas.addEventListener("pointerleave", () => {
       if (this.pointeurs.size > 0) return;
       this.survolPx = null;
+      this.survolInfo = null;
+      this.survolee = null;
       this.onSurvol(null);
       this.dessiner();
     });

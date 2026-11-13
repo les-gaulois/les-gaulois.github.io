@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { fmtCount, fmtInt, fmtScore } from "../../src/lib/format";
-import { frNumber } from "../../src/lib/nombre";
+import { enNumber, frNumber } from "../../src/lib/nombre";
 
 describe("frNumber", () => {
   it("sépare les milliers par l'espace insécable, que nos polices contiennent", () => {
@@ -18,6 +18,10 @@ describe("frNumber", () => {
     expect(fmtInt(1284)).toBe("1\u00a0284");
     expect(fmtScore(8581.37)).toBe("8\u00a0581,37");
     expect(fmtCount(1284, "partie")).toBe("1\u00a0284 parties");
+  });
+  it("écrit l'anglais de la fenêtre Alliance avec la virgule des milliers et le point des décimales", () => {
+    expect(enNumber().format(1234567)).toBe("1,234,567");
+    expect(enNumber({ minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(42.24)).toBe("42.2");
   });
   it("reste le seul à formater des nombres dans le site", () => {
     const files = readdirSync("src", { recursive: true, encoding: "utf8" }).filter((file) => /\.(ts|tsx|astro)$/.test(file));

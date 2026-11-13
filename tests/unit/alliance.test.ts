@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { bilanZone, lireTroupes, totauxAlliances, troupesDeLAlliance } from "../../src/lib/alliance/bilan";
 import { COULEURS_ALLIANCE, couleurLibre, cssDe, nomDeCouleur, rgbDe } from "../../src/lib/alliance/couleurs";
-import { dernierNumero, heureDuMessage, nonLus } from "../../src/lib/alliance/discussion";
+import { dernierNumero, nonLus } from "../../src/lib/alliance/discussion";
+import { EN, FR } from "../../src/lib/alliance/textes";
 import { invitationDeLAncre, jetonValable, lienInvitation } from "../../src/lib/alliance/invitation";
 import {
   CADRE_MAX,
@@ -178,6 +179,11 @@ describe("le territoire des alliances", () => {
   it("lit un nombre de troupes tapé avec ses espaces", () => {
     expect(lireTroupes("1 500 000")).toBe(1_500_000);
     expect(lireTroupes("2.000.000")).toBe(2_000_000);
+    // En anglais, la virgule sépare les milliers : l'exemple affiché, « 1,500,000 », se lit.
+    expect(lireTroupes("1,500,000", "en")).toBe(1_500_000);
+    expect(lireTroupes("1 500 000", "en")).toBe(1_500_000);
+    expect(lireTroupes("1,5", "fr")).toBeNull();
+    expect(lireTroupes("1.5", "en")).toBeNull();
     expect(lireTroupes("12k")).toBeNull();
     expect(lireTroupes("-3")).toBeNull();
     expect(lireTroupes("")).toBeNull();
@@ -250,9 +256,13 @@ describe("la discussion", () => {
   const maintenant = new Date("2026-11-13T15:00:00Z");
 
   it("écrit l'heure de Paris, puis « hier », puis la date", () => {
-    expect(heureDuMessage("2026-11-13T13:05:00Z", maintenant)).toBe("14:05");
-    expect(heureDuMessage("2026-11-12T13:05:00Z", maintenant)).toBe("hier, 14:05");
-    expect(heureDuMessage("2026-11-10T13:05:00Z", maintenant)).toBe("10 nov., 14:05");
+    expect(FR.heureMessage("2026-11-13T13:05:00Z", maintenant)).toBe("14:05");
+    expect(FR.heureMessage("2026-11-12T13:05:00Z", maintenant)).toBe("hier, 14:05");
+    expect(FR.heureMessage("2026-11-10T13:05:00Z", maintenant)).toBe("10 nov., 14:05");
+    // En anglais, la même heure de Paris.
+    expect(EN.heureMessage("2026-11-13T13:05:00Z", maintenant)).toBe("14:05");
+    expect(EN.heureMessage("2026-11-12T13:05:00Z", maintenant)).toBe("yesterday, 14:05");
+    expect(EN.heureMessage("2026-11-10T13:05:00Z", maintenant)).toBe("10 Nov, 14:05");
   });
 
   it("compte les messages des autres arrivés depuis la dernière lecture", () => {

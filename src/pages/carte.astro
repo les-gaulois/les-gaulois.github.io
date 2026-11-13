@@ -182,21 +182,22 @@ const dock = FENETRES.filter((f) => presentes.has(f.id));
               <span><a class="carte-credit-mention" href={`${base}/mentions-legales#credits`}>© OpenFront and Contributors · CC BY-SA 4.0</a></span>
             </p>
             {/* La carte de l'alliance, à la place du film quand sa fenêtre est ouverte (src/scripts/alliance-ecran.ts) : la
-                carte complète au dernier relevé, pixel par pixel, ses zones à prendre et, au passage de la souris, ce qu'il
-                y a sous elle. Les mêmes chiffres sont écrits dans la fenêtre. */}
+                carte complète au dernier relevé, pixel par pixel, ses zones à prendre et, au passage de la souris, une bulle
+                qui dit tout de la zone survolée, avec la légende des couleurs (le calque, rendu par AllianceApp.tsx). Les
+                mêmes chiffres sont écrits dans la fenêtre. Ses textes suivent la langue choisie dans la fenêtre. */}
             {
               allianceOn && (
                 <>
-                  <canvas data-alliance-canvas data-testid="alliance-canvas" hidden role="img" aria-label="Carte de l'alliance : les territoires des clans en couleur de leur alliance, et les zones à prendre. Les mêmes chiffres sont écrits dans la fenêtre Alliance." aria-describedby="carte-clavier"></canvas>
+                  <canvas data-alliance-canvas data-testid="alliance-canvas" hidden role="img" aria-label="Carte de l'alliance : les territoires des clans et les zones à prendre, chacun dans sa couleur. Les mêmes chiffres sont écrits dans la fenêtre Alliance." aria-describedby="carte-clavier"></canvas>
                   <div class="carte-outils alliance-outils" data-alliance-outils>
                     <button type="button" class="carte-touche" data-alliance-zoom="1" aria-label="Zoomer sur la carte de l'alliance"><span aria-hidden="true">+</span></button>
                     <button type="button" class="carte-touche" data-alliance-zoom="-1" aria-label="Dézoomer la carte de l'alliance"><span aria-hidden="true">−</span></button>
                     <button type="button" class="carte-touche carte-touche-large" data-alliance-monde>
                       <IconePartie nom="tour" />
-                      Vue d'ensemble
+                      <span data-alliance-monde-texte>Vue d'ensemble</span>
                     </button>
                   </div>
-                  <p class="film-hud alliance-hud tnum" aria-hidden="true" data-alliance-hud></p>
+                  <div class="alliance-calque" aria-hidden="true" data-alliance-calque></div>
                 </>
               )
             }

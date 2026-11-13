@@ -1,6 +1,26 @@
 [
   {
     "date": "2026-11-13",
+    "kind": "nouveau",
+    "title": "Carte de l'alliance en français ou en anglais",
+    "body": "La fenêtre Alliance se lit en français ou en anglais. Chaque clan de l'alliance a sa couleur, ses zones aussi, avec leur nom écrit dessus, et une bulle dit tout d'une zone au survol.",
+    "link": {
+      "href": "/carte#alliance",
+      "label": "Ouvrir la carte"
+    }
+  },
+  {
+    "date": "2026-11-13",
+    "kind": "ameliore",
+    "title": "Carte de l'alliance : chiffres et dessin plus clairs",
+    "body": "Les chiffres de l'alliance sont en grand, ses clans en tableau. Les outils de dessin des zones sont de gros boutons illustrés, avec une phrase qui dit comment s'en servir.",
+    "link": {
+      "href": "/carte#alliance",
+      "label": "Ouvrir la carte"
+    }
+  },
+  {
+    "date": "2026-11-13",
     "kind": "corrige",
     "title": "Carte sur téléphone : boutons rangés",
     "body": "Sur téléphone, les boutons + et − de la carte sont côte à côte : la phrase qui nomme un clan touché ne passe plus sous le bouton « Vue d'ensemble ».",

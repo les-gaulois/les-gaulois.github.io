@@ -6248,10 +6248,10 @@ footer h2 {
   outline: 2px solid var(--color-blue-text);
   outline-offset: -2px;
 }
-.film-map:not([data-vue="alliance"]) :is([data-alliance-outils], .alliance-hud) {
+.film-map:not([data-vue="alliance"]) :is([data-alliance-outils], .alliance-calque) {
   display: none;
 }
-.film-map[data-vue="alliance"] > :is(img, [data-film-canvas], .film-hud:not(.alliance-hud), .carte-outils:not(.alliance-outils), .film-caption, .film-tip, .carte-mire, .carte-balayage) {
+.film-map[data-vue="alliance"] > :is(img, [data-film-canvas], .film-hud, .carte-outils:not(.alliance-outils), .film-caption, .film-tip, .carte-mire, .carte-balayage) {
   display: none;
 }
 /* La lecture du film n'a rien à faire ici : sa rangée se replie, et la carte de l'alliance gagne sa place. */
@@ -6264,9 +6264,6 @@ footer h2 {
   }
 }
 :root.carte-console .carte[data-vue="alliance"] :is(.carte-transport, .carte-reglages:not(.est-ouverte), .carte-podium) {
-  display: none;
-}
-.alliance-hud:empty {
   display: none;
 }
 
@@ -6314,13 +6311,6 @@ footer h2 {
   flex: 1 1 9rem;
   min-width: 0;
 }
-.alliance-option {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
-  font-size: 0.875rem;
-}
 .alliance-marque {
   margin-left: 0.5rem;
   padding: 0 0.375rem;
@@ -6331,23 +6321,7 @@ footer h2 {
   vertical-align: 0.1em;
   color: var(--color-muted);
 }
-.alliance-clans {
-  display: grid;
-  gap: 0.25rem;
-  margin-top: 0.5rem;
-  font-size: 0.875rem;
-}
-.alliance-declarer {
-  display: grid;
-  gap: 0.25rem;
-  margin-top: 0.75rem;
-}
 
-/* Une zone à prendre : sa part déjà tenue par l'alliance, en barre pleine sans dégradé. */
-.alliance-zone {
-  display: grid;
-  gap: 0.25rem;
-}
 .alliance-barre {
   display: block;
   height: 0.375rem;
@@ -6359,26 +6333,6 @@ footer h2 {
   display: block;
   height: 100%;
   background: var(--color-blue-text);
-}
-.alliance-reste {
-  display: grid;
-  gap: 0.125rem;
-  margin-top: 0.25rem;
-  font-size: 0.875rem;
-}
-.alliance-outils-dessin {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem 1rem;
-}
-.alliance-outils-dessin > legend {
-  margin-bottom: 0.25rem;
-}
-.alliance-outils-dessin > label {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  min-height: 2.25rem;
 }
 /* Ce qui retire ou supprime, à part, sous un filet : on ne le clique pas en croyant finir autre chose. */
 .alliance-a-part {
@@ -6509,4 +6463,479 @@ footer h2 {
   :root.carte-console .alliance-pastille {
     position: static;
   }
+}
+
+/* ---------- La carte de l'alliance, plus simple à lire (13 novembre 2026) ---------- */
+/* Ce que la fenêtre écrit sur la carte : la légende des couleurs et la bulle du survol. Ni l'une ni l'autre ne retient la
+   souris : on dessine et on déplace la carte à travers elles. */
+.alliance-calque {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  overflow: hidden;
+  pointer-events: none;
+}
+/* Au-dessus du crédit « © OpenFront and Contributors », qui reste toujours lisible, et à gauche de la fenêtre ouverte. */
+.alliance-legende {
+  position: absolute;
+  bottom: 2.25rem;
+  left: 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.125rem 0.75rem;
+  max-width: calc(100% - 1rem - var(--fenetre-large, 0rem));
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  background: var(--carte-vitre);
+  font-family: var(--font-console);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #fff;
+}
+.alliance-legende > li {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+.alliance-legende .carte-pastille,
+.alliance-bulle .carte-pastille {
+  margin-right: 0.375rem;
+}
+/* Sur un téléphone, la carte est trop petite pour une légende posée dessus : les couleurs se lisent dans la fenêtre, à côté
+   de chaque clan et de chaque zone. */
+@media (max-width: 47.99rem) {
+  .alliance-legende {
+    display: none;
+  }
+}
+/* La bulle du survol : posée par AllianceApp.tsx à côté de la souris, du côté où elle tient. */
+.alliance-bulle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(23rem, calc(100% - 0.5rem));
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.25rem;
+  background: color-mix(in srgb, var(--color-night) 95%, transparent);
+  box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 0.45);
+  font-size: 0.8125rem;
+  color: #fff;
+}
+.alliance-bulle-ici {
+  max-width: none;
+  padding: 0.125rem 0.5rem;
+  font-family: var(--font-console);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.alliance-bulle-clan {
+  display: flex;
+  align-items: center;
+  font-family: var(--font-console);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+.alliance-bulle-titre {
+  margin-top: 0.125rem;
+  font-size: 1rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.alliance-bulle-part {
+  margin: 0.375rem 0 0.25rem;
+  color: var(--color-muted);
+}
+.alliance-bulle-chiffre {
+  margin-right: 0.25rem;
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1;
+  color: #fff;
+}
+.alliance-bulle-pied {
+  margin-top: 0.375rem;
+  font-size: 0.75rem;
+  color: var(--color-muted);
+}
+.alliance-bulle-pied + .alliance-bulle-pied {
+  margin-top: 0.125rem;
+}
+
+/* Le contenu d'une zone, en tableau : les nombres à droite, alignés, en chiffres de même largeur. */
+.alliance-bilan {
+  width: 100%;
+  margin-top: 0.5rem;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+.alliance-bilan :is(th, td) {
+  padding: 0.25rem 0.375rem;
+  border-bottom: 1px solid var(--color-line);
+  vertical-align: top;
+}
+.alliance-bilan :is(th, td):first-child {
+  padding-left: 0;
+}
+.alliance-bilan :is(th, td):last-child {
+  padding-right: 0;
+}
+.alliance-bilan thead th {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-align: right;
+  color: var(--color-muted);
+}
+.alliance-bilan tbody th,
+.alliance-bilan tfoot th {
+  font-weight: 400;
+  text-align: left;
+  color: var(--color-muted);
+}
+.alliance-bilan :is(thead th, tbody th, tfoot th) {
+  white-space: nowrap;
+}
+.alliance-bilan td {
+  text-align: right;
+  white-space: nowrap;
+  color: #fff;
+}
+.alliance-bilan tfoot :is(th, td) {
+  border-bottom: 0;
+  font-weight: 700;
+  color: #fff;
+}
+.alliance-bilan-detail {
+  display: block;
+  font-size: 0.6875rem;
+  white-space: normal;
+}
+
+/* L'en-tête de la fenêtre : qui est connecté, et le choix de la langue. */
+.alliance-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+.alliance-langues,
+.alliance-mode {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+}
+.alliance-langues > button,
+.alliance-mode > button {
+  min-height: 2rem;
+  padding: 0 0.625rem;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.25rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+.alliance-langues > button:hover,
+.alliance-mode > button:hover {
+  color: #fff;
+}
+.alliance-langues > button[aria-pressed="true"],
+.alliance-mode > button[aria-pressed="true"] {
+  border-color: var(--color-blue);
+  background: var(--color-blue);
+  color: #fff;
+}
+.alliance-mode {
+  gap: 0.375rem;
+}
+.alliance-mode > span {
+  margin-right: 0.25rem;
+}
+@media (forced-colors: active) {
+  :is(.alliance-langues, .alliance-mode) > button[aria-pressed="true"] {
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+  }
+}
+
+/* Les trois chiffres de notre alliance, en grand, puis ses clans en tableau. */
+.alliance-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  gap: 0.75rem 1rem;
+  margin-top: 0.75rem;
+}
+.alliance-kpis dt {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+.alliance-kpi {
+  font-size: 1.625rem;
+  font-weight: 800;
+  line-height: 1.15;
+  white-space: nowrap;
+  color: #fff;
+}
+.alliance-table {
+  width: 100%;
+  margin-top: 1rem;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+.alliance-table :is(th, td) {
+  padding: 0.375rem;
+  border-bottom: 1px solid var(--color-line);
+  vertical-align: top;
+}
+.alliance-table :is(th, td):first-child {
+  padding-left: 0;
+}
+.alliance-table :is(th, td):last-child {
+  padding-right: 0;
+}
+.alliance-table thead th {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: right;
+  color: var(--color-muted);
+}
+.alliance-table thead th:first-child,
+.alliance-table tbody th {
+  text-align: left;
+}
+.alliance-table tbody th {
+  font-family: var(--font-console);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.alliance-table td {
+  text-align: right;
+  font-weight: 700;
+  color: #fff;
+}
+.alliance-table-detail {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 400;
+  color: var(--color-muted);
+}
+.alliance-declarer {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding: 0.75rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.25rem;
+}
+.alliance-declarer .alliance-ligne {
+  align-items: flex-end;
+}
+.alliance-champ {
+  display: grid;
+  gap: 0.25rem;
+}
+.alliance-champ-large {
+  flex: 1 1 9rem;
+  min-width: 0;
+}
+.alliance-autres {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.alliance-autres > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0 0.75rem;
+  align-items: baseline;
+}
+.alliance-autres-nom {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+.alliance-autres-chiffre {
+  font-size: 1.125rem;
+  font-weight: 800;
+}
+.alliance-autres-chiffre > span {
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+.alliance-autres-detail {
+  grid-column: 1 / -1;
+  font-size: 0.75rem;
+}
+
+/* Les zones : une carte par zone, sa couleur, son nom et sa part déjà prise en grand ; ouverte, son tableau. */
+.alliance-zones {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+.alliance-zone {
+  display: grid;
+  gap: 0.375rem;
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.25rem;
+}
+.alliance-zone[data-choisie] {
+  border-color: var(--color-blue-text);
+}
+.alliance-zone-tete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 2.75rem;
+  text-align: left;
+}
+.alliance-zone-tete:hover strong {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.alliance-zone-nom {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.alliance-zone-clan {
+  display: block;
+  font-family: var(--font-console);
+  font-size: 0.75rem;
+  color: var(--color-muted);
+}
+.alliance-zone-part {
+  flex: none;
+  font-size: 1.375rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.alliance-zone-prise {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--color-muted);
+}
+.alliance-zone-detail {
+  padding-top: 0.25rem;
+}
+
+/* Le dessin d'une zone : les outils en gros boutons illustrés, une phrase pour l'outil choisi, les tailles en mots. */
+.alliance-deux {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.75rem;
+}
+.alliance-choix-clan {
+  display: flex;
+  align-items: center;
+}
+.alliance-choix-clan > .carte-pastille {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+}
+.alliance-choix-clan > .field {
+  flex: 1;
+  min-width: 0;
+}
+.alliance-outils-dessin {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.alliance-boutons-outils {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(5.75rem, 1fr));
+  gap: 0.375rem;
+  margin-top: 0.375rem;
+}
+.alliance-bouton-outil,
+.alliance-bouton-taille {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.25rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-muted);
+  cursor: pointer;
+}
+.alliance-bouton-outil {
+  flex-direction: column;
+  gap: 0.25rem;
+  min-height: 4rem;
+  padding: 0.375rem 0.25rem;
+  text-align: center;
+}
+.alliance-bouton-taille {
+  gap: 0.5rem;
+  min-height: 2.5rem;
+  padding: 0 0.75rem;
+}
+.alliance-bouton-taille > i {
+  display: inline-block;
+  flex: none;
+  background: currentColor;
+}
+/* Le vrai bouton radio couvre toute la case : la case entière se clique, le clavier et les lecteurs d'écran le trouvent. */
+:is(.alliance-bouton-outil, .alliance-bouton-taille) > input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+:is(.alliance-bouton-outil, .alliance-bouton-taille):hover {
+  color: #fff;
+}
+:is(.alliance-bouton-outil, .alliance-bouton-taille):has(> input:checked) {
+  border-color: var(--color-blue);
+  background: var(--color-blue);
+  color: #fff;
+}
+:is(.alliance-bouton-outil, .alliance-bouton-taille):has(> input:focus-visible) {
+  outline: 2px solid var(--color-blue-text);
+  outline-offset: 2px;
+}
+@media (forced-colors: active) {
+  :is(.alliance-bouton-outil, .alliance-bouton-taille):has(> input:checked) {
+    outline: 3px solid CanvasText;
+  }
+}
+.alliance-icone-outil {
+  width: 1.625rem;
+  height: 1.625rem;
+  shape-rendering: crispEdges;
+}
+.alliance-tailles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-top: 0.375rem;
+}
+.alliance-astuce {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.625rem;
+  border-left: 3px solid var(--color-blue-text);
+  background: var(--color-surface);
+  font-size: 0.8125rem;
+}
+.alliance-compte .alliance-kpi {
+  margin-right: 0.375rem;
+}
+.alliance-compte {
+  padding: 0.75rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.25rem;
 }

@@ -114,9 +114,13 @@ export function troupesDeLAlliance(clans: readonly string[], troupes: readonly T
   return { total: comptees.reduce((n, t) => n + t.troops, 0), declares: comptees.length, clans: membres.size, plusAncienne };
 }
 
-/** Le texte d'un nombre de troupes tapé : chiffres, espaces et points de milliers acceptés. `null` : pas un nombre valable. */
-export function lireTroupes(texte: string): number | null {
-  const net = texte.replace(/[\s  .]/g, "");
+/**
+ * Le texte d'un nombre de troupes tapé : chiffres, espaces et séparateurs de milliers acceptés. `null` : pas un nombre
+ * valable. Les milliers se séparent par un point en français, par une virgule en anglais (« 1,500,000 », l'exemple affiché
+ * dans la fenêtre en anglais) ; une virgule française, qui annonce des décimales, reste refusée : une troupe ne se coupe pas.
+ */
+export function lireTroupes(texte: string, langue: "fr" | "en" = "fr"): number | null {
+  const net = texte.replace(langue === "en" ? /[\s  ,]/g : /[\s  .]/g, "");
   if (!/^\d{1,13}$/.test(net)) return null;
   const n = Number(net);
   return n <= 1_000_000_000_000 ? n : null;
