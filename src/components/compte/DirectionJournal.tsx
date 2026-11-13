@@ -1,6 +1,6 @@
 /** L'onglet Journal de la Direction, réservé aux admins et au fondateur. */
-import { useEffect, useRef, useState } from "preact/hooks";
-import { LOG_CATEGORIES, LOG_LIMIT, LOG_PAGE, categoryOf, describe, fmtLogDay, groupByDay, logCounts, matchesLogSearch, toneOf, type LogCategory } from "../../lib/compte/admin-log";
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { LOG_CATEGORIES, LOG_LIMIT, LOG_PAGE, fmtLogDay, groupByDay, logCounts, logEntry, matchesLogSearch, type LogCategory } from "../../lib/compte/admin-log";
 import type { LogRow } from "../../lib/compte/types";
 import { fmtCount, fmtDateTime, fmtEpochTime, fmtInt } from "../../lib/format";
 import { useList } from "./AdminPanels";
@@ -22,22 +22,35 @@ export default function DirectionJournal() {
   const [shown, setShown] = useState(LOG_PAGE);
   const { root, bar } = useBarreCollante<HTMLElement>();
   const top = useRef<HTMLDivElement>(null);
+  // Après « Afficher … de plus » : le focus va à la première ligne ajoutée, le bouton pouvant disparaître.
+  const moreFocus = useRef(false);
 
-  const rows = list.rows ?? [];
+  // Chaque ligne n'est écrite qu'une fois, quand le journal arrive : sa phrase, ce que lit la recherche, son type, sa couleur.
+  const entries = useMemo(() => (list.rows ?? []).map((row) => logEntry(row, fmtDateTime)), [list.rows]);
   const typed = search.trim();
   // La recherche lit la phrase écrite à l'écran : le nom de qui agit, de qui est visé, et ce qui est fait.
-  const lines = rows.map((row) => ({ row, line: describe(row, fmtDateTime) }));
-  const found = lines.filter((l) => matchesLogSearch(l.line, typed));
+  const found = useMemo(() => entries.filter((e) => matchesLogSearch(e, typed)), [entries, typed]);
   // Les nombres des filtres suivent la recherche. « Autres » ne s'offre que si le journal en contient.
-  const counts = logCounts(found.map((l) => l.row));
-  const withOther = rows.some((row) => categoryOf(row.action) === "other");
-  const visible = category === null ? found : found.filter((l) => categoryOf(l.row.action) === category);
-  const days = groupByDay(visible.slice(0, shown).map((l) => ({ ...l, at: l.row.at })));
+  const counts = useMemo(() => logCounts(found), [found]);
+  const withOther = useMemo(() => entries.some((e) => e.category === "other"), [entries]);
+  const visible = useMemo(() => (category === null ? found : found.filter((e) => e.category === category)), [found, category]);
+  const days = useMemo(() => groupByDay(visible.slice(0, shown)), [visible, shown]);
+  // La première ligne du dernier paquet affiché, qui reçoit le focus après « Afficher … de plus ».
+  const pageStart = shown > LOG_PAGE ? visible[shown - LOG_PAGE]?.row.id : undefined;
   const narrowed = typed !== "" || category !== null;
+  const choose = (next: LogCategory | null) => {
+    // Le filtre déjà choisi ne replie pas la liste sous les yeux.
+    if (next === category) return;
+    setCategory(next);
+    setShown(LOG_PAGE);
+  };
   const showAll = () => {
     setSearch("");
     setCategory(null);
     setShown(LOG_PAGE);
+    // Le bouton disparaît avec le message : le focus va au filtre « Tout », qui vient de s'allumer (pas au champ, qui
+    // ouvrirait le clavier d'un téléphone).
+    root.current?.querySelector<HTMLElement>('[data-testid="log-filter"][data-filter="all"]')?.focus();
   };
 
   // Un filtre choisi plus bas dans la page raccourcit la liste : la page revient au début de la liste, sans mouvement.
@@ -50,16 +63,22 @@ export default function DirectionJournal() {
     if (gap < 0) window.scrollBy({ top: gap, behavior: "instant" });
   }, [category, typed]);
 
+  useEffect(() => {
+    if (!moreFocus.current) return;
+    moreFocus.current = false;
+    root.current?.querySelector<HTMLElement>('[data-testid="log-row"][tabindex="-1"]')?.focus();
+  }, [shown]);
+
   return (
     <section ref={root} class="dir-journal" aria-labelledby="journal-titre" data-testid="admin-log">
       <PartieTete id="journal-titre" title="Journal" />
       {/* Toujours présente : un lecteur d'écran annonce ce qui change dans une zone qui existait déjà (WCAG 4.1.3). */}
       <p class="sr-only" role="status" data-testid="log-count">
-        {list.rows === null || rows.length === 0 ? "" : `${fmtCount(visible.length, "entrée")}${narrowed ? " pour ce choix" : ""}.`}
+        {entries.length === 0 ? "" : `${fmtCount(visible.length, "entrée")}${narrowed ? " pour ce choix" : ""}.`}
       </p>
       <div ref={top} />
       {/* La barre existe dès le début, pour que sa hauteur soit mesurée ; elle ne se montre qu'avec un journal à filtrer. */}
-      <div ref={bar} class="dir-outils" hidden={rows.length === 0}>
+      <div ref={bar} class="dir-outils" hidden={entries.length === 0}>
         <form class="dir-recherche" role="search" onSubmit={(e) => e.preventDefault()}>
           <label class="sr-only" for="log-search">
             Rechercher dans le journal
@@ -80,24 +99,13 @@ export default function DirectionJournal() {
         </form>
         <div class="dir-filtres" role="group" aria-label="Filtrer par type d'action">
           {[{ id: null, label: "Tout" }, ...LOG_CATEGORIES.filter((c) => c.id !== "other" || withOther)].map((c) => (
-            <button
-              key={c.id ?? "all"}
-              type="button"
-              class="dir-filtre"
-              data-testid="log-filter"
-              data-filter={c.id ?? "all"}
-              aria-pressed={category === c.id}
-              onClick={() => {
-                setCategory(c.id);
-                setShown(LOG_PAGE);
-              }}
-            >
+            <button key={c.id ?? "all"} type="button" class="dir-filtre" data-testid="log-filter" data-filter={c.id ?? "all"} aria-pressed={category === c.id} onClick={() => choose(c.id)}>
               {c.label} <span class="dir-nombre">{fmtInt(c.id === null ? found.length : counts[c.id])}</span>
             </button>
           ))}
         </div>
       </div>
-      {rows.length >= LOG_LIMIT && (
+      {entries.length >= LOG_LIMIT && (
         <p class="dir-note" data-testid="log-cut">
           Seules les {fmtInt(LOG_LIMIT)} dernières entrées sont lues.
         </p>
@@ -109,32 +117,31 @@ export default function DirectionJournal() {
             <Loading />
           </div>
         )
-      ) : rows.length === 0 ? (
+      ) : entries.length === 0 ? (
         <div class="mt-4">
           <Empty>Le journal est vide.</Empty>
         </div>
       ) : visible.length === 0 ? (
         <div class="dir-journal-vide" data-testid="log-empty">
           <p>Aucune entrée pour ce choix.</p>
-          <button type="button" class="dir-bouton" onClick={showAll}>
+          <button type="button" class="dir-bouton" data-testid="log-show-all" onClick={showAll}>
             Tout montrer
           </button>
         </div>
       ) : (
         <>
+          {/* Un intertitre par jour : de simples titres, pas une région par jour, qui encombrerait la liste des repères. */}
           {days.map((d) => (
-            <section key={d.day} class="dir-journal-jour" aria-labelledby={`journal-jour-${d.day}`}>
-              <h3 id={`journal-jour-${d.day}`} class="dir-journal-date">
-                {fmtLogDay(d.day)}
-              </h3>
+            <div key={d.day} class="dir-journal-jour">
+              <h3 class="dir-journal-date">{fmtLogDay(d.day)}</h3>
               <ol class="dir-liste">
-                {d.rows.map(({ row, line }) => (
-                  <li key={row.id} class="dir-ligne dir-journal-ligne" data-dir-ton={toneOf(row)} data-testid="log-row">
+                {d.rows.map(({ row, line, tone, category: kind }) => (
+                  <li key={row.id} class="dir-ligne dir-journal-ligne" data-dir-ton={tone} data-testid="log-row" tabIndex={row.id === pageStart ? -1 : undefined}>
                     <time class="dir-journal-heure tnum" dateTime={row.at}>
                       {fmtEpochTime(Date.parse(row.at) / 1000)}
                     </time>
                     <span class="dir-journal-type">
-                      <Pastille ton={toneOf(row)}>{ONE[categoryOf(row.action)]}</Pastille>
+                      <Pastille ton={tone}>{ONE[kind]}</Pastille>
                     </span>
                     <p class="dir-journal-phrase">
                       <strong>{line.who}</strong> {line.what}
@@ -142,11 +149,19 @@ export default function DirectionJournal() {
                   </li>
                 ))}
               </ol>
-            </section>
+            </div>
           ))}
           {visible.length > shown && (
             <div class="dir-journal-suite">
-              <button type="button" class="dir-bouton" data-testid="log-more" onClick={() => setShown(shown + LOG_PAGE)}>
+              <button
+                type="button"
+                class="dir-bouton"
+                data-testid="log-more"
+                onClick={() => {
+                  moreFocus.current = true;
+                  setShown(shown + LOG_PAGE);
+                }}
+              >
                 Afficher {fmtInt(Math.min(LOG_PAGE, visible.length - shown))} de plus
               </button>
               <span class="tnum">
@@ -156,7 +171,7 @@ export default function DirectionJournal() {
           )}
         </>
       )}
-      {rows.length > 0 && (
+      {entries.length > 0 && (
         <details class="fold mt-4">
           <summary class="font-semibold">Comment lire ce journal</summary>
           <div class="grid gap-3 pb-1 text-muted">

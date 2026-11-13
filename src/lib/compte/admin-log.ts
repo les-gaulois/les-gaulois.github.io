@@ -137,6 +137,9 @@ function roleOf(details: Record<string, unknown>, key: string): string | null {
   return typeof value === "string" && Object.hasOwn(ROLE_LABELS, value) ? ROLE_LABELS[value as Role] : null;
 }
 
+/** « de Membre », mais « d'Officier » et « d'Admin ». */
+const fromRole = (label: string): string => (/^[aeiouyàâäéèêëîïôöûü]/iu.test(label) ? `d'${label}` : `de ${label}`);
+
 /** `when` écrit une date du serveur (le début d'un événement) : `fmtDateTime` sur la page. */
 export function describe(row: LogRow, when: (iso: string) => string): LogLine {
   const details = row.details ?? {};
@@ -165,10 +168,11 @@ export function describe(row: LogRow, when: (iso: string) => string): LogLine {
       const formerly = then !== null && row.target !== null && then !== row.target ? ` (alors ${then})` : "";
       return { who, what: `a remis ${target}${formerly} en attente, pour une nouvelle demande.` };
     }
+    // En mots, sans flèche : le pilote ne lit pas les signes.
     case "role_changed": {
       const from = roleOf(details, "from");
       const to = roleOf(details, "to");
-      return { who, what: from && to ? `a changé le rôle ${ofTarget} : ${from} → ${to}.` : `a changé le rôle ${ofTarget}.` };
+      return { who, what: from && to ? `a fait passer ${target} ${fromRole(from)} à ${to}.` : `a changé le rôle ${ofTarget}.` };
     }
     case "role_preset_applied": {
       const role = roleOf(details, "role");
@@ -369,26 +373,6 @@ export function describe(row: LogRow, when: (iso: string) => string): LogLine {
   }
 }
 
-export interface LogFilter {
-  /** Un nom : les lignes où cette personne agit ou est visée. */
-  person: string | null;
-  category: LogCategory | null;
-}
-
-export function filterLog(rows: readonly LogRow[], { person, category }: LogFilter): LogRow[] {
-  return rows.filter((row) => (category === null || categoryOf(row.action) === category) && (person === null || row.actor === person || row.target === person));
-}
-
-/** Les noms du journal, pour le filtre : qui agit et qui est visé, sans doublon, par ordre alphabétique. */
-export function logPeople(rows: readonly LogRow[]): string[] {
-  const names = new Set<string>();
-  for (const row of rows) {
-    if (row.actor) names.add(row.actor);
-    if (row.target) names.add(row.target);
-  }
-  return [...names].sort((a, b) => a.localeCompare(b, "fr", { sensitivity: "base" }));
-}
-
 /* ---------- L'écran du journal : couleur, recherche, nombres et jours ---------- */
 
 /** La couleur d'une ligne. Mêmes noms que `DirTon` de `direction-kit.tsx` et que l'attribut `data-dir-ton`. */
@@ -415,7 +399,11 @@ export function toneOf(row: Pick<LogRow, "action" | "details">): LogTone {
   return "muted";
 }
 
-/** Sans accents ni majuscules : « teutates » trouve « Teutatès ». */
+/**
+ * Sans accents ni majuscules : « teutates » trouve « Teutatès ». Copie de `plain` d'`admin-members.ts` (onglet Comptes) :
+ * `src/lib/` n'a pas de fonction commune pour cela, et le seul équivalent exporté, `searchKey`, appartient à l'inventaire
+ * d'images Discord (`discord-images.ts`).
+ */
 const plain = (text: string): string =>
   text
     .normalize("NFD")
@@ -423,22 +411,40 @@ const plain = (text: string): string =>
     .toLowerCase()
     .trim();
 
+/** Le jour d'une ligne à Paris, « AAAA-MM-JJ ». */
+export const logDay = (at: string): string => parisParts(at).date;
+
+/**
+ * Une ligne prête pour l'écran, calculée une seule fois quand le journal arrive, et non à chaque lettre tapée : sa phrase, ce
+ * que la recherche lit (la phrase sans accents ni majuscules), son type, sa couleur et son jour de Paris.
+ */
+export interface LogEntry {
+  row: LogRow;
+  line: LogLine;
+  text: string;
+  category: LogCategory;
+  tone: LogTone;
+  day: string;
+}
+
+/** `when` écrit une date du serveur dans la phrase, comme pour `describe`. */
+export function logEntry(row: LogRow, when: (iso: string) => string): LogEntry {
+  const line = describe(row, when);
+  return { row, line, text: plain(`${line.who} ${line.what}`), category: categoryOf(row.action), tone: toneOf(row), day: logDay(row.at) };
+}
+
 /** La recherche, à chaque lettre tapée : dans la phrase entière, donc le nom de qui agit, de qui est visé, et ce qui est fait. */
-export function matchesLogSearch(line: LogLine, query: string): boolean {
+export function matchesLogSearch(entry: Pick<LogEntry, "text">, query: string): boolean {
   const q = plain(query);
-  if (!q) return true;
-  return plain(`${line.who} ${line.what}`).includes(q);
+  return q === "" || entry.text.includes(q);
 }
 
 /** Le nombre de lignes de chaque type, pour les filtres. */
-export function logCounts(rows: readonly Pick<LogRow, "action">[]): Record<LogCategory, number> {
+export function logCounts(entries: readonly Pick<LogEntry, "category">[]): Record<LogCategory, number> {
   const counts: Record<LogCategory, number> = { requests: 0, roles: 0, suspensions: 0, news: 0, settings: 0, alliance: 0, other: 0 };
-  for (const row of rows) counts[categoryOf(row.action)] += 1;
+  for (const entry of entries) counts[entry.category] += 1;
   return counts;
 }
-
-/** Le jour d'une ligne à Paris, « AAAA-MM-JJ ». */
-export const logDay = (at: string): string => parisParts(at).date;
 
 const dayTitle = new Intl.DateTimeFormat("fr-FR", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
@@ -448,14 +454,22 @@ export function fmtLogDay(day: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-/** Les lignes rangées par jour de Paris, dans l'ordre où le serveur les donne (les plus récentes d'abord). */
-export function groupByDay<T extends Pick<LogRow, "at">>(rows: readonly T[]): { day: string; rows: T[] }[] {
+/**
+ * Les lignes rangées par jour de Paris, dans l'ordre où le serveur les donne (les plus récentes d'abord), un seul groupe par
+ * jour. Le serveur range par numéro de ligne, pas par heure : deux actions notées au même instant de part et d'autre de
+ * minuit peuvent arriver croisées. Chacune va alors sous son jour, qui n'a toujours qu'un titre.
+ */
+export function groupByDay<T extends Pick<LogEntry, "day">>(entries: readonly T[]): { day: string; rows: T[] }[] {
   const days: { day: string; rows: T[] }[] = [];
-  for (const row of rows) {
-    const day = logDay(row.at);
-    const last = days.at(-1);
-    if (last && last.day === day) last.rows.push(row);
-    else days.push({ day, rows: [row] });
+  const byDay = new Map<string, T[]>();
+  for (const entry of entries) {
+    const rows = byDay.get(entry.day);
+    if (rows) rows.push(entry);
+    else {
+      const fresh = [entry];
+      byDay.set(entry.day, fresh);
+      days.push({ day: entry.day, rows: fresh });
+    }
   }
   return days;
 }
