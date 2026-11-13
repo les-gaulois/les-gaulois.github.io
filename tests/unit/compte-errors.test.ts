@@ -20,3 +20,15 @@ describe("les refus du serveur", () => {
     expect(errorMessage("code_inconnu")).toBe("Une erreur inattendue est survenue.");
   });
 });
+
+describe("les refus de l'onglet Village de la Direction", () => {
+  it("ont tous un message en français, en mots plutôt qu'en signes", () => {
+    const sql = readFileSync("supabase/migrations/20261113002100_village_direction.sql", "utf8");
+    const codes = new Set([...sql.matchAll(/internal\.(?:fail|error_json)\('([a-z_]+)'/g)].map((m) => m[1]!));
+    expect([...codes].sort()).toEqual(["chances_invalides", "prix_invalides", "prix_pochette_invalide", "rarete_sans_objet", "rate_limited"]);
+    for (const code of codes) {
+      expect(ERROR_MESSAGES, code).toHaveProperty(code);
+      expect(errorMessage(code), code).not.toMatch(/[<>=÷%]/);
+    }
+  });
+});
