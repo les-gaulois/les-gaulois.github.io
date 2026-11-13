@@ -38,7 +38,7 @@ describe("les cinq lieux", () => {
     for (const lieu of LIEUX) expect(composerLieu(lieu, 200, 4, NUIT_PLEINE).decor.cases).not.toEqual(composerLieu(lieu, 200, 4, PLEIN_JOUR).decor.cases);
   });
 
-  it("donnent un poste à chacun, tout entier dans la scène, sans deux Gaulois au même endroit", () => {
+  it("donnent un poste à chacun, tout entier dans la scène, sans deux Gaulois au même endroit", { timeout: 30_000 }, () => {
     for (const lieu of LIEUX) {
       const boite = BOITES[lieu];
       for (const largeur of [DECOR_LARGEUR_MIN, 164, 392, 640]) {

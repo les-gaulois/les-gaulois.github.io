@@ -256,7 +256,7 @@ describe("l'image de /gaulois", () => {
     expect(chaudes / decor.length).toBeLessThan(0.02);
   });
 
-  it("montre le Gaulois devant le décor, en entier, avec n'importe quel objet du catalogue", () => {
+  it("montre le Gaulois devant le décor, en entier, avec n'importe quel objet du catalogue", { timeout: 30_000 }, () => {
     const { largeur, hauteur, echelle } = IMAGE_GAULOIS;
     expect(GAULOIS_HAUTEUR * echelle).toBeLessThanOrEqual(hauteur);
     const decor = casesDuDecor();

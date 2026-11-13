@@ -56,6 +56,8 @@ const CATEGORIES: Record<string, LogCategory> = {
   voice_channel_cleared: "settings",
   village_prix_saved: "settings",
   village_pochette_saved: "settings",
+  village_bubbles_set: "settings",
+  village_cap_set: "settings",
   discord_message_sent: "news",
   discord_message_removed: "news",
   discord_message_salon_added: "settings",
@@ -241,6 +243,14 @@ export function describe(row: LogRow, when: (iso: string) => string): LogLine {
       return { who, what: "a changé les prix de la boutique du village." };
     case "village_pochette_saved":
       return { who, what: "a changé le prix ou les chances de la pochette surprise du village." };
+    // Les bulles des Gaulois, écrites par Claude : la coupure et le plafond de dépense du mois, en dollars.
+    case "village_bubbles_set":
+      return { who, what: details["actives"] === false ? "a coupé les bulles du village." : "a remis les bulles du village." };
+    case "village_cap_set": {
+      const avant = details["avant"];
+      const apres = details["apres"];
+      return { who, what: typeof avant === "number" && typeof apres === "number" ? `a changé le plafond des bulles du village de ${avant} $ à ${apres} $.` : "a changé le plafond des bulles du village." };
+    }
     // Le lien du webhook n'est jamais dans le journal : seulement s'il y a un rôle pour les pings.
     case "discord_calls_saved": {
       const mention = details["mention"];

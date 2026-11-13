@@ -163,6 +163,9 @@ export interface GauloisDeLaPlace {
 export interface Village {
   ok: true;
   gaulois: GauloisDeLaPlace[];
-  /** L'heure du dernier relevé des parties par le serveur, à montrer avec la vie du village ; `null` : jamais ou pas donnée. */
+  /**
+   * L'heure du dernier relevé vocal des Gaulois de la place par le robot (toutes les 5 minutes), ou à défaut celle de la
+   * dernière relecture des parties ; `null` : ni l'un ni l'autre.
+   */
   releve?: string | null;
 }
