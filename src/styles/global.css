@@ -3234,7 +3234,150 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 }
 
 /* ---------- Direction, onglet Demandes ---------- */
-/* Les règles propres à cet onglet (DirectionDemandes.tsx), sous la classe `dir-demandes`. */
+/* Les règles propres à cet onglet (DirectionDemandes.tsx), sous la classe `dir-demandes`. Une ligne par demande : qui, le
+   contrôle dans la liste officielle (vert dedans, rouge absent), l'attente (jaune au-delà de deux jours), les boutons. Le mot
+   du joueur et le champ « Raison », ouvert à la demande, prennent toute la largeur sous la ligne. */
+.dir-demandes-fait:empty {
+  display: none;
+}
+.dir-demandes-fait:focus {
+  outline: none;
+}
+.dir-demandes-resume {
+  margin-top: 0.875rem;
+  font-size: 0.9375rem;
+}
+/* La colonne de la Direction est trop étroite pour tout mettre sur un rang (elle ne dépasse pas 1 170 px) : qui et l'attente
+   en haut, le contrôle et les boutons dessous. */
+.dir-demandes-ligne {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "qui attente"
+    "controle actions"
+    "mot mot"
+    "raison raison";
+  align-items: center;
+  gap: 0.25rem 1rem;
+  padding-block: 0.4375rem;
+  font-size: 0.9375rem;
+  line-height: 1.35;
+}
+.dir-demandes-qui {
+  grid-area: qui;
+  min-width: 0;
+}
+.dir-demandes-nom {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  color: #fff;
+}
+.dir-demandes-meta {
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+  color: var(--color-muted);
+}
+.dir-demandes-controle {
+  display: grid;
+  grid-area: controle;
+  gap: 0.125rem;
+  min-width: 0;
+}
+.dir-demandes-pseudo {
+  display: inline-block;
+  overflow-wrap: anywhere;
+}
+.dir-demandes-attente {
+  grid-area: attente;
+  text-align: right;
+}
+.dir-demandes-actions {
+  display: flex;
+  flex-wrap: wrap;
+  grid-area: actions;
+  justify-content: flex-end;
+  gap: 0.375rem;
+}
+/* « Valider » se voit d'abord : un fond vert léger. « Refuser » reste gris, et rougit quand on le vise. */
+.dir-demandes .dir-demandes-oui {
+  background: color-mix(in srgb, var(--color-ok) 14%, transparent);
+}
+.dir-demandes .dir-demandes-non:is(:hover, :focus-visible):where(:not(:disabled)) {
+  --ton: var(--color-danger);
+}
+.dir-demandes .dir-bouton:focus-visible {
+  border-color: var(--ton, #fff);
+  background: var(--ton, #fff);
+  color: var(--color-night);
+}
+.dir-demandes-mot {
+  grid-area: mot;
+  max-width: 60rem;
+  padding-left: 0.625rem;
+  border-left: 2px solid var(--color-line-strong);
+  overflow-wrap: anywhere;
+  color: var(--color-muted);
+}
+.dir-demandes-raison {
+  display: grid;
+  grid-area: raison;
+  grid-template-columns: auto minmax(12rem, 1fr);
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-block: 0.25rem 0.125rem;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.375rem;
+  background: rgb(0 0 0 / 0.22);
+}
+.dir-demandes-raison[hidden] {
+  display: none;
+}
+.dir-demandes-libelle {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.dir-demandes-pretes {
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: 0.375rem 0.5rem;
+}
+.dir-demandes-pretes .dir-bouton {
+  white-space: normal;
+  text-align: left;
+}
+/* Téléphone : une petite carte par demande. Le mot du joueur se lit avant de décider : les boutons, sur toute la largeur,
+   passent après lui. */
+@media (max-width: 47.9375rem) {
+  .dir-demandes .dir-liste {
+    display: grid;
+    gap: 0.625rem;
+    border-top: 0;
+  }
+  .dir-demandes-ligne {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "qui" "controle" "attente" "mot" "actions" "raison";
+    gap: 0.5rem;
+    padding: 0.75rem 0.75rem 0.75rem 0.875rem;
+    border: 1px solid var(--color-line);
+    border-radius: 0.375rem;
+  }
+  .dir-demandes-attente {
+    text-align: left;
+  }
+  .dir-demandes-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+  .dir-demandes-actions .dir-bouton {
+    padding-inline: 0.25rem;
+  }
+  .dir-demandes-raison {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 
 /* ---------- Direction, onglet Journal ---------- */
 /* Les règles propres à cet onglet (DirectionJournal.tsx), sous la classe `dir-journal`. Une ligne par action : l'heure, le

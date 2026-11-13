@@ -9,13 +9,17 @@ export const LATE_REQUEST_HOURS = 48;
 
 export interface RequestWait {
   text: string;
+  /** La durée seule, pour la colonne étroite de la liste : « 3 jours », « moins d'une minute ». */
+  short: string;
   late: boolean;
 }
 
 export function requestWait(createdAt: string, now: Date): RequestWait {
   const ms = now.getTime() - Date.parse(createdAt);
+  const short = ms < 60_000 ? "moins d'une minute" : fmtDuration(ms);
   return {
-    text: ms < 60_000 ? "en attente depuis moins d'une minute" : `en attente depuis ${fmtDuration(ms)}`,
+    text: `en attente depuis ${short}`,
+    short,
     late: ms > LATE_REQUEST_HOURS * 3_600_000,
   };
 }

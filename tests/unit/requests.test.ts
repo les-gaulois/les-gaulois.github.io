@@ -19,16 +19,22 @@ describe("fmtDuration", () => {
 
 describe("l'attente d'une demande", () => {
   it("dit depuis combien de temps elle attend", () => {
-    expect(requestWait(before(0), NOW)).toEqual({ text: "en attente depuis moins d'une minute", late: false });
-    expect(requestWait(before(45), NOW)).toEqual({ text: "en attente depuis 45 min", late: false });
-    expect(requestWait(before(26 * 60), NOW)).toEqual({ text: "en attente depuis 26 h", late: false });
+    expect(requestWait(before(0), NOW)).toMatchObject({ text: "en attente depuis moins d'une minute", late: false });
+    expect(requestWait(before(45), NOW)).toMatchObject({ text: "en attente depuis 45 min", late: false });
+    expect(requestWait(before(26 * 60), NOW)).toMatchObject({ text: "en attente depuis 26 h", late: false });
+  });
+
+  it("donne aussi la durée seule, pour la colonne de la liste", () => {
+    expect(requestWait(before(0), NOW).short).toBe("moins d'une minute");
+    expect(requestWait(before(45), NOW).short).toBe("45 min");
+    expect(requestWait(before(4 * 24 * 60), NOW).short).toBe("4 jours");
   });
 
   it("passe en retard au-delà de deux jours, pas avant", () => {
     expect(LATE_REQUEST_HOURS).toBe(48);
     expect(requestWait(before(48 * 60), NOW).late).toBe(false);
-    expect(requestWait(before(48 * 60 + 1), NOW)).toEqual({ text: "en attente depuis 2 jours", late: true });
-    expect(requestWait(before(4 * 24 * 60), NOW)).toEqual({ text: "en attente depuis 4 jours", late: true });
+    expect(requestWait(before(48 * 60 + 1), NOW)).toMatchObject({ text: "en attente depuis 2 jours", late: true });
+    expect(requestWait(before(4 * 24 * 60), NOW)).toMatchObject({ text: "en attente depuis 4 jours", late: true });
   });
 });
 
