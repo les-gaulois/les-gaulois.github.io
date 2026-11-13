@@ -25,6 +25,7 @@ import { gazetteEditions } from "../src/lib/gazette";
 import { GazetteFonts, gazetteCard, renderGazetteCard, type GazetteCard } from "../src/lib/gazette-image";
 import { groupsCard } from "../src/lib/groupes-image";
 import { guichetCard } from "../src/lib/guichet-image";
+import { rolesCard } from "../src/lib/roles-discord";
 import { hierCard } from "../src/lib/hier-image";
 import { newsCard } from "../src/lib/nouveautes-image";
 import { milestoneCard } from "../src/lib/paliers-franchis-image";
@@ -215,6 +216,8 @@ await save("14-accueil.png", () => {
 });
 // Le guichet des tickets, que pose /tickets : il ne lit aucune donnée.
 await save("15-guichet-tickets.png", () => guichetCard(SITE, measure));
+// Le panneau des rôles, que pose /roles : il ne lit aucune donnée non plus.
+await save("16-panneau-roles.png", () => rolesCard(SITE, measure));
 
 // La victoire, avec la vignette de la carte si elle se lit.
 const victory = {

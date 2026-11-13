@@ -9,10 +9,11 @@
  * test vérifie que les deux listes ont les mêmes rôles, dans le même ordre.
  * Ce fichier dit quoi écrire et où ; il se teste sans police.
  */
-import { CARD_COLORS as C, fitted, type CardRect, type CardText, type GazetteCard, type Measure } from "./gazette-image";
-import { ICONES_PARTIES, ICONE_DEMI, ICONE_PLEIN, type IconePartieNom } from "./icones-parties";
+import { pageHead, type GazetteCard, type Measure } from "./gazette-image";
+import type { IconePartieNom } from "./icones-parties";
+import { iconTileParts } from "./lignes-icones-image";
 import { shownAddress } from "./salon-discord";
-import { assembleCard, CARD_MARGIN, CARD_WIDTH, FOOTER_HEIGHT, footParts, headParts } from "./salon-image";
+import { assembleCard, FOOTER_HEIGHT, footParts } from "./salon-image";
 
 export interface PanelRole {
   /** Le nom du rôle dans le numéro de son bouton (`PANEL_ROLES` de la fonction). */
@@ -21,7 +22,7 @@ export interface PanelRole {
   label: string;
   /** Ce que le rôle fait, comme le disait le panneau d'avant. */
   description: string;
-  /** Son icône, dans la grille des icônes du site. */
+  /** Son icône, dans la grille des icônes du site : la même que l'émoji de son bouton (`emojis-discord.ts`). */
   icone: IconePartieNom;
 }
 
@@ -36,59 +37,19 @@ export const ROLES_KICKER = "Serveur Discord du clan";
 export const ROLES_TITLE = "Choisissez vos rôles";
 export const ROLES_HOW = "Un clic sur un bouton donne le rôle, un second clic le retire";
 export const ROLES_NOTE = "« Mes rôles » : ceux que vous avez";
-
-const CONTENT_WIDTH = CARD_WIDTH - 2 * CARD_MARGIN;
-/** Une ligne par rôle : la case de l'icône à gauche, le nom, et ce que fait le rôle dessous. */
-const ROW = { height: 116, gap: 14, inset: 14, tile: 88, cell: 6, name: 36, description: 27 } as const;
-
-/**
- * Les cases d'une icône en rectangles : une suite de cases voisines de même teinte fait un seul rectangle. C'est le tracé de
- * `tracePixels` (`icones-parties.ts`), en rectangles, parce que le dessin des images du robot ne pose que des rectangles et
- * des textes.
- */
-export function iconRects(lines: readonly string[], left: number, top: number, cell: number, full: string, half: string): CardRect[] {
-  const rects: CardRect[] = [];
-  lines.forEach((line, row) => {
-    let x = 0;
-    while (x < line.length) {
-      const shade = line[x];
-      if (shade !== ICONE_PLEIN && shade !== ICONE_DEMI) {
-        x += 1;
-        continue;
-      }
-      let end = x;
-      while (end < line.length && line[end] === shade) end += 1;
-      rects.push({ x: left + x * cell, y: top + row * cell, width: (end - x) * cell, height: cell, radius: 0, color: shade === ICONE_PLEIN ? full : half });
-      x = end;
-    }
-  });
-  return rects;
-}
+/** L'invite de l'en-tête, `gal@clan:~$ ./roles` : la commande qui pose le panneau. Il ne mène à aucune page. */
+const PROMPT_PATH = "/roles";
 
 /**
  * L'image du panneau, au style des autres images du robot (`salon-image.ts`) : l'en-tête, une ligne par rôle (la case de son
- * icône, son nom, ce qu'il fait), puis l'adresse du site et ce que montre « Mes rôles ».
+ * icône, son nom, ce qu'il fait ; `lignes-icones-image.ts`), puis l'adresse du site et ce que montre « Mes rôles ».
  */
 export function rolesCard(siteUrl: string, measure: Measure): GazetteCard {
   const address = shownAddress(siteUrl, "");
-  const head = headParts({ kicker: ROLES_KICKER, title: ROLES_TITLE, period: ROLES_HOW }, measure, address);
-  const rects: CardRect[] = [];
-  const texts: CardText[] = [];
-  const textX = CARD_MARGIN + ROW.inset + ROW.tile + 28;
-  const room = CARD_MARGIN + CONTENT_WIDTH - 24 - textX;
-  PANEL_ROLES.forEach((role, i) => {
-    const y = head.bottom + i * (ROW.height + ROW.gap);
-    rects.push({ x: CARD_MARGIN, y, width: CONTENT_WIDTH, height: ROW.height, radius: 8, color: C.SURFACE, stroke: C.LINE });
-    rects.push({ x: CARD_MARGIN + ROW.inset, y: y + ROW.inset, width: ROW.tile, height: ROW.tile, radius: 6, color: C.SURFACE_2, stroke: C.LINE_STRONG });
-    const lines = ICONES_PARTIES[role.icone];
-    const offset = (ROW.tile - lines.length * ROW.cell) / 2;
-    rects.push(...iconRects(lines, CARD_MARGIN + ROW.inset + offset, y + ROW.inset + offset, ROW.cell, C.BLUE_TEXT, C.BLUE));
-    texts.push({ ...fitted(role.label, "strong", ROW.name, ROW.name - 8, room, measure), x: textX, y: y + 52, font: "strong", color: C.WHITE });
-    texts.push({ ...fitted(role.description, "body", ROW.description, ROW.description - 7, room, measure), x: textX, y: y + 94, font: "body", color: C.MUTED });
-  });
-  const bottom = head.bottom + PANEL_ROLES.length * (ROW.height + ROW.gap) - ROW.gap;
-  const height = bottom + FOOTER_HEIGHT;
-  return assembleCard(height, [head, { rects, texts }, footParts(address, ROLES_NOTE, height, measure)]);
+  const head = pageHead({ path: PROMPT_PATH, title: ROLES_TITLE, kicker: ROLES_KICKER, period: ROLES_HOW }, measure);
+  const rows = iconTileParts(PANEL_ROLES, head.bottom, 2, measure);
+  const height = rows.bottom + FOOTER_HEIGHT;
+  return assembleCard(height, [head, rows, footParts(address, ROLES_NOTE, height, measure)]);
 }
 
 const lowerFirst = (text: string): string => text.charAt(0).toLowerCase() + text.slice(1);

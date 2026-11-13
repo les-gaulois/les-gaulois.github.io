@@ -19,6 +19,7 @@ import { clanRgb } from "./clanmap/codec";
 import { clanFigures } from "./compare";
 import { guideCard, guideImageAlt, mapCard, mapImageAlt, recordsCard, recordsImageAlt, rivalCard, rivalImageAlt, type GuideChapter, type MapFacts, type MapShape } from "./commandes-image";
 import { loadClanMapFilm, loadGames, loadHistory, loadLeaderboard, loadMembers, loadMemberWeeks, loadMeta, loadSessions, loadTerritoryReadings } from "./data";
+import { emojiEntries, vignetteEntries } from "./emojis-discord";
 import { faceOffs, type FaceOff } from "./games";
 import { gazetteEditions } from "./gazette";
 import { GazetteFonts, renderGazetteCard, type GazetteCard, type Measure } from "./gazette-image";
@@ -56,6 +57,16 @@ export interface CommandIndex {
   guide: (CommandEntry & { id: string; court: string })[];
   rivaux: (CommandEntry & { tag: string; rank: number })[];
   roles: PanelEntry | null;
+  /** Les émojis du robot (`emojis-discord.ts`), que la fonction dépose chez Discord : leur nom et l'adresse de leur PNG. */
+  emojis: IconEntry[];
+  /** Les vignettes des icônes des rôles et des demandes de ticket : le nom de l'icône et l'adresse du PNG. */
+  vignettes: IconEntry[];
+}
+
+/** Une image d'icône du site, par son nom. */
+export interface IconEntry {
+  name: string;
+  image: string;
 }
 
 export type CommandImageKind = { kind: "records" } | { kind: "carte" } | { kind: "guide"; id: string; court: string } | { kind: "rival"; tag: string; rank: number } | { kind: "roles" } | { kind: "guichet" };
@@ -174,6 +185,8 @@ export function commandIndex(images: readonly CommandImage[], clanEntry: Command
     guide: images.flatMap((i) => (i.kind === "guide" ? [{ id: i.id, court: i.court, ...entry(i, `/debuter#${ancreDuChapitre(i.id)}`) }] : [])),
     rivaux: images.flatMap((i) => (i.kind === "rival" ? [{ tag: i.tag, rank: i.rank, ...entry(i, "/rivaux") }] : [])),
     roles: roles ? { image: commandImagePath(roles, extraOf(roles)), alt: roles.alt } : null,
+    emojis: emojiEntries(),
+    vignettes: vignetteEntries(),
   };
 }
 

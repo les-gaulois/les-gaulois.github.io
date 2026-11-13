@@ -731,6 +731,15 @@ test("les images des commandes du robot sont publiées, chacune à son adresse",
   expect(index?.carte).not.toBeNull();
   // Le panneau des rôles (/roles) ne lit aucune donnée : son image est toujours là.
   expect(index?.roles?.image).toMatch(/^\/commandes\/roles\.png\?v=[0-9a-f]{12}$/);
+  // Les émojis du robot, en PNG de 128 pixels, et les vignettes de ses rôles et de ses tickets : tous publiés.
+  expect(index?.emojis.length).toBeGreaterThan(0);
+  expect(index?.vignettes.length).toBeGreaterThan(0);
+  for (const icon of [...(index?.emojis ?? []), ...(index?.vignettes ?? [])]) {
+    const png = await request.get(icon.image);
+    expect(png.ok(), icon.image).toBe(true);
+    expect(png.headers()["content-type"]).toContain("image/png");
+    if (icon.image.startsWith("/commandes/emojis/")) expect((await png.body()).readUInt32BE(16), icon.image).toBe(128);
+  }
   const height = (png: Buffer) => png.readUInt32BE(20);
   for (const entry of [index?.clan, index?.records, index?.carte, ...(index?.guide ?? []), index?.rivaux[0], index?.roles]) {
     if (!entry) continue;

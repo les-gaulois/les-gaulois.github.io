@@ -13,6 +13,7 @@ import {
   TICKETS_COMMAND_NAME,
   TICKETS_OPTIONS,
   TICKETS_SITE_URL,
+  TICKET_EMOJIS,
   TICKET_KINDS,
   TICKET_MESSAGES,
   answersOf,
@@ -21,6 +22,7 @@ import {
   customIdsOf,
   everyoneCanView,
   openfrontLink,
+  panelMessage,
   parseTicketId,
   quoteAnswer,
   rolesThatView,
@@ -28,6 +30,7 @@ import {
   snowflakeSeconds,
   ticketChannelName,
   ticketCustomId,
+  welcomeMessage,
   type GuildChannel,
   type Role,
   type TicketAction,
@@ -172,7 +175,7 @@ beforeAll(async () => {
 });
 
 const GUICHET: CommandEntry = { image: "/commandes/guichet.png?v=abcdef123456", alt: "Besoin d'aide ? Trois boutons sous l'image.", page: "/rejoindre" };
-const INDEX: CommandIndex = { clan: null, records: null, carte: null, guichet: GUICHET, guide: [], rivaux: [], roles: null };
+const INDEX: CommandIndex = { clan: null, records: null, carte: null, guichet: GUICHET, guide: [], rivaux: [], roles: null, emojis: [], vignettes: [] };
 
 function world(g: Guild = guild(), over: Partial<Deps> = {}) {
   const hooks: Sent[] = [];
@@ -872,6 +875,65 @@ describe("le message d'accueil pris en charge", () => {
     expect(claimedComponents([{ ...container, components: [{ type: 10, content: "a" }] }], OFFICER, NOW)).toBeNull();
     expect(claimedComponents([container, container], OFFICER, NOW)).toBeNull();
     expect(claimedComponents("rien", OFFICER, NOW)).toBeNull();
+  });
+});
+
+describe("les émojis du robot et la vignette de la demande", () => {
+  const desk = { category: CATEGORY, journal: JOURNAL, staff: STAFF };
+  const ids = new Map([
+    ["gal_porte", "800000000000000001"],
+    ["gal_corbeau", "800000000000000002"],
+    ["gal_poignard", "800000000000000003"],
+    ["gal_tour", "800000000000000004"],
+    ["gal_cle", "800000000000000005"],
+  ]);
+  const emojisOf = (message: Record<string, unknown>): unknown[] => {
+    const found: unknown[] = [];
+    const walk = (node: unknown): void => {
+      if (Array.isArray(node)) return node.forEach(walk);
+      const n = node as { type?: unknown; emoji?: unknown; components?: unknown } | null;
+      if (!n || typeof n !== "object") return;
+      if (n.type === 2) found.push(n.emoji);
+      walk(n.components);
+    };
+    walk(message["components"]);
+    return found;
+  };
+
+  it("le guichet porte la porte, le corbeau et le poignard s'ils sont déposés, et aucun émoji sinon", () => {
+    expect(emojisOf(panelMessage(desk, GUICHET, ids))).toEqual([
+      { id: "800000000000000001", name: "gal_porte" },
+      { id: "800000000000000002", name: "gal_corbeau" },
+      { id: "800000000000000003", name: "gal_poignard" },
+    ]);
+    expect(emojisOf(panelMessage(desk, GUICHET))).toEqual([undefined, undefined, undefined]);
+    expect(TICKET_EMOJIS).toEqual(["gal_porte", "gal_corbeau", "gal_poignard", "gal_tour", "gal_cle"]);
+  });
+
+  it("le message d'accueil met la vignette de la demande à côté de son titre, et les émojis sur ses deux boutons", () => {
+    const info = { kind: "question" as const, opener: PLAYER, staff: STAFF, journal: JOURNAL, logMessage: null, answers: [], openedAt: NOW };
+    const url = `${SITE_URL}/commandes/vignettes/corbeau.png?v=abcdefabcdef`;
+    const message = welcomeMessage(info, { thumbnail: url, emojis: ids });
+    const container = (message["components"] as { components: { type: number; accessory?: unknown; components?: { content?: string }[] }[] }[])[0]!;
+    const top = container.components[0]!;
+    expect(top.type).toBe(9);
+    expect(top.accessory).toEqual({ type: 11, media: { url }, description: "L'icône de la demande : Poser une question" });
+    expect(top.components?.[0]?.content).toContain("### Une question");
+    expect(emojisOf(message)).toEqual([
+      { id: "800000000000000004", name: "gal_tour" },
+      { id: "800000000000000005", name: "gal_cle" },
+    ]);
+    // Sans vignette ni émoji, le message d'avant : le titre en texte, les boutons sans émoji. Pris en charge, il change pareil.
+    const plain = welcomeMessage(info);
+    expect((plain["components"] as { components: { type: number }[] }[])[0]!.components[0]!.type).toBe(10);
+    expect(emojisOf(plain)).toEqual([undefined, undefined]);
+    expect(claimedComponents(message["components"], OFFICER, NOW)).not.toBeNull();
+  });
+
+  it("chaque demande a son émoji et son icône, les mêmes que sur l'image du guichet", () => {
+    for (const kind of TICKET_KINDS) {
+      expect(KINDS[kind].pixel).toBe(`gal_${KINDS[kind].icone}`);
+    }
   });
 });
 

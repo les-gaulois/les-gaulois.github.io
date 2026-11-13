@@ -18,6 +18,7 @@
  *
  * N'importe d'`index.ts` que des types : `index.ts` importe ce fichier.
  */
+import { appEmojis, buttonEmoji, ensureEmojis, vignetteUrl, type EmojiIds } from "./emojis.ts";
 import type { CommandEntry, Deps } from "./index.ts";
 
 /** Le début du `custom_id` de chaque bouton et formulaire des tickets : `index.ts` leur envoie ceux-là seulement. */
@@ -221,6 +222,12 @@ export interface TicketField {
 export interface KindSpec {
   /** Le texte du bouton du guichet et le titre du formulaire. */
   button: string;
+  /**
+   * L'émoji du robot sur ce bouton (`emojis.ts`) et l'icône de la demande, en vignette dans le salon du ticket : la porte de
+   * la palissade, le corbeau messager, le poignard de la trahison, comme sur l'image du guichet (`src/lib/guichet-image.ts`).
+   */
+  pixel: string;
+  icone: string;
   /** 1 : bleu ; 2 : gris ; 4 : rouge. */
   style: 1 | 2 | 4;
   /** Le titre du message dans le salon. */
@@ -244,6 +251,8 @@ const COLORS = { blue: 0x0b5fff, muted: 0x5469ae, red: 0xff1a2e } as const;
 export const KINDS: Record<TicketKind, KindSpec> = {
   recrutement: {
     button: "Rejoindre le clan",
+    pixel: "gal_porte",
+    icone: "porte",
     style: 1,
     heading: "Rejoindre le clan",
     prefix: "recrutement",
@@ -257,6 +266,8 @@ export const KINDS: Record<TicketKind, KindSpec> = {
   },
   question: {
     button: "Poser une question",
+    pixel: "gal_corbeau",
+    icone: "corbeau",
     style: 2,
     heading: "Une question",
     prefix: "question",
@@ -266,6 +277,8 @@ export const KINDS: Record<TicketKind, KindSpec> = {
   },
   signalement: {
     button: "Signaler un tricheur",
+    pixel: "gal_poignard",
+    icone: "poignard",
     style: 4,
     heading: "Signalement d'un tricheur",
     prefix: "signalement",
@@ -280,6 +293,12 @@ export const KINDS: Record<TicketKind, KindSpec> = {
 };
 
 const isKind = (value: string): value is TicketKind => (TICKET_KINDS as readonly string[]).includes(value);
+
+/** Les émojis du robot dans un ticket : la tour de guet sur « Je m'en occupe », la clé sur « Fermer le ticket ». */
+export const CLAIM_PIXEL = "gal_tour";
+export const CLOSE_PIXEL = "gal_cle";
+/** Tous les émojis du guichet et des tickets, déposés quand /tickets pose le guichet. */
+export const TICKET_EMOJIS: readonly string[] = [...TICKET_KINDS.map((kind) => KINDS[kind].pixel), CLAIM_PIXEL, CLOSE_PIXEL];
 
 /* ---------- Les identifiants des boutons et des formulaires ---------- */
 
@@ -481,11 +500,14 @@ export const TICKET_MESSAGES = {
 
 /* ---------- Les messages ---------- */
 
-const button = (label: string, style: number, customId: string) => ({ type: 2, style, label, custom_id: customId });
+const button = (label: string, style: number, customId: string, emoji: ReturnType<typeof buttonEmoji> = {}) => ({ type: 2, style, label, ...emoji, custom_id: customId });
 
-/** Le guichet : l'image du site en grand, puis les trois boutons. Sans image, un titre et une phrase. */
-export function panelMessage(config: DeskConfig, image: CommandEntry | null): Record<string, unknown> {
-  const buttons = TICKET_KINDS.map((kind) => button(KINDS[kind].button, KINDS[kind].style, ticketCustomId({ action: "ouvrir", kind, ...deskOf(config) })));
+/**
+ * Le guichet : l'image du site en grand, puis les trois boutons, chacun avec l'émoji du robot s'il est déposé (`emojis`).
+ * Sans image, un titre et une phrase.
+ */
+export function panelMessage(config: DeskConfig, image: CommandEntry | null, emojis: EmojiIds = new Map()): Record<string, unknown> {
+  const buttons = TICKET_KINDS.map((kind) => button(KINDS[kind].button, KINDS[kind].style, ticketCustomId({ action: "ouvrir", kind, ...deskOf(config) }), buttonEmoji(KINDS[kind].pixel, emojis)));
   const top = image
     ? { type: 12, items: [{ media: { url: `${TICKETS_SITE_URL}${image.image}` }, description: image.alt }] }
     : { type: 10, content: "## Besoin d'aide ?\nChoisissez un bouton : un salon privé s'ouvre, rien qu'avec vous et l'encadrement." };
@@ -519,21 +541,21 @@ export interface TicketInfo {
 }
 
 /**
- * Le premier message du salon : la demande, les réponses, l'aide, puis « Je m'en occupe » ; sous un filet, à part, le
- * bouton rouge qui ferme le ticket. Le joueur et le rôle de l'encadrement sont prévenus, personne d'autre.
+ * Le premier message du salon : la demande, avec la vignette de son icône si le site la donne, les réponses, l'aide, puis
+ * « Je m'en occupe » ; sous un filet, à part, le bouton rouge qui ferme le ticket. Les deux boutons portent les émojis du
+ * robot s'ils sont déposés. Le joueur et le rôle de l'encadrement sont prévenus, personne d'autre.
  */
-export function welcomeMessage(t: TicketInfo): Record<string, unknown> {
+export function welcomeMessage(t: TicketInfo, look: { thumbnail: string | null; emojis: EmojiIds } = { thumbnail: null, emojis: new Map() }): Record<string, unknown> {
   const spec = KINDS[t.kind];
-  const lines: unknown[] = [
-    { type: 10, content: `### ${spec.heading}\n<@${t.opener}>, votre ticket est ouvert. L'encadrement (<@&${t.staff}>) vous répond ici.` },
-    { type: 14, divider: true, spacing: 1 },
-  ];
+  const head = { type: 10, content: `### ${spec.heading}\n<@${t.opener}>, votre ticket est ouvert. L'encadrement (<@&${t.staff}>) vous répond ici.` };
+  const top = look.thumbnail ? { type: 9, components: [head], accessory: { type: 11, media: { url: look.thumbnail }, description: `L'icône de la demande : ${spec.button}` } } : head;
+  const lines: unknown[] = [top, { type: 14, divider: true, spacing: 1 }];
   if (t.answers.length > 0) lines.push({ type: 10, content: answersText(t.answers) });
   const foot = [spec.help, `Ouvert <t:${t.openedAt}:f>. Le salon disparaît quand le ticket est fermé.`].filter((line): line is string => line !== null);
   lines.push({ type: 10, content: foot.map((line) => `-# ${line}`).join("\n") });
-  lines.push({ type: 1, components: [button("Je m'en occupe", 1, ticketCustomId({ action: "prendre", staff: t.staff, opener: t.opener }))] });
+  lines.push({ type: 1, components: [button("Je m'en occupe", 1, ticketCustomId({ action: "prendre", staff: t.staff, opener: t.opener }), buttonEmoji(CLAIM_PIXEL, look.emojis))] });
   lines.push({ type: 14, divider: true, spacing: 2 });
-  lines.push({ type: 1, components: [button("Fermer le ticket", 4, ticketCustomId({ action: "fermer", staff: t.staff, journal: t.journal, logMessage: t.logMessage, opener: t.opener }))] });
+  lines.push({ type: 1, components: [button("Fermer le ticket", 4, ticketCustomId({ action: "fermer", staff: t.staff, journal: t.journal, logMessage: t.logMessage, opener: t.opener }), buttonEmoji(CLOSE_PIXEL, look.emojis))] });
   return {
     flags: COMPONENTS_V2,
     components: [{ type: 17, accent_color: spec.color, components: lines }],
@@ -791,8 +813,10 @@ async function setUp(deps: Deps, hook: string, config: DeskConfig, panelChannel:
     await answer(deps, hook, ["Rien n'est posé :", ...report.problems.map((p) => `- ${p}`), "Corrigez, puis retapez /tickets."].join("\n").slice(0, 2000));
     return;
   }
-  const image = (await deps.commandes())?.guichet ?? null;
-  const posted = await deps.discord("POST", `/channels/${panelChannel}/messages`, { body: panelMessage(config, image) });
+  const index = await deps.commandes();
+  // Les émojis du guichet et des tickets, déposés chez Discord la première fois : sans eux, les boutons partent sans émoji.
+  const emojis = await ensureEmojis(TICKET_EMOJIS, index, deps);
+  const posted = await deps.discord("POST", `/channels/${panelChannel}/messages`, { body: panelMessage(config, index?.guichet ?? null, emojis) });
   const postedId = text(record(posted?.body)?.["id"]);
   if (!ok(posted) || !SNOWFLAKE.test(postedId)) {
     await answer(deps, hook, TICKET_MESSAGES.setupFailed);
@@ -979,7 +1003,10 @@ async function openTicket(deps: Deps, hook: string, config: Extract<TicketAction
   const logged = await deps.discord("POST", `/channels/${config.journal}/messages`, { body: openLogMessage({ ...info, channel: channel.id, channelName, username: member.username }) });
   const logId = text(record(logged?.body)?.["id"]);
   const logMessage = ok(logged) && SNOWFLAKE.test(logId) ? logId : null;
-  const welcome = await deps.discord("POST", `/channels/${channel.id}/messages`, { body: welcomeMessage({ ...info, logMessage }) });
+  // La vignette de la demande et les émojis des deux boutons, si le site et Discord les donnent ; sinon, le message part sans eux.
+  const [index, emojis] = await Promise.all([deps.commandes(), appEmojis(deps)]);
+  const look = { thumbnail: vignetteUrl(index, KINDS[config.kind].icone, TICKETS_SITE_URL), emojis: emojis ?? new Map<string, string>() };
+  const welcome = await deps.discord("POST", `/channels/${channel.id}/messages`, { body: welcomeMessage({ ...info, logMessage }, look) });
   if (!ok(welcome)) {
     await abandon(deps, channel.id, config.journal);
     // Le journal ne garde pas un ticket ouvert qui n'existe pas.

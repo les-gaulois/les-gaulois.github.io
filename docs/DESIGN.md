@@ -93,6 +93,8 @@ Depuis le soir du 12 novembre 2026, à la demande du pilote (« remettre les ale
 | Formes | Lignes et cartes à coins de 8 px avec un contour `line`, badges et pastilles à 6 px. Les blocs mis en avant sont des scènes du site, au coin haut droit coupé avec son trait de lumière et sa trame : la marche du premier au podium, la place d'une fiche et le classement de l'accueil en bleu, les points de la course du soir en indigo. La ligne de GAL garde son filet rouge |
 | Couleurs | Les jetons du site, sans le vert de terminal. Une baisse reste orange et écrite avec son signe |
 
+Le panneau des rôles et le guichet des tickets, posés au-dessus de boutons, ont de grandes cases en pixels (`src/lib/lignes-icones-image.ts`), comme l'écran de choix d'un jeu : la grande icône du site au milieu, en bleu, puis le nom, puis la phrase, sur deux lignes au plus ; tous les noms d'une grille à la même taille. Les boutons dessous portent les mêmes icônes en émojis du robot (`src/lib/emojis-discord.ts`) : les cases pleines en blanc, la demi-teinte en blanc à moitié transparent, lisibles sur les boutons bleus, gris et rouges de Discord. Les vignettes, l'icône dans la case sombre bordée, accompagnent une réponse ou l'accueil d'un ticket.
+
 Ce que disent les images ne change pas : les libellés des chiffres passent au-dessus du chiffre et en capitales, comme sur le site (« VICTOIRES », « TAUX DE VICTOIRE », « GAULOIS » puis « sur 23 joueurs »), et le titre de la gazette s'écrit en minuscules. Leur description pour les lecteurs d'écran et le texte de secours sont les mêmes. `npm run images:apercu` dessine un exemple de chacune, sans rien envoyer ; un test vérifie qu'aucun titre, libellé ou chiffre n'y est coupé.
 
 ## Organisation du site

@@ -117,6 +117,9 @@ const COMMANDES: CommandIndex = {
     { tag: "ULT", rank: 9, ...entry("/commandes/rival-ULT.png?v=333333333333", "/rivaux") },
   ],
   roles: { image: "/commandes/roles.png?v=444444444444", alt: "Choisissez vos rôles, sur le serveur Discord du clan." },
+  // Les émojis du robot et les vignettes, comme le site les publie (`src/lib/emojis-discord.ts`).
+  emojis: ["gal_cor", "gal_cadeau", "gal_epees", "gal_bouclier", "gal_casque", "gal_porte", "gal_corbeau", "gal_poignard", "gal_tour", "gal_cle"].map((name) => ({ name, image: `/commandes/emojis/${name}.png?v=555555555555` })),
+  vignettes: ["cor", "cadeau", "epees", "bouclier", "porte", "corbeau", "poignard"].map((name) => ({ name, image: `/commandes/vignettes/${name}.png?v=666666666666` })),
 };
 /** Le numéro de l'application et de son robot dans les tests, que la fonction lit dans le jeton. */
 const APP = "222233334444555566";
@@ -679,6 +682,8 @@ describe("l'index des commandes publié par le site", () => {
       guide: [{ ...ok, id: "03-attaque", court: "L'attaque" }],
       rivaux: [{ ...ok, tag: "LUX", rank: 3 }],
       roles: null,
+      emojis: [],
+      vignettes: [],
     });
     for (const bad of [null, [], { guide: [] }, { rivaux: [] }]) expect(parseCommandes(bad)).toBeNull();
   });
@@ -1003,6 +1008,22 @@ const panelDiscord = (post: DiscordReply | null = { status: 200, body: { id: "1"
  * Une interaction jusqu'au bout : la réponse à Discord, puis la tâche de fond, et ce qui a remplacé la réponse d'attente. `text` :
  * ce que lit la personne qui a cliqué ou tapé la commande, la réponse d'attente remplacée ou la réponse tout de suite.
  */
+/** Ce qu'écrit un message : son texte, ou, pour une carte (Components V2), ses blocs de texte l'un après l'autre. */
+function textOf(message: unknown): string {
+  const m = message as { content?: unknown; components?: unknown } | undefined;
+  if (typeof m?.content === "string") return m.content;
+  const parts: string[] = [];
+  const walk = (node: unknown): void => {
+    if (Array.isArray(node)) return node.forEach(walk);
+    const n = node as { type?: unknown; content?: unknown; components?: unknown } | null;
+    if (!n || typeof n !== "object") return;
+    if (n.type === 10 && typeof n.content === "string") parts.push(n.content);
+    walk(n.components);
+  };
+  walk(m?.components);
+  return parts.join("\n");
+}
+
 async function answered(interaction: unknown, over: Partial<Deps> = {}, signed: { timestamp?: number } = {}) {
   const tasks: Promise<unknown>[] = [];
   const hooks: { method: string; path: string; call: DiscordCall | undefined }[] = [];
@@ -1019,8 +1040,8 @@ async function answered(interaction: unknown, over: Partial<Deps> = {}, signed: 
   );
   const body = (await (await handle(await fromDiscord(interaction, signed), deps)).json()) as { type: number; data: { content?: string; flags: number } };
   await Promise.all(tasks);
-  const edited = hooks[0]?.call?.body as { content?: string } | undefined;
-  return { body, hooks, calls, tasks, text: body.type === 5 ? (edited?.content ?? "") : (body.data.content ?? "") };
+  const edited = hooks.at(-1)?.call?.body;
+  return { body, hooks, calls, tasks, text: body.type === 5 ? textOf(edited) : textOf(body.data) };
 }
 
 describe("les rôles du panneau", () => {
@@ -1073,35 +1094,85 @@ describe("les rôles du panneau", () => {
 });
 
 describe("un clic sur un bouton du panneau", () => {
-  it("répond « en cours » à lui seul, donne le rôle à qui ne l'a pas, puis le lui dit", async () => {
+  it("répond « en cours » à lui seul, donne le rôle à qui ne l'a pas, puis le lui dit dans une carte", async () => {
     const { over, sent } = fakeDiscord();
     const { body, hooks, text } = await answered(click("roles:tournois", [OTHER_ROLE]), over);
     // Discord attend une réponse en trois secondes, démarrage compris : d'abord « en cours », éphémère.
     expect(body).toEqual({ type: 5, data: { flags: 64 } });
     expect(sent).toEqual([{ method: "PUT", path: `/guilds/${GUILD}/members/${PLAYER}/roles/${ROLE.tournois}`, call: { reason: ROLE_AUDIT_REASON } }]);
+    // Une carte au bord bleu : ce qui a changé, la vignette du rôle lue dans l'index du site, puis ses rôles.
     expect(hooks).toEqual([
       {
         method: "PATCH",
         path: `/webhooks/${APP}/jeton-de-l-interaction/messages/@original`,
-        call: { body: { content: `${ROLE_MESSAGES.added(ROLE.tournois)}\nVos rôles du panneau : <@&${ROLE.tournois}>.`, allowed_mentions: { parse: [] } } },
+        call: {
+          body: {
+            flags: 32768,
+            components: [
+              {
+                type: 17,
+                accent_color: 0x0b5fff,
+                components: [
+                  {
+                    type: 9,
+                    components: [{ type: 10, content: `**Rôle ajouté : <@&${ROLE.tournois}>**\n-# Un second clic sur le même bouton le retire.` }],
+                    accessory: { type: 11, media: { url: `${SITE_URL}/commandes/vignettes/epees.png?v=666666666666` }, description: "L'icône de Tournois" },
+                  },
+                  { type: 14, divider: true, spacing: 1 },
+                  { type: 10, content: `Vos rôles du panneau : <@&${ROLE.tournois}>.` },
+                ],
+              },
+            ],
+            allowed_mentions: { parse: [] },
+          },
+        },
       },
     ]);
-    expect(text).toBe(`${ROLE_MESSAGES.added(ROLE.tournois)}\nVos rôles du panneau : <@&${ROLE.tournois}>.`);
+    expect(text).toContain(`Rôle ajouté : <@&${ROLE.tournois}>`);
   });
 
   it("retire le rôle à qui l'a, et redit ceux qui lui restent, dans l'ordre des boutons", async () => {
     const { over, sent } = fakeDiscord();
     const first = await answered(click("roles:tournois", [ROLE.membre, ROLE.tournois, OTHER_ROLE, ROLE.rassemblement]), over);
     expect(sent.map((s) => [s.method, s.path])).toEqual([["DELETE", `/guilds/${GUILD}/members/${PLAYER}/roles/${ROLE.tournois}`]]);
-    expect(first.text).toBe(`${ROLE_MESSAGES.removed(ROLE.tournois)}\nVos rôles du panneau : <@&${ROLE.rassemblement}>, <@&${ROLE.membre}>.`);
+    expect(first.text).toBe(`**Rôle retiré : <@&${ROLE.tournois}>**\n-# Un clic sur le même bouton le redonne.\nVos rôles du panneau : <@&${ROLE.rassemblement}>, <@&${ROLE.membre}>.`);
     const last = await answered(click("roles:membre", [ROLE.membre]), over);
-    expect(last.text).toBe(`${ROLE_MESSAGES.removed(ROLE.membre)}\nVous n'avez aucun rôle du panneau.`);
+    expect(last.text).toBe(`**Rôle retiré : <@&${ROLE.membre}>**\n-# Un clic sur le même bouton le redonne.\nVous n'avez aucun rôle du panneau.`);
   });
 
-  it("« Mes rôles » montre tout de suite ses rôles du panneau, sans rien changer, même sans jeton", async () => {
+  it("sans index du site, la carte part sans vignette ; refusée par Discord, le même texte part en clair", async () => {
+    const { over } = fakeDiscord();
+    const plainCard = await answered(click("roles:giveaway"), { ...over, commandes: async () => null });
+    const card = plainCard.hooks[0]?.call?.body as { components: { components: { type: number }[] }[] };
+    expect(card.components[0]?.components[0]?.type).toBe(10);
+    // Discord refuse la carte (400) : une seconde demande remplace l'attente par le texte de secours.
+    let first = true;
+    const refused = await answered(click("roles:giveaway"), {
+      ...over,
+      webhook: async () => {
+        const answer = first ? { status: 400, body: { code: 50035 } } : { status: 200, body: {} };
+        first = false;
+        return answer;
+      },
+    });
+    expect(refused.calls.logs).toEqual([]);
+    const fallback = { ...over };
+    const sentBodies: unknown[] = [];
+    await answered(click("roles:giveaway"), {
+      ...fallback,
+      webhook: async (_method, _path, call) => {
+        sentBodies.push(call?.body);
+        return sentBodies.length === 1 ? { status: 400, body: {} } : { status: 200, body: {} };
+      },
+    });
+    expect(sentBodies).toHaveLength(2);
+    expect(sentBodies[1]).toEqual({ content: `${ROLE_MESSAGES.added(ROLE.giveaway)}\nVos rôles du panneau : <@&${ROLE.giveaway}>.`, allowed_mentions: { parse: [] } });
+  });
+
+  it("« Mes rôles » montre tout de suite ses rôles du panneau dans une carte, sans rien changer, même sans jeton", async () => {
     const shown = await answered(click("roles:voir", [ROLE.membre, OTHER_ROLE, ROLE.giveaway]));
-    expect(shown.body).toMatchObject({ type: 4, data: { flags: 64 } });
-    expect(shown.text).toBe(`Vos rôles du panneau : <@&${ROLE.giveaway}>, <@&${ROLE.membre}>.`);
+    expect(shown.body).toMatchObject({ type: 4, data: { flags: 64 | 32768 } });
+    expect(shown.text).toBe(`**Vos rôles du panneau**\n<@&${ROLE.giveaway}> <@&${ROLE.membre}>`);
     expect(shown.tasks).toEqual([]);
     expect((await answered(click("roles:voir"))).text).toBe("Vous n'avez aucun rôle du panneau.");
   });
@@ -1201,16 +1272,20 @@ describe("un clic sur un bouton du panneau", () => {
       },
     });
     expect(again.calls.logs).toEqual([]);
-    // Un refus net ne se réessaie pas.
+    // Un refus net ne se réessaie pas une seconde plus tard : la carte refusée laisse seulement place au texte de secours.
     let refused = 0;
-    await answered(click("roles:tournois"), {
+    const naps2: number[] = [];
+    const net = await answered(click("roles:tournois"), {
       ...over,
+      sleep: async (ms) => void naps2.push(ms),
       webhook: async () => {
         refused += 1;
         return { status: 400, body: { code: 50035 } };
       },
     });
-    expect(refused).toBe(1);
+    expect(refused).toBe(2);
+    expect(naps2).toEqual([]);
+    expect(net.calls.logs).toEqual(["bouton tournois : la réponse d'attente n'a pas pu être remplacée"]);
   });
 
   it("refuse un jeton qui n'est pas celui de l'application du panneau", async () => {
@@ -1244,8 +1319,9 @@ describe("la commande /roles", () => {
     expect(post?.path).toBe(`/channels/${CHANNEL}/messages`);
     expect(post?.call?.body).toEqual(panelMessage(COMMANDES.roles!.alt));
     expect(post?.call?.files).toEqual([{ name: PANEL_FILE, type: "image/png", bytes: PNG }]);
-    // Le contrôle lit les rôles du serveur et ceux du robot, numéro tiré de son jeton.
-    expect(sent.filter((s) => s.method === "GET").map((s) => s.path)).toEqual([`/guilds/${GUILD}/roles`, `/guilds/${GUILD}/members/${APP}`]);
+    // D'abord la liste des émojis de l'application (illisible ici : les boutons gardent leurs émojis ordinaires, rien n'est
+    // déposé), puis le contrôle lit les rôles du serveur et ceux du robot, numéro tiré de son jeton.
+    expect(sent.filter((s) => s.method === "GET").map((s) => s.path)).toEqual([`/applications/${APP}/emojis`, `/guilds/${GUILD}/roles`, `/guilds/${GUILD}/members/${APP}`]);
     expect(hooks).toEqual([
       {
         method: "PATCH",
@@ -1254,6 +1330,34 @@ describe("la commande /roles", () => {
       },
     ]);
     expect(text).toBe(`${ROLE_MESSAGES.posted}\n${ROLE_MESSAGES.ready}`);
+  });
+
+  it("dépose les émojis du robot qui manquent, puis les pose sur les boutons du panneau", async () => {
+    // Discord connaît déjà le cor ; les quatre autres émojis du panneau sont déposés, d'après leur PNG du site.
+    let next = 700000000000000001n;
+    const uploaded: string[] = [];
+    const base = panelDiscord();
+    const { over, sent } = fakeDiscord((method, path, call) => {
+      if (path === `/applications/${APP}/emojis` && method === "GET") return { status: 200, body: { items: [{ id: "700000000000000000", name: "gal_cor" }] } };
+      if (path === `/applications/${APP}/emojis` && method === "POST") {
+        const name = String((call?.body as { name: string }).name);
+        uploaded.push(name);
+        return { status: 201, body: { id: String(next++), name } };
+      }
+      return base.over.discord(method, path, call) as unknown as DiscordReply | null;
+    });
+    const { calls } = await answered(rolesCommand(), over);
+    expect(uploaded).toEqual(["gal_cadeau", "gal_epees", "gal_bouclier", "gal_casque"]);
+    expect(calls.images).toEqual([COMMANDES.roles!.image, ...uploaded.map((name) => `/commandes/emojis/${name}.png?v=555555555555`)]);
+    const post = sent.find((s) => s.method === "POST" && s.path === `/channels/${CHANNEL}/messages`);
+    const row = (post?.call?.body as { components: { components?: { emoji?: unknown; label?: unknown }[] }[] }).components[1]!.components!;
+    expect(row.map((b) => b.emoji)).toEqual([
+      { id: "700000000000000000", name: "gal_cor" },
+      { id: "700000000000000001", name: "gal_cadeau" },
+      { id: "700000000000000002", name: "gal_epees" },
+      { id: "700000000000000003", name: "gal_bouclier" },
+      { id: "700000000000000004", name: "gal_casque" },
+    ]);
   });
 
   it("note au journal une réponse d'attente que Discord n'a pas laissé remplacer", async () => {

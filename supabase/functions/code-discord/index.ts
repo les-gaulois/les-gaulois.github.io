@@ -44,12 +44,14 @@
  * (`verify_jwt = false`, `supabase/config.toml`) : Discord n'en envoie pas, et la fonction vérifie elle-même chaque appel.
  * Elle ne note jamais un code, une adresse ni un jeton dans ses journaux.
  *
- * Quatre fichiers, `index.ts`, `tickets.ts`, `concours.ts` et `billets.ts`, que la commande `supabase functions deploy`
- * envoie ensemble ; les tests du dépôt les lisent avec Node (`tests/unit/code-discord.test.ts`,
- * `tests/unit/tickets-discord.test.ts`, `tests/unit/concours-discord.test.ts`, `tests/unit/billets-tombola.test.ts`).
+ * Cinq fichiers, `index.ts`, `tickets.ts`, `concours.ts`, `billets.ts` et `emojis.ts`, que la commande
+ * `supabase functions deploy` envoie ensemble ; les tests du dépôt les lisent avec Node (`tests/unit/code-discord.test.ts`,
+ * `tests/unit/tickets-discord.test.ts`, `tests/unit/concours-discord.test.ts`, `tests/unit/billets-tombola.test.ts`,
+ * `tests/unit/emojis-discord.test.ts`).
  */
 import { TICKET_PREFIX, TICKETS_COMMAND_NAME, ticketInteraction, ticketsCommand } from "./tickets.ts";
 import { CONCOURS_COMMAND_NAME, CONCOURS_PREFIX, concoursCommand, concoursImage, concoursInteraction, concoursTic } from "./concours.ts";
+import { buttonEmoji, ensureEmojis, vignetteUrl, type EmojiIds } from "./emojis.ts";
 
 /** Le nom de la commande, tel que le joueur la tape. `scripts/discord-commande.ts` la crée sur le serveur du clan. */
 export const COMMAND_NAME = "code";
@@ -527,11 +529,33 @@ export interface CommandIndex {
   rivaux: (CommandEntry & { tag: string; rank: number })[];
   /** L'image du panneau des rôles (/roles), sans page : ses boutons donnent les rôles. */
   roles: PanelEntry | null;
+  /** Les émojis du robot, que la fonction dépose chez Discord (`ensureEmojis`) : leur nom et l'adresse de leur PNG. */
+  emojis: IconImage[];
+  /** Les vignettes des rôles et des demandes de ticket : le nom de l'icône et l'adresse de son PNG. */
+  vignettes: IconImage[];
 }
 
 export interface PanelEntry {
   image: string;
   alt: string;
+}
+
+/** Une image d'icône du site, par son nom : un émoji (« gal_cor ») ou une vignette (« epees »). */
+export interface IconImage {
+  name: string;
+  image: string;
+}
+
+/** Les noms d'émojis et d'icônes que lit la fonction : des minuscules et des tirets bas, comme Discord les accepte. */
+const ICON_NAME = /^[a-z_]{2,32}$/;
+
+function parseIcons(value: unknown): IconImage[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    const name = record(item)?.["name"];
+    const image = sitePath(record(item)?.["image"]);
+    return typeof name === "string" && ICON_NAME.test(name) && image ? [{ name, image }] : [];
+  });
 }
 
 /** Un chemin du site, sans hôte, sans « .. » et sans rien d'autre qu'une version et une ancre : un bouton ne mène que sur le site. */
@@ -565,7 +589,17 @@ export function parseCommandes(value: unknown): CommandIndex | null {
     const rank = record(item)?.["rank"];
     return entry && typeof tag === "string" && /^[A-Z0-9]{1,10}$/.test(tag) && typeof rank === "number" && Number.isInteger(rank) && rank >= 1 ? [{ ...entry, tag, rank }] : [];
   });
-  return { clan: parseEntry(body["clan"]), records: parseEntry(body["records"]), carte: parseEntry(body["carte"]), guichet: parseEntry(body["guichet"]), guide, rivaux, roles: parsePanel(body["roles"]) };
+  return {
+    clan: parseEntry(body["clan"]),
+    records: parseEntry(body["records"]),
+    carte: parseEntry(body["carte"]),
+    guichet: parseEntry(body["guichet"]),
+    guide,
+    rivaux,
+    roles: parsePanel(body["roles"]),
+    emojis: parseIcons(body["emojis"]),
+    vignettes: parseIcons(body["vignettes"]),
+  };
 }
 
 function parsePanel(value: unknown): PanelEntry | null {
@@ -718,15 +752,23 @@ export const ROLE_AUDIT_REASON = "Panneau des rôles : clic du membre";
 
 /**
  * Les rôles que donnent et retirent les boutons du panneau, et eux seuls : leur numéro est écrit ici, côté serveur, jamais lu
- * dans le bouton ni dans un fichier du site. Numéros donnés par le pilote le 12 novembre 2026. Le nom et l'émoji sont ceux
- * des boutons ; l'image du panneau (`src/lib/roles-discord.ts`) écrit les mêmes noms dans le même ordre : un test le vérifie.
+ * dans le bouton ni dans un fichier du site. Numéros donnés par le pilote le 12 novembre 2026. Le nom est celui du bouton ;
+ * `pixel`, l'émoji du robot sur ce bouton (`emojis.ts`), et `icone`, sa vignette ; `emoji`, l'émoji ordinaire qui le
+ * remplace tant que celui du robot n'est pas déposé. L'image du panneau (`src/lib/roles-discord.ts`) écrit les mêmes noms
+ * dans le même ordre, avec les mêmes icônes : un test le vérifie.
  */
-export const PANEL_ROLES: readonly { key: string; id: string; label: string; emoji: string }[] = [
-  { key: "rassemblement", id: "1353811132766224414", label: "Rassemblement", emoji: String.fromCodePoint(0x1f4ef) },
-  { key: "giveaway", id: "1358882521986629793", label: "Giveaway", emoji: String.fromCodePoint(0x1f381) },
-  { key: "tournois", id: "1516822966845968507", label: "Tournois", emoji: String.fromCodePoint(0x2694, 0xfe0f) },
-  { key: "membre", id: "1350921119871402166", label: "Membre GAL", emoji: String.fromCodePoint(0x1f6e1, 0xfe0f) },
+export const PANEL_ROLES: readonly { key: string; id: string; label: string; emoji: string; pixel: string; icone: string }[] = [
+  { key: "rassemblement", id: "1353811132766224414", label: "Rassemblement", emoji: String.fromCodePoint(0x1f4ef), pixel: "gal_cor", icone: "cor" },
+  { key: "giveaway", id: "1358882521986629793", label: "Giveaway", emoji: String.fromCodePoint(0x1f381), pixel: "gal_cadeau", icone: "cadeau" },
+  { key: "tournois", id: "1516822966845968507", label: "Tournois", emoji: String.fromCodePoint(0x2694, 0xfe0f), pixel: "gal_epees", icone: "epees" },
+  { key: "membre", id: "1350921119871402166", label: "Membre GAL", emoji: String.fromCodePoint(0x1f6e1, 0xfe0f), pixel: "gal_bouclier", icone: "bouclier" },
 ];
+/** L'émoji du robot sur « Mes rôles » : le casque du guerrier, comme « Moi » dans le QG du site. */
+export const ROLE_SHOW_PIXEL = "gal_casque";
+/** Tous les émojis du panneau, déposés avant qu'il parte. */
+export const PANEL_EMOJIS: readonly string[] = [...PANEL_ROLES.map((role) => role.pixel), ROLE_SHOW_PIXEL];
+/** Le bord des cartes que voit le membre qui clique : le bleu du site, comme les tickets. */
+const CARD_ACCENT = 0x0b5fff;
 
 const SNOWFLAKE = /^[0-9]{17,20}$/;
 
@@ -795,10 +837,41 @@ export const ROLE_MESSAGES = {
 };
 
 /** Ses rôles du panneau, dans l'ordre des boutons. */
-const heldText = (held: ReadonlySet<string>): string => ROLE_MESSAGES.held(PANEL_ROLES.filter((role) => held.has(role.id)).map((role) => role.id));
+const heldIds = (held: ReadonlySet<string>): string[] => PANEL_ROLES.filter((role) => held.has(role.id)).map((role) => role.id);
+const heldText = (held: ReadonlySet<string>): string => ROLE_MESSAGES.held(heldIds(held));
 
-/** Le message du panneau : l'image en grand, jointe, puis un bouton par rôle et « Mes rôles ». `alt` : sa description. */
-export function panelMessage(alt: string): Record<string, unknown> {
+/** Une réponse au membre qui clique : la carte (Components V2), et le même texte en secours si Discord la refuse. */
+export interface RoleReply {
+  card: Record<string, unknown> | null;
+  text: string;
+}
+
+/**
+ * La carte d'un rôle donné ou retiré : à gauche ce qui a changé, à droite la vignette du rôle si le site la donne, puis,
+ * sous un filet, ses rôles du panneau. Le bord est le bleu du site. Personne n'est mentionné.
+ */
+export function roleCard(title: string, detail: string, held: ReadonlySet<string>, thumbnail: { url: string; description: string } | null): Record<string, unknown> {
+  const head = { type: 10, content: `**${title}**\n-# ${detail}` };
+  const top = thumbnail ? { type: 9, components: [head], accessory: { type: 11, media: { url: thumbnail.url }, description: thumbnail.description } } : head;
+  return {
+    flags: COMPONENTS_V2,
+    components: [{ type: 17, accent_color: CARD_ACCENT, components: [top, { type: 14, divider: true, spacing: 1 }, { type: 10, content: heldText(held) }] }],
+    allowed_mentions: { parse: [] },
+  };
+}
+
+/** La carte de « Mes rôles », que seul le membre voit : ses rôles du panneau, ou aucun. */
+export function heldCard(held: ReadonlySet<string>): Record<string, unknown> {
+  const ids = heldIds(held);
+  const content = ids.length === 0 ? ROLE_MESSAGES.held(ids) : `**Vos rôles du panneau**\n${ids.map(mention).join(" ")}`;
+  return { flags: COMPONENTS_V2 | EPHEMERAL, components: [{ type: 17, accent_color: CARD_ACCENT, components: [{ type: 10, content }] }], allowed_mentions: { parse: [] } };
+}
+
+/**
+ * Le message du panneau : l'image en grand, jointe, puis un bouton par rôle et « Mes rôles », chacun avec l'émoji du robot
+ * s'il est déposé (`emojis`), sinon un émoji ordinaire. `alt` : la description de l'image.
+ */
+export function panelMessage(alt: string, emojis: EmojiIds = new Map()): Record<string, unknown> {
   return {
     flags: COMPONENTS_V2,
     components: [
@@ -806,8 +879,8 @@ export function panelMessage(alt: string): Record<string, unknown> {
       {
         type: 1,
         components: [
-          ...PANEL_ROLES.map((role) => ({ type: 2, style: 1, label: role.label, emoji: { name: role.emoji }, custom_id: `${ROLE_BUTTON}${role.key}` })),
-          { type: 2, style: 2, label: "Mes rôles", custom_id: `${ROLE_BUTTON}${ROLE_SHOW}` },
+          ...PANEL_ROLES.map((role) => ({ type: 2, style: 1, label: role.label, ...buttonEmoji(role.pixel, emojis, role.emoji), custom_id: `${ROLE_BUTTON}${role.key}` })),
+          { type: 2, style: 2, label: "Mes rôles", ...buttonEmoji(ROLE_SHOW_PIXEL, emojis), custom_id: `${ROLE_BUTTON}${ROLE_SHOW}` },
         ],
       },
     ],
@@ -906,14 +979,17 @@ const REPLACE_RETRY_MS = 1000;
  * s'il ne la connaît pas encore (404), ne répond pas, ou tombe en panne, une seconde tentative part une seconde plus tard.
  * `label` commence la ligne du journal si Discord refuse encore.
  */
-async function replaceWaiting(applicationId: string, token: string, text: string, label: string, deps: Deps): Promise<void> {
+async function replaceWaiting(applicationId: string, token: string, reply: RoleReply, label: string, deps: Deps): Promise<void> {
   const path = `/webhooks/${applicationId}/${encodeURIComponent(token)}/messages/@original`;
-  const call = { body: { content: text, allowed_mentions: { parse: [] } } };
+  const plain = { body: { content: reply.text, allowed_mentions: { parse: [] } } };
+  const call = reply.card ? { body: reply.card } : plain;
   let edited = await deps.webhook("PATCH", path, call);
   if (!edited || edited.status === 404 || edited.status >= 500) {
     await deps.sleep(REPLACE_RETRY_MS);
     edited = await deps.webhook("PATCH", path, call);
   }
+  // Une carte refusée (si Discord ne laisse pas une réponse d'attente devenir une carte) : le même texte, en clair.
+  if (reply.card && edited?.status === 400) edited = await deps.webhook("PATCH", path, plain);
   if (!edited || edited.status >= 300) deps.log(`${label} : la réponse d'attente n'a pas pu être remplacée`);
 }
 
@@ -929,17 +1005,22 @@ const tooLate = (sentAt: number, deps: Deps): boolean => deps.nowSeconds() - sen
  * clics trop rapprochés voient les mêmes rôles et demandent la même chose : rien ne se croise. Si Discord demande d'attendre
  * quelques secondes, l'appel repart une fois (`deps.discord`).
  */
-async function toggleRole(role: (typeof PANEL_ROLES)[number], userId: string, held: Set<string>, deps: Deps): Promise<string> {
+async function toggleRole(role: (typeof PANEL_ROLES)[number], userId: string, held: Set<string>, deps: Deps): Promise<RoleReply> {
   const had = held.has(role.id);
   const reply = await deps.discord(had ? "DELETE" : "PUT", `/guilds/${deps.guildId}/members/${userId}/roles/${role.id}`, { reason: ROLE_AUDIT_REASON });
   if (reply && reply.status >= 200 && reply.status < 300) {
     if (had) held.delete(role.id);
     else held.add(role.id);
-    return `${had ? ROLE_MESSAGES.removed(role.id) : ROLE_MESSAGES.added(role.id)}\n${heldText(held)}`;
+    const text = `${had ? ROLE_MESSAGES.removed(role.id) : ROLE_MESSAGES.added(role.id)}\n${heldText(held)}`;
+    // La vignette du rôle, si l'index du site la donne : sinon, la carte part sans elle.
+    const url = vignetteUrl(await deps.commandes(), role.icone, SITE_URL);
+    const title = `${had ? "Rôle retiré" : "Rôle ajouté"} : ${mention(role.id)}`;
+    const detail = had ? "Un clic sur le même bouton le redonne." : "Un second clic sur le même bouton le retire.";
+    return { card: roleCard(title, detail, held, url ? { url, description: `L'icône de ${role.label}` } : null), text };
   }
   const code = reply ? discordCode(reply) : null;
   deps.log(`bouton ${role.key} : ${reply ? `${reply.status}${typeof code === "number" ? ` (code ${code})` : ""}` : "Discord ne répond pas"}`);
-  return clickRefusal(reply, role.id);
+  return { card: null, text: clickRefusal(reply, role.id) };
 }
 
 /**
@@ -959,7 +1040,7 @@ async function roleButton(interaction: Record<string, unknown>, customId: string
   const list = member["roles"];
   const held = new Set(Array.isArray(list) ? list.filter((id): id is string => typeof id === "string") : []);
   const key = customId.slice(ROLE_BUTTON.length);
-  if (key === ROLE_SHOW) return ephemeral(heldText(held));
+  if (key === ROLE_SHOW) return json({ type: 4, data: heldCard(held) });
   const role = PANEL_ROLES.find((r) => r.key === key);
   if (!role) return ephemeral(ROLE_MESSAGES.oldButton);
   if (deps.botId === "") return ephemeral(ROLE_MESSAGES.notReady);
@@ -971,7 +1052,7 @@ async function roleButton(interaction: Record<string, unknown>, customId: string
     return ephemeral(ROLE_MESSAGES.wrongBot);
   }
   if (tooLate(sentAt, deps)) return ephemeral(ROLE_MESSAGES.late);
-  deps.background(toggleRole(role, userId, held, deps).then((text) => replaceWaiting(applicationId, token, text, `bouton ${role.key}`, deps)));
+  deps.background(toggleRole(role, userId, held, deps).then((reply) => replaceWaiting(applicationId, token, reply, `bouton ${role.key}`, deps)));
   return json({ type: 5, data: { flags: EPHEMERAL } });
 }
 
@@ -985,10 +1066,12 @@ async function postPanel(guildId: string, channelId: string, rightsShown: boolea
     const panel = index?.roles ?? null;
     const image = panel ? await deps.siteImage(panel.image) : null;
     if (!panel || !image) return ROLE_MESSAGES.noImage;
+    // Les émojis du robot, déposés chez Discord la première fois : sans eux, les boutons gardent leurs émojis ordinaires.
+    const emojis = await ensureEmojis(PANEL_EMOJIS, index, deps);
     const [roles, me, posted] = await Promise.all([
       deps.discord("GET", `/guilds/${guildId}/roles`),
       deps.discord("GET", `/guilds/${guildId}/members/${deps.botId}`),
-      deps.discord("POST", `/channels/${channelId}/messages`, { body: panelMessage(panel.alt), files: [{ name: PANEL_FILE, type: "image/png", bytes: image }] }),
+      deps.discord("POST", `/channels/${channelId}/messages`, { body: panelMessage(panel.alt, emojis), files: [{ name: PANEL_FILE, type: "image/png", bytes: image }] }),
     ]);
     if (!posted || posted.status < 200 || posted.status >= 300) {
       const code = posted ? discordCode(posted) : null;
@@ -1030,7 +1113,7 @@ async function rolesCommand(interaction: Record<string, unknown>, sentAt: number
   }
   // Discord a déjà affiché un échec : un panneau posté maintenant serait relancé, et posté deux fois.
   if (tooLate(sentAt, deps)) return ephemeral(ROLE_MESSAGES.late);
-  deps.background(postPanel(deps.guildId, channelId, rightsShown, deps).then((text) => replaceWaiting(applicationId, token, text, "panneau des rôles", deps)));
+  deps.background(postPanel(deps.guildId, channelId, rightsShown, deps).then((text) => replaceWaiting(applicationId, token, { card: null, text }, "panneau des rôles", deps)));
   return json({ type: 5, data: { flags: EPHEMERAL } });
 }
 

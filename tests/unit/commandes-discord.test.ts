@@ -9,6 +9,7 @@ import type { FaceOff } from "../../src/lib/games";
 import type { CardText, GazetteCard, Measure } from "../../src/lib/gazette-image";
 import { RECORD_LABELS } from "../../src/lib/records-discord";
 import type { ClanRecords } from "../../src/lib/results";
+import { DISCORD_EMOJIS, VIGNETTE_ICONES } from "../../src/lib/emojis-discord";
 import { rolesImageAlt } from "../../src/lib/roles-discord";
 import type { RankedClan } from "../../src/lib/stats";
 import { parseCommandes } from "../../supabase/functions/code-discord/index";
@@ -231,7 +232,10 @@ describe("l'index des commandes", () => {
     expect(index.roles).toEqual({ image: expect.stringMatching(/^\/commandes\/roles\.png\?v=[0-9a-f]{12}$/), alt: rolesImageAlt(SITE) });
     // Tout ce que la fonction lit revient à l'identique ; l'heure de construction ne la regarde pas.
     expect(index.guichet).toEqual({ image: expect.stringMatching(/^\/commandes\/guichet\.png\?v=[0-9a-f]{12}$/), alt: guichetImageAlt(), page: "/rejoindre" });
-    expect(parseCommandes(JSON.parse(JSON.stringify(index)))).toEqual({ clan: index.clan, records: index.records, carte: index.carte, guichet: index.guichet, guide: index.guide, rivaux: index.rivaux, roles: index.roles });
+    expect(parseCommandes(JSON.parse(JSON.stringify(index)))).toEqual({ clan: index.clan, records: index.records, carte: index.carte, guichet: index.guichet, guide: index.guide, rivaux: index.rivaux, roles: index.roles, emojis: index.emojis, vignettes: index.vignettes });
+    // Les émojis et les vignettes du robot, chacun à son adresse versionnée.
+    expect(index.emojis.map((e) => e.name)).toEqual(DISCORD_EMOJIS.map((e) => e.name));
+    expect(index.vignettes.map((v) => v.name)).toEqual([...VIGNETTE_ICONES]);
   });
 });
 
@@ -240,7 +244,11 @@ describe("l'image du guichet des tickets", () => {
     expect(GUICHET_ROWS.map((r) => r.name)).toEqual(TICKET_KINDS.map((kind) => KINDS[kind].button));
     const card = guichetCard("https://les-gaulois.github.io", measure);
     const texts = card.texts.map((t) => t.text);
-    for (const row of GUICHET_ROWS) expect(texts).toEqual(expect.arrayContaining([row.name, row.detail]));
+    // Chaque nom sur sa case ; sa phrase, sur une ou plusieurs lignes, écrite en entier dans l'ordre.
+    for (const row of GUICHET_ROWS) {
+      expect(texts).toContain(row.name);
+      expect(texts.join(" ")).toContain(row.detail);
+    }
     expect(texts).toEqual(expect.arrayContaining(["Besoin d'aide ?", "Le guichet des Gaulois", "./aide", "les-gaulois.github.io"]));
     // Chaque texte tient dans l'image, sans dépasser à droite.
     for (const t of card.texts) {
@@ -254,7 +262,7 @@ describe("l'image du guichet des tickets", () => {
 
   it("se décrit aux lecteurs d'écran avec tout ce qu'elle écrit", () => {
     const alt = guichetImageAlt();
-    for (const row of GUICHET_ROWS) expect(alt).toContain(`${row.name} : ${row.detail}.`);
+    for (const row of GUICHET_ROWS) expect(alt).toContain(`${row.name} : ${row.detail.charAt(0).toLowerCase()}${row.detail.slice(1)}.`);
     expect(alt.length).toBeLessThanOrEqual(1024);
   });
 });
