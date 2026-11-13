@@ -18,7 +18,7 @@ export const LOG_CATEGORIES: readonly { id: LogCategory; label: string }[] = [
   { id: "roles", label: "Rôles" },
   { id: "suspensions", label: "Suspensions" },
   { id: "news", label: "Publications : annonces, événements, sondages, mot d'accueil, idées, Gaulois et objectif de la semaine, messages Discord" },
-  { id: "settings", label: "Réglages : les salons Discord, le salon vocal et l'inventaire d'images" },
+  { id: "settings", label: "Réglages : les salons Discord, le salon vocal, l'inventaire d'images et les prix du village" },
   { id: "alliance", label: "La carte de l'alliance : alliances, clans, zones, joueurs alliés et messages retirés" },
   { id: "other", label: "Autres" },
 ];
@@ -54,6 +54,8 @@ const CATEGORIES: Record<string, LogCategory> = {
   discord_salon_cleared: "settings",
   voice_channel_saved: "settings",
   voice_channel_cleared: "settings",
+  village_prix_saved: "settings",
+  village_pochette_saved: "settings",
   discord_message_sent: "news",
   discord_message_removed: "news",
   discord_message_salon_added: "settings",
@@ -234,6 +236,11 @@ export function describe(row: LogRow, when: (iso: string) => string): LogLine {
       return { who, what: "a réglé le lien du salon vocal." };
     case "voice_channel_cleared":
       return { who, what: "a retiré le lien du salon vocal." };
+    // Le village des Gaulois : les réglages de la boutique, faits dans l'onglet Village de la Direction.
+    case "village_prix_saved":
+      return { who, what: "a changé les prix de la boutique du village." };
+    case "village_pochette_saved":
+      return { who, what: "a changé le prix ou les chances de la pochette surprise du village." };
     // Le lien du webhook n'est jamais dans le journal : seulement s'il y a un rôle pour les pings.
     case "discord_calls_saved": {
       const mention = details["mention"];

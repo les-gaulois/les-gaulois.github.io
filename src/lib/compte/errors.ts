@@ -169,6 +169,12 @@ export const ERROR_MESSAGES: Record<string, string> = {
   trop_d_offres: "Vous avez déjà toutes vos offres ouvertes : retirez-en une d'abord.",
   offre_fermee: "Cette offre n'est plus ouverte : elle est vendue, retirée ou finie.",
   offre_a_soi: "C'est votre offre : elle se retire, elle ne s'achète pas.",
+
+  // L'onglet « Village » de la Direction : les prix et les chances (migration 20261113002100_village_direction).
+  prix_invalides: "Chaque prix est un nombre entier de statères, de 1 à 1 000 000, et chaque rareté coûte plus que la précédente.",
+  prix_pochette_invalide: "Le prix de la pochette est un nombre entier de statères, de 1 à 1 000 000.",
+  chances_invalides: "Les chances sont des nombres entiers de 0 à 100, qui font 100 en tout.",
+  rarete_sans_objet: "Une rareté qui n'a aucun objet à vendre ne peut pas avoir de chance dans la pochette.",
 };
 
 export function errorMessage(code: string): string {
