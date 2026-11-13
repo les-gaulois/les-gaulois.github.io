@@ -2,21 +2,30 @@
 import Base from "../layouts/Base.astro";
 import PageHeader from "../components/PageHeader.astro";
 import NotOpen from "../components/compte/NotOpen.astro";
-import Vestiaire from "../components/compte/Vestiaire";
+import VillageApp from "../components/village/VillageApp";
 import { AUTH_ENABLED } from "../lib/compte/api";
 ---
 
-{/* Le village des Gaulois (13 novembre 2026, demande du pilote) : chaque membre habille son Gaulois en pixels. Premier lot :
-    le vestiaire, avec les objets gratuits ; la commande /gaulois du Discord y mène. Le Gaulois vient du serveur, pour un
-    compte connecté : la page ne contient que la porte. */}
-<Base title="Le village" description="Le village des Gaulois du clan GAL : chaque membre habille son Gaulois en pixels et le montre sur Discord avec /gaulois.">
+{/* Le village des Gaulois (13 novembre 2026, demande du pilote) : chaque membre habille son Gaulois en pixels ; la commande
+    /gaulois du Discord y mène. Un visiteur voit le Gaulois de départ et la porte. Un compte connecté a trois onglets, comme
+    au QG : « Mon Gaulois » (le vestiaire), « La place » (les Gaulois des membres) et « Le marché » (les objets entre
+    membres). Tout vient du serveur, pour un compte connecté : la page ne contient que la porte. */}
+<Base title="Le village" description="Le village des Gaulois du clan GAL : chaque membre habille son Gaulois en pixels, le montre sur la place du village et sur Discord avec /gaulois.">
   <div class="wrap">
     <PageHeader title="Le village" />
-    <section class="mt-8" aria-labelledby="vestiaire-titre">
-      <h2 id="vestiaire-titre" class="section-title-sm">Votre Gaulois</h2>
-      <div class="mt-8">
-        {AUTH_ENABLED ? <Vestiaire client:only="preact" /> : <NotOpen />}
-      </div>
-    </section>
+    <div class="mt-8">
+      {
+        AUTH_ENABLED ? (
+          <VillageApp client:only="preact" />
+        ) : (
+          <section aria-labelledby="vestiaire-titre">
+            <h2 id="vestiaire-titre" class="section-title-sm">Votre Gaulois</h2>
+            <div class="mt-8">
+              <NotOpen />
+            </div>
+          </section>
+        )
+      }
+    </div>
   </div>
 </Base>

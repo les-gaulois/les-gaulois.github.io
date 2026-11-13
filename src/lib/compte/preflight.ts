@@ -135,6 +135,116 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   else if (isClosed(gaulois.status) || (gaulois.ok && gauloisAnswer?.ok === false)) add("Un visiteur ne lit pas de Gaulois", "ok");
   else add("Un visiteur ne lit pas de Gaulois", "fail", `Réponse ${gaulois.status}. Ne mettez pas en ligne : seul un compte connecté lit son Gaulois.`);
 
+  // Les statères du village (migration 20261113001800), donnés pour les points rapportés au clan : seul un compte connecté
+  // lit son solde. Absente : 404, la migration n'est pas collée.
+  const stateres = await rpc("get_mes_stateres");
+  const stateresAnswer = stateres.ok ? ((await stateres.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (stateres.status === 404) add("Les statères du village sont installés", "warn", "get_mes_stateres est absente : collez la migration 20261113001800_village_stateres.sql avant de mettre en ligne ce qui s'en sert.");
+  else if (isClosed(stateres.status) || (stateres.ok && stateresAnswer?.ok === false)) add("Un visiteur ne lit pas de solde de statères", "ok");
+  else add("Un visiteur ne lit pas de solde de statères", "fail", `Réponse ${stateres.status}. Ne mettez pas en ligne : seul un compte connecté lit son propre solde.`);
+  // Ses deux fonctions de la clé de service, celle du workflow des victoires : un visiteur doit être refusé par le droit
+  // d'appel lui-même, même si la fonction refuse aussi. Les valeurs données ne notent rien : une partie mal formée fait
+  // refuser l'envoi entier, et aucune partie ne commence en 2100.
+  const stateresCalls = [
+    ["noter_victoires_stateres", { p_parties: [{ partie: "verification" }] }, "Un visiteur ne donne pas de statères"],
+    ["stateres_parties_notees", { p_depuis: "2100-01-01T00:00:00Z" }, "Un visiteur ne lit pas les parties notées pour les statères"],
+  ] as const;
+  for (const [fn, body, label] of stateresCalls) {
+    const res = await rpc(fn, body);
+    if (isClosed(res.status)) add(label, "ok");
+    else add(label, "fail", `Réponse ${res.status}. Ne mettez pas en ligne : retirez le droit d'appeler ${fn}.`);
+  }
+
+  // La boutique du village (migration 20261113001900) : seul un compte connecté lit sa boutique ; seul un compte validé avec
+  // son Gaulois achète ou ouvre une pochette. Absente : 404, la migration n'est pas collée. L'objet demandé n'existe pas, et un
+  // visiteur n'a pas de statères : même si le droit d'appel était mal posé, rien ne serait débité.
+  const shop = await rpc("get_ma_boutique");
+  const shopAnswer = shop.ok ? ((await shop.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (shop.status === 404) add("La boutique du village est installée", "warn", "get_ma_boutique est absente : collez la migration 20261113001900_village_boutique.sql avant de mettre en ligne ce qui s'en sert.");
+  else if (isClosed(shop.status) || (shop.ok && shopAnswer?.ok === false)) add("Un visiteur ne lit pas de boutique", "ok");
+  else add("Un visiteur ne lit pas de boutique", "fail", `Réponse ${shop.status}. Ne mettez pas en ligne : seul un compte connecté lit sa boutique et son solde.`);
+  const shopCalls = [
+    ["acheter_objet", { p_emplacement: "tete", p_objet: "verification" }, "Un visiteur n'achète pas d'objet"],
+    ["ouvrir_pochette", {}, "Un visiteur n'ouvre pas de pochette surprise"],
+  ] as const;
+  for (const [fn, body, label] of shopCalls) {
+    const res = await rpc(fn, body);
+    const answer = res.ok ? ((await res.json().catch(() => null)) as { ok?: boolean } | null) : null;
+    if (isClosed(res.status) || (res.ok && answer?.ok === false)) add(label, "ok");
+    else add(label, "fail", `Réponse ${res.status}. Ne mettez pas en ligne : seul un compte validé avec son Gaulois achète.`);
+  }
+
+  // Le marché et la place du village (migration 20261113002000) : seul un compte validé lit le marché, vend et achète ; seul
+  // un compte validé ou de l'encadrement voit la place. Absente : 404, la migration n'est pas collée. Les objets et les offres
+  // demandés n'existent pas, et un visiteur n'a ni objet ni statère : même si le droit d'appel était mal posé, rien ne bougerait.
+  const market = await rpc("get_marche");
+  const marketAnswer = market.ok ? ((await market.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (market.status === 404) add("Le marché du village est installé", "warn", "get_marche est absente : collez la migration 20261113002000_village_marche_et_place.sql avant de mettre en ligne ce qui s'en sert.");
+  else if (isClosed(market.status) || (market.ok && marketAnswer?.ok === false)) add("Un visiteur ne lit pas le marché du village", "ok");
+  else add("Un visiteur ne lit pas le marché du village", "fail", `Réponse ${market.status}. Ne mettez pas en ligne : seul un compte validé lit le marché.`);
+  const villageCalls = [
+    ["get_village", {}, "Un visiteur ne voit pas la place du village"],
+    ["mettre_en_vente", { p_emplacement: "tete", p_objet: "verification", p_prix: 1 }, "Un visiteur ne met rien en vente"],
+    ["retirer_offre", { p_id: 0 }, "Un visiteur ne retire pas d'offre du marché"],
+    ["acheter_offre", { p_id: 0 }, "Un visiteur n'achète pas au marché"],
+  ] as const;
+  for (const [fn, body, label] of villageCalls) {
+    const res = await rpc(fn, body);
+    const answer = res.ok ? ((await res.json().catch(() => null)) as { ok?: boolean } | null) : null;
+    if (isClosed(res.status) || (res.ok && answer?.ok === false)) add(label, "ok");
+    else add(label, "fail", `Réponse ${res.status}. Ne mettez pas en ligne : le marché ne s'ouvre qu'aux comptes validés, la place aussi à l'encadrement.`);
+  }
+
+  // L'onglet « Village » de la Direction (migration 20261113002100) : seuls les officiers et au-dessus lisent l'économie du
+  // village, seuls les admins et le fondateur règlent les prix et les chances. Absente : 404, la migration n'est pas collée.
+  // Les valeurs envoyées sont refusées par la fonction elle-même (un prix de 0, des chances qui ne font pas 100) : même si
+  // le droit d'appel était mal posé, rien ne serait écrit.
+  const economie = await rpc("get_village_economie");
+  const economieAnswer = economie.ok ? ((await economie.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (economie.status === 404) add("L'onglet Village de la Direction est installé", "warn", "get_village_economie est absente : collez la migration 20261113002100_village_direction.sql avant de mettre en ligne l'onglet Village.");
+  else if (isClosed(economie.status) || (economie.ok && economieAnswer?.ok === false)) add("Un visiteur ne lit pas l'économie du village", "ok");
+  else add("Un visiteur ne lit pas l'économie du village", "fail", `Réponse ${economie.status}. Ne mettez pas en ligne : seuls les officiers et au-dessus lisent l'économie du village.`);
+  const directionCalls = [
+    ["regler_village_prix", { p_prix: { commun: 0 } }, "Un visiteur ne règle pas les prix du village"],
+    ["regler_village_pochette", { p_prix: 0, p_chances: {} }, "Un visiteur ne règle pas la pochette surprise"],
+  ] as const;
+  for (const [fn, body, label] of directionCalls) {
+    const res = await rpc(fn, body);
+    const answer = res.ok ? ((await res.json().catch(() => null)) as { ok?: boolean } | null) : null;
+    if (isClosed(res.status) || (res.ok && answer?.ok === false)) add(label, "ok");
+    else add(label, "fail", `Réponse ${res.status}. Ne mettez pas en ligne : seuls les admins et le fondateur règlent les prix et les chances.`);
+  }
+
+  // La vie du village (migration 20261113002300) : seul l'encadrement lit la dépense des bulles ; seuls les admins et le
+  // fondateur coupent les bulles ou changent le plafond. Absente : 404, la migration n'est pas collée.
+  const vie = await rpc("get_vie_du_village");
+  const vieAnswer = vie.ok ? ((await vie.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (vie.status === 404) add("La vie du village est installée", "warn", "get_vie_du_village est absente : collez la migration 20261113002300_village_vie.sql. D'ici là, l'étape « Animer le village » échoue sans rien bloquer, et la place n'a ni bulles ni relevé vocal.");
+  else if (isClosed(vie.status) || (vie.ok && vieAnswer?.ok === false)) add("Un visiteur ne lit pas la dépense des bulles du village", "ok");
+  else add("Un visiteur ne lit pas la dépense des bulles du village", "fail", `Réponse ${vie.status}. Ne mettez pas en ligne : seul l'encadrement lit la dépense des bulles.`);
+  const vieReglages = [
+    ["regler_bulles_du_village", { p_actives: true }, "Un visiteur ne coupe ni ne remet les bulles du village"],
+    ["regler_plafond_du_village", { p_plafond: 10 }, "Un visiteur ne change pas le plafond des bulles du village"],
+  ] as const;
+  for (const [fn, body, label] of vieReglages) {
+    const res = await rpc(fn, body);
+    const answer = res.ok ? ((await res.json().catch(() => null)) as { ok?: boolean } | null) : null;
+    if (isClosed(res.status) || (res.ok && answer?.ok === false)) add(label, "ok");
+    else add(label, "fail", `Réponse ${res.status}. Ne mettez pas en ligne : seuls les admins et le fondateur règlent les bulles.`);
+  }
+  // Ses deux fonctions de la clé de service, celle du workflow des victoires : un visiteur doit être refusé par le droit
+  // d'appel lui-même, même si la fonction refuse aussi. La liste de travail donne l'identifiant Discord des membres. Le
+  // relevé envoyé est mal formé : rien ne serait noté.
+  const vieRobot = [
+    ["vie_du_village_travail", {}, "Un visiteur ne lit pas la liste de travail du village"],
+    ["noter_vie_du_village", { p_releve: { verification: true } }, "Un visiteur ne note rien dans la vie du village"],
+  ] as const;
+  for (const [fn, body, label] of vieRobot) {
+    const res = await rpc(fn, body);
+    if (isClosed(res.status)) add(label, "ok");
+    else add(label, "fail", `Réponse ${res.status}. Ne mettez pas en ligne : retirez le droit d'appeler ${fn}.`);
+  }
+
   // Les salons du robot : leur réglage contient les liens qui écrivent dans les salons. Seuls les admins et le fondateur
   // le règlent, et seule la clé de service, celle du robot, reçoit les liens. Leur installation se lit avec `supabase migration list`.
   const salonsState = await rpc("get_discord_salons");
@@ -319,6 +429,25 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   const rosterRows = roster.ok ? ((await roster.json()) as unknown[]) : [];
   if (rosterRows.length > 0) add("La liste des membres a été relue", "ok");
   else add("La liste des membres a été relue", "warn", "Pas encore : lancez l'Action « Données et site » dans GitHub.");
+
+  // Les statères : le workflow des victoires, avec cette clé, doit pouvoir lire les parties notées. Lecture seule : aucune
+  // partie ne commence en 2100, la réponse est vide. À regarder, jamais bloquant : sans elle, seuls les statères attendent.
+  const stateresLabel = "Le workflow peut noter les parties pour les statères";
+  const notees = await fetcher(`${base}/rest/v1/rpc/stateres_parties_notees`, { method: "POST", headers: secretHeaders, body: JSON.stringify({ p_depuis: "2100-01-01T00:00:00Z" }) });
+  const noteesAnswer = notees.ok ? ((await notees.json().catch(() => null)) as { ok?: unknown; parties?: unknown } | null) : null;
+  if (noteesAnswer?.ok === true && Array.isArray(noteesAnswer.parties)) add(stateresLabel, "ok");
+  else if (notees.status === 404) add(stateresLabel, "warn", "stateres_parties_notees est absente : collez la migration 20261113001800_village_stateres.sql. D'ici là, l'étape « Donner les statères des points rapportés au clan » échoue sans rien bloquer.");
+  else add(stateresLabel, "warn", `Réponse ${notees.status}. La clé de service n'a pas le droit d'appeler stateres_parties_notees : recollez la migration 20261113001800_village_stateres.sql, qui se rejoue sans rien perdre.`);
+
+  // La vie du village : le workflow des victoires, avec cette clé, doit pouvoir noter ses relevés. Le relevé envoyé est mal
+  // formé : le serveur le refuse sans rien écrire (`invalid_releve`), ce qui prouve qu'il est là et que la clé l'appelle. À
+  // regarder, jamais bloquant : sans elle, seuls les bulles et le relevé vocal attendent.
+  const vieLabel = "Le workflow peut noter la vie du village";
+  const vieNote = await fetcher(`${base}/rest/v1/rpc/noter_vie_du_village`, { method: "POST", headers: secretHeaders, body: JSON.stringify({ p_releve: { verification: true } }) });
+  const vieNoteAnswer = vieNote.ok ? ((await vieNote.json().catch(() => null)) as { ok?: unknown; error?: unknown } | null) : null;
+  if (vieNoteAnswer?.ok === false && vieNoteAnswer.error === "invalid_releve") add(vieLabel, "ok");
+  else if (vieNote.status === 404) add(vieLabel, "warn", "noter_vie_du_village est absente : collez la migration 20261113002300_village_vie.sql. D'ici là, l'étape « Animer le village » échoue sans rien bloquer.");
+  else add(vieLabel, "warn", `Réponse ${vieNote.status}. La clé de service n'a pas le droit d'appeler noter_vie_du_village : recollez la migration 20261113002300_village_vie.sql, qui se rejoue sans rien perdre.`);
 
   return checks;
 }
