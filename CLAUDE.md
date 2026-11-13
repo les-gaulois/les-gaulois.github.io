@@ -1,6 +1,6 @@
 # [GAL] Les Gaulois — site du clan
 
-Site statique Astro du clan OpenFront [GAL], publié sur GitHub Pages : <https://les-gaulois.github.io/> (dépôt `les-gaulois/les-gaulois.github.io`, branche `main`). La GitHub Action `.github/workflows/site.yml` collecte l'API OpenFront toutes les heures dans `data/`, puis reconstruit et publie le site. Seuls la connexion (avec Discord, ou par un code), l'espace Direction, le QG, la carte de l'alliance (fenêtre « Alliance » de la page Carte) et le vestiaire du village des Gaulois (`/village`) ont un serveur (Supabase), auquel chaque page publiée envoie aussi un compte de la visite, sans cookie ni adresse IP (onglet « Activité du site » de la Direction). La Conquête des Gaulois, ancien jeu de territoires, a été retirée le 6 novembre 2026 : ne pas la reproposer, ne pas réutiliser son code ni `config/conquete.json`.
+Site statique Astro du clan OpenFront [GAL], publié sur GitHub Pages : <https://les-gaulois.github.io/> (dépôt `les-gaulois/les-gaulois.github.io`, branche `main`). La GitHub Action `.github/workflows/site.yml` collecte l'API OpenFront toutes les heures dans `data/`, puis reconstruit et publie le site. Seuls la connexion (avec Discord, ou par un code), l'espace Direction, le QG, la carte de l'alliance (fenêtre « Alliance » de la page Carte) et le village des Gaulois (`/village` : vestiaire, statères, boutique, marché, place animée) ont un serveur (Supabase), auquel chaque page publiée envoie aussi un compte de la visite, sans cookie ni adresse IP (onglet « Activité du site » de la Direction). La Conquête des Gaulois, ancien jeu de territoires, a été retirée le 6 novembre 2026 : ne pas la reproposer, ne pas réutiliser son code ni `config/conquete.json`.
 
 Détails : `README.md`, `docs/API_AUDIT.md` (API), `docs/DESIGN.md` (design), `docs/DIRECTION.md` (connexion, rôles, Supabase), `NOTICE.md` (licences).
 
@@ -26,6 +26,7 @@ La personne qui pilote le projet ne développe pas et t'a confié le site en aut
 | `npm run test:e2e` | Playwright sur `dist/` : après `npm run build` |
 | `npm run data:fetch` · `npm run data:carte` | Collecte dans `data/` · seulement la carte des clans |
 | `npm run verifier:ligne` | Contrôle le vrai projet Supabase sans rien écrire (variables à poser dans le shell) |
+| `npm run village:economie` | Mesure l'économie du village sur `data/`, dans le terminal, sans rien écrire ni envoyer |
 
 Node 22 ou plus. Sous Windows, le shell est Git Bash : chemins avec `/`.
 
@@ -34,7 +35,7 @@ Node 22 ou plus. Sous Windows, le shell est Git Bash : chemins avec `/`.
 - `config/clan.ts` : tag, nom, liens, logos, date de création du clan. Les champs à `null` ou `[]` masquent leur section.
 - `src/pages/*.astro` : une page par fichier, mise en page `src/layouts/Base.astro` (en-tête, navigation, pied de page). Le plan du site, rubriques et onglets, est dans `src/lib/nav.ts`. Pages personnelles `compte`, `qg`, `direction` et fiches `membres/[id]` en `noindex` ; `admin` ne fait plus que mener à la Direction, où est l'administration.
 - `src/components/` : `.astro` statiques, `.tsx` Preact hydratés (`client:idle`, `client:visible` ou `client:only="preact"`). `src/components/compte/` : écrans de la connexion.
-- `src/lib/` : calculs purs et testés. `schemas.ts` (Zod), `data.ts` (lecture de `data/` et `content/`), `compte/` (client Supabase `api.ts`, `preflight.ts`, `roster.ts`), `clanmap/` (carte des clans, `etat.ts` son état pixel par pixel), `alliance/` (carte de l'alliance : masques des zones, bilans, invitations), `fx/` (logique des effets).
+- `src/lib/` : calculs purs et testés. `schemas.ts` (Zod), `data.ts` (lecture de `data/` et `content/`), `compte/` (client Supabase `api.ts`, `preflight.ts`, `roster.ts`), `clanmap/` (carte des clans, `etat.ts` son état pixel par pixel), `village/` (le village des Gaulois : `contrat.ts` fait foi entre les écrans et le serveur, `vie.ts` la règle des lieux, `lumiere.ts`, `economie.ts`, `consigne-repliques.ts` la consigne des bulles), `alliance/` (carte de l'alliance : masques des zones, bilans, invitations), `fx/` (logique des effets).
 - `src/scripts/` : scripts navigateur — `fx.ts` effets, `holo.ts` guerrier en relief de l'accueil (répliques dans `src/lib/fx/repliques.ts`), `film.ts` film de la carte, `carte-console.ts` fenêtres de la page Carte (`fenetre-libre.ts` : la fenêtre « Alliance » se déplace, change de taille, s'agrandit ou se réduit), `alliance-ecran.ts` carte de l'alliance (fenêtre « Alliance », écrans dans `src/components/carte/alliance/`, détail dans `docs/DIRECTION.md`), `nouveautes.ts` point des nouveautés du site, `visite.ts` compte des visites (logique dans `src/lib/activite-site.ts`).
 - `src/styles/global.css` : jetons de couleur et classes `.stage`, `.card`, `.btn-*`, `.wrap`.
 - `content/` : textes du clan, JSON et Markdown (skill `contenu-clan`). `content/nouveautes.json` : le journal des mises à jour du site, que tu tiens (skill `publier`). `data/` : écrit par la collecte, jamais à la main.
@@ -75,6 +76,14 @@ Node 22 ou plus. Sous Windows, le shell est Git Bash : chemins avec `/`.
 - Le serveur décide de tout : droits et résultats vérifiés en SQL, jamais en masquant un bouton. Le navigateur n'appelle que des fonctions SQL via `src/lib/compte/api.ts`. Trois exceptions, dans ce même fichier : `uploadDiscordImage` dépose une image des messages Discord, sous la règle d'accès du stockage (admins et fondateur), `signInWithCode` envoie un code de connexion à la fonction serveur `code-discord`, et `noteSiteVisit` envoie le compte d'une visite à `note_site_visit` sans charger le code de Supabase.
 - L'identité vient de `auth.identities`, ou, pour la connexion par code, d'une commande `/code` signée par Discord et vérifiée par `code-discord` ; jamais de `raw_user_meta_data` ni de l'adresse e-mail, qu'un joueur peut choisir. Un compte sans Discord ne peut rien demander. Un compte Discord n'a qu'un compte sur le site.
 - Une migration appliquée ne se modifie jamais : on en ajoute une nouvelle. Détail et mise en ligne : skill `supabase`.
+
+### Le village des Gaulois
+
+- Design et graphisme par Claude Fable 5.2, code par Claude Opus 5.5 : c'est la demande du pilote pour tout agent lancé sur le village. Détail des lots, des règles et des choix : « Le village des Gaulois » de `docs/DIRECTION.md`.
+- Les statères viennent des « points rapportés au clan », 30 par point, jamais « des victoires ». Ils ne s'achètent pas. Le solde est privé : aucun classement des plus riches.
+- Rien n'est du temps réel : OpenFront ne dit pas qui joue en ce moment, et le robot Discord ne voit que l'état vocal, relevé toutes les 5 minutes. L'écran le dit.
+- L'API Claude n'écrit que les bulles des Gaulois, à partir de faits sans identité (`src/lib/village/consigne-repliques.ts`), sous un plafond tenu par le serveur. Toute autre dépense ou tout autre usage de l'API se demande au pilote. La clé est le secret GitHub `ANTHROPIC_API_KEY`, jamais dans le dépôt.
+- Aucun dessin ne rappelle une œuvre existante ; pas de case pour se retirer de la place (choix du pilote).
 
 ## Skills et sous-agent du projet
 
