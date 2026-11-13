@@ -1,6 +1,12 @@
 [
   {
     "date": "2026-11-13",
+    "kind": "ameliore",
+    "title": "Carte de l'alliance : l'invitation en premier",
+    "body": "Dans l'onglet Gestion, l'invitation d'un joueur allié passe en tête et dit ce qui manque pour inviter : GAL et le clan du joueur dans la même alliance. Les clans sans alliance se replient."
+  },
+  {
+    "date": "2026-11-13",
     "kind": "nouveau",
     "title": "Le niveau des Gaulois",
     "body": "La liste et les fiches des membres affichent, avec un emblème, le niveau et le prestige du compte OpenFront de ceux qui ne le cachent pas. Ce niveau compte tout le jeu, pas seulement le tag.",

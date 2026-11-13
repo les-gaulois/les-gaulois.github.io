@@ -6485,3 +6485,10 @@ footer h2 {
   top: 0.125rem;
   right: 0.25rem;
 }
+/* Ce qui manque pour inviter un joueur allié : un cadre jaune, en tête de la gestion. */
+.alliance-manque {
+  margin-top: 0.5rem;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--color-warn);
+  border-radius: 0.25rem;
+}

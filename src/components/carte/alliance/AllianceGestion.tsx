@@ -235,9 +235,12 @@ function Rangement({ ctx }: { ctx: Contexte }) {
         </div>
       ))}
       {alliances.length > 0 && (
+        // Les clans sans alliance, repliés : une quarantaine de clans allongeaient la fenêtre. Déposer un clan sur la case le sort de son alliance.
         <div class="alliance-case" data-survolee={survolee === "aucune" ? "" : undefined} onDragOver={survol("aucune")} onDragLeave={() => setSurvolee(null)} onDrop={deposer(null)}>
-          <p class="font-semibold">Sans alliance</p>
-          <ul class="alliance-jetons">{libres.map((tag) => jeton(tag, null))}</ul>
+          <details class="fold">
+            <summary>Clans sans alliance ({libres.length})</summary>
+            <ul class="alliance-jetons">{libres.map((tag) => jeton(tag, null))}</ul>
+          </details>
         </div>
       )}
       <Problem message={erreur} />
@@ -263,11 +266,34 @@ function Allies({ ctx }: { ctx: Contexte }) {
     setCopie(null);
   };
 
+  // Ce qui manque pour inviter, dit d'après l'état : le pilote cherchait le lien sans savoir qu'il fallait d'abord ranger GAL
+  // et un clan allié dans la même alliance (13 novembre 2026).
+  const alliances = ctx.donnees.alliances ?? [];
+  const notre = alliances.find((a) => a.id === ctx.donnees.ours) ?? null;
+  const manque =
+    clans.length > 0
+      ? null
+      : notre
+        ? `Pour inviter un joueur, ajoutez d'abord son clan à « ${notre.name} », l'alliance de GAL.`
+        : alliances.length > 0
+          ? "Pour inviter un joueur, rangez d'abord GAL et le clan de ce joueur dans la même alliance."
+          : "Pour inviter un joueur, créez d'abord votre alliance, puis rangez-y GAL et le clan de ce joueur.";
+  const allerAuRangement = () => {
+    const cible = document.getElementById(alliances.length > 0 ? "gestion-clans" : "alliance-nouvelle");
+    cible?.scrollIntoView({ block: "start", behavior: "smooth" });
+    if (cible instanceof HTMLInputElement) cible.focus({ preventScroll: true });
+  };
+
   return (
-    <section class="carte-bloc" aria-labelledby="gestion-allies">
-      <h3 id="gestion-allies">Les joueurs alliés</h3>
-      {clans.length === 0 ? (
-        <p class="mt-2 text-muted">Rangez GAL et au moins un autre clan dans une même alliance pour inviter ses joueurs.</p>
+    <section aria-labelledby="gestion-allies" data-testid="gestion-invitation">
+      <h3 id="gestion-allies">Inviter un joueur allié</h3>
+      {manque ? (
+        <div class="alliance-manque" data-testid="invite-manque">
+          <p>{manque}</p>
+          <button type="button" class="btn btn-ghost mt-2" onClick={allerAuRangement}>
+            {alliances.length > 0 ? "Aller au rangement des clans" : "Aller à la création de l'alliance"}
+          </button>
+        </div>
       ) : (
         <form
           class="mt-2 grid gap-2"
@@ -364,9 +390,10 @@ function Allies({ ctx }: { ctx: Contexte }) {
 export default function AllianceGestion({ ctx }: { ctx: Contexte }) {
   return (
     <div data-testid="alliance-gestion">
+      {/* L'invitation d'abord : c'est ce que l'encadrement vient chercher le plus souvent. */}
+      <Allies ctx={ctx} />
       <Alliances ctx={ctx} />
       <Rangement ctx={ctx} />
-      <Allies ctx={ctx} />
     </div>
   );
 }
