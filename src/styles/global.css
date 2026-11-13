@@ -3568,7 +3568,245 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 }
 
 /* ---------- Direction, onglet Sondages ---------- */
-/* Les règles propres à cet onglet (DirectionPolls.tsx), sous la classe `dir-sondages`. */
+/* Les règles propres à cet onglet (DirectionPolls.tsx), sous la classe `dir-sondages`. Le formulaire à gauche, la liste à
+   droite dès 1 024 px. Un sondage par bloc serré : un trait vert s'il est ouvert, gris s'il est fermé, jaune si ses totaux
+   ne se lisent pas ; son état en pastille ; une ligne par choix (le nom, la barre, les voix, la part). Le choix en tête a
+   son nom en gras, sa barre en blanc et le mot « En tête » ; à égalité, chacun porte « Égalité » en jaune et aucun n'est
+   désigné. Les règles sont dans `src/lib/compte/direction-sondages.ts`. */
+.dir-sondages-plan {
+  display: grid;
+  align-items: start;
+  gap: 1.5rem;
+  margin-top: 1.25rem;
+}
+@media (min-width: 64rem) {
+  .dir-sondages-plan {
+    grid-template-columns: minmax(19rem, 26rem) minmax(0, 1fr);
+    gap: 2rem;
+  }
+}
+
+/* Le formulaire, compact : les noms des champs au-dessus, leur précision en gris à côté. */
+.dir-sondages-form {
+  display: grid;
+  gap: 0.875rem;
+  min-width: 0;
+  max-width: 42rem;
+  padding: 1rem 1.125rem 1.125rem;
+}
+.dir-sondages-form-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.375rem 0.75rem;
+}
+.dir-sondages-form-tete .dir-pastille {
+  font-size: 0.875rem;
+}
+.dir-sondages-plein {
+  margin-top: -0.375rem;
+  font-size: 0.9375rem;
+  color: var(--color-warn);
+}
+.dir-sondages-form label,
+.dir-sondages-form legend {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+.dir-sondages-aide-champ {
+  font-weight: 400;
+  color: var(--color-muted);
+}
+.dir-sondages-choix {
+  display: grid;
+  gap: 0.375rem;
+  min-width: 0;
+}
+.dir-sondages-choix-ligne {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+.dir-sondages-choix-ligne .field {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* Les boutons de ligne restent gris : ils ne prennent leur couleur que sous la souris ou au clavier. Pas de mur de rouge. */
+.dir-sondages .dir-bouton {
+  --ton: var(--color-muted);
+  flex: none;
+}
+.dir-sondages .dir-bouton[data-survol="warn"]:where(:hover, :focus-visible):where(:not(:disabled)) {
+  --ton: var(--color-warn);
+}
+.dir-sondages .dir-bouton[data-survol="danger"]:where(:hover, :focus-visible):where(:not(:disabled)),
+.dir-sondages .dir-bouton[data-arme] {
+  --ton: var(--color-danger);
+}
+/* Armé, « Supprimer » demande sa confirmation en plein rouge. */
+.dir-sondages .dir-bouton[data-arme] {
+  border-color: var(--ton);
+  background: var(--ton);
+  color: var(--color-night);
+}
+/* La zone d'annonce existe avant d'être remplie, sans prendre de place. */
+.dir-sondages .form-success:empty {
+  display: block;
+  margin: 0;
+}
+.dir-sondages #polls-done > :not(:empty) {
+  margin-block: 0.5rem;
+}
+
+/* La liste : la barre des filtres reste sous l'en-tête du site. */
+.dir-sondages-suivi {
+  min-width: 0;
+  container-type: inline-size;
+}
+.dir-sondages .dir-outils {
+  margin-top: 0;
+  padding-top: 0;
+}
+.dir-sondages-liste {
+  margin-top: 0;
+}
+.dir-sondage {
+  padding: 0.625rem 0.75rem 0.75rem 0.875rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+  box-shadow: inset 3px 0 0 var(--ton, transparent);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 0.75rem;
+}
+/* La question et ses boutons sont posés sur la grille du sondage : les boutons à droite, ou en bas sur une colonne étroite. */
+.dir-sondage-tete {
+  display: contents;
+}
+.dir-sondage > :not(.dir-sondage-tete) {
+  grid-column: 1 / -1;
+}
+.dir-sondage-actions {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: start;
+}
+.dir-sondage-question {
+  grid-column: 1;
+  min-width: 0;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  color: #fff;
+}
+.dir-sondage-actions {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+.dir-sondage-etat {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.125rem 0.75rem;
+  margin-top: 0.3125rem;
+  font-size: 0.9375rem;
+  color: var(--color-muted);
+}
+.dir-sondage-etat .dir-pastille {
+  font-size: 0.875rem;
+}
+.dir-sondage-total {
+  font-weight: 700;
+  color: #fff;
+}
+.dir-sondage-auteur {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.dir-sondage-illisible,
+.dir-sondage-sans-voix {
+  margin-top: 0.4375rem;
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+  color: var(--color-muted);
+}
+.dir-sondage-illisible {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.125rem 0.75rem;
+}
+/* Une ligne par choix, sur les mêmes colonnes d'un choix à l'autre : les voix et les parts s'alignent à droite. */
+.dir-sondage-choix {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(3rem, 4fr) auto auto;
+  gap: 0.25rem 0.875rem;
+  margin-top: 0.5rem;
+  font-size: 0.9375rem;
+  line-height: 1.35;
+}
+.dir-sondage-choix > li {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+  align-items: center;
+}
+.dir-sondage-nom {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.dir-sondage-nom .dir-point {
+  margin-left: 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.dir-sondage-voix,
+.dir-sondage-part {
+  text-align: right;
+  white-space: nowrap;
+}
+.dir-sondage-voix {
+  color: var(--color-muted);
+}
+.dir-sondage-choix > li[data-tete] .dir-sondage-nom,
+.dir-sondage-choix > li[data-tete] .dir-sondage-voix,
+.dir-sondage-choix > li[data-tete] .dir-sondage-part {
+  font-weight: 700;
+  color: #fff;
+}
+.dir-sondage-choix > li[data-tete] .dir-sondage-barre > i {
+  background: #fff;
+}
+/* Colonne étroite (téléphone, tablette) : le nom et les nombres sur une ligne, la barre dessous. */
+@container (max-width: 36rem) {
+  .dir-sondage {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dir-sondage-actions {
+    grid-column: 1;
+    grid-row: auto;
+    order: 1;
+    margin-top: 0.625rem;
+  }
+  .dir-sondage-choix {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    row-gap: 0.4375rem;
+  }
+  .dir-sondage-choix > li {
+    row-gap: 0.1875rem;
+  }
+  .dir-sondage-barre {
+    grid-row: 2;
+    grid-column: 1 / -1;
+  }
+}
+.dir-sondages-aide {
+  margin-top: 1.5rem;
+}
 
 /* ---------- Direction, onglet Mot d'accueil ---------- */
 /* Les règles propres à cet onglet (DirectionWelcome.tsx), sous la classe `dir-accueil`. L'état du mot est en pastille à
