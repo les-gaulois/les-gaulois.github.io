@@ -145,6 +145,8 @@ Les jetons sont définis dans `src/styles/global.css`.
 | `--texte-courant` | `#E3E8F4` | Le texte courant des pages (`main`), un blanc adouci : 15,0:1 sur la page. Les titres et les gros chiffres restent en blanc pur |
 | `ok` | `#A6E3B4` | Une réussite : le message après un envoi (`.form-success`), et les `[ OK ]` de l'état du site à la Direction |
 
+**Couleurs des prestiges (13 novembre 2026) :** l'emblème du niveau des comptes, sur la liste des membres et les fiches (`src/components/NiveauEmblem.tsx`), prend les couleurs que le jeu donne à chaque prestige, l'or de la Légende et le prisme du prestige 10 (`src/lib/niveau.ts`, voir `NOTICE.md`). Ce ne sont pas des jetons : elles ne colorent que la jauge et le bord de l'emblème, jamais un texte, et le chiffre reste blanc. La note de lecture de la liste en donne la clé.
+
 **Règle du tricolore :** en accent dans l'interface (filets, soulignement de la page active, loader). Pas de texte blanc sur le rouge vif, trop peu contrasté à petite taille.
 
 ### Thème rouge de l'encadrement

@@ -2,6 +2,26 @@
   {
     "date": "2026-11-13",
     "kind": "nouveau",
+    "title": "Le niveau des Gaulois",
+    "body": "La liste et les fiches des membres affichent, avec un emblème, le niveau et le prestige du compte OpenFront de ceux qui ne le cachent pas. Ce niveau compte tout le jeu, pas seulement le tag.",
+    "link": {
+      "href": "/liste",
+      "label": "Voir la liste"
+    }
+  },
+  {
+    "date": "2026-11-13",
+    "kind": "ameliore",
+    "title": "Confidentialité : le niveau du compte",
+    "body": "La page Confidentialité dit que la liste des membres montre le niveau et le prestige de votre compte OpenFront, sauf si vous le cachez dans le jeu.",
+    "link": {
+      "href": "/confidentialite",
+      "label": "Lire la page"
+    }
+  },
+  {
+    "date": "2026-11-13",
+    "kind": "nouveau",
     "title": "La carte de l'alliance",
     "body": "Sur la page Carte, la fenêtre Alliance : les alliances de clans en couleur, les zones à prendre dessinées au pixel près, les troupes déclarées et une discussion avec les clans alliés invités.",
     "link": {

@@ -230,6 +230,54 @@ describe("runPipeline", () => {
     expect(calls.some((c) => c.includes("/members"))).toBe(true);
   });
 
+  it("relit une seule fois, sans attendre le lendemain, une liste relevée avant le niveau des comptes", async () => {
+    await runPipeline(deps(healthy));
+    const kept = read("members.json");
+    expect(kept.members.every((m: { account?: unknown }) => m.account === null)).toBe(true);
+    // Une liste comme celles d'avant le 13 novembre 2026 : sans le champ du niveau.
+    const before = { ...kept, members: kept.members.map((m: { account?: unknown }) => Object.fromEntries(Object.entries(m).filter(([k]) => k !== "account"))) };
+    writeFileSync(join(dir, "members.json"), JSON.stringify(before));
+    calls = [];
+    now = new Date("2026-11-05T11:00:00.000Z");
+    await runPipeline(deps(healthy));
+    expect(calls.some((c) => c.includes("/members"))).toBe(true);
+    calls = [];
+    now = new Date("2026-11-05T12:00:00.000Z");
+    await runPipeline(deps(healthy));
+    expect(calls.some((c) => c.includes("/members"))).toBe(false);
+  });
+
+  it("refait au passage suivant la relecture du niveau quand la liste n'a pas répondu, sans perdre l'ancienne", async () => {
+    await runPipeline(deps(healthy));
+    const kept = read("members.json");
+    const before = { ...kept, members: kept.members.map((m: { account?: unknown }) => Object.fromEntries(Object.entries(m).filter(([k]) => k !== "account"))) };
+    writeFileSync(join(dir, "members.json"), JSON.stringify(before));
+    const down: Route = (url) => (url.pathname.endsWith("/clan/GAL/members") ? { status: 500 } : undefined);
+    now = new Date("2026-11-05T11:00:00.000Z");
+    const { errors } = await runPipeline(deps(down));
+    expect(errors.some((e) => e.startsWith("membres"))).toBe(true);
+    expect(read("members.json")).toEqual(before);
+    calls = [];
+    now = new Date("2026-11-05T12:00:00.000Z");
+    await runPipeline(deps(healthy));
+    expect(calls.some((c) => c.includes("/members"))).toBe(true);
+    expect(read("members.json").members.every((m: { account?: unknown }) => m.account === null)).toBe(true);
+  });
+
+  it("garde le niveau du compte, sans le publicId d'un anonyme", async () => {
+    const withLevel: Route = (url) =>
+      url.pathname.endsWith("/clan/GAL/members")
+        ? { body: { results: [{ ...member("id1", "Alpha"), level: 62, prestige: 1, legend: false }, { ...member("SECRET", null), level: 7, prestige: 0, legend: false }], total: 2, page: 1, limit: 50 } }
+        : undefined;
+    await runPipeline(deps(withLevel));
+    const list = read("members.json");
+    expect(list.members.map((m: { account: unknown }) => m.account)).toEqual([
+      { level: 62, prestige: 1, legend: false },
+      { level: 7, prestige: 0, legend: false },
+    ]);
+    expect(readFileSync(join(dir, "members.json"), "utf8")).not.toContain("SECRET");
+  });
+
   it("relève le classement du jour, dans l'ordre de l'API et sans donnée individuelle", async () => {
     await runPipeline(deps(healthy));
     const snap = read("rivals/2026-11-05.json");

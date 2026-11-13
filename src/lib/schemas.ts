@@ -51,6 +51,11 @@ export const ApiMember = z.object({
   username: z.string().nullable().optional(),
   // Le schéma du jeu rend `stats` optionnel : absent signifie « pas de données ».
   stats: z.object({ team: WL }).optional(),
+  // Le niveau du compte, tout le jeu confondu : seule exception à `stats.team`, voulue par le pilote le 13 novembre 2026.
+  // Absent quand le joueur le cache ou n'a pas encore de progression. Une valeur abîmée compte comme absente : elle ne fait jamais échouer la liste.
+  level: z.number().int().positive().optional().catch(undefined),
+  prestige: z.number().int().nonnegative().optional().catch(undefined),
+  legend: z.boolean().optional().catch(undefined),
 });
 
 export const ApiMembersPage = z.object({
@@ -227,6 +232,13 @@ export const StoredSessionFile = z.object({
 });
 export type StoredSessionFile = z.infer<typeof StoredSessionFile>;
 
+export const AccountLevel = z.object({
+  level: z.number().int().positive(),
+  prestige: z.number().int().nonnegative(),
+  legend: z.boolean(),
+});
+export type AccountLevel = z.infer<typeof AccountLevel>;
+
 export const StoredMember = z.object({
   role: z.enum(["leader", "officer", "member"]),
   joinedAt: isoDate,
@@ -235,6 +247,9 @@ export const StoredMember = z.object({
   username: z.string().nullable(),
   // Parties d'équipe sous le tag. `null` : l'API n'a pas fourni de stats.
   team: WL.nullable(),
+  // Niveau du compte OpenFront, tout le jeu confondu, jamais mêlé aux parties sous le tag (src/lib/niveau.ts).
+  // `null` : caché par le joueur ou pas encore de progression. Absent : liste relevée avant le 13 novembre 2026.
+  account: AccountLevel.nullable().optional(),
 });
 export type StoredMember = z.infer<typeof StoredMember>;
 export const StoredMembers = z.object({

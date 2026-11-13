@@ -17,7 +17,7 @@ Audit complet, routes et réponses observées : `docs/API_AUDIT.md`. Les visiteu
 |---|---|---|
 | `GET /public/clans/leaderboard` | Classement officiel, rang, score `weightedWins` | Documentée |
 | `GET /public/clan/GAL` et `/sessions` | Sessions du clan, archivées par mois dans `data/sessions/` | Documentée |
-| `GET /public/clan/GAL/members` | Liste des membres, `stats.team` | Non documentée, peut changer |
+| `GET /public/clan/GAL/members` | Liste des membres, `stats.team`, et le niveau et le prestige du compte, à part | Non documentée, peut changer |
 | `GET /public/leaderboard/ranked` | Décompte par mode des membres avec pseudo au classé (`data/ranked.json`), sans nom ni chiffre individuel, à part des stats de clan | Documentée |
 | `GET /public/game/:id?turns=false` | Carte, durée et équipes des clans de chaque partie (`data/games/`), 400 au plus par passage, aucun joueur écrit. L'équipe des perdants est calculée : `placeClans`, contrôlé sur les vainqueurs. Relue aussi pour le message de chaque victoire (`src/lib/victoires.ts`) : le nom en partie des Gaulois qui ont des stats, publié sur Discord à la demande du pilote, et leur `publicID`, pour relier un membre avec pseudo à sa fiche ; rien de cela n'est écrit dans `data/` | Documentée |
 | `GET /public/player/:id/games?filter=team&type=public` | Dernières parties sous le tag des membres avec pseudo (`.cache/member-games/players.json`, hors de Git), détail de `stats.team`, sans statistique tirée ni rien de ce qui est joué hors du tag | Documentée |
@@ -31,7 +31,7 @@ Audit complet, routes et réponses observées : `docs/API_AUDIT.md`. Les visiteu
 - `data/` n'est écrit que par la collecte. Jamais à la main, jamais une valeur « pour tester ».
 - Toute réponse passe par un schéma Zod de `src/lib/schemas.ts`. Réponse invalide ou API en panne : les derniers fichiers valides restent, l'erreur va dans `data/meta.json`, le site l'affiche. Un champ nouveau = schéma + test unitaire + affichage daté.
 - Les calculs (rang, score, taux, créneaux, jeu en groupe, ma place, territoire, coûts) sont listés dans `README.md` et vivent dans `src/lib/` avec un test chacun. Les constantes de jeu (`src/lib/growth.ts`, `src/lib/guide-clan.ts` pour les essais du guide du clan, `src/lib/clanmap/economy.ts`) sont figées à une version du jeu ou à la date de leur relevé : si le jeu change, les mettre à jour à la main et noter la version ou la date.
-- Stats des membres : `stats.team` uniquement. Le `publicId` d'un anonyme n'est jamais publié ; le serveur de connexion n'en garde que l'empreinte.
+- Stats des membres : `stats.team` uniquement. Seule exception, voulue par le pilote le 13 novembre 2026 : le niveau et le prestige du compte, à part des stats du clan ; ni rating FFA, ni Elo, ni place au classé. Le `publicId` d'un anonyme n'est jamais publié ; le serveur de connexion n'en garde que l'empreinte.
 - L'historique brut de la carte (`.cache/clanmap/`, environ 40 Mo, avec la date de chaque événement) reste hors de Git, dans le cache de l'Action. Perdu, il se retélécharge (plus de 350 appels).
 
 ## Dons et conditions d'utilisation

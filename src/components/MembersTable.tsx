@@ -2,8 +2,10 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/ho
 import { fmtDate, fmtInt, fmtPct } from "../lib/format";
 import { motionAllowed } from "../lib/fx/motion";
 import { filterMembers, gamesOf, rateOf, sortMembers, type SortDir, type SortKey } from "../lib/members";
+import { accountLabel, accountShort } from "../lib/niveau";
 import type { StoredMember, StoredMembers } from "../lib/schemas";
 import { ChoisirPseudo } from "./ChoisirPseudo";
+import { NiveauEmblem } from "./NiveauEmblem";
 
 /**
  * Les membres montrés d'abord, le reste d'un clic, comme pour le classement. Sur téléphone, chaque membre est une carte :
@@ -22,6 +24,7 @@ const SORTS: { key: SortKey; label: string }[] = [
   { key: "games", label: "Parties" },
   { key: "rate", label: "Taux" },
   { key: "joinedAt", label: "Arrivée" },
+  { key: "level", label: "Niveau du compte" },
 ];
 
 type State = { status: "loading" } | { status: "error" } | { status: "ready"; data: StoredMembers };
@@ -47,6 +50,22 @@ function RoleBadge({ role }: { role: StoredMember["role"] }) {
 /** « — » : pas de stats reçues. Zéro partie : affiché tel quel, sans taux. */
 const wlText = (m: StoredMember) =>
   m.team === null ? "Pas de données" : gamesOf(m) === 0 ? "Aucune partie sous le tag" : null;
+
+/** Le niveau du compte, tout le jeu confondu, à part des parties sous le tag. « — » : caché par le joueur, ou pas encore de progression. */
+function Level({ m }: { m: StoredMember }) {
+  if (!m.account) return <span class="text-muted">—</span>;
+  const short = accountShort(m.account);
+  return (
+    // Le prestige sous le chiffre : la colonne reste étroite, pour que le tableau tienne dès 768 pixels.
+    <span class="inline-flex items-center gap-2 whitespace-nowrap" title={accountLabel(m.account)}>
+      <NiveauEmblem account={m.account} />
+      <span class="flex flex-col leading-tight">
+        <span>{short.level}</span>
+        {short.prestige && <span class="text-xs text-muted">{short.prestige}</span>}
+      </span>
+    </span>
+  );
+}
 
 const memberKey = (m: StoredMember) => m.publicId ?? `anon-${m.joinedAt}`;
 /** Au-delà, on ne fait plus glisser les lignes : le gain visuel ne vaut pas le coût. */
@@ -168,7 +187,8 @@ export default function MembersTable({ src }: { src: string }) {
           <span class="mb-1 block text-sm font-semibold">Rechercher par pseudo</span>
           <input id="member-search" class="field" type="search" value={query} onInput={(e) => setQuery(e.currentTarget.value)} />
         </label>
-        <div class="flex items-end gap-2 md:hidden">
+        {/* Jusqu'à 1 024 pixels, la colonne du niveau est sous le pseudo : son tri passe par ce menu. */}
+        <div class="flex items-end gap-2 lg:hidden">
           <label class="block flex-1" htmlFor="member-sort">
             <span class="mb-1 block text-sm font-semibold">Trier par</span>
             <select id="member-sort" class="field" value={sort} onChange={(e) => setSort(e.currentTarget.value as SortKey)}>
@@ -190,12 +210,12 @@ export default function MembersTable({ src }: { src: string }) {
         <>
           <div class="fx-block mt-4 hidden overflow-hidden md:block">
             <table class="data-table tnum w-full text-sm">
-              <caption class="sr-only">Membres du clan et leurs parties d'équipe sous le tag</caption>
+              <caption class="sr-only">Membres du clan, leurs parties d'équipe sous le tag et le niveau de leur compte</caption>
               <thead>
                 <tr>
                   <th scope="col">Membre</th>
                   {SORTS.map((s) => (
-                    <th key={s.key} scope="col" class={s.key === "joinedAt" ? "" : "num"} aria-sort={sort === s.key ? (dir === "asc" ? "ascending" : "descending") : "none"}>
+                    <th key={s.key} scope="col" class={s.key === "level" ? "hidden lg:table-cell" : s.key === "joinedAt" ? "" : "num"} aria-sort={sort === s.key ? (dir === "asc" ? "ascending" : "descending") : "none"}>
                       <button type="button" class="uppercase hover:text-white" onClick={() => toggleSort(s.key)}>
                         {s.label} {sort === s.key ? (dir === "asc" ? "↑" : "↓") : ""}
                       </button>
@@ -208,7 +228,16 @@ export default function MembersTable({ src }: { src: string }) {
                   const rate = rateOf(m);
                   return (
                     <tr key={memberKey(m)} class="fx-row" data-key={memberKey(m)} data-testid="member-row" style={{ "--i": Math.min(i, 18) }}>
-                      <td><Name m={m} /><RoleBadge role={m.role} /></td>
+                      <td>
+                        <Name m={m} /><RoleBadge role={m.role} />
+                        {/* De 768 à 1 023 pixels, six colonnes coupaient les taux et les dates : le niveau passe sous le pseudo. */}
+                        {m.account && (
+                          <span class="mt-1 flex items-center gap-2 text-xs text-muted lg:hidden" data-testid="member-row-level">
+                            <NiveauEmblem account={m.account} />
+                            {accountLabel(m.account)}
+                          </span>
+                        )}
+                      </td>
                       <td class="num">{m.team ? fmtInt(m.team.wins) : "—"}</td>
                       <td class="num">{fmtInt(gamesOf(m))}</td>
                       <td class="num">
@@ -216,6 +245,7 @@ export default function MembersTable({ src }: { src: string }) {
                         <span class="relative">{fmtPct(rate)}</span>
                       </td>
                       <td>{fmtDate(m.joinedAt)}</td>
+                      <td class="hidden lg:table-cell" data-testid="member-level"><Level m={m} /></td>
                     </tr>
                   );
                 })}
@@ -232,6 +262,12 @@ export default function MembersTable({ src }: { src: string }) {
                   <p class="mt-1 text-sm">
                     {note ?? `${fmtInt(m.team?.wins)} victoires · ${fmtInt(gamesOf(m))} parties · ${fmtPct(rateOf(m))}`}
                   </p>
+                  {m.account && (
+                    <p class="mt-1 flex items-center gap-2 text-sm" data-testid="member-card-level">
+                      <NiveauEmblem account={m.account} />
+                      {accountLabel(m.account)}
+                    </p>
+                  )}
                   <p class="mt-1 text-xs text-muted">Arrivé·e le {fmtDate(m.joinedAt)}</p>
                 </li>
               );

@@ -50,7 +50,7 @@ Node 22 ou plus. Sous Windows, le shell est Git Bash : chemins avec `/`.
 - Aucune stat, aucun joueur, aucun résultat, aucun texte ni conseil de jeu inventé. Un chiffre vient de l'API ou d'un calcul documenté dans `src/lib/` et testé.
 - Date de mise à jour visible. « Pas de données » n'est pas zéro. Pas d'historique présenté comme du temps réel. Pas de mélange entre stats de clan et classé. Pas de classement recalculé.
 - Si l'API échoue : garder les dernières données valides et le signaler (`data/meta.json`). Un refus de l'API (403) ne se contourne pas.
-- Stats des membres : `stats.team` uniquement. Le `publicId` d'un anonyme n'est jamais publié.
+- Stats des membres : `stats.team` uniquement. Seule exception, voulue par le pilote le 13 novembre 2026 : le niveau et le prestige du compte OpenFront, à part des stats du clan et dits « tout le jeu » ; ni rating FFA, ni Elo, ni place au classé. Le `publicId` d'un anonyme n'est jamais publié.
 - Dons : aucun nom de donateur sans une liste fournie par le clan ; ni nom ni montant de ce qui n'est visible qu'aux membres ; seules les capsules comptent, jamais de renvoi vers le Plutonium, monnaie payante.
 - Les conditions d'OpenFront (sections 5 et 6.5) interdisent robots et scripts : aucune lecture automatique de ce qui demande un compte de joueur.
 

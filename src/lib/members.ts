@@ -1,4 +1,5 @@
 import type { ApiPlayerGame, StoredMember, StoredMemberGame, StoredMemberRecent } from "./schemas";
+import { accountRank } from "./niveau";
 import { winRate } from "./stats";
 import { parisParts } from "./time";
 
@@ -12,6 +13,9 @@ export function toStoredMember(m: {
   publicId: string;
   username?: string | null | undefined;
   stats?: { team: { wins: number; losses: number } } | undefined;
+  level?: number | undefined;
+  prestige?: number | undefined;
+  legend?: boolean | undefined;
 }): StoredMember {
   const username = m.username ?? null;
   return {
@@ -20,6 +24,8 @@ export function toStoredMember(m: {
     publicId: username ? m.publicId : null,
     username,
     team: m.stats ? { wins: m.stats.team.wins, losses: m.stats.team.losses } : null,
+    // Le niveau sans son prestige ne se devine pas : il faut les deux, sinon rien.
+    account: m.level !== undefined && m.prestige !== undefined ? { level: m.level, prestige: m.prestige, legend: m.legend === true } : null,
   };
 }
 
@@ -52,7 +58,7 @@ export const gamesOf = (m: StoredMember): number | null => (m.team ? m.team.wins
 export const rateOf = (m: StoredMember): number | null =>
   m.team ? winRate(m.team.wins, m.team.wins + m.team.losses) : null;
 
-export type SortKey = "wins" | "games" | "rate" | "joinedAt";
+export type SortKey = "wins" | "games" | "rate" | "joinedAt" | "level";
 export type SortDir = "asc" | "desc";
 
 function valueOf(m: StoredMember, key: SortKey): number | null {
@@ -65,6 +71,8 @@ function valueOf(m: StoredMember, key: SortKey): number | null {
       return rateOf(m);
     case "joinedAt":
       return Date.parse(m.joinedAt);
+    case "level":
+      return m.account ? accountRank(m.account) : null;
   }
 }
 

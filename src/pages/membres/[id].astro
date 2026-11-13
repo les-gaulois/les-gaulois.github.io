@@ -2,6 +2,7 @@
 import Base from "../../layouts/Base.astro";
 import DataStatus from "../../components/DataStatus.astro";
 import MapNamesCredit from "../../components/MapNamesCredit.astro";
+import { NiveauEmblem } from "../../components/NiveauEmblem";
 import PageHeader from "../../components/PageHeader.astro";
 import ReadingNote from "../../components/ReadingNote.astro";
 import { clan } from "../../../config/clan";
@@ -11,6 +12,7 @@ import { ficheFacts, ficheImageAlt } from "../../lib/fiche-image";
 import { ficheImageVersion } from "../../lib/fiches-discord";
 import { MAX_AGE_HOURS } from "../../lib/freshness";
 import { mapLabel } from "../../lib/map-names";
+import { accountLabel } from "../../lib/niveau";
 import { gamesOf, rateOf, recentGamesTitle, singlePseudos } from "../../lib/members";
 import { nextTier, tierOf } from "../../lib/paliers";
 import { formatLabel } from "../../lib/results";
@@ -71,6 +73,17 @@ const tiles = member.team
       {/* Vide pour un visiteur : sa photo Discord, s'il a choisi de se montrer, pour un membre validé connecté (src/scripts/visages.ts). */}
       <span class="face-slot face-slot-lg mt-4" aria-hidden="true" data-face={face} hidden></span>
       {ROLE[member.role] && <p class="mt-2 font-semibold" data-testid="member-role">{ROLE[member.role]}</p>}
+      {
+        member.account && (
+          <div class="mt-4 flex items-center gap-4" data-testid="member-level">
+            <NiveauEmblem account={member.account} size="lg" />
+            <p>
+              <span class="block font-display text-2xl font-bold">{accountLabel(member.account)}</span>
+              <span class="block text-sm text-muted">Son compte OpenFront, tout le jeu confondu</span>
+            </p>
+          </div>
+        )
+      }
       <div class="mt-4">
         <DataStatus state={meta.members} maxAgeHours={MAX_AGE_HOURS.members} />
       </div>

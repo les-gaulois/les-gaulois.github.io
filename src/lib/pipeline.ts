@@ -626,7 +626,11 @@ export async function runPipeline(deps: Deps): Promise<RunSummary> {
     }
 
     const lastMembers = meta.members.lastSuccessAt ? Date.parse(meta.members.lastSuccessAt) : 0;
-    if (deps.now().getTime() - lastMembers >= MEMBERS_MIN_INTERVAL_MS || isFirstOfMonday(meta.members.lastSuccessAt, deps.now())) {
+    // Une liste relevée avant le niveau des comptes (13 novembre 2026) se relit au passage suivant, sans attendre le lendemain.
+    // Une fois relue, chaque membre a ce champ, même vide : cela n'arrive qu'une fois.
+    const kept = await readJson(join(deps.dataDir, "members.json"), StoredMembers);
+    const withoutLevel = kept !== null && kept.members.length > 0 && kept.members.every((m) => m.account === undefined);
+    if (withoutLevel || deps.now().getTime() - lastMembers >= MEMBERS_MIN_INTERVAL_MS || isFirstOfMonday(meta.members.lastSuccessAt, deps.now())) {
       try {
         const total = await fetchMembers(api, deps, at);
         markOk(meta.members, at);
