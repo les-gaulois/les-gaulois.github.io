@@ -1,6 +1,12 @@
 [
   {
     "date": "2026-11-13",
+    "kind": "ameliore",
+    "title": "Le guichet des tickets en grandes icônes",
+    "body": "Sur le Discord du clan, le guichet montre une grande icône par demande : la porte pour rejoindre le clan, le corbeau pour une question, le poignard pour un tricheur. Ses boutons portent les mêmes."
+  },
+  {
+    "date": "2026-11-13",
     "kind": "nouveau",
     "title": "Un panneau des rôles sur le Discord du clan",
     "body": "Un bouton par alerte : Rassemblement, Giveaway, Tournois et Membre GAL. Un clic donne le rôle, un second le retire, et « Mes rôles » montre ceux que vous avez.",
