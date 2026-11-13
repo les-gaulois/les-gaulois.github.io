@@ -2037,17 +2037,197 @@ export function decrireGaulois(tenue: Tenue): string {
 /* ---------- L'image de /gaulois sur Discord ---------- */
 
 /**
- * L'image que /gaulois montre dans Discord, au style des autres images du robot : le fond bleu nuit du site, ses croix de
- * repère, le petit drapeau du haut. 496 × 320 : au moins 1,55 fois plus large que haut, comme les autres
- * images du robot, que Discord montre à 550 pixels de large au plus. Une case du Gaulois y fait 4 pixels : il occupe
- * 192 × 256, comme avant le passage à 48 cases sur 64.
+ * L'image que /gaulois montre dans Discord : le Gaulois devant un coin de village, la nuit, au style des autres images du
+ * robot. Le ciel est le bleu nuit du site, ses étoiles sont les croix de repère des autres images, le petit drapeau reste
+ * en haut à gauche. Tout le décor est dans les bleus du poste de commandement : seuls le Gaulois, la porte éclairée de la
+ * hutte et la torche de la palissade ont leurs couleurs. Décor original, fait pour le clan [GAL] le 13 novembre 2026.
+ *
+ * 496 × 320 : au moins 1,55 fois plus large que haut, comme les autres images du robot, que Discord montre à 550 pixels de
+ * large au plus. Une case fait 4 pixels, pour le Gaulois (192 × 256) comme pour le décor (124 cases sur 80).
  */
 export const IMAGE_GAULOIS = { largeur: 496, hauteur: 320, echelle: 4 } as const;
 
-const FOND = "#0a1230";
-const REPERE = "#24346b";
-const OMBRE_SOL = "#060b1f";
+/** Le décor, en cases : 124 sur 80. */
+export const DECOR_LARGEUR = IMAGE_GAULOIS.largeur / IMAGE_GAULOIS.echelle;
+export const DECOR_HAUTEUR = IMAGE_GAULOIS.hauteur / IMAGE_GAULOIS.echelle;
+/** La rangée où le sol commence, et celle où le Gaulois pose les pieds. */
+const HORIZON = 60;
+const PIEDS = 72;
+
+/** Les couleurs du décor. Le ciel du haut est le fond du site. */
+const NUIT = {
+  ciel: ["#0a1230", "#0c1639", "#0f1b45", "#132252"],
+  etoile: "#24346b",
+  etoileVive: "#7f95e0",
+  lune: "#e3e9ff",
+  luneOmbre: "#a9b7ec",
+  collines: "#0e1a44",
+  bois: "#0a1434",
+  sol: "#0d1a3d",
+  solBord: "#1d3270",
+  solHerbe: "#172a5e",
+  solBas: "#091330",
+  ombre: "#060b1f",
+  chaume: "#1c2b60",
+  chaumeClair: "#2a3e82",
+  chaumeLigne: "#131f49",
+  mur: "#2b3b74",
+  murClair: "#394c8e",
+  murPoteau: "#1b2856",
+  contour: "#070d24",
+  pieu: "#1e2e64",
+  pieuClair: "#2d4189",
+  pieuOmbre: "#141f48",
+  corde: "#3e54a0",
+  feu: "#f2b632",
+  feuClair: "#ffdd80",
+  feuCoeur: "#fff1a8",
+  braise: "#c2661a",
+  manche: "#5e3b1a",
+  lueur: "#2a2c52",
+  lueurVive: "#4a3f4c",
+} as const;
 const DRAPEAU = ["#0b5fff", "#ffffff", "#ff1a2e"] as const;
+
+/** Un tirage fixe par case : le décor est le même à chaque image. */
+const grain = (x: number, y: number): number => (Math.imul(x + 11, 73856093) ^ Math.imul(y + 7, 19349663)) >>> 0;
+
+let decor: readonly string[] | null = null;
+
+/** Le décor case par case, rangée par rangée : 124 × 80 couleurs « #rrggbb », sans case vide. */
+export function casesDuDecor(): readonly string[] {
+  if (decor) return decor;
+  const L = DECOR_LARGEUR;
+  const H = DECOR_HAUTEUR;
+  const cases = new Array<string>(L * H).fill(NUIT.ciel[0]);
+  const poser = (x: number, y: number, couleur: string) => {
+    if (x >= 0 && y >= 0 && x < L && y < H) cases[y * L + x] = couleur;
+  };
+  const bloc = (x: number, y: number, l: number, h: number, couleur: string) => {
+    for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < l; dx++) poser(x + dx, y + dy, couleur);
+  };
+
+  // Le ciel : quatre bandes, de plus en plus claires vers l'horizon, cousues par une rangée en damier.
+  const bandes = [0, 24, 36, 47];
+  for (let y = 0; y < HORIZON; y++) {
+    let b = 0;
+    for (let i = 1; i < bandes.length; i++) if (y >= (bandes[i] ?? 0)) b = i;
+    const couture = bandes.includes(y + 1) && b < 3;
+    for (let x = 0; x < L; x++) poser(x, y, NUIT.ciel[couture && (x + y) % 2 === 0 ? b + 1 : b] ?? NUIT.ciel[0]);
+  }
+  // Les étoiles : les croix de repère des autres images, sur leur quadrillage, et quelques points vifs.
+  for (let cy = 8; cy < 44; cy += 16) {
+    for (let cx = 10; cx < L; cx += 16) {
+      poser(cx, cy, NUIT.etoile);
+      for (const d of [-1, 1]) {
+        poser(cx + d, cy, NUIT.etoile);
+        poser(cx, cy + d, NUIT.etoile);
+      }
+    }
+  }
+  for (const [x, y] of [[33, 14], [51, 4], [70, 17], [86, 9], [118, 30], [4, 27], [61, 30], [96, 33], [17, 19]] as const) poser(x, y, NUIT.etoileVive);
+  // La lune, un croissant en haut à droite.
+  for (let y = 4; y <= 20; y++) {
+    for (let x = 96; x <= 114; x++) {
+      const dans = Math.hypot(x - 105, y - 12) <= 6.3;
+      const creux = Math.hypot(x - 102.2, y - 10.2) <= 5.6;
+      if (dans && !creux) poser(x, y, Math.hypot(x - 104, y - 11.5) <= 6.1 ? NUIT.lune : NUIT.luneOmbre);
+    }
+  }
+  // Les collines du fond, puis la lisière du bois.
+  for (let x = 0; x < L; x++) {
+    const colline = Math.round(51 - 3 * Math.sin(x / 13 + 0.6) - 2 * Math.sin(x / 6 + 2));
+    for (let y = colline; y < HORIZON; y++) poser(x, y, NUIT.collines);
+    const bois = Math.round(56.5 - 1.6 * Math.abs(Math.sin(x / 2.6)) - 1.2 * Math.sin(x / 19 + 1));
+    for (let y = bois; y < HORIZON; y++) poser(x, y, NUIT.bois);
+  }
+  // Le sol : son bord éclairé par la lune, des touffes d'herbe, le bas plus sombre.
+  for (let y = HORIZON; y < H; y++) {
+    for (let x = 0; x < L; x++) {
+      let couleur: string = y >= 76 ? NUIT.solBas : NUIT.sol;
+      if (y === HORIZON) couleur = NUIT.solBord;
+      else if (y === 75 && (x + y) % 2 === 0) couleur = NUIT.solBas;
+      else if (y > HORIZON + 1 && y < 78 && grain(x, y) % 37 === 0) couleur = NUIT.solHerbe;
+      poser(x, y, couleur);
+    }
+  }
+
+  /** Une hutte ronde au toit de chaume : `cx` son milieu, `pied` la rangée de son seuil, `k` sa taille. */
+  const hutte = (cx: number, pied: number, k: number, porte: boolean) => {
+    const toit = Math.round(21 * k);
+    const mur = Math.round(11 * k);
+    const demiToit = Math.round(17 * k);
+    const demiMur = Math.round(12 * k);
+    const hautMur = pied - mur;
+    // Le mur de clayonnage, ses poteaux, l'ombre du toit.
+    for (let y = hautMur; y <= pied; y++) {
+      for (let x = cx - demiMur; x <= cx + demiMur; x++) {
+        const bord = x === cx - demiMur || x === cx + demiMur;
+        let couleur: string = x > cx + demiMur * 0.45 ? NUIT.murClair : NUIT.mur;
+        if ((x - cx + 400) % 4 === 0) couleur = NUIT.murPoteau;
+        if (y < hautMur + 2) couleur = NUIT.murPoteau;
+        poser(x, y, bord ? NUIT.contour : couleur);
+      }
+    }
+    // Le toit : un cône de chaume, en couches, plus clair du côté de la lune.
+    for (let r = 0; r <= toit; r++) {
+      const y = hautMur - toit + r;
+      const demi = Math.round(1 + (r * (demiToit - 1)) / toit);
+      for (let x = cx - demi; x <= cx + demi; x++) {
+        const bord = Math.abs(x - cx) === demi || r === toit;
+        let couleur: string = x - cx > demi * 0.25 ? NUIT.chaumeClair : NUIT.chaume;
+        if (r % 4 === 3 && (x + r) % 5 !== 0) couleur = NUIT.chaumeLigne;
+        poser(x, y, bord ? NUIT.contour : couleur);
+      }
+    }
+    // Le nœud de paille du faîte.
+    bloc(cx - 1, hautMur - toit - 2, 3, 2, NUIT.contour);
+    poser(cx, hautMur - toit - 3, NUIT.contour);
+    if (!porte) return;
+    // La porte, éclairée par le feu du dedans, et sa lueur sur le sol.
+    const haut = pied - Math.round(8 * k);
+    bloc(cx - 4, haut - 1, 8, pied - haut + 2, NUIT.contour);
+    bloc(cx - 3, haut, 6, pied - haut + 1, NUIT.feu);
+    bloc(cx - 2, haut + 2, 4, pied - haut - 1, NUIT.feuClair);
+    bloc(cx - 1, pied - 2, 2, 3, NUIT.feuCoeur);
+    for (let y = pied + 1; y <= pied + 5; y++) {
+      const demi = 4 + (y - pied);
+      for (let x = cx - demi; x <= cx + demi + 2; x++) {
+        if ((x + y) % 2 === 0 || y === pied + 1) poser(x, y, y <= pied + 2 && Math.abs(x - cx) < 4 ? NUIT.lueurVive : NUIT.lueur);
+      }
+    }
+  };
+
+  // À droite : une hutte plus loin, derrière la palissade.
+  hutte(115, 60, 0.62, false);
+  // La palissade : des pieux taillés en pointe, inégaux, liés par une corde.
+  const hauteurs = [0, 2, 1, 0, 1, 3, 0, 1, 2, 0];
+  for (let i = 0, x = 90; x < L; i++, x += 4) {
+    const haut = 45 + (hauteurs[i % hauteurs.length] ?? 0);
+    poser(x + 1, haut - 1, NUIT.pieu);
+    for (let y = haut; y <= 64; y++) {
+      poser(x, y, NUIT.pieuOmbre);
+      poser(x + 1, y, NUIT.pieu);
+      poser(x + 2, y, y === haut ? NUIT.pieu : NUIT.pieuClair);
+      poser(x + 3, y, NUIT.contour);
+    }
+    bloc(x, 53, 3, 1, NUIT.corde);
+  }
+  bloc(90, 65, L - 90, 1, NUIT.solBas);
+  // La torche, plantée devant la palissade.
+  bloc(102, 44, 2, 22, NUIT.manche);
+  bloc(101, 42, 4, 2, NUIT.braise);
+  bloc(101, 39, 4, 3, NUIT.feu);
+  bloc(102, 37, 2, 4, NUIT.feuClair);
+  poser(102, 36, NUIT.feu);
+  poser(103, 40, NUIT.feuCoeur);
+  poser(102, 40, NUIT.feuCoeur);
+  // À gauche : la hutte, porte ouverte sur son feu.
+  hutte(20, 65, 1, true);
+
+  decor = cases;
+  return cases;
+}
 
 const rgb = (hex: string): [number, number, number] => [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
 
@@ -2062,38 +2242,27 @@ export function imageDuGaulois(tenue: Tenue): Image {
     rgba[i + 2] = b;
     rgba[i + 3] = 255;
   };
-  const fond = rgb(FOND);
-  for (let y = 0; y < hauteur; y++) for (let x = 0; x < largeur; x++) peindre(x, y, fond);
-  // Les croix de repère du fond, comme sur les images des victoires.
-  const repere = rgb(REPERE);
-  for (let cy = 32; cy < hauteur; cy += 64) {
-    for (let cx = 40; cx < largeur; cx += 64) {
-      for (let d = -4; d <= 4; d++) {
-        peindre(cx + d, cy, repere);
-        peindre(cx, cy + d, repere);
-      }
-    }
-  }
+  /** Une case du décor ou du Gaulois : un carré de 4 pixels de côté. */
+  const caseA = (cx: number, cy: number, couleur: string) => {
+    const teinte = rgb(couleur);
+    for (let dy = 0; dy < echelle; dy++) for (let dx = 0; dx < echelle; dx++) peindre(cx * echelle + dx, cy * echelle + dy, teinte);
+  };
+  casesDuDecor().forEach((couleur, i) => caseA(i % DECOR_LARGEUR, Math.floor(i / DECOR_LARGEUR), couleur));
   // Le drapeau du clan, en haut à gauche.
   DRAPEAU.forEach((couleur, i) => {
-    for (let y = 20; y < 24; y++) for (let x = 24 + i * 26; x < 46 + i * 26; x++) peindre(x, y, rgb(couleur));
+    for (let x = 0; x < 5; x++) caseA(6 + i * 6 + x, 5, couleur);
   });
-  const ox = Math.round((largeur - GAULOIS_LARGEUR * echelle) / 2);
-  const oy = hauteur - GAULOIS_HAUTEUR * echelle - 24;
-  // Son ombre au sol, une ellipse sous les pieds, à la rangée 62 de la grille.
-  const ombre = rgb(OMBRE_SOL);
-  const sol = { x: largeur / 2, y: oy + 62 * echelle, rx: 18 * echelle, ry: 2.8 * echelle };
-  for (let y = Math.floor(sol.y - sol.ry); y <= sol.y + sol.ry; y++) {
-    for (let x = Math.floor(sol.x - sol.rx); x <= sol.x + sol.rx; x++) {
-      if (((x - sol.x) / sol.rx) ** 2 + ((y - sol.y) / sol.ry) ** 2 <= 1) peindre(x, y, ombre);
+  // Le Gaulois, au milieu, les pieds sur le sol : la rangée 62 de sa grille est celle de ses semelles.
+  const ox = (DECOR_LARGEUR - GAULOIS_LARGEUR) / 2;
+  const oy = PIEDS - 62;
+  // Son ombre au sol, une ellipse sous les pieds.
+  for (let y = PIEDS - 3; y <= PIEDS + 3; y++) {
+    for (let x = 0; x < DECOR_LARGEUR; x++) {
+      if (((x + 0.5 - DECOR_LARGEUR / 2) / 19) ** 2 + ((y + 0.5 - PIEDS - 0.5) / 2.9) ** 2 <= 1) caseA(x, y, NUIT.ombre);
     }
   }
   casesDuGaulois(tenue).forEach((couleur, i) => {
-    if (!couleur) return;
-    const cx = i % GAULOIS_LARGEUR;
-    const cy = Math.floor(i / GAULOIS_LARGEUR);
-    const teinte = rgb(couleur);
-    for (let dy = 0; dy < echelle; dy++) for (let dx = 0; dx < echelle; dx++) peindre(ox + cx * echelle + dx, oy + cy * echelle + dy, teinte);
+    if (couleur) caseA(ox + (i % GAULOIS_LARGEUR), oy + Math.floor(i / GAULOIS_LARGEUR), couleur);
   });
   return { largeur, hauteur, rgba };
 }
