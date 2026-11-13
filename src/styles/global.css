@@ -7733,6 +7733,29 @@ footer h2 {
 .vestiaire-essai strong {
   color: #fff;
 }
+/* Sous le nom de l'objet essayé : son prix, ce qui empêche de l'acheter s'il y a lieu, puis « Acheter » et « Retirer ». */
+.vestiaire-essai-raison {
+  flex-basis: 100%;
+  color: var(--color-warn);
+  font-weight: 600;
+}
+.vestiaire-essai-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: inherit;
+  gap: 0.5rem;
+  flex-basis: 100%;
+}
+/* « Acheter » : le bouton clair de l'essayage, blanc plein comme un choix retenu. */
+.chip-fort {
+  color: var(--color-navy);
+  background: #fff;
+  border-color: #fff;
+}
+.chip-fort:hover:where(:not(:disabled)) {
+  color: var(--color-navy);
+  background: var(--color-muted);
+}
 /* Sur téléphone, le Gaulois reste en haut de l'écran, sous la barre du site, pendant qu'on descend l'habiller : une case
    y fait 3 pixels, « Au hasard » et l'essayage se mettent à côté. Pas sur un écran bas (téléphone couché) : il ne resterait
    presque rien pour les cases. */
@@ -7746,6 +7769,9 @@ footer h2 {
     align-items: center;
     gap: 0.875rem;
     padding-block: 0.5rem;
+    /* Un peu plus large que les cases : l'anneau d'une case portée ne dépasse pas sur les côtés en passant dessous. */
+    margin-inline: -0.5rem;
+    padding-inline: 0.5rem;
     background: var(--color-navy);
     border-bottom: 1px solid var(--hairline);
   }
@@ -7761,10 +7787,14 @@ footer h2 {
     justify-content: flex-start;
     text-align: left;
   }
+  .vestiaire-essai-actions .chip {
+    padding-inline: 0.75rem;
+  }
 }
 .vestiaire-porte {
   max-width: 40rem;
 }
+.vestiaire-colonne,
 .vestiaire-choix {
   display: grid;
   gap: 1.75rem;
@@ -7785,24 +7815,14 @@ footer h2 {
   flex-wrap: wrap;
   gap: 0.625rem;
 }
-/* Le petit titre des cases de la boutique, avec son cadenas : elles se regardent et s'essaient, elles ne se portent pas. */
+/* Le petit titre des cases de la boutique : elles se regardent et s'essaient, elles ne se portent qu'une fois achetées. */
 .vestiaire-boutique {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
   margin-top: 0.25rem;
   font-size: 0.8125rem;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--color-muted);
-}
-.vestiaire-boutique .case-cadenas {
-  position: static;
-  width: 0.875rem;
-  height: 0.875rem;
-  padding: 0;
-  background: none;
 }
 
 /* Les cases : une petite case par objet, son image en pixels nets, son nom, sa rareté. Le cadre et le fond prennent la
@@ -7912,13 +7932,59 @@ footer h2 {
 .case[data-boutique] .case-dessin {
   opacity: 0.8;
 }
-.case:hover,
-.case[data-etat="essayee"] {
+.case:hover {
   box-shadow: 0 0 0 2px var(--color-navy), 0 0 0 4px color-mix(in srgb, #fff 55%, transparent);
 }
 .case[data-boutique]:hover .case-dessin,
 .case[data-etat="essayee"] .case-dessin {
   opacity: 1;
+}
+/* La case essayée : un cadre en pointillés, à elle seule, et le mot « essai » dans le coin où la case portée a sa coche.
+   Ni le survol ni la couleur ne le disent à sa place. */
+.case[data-etat="essayee"] {
+  box-shadow: 0 0 0 2px var(--color-navy);
+  outline: 3px dashed #fff;
+  outline-offset: 2px;
+}
+.case-essai,
+.case-marque {
+  position: absolute;
+  top: 0.25rem;
+  padding: 0.0625rem 0.375rem;
+  border-radius: 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+}
+.case-essai {
+  left: 0.25rem;
+  background: #fff;
+  color: var(--color-navy);
+}
+/* « à vous » : un objet acheté ou tiré d'une pochette, avec le nombre d'exemplaires s'il y en a plusieurs. « Double » dans
+   la fenêtre de la pochette. */
+.case-marque {
+  right: 0.25rem;
+  background: rgb(0 0 0 / 0.6);
+  color: #fff;
+}
+/* Le prix d'une case de la boutique : la pièce et le nombre, sous la rareté. */
+.case-prix {
+  margin-top: 0.125rem;
+  padding: 0.0625rem 0.5rem 0.0625rem 0.3125rem;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.45);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+/* Une case montrée dans une fenêtre (achat, pochette) : la même, sans être un bouton. */
+.case-montree {
+  width: 8rem;
+  cursor: default;
+}
+.case-montree:hover {
+  box-shadow: none;
 }
 /* La case portée : un anneau blanc plein et une coche dans le coin. */
 .case[data-etat="portee"] {
@@ -7976,11 +8042,320 @@ footer h2 {
   border: 2px solid var(--color-line-strong);
   border-radius: 999px;
 }
+/* L'enregistrement, au bout des choix. Dès que la tenue a changé, la barre reste collée en bas de l'écran : le bouton est
+   à portée de main où qu'on soit dans les cases. */
 .vestiaire-envoi {
+  display: grid;
+  gap: 0.5rem;
+  padding-block: 0.75rem;
+}
+.vestiaire-envoi[data-colle] {
+  position: sticky;
+  bottom: 0;
+  z-index: 9;
+  background: var(--color-navy);
+  border-top: 1px solid var(--hairline);
+}
+.vestiaire-envoi-boutons {
   display: flex;
   flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+}
+.vestiaire-envoi .form-problem,
+.vestiaire-envoi .form-success {
+  margin-top: 0;
+}
+.vestiaire-bloque {
+  color: var(--color-warn);
+  font-weight: 600;
+}
+
+/* ---------- Le village des Gaulois : Mon Gaulois, la bourse, la boutique et la pochette surprise (13 novembre 2026) ---------- */
+/* Un dessin en pixels : chaque case vaut un nombre entier de pixels de l'écran, sans flou. */
+.pixels {
+  flex: none;
+  image-rendering: pixelated;
+}
+/* Un prix : la pièce, puis le nombre, qui ne se coupe pas. */
+.prix {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+}
+/* En tête de la colonne des choix : la bourse et la pochette surprise, côte à côte quand la place le permet. */
+.boutique-tete {
+  display: grid;
+  gap: 1.5rem 2.5rem;
+  align-items: start;
+}
+@media (min-width: 1100px) {
+  .boutique-tete {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+.bourse,
+.pochette {
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+  min-width: 0;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--hairline);
+}
+/* Le solde : la pièce, le nombre en grand, le mot. Le nombre ne se coupe jamais. */
+.bourse-solde {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+}
+.bourse-nombre {
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 2rem + 2.5vw, 3.75rem);
+  font-weight: 800;
+  line-height: 1;
+  color: #fff;
+  white-space: nowrap;
+}
+.bourse-unite {
+  align-self: flex-end;
+  padding-bottom: 0.375rem;
+  font-weight: 600;
+  color: var(--rarete-legendaire-texte);
+}
+.bourse-inconnu {
+  font-weight: 600;
+  color: var(--color-muted);
+}
+.bourse-etat,
+.pochette-raison {
+  color: var(--color-warn);
+  font-weight: 600;
+}
+.bourse-etat a {
+  color: #fff;
+  text-decoration: underline;
+}
+.bourse-regle,
+.pochette-note {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+.bourse-table {
+  width: 100%;
+  margin-bottom: 0.75rem;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+.bourse-table th {
+  padding: 0.25rem 0.5rem 0.375rem 0;
+  font-weight: 600;
+  color: var(--color-muted);
+  text-align: left;
+}
+.bourse-table td {
+  padding: 0.375rem 0.5rem 0.375rem 0;
+  border-top: 1px solid var(--color-line);
+}
+.bourse-table :is(th, td):not(:first-child) {
+  padding-right: 0;
+  text-align: right;
+}
+/* La pochette surprise : son dessin, son nom et son prix, puis ses chances, toujours écrites avant d'ouvrir. */
+.pochette-tete {
+  display: flex;
+  align-items: center;
   gap: 1rem;
-  padding-top: 0.5rem;
+}
+.pochette-nom {
+  display: grid;
+  gap: 0.375rem;
+  justify-items: start;
+}
+.pochette-prix {
+  font-size: 1.125rem;
+}
+/* Une ligne par rareté : ses losanges, son nom, sa chance. La couleur est celle de la rareté, jamais le seul repère. */
+.pochette-chances {
+  display: grid;
+  max-width: 22rem;
+  font-size: var(--text-sm);
+}
+.pochette-chances li {
+  --rarete-texte: var(--color-muted);
+  display: grid;
+  grid-template-columns: 3.5rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding-block: 0.3125rem;
+  border-top: 1px solid var(--color-line);
+  font-weight: 600;
+  color: #fff;
+}
+.pochette-chances li:first-child {
+  border-top: 0;
+}
+.pochette-chances [data-rarete="commun"] {
+  --rarete-texte: var(--rarete-commun-texte);
+}
+.pochette-chances [data-rarete="peu-commun"] {
+  --rarete-texte: var(--rarete-peu-commun-texte);
+}
+.pochette-chances [data-rarete="epique"] {
+  --rarete-texte: var(--rarete-epique-texte);
+}
+.pochette-chances [data-rarete="mystique"] {
+  --rarete-texte: var(--rarete-mystique-texte);
+}
+.pochette-chances [data-rarete="legendaire"] {
+  --rarete-texte: var(--rarete-legendaire-texte);
+}
+.pochette-rarete {
+  color: var(--rarete-texte);
+}
+
+/* Les fenêtres de confirmation (achat, pochette) : un vrai <dialog>, centré, sur un voile sombre. */
+.boutique-dialogue {
+  width: min(26rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  margin: auto;
+  padding: 0;
+  overflow: auto;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.625rem;
+  background: var(--color-surface);
+  color: var(--texte-courant);
+}
+.boutique-dialogue::backdrop {
+  background: rgb(3 8 26 / 0.8);
+}
+.boutique-dialogue-corps {
+  display: grid;
+  justify-items: center;
+  gap: 1rem;
+  padding: 1.5rem 1.25rem;
+  text-align: center;
+}
+.boutique-dialogue-titre {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: #fff;
+  text-wrap: balance;
+}
+.boutique-dialogue-titre:focus {
+  outline: none;
+}
+.boutique-dialogue-texte {
+  color: var(--texte-courant);
+}
+.boutique-dialogue-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+/* Le compte d'un achat : le prix, la bourse, ce qu'il restera. */
+.boutique-compte {
+  display: grid;
+  width: 100%;
+  max-width: 18rem;
+}
+.boutique-compte > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-block: 0.4375rem;
+  border-top: 1px solid var(--color-line);
+}
+.boutique-compte > div:first-child {
+  border-top: 0;
+}
+.boutique-compte dt {
+  color: var(--color-muted);
+}
+.boutique-compte dd {
+  font-weight: 700;
+  color: #fff;
+}
+.boutique-compte-reste {
+  border-top-color: var(--color-line-strong) !important;
+}
+/* La pochette qu'on ouvre : elle se balance doucement pendant que le serveur tire, puis l'objet apparaît dans un fondu
+   lent, avec un halo de la couleur de sa rareté qui s'éteint. Rien ne clignote ; le bouton pause et le réglage « réduire
+   les animations » coupent tout, et l'objet est alors montré d'emblée. */
+.pochette-attente {
+  transform-origin: 50% 20%;
+}
+.pochette-attente[data-envoi] {
+  animation: pochette-balance 2.4s ease-in-out infinite;
+}
+@keyframes pochette-balance {
+  0%,
+  100% {
+    rotate: -4deg;
+  }
+  50% {
+    rotate: 4deg;
+  }
+}
+.pochette-revelation {
+  --rarete: var(--rarete-commun);
+  position: relative;
+  padding: 0.75rem;
+  animation: pochette-revele 1.6s ease-out both;
+}
+.pochette-revelation[data-rarete="peu-commun"] {
+  --rarete: var(--rarete-peu-commun);
+}
+.pochette-revelation[data-rarete="epique"] {
+  --rarete: var(--rarete-epique);
+}
+.pochette-revelation[data-rarete="mystique"] {
+  --rarete: var(--rarete-mystique);
+}
+.pochette-revelation[data-rarete="legendaire"] {
+  --rarete: var(--rarete-legendaire);
+}
+.pochette-revelation::before {
+  content: "";
+  position: absolute;
+  inset: -0.5rem;
+  border-radius: 999px;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--rarete) 60%, transparent), transparent);
+  opacity: 0.35;
+  animation: pochette-halo 3.2s ease-out both;
+}
+.pochette-revelation > * {
+  position: relative;
+}
+@keyframes pochette-revele {
+  from {
+    opacity: 0;
+    translate: 0 1rem;
+  }
+}
+@keyframes pochette-halo {
+  from {
+    opacity: 0;
+    scale: 0.6;
+  }
+  40% {
+    opacity: 0.8;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pochette-attente[data-envoi],
+  .pochette-revelation,
+  .pochette-revelation::before {
+    animation: none;
+  }
 }
 
 /* ---------- La carte, le classement en colonne (13 novembre 2026, au soir) ---------- */

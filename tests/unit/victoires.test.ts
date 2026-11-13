@@ -1,13 +1,14 @@
 import { existsSync, readFileSync } from "node:fs";
 import sharp from "sharp";
 import { describe, expect, it, vi } from "vitest";
+import { casesDuStatere } from "../../supabase/functions/code-discord/statere";
 import { CARD_COLORS, GazetteFonts, type CardText, type GazetteCard, type Measure } from "../../src/lib/gazette-image";
 import { ApiClient } from "../../src/lib/pipeline";
 import { ApiVictoryGame, type StoredGame, type StoredMembers, type StoredSession } from "../../src/lib/schemas";
 import { crewName, FORGET_MS, isClanMember, isVictory, MAX_PER_PASS, MAX_RESEND, mergeStates, parseResend, passSessions, PAUSE_MS, readRecentSessions, readVictoryGame, rivalsOf, usableOfficialTags, toVerify, victoryOf, victoryPass, VictoryState, WINDOW_MS, type Victory, type VictoryPassDeps } from "../../src/lib/victoires";
 import { frenchList, gameLength, rivalsWords, sendVictory, victoryContent, victoryPayload } from "../../src/lib/victoires-discord";
 import { CHIP_GAP, CHIP_STEPS, chipLayout } from "../../src/lib/salon-image";
-import { creditAddresses, MAP_NOTE, NAME_NOTE, openAround, readThumbnail, renderVictoryCard, SEA, thumbnailUrl, tileLength, victoryCard, victoryImageAlt } from "../../src/lib/victoires-image";
+import { coinRects, creditAddresses, MAP_NOTE, NAME_NOTE, openAround, readThumbnail, renderVictoryCard, SEA, staterWords, STATERES_SUR_LES_VICTOIRES, thumbnailUrl, tileLength, victoryCard, victoryImageAlt } from "../../src/lib/victoires-image";
 
 const WEBHOOK = "https://discord.com/api/webhooks/123456/abc-DEF_123";
 const SITE = "https://x.test/";
@@ -749,6 +750,65 @@ describe("victoryCard", () => {
     expect(layout.rows.map((row) => row.map((c) => c.text))).toEqual([[expect.stringMatching(/^W+$/)], ["contre", "[ITA]"]]);
     // Avec la place pour les deux, tout tient sur une ligne.
     expect(chipLayout(items(3), measure, width).rows).toHaveLength(1);
+  });
+  it("sans la monnaie du village, l'image ne montre ni pièce ni statères : l'interrupteur est fermé jusqu'à la mise en ligne", () => {
+    expect(STATERES_SUR_LES_VICTOIRES).toBe(false);
+    const gold = new Set(casesDuStatere(16).filter(Boolean));
+    for (const shape of [SQUARE, null]) {
+      // Sans rien demander, et en le refusant : la même image qu'avant.
+      for (const card of [victoryCard(VICTORY, "GAL", SITE, measure, shape), victoryCard(VICTORY, "GAL", SITE, measure, shape, false)]) {
+        expect(card.texts.some((t) => t.text.includes("statère"))).toBe(false);
+        expect(card.rects.some((r) => gold.has(r.color))).toBe(false);
+      }
+      expect(victoryCard(VICTORY, "GAL", SITE, measure, shape)).toEqual(victoryCard(VICTORY, "GAL", SITE, measure, shape, false));
+    }
+    expect(victoryImageAlt(VICTORY, "GAL", true)).not.toContain("statère");
+    expect(victoryImageAlt(VICTORY, "GAL", true, false)).toBe(victoryImageAlt(VICTORY, "GAL", true));
+  });
+  it("avec la monnaie : la pièce et les statères de chaque Gaulois, sous les points rapportés au clan", () => {
+    // 1,81 point, 10 statères par point, arrondi : 18 à chacun des 6 Gaulois.
+    expect(staterWords(VICTORY)).toBe("18 statères à chaque Gaulois");
+    for (const shape of [SQUARE, null]) {
+      const before = victoryCard(VICTORY, "GAL", SITE, measure, shape, false);
+      const card = victoryCard(VICTORY, "GAL", SITE, measure, shape, true);
+      const words = card.texts.find((t) => t.text === "18 statères à chaque Gaulois")!;
+      const points = card.texts.find((t) => t.text === "+1,81")!;
+      expect(words).toMatchObject({ font: "body", color: CARD_COLORS.MUTED });
+      // Juste sous le chiffre des points, à la place d'une ligne d'explication ; la pièce devant, sans toucher le texte.
+      expect(words.y - points.y).toBe(42);
+      const coin = card.rects.filter((r) => !before.rects.some((b) => b.x === r.x && b.y === r.y && b.width === r.width && b.height === r.height && b.color === r.color));
+      expect(coin).toEqual(coinRects(points.x, words.y - 9 - 16));
+      expect(Math.min(...coin.map((r) => r.x))).toBe(points.x);
+      expect(Math.max(...coin.map((r) => r.x + r.width))).toBeLessThan(words.x);
+      expect(Math.min(...coin.map((r) => r.y))).toBeGreaterThan(points.y);
+      // La pièce de 16 cases, à 2 pixels la case : chaque case pleine est couverte une fois, de sa couleur.
+      const cells = casesDuStatere(16);
+      expect(coin.reduce((sum, r) => sum + (r.width / 2) * (r.height / 2), 0)).toBe(cells.filter(Boolean).length);
+      for (const r of coin) expect(cells[((r.y - (words.y - 25)) / 2) * 16 + (r.x - points.x) / 2]).toBe(r.color);
+      // Rien d'autre ne bouge : la même hauteur, les mêmes textes, plus un.
+      expect(card.height).toBe(before.height);
+      expect(card.texts.filter((t) => t !== words)).toEqual(before.texts);
+      expectClean(card);
+    }
+    expect(plain(victoryImageAlt(VICTORY, "GAL", true, true))).toContain("+1,81 point gagné, partie de 16 min. Chaque Gaulois de la partie reçoit 18 statères, pour les points rapportés au clan. Gaulois de la partie");
+  });
+  it("avec la monnaie : rien si la partie ne rapporte pas de points ; un seul statère, un seul Gaulois s'écrivent au singulier", () => {
+    for (const points of [null, 0, -0.4]) {
+      const none = { ...VICTORY, points };
+      expect(staterWords(none)).toBeNull();
+      expect(victoryCard(none, "GAL", SITE, measure, SQUARE, true)).toEqual(victoryCard(none, "GAL", SITE, measure, SQUARE, false));
+      expect(victoryImageAlt(none, "GAL", true, true)).not.toContain("statère");
+    }
+    // Une partie qui rapporte des points donne au moins un statère.
+    expect(staterWords({ ...VICTORY, points: 0.04 })).toBe("1 statère à chaque Gaulois");
+    expect(staterWords({ ...VICTORY, points: 0.04, gaulois: 1 })).toBe("1 statère pour ce Gaulois");
+    expect(victoryImageAlt({ ...VICTORY, points: 0.04, gaulois: 1 }, "GAL", true, true)).toContain("Ce Gaulois reçoit 1 statère, pour les points rapportés au clan.");
+    expect(plain(staterWords({ ...VICTORY, points: 120 }) ?? "")).toBe("1 200 statères à chaque Gaulois");
+    // Jamais les mots que le pilote a repris.
+    for (const text of [staterWords(VICTORY) ?? "", victoryImageAlt(VICTORY, "GAL", true, true)]) expect(text).not.toMatch(/gagnés par|partie gagnée/);
+    // Beaucoup de Gaulois, de longs noms : la ligne de la pièce ne déborde pas.
+    expectClean(victoryCard(crowdOf(40), "GAL", SITE, measure, SQUARE, true));
+    expectClean(victoryCard({ ...VICTORY, points: 123456.78 }, "GAL", SITE, measure, null, true));
   });
   it("un nom plus long que la ligne est coupé, pas débordé", () => {
     expectClean(victoryCard({ ...VICTORY, crew: [{ id: null, name: "W".repeat(90) }], unnamed: 0, outsiders: 0 }, "GAL", SITE, measure, SQUARE));

@@ -151,6 +151,14 @@ export const ERROR_MESSAGES: Record<string, string> = {
   too_many_codes: "Cinq codes en dix minutes : attendez un peu avant d'en demander un autre.",
   discord_taken: "Votre compte Discord a déjà un compte sur le site, ouvert avec un code. Déconnectez-vous, puis connectez-vous avec un code : tapez /code dans le Discord du clan.",
   invalid_tenue: "Cette tenue n'est pas dans le vestiaire. Rechargez la page.",
+  invalid_parties: "Les parties envoyées pour les statères sont mal formées : rien n'a été noté.",
+
+  // La boutique et la pochette surprise du village (migration 20261113001900_village_boutique).
+  no_gaulois: "Créez d'abord votre Gaulois dans le vestiaire, puis enregistrez-le.",
+  unknown_objet: "Cet objet n'est pas dans la boutique. Rechargez la page.",
+  objet_gratuit: "Cet objet est gratuit : il est déjà dans votre vestiaire.",
+  deja_possede: "Vous avez déjà cet objet.",
+  solde_insuffisant: "Vous n'avez pas assez de statères.",
 };
 
 export function errorMessage(code: string): string {
