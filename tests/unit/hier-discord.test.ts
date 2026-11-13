@@ -88,11 +88,14 @@ describe("hierTarget", () => {
   it("vise la veille, dès 9 h à Paris, quand la collecte a fini la journée", () => {
     expect(hierTarget(null, "2026-11-10", new Date("2026-11-11T08:53:00.000Z"))).toEqual({ day: "2026-11-10", reason: "" });
   });
-  it("attend 9 h, la fin de la collecte, et ne part pas la nuit", () => {
+  it("attend 9 h et la fin de la collecte, puis peut partir jusqu'à minuit", () => {
     expect(hierTarget(null, "2026-11-10", new Date("2026-11-11T07:53:00.000Z")).reason).toBe("le message part à partir de 9 h");
     expect(hierTarget(null, "2026-11-09", new Date("2026-11-11T08:53:00.000Z")).reason).toBe("la collecte n'a pas encore fini la journée d'hier");
     expect(hierTarget(null, null, new Date("2026-11-11T08:53:00.000Z")).day).toBeNull();
-    expect(hierTarget(null, "2026-11-10", new Date("2026-11-11T22:10:00.000Z")).reason).toContain("la nuit");
+    // 23 h 10 à Paris : plus d'heures de silence depuis le 14 novembre 2026.
+    expect(hierTarget(null, "2026-11-10", new Date("2026-11-11T22:10:00.000Z"))).toEqual({ day: "2026-11-10", reason: "" });
+    // 0 h 10 à Paris : un jour manqué n'est pas rattrapé, le bilan suivant attend 9 h.
+    expect(hierTarget(null, "2026-11-11", new Date("2026-11-11T23:10:00.000Z")).reason).toBe("le message part à partir de 9 h");
   });
   it("une seule fois par jour", () => {
     expect(hierTarget({ lastDay: "2026-11-10" }, "2026-11-10", new Date("2026-11-11T12:53:00.000Z")).reason).toBe("le bilan d'hier est déjà parti");

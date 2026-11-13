@@ -129,10 +129,11 @@ describe("milestonesDue", () => {
   it("sans palier en attente, rien ne part", () => {
     expect(milestonesDue({ ...pending, pending: null }, at("2026-11-09T10:00:00.000Z")).due).toBe(false);
   });
-  it("jamais la nuit, de 23 h à 8 h à Paris", () => {
-    expect(milestonesDue(pending, at("2026-11-08T22:01:00.000Z")).reason).toContain("la nuit");
-    expect(milestonesDue(pending, at("2026-11-09T06:53:00.000Z")).due).toBe(false);
-    expect(milestonesDue(pending, at("2026-11-09T07:23:00.000Z")).due).toBe(true);
+  it("jour et nuit, dès que le site montre la relecture", () => {
+    // Relue à 22 h 53 à Paris : à 23 h 01, le site ne la montre pas encore ; à 23 h 23 et à 3 h, le message part.
+    expect(milestonesDue(pending, at("2026-11-08T22:01:00.000Z")).reason).toBe("le message attend que le site montre les nouveaux paliers");
+    expect(milestonesDue(pending, at("2026-11-08T22:23:00.000Z")).due).toBe(true);
+    expect(milestonesDue(pending, at("2026-11-09T02:00:00.000Z")).due).toBe(true);
   });
   it("un seul message par jour à Paris", () => {
     const sent = markMilestonesSent(pending, at("2026-11-09T09:23:00.000Z"));

@@ -2,6 +2,12 @@
   {
     "date": "2026-11-14",
     "kind": "ameliore",
+    "title": "Le robot parle aussi la nuit",
+    "body": "Sur Discord, le robot ne se tait plus de 23 h à 8 h : places, records, paliers et avis à l'encadrement partent jour et nuit, comme les victoires. Les messages du jour gardent leur heure de départ."
+  },
+  {
+    "date": "2026-11-14",
+    "kind": "ameliore",
     "title": "Direction : les comptes en couleurs",
     "body": "L'onglet Comptes s'ouvre sur la liste : une ligne par compte, une recherche dès la première lettre, des filtres chiffrés, des couleurs (vert validé, jaune en attente, rouge suspendu, bleu allié)."
   },

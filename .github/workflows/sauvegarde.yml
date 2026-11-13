@@ -6,7 +6,7 @@ name: Sauvegarde chiffrée
 # Pas de planning ici : celui de GitHub saute la plupart de ses passages sur ce dépôt. Le robot horaire
 # (« Données et site », job sauvegarde-de-la-semaine) lance cette Action dès le lundi 7 h UTC (8 h ou 9 h à Paris)
 # si la semaine n'a pas sa sauvegarde. Elle se lance aussi à la main : onglet Actions, « Run workflow ».
-# À la fin, le salon privé de l'encadrement apprend qu'elle est faite ou ratée, sans aucune donnée, jamais la nuit.
+# À la fin, le salon privé de l'encadrement apprend qu'elle est faite ou ratée, sans aucune donnée, jour et nuit.
 on:
   workflow_dispatch:
 
@@ -49,7 +49,7 @@ jobs:
           retention-days: 90
           if-no-files-found: error
       # « faite » si le fichier chiffré est gardé ; « reglage » si la sauvegarde a tourné sans rien écrire (phrase ou
-      # réglage absent) ; « ratee » pour toute panne. Pas de compte rendu la nuit, ni pour une exécution annulée.
+      # réglage absent) ; « ratee » pour toute panne. Pas de compte rendu pour une exécution annulée.
       # Le lien réglé dans la Direction, sinon le secret DISCORD_WEBHOOK_ENCADREMENT ; sans l'un ni l'autre, rien n'est envoyé.
       # Un envoi raté ne fait pas échouer la sauvegarde.
       - name: Prévenir l'encadrement

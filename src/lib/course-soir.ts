@@ -20,7 +20,7 @@
  * Une partie n'est relevée qu'une fois finie, et 99 % des parties du clan durent moins d'une heure (mesuré sur les 13 633 de l'archive,
  * le 11 novembre 2026) : le message attend des sessions relevées au moins une heure après la fin de la période.
  *
- * L'envoi : un message par jour à Paris, de 21 h à 23 h, avec un classement relevé depuis moins de deux heures. Sinon, rien ce
+ * L'envoi : un message par jour à Paris, de 21 h à minuit, avec un classement relevé depuis moins de deux heures. Sinon, rien ce
  * jour-là, et le lendemain ne rattrape pas la veille. Le premier message part sans comparaison avec la veille.
  */
 import { z } from "zod";
@@ -167,7 +167,7 @@ export type CoursePlan = { race: null; reason: string } | { race: EveningRace; r
 
 /** Décide s'il faut envoyer maintenant, et quoi. Ne change rien : l'état ne s'écrit qu'après un envoi accepté (`markCourseSent`). */
 export function planCourse({ stored, leaderboard, sessions, coveredUntil, unreadable, now, tag }: CourseInputs): CoursePlan {
-  // De 21 h à la nuit (23 h), une fois par jour : la même règle que les autres messages du jour.
+  // De 21 h à minuit, une fois par jour : la même règle que les autres messages du jour.
   const window = sendWindow(now, SEND_FROM_HOUR.course, stored?.sentOn ?? null);
   if (!window.open) return { race: null, reason: window.reason };
   if (unreadable.length > 0) return { race: null, reason: `${unreadable.join(", ")} illisible : les points seraient faux` };

@@ -37,7 +37,7 @@ export const ROBOT_SALON_TEXTS: readonly RobotSalonText[] = [
     // Le 12 novembre 2026, le pilote n'avait rien vu arriver dans le salon voulu et cherchait où le régler : l'intro dit ce qui
     // part, et quand. Le serveur annonce une demande dès son arrivée avec le lien réglé ici (migration
     // 20261112000600_demandes_annoncees_aussitot.sql) ; avec le seul secret, c'est le robot horaire, dans l'heure.
-    intro: "Chaque nouvelle demande d'adhésion dès son arrivée (la nuit, après 8 h), un rappel par jour pour une demande qui attend plus de 24 h, et le compte rendu des sauvegardes. Sans aucun nom : choisissez un salon privé de l'encadrement.",
+    intro: "Chaque nouvelle demande d'adhésion, jour et nuit, dès son arrivée ou dans l'heure, un rappel par jour pour une demande qui attend plus de 24 h, et le compte rendu des sauvegardes. Sans aucun nom : choisissez un salon privé de l'encadrement.",
     secret: "DISCORD_WEBHOOK_ENCADREMENT",
     secretNote: "Avec ce secret, une demande n'est annoncée qu'au passage du robot, dans l'heure : collez le lien ici pour qu'elle le soit dès son arrivée.",
   },

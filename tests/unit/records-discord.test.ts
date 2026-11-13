@@ -39,8 +39,9 @@ describe("planRecordAlert", () => {
     // Les records annoncés ne changent qu'après l'envoi.
     expect(beaten.state?.announced.streak.wins).toBe(5);
   });
-  it("attend le matin la nuit, et n'envoie qu'une alerte de record par jour", () => {
-    expect(planRecordAlert({ announced: records(), sent: [] }, better, NIGHT).reason).toContain("la nuit");
+  it("part la nuit aussi, et n'envoie qu'une alerte de record par jour", () => {
+    expect(planRecordAlert({ announced: records(), sent: [] }, better, NIGHT).alert).not.toBeNull();
+    expect(planRecordAlert({ announced: records(), sent: ["2026-11-07T09:00:00.000Z"] }, better, NIGHT).reason).toContain("déjà une alerte");
     expect(planRecordAlert({ announced: records(), sent: ["2026-11-07T09:00:00.000Z"] }, better, DAY).reason).toContain("déjà une alerte");
     expect(planRecordAlert({ announced: records(), sent: ["2026-11-06T09:00:00.000Z"] }, better, DAY).alert).not.toBeNull();
   });

@@ -41,7 +41,7 @@ export interface CourseSendDeps {
   log: (line: string) => void;
 }
 
-/** Envoie le message en image, ou en texte si elle ne se dessine pas : voir `postWithImage`. Un échec se retente au passage suivant, avant 23 h. */
+/** Envoie le message en image, ou en texte si elle ne se dessine pas : voir `postWithImage`. Un échec se retente au passage suivant, avant minuit. */
 export function sendCourse({ link, race, renderImage, tag, siteUrl, fetch, log }: CourseSendDeps): Promise<boolean> {
   return postWithImage({
     link,

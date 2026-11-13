@@ -77,7 +77,9 @@ describe("activeDue", () => {
     expect(due("2026-11-11T16:53:00.000Z")).toEqual({ due: true, reason: "", restart: false });
     expect(due("2026-11-11T14:53:00.000Z").reason).toBe("le message part à partir de 17 h");
     expect(due("2026-11-11T16:53:00.000Z", NOW_LIST, { ...STATE, lastSentOn: "2026-11-11" }).reason).toContain("déjà un message aujourd'hui");
-    expect(due("2026-11-11T22:53:00.000Z").reason).toContain("la nuit");
+    // 23 h 53 à Paris : plus d'heures de silence depuis le 14 novembre 2026. Après minuit, le message du jour attend 17 h.
+    expect(due("2026-11-11T22:53:00.000Z")).toEqual({ due: true, reason: "", restart: false });
+    expect(due("2026-11-11T23:53:00.000Z").reason).toBe("le message part à partir de 17 h");
   });
   it("sans nouveau relevé, rien ne part", () => {
     expect(due("2026-11-11T16:53:00.000Z", list(T0, NOW_LIST.members)).reason).toBe("pas de nouveau relevé de la liste depuis le dernier message");

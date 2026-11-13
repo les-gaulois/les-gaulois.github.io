@@ -8,9 +8,11 @@ const WEBHOOK = "https://discord.com/api/webhooks/123456/abc-DEF_123";
 const at = (iso: string) => new Date(iso);
 
 describe("sendWindow", () => {
-  it("jamais la nuit, de 23 h à 8 h à Paris", () => {
-    expect(sendWindow(at("2026-11-11T22:05:00.000Z"), 12, null)).toEqual({ open: false, reason: "la nuit : le message attend 12 h" });
-    expect(sendWindow(at("2026-11-11T05:53:00.000Z"), 9, null).open).toBe(false);
+  it("plus d'heures de silence : de l'heure du message jusqu'à minuit à Paris", () => {
+    // 23 h 05 à Paris : le message de midi, pas encore parti, part encore.
+    expect(sendWindow(at("2026-11-11T22:05:00.000Z"), 12, null)).toEqual({ open: true, reason: "" });
+    // 6 h 53 à Paris : avant l'heure du message de 9 h.
+    expect(sendWindow(at("2026-11-11T05:53:00.000Z"), 9, null)).toEqual({ open: false, reason: "le message part à partir de 9 h" });
   });
   it("pas avant l'heure du message", () => {
     expect(sendWindow(at("2026-11-11T15:53:00.000Z"), SEND_FROM_HOUR.actifs, null)).toEqual({ open: false, reason: "le message part à partir de 17 h" });

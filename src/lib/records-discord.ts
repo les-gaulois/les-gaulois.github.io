@@ -3,8 +3,8 @@
  *
  * Peu de messages, et seulement du vrai :
  * - Un record est battu quand sa valeur dépasse strictement celle annoncée. L'égaler n'envoie rien.
- * - Les records battus au même passage partent dans un seul message, au plus un par jour à Paris, jamais la nuit.
- *   Un autre record battu plus tard le même jour attend le lendemain matin.
+ * - Les records battus au même passage partent dans un seul message, au plus un par jour à Paris, jour et nuit.
+ *   Un autre record battu plus tard le même jour attend le lendemain.
  * - Au premier passage, les records du moment servent de départ : rien n'est envoyé. Sans record calculable, rien n'est noté.
  * - Un record annoncé le reste même si l'envoi suivant échoue : le passage suivant réessaie sans rien oublier.
  * - Après un envoi, seuls les records battus deviennent les records annoncés : une valeur lue trop basse un jour ne fait jamais
@@ -13,7 +13,7 @@
  * Le message est une image (`records-image.ts`) et un bouton, sans texte : le texte ne part que si elle ne se dessine pas.
  */
 import { z } from "zod";
-import { alertsStarted, QUIET_FROM_HOUR, QUIET_UNTIL_HOUR } from "./alerts";
+import { alertsStarted } from "./alerts";
 import { imageMessage, postWithImage, textMessage } from "./discord-post";
 import { fmtCount, fmtDate, fmtDateTime, fmtInt } from "./format";
 import { escapeDiscord, type RenderedImage } from "./gazette-discord";
@@ -96,8 +96,7 @@ export function planRecordAlert(stored: RecordAlertState | null, records: ClanRe
     return after > before ? [{ key, before, after }] : [];
   });
   if (beaten.length === 0) return { state: stored, alert: null, reason: "aucun record battu" };
-  const { date, hour } = parisParts(now);
-  if (hour >= QUIET_FROM_HOUR || hour < QUIET_UNTIL_HOUR) return { state: stored, alert: null, reason: `la nuit : l'alerte attend ${QUIET_UNTIL_HOUR} h` };
+  const { date } = parisParts(now);
   const today = stored.sent.filter((at) => parisParts(at).date === date).length;
   if (today >= MAX_RECORD_ALERTS_PER_DAY) return { state: stored, alert: null, reason: "déjà une alerte de record aujourd'hui : la suivante attend demain" };
   return { state: stored, alert: { beaten, records }, reason: "" };

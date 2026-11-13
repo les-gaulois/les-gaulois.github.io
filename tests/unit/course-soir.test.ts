@@ -197,14 +197,18 @@ describe("planCourse", () => {
   const sessions = [session("2026-11-11T08:00:00.000Z", 3, 1.53), session("2026-11-11T09:00:00.000Z", 1, 0.07)];
   const inputs = (over: Partial<CourseInputs> = {}): CourseInputs => ({ stored: null, leaderboard: LEADERBOARD, sessions, coveredUntil: COVERED, unreadable: [], now: NOW, tag: "GAL", ...over });
 
-  it("envoie de 21 h à 23 h à Paris, une fois par jour", () => {
+  it("envoie de 21 h à minuit à Paris, une fois par jour", () => {
     const plan = planCourse(inputs());
     expect(plan.reason).toBe("");
     expect(plan.race?.reading.rank).toBe(2);
     expect(plan.race?.points).toMatchObject({ since: "2026-11-10T19:00:00.000Z", until: "2026-11-11T19:00:00.000Z", total: { games: 2, points: 1.6 } });
     expect(planCourse(inputs({ now: new Date("2026-11-11T19:59:59.000Z") })).race).toBeNull();
     expect(planCourse(inputs({ now: new Date("2026-11-11T19:59:59.000Z") })).reason).toBe("le message part à partir de 21 h");
-    expect(planCourse(inputs({ now: new Date("2026-11-11T22:00:00.000Z") })).reason).toBe("la nuit : le message attend 21 h");
+    // 23 h 53 à Paris, après des passages ratés : plus d'heures de silence depuis le 14 novembre 2026, le message part encore.
+    const fresh = { coveredUntil: "2026-11-11T22:53:00.000Z", leaderboard: { ...LEADERBOARD, fetchedAt: "2026-11-11T22:53:00.000Z" } };
+    expect(planCourse(inputs({ now: new Date("2026-11-11T22:53:30.000Z"), ...fresh })).race?.points).toMatchObject({ since: "2026-11-10T19:00:00.000Z", until: "2026-11-11T19:00:00.000Z" });
+    // 0 h 30 à Paris : c'est le jour suivant, qui attend son propre soir ; la veille n'est pas rattrapée.
+    expect(planCourse(inputs({ now: new Date("2026-11-11T23:30:00.000Z"), ...fresh })).reason).toBe("le message part à partir de 21 h");
     expect(planCourse(inputs({ stored: { sentOn: "2026-11-11", score: 2300, gaps: {} } })).reason).toBe("déjà un message aujourd'hui : la suite attend demain");
   });
   it("à 22 h 59, après un passage raté, garde la même période : 20 h la veille à 20 h", () => {

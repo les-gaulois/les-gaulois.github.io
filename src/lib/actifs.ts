@@ -8,7 +8,7 @@
  * - Un membre sans relevé de départ (arrivé depuis, pseudo récent) n'est pas compté. Un anonyme n'a pas d'identifiant dans les
  *   fichiers du site : il ne peut être ni suivi ni cité. Un membre parti ou sans pseudo est oublié à chaque passage de la
  *   collecte, même sans lien Discord (`forgetActiveMembers`).
- * - À partir de 17 h, jamais la nuit, une fois par jour, et pas avant que le site montre le nouveau relevé. Une période de plus
+ * - À partir de 17 h et jusqu'à minuit, une fois par jour, et pas avant que le site montre le nouveau relevé. Une période de plus
  *   de trois jours (robot ou Discord en panne) n'est pas envoyée : le dernier relevé sert de nouveau départ.
  * - Au premier passage, le relevé du moment sert de départ : rien n'est envoyé.
  * Cela compte le temps de jeu, pas le niveau.

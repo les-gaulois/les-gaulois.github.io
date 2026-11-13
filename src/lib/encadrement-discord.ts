@@ -3,16 +3,16 @@
  * Le message ne contient ni nom ni identifiant : seulement le nombre de demandes, leur attente et le lien de l'administration.
  * Il part quand une nouvelle demande arrive, puis une fois par jour au plus tant qu'une demande attend depuis plus de 24 h.
  * Au tout premier passage, s'il n'y a aucune demande à annoncer, un message de mise en service part une seule fois :
- * il prouve que le lien du salon marche, sans attendre une vraie demande. Rien la nuit, comme les alertes de place.
+ * il prouve que le lien du salon marche, sans attendre une vraie demande. Jour et nuit : depuis le 14 novembre 2026, à la
+ * demande du pilote, plus rien ne se tait de 23 h à 8 h.
  * Depuis le 12 novembre 2026, le serveur annonce lui-même une demande dès son arrivée quand le lien du salon est réglé dans
  * la Direction (migration `20261112000600_demandes_annoncees_aussitot.sql`) ; `staff_digest` compte alors cet avis comme
- * annoncé, et le robot ne le double pas. Il garde la nuit, les rappels, le secret GitHub et les avis que Discord a refusés.
+ * annoncé, et le robot ne le double pas. Il garde les rappels, le secret GitHub, les avis que Discord a refusés, et les
+ * demandes qu'un serveur encore réglé pour se taire la nuit n'a pas annoncées (migration `20261114000100_plus_de_silence_la_nuit.sql`).
  */
-import { QUIET_FROM_HOUR, QUIET_UNTIL_HOUR } from "./alerts";
 import { fmtDuration } from "./format";
 import { isWebhookUrl } from "./gazette-discord";
 import { sourceWords, type LinkSource } from "./salon-lien";
-import { parisParts } from "./time";
 
 const HOUR_MS = 3_600_000;
 /** Une demande qui attend plus longtemps vaut un rappel. */
@@ -52,29 +52,21 @@ function waiting(pending: number): string {
   return pending === 1 ? "Une demande d'adhésion attend" : `${pending} demandes d'adhésion attendent`;
 }
 
-/** Vrai entre 23 h et 8 h à Paris : aucun message à l'encadrement ne part alors. */
-export function isQuietHour(now: Date): boolean {
-  const hour = parisParts(now).hour;
-  return hour >= QUIET_FROM_HOUR || hour < QUIET_UNTIL_HOUR;
-}
-
 export function staffNotice(digest: StaffDigest, now: Date, siteUrl: string): StaffDecision {
-  const quiet = isQuietHour(now);
   // Les demandes se traitent dans la Direction depuis le 12 novembre 2026 ; les anciennes adresses (/admin, /qg#demandes) y mènent aussi.
   const link = `${siteUrl.replace(/\/$/, "")}/direction#demandes`;
   if (digest.pending < 1) {
-    // Rien n'a encore jamais été noté : le lien vient d'être posé. Une seule fois, de jour.
-    if (digest.notice === null && !quiet) {
+    // Rien n'a encore jamais été noté : le lien vient d'être posé. Une seule fois.
+    if (digest.notice === null) {
       return {
         send: true,
         kind: "service",
-        text: `L'avis à l'encadrement est en place : ce salon sera prévenu dans l'heure des demandes d'adhésion qui attendent sur le site du clan, sans aucun nom, et du résultat de chaque sauvegarde chiffrée, jamais entre ${QUIET_FROM_HOUR} h et ${QUIET_UNTIL_HOUR} h. Les demandes se traitent ici : ${link}`,
+        text: `L'avis à l'encadrement est en place : ce salon sera prévenu dans l'heure, jour et nuit, des demandes d'adhésion qui attendent sur le site du clan, sans aucun nom, et du résultat de chaque sauvegarde chiffrée. Les demandes se traitent ici : ${link}`,
         note: { newest_id: null, reminded_at: null },
       };
     }
     return { send: false, reason: "aucune demande en attente" };
   }
-  if (quiet) return { send: false, reason: `la nuit : le message attend ${QUIET_UNTIL_HOUR} h` };
 
   const age = digest.oldest_at ? now.getTime() - Date.parse(digest.oldest_at) : 0;
   const old = age > REMIND_AFTER_HOURS * HOUR_MS ? ` La plus ancienne attend depuis ${fmtDuration(age)}.` : "";

@@ -152,11 +152,12 @@ describe("milestonePass", () => {
     expect(result.state?.pending?.players).toEqual([{ id: "a", tier: 100 }]);
     expect(result.state?.lastSentOn).toBeNull();
   });
-  it("la nuit, note la relecture et attend 8 h", async () => {
+  it("la nuit aussi, envoie sans attendre le matin", async () => {
+    // 6 h 53 à Paris : plus d'heures de silence depuis le 14 novembre 2026.
     const { deps, send } = setup({ now: new Date("2026-11-09T05:53:00.000Z") });
     const result = await milestonePass(deps);
-    expect(send).not.toHaveBeenCalled();
-    expect(result.state?.pending?.players).toEqual([{ id: "a", tier: 100 }]);
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(result.state).toMatchObject({ pending: null, lastSentOn: "2026-11-09" });
   });
   it("sans liste des membres lisible, ne fait rien", async () => {
     const { deps, send } = setup({ members: null });

@@ -188,26 +188,21 @@ describe("planAlert", () => {
       expect(sent, `${delays.length} passage(s) par calcul`).toEqual([4]);
     }
   });
-  it("la nuit, l'alerte attend 8 h, puis part si la place n'est pas revenue", () => {
-    // 2 h 30 et 3 h 30 à Paris.
+  it("la nuit aussi, l'alerte part dès le second calcul, sans attendre le matin", () => {
+    // 2 h 30 et 3 h 30 à Paris : plus d'heures de silence depuis le 14 novembre 2026.
     const first = planAlert(START, readings(rankAt("2026-11-08T01:30:00.000Z", 3)), at("2026-11-08T01:31:00.000Z"));
-    const night = planAlert(first.state, readings(rankAt("2026-11-08T02:30:00.000Z", 3)), at("2026-11-08T02:31:00.000Z"));
-    expect(night.alert).toBeNull();
-    expect(night.reason).toContain("la nuit");
-    // 7 h 53 à Paris : encore la nuit.
-    expect(planAlert(night.state, readings(rankAt("2026-11-08T06:50:00.000Z", 3)), at("2026-11-08T06:53:00.000Z")).alert).toBeNull();
-    // 8 h 23 à Paris.
-    const morning = rankAt("2026-11-08T07:20:00.000Z", 3);
-    expect(planAlert(night.state, readings(morning), at("2026-11-08T07:23:00.000Z")).alert).toEqual({ kind: "rank", from: 2, reading: morning });
-    // Revenue entre-temps : plus rien à dire.
-    const back = planAlert(night.state, readings(rankAt("2026-11-08T07:20:00.000Z", 2)), at("2026-11-08T07:23:00.000Z"));
+    expect(first.alert).toBeNull();
+    const second = rankAt("2026-11-08T02:30:00.000Z", 3);
+    expect(planAlert(first.state, readings(second), at("2026-11-08T02:31:00.000Z")).alert).toEqual({ kind: "rank", from: 2, reading: second });
+    // Revenue au second calcul : rien ne part.
+    const back = planAlert(first.state, readings(rankAt("2026-11-08T02:30:00.000Z", 2)), at("2026-11-08T02:31:00.000Z"));
     expect(back.alert).toBeNull();
     expect(back.state.rank?.pending).toBeNull();
   });
-  it("à partir de 23 h, c'est la nuit", () => {
+  it("de 23 h à 8 h comme de jour", () => {
     const first = planAlert(START, readings(rankAt("2026-11-08T20:30:00.000Z", 3)), at("2026-11-08T20:31:00.000Z"));
     expect(planAlert(first.state, readings(rankAt("2026-11-08T21:31:00.000Z", 3)), at("2026-11-08T21:59:00.000Z")).alert).not.toBeNull();
-    expect(planAlert(first.state, readings(rankAt("2026-11-08T22:01:00.000Z", 3)), at("2026-11-08T22:03:00.000Z")).alert).toBeNull();
+    expect(planAlert(first.state, readings(rankAt("2026-11-08T22:01:00.000Z", 3)), at("2026-11-08T22:03:00.000Z")).alert).not.toBeNull();
   });
   it("au plus deux alertes par jour à Paris : la suivante attend le lendemain", () => {
     const busy: AlertState = { ...START, rank: { announced: 2, pending: { rank: 3, since: "2026-11-08T09:27:00.000Z" } }, sent: ["2026-11-08T08:23:00.000Z", "2026-11-08T12:53:00.000Z"] };
@@ -251,12 +246,10 @@ describe("planAlert", () => {
     expect(now.state).toBe(START);
     expect(planAlert(START, readings(rankAt("2026-11-08T12:28:00.000Z", 2), moved), at("2026-11-08T13:08:00.000Z")).alert?.kind).toBe("map");
   });
-  it("la carte aussi se tait la nuit et respecte la limite par jour", () => {
+  it("la carte aussi parle la nuit, et respecte la limite par jour", () => {
     // Relevée à 22 h 53 à Paris, regardée à 23 h 23.
     const late = mapAt("2026-11-08T21:53:00.000Z", ["LUX", "UN", "JR", "AST", "GAL"]);
-    const night = planAlert(START, readings(null, late), at("2026-11-08T22:23:00.000Z"));
-    expect(night.alert).toBeNull();
-    expect(night.reason).toContain("la nuit");
+    expect(planAlert(START, readings(null, late), at("2026-11-08T22:23:00.000Z")).alert).toEqual({ kind: "map", from: 4, reading: late });
     // Relevée à 15 h 53, regardée à 16 h 23, après deux alertes dans la journée.
     const busy: AlertState = { ...START, sent: ["2026-11-08T08:23:00.000Z", "2026-11-08T12:53:00.000Z"] };
     const capped = planAlert(busy, readings(null, mapAt("2026-11-08T14:53:00.000Z", ["LUX", "UN", "JR", "AST", "GAL"])), at("2026-11-08T15:23:00.000Z"));

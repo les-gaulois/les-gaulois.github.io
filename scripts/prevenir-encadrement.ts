@@ -1,7 +1,7 @@
 /**
  * Prévient l'encadrement, sur un salon Discord privé, des demandes d'adhésion qui attendent. Lancé par la GitHub Action.
  * Le serveur annonce déjà chaque demande dès son arrivée quand le lien est réglé dans la Direction ; ce script fait le reste
- * (la nuit, les rappels, le secret GitHub, les avis refusés) et note ce qu'il relit de ces avis.
+ * (les rappels, le secret GitHub, les avis refusés, la nuit tant que le serveur garde ses heures de silence) et note ce qu'il relit de ces avis.
  *   npm run encadrement:prevenir
  * Avec SUPABASE_URL, SUPABASE_SECRET_KEY et le lien du salon de l'encadrement, réglé dans Direction > Discord, sinon le
  * secret DISCORD_WEBHOOK_ENCADREMENT. Sans eux, ne fait rien.
