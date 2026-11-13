@@ -1,17 +1,35 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { SOURCE_LABELS, allHours, dayBefore, lastDays, namedPages, type DayBar, type SiteActivity, type VisitSource } from "../../lib/activite-site";
+import { SOURCE_LABELS, allHours, lastDays, namedPages, type DayBar, type SiteActivity, type VisitSource } from "../../lib/activite-site";
 import { call } from "../../lib/compte/api";
-import { visitShares, weekTicks, weekTrend, type TrendWay, type WeekTrend } from "../../lib/compte/direction-activite";
-import { fmtDay, fmtInt, fmtLongDay } from "../../lib/format";
+import {
+  TREND_EARLY,
+  TREND_HELP,
+  TREND_LOOK,
+  busiestHour,
+  dayReadout,
+  dayTicksLegend,
+  dayWords,
+  hourReadout,
+  periodText,
+  traitLength,
+  trendText,
+  trendWaitText,
+  visitShares,
+  visitorsWord,
+  visitsWord,
+  viewsWord,
+  weekTicks,
+  weekTrend,
+  yesterdayVisitors,
+  type WeekTrend,
+} from "../../lib/compte/direction-activite";
+import { fmtInt, fmtLongDay } from "../../lib/format";
 import { Loading, Problem, messageOf } from "./common";
-import { Pastille, type DirTon } from "./direction-kit";
+import { Pastille } from "./direction-kit";
 import { PartieTete } from "./Onglets";
 
 const timeParis = new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit" });
-const visitorsWord = (n: number) => (n > 1 ? "visiteurs" : "visiteur");
-const visitsWord = (n: number) => (n > 1 ? "visites" : "visite");
-const viewsWord = (n: number) => (n > 1 ? "pages vues" : "page vue");
 
 /** Un chiffre clé de la bande du haut, sans lien : rien à décider ici. `console-*` : l'ambiance console de la Direction. */
 function Chiffre({ label, value, sub, testId }: { label: string; value: number; sub: string; testId: string }) {
@@ -24,26 +42,13 @@ function Chiffre({ label, value, sub, testId }: { label: string; value: number; 
   );
 }
 
-/** La couleur et le mot d'une tendance : jamais l'une sans l'autre. Une baisse est « à regarder », pas un échec. */
-const TREND: Record<TrendWay, { ton: DirTon; word: string }> = {
-  hausse: { ton: "ok", word: "En hausse" },
-  baisse: { ton: "warn", word: "En baisse" },
-  stable: { ton: "muted", word: "Stable" },
-};
-
-/** La phrase d'une tendance, en mots : l'écart, puis le chiffre des sept jours d'avant. */
-function trendText(trend: WeekTrend & { ready: true }): string {
-  const before = fmtInt(trend.previous);
-  if (trend.percent === null) return trend.way === "stable" ? "aucune visite non plus les 7 jours d'avant" : "aucune visite les 7 jours d'avant";
-  if (trend.way === "stable") return `comme les 7 jours d'avant (${before})`;
-  return `${fmtInt(trend.percent)} % de ${trend.way === "hausse" ? "plus" : "moins"} que les 7 jours d'avant (${before})`;
-}
-
 /**
- * Les sept derniers jours finis contre les sept d'avant (`weekTrend`). Tant que le compteur n'a pas quatorze jours finis,
- * la case dit quand la comparaison sera possible : pas de chiffre plutôt qu'un chiffre faux.
+ * Les sept derniers jours finis contre les sept d'avant (`weekTrend`), en visites : une somme de jours. Tant que le
+ * compteur n'a pas ses deux semaines entières, la case dit quand la comparaison sera possible ; avec trop peu de visites,
+ * elle donne les deux chiffres sans pour cent : pas de chiffre plutôt qu'un chiffre qui ne veut rien dire.
  */
 function Tendance({ trend }: { trend: WeekTrend }) {
+  const look = trend.ready ? TREND_LOOK[trend.way] : TREND_EARLY;
   return (
     <div class="dir-activite-chiffre dir-activite-tendance" data-testid="activity-trend">
       <span class="console-libelle font-semibold text-muted">7 derniers jours</span>
@@ -51,22 +56,20 @@ function Tendance({ trend }: { trend: WeekTrend }) {
         <>
           <span class="flex flex-wrap items-center gap-x-3 gap-y-1">
             <span class="console-valeur tnum font-display text-3xl font-extrabold sm:text-4xl">{fmtInt(trend.current)}</span>
-            <Pastille ton={TREND[trend.way].ton} testid="activity-trend-way">
-              {TREND[trend.way].word}
+            <Pastille ton={look.tone} testid="activity-trend-way">
+              {look.word}
             </Pastille>
           </span>
-          <span class="tnum block text-sm text-muted">
-            {visitsWord(trend.current)} jusqu'à hier, {trendText(trend)}
-          </span>
+          <span class="tnum block text-sm text-muted">{trendText(trend)}</span>
         </>
       ) : (
         <>
           <span class="dir-activite-attente">
-            <Pastille ton="muted" testid="activity-trend-way">
-              Trop tôt
+            <Pastille ton={look.tone} testid="activity-trend-way">
+              {look.word}
             </Pastille>
           </span>
-          <span class="tnum block text-sm text-muted">Comparaison avec les 7 jours d'avant à partir du {fmtDay(trend.from)}</span>
+          <span class="tnum block text-sm text-muted">{trendWaitText(trend.from)}</span>
         </>
       )}
     </div>
@@ -111,9 +114,25 @@ function Colonnes({
       </p>
       <div class="dir-activite-trace mt-2" aria-hidden="true">
         <span class="dir-activite-haut tnum">{fmtInt(top)}</span>
-        <div class="dir-activite-colonnes" style={grid} onMouseLeave={() => setActive(null)}>
+        {/* Le survol ne vaut que pour une souris. Au doigt, le toucher choisit la colonne et elle reste lue : un « mouseleave »
+            que le navigateur envoie après un toucher (souris fictive restée ailleurs) la faisait revenir aussitôt. */}
+        <div
+          class="dir-activite-colonnes"
+          style={grid}
+          onPointerLeave={(e) => {
+            if (e.pointerType === "mouse") setActive(null);
+          }}
+        >
           {bars.map((bar, i) => (
-            <span key={bar.key} data-actif={i === shown ? "" : undefined} data-encours={i === current ? "" : undefined} onMouseEnter={() => setActive(i)} onClick={() => setActive(i)}>
+            <span
+              key={bar.key}
+              data-actif={i === shown ? "" : undefined}
+              data-encours={i === current ? "" : undefined}
+              onPointerEnter={(e) => {
+                if (e.pointerType === "mouse") setActive(i);
+              }}
+              onClick={() => setActive(i)}
+            >
               <i style={{ "--v": `${(bar.value / max) * 100}%` }} />
             </span>
           ))}
@@ -167,7 +186,8 @@ function Rangs({ rows, start = 1, numbered = true }: { rows: Rang[]; start?: num
           )}
           <span class="min-w-0 flex-1 [overflow-wrap:anywhere]">{row.label}</span>
           <span class="tnum shrink-0">{row.detail ?? fmtInt(row.value)}</span>
-          <i aria-hidden="true" style={{ "--v": `${row.length}%` }} />
+          {/* Un zéro n'a pas de trait : la largeur minimale du trait en dessinait un de 2 px. */}
+          {row.length > 0 && <i aria-hidden="true" style={{ "--v": `${row.length}%` }} />}
         </li>
       ))}
     </List>
@@ -176,8 +196,8 @@ function Rangs({ rows, start = 1, numbered = true }: { rows: Rang[]; start?: num
 
 /** Une liste classée : les dix premiers, la suite repliée. Les traits sont à la mesure du premier de toute la liste. */
 function Classement({ id, title, period, rows, testId }: { id: string; title: string; period: string; rows: { label: string; value: number }[]; testId: string }) {
-  const max = Math.max(1, ...rows.map((r) => r.value));
-  const all = rows.map((r) => ({ ...r, length: (r.value / max) * 100 }));
+  const max = Math.max(0, ...rows.map((r) => r.value));
+  const all = rows.map((r) => ({ ...r, length: traitLength(r.value, max) }));
   const rest = all.slice(10);
   return (
     <Bloc id={id} title={title} aside={period} testId={testId}>
@@ -221,8 +241,18 @@ export default function DirectionActivite() {
     void load();
   }, []);
 
+  // `aria-disabled` et non `disabled` pendant la lecture : un bouton désactivé perd le focus, qui tombait sur la page après
+  // « Actualiser » au clavier. Un deuxième appui pendant la lecture ne relance rien.
   const reload = (
-    <button type="button" class="btn btn-ghost" disabled={busy} onClick={() => void load()} data-testid="activity-reload">
+    <button
+      type="button"
+      class="btn btn-ghost"
+      aria-disabled={busy || undefined}
+      onClick={() => {
+        if (!busy) void load();
+      }}
+      data-testid="activity-reload"
+    >
       Actualiser
     </button>
   );
@@ -253,22 +283,20 @@ export default function DirectionActivite() {
 }
 
 function Tableau({ data }: { data: SiteActivity }) {
+  // Aujourd'hui est toujours compté (`since` n'est pas nul ici) : sans ligne, c'est un vrai zéro.
   const today = data.days.find((d) => d.day === data.today);
-  const yesterday = dayBefore(data.today);
-  const yesterdayRow = data.days.find((d) => d.day === yesterday);
-  const yesterdayCounted = data.since !== null && yesterday >= data.since;
-  const yesterdayVisitors = yesterdayRow ? yesterdayRow.visitors : yesterdayCounted ? 0 : null;
+  const yesterday = yesterdayVisitors(data);
 
   // La période des listes et des parts : 30 jours, ou moins si le compteur est plus jeune.
-  const days = lastDays(data, 30);
-  const counted = days.filter((d): d is DayBar & { visitors: number; views: number } => d.visitors !== null);
-  const period = counted.length < 30 ? `depuis le ${fmtDay(counted[0]?.day ?? data.today)}` : "sur 30 jours";
+  const counted = lastDays(data, 30).filter((d): d is DayBar & { visitors: number; views: number } => d.visitors !== null);
+  const countedDays = counted.map((d) => d.day);
+  const period = periodText(data);
   const trend = weekTrend(data);
   const { visits, shares } = visitShares(data.days);
 
   const hours = allHours(data.hours);
   const hourViews = hours.reduce((total, h) => total + h.views, 0);
-  const busiest = hours.reduce((best, h) => (h.views > (hours[best]?.views ?? 0) ? h.hour : best), 0);
+  const busiest = busiestHour(hours);
 
   // Un seul jour compté ne fait pas une courbe : le graphique des jours attend le deuxième.
   const withDays = counted.length >= 2;
@@ -277,7 +305,7 @@ function Tableau({ data }: { data: SiteActivity }) {
     <>
       <div class="dir-activite-chiffres">
         {/* Des libellés courts : sur un téléphone, la case n'a la place que pour un mot par ligne. */}
-        <Chiffre label="Aujourd'hui" value={today?.visitors ?? 0} sub={`${visitorsWord(today?.visitors ?? 0)}${yesterdayVisitors === null ? "" : `, hier ${fmtInt(yesterdayVisitors)}`}`} testId="activity-today" />
+        <Chiffre label="Aujourd'hui" value={today?.visitors ?? 0} sub={`${visitorsWord(today?.visitors ?? 0)}${yesterday === null ? "" : `, hier ${fmtInt(yesterday)}`}`} testId="activity-today" />
         <Chiffre label="Cette semaine" value={data.week.visitors} sub={`${visitorsWord(data.week.visitors)} depuis lundi`} testId="activity-week" />
         <Chiffre label="Ce mois-ci" value={data.month.visitors} sub={`${visitorsWord(data.month.visitors)} depuis le 1er`} testId="activity-month" />
         <Chiffre label="Pages vues" value={today?.views ?? 0} sub="aujourd'hui" testId="activity-views" />
@@ -294,12 +322,12 @@ function Tableau({ data }: { data: SiteActivity }) {
                 current={counted.length - 1}
                 readout={(i) => {
                   const d = counted[i];
-                  return d ? `${fmtDay(d.day)}${d.day === data.today ? " (en cours)" : ""} : ${fmtInt(d.visitors)} ${visitorsWord(d.visitors)}, ${fmtInt(d.views)} ${viewsWord(d.views)}` : "";
+                  return d ? dayReadout(d, data.today) : "";
                 }}
                 label="Les mêmes chiffres, jour par jour, sont dans le tableau qui suit."
-                ticks={new Map(weekTicks(counted.map((d) => d.day)).map((i) => [i, fmtDay(counted[i]?.day ?? data.today)]))}
+                ticks={new Map(weekTicks(countedDays).map((i) => [i, dayWords(countedDays[i] ?? data.today)]))}
               />
-              <p class="dir-activite-legende">Dates : les lundis. Plus pâle : aujourd'hui, en cours.</p>
+              <p class="dir-activite-legende">{dayTicksLegend(countedDays)}</p>
               <details class="fold dir-activite-repli">
                 <summary class="text-sm font-semibold">Jour par jour</summary>
                 <table class="data-table tnum w-full text-sm">
@@ -313,7 +341,7 @@ function Tableau({ data }: { data: SiteActivity }) {
                   <tbody>
                     {[...counted].reverse().map((d) => (
                       <tr key={d.day}>
-                        <th scope="row">{fmtDay(d.day)}</th>
+                        <th scope="row">{dayWords(d.day)}</th>
                         <td>{fmtInt(d.visitors)}</td>
                         <td>{fmtInt(d.views)}</td>
                       </tr>
@@ -332,7 +360,7 @@ function Tableau({ data }: { data: SiteActivity }) {
                 initial={busiest}
                 readout={(i) => {
                   const h = hours[i];
-                  return h ? `De ${h.hour} h à ${h.hour + 1} h : ${fmtInt(h.views)} ${viewsWord(h.views)}` : "";
+                  return h ? hourReadout(h) : "";
                 }}
                 label="Les mêmes chiffres, heure par heure, sont dans le tableau qui suit."
                 ticks={new Map([0, 6, 12, 18].map((h) => [h, `${h} h`]))}
@@ -367,7 +395,8 @@ function Tableau({ data }: { data: SiteActivity }) {
       <div class="dir-activite-listes">
         {data.pages.length > 0 && <Classement id="activite-pages" title="Pages les plus vues" period={period} rows={namedPages(data.pages)} testId="activity-pages" />}
         {data.sources.length > 0 && (
-          <Classement id="activite-sources" title="D'où arrivent les visiteurs" period={period} rows={data.sources.map((s) => ({ label: SOURCE_LABELS[s.source as VisitSource] ?? s.source, value: s.visitors }))} testId="activity-sources" />
+          // « visites » : une somme de jours, comme le total et la tendance (un navigateur venu trois jours compte trois fois).
+          <Classement id="activite-sources" title="D'où arrivent les visites" period={period} rows={data.sources.map((s) => ({ label: SOURCE_LABELS[s.source as VisitSource] ?? s.source, value: s.visitors }))} testId="activity-sources" />
         )}
         {visits > 0 && (
           <Bloc id="activite-qui" title="Les visites" aside={`${fmtInt(visits)} ${period}`} testId="activity-who">
@@ -394,7 +423,7 @@ function Tableau({ data }: { data: SiteActivity }) {
         <div class="grid gap-3 pb-1 text-muted">
           <p>Le site compte lui-même, sans cookie, sans adresse IP et sans service extérieur. Chaque navigateur garde seulement la date de sa dernière visite : il compte une fois par jour, une fois par semaine et une fois par mois. Une visite : un navigateur, un jour. Un joueur qui vient avec son téléphone et son ordinateur compte deux fois ; un navigateur dont on efface les données compte de nouveau.</p>
           <p>Ne comptent pas : les programmes de test et les robots qui se déclarent comme tels, les navigateurs qui demandent de ne pas être suivis ou dont le visiteur a refusé d'être compté (page Confidentialité), et les visites sans JavaScript. Un navigateur qui ne garde rien ne compte que des pages vues. « Sans provenance » : un favori, une adresse tapée, ou un lien ouvert depuis une application, Discord compris. « Venus pour la première fois » : sans aucune trace d'une visite d'avant dans ce navigateur.</p>
-          <p>« 7 derniers jours » : les visites des sept derniers jours finis, hier compris, comparées à celles des sept jours d'avant. Aujourd'hui n'y est pas, la journée n'étant pas finie. « Stable » : moins de 5 % d'écart. La comparaison attend que le compteur ait ces quatorze jours.</p>
+          <p>{TREND_HELP}</p>
         </div>
       </details>
     </>
