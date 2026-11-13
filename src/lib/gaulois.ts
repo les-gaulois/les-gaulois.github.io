@@ -7,21 +7,30 @@ import { lireTenue, type Tenue } from "../../supabase/functions/code-discord/gau
 
 export {
   EMPLACEMENTS,
-  GAMMES,
+  EMPLACEMENTS_OBJETS,
   GAULOIS_HAUTEUR,
   GAULOIS_LARGEUR,
   NOMS_EMPLACEMENTS,
   OBJETS,
+  ORDRE_RARETES,
   PEAUX,
+  POILS,
+  RARETES,
+  TEINTE_CHEVEUX,
   TENUE_DE_DEPART,
   casesDuGaulois,
   changerObjet,
-  cleTeinte,
   decrireGaulois,
+  estGratuit,
   lireTenue,
   tenueAuHasard,
+  tenueGratuite,
+  vignetteDeLObjet,
   type Emplacement,
+  type Objet,
+  type Rarete,
   type Tenue,
+  type Vignette,
 } from "../../supabase/functions/code-discord/gaulois";
 
 /** La page du village, où mène /gaulois sur Discord. */

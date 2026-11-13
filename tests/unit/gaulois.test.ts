@@ -3,20 +3,27 @@ import { describe, expect, it } from "vitest";
 import { lirePng } from "../../supabase/functions/code-discord/billets";
 import {
   EMPLACEMENTS,
-  GAMMES,
+  EMPLACEMENTS_CORPS,
+  EMPLACEMENTS_OBJETS,
   GAULOIS_HAUTEUR,
   GAULOIS_LARGEUR,
   IMAGE_GAULOIS,
   OBJETS,
+  ORDRE_RARETES,
+  POILS,
+  RARETES,
+  TEINTE_CHEVEUX,
   TENUE_DE_DEPART,
   casesDuGaulois,
   changerObjet,
-  cleTeinte,
   decrireGaulois,
+  estGratuit,
   imageDuGaulois,
   lireTenue,
   pngDuGaulois,
   tenueAuHasard,
+  tenueGratuite,
+  vignetteDeLObjet,
   type Tenue,
 } from "../../supabase/functions/code-discord/gaulois";
 import { memeTenue, tenueDuServeur } from "../../src/lib/gaulois";
@@ -29,18 +36,12 @@ function hasardFixe(graine: number): () => number {
   return () => (etat = (etat * 48271) % 2147483647) / 2147483647;
 }
 
-/** Toutes les tenues d'un objet de chaque emplacement, avec chacune de ses teintes, sur le Gaulois de départ. */
-function chaqueObjet(): Tenue[] {
-  return EMPLACEMENTS.flatMap((emplacement) =>
-    Object.entries(OBJETS[emplacement]).flatMap(([id, objet]) => {
-      const base = changerObjet(TENUE_DE_DEPART, emplacement, id);
-      return objet.gamme ? Object.keys(GAMMES[objet.gamme]).map((teinte) => ({ ...base, [cleTeinte(emplacement)]: teinte })) : [base];
-    }),
-  );
-}
+/** Le Gaulois de départ avec chaque objet du catalogue, un à la fois. */
+const chaqueObjet = (): Tenue[] => EMPLACEMENTS.flatMap((emplacement) => Object.keys(OBJETS[emplacement]).map((id) => changerObjet(TENUE_DE_DEPART, emplacement, id)));
 
 describe("les dessins du Gaulois", () => {
-  it("tiennent dans la grille de 24 cases sur 32, chaque rangée à sa largeur", () => {
+  it("tiennent dans la grille de 48 cases sur 64, chaque rangée à sa largeur", () => {
+    expect([GAULOIS_LARGEUR, GAULOIS_HAUTEUR]).toEqual([48, 64]);
     for (const emplacement of EMPLACEMENTS) {
       for (const [id, objet] of Object.entries(OBJETS[emplacement])) {
         if (!objet.dessin) continue;
@@ -51,51 +52,97 @@ describe("les dessins du Gaulois", () => {
     }
   });
 
-  it("ont une couleur pour chaque lettre, avec toutes les teintes de chaque objet", () => {
+  it("donnent une couleur à chaque case dessinée et un Gaulois différent pour chaque objet", () => {
+    const vus = new Set<string>();
     for (const tenue of chaqueObjet()) {
       const cases = casesDuGaulois(tenue);
-      const attendues = new Set<number>();
-      for (const emplacement of EMPLACEMENTS) {
-        const dessin = OBJETS[emplacement][tenue[emplacement] ?? ""]?.dessin;
-        dessin?.lignes.forEach((ligne, dy) => [...ligne].forEach((lettre, x) => lettre !== "." && attendues.add((dessin.y + dy) * GAULOIS_LARGEUR + x)));
-      }
-      // Une lettre sans couleur laisserait une case vide là où l'objet est dessiné.
-      for (const i of attendues) expect(cases[i], `${JSON.stringify(tenue)} case ${i}`).toMatch(/^#[0-9a-f]{6}$/);
+      expect(cases).toHaveLength(GAULOIS_LARGEUR * GAULOIS_HAUTEUR);
+      for (const couleur of cases) if (couleur !== null) expect(couleur).toMatch(/^#[0-9a-f]{6}$/);
+      vus.add(cases.join());
     }
-  });
-
-  it("dessinent la peau, les cheveux et les habits choisis, chacun à sa place", () => {
-    const cases = casesDuGaulois(TENUE_DE_DEPART);
-    const a = (x: number, y: number) => cases[y * GAULOIS_LARGEUR + x];
-    // La joue, les cheveux roux, la tunique bleue, la case vide autour.
-    expect(a(10, 9)).toBe("#f2c9a0");
-    expect(a(10, 6)).toBe("#c4561f");
-    expect(a(10, 19)).toBe("#2f5fa8");
-    expect(a(0, 0)).toBeNull();
-    const fonce = casesDuGaulois({ ...TENUE_DE_DEPART, peau: "foncee", teinte_cheveux: "blanc", teinte_haut: "rouge" });
-    expect(fonce[9 * GAULOIS_LARGEUR + 10]).toBe("#7d4e30");
-    expect(fonce[6 * GAULOIS_LARGEUR + 10]).toBe("#ececec");
-    expect(fonce[19 * GAULOIS_LARGEUR + 10]).toBe("#b8322a");
-  });
-
-  it("donnent des Gaulois différents pour des tenues différentes", () => {
-    const vus = new Set(chaqueObjet().map((tenue) => casesDuGaulois(tenue).join()));
     expect(vus.size).toBe(new Set(chaqueObjet().map((tenue) => JSON.stringify(tenue))).size);
+  });
+
+  it("changent avec la peau et la couleur des cheveux", () => {
+    const depart = casesDuGaulois(TENUE_DE_DEPART).join();
+    expect(casesDuGaulois({ ...TENUE_DE_DEPART, peau: "foncee" }).join()).not.toBe(depart);
+    expect(casesDuGaulois({ ...TENUE_DE_DEPART, [TEINTE_CHEVEUX]: "blanc" }).join()).not.toBe(depart);
+  });
+
+  it("ont une vignette pour chaque objet dessiné, rognée à son contour, et aucune pour une case « rien »", () => {
+    for (const emplacement of EMPLACEMENTS_OBJETS) {
+      for (const [id, objet] of Object.entries(OBJETS[emplacement])) {
+        const vignette = vignetteDeLObjet(emplacement, id);
+        if (!objet.dessin) {
+          expect(vignette, `${emplacement}/${id}`).toBeNull();
+          continue;
+        }
+        expect(vignette, `${emplacement}/${id}`).not.toBeNull();
+        if (!vignette) continue;
+        expect(vignette.cases).toHaveLength(vignette.largeur * vignette.hauteur);
+        expect(vignette.largeur).toBeLessThanOrEqual(GAULOIS_LARGEUR);
+        expect(vignette.hauteur).toBeLessThanOrEqual(GAULOIS_HAUTEUR);
+        expect(vignette.cases.some((c) => c !== null)).toBe(true);
+      }
+    }
+    expect(vignetteDeLObjet("tete", "inconnu")).toBeNull();
+  });
+});
+
+describe("le catalogue", () => {
+  it("a cinq raretés, du commun au légendaire, chacune avec son nom et son rang", () => {
+    expect(ORDRE_RARETES).toEqual(["commun", "peu-commun", "epique", "mystique", "legendaire"]);
+    expect(ORDRE_RARETES.map((r) => RARETES[r].nom)).toEqual(["Commun", "Peu commun", "Épique", "Mystique", "Légendaire"]);
+    expect(ORDRE_RARETES.map((r) => RARETES[r].rang)).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it("donne gratuitement, en commun : deux hauts, deux bas, une paire de bottes, une coiffe et une arme (demande du pilote)", () => {
+    const gratuits = (emplacement: (typeof EMPLACEMENTS_OBJETS)[number]) =>
+      Object.entries(OBJETS[emplacement])
+        .filter(([, objet]) => objet.gratuit && objet.rarete !== null)
+        .map(([id]) => id);
+    expect(gratuits("haut")).toHaveLength(2);
+    expect(gratuits("bas")).toHaveLength(2);
+    expect(gratuits("pieds")).toEqual(["bottes"]);
+    expect(gratuits("tete")).toHaveLength(1);
+    expect(gratuits("arme")).toHaveLength(1);
+    for (const emplacement of EMPLACEMENTS_OBJETS) for (const id of gratuits(emplacement)) expect(OBJETS[emplacement][id]?.rarete).toBe("commun");
+  });
+
+  it("garde le corps et une case « rien » par emplacement gratuits et sans rareté, et une rareté à tout le reste", () => {
+    for (const emplacement of EMPLACEMENTS_CORPS) for (const objet of Object.values(OBJETS[emplacement])) expect(objet).toMatchObject({ rarete: null, gratuit: true });
+    for (const emplacement of EMPLACEMENTS_OBJETS) {
+      const riens = Object.values(OBJETS[emplacement]).filter((objet) => objet.dessin === null);
+      expect(riens, emplacement).toHaveLength(1);
+      expect(riens[0]).toMatchObject({ rarete: null, gratuit: true });
+      for (const objet of Object.values(OBJETS[emplacement])) if (objet.dessin) expect(ORDRE_RARETES).toContain(objet.rarete);
+      // Chaque rareté a au moins un objet à montrer dans chaque emplacement.
+      for (const rarete of ORDRE_RARETES) expect(Object.values(OBJETS[emplacement]).some((objet) => objet.rarete === rarete), `${emplacement} ${rarete}`).toBe(true);
+    }
   });
 });
 
 describe("une tenue", () => {
-  it("de départ, au hasard ou faite de n'importe quel objet est lue telle quelle", () => {
+  it("de départ ou au hasard est complète et ne porte que des objets gratuits", () => {
     expect(lireTenue(TENUE_DE_DEPART)).toEqual(TENUE_DE_DEPART);
+    expect(tenueGratuite(TENUE_DE_DEPART)).toBe(true);
     const hasard = hasardFixe(42);
-    for (let i = 0; i < 200; i++) {
+    for (let i = 0; i < 300; i++) {
       const tenue = tenueAuHasard(hasard);
       expect(lireTenue(tenue), JSON.stringify(tenue)).toEqual(tenue);
+      expect(tenueGratuite(tenue), JSON.stringify(tenue)).toBe(true);
     }
-    for (const tenue of chaqueObjet()) expect(lireTenue(tenue), JSON.stringify(tenue)).toEqual(tenue);
   });
 
-  it("est refusée s'il lui manque un objet ou une teinte, ou s'il y a quoi que ce soit en trop", () => {
+  it("se lit avec un objet de la boutique, que le robot saura dessiner, mais n'est alors plus gratuite", () => {
+    const doree = changerObjet(TENUE_DE_DEPART, "tete", "casque-or");
+    expect(lireTenue(doree)).toEqual(doree);
+    expect(tenueGratuite(doree)).toBe(false);
+    expect(estGratuit("tete", "casque-or")).toBe(false);
+    expect(estGratuit("tete", "inconnu")).toBe(false);
+  });
+
+  it("est refusée s'il lui manque quelque chose, ou s'il y a quoi que ce soit en trop", () => {
     const sans = (cle: string) => Object.fromEntries(Object.entries(TENUE_DE_DEPART).filter(([k]) => k !== cle));
     for (const valeur of [
       null,
@@ -104,37 +151,34 @@ describe("une tenue", () => {
       [],
       {},
       sans("pieds"),
-      sans("teinte_haut"),
-      sans("teinte_cheveux"),
+      sans("arme"),
+      sans(TEINTE_CHEVEUX),
       { ...TENUE_DE_DEPART, en_trop: "x" },
-      { ...TENUE_DE_DEPART, teinte_haut: "violet" },
-      { ...TENUE_DE_DEPART, teinte_bas: "bleu" },
-      { ...TENUE_DE_DEPART, haut: "veste-peau" },
-      { ...TENUE_DE_DEPART, teinte_pieds: "rouge" },
+      { ...TENUE_DE_DEPART, teinte_haut: "bleu" },
+      { ...TENUE_DE_DEPART, [TEINTE_CHEVEUX]: "violet" },
       { ...TENUE_DE_DEPART, pieds: "patins" },
       { ...TENUE_DE_DEPART, pieds: 3 },
       { ...TENUE_DE_DEPART, peau: "toString" },
-      { ...TENUE_DE_DEPART, tete: "casque", teinte_tete: "rouge" },
     ]) {
       expect(lireTenue(valeur), JSON.stringify(valeur)).toBeNull();
     }
   });
 
-  it("garde sa teinte quand un objet de la même gamme la connaît, la change sinon, et la perd sans gamme", () => {
-    const rouge = { ...TENUE_DE_DEPART, tete: "bonnet", teinte_tete: "rouge" };
-    expect(changerObjet(rouge, "tete", "capuche")).toMatchObject({ tete: "capuche", teinte_tete: "rouge" });
-    expect(changerObjet(rouge, "tete", "casque")).not.toHaveProperty("teinte_tete");
-    expect(changerObjet(TENUE_DE_DEPART, "bas", "braies")).toMatchObject({ bas: "braies", teinte_bas: "rouge" });
-    expect(changerObjet(TENUE_DE_DEPART, "bas", "braies-rayees")).toMatchObject({ teinte_bas: "vert-jaune" });
+  it("ne change que l'emplacement choisi, et reste telle quelle pour un objet inconnu", () => {
+    expect(changerObjet(TENUE_DE_DEPART, "pieds", "nus")).toEqual({ ...TENUE_DE_DEPART, pieds: "nus" });
     expect(changerObjet(TENUE_DE_DEPART, "pieds", "patins")).toBe(TENUE_DE_DEPART);
-    for (const tenue of chaqueObjet()) for (const emplacement of EMPLACEMENTS) for (const id of Object.keys(OBJETS[emplacement])) expect(lireTenue(changerObjet(tenue, emplacement, id))).not.toBeNull();
   });
 
   it("se dit en mots, pour qui ne voit pas l'image", () => {
-    const nbsp = String.fromCharCode(0xa0);
-    expect(decrireGaulois(TENUE_DE_DEPART)).toBe(
-      ["Gaulois en pixels", "Peau : claire", "Cheveux : courts, roux", "Barbe : moustache", "Tête : rien", "Haut : tunique, bleu", "Bas : braies à carreaux, vert et jaune", "Pieds : bottes"].join(". ").replaceAll(" :", `${nbsp}:`) + ".",
-    );
+    const texte = decrireGaulois(TENUE_DE_DEPART);
+    expect(texte.startsWith("Gaulois en pixels.")).toBe(true);
+    for (const emplacement of EMPLACEMENTS) {
+      const nom = OBJETS[emplacement][TENUE_DE_DEPART[emplacement] ?? ""]?.nom ?? "";
+      expect(texte.toLowerCase(), emplacement).toContain(nom.toLowerCase());
+    }
+    expect(texte.toLowerCase()).toContain(POILS.roux.nom.toLowerCase());
+    expect(texte.length).toBeLessThanOrEqual(1024);
+    expect(decrireGaulois(changerObjet(TENUE_DE_DEPART, "arme", "aucune"))).not.toBe(texte);
   });
 
   it("revient du serveur telle qu'il l'a gardée, ou pas du tout si elle est illisible", () => {
@@ -150,25 +194,30 @@ describe("une tenue", () => {
 });
 
 describe("le serveur", () => {
-  it("connaît exactement les objets et les teintes du dessin (migration du vestiaire)", () => {
-    const lignes = [...MIGRATION.matchAll(/\('([a-z]+)', '([a-z-]+)', array\[([^\]]*)\]::text\[\]\)/g)].map(([, emplacement, objet, teintes]) => {
-      const liste = [...(teintes ?? "").matchAll(/'([a-z-]+)'/g)].map((m) => m[1]);
-      return `${emplacement}/${objet}/${liste.join(",")}`;
-    });
-    const attendues = EMPLACEMENTS.flatMap((emplacement) => Object.entries(OBJETS[emplacement]).map(([id, objet]) => `${emplacement}/${id}/${objet.gamme ? Object.keys(GAMMES[objet.gamme]).join(",") : ""}`));
+  it("connaît exactement les objets du dessin, avec leur rareté et s'ils sont gratuits (migration du vestiaire)", () => {
+    const lignes = [...MIGRATION.matchAll(/^ {2}\('([a-z]+)', '([a-z-]+)', ('[a-z-]+'|null), (true|false)\)/gm)].map(([, emplacement, objet, rarete, gratuit]) => `${emplacement}/${objet}/${rarete?.replaceAll("'", "")}/${gratuit}`);
+    const attendues = EMPLACEMENTS.flatMap((emplacement) => Object.entries(OBJETS[emplacement]).map(([id, objet]) => `${emplacement}/${id}/${objet.rarete ?? "null"}/${objet.gratuit}`));
     expect(lignes.sort()).toEqual(attendues.sort());
   });
 
-  it("vérifie les mêmes emplacements, et ne laisse la fonction de /gaulois qu'à la clé de service", () => {
-    expect(MIGRATION).toContain(`array[${EMPLACEMENTS.map((e) => `'${e}'`).join(", ")}]`);
+  it("vérifie les mêmes emplacements, les mêmes couleurs de cheveux et les mêmes raretés", () => {
+    expect(MIGRATION).toContain(`foreach v_emplacement in array array[${EMPLACEMENTS.map((e) => `'${e}'`).join(", ")}] loop`);
+    expect(MIGRATION).toContain(`any (array[${Object.keys(POILS).map((p) => `'${p}'`).join(", ")}])`);
+    expect(MIGRATION).toContain(`rarete in (${ORDRE_RARETES.map((r) => `'${r}'`).join(", ")})`);
+    expect(MIGRATION).toContain(`= ${EMPLACEMENTS.length + 1};`);
+    // Seuls les objets gratuits s'enregistrent tant que la boutique n'existe pas.
+    expect(MIGRATION).toContain("o.objet = p_tenue ->> v_emplacement and o.gratuit");
+  });
+
+  it("garde ses tables privées et ne laisse la fonction de /gaulois qu'à la clé de service", () => {
     expect(MIGRATION).toContain("revoke all on function public.discord_gaulois(text) from public, anon, authenticated;");
     expect(MIGRATION).toContain("grant execute on function public.discord_gaulois(text) to service_role;");
+    expect(MIGRATION).not.toMatch(/grant execute on function public\.discord_gaulois\(text\) to (anon|authenticated)/);
     // Des tables privées, comme toutes celles du schéma internal depuis le 8 novembre 2026 : RLS active, droits retirés.
     for (const table of ["internal.gaulois_objets", "internal.gaulois"]) {
       expect(MIGRATION).toContain(`alter table ${table} enable row level security;`);
       expect(MIGRATION).toContain(`revoke all on table ${table} from public, anon, authenticated;`);
     }
-    expect(MIGRATION).not.toMatch(/grant execute on function public\.discord_gaulois\(text\) to (anon|authenticated)/);
     expect(MIGRATION).not.toMatch(/raw_user_meta_data|drop table|drop column|truncate/i);
   });
 });
@@ -180,17 +229,23 @@ describe("l'image de /gaulois", () => {
     expect(image).toMatchObject({ largeur: 496, hauteur: 320 });
   });
 
-  it("montre le Gaulois case par case, une case faisant huit pixels, sur le fond du site", () => {
-    const image = imageDuGaulois(TENUE_DE_DEPART);
+  it("montre le Gaulois sur le fond du site, en entier, avec n'importe quel objet du catalogue", () => {
     const { largeur, hauteur, echelle } = IMAGE_GAULOIS;
-    const ox = (largeur - GAULOIS_LARGEUR * echelle) / 2;
-    const oy = hauteur - GAULOIS_HAUTEUR * echelle - 24;
-    const pixel = (x: number, y: number) => {
+    expect(GAULOIS_HAUTEUR * echelle).toBeLessThanOrEqual(hauteur);
+    const pixel = (image: ReturnType<typeof imageDuGaulois>, x: number, y: number) => {
       const i = (y * largeur + x) * 4;
       return `#${[0, 1, 2].map((d) => (image.rgba[i + d] ?? 0).toString(16).padStart(2, "0")).join("")}`;
     };
-    // La joue, au milieu de sa case de huit pixels, puis le coin du fond.
-    expect(pixel(ox + 10 * echelle + 4, oy + 9 * echelle + 4)).toBe("#f2c9a0");
-    expect(pixel(2, hauteur - 2)).toBe("#0a1230");
+    for (const tenue of chaqueObjet()) {
+      const image = imageDuGaulois(tenue);
+      expect(image.rgba).toHaveLength(largeur * hauteur * 4);
+      // Les coins restent au fond du site : rien ne déborde du cadre.
+      expect(pixel(image, 2, hauteur - 2)).toBe("#0a1230");
+      expect(pixel(image, largeur - 3, hauteur - 2)).toBe("#0a1230");
+      // Chaque couleur du Gaulois est dans l'image.
+      const dans = new Set<string>();
+      for (let i = 0; i < image.rgba.length; i += 4) dans.add(`#${[0, 1, 2].map((d) => (image.rgba[i + d] ?? 0).toString(16).padStart(2, "0")).join("")}`);
+      for (const couleur of new Set(casesDuGaulois(tenue))) if (couleur) expect(dans.has(couleur), couleur).toBe(true);
+    }
   });
 });

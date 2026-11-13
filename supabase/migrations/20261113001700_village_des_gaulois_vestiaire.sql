@@ -1,9 +1,13 @@
 -- Le village des Gaulois, premier lot : le vestiaire (docs/DIRECTION.md, « Le village des Gaulois »).
 --
--- Chaque compte lié à Discord habille son Gaulois en pixels avec les objets gratuits : peau, cheveux et leur couleur,
--- barbe, tête, haut, bas, pieds. Le site dessine le Gaulois ; le serveur ne garde que la tenue choisie et refuse tout ce
--- qui n'est pas dans sa liste d'objets (`internal.gaulois_objets`), la même que celle du dessin
--- (supabase/functions/code-discord/gaulois.ts) : un test garde les deux identiques.
+-- Chaque compte lié à Discord habille son Gaulois en pixels : la peau, les cheveux et leur couleur, la barbe, puis cinq
+-- emplacements d'objets à rareté (tête, haut, bas, pieds, arme). Le site dessine le Gaulois ; le serveur ne garde que la
+-- tenue choisie et refuse tout ce qui n'est pas dans sa liste d'objets (`internal.gaulois_objets`), la même que celle du
+-- dessin (supabase/functions/code-discord/gaulois.ts) : un test garde les deux identiques.
+--
+-- Les raretés, de la plus courante à la plus rare : commun, peu-commun, epique, mystique, legendaire. Le corps et les cases
+-- « rien » n'en ont pas. Dans ce lot, seuls les objets gratuits se portent : les autres sont au catalogue pour la boutique
+-- des lots suivants, et `enregistrer_mon_gaulois` les refuse.
 --
 -- Qui peut quoi :
 -- - get_mon_gaulois et enregistrer_mon_gaulois : un compte connecté, lié à Discord, non suspendu. Un compte en attente
@@ -12,52 +16,92 @@
 --   L'identifiant Discord vient de la commande signée par Discord, jamais d'autre chose.
 --
 -- Rien n'est écrit au journal de l'encadrement : c'est l'habit d'un joueur, pas une décision. La sauvegarde chiffrée
--- (export_site) ne change pas : elle ne garde pas les tenues, qu'un joueur refait en une minute. Les objets payants, la
--- monnaie et les échanges viendront dans des migrations à part.
+-- (export_site) ne change pas : elle ne garde pas les tenues, qu'un joueur refait en une minute.
 --
 -- Deux tables et cinq fonctions ajoutées, aucune donnée existante touchée. Rejouée, elle se remplace par la même.
 
 create table if not exists internal.gaulois_objets (
-  emplacement text not null check (emplacement in ('peau', 'cheveux', 'barbe', 'tete', 'haut', 'bas', 'pieds')),
+  emplacement text not null check (emplacement in ('peau', 'cheveux', 'barbe', 'tete', 'haut', 'bas', 'pieds', 'arme')),
   objet text not null check (objet ~ '^[a-z][a-z-]{0,39}$'),
-  -- Les teintes qu'il accepte : vide pour un objet qui n'en change pas.
-  teintes text[] not null default '{}',
-  rarete text not null default 'gratuit' check (rarete in ('gratuit', 'commun', 'rare', 'epique', 'legendaire')),
+  -- Sans rareté : le corps et les cases « rien ».
+  rarete text check (rarete in ('commun', 'peu-commun', 'epique', 'mystique', 'legendaire')),
+  gratuit boolean not null default false,
   primary key (emplacement, objet)
 );
 
-insert into internal.gaulois_objets (emplacement, objet, teintes) values
-  ('peau', 'claire', array[]::text[]),
-  ('peau', 'doree', array[]::text[]),
-  ('peau', 'mate', array[]::text[]),
-  ('peau', 'foncee', array[]::text[]),
-  ('cheveux', 'aucun', array['roux', 'blond', 'chatain', 'noir', 'gris', 'blanc']::text[]),
-  ('cheveux', 'courts', array['roux', 'blond', 'chatain', 'noir', 'gris', 'blanc']::text[]),
-  ('cheveux', 'longs', array['roux', 'blond', 'chatain', 'noir', 'gris', 'blanc']::text[]),
-  ('cheveux', 'tresses', array['roux', 'blond', 'chatain', 'noir', 'gris', 'blanc']::text[]),
-  ('cheveux', 'herisses', array['roux', 'blond', 'chatain', 'noir', 'gris', 'blanc']::text[]),
-  ('barbe', 'aucune', array[]::text[]),
-  ('barbe', 'moustache', array[]::text[]),
-  ('barbe', 'longue-moustache', array[]::text[]),
-  ('barbe', 'courte', array[]::text[]),
-  ('barbe', 'grande', array[]::text[]),
-  ('tete', 'aucun', array[]::text[]),
-  ('tete', 'bonnet', array['rouge', 'bleu', 'vert', 'jaune', 'brun', 'blanc']::text[]),
-  ('tete', 'casque', array[]::text[]),
-  ('tete', 'bandeau', array['rouge', 'bleu', 'vert', 'jaune', 'brun', 'blanc']::text[]),
-  ('tete', 'capuche', array['rouge', 'bleu', 'vert', 'jaune', 'brun', 'blanc']::text[]),
-  ('haut', 'aucun', array[]::text[]),
-  ('haut', 'tunique', array['rouge', 'bleu', 'vert', 'jaune', 'brun', 'blanc']::text[]),
-  ('haut', 'veste-peau', array[]::text[]),
-  ('haut', 'maillot-clan', array[]::text[]),
-  ('bas', 'aucun', array[]::text[]),
-  ('bas', 'braies', array['rouge', 'bleu', 'vert', 'jaune', 'brun', 'blanc']::text[]),
-  ('bas', 'braies-carreaux', array['vert-jaune', 'rouge-jaune', 'bleu-jaune', 'brun-rouge']::text[]),
-  ('bas', 'braies-rayees', array['vert-jaune', 'rouge-jaune', 'bleu-jaune', 'brun-rouge']::text[]),
-  ('pieds', 'nus', array[]::text[]),
-  ('pieds', 'sandales', array[]::text[]),
-  ('pieds', 'bottes', array[]::text[])
-on conflict (emplacement, objet) do update set teintes = excluded.teintes, rarete = excluded.rarete;
+insert into internal.gaulois_objets (emplacement, objet, rarete, gratuit) values
+  ('peau', 'claire', null, true),
+  ('peau', 'doree', null, true),
+  ('peau', 'mate', null, true),
+  ('peau', 'foncee', null, true),
+  ('cheveux', 'aucun', null, true),
+  ('cheveux', 'courts', null, true),
+  ('cheveux', 'longs', null, true),
+  ('cheveux', 'tresses', null, true),
+  ('cheveux', 'herisses', null, true),
+  ('barbe', 'aucune', null, true),
+  ('barbe', 'moustache', null, true),
+  ('barbe', 'longue-moustache', null, true),
+  ('barbe', 'courte', null, true),
+  ('barbe', 'grande', null, true),
+  ('tete', 'aucun', null, true),
+  ('tete', 'bonnet', 'commun', true),
+  ('tete', 'bandeau', 'commun', false),
+  ('tete', 'chapeau-paille', 'commun', false),
+  ('tete', 'beret', 'commun', false),
+  ('tete', 'capuche', 'peu-commun', false),
+  ('tete', 'casque-cuir', 'peu-commun', false),
+  ('tete', 'marmite', 'peu-commun', false),
+  ('tete', 'casque', 'epique', false),
+  ('tete', 'toque', 'epique', false),
+  ('tete', 'casque-armee', 'epique', false),
+  ('tete', 'slip', 'epique', false),
+  ('tete', 'casque-crete', 'mystique', false),
+  ('tete', 'cone', 'mystique', false),
+  ('tete', 'tricorne', 'mystique', false),
+  ('tete', 'casque-or', 'legendaire', false),
+  ('tete', 'couronne', 'legendaire', false),
+  ('haut', 'aucun', null, true),
+  ('haut', 'tunique', 'commun', true),
+  ('haut', 'chemise', 'commun', true),
+  ('haut', 'tunique-rouge', 'commun', false),
+  ('haut', 'veste-peau', 'peu-commun', false),
+  ('haut', 'cotte-mailles', 'epique', false),
+  ('haut', 'maillot-clan', 'epique', false),
+  ('haut', 'cape-chef', 'mystique', false),
+  ('haut', 'torque-or', 'legendaire', false),
+  ('bas', 'aucun', null, true),
+  ('bas', 'braies', 'commun', true),
+  ('bas', 'braies-carreaux', 'commun', true),
+  ('bas', 'braies-bleues', 'commun', false),
+  ('bas', 'braies-rayees', 'peu-commun', false),
+  ('bas', 'braies-cuir', 'epique', false),
+  ('bas', 'jambieres-bronze', 'mystique', false),
+  ('bas', 'braies-or', 'legendaire', false),
+  ('pieds', 'nus', null, true),
+  ('pieds', 'bottes', 'commun', true),
+  ('pieds', 'sandales', 'commun', false),
+  ('pieds', 'bottes-fourrees', 'peu-commun', false),
+  ('pieds', 'bottes-fer', 'epique', false),
+  ('pieds', 'bottes-ecarlates', 'mystique', false),
+  ('pieds', 'bottes-or', 'legendaire', false),
+  ('arme', 'aucune', null, true),
+  ('arme', 'gourdin', 'commun', true),
+  ('arme', 'baguette', 'commun', false),
+  ('arme', 'poele', 'commun', false),
+  ('arme', 'hache', 'peu-commun', false),
+  ('arme', 'bouclier-bois', 'peu-commun', false),
+  ('arme', 'poulet', 'peu-commun', false),
+  ('arme', 'talkie', 'peu-commun', false),
+  ('arme', 'epee', 'epique', false),
+  ('arme', 'arc', 'epique', false),
+  ('arme', 'drapeau', 'epique', false),
+  ('arme', 'masse', 'mystique', false),
+  ('arme', 'lance-patates', 'mystique', false),
+  ('arme', 'bouclier-bronze', 'mystique', false),
+  ('arme', 'epee-or', 'legendaire', false),
+  ('arme', 'carnyx', 'legendaire', false)
+on conflict (emplacement, objet) do update set rarete = excluded.rarete, gratuit = excluded.gratuit;
 
 -- La tenue de chaque compte : une seule, remplacée à chaque enregistrement.
 create table if not exists internal.gaulois (
@@ -73,41 +117,31 @@ alter table internal.gaulois enable row level security;
 revoke all on table internal.gaulois_objets from public, anon, authenticated;
 revoke all on table internal.gaulois from public, anon, authenticated;
 
--- Une tenue complète : pour chaque emplacement un objet gratuit de la liste, la teinte que cet objet accepte (et seulement
--- s'il en accepte), et rien d'autre.
+-- Une tenue complète : pour chaque emplacement un objet gratuit de la liste, la couleur des cheveux, et rien d'autre.
 create or replace function internal.gaulois_tenue_valide(p_tenue jsonb) returns boolean
 language plpgsql stable security definer set search_path = public, pg_temp as $$
 declare
   v_emplacement text;
-  v_cle text;
-  v_teintes text[];
-  v_cles integer := 0;
 begin
   if p_tenue is null or jsonb_typeof(p_tenue) <> 'object' then
     return false;
   end if;
-  foreach v_emplacement in array array['peau', 'cheveux', 'barbe', 'tete', 'haut', 'bas', 'pieds'] loop
+  foreach v_emplacement in array array['peau', 'cheveux', 'barbe', 'tete', 'haut', 'bas', 'pieds', 'arme'] loop
     if jsonb_typeof(p_tenue -> v_emplacement) is distinct from 'string' then
       return false;
     end if;
-    select o.teintes into v_teintes
-    from internal.gaulois_objets o
-    where o.emplacement = v_emplacement and o.objet = p_tenue ->> v_emplacement and o.rarete = 'gratuit';
-    if not found then
-      return false;
-    end if;
-    v_cles := v_cles + 1;
-    v_cle := 'teinte_' || v_emplacement;
-    if cardinality(v_teintes) > 0 then
-      if jsonb_typeof(p_tenue -> v_cle) is distinct from 'string' or not ((p_tenue ->> v_cle) = any (v_teintes)) then
-        return false;
-      end if;
-      v_cles := v_cles + 1;
-    elsif p_tenue ? v_cle then
+    if not exists (
+      select 1 from internal.gaulois_objets o
+      where o.emplacement = v_emplacement and o.objet = p_tenue ->> v_emplacement and o.gratuit
+    ) then
       return false;
     end if;
   end loop;
-  return (select count(*) from jsonb_object_keys(p_tenue)) = v_cles;
+  if jsonb_typeof(p_tenue -> 'teinte_cheveux') is distinct from 'string'
+    or not ((p_tenue ->> 'teinte_cheveux') = any (array['roux', 'blond', 'chatain', 'noir', 'gris', 'blanc'])) then
+    return false;
+  end if;
+  return (select count(*) from jsonb_object_keys(p_tenue)) = 9;
 end $$;
 
 revoke all on function internal.gaulois_tenue_valide(jsonb) from public, anon, authenticated;
