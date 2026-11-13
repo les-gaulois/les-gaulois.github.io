@@ -1,6 +1,7 @@
 /** Charge une seule fois les fichiers du film pour son lecteur ; après un échec, « Réessayer » relance le chargement. */
 import { adresseVersionnee } from "../lib/clanmap/adresse";
 import { decodeFrames, type DecodedFrames } from "../lib/clanmap/codec";
+import { niveauDeRelief } from "../lib/clanmap/terrain";
 import type { StoredClanMapFilm } from "../lib/schemas";
 
 export interface FilmData {
@@ -9,8 +10,29 @@ export interface FilmData {
   terrain: HTMLImageElement;
   /** Où dessiner les vagues (`src/lib/fx/vagues.ts`) ; `null` si le build n'a pas pu le faire : la mer reste calme. */
   vagues: HTMLImageElement | null;
-  /** Le relief de chaque case (`reliefDuFond`) ; `null` si le build ne l'a pas fait : les couleurs des clans restent unies. */
-  relief: HTMLImageElement | null;
+  /**
+   * Le niveau de relief de chaque case du film (`niveauDeRelief`), `film.cols × film.rows`, lu une fois dans `relief.webp`
+   * pour le film et la carte de l'alliance ; `null` si le build ne l'a pas fait : les couleurs des clans restent unies.
+   */
+  relief: Uint8Array | null;
+}
+
+/** Les niveaux de relief de `relief.webp`, à la taille du film ; `null` si l'image ne se lit pas. */
+function lireRelief(image: HTMLImageElement, width: number, height: number): Uint8Array | null {
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return null;
+  try {
+    ctx.drawImage(image, 0, 0, width, height);
+    const px = ctx.getImageData(0, 0, width, height).data;
+    const out = new Uint8Array(width * height);
+    for (let i = 0; i < out.length; i++) out[i] = niveauDeRelief(px[i * 4]!);
+    return out;
+  } catch {
+    return null;
+  }
 }
 
 /** Une image facultative : son absence ne doit pas empêcher le film. */
@@ -39,7 +61,8 @@ async function load(assets: string, version: string | undefined): Promise<FilmDa
   const frames = decodeFrames(bytes, film.frames.length, film.totalChanges);
   const terrain = new Image();
   terrain.src = fichier("terrain.webp");
-  const [, vagues, relief] = await Promise.all([terrain.decode(), optionnelle(fichier("vagues.webp")), optionnelle(fichier("relief.webp"))]);
+  const [, vagues, reliefImage] = await Promise.all([terrain.decode(), optionnelle(fichier("vagues.webp")), optionnelle(fichier("relief.webp"))]);
+  const relief = reliefImage ? lireRelief(reliefImage, film.cols, film.rows) : null;
   return { film, frames, terrain, vagues, relief };
 }
 

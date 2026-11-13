@@ -30,7 +30,7 @@ import {
   type Retouche,
 } from "../lib/alliance/masque";
 import { ETAT_MER, ETAT_NEUTRE, auLittoral, decoderEtat, type EtatCarte } from "../lib/clanmap/etat";
-import { OCEAN_SHORE, OPEN_SEA_CSS } from "../lib/clanmap/terrain";
+import { OCEAN_SHORE, OPEN_SEA_CSS, RELIEF_NIVEAUX, reliefAuPixel, reliefDuNiveau, teinteAuRelief, type Rgb } from "../lib/clanmap/terrain";
 import { borner, decaler, echelleDuMonde, estVueDEnsemble, pointDeCarte, zoomer, type Monde } from "../lib/clanmap/vue";
 import type { StoredClanMapFilm } from "../lib/schemas";
 import { adresseVersionnee } from "../lib/clanmap/adresse";
@@ -143,6 +143,8 @@ export class EcranAlliance {
   private film: StoredClanMapFilm | null = null;
   private etat: EtatCarte | null = null;
   private terrain: HTMLImageElement | null = null;
+  /** Le niveau de relief de chaque pixel (`reliefAuPixel`), qui nuance la couleur des clans ; `null` sans `relief.webp`. */
+  private niveaux: Uint8Array | null = null;
   private base: HTMLCanvasElement | null = null;
   private W = 0;
   private H = 0;
@@ -211,6 +213,7 @@ export class EcranAlliance {
       .then(({ data, etat }) => {
         this.film = data.film;
         this.terrain = data.terrain;
+        this.niveaux = data.relief ? reliefAuPixel(data.relief, data.film.cols, data.film.rows, data.film.width, data.film.height) : null;
         this.etat = etat;
         this.W = data.film.width;
         this.H = data.film.height;
@@ -455,19 +458,33 @@ export class EcranAlliance {
   private peindreBase(): void {
     if (!this.film || !this.etat) return;
     const clans = this.film.clans;
-    const palette = new Uint32Array(clans.length + 1);
+    // Une couleur par valeur de l'état et par niveau de relief : `palette[v * RELIEF_NIVEAUX + niveau]`. Les clans colorés
+    // sont nuancés par le relief, comme sur le film (`teinteAuRelief`) ; le gris des autres et la terre neutre, déjà
+    // translucides, laissent voir celui du fond.
+    const L = RELIEF_NIVEAUX;
+    const niveaux = this.niveaux;
+    const palette = new Uint32Array((clans.length + 1) * L);
+    const uni = (v: number, c: number) => palette.fill(c, v * L, v * L + L);
     for (let i = 1; i < clans.length; i++) {
       const tag = clans[i]?.tag ?? null;
       // Chaque clan par son index : deux clans du même tag gardent chacun sa couleur du jeu.
       const [r, g, b] = clanRgb(clans[i]?.color ?? null);
       const couleur = this.couleursDuJeu ? (r << 16) | (g << 8) | b : tag === null ? undefined : this.couleurs.get(tag);
-      // Un peu moins que plein : les zones, hachurées par-dessus, restent visibles même sur la terre de leur clan.
-      palette[i + 1] = couleur === undefined ? rgba(DIM[0], DIM[1], DIM[2], DIM[3]) : rgba((couleur >> 16) & 0xff, (couleur >> 8) & 0xff, couleur & 0xff, 205);
+      if (couleur === undefined) {
+        uni(i + 1, rgba(DIM[0], DIM[1], DIM[2], DIM[3]));
+        continue;
+      }
+      const rgb: Rgb = [(couleur >> 16) & 0xff, (couleur >> 8) & 0xff, couleur & 0xff];
+      for (let n = 0; n < L; n++) {
+        const [tr, tg, tb] = niveaux ? teinteAuRelief(rgb, reliefDuNiveau(n)) : rgb;
+        // Un peu moins que plein : les zones, hachurées par-dessus, restent visibles même sur la terre de leur clan.
+        palette[(i + 1) * L + n] = rgba(tr, tg, tb, 205);
+      }
     }
     // La terre neutre, un voile gris qui laisse voir le relief. La mer laisse voir celle du fond, claire dans les mers et
     // plus foncée au large ; le fond, réduit de moitié, ne dessine la côte que par carrés de deux pixels : le littoral se
     // peint ici au pixel près, d'après l'état.
-    palette[ETAT_NEUTRE] = rgba(60, 64, 63, 120);
+    uni(ETAT_NEUTRE, rgba(60, 64, 63, 120));
     const littoral = rgba(OCEAN_SHORE[0], OCEAN_SHORE[1], OCEAN_SHORE[2], 255);
     const [base, ctx] = this.base ? [this.base, this.base.getContext("2d")!] : this.calqueCanvas(this.W, this.H);
     this.base = base;
@@ -477,7 +494,7 @@ export class EcranAlliance {
     const W = this.W;
     for (let p = 0; p < valeurs.length; p++) {
       const v = valeurs[p]!;
-      pix[p] = v === ETAT_MER ? (auLittoral(valeurs, W, p) ? littoral : 0) : (palette[v] ?? 0);
+      pix[p] = v === ETAT_MER ? (auLittoral(valeurs, W, p) ? littoral : 0) : (palette[v * L + (niveaux ? niveaux[p]! : 0)] ?? 0);
     }
     ctx.putImageData(image, 0, 0);
   }

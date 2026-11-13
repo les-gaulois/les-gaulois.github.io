@@ -21,7 +21,7 @@ import { fmtDay, fmtEpochDay, fmtEpochHour } from "../lib/format";
 import { CAMERA_CLICK_MS, CAMERA_SMOOTH_MS, FILM_MS, SHOT_MAX_ZOOM, SHOT_MS, SHOT_SPACING_MS, moveCamera, pickShots, placeCamera, type Camera } from "../lib/fx/camera";
 import { motionAllowed } from "../lib/fx/motion";
 import { decalage, FORCE_MIN, respiration, traitsVisibles, vaguelettes, type Vaguelette } from "../lib/fx/vagues";
-import { niveauDeRelief, OPEN_SEA_CSS, RELIEF_NIVEAUX, reliefDuNiveau, teinteAuRelief, type Rgb } from "../lib/clanmap/terrain";
+import { OPEN_SEA_CSS, RELIEF_NIVEAUX, reliefDuNiveau, teinteAuRelief, type Rgb } from "../lib/clanmap/terrain";
 import { filmSpeed, speedLabel, speedText } from "../lib/fx/speed";
 import { frNumber } from "../lib/nombre";
 import type { StoredClanMapFilm } from "../lib/schemas";
@@ -125,34 +125,13 @@ interface View {
 
 const rgba = (r: number, g: number, b: number, a: number) => ((a << 24) | (b << 16) | (g << 8) | r) >>> 0;
 
-/**
- * Le niveau de relief de chaque case du film (`niveauDeRelief`), lu une fois dans `relief.webp`, à la taille du film.
- * `null` si l'image ne se lit pas : les couleurs restent unies.
- */
-function lireRelief(image: HTMLImageElement, width: number, height: number): Uint8Array | null {
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  if (!ctx) return null;
-  try {
-    ctx.drawImage(image, 0, 0, width, height);
-    const px = ctx.getImageData(0, 0, width, height).data;
-    const out = new Uint8Array(width * height);
-    for (let i = 0; i < out.length; i++) out[i] = niveauDeRelief(px[i * 4]!);
-    return out;
-  } catch {
-    return null;
-  }
-}
-
 function mount(
   root: HTMLElement,
   film: StoredClanMapFilm,
   frames: DecodedFrames,
   terrain: HTMLImageElement,
   vagues: HTMLImageElement | null,
-  relief: HTMLImageElement | null,
+  niveaux: Uint8Array | null,
 ): void {
   const one = <T extends Element>(selector: string): T => {
     const el = root.querySelector<T>(selector);
@@ -224,7 +203,6 @@ function mount(
   const owner = new Uint16Array(N);
   // Une couleur par clan et par niveau de relief : `palette[clan * RELIEF_NIVEAUX + niveau]`. Sans relief, tous les
   // niveaux d'un clan ont sa couleur unie.
-  const niveaux = relief ? lireRelief(relief, W, H) : null;
   const niveau = niveaux ?? new Uint8Array(N);
   const palette = new Uint32Array(film.clans.length * RELIEF_NIVEAUX);
   const [galR, galG, galB] = clanRgb(GAL === null ? null : (film.clans[GAL]?.color ?? null));

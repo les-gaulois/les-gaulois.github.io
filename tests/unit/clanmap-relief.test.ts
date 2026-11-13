@@ -6,6 +6,7 @@ import {
   RELIEF_NIVEAUX,
   blendOwners,
   niveauDeRelief,
+  reliefAuPixel,
   reliefDuFond,
   reliefDuNiveau,
   teinteAuRelief,
@@ -80,5 +81,23 @@ describe("le relief sous les couleurs des clans", () => {
     expect([...out.slice(6, 9)]).toEqual(teinteAuRelief(vert, reliefDuNiveau(niveauDeRelief(250))));
     // Une couleur pleine : le fond sombre ne la ternit plus.
     expect(out[7]).toBeGreaterThan(vert[1]);
+  });
+
+  it("reporte le relief du film sur chaque pixel de la carte de l'alliance, deux fois plus fine", () => {
+    // Un film de 3 × 2 cases, une carte de 6 × 4 pixels : chaque case couvre un carré de 2 × 2 pixels.
+    const niveaux = Uint8Array.from([0, 1, 2, 10, 11, 12]);
+    const out = reliefAuPixel(niveaux, 3, 2, 6, 4);
+    const lignes = [0, 1, 2, 3].map((y) => [...out.slice(y * 6, y * 6 + 6)]);
+    expect(lignes).toEqual([
+      [0, 0, 1, 1, 2, 2],
+      [0, 0, 1, 1, 2, 2],
+      [10, 10, 11, 11, 12, 12],
+      [10, 10, 11, 11, 12, 12],
+    ]);
+    // Une carte de taille impaire : chaque pixel prend la case qui le couvre, sans sortir du film.
+    const impaire = reliefAuPixel(niveaux, 3, 2, 7, 5);
+    expect([...impaire.slice(0, 7)]).toEqual([0, 0, 0, 1, 1, 2, 2]);
+    expect([...impaire.slice(28, 35)]).toEqual([10, 10, 10, 11, 11, 12, 12]);
+    expect([0, 1, 2, 3, 4].map((y) => impaire[y * 7 + 6])).toEqual([2, 2, 2, 12, 12]);
   });
 });

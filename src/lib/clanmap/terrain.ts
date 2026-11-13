@@ -281,6 +281,21 @@ export const niveauDeRelief = (relief: number): number => relief >> 3;
 export const reliefDuNiveau = (niveau: number): number => niveau * 8 + 4;
 
 /**
+ * Les niveaux de relief du film (`cols × rows` cases) reportés sur chaque pixel d'une carte plus fine (`width × height`) :
+ * celle de l'alliance a deux pixels par case du film dans chaque sens, et chacun prend le niveau de sa case.
+ */
+export function reliefAuPixel(niveaux: Uint8Array, cols: number, rows: number, width: number, height: number): Uint8Array {
+  const out = new Uint8Array(width * height);
+  const colonne = new Uint32Array(width);
+  for (let x = 0; x < width; x++) colonne[x] = Math.min(cols - 1, Math.floor((x * cols) / width));
+  for (let y = 0; y < height; y++) {
+    const ligne = Math.min(rows - 1, Math.floor((y * rows) / height)) * cols;
+    for (let x = 0; x < width; x++) out[y * width + x] = niveaux[ligne + colonne[x]!]!;
+  }
+  return out;
+}
+
+/**
  * Pose les territoires sur le fond : même mélange que le lecteur du film, couleur pleine nuancée par le relief de sa
  * case, au milieu de son niveau. Sans relief, la couleur du clan telle quelle.
  */
