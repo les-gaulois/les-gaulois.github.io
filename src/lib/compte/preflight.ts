@@ -174,6 +174,26 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
     else add(label, "fail", `Réponse ${res.status}. Ne mettez pas en ligne : seul un compte validé avec son Gaulois achète.`);
   }
 
+  // L'onglet « Village » de la Direction (migration 20261113002100) : seuls les officiers et au-dessus lisent l'économie du
+  // village, seuls les admins et le fondateur règlent les prix et les chances. Absente : 404, la migration n'est pas collée.
+  // Les valeurs envoyées sont refusées par la fonction elle-même (un prix de 0, des chances qui ne font pas 100) : même si
+  // le droit d'appel était mal posé, rien ne serait écrit.
+  const economie = await rpc("get_village_economie");
+  const economieAnswer = economie.ok ? ((await economie.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (economie.status === 404) add("L'onglet Village de la Direction est installé", "warn", "get_village_economie est absente : collez la migration 20261113002100_village_direction.sql avant de mettre en ligne l'onglet Village.");
+  else if (isClosed(economie.status) || (economie.ok && economieAnswer?.ok === false)) add("Un visiteur ne lit pas l'économie du village", "ok");
+  else add("Un visiteur ne lit pas l'économie du village", "fail", `Réponse ${economie.status}. Ne mettez pas en ligne : seuls les officiers et au-dessus lisent l'économie du village.`);
+  const villageCalls = [
+    ["regler_village_prix", { p_prix: { commun: 0 } }, "Un visiteur ne règle pas les prix du village"],
+    ["regler_village_pochette", { p_prix: 0, p_chances: {} }, "Un visiteur ne règle pas la pochette surprise"],
+  ] as const;
+  for (const [fn, body, label] of villageCalls) {
+    const res = await rpc(fn, body);
+    const answer = res.ok ? ((await res.json().catch(() => null)) as { ok?: boolean } | null) : null;
+    if (isClosed(res.status) || (res.ok && answer?.ok === false)) add(label, "ok");
+    else add(label, "fail", `Réponse ${res.status}. Ne mettez pas en ligne : seuls les admins et le fondateur règlent les prix et les chances.`);
+  }
+
   // Les salons du robot : leur réglage contient les liens qui écrivent dans les salons. Seuls les admins et le fondateur
   // le règlent, et seule la clé de service, celle du robot, reçoit les liens. Leur installation se lit avec `supabase migration list`.
   const salonsState = await rpc("get_discord_salons");

@@ -23,6 +23,7 @@ const HEALTHY: Record<string, Route> = {
   "/rest/v1/rpc/get_mon_gaulois": { status: 401, body: {} },
   "/rest/v1/rpc/get_mes_stateres": { status: 401, body: {} },
   "/rest/v1/rpc/get_ma_boutique": { status: 401, body: {} },
+  "/rest/v1/rpc/get_village_economie": { status: 401, body: {} },
   "/rest/v1/profiles": { status: 401, body: {} },
   "/rest/v1/private_links": { status: 401, body: {} },
   "/rest/v1/admin_log": { status: 401, body: {} },
@@ -208,6 +209,22 @@ describe("le contrôle de la mise en ligne", () => {
     seen.length = 0;
     await run();
     expect(JSON.parse(seen.find((s) => s.url.endsWith("/rpc/acheter_objet"))?.body ?? "null")).toEqual({ p_emplacement: "tete", p_objet: "verification" });
+  });
+
+  it("bloque si un visiteur lit l'économie du village ou en règle les prix, et signale l'onglet Village pas encore installé", async () => {
+    expect(await statusOf(HEALTHY, "ne lit pas l'économie du village")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_village_economie": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "ne lit pas l'économie du village")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_village_economie": { status: 200, body: { ok: true, seuil: 5 } } }, "ne lit pas l'économie du village")).toBe("fail");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_village_economie": { status: 404, body: {} } }, "onglet Village de la Direction est installé")).toBe("warn");
+    expect(await statusOf(HEALTHY, "ne règle pas les prix du village")).toBe("ok");
+    expect(await statusOf(HEALTHY, "ne règle pas la pochette surprise")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/regler_village_prix": { status: 200, body: { ok: true, change: true } } }, "ne règle pas les prix du village")).toBe("fail");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/regler_village_pochette": { status: 200, body: { ok: true, change: true } } }, "ne règle pas la pochette surprise")).toBe("fail");
+    // Les valeurs envoyées seraient refusées par la fonction elle-même : un prix de 0, des chances vides.
+    seen.length = 0;
+    await run();
+    expect(JSON.parse(seen.find((s) => s.url.endsWith("/rpc/regler_village_prix"))?.body ?? "null")).toEqual({ p_prix: { commun: 0 } });
+    expect(JSON.parse(seen.find((s) => s.url.endsWith("/rpc/regler_village_pochette"))?.body ?? "null")).toEqual({ p_prix: 0, p_chances: {} });
   });
 
   it("dit si la fonction code-discord est déployée et réglée, et ne bloque qu'une fois la connexion par code ouverte", async () => {
