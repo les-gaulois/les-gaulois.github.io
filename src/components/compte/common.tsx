@@ -21,6 +21,9 @@ export type LangueEcran = "fr" | "en";
 export const messageIn = (e: unknown, langue: LangueEcran = "fr"): string =>
   langue === "fr" ? messageOf(e) : e instanceof ServerError ? errorMessageEn(e.code) : ERROR_MESSAGES_EN["network"]!;
 
+/** « Modifier » remplit un formulaire, puis y mène : sur téléphone, il est au-dessus de la liste. */
+export const focusField = (id: string) => window.setTimeout(() => document.getElementById(id)?.focus(), 0);
+
 /** L'heure, relue chaque minute : une durée affichée reste juste dans une page laissée ouverte. */
 export function useNow(every = 60_000): Date {
   const [now, setNow] = useState(() => new Date());
