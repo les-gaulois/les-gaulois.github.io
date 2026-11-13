@@ -19,6 +19,7 @@ import { filmResume } from "../lib/clanmap/reprise";
 import { borner, cadreDuClan, decaler, estVueDEnsemble, ligneDuClan, pointDeCarte, positionSurLaCarte, zoomer } from "../lib/clanmap/vue";
 import { fmtDay, fmtEpochDay, fmtEpochHour } from "../lib/format";
 import { CAMERA_CLICK_MS, CAMERA_SMOOTH_MS, FILM_MS, SHOT_MAX_ZOOM, SHOT_MS, SHOT_SPACING_MS, moveCamera, pickShots, placeCamera, type Camera } from "../lib/fx/camera";
+import { largeurCouverte } from "../lib/fenetre-libre";
 import { motionAllowed } from "../lib/fx/motion";
 import { decalage, FORCE_MIN, respiration, traitsVisibles, vaguelettes, type Vaguelette } from "../lib/fx/vagues";
 import { OPEN_SEA_CSS, RELIEF_NIVEAUX, reliefDuNiveau, teinteAuRelief, type Rgb } from "../lib/clanmap/terrain";
@@ -493,7 +494,7 @@ function mount(
     const fenetre = root.querySelector<HTMLElement>("[data-fenetre].est-ouverte");
     const m = map.getBoundingClientRect();
     const f = fenetre?.getBoundingClientRect();
-    covered = !f || f.width === 0 || m.width === 0 || f.bottom <= m.top || f.top >= m.bottom ? 0 : Math.max(0, m.right - f.left) * (view.width / m.width);
+    covered = m.width === 0 ? 0 : largeurCouverte(m, f) * (view.width / m.width);
     if (manual && free) manual = borner(manual, monde, ecran(), MAX_CELL_PX * dpr, covered);
   }
 

@@ -15,6 +15,7 @@ import {
   type EcranConsole,
   type FenetreId,
 } from "../lib/carte-console";
+import { brancherFenetreLibre } from "./fenetre-libre";
 
 function init(): void {
   const root = document.querySelector<HTMLElement>("[data-carte]");
@@ -121,6 +122,9 @@ function init(): void {
     new ResizeObserver(mesurer).observe(session);
     mesurer();
   }
+
+  // Une fenêtre libre (la fenêtre « Alliance ») se déplace, change de taille, s'agrandit ou se réduit sur la carte.
+  for (const fenetre of fenetres.values()) if (fenetre.hasAttribute("data-libre")) brancherFenetreLibre(root, fenetre, pose);
 
   // La console est prête : la page garde sa mise en page d'écran (voir le script en ligne de carte.astro).
   html.dataset.cartePrete = "";

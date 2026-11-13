@@ -701,12 +701,17 @@ export default function AllianceApp() {
     return (
       <div data-testid="alliance-app">
         {enTete(
-          <p class="carte-petit text-muted" data-testid="alliance-moi">
-            {t.connecte}{" "}
-            <strong class="text-white">
+          <p class="alliance-moi" data-testid="alliance-moi">
+            <span class="alliance-moi-libelle">{t.connecte}</span>{" "}
+            <strong class="alliance-moi-nom">
               [{access.tag}] {access.name}
             </strong>
-            {access.kind === "allie" ? ` · ${t.roleAllie}` : staff ? ` · ${t.roleEncadrement}` : ""}
+            {access.kind === "allie" || staff ? (
+              <span class="alliance-marque">
+                <span class="sr-only"> · </span>
+                {access.kind === "allie" ? t.roleAllie : t.roleEncadrement}
+              </span>
+            ) : null}
           </p>,
         )}
         {!charge.etat && <p class="form-problem mt-2">{t.sansEtat}</p>}

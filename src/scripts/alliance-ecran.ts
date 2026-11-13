@@ -35,6 +35,7 @@ import { OCEAN_SHORE, OPEN_SEA_CSS, RELIEF_NIVEAUX, reliefAuPixel, reliefDuNivea
 import { borner, decaler, echelleDuMonde, estVueDEnsemble, pointDeCarte, zoomer, type Monde } from "../lib/clanmap/vue";
 import type { StoredClanMapFilm } from "../lib/schemas";
 import { adresseVersionnee } from "../lib/clanmap/adresse";
+import { largeurCouverte } from "../lib/fenetre-libre";
 import { loadFilmData } from "./film-data";
 
 export type Outil = "main" | "crayon" | "gomme" | "rectangle";
@@ -692,7 +693,7 @@ export class EcranAlliance {
     const fenetre = this.root.querySelector<HTMLElement>("[data-fenetre].est-ouverte");
     const m = this.map.getBoundingClientRect();
     const f = fenetre?.getBoundingClientRect();
-    this.covered = !f || f.width === 0 || m.width === 0 || f.bottom <= m.top || f.top >= m.bottom ? 0 : Math.max(0, m.right - f.left) * (this.canvas.width / m.width);
+    this.covered = m.width === 0 ? 0 : largeurCouverte(m, f) * (this.canvas.width / m.width);
     // Sur un grand écran, le cadre du titre (« La carte des clans ») est posé sur la carte : les outils et la légende de
     // l'alliance se rangent dessous (global.css, \`--alliance-haut\`), au lieu de le chevaucher entre 768 et 1 130 px.
     const session = this.root.querySelector<HTMLElement>(".carte-session")?.getBoundingClientRect();

@@ -148,13 +148,48 @@ export function TableauZone({ bilan, t }: { bilan: BilanZone; t: Textes }) {
   );
 }
 
-/** Le choix de la langue de la fenêtre : deux boutons, le choisi en vidéo inversée. Chaque langue se nomme dans la sienne, en toutes lettres. */
+/**
+ * Le drapeau d'une langue, en SVG dans la page (aucun fichier chargé d'ailleurs) : le tricolore pour le français, aux
+ * couleurs du filet du site, l'Union Jack pour l'anglais. Le tracé de l'Union Jack (découpe des diagonales, traits de 6, 4,
+ * 10 et 6) reprend le fichier « Flag of the United Kingdom.svg » de Wikimedia Commons, dans le domaine public (ligne dans
+ * NOTICE.md). Les deux à la même taille, en 3 sur 2 : l'Union Jack est rogné sur ses côtés, comme sur les sélecteurs de
+ * langue courants. Les couleurs sont dans global.css (`.drapeau-*`).
+ */
+function Drapeau({ langue }: { langue: Langue }) {
+  if (langue === "fr")
+    return (
+      <svg class="alliance-drapeau" viewBox="0 0 3 2" aria-hidden="true">
+        <rect class="drapeau-bleu" width="1" height="2" />
+        <rect class="drapeau-blanc" x="1" width="1" height="2" />
+        <rect class="drapeau-rouge" x="2" width="1" height="2" />
+      </svg>
+    );
+  return (
+    <svg class="alliance-drapeau" viewBox="0 0 60 30" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <clipPath id="drapeau-uk-diagonales">
+        <path d="M30 15h30v15zv15H0zH0V0zV0h30z" />
+      </clipPath>
+      <rect class="drapeau-uk-fond" width="60" height="30" />
+      <path class="drapeau-uk-blanc" d="M0 0l60 30m0-30L0 30" stroke-width="6" />
+      <path class="drapeau-uk-rouge" d="M0 0l60 30m0-30L0 30" stroke-width="4" clip-path="url(#drapeau-uk-diagonales)" />
+      <path class="drapeau-uk-blanc" d="M30 0v30M0 15h60" stroke-width="10" />
+      <path class="drapeau-uk-rouge" d="M30 0v30M0 15h60" stroke-width="6" />
+    </svg>
+  );
+}
+
+/**
+ * Le choix de la langue de la fenêtre : deux drapeaux (demande du pilote, 13 novembre 2026), le choisi entouré et en
+ * pleine couleur. Chaque bouton porte le nom de sa langue dans la sienne, en toutes lettres, pour les lecteurs d'écran et
+ * dans la bulle de la souris.
+ */
 export function ChoixLangue({ langue, choisir, t }: { langue: Langue; choisir: (l: Langue) => void; t: Textes }) {
   return (
     <div class="alliance-langues" role="group" aria-label={t.choixLangue} data-testid="alliance-langue">
       {LANGUES.map((l) => (
-        <button type="button" lang={l.id} aria-pressed={langue === l.id} onClick={() => choisir(l.id)}>
-          {l.nom}
+        <button type="button" lang={l.id} aria-pressed={langue === l.id} title={l.nom} onClick={() => choisir(l.id)}>
+          <Drapeau langue={l.id} />
+          <span class="sr-only">{l.nom}</span>
         </button>
       ))}
     </div>

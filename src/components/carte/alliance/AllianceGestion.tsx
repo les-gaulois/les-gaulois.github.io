@@ -1,6 +1,9 @@
 /**
  * La gestion de l'alliance, pour l'encadrement de GAL : accepter ou refuser les joueurs alliés qui ont ouvert leur lien,
  * inviter, créer les alliances, y glisser les clans de la carte, et retirer un accès. Le serveur revérifie chaque droit : cette partie n'est qu'affichée.
+ *
+ * Rangée en blocs (13 novembre 2026, « que ça respire, ranger les sections proprement ») : ce qui attend l'encadrement,
+ * l'invitation, les joueurs alliés, les alliances, puis le rangement des clans. Fenêtre agrandie, les blocs vont par deux.
  */
 import { useState } from "preact/hooks";
 import { COULEURS_ALLIANCE, couleurLibre } from "../../../lib/alliance/couleurs";
@@ -51,14 +54,18 @@ function EnDeuxTemps({ busy, texte, confirmer, nom, onConfirm }: { busy: boolean
   );
 }
 
+/** Le choix d'une couleur d'alliance, avec sa pastille à côté : on voit la couleur avant de l'enregistrer. */
 function ChoixCouleur({ id, valeur, onChange }: { id: string; valeur: number; onChange: (v: number) => void }) {
   return (
-    <select id={id} class="field mt-1" value={String(valeur)} onChange={(e) => onChange(Number(e.currentTarget.value))}>
-      {COULEURS_ALLIANCE.map((c) => (
-        <option value={String(c.valeur)}>{c.nom}</option>
-      ))}
-      {!COULEURS_ALLIANCE.some((c) => c.valeur === valeur) && <option value={String(valeur)}>Couleur actuelle</option>}
-    </select>
+    <span class="alliance-choix-clan">
+      <Pastille couleur={valeur} />
+      <select id={id} class="field" value={String(valeur)} onChange={(e) => onChange(Number(e.currentTarget.value))}>
+        {COULEURS_ALLIANCE.map((c) => (
+          <option value={String(c.valeur)}>{c.nom}</option>
+        ))}
+        {!COULEURS_ALLIANCE.some((c) => c.valeur === valeur) && <option value={String(valeur)}>Couleur actuelle</option>}
+      </select>
+    </span>
   );
 }
 
@@ -70,59 +77,69 @@ function Alliances({ ctx }: { ctx: Contexte }) {
   const [edite, setEdite] = useState<{ id: number; nom: string; couleur: number } | null>(null);
 
   return (
-    <section class="carte-bloc" aria-labelledby="gestion-alliances">
+    <section class="alliance-panneau" aria-labelledby="gestion-alliances">
       <h3 id="gestion-alliances">Les alliances</h3>
-      <ul class="alliance-gestion-liste">
-        {alliances.map((a) =>
-          edite?.id === a.id ? (
-            <li>
-              <form
-                class="grid gap-2"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  void run("save_alliance", { p_id: a.id, p_name: edite.nom, p_color: edite.couleur }).then((r) => r && setEdite(null));
-                }}
-              >
-                <label for={`alliance-nom-${a.id}`} class="text-sm font-semibold">
-                  Nom
-                </label>
-                <input id={`alliance-nom-${a.id}`} class="field" required minLength={2} maxLength={40} value={edite.nom} onInput={(e) => setEdite({ ...edite, nom: e.currentTarget.value })} />
-                <label for={`alliance-couleur-${a.id}`} class="text-sm font-semibold">
-                  Couleur sur la carte
-                </label>
-                <ChoixCouleur id={`alliance-couleur-${a.id}`} valeur={edite.couleur} onChange={(v) => setEdite({ ...edite, couleur: v })} />
-                <div class="alliance-ligne">
-                  <button type="submit" class="btn btn-primary" disabled={busy}>
-                    Enregistrer
-                  </button>
-                  <button type="button" class="btn btn-ghost" onClick={() => setEdite(null)}>
-                    Annuler
-                  </button>
-                </div>
-                {/* Supprimer est à part, sous un filet : l'alliance et le rangement de ses clans ne se récupèrent pas. */}
-                <div class="alliance-a-part">
-                  <p class="carte-aide">
-                    Supprimer l'alliance sort ses clans de toute alliance.{a.id === ctx.donnees.ours ? " C'est la nôtre : les joueurs alliés ne verront plus la carte de l'alliance tant que GAL n'est pas rangé dans une autre." : ""}
-                  </p>
-                  <DeleteButton busy={busy} label={a.name} onConfirm={() => void run("delete_alliance", { p_id: a.id }).then((r) => r && setEdite(null))} />
-                </div>
-              </form>
-            </li>
-          ) : (
-            <li class="alliance-ligne">
-              <span>
-                <Pastille couleur={a.color} />
-                <strong>{a.name}</strong> · {a.clans.length} clan{a.clans.length > 1 ? "s" : ""}
-              </span>
-              <button type="button" class="btn btn-ghost" onClick={() => setEdite({ id: a.id, nom: a.name, couleur: a.color })}>
-                Modifier
-              </button>
-            </li>
-          ),
-        )}
-      </ul>
+      {alliances.length > 0 && (
+        <ul class="alliance-rangs">
+          {alliances.map((a) =>
+            edite?.id === a.id ? (
+              <li class="alliance-rang alliance-rang-edition">
+                <form
+                  class="alliance-formulaire"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void run("save_alliance", { p_id: a.id, p_name: edite.nom, p_color: edite.couleur }).then((r) => r && setEdite(null));
+                  }}
+                >
+                  <div class="alliance-champs">
+                    <div class="alliance-champ alliance-champ-large">
+                      <label for={`alliance-nom-${a.id}`}>Nom</label>
+                      <input id={`alliance-nom-${a.id}`} class="field" required minLength={2} maxLength={40} value={edite.nom} onInput={(e) => setEdite({ ...edite, nom: e.currentTarget.value })} />
+                    </div>
+                    <div class="alliance-champ">
+                      <label for={`alliance-couleur-${a.id}`}>Couleur sur la carte</label>
+                      <ChoixCouleur id={`alliance-couleur-${a.id}`} valeur={edite.couleur} onChange={(v) => setEdite({ ...edite, couleur: v })} />
+                    </div>
+                  </div>
+                  <div class="alliance-ligne">
+                    <button type="submit" class="btn btn-primary" disabled={busy}>
+                      Enregistrer
+                    </button>
+                    <button type="button" class="btn btn-ghost" onClick={() => setEdite(null)}>
+                      Annuler
+                    </button>
+                  </div>
+                  {/* Supprimer est à part, sous un filet : l'alliance et le rangement de ses clans ne se récupèrent pas. */}
+                  <div class="alliance-a-part">
+                    <p class="carte-aide">
+                      Supprimer l'alliance sort ses clans de toute alliance.{a.id === ctx.donnees.ours ? " C'est la nôtre : les joueurs alliés ne verront plus la carte de l'alliance tant que GAL n'est pas rangé dans une autre." : ""}
+                    </p>
+                    <DeleteButton busy={busy} label={a.name} onConfirm={() => void run("delete_alliance", { p_id: a.id }).then((r) => r && setEdite(null))} />
+                  </div>
+                </form>
+              </li>
+            ) : (
+              <li class="alliance-rang">
+                <span class="alliance-rang-texte">
+                  <span class="alliance-rang-nom">
+                    <Pastille couleur={a.color} />
+                    <strong>{a.name}</strong>
+                    {a.id === ctx.donnees.ours && <span class="alliance-marque">la nôtre</span>}
+                  </span>
+                  <span class="alliance-rang-detail tnum">
+                    {a.clans.length} clan{a.clans.length > 1 ? "s" : ""}
+                  </span>
+                </span>
+                <button type="button" class="btn btn-ghost !min-h-10 !py-1.5 !text-sm" aria-label={`Modifier l'alliance ${a.name}`} onClick={() => setEdite({ id: a.id, nom: a.name, couleur: a.color })}>
+                  Modifier
+                </button>
+              </li>
+            ),
+          )}
+        </ul>
+      )}
       <form
-        class="mt-3 grid gap-2"
+        class="alliance-formulaire alliance-sous-bloc"
         onSubmit={(e) => {
           e.preventDefault();
           void run("save_alliance", { p_id: null, p_name: nom, p_color: couleur }).then((r) => {
@@ -132,14 +149,16 @@ function Alliances({ ctx }: { ctx: Contexte }) {
           });
         }}
       >
-        <label for="alliance-nouvelle" class="text-sm font-semibold">
-          Nouvelle alliance
-        </label>
-        <input id="alliance-nouvelle" class="field" required minLength={2} maxLength={40} placeholder="Nom de l'alliance" value={nom} onInput={(e) => setNom(e.currentTarget.value)} />
-        <label for="alliance-nouvelle-couleur" class="text-sm font-semibold">
-          Couleur sur la carte
-        </label>
-        <ChoixCouleur id="alliance-nouvelle-couleur" valeur={couleur} onChange={setCouleur} />
+        <div class="alliance-champs">
+          <div class="alliance-champ alliance-champ-large">
+            <label for="alliance-nouvelle">Nouvelle alliance</label>
+            <input id="alliance-nouvelle" class="field" required minLength={2} maxLength={40} placeholder="Nom de l'alliance" value={nom} onInput={(e) => setNom(e.currentTarget.value)} />
+          </div>
+          <div class="alliance-champ">
+            <label for="alliance-nouvelle-couleur">Couleur sur la carte</label>
+            <ChoixCouleur id="alliance-nouvelle-couleur" valeur={couleur} onChange={setCouleur} />
+          </div>
+        </div>
         <div>
           <button type="submit" class="btn btn-primary" disabled={busy || nom.trim().length < 2}>
             Créer l'alliance
@@ -199,48 +218,53 @@ function Rangement({ ctx }: { ctx: Contexte }) {
   );
 
   return (
-    <section class="carte-bloc" aria-labelledby="gestion-clans">
+    <section class="alliance-panneau alliance-panneau-large" aria-labelledby="gestion-clans">
       <h3 id="gestion-clans">Ranger les clans</h3>
       <p class="carte-aide">GAL dans une alliance en fait la nôtre.</p>
-      {alliances.length === 0 && <p class="mt-2 text-muted">Créez d'abord une alliance.</p>}
-      {alliances.map((a) => (
-        <div class="alliance-case" data-survolee={survolee === a.id ? "" : undefined} onDragOver={survol(a.id)} onDragLeave={() => setSurvolee(null)} onDrop={deposer(a.id)}>
-          <p class="font-semibold">
-            <Pastille couleur={a.color} />
-            {a.name}
-          </p>
-          <ul class="alliance-jetons">{a.clans.map((tag) => jeton(tag, a))}</ul>
-          <label for={`ajouter-${a.id}`} class="sr-only">
-            Ajouter un clan à {a.name}
-          </label>
-          <select
-            id={`ajouter-${a.id}`}
-            class="field mt-2"
-            disabled={busy}
-            value=""
-            onChange={(e) => {
-              const tag = e.currentTarget.value;
-              e.currentTarget.value = "";
-              if (tag) ranger(tag, a.id);
-            }}
-          >
-            <option value="">Ajouter un clan…</option>
-            {[...pixels.keys()]
-              .filter((tag) => range.get(tag) !== a.id)
-              .map((tag) => {
-                const ailleurs = alliances.find((x) => x.id === range.get(tag));
-                return <option value={tag}>{ailleurs ? `${tag} (aujourd'hui dans ${ailleurs.name})` : tag}</option>;
-              })}
-          </select>
-        </div>
-      ))}
+      {alliances.length === 0 && <p class="alliance-vide">Créez d'abord une alliance.</p>}
       {alliances.length > 0 && (
-        // Les clans sans alliance, repliés : une quarantaine de clans allongeaient la fenêtre. Déposer un clan sur la case le sort de son alliance.
-        <div class="alliance-case" data-survolee={survolee === "aucune" ? "" : undefined} onDragOver={survol("aucune")} onDragLeave={() => setSurvolee(null)} onDrop={deposer(null)}>
-          <details class="fold">
-            <summary>Clans sans alliance ({libres.length})</summary>
-            <ul class="alliance-jetons">{libres.map((tag) => jeton(tag, null))}</ul>
-          </details>
+        <div class="alliance-cases">
+          {alliances.map((a) => (
+            <div class="alliance-case" data-survolee={survolee === a.id ? "" : undefined} onDragOver={survol(a.id)} onDragLeave={() => setSurvolee(null)} onDrop={deposer(a.id)}>
+              <p class="alliance-case-tete">
+                <Pastille couleur={a.color} />
+                <strong>{a.name}</strong>
+                <span class="alliance-rang-detail tnum">
+                  {a.clans.length} clan{a.clans.length > 1 ? "s" : ""}
+                </span>
+              </p>
+              <ul class="alliance-jetons">{a.clans.map((tag) => jeton(tag, a))}</ul>
+              <label for={`ajouter-${a.id}`} class="sr-only">
+                Ajouter un clan à {a.name}
+              </label>
+              <select
+                id={`ajouter-${a.id}`}
+                class="field"
+                disabled={busy}
+                value=""
+                onChange={(e) => {
+                  const tag = e.currentTarget.value;
+                  e.currentTarget.value = "";
+                  if (tag) ranger(tag, a.id);
+                }}
+              >
+                <option value="">Ajouter un clan…</option>
+                {[...pixels.keys()]
+                  .filter((tag) => range.get(tag) !== a.id)
+                  .map((tag) => {
+                    const ailleurs = alliances.find((x) => x.id === range.get(tag));
+                    return <option value={tag}>{ailleurs ? `${tag} (aujourd'hui dans ${ailleurs.name})` : tag}</option>;
+                  })}
+              </select>
+            </div>
+          ))}
+          {/* Les clans sans alliance, repliés : une quarantaine de clans allongeaient la fenêtre. Déposer un clan sur la case le sort de son alliance. */}
+          <div class="alliance-case alliance-case-libres" data-survolee={survolee === "aucune" ? "" : undefined} onDragOver={survol("aucune")} onDragLeave={() => setSurvolee(null)} onDrop={deposer(null)}>
+            <details class="fold">
+              <summary>Clans sans alliance ({libres.length})</summary>
+              <ul class="alliance-jetons">{libres.map((tag) => jeton(tag, null))}</ul>
+            </details>
+          </div>
         </div>
       )}
       <Problem message={erreur} />
@@ -248,10 +272,47 @@ function Rangement({ ctx }: { ctx: Contexte }) {
   );
 }
 
-function Allies({ ctx }: { ctx: Contexte }) {
+// `approved === false` seulement : un serveur d'avant l'accord ne donne pas ce champ, et tous ses alliés sont entrés.
+const enAttenteDe = (ctx: Contexte) => (ctx.donnees.allies ?? []).filter((a) => a.approved === false);
+
+/** Ceux qui ont ouvert leur lien attendent l'accord : un lien transféré à un autre ne lui ouvre rien sans lui. */
+function EnAttente({ ctx }: { ctx: Contexte }) {
   const { busy, erreur, run } = useAction(ctx.relire);
-  const allies = ctx.donnees.allies ?? [];
-  const invitations = ctx.donnees.invites ?? [];
+  const enAttente = enAttenteDe(ctx);
+  if (enAttente.length === 0) return null;
+  return (
+    <section class="alliance-panneau alliance-panneau-alerte alliance-panneau-large" aria-labelledby="gestion-attente" data-testid="allies-en-attente">
+      <h3 id="gestion-attente">Ils attendent votre accord</h3>
+      <p class="carte-aide">Vérifiez que le nom Discord est bien celui du joueur invité.</p>
+      <ul class="alliance-rangs">
+        {enAttente.map((a) => (
+          <li key={a.number} class="alliance-rang">
+            <span class="alliance-rang-texte">
+              <strong>
+                [{a.tag}] {a.alias}
+              </strong>
+              <span class="alliance-rang-detail">
+                Discord : {a.discord_name ?? "inconnu"} · le {fmtDateTime(a.joined_at)}
+              </span>
+            </span>
+            <span class="alliance-ligne">
+              <button type="button" class="btn btn-primary !min-h-10 !py-1.5 !text-sm" disabled={busy} onClick={() => void run("approve_alliance_ally", { p_number: a.number, p_approve: true })} aria-label={`Accepter ${a.alias}, joueur de ${a.tag}`}>
+                Accepter
+              </button>
+              <span class="alliance-a-part">
+                <EnDeuxTemps busy={busy} texte="Refuser" confirmer="Confirmer le refus" nom={a.alias} onConfirm={() => void run("approve_alliance_ally", { p_number: a.number, p_approve: false })} />
+              </span>
+            </span>
+          </li>
+        ))}
+      </ul>
+      <Problem message={erreur} />
+    </section>
+  );
+}
+
+function Inviter({ ctx }: { ctx: Contexte }) {
+  const { busy, erreur, run } = useAction(ctx.relire);
   const clans = [...ctx.notres].filter((tag) => tag !== "GAL").sort();
   const [tag, setTag] = useState("");
   const [pseudo, setPseudo] = useState("");
@@ -284,66 +345,39 @@ function Allies({ ctx }: { ctx: Contexte }) {
     if (cible instanceof HTMLInputElement) cible.focus({ preventScroll: true });
   };
 
-  // `approved === false` seulement : un serveur d'avant l'accord ne donne pas ce champ, et tous ses alliés sont entrés.
-  const enAttente = allies.filter((a) => a.approved === false);
-  const acceptes = allies.filter((a) => a.approved !== false);
-
   return (
-    <section aria-labelledby="gestion-allies" data-testid="gestion-invitation">
-      {/* Ceux qui ont ouvert leur lien attendent l'accord : un lien transféré à un autre ne lui ouvre rien sans lui. */}
-      {enAttente.length > 0 && (
-        <div class="alliance-manque mb-4" data-testid="allies-en-attente">
-          <h3>Ils attendent votre accord</h3>
-          <p class="carte-aide">Vérifiez que le nom Discord est bien celui du joueur invité.</p>
-          <ul class="alliance-gestion-liste">
-            {enAttente.map((a) => (
-              <li key={a.number} class="alliance-ligne">
-                <span>
-                  <strong>
-                    [{a.tag}] {a.alias}
-                  </strong>
-                  {` · Discord : ${a.discord_name ?? "inconnu"} · le ${fmtDateTime(a.joined_at)}`}
-                </span>
-                <button type="button" class="btn btn-primary !min-h-10 !py-1.5 !text-sm" disabled={busy} onClick={() => void run("approve_alliance_ally", { p_number: a.number, p_approve: true })} aria-label={`Accepter ${a.alias}, joueur de ${a.tag}`}>
-                  Accepter
-                </button>
-                <span class="alliance-a-part">
-                  <EnDeuxTemps busy={busy} texte="Refuser" confirmer="Confirmer le refus" nom={a.alias} onConfirm={() => void run("approve_alliance_ally", { p_number: a.number, p_approve: false })} />
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+    <section class="alliance-panneau" aria-labelledby="gestion-allies" data-testid="gestion-invitation">
       <h3 id="gestion-allies">Inviter un joueur allié</h3>
       {manque ? (
         <div class="alliance-manque" data-testid="invite-manque">
           <p>{manque}</p>
-          <button type="button" class="btn btn-ghost mt-2" onClick={allerAuRangement}>
+          <button type="button" class="btn btn-ghost mt-3" onClick={allerAuRangement}>
             {alliances.length > 0 ? "Aller au rangement des clans" : "Aller à la création de l'alliance"}
           </button>
         </div>
       ) : (
         <form
-          class="mt-2 grid gap-2"
+          class="alliance-formulaire"
           onSubmit={(e) => {
             e.preventDefault();
             void inviter();
           }}
         >
           <p class="carte-aide">Un lien par joueur, valable une fois et 7 jours ; il entre après votre accord, jamais au QG.</p>
-          <label for="invite-clan" class="text-sm font-semibold">
-            Son clan
-          </label>
-          <select id="invite-clan" class="field" value={tag || clans[0]} onChange={(e) => setTag(e.currentTarget.value)}>
-            {clans.map((t) => (
-              <option value={t}>{t}</option>
-            ))}
-          </select>
-          <label for="invite-pseudo" class="text-sm font-semibold">
-            Son pseudo, pour vous en souvenir
-          </label>
-          <input id="invite-pseudo" class="field" required minLength={2} maxLength={24} value={pseudo} onInput={(e) => setPseudo(e.currentTarget.value)} />
+          <div class="alliance-champs">
+            <div class="alliance-champ">
+              <label for="invite-clan">Son clan</label>
+              <select id="invite-clan" class="field" value={tag || clans[0]} onChange={(e) => setTag(e.currentTarget.value)}>
+                {clans.map((t) => (
+                  <option value={t}>{t}</option>
+                ))}
+              </select>
+            </div>
+            <div class="alliance-champ alliance-champ-large">
+              <label for="invite-pseudo">Son pseudo, pour vous en souvenir</label>
+              <input id="invite-pseudo" class="field" required minLength={2} maxLength={24} value={pseudo} onInput={(e) => setPseudo(e.currentTarget.value)} />
+            </div>
+          </div>
           <div>
             <button type="submit" class="btn btn-primary" disabled={busy || pseudo.trim().length < 2}>
               Créer le lien d'invitation
@@ -354,8 +388,8 @@ function Allies({ ctx }: { ctx: Contexte }) {
       {lien && (
         <div class="alliance-lien" data-testid="invite-lien">
           <p class="font-semibold">Lien pour {lien.pour}, à n'envoyer qu'à lui :</p>
-          <input class="field tnum" readOnly value={lien.url} aria-label={`Lien d'invitation pour ${lien.pour}`} onFocus={(e) => e.currentTarget.select()} />
-          <div class="alliance-ligne">
+          <div class="alliance-lien-ligne">
+            <input class="field tnum" readOnly value={lien.url} aria-label={`Lien d'invitation pour ${lien.pour}`} onFocus={(e) => e.currentTarget.select()} />
             <button
               type="button"
               class="btn btn-ghost"
@@ -374,17 +408,32 @@ function Allies({ ctx }: { ctx: Contexte }) {
         </div>
       )}
       <Problem message={erreur} />
+    </section>
+  );
+}
 
+/** Les invitations pas encore ouvertes, et les joueurs alliés acceptés, dont on peut retirer l'accès. */
+function Joueurs({ ctx }: { ctx: Contexte }) {
+  const { busy, erreur, run } = useAction(ctx.relire);
+  const invitations = ctx.donnees.invites ?? [];
+  const acceptes = (ctx.donnees.allies ?? []).filter((a) => a.approved !== false);
+  if (invitations.length === 0 && acceptes.length === 0) return null;
+  return (
+    <section class="alliance-panneau" aria-labelledby="gestion-joueurs">
+      <h3 id="gestion-joueurs">Joueurs alliés</h3>
       {invitations.length > 0 && (
         <>
-          <p class="mt-4 font-semibold">Invitations en attente</p>
-          <ul class="alliance-gestion-liste">
+          <h4 class="alliance-sous-titre">Invitations en attente</h4>
+          <ul class="alliance-rangs">
             {invitations.map((i) => (
-              <li class="alliance-ligne">
-                <span>
-                  [{i.tag}] {i.note} · jusqu'au {fmtDateTime(i.expires_at)}
+              <li class="alliance-rang">
+                <span class="alliance-rang-texte">
+                  <strong>
+                    [{i.tag}] {i.note}
+                  </strong>
+                  <span class="alliance-rang-detail">jusqu'au {fmtDateTime(i.expires_at)}</span>
                 </span>
-                <button type="button" class="btn btn-ghost" disabled={busy} onClick={() => void run("cancel_alliance_invite", { p_id: i.id })}>
+                <button type="button" class="btn btn-ghost !min-h-10 !py-1.5 !text-sm" disabled={busy} aria-label={`Annuler l'invitation de ${i.note}`} onClick={() => void run("cancel_alliance_invite", { p_id: i.id })}>
                   Annuler
                 </button>
               </li>
@@ -392,35 +441,41 @@ function Allies({ ctx }: { ctx: Contexte }) {
           </ul>
         </>
       )}
-
-      {acceptes.length > 0 && <p class="mt-4 font-semibold">Joueurs qui ont accès</p>}
       {acceptes.length > 0 && (
-        <ul class="alliance-gestion-liste">
-          {acceptes.map((a) => (
-            <li key={a.number} class="alliance-ligne">
-              <span>
-                <strong>
-                  [{a.tag}] {a.alias}
-                </strong>
-                {a.discord_name ? ` · Discord : ${a.discord_name}` : ""} · depuis le {fmtDateTime(a.joined_at)}
-                {!a.active && <span class="text-muted"> · sans accès : son clan n'est plus dans notre alliance</span>}
-              </span>
-              <span class="alliance-a-part">
-                <EnDeuxTemps busy={busy} texte="Retirer l'accès" confirmer="Confirmer le retrait" nom={a.alias} onConfirm={() => void run("remove_alliance_ally", { p_number: a.number })} />
-              </span>
-            </li>
-          ))}
-        </ul>
+        <>
+          <h4 class="alliance-sous-titre">Joueurs qui ont accès</h4>
+          <ul class="alliance-rangs">
+            {acceptes.map((a) => (
+              <li key={a.number} class="alliance-rang">
+                <span class="alliance-rang-texte">
+                  <strong>
+                    [{a.tag}] {a.alias}
+                  </strong>
+                  <span class="alliance-rang-detail">
+                    {a.discord_name ? `Discord : ${a.discord_name} · ` : ""}depuis le {fmtDateTime(a.joined_at)}
+                  </span>
+                  {!a.active && <span class="alliance-rang-detail">sans accès : son clan n'est plus dans notre alliance</span>}
+                </span>
+                <span class="alliance-a-part">
+                  <EnDeuxTemps busy={busy} texte="Retirer l'accès" confirmer="Confirmer le retrait" nom={a.alias} onConfirm={() => void run("remove_alliance_ally", { p_number: a.number })} />
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
+      <Problem message={erreur} />
     </section>
   );
 }
 
 export default function AllianceGestion({ ctx }: { ctx: Contexte }) {
   return (
-    <div data-testid="alliance-gestion">
-      {/* L'invitation d'abord : c'est ce que l'encadrement vient chercher le plus souvent. */}
-      <Allies ctx={ctx} />
+    <div class="alliance-gestion" data-testid="alliance-gestion">
+      {/* Ce qui attend l'encadrement d'abord, puis l'invitation : c'est ce qu'il vient chercher le plus souvent. */}
+      <EnAttente ctx={ctx} />
+      <Inviter ctx={ctx} />
+      <Joueurs ctx={ctx} />
       <Alliances ctx={ctx} />
       <Rangement ctx={ctx} />
     </div>

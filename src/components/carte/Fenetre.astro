@@ -1,5 +1,6 @@
 ---
 import { FENETRES, type FenetreId } from "../../lib/carte-console";
+import { BORDS, TEXTES_FENETRE } from "../../lib/fenetre-libre";
 
 interface Props {
   /** L'ancre de la fenêtre, une de celles de `FENETRES`. */
@@ -8,11 +9,17 @@ interface Props {
   film?: boolean;
   /** `true` : la fenêtre n'a de contenu que dans la console (la carte de l'alliance) ; sans script, elle n'existe pas. */
   consoleSeulement?: boolean;
+  /**
+   * `true` : posée sur la carte, la fenêtre se déplace, change de taille, s'agrandit ou se réduit à sa barre
+   * (`src/scripts/fenetre-libre.ts`). Demande du pilote pour la fenêtre « Alliance », le 13 novembre 2026.
+   */
+  libre?: boolean;
   class?: string;
   testid?: string;
 }
-const { id, film = false, consoleSeulement = false, class: className, testid } = Astro.props;
+const { id, film = false, consoleSeulement = false, libre = false, class: className, testid } = Astro.props;
 const label = FENETRES.find((f) => f.id === id)?.label ?? id;
+const t = TEXTES_FENETRE.fr;
 ---
 
 {/* Une fenêtre de la console de la carte (docs/DESIGN.md, « La carte en console ») : une barre de titre avec son bouton
@@ -25,12 +32,51 @@ const label = FENETRES.find((f) => f.id === id)?.label ?? id;
   data-film-ready={film ? "" : undefined}
   hidden={film}
   data-console-seulement={consoleSeulement ? "" : undefined}
+  data-libre={libre ? "" : undefined}
   aria-labelledby={`${id}-titre`}
   tabindex="-1"
   data-testid={testid}
 >
   <div class="carte-fenetre-barre">
+    {
+      libre && (
+        /* La poignée : toute la barre se tire à la souris ou au doigt ; elle, en plus, se déplace aux flèches du clavier. */
+        <button type="button" class="carte-geste carte-geste-poignee" data-fenetre-deplacer aria-label={t.deplacer} aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight">
+          <svg viewBox="0 0 8 12" aria-hidden="true">
+            <path d="M1 1h2v2H1zM5 1h2v2H5zM1 5h2v2H1zM5 5h2v2H5zM1 9h2v2H1zM5 9h2v2H5z" />
+          </svg>
+        </button>
+      )
+    }
     <span aria-hidden="true">{id}</span>
+    {
+      libre && (
+        <div class="carte-gestes">
+          <button type="button" class="carte-geste" data-fenetre-replacer hidden aria-label={t.replacer}>
+            <svg class="carte-geste-trait" viewBox="0 0 12 12" aria-hidden="true">
+              <path d="M3.2 3.7A4 4 0 1 1 2 6.5" />
+              <path d="M3.2 1.2v2.5h2.5" />
+            </svg>
+          </button>
+          <button type="button" class="carte-geste" data-fenetre-reduire aria-label={t.reduire} aria-expanded="true">
+            <svg class="carte-geste-reduire" viewBox="0 0 12 12" aria-hidden="true">
+              <path d="M2 8h8v2H2z" />
+            </svg>
+            <svg class="carte-geste-deplier" viewBox="0 0 12 12" aria-hidden="true">
+              <path d="M1 3h2v2h2v2h2V5h2V3h2v2H9v2H7v2H5V7H3V5H1z" />
+            </svg>
+          </button>
+          <button type="button" class="carte-geste" data-fenetre-agrandir aria-label={t.agrandir}>
+            <svg class="carte-geste-agrandir" viewBox="0 0 12 12" aria-hidden="true">
+              <path d="M1 1h10v10H1zM2 4v6h8V4z" />
+            </svg>
+            <svg class="carte-geste-restaurer" viewBox="0 0 12 12" aria-hidden="true">
+              <path d="M4 1h7v7H9V3H4zM1 4h7v7H1zM2 6v4h5V6z" />
+            </svg>
+          </button>
+        </div>
+      )
+    }
     {/* Son « [x] » est dessiné par la feuille de style : le nom du bouton reste celui que lisent les lecteurs d'écran. */}
     <button type="button" class="carte-fermer" data-ferme aria-label={`Fermer la fenêtre ${label}`}></button>
   </div>
@@ -39,4 +85,19 @@ const label = FENETRES.find((f) => f.id === id)?.label ?? id;
     <h2 id={`${id}-titre`}><slot name="titre" /></h2>
     <slot />
   </div>
+  {
+    libre && (
+      <>
+        {/* Les bords et les coins se tirent pour changer la taille ; au clavier, la poignée du coin, aux flèches. */}
+        {BORDS.map((bord) => (
+          <span class="carte-bord" data-bord={bord} aria-hidden="true" />
+        ))}
+        <button type="button" class="carte-geste carte-geste-taille" data-fenetre-taille data-bord="se" aria-label={t.taille} aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight">
+          <svg viewBox="0 0 12 12" aria-hidden="true">
+            <path d="M9 3h2v2H9zM6 6h2v2H6zM9 6h2v2H9zM3 9h2v2H3zM6 9h2v2H6zM9 9h2v2H9z" />
+          </svg>
+        </button>
+      </>
+    )
+  }
 </section>

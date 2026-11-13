@@ -2,6 +2,16 @@
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "title": "Carte de l'alliance : une fenêtre qu'on déplace",
+    "body": "Sur un grand écran, la fenêtre « Alliance » se déplace par sa barre, change de taille par ses bords, s'agrandit ou se réduit, et garde sa place. La langue se choisit d'un drapeau.",
+    "link": {
+      "href": "/carte#alliance",
+      "label": "Ouvrir la carte"
+    }
+  },
+  {
+    "date": "2026-11-13",
+    "kind": "ameliore",
     "title": "Carte de l'alliance : à jour chaque heure",
     "body": "Elle suit chaque passage du robot et montre ce que l'alliance a pris et perdu en 24 heures, nos voisins, le coût des zones en capsules et si les troupes déclarées suffisent.",
     "link": {

@@ -5295,6 +5295,59 @@ footer h2 {
   background: var(--color-blue);
   color: #fff;
 }
+/* Les gestes d'une fenêtre libre (src/scripts/fenetre-libre.ts) : la poignée, puis remettre en place, réduire, agrandir,
+   à côté du bouton qui ferme. Comme lui, seulement là où la fenêtre se pose sur la carte (plus bas) ; les bords et la
+   poignée du coin aussi. Des icônes en pixels, comme celles de la rangée. */
+.carte-gestes,
+.carte-geste-poignee,
+.carte-bord,
+.carte-geste-taille {
+  display: none;
+}
+.carte-gestes {
+  align-self: stretch;
+  margin-left: auto;
+}
+.carte-geste {
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  min-width: 2.25rem;
+  color: var(--color-muted);
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease;
+}
+.carte-gestes > .carte-geste {
+  display: inline-flex;
+}
+.carte-geste:hover {
+  background: var(--color-line);
+  color: #fff;
+}
+.carte-geste > svg {
+  width: 0.75rem;
+  height: 0.75rem;
+  fill: currentColor;
+  shape-rendering: crispEdges;
+}
+.carte-geste > svg.carte-geste-trait {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  shape-rendering: geometricPrecision;
+}
+.carte-geste-restaurer,
+.carte-geste-deplier,
+[data-etat="grand"] .carte-geste-agrandir,
+[data-etat="petit"] .carte-geste-reduire {
+  display: none;
+}
+[data-etat="grand"] .carte-geste-restaurer,
+[data-etat="petit"] .carte-geste-deplier {
+  display: block;
+}
 .carte-fenetre-corps {
   padding: 0.75rem 0.875rem 0.875rem;
 }
@@ -5833,6 +5886,140 @@ footer h2 {
   :root.carte-console .carte-fermer {
     display: inline-flex;
   }
+  /* Une fenêtre libre : sa barre se tire, ses bords changent sa taille, elle s'agrandit ou se roule sous sa barre. Le
+     script donne sa place (`--libre-x`, `--libre-y`, `--libre-w`, `--libre-h`) quand on l'a déplacée ; sinon, elle est à
+     la place d'origine, et seul son corps défile, sous la barre et au-dessus des bords. */
+  :root.carte-console [data-libre] .carte-gestes {
+    display: flex;
+  }
+  :root.carte-console [data-libre] .carte-geste-poignee {
+    display: inline-flex;
+    min-width: 2rem;
+    cursor: inherit;
+  }
+  :root.carte-console [data-libre] > .carte-fenetre-barre {
+    padding-left: 0;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  :root.carte-console [data-libre] > .carte-fenetre-barre > span::before {
+    content: none;
+  }
+  :root.carte-console [data-libre].est-saisie > .carte-fenetre-barre {
+    cursor: grabbing;
+  }
+  :root.carte-console [data-libre][data-etat="grand"] > .carte-fenetre-barre {
+    cursor: default;
+  }
+  /* Agrandie, elle ne se tire pas : sa poignée s'efface, à sa place. */
+  :root.carte-console [data-libre][data-etat="grand"] .carte-geste-poignee {
+    visibility: hidden;
+  }
+  :root.carte-console .carte-panneaux > [data-libre].est-ouverte {
+    display: flex;
+    flex-direction: column;
+    width: min(var(--libre-largeur, 29rem), calc(100% - 1.5rem));
+    overflow: hidden;
+  }
+  :root.carte-console .carte-panneaux > [data-libre].est-ouverte > .carte-fenetre-corps {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  :root.carte-console .carte-panneaux > [data-libre][data-geometrie].est-ouverte {
+    top: var(--libre-y);
+    right: auto;
+    left: var(--libre-x);
+    width: var(--libre-w);
+    max-height: calc(100% - var(--libre-y) - var(--libre-bas, 0.75rem));
+  }
+  :root.carte-console .carte-panneaux > [data-libre][data-hauteur].est-ouverte {
+    height: var(--libre-h);
+  }
+  :root.carte-console .carte-panneaux > [data-libre][data-etat="petit"].est-ouverte {
+    height: auto;
+  }
+  :root.carte-console .carte-panneaux > [data-libre][data-etat="petit"] > .carte-fenetre-corps {
+    display: none;
+  }
+  /* Saisie, la fenêtre se soulève un peu de la carte. */
+  :root.carte-console [data-libre].est-saisie {
+    box-shadow: 0 1.25rem 2.5rem rgb(0 0 0 / 0.45);
+  }
+  :root.carte-console [data-libre].est-ouverte:not([data-etat]) > .carte-bord {
+    position: absolute;
+    z-index: 3;
+    display: block;
+    touch-action: none;
+  }
+  /* Les bords du haut sont fins : ils ne prennent pas le clic des boutons de la barre. */
+  .carte-bord[data-bord="n"] {
+    top: 0;
+    right: 0.875rem;
+    left: 0.875rem;
+    height: 0.3125rem;
+    cursor: ns-resize;
+  }
+  .carte-bord[data-bord="s"] {
+    right: 0.875rem;
+    bottom: 0;
+    left: 0.875rem;
+    height: 0.5rem;
+    cursor: ns-resize;
+  }
+  .carte-bord[data-bord="e"],
+  .carte-bord[data-bord="w"] {
+    top: 0.875rem;
+    bottom: 0.875rem;
+    width: 0.5rem;
+    cursor: ew-resize;
+  }
+  .carte-bord[data-bord="e"] {
+    right: 0;
+  }
+  .carte-bord[data-bord="w"] {
+    left: 0;
+  }
+  .carte-bord:is([data-bord="ne"], [data-bord="nw"]) {
+    top: 0;
+    width: 0.875rem;
+    height: 0.3125rem;
+  }
+  .carte-bord:is([data-bord="se"], [data-bord="sw"]) {
+    bottom: 0;
+    width: 0.875rem;
+    height: 0.875rem;
+  }
+  .carte-bord:is([data-bord="ne"], [data-bord="se"]) {
+    right: 0;
+  }
+  .carte-bord:is([data-bord="nw"], [data-bord="sw"]) {
+    left: 0;
+  }
+  .carte-bord:is([data-bord="nw"], [data-bord="se"]) {
+    cursor: nwse-resize;
+  }
+  .carte-bord:is([data-bord="ne"], [data-bord="sw"]) {
+    cursor: nesw-resize;
+  }
+  /* La poignée du coin : le signe qu'on peut tirer, et le geste au clavier. */
+  :root.carte-console [data-libre].est-ouverte:not([data-etat]) > .carte-geste-taille {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    z-index: 4;
+    display: inline-flex;
+    width: 1.5rem;
+    min-width: 0;
+    height: 1.5rem;
+    border-radius: 0.25rem 0 0.125rem 0;
+    background: var(--color-surface);
+    cursor: nwse-resize;
+    touch-action: none;
+  }
   /* Sur la carte, le crédit garde aussi le code source et les mentions légales : le pied de console n'est que pour le
      téléphone. */
   :root.carte-console .carte-credit > .carte-credit-liens {
@@ -6268,33 +6455,84 @@ footer h2 {
   display: none;
 }
 
-/* Les onglets de la fenêtre : un bouton par partie, l'ouverte en vidéo inversée, comme l'entrée ouverte de la rangée. */
+/* Les onglets de la fenêtre : une rangée qui reste en haut quand la partie défile, l'onglet ouvert en blanc sur le filet
+   rouge, le marqueur de page du site, qui s'étire à son ouverture. Ils se partagent la largeur, et passent sur deux lignes
+   dans une fenêtre étroite. */
 .alliance-onglets {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem;
-  margin: 0.75rem 0;
-  padding-bottom: 0.5rem;
+  gap: 0 0.125rem;
+  margin: 1.125rem calc(-1 * var(--alliance-bord, 0rem)) 0;
+  padding: 0 var(--alliance-bord, 0rem);
   border-bottom: 1px solid var(--color-line);
+  background: var(--color-surface);
 }
 .alliance-onglets > button {
+  position: relative;
   display: inline-flex;
+  flex: 1 1 auto;
   align-items: center;
+  justify-content: center;
   gap: 0.375rem;
-  min-height: 2.5rem;
-  padding: 0 0.75rem;
-  border: 1px solid var(--color-line-strong);
-  border-radius: 0.25rem;
+  min-height: 2.75rem;
+  padding: 0 0.4375rem;
+  border-radius: 0.375rem 0.375rem 0 0;
+  font-size: 0.875rem;
   font-weight: 600;
+  white-space: nowrap;
   color: var(--color-muted);
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease;
+}
+.alliance-onglets > button::after {
+  content: "";
+  position: absolute;
+  right: 0.5rem;
+  bottom: -1px;
+  left: 0.5rem;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: var(--color-red);
+  transform: scaleX(0);
+  transition: transform 0.28s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 .alliance-onglets > button:hover {
+  background: color-mix(in srgb, var(--color-surface-2) 80%, transparent);
   color: #fff;
 }
 .alliance-onglets > button[aria-selected="true"] {
-  border-color: var(--color-blue);
-  background: var(--color-blue);
   color: #fff;
+}
+.alliance-onglets > button[aria-selected="true"]::after {
+  transform: scaleX(1);
+}
+/* Très étroite (téléphone, fenêtre au plus petit), la rangée prendrait trop de hauteur : elle défile avec la partie. */
+@container alliance (max-width: 21.99rem) {
+  .alliance-onglets {
+    position: static;
+  }
+}
+/* Une fenêtre étroite (téléphone, fenêtre rétrécie) : les onglets se rangent en colonnes égales sur deux lignes, au lieu
+   qu'un seul prenne toute la seconde. */
+@container alliance (max-width: 26rem) {
+  .alliance-onglets {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
+  }
+  .alliance-onglets > button {
+    padding: 0 0.25rem;
+  }
+}
+/* Une fenêtre agrandie : les onglets restent groupés à gauche, à leur largeur. */
+@container alliance (min-width: 44rem) {
+  .alliance-onglets > button {
+    flex-grow: 0;
+    padding: 0 1rem;
+  }
 }
 @media (forced-colors: active) {
   .alliance-onglets > button[aria-selected="true"] {
@@ -6341,7 +6579,7 @@ footer h2 {
   padding-top: 0.5rem;
   border-top: 1px solid var(--color-line);
 }
-.alliance-ligne > .alliance-a-part {
+:is(.alliance-ligne, .alliance-rang) > .alliance-a-part {
   margin-top: 0;
   padding-top: 0;
   padding-left: 0.75rem;
@@ -6359,28 +6597,36 @@ footer h2 {
   color: #fff;
 }
 
-/* La discussion : les messages défilent dans leur cadre, le plus récent en bas. */
+/* La discussion : les messages défilent dans leur cadre, le plus récent en bas, en bulles ; les siens à droite, en bleu. */
 .alliance-fil {
   display: grid;
   align-content: start;
-  gap: 0.5rem;
-  max-height: min(22rem, 45vh);
+  gap: 0.625rem;
+  max-height: min(26rem, 50vh);
   margin-top: 0.5rem;
-  padding: 0.5rem;
+  padding: 0.75rem;
   overflow-y: auto;
   overscroll-behavior: contain;
   border: 1px solid var(--color-line);
-  border-radius: 0.25rem;
+  border-radius: 0.625rem;
+  background: var(--color-night);
 }
 .alliance-fil:empty {
   display: none;
 }
 .alliance-fil > li {
-  padding-left: 0.5rem;
-  border-left: 2px solid var(--color-line-strong);
+  justify-self: start;
+  max-width: min(100%, 34rem);
+  padding: 0.5rem 0.75rem 0.625rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.75rem 0.75rem 0.75rem 0.25rem;
+  background: var(--color-surface-2);
 }
 .alliance-fil > li.est-mien {
-  border-left-color: var(--color-blue-text);
+  justify-self: end;
+  border-color: color-mix(in srgb, var(--color-blue-text) 45%, transparent);
+  border-radius: 0.75rem 0.75rem 0.25rem 0.75rem;
+  background: color-mix(in srgb, var(--color-blue) 24%, var(--color-surface));
 }
 .alliance-auteur {
   display: flex;
@@ -6402,46 +6648,202 @@ footer h2 {
   margin-top: 0.75rem;
 }
 
-/* La gestion : une case par alliance, où l'on glisse les clans. */
-.alliance-gestion-liste {
+/* La gestion (AllianceGestion.tsx) : des blocs les uns sous les autres, deux par deux quand la fenêtre est large ; dans
+   chaque bloc, des lignes (une alliance, un joueur, une invitation) et des formulaires aux champs côte à côte. */
+.alliance-gestion {
+  display: grid;
+  gap: 1rem;
+}
+@container alliance (min-width: 46rem) {
+  .alliance-gestion {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+  .alliance-panneau-large {
+    grid-column: 1 / -1;
+  }
+}
+/* Ce qui attend l'encadrement, en jaune, comme partout sur le site : plus fort que le cadre d'un bloc ordinaire. */
+.alliance-panneau.alliance-panneau-alerte {
+  border-color: color-mix(in srgb, var(--color-warn) 65%, transparent);
+  background: color-mix(in srgb, var(--color-warn) 6%, var(--color-surface));
+}
+.alliance-sous-titre {
+  margin-top: 1rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.alliance-panneau > .alliance-sous-titre:first-of-type {
+  margin-top: 0.75rem;
+}
+.alliance-sous-bloc {
+  margin-top: 1.125rem;
+  padding-top: 1.125rem;
+  border-top: 1px dashed var(--color-line);
+}
+.alliance-formulaire {
+  display: grid;
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+.alliance-formulaire > .carte-aide:first-child {
+  margin-top: 0;
+}
+.alliance-champs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.875rem 1rem;
+}
+.alliance-champs > .alliance-champ {
+  flex: 1 1 8rem;
+}
+.alliance-champs > .alliance-champ-large {
+  flex: 3 1 12rem;
+}
+.alliance-champ > label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+.alliance-rangs {
   display: grid;
   gap: 0.5rem;
-  margin-top: 0.5rem;
+  margin-top: 0.75rem;
+}
+.alliance-rang {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.5rem;
+  background: var(--color-night);
+  transition: border-color 0.15s ease;
+}
+.alliance-rang:hover {
+  border-color: var(--color-line-strong);
+}
+.alliance-rang-edition {
+  display: block;
+}
+.alliance-rang-edition > .alliance-formulaire {
+  margin-top: 0;
+}
+.alliance-rang-texte {
+  display: grid;
+  flex: 1 1 11rem;
+  gap: 0.125rem;
+  min-width: 0;
+}
+.alliance-rang-nom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 0.25rem;
+}
+.alliance-rang-nom > .alliance-marque {
+  margin-left: 0.375rem;
+}
+.alliance-rang-detail {
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+.alliance-vide {
+  margin-top: 0.75rem;
+  color: var(--color-muted);
+}
+/* Le rangement des clans : une case par alliance, où l'on glisse les clans ; celle des clans sans alliance en dessous. */
+.alliance-cases {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+  gap: 0.75rem;
+  margin-top: 0.875rem;
 }
 .alliance-case {
-  margin-top: 0.5rem;
-  padding: 0.5rem;
+  display: grid;
+  align-content: start;
+  gap: 0.625rem;
+  min-width: 0;
+  padding: 0.75rem;
   border: 1px dashed var(--color-line-strong);
-  border-radius: 0.25rem;
+  border-radius: 0.5rem;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
 }
 .alliance-case[data-survolee] {
   border-style: solid;
   border-color: var(--color-blue-text);
+  background: color-mix(in srgb, var(--color-blue-text) 10%, transparent);
+}
+.alliance-case-libres {
+  grid-column: 1 / -1;
+}
+.alliance-case-tete {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+}
+.alliance-case-tete > .alliance-rang-detail {
+  margin-left: auto;
+  padding-left: 0.5rem;
+  white-space: nowrap;
 }
 .alliance-jetons {
   display: flex;
   flex-wrap: wrap;
   gap: 0.375rem;
-  margin-top: 0.375rem;
+}
+.alliance-jetons:empty {
+  display: none;
+}
+.alliance-case-libres .alliance-jetons {
+  margin-top: 0.625rem;
 }
 .alliance-jeton {
   display: inline-flex;
   align-items: baseline;
   gap: 0.375rem;
-  padding: 0.125rem 0.5rem;
+  padding: 0.25rem 0.625rem;
   border: 1px solid var(--color-line-strong);
-  border-radius: 0.25rem;
+  border-radius: 0.375rem;
   background: var(--color-surface-2);
   font-size: 0.875rem;
   cursor: grab;
+  transition: border-color 0.15s ease;
 }
+.alliance-jeton:hover {
+  border-color: var(--color-blue-text);
+}
+.alliance-jeton:active {
+  cursor: grabbing;
+}
+/* Le lien d'invitation qu'on vient de créer : un cadre bleu clair qui se pose, le lien et son bouton sur une ligne. */
 .alliance-lien {
   display: grid;
-  gap: 0.375rem;
-  margin-top: 0.75rem;
-  padding: 0.5rem;
-  border: 1px solid var(--color-line-strong);
-  border-radius: 0.25rem;
+  gap: 0.625rem;
+  margin-top: 1rem;
+  padding: 0.875rem;
+  border: 1px solid color-mix(in srgb, var(--color-blue-text) 55%, transparent);
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--color-blue-text) 8%, var(--color-surface));
+  animation: alliance-apparait 0.32s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+.alliance-lien-ligne {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.alliance-lien-ligne > .field {
+  flex: 1 1 12rem;
+  min-width: 0;
 }
 /* Les nouveaux messages de l'alliance, sur l'entrée de la rangée : dans son coin, sans changer sa hauteur. */
 .carte-dock-entree:has(> .alliance-pastille) {
@@ -6454,10 +6856,10 @@ footer h2 {
 }
 /* Un cadre jaune, en tête de la gestion : les joueurs alliés qui attendent l'accord, et ce qui manque pour inviter. */
 .alliance-manque {
-  margin-top: 0.5rem;
-  padding: 0.625rem 0.75rem;
+  margin-top: 0.75rem;
+  padding: 0.875rem 1rem;
   border: 1px solid var(--color-warn);
-  border-radius: 0.25rem;
+  border-radius: 0.5rem;
 }
 /* Quand la rangée écrit le nom à côté de l'icône (grand écran), la pastille suit le nom au lieu de le couvrir. */
 @media (min-aspect-ratio: 5/4) and (min-width: 75rem) {
@@ -6521,6 +6923,21 @@ footer h2 {
     flex-direction: row;
     flex-wrap: wrap;
     max-width: calc(100% - 1.5rem - var(--fenetre-large, 0rem));
+  }
+  /* La fenêtre posée sur la moitié gauche (src/scripts/fenetre-libre.ts) : les outils et la légende passent à droite, en
+     haut, hors de dessous elle. `--fenetre-gauche` : ce qu'elle couvre de la carte, depuis sa gauche. */
+  :root.carte-console .carte[data-fenetre-gauche] .film-map[data-vue="alliance"] .alliance-outils {
+    top: 0.75rem;
+    right: 0.75rem;
+    left: auto;
+    justify-content: flex-end;
+    max-width: calc(100% - 1.5rem - var(--fenetre-gauche, 0px));
+  }
+  :root.carte-console .carte[data-fenetre-gauche] .film-map[data-vue="alliance"] .alliance-legende {
+    right: 0.75rem;
+    left: auto;
+    justify-content: flex-end;
+    max-width: calc(100% - 1.5rem - var(--fenetre-gauche, 0px));
   }
   /* Sous la rangée d'outils telle qu'elle est (une ligne ou deux), mesurée par alliance-ecran.ts. */
   :root.carte-console .film-map[data-vue="alliance"] .alliance-legende {
@@ -6635,52 +7052,266 @@ footer h2 {
   white-space: normal;
 }
 
-/* L'en-tête de la fenêtre : qui est connecté, et le choix de la langue. */
-.alliance-tete {
+/* ---------- La fenêtre « Alliance » qui respire (13 novembre 2026) ---------- */
+/* Demande du pilote : « que ça respire, ranger les sections proprement », « des petites animations, rien d'encombrant ».
+   Le corps de la fenêtre a plus de marge, chaque partie se range en blocs aux coins arrondis, un peu plus clairs que la
+   fenêtre, et la fenêtre mesure sa propre largeur (`container`) : agrandie, la gestion passe sur deux colonnes. Fenêtre
+   libre, sa largeur d'origine grandit un peu sur un grand écran. */
+.alliance-fenetre {
+  --libre-largeur: clamp(29rem, 30vw, 34rem);
+  --alliance-bord: 1.125rem;
+}
+.alliance-fenetre > .carte-fenetre-corps {
+  padding: 1rem var(--alliance-bord) 1.25rem;
+  container: alliance / inline-size;
+  /* Les onglets restent en haut quand la partie défile : un champ qui reçoit le focus ne s'arrête pas dessous. */
+  scroll-padding-top: 6rem;
+}
+:root.carte-console .carte[data-ouverte="alliance"] .carte-panneaux {
+  scroll-padding-top: 6rem;
+}
+@media (max-width: 29.99rem) {
+  .alliance-fenetre {
+    --alliance-bord: 0.875rem;
+  }
+}
+.alliance-fenetre h2 {
+  font-size: 1.1875rem;
+}
+/* Ouverte, la fenêtre monte doucement en place ; ses parties arrivent l'une après l'autre à chaque onglet. Le bouton
+   pause et « réduire les animations » les montrent aussitôt (règles .fx-off et prefers-reduced-motion plus haut). */
+@keyframes alliance-apparait {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+}
+.alliance-fenetre.est-ouverte {
+  animation: alliance-apparait 0.3s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+.alliance-fenetre [role="tabpanel"] > * > * {
+  animation: alliance-apparait 0.26s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+.alliance-fenetre [role="tabpanel"] > * > :nth-child(2) {
+  animation-delay: 0.04s;
+}
+.alliance-fenetre [role="tabpanel"] > * > :nth-child(3) {
+  animation-delay: 0.08s;
+}
+.alliance-fenetre [role="tabpanel"] > * > :nth-child(n + 4) {
+  animation-delay: 0.12s;
+}
+.alliance-fenetre [role="tabpanel"] {
+  padding-top: 1.125rem;
+}
+
+/* Chaque partie en blocs : la gestion, les alliances, les zones, la discussion. */
+.alliance-panneau,
+.alliance-fenetre [role="tabpanel"] .carte-bloc {
+  padding: 1rem 1.125rem 1.125rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--color-surface-2) 55%, var(--color-surface));
+}
+.alliance-fenetre [role="tabpanel"] .carte-bloc {
+  margin-top: 1rem;
+}
+.alliance-panneau > h3,
+.alliance-fenetre [role="tabpanel"] .carte-bloc > h3 {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem 1rem;
+  gap: 0.25rem;
+  font-size: 1.0625rem;
 }
-.alliance-langues,
-.alliance-mode {
-  display: inline-flex;
+.alliance-panneau > h3::before,
+.alliance-fenetre [role="tabpanel"] .carte-bloc > h3::before {
+  margin-right: 0.25rem;
+}
+.alliance-panneau > .carte-aide:first-of-type {
+  margin-top: 0.375rem;
+}
+.alliance-fenetre .carte-aide {
+  line-height: 1.55;
+}
+
+/* L'en-tête de la fenêtre : qui est connecté, en grand, et le choix de la langue, en drapeaux. */
+.alliance-tete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  margin-top: 0.875rem;
+}
+.alliance-tete > .alliance-langues {
+  flex: none;
+}
+/* Sous l'en-tête, la porte, l'attente ou un message : un peu d'air avant le texte. */
+.alliance-tete + :not(.alliance-onglets) {
+  margin-top: 1rem;
+}
+.alliance-moi {
+  display: flex;
+  flex: 1 1 auto;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.25rem 0.5rem;
+  min-width: 0;
 }
-.alliance-langues > button,
-.alliance-mode > button {
-  min-height: 2rem;
-  padding: 0 0.625rem;
-  border: 1px solid var(--color-line-strong);
-  border-radius: 0.25rem;
-  font-size: 0.8125rem;
-  font-weight: 700;
+.alliance-moi-libelle {
+  flex-basis: 100%;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--color-muted);
 }
-.alliance-langues > button:hover,
+.alliance-moi-nom {
+  font-family: var(--font-console);
+  font-size: 1.0625rem;
+  color: #fff;
+  overflow-wrap: anywhere;
+}
+.alliance-moi > .alliance-marque {
+  margin-left: 0;
+}
+.alliance-fenetre .alliance-marque {
+  border-radius: 999px;
+  padding: 0.0625rem 0.5rem;
+}
+
+/* Les drapeaux : celui de la langue choisie entouré, en pleine couleur ; l'autre un peu éteint, qui se rallume et ondule
+   une fois au survol. Les couleurs du drapeau français sont celles du filet tricolore du site ; celles de l'Union Jack, les
+   siennes. */
+.alliance-langues {
+  --drapeau-uk-bleu: #012169;
+  --drapeau-uk-rouge: #c8102e;
+  display: inline-flex;
+  gap: 0.375rem;
+}
+.alliance-langues > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 2.5rem;
+  border: 2px solid transparent;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    transform 0.15s ease;
+}
+.alliance-langues > button:hover {
+  border-color: var(--color-line-strong);
+}
+.alliance-langues > button:active {
+  transform: scale(0.94);
+}
+.fx-off .alliance-langues > button:active {
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .alliance-langues > button:active {
+    transform: none;
+  }
+}
+.alliance-langues > button[aria-pressed="true"] {
+  border-color: var(--color-blue-text);
+  background: color-mix(in srgb, var(--color-blue-text) 12%, transparent);
+}
+.alliance-drapeau {
+  width: 1.875rem;
+  height: 1.25rem;
+  border-radius: 0.1875rem;
+  box-shadow: 0 0 0 1px var(--color-line-strong);
+  opacity: 0.6;
+  filter: saturate(0.45);
+  transform-origin: left center;
+  transition:
+    opacity 0.2s ease,
+    filter 0.2s ease;
+}
+.alliance-langues > button:hover .alliance-drapeau {
+  opacity: 1;
+  filter: none;
+  animation: drapeau-vent 1.2s ease-in-out;
+}
+.alliance-langues > button[aria-pressed="true"] .alliance-drapeau {
+  opacity: 1;
+  filter: none;
+}
+@keyframes drapeau-vent {
+  30% {
+    transform: skewY(-4deg) scaleX(0.97);
+  }
+  65% {
+    transform: skewY(2.5deg);
+  }
+}
+.drapeau-bleu {
+  fill: var(--color-flag-blue);
+}
+.drapeau-blanc {
+  fill: #fff;
+}
+.drapeau-rouge {
+  fill: var(--color-red);
+}
+.drapeau-uk-fond {
+  fill: var(--drapeau-uk-bleu);
+}
+.drapeau-uk-blanc {
+  stroke: #fff;
+}
+.drapeau-uk-rouge {
+  stroke: var(--drapeau-uk-rouge);
+}
+
+/* Les couleurs de la carte (« Nos clans », « Les alliances », « Tout ») : un sélecteur en pastilles, sous son titre. */
+.alliance-mode {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.alliance-mode > span {
+  flex-basis: 100%;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.alliance-mode > button {
+  min-height: 2.25rem;
+  padding: 0 0.875rem;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--color-muted);
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease,
+    background-color 0.2s ease;
+}
 .alliance-mode > button:hover {
+  border-color: var(--color-blue-text);
   color: #fff;
 }
-.alliance-langues > button[aria-pressed="true"],
 .alliance-mode > button[aria-pressed="true"] {
   border-color: var(--color-blue);
   background: var(--color-blue);
   color: #fff;
 }
-.alliance-mode {
-  gap: 0.375rem;
-}
-/* Le titre au-dessus des trois boutons (« Nos clans », « Les alliances », « Tout ») : ils restent ensemble sur une ligne. */
-.alliance-mode > span {
-  flex-basis: 100%;
-}
 @media (forced-colors: active) {
   :is(.alliance-langues, .alliance-mode) > button[aria-pressed="true"] {
     text-decoration: underline;
     text-decoration-thickness: 2px;
+  }
+  .alliance-langues > button[aria-pressed="true"] {
+    outline: 3px solid CanvasText;
   }
 }
 
@@ -6748,11 +7379,12 @@ footer h2 {
 }
 .alliance-declarer {
   display: grid;
-  gap: 0.5rem;
-  margin-top: 1rem;
-  padding: 0.75rem;
+  gap: 0.75rem;
+  margin-top: 1.125rem;
+  padding: 0.875rem 1rem 1rem;
   border: 1px solid var(--color-line);
-  border-radius: 0.25rem;
+  border-radius: 0.625rem;
+  background: var(--color-night);
 }
 .alliance-declarer .alliance-ligne {
   align-items: flex-end;
@@ -6831,10 +7463,15 @@ footer h2 {
 }
 .alliance-zone {
   display: grid;
-  gap: 0.375rem;
-  padding: 0.5rem 0.625rem;
+  gap: 0.5rem;
+  padding: 0.625rem 0.875rem 0.75rem;
   border: 1px solid var(--color-line);
-  border-radius: 0.25rem;
+  border-radius: 0.625rem;
+  background: color-mix(in srgb, var(--color-surface-2) 55%, var(--color-surface));
+  transition: border-color 0.15s ease;
+}
+.alliance-zone:hover {
+  border-color: var(--color-line-strong);
 }
 .alliance-zone[data-choisie] {
   border-color: var(--color-blue-text);
@@ -6982,9 +7619,10 @@ footer h2 {
   margin-top: 0.375rem;
 }
 .alliance-astuce {
-  margin-top: 0.5rem;
-  padding: 0.5rem 0.625rem;
+  margin-top: 0.625rem;
+  padding: 0.625rem 0.75rem;
   border-left: 3px solid var(--color-blue-text);
+  border-radius: 0 0.375rem 0.375rem 0;
   background: var(--color-surface);
   font-size: 0.8125rem;
 }
@@ -6992,9 +7630,10 @@ footer h2 {
   margin-right: 0.375rem;
 }
 .alliance-compte {
-  padding: 0.75rem;
+  padding: 0.875rem 1rem;
   border: 1px solid var(--color-line);
-  border-radius: 0.25rem;
+  border-radius: 0.625rem;
+  background: var(--color-night);
 }
 
 /* La capture de la carte de l'alliance (AllianceCapture.tsx) : l'aperçu de l'image à la largeur de la fenêtre, puis ce qu'on

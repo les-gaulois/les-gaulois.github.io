@@ -387,7 +387,7 @@ const dock = FENETRES.filter((f) => presentes.has(f.id));
               invités, ce que le serveur leur donne. Seulement avec la connexion du site : sans elle, le site reste statique. */}
           {
             allianceOn && (
-              <Fenetre id="alliance" consoleSeulement testid="map-alliance">
+              <Fenetre id="alliance" class="alliance-fenetre" consoleSeulement libre testid="map-alliance">
                 <Fragment slot="titre">La carte de l'alliance</Fragment>
                 <AllianceApp client:only="preact" />
               </Fenetre>
