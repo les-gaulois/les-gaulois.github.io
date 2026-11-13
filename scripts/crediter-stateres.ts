@@ -1,7 +1,8 @@
 /**
- * Donne aux Gaulois les statères des points qu'ils ont rapportés au clan, 10 par point, à chaque Gaulois présent dans la
- * partie (docs/DIRECTION.md, « Le village des Gaulois », lot 2). Lancé par le workflow `.github/workflows/victoires.yml`,
- * toutes les 5 minutes, après l'envoi des victoires sur Discord et à part de lui : son échec ne retient jamais une image.
+ * Donne aux Gaulois les statères des points qu'ils ont rapportés au clan, 30 statères par point rapporté au clan, à chaque
+ * Gaulois présent dans la partie (docs/DIRECTION.md, « Le village des Gaulois », lot 2). Lancé par le workflow
+ * `.github/workflows/victoires.yml`, toutes les 5 minutes, après l'envoi des victoires sur Discord et à part de lui : son
+ * échec ne retient jamais une image.
  *   npm run stateres:crediter
  * Avec SUPABASE_URL et SUPABASE_SECRET_KEY dans l'environnement. Sans eux, ne lit rien et n'envoie rien.
  * Les sessions du mois sont celles de la collecte (data/sessions/), avec celles des dernières heures lues sur l'API publique.

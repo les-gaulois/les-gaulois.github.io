@@ -1,20 +1,23 @@
 /**
  * Le statère, la monnaie du village des Gaulois (docs/DIRECTION.md, « Le village des Gaulois », lot 2), décidée par le pilote le
- * 13 novembre 2026 : les statères viennent des points rapportés au clan, 10 par point, à chaque Gaulois présent dans la partie.
+ * 13 novembre 2026 : les statères viennent des points rapportés au clan, 30 statères par point rapporté au clan, à chaque
+ * Gaulois présent dans la partie. Le premier réglage, 10, a été triplé le soir même, quand la mesure de l'économie
+ * (`village/economie.ts`) a montré des gains trois fois plus bas que prévu, les prix restant les mêmes. Aucun crédit n'avait
+ * encore été donné.
  *
  * - Les points rapportés au clan par une partie sont le `score` positif de la session du clan, ceux que montre l'image de la
  *   partie sur Discord (`Victory.points`, `victoires.ts`). Une partie qui fait perdre des points ne retire rien. Aujourd'hui,
  *   seule une partie gagnée contre des joueurs rapporte des points (relevé de novembre 2026 : 538 parties à points positifs,
  *   toutes gagnées) : la relecture ne lit donc que celles-là (`stateres-releve.ts`).
  * - Règle « entiers à chacun » (choix du pilote) : chaque Gaulois présent, c'est-à-dire avec des stats dans la partie et le
- *   tag du clan, reçoit tous les points qu'elle a rapportés, sans partage. Un point vaut 10 statères, arrondi à l'entier le
- *   plus proche (une demie vers le haut), et une partie qui rapporte des points donne au moins 1 statère. 1,67 point : 17
+ *   tag du clan, reçoit tous les points qu'elle a rapportés, sans partage. Un point vaut 30 statères, arrondi à l'entier le
+ *   plus proche (une demie vers le haut), et une partie qui rapporte des points donne au moins 1 statère. 1,67 point : 50
  *   statères à chacun des Gaulois de la partie.
  * - La même règle est écrite côté serveur (`internal.stateres_de_victoire`, migration 20261113001800) : l'essai de la
  *   migration compare les deux. Chaque crédit garde ses données brutes (partie, début, points, nombre de Gaulois) et le nom de
  *   sa règle : la règle peut changer sans perdre l'historique.
- * - Le calcul se fait sur l'écriture décimale du nombre, comme le fait Postgres sur le JSON reçu : 1,65 point donne 17, là où
- *   `Math.round(1.65 * 10)` donnerait 16.
+ * - Le calcul se fait sur l'écriture décimale du nombre, comme le fait Postgres sur le JSON reçu : 2,05 points donnent 62
+ *   (61,5 arrondi vers le haut), là où `Math.round(2.05 * 30)` donnerait 61.
  *
  * Les noms techniques (`stateresDeVictoire`, `fenetreDesVictoires`, `victoiresARelire`, et côté serveur `stateres_victoires`,
  * `noter_victoires_stateres`, la nature `'victoire'` du journal) datent de la première écriture : ils désignent les parties
@@ -26,10 +29,10 @@
  */
 import { parisParts, parisStartOf } from "./time";
 
-/** Le nom de la règle en vigueur, gardé dans chaque crédit. */
-export const REGLE_STATERES = "entier";
-/** Ce que vaut un point de classement. */
-export const STATERES_PAR_POINT = 10;
+/** Le nom de la règle en vigueur, gardé dans chaque crédit : « entiers à chacun », 30 statères par point. */
+export const REGLE_STATERES = "entier-30";
+/** Ce que vaut un point rapporté au clan, en statères (le pilote, 13 novembre 2026). */
+export const STATERES_PAR_POINT = 30;
 
 /** Un nombre tel que JSON l'écrit, en entier et en puissance de dix : 1.65 donne 165 et 2. `null` : pas un nombre fini positif. */
 function decimal(x: number): { entier: bigint; echelle: number } | null {
