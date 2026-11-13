@@ -4,6 +4,7 @@
  * un détail absent n'est pas écrit, et un code sans libellé reste affiché tel quel.
  */
 import { fmtCount } from "../format";
+import { parisParts } from "../time";
 import { ROLE_LABELS, type LogRow, type Role } from "./types";
 
 /** Le serveur ne lit pas plus de lignes que cela (`list_admin_log`). */
@@ -13,14 +14,18 @@ export const LOG_PAGE = 50;
 
 export type LogCategory = "requests" | "roles" | "suspensions" | "news" | "settings" | "alliance" | "other";
 
-export const LOG_CATEGORIES: readonly { id: LogCategory; label: string }[] = [
-  { id: "requests", label: "Demandes" },
-  { id: "roles", label: "Rôles" },
-  { id: "suspensions", label: "Suspensions" },
-  { id: "news", label: "Publications : annonces, événements, sondages, mot d'accueil, idées, Gaulois et objectif de la semaine, messages Discord" },
-  { id: "settings", label: "Réglages : les salons Discord, le salon vocal et l'inventaire d'images" },
-  { id: "alliance", label: "La carte de l'alliance : alliances, clans, zones, joueurs alliés et messages retirés" },
-  { id: "other", label: "Autres" },
+/**
+ * `label` : le nom du filtre. `one` : le mot écrit sur chaque ligne. `help` : ce que le type contient, dans l'aide repliée ;
+ * `null` quand le nom suffit.
+ */
+export const LOG_CATEGORIES: readonly { id: LogCategory; label: string; one: string; help: string | null }[] = [
+  { id: "requests", label: "Demandes", one: "Demande", help: null },
+  { id: "roles", label: "Rôles", one: "Rôle", help: null },
+  { id: "suspensions", label: "Suspensions", one: "Suspension", help: null },
+  { id: "news", label: "Publications", one: "Publication", help: "annonces, événements, sondages, mot d'accueil, idées, Gaulois et objectif de la semaine, messages Discord" },
+  { id: "settings", label: "Réglages", one: "Réglage", help: "les salons Discord, le salon vocal et l'inventaire d'images" },
+  { id: "alliance", label: "Alliance", one: "Alliance", help: "la carte de l'alliance : alliances, clans, zones, joueurs alliés et messages retirés" },
+  { id: "other", label: "Autres", one: "Autre", help: null },
 ];
 
 const CATEGORIES: Record<string, LogCategory> = {
@@ -382,4 +387,75 @@ export function logPeople(rows: readonly LogRow[]): string[] {
     if (row.target) names.add(row.target);
   }
   return [...names].sort((a, b) => a.localeCompare(b, "fr", { sensitivity: "base" }));
+}
+
+/* ---------- L'écran du journal : couleur, recherche, nombres et jours ---------- */
+
+/** La couleur d'une ligne. Mêmes noms que `DirTon` de `direction-kit.tsx` et que l'attribut `data-dir-ton`. */
+export type LogTone = "ok" | "warn" | "danger" | "ally" | "muted";
+
+/** Vert : une demande, un allié ou une zone acceptés, un compte rétabli. */
+const TONE_OK: ReadonlySet<string> = new Set(["membership_approved", "member_reinstated", "alliance_ally_approved", "alliance_zone_approved"]);
+/** Rouge : un refus ou une suspension. */
+const TONE_DANGER: ReadonlySet<string> = new Set(["membership_refused", "member_suspended", "alliance_ally_refused", "alliance_zone_refused"]);
+/** Jaune : quelqu'un attend une suite de l'encadrement. */
+const TONE_WARN: ReadonlySet<string> = new Set(["member_link_reset", "alliance_ally_requested"]);
+
+/**
+ * La couleur d'une ligne, jamais seule : la ligne porte le mot de son type et sa phrase. Vert, une chose acceptée ou rétablie ;
+ * rouge, un refus, une suspension ou un message Discord qui n'a pas pu partir ; jaune, quelqu'un attend une suite ; bleu,
+ * un rôle ; gris, tout le reste (publications, réglages, vie de la carte de l'alliance).
+ */
+export function toneOf(row: Pick<LogRow, "action" | "details">): LogTone {
+  if (TONE_OK.has(row.action)) return "ok";
+  if (TONE_DANGER.has(row.action)) return "danger";
+  if (row.action === "discord_message_sent" && row.details?.["unsent"] === true) return "danger";
+  if (TONE_WARN.has(row.action)) return "warn";
+  if (categoryOf(row.action) === "roles") return "ally";
+  return "muted";
+}
+
+/** Sans accents ni majuscules : « teutates » trouve « Teutatès ». */
+const plain = (text: string): string =>
+  text
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .trim();
+
+/** La recherche, à chaque lettre tapée : dans la phrase entière, donc le nom de qui agit, de qui est visé, et ce qui est fait. */
+export function matchesLogSearch(line: LogLine, query: string): boolean {
+  const q = plain(query);
+  if (!q) return true;
+  return plain(`${line.who} ${line.what}`).includes(q);
+}
+
+/** Le nombre de lignes de chaque type, pour les filtres. */
+export function logCounts(rows: readonly Pick<LogRow, "action">[]): Record<LogCategory, number> {
+  const counts: Record<LogCategory, number> = { requests: 0, roles: 0, suspensions: 0, news: 0, settings: 0, alliance: 0, other: 0 };
+  for (const row of rows) counts[categoryOf(row.action)] += 1;
+  return counts;
+}
+
+/** Le jour d'une ligne à Paris, « AAAA-MM-JJ ». */
+export const logDay = (at: string): string => parisParts(at).date;
+
+const dayTitle = new Intl.DateTimeFormat("fr-FR", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long", year: "numeric" });
+
+/** Le titre d'un jour « AAAA-MM-JJ » : « Samedi 14 novembre 2026 », et « 1er » pour le premier du mois. */
+export function fmtLogDay(day: string): string {
+  const text = dayTitle.format(new Date(`${day}T00:00:00.000Z`)).replace(/ 1 /, " 1er ");
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** Les lignes rangées par jour de Paris, dans l'ordre où le serveur les donne (les plus récentes d'abord). */
+export function groupByDay<T extends Pick<LogRow, "at">>(rows: readonly T[]): { day: string; rows: T[] }[] {
+  const days: { day: string; rows: T[] }[] = [];
+  for (const row of rows) {
+    const day = logDay(row.at);
+    const last = days.at(-1);
+    if (last && last.day === day) last.rows.push(row);
+    else days.push({ day, rows: [row] });
+  }
+  return days;
 }
