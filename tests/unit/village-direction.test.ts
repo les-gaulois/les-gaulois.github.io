@@ -23,7 +23,19 @@ import {
   type EconomieDuVillage,
   type Reglages,
   type Saisie,
+  D_OU_VIENNENT_LES_BULLES,
+  PLAFOND_ATTEINT,
+  confirmationDesBulles,
+  confirmationDuPlafond,
+  controlerPlafond,
+  dollars,
+  etatDesBulles,
+  moisEnMots,
+  phraseDeLaDepense,
+  plafondEnSaisie,
+  prixDuModele,
 } from "../../src/lib/village/direction";
+import { PLAFOND_MAX, lirePlafond, lireVieDuVillage, type VieDuVillage } from "../../src/lib/village/vie-releve";
 import { controlerReglages, hasardAGraine, type Catalogue } from "../../src/lib/village/economie";
 
 const MIGRATION = readFileSync("supabase/migrations/20261113002100_village_direction.sql", "utf8");
@@ -341,5 +353,87 @@ describe("les changements à confirmer", () => {
     expect(lireReglage({ ok: true, change: true, prix: {} })).toEqual({ change: true });
     expect(lireReglage({ ok: true, change: false })).toEqual({ change: false });
     for (const r of [null, { ok: true }, { ok: false, error: "forbidden" }, { ok: true, change: "oui" }]) expect(lireReglage(r)).toBeNull();
+  });
+});
+
+/** Les espaces insécables du site, ramenées à des espaces ordinaires pour comparer. */
+const sp = (s: string) => s.replace(/\s/g, " ");
+
+/** Une réponse de get_vie_du_village, telle que la migration 20261113002300 la donne (numeric en nombres JSON). */
+const VIE = (): VieDuVillage =>
+  lireVieDuVillage({
+    ok: true,
+    bulles: true,
+    plafond: 10.0,
+    plafond_atteint: false,
+    modele: "claude-haiku-5-5",
+    prix: { entree: 0.1, sortie: 0.5 },
+    mois: "2026-11-01",
+    depense: { mois: "2026-11-01", cout: 0.4235, appels: 31, entree: 61200, sortie: 45100, repliques: 540, ecartees: 12 },
+    historique: [{ mois: "2026-10-01", cout: 1.2, appels: 90, entree: 1, sortie: 1, repliques: 1600, ecartees: 30 }],
+    bulles_affichees: 23,
+    dernier_vocal: "2026-11-14T09:05:00+00:00",
+    derniere_bulle: null,
+  })!;
+
+describe("les bulles des Gaulois dans l'onglet Village", () => {
+  it("lisent la réponse du serveur par lireVieDuVillage, de vie-releve.ts", () => {
+    expect(VIE().depense.repliques).toBe(540);
+    expect(VIE().historique).toHaveLength(1);
+  });
+
+  it("écrivent les dollars au centime, sans jamais un faux zéro", () => {
+    expect(sp(dollars(0))).toBe("0 $");
+    expect(sp(dollars(10))).toBe("10 $");
+    expect(sp(dollars(12.5))).toBe("12,50 $");
+    expect(sp(dollars(0.4235))).toBe("0,42 $");
+    expect(sp(dollars(0.0012))).toBe("moins de 0,01 $");
+    expect(sp(dollars(0.005))).toBe("0,01 $");
+    expect(sp(dollars(1234.5))).toBe("1 234,50 $");
+  });
+
+  it("disent la dépense, le plafond, l'état des bulles et le modèle en mots", () => {
+    const vie = VIE();
+    expect(sp(phraseDeLaDepense(vie))).toBe("Dépense du mois : 0,42 $ sur un plafond de 10 $.");
+    expect(etatDesBulles(vie)).toBe("Les bulles sont permises.");
+    expect(etatDesBulles({ ...vie, bulles: false })).toBe("Les bulles sont coupées : la place n'en montre aucune, et Claude n'est plus appelé.");
+    expect(PLAFOND_ATTEINT).toContain("Plafond atteint");
+    expect(sp(prixDuModele(vie))).toBe("Modèle claude-haiku-5-5 : 0,10 $ par million de jetons envoyés à Claude, 0,50 $ par million de jetons écrits par lui.");
+    expect(sp(prixDuModele({ ...vie, prix: { entree: 0.0375, sortie: 3 } }))).toContain("0,0375 $ par million");
+    expect(D_OU_VIENNENT_LES_BULLES).toContain("écrites par Claude (Anthropic) à partir de faits sans identité");
+    expect(D_OU_VIENNENT_LES_BULLES).toContain("en dollars, la monnaie d'Anthropic");
+  });
+
+  it("nomment les mois d'avant en toutes lettres", () => {
+    expect(moisEnMots("2026-10-01")).toBe("octobre 2026");
+    expect(moisEnMots("2026-01-01")).toBe("janvier 2026");
+    expect(moisEnMots("pas un mois")).toBe("pas un mois");
+  });
+
+  it("relisent le plafond saisi par lirePlafond, et disent le refus du serveur", () => {
+    expect(controlerPlafond("15", 10)).toEqual({ valeur: 15, probleme: null, change: true });
+    expect(controlerPlafond("12,50", 10)).toEqual({ valeur: 12.5, probleme: null, change: true });
+    expect(controlerPlafond("10", 10)).toEqual({ valeur: 10, probleme: null, change: false });
+    expect(controlerPlafond("0", 10)).toEqual({ valeur: 0, probleme: null, change: true });
+    for (const t of ["", "abc", "-1", "100,001", String(PLAFOND_MAX + 1), "1e2", "12,345"]) {
+      expect(lirePlafond(t), t).toBeNull();
+      expect(controlerPlafond(t, 10), t).toEqual({ valeur: null, probleme: "Indiquez un plafond de 0 à 100 dollars, au centime près.", change: false });
+    }
+    expect(plafondEnSaisie(10)).toBe("10");
+    expect(plafondEnSaisie(12.5)).toBe("12,5");
+    expect(lirePlafond(plafondEnSaisie(12.5))).toBe(12.5);
+  });
+
+  it("confirment le plafond en mots, et préviennent quand la dépense l'atteint déjà", () => {
+    const vie = VIE();
+    expect(confirmationDuPlafond(vie, 15).map(sp)).toEqual(["Le plafond passera de 10 $ à 15 $ par mois."]);
+    expect(confirmationDuPlafond(vie, 0.25).map(sp)).toEqual(["Le plafond passera de 10 $ à 0,25 $ par mois.", "La dépense du mois, 0,42 $, l'atteint déjà : plus aucune nouvelle bulle avant le 1er du mois prochain."]);
+    expect(confirmationDuPlafond(vie, 0).length).toBe(2);
+  });
+
+  it("disent ce que fait le second clic, couper ou remettre, avec le geste inverse", () => {
+    expect(confirmationDesBulles(true)).toContain("« Remettre les bulles » les rendra.");
+    expect(confirmationDesBulles(false)).toContain("de nouveau appelé");
+    for (const t of [confirmationDesBulles(true), confirmationDesBulles(false), etatDesBulles(VIE()), PLAFOND_ATTEINT]) expect(t).not.toMatch(/[<>=÷%→]/);
   });
 });
