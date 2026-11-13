@@ -135,11 +135,24 @@ export type RefusMarche =
   | "deja_possede"
   | "solde_insuffisant";
 
-/** Un Gaulois de la place du village. `nom` : le nom que le QG montre déjà pour ce compte. `moi` : celui de l'appelant. */
+/**
+ * Un Gaulois de la place du village. `nom` : le nom que le QG montre déjà pour ce compte. `moi` : celui de l'appelant.
+ *
+ * La vie du village (demande du pilote, 13 novembre 2026 : un village animé, où ce que fait le joueur décide de ce que
+ * fait son Gaulois) s'appuie sur trois champs que le serveur peut ne pas donner : l'écran les lit alors comme `null`, et
+ * le Gaulois suit seulement l'heure de Paris. Aucun n'est du temps réel : ce sont des relevés, et l'écran le dit.
+ * - `partie_le` : le début de sa dernière partie qui a rapporté des points au clan, si elle a commencé il y a moins de 24
+ *   heures. OpenFront ne dit pas qui joue en ce moment : seule une partie finie se connaît.
+ * - `vocal` : il était dans un salon vocal du Discord du clan au dernier relevé ; `null` : pas relevé.
+ * - `replique` : une phrase courte que le serveur lui fait dire ; `null` : il ne dit rien.
+ */
 export interface GauloisDeLaPlace {
   nom: string;
   tenue: Tenue;
   moi: boolean;
+  partie_le?: string | null;
+  vocal?: boolean | null;
+  replique?: string | null;
 }
 
 /**
@@ -150,4 +163,6 @@ export interface GauloisDeLaPlace {
 export interface Village {
   ok: true;
   gaulois: GauloisDeLaPlace[];
+  /** L'heure du dernier relevé des parties par le serveur, à montrer avec la vie du village ; `null` : jamais ou pas donnée. */
+  releve?: string | null;
 }
