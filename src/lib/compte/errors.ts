@@ -152,6 +152,16 @@ export const ERROR_MESSAGES: Record<string, string> = {
   discord_taken: "Votre compte Discord a déjà un compte sur le site, ouvert avec un code. Déconnectez-vous, puis connectez-vous avec un code : tapez /code dans le Discord du clan.",
   invalid_tenue: "Cette tenue n'est pas dans le vestiaire. Rechargez la page.",
   invalid_parties: "Les victoires envoyées pour les statères sont mal formées : rien n'a été noté.",
+
+  // Le marché du village (contrat : `RefusMarche` de src/lib/village/contrat.ts). Les refus qu'il partage avec la boutique
+  // (`deja_possede`, `solde_insuffisant`) sont à la boutique ; le marché a ses propres mots dans `ecran-marche.ts`.
+  pas_possede: "Cet objet n'est plus dans votre inventaire.",
+  objet_porte: "Votre Gaulois porte cet objet : enlevez-le d'abord, dans « Mon Gaulois ».",
+  achete_au_marche: "Un objet acheté au marché ne se remet pas en vente.",
+  prix_invalide: "Ce prix n'est pas accepté : un nombre entier, de 1 statère au prix de la boutique.",
+  trop_d_offres: "Vous avez déjà toutes vos offres ouvertes : retirez-en une d'abord.",
+  offre_fermee: "Cette offre n'est plus ouverte : elle est vendue, retirée ou finie.",
+  offre_a_soi: "C'est votre offre : elle se retire, elle ne s'achète pas.",
 };
 
 export function errorMessage(code: string): string {
