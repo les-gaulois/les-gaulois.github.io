@@ -102,15 +102,13 @@ describe("l'écran de la place", () => {
   it("lit la réponse du serveur et laisse de côté un Gaulois illisible", () => {
     const village = lireVillage({
       ok: true,
-      visible: false,
       gaulois: [gaulois("Brennos", true), { nom: "", tenue: TENUE_DE_DEPART, moi: false }, { nom: "Sans tenue", tenue: { peau: "verte" }, moi: false }, null, gaulois("  Epona  ")],
     });
-    expect(village?.visible).toBe(false);
     expect(village?.gaulois.map((g) => [g.nom, g.moi])).toEqual([
       ["Brennos", true],
       ["Epona", false],
     ]);
-    expect(lireVillage({ ok: true, gaulois: [] })).toEqual({ ok: true, visible: true, gaulois: [] });
+    expect(lireVillage({ ok: true, gaulois: [] })).toEqual({ ok: true, gaulois: [] });
     expect(lireVillage(null)).toBeNull();
     expect(lireVillage({ ok: true })).toBeNull();
   });
@@ -120,10 +118,9 @@ describe("l'écran de la place", () => {
     expect(ordreDeLaPlace([])).toEqual([]);
   });
 
-  it("dit quand le membre veut se montrer mais n'a pas encore de Gaulois", () => {
-    expect(sonGauloisManque({ ok: true, visible: true, gaulois: [gaulois("A")] })).toBe(true);
-    expect(sonGauloisManque({ ok: true, visible: true, gaulois: [gaulois("A", true)] })).toBe(false);
-    expect(sonGauloisManque({ ok: true, visible: false, gaulois: [gaulois("A")] })).toBe(false);
+  it("dit quand le membre n'a pas encore de Gaulois sur la place", () => {
+    expect(sonGauloisManque({ ok: true, gaulois: [gaulois("A")] })).toBe(true);
+    expect(sonGauloisManque({ ok: true, gaulois: [gaulois("A", true)] })).toBe(false);
   });
 
   it("compte les Gaulois, et ne compte pas une place vide", () => {
