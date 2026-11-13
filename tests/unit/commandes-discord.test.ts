@@ -237,6 +237,24 @@ describe("l'index des commandes", () => {
     expect(index.emojis.map((e) => e.name)).toEqual(DISCORD_EMOJIS.map((e) => e.name));
     expect(index.vignettes.map((v) => v.name)).toEqual([...VIGNETTE_ICONES]);
   });
+
+  it("la fonction écarte un émoji ou une vignette au nom ou au chemin douteux", () => {
+    const good = { name: "gal_cor", image: "/commandes/emojis/gal_cor.png?v=abcdefabcdef" };
+    const doubtful = [
+      { name: "Gal_Cor", image: good.image },
+      { name: "gal-cor", image: good.image },
+      { name: "g", image: good.image },
+      { name: 5, image: good.image },
+      { name: "gal_cor", image: "//ailleurs.example/gal_cor.png" },
+      { name: "gal_cor", image: "https://ailleurs.example/gal_cor.png" },
+      { name: "gal_cor", image: "/commandes/../secret.png" },
+      { name: "gal_cor", image: "/commandes/emojis/gal_cor.png?v=abc&x=1" },
+      "gal_cor",
+    ];
+    const parsed = parseCommandes({ guide: [], rivaux: [], emojis: [good, ...doubtful], vignettes: "non" });
+    expect(parsed?.emojis).toEqual([good]);
+    expect(parsed?.vignettes).toEqual([]);
+  });
 });
 
 describe("l'image du guichet des tickets", () => {

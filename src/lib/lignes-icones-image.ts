@@ -1,8 +1,8 @@
 /**
- * Des lignes à icône en pixels, pour les images du robot posées au-dessus de boutons : le panneau des rôles
- * (`roles-discord.ts`) et le guichet des tickets (`guichet-image.ts`). Chaque ligne a la case de son icône, la même que
- * celle de son bouton sur Discord (`emojis-discord.ts`), son nom, et une phrase dessous. Ainsi l'image et la rangée de
- * boutons se lisent ensemble, dans le même ordre, avec les mêmes dessins.
+ * Les grandes cases en pixels des images du robot posées au-dessus de boutons : le panneau des rôles (`roles-discord.ts`)
+ * et le guichet des tickets (`guichet-image.ts`). Chaque case a la grande icône de son bouton, la même que son émoji sur
+ * Discord (`emojis-discord.ts`), son nom, et une phrase dessous. Ainsi l'image et la rangée de boutons se lisent ensemble,
+ * dans le même ordre, avec les mêmes dessins.
  * Ce fichier dit quoi écrire et où ; il se teste sans police.
  */
 import { CARD_COLORS as C, fitted, type CardRect, type CardText, type Measure } from "./gazette-image";
@@ -10,7 +10,7 @@ import { ICONES_PARTIES, ICONE_DEMI, ICONE_PLEIN, type IconePartieNom } from "./
 import { CARD_MARGIN, CARD_WIDTH, type CardParts } from "./salon-image";
 
 export interface IconRow {
-  /** Le nom écrit sur la ligne, celui de son bouton. */
+  /** Le nom écrit sur la case, celui de son bouton. */
   label: string;
   /** La phrase sous le nom. */
   description: string;
@@ -19,8 +19,6 @@ export interface IconRow {
 }
 
 const CONTENT_WIDTH = CARD_WIDTH - 2 * CARD_MARGIN;
-/** Une ligne : la case de l'icône à gauche, le nom, et la phrase dessous. Treize cases de six pixels dans une case de 88. */
-export const ICON_ROW = { height: 116, gap: 14, inset: 14, tile: 88, cell: 6, name: 36, description: 27 } as const;
 
 /**
  * Les cases d'une icône en rectangles : une suite de cases voisines de même teinte fait un seul rectangle. C'est le tracé de
@@ -63,16 +61,26 @@ export function wrapWords(text: string, font: CardText["font"], size: number, wi
 
 /**
  * Les grandes cases, comme l'écran de choix d'un jeu : en grille de `columns` colonnes, chacune avec sa grande icône en
- * pixels au milieu, son nom dessous, puis sa phrase, sur deux ou trois lignes. Toutes les cases ont la hauteur de la plus
- * haute. `bottom` : le bas de la dernière rangée.
+ * pixels au milieu, son nom dessous, puis sa phrase, sur autant de lignes qu'il faut, sans couper un mot. Toutes les cases
+ * ont la hauteur de la plus haute. `bottom` : le bas de la dernière rangée. Les phrases du panneau et du guichet tiennent
+ * sur deux lignes avec la vraie police, comme sur les planches validées : un test le vérifie.
  */
 export const ICON_TILE = { gap: 24, pad: 30, cell: 12, name: 40, nameMin: 26, nameGap: 58, description: 27, line: 37, after: 30 } as const;
 
+/** La largeur d'une case dans une grille de `columns` colonnes. */
+const tileWidth = (columns: number): number => (CONTENT_WIDTH - (columns - 1) * ICON_TILE.gap) / columns;
+
+/** La phrase de chaque case, coupée en lignes à la largeur de sa case. */
+export function tileDescriptions(rows: readonly IconRow[], columns: number, measure: Measure): string[][] {
+  const inner = tileWidth(columns) - 2 * ICON_TILE.pad;
+  return rows.map((row) => wrapWords(row.description, "body", ICON_TILE.description, inner, measure));
+}
+
 export function iconTileParts(rows: readonly IconRow[], top: number, columns: number, measure: Measure): CardParts & { bottom: number } {
   const m = ICON_TILE;
-  const width = (CONTENT_WIDTH - (columns - 1) * m.gap) / columns;
+  const width = tileWidth(columns);
   const inner = width - 2 * m.pad;
-  const wrapped = rows.map((row) => wrapWords(row.description, "body", m.description, inner, measure));
+  const wrapped = tileDescriptions(rows, columns, measure);
   const iconSide = Math.max(...rows.map((row) => ICONES_PARTIES[row.icone].length), 0) * m.cell;
   const lines = Math.max(...wrapped.map((w) => w.length), 1);
   const height = m.pad + iconSide + m.nameGap + (lines - 1) * m.line + m.line + m.after;
@@ -96,24 +104,4 @@ export function iconTileParts(rows: readonly IconRow[], top: number, columns: nu
   });
   const tileRows = Math.ceil(rows.length / columns);
   return { rects, texts, bottom: rows.length > 0 ? top + tileRows * (height + m.gap) - m.gap : top };
-}
-
-/** Les lignes, à partir de `top`. `bottom` : le bas de la dernière, ou `top` sans ligne. */
-export function iconRowParts(rows: readonly IconRow[], top: number, measure: Measure): CardParts & { bottom: number } {
-  const m = ICON_ROW;
-  const rects: CardRect[] = [];
-  const texts: CardText[] = [];
-  const textX = CARD_MARGIN + m.inset + m.tile + 28;
-  const room = CARD_MARGIN + CONTENT_WIDTH - 24 - textX;
-  rows.forEach((row, i) => {
-    const y = top + i * (m.height + m.gap);
-    rects.push({ x: CARD_MARGIN, y, width: CONTENT_WIDTH, height: m.height, radius: 8, color: C.SURFACE, stroke: C.LINE });
-    rects.push({ x: CARD_MARGIN + m.inset, y: y + m.inset, width: m.tile, height: m.tile, radius: 6, color: C.SURFACE_2, stroke: C.LINE_STRONG });
-    const lines = ICONES_PARTIES[row.icone];
-    const offset = (m.tile - lines.length * m.cell) / 2;
-    rects.push(...iconRects(lines, CARD_MARGIN + m.inset + offset, y + m.inset + offset, m.cell, C.BLUE_TEXT, C.BLUE));
-    texts.push({ ...fitted(row.label, "strong", m.name, m.name - 8, room, measure), x: textX, y: y + 52, font: "strong", color: C.WHITE });
-    texts.push({ ...fitted(row.description, "body", m.description, m.description - 7, room, measure), x: textX, y: y + 94, font: "body", color: C.MUTED });
-  });
-  return { rects, texts, bottom: rows.length > 0 ? top + rows.length * (m.height + m.gap) - m.gap : top };
 }

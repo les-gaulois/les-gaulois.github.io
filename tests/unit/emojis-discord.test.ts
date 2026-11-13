@@ -4,8 +4,8 @@ import { GUICHET_ROWS } from "../../src/lib/guichet-image";
 import { ICONES_PARTIES, ICONE_DEMI, ICONE_PLEIN } from "../../src/lib/icones-parties";
 import { PANEL_ROLES as SITE_PANEL_ROLES } from "../../src/lib/roles-discord";
 import { appEmojis, buttonEmoji, ensureEmojis, toBase64, vignetteUrl } from "../../supabase/functions/code-discord/emojis";
-import { PANEL_EMOJIS, PANEL_ROLES, type CommandIndex, type DiscordCall, type DiscordReply, type Deps } from "../../supabase/functions/code-discord/index";
-import { KINDS, TICKET_EMOJIS, TICKET_KINDS } from "../../supabase/functions/code-discord/tickets";
+import { PANEL_EMOJIS, PANEL_ROLES, panelMessage as rolesPanel, type CommandIndex, type DiscordCall, type DiscordReply, type Deps } from "../../supabase/functions/code-discord/index";
+import { KINDS, TICKET_EMOJIS, TICKET_KINDS, panelMessage as deskPanel, welcomeMessage } from "../../supabase/functions/code-discord/tickets";
 
 const SITE = "https://les-gaulois.github.io";
 const APP = "222233334444555566";
@@ -62,6 +62,22 @@ describe("les mêmes noms et les mêmes icônes, côté site et côté robot", (
       expect(byName.get(KINDS[kind].pixel)).toBe(KINDS[kind].icone);
       expect(VIGNETTE_ICONES).toContain(KINDS[kind].icone);
     });
+  });
+
+  it("chaque émoji nomme le bouton qui le porte, tel que la fonction l'écrit", () => {
+    const ids = new Map(DISCORD_EMOJIS.map((e, i) => [e.name, String(800000000000000000n + BigInt(i))]));
+    const desk = { category: "311111111111111111", journal: "322222222222222222", staff: "344444444444444444" };
+    const info = { kind: "question" as const, opener: "123456789012345678", staff: desk.staff, journal: desk.journal, logMessage: null, answers: [], openedAt: 1_794_000_000 };
+    const carried = new Map<string, string>();
+    const walk = (node: unknown): void => {
+      if (Array.isArray(node)) return node.forEach(walk);
+      const n = node as { type?: unknown; label?: unknown; emoji?: { name?: unknown }; components?: unknown } | null;
+      if (!n || typeof n !== "object") return;
+      if (n.type === 2 && typeof n.emoji?.name === "string" && typeof n.label === "string") carried.set(n.emoji.name, n.label);
+      walk(n.components);
+    };
+    for (const message of [rolesPanel("Le panneau des rôles", ids), deskPanel(desk, null, ids), welcomeMessage(info, { thumbnail: null, emojis: ids })]) walk(message["components"]);
+    for (const emoji of DISCORD_EMOJIS) expect(carried.get(emoji.name), emoji.name).toBe(emoji.button);
   });
 });
 
@@ -122,6 +138,10 @@ describe("les émojis de l'application chez Discord", () => {
     const noImage = emojiDiscord({});
     expect(await ensureEmojis(["gal_inconnu"], INDEX, noImage.deps)).toEqual(new Map());
     expect(noImage.logs).toEqual(["émoji gal_inconnu : pas d'image sur le site"]);
+    // Accepté, mais avec un numéro qui n'a pas la forme d'un numéro de Discord : le bouton part sans lui.
+    const odd = emojiDiscord({}, { upload: (name) => ({ status: 201, body: { id: "pas-un-numero", name } }) });
+    expect(await ensureEmojis(["gal_cor"], INDEX, odd.deps)).toEqual(new Map());
+    expect(odd.logs).toEqual(["émoji gal_cor : déposé, mais son numéro ne se lit pas"]);
   });
 
   it("met l'émoji du robot sur un bouton s'il est déposé, sinon l'émoji ordinaire, sinon rien", () => {

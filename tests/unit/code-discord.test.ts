@@ -25,6 +25,7 @@ import {
   GAL_GUILD_ID,
   MAX_CHOICES,
   MESSAGES,
+  PANEL_EMOJIS,
   PANEL_FILE,
   PANEL_RIGHTS,
   PANEL_ROLES,
@@ -1358,6 +1359,28 @@ describe("la commande /roles", () => {
       { id: "700000000000000003", name: "gal_bouclier" },
       { id: "700000000000000004", name: "gal_casque" },
     ]);
+  });
+
+  it("si Discord refuse le panneau avec les émojis du robot, le panneau repart avec les émojis ordinaires", async () => {
+    const known = PANEL_EMOJIS.map((name, i) => ({ id: String(700000000000000000n + BigInt(i)), name }));
+    const tried: unknown[] = [];
+    const base = panelDiscord();
+    const { over } = fakeDiscord((method, path, call) => {
+      if (path === `/applications/${APP}/emojis` && method === "GET") return { status: 200, body: { items: known } };
+      if (path === `/channels/${CHANNEL}/messages` && method === "POST") {
+        tried.push(call?.body);
+        if (JSON.stringify(call?.body).includes('"id":"700000000000000000"')) return { status: 400, body: { code: 50035 } };
+      }
+      return base.over.discord(method, path, call) as unknown as DiscordReply | null;
+    });
+    const { text, calls } = await answered(rolesCommand(), over);
+    expect(tried).toEqual([panelMessage(COMMANDES.roles!.alt, new Map(known.map((e) => [e.name, e.id]))), panelMessage(COMMANDES.roles!.alt)]);
+    expect(text).toBe(`${ROLE_MESSAGES.posted}\n${ROLE_MESSAGES.ready}`);
+    expect(calls.logs).toEqual(["panneau des rôles : refusé avec les émojis du robot (400), reposté sans"]);
+    // Sans émoji du robot sur le panneau, un refus n'est pas réessayé : il est dit à l'encadrement.
+    const plain = panelDiscord({ status: 400, body: { code: 50035 } });
+    expect((await answered(rolesCommand(), plain.over)).text).toBe(ROLE_MESSAGES.postRefused(400));
+    expect(plain.sent.filter((s) => s.method === "POST")).toHaveLength(1);
   });
 
   it("note au journal une réponse d'attente que Discord n'a pas laissé remplacer", async () => {

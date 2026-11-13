@@ -797,13 +797,19 @@ const allows = (granted: bigint, bit: bigint): boolean => (granted & RIGHTS.admi
 const mention = (id: string): string => `<@&${id}>`;
 const quoted = (labels: readonly string[]): string => labels.map((label) => `« ${label} »`).join(", ");
 
+/** Un rôle changé : le titre de la carte, puis ce que fera le clic suivant. Le texte de secours dit les mêmes mots. */
+const ROLE_CHANGE = {
+  added: { title: (id: string): string => `Rôle ajouté : ${mention(id)}`, next: "Un second clic sur le même bouton le retire." },
+  removed: { title: (id: string): string => `Rôle retiré : ${mention(id)}`, next: "Un clic sur le même bouton le redonne." },
+} as const;
+
 export const ROLE_MESSAGES = {
   wrongPlace: "Ces boutons ne servent que sur le serveur Discord du clan.",
   commandWrongPlace: "Tapez /roles dans un salon du serveur Discord du clan.",
   oldButton: "Ce bouton ne sert plus : l'encadrement peut reposter le panneau avec /roles.",
   notReady: "Les boutons des rôles ne sont pas encore branchés : l'encadrement finit leur installation.",
-  added: (id: string): string => `Rôle ajouté : ${mention(id)}. Un second clic sur le même bouton le retire.`,
-  removed: (id: string): string => `Rôle retiré : ${mention(id)}. Un clic sur le même bouton le redonne.`,
+  added: (id: string): string => `${ROLE_CHANGE.added.title(id)}. ${ROLE_CHANGE.added.next}`,
+  removed: (id: string): string => `${ROLE_CHANGE.removed.title(id)}. ${ROLE_CHANGE.removed.next}`,
   held: (ids: readonly string[]): string => (ids.length === 0 ? "Vous n'avez aucun rôle du panneau." : `Vos rôles du panneau : ${ids.map(mention).join(", ")}.`),
   noRight: (id: string): string => `Le robot n'a pas le droit de donner ${mention(id)}. Prévenez l'encadrement : il lui faut le droit « Gérer les rôles », et un rôle placé plus haut que celui-ci dans la liste des rôles.`,
   badToken: "Le robot ne peut plus donner de rôles : son jeton a changé. Prévenez l'encadrement.",
@@ -1011,12 +1017,11 @@ async function toggleRole(role: (typeof PANEL_ROLES)[number], userId: string, he
   if (reply && reply.status >= 200 && reply.status < 300) {
     if (had) held.delete(role.id);
     else held.add(role.id);
+    const change = had ? ROLE_CHANGE.removed : ROLE_CHANGE.added;
     const text = `${had ? ROLE_MESSAGES.removed(role.id) : ROLE_MESSAGES.added(role.id)}\n${heldText(held)}`;
     // La vignette du rôle, si l'index du site la donne : sinon, la carte part sans elle.
     const url = vignetteUrl(await deps.commandes(), role.icone, SITE_URL);
-    const title = `${had ? "Rôle retiré" : "Rôle ajouté"} : ${mention(role.id)}`;
-    const detail = had ? "Un clic sur le même bouton le redonne." : "Un second clic sur le même bouton le retire.";
-    return { card: roleCard(title, detail, held, url ? { url, description: `L'icône de ${role.label}` } : null), text };
+    return { card: roleCard(change.title(role.id), change.next, held, url ? { url, description: `L'icône de ${role.label}` } : null), text };
   }
   const code = reply ? discordCode(reply) : null;
   deps.log(`bouton ${role.key} : ${reply ? `${reply.status}${typeof code === "number" ? ` (code ${code})` : ""}` : "Discord ne répond pas"}`);
@@ -1068,11 +1073,14 @@ async function postPanel(guildId: string, channelId: string, rightsShown: boolea
     if (!panel || !image) return ROLE_MESSAGES.noImage;
     // Les émojis du robot, déposés chez Discord la première fois : sans eux, les boutons gardent leurs émojis ordinaires.
     const emojis = await ensureEmojis(PANEL_EMOJIS, index, deps);
-    const [roles, me, posted] = await Promise.all([
-      deps.discord("GET", `/guilds/${guildId}/roles`),
-      deps.discord("GET", `/guilds/${guildId}/members/${deps.botId}`),
-      deps.discord("POST", `/channels/${channelId}/messages`, { body: panelMessage(panel.alt, emojis), files: [{ name: PANEL_FILE, type: "image/png", bytes: image }] }),
-    ]);
+    const postPanelWith = (ids: EmojiIds) => deps.discord("POST", `/channels/${channelId}/messages`, { body: panelMessage(panel.alt, ids), files: [{ name: PANEL_FILE, type: "image/png", bytes: image }] });
+    const [roles, me, first] = await Promise.all([deps.discord("GET", `/guilds/${guildId}/roles`), deps.discord("GET", `/guilds/${guildId}/members/${deps.botId}`), postPanelWith(emojis)]);
+    let posted = first;
+    // Refusé avec les émojis du robot (400) : le panneau repart avec les émojis ordinaires.
+    if (posted?.status === 400 && PANEL_EMOJIS.some((name) => emojis.has(name))) {
+      deps.log("panneau des rôles : refusé avec les émojis du robot (400), reposté sans");
+      posted = await postPanelWith(new Map());
+    }
     if (!posted || posted.status < 200 || posted.status >= 300) {
       const code = posted ? discordCode(posted) : null;
       deps.log(`panneau des rôles : ${posted ? `${posted.status}${typeof code === "number" ? ` (code ${code})` : ""}` : "Discord ne répond pas"}`);

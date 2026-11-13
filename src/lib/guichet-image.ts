@@ -7,7 +7,7 @@
  */
 import { CARD_COLORS as C, fitted, pageHead, type CardText, type GazetteCard, type Measure } from "./gazette-image";
 import type { IconePartieNom } from "./icones-parties";
-import { iconTileParts } from "./lignes-icones-image";
+import { iconTileParts, type IconRow } from "./lignes-icones-image";
 import { shownAddress } from "./salon-discord";
 import { assembleCard, CARD_MARGIN, CARD_WIDTH, footParts, FOOTER_HEIGHT } from "./salon-image";
 
@@ -27,15 +27,13 @@ export const GUICHET_ROWS: readonly { name: string; detail: string; icone: Icone
 export const GUICHET_NOTES = ["Choisissez le bouton qui correspond, sous l'image.", "Un ticket à la fois : il se ferme quand c'est réglé."] as const;
 /** L'invite de l'en-tête : `gal@clan:~$ ./aide`. Le guichet ne mène à aucune page. */
 const PROMPT_PATH = "/aide";
+/** Les grandes cases du guichet, une par bouton, les trois sur une rangée. */
+export const GUICHET_COLUMNS = 3;
+export const GUICHET_TILES: readonly IconRow[] = GUICHET_ROWS.map((row) => ({ label: row.name, description: row.detail, icone: row.icone }));
 
 export function guichetCard(siteUrl: string, measure: Measure): GazetteCard {
   const head = pageHead({ path: PROMPT_PATH, title: GUICHET_TITLE, kicker: GUICHET_KICKER, period: GUICHET_PERIOD }, measure);
-  const body = iconTileParts(
-    GUICHET_ROWS.map((row) => ({ label: row.name, description: row.detail, icone: row.icone })),
-    head.bottom,
-    3,
-    measure,
-  );
+  const body = iconTileParts(GUICHET_TILES, head.bottom, GUICHET_COLUMNS, measure);
   const notes: CardText[] = GUICHET_NOTES.map((line, i) => ({
     ...fitted(line, "body", 26, 18, CARD_WIDTH - 2 * CARD_MARGIN, measure),
     x: CARD_MARGIN,

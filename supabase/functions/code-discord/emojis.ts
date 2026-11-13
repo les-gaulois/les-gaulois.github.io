@@ -14,6 +14,9 @@ export type EmojiIds = ReadonlyMap<string, string>;
 const record = (value: unknown): Record<string, unknown> | null =>
   value !== null && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
 
+/** Un numéro de Discord : seul un numéro de cette forme part sur un bouton. */
+const DISCORD_ID = /^[0-9]{17,20}$/;
+
 /** Un PNG en base64, pour l'envoyer à Discord dans une adresse « data: ». */
 export function toBase64(bytes: Uint8Array): string {
   let text = "";
@@ -31,7 +34,7 @@ export async function appEmojis(deps: Deps): Promise<Map<string, string> | null>
   for (const item of items) {
     const id = record(item)?.["id"];
     const name = record(item)?.["name"];
-    if (typeof id === "string" && /^[0-9]{17,20}$/.test(id) && typeof name === "string") ids.set(name, id);
+    if (typeof id === "string" && DISCORD_ID.test(id) && typeof name === "string") ids.set(name, id);
   }
   return ids;
 }
@@ -55,8 +58,11 @@ export async function ensureEmojis(names: readonly string[], index: CommandIndex
     }
     const reply = await deps.discord("POST", `/applications/${deps.botId}/emojis`, { body: { name, image: `data:image/png;base64,${toBase64(bytes)}` } });
     const id = record(reply?.body)?.["id"];
-    if (reply && reply.status >= 200 && reply.status < 300 && typeof id === "string") known.set(name, id);
-    else deps.log(`émoji ${name} : pas déposé (${reply ? reply.status : "Discord ne répond pas"})`);
+    if (reply && reply.status >= 200 && reply.status < 300) {
+      // Son numéro, s'il en a la forme ; sinon le bouton part sans lui, et le prochain panneau le retrouvera dans la liste.
+      if (typeof id === "string" && DISCORD_ID.test(id)) known.set(name, id);
+      else deps.log(`émoji ${name} : déposé, mais son numéro ne se lit pas`);
+    } else deps.log(`émoji ${name} : pas déposé (${reply ? reply.status : "Discord ne répond pas"})`);
   }
   return known;
 }

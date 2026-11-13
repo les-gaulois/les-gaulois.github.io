@@ -39,15 +39,18 @@ export const ROLES_HOW = "Un clic sur un bouton donne le rôle, un second clic l
 export const ROLES_NOTE = "« Mes rôles » : ceux que vous avez";
 /** L'invite de l'en-tête, `gal@clan:~$ ./roles` : la commande qui pose le panneau. Il ne mène à aucune page. */
 const PROMPT_PATH = "/roles";
+/** Deux grandes cases par rangée : quatre rôles, deux rangées. */
+export const ROLES_COLUMNS = 2;
 
 /**
- * L'image du panneau, au style des autres images du robot (`salon-image.ts`) : l'en-tête, une ligne par rôle (la case de son
- * icône, son nom, ce qu'il fait ; `lignes-icones-image.ts`), puis l'adresse du site et ce que montre « Mes rôles ».
+ * L'image du panneau, au style des autres images du robot (`salon-image.ts`) : l'en-tête, une grande case par rôle, deux par
+ * rangée (sa grande icône, son nom, ce qu'il fait ; `lignes-icones-image.ts`), puis l'adresse du site et ce que montre
+ * « Mes rôles ».
  */
 export function rolesCard(siteUrl: string, measure: Measure): GazetteCard {
   const address = shownAddress(siteUrl, "");
   const head = pageHead({ path: PROMPT_PATH, title: ROLES_TITLE, kicker: ROLES_KICKER, period: ROLES_HOW }, measure);
-  const rows = iconTileParts(PANEL_ROLES, head.bottom, 2, measure);
+  const rows = iconTileParts(PANEL_ROLES, head.bottom, ROLES_COLUMNS, measure);
   const height = rows.bottom + FOOTER_HEIGHT;
   return assembleCard(height, [head, rows, footParts(address, ROLES_NOTE, height, measure)]);
 }

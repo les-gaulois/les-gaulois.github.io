@@ -876,6 +876,17 @@ describe("le message d'accueil pris en charge", () => {
     expect(claimedComponents([container, container], OFFICER, NOW)).toBeNull();
     expect(claimedComponents("rien", OFFICER, NOW)).toBeNull();
   });
+
+  it("une image n'y garde que son adresse : ce que Discord ajoute à la lecture ne lui est pas renvoyé", () => {
+    const row = { type: 1, components: [{ type: 2, custom_id: ticketCustomId({ action: "prendre", staff: STAFF, opener: PLAYER }) }] };
+    const url = `${SITE_URL}/commandes/vignettes/corbeau.png?v=abcdefabcdef`;
+    const media = { url, proxy_url: "https://media.discordapp.net/external/x.png", width: 160, height: 160, content_type: "image/png", loading_state: 2 };
+    const section = { type: 9, id: 2, components: [{ type: 10, id: 3, content: "### Une question" }], accessory: { type: 11, id: 4, media, description: "L'icône de la demande : Poser une question" } };
+    const container = { type: 17, id: 1, accent_color: 1, components: [section, row] };
+    const claimed = claimedComponents([container], OFFICER, NOW) as { components: unknown[] }[];
+    expect(claimed[0]!.components[0]).toEqual({ ...section, accessory: { ...section.accessory, media: { url } } });
+    expect(claimed[0]!.components[1]).toEqual({ type: 10, content: `**Pris en charge par <@${OFFICER}>**, <t:${NOW}:R>.` });
+  });
 });
 
 describe("les émojis du robot et la vignette de la demande", () => {
@@ -934,6 +945,71 @@ describe("les émojis du robot et la vignette de la demande", () => {
     for (const kind of TICKET_KINDS) {
       expect(KINDS[kind].pixel).toBe(`gal_${KINDS[kind].icone}`);
     }
+  });
+
+  /** Discord avec les émojis du robot déposés, qui refuse les messages de `path` tant que `refuse` dit oui. */
+  function decoratedDiscord(g: Guild, path: string, refuse: (body: string) => boolean) {
+    const tried: string[] = [];
+    const discord: Deps["discord"] = async (method, at, call) => {
+      if (method === "GET" && at === `/applications/${BOT}/emojis`) return { status: 200, body: { items: [...ids].map(([name, id]) => ({ id, name })) } };
+      if (method === "POST" && at === path) {
+        const body = JSON.stringify(call?.body);
+        tried.push(body);
+        if (refuse(body)) return { status: 400, body: { message: "Invalid Form Body", code: 50035 } };
+      }
+      return g.discord(method, at, call);
+    };
+    return { discord, tried };
+  }
+  const WITH_VIGNETTE: CommandIndex = { ...INDEX, vignettes: [{ name: "corbeau", image: "/commandes/vignettes/corbeau.png?v=abcdefabcdef" }] };
+
+  it("si Discord refuse l'accueil avec sa vignette et ses émojis, l'accueil d'avant part à sa place, et le ticket s'ouvre", async () => {
+    const channel = snowflakeAt(NOW, 1);
+    const g = guild();
+    const logs: string[] = [];
+    const { discord, tried } = decoratedDiscord(g, `/channels/${channel}/messages`, (body) => body.includes('"type":9') || body.includes('"emoji"'));
+    const w = world(g, { discord, commandes: async () => WITH_VIGNETTE, log: (message) => void logs.push(message) });
+    const { channel: opened, welcome } = await openQuestion(w);
+    expect(opened?.id).toBe(channel);
+    expect(tried).toHaveLength(2);
+    expect(tried[0]).toContain('"type":9');
+    expect(tried[0]).toContain("800000000000000004");
+    // L'accueil d'avant : le titre en texte, les deux boutons sans émoji, les mêmes réponses et les mêmes boutons.
+    const posted = JSON.stringify(welcome?.body);
+    expect(posted).not.toContain('"type":9');
+    expect(posted).not.toContain('"emoji"');
+    expect(posted).toContain("Comment rejoindre un salon vocal ?");
+    expect(customIdsOf((welcome?.body as { components: unknown }).components).map((id) => parseTicketId(id)?.action)).toEqual(["prendre", "fermer"]);
+    expect(hookContents(w.hooks)).toEqual([TICKET_MESSAGES.opened(channel)]);
+    expect(logs).toContain("accueil d'un ticket : refusé avec sa vignette ou ses émojis (400), reposté sans");
+
+    // Refusé aussi sans eux : le ticket est annulé, comme avant, après ces deux essais seulement.
+    const g2 = guild();
+    const always = decoratedDiscord(g2, `/channels/${channel}/messages`, () => true);
+    const w2 = world(g2, { discord: always.discord, commandes: async () => WITH_VIGNETTE });
+    expect((await openQuestion(w2)).channel).toBeUndefined();
+    expect(always.tried).toHaveLength(2);
+    expect(hookContents(w2.hooks)).toEqual([TICKET_MESSAGES.cannotCreate]);
+
+    // Un accueil déjà sans vignette ni émoji ne repart pas à l'identique.
+    const plain = world();
+    plain.g.failures.set(`POST /channels/${channel}/messages`, 400);
+    expect((await openQuestion(plain)).channel).toBeUndefined();
+    expect(plain.g.sent.filter((s) => s.method === "POST" && s.path === `/channels/${channel}/messages`)).toHaveLength(1);
+  });
+
+  it("si Discord refuse le guichet avec les émojis du robot, le guichet repart sans eux", async () => {
+    const g = guild();
+    const logs: string[] = [];
+    const { discord, tried } = decoratedDiscord(g, `/channels/${PANEL}/messages`, (body) => body.includes('"emoji"'));
+    const w = world(g, { discord, log: (message) => void logs.push(message) });
+    await send(w.deps, ticketsCommand());
+    await w.settle();
+    expect(tried).toHaveLength(2);
+    expect(tried[0]).toContain("800000000000000001");
+    expect(tried[1]).not.toContain('"emoji"');
+    expect(hookContents(w.hooks)[0]).toContain("Le guichet est posé dans ce salon.");
+    expect(logs).toContain("guichet des tickets : refusé avec les émojis du robot (400), reposté sans");
   });
 });
 

@@ -20,7 +20,7 @@ export interface DiscordEmoji {
   /** Son nom chez Discord : des lettres, des chiffres et des tirets bas, de 2 à 32 signes. */
   name: string;
   icone: IconePartieNom;
-  /** Le bouton qui le porte. */
+  /** Le bouton qui le porte, écrit comme dans la fonction : un test les compare. */
   button: string;
 }
 
@@ -45,7 +45,7 @@ export function emojiSvg(icone: IconePartieNom): string {
   const lines = ICONES_PARTIES[icone];
   const offset = Math.floor((EMOJI_SIZE - lines.length * EMOJI_CELL) / 2);
   const rects = iconRects(lines, offset, offset, EMOJI_CELL, "full", "half")
-    .map((r) => `<rect x="${r.x}" y="${r.y}" width="${r.width}" height="${r.height}" fill="#FFFFFF"${r.color === "half" ? ' fill-opacity="0.55"' : ""}/>`)
+    .map((r) => `<rect x="${r.x}" y="${r.y}" width="${r.width}" height="${r.height}" fill="${C.WHITE}"${r.color === "half" ? ' fill-opacity="0.55"' : ""}/>`)
     .join("");
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${EMOJI_SIZE}" height="${EMOJI_SIZE}" viewBox="0 0 ${EMOJI_SIZE} ${EMOJI_SIZE}" shape-rendering="crispEdges">${rects}</svg>`;
 }

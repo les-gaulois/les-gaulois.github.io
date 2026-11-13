@@ -7,13 +7,16 @@ import { courseCard } from "../../src/lib/course-soir-image";
 import { ficheCard } from "../../src/lib/fiche-image";
 import { CARD_COLORS, cardSvg, drawnWidth, fittedDrawn, GazetteFonts, gazetteCard, HEAD_X, kpiParts, lettrineOf, LOGO, pageFoot, pageHead, pathOf, renderGazetteCard, tableSvg, type CardText, type GazetteCard, type Measure } from "../../src/lib/gazette-image";
 import { groupsCard } from "../../src/lib/groupes-image";
+import { GUICHET_COLUMNS, GUICHET_TILES, guichetCard } from "../../src/lib/guichet-image";
 import { hierCard } from "../../src/lib/hier-image";
+import { tileDescriptions, type IconRow } from "../../src/lib/lignes-icones-image";
 import { newsCard } from "../../src/lib/nouveautes-image";
 import { milestoneCard } from "../../src/lib/paliers-franchis-image";
 import { POLICES_ONCIALE, policeOnciale } from "../../src/lib/police/fabrique";
 import { LETTRINE_TITRE } from "../../src/lib/police/largeur";
 import { glyphesOnciale } from "../../src/lib/police/onciale";
 import { recordCard } from "../../src/lib/records-image";
+import { PANEL_ROLES, ROLES_COLUMNS, rolesCard } from "../../src/lib/roles-discord";
 import { BODY_TOP, headParts } from "../../src/lib/salon-image";
 import { victoryCard } from "../../src/lib/victoires-image";
 
@@ -215,6 +218,8 @@ describe("toutes les images du robot, avec les vraies polices", () => {
     ],
     ["fiche", ficheCard({ username: "Иван Петрович", rank: 123, ranked: 776, wins: 12_345, losses: 9_876, games: 22_221, rate: 55.5, tier: 10_000, nextTier: { wins: 25_000, missing: 12_655 } }, "GAL", SITE, "2026-11-12T19:53:00.000Z", fonts.width)],
     ["accueil", accueilCard(accueilFacts(accueilRanking({ end: "2026-11-12T19:10:00.000Z", clans: [{ clanTag: "GAL", games: 6121, wins: 2652, losses: 3469, playerSessions: 9999, weightedWins: 2346.69, weightedLosses: 10, weightedWLRatio: 1 }] }, "GAL"), null)!, "GAL", "Les Gaulois", "Le clan français [GAL] sur OpenFront.", SITE, fonts.width)],
+    ["rôles", rolesCard(SITE, fonts.width)],
+    ["guichet", guichetCard(SITE, fonts.width)],
   ];
   const plainText = (t: CardText) => t.text.replace(/[  ]/g, " ");
 
@@ -231,6 +236,18 @@ describe("toutes les images du robot, avec les vraies polices", () => {
         expect(left, `${name} : ${t.text}`).toBeGreaterThanOrEqual(0);
         expect(left + width, `${name} : ${t.text}`).toBeLessThanOrEqual(card.width + 0.5);
       }
+    }
+  });
+  it("les phrases des grandes cases, rôles et guichet, tiennent sur deux lignes, comme sur les planches validées", () => {
+    const grids: [string, readonly IconRow[], number][] = [
+      ["rôles", PANEL_ROLES, ROLES_COLUMNS],
+      ["guichet", GUICHET_TILES, GUICHET_COLUMNS],
+    ];
+    for (const [name, rows, columns] of grids) {
+      tileDescriptions(rows, columns, fonts.width).forEach((lines, i) => {
+        expect(lines.length, `${name} : ${rows[i]?.description}`).toBeGreaterThan(0);
+        expect(lines.length, `${name} : ${rows[i]?.description}`).toBeLessThanOrEqual(2);
+      });
     }
   });
 });

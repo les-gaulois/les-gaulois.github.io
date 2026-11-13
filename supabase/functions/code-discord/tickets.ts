@@ -564,6 +564,22 @@ export function welcomeMessage(t: TicketInfo, look: { thumbnail: string | null; 
 }
 
 /**
+ * Un composant tel que Discord le rend, prêt à lui être renvoyé : une image (la vignette de la demande) n'y garde que son
+ * adresse. À la lecture, Discord y ajoute sa taille, son type et son adresse de cache, qu'il dit ignorer à l'envoi : ils ne
+ * lui sont pas renvoyés, pour qu'un changement de sa part ne fasse pas échouer « Je m'en occupe ».
+ */
+function asSent(component: unknown): unknown {
+  const c = record(component);
+  if (!c) return component;
+  const out: Record<string, unknown> = { ...c };
+  const media = record(c["media"]);
+  if (media && typeof media["url"] === "string") out["media"] = { url: media["url"] };
+  if (c["accessory"] !== undefined) out["accessory"] = asSent(c["accessory"]);
+  if (Array.isArray(c["components"])) out["components"] = c["components"].map(asSent);
+  return out;
+}
+
+/**
  * Le message d'accueil une fois le ticket pris : le bouton « Je m'en occupe » remplacé par le nom de qui s'en occupe. Le
  * reste ne bouge pas. `null` si le message n'a pas la forme attendue.
  */
@@ -575,7 +591,7 @@ export function claimedComponents(components: unknown, claimer: string, now: num
   const at = inner.findIndex((c) => customIdsOf([c]).some((id) => id.startsWith(`${TICKET_PREFIX}prendre:`)));
   if (at < 0) return null;
   const line = { type: 10, content: `**Pris en charge par <@${claimer}>**, <t:${now}:R>.` };
-  return [{ ...container, components: [...inner.slice(0, at), line, ...inner.slice(at + 1)] }];
+  return [{ ...container, components: [...inner.slice(0, at), line, ...inner.slice(at + 1)].map(asSent) }];
 }
 
 /** Le formulaire de fermeture : il confirme, et demande une raison, facultative, notée au journal. */
@@ -816,7 +832,13 @@ async function setUp(deps: Deps, hook: string, config: DeskConfig, panelChannel:
   const index = await deps.commandes();
   // Les émojis du guichet et des tickets, déposés chez Discord la première fois : sans eux, les boutons partent sans émoji.
   const emojis = await ensureEmojis(TICKET_EMOJIS, index, deps);
-  const posted = await deps.discord("POST", `/channels/${panelChannel}/messages`, { body: panelMessage(config, index?.guichet ?? null, emojis) });
+  const postDesk = (ids: EmojiIds) => deps.discord("POST", `/channels/${panelChannel}/messages`, { body: panelMessage(config, index?.guichet ?? null, ids) });
+  let posted = await postDesk(emojis);
+  // Refusé avec les émojis du robot (400) : le guichet repart sans eux. Il compte plus que ses émojis.
+  if (posted?.status === 400 && TICKET_KINDS.some((kind) => emojis.has(KINDS[kind].pixel))) {
+    deps.log("guichet des tickets : refusé avec les émojis du robot (400), reposté sans");
+    posted = await postDesk(new Map());
+  }
   const postedId = text(record(posted?.body)?.["id"]);
   if (!ok(posted) || !SNOWFLAKE.test(postedId)) {
     await answer(deps, hook, TICKET_MESSAGES.setupFailed);
@@ -1006,7 +1028,13 @@ async function openTicket(deps: Deps, hook: string, config: Extract<TicketAction
   // La vignette de la demande et les émojis des deux boutons, si le site et Discord les donnent ; sinon, le message part sans eux.
   const [index, emojis] = await Promise.all([deps.commandes(), appEmojis(deps)]);
   const look = { thumbnail: vignetteUrl(index, KINDS[config.kind].icone, TICKETS_SITE_URL), emojis: emojis ?? new Map<string, string>() };
-  const welcome = await deps.discord("POST", `/channels/${channel.id}/messages`, { body: welcomeMessage({ ...info, logMessage }, look) });
+  const postWelcome = (body: Record<string, unknown>) => deps.discord("POST", `/channels/${channel.id}/messages`, { body });
+  let welcome = await postWelcome(welcomeMessage({ ...info, logMessage }, look));
+  // Refusé avec sa vignette ou ses émojis (400) : l'accueil repart sans eux, plutôt qu'un ticket annulé.
+  if (welcome?.status === 400 && (look.thumbnail !== null || [CLAIM_PIXEL, CLOSE_PIXEL].some((name) => look.emojis.has(name)))) {
+    deps.log("accueil d'un ticket : refusé avec sa vignette ou ses émojis (400), reposté sans");
+    welcome = await postWelcome(welcomeMessage({ ...info, logMessage }));
+  }
   if (!ok(welcome)) {
     await abandon(deps, channel.id, config.journal);
     // Le journal ne garde pas un ticket ouvert qui n'existe pas.
