@@ -818,9 +818,10 @@ describe("le code tapé sur le site", () => {
         discord_moi: () => ({ ok: false, error: "invalid_request" }),
         concours_liste: () => ({ ok: false, error: "invalid_request" }),
       },
-      { botAccepted: async () => true },
+      // Un délai qui ne finit jamais : la comparaison des commandes répond la première, quel que soit son nombre d'étapes.
+      { botAccepted: async () => true, commandSync: async () => true, sleep: () => new Promise<void>(() => undefined) },
     );
-    expect(await reply(await handle(fromSite(null, "GET", "/etat"), ready.deps))).toEqual({ ok: true, discord: true, service: true, signature: true, fiches: true, commandes: true, moi: true, robot: true, concours: true });
+    expect(await reply(await handle(fromSite(null, "GET", "/etat"), ready.deps))).toEqual({ ok: true, discord: true, service: true, signature: true, fiches: true, commandes: true, moi: true, robot: true, concours: true, inscription: true });
     // Une empreinte et des identifiants mal formés : les fonctions SQL les refusent sans rien lire ni écrire.
     expect(ready.calls.rpc).toEqual([
       { name: "discord_code_redeem", args: { p_code_hash: "etat" } },
@@ -830,10 +831,17 @@ describe("le code tapé sur le site", () => {
     const noBase = world();
     expect(await reply(await handle(fromSite(null, "GET", "/etat"), noBase.deps))).toMatchObject({ service: false, moi: false });
     const unset = world({ discord_code_redeem: () => ({ ok: false, error: "invalid_request" }) });
-    expect(await reply(await handle(fromSite(null, "GET", "/etat"), { ...unset.deps, guildId: "", serviceReady: false }))).toEqual({ ok: true, discord: false, service: false, signature: true, fiches: true, commandes: true, moi: false, robot: false, concours: false });
+    expect(await reply(await handle(fromSite(null, "GET", "/etat"), { ...unset.deps, guildId: "", serviceReady: false }))).toEqual({ ok: true, discord: false, service: false, signature: true, fiches: true, commandes: true, moi: false, robot: false, concours: false, inscription: false });
     expect(unset.calls.rpc).toEqual([]);
     const noSite = world({}, { fiches: async () => null, commandes: async () => null });
     expect(await reply(await handle(fromSite(null, "GET", "/etat"), noSite.deps))).toMatchObject({ fiches: false, commandes: false });
+  });
+
+  it("n'attend pas sans fin la comparaison des commandes de Discord : au-delà du délai, elle dit non, et elle continue", async () => {
+    const naps: number[] = [];
+    const slow = world({}, { commandSync: () => new Promise<boolean>(() => undefined), sleep: async (ms) => void naps.push(ms) });
+    expect(await reply(await handle(fromSite(null, "GET", "/etat"), slow.deps))).toMatchObject({ inscription: false });
+    expect(naps).toEqual([15_000]);
   });
 
   it("refuse ce qui ne peut pas être un code, sans rien demander au serveur", async () => {

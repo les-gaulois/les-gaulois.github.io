@@ -1,9 +1,12 @@
 /**
+ * En secours seulement : depuis le 13 novembre 2026, la fonction `code-discord` crée elle-même ses commandes après chaque
+ * mise en ligne (`supabase/functions/code-discord/inscription.ts` ; docs/DIRECTION.md, « Les commandes Discord se créent
+ * seules »), sans « Reset Token ». Ce script ne sert que si elle n'y arrive pas alors que Discord accepte son jeton.
+ *
  * Crée les commandes du serveur Discord du clan, ou les remet à jour : /code, /fiche, les commandes du robot (/clan,
  * /records, /carte, /guide, /rival, /moi), /roles, /tickets et /concours ; voir docs/DIRECTION.md, « Se connecter avec un
  * code », « La commande /fiche », « Les commandes du robot », « Les rôles sur Discord », « Les tickets d'assistance » et
- * « Les concours sur Discord ». Une fois,
- * après avoir ajouté l'application au serveur, puis à chaque nouvelle commande :
+ * « Les concours sur Discord ». En secours, depuis le poste du pilote :
  *   npm run discord:commande
  * Chaque commande s'envoie à part : Discord crée celle qui manque et remplace celle qui existe, sans toucher aux autres.
  * L'application « Le Gaulois » et le serveur du clan sont ceux de src/lib/discord-commande.ts, sauf DISCORD_APPLICATION_ID

@@ -27,7 +27,7 @@ const HEALTHY: Record<string, Route> = {
   "/rest/v1/polls": { status: 401, body: {} },
   "/rest/v1/app_state": { status: 200, body: [{ value: {} }] },
   "/storage/v1/bucket/discord-images": { status: 200, body: { id: "discord-images", public: true, file_size_limit: 8388608 } },
-  "/functions/v1/code-discord/etat": { status: 200, body: { ok: true, discord: true, service: true, signature: true, robot: true, concours: true } },
+  "/functions/v1/code-discord/etat": { status: 200, body: { ok: true, discord: true, service: true, signature: true, robot: true, concours: true, inscription: true } },
 };
 
 const SITE = "https://exemple.supabase.co";
@@ -147,6 +147,17 @@ describe("le contrôle de la mise en ligne", () => {
     // La fonction absente : la ligne de la connexion par code le dit déjà.
     const absent = await run({ ...HEALTHY, "/functions/v1/code-discord/etat": { status: 404 } });
     expect(absent.some((c) => c.label.includes("robot a son jeton"))).toBe(false);
+  });
+
+  it("dit si les commandes du serveur Discord sont celles du code, sans jamais bloquer", async () => {
+    expect(await statusOf(HEALTHY, "commandes du serveur Discord")).toBe("ok");
+    const etat = (inscription?: boolean) => ({ status: 200, body: { ok: true, discord: true, service: true, signature: true, robot: true, concours: true, ...(inscription === undefined ? {} : { inscription }) } });
+    const stale = await run({ ...HEALTHY, "/functions/v1/code-discord/etat": etat(false) });
+    expect(stale.find((c) => c.label.includes("commandes du serveur Discord"))).toMatchObject({ status: "warn", detail: expect.stringContaining("cinq minutes") });
+    // Une fonction en ligne d'avant le 13 novembre 2026 ne compare pas ses commandes : il faut la remettre en ligne.
+    const old = await run({ ...HEALTHY, "/functions/v1/code-discord/etat": etat() });
+    expect(old.find((c) => c.label.includes("commandes du serveur Discord"))).toMatchObject({ status: "warn", detail: expect.stringContaining("remettre en ligne") });
+    expect(old.some((c) => c.status === "fail")).toBe(false);
   });
 
   it("dit si les concours ont leur base, sans jamais bloquer, et bloque si un visiteur peut les appeler", async () => {

@@ -214,7 +214,7 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   const notReady = CODE_LOGIN_OPEN ? "fail" : "warn";
   try {
     const etat = await fetcher(`${base}/functions/v1/code-discord/etat`);
-    const answer = etat.ok ? ((await etat.json().catch(() => null)) as { discord?: unknown; service?: unknown; signature?: unknown; robot?: unknown; concours?: unknown } | null) : null;
+    const answer = etat.ok ? ((await etat.json().catch(() => null)) as { discord?: unknown; service?: unknown; signature?: unknown; robot?: unknown; concours?: unknown; inscription?: unknown } | null) : null;
     if (!answer) add(codeLabel, notReady, `La fonction code-discord répond ${etat.status} : elle n'est pas encore déployée. Voir docs/DIRECTION.md, « Se connecter avec un code ».`);
     else if (answer.discord === true && answer.service === true && answer.signature === true) add(codeLabel, "ok");
     else {
@@ -233,6 +233,12 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
       // Les concours : leur migration, que la fonction appelle. À regarder, jamais bloquant.
       if (answer.concours === true) add("Les concours ont leur base", "ok");
       else add("Les concours ont leur base", "warn", "La fonction code-discord ne trouve pas les fonctions des concours : migration 20261112000800 absente. Voir docs/DIRECTION.md, « Les concours sur Discord ».");
+      // Les commandes du serveur Discord, que la fonction met à jour elle-même (docs/DIRECTION.md, « Les commandes Discord se
+      // créent seules ») : une définition refusée par Discord ne se verrait sinon que dans ses journaux. À regarder, jamais bloquant.
+      const commandsLabel = "Les commandes du serveur Discord sont celles du code";
+      if (answer.inscription === true) add(commandsLabel, "ok");
+      else if (answer.inscription === undefined) add(commandsLabel, "warn", "La fonction en ligne ne met pas encore ses commandes à jour elle-même : la remettre en ligne depuis un dossier du projet à jour.");
+      else add(commandsLabel, "warn", "La fonction n'a pas pu mettre ses commandes à jour sur Discord (jeton absent ou refusé, refus de Discord, ou commande gardée autrement que dans le code) : rouvrir /etat cinq minutes plus tard, puis voir docs/DIRECTION.md, « Les commandes Discord se créent seules ».");
     }
   } catch {
     add(codeLabel, notReady, "La fonction code-discord ne répond pas.");

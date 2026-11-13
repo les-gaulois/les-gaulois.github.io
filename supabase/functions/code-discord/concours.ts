@@ -30,7 +30,7 @@ export type ConcoursDeps = Pick<Deps, "guildId" | "nowSeconds" | "rpc" | "discor
 
 type Json = Record<string, unknown>;
 
-/* ---------- Les noms, ceux que `src/lib/discord-commande.ts` donne à Discord (un test le vérifie) ---------- */
+/* ---------- Les noms, ceux que `definitions.ts` donne à Discord (un test le vérifie) ---------- */
 
 export const CONCOURS_COMMAND_NAME = "concours";
 /** Le début du `custom_id` des boutons et du formulaire des concours ; les autres parties du robot ont le leur. */

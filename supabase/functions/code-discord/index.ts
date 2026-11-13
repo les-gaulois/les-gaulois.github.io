@@ -13,7 +13,8 @@
  *   ouvre bien ce compte, et dont le navigateur échange l'empreinte contre sa session (`verifyOtp`).
  * - `GET …/code-discord/etat` : dit si les réglages sont posés, sans en montrer aucun, si le moteur sait vérifier une
  *   signature (essayé sur l'exemple de la RFC 8032), si les fiches et l'index des commandes du site se lisent, si la
- *   fonction SQL de /moi est installée, et si Discord accepte le jeton du robot (`robot`).
+ *   fonction SQL de /moi est installée, si Discord accepte le jeton du robot (`robot`), et si les commandes du serveur
+ *   Discord sont celles du code (`inscription`).
  *
  * La porte de Discord répond aussi à /fiche (docs/DIRECTION.md, « La commande /fiche ») : pendant que le joueur tape un
  * pseudo, la fonction propose ceux des membres qui ont une fiche, lus dans `/fiches.json`, que le site publie avec ses pages
@@ -37,6 +38,10 @@
  * robot. Et `GET …/code-discord/concours/billet/17.png` (ou `gagnant`) donne à Discord l'image d'un billet de la tombola,
  * sans secret ni donnée : un numéro posé sur le fond que publie le site (`billets.ts`).
  *
+ * Et aux commandes elles-mêmes (`inscription.ts`) : la fonction met à jour sur le serveur du clan celles que décrit
+ * `definitions.ts`, au premier appel de chaque instance (une neuve après chaque mise en ligne), avec le jeton du robot. Une
+ * nouvelle commande ne demande donc plus de « Reset Token » : seulement la mise en ligne de la fonction.
+ *
  * Réglages : le jeton du robot « Le Gaulois », dans le secret `LE_GAULOIS_BOT_TOKEN` (`BOT_TOKEN_SECRET`), pour les rôles,
  * les tickets et les concours ; sans lui, tout le reste marche. Le serveur du clan, l'application et sa clé publique sont écrits plus bas,
  * publics tous trois ; les secrets `DISCORD_GUILD_ID`, `DISCORD_APPLICATION_ID` et `DISCORD_PUBLIC_KEY` les remplacent
@@ -44,16 +49,18 @@
  * (`verify_jwt = false`, `supabase/config.toml`) : Discord n'en envoie pas, et la fonction vérifie elle-même chaque appel.
  * Elle ne note jamais un code, une adresse ni un jeton dans ses journaux.
  *
- * Cinq fichiers, `index.ts`, `tickets.ts`, `concours.ts`, `billets.ts` et `emojis.ts`, que la commande
- * `supabase functions deploy` envoie ensemble ; les tests du dépôt les lisent avec Node (`tests/unit/code-discord.test.ts`,
- * `tests/unit/tickets-discord.test.ts`, `tests/unit/concours-discord.test.ts`, `tests/unit/billets-tombola.test.ts`,
- * `tests/unit/emojis-discord.test.ts`).
+ * Sept fichiers, `index.ts`, `tickets.ts`, `concours.ts`, `billets.ts`, `emojis.ts`, `definitions.ts` et `inscription.ts`,
+ * que la commande `supabase functions deploy` envoie ensemble ; les tests du dépôt les lisent avec Node
+ * (`tests/unit/code-discord.test.ts`, `tests/unit/tickets-discord.test.ts`, `tests/unit/concours-discord.test.ts`,
+ * `tests/unit/billets-tombola.test.ts`, `tests/unit/emojis-discord.test.ts`, `tests/unit/inscription-commandes.test.ts`).
  */
+import { newSyncState, syncCommands, type SyncState } from "./inscription.ts";
+
 import { TICKET_PREFIX, TICKETS_COMMAND_NAME, ticketInteraction, ticketsCommand } from "./tickets.ts";
 import { CONCOURS_COMMAND_NAME, CONCOURS_PREFIX, concoursCommand, concoursImage, concoursInteraction, concoursTic } from "./concours.ts";
 import { buttonEmoji, ensureEmojis, vignetteUrl, type EmojiIds } from "./emojis.ts";
 
-/** Le nom de la commande, tel que le joueur la tape. `scripts/discord-commande.ts` la crée sur le serveur du clan. */
+/** Le nom de la commande, tel que le joueur la tape. `definitions.ts` la décrit ; la fonction la crée sur le serveur du clan (`inscription.ts`). */
 export const COMMAND_NAME = "code";
 /** Sans les signes qui se confondent (0 et O, 1, I et L) : 31 signes, et plus de 850 milliards de codes de huit signes. */
 export const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
@@ -95,6 +102,8 @@ export const BOT_TOKEN_SECRET = "LE_GAULOIS_BOT_TOKEN";
 const DISCORD_TIMEOUT_MS = 8000;
 /** Au plus une fois toutes les dix minutes, `/etat` demande à Discord s'il accepte le jeton : la page est publique. */
 const BOT_CHECK_MS = 10 * 60_000;
+/** Ce que `/etat` attend la comparaison des commandes : au-delà, il dit `"inscription":false`, et elle continue. */
+const ETAT_SYNC_WAIT_MS = 15_000;
 
 /** Une réponse de l'API de Discord : son statut, et son corps lu en JSON (`null` s'il est vide ou illisible). */
 export interface DiscordReply {
@@ -184,6 +193,12 @@ export interface Deps {
    * minutes ; `false` sans jeton, ou avec celui d'un autre robot.
    */
   botAccepted(): Promise<boolean>;
+  /**
+   * Les commandes du serveur Discord du clan sont-elles celles du code ? Les compare et met à jour celles qui diffèrent
+   * (`inscription.ts`), au premier appel de l'instance, puis au plus toutes les six heures (cinq minutes après un échec).
+   * Absent des tests qui n'en parlent pas : `/etat` dit alors `"inscription":false`.
+   */
+  commandSync?(): Promise<boolean>;
   /** Fait durer une tâche après la réponse à Discord (`EdgeRuntime.waitUntil`). Ses erreurs vont au journal. */
   background(task: Promise<unknown>): void;
   sleep(ms: number): Promise<void>;
@@ -319,7 +334,7 @@ const record = (value: unknown): Record<string, unknown> | null =>
 
 /* ---------- La fiche d'un membre : /fiche ---------- */
 
-/** La commande qui montre la fiche d'un membre, et son option. `scripts/discord-commande.ts` les crée sur le serveur du clan. */
+/** La commande qui montre la fiche d'un membre, et son option. `definitions.ts` les décrit ; la fonction les crée sur le serveur du clan. */
 export const FICHE_COMMAND_NAME = "fiche";
 export const FICHE_OPTION = "pseudo";
 /** Les fiches que le site publie avec ses pages : une par membre avec pseudo (`src/lib/fiches-discord.ts`). */
@@ -497,7 +512,7 @@ async function ficheRoute(interaction: Record<string, unknown>, data: Record<str
 
 /* ---------- Les commandes du robot : /clan, /records, /carte, /guide, /rival, /moi ---------- */
 
-/** Leurs noms et leurs options, tels que `scripts/discord-commande.ts` les crée : un test le vérifie. */
+/** Leurs noms et leurs options, tels que `definitions.ts` les décrit : un test le vérifie. */
 export const CLAN_COMMAND = "clan";
 export const RECORDS_COMMAND = "records";
 export const CARTE_COMMAND = "carte";
@@ -739,7 +754,7 @@ async function robotRoute(name: string, interaction: Record<string, unknown>, da
 
 /* ---------- Les rôles du serveur : /roles et les boutons du panneau ---------- */
 
-/** La commande qui poste le panneau des rôles dans le salon où on la tape. `scripts/discord-commande.ts` la crée. */
+/** La commande qui poste le panneau des rôles dans le salon où on la tape. `definitions.ts` la décrit ; la fonction la crée. */
 export const ROLES_COMMAND = "roles";
 /** Le début du numéro de chaque bouton du panneau, suivi du rôle (« roles:tournois ») ou de `ROLE_SHOW`. */
 export const ROLE_BUTTON = "roles:";
@@ -1264,7 +1279,10 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
     const robot = await deps.botAccepted();
     // Les concours : un serveur mal formé, refusé sans rien lire, prouve que leur migration est installée.
     const concours = deps.serviceReady ? (await deps.rpc("concours_liste", { p_guild: "etat", p_filtre: null }))?.["error"] === "invalid_request" : false;
-    return json({ ok: true, discord, service, signature: await signatureWorks(), fiches, commandes, moi, robot, concours }, 200, CORS);
+    // Les commandes du serveur Discord, comparées à celles du code : juste après une mise en ligne, cette page attend la fin
+    // de la comparaison, quinze secondes au plus (elle continue en tâche de fond), et dit si elles sont à jour.
+    const inscription = deps.commandSync ? await Promise.race([deps.commandSync(), deps.sleep(ETAT_SYNC_WAIT_MS).then(() => false)]) : false;
+    return json({ ok: true, discord, service, signature: await signatureWorks(), fiches, commandes, moi, robot, concours, inscription }, 200, CORS);
   }
   if (req.method === "GET" || req.method === "HEAD") {
     const billet = await concoursImage(path, req.method === "HEAD", deps);
@@ -1305,6 +1323,8 @@ interface Kept {
 const keptFiles = new WeakMap<typeof fetch, Map<string, Kept>>();
 /** La dernière réponse de Discord sur le jeton du robot, par moyen de lecture : une fonction neuve sert chaque requête. */
 const botChecks = new WeakMap<typeof fetch, { at: number; ok: boolean }>();
+/** La dernière comparaison des commandes du serveur avec celles du code, de même par moyen de lecture (`inscription.ts`). */
+const commandSyncs = new WeakMap<typeof fetch, SyncState>();
 
 /**
  * Un fichier du site, les fiches ou l'index des commandes : gardé cinq minutes ; si le site ne répond plus, la dernière
@@ -1517,6 +1537,17 @@ export function liveDeps(env: Env, fetcher: typeof fetch = fetch): Deps {
       botChecks.set(fetcher, { at: Date.now(), ok });
       return ok;
     },
+    commandSync() {
+      // Seulement avec le jeton de « Le Gaulois » lui-même : celui d'un autre robot inscrirait les commandes à son nom.
+      if (botToken === "" || botId === "" || botId !== applicationId) return Promise.resolve(false);
+      let state = commandSyncs.get(fetcher);
+      if (!state) {
+        state = newSyncState();
+        commandSyncs.set(fetcher, state);
+      }
+      const guildId = (env.get("DISCORD_GUILD_ID") ?? "").trim() || GAL_GUILD_ID;
+      return syncCommands(state, Date.now(), { applicationId, guildId, discord: (method, path, call) => discordCall(method, path, call ?? {}, `Bot ${botToken}`), log });
+    },
     background(task) {
       const kept = task.catch((e: unknown) => log(`tâche de fond : ${e instanceof Error ? e.message : String(e)}`));
       const runtime = (globalThis as unknown as { EdgeRuntime?: { waitUntil?(promise: Promise<unknown>): void } }).EdgeRuntime;
@@ -1529,4 +1560,12 @@ export function liveDeps(env: Env, fetcher: typeof fetch = fetch): Deps {
 }
 
 const deno = (globalThis as unknown as { Deno?: { serve(handler: (req: Request) => Promise<Response>): unknown; env: Env } }).Deno;
-if (deno) deno.serve((req) => handle(req, liveDeps(deno.env)));
+if (deno) {
+  deno.serve((req) => {
+    const deps = liveDeps(deno.env);
+    // Les commandes du serveur suivent celles du code (`inscription.ts`) : comparées en tâche de fond au premier appel de
+    // chaque instance (une commande, un clic, le réveil d'un concours, `/etat`), sans faire attendre la réponse.
+    if (deps.commandSync) deps.background(deps.commandSync());
+    return handle(req, deps);
+  });
+}

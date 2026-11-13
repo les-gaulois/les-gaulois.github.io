@@ -23,7 +23,7 @@ import type { CommandEntry, Deps } from "./index.ts";
 
 /** Le début du `custom_id` de chaque bouton et formulaire des tickets : `index.ts` leur envoie ceux-là seulement. */
 export const TICKET_PREFIX = "ticket:";
-/** La commande qui pose le guichet, et ses options. `src/lib/discord-commande.ts` les crée : un test le vérifie. */
+/** La commande qui pose le guichet, et ses options. `definitions.ts` les décrit : un test le vérifie. */
 export const TICKETS_COMMAND_NAME = "tickets";
 export const TICKETS_OPTIONS = { category: "categorie", journal: "journal", staff: "encadrement" } as const;
 /** Le site, comme dans `index.ts` (un test vérifie qu'ils sont égaux). */
