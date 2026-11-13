@@ -25,14 +25,16 @@ export const PRIX_POCHETTE = 200;
 /**
  * Les chances de la pochette surprise, en pour cent, par rareté : la somme fait 100. La pochette tire d'abord la rareté,
  * puis un objet payant de cette rareté, tous à chances égales. Un objet déjà possédé peut sortir : il s'ajoute en double,
- * et un double se vend au marché. Réglage de départ, que la mesure de l'économie (`economie.ts`) peut faire changer.
+ * et un double se vend au marché. Réglage tiré de la mesure de l'économie (`economie.ts`, 13 novembre 2026) : la pochette
+ * vaut plus que son prix pour qui débute, moins une fois les communs et les peu communs possédés, si bien que les objets
+ * chers s'achètent toujours à la boutique ; le légendaire y a deux chances sur cent.
  */
 export const CHANCES_POCHETTE: Readonly<Record<Rarete, number>> = {
   commun: 50,
-  "peu-commun": 28,
-  epique: 15,
-  mystique: 6,
-  legendaire: 1,
+  "peu-commun": 30,
+  epique: 13,
+  mystique: 5,
+  legendaire: 2,
 };
 
 /** Le marché : nombre d'offres ouvertes par membre, et durée d'une offre en jours. */
@@ -107,18 +109,24 @@ export interface Marche {
  * `mettre_en_vente(p_emplacement, p_objet, p_prix)`, `retirer_offre(p_id)` et `acheter_offre(p_id)` répondent tous par le
  * marché à jour. Un objet mis en vente quitte l'inventaire jusqu'à la vente, au retrait ou à l'expiration de l'offre. Le
  * prix va de 1 statère au prix de l'objet à la boutique. L'acheteur paie le prix, le vendeur le reçoit en entier.
+ *
+ * Un objet acheté au marché ne se remet pas en vente (mesure de l'économie, 13 novembre 2026) : sans cette règle, deux
+ * comptes se passeraient des statères sans limite, l'un vendant un objet au prix fort, l'autre le lui rendant pour 1
+ * statère. Les doubles de la pochette et les achats de la boutique, eux, se vendent.
  */
 export type MarcheReponse = Marche;
 
 /**
  * Les refus du marché : `not_validated`, `pas_possede` objet absent de l'inventaire, `objet_porte` seul exemplaire et porté
- * par le Gaulois (l'enlever d'abord), `prix_invalide`, `trop_d_offres`, `offre_fermee` offre déjà vendue, retirée ou
- * expirée, `offre_a_soi` on n'achète pas sa propre offre, `deja_possede` l'acheteur a déjà cet objet, `solde_insuffisant`.
+ * par le Gaulois (l'enlever d'abord), `achete_au_marche` exemplaire venu du marché, qui ne se revend pas, `prix_invalide`,
+ * `trop_d_offres`, `offre_fermee` offre déjà vendue, retirée ou expirée, `offre_a_soi` on n'achète pas sa propre offre,
+ * `deja_possede` l'acheteur a déjà cet objet, `solde_insuffisant`.
  */
 export type RefusMarche =
   | "not_validated"
   | "pas_possede"
   | "objet_porte"
+  | "achete_au_marche"
   | "prix_invalide"
   | "trop_d_offres"
   | "offre_fermee"
