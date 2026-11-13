@@ -11,7 +11,10 @@ import {
   CONCOURS_SUB,
   COULEURS,
   FIN_PROPOSEES,
-  LOGO_URL,
+  BANNIERE_URL,
+  BILLET_EMOJI,
+  BILLET_VERSION,
+  FONDS,
   REVEIL_PATH,
   annonceMessage,
   concoursCommand,
@@ -27,7 +30,9 @@ import {
   parseDuree,
   parseFin,
   parseVue,
-  participantsLabel,
+  billetUrl,
+  billetsLabel,
+  concoursImage,
   travailler,
   valeursFormulaire,
   type ConcoursDeps,
@@ -35,6 +40,8 @@ import {
   type Vue,
 } from "../../supabase/functions/code-discord/concours";
 import { SITE_URL, handle, liveDeps, pathForLog, type DiscordCall, type DiscordReply } from "../../supabase/functions/code-discord/index";
+import { BILLET } from "../../supabase/functions/code-discord/billets";
+import { renderTombolaImage } from "../../src/lib/tombola-image";
 
 // Des numéros inventés, de la forme de ceux de Discord.
 const GUILD = "987654321098765432";
@@ -74,6 +81,7 @@ function monde(answers: Rpc = {}, fake: Fake = () => null, over: Partial<Concour
     botId: BOT,
     botAccepted: async () => true,
     projectUrl: PROJECT,
+    siteImage: async () => null,
     rpc: async (name, args) => {
       calls.rpc.push({ name, args });
       return answers[name]?.(args) ?? null;
@@ -141,7 +149,7 @@ const vue = (over: Json = {}): Vue => {
   if (!v) throw new Error("vue invalide");
   return v;
 };
-const tire = (id: string, rang: number, over: Partial<Tire> = {}): Tire => ({ discord_id: id, rang, tirage: 1, issue: "gagnant", confirme_at: null, annonce_id: null, ...over });
+const tire = (id: string, rang: number, over: Partial<Tire> = {}): Tire => ({ discord_id: id, rang, tirage: 1, issue: "gagnant", confirme_at: null, annonce_id: null, billet: null, ...over });
 
 /** Tout le texte d'un message en composants, bout à bout. */
 function textes(message: unknown): string {
@@ -229,9 +237,10 @@ describe("les noms de /concours", () => {
     }
   });
 
-  it("le site et son logo sont les mêmes que ceux du reste de la fonction", () => {
+  it("le site et ses images de la tombola sont les mêmes que ceux du reste de la fonction", () => {
     expect(CONCOURS_SITE_URL).toBe(SITE_URL);
-    expect(LOGO_URL).toBe(`${SITE_URL}/generated/icon-512.png`);
+    expect(BANNIERE_URL).toBe(`${SITE_URL}/tombola/banniere.png`);
+    expect(FONDS).toEqual({ billet: "/tombola/billet.png", gagnant: "/tombola/gagnant.png" });
     expect(CONCOURS_PREFIX).toBe("concours:");
   });
 });
@@ -305,7 +314,7 @@ describe("les droits du robot dans le salon", () => {
 });
 
 describe("le message du concours", () => {
-  it("ouvert : le titre, le lot, qui peut participer, le nombre de gagnants, la fin en direct, et deux boutons", () => {
+  it("ouvert : la bannière de la tombola, le titre, le lot, qui peut participer, le nombre de gagnants, la fin en direct, et deux boutons", () => {
     const m = concoursMessage(vue(), true);
     expect(m["flags"]).toBe(32768);
     const t = textes(m);
@@ -315,18 +324,18 @@ describe("le message du concours", () => {
     expect(t).toContain("Merci pour les 1000 membres");
     expect(t).toContain("**À gagner :** Clef OpenFront.io Steam x1");
     expect(t).toContain(`**Pour participer :** avoir le rôle <@&${ROLE}>`);
-    expect(t).toContain("**Gagnant :** 1, tiré au sort à la fin");
+    expect(t).toContain("**Gagnant :** 1 billet tiré au sort à la fin");
     expect(t).toContain(`**Fin :** <t:${FIN_S}:F>, <t:${FIN_S}:R>`);
     expect(t).toContain(`-# Lancé par <@${STAFF}>`);
     // Au lancement, seul le rôle à prévenir est prévenu.
     expect(m["allowed_mentions"]).toEqual({ parse: [], roles: [PING] });
     expect(boutons(m)).toEqual([
-      { type: 2, style: 1, custom_id: "concours:participer:7", label: "Participer", emoji: { name: "🎉" } },
-      { type: 2, style: 2, custom_id: "concours:liste:7", label: "3 participants" },
+      { type: 2, style: 1, custom_id: "concours:participer:7", label: "Prendre un billet", emoji: { name: BILLET_EMOJI } },
+      { type: 2, style: 2, custom_id: "concours:liste:7", label: "3 billets" },
     ]);
     const carte = (m["components"] as Json[])[1] as Json;
     expect(carte).toMatchObject({ type: 17, accent_color: COULEURS.ouvert });
-    expect(JSON.stringify(carte)).toContain(LOGO_URL);
+    expect((carte["components"] as Json[])[0]).toEqual({ type: 12, items: [{ media: { url: BANNIERE_URL }, description: "Tombola des Gaulois : un billet numéroté pour chaque participant, le numéro tiré au sort gagne." }] });
     expect(compteComposants(m)).toBeLessThanOrEqual(40);
   });
 
@@ -338,7 +347,7 @@ describe("le message du concours", () => {
     const m = concoursMessage(vue({ notifier_id: GUILD, role_id: null, gagnants: 3 }), true);
     expect(textes(m)).toContain("@everyone");
     expect(textes(m)).toContain("**Pour participer :** être sur le serveur");
-    expect(textes(m)).toContain("**Gagnants :** 3, tirés au sort à la fin");
+    expect(textes(m)).toContain("**Gagnants :** 3 billets tirés au sort à la fin");
     expect(m["allowed_mentions"]).toEqual({ parse: ["everyone"] });
     expect(textes(concoursMessage(vue({ notifier_id: null })))).not.toContain(`<@&${PING}>`);
   });
@@ -347,10 +356,12 @@ describe("le message du concours", () => {
     const m = concoursMessage(vue({ image_url: `${PROJECT}/storage/v1/object/public/discord-images/a.png`, image_alt: "Bannière OpenFront" }));
     expect(JSON.stringify(m)).toContain('"type":12');
     expect(JSON.stringify(m)).toContain("Bannière OpenFront");
-    expect(JSON.stringify(concoursMessage(vue()))).not.toContain('"type":12');
+    // La bannière, puis l'image choisie : deux galeries ; sans image choisie, la bannière seule.
+    expect(JSON.stringify(m).split('"type":12').length - 1).toBe(2);
+    expect(JSON.stringify(concoursMessage(vue())).split('"type":12').length - 1).toBe(1);
   });
 
-  it("terminé : les gagnants, qui a confirmé, le nombre de participants, ceux qui ont été passés", () => {
+  it("terminé : les billets gagnants, qui a confirmé, le nombre de billets, ceux qui ont été passés", () => {
     const m = concoursMessage(
       vue({
         statut: "termine",
@@ -362,28 +373,28 @@ describe("le message du concours", () => {
         nb_remplaces: 1,
         tires: [
           tire(J(1), 1, { issue: "parti" }),
-          tire(J(2), 2, { confirme_at: "2026-11-15T20:00:00+00:00" }),
-          tire(J(3), 3, { issue: "remplace" }),
-          tire(J(4), 4, { tirage: 2 }),
+          tire(J(2), 2, { confirme_at: "2026-11-15T20:00:00+00:00", billet: 12 }),
+          tire(J(3), 3, { issue: "remplace", billet: 5 }),
+          tire(J(4), 4, { tirage: 2, billet: 3 }),
         ],
       }),
     );
     const t = textes(m);
     expect(t).toContain("-# Concours terminé");
-    expect(t).toContain(`**Gagnants :** <@${J(2)}> (a confirmé) et <@${J(4)}>`);
-    expect(t).toContain(`**Tirage :** <t:${Date.parse("2026-11-15T19:31:00+00:00") / 1000}:F>, au hasard parmi 7 participants`);
+    expect(t).toContain(`**Billets gagnants :** n° 012, <@${J(2)}> (a confirmé) ; n° 003, <@${J(4)}>`);
+    expect(t).toContain(`**Tirage :** <t:${Date.parse("2026-11-15T19:31:00+00:00") / 1000}:F>, au hasard parmi 7 billets`);
     expect(t).toContain("1 participant tiré au sort avait quitté le serveur ou perdu le rôle : passé.");
     expect(t).toContain("1 gagnant remplacé par un nouveau tirage.");
     expect(m["allowed_mentions"]).toEqual({ parse: [] });
     expect(boutons(m)[0]).toMatchObject({ label: "Terminé", disabled: true });
-    expect(boutons(m)[1]).toMatchObject({ label: "7 participants" });
+    expect(boutons(m)[1]).toMatchObject({ label: "7 billets" });
     expect((m["components"] as Json[])[1]).toMatchObject({ accent_color: COULEURS.termine });
   });
 
   it("terminé sans participant, ou sans personne qui remplit encore les conditions", () => {
-    expect(textes(concoursMessage(vue({ statut: "termine", tire_at: FIN_ISO, compte_tirage: 0, compte: 0 })))).toContain("personne n'a participé");
+    expect(textes(concoursMessage(vue({ statut: "termine", tire_at: FIN_ISO, compte_tirage: 0, compte: 0 })))).toContain("personne n'a pris de billet");
     const t = textes(concoursMessage(vue({ statut: "termine", tire_at: FIN_ISO, compte_tirage: 2, epuise: true, nb_passes: 2, tires: [tire(J(1), 1, { issue: "sans_role" }), tire(J(2), 2, { issue: "parti" })] })));
-    expect(t).toContain("**Gagnant :** aucun, plus personne à tirer au sort");
+    expect(t).toContain("**Billet gagnant :** aucun, plus personne à tirer au sort");
     expect(t).toContain("2 participants tirés au sort avaient quitté le serveur ou perdu le rôle : passés.");
   });
 
@@ -391,13 +402,15 @@ describe("le message du concours", () => {
     const t = textes(concoursMessage(vue({ statut: "termine", tire_at: FIN_ISO, compte_tirage: 9, compte: 0, nb_passes: 3, nb_remplaces: 2, tires: [tire(J(5), 5, { tirage: 3 })] })));
     expect(t).toContain("3 participants tirés au sort avaient quitté le serveur ou perdu le rôle : passés.");
     expect(t).toContain("2 gagnants remplacés par un nouveau tirage.");
-    expect(t).toContain("au hasard parmi 9 participants");
+    expect(t).toContain("au hasard parmi 9 billets");
+    // Sans billet connu (avant la migration 20261113000100), le gagnant est nommé seul.
+    expect(t).toContain(`**Gagnant :** <@${J(5)}>`);
   });
 
   it("annulé : le nombre de participants au moment de l'annulation, jamais un zéro qui n'a pas eu lieu", () => {
     // Les participants sont effacés à l'annulation : leur nombre est gardé à part.
-    expect(boutons(concoursMessage(vue({ statut: "annule", compte: 0, compte_tirage: 3, annule_at: FIN_ISO })))[1]).toMatchObject({ label: "3 participants", disabled: true });
-    expect(boutons(concoursMessage(vue({ statut: "annule", compte: 0, compte_tirage: null, annule_at: FIN_ISO })))[1]).toMatchObject({ label: "Participants", disabled: true });
+    expect(boutons(concoursMessage(vue({ statut: "annule", compte: 0, compte_tirage: 3, annule_at: FIN_ISO })))[1]).toMatchObject({ label: "3 billets", disabled: true });
+    expect(boutons(concoursMessage(vue({ statut: "annule", compte: 0, compte_tirage: null, annule_at: FIN_ISO })))[1]).toMatchObject({ label: "Billets", disabled: true });
   });
 
   it("annulé : qui l'a annulé et quand, boutons éteints", () => {
@@ -419,7 +432,7 @@ describe("le message du concours", () => {
         compte_tirage: 500,
         gagnants: 20,
         image_url: "https://exemple.fr/a.png",
-        tires: Array.from({ length: 20 }, (_, i) => tire(J(i + 1), i + 1, { confirme_at: FIN_ISO })),
+        tires: Array.from({ length: 20 }, (_, i) => tire(J(i + 1), i + 1, { confirme_at: FIN_ISO, billet: 9000 + i })),
       }),
     );
     expect(textes(m).length).toBeLessThanOrEqual(4000);
@@ -432,18 +445,27 @@ describe("le message du concours", () => {
     expect(parseVue(vueBrute({ statut: "autre" }))).toBeNull();
     expect(parseVue(vueBrute({ tires: [{ discord_id: J(1), rang: 1, tirage: 1, issue: "vainqueur" }] }))).toBeNull();
     expect(parseVue(vueBrute({ image_url: "http://exemple.fr/a.png" }))?.image_url).toBeNull();
+    // Un numéro de billet qui n'en est pas un est oublié, sans refuser le concours.
+    const billets = (b: unknown) => parseVue(vueBrute({ tires: [{ discord_id: J(1), rang: 1, tirage: 1, issue: "gagnant", billet: b }] }))?.tires[0]?.billet;
+    expect(billets(17)).toBe(17);
+    for (const faux of [0, -3, 1.5, "17", null, undefined]) expect(billets(faux)).toBeNull();
   });
 });
 
 describe("l'annonce des gagnants", () => {
-  it("félicite les gagnants, prévient eux seuls, et attend leur confirmation", () => {
+  it("montre les billets gagnants, félicite les gagnants, prévient eux seuls, et attend leur confirmation", () => {
     const c = vue({ statut: "termine" });
-    const m = annonceMessage(c, [tire(J(2), 2), tire(J(5), 5)], true);
+    const m = annonceMessage(c, [tire(J(2), 2, { billet: 17 }), tire(J(5), 5, { billet: 42 })], true, PROJECT);
     const t = textes(m);
     expect(t).toContain("-# Concours terminé");
     expect(t).toContain(`## Félicitations <@${J(2)}> et <@${J(5)}> !`);
-    expect(t).toContain("Vous gagnez chacun **Clef OpenFront.io Steam x1** au concours « Gagne une Clef OpenFront.io Steam ».");
-    expect(t).toContain(`<@${J(2)}> : à confirmer`);
+    expect(t).toContain("Les billets n° 017 et n° 042 gagnent chacun **Clef OpenFront.io Steam x1** au concours « Gagne une Clef OpenFront.io Steam ».");
+    expect(t).toContain(`n° 017, <@${J(2)}> : à confirmer`);
+    const carte = (m["components"] as Json[])[0] as Json;
+    expect((carte["components"] as Json[])[0]).toEqual({
+      type: 12,
+      items: [17, 42].map((n) => ({ media: { url: `${PROJECT}/functions/v1/code-discord/concours/gagnant/${n}.png?v=${BILLET_VERSION}` }, description: `Le billet gagnant n° 0${n} de la tombola des Gaulois` })),
+    });
     expect(t).toContain("Je confirme");
     expect(m["allowed_mentions"]).toEqual({ parse: [], users: [J(2), J(5)], replied_user: false });
     expect(boutons(m)).toEqual([{ type: 2, style: 3, custom_id: "concours:confirmer:7", label: "Je confirme", emoji: { name: "✅" } }]);
@@ -457,6 +479,31 @@ describe("l'annonce des gagnants", () => {
     expect(t).not.toContain("Cliquez sur");
     expect(m["allowed_mentions"]).toEqual({ parse: [] });
     expect(boutons(m)[0]).toMatchObject({ disabled: true });
+  });
+
+  it("un seul billet gagnant ; un remplacé garde sa ligne mais plus son image ; sans numéros ni adresse, le texte d'avant", () => {
+    const c = vue({ statut: "termine" });
+    const un = annonceMessage(c, [tire(J(2), 2, { billet: 7 })], true, PROJECT);
+    expect(textes(un)).toContain("Le billet n° 007 gagne **Clef OpenFront.io Steam x1**");
+    const remplace = annonceMessage(c, [tire(J(2), 2, { billet: 7, issue: "remplace" }), tire(J(3), 3, { billet: 8 })], false, PROJECT);
+    expect(textes(remplace)).toContain(`n° 007, <@${J(2)}> : remplacé par un nouveau tirage`);
+    expect(JSON.stringify(remplace)).not.toContain("gagnant/7.png");
+    expect(JSON.stringify(remplace)).toContain("gagnant/8.png");
+    const sansNumero = annonceMessage(c, [tire(J(2), 2)], true, PROJECT);
+    expect(textes(sansNumero)).toContain("Vous gagnez **Clef OpenFront.io Steam x1**");
+    expect(JSON.stringify(sansNumero)).not.toContain('"type":12');
+    const sansAdresse = annonceMessage(c, [tire(J(2), 2, { billet: 7 })], true);
+    expect(textes(sansAdresse)).toContain("Le billet n° 007 gagne");
+    expect(JSON.stringify(sansAdresse)).not.toContain('"type":12');
+  });
+
+  it("dix images de billets au plus, la limite de Discord, et le message tient", () => {
+    const elus = Array.from({ length: 20 }, (_, i) => tire(J(i + 1), i + 1, { billet: 100 + i }));
+    const m = annonceMessage(vue({ statut: "termine", titre: "t".repeat(100), lot: "l".repeat(100) }), elus, true, PROJECT);
+    const carte = (m["components"] as Json[])[0] as Json;
+    expect(((carte["components"] as Json[])[0] as Json)["items"]).toHaveLength(10);
+    expect(textes(m).length).toBeLessThanOrEqual(4000);
+    expect(compteComposants(m)).toBeLessThanOrEqual(40);
   });
 });
 
@@ -708,27 +755,32 @@ describe("le formulaire envoyé", () => {
 describe("les boutons", () => {
   const majVue = vueBrute({ compte: 4 });
 
-  it("« Participer » : inscrit, avec « Me retirer », et le nombre mis à jour sur le message", async () => {
+  it("« Prendre un billet » : son billet en image, avec « Me retirer », et le nombre mis à jour sur le message", async () => {
     const { deps, calls, fini } = monde(
-      { concours_participer: () => ({ ok: true, etat: "inscrit", compte: 4, titre: "Gagne une Clef", fin: FIN_ISO, maj: true, concours: majVue }), concours_affiche: () => ({ ok: true }) },
+      { concours_participer: () => ({ ok: true, etat: "inscrit", compte: 4, billet: 17, titre: "Gagne une Clef", fin: FIN_ISO, maj: true, concours: majVue }), concours_affiche: () => ({ ok: true }) },
       () => ({ status: 200, body: { id: MSG } }),
     );
     const r = await corps(await concoursInteraction(clic("concours:participer:7"), deps));
     expect(calls.rpc[0]).toEqual({ name: "concours_participer", args: { p_id: 7, p_discord_id: J(1), p_roles: [ROLE] } });
     expect(r.type).toBe(4);
     expect(r.data["flags"]).toBe(64 | 32768);
-    expect(textes(r.data)).toBe(`🎉 Vous participez au concours « Gagne une Clef ». Tirage au sort <t:${FIN_S}:R>.`);
+    expect(textes(r.data)).toBe(`${BILLET_EMOJI} Votre billet : **n° 017**, pour le concours « Gagne une Clef ». Tirage au sort <t:${FIN_S}:R>.`);
+    expect((r.data["components"] as Json[])[0]).toEqual({
+      type: 12,
+      items: [{ media: { url: `${PROJECT}/functions/v1/code-discord/concours/billet/17.png?v=${BILLET_VERSION}` }, description: "Votre billet n° 017 de la tombola des Gaulois" }],
+    });
     expect(boutons(r.data)).toEqual([{ type: 2, style: 2, custom_id: "concours:quitter:7", label: "Me retirer" }]);
     await fini();
     expect(calls.discord[0]).toMatchObject({ method: "PATCH", path: `/channels/${SALON}/messages/${MSG}` });
-    expect(boutons(calls.discord[0]?.body)[1]).toMatchObject({ label: "4 participants" });
+    expect(boutons(calls.discord[0]?.body)[1]).toMatchObject({ label: "4 billets" });
     expect(calls.rpc[1]).toEqual({ name: "concours_affiche", args: { p_id: 7, p_compte: 4, p_perdu: false } });
   });
 
   it("un second clic : déjà inscrit ; sans mise à jour demandée, rien n'est modifié", async () => {
-    const { deps, calls, fini } = monde({ concours_participer: () => ({ ok: true, etat: "deja", compte: 4, titre: "Gagne une Clef", fin: FIN_ISO, maj: false, concours: null }) });
+    const { deps, calls, fini } = monde({ concours_participer: () => ({ ok: true, etat: "deja", compte: 4, billet: 3, titre: "Gagne une Clef", fin: FIN_ISO, maj: false, concours: null }) });
     const r = await corps(await concoursInteraction(clic("concours:participer:7"), deps));
-    expect(textes(r.data)).toContain("Vous participez déjà");
+    expect(textes(r.data)).toContain("Vous avez déjà votre billet : **n° 003**");
+    expect(JSON.stringify(r.data)).toContain("/concours/billet/3.png");
     await fini();
     expect(calls.discord).toEqual([]);
   });
@@ -748,27 +800,64 @@ describe("les boutons", () => {
     }
   });
 
-  it("depuis une réponse privée, la réponse la remplace", async () => {
-    const { deps } = monde({ concours_participer: () => ({ ok: true, etat: "inscrit", compte: 1, titre: "T", fin: FIN_ISO, maj: false }) });
+  it("depuis une réponse privée, la réponse la remplace, billet compris", async () => {
+    const { deps } = monde({ concours_participer: () => ({ ok: true, etat: "inscrit", compte: 1, billet: 2, titre: "T", fin: FIN_ISO, maj: false }) });
     const r = await corps(await concoursInteraction(clic("concours:participer:7", { message: { id: "600000000000000006", flags: 64 | 32768 } }), deps));
     expect(r.type).toBe(7);
+    expect(r.data["flags"]).toBe(32768);
+    expect(JSON.stringify(r.data)).toContain("/concours/billet/2.png");
   });
 
-  it("« Me retirer » : la réponse privée le dit, avec « Participer »", async () => {
-    const { deps, calls } = monde({ concours_quitter: () => ({ ok: true, etat: "retire", compte: 3, titre: "Gagne une Clef", fin: FIN_ISO, maj: false }) });
+  it("sans numéro, un second clic dit encore « Vous participez déjà »", async () => {
+    const { deps } = monde({ concours_participer: () => ({ ok: true, etat: "deja", compte: 4, titre: "T", fin: FIN_ISO, maj: false }) });
+    const r = await corps(await concoursInteraction(clic("concours:participer:7"), deps));
+    expect(textes(r.data)).toBe(`Vous participez déjà au concours « T ». Tirage au sort <t:${FIN_S}:R>.`);
+  });
+
+  it("sans numéro (migration pas encore installée) ou sans adresse du projet, la réponse se passe d'image", async () => {
+    const ancien = monde({ concours_participer: () => ({ ok: true, etat: "inscrit", compte: 1, titre: "T", fin: FIN_ISO, maj: false }) });
+    const a = await corps(await concoursInteraction(clic("concours:participer:7"), ancien.deps));
+    expect(textes(a.data)).toBe(`🎉 Vous participez au concours « T ». Tirage au sort <t:${FIN_S}:R>.`);
+    expect(JSON.stringify(a.data)).not.toContain('"type":12');
+    const sansAdresse = monde({ concours_participer: () => ({ ok: true, etat: "inscrit", compte: 1, billet: 9, titre: "T", fin: FIN_ISO, maj: false }) }, () => null, { projectUrl: undefined });
+    const b = await corps(await concoursInteraction(clic("concours:participer:7"), sansAdresse.deps));
+    expect(textes(b.data)).toContain("**n° 009**");
+    expect(JSON.stringify(b.data)).not.toContain('"type":12');
+    // Au-delà de 9 999, le numéro reste en texte.
+    expect(billetUrl(PROJECT, "billet", 10_000)).toBeNull();
+    expect(billetUrl(PROJECT, "billet", 9999)).toBe(`${PROJECT}/functions/v1/code-discord/concours/billet/9999.png?v=${BILLET_VERSION}`);
+  });
+
+  it("« Me retirer » : la réponse privée rend le billet, avec « Prendre un billet »", async () => {
+    const { deps, calls } = monde({ concours_quitter: () => ({ ok: true, etat: "retire", compte: 3, billet: 17, titre: "Gagne une Clef", fin: FIN_ISO, maj: false }) });
     const r = await corps(await concoursInteraction(clic("concours:quitter:7", { message: { id: "600000000000000006", flags: 64 } }), deps));
     expect(calls.rpc[0]).toEqual({ name: "concours_quitter", args: { p_id: 7, p_discord_id: J(1) } });
     expect(r.type).toBe(7);
-    expect(textes(r.data)).toBe("Vous ne participez plus au concours « Gagne une Clef ».");
-    expect(boutons(r.data)).toEqual([{ type: 2, style: 1, custom_id: "concours:participer:7", label: "Participer", emoji: { name: "🎉" } }]);
+    expect(textes(r.data)).toBe("Votre billet n° 017 est rendu : vous ne participez plus au concours « Gagne une Clef ».");
+    expect(boutons(r.data)).toEqual([{ type: 2, style: 1, custom_id: "concours:participer:7", label: "Prendre un billet", emoji: { name: BILLET_EMOJI } }]);
+    // Sans billet rendu (il n'en avait pas, ou la migration manque) : la phrase d'avant.
+    const absent = monde({ concours_quitter: () => ({ ok: true, etat: "absent", compte: 3, billet: null, titre: "T", fin: FIN_ISO, maj: false }) });
+    expect(textes((await corps(await concoursInteraction(clic("concours:quitter:7", { message: { id: "600000000000000006", flags: 64 } }), absent.deps))).data)).toBe("Vous ne participez plus au concours « T ».");
   });
 
-  it("le nombre de participants : leur liste, à soi seul, et si l'on en est", async () => {
+  it("le nombre de billets : leur liste par numéro, à soi seul, et son billet", async () => {
+    const { deps } = monde({
+      concours_participants: () => ({ ok: true, statut: "ouvert", titre: "T", fin: FIN_ISO, ouvert: true, compte: 2, compte_tirage: null, inscrit: true, billet: 4, ids: [J(1), J(2)], billets: [{ id: J(2), billet: 1 }, { id: J(1), billet: 4 }], gagnants: [], gagnes: [] }),
+    });
+    const n = await corps(await concoursInteraction(clic("concours:liste:7"), deps));
+    expect(textes(n.data)).toBe(`### 2 billets au concours « T »\nn° 001 <@${J(2)}>, n° 004 <@${J(1)}>\nVotre billet : n° 004.`);
+    const sans = monde({ concours_participants: () => ({ ok: true, statut: "ouvert", titre: "T", fin: FIN_ISO, ouvert: true, compte: 1, compte_tirage: null, inscrit: false, billet: null, ids: [J(2)], billets: [{ id: J(2), billet: 1 }], gagnants: [], gagnes: [] }) });
+    const s = await corps(await concoursInteraction(clic("concours:liste:7"), sans.deps));
+    expect(textes(s.data)).toBe(`### 1 billet au concours « T »\nn° 001 <@${J(2)}>\nVous n'avez pas de billet.`);
+    expect(boutons(s.data)[0]).toMatchObject({ custom_id: "concours:participer:7", label: "Prendre un billet" });
+  });
+
+  it("avant la migration des billets, la liste se fait avec les participants seuls", async () => {
     const { deps } = monde({ concours_participants: () => ({ ok: true, statut: "ouvert", titre: "T", fin: FIN_ISO, ouvert: true, compte: 2, compte_tirage: null, inscrit: true, ids: [J(1), J(2)], gagnants: [] }) });
     const r = await corps(await concoursInteraction(clic("concours:liste:7"), deps));
     expect(r.type).toBe(4);
     expect(r.data["flags"]).toBe(64 | 32768);
-    expect(textes(r.data)).toBe(`### 2 participants au concours « T »\n<@${J(1)}>, <@${J(2)}>\nVous participez.`);
+    expect(textes(r.data)).toBe(`### 2 billets au concours « T »\n<@${J(1)}>, <@${J(2)}>\nVous participez.`);
     expect(boutons(r.data)[0]).toMatchObject({ custom_id: "concours:quitter:7" });
     expect(r.data["allowed_mentions"]).toEqual({ parse: [] });
   });
@@ -790,7 +879,7 @@ describe("les boutons", () => {
   it("la liste d'un concours annulé dit qu'il est annulé, et combien participaient", async () => {
     const { deps } = monde({ concours_participants: () => ({ ok: true, statut: "annule", titre: "T", ouvert: false, compte: 0, compte_tirage: 2, inscrit: false, ids: [], gagnants: [] }) });
     const r = await corps(await concoursInteraction(clic("concours:liste:7"), deps));
-    expect(textes(r.data)).toBe("### Concours « T » annulé, avec 2 participants");
+    expect(textes(r.data)).toBe("### Concours « T » annulé, avec 2 billets");
     expect(boutons(r.data)).toEqual([]);
   });
 
@@ -812,7 +901,9 @@ describe("les boutons", () => {
   it("après le tirage, la liste donne les gagnants ; après 30 jours, elle dit qu'elle est effacée", async () => {
     const tiré = monde({ concours_participants: () => ({ ok: true, statut: "termine", titre: "T", ouvert: false, compte: 3, compte_tirage: 3, inscrit: false, ids: [J(1), J(2), J(3)], gagnants: [J(2)] }) });
     const r = await corps(await concoursInteraction(clic("concours:liste:7"), tiré.deps));
-    expect(textes(r.data)).toBe(`### Tirage au sort du concours « T », parmi 3 participants\n**Gagnant :** <@${J(2)}>\n<@${J(1)}>, <@${J(2)}>, <@${J(3)}>`);
+    expect(textes(r.data)).toBe(`### Tirage au sort du concours « T », parmi 3 billets\n**Gagnant :** <@${J(2)}>\n<@${J(1)}>, <@${J(2)}>, <@${J(3)}>`);
+    const numerote = monde({ concours_participants: () => ({ ok: true, statut: "termine", titre: "T", ouvert: false, compte: 2, compte_tirage: 2, inscrit: false, billet: null, ids: [J(1), J(2)], billets: [{ id: J(1), billet: 1 }, { id: J(2), billet: 2 }], gagnants: [J(2)], gagnes: [{ id: J(2), billet: 2 }] }) });
+    expect(textes((await corps(await concoursInteraction(clic("concours:liste:7"), numerote.deps))).data)).toContain(`**Billet gagnant :** n° 002, <@${J(2)}>`);
     expect(boutons(r.data)).toEqual([]);
     const vieux = monde({ concours_participants: () => ({ ok: true, statut: "termine", titre: "T", ouvert: false, compte: 0, compte_tirage: 3, inscrit: false, ids: [], gagnants: [J(2)] }) });
     expect(textes((await corps(await concoursInteraction(clic("concours:liste:7"), vieux.deps))).data)).toContain("effacée 30 jours après le tirage");
@@ -1028,7 +1119,7 @@ describe("le travail du robot", () => {
     const { deps, calls } = monde({ ...travail(tiree), concours_choix: () => ({ ok: true, concours: vide }) }, () => ({ status: 200, body: {} }));
     await travailler(deps);
     expect(calls.rpc.find((c) => c.name === "concours_choix")?.args).toMatchObject({ p_elus: [], p_passes: [], p_epuise: true });
-    expect(textes(calls.discord.find((c) => c.method === "PATCH")?.body)).toContain("personne n'a participé");
+    expect(textes(calls.discord.find((c) => c.method === "PATCH")?.body)).toContain("personne n'a pris de billet");
     expect(calls.discord.some((c) => c.method === "POST")).toBe(false);
     expect(fait(calls)[0]).toMatchObject({ p_final: true, p_erreur: null });
   });
@@ -1114,9 +1205,9 @@ describe("le travail du robot", () => {
   it("explique une réponse de Discord sans rien de secret", () => {
     expect(expliquer(null)).toBe("Discord ne répond pas");
     expect(expliquer({ status: 403, body: { code: 50001, message: "Missing Access" } })).toBe("Discord 403 (code 50001)");
-    expect(participantsLabel(0)).toBe("0 participant");
-    expect(participantsLabel(1)).toBe("1 participant");
-    expect(participantsLabel(2)).toBe("2 participants");
+    expect(billetsLabel(0)).toBe("0 billet");
+    expect(billetsLabel(1)).toBe("1 billet");
+    expect(billetsLabel(2)).toBe("2 billets");
   });
 });
 
@@ -1161,6 +1252,61 @@ describe("par la porte de Discord", () => {
     expect(await res.json()).toEqual({ ok: true });
     await fini();
     expect(calls.rpc[0]?.name).toBe("concours_travail");
+  });
+
+  it("GET …/concours/billet/17.png : le fond du site, le numéro posé, sans rien de secret", async () => {
+    const fond = new Uint8Array(await renderTombolaImage("billet"));
+    const lus: string[] = [];
+    const { deps } = full({});
+    const siteImage = async (path: string) => {
+      lus.push(path);
+      return path === FONDS.billet ? fond : null;
+    };
+    const avecSite = { ...deps, siteImage };
+    const res = await handle(new Request(`${PROJECT}/functions/v1/code-discord/concours/billet/17.png?v=1`), avecSite);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("image/png");
+    expect(res.headers.get("cache-control")).toBe("public, max-age=86400");
+    const png = new Uint8Array(await res.arrayBuffer());
+    expect([...png.slice(0, 8)]).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
+    expect(new DataView(png.buffer).getUint32(16)).toBe(BILLET.largeur);
+    // Une seconde demande ne relit pas le site : le fond est gardé, et le billet aussi.
+    const encore = await handle(new Request(`${PROJECT}/functions/v1/code-discord/concours/billet/17.png`), avecSite);
+    expect(new Uint8Array(await encore.arrayBuffer())).toEqual(png);
+    expect(lus).toEqual([FONDS.billet]);
+    const tete = await handle(new Request(`${PROJECT}/functions/v1/code-discord/concours/billet/18.png`, { method: "HEAD" }), avecSite);
+    expect(tete.status).toBe(200);
+    expect(await tete.text()).toBe("");
+  });
+
+  it("en ligne, chaque requête a ses dépendances neuves : le fond lu sert quand même à la suivante", async () => {
+    const fond = new Uint8Array(await renderTombolaImage("billet"));
+    const lus: string[] = [];
+    const fetcher = (async (url: string | URL | Request) => {
+      lus.push(String(url));
+      return String(url) === `${SITE_URL}${FONDS.billet}` ? new Response(fond, { headers: { "content-type": "image/png" } }) : new Response("", { status: 404 });
+    }) as unknown as typeof fetch;
+    const requete = () => liveDeps({ get: () => undefined }, fetcher);
+    expect(requete().siteImage).toBe(requete().siteImage);
+    // Dix billets d'une même annonce, demandés ensemble, puis un autre plus tard : le fond n'est lu qu'une fois.
+    const reponses = await Promise.all(Array.from({ length: 10 }, (_, i) => concoursImage(`/concours/billet/${i + 1}.png`, false, requete())));
+    expect(reponses.every((r) => r?.status === 200)).toBe(true);
+    expect((await concoursImage("/concours/billet/77.png", false, requete()))?.status).toBe(200);
+    expect(lus).toEqual([`${SITE_URL}${FONDS.billet}`]);
+  });
+
+  it("une adresse qui n'est pas celle d'un billet, ou un fond absent : refusée, sans rien garder", async () => {
+    const { deps } = full({});
+    for (const chemin of ["billet/0.png", "billet/017.png", "billet/10000.png", "billet/1.jpg", "autre/1.png", "billet/1.png/x"]) {
+      const res = await handle(new Request(`${PROJECT}/functions/v1/code-discord/concours/${chemin}`), deps);
+      expect(res.status, chemin).toBe(405);
+    }
+    const res = await handle(new Request(`${PROJECT}/functions/v1/code-discord/concours/gagnant/3.png`), deps);
+    expect(res.status).toBe(503);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    const illisible = await concoursImage("/concours/gagnant/3.png", false, { siteImage: async () => new Uint8Array([1, 2, 3]), log: () => undefined });
+    expect(illisible?.status).toBe(503);
+    expect(await concoursImage("/concours/tic", false, deps)).toBeNull();
   });
 
   it("liveDeps donne l'adresse du projet, sans la barre de la fin", () => {

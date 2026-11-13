@@ -726,7 +726,8 @@ function tableLayer(width: number, height: number): Promise<Buffer> {
  */
 export async function renderGazetteCard(card: GazetteCard, fonts: GazetteFonts, root: string, layers: OverlayOptions[] = []): Promise<Buffer> {
   const svg = Buffer.from(cardSvg(card, fonts, { table: false }));
-  const logo = await logoLayer(root, card.logo.size);
+  // Une taille nulle : une image sans badge, comme les billets de la tombola (tombola-image.ts).
+  const logo = card.logo.size > 0 ? await logoLayer(root, card.logo.size) : null;
   const overlays: OverlayOptions[] = [{ input: svg, left: 0, top: 0 }, ...layers, ...(logo ? [{ input: logo, left: card.logo.x, top: card.logo.y }] : [])];
   return sharp(await tableLayer(card.width, card.height))
     .composite(overlays)

@@ -11,6 +11,10 @@
  *   gagnants, en passant ceux qui ont quitté le serveur ou perdu le rôle depuis, et le message le dit. Il répond au message
  *   du concours pour féliciter les gagnants, qui confirment d'un clic.
  * - `/concours terminer`, `annuler` et `remplacer` (un nouveau tirage, au suivant dans le même ordre).
+ * - Depuis le 13 novembre 2026, une tombola (maquette C choisie par le pilote) : « Prendre un billet » donne à chacun un
+ *   billet numéroté (migration 20261113000100), montré en image ; l'annonce montre le billet gagnant. Le site publie la
+ *   bannière et les fonds des billets (/tombola/), la fonction y pose le numéro quand Discord demande l'image
+ *   (`concoursImage`, billets.ts). Le tirage ne change pas : le numéro dit seulement qui a gagné.
  *
  * Le robot écrit avec son jeton (`deps.discord`, secret LE_GAULOIS_BOT_TOKEN). Le serveur décide de tout : qui participe,
  * le tirage, les gagnants. La base réveille la fonction chaque minute quand un concours a besoin d'elle (`concoursTic`).
@@ -18,10 +22,11 @@
  *
  * Importé par index.ts, dont il n'importe que des types : sinon, une boucle d'import au démarrage.
  */
+import { BILLET_MAX, billetPng, lirePng, numeroBillet, type Image } from "./billets.ts";
 import type { Deps, DiscordReply } from "./index.ts";
 
 /** Ce dont le concours a besoin de la fonction. */
-export type ConcoursDeps = Pick<Deps, "guildId" | "nowSeconds" | "rpc" | "discord" | "webhook" | "background" | "log" | "botId" | "botAccepted" | "projectUrl">;
+export type ConcoursDeps = Pick<Deps, "guildId" | "nowSeconds" | "rpc" | "discord" | "webhook" | "background" | "log" | "botId" | "botAccepted" | "projectUrl" | "siteImage">;
 
 type Json = Record<string, unknown>;
 
@@ -47,10 +52,22 @@ export const CHAMP_TEXTE = "texte";
 
 /** Le site (le même que `SITE_URL` d'index.ts, qui ne s'importe pas d'ici : un test les compare). */
 export const CONCOURS_SITE_URL = "https://les-gaulois.github.io";
-/** Le logo du clan, en vignette du message : le même fichier que l'icône du site. */
-export const LOGO_URL = `${CONCOURS_SITE_URL}/generated/icon-512.png`;
+/** La bannière de la tombola, en haut du message du concours (src/lib/tombola-image.ts). */
+export const BANNIERE_URL = `${CONCOURS_SITE_URL}/tombola/banniere.png`;
+export const BANNIERE_ALT = "Tombola des Gaulois : un billet numéroté pour chaque participant, le numéro tiré au sort gagne.";
+/** Les fonds des billets, sur le site : la fonction y pose le numéro (`concoursImage`). */
+export const FONDS = { billet: "/tombola/billet.png", gagnant: "/tombola/gagnant.png" } as const;
+export type SorteBillet = keyof typeof FONDS;
 /** Où la base réveille la fonction, sous l'adresse du projet Supabase. */
 export const REVEIL_PATH = "/functions/v1/code-discord/concours/tic";
+/**
+ * Où Discord lit l'image d'un billet, sous l'adresse du projet : `…/concours/billet/17.png`. `v` change si le dessin
+ * change, pour que Discord ne garde pas l'ancien.
+ */
+export const BILLETS_PATH = "/functions/v1/code-discord/concours/";
+export const BILLET_VERSION = "1";
+/** Le billet du bouton « Prendre un billet » (l'émoji « ticket d'entrée »), écrit par ses numéros : un éditeur ne l'abîme pas. */
+export const BILLET_EMOJI = String.fromCodePoint(0x1f39f, 0xfe0f);
 /** Les images de l'inventaire de la Direction, publiques, sous l'adresse du projet. */
 export const IMAGES_PATH = "/storage/v1/object/public/discord-images/";
 
@@ -210,6 +227,8 @@ export interface Tire {
   issue: Issue;
   confirme_at: string | null;
   annonce_id: string | null;
+  /** Son billet ; `null` si le serveur ne le dit pas (migration 20261113000100 pas encore installée). */
+  billet: number | null;
 }
 
 export interface Vue {
@@ -262,6 +281,8 @@ const str = (value: unknown): string | null => (typeof value === "string" ? valu
 const idOrNull = (value: unknown): string | null => (isId(value) ? value : null);
 const date = (value: unknown): string | null => (typeof value === "string" && Number.isFinite(Date.parse(value)) ? value : null);
 const entier = (value: unknown): number | null => (typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : null);
+/** Un numéro de billet : un entier d'au moins 1. */
+const billetOuNull = (value: unknown): number | null => (typeof value === "number" && Number.isInteger(value) && value >= 1 ? value : null);
 
 /** Le concours rendu par le serveur, relu sans lui faire confiance : `null` s'il n'a pas la forme attendue. */
 export function parseVue(value: unknown): Vue | null {
@@ -282,7 +303,7 @@ export function parseVue(value: unknown): Vue | null {
     const rang = entier(t?.["rang"]);
     const tirage = entier(t?.["tirage"]);
     if (!t || !isId(t["discord_id"]) || issue === null || !ISSUES.includes(issue) || rang === null || tirage === null) return null;
-    tires.push({ discord_id: t["discord_id"], rang, tirage, issue: issue as Issue, confirme_at: date(t["confirme_at"]), annonce_id: idOrNull(t["annonce_id"]) });
+    tires.push({ discord_id: t["discord_id"], rang, tirage, issue: issue as Issue, confirme_at: date(t["confirme_at"]), annonce_id: idOrNull(t["annonce_id"]), billet: billetOuNull(t["billet"]) });
   }
   const ordre = Array.isArray(v["ordre"]) ? v["ordre"].filter(isId) : null;
   const image = str(v["image_url"]);
@@ -334,7 +355,25 @@ const membre = (id: string): string => `<@${id}>`;
 /** Un rôle : le rôle « @everyone » a le numéro du serveur, et s'écrit tel quel. */
 const role = (id: string, guildId: string): string => (id === guildId ? "@everyone" : `<@&${id}>`);
 const pluriel = (n: number, un: string, plusieurs: string): string => (n > 1 ? plusieurs : un);
-export const participantsLabel = (n: number): string => `${n} participant${n > 1 ? "s" : ""}`;
+export const billetsLabel = (n: number): string => `${n} billet${n > 1 ? "s" : ""}`;
+/** « n° 017 ». */
+const noBillet = (n: number): string => `n° ${numeroBillet(n)}`;
+/** Un tiré au sort tel que les messages l'écrivent : « n° 017, @Brennos », ou la mention seule sans billet connu. */
+const avecBillet = (id: string, n: number | null): string => (n === null ? membre(id) : `${noBillet(n)}, ${membre(id)}`);
+/**
+ * L'adresse de l'image d'un billet, que la fonction dessine quand Discord la demande (`concoursImage`). `null` sans
+ * l'adresse du projet, ou pour un numéro qui ne se dessine pas : le message garde alors le numéro en texte.
+ */
+export function billetUrl(projectUrl: string | undefined, sorte: SorteBillet, n: number | null): string | null {
+  if (!projectUrl || n === null || !Number.isInteger(n) || n < 1 || n > BILLET_MAX) return null;
+  return `${projectUrl.replace(/\/+$/, "")}${BILLETS_PATH}${sorte}/${n}.png?v=${BILLET_VERSION}`;
+}
+interface Illustration {
+  url: string;
+  description: string;
+}
+/** Des images en grand, avec ce qu'elles montrent pour qui ne les voit pas. */
+const galerie = (items: readonly Illustration[]): Json => ({ type: 12, items: items.map((i) => ({ media: { url: i.url }, description: i.description.slice(0, 1024) })) });
 const texte = (content: string): Json => ({ type: 10, content });
 const bouton = (customId: string, label: string, style: 1 | 2 | 3 | 4, options: { emoji?: string; disabled?: boolean } = {}): Json => ({
   type: 2,
@@ -351,11 +390,11 @@ export const customId = (action: "participer" | "quitter" | "liste" | "confirmer
 const gagnantsDe = (c: Vue): Tire[] => c.tires.filter((t) => t.issue === "gagnant").sort((a, b) => a.tirage - b.tirage || a.rang - b.rang);
 
 /**
- * Le message du concours : une carte aux couleurs du site, le titre, le texte de l'encadrement, ce qui est à gagner, qui peut
- * participer, le nombre de gagnants et la fin (que Discord écrit en direct, « dans 3 jours ») ; une fois tiré, les gagnants
- * et le nombre de participants. Deux boutons : « Participer » et le nombre de participants, qui en montre la liste.
- * `ping` : au lancement seulement, le rôle à prévenir est mentionné pour de bon ; ensuite, la mention reste écrite sans
- * prévenir personne. Aucun autre nom ne prévient qui que ce soit.
+ * Le message du concours : une carte aux couleurs du site, la bannière de la tombola, le titre, le texte de l'encadrement,
+ * ce qui est à gagner, qui peut participer, le nombre de gagnants et la fin (que Discord écrit en direct, « dans 3 jours ») ;
+ * une fois tiré, les billets gagnants et le nombre de billets. Deux boutons : « Prendre un billet » et le nombre de billets,
+ * qui en montre la liste. `ping` : au lancement seulement, le rôle à prévenir est mentionné pour de bon ; ensuite, la
+ * mention reste écrite sans prévenir personne. Aucun autre nom ne prévient qui que ce soit.
  */
 export function concoursMessage(c: Vue, ping = false): Json {
   const termine = c.statut === "termine";
@@ -367,15 +406,18 @@ export function concoursMessage(c: Vue, ping = false): Json {
     const gagnants = gagnantsDe(c);
     const n = c.compte_tirage ?? c.compte;
     if (gagnants.length > 0) {
-      const noms = gagnants.map((t) => (t.confirme_at ? `${membre(t.discord_id)} (a confirmé)` : membre(t.discord_id)));
-      faits.push(`**${pluriel(gagnants.length, "Gagnant", "Gagnants")} :** ${listeFr(noms)}`);
+      // « n° 017, @Brennos » : plusieurs gagnants se séparent par un point-virgule, la virgule étant déjà prise.
+      const noms = gagnants.map((t) => `${avecBillet(t.discord_id, t.billet)}${t.confirme_at ? " (a confirmé)" : ""}`);
+      // Sans numéro connu (un concours tiré avant la migration des billets), le gagnant est nommé seul.
+      const libelle = gagnants.every((t) => t.billet !== null) ? pluriel(gagnants.length, "Billet gagnant", "Billets gagnants") : pluriel(gagnants.length, "Gagnant", "Gagnants");
+      faits.push(`**${libelle} :** ${noms.join(" ; ")}`);
     } else if (c.a_tirer > 0) {
-      faits.push("**Gagnant :** tirage en cours");
+      faits.push("**Billet gagnant :** tirage en cours");
     } else if (n > 0) {
-      faits.push("**Gagnant :** aucun, plus personne à tirer au sort");
+      faits.push("**Billet gagnant :** aucun, plus personne à tirer au sort");
     }
     faits.push(`**À gagner :** ${c.lot}`);
-    faits.push(n === 0 ? `**Tirage :** ${quand(c.tire_at, "F")}, personne n'a participé` : `**Tirage :** ${quand(c.tire_at, "F")}, au hasard parmi ${participantsLabel(n)}`);
+    faits.push(n === 0 ? `**Tirage :** ${quand(c.tire_at, "F")}, personne n'a pris de billet` : `**Tirage :** ${quand(c.tire_at, "F")}, au hasard parmi ${billetsLabel(n)}`);
     // Les nombres que garde le serveur : les lignes des passés et des remplacés s'effacent 30 jours après le tirage.
     const passes = c.nb_passes;
     if (passes > 0) {
@@ -390,34 +432,28 @@ export function concoursMessage(c: Vue, ping = false): Json {
   } else {
     faits.push(`**À gagner :** ${c.lot}`);
     faits.push(`**Pour participer :** ${c.role_id ? `avoir le rôle ${role(c.role_id, c.guild_id)}` : "être sur le serveur"}`);
-    faits.push(`**${pluriel(c.gagnants, "Gagnant", "Gagnants")} :** ${c.gagnants}, ${pluriel(c.gagnants, "tiré", "tirés")} au sort à la fin`);
+    faits.push(`**${pluriel(c.gagnants, "Gagnant", "Gagnants")} :** ${c.gagnants} ${pluriel(c.gagnants, "billet tiré", "billets tirés")} au sort à la fin`);
     faits.push(`**Fin :** ${quand(c.fin, "F")}, ${quand(c.fin, "R")}`);
   }
   notes.push(`Lancé par ${membre(c.createur_id)}`);
 
-  const carte: Json[] = [
-    {
-      type: 9,
-      components: [texte(`-# ${entete}`), texte(`## ${c.titre}`)],
-      accessory: { type: 11, media: { url: LOGO_URL }, description: "Le logo du clan GAL" },
-    },
-  ];
+  const carte: Json[] = [galerie([{ url: BANNIERE_URL, description: BANNIERE_ALT }]), texte(`-# ${entete}`), texte(`## ${c.titre}`)];
   if (c.texte) carte.push(texte(c.texte));
   carte.push({ type: 14, divider: true, spacing: 1 });
   carte.push(texte(faits.join("\n")));
   if (c.image_url) carte.push({ type: 12, items: [{ media: { url: c.image_url }, description: (c.image_alt ?? `L'image du concours « ${c.titre} »`).slice(0, 1024) }] });
   carte.push(texte(notes.map((note) => `-# ${note}`).join("\n")));
 
-  // Tiré au sort ou annulé, les participants comptés à ce moment-là : la liste s'efface ensuite, le nombre reste. Sans ce
-  // nombre, le bouton ne dit pas « 0 » : il dit seulement « Participants ».
+  // Tiré au sort ou annulé, les billets comptés à ce moment-là : la liste s'efface ensuite, le nombre reste. Sans ce
+  // nombre, le bouton ne dit pas « 0 » : il dit seulement « Billets ».
   const compte = termine || annule ? c.compte_tirage : c.compte;
   const components: Json[] = [];
   if (c.notifier_id) components.push(texte(role(c.notifier_id, c.guild_id)));
   components.push({ type: 17, accent_color: annule ? COULEURS.annule : termine ? COULEURS.termine : COULEURS.ouvert, components: carte });
   components.push(
     rangee(
-      bouton(customId("participer", c.id), termine ? "Terminé" : annule ? "Annulé" : "Participer", 1, { emoji: "🎉", disabled: termine || annule }),
-      bouton(customId("liste", c.id), compte === null ? "Participants" : participantsLabel(compte), 2, { disabled: annule }),
+      bouton(customId("participer", c.id), termine ? "Terminé" : annule ? "Annulé" : "Prendre un billet", 1, { emoji: BILLET_EMOJI, disabled: termine || annule }),
+      bouton(customId("liste", c.id), compte === null ? "Billets" : billetsLabel(compte), 2, { disabled: annule }),
     ),
   );
   const allowed = ping && c.notifier_id ? (c.notifier_id === c.guild_id ? { parse: ["everyone"] } : { parse: [], roles: [c.notifier_id] }) : { parse: [] };
@@ -425,24 +461,38 @@ export function concoursMessage(c: Vue, ping = false): Json {
 }
 
 /**
- * L'annonce des gagnants, en réponse au message du concours : « Félicitations » et le lot, puis, pour chacun, s'il a
- * confirmé. `ping` : à l'envoi, les gagnants nommés sont prévenus, et eux seuls ; une mise à jour ne prévient personne.
+ * L'annonce des gagnants, en réponse au message du concours : le billet gagnant de chacun en image (dix au plus, la limite
+ * de Discord), « Félicitations », le lot, puis, pour chacun, s'il a confirmé. Un gagnant remplacé garde sa ligne, plus son
+ * billet. `ping` : à l'envoi, les gagnants nommés sont prévenus, et eux seuls ; une mise à jour ne prévient personne.
+ * `projectUrl` : l'adresse du projet, où Discord lit l'image des billets ; sans elle, les numéros restent en texte.
  */
-export function annonceMessage(c: Vue, elus: Tire[], ping: boolean): Json {
+export function annonceMessage(c: Vue, elus: Tire[], ping: boolean, projectUrl?: string): Json {
   const premier = elus.every((t) => t.tirage === 1);
   const noms = listeFr(elus.map((t) => membre(t.discord_id)));
-  const lignes = elus.map((t) =>
-    t.issue === "remplace"
-      ? `${membre(t.discord_id)} : remplacé par un nouveau tirage`
-      : t.confirme_at
-        ? `${membre(t.discord_id)} a confirmé ${quand(t.confirme_at, "R")}`
-        : `${membre(t.discord_id)} : à confirmer`,
-  );
+  const lignes = elus.map((t) => {
+    const qui = avecBillet(t.discord_id, t.billet);
+    return t.issue === "remplace" ? `${qui} : remplacé par un nouveau tirage` : t.confirme_at ? `${qui} a confirmé ${quand(t.confirme_at, "R")}` : `${qui} : à confirmer`;
+  });
+  const numeros = elus.flatMap((t) => (t.billet === null ? [] : [noBillet(t.billet)]));
+  const gain =
+    numeros.length !== elus.length || elus.length === 0
+      ? `${pluriel(elus.length, "Vous gagnez", "Vous gagnez chacun")} **${c.lot}** au concours « ${c.titre} ».`
+      : elus.length === 1
+        ? `Le billet ${numeros[0]} gagne **${c.lot}** au concours « ${c.titre} ».`
+        : `Les billets ${listeFr(numeros)} gagnent chacun **${c.lot}** au concours « ${c.titre} ».`;
+  const images = elus
+    .filter((t) => t.issue === "gagnant")
+    .flatMap((t): Illustration[] => {
+      const url = billetUrl(projectUrl, "gagnant", t.billet);
+      return url && t.billet !== null ? [{ url, description: `Le billet gagnant ${noBillet(t.billet)} de la tombola des Gaulois` }] : [];
+    })
+    .slice(0, 10);
   const attendus = elus.filter((t) => t.issue === "gagnant" && t.confirme_at === null).length;
   const carte: Json[] = [
+    ...(images.length > 0 ? [galerie(images)] : []),
     texte(`-# ${premier ? "Concours terminé" : "Nouveau tirage"}`),
     texte(`## Félicitations ${noms} !`),
-    texte(`${pluriel(elus.length, "Vous gagnez", "Vous gagnez chacun")} **${c.lot}** au concours « ${c.titre} ».`),
+    texte(gain),
     { type: 14, divider: true, spacing: 1 },
     texte(lignes.join("\n")),
   ];
@@ -461,12 +511,25 @@ export function annonceMessage(c: Vue, elus: Tire[], ping: boolean): Json {
 /* ---------- Les réponses à Discord ---------- */
 
 const json = (body: unknown): Response => new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json; charset=utf-8" } });
+/**
+ * Une réponse que seul le joueur voit : une image s'il y en a une (son billet), un texte et, s'il le faut, des boutons.
+ * `remplace` : à la place du message privé où le joueur vient de cliquer.
+ */
+const priveIllustre = (content: string, image: Illustration | null, boutons: Json[], remplace: boolean): Response =>
+  json({
+    type: remplace ? 7 : 4,
+    data: {
+      flags: remplace ? COMPONENTS_V2 : EPHEMERAL | COMPONENTS_V2,
+      components: [...(image ? [galerie([image])] : []), texte(content), ...(boutons.length ? [rangee(...boutons)] : [])],
+      allowed_mentions: { parse: [] },
+    },
+  });
 /** Une réponse que seul le joueur voit : un texte et, s'il le faut, des boutons. */
-const prive = (content: string, boutons: Json[] = []): Response =>
-  json({ type: 4, data: { flags: EPHEMERAL | COMPONENTS_V2, components: [texte(content), ...(boutons.length ? [rangee(...boutons)] : [])], allowed_mentions: { parse: [] } } });
+const prive = (content: string, boutons: Json[] = []): Response => priveIllustre(content, null, boutons, false);
 /** La même, à la place du message privé où le joueur vient de cliquer. */
-const remplacePrive = (content: string, boutons: Json[] = []): Response =>
-  json({ type: 7, data: { flags: COMPONENTS_V2, components: [texte(content), ...(boutons.length ? [rangee(...boutons)] : [])], allowed_mentions: { parse: [] } } });
+const remplacePrive = (content: string, boutons: Json[] = []): Response => priveIllustre(content, null, boutons, true);
+/** Le bouton « Prendre un billet » d'une réponse privée. */
+const boutonBillet = (id: number): Json => bouton(customId("participer", id), "Prendre un billet", 1, { emoji: BILLET_EMOJI });
 /** Une réponse privée en texte simple (la commande et ses refus). */
 const priveTexte = (content: string): Response => json({ type: 4, data: { content, flags: EPHEMERAL, allowed_mentions: { parse: [] } } });
 const choixReponse = (choices: { name: string; value: string }[]): Response => json({ type: 8, data: { choices } });
@@ -491,6 +554,9 @@ export const CONCOURS_MESSAGES = {
   inscrit: (titre: string, fin: string): string => `🎉 Vous participez au concours « ${titre} ». Tirage au sort ${quand(fin, "R")}.`,
   deja: (titre: string, fin: string): string => `Vous participez déjà au concours « ${titre} ». Tirage au sort ${quand(fin, "R")}.`,
   retire: (titre: string): string => `Vous ne participez plus au concours « ${titre} ».`,
+  billetPris: (titre: string, fin: string, n: number): string => `${BILLET_EMOJI} Votre billet : **${noBillet(n)}**, pour le concours « ${titre} ». Tirage au sort ${quand(fin, "R")}.`,
+  billetDeja: (titre: string, fin: string, n: number): string => `Vous avez déjà votre billet : **${noBillet(n)}**, pour le concours « ${titre} ». Tirage au sort ${quand(fin, "R")}.`,
+  billetRendu: (titre: string, n: number): string => `Votre billet ${noBillet(n)} est rendu : vous ne participez plus au concours « ${titre} ».`,
   pasGagnant: "Ce bouton est pour les gagnants nommés dans ce message.",
   remplace: "Un nouveau tirage vous a remplacé : parlez-en à l'encadrement si c'est une erreur.",
   confirmeSansRole: (roleId: string, guildId: string): string =>
@@ -501,7 +567,7 @@ export const CONCOURS_MESSAGES = {
     deja_termine: "Ce concours est déjà tiré au sort. Pour changer un gagnant : /concours remplacer.",
     pas_termine: "Le tirage au sort n'est pas encore fait. Pour le faire tout de suite : /concours terminer.",
     tirage_en_cours: "Un tirage au sort est en cours : son résultat arrive dans la minute.",
-    trop_ancien: "Ce concours a été tiré au sort il y a plus de 30 jours : la liste de ses participants est effacée.",
+    trop_ancien: "Ce concours a été tiré au sort il y a plus de 30 jours : la liste de ses billets est effacée.",
     pas_gagnant: "Ce membre n'est pas un gagnant de ce concours.",
     tous_confirmes: "Tous les gagnants ont confirmé. Pour en remplacer un quand même, choisissez-le dans « gagnant ».",
     aucun_gagnant: "Ce concours n'a plus de gagnant à remplacer.",
@@ -868,7 +934,11 @@ async function majCompte(deps: ConcoursDeps, vue: Vue): Promise<void> {
   if (reply?.status === 200 || perdu) await deps.rpc("concours_affiche", { p_id: vue.id, p_compte: vue.compte, p_perdu: perdu });
 }
 
-/** « Participer » : sur le message du concours, une réponse privée ; dans une réponse privée, à sa place. */
+/**
+ * « Prendre un billet » : sur le message du concours, une réponse privée ; dans une réponse privée, à sa place. Le joueur y
+ * voit son billet, en image, avec son numéro ; s'il en avait déjà un, le même. Sans numéro (migration 20261113000100 pas
+ * encore installée), la réponse d'avant.
+ */
 async function participer(id: number, joueur: Joueur, depuisPrive: boolean, deps: ConcoursDeps): Promise<Response> {
   const dire = depuisPrive ? remplacePrive : prive;
   const res = await deps.rpc("concours_participer", { p_id: id, p_discord_id: joueur.id, p_roles: joueur.roles });
@@ -878,8 +948,13 @@ async function participer(id: number, joueur: Joueur, depuisPrive: boolean, deps
   if (vue) deps.background(majCompte(deps, vue));
   const titre = String(res["titre"] ?? "");
   const fin = String(res["fin"] ?? "");
-  const message = res["etat"] === "inscrit" ? CONCOURS_MESSAGES.inscrit(titre, fin) : CONCOURS_MESSAGES.deja(titre, fin);
-  return dire(message, [bouton(customId("quitter", id), "Me retirer", 2)]);
+  const inscrit = res["etat"] === "inscrit";
+  const billet = billetOuNull(res["billet"]);
+  const retirer = [bouton(customId("quitter", id), "Me retirer", 2)];
+  if (billet === null) return dire(inscrit ? CONCOURS_MESSAGES.inscrit(titre, fin) : CONCOURS_MESSAGES.deja(titre, fin), retirer);
+  const url = billetUrl(deps.projectUrl, "billet", billet);
+  const image = url ? { url, description: `Votre billet ${noBillet(billet)} de la tombola des Gaulois` } : null;
+  return priveIllustre(inscrit ? CONCOURS_MESSAGES.billetPris(titre, fin, billet) : CONCOURS_MESSAGES.billetDeja(titre, fin, billet), image, retirer, depuisPrive);
 }
 
 function refusParticipation(res: Json, guildId: string): string {
@@ -891,44 +966,65 @@ function refusParticipation(res: Json, guildId: string): string {
   return CONCOURS_MESSAGES.inconnu;
 }
 
-/** « Me retirer », dans la réponse privée : elle devient « Vous ne participez plus », avec « Participer ». */
+/** « Me retirer », dans la réponse privée : elle devient « Votre billet est rendu », avec « Prendre un billet ». */
 async function quitter(id: number, joueur: Joueur, deps: ConcoursDeps): Promise<Response> {
   const res = await deps.rpc("concours_quitter", { p_id: id, p_discord_id: joueur.id });
   if (!res) return remplacePrive(CONCOURS_MESSAGES.down);
   if (res["ok"] !== true) return remplacePrive(refusParticipation(res, deps.guildId));
   const vue = res["maj"] === true ? parseVue(res["concours"]) : null;
   if (vue) deps.background(majCompte(deps, vue));
-  return remplacePrive(CONCOURS_MESSAGES.retire(String(res["titre"] ?? "")), [bouton(customId("participer", id), "Participer", 1, { emoji: "🎉" })]);
+  const titre = String(res["titre"] ?? "");
+  const billet = res["etat"] === "retire" ? billetOuNull(res["billet"]) : null;
+  return remplacePrive(billet === null ? CONCOURS_MESSAGES.retire(titre) : CONCOURS_MESSAGES.billetRendu(titre, billet), [boutonBillet(id)]);
 }
 
-/** Le nombre de participants : leur liste, que seul le joueur voit, et s'il en est. */
+/** Un billet de la liste : son numéro et son participant, ou le participant seul si le serveur ne donne pas les numéros. */
+interface Entree {
+  id: string;
+  billet: number | null;
+}
+const entrees = (value: unknown): Entree[] | null =>
+  Array.isArray(value)
+    ? value.flatMap((item) => {
+        const e = record(item);
+        return e && isId(e["id"]) ? [{ id: e["id"], billet: billetOuNull(e["billet"]) }] : [];
+      })
+    : null;
+
+/** Le nombre de billets : leur liste, dans l'ordre des numéros, que seul le joueur voit, et son billet s'il en a un. */
 async function liste(id: number, joueur: Joueur, deps: ConcoursDeps): Promise<Response> {
   const res = await deps.rpc("concours_participants", { p_id: id, p_discord_id: joueur.id });
   if (!res) return prive(CONCOURS_MESSAGES.down);
   if (res["ok"] !== true) return prive(refusParticipation(res, deps.guildId));
-  const ids = Array.isArray(res["ids"]) ? res["ids"].filter(isId) : [];
-  const compte = typeof res["compte"] === "number" ? res["compte"] : ids.length;
-  const gagnants = Array.isArray(res["gagnants"]) ? res["gagnants"].filter(isId) : [];
+  // Avant la migration 20261113000100, le serveur ne donne que les participants : la liste se fait sans numéros.
+  const billets = entrees(res["billets"]) ?? (Array.isArray(res["ids"]) ? res["ids"].filter(isId).map((i) => ({ id: i, billet: null })) : []);
+  const gagnes = entrees(res["gagnes"]) ?? (Array.isArray(res["gagnants"]) ? res["gagnants"].filter(isId).map((i) => ({ id: i, billet: null })) : []);
+  const monBillet = billetOuNull(res["billet"]);
+  const compte = typeof res["compte"] === "number" ? res["compte"] : billets.length;
   const ouvert = res["ouvert"] === true;
   const titre = String(res["titre"] ?? "");
   const fige = typeof res["compte_tirage"] === "number" ? res["compte_tirage"] : null;
   const tirage = res["statut"] === "termine" ? fige : null;
   const debut = [
     res["statut"] === "annule"
-      ? `### Concours « ${titre} » annulé${fige === null ? "" : `, avec ${participantsLabel(fige)}`}`
+      ? `### Concours « ${titre} » annulé${fige === null ? "" : `, avec ${billetsLabel(fige)}`}`
       : tirage === null
-        ? `### ${participantsLabel(compte)} au concours « ${titre} »`
-        : `### Tirage au sort du concours « ${titre} », parmi ${participantsLabel(tirage)}`,
+        ? `### ${billetsLabel(compte)} au concours « ${titre} »`
+        : `### Tirage au sort du concours « ${titre} », parmi ${billetsLabel(tirage)}`,
   ];
-  if (gagnants.length > 0) debut.push(`**${pluriel(gagnants.length, "Gagnant", "Gagnants")} :** ${listeFr(gagnants.map(membre))}`);
+  if (gagnes.length > 0) {
+    const libelle = gagnes.every((g) => g.billet !== null) ? pluriel(gagnes.length, "Billet gagnant", "Billets gagnants") : pluriel(gagnes.length, "Gagnant", "Gagnants");
+    debut.push(`**${libelle} :** ${gagnes.map((g) => avecBillet(g.id, g.billet)).join(" ; ")}`);
+  }
   const fin: string[] = [];
-  if (ids.length === 0 && tirage !== null && tirage > 0) fin.push("-# La liste des participants est effacée 30 jours après le tirage.");
-  if (ouvert) fin.push(res["inscrit"] === true ? "Vous participez." : "Vous ne participez pas.");
-  // Discord refuse un message de plus de 4 000 signes : autant de noms que la place le permet, puis le nombre des autres.
+  if (billets.length === 0 && tirage !== null && tirage > 0) fin.push("-# La liste des billets est effacée 30 jours après le tirage.");
+  if (ouvert) fin.push(monBillet !== null ? `Votre billet : ${noBillet(monBillet)}.` : res["inscrit"] === true ? "Vous participez." : "Vous n'avez pas de billet.");
+  // Discord refuse un message de plus de 4 000 signes : autant de billets que la place le permet, puis le nombre des autres.
   const place = LISTE_SIGNES - [...debut, ...fin].join("\n").length - 40;
   const noms: string[] = [];
   let longueur = 0;
-  for (const nom of ids.map(membre)) {
+  for (const e of billets) {
+    const nom = e.billet === null ? membre(e.id) : `${noBillet(e.billet)} ${membre(e.id)}`;
     if (longueur + nom.length + 2 > place) break;
     noms.push(nom);
     longueur += nom.length + 2;
@@ -937,9 +1033,7 @@ async function liste(id: number, joueur: Joueur, deps: ConcoursDeps): Promise<Re
   const autres = compte - noms.length;
   if (noms.length > 0) lignes.push(noms.join(", ") + (autres > 0 ? ` et ${autres} ${pluriel(autres, "autre", "autres")}` : ""));
   lignes.push(...fin);
-  const boutons = ouvert
-    ? [res["inscrit"] === true ? bouton(customId("quitter", id), "Me retirer", 2) : bouton(customId("participer", id), "Participer", 1, { emoji: "🎉" })]
-    : [];
+  const boutons = ouvert ? [res["inscrit"] === true ? bouton(customId("quitter", id), "Me retirer", 2) : boutonBillet(id)] : [];
   return prive(lignes.join("\n"), boutons);
 }
 
@@ -961,7 +1055,7 @@ async function confirmer(id: number, interaction: Json, joueur: Joueur, deps: Co
   // Le message principal dit aussi qui a confirmé : il se met à jour aussitôt, et le réveil suivant le refait si besoin.
   const elus = vue.tires.filter((t) => t.annonce_id === annonceId).sort((a, b) => a.rang - b.rang);
   deps.background(majFinale(deps, vue));
-  return json({ type: 7, data: annonceMessage(vue, elus, false) });
+  return json({ type: 7, data: annonceMessage(vue, elus, false, deps.projectUrl) });
 }
 
 /** Le message du concours, remis à jour après une confirmation (« a confirmé » à côté du gagnant). */
@@ -1097,7 +1191,7 @@ async function majAnnonces(deps: ConcoursDeps, c: Vue): Promise<void> {
   const anciennes = new Set(c.tires.filter((t) => t.issue === "remplace" && t.annonce_id).map((t) => t.annonce_id as string));
   for (const annonceId of anciennes) {
     const elus = c.tires.filter((t) => t.annonce_id === annonceId).sort((a, b) => a.rang - b.rang);
-    await deps.discord("PATCH", `/channels/${c.salon_id}/messages/${annonceId}`, { body: annonceMessage(c, elus, false) });
+    await deps.discord("PATCH", `/channels/${c.salon_id}/messages/${annonceId}`, { body: annonceMessage(c, elus, false, deps.projectUrl) });
   }
 }
 
@@ -1169,7 +1263,7 @@ async function traiter(deps: ConcoursDeps, c: Vue): Promise<void> {
   }
   // Le même `nonce` pour une même annonce : si elle repart (réponse perdue, prise reprise par un autre réveil), Discord
   // rend celle qui est déjà postée, sans prévenir les gagnants une seconde fois.
-  const annonce = { ...annonceMessage(vue, nouveaux, true), ...nonce(`a${vue.id}t${vue.tirage}`) };
+  const annonce = { ...annonceMessage(vue, nouveaux, true, deps.projectUrl), ...nonce(`a${vue.id}t${vue.tirage}`) };
   const reponseA = vue.message_id && !vue.message_perdu && !perdu ? { message_reference: { message_id: vue.message_id, fail_if_not_exists: false } } : {};
   let posted = await deps.discord("POST", `/channels/${vue.salon_id}/messages`, { body: { ...annonce, ...reponseA } });
   // Sans « Voir les anciens messages », Discord refuse une réponse : l'annonce part alors sans être une réponse.
@@ -1219,4 +1313,91 @@ export async function concoursTic(deps: ConcoursDeps): Promise<Response> {
   // La base n'attend la réponse que trente secondes : elle l'a tout de suite, et le travail se fait en tâche de fond.
   deps.background(travailler(deps));
   return json({ ok: true });
+}
+
+/* ---------- L'image d'un billet, demandée par Discord ---------- */
+
+/** `…/concours/billet/17.png` ou `…/concours/gagnant/17.png` : de 1 à 9 999, sans zéro devant. */
+const ROUTE_BILLET = /\/concours\/(billet|gagnant)\/([1-9][0-9]{0,3})\.png$/;
+/** Un fond lu sur le site est gardé une heure ; après un échec, il est redemandé au bout d'une minute. */
+const FOND_FRAIS_MS = 3_600_000;
+const FOND_REESSAI_MS = 60_000;
+/** Les billets déjà dessinés que garde un fond : Discord redemande souvent les mêmes. */
+const BILLETS_GARDES = 32;
+
+interface FondLu {
+  image: Image | null;
+  at: number;
+  /** Les billets dessinés sur ce fond, par numéro. */
+  dessines: Map<number, Uint8Array<ArrayBuffer>>;
+}
+interface Fonds {
+  lus: Map<SorteBillet, FondLu>;
+  /** Une lecture en cours, partagée : les dix billets d'une annonce ne lisent le fond qu'une fois. */
+  enCours: Map<SorteBillet, Promise<FondLu | null>>;
+}
+/**
+ * Par moyen de lecture du site, puis par sorte de billet. En ligne, `liveDeps` donne la même fonction `siteImage` à chaque
+ * requête (une par `fetch`, index.ts) : ce qui est gardé sert d'une requête à l'autre. Chaque test a la sienne.
+ */
+const fondsLus = new WeakMap<ConcoursDeps["siteImage"], Fonds>();
+
+async function lireFond(deps: Pick<ConcoursDeps, "siteImage" | "log">, sorte: SorteBillet, lus: Map<SorteBillet, FondLu>, garde: FondLu | undefined): Promise<FondLu | null> {
+  const now = Date.now();
+  const octets = await deps.siteImage(FONDS[sorte]);
+  const image = octets ? await lirePng(octets) : null;
+  if (image) {
+    const lu = { image, at: now, dessines: new Map<number, Uint8Array<ArrayBuffer>>() };
+    lus.set(sorte, lu);
+    return lu;
+  }
+  if (octets) deps.log(`fond du billet ${sorte} : PNG illisible`);
+  // Le dernier fond lu sert encore une minute, puis le site est redemandé.
+  if (garde?.image) {
+    garde.at = now - FOND_FRAIS_MS + FOND_REESSAI_MS;
+    return garde;
+  }
+  lus.set(sorte, { image: null, at: now, dessines: new Map() });
+  return null;
+}
+
+async function fondDe(deps: Pick<ConcoursDeps, "siteImage" | "log">, sorte: SorteBillet): Promise<FondLu | null> {
+  let fonds = fondsLus.get(deps.siteImage);
+  if (!fonds) {
+    fonds = { lus: new Map(), enCours: new Map() };
+    fondsLus.set(deps.siteImage, fonds);
+  }
+  const garde = fonds.lus.get(sorte);
+  if (garde && Date.now() - garde.at < (garde.image ? FOND_FRAIS_MS : FOND_REESSAI_MS)) return garde.image ? garde : null;
+  const deja = fonds.enCours.get(sorte);
+  if (deja) return deja;
+  const { lus, enCours } = fonds;
+  const lecture = lireFond(deps, sorte, lus, garde).finally(() => enCours.delete(sorte));
+  enCours.set(sorte, lecture);
+  return lecture;
+}
+
+/**
+ * L'image d'un billet, que Discord demande par son adresse (`billetUrl`) : le fond publié par le site, et le numéro posé
+ * dessus. Sans secret et sans donnée : un numéro ne dit pas à qui il est. `null` si l'adresse n'est pas celle d'un billet ;
+ * 503 si le fond manque, et rien n'est gardé en route. `tete` : une demande HEAD, sans le corps.
+ */
+export async function concoursImage(path: string, tete: boolean, deps: Pick<ConcoursDeps, "siteImage" | "log">): Promise<Response | null> {
+  const route = ROUTE_BILLET.exec(path);
+  if (!route) return null;
+  const sorte = route[1] === "gagnant" ? "gagnant" : "billet";
+  const n = Number(route[2]);
+  const fond = await fondDe(deps, sorte);
+  let png = fond?.dessines.get(n) ?? null;
+  if (fond?.image && !png) {
+    png = await billetPng(fond.image, n);
+    if (png) {
+      if (fond.dessines.size >= BILLETS_GARDES) fond.dessines.delete(fond.dessines.keys().next().value ?? 0);
+      fond.dessines.set(n, png);
+    } else {
+      deps.log(`billet ${sorte} : le fond n'a pas la taille d'un billet`);
+    }
+  }
+  if (!png) return new Response(tete ? null : "Billet indisponible pour l'instant.", { status: 503, headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" } });
+  return new Response(tete ? null : png, { status: 200, headers: { "content-type": "image/png", "content-length": String(png.length), "cache-control": "public, max-age=86400" } });
 }

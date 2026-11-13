@@ -34,7 +34,8 @@
  *
  * Et aux concours (« Les concours sur Discord », `concours.ts`) : /concours, ses boutons et son formulaire. Une autre
  * porte, `POST …/code-discord/concours/tic`, sert à la base, qui la réveille chaque minute quand un concours a besoin du
- * robot.
+ * robot. Et `GET …/code-discord/concours/billet/17.png` (ou `gagnant`) donne à Discord l'image d'un billet de la tombola,
+ * sans secret ni donnée : un numéro posé sur le fond que publie le site (`billets.ts`).
  *
  * Réglages : le jeton du robot « Le Gaulois », dans le secret `LE_GAULOIS_BOT_TOKEN` (`BOT_TOKEN_SECRET`), pour les rôles,
  * les tickets et les concours ; sans lui, tout le reste marche. Le serveur du clan, l'application et sa clé publique sont écrits plus bas,
@@ -43,12 +44,12 @@
  * (`verify_jwt = false`, `supabase/config.toml`) : Discord n'en envoie pas, et la fonction vérifie elle-même chaque appel.
  * Elle ne note jamais un code, une adresse ni un jeton dans ses journaux.
  *
- * Trois fichiers, `index.ts`, `tickets.ts` et `concours.ts`, que la commande `supabase functions deploy` envoie ensemble ;
- * les tests du dépôt les lisent avec Node (`tests/unit/code-discord.test.ts`, `tests/unit/tickets-discord.test.ts`,
- * `tests/unit/concours-discord.test.ts`).
+ * Quatre fichiers, `index.ts`, `tickets.ts`, `concours.ts` et `billets.ts`, que la commande `supabase functions deploy`
+ * envoie ensemble ; les tests du dépôt les lisent avec Node (`tests/unit/code-discord.test.ts`,
+ * `tests/unit/tickets-discord.test.ts`, `tests/unit/concours-discord.test.ts`, `tests/unit/billets-tombola.test.ts`).
  */
 import { TICKET_PREFIX, TICKETS_COMMAND_NAME, ticketInteraction, ticketsCommand } from "./tickets.ts";
-import { CONCOURS_COMMAND_NAME, CONCOURS_PREFIX, concoursCommand, concoursInteraction, concoursTic } from "./concours.ts";
+import { CONCOURS_COMMAND_NAME, CONCOURS_PREFIX, concoursCommand, concoursImage, concoursInteraction, concoursTic } from "./concours.ts";
 
 /** Le nom de la commande, tel que le joueur la tape. `scripts/discord-commande.ts` la crée sur le serveur du clan. */
 export const COMMAND_NAME = "code";
@@ -1174,6 +1175,10 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
     const concours = deps.serviceReady ? (await deps.rpc("concours_liste", { p_guild: "etat", p_filtre: null }))?.["error"] === "invalid_request" : false;
     return json({ ok: true, discord, service, signature: await signatureWorks(), fiches, commandes, moi, robot, concours }, 200, CORS);
   }
+  if (req.method === "GET" || req.method === "HEAD") {
+    const billet = await concoursImage(path, req.method === "HEAD", deps);
+    if (billet) return billet;
+  }
   if (req.method !== "POST") return new Response("Méthode refusée.", { status: 405 });
   if (path.endsWith("/concours/tic")) return concoursTic(deps);
   if (path.endsWith("/discord")) return discordRoute(req, deps);
@@ -1251,30 +1256,44 @@ const MAX_PANEL_BYTES = 5_000_000;
 /** Le temps laissé au site pour donner l'image : /roles a déjà répondu « en cours », rien ne presse. */
 const SITE_IMAGE_TIMEOUT_MS = 8000;
 
-/** L'image du panneau, lue sur le site : un PNG, ou `null`, et la raison au journal. */
+/** Une image du site (le panneau des rôles, le fond d'un billet de la tombola) : un PNG, ou `null`, et la raison au journal. */
 async function readSiteImage(fetcher: typeof fetch, path: string, log: (message: string) => void): Promise<Uint8Array<ArrayBuffer> | null> {
   if (!sitePath(path)) return null;
   try {
     const res = await fetcher(`${SITE_URL}${path}`, { signal: AbortSignal.timeout(SITE_IMAGE_TIMEOUT_MS) });
     if (!res.ok) {
-      log(`image du panneau : ${res.status}`);
+      log(`image ${path} : ${res.status}`);
       return null;
     }
     const type = res.headers.get("content-type") ?? "";
     if (!type.startsWith("image/png")) {
-      log(`image du panneau : pas un PNG (${type.split(";")[0] || "type inconnu"})`);
+      log(`image ${path} : pas un PNG (${type.split(";")[0] || "type inconnu"})`);
       return null;
     }
     const bytes = new Uint8Array(await res.arrayBuffer());
     if (bytes.length === 0 || bytes.length > MAX_PANEL_BYTES) {
-      log(`image du panneau : ${bytes.length} octets, hors des limites`);
+      log(`image ${path} : ${bytes.length} octets, hors des limites`);
       return null;
     }
     return bytes;
   } catch (e) {
-    log(`image du panneau injoignable : ${e instanceof Error ? e.message : String(e)}`);
+    log(`image ${path} injoignable : ${e instanceof Error ? e.message : String(e)}`);
     return null;
   }
+}
+
+/**
+ * La lecture des images du site, une par moyen de lecture : `liveDeps` sert chaque requête, et les concours gardent les fonds
+ * des billets sous cette fonction (concours.ts, `fondDe`). Une fonction neuve à chaque requête ne les retrouverait jamais.
+ */
+const siteImages = new WeakMap<typeof fetch, Deps["siteImage"]>();
+function siteImageDe(fetcher: typeof fetch, log: (message: string) => void): Deps["siteImage"] {
+  let lire = siteImages.get(fetcher);
+  if (!lire) {
+    lire = (path) => readSiteImage(fetcher, path, log);
+    siteImages.set(fetcher, lire);
+  }
+  return lire;
 }
 
 export function liveDeps(env: Env, fetcher: typeof fetch = fetch): Deps {
@@ -1413,7 +1432,7 @@ export function liveDeps(env: Env, fetcher: typeof fetch = fetch): Deps {
       if (typeof runtime?.waitUntil === "function") runtime.waitUntil(kept);
     },
     sleep: wait,
-    siteImage: (path) => readSiteImage(fetcher, path, log),
+    siteImage: siteImageDe(fetcher, log),
     projectUrl: url === "" ? undefined : url,
   };
 }
