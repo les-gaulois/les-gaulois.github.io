@@ -2,6 +2,12 @@
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "title": "Les concours du Discord deviennent une tombola",
+    "body": "Sur le Discord du clan, chaque participant à un concours reçoit un billet numéroté, en image. Au tirage au sort, le billet gagnant s'affiche devant tout le monde."
+  },
+  {
+    "date": "2026-11-13",
+    "kind": "ameliore",
     "title": "Confidentialité : les billets des concours",
     "body": "La page Confidentialité dit que chaque participant à un concours sur le Discord du clan a un numéro de billet, effacé 30 jours après le tirage ; celui d'un gagnant reste un an.",
     "link": {
