@@ -4,7 +4,7 @@ import { LOG_CATEGORIES, LOG_LIMIT, LOG_PAGE, fmtLogDay, groupByDay, logCounts, 
 import type { LogRow } from "../../lib/compte/types";
 import { fmtCount, fmtDateTime, fmtEpochTime, fmtInt } from "../../lib/format";
 import { useList } from "./AdminPanels";
-import { Empty, Loading, Problem } from "./common";
+import { Empty, Loading, Problem, useAutoReload } from "./common";
 import { Pastille, useBarreCollante } from "./direction-kit";
 import { PartieTete } from "./Onglets";
 
@@ -15,8 +15,10 @@ const ONE: Record<LogCategory, string> = Object.fromEntries(LOG_CATEGORIES.map((
  * chaque lettre, un filtre par type avec son nombre) reste sous l'en-tête du site. Le serveur garde les codes ; les phrases,
  * les types et les couleurs sont dans `src/lib/compte/admin-log.ts`.
  */
-export default function DirectionJournal() {
+export default function DirectionJournal({ active = true }: { active?: boolean }) {
   const list = useList<LogRow>("list_admin_log", { p_limit: LOG_LIMIT });
+  // Une action de l'encadrement faite ailleurs (autre onglet, autre personne) y paraît sans recharger la page : comme Comptes.
+  useAutoReload(list.reload, active);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<LogCategory | null>(null);
   const [shown, setShown] = useState(LOG_PAGE);

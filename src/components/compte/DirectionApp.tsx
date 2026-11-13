@@ -226,7 +226,7 @@ export default function DirectionApp({ health, logo }: { health: Omit<SiteHealth
         </Partie>
         {rank >= 3 && (
           <Partie {...part} id="journal">
-            {shown.has("journal") && <DirectionJournal />}
+            {shown.has("journal") && <DirectionJournal active={active === "journal"} />}
           </Partie>
         )}
 
