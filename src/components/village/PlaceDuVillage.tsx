@@ -1,88 +1,48 @@
-import type { ComponentChildren } from "preact";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { ServerError, call } from "../../lib/compte/api";
-import { GAULOIS_HAUTEUR, GAULOIS_LARGEUR, casesDuGaulois } from "../../lib/gaulois";
-import type { GauloisDeLaPlace, Village } from "../../lib/village/contrat";
-import { TUILE_DU_SOL, composerDecor, feuDuDecor, tuileDuSol } from "../../lib/village/decor";
-import { caseDuDecor, compteDeLaPlace, largeurDuDecor, lireVillage, messageDeLaPlace, ordreDeLaPlace, sonGauloisManque, tailleDesGaulois } from "../../lib/village/ecran-place";
+import type { Village } from "../../lib/village/contrat";
+import { lireVillage, messageDeLaPlace, sonGauloisManque } from "../../lib/village/ecran-place";
+import { ICONES_DES_LIEUX } from "../../lib/village/lieux-icones";
+import { lumiereDuVillage } from "../../lib/village/lumiere";
+import { LIEUX, type Lieu, NOMS_DES_LIEUX, compteDuLieu, lieuDOuverture, phraseDuReleve, repartirLeVillage } from "../../lib/village/vie";
 import { Loading, Problem, messageOf } from "../compte/common";
-import { Toile, imageDeFond } from "./PlaceToile";
+import PlaceScene from "./PlaceScene";
+import { Toile } from "./PlaceToile";
 
-/**
- * La scène : le décor du village en haut, à la largeur de l'écran, et le sol dessous, où se tiennent les Gaulois. Le décor
- * est décoratif : rien n'y est une donnée. La fumée du feu monte lentement ; le bouton pause de l'en-tête et le réglage
- * « réduire les animations » l'arrêtent (feuille de style).
- */
-function Scene({ children }: { children?: ComponentChildren }) {
-  const cadre = useRef<HTMLDivElement>(null);
-  const [mesure, setMesure] = useState<{ cote: number; cases: number } | null>(null);
+/** Ce qui amène dans chaque lieu, en une ligne sous la scène. La place n'en a pas besoin : on s'y promène. */
+const REGLES: Readonly<Record<Lieu, string | null>> = {
+  place: null,
+  taverne: "Après une partie, pendant 3 heures.",
+  reunion: "En vocal sur Discord au dernier relevé.",
+  bataille: "Une partie commencée il y a moins de 45 minutes, rejouée.",
+  maisons: "De 23 h à 7 h, heure de Paris.",
+};
 
-  useLayoutEffect(() => {
-    const el = cadre.current;
-    if (!el) return;
-    const mesurer = () => {
-      const cote = caseDuDecor(window.innerWidth);
-      const cases = largeurDuDecor(el.clientWidth, cote);
-      setMesure((avant) => (avant && avant.cote === cote && avant.cases === cases ? avant : { cote, cases }));
-    };
-    mesurer();
-    const observateur = typeof ResizeObserver === "function" ? new ResizeObserver(mesurer) : null;
-    observateur?.observe(el);
-    return () => observateur?.disconnect();
-  }, []);
-
-  const cases = mesure?.cases ?? null;
-  const decor = useMemo(() => (cases === null ? null : composerDecor(cases)), [cases]);
-  const sol = useMemo(() => {
-    const tuile = tuileDuSol();
-    return imageDeFond(tuile.largeur, tuile.hauteur, tuile.cases);
-  }, []);
-  const feu = decor ? feuDuDecor(decor.largeur) : null;
-  const cote = mesure?.cote ?? 2;
-
-  return (
-    <div ref={cadre} class="place-scene" style={{ "--place-case": `${cote}px` }} data-testid="place-scene">
-      <div class="place-decor" aria-hidden="true">
-        {decor && <Toile largeur={decor.largeur} hauteur={decor.hauteur} cases={decor.cases} echelle={cote} />}
-        {feu && (
-          <div class="place-fumee" style={{ "--feu-x": String(feu.x), "--feu-y": String(feu.y) }}>
-            <i />
-            <i />
-            <i />
-          </div>
-        )}
-      </div>
-      <div class="place-sol" style={sol ? { backgroundImage: `url(${sol})`, backgroundSize: `${TUILE_DU_SOL * cote}px` } : undefined}>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-/** Un Gaulois de la place : son dessin, son nom dessous. Le sien porte une flèche et un nom en clair. */
-function Habitant({ gaulois }: { gaulois: GauloisDeLaPlace }) {
-  const cases = useMemo(() => casesDuGaulois(gaulois.tenue), [gaulois.tenue]);
-  return (
-    <li class="place-gaulois" data-moi={gaulois.moi ? "" : undefined} data-testid="place-gaulois">
-      {gaulois.moi && <span class="place-fleche" aria-hidden="true" />}
-      <Toile largeur={GAULOIS_LARGEUR} hauteur={GAULOIS_HAUTEUR} cases={cases} class="place-gaulois-toile" />
-      <span class="place-nom">
-        {gaulois.nom}
-        {gaulois.moi && <span class="sr-only"> (vous)</span>}
-      </span>
-    </li>
-  );
+/** L'heure qu'il est, relue toutes les trente secondes tant que l'onglet est ouvert : la lumière et les lieux la suivent. */
+function useMaintenant(actif: boolean): Date {
+  const [maintenant, setMaintenant] = useState(() => new Date());
+  useEffect(() => {
+    if (!actif) return;
+    setMaintenant(new Date());
+    const minuterie = window.setInterval(() => setMaintenant(new Date()), 30_000);
+    return () => window.clearInterval(minuterie);
+  }, [actif]);
+  return maintenant;
 }
 
 type Etat = { kind: "lecture" } | { kind: "fermee"; message: string } | { kind: "erreur"; message: string } | { kind: "prete"; village: Village };
 
 /**
- * La place du village : les Gaulois de tous les membres validés, autour du feu. Le serveur décide de qui y est
- * (`get_village`) ; aucune case pour s'en retirer (choix du pilote, 13 novembre 2026). Aucun solde, aucun classement.
- * `actif` : l'onglet est ouvert ; la place se relit à chaque ouverture, pour suivre une tenue changée à côté.
+ * La place du village, devenue un village vivant (demande du pilote, 13 novembre 2026) : cinq lieux qu'on ouvre, la place,
+ * la taverne, la salle de réunion, le champ de bataille et les maisons. Le serveur décide de qui est au village et donne
+ * les faits (`get_village`) ; `vie.ts` en tire le lieu de chacun, avec l'heure de Paris, qui règle aussi la lumière. Rien
+ * n'est du temps réel : chaque Gaulois dit ce qui le place là, et l'heure du relevé est écrite. Aucun solde, aucun
+ * classement. `actif` : l'onglet est ouvert ; le village se relit à chaque ouverture.
  */
 export default function PlaceDuVillage({ actif }: { actif: boolean }) {
   const [etat, setEtat] = useState<Etat>({ kind: "lecture" });
+  const [choisi, setChoisi] = useState<Lieu | null>(null);
+  const maintenant = useMaintenant(actif);
 
   const lire = async (discret: boolean) => {
     if (!discret) setEtat({ kind: "lecture" });
@@ -92,7 +52,7 @@ export default function PlaceDuVillage({ actif }: { actif: boolean }) {
       setEtat({ kind: "prete", village });
     } catch (e) {
       const ferme = e instanceof ServerError ? messageDeLaPlace(e.code) : null;
-      // Une relecture discrète qui échoue garde la place déjà affichée.
+      // Une relecture discrète qui échoue garde le village déjà affiché.
       if (ferme) setEtat({ kind: "fermee", message: ferme });
       else if (!discret) setEtat({ kind: "erreur", message: messageOf(e) });
     }
@@ -105,42 +65,78 @@ export default function PlaceDuVillage({ actif }: { actif: boolean }) {
     dejaLue.current = true;
   }, [actif]);
 
-  if (etat.kind === "lecture") return <Loading label="Lecture de la place…" />;
+  // La lumière ne change qu'à la minute : le décor n'a pas à se recomposer plus souvent.
+  const minute = Math.floor(maintenant.getTime() / 60_000);
+  const lumiere = useMemo(() => lumiereDuVillage(new Date(minute * 60_000)), [minute]);
+  const village = etat.kind === "prete" ? etat.village : null;
+  const lieux = useMemo(() => (village ? repartirLeVillage(village.gaulois, new Date(minute * 60_000), village.releve) : null), [village, minute]);
+
+  if (etat.kind === "lecture") return <Loading label="Lecture du village…" />;
   if (etat.kind === "erreur") return <Problem message={etat.message} onRetry={() => void lire(false)} />;
-  if (etat.kind === "fermee") {
+  if (etat.kind === "fermee" || !village || !lieux) {
     return (
       <div class="place" data-testid="place-fermee">
-        <Scene />
-        <p class="place-mot">{etat.message}</p>
+        <PlaceScene lieu="place" habitants={[]} lumiere={lumiere} actif={actif} />
+        <p class="place-mot">{etat.kind === "fermee" ? etat.message : ""}</p>
       </div>
     );
   }
 
-  const { village } = etat;
-  const foule = ordreDeLaPlace(village.gaulois);
-  const compte = compteDeLaPlace(foule.length);
+  const ouvert = choisi ?? lieuDOuverture(lieux);
+  const ici = lieux[ouvert];
+  const releve = phraseDuReleve(village.releve);
+  const peuples = LIEUX.filter((lieu) => lieux[lieu].length > 0);
   return (
     <div class="place" data-testid="place">
-      <Scene>
-        {foule.length > 0 && (
-          <ul class="place-foule" data-taille={tailleDesGaulois(foule.length)} aria-label="Les Gaulois sur la place">
-            {foule.map((gaulois, i) => (
-              <Habitant key={`${i}-${gaulois.nom}`} gaulois={gaulois} />
-            ))}
-          </ul>
-        )}
-      </Scene>
+      <div class="vie-lieux" role="group" aria-label="Les lieux du village">
+        {LIEUX.map((lieu) => {
+          const nombre = lieux[lieu].length;
+          const icone = ICONES_DES_LIEUX[lieu];
+          return (
+            <button key={lieu} type="button" class="vie-lieu" aria-pressed={lieu === ouvert} data-vide={nombre === 0 ? "" : undefined} data-testid={`lieu-${lieu}`} onClick={() => setChoisi(lieu)}>
+              <Toile largeur={icone.largeur} hauteur={icone.hauteur} cases={icone.cases} echelle={2} class="vie-lieu-icone" />
+              <span class="vie-lieu-nom">{NOMS_DES_LIEUX[lieu].nom}</span>
+              <span class="sr-only"> : </span>
+              {nombre > 0 ? <span class="vie-lieu-compte">{nombre}</span> : <span class="sr-only">personne</span>}
+              {lieux[lieu].some((h) => h.gaulois.moi) && <span class="vie-lieu-vous">vous y êtes</span>}
+            </button>
+          );
+        })}
+      </div>
+      <PlaceScene lieu={ouvert} habitants={ici} lumiere={lumiere} actif={actif} />
       <div class="place-pied">
-        {compte ? (
-          <p class="info-discrete" data-testid="place-compte">
-            {compte}
-          </p>
-        ) : (
-          <p class="place-mot" data-testid="place-vide">
-            La place est vide.
+        <p class="place-mot" data-testid="place-compte">
+          {village.gaulois.length === 0 ? "Le village est vide." : ici.length > 0 ? compteDuLieu(ouvert, ici.length) : NOMS_DES_LIEUX[ouvert].nom}
+          {REGLES[ouvert] && <span class="info-discrete"> {REGLES[ouvert]}</span>}
+        </p>
+        {releve && (
+          <p class="info-discrete" data-testid="place-releve">
+            {releve}
           </p>
         )}
       </div>
+      {peuples.length > 0 && (
+        <details class="fold" data-testid="place-liste">
+          <summary>Qui est où</summary>
+          {peuples.map((lieu) => (
+            <section key={lieu} class="vie-liste">
+              <h3 class="vie-liste-titre">{compteDuLieu(lieu, lieux[lieu].length)}</h3>
+              <ul>
+                {lieux[lieu].map((habitant) => (
+                  <li key={habitant.rang}>
+                    <span class="vie-liste-nom">
+                      {habitant.gaulois.nom}
+                      {habitant.gaulois.moi && " (vous)"}
+                    </span>
+                    <span class="vie-liste-raison">{habitant.presence.raison}</span>
+                    {habitant.gaulois.replique && <span class="vie-liste-replique">« {habitant.gaulois.replique} »</span>}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </details>
+      )}
       {sonGauloisManque(village) && (
         <p class="place-mot" data-testid="place-sans-gaulois">
           <a href="#gaulois" class="underline">
