@@ -29,6 +29,7 @@ import {
   type Decor,
   type Phrase,
 } from "./arrivees";
+import { APPLICATION_ID as GAL_APPLICATION_ID } from "./discord-commande";
 
 export const DISCORD_API = "https://discord.com/api/v10";
 /**
@@ -51,18 +52,54 @@ const MFA_REQUIRED = 1;
 const MFA_MISSING_CODE = 60003;
 
 /**
- * Le secret a-t-il la forme d'un jeton de robot ? Trois morceaux séparés par des points, dont le premier est le numéro du
- * robot écrit en base64. Sert seulement à dire où chercher quand autre chose a été collé (le « Client Secret », la « Public
- * Key ») : Discord tranche de toute façon. Le jeton n'est jamais affiché.
+ * Le numéro du robot à qui appartient le jeton : trois morceaux séparés par des points, dont le premier est ce numéro écrit en
+ * base64. Un numéro public, comme celui du lien d'ajout au serveur ; rien d'autre du jeton n'est lu, et le jeton n'est jamais
+ * affiché. `null` si le secret n'a pas la forme d'un jeton de robot.
  */
-export function looksLikeToken(text: string): boolean {
+export function tokenBotId(text: string): string | null {
   const parts = text.split(".");
-  if (parts.length !== 3 || !parts.every((part) => /^[A-Za-z0-9_-]+$/.test(part))) return false;
+  if (parts.length !== 3 || !parts.every((part) => /^[A-Za-z0-9_-]+$/.test(part))) return null;
   try {
-    return /^[0-9]{17,20}$/.test(atob((parts[0] ?? "").replace(/-/g, "+").replace(/_/g, "/")));
+    const id = atob((parts[0] ?? "").replace(/-/g, "+").replace(/_/g, "/"));
+    return /^[0-9]{17,20}$/.test(id) ? id : null;
   } catch {
-    return false;
+    return null;
   }
+}
+
+/**
+ * Le secret a-t-il la forme d'un jeton de robot ? Sert seulement à dire où chercher quand autre chose a été collé (le « Client
+ * Secret », la « Public Key ») : Discord tranche de toute façon.
+ */
+export const looksLikeToken = (text: string): boolean => tokenBotId(text) !== null;
+
+/** La page « Bot » d'une application dans le portail développeur de Discord, celle du bouton « Reset Token ». */
+export const botPortalUrl = (botId: string): string => `https://discord.com/developers/applications/${botId}/bot`;
+
+/**
+ * Le robot des images, pour qui lit l'avertissement : depuis le 12 novembre 2026, l'application « Bienvenue Gaulois ». Le code
+ * ne la reconnaît pas à son numéro, qu'il lit dans le jeton ; le nom aide seulement à ne pas la confondre avec « Le Gaulois ».
+ */
+const IMAGES_ROBOT = "« Bienvenue Gaulois » depuis le 12 novembre 2026, pas « Le Gaulois »";
+
+/** Où coller le jeton : la page du secret dans GitHub si on la connaît, sinon le chemin pour y aller. */
+const whereToPaste = (secretUrl?: string): string => (secretUrl ? ` : ${secretUrl}` : " (GitHub : Settings, Secrets and variables, Actions)");
+
+/**
+ * Ce que dit le passage quand Discord refuse le jeton. Deux fois, une installation faite pour « Le Gaulois » l'a cassé (12 et
+ * 13 novembre 2026) : un « Reset Token » sur l'autre application, ou un jeton collé dans le mauvais secret, les deux robots
+ * portant presque le même nom. Le numéro lu dans le jeton dit lequel des deux le secret contient, et le lien mène à la bonne
+ * page. `secretUrl` : la page du secret dans GitHub.
+ */
+export function refusedTokenMessage(botId: string | null, secretUrl?: string): string {
+  const paste = whereToPaste(secretUrl);
+  if (botId === GAL_APPLICATION_ID) {
+    return `le secret DISCORD_BOT_TOKEN contient un jeton de « Le Gaulois », que Discord ne reconnaît plus. Ce secret attend celui du robot des images, ${IMAGES_ROBOT} : dans son onglet « Bot », « Reset Token », puis « Copy », et le coller dans le secret${paste}. Le jeton de « Le Gaulois » ne va que dans Supabase.`;
+  }
+  if (botId) {
+    return `Discord ne reconnaît plus le jeton de l'application ${botId}, celle du secret DISCORD_BOT_TOKEN : un « Reset Token » a été fait dans cette application, le secret a été mal collé, ou Discord a annulé de lui-même un jeton publié par erreur. Nouveau jeton : ${botPortalUrl(botId)}, si c'est bien le robot des images (${IMAGES_ROBOT}), « Reset Token », puis « Copy ». À coller dans le secret DISCORD_BOT_TOKEN de GitHub${paste}, pas dans Supabase.`;
+  }
+  return `Discord ne reconnaît pas le jeton du robot : le secret DISCORD_BOT_TOKEN est à remplacer (portail développeur, application du robot des images, onglet « Bot », « Reset Token », puis « Copy »)${paste}.`;
 }
 
 /* ---------- Les droits du robot dans le salon ---------- */
@@ -188,6 +225,8 @@ export interface ArrivalsDeps {
   log: (line: string) => void;
   /** Attendre avant un nouvel essai, quand Discord demande de ralentir : remplacé dans les tests. */
   wait?: (ms: number) => Promise<void>;
+  /** La page du secret DISCORD_BOT_TOKEN dans GitHub, donnée quand le jeton est à remplacer. */
+  secretUrl?: string;
 }
 
 export interface ArrivalsResult {
@@ -288,10 +327,15 @@ export async function arrivalsPass(deps: ArrivalsDeps): Promise<ArrivalsResult> 
   // Qui est le robot : son numéro reconnaît ses propres images dans le salon.
   const me = await api.get("/users/@me");
   if (!me) return stop(`Discord n'a pas répondu. ${RETRY}`);
-  if (me.status === 401) return stop("Discord ne reconnaît pas le jeton du robot : le secret DISCORD_BOT_TOKEN est à remplacer (portail développeur, onglet « Bot », « Reset Token »).");
+  if (me.status === 401) return stop(refusedTokenMessage(tokenBotId(deps.token), deps.secretUrl));
   const bot = DiscordUser.safeParse(me.body);
   if (me.status !== 200 || !bot.success) return stop(`Discord a répondu ${me.status} à la lecture du robot. ${RETRY}`);
   const botId = bot.data.id;
+  // Le jeton de « Le Gaulois » n'a pas sa place dans GitHub : il permettrait de détourner la connexion par code, et chaque
+  // « Reset Token » fait pour ses commandes arrêterait les images. Le robot des images est une autre application.
+  if (botId === GAL_APPLICATION_ID) {
+    return stop(`le secret DISCORD_BOT_TOKEN contient le jeton de « Le Gaulois », l'application de la connexion et des commandes : son jeton ne va que dans Supabase. Rien n'est remplacé. Ce secret attend celui du robot des images, ${IMAGES_ROBOT} : dans son onglet « Bot », « Reset Token », puis « Copy », et le coller dans le secret${whereToPaste(deps.secretUrl)}.`);
+  }
   // Le nom du robot qui porte ce jeton : quand un droit manque, il dit à quel compte du serveur le donner. C'est le nom d'une
   // application, pas celui d'un joueur.
   const who = ` Le robot qui porte ce jeton s'appelle « ${logName(bot.data.username)} ».`;

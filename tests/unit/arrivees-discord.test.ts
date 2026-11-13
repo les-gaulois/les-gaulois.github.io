@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { JOIN_MESSAGE_TYPE, markerName, MAX_AGE_MS, PHRASES, readMarker } from "../../src/lib/arrivees";
-import { ARRIVALS_CHANNEL_ID, arrivalPayload, arrivalsPass, botInstallUrl, logName, looksLikeToken, channelPermissions, DISCORD_API, missingPermissions, NEEDED_PERMISSIONS, NEEDED_PERMISSIONS_VALUE, readAvatar, REMOVAL_REASON, USER_AGENT, type ArrivalDrawing, type ArrivalsDeps } from "../../src/lib/arrivees-discord";
+import { ARRIVALS_CHANNEL_ID, arrivalPayload, arrivalsPass, botInstallUrl, botPortalUrl, logName, looksLikeToken, channelPermissions, DISCORD_API, missingPermissions, NEEDED_PERMISSIONS, NEEDED_PERMISSIONS_VALUE, readAvatar, refusedTokenMessage, REMOVAL_REASON, tokenBotId, USER_AGENT, type ArrivalDrawing, type ArrivalsDeps } from "../../src/lib/arrivees-discord";
+import { APPLICATION_ID } from "../../src/lib/discord-commande";
 
 const TOKEN = "jeton.tres.secret";
 const GUILD = "135090549460002409";
@@ -747,5 +748,78 @@ describe("un robot administrateur", () => {
     const second = deps(byChannel);
     expect(await arrivalsPass(second.all)).toEqual({ replaced: 0, cleaned: 0, left: 0, failed: false });
     expect(second.logs).toEqual(["Arrivées : aucun message d'arrivée à remplacer."]);
+  });
+});
+
+// Deux pannes, le 12 et le 13 novembre 2026 : une installation faite pour « Le Gaulois » a annulé le jeton du robot des
+// images, soit par un « Reset Token » sur la mauvaise application, soit par un jeton collé dans le mauvais secret.
+describe("un jeton refusé ou mal placé", () => {
+  const SECRET = "https://github.com/exemple/depot/settings/secrets/actions/DISCORD_BOT_TOKEN";
+  /** Un faux jeton du robot `id` : seul son premier morceau, le numéro du robot, a un sens. */
+  const tokenOf = (id: string): string => `${Buffer.from(id).toString("base64url")}.GabcDE.abcdefghijklmnopqrstuvwxyz_0123456789-AB`;
+  /** Un numéro inventé, pour l'application du robot des images. */
+  const IMAGES = "222222222222222299";
+
+  it("le faux robot des autres tests n'est pas « Le Gaulois » : c'est le cas normal, que la garde laisse passer", () => {
+    expect(BOT).not.toBe(APPLICATION_ID);
+  });
+
+  it("lit le numéro du robot dans le jeton, et rien d'autre", () => {
+    expect(tokenBotId(tokenOf(IMAGES))).toBe(IMAGES);
+    expect(tokenBotId(tokenOf(APPLICATION_ID))).toBe(APPLICATION_ID);
+    for (const other of ["mauvais", "", `${Buffer.from("pas un numéro").toString("base64url")}.GabcDE.abc`, `${tokenOf(IMAGES)}.de-trop`]) {
+      expect(tokenBotId(other), other).toBeNull();
+    }
+  });
+
+  it("donne la page du robot dont le jeton est refusé, et celle du secret, sans rien écrire du jeton", async () => {
+    const discord = fakeDiscord({ members: [BRENNOS], messages: [joinMessage(minutesAgo(3), BRENNOS)] });
+    const token = tokenOf(IMAGES);
+    const { all, logs, drawings } = deps(discord, { token, secretUrl: SECRET });
+    expect(await arrivalsPass(all)).toEqual({ replaced: 0, cleaned: 0, left: 0, failed: true });
+    expect(logs).toEqual([`::warning::Arrivées : ${refusedTokenMessage(IMAGES, SECRET)}`]);
+    expect(logs[0]).toContain(botPortalUrl(IMAGES));
+    expect(logs[0]).toContain(SECRET);
+    expect(logs[0]).toContain("« Reset Token »");
+    // Du jeton, seul le numéro du robot, public, est écrit : aucun de ses trois morceaux.
+    for (const part of token.split(".")) expect(logs[0]).not.toContain(part);
+    expect(discord.calls.map((c) => `${c.method} ${c.path}`)).toEqual(["GET /users/@me"]);
+    expect(drawings).toEqual([]);
+  });
+
+  it("reconnaît un jeton de « Le Gaulois » refusé : ce secret attend celui de l'autre robot", async () => {
+    const discord = fakeDiscord({ messages: [joinMessage(minutesAgo(3), BRENNOS)] });
+    const { all, logs } = deps(discord, { token: tokenOf(APPLICATION_ID), secretUrl: SECRET });
+    expect((await arrivalsPass(all)).failed).toBe(true);
+    expect(logs).toHaveLength(1);
+    expect(logs[0]).toContain("« Le Gaulois »");
+    expect(logs[0]).toContain("Supabase");
+    expect(logs[0]).toContain(SECRET);
+    // Pas de lien vers la page de « Le Gaulois » : un « Reset Token » y arrêterait les rôles, les tickets et les concours.
+    expect(logs[0]).not.toContain(botPortalUrl(APPLICATION_ID));
+  });
+
+  it("ne travaille pas avec le jeton de « Le Gaulois », même accepté par Discord", async () => {
+    const leGaulois = { status: 200, body: { id: APPLICATION_ID, username: "Le Gaulois", bot: true } };
+    const discord = fakeDiscord({ members: [BRENNOS], messages: [joinMessage(minutesAgo(3), BRENNOS)], force: (method, path) => (method === "GET" && path === "/users/@me" ? leGaulois : null) });
+    const { all, logs, drawings } = deps(discord, { secretUrl: SECRET });
+    expect(await arrivalsPass(all)).toEqual({ replaced: 0, cleaned: 0, left: 0, failed: true });
+    // Ni le serveur ni le salon ne sont lus : rien n'est posté ni retiré.
+    expect(discord.calls.map((c) => `${c.method} ${c.path}`)).toEqual(["GET /users/@me"]);
+    expect(drawings).toEqual([]);
+    expect(logs).toHaveLength(1);
+    expect(logs[0]).toMatch(/^::warning::Arrivées : le secret DISCORD_BOT_TOKEN contient le jeton de « Le Gaulois »/);
+    expect(logs[0]).toContain("Supabase");
+    expect(logs[0]).toContain(SECRET);
+    expect(logs[0]).not.toContain(botPortalUrl(APPLICATION_ID));
+  });
+
+  it("sans la page du secret, dit où le trouver dans GitHub", () => {
+    for (const id of [IMAGES, APPLICATION_ID, null]) {
+      const message = refusedTokenMessage(id);
+      expect(message).toContain("DISCORD_BOT_TOKEN");
+      expect(message).toContain("Secrets and variables");
+      expect(message).not.toContain("undefined");
+    }
   });
 });

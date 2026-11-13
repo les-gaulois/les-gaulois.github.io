@@ -46,6 +46,8 @@ try {
     render: (drawing, avatar) => renderArrival(drawing, clan.links.site, fonts, warrior, avatar),
     alt: (phrase, fullName) => arrivalAlt(phrase, fullName, clan.tag),
     log: console.log,
+    // La page du secret, pour l'avertissement d'un jeton refusé : le dépôt du site, public.
+    secretUrl: `${clan.links.source}/settings/secrets/actions/DISCORD_BOT_TOKEN`,
   });
   if (result.failed) process.exitCode = 1;
 } catch (e) {
