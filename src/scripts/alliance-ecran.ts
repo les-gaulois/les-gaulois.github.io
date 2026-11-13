@@ -516,6 +516,11 @@ export class EcranAlliance {
     const m = this.map.getBoundingClientRect();
     const f = fenetre?.getBoundingClientRect();
     this.covered = !f || f.width === 0 || m.width === 0 || f.bottom <= m.top || f.top >= m.bottom ? 0 : Math.max(0, m.right - f.left) * (this.canvas.width / m.width);
+    // Sur un grand écran, le cadre du titre (« La carte des clans ») est posé sur la carte : les outils et la légende de
+    // l'alliance se rangent dessous (global.css, \`--alliance-haut\`), au lieu de le chevaucher entre 768 et 1 130 px.
+    const session = this.root.querySelector<HTMLElement>(".carte-session")?.getBoundingClientRect();
+    const sous = session && session.height > 0 && session.top < m.bottom && session.bottom > m.top ? Math.max(0, session.bottom - m.top) : 0;
+    this.map.style.setProperty("--alliance-haut", `${Math.round(sous)}px`);
   }
 
   private redimensionner(): void {
@@ -878,8 +883,12 @@ export class EcranAlliance {
     }
     this.root.querySelector<HTMLButtonElement>("[data-alliance-monde]")?.addEventListener("click", () => this.vueGenerale());
 
-    if (typeof ResizeObserver === "function") new ResizeObserver(() => this.redimensionner()).observe(this.map);
-    else addEventListener("resize", () => this.redimensionner());
+    if (typeof ResizeObserver === "function") {
+      new ResizeObserver(() => this.redimensionner()).observe(this.map);
+      // Le cadre du titre change de hauteur avec sa police ou une date plus longue : les outils suivent.
+      const session = this.root.querySelector<HTMLElement>(".carte-session");
+      if (session) new ResizeObserver(() => this.mesurer()).observe(session);
+    } else addEventListener("resize", () => this.redimensionner());
     this.root.addEventListener("carte:fenetre", () => {
       this.mesurer();
       this.vue = this.borne(this.vue);

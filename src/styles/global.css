@@ -6508,6 +6508,26 @@ footer h2 {
     display: none;
   }
 }
+/* Sur un grand écran, le cadre du titre est posé en haut à gauche de la carte et la fenêtre ouverte couvre sa droite : les
+   outils (vue d'ensemble, moins, plus) puis la légende se rangent sous le titre, à gauche. En haut à droite, ils
+   chevauchaient le titre entre 768 et 1 130 px ; en bas, la légende couvrait le crédit d'OpenFront, qui passe sur deux
+   lignes sous 1 180 px. \`--alliance-haut\` : le bas du cadre du titre, mesuré par alliance-ecran.ts. */
+@media (min-aspect-ratio: 5/4) and (min-width: 48rem) {
+  :root.carte-console .film-map[data-vue="alliance"] .alliance-outils {
+    top: calc(var(--alliance-haut, 0px) + 0.5rem);
+    right: auto;
+    left: 0.75rem;
+    flex-direction: row;
+    flex-wrap: wrap;
+    max-width: calc(100% - 1.5rem - var(--fenetre-large, 0rem));
+  }
+  :root.carte-console .film-map[data-vue="alliance"] .alliance-legende {
+    top: calc(var(--alliance-haut, 0px) + 3.5rem);
+    bottom: auto;
+    left: 0.75rem;
+    max-width: calc(100% - 1.5rem - var(--fenetre-large, 0rem));
+  }
+}
 /* La bulle du survol : posée par AllianceApp.tsx à côté de la souris, du côté où elle tient. */
 .alliance-bulle {
   position: absolute;

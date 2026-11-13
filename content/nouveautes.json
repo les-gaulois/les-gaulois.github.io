@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-13",
+    "kind": "ameliore",
+    "title": "Carte de l'alliance : boutons et légende sous le titre",
+    "body": "Sur un écran moyen, les boutons de la carte de l'alliance et la légende des couleurs se rangent sous le titre, à gauche : ils ne cachent plus le titre ni la mention de licence d'OpenFront.",
+    "link": {
+      "href": "/carte#alliance",
+      "label": "Ouvrir la carte"
+    }
+  },
+  {
+    "date": "2026-11-13",
     "kind": "nouveau",
     "title": "Capture de la carte de l'alliance",
     "body": "Dans la fenêtre Alliance de la carte, l'onglet Capture fait une image de la carte cadrée à votre goût, avec le logo de GAL et, au choix, les zones et leurs chiffres, à envoyer sur Discord.",
