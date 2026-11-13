@@ -297,6 +297,18 @@ describe("la légende de l'image", () => {
     expect(legendeDeCapture({ ...doubles, legende, mode: "alliances", avecZones: true })[0]!.detail).toBe("");
   });
 
+  it("en « Tout », donne ses pixels à chaque clan nommé par son tag, quelle que soit sa couleur du jeu, et rien à la terre neutre", () => {
+    const tout = [
+      { couleur: 0x123456, nom: "GAL" },
+      { couleur: 0x654321, nom: "LUX" },
+      { couleur: 0x3f4441, nom: "Terre neutre" },
+    ];
+    const lignes = legendeDeCapture({ ...base, legende: tout, mode: "tout", avecZones: true });
+    expect(lignes.map((l) => l.texte)).toEqual(["GAL", "LUX", "Terre neutre"]);
+    expect(lignes[2]!.detail).toBe("");
+    expect(lignes[0]!.detail).not.toBe("");
+  });
+
   it("n'écrit pas « Toute l'alliance » sans les zones, et ne confond pas un clan nommé ainsi", () => {
     const sans = legendeDeCapture({ ...base, legende: fenetreClans, mode: "clans", avecZones: false });
     expect(sans.map((l) => l.texte)).toEqual(["GAL", "FR", "LUX", "Autres clans"]);

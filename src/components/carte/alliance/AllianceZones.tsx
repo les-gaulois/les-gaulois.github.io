@@ -1,12 +1,16 @@
 /**
- * Les zones que l'alliance doit prendre, dessinées pixel par pixel par l'encadrement de GAL, chacune dans la couleur du clan
- * qui la prend. Chacune se compte sur la vraie carte, au dernier relevé : ce que l'alliance en tient déjà, la terre neutre
+ * Les zones que l'alliance doit prendre, dessinées pixel par pixel par l'encadrement de GAL et par les joueurs alliés pour
+ * leur clan, chacune dans la couleur du clan qui la prend. Chacune se compte sur la vraie carte, au dernier relevé : ce que l'alliance en tient déjà, la terre neutre
  * qui reste et les pixels des autres clans, avec les troupes à prévoir selon les règles du jeu
  * (`src/lib/clanmap/economy.ts`).
  *
  * Le dessin (13 novembre 2026, « que les outils soient mieux compris ») : quatre gros boutons illustrés, une phrase pour
  * l'outil choisi, quatre tailles en mots, et le dessin en cours dans la couleur du clan choisi. Le pinceau et le rectangle
  * ne passent jamais sur une autre zone (« impossible de repasser sur une zone déjà existante ») ; le serveur le vérifie.
+ *
+ * Qui dessine : l'encadrement de GAL, toute zone ; depuis la migration 20261113000700, un joueur allié, les zones de son
+ * clan seulement. Le serveur le dit (`can_draw`, `can_edit` de chaque zone) et revérifie chaque écriture ; un serveur plus
+ * ancien ne le dit pas, et le dessin reste alors à l'encadrement.
  */
 import { useEffect, useState } from "preact/hooks";
 import { bilanZone, type BilanZone } from "../../../lib/alliance/bilan";
@@ -76,6 +80,10 @@ export default function AllianceZones({
   const zones = donnees.zones ?? [];
   const clansNotres = [...notres].sort((a, b) => (a === "GAL" ? -1 : b === "GAL" ? 1 : a.localeCompare(b)));
   const sansAlliance = (donnees.ours ?? null) === null;
+  // Un allié dessine pour son clan, et pour lui seul : le choix du clan lui est fixé.
+  const clanDeLAllie = donnees.access.kind === "allie" ? donnees.access.tag : null;
+  const peutDessiner = ctx.staff || (clanDeLAllie !== null && donnees.can_draw === true);
+  const peutModifier = (z: ZoneLigne) => ctx.staff || (clanDeLAllie !== null && z.can_edit === true);
   const [outil, setOutil] = useState<Outil>("crayon");
   const [taille, setTaille] = useState<number>(TAILLES[1]);
   const [dessin, setDessin] = useState<EtatDessin>({ pixels: 0, cadre: null, tropGrand: false, annulable: false, retires: 0 });
@@ -106,9 +114,10 @@ export default function AllianceZones({
   const commencer = (zone: ZoneLigne | null) => {
     setErreur(null);
     const masque: Masque | null = zone ? masqueDeLaZone(zone) : null;
-    setEdition({ id: zone?.id ?? null, titre: zone?.title ?? "", tag: zone?.tag ?? "" });
+    const tag = zone?.tag ?? clanDeLAllie ?? "";
+    setEdition({ id: zone?.id ?? null, titre: zone?.title ?? "", tag });
     choisir(zone?.id ?? null, zone !== null);
-    ecran.editer(masque, couleurDeZone(zone?.tag ?? null, couleursClans), zone?.id ?? null);
+    ecran.editer(masque, couleurDeZone(tag || null, couleursClans), zone?.id ?? null);
     setOutil(zone ? "main" : "crayon");
   };
 
@@ -190,20 +199,31 @@ export default function AllianceZones({
               </label>
               <input id="zone-titre" class="field mt-1" required minLength={2} maxLength={40} value={edition.titre} onInput={(e) => setEdition({ ...edition, titre: e.currentTarget.value })} />
             </div>
-            <div>
-              <label for="zone-clan" class="text-sm font-semibold">
-                {t.pourQui}
-              </label>
-              <div class="alliance-choix-clan mt-1">
-                <Pastille couleur={couleurEdition} />
-                <select id="zone-clan" class="field" value={edition.tag} onChange={(e) => setEdition({ ...edition, tag: e.currentTarget.value })}>
-                  <option value="">{t.touteLAlliance}</option>
-                  {clansNotres.map((tag) => (
-                    <option value={tag}>{tag}</option>
-                  ))}
-                </select>
+            {ctx.staff ? (
+              <div>
+                <label for="zone-clan" class="text-sm font-semibold">
+                  {t.pourQui}
+                </label>
+                <div class="alliance-choix-clan mt-1">
+                  <Pastille couleur={couleurEdition} />
+                  <select id="zone-clan" class="field" value={edition.tag} onChange={(e) => setEdition({ ...edition, tag: e.currentTarget.value })}>
+                    <option value="">{t.touteLAlliance}</option>
+                    {clansNotres.map((tag) => (
+                      <option value={tag}>{tag}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
-            </div>
+            ) : (
+              // Un allié : la zone est celle de son clan, sans choix.
+              <div data-testid="zone-clan-fixe">
+                <p class="text-sm font-semibold">{t.pourQui}</p>
+                <p class="alliance-choix-clan alliance-clan-fixe mt-1">
+                  <Pastille couleur={couleurEdition} />
+                  <strong>{edition.tag || t.touteLAlliance}</strong>
+                </p>
+              </div>
+            )}
           </div>
 
           <fieldset class="alliance-outils-dessin">
@@ -279,7 +299,7 @@ export default function AllianceZones({
     <div data-testid="alliance-zones">
       {!etat && <p class="form-problem">{t.sansEtatZones}</p>}
       {ctx.staff && etat && sansAlliance && <p class="carte-aide">{t.rangerGal}</p>}
-      {ctx.staff && etat && !sansAlliance && (
+      {peutDessiner && etat && !sansAlliance && (
         <button type="button" class="btn btn-primary" onClick={() => commencer(null)} data-testid="zone-nouvelle">
           <span aria-hidden="true">+</span> {t.nouvelleZone}
         </button>
@@ -310,8 +330,8 @@ export default function AllianceZones({
                 {choisie && (
                   <div class="alliance-zone-detail">
                     {bilan && <TableauZone bilan={bilan} t={t} />}
-                    <p class="carte-aide">{t.misAJour(t.dateHeure(z.updated_at))}</p>
-                    {ctx.staff && etat && (
+                    <p class="carte-aide">{t.misAJour(t.dateHeure(z.updated_at), z.by)}</p>
+                    {peutModifier(z) && etat && (
                       <div class="alliance-ligne mt-2">
                         <button type="button" class="btn btn-ghost !min-h-10 !py-1.5 !text-sm" onClick={() => commencer(z)}>
                           {t.modifier}

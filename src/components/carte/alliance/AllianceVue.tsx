@@ -91,14 +91,14 @@ export default function AllianceVue({ ctx, mode, setMode }: { ctx: Contexte; mod
 
   return (
     <div data-testid="alliance-vue">
-      {totaux.length > 0 && (
+      {(
         <div class="alliance-mode" role="group" aria-label={t.couleursCarte}>
           <span class="carte-petit text-muted" aria-hidden="true">
             {t.couleursCarte}
           </span>
-          {(["clans", "alliances"] as const).map((m) => (
+          {(["clans", "alliances", "tout"] as const).map((m) => (
             <button type="button" aria-pressed={mode === m} onClick={() => setMode(m)}>
-              {m === "clans" ? t.modeClans : t.modeAlliances}
+              {m === "clans" ? t.modeClans : m === "alliances" ? t.modeAlliances : t.modeTout}
             </button>
           ))}
         </div>

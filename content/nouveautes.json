@@ -2,6 +2,16 @@
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "title": "Carte de l'alliance : voir tous les clans",
+    "body": "Le bouton « Tout » colore chaque clan de la carte dans sa couleur du jeu, y compris ceux qui ne sont dans aucune alliance. La légende nomme les plus grands et la terre neutre.",
+    "link": {
+      "href": "/carte#alliance",
+      "label": "Ouvrir la carte"
+    }
+  },
+  {
+    "date": "2026-11-13",
+    "kind": "ameliore",
     "title": "Carte : couleurs vives, relief visible",
     "body": "Les territoires des clans prennent des couleurs plus vives, plus sombres dans les plaines et plus claires sur les montagnes : on voit le relief du terrain à travers la couleur.",
     "link": {

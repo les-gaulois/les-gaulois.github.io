@@ -457,12 +457,13 @@ export interface CouleurDeLaFenetre {
  * La légende de l'image : celle de la fenêtre, dans le même ordre, avec à droite les pixels au dernier relevé de chaque
  * couleur qui désigne un clan (`couleursClans`, carte colorée par clan) ou une alliance (`totaux`, carte colorée par
  * alliance). Un chiffre ne s'écrit que si le nom et la couleur sont exactement ceux du clan ou de l'alliance comptés : une
- * ligne qu'on ne sait pas attribuer reste sans chiffre. Sans les zones, « Toute l'alliance », la couleur des zones de
+ * ligne qu'on ne sait pas attribuer reste sans chiffre. En « Tout » (chaque clan dans sa couleur du jeu), le tag suffit : la
+ * couleur n'est pas celle de `couleursClans`. Sans les zones, « Toute l'alliance », la couleur des zones de
  * toute l'alliance, ne désigne rien sur l'image : elle n'est pas écrite.
  */
 export function legendeDeCapture(e: {
   legende: readonly CouleurDeLaFenetre[];
-  mode: "clans" | "alliances";
+  mode: "clans" | "alliances" | "tout";
   couleursClans: ReadonlyMap<string, number>;
   totaux: readonly { name: string; color: number; pixels: number }[];
   /** Le territoire de chaque clan au dernier relevé (`film.standings`) ; un tag porté par deux clans compte les deux, comme `totauxAlliances`. */
@@ -480,6 +481,9 @@ export function legendeDeCapture(e: {
     let pixels: number | null = null;
     if (e.mode === "clans") {
       if (e.couleursClans.get(l.nom) === l.couleur) pixels = parTag.get(l.nom) ?? 0;
+    } else if (e.mode === "tout") {
+      // « Tout » : chaque clan dans sa couleur du jeu, nommé par son tag ; la terre neutre n'est pas un tag, sans chiffre.
+      pixels = parTag.get(l.nom) ?? null;
     } else {
       const alliances = e.totaux.filter((a) => a.name === l.nom && a.color === l.couleur);
       // Deux alliances du même nom et de la même couleur : on ne sait pas laquelle, pas de chiffre.

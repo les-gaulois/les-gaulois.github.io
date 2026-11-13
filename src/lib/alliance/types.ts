@@ -46,6 +46,10 @@ export interface ZoneLigne {
   mask: string;
   pixels: number;
   updated_at: string;
+  /** « [LUX] Pseudo » : qui l'a dessinée ou modifiée en dernier, `null` s'il n'a plus accès (migration 20261113000700). */
+  by?: string | null;
+  /** L'appelant peut la modifier : l'encadrement, ou un allié pour une zone de son clan. Absent d'un serveur plus ancien. */
+  can_edit?: boolean;
 }
 
 export interface AllieLigne {
@@ -77,6 +81,8 @@ export interface AttenteAllie {
 
 export interface CarteAlliance {
   access: AccesCarte | null;
+  /** L'appelant peut dessiner une zone : l'encadrement, et un allié pour son clan. Absent d'un serveur plus ancien. */
+  can_draw?: boolean;
   /** Pour un compte sans accès : sa demande en attente, s'il en a une. */
   waiting?: AttenteAllie | null;
   /** L'alliance où est rangé GAL. */

@@ -6673,8 +6673,9 @@ footer h2 {
 .alliance-mode {
   gap: 0.375rem;
 }
+/* Le titre au-dessus des trois boutons (« Nos clans », « Les alliances », « Tout ») : ils restent ensemble sur une ligne. */
 .alliance-mode > span {
-  margin-right: 0.25rem;
+  flex-basis: 100%;
 }
 @media (forced-colors: active) {
   :is(.alliance-langues, .alliance-mode) > button[aria-pressed="true"] {
@@ -6867,6 +6868,11 @@ footer h2 {
 .alliance-choix-clan > .field {
   flex: 1;
   min-width: 0;
+}
+/* Le clan d'un allié, sans choix : à la hauteur d'un champ, pour s'aligner avec le nom de la zone. */
+.alliance-clan-fixe {
+  min-height: 2.75rem;
+  font-family: var(--font-console);
 }
 .alliance-outils-dessin {
   min-width: 0;

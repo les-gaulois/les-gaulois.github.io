@@ -66,6 +66,8 @@ export interface Textes {
   couleursCarte: string;
   modeClans: string;
   modeAlliances: string;
+  /** Chaque clan dans sa couleur du jeu, clans neutres compris. */
+  modeTout: string;
   legendeAutres: string;
   releve: (date: string) => string;
   notreAlliance: string;
@@ -102,7 +104,8 @@ export interface Textes {
   total: string;
   auMoins: (n: string) => string;
   aPrevoir: string;
-  misAJour: (date: string) => string;
+  /** La date de la zone, et qui l'a dessinée ou modifiée en dernier quand le serveur le dit. */
+  misAJour: (date: string, par?: string | null) => string;
   modifier: string;
   supprimer: string;
   confirmerSuppression: string;
@@ -244,6 +247,7 @@ export const FR: Textes = {
   couleursCarte: "Couleurs de la carte",
   modeClans: "Nos clans",
   modeAlliances: "Les alliances",
+  modeTout: "Tout",
   legendeAutres: "Autres clans",
   releve: (date) => `Carte au relevé du ${date}.`,
   notreAlliance: "notre alliance",
@@ -279,7 +283,7 @@ export const FR: Textes = {
   total: "Total",
   auMoins: (n) => `au moins ${n}`,
   aPrevoir: "Troupes à prévoir",
-  misAJour: (date) => `Dessinée ou modifiée le ${date}.`,
+  misAJour: (date, par) => `Dessinée ou modifiée le ${date}${par ? `, par ${par}` : ""}.`,
   modifier: "Modifier",
   supprimer: "Supprimer",
   confirmerSuppression: "Confirmer la suppression",
@@ -377,6 +381,7 @@ export const EN: Textes = {
   couleursCarte: "Map colours",
   modeClans: "Our clans",
   modeAlliances: "Alliances",
+  modeTout: "All",
   legendeAutres: "Other clans",
   releve: (date) => `Map snapshot of ${date} (Paris time).`,
   notreAlliance: "our alliance",
@@ -412,7 +417,7 @@ export const EN: Textes = {
   total: "Total",
   auMoins: (n) => `at least ${n}`,
   aPrevoir: "Troops needed",
-  misAJour: (date) => `Drawn or edited on ${date} (Paris time).`,
+  misAJour: (date, par) => `Drawn or edited on ${date} (Paris time)${par ? `, by ${par}` : ""}.`,
   modifier: "Edit",
   supprimer: "Delete",
   confirmerSuppression: "Confirm deletion",

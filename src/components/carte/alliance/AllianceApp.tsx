@@ -15,7 +15,7 @@ import { render, type ComponentChildren } from "preact";
 import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { bilanZone, totauxAlliances, type BilanZone } from "../../../lib/alliance/bilan";
 import { TEXTES_CAPTURE } from "../../../lib/alliance/capture";
-import { COULEUR_TOUTE_L_ALLIANCE, couleurDeZone, couleursDesClans } from "../../../lib/alliance/couleurs";
+import { COULEUR_TOUTE_L_ALLIANCE, couleurDeZone, couleursDesClans, legendeDeTout } from "../../../lib/alliance/couleurs";
 import { dernierNumero, nonLus } from "../../../lib/alliance/discussion";
 import { INVITATION_KEY, RETOUR_CARTE_KEY, invitationDeLAncre, jetonValable } from "../../../lib/alliance/invitation";
 import { LANGUE_KEY, langueDeDepart, type Langue } from "../../../lib/alliance/langue";
@@ -36,6 +36,10 @@ type Onglet = "vue" | "zones" | "messages" | "capture" | "gestion";
 const VU_KEY = "gal-alliance-vu";
 /** Le gris des autres clans tel qu'il paraît sur la carte : le gris voilé d'alliance-ecran.ts posé sur le fond sombre. */
 const GRIS_AUTRES = 0x4b5570;
+/** La terre neutre telle qu'elle paraît sur la carte : le voile gris d'alliance-ecran.ts posé sur le relief. */
+const COULEUR_NEUTRE = 0x3f4441;
+/** En « Tout », la légende nomme les plus grands clans ; la bulle du survol nomme chacun des autres. */
+const LEGENDE_TOUT = 8;
 
 const lireStockage = (stockage: () => Storage, cle: string): string | null => {
   try {
@@ -372,16 +376,17 @@ export default function AllianceApp() {
     ecran?.montrer(montree);
   }, [ecran, montree]);
 
-  // Les couleurs de la carte : nos clans chacun dans la sienne, ou chaque alliance dans la sienne ; les autres en gris.
+  // Les couleurs de la carte : nos clans chacun dans la sienne, ou chaque alliance dans la sienne, les autres en gris ; ou
+  // « Tout » : chaque clan dans sa couleur du jeu, clans neutres compris (l'écran les prend dans le film, par index).
   const couleursCarte = useMemo(() => {
-    if (mode === "clans") return couleursClans;
+    if (mode === "clans" || mode === "tout") return couleursClans;
     const m = new Map<string, number>();
     for (const a of alliances) for (const tag of a.clans) m.set(tag, a.color);
     return m;
   }, [mode, couleursClans, alliances]);
   useEffect(() => {
-    if (ecran && charge) ecran.regler(couleursCarte);
-  }, [ecran, charge, couleursCarte]);
+    if (ecran && charge) ecran.regler(couleursCarte, mode === "tout");
+  }, [ecran, charge, couleursCarte, mode]);
 
   // Les zones à dessiner ne se refont qu'à la relecture du serveur : choisir une zone ne redécode pas les masques.
   const affichees = useMemo(() => {
@@ -396,9 +401,16 @@ export default function AllianceApp() {
     if (ecran && charge) ecran.montrerZones(affichees, selection);
   }, [ecran, charge, affichees, selection]);
 
-  // La légende de la carte : ce que dit chaque couleur, dans l'ordre de la carte.
+  // La légende de la carte : ce que dit chaque couleur, dans l'ordre de la carte. En « Tout », les plus grands clans dans
+  // leur couleur du jeu (la bulle nomme les autres au survol), puis la terre neutre.
   const legende = useMemo<EntreeLegende[]>(() => {
     if (!charge) return [];
+    if (mode === "tout") {
+      const entrees: EntreeLegende[] = legendeDeTout(charge.film.standings, LEGENDE_TOUT);
+      if (zones.some((z) => z.tag === null)) entrees.push({ couleur: COULEUR_TOUTE_L_ALLIANCE, nom: t.touteLAlliance });
+      entrees.push({ couleur: COULEUR_NEUTRE, nom: t.terreNeutre });
+      return entrees;
+    }
     const entrees: EntreeLegende[] =
       mode === "clans" ? [...couleursClans].map(([tag, couleur]) => ({ couleur, nom: tag })) : [...totaux].sort((a, b) => a.rang - b.rang).map((a) => ({ couleur: a.color, nom: a.name }));
     if (zones.some((z) => z.tag === null)) entrees.push({ couleur: COULEUR_TOUTE_L_ALLIANCE, nom: t.touteLAlliance });

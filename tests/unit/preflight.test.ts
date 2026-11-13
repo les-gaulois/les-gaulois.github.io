@@ -228,6 +228,11 @@ describe("le contrôle de la mise en ligne", () => {
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/save_alliance_zone": { status: 200, body: { ok: true, id: 1 } } }, labels[2]!)).toBe("fail");
   });
 
+  it("bloque si un visiteur supprime une zone de l'alliance", async () => {
+    expect(await statusOf(HEALTHY, "supprime pas de zone de l'alliance")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/delete_alliance_zone": { status: 200, body: { ok: true } } }, "supprime pas de zone de l'alliance")).toBe("fail");
+  });
+
   it("bloque si un visiteur accepte un joueur allié ou en lit la liste", async () => {
     for (const label of ["accepte pas de joueur allié", "lit pas la liste des joueurs alliés"]) expect(await statusOf(HEALTHY, label)).toBe("ok");
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/approve_alliance_ally": { status: 200, body: { ok: true } } }, "accepte pas de joueur allié")).toBe("fail");

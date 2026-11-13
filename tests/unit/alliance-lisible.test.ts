@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { COULEURS_ALLIANCE, COULEUR_HORS_ALLIANCE, COULEUR_TOUTE_L_ALLIANCE, PALETTE_CLANS, couleurDeZone, couleursDesClans, empreinteDuTag, rgbDe } from "../../src/lib/alliance/couleurs";
+import { COULEURS_ALLIANCE, COULEUR_HORS_ALLIANCE, COULEUR_TOUTE_L_ALLIANCE, PALETTE_CLANS, couleurDeZone, couleursDesClans, empreinteDuTag, legendeDeTout, rgbDe } from "../../src/lib/alliance/couleurs";
 import { LANGUES, langueDeDepart, langueValable } from "../../src/lib/alliance/langue";
 import { encoderBits, pointCentral, type Masque } from "../../src/lib/alliance/masque";
 import { EN, FR, ordinalAnglais, ordinalFrancais, textesDe } from "../../src/lib/alliance/textes";
@@ -120,6 +120,34 @@ describe("les couleurs des clans", () => {
   });
 });
 
+describe("la légende du mode « Tout »", () => {
+  const standings = [
+    { tag: "LUX", color: 0x3366ff, pixels: 300 },
+    { tag: "GAL", color: 0x0b5fff, pixels: 500 },
+    { tag: null, color: 0x111111, pixels: 900 },
+    // Un tag porté par deux clans : le plus grand donne sa couleur.
+    { tag: "UN", color: 0x00ff00, pixels: 50 },
+    { tag: "UN", color: 0xff0000, pixels: 400 },
+    { tag: "VIDE", color: 0x123456, pixels: 0 },
+    { tag: "AB", color: null, pixels: 10 },
+  ];
+
+  it("nomme les plus grands clans, du plus grand au plus petit, dans leur couleur du jeu, une fois chacun", () => {
+    expect(legendeDeTout(standings)).toEqual([
+      { nom: "GAL", couleur: 0x0b5fff },
+      { nom: "UN", couleur: 0xff0000 },
+      { nom: "LUX", couleur: 0x3366ff },
+      // Sans couleur dans le jeu : le gris que le film donne aussi.
+      { nom: "AB", couleur: (130 << 16) | (135 << 8) | 150 },
+    ]);
+  });
+
+  it("s'arrête au nombre demandé, sans clan supprimé ni clan sans pixel", () => {
+    expect(legendeDeTout(standings, 2).map((e) => e.nom)).toEqual(["GAL", "UN"]);
+    expect(legendeDeTout([{ tag: "VIDE", color: 1, pixels: 0 }])).toEqual([]);
+  });
+});
+
 describe("la langue de la fenêtre", () => {
   it("n'a que le français et l'anglais", () => {
     expect(LANGUES.map((l) => l.id)).toEqual(["fr", "en"]);
@@ -180,7 +208,7 @@ describe("la langue de la fenêtre", () => {
 
 describe("les refus du serveur en anglais", () => {
   it("couvrent chaque refus de la carte de l'alliance et de la connexion par code", () => {
-    const sql = ["20261113000400_alliances_sur_la_carte", "20261113000500_allies_acceptes_par_l_encadrement", "20261113000600_zones_sans_chevauchement"].map((n) => readFileSync(`supabase/migrations/${n}.sql`, "utf8")).join("\n");
+    const sql = ["20261113000400_alliances_sur_la_carte", "20261113000500_allies_acceptes_par_l_encadrement", "20261113000600_zones_sans_chevauchement", "20261113000700_allies_dessinent_leurs_zones"].map((n) => readFileSync(`supabase/migrations/${n}.sql`, "utf8")).join("\n");
     const codes = new Set([...sql.matchAll(/internal\.(?:fail|error_json)\('([a-z_]+)'/g)].map((m) => m[1]!));
     for (const m of sql.matchAll(/internal\.clean_label\(p_\w+, \d+, \d+, '([a-z_]+)'\)/g)) codes.add(m[1]!);
     // Ceux de la connexion par code, renvoyés par la fonction code-discord.

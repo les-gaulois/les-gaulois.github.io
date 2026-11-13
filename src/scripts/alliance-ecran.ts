@@ -1,8 +1,8 @@
 /**
  * L'écran de la carte de l'alliance, à la place du film quand la fenêtre « Alliance » est ouverte : la carte complète au
  * dernier relevé, pixel par pixel (`src/lib/clanmap/etat.ts`), nos clans chacun dans sa couleur (ou les alliances dans la
- * leur), les zones à prendre dans la couleur du clan qui les prend, avec leur nom écrit dessus, et, pour l'encadrement, le
- * dessin d'une zone au pixel près.
+ * leur, ou « Tout » : chaque clan dans sa couleur du jeu), les zones à prendre dans la couleur du clan qui les prend, avec leur
+ * nom écrit dessus, et le dessin d'une zone au pixel près, pour l'encadrement et pour un allié dans son clan.
  *
  * Ce script ne change aucune valeur : il dessine l'état publié par le site et les zones du serveur. Le dessin d'une zone
  * reste dans ce navigateur jusqu'à son enregistrement, que le serveur vérifie (`save_alliance_zone`).
@@ -11,6 +11,7 @@
  */
 import { cadreVisible, type Rect } from "../lib/alliance/capture";
 import { cssDe } from "../lib/alliance/couleurs";
+import { clanRgb } from "../lib/clanmap/codec";
 import {
   CADRE_MAX,
   annuler,
@@ -152,6 +153,7 @@ export class EcranAlliance {
   private demande = 0;
 
   private couleurs = new Map<string, number>();
+  private couleursDuJeu = false;
   private zones: ZoneAffichee[] = [];
   /** Le point de chaque zone où écrire son nom : celui de ses pixels le plus près du centre de son cadre. */
   private centres = new Map<number, [number, number]>();
@@ -244,9 +246,13 @@ export class EcranAlliance {
     }
   }
 
-  /** La couleur des clans colorés, par leur tag (nos clans, ou les clans de chaque alliance) ; les autres restent gris. */
-  regler(couleurs: Map<string, number>): void {
+  /**
+   * La couleur des clans colorés, par leur tag (nos clans, ou les clans de chaque alliance) ; les autres restent gris.
+   * `jeu` : chaque clan de la carte dans sa couleur du jeu, comme sur le film, clans neutres compris.
+   */
+  regler(couleurs: Map<string, number>, jeu = false): void {
     this.couleurs = couleurs;
+    this.couleursDuJeu = jeu;
     this.peindreBase();
     this.dessiner();
   }
@@ -445,14 +451,16 @@ export class EcranAlliance {
     return [canvas, ctx];
   }
 
-  /** Les clans colorés dans leur couleur, les autres en gris ; la mer et la terre neutre au pixel près. */
+  /** Les clans colorés dans leur couleur (tous dans celle du jeu en « Tout »), les autres en gris ; la mer et la terre neutre au pixel près. */
   private peindreBase(): void {
     if (!this.film || !this.etat) return;
     const clans = this.film.clans;
     const palette = new Uint32Array(clans.length + 1);
     for (let i = 1; i < clans.length; i++) {
       const tag = clans[i]?.tag ?? null;
-      const couleur = tag === null ? undefined : this.couleurs.get(tag);
+      // Chaque clan par son index : deux clans du même tag gardent chacun sa couleur du jeu.
+      const [r, g, b] = clanRgb(clans[i]?.color ?? null);
+      const couleur = this.couleursDuJeu ? (r << 16) | (g << 8) | b : tag === null ? undefined : this.couleurs.get(tag);
       // Un peu moins que plein : les zones, hachurées par-dessus, restent visibles même sur la terre de leur clan.
       palette[i + 1] = couleur === undefined ? rgba(DIM[0], DIM[1], DIM[2], DIM[3]) : rgba((couleur >> 16) & 0xff, (couleur >> 8) & 0xff, couleur & 0xff, 205);
     }

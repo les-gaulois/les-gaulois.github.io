@@ -312,8 +312,11 @@ export function describe(row: LogRow, when: (iso: string) => string): LogLine {
     case "alliance_zone_saved":
     case "alliance_zone_deleted": {
       const zone = title ? `la zone « ${title} »` : "une zone";
-      if (row.action === "alliance_zone_deleted") return { who, what: `a supprimé ${zone} de la carte de l'alliance.` };
-      return { who, what: `${details["new"] === true ? "a dessiné" : "a modifié"} ${zone} sur la carte de l'alliance.` };
+      // Depuis la migration 20261113000700, un joueur allié dessine les zones de son clan : le journal le dit, sans son nom choisi.
+      const tag = textOf(details, "tag");
+      const pour = details["ally"] === true && tag ? `, en joueur allié de ${tag}` : "";
+      if (row.action === "alliance_zone_deleted") return { who, what: `a supprimé ${zone} de la carte de l'alliance${pour}.` };
+      return { who, what: `${details["new"] === true ? "a dessiné" : "a modifié"} ${zone} sur la carte de l'alliance${pour}.` };
     }
     case "alliance_message_deleted":
       return { who, what: `a retiré un message ${ofTarget} de la discussion de l'alliance.` };

@@ -10,8 +10,11 @@ import type { EtatCarte } from "../../../lib/clanmap/etat";
 import type { StoredClanMapFilm } from "../../../lib/schemas";
 import type { Survol } from "../../../scripts/alliance-ecran";
 
-/** La carte se colore par nos clans, chacun dans sa couleur, ou par alliance. */
-export type ModeCouleurs = "clans" | "alliances";
+/**
+ * La carte se colore par nos clans, chacun dans sa couleur, par alliance, ou « tout » : chaque clan de la carte dans sa
+ * couleur du jeu, les clans neutres (hors de toute alliance) compris.
+ */
+export type ModeCouleurs = "clans" | "alliances" | "tout";
 
 /** Tout ce que lit une partie de la fenêtre : le serveur, la carte publiée, et qui regarde. */
 export interface Contexte {
@@ -197,7 +200,7 @@ function Bulle({ c }: { c: Calque & { survol: Survol } }) {
       <p class="alliance-bulle-pied">
         {t.ici} {ici}
       </p>
-      <p class="alliance-bulle-pied">{t.misAJour(t.dateHeure(zone.updated_at))}</p>
+      <p class="alliance-bulle-pied">{t.misAJour(t.dateHeure(zone.updated_at), zone.by)}</p>
     </div>
   );
 }

@@ -6,7 +6,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const MIGRATIONS = ["20261113000400_alliances_sur_la_carte", "20261113000500_allies_acceptes_par_l_encadrement", "20261113000600_zones_sans_chevauchement"];
+const MIGRATIONS = ["20261113000400_alliances_sur_la_carte", "20261113000500_allies_acceptes_par_l_encadrement", "20261113000600_zones_sans_chevauchement", "20261113000700_allies_dessinent_leurs_zones"];
 const sql = Object.fromEntries(MIGRATIONS.map((name) => [name, readFileSync(`supabase/migrations/${name}.sql`, "utf8").replace(/\r\n/g, "\n")]));
 const accordSql = sql["20261113000500_allies_acceptes_par_l_encadrement"]!;
 
@@ -59,7 +59,7 @@ describe("la carte de l'alliance, côté serveur", () => {
     expect(accordSql).toMatch(/if not exists \(\s*select 1 from information_schema\.columns[\s\S]*column_name = 'approved_at'\s*\) then[\s\S]*update internal\.alliance_allies set approved_at = joined_at where approved_at is null;\s*end if;/);
   });
 
-  it("réserve les zones à l'encadrement et refuse une zone posée sur une autre, sous le verrou des zones", () => {
+  it("garde l'encadrement par son rang et refuse une zone posée sur une autre, sous le verrou des zones", () => {
     const zone = corps("public.save_alliance_zone");
     expect(zone).toContain("v_actor := internal.require_rank(2);");
     const verrou = zone.indexOf("perform pg_advisory_xact_lock(hashtext('gal_alliance_zones'));");
@@ -70,5 +70,30 @@ describe("la carte de l'alliance, côté serveur", () => {
     expect(regle).toBeLessThan(zone.indexOf("insert into internal.alliance_zones"));
     // Une zone reprise ne se compare pas à elle-même.
     expect(zone).toContain("where (p_id is null or z.id <> p_id)");
+  });
+
+  it("ouvre à un allié les zones de son clan seulement, vingt au plus, et le dit à la carte", () => {
+    const zone = corps("public.save_alliance_zone");
+    // L'encadrement par son rang, un allié par son accès à la carte ; tout autre compte est refusé.
+    expect(zone).toContain("v_access := internal.require_map_access();");
+    expect(zone).toMatch(/if v_staff then\s*(--[^\n]*\n\s*)*v_actor := internal\.require_rank\(2\);\s*elsif v_access ->> 'kind' = 'allie' then\s*v_actor := auth\.uid\(\);\s*else\s*perform internal\.fail\('forbidden'\);/);
+    // Un allié ne dessine ni pour toute l'alliance, ni pour un autre clan.
+    expect(zone).toContain("if not v_staff and (v_tag is null or v_tag <> v_access ->> 'tag') then perform internal.fail('forbidden'); end if;");
+    // Il ne reprend pas la zone d'un autre clan : vérifié sur la ligne verrouillée, sous le verrou des zones, avant le chevauchement.
+    const reprise = zone.indexOf("select tag into v_avant from internal.alliance_zones where id = p_id for update;");
+    expect(reprise).toBeGreaterThan(zone.indexOf("perform pg_advisory_xact_lock(hashtext('gal_alliance_zones'));"));
+    expect(reprise).toBeLessThan(zone.indexOf("perform internal.fail('zone_overlap');"));
+    expect(zone).toContain("if not v_staff and (v_avant is null or v_avant <> v_access ->> 'tag') then perform internal.fail('forbidden'); end if;");
+    expect(zone).toContain("if not v_staff and (select count(*) from internal.alliance_zones where tag = v_tag) >= 20 then");
+    // La suppression suit la même règle.
+    const suppression = corps("public.delete_alliance_zone");
+    expect(suppression).toContain("v_actor := internal.require_rank(2);");
+    expect(suppression).toContain("from internal.alliance_zones where id = p_id for update;");
+    expect(suppression).toContain("if not v_staff and (v_tag is null or v_tag <> v_access ->> 'tag') then perform internal.fail('forbidden'); end if;");
+    // La carte dit qui peut dessiner et modifier ; une zone de toute l'alliance n'est pas « inconnue » mais refusée.
+    const carte = corps("public.get_alliance_map");
+    expect(carte).toContain("'can_draw', v_staff or v_clan is not null");
+    expect(carte).toContain("'can_edit', v_staff or coalesce(z.tag = v_clan, false)");
+    expect(sql["20261113000700_allies_dessinent_leurs_zones"]).toContain("revoke all on function internal.map_name(uuid) from public, anon, authenticated;");
   });
 });

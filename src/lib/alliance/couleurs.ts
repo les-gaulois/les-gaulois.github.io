@@ -1,3 +1,5 @@
+import { clanRgb } from "../clanmap/codec";
+
 /**
  * Les couleurs des alliances sur la carte : huit teintes bien distinctes, lisibles sur le fond sombre de la carte, au choix
  * de l'encadrement. Le serveur garde la valeur 0xRRGGBB ; une valeur hors de cette liste reste affichée telle quelle.
@@ -70,6 +72,24 @@ export function couleursDesClans(tags: Iterable<string>): Map<string, number> {
     couleurs.set(tag, PALETTE_CLANS[i]!);
   }
   return couleurs;
+}
+
+/**
+ * La légende du mode « Tout » (chaque clan dans sa couleur du jeu, clans neutres compris) : les plus grands clans au dernier
+ * relevé, du plus grand au plus petit, chacun dans la couleur que la carte officielle lui donne. Un tag porté par deux
+ * clans n'apparaît qu'une fois, avec la couleur du plus grand des deux. `standings` : le classement du film, déjà trié ou
+ * non ; un clan sans pixel n'est pas nommé.
+ */
+export function legendeDeTout(standings: readonly { tag: string | null; color: number | null; pixels: number }[], limite = 8): { couleur: number; nom: string }[] {
+  const grands = standings.filter((s): s is { tag: string; color: number | null; pixels: number } => s.tag !== null && s.pixels > 0).sort((a, b) => b.pixels - a.pixels || a.tag.localeCompare(b.tag));
+  const out: { couleur: number; nom: string }[] = [];
+  for (const s of grands) {
+    if (out.length === limite) break;
+    if (out.some((e) => e.nom === s.tag)) continue;
+    const [r, g, b] = clanRgb(s.color);
+    out.push({ couleur: (r << 16) | (g << 8) | b, nom: s.tag });
+  }
+  return out;
 }
 
 /** La couleur d'une zone : celle du clan qui la prend, blanc pour toute l'alliance. */
