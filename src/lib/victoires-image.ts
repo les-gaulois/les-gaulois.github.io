@@ -58,11 +58,14 @@ const HINT_DROP = 42;
 const KPI_GAP = 24;
 const KPI_INSET = 26;
 
-/** « 18 statères à chaque Gaulois » ; « pour ce Gaulois » s'il est seul. `null` : la partie ne rapporte pas de points. */
+/**
+ * « 54 statères par villageois » : seuls les comptes validés qui ont créé leur Gaulois au village en reçoivent,
+ * l'image ne promet donc rien à « chaque Gaulois », et le mot tient dans la colonne. `null` : la partie ne rapporte pas de points.
+ */
 export function staterWords(v: Victory): string | null {
   const each = stateresDeVictoire(v.points, v.gaulois);
   if (each < 1) return null;
-  return `${fmtCount(each, "statère")} ${v.gaulois > 1 ? "à chaque Gaulois" : "pour ce Gaulois"}`;
+  return `${fmtCount(each, "statère")} par villageois`;
 }
 
 /** La pièce, en rectangles : une suite de cases de même couleur sur une rangée n'en fait qu'un. */
@@ -229,7 +232,7 @@ export function victoryImageAlt(v: Victory, tag: string, withMap: boolean, state
   const head = `${victoryTitle(tag)} sur la carte ${mapLabel(v.map)}${v.format ? `, ${formatLabel(v.format)}` : ""}, ${victoryWhen(v).toLowerCase()}, heure de Paris.`;
   const figures = `${countWords(v)}${v.points === null ? "" : `, ${pointsWords(v.points)}`}, partie de ${tileLength(v.seconds)}.`;
   const each = staters ? stateresDeVictoire(v.points, v.gaulois) : 0;
-  const coins = each > 0 ? [`${v.gaulois > 1 ? "Chaque Gaulois de la partie" : "Ce Gaulois"} reçoit ${fmtCount(each, "statère")}, pour les points rapportés au clan.`] : [];
+  const coins = each > 0 ? [`Chaque Gaulois du village présent dans la partie reçoit ${fmtCount(each, "statère")}, pour les points rapportés au clan.`] : [];
   const credit = withMap ? `Image et nom de la carte : ${OPENFRONT_CREDIT}, CC BY-SA 4.0, image redimensionnée.` : `Nom de la carte : ${OPENFRONT_CREDIT}, CC BY-SA 4.0.`;
   return fittedAlt(v.crew, (shown, rest) => {
     const crew = crewList(

@@ -766,12 +766,12 @@ describe("victoryCard", () => {
     expect(victoryImageAlt(VICTORY, "GAL", true, false)).toBe(victoryImageAlt(VICTORY, "GAL", true));
   });
   it("avec la monnaie : la pièce et les statères de chaque Gaulois, sous les points rapportés au clan", () => {
-    // 1,81 point, 10 statères par point, arrondi : 18 à chacun des 6 Gaulois.
-    expect(staterWords(VICTORY)).toBe("18 statères à chaque Gaulois");
+    // 1,81 point, 30 statères par point rapporté au clan, arrondi : 54 à chacun des 6 Gaulois.
+    expect(staterWords(VICTORY)).toBe("54 statères par villageois");
     for (const shape of [SQUARE, null]) {
       const before = victoryCard(VICTORY, "GAL", SITE, measure, shape, false);
       const card = victoryCard(VICTORY, "GAL", SITE, measure, shape, true);
-      const words = card.texts.find((t) => t.text === "18 statères à chaque Gaulois")!;
+      const words = card.texts.find((t) => t.text === "54 statères par villageois")!;
       const points = card.texts.find((t) => t.text === "+1,81")!;
       expect(words).toMatchObject({ font: "body", color: CARD_COLORS.MUTED });
       // Juste sous le chiffre des points, à la place d'une ligne d'explication ; la pièce devant, sans toucher le texte.
@@ -790,7 +790,7 @@ describe("victoryCard", () => {
       expect(card.texts.filter((t) => t !== words)).toEqual(before.texts);
       expectClean(card);
     }
-    expect(plain(victoryImageAlt(VICTORY, "GAL", true, true))).toContain("+1,81 point gagné, partie de 16 min. Chaque Gaulois de la partie reçoit 18 statères, pour les points rapportés au clan. Gaulois de la partie");
+    expect(plain(victoryImageAlt(VICTORY, "GAL", true, true))).toContain("+1,81 point gagné, partie de 16 min. Chaque Gaulois du village présent dans la partie reçoit 54 statères, pour les points rapportés au clan. Gaulois de la partie");
   });
   it("avec la monnaie : rien si la partie ne rapporte pas de points ; un seul statère, un seul Gaulois s'écrivent au singulier", () => {
     for (const points of [null, 0, -0.4]) {
@@ -800,10 +800,10 @@ describe("victoryCard", () => {
       expect(victoryImageAlt(none, "GAL", true, true)).not.toContain("statère");
     }
     // Une partie qui rapporte des points donne au moins un statère.
-    expect(staterWords({ ...VICTORY, points: 0.04 })).toBe("1 statère à chaque Gaulois");
-    expect(staterWords({ ...VICTORY, points: 0.04, gaulois: 1 })).toBe("1 statère pour ce Gaulois");
-    expect(victoryImageAlt({ ...VICTORY, points: 0.04, gaulois: 1 }, "GAL", true, true)).toContain("Ce Gaulois reçoit 1 statère, pour les points rapportés au clan.");
-    expect(plain(staterWords({ ...VICTORY, points: 120 }) ?? "")).toBe("1 200 statères à chaque Gaulois");
+    expect(staterWords({ ...VICTORY, points: 0.04 })).toBe("1 statère par villageois");
+    expect(staterWords({ ...VICTORY, points: 0.04, gaulois: 1 })).toBe("1 statère par villageois");
+    expect(victoryImageAlt({ ...VICTORY, points: 0.04, gaulois: 1 }, "GAL", true, true)).toContain("Chaque Gaulois du village présent dans la partie reçoit 1 statère, pour les points rapportés au clan.");
+    expect(plain(staterWords({ ...VICTORY, points: 120 }) ?? "")).toBe("3 600 statères par villageois");
     // Jamais les mots que le pilote a repris.
     for (const text of [staterWords(VICTORY) ?? "", victoryImageAlt(VICTORY, "GAL", true, true)]) expect(text).not.toMatch(/gagnés par|partie gagnée/);
     // Beaucoup de Gaulois, de longs noms : la ligne de la pièce ne déborde pas.

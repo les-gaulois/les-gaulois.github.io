@@ -222,16 +222,16 @@ describe("les revenus du clan", () => {
       victoire("d", "2026-07-01T12:00:00.000Z", 9, 2),
     ];
     const r = revenusDuClan(victoires, "2026-05-01", "2026-06-10");
-    expect(stateresDeVictoire(1.67, 3)).toBe(17);
-    expect(r.parTaille["3"]).toEqual({ victoires: 1, points: 1.67, parGaulois: 17, distribues: 51 });
+    expect(stateresDeVictoire(1.67, 3)).toBe(50);
+    expect(r.parTaille["3"]).toEqual({ victoires: 1, points: 1.67, parGaulois: 50, distribues: 150 });
     expect(r.parTaille["1"]).toEqual({ victoires: 1, points: 0.04, parGaulois: 1, distribues: 1 });
-    expect(r.parTaille["4+"]).toEqual({ victoires: 1, points: 2, parGaulois: 20, distribues: 100 });
+    expect(r.parTaille["4+"]).toEqual({ victoires: 1, points: 2, parGaulois: 60, distribues: 300 });
     expect(r.parTaille["2"].victoires).toBe(0);
     expect(r.parMois.map((m) => [m.mois, m.jours, m.complet, m.distribution.distribues])).toEqual([
-      ["2026-05", 31, true, 52],
-      ["2026-06", 10, false, 100],
+      ["2026-05", 31, true, 151],
+      ["2026-06", 10, false, 300],
     ]);
-    expect(r.total).toMatchObject({ victoires: 3, parGaulois: 38, distribues: 152, jours: 41 });
+    expect(r.total).toMatchObject({ victoires: 3, parGaulois: 111, distribues: 451, jours: 41 });
   });
 });
 
@@ -261,9 +261,9 @@ describe("les revenus par joueur", () => {
       connues,
     );
     expect(lignes).toEqual([
-      { periode: "2026-10", parties: 3, victoires: 2, creditees: 1, introuvables: 1, stateres: 23 },
-      { periode: "2026-11", parties: 1, victoires: 1, creditees: 1, introuvables: 0, stateres: 10 },
-      { periode: "2026-10", parties: 1, victoires: 0, creditees: 1, introuvables: 0, stateres: 23 },
+      { periode: "2026-10", parties: 3, victoires: 2, creditees: 1, introuvables: 1, stateres: 70 },
+      { periode: "2026-11", parties: 1, victoires: 1, creditees: 1, introuvables: 0, stateres: 30 },
+      { periode: "2026-10", parties: 1, victoires: 0, creditees: 1, introuvables: 0, stateres: 70 },
     ]);
   });
 
@@ -274,7 +274,7 @@ describe("les revenus par joueur", () => {
       connues,
       (d) => (d < "2026-10-20" ? "début" : null),
     );
-    expect(lignes).toEqual([{ periode: "début", parties: 1, victoires: 1, creditees: 1, introuvables: 0, stateres: 23 }]);
+    expect(lignes).toEqual([{ periode: "début", parties: 1, victoires: 1, creditees: 1, introuvables: 0, stateres: 70 }]);
   });
 
   it("donne les profils : tous, ceux qui ont reçu, et par nombre de parties", () => {

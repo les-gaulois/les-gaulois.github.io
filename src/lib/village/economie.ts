@@ -430,7 +430,7 @@ export interface MoisDeJoueur {
   parties: number;
   /** Les victoires de sa liste. */
   victoires: number;
-  /** Ses parties qui sont des victoires du clan avec des points : celles qui donnent des statères. */
+  /** Ses parties qui ont rapporté des points au clan : celles qui donnent des statères. */
   creditees: number;
   /** Ses victoires absentes des sessions du clan : leurs points ne se connaissent pas, elles ne comptent pas. */
   introuvables: number;
@@ -439,7 +439,7 @@ export interface MoisDeJoueur {
 
 /**
  * Ce que chaque joueur aurait reçu, période par période, d'après sa liste de parties croisée avec les victoires du clan
- * par partie : une victoire du clan donne ses statères à chaque Gaulois présent, quel que soit le résultat noté dans sa
+ * par partie : une partie qui a rapporté des points au clan donne ses statères à chaque Gaulois présent, quel que soit le résultat noté dans sa
  * liste, comme le fait le serveur. `listes` : une liste de parties par joueur, sans son identifiant ; `connues` : toutes
  * les parties des sessions du clan, victoires ou non ; `regrouper` : la période d'un début de partie (le mois à Paris par
  * défaut), `null` hors de la mesure. Rend une ligne par joueur et par période où il a joué, dans le désordre des joueurs.
