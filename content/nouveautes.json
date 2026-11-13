@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-13",
+    "kind": "nouveau",
+    "title": "Les alliés dessinent les zones de leur clan",
+    "body": "Sur la carte de l'alliance, un joueur allié dessine, modifie et supprime les zones de son clan, et seulement celles-là. Chaque zone dit qui l'a dessinée ou modifiée en dernier.",
+    "link": {
+      "href": "/carte#alliance",
+      "label": "Ouvrir la carte"
+    }
+  },
+  {
+    "date": "2026-11-13",
     "kind": "ameliore",
     "title": "Carte de l'alliance : voir tous les clans",
     "body": "Le bouton « Tout » colore chaque clan de la carte dans sa couleur du jeu, y compris ceux qui ne sont dans aucune alliance. La légende nomme les plus grands et la terre neutre.",
