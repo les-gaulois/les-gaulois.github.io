@@ -5,10 +5,12 @@
 --   sous le tag GAL. Une partie qui fait perdre des points ne retire rien. Aujourd'hui, seule une partie gagnée contre des
 --   joueurs rapporte des points (relevé de novembre 2026 : 538 parties à points positifs, toutes gagnées).
 -- - « Entiers à chacun » : chaque Gaulois présent dans la partie reçoit tous les points qu'elle a rapportés, sans partage.
---   Un point vaut 10 statères, arrondi à l'entier (une demie vers le haut), au moins 1 statère pour une partie qui rapporte
---   des points. La règle est dans une seule fonction, internal.stateres_de_victoire, la même que stateresDeVictoire
---   (src/lib/stateres.ts) ; chaque crédit garde ses données brutes (partie, début, points, nombre de Gaulois) et le nom de
---   sa règle, pour qu'elle puisse changer sans perdre l'historique.
+--   30 statères par point rapporté au clan (le pilote, le soir même : d'abord 10, puis 30 quand la mesure de l'économie a
+--   montré des gains trois fois plus bas que prévu, les prix restant les mêmes), arrondi à l'entier (une demie vers le
+--   haut), au moins 1 statère pour une partie qui rapporte des points. La règle est dans une seule fonction,
+--   internal.stateres_de_victoire, la même que stateresDeVictoire (src/lib/stateres.ts) ; chaque crédit garde ses données
+--   brutes (partie, début, points, nombre de Gaulois) et le nom de sa règle (« entier-30 »), pour qu'elle puisse changer
+--   sans perdre l'historique.
 -- - Seul un compte validé reçoit des statères, reconnu par l'empreinte de son identifiant OpenFront
 --   (private_links.openfront_hash), et seulement s'il a créé son Gaulois. Comptent les parties commencées depuis le 1er du
 --   mois de création du Gaulois, à Paris ; ensuite, chaque nouvelle partie qui rapporte des points s'ajoute.
@@ -72,7 +74,8 @@ create table if not exists internal.stateres_mouvements (
   user_id uuid not null references public.profiles (user_id) on delete cascade,
   -- 'victoire' : les points rapportés au clan par une partie. Les achats et les échanges du lot 3 auront leur nature.
   nature text not null check (nature ~ '^[a-z][a-z_]{1,31}$'),
-  -- Une borne large : la plus grosse partie vaut moins de 10 000 statères, l'objet le plus cher 2 500.
+  -- Une borne large : une partie vaut moins de 30 000 statères (moins de 1 000 points ; 6,71 au plus en novembre 2026),
+  -- l'objet le plus cher 2 500.
   montant integer not null check (montant <> 0 and montant between -1000000 and 1000000),
   -- Les données brutes de la partie.
   partie text,
@@ -205,12 +208,12 @@ create or replace function internal.stateres_de_victoire(p_points numeric, p_gau
 language sql immutable set search_path = public, pg_temp as $$
   select case
     when p_points is null or p_points <= 0 or p_gaulois is null or p_gaulois < 1 then 0
-    else greatest(1, round(p_points * 10))::integer
+    else greatest(1, round(p_points * 30))::integer
   end
 $$;
 
 create or replace function internal.stateres_regle() returns text
-language sql immutable set search_path = public, pg_temp as $$ select 'entier'::text $$;
+language sql immutable set search_path = public, pg_temp as $$ select 'entier-30'::text $$;
 
 -- Le 1er du mois de `p_at`, à minuit à Paris. Minuit n'est jamais dans un changement d'heure (à 2 h ou 3 h du matin).
 create or replace function internal.stateres_debut_du_mois(p_at timestamptz) returns timestamptz
