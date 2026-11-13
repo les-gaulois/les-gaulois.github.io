@@ -5,7 +5,8 @@
  *
  * Les prix sont ceux du pilote (13 novembre 2026) : commun 100, peu commun 250, épique 500, mystique 1 000, légendaire
  * 2 500, pochette surprise 200. Ils sont semés dans la table des réglages par la migration de la boutique ; un test garde
- * les deux écritures identiques. Les statères viennent des points rapportés au clan, 10 par point, et de rien d'autre :
+ * les deux écritures identiques. Les statères viennent des points rapportés au clan, 30 par point (choix du pilote le 13 novembre 2026, après
+ * la mesure de l'économie), et de rien d'autre :
  * ils ne s'achètent jamais.
  */
 import type { Emplacement, Rarete, Tenue } from "../gaulois";
