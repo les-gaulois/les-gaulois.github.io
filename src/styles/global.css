@@ -8884,3 +8884,571 @@ footer h2 {
     top: 0.75rem;
   }
 }
+
+/* ---------- La carte, des fenêtres d'une seule famille (13 novembre 2026, dans la nuit) ---------- */
+/* Demande du pilote : le dessin de la vue d'arrivée (la fenêtre « Objectif » et le classement dessous) vaut pour toutes
+   les fenêtres : Clans, Alliance, Moments, Journées, Zones, Fronts, Chiffres, Réglages. Une seule grammaire, celle des
+   autres pages du site :
+   - le titre en onciale, puis une ligne « de quand, de quoi » en petit italique gris (`.carte-sur`, la légende d'un
+     tableau, `.carte-aide`) ;
+   - les chiffres comme les chiffres clés : un filet à gauche (rouge et épais pour le premier, fin avec son repère blanc
+     pour les suivants), le libellé court en chasse fixe et capitales, le chiffre en gros ;
+   - les tableaux et les listes comme les tableaux du site : une surface, un filet d'un pixel, des coins de 8 px, des
+     lignes séparées par un filet pâle, la ligne de GAL en bleu au trait rouge ;
+   - les boutons du site, tous à la même hauteur.
+   Ce qui suit l'emporte sur « La carte en console » et complète « La carte, le classement en colonne ». Voir
+   docs/DESIGN.md, « La carte, le classement en colonne ». */
+
+/* --- Le socle : le texte, les titres de partie, les lignes de service, les boutons --- */
+.carte[data-carte] .carte-fenetre[data-fenetre]:not([data-libre]) {
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--texte-courant);
+}
+/* Un titre de partie dans une fenêtre : un libellé, comme celui d'un chiffre clé ou d'une courbe du site. */
+.carte[data-carte] .carte-fenetre:not([data-libre]) h3,
+.carte[data-carte] .carte-fenetre:not([data-libre]) .kpi-label {
+  font-family: var(--carte-mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+/* Le libellé de la courbe est une phrase de sept mots : la chasse fixe reste aux libellés courts, il garde les capitales
+   en Inter. */
+.carte[data-carte] .carte-fenetre:not([data-libre]) .carte-courbe .kpi-label {
+  font-family: var(--font-sans);
+  letter-spacing: 0.04em;
+}
+.carte[data-carte] .carte-aide {
+  margin-top: 0.75rem;
+  font-size: 0.8125rem;
+  font-style: italic;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+.carte[data-carte] .carte-aide + .carte-aide {
+  margin-top: 0.25rem;
+}
+.carte[data-carte] .carte-aide a {
+  color: var(--color-blue-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.carte[data-carte] .carte-aide a:hover {
+  color: #fff;
+}
+.carte[data-carte] .carte-fenetre .btn {
+  min-height: 2.5rem;
+  padding: 0.375rem 1rem;
+  font-size: 0.875rem;
+}
+.carte[data-carte] .carte-fenetre .chip {
+  min-height: 2.5rem;
+  padding: 0.25rem 1rem;
+  font-size: 0.875rem;
+}
+/* Une partie de fenêtre : un filet fin au-dessus, comme entre deux parties d'une page. */
+.carte[data-carte] .carte-fenetre:not([data-libre]) .carte-bloc {
+  margin-top: 1.125rem;
+  padding-top: 1.125rem;
+  border-top: 1px solid var(--hairline);
+}
+.carte[data-carte] .carte-fenetre:not([data-libre]) h2 + .carte-bloc {
+  margin-top: 1rem;
+  padding-top: 0;
+  border-top: 0;
+}
+
+/* --- Les chiffres clés des fenêtres : « Chiffres », et la plus belle journée --- */
+/* Un chiffre en mots (« +46 220 pixels », « Environ 12 000 pixels neutres ») : en Inter, gras, comme les repères de
+   l'objectif ; le premier de la fenêtre en onciale de cases, comme l'écart de l'objectif. */
+.carte[data-carte] .carte-chiffre-sm {
+  margin-top: 0.25rem;
+  font-family: var(--font-sans);
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+.carte[data-carte] .carte-chiffres {
+  display: grid;
+  gap: 1.125rem;
+  margin-top: 1rem;
+}
+.carte[data-carte] .carte-chiffres > div,
+.carte[data-carte] .carte-fenetre .carte-cle {
+  position: relative;
+  padding-left: 1rem;
+  border-left: 1px solid var(--hairline);
+}
+.carte[data-carte] .carte-chiffres > div::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -1px;
+  width: 1px;
+  height: 1.125rem;
+  background: #fff;
+}
+.carte[data-carte] .carte-chiffres > div:first-child,
+.carte[data-carte] .carte-fenetre .carte-cle {
+  border-left: 3px solid var(--color-red);
+}
+.carte[data-carte] .carte-chiffres > div:first-child::before {
+  content: none;
+}
+.carte[data-carte] .carte-chiffres dt {
+  font-family: var(--carte-mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.carte[data-carte] .carte-chiffres > div:first-child > .carte-chiffre,
+.carte[data-carte] .carte-cle .carte-chiffre {
+  margin-top: 0.375rem;
+  font-family: var(--font-cases);
+  font-size: 1.75rem;
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: 0;
+}
+.carte[data-carte] .carte-chiffres dd:not(.carte-chiffre) {
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+.carte[data-carte] .carte-chiffres dd.font-semibold {
+  color: #fff;
+}
+/* Les remarques sous les chiffres : sous un filet, la dernière comme une ligne de service. */
+.carte-notes {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 1.125rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--hairline);
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+.carte-notes:not(:has(*)) {
+  display: none;
+}
+.carte[data-carte] .carte-notes > .carte-petit {
+  font-size: 0.8125rem;
+  font-style: italic;
+  color: var(--color-muted);
+}
+/* La plus belle journée : le libellé, ce qu'il compte, le chiffre, son détail, puis le bouton qui la rejoue. */
+.carte-cle-libelle {
+  margin-top: 0.375rem;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+.carte-cle-suite {
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+.carte-cle-action {
+  margin-top: 0.75rem;
+}
+
+/* --- La courbe des journées : posée sur la page, sous le même libellé que les chiffres --- */
+.carte[data-carte] .carte-courbe .chart-open {
+  padding-top: 0;
+  border-top: 0;
+}
+.carte[data-carte] .carte-fenetre .kpi-value {
+  margin-top: 0.25rem;
+  font-family: var(--font-sans);
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: #fff;
+}
+
+/* --- Les tableaux : ceux du site, serrés pour la colonne --- */
+/* Les cadres (tableaux, listes, réglages) ont la largeur du classement du film, posé dessous : ils débordent d'un demi-rem
+   de chaque côté du texte de la fenêtre, et leurs bords s'alignent d'une fenêtre à l'autre. */
+.carte[data-carte] .carte-fenetre:not([data-libre]) :is(.carte-table-cadre, .carte-liste, .carte-reglages-corps) {
+  margin-inline: -0.5rem;
+}
+.carte[data-carte] .carte-table-cadre {
+  margin-top: 0.5rem;
+  overflow-x: auto;
+}
+/* Sous la courbe des journées : un filet, à la largeur du texte, puis le tableau. */
+.carte[data-carte] .carte-courbe {
+  padding-bottom: 1.125rem;
+  border-bottom: 1px solid var(--hairline);
+}
+.carte[data-carte] .carte-courbe + .carte-table-cadre {
+  margin-top: 1.125rem;
+}
+.carte[data-carte] .carte-table {
+  width: 100%;
+  border: 1px solid var(--color-line);
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 0.5rem;
+  background: var(--color-surface);
+  font-size: 0.875rem;
+  line-height: 1.35;
+  color: var(--texte-courant);
+}
+/* La légende dit de quand et de quoi sont les chiffres : la ligne de service de la fenêtre, au-dessus du cadre. */
+.carte[data-carte] .carte-table caption {
+  caption-side: top;
+  padding: 0 0.5rem 0.625rem;
+  font-size: 0.8125rem;
+  font-style: italic;
+  line-height: 1.45;
+  text-align: left;
+  color: var(--color-muted);
+}
+.carte[data-carte] .carte-table thead th {
+  padding: 0.5rem 0.375rem;
+  border-bottom: 1px solid var(--color-line);
+  background: var(--color-surface-2);
+  font-size: 0.8125rem;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.carte[data-carte] .carte-table tbody td {
+  padding: 0.5rem 0.375rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-line) 55%, transparent);
+  vertical-align: baseline;
+}
+.carte[data-carte] .carte-table tbody tr:last-child > td {
+  border-bottom: 0;
+}
+.carte[data-carte] .carte-table :is(th, td):first-child {
+  padding-left: 0.75rem;
+}
+.carte[data-carte] .carte-table :is(th, td):last-child {
+  padding-right: 0.75rem;
+}
+.carte[data-carte] .carte-table .num {
+  white-space: nowrap;
+}
+.carte[data-carte] .carte-table td.font-semibold {
+  color: #fff;
+}
+/* La ligne de GAL, comme dans le classement du site : un fond bleu, le trait rouge à gauche. */
+.carte[data-carte] .carte-table tr.est-gal > td {
+  background: color-mix(in srgb, var(--color-blue) 26%, var(--color-surface));
+  font-weight: 600;
+  color: #fff;
+}
+.carte[data-carte] .carte-table tr.est-gal > td:first-child {
+  box-shadow: inset 3px 0 0 var(--color-red);
+}
+/* Le clan ou le jour montré sur la carte : sa ligne s'éclaire. */
+.carte[data-carte] .carte-table tr:has(> td > [aria-current="true"]) > td {
+  background: var(--color-surface-2);
+}
+.carte[data-carte] .carte-table tr:has(> td > [aria-current="true"]) > td:first-child {
+  box-shadow: inset 3px 0 0 #fff;
+}
+/* Un clan ou un jour qui se clique : blanc, souligné d'un filet qui s'éclaire au survol. */
+.carte[data-carte] .film-front-link {
+  font-weight: 600;
+  white-space: nowrap;
+  color: #fff;
+  text-decoration: underline;
+  text-decoration-color: var(--color-line-strong);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+.carte[data-carte] .film-front-link:hover {
+  text-decoration-color: #fff;
+}
+/* Le tag d'un clan : en onciale, comme dans le classement du film. */
+.carte[data-carte] [data-testid="map-clans"] tbody td:nth-child(2),
+.carte[data-carte] [data-testid="map-clans"] tbody td:nth-child(2) .film-front-link,
+.carte[data-carte] [data-testid="film-fronts"] tbody td:first-child,
+.carte[data-carte] [data-testid="film-fronts"] tbody td:first-child .film-front-link {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: #fff;
+}
+.carte[data-carte] [data-testid="map-clans"] tbody td:first-child {
+  width: 3.25rem;
+  color: var(--color-muted);
+}
+.carte[data-carte] [data-testid="map-clans"] tr.est-gal > td:first-child {
+  color: #fff;
+}
+/* La couleur du clan sur la carte : un trait devant son tag, comme dans le duel de l'objectif. */
+.carte[data-carte] .carte-table .carte-pastille {
+  width: 0.25rem;
+  height: 0.875em;
+  margin-right: 0.5rem;
+  border: 0;
+  vertical-align: -0.0625em;
+}
+/* Cinq colonnes de chiffres dans la colonne : le tableau des fronts serre ses cellules. */
+.carte[data-carte] [data-testid="film-fronts"] :is(th, td):not(:first-child, :last-child) {
+  padding-inline: 0.25rem;
+}
+.carte[data-carte] [data-testid="film-fronts"] :is(th, td):first-child {
+  padding-right: 0.25rem;
+}
+.carte[data-carte] [data-testid="film-fronts"] :is(th, td):last-child {
+  padding-left: 0.25rem;
+}
+/* La journée en cours : jusqu'à quelle heure elle est relevée, sous sa date. */
+.carte[data-carte] .carte-table .carte-petit {
+  font-size: 0.8125rem;
+  font-style: italic;
+  line-height: 1.3;
+}
+/* Dans la colonne d'un écran large, le tableau des journées ne garde que le solde, le territoire et la place : « Pris » et
+   « Perdus » reviennent quand la fenêtre a toute la largeur d'une tablette. Sur téléphone, ils sont déjà cachés. */
+@container (max-width: 29.99rem) {
+  .carte[data-carte] .carte-table .carte-col-large {
+    display: none;
+  }
+}
+/* Une colonne étroite (un écran de 1 024 à 1 360 px, un petit téléphone) : les cellules se resserrent pour que cinq colonnes tiennent. */
+@container (max-width: 22.99rem) {
+  .carte[data-carte] .carte-table thead th,
+  .carte[data-carte] .carte-table tbody td {
+    padding-inline: 0.25rem;
+  }
+  .carte[data-carte] .carte-table thead th {
+    letter-spacing: 0;
+  }
+  .carte[data-carte] .carte-table :is(th, td):first-child {
+    padding-left: 0.5rem;
+  }
+  .carte[data-carte] .carte-table :is(th, td):last-child {
+    padding-right: 0.5rem;
+  }
+  .carte[data-carte] [data-testid="film-fronts"] {
+    font-size: 0.8125rem;
+  }
+}
+@container (max-width: 20.99rem) {
+  .carte[data-carte] [data-testid="film-fronts"] :is(th, td):not(:first-child, :last-child) {
+    padding-inline: 0.125rem;
+  }
+  .carte[data-carte] [data-testid="film-fronts"] :is(th, td):first-child {
+    padding-right: 0.125rem;
+    padding-left: 0.375rem;
+  }
+  .carte[data-carte] [data-testid="film-fronts"] :is(th, td):last-child {
+    padding-right: 0.375rem;
+    padding-left: 0.125rem;
+  }
+  .carte[data-carte] [data-testid="film-fronts"] thead th {
+    letter-spacing: -0.02em;
+  }
+}
+
+/* --- Les listes (grands moments, zones) : de la même famille que les tableaux, une ligne par bouton --- */
+.carte[data-carte] .carte-liste {
+  display: block;
+  margin-top: 0.875rem;
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: 0.5rem;
+  background: var(--color-surface);
+}
+.carte[data-carte] .carte-liste > li + li {
+  border-top: 1px solid color-mix(in srgb, var(--color-line) 55%, transparent);
+}
+.carte[data-carte] .carte-liste .film-tile {
+  display: grid;
+  grid-template-columns: 3.75rem 3px minmax(0, 1fr);
+  align-items: baseline;
+  column-gap: 0.625rem;
+  width: 100%;
+  height: auto;
+  min-height: 2.75rem;
+  padding: 0.625rem 0.75rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 0.9375rem;
+  line-height: 1.3;
+  text-align: left;
+  color: var(--texte-courant);
+}
+.carte[data-carte] .carte-liste .film-tile:hover {
+  background: rgb(255 255 255 / 0.06);
+}
+/* Le contour du focus reste dans la ligne : le cadre de la liste ne le coupe pas. */
+.carte[data-carte] .carte-liste .film-tile:focus-visible {
+  outline-offset: -3px;
+}
+.carte[data-carte] .carte-liste .film-tile > .font-semibold {
+  color: #fff;
+}
+.carte[data-carte] .carte-liste .carte-date {
+  min-width: 0;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+  color: var(--color-muted);
+}
+/* Le repère du moment, celui de la frise du film : blanc, rouge pour un recul. */
+.carte-repere {
+  align-self: center;
+  width: 3px;
+  height: 0.75rem;
+  border-radius: 1px;
+  background: #fff;
+}
+.film-tile[data-recul] > .carte-repere {
+  background: var(--color-red);
+}
+/* Le moment ou la zone montrés sur la carte : la ligne s'éclaire, un trait blanc à gauche. */
+.carte[data-carte] .carte-liste .film-tile[aria-current="true"] {
+  background: var(--color-surface-2);
+  box-shadow: inset 3px 0 0 #fff;
+  color: #fff;
+}
+.carte[data-carte] .carte-liste .film-tile[aria-current="true"] > .carte-date {
+  color: var(--texte-courant);
+}
+/* Les zones : le numéro à gauche, les pixels à droite, comme une ligne de tableau. */
+.carte[data-carte] .carte-liste-zones .film-tile {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.carte[data-carte] .carte-liste-zones .carte-date {
+  font-size: 0.9375rem;
+  color: var(--texte-courant);
+}
+
+/* --- Les réglages du film : une ligne par réglage, dans le cadre des listes --- */
+.carte[data-carte] .carte-reglages-corps {
+  display: block;
+  margin-top: 0.875rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.5rem;
+  background: var(--color-surface);
+}
+.carte-reglage {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3.5rem;
+  padding: 0.5rem 0.75rem;
+}
+.carte-reglage + .carte-reglage {
+  border-top: 1px solid color-mix(in srgb, var(--color-line) 55%, transparent);
+}
+.carte[data-carte] .film-speed > label {
+  font-family: var(--carte-mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.carte[data-carte] .film-speed > input {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+}
+.carte[data-carte] .film-speed > output {
+  min-width: 3rem;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  text-align: right;
+  color: #fff;
+}
+
+/* Le rang écrit à côté des pixels du duel de l'objectif : rien sous 13 px. */
+.carte[data-carte] .carte-camp-px small {
+  font-size: 0.8125rem;
+}
+
+/* --- La fenêtre « Alliance » : les mêmes codes, sans rien changer à ce qu'elle fait --- */
+.carte[data-carte] .alliance-fenetre h2 {
+  font-size: 1.25rem;
+}
+/* Les libellés courts : en chasse fixe et capitales, comme ceux des chiffres clés. */
+.carte[data-carte] .alliance-moi-libelle,
+.carte[data-carte] .alliance-mode > span,
+.carte[data-carte] .alliance-kpis dt {
+  font-family: var(--carte-mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+/* Les choix (couleurs de la carte, outils et tailles du dessin) : des puces du site, blanches une fois choisies. */
+.carte[data-carte] .alliance-mode > button {
+  min-height: 2.5rem;
+  padding: 0.25rem 1rem;
+  border-color: var(--color-line);
+  border-radius: 0.375rem;
+  font-weight: 600;
+}
+.carte[data-carte] .alliance-mode > button:hover {
+  border-color: #fff;
+}
+.carte[data-carte] .alliance-mode > button[aria-pressed="true"],
+.carte[data-carte] :is(.alliance-bouton-outil, .alliance-bouton-taille):has(> input:checked) {
+  border-color: #fff;
+  background: #fff;
+  color: var(--color-navy);
+}
+.carte[data-carte] :is(.alliance-bouton-outil, .alliance-bouton-taille) {
+  border-color: var(--color-line);
+  border-radius: 0.375rem;
+}
+/* Les blocs : la surface et les coins des tableaux du site. */
+.carte[data-carte] .alliance-panneau,
+.carte[data-carte] .alliance-fenetre [role="tabpanel"] .carte-bloc,
+.carte[data-carte] .alliance-zone,
+.carte[data-carte] .alliance-declarer,
+.carte[data-carte] .alliance-compte {
+  border-radius: 0.5rem;
+}
+.carte[data-carte] .alliance-panneau,
+.carte[data-carte] .alliance-fenetre [role="tabpanel"] .carte-bloc,
+.carte[data-carte] .alliance-zone {
+  background: var(--color-surface-2);
+}
+/* Les chiffres de l'alliance : des chiffres clés, le filet à gauche. */
+.carte[data-carte] .alliance-kpis > div {
+  padding-left: 0.75rem;
+  border-left: 1px solid var(--hairline);
+}
+.carte[data-carte] .alliance-kpis > div:first-child {
+  border-left: 3px solid var(--color-red);
+}
+/* Le tableau de ses clans : l'en-tête en petites capitales, les lignes séparées par un filet pâle. */
+.carte[data-carte] .alliance-table thead th {
+  font-size: 0.8125rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.carte[data-carte] .alliance-table tbody th {
+  font-family: var(--font-display);
+}
+.carte[data-carte] .alliance-table :is(th, td) {
+  padding-block: 0.5rem;
+  border-bottom-color: color-mix(in srgb, var(--color-line-strong) 45%, transparent);
+}
+/* Rien sous 13 px. */
+.carte[data-carte] .alliance-table-detail,
+.carte[data-carte] .alliance-zone-clan,
+.carte[data-carte] .alliance-zone-prise,
+.carte[data-carte] .alliance-autres-detail,
+.carte[data-carte] .alliance-autres-chiffre > span {
+  font-size: 0.8125rem;
+}
