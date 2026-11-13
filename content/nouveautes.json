@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-13",
+    "kind": "ameliore",
+    "title": "La carte change d'allure",
+    "body": "Plus de style console : la carte à gauche, l'objectif en duel et le classement à droite, les entrées posées sur la carte, le film dans une pastille en bas, aux couleurs des autres pages.",
+    "link": {
+      "href": "/carte",
+      "label": "Ouvrir la carte"
+    }
+  },
+  {
+    "date": "2026-11-13",
     "kind": "nouveau",
     "title": "Le village : votre Gaulois en pixels",
     "body": "Chaque membre connecté habille son Gaulois : cheveux, barbe, coiffe, haut, bas, bottes et arme. Les premiers objets sont gratuits, les autres attendent la boutique. Sur Discord, /gaulois le montre.",

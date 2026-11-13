@@ -805,6 +805,8 @@ function mount(
     pos.setAttribute("aria-valuetext", `${when === null ? "Événement" : `${when}, événement`} ${fmt.format(events)} sur ${fmt.format(totalEvents)}`);
 
     const top = frame?.top ?? [];
+    // La hauteur du classement suit le nombre de clans de l'image : dix au plus, moins au tout début du film.
+    rowsBox.style.setProperty("--lignes", String(Math.max(1, top.length)));
     const lead = top[0]?.[1] ?? 1;
     const shown = new Set<number>();
     top.forEach(([clan, pixels], position) => {
@@ -1323,6 +1325,8 @@ function mount(
   for (const moment of moments) {
     const tick = document.createElement("i");
     tick.className = "film-tick";
+    // Les reculs se voient sur la frise : la feuille de style les met en rouge.
+    if (moment.kind === "fall" || moment.kind === "loss") tick.classList.add("film-tick-recul");
     tick.style.left = `${(moment.frame / F) * 100}%`;
     ticks.append(tick);
   }

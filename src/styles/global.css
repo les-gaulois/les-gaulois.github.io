@@ -6197,64 +6197,6 @@ footer h2 {
   }
 }
 
-/* Dès que la place le permet (`LARGEUR_REGLAGES_POSES`) : les réglages du film se posent à côté de la frise, sans fenêtre,
-   et la rangée du bas écrit le nom à côté de l'icône. */
-@media (min-aspect-ratio: 5/4) and (min-width: 75rem) {
-  :root.carte-console .carte-transport {
-    grid-area: 2 / 1 / 3 / 2;
-    padding-right: 0.25rem;
-  }
-  :root.carte-console .carte .carte-reglages:not([hidden]) {
-    position: static;
-    z-index: auto;
-    grid-area: 2 / 2 / 3 / 3;
-    display: flex;
-    align-items: center;
-    align-self: stretch;
-    justify-self: stretch;
-    width: auto;
-    max-height: none;
-    margin: 0;
-    padding: 0.5rem 0.75rem 0.375rem 0.5rem;
-    overflow: visible;
-    border: 0;
-    border-top: 3px double var(--color-line-strong);
-    border-radius: 0;
-    background: var(--color-night);
-  }
-  :root.carte-console .carte-reglages > .carte-fenetre-barre,
-  :root.carte-console .carte-reglages h2,
-  :root.carte-console .carte-reglages .carte-fenetre-corps::before {
-    display: none;
-  }
-  :root.carte-console .carte-reglages .carte-fenetre-corps {
-    padding: 0;
-  }
-  :root.carte-console .carte-reglages-corps {
-    flex-wrap: nowrap;
-    margin: 0;
-  }
-  :root.carte-console .carte-dock-etroit {
-    display: none;
-  }
-  /* La rangée commence par son dossier, en vert comme une commande, comme la liste des parties du QG (« ~/qg »). */
-  :root.carte-console .carte-dock > ul::before {
-    content: "~/carte" / "";
-    flex: none;
-    align-self: center;
-    padding: 0 0.75rem 0 0.5rem;
-    font-size: 0.9375rem;
-    font-weight: 700;
-    color: var(--console-vert);
-  }
-  :root.carte-console .carte-dock-entree {
-    flex-direction: row;
-    gap: 0.5rem;
-    min-height: 2.75rem;
-    font-size: 0.9375rem;
-  }
-}
-
 /* ---------- Plus calme : le second lot des remarques du 12 novembre 2026 ---------- */
 /* Remarques transmises par le pilote : « enlever la surbrillance sur TOUT », « réagencer les hauts de pages », « enlever le
    bg dans les tableaux et en mettre un qui contraste », « les dégradés plus discrets avec 3/5 % de changement et pas 30 % »,
@@ -8039,4 +7981,906 @@ footer h2 {
   flex-wrap: wrap;
   gap: 1rem;
   padding-top: 0.5rem;
+}
+
+/* ---------- La carte, le classement en colonne (13 novembre 2026, au soir) ---------- */
+/* Le pilote n'aimait plus « le design hacker sur la carte ». Parmi quinze maquettes, il a choisi « le classement en
+   colonne » avec, pour le bas, « le film flottant » : la carte à gauche, une colonne à droite où se lit la fenêtre ouverte
+   (le duel de l'objectif d'abord) au-dessus du classement du film ; les entrées en rail sur la carte, sous le titre ; le
+   film dans une pastille posée en bas de la carte. Sur téléphone, tout s'empile : la carte, la pastille, la fenêtre
+   ouverte et le classement, puis la rangée des entrées. Puis, le même soir : « la carte est trop différente d'Actu,
+   Résultats, Membres, Guides, Rejoindre, essaie de mieux fondre avec les codes couleur » : la page prend les codes des
+   autres pages, sans toucher à elles. Le bleu de la page et sa trame de croix ; la ligne tricolore et l'invite au-dessus
+   du titre en onciale de cases, sa lettrine rouge ; les entrées comme les onglets des rubriques (chasse fixe, surface 2,
+   filet rouge sous l'onglet ouvert) ; les chiffres comme les chiffres clés (filet à gauche, libellé en chasse fixe et
+   capitales) ; le classement comme les tableaux (surface, en-tête, ligne de GAL en bleu au trait rouge) ; le bouton
+   principal bleu. Ce qui suit l'emporte sur « La carte en console », plus haut, dont la mise en page de base (une seule
+   fenêtre ouverte, la carte qui se manie, la fenêtre libre de l'alliance) reste. Voir docs/DESIGN.md, « La carte, le
+   classement en colonne ». */
+
+.carte[data-carte] {
+  /* La chasse fixe du site, gardée sous un autre nom : les fenêtres redéfinissent --font-console pour leur texte. */
+  --carte-mono: var(--font-console);
+  --carte-vitre: color-mix(in srgb, var(--color-navy) 90%, transparent);
+  --carte-cadre: color-mix(in srgb, var(--color-surface) 94%, transparent);
+  --console-vert: var(--color-muted);
+  --console-lueur: transparent;
+  /* La largeur de la colonne de droite. */
+  --colonne: clamp(20rem, 27vw, 25rem);
+  /* Le classement : dix lignes, cinq sur un écran bas. */
+  --rangs: 10;
+  background: transparent;
+}
+/* Ce qui se lit dans les fenêtres est en Inter, comme les autres pages ; la chasse fixe reste aux onglets, aux libellés
+   des chiffres et à l'invite. */
+.carte[data-carte] :is(.carte-fenetre, .carte-podium, .carte-credit, .film-caption, .carte-alerte) {
+  --font-console: var(--font-sans);
+  font-family: var(--font-sans);
+}
+
+/* --- Ce qui ne sert plus : les lignes d'écran, les viseurs, la mire, la bande de lumière et les commandes --- */
+.carte .film-map::after,
+.carte .film-map::before,
+.carte .carte-balayage,
+.carte .carte-mire {
+  display: none;
+}
+.carte .carte-fenetre-corps[data-commande]::before,
+.carte .carte-fenetre h2::before,
+.carte .carte-fenetre h3::before,
+.carte .film-caption::before,
+.carte .carte-fenetre-barre > span::before {
+  content: none;
+}
+.carte .carte-fermer::before {
+  content: "×" / "";
+  font-size: 1.375rem;
+  font-weight: 400;
+  line-height: 1;
+}
+.carte .carte-chiffre,
+.carte .carte-session h1 {
+  text-shadow: none;
+}
+.carte .film-map > canvas {
+  cursor: grab;
+}
+
+/* --- Le titre : la ligne tricolore et l'invite, puis le titre en onciale de cases avec sa lettrine rouge, puis la date --- */
+.carte .carte-session {
+  border-bottom: 1px solid var(--color-line);
+  background: var(--carte-vitre);
+}
+.carte .carte-session .page-tete-ligne {
+  margin-bottom: 0.5rem;
+}
+.carte .carte-session .invite {
+  margin: 0;
+}
+.carte .carte-session h1 {
+  font-size: 1.5rem;
+  line-height: 1.15;
+  color: #fff;
+  white-space: nowrap;
+}
+.carte .carte-session [data-testid="data-status"] {
+  margin-top: 0.375rem;
+  font-size: 0.8125rem;
+}
+
+/* --- Les touches de la carte : comme les onglets du site --- */
+.carte .carte-touche {
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.25rem;
+  background: var(--color-surface-2);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #fff;
+}
+.carte .carte-touche:hover {
+  border-color: #fff;
+  background: var(--color-surface-2);
+}
+.carte .carte-touche-large {
+  padding-inline: 0.75rem;
+  font-size: 0.875rem;
+}
+.carte .carte-touche .icone-partie {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* --- Le crédit de la carte, la légende des grands moments, l'alerte --- */
+.carte .carte-credit > span {
+  background: var(--carte-vitre);
+}
+.carte .carte-credit a {
+  color: var(--texte-courant);
+}
+.carte .film-caption {
+  padding: 0.5rem 0.875rem;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.5rem;
+  background: var(--carte-vitre);
+  font-size: clamp(0.875rem, 0.7rem + 0.6vw, 1.0625rem);
+  text-transform: none;
+}
+.carte .film-tip {
+  font-family: var(--font-sans);
+}
+.carte .carte-alerte {
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.5rem;
+  background: var(--carte-vitre);
+}
+
+/* --- La pastille du film : le bouton principal bleu du site, la frise et la courbe de GAL, la date, les réglages --- */
+.carte .carte-transport {
+  gap: 0.875rem;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.625rem;
+  background: var(--carte-vitre);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+.carte .carte-transport .film-play {
+  flex: none;
+}
+/* Les onze grands moments : des repères sur la frise, les reculs en rouge. */
+.carte .carte-transport .film-tick-recul {
+  background: var(--color-red);
+}
+/* La date de l'image affichée, au bout de la frise, comme un libellé du site. Le numéro de l'événement reste dit par le
+   curseur de la frise. */
+.carte .carte-transport .film-hud {
+  position: static;
+  flex: none;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  gap: 0;
+  max-width: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: var(--carte-mono);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+.carte .carte-transport .film-hud-date {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+}
+.carte .carte-transport .film-hud-evenement {
+  display: none;
+}
+.carte .carte-transport .film-hud-coords {
+  white-space: nowrap;
+}
+/* Le bouton des réglages, comme un onglet du site. */
+.carte-transport-reglages {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.25rem;
+  background: var(--color-surface-2);
+  color: var(--color-muted);
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+}
+.carte-transport-reglages .icone-partie {
+  width: 1.375rem;
+  height: 1.375rem;
+  color: inherit;
+}
+.carte-transport-reglages:hover,
+.carte-transport-reglages[aria-current="true"] {
+  border-color: #fff;
+  color: #fff;
+}
+.carte-transport-reglages[aria-current="true"] {
+  box-shadow: inset 0 -2px 0 var(--color-red);
+}
+
+/* --- Les entrées : comme les onglets des rubriques du site, en rail sur la carte ou en rangée sous la colonne --- */
+.carte .carte-dock {
+  border-top: 1px solid var(--color-line);
+  background: var(--carte-vitre);
+}
+.carte .carte-dock-entree {
+  border: 1px solid var(--color-line);
+  border-radius: 0.25rem;
+  background: var(--color-surface);
+  font-family: var(--carte-mono);
+  font-weight: 500;
+  color: var(--color-muted);
+}
+.carte .carte-dock-entree .icone-partie {
+  color: inherit;
+}
+.carte .carte-dock-entree:hover {
+  border-color: var(--color-line-strong);
+  background: var(--color-surface);
+  color: #fff;
+}
+.carte .carte-dock-entree[aria-current="true"] {
+  border-color: var(--color-line-strong);
+  background: var(--color-surface-2);
+  box-shadow: inset 0 -2px 0 var(--color-red);
+  color: #fff;
+}
+.carte .carte-dock-entree[aria-current="true"] .icone-partie {
+  color: #fff;
+}
+
+/* --- Les fenêtres : posées sur le bleu de la page, sans cadre, comme les parties d'une page ; le titre en onciale --- */
+.carte .carte-fenetre {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.carte .carte-fenetre-corps {
+  padding: 1.125rem 1.5rem 1.25rem;
+}
+.carte .carte-fenetre h2 {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.25;
+  text-transform: none;
+  color: #fff;
+}
+.carte .carte-fenetre h3 {
+  font-family: var(--font-display);
+  text-transform: none;
+}
+.carte .carte-chiffre {
+  font-family: var(--font-cases);
+  letter-spacing: 0;
+  color: #fff;
+}
+/* De quand sont les chiffres : comme les dates et les relevés du site (.info-discrete), en petit italique gris. */
+.carte .carte-sur {
+  margin-top: 0.25rem;
+  font-size: 0.8125rem;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--color-muted);
+}
+/* Une fenêtre libre (la carte de l'alliance) garde sa barre, qu'on tire : une carte du site. */
+.carte .carte-fenetre[data-libre] {
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.5rem;
+  background: var(--color-surface);
+  box-shadow: 0 1.25rem 2.5rem rgb(0 0 0 / 0.45);
+}
+.carte .carte-fenetre[data-libre] > .carte-fenetre-barre {
+  border-radius: 0.5rem 0.5rem 0 0;
+  background: var(--color-surface-2);
+  font-family: var(--carte-mono);
+  text-transform: capitalize;
+  color: #fff;
+}
+
+/* --- L'objectif : le duel, puis l'écart en chiffre clé, puis trois repères comme une rangée de chiffres clés --- */
+.carte .carte-fenetre[data-fenetre="objectif"] h2 {
+  font-size: 1.125rem;
+}
+.carte .carte-panneaux {
+  container-type: inline-size;
+}
+.carte-duel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+.carte-camp {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  min-width: 0;
+}
+.carte-camp-face {
+  justify-items: end;
+  text-align: right;
+}
+.carte-camp-tag {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-family: var(--font-cases);
+  font-size: clamp(1.25rem, 8cqi, 2.25rem);
+  line-height: 1;
+  color: #fff;
+  white-space: nowrap;
+}
+.carte-camp-tag > i {
+  flex: none;
+  width: 0.25rem;
+  height: 0.8em;
+}
+.carte-camp-px {
+  font-size: clamp(1rem, 5.2cqi, 1.25rem);
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+}
+.carte-camp-px small {
+  font-family: var(--carte-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+.carte-contre {
+  font-family: var(--carte-mono);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-red);
+}
+/* La corde : GAL dans sa couleur de la carte, le clan à dépasser dans la sienne, au bout. */
+.carte-corde {
+  position: relative;
+  height: 0.5rem;
+  margin-top: 0.75rem;
+  overflow: hidden;
+  border-radius: 0.25rem;
+  background: var(--face);
+}
+.carte-corde > i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--v);
+  background: var(--gal);
+  border-right: 3px solid var(--color-navy);
+}
+/* L'écart, comme le premier chiffre clé d'une page : filet rouge à gauche. */
+.carte-manque {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.875rem;
+  margin-top: 1rem;
+  padding-left: 1rem;
+  border-left: 3px solid var(--color-red);
+}
+.carte .carte-manque .carte-chiffre {
+  margin: 0;
+  font-size: clamp(2.5rem, 1.6rem + 2vw, 3.5rem);
+  line-height: 0.9;
+  white-space: nowrap;
+}
+.carte .carte-manque .carte-suite {
+  margin: 0;
+  padding-bottom: 0.125rem;
+  font-size: 0.9375rem;
+  line-height: 1.3;
+  color: var(--color-muted);
+}
+.carte-trois {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.875rem;
+  margin: 1.125rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.carte-trois > li {
+  position: relative;
+  padding-left: 0.75rem;
+  border-left: 1px solid var(--hairline);
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  color: var(--color-muted);
+}
+/* Le repère clair en haut du filet, comme les chiffres clés du site. */
+.carte-trois > li::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -1px;
+  width: 1px;
+  height: 1.125rem;
+  background: #fff;
+}
+.carte-trois > li > b {
+  display: block;
+  margin-bottom: 0.125rem;
+  font-size: 1.1875rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+/* --- Le classement du film : comme les tableaux du site, la ligne de GAL comme dans le classement --- */
+.carte .carte-podium {
+  background: transparent;
+}
+.carte .carte-podium .carte-fenetre-corps {
+  padding: 1.125rem 1rem 0;
+}
+.carte[data-carte] .carte-podium h2 {
+  padding: 0 0.5rem 0.625rem;
+  font-size: clamp(1rem, 5.4cqi, 1.25rem);
+  white-space: nowrap;
+}
+.carte[data-carte] .carte-podium .film-rows {
+  --rang-h: clamp(1.875rem, calc((100vh - 33rem) / var(--rangs)), 2.75rem);
+  /* Les lignes, plus le cadre d'un pixel en haut et en bas. */
+  height: calc(min(var(--rangs), var(--lignes, var(--rangs))) * var(--rang-h) + 2px);
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: 0.5rem;
+  background: var(--color-surface);
+}
+.carte[data-carte] .carte-podium .film-row {
+  height: var(--rang-h);
+  grid-template-columns: 1.75rem 4.25rem minmax(0, 1fr) 5.25rem;
+  column-gap: 0.625rem;
+  padding: 0 0.75rem 0 0.5rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-line) 55%, transparent);
+  font-size: 0.9375rem;
+  font-weight: 400;
+  color: var(--texte-courant);
+}
+.carte .carte-podium .film-row-rank {
+  text-align: right;
+  color: var(--color-muted);
+}
+.carte .carte-podium .film-row > :nth-child(2) {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: #fff;
+}
+.carte .carte-podium .film-row > :nth-child(3) {
+  grid-column: 4;
+  grid-row: 1;
+  text-align: right;
+}
+.carte .carte-podium .film-bar {
+  grid-column: 3;
+  grid-row: 1;
+  height: 0.375rem;
+  border-radius: 0.1875rem;
+  background: rgb(255 255 255 / 0.08);
+}
+.carte .carte-podium .film-row.is-gal {
+  z-index: 1;
+  background: color-mix(in srgb, var(--color-blue) 26%, var(--color-surface));
+  box-shadow: inset 3px 0 0 var(--color-red);
+  font-weight: 600;
+}
+.carte .carte-podium .film-row.is-gal .film-row-rank {
+  color: #fff;
+}
+:root.carte-console .carte .carte-podium .carte-podium-gal,
+.carte .carte-podium .carte-podium-gal {
+  margin: 0;
+  padding: 0.625rem 0.5rem 0;
+  border: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--texte-courant);
+}
+.carte .carte-podium .carte-podium-note,
+.carte .carte-podium .carte-podium-mesure {
+  margin: 0;
+  padding: 0 0.5rem;
+  font-size: 0.8125rem;
+  font-style: italic;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+.carte .carte-podium .carte-podium-note {
+  margin-top: 0.375rem;
+}
+.carte .carte-podium .carte-podium-mesure {
+  padding-bottom: 1rem;
+}
+@media (max-height: 53.9375rem) {
+  .carte[data-carte] {
+    --rangs: 5;
+  }
+}
+
+/* --- Quand tout s'empile (téléphone, tablette debout) --- */
+:root.carte-console .carte .carte-session {
+  padding: 0.625rem 0.875rem;
+}
+:root.carte-console .carte .carte-session h1 {
+  font-size: 1.375rem;
+}
+:root.carte-console .carte .carte-transport {
+  margin: 0.5rem 0.5rem 0;
+  padding: 0.375rem 0.5rem 0.25rem 0.375rem;
+}
+:root.carte-console .carte .carte-panneaux {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+:root.carte-console .carte .carte-panneaux > [data-fenetre] {
+  order: 1;
+}
+:root.carte-console .carte .carte-panneaux > .carte-podium {
+  order: 2;
+  display: block;
+  margin: 0;
+  border-top: 1px solid var(--hairline);
+}
+:root.carte-console .carte .carte-panneaux > .carte-pied {
+  order: 3;
+  margin-inline: 1rem;
+}
+:root.carte-console .carte[data-ouverte="clans"] .carte-panneaux > .carte-podium,
+:root.carte-console .carte[data-ouverte="alliance"] .carte-panneaux > .carte-podium {
+  display: none;
+}
+:root.carte-console .carte[data-ouverte] .carte-panneaux {
+  display: flex;
+}
+/* Les fenêtres ordinaires n'ont pas de barre : une fenêtre est toujours ouverte, rien ne la ferme. */
+:root.carte-console .carte .carte-fenetre:not([data-libre]) > .carte-fenetre-barre {
+  display: none;
+}
+:root.carte-console .carte .carte-podium > .carte-fenetre-corps {
+  display: block;
+}
+/* La rangée sous la colonne : des onglets du site, cinq par ligne. */
+:root.carte-console .carte .carte-dock {
+  padding: 0.375rem 0.5rem calc(0.375rem + env(safe-area-inset-bottom, 0px));
+}
+/* Quand tout s'empile, la carte est petite : la phrase d'un clan touché y est plus serrée. */
+@media (max-aspect-ratio: 1249/1000), (max-width: 47.9375rem) {
+  .carte .film-caption {
+    padding: 0.25rem 0.625rem;
+    font-size: 0.8125rem;
+  }
+}
+/* Sur un petit téléphone, le bouton de lecture garde son nom pour les lecteurs d'écran, et la frise sa place ; les
+   réglages s'ouvrent depuis la rangée. */
+@media (max-width: 29.99rem) {
+  .carte .carte-transport .film-play > [data-film-play-label] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .carte .carte-transport .film-hud-coords {
+    display: none;
+  }
+  .carte .carte-transport .film-hud-date {
+    font-size: 0.8125rem;
+  }
+  .carte-transport-reglages {
+    display: none;
+  }
+}
+/* Un téléphone peu haut (un iPhone SE avec la barre de son navigateur) : le titre et la pastille se tassent, pour laisser
+   sa place à la fenêtre ouverte. */
+@media (max-height: 39.9375rem) and (max-aspect-ratio: 1249/1000), (max-height: 39.9375rem) and (max-width: 47.9375rem) {
+  .carte .carte-session .page-tete-ligne {
+    display: none;
+  }
+  :root.carte-console .carte .carte-session {
+    padding: 0.375rem 0.75rem;
+  }
+  :root.carte-console .carte .carte-session h1 {
+    font-size: 1.125rem;
+  }
+  :root.carte-console .carte .carte-session [data-testid="data-status"] {
+    margin-top: 0.125rem;
+    font-size: 0.75rem;
+  }
+  :root.carte-console .carte .carte-transport {
+    margin: 0.25rem 0.5rem 0;
+    padding-block: 0.125rem;
+  }
+  :root.carte-console .carte .carte-transport .film-scrub {
+    height: 3rem;
+  }
+}
+
+/* --- Un écran large : la carte à gauche, la colonne à droite --- */
+@media (min-aspect-ratio: 5/4) and (min-width: 48rem) {
+  :root.carte-console .carte[data-carte],
+  :root.carte-console .carte[data-carte][data-vue="alliance"] {
+    grid-template-columns: minmax(0, 1fr) var(--colonne);
+    grid-template-rows: minmax(0, 1fr);
+  }
+  :root.carte-console .carte[data-carte][data-ouverte] {
+    --fenetre-large: 0rem;
+  }
+  :root.carte-console .carte .carte-ecran {
+    grid-area: 1 / 1;
+  }
+  /* La carte de l'alliance prend toute la largeur, sa fenêtre libre posée dessus, comme avant la colonne. */
+  :root.carte-console .carte[data-ouverte="alliance"] .carte-ecran {
+    grid-area: 1 / 1 / 2 / -1;
+  }
+
+  /* Le titre, en haut à gauche : un cartouche au coin haut droit coupé, comme les scènes du site. */
+  :root.carte-console .carte .carte-session {
+    --coupe: 1.25rem;
+    top: 0.875rem;
+    left: 0.875rem;
+    max-width: calc(100% - 15rem);
+    padding: 0.875rem 1.25rem 0.875rem;
+    border: 1px solid var(--color-line);
+    border-radius: 0.5rem;
+    background: var(--carte-vitre);
+    clip-path: polygon(0 0, calc(100% - var(--coupe)) 0, 100% var(--coupe), 100% 100%, 0 100%);
+  }
+  :root.carte-console .carte .carte-session h1 {
+    font-size: clamp(1.625rem, 1rem + 1.1vw, 2.125rem);
+  }
+  :root.carte-console .carte .carte-session [data-testid="data-status"] {
+    margin-top: 0.5rem;
+  }
+
+  /* Les touches de la carte, en haut à droite, en ligne. */
+  :root.carte-console .carte .carte-outils:not(.alliance-outils) {
+    top: 0.875rem;
+    right: 0.875rem;
+    left: auto;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 0.375rem;
+    width: auto;
+  }
+  .carte .carte-touche {
+    min-width: 2.5rem;
+    min-height: 2.5rem;
+    font-size: 1.375rem;
+  }
+
+  /* Le rail des entrées, sous le titre : les onglets du site, l'un sous l'autre. */
+  :root.carte-console .carte .carte-dock {
+    z-index: 3;
+    grid-area: 1 / 1;
+    align-self: start;
+    justify-self: start;
+    margin: calc(var(--session-bas) + 0.875rem) 0 0 0.875rem;
+    padding: 0.375rem;
+    border: 1px solid var(--color-line);
+    border-radius: 0.5rem;
+    background: var(--carte-vitre);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
+  :root.carte-console .carte .carte-dock > ul {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  :root.carte-console .carte .carte-dock > ul > li {
+    flex: none;
+  }
+  :root.carte-console .carte .carte-dock-entree {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 0.625rem;
+    min-height: 2.5rem;
+    padding: 0.25rem 0.875rem 0.25rem 0.625rem;
+    font-size: 0.875rem;
+  }
+  :root.carte-console .carte .carte-dock-entree .icone-partie {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  /* La pastille du film, posée en bas de la carte, au-dessus du crédit. */
+  :root.carte-console .carte .carte-transport {
+    z-index: 3;
+    grid-area: 1 / 1;
+    align-self: end;
+    height: 4.5rem;
+    margin: 0 0.875rem 2.875rem;
+    padding: 0 0.625rem;
+  }
+  :root.carte-console .carte .carte-transport .film-scrub {
+    margin-inline: 0.25rem 0.5rem;
+  }
+
+  /* Le crédit, en bas à droite sur une ligne ; la légende des moments et l'alerte, au-dessus de la pastille. */
+  :root.carte-console .carte .carte-credit {
+    right: 0.875rem;
+    bottom: 0.625rem;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.375rem;
+    max-width: none;
+    font-size: 0.8125rem;
+  }
+  :root.carte-console .carte .film-caption,
+  :root.carte-console .carte .carte-alerte {
+    right: 0.875rem;
+    bottom: 8.25rem;
+    left: calc(0.875rem + 11rem);
+  }
+
+  /* La colonne : la fenêtre ouverte en haut, le classement dessous, sur le bleu de la page ; elle défile si la place manque. */
+  :root.carte-console .carte .carte-panneaux {
+    position: relative;
+    z-index: 2;
+    grid-area: 1 / 2;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    pointer-events: auto;
+    border-left: 1px solid var(--color-line);
+    background: var(--color-navy);
+  }
+  :root.carte-console .carte-panneaux > [data-fenetre]:not([data-libre]).est-ouverte {
+    position: static;
+    flex: none;
+    width: auto;
+    max-height: none;
+    overflow: visible;
+    border-bottom: 1px solid var(--hairline);
+    pointer-events: auto;
+  }
+  :root.carte-console .carte .carte-panneaux > .carte-podium {
+    position: static;
+    flex: none;
+    width: auto;
+    max-height: none;
+    margin: 0;
+    overflow: visible;
+    border-top: 0;
+    background: transparent;
+    pointer-events: auto;
+  }
+  :root.carte-console .carte .carte-panneaux > .carte-pied {
+    display: none;
+  }
+  /* La carte de l'alliance : le calque des fenêtres couvre toute la carte, la fenêtre libre s'y déplace. */
+  :root.carte-console .carte[data-ouverte="alliance"] .carte-panneaux {
+    grid-area: 1 / 1 / 2 / -1;
+    display: block;
+    overflow: visible;
+    pointer-events: none;
+    border: 0;
+    background: none;
+  }
+}
+
+/* Un écran large mais bas (un portable de 650 à 760 px de haut) : le rail se tasse pour laisser la pastille libre, et
+   l'objectif se resserre pour laisser au classement de la place sous lui. */
+@media (min-aspect-ratio: 5/4) and (min-width: 48rem) and (max-height: 47.9375rem) {
+  :root.carte-console .carte .carte-dock-entree {
+    min-height: 2rem;
+    font-size: 0.8125rem;
+  }
+  :root.carte-console .carte .carte-dock-entree .icone-partie {
+    width: 1rem;
+    height: 1rem;
+  }
+  :root.carte-console .carte .carte-session {
+    padding-block: 0.625rem;
+  }
+  :root.carte-console .carte .carte-session .page-tete-ligne {
+    margin-bottom: 0.25rem;
+  }
+  :root.carte-console .carte .carte-dock {
+    margin-top: calc(var(--session-bas) + 0.625rem);
+  }
+  :root.carte-console .carte .carte-fenetre[data-fenetre="objectif"] > .carte-fenetre-corps {
+    padding: 0.75rem 1.25rem 0.875rem;
+  }
+  :root.carte-console .carte .carte-fenetre[data-fenetre="objectif"] h2 {
+    font-size: 0.9375rem;
+  }
+  :root.carte-console .carte .carte-duel {
+    margin-top: 0.5rem;
+  }
+  :root.carte-console .carte .carte-manque {
+    margin-top: 0.625rem;
+  }
+  :root.carte-console .carte .carte-manque .carte-chiffre {
+    font-size: 2.5rem;
+  }
+  :root.carte-console .carte .carte-trois {
+    margin-top: 0.75rem;
+  }
+  :root.carte-console .carte .carte-trois > li > b {
+    font-size: 1.0625rem;
+  }
+}
+@media (min-aspect-ratio: 5/4) and (min-width: 48rem) and (max-height: 39.9375rem) {
+  :root.carte-console .carte .carte-transport {
+    height: 4rem;
+    margin-bottom: 2.5rem;
+  }
+  :root.carte-console .carte .carte-dock-entree {
+    min-height: 1.75rem;
+  }
+  :root.carte-console .carte .carte-session .page-tete-ligne {
+    display: none;
+  }
+}
+/* Une tablette couchée (768 à 1 100 px) : la pastille ne garde que l'essentiel. */
+@media (min-aspect-ratio: 5/4) and (min-width: 48rem) and (max-width: 68.75rem) {
+  .carte .carte-transport .film-play > [data-film-play-label],
+  .carte .carte-transport .film-hud-coords {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+/* Une carte étroite (une colonne et moins de 560 px de carte) : le titre passe sur deux lignes plutôt que d'être coupé, et le
+   crédit sur deux lignes, chacune entière, au-dessus duquel la pastille du film remonte. */
+@media (min-aspect-ratio: 5/4) and (min-width: 48rem) and (max-width: 55rem) {
+  :root.carte-console .carte .carte-session {
+    max-width: calc(100% - 7.5rem);
+  }
+  :root.carte-console .carte .carte-session h1 {
+    font-size: 1.5rem;
+    white-space: normal;
+  }
+  :root.carte-console .carte .carte-credit {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.25rem;
+  }
+  :root.carte-console .carte .carte-transport {
+    margin-bottom: 4.5rem;
+  }
+}
+
+/* --- La carte de l'alliance dans cette page --- */
+/* Les boutons à mots des touches (« Vue d'ensemble », « Capture ») gardent la taille des onglets du site. */
+.carte .carte-outils .carte-touche-large {
+  min-height: 2.25rem;
+  font-size: 0.875rem;
+}
+@media (min-aspect-ratio: 5/4) and (min-width: 48rem) {
+  .carte .carte-outils .carte-touche-large {
+    min-height: 2.5rem;
+  }
+  /* La fenêtre libre de l'alliance couvre la droite de la carte : ce qui se pose sur la carte s'en écarte, comme avant. */
+  :root.carte-console .carte[data-carte][data-ouverte="alliance"] {
+    --fenetre-large: 30.5rem;
+  }
+  /* Ses outils et sa légende se rangent à droite du rail des entrées (`--rail-droite`, mesuré par carte-console.ts), sous le
+     titre, au lieu de passer dessous. */
+  :root.carte-console .carte .film-map[data-vue="alliance"] .alliance-outils {
+    top: calc(var(--alliance-haut, 0px) + 0.875rem);
+    left: calc(var(--rail-droite, 10rem) + 0.75rem);
+    max-width: calc(100% - var(--rail-droite, 10rem) - 1.5rem - var(--fenetre-large, 0rem));
+  }
+  :root.carte-console .carte .film-map[data-vue="alliance"] .alliance-legende {
+    left: calc(var(--rail-droite, 10rem) + 0.75rem);
+    max-width: calc(100% - var(--rail-droite, 10rem) - 1.5rem - var(--fenetre-large, 0rem));
+  }
+  /* La fenêtre posée sur la moitié gauche : les outils et la légende passent à droite, comme avant. */
+  :root.carte-console .carte[data-fenetre-gauche] .film-map[data-vue="alliance"] .alliance-outils,
+  :root.carte-console .carte[data-fenetre-gauche] .film-map[data-vue="alliance"] .alliance-legende {
+    right: 0.75rem;
+    left: auto;
+    max-width: calc(100% - 1.5rem - var(--fenetre-gauche, 0px));
+  }
+  :root.carte-console .carte[data-fenetre-gauche] .film-map[data-vue="alliance"] .alliance-outils {
+    top: 0.75rem;
+  }
 }

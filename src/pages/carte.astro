@@ -15,6 +15,7 @@ import { NEUTRAL_PIXEL_TROOPS, RULES_CHECKED_ON, TROOPS_PER_CAP, capsToTroops, n
 import { SPEED_MAX, SPEED_MIN, SPEED_STEP, speedLabel, speedText } from "../lib/fx/speed";
 import { changeSinceLastDay, dayHighlights, dayRows, parisDayOf, territorySeries, type DayRow } from "../lib/clanmap/days";
 import { findMoments, nextThreshold } from "../lib/clanmap/moments";
+import { TOP_SIZE } from "../lib/clanmap/replay";
 import { indexDesClans } from "../lib/clanmap/vue";
 import { adresseVersionnee } from "../lib/clanmap/adresse";
 import { FICHIERS_DE_L_ETAT, versionDeLaCarte } from "../lib/clanmap/version";
@@ -86,11 +87,12 @@ const today = journal.at(-1);
 const previousDay = journal.at(-2);
 // Depuis la dernière journée terminée, comme le tableau jour après jour. Le journal ne sert qu'aux films sans dates.
 const sinceDay = gal ? changeSinceLastDay(days, gal.pixels) : null;
-const sinceLine =
+// Le chiffre en gros, puis ce qu'il compte (fenêtre « Objectif »).
+const sinceParts =
   sinceDay
-    ? `${signed(sinceDay.change)} pixels depuis la fin du ${fmtDay(sinceDay.date).replace(/\.$/, "")}.`
+    ? { chiffre: signed(sinceDay.change), suite: `pixels depuis la fin du ${fmtDay(sinceDay.date).replace(/\.$/, "")}` }
     : today && previousDay
-      ? `${signed(today.pixels - previousDay.pixels)} pixels depuis le ${fmtDay(previousDay.date).replace(/\.$/, "")}.`
+      ? { chiffre: signed(today.pixels - previousDay.pixels), suite: `pixels depuis le ${fmtDay(previousDay.date).replace(/\.$/, "")}` }
       : null;
 
 // Tous les clans de la carte, du plus grand territoire au plus petit, comme sur la carte officielle. L'index du clan dans
@@ -111,8 +113,10 @@ if (gal && gal.fronts.length > 0) presentes.add("fronts");
 const dock = FENETRES.filter((f) => presentes.has(f.id));
 ---
 
-{/* La carte en console (docs/DESIGN.md) : avec le film, la page prend le style Terminal du QG et de la Direction. */}
-<Base title="Carte" description="Le territoire du clan GAL sur la carte officielle des clans d'OpenFront, rejoué du premier pixel au dernier, et l'objectif du moment." ambiance={film ? "console" : undefined}>
+{/* La carte, le classement en colonne (docs/DESIGN.md) : la carte à gauche, la fenêtre ouverte et le classement dans la
+    colonne de droite, les entrées en rail sur la carte, le film dans une pastille posée en bas, dans les codes des autres
+    pages du site (bleu de la page, onglets, chiffres clés, tableaux). Plus de style Terminal. */}
+<Base title="Carte" description="Le territoire du clan GAL sur la carte officielle des clans d'OpenFront, rejoué du premier pixel au dernier, et l'objectif du moment.">
   {
     !film ? (
       <div class="wrap pt-12">
@@ -139,10 +143,11 @@ const dock = FENETRES.filter((f) => presentes.has(f.id));
         {/* L'écran : la carte, et ce qui se pose dessus. */}
         <div class="carte-ecran">
           <div class="carte-session">
-            {/* Décorative : le titre dit déjà où l'on est. */}
-            <p class="console-invite" aria-hidden="true">
-              <span class="console-hote">gal@carte</span>:~$<span class="console-commande">&nbsp;./carte</span><span class="console-curseur"></span>
-            </p>
+            {/* La ligne de toutes les pages du site, au-dessus du titre : le filet bleu, blanc, rouge et l'invite. */}
+            <div class="page-tete-ligne">
+              <span class="tribar" />
+              <Invite path="/carte" />
+            </div>
             <h1 id="map-page-title">La carte des clans</h1>
             <DataStatus state={meta.clanmap} maxAgeHours={MAX_AGE_HOURS.clanmap} />
           </div>
@@ -162,11 +167,6 @@ const dock = FENETRES.filter((f) => presentes.has(f.id));
             {/* Décoratifs : la bande de lumière qui passe une fois à l'ouverture, et la mire, deux traits qui suivent la souris. */}
             <span class="carte-balayage" aria-hidden="true"></span>
             <span class="carte-mire" data-film-mire hidden aria-hidden="true"><i></i><i></i></span>
-            <p class="film-hud tnum" data-film-ready hidden aria-hidden="true">
-              <strong class="film-hud-date" data-film-date data-testid="film-date" hidden></strong>
-              <span>Événement <span data-film-event></span></span>
-              <span class="film-hud-coords" data-film-coords hidden></span>
-            </p>
             <div class="carte-outils" data-film-ready hidden>
               <button type="button" class="carte-touche" data-film-zoom="1" aria-label="Zoomer sur la carte"><span aria-hidden="true">+</span></button>
               <button type="button" class="carte-touche" data-film-zoom="-1" aria-label="Dézoomer la carte"><span aria-hidden="true">−</span></button>
@@ -225,7 +225,8 @@ const dock = FENETRES.filter((f) => presentes.has(f.id));
           </div>
         </div>
 
-        {/* La lecture du film. */}
+        {/* La lecture du film : sur un écran large, une pastille posée en bas de la carte ; sous la carte sur téléphone. La
+            date de l'image affichée est au bout de la frise ; les réglages s'ouvrent dans leur fenêtre. */}
         <div class="carte-transport" data-film-ready hidden>
           <button type="button" class="btn btn-primary film-play" data-film-play data-testid="film-play">
             <svg viewBox="0 0 14 14" width="14" height="14" fill="currentColor" aria-hidden="true"><path data-film-play-icon d="M2 1l11 6-11 6z"></path></svg>
@@ -237,43 +238,24 @@ const dock = FENETRES.filter((f) => presentes.has(f.id));
             <input type="range" min="0" value="0" step="1" data-film-pos data-testid="film-pos" aria-label="Position dans le film" />
             <span class="film-dates tnum" data-film-dates data-testid="film-dates" aria-hidden="true"></span>
           </div>
+          {/* La date de l'image affichée, le numéro de l'événement et, au passage de la souris, la position sur la carte : le
+              curseur de la frise dit déjà tout cela aux lecteurs d'écran. */}
+          <p class="film-hud tnum" aria-hidden="true">
+            <strong class="film-hud-date" data-film-date data-testid="film-date" hidden></strong>
+            <span class="film-hud-evenement">Événement <span data-film-event></span></span>
+            <span class="film-hud-coords" data-film-coords hidden></span>
+          </p>
+          <a href="#reglages" class="carte-transport-reglages" data-ouvre="reglages" aria-label="Réglages du film">
+            <IconePartie nom="roue" />
+          </a>
         </div>
 
-        {/* Les réglages du film : posés à côté de la frise sur un grand écran, dans leur fenêtre ailleurs. */}
-        <Fenetre id="reglages" film class="carte-reglages">
-          <Fragment slot="titre">Réglages du film</Fragment>
-          <div class="carte-reglages-corps">
-            {lastDay && (
-              <button type="button" class="btn btn-ghost" {...dayReplay(lastDay)} data-testid="film-last-day" aria-label={`Revoir le ${fmtDay(lastDay.date)}, la dernière journée terminée`}>
-                Revoir le {fmtDay(lastDay.date)}
-              </button>
-            )}
-            <div class="film-speed">
-              <label for="film-speed">Vitesse</label>
-              <input
-                id="film-speed"
-                class="film-range"
-                type="range"
-                min={SPEED_MIN}
-                max={SPEED_MAX}
-                step={SPEED_STEP}
-                value={SPEED_MAX}
-                aria-valuetext={speedText(SPEED_MAX)}
-                data-film-speed
-                data-testid="film-speed"
-              />
-              {/* La valeur écrite pour les yeux ; le curseur la donne déjà aux lecteurs d'écran. */}
-              <output for="film-speed" class="tnum" aria-hidden="true" data-film-speed-value>{speedLabel(SPEED_MAX)}</output>
-            </div>
-            <button type="button" class="chip" data-film-focus aria-pressed="false">Griser les autres</button>
-          </div>
-        </Fenetre>
-
-        {/* La rangée du bas : une entrée par fenêtre. Des liens : sans script, ils mènent à la partie de la page. */}
+        {/* Le rail des entrées : une par fenêtre, sur la carte (sous la carte, en rangée, sur téléphone). Des liens : sans
+            script, ils mènent à la partie de la page. */}
         <nav class="carte-dock" aria-label="Fenêtres de la carte" data-testid="carte-dock">
           <ul>
             {dock.map((f) => (
-              <li class:list={["etroit" in f && f.etroit && "carte-dock-etroit"]} data-film-ready={"film" in f && f.film ? "" : undefined} hidden={"film" in f && f.film} data-console-seulement={f.id === "alliance" ? "" : undefined}>
+              <li data-film-ready={"film" in f && f.film ? "" : undefined} hidden={"film" in f && f.film} data-console-seulement={f.id === "alliance" ? "" : undefined}>
                 <a href={`#${f.id}`} class="carte-dock-entree" data-ouvre={f.id}>
                   <IconePartie nom={f.icon} />
                   <span>{f.label}</span>
@@ -283,17 +265,15 @@ const dock = FENETRES.filter((f) => presentes.has(f.id));
           </ul>
         </nav>
 
-        {/* Les fenêtres. Sur un grand écran, le podium reste posé sur la carte ; ailleurs, il est avec les clans. */}
+        {/* Les fenêtres : la colonne de droite sur un écran large, sous la carte sur téléphone. La fenêtre ouverte en haut, le
+            classement du film dessous (il suit chaque image du film), sauf avec les clans, qui le donnent en entier. */}
         <div class="carte-panneaux" data-carte-panneaux>
           <aside class="carte-fenetre carte-podium" aria-labelledby="ladder-title">
-            <div class="carte-fenetre-barre"><span aria-hidden="true">podium</span></div>
             <div class="carte-fenetre-corps">
               <h2 id="ladder-title">Le territoire à cet instant</h2>
-              <p class="carte-podium-note">Pixels peints sur la carte, pas le classement des clans.</p>
-              <p class="tnum carte-podium-mesure"><span data-film-land>{fmtDec1(landShare)}</span> % des terres · <span data-film-clans>{fmtInt(clansOnMap)}</span> clans</p>
               <ol class="film-rows tnum" data-film-rows>
                 {
-                  standings.slice(0, 5).map((c, i) => (
+                  standings.slice(0, TOP_SIZE).map((c, i) => (
                     <li class:list={["film-row", c.tag === clan.tag && "is-gal"]} style={{ "--rang": i }}>
                       <span class="film-row-rank">{i + 1}</span>
                       <span class="truncate font-semibold">{c.tag ?? "Clan supprimé"}</span>
@@ -304,42 +284,66 @@ const dock = FENETRES.filter((f) => presentes.has(f.id));
                 }
               </ol>
               <p class="tnum carte-podium-gal" data-film-pinned data-testid="film-gal">{galLine}</p>
+              <p class="carte-podium-note">Pixels peints sur la carte, pas le classement des clans.</p>
+              <p class="tnum carte-podium-mesure"><span data-film-land>{fmtDec1(landShare)}</span> % des terres · <span data-film-clans>{fmtInt(clansOnMap)}</span> clans</p>
             </div>
           </aside>
 
           {
             gal && (
               <Fenetre id="objectif" testid="map-goal">
-                {/* Le film peut montrer un autre jour à côté : cette fenêtre dit de quand sont ses chiffres. */}
-                {objective && <p slot="avant" class="carte-sur">{ordinal(objective.rank)} sur la carte, au dernier relevé</p>}
                 <Fragment slot="titre">
                   {objective ? (objective.above && objective.gap !== null ? <>Prochain objectif&nbsp;: dépasser {objective.above.tag ?? "le clan suivant"}</> : "GAL occupe le plus grand territoire") : "GAL sur la carte"}
                 </Fragment>
+                {/* Le film peut montrer un autre jour à côté : cette fenêtre dit de quand sont ses chiffres. */}
+                {objective && <p class="carte-sur">{ordinal(objective.rank)} sur la carte, au dernier relevé</p>}
                 {objective ? (
-                  <>
-                    {objective.above && objective.gap !== null ? (
-                      <>
+                  objective.above && objective.gap !== null ? (
+                    <>
+                      {/* Le duel : GAL face au clan à dépasser, chacun dans sa couleur de la carte, la corde entre les deux. */}
+                      <div class="carte-duel tnum">
+                        <p class="carte-camp">
+                          <span class="carte-camp-tag"><i style={{ background: rgb(objective.me.color) }}></i>{objective.me.tag}</span>
+                          <span class="carte-camp-px"><span data-testid="map-pixels">{fmtInt(objective.me.pixels)}</span> <small>{ordinal(objective.rank)}</small></span>
+                        </p>
+                        <span class="carte-contre">contre</span>
+                        <p class="carte-camp carte-camp-face">
+                          <span class="carte-camp-tag">{objective.above.tag ?? "Clan supprimé"}<i style={{ background: rgb(objective.above.color) }}></i></span>
+                          <span class="carte-camp-px"><small>{ordinal(objective.rank - 1)}</small> {fmtInt(objective.above.pixels)}</span>
+                        </p>
+                      </div>
+                      <div class="carte-corde" aria-hidden="true" style={{ "--gal": rgb(objective.me.color), "--face": rgb(objective.above.color), "--v": `${goalProgress}%` }}><i></i></div>
+                      <div class="carte-manque">
                         <p class="tnum carte-chiffre" data-testid="map-gap" data-count={objective.gap}>{fmtInt(objective.gap)}</p>
                         <p class="carte-suite">pixels à gagner pour passer {ordinal(objective.rank - 1)}.</p>
-                        <div class="meter meter-lg mt-4" aria-hidden="true"><i style={{ "--v": `${goalProgress}%` }}></i></div>
-                        <p class="tnum mt-2">GAL <span data-testid="map-pixels">{fmtInt(objective.me.pixels)}</span> · {objective.above.tag} {fmtInt(objective.above.pixels)}</p>
-                      </>
-                    ) : (
-                      <p class="tnum carte-suite"><span data-testid="map-pixels">{fmtInt(objective.me.pixels)}</span> pixels.</p>
-                    )}
-                    {objective.below && objective.lead !== null && (
-                      <p class="tnum mt-3 text-muted">{objective.below.tag ?? "Le clan suivant"} suit à {fmtInt(objective.lead)} pixels.</p>
-                    )}
-                  </>
+                      </div>
+                    </>
+                  ) : (
+                    <p class="tnum carte-suite"><span data-testid="map-pixels">{fmtInt(objective.me.pixels)}</span> pixels.</p>
+                  )
                 ) : (
                   <p class="tnum carte-suite"><span data-testid="map-pixels">{fmtInt(gal.pixels)}</span> pixels{gal.rank === null && " : plus aucun sur la carte"}.</p>
                 )}
-                {/* Territoire et place ne sont écrits qu'ici, et dans le podium : « Chiffres » ne les répète pas. */}
-                {sinceLine && <p class="tnum mt-3 font-semibold" data-testid="map-journal">{sinceLine}</p>}
-                {threshold && (
-                  <p class="tnum mt-3 font-semibold" data-testid="map-next-threshold">
-                    Prochain palier : {fmtInt(threshold.threshold)} pixels, encore {fmtInt(threshold.remaining)}.
-                  </p>
+                {/* Territoire et place ne sont écrits qu'ici, et dans le classement : « Chiffres » ne les répète pas. Chaque
+                    repère : le chiffre en gros, puis ce qu'il compte. */}
+                {(sinceParts || (objective?.below && objective.lead !== null) || threshold) && (
+                  <ul class="carte-trois tnum">
+                    {sinceParts && (
+                      <li data-testid="map-journal">
+                        <b>{sinceParts.chiffre}</b> {sinceParts.suite}
+                      </li>
+                    )}
+                    {objective?.below && objective.lead !== null && (
+                      <li>
+                        <b>{fmtInt(objective.lead)}</b> pixels d'avance sur {objective.below.tag ?? "le clan suivant"}, {ordinal(objective.rank + 1)}
+                      </li>
+                    )}
+                    {threshold && (
+                      <li data-testid="map-next-threshold">
+                        <b>{fmtInt(threshold.remaining)}</b> pixels avant le palier de {fmtInt(threshold.threshold)}
+                      </li>
+                    )}
+                  </ul>
                 )}
               </Fenetre>
             )
@@ -589,6 +593,36 @@ const dock = FENETRES.filter((f) => presentes.has(f.id));
               </Fenetre>
             )
           }
+
+          {/* Les réglages du film, ouverts depuis le rail ou le bouton rond au bout de la pastille du film. */}
+          <Fenetre id="reglages" film>
+            <Fragment slot="titre">Réglages du film</Fragment>
+            <div class="carte-reglages-corps">
+              {lastDay && (
+                <button type="button" class="btn btn-ghost" {...dayReplay(lastDay)} data-testid="film-last-day" aria-label={`Revoir le ${fmtDay(lastDay.date)}, la dernière journée terminée`}>
+                  Revoir le {fmtDay(lastDay.date)}
+                </button>
+              )}
+              <div class="film-speed">
+                <label for="film-speed">Vitesse</label>
+                <input
+                  id="film-speed"
+                  class="film-range"
+                  type="range"
+                  min={SPEED_MIN}
+                  max={SPEED_MAX}
+                  step={SPEED_STEP}
+                  value={SPEED_MAX}
+                  aria-valuetext={speedText(SPEED_MAX)}
+                  data-film-speed
+                  data-testid="film-speed"
+                />
+                {/* La valeur écrite pour les yeux ; le curseur la donne déjà aux lecteurs d'écran. */}
+                <output for="film-speed" class="tnum" aria-hidden="true" data-film-speed-value>{speedLabel(SPEED_MAX)}</output>
+              </div>
+              <button type="button" class="chip" data-film-focus aria-pressed="false">Griser les autres</button>
+            </div>
+          </Fenetre>
 
           {/* Le bas de la console quand tout s'empile (téléphone) : au bout de la fenêtre ouverte, comme le bas d'une page.
               Sur un écran large, le crédit posé sur la carte en tient lieu ; sans script, le pied de page du site est là. */}

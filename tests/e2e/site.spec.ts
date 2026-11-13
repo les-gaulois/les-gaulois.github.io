@@ -139,11 +139,13 @@ test("seules les pages de l'encadrement passent au rouge", async ({ page }, test
   expect(qg.background).not.toBe(blue.background);
   expect(qg.background).not.toBe(red.background);
   expect(qg.background).toBe(rgbOf(qg.bar));
-  // La page Carte est une console depuis le 12 novembre 2026, à la demande du pilote (« un design hacker très prononcé »),
-  // sans le rouge de l'encadrement ; le guide du clan aussi, le soir même (« comme la Carte »). Depuis le 13 novembre, leur
-  // fond est le bleu du site, et non plus le noir du Terminal (« garder la même DA du bleu en bg sur TOUT le site, arrêter
-  // le noir et le bleu foncé ») : la barre du navigateur le reprend.
-  for (const path of ["/carte", "/debuter"]) expect(await look(path), path).toEqual({ ...qg, background: blue.background, bar: blue.bar });
+  // Le guide du clan est une console depuis le 12 novembre 2026 (« comme la Carte »), sans le rouge de l'encadrement. Depuis
+  // le 13 novembre, son fond est le bleu du site, et non plus le noir du Terminal (« garder la même DA du bleu en bg sur
+  // TOUT le site, arrêter le noir et le bleu foncé ») : la barre du navigateur le reprend.
+  expect(await look("/debuter")).toEqual({ ...qg, background: blue.background, bar: blue.bar });
+  // La page Carte n'est plus une console depuis le 13 novembre 2026 au soir (« j'aime pas trop le design hacker sur la
+  // carte ») : ni ambiance ni style Terminal, le bleu des autres pages (« mieux fondre avec les codes couleur »).
+  expect(await look("/carte")).toEqual(blue);
   for (const path of [...PAGES.filter((path) => path !== "/qg" && path !== "/carte" && path !== "/debuter"), "/compte", "/confidentialite"]) {
     expect(await look(path), path).toEqual(blue);
   }
@@ -357,6 +359,11 @@ test("les titres ont de vraies minuscules et une lettrine, sauf en console, au Q
     expect(page1, mouvement).toMatchObject({ casse: "none", rouge: true, interligne: 1.15 });
     expect(page1?.lettrine, mouvement).toBeCloseTo(LETTRINE_TITRE, 1);
     expect((page1?.motsAnimes ?? 0) > 0, mouvement).toBe(mouvement === "no-preference");
+    // La page Carte reprend les lettres du site depuis le 13 novembre 2026 au soir : minuscules et lettrine rouge.
+    await ouvrir("/carte");
+    const carte = await titre("main h1");
+    expect(carte, mouvement).toMatchObject({ casse: "none", rouge: true });
+    expect(carte?.lettrine, mouvement).toBeCloseTo(LETTRINE_TITRE, 1);
     // Un titre de section : une lettrine plus petite, rouge elle aussi depuis le 13 novembre 2026 (« plus utiliser la
     // seconde couleur qui est le rouge », remarque transmise par le pilote).
     await ouvrir("/activite");
@@ -381,8 +388,8 @@ test("les titres ont de vraies minuscules et une lettrine, sauf en console, au Q
   expect(largeurs.minuscules).toBeCloseTo(largeurTexte("classement"), 2);
   expect(largeurs.capitales).toBeCloseTo(largeurTexte("CLASSEMENT"), 2);
   expect(largeurs.minuscules).toBeLessThan(largeurs.capitales);
-  // La Carte, le guide du clan, le QG et la Direction : des capitales, pas de lettrine.
-  for (const path of ["/carte", "/debuter", "/qg", "/direction"]) {
+  // Le guide du clan, le QG et la Direction : des capitales, pas de lettrine.
+  for (const path of ["/debuter", "/qg", "/direction"]) {
     await ouvrir(path);
     const enConsole = await titre("main h1");
     expect(enConsole, path).toMatchObject({ casse: "uppercase", rouge: false });

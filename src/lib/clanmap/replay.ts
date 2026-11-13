@@ -14,7 +14,8 @@ import { parisParts } from "../time";
  */
 export const FRAME_BASE = 5_000;
 export const FRAME_MAX = 480;
-export const TOP_SIZE = 5;
+/** Les clans gardés par image, du plus grand au plus petit : le classement de la page Carte en montre dix (13 novembre 2026). */
+export const TOP_SIZE = 10;
 const FRONTS_KEPT = 8;
 
 /**
