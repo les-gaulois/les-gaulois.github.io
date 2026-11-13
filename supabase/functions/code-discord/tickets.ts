@@ -250,8 +250,8 @@ export const KINDS: Record<TicketKind, KindSpec> = {
     color: COLORS.blue,
     fields: [
       { id: "pseudo", label: "Votre pseudo dans OpenFront", short: "Pseudo dans OpenFront", style: 1, required: true, max: 40, placeholder: "Celui qui s'affiche en partie" },
-      { id: "profil", label: "Le lien de votre profil OpenFront", short: "Profil OpenFront", style: 1, required: false, max: 120, placeholder: "https://openfront.io/player/…", link: true },
-      { id: "mot", label: "Un mot pour l'encadrement", short: "Un mot pour l'encadrement", style: 2, required: false, max: 500, placeholder: "Facultatif" },
+      { id: "profil", label: "Lien du profil OpenFront", short: "Lien du profil OpenFront", style: 1, required: false, max: 120, placeholder: "https://openfront.io/player/…", link: true },
+      { id: "mot", label: "Remarque", short: "Remarque", style: 2, required: false, max: 500, placeholder: "Facultatif" },
     ],
     help: `Dans le jeu : section Clans, onglet Rechercher, [GAL], puis « Demander une invitation ». Un officier vous répond. Les étapes : <${JOIN_URL}>`,
   },

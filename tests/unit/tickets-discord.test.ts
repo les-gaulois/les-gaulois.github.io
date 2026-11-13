@@ -329,7 +329,7 @@ describe("les réponses des joueurs", () => {
     ]);
     expect(answersOf("recrutement", values)).toEqual([
       { label: "Pseudo dans OpenFront", value: "Brennos" },
-      { label: "Profil OpenFront", value: "https\\:\\/\\/ailleurs.example\\/moi" },
+      { label: "Lien du profil OpenFront", value: "https\\:\\/\\/ailleurs.example\\/moi" },
     ]);
   });
 

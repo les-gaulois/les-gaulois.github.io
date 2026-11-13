@@ -2,6 +2,12 @@
   {
     "date": "2026-11-13",
     "kind": "nouveau",
+    "title": "Des tickets d'assistance sur le Discord du clan",
+    "body": "Un guichet à trois boutons, pour rejoindre le clan, poser une question ou signaler un tricheur : un court formulaire, puis un salon privé avec l'encadrement, fermé une fois réglé."
+  },
+  {
+    "date": "2026-11-13",
+    "kind": "nouveau",
     "title": "Des concours sur le Discord du clan",
     "body": "L'encadrement lance un concours avec /concours : un clic pour participer, un tirage au sort fait par le serveur du site à la fin, et le gagnant confirme d'un clic qu'il est là."
   },
