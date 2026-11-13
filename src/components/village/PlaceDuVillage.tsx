@@ -77,14 +77,12 @@ function Habitant({ gaulois }: { gaulois: GauloisDeLaPlace }) {
 type Etat = { kind: "lecture" } | { kind: "fermee"; message: string } | { kind: "erreur"; message: string } | { kind: "prete"; village: Village };
 
 /**
- * La place du village : les Gaulois des membres validés qui s'y montrent, autour du feu. Le serveur décide de qui y est
- * (`get_village`) ; le membre choisit seulement de s'y montrer (`regler_ma_visibilite`). Aucun solde, aucun classement.
+ * La place du village : les Gaulois de tous les membres validés, autour du feu. Le serveur décide de qui y est
+ * (`get_village`) ; aucune case pour s'en retirer (choix du pilote, 13 novembre 2026). Aucun solde, aucun classement.
  * `actif` : l'onglet est ouvert ; la place se relit à chaque ouverture, pour suivre une tenue changée à côté.
  */
 export default function PlaceDuVillage({ actif }: { actif: boolean }) {
   const [etat, setEtat] = useState<Etat>({ kind: "lecture" });
-  const [occupe, setOccupe] = useState(false);
-  const [probleme, setProbleme] = useState<string | null>(null);
 
   const lire = async (discret: boolean) => {
     if (!discret) setEtat({ kind: "lecture" });
@@ -106,19 +104,6 @@ export default function PlaceDuVillage({ actif }: { actif: boolean }) {
     void lire(dejaLue.current);
     dejaLue.current = true;
   }, [actif]);
-
-  const regler = async (visible: boolean) => {
-    setOccupe(true);
-    setProbleme(null);
-    try {
-      await call<unknown>("regler_ma_visibilite", { p_visible: visible });
-      await lire(true);
-    } catch (e) {
-      setProbleme(messageOf(e));
-    } finally {
-      setOccupe(false);
-    }
-  };
 
   if (etat.kind === "lecture") return <Loading label="Lecture de la place…" />;
   if (etat.kind === "erreur") return <Problem message={etat.message} onRetry={() => void lire(false)} />;
@@ -146,10 +131,6 @@ export default function PlaceDuVillage({ actif }: { actif: boolean }) {
         )}
       </Scene>
       <div class="place-pied">
-        <label class="place-visible">
-          <input type="checkbox" class="size-5" checked={village.visible} disabled={occupe} onChange={(e) => void regler(e.currentTarget.checked)} data-testid="place-visible" />
-          Me montrer sur la place
-        </label>
         {compte ? (
           <p class="info-discrete" data-testid="place-compte">
             {compte}
@@ -168,7 +149,6 @@ export default function PlaceDuVillage({ actif }: { actif: boolean }) {
           pour y paraître.
         </p>
       )}
-      <Problem message={probleme} />
     </div>
   );
 }

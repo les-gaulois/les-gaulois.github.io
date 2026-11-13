@@ -7854,14 +7854,6 @@ footer h2 {
   justify-content: space-between;
   gap: 0.5rem 1.5rem;
 }
-.place-visible {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.625rem;
-  min-height: 2.75rem;
-  font-weight: 600;
-  cursor: pointer;
-}
 .place-mot,
 .marche-mot {
   color: var(--color-muted);

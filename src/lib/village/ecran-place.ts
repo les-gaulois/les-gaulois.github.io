@@ -42,7 +42,7 @@ export function lireVillage(reponse: unknown): Village | null {
     if (typeof nom !== "string" || nom.trim() === "" || !lue) continue;
     gaulois.push({ nom: nom.trim(), tenue: lue, moi: moi === true });
   }
-  return { ok: true, visible: brut["visible"] !== false, gaulois };
+  return { ok: true, gaulois };
 }
 
 /** L'ordre sur la place : le sien d'abord, près du feu, puis les autres dans l'ordre du serveur. */
@@ -50,8 +50,8 @@ export function ordreDeLaPlace(gaulois: readonly GauloisDeLaPlace[]): GauloisDeL
   return [...gaulois.filter((g) => g.moi), ...gaulois.filter((g) => !g.moi)];
 }
 
-/** Le membre veut se montrer, mais n'est pas sur la place : il n'a pas encore créé son Gaulois. */
-export const sonGauloisManque = (village: Village): boolean => village.visible && !village.gaulois.some((g) => g.moi);
+/** Le membre n'est pas sur la place : il n'a pas encore créé son Gaulois. */
+export const sonGauloisManque = (village: Village): boolean => !village.gaulois.some((g) => g.moi);
 
 /** « 1 Gaulois sur la place », « 12 Gaulois sur la place ». Rien pour une place vide : c'est une autre phrase. */
 export function compteDeLaPlace(nombre: number): string | null {

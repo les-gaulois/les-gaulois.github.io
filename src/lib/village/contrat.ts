@@ -143,12 +143,11 @@ export interface GauloisDeLaPlace {
 }
 
 /**
- * `get_village()`, pour un compte validé ou de l'encadrement : les Gaulois des comptes validés qui se montrent sur la
- * place, par ordre de création, et le choix de l'appelant (`visible`, vrai au départ, changé par
- * `regler_ma_visibilite(p_visible)`). Un solde ne s'y lit jamais : il reste privé, sans classement des plus riches.
+ * `get_village()`, pour un compte validé ou de l'encadrement : les Gaulois de tous les comptes validés, par ordre de
+ * création. Tout Gaulois d'un compte validé est sur la place : le pilote n'a pas voulu de case pour s'en retirer (13 novembre
+ * 2026). Un solde ne s'y lit jamais : il reste privé, sans classement des plus riches.
  */
 export interface Village {
   ok: true;
-  visible: boolean;
   gaulois: GauloisDeLaPlace[];
 }
