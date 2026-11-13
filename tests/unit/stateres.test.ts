@@ -1,8 +1,10 @@
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { ERROR_MESSAGES } from "../../src/lib/compte/errors";
 import { ApiVictoryGame, type StoredSession } from "../../src/lib/schemas";
 import { debutDuMoisParis, debutDuMoisPrecedentParis, departDuGaulois, fenetreDesVictoires, REGLE_STATERES, stateresDeVictoire } from "../../src/lib/stateres";
-import { empreintesDesGaulois, MAX_ECHECS, MAX_PARTIES, PAR_ENVOI, partieNotee, releveStateres, victoiresARelire } from "../../src/lib/stateres-releve";
+import { empreintesDesGaulois, MAX_ECHECS, MAX_LECTURE_MS, MAX_PARTIES, PAR_ENVOI, partieNotee, releveStateres, victoiresARelire } from "../../src/lib/stateres-releve";
 
 const sha = (id: string) => createHash("sha256").update(id, "utf8").digest("hex");
 
@@ -42,7 +44,7 @@ const game = () =>
   });
 
 describe("la règle des statères", () => {
-  it("donne à chaque Gaulois tous les points de la victoire, 10 statères par point, sans partage", () => {
+  it("donne à chaque Gaulois présent tous les points rapportés au clan, 10 statères par point, sans partage", () => {
     expect(REGLE_STATERES).toBe("entier");
     expect(stateresDeVictoire(1.67, 5)).toBe(17);
     expect(stateresDeVictoire(1.67, 1)).toBe(17);
@@ -60,13 +62,13 @@ describe("la règle des statères", () => {
     expect(stateresDeVictoire(99.94, 1)).toBe(999);
   });
 
-  it("donne au moins 1 statère à une victoire qui rapporte des points", () => {
+  it("donne au moins 1 statère à une partie qui rapporte des points", () => {
     expect(stateresDeVictoire(0.04, 2)).toBe(1);
     expect(stateresDeVictoire(0.01, 1)).toBe(1);
     expect(stateresDeVictoire(1e-7, 1)).toBe(1);
   });
 
-  it("ne donne rien sans points ou sans Gaulois : une défaite ne retire rien", () => {
+  it("ne donne rien sans points ou sans Gaulois : une partie qui fait perdre des points ne retire rien", () => {
     expect(stateresDeVictoire(null, 3)).toBe(0);
     expect(stateresDeVictoire(0, 3)).toBe(0);
     expect(stateresDeVictoire(-0.26, 3)).toBe(0);
@@ -74,6 +76,28 @@ describe("la règle des statères", () => {
     expect(stateresDeVictoire(Number.POSITIVE_INFINITY, 3)).toBe(0);
     expect(stateresDeVictoire(1.67, 0)).toBe(0);
     expect(stateresDeVictoire(1.67, 1.5)).toBe(0);
+  });
+});
+
+describe("les mots des statères", () => {
+  // Le pilote, 13 novembre 2026 : « j'ai pas dit que statere s'obtient en partie gagner mais en point apporter au clan ! ».
+  const fichiers = [
+    "src/lib/stateres.ts",
+    "src/lib/stateres-releve.ts",
+    "scripts/crediter-stateres.ts",
+    "supabase/migrations/20261113001800_village_stateres.sql",
+    ".github/workflows/victoires.yml",
+    "src/pages/confidentialite.astro",
+  ];
+  it("disent « points rapportés au clan », jamais des statères gagnés par les victoires", () => {
+    for (const f of fichiers) {
+      const texte = readFileSync(f, "utf8");
+      expect(texte, f).not.toMatch(/gagn\w* (par|pour|avec) (les|des|une|chaque) (victoires?|parties? gagnée)|pour chaque victoire|monnaie des victoires|statères des victoires|par partie gagnée/i);
+    }
+    expect(readFileSync("supabase/migrations/20261113001800_village_stateres.sql", "utf8")).toContain("points rapportés au clan");
+    expect(readFileSync("src/pages/confidentialite.astro", "utf8")).toContain("pour chaque partie qui a rapporté des points au clan");
+    expect(readFileSync(".github/workflows/victoires.yml", "utf8")).toContain("name: Donner les statères des points rapportés au clan");
+    expect(ERROR_MESSAGES["invalid_parties"]).not.toMatch(/victoire/i);
   });
 });
 
@@ -104,9 +128,9 @@ describe("les mois à l'heure de Paris", () => {
   });
 });
 
-describe("les victoires à relire", () => {
+describe("les parties à relire", () => {
   const depuis = "2026-10-31T23:00:00.000Z";
-  it("gardent les victoires du mois avec des points, pas encore notées, des plus récentes aux plus anciennes", () => {
+  it("gardent les parties du mois qui ont rapporté des points, pas encore notées, des plus récentes aux plus anciennes", () => {
     const sessions = [
       session("ancienne", "2026-10-31T22:59:59.000Z"),
       session("premiere", "2026-11-01T08:00:00.000Z"),
@@ -116,6 +140,10 @@ describe("les victoires à relire", () => {
       session("notee", "2026-11-05T08:00:00.000Z"),
       session("derniere", "2026-11-06T08:00:00.000Z"),
       session("premiere", "2026-11-01T08:00:00.000Z"),
+      // Des points sans partie gagnée : le relevé de novembre 2026 n'en a aucun ; si l'API en donnait un jour, il n'est pas
+      // compté sans décision du pilote, pas plus qu'une partie sans Gaulois.
+      session("perduepoints", "2026-11-07T08:00:00.000Z", { hasWon: false, score: 0.4 }),
+      session("sansgaulois", "2026-11-08T08:00:00.000Z", { clanPlayerCount: 0 }),
     ];
     expect(victoiresARelire(sessions, depuis, new Set(["notee"])).map((s) => s.gameId)).toEqual(["derniere", "premiere"]);
   });
@@ -142,7 +170,7 @@ describe("un passage de la relecture", () => {
     return { calls, rpc };
   };
 
-  it("relit les victoires pas encore notées et envoie leurs empreintes au serveur", async () => {
+  it("relit les parties pas encore notées et envoie leurs empreintes au serveur", async () => {
     const { calls, rpc } = appels();
     const lines: string[] = [];
     const lus: string[] = [];
@@ -164,7 +192,7 @@ describe("un passage de la relecture", () => {
     expect(JSON.stringify(calls) + lines.join("\n")).not.toMatch(/id-zoe|id-anonyme/);
   });
 
-  it("appelle le serveur même sans nouvelle victoire, pour la relève et les Gaulois créés entre-temps", async () => {
+  it("appelle le serveur même sans nouvelle partie, pour la relève et les Gaulois créés entre-temps", async () => {
     const { calls, rpc } = appels();
     await releveStateres({ rpc, sessions: [], readGame: async () => game(), now, tag: "GAL", log: () => {} });
     expect(calls.map((c) => c.fn)).toEqual(["stateres_parties_notees", "noter_victoires_stateres"]);
@@ -196,7 +224,64 @@ describe("un passage de la relecture", () => {
     expect(r.restantes).toBe(MAX_ECHECS + 3);
   });
 
-  it("lève une erreur si le serveur refuse : le workflow la note, la victoire est déjà sur Discord", async () => {
+  it("ne contourne pas un refus de l'API : au premier 403, plus aucune demande, et ce qui est lu part quand même", async () => {
+    const { calls, rpc } = appels();
+    const sessions = Array.from({ length: 6 }, (_, i) => session(`r${String(i).padStart(7, "0")}`, new Date(Date.parse("2026-11-02T00:00:00Z") + i * 60_000).toISOString()));
+    const lus: string[] = [];
+    const lines: string[] = [];
+    const r = await releveStateres({
+      rpc,
+      sessions,
+      // Les deux plus récentes se lisent, la troisième est refusée.
+      readGame: async (id) => {
+        lus.push(id);
+        if (lus.length === 3) throw new Error("HTTP 403");
+        return game();
+      },
+      now,
+      tag: "GAL",
+      log: (l) => lines.push(l),
+    });
+    expect(lus).toHaveLength(3);
+    expect((calls[1]!.args["p_parties"] as unknown[]).length).toBe(2);
+    expect(r.restantes).toBe(4);
+    expect(lines.some((l) => l.startsWith("::warning::") && l.includes("403"))).toBe(true);
+  });
+
+  it("arrête de lire quand le temps du passage est écoulé, et envoie ce qui est lu", async () => {
+    const { calls, rpc } = appels();
+    const sessions = Array.from({ length: 10 }, (_, i) => session(`t${String(i).padStart(7, "0")}`, new Date(Date.parse("2026-11-02T00:00:00Z") + i * 60_000).toISOString()));
+    // Chaque détail prend 30 s sur cette fausse horloge : 4 lectures commencent avant MAX_LECTURE_MS.
+    let temps = 0;
+    const lines: string[] = [];
+    const r = await releveStateres({
+      rpc,
+      sessions,
+      readGame: async () => {
+        temps += 30_000;
+        return game();
+      },
+      now,
+      tag: "GAL",
+      log: (l) => lines.push(l),
+      horloge: () => temps,
+    });
+    const attendues = Math.ceil(MAX_LECTURE_MS / 30_000);
+    expect((calls[1]!.args["p_parties"] as unknown[]).length).toBe(attendues);
+    expect(r.restantes).toBe(10 - attendues);
+    expect(lines.some((l) => l.includes("temps de lecture"))).toBe(true);
+  });
+
+  it("dit « points rapportés au clan » et « parties », jamais « victoires », dans son journal", async () => {
+    const { rpc } = appels();
+    const lines: string[] = [];
+    await releveStateres({ rpc, sessions: [session("neuve001", "2026-11-12T08:00:00Z")], readGame: async () => game(), now, tag: "GAL", log: (l) => lines.push(l) });
+    await releveStateres({ rpc, sessions: null, readGame: async () => game(), now, tag: "GAL", log: (l) => lines.push(l) });
+    expect(lines.join("\n")).toContain("partie(s) qui ont rapporté des points notée(s)");
+    expect(lines.join("\n")).not.toMatch(/victoire/i);
+  });
+
+  it("lève une erreur si le serveur refuse : le workflow la note, l’image de la partie est déjà sur Discord", async () => {
     await expect(releveStateres({ rpc: async () => ({ ok: false, error: "invalid_parties" }), sessions: [], readGame: async () => game(), now, tag: "GAL", log: () => {} })).rejects.toThrow("stateres_parties_notees : invalid_parties");
   });
 });

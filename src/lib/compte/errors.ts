@@ -151,7 +151,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   too_many_codes: "Cinq codes en dix minutes : attendez un peu avant d'en demander un autre.",
   discord_taken: "Votre compte Discord a déjà un compte sur le site, ouvert avec un code. Déconnectez-vous, puis connectez-vous avec un code : tapez /code dans le Discord du clan.",
   invalid_tenue: "Cette tenue n'est pas dans le vestiaire. Rechargez la page.",
-  invalid_parties: "Les victoires envoyées pour les statères sont mal formées : rien n'a été noté.",
+  invalid_parties: "Les parties envoyées pour les statères sont mal formées : rien n'a été noté.",
 };
 
 export function errorMessage(code: string): string {
