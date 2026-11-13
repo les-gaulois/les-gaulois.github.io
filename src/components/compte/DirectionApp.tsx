@@ -1,5 +1,6 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
+import type { MemberFilter } from "../../lib/compte/admin-members";
 import { basePath, call } from "../../lib/compte/api";
 import { toLocalInput } from "../../lib/compte/news";
 import { pendingWords } from "../../lib/compte/pending";
@@ -10,7 +11,7 @@ import { fmtDate, fmtDateTime, fmtInt } from "../../lib/format";
 import type { LogoMatriceData } from "../../lib/logo-matrice";
 import { tabsFor } from "../../lib/onglets";
 import LogoMatrice from "../LogoMatrice";
-import { Log, Members, Requests } from "./AdminPanels";
+import { Log, Members, Requests, type MembersAsk } from "./AdminPanels";
 import { DeleteButton, DiscordButton, Loading, Problem, Success, messageOf, useMe, usePendingCount, useRun } from "./common";
 import DirectionActivite from "./DirectionActivite";
 import DirectionDiscord from "./DirectionDiscord";
@@ -18,7 +19,7 @@ import DirectionObjectif from "./DirectionObjectif";
 import DirectionPolls, { EMPTY_POLL, type PollDraft } from "./DirectionPolls";
 import DirectionWelcome from "./DirectionWelcome";
 import DirectionWeeklyPick, { EMPTY_WEEKLY_PICK, type WeeklyPickDraft } from "./DirectionWeeklyPick";
-import { Onglets, Partie, PartieTete, useTabs, type TabItem } from "./Onglets";
+import { Onglets, Partie, PartieTete, reducedMotion, useTabs, type TabItem } from "./Onglets";
 import SiteHealth from "./SiteHealth";
 import Telemetrie from "./Telemetrie";
 
@@ -75,8 +76,9 @@ const DIRECTION_TABS = [
 /**
  * Une case de la vue d'ensemble : elle ouvre la partie où l'on décide. C'est un vrai lien (`#demandes`) : le clic droit et
  * l'ouverture dans un nouvel onglet restent. Au clic simple, `onOpen` ouvre la partie et y mène le focus.
+ * `filter` : la case ouvre l'onglet Comptes avec ce filtre déjà choisi (« Suspendus » montre les comptes suspendus).
  */
-function Tile({ label, value, part, onOpen, alert = false }: { label: string; value: number; part: string; onOpen: (part: string) => void; alert?: boolean }) {
+function Tile({ label, value, part, filter, onOpen, alert = false }: { label: string; value: number; part: string; filter?: MemberFilter; onOpen: (part: string, filter?: MemberFilter) => void; alert?: boolean }) {
   return (
     <a
       href={`#${part}`}
@@ -85,7 +87,7 @@ function Tile({ label, value, part, onOpen, alert = false }: { label: string; va
       onClick={(e) => {
         if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
         e.preventDefault();
-        onOpen(part);
+        onOpen(part, filter);
       }}
     >
       {/* `console-*` : l'ambiance console de la page, voir global.css. */}
@@ -431,6 +433,10 @@ export default function DirectionApp({ health, logo }: { health: Omit<SiteHealth
   // Qui vient, événement par événement : `undefined` tant que ce n'est pas lu, `null` si le serveur ne l'a pas donné.
   // Dans ce dernier cas, la liste des événements le dit, et reste lisible.
   const [attendance, setAttendance] = useState<Map<number, string[]> | null | undefined>(undefined);
+  // Le filtre qu'une case de la vue d'ensemble demande à l'onglet Comptes.
+  const [membersAsk, setMembersAsk] = useState<MembersAsk | null>(null);
+  // Vrai une fois la liste des comptes lue : avant, la page n'est pas assez haute pour remonter jusqu'à elle.
+  const [membersReady, setMembersReady] = useState(false);
   const rank = me?.rank ?? 0;
   const base = basePath();
   const tabs = tabsFor(DIRECTION_TABS, rank);
@@ -473,6 +479,19 @@ export default function DirectionApp({ health, logo }: { health: Omit<SiteHealth
     else if (away.current && rank >= 2) void load();
   }, [active]);
 
+  // Comptes est une longue liste : à son ouverture (menu, case de la vue d'ensemble ou adresse #comptes), le menu des parties
+  // remonte sous l'en-tête et la liste remplit l'écran, au lieu d'attendre sous le titre et le guerrier (pilote, 13 novembre
+  // 2026 : « c'est chiant de descendre la page pour voir les membres »). La page ne fait que descendre vers la liste : si l'on
+  // est déjà plus bas, elle ne bouge pas.
+  useEffect(() => {
+    if (active !== "comptes" || !membersReady) return;
+    const bar = document.querySelector<HTMLElement>('[data-testid="direction"] .onglets');
+    if (!bar) return;
+    const margin = parseFloat(getComputedStyle(bar).scrollMarginTop) || 0;
+    if (bar.getBoundingClientRect().top <= margin + 8) return;
+    bar.scrollIntoView({ block: "start", behavior: reducedMotion() ? "auto" : "smooth" });
+  }, [active, membersReady]);
+
   if (me === null) return <Loading />;
   if (failed) return <Problem message="Le service de connexion ne répond pas pour l'instant. Le reste du site continue de fonctionner." onRetry={() => void refresh()} />;
   if (!me.signed_in) {
@@ -503,7 +522,8 @@ export default function DirectionApp({ health, logo }: { health: Omit<SiteHealth
   const part = { prefix: "direction", active, slide };
 
   // Une case de la vue d'ensemble ouvre sa partie, et le focus y va : la case elle-même vient d'être masquée.
-  const open = (id: string) => {
+  const open = (id: string, filter?: MemberFilter) => {
+    if (filter) setMembersAsk((ask) => ({ filter, n: (ask?.n ?? 0) + 1 }));
     select(id, true);
     requestAnimationFrame(() => document.getElementById(`direction-partie-${id}`)?.focus({ preventScroll: true }));
   };
@@ -557,9 +577,9 @@ export default function DirectionApp({ health, logo }: { health: Omit<SiteHealth
               <PartieTete id="ensemble-titre" title="Ce qui attend une décision" />
               <div class="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
                 <Tile label="Demandes à traiter" value={data.pending_requests} part="demandes" onOpen={open} alert={data.pending_requests > 0} />
-                <Tile label="Membres validés" value={data.members} part="comptes" onOpen={open} />
-                <Tile label="Encadrement" value={data.officers} part="comptes" onOpen={open} />
-                <Tile label="Suspendus" value={data.suspended} part="comptes" onOpen={open} />
+                <Tile label="Membres validés" value={data.members} part="comptes" filter="validated" onOpen={open} />
+                <Tile label="Encadrement" value={data.officers} part="comptes" filter="staff" onOpen={open} />
+                <Tile label="Suspendus" value={data.suspended} part="comptes" filter="suspended" onOpen={open} />
               </div>
               <div class="mt-6">
                 <SiteHealth meta={health.meta} gazette={health.gazette} roster={data.roster} />
@@ -577,7 +597,7 @@ export default function DirectionApp({ health, logo }: { health: Omit<SiteHealth
           {shown.has("demandes") && <Requests />}
         </Partie>
         <Partie {...part} id="comptes">
-          {shown.has("comptes") && <Members me={me} />}
+          {shown.has("comptes") && <Members me={me} ask={membersAsk} onReady={() => setMembersReady(true)} />}
         </Partie>
         {rank >= 3 && (
           <Partie {...part} id="journal">

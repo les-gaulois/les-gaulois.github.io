@@ -144,7 +144,9 @@ Les jetons sont définis dans `src/styles/global.css`.
 | `muted` | `#C0C9E2` | Texte secondaire |
 | `warn` | `#FFC857` | Données périmées et erreurs de collecte, et ce qui attend l'encadrement : demandes à traiter, pastille, points de l'état du site. Et le survol d'un pseudo (`.pseudo`), un état passager qui ne se confond pas avec un avertissement |
 | `--texte-courant` | `#E3E8F4` | Le texte courant des pages (`main`), un blanc adouci : 15,0:1 sur la page. Les titres et les gros chiffres restent en blanc pur |
-| `ok` | `#A6E3B4` | Une réussite : le message après un envoi (`.form-success`), et les `[ OK ]` de l'état du site à la Direction |
+| `ok` | `#A6E3B4` | Une réussite : le message après un envoi (`.form-success`), et les `[ OK ]` de l'état du site à la Direction. Dans l'onglet Comptes de la Direction, ce qui est en règle (« Validé », « Oui ») |
+| `danger` | `#FF6B6B` | Ce qui est bloqué, en texte : un compte suspendu dans l'onglet Comptes de la Direction, et le bouton « Suspendre » sous la souris ou au clavier. Le rouge du drapeau (`red`) reste un accent |
+| `ally` | `#9DBCFF` | Un joueur allié, dans l'onglet Comptes de la Direction : le bleu clair des liens du site, qui ne change pas avec le thème |
 
 **Couleurs des prestiges (13 novembre 2026) :** l'emblème du niveau des comptes, sur la liste des membres et les fiches (`src/components/NiveauEmblem.tsx`), prend les couleurs que le jeu donne à chaque prestige, l'or de la Légende et le prisme du prestige 10 (`src/lib/niveau.ts`, voir `NOTICE.md`). Ce ne sont pas des jetons : elles ne colorent que la jauge et le bord de l'emblème, jamais un texte, et le chiffre reste blanc. La note de lecture de la liste en donne la clé.
 
@@ -212,6 +214,20 @@ Le soir même, le pilote a demandé « davantage hacker » et « différents sty
 - Tout ce qui est écrit en décor (« ## », « > », chemins, commandes, branches, noms de fenêtre) passe par `content: … / ""`, que les lecteurs d'écran ne lisent pas. Les deux logos sont masqués aux lecteurs d'écran.
 - **Mouvement :** l'invite et la commande d'une partie s'écrivent une fois, la bande de lumière passe une fois à l'ouverture. Rien ne bouge en continu, rien ne clignote. Le bouton pause et « réduire les animations » coupent tout.
 - Contrôlé le 11 novembre 2026 avec un faux serveur : axe sans défaut sur bureau et téléphone, menu fermé et ouvert ; aucun débordement de 360 à 1 920 px.
+
+#### L'onglet Comptes
+
+Le 13 novembre 2026, le pilote a demandé pour « Comptes du site » : « tu peux améliorer la lisibilité », « c'est chiant de descendre la page pour voir les membres », « ajoute des codes couleur, style vert, rouge ». Tout est sous la classe `comptes` (`Members`, `AdminPanels.tsx`), dans `global.css`, section « L'onglet Comptes de la Direction » : rien ne change au QG ni dans les autres onglets. Les règles (filtres, recherche, couleurs) sont dans `src/lib/compte/admin-members.ts`, testées.
+
+- **La barre** reste collée sous l'en-tête du site pendant qu'on descend : la recherche, qui filtre à chaque lettre (nom, nom Discord, pseudo, numéro, sans accents), et sept filtres à bascule avec leur nombre. Les titres des colonnes restent collés sous elle. Sur téléphone, les filtres tiennent sur une ligne qui défile dans son cadre.
+- **La liste** : une ligne de 36 px par compte (70 px avant), un trait de couleur au bord, le statut en pastille (fond teinté, point et mot), la colonne Liste en point et mot, le rôle en étiquette (Fondateur en plein, Admin et Officier encadrés, Membre discret). Sous 768 px, chaque compte est une petite carte : rien ne défile de côté. Commandes de 28 px à la souris (WCAG 2.5.8), 44 px au doigt et sous 768 px.
+- **Les couleurs**, jamais seules, chaque pastille porte son mot : vert `ok` en règle (« Validé », « Oui », « Rétablir »), jaune `warn` à regarder (« En attente », « Demande à traiter », « Plus dans la liste »), rouge `danger` bloqué (« Suspendu »), bleu `ally` joueur allié, gris `muted` rien à faire. Le vert est celui des réussites, pas le vert de terminal, et ne se pose sur aucun `.tnum`.
+- **Contrastes** sur le Terminal rouge (page `#13040A`, carte `#1C060C`), en texte, dans une pastille sur la page, puis en texte sombre sur un filtre choisi : `ok` 13,6 / 10,8 / 13,9 ; `warn` 13,0 / 10,3 / 13,3 ; `danger` 7,2 / 6,2 / 7,4 (5,9 dans une pastille sur une carte, le plus bas) ; `ally` 10,5 / 8,7 / 10,8 ; `muted` 12,0 / 9,6 / 12,3.
+- Les cases « Membres validés », « Encadrement » et « Suspendus » de la vue d'ensemble ouvrent l'onglet avec leur filtre déjà choisi. L'aide est repliée sous « Comment lire cette liste ».
+- **« Suspendre »** est sur presque chaque ligne : il reste gris et ne passe au rouge que sous la souris ou au clavier, pour que le rouge reste aux comptes suspendus.
+- **Les noms très longs** (32 lettres chez Discord) passent à la ligne dans leur colonne (`overflow-wrap: anywhere`) ; les pastilles, rôles et boutons gardent leurs mots entiers. Sans cela, la page débordait de côté entre 768 et 1 280 px.
+- **À l'ouverture de l'onglet** (menu, case de la vue d'ensemble ou adresse `#comptes`), une fois la liste lue, le menu des parties remonte sous l'en-tête et la liste remplit l'écran : 14 comptes visibles d'emblée sur 1 440 × 900, 4 sur 390 × 844 (aucun avant). La page ne fait que descendre, en glissant, sauf si les animations sont réduites.
+- Contrôlé les 13 et 14 novembre 2026 avec un faux serveur : axe sans défaut sur bureau et téléphone (liste, filtre, résultat vide, changement de rôle, aide ouverte) ; aucun débordement de 360 à 1 920 px, avec un pseudo de 24 lettres et un nom Discord de 32.
 
 #### Le QG en style Terminal
 

@@ -2,9 +2,31 @@
  * L'administration : les onglets Demandes, Comptes et Journal de la Direction (au QG du 10 au 12 novembre 2026).
  * L'affichage suit le rôle (voir `DirectionApp.tsx`), mais chaque fonction du serveur revérifie : masquer un onglet ne protège rien.
  */
-import { useEffect, useState } from "preact/hooks";
+import type { ComponentChildren } from "preact";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { LOG_CATEGORIES, LOG_LIMIT, LOG_PAGE, describe, filterLog, logPeople, type LogCategory } from "../../lib/compte/admin-log";
-import { ROSTER_CELL_LABELS, ROSTER_CELL_WARN, allyStatus, canRedoRequest, notFoundHelp, openRequests, redoRequestDone, redoRequestQuestion, rosterCell, type AllyMark } from "../../lib/compte/admin-members";
+import {
+  MEMBERS_LIMIT,
+  MEMBER_FILTERS,
+  ROSTER_CELL_LABELS,
+  allyStatusParts,
+  canRedoRequest,
+  filterCounts,
+  inFilter,
+  listMayBeCut,
+  matchesSearch,
+  memberState,
+  notFoundHelp,
+  openRequests,
+  redoRequestDone,
+  redoRequestQuestion,
+  rosterCell,
+  rosterTone,
+  statusTone,
+  type AllyMark,
+  type MemberFilter,
+  type MemberTone,
+} from "../../lib/compte/admin-members";
 import { call } from "../../lib/compte/api";
 import { announcePendingChange } from "../../lib/compte/pending";
 import { READY_REASONS, requestWait, requestsSummary } from "../../lib/compte/requests";
@@ -153,10 +175,38 @@ export function Requests() {
   );
 }
 
-export function Members({ me }: { me: Me }) {
+/** Le filtre qu'une case de la vue d'ensemble demande à l'onglet Comptes. `n` change à chaque demande, même pour le même filtre. */
+export interface MembersAsk {
+  filter: MemberFilter;
+  n: number;
+}
+
+/** Une pastille : un point de couleur et le mot. La couleur n'est jamais seule à dire l'état. */
+function Pastille({ tone, plain = false, testid, children }: { tone: MemberTone; plain?: boolean; testid?: string; children: ComponentChildren }) {
+  return (
+    <span class={plain ? "comptes-point" : "comptes-pastille"} data-tone={tone} data-testid={testid}>
+      {children}
+    </span>
+  );
+}
+
+/**
+ * Les comptes du site. Demande du pilote, 13 novembre 2026 : « c'est chiant de descendre la page pour voir les membres »,
+ * « ajoute des codes couleur ». Une barre qui reste sous l'en-tête (recherche à chaque lettre, filtres avec leur nombre),
+ * une ligne courte par compte, une couleur par état. Les règles sont dans `src/lib/compte/admin-members.ts`, le dessin dans
+ * `global.css`, section « L'onglet Comptes de la Direction » : tout y est sous la classe `comptes`.
+ */
+export function Members({ me, ask, onReady }: { me: Me; ask?: MembersAsk | null; onReady?: () => void }) {
   const [search, setSearch] = useState("");
+  // Ce que le serveur a cherché lui-même : seulement quand il a coupé la liste (voir `listMayBeCut`).
   const [query, setQuery] = useState("");
-  const list = useList<MemberRow>("list_members", { p_search: query || null, p_limit: 200 });
+  const [filter, setFilter] = useState<MemberFilter>(ask?.filter ?? "all");
+  const list = useList<MemberRow>("list_members", { p_search: query || null, p_limit: MEMBERS_LIMIT });
+  // La liste est là : la Direction peut faire remonter la page jusqu'à elle (voir `DirectionApp.tsx`).
+  const loaded = list.rows !== null;
+  useEffect(() => {
+    if (loaded) onReady?.();
+  }, [loaded]);
   // Pour un compte en attente, la colonne « Liste » dit s'il a une demande ouverte. Sans cette lecture, elle ne devine rien.
   // La même lecture donne la date de la dernière relecture de la liste officielle.
   const pending = useList<RequestRow>("list_membership_requests");
@@ -179,9 +229,10 @@ export function Members({ me }: { me: Me }) {
   const [draft, setDraft] = useState<{ user: string; role: Role } | null>(null);
   // Après « Confirmer » ou « Annuler », le focus revient à la liste du rôle, une fois l'envoi fini : sinon, il repartirait du haut de la page.
   const [refocus, setRefocus] = useState<string | null>(null);
+  // Si la ligne a quitté le filtre (un officier repassé Membre sous « Encadrement »), le focus va au message de réussite.
   useEffect(() => {
     if (refocus === null || action.busy) return;
-    document.getElementById(`role-${refocus}`)?.focus();
+    (document.getElementById(`role-${refocus}`) ?? document.getElementById("members-done"))?.focus();
     setRefocus(null);
   }, [refocus, action.busy, list.rows]);
   const rank = me.rank ?? 0;
@@ -199,145 +250,283 @@ export function Members({ me }: { me: Me }) {
     setFocusDone(false);
   }, [focusDone, action.busy]);
 
+  // Une case de la vue d'ensemble a demandé un filtre : il s'applique sur toute la liste, sans recherche en cours.
+  useEffect(() => {
+    if (!ask) return;
+    setFilter(ask.filter);
+    setSearch("");
+    setQuery("");
+  }, [ask?.n]);
+
+  // La recherche se fait ici, à chaque lettre, sur la liste déjà lue. Si le serveur a coupé la liste, Entrée la lui confie.
+  // Elle s'applique aussi à ce que le serveur renvoie : elle trouve tout ce qu'il trouve (elle ignore en plus les accents et
+  // lit le numéro), et, le temps de sa réponse, l'ancienne liste ne s'affiche pas en entier.
+  const cut = listMayBeCut(list.rows?.length ?? 0, query);
+  const typed = search.trim();
+  const found = (list.rows ?? []).filter((m) => matchesSearch(m, typed));
+  const counts = filterCounts(found, requests, allies);
+  const visible = found.filter((m) => inFilter(m, filter, requests, allies.get(m.number)));
+  // Un brouillon de rôle masqué par un filtre n'est plus annoncé : on ne peut pas le confirmer sans le voir.
+  const draftShown = drafted !== undefined && visible.includes(drafted);
+  const showAll = () => {
+    setFilter("all");
+    setSearch("");
+    setQuery("");
+  };
+
+  // La barre reste sous l'en-tête du site, et les titres des colonnes sous la barre : leurs hauteurs sont mesurées, car la
+  // barre passe sur deux lignes selon la largeur. Sans mesure possible, les valeurs de la feuille de style restent.
+  const root = useRef<HTMLElement>(null);
+  const top = useRef<HTMLDivElement>(null);
+  const tools = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const bar = tools.current;
+    if (!bar || typeof ResizeObserver !== "function") return;
+    const header = document.querySelector<HTMLElement>("header.barre");
+    const measure = () => {
+      root.current?.style.setProperty("--comptes-outils", `${bar.offsetHeight}px`);
+      if (header) root.current?.style.setProperty("--comptes-haut", `${header.offsetHeight}px`);
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(bar);
+    if (header) observer.observe(header);
+    measure();
+    return () => observer.disconnect();
+  }, []);
+  // Un filtre choisi plus bas dans la page raccourcit la liste : la page revient au début de la liste, sans mouvement.
+  useEffect(() => {
+    const mark = top.current;
+    const header = document.querySelector<HTMLElement>("header.barre");
+    if (!mark) return;
+    const gap = mark.getBoundingClientRect().top - (header?.offsetHeight ?? 0);
+    // « instant » : sinon, le `scroll-behavior: smooth` de la page ferait glisser la liste à chaque lettre tapée.
+    if (gap < 0) window.scrollBy({ top: gap, behavior: "instant" });
+  }, [filter, typed]);
+
   return (
-    <section aria-labelledby="membres-titre" data-testid="admin-members">
+    <section ref={root} class="comptes" aria-labelledby="membres-titre" data-testid="admin-members">
       <PartieTete id="membres-titre" title="Comptes du site" />
       {/* Toujours présente : un lecteur d'écran annonce ce qui change dans une zone qui existait déjà. */}
+      {/* Elle dit aussi combien de comptes restent après une lettre tapée ou un filtre choisi (WCAG 4.1.3). */}
       <p class="sr-only" role="status">
-        {draft && drafted ? `Rôle de ${drafted.name} : ${ROLE_LABELS[drafted.role]} → ${ROLE_LABELS[draft.role]}. Confirmez ou annulez.` : ""}
+        {draft && drafted && draftShown
+          ? `Rôle de ${drafted.name} : ${ROLE_LABELS[drafted.role]} → ${ROLE_LABELS[draft.role]}. Confirmez ou annulez.`
+          : list.rows !== null && (typed !== "" || filter !== "all")
+            ? `${fmtCount(visible.length, "compte")} pour ce choix.`
+            : ""}
       </p>
-      <form
-        class="mt-5 flex flex-wrap items-end gap-3"
-        onSubmit={(e) => {
-          e.preventDefault();
-          setQuery(search);
-          void pending.reload();
-        }}
-      >
-        <div class="min-w-48 flex-1">
-          <label class="text-sm font-semibold" for="member-search">
-            Rechercher un membre
+      <div ref={top} />
+      <div ref={tools} class="comptes-outils">
+        <form
+          class="comptes-recherche"
+          role="search"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!cut) return;
+            setQuery(typed);
+            void pending.reload();
+          }}
+        >
+          <label class="sr-only" for="member-search">
+            Rechercher un compte
           </label>
-          <input id="member-search" class="field mt-1" type="search" value={search} onInput={(e) => setSearch(e.currentTarget.value)} />
+          <input
+            id="member-search"
+            class="field comptes-champ"
+            type="search"
+            placeholder="Rechercher un compte"
+            autocomplete="off"
+            data-testid="member-search"
+            value={search}
+            onInput={(e) => {
+              const value = e.currentTarget.value;
+              setSearch(value);
+              // Le champ vidé : la liste entière revient, même après une recherche du serveur.
+              if (value.trim() === "") setQuery("");
+            }}
+          />
+        </form>
+        <div class="comptes-filtres" role="group" aria-label="Filtrer les comptes">
+          {MEMBER_FILTERS.map((f) => (
+            <button key={f.id} type="button" class="comptes-filtre" data-tone={f.tone ?? undefined} data-testid="member-filter" data-filter={f.id} aria-pressed={filter === f.id} onClick={() => setFilter(f.id)}>
+              {f.label}{" "}
+              {/* « À vérifier » compte les demandes ouvertes : tant qu'elles ne sont pas lues, pas de nombre plutôt qu'un faux zéro. */}
+              <span class="comptes-nombre">{list.rows === null || (f.id === "check" && requests === null) ? "" : fmtInt(counts[f.id])}</span>
+            </button>
+          ))}
         </div>
-        <button type="submit" class="btn btn-secondary">
-          Chercher
-        </button>
-      </form>
+      </div>
+      {cut && (
+        <p class="comptes-note" data-testid="members-cut">
+          {query ? `Recherche faite dans tous les comptes : « ${query} ». Videz le champ pour revoir la liste.` : `Seuls les ${fmtInt(MEMBERS_LIMIT)} premiers comptes sont lus : la touche Entrée cherche dans tous.`}
+        </p>
+      )}
       <Problem message={list.error ?? action.error} onRetry={() => void reloadAll()} />
       {!list.error && <Problem message={pending.error ? "Les demandes n'ont pas pu être lues : la colonne Liste ne dit pas si un compte en attente en a une." : null} onRetry={() => void pending.reload()} />}
       <div id="members-done" tabIndex={-1}>
         {action.done && <Success message={action.done} />}
       </div>
       {list.rows === null ? (
-        !list.error && <Loading />
-      ) : list.rows.length === 0 ? (
-        <Empty>Aucun compte trouvé.</Empty>
+        !list.error && (
+          <div class="mt-4">
+            <Loading />
+          </div>
+        )
+      ) : visible.length === 0 ? (
+        <div class="comptes-vide" data-testid="members-empty">
+          <p>Aucun compte pour ce choix.</p>
+          {(filter !== "all" || typed !== "" || query !== "") && (
+            <button type="button" class="comptes-bouton" onClick={showAll}>
+              Tout montrer
+            </button>
+          )}
+        </div>
       ) : (
-        <div class="mt-3 overflow-x-auto" tabIndex={0} role="region" aria-label="Membres">
-          {/* Sur téléphone, le tableau défile dans son cadre : coupé n'importe où, comme le reste de la page, il écrirait les mots lettre par lettre. */}
-          <table class="data-table w-full [overflow-wrap:break-word]">
-            <thead>
-              <tr>
-                <th scope="col">Nom</th>
-                <th scope="col">Discord</th>
-                <th scope="col">Statut</th>
-                <th scope="col">Liste</th>
-                <th scope="col">Rôle</th>
-                {rank >= 3 && <th scope="col">Action</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {list.rows.map((m) => {
-                const editable = rank >= 3 && m.status === "validated" && m.role !== "founder" && (rank >= 4 || m.role !== "admin") && m.user_id !== undefined;
-                const chosen = draft?.user === m.user_id ? draft.role : null;
-                const cell = rosterCell(m, requests);
-                // Seulement pour un compte en attente : un ancien allié devenu Gaulois validé garde sa colonne Liste.
-                const ally = m.status === "pending" ? allies.get(m.number) : undefined;
-                return (
-                  <tr key={m.user_id} data-testid="member-row">
-                    <td class="font-semibold">{m.name}</td>
-                    <td>{m.discord_name ?? "—"}</td>
-                    <td>
-                      {ally && m.status === "pending" ? (
-                        <span class={ally.approved ? undefined : "text-warn"} data-testid="member-ally">
-                          {allyStatus(ally)}
-                        </span>
-                      ) : (
-                        <>
+        // Sur téléphone, chaque ligne devient une petite carte (feuille de style) : rien ne défile de côté. Les rôles sont
+        // écrits pour que les lecteurs d'écran gardent le tableau quand la feuille de style change son affichage.
+        <table class="comptes-table" role="table" aria-label="Comptes">
+          <thead role="rowgroup">
+            <tr role="row">
+              <th role="columnheader" scope="col">
+                Compte
+              </th>
+              <th role="columnheader" scope="col">
+                Statut
+              </th>
+              <th role="columnheader" scope="col">
+                Liste
+              </th>
+              <th role="columnheader" scope="col">
+                Rôle
+              </th>
+              {rank >= 3 && (
+                <th role="columnheader" scope="col">
+                  Action
+                </th>
+              )}
+            </tr>
+          </thead>
+          <tbody role="rowgroup">
+            {visible.map((m) => {
+              const editable = rank >= 3 && m.status === "validated" && m.role !== "founder" && (rank >= 4 || m.role !== "admin") && m.user_id !== undefined;
+              const chosen = draft?.user === m.user_id ? draft.role : null;
+              const cell = rosterCell(m, requests);
+              // Seulement pour un compte en attente : un ancien allié devenu Gaulois validé garde sa colonne Liste.
+              const ally = m.status === "pending" ? allies.get(m.number) : undefined;
+              const allyParts = ally ? allyStatusParts(ally) : null;
+              const tone = statusTone(m, ally);
+              const redo = canRedoRequest(m, rank);
+              const suspend = m.status === "validated" && m.role !== "founder" && (rank >= 4 || m.role !== "admin");
+              const reinstate = m.status === "suspended";
+              return (
+                <tr key={m.user_id} role="row" data-tone={tone} data-state={memberState(m, ally)} data-large={redo || chosen ? "" : undefined} data-testid="member-row">
+                  <td role="cell" class="comptes-c-compte">
+                    <span class="comptes-nom">{m.name}</span>
+                    {m.discord_name && (
+                      <span class="comptes-discord">
+                        <span class="sr-only">Discord : </span>
+                        {m.discord_name}
+                      </span>
+                    )}
+                  </td>
+                  <td role="cell" class="comptes-c-statut">
+                    {allyParts ? (
+                      <span data-testid="member-ally">
+                        <Pastille tone={tone} testid="member-status">
+                          {allyParts.state}
+                        </Pastille>
+                        <span class="comptes-suite"> · {allyParts.who}</span>
+                      </span>
+                    ) : (
+                      <>
+                        <Pastille tone={tone} testid="member-status">
                           {STATUS_LABELS[m.status]}
-                          {m.status_reason ? ` : ${m.status_reason}` : ""}
-                        </>
-                      )}
-                    </td>
-                    <td class={ally ? "text-muted" : ROSTER_CELL_WARN.has(cell) ? "text-warn" : cell === "no_request" ? "text-muted" : undefined} data-testid="member-roster">
-                      {/* Un allié n'a pas de demande à faire : la liste officielle de GAL ne le concerne pas. */}
+                        </Pastille>
+                        {m.status_reason && <span class="comptes-suite"> : {m.status_reason}</span>}
+                      </>
+                    )}
+                  </td>
+                  <td role="cell" class="comptes-c-liste">
+                    {/* Dans une carte de téléphone, le titre de la colonne n'est plus au-dessus : le mot est écrit devant. */}
+                    <span class="comptes-mot" aria-hidden="true">
+                      Liste
+                    </span>
+                    {/* Un allié n'a pas de demande à faire : la liste officielle de GAL ne le concerne pas. */}
+                    <Pastille tone={rosterTone(cell, ally)} plain testid="member-roster">
                       {ally ? "—" : ROSTER_CELL_LABELS[cell]}
-                    </td>
-                    <td>
-                      {editable ? (
-                        <>
-                          <select
-                            id={`role-${m.user_id}`}
-                            aria-label={`Rôle de ${m.name}`}
-                            class="field !min-h-9 min-w-32 !py-1"
-                            value={chosen ?? m.role}
-                            disabled={action.busy}
-                            onChange={(e) => {
-                              const role = e.currentTarget.value as Role;
-                              setDraft(role === m.role ? null : { user: m.user_id, role });
-                            }}
-                          >
-                            {assignable.map((r) => (
-                              <option key={r} value={r}>
-                                {ROLE_LABELS[r]}
-                              </option>
-                            ))}
-                          </select>
-                          {chosen && (
-                            <div class="mt-2 flex flex-wrap items-center gap-2" data-testid="role-confirm">
-                              <span class="text-sm" aria-hidden="true">
-                                {ROLE_LABELS[m.role]} → {ROLE_LABELS[chosen]} ?
-                              </span>
-                              <button
-                                type="button"
-                                class="chip !min-h-9"
-                                aria-label={`Confirmer le rôle ${ROLE_LABELS[chosen]} pour ${m.name}`}
-                                disabled={action.busy}
-                                onClick={() => {
-                                  setDraft(null);
-                                  setRefocus(m.user_id);
-                                  void action.run(() => call("set_member_role", { p_user: m.user_id, p_role: chosen }), `Rôle de ${m.name} modifié : ${ROLE_LABELS[m.role]} → ${ROLE_LABELS[chosen]}.`);
-                                }}
-                              >
-                                Confirmer
-                              </button>
-                              <button
-                                type="button"
-                                class="chip !min-h-9"
-                                aria-label={`Annuler le changement de rôle de ${m.name}`}
-                                onClick={() => {
-                                  setDraft(null);
-                                  setRefocus(m.user_id);
-                                }}
-                              >
-                                Annuler
-                              </button>
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        ROLE_LABELS[m.role]
-                      )}
-                    </td>
-                    {rank >= 3 && (
-                      <td>
-                        <div class="flex flex-wrap gap-2">
-                          {/* Un compte que la liste ne trouve pas : la personne refait sa demande avec son pseudo exact. */}
-                          {canRedoRequest(m, rank) && (
+                    </Pastille>
+                  </td>
+                  <td role="cell" class="comptes-c-role">
+                    {editable ? (
+                      <>
+                        <select
+                          id={`role-${m.user_id}`}
+                          aria-label={`Rôle de ${m.name}`}
+                          class="field comptes-choix"
+                          data-role={chosen ?? m.role}
+                          value={chosen ?? m.role}
+                          disabled={action.busy}
+                          onChange={(e) => {
+                            const role = e.currentTarget.value as Role;
+                            setDraft(role === m.role ? null : { user: m.user_id, role });
+                          }}
+                        >
+                          {assignable.map((r) => (
+                            <option key={r} value={r}>
+                              {ROLE_LABELS[r]}
+                            </option>
+                          ))}
+                        </select>
+                        {chosen && (
+                          <div class="comptes-confirme" data-testid="role-confirm">
+                            <span aria-hidden="true">
+                              {ROLE_LABELS[m.role]} → {ROLE_LABELS[chosen]} ?
+                            </span>
                             <button
                               type="button"
-                              class="chip !min-h-9 whitespace-nowrap"
+                              class="comptes-bouton"
+                              data-tone="ok"
+                              aria-label={`Confirmer le rôle ${ROLE_LABELS[chosen]} pour ${m.name}`}
+                              disabled={action.busy}
+                              onClick={() => {
+                                setDraft(null);
+                                setRefocus(m.user_id);
+                                void action.run(() => call("set_member_role", { p_user: m.user_id, p_role: chosen }), `Rôle de ${m.name} modifié : ${ROLE_LABELS[m.role]} → ${ROLE_LABELS[chosen]}.`);
+                              }}
+                            >
+                              Confirmer
+                            </button>
+                            <button
+                              type="button"
+                              class="comptes-bouton"
+                              data-tone="muted"
+                              aria-label={`Annuler le changement de rôle de ${m.name}`}
+                              onClick={() => {
+                                setDraft(null);
+                                setRefocus(m.user_id);
+                              }}
+                            >
+                              Annuler
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <span class="comptes-role" data-role={m.role}>
+                        {ROLE_LABELS[m.role]}
+                      </span>
+                    )}
+                  </td>
+                  {rank >= 3 && (
+                    <td role="cell" class="comptes-c-action">
+                      {(redo || suspend || reinstate) && (
+                        <div class="comptes-actions">
+                          {/* Un compte que la liste ne trouve pas : la personne refait sa demande avec son pseudo exact. */}
+                          {redo && (
+                            <button
+                              type="button"
+                              class="comptes-bouton"
+                              data-tone="warn"
                               aria-label={`Refaire la demande de ${m.name}`}
                               data-testid="redo-request"
                               disabled={action.busy}
@@ -350,10 +539,12 @@ export function Members({ me }: { me: Me }) {
                               Refaire la demande
                             </button>
                           )}
-                          {m.status === "validated" && m.role !== "founder" && (rank >= 4 || m.role !== "admin") && (
+                          {suspend && (
                             <button
                               type="button"
-                              class="chip !min-h-9"
+                              class="comptes-bouton"
+                              data-tone="danger"
+                              aria-label={`Suspendre ${m.name}`}
                               disabled={action.busy}
                               onClick={() => {
                                 const reason = window.prompt(`Pourquoi suspendre ${m.name} ?`);
@@ -363,27 +554,37 @@ export function Members({ me }: { me: Me }) {
                               Suspendre
                             </button>
                           )}
-                          {m.status === "suspended" && (
-                            <button type="button" class="chip !min-h-9" disabled={action.busy} onClick={() => void action.run(() => call("reinstate_member", { p_user: m.user_id }), `${m.name} est rétabli.`)}>
+                          {reinstate && (
+                            <button type="button" class="comptes-bouton" data-tone="ok" aria-label={`Rétablir ${m.name}`} disabled={action.busy} onClick={() => void action.run(() => call("reinstate_member", { p_user: m.user_id }), `${m.name} est rétabli.`)}>
                               Rétablir
                             </button>
                           )}
                         </div>
-                      </td>
-                    )}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      )}
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       )}
-      <p class="mt-3 max-w-4xl text-sm text-muted" data-testid="members-names-help">
-        <span data-testid="members-roster-date">{roster ? `Liste officielle relue le ${fmtDateTime(roster.read_at)}. ` : roster === null ? "La liste officielle n'a encore jamais été relue. " : ""}</span>
-        Un compte s'appelle « Gaulois n° … » jusqu'à sa validation, puis prend son pseudo de la liste officielle. Validé hors de la liste, ou membre sans pseudo public, il garde ce nom.
-        {someNotFound && <span data-testid="members-not-found-help">{` ${notFoundHelp(someRedo)}`}</span>}
-      </p>
-      <p class="mt-1 text-sm text-muted">Vous êtes {ROLE_LABELS[myRole]}. Le serveur revérifie chaque changement.</p>
+      {roster !== undefined && (
+        <p class="comptes-note" data-testid="members-roster-date">
+          {roster ? `Liste officielle relue le ${fmtDateTime(roster.read_at)}.` : "La liste officielle n'a encore jamais été relue."}
+        </p>
+      )}
+      <details class="fold mt-4">
+        <summary class="font-semibold">Comment lire cette liste</summary>
+        <div class="grid gap-3 pb-1 text-muted">
+          <p>Vert : en règle. Jaune : en attente, ou à regarder. Rouge : suspendu. Bleu : joueur allié. Gris : rien à faire.</p>
+          <p data-testid="members-names-help">
+            Un compte s'appelle « Gaulois n° … » jusqu'à sa validation, puis prend son pseudo de la liste officielle. Validé hors de la liste, ou membre sans pseudo public, il garde ce nom.
+            {someNotFound && <span data-testid="members-not-found-help">{` ${notFoundHelp(someRedo)}`}</span>}
+          </p>
+          <p>Vous êtes {ROLE_LABELS[myRole]}. Le serveur revérifie chaque changement.</p>
+        </div>
+      </details>
     </section>
   );
 }

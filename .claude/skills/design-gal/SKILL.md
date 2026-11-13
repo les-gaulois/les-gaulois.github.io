@@ -35,7 +35,9 @@ Un univers de jeu sombre, pas une page de statistiques : grands titres en oncial
 | `red` `#FF1A2E` | Filets, marqueur de page et de ligne active, lettrines (page et section), repère du premier chiffre clé, barre de lecture. Jamais en fond, jamais de texte blanc dessus en petite taille |
 | `muted` `#C0C9E2` | Texte secondaire |
 | `warn` `#FFC857` | Données périmées et erreurs de collecte, et ce qui attend l'encadrement (demandes à traiter, pastille `.count-pill`, état du site) |
-| `ok` `#A6E3B4` | Une réussite : message après un envoi (`.form-success`), `[ OK ]` de l'état du site |
+| `ok` `#A6E3B4` | Une réussite : message après un envoi (`.form-success`), `[ OK ]` de l'état du site ; « Validé » et « Oui » dans l'onglet Comptes |
+| `danger` `#FF6B6B` | Ce qui est bloqué, en texte : un compte suspendu dans l'onglet Comptes. Jamais en fond plein sous du texte blanc |
+| `ally` `#9DBCFF` | Un joueur allié, dans l'onglet Comptes. Ne change pas avec le thème |
 
 Pas de couleur en dur dans un composant : un jeton, ou une classe de `global.css`. Les couleurs des territoires sur la carte sont celles des clans dans le jeu, pas des jetons.
 

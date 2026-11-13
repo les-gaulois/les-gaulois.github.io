@@ -14,7 +14,7 @@ export interface TabItem {
   count?: { value: number; words: string; tone?: "alerte" | "vif" } | null;
 }
 
-const reducedMotion = () => document.documentElement.classList.contains("fx-off") || matchMedia("(prefers-reduced-motion: reduce)").matches;
+export const reducedMotion = () => document.documentElement.classList.contains("fx-off") || matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /**
  * L'onglet ouvert, tenu dans l'adresse (`#demandes`) sans ajouter de page à l'historique : un lien peut ouvrir un

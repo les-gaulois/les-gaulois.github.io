@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ROLE_RANK, ROSTER_CELL_LABELS, ROSTER_CELL_WARN, allyStatus, canRedoRequest, notFoundHelp, openRequests, redoRequestDone, redoRequestQuestion, rosterCell } from "../../src/lib/compte/admin-members";
+import { MEMBERS_LIMIT, MEMBER_FILTERS, ROLE_RANK, ROSTER_CELL_LABELS, ROSTER_CELL_WARN, allyStatus, allyStatusParts, canRedoRequest, filterCounts, inFilter, listMayBeCut, matchesSearch, memberState, needsCheck, notFoundHelp, openRequests, redoRequestDone, redoRequestQuestion, rosterCell, rosterTone, statusTone } from "../../src/lib/compte/admin-members";
 import { REQUESTS_LIMIT } from "../../src/lib/compte/requests";
 
 type Member = Parameters<typeof rosterCell>[0];
@@ -149,5 +149,97 @@ describe("un joueur allié dans la liste des comptes", () => {
     expect(allyStatus(ally)).toBe("Allié · [LUX] Kraken");
     expect(allyStatus({ ...ally, approved: false, active: false })).toBe("Allié en attente de votre accord · [LUX] Kraken");
     expect(allyStatus({ ...ally, active: false })).toBe("Allié sans accès, son clan n'est plus dans notre alliance · [LUX] Kraken");
+  });
+});
+
+describe("les filtres et les couleurs de l'onglet Comptes", () => {
+  type Row = Parameters<typeof inFilter>[0] & Parameters<typeof matchesSearch>[0];
+  const row = (over: Partial<Row>): Row => ({ number: 1, name: "Teutatès", discord_name: "teutates", openfront_username: "Teutatès", role: "member", status: "validated", linked: true, in_roster: true, ...over });
+  const allyOk = { number: 20, tag: "UN", alias: "Lancier", approved: true, active: true };
+  const allyWaiting = { number: 21, tag: "KNG", alias: "Archer", approved: false, active: false };
+  const rows: Row[] = [
+    row({ number: 1, role: "founder" }),
+    row({ number: 2, role: "officer" }),
+    row({ number: 3 }),
+    row({ number: 4, in_roster: false }), // plus dans la liste
+    row({ number: 5, linked: false, in_roster: false, openfront_username: null }), // pas trouvé
+    row({ number: 6, role: "officer", status: "suspended" }),
+    row({ number: 10, status: "pending", linked: false, in_roster: false, openfront_username: null }), // demande ouverte
+    row({ number: 11, status: "pending", linked: false, in_roster: false, openfront_username: null }), // sans demande
+    row({ number: 20, status: "pending", linked: false, in_roster: false, openfront_username: null }),
+    row({ number: 21, status: "pending", linked: false, in_roster: false, openfront_username: null }),
+  ];
+  const requests = openRequests([{ number: 10 }]);
+  const allies = new Map([
+    [20, allyOk],
+    [21, allyWaiting],
+  ]);
+
+  it("range chaque compte dans un seul état : les quatre filtres d'état font le total de « Tous »", () => {
+    const counts = filterCounts(rows, requests, allies);
+    expect(counts.all).toBe(rows.length);
+    expect(counts.validated + counts.pending + counts.suspended + counts.ally).toBe(counts.all);
+    expect(counts).toMatchObject({ validated: 5, pending: 2, suspended: 1, ally: 2 });
+    expect(MEMBER_FILTERS.map((f) => f.id)).toEqual(["all", "validated", "pending", "suspended", "ally", "staff", "check"]);
+  });
+
+  it("compte l'encadrement comme la vue d'ensemble : validé, au-dessus de membre, suspendu exclu", () => {
+    expect(filterCounts(rows, requests, allies).staff).toBe(2);
+    expect(inFilter(row({ role: "officer", status: "suspended" }), "staff", null, undefined)).toBe(false);
+  });
+
+  it("met dans « À vérifier » les cases jaunes de la colonne Liste et l'allié qui attend un accord", () => {
+    const checked = rows.filter((m) => inFilter(m, "check", requests, allies.get(m.number))).map((m) => m.number);
+    expect(checked).toEqual([4, 5, 10, 21]);
+    expect(needsCheck(rows[8]!, requests, allyOk)).toBe(false);
+  });
+
+  it("ne range un compte en attente parmi les alliés que si la carte de l'alliance le connaît", () => {
+    expect(memberState(row({ status: "pending" }), undefined)).toBe("pending");
+    expect(memberState(row({ status: "pending" }), allyOk)).toBe("ally");
+    // Un ancien allié devenu Gaulois validé reste un Gaulois.
+    expect(memberState(row({ status: "validated" }), allyOk)).toBe("validated");
+  });
+
+  it("trouve un compte sans accents ni majuscules, par son nom, son nom Discord, son pseudo ou son numéro", () => {
+    expect(matchesSearch(row({}), "teutates")).toBe(true);
+    expect(matchesSearch(row({}), "  TEUT ")).toBe(true);
+    expect(matchesSearch(row({ name: "Gaulois n° 131", discord_name: "recrue", openfront_username: null, number: 131 }), "131")).toBe(true);
+    expect(matchesSearch(row({ name: "Gaulois n° 131", discord_name: "recrue_9", openfront_username: null, number: 131 }), "recrue_9")).toBe(true);
+    expect(matchesSearch(row({ discord_name: null, openfront_username: null }), "brennos")).toBe(false);
+    expect(matchesSearch(row({}), "")).toBe(true);
+  });
+
+  it("colore le statut : vert validé, jaune en attente, rouge suspendu, bleu allié", () => {
+    expect(statusTone({ status: "validated" }, undefined)).toBe("ok");
+    expect(statusTone({ status: "pending" }, undefined)).toBe("warn");
+    expect(statusTone({ status: "suspended" }, undefined)).toBe("danger");
+    expect(statusTone({ status: "pending" }, allyOk)).toBe("ally");
+    expect(statusTone({ status: "pending" }, allyWaiting)).toBe("warn");
+    expect(statusTone({ status: "pending" }, { ...allyOk, active: false })).toBe("muted");
+  });
+
+  it("colore la colonne Liste comme avant, avec le vert pour « Oui » et le gris pour un allié", () => {
+    expect(rosterTone("in", undefined)).toBe("ok");
+    for (const cell of ["left", "not_found", "request"] as const) expect(rosterTone(cell, undefined)).toBe("warn");
+    for (const cell of ["no_request", "unknown"] as const) expect(rosterTone(cell, undefined)).toBe("muted");
+    expect(rosterTone("in", allyOk)).toBe("muted");
+  });
+
+  it("sépare l'état d'un allié et son nom, sans changer la phrase entière", () => {
+    for (const ally of [allyOk, allyWaiting, { ...allyOk, active: false }]) {
+      const { state, who } = allyStatusParts(ally);
+      expect(`${state} · ${who}`).toBe(allyStatus(ally));
+      expect(who).toBe(`[${ally.tag}] ${ally.alias}`);
+    }
+    expect(allyStatusParts(allyOk).state).toBe("Allié");
+  });
+
+  it("sait quand l'écran n'a peut-être pas tous les comptes", () => {
+    expect(listMayBeCut(33, "")).toBe(false);
+    expect(listMayBeCut(MEMBERS_LIMIT - 1, "")).toBe(false);
+    expect(listMayBeCut(MEMBERS_LIMIT, "")).toBe(true);
+    // Une recherche faite par le serveur ne rend qu'une partie des comptes, même courte.
+    expect(listMayBeCut(3, "bren")).toBe(true);
   });
 });
