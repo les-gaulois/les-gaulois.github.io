@@ -7792,8 +7792,9 @@ footer h2 {
   color: #fff;
 }
 /* Sur téléphone, le Gaulois reste en haut de l'écran, sous la barre du site, pendant qu'on descend l'habiller : une case
-   y fait 3 pixels, « Au hasard » et l'essayage se mettent à côté. */
-@media (max-width: 767px) {
+   y fait 3 pixels, « Au hasard » et l'essayage se mettent à côté. Pas sur un écran bas (téléphone couché) : il ne resterait
+   presque rien pour les cases. */
+@media (max-width: 767px) and (min-height: 560px) {
   .vestiaire-scene {
     position: sticky;
     top: 4.5rem;

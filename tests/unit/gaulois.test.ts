@@ -82,7 +82,11 @@ describe("les dessins du Gaulois", () => {
         expect(vignette.cases).toHaveLength(vignette.largeur * vignette.hauteur);
         expect(vignette.largeur).toBeLessThanOrEqual(GAULOIS_LARGEUR);
         expect(vignette.hauteur).toBeLessThanOrEqual(GAULOIS_HAUTEUR);
-        expect(vignette.cases.some((c) => c !== null)).toBe(true);
+        // Chaque case dessinée a sa couleur : une lettre sans couleur laisserait un trou dans l'objet.
+        const dessinees = objet.dessin.lignes.reduce((n, ligne) => n + [...ligne].filter((lettre) => lettre !== ".").length, 0);
+        expect(dessinees, `${emplacement}/${id}`).toBeGreaterThan(0);
+        expect(vignette.cases.filter((c) => c !== null), `${emplacement}/${id}`).toHaveLength(dessinees);
+        for (const couleur of vignette.cases) if (couleur !== null) expect(couleur).toMatch(/^#[0-9a-f]{6}$/);
       }
     }
     expect(vignetteDeLObjet("tete", "inconnu")).toBeNull();
@@ -171,7 +175,10 @@ describe("une tenue", () => {
 
   it("se dit en mots, pour qui ne voit pas l'image", () => {
     const texte = decrireGaulois(TENUE_DE_DEPART);
-    expect(texte.startsWith("Gaulois en pixels.")).toBe(true);
+    const nbsp = String.fromCharCode(0xa0);
+    expect(texte).toBe(
+      ["Gaulois en pixels", "Peau : claire", "Cheveux : courts, roux", "Barbe : moustache", "Tête : tête nue", "Haut : tunique bleue", "Bas : braies à carreaux", "Pieds : bottes de cuir", "Arme : gourdin"].join(". ").replaceAll(" :", `${nbsp}:`) + ".",
+    );
     for (const emplacement of EMPLACEMENTS) {
       const nom = OBJETS[emplacement][TENUE_DE_DEPART[emplacement] ?? ""]?.nom ?? "";
       expect(texte.toLowerCase(), emplacement).toContain(nom.toLowerCase());
