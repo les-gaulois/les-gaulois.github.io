@@ -3336,6 +3336,240 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 
 /* ---------- Direction, onglet Fondateur ---------- */
 /* Les règles propres à cet onglet (DirectionFondateur.tsx), sous la classe `dir-fondateur`. */
+/* Deux étapes côte à côte dès 1 024 px : à gauche le choix du membre (recherche, filtres par rôle, liste serrée qui défile
+   dans son cadre), à droite ce qui va se passer et la confirmation. Plus étroit, l'une sous l'autre. Le rouge `danger` ne
+   paraît que deux fois : la pastille « Sans retour », et le bouton une fois le nom bien retapé. */
+.dir-fondateur-plan {
+  display: grid;
+  gap: 1.25rem 2rem;
+  margin-top: 1rem;
+}
+@media (min-width: 64rem) {
+  .dir-fondateur-plan {
+    grid-template-columns: minmax(0, 1fr) minmax(22rem, 30rem);
+    align-items: start;
+  }
+}
+.dir-fondateur-choix {
+  min-width: 0;
+}
+.dir-fondateur-etape {
+  padding: 0;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: #fff;
+}
+.dir-fondateur-outils {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.625rem;
+}
+/* La liste défile dans son cadre : la confirmation reste à l'écran, sans descendre la page. */
+.dir-fondateur-liste {
+  max-height: min(27rem, 60vh);
+  margin-top: 0.625rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-block: 1px solid var(--color-line-strong);
+  scrollbar-width: thin;
+}
+.dir-fondateur-ligne {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 0.625rem;
+  min-height: 2.25rem;
+  padding: 0.1875rem 0.75rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+  font-size: 0.9375rem;
+  line-height: 1.35;
+  cursor: pointer;
+}
+.dir-fondateur-ligne:last-child {
+  border-bottom: 0;
+}
+.dir-fondateur-ligne:hover {
+  background: rgb(255 255 255 / 0.05);
+}
+.dir-fondateur-ligne[data-choisi] {
+  background: rgb(255 255 255 / 0.1);
+  box-shadow: inset 3px 0 0 var(--color-ally);
+}
+/* Le bouton radio couvre sa ligne, invisible : toute la ligne se clique, et le clavier garde ses flèches. Il reste dans le
+   cadre de la ligne, pour ne pas élargir la liste qui défile. */
+.dir-fondateur-radio {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.dir-fondateur-ligne:has(:focus-visible) {
+  outline: 2px solid #fff;
+  outline-offset: -2px;
+}
+.dir-fondateur-nom {
+  font-weight: 700;
+  color: #fff;
+  overflow-wrap: anywhere;
+}
+.dir-fondateur-discord,
+.dir-fondateur-vous {
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+.dir-fondateur-fin {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.625rem;
+  margin-left: auto;
+  font-size: 0.875rem;
+}
+.dir-fondateur-rien {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.875rem;
+  padding: 0.75rem;
+  color: var(--color-muted);
+}
+.dir-fondateur .dir-note {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+}
+/* Le rôle en étiquette, comme dans l'onglet Comptes. */
+.dir-fondateur-role {
+  display: inline-block;
+  flex: none;
+  padding: 0.0625rem 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--color-muted);
+}
+.dir-fondateur-role[data-role="member"] {
+  border-color: color-mix(in srgb, var(--color-line) 70%, transparent);
+  font-weight: 400;
+}
+.dir-fondateur-role[data-role="officer"] {
+  border-color: var(--color-line-strong);
+  color: #fff;
+}
+.dir-fondateur-role[data-role="admin"] {
+  border-color: #fff;
+  color: #fff;
+}
+.dir-fondateur-role[data-role="founder"] {
+  border-color: #fff;
+  background: #fff;
+  color: var(--color-night);
+}
+
+/* L'étape 2 : l'avertissement, ce que chacun devient, le nom à retaper, le bouton. */
+.dir-fondateur-acte {
+  display: grid;
+  gap: 0.875rem;
+  min-width: 0;
+  padding: 1rem 1.125rem 1.125rem;
+}
+.dir-fondateur-alerte {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 0.625rem;
+  font-size: 0.9375rem;
+}
+.dir-fondateur-suite {
+  display: grid;
+  border-block: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+  font-size: 0.9375rem;
+}
+.dir-fondateur-suite > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+  min-height: 2.25rem;
+  padding-block: 0.3125rem;
+}
+.dir-fondateur-suite > div + div {
+  border-top: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+}
+.dir-fondateur-suite dt {
+  min-width: 0;
+}
+.dir-fondateur-suite dd {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 0.875rem;
+}
+.dir-fondateur-saisie {
+  display: grid;
+  gap: 0.375rem;
+  min-width: 0;
+  font-size: 0.9375rem;
+}
+.dir-fondateur-saisie label {
+  overflow-wrap: anywhere;
+}
+/* La place de la pastille est gardée : le bouton ne bouge pas quand elle paraît. */
+.dir-fondateur-etat {
+  min-height: 1.625rem;
+  font-size: 0.875rem;
+}
+/* Le bouton est gris tant que le nom n'est pas le bon (désactivé), et ne prend le rouge `danger` qu'ensuite. */
+.dir-fondateur-envoi {
+  justify-self: start;
+  border: 1px solid #fff;
+  color: #fff;
+}
+.dir-fondateur-envoi::before {
+  content: ">" / "";
+  color: var(--console-vert, currentColor);
+}
+.dir-fondateur-envoi[data-arme] {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+.dir-fondateur-envoi[data-arme]::before {
+  color: inherit;
+}
+.dir-fondateur-envoi[data-arme]:hover:where(:not(:disabled)) {
+  background: var(--color-danger);
+  color: var(--color-night);
+}
+
+/* Au doigt et sous 768 px : des lignes de 44 px, une liste moins haute pour que l'étape 2 reste proche. */
+@media (pointer: coarse) {
+  .dir-fondateur-ligne {
+    min-height: 2.75rem;
+  }
+}
+@media (max-width: 47.9375rem) {
+  .dir-fondateur-ligne {
+    min-height: 2.75rem;
+  }
+  .dir-fondateur-liste {
+    max-height: min(19.25rem, 55vh);
+  }
+  .dir-fondateur-envoi {
+    justify-self: stretch;
+  }
+}
 
 /* ---------- Le menu déroulant de l'onglet Discord, à la Direction ---------- */
 /* Une rubrique par ligne : son titre et une phrase. Au clic ou au clavier (<details>), son contenu se déroule dessous, de
