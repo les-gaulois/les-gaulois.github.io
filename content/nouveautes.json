@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-13",
+    "kind": "nouveau",
+    "title": "Un panneau des rôles sur le Discord du clan",
+    "body": "Un bouton par alerte : Rassemblement, Giveaway, Tournois et Membre GAL. Un clic donne le rôle, un second le retire, et « Mes rôles » montre ceux que vous avez.",
+    "link": {
+      "href": "/confidentialite#serveur-discord",
+      "label": "Lire la page"
+    }
+  },
+  {
+    "date": "2026-11-13",
     "kind": "ameliore",
     "title": "Les concours du Discord deviennent une tombola",
     "body": "Sur le Discord du clan, chaque participant à un concours reçoit un billet numéroté, en image. Au tirage au sort, le billet gagnant s'affiche devant tout le monde."
