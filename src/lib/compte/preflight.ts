@@ -174,6 +174,27 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
     else add(label, "fail", `Réponse ${res.status}. Ne mettez pas en ligne : seul un compte validé avec son Gaulois achète.`);
   }
 
+  // Le marché et la place du village (migration 20261113002000) : seul un compte validé lit le marché, vend et achète ; seul
+  // un compte validé ou de l'encadrement voit la place. Absente : 404, la migration n'est pas collée. Les objets et les offres
+  // demandés n'existent pas, et un visiteur n'a ni objet ni statère : même si le droit d'appel était mal posé, rien ne bougerait.
+  const market = await rpc("get_marche");
+  const marketAnswer = market.ok ? ((await market.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (market.status === 404) add("Le marché du village est installé", "warn", "get_marche est absente : collez la migration 20261113002000_village_marche_et_place.sql avant de mettre en ligne ce qui s'en sert.");
+  else if (isClosed(market.status) || (market.ok && marketAnswer?.ok === false)) add("Un visiteur ne lit pas le marché du village", "ok");
+  else add("Un visiteur ne lit pas le marché du village", "fail", `Réponse ${market.status}. Ne mettez pas en ligne : seul un compte validé lit le marché.`);
+  const villageCalls = [
+    ["get_village", {}, "Un visiteur ne voit pas la place du village"],
+    ["mettre_en_vente", { p_emplacement: "tete", p_objet: "verification", p_prix: 1 }, "Un visiteur ne met rien en vente"],
+    ["retirer_offre", { p_id: 0 }, "Un visiteur ne retire pas d'offre du marché"],
+    ["acheter_offre", { p_id: 0 }, "Un visiteur n'achète pas au marché"],
+  ] as const;
+  for (const [fn, body, label] of villageCalls) {
+    const res = await rpc(fn, body);
+    const answer = res.ok ? ((await res.json().catch(() => null)) as { ok?: boolean } | null) : null;
+    if (isClosed(res.status) || (res.ok && answer?.ok === false)) add(label, "ok");
+    else add(label, "fail", `Réponse ${res.status}. Ne mettez pas en ligne : le marché ne s'ouvre qu'aux comptes validés, la place aussi à l'encadrement.`);
+  }
+
   // Les salons du robot : leur réglage contient les liens qui écrivent dans les salons. Seuls les admins et le fondateur
   // le règlent, et seule la clé de service, celle du robot, reçoit les liens. Leur installation se lit avec `supabase migration list`.
   const salonsState = await rpc("get_discord_salons");
