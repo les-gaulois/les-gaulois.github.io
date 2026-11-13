@@ -190,6 +190,9 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
     ["get_alliance_map", {}, "Un visiteur ne lit pas la carte de l'alliance"],
     ["accept_alliance_invite", { p_token: "0".repeat(32), p_alias: "verification" }, "Un visiteur n'accepte pas d'invitation à la carte de l'alliance"],
     ["save_alliance_zone", { p_id: null, p_title: "verification", p_tag: null, p_x: 0, p_y: 0, p_w: 1, p_h: 1, p_mask: "AQ==" }, "Un visiteur ne dessine pas de zone de l'alliance"],
+    // L'accord de l'encadrement (migration 20261113000500) : le numéro 0 n'est celui d'aucun compte.
+    ["approve_alliance_ally", { p_number: 0, p_approve: true }, "Un visiteur n'accepte pas de joueur allié"],
+    ["list_alliance_allies", {}, "Un visiteur ne lit pas la liste des joueurs alliés"],
   ] as const;
   for (const [fn, body, label] of allianceCalls) {
     const res = await rpc(fn, body);

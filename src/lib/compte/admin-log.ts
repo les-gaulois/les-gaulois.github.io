@@ -67,6 +67,10 @@ const CATEGORIES: Record<string, LogCategory> = {
   alliance_invite_created: "alliance",
   alliance_invite_cancelled: "alliance",
   alliance_ally_joined: "alliance",
+  alliance_ally_requested: "alliance",
+  alliance_ally_approved: "alliance",
+  alliance_ally_refused: "alliance",
+  alliance_ally_cancelled: "alliance",
   alliance_ally_removed: "alliance",
   alliance_ally_left: "alliance",
   alliance_zone_saved: "alliance",
@@ -285,6 +289,20 @@ export function describe(row: LogRow, when: (iso: string) => string): LogLine {
       const tag = textOf(details, "tag");
       const nom = `${alias ? ` sous le nom « ${alias} »` : ""}${tag ? `, joueur de ${tag}` : ""}`;
       return { who, what: row.action === "alliance_ally_joined" ? `est entré sur la carte de l'alliance${nom}.` : `a quitté la carte de l'alliance${nom}.` };
+    }
+    // Depuis la migration 20261113000500 : le joueur qui ouvre son lien attend l'accord de l'encadrement.
+    case "alliance_ally_requested": {
+      const tag = textOf(details, "tag");
+      return { who, what: `a ouvert son invitation à la carte de l'alliance${tag ? `, comme joueur de ${tag}` : ""}, et attend l'accord de l'encadrement.` };
+    }
+    case "alliance_ally_cancelled": {
+      const tag = textOf(details, "tag");
+      return { who, what: `a annulé sa demande d'accès à la carte de l'alliance${tag ? `, comme joueur de ${tag}` : ""}, avant l'accord de l'encadrement.` };
+    }
+    case "alliance_ally_approved":
+    case "alliance_ally_refused": {
+      const tag = textOf(details, "tag");
+      return { who, what: `${row.action === "alliance_ally_approved" ? "a accepté" : "a refusé"} ${row.target ?? GONE_OBJECT}${tag ? `, joueur de ${tag},` : ""} sur la carte de l'alliance.` };
     }
     case "alliance_ally_removed": {
       const alias = textOf(details, "alias");

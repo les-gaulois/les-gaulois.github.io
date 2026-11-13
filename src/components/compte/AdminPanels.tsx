@@ -4,7 +4,7 @@
  */
 import { useEffect, useState } from "preact/hooks";
 import { LOG_CATEGORIES, LOG_LIMIT, LOG_PAGE, describe, filterLog, logPeople, type LogCategory } from "../../lib/compte/admin-log";
-import { ROSTER_CELL_LABELS, ROSTER_CELL_WARN, canRedoRequest, notFoundHelp, openRequests, redoRequestDone, redoRequestQuestion, rosterCell } from "../../lib/compte/admin-members";
+import { ROSTER_CELL_LABELS, ROSTER_CELL_WARN, allyStatus, canRedoRequest, notFoundHelp, openRequests, redoRequestDone, redoRequestQuestion, rosterCell, type AllyMark } from "../../lib/compte/admin-members";
 import { call } from "../../lib/compte/api";
 import { announcePendingChange } from "../../lib/compte/pending";
 import { READY_REASONS, requestWait, requestsSummary } from "../../lib/compte/requests";
@@ -167,6 +167,14 @@ export function Members({ me }: { me: Me }) {
     await Promise.all([list.reload(), pending.reload()]);
   };
   const action = useAction(reloadAll);
+  // Les joueurs alliés de la carte de l'alliance, par numéro de compte : sans ce repère, ils ressemblent à de nouveaux Gaulois
+  // « En attente ». Un serveur d'avant cette lecture la refuse : la liste reste alors comme avant.
+  const [allies, setAllies] = useState<Map<number, AllyMark>>(new Map());
+  useEffect(() => {
+    call<{ allies: AllyMark[] }>("list_alliance_allies")
+      .then((r) => setAllies(new Map(r.allies.map((a) => [a.number, a]))))
+      .catch(() => setAllies(new Map()));
+  }, []);
   // Un rôle choisi dans la liste attend une confirmation : au clavier ou d'un doigt, on choisit vite un autre rôle par erreur.
   const [draft, setDraft] = useState<{ user: string; role: Role } | null>(null);
   // Après « Confirmer » ou « Annuler », le focus revient à la liste du rôle, une fois l'envoi fini : sinon, il repartirait du haut de la page.
@@ -244,16 +252,27 @@ export function Members({ me }: { me: Me }) {
                 const editable = rank >= 3 && m.status === "validated" && m.role !== "founder" && (rank >= 4 || m.role !== "admin") && m.user_id !== undefined;
                 const chosen = draft?.user === m.user_id ? draft.role : null;
                 const cell = rosterCell(m, requests);
+                // Seulement pour un compte en attente : un ancien allié devenu Gaulois validé garde sa colonne Liste.
+                const ally = m.status === "pending" ? allies.get(m.number) : undefined;
                 return (
                   <tr key={m.user_id} data-testid="member-row">
                     <td class="font-semibold">{m.name}</td>
                     <td>{m.discord_name ?? "—"}</td>
                     <td>
-                      {STATUS_LABELS[m.status]}
-                      {m.status_reason ? ` : ${m.status_reason}` : ""}
+                      {ally && m.status === "pending" ? (
+                        <span class={ally.approved ? undefined : "text-warn"} data-testid="member-ally">
+                          {allyStatus(ally)}
+                        </span>
+                      ) : (
+                        <>
+                          {STATUS_LABELS[m.status]}
+                          {m.status_reason ? ` : ${m.status_reason}` : ""}
+                        </>
+                      )}
                     </td>
-                    <td class={ROSTER_CELL_WARN.has(cell) ? "text-warn" : cell === "no_request" ? "text-muted" : undefined} data-testid="member-roster">
-                      {ROSTER_CELL_LABELS[cell]}
+                    <td class={ally ? "text-muted" : ROSTER_CELL_WARN.has(cell) ? "text-warn" : cell === "no_request" ? "text-muted" : undefined} data-testid="member-roster">
+                      {/* Un allié n'a pas de demande à faire : la liste officielle de GAL ne le concerne pas. */}
+                      {ally ? "—" : ROSTER_CELL_LABELS[cell]}
                     </td>
                     <td>
                       {editable ? (

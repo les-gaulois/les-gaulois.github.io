@@ -1,6 +1,6 @@
 /**
- * La gestion de l'alliance, pour l'encadrement de GAL : créer les alliances, y glisser les clans de la carte, inviter les
- * joueurs des clans alliés et leur retirer l'accès. Le serveur revérifie chaque droit : cette partie n'est qu'affichée.
+ * La gestion de l'alliance, pour l'encadrement de GAL : accepter ou refuser les joueurs alliés qui ont ouvert leur lien,
+ * inviter, créer les alliances, y glisser les clans de la carte, et retirer un accès. Le serveur revérifie chaque droit : cette partie n'est qu'affichée.
  */
 import { useState } from "preact/hooks";
 import { COULEURS_ALLIANCE, couleurLibre } from "../../../lib/alliance/couleurs";
@@ -284,8 +284,37 @@ function Allies({ ctx }: { ctx: Contexte }) {
     if (cible instanceof HTMLInputElement) cible.focus({ preventScroll: true });
   };
 
+  // `approved === false` seulement : un serveur d'avant l'accord ne donne pas ce champ, et tous ses alliés sont entrés.
+  const enAttente = allies.filter((a) => a.approved === false);
+  const acceptes = allies.filter((a) => a.approved !== false);
+
   return (
     <section aria-labelledby="gestion-allies" data-testid="gestion-invitation">
+      {/* Ceux qui ont ouvert leur lien attendent l'accord : un lien transféré à un autre ne lui ouvre rien sans lui. */}
+      {enAttente.length > 0 && (
+        <div class="alliance-manque mb-4" data-testid="allies-en-attente">
+          <h3>Ils attendent votre accord</h3>
+          <p class="carte-aide">Vérifiez que le nom Discord est bien celui du joueur invité.</p>
+          <ul class="alliance-gestion-liste">
+            {enAttente.map((a) => (
+              <li key={a.number} class="alliance-ligne">
+                <span>
+                  <strong>
+                    [{a.tag}] {a.alias}
+                  </strong>
+                  {` · Discord : ${a.discord_name ?? "inconnu"} · le ${fmtDateTime(a.joined_at)}`}
+                </span>
+                <button type="button" class="btn btn-primary !min-h-10 !py-1.5 !text-sm" disabled={busy} onClick={() => void run("approve_alliance_ally", { p_number: a.number, p_approve: true })} aria-label={`Accepter ${a.alias}, joueur de ${a.tag}`}>
+                  Accepter
+                </button>
+                <span class="alliance-a-part">
+                  <EnDeuxTemps busy={busy} texte="Refuser" confirmer="Confirmer le refus" nom={a.alias} onConfirm={() => void run("approve_alliance_ally", { p_number: a.number, p_approve: false })} />
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <h3 id="gestion-allies">Inviter un joueur allié</h3>
       {manque ? (
         <div class="alliance-manque" data-testid="invite-manque">
@@ -302,7 +331,7 @@ function Allies({ ctx }: { ctx: Contexte }) {
             void inviter();
           }}
         >
-          <p class="carte-aide">Un lien par joueur, valable une fois et 7 jours ; jamais le QG.</p>
+          <p class="carte-aide">Un lien par joueur, valable une fois et 7 jours ; il entre après votre accord, jamais au QG.</p>
           <label for="invite-clan" class="text-sm font-semibold">
             Son clan
           </label>
@@ -364,11 +393,11 @@ function Allies({ ctx }: { ctx: Contexte }) {
         </>
       )}
 
-      {allies.length > 0 && <p class="mt-4 font-semibold">Joueurs qui ont accès</p>}
-      {allies.length > 0 && (
+      {acceptes.length > 0 && <p class="mt-4 font-semibold">Joueurs qui ont accès</p>}
+      {acceptes.length > 0 && (
         <ul class="alliance-gestion-liste">
-          {allies.map((a) => (
-            <li class="alliance-ligne">
+          {acceptes.map((a) => (
+            <li key={a.number} class="alliance-ligne">
               <span>
                 <strong>
                   [{a.tag}] {a.alias}

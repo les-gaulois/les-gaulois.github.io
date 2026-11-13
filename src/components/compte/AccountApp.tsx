@@ -1,6 +1,6 @@
 import { useEffect, useState } from "preact/hooks";
 import { ADRESSE_ALLIANCE, RETOUR_CARTE_KEY } from "../../lib/alliance/invitation";
-import type { AccesCarte } from "../../lib/alliance/types";
+import type { AccesCarte, AttenteAllie } from "../../lib/alliance/types";
 import { basePath, call, signOut } from "../../lib/compte/api";
 import { ROLE_LABELS, type Me } from "../../lib/compte/types";
 import { fmtDate } from "../../lib/format";
@@ -137,15 +137,20 @@ function DeleteAccount({ founder }: { founder: boolean }) {
 }
 
 /** Ce que la carte de l'alliance ouvre à ce compte, pour un compte en attente : un joueur allié invité y a sa place. */
-function useAllie(me: Me | null): AccesCarte | null {
-  const [access, setAccess] = useState<AccesCarte | null>(null);
+function useAllie(me: Me | null): { tag: string; name: string; enAttente: boolean } | null {
+  const [access, setAccess] = useState<{ tag: string; name: string; enAttente: boolean } | null>(null);
   useEffect(() => {
     if (!me?.signed_in || me.status !== "pending") {
       setAccess(null);
       return;
     }
-    call<{ access: AccesCarte | null }>("get_map_access")
-      .then((r) => setAccess(r.access?.kind === "allie" ? r.access : null))
+    call<{ access: AccesCarte | null; waiting?: AttenteAllie | null }>("get_map_access")
+      .then((r) => {
+        if (r.access?.kind === "allie") setAccess({ tag: r.access.tag, name: r.access.name, enAttente: false });
+        // Il a ouvert son lien d'invitation : l'encadrement doit encore l'accepter.
+        else if (r.waiting) setAccess({ tag: r.waiting.tag, name: r.waiting.alias, enAttente: true });
+        else setAccess(null);
+      })
       // Un serveur d'avant la carte de l'alliance ne connaît pas cette fonction : la page reste comme avant.
       .catch(() => setAccess(null));
   }, [me?.signed_in, me?.status]);
@@ -252,7 +257,9 @@ export default function AccountApp() {
         <section class="card p-5" data-testid="account-allie">
           <h2 class="text-xl">Carte de l'alliance</h2>
           <p class="mt-2">
-            L'encadrement de GAL vous a invité comme joueur de {allie.tag}, sous le nom {allie.name}. Votre accès : la carte de l'alliance, ses zones et sa discussion.
+            {allie.enAttente
+              ? `Votre demande, comme joueur de ${allie.tag} sous le nom ${allie.name}, attend l'accord de l'encadrement de GAL.`
+              : `L'encadrement de GAL vous a accepté comme joueur de ${allie.tag}, sous le nom ${allie.name}. Votre accès : la carte de l'alliance, ses zones et sa discussion.`}
           </p>
           <a class="btn btn-primary mt-4" href={`${basePath()}${ADRESSE_ALLIANCE}`}>
             Ouvrir la carte de l'alliance

@@ -39,8 +39,9 @@ export default function AuthMenu() {
         setMe(data.signed_in ? data : null);
         // Un compte en attente peut être un joueur allié invité sur la carte de l'alliance.
         if (data.signed_in && data.status === "pending") {
-          call<{ access: { kind: string; name: string } | null }>("get_map_access")
-            .then((r) => setAlly(r.access?.kind === "allie" ? r.access.name : null))
+          call<{ access: { kind: string; name: string } | null; waiting?: { alias: string } | null }>("get_map_access")
+            // Accepté, ou encore en attente de l'accord de l'encadrement : sa place est la carte de l'alliance.
+            .then((r) => setAlly(r.access?.kind === "allie" ? r.access.name : (r.waiting?.alias ?? null)))
             // Un serveur d'avant la carte de l'alliance ne connaît pas cette fonction : l'en-tête reste comme avant.
             .catch(() => setAlly(null));
         }

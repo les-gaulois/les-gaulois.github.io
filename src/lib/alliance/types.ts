@@ -54,7 +54,9 @@ export interface AllieLigne {
   tag: string;
   discord_name: string | null;
   joined_at: string;
-  /** Faux quand son clan n'est plus dans notre alliance : il n'entre plus, sans avoir été retiré. */
+  /** Faux tant que l'encadrement ne l'a pas accepté : il a ouvert son lien et attend. */
+  approved: boolean;
+  /** Faux tant qu'il attend, ou quand son clan n'est plus dans notre alliance : il n'entre plus, sans avoir été retiré. */
   active: boolean;
 }
 
@@ -66,8 +68,17 @@ export interface InvitationLigne {
   expires_at: string;
 }
 
+/** Le joueur qui a ouvert son lien d'invitation et attend l'accord de l'encadrement. */
+export interface AttenteAllie {
+  tag: string;
+  alias: string;
+  since: string;
+}
+
 export interface CarteAlliance {
   access: AccesCarte | null;
+  /** Pour un compte sans accès : sa demande en attente, s'il en a une. */
+  waiting?: AttenteAllie | null;
   /** L'alliance où est rangé GAL. */
   ours?: number | null;
   alliances?: AllianceLigne[];

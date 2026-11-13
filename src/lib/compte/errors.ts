@@ -126,7 +126,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   already_gaulois: "Vous êtes déjà un Gaulois validé : la carte de l'alliance vous est ouverte sans invitation.",
   invite_invalid: "Ce lien d'invitation a déjà servi, a été annulé, a plus de 7 jours, ou son clan n'est plus allié. Demandez-en un nouveau à l'encadrement de GAL.",
   invalid_alias: "Choisissez un nom de 2 à 24 caractères pour la carte de l'alliance.",
-  ally_not_found: "Ce joueur n'a plus accès à la carte de l'alliance. Rechargez la page.",
+  ally_not_found: "Ce joueur n'est plus dans la liste, ou sa demande a déjà été traitée. Rechargez la page.",
   invalid_troops: "Indiquez un nombre de troupes, de 0 à 1 000 milliards.",
   invalid_zone: "Cette zone n'est pas valable : donnez-lui un nom de 2 à 40 caractères, et dessinez-la dans un cadre d'un million de pixels au plus.",
   empty_zone: "La zone est vide : dessinez au moins un pixel de terre.",

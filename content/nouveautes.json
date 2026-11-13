@@ -2,6 +2,12 @@
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "title": "Les alliés acceptés par l'encadrement",
+    "body": "Un joueur allié qui ouvre son lien d'invitation attend maintenant l'accord de l'encadrement, qui le reconnaît à son nom Discord. Dans la Direction, les comptes des alliés portent le repère « Allié »."
+  },
+  {
+    "date": "2026-11-13",
+    "kind": "ameliore",
     "title": "Le niveau non visible, expliqué",
     "body": "La liste des membres écrit « non visible » quand OpenFront ne donne pas le niveau d'un joueur, caché dans son compte ou pas encore gagné, et « sans prestige » quand il n'en a pas encore.",
     "link": {

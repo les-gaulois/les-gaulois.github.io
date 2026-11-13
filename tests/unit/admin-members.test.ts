@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ROLE_RANK, ROSTER_CELL_LABELS, ROSTER_CELL_WARN, canRedoRequest, notFoundHelp, openRequests, redoRequestDone, redoRequestQuestion, rosterCell } from "../../src/lib/compte/admin-members";
+import { ROLE_RANK, ROSTER_CELL_LABELS, ROSTER_CELL_WARN, allyStatus, canRedoRequest, notFoundHelp, openRequests, redoRequestDone, redoRequestQuestion, rosterCell } from "../../src/lib/compte/admin-members";
 import { REQUESTS_LIMIT } from "../../src/lib/compte/requests";
 
 type Member = Parameters<typeof rosterCell>[0];
@@ -139,5 +139,15 @@ describe("le bouton « Refaire la demande »", () => {
 describe("les couleurs de la colonne", () => {
   it("met en jaune ce qui demande un coup d'œil de l'encadrement, et seulement cela", () => {
     expect([...ROSTER_CELL_WARN].sort()).toEqual(["left", "not_found", "request"]);
+  });
+});
+
+describe("un joueur allié dans la liste des comptes", () => {
+  const ally = { number: 7, tag: "LUX", alias: "Kraken", approved: true, active: true };
+
+  it("se distingue d'un nouveau Gaulois en attente", () => {
+    expect(allyStatus(ally)).toBe("Allié · [LUX] Kraken");
+    expect(allyStatus({ ...ally, approved: false, active: false })).toBe("Allié en attente de votre accord · [LUX] Kraken");
+    expect(allyStatus({ ...ally, active: false })).toBe("Allié sans accès, son clan n'est plus dans notre alliance · [LUX] Kraken");
   });
 });

@@ -88,3 +88,25 @@ export function notFoundHelp(buttonShown: boolean): string {
     ? `${what} « Refaire la demande » le remet en attente, pour que la personne indique ${WHAT_TO_GIVE}.`
     : `${what} Un admin peut le remettre en attente, ou le fondateur s'il s'agit d'un admin, pour une nouvelle demande.`;
 }
+
+/** Un joueur allié invité sur la carte de l'alliance, tel que le donne `list_alliance_allies` à l'encadrement. */
+export interface AllyMark {
+  number: number;
+  tag: string;
+  alias: string;
+  /** Accepté par l'encadrement ; sinon, il a ouvert son lien et attend. */
+  approved: boolean;
+  /** Il entre en ce moment : accepté, et son clan est dans notre alliance. */
+  active: boolean;
+}
+
+/**
+ * Le statut d'un compte qui est un joueur allié, dans la liste des comptes de la Direction : sans ce repère, il ressemble à
+ * un nouveau Gaulois « En attente » qui n'a pas fait sa demande (remarque du pilote, 13 novembre 2026).
+ */
+export function allyStatus(ally: AllyMark): string {
+  const who = `[${ally.tag}] ${ally.alias}`;
+  if (!ally.approved) return `Allié en attente de votre accord · ${who}`;
+  if (!ally.active) return `Allié sans accès, son clan n'est plus dans notre alliance · ${who}`;
+  return `Allié · ${who}`;
+}

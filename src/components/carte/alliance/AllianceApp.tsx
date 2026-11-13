@@ -4,7 +4,8 @@
  * discussion. Ouverte, elle remplace le film par la carte de l'alliance (`src/scripts/alliance-ecran.ts`).
  *
  * Un visiteur sans session ne télécharge pas Supabase tant qu'il ne choisit pas de se connecter. Le serveur décide de tout :
- * un allié n'entre que par un lien d'invitation de l'encadrement, et jamais au QG.
+ * un allié n'entre que par un lien d'invitation de l'encadrement, puis une fois accepté par lui (migration 20261113000500),
+ * et jamais au QG. En attendant l'accord, la fenêtre lui dit que sa demande est envoyée.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { totauxAlliances } from "../../../lib/alliance/bilan";
@@ -72,7 +73,8 @@ function Porte({ invitation, connecte }: { invitation: string | null; connecte: 
   );
 }
 
-function Accepter({ invitation, relire }: { invitation: string; relire: () => Promise<void> }) {
+/** `fini` : la demande est envoyée ; la page oublie l'invitation et relit la carte, qui dit alors que la demande attend. */
+function Accepter({ invitation, fini }: { invitation: string; fini: () => Promise<void> }) {
   const [nom, setNom] = useState("");
   const [busy, setBusy] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -81,8 +83,7 @@ function Accepter({ invitation, relire }: { invitation: string; relire: () => Pr
     setErreur(null);
     try {
       await call("accept_alliance_invite", { p_token: invitation, p_alias: nom });
-      ecrireStockage(session, INVITATION_KEY, null);
-      await relire();
+      await fini();
     } catch (e) {
       setErreur(messageOf(e));
       if (e instanceof ServerError && (e.code === "invite_invalid" || e.code === "already_gaulois")) ecrireStockage(session, INVITATION_KEY, null);
@@ -108,7 +109,7 @@ function Accepter({ invitation, relire }: { invitation: string; relire: () => Pr
       </div>
       <div>
         <button type="submit" class="btn btn-primary" disabled={busy || nom.trim().length < 2}>
-          Rejoindre la carte de l'alliance
+          Envoyer ma demande
         </button>
       </div>
       <Problem message={erreur} />
@@ -117,7 +118,7 @@ function Accepter({ invitation, relire }: { invitation: string; relire: () => Pr
 }
 
 /** Pour un allié : se déconnecter, ou quitter la carte de l'alliance, à part et en deux temps (son accès ne revient qu'avec une nouvelle invitation). */
-function Sortie({ relire, deconnecte }: { relire: () => Promise<void>; deconnecte: () => void }) {
+function Sortie({ relire, deconnecte, texte = "Quitter la carte de l'alliance" }: { relire: () => Promise<void>; deconnecte: () => void; texte?: string }) {
   const [arme, setArme] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   return (
@@ -141,7 +142,7 @@ function Sortie({ relire, deconnecte }: { relire: () => Promise<void>; deconnect
               .catch((e: unknown) => setErreur(messageOf(e)));
           }}
         >
-          {arme ? "Confirmer : quitter la carte" : "Quitter la carte de l'alliance"}
+          {arme ? `Confirmer : ${texte.charAt(0).toLowerCase()}${texte.slice(1)}` : texte}
         </button>
       </div>
       <Problem message={erreur} />
@@ -217,9 +218,35 @@ export default function AllianceApp() {
     }
   }, []);
 
+  // L'invitation a servi : elle quitte l'onglet et la page, puis la carte se relit (l'écran d'attente paraît).
+  const oublierInvitation = useCallback(async () => {
+    ecrireStockage(session, INVITATION_KEY, null);
+    setInvitation(null);
+    await relire();
+  }, [relire]);
+
   useEffect(() => {
     if (connecte) void relire();
   }, [connecte, relire]);
+
+  // En attente de l'accord : la carte se relit toutes les 30 secondes, fenêtre ouverte, et s'ouvre d'elle-même une fois accepté.
+  const enAttente = carte.status === "prete" && carte.donnees.access === null && Boolean(carte.donnees.waiting);
+  // La fenêtre rouverte, ou l'onglet revenu au premier plan, relit tout de suite.
+  useEffect(() => {
+    if (!enAttente || !ouverte) return;
+    void relire();
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void relire();
+    }, 30_000);
+    const revenir = () => {
+      if (document.visibilityState === "visible") void relire();
+    };
+    document.addEventListener("visibilitychange", revenir);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", revenir);
+    };
+  }, [enAttente, ouverte, relire]);
 
   const access: AccesCarte | null = carte.status === "prete" ? carte.donnees.access : null;
 
@@ -232,14 +259,16 @@ export default function AllianceApp() {
       .catch(() => setChargeErreur(true));
   }, [access, ecran, charge, ouverte]);
 
-  // Un Gaulois validé n'a pas besoin d'invitation : celle qui traîne dans l'onglet s'efface. Un allié peut en recevoir une
-  // nouvelle, pour un autre clan : il la garde, et l'accepte au-dessus des onglets.
+  // Un Gaulois validé, un allié accepté ou qui attend n'a pas d'invitation à accepter : celle qui traîne dans l'onglet (le
+  // lien déjà servi, rouvert pour voir où en est la demande) s'efface. Pour changer de clan, l'encadrement retire l'accès,
+  // puis invite de nouveau.
+  const attenteEnCours = carte.status === "prete" ? Boolean(carte.donnees.waiting) : false;
   useEffect(() => {
-    if (access?.kind === "gaulois" && invitation) {
+    if ((access || attenteEnCours) && invitation) {
       ecrireStockage(session, INVITATION_KEY, null);
       setInvitation(null);
     }
-  }, [access, invitation]);
+  }, [access, attenteEnCours, invitation]);
 
   const staff = Boolean(access?.staff) && !playerView;
   const donnees = carte.status === "prete" ? carte.donnees : null;
@@ -348,12 +377,29 @@ export default function AllianceApp() {
     }
   }, [sousLesYeux, messages, vu]);
   const nouveaux = messages ? (vu === null ? 0 : nonLus(messages, vu)) : 0;
+  // Pour l'encadrement : les joueurs alliés qui ont ouvert leur lien et attendent son accord.
+  // `approved === false` seulement : un serveur d'avant l'accord ne donne pas ce champ, et personne n'y attend.
+  const attentes = staff ? (donnees?.allies ?? []).filter((a) => a.approved === false).length : 0;
 
-  // Les nouveaux messages se voient aussi sur l'entrée « Alliance » de la rangée du bas, fenêtre fermée.
+  // Pour l'encadrement, la carte se relit chaque minute, fenêtre ouverte : un allié qui commence à attendre s'y compte.
   useEffect(() => {
+    if (!staff || !ouverte) return;
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void relire();
+    }, 60_000);
+    return () => window.clearInterval(timer);
+  }, [staff, ouverte, relire]);
+
+  // Les nouveaux messages, et pour l'encadrement les alliés qui attendent, se voient aussi sur l'entrée « Alliance » de la
+  // rangée du bas, fenêtre fermée.
+  useEffect(() => {
+    const total = nouveaux + attentes;
+    const mots = [nouveaux > 0 ? `${fmtInt(nouveaux)} ${nouveaux > 1 ? "nouveaux messages" : "nouveau message"}` : null, attentes > 0 ? `${fmtInt(attentes)} ${attentes > 1 ? "alliés attendent votre accord" : "allié attend votre accord"}` : null]
+      .filter((m) => m !== null)
+      .join(", ");
     for (const lien of document.querySelectorAll<HTMLElement>('.carte-dock [data-ouvre="alliance"]')) {
       let pastille = lien.querySelector<HTMLElement>("[data-alliance-nouveaux]");
-      if (nouveaux === 0) {
+      if (total === 0) {
         pastille?.remove();
         continue;
       }
@@ -366,10 +412,13 @@ export default function AllianceApp() {
       pastille.innerHTML = "";
       const mot = document.createElement("span");
       mot.className = "sr-only";
-      mot.textContent = nouveaux > 1 ? " nouveaux messages" : " nouveau message";
-      pastille.append(fmtInt(nouveaux), mot);
+      mot.textContent = ` : ${mots}`;
+      const chiffre = document.createElement("span");
+      chiffre.setAttribute("aria-hidden", "true");
+      chiffre.textContent = fmtInt(total);
+      pastille.append(chiffre, mot);
     }
-  }, [nouveaux]);
+  }, [nouveaux, attentes]);
 
   // Connecté avec un code, sur la carte même : la page se recharge, pour que l'en-tête dise aussi qui est connecté.
   if (!connecte) return <Porte invitation={invitation} connecte={() => location.reload()} />;
@@ -381,11 +430,25 @@ export default function AllianceApp() {
     );
   if (carte.status === "erreur") return <Problem message={carte.message} onRetry={() => void relire()} />;
 
+  // Le joueur a ouvert son lien : l'encadrement doit encore le reconnaître à son nom Discord et l'accepter.
+  const attente = donnees?.waiting ?? null;
+  if (!access && attente) {
+    return (
+      <div data-testid="alliance-attente">
+        <p class="font-semibold">Votre demande est envoyée.</p>
+        <p class="mt-2">
+          L'encadrement de GAL doit encore vous accepter comme joueur de {attente.tag}, sous le nom {attente.alias}. La carte de l'alliance s'ouvrira ici dès son accord.
+        </p>
+        <Sortie relire={relire} deconnecte={() => setConnecte(false)} texte="Annuler ma demande" />
+      </div>
+    );
+  }
+
   if (!access || !donnees) {
     return (
       <div data-testid="alliance-sans-acces">
         {invitation ? (
-          <Accepter invitation={invitation} relire={relire} />
+          <Accepter invitation={invitation} fini={oublierInvitation} />
         ) : (
           <>
             <p>Ce compte n'a pas accès à la carte de l'alliance.</p>
@@ -408,11 +471,11 @@ export default function AllianceApp() {
     );
 
   const ctx: Contexte = { donnees: { ...donnees, access }, film: charge.film, etat: charge.etat, staff, totaux, notres, relire };
-  const onglets: { id: Onglet; label: string; compte?: number }[] = [
+  const onglets: { id: Onglet; label: string; compte?: number; mots?: string }[] = [
     { id: "vue", label: "Alliances" },
     { id: "zones", label: "Zones" },
-    { id: "messages", label: "Messages", compte: nouveaux },
-    ...(staff ? [{ id: "gestion" as const, label: "Gestion" }] : []),
+    { id: "messages", label: "Messages", compte: nouveaux, mots: nouveaux > 1 ? "nouveaux messages" : "nouveau message" },
+    ...(staff ? [{ id: "gestion" as const, label: "Gestion", compte: attentes, mots: attentes > 1 ? "alliés attendent votre accord" : "allié attend votre accord" }] : []),
   ];
 
   return (
@@ -422,12 +485,6 @@ export default function AllianceApp() {
         {access.kind === "allie" ? " · joueur allié invité" : staff ? " · encadrement de GAL" : ""}
       </p>
       {!charge.etat && <p class="form-problem mt-2">La carte pixel par pixel n'est pas publiée pour ce relevé : le film reste affiché, et les zones ne se comptent pas.</p>}
-      {/* Un allié réinvité, pour un autre clan : il accepte ici, sans quitter la carte. */}
-      {access.kind === "allie" && invitation && (
-        <div class="carte-bloc">
-          <Accepter invitation={invitation} relire={relire} />
-        </div>
-      )}
       <div class="alliance-onglets" role="tablist" aria-label="Parties de la carte de l'alliance">
         {onglets.map((o) => (
           <button
@@ -452,7 +509,7 @@ export default function AllianceApp() {
             {o.compte ? (
               <span class="count-pill tnum">
                 {fmtInt(o.compte)}
-                <span class="sr-only"> nouveaux</span>
+                <span class="sr-only"> {o.mots}</span>
               </span>
             ) : null}
           </button>

@@ -228,6 +228,12 @@ describe("le contrôle de la mise en ligne", () => {
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/save_alliance_zone": { status: 200, body: { ok: true, id: 1 } } }, labels[2]!)).toBe("fail");
   });
 
+  it("bloque si un visiteur accepte un joueur allié ou en lit la liste", async () => {
+    for (const label of ["accepte pas de joueur allié", "lit pas la liste des joueurs alliés"]) expect(await statusOf(HEALTHY, label)).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/approve_alliance_ally": { status: 200, body: { ok: true } } }, "accepte pas de joueur allié")).toBe("fail");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/list_alliance_allies": { status: 200, body: { ok: true, allies: [] } } }, "lit pas la liste des joueurs alliés")).toBe("fail");
+  });
+
   it("bloque si un visiteur lit l'inventaire d'images ou y garde une image", async () => {
     for (const label of ["lit pas l'inventaire d'images", "garde pas d'image dans l'inventaire"]) expect(await statusOf(HEALTHY, label)).toBe("ok");
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_discord_images": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "lit pas l'inventaire d'images")).toBe("ok");
