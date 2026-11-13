@@ -104,24 +104,43 @@ export const ApiGame = z.object({
 export type ApiGame = z.output<typeof ApiGame>;
 
 /**
- * Le même détail, lu par le message de chaque victoire (`src/lib/victoires.ts`) : la carte, la durée et les Gaulois de la partie.
- * D'un joueur, seuls son tag, son nom dans la partie, son `publicID` et le fait d'avoir des stats sont lus. Le nom d'un Gaulois
- * paraît dans le message, à la demande du pilote (11 novembre 2026 : « nomme-les comme ils s'appellent en partie »). Le
- * `publicID` sert seulement à relier un membre avec pseudo à sa fiche, déjà publique. Rien de cela n'est écrit dans `data/`.
+ * Le même détail, lu par le message de chaque victoire (`src/lib/victoires.ts`) : la carte, la durée, les Gaulois de la partie
+ * et les clans en face. D'un joueur, seuls son tag, son nom dans la partie, son `publicID`, son identifiant de partie, son
+ * équipe et le fait d'avoir des stats sont lus. Le nom d'un Gaulois paraît dans le message, à la demande du pilote
+ * (11 novembre 2026 : « nomme-les comme ils s'appellent en partie »). Le `publicID` sert seulement à relier un membre avec
+ * pseudo à sa fiche, déjà publique. L'identifiant de partie, l'équipe et la liste des vainqueurs servent seulement à trouver
+ * l'équipe de chaque clan, comme `digestGame` (`games.ts`) : les clans en face, demandés par le pilote le 13 novembre 2026.
+ * Rien de cela n'est écrit dans `data/`.
  */
 const ApiVictoryPlayer = z
   .object({
+    // Lus sans exigence, comme `team` et `winner` : un format inattendu ne retire que les clans en face, jamais le message.
+    clientID: z.unknown().optional(),
     clanTag: z.string().nullable().optional(),
     username: z.string().nullable().optional(),
     publicID: z.string().nullable().optional(),
+    // Comme `ApiGamePlayer` : seul un texte est gardé.
+    team: z.unknown().optional(),
     // Absent : le jeu n'a rien enregistré pour ce joueur, parti tôt ou jamais apparu.
     stats: z.unknown().optional(),
   })
-  .transform(({ clanTag, username, publicID, stats }) => ({ clanTag: clanTag ?? null, username: username ?? null, publicID: publicID ?? null, hasStats: stats !== undefined && stats !== null }));
+  .transform(({ clientID, clanTag, username, publicID, team, stats }) => ({
+    clientID: typeof clientID === "string" ? clientID : null,
+    clanTag: clanTag ?? null,
+    username: username ?? null,
+    publicID: publicID ?? null,
+    team: typeof team === "string" ? team : null,
+    hasStats: stats !== undefined && stats !== null,
+  }));
 export const ApiVictoryGame = z.object({
   info: z.object({
     config: z.object({ gameMap: z.string().min(1) }),
     duration: z.number().nonnegative(),
+    // Comme `ApiGame` : ["team", "Red", ...clientID des vainqueurs]. Absent ou dans un autre format : pas d'équipes à déduire.
+    winner: z
+      .unknown()
+      .optional()
+      .transform((v) => (Array.isArray(v) && v.every((x) => typeof x === "string") ? (v as string[]) : null)),
     players: z.array(ApiVictoryPlayer),
   }),
 });

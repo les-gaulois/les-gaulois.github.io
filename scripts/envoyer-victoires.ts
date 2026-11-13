@@ -13,13 +13,13 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { clan } from "../config/clan";
-import { loadMembers, loadSessions, unreadableSessionFiles } from "../src/lib/data";
+import { loadGames, loadLeaderboard, loadMembers, loadMeta, loadSessions, unreadableSessionFiles } from "../src/lib/data";
 import { isWebhookUrl } from "../src/lib/gazette-discord";
 import { ApiClient } from "../src/lib/pipeline";
 import { parseNoted } from "../src/lib/salon-discord";
 import { salonLink } from "../src/lib/salon-lien";
 import type { StoredSession } from "../src/lib/schemas";
-import { isClanMember, mergeStates, parseResend, passSessions, readRecentSessions, readVictoryGame, VictoryState, victoryPass, type VictoryState as State } from "../src/lib/victoires";
+import { isClanMember, mergeStates, parseResend, passSessions, readRecentSessions, readVictoryGame, usableOfficialTags, VictoryState, victoryPass, type VictoryState as State } from "../src/lib/victoires";
 import { sendVictory } from "../src/lib/victoires-discord";
 
 const STATE_FILE = "data/victoires-envoi.json";
@@ -65,8 +65,14 @@ try {
   } catch (e) {
     console.log(`Victoires : sessions des dernières heures illisibles (${e instanceof Error ? e.message : String(e)}).`);
   }
-  const { sessions, warning: sessionsWarning } = passSessions(unreadableSessionFiles().length > 0 ? null : loadSessions(), fresh);
+  const collected = unreadableSessionFiles().length > 0 ? null : loadSessions();
+  const { sessions, warning: sessionsWarning } = passSessions(collected, fresh);
   if (sessionsWarning) console.log(`::warning::Victoires : ${sessionsWarning}.`);
+  // Les clans en face ne s'écrivent que s'ils sont dans la liste officielle, et tant que le calcul des équipes concorde avec les
+  // résultats récents, comme dans le journal des parties : sinon, aucun.
+  const officialTags = loadLeaderboard()?.clans.map((c) => c.clanTag) ?? [];
+  const official = collected ? usableOfficialTags(collected, loadGames(), clan.tag, officialTags, loadMeta().sessions.coveredUntil) : [];
+  if (officialTags.length > 0 && official.length === 0) console.log("Victoires : les clans en face ne sont pas écrits (sessions de la collecte illisibles, ou calcul des équipes en doute).");
   const root = process.cwd();
   // Chargés une seule fois, et seulement au premier message : si le dessin ne marche pas, le message part quand même, en texte.
   const drawing = (async () => {
@@ -81,6 +87,7 @@ try {
     sessions,
     members: loadMembers(),
     tag: clan.tag,
+    official,
     now,
     readGame: (gameId) => readVictoryGame(gameId, fetch, sleep),
     isMember: (publicID) => isClanMember(api, publicID, clan.tag),
@@ -100,7 +107,7 @@ try {
           }
           const thumb = await thumbnail;
           // Un caractère qu'aucune police ne sait dessiner devient « ? » sur l'image ; sa description garde le nom entier.
-          const drawn = { ...v, crew: v.crew.map((p) => ({ ...p, name: fonts.drawable(p.name, "strong") })) };
+          const drawn = { ...v, crew: v.crew.map((p) => ({ ...p, name: fonts.drawable(p.name, "strong") })), rivals: v.rivals.map((t) => fonts.drawable(t, "strong")) };
           const card = image.victoryCard(drawn, clan.tag, clan.links.site, fonts.width, thumb);
           return { png: await image.renderVictoryCard(card, fonts, root, thumb), alt: image.victoryImageAlt(v, clan.tag, card.map !== null) };
         },

@@ -73,6 +73,15 @@ export function crewList(names: readonly string[], counted: readonly string[]): 
   return all.length > 0 ? frenchList(all) : null;
 }
 
+/** « [UN] », le tag d'un clan en face, écrit comme dans le jeu. */
+export const rivalTag = (tag: string) => `[${tag}]`;
+
+/** « contre le clan [UN] », « contre les clans [UN] et [ITA] ». `null` : aucun clan en face. */
+export function rivalsWords(tags: readonly string[]): string | null {
+  if (tags.length === 0) return null;
+  return `contre ${tags.length > 1 ? "les clans" : "le clan"} ${frenchList(tags.map(rivalTag))}`;
+}
+
 /** Le pied du texte de secours : d'où viennent les noms, et le crédit du nom de la carte. Sans image, pas de vignette à créditer. */
 export function victoryNote(v: Victory): string {
   return `-# Noms portés dans la partie. Carte : [${OPENFRONT_CREDIT}](<${mapSource(v.map)}>), [CC BY-SA 4.0](<${LICENSE_URL}>).`;
@@ -92,10 +101,12 @@ export function victoryContent(v: Victory, tag: string, siteUrl: string): { cont
     const rest = v.crew.length - written;
     const cut = rest > 0 ? [restWords(rest, written)] : [];
     const crew = crewList(names, [...cut, ...countedWords(v)]);
+    const rivals = rivalsWords(v.rivals.map(escapeDiscord));
     const lines = [
       `**${victoryTitle(escapeDiscord(tag))}** · ${escapeDiscord(mapLabel(v.map))}`,
       `⚔️ ${v.format ? `${formatLabel(v.format)} · ` : ""}${countWords(v)}`,
       ...(crew ? [`👥 ${crew}`] : []),
+      ...(rivals ? [`🆚 ${rivals.charAt(0).toUpperCase()}${rivals.slice(1)}`] : []),
       `⏱️ ${gameLength(v.seconds)}, commencée à <t:${start}:t>${v.points === null ? "" : ` · ${pointsWords(v.points)}`}`,
       `[Revoir la partie](<${replayUrl(v.id)}>) · [Dernières parties](<${siteLink(site, "/parties")}>)`,
       victoryNote(v),

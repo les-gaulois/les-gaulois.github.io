@@ -19,10 +19,21 @@
  *   sa fiche. Les autres porteurs du tag sont vérifiés un par un dans leur fiche publique d'OpenFront (`clans`) : le jeu retire
  *   le tag d'un vrai clan à qui n'en est pas membre, sauf quand sa liste des tags ne se charge pas. Un joueur non vérifié est
  *   seulement compté. Ni nom ni identifiant ne sont écrits dans `data/`.
+ * - Les clans en face, demandés par le pilote le 13 novembre 2026 (« des cases rouges avec le nom des clans rencontrés lors de
+ *   la partie gagnée ») : un clan de la liste officielle du classement, avec au moins un joueur qui a des stats, dans une autre
+ *   équipe que celle du clan, d'après `digestGame`, le calcul des équipes du journal des parties. Un joueur seul compte, lu comme
+ *   « chaque clan croisé » : sur la partie de la capture jointe à la demande, les seuls clans officiels en face, [UN] et [AST],
+ *   n'avaient qu'un joueur chacun. Le journal et les face-à-face en demandent deux, parce qu'en dessous un tag peut désigner une
+ *   seule personne. Ici, un tag du classement officiel ne peut pas être une injure, mais il n'est pas forcément enregistré comme
+ *   clan : un joueur seul peut le porter sans en être, et rien ne le vérifie. Un tag hors de la liste officielle n'est jamais
+ *   écrit : les tags libres contiennent des injures. Si les équipes ne concordent pas avec les vainqueurs, sans liste
+ *   officielle, ou si le journal des parties ne dit plus qui jouait contre qui (`usableOfficialTags`), aucun clan n'est écrit :
+ *   rien n'est deviné. Sur la page Dernières parties, la ligne de la même partie peut donc citer moins de clans que l'image.
  */
 import { z } from "zod";
+import { digestGame, faceOffs } from "./games";
 import { API_BASE, type ApiClient, fetchSessionsBetween } from "./pipeline";
-import { ApiPlayerClans, ApiVictoryGame, type StoredMembers, type StoredSession } from "./schemas";
+import { ApiPlayerClans, ApiVictoryGame, type StoredGame, type StoredMembers, type StoredSession } from "./schemas";
 import { mergeSessions } from "./sessions";
 
 /** Au-delà, une victoire n'est plus annoncée. Une partie dure rarement plus de deux heures. */
@@ -104,6 +115,33 @@ export interface Victory {
    * jamais nommés. Un membre dont la fiche ne se lit pas n'est jamais rangé ici : sa victoire attend le passage suivant.
    */
   outsiders: number;
+  /**
+   * Les tags des clans en face, dans l'ordre du classement officiel : de la liste officielle, avec au moins un joueur, dans
+   * une autre équipe. Vide : aucun, ou les équipes ne se déduisent pas.
+   */
+  rivals: string[];
+}
+
+/**
+ * Les clans en face : ceux de la liste officielle (`official`, dans son ordre), avec au moins un joueur qui a des stats, dans une
+ * autre équipe que celle de `tag`, d'après le calcul des équipes du journal. Aucun si les équipes ne concordent pas avec les
+ * vainqueurs : `digestGame` ne les donne alors pas.
+ */
+export function rivalsOf(session: StoredSession, game: ApiVictoryGame, tag: string, official: readonly string[]): string[] {
+  if (official.length === 0) return [];
+  const { win, clans } = digestGame(game, session, tag, 1);
+  const ours = clans.find(([t]) => t === tag);
+  if (win === null || !ours) return [];
+  const facing = new Set(clans.filter(([t, , team]) => t !== tag && team !== ours[2]).map(([t]) => t));
+  return official.filter((t, i) => facing.has(t) && official.indexOf(t) === i);
+}
+
+/**
+ * Les tags qui peuvent être écrits comme clans en face : la liste officielle, si le calcul des équipes concorde encore avec les
+ * résultats récents (`faceOffs`, comme le journal des parties). Sinon, aucun : la règle de placement du jeu a sans doute changé.
+ */
+export function usableOfficialTags(sessions: readonly StoredSession[], games: readonly StoredGame[], tag: string, officialTags: readonly string[], coveredUntil: string | null): string[] {
+  return faceOffs(sessions, games, tag, officialTags, coveredUntil)?.reliable ? [...officialTags] : [];
 }
 
 /** Une victoire à annoncer : gagnée, et pas seul contre des robots. */
@@ -136,9 +174,10 @@ export function toVerify(game: ApiVictoryGame, members: StoredMembers | null, ta
 
 /**
  * Le message d'une victoire : la session, et le détail de la partie pour la carte, la durée et les membres qui y ont joué.
- * `confirmed` : les identifiants hors de la liste du clan dont l'appartenance au clan vient d'être vérifiée.
+ * `confirmed` : les identifiants hors de la liste du clan dont l'appartenance au clan vient d'être vérifiée. `official` : les
+ * tags du classement officiel, dans son ordre, pour les clans en face.
  */
-export function victoryOf(session: StoredSession, game: ApiVictoryGame, members: StoredMembers | null, tag: string, confirmed: ReadonlySet<string> = new Set()): Victory {
+export function victoryOf(session: StoredSession, game: ApiVictoryGame, members: StoredMembers | null, tag: string, confirmed: ReadonlySet<string> = new Set(), official: readonly string[] = []): Victory {
   const known = namedMembers(members);
   const crew: CrewMember[] = [];
   const linked = new Set<string>();
@@ -170,6 +209,7 @@ export function victoryOf(session: StoredSession, game: ApiVictoryGame, members:
     crew: crew.sort((a, b) => a.name.localeCompare(b.name, "fr", { sensitivity: "base" }) || a.name.localeCompare(b.name) || (a.id ?? "").localeCompare(b.id ?? "")),
     unnamed,
     outsiders,
+    rivals: rivalsOf(session, game, tag, official),
   };
 }
 
@@ -251,6 +291,8 @@ export interface VictoryPassDeps {
   /** La liste des membres, pour les fiches. `null` : illisible, chaque porteur du tag est vérifié un par un. */
   members: StoredMembers | null;
   tag: string;
+  /** Les tags du classement officiel, dans son ordre, pour les clans en face. Vide ou absent : aucun clan n'est écrit. */
+  official?: readonly string[];
   now: Date;
   readGame: (gameId: string) => Promise<ApiVictoryGame>;
   /** Vérifie qu'un porteur du tag est membre du clan. Lève une erreur sans réponse lisible : la victoire attend le passage suivant. */
@@ -269,7 +311,7 @@ export interface VictoryPassDeps {
  * refuse, reste à annoncer : le passage suivant réessaie, tant qu'elle a moins de `WINDOW_MS`, ou moins de `FORGET_MS` si elle
  * est à renvoyer.
  */
-export async function victoryPass({ stored, sessions, members, tag, now, readGame, isMember, send, pause, progress, log, resend = new Set() }: VictoryPassDeps): Promise<{ state: VictoryState | null; failed: boolean }> {
+export async function victoryPass({ stored, sessions, members, tag, official = [], now, readGame, isMember, send, pause, progress, log, resend = new Set() }: VictoryPassDeps): Promise<{ state: VictoryState | null; failed: boolean }> {
   if (!sessions) {
     log("::warning::Victoires : aucune session lisible, rien n'est envoyé.");
     return { state: null, failed: false };
@@ -331,7 +373,7 @@ export async function victoryPass({ stored, sessions, members, tag, now, readGam
       continue;
     }
     if (sent > 0) await pause(PAUSE_MS);
-    if (!(await send(victoryOf(session, game, members, tag, confirmed)))) {
+    if (!(await send(victoryOf(session, game, members, tag, confirmed, official)))) {
       failed = true;
       break;
     }

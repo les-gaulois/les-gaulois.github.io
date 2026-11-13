@@ -1,7 +1,8 @@
 /**
  * L'image d'une victoire : l'en-tête des autres images du robot, la vignette de la carte sur la mer du jeu, les chiffres de la
- * partie à côté, puis tous les Gaulois de la partie, sous leur nom en partie. Sans vignette, les chiffres passent côte à côte,
- * comme dans « Hier chez les Gaulois ». Ce qui manque n'est pas dessiné.
+ * partie à côté, puis tous les Gaulois de la partie, sous leur nom en partie, en bleu, et les clans en face, « contre » et leur
+ * tag en rouge (demandés par le pilote le 13 novembre 2026). Sans vignette, les chiffres passent côte à côte, comme dans « Hier
+ * chez les Gaulois ». Ce qui manque n'est pas dessiné.
  *
  * La vignette est `resources/maps/<carte>/thumbnail.webp` du dépôt d'OpenFront, lue au moment de l'envoi : CC BY-SA 4.0,
  * attribution « OpenFront », agrandie ou réduite, aux coins arrondis, posée sur la couleur de la mer du jeu là où son eau est
@@ -19,7 +20,7 @@ import { fittedAlt, shownAddress } from "./salon-discord";
 import { chipLayout, chipParts, chipsHeight } from "./salon-image";
 import { parisParts } from "./time";
 import type { Victory } from "./victoires";
-import { countedWords, countWords, crewList, gameLength, LICENSE_URL, mapSource, MAPS_SOURCE, OPENFRONT_CREDIT, pointsLabel, pointsWords, restWords, victoryTitle } from "./victoires-discord";
+import { countedWords, countWords, crewList, gameLength, LICENSE_URL, mapSource, MAPS_SOURCE, OPENFRONT_CREDIT, pointsLabel, pointsWords, restWords, rivalsWords, rivalTag, victoryTitle } from "./victoires-discord";
 
 const WIDTH = 1200;
 /** Avec la vignette : la carte à gauche, les chiffres empilés à droite. */
@@ -102,8 +103,10 @@ export function victoryCard(v: Victory, tag: string, siteUrl: string, measure: M
   const rects: CardRect[] = [...head.rects];
   const texts: CardText[] = [...head.texts];
 
-  // Tous les Gaulois de la partie, en pastilles sous leur nom en partie, jamais « et autres » ; puis ceux qui sont seulement comptés.
-  const chips = chipLayout([...v.crew.map((p) => ({ text: p.name, named: true })), ...countedWords(v).map((text) => ({ text, named: false }))], measure, contentWidth);
+  // Tous les Gaulois de la partie, en pastilles sous leur nom en partie, jamais « et autres » ; puis ceux qui sont seulement
+  // comptés ; puis « contre » et les clans en face, en rouge.
+  const rivals = v.rivals.length > 0 ? [{ text: "contre", named: false, word: true }, ...v.rivals.map((t) => ({ text: rivalTag(t), named: false, red: true }))] : [];
+  const chips = chipLayout([...v.crew.map((p) => ({ text: p.name, named: true })), ...countedWords(v).map((text) => ({ text, named: false })), ...rivals], measure, contentWidth);
   const bodyBottom = top + (thumbnail ? BODY_HEIGHT : kpiHeight(ROW_VALUE_SIZE));
   const chipsTop = bodyBottom + 28;
   const contentBottom = chips.rows.length > 0 ? chipsTop + chipsHeight(chips) : bodyBottom;
@@ -135,7 +138,7 @@ export function victoryCard(v: Victory, tag: string, siteUrl: string, measure: M
     texts.push(...kpis.texts);
   }
 
-  // Les Gaulois de la partie, en pastilles, sous leur nom en partie.
+  // Les Gaulois de la partie, en pastilles, sous leur nom en partie, puis les clans en face.
   const drawn = chipParts(chips, MARGIN, chipsTop);
   rects.push(...drawn.rects);
   texts.push(...drawn.texts);
@@ -161,7 +164,8 @@ export function victoryImageAlt(v: Victory, tag: string, withMap: boolean): stri
       shown.map((p) => p.name),
       [...(rest > 0 ? [restWords(rest, shown.length)] : []), ...countedWords(v)],
     );
-    return [head, figures, ...(crew ? [`Gaulois de la partie, sous leur nom en partie : ${crew}.`] : []), credit].join(" ");
+    const rivals = rivalsWords(v.rivals);
+    return [head, figures, ...(crew ? [`Gaulois de la partie, sous leur nom en partie : ${crew}.`] : []), ...(rivals ? [`Victoire ${rivals}.`] : []), credit].join(" ");
   });
 }
 

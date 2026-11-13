@@ -1,6 +1,12 @@
 [
   {
     "date": "2026-11-13",
+    "kind": "ameliore",
+    "title": "Victoires sur Discord : les clans d'en face en rouge",
+    "body": "Sur l'image de chaque victoire postée dans le Discord du clan, après les Gaulois : « contre », puis, dans des cases rouges, les clans du classement officiel qui jouaient dans une autre équipe."
+  },
+  {
+    "date": "2026-11-13",
     "kind": "nouveau",
     "title": "Carte de l'alliance : état des zones et message épinglé",
     "body": "L'encadrement donne à chaque zone un état (à prendre, en cours, tenue, abandonnée) et un ordre de priorité, épingle un message, et les zones s'annoncent dans un salon Discord s'il est branché.",

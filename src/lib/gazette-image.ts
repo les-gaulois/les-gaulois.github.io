@@ -37,6 +37,8 @@ const LINE_STRONG = "#5469AE";
 const BLUE = "#0B5FFF";
 const BLUE_TEXT = "#9DBCFF";
 const RED = "#FF1A2E";
+/** Le rouge plein, sous un texte blanc (5,3:1) : le bouton principal du thème rouge de la Direction. Le rouge vif n'y suffit pas. */
+const RED_FILL = "#D4132F";
 const MUTED = "#C0C9E2";
 const WHITE = "#FFFFFF";
 const LOSS = "#D9742E";
@@ -46,7 +48,7 @@ const STAGE_MUTED = "#DBE2F7";
 const HAIRLINE = "rgba(255,255,255,0.18)";
 
 /** Les mêmes couleurs, pour les autres images du robot. `WIN` : le bleu des victoires dans les graphiques. */
-export const CARD_COLORS = { NAVY, SURFACE, SURFACE_2, LINE, LINE_STRONG, BLUE, BLUE_TEXT, RED, MUTED, WHITE, LOSS, WIN: "#4C86F5", STAGE_MUTED, HAIRLINE } as const;
+export const CARD_COLORS = { NAVY, SURFACE, SURFACE_2, LINE, LINE_STRONG, BLUE, BLUE_TEXT, RED, RED_FILL, MUTED, WHITE, LOSS, WIN: "#4C86F5", STAGE_MUTED, HAIRLINE } as const;
 
 /** Les scènes du site, en dégradé : le bleu royal (`.stage-blue`) et l'indigo (`.stage-indigo`). */
 export const STAGES = {

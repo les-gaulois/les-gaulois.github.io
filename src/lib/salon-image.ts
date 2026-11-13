@@ -114,14 +114,21 @@ export const CHIP_GAP = 12;
 
 export interface ChipItem {
   text: string;
-  /** Un nom, en bleu ; sinon, le compte de ceux qui ne sont pas nommés, plus discret. */
+  /** Un nom, en bleu ; sinon, le compte de ceux qui ne sont pas nommés, plus discret, sauf avec `red` ou `word`. */
   named: boolean;
+  /** En rouge, à la place du bleu : un clan en face, dans une victoire. */
+  red?: boolean;
+  /** Un mot sans pastille, en gris (« contre ») : il ne finit jamais une ligne, il passe à la suivante avec la pastille qui le suit. */
+  word?: boolean;
 }
 
 interface Chip extends ChipItem {
   size: number;
   x: number;
   width: number;
+  /** Du bord gauche de la pastille au début du texte. */
+  inset: number;
+  font: CardFont;
 }
 
 export interface ChipLayout {
@@ -134,18 +141,25 @@ export interface ChipLayout {
 export function chipLayout(items: readonly ChipItem[], measure: Measure, width: number): ChipLayout {
   const place = (font: number): Chip[][] => {
     const padding = Math.round(font * 0.8);
+    const sized = items.map((item) => {
+      // Un mot n'a pas de fond : il garde seulement un peu d'air de chaque côté.
+      const inset = item.word ? Math.round(padding / 4) : padding;
+      const face: CardFont = item.word ? "body" : "strong";
+      const text = fitted(item.text, face, font, font - 6, width - 2 * inset, measure);
+      return { item, text, inset, face, width: Math.ceil(measure(text.text, face, text.size)) + 2 * inset };
+    });
     const rows: Chip[][] = [[]];
     let x = 0;
-    for (const item of items) {
-      const text = fitted(item.text, "strong", font, font - 6, width - 2 * padding, measure);
-      const chipWidth = Math.ceil(measure(text.text, "strong", text.size)) + 2 * padding;
-      if (x > 0 && x + chipWidth > width) {
+    sized.forEach(({ item, text, inset, face, width: chipWidth }, i) => {
+      // Un mot passe à la ligne avec la pastille qui le suit.
+      const next = item.word ? sized[i + 1] : undefined;
+      if (x > 0 && x + chipWidth + (next ? CHIP_GAP + next.width : 0) > width) {
         rows.push([]);
         x = 0;
       }
-      rows.at(-1)?.push({ ...text, named: item.named, x, width: chipWidth });
+      rows.at(-1)?.push({ ...text, named: item.named, red: item.red, word: item.word, x, width: chipWidth, inset, font: face });
       x += chipWidth + CHIP_GAP;
-    }
+    });
     return rows;
   };
   if (items.length === 0) return { rows: [], font: CHIP_STEPS[0].font, height: CHIP_STEPS[0].height };
@@ -160,16 +174,21 @@ export function chipLayout(items: readonly ChipItem[], measure: Measure, width: 
 /** La hauteur que prennent les pastilles. 0 : aucune. */
 export const chipsHeight = (layout: ChipLayout) => (layout.rows.length > 0 ? layout.rows.length * layout.height + (layout.rows.length - 1) * CHIP_GAP : 0);
 
-/** Les pastilles dessinées à partir du coin (`left`, `top`) : les coins nets du site (6 pixels). */
+/**
+ * Les pastilles dessinées à partir du coin (`left`, `top`) : les coins nets du site (6 pixels). Un nom en bleu, un clan en face
+ * en rouge (le rouge plein du bouton de la Direction : texte blanc 5,3:1), un compte sur la surface bordée, un mot sans fond.
+ */
 export function chipParts(layout: ChipLayout, left: number, top: number): CardParts {
   const rects: CardRect[] = [];
   const texts: CardText[] = [];
-  const padding = Math.round(layout.font * 0.8);
   layout.rows.forEach((row, r) => {
     const y = top + r * (layout.height + CHIP_GAP);
     for (const chip of row) {
-      rects.push(chip.named ? { x: left + chip.x, y, width: chip.width, height: layout.height, radius: 6, color: C.BLUE } : { x: left + chip.x, y, width: chip.width, height: layout.height, radius: 6, color: C.SURFACE, stroke: C.LINE_STRONG });
-      texts.push({ text: chip.text, size: chip.size, x: left + chip.x + padding, y: Math.round(y + layout.height / 2 + layout.font * 0.36), font: "strong", color: chip.named ? C.WHITE : C.MUTED });
+      const box = { x: left + chip.x, y, width: chip.width, height: layout.height, radius: 6 };
+      if (chip.red) rects.push({ ...box, color: C.RED_FILL });
+      else if (chip.named) rects.push({ ...box, color: C.BLUE });
+      else if (!chip.word) rects.push({ ...box, color: C.SURFACE, stroke: C.LINE_STRONG });
+      texts.push({ text: chip.text, size: chip.size, x: left + chip.x + chip.inset, y: Math.round(y + layout.height / 2 + layout.font * 0.36), font: chip.font, color: chip.named || chip.red ? C.WHITE : C.MUTED });
     }
   });
   return { rects, texts };

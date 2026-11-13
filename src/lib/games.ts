@@ -49,8 +49,10 @@ export function placeClans(tags: readonly (string | null)[], numTeams: number): 
  * Ce que le site garde d'une partie. L'API ne donne pas encore l'équipe des perdants, et sa liste de vainqueurs oublie les joueurs
  * partis avant la fin : l'équipe de chaque clan vient de `placeClans`, ou de la fiche du joueur quand le jeu l'y écrit.
  * Elle n'est gardée que si elle concorde avec tous les vainqueurs officiels et avec le résultat de la session ; sinon, `win` vaut `null`.
+ * `minPlayers` : en dessous de ce nombre de joueurs avec des stats, un autre clan n'est pas gardé. Le message d'une victoire
+ * descend à 1 (`victoires.ts`), et n'écrit que des tags du classement officiel : voir pourquoi là-bas.
  */
-export function digestGame({ info }: ApiGame, session: StoredSession, tag: string): StoredGame {
+export function digestGame({ info }: ApiGame, session: StoredSession, tag: string, minPlayers = MIN_CLAN_PLAYERS): StoredGame {
   // En Duos, Trios et Quads, le jeu compte les équipes sur tous les joueurs de la fiche. La session, elle, ne retient que ceux qui ont des stats.
   const size = TEAM_SIZES[session.playerTeams ?? ""];
   const numTeams = size ? Math.max(2, Math.ceil(info.players.length / size)) : session.numTeams;
@@ -83,7 +85,7 @@ export function digestGame({ info }: ApiGame, session: StoredSession, tag: strin
     clans: coherent
       ? [...tally].flatMap(([t, row]): StoredGame["clans"] => {
           const team = placed.get(t);
-          return team !== undefined && (t === tag || row.withStats >= MIN_CLAN_PLAYERS) ? [[t, row.withStats, team]] : [];
+          return team !== undefined && (t === tag || row.withStats >= minPlayers) ? [[t, row.withStats, team]] : [];
         })
       : [],
   };

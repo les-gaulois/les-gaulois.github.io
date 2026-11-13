@@ -232,6 +232,8 @@ const victory = {
   crew: [0, 1, 2, 3, 4, 5, 6, 7].map((i) => ({ id: null, name: name(i) })),
   unnamed: 1,
   outsiders: 0,
+  // Deux clans en face, pris dans la liste officielle pour l'exemple.
+  rivals: (leaderboard?.clans ?? []).map((c) => c.clanTag).filter((t) => t !== TAG).slice(0, 2),
 };
 let thumbnail: Thumbnail | null = null;
 try {

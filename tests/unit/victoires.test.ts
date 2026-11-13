@@ -1,12 +1,12 @@
 import { existsSync, readFileSync } from "node:fs";
 import sharp from "sharp";
 import { describe, expect, it, vi } from "vitest";
-import { GazetteFonts, type CardText, type GazetteCard, type Measure } from "../../src/lib/gazette-image";
+import { CARD_COLORS, GazetteFonts, type CardText, type GazetteCard, type Measure } from "../../src/lib/gazette-image";
 import { ApiClient } from "../../src/lib/pipeline";
-import { ApiVictoryGame, type StoredMembers, type StoredSession } from "../../src/lib/schemas";
-import { crewName, FORGET_MS, isClanMember, isVictory, MAX_PER_PASS, MAX_RESEND, mergeStates, parseResend, passSessions, PAUSE_MS, readRecentSessions, readVictoryGame, toVerify, victoryOf, victoryPass, VictoryState, WINDOW_MS, type Victory, type VictoryPassDeps } from "../../src/lib/victoires";
-import { frenchList, gameLength, sendVictory, victoryContent, victoryPayload } from "../../src/lib/victoires-discord";
-import { CHIP_STEPS } from "../../src/lib/salon-image";
+import { ApiVictoryGame, type StoredGame, type StoredMembers, type StoredSession } from "../../src/lib/schemas";
+import { crewName, FORGET_MS, isClanMember, isVictory, MAX_PER_PASS, MAX_RESEND, mergeStates, parseResend, passSessions, PAUSE_MS, readRecentSessions, readVictoryGame, rivalsOf, usableOfficialTags, toVerify, victoryOf, victoryPass, VictoryState, WINDOW_MS, type Victory, type VictoryPassDeps } from "../../src/lib/victoires";
+import { frenchList, gameLength, rivalsWords, sendVictory, victoryContent, victoryPayload } from "../../src/lib/victoires-discord";
+import { CHIP_GAP, CHIP_STEPS, chipLayout } from "../../src/lib/salon-image";
 import { creditAddresses, MAP_NOTE, NAME_NOTE, openAround, readThumbnail, renderVictoryCard, SEA, thumbnailUrl, tileLength, victoryCard, victoryImageAlt } from "../../src/lib/victoires-image";
 
 const WEBHOOK = "https://discord.com/api/webhooks/123456/abc-DEF_123";
@@ -87,6 +87,7 @@ describe("victoryOf", () => {
       ],
       unnamed: 1,
       outsiders: 1,
+      rivals: [],
     });
   });
   it("ne nomme jamais un porteur du tag que rien ne donne membre du clan", () => {
@@ -98,9 +99,9 @@ describe("victoryOf", () => {
     expect(toVerify(GAME, MEMBERS, "GAL")).toEqual(["id-anonyme", "id-vide"]);
     expect(toVerify(GAME, null, "GAL")).toEqual(["id-zoe", "id-alpha", "id-anonyme", "id-vide"]);
   });
-  it("ne garde d'un joueur que son tag, son nom, son identifiant et le fait d'avoir des stats", () => {
-    expect(Object.keys(GAME.info.players[0]!)).toEqual(["clanTag", "username", "publicID", "hasStats"]);
-    expect(JSON.stringify(GAME)).not.toMatch(/attacks|clientID|persistentID|gameMode|winner/);
+  it("ne garde d'un joueur que son identifiant de partie, son tag, son nom, son identifiant, son équipe et le fait d'avoir des stats", () => {
+    expect(Object.keys(GAME.info.players[0]!)).toEqual(["clientID", "clanTag", "username", "publicID", "team", "hasStats"]);
+    expect(JSON.stringify(GAME)).not.toMatch(/attacks|persistentID|gameMode|gameID/);
   });
   it("sans nom lisible dans la partie, prend le pseudo du membre ; un même compte n'a qu'une fiche", () => {
     const game = ApiVictoryGame.parse({
@@ -142,6 +143,85 @@ describe("victoryOf", () => {
     expect(isVictory(session("a", "2026-11-11T17:00:00.000Z"))).toBe(true);
     expect(isVictory(session("b", "2026-11-11T17:00:00.000Z", { totalPlayerCount: 1 }))).toBe(false);
     expect(isVictory(session("c", "2026-11-11T17:00:00.000Z", { hasWon: false }))).toBe(false);
+  });
+});
+
+describe("les clans en face", () => {
+  /**
+   * Une partie à 4 équipes, noms inventés : GAL gagne avec l'équipe rouge. UN, ITA et ZZZ (hors de la liste officielle) ont deux
+   * joueurs chacun dans d'autres équipes ; EU deux joueurs dans l'équipe rouge ; AST deux joueurs jamais apparus ; FR un seul
+   * joueur, dans une autre équipe ; NU un seul, dans l'équipe rouge.
+   */
+  const player = (clientID: string, clanTag: string, stats = true, team?: string) => ({ clientID, clanTag, username: clientID, publicID: null, ...(stats ? { stats: {} } : {}), ...(team ? { team } : {}) });
+  const rivalGame = (winner: string[] | null = ["team", "Red", "g1"]) =>
+    ApiVictoryGame.parse({
+      info: {
+        config: { gameMap: "World" },
+        duration: 600,
+        winner,
+        players: [player("g1", "GAL"), player("g2", "GAL"), player("g3", "GAL"), player("u1", "UN"), player("u2", "UN"), player("i1", "ITA"), player("i2", "ITA"), player("e1", "EU", true, "Red"), player("e2", "EU", true, "Red"), player("x1", "ZZZ"), player("x2", "ZZZ"), player("a1", "AST", false), player("a2", "AST", false), player("f1", "FR"), player("n1", "NU", true, "Red")],
+      },
+    });
+  const OFFICIAL = ["ITA", "GAL", "EU", "UN", "FR", "AST", "NU"];
+  const won = session("r", "2026-11-13T18:08:00.000Z", { clanPlayerCount: 3, totalPlayerCount: 12 });
+
+  it("écrit les clans de la liste officielle d'au moins un joueur dans une autre équipe, joueur seul compris, dans l'ordre du classement", () => {
+    expect(rivalsOf(won, rivalGame(), "GAL", OFFICIAL)).toEqual(["ITA", "UN", "FR"]);
+    expect(victoryOf(won, rivalGame(), MEMBERS, "GAL", new Set(), OFFICIAL).rivals).toEqual(["ITA", "UN", "FR"]);
+  });
+  it("jamais un tag hors de la liste officielle, un clan de la même équipe, même d'un seul joueur, ni des joueurs jamais apparus", () => {
+    const rivals = rivalsOf(won, rivalGame(), "GAL", [...OFFICIAL, "ZZZ"].filter((t) => t !== "UN"));
+    expect(rivals).toEqual(["ITA", "FR", "ZZZ"]);
+    expect(rivalsOf(won, rivalGame(), "GAL", ["ITA"])).toEqual(["ITA"]);
+    for (const absent of ["EU", "NU", "AST", "GAL"]) expect(rivalsOf(won, rivalGame(), "GAL", OFFICIAL)).not.toContain(absent);
+  });
+  it("rien de deviné : sans liste officielle, sans vainqueur ou si les équipes ne concordent pas, aucun clan", () => {
+    expect(rivalsOf(won, rivalGame(), "GAL", [])).toEqual([]);
+    expect(victoryOf(won, rivalGame(), MEMBERS, "GAL").rivals).toEqual([]);
+    expect(rivalsOf(won, rivalGame(null), "GAL", OFFICIAL)).toEqual([]);
+    // Un joueur d'UN parmi les vainqueurs : UN n'est pas dans l'équipe calculée, rien ne concorde.
+    expect(rivalsOf(won, rivalGame(["team", "Red", "g1", "u1"]), "GAL", OFFICIAL)).toEqual([]);
+    expect(rivalsOf(won, rivalGame(["team", "Blue", "u1"]), "GAL", OFFICIAL)).toEqual([]);
+  });
+  it("un format inattendu des vainqueurs ou des identifiants de partie ne retire que les clans en face, pas la victoire", () => {
+    const raw = rawGame();
+    const odd = ApiVictoryGame.parse({ ...raw, info: { ...raw.info, winner: { team: "Red" }, players: raw.info.players.map((p) => ({ ...p, clientID: 7 })) } });
+    expect(odd.info.winner).toBeNull();
+    expect(odd.info.players.every((p) => p.clientID === null)).toBe(true);
+    const v = victoryOf(won, odd, MEMBERS, "GAL", CONFIRMED, OFFICIAL);
+    expect(v.rivals).toEqual([]);
+    expect(v.crew.map((p) => p.name)).toEqual(VICTORY.crew.map((p) => p.name));
+  });
+  it("la liste officielle ne sert que si le calcul des équipes concorde avec les résultats récents, comme dans le journal", () => {
+    const at = (i: number) => new Date(Date.parse("2026-11-13T10:00:00.000Z") - i * 60_000).toISOString();
+    const sessions = Array.from({ length: 60 }, (_, i) => session(`s${i}`, at(i), { clanPlayerCount: 3 }));
+    const games = (win: number | null): StoredGame[] => sessions.map((s) => ({ id: s.gameId, map: "World", seconds: 600, win, clans: win === null ? [] : [["GAL", 3, 0]] }));
+    expect(usableOfficialTags(sessions, games(0), "GAL", OFFICIAL, "2026-11-13T12:00:00.000Z")).toEqual(OFFICIAL);
+    expect(usableOfficialTags(sessions, games(null), "GAL", OFFICIAL, "2026-11-13T12:00:00.000Z")).toEqual([]);
+    expect(usableOfficialTags(sessions, games(0), "GAL", OFFICIAL, null)).toEqual([]);
+  });
+  it("le passage donne la liste officielle au message", async () => {
+    const victories: Victory[] = [];
+    await victoryPass({
+      stored: { done: [] },
+      sessions: [session("r", new Date(Date.now() - 3_600_000).toISOString(), { clanPlayerCount: 3, totalPlayerCount: 12 })],
+      members: MEMBERS,
+      tag: "GAL",
+      official: OFFICIAL,
+      now: new Date(),
+      readGame: async () => rivalGame(),
+      isMember: async () => false,
+      send: async (v) => {
+        victories.push(v);
+        return true;
+      },
+      pause: async () => {},
+      log: () => {},
+    });
+    expect(victories.map((v) => v.rivals)).toEqual([["ITA", "UN", "FR"]]);
+  });
+  it("le dit en mots : « contre le clan [UN] », « contre les clans [ITA] et [UN] »", () => {
+    expect([rivalsWords([]), rivalsWords(["UN"]), rivalsWords(["ITA", "UN"]), rivalsWords(["ITA", "UN", "EU"])]).toEqual([null, "contre le clan [UN]", "contre les clans [ITA] et [UN]", "contre les clans [ITA], [UN] et [EU]"]);
   });
 });
 
@@ -469,6 +549,12 @@ describe("le texte de secours", () => {
       "-# Noms portés dans la partie. Carte : [© OpenFront and Contributors](<https://github.com/openfrontio/OpenFrontIO/tree/main/resources/maps/fourislands>), [CC BY-SA 4.0](<https://creativecommons.org/licenses/by-sa/4.0/deed.fr>).",
     ]);
   });
+  it("les clans en face, sur leur ligne après les Gaulois ; aucun : pas de ligne", () => {
+    const lines = plain(victoryContent({ ...VICTORY, rivals: ["ITA", "UN"] }, "GAL", SITE).content).split("\n");
+    expect(lines[3]).toBe("🆚 Contre les clans [ITA] et [UN]");
+    expect(plain(victoryContent({ ...VICTORY, rivals: ["UN"] }, "GAL", SITE).content).split("\n")[3]).toBe("🆚 Contre le clan [UN]");
+    expect(victoryContent(VICTORY, "GAL", SITE).content).not.toContain("🆚");
+  });
   it("sans « autres » : une liste en français ; sans image, donc sans vignette à créditer ; personne : pas de ligne des noms", () => {
     const all: Victory = { ...VICTORY, format: "Trios", crew: VICTORY.crew.slice(0, 2), unnamed: 0, outsiders: 0, points: 2.24 };
     const lines = plain(victoryContent(all, "GAL", SITE).content).split("\n");
@@ -631,6 +717,39 @@ describe("victoryCard", () => {
     // Peu de noms : la grande taille.
     expect(victoryCard(VICTORY, "GAL", SITE, measure, SQUARE).texts.find((t) => t.text === "alpha")?.size).toBe(CHIP_STEPS[0].font);
   });
+  it("les clans en face : « contre », puis leur tag dans des cases rouges, après les Gaulois", () => {
+    const card = victoryCard({ ...VICTORY, rivals: ["ITA", "UN"] }, "GAL", SITE, measure, SQUARE);
+    const texts = card.texts.map((t) => t.text);
+    expect(texts.slice(texts.indexOf("alpha"), texts.indexOf("[UN]") + 1)).toEqual(["alpha", "Caché", "Zoé en jeu", "1 Gaulois sans nom", "1 joueur sous le tag, hors du clan", "contre", "[ITA]", "[UN]"]);
+    const red = card.rects.filter((r) => r.color === CARD_COLORS.RED_FILL);
+    expect(red).toHaveLength(2);
+    // Le texte de chaque case rouge est dedans, en blanc ; « contre » n'a pas de case.
+    for (const tag of ["[ITA]", "[UN]"]) {
+      const text = card.texts.find((t) => t.text === tag)!;
+      expect(text.color).toBe(CARD_COLORS.WHITE);
+      expect(red.some((r) => text.x > r.x && text.x + measure(tag, text.font, text.size) < r.x + r.width && text.y > r.y && text.y < r.y + r.height)).toBe(true);
+    }
+    const word = card.texts.find((t) => t.text === "contre")!;
+    expect(word.color).toBe(CARD_COLORS.MUTED);
+    expect(card.rects.some((r) => word.x >= r.x && word.x < r.x + r.width && word.y > r.y && word.y < r.y + r.height)).toBe(false);
+    expectClean(card);
+    // Sans clan en face, rien de rouge ni de « contre ».
+    const none = victoryCard(VICTORY, "GAL", SITE, measure, SQUARE);
+    expect(none.texts.map((t) => t.text)).not.toContain("contre");
+    expect(none.rects.filter((r) => r.color === CARD_COLORS.RED_FILL)).toHaveLength(0);
+  });
+  it("« contre » ne finit jamais une ligne : il passe à la suivante avec le premier clan", () => {
+    const items = (filler: number) => [{ text: "W".repeat(filler), named: true }, { text: "contre", named: false, word: true }, { text: "[ITA]", named: false, red: true }];
+    // Assez de place pour « contre » seul au bout de la ligne, pas pour « contre » et la case qui suit.
+    const width = 600;
+    const padding = Math.round(CHIP_STEPS[0].font * 0.8);
+    const fillerFor = (room: number) => Math.floor((room - 2 * padding) / (CHIP_STEPS[0].font * 0.58));
+    const wordWidth = Math.ceil(measure("contre", "body", CHIP_STEPS[0].font)) + 2 * Math.round(padding / 4);
+    const layout = chipLayout(items(fillerFor(width - CHIP_GAP - wordWidth - 10)), measure, width);
+    expect(layout.rows.map((row) => row.map((c) => c.text))).toEqual([[expect.stringMatching(/^W+$/)], ["contre", "[ITA]"]]);
+    // Avec la place pour les deux, tout tient sur une ligne.
+    expect(chipLayout(items(3), measure, width).rows).toHaveLength(1);
+  });
   it("un nom plus long que la ligne est coupé, pas débordé", () => {
     expectClean(victoryCard({ ...VICTORY, crew: [{ id: null, name: "W".repeat(90) }], unnamed: 0, outsiders: 0 }, "GAL", SITE, measure, SQUARE));
   });
@@ -640,6 +759,8 @@ describe("victoryCard", () => {
     );
     expect(victoryImageAlt(VICTORY, "GAL", false)).toContain("Nom de la carte : © OpenFront and Contributors, CC BY-SA 4.0.");
     expect(victoryImageAlt({ ...VICTORY, seconds: 10_253 }, "GAL", true)).toContain("partie de 2 h 50 min.");
+    expect(plain(victoryImageAlt({ ...VICTORY, rivals: ["ITA", "UN"] }, "GAL", true))).toContain("1 joueur sous le tag, hors du clan. Victoire contre les clans [ITA] et [UN]. Image et nom de la carte");
+    expect(victoryImageAlt(VICTORY, "GAL", true)).not.toContain("contre");
   });
   it("beaucoup de longs noms : la description n'en coupe aucun, compte les autres, et garde le crédit de la carte en entier", () => {
     const huge: Victory = { ...VICTORY, crew: Array.from({ length: 80 }, (_, i) => ({ id: null, name: `Capitaine Barbe GOAT.${7000 + i}` })), unnamed: 1, outsiders: 0 };

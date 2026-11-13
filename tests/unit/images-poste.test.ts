@@ -209,7 +209,7 @@ describe("toutes les images du robot, avec les vraies polices", () => {
     [
       "victoire",
       victoryCard(
-        { id: "x", start: "2026-11-12T17:04:58.000Z", map: "Gateway to the Atlantic", seconds: 10_253, format: "Trios", gaulois: 12, players: 123, points: 12.81, crew: [{ id: null, name: "Brennos" }], unnamed: 0, outsiders: 0 },
+        { id: "x", start: "2026-11-12T17:04:58.000Z", map: "Gateway to the Atlantic", seconds: 10_253, format: "Trios", gaulois: 12, players: 123, points: 12.81, crew: [{ id: null, name: "Brennos" }], unnamed: 0, outsiders: 0, rivals: ["ITA", "UN"] },
         "GAL",
         SITE,
         fonts.width,
