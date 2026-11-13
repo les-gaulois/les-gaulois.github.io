@@ -74,14 +74,22 @@ const setSpeed = (page: Page, speed: string) =>
     el.dispatchEvent(new Event("input", { bubbles: true }));
   }, speed);
 
-/** Nombre de pixels peints par le film au-delà du fond de carte : il dépend du territoire affiché. */
+/**
+ * Nombre de pixels peints par le film au-delà du fond de carte : il dépend du territoire affiché. La mer, bleue depuis le
+ * 13 novembre 2026 (du littoral au large, `src/lib/clanmap/terrain.ts`), n'en est pas : son bleu a le vert au-dessus du
+ * rouge et le bleu au-dessus du vert, chacun de 20 à 75 de plus. Quelques clans bleu clair y tombent aussi (1,5 % des
+ * pixels le 13 novembre 2026), les mêmes à chaque image : les comparaisons entre images n'en changent pas. La mer seule
+ * n'y compte qu'environ 500 pixels, la carte finale plus de 200 000.
+ */
 const colorfulPixels = (page: Page) =>
   page.evaluate(() => {
     const canvas = document.querySelector<HTMLCanvasElement>("[data-film-canvas]")!;
     const { data } = canvas.getContext("2d")!.getImageData(0, 0, canvas.width, canvas.height);
     let count = 0;
     for (let i = 0; i < data.length; i += 4) {
-      if (Math.max(data[i]!, data[i + 1]!, data[i + 2]!) - Math.min(data[i]!, data[i + 1]!, data[i + 2]!) > 60) count++;
+      const [r, g, b] = [data[i]!, data[i + 1]!, data[i + 2]!];
+      const sea = g - r >= 20 && g - r <= 75 && b - g >= 20 && b - g <= 75 && r < 140;
+      if (!sea && Math.max(r, g, b) - Math.min(r, g, b) > 60) count++;
     }
     return count;
   });
@@ -1227,7 +1235,7 @@ test.describe("film de la carte", () => {
     const license = page.getByTestId("map-license");
     await expect(license).toBeInViewport();
     await expect(license).toContainText("© OpenFront and Contributors");
-    await expect(license).toContainText("Ce site a réduit et assombri le fond de carte");
+    await expect(license).toContainText("Ce site a réduit le fond de carte, assombri sa terre et redessiné sa mer ; le fond reste sous la même licence");
     await expect(license.getByRole("link", { name: "CC BY-SA 4.0" })).toHaveAttribute("href", "https://creativecommons.org/licenses/by-sa/4.0/deed.fr");
     await expect(license.getByRole("link", { name: "Giant World Map" })).toHaveAttribute("href", /resources\/maps\/giantworldmap$/);
     // Et les mentions légales elles-mêmes.

@@ -2,6 +2,16 @@
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "title": "Carte : la mer redevient bleue",
+    "body": "La mer reprend le bleu du jeu au lieu du presque noir : plus claire le long des côtes, un peu plus foncée au large. De petites vagues y dérivent doucement ; le bouton pause les arrête.",
+    "link": {
+      "href": "/carte",
+      "label": "Voir la carte"
+    }
+  },
+  {
+    "date": "2026-11-13",
+    "kind": "ameliore",
     "title": "Carte de l'alliance : boutons et légende sous le titre",
     "body": "Sur un écran moyen, les boutons de la carte de l'alliance et la légende des couleurs se rangent sous le titre, à gauche : ils ne cachent plus le titre ni la mention de licence d'OpenFront.",
     "link": {

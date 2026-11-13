@@ -113,7 +113,7 @@ export interface MapShape {
 export const MAP_KICKER = "Carte des clans d'OpenFront";
 export const MAP_NOTE = "Le territoire en pixels, pas le classement des clans";
 /** Le crédit que demande la licence du fond de carte, écrit sur l'image : le message n'a pas de texte. */
-export const MAP_CREDIT = `Carte : ${OPENFRONT_CREDIT}, CC BY-SA 4.0. Fond Giant World Map réduit et assombri, territoires dessinés par le site, même licence.`;
+export const MAP_CREDIT = `Carte : ${OPENFRONT_CREDIT}, CC BY-SA 4.0. Fond Giant World Map réduit, terre assombrie, territoires dessinés par le site, même licence.`;
 export const MAP_SOURCES = "github.com/openfrontio/OpenFrontIO/tree/main/resources/maps/giantworldmap · creativecommons.org/licenses/by-sa/4.0";
 
 export interface MapCard extends GazetteCard {

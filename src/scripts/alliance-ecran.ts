@@ -12,7 +12,8 @@
 import { cadreVisible, type Rect } from "../lib/alliance/capture";
 import { cssDe } from "../lib/alliance/couleurs";
 import { CADRE_MAX, annuler, cadreDuCalque, dansLeMasque, forEachPixel, masqueDuCalque, pointCentral, poserMasque, rectangle, trait, type Masque, type Pinceau, type Retouche } from "../lib/alliance/masque";
-import { ETAT_MER, ETAT_NEUTRE, decoderEtat, type EtatCarte } from "../lib/clanmap/etat";
+import { ETAT_MER, ETAT_NEUTRE, auLittoral, decoderEtat, type EtatCarte } from "../lib/clanmap/etat";
+import { OCEAN_SHORE, SEA_FAR_CSS } from "../lib/clanmap/terrain";
 import { borner, decaler, echelleDuMonde, estVueDEnsemble, pointDeCarte, zoomer, type Monde } from "../lib/clanmap/vue";
 import type { StoredClanMapFilm } from "../lib/schemas";
 import { loadFilmData } from "./film-data";
@@ -78,7 +79,9 @@ const KEY_PAN = 0.18;
 const GRILLE_CSS_PX = 10;
 /** Une zone plus petite que cela à l'écran, en pixels CSS, reçoit un repère pour être vue de loin. */
 const REPERE_CSS_PX = 14;
-const FOND = "#091426";
+/** Autour du monde, le large ; autour des repères et des noms des zones, un contour sombre qui les détache de la carte. */
+const FOND = SEA_FAR_CSS;
+const CONTOUR = "#091426";
 const DIM = [120, 130, 155, 80] as const;
 /** Le texte des étiquettes des zones, sombre sur la couleur vive de leur clan. */
 const TEXTE_ETIQUETTE = "#0a1230";
@@ -390,16 +393,21 @@ export class EcranAlliance {
       // Un peu moins que plein : les zones, hachurées par-dessus, restent visibles même sur la terre de leur clan.
       palette[i + 1] = couleur === undefined ? rgba(DIM[0], DIM[1], DIM[2], DIM[3]) : rgba((couleur >> 16) & 0xff, (couleur >> 8) & 0xff, couleur & 0xff, 205);
     }
-    // La mer et la terre au pixel près, d'après l'état : le fond de carte, réduit de moitié, ne dessine la côte que par
-    // carrés de deux pixels. La mer prend la couleur de celle du fond ; la terre neutre, un voile gris qui laisse voir le relief.
-    palette[ETAT_MER] = rgba(9, 20, 37, 255);
+    // La terre neutre, un voile gris qui laisse voir le relief. La mer laisse voir celle du fond, claire près des côtes et
+    // plus sombre au large ; le fond, réduit de moitié, ne dessine la côte que par carrés de deux pixels : le littoral se
+    // peint ici au pixel près, d'après l'état.
     palette[ETAT_NEUTRE] = rgba(60, 64, 63, 120);
+    const littoral = rgba(OCEAN_SHORE[0], OCEAN_SHORE[1], OCEAN_SHORE[2], 255);
     const [base, ctx] = this.base ? [this.base, this.base.getContext("2d")!] : this.calqueCanvas(this.W, this.H);
     this.base = base;
     const image = ctx.createImageData(this.W, this.H);
     const pix = new Uint32Array(image.data.buffer);
     const valeurs = this.etat.valeurs;
-    for (let p = 0; p < valeurs.length; p++) pix[p] = palette[valeurs[p]!] ?? 0;
+    const W = this.W;
+    for (let p = 0; p < valeurs.length; p++) {
+      const v = valeurs[p]!;
+      pix[p] = v === ETAT_MER ? (auLittoral(valeurs, W, p) ? littoral : 0) : (palette[v] ?? 0);
+    }
     ctx.putImageData(image, 0, 0);
   }
 
@@ -660,7 +668,7 @@ export class EcranAlliance {
         c.lineTo(cx - r, cy);
         c.closePath();
         c.fillStyle = couleur;
-        c.strokeStyle = vive(zone) ? "#ffffff" : FOND;
+        c.strokeStyle = vive(zone) ? "#ffffff" : CONTOUR;
         c.lineWidth = 2 * this.dpr;
         c.stroke();
         c.fill();
@@ -675,7 +683,7 @@ export class EcranAlliance {
       c.fillStyle = couleur;
       c.fill();
       c.lineWidth = (vive(zone) ? 2 : 1) * this.dpr;
-      c.strokeStyle = vive(zone) ? "#ffffff" : FOND;
+      c.strokeStyle = vive(zone) ? "#ffffff" : CONTOUR;
       c.stroke();
       c.fillStyle = TEXTE_ETIQUETTE;
       c.fillText(zone.etiquette, gauche + marge, cy + this.dpr / 2);

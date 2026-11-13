@@ -6,6 +6,20 @@ export interface FilmData {
   film: StoredClanMapFilm;
   frames: DecodedFrames;
   terrain: HTMLImageElement;
+  /** Où dessiner les vagues (`src/lib/fx/vagues.ts`) ; `null` si le build n'a pas pu le faire : la mer reste calme. */
+  vagues: HTMLImageElement | null;
+}
+
+/** Une image facultative : son absence ne doit pas empêcher le film. */
+async function optionnelle(src: string): Promise<HTMLImageElement | null> {
+  const image = new Image();
+  image.src = src;
+  try {
+    await image.decode();
+    return image;
+  } catch {
+    return null;
+  }
 }
 
 async function load(assets: string): Promise<FilmData> {
@@ -21,8 +35,8 @@ async function load(assets: string): Promise<FilmData> {
   const frames = decodeFrames(bytes, film.frames.length, film.totalChanges);
   const terrain = new Image();
   terrain.src = `${assets}terrain.webp`;
-  await terrain.decode();
-  return { film, frames, terrain };
+  const [, vagues] = await Promise.all([terrain.decode(), optionnelle(`${assets}vagues.webp`)]);
+  return { film, frames, terrain, vagues };
 }
 
 let pending: Promise<FilmData> | null = null;

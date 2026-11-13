@@ -287,7 +287,7 @@ export const TEXTES_CAPTURE = {
     reste: (n: number) => `Et ${n} ${pluriel(n, "autre zone, numérotée", "autres zones, numérotées")} sur la carte.`,
     regles: (neutre: string, ennemi: string, date: string) => `${neutre} troupes par pixel neutre, au moins ${ennemi} par pixel d'un autre clan, selon les règles du jeu lues le ${date}.`,
     cadre: (x0: string, x1: string, y0: string, y1: string) => `Morceau de carte : x de ${x0} à ${x1}, y de ${y0} à ${y1}`,
-    credit: "Carte : © OpenFront and Contributors, CC BY-SA 4.0. Fond Giant World Map réduit et assombri, territoires et zones dessinés par le site, même licence.",
+    credit: "Carte : © OpenFront and Contributors, CC BY-SA 4.0. Fond Giant World Map réduit, terre assombrie, territoires et zones dessinés par le site, même licence.",
     alt: (releve: string, zones: number) =>
       `Capture de la carte de l'alliance avec le logo de GAL : territoires au relevé du ${releve}${zones > 0 ? `, ${zones} ${pluriel(zones, "zone", "zones")} dans l'image` : ""}.`,
     locale: "fr-FR",
@@ -328,7 +328,7 @@ export const TEXTES_CAPTURE = {
     reste: (n: number) => `And ${n} more ${pluriel(n, "zone", "zones")}, numbered on the map.`,
     regles: (neutre: string, ennemi: string, date: string) => `${neutre} troops per neutral pixel, at least ${ennemi} per pixel of another clan, under the game rules read on ${date}.`,
     cadre: (x0: string, x1: string, y0: string, y1: string) => `Part of the map: x from ${x0} to ${x1}, y from ${y0} to ${y1}`,
-    credit: "Map: © OpenFront and Contributors, CC BY-SA 4.0. Giant World Map background scaled down and darkened, territories and zones drawn by the site, same licence.",
+    credit: "Map: © OpenFront and Contributors, CC BY-SA 4.0. Giant World Map background scaled down, land darkened, territories and zones drawn by the site, same licence.",
     alt: (releve: string, zones: number) => `Snapshot of the alliance map with the GAL logo: territories as of ${releve}${zones > 0 ? `, ${zones} ${pluriel(zones, "zone", "zones")} in the image` : ""}.`,
     locale: "en-GB",
   },

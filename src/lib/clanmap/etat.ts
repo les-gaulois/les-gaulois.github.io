@@ -60,6 +60,18 @@ export function etatAuRelevé(log: EventLog, seq: number, width: number, height:
   return { width, height, seq, at, valeurs };
 }
 
+/** Un pixel de mer qui touche la terre par un de ses quatre côtés : le littoral. Le bord de la carte n'en est pas. */
+export function auLittoral(valeurs: Uint16Array, width: number, p: number): boolean {
+  if (valeurs[p] !== ETAT_MER) return false;
+  const x = p % width;
+  return (
+    (x > 0 && valeurs[p - 1] !== ETAT_MER) ||
+    (x < width - 1 && valeurs[p + 1] !== ETAT_MER) ||
+    (p >= width && valeurs[p - width] !== ETAT_MER) ||
+    (p + width < valeurs.length && valeurs[p + width] !== ETAT_MER)
+  );
+}
+
 /** Les pixels de chaque clan, par son index dans `film.clans`. */
 export function pixelsParClan(valeurs: Uint16Array, clans: number): Int32Array {
   const counts = new Int32Array(clans);

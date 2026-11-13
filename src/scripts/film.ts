@@ -20,6 +20,8 @@ import { borner, cadreDuClan, decaler, estVueDEnsemble, ligneDuClan, pointDeCart
 import { fmtDay, fmtEpochDay, fmtEpochHour } from "../lib/format";
 import { CAMERA_CLICK_MS, CAMERA_SMOOTH_MS, FILM_MS, SHOT_MAX_ZOOM, SHOT_MS, SHOT_SPACING_MS, moveCamera, pickShots, placeCamera, type Camera } from "../lib/fx/camera";
 import { motionAllowed } from "../lib/fx/motion";
+import { decalage, FORCE_MIN, respiration, traitsVisibles, vaguelettes, type Vaguelette } from "../lib/fx/vagues";
+import { SEA_FAR_CSS } from "../lib/clanmap/terrain";
 import { filmSpeed, speedLabel, speedText } from "../lib/fx/speed";
 import { frNumber } from "../lib/nombre";
 import type { StoredClanMapFilm } from "../lib/schemas";
@@ -36,6 +38,51 @@ const CAPTION_MS = 3_400;
 const SLOW_FRAME_MS = 40;
 const SLOW_FRAMES_LIMIT = 24;
 const LOW_POWER_RESOLUTION = 0.7;
+/**
+ * Les vagues (src/lib/fx/vagues.ts) : lentes, une image sur cinq leur suffit. Le carreau qui se répète, en pixels du
+ * calque des vagues (la moitié de ceux du film), ses vaguelettes, le temps qu'une nappe met à se former et à s'effacer,
+ * la vitesse de chaque nappe en pixels par seconde, et l'opacité d'un trait au large.
+ */
+const WAVE_FRAME_MS = 83;
+const WAVE_TILE = 150;
+const WAVE_COUNT = 18;
+const WAVE_PERIOD_MS = 9_000;
+const WAVE_DRIFT: readonly [number, number][] = [
+  [3, 0.7],
+  [-2, 1.2],
+];
+const WAVE_ALPHA = 0.32;
+/** Les traits sont groupés par force, pour quelques tracés seulement à chaque image. */
+const WAVE_LEVELS = 4;
+/** Tant d'images de vagues seules suivies d'un retard, de plus que d'images à l'heure, et les vagues s'arrêtent. */
+const WAVE_SLOW_LIMIT = 8;
+
+interface Waves {
+  /** Où sont les vagues, un octet par pixel du calque (`vagues.webp`). */
+  poids: Uint8Array;
+  width: number;
+  height: number;
+  nappes: Vaguelette[][];
+}
+
+/** Prépare les vagues : la clarté de `vagues.webp`, lue une fois, et les vaguelettes de chaque nappe. */
+function makeWaves(image: HTMLImageElement): Waves | null {
+  const canvas = document.createElement("canvas");
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return null;
+  try {
+    ctx.drawImage(image, 0, 0);
+    const px = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    const poids = new Uint8Array(canvas.width * canvas.height);
+    for (let i = 0; i < poids.length; i++) poids[i] = px[i * 4]!;
+    return { poids, width: canvas.width, height: canvas.height, nappes: [11, 29].map((seed) => vaguelettes(WAVE_COUNT, WAVE_TILE, seed)) };
+  } catch {
+    return null;
+  }
+}
+
 /** Largeur d'une date sous la frise, en rem : voir `.film-date`. */
 const DAY_LABEL_REM = 3.5;
 /** Une journée rejouée dure au moins ce temps à la vitesse × 1 : un long historique lui laisse peu d'images. */
@@ -75,7 +122,7 @@ interface View {
 
 const rgba = (r: number, g: number, b: number, a: number) => ((a << 24) | (b << 16) | (g << 8) | r) >>> 0;
 
-function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames, terrain: HTMLImageElement): void {
+function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames, terrain: HTMLImageElement, vagues: HTMLImageElement | null): void {
   const one = <T extends Element>(selector: string): T => {
     const el = root.querySelector<T>(selector);
     if (!el) throw new Error(`élément manquant : ${selector}`);
@@ -111,6 +158,7 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
   const [glowBloom, glowBloomCtx] = makeLayer(bloomW, bloomH);
   const [galBloom, galBloomCtx] = makeLayer(bloomW, bloomH);
   const [fadeCanvas, fadeCtx] = makeLayer(1, 1);
+  const waves = vagues ? makeWaves(vagues) : null;
 
   const map = one<HTMLElement>("[data-film-map]");
   const playButton = one<HTMLButtonElement>("[data-film-play]");
@@ -463,11 +511,12 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     c.setTransform(1, 0, 0, 1, 0, 0);
     c.globalCompositeOperation = "source-over";
     c.globalAlpha = 1;
-    c.fillStyle = "#091426";
+    c.fillStyle = SEA_FAR_CSS;
     c.fillRect(0, 0, view.width, view.height);
     c.setTransform(camera.s, 0, 0, camera.s, view.width / 2 - camera.x * camera.s, view.height / 2 - camera.y * camera.s);
     c.imageSmoothingEnabled = camera.s < 1;
     c.drawImage(terrain, 0, 0, W, H);
+    if (waves && wavesOn()) drawWaves(c, waves, waveAt);
     c.drawImage(layer, 0, 0);
 
     // Le quadrillage de la carte : fixe sur le monde, il suit la caméra. Décoratif.
@@ -558,6 +607,52 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     if (view.dataset.centre !== centre) view.dataset.centre = centre;
   }
 
+  /* ---------- Les vagues : un décor de la mer, coupé par la pause, sur la carte de l'alliance et sur une machine lente ---------- */
+
+  let allianceOn = false;
+  let waveAt = 0;
+  /** Une machine qui dessine sans carte graphique peine à chaque image des vagues : elles s'arrêtent pour de bon. */
+  let wavesTooSlow = false;
+  let slowWaves = 0;
+  let waveDrawn = false;
+  const wavesOn = (): boolean => waves !== null && inView && !lowPower && !wavesTooSlow && !allianceOn && motionAllowed();
+
+  /**
+   * Les deux nappes à l'instant `ms`, chacune à sa place et à sa force, sur la partie visible de la mer : de simples
+   * traits, groupés par force. Leur épaisseur reste la même à l'écran, quel que soit le zoom.
+   */
+  function drawWaves(c: CanvasRenderingContext2D, w: Waves, ms: number): void {
+    const k = W / w.width;
+    const vue = {
+      x0: (camera.x - view.width / 2 / camera.s) / k,
+      y0: (camera.y - view.height / 2 / camera.s) / k,
+      x1: (camera.x + view.width / 2 / camera.s) / k,
+      y1: (camera.y + view.height / 2 / camera.s) / k,
+    };
+    const souffle = respiration(ms, WAVE_PERIOD_MS);
+    c.save();
+    c.strokeStyle = "#fff";
+    c.lineCap = "round";
+    c.lineWidth = (1.2 * dpr) / camera.s;
+    w.nappes.forEach((nappe, i) => {
+      const presence = i === 0 ? souffle : 1 - souffle;
+      if (presence < 0.02) return;
+      const [vx, vy] = WAVE_DRIFT[i]!;
+      const niveaux = Array.from({ length: WAVE_LEVELS }, () => new Path2D());
+      for (const t of traitsVisibles(w.poids, w.width, w.height, nappe, WAVE_TILE, decalage(ms, vx, WAVE_TILE), decalage(ms, vy, WAVE_TILE), vue)) {
+        const niveau = Math.min(WAVE_LEVELS - 1, Math.floor(((t.force - FORCE_MIN) / (1 - FORCE_MIN)) * WAVE_LEVELS));
+        const demi = t.longueur / 2;
+        niveaux[niveau]!.moveTo((t.x - demi) * k, t.y * k);
+        niveaux[niveau]!.quadraticCurveTo(t.x * k, (t.y - t.creux) * k, (t.x + demi) * k, t.y * k);
+      }
+      niveaux.forEach((trace, n) => {
+        c.globalAlpha = WAVE_ALPHA * presence * ((n + 1) / WAVE_LEVELS);
+        c.stroke(trace);
+      });
+    });
+    c.restore();
+  }
+
   /* ---------- Boucle : elle s'arrête dès qu'il n'y a plus rien à animer ---------- */
 
   let raf = 0;
@@ -586,6 +681,17 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
   function loop(now: number): void {
     raf = 0;
     const dt = last ? Math.min(now - last, 100) : 16;
+    if (waveDrawn && !playing && last) {
+      // L'image qui suit des vagues seules arrive en retard : c'est leur dessin qui a pesé.
+      slowWaves = dt > SLOW_FRAME_MS ? slowWaves + 1 : Math.max(0, slowWaves - 1);
+      if (slowWaves >= WAVE_SLOW_LIMIT) {
+        wavesTooSlow = true;
+        // Une dernière image, sans vagues.
+        needDraw = true;
+      }
+    }
+    waveDrawn = false;
+    const ondes = wavesOn();
     if (playing && inView && !lowPower && last) {
       slowFrames = dt > SLOW_FRAME_MS ? slowFrames + 1 : Math.max(0, slowFrames - 1);
       if (slowFrames >= SLOW_FRAMES_LIMIT) {
@@ -629,9 +735,14 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
     }
     const moving = stepCamera(dt, false);
     if (moving) dirty = true;
+    if (ondes && now - waveAt >= WAVE_FRAME_MS) {
+      waveAt = now;
+      waveDrawn = !dirty;
+      dirty = true;
+    }
     if (dirty) draw();
     needDraw = false;
-    const busy = (playing && inView) || activeCount > 0 || pulses.length > 0 || fade > 0 || shot !== null || moving;
+    const busy = (playing && inView) || activeCount > 0 || pulses.length > 0 || fade > 0 || shot !== null || moving || wavesOn();
     if (busy) schedule();
     else last = 0;
   }
@@ -921,7 +1032,8 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
 
   // Le bouton pause du site arrête aussi le film.
   new MutationObserver(() => {
-    if (motionAllowed()) return;
+    // Les animations reviennent : les vagues aussi.
+    if (motionAllowed()) return invalidate();
     cancelAutoplay();
     clearEffects();
     shot = null;
@@ -930,6 +1042,8 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
   }).observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
   matchMedia("(prefers-reduced-motion: reduce)").addEventListener("change", (e) => {
     if (e.matches && playing) setPlaying(false);
+    // Les vagues s'arrêtent ou reprennent.
+    invalidate();
   });
 
   /* ---------- La carte se manie : zoom, déplacement, clic sur un territoire ---------- */
@@ -1170,7 +1284,9 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
   });
   // La carte de l'alliance prend la place du film (src/scripts/alliance-ecran.ts) : le film s'arrête là où il en est.
   root.addEventListener("carte:alliance", (e) => {
-    if (!(e as CustomEvent<{ on: boolean }>).detail.on) return;
+    allianceOn = (e as CustomEvent<{ on: boolean }>).detail.on;
+    // De retour sur le film, les vagues reprennent.
+    if (!allianceOn) return invalidate();
     cancelAutoplay();
     if (playing) setPlaying(false);
   });
@@ -1298,8 +1414,8 @@ function init(): void {
   const start = async () => {
     if (message) message.hidden = true;
     try {
-      const { film, frames, terrain } = await loadFilmData(root.dataset.assets ?? "");
-      mount(root, film, frames, terrain);
+      const { film, frames, terrain, vagues } = await loadFilmData(root.dataset.assets ?? "");
+      mount(root, film, frames, terrain, vagues);
     } catch (e) {
       console.warn("Film de la carte indisponible :", e);
       if (text) text.textContent = "Le film n'a pas pu être chargé. La carte finale et tous les chiffres restent affichés.";
