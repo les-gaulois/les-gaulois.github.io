@@ -155,6 +155,25 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
     else add(label, "fail", `Réponse ${res.status}. Ne mettez pas en ligne : retirez le droit d'appeler ${fn}.`);
   }
 
+  // La boutique du village (migration 20261113001900) : seul un compte connecté lit sa boutique ; seul un compte validé avec
+  // son Gaulois achète ou ouvre une pochette. Absente : 404, la migration n'est pas collée. L'objet demandé n'existe pas, et un
+  // visiteur n'a pas de statères : même si le droit d'appel était mal posé, rien ne serait débité.
+  const shop = await rpc("get_ma_boutique");
+  const shopAnswer = shop.ok ? ((await shop.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (shop.status === 404) add("La boutique du village est installée", "warn", "get_ma_boutique est absente : collez la migration 20261113001900_village_boutique.sql avant de mettre en ligne ce qui s'en sert.");
+  else if (isClosed(shop.status) || (shop.ok && shopAnswer?.ok === false)) add("Un visiteur ne lit pas de boutique", "ok");
+  else add("Un visiteur ne lit pas de boutique", "fail", `Réponse ${shop.status}. Ne mettez pas en ligne : seul un compte connecté lit sa boutique et son solde.`);
+  const shopCalls = [
+    ["acheter_objet", { p_emplacement: "tete", p_objet: "verification" }, "Un visiteur n'achète pas d'objet"],
+    ["ouvrir_pochette", {}, "Un visiteur n'ouvre pas de pochette surprise"],
+  ] as const;
+  for (const [fn, body, label] of shopCalls) {
+    const res = await rpc(fn, body);
+    const answer = res.ok ? ((await res.json().catch(() => null)) as { ok?: boolean } | null) : null;
+    if (isClosed(res.status) || (res.ok && answer?.ok === false)) add(label, "ok");
+    else add(label, "fail", `Réponse ${res.status}. Ne mettez pas en ligne : seul un compte validé avec son Gaulois achète.`);
+  }
+
   // Les salons du robot : leur réglage contient les liens qui écrivent dans les salons. Seuls les admins et le fondateur
   // le règlent, et seule la clé de service, celle du robot, reçoit les liens. Leur installation se lit avec `supabase migration list`.
   const salonsState = await rpc("get_discord_salons");

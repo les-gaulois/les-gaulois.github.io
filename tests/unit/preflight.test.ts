@@ -22,6 +22,7 @@ const HEALTHY: Record<string, Route> = {
   "/rest/v1/rpc/get_site_activity": { status: 401, body: {} },
   "/rest/v1/rpc/get_mon_gaulois": { status: 401, body: {} },
   "/rest/v1/rpc/get_mes_stateres": { status: 401, body: {} },
+  "/rest/v1/rpc/get_ma_boutique": { status: 401, body: {} },
   "/rest/v1/profiles": { status: 401, body: {} },
   "/rest/v1/private_links": { status: 401, body: {} },
   "/rest/v1/admin_log": { status: 401, body: {} },
@@ -188,6 +189,25 @@ describe("le contrôle de la mise en ligne", () => {
     expect(seen.filter((s) => s.apikey === "sb_secret_x" && /stateres/.test(s.url)).map((s) => new URL(s.url).pathname)).toEqual(["/rest/v1/rpc/stateres_parties_notees"]);
     // Sans la clé secrète, ce contrôle n'est pas fait.
     expect((await run()).some((c) => c.label.includes(label))).toBe(false);
+  });
+
+  it("bloque si un visiteur lit une boutique, et signale la boutique pas encore installée", async () => {
+    expect(await statusOf(HEALTHY, "ne lit pas de boutique")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_ma_boutique": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "ne lit pas de boutique")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_ma_boutique": { status: 200, body: { ok: true, solde: 0, inventaire: [] } } }, "ne lit pas de boutique")).toBe("fail");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_ma_boutique": { status: 404, body: {} } }, "boutique du village est installée")).toBe("warn");
+  });
+
+  it("bloque si un visiteur achète un objet ou ouvre une pochette surprise", async () => {
+    expect(await statusOf(HEALTHY, "n'achète pas d'objet")).toBe("ok");
+    expect(await statusOf(HEALTHY, "n'ouvre pas de pochette")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/acheter_objet": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "n'achète pas d'objet")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/acheter_objet": { status: 200, body: { ok: true, solde: 0 } } }, "n'achète pas d'objet")).toBe("fail");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/ouvrir_pochette": { status: 200, body: { ok: true, solde: 0 } } }, "n'ouvre pas de pochette")).toBe("fail");
+    // Le visiteur ne demande jamais un objet qui existe : rien ne serait débité même si le droit était mal posé.
+    seen.length = 0;
+    await run();
+    expect(JSON.parse(seen.find((s) => s.url.endsWith("/rpc/acheter_objet"))?.body ?? "null")).toEqual({ p_emplacement: "tete", p_objet: "verification" });
   });
 
   it("dit si la fonction code-discord est déployée et réglée, et ne bloque qu'une fois la connexion par code ouverte", async () => {
