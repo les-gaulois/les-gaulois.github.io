@@ -59,25 +59,46 @@ export function wrapWords(text: string, font: CardText["font"], size: number, wi
   return lines;
 }
 
+/** Les mesures d'une grille de grandes cases, en pixels de l'image. */
+export interface TileLook {
+  readonly gap: number;
+  readonly pad: number;
+  readonly cell: number;
+  readonly name: number;
+  readonly nameMin: number;
+  readonly nameGap: number;
+  readonly description: number;
+  readonly line: number;
+  readonly after: number;
+}
+
 /**
  * Les grandes cases, comme l'écran de choix d'un jeu : en grille de `columns` colonnes, chacune avec sa grande icône en
  * pixels au milieu, son nom dessous, puis sa phrase, sur autant de lignes qu'il faut, sans couper un mot. Toutes les cases
- * ont la hauteur de la plus haute. `bottom` : le bas de la dernière rangée. Les phrases du panneau et du guichet tiennent
- * sur deux lignes avec la vraie police, comme sur les planches validées : un test le vérifie.
+ * ont la hauteur de la plus haute. `bottom` : le bas de la dernière rangée.
+ *
+ * Discord montre une image dans 550 pixels de large et 350 de haut au plus : une image presque carrée y paraît plus petite
+ * qu'une image large. Le panneau des rôles met donc ses quatre cases sur une rangée, et le guichet ses trois ; un test
+ * vérifie, avec la vraie police, que les deux images sont au moins 1,55 fois plus larges que hautes.
  */
-export const ICON_TILE = { gap: 24, pad: 30, cell: 12, name: 40, nameMin: 26, nameGap: 58, description: 27, line: 37, after: 30 } as const;
+export const ICON_TILE: TileLook = { gap: 24, pad: 30, cell: 12, name: 40, nameMin: 26, nameGap: 58, description: 27, line: 37, after: 30 };
+/** Quatre cases ou plus sur une rangée : moins de marge et des noms un peu plus petits ; les phrases gardent leur taille. */
+export const ICON_TILE_NARROW: TileLook = { gap: 16, pad: 16, cell: 12, name: 34, nameMin: 26, nameGap: 54, description: 27, line: 36, after: 26 };
+/** Les mesures d'une grille, selon son nombre de cases par rangée. */
+export const tileLook = (columns: number): TileLook => (columns >= 4 ? ICON_TILE_NARROW : ICON_TILE);
 
 /** La largeur d'une case dans une grille de `columns` colonnes. */
-const tileWidth = (columns: number): number => (CONTENT_WIDTH - (columns - 1) * ICON_TILE.gap) / columns;
+const tileWidth = (columns: number): number => (CONTENT_WIDTH - (columns - 1) * tileLook(columns).gap) / columns;
 
 /** La phrase de chaque case, coupée en lignes à la largeur de sa case. */
 export function tileDescriptions(rows: readonly IconRow[], columns: number, measure: Measure): string[][] {
-  const inner = tileWidth(columns) - 2 * ICON_TILE.pad;
-  return rows.map((row) => wrapWords(row.description, "body", ICON_TILE.description, inner, measure));
+  const m = tileLook(columns);
+  const inner = tileWidth(columns) - 2 * m.pad;
+  return rows.map((row) => wrapWords(row.description, "body", m.description, inner, measure));
 }
 
 export function iconTileParts(rows: readonly IconRow[], top: number, columns: number, measure: Measure): CardParts & { bottom: number } {
-  const m = ICON_TILE;
+  const m = tileLook(columns);
   const width = tileWidth(columns);
   const inner = width - 2 * m.pad;
   const wrapped = tileDescriptions(rows, columns, measure);

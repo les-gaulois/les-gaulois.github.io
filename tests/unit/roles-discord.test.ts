@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { CARD_COLORS, type GazetteCard, type Measure } from "../../src/lib/gazette-image";
 import { ICONES_PARTIES, ICONE_DEMI, ICONE_PLEIN } from "../../src/lib/icones-parties";
-import { ICON_TILE, iconRects, iconTileParts, wrapWords } from "../../src/lib/lignes-icones-image";
-import { PANEL_ROLES, rolesCard, rolesImageAlt, ROLES_HOW, ROLES_KICKER, ROLES_NOTE, ROLES_TITLE } from "../../src/lib/roles-discord";
+import { ICON_TILE, ICON_TILE_NARROW, iconRects, iconTileParts, tileLook, wrapWords } from "../../src/lib/lignes-icones-image";
+import { PANEL_ROLES, rolesCard, rolesImageAlt, ROLES_COLUMNS, ROLES_HOW, ROLES_KICKER, ROLES_NOTE, ROLES_TITLE } from "../../src/lib/roles-discord";
 import { BODY_TOP, CARD_MARGIN, CARD_WIDTH, FOOTER_HEIGHT } from "../../src/lib/salon-image";
 
 // Une police à chasse fixe imaginaire : chaque signe vaut un peu plus d'une demi-taille.
@@ -27,18 +27,29 @@ describe("l'image du panneau des rôles", () => {
     }
   });
 
-  it("pose quatre grandes cases, deux par rangée, de même taille, sous l'en-tête et au-dessus du bas", () => {
+  it("pose les quatre grandes cases sur une rangée, de même taille, sous l'en-tête et au-dessus du bas", () => {
     const tiles = tilesOf(card);
     expect(tiles).toHaveLength(PANEL_ROLES.length);
-    const [a, b, c, d] = tiles;
-    expect(a!.y).toBe(BODY_TOP);
-    expect(b!.y).toBe(a!.y);
-    expect(c!.y).toBe(d!.y);
-    expect(c!.y).toBeGreaterThan(a!.y + a!.height);
-    expect(a!.x).toBe(CARD_MARGIN);
-    expect(b!.x + b!.width).toBe(CARD_WIDTH - CARD_MARGIN);
-    for (const tile of tiles) expect([tile.width, tile.height]).toEqual([a!.width, a!.height]);
-    expect(card.height).toBe(d!.y + d!.height + FOOTER_HEIGHT);
+    expect(ROLES_COLUMNS).toBe(PANEL_ROLES.length);
+    const first = tiles[0]!;
+    const last = tiles.at(-1)!;
+    for (const tile of tiles) {
+      expect(tile.y).toBe(BODY_TOP);
+      expect([tile.width, tile.height]).toEqual([first.width, first.height]);
+    }
+    // De gauche à droite, dans l'ordre des boutons, sans se toucher.
+    tiles.slice(1).forEach((tile, i) => expect(tile.x).toBeGreaterThan(tiles[i]!.x + tiles[i]!.width));
+    expect(first.x).toBe(CARD_MARGIN);
+    expect(last.x + last.width).toBe(CARD_WIDTH - CARD_MARGIN);
+    expect(card.height).toBe(first.y + first.height + FOOTER_HEIGHT);
+  });
+
+  it("prend les mesures étroites à quatre cases par rangée, et garde celles du guichet à trois", () => {
+    expect(tileLook(4)).toBe(ICON_TILE_NARROW);
+    expect(tileLook(3)).toBe(ICON_TILE);
+    // Les phrases gardent leur taille d'une grille à l'autre : seuls les marges et les noms rétrécissent.
+    expect(ICON_TILE_NARROW.description).toBe(ICON_TILE.description);
+    expect(ICON_TILE_NARROW.name).toBeLessThan(ICON_TILE.name);
   });
 
   it("garde chaque texte dans l'image, à la largeur où Discord la montre", () => {
@@ -55,11 +66,12 @@ describe("l'image du panneau des rôles", () => {
 
   it("dessine la grande icône de chaque rôle au milieu du haut de sa case, sans déborder", () => {
     const tiles = tilesOf(card);
+    const look = tileLook(ROLES_COLUMNS);
     PANEL_ROLES.forEach((role, i) => {
       const tile = tiles[i]!;
       const lines = ICONES_PARTIES[role.icone];
-      const left = tile.x + tile.width / 2 - (lines.length * ICON_TILE.cell) / 2;
-      const pixels = iconRects(lines, left, tile.y + ICON_TILE.pad, ICON_TILE.cell, CARD_COLORS.BLUE_TEXT, CARD_COLORS.BLUE);
+      const left = tile.x + tile.width / 2 - (lines.length * look.cell) / 2;
+      const pixels = iconRects(lines, left, tile.y + look.pad, look.cell, CARD_COLORS.BLUE_TEXT, CARD_COLORS.BLUE);
       expect(card.rects, role.key).toEqual(expect.arrayContaining(pixels));
       for (const pixel of pixels) {
         expect(pixel.x >= tile.x && pixel.y >= tile.y && pixel.x + pixel.width <= tile.x + tile.width && pixel.y + pixel.height <= tile.y + tile.height, `${role.key} ${pixel.x},${pixel.y}`).toBe(true);

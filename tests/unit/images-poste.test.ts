@@ -238,15 +238,20 @@ describe("toutes les images du robot, avec les vraies polices", () => {
       }
     }
   });
-  it("les phrases des grandes cases, rôles et guichet, tiennent sur deux lignes, comme sur les planches validées", () => {
-    const grids: [string, readonly IconRow[], number][] = [
-      ["rôles", PANEL_ROLES, ROLES_COLUMNS],
-      ["guichet", GUICHET_TILES, GUICHET_COLUMNS],
+  it("le panneau des rôles et le guichet sont des images larges, que Discord montre en grand", () => {
+    // Discord montre une image dans 550 sur 350 au plus : presque carrée, elle y paraît plus petite (403 au lieu de 550).
+    for (const [name, card] of cards.filter(([n]) => n === "rôles" || n === "guichet")) {
+      expect(card.width / card.height, name).toBeGreaterThanOrEqual(1.55);
+    }
+    // Les phrases restent courtes : quatre lignes au plus dans les cases étroites du panneau, deux dans celles du guichet.
+    const grids: [string, readonly IconRow[], number, number][] = [
+      ["rôles", PANEL_ROLES, ROLES_COLUMNS, 4],
+      ["guichet", GUICHET_TILES, GUICHET_COLUMNS, 2],
     ];
-    for (const [name, rows, columns] of grids) {
+    for (const [name, rows, columns, most] of grids) {
       tileDescriptions(rows, columns, fonts.width).forEach((lines, i) => {
         expect(lines.length, `${name} : ${rows[i]?.description}`).toBeGreaterThan(0);
-        expect(lines.length, `${name} : ${rows[i]?.description}`).toBeLessThanOrEqual(2);
+        expect(lines.length, `${name} : ${rows[i]?.description}`).toBeLessThanOrEqual(most);
       });
     }
   });

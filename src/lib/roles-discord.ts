@@ -39,13 +39,16 @@ export const ROLES_HOW = "Un clic sur un bouton donne le rôle, un second clic l
 export const ROLES_NOTE = "« Mes rôles » : ceux que vous avez";
 /** L'invite de l'en-tête, `gal@clan:~$ ./roles` : la commande qui pose le panneau. Il ne mène à aucune page. */
 const PROMPT_PATH = "/roles";
-/** Deux grandes cases par rangée : quatre rôles, deux rangées. */
-export const ROLES_COLUMNS = 2;
+/**
+ * Les quatre cases sur une rangée : une image large, que Discord montre en grand. En deux rangées, l'image était presque
+ * carrée, et Discord, qui en limite la hauteur, la montrait plus petite que l'ancienne (remarque du pilote, 13 novembre 2026).
+ */
+export const ROLES_COLUMNS = 4;
 
 /**
- * L'image du panneau, au style des autres images du robot (`salon-image.ts`) : l'en-tête, une grande case par rôle, deux par
- * rangée (sa grande icône, son nom, ce qu'il fait ; `lignes-icones-image.ts`), puis l'adresse du site et ce que montre
- * « Mes rôles ».
+ * L'image du panneau, au style des autres images du robot (`salon-image.ts`) : l'en-tête, une grande case par rôle, les
+ * quatre sur une rangée (sa grande icône, son nom, ce qu'il fait ; `lignes-icones-image.ts`), puis l'adresse du site et ce
+ * que montre « Mes rôles ».
  */
 export function rolesCard(siteUrl: string, measure: Measure): GazetteCard {
   const address = shownAddress(siteUrl, "");
