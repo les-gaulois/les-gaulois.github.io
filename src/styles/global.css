@@ -8146,7 +8146,7 @@ footer h2 {
   border: 0;
   background: none;
   font-family: var(--carte-mono);
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   line-height: 1.4;
   color: var(--color-muted);
 }

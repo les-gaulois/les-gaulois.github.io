@@ -20,7 +20,8 @@ import { API_ORIGIN, ApiClient, markError, markOk, readJson, writeJson, type Dep
 import { ApiClanCard, ApiClanMapHistory, ClanMapJournal, Meta, StoredClanMapFilm, emptyMeta } from "../schemas";
 import { isFirstOfMonday, parisParts } from "../time";
 
-const FILM_VERSION = 4;
+/** 5 : dix clans par image (`TOP_SIZE`), au lieu de cinq ; un film de version 4 se refait au passage suivant. */
+const FILM_VERSION = 5;
 const SCALE = 2;
 /** Numéro, x, y, clan, ancien clan, puis la date en secondes Unix. */
 const RECORD_BYTES = 20;

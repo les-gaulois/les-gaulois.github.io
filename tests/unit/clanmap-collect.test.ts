@@ -108,7 +108,7 @@ describe("collecte de la carte", () => {
     const run = await runClanMap(deps());
     expect(run).toEqual({ errors: [], updated: true });
     const f = film();
-    expect(f).toMatchObject({ version: 4, seq: 5, events: 4, land: WIDTH * HEIGHT, claimed: 3, cols: 4, rows: 2 });
+    expect(f).toMatchObject({ version: 5, seq: 5, events: 4, land: WIDTH * HEIGHT, claimed: 3, cols: 4, rows: 2 });
     // La date de chaque image, et les journées de GAL : ici une seule, sur le même jour de Paris.
     expect(f.frames.at(-1)?.at).toBe(Math.floor((DATE_MS + 5_000) / 1000));
     expect(f.days).toEqual([{ date: "2026-10-29", frame: 1, pixels: 2, rank: 1, taken: 2, lost: 0 }]);
@@ -178,10 +178,10 @@ describe("collecte de la carte", () => {
   it("refait sans attendre un film d'un format plus ancien, une seule fois", async () => {
     await runClanMap(deps());
     const old = JSON.parse(readFileSync(join(dir, "clanmap", "film.json"), "utf8"));
-    writeFileSync(join(dir, "clanmap", "film.json"), JSON.stringify({ ...old, version: 2 }));
+    writeFileSync(join(dir, "clanmap", "film.json"), JSON.stringify({ ...old, version: 4 }));
     now = new Date("2026-11-05T11:00:00.000Z");
     expect((await runClanMap(deps())).updated).toBe(true);
-    expect(film().version).toBe(4);
+    expect(film().version).toBe(5);
     now = new Date("2026-11-05T12:00:00.000Z");
     expect((await runClanMap(deps())).updated).toBe(false);
   });
