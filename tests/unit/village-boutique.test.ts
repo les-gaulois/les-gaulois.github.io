@@ -17,7 +17,8 @@ import {
 } from "../../src/lib/village/boutique";
 import { CHANCES_POCHETTE, PRIX_PAR_RARETE, PRIX_POCHETTE, type MaBoutique } from "../../src/lib/village/contrat";
 
-const MIGRATION = readFileSync("supabase/migrations/20261113001900_village_boutique.sql", "utf8");
+// Sous Windows, Git rend le fichier avec des fins de ligne CRLF : les motifs ci-dessous lisent des « \n ».
+const MIGRATION = readFileSync("supabase/migrations/20261113001900_village_boutique.sql", "utf8").replace(/\r\n/g, "\n");
 
 /** Tous les objets payants du catalogue, « emplacement/objet ». */
 const PAYANTS = EMPLACEMENTS_OBJETS.flatMap((emplacement) =>
