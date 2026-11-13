@@ -53,16 +53,16 @@ export function segmentColors(a: AccountLevel): string[] {
   );
 }
 
-/** « Prestige 1 · Niveau 62 », « Niveau 94 » sans prestige, « Légende » au sommet. */
+/** « Prestige 1 · Niveau 62 », « Sans prestige · Niveau 94 », « Légende » au sommet : le prestige toujours écrit, pour qu'un 0 ne passe pas pour un oubli. */
 export function accountLabel(a: AccountLevel): string {
   if (a.legend) return "Légende";
-  return a.prestige > 0 ? `Prestige ${a.prestige} · Niveau ${a.level}` : `Niveau ${a.level}`;
+  return a.prestige > 0 ? `Prestige ${a.prestige} · Niveau ${a.level}` : `Sans prestige · Niveau ${a.level}`;
 }
 
-/** Pour le tableau, où la place manque : « 62 », puis « prestige 1 » à côté. */
+/** Pour le tableau, où la place manque : « 62 », puis « prestige 1 » ou « sans prestige » dessous. */
 export function accountShort(a: AccountLevel): { level: string; prestige: string | null } {
   if (a.legend) return { level: "Légende", prestige: null };
-  return { level: String(a.level), prestige: a.prestige > 0 ? `prestige ${a.prestige}` : null };
+  return { level: String(a.level), prestige: a.prestige > 0 ? `prestige ${a.prestige}` : "sans prestige" };
 }
 
 /** Les crans allumés de la jauge : un par prestige, tous pour une Légende. */

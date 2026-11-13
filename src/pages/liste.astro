@@ -27,7 +27,7 @@ const src = `${base}/data/members.json`;
       <ReadingNote>
         <p data-testid="members-scope">La liste officielle du clan dans OpenFront. Parties publiques en équipe jouées avec le tag {clan.tag}, sans le classé, le FFA ni Humains contre Nations.</p>
         <p>« 0 » signifie aucune partie sous le tag, ce qui ne veut pas dire que le joueur est inactif. « — » signifie pas de données, ou pas de taux sans partie jouée. Un pseudo mène à la fiche du membre.</p>
-        <p data-testid="members-level-scope">Le niveau et le prestige sont ceux du compte OpenFront, tout le jeu confondu, pas seulement les parties sous le tag. « — » : le joueur cache son niveau, ou n'en a pas encore. Chaque cran allumé autour de l'emblème est un prestige, dans la couleur que lui donne le jeu :</p>
+        <p data-testid="members-level-scope">Le niveau et le prestige sont ceux du compte OpenFront, tout le jeu confondu, pas seulement les parties sous le tag. « non visible » : le réglage « Montrer mon niveau aux autres joueurs » est éteint dans son compte OpenFront, ou il n'a pas encore de niveau. Chaque cran allumé autour de l'emblème est un prestige, dans la couleur que lui donne le jeu :</p>
         <ul class="mt-2 flex flex-wrap gap-x-6 gap-y-2" data-testid="prestige-colors">
           {PRESTIGE_KEY.map((k) => (
             <li class="flex items-center gap-2 whitespace-nowrap text-sm">

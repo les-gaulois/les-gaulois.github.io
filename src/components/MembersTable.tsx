@@ -51,9 +51,13 @@ function RoleBadge({ role }: { role: StoredMember["role"] }) {
 const wlText = (m: StoredMember) =>
   m.team === null ? "Pas de données" : gamesOf(m) === 0 ? "Aucune partie sous le tag" : null;
 
-/** Le niveau du compte, tout le jeu confondu, à part des parties sous le tag. « — » : caché par le joueur, ou pas encore de progression. */
+/**
+ * Le niveau du compte, tout le jeu confondu, à part des parties sous le tag. « non visible » : la liste du clan ne le donne pas. Vérifié sur deux
+ * membres le 13 novembre 2026 : leur profil non plus (404), le réglage « Montrer mon niveau aux autres joueurs » étant éteint, ou faute de niveau.
+ * Aussi quand le site écarte une valeur abîmée ou un niveau sans son prestige (src/lib/members.ts).
+ */
 function Level({ m }: { m: StoredMember }) {
-  if (!m.account) return <span class="text-muted">—</span>;
+  if (!m.account) return <span class="text-xs text-muted">non visible</span>;
   const short = accountShort(m.account);
   return (
     // Le prestige sous le chiffre : la colonne reste étroite, pour que le tableau tienne dès 768 pixels.
@@ -231,12 +235,16 @@ export default function MembersTable({ src }: { src: string }) {
                       <td>
                         <Name m={m} /><RoleBadge role={m.role} />
                         {/* De 768 à 1 023 pixels, six colonnes coupaient les taux et les dates : le niveau passe sous le pseudo. */}
-                        {m.account && (
-                          <span class="mt-1 flex items-center gap-2 text-xs text-muted lg:hidden" data-testid="member-row-level">
-                            <NiveauEmblem account={m.account} />
-                            {accountLabel(m.account)}
-                          </span>
-                        )}
+                        <span class="mt-1 flex items-center gap-2 text-xs text-muted lg:hidden" data-testid="member-row-level">
+                          {m.account ? (
+                            <>
+                              <NiveauEmblem account={m.account} />
+                              {accountLabel(m.account)}
+                            </>
+                          ) : (
+                            "Niveau non visible"
+                          )}
+                        </span>
                       </td>
                       <td class="num">{m.team ? fmtInt(m.team.wins) : "—"}</td>
                       <td class="num">{fmtInt(gamesOf(m))}</td>
@@ -262,11 +270,13 @@ export default function MembersTable({ src }: { src: string }) {
                   <p class="mt-1 text-sm">
                     {note ?? `${fmtInt(m.team?.wins)} victoires · ${fmtInt(gamesOf(m))} parties · ${fmtPct(rateOf(m))}`}
                   </p>
-                  {m.account && (
+                  {m.account ? (
                     <p class="mt-1 flex items-center gap-2 text-sm" data-testid="member-card-level">
                       <NiveauEmblem account={m.account} />
                       {accountLabel(m.account)}
                     </p>
+                  ) : (
+                    <p class="mt-1 text-xs text-muted" data-testid="member-card-level">Niveau non visible</p>
                   )}
                   <p class="mt-1 text-xs text-muted">Arrivé·e le {fmtDate(m.joinedAt)}</p>
                 </li>

@@ -2,6 +2,16 @@
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "title": "Le niveau non visible, expliqué",
+    "body": "La liste des membres écrit « non visible » quand OpenFront ne donne pas le niveau d'un joueur, caché dans son compte ou pas encore gagné, et « sans prestige » quand il n'en a pas encore.",
+    "link": {
+      "href": "/liste",
+      "label": "Voir la liste"
+    }
+  },
+  {
+    "date": "2026-11-13",
+    "kind": "ameliore",
     "title": "Carte de l'alliance : l'invitation en premier",
     "body": "Dans l'onglet Gestion, l'invitation d'un joueur allié passe en tête et dit ce qui manque pour inviter : GAL et le clan du joueur dans la même alliance. Les clans sans alliance se replient."
   },

@@ -72,12 +72,12 @@ describe("niveau du compte : fichier public", () => {
 });
 
 describe("niveau du compte : affichage et tri", () => {
-  it("écrit le niveau en mots, comme dans le jeu", () => {
+  it("écrit le niveau en mots, le prestige toujours, même à zéro", () => {
     expect(accountLabel({ level: 62, prestige: 1, legend: false })).toBe("Prestige 1 · Niveau 62");
-    expect(accountLabel({ level: 94, prestige: 0, legend: false })).toBe("Niveau 94");
+    expect(accountLabel({ level: 94, prestige: 0, legend: false })).toBe("Sans prestige · Niveau 94");
     expect(accountLabel({ level: 100, prestige: 10, legend: true })).toBe("Légende");
     expect(accountShort({ level: 62, prestige: 1, legend: false })).toEqual({ level: "62", prestige: "prestige 1" });
-    expect(accountShort({ level: 94, prestige: 0, legend: false })).toEqual({ level: "94", prestige: null });
+    expect(accountShort({ level: 94, prestige: 0, legend: false })).toEqual({ level: "94", prestige: "sans prestige" });
     expect(accountShort({ level: 100, prestige: 10, legend: true })).toEqual({ level: "Légende", prestige: null });
   });
 
