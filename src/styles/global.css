@@ -3465,7 +3465,199 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 }
 
 /* ---------- Direction, onglet Annonces ---------- */
-/* Les règles propres à cet onglet (DirectionAnnonces.tsx), sous la classe `dir-annonces`. */
+/* Les règles propres à cet onglet (DirectionAnnonces.tsx), sous la classe `dir-annonces`. Le formulaire et la liste côte à
+   côte dès 1 024 px (le formulaire reste en vue pendant qu'on descend la liste), une ligne courte par annonce. Vert : sur
+   l'accueil. Gris : plus ancienne, hors de l'accueil. Jaune : ouverte dans le formulaire. « Supprimer » reste gris et ne
+   rougit qu'au survol, au clavier ou une fois armé : pas de mur de rouge. */
+.dir-annonces-grille {
+  display: grid;
+  align-items: start;
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+.dir-annonces-form {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 1rem 1.125rem 1.125rem;
+}
+.dir-annonces-form[data-dir-ton] {
+  border-color: var(--ton);
+}
+.dir-annonces-publiees {
+  min-width: 0;
+  container: dir-annonces / inline-size;
+}
+.dir-annonces-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+}
+.dir-annonces-total,
+.dir-annonces-compte,
+.dir-annonces-fige {
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+.dir-annonces-libelle {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+.dir-annonces-libelle label {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+.dir-annonces-compte[data-near] {
+  font-weight: 600;
+  color: var(--color-warn);
+}
+.dir-annonces-form textarea.field {
+  display: block;
+  min-height: 7rem;
+  resize: vertical;
+}
+.dir-annonces-envoi {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.dir-annonces-form .form-problem,
+.dir-annonces-form .form-success {
+  margin-top: 0;
+}
+
+/* Une annonce : le titre et, dessous, la date, l'auteur, le lien et le début du texte ; puis l'état, puis les boutons. */
+.dir-annonces-ligne {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 10.25rem 11.5rem;
+  grid-template-areas: "texte etat actions";
+  gap: 0.125rem 0.75rem;
+  padding-block: 0.4375rem;
+}
+.dir-annonces-ligne[aria-current="true"] {
+  background: color-mix(in srgb, var(--ton) 10%, transparent);
+}
+.dir-annonces-texte {
+  grid-area: texte;
+  min-width: 0;
+}
+.dir-annonces-titre {
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.dir-annonces-meta {
+  display: flex;
+  align-items: center;
+  gap: 0 0.75rem;
+  min-width: 0;
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+.dir-annonces-meta > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dir-annonces-meta > .tnum {
+  flex: none;
+}
+.dir-annonces-auteur {
+  flex: 0 1 auto;
+  min-width: 3rem;
+  max-width: 40%;
+  color: #fff;
+}
+.dir-annonces-lien {
+  flex: 0 0 auto;
+  max-width: min(14rem, 45%);
+  line-height: 1.75rem;
+  color: var(--color-ally);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+.dir-annonces-lien:hover {
+  color: #fff;
+}
+.dir-annonces-extrait {
+  flex: 1 1 0;
+  min-width: 3rem;
+}
+.dir-annonces-etat {
+  grid-area: etat;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+/* Les boutons ne prennent pas la couleur de l'état de la ligne. */
+.dir-annonces-actions {
+  --ton: #fff;
+  grid-area: actions;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.375rem;
+}
+.dir-annonces .dir-bouton[data-dir-ton="danger"]:not(:hover):not(:focus-visible):not([data-arme]) {
+  --ton: var(--color-muted);
+}
+.dir-annonces-aide {
+  margin-top: 1.25rem;
+}
+
+@media (min-width: 64rem) {
+  .dir-annonces-grille {
+    grid-template-columns: minmax(0, 24rem) minmax(0, 1fr);
+  }
+}
+/* `main .card` pose `position: relative` : il faut un sélecteur plus précis pour que le formulaire reste en vue. */
+@media (min-width: 64rem) and (min-height: 44rem) {
+  main .dir-annonces .card.dir-annonces-form {
+    position: sticky;
+    top: calc(var(--dir-haut, 4rem) + 1rem);
+  }
+}
+/* Quand la liste a moins de 704 px pour elle (téléphone, ou à côté du formulaire sur un écran moyen), chaque annonce
+   devient une petite carte : l'état, le texte, puis les boutons. */
+@container dir-annonces (max-width: 44rem) {
+  .dir-annonces-ligne {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "etat etat"
+      "texte texte"
+      "actions actions";
+    padding-block: 0.625rem;
+  }
+  .dir-annonces-ligne[data-fige] {
+    grid-template-areas:
+      "etat actions"
+      "texte texte";
+  }
+  .dir-annonces-ligne:not([data-fige]) .dir-annonces-actions {
+    justify-content: flex-start;
+    margin-top: 0.25rem;
+  }
+  .dir-annonces-meta {
+    flex-wrap: wrap;
+  }
+  .dir-annonces-auteur {
+    max-width: 100%;
+  }
+  .dir-annonces-extrait {
+    flex-basis: 100%;
+  }
+}
+/* Au doigt, le lien garde 44 px de haut sans écarter les lignes : sa zone dépasse au-dessus et au-dessous. */
+@media (pointer: coarse), (max-width: 47.9375rem) {
+  .dir-annonces-lien {
+    margin-block: -0.5rem;
+    line-height: 2.75rem;
+  }
+}
 
 /* ---------- Direction, onglet Événements ---------- */
 /* Les règles propres à cet onglet (DirectionEvenements.tsx), sous la classe `dir-evenements`. Le formulaire et la liste côte
