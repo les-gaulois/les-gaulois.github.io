@@ -2210,36 +2210,6 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   box-shadow: 0 0 0.625rem color-mix(in srgb, var(--color-ok) 70%, transparent);
 }
 
-/* L'état du site, comme un journal de démarrage : [ OK ], [ À VOIR ], [ INFO ] devant chaque ligne. L'étiquette est
-   masquée aux lecteurs d'écran, qui lisent déjà l'état dans le texte. */
-.console-etat {
-  display: none;
-}
-:root[data-ambiance="console"] .console-etat {
-  display: inline-block;
-  margin-right: 0.625rem;
-  font-family: var(--font-console);
-  font-size: 0.875rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
-}
-:root[data-ambiance="console"] .console-etat::before {
-  content: "[ ";
-}
-:root[data-ambiance="console"] .console-etat::after {
-  content: " ]";
-}
-/* « OK » : le vert des réussites du site, 10,9:1 sur une carte rouge. */
-.console-etat-ok {
-  color: var(--color-ok);
-}
-.console-etat-warn {
-  color: var(--color-warn);
-}
-.console-etat-info {
-  color: var(--color-muted);
-}
 /* 16 px en chasse fixe : à l'œil, la taille du texte courant de l'espace (17 px en Inter). */
 :root[data-ambiance="console"] .console-journal dd {
   font-family: var(--font-console);
@@ -2452,11 +2422,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   text-shadow: none;
 }
 
-/* Ce qui va bien, en vert de terminal : les « OK » de l'état du site, le voyant de la session. */
-:root[data-ambiance="console"][data-console="terminal"] .console-etat-ok {
-  color: var(--console-vert);
-  text-shadow: 0 0 0.625rem color-mix(in srgb, var(--console-vert) 55%, transparent);
-}
+/* Ce qui va bien, en vert de terminal : le voyant de la session. */
 :root[data-ambiance="console"][data-console="terminal"] .console-voyant {
   background: var(--console-vert);
   box-shadow: 0 0 0.625rem color-mix(in srgb, var(--console-vert) 70%, transparent);
