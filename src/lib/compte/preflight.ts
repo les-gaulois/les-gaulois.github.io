@@ -215,6 +215,36 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
     else add(label, "fail", `Réponse ${res.status}. Ne mettez pas en ligne : seuls les admins et le fondateur règlent les prix et les chances.`);
   }
 
+  // La vie du village (migration 20261113002300) : seul l'encadrement lit la dépense des bulles ; seuls les admins et le
+  // fondateur coupent les bulles ou changent le plafond. Absente : 404, la migration n'est pas collée.
+  const vie = await rpc("get_vie_du_village");
+  const vieAnswer = vie.ok ? ((await vie.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (vie.status === 404) add("La vie du village est installée", "warn", "get_vie_du_village est absente : collez la migration 20261113002300_village_vie.sql. D'ici là, l'étape « Animer le village » échoue sans rien bloquer, et la place n'a ni bulles ni relevé vocal.");
+  else if (isClosed(vie.status) || (vie.ok && vieAnswer?.ok === false)) add("Un visiteur ne lit pas la dépense des bulles du village", "ok");
+  else add("Un visiteur ne lit pas la dépense des bulles du village", "fail", `Réponse ${vie.status}. Ne mettez pas en ligne : seul l'encadrement lit la dépense des bulles.`);
+  const vieReglages = [
+    ["regler_bulles_du_village", { p_actives: true }, "Un visiteur ne coupe ni ne remet les bulles du village"],
+    ["regler_plafond_du_village", { p_plafond: 10 }, "Un visiteur ne change pas le plafond des bulles du village"],
+  ] as const;
+  for (const [fn, body, label] of vieReglages) {
+    const res = await rpc(fn, body);
+    const answer = res.ok ? ((await res.json().catch(() => null)) as { ok?: boolean } | null) : null;
+    if (isClosed(res.status) || (res.ok && answer?.ok === false)) add(label, "ok");
+    else add(label, "fail", `Réponse ${res.status}. Ne mettez pas en ligne : seuls les admins et le fondateur règlent les bulles.`);
+  }
+  // Ses deux fonctions de la clé de service, celle du workflow des victoires : un visiteur doit être refusé par le droit
+  // d'appel lui-même, même si la fonction refuse aussi. La liste de travail donne l'identifiant Discord des membres. Le
+  // relevé envoyé est mal formé : rien ne serait noté.
+  const vieRobot = [
+    ["vie_du_village_travail", {}, "Un visiteur ne lit pas la liste de travail du village"],
+    ["noter_vie_du_village", { p_releve: { verification: true } }, "Un visiteur ne note rien dans la vie du village"],
+  ] as const;
+  for (const [fn, body, label] of vieRobot) {
+    const res = await rpc(fn, body);
+    if (isClosed(res.status)) add(label, "ok");
+    else add(label, "fail", `Réponse ${res.status}. Ne mettez pas en ligne : retirez le droit d'appeler ${fn}.`);
+  }
+
   // Les salons du robot : leur réglage contient les liens qui écrivent dans les salons. Seuls les admins et le fondateur
   // le règlent, et seule la clé de service, celle du robot, reçoit les liens. Leur installation se lit avec `supabase migration list`.
   const salonsState = await rpc("get_discord_salons");
@@ -408,6 +438,16 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   if (noteesAnswer?.ok === true && Array.isArray(noteesAnswer.parties)) add(stateresLabel, "ok");
   else if (notees.status === 404) add(stateresLabel, "warn", "stateres_parties_notees est absente : collez la migration 20261113001800_village_stateres.sql. D'ici là, l'étape « Donner les statères des points rapportés au clan » échoue sans rien bloquer.");
   else add(stateresLabel, "warn", `Réponse ${notees.status}. La clé de service n'a pas le droit d'appeler stateres_parties_notees : recollez la migration 20261113001800_village_stateres.sql, qui se rejoue sans rien perdre.`);
+
+  // La vie du village : le workflow des victoires, avec cette clé, doit pouvoir noter ses relevés. Le relevé envoyé est mal
+  // formé : le serveur le refuse sans rien écrire (`invalid_releve`), ce qui prouve qu'il est là et que la clé l'appelle. À
+  // regarder, jamais bloquant : sans elle, seuls les bulles et le relevé vocal attendent.
+  const vieLabel = "Le workflow peut noter la vie du village";
+  const vieNote = await fetcher(`${base}/rest/v1/rpc/noter_vie_du_village`, { method: "POST", headers: secretHeaders, body: JSON.stringify({ p_releve: { verification: true } }) });
+  const vieNoteAnswer = vieNote.ok ? ((await vieNote.json().catch(() => null)) as { ok?: unknown; error?: unknown } | null) : null;
+  if (vieNoteAnswer?.ok === false && vieNoteAnswer.error === "invalid_releve") add(vieLabel, "ok");
+  else if (vieNote.status === 404) add(vieLabel, "warn", "noter_vie_du_village est absente : collez la migration 20261113002300_village_vie.sql. D'ici là, l'étape « Animer le village » échoue sans rien bloquer.");
+  else add(vieLabel, "warn", `Réponse ${vieNote.status}. La clé de service n'a pas le droit d'appeler noter_vie_du_village : recollez la migration 20261113002300_village_vie.sql, qui se rejoue sans rien perdre.`);
 
   return checks;
 }

@@ -112,3 +112,19 @@ jobs:
         env:
           SUPABASE_URL: ${{ vars.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      # La vie du village des Gaulois (docs/DIRECTION.md, « Le village des Gaulois ») : l'état vocal de chaque membre sur le
+      # Discord du clan, relevé par le robot des arrivées (secret DISCORD_BOT_TOKEN), et les bulles des Gaulois de la place,
+      # écrites par Claude à partir de faits sans identité (secret ANTHROPIC_API_KEY), dans la limite du plafond du mois tenu
+      # par le serveur. En dernier, après les statères et à part d'eux : une panne ne retient jamais une image de victoire ni
+      # les statères. Sans SUPABASE_URL, l'étape ne fait rien ; sans jeton, pas de relevé vocal ; sans clé, pas de bulles.
+      # Aucun identifiant n'est écrit au journal ni dans le dépôt. Voir src/lib/village/vie-releve.ts.
+      - name: Animer le village
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        timeout-minutes: 2
+        run: npm run village:vie
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

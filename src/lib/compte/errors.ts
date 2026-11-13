@@ -175,6 +175,10 @@ export const ERROR_MESSAGES: Record<string, string> = {
   prix_pochette_invalide: "Le prix de la pochette est un nombre entier de statères, de 1 à 1 000 000.",
   chances_invalides: "Les chances sont des nombres entiers de 0 à 100, qui font 100 en tout.",
   rarete_sans_objet: "Une rareté qui n'a aucun objet à vendre ne peut pas avoir de chance dans la pochette.",
+
+  // La vie du village : les bulles et l'état vocal (migration 20261113002300_village_vie).
+  invalid_plafond: "Indiquez un plafond de 0 à 100 dollars, au centime près.",
+  invalid_releve: "Le relevé de la vie du village est mal formé : rien n'a été noté.",
 };
 
 export function errorMessage(code: string): string {

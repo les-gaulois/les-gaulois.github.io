@@ -25,6 +25,7 @@ const HEALTHY: Record<string, Route> = {
   "/rest/v1/rpc/get_ma_boutique": { status: 401, body: {} },
   "/rest/v1/rpc/get_marche": { status: 401, body: {} },
   "/rest/v1/rpc/get_village_economie": { status: 401, body: {} },
+  "/rest/v1/rpc/get_vie_du_village": { status: 401, body: {} },
   "/rest/v1/profiles": { status: 401, body: {} },
   "/rest/v1/private_links": { status: 401, body: {} },
   "/rest/v1/admin_log": { status: 401, body: {} },
@@ -40,6 +41,7 @@ const HEALTHY: Record<string, Route> = {
 const SECRET: Record<string, Route> = {
   "/rest/v1/profiles": { status: 200, body: [{ gaul_number: 1 }] },
   "/rest/v1/rpc/stateres_parties_notees": { status: 200, body: { ok: true, parties: [] } },
+  "/rest/v1/rpc/noter_vie_du_village": { status: 200, body: { ok: false, error: "invalid_releve" } },
 };
 
 const SITE = "https://exemple.supabase.co";
@@ -250,6 +252,43 @@ describe("le contrôle de la mise en ligne", () => {
     await run();
     expect(JSON.parse(seen.find((s) => s.url.endsWith("/rpc/regler_village_prix"))?.body ?? "null")).toEqual({ p_prix: { commun: 0 } });
     expect(JSON.parse(seen.find((s) => s.url.endsWith("/rpc/regler_village_pochette"))?.body ?? "null")).toEqual({ p_prix: 0, p_chances: {} });
+  });
+
+  it("bloque si un visiteur lit ou règle la vie du village, et signale la vie du village pas encore installée", async () => {
+    expect(await statusOf(HEALTHY, "ne lit pas la dépense des bulles")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_vie_du_village": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "ne lit pas la dépense des bulles")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_vie_du_village": { status: 200, body: { ok: true, bulles: true, plafond: 10 } } }, "ne lit pas la dépense des bulles")).toBe("fail");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_vie_du_village": { status: 404, body: {} } }, "vie du village est installée")).toBe("warn");
+    expect(await statusOf(HEALTHY, "ne coupe ni ne remet les bulles")).toBe("ok");
+    expect(await statusOf(HEALTHY, "ne change pas le plafond des bulles")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/regler_bulles_du_village": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "ne coupe ni ne remet les bulles")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/regler_bulles_du_village": { status: 200, body: { ok: true, bulles: false } } }, "ne coupe ni ne remet les bulles")).toBe("fail");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/regler_plafond_du_village": { status: 200, body: { ok: true, plafond: 10 } } }, "ne change pas le plafond des bulles")).toBe("fail");
+  });
+
+  it("bloque si un visiteur peut appeler les fonctions de la vie du village réservées à la clé de service", async () => {
+    expect(await statusOf(HEALTHY, "liste de travail du village")).toBe("ok");
+    expect(await statusOf(HEALTHY, "ne note rien dans la vie du village")).toBe("ok");
+    // Un refus de la fonction elle-même ne suffit pas : le droit d'appel doit être fermé.
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/vie_du_village_travail": { status: 200, body: { ok: true, gaulois: [] } } }, "liste de travail du village")).toBe("fail");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/noter_vie_du_village": { status: 200, body: { ok: false, error: "invalid_releve" } } }, "ne note rien dans la vie du village")).toBe("fail");
+    // Le relevé envoyé est mal formé, avec ou sans la clé : rien ne serait noté même si le droit était mal posé.
+    seen.length = 0;
+    await run(HEALTHY, "sb_secret_x");
+    const corps = seen.filter((s) => s.url.endsWith("/rpc/noter_vie_du_village")).map((s) => JSON.parse(s.body ?? "null"));
+    expect(corps).toEqual([{ p_releve: { verification: true } }, { p_releve: { verification: true } }]);
+    // La liste de travail, qui écrit, n'est jamais appelée avec la clé secrète.
+    expect(seen.some((s) => s.apikey === "sb_secret_x" && s.url.endsWith("/rpc/vie_du_village_travail"))).toBe(false);
+  });
+
+  it("dit, avec la clé secrète, si le workflow peut noter la vie du village, sans jamais bloquer", async () => {
+    const label = "workflow peut noter la vie du village";
+    const avecCle = async (secret: Record<string, Route>) => (await run(HEALTHY, "sb_secret_x", secret)).find((c) => c.label.includes(label));
+    expect((await avecCle(SECRET))?.status).toBe("ok");
+    expect(await avecCle({ ...SECRET, "/rest/v1/rpc/noter_vie_du_village": { status: 404, body: {} } })).toMatchObject({ status: "warn", detail: expect.stringContaining("20261113002300") });
+    expect(await avecCle({ ...SECRET, "/rest/v1/rpc/noter_vie_du_village": { status: 403, body: {} } })).toMatchObject({ status: "warn", detail: expect.stringContaining("Réponse 403") });
+    expect((await avecCle({ ...SECRET, "/rest/v1/rpc/noter_vie_du_village": { status: 200, body: { ok: true, vocaux: 0 } } }))?.status).toBe("warn");
+    expect((await run()).some((c) => c.label.includes(label))).toBe(false);
   });
 
   it("dit si la fonction code-discord est déployée et réglée, et ne bloque qu'une fois la connexion par code ouverte", async () => {
