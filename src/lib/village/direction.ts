@@ -8,10 +8,13 @@
  * simples, en s'appuyant sur la mesure de l'économie (`controlerReglages` de `economie.ts`) : ce que le serveur refuserait
  * bloque l'envoi ; ce que la mesure trouve en plus (une pochette plus chère que ce qu'elle vaut en moyenne) est seulement dit.
  */
+import { errorMessage } from "../compte/errors";
 import { fmtInt } from "../format";
 import { OBJETS, ORDRE_RARETES, RARETES, type Rarete } from "../gaulois";
+import { frNumber } from "../nombre";
 import { CHANCES_POCHETTE, PRIX_PAR_RARETE, PRIX_POCHETTE } from "./contrat";
 import { controlerReglages, objetsParRarete, valeurMoyennePochette, type Catalogue } from "./economie";
+import { lirePlafond, type VieDuVillage } from "./vie-releve";
 
 /** Un nombre par rareté. */
 export type ParRarete = Record<Rarete, number>;
@@ -349,3 +352,69 @@ export function memeSaisie(a: Saisie, b: Saisie): boolean {
     ORDRE_RARETES.every((r) => propre(a.prix[r]) === propre(b.prix[r]) && propre(a.chances[r]) === propre(b.chances[r]))
   );
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Les bulles des Gaulois (migration 20261113002300) : ce que l'onglet en écrit. La réponse se lit par `lireVieDuVillage`,
+// le plafond saisi par `lirePlafond`, tous deux dans `vie-releve.ts`.
+// ---------------------------------------------------------------------------------------------------------------------
+
+const ESPACE_INSECABLE = String.fromCharCode(0xa0);
+const auCentime = frNumber({ minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const prixFin = frNumber({ minimumFractionDigits: 2, maximumFractionDigits: 4 });
+const moisLong = new Intl.DateTimeFormat("fr-FR", { timeZone: "UTC", month: "long", year: "numeric" });
+
+/**
+ * Une somme en dollars, la monnaie de la facture d'Anthropic : « 10 $ », « 12,50 $ », « 0,42 $ ». Une dépense de moins d'un
+ * demi-centime, qui s'écrirait « 0,00 $ », s'écrit « moins de 0,01 $ » : jamais un zéro qui n'en est pas un.
+ */
+export function dollars(n: number): string {
+  if (n > 0 && n < 0.005) return `moins de 0,01${ESPACE_INSECABLE}$`;
+  return `${Number.isInteger(n) ? fmtInt(n) : auCentime.format(n)}${ESPACE_INSECABLE}$`;
+}
+
+/** Le premier jour d'un mois (« 2026-10-01 »), en mots : « octobre 2026 ». Tel quel s'il ne se lit pas. */
+export function moisEnMots(mois: string): string {
+  const date = new Date(`${mois.slice(0, 10)}T12:00:00Z`);
+  return /^\d{4}-\d{2}-\d{2}/.test(mois) && Number.isFinite(date.getTime()) ? moisLong.format(date) : mois;
+}
+
+/** La dépense du mois et le plafond, en une phrase. */
+export const phraseDeLaDepense = (vie: VieDuVillage): string => `Dépense du mois : ${dollars(vie.depense.cout)} sur un plafond de ${dollars(vie.plafond)}.`;
+
+/** Les bulles permises ou coupées, en une phrase. */
+export const etatDesBulles = (vie: VieDuVillage): string =>
+  vie.bulles ? "Les bulles sont permises." : "Les bulles sont coupées : la place n'en montre aucune, et Claude n'est plus appelé.";
+
+/** Quand le plafond est atteint : il n'y a plus de nouvelle bulle jusqu'au mois suivant. */
+export const PLAFOND_ATTEINT = "Plafond atteint : plus de nouvelle bulle avant le 1er du mois prochain.";
+
+/** Le modèle et son prix, en mots. */
+export const prixDuModele = (vie: VieDuVillage): string =>
+  `Modèle ${vie.modele} : ${prixFin.format(vie.prix.entree)}${ESPACE_INSECABLE}$ par million de jetons envoyés à Claude, ${prixFin.format(vie.prix.sortie)}${ESPACE_INSECABLE}$ par million de jetons écrits par lui.`;
+
+/** Une seule fois dans le bloc : qui écrit les bulles, à partir de quoi, et en quelle monnaie se compte la dépense. */
+export const D_OU_VIENNENT_LES_BULLES =
+  "Les phrases des bulles sont écrites par Claude (Anthropic) à partir de faits sans identité : l'heure, le lieu du Gaulois, les points de sa dernière partie, ses objets. La dépense se compte en dollars, la monnaie d'Anthropic.";
+
+/** Le plafond en vigueur, tel qu'on le tape : « 10 », « 12,5 ». */
+export const plafondEnSaisie = (plafond: number): string => String(plafond).replace(".", ",");
+
+/** Le plafond saisi, relu par `lirePlafond` : sa valeur, ou le message du serveur ; `change` : il diffère du plafond en vigueur. */
+export function controlerPlafond(saisie: string, enVigueur: number): { valeur: number | null; probleme: string | null; change: boolean } {
+  const valeur = lirePlafond(saisie);
+  if (valeur === null) return { valeur, probleme: errorMessage("invalid_plafond"), change: false };
+  return { valeur, probleme: null, change: valeur !== enVigueur };
+}
+
+/** Ce que l'on confirme avant de changer le plafond, en phrases : le changement, et ce qu'il fait si la dépense l'atteint déjà. */
+export function confirmationDuPlafond(vie: VieDuVillage, apres: number): string[] {
+  const lignes = [`Le plafond passera de ${dollars(vie.plafond)} à ${dollars(apres)} par mois.`];
+  if (vie.depense.cout >= apres) lignes.push(`La dépense du mois, ${dollars(vie.depense.cout)}, l'atteint déjà : plus aucune nouvelle bulle avant le 1er du mois prochain.`);
+  return lignes;
+}
+
+/** Ce que dit le second clic de « Couper les bulles » ou de « Remettre les bulles ». */
+export const confirmationDesBulles = (couper: boolean): string =>
+  couper
+    ? "La place ne montrera plus aucune bulle, et Claude ne sera plus appelé. « Remettre les bulles » les rendra."
+    : "Claude sera de nouveau appelé pour les bulles, dans la limite du plafond du mois.";
