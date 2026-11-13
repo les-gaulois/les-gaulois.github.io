@@ -1,10 +1,11 @@
 /**
- * Donne aux Gaulois les statères de leurs victoires (docs/DIRECTION.md, « Le village des Gaulois », lot 2), lancé par le
- * workflow `.github/workflows/victoires.yml`, toutes les 5 minutes, après l'envoi des victoires sur Discord.
+ * Donne aux Gaulois les statères des points qu'ils ont rapportés au clan, 10 par point, à chaque Gaulois présent dans la
+ * partie (docs/DIRECTION.md, « Le village des Gaulois », lot 2). Lancé par le workflow `.github/workflows/victoires.yml`,
+ * toutes les 5 minutes, après l'envoi des victoires sur Discord et à part de lui : son échec ne retient jamais une image.
  *   npm run stateres:crediter
- * Avec SUPABASE_URL et SUPABASE_SECRET_KEY dans l'environnement. Sans eux, ne fait rien.
- * Les sessions du mois sont celles de la collecte (data/sessions/), avec celles des dernières heures lues sur l'API. Aucun
- * identifiant de joueur n'est écrit ni affiché : seule son empreinte part au serveur. Voir src/lib/stateres-releve.ts.
+ * Avec SUPABASE_URL et SUPABASE_SECRET_KEY dans l'environnement. Sans eux, ne lit rien et n'envoie rien.
+ * Les sessions du mois sont celles de la collecte (data/sessions/), avec celles des dernières heures lues sur l'API publique.
+ * Aucun identifiant de joueur n'est écrit ni affiché : seule son empreinte part au serveur. Voir src/lib/stateres-releve.ts.
  */
 import { createClient } from "@supabase/supabase-js";
 import { clan } from "../config/clan";
@@ -34,7 +35,7 @@ try {
   } catch (e) {
     console.log(`Statères : sessions des dernières heures illisibles (${e instanceof Error ? e.message : String(e)}).`);
   }
-  // Un mois illisible ferait passer ses victoires pour absentes : seules celles des dernières heures servent alors.
+  // Un mois illisible ferait passer ses parties pour absentes : seules celles des dernières heures servent alors.
   const collected = unreadableSessionFiles().length > 0 ? null : loadSessions();
   const { sessions, warning } = passSessions(collected, fresh);
   if (warning) console.log(`Statères : ${warning}.`);

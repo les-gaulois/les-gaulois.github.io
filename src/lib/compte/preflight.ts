@@ -135,18 +135,19 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   else if (isClosed(gaulois.status) || (gaulois.ok && gauloisAnswer?.ok === false)) add("Un visiteur ne lit pas de Gaulois", "ok");
   else add("Un visiteur ne lit pas de Gaulois", "fail", `Réponse ${gaulois.status}. Ne mettez pas en ligne : seul un compte connecté lit son Gaulois.`);
 
-  // Les statères du village (migration 20261113001800) : seul un compte connecté lit son solde. Absente : 404, la migration
-  // n'est pas collée.
+  // Les statères du village (migration 20261113001800), donnés pour les points rapportés au clan : seul un compte connecté
+  // lit son solde. Absente : 404, la migration n'est pas collée.
   const stateres = await rpc("get_mes_stateres");
   const stateresAnswer = stateres.ok ? ((await stateres.json().catch(() => null)) as { ok?: boolean } | null) : null;
   if (stateres.status === 404) add("Les statères du village sont installés", "warn", "get_mes_stateres est absente : collez la migration 20261113001800_village_stateres.sql avant de mettre en ligne ce qui s'en sert.");
   else if (isClosed(stateres.status) || (stateres.ok && stateresAnswer?.ok === false)) add("Un visiteur ne lit pas de solde de statères", "ok");
   else add("Un visiteur ne lit pas de solde de statères", "fail", `Réponse ${stateres.status}. Ne mettez pas en ligne : seul un compte connecté lit son propre solde.`);
   // Ses deux fonctions de la clé de service, celle du workflow des victoires : un visiteur doit être refusé par le droit
-  // d'appel lui-même. Les valeurs données ne notent rien : une partie mal formée fait refuser l'envoi entier.
+  // d'appel lui-même, même si la fonction refuse aussi. Les valeurs données ne notent rien : une partie mal formée fait
+  // refuser l'envoi entier, et aucune partie ne commence en 2100.
   const stateresCalls = [
     ["noter_victoires_stateres", { p_parties: [{ partie: "verification" }] }, "Un visiteur ne donne pas de statères"],
-    ["stateres_parties_notees", { p_depuis: "2026-11-01T00:00:00Z" }, "Un visiteur ne lit pas les victoires notées pour les statères"],
+    ["stateres_parties_notees", { p_depuis: "2100-01-01T00:00:00Z" }, "Un visiteur ne lit pas les parties notées pour les statères"],
   ] as const;
   for (const [fn, body, label] of stateresCalls) {
     const res = await rpc(fn, body);
@@ -338,6 +339,15 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   const rosterRows = roster.ok ? ((await roster.json()) as unknown[]) : [];
   if (rosterRows.length > 0) add("La liste des membres a été relue", "ok");
   else add("La liste des membres a été relue", "warn", "Pas encore : lancez l'Action « Données et site » dans GitHub.");
+
+  // Les statères : le workflow des victoires, avec cette clé, doit pouvoir lire les parties notées. Lecture seule : aucune
+  // partie ne commence en 2100, la réponse est vide. À regarder, jamais bloquant : sans elle, seuls les statères attendent.
+  const stateresLabel = "Le workflow peut noter les parties pour les statères";
+  const notees = await fetcher(`${base}/rest/v1/rpc/stateres_parties_notees`, { method: "POST", headers: secretHeaders, body: JSON.stringify({ p_depuis: "2100-01-01T00:00:00Z" }) });
+  const noteesAnswer = notees.ok ? ((await notees.json().catch(() => null)) as { ok?: unknown; parties?: unknown } | null) : null;
+  if (noteesAnswer?.ok === true && Array.isArray(noteesAnswer.parties)) add(stateresLabel, "ok");
+  else if (notees.status === 404) add(stateresLabel, "warn", "stateres_parties_notees est absente : collez la migration 20261113001800_village_stateres.sql. D'ici là, l'étape « Donner les statères des points rapportés au clan » échoue sans rien bloquer.");
+  else add(stateresLabel, "warn", `Réponse ${notees.status}. La clé de service n'a pas le droit d'appeler stateres_parties_notees : recollez la migration 20261113001800_village_stateres.sql, qui se rejoue sans rien perdre.`);
 
   return checks;
 }
