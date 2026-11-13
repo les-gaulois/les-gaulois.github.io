@@ -9,7 +9,9 @@ import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 import sharp from "sharp";
 import { clanRgb, decodeFrames } from "../src/lib/clanmap/codec";
-import { blendOwners } from "../src/lib/clanmap/terrain";
+import { parseEventLog } from "../src/lib/clanmap/collect";
+import { encoderEtat, etatAuRelevé, etatConforme } from "../src/lib/clanmap/etat";
+import { OFFICIAL_MAP, blendOwners, countLand } from "../src/lib/clanmap/terrain";
 import { StoredClanMapFilm } from "../src/lib/schemas";
 
 const source = join("data", "clanmap");
@@ -49,3 +51,26 @@ for (const width of [800, 1400]) {
     .toFile(join(out, `finale-${width}.webp`));
 }
 console.log(`Carte : film de ${film.frames.length} images, ${film.events} événements.`);
+
+/*
+ * La carte de l'alliance : l'état complet, pixel par pixel, au dernier événement du film (`src/lib/clanmap/etat.ts`). Il se
+ * refait depuis l'historique public déjà collecté, gardé hors de Git ; sans lui, ou s'il ne redonne pas les pixels du film,
+ * il n'est pas publié, et la carte de l'alliance le dit au lieu de compter faux. Le site se construit quand même.
+ */
+const cache = process.env["CLANMAP_CACHE_DIR"] ?? join(".cache", "clanmap");
+const etatMessage = (() => {
+  const events = join(cache, "events.bin");
+  const terrainPath = join(cache, "terrain.bin");
+  if (!existsSync(events) || !existsSync(terrainPath)) return "pas d'historique local, pas d'état pixel par pixel.";
+  const log = parseEventLog(readFileSync(events));
+  if (!log) return "historique local illisible, pas d'état pixel par pixel.";
+  const terrain = readFileSync(terrainPath);
+  if (countLand(terrain) !== OFFICIAL_MAP.land) return "terrain local inattendu, pas d'état pixel par pixel.";
+  const etat = etatAuRelevé(log, film.seq, film.width, film.height, terrain);
+  if (!etat) return `l'historique local ne va pas jusqu'à l'événement n° ${film.seq} du film, pas d'état pixel par pixel.`;
+  if (!etatConforme(etat.valeurs, film.clans, film.standings)) return "l'état rejoué ne redonne pas les pixels du film : il n'est pas publié.";
+  const bytes = gzipSync(encoderEtat(etat), { level: 9 });
+  writeFileSync(join(out, "etat.bin.gz"), bytes);
+  return `état pixel par pixel à l'événement n° ${film.seq}, ${Math.round(bytes.length / 1024)} Ko.`;
+})();
+console.log(`Carte de l'alliance : ${etatMessage}`);

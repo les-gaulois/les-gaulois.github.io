@@ -23,8 +23,14 @@ describe("les fenêtres de la console de la carte", () => {
     }
     // Deux fenêtres ne partagent pas la même icône.
     expect(new Set(FENETRES.map((f) => f.icon)).size).toBe(FENETRES.length);
-    // Dix entrées : deux lignes de cinq sur téléphone, sans case vide.
-    expect(FENETRES).toHaveLength(10);
+    // Onze entrées avec l'alliance : trois lignes de quatre au plus sur téléphone ; dix sans la connexion du site, deux lignes de cinq.
+    expect(FENETRES).toHaveLength(11);
+  });
+
+  it("le lien d'invitation d'un joueur allié ouvre la fenêtre de l'alliance", () => {
+    expect(fenetreDeLAncre("#invitation=0123456789abcdef0123456789abcdef")).toBe("alliance");
+    expect(fenetreDeLAncre("#alliance")).toBe("alliance");
+    expect(fenetreInitiale("#invitation=0123456789abcdef0123456789abcdef", bureau)).toBe("alliance");
   });
 
   it("une ancre de l'adresse ouvre sa fenêtre, une ancienne ancre aussi, une inconnue rien", () => {

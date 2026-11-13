@@ -11,7 +11,7 @@ export const LOG_LIMIT = 500;
 /** Les lignes montrées d'abord, puis à chaque « Afficher plus ». */
 export const LOG_PAGE = 50;
 
-export type LogCategory = "requests" | "roles" | "suspensions" | "news" | "settings" | "other";
+export type LogCategory = "requests" | "roles" | "suspensions" | "news" | "settings" | "alliance" | "other";
 
 export const LOG_CATEGORIES: readonly { id: LogCategory; label: string }[] = [
   { id: "requests", label: "Demandes" },
@@ -19,6 +19,7 @@ export const LOG_CATEGORIES: readonly { id: LogCategory; label: string }[] = [
   { id: "suspensions", label: "Suspensions" },
   { id: "news", label: "Publications : annonces, événements, sondages, mot d'accueil, idées, Gaulois et objectif de la semaine, messages Discord" },
   { id: "settings", label: "Réglages : les salons Discord, le salon vocal et l'inventaire d'images" },
+  { id: "alliance", label: "La carte de l'alliance : alliances, clans, zones, joueurs alliés et messages retirés" },
   { id: "other", label: "Autres" },
 ];
 
@@ -60,6 +61,17 @@ const CATEGORIES: Record<string, LogCategory> = {
   discord_image_saved: "settings",
   discord_image_renamed: "settings",
   discord_image_removed: "settings",
+  alliance_saved: "alliance",
+  alliance_deleted: "alliance",
+  alliance_clan_set: "alliance",
+  alliance_invite_created: "alliance",
+  alliance_invite_cancelled: "alliance",
+  alliance_ally_joined: "alliance",
+  alliance_ally_removed: "alliance",
+  alliance_ally_left: "alliance",
+  alliance_zone_saved: "alliance",
+  alliance_zone_deleted: "alliance",
+  alliance_message_deleted: "alliance",
 };
 
 /** Les salons du robot, comme le journal les nomme. Un salon inconnu reste « un salon Discord du robot ». */
@@ -244,6 +256,49 @@ export function describe(row: LogRow, when: (iso: string) => string): LogLine {
       const from = textOf(details, "from");
       return { who, what: name && from ? `a renommé l'image « ${from} » en « ${name} » dans l'inventaire des messages Discord.` : "a renommé une image de l'inventaire des messages Discord." };
     }
+    // La carte de l'alliance : les noms des alliances, des zones et des joueurs invités ; jamais le lien d'invitation, ni le texte d'un message.
+    case "alliance_saved": {
+      const name = textOf(details, "name");
+      const alliance = name ? `l'alliance « ${name} »` : "une alliance";
+      return { who, what: details["new"] === true ? `a créé ${alliance}.` : `a modifié ${alliance}.` };
+    }
+    case "alliance_deleted": {
+      const name = textOf(details, "name");
+      return { who, what: name ? `a supprimé l'alliance « ${name} ».` : "a supprimé une alliance." };
+    }
+    case "alliance_clan_set": {
+      const tag = textOf(details, "tag") ?? "un clan";
+      const name = textOf(details, "name");
+      if (details["alliance"] === null || details["alliance"] === undefined) return { who, what: `a sorti ${tag} de son alliance.` };
+      return { who, what: `a rangé ${tag} dans l'alliance${name ? ` « ${name} »` : ""}.` };
+    }
+    case "alliance_invite_created":
+    case "alliance_invite_cancelled": {
+      const note = textOf(details, "note");
+      const tag = textOf(details, "tag");
+      const pour = `${note ?? "un joueur"}${tag ? ` (${tag})` : ""}`;
+      return { who, what: row.action === "alliance_invite_created" ? `a invité ${pour} sur la carte de l'alliance.` : `a annulé l'invitation de ${pour}.` };
+    }
+    case "alliance_ally_joined":
+    case "alliance_ally_left": {
+      const alias = textOf(details, "alias");
+      const tag = textOf(details, "tag");
+      const nom = `${alias ? ` sous le nom « ${alias} »` : ""}${tag ? `, joueur de ${tag}` : ""}`;
+      return { who, what: row.action === "alliance_ally_joined" ? `est entré sur la carte de l'alliance${nom}.` : `a quitté la carte de l'alliance${nom}.` };
+    }
+    case "alliance_ally_removed": {
+      const alias = textOf(details, "alias");
+      const tag = textOf(details, "tag");
+      return { who, what: `a retiré l'accès à la carte de l'alliance ${ofTarget}${alias ? `, « ${alias} »` : ""}${tag ? ` de ${tag}` : ""}.` };
+    }
+    case "alliance_zone_saved":
+    case "alliance_zone_deleted": {
+      const zone = title ? `la zone « ${title} »` : "une zone";
+      if (row.action === "alliance_zone_deleted") return { who, what: `a supprimé ${zone} de la carte de l'alliance.` };
+      return { who, what: `${details["new"] === true ? "a dessiné" : "a modifié"} ${zone} sur la carte de l'alliance.` };
+    }
+    case "alliance_message_deleted":
+      return { who, what: `a retiré un message ${ofTarget} de la discussion de l'alliance.` };
     case "account_deleted":
       return { who: row.actor ?? "Un membre", what: "a supprimé son compte." };
     default:

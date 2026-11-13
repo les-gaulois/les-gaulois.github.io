@@ -172,7 +172,8 @@ test.describe("film de la carte", () => {
 
     // La rangée : une entrée par fenêtre, dans l'ordre. Sur un grand écran, les réglages sont posés à côté de la frise.
     const wide = (page.viewportSize()?.width ?? 0) >= 1200;
-    const names = FENETRES.filter((f) => !(wide && "etroit" in f && f.etroit)).map((f) => f.label);
+    // Les tests tournent sans la connexion du site : la fenêtre de l'alliance n'existe pas, le site reste statique.
+    const names = FENETRES.filter((f) => f.id !== "alliance" && !(wide && "etroit" in f && f.etroit)).map((f) => f.label);
     await expect(dock(page).getByRole("link").filter({ visible: true })).toHaveText(names);
     // Sous la carte (téléphone), les clans sont ouverts à l'arrivée ; sur un écran de 1 280 px, rien ne couvre la carte.
     await expect(openWindows(page)).toHaveCount(wide ? 0 : 1);

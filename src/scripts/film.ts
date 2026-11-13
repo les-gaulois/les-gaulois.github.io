@@ -1148,7 +1148,8 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
   map.tabIndex = 0;
   map.setAttribute("aria-describedby", "carte-clavier");
   map.addEventListener("keydown", (e) => {
-    if (e.target !== map || e.ctrlKey || e.metaKey || e.altKey) return;
+    // La carte de l'alliance, à la place du film, a ses propres touches (src/scripts/alliance-ecran.ts).
+    if (e.target !== map || e.ctrlKey || e.metaKey || e.altKey || map.dataset.vue === "alliance") return;
     const stepX = view.width * KEY_PAN;
     const stepY = view.height * KEY_PAN;
     if (e.key === "ArrowLeft") panBy(stepX, 0, false);
@@ -1167,6 +1168,12 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
   root.addEventListener("carte:fenetre", () => {
     measure();
     invalidate();
+  });
+  // La carte de l'alliance prend la place du film (src/scripts/alliance-ecran.ts) : le film s'arrête là où il en est.
+  root.addEventListener("carte:alliance", (e) => {
+    if (!(e as CustomEvent<{ on: boolean }>).detail.on) return;
+    cancelAutoplay();
+    if (playing) setPlaying(false);
   });
   window.addEventListener("resize", syncTouch);
 

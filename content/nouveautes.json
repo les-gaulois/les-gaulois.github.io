@@ -1,6 +1,26 @@
 [
   {
     "date": "2026-11-13",
+    "kind": "nouveau",
+    "title": "La carte de l'alliance",
+    "body": "Sur la page Carte, la fenêtre Alliance : les alliances de clans en couleur, les zones à prendre dessinées au pixel près, les troupes déclarées et une discussion avec les clans alliés invités.",
+    "link": {
+      "href": "/carte#alliance",
+      "label": "Ouvrir la carte"
+    }
+  },
+  {
+    "date": "2026-11-13",
+    "kind": "ameliore",
+    "title": "Confidentialité : la carte de l'alliance",
+    "body": "La page Confidentialité dit ce que garde la carte de l'alliance : le clan et le nom d'un joueur invité, les troupes déclarées, et les messages de la discussion, effacés au bout de 30 jours.",
+    "link": {
+      "href": "/confidentialite#carte-alliance",
+      "label": "Lire la page"
+    }
+  },
+  {
+    "date": "2026-11-13",
     "kind": "ameliore",
     "title": "Le guichet des tickets en grandes icônes",
     "body": "Sur le Discord du clan, le guichet montre une grande icône par demande : la porte pour rejoindre le clan, le corbeau pour une question, le poignard pour un tricheur. Ses boutons portent les mêmes."

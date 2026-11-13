@@ -328,6 +328,14 @@ jobs:
           path: .cache/member-games
           key: member-games-${{ github.run_id }}
           restore-keys: member-games-
+      # L'historique de la carte, pour son état pixel par pixel, que lit la carte de l'alliance. Le build ne rejoue que
+      # jusqu'au dernier événement du film. Sans ce cache, la carte de l'alliance le dit, et le site se publie quand même.
+      - name: Restaurer l'historique de la carte
+        uses: actions/cache/restore@v6
+        with:
+          path: .cache/clanmap
+          key: clanmap-${{ github.run_id }}
+          restore-keys: clanmap-
       - id: pages
         uses: actions/configure-pages@v6
       - name: Construire le site

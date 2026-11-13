@@ -183,6 +183,19 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   const kept = await rpc("save_discord_image", { p_path: "verification", p_name: "verification" });
   if (await refused(kept)) add("Un visiteur ne garde pas d'image dans l'inventaire", "ok");
   else add("Un visiteur ne garde pas d'image dans l'inventaire", "fail", `Réponse ${kept.status}. Ne mettez pas en ligne : seuls les admins et le fondateur gardent une image.`);
+  // La carte de l'alliance (migration 20261113000400) : réservée aux Gaulois validés et aux alliés invités ; un visiteur n'en
+  // lit rien, n'accepte aucune invitation et ne dessine aucune zone. Les valeurs données ne sont celles d'aucune invitation
+  // ni d'aucune zone : même si le droit d'appel était mal posé, rien ne serait écrit.
+  const allianceCalls = [
+    ["get_alliance_map", {}, "Un visiteur ne lit pas la carte de l'alliance"],
+    ["accept_alliance_invite", { p_token: "0".repeat(32), p_alias: "verification" }, "Un visiteur n'accepte pas d'invitation à la carte de l'alliance"],
+    ["save_alliance_zone", { p_id: null, p_title: "verification", p_tag: null, p_x: 0, p_y: 0, p_w: 1, p_h: 1, p_mask: "AQ==" }, "Un visiteur ne dessine pas de zone de l'alliance"],
+  ] as const;
+  for (const [fn, body, label] of allianceCalls) {
+    const res = await rpc(fn, body);
+    if (await refused(res)) add(label, "ok");
+    else add(label, "fail", `Réponse ${res.status}. Ne mettez pas en ligne : la carte de l'alliance ne s'ouvre qu'aux Gaulois validés et aux alliés invités.`);
+  }
   // Les images des messages : chacune se lit à son adresse, mais un visiteur ne doit pas pouvoir en dresser la liste.
   const imageList = await fetcher(`${base}/storage/v1/object/list/discord-images`, { method: "POST", headers: anonHeaders, body: JSON.stringify({ prefix: "", limit: 1 }) });
   const listed = imageList.ok ? ((await imageList.json().catch(() => null)) as unknown) : null;

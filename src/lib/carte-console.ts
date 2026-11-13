@@ -23,6 +23,8 @@ export interface Fenetre {
 export const FENETRES = [
   { id: "objectif", label: "Objectif", icon: "cible" },
   { id: "clans", label: "Clans", icon: "boucliers" },
+  // La carte de l'alliance (13 novembre 2026) : seulement avec la connexion du site, pour les Gaulois et les alliés invités.
+  { id: "alliance", label: "Alliance", icon: "anneaux" },
   { id: "moments", label: "Moments", icon: "sablier", film: true },
   { id: "journees", label: "Journées", icon: "calendrier" },
   { id: "zones", label: "Zones", icon: "fanion", film: true },
@@ -57,6 +59,8 @@ export interface EcranConsole {
 
 /** La fenêtre que demande une ancre de l'adresse. `null` : aucune, ou une ancre inconnue. */
 export function fenetreDeLAncre(hash: string): FenetreId | null {
+  // Le lien d'invitation d'un joueur allié (`#invitation=…`) ouvre la fenêtre de l'alliance, où il l'accepte.
+  if (/^#?invitation=/.test(hash)) return "alliance";
   let id = hash.replace(/^#/, "");
   try {
     id = decodeURIComponent(id);

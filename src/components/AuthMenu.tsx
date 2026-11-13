@@ -15,6 +15,8 @@ const LINK = "btn btn-ghost !min-h-10 !py-1.5 !text-sm whitespace-nowrap";
  */
 export default function AuthMenu() {
   const [me, setMe] = useState<Me | null>(null);
+  // Le nom choisi sur la carte de l'alliance, pour un joueur allié invité : son compte n'a pas d'autre nom que « Gaulois n° … ».
+  const [ally, setAlly] = useState<string | null>(null);
   const playerView = usePlayerView();
   // En vue joueur, l'en-tête est celui d'un membre sans grade : la bande placée dessous permet d'en sortir.
   const canDirect = me !== null && (viewedAccount(me, playerView).rank ?? 0) >= 2;
@@ -33,7 +35,16 @@ export default function AuthMenu() {
       if (stopped) unsubscribe();
     });
     call<Me>("get_me")
-      .then((data) => setMe(data.signed_in ? data : null))
+      .then((data) => {
+        setMe(data.signed_in ? data : null);
+        // Un compte en attente peut être un joueur allié invité sur la carte de l'alliance.
+        if (data.signed_in && data.status === "pending") {
+          call<{ access: { kind: string; name: string } | null }>("get_map_access")
+            .then((r) => setAlly(r.access?.kind === "allie" ? r.access.name : null))
+            // Un serveur d'avant la carte de l'alliance ne connaît pas cette fonction : l'en-tête reste comme avant.
+            .catch(() => setAlly(null));
+        }
+      })
       .catch(() => setMe(null));
     return () => {
       stopped = true;
@@ -55,6 +66,12 @@ export default function AuthMenu() {
   const validated = me.status === "validated";
   return (
     <>
+      {/* Un joueur allié invité : sa place est la carte de l'alliance, jamais le QG. Sur téléphone, seul ce lien reste. */}
+      {ally && (
+        <a href={`${base}/carte#alliance`} class={LINK} data-testid="auth-alliance">
+          Alliance
+        </a>
+      )}
       {/* L'administration est à la Direction (au QG du 10 au 12 novembre 2026) : quand des demandes attendent, la pastille les
           compte et le lien ouvre leur partie. Les lecteurs d'écran entendent « Direction 2 demandes à traiter ». */}
       {canDirect && (
@@ -79,9 +96,9 @@ export default function AuthMenu() {
       )}
       {/* Le nom mène au compte. L'encadrement, qui a déjà deux liens, ouvre le sien depuis le QG ou la Direction ; sur téléphone, un membre validé aussi. */}
       {!canDirect && (
-        <span class={validated ? "hidden sm:inline-flex" : "inline-flex"}>
-          <a href={`${base}/compte`} class={LINK} data-testid="auth-account" title={me.name}>
-            <span class="block max-w-24 truncate sm:max-w-32">{me.name ?? "Mon compte"}</span>
+        <span class={validated || ally ? "hidden sm:inline-flex" : "inline-flex"}>
+          <a href={`${base}/compte`} class={LINK} data-testid="auth-account" title={ally ?? me.name}>
+            <span class="block max-w-24 truncate sm:max-w-32">{ally ?? me.name ?? "Mon compte"}</span>
           </a>
         </span>
       )}

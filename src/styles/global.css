@@ -6213,3 +6213,275 @@ footer h2 {
 :where([data-lettres="onciale"]) .page-tete .page-title {
   font-size: max(1.5rem, min(clamp(2.25rem, 6vw, 4rem), (min(100vw, var(--wrap-max)) - 2 * var(--wrap-marge) - 1rem) / var(--mot-em, 0.01)));
 }
+
+/* ---------- La carte de l'alliance (13 novembre 2026) ---------- */
+/* Quand la fenêtre « Alliance » est ouverte, l'écran de l'alliance (src/scripts/alliance-ecran.ts) prend la place du film
+   sur la carte : le film, ses touches, sa date et son podium se cachent, et la frise garde sa place sans se lire. */
+[data-alliance-canvas] {
+  z-index: 2;
+  cursor: grab;
+  touch-action: none;
+}
+[data-alliance-canvas].est-saisie {
+  cursor: grabbing;
+}
+[data-alliance-canvas]:is([data-outil="crayon"], [data-outil="gomme"], [data-outil="rectangle"]) {
+  cursor: crosshair;
+}
+[data-alliance-canvas]:focus-visible {
+  outline: 2px solid var(--color-blue-text);
+  outline-offset: -2px;
+}
+.film-map:not([data-vue="alliance"]) :is([data-alliance-outils], .alliance-hud) {
+  display: none;
+}
+.film-map[data-vue="alliance"] > :is(img, [data-film-canvas], .film-hud:not(.alliance-hud), .carte-outils:not(.alliance-outils), .film-caption, .film-tip, .carte-mire, .carte-balayage) {
+  display: none;
+}
+/* La lecture du film n'a rien à faire ici : sa rangée se replie, et la carte de l'alliance gagne sa place. */
+:root.carte-console .carte[data-vue="alliance"] {
+  grid-template-rows: auto 0 minmax(0, 1fr) auto;
+}
+@media (min-aspect-ratio: 5/4) and (min-width: 48rem) {
+  :root.carte-console .carte[data-vue="alliance"] {
+    grid-template-rows: minmax(0, 1fr) 0 auto;
+  }
+}
+:root.carte-console .carte[data-vue="alliance"] :is(.carte-transport, .carte-reglages:not(.est-ouverte), .carte-podium) {
+  display: none;
+}
+.alliance-hud:empty {
+  display: none;
+}
+
+/* Les onglets de la fenêtre : un bouton par partie, l'ouverte en vidéo inversée, comme l'entrée ouverte de la rangée. */
+.alliance-onglets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 0.75rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--color-line);
+}
+.alliance-onglets > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 2.5rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.25rem;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+.alliance-onglets > button:hover {
+  color: #fff;
+}
+.alliance-onglets > button[aria-selected="true"] {
+  border-color: var(--color-blue);
+  background: var(--color-blue);
+  color: #fff;
+}
+@media (forced-colors: active) {
+  .alliance-onglets > button[aria-selected="true"] {
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+  }
+}
+.alliance-ligne {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+.alliance-ligne > .field {
+  flex: 1 1 9rem;
+  min-width: 0;
+}
+.alliance-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+}
+.alliance-marque {
+  margin-left: 0.5rem;
+  padding: 0 0.375rem;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  vertical-align: 0.1em;
+  color: var(--color-muted);
+}
+.alliance-clans {
+  display: grid;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+}
+.alliance-declarer {
+  display: grid;
+  gap: 0.25rem;
+  margin-top: 0.75rem;
+}
+
+/* Une zone à prendre : sa part déjà tenue par l'alliance, en barre pleine sans dégradé. */
+.alliance-zone {
+  display: grid;
+  gap: 0.25rem;
+}
+.alliance-barre {
+  display: block;
+  height: 0.375rem;
+  overflow: hidden;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 999px;
+}
+.alliance-barre > i {
+  display: block;
+  height: 100%;
+  background: var(--color-blue-text);
+}
+.alliance-reste {
+  display: grid;
+  gap: 0.125rem;
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+}
+.alliance-outils-dessin {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+}
+.alliance-outils-dessin > legend {
+  margin-bottom: 0.25rem;
+}
+.alliance-outils-dessin > label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 2.25rem;
+}
+/* Ce qui retire ou supprime, à part, sous un filet : on ne le clique pas en croyant finir autre chose. */
+.alliance-a-part {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-line);
+}
+.alliance-ligne > .alliance-a-part {
+  margin-top: 0;
+  padding-top: 0;
+  padding-left: 0.75rem;
+  border-top: 0;
+  border-left: 1px solid var(--color-line);
+}
+.alliance-retirer {
+  margin-left: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.alliance-retirer:hover {
+  color: #fff;
+}
+
+/* La discussion : les messages défilent dans leur cadre, le plus récent en bas. */
+.alliance-fil {
+  display: grid;
+  align-content: start;
+  gap: 0.5rem;
+  max-height: min(22rem, 45vh);
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--color-line);
+  border-radius: 0.25rem;
+}
+.alliance-fil:empty {
+  display: none;
+}
+.alliance-fil > li {
+  padding-left: 0.5rem;
+  border-left: 2px solid var(--color-line-strong);
+}
+.alliance-fil > li.est-mien {
+  border-left-color: var(--color-blue-text);
+}
+.alliance-auteur {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.5rem;
+  font-size: 0.8125rem;
+}
+.alliance-auteur > .alliance-marque {
+  margin-left: 0;
+}
+.alliance-corps {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.alliance-ecrire {
+  display: grid;
+  gap: 0.375rem;
+  margin-top: 0.75rem;
+}
+
+/* La gestion : une case par alliance, où l'on glisse les clans. */
+.alliance-gestion-liste {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.alliance-case {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  border: 1px dashed var(--color-line-strong);
+  border-radius: 0.25rem;
+}
+.alliance-case[data-survolee] {
+  border-style: solid;
+  border-color: var(--color-blue-text);
+}
+.alliance-jetons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-top: 0.375rem;
+}
+.alliance-jeton {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.375rem;
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.25rem;
+  background: var(--color-surface-2);
+  font-size: 0.875rem;
+  cursor: grab;
+}
+.alliance-lien {
+  display: grid;
+  gap: 0.375rem;
+  margin-top: 0.75rem;
+  padding: 0.5rem;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.25rem;
+}
+/* Onze entrées dans la rangée avec l'alliance : trois lignes de quatre au plus sur téléphone, plutôt qu'une entrée seule. */
+.carte-dock > ul:has(> li:nth-child(11)) {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+/* Les nouveaux messages de l'alliance, sur l'entrée de la rangée : dans son coin, sans changer sa hauteur. */
+.carte-dock-entree:has(> .alliance-pastille) {
+  position: relative;
+}
+.alliance-pastille {
+  position: absolute;
+  top: 0.125rem;
+  right: 0.25rem;
+}

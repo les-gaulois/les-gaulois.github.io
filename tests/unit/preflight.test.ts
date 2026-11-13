@@ -218,6 +218,16 @@ describe("le contrôle de la mise en ligne", () => {
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/add_discord_message_salon": { status: 200, body: { ok: true } } }, "ajoute pas de salon pour les messages")).toBe("fail");
   });
 
+  it("bloque si un visiteur lit la carte de l'alliance, accepte une invitation ou dessine une zone", async () => {
+    const labels = ["lit pas la carte de l'alliance", "accepte pas d'invitation", "dessine pas de zone de l'alliance"];
+    for (const label of labels) expect(await statusOf(HEALTHY, label)).toBe("ok");
+    // Un droit d'appel mal posé, mais la fonction qui refuse elle-même : rien n'est lu ni écrit.
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_alliance_map": { status: 200, body: { ok: false, error: "not_signed_in" } } }, labels[0]!)).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_alliance_map": { status: 200, body: { ok: true, access: null } } }, labels[0]!)).toBe("fail");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/accept_alliance_invite": { status: 200, body: { ok: true } } }, labels[1]!)).toBe("fail");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/save_alliance_zone": { status: 200, body: { ok: true, id: 1 } } }, labels[2]!)).toBe("fail");
+  });
+
   it("bloque si un visiteur lit l'inventaire d'images ou y garde une image", async () => {
     for (const label of ["lit pas l'inventaire d'images", "garde pas d'image dans l'inventaire"]) expect(await statusOf(HEALTHY, label)).toBe("ok");
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_discord_images": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "lit pas l'inventaire d'images")).toBe("ok");

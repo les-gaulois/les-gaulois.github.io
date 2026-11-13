@@ -3,13 +3,15 @@ import { describe, expect, it } from "vitest";
 import { ERROR_MESSAGES, errorMessage } from "../../src/lib/compte/errors";
 
 // Les migrations des comptes, des rôles et de la Direction : les seules fonctions que le site appelle encore.
-const SQL = ["20261105000100_comptes_et_roles", "20261105000200_validation_des_membres", "20261105000900_direction", "20261106000100_roles_prevus", "20261108000100_pastille_direction", "20261108000200_vie_du_clan", "20261109000100_qg_des_membres", "20261109000200_gaulois_de_la_semaine", "20261109000300_appels_aux_salons", "20261109000400_refaire_la_demande", "20261110000100_appels_sans_format", "20261111000100_appels_sur_discord", "20261111000200_appels_discord_ping_au_choix", "20261111000300_salons_discord", "20261111000400_outils_du_qg", "20261111000600_messages_discord", "20261112000100_messages_discord_images_en_grand", "20261112000200_inventaire_images_discord", "20261112000300_inventaire_200_images", "20261112000500_connexion_par_code"]
+const SQL = ["20261105000100_comptes_et_roles", "20261105000200_validation_des_membres", "20261105000900_direction", "20261106000100_roles_prevus", "20261108000100_pastille_direction", "20261108000200_vie_du_clan", "20261109000100_qg_des_membres", "20261109000200_gaulois_de_la_semaine", "20261109000300_appels_aux_salons", "20261109000400_refaire_la_demande", "20261110000100_appels_sans_format", "20261111000100_appels_sur_discord", "20261111000200_appels_discord_ping_au_choix", "20261111000300_salons_discord", "20261111000400_outils_du_qg", "20261111000600_messages_discord", "20261112000100_messages_discord_images_en_grand", "20261112000200_inventaire_images_discord", "20261112000300_inventaire_200_images", "20261112000500_connexion_par_code", "20261113000400_alliances_sur_la_carte"]
   .map((name) => readFileSync(`supabase/migrations/${name}.sql`, "utf8"))
   .join("\n");
 
 describe("les refus du serveur", () => {
   it("ont tous un message en français", () => {
     const codes = new Set([...SQL.matchAll(/internal\.(?:fail|error_json)\('([a-z_]+)'/g)].map((m) => m[1]!));
+    // Les noms courts tapés par un joueur passent par internal.clean_label, qui reçoit son code de refus en dernier.
+    for (const m of SQL.matchAll(/internal\.clean_label\(p_\w+, \d+, \d+, '([a-z_]+)'\)/g)) codes.add(m[1]!);
     expect(codes.size).toBeGreaterThan(20);
     expect([...codes].filter((code) => !(code in ERROR_MESSAGES))).toEqual([]);
   });

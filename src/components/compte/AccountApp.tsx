@@ -1,4 +1,6 @@
-import { useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
+import { ADRESSE_ALLIANCE, RETOUR_CARTE_KEY } from "../../lib/alliance/invitation";
+import type { AccesCarte } from "../../lib/alliance/types";
 import { basePath, call, signOut } from "../../lib/compte/api";
 import { ROLE_LABELS, type Me } from "../../lib/compte/types";
 import { fmtDate } from "../../lib/format";
@@ -134,10 +136,48 @@ function DeleteAccount({ founder }: { founder: boolean }) {
   );
 }
 
+/** Ce que la carte de l'alliance ouvre à ce compte, pour un compte en attente : un joueur allié invité y a sa place. */
+function useAllie(me: Me | null): AccesCarte | null {
+  const [access, setAccess] = useState<AccesCarte | null>(null);
+  useEffect(() => {
+    if (!me?.signed_in || me.status !== "pending") {
+      setAccess(null);
+      return;
+    }
+    call<{ access: AccesCarte | null }>("get_map_access")
+      .then((r) => setAccess(r.access?.kind === "allie" ? r.access : null))
+      // Un serveur d'avant la carte de l'alliance ne connaît pas cette fonction : la page reste comme avant.
+      .catch(() => setAccess(null));
+  }, [me?.signed_in, me?.status]);
+  return access;
+}
+
+/** Revenir de Discord vers la carte de l'alliance : Discord ne ramène qu'ici, la carte l'a noté avant le départ. */
+function retourVersLaCarte(me: Me | null): boolean {
+  if (!me?.signed_in) return false;
+  let demande = false;
+  try {
+    // Noté au départ vers Discord ; un départ abandonné il y a plus d'un quart d'heure ne compte plus.
+    const depart = Number(sessionStorage.getItem(RETOUR_CARTE_KEY));
+    demande = Number.isFinite(depart) && depart > 0 && Date.now() - depart < 15 * 60_000;
+    sessionStorage.removeItem(RETOUR_CARTE_KEY);
+  } catch {
+    return false;
+  }
+  if (demande) location.replace(`${basePath()}${ADRESSE_ALLIANCE}`);
+  return demande;
+}
+
 export default function AccountApp() {
   const { me, failed, refresh } = useMe();
+  const allie = useAllie(me);
+  const [retour, setRetour] = useState(false);
+  useEffect(() => {
+    if (retourVersLaCarte(me)) setRetour(true);
+  }, [me]);
 
   if (me === null) return <Loading label="Lecture de votre compte…" />;
+  if (retour) return <Loading label="Retour à la carte de l'alliance…" />;
   if (failed) return <Problem message="Votre compte n'a pas pu être lu pour l'instant. Réessayez dans un moment." onRetry={() => void refresh()} />;
 
   if (!me.signed_in) {
@@ -207,7 +247,19 @@ export default function AccountApp() {
         )}
       </section>
 
-      {me.status === "pending" && <MembershipRequest me={me} onChange={refresh} />}
+      {/* Un joueur allié invité n'est pas un Gaulois : sa place est la carte de l'alliance, pas la demande de validation. */}
+      {allie && (
+        <section class="card p-5" data-testid="account-allie">
+          <h2 class="text-xl">Carte de l'alliance</h2>
+          <p class="mt-2">
+            L'encadrement de GAL vous a invité comme joueur de {allie.tag}, sous le nom {allie.name}. Votre accès : la carte de l'alliance, ses zones et sa discussion.
+          </p>
+          <a class="btn btn-primary mt-4" href={`${basePath()}${ADRESSE_ALLIANCE}`}>
+            Ouvrir la carte de l'alliance
+          </a>
+        </section>
+      )}
+      {me.status === "pending" && !allie && <MembershipRequest me={me} onChange={refresh} />}
 
       <DeleteAccount founder={me.role === "founder"} />
     </div>

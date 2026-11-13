@@ -574,6 +574,22 @@ export const ICONES_PARTIES = {
     ".###.....###.",
     ".###.....###.",
   ],
+  /** Carte · Alliance (13 novembre 2026) : deux anneaux enlacés, chacun passe devant l'autre une fois, en demi-teinte derrière. */
+  anneaux: [
+    ".............",
+    ".............",
+    "...###.###...",
+    "..#...#...#..",
+    ".#...+.#...#.",
+    ".#...+.#...#.",
+    ".#...#.#...#.",
+    ".#...#.+...#.",
+    ".#...#.+...#.",
+    "..#...#...#..",
+    "...###.###...",
+    ".............",
+    ".............",
+  ],
   /** Rôles Discord · Giveaway : le cadeau, son nœud en haut, son ruban en demi-teinte. */
   cadeau: [
     "..###...###..",

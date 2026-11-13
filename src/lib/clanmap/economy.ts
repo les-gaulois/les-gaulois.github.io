@@ -6,6 +6,11 @@
  */
 export const TROOPS_PER_CAP = 100;
 export const NEUTRAL_PIXEL_TROOPS = 1_000;
+/**
+ * Un pixel ennemi coûte `2 000 + ⌈troupes du clan ÷ pixels du clan⌉` (docs/API_AUDIT.md, « Qui peut quoi sur la carte »).
+ * Les troupes des autres clans ne sont pas collectées : le site n'en donne que ce minimum.
+ */
+export const ENEMY_PIXEL_BASE_TROOPS = 2_000;
 export const RULES_CHECKED_ON = "2026-11-05";
 
 export interface Standing {

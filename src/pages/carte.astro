@@ -5,11 +5,13 @@ import Empty from "../components/Empty.astro";
 import Invite from "../components/Invite.astro";
 import TerritoryChart from "../components/TerritoryChart.tsx";
 import Fenetre from "../components/carte/Fenetre.astro";
+import AllianceApp from "../components/carte/alliance/AllianceApp";
+import { AUTH_ENABLED } from "../lib/compte/api";
 import IconePartie from "../components/compte/IconePartie";
 import { clan } from "../../config/clan";
 import { FENETRES, type FenetreId } from "../lib/carte-console";
 import { clanRgb } from "../lib/clanmap/codec";
-import { NEUTRAL_PIXEL_TROOPS, RULES_CHECKED_ON, TROOPS_PER_CAP, capsToTroops, neutralPixelsFor, objectiveFor } from "../lib/clanmap/economy";
+import { ENEMY_PIXEL_BASE_TROOPS, NEUTRAL_PIXEL_TROOPS, RULES_CHECKED_ON, TROOPS_PER_CAP, capsToTroops, neutralPixelsFor, objectiveFor } from "../lib/clanmap/economy";
 import { FILM_MS, SHOT_SPACING_MS } from "../lib/fx/camera";
 import { SPEED_MAX, SPEED_MIN, SPEED_STEP, speedLabel, speedText } from "../lib/fx/speed";
 import { changeSinceLastDay, dayHighlights, dayRows, parisDayOf, territorySeries, type DayRow } from "../lib/clanmap/days";
@@ -91,6 +93,9 @@ const clanRows = standings.map((s, i) => ({ ...s, rank: i + 1, index: s.tag === 
 
 // La console : une fenêtre n'existe, avec son entrée dans la rangée du bas, que si elle a quelque chose à montrer.
 const presentes = new Set<FenetreId>(["clans", "reglages", "legende", "a-propos"]);
+// La carte de l'alliance n'existe qu'avec la connexion du site (Supabase) : sans elle, le site reste entièrement statique.
+const allianceOn = AUTH_ENABLED && film !== null;
+if (allianceOn) presentes.add("alliance");
 if (gal) presentes.add("objectif").add("chiffres");
 if (moments.length > 0) presentes.add("moments");
 if (days.length > 0) presentes.add("journees");
@@ -168,6 +173,25 @@ const dock = FENETRES.filter((f) => presentes.has(f.id));
             {/* Le crédit de la carte, toujours sous les yeux, comme sur toute carte en ligne : il mène à la légende, qui
                 donne la source et la licence en entier. Le reste du pied de page est dans la fenêtre « À propos ». */}
             <a class="carte-credit" href="#legende" data-testid="map-credit">© OpenFront and Contributors · CC BY-SA 4.0</a>
+            {/* La carte de l'alliance, à la place du film quand sa fenêtre est ouverte (src/scripts/alliance-ecran.ts) : la
+                carte complète au dernier relevé, pixel par pixel, ses zones à prendre et, au passage de la souris, ce qu'il
+                y a sous elle. Les mêmes chiffres sont écrits dans la fenêtre. */}
+            {
+              allianceOn && (
+                <>
+                  <canvas data-alliance-canvas data-testid="alliance-canvas" hidden role="img" aria-label="Carte de l'alliance : les territoires des clans en couleur de leur alliance, et les zones à prendre. Les mêmes chiffres sont écrits dans la fenêtre Alliance." aria-describedby="carte-clavier"></canvas>
+                  <div class="carte-outils alliance-outils" data-alliance-outils>
+                    <button type="button" class="carte-touche" data-alliance-zoom="1" aria-label="Zoomer sur la carte de l'alliance"><span aria-hidden="true">+</span></button>
+                    <button type="button" class="carte-touche" data-alliance-zoom="-1" aria-label="Dézoomer la carte de l'alliance"><span aria-hidden="true">−</span></button>
+                    <button type="button" class="carte-touche carte-touche-large" data-alliance-monde>
+                      <IconePartie nom="tour" />
+                      Vue d'ensemble
+                    </button>
+                  </div>
+                  <p class="film-hud alliance-hud tnum" aria-hidden="true" data-alliance-hud></p>
+                </>
+              )
+            }
           </div>
           {/* Cachée : elle n'est lue que comme description de la carte, une fois que le film l'a rendue maniable. */}
           <p id="carte-clavier" hidden>Au clavier : les flèches déplacent la carte, plus et moins changent le zoom, zéro revient à la vue d'ensemble.</p>
@@ -226,7 +250,7 @@ const dock = FENETRES.filter((f) => presentes.has(f.id));
         <nav class="carte-dock" aria-label="Fenêtres de la carte" data-testid="carte-dock">
           <ul>
             {dock.map((f) => (
-              <li class:list={["etroit" in f && f.etroit && "carte-dock-etroit"]} data-film-ready={"film" in f && f.film ? "" : undefined} hidden={"film" in f && f.film} data-console-seulement={f.id === "a-propos" ? "" : undefined}>
+              <li class:list={["etroit" in f && f.etroit && "carte-dock-etroit"]} data-film-ready={"film" in f && f.film ? "" : undefined} hidden={"film" in f && f.film} data-console-seulement={f.id === "a-propos" || f.id === "alliance" ? "" : undefined}>
                 <a href={`#${f.id}`} class="carte-dock-entree" data-ouvre={f.id}>
                   <IconePartie nom={f.icon} />
                   <span>{f.label}</span>
@@ -332,6 +356,17 @@ const dock = FENETRES.filter((f) => presentes.has(f.id));
             </div>
             <p class="carte-aide" data-film-ready hidden>Un clic sur un clan le montre sur la carte.</p>
           </Fenetre>
+
+          {/* La carte de l'alliance (13 novembre 2026) : la porte pour tous, puis, pour les Gaulois validés et les alliés
+              invités, ce que le serveur leur donne. Seulement avec la connexion du site : sans elle, le site reste statique. */}
+          {
+            allianceOn && (
+              <Fenetre id="alliance" consoleSeulement testid="map-alliance">
+                <Fragment slot="titre">La carte de l'alliance</Fragment>
+                <AllianceApp client:only="preact" />
+              </Fenetre>
+            )
+          }
 
           {
             moments.length > 0 && (
@@ -555,6 +590,9 @@ const dock = FENETRES.filter((f) => presentes.has(f.id));
               <li><strong>Des paliers du site.</strong> Le prochain palier de pixels est un repère du site, pas du jeu : les mêmes paliers que les grands moments du film.</li>
               <li><strong>Ce que l'historique ne donne pas.</strong> Il ne dit pas les troupes des autres clans. Le site n'affiche donc pas le coût exact d'un pixel ennemi.</li>
               <li><strong>Des coûts indicatifs.</strong> Les réserves du clan sont converties avec les règles lues dans le code de la carte : 1 capsule = {fmtInt(TROOPS_PER_CAP)} troupes, 1 pixel neutre = {fmtInt(NEUTRAL_PIXEL_TROOPS)} troupes. Ces coûts ne tiennent pas compte de la forme du territoire ni des pixels verrouillés, et le jeu peut les changer.</li>
+              {allianceOn && (
+                <li><strong>La carte de l'alliance.</strong> Ses zones se comptent sur la carte complète, pixel par pixel, au même relevé que le film, avec les mêmes règles : {fmtInt(NEUTRAL_PIXEL_TROOPS)} troupes par pixel neutre, et au moins {fmtInt(ENEMY_PIXEL_BASE_TROOPS)} par pixel d'un autre clan, dont les troupes ne sont pas connues. Les troupes des clans alliés sont déclarées par eux, jamais relevées.</li>
+              )}
               <li><strong>Image allégée.</strong> Les chiffres sont calculés sur la carte complète, {fmtInt(film.width)} × {fmtInt(film.height)} pixels : la position écrite à côté de la date, au passage de la souris, est comptée sur elle. Seul le film est affiché en résolution réduite.</li>
               <li><strong>Dessins des joueurs.</strong> Les motifs visibles sont peints par les joueurs, et le site ne les filtre pas.</li>
             </ul>

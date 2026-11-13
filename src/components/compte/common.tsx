@@ -100,7 +100,11 @@ export function useMe(): { me: Me | null; failed: boolean; userId: string | null
   return { me: me && viewedAccount(me, playerView), failed, userId, refresh };
 }
 
-export function DiscordButton({ returnPath, label = "Se connecter avec Discord" }: { returnPath: string; label?: string }) {
+/**
+ * `avant` : juste avant de partir vers Discord. La carte de l'alliance y note qu'il faut y revenir : Discord ne ramène qu'aux
+ * adresses de retour admises par le serveur, la page de compte et la Direction.
+ */
+export function DiscordButton({ returnPath, label = "Se connecter avec Discord", avant }: { returnPath: string; label?: string; avant?: () => void }) {
   const [error, setError] = useState<string | null>(null);
   return (
     <>
@@ -110,6 +114,7 @@ export function DiscordButton({ returnPath, label = "Se connecter avec Discord" 
         data-testid="sign-in"
         onClick={() => {
           setError(null);
+          avant?.();
           signInWithDiscord(returnPath).catch((e: unknown) => setError(messageOf(e)));
         }}
       >
@@ -155,8 +160,9 @@ export const codeLoginShown = (): boolean => CODE_LOGIN_OPEN || location.hash ==
 /**
  * Se connecter sans lier son compte Discord : le joueur tape /code dans le Discord du clan, et recopie ici le code que le
  * robot lui montre, à lui seul. Le serveur vérifie le code ; la session ouverte, la page de compte se recharge.
+ * `connecte` : la session ouverte, la page reste où elle est (la carte de l'alliance), au lieu d'aller au compte.
  */
-export function CodeLogin() {
+export function CodeLogin({ connecte }: { connecte?: () => void } = {}) {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -166,6 +172,11 @@ export function CodeLogin() {
     setError(null);
     try {
       await signInWithCode(code);
+      if (connecte) {
+        setBusy(false);
+        connecte();
+        return;
+      }
       location.assign(`${basePath()}/compte`);
     } catch (e) {
       setError(messageOf(e));

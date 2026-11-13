@@ -57,6 +57,10 @@ test("sans serveur configuré, la connexion n'apparaît pas et le site reste sta
   await expect(page.getByTestId("auth-sign-in")).toHaveCount(0);
   // Sans serveur, pas de face privée : l'accueil n'en montre pas la porte.
   await expect(page.getByTestId("home-qg")).toHaveCount(0);
+  // Ni la carte de l'alliance, ni son entrée dans la rangée de la page Carte.
+  await page.goto("/carte");
+  await expect(page.locator("[data-ouvre=\"alliance\"]")).toHaveCount(0);
+  await expect(page.locator("[data-alliance-canvas]")).toHaveCount(0);
   for (const path of ["/compte", "/direction", "/qg"]) {
     await page.goto(path);
     await expect(page.getByTestId("auth-not-open")).toBeVisible();
