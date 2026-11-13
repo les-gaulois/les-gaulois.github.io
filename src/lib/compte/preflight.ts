@@ -118,6 +118,15 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   if (isClosed(pinged.status) || (pinged.ok && pingedAnswer?.ok === false)) add("Un visiteur ne fait pas de ping sur Discord", "ok");
   else add("Un visiteur ne fait pas de ping sur Discord", "fail", `Réponse ${pinged.status}. Ne mettez pas en ligne : seuls les membres validés font un ping.`);
 
+  // L'activité du site : un visiteur compte sa page (`note_site_visit`, que ce contrôle n'appelle pas : il n'écrit rien),
+  // mais seuls les officiers et au-dessus lisent les totaux.
+  // Une fonction absente répond 404 : la migration n'est pas collée, et chaque page du site recevrait un refus.
+  const activity = await rpc("get_site_activity");
+  const activityAnswer = activity.ok ? ((await activity.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (activity.status === 404) add("Le compte des visites est installé", "warn", "get_site_activity est absente : collez la migration 20261113001500_activite_du_site.sql avant de mettre le site en ligne.");
+  else if (isClosed(activity.status) || (activity.ok && activityAnswer?.ok === false)) add("Un visiteur ne lit pas l'activité du site", "ok");
+  else add("Un visiteur ne lit pas l'activité du site", "fail", `Réponse ${activity.status}. Ne mettez pas en ligne : seuls les officiers et au-dessus lisent les visites.`);
+
   // Les salons du robot : leur réglage contient les liens qui écrivent dans les salons. Seuls les admins et le fondateur
   // le règlent, et seule la clé de service, celle du robot, reçoit les liens. Leur installation se lit avec `supabase migration list`.
   const salonsState = await rpc("get_discord_salons");

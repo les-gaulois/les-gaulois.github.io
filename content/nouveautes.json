@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-13",
+    "kind": "nouveau",
+    "title": "Le site compte ses visites",
+    "body": "Chaque page ouverte s'ajoute aux totaux du jour, sans cookie ni adresse IP, que l'encadrement lit dans la Direction. Pour ne plus être compté : un bouton sur la page Confidentialité.",
+    "link": {
+      "href": "/confidentialite#compte-des-visites",
+      "label": "Lire ce qui est compté"
+    }
+  },
+  {
+    "date": "2026-11-13",
     "kind": "ameliore",
     "title": "Carte de l'alliance : les zones des alliés acceptées par l'encadrement",
     "body": "Une zone dessinée par un joueur allié attend l'accord de l'encadrement de GAL avant de compter. Modifiée, elle garde sa version acceptée tant que l'encadrement n'a pas répondu.",

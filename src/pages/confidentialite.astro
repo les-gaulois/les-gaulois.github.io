@@ -5,6 +5,7 @@ import { clan } from "../../config/clan";
 import { fmtInt } from "../lib/format";
 import { ANNOUNCED_TIERS, DISCORD_TIERS } from "../lib/paliers-franchis";
 import { CODE_LOGIN_OPEN } from "../lib/compte/connexion-code";
+import { AUTH_ENABLED } from "../lib/compte/api";
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const listOf = (tiers: readonly number[]) => {
@@ -31,9 +32,24 @@ const discordTierList = listOf(DISCORD_TIERS);
       <p>Si vous participez à un concours que l'encadrement lance sur le serveur, le site garde le numéro de votre compte Discord, l'heure de votre clic et le numéro de votre billet, donné dans l'ordre des inscriptions, pour vous compter, vous retirer si vous le demandez et vous tirer au sort. Les membres du serveur peuvent voir la liste des participants. Au tirage, le robot demande à Discord si chaque personne tirée au sort est encore sur le serveur et a encore le rôle demandé ; s'il passe quelqu'un, le site garde son numéro et la raison. La liste des participants, et le numéro des personnes passées ou remplacées par un nouveau tirage, sont effacés 30 jours après le tirage, ou dès l'annulation du concours. Le numéro des gagnants, avec leur billet et la confirmation qu'ils donnent d'un clic, et celui de qui a lancé ou annulé le concours, restent avec le concours un an après sa fin. Le site ne garde ni votre nom ni votre photo. Pour faire effacer plus tôt ce qui vous concerne, ou retirer un message du concours, demandez-le aux officiers.</p>
 
       <h2>Sans compte</h2>
-      <p>Le site ne vous demande rien et ne pose pas de traceur publicitaire. Il ne conserve rien sur un simple visiteur. Pour un joueur du clan, il y a une autre exception que la liste ci-dessus : si vous avez donné des capsules à [GAL] dans le jeu, le montant, la date et une empreinte de votre identifiant OpenFront peuvent figurer dans une liste des dons recopiée par les officiers pour un ancien jeu du site. Ni votre identifiant, ni votre pseudo. Cette liste n'est plus complétée ni affichée. Pour faire retirer un don, adressez-vous aux officiers.</p>
+      <p>Le site ne vous demande rien et ne pose pas de traceur publicitaire. D'un simple visiteur, il ne conserve rien qui permette de le reconnaître{AUTH_ENABLED ? " : il compte seulement les visites, décrit plus bas" : ""}. Pour un joueur du clan, il y a une autre exception que la liste ci-dessus : si vous avez donné des capsules à [GAL] dans le jeu, le montant, la date et une empreinte de votre identifiant OpenFront peuvent figurer dans une liste des dons recopiée par les officiers pour un ancien jeu du site. Ni votre identifiant, ni votre pseudo. Cette liste n'est plus complétée ni affichée. Pour faire retirer un don, adressez-vous aux officiers.</p>
 
-      <p>Votre navigateur peut garder, sur votre appareil seulement : l'identifiant public du membre que vous choisissez de retenir pour retrouver sa place, la date de votre dernière visite et les chiffres du clan vus ce jour-là, pour vous dire ce qui a changé et reprendre le film de la carte où vous l'aviez laissé, vos propres chiffres vus ce jour-là si vous avez retenu votre pseudo, la dernière mise à jour du site que vous avez vue, pour signaler les suivantes d'un point, et votre choix de mettre les animations en pause. Rien de cela n'est envoyé au site. Pour l'effacer, utilisez « Changer de pseudo » ou videz les données du site dans votre navigateur.</p>
+      <p>Votre navigateur peut garder, sur votre appareil seulement : l'identifiant public du membre que vous choisissez de retenir pour retrouver sa place, la date de votre dernière visite et les chiffres du clan vus ce jour-là, pour vous dire ce qui a changé et reprendre le film de la carte où vous l'aviez laissé, vos propres chiffres vus ce jour-là si vous avez retenu votre pseudo, la dernière mise à jour du site que vous avez vue, pour signaler les suivantes d'un point, votre choix de mettre les animations en pause{AUTH_ENABLED ? ", et la marque du compte des visites" : ""}. Rien de cela n'est envoyé au site{AUTH_ENABLED ? ", sauf les réponses par oui ou non du compte des visites, décrit juste après" : ""}. Pour l'effacer, utilisez « Changer de pseudo » ou videz les données du site dans votre navigateur.</p>
+
+      {
+        AUTH_ENABLED && (
+          <>
+          <h2 id="compte-des-visites" class="scroll-mt-24">Le compte des visites</h2>
+          <p data-testid="privacy-visits">Pour que l'encadrement sache si le site sert, chaque page ouverte ajoute un aux totaux du jour, que seul l'encadrement lit, dans l'espace Direction : pages vues par page et par heure, visiteurs du jour, de la semaine et du mois. Pour ne compter votre navigateur qu'une fois, il garde une marque, deux dates seulement : celle de sa dernière visite comptée et celle où la marque a été posée. Elle ne vit pas plus de 13 mois, même si vous revenez chaque jour ; une nouvelle est alors posée. Il en tire des réponses par oui ou non qui partent avec la page : première visite du jour, de la semaine, du mois, ou première visite tout court, selon qu'il porte déjà une trace du site. À la première page du jour s'ajoutent la famille du site d'où vous arrivez (Discord, Google, OpenFront…, jamais son adresse), si votre écran est tactile et si une session du site est ouverte dans ce navigateur. Le serveur du site n'en garde que des totaux, sans cookie, sans identifiant, sans votre adresse IP, rien qui distingue un visiteur d'un autre, et sans limite de durée puisqu'ils ne disent rien de personne. Comme tout serveur, il reçoit l'adresse IP de votre connexion pour vous répondre : le site ne la lit pas et ne la garde pas ; Supabase, son hébergeur, peut la noter un temps dans ses journaux techniques. Rien n'est compté si votre navigateur demande de ne pas être suivi (Global Privacy Control ou Do Not Track), ni dans un navigateur où vous refusez ici :</p>
+          <div class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2" data-visites-choix hidden>
+            <span data-visites-bouton-boite>
+              <button type="button" class="btn btn-ghost" data-visites-bouton>Ne plus compter mes visites</button>
+            </span>
+            <p class="m-0" role="status" data-visites-etat></p>
+          </div>
+          </>
+        )
+      }
 
       <h2 id="avec-un-compte" class="scroll-mt-24">Avec un compte</h2>
       <ul>
@@ -67,3 +83,44 @@ const discordTierList = listOf(DISCORD_TIERS);
     </div>
   </div>
 </Base>
+
+<script>
+  // Le refus du compte des visites, pour ce navigateur seulement : `src/scripts/visite.ts` ne part plus quand il est posé.
+  // Sans stockage, ou sans JavaScript, rien n'est compté de toute façon : le choix ne s'affiche pas.
+  import { VISIT_COUNT_KEY, VISIT_COUNT_REFUSED } from "../lib/activite-site";
+
+  const box = document.querySelector<HTMLElement>("[data-visites-choix]");
+  const button = document.querySelector<HTMLButtonElement>("[data-visites-bouton]");
+  const buttonBox = document.querySelector<HTMLElement>("[data-visites-bouton-boite]");
+  const state = document.querySelector<HTMLElement>("[data-visites-etat]");
+  // Le navigateur demande déjà de ne pas être suivi : rien n'est compté, le bouton ne servirait à rien.
+  const nav = navigator as Navigator & { globalPrivacyControl?: boolean };
+  const declined = nav.globalPrivacyControl === true || nav.doNotTrack === "1";
+
+  const refused = () => localStorage.getItem(VISIT_COUNT_KEY) === VISIT_COUNT_REFUSED;
+  const show = (changed: boolean) => {
+    if (!button || !state) return;
+    const off = refused();
+    button.textContent = off ? "Compter de nouveau mes visites" : "Ne plus compter mes visites";
+    state.textContent = changed ? (off ? "Vos visites ne sont plus comptées dans ce navigateur." : "Vos visites sont de nouveau comptées dans ce navigateur.") : off ? "Vos visites ne sont pas comptées dans ce navigateur." : "";
+  };
+
+  try {
+    if (declined) {
+      if (buttonBox) buttonBox.hidden = true;
+      if (state) state.textContent = "Votre navigateur demande de ne pas être suivi : vos visites ne sont pas comptées.";
+    } else show(false);
+    if (box) box.hidden = false;
+    button?.addEventListener("click", () => {
+      try {
+        if (refused()) localStorage.removeItem(VISIT_COUNT_KEY);
+        else localStorage.setItem(VISIT_COUNT_KEY, VISIT_COUNT_REFUSED);
+        show(true);
+      } catch {
+        // Stockage refusé entre-temps : rien ne change.
+      }
+    });
+  } catch {
+    // Stockage indisponible : le choix reste masqué.
+  }
+</script>

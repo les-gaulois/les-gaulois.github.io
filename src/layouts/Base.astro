@@ -10,6 +10,7 @@ import consoleFont from "@fontsource-variable/jetbrains-mono/files/jetbrains-mon
 import { clan, SITE_DISCLAIMER, SITE_LICENSE_NOTICE } from "../../config/clan";
 import { brandFile } from "../lib/brand";
 import { AUTH_ENABLED } from "../lib/compte/api";
+import { EARLIER_VISIT_KEYS, VISIT_COUNT_KEY } from "../lib/activite-site";
 import AuthMenu from "../components/AuthMenu";
 import AppelsGaulois from "../components/compte/AppelsGaulois";
 import NouveautesMenu from "../components/NouveautesMenu.astro";
@@ -117,8 +118,21 @@ const onciale = lettresOnciale
         // Stockage indisponible : les animations restent actives, le bouton pause fonctionne.
       }
     </script>
+    {
+      AUTH_ENABLED && (
+        <script is:inline define:vars={{ visitKeys: [VISIT_COUNT_KEY, ...EARLIER_VISIT_KEYS] }}>
+          // Le compte des visites (src/scripts/visite.ts) : ce navigateur est-il déjà venu ? Noté avant que les composants de
+          // la page n'écrivent leurs propres traces. Seule cette réponse par oui ou non sert, rien du contenu.
+          try {
+            document.documentElement.dataset.visiteAvant = visitKeys.some((key) => localStorage.getItem(key) !== null) ? "1" : "0";
+          } catch {
+            // Stockage indisponible : visite.ts ne compte alors que des pages vues.
+          }
+        </script>
+      )
+    }
   </head>
-  <body class="flex min-h-dvh flex-col" data-nouveautes-marker={nouveautesMarker ?? undefined}>
+  <body class="flex min-h-dvh flex-col" data-nouveautes-marker={nouveautesMarker ?? undefined} data-route={Astro.routePattern}>
     <a
       href="#contenu"
       class="absolute left-2 top-[-4rem] z-50 rounded bg-white px-3 py-2 font-semibold text-navy focus:top-2"
@@ -300,6 +314,9 @@ const onciale = lettresOnciale
       });
     </script>
     <script>
+      // Le compte des visites. La page qu'il compte : `data-route` du <body>, le modèle d'adresse (`/membres/[id]`, jamais
+      // l'identifiant). S'il est déjà venu : la note posée en tête de page.
+      import "../scripts/visite";
       import "../scripts/fx";
       import "../scripts/nouveautes";
       import "../scripts/visages";

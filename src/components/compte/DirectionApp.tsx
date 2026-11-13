@@ -12,6 +12,7 @@ import { tabsFor } from "../../lib/onglets";
 import LogoMatrice from "../LogoMatrice";
 import { Log, Members, Requests } from "./AdminPanels";
 import { DeleteButton, DiscordButton, Loading, Problem, Success, messageOf, useMe, usePendingCount, useRun } from "./common";
+import DirectionActivite from "./DirectionActivite";
 import DirectionDiscord from "./DirectionDiscord";
 import DirectionObjectif from "./DirectionObjectif";
 import DirectionPolls, { EMPTY_POLL, type PollDraft } from "./DirectionPolls";
@@ -55,6 +56,8 @@ interface Overview {
  */
 const DIRECTION_TABS = [
   { id: "ensemble", label: "Vue d'ensemble", icon: "tour" },
+  // Les visites du site, comptées par le site lui-même (demande du pilote, 13 novembre 2026) : src/lib/activite-site.ts.
+  { id: "activite", label: "Activité du site", icon: "oeil" },
   { id: "demandes", label: "Demandes", icon: "porte" },
   // « Comptes » : les comptes du site, validés, en attente ou suspendus, et non la page publique des membres.
   { id: "comptes", label: "Comptes", icon: "bouclier" },
@@ -535,7 +538,7 @@ export default function DirectionApp({ health, logo }: { health: Omit<SiteHealth
         </div>
       </section>
       <div class="grid grid-cols-1 gap-5">
-        {/* `menu` : douze parties pour le fondateur, la barre ne les montrait pas toutes ; à la place, un menu déroulant, à toutes les largeurs. */}
+        {/* `menu` : treize parties pour le fondateur, la barre ne les montrait pas toutes ; à la place, un menu déroulant, à toutes les largeurs. */}
         {/* `debut` : le petit logo du guerrier en mode Matrix, en tête du menu (style Terminal). */}
         <Onglets
           label="Les parties de la Direction"
@@ -563,6 +566,10 @@ export default function DirectionApp({ health, logo }: { health: Omit<SiteHealth
               </div>
             </section>
           ))}
+        </Partie>
+
+        <Partie {...part} id="activite">
+          {shown.has("activite") && <DirectionActivite />}
         </Partie>
 
         {/* L'administration : lue au premier passage sur son onglet, puis gardée, avec ses champs remplis. */}

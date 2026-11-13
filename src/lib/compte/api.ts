@@ -1,6 +1,7 @@
 /**
  * Le seul point de contact entre le navigateur et le serveur de connexion (Supabase) : ses fonctions SQL, le dépôt d'une
- * image des messages Discord, et la fonction serveur de la connexion par code (`signInWithCode`).
+ * image des messages Discord, la fonction serveur de la connexion par code (`signInWithCode`) et le compte des visites
+ * (`noteSiteVisit`).
  * Le code de Supabase n'est chargé que pour un visiteur qui a une session ou qui ouvre une page de compte.
  * Rien de ce qui s'affiche ici ne protège quoi que ce soit : chaque fonction du serveur
  * revérifie l'appelant. Masquer un bouton n'est qu'une politesse.
@@ -161,6 +162,23 @@ export async function signInWithCode(code: string): Promise<void> {
   const sb = await supabase();
   const { error } = await sb.auth.verifyOtp({ token_hash: result.token_hash, type: "magiclink" });
   if (error) throw new ServerError("code_unavailable");
+}
+
+/**
+ * Le troisième chemin vers le serveur : le compte des visites (`src/scripts/visite.ts`). Un simple `fetch`, pour ne pas
+ * charger le code de Supabase sur chaque page. Il ne fait qu'ajouter aux totaux ; le serveur vérifie et range tout
+ * (`note_site_visit`, migration `20261113001500_activite_du_site.sql`). Un échec ne se voit pas : le compteur ne doit
+ * jamais gêner la visite.
+ */
+export function noteSiteVisit(payload: string): void {
+  fetch(`${SUPABASE_URL}/rest/v1/rpc/note_site_visit`, {
+    method: "POST",
+    headers: { apikey: SUPABASE_KEY, "Content-Type": "application/json" },
+    body: payload,
+    keepalive: true,
+    credentials: "omit",
+    referrerPolicy: "no-referrer",
+  }).catch(() => undefined);
 }
 
 export async function signOut(): Promise<void> {
