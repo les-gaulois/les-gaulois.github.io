@@ -12,7 +12,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 /** Les fichiers que la page Carte lit, dans cet ordre. */
-export const FICHIERS_DE_LA_CARTE = ["film.json", "film.bin.gz", "terrain.webp", "vagues.webp", "etat.bin.gz", "finale-800.webp", "finale-1400.webp"] as const;
+export const FICHIERS_DE_LA_CARTE = ["film.json", "film.bin.gz", "terrain.webp", "vagues.webp", "relief.webp", "etat.bin.gz", "finale-800.webp", "finale-1400.webp"] as const;
 
 /** Douze caractères de l'empreinte des fichiers présents ; `null` s'il n'y en a aucun. */
 export function versionDeLaCarte(dossier: string): string | null {

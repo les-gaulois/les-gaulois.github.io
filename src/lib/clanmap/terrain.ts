@@ -234,20 +234,68 @@ export function countLand(terrain: Uint8Array): number {
   return land;
 }
 
-/** Pose les territoires sur le fond : même mélange que le lecteur du film. */
+/*
+ * Le relief sous les couleurs des clans. Depuis le 13 novembre 2026, à la demande du pilote (« les couleurs de la carte
+ * légèrement opaques et vives, qu'on voie le relief du terrain derrière la couleur ») : un territoire garde la couleur de
+ * son clan, plus sombre dans les plaines basses et plus claire vers les sommets, comme si le terrain se voyait à travers.
+ *
+ * Le relief vient de la clarté de la terre du fond assombri `data/clanmap/terrain.webp` : mesurée sur tout le fond, elle
+ * monte avec le relief du terrain du jeu, de 38 en moyenne au niveau 0 à 79 au niveau 29 (sur 31). La clarté de 36 donne
+ * le relief 0, celle de 82 le relief 255 ; la mer du fond, plus sombre, donne 0 : une case de côte, à moitié d'eau,
+ * se lit comme une plaine basse.
+ */
+export const RELIEF_CLARTE_BAS = 36;
+export const RELIEF_CLARTE_HAUT = 82;
+/** Sous ce relief, la couleur du clan s'assombrit ; au-dessus, elle s'éclaircit. */
+export const RELIEF_NEUTRE = 0.5;
+/** La couleur garde 70 % de sa clarté dans les plaines les plus basses… */
+export const RELIEF_OMBRE = 0.3;
+/** … et va pour 30 % vers le blanc sur les plus hauts sommets. */
+export const RELIEF_ECLAT = 0.3;
+/** Le lecteur du film range le relief en 32 niveaux : un octet de plus par case, une couleur de plus par niveau et par clan. */
+export const RELIEF_NIVEAUX = 32;
+
+/** Le relief de chaque pixel d'un fond assombri (trois octets par pixel), de 0 à 255. */
+export function reliefDuFond(background: Uint8Array): Uint8Array {
+  const out = new Uint8Array(background.length / 3);
+  for (let p = 0; p < out.length; p++) {
+    const clarte = 0.299 * background[p * 3]! + 0.587 * background[p * 3 + 1]! + 0.114 * background[p * 3 + 2]!;
+    const t = (clarte - RELIEF_CLARTE_BAS) / (RELIEF_CLARTE_HAUT - RELIEF_CLARTE_BAS);
+    out[p] = Math.round(Math.min(1, Math.max(0, t)) * 255);
+  }
+  return out;
+}
+
+/** La couleur d'un clan sur un relief de 0 à 255 : assombrie dans les plaines, éclaircie vers les sommets, arrondie. */
+export function teinteAuRelief(rgb: Rgb, relief: number): Rgb {
+  const r = Math.min(1, Math.max(0, relief / 255));
+  const k =
+    r <= RELIEF_NEUTRE
+      ? (c: number) => c * (1 - (RELIEF_OMBRE * (RELIEF_NEUTRE - r)) / RELIEF_NEUTRE)
+      : (c: number) => c + ((255 - c) * RELIEF_ECLAT * (r - RELIEF_NEUTRE)) / (1 - RELIEF_NEUTRE);
+  return [Math.round(k(rgb[0])), Math.round(k(rgb[1])), Math.round(k(rgb[2]))];
+}
+
+/** Le niveau de relief (0 à `RELIEF_NIVEAUX` − 1) d'un relief de 0 à 255, et le relief au milieu de chaque niveau. */
+export const niveauDeRelief = (relief: number): number => relief >> 3;
+export const reliefDuNiveau = (niveau: number): number => niveau * 8 + 4;
+
+/**
+ * Pose les territoires sur le fond : même mélange que le lecteur du film, couleur pleine nuancée par le relief de sa
+ * case, au milieu de son niveau. Sans relief, la couleur du clan telle quelle.
+ */
 export function blendOwners(
   background: Uint8Array,
   owners: Uint16Array,
-  colors: readonly ([number, number, number] | null)[],
+  colors: readonly (Rgb | null)[],
+  relief: Uint8Array | null = null,
 ): Uint8Array {
   const out = new Uint8Array(background);
   for (let c = 0; c < owners.length; c++) {
     const rgb = colors[owners[c]!];
     if (!rgb) continue;
-    const o = c * 3;
-    out[o] = rgb[0] * 0.85 + background[o]! * 0.15;
-    out[o + 1] = rgb[1] * 0.85 + background[o + 1]! * 0.15;
-    out[o + 2] = rgb[2] * 0.85 + background[o + 2]! * 0.15;
+    const teinte = relief ? teinteAuRelief(rgb, reliefDuNiveau(niveauDeRelief(relief[c]!))) : rgb;
+    out.set(teinte, c * 3);
   }
   return out;
 }

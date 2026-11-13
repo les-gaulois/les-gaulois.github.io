@@ -7,6 +7,9 @@
  * Le fond `data/clanmap/terrain.webp` a sa mer assombrie : elle reprend ici la couleur du jeu, case par case, d'après le
  * terrain public de la carte (`merDuJeu`), avec le calque qui dit au film où dessiner les vagues. Sans ce terrain, le
  * fond sombre est publié tel quel, sans vagues, et le build le signale.
+ *
+ * Le relief de chaque case (`reliefDuFond`), lu dans la clarté de la terre de ce même fond sombre, part dans `relief.webp` :
+ * le film en nuance les couleurs des clans (`teinteAuRelief`), comme la carte finale.
  */
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -15,7 +18,7 @@ import sharp from "sharp";
 import { clanRgb, decodeFrames } from "../src/lib/clanmap/codec";
 import { parseEventLog } from "../src/lib/clanmap/collect";
 import { encoderEtat, etatAuRelevé, etatConforme } from "../src/lib/clanmap/etat";
-import { OFFICIAL_MAP, TERRAIN_ORIGIN, TERRAIN_PATH, blendOwners, countLand, merDuJeu } from "../src/lib/clanmap/terrain";
+import { OFFICIAL_MAP, TERRAIN_ORIGIN, TERRAIN_PATH, blendOwners, countLand, merDuJeu, reliefDuFond } from "../src/lib/clanmap/terrain";
 import { StoredClanMapFilm } from "../src/lib/schemas";
 
 const source = join("data", "clanmap");
@@ -73,7 +76,10 @@ const mer = terrain ? merDuJeu(background.data, film.cols, film.rows, terrain) :
 if (terrain && !mer) console.log("::warning::Carte : le terrain ne va pas avec le fond, mer sombre et sans vagues.");
 
 const colors = film.clans.map((c, i) => (i === 0 ? null : clanRgb(c.color)));
-const finale = blendOwners(mer?.image ?? background.data, owners, colors);
+const relief = reliefDuFond(background.data);
+/** Mesuré le 13 novembre 2026 : 85 Ko, un niveau de relief sur 32 décalé d'un dixième en moyenne. Sans perte : 251 Ko. */
+const RELIEF_QUALITE = 75;
+const finale = blendOwners(mer?.image ?? background.data, owners, colors, relief);
 
 mkdirSync(out, { recursive: true });
 writeFileSync(join(out, "film.json"), json);
@@ -88,6 +94,7 @@ if (mer) {
 } else {
   copyFileSync(paths.terrain, join(out, "terrain.webp"));
 }
+await sharp(relief, { raw: { width: film.cols, height: film.rows, channels: 1 } }).webp({ quality: RELIEF_QUALITE }).toFile(join(out, "relief.webp"));
 for (const width of [800, 1400]) {
   await sharp(finale, { raw: { width: film.cols, height: film.rows, channels: 3 } })
     .resize({ width })

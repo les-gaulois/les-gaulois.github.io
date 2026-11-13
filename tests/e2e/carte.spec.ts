@@ -883,7 +883,7 @@ test.describe("film de la carte", () => {
     await expect(playButton(page)).toBeVisible();
     const version = await page.locator("[data-film]").getAttribute("data-version");
     expect(version).toMatch(/^[0-9a-f]{12}$/);
-    for (const nom of ["film.json", "film.bin.gz", "terrain.webp", "vagues.webp"]) {
+    for (const nom of ["film.json", "film.bin.gz", "terrain.webp", "vagues.webp", "relief.webp"]) {
       expect(lus.filter((u) => u.includes(`/${nom}`)), nom).toEqual([expect.stringContaining(`/${nom}?v=${version}`)]);
     }
     await expect(page.locator("[data-testid=film-map] img")).toHaveAttribute("src", new RegExp(`finale-1400\\.webp\\?v=${version}$`));
@@ -1251,7 +1251,7 @@ test.describe("film de la carte", () => {
     const license = page.getByTestId("map-license");
     await expect(license).toBeInViewport();
     await expect(license).toContainText("© OpenFront and Contributors");
-    await expect(license).toContainText("Ce site a réduit le fond de carte, assombri sa terre et redessiné sa mer ; le fond reste sous la même licence");
+    await expect(license).toContainText("Ce site a réduit le fond de carte, assombri sa terre, redessiné sa mer et tiré de sa terre le relief qui nuance les couleurs des clans ; le fond reste sous la même licence");
     await expect(license.getByRole("link", { name: "CC BY-SA 4.0" })).toHaveAttribute("href", "https://creativecommons.org/licenses/by-sa/4.0/deed.fr");
     await expect(license.getByRole("link", { name: "Giant World Map" })).toHaveAttribute("href", /resources\/maps\/giantworldmap$/);
     // Et les mentions légales elles-mêmes.

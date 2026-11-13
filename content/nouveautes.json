@@ -2,6 +2,16 @@
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "title": "Carte : couleurs vives, relief visible",
+    "body": "Les territoires des clans prennent des couleurs plus vives, plus sombres dans les plaines et plus claires sur les montagnes : on voit le relief du terrain à travers la couleur.",
+    "link": {
+      "href": "/carte",
+      "label": "Voir la carte"
+    }
+  },
+  {
+    "date": "2026-11-13",
+    "kind": "ameliore",
     "title": "Carte de l'alliance : une zone ne passe plus sur une autre",
     "body": "En dessinant une zone, le pinceau et le rectangle s'arrêtent au bord des autres zones. Une zone qui en chevauchait déjà une autre perd la partie commune quand on la modifie.",
     "link": {

@@ -9,6 +9,8 @@ export interface FilmData {
   terrain: HTMLImageElement;
   /** Où dessiner les vagues (`src/lib/fx/vagues.ts`) ; `null` si le build n'a pas pu le faire : la mer reste calme. */
   vagues: HTMLImageElement | null;
+  /** Le relief de chaque case (`reliefDuFond`) ; `null` si le build ne l'a pas fait : les couleurs des clans restent unies. */
+  relief: HTMLImageElement | null;
 }
 
 /** Une image facultative : son absence ne doit pas empêcher le film. */
@@ -37,8 +39,8 @@ async function load(assets: string, version: string | undefined): Promise<FilmDa
   const frames = decodeFrames(bytes, film.frames.length, film.totalChanges);
   const terrain = new Image();
   terrain.src = fichier("terrain.webp");
-  const [, vagues] = await Promise.all([terrain.decode(), optionnelle(fichier("vagues.webp"))]);
-  return { film, frames, terrain, vagues };
+  const [, vagues, relief] = await Promise.all([terrain.decode(), optionnelle(fichier("vagues.webp")), optionnelle(fichier("relief.webp"))]);
+  return { film, frames, terrain, vagues, relief };
 }
 
 let pending: Promise<FilmData> | null = null;

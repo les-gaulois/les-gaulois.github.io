@@ -463,7 +463,7 @@ describe("carte officielle", () => {
     const background = Uint8Array.from([10, 10, 10, 20, 20, 20]);
     const out = blendOwners(background, Uint16Array.from([0, 1]), [null, [120, 0, 0]]);
     expect([...out.slice(0, 3)]).toEqual([10, 10, 10]);
-    expect(out[3]).toBe(105);
-    expect(out[4]).toBe(3);
+    // Sans relief, la couleur du clan telle quelle.
+    expect([...out.slice(3, 6)]).toEqual([120, 0, 0]);
   });
 });

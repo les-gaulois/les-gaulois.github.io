@@ -21,7 +21,7 @@ import { fmtDay, fmtEpochDay, fmtEpochHour } from "../lib/format";
 import { CAMERA_CLICK_MS, CAMERA_SMOOTH_MS, FILM_MS, SHOT_MAX_ZOOM, SHOT_MS, SHOT_SPACING_MS, moveCamera, pickShots, placeCamera, type Camera } from "../lib/fx/camera";
 import { motionAllowed } from "../lib/fx/motion";
 import { decalage, FORCE_MIN, respiration, traitsVisibles, vaguelettes, type Vaguelette } from "../lib/fx/vagues";
-import { OPEN_SEA_CSS } from "../lib/clanmap/terrain";
+import { niveauDeRelief, OPEN_SEA_CSS, RELIEF_NIVEAUX, reliefDuNiveau, teinteAuRelief, type Rgb } from "../lib/clanmap/terrain";
 import { filmSpeed, speedLabel, speedText } from "../lib/fx/speed";
 import { frNumber } from "../lib/nombre";
 import type { StoredClanMapFilm } from "../lib/schemas";
@@ -32,6 +32,9 @@ const AUTOPLAY_DELAY_MS = 1_500;
 const GAIN = "#7dd3fc";
 const MAX_PULSES = 4;
 const BLOOM_DIVISOR = 6;
+/** Les autres clans, quand GAL ou un clan choisi est mis en avant : un gris léger, que le terrain traverse. */
+const DIM_RGB: Rgb = [120, 130, 155];
+const DIM_ALPHA = 95;
 /** Un grand moment : un sous-titre, et parfois un plan rapproché lent. */
 const CAPTION_MS = 3_400;
 /** Sur une machine lente, le film renonce à ses effets les plus coûteux plutôt que de saccader. */
@@ -122,7 +125,35 @@ interface View {
 
 const rgba = (r: number, g: number, b: number, a: number) => ((a << 24) | (b << 16) | (g << 8) | r) >>> 0;
 
-function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames, terrain: HTMLImageElement, vagues: HTMLImageElement | null): void {
+/**
+ * Le niveau de relief de chaque case du film (`niveauDeRelief`), lu une fois dans `relief.webp`, à la taille du film.
+ * `null` si l'image ne se lit pas : les couleurs restent unies.
+ */
+function lireRelief(image: HTMLImageElement, width: number, height: number): Uint8Array | null {
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return null;
+  try {
+    ctx.drawImage(image, 0, 0, width, height);
+    const px = ctx.getImageData(0, 0, width, height).data;
+    const out = new Uint8Array(width * height);
+    for (let i = 0; i < out.length; i++) out[i] = niveauDeRelief(px[i * 4]!);
+    return out;
+  } catch {
+    return null;
+  }
+}
+
+function mount(
+  root: HTMLElement,
+  film: StoredClanMapFilm,
+  frames: DecodedFrames,
+  terrain: HTMLImageElement,
+  vagues: HTMLImageElement | null,
+  relief: HTMLImageElement | null,
+): void {
   const one = <T extends Element>(selector: string): T => {
     const el = root.querySelector<T>(selector);
     if (!el) throw new Error(`élément manquant : ${selector}`);
@@ -191,7 +222,11 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
   const galImage = galCtx.createImageData(W, H);
   const galPix = new Uint32Array(galImage.data.buffer);
   const owner = new Uint16Array(N);
-  const palette = new Uint32Array(film.clans.length);
+  // Une couleur par clan et par niveau de relief : `palette[clan * RELIEF_NIVEAUX + niveau]`. Sans relief, tous les
+  // niveaux d'un clan ont sa couleur unie.
+  const niveaux = relief ? lireRelief(relief, W, H) : null;
+  const niveau = niveaux ?? new Uint8Array(N);
+  const palette = new Uint32Array(film.clans.length * RELIEF_NIVEAUX);
   const [galR, galG, galB] = clanRgb(GAL === null ? null : (film.clans[GAL]?.color ?? null));
   const galMask = rgba(galR, galG, galB, 255);
   let focus = false;
@@ -199,19 +234,21 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
   let galDirty = true;
 
   function buildPalette(): void {
-    palette[0] = 0;
     const dim = focus || highlighted !== null;
-    for (let i = 1; i < palette.length; i++) {
-      const [r, g, b] = clanRgb(film.clans[i]?.color ?? null);
-      const keep = i === GAL || i === highlighted;
-      palette[i] = dim && !keep ? rgba(120, 130, 155, 95) : rgba(r, g, b, i === GAL ? 245 : 215);
+    for (let i = 1; i < film.clans.length; i++) {
+      const gris = dim && i !== GAL && i !== highlighted;
+      const base = gris ? DIM_RGB : clanRgb(film.clans[i]?.color ?? null);
+      for (let n = 0; n < RELIEF_NIVEAUX; n++) {
+        const [r, g, b] = niveaux ? teinteAuRelief(base, reliefDuNiveau(n)) : base;
+        palette[i * RELIEF_NIVEAUX + n] = rgba(r, g, b, gris ? DIM_ALPHA : 255);
+      }
     }
   }
 
   function repaint(): void {
     for (let i = 0; i < N; i++) {
       const v = owner[i]!;
-      pix[i] = palette[v]!;
+      pix[i] = palette[v * RELIEF_NIVEAUX + niveau[i]!]!;
       galPix[i] = v === GAL ? galMask : 0;
     }
     layerCtx.putImageData(image, 0, 0);
@@ -333,7 +370,7 @@ function mount(root: HTMLElement, film: StoredClanMapFilm, frames: DecodedFrames
       const v = owners[k]!;
       const previous = owner[cell]!;
       owner[cell] = v;
-      pix[cell] = palette[v]!;
+      pix[cell] = palette[v * RELIEF_NIVEAUX + niveau[cell]!]!;
       galPix[cell] = v === GAL ? galMask : 0;
       const x = cell % W;
       const y = Math.floor(cell / W);
@@ -1414,8 +1451,8 @@ function init(): void {
   const start = async () => {
     if (message) message.hidden = true;
     try {
-      const { film, frames, terrain, vagues } = await loadFilmData(root.dataset.assets ?? "", root.dataset.version);
-      mount(root, film, frames, terrain, vagues);
+      const { film, frames, terrain, vagues, relief } = await loadFilmData(root.dataset.assets ?? "", root.dataset.version);
+      mount(root, film, frames, terrain, vagues, relief);
     } catch (e) {
       console.warn("Film de la carte indisponible :", e);
       if (text) text.textContent = "Le film n'a pas pu être chargé. La carte finale et tous les chiffres restent affichés.";
