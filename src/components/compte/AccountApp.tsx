@@ -4,6 +4,7 @@ import type { AccesCarte, AttenteAllie } from "../../lib/alliance/types";
 import { basePath, call, signOut } from "../../lib/compte/api";
 import { ROLE_LABELS, type Me } from "../../lib/compte/types";
 import { fmtDate } from "../../lib/format";
+import { ADRESSE_VILLAGE, RETOUR_VILLAGE_KEY } from "../../lib/gaulois";
 import { CodeLogin, DiscordButton, DiscordGives, Loading, Problem, codeLoginShown, messageOf, useMe } from "./common";
 
 /** Lier son profil OpenFront et demander sa validation. */
@@ -157,32 +158,45 @@ function useAllie(me: Me | null): { tag: string; name: string; enAttente: boolea
   return access;
 }
 
-/** Revenir de Discord vers la carte de l'alliance : Discord ne ramène qu'ici, la carte l'a noté avant le départ. */
-function retourVersLaCarte(me: Me | null): boolean {
-  if (!me?.signed_in) return false;
-  let demande = false;
+/** Un retour noté au départ vers Discord ; un départ abandonné il y a plus d'un quart d'heure ne compte plus. */
+function retourDemande(cle: string): boolean {
   try {
-    // Noté au départ vers Discord ; un départ abandonné il y a plus d'un quart d'heure ne compte plus.
-    const depart = Number(sessionStorage.getItem(RETOUR_CARTE_KEY));
-    demande = Number.isFinite(depart) && depart > 0 && Date.now() - depart < 15 * 60_000;
-    sessionStorage.removeItem(RETOUR_CARTE_KEY);
+    const depart = Number(sessionStorage.getItem(cle));
+    sessionStorage.removeItem(cle);
+    return Number.isFinite(depart) && depart > 0 && Date.now() - depart < 15 * 60_000;
   } catch {
     return false;
   }
-  if (demande) location.replace(`${basePath()}${ADRESSE_ALLIANCE}`);
-  return demande;
+}
+
+/**
+ * Revenir de Discord vers la carte de l'alliance ou le village : Discord ne ramène qu'ici, la page l'a noté avant le départ.
+ * Le libellé de l'attente, ou `null` s'il n'y a nulle part où revenir.
+ */
+function retourApresDiscord(me: Me | null): string | null {
+  if (!me?.signed_in) return null;
+  if (retourDemande(RETOUR_CARTE_KEY)) {
+    location.replace(`${basePath()}${ADRESSE_ALLIANCE}`);
+    return "Retour à la carte de l'alliance…";
+  }
+  if (retourDemande(RETOUR_VILLAGE_KEY)) {
+    location.replace(`${basePath()}${ADRESSE_VILLAGE}`);
+    return "Retour au village…";
+  }
+  return null;
 }
 
 export default function AccountApp() {
   const { me, failed, refresh } = useMe();
   const allie = useAllie(me);
-  const [retour, setRetour] = useState(false);
+  const [retour, setRetour] = useState<string | null>(null);
   useEffect(() => {
-    if (retourVersLaCarte(me)) setRetour(true);
+    const attente = retourApresDiscord(me);
+    if (attente) setRetour(attente);
   }, [me]);
 
   if (me === null) return <Loading label="Lecture de votre compte…" />;
-  if (retour) return <Loading label="Retour à la carte de l'alliance…" />;
+  if (retour) return <Loading label={retour} />;
   if (failed) return <Problem message="Votre compte n'a pas pu être lu pour l'instant. Réessayez dans un moment." onRetry={() => void refresh()} />;
 
   if (!me.signed_in) {

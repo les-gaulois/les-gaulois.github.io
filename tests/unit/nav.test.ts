@@ -33,7 +33,10 @@ describe("sectionOf", () => {
   });
   it("met la liste des membres entre la page Membres et le QG", () => {
     expect(sectionOf("/liste")?.label).toBe("Membres");
-    expect(SECTIONS.find((s) => s.label === "Membres")?.pages.map((p) => p.href)).toEqual(["/membres", "/liste", "/qg"]);
+    expect(SECTIONS.find((s) => s.label === "Membres")?.pages.map((p) => p.href)).toEqual(["/membres", "/liste", "/village", "/qg"]);
+  });
+  it("range le village avec les membres, avant le QG", () => {
+    expect(sectionOf("/village")?.label).toBe("Membres");
   });
   it("ne range ni l'accueil ni les pages personnelles", () => {
     expect(sectionOf("/")).toBeNull();

@@ -33,7 +33,7 @@ import { SITE_URL, ficheImageUrl, ficheUrl, parseCommandes, parseFiches } from "
 import { currentMilestonesPeriod, homeMilestones, recentRecordLines, recentTerritoryRecord } from "../../src/lib/vie-du-clan";
 import { milestonesSinceMonday } from "../../src/lib/week-players";
 
-const PAGES = ["/", "/gazette", "/parties", "/nouveautes", "/classement", "/rivaux", "/progression", "/records", "/membres", "/liste", "/qg", "/carte", "/activite", "/debuter", "/rejoindre", "/mentions-legales"];
+const PAGES = ["/", "/gazette", "/parties", "/nouveautes", "/classement", "/rivaux", "/progression", "/records", "/membres", "/liste", "/village", "/qg", "/carte", "/activite", "/debuter", "/rejoindre", "/mentions-legales"];
 const lb = JSON.parse(readFileSync("data/leaderboard.json", "utf8"));
 const members = JSON.parse(readFileSync("data/members.json", "utf8"));
 const gal = lb.clans.find((c: { clanTag: string }) => c.clanTag === "GAL");
@@ -61,7 +61,7 @@ test("sans serveur configuré, la connexion n'apparaît pas et le site reste sta
   await page.goto("/carte");
   await expect(page.locator("[data-ouvre=\"alliance\"]")).toHaveCount(0);
   await expect(page.locator("[data-alliance-canvas]")).toHaveCount(0);
-  for (const path of ["/compte", "/direction", "/qg"]) {
+  for (const path of ["/compte", "/direction", "/qg", "/village"]) {
     await page.goto(path);
     await expect(page.getByTestId("auth-not-open")).toBeVisible();
   }
@@ -756,10 +756,11 @@ test("les images des commandes du robot sont publiées, chacune à son adresse",
 });
 
 // Le 12 novembre 2026, à la demande du pilote : la liste a son onglet, entre la page Membres et le QG, et n'est qu'à un endroit.
+// Le village (13 novembre 2026) se range entre la liste et le QG.
 test("la liste des membres a son onglet, entre la page Membres et le QG", async ({ page }) => {
   await page.goto("/membres");
   const tabs = page.getByTestId("section-nav").locator("a");
-  await expect(tabs).toHaveText(["Membres", "La liste", "Le QG"]);
+  await expect(tabs).toHaveText(["Membres", "La liste", "Le village", "Le QG"]);
   await expect(page.locator('astro-island[component-url*="MembersTable"]')).toHaveCount(0);
   await tabs.filter({ hasText: "La liste" }).click();
   await expect(page).toHaveURL(/\/liste\/?$/);

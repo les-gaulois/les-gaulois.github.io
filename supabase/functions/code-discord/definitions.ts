@@ -59,6 +59,8 @@ export const RIVAL_COMMAND = {
   options: [{ type: 3, name: "clan", description: "Le tag du clan : tapez le début, puis choisissez", required: true, autocomplete: true, max_length: 10 }],
 } as const;
 export const MOI_COMMAND = { name: "moi", type: 1, description: "Votre fiche, si le site vous a reconnu comme membre du clan" } as const;
+/** /gaulois (docs/DIRECTION.md, « Le village des Gaulois ») : le Gaulois en pixels de qui la tape, habillé au village du site. */
+export const GAULOIS_COMMAND = { name: "gaulois", type: 1, description: "Montrer à tous votre Gaulois en pixels, habillé au village du site" } as const;
 
 /** Le droit « Gérer les rôles » de Discord (1 << 28), en chiffres. */
 export const MANAGE_ROLES = "268435456";
@@ -131,4 +133,4 @@ export const CONCOURS_COMMAND = {
 } as const;
 
 /** Les commandes du serveur du clan : la fonction les crée ou les remet à jour, chacune à part (`inscription.ts`). */
-export const COMMANDS = [CODE_COMMAND, FICHE_COMMAND, CLAN_COMMAND, RECORDS_COMMAND, CARTE_COMMAND, GUIDE_COMMAND, RIVAL_COMMAND, MOI_COMMAND, ROLES_COMMAND, TICKETS_COMMAND, CONCOURS_COMMAND] as const;
+export const COMMANDS = [CODE_COMMAND, FICHE_COMMAND, CLAN_COMMAND, RECORDS_COMMAND, CARTE_COMMAND, GUIDE_COMMAND, RIVAL_COMMAND, MOI_COMMAND, GAULOIS_COMMAND, ROLES_COMMAND, TICKETS_COMMAND, CONCOURS_COMMAND] as const;
