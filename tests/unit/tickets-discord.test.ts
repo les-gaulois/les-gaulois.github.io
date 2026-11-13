@@ -805,6 +805,23 @@ describe("un ticket, du guichet à la fermeture", () => {
     expect((await send(w.deps, elsewhere)).data?.["content"]).toBe(TICKET_MESSAGES.stale);
   });
 
+  it("« Je m'en occupe » : un membre de l'encadrement prend aussi le ticket qu'il a ouvert, sans être mentionné", async () => {
+    // Le pilote, le 13 novembre 2026 : son propre ticket d'essai lui répondait « Seul l'encadrement prend un ticket en charge ».
+    const w = world();
+    const info = { kind: "question" as const, opener: OFFICER, staff: STAFF, journal: JOURNAL, logMessage: null, answers: [], openedAt: NOW };
+    const components = welcomeMessage(info)["components"];
+    const take = ticketCustomId({ action: "prendre", staff: STAFF, opener: OFFICER });
+    const res = await send(w.deps, click(take, OFFICER, components));
+    await w.settle();
+    expect(res.type).toBe(7);
+    expect(JSON.stringify(res.data)).toContain(`**Pris en charge par <@${OFFICER}>**`);
+    expect(w.hooks).toEqual([]);
+    expect(w.slept).toEqual([]);
+    // Le joueur qui a ouvert le sien, sans être de l'encadrement, reste refusé.
+    const own = welcomeMessage({ ...info, opener: PLAYER })["components"];
+    expect((await send(w.deps, click(ticketCustomId({ action: "prendre", staff: STAFF, opener: PLAYER }), PLAYER, own))).data?.["content"]).toBe(TICKET_MESSAGES.staffOnly);
+  });
+
   it("« Fermer le ticket » : le joueur ou l'encadrement confirment, la fermeture va au journal, puis le salon disparaît", async () => {
     const w = world();
     const { channel, welcome } = await openQuestion(w);

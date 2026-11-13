@@ -911,12 +911,14 @@ export async function ticketInteraction(interaction: Record<string, unknown>, de
     return deferred(true);
   }
   if (button && parsed.action === "prendre") {
-    if (!isStaff(member, parsed.staff) || member.id === parsed.opener) return ephemeral(TICKET_MESSAGES.staffOnly);
+    // L'encadrement prend un ticket, le sien compris (un essai, une question à un autre membre) ; un joueur, jamais.
+    if (!isStaff(member, parsed.staff)) return ephemeral(TICKET_MESSAGES.staffOnly);
     const now = deps.nowSeconds();
     const components = claimedComponents(record(interaction["message"])?.["components"], member.id, now);
     if (!components) return ephemeral(TICKET_MESSAGES.stale);
     const hook = original(interaction);
-    if (hook) deps.background(tellOpener(deps, hook, TICKET_MESSAGES.claimed(parsed.opener, member.id), parsed.opener));
+    // Le joueur est prévenu, sauf s'il prend lui-même son ticket.
+    if (hook && member.id !== parsed.opener) deps.background(tellOpener(deps, hook, TICKET_MESSAGES.claimed(parsed.opener, member.id), parsed.opener));
     return json({ type: 7, data: { flags: COMPONENTS_V2, components, allowed_mentions: quietly } });
   }
   if (button && parsed.action === "fermer") {
