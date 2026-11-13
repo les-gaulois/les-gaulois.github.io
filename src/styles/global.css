@@ -4919,7 +4919,7 @@ footer h2 {
   position: relative;
   /* Dans la console, le texte est celui d'un écran : un cran sous celui des pages de lecture, pour tenir dans une
      fenêtre, mais jamais petit. Ce qui se lit (les fenêtres) est à 15 ou 16 px ; seuls les repères posés sur la carte
-     (date, crédit, podium) et les noms de la rangée sur téléphone descendent à 12 ou 13 px. */
+     (date, crédit, podium) et les noms de la rangée sur téléphone descendent à 13 px, jamais moins. */
   --text-xs: 0.8125rem;
   --text-sm: 0.875rem;
   --text-base: 0.9375rem;
@@ -4999,61 +4999,9 @@ footer h2 {
 .film-map > canvas.est-saisie {
   cursor: grabbing;
 }
-/* À l'ouverture de la page, une seule bande de lumière descend la carte, comme une lecture, puis s'éteint : la même que
-   celle de la console du QG, que la carte cacherait. Au repos elle est invisible : avec le bouton pause ou « réduire les
-   animations », elle n'apparaît jamais. */
-.carte-balayage {
-  position: absolute;
-  top: 0;
-  right: 0;
-  left: 0;
-  z-index: 2;
-  height: 34%;
-  pointer-events: none;
-  opacity: 0;
-  background: linear-gradient(transparent, color-mix(in srgb, var(--console-vert) 7%, transparent) 70%, color-mix(in srgb, var(--console-vert) 22%, transparent) 97%, transparent);
-  animation: carte-balayage 2.6s cubic-bezier(0.45, 0, 0.3, 1) 0.4s;
-}
-@keyframes carte-balayage {
-  from {
-    opacity: 1;
-    transform: translateY(-100%);
-  }
-  80% {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-    transform: translateY(300%);
-  }
-}
-/* La mire : deux traits fins qui suivent la souris sur la carte. */
-.carte-mire {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  overflow: hidden;
-  pointer-events: none;
-}
-.carte-mire > i {
-  position: absolute;
-  top: 0;
-  left: 0;
-  background: color-mix(in srgb, var(--console-vert) 38%, transparent);
-}
-.carte-mire > i:first-child {
-  width: 1px;
-  height: 100%;
-}
-.carte-mire > i:last-child {
-  width: 100%;
-  height: 1px;
-}
 @media print, (forced-colors: active) {
   .film-map::before,
-  .film-map::after,
-  .carte-balayage,
-  .carte-mire {
+  .film-map::after {
     display: none;
   }
 }
@@ -5143,7 +5091,7 @@ footer h2 {
   align-items: flex-end;
   gap: 0.25rem;
   font-family: var(--font-console);
-  font-size: 0.6875rem;
+  font-size: 0.8125rem;
   white-space: nowrap;
   color: var(--color-muted);
   pointer-events: none;
@@ -5688,8 +5636,7 @@ footer h2 {
 :root.carte-console .carte-transport {
   grid-area: 2 / 1;
 }
-:root.carte-console .carte-panneaux,
-:root.carte-console .carte-reglages {
+:root.carte-console .carte-panneaux {
   grid-area: 3 / 1;
   min-height: 0;
   overflow-y: auto;
@@ -5697,11 +5644,6 @@ footer h2 {
 }
 :root.carte-console .carte-panneaux {
   padding: 0.5rem;
-}
-:root.carte-console .carte-reglages {
-  align-self: start;
-  max-height: calc(100% - 1rem);
-  margin: 0.5rem;
 }
 :root.carte-console .carte-dock {
   grid-area: 4 / 1;
@@ -5918,15 +5860,6 @@ footer h2 {
     overscroll-behavior: contain;
     pointer-events: auto;
   }
-  :root.carte-console .carte-reglages.est-ouverte {
-    z-index: 2;
-    grid-area: 1 / 1 / 2 / -1;
-    align-self: start;
-    justify-self: end;
-    width: min(29rem, calc(100% - 1.5rem));
-    max-height: calc(100% - 3.75rem);
-    margin: 3rem 0.75rem 0;
-  }
   :root.carte-console .carte-fenetre[data-fenetre] {
     font-size: 1rem;
   }
@@ -6090,8 +6023,7 @@ footer h2 {
     right: 0.75rem;
     max-width: none;
   }
-  :root.carte-console .carte-panneaux > [data-fenetre].est-ouverte,
-  :root.carte-console .carte-reglages.est-ouverte {
+  :root.carte-console .carte-panneaux > [data-fenetre].est-ouverte {
     max-height: calc(100% - 7rem);
   }
 }
@@ -6434,7 +6366,7 @@ footer h2 {
 .film-map:not([data-vue="alliance"]) :is([data-alliance-outils], .alliance-calque) {
   display: none;
 }
-.film-map[data-vue="alliance"] > :is(img, [data-film-canvas], .film-hud, .carte-outils:not(.alliance-outils), .film-caption, .film-tip, .carte-mire, .carte-balayage) {
+.film-map[data-vue="alliance"] > :is(img, [data-film-canvas], .film-hud, .carte-outils:not(.alliance-outils), .film-caption, .film-tip) {
   display: none;
 }
 /* La lecture du film n'a rien à faire ici : sa rangée se replie, et la carte de l'alliance gagne sa place. */
@@ -6446,7 +6378,7 @@ footer h2 {
     grid-template-rows: minmax(0, 1fr) 0 auto;
   }
 }
-:root.carte-console .carte[data-vue="alliance"] :is(.carte-transport, .carte-reglages:not(.est-ouverte), .carte-podium) {
+:root.carte-console .carte[data-vue="alliance"] :is(.carte-transport, .carte-podium) {
   display: none;
 }
 
@@ -6861,10 +6793,25 @@ footer h2 {
   border: 1px solid var(--color-warn);
   border-radius: 0.5rem;
 }
-/* Quand la rangée écrit le nom à côté de l'icône (grand écran), la pastille suit le nom au lieu de le couvrir. */
-@media (min-aspect-ratio: 5/4) and (min-width: 75rem) {
-  :root.carte-console .alliance-pastille {
+/* La rangée écrit le nom à côté de l'icône : sous la carte (trois par ligne), la pastille se pose sur le coin de l'entrée,
+   à cheval sur son bord, sans couvrir le nom ; dans le rail posé sur la carte, plus large, elle suit le nom. 13 px. */
+:root.carte-console .carte .alliance-pastille {
+  top: -0.375rem;
+  right: -0.375rem;
+  font-size: 0.8125rem;
+}
+/* L'entrée qui porte la pastille garde sa droite libre pour elle : le nom ne passe jamais dessous, même à 360 px. */
+:root.carte-console .carte .carte-dock-entree:has(> .alliance-pastille) {
+  gap: 0.375rem;
+  padding-right: 1.25rem;
+}
+@media (min-aspect-ratio: 5/4) and (min-width: 48rem) {
+  :root.carte-console .carte .alliance-pastille {
     position: static;
+  }
+  :root.carte-console .carte .carte-dock-entree:has(> .alliance-pastille) {
+    gap: 0.625rem;
+    padding-right: 0.875rem;
   }
 }
 
@@ -8018,11 +7965,10 @@ footer h2 {
   font-family: var(--font-sans);
 }
 
-/* --- Ce qui ne sert plus : les lignes d'écran, les viseurs, la mire, la bande de lumière et les commandes --- */
+/* --- Ce qui ne sert plus : les lignes d'écran, les viseurs et les commandes (la mire et la bande de lumière sont retirées
+   de la page) --- */
 .carte .film-map::after,
-.carte .film-map::before,
-.carte .carte-balayage,
-.carte .carte-mire {
+.carte .film-map::before {
   display: none;
 }
 .carte .carte-fenetre-corps[data-commande]::before,
@@ -8539,9 +8485,29 @@ footer h2 {
 :root.carte-console .carte .carte-podium > .carte-fenetre-corps {
   display: block;
 }
-/* La rangée sous la colonne : des onglets du site, cinq par ligne. */
+/* La rangée sous la colonne : des onglets du site, trois par ligne (six entrées depuis que Zones, Fronts et Réglages ont
+   quitté le rail), l'icône à côté du nom. */
 :root.carte-console .carte .carte-dock {
   padding: 0.375rem 0.5rem calc(0.375rem + env(safe-area-inset-bottom, 0px));
+}
+:root.carte-console .carte .carte-dock > ul {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+:root.carte-console .carte .carte-dock-entree {
+  flex-direction: row;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  font-size: 0.8125rem;
+}
+:root.carte-console .carte .carte-dock-entree .icone-partie {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+/* Les dates sous la frise du film, la mention sous la carte et la date du relevé : 13 px, jamais moins. */
+.carte .film-date,
+:root.carte-console .carte .carte-credit,
+:root.carte-console .carte .carte-session [data-testid="data-status"] {
+  font-size: 0.8125rem;
 }
 /* Quand tout s'empile, la carte est petite : la phrase d'un clan touché y est plus serrée. */
 @media (max-aspect-ratio: 1249/1000), (max-width: 47.9375rem) {
@@ -8550,9 +8516,13 @@ footer h2 {
     font-size: 0.8125rem;
   }
 }
-/* Sur un petit téléphone, le bouton de lecture garde son nom pour les lecteurs d'écran, et la frise sa place ; les
-   réglages s'ouvrent depuis la rangée. */
+/* Sur un petit téléphone, le bouton de lecture garde son nom pour les lecteurs d'écran, et la frise sa place ; la roue des
+   réglages se resserre, mais reste : c'est le seul bouton qui les ouvre. */
 @media (max-width: 29.99rem) {
+  .carte-transport-reglages {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
   .carte .carte-transport .film-play > [data-film-play-label] {
     position: absolute;
     width: 1px;
@@ -8566,9 +8536,6 @@ footer h2 {
   }
   .carte .carte-transport .film-hud-date {
     font-size: 0.8125rem;
-  }
-  .carte-transport-reglages {
-    display: none;
   }
 }
 /* Un téléphone peu haut (un iPhone SE avec la barre de son navigateur) : le titre et la pastille se tassent, pour laisser
@@ -8585,7 +8552,6 @@ footer h2 {
   }
   :root.carte-console .carte .carte-session [data-testid="data-status"] {
     margin-top: 0.125rem;
-    font-size: 0.75rem;
   }
   :root.carte-console .carte .carte-transport {
     margin: 0.25rem 0.5rem 0;
@@ -8593,6 +8559,13 @@ footer h2 {
   }
   :root.carte-console .carte .carte-transport .film-scrub {
     height: 3rem;
+  }
+  /* La rangée des entrées se tasse aussi : deux lignes plus basses, le nom toujours à 13 px. */
+  :root.carte-console .carte .carte-dock {
+    padding-block: 0.25rem calc(0.25rem + env(safe-area-inset-bottom, 0px));
+  }
+  :root.carte-console .carte .carte-dock-entree {
+    min-height: 2.25rem;
   }
 }
 
@@ -9057,16 +9030,6 @@ footer h2 {
   margin-top: 0.75rem;
 }
 
-/* --- La courbe des journées : posée sur la page, sous le même libellé que les chiffres --- */
-.carte[data-carte] .carte-courbe .chart-open {
-  padding-top: 0;
-  border-top: 0;
-}
-/* Le libellé de la courbe est une phrase (« Territoire à la fin de chaque jour ») : en Inter, pas en chasse fixe. */
-.carte[data-carte] .carte-fenetre:not([data-libre]) .carte-courbe .kpi-label {
-  font-family: var(--font-sans);
-  letter-spacing: 0.04em;
-}
 .carte[data-carte] .carte-fenetre .kpi-value {
   margin-top: 0.25rem;
   font-family: var(--font-sans);
@@ -9087,13 +9050,19 @@ footer h2 {
   margin-top: 0.5rem;
   overflow-x: auto;
 }
-/* Sous la courbe des journées : un filet, à la largeur du texte, puis le tableau. */
-.carte[data-carte] .carte-courbe {
+/* Sous la plus belle journée : un filet, à la largeur du texte, puis le tableau des journées (la courbe du territoire,
+   entre les deux, est retirée le 13 novembre 2026 à la demande du pilote). Sous les chiffres, les fronts de GAL, de même. */
+.carte[data-carte] .carte-cle:has(+ .carte-table-cadre) {
   padding-bottom: 1.125rem;
   border-bottom: 1px solid var(--hairline);
 }
-.carte[data-carte] .carte-courbe + .carte-table-cadre {
+.carte[data-carte] .carte-cle + .carte-table-cadre {
   margin-top: 1.125rem;
+}
+.carte[data-carte] .carte-fronts {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--hairline);
 }
 .carte[data-carte] .carte-table {
   width: 100%;
@@ -9319,14 +9288,6 @@ footer h2 {
   color: #fff;
 }
 .carte[data-carte] .carte-liste .film-tile[aria-current="true"] > .carte-date {
-  color: var(--texte-courant);
-}
-/* Les zones : le numéro à gauche, les pixels à droite, comme une ligne de tableau. */
-.carte[data-carte] .carte-liste-zones .film-tile {
-  grid-template-columns: minmax(0, 1fr) auto;
-}
-.carte[data-carte] .carte-liste-zones .carte-date {
-  font-size: 0.9375rem;
   color: var(--texte-courant);
 }
 

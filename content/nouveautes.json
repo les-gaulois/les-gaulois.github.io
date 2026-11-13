@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-13",
+    "kind": "retire",
+    "title": "Une carte plus simple",
+    "body": "Moins d'entrées sur la carte : les fronts sont dans « Chiffres », les réglages s'ouvrent par la roue du film. « Zones » et la courbe des journées sont retirées.",
+    "link": {
+      "href": "/carte",
+      "label": "Ouvrir la carte"
+    }
+  },
+  {
+    "date": "2026-11-13",
     "kind": "ameliore",
     "title": "La carte change d'allure",
     "body": "Plus de style console : la carte à gauche, le classement à droite, le film dans une pastille en bas. Toutes les fenêtres, l'alliance comprise, ont les tableaux et chiffres clés des autres pages.",

@@ -3,17 +3,16 @@ import Base from "../layouts/Base.astro";
 import DataStatus from "../components/DataStatus.astro";
 import Empty from "../components/Empty.astro";
 import Invite from "../components/Invite.astro";
-import TerritoryChart from "../components/TerritoryChart.tsx";
 import Fenetre from "../components/carte/Fenetre.astro";
 import AllianceApp from "../components/carte/alliance/AllianceApp";
 import { AUTH_ENABLED } from "../lib/compte/api";
 import IconePartie from "../components/compte/IconePartie";
 import { SITE_DISCLAIMER, SITE_LICENSE_NOTICE, clan } from "../../config/clan";
-import { FENETRES, type FenetreId } from "../lib/carte-console";
+import { FENETRES, dansLeRail, type FenetreId } from "../lib/carte-console";
 import { clanRgb } from "../lib/clanmap/codec";
 import { NEUTRAL_PIXEL_TROOPS, RULES_CHECKED_ON, TROOPS_PER_CAP, capsToTroops, neutralPixelsFor, objectiveFor } from "../lib/clanmap/economy";
 import { SPEED_MAX, SPEED_MIN, SPEED_STEP, speedLabel, speedText } from "../lib/fx/speed";
-import { changeSinceLastDay, dayHighlights, dayRows, parisDayOf, territorySeries, type DayRow } from "../lib/clanmap/days";
+import { changeSinceLastDay, dayHighlights, dayRows, parisDayOf, type DayRow } from "../lib/clanmap/days";
 import { findMoments, nextThreshold } from "../lib/clanmap/moments";
 import { TOP_SIZE } from "../lib/clanmap/replay";
 import { indexDesClans } from "../lib/clanmap/vue";
@@ -108,9 +107,8 @@ if (allianceOn) presentes.add("alliance");
 if (gal) presentes.add("objectif").add("chiffres");
 if (moments.length > 0) presentes.add("moments");
 if (days.length > 0) presentes.add("journees");
-if (gal && gal.zones.length > 0) presentes.add("zones");
-if (gal && gal.fronts.length > 0) presentes.add("fronts");
-const dock = FENETRES.filter((f) => presentes.has(f.id));
+// Le rail : les réglages n'y sont pas, la roue de la pastille du film les ouvre.
+const dock = FENETRES.filter((f) => presentes.has(f.id) && dansLeRail(f));
 ---
 
 {/* La carte, le classement en colonne (docs/DESIGN.md) : la carte à gauche, la fenêtre ouverte et le classement dans la
@@ -130,7 +128,7 @@ const dock = FENETRES.filter((f) => presentes.has(f.id));
         </div>
       </div>
     ) : (
-      <section class="carte" data-carte data-film data-assets={assets} data-version={version ?? undefined} data-version-etat={versionEtat ?? undefined} data-visit={visit ? JSON.stringify(visit) : undefined} aria-labelledby="map-page-title" style='--console-hote: "carte"'>
+      <section class="carte" data-carte data-film data-assets={assets} data-version={version ?? undefined} data-version-etat={versionEtat ?? undefined} data-visit={visit ? JSON.stringify(visit) : undefined} aria-labelledby="map-page-title">
         {/* Avant le premier affichage : la page tient dans l'écran, tout se passe sur la carte. Si le script de la page
             n'arrive pas, elle redevient une page ordinaire, qui défile, avec toutes ses fenêtres l'une sous l'autre. */}
         <script is:inline>
@@ -164,9 +162,6 @@ const dock = FENETRES.filter((f) => presentes.has(f.id));
               alt={`La carte officielle des clans à la fin de l'historique. ${galLine}`}
             />
             <canvas data-film-canvas hidden role="img" aria-label="Carte animée des territoires de clans. Les mêmes chiffres sont donnés en texte dans les fenêtres de la page."></canvas>
-            {/* Décoratifs : la bande de lumière qui passe une fois à l'ouverture, et la mire, deux traits qui suivent la souris. */}
-            <span class="carte-balayage" aria-hidden="true"></span>
-            <span class="carte-mire" data-film-mire hidden aria-hidden="true"><i></i><i></i></span>
             <div class="carte-outils" data-film-ready hidden>
               <button type="button" class="carte-touche" data-film-zoom="1" aria-label="Zoomer sur la carte"><span aria-hidden="true">+</span></button>
               <button type="button" class="carte-touche" data-film-zoom="-1" aria-label="Dézoomer la carte"><span aria-hidden="true">−</span></button>
@@ -438,9 +433,6 @@ const dock = FENETRES.filter((f) => presentes.has(f.id));
                     ))}
                   </div>
                 )}
-                <div class="carte-bloc carte-courbe">
-                  <TerritoryChart client:visible points={territorySeries(days)} />
-                </div>
                 <div class="carte-table-cadre">
                   <table class="data-table carte-table film-fronts tnum" data-testid="film-days">
                     <caption>Les journées de GAL sur la carte depuis son premier pixel, la plus récente d'abord, en heure de Paris. Territoire et place à la fin de la journée.</caption>
@@ -472,78 +464,6 @@ const dock = FENETRES.filter((f) => presentes.has(f.id));
                   </table>
                 </div>
                 <p class="carte-aide" data-film-ready hidden>Un clic sur un jour le rejoue sur la carte.</p>
-              </Fenetre>
-            )
-          }
-
-          {
-            gal && gal.zones.length > 0 && (
-              <Fenetre id="zones" film>
-                <Fragment slot="titre">Nos territoires</Fragment>
-                <p class="tnum carte-sur">Les {fmtInt(gal.zones.length)} plus grandes, sur {fmtInt(gal.zoneCount)} zones d'un seul tenant.</p>
-                <ul class="carte-liste carte-liste-zones">
-                  {gal.zones.map((z, i) => (
-                    <li>
-                      <button type="button" class="film-tile" data-film-look={`Zone ${i + 1} : ${fmtInt(z.pixels)} pixels`} data-x={z.x} data-y={z.y} data-half-width={z.halfWidth} data-half-height={z.halfHeight}>
-                        {/* Le nom lu reprend le texte visible, avec une pause entre le numéro et les pixels. */}
-                        <span class="carte-date">Zone {i + 1}<span class="sr-only"> :</span></span>
-                        <span class="tnum font-semibold">{fmtInt(z.pixels)} pixels</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </Fenetre>
-            )
-          }
-
-          {
-            gal && gal.fronts.length > 0 && (
-              <Fenetre id="fronts">
-                <Fragment slot="titre">Les fronts de GAL</Fragment>
-                <div class="carte-table-cadre">
-                  <table class="data-table carte-table film-fronts tnum" data-testid="film-fronts">
-                    <caption>Les {gal.fronts.length} clans avec lesquels GAL a échangé le plus de pixels, hors terres neutres.</caption>
-                    <thead>
-                      <tr>
-                        <th scope="col">Clan</th>
-                        <th scope="col" class="num">Pris</th>
-                        <th scope="col" class="num">Perdus</th>
-                        <th scope="col" class="num">Solde</th>
-                        <th scope="col" class="num">Frontière</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {gal.fronts.map((f) => (
-                        <tr>
-                          <td class="font-semibold">
-                            {f.at ? (
-                              <button
-                                type="button"
-                                class="film-front-link"
-                                data-film-look={`Front ${f.tag ?? "Clan supprimé"} : ${fmtInt(f.border)} pixels de frontière`}
-                                data-x={f.at[0]}
-                                data-y={f.at[1]}
-                                data-half-width="200"
-                                data-half-height="130"
-                                data-clan={f.clan}
-                                aria-label={`Voir le front avec ${f.tag ?? "ce clan"} sur la carte`}
-                              >
-                                {f.tag ?? "Clan supprimé"}
-                              </button>
-                            ) : (
-                              (f.tag ?? "Clan supprimé")
-                            )}
-                          </td>
-                          <td class="num">{fmtInt(f.taken)}</td>
-                          <td class="num">{fmtInt(f.lost)}</td>
-                          <td class="num font-semibold">{signed(f.taken - f.lost)}</td>
-                          <td class="num">{f.border > 0 ? fmtInt(f.border) : "—"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <p class="carte-aide">Un clic sur un clan montre ce front sur la carte.</p>
               </Fenetre>
             )
           }
@@ -594,11 +514,61 @@ const dock = FENETRES.filter((f) => presentes.has(f.id));
                   )
                 }
                 </div>
+                {/* Les fronts de GAL, une fenêtre à part jusqu'au 13 novembre 2026 : « front et chiffre tu peux fusionner ». */}
+                {gal.fronts.length > 0 && (
+                  <div class="carte-fronts">
+                    <h3>Les fronts de GAL</h3>
+                    <div class="carte-table-cadre">
+                      <table class="data-table carte-table film-fronts tnum" data-testid="film-fronts">
+                        <caption>Les {gal.fronts.length} clans avec lesquels GAL a échangé le plus de pixels, hors terres neutres.</caption>
+                        <thead>
+                          <tr>
+                            <th scope="col">Clan</th>
+                            <th scope="col" class="num">Pris</th>
+                            <th scope="col" class="num">Perdus</th>
+                            <th scope="col" class="num">Solde</th>
+                            <th scope="col" class="num">Frontière</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {gal.fronts.map((f) => (
+                            <tr>
+                              <td class="font-semibold">
+                                {f.at ? (
+                                  <button
+                                    type="button"
+                                    class="film-front-link"
+                                    data-film-look={`Front ${f.tag ?? "Clan supprimé"} : ${fmtInt(f.border)} pixels de frontière`}
+                                    data-x={f.at[0]}
+                                    data-y={f.at[1]}
+                                    data-half-width="200"
+                                    data-half-height="130"
+                                    data-clan={f.clan}
+                                    aria-label={`Voir le front avec ${f.tag ?? "ce clan"} sur la carte`}
+                                  >
+                                    {f.tag ?? "Clan supprimé"}
+                                  </button>
+                                ) : (
+                                  (f.tag ?? "Clan supprimé")
+                                )}
+                              </td>
+                              <td class="num">{fmtInt(f.taken)}</td>
+                              <td class="num">{fmtInt(f.lost)}</td>
+                              <td class="num font-semibold">{signed(f.taken - f.lost)}</td>
+                              <td class="num">{f.border > 0 ? fmtInt(f.border) : "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <p class="carte-aide">Un clic sur un clan montre ce front sur la carte.</p>
+                  </div>
+                )}
               </Fenetre>
             )
           }
 
-          {/* Les réglages du film, ouverts depuis le rail ou le bouton rond au bout de la pastille du film. */}
+          {/* Les réglages du film, ouverts par la roue au bout de la pastille du film : ils n'ont pas d'entrée dans le rail. */}
           <Fenetre id="reglages" film>
             <Fragment slot="titre">Réglages du film</Fragment>
             <div class="carte-reglages-corps">

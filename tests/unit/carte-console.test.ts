@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FENETRES, fenetreApresClic, fenetreApresFermeture, fenetreDeLAncre, fenetreInitiale, fenetreParDefaut, type FenetreId } from "../../src/lib/carte-console";
+import { FENETRES, dansLeRail, fenetreApresClic, fenetreApresFermeture, fenetreDeLAncre, fenetreInitiale, fenetreParDefaut, type FenetreId } from "../../src/lib/carte-console";
 import { ICONES_PARTIES } from "../../src/lib/icones-parties";
 
 /** Une page complète : GAL est sur la carte, toutes les fenêtres existent. */
@@ -13,17 +13,18 @@ describe("les fenêtres de la page Carte", () => {
     expect(new Set(ids).size).toBe(ids.length);
     for (const fenetre of FENETRES) {
       expect(fenetre.id, fenetre.id).toMatch(/^[a-z-]+$/);
-      // Huit lettres au plus : cinq entrées par ligne tiennent sur un téléphone de 360 px.
+      // Huit lettres au plus : trois entrées par ligne, l’icône à côté du nom, tiennent sur un téléphone de 360 px.
       expect(fenetre.label.length, fenetre.label).toBeLessThanOrEqual(8);
       expect(ICONES_PARTIES[fenetre.icon], fenetre.icon).toBeDefined();
     }
     // Deux fenêtres ne partagent pas la même icône.
     expect(new Set(FENETRES.map((f) => f.icon)).size).toBe(FENETRES.length);
-    // Neuf entrées avec l'alliance, huit sans la connexion du site : deux lignes de cinq au plus sur téléphone. « Légende » et
-    // « À propos », retirées le 13 novembre 2026 à la demande du pilote, ne reviennent pas.
-    expect(FENETRES).toHaveLength(9);
-    expect(FENETRES.map((f) => f.id)).not.toContain("legende");
-    expect(FENETRES.map((f) => f.id)).not.toContain("a-propos");
+    // Six entrées dans le rail avec l'alliance, cinq sans la connexion du site : deux lignes de trois au plus sur téléphone.
+    // Les réglages n'ont pas d'entrée : la roue de la pastille du film les ouvre. « Légende », « À propos » et « Zones »,
+    // retirées le 13 novembre 2026 à la demande du pilote, ne reviennent pas ; « Fronts » se lit dans « Chiffres ».
+    expect(FENETRES).toHaveLength(7);
+    expect(FENETRES.filter(dansLeRail).map((f) => f.id)).toEqual(["objectif", "clans", "alliance", "moments", "journees", "chiffres"]);
+    for (const retiree of ["legende", "a-propos", "zones", "fronts"]) expect(FENETRES.map((f) => f.id as string)).not.toContain(retiree);
   });
 
   it("le lien d'invitation d'un joueur allié ouvre la fenêtre de l'alliance", () => {
@@ -40,9 +41,12 @@ describe("les fenêtres de la page Carte", () => {
     expect(fenetreDeLAncre("#legende")).toBeNull();
     expect(fenetreDeLAncre("#a-propos")).toBeNull();
     expect(fenetreDeLAncre("clans")).toBe("clans");
-    // La page d'avant : « Revoir l'histoire » et « Les détails ».
+    // La page d'avant : « Revoir l'histoire » et « Les détails ». « Fronts », fusionnée dans « Chiffres » ; « Zones »,
+    // retirée, n'ouvre plus rien.
     expect(fenetreDeLAncre("#histoire")).toBe("moments");
     expect(fenetreDeLAncre("#details")).toBe("journees");
+    expect(fenetreDeLAncre("#fronts")).toBe("chiffres");
+    expect(fenetreDeLAncre("#zones")).toBeNull();
     expect(fenetreDeLAncre("")).toBeNull();
     expect(fenetreDeLAncre("#")).toBeNull();
     expect(fenetreDeLAncre("#inconnue")).toBeNull();
@@ -56,7 +60,8 @@ describe("les fenêtres de la page Carte", () => {
   });
 
   it("à l'arrivée, l'adresse l'emporte si la page contient sa fenêtre", () => {
-    expect(fenetreInitiale("#fronts", toutes)).toBe("fronts");
+    expect(fenetreInitiale("#journees", toutes)).toBe("journees");
+    expect(fenetreInitiale("#fronts", toutes)).toBe("chiffres");
     expect(fenetreInitiale("#reglages", toutes)).toBe("reglages");
     expect(fenetreInitiale("", toutes)).toBe("objectif");
     expect(fenetreInitiale("#inconnue", toutes)).toBe("objectif");
@@ -65,15 +70,15 @@ describe("les fenêtres de la page Carte", () => {
 
   it("une fenêtre reste toujours ouverte : recliquer son entrée ne la referme pas", () => {
     expect(fenetreApresClic("objectif", "moments", toutes)).toBe("moments");
-    expect(fenetreApresClic("moments", "zones", toutes)).toBe("zones");
-    expect(fenetreApresClic("zones", "zones", toutes)).toBe("zones");
+    expect(fenetreApresClic("moments", "chiffres", toutes)).toBe("chiffres");
+    expect(fenetreApresClic("chiffres", "chiffres", toutes)).toBe("chiffres");
     // Une entrée sans fenêtre dans la page ne change rien.
     expect(fenetreApresClic("clans", "objectif", sansGal)).toBe("clans");
   });
 
   it("fermer la carte de l'alliance ramène l'objectif ; la fenêtre par défaut ne se ferme pas", () => {
     expect(fenetreApresFermeture("alliance", toutes)).toBe("objectif");
-    expect(fenetreApresFermeture("fronts", toutes)).toBe("objectif");
+    expect(fenetreApresFermeture("chiffres", toutes)).toBe("objectif");
     expect(fenetreApresFermeture("objectif", toutes)).toBeNull();
     expect(fenetreApresFermeture("alliance", sansGal)).toBe("clans");
   });

@@ -22,9 +22,10 @@ const label = FENETRES.find((f) => f.id === id)?.label ?? id;
 const t = TEXTES_FENETRE.fr;
 ---
 
-{/* Une fenêtre de la console de la carte (docs/DESIGN.md, « La carte en console ») : une barre de titre avec son bouton
-    pour la fermer, une ligne de commande décorative, puis le titre et le contenu. Elle ne s'affiche que choisie dans la
-    rangée du bas ; sans script, toutes se lisent l'une après l'autre. `tabindex` : la fenêtre ouverte reçoit le focus. */}
+{/* Une fenêtre de la page Carte (docs/DESIGN.md, « La carte, le classement en colonne ») : une barre de titre, que seule
+    la fenêtre libre « Alliance » montre, avec son bouton pour la fermer, puis le titre et le contenu. Elle ne s'affiche
+    que choisie dans le rail (les réglages : par la roue de la pastille du film) ; sans script, toutes se lisent l'une après l'autre. `tabindex` : la fenêtre ouverte reçoit
+    le focus. */}
 <section
   id={id}
   class:list={["carte-fenetre", className]}
@@ -77,7 +78,7 @@ const t = TEXTES_FENETRE.fr;
         </div>
       )
     }
-    {/* Son « [x] » est dessiné par la feuille de style : le nom du bouton reste celui que lisent les lecteurs d'écran. */}
+    {/* Sa croix est dessinée par la feuille de style : le nom du bouton reste celui que lisent les lecteurs d'écran. */}
     <button type="button" class="carte-fermer" data-ferme aria-label={`Fermer la fenêtre ${label}`}></button>
   </div>
   <div class="carte-fenetre-corps" data-commande={id}>

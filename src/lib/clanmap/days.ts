@@ -2,7 +2,7 @@
  * Les vraies dates de la carte : ses journées, ses records et les repères de la frise.
  * Tout vient de l'historique officiel, daté par OpenFront, et se compte en jours de Paris.
  */
-import { dayRange, parisParts } from "../time";
+import { parisParts } from "../time";
 
 export interface DayData {
   date: string;
@@ -38,19 +38,6 @@ export function dayRows(days: readonly DayData[], frames: readonly { gal: number
     start: days[i - 1]?.frame ?? Math.max(0, firstFrame),
     complete: day.date < today,
   }));
-}
-
-/**
- * Le territoire à la fin de chaque journée terminée, pour le graphique.
- * Un jour sans aucun événement sur la carte reste un trou : le temps ne se resserre pas.
- */
-export function territorySeries(rows: readonly DayRow[]): { date: string; value: number | null }[] {
-  const finished = rows.filter((r) => r.complete);
-  const first = finished[0];
-  const last = finished.at(-1);
-  if (!first || !last) return [];
-  const pixels = new Map(finished.map((r) => [r.date, r.pixels]));
-  return dayRange(first.date, last.date).map((date) => ({ date, value: pixels.get(date) ?? null }));
 }
 
 /** L'évolution du territoire depuis la fin de la dernière journée terminée. `null` : aucune journée terminée. */
