@@ -7694,34 +7694,112 @@ footer h2 {
   image-rendering: pixelated;
 }
 
-/* La place : le décor du village en haut (decor.ts), le sol dessous, où se tiennent les Gaulois en rangées. Les couleurs
-   du ciel et de l'herbe sont celles du dessin. Une case du décor vaut 2 pixels sur téléphone, 3 au-delà (--place-case,
-   posée par l'écran). */
+/* La place : le village vivant (tâche « La vie du village », 13 novembre 2026 ; PlaceDuVillage.tsx, PlaceScene.tsx).
+   Cinq lieux qu'on ouvre par leur bouton ; la scène du lieu ouvert, dessinée en cases (lieux.ts) à la largeur de l'écran,
+   s'allonge vers le bas avec la foule, jamais de côté. Une case vaut 2 pixels sur téléphone et dans la foule, 3 sur un
+   écran large quand ils sont peu (--place-case, posée par l'écran). Les couleurs du décor sont celles du dessin : elles
+   suivent l'heure de Paris (lumiere.ts). */
 .place {
   display: grid;
   gap: 1rem;
   min-width: 0;
 }
+/* Les boutons des lieux : le nom, le nombre de Gaulois, et « vous y êtes ». Le lieu ouvert porte le marqueur rouge. */
+.vie-lieux {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+@media (min-width: 600px) {
+  .vie-lieux {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1024px) {
+  .vie-lieux {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+.vie-lieu {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  align-content: center;
+  gap: 0.125rem 0.5rem;
+  min-width: 0;
+  min-height: 3rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.375rem;
+  background: var(--color-surface);
+  color: #fff;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: left;
+  cursor: pointer;
+}
+.vie-lieu:hover {
+  border-color: var(--color-line-strong);
+}
+.vie-lieu[aria-pressed="true"] {
+  border-color: #fff;
+  background: var(--color-surface-2);
+  box-shadow: inset 0 -3px 0 var(--color-red);
+}
+.vie-lieu[data-vide] {
+  color: var(--color-muted);
+}
+.vie-lieu-icone {
+  flex: none;
+}
+.vie-lieu-nom {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.vie-lieu-compte {
+  font-family: var(--font-console);
+  font-variant-numeric: tabular-nums;
+}
+.vie-lieu-vous {
+  flex-basis: 100%;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  font-weight: 400;
+}
+/* La scène : le décor en fond, les Gaulois posés dessus à leur poste (place et pose réglées par l'écran, en cases). */
 .place-scene {
   --place-case: 2px;
-  --place-herbe: #1f4a2c;
+  position: relative;
+  min-height: 6rem;
   overflow: hidden;
   border: 1px solid var(--color-line);
   border-radius: 0.625rem;
-  background: var(--place-herbe);
+  background: var(--color-navy);
 }
 .place-decor {
-  position: relative;
-  height: calc(72 * var(--place-case));
-  overflow: hidden;
-  background: var(--color-navy);
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+/* Le feu : sa flamme, posée sur les bûches du décor, change d'image deux fois par seconde. Coupée, elle reste allumée. */
+.vie-feu {
+  position: absolute;
+  top: calc(var(--feu-y) * var(--place-case));
+  left: calc((var(--feu-x) - 8) * var(--place-case));
+  pointer-events: none;
+}
+.vie-flamme {
+  width: calc(17 * var(--place-case));
+  height: calc(12 * var(--place-case));
 }
 /* La fumée du feu : trois petits carrés qui montent lentement et s'effacent, l'un après l'autre. Sans mouvement (bouton
    pause, « réduire les animations »), ils restent posés au-dessus de la flamme. */
 .place-fumee {
   position: absolute;
-  left: calc(var(--feu-x) * var(--place-case));
-  top: calc(var(--feu-y) * var(--place-case));
+  top: 0;
+  left: calc(8 * var(--place-case));
 }
 .place-fumee i {
   position: absolute;
@@ -7762,69 +7840,58 @@ footer h2 {
     translate: calc(-4 * var(--place-case)) calc(-28 * var(--place-case));
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .place-fumee i {
-    animation: none;
-  }
+/* Un Gaulois dans la scène : sa boîte (48 cases sur 64 debout, coupée à table, couchée au lit), son dessin, son nom
+   dessous. L'écran le déplace d'une case à la fois : aucune transition, le pas est celui des pixels. */
+.vie-acteur {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(var(--vie-l) * var(--place-case));
+  height: calc(var(--vie-h) * var(--place-case));
+  -webkit-tap-highlight-color: transparent;
 }
-/* Le sol : l'herbe du décor, répétée (image posée par l'écran). Vide, il garde un peu de hauteur sous le feu. */
-.place-sol {
-  min-height: 2.5rem;
-  padding: 1rem 0.25rem 1.5rem;
-  background-color: var(--place-herbe);
-  image-rendering: pixelated;
+.vie-toile {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
-/* Les Gaulois, en rangées centrées qui passent à la ligne : seulement de haut en bas, jamais de côté. Un Gaulois fait
-   48 cases sur 64 ; une case vaut 2 pixels, 3 sur un écran large quand ils sont peu nombreux. */
-.place-foule {
-  --place-gaulois: 2px;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: flex-start;
-  gap: 1.125rem 0.25rem;
+.vie-adverse {
+  pointer-events: none;
 }
-@media (min-width: 768px) {
-  .place-sol {
-    padding: 1.25rem 1rem 2rem;
-  }
-  .place-foule {
-    gap: 1.5rem 0.75rem;
-  }
-  .place-foule[data-taille="grand"] {
-    --place-gaulois: 3px;
-    gap: 1.75rem 1.5rem;
-  }
-}
-.place-gaulois {
-  position: relative;
-  display: grid;
-  justify-items: center;
-  align-content: start;
-  gap: 0.25rem;
-  width: calc(48 * var(--place-gaulois) + 0.25rem);
-}
-/* L'ombre au sol, sous les pieds. */
-.place-gaulois::before {
+/* L'ombre au sol, sous les pieds de qui est debout. */
+.place-scene:is([data-lieu="place"], [data-lieu="bataille"]) .vie-acteur::before {
   content: "";
   position: absolute;
-  top: calc(64 * var(--place-gaulois) - 0.375rem);
+  top: calc(59 * var(--place-case));
   left: 50%;
-  width: calc(26 * var(--place-gaulois));
-  height: 0.625rem;
+  width: calc(26 * var(--place-case));
+  height: calc(5 * var(--place-case));
   translate: -50% 0;
   border-radius: 50%;
-  background: rgb(0 0 0 / 0.3);
+  background: rgb(0 0 0 / 0.28);
 }
-.place-gaulois-toile {
-  position: relative;
-  width: calc(48 * var(--place-gaulois));
-  height: calc(64 * var(--place-gaulois));
+.place-scene[data-lieu="place"] {
+  --vie-nom-l: 50;
+}
+.place-scene[data-lieu="bataille"] {
+  --vie-nom-l: 39;
+}
+.place-scene:is([data-lieu="taverne"], [data-lieu="reunion"]) {
+  --vie-nom-l: 37;
+}
+.place-scene[data-lieu="maisons"] {
+  --vie-nom-l: 70;
 }
 .place-nom {
-  position: relative;
-  max-width: 100%;
+  position: absolute;
+  top: calc(var(--vie-nom) * var(--place-case));
+  left: 50%;
+  width: max-content;
+  max-width: calc(var(--vie-nom-l) * var(--place-case));
   padding: 0.0625rem 0.375rem;
+  translate: -50% 0;
+  overflow: hidden;
   border-radius: 0.25rem;
   background: var(--color-night);
   color: #fff;
@@ -7832,10 +7899,11 @@ footer h2 {
   font-weight: 600;
   line-height: 1.25;
   text-align: center;
-  overflow-wrap: anywhere;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-/* Le sien : son nom en clair, et une flèche au-dessus de sa tête. Pas seulement une couleur. */
-.place-gaulois[data-moi] .place-nom {
+/* Le sien : son nom en clair, et une flèche au-dessus de lui. Pas seulement une couleur. */
+.vie-acteur[data-moi] .place-nom {
   background: #fff;
   color: var(--color-navy);
 }
@@ -7847,12 +7915,160 @@ footer h2 {
   border-inline: 0.4375rem solid transparent;
   border-top: 0.5625rem solid #fff;
 }
+/* Au survol ou au toucher : son nom en entier et ce qui le place là. La bulle : ce que le serveur lui fait dire, de
+   temps en temps, deux au plus à la fois (mouvement.ts). L'une et l'autre restent dans la scène : près d'un bord, elles
+   s'alignent sur lui. */
+.vie-info,
+.vie-bulle {
+  position: absolute;
+  bottom: calc(100% + 0.25rem);
+  left: 50%;
+  width: max-content;
+  max-width: min(14rem, 62vw);
+  padding: 0.25rem 0.5rem;
+  translate: -50% 0;
+  border-radius: 0.375rem;
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  text-align: center;
+  overflow-wrap: anywhere;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.8s ease,
+    visibility 0s 0.8s;
+}
+.vie-acteur[data-moi] > :is(.vie-info, .vie-bulle) {
+  bottom: calc(100% + 1rem);
+}
+.vie-acteur[data-bord="gauche"] > :is(.vie-info, .vie-bulle) {
+  left: 0;
+  translate: 0 0;
+}
+.vie-acteur[data-bord="droite"] > :is(.vie-info, .vie-bulle) {
+  right: 0;
+  left: auto;
+  translate: 0 0;
+}
+.vie-info {
+  border: 1px solid var(--color-line-strong);
+  background: var(--color-night);
+  color: var(--color-muted);
+}
+.vie-info-nom {
+  display: block;
+  color: #fff;
+  font-weight: 600;
+}
+.vie-bulle {
+  border-bottom-left-radius: 0;
+  background: #fff;
+  color: var(--color-navy);
+}
+.vie-acteur[data-parle] > .vie-bulle,
+.vie-acteur:hover > .vie-info,
+.vie-acteur[data-ouvert] > .vie-info {
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity 0.8s ease,
+    visibility 0s;
+}
+.vie-acteur:hover > .vie-info,
+.vie-acteur[data-ouvert] > .vie-info {
+  transition-duration: 0.15s, 0s;
+}
+.vie-acteur:hover > .vie-bulle,
+.vie-acteur[data-ouvert] > .vie-bulle {
+  opacity: 0;
+}
+.vie-acteur:is(:hover, [data-ouvert], [data-parle]) {
+  z-index: 9999 !important;
+}
+/* Qui dort : un « z » monte lentement de l'oreiller et s'efface. Sans mouvement, il reste posé. */
+.vie-ronfle {
+  position: absolute;
+  top: calc(-3 * var(--place-case));
+  left: calc(20 * var(--place-case));
+  color: #fff;
+  font-family: var(--font-console);
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.vie-ronfle::before {
+  content: "z";
+  content: "z" / "";
+  display: block;
+  opacity: 0.7;
+  animation: vie-ronfle 6s linear infinite;
+  animation-delay: var(--vie-retard, 0s);
+}
+@keyframes vie-ronfle {
+  from {
+    opacity: 0;
+    translate: 0 0.625rem;
+  }
+  30% {
+    opacity: 0.8;
+  }
+  to {
+    opacity: 0;
+    translate: 0.75rem -0.75rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .place-fumee i,
+  .vie-ronfle::before {
+    animation: none;
+  }
+  .vie-info,
+  .vie-bulle {
+    transition: none;
+  }
+}
+/* Sous la scène : le compte du lieu ouvert et ce qui y amène, puis l'heure du relevé. */
 .place-pied {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
-  gap: 0.5rem 1.5rem;
+  gap: 0.25rem 1.5rem;
+}
+/* « Qui est où » : la scène en texte, lieu par lieu, pour le clavier et les lecteurs d'écran comme pour qui cherche un nom. */
+.vie-liste {
+  margin-top: 1rem;
+}
+.vie-liste-titre {
+  color: #fff;
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+.vie-liste ul {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
+  gap: 0.375rem 1.5rem;
+  margin-top: 0.5rem;
+}
+.vie-liste li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.625rem;
+  min-width: 0;
+}
+.vie-liste-nom {
+  min-width: 0;
+  color: #fff;
+  overflow-wrap: anywhere;
+}
+.vie-liste-raison,
+.vie-liste-replique {
+  color: var(--color-muted);
+}
+.vie-liste-replique {
+  flex-basis: 100%;
+  overflow-wrap: anywhere;
 }
 .place-mot,
 .marche-mot {
