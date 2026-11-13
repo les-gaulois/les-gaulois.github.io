@@ -2919,7 +2919,172 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 }
 
 /* ---------- Direction, onglet Vue d'ensemble ---------- */
-/* Les règles propres à cet onglet (DirectionEnsemble.tsx, SiteHealth.tsx), sous la classe `dir-ensemble`. */
+/* Les règles propres à cet onglet (DirectionEnsemble.tsx, SiteHealth.tsx), sous la classe `dir-ensemble`.
+   Moins de hauteur qu'avant : quatre cases basses, puis l'état du site en lignes serrées. Chaque couleur porte son mot
+   (pastilles des pièces communes) ; le choix de la couleur et du mot est dans `src/lib/compte/direction-ensemble.ts`. */
+
+/* Les quatre cases : des liens vers la partie où l'on décide. Le trait de gauche et la pastille disent l'état ; le nombre
+   reste blanc. Au survol et au clavier, la bordure prend la couleur de l'état. */
+.dir-ensemble .dir-ensemble-cases {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+.dir-ensemble .dir-ensemble-case {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "nom nom"
+    "nombre etat";
+  align-items: center;
+  gap: 0.125rem 0.75rem;
+  min-height: 5.25rem;
+  padding: 0.625rem 0.875rem 0.625rem 1.125rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.375rem;
+  background: var(--color-surface);
+  box-shadow: inset 4px 0 0 var(--ton);
+  transition:
+    border-color 0.15s,
+    background-color 0.15s;
+}
+.dir-ensemble .dir-ensemble-case:hover,
+.dir-ensemble .dir-ensemble-case:focus-visible {
+  border-color: var(--ton);
+  background: color-mix(in srgb, var(--ton) 9%, var(--color-surface));
+}
+.dir-ensemble .dir-ensemble-nom {
+  grid-area: nom;
+  min-width: 0;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+.dir-ensemble .dir-ensemble-nombre {
+  grid-area: nombre;
+  font-size: 2rem;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+.dir-ensemble .dir-ensemble-etat {
+  grid-area: etat;
+  justify-self: end;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+/* L'état du site : une fenêtre de la console, plus basse qu'avant. */
+.dir-ensemble .dir-ensemble-site {
+  margin-top: 1rem;
+  padding: 0.875rem 1.125rem 0.25rem;
+}
+.dir-ensemble .dir-ensemble-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.375rem 1rem;
+}
+.dir-ensemble .dir-ensemble-resume {
+  font-size: 0.9375rem;
+}
+
+/* Une ligne par point : la pastille, le nom, le détail. Les pastilles sont dans une colonne de largeur fixe : d'un coup
+   d'œil, on voit laquelle n'est pas verte. Les lignes ne se cliquent pas : 40 px à l'écran suffisent. */
+.dir-ensemble .dir-ensemble-lignes {
+  margin-top: 0.625rem;
+}
+.dir-ensemble .dir-ensemble-ligne {
+  display: grid;
+  grid-template-columns: 5.75rem minmax(9rem, 15rem) minmax(0, 1fr);
+  grid-template-areas: "niveau source detail";
+  align-items: baseline;
+  gap: 0.125rem 0.875rem;
+  min-height: 2.25rem;
+  padding-block: 0.3125rem;
+}
+.dir-ensemble .dir-ensemble-ligne:hover {
+  background: none;
+}
+.dir-ensemble .dir-ensemble-source {
+  grid-area: source;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+.dir-ensemble .dir-ensemble-niveau {
+  grid-area: niveau;
+  white-space: nowrap;
+}
+/* Le détail en gris quand tout va bien ; en blanc quand la ligne est à voir, pour qu'il se lise en premier. */
+.dir-ensemble .dir-ensemble-detail {
+  grid-area: detail;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--color-muted);
+}
+.dir-ensemble .dir-ensemble-ligne[data-level="warn"] .dir-ensemble-detail {
+  color: #fff;
+}
+
+/* Les sources de l'API, repliées : le filet de la liste sert de séparation. Le sélecteur passe devant l'air que le thème
+   rouge donne à tout repli (`:root[data-theme="rouge"] .fold`). */
+.dir-ensemble details.dir-ensemble-sources.fold {
+  border-top: 0;
+  padding-block: 0.125rem;
+}
+.dir-ensemble .dir-ensemble-sources .dir-ensemble-lignes {
+  margin-top: 0;
+  margin-bottom: 0.625rem;
+}
+
+/* Tablette : les cases deux par deux. */
+@media (max-width: 63.9375rem) {
+  .dir-ensemble .dir-ensemble-cases {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+/* Téléphone : chaque case devient une ligne (le nom, la pastille, le nombre à droite), et le détail d'un point de l'état
+   passe sous son nom. Rien ne défile de côté. */
+@media (max-width: 39.9375rem) {
+  .dir-ensemble .dir-ensemble-cases {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.5rem;
+  }
+  .dir-ensemble .dir-ensemble-case {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "nom nombre"
+      "etat nombre";
+    gap: 0.25rem 0.75rem;
+    min-height: 4rem;
+    padding-block: 0.5rem;
+  }
+  .dir-ensemble .dir-ensemble-etat {
+    justify-self: start;
+  }
+  .dir-ensemble .dir-ensemble-nombre {
+    font-size: 1.75rem;
+    text-align: right;
+  }
+  .dir-ensemble .dir-ensemble-site {
+    padding-inline: 0.75rem;
+  }
+  .dir-ensemble .dir-ensemble-ligne {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "source niveau"
+      "detail detail";
+    padding-block: 0.5rem;
+  }
+  .dir-ensemble .dir-ensemble-niveau {
+    justify-self: end;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dir-ensemble .dir-ensemble-case {
+    transition: none;
+  }
+}
 
 /* ---------- Direction, onglet Activité du site ---------- */
 /* Les règles propres à cet onglet (DirectionActivite.tsx), sous la classe `dir-activite`. */
