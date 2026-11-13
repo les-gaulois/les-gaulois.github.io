@@ -404,8 +404,9 @@ export const StoredGameFile = z.object({
 export type StoredGameFile = z.infer<typeof StoredGameFile>;
 
 export const StoredClanMapFilm = z.object({
-  // 2 : film sans `neutralBorder`. 3 : film sans dates. Tous deux sont refaits au passage suivant de la collecte.
-  version: z.union([z.literal(2), z.literal(3), z.literal(4)]),
+  // 2 : film sans `neutralBorder`. 3 : film sans dates. 4 : cinq clans par image au lieu de dix. Tous sont refaits au
+  // passage suivant de la collecte.
+  version: z.union([z.literal(2), z.literal(3), z.literal(4), z.literal(5)]),
   fetchedAt: isoDate,
   // Numéro du dernier événement lu, et nombre d'événements rejoués.
   seq: count,

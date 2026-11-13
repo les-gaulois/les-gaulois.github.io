@@ -1,17 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { FENETRES, fenetreApresClic, fenetreApresEcran, fenetreDeLAncre, fenetreExiste, fenetreInitiale, fenetreParDefaut, type EcranConsole } from "../../src/lib/carte-console";
+import { FENETRES, fenetreApresClic, fenetreApresFermeture, fenetreDeLAncre, fenetreInitiale, fenetreParDefaut, type FenetreId } from "../../src/lib/carte-console";
 import { ICONES_PARTIES } from "../../src/lib/icones-parties";
 
-/** Un téléphone : tout s'empile, les réglages ont leur fenêtre. */
-const telephone: EcranConsole = { empile: true, large: false, reglagesPoses: false };
-/** Une tablette couchée ou une petite fenêtre : la carte prend tout, mais la place manque à côté de la frise. */
-const moyen: EcranConsole = { empile: false, large: false, reglagesPoses: false };
-/** Un ordinateur de 1 280 px : les réglages sont posés, l'objectif ne s'ouvre pas seul. */
-const bureau: EcranConsole = { empile: false, large: false, reglagesPoses: true };
-/** Un grand écran. */
-const grand: EcranConsole = { empile: false, large: true, reglagesPoses: true };
+/** Une page complète : GAL est sur la carte, toutes les fenêtres existent. */
+const toutes = (id: FenetreId) => FENETRES.some((f) => f.id === id);
+/** Une page sans GAL sur la carte : ni objectif, ni chiffres. */
+const sansGal = (id: FenetreId) => id !== "objectif" && id !== "chiffres";
 
-describe("les fenêtres de la console de la carte", () => {
+describe("les fenêtres de la page Carte", () => {
   it("chaque fenêtre a une ancre unique, un nom court et une icône dessinée", () => {
     const ids = FENETRES.map((f) => f.id);
     expect(new Set(ids).size).toBe(ids.length);
@@ -33,13 +29,14 @@ describe("les fenêtres de la console de la carte", () => {
   it("le lien d'invitation d'un joueur allié ouvre la fenêtre de l'alliance", () => {
     expect(fenetreDeLAncre("#invitation=0123456789abcdef0123456789abcdef")).toBe("alliance");
     expect(fenetreDeLAncre("#alliance")).toBe("alliance");
-    expect(fenetreInitiale("#invitation=0123456789abcdef0123456789abcdef", bureau)).toBe("alliance");
+    expect(fenetreInitiale("#invitation=0123456789abcdef0123456789abcdef", toutes)).toBe("alliance");
   });
 
   it("une ancre de l'adresse ouvre sa fenêtre, une ancienne ancre aussi, une inconnue rien", () => {
     expect(fenetreDeLAncre("#objectif")).toBe("objectif");
     expect(fenetreDeLAncre("#chiffres")).toBe("chiffres");
-    // Une fenêtre retirée n'ouvre plus rien : l'écran garde sa fenêtre par défaut.
+    expect(fenetreDeLAncre("#reglages")).toBe("reglages");
+    // Une fenêtre retirée n'ouvre plus rien : la page garde sa fenêtre par défaut.
     expect(fenetreDeLAncre("#legende")).toBeNull();
     expect(fenetreDeLAncre("#a-propos")).toBeNull();
     expect(fenetreDeLAncre("clans")).toBe("clans");
@@ -53,49 +50,31 @@ describe("les fenêtres de la console de la carte", () => {
     expect(fenetreDeLAncre("#%E0%A4%A")).toBeNull();
   });
 
-  it("les réglages n'ont une fenêtre que là où ils ne tiennent pas à côté de la frise", () => {
-    expect(fenetreExiste("reglages", telephone)).toBe(true);
-    expect(fenetreExiste("reglages", moyen)).toBe(true);
-    expect(fenetreExiste("reglages", bureau)).toBe(false);
-    expect(fenetreExiste("objectif", bureau)).toBe(true);
+  it("sans demande, l'objectif, en haut de la colonne ; les clans quand GAL n'est pas sur la carte", () => {
+    expect(fenetreParDefaut(toutes)).toBe("objectif");
+    expect(fenetreParDefaut(sansGal)).toBe("clans");
   });
 
-  it("sans demande : les clans sous la carte, l'objectif sur un grand écran, rien entre les deux", () => {
-    expect(fenetreParDefaut(telephone)).toBe("clans");
-    expect(fenetreParDefaut(moyen)).toBeNull();
-    expect(fenetreParDefaut(bureau)).toBeNull();
-    expect(fenetreParDefaut(grand)).toBe("objectif");
+  it("à l'arrivée, l'adresse l'emporte si la page contient sa fenêtre", () => {
+    expect(fenetreInitiale("#fronts", toutes)).toBe("fronts");
+    expect(fenetreInitiale("#reglages", toutes)).toBe("reglages");
+    expect(fenetreInitiale("", toutes)).toBe("objectif");
+    expect(fenetreInitiale("#inconnue", toutes)).toBe("objectif");
+    expect(fenetreInitiale("#objectif", sansGal)).toBe("clans");
   });
 
-  it("à l'arrivée, l'adresse l'emporte si sa fenêtre existe sur cet écran", () => {
-    expect(fenetreInitiale("#fronts", telephone)).toBe("fronts");
-    expect(fenetreInitiale("#fronts", bureau)).toBe("fronts");
-    expect(fenetreInitiale("", grand)).toBe("objectif");
-    expect(fenetreInitiale("#inconnue", telephone)).toBe("clans");
-    // Les réglages sont déjà à côté de la frise : l'écran garde sa fenêtre par défaut.
-    expect(fenetreInitiale("#reglages", grand)).toBe("objectif");
-    expect(fenetreInitiale("#reglages", bureau)).toBeNull();
-    expect(fenetreInitiale("#reglages", telephone)).toBe("reglages");
+  it("une fenêtre reste toujours ouverte : recliquer son entrée ne la referme pas", () => {
+    expect(fenetreApresClic("objectif", "moments", toutes)).toBe("moments");
+    expect(fenetreApresClic("moments", "zones", toutes)).toBe("zones");
+    expect(fenetreApresClic("zones", "zones", toutes)).toBe("zones");
+    // Une entrée sans fenêtre dans la page ne change rien.
+    expect(fenetreApresClic("clans", "objectif", sansGal)).toBe("clans");
   });
 
-  it("recliquer l'entrée ouverte la referme sur la carte, jamais quand tout s'empile", () => {
-    expect(fenetreApresClic(null, "moments", bureau)).toBe("moments");
-    expect(fenetreApresClic("moments", "zones", bureau)).toBe("zones");
-    expect(fenetreApresClic("zones", "zones", bureau)).toBeNull();
-    expect(fenetreApresClic("clans", "clans", telephone)).toBe("clans");
-    expect(fenetreApresClic("clans", "objectif", telephone)).toBe("objectif");
-    // Une entrée sans fenêtre sur cet écran ne change rien.
-    expect(fenetreApresClic("objectif", "reglages", grand)).toBe("objectif");
-  });
-
-  it("un écran qui change garde la fenêtre ouverte, sauf si elle n'y existe plus", () => {
-    expect(fenetreApresEcran("fronts", telephone)).toBe("fronts");
-    expect(fenetreApresEcran("fronts", grand)).toBe("fronts");
-    // Le téléphone tourné en paysage large : les réglages passent à côté de la frise.
-    expect(fenetreApresEcran("reglages", bureau)).toBeNull();
-    // Retour debout sans fenêtre : les clans reviennent sous la carte.
-    expect(fenetreApresEcran(null, telephone)).toBe("clans");
-    // Sur la carte, rien ne s'ouvre tout seul après coup.
-    expect(fenetreApresEcran(null, grand)).toBeNull();
+  it("fermer la carte de l'alliance ramène l'objectif ; la fenêtre par défaut ne se ferme pas", () => {
+    expect(fenetreApresFermeture("alliance", toutes)).toBe("objectif");
+    expect(fenetreApresFermeture("fronts", toutes)).toBe("objectif");
+    expect(fenetreApresFermeture("objectif", toutes)).toBeNull();
+    expect(fenetreApresFermeture("alliance", sansGal)).toBe("clans");
   });
 });

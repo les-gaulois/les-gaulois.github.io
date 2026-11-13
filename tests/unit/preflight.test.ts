@@ -23,6 +23,7 @@ const HEALTHY: Record<string, Route> = {
   "/rest/v1/rpc/get_mon_gaulois": { status: 401, body: {} },
   "/rest/v1/rpc/get_mes_stateres": { status: 401, body: {} },
   "/rest/v1/rpc/get_ma_boutique": { status: 401, body: {} },
+  "/rest/v1/rpc/get_marche": { status: 401, body: {} },
   "/rest/v1/profiles": { status: 401, body: {} },
   "/rest/v1/private_links": { status: 401, body: {} },
   "/rest/v1/admin_log": { status: 401, body: {} },
@@ -208,6 +209,30 @@ describe("le contrôle de la mise en ligne", () => {
     seen.length = 0;
     await run();
     expect(JSON.parse(seen.find((s) => s.url.endsWith("/rpc/acheter_objet"))?.body ?? "null")).toEqual({ p_emplacement: "tete", p_objet: "verification" });
+  });
+
+  it("bloque si un visiteur lit le marché ou la place du village, et signale le marché pas encore installé", async () => {
+    expect(await statusOf(HEALTHY, "ne lit pas le marché du village")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_marche": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "ne lit pas le marché du village")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_marche": { status: 200, body: { ok: true, solde: 0, offres: [], offres_max: 5 } } }, "ne lit pas le marché du village")).toBe("fail");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_marche": { status: 404, body: {} } }, "marché du village est installé")).toBe("warn");
+    expect(await statusOf(HEALTHY, "ne voit pas la place du village")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_village": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "ne voit pas la place du village")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_village": { status: 200, body: { ok: true, gaulois: [] } } }, "ne voit pas la place du village")).toBe("fail");
+  });
+
+  it("bloque si un visiteur vend, retire ou achète au marché, sans jamais désigner un objet ou une offre qui existe", async () => {
+    for (const label of ["ne met rien en vente", "ne retire pas d'offre du marché", "n'achète pas au marché"]) expect(await statusOf(HEALTHY, label)).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/mettre_en_vente": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "ne met rien en vente")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/mettre_en_vente": { status: 200, body: { ok: true, solde: 0, offres: [], offres_max: 5 } } }, "ne met rien en vente")).toBe("fail");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/retirer_offre": { status: 200, body: { ok: true } } }, "ne retire pas d'offre du marché")).toBe("fail");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/acheter_offre": { status: 200, body: { ok: true } } }, "n'achète pas au marché")).toBe("fail");
+    seen.length = 0;
+    await run();
+    const corps = (fn: string) => JSON.parse(seen.find((s) => s.url.endsWith(`/rpc/${fn}`))?.body ?? "null");
+    expect(corps("mettre_en_vente")).toEqual({ p_emplacement: "tete", p_objet: "verification", p_prix: 1 });
+    expect(corps("retirer_offre")).toEqual({ p_id: 0 });
+    expect(corps("acheter_offre")).toEqual({ p_id: 0 });
   });
 
   it("dit si la fonction code-discord est déployée et réglée, et ne bloque qu'une fois la connexion par code ouverte", async () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { clanRgb, decodeFrames, encodeFrames } from "../../src/lib/clanmap/codec";
-import { FRAME_BASE, FRAME_MAX, analyzeTerritory, bucketSize, replayHistory, type EventLog } from "../../src/lib/clanmap/replay";
+import { FRAME_BASE, FRAME_MAX, TOP_SIZE, analyzeTerritory, bucketSize, replayHistory, type EventLog } from "../../src/lib/clanmap/replay";
 import { OFFICIAL_MAP, blendOwners, countLand } from "../../src/lib/clanmap/terrain";
 
 const WIDTH = 8;
@@ -281,15 +281,19 @@ describe("rejeu de l'historique", () => {
   it("classe les clans par pixels et note GAL quand il sort du top", () => {
     const events: [number, number, number][] = [];
     let i = 0;
-    for (const [clan, n] of [[1, 7], [2, 6], [3, 5], [4, 4], [5, 3], [43, 2]] as const) {
+    // Un clan de plus que le classement n'en garde, chacun avec deux pixels, puis GAL avec un seul : il en sort.
+    const clans: [number, number][] = Array.from({ length: TOP_SIZE + 1 }, (_, k) => [k + 1, 2]);
+    const tous: [number, number][] = [...clans, [43, 1]];
+    for (const [clan, n] of tous) {
       for (let k = 0; k < n; k++, i++) events.push([i % WIDTH, Math.floor(i / WIDTH), clan]);
     }
     const frame = replayHistory(logOf(events), options).frames[0];
-    expect(frame?.top).toHaveLength(5);
-    expect(frame?.top[0]?.[1]).toBe(7);
-    expect(frame?.rank).toBe(6);
-    expect(frame?.gal).toBe(2);
-    expect(frame?.total).toBe(27);
+    expect(frame?.top).toHaveLength(TOP_SIZE);
+    expect(frame?.top[0]?.[1]).toBe(2);
+    expect(frame?.top.some(([clan]) => clan === 43)).toBe(false);
+    expect(frame?.rank).toBe(TOP_SIZE + 2);
+    expect(frame?.gal).toBe(1);
+    expect(frame?.total).toBe(2 * (TOP_SIZE + 1) + 1);
   });
 
   it("le film reconstruit le territoire à échelle réduite", () => {

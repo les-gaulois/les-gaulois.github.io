@@ -206,7 +206,7 @@ export default function AllianceVue({ ctx, mode, setMode }: { ctx: Contexte; mod
                 const solde = bouge ? bouge.pris - bouge.perdus : 0;
                 const vieille = declare !== null && declarationAncienne(declare.at, maintenant);
                 return (
-                  <tr>
+                  <tr class={c.tag === "GAL" ? "est-gal" : undefined}>
                     <th scope="row">
                       <Pastille couleur={couleursClans.get(c.tag) ?? 0} />
                       {c.tag}

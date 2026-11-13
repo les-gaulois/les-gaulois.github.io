@@ -1,25 +1,26 @@
 /**
- * La console de la page Carte : la page tient dans l'écran, et tout se lit dans des fenêtres ouvertes depuis la rangée du
- * bas, sur la carte. Demande du pilote, le 12 novembre 2026 : « tout interactible depuis la carte », « on ne peut plus
- * descendre en bas de la page ». Ici, seulement la liste des fenêtres et leurs règles ; le navigateur les applique dans
- * `src/scripts/carte-console.ts`. Voir « La carte en console » dans docs/DESIGN.md.
+ * La page Carte tient dans l'écran (demande du pilote, le 12 novembre 2026 : « tout interactible depuis la carte », « on
+ * ne peut plus descendre en bas de la page »). Depuis le 13 novembre 2026 au soir (« le classement en colonne », avec « le
+ * film flottant », choisis par le pilote sur maquettes) : sur un écran large, la carte à gauche et une colonne à droite où
+ * se lit la fenêtre ouverte au-dessus du classement ; les entrées en rail sur la carte, le film dans une pastille posée en
+ * bas de la carte. Sur téléphone, tout s'empile. Une fenêtre est toujours ouverte, l'objectif d'abord. Ici, la liste des
+ * fenêtres et leurs règles ; le navigateur les applique dans `src/scripts/carte-console.ts`. Voir « La carte, le
+ * classement en colonne » dans docs/DESIGN.md.
  */
 import type { IconePartieNom } from "./icones-parties";
 
 export interface Fenetre {
   /** L'ancre de la fenêtre dans l'adresse : `/carte#objectif`. */
   id: string;
-  /** Le nom court, dans la rangée du bas : huit lettres au plus, pour tenir sur un téléphone de 360 px. */
+  /** Le nom court, dans le rail : huit lettres au plus, pour tenir sur un téléphone de 360 px. */
   label: string;
   /** L'icône en pixels, à côté du nom (`src/lib/icones-parties.ts`). */
   icon: IconePartieNom;
   /** `true` : la fenêtre ne sert qu'une fois le film chargé, et son entrée n'apparaît qu'alors. */
   film?: boolean;
-  /** `true` : sur un grand écran, son contenu est posé à côté de la frise, et la fenêtre n'existe pas. */
-  etroit?: boolean;
 }
 
-/** Dans l'ordre de la rangée : cinq par ligne sur téléphone. */
+/** Dans l'ordre du rail : de haut en bas sur la carte, cinq par ligne sur téléphone. */
 export const FENETRES = [
   { id: "objectif", label: "Objectif", icon: "cible" },
   { id: "clans", label: "Clans", icon: "boucliers" },
@@ -30,7 +31,7 @@ export const FENETRES = [
   { id: "zones", label: "Zones", icon: "fanion", film: true },
   { id: "fronts", label: "Fronts", icon: "epees" },
   { id: "chiffres", label: "Chiffres", icon: "encoches" },
-  { id: "reglages", label: "Réglages", icon: "roue", film: true, etroit: true },
+  { id: "reglages", label: "Réglages", icon: "roue", film: true },
   // « Légende » et « À propos », retirées le 13 novembre 2026 à la demande du pilote (« de trop ») : le crédit posé sur la
   // carte mène aux mentions légales, où sont la licence du fond de carte et le lien que la loi veut sur chaque page.
 ] as const satisfies readonly Fenetre[];
@@ -40,22 +41,8 @@ export type FenetreId = (typeof FENETRES)[number]["id"];
 /** Les ancres de la page quand elle se lisait de haut en bas, avant le 12 novembre 2026 : un ancien lien ouvre encore quelque chose. */
 const ANCIENNES_ANCRES: Record<string, FenetreId> = { histoire: "moments", details: "journees" };
 
-/** La largeur à partir de laquelle la fenêtre de l'objectif s'ouvre d'elle-même : en dessous, elle couvrirait le territoire de GAL. */
-export const LARGEUR_OBJECTIF_OUVERT = "85rem";
-/** La largeur à partir de laquelle les réglages du film tiennent à côté de la frise. */
-export const LARGEUR_REGLAGES_POSES = "75rem";
-/** L'écran où la carte prend tout, les fenêtres posées dessus : assez large, et plus large que haut. Sinon, tout s'empile. */
+/** L'écran où la carte et la colonne sont côte à côte : assez large, et plus large que haut. Sinon, tout s'empile. */
 export const ECRAN_POSE = "(min-aspect-ratio: 5/4) and (min-width: 48rem)";
-
-/** L'écran, pour les règles des fenêtres. */
-export interface EcranConsole {
-  /** La carte en haut, les fenêtres dessous (téléphone, tablette debout). */
-  empile: boolean;
-  /** Assez large pour ouvrir l'objectif d'emblée. */
-  large: boolean;
-  /** Les réglages du film sont posés à côté de la frise : pas de fenêtre « Réglages ». */
-  reglagesPoses: boolean;
-}
 
 /** La fenêtre que demande une ancre de l'adresse. `null` : aucune, ou une ancre inconnue. */
 export function fenetreDeLAncre(hash: string): FenetreId | null {
@@ -71,42 +58,30 @@ export function fenetreDeLAncre(hash: string): FenetreId | null {
   return FENETRES.find((f) => f.id === id)?.id ?? ANCIENNES_ANCRES[id] ?? null;
 }
 
-/** Cette fenêtre existe-t-elle sur cet écran ? Les réglages n'en ont pas quand ils sont posés à côté de la frise. */
-export function fenetreExiste(id: FenetreId, ecran: EcranConsole): boolean {
-  const fenetre = FENETRES.find((f) => f.id === id);
-  return fenetre !== undefined && !("etroit" in fenetre && fenetre.etroit && ecran.reglagesPoses);
+/** Les fenêtres que la page contient : une fenêtre sans rien à montrer (l'objectif, sans GAL sur la carte) n'existe pas. */
+export type Existe = (id: FenetreId) => boolean;
+
+/** La fenêtre ouverte sans demande : l'objectif, en haut de la colonne ; les clans si la page n'a pas d'objectif. */
+export function fenetreParDefaut(existe: Existe): FenetreId {
+  return existe("objectif") ? "objectif" : "clans";
 }
 
-/**
- * La fenêtre ouverte sans demande : les clans sous la carte quand tout s'empile (le podium du film y est), l'objectif sur
- * un grand écran, rien entre les deux, où une fenêtre couvrirait le territoire de GAL.
- */
-export function fenetreParDefaut(ecran: EcranConsole): FenetreId | null {
-  if (ecran.empile) return "clans";
-  return ecran.large ? "objectif" : null;
-}
-
-/** La fenêtre ouverte à l'arrivée : celle de l'adresse si elle existe sur cet écran, sinon celle par défaut. */
-export function fenetreInitiale(hash: string, ecran: EcranConsole): FenetreId | null {
+/** La fenêtre ouverte à l'arrivée : celle de l'adresse si la page la contient, sinon celle par défaut. */
+export function fenetreInitiale(hash: string, existe: Existe): FenetreId {
   const demandee = fenetreDeLAncre(hash);
-  return demandee && fenetreExiste(demandee, ecran) ? demandee : fenetreParDefaut(ecran);
+  return demandee && existe(demandee) ? demandee : fenetreParDefaut(existe);
+}
+
+/** La fenêtre ouverte après un clic sur une entrée : la sienne. Recliquer l'entrée ouverte ne la referme pas. */
+export function fenetreApresClic(ouverte: FenetreId, cliquee: FenetreId, existe: Existe): FenetreId {
+  return existe(cliquee) ? cliquee : ouverte;
 }
 
 /**
- * La fenêtre ouverte après un clic sur une entrée de la rangée. Sur la carte, recliquer l'entrée ouverte la referme ;
- * quand tout s'empile, une fenêtre reste toujours ouverte sous la carte.
+ * La fenêtre ouverte quand on ferme celle qui a une barre (la carte de l'alliance, libre sur la carte) ou qu'on appuie sur
+ * Échap : celle par défaut revient. `null` : rien à fermer, la fenêtre par défaut est déjà ouverte.
  */
-export function fenetreApresClic(ouverte: FenetreId | null, cliquee: FenetreId, ecran: EcranConsole): FenetreId | null {
-  if (!fenetreExiste(cliquee, ecran)) return ouverte;
-  if (ouverte === cliquee) return ecran.empile ? ouverte : null;
-  return cliquee;
-}
-
-/**
- * La fenêtre ouverte après un changement d'écran (rotation, fenêtre du navigateur redimensionnée) : celle qui n'existe
- * plus se referme, et un écran empilé retrouve toujours une fenêtre.
- */
-export function fenetreApresEcran(ouverte: FenetreId | null, ecran: EcranConsole): FenetreId | null {
-  const gardee = ouverte && fenetreExiste(ouverte, ecran) ? ouverte : null;
-  return gardee ?? (ecran.empile ? fenetreParDefaut(ecran) : null);
+export function fenetreApresFermeture(ouverte: FenetreId, existe: Existe): FenetreId | null {
+  const parDefaut = fenetreParDefaut(existe);
+  return ouverte === parDefaut ? null : parDefaut;
 }

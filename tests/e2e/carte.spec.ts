@@ -45,14 +45,14 @@ const openWindow = async (page: Page, id: string) => {
   await expect(windowOf(page, id)).toBeVisible();
 };
 
-/**
- * Les réglages du film (vitesse, griser les autres, revoir la dernière journée) : posés à côté de la frise sur un grand
- * écran, dans leur fenêtre ailleurs.
- */
+/** Les réglages du film (vitesse, griser les autres, revoir la dernière journée) : leur fenêtre, sur tous les écrans. */
 const showSettings = async (page: Page) => {
-  if (await entry(page, "reglages").isVisible()) await openWindow(page, "reglages");
+  await openWindow(page, "reglages");
   await expect(page.getByTestId("film-speed")).toBeVisible();
 };
+
+/** L'écran où la carte et la colonne sont côte à côte. */
+const pose = (page: Page) => page.evaluate((media) => matchMedia(media).matches, ECRAN_POSE);
 
 /** Laisse au film le temps de dessiner : le zoom et le centre lus par les tests sont ceux de la dernière image dessinée. */
 const drawn = (page: Page) => page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
@@ -132,7 +132,7 @@ test.describe("film de la carte", () => {
     await page.goto("/carte");
     await expect(page.getByTestId("data-status")).toContainText("Dernière mise à jour");
     await expect(page.getByTestId("film-gal")).toContainText(String(film.galSummary.rank));
-    // Le podium est sous les yeux à l'arrivée : posé sur la carte, ou avec les clans sous elle sur téléphone.
+    // Le classement est là à l'arrivée, sous l'objectif : dans la colonne de droite, ou sous la carte sur téléphone.
     await expect(page.getByText("pas le classement des clans").first()).toBeVisible();
 
     await openWindow(page, "objectif");
@@ -162,8 +162,9 @@ test.describe("film de la carte", () => {
     expect(await page.locator("[data-carte]").evaluate((el) => (el.textContent ?? "").includes(" "))).toBe(false);
   });
 
-  // Demande du pilote, le 12 novembre 2026 : « tout interactible depuis la carte », « on ne peut plus descendre en bas de la page ».
-  test("la page tient dans l'écran : rien ne défile, et tout s'ouvre depuis la rangée du bas", async ({ page }) => {
+  // Demande du pilote, le 12 novembre 2026 : « tout interactible depuis la carte », « on ne peut plus descendre en bas de la
+  // page ». Depuis le 13 novembre au soir, une fenêtre est toujours ouverte, l'objectif d'abord.
+  test("la page tient dans l'écran : rien ne défile, et tout s'ouvre depuis le rail des entrées", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/carte");
     await expect(playButton(page)).toBeVisible();
@@ -174,14 +175,24 @@ test.describe("film de la carte", () => {
     expect(await pageScroll(page)).toBe(0);
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
 
-    // La rangée : une entrée par fenêtre, dans l'ordre. Sur un grand écran, les réglages sont posés à côté de la frise.
-    const wide = (page.viewportSize()?.width ?? 0) >= 1200;
+    // Le rail : une entrée par fenêtre, dans l'ordre, sur tous les écrans.
     // Les tests tournent sans la connexion du site : la fenêtre de l'alliance n'existe pas, le site reste statique.
-    const names = FENETRES.filter((f) => f.id !== "alliance" && !(wide && "etroit" in f && f.etroit)).map((f) => f.label);
+    const names: string[] = FENETRES.filter((f) => f.id !== "alliance").map((f) => f.label);
     await expect(dock(page).getByRole("link").filter({ visible: true })).toHaveText(names);
-    // Sous la carte (téléphone), les clans sont ouverts à l'arrivée ; sur un écran de 1 280 px, rien ne couvre la carte.
-    await expect(openWindows(page)).toHaveCount(wide ? 0 : 1);
-    if (!wide) await expect(entry(page, "clans")).toHaveAttribute("aria-current", "true");
+    // L'objectif est ouvert à l'arrivée, sur tous les écrans.
+    await expect(openWindows(page)).toHaveCount(1);
+    await expect(entry(page, "objectif")).toHaveAttribute("aria-current", "true");
+    // Sur un écran large, le rail est posé sur la carte, sous le titre, et la pastille du film en bas, sans se toucher.
+    if (await pose(page)) {
+      const carte = (await page.getByTestId("film-map").boundingBox())!;
+      const session = (await page.locator(".carte-session").boundingBox())!;
+      const rail = (await dock(page).boundingBox())!;
+      const pastille = (await page.locator(".carte-transport").boundingBox())!;
+      expect(rail.x).toBeGreaterThanOrEqual(carte.x);
+      expect(rail.y).toBeGreaterThanOrEqual(session.y + session.height);
+      expect(rail.y + rail.height).toBeLessThanOrEqual(pastille.y);
+      expect(pastille.y + pastille.height).toBeLessThanOrEqual(carte.y + carte.height);
+    }
 
     // Chaque entrée ouvre sa fenêtre, une seule à la fois, et la page ne défile toujours pas.
     for (const fenetre of FENETRES.filter((f) => names.includes(f.label))) {
@@ -198,36 +209,22 @@ test.describe("film de la carte", () => {
       expect(await windowOf(page, fenetre.id).evaluate((el) => el.scrollWidth - el.clientWidth), fenetre.id).toBeLessThanOrEqual(0);
     }
 
-    // Recliquer l'entrée ouverte : la fenêtre se ferme sur la carte ; sous la carte, il en reste toujours une.
+    // Recliquer l'entrée ouverte, ou appuyer sur Échap, ne ferme rien : une fenêtre est toujours ouverte, sans bouton pour
+    // la fermer.
     await entry(page, "fronts").click();
     await entry(page, "fronts").click();
-    if (wide) {
-      await expect(openWindows(page)).toHaveCount(0);
-      expect(new URL(page.url()).hash).toBe("");
-      // Le bouton de la barre de titre et la touche Échap ferment aussi, et rendent le focus à l'entrée.
-      await entry(page, "fronts").click();
-      await page.getByRole("button", { name: "Fermer la fenêtre Fronts" }).click();
-      await expect(openWindows(page)).toHaveCount(0);
-      await expect(entry(page, "fronts")).toBeFocused();
-      await page.keyboard.press("Enter");
-      await expect(windowOf(page, "fronts")).toBeVisible();
-      await page.keyboard.press("Escape");
-      await expect(openWindows(page)).toHaveCount(0);
-      await expect(entry(page, "fronts")).toBeFocused();
-      // Un menu de l'en-tête ouvert passe avant la fenêtre : Échap ferme le menu, pas elle, et lui rend le focus.
-      await entry(page, "fronts").click();
-      const menu = page.getByTestId("nouveautes-menu");
-      await menu.locator("summary").click();
-      await expect(page.getByTestId("nouveautes-panel")).toBeVisible();
-      await page.keyboard.press("Escape");
-      await expect(page.getByTestId("nouveautes-panel")).toBeHidden();
-      await expect(windowOf(page, "fronts")).toBeVisible();
-      await expect(menu.locator("summary")).toBeFocused();
-      await page.keyboard.press("Escape");
-      await expect(openWindows(page)).toHaveCount(0);
-    } else {
-      await expect(windowOf(page, "fronts")).toBeVisible();
-      await expect(page.getByRole("button", { name: "Fermer la fenêtre Fronts" })).toBeHidden();
+    await expect(windowOf(page, "fronts")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Fermer la fenêtre Fronts" })).toBeHidden();
+    await page.keyboard.press("Escape");
+    await expect(windowOf(page, "fronts")).toBeVisible();
+    expect(new URL(page.url()).hash).toBe("#fronts");
+    // Le bouton rond au bout de la pastille du film ouvre aussi les réglages (sauf sur un petit téléphone, où seule la
+    // rangée les ouvre).
+    const rond = page.getByRole("link", { name: "Réglages du film" });
+    if (await rond.isVisible()) {
+      await rond.click();
+      await expect(windowOf(page, "reglages")).toBeVisible();
+      await expect(entry(page, "reglages")).toHaveAttribute("aria-current", "true");
     }
   });
 
@@ -244,13 +241,12 @@ test.describe("film de la carte", () => {
     // Une ancre inconnue ne change rien à la fenêtre ouverte.
     await page.goto("/carte#inconnue");
     await expect(windowOf(page, "journees")).toBeVisible();
-    // Et à l'arrivée, elle n'ouvre rien de plus que d'ordinaire : les clans sous la carte, rien sur un écran de 1 280 px.
+    // Et à l'arrivée, elle n'ouvre rien d'autre que d'ordinaire : l'objectif.
     await page.goto("about:blank");
     await page.goto("/carte#inconnue");
     await expect(playButton(page)).toBeVisible();
-    const wide = (page.viewportSize()?.width ?? 0) >= 1200;
-    await expect(openWindows(page)).toHaveCount(wide ? 0 : 1);
-    if (!wide) await expect(windowOf(page, "clans")).toBeVisible();
+    await expect(openWindows(page)).toHaveCount(1);
+    await expect(windowOf(page, "objectif")).toBeVisible();
   });
 
   // Avec « réduire les animations », le film attend ce bouton : il doit se voir dès l'arrivée sur la page.
@@ -284,41 +280,38 @@ test.describe("film de la carte", () => {
       expect(await pageScroll(page)).toBe(0);
       expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
 
-      // La console ne gagne pas sa place en écrasant la carte.
+      // La page ne gagne pas sa place en écrasant la carte.
       const map = (await page.getByTestId("film-map").boundingBox())!;
       const world = Math.min(map.width, map.height * (film.cols / film.rows));
       if (width >= 768 && width / height >= 1.25) {
-        // Écran large : la carte prend toute la largeur, commence sous l'en-tête du site, et ne laisse à la lecture et à
-        // la rangée que 150 px au plus, à elles deux. Le monde est plus large que haut : il garde presque toute la
-        // largeur, comme avant ; sur un écran trop bas pour cela (un portable dans son navigateur), c'est la hauteur qui
-        // le limite, et il prend alors toute celle qui reste.
+        // Écran large : la carte va de l'en-tête au bas de l'écran ; à sa droite, la colonne (25 rem au plus) jusqu'au bord.
+        // Le rail, la pastille du film et le crédit sont posés sur la carte, sans se toucher.
         const top = await page.locator("body > header").evaluate((el) => el.getBoundingClientRect().bottom);
-        expect(map.width).toBe(width);
+        const colonne = (await page.locator("[data-carte-panneaux]").boundingBox())!;
         expect(map.y).toBeLessThanOrEqual(top + 1);
-        expect(height - (map.y + map.height)).toBeLessThanOrEqual(150);
-        expect(world).toBeGreaterThan(Math.min(width * 0.9, (height - top - 150) * (film.cols / film.rows)));
-        // Posés sur la carte, la session et le podium gardent leur écart, et le podium n'a pas à défiler dans son cadre.
+        expect(height - (map.y + map.height)).toBeLessThanOrEqual(1);
+        expect(map.width).toBeGreaterThanOrEqual(width - 400 - 1);
+        expect(Math.abs(colonne.x - (map.x + map.width))).toBeLessThanOrEqual(1);
+        expect(Math.abs(colonne.x + colonne.width - width)).toBeLessThanOrEqual(1);
         const session = (await page.locator(".carte-session").boundingBox())!;
-        const podium = (await page.locator(".carte-podium").boundingBox())!;
-        expect(podium.y).toBeGreaterThanOrEqual(session.y + session.height + 8);
-        expect(await page.locator(".carte-podium").evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(0);
-        // Le crédit, sur ses deux lignes, ne passe pas sous le podium.
+        const rail = (await dock(page).boundingBox())!;
+        const pastille = (await page.locator(".carte-transport").boundingBox())!;
         const credit = (await page.getByTestId("map-credit").boundingBox())!;
-        expect(credit.x).toBeGreaterThanOrEqual(podium.x + podium.width);
-        await expect(page.getByTestId("film-gal")).toBeInViewport({ ratio: 1 });
-        // L'objectif, qui s'ouvre seul dès 1 360 px de large, se lit entier dès 650 px de haut : il n'a pas à défiler dans
-        // son cadre sur un portable.
-        if (width >= 1360 && height >= 650) {
-          await expect(windowOf(page, "objectif")).toBeVisible();
-          expect(await windowOf(page, "objectif").evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(0);
-        }
+        expect(rail.y).toBeGreaterThanOrEqual(session.y + session.height);
+        expect(rail.y + rail.height).toBeLessThanOrEqual(pastille.y);
+        expect(pastille.y + pastille.height).toBeLessThanOrEqual(credit.y);
+        expect(credit.x + credit.width).toBeLessThanOrEqual(map.x + map.width);
+        // L'objectif, ouvert à l'arrivée, est en haut de la colonne ; dès 650 px de haut, la place de GAL au classement
+        // se lit sans faire défiler la colonne.
+        await expect(windowOf(page, "objectif")).toBeInViewport();
+        if (height >= 650 && film.galSummary.rank !== null && film.galSummary.rank <= 5) await expect(page.locator("[data-film-rows] .is-gal")).toBeInViewport({ ratio: 1 });
       } else {
         // Carte en haut, fenêtre dessous : le monde garde presque toute la largeur, même sur un téléphone peu haut, et la
         // fenêtre ouverte garde de quoi lire sous la carte.
         expect(world).toBeGreaterThan(width * (height >= 640 ? 0.9 : 0.78));
         const panel = (await page.locator("[data-carte-panneaux]").boundingBox())!;
         expect(panel.height).toBeGreaterThanOrEqual(90);
-        await expect(page.getByTestId("film-gal")).toBeInViewport({ ratio: 1 });
+        await expect(windowOf(page, "objectif")).toBeInViewport();
       }
       // Le crédit de la carte est sous les yeux, entier, à toutes les tailles.
       await expect(page.getByTestId("map-credit")).toBeInViewport({ ratio: 1 });
@@ -897,19 +890,22 @@ test.describe("film de la carte", () => {
     await expect(page.locator("[data-testid=film-map] img")).toBeVisible();
     await expect(playButton(page)).toBeHidden();
     await expect(page.getByTestId("film-gal")).not.toBeEmpty();
-    // Le podium de la page, sans le film : ses cinq lignes tiennent dans leur cadre, l'une sous l'autre, sans se chevaucher.
-    await openWindow(page, "clans");
+    // Le classement de la page, sans le film, sous l'objectif : ses premières lignes (cinq ou dix, selon la hauteur de
+    // l'écran) tiennent dans leur cadre, l'une sous l'autre, sans se chevaucher ; les autres restent cachées dessous.
+    await expect(windowOf(page, "objectif")).toBeVisible();
+    await expect(page.getByTestId("map-pixels")).toBeVisible();
     const rows = await page.locator("[data-film-rows] > li").evaluateAll((items) => items.map((item) => item.getBoundingClientRect()).map((r) => ({ top: r.top, bottom: r.bottom })));
     const ladder = (await page.locator("[data-film-rows]").boundingBox())!;
-    expect(rows).toHaveLength(Math.min(5, film.standings.length));
-    rows.forEach((row, i) => {
+    expect(rows).toHaveLength(Math.min(10, film.standings.length));
+    const inside = rows.filter((row) => row.bottom <= ladder.y + ladder.height + 1);
+    expect(inside.length).toBeGreaterThanOrEqual(Math.min(5, film.standings.length));
+    inside.forEach((row, i) => {
       expect(row.top).toBeGreaterThanOrEqual(ladder.y - 1);
-      expect(row.bottom).toBeLessThanOrEqual(ladder.y + ladder.height + 1);
-      if (i > 0) expect(row.top).toBeGreaterThanOrEqual(rows[i - 1]!.bottom - 1);
+      if (i > 0) expect(row.top).toBeGreaterThanOrEqual(inside[i - 1]!.bottom - 1);
     });
     // Les fenêtres qui ne dépendent pas du film s'ouvrent quand même ; celles qui le rejouent n'ont pas d'entrée.
-    await openWindow(page, "objectif");
-    await expect(page.getByTestId("map-pixels")).toBeVisible();
+    await openWindow(page, "fronts");
+    await expect(page.getByTestId("film-fronts")).toBeVisible();
     await expect(entry(page, "moments")).toBeHidden();
     expect(await pageScroll(page)).toBe(0);
     errors = [];
@@ -925,12 +921,14 @@ test.describe("film de la carte", () => {
     await page.goto("/carte");
     const warning = page.getByText(/Données périmées : dernière mise à jour il y a \d+/);
     await expect(warning).toBeVisible();
-    // L'avertissement allonge la session : posé sur la carte, le podium s'arrête dessous au lieu de le recouvrir.
+    // L'avertissement allonge le titre : sur un écran large, le rail des entrées s'arrête dessous au lieu de le recouvrir.
     await expect(playButton(page)).toBeVisible();
     await expect(warning).toBeInViewport({ ratio: 1 });
-    const session = (await page.locator(".carte-session").boundingBox())!;
-    const podium = await page.locator(".carte-podium").boundingBox();
-    if (podium && (page.viewportSize()?.width ?? 0) >= 1200) expect(podium.y).toBeGreaterThanOrEqual(session.y + session.height);
+    if (await pose(page)) {
+      const session = (await page.locator(".carte-session").boundingBox())!;
+      const rail = (await dock(page).boundingBox())!;
+      expect(rail.y).toBeGreaterThanOrEqual(session.y + session.height);
+    }
     expect(await pageScroll(page)).toBe(0);
   });
 
@@ -1066,35 +1064,31 @@ test.describe("film de la carte", () => {
     expect(await position(page)).toBe(film.frames.length);
   });
 
-  test("un écran qui change garde la fenêtre ouverte, et un téléphone retrouve toujours la sienne", async ({ page }) => {
+  test("un écran qui change garde la fenêtre ouverte, et le classement reste sous elle", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto("/carte");
     await expect(playButton(page)).toBeVisible();
-    // Sous la carte, les clans : le podium du film y est, la place de GAL avant les cinq premiers.
-    await expect(windowOf(page, "clans")).toBeVisible();
-    const gal = (await page.getByTestId("film-gal").boundingBox())!;
+    // Sous la carte, l'objectif, puis le classement du film.
+    await expect(windowOf(page, "objectif")).toBeVisible();
+    const objectif = (await windowOf(page, "objectif").boundingBox())!;
     const ladder = (await page.locator("[data-film-rows]").boundingBox())!;
-    expect(gal.y).toBeLessThan(ladder.y);
-    // Les réglages du film ont leur fenêtre.
+    expect(ladder.y).toBeGreaterThan(objectif.y);
+    // Les réglages du film ont leur fenêtre, et la gardent sur un écran large.
     await openWindow(page, "reglages");
     await expect(page.getByRole("slider", { name: "Vitesse" })).toBeVisible();
-    // L'écran s'élargit : les réglages se posent à côté de la frise, leur fenêtre n'existe plus, et le podium se pose sur la carte.
     await page.setViewportSize({ width: 1280, height: 800 });
-    await expect(openWindows(page)).toHaveCount(0);
-    await expect(entry(page, "reglages")).toBeHidden();
+    await expect(windowOf(page, "reglages")).toBeVisible();
+    await expect(entry(page, "reglages")).toBeVisible();
     await expect(page.getByRole("slider", { name: "Vitesse" })).toBeVisible();
-    await expect(page.getByTestId("film-gal")).toBeVisible();
+    // Dans la colonne, le classement suit la fenêtre ouverte.
+    const reglages = (await windowOf(page, "reglages").boundingBox())!;
+    expect((await page.locator("[data-film-rows]").boundingBox())!.y).toBeGreaterThan(reglages.y);
     // Une fenêtre ouverte le reste d'un écran à l'autre.
     await openWindow(page, "fronts");
     await page.setViewportSize({ width: 375, height: 812 });
     await expect(windowOf(page, "fronts")).toBeVisible();
-    // Fermée sur grand écran, le téléphone retrouve les clans.
-    await page.setViewportSize({ width: 1280, height: 800 });
-    await page.keyboard.press("Escape");
-    await expect(openWindows(page)).toHaveCount(0);
-    await page.setViewportSize({ width: 375, height: 812 });
-    await expect(windowOf(page, "clans")).toBeVisible();
+    await expect(openWindows(page)).toHaveCount(1);
     expect(await pageScroll(page)).toBe(0);
   });
 
@@ -1142,11 +1136,12 @@ test.describe("film de la carte", () => {
     const next = nextThreshold(film.galSummary.pixels);
     const line = page.getByTestId("map-next-threshold");
     if (!next) await expect(line).toHaveCount(0);
-    else await expect(line).toHaveText(`Prochain palier : ${fmtInt(next.threshold)} pixels, encore ${fmtInt(next.remaining)}.`);
+    // Le chiffre en gros, puis ce qu'il compte.
+    else await expect(line).toHaveText(`${fmtInt(next.remaining)} pixels avant le palier de ${fmtInt(next.threshold)}`);
   });
 
-  // La console de la page est en style Terminal : chaque fenêtre a ses couleurs à elle, contrôlées comme le reste du site.
-  // Les tests d'accessibilité de site.spec.ts ne voient que la fenêtre ouverte à l'arrivée.
+  // Chaque fenêtre a ses couleurs à elle, contrôlées comme le reste du site. Les tests d'accessibilité de site.spec.ts ne
+  // voient que la fenêtre ouverte à l'arrivée.
   test("chaque fenêtre passe le contrôle d'accessibilité WCAG AA", async ({ page }) => {
     test.slow();
     await page.emulateMedia({ reducedMotion: "reduce" });
@@ -1166,45 +1161,44 @@ test.describe("film de la carte", () => {
     expect(violations.map((v) => `clan choisi — ${v.id}: ${v.nodes.map((n) => n.target).join(" ; ")}`)).toEqual([]);
   });
 
-  // Le soir de la mise en ligne, tous les chiffres de la page étaient en vert de terminal, et le pilote a trouvé « trop de
-  // verts dans les textes ». Le vert n'est plus que la voix de la machine : la ligne de commande de chaque fenêtre,
-  // « ~/carte », les « > » et les icônes. Aucun texte ni aucun chiffre n'est vert, dans aucune fenêtre.
-  test("le vert ne sert qu'aux lignes de commande et aux icônes, jamais aux textes ni aux chiffres", async ({ page }) => {
+  // Le 13 novembre 2026 au soir, le pilote : « j'aime pas trop le design hacker sur la carte », puis « mieux fondre avec les
+  // codes couleur » des autres pages. La page n'a plus le style Terminal : ni ambiance console, ni ligne de commande dans
+  // une fenêtre, ni « ## » devant les titres, ni phrase en chasse fixe, ni texte vert. Comme sur les autres pages, la
+  // chasse fixe ne reste qu'à l'invite au-dessus du titre, aux onglets et aux libellés.
+  test("la carte n'a plus le style Terminal : ni commandes, ni phrase en chasse fixe, ni texte vert", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/carte");
     await expect(playButton(page)).toBeVisible();
-    // Le vert de la console, tel que le navigateur l'écrit dans la page Carte (une sonde posée dedans voit aussi un vert
-    // redéfini pour elle seule).
-    const vert = await page.locator("[data-carte]").evaluate((carte) => {
-      const sonde = document.createElement("i");
-      sonde.style.color = "var(--console-vert)";
-      carte.append(sonde);
-      const couleur = getComputedStyle(sonde).color;
-      sonde.remove();
-      return couleur;
-    });
-    // Une vraie couleur, et pas le blanc du texte : sans quoi le contrôle ne prouverait rien.
-    expect(vert).not.toBe(await page.locator("[data-carte]").evaluate((carte) => getComputedStyle(carte).color));
-    const textesVerts = () =>
-      page.evaluate((vert) => {
-        const verts: string[] = [];
+    expect(await page.evaluate(() => document.documentElement.dataset.ambiance ?? null)).toBeNull();
+    await expect(page.locator("[data-carte] .console-invite")).toHaveCount(0);
+    const terminal = () =>
+      page.evaluate(() => {
+        const trouves: string[] = [];
+        const decor = (el: Element, pseudo: string) => {
+          const contenu = getComputedStyle(el, pseudo).content;
+          return contenu !== "none" && contenu !== "normal" && /##|\[x\]|■|gal@|\.\/|> /.test(contenu) ? contenu : null;
+        };
         for (const el of document.querySelectorAll<HTMLElement>("[data-carte] *")) {
-          // L'invite de la session (« gal@carte:~$ ./carte ») est une commande. Les textes décoratifs cachés aux lecteurs
-          // d'écran, comme la date posée sur la carte, sont contrôlés : ils se voient.
-          if (el.closest(".console-invite, .sr-only") || el.getClientRects().length === 0) continue;
+          if (el.closest(".sr-only") || el.getClientRects().length === 0) continue;
+          for (const pseudo of ["::before", "::after"]) {
+            const vu = decor(el, pseudo);
+            if (vu) trouves.push(`${el.tagName.toLowerCase()}.${el.className}${pseudo} : ${vu}`);
+          }
           const texte = [...el.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE).map((n) => n.textContent ?? "").join("").trim();
-          if (texte && getComputedStyle(el).color === vert) verts.push(`${el.tagName.toLowerCase()}.${el.className} : ${texte.slice(0, 40)}`);
+          if (!texte) continue;
+          const style = getComputedStyle(el);
+          // Une phrase (plus de six mots) en chasse fixe serait la voix du Terminal ; l'invite de la page est celle de toutes.
+          if (!el.closest(".invite") && /JetBrains|monospace/i.test(style.fontFamily.split(",")[0] ?? "") && texte.split(/\s+/).length > 6) trouves.push(`${el.tagName.toLowerCase()}.${el.className} en chasse fixe : ${texte.slice(0, 30)}`);
+          const [r, g, b] = (style.color.match(/\d+(\.\d+)?/g) ?? []).map(Number);
+          if (g !== undefined && r !== undefined && b !== undefined && g - Math.max(r, b) > 40) trouves.push(`${el.tagName.toLowerCase()}.${el.className} en vert : ${texte.slice(0, 30)}`);
         }
-        return verts;
-      }, vert);
-    expect(await textesVerts(), "à l'arrivée").toEqual([]);
+        return trouves;
+      });
+    expect(await terminal(), "à l'arrivée").toEqual([]);
     for (const id of await dock(page).getByRole("link").filter({ visible: true }).evaluateAll((links) => links.map((link) => link.getAttribute("data-ouvre") ?? ""))) {
       await openWindow(page, id);
-      expect(await textesVerts(), id).toEqual([]);
+      expect(await terminal(), id).toEqual([]);
     }
-    // La voix de la machine, elle, reste verte : la ligne de commande d'une fenêtre.
-    await openWindow(page, "clans");
-    expect(await windowOf(page, "clans").locator(".carte-fenetre-corps[data-commande]").evaluate((el) => getComputedStyle(el, "::before").color)).toBe(vert);
   });
 
   // La mention d'OpenFront et la licence du fond de carte ne sont jamais à plus d'un regard : un crédit posé sur la carte,
@@ -1217,22 +1211,22 @@ test.describe("film de la carte", () => {
     await page.goto("/carte");
     await expect(playButton(page)).toBeVisible();
     await expect(dock(page).getByRole("link", { name: /Légende|À propos/ })).toHaveCount(0);
-    const pose = await page.evaluate((media) => matchMedia(media).matches, ECRAN_POSE);
+    const large = await pose(page);
     const credit = page.getByTestId("map-credit");
     const pied = page.getByTestId("carte-pied");
     const mention = credit.getByRole("link", { name: "© OpenFront and Contributors · CC BY-SA 4.0", exact: true });
-    const source = (pose ? credit : pied).getByRole("link", { name: "Code source", exact: true });
-    const mentions = (pose ? credit : pied).getByRole("link", { name: "Mentions légales", exact: true });
+    const source = (large ? credit : pied).getByRole("link", { name: "Code source", exact: true });
+    const mentions = (large ? credit : pied).getByRole("link", { name: "Mentions légales", exact: true });
     await expect(source).toHaveAttribute("href", clan.links.source);
     // Un seul des deux exemplaires se voit, selon l'écran.
     await expect(page.locator("[data-carte]").getByRole("link", { name: "Code source", exact: true })).toHaveCount(1);
     await expect(page.locator("[data-carte]").getByRole("link", { name: "Mentions légales", exact: true })).toHaveCount(1);
-    for (const link of pose ? [mention, source, mentions] : [mention]) {
+    for (const link of large ? [mention, source, mentions] : [mention]) {
       await expect(link).toBeInViewport({ ratio: 1 });
       // Une cible assez haute pour le doigt.
       expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(24);
     }
-    if (!pose) {
+    if (!large) {
       // Sur téléphone, la carte ne garde que la mention, sur une ligne : la légende des grands moments passe au-dessus,
       // sous le bouton « Vue d'ensemble ».
       expect((await credit.boundingBox())!.height).toBeLessThan(40);
@@ -1262,9 +1256,9 @@ test.describe("film de la carte", () => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Mentions légales");
   });
 
-  // Une fenêtre ouverte laisse peu de place entre elle et le podium : la mention passe sur deux lignes au lieu de glisser
-  // sous le podium, et sous 1 008 px le crédit passe dans le coin, sous la fenêtre raccourcie. La légende des grands
-  // moments reste au-dessus de lui.
+  // Sur une carte étroite (moins de 560 px, une colonne à côté), le crédit passe sur deux lignes et la pastille du film
+  // remonte au-dessus de lui ; il ne passe jamais sous la colonne, la pastille ni le rail. La légende des grands moments
+  // reste au-dessus de lui.
   for (const [width, height] of [
     [800, 600],
     [900, 700],
@@ -1272,19 +1266,22 @@ test.describe("film de la carte", () => {
     [1100, 800],
     [1280, 720],
   ] as const) {
-    test(`à ${width} × ${height}, une fenêtre ouverte, le crédit ne passe ni sous le podium ni sous la fenêtre`, async ({ page }, testInfo) => {
+    test(`à ${width} × ${height}, une fenêtre ouverte, le crédit ne passe ni sous la colonne ni sous la pastille du film`, async ({ page }, testInfo) => {
       test.skip(testInfo.project.name !== "desktop", "Formats testés une seule fois.");
       await page.emulateMedia({ reducedMotion: "reduce" });
       await page.setViewportSize({ width, height });
       await page.goto("/carte#clans");
       await expect(windowOf(page, "clans")).toBeVisible();
+      await expect(playButton(page)).toBeVisible();
       type Boite = { x: number; y: number; width: number; height: number };
       const separees = (a: Boite, b: Boite) => a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y;
       const credit = (await page.getByTestId("map-credit").boundingBox())!;
-      const podium = (await page.locator(".carte-podium").boundingBox())!;
-      const fenetre = (await windowOf(page, "clans").boundingBox())!;
-      expect(separees(credit, podium), "podium").toBe(true);
-      expect(separees(credit, fenetre), "fenêtre").toBe(true);
+      const colonne = (await page.locator("[data-carte-panneaux]").boundingBox())!;
+      const pastille = (await page.locator(".carte-transport").boundingBox())!;
+      const rail = (await dock(page).boundingBox())!;
+      expect(separees(credit, colonne), "colonne").toBe(true);
+      expect(separees(credit, pastille), "pastille").toBe(true);
+      expect(separees(credit, rail), "rail").toBe(true);
       await expect(page.getByTestId("map-credit").getByRole("link", { name: "Code source", exact: true })).toBeInViewport({ ratio: 1 });
       const legende = await page.locator(".film-caption").evaluate((el) => getComputedStyle(el).bottom);
       const carte = (await page.getByTestId("film-map").boundingBox())!;
