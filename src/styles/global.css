@@ -3930,6 +3930,181 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 
 /* ---------- Direction, onglet Gaulois de la semaine ---------- */
 /* Les règles propres à cet onglet (DirectionWeeklyPick.tsx), sous la classe `dir-semaine`. */
+/* L'état de la semaine se lit près du titre (pastille et semaine). À gauche, le choix : le champ cherche à chaque lettre
+   dans la liste des membres, qui défile dans son cadre ; à droite, ce que l'accueil montre, puis l'aperçu du choix en
+   cours de saisie. Vert : choisi, en ligne. Jaune : pas encore choisi, ou à regarder. Rouge : illisible, ou retiré de
+   l'accueil. Bleu : un aperçu, pas encore enregistré. */
+.dir-semaine-etat {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 0.75rem;
+  min-height: 2rem;
+  font-size: 0.9375rem;
+}
+.dir-semaine-grille {
+  display: grid;
+  align-items: start;
+  gap: 1.5rem;
+  margin-top: 1.25rem;
+}
+@media (min-width: 64rem) {
+  .dir-semaine-grille {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
+}
+.dir-semaine-choix {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  padding: 1.25rem;
+}
+/* Sous un champ ou au-dessus : deux petits textes face à face (l'état du pseudo tapé et le nombre de membres). */
+.dir-semaine-sous {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.125rem 1rem;
+  margin-top: 0.375rem;
+  font-size: 0.875rem;
+}
+.dir-semaine-sous > [role="status"] {
+  min-height: 1.3125rem;
+}
+
+/* La liste des membres : des cases serrées sur plusieurs colonnes, qui défilent dans leur cadre. */
+.dir-semaine-noms {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));
+  align-content: start;
+  max-height: 15.75rem;
+  margin-top: 0.375rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.375rem;
+  scrollbar-width: thin;
+}
+.dir-semaine-nom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+  min-height: 2.25rem;
+  padding: 0.25rem 0.75rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+  box-shadow: inset 3px 0 0 var(--ton, transparent);
+  font-size: 0.9375rem;
+  line-height: 1.3;
+  cursor: pointer;
+}
+.dir-semaine-nom-texte {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.dir-semaine-marque {
+  flex: none;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ton);
+}
+.dir-semaine-nom:hover {
+  background: rgb(255 255 255 / 0.07);
+}
+/* Le nom retenu pour le choix : fond plein clair, comme un filtre enfoncé. */
+.dir-semaine-nom[aria-selected="true"] {
+  background: #fff;
+  box-shadow: none;
+  font-weight: 700;
+  color: var(--color-night);
+}
+.dir-semaine-nom[aria-selected="true"] .dir-semaine-marque {
+  color: inherit;
+}
+/* Le nom désigné aux flèches du clavier. */
+.dir-semaine-nom[data-actif] {
+  outline: 2px solid #fff;
+  outline-offset: -2px;
+}
+.dir-semaine-nom[aria-selected="true"][data-actif] {
+  outline-color: var(--color-ally);
+}
+
+/* À droite : ce que l'accueil montre, et l'aperçu. */
+.dir-semaine-vues {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+.dir-semaine-vue {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 1.25rem;
+}
+.dir-semaine-pastilles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  font-size: 0.875rem;
+}
+.dir-semaine-honneur {
+  margin-top: 0.75rem;
+}
+.dir-semaine-surtitre {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.dir-semaine-pour {
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+.dir-semaine-pseudo {
+  margin-top: 0.5rem;
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+  color: #fff;
+}
+.dir-semaine-mot {
+  margin-top: 0.5rem;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  color: var(--color-muted);
+}
+/* Le retrait, à part sous un filet : ce n'est pas le geste courant. */
+.dir-semaine-retirer {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+}
+.dir-semaine-rien {
+  color: var(--color-muted);
+}
+@media (pointer: coarse) {
+  .dir-semaine-nom {
+    min-height: 2.75rem;
+  }
+}
+@media (max-width: 47.9375rem) {
+  .dir-semaine-choix,
+  .dir-semaine-vue {
+    padding: 1rem;
+  }
+  .dir-semaine-noms {
+    grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+    max-height: 16.5rem;
+  }
+  .dir-semaine-nom {
+    min-height: 2.75rem;
+  }
+}
 
 /* ---------- Direction, onglet Objectif ---------- */
 /* Les règles propres à cet onglet (DirectionObjectif.tsx), sous la classe `dir-objectif`. */
