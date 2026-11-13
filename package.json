@@ -36,6 +36,7 @@
     "course:envoyer": "tsx scripts/envoyer-course.ts",
     "groupes:envoyer": "tsx scripts/envoyer-groupes.ts",
     "victoires:envoyer": "tsx scripts/envoyer-victoires.ts",
+    "stateres:crediter": "tsx scripts/crediter-stateres.ts",
     "arrivees:accueillir": "tsx scripts/accueillir-arrivees.ts",
     "arrivees:apercu": "tsx scripts/apercu-arrivees.ts",
     "images:apercu": "tsx scripts/apercu-images.ts",

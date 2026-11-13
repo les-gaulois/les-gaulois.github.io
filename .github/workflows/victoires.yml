@@ -24,7 +24,7 @@ jobs:
     # Sur une autre branche, la trace des envois ne reviendrait pas sur main, et les victoires repartiraient.
     if: github.ref_name == 'main'
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 16
     permissions:
       contents: write
     steps:
@@ -98,3 +98,15 @@ jobs:
           done
           echo "::warning::Victoires : état des envois non enregistré sur main. Sa copie gardée en cache évite de renvoyer ces victoires ; il sera de nouveau enregistré avec le prochain envoi."
           exit 1
+      # Les statères du village des Gaulois (docs/DIRECTION.md, « Le village des Gaulois ») : chaque victoire du mois est relue
+      # une fois, et l'empreinte SHA-256 de chaque Gaulois présent part au serveur, qui crédite les comptes validés. Après
+      # l'envoi sur Discord et à part de lui : une panne du serveur ne retient jamais une victoire. Avec SUPABASE_URL et
+      # SUPABASE_SECRET_KEY ; sans eux, l'étape ne fait rien. Rien n'est écrit dans le dépôt.
+      - name: Donner les statères des victoires
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        timeout-minutes: 3
+        run: npm run stateres:crediter
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}

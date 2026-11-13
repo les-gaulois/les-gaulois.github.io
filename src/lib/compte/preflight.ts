@@ -135,6 +135,25 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   else if (isClosed(gaulois.status) || (gaulois.ok && gauloisAnswer?.ok === false)) add("Un visiteur ne lit pas de Gaulois", "ok");
   else add("Un visiteur ne lit pas de Gaulois", "fail", `Réponse ${gaulois.status}. Ne mettez pas en ligne : seul un compte connecté lit son Gaulois.`);
 
+  // Les statères du village (migration 20261113001800) : seul un compte connecté lit son solde. Absente : 404, la migration
+  // n'est pas collée.
+  const stateres = await rpc("get_mes_stateres");
+  const stateresAnswer = stateres.ok ? ((await stateres.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (stateres.status === 404) add("Les statères du village sont installés", "warn", "get_mes_stateres est absente : collez la migration 20261113001800_village_stateres.sql avant de mettre en ligne ce qui s'en sert.");
+  else if (isClosed(stateres.status) || (stateres.ok && stateresAnswer?.ok === false)) add("Un visiteur ne lit pas de solde de statères", "ok");
+  else add("Un visiteur ne lit pas de solde de statères", "fail", `Réponse ${stateres.status}. Ne mettez pas en ligne : seul un compte connecté lit son propre solde.`);
+  // Ses deux fonctions de la clé de service, celle du workflow des victoires : un visiteur doit être refusé par le droit
+  // d'appel lui-même. Les valeurs données ne notent rien : une partie mal formée fait refuser l'envoi entier.
+  const stateresCalls = [
+    ["noter_victoires_stateres", { p_parties: [{ partie: "verification" }] }, "Un visiteur ne donne pas de statères"],
+    ["stateres_parties_notees", { p_depuis: "2026-11-01T00:00:00Z" }, "Un visiteur ne lit pas les victoires notées pour les statères"],
+  ] as const;
+  for (const [fn, body, label] of stateresCalls) {
+    const res = await rpc(fn, body);
+    if (isClosed(res.status)) add(label, "ok");
+    else add(label, "fail", `Réponse ${res.status}. Ne mettez pas en ligne : retirez le droit d'appeler ${fn}.`);
+  }
+
   // Les salons du robot : leur réglage contient les liens qui écrivent dans les salons. Seuls les admins et le fondateur
   // le règlent, et seule la clé de service, celle du robot, reçoit les liens. Leur installation se lit avec `supabase migration list`.
   const salonsState = await rpc("get_discord_salons");

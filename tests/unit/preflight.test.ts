@@ -21,6 +21,7 @@ const HEALTHY: Record<string, Route> = {
   "/rest/v1/rpc/reset_member_link": { status: 401, body: {} },
   "/rest/v1/rpc/get_site_activity": { status: 401, body: {} },
   "/rest/v1/rpc/get_mon_gaulois": { status: 401, body: {} },
+  "/rest/v1/rpc/get_mes_stateres": { status: 401, body: {} },
   "/rest/v1/profiles": { status: 401, body: {} },
   "/rest/v1/private_links": { status: 401, body: {} },
   "/rest/v1/admin_log": { status: 401, body: {} },
@@ -137,6 +138,20 @@ describe("le contrôle de la mise en ligne", () => {
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_mon_gaulois": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "ne lit pas de Gaulois")).toBe("ok");
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_mon_gaulois": { status: 200, body: { ok: true, tenue: null } } }, "ne lit pas de Gaulois")).toBe("fail");
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_mon_gaulois": { status: 404, body: {} } }, "vestiaire du village")).toBe("warn");
+  });
+
+  it("bloque si un visiteur lit un solde de statères, et signale les statères pas encore installés", async () => {
+    expect(await statusOf(HEALTHY, "ne lit pas de solde de statères")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_mes_stateres": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "ne lit pas de solde de statères")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_mes_stateres": { status: 200, body: { ok: true, solde: 0 } } }, "ne lit pas de solde de statères")).toBe("fail");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_mes_stateres": { status: 404, body: {} } }, "statères du village sont installés")).toBe("warn");
+  });
+
+  it("bloque si un visiteur peut appeler les fonctions des statères réservées à la clé de service", async () => {
+    expect(await statusOf(HEALTHY, "ne donne pas de statères")).toBe("ok");
+    expect(await statusOf(HEALTHY, "victoires notées pour les statères")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/noter_victoires_stateres": { status: 200, body: { ok: false, error: "invalid_parties" } } }, "ne donne pas de statères")).toBe("fail");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/stateres_parties_notees": { status: 200, body: { ok: true, parties: [] } } }, "victoires notées pour les statères")).toBe("fail");
   });
 
   it("dit si la fonction code-discord est déployée et réglée, et ne bloque qu'une fois la connexion par code ouverte", async () => {
