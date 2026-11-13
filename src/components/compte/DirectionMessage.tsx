@@ -2,6 +2,7 @@ import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { call, MESSAGE_DRAFT_KEY, uploadDiscordImage } from "../../lib/compte/api";
 import { isWebhookLink } from "../../lib/compte/discord-appels";
+import { etatDuMessage, etatDuSalonAjoute } from "../../lib/compte/discord-etat";
 import {
   blockedSentence,
   botName,
@@ -44,6 +45,7 @@ import {
 import { errorMessage } from "../../lib/compte/errors";
 import { fmtDateTime, fmtInt } from "../../lib/format";
 import { Loading, Problem, Success, messageOf, useNow } from "./common";
+import { Pastille } from "./direction-kit";
 import DiscordApercu from "./DiscordApercu";
 import { useInventaire } from "./inventaire";
 import { Compteur, ImageChoix, TexteMisEnForme } from "./MessageChamps";
@@ -114,14 +116,16 @@ function Repli({ title, startOpen, children }: { title: string; startOpen: boole
 }
 
 /** Une action qui efface, au second clic seulement, avec ce qui sera perdu écrit dessous. Le bouton ne bouge pas. */
-export function SecondClic({ id, label, confirm, warning, busy, onConfirm }: { id: string; label: string; confirm: string; warning: string; busy: boolean; onConfirm: () => void }) {
+export function SecondClic({ id, label, confirm, warning, busy, onConfirm, small = false }: { id: string; label: string; confirm: string; warning: string; busy: boolean; onConfirm: () => void; small?: boolean }) {
   const [armed, setArmed] = useState(false);
   return (
     <div class="grid gap-2">
       <div>
         <button
           type="button"
-          class="btn btn-ghost"
+          // `small` : un petit bouton de ligne, gris tant qu'on n'y passe pas, rouge au survol ou au clavier.
+          class={small ? "dir-bouton dir-discord-retrait" : "btn btn-ghost"}
+          data-dir-ton={small ? "danger" : undefined}
           disabled={busy}
           aria-describedby={armed ? `${id}-note` : undefined}
           onClick={() => {
@@ -437,22 +441,34 @@ function GererSalons({ state, reload, onAdded }: { state: MessagesState; reload:
   return (
     <div class="grid gap-5">
       {added.length > 0 && (
-        <ul class="grid gap-3">
+        <ul class="dir-discord-reglages">
           {added.map((salon) => {
             const check = checkSentence(salon);
-            const failing = salon.checkStatus !== null && salon.checkStatus !== 0 && (salon.checkStatus < 200 || salon.checkStatus >= 300);
+            const etat = etatDuSalonAjoute(salon);
             return (
-              <li key={salon.key} class="card grid gap-2 p-4" data-testid="direction-message-salon">
-                <p class="font-semibold [overflow-wrap:anywhere]">{salon.name}</p>
-                {check && <p class={failing ? "font-semibold text-warn" : "text-sm text-muted"}>{check}</p>}
-                {salon.createdAt && (
-                  <p class="tnum text-sm text-muted">
-                    Ajouté le {fmtDateTime(salon.createdAt)}
-                    {salon.createdBy ? ` par ${salon.createdBy}` : ""}.
-                  </p>
-                )}
-                <div class="border-t border-line pt-3">
+              <li key={salon.key} class="dir-discord-reglage dir-discord-ligne" data-dir-ton={etat.ton} data-testid="direction-message-salon">
+                <div class="dir-discord-reglage-lu">
+                  <div class="dir-discord-reglage-tete">
+                    <span class="font-semibold [overflow-wrap:anywhere]">{salon.name}</span>
+                    <Pastille ton={etat.ton}>{etat.mot}</Pastille>
+                  </div>
+                  <div class="dir-discord-phrases">
+                    {check && etat.ton !== "ok" && (
+                      <p class={etat.ton === "danger" ? "dir-discord-phrase" : "text-sm text-muted"} data-dir-ton={etat.ton === "danger" ? "danger" : undefined}>
+                        {check}
+                      </p>
+                    )}
+                    {salon.createdAt && (
+                      <p class="text-sm text-muted">
+                        Ajouté le {fmtDateTime(salon.createdAt)}
+                        {salon.createdBy ? ` par ${salon.createdBy}` : ""}.
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div class="dir-discord-reglage-agir">
                   <SecondClic
+                    small
                     id={`direction-message-salon-retirer-${salon.id}`}
                     label="Retirer ce salon"
                     confirm="Confirmer : retirer le salon"
@@ -503,33 +519,46 @@ function Envoye({ message, salons, busy, written, reuse, remove }: { message: Se
   const outcome = outcomeSentence(message.outcome);
   const removal = removeSentence(message, fmtDateTime) ?? blockedSentence(message);
   const refused = message.outcome.state === "refused" || message.outcome.state === "unsent" || message.outcome.state === "unreached";
+  const etat = etatDuMessage(message);
   return (
-    <li class="card grid gap-2 p-5" data-testid="direction-message-envoye">
-      <p class="font-semibold [overflow-wrap:anywhere]">{messageSummary(message.message)}</p>
-      <p class="tnum text-sm text-muted">
-        {salonLabel(message.salon, salons, message.salonName)} · {fmtDateTime(message.at)}
-        {message.by ? ` · ${message.by}` : ""}
-      </p>
-      {outcome && (
-        <p role="status" class={refused ? "font-semibold text-warn" : undefined}>
-          {outcome}
-        </p>
-      )}
-      {removal && <p class="text-sm text-muted">{removal}</p>}
-      <div class="flex flex-wrap items-start justify-between gap-4">
-        <Reprendre busy={busy} written={written} onConfirm={reuse} />
-        {message.removable && (
-          <div class="border-l border-line pl-4">
-            <SecondClic
-              id={`direction-message-retirer-${message.id}`}
-              label="Retirer du salon"
-              confirm="Confirmer : retirer du salon"
-              warning="Le message est effacé du salon Discord, pour tout le monde. Il reste dans cette liste."
-              busy={busy}
-              onConfirm={remove}
-            />
-          </div>
-        )}
+    <li class="dir-discord-reglage dir-discord-ligne" data-dir-ton={etat.ton} data-testid="direction-message-envoye">
+      <div class="dir-discord-reglage-lu">
+        <div class="dir-discord-reglage-tete">
+          <Pastille ton={etat.ton}>{etat.mot}</Pastille>
+          <span class="min-w-0 font-semibold [overflow-wrap:anywhere]">{messageSummary(message.message)}</span>
+        </div>
+        <div class="dir-discord-phrases">
+          <p class="text-sm text-muted">
+            {salonLabel(message.salon, salons, message.salonName)} · {fmtDateTime(message.at)}
+            {message.by ? ` · ${message.by}` : ""}
+          </p>
+          {/* « Accepté » est déjà dit par la pastille : la phrase reste pour les lecteurs d'écran, qui l'entendent à l'arrivée. */}
+          {outcome && (
+            <p role="status" class={message.outcome.state === "accepted" ? "sr-only" : "dir-discord-phrase"} data-dir-ton={refused ? "danger" : undefined}>
+              {outcome}
+            </p>
+          )}
+          {removal && <p class="text-sm text-muted">{removal}</p>}
+        </div>
+      </div>
+      <div class="dir-discord-reglage-agir">
+        <div class="dir-discord-actions">
+          <Reprendre busy={busy} written={written} onConfirm={reuse} />
+          {message.removable && (
+            <>
+              <span class="dir-discord-filet" aria-hidden="true"></span>
+              <SecondClic
+                small
+                id={`direction-message-retirer-${message.id}`}
+                label="Retirer du salon"
+                confirm="Confirmer : retirer du salon"
+                warning="Le message est effacé du salon Discord, pour tout le monde. Il reste dans cette liste."
+                busy={busy}
+                onConfirm={remove}
+              />
+            </>
+          )}
+        </div>
       </div>
     </li>
   );
@@ -543,7 +572,7 @@ function Reprendre({ busy, written, onConfirm }: { busy: boolean; written: boole
       <div>
         <button
           type="button"
-          class="btn btn-ghost"
+          class="dir-bouton"
           disabled={busy}
           onClick={() => {
             if (written && !armed) return setArmed(true);
@@ -963,7 +992,7 @@ export default function DirectionMessage() {
           </h3>
           <Problem message={historyProblem} />
           {historyDone && <Success message={historyDone} />}
-          <ul class="grid gap-3">
+          <ul class="dir-discord-reglages">
             {state.messages.map((message) => (
               <Envoye key={message.id} message={message} salons={salons} busy={busy} written={draftHasContent(draft)} reuse={() => reuse(message)} remove={() => void remove(message)} />
             ))}

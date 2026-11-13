@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { call } from "../../lib/compte/api";
 import { isWaiting, isWebhookLink, lastSendSentence, parseDiscordCalls, roleOf, type DiscordCalls } from "../../lib/compte/discord-appels";
+import { etatDesAppels, etatDuPing } from "../../lib/compte/discord-etat";
 import { errorMessage } from "../../lib/compte/errors";
 import { PING_WAIT_CLAN_MINUTES, PING_WAIT_MEMBER_MINUTES } from "../../lib/compte/salons";
 import { fmtDateTime } from "../../lib/format";
 import { Loading, Problem, Success, messageOf } from "./common";
+import { Pastille } from "./direction-kit";
 
 /** Les relectures qui suivent un essai, le temps que Discord réponde : pg_net envoie d'ordinaire en moins d'une seconde. */
 const FOLLOW_UP_MS = [1_500, 4_000, 10_000, 30_000];
@@ -14,8 +16,11 @@ const FOLLOW_UP_MS = [1_500, 4_000, 10_000, 30_000];
  * Chaque nouvel appel lancé au QG y part, posté par le serveur (`save_lobby_call`). Le lien n'est jamais relu : le
  * serveur le garde, et le champ se vide après l'enregistrement. Chaque enregistrement envoie un essai, qui montre la
  * mention dans le salon sans notifier personne ; la page relit ensuite la réponse de Discord.
+ *
+ * Un bloc court, comme les salons du robot (14 novembre 2026) : l'état en pastille et ce qu'a répondu Discord d'un côté, les
+ * champs et les boutons de l'autre, l'aide repliée. `onRead` donne chaque lecture du serveur au menu de l'onglet.
  */
-export default function DirectionAppels() {
+export default function DirectionAppels({ onRead }: { onRead?: (calls: DiscordCalls) => void } = {}) {
   const [state, setState] = useState<DiscordCalls | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [link, setLink] = useState("");
@@ -36,6 +41,7 @@ export default function DirectionAppels() {
       }
       setState(next);
       setLoadError(null);
+      onRead?.(next);
       setRole((current) => current ?? next.role ?? "");
       return next;
     } catch (e) {
@@ -100,39 +106,84 @@ export default function DirectionAppels() {
     await act(() => call("clear_discord_calls"), "Salon débranché : les appels ne partent plus sur Discord.");
   };
 
-  return (
-    <>
-      {/* Le titre et la phrase qui dit à quoi sert la rubrique sont dans le menu, au-dessus. */}
+  if (state === null) {
+    return (
       <section aria-label="Les appels sur Discord" data-testid="direction-discord">
-        {loadError && (
-          <div class="mb-6">
-            <Problem message={loadError} onRetry={() => void load()} />
+        {loadError ? <Problem message={loadError} onRetry={() => void load()} /> : <Loading />}
+      </section>
+    );
+  }
+
+  const etat = etatDesAppels(state);
+  const ping = etatDuPing(state);
+  const lastFails = state.last !== null && (state.last.outcome.state === "refused" || state.last.outcome.state === "unsent");
+
+  return (
+    // Le titre et la phrase qui dit à quoi sert la rubrique sont dans le menu, au-dessus.
+    <section class="dir-discord-reglages" aria-label="Les appels sur Discord" data-testid="direction-discord">
+      {loadError && <Problem message={loadError} onRetry={() => void load()} />}
+      <div class="dir-discord-reglage" data-dir-ton={etat.ton}>
+        <div class="dir-discord-reglage-lu" data-testid="direction-discord-state">
+          <div class="dir-discord-reglage-tete">
+            <Pastille ton={etat.ton} testid="direction-discord-etat">
+              {etat.mot}
+            </Pastille>
+            {ping && (
+              <Pastille ton={ping.ton} plain>
+                {ping.mot}
+              </Pastille>
+            )}
           </div>
-        )}
-        {state === null ? (
-          !loadError && (
-            <div>
-              <Loading />
-            </div>
-          )
-        ) : (
-          <div class="grid items-start gap-6 lg:grid-cols-2">
-            <form
-              class="card grid gap-4 p-5"
-              data-testid="direction-discord-form"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (!busy) void save();
-              }}
-            >
-              <h3 class="text-lg">{state.set ? "Changer le réglage" : "Brancher un salon"}</h3>
+          <div class="dir-discord-phrases">
+            {!state.set && <p class="text-sm text-muted">Les appels du QG ne partent pas sur Discord.</p>}
+            {state.set && (
+              <p>
+                {state.role ? (
+                  <>
+                    Rôle des pings : <span class="tnum">{state.role}</span>
+                  </>
+                ) : (
+                  "Aucun rôle : pas de ping possible."
+                )}
+              </p>
+            )}
+            {state.updatedAt && (
+              <p class="text-sm text-muted">
+                Réglé le {fmtDateTime(state.updatedAt)}
+                {state.updatedBy ? ` par ${state.updatedBy}` : ""}.
+              </p>
+            )}
+            <p role="status" class="dir-discord-phrase" data-dir-ton={lastFails ? "danger" : undefined} data-testid="direction-discord-last">
+              {state.last ? lastSendSentence(state.last, fmtDateTime) : ""}
+            </p>
+          </div>
+          {state.role && (
+            <details class="dir-discord-plus">
+              <summary>La règle des pings</summary>
+              <p data-testid="direction-discord-ping-rule">
+                Le ping est une case de chaque appel, au QG : au plus un toutes les {PING_WAIT_CLAN_MINUTES} minutes pour le clan, et toutes les {PING_WAIT_MEMBER_MINUTES} minutes par membre.
+              </p>
+            </details>
+          )}
+        </div>
+
+        <div class="dir-discord-reglage-agir">
+          <form
+            class="dir-discord-saisie"
+            data-testid="direction-discord-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!busy) void save();
+            }}
+          >
+            <div class="dir-discord-champs">
               <div>
                 <label for="discord-lien" class="text-sm font-semibold">
                   Lien du webhook du salon
                 </label>
                 <input
                   id="discord-lien"
-                  class="field mt-1"
+                  class="field dir-champ mt-1"
                   inputMode="url"
                   autoComplete="off"
                   spellcheck={false}
@@ -153,7 +204,7 @@ export default function DirectionAppels() {
                 </label>
                 <input
                   id="discord-role"
-                  class="field tnum mt-1"
+                  class="field dir-champ tnum mt-1"
                   inputMode="numeric"
                   autoComplete="off"
                   spellcheck={false}
@@ -166,85 +217,57 @@ export default function DirectionAppels() {
                   Vide : pas de ping possible.
                 </p>
               </div>
-              <div>
-                <button type="submit" class="btn btn-primary" disabled={busy}>
-                  Enregistrer et envoyer un essai
+            </div>
+            <div>
+              <button type="submit" class="btn btn-primary" disabled={busy}>
+                Enregistrer et envoyer un essai
+              </button>
+            </div>
+          </form>
+
+          {state.set && (
+            <>
+              {/* Débrancher efface le réglage, lien compris : à part, après un filet, gris tant qu'on n'y passe pas, et seulement au
+                  second clic. Le 11 novembre 2026, « Arrêter l'envoi », à côté de « Dernier envoi : l'essai », a été lu comme la
+                  fin de l'essai. L'avertissement vient dessous : le bouton ne bouge pas entre les deux clics. */}
+              <div class="dir-discord-actions">
+                <button type="button" class="dir-bouton" disabled={busy} onClick={() => void act(() => call("test_discord_calls"), state.role ? "Essai envoyé : il montre la mention sans notifier personne." : "Essai envoyé.")}>
+                  Renvoyer un essai
+                </button>
+                <span class="dir-discord-filet" aria-hidden="true"></span>
+                <button
+                  type="button"
+                  class="dir-bouton dir-discord-retrait"
+                  data-dir-ton="danger"
+                  disabled={busy}
+                  aria-describedby={armed ? "discord-stop-note" : undefined}
+                  onClick={() => (armed ? void stop() : setArmed(true))}
+                  onBlur={() => setArmed(false)}
+                  data-testid="direction-discord-stop"
+                >
+                  {armed ? "Confirmer : débrancher" : "Débrancher le salon"}
                 </button>
               </div>
-              <details class="text-sm">
-                <summary class="cursor-pointer font-semibold">Où trouver le lien et l'identifiant ?</summary>
-                <ol class="mt-2 grid list-decimal gap-2 pl-5 text-muted">
-                  <li>Le lien : dans Discord, Modifier le salon → Intégrations → Webhooks → Nouveau webhook, puis Copier l'URL du webhook. Il permet d'écrire dans le salon : ne le montrez à personne.</li>
-                  <li>Le rôle : Paramètres utilisateur → Avancés → Mode développeur. Puis Paramètres du serveur → Rôles, clic droit sur le rôle → Copier l'identifiant du rôle. Si l'essai n'affiche pas le nom du rôle, l'identifiant n'est pas le bon.</li>
-                  <li>Si un ping ne notifie personne : dans les réglages du rôle, autorisez tout le monde à le mentionner.</li>
-                </ol>
-              </details>
-            </form>
-
-            {state.set && (
-              <div class="card grid gap-3 p-5" data-testid="direction-discord-state">
-                <h3 class="text-lg">Réglage en place</h3>
-                <p>
-                  {state.role ? (
-                    <>
-                      Rôle des pings : <span class="tnum">{state.role}</span>
-                    </>
-                  ) : (
-                    "Aucun rôle : pas de ping possible."
-                  )}
+              {armed && (
+                <p id="discord-stop-note" class="text-sm text-warn">
+                  Les appels ne partiront plus sur Discord, et il faudra recoller le lien du webhook pour rebrancher le salon.
                 </p>
-                {state.role && (
-                  <p class="text-sm text-muted" data-testid="direction-discord-ping-rule">
-                    Le ping est une case de chaque appel, au QG : au plus un toutes les {PING_WAIT_CLAN_MINUTES} minutes pour le clan, et toutes les {PING_WAIT_MEMBER_MINUTES} minutes par membre.
-                  </p>
-                )}
-                {state.updatedAt && (
-                  <p class="tnum text-sm text-muted">
-                    Réglé le {fmtDateTime(state.updatedAt)}
-                    {state.updatedBy ? ` par ${state.updatedBy}` : ""}.
-                  </p>
-                )}
-                <p role="status" data-testid="direction-discord-last">
-                  {state.last ? lastSendSentence(state.last, fmtDateTime) : ""}
-                </p>
-                <div>
-                  <button type="button" class="btn btn-ghost" disabled={busy} onClick={() => void act(() => call("test_discord_calls"), state.role ? "Essai envoyé : il montre la mention sans notifier personne." : "Essai envoyé.")}>
-                    Renvoyer un essai
-                  </button>
-                </div>
-                {/* Débrancher efface le réglage, lien compris : à part, sous un filet, et seulement au second clic. Le 11 novembre
-                    2026, « Arrêter l'envoi », à côté de « Dernier envoi : l'essai », a été lu comme la fin de l'essai. */}
-                {/* L'avertissement vient sous le bouton : le bouton ne bouge pas entre les deux clics. */}
-                <div class="grid gap-2 border-t border-line pt-4">
-                  <div>
-                    <button
-                      type="button"
-                      class="btn btn-ghost"
-                      disabled={busy}
-                      aria-describedby={armed ? "discord-stop-note" : undefined}
-                      onClick={() => (armed ? void stop() : setArmed(true))}
-                      onBlur={() => setArmed(false)}
-                      data-testid="direction-discord-stop"
-                    >
-                      {armed ? "Confirmer : débrancher" : "Débrancher le salon"}
-                    </button>
-                  </div>
-                  {armed && (
-                    <p id="discord-stop-note" class="text-sm text-warn">
-                      Les appels ne partiront plus sur Discord, et il faudra recoller le lien du webhook pour rebrancher le salon.
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
+              )}
+            </>
+          )}
+          <Problem message={problem} />
+          {done && <Success message={done} />}
+        </div>
+      </div>
 
-            <div class="lg:col-span-2">
-              <Problem message={problem} />
-              {done && <Success message={done} />}
-            </div>
-          </div>
-        )}
-      </section>
-    </>
+      <details class="fold">
+        <summary>Où trouver le lien et l'identifiant</summary>
+        <ol class="mt-2 grid list-decimal gap-2 pl-5 text-muted">
+          <li>Le lien : dans Discord, Modifier le salon → Intégrations → Webhooks → Nouveau webhook, puis Copier l'URL du webhook. Il permet d'écrire dans le salon : ne le montrez à personne.</li>
+          <li>Le rôle : Paramètres utilisateur → Avancés → Mode développeur. Puis Paramètres du serveur → Rôles, clic droit sur le rôle → Copier l'identifiant du rôle. Si l'essai n'affiche pas le nom du rôle, l'identifiant n'est pas le bon.</li>
+          <li>Si un ping ne notifie personne : dans les réglages du rôle, autorisez tout le monde à le mentionner.</li>
+        </ol>
+      </details>
+    </section>
   );
 }

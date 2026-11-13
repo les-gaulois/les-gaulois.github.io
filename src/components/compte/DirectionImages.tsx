@@ -4,6 +4,7 @@ import { IMAGE_TYPES, imageFileProblem, type ImageType } from "../../lib/compte/
 import { errorMessage } from "../../lib/compte/errors";
 import { fmtDate, fmtInt } from "../../lib/format";
 import { Loading, Problem, Success, messageOf } from "./common";
+import { Pastille } from "./direction-kit";
 import { SecondClic } from "./DirectionMessage";
 import { useInventaire, type Inventaire } from "./inventaire";
 import { Compteur, fileSize } from "./MessageChamps";
@@ -202,7 +203,7 @@ function Carte({ image, images, inventaire, busy, act }: { image: SavedImage; im
   };
 
   return (
-    <li class="inventaire-carte" data-testid="direction-image">
+    <li class="inventaire-carte" data-dir-ton={image.missing ? "warn" : undefined} data-testid="direction-image">
       {image.missing ? (
         // Le fichier manque : une case vide, et le mot sous le nom, lisible même dans la petite case du téléphone.
         <div class="inventaire-carte-image" />
@@ -213,7 +214,11 @@ function Carte({ image, images, inventaire, busy, act }: { image: SavedImage; im
       )}
       <div class="inventaire-carte-texte">
         <p class="font-semibold [overflow-wrap:anywhere]">{image.name}</p>
-        {image.missing && <p class="text-sm font-semibold text-warn">Fichier introuvable sur le serveur</p>}
+        {image.missing && (
+          <p class="text-sm">
+            <Pastille ton="warn">Fichier introuvable sur le serveur</Pastille>
+          </p>
+        )}
         {about && <p class="tnum text-sm text-muted">{about}</p>}
       </div>
       <div class="inventaire-carte-actions">
@@ -252,10 +257,12 @@ function Carte({ image, images, inventaire, busy, act }: { image: SavedImage; im
             <Problem message={problem} />
           </form>
         ) : (
-          <div>
+          // Sur une ligne : renommer, puis, après un filet, retirer de l'inventaire, gris tant qu'on n'y passe pas et au second
+          // clic. Le fichier reste en ligne : un message envoyé le montre.
+          <div class="dir-discord-actions">
             <button
               type="button"
-              class="btn btn-ghost"
+              class="dir-bouton"
               disabled={busy}
               id={`${field}-bouton`}
               aria-label={`Renommer « ${image.name} »`}
@@ -272,19 +279,18 @@ function Carte({ image, images, inventaire, busy, act }: { image: SavedImage; im
             >
               Renommer
             </button>
+            <span class="dir-discord-filet" aria-hidden="true"></span>
+            <SecondClic
+              small
+              id={`direction-image-retirer-${image.id}`}
+              label="Retirer de l'inventaire"
+              confirm="Confirmer : retirer de l'inventaire"
+              warning="L'image quitte l'inventaire. Les messages déjà envoyés l'affichent toujours."
+              busy={busy}
+              onConfirm={() => void act(() => inventaire.remove(image.id), `« ${image.name} » est retirée de l'inventaire.`).then((ok) => ok && focusAjouter())}
+            />
           </div>
         )}
-        {/* Retirer de l'inventaire, à part, sous un filet, au second clic. Le fichier reste en ligne : un message envoyé le montre. */}
-        <div class="border-t border-line pt-3">
-          <SecondClic
-            id={`direction-image-retirer-${image.id}`}
-            label="Retirer de l'inventaire"
-            confirm="Confirmer : retirer de l'inventaire"
-            warning="L'image quitte l'inventaire. Les messages déjà envoyés l'affichent toujours."
-            busy={busy}
-            onConfirm={() => void act(() => inventaire.remove(image.id), `« ${image.name} » est retirée de l'inventaire.`).then((ok) => ok && focusAjouter())}
-          />
-        </div>
       </div>
     </li>
   );
