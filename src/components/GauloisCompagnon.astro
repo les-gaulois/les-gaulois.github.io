@@ -1,0 +1,31 @@
+---
+// Le Gaulois compagnon (14 novembre 2026, demande du pilote : « que le petit Gaulois se déplace de page en page sur le
+// site, qu'il nous suive et soit interactif ») : le Gaulois du village, en pixels, qui marche au bas de la fenêtre.
+// Monté une fois, dans le pied de page de `Base.astro` : il est donc le dernier dans l'ordre du clavier, et absent de la
+// page Carte, qui n'a pas de pied de page. Rien ne s'affiche sans script : `src/scripts/compagnon.ts` le montre.
+// Voir « Le Gaulois compagnon » dans docs/DESIGN.md.
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+---
+
+<div class="compagnon" data-compagnon hidden>
+  <button type="button" class="compagnon-gaulois" data-compagnon-gaulois aria-label="Le Gaulois compagnon : lui parler" aria-expanded="false" aria-controls="compagnon-bulle">
+    <span class="compagnon-image" data-compagnon-image aria-hidden="true"></span>
+    <span class="compagnon-lit" data-compagnon-lit aria-hidden="true"></span>
+  </button>
+  <div class="compagnon-bulle" id="compagnon-bulle" data-compagnon-bulle role="group" aria-label="Le Gaulois compagnon">
+    <p class="compagnon-parole" data-compagnon-parole aria-live="polite"></p>
+    <a class="compagnon-choix compagnon-village" data-compagnon-village href={`${base}/village`} hidden>Aller au village</a>
+    <div class="compagnon-actions">
+      <button type="button" class="compagnon-choix" data-compagnon-suivre>Reste là</button>
+      <button type="button" class="compagnon-choix" data-compagnon-ranger>Ranger</button>
+    </div>
+  </div>
+</div>
+{/* Le moyen de le faire revenir : une ligne au bas du pied de page, montrée seulement quand il est rangé. */}
+<div class="wrap compagnon-rappel" data-compagnon-rappel hidden>
+  <button type="button" class="compagnon-choix" data-compagnon-revenir>Faire revenir le Gaulois</button>
+</div>
+
+<script>
+  import "../scripts/compagnon";
+</script>
