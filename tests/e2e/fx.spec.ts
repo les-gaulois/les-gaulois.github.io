@@ -381,9 +381,10 @@ test.describe("à la souris", () => {
     await expect(bulle).toBeVisible({ timeout: 6000 });
     await expect(bulle).toHaveText(REPLIQUES[0]!);
     await expect(bulle.locator(".holo-lettre").first()).toHaveCSS("animation-name", "holo-frappe");
-    // Le pavé de la machine ne clignote pas : une seule animation, celle qui l'écrit.
+    // Le pavé de la machine paraît juste après la dernière lettre, puis clignote comme le curseur de l'invite.
     await expect(bulle.locator(".holo-pave")).toHaveCount(1);
-    expect(await bulle.locator(".holo-pave").evaluate((el) => getComputedStyle(el).animationIterationCount)).toBe("1");
+    await expect(bulle.locator(".holo-pave")).toHaveCSS("animation-name", "holo-frappe, console-clignote");
+    expect(await bulle.locator(".holo-pave").evaluate((el) => getComputedStyle(el).animationIterationCount)).toBe("1, infinite");
     // La bulle reste dans l'écran, et ne prend aucun clic au guerrier.
     const box = (await bulle.boundingBox())!;
     expect(box.x).toBeGreaterThanOrEqual(0);

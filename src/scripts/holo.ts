@@ -347,7 +347,7 @@ export function monterHolo(el: HTMLElement): Holo | null {
       ecrire(affichee, machine);
       lignes.push(affichee);
     }
-    // Le curseur de la machine, un pavé fixe, se pose quand la réplique est écrite. Il tient à son dernier mot : il ne
+    // Le curseur de la machine, un pavé qui clignote, se pose quand la réplique est écrite. Il tient à son dernier mot : il ne
     // passe jamais seul à la ligne.
     const dite = document.createElement("span");
     dite.className = "holo-parole";

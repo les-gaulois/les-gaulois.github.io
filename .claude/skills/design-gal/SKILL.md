@@ -99,7 +99,7 @@ Titres en lignes équilibrées, `.page-title` pour le H1 (jusqu'à 96 px), `.sec
 - Un effet ne masque jamais du contenu : un bloc apparaît au plus tard après 0,4 s, et sans script après 1,5 s.
 - Trois façons de tout couper, à garder : bouton pause de l'en-tête (choix mémorisé dans `localStorage` sous `gal-fx`), réglage système « réduire les animations », absence de JavaScript. Dans ces trois cas le contenu reste complet et les valeurs finales sont dans le HTML.
 - Clic droit : menu natif conservé sur les liens, boutons, champs, images autres que le logo, texte sélectionné, et partout avec Maj.
-- Rien ne clignote ; la boucle s'arrête quand l'onglet est masqué.
+- Rien ne clignote, sauf le pavé rouge au bout des invites « gal@… » et celui de la bulle du guerrier : ils clignotent comme un terminal, à la demande du pilote (14 novembre 2026, `console-clignote`), et la pause les arrête. La boucle s'arrête quand l'onglet est masqué.
 - Le Gaulois compagnon (`GauloisCompagnon.astro`, `src/scripts/compagnon.ts`, `src/lib/compagnon/`) marche au bas de la fenêtre, de page en page : décoratif, lent, arrêté net par la pause et « réduire les animations ». Il ne couvre jamais un champ en saisie ni ce qui est fixé en bas : une nouvelle barre du bas porte `data-compagnon-obstacle`. Détail dans `docs/DESIGN.md`, « Le Gaulois compagnon ».
 
 ## Accessibilité

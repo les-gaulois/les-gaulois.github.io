@@ -222,12 +222,21 @@ test("l'invite et la console sont décoratives, et la pause arrête leurs animat
     page.evaluate(() => ({
       light: getComputedStyle(document.querySelector("h1")!, "::after").animationName,
       prompt: getComputedStyle(document.querySelector(".invite")!).animationName,
+      cursor: getComputedStyle(document.querySelector(".invite .console-curseur")!).animationName,
     }));
   expect(await page.evaluate(() => getComputedStyle(document.querySelector("h1")!, "::after").content)).toBe("none");
-  expect(await reading()).toEqual({ light: "none", prompt: "console-frappe" });
+  // Le pavé de l'invite clignote comme un terminal (demande du pilote, 14 novembre 2026) : sans fin, net, moins d'une
+  // fois par seconde. La pause et « réduire les animations » le laissent allumé, fixe.
+  expect(await reading()).toEqual({ light: "none", prompt: "console-frappe", cursor: "console-clignote" });
+  expect(
+    await page.evaluate(() => {
+      const style = getComputedStyle(document.querySelector(".invite .console-curseur")!);
+      return { count: style.animationIterationCount, timing: style.animationTimingFunction, duration: parseFloat(style.animationDuration) };
+    }),
+  ).toEqual({ count: "infinite", timing: "steps(1)", duration: 1.1 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.reload();
-  expect(await reading()).toEqual({ light: "none", prompt: "none" });
+  expect(await reading()).toEqual({ light: "none", prompt: "none", cursor: "none" });
   await page.goto("/");
   expect(await falling()).toBe("none");
   await page.emulateMedia({ reducedMotion: "no-preference" });
@@ -235,7 +244,7 @@ test("l'invite et la console sont décoratives, et la pause arrête leurs animat
   await page.reload();
   expect(await falling()).toBe("none");
   await page.goto("/classement");
-  expect(await reading()).toEqual({ light: "none", prompt: "none" });
+  expect(await reading()).toEqual({ light: "none", prompt: "none", cursor: "none" });
   await page.evaluate(() => localStorage.removeItem("gal-fx"));
   await page.goto("/qg");
   await page.waitForLoadState("networkidle");
@@ -251,16 +260,17 @@ test("l'invite et la console sont décoratives, et la pause arrête leurs animat
     page.evaluate(() => ({
       band: getComputedStyle(document.documentElement, "::after").animationName,
       prompt: getComputedStyle(document.querySelector(".console-invite")!).animationName,
+      cursor: getComputedStyle(document.querySelector(".console-invite .console-curseur")!).animationName,
     }));
-  expect(await moving()).toEqual({ band: "console-balayage", prompt: "console-frappe" });
+  expect(await moving()).toEqual({ band: "console-balayage", prompt: "console-frappe", cursor: "console-clignote" });
   // « Réduire les animations » du système : la règle globale vise aussi <html>.
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.reload();
-  expect(await moving()).toEqual({ band: "none", prompt: "none" });
+  expect(await moving()).toEqual({ band: "none", prompt: "none", cursor: "none" });
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.evaluate(() => localStorage.setItem("gal-fx", "off"));
   await page.reload();
-  expect(await moving()).toEqual({ band: "none", prompt: "none" });
+  expect(await moving()).toEqual({ band: "none", prompt: "none", cursor: "none" });
 });
 
 // L'onciale de cases (docs/DESIGN.md, « Typographie ») : depuis le 12 novembre 2026, les titres et les gros chiffres des
