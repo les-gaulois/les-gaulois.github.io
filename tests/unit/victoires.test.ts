@@ -751,19 +751,19 @@ describe("victoryCard", () => {
     // Avec la place pour les deux, tout tient sur une ligne.
     expect(chipLayout(items(3), measure, width).rows).toHaveLength(1);
   });
-  it("sans la monnaie du village, l'image ne montre ni pièce ni statères : l'interrupteur est fermé jusqu'à la mise en ligne", () => {
-    expect(STATERES_SUR_LES_VICTOIRES).toBe(false);
+  it("l'interrupteur de la monnaie est ouvert : sans rien demander, l'image montre la pièce ; refusée, elle est celle d'avant", () => {
+    expect(STATERES_SUR_LES_VICTOIRES).toBe(true);
     const gold = new Set(casesDuStatere(16).filter(Boolean));
     for (const shape of [SQUARE, null]) {
-      // Sans rien demander, et en le refusant : la même image qu'avant.
-      for (const card of [victoryCard(VICTORY, "GAL", SITE, measure, shape), victoryCard(VICTORY, "GAL", SITE, measure, shape, false)]) {
-        expect(card.texts.some((t) => t.text.includes("statère"))).toBe(false);
-        expect(card.rects.some((r) => gold.has(r.color))).toBe(false);
-      }
-      expect(victoryCard(VICTORY, "GAL", SITE, measure, shape)).toEqual(victoryCard(VICTORY, "GAL", SITE, measure, shape, false));
+      // Sans rien demander : la pièce et les statères, comme en les demandant.
+      expect(victoryCard(VICTORY, "GAL", SITE, measure, shape)).toEqual(victoryCard(VICTORY, "GAL", SITE, measure, shape, true));
+      // En la refusant : ni pièce ni statères.
+      const without = victoryCard(VICTORY, "GAL", SITE, measure, shape, false);
+      expect(without.texts.some((t) => t.text.includes("statère"))).toBe(false);
+      expect(without.rects.some((r) => gold.has(r.color))).toBe(false);
     }
-    expect(victoryImageAlt(VICTORY, "GAL", true)).not.toContain("statère");
-    expect(victoryImageAlt(VICTORY, "GAL", true, false)).toBe(victoryImageAlt(VICTORY, "GAL", true));
+    expect(victoryImageAlt(VICTORY, "GAL", true)).toBe(victoryImageAlt(VICTORY, "GAL", true, true));
+    expect(victoryImageAlt(VICTORY, "GAL", true, false)).not.toContain("statère");
   });
   it("avec la monnaie : la pièce et les statères de chaque Gaulois, sous les points rapportés au clan", () => {
     // 1,81 point, 30 statères par point rapporté au clan, arrondi : 54 à chacun des 6 Gaulois.
@@ -815,6 +815,10 @@ describe("victoryCard", () => {
   });
   it("dit tout à un lecteur d'écran, crédit compris", () => {
     expect(plain(victoryImageAlt(VICTORY, "GAL", true))).toBe(
+      "Victoire de [GAL] sur la carte Quatre Îles, 4 équipes, mercredi 11 novembre à 18:04, heure de Paris. 6 Gaulois sur 23 joueurs, +1,81 point gagné, partie de 16 min. Chaque Gaulois du village présent dans la partie reçoit 54 statères, pour les points rapportés au clan. Gaulois de la partie, sous leur nom en partie : alpha, Caché, Zoé en jeu, 1 Gaulois sans nom et 1 joueur sous le tag, hors du clan. Image et nom de la carte : © OpenFront and Contributors, CC BY-SA 4.0, image redimensionnée.",
+    );
+    // Sans la monnaie : la phrase d'avant, mot pour mot.
+    expect(plain(victoryImageAlt(VICTORY, "GAL", true, false))).toBe(
       "Victoire de [GAL] sur la carte Quatre Îles, 4 équipes, mercredi 11 novembre à 18:04, heure de Paris. 6 Gaulois sur 23 joueurs, +1,81 point gagné, partie de 16 min. Gaulois de la partie, sous leur nom en partie : alpha, Caché, Zoé en jeu, 1 Gaulois sans nom et 1 joueur sous le tag, hors du clan. Image et nom de la carte : © OpenFront and Contributors, CC BY-SA 4.0, image redimensionnée.",
     );
     expect(victoryImageAlt(VICTORY, "GAL", false)).toContain("Nom de la carte : © OpenFront and Contributors, CC BY-SA 4.0.");
