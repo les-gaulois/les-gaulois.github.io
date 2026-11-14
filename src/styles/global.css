@@ -1647,8 +1647,17 @@ main .fx-in,
   color: var(--color-ok);
   font-weight: 600;
 }
+/* Vide, la zone d'état (`role="status"`) reste dans l'arbre d'accessibilité, sans prendre de place : un lecteur d'écran
+   annonce ce qui s'y écrit ensuite. Avec `display: none`, elle n'existait pas pour lui avant son message (relevé par
+   l'onglet Événements de la Direction, 14 novembre 2026). */
 .form-success:empty {
-  display: none;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* ---------- Les espaces de travail : le QG et la Direction ---------- */
