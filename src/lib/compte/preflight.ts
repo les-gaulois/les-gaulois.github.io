@@ -253,6 +253,12 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
     else add(label, "fail", `Réponse ${res.status}. Ne mettez pas en ligne : retirez le droit d'appeler ${fn}.`);
   }
 
+  // Les Gaulois sur les images du robot (migration 20261114000400) : la tenue des membres, réservée à la clé de service, celle
+  // des scripts du robot. Un visiteur doit être refusé par le droit d'appel lui-même. Une liste vide ne désigne personne.
+  const gauloisImages = await rpc("gaulois_des_joueurs", { p_empreintes: [] });
+  if (isClosed(gauloisImages.status)) add("Un visiteur ne lit pas les Gaulois des joueurs", "ok");
+  else add("Un visiteur ne lit pas les Gaulois des joueurs", "fail", `Réponse ${gauloisImages.status}. Ne mettez pas en ligne : retirez le droit d'appeler gaulois_des_joueurs.`);
+
   // Les salons du robot : leur réglage contient les liens qui écrivent dans les salons. Seuls les admins et le fondateur
   // le règlent, et seule la clé de service, celle du robot, reçoit les liens. Leur installation se lit avec `supabase migration list`.
   const salonsState = await rpc("get_discord_salons");
@@ -456,6 +462,16 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   if (vieNoteAnswer?.ok === false && vieNoteAnswer.error === "invalid_releve") add(vieLabel, "ok");
   else if (vieNote.status === 404) add(vieLabel, "warn", `${aColler("noter_vie_du_village")}. D'ici là, l'étape « Animer le village » échoue sans rien bloquer.`);
   else add(vieLabel, "warn", `Réponse ${vieNote.status}. La clé de service n'a pas le droit d'appeler noter_vie_du_village : collez de nouveau ${fichierDuVillage}, en entier : il se rejoue sans rien perdre.`);
+
+  // Les Gaulois sur les images : les scripts du robot, avec cette clé, doivent pouvoir les lire. Lecture seule, et une liste
+  // vide ne désigne personne : la réponse est vide. À regarder, jamais bloquant : sans elle, les images partent sans Gaulois.
+  const gauloisLabel = "Le robot peut lire les Gaulois des images";
+  const gauloisLus = await fetcher(`${base}/rest/v1/rpc/gaulois_des_joueurs`, { method: "POST", headers: secretHeaders, body: JSON.stringify({ p_empreintes: [] }) });
+  const gauloisLusAnswer = gauloisLus.ok ? ((await gauloisLus.json().catch(() => null)) as { ok?: unknown; gaulois?: unknown } | null) : null;
+  const gauloisMigration = "supabase/migrations/20261114000400_gaulois_sur_les_images.sql";
+  if (gauloisLusAnswer?.ok === true && typeof gauloisLusAnswer.gaulois === "object" && gauloisLusAnswer.gaulois !== null) add(gauloisLabel, "ok");
+  else if (gauloisLus.status === 404) add(gauloisLabel, "warn", `gaulois_des_joueurs est absente : collez ${gauloisMigration} dans l'éditeur SQL de Supabase. D'ici là, les images du robot et des fiches partent sans Gaulois.`);
+  else add(gauloisLabel, "warn", `Réponse ${gauloisLus.status}. La clé de service n'a pas le droit d'appeler gaulois_des_joueurs : collez de nouveau ${gauloisMigration}, elle se rejoue sans rien perdre.`);
 
   return checks;
 }
