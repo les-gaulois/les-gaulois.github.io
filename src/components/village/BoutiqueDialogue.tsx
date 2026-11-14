@@ -2,7 +2,7 @@ import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { Objet, Rarete, Vignette } from "../../lib/gaulois";
 import type { PochetteReponse } from "../../lib/village/contrat";
-import { nombre, stateres } from "../../lib/village/ecran-boutique";
+import { stateres } from "../../lib/village/ecran-boutique";
 import { MarqueDeRarete, Pixels, Prix } from "./BoutiquePixels";
 import { DessinPochette } from "./Pochette";
 
@@ -73,12 +73,14 @@ function Compte({ prix, solde }: { prix: number; solde: number }) {
       </div>
       <div>
         <dt>Votre bourse</dt>
-        <dd class="tnum">{nombre(solde)}</dd>
+        <dd>
+          <Prix montant={solde} />
+        </dd>
       </div>
       <div class="boutique-compte-reste">
         <dt>Il vous restera</dt>
-        <dd class="tnum" data-testid="boutique-reste">
-          {nombre(solde - prix)}
+        <dd data-testid="boutique-reste">
+          <Prix montant={solde - prix} />
         </dd>
       </div>
     </dl>
@@ -95,7 +97,8 @@ function Refus({ message }: { message: string | null }) {
 
 /**
  * Acheter un objet : la fenêtre dit l'objet, le prix et ce qu'il restera, puis demande au serveur. Après l'achat, l'objet
- * se porte tout de suite si le membre le veut.
+ * se porte tout de suite si le membre le veut. Si le serveur refuse, le compte de l'ouverture s'efface : il ne reste que
+ * l'objet, les mots du refus et « Fermer ».
  */
 export function DialogueAchat({ objet, rarete, vignette, prix, solde, acheter, onPorter, onFermer }: { objet: Objet; rarete: Rarete; vignette: Vignette | null; prix: number; solde: number; acheter: () => Promise<Issue<number>>; onPorter: () => void; onFermer: () => void }) {
   const [etape, setEtape] = useState<"confirmer" | "envoi" | "fait">("confirmer");
@@ -116,7 +119,7 @@ export function DialogueAchat({ objet, rarete, vignette, prix, solde, acheter, o
     }
   };
   return (
-    <Dialogue titre={etape === "fait" ? `${objet.nom} est à vous` : `Acheter ${objet.nom} ?`} etape={etape === "fait" ? "fait" : "confirmer"} occupe={etape === "envoi"} onFermer={onFermer} testid="dialogue-achat">
+    <Dialogue titre={etape === "fait" ? `${objet.nom} est à vous` : refus ? "Achat impossible" : `Acheter ${objet.nom} ?`} etape={etape === "fait" ? "fait" : "confirmer"} occupe={etape === "envoi"} onFermer={onFermer} testid="dialogue-achat">
       <CaseMontree objet={objet} rarete={rarete} vignette={vignette} />
       {etape === "fait" ? (
         <>
@@ -132,7 +135,8 @@ export function DialogueAchat({ objet, rarete, vignette, prix, solde, acheter, o
         </>
       ) : (
         <>
-          <Compte prix={prix} solde={depart} />
+          {/* Après un refus, les chiffres de l'ouverture ne valent plus (le solde ou le prix a changé) : le refus seul. */}
+          {!refus && <Compte prix={prix} solde={depart} />}
           <Refus message={refus} />
           <div class="boutique-dialogue-actions">
             {!refus && (
@@ -175,7 +179,7 @@ export function DialoguePochette({ prix, solde, ouvrir, objetDe, vignetteDe, dej
   const tire = tirage?.objet;
   const objet = tire ? objetDe(tire) : undefined;
   return (
-    <Dialogue titre={tire && objet ? "Dans votre pochette" : "Ouvrir une pochette surprise ?"} etape={etape === "revele" ? "revele" : "confirmer"} occupe={etape === "envoi"} onFermer={onFermer} testid="dialogue-pochette">
+    <Dialogue titre={tire && objet ? "Dans votre pochette" : refus ? "La pochette reste fermée" : "Ouvrir une pochette surprise ?"} etape={etape === "revele" ? "revele" : "confirmer"} occupe={etape === "envoi"} onFermer={onFermer} testid="dialogue-pochette">
       {tirage && tire && objet ? (
         <>
           <div class="pochette-revelation" data-rarete={tire.rarete} data-testid="pochette-tirage" data-objet={`${tire.emplacement}/${tire.objet}`}>
@@ -203,7 +207,7 @@ export function DialoguePochette({ prix, solde, ouvrir, objetDe, vignetteDe, dej
           <div class="pochette-attente" data-envoi={etape === "envoi" ? "" : undefined}>
             <DessinPochette echelle={4} />
           </div>
-          <Compte prix={prix} solde={depart} />
+          {!refus && <Compte prix={prix} solde={depart} />}
           <Refus message={refus} />
           <div class="boutique-dialogue-actions">
             {!refus && (

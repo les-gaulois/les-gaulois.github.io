@@ -16,10 +16,25 @@ export const LARGEUR_ORDINATEUR = 768;
 /** Jusqu'à ce nombre de Gaulois dans le lieu ouvert, un écran large le montre en grand ; au-delà, il prend du recul. */
 export const FOULE_EN_GRAND = 12;
 
+/**
+ * Jusqu'à ce nombre de Gaulois dans le lieu ouvert, un téléphone garde sa case de 2 pixels ; au-delà, il prend du recul à
+ * son tour, pour que la page ne s'allonge pas sur des écrans et des écrans (80 Gaulois : 6 000 pixels de haut sans cela).
+ */
+export const FOULE_AU_TELEPHONE = 24;
+/** Le côté d'une case quand un téléphone prend du recul : chaque Gaulois fait alors 48 pixels sur 64, toujours nets. */
+export const CASE_DE_LOIN = 1;
+
 /** Le côté d'une case de la scène, décor et Gaulois ensemble, pour cet écran et ce nombre de Gaulois dans le lieu. */
 export function caseDeLaScene(largeurEcran: number, nombre: number): number {
-  return largeurEcran >= LARGEUR_ORDINATEUR && nombre <= FOULE_EN_GRAND ? CASE_ORDINATEUR : CASE_TELEPHONE;
+  if (largeurEcran >= LARGEUR_ORDINATEUR) return nombre <= FOULE_EN_GRAND ? CASE_ORDINATEUR : CASE_TELEPHONE;
+  return nombre <= FOULE_AU_TELEPHONE ? CASE_TELEPHONE : CASE_DE_LOIN;
 }
+
+/** Le nom que le serveur donne au Gaulois d'un compte qui ne se montre pas aux autres membres. */
+export const NOM_SANS_NOM = "Un Gaulois";
+
+/** Ce Gaulois n'a pas de nom à montrer : son étiquette se fait discrète, pour laisser lire les noms des autres. */
+export const estSansNom = (gaulois: Pick<GauloisDeLaPlace, "nom" | "moi">): boolean => !gaulois.moi && gaulois.nom === NOM_SANS_NOM;
 
 /** Le nombre de cases du décor pour remplir une scène de cette largeur : jamais moins que le plus petit décor. */
 export function largeurDuDecor(largeurScene: number, cote: number): number {

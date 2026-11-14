@@ -5,7 +5,7 @@
  */
 import { EMPLACEMENTS_OBJETS, OBJETS, ORDRE_RARETES, RARETES, type Emplacement, type Rarete } from "../gaulois";
 import { ERROR_MESSAGES } from "../compte/errors";
-import { fmtInt } from "../format";
+import { nombre } from "./ecran-boutique";
 import type { MaBoutique, Marche, ObjetPossede, OffreDuMarche, RefusMarche } from "./contrat";
 
 /** Un objet payant du catalogue, avec ce qu'il faut pour dessiner sa case. */
@@ -154,7 +154,7 @@ export function finDeLOffre(expireLe: string, maintenant: Date): string {
 }
 
 /** « 1 statère », « 250 statères ». */
-export const enStateres = (nombre: number): string => `${fmtInt(nombre)} ${Math.abs(nombre) > 1 ? "statères" : "statère"}`;
+export const enStateres = (montant: number): string => `${nombre(montant)} ${Math.abs(montant) > 1 ? "statères" : "statère"}`;
 
 /**
  * Les mots du marché pour chaque refus du contrat (`RefusMarche`). Ceux qui n'existent qu'au marché sont dans

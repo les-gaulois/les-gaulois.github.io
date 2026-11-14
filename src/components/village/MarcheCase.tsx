@@ -1,14 +1,15 @@
 import { useMemo } from "preact/hooks";
 import { casesDuStatere, type TailleStatere } from "../../../supabase/functions/code-discord/statere";
 import { fmtInt } from "../../lib/format";
+import { nombre } from "../../lib/village/ecran-boutique";
 import { RARETES, vignetteDeLObjet } from "../../lib/gaulois";
 import type { ObjetDuMarche } from "../../lib/village/ecran-marche";
 import { Toile } from "./PlaceToile";
 
 /** La pièce, en pixels nets : décorative, le mot « statères » est écrit ou dit à côté. */
-export function Piece({ taille = 16 }: { taille?: TailleStatere }) {
+export function Piece({ taille = 16, echelle = 1 }: { taille?: TailleStatere; echelle?: number }) {
   const cases = useMemo(() => casesDuStatere(taille), [taille]);
-  return <Toile largeur={taille} hauteur={taille} cases={cases} echelle={1} class="marche-piece" />;
+  return <Toile largeur={taille} hauteur={taille} cases={cases} echelle={echelle} class="marche-piece" />;
 }
 
 /** Un prix : la pièce et le nombre ; « statères » est dit aux lecteurs d'écran. */
@@ -16,7 +17,7 @@ export function Prix({ valeur, class: classe = "" }: { valeur: number; class?: s
   return (
     <span class={`marche-prix tnum ${classe}`}>
       <Piece />
-      {fmtInt(valeur)}
+      {nombre(valeur)}
       <span class="sr-only"> {Math.abs(valeur) > 1 ? "statères" : "statère"}</span>
     </span>
   );

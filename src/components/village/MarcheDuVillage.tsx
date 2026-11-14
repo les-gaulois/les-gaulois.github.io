@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { ServerError, call } from "../../lib/compte/api";
 import { fmtInt } from "../../lib/format";
+import { nombre } from "../../lib/village/ecran-boutique";
 import { NOMS_EMPLACEMENTS } from "../../lib/gaulois";
 import {
   emplacementsEnVente,
@@ -120,7 +121,7 @@ export default function MarcheDuVillage({ actif }: { actif: boolean }) {
   if (etat.kind === "erreur") return <Problem message={etat.message} onRetry={() => void lire(false)} />;
   if (etat.kind === "ferme") {
     return (
-      <p class="marche-mot" data-testid="marche-ferme">
+      <p class="marche-mot place-mot-fort" data-testid="marche-ferme">
         {etat.message}
       </p>
     );
@@ -137,10 +138,10 @@ export default function MarcheDuVillage({ actif }: { actif: boolean }) {
     <div class="marche" data-testid="marche">
       <div class="marche-tete">
         <p class="marche-solde" data-testid="marche-solde">
-          <span class="sr-only">Votre solde : </span>
-          <Piece taille={24} />
-          <strong class="tnum">{fmtInt(marche.solde)}</strong>{" "}
-          {marche.solde > 1 ? "statères" : "statère"}
+          <span class="sr-only">Votre bourse : </span>
+          <Piece taille={24} echelle={2} />
+          <strong class="bourse-nombre tnum">{nombre(marche.solde)}</strong>{" "}
+          <span class="bourse-unite">{marche.solde > 1 ? "statères" : "statère"}</span>
         </p>
         <div>
           <button

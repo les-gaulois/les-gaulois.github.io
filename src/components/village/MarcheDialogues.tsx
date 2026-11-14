@@ -10,7 +10,7 @@ import { CaseObjet, Prix } from "./MarcheCase";
  * Une fenêtre du marché, par-dessus la page : le navigateur y garde le focus, Échap la ferme et le focus revient au bouton
  * qui l'a ouverte. Un clic sur le fond la ferme aussi.
  */
-function Dialogue({ titre, onFermer, children }: { titre: string; onFermer: () => void; children: ComponentChildren }) {
+function Dialogue({ titre, achat = false, onFermer, children }: { titre: string; achat?: boolean; onFermer: () => void; children: ComponentChildren }) {
   const fenetre = useRef<HTMLDialogElement>(null);
   // Retirée de la page, la fenêtre se ferme pour rendre le focus ; le navigateur annonce cette fermeture un peu plus tard,
   // quand une autre fenêtre a pu s'ouvrir : cette annonce-là ne doit plus rien fermer.
@@ -26,7 +26,7 @@ function Dialogue({ titre, onFermer, children }: { titre: string; onFermer: () =
   return (
     <dialog
       ref={fenetre}
-      class="marche-dialogue"
+      class={achat ? "marche-dialogue marche-dialogue-achat" : "marche-dialogue"}
       aria-labelledby="marche-dialogue-titre"
       data-testid="marche-dialogue"
       onClose={() => {
@@ -80,35 +80,38 @@ export function DialogueAchat({
           ? `Il vous manque ${enStateres(examen.manque)}.`
           : null;
   return (
-    <Dialogue titre="Acheter cet objet" onFermer={onFermer}>
+    <Dialogue titre={empeche || probleme ? "Achat impossible" : `Acheter ${offre.nom} ?`} achat onFermer={onFermer}>
       <div class="marche-dialogue-objet">
         <CaseObjet objet={offre} />
-        <dl class="marche-compte">
-          <div>
-            <dt>Vendu par</dt>
-            <dd>{offre.vendeur}</dd>
-          </div>
-          <div>
-            <dt>Prix</dt>
-            <dd>
-              <Prix valeur={offre.prix} />
-            </dd>
-          </div>
-          <div>
-            <dt>Votre solde</dt>
-            <dd>
-              <Prix valeur={solde} />
-            </dd>
-          </div>
-          {examen.refus !== "solde_insuffisant" && (
-            <div data-testid="marche-solde-apres">
-              <dt>Solde après l'achat</dt>
+        {/* Les mêmes lignes qu'à la boutique. Après un refus du serveur, ces chiffres ne valent plus : le refus seul. */}
+        {!probleme && (
+          <dl class="marche-compte">
+            <div>
+              <dt>Vendu par</dt>
+              <dd>{offre.vendeur}</dd>
+            </div>
+            <div>
+              <dt>Prix</dt>
               <dd>
-                <Prix valeur={examen.soldeApres} />
+                <Prix valeur={offre.prix} />
               </dd>
             </div>
-          )}
-        </dl>
+            <div>
+              <dt>Votre bourse</dt>
+              <dd>
+                <Prix valeur={solde} />
+              </dd>
+            </div>
+            {examen.refus === null && (
+              <div class="marche-compte-reste" data-testid="marche-solde-apres">
+                <dt>Il vous restera</dt>
+                <dd>
+                  <Prix valeur={examen.soldeApres} />
+                </dd>
+              </div>
+            )}
+          </dl>
+        )}
       </div>
       {empeche && (
         <p class="form-problem" data-testid="marche-empeche">

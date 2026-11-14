@@ -101,9 +101,10 @@ export default function PlaceDuVillage({ actif }: { actif: boolean }) {
   if (etat.kind === "erreur") return <Problem message={etat.message} onRetry={() => void lire(false)} />;
   if (etat.kind === "fermee" || !village || !lieux) {
     return (
+      // Le mot d'abord : sur un téléphone, la scène vide le pousserait hors de l'écran.
       <div class="place" data-testid="place-fermee">
+        <p class="place-mot place-mot-fort">{etat.kind === "fermee" ? etat.message : ""}</p>
         <PlaceScene lieu="place" habitants={[]} lumiere={lumiere} actif={actif} />
-        <p class="place-mot">{etat.kind === "fermee" ? etat.message : ""}</p>
       </div>
     );
   }

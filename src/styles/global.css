@@ -8982,6 +8982,147 @@ footer h2 {
   }
 }
 
+/* ---------- Le village, le regard d'ensemble (14 novembre 2026) ---------- */
+/* Les trois onglets vus comme un seul produit : mêmes chiffres, mêmes fenêtres, mêmes cases. Chaque règle dit ce qu'elle
+   accorde. */
+
+/* Les trois onglets tiennent dans la barre sur un téléphone : « Le marché » ne reste plus caché hors de l'écran. Si la
+   place manque quand même, la barre défile comme avant. */
+@media (max-width: 480px) {
+  .village .onglets-defile {
+    gap: 0.125rem;
+  }
+  .village .onglet {
+    flex: 1 0 auto;
+    justify-content: center;
+    padding-inline: 0.3125rem;
+    font-size: 0.875rem;
+  }
+}
+
+/* La bourse du marché : la même que celle de « Mon Gaulois » (la pièce, le nombre en grand, « statères » en doré). */
+.marche-solde {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+}
+.marche-solde strong {
+  font-size: clamp(2.5rem, 2rem + 2.5vw, 3.75rem);
+}
+
+/* Le nom d'une case tient sur deux lignes : il en garde la place, pour que les losanges, la rareté et le prix soient à la
+   même hauteur d'une case à l'autre. Un nom d'une ligne se pose en bas, contre sa rareté. */
+.case-nom,
+.marche-case-nom {
+  display: grid;
+  align-content: end;
+  min-height: 2.4em;
+}
+
+/* Les fenêtres : le même voile, le même titre ; celle d'un achat au marché est centrée comme celle de la boutique, avec
+   les mêmes lignes (prix, bourse, ce qu'il restera). */
+.marche-dialogue::backdrop {
+  background: rgb(3 8 26 / 0.8);
+}
+.marche-dialogue-titre {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+.marche-dialogue-achat {
+  width: min(26rem, calc(100vw - 2rem));
+}
+.marche-dialogue-achat .marche-dialogue-corps {
+  justify-items: center;
+  padding: 1.5rem 1.25rem;
+  text-align: center;
+}
+.marche-dialogue-achat .marche-dialogue-objet {
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  width: 100%;
+}
+.marche-dialogue-achat .marche-case {
+  width: 8rem;
+}
+.marche-dialogue-achat .marche-compte {
+  gap: 0;
+  width: 100%;
+  max-width: 18rem;
+}
+.marche-dialogue-achat .marche-compte > div {
+  flex-wrap: nowrap;
+  align-items: center;
+  padding-block: 0.4375rem;
+  border-top: 1px solid var(--color-line);
+  border-bottom: 0;
+}
+.marche-dialogue-achat .marche-compte > div:first-child {
+  border-top: 0;
+}
+.marche-dialogue-achat .marche-compte > .marche-compte-reste {
+  border-top-color: var(--color-line-strong);
+}
+.marche-dialogue-achat .marche-compte dt {
+  font-size: inherit;
+  text-align: left;
+}
+.marche-dialogue-achat .marche-compte dd {
+  text-align: right;
+}
+.marche-dialogue-achat .marche-dialogue-actions {
+  justify-content: center;
+  margin-top: 0.25rem;
+}
+
+/* Un lieu fermé (compte pas encore validé) : la raison se lit comme dans la bourse, en jaune, avant la scène. */
+.place-mot-fort {
+  color: var(--color-warn);
+  font-weight: 600;
+}
+
+/* Sur un téléphone, la bourse suit le Gaulois collé en haut, qui a déjà son filet : pas de second filet dessous. */
+@media (max-width: 767px) and (min-height: 560px) {
+  .boutique-tete > :first-child {
+    padding-top: 0;
+    border-top: 0;
+  }
+}
+
+/* Les cinq lieux sur un téléphone : la place sur toute la largeur, puis deux rangs de deux. */
+@media (max-width: 599px) {
+  .vie-lieu:first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+/* « Un Gaulois » : l'étiquette d'un Gaulois sans nom s'efface un peu, pour laisser lire les noms des autres. */
+.vie-acteur[data-sans-nom] .place-nom {
+  background: color-mix(in srgb, var(--color-night) 72%, transparent);
+  color: var(--color-muted);
+  font-weight: 400;
+}
+
+/* Un lieu plein sur un téléphone, vu de plus loin (une case vaut 1 pixel) : les noms ne s'écrivent plus sous chacun, ils
+   se chevaucheraient ; le sien reste, les autres se lisent au toucher et dans « Qui est où ». */
+.place-scene[data-loin] .vie-acteur:not([data-moi]) .place-nom {
+  display: none;
+}
+.place-scene[data-loin] .vie-acteur[data-moi] .place-nom {
+  max-width: 9rem;
+}
+.place-scene[data-loin] .vie-acteur[data-moi][data-bord="gauche"] .place-nom {
+  left: 0;
+  translate: 0 0;
+}
+.place-scene[data-loin] .vie-acteur[data-moi][data-bord="droite"] .place-nom {
+  right: 0;
+  left: auto;
+  translate: 0 0;
+}
+
 /* ---------- La carte, le classement en colonne (13 novembre 2026, au soir) ---------- */
 /* Le pilote n'aimait plus « le design hacker sur la carte ». Parmi quinze maquettes, il a choisi « le classement en
    colonne » avec, pour le bas, « le film flottant » : la carte à gauche, une colonne à droite où se lit la fenêtre ouverte
