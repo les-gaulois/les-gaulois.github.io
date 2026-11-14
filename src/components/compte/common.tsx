@@ -189,6 +189,9 @@ export function DiscordGives({ langue = "fr" }: { langue?: LangueEcran } = {}) {
 /** La connexion par code s'affiche une fois ouverte à tous, ou à l'adresse `/compte#code`, pour l'essai d'avant. */
 export const codeLoginShown = (): boolean => CODE_LOGIN_OPEN || location.hash === "#code";
 
+/** Le salon du Discord du clan où taper /code, écrit comme Discord l'affiche : un nom public, pas un identifiant. */
+export const SALON_DU_CODE = "・「🔐」authentification";
+
 /**
  * Se connecter sans lier son compte Discord : le joueur tape /code dans le Discord du clan, et recopie ici le code que le
  * robot lui montre, à lui seul. Le serveur vérifie le code ; la session ouverte, la page de compte se recharge.
@@ -223,7 +226,12 @@ export function CodeLogin({ connecte, langue = "fr" }: { connecte?: () => void; 
         {en ? "Without linking your Discord account" : "Sans lier votre compte Discord"}
       </h3>
       <ol class="mt-2 list-decimal space-y-1 pl-6 text-muted">
-        <li>{en ? "In the clan's Discord, type /code." : "Dans le Discord du clan, tapez /code."}</li>
+        {/* Le nom du salon, tel qu'il s'affiche dans le Discord du clan (demande du pilote, 14 novembre 2026). */}
+        <li>
+          {en ? "In the clan's Discord, in the " : "Dans le Discord du clan, salon "}
+          <strong class="whitespace-nowrap font-semibold" data-testid="code-salon">{SALON_DU_CODE}</strong>
+          {en ? " channel, type /code." : ", tapez /code."}
+        </li>
         <li>{en ? "Copy here the code the bot shows you, and only you." : "Recopiez ici le code que le robot vous montre, à vous seul."}</li>
       </ol>
       <form

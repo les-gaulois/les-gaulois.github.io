@@ -112,6 +112,23 @@ const COMMANDES =
   "a[href], button, input:not([type='hidden']), select, textarea, summary, tr, [contenteditable]:not([contenteditable='false']), [role='button'], [role='link'], [role='tab'], [role='checkbox'], [role='radio'], [role='switch'], [role='slider'], [role='menuitem'], [role='option']";
 /** Les images : il ne couvre pas celles qui disent quelque chose ; il peut passer devant celles qui ornent. */
 const BALISES_D_IMAGE = new Set(["img", "svg", "canvas", "video", "iframe", "object", "embed"]);
+/**
+ * Les graphiques, qu'il ne couvre pas en entier : tout élément marqué `data-graphique` (les courbes, les barres : cachés aux
+ * lecteurs d'écran, qui en lisent les valeurs en texte, ils ne seraient pas reconnus autrement), et la jauge commune du
+ * site, `.meter` (docs/DESIGN.md), partout où elle est.
+ */
+const GRAPHIQUES = "[data-graphique], .meter";
+
+/**
+ * Une image qui dit quelque chose : ni cachée aux lecteurs d'écran (elle ni un parent), ni décorative (texte de
+ * remplacement vide, rôle `presentation`), et, pour un dessin (`svg`, `canvas`), avec un nom ou le rôle d'image.
+ */
+function imageQuiDitQuelqueChose(el: Element): boolean {
+  const role = el.getAttribute("role");
+  if (el.closest("[aria-hidden='true']") || el.getAttribute("alt") === "" || role === "presentation" || role === "none") return false;
+  if (el.localName !== "svg" && el.localName !== "canvas") return true;
+  return role === "img" || el.hasAttribute("aria-label") || el.hasAttribute("aria-labelledby") || el.querySelector(":scope > title") !== null;
+}
 const SANS_TEXTE = new Set(["script", "style", "noscript", "template", "link", "meta"]);
 /** Après l'avoir posé à la main (glisser, flèches), le visiteur a ce temps pour le placer avant qu'il ne dégage ce qu'il couvre. */
 const POSE_MS = 2_000;
@@ -195,9 +212,9 @@ const vu = (el: Element): boolean => typeof el.checkVisibility !== "function" ||
 
 /**
  * Ce qu'il ne couvre pas, arrêté, dans `region` (la fenêtre, ou sa boîte pour un coup d'œil), hors de `exclus` (lui, sa
- * prison) : chaque ligne de texte vu, chaque commande et chaque ligne de tableau en entier, chaque image qui dit quelque
- * chose (une image décorative, `aria-hidden` ou sans texte de remplacement, ne compte pas). Les branches de la page hors de
- * `region` ne sont pas parcourues.
+ * prison) : chaque ligne de texte vu, chaque commande, chaque ligne de tableau et chaque graphique en entier (`GRAPHIQUES`),
+ * chaque image qui dit quelque chose (une image décorative, `aria-hidden` elle ou un parent, ou sans texte de remplacement,
+ * ne compte pas). Les branches de la page hors de `region` ne sont pas parcourues.
  */
 function zonesOccupees(region: Cadre, exclus: readonly Element[]): Cadre[] {
   const trouvees: Cadre[] = [];
@@ -214,9 +231,12 @@ function zonesOccupees(region: Cadre, exclus: readonly Element[]): Cadre[] {
       // Sans boîte : caché (on passe), ou `display: contents` (on regarde dedans).
       if (r.width === 0 && r.height === 0) return getComputedStyle(el).display === "none" ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_SKIP;
       if (!dedans(r)) return NodeFilter.FILTER_REJECT;
+      if (el.matches(GRAPHIQUES)) {
+        if (vu(el)) garder(r);
+        return NodeFilter.FILTER_REJECT;
+      }
       if (BALISES_D_IMAGE.has(el.localName)) {
-        const role = el.getAttribute("role");
-        if (el.getAttribute("aria-hidden") !== "true" && el.getAttribute("alt") !== "" && role !== "presentation" && role !== "none" && vu(el)) garder(r);
+        if (imageQuiDitQuelqueChose(el) && vu(el)) garder(r);
         return NodeFilter.FILTER_REJECT;
       }
       if (el.matches(COMMANDES)) {

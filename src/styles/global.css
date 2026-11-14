@@ -465,14 +465,11 @@ main {
   height: 4px;
   width: 5.5rem;
   border-radius: 2px;
-  background: linear-gradient(
-    90deg,
-    var(--color-flag-blue) 0 32%,
-    transparent 32% 34%,
-    var(--ecriture) 34% 66%,
-    transparent 66% 68%,
-    var(--color-red) 68%
-  );
+  /* Bleu, blanc, rouge : sur la page blanche, le blanc du drapeau est cerné d'un filet pour rester blanc (il était écrit
+     avec la couleur de l'écriture, donc marine : le filet se lisait bleu, noir, rouge). */
+  background:
+    linear-gradient(90deg, transparent 0 calc(34% + 1px), var(--sur-couleur) calc(34% + 1px) calc(66% - 1px), transparent calc(66% - 1px)) center / 100% calc(100% - 2px) no-repeat,
+    linear-gradient(90deg, var(--color-flag-blue) 0 32%, transparent 32% 34%, var(--color-line-strong) 34% 66%, transparent 66% 68%, var(--color-red) 68%);
 }
 .card {
   --stage-bg: none;
@@ -2231,12 +2228,12 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
     clip-path: inset(0 0 0 0);
   }
 }
-/* Le titre : un léger décalage bleu et rouge, fixe, le tricolore vu à travers un écran, et une lueur rouge. */
+/* Le titre : un décalage bleu et rouge, fixe et net, le tricolore vu à travers un écran. Sur la page blanche, plus de
+   lueur rouge ni de couleurs à demi transparentes : elles donnaient un titre flou (14 novembre 2026). */
 :root[data-ambiance="console"] .page-title {
   text-shadow:
-    -0.035em 0 0 color-mix(in srgb, var(--color-flag-blue) 65%, transparent),
-    0.035em 0 0 color-mix(in srgb, var(--color-red) 65%, transparent),
-    0 0 0.5em color-mix(in srgb, var(--color-red) 35%, transparent);
+    -0.03em 0 0 var(--color-flag-blue),
+    0.03em 0 0 var(--color-red);
 }
 
 /* Les repères aux quatre coins des cartes, comme un viseur. Décoratifs, peints par-dessus la carte mais dans sa marge
@@ -2642,9 +2639,18 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 /* Les couleurs du logo viennent des jetons : le bleu du drapeau éclairci pour se lire sur le noir, le rouge du marqueur.
    (Les valeurs de @property ci-dessus ne servent que si un navigateur ne connaît pas color-mix.) Ses caractères ne
    se sélectionnent pas : un copier-coller de la page ne les emporte pas. */
+/* Le guerrier en relief sur la page blanche (choix du pilote sur planche, 14 novembre 2026, « Relief », parmi cinq essais ;
+   un disque sombre derrière lui a été refusé : « je veux que ce soit fondu »). Son blanc reste blanc, sans aucun fond :
+   une ombre serrée et une ombre douce, de la couleur de l'écriture, le détachent de la page comme un gaufrage. Avant,
+   son blanc s'écrivait avec la couleur de l'écriture, marine, et le guerrier se lisait bleu, noir, rouge. L'ombre est
+   dite une fois, ici, pour le dessin et pour la toile du guerrier de l'accueil. */
+.console-logo,
+.holo {
+  --logo-relief: drop-shadow(0 0 1px color-mix(in srgb, var(--ecriture) 90%, transparent)) drop-shadow(0 2px 3px color-mix(in srgb, var(--ecriture) 45%, transparent));
+}
 .console-logo {
-  --logo-blanc: var(--ecriture);
-  --logo-bleu: color-mix(in srgb, var(--color-flag-blue) 72%, var(--ecriture));
+  --logo-blanc: var(--sur-couleur);
+  --logo-bleu: var(--color-flag-blue);
   --logo-rouge: var(--color-red);
   display: block;
   pointer-events: none;
@@ -2688,10 +2694,10 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 .console-tete {
   position: relative;
 }
-/* Une lueur autour des caractères, comme sur un écran au phosphore. */
+/* Le relief du guerrier (plus haut), à la place de la lueur d'écran au phosphore d'avant le thème clair. */
 .console-logo-tete,
 .console-logo-menu {
-  filter: drop-shadow(0 0 0.1875rem color-mix(in srgb, var(--ecriture) 35%, transparent)) drop-shadow(0 0 0.875rem color-mix(in srgb, var(--ecriture) 12%, transparent));
+  filter: var(--logo-relief);
 }
 .console-logo-tete {
   width: min(16rem, 70%);
@@ -6653,7 +6659,7 @@ footer h2 {
   width: 100%;
   height: auto;
   animation: none;
-  filter: drop-shadow(0 0 1.25rem rgb(11 95 255 / 0.12));
+  filter: var(--logo-relief);
 }
 .holo-logo .console-goutte {
   animation-duration: 1.5s;
@@ -6678,9 +6684,10 @@ footer h2 {
   opacity: 0;
   visibility: hidden;
 }
-/* Sur le blanc, plus de lueur serrée : elle épaississait les caractères. */
+/* Sur le blanc, plus de lueur serrée (elle épaississait les caractères) : le même relief que le dessin à plat, pour que
+   le relais du dessin à la toile ne se voie pas. Deux ombres courtes, sans grand flou à recalculer à chaque image. */
 .holo-toile {
-  filter: none;
+  filter: var(--logo-relief);
 }
 .holo-aura {
   filter: blur(1.25rem);
@@ -9333,8 +9340,11 @@ footer h2 {
   flex: 0 1 auto;
   min-width: 0;
 }
+/* 28 rem au moins à côté du titre (18 jusqu'au 14 novembre 2026) : avec un titre de 80 px, un long titre (« Dernières
+   parties ») ne laissait à l'introduction et à la date qu'une colonne étroite, sur deux lignes. Sans cette place, elles
+   passent dessous, sur toute la largeur. */
 .page-tete-infos {
-  flex: 1 1 18rem;
+  flex: 1 1 28rem;
   min-width: 0;
 }
 .page-tete-infos > :first-child {

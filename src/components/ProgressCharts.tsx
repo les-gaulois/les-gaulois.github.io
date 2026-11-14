@@ -40,7 +40,7 @@ function GamesChart({ buckets, weekly }: { buckets: Bucket[]; weekly: boolean })
           ? `${bucketLabel(shown)} : ${fmtInt(shown.games)} parties, ${fmtInt(shown.wins)} victoires, ${fmtInt(shown.losses)} défaites, ${fmtPct(shown.winRate)}${shown.partial ? " (en cours)" : ""}`
           : ""}
       </p>
-      <div class="relative mt-2 h-56 pl-12 sm:h-72" aria-hidden="true" onPointerLeave={() => setHover(null)}>
+      <div class="relative mt-2 h-56 pl-12 sm:h-72" aria-hidden="true" data-graphique onPointerLeave={() => setHover(null)}>
         {/* Repères à peine visibles : les valeurs sont écrites à gauche, hors des barres. */}
         {[1, 0.5, 0].map((f) => (
           <div key={f} class="absolute left-12 right-0" style={{ top: `${(1 - f) * 100}%` }}>

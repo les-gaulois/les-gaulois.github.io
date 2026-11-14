@@ -1,6 +1,28 @@
 [
   {
     "date": "2026-11-14",
+    "kind": "corrige",
+    "title": "Bleu, blanc, rouge sur le site blanc",
+    "body": "Le filet tricolore et le guerrier retrouvent leur blanc : le guerrier ressort en relief, sans fond. Les titres du QG et de la Direction sont nets, et le bas de l'accueil reprend de la couleur."
+  },
+  {
+    "date": "2026-11-14",
+    "kind": "ameliore",
+    "title": "Le salon où demander son code",
+    "body": "Pour se connecter avec un code, le site dit maintenant dans quel salon du Discord taper /code : le salon « authentification ».",
+    "link": {
+      "href": "/compte",
+      "label": "Mon compte"
+    }
+  },
+  {
+    "date": "2026-11-14",
+    "kind": "corrige",
+    "title": "Le petit Gaulois laisse les graphiques",
+    "body": "Le petit Gaulois ne se pose plus sur les courbes, les barres ni les jauges : il se met à côté."
+  },
+  {
+    "date": "2026-11-14",
     "kind": "nouveau",
     "title": "Le village devient un monde",
     "body": "Le village est un grand écran en pixels : on s'y promène sans changer de page, on s'approche ou on recule, et les Gaulois marchent d'un lieu à l'autre.",

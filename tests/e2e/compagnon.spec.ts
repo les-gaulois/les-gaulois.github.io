@@ -95,6 +95,17 @@ const couverts = (page: Page) =>
       for (const el of document.querySelectorAll("a[href], button, input:not([type=hidden]), select, textarea, summary, [role=button], [role=link], [role=tab], tr")) {
         if (ailleurs(el) && vu(el) && touche(el.getBoundingClientRect())) trouves.push(`${nom} : ${el.tagName.toLowerCase()} « ${(el.textContent ?? "").trim().replace(/\s+/g, " ").slice(0, 40)} »`);
       }
+      // Les graphiques : marqués `data-graphique`, les jauges `.meter`, et les images qui disent quelque chose (ni cachées aux
+      // lecteurs d'écran, elles ni un parent, ni sans texte de remplacement ; un dessin avec un nom ou le rôle d'image).
+      for (const el of document.querySelectorAll("[data-graphique], .meter, img, svg, canvas, video, iframe")) {
+        if (!ailleurs(el) || !vu(el) || !touche(el.getBoundingClientRect())) continue;
+        const role = el.getAttribute("role");
+        if (!el.matches("[data-graphique], .meter")) {
+          if (el.closest("[aria-hidden='true']") || el.getAttribute("alt") === "" || role === "presentation" || role === "none") continue;
+          if ((el.localName === "svg" || el.localName === "canvas") && role !== "img" && !el.hasAttribute("aria-label") && !el.hasAttribute("aria-labelledby")) continue;
+        }
+        trouves.push(`${nom} : graphique ${el.tagName.toLowerCase()}.${String(el.getAttribute("class") ?? "").slice(0, 30)}`);
+      }
       const textes = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
       const plage = document.createRange();
       for (let n = textes.nextNode(); n; n = textes.nextNode()) {
@@ -163,6 +174,26 @@ test("au repos, il ne couvre ni texte ni commande : à l'arrivée, après un dé
     expect(await couverts(page), `${path}, à côté du curseur`).toEqual([]);
     expect(await page.evaluate(() => Boolean(document.elementFromPoint(640, 560)?.closest("[data-compagnon]"))), path).toBe(false);
   }
+});
+
+test("au repos, il ne couvre aucun graphique : la course de /rivaux, les barres et les courbes de /progression", async ({ page }) => {
+  test.setTimeout(120_000);
+  await sansSalut(page);
+  // La course avec nos voisins : ses trois courbes, après un défilement jusqu'à elle.
+  await page.goto("/rivaux");
+  await expect(compagnon(page)).toBeVisible();
+  await attendreQuIlSePose(page);
+  await page.locator("#race-title").evaluate((el) => el.scrollIntoView({ block: "start" }));
+  await attendreQuIlSePose(page);
+  expect(await couverts(page), "/rivaux, la course").toEqual([]);
+  // La progression : les barres « Parties par jour » dès l'arrivée, puis les courbes plus bas.
+  await page.goto("/progression");
+  await expect(compagnon(page)).toBeVisible();
+  await attendreQuIlSePose(page);
+  expect(await couverts(page), "/progression, à l'arrivée").toEqual([]);
+  await page.evaluate(() => window.scrollTo(0, Math.round(window.innerHeight * 1.2)));
+  await attendreQuIlSePose(page);
+  expect(await couverts(page), "/progression, plus bas").toEqual([]);
 });
 
 test("au premier chargement d'un onglet, avec son salut, ni lui ni sa bulle ne couvrent rien, dès son apparition", async ({ page }) => {
