@@ -6,7 +6,7 @@ import { TAILLES_DES_BETES, betesDuPlan, dessinDeLaBete } from "../../../lib/vil
 import { type Lutin, enMiroir, fusee, gerbe, lutinsDesEvenements, tourne } from "../../../lib/village/monde/evenements";
 import { PREMIER_PLAN, caseDuPlan, decalageDuPlan, fondDuPlan, vueDuPlan } from "../../../lib/village/monde/foule";
 import { brumeDuFond } from "../../../lib/village/monde/lointain";
-import { type Marcheur, marcheurA, promener } from "../../../lib/village/monde/marche";
+import { type Marcheur, marcheurA, marcheurDansSonCoin, promener } from "../../../lib/village/monde/marche";
 import { ECHELLE_DU_FOND, type Plan } from "../../../lib/village/monde/plan";
 import { DESSINS_OPENFRONT, type PieceOpenFrontId } from "../../../lib/village/openfront";
 import { peindre } from "../PlaceToile";
@@ -131,7 +131,11 @@ export function MondeBetes({ plan, lumiere, mesure, camera, horloge, fige }: { p
     const hasard = hasardDe(4711 + plan.habitants);
     const peintes = new Map<string, string>();
     for (const bete of betes) {
-      if (!marches.current.has(bete.cle)) marches.current.set(bete.cle, marcheurA(bete.zone.de + hasard() * (bete.zone.a - bete.zone.de), bete.zone.haut + hasard() * (bete.zone.bas - bete.zone.haut), hasard));
+      // Une bête déjà là reste où elle est, tant qu'elle est encore dans son coin, but compris. Quand le plan change (le
+      // monde d'abord bâti sans Gaulois puis pour tous, une terrasse de plus, la rue qui descend), son coin bouge : elle y
+      // est reposée d'un coup, au lieu de traverser la colline pendant des minutes (relecture du 14 novembre 2026).
+      const avant = marches.current.get(bete.cle);
+      if (!avant || !marcheurDansSonCoin(avant, bete.zone)) marches.current.set(bete.cle, marcheurA(bete.zone.de + hasard() * (bete.zone.a - bete.zone.de), bete.zone.haut + hasard() * (bete.zone.bas - bete.zone.haut), hasard));
     }
     for (const nom of [...marches.current.keys()]) if (!betes.some((b) => b.cle === nom)) marches.current.delete(nom);
     const montrer = (temps: number, avance: boolean) => {

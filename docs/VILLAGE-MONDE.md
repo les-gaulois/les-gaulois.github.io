@@ -68,8 +68,9 @@ où les fenêtres s'ouvrent par-dessus. Design et écran : Claude Fable 5.2.
 - **Le dessin** : le ciel et les lointains dans `ciel.ts` (dégradé tramé, soleil, lune à sa phase du jour, étoiles, voie
   lactée, nuages, quatre plans en parallaxe, plus la ville lointaine d'OpenFront entre les collines et la forêt) ; le
   terrain des étages dans `etages.ts` (terrasses, murs de soutènement, pentes, escaliers, cascade du ruisseau, ravin,
-  falaise, rivage, mer, sièges du dehors) ; les pièces dans `pieces.ts` (maisons, taverne et salle de réunion ouvertes
-  sur le devant, étal, camp, arbres, ruisseau) ; l'assemblage dans `composition.ts`, par tuiles carrées de 512 cases,
+  falaise, rivage, mer, sièges du dehors) ; les pièces dans `pieces.ts` (étal, camp, ruisseau, mobilier) ; les
+  maisons dans `maisons.ts`, la taverne et la salle de réunion ouvertes sur le devant dans `salles.ts`, les arbres dans
+  `arbres.ts` ; l'assemblage dans `composition.ts`, par tuiles carrées de 512 cases,
   composées et peintes seulement autour de ce que l'écran voit, plus la liste de ce qui bouge lentement par-dessus (le
   grand feu, les bâtiments à plusieurs images, la forge, l'usine, le port, les navires, la houle, les reflets).
 - **Les jardins** (`jardins.ts`, demande du pilote du 14 novembre 2026 : « ajouter des jardins, des clôtures, des arbres

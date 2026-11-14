@@ -37,6 +37,15 @@ export interface Zone {
   bas: number;
 }
 
+/**
+ * Le marcheur est-il encore dans sa zone, lui et tout ce qu'il vise ? Quand le plan du monde change, une zone bouge : un
+ * marcheur qui n'y est plus doit y être reposé plutôt que de la rejoindre à travers le monde.
+ */
+export function marcheurDansSonCoin(m: Pick<Marcheur, "x" | "y" | "but" | "suite">, zone: Zone): boolean {
+  const dedans = (p: { x: number; y: number }) => p.x >= zone.de && p.x <= zone.a && p.y >= zone.haut && p.y <= zone.bas;
+  return dedans(m) && (m.but === null || dedans(m.but)) && m.suite.every(dedans);
+}
+
 /** Les arrêts durent de 8 à 30 secondes ; une promenade ne mène pas à plus de 200 cases. */
 const ARRET_MIN = 8 * TEMPS_PAR_SECONDE;
 const ARRET_DE_PLUS = 22 * TEMPS_PAR_SECONDE;
