@@ -1,0 +1,33 @@
+---
+/**
+ * Le guerrier du QG et de la Direction, dessiné en 0, en 1 et en lettres du tag (LogoMatrice.tsx) : il tombe une fois en
+ * colonnes, directement dans ses couleurs, puis flotte au-dessus de son socle de lumière, comme projeté par la table des
+ * cartes (« Le poste de commandement », docs/DESIGN.md). Avec les effets, il prend ensuite du relief (`data-holo`,
+ * src/scripts/holo.ts) : il tourne la tête vers le curseur et parle dans sa bulle, vide et cachée dans la page publiée.
+ * Sur l'accueil et sur Rejoindre (demande du pilote, 14 novembre 2026). Un seul par page : fx.ts ne réveille que le premier.
+ * Sans `label`, il est décoratif et masqué aux lecteurs d'écran.
+ */
+import LogoMatrice from "./LogoMatrice";
+import type { LogoMatriceData } from "../lib/logo-matrice";
+
+interface Props {
+  data: LogoMatriceData;
+  /** Unique dans la page : il nomme le masque des colonnes. */
+  id: string;
+  /** La largeur de la scène, en classes Tailwind. */
+  class?: string;
+  label?: string;
+}
+
+const { data, id, class: className = "", label } = Astro.props;
+---
+
+<div class:list={["holo-scene relative", className]}>
+  <div class="holo-socle" aria-hidden="true"></div>
+  <div class="float relative">
+    <div class="holo" role={label ? "img" : undefined} aria-label={label} aria-hidden={label ? undefined : "true"} data-fx-logo data-holo>
+      <LogoMatrice data={data} id={id} class="holo-logo" />
+    </div>
+  </div>
+  <p class="holo-bulle" aria-hidden="true" data-holo-bulle hidden></p>
+</div>

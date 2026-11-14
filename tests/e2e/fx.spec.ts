@@ -136,7 +136,7 @@ const menuPrevented = (page: Page) => page.evaluate(() => (window as unknown as 
 
 const pauseButton = (page: Page) => page.getByRole("button", { name: "Mettre les animations en pause" });
 
-/** Attend que le guerrier de l'accueil ait pris son relief : ses colonnes tombent d'abord, en un peu plus de deux secondes. */
+/** Attend que le guerrier (accueil, Rejoindre) ait pris son relief : ses colonnes tombent d'abord, en un peu plus de deux secondes. */
 const holoAwake = (page: Page) => expect(page.locator("[data-fx-logo]")).toHaveAttribute("data-holo", "vif", { timeout: 10_000 });
 
 /** La pose que le guerrier vient de dessiner, en degrés (src/scripts/holo.ts la pose sur sa toile pour ces tests). */
@@ -419,12 +419,24 @@ test.describe("à la souris", () => {
     await expect(page.locator(".holo-logo")).toBeHidden();
   });
 
-  test("sur Rejoindre, le logo à plat suit le curseur et réagit aux deux boutons", async ({ page }) => {
+  // Depuis le 14 novembre 2026, Rejoindre montre le guerrier de l'accueil à la place du logo à plat (demande du pilote).
+  // Le logo à plat ne reste qu'en secours, sans le fichier du guerrier : aucune page publiée ne le montre plus.
+  test("sur Rejoindre, le guerrier de l'accueil prend du relief, tourne la tête vers le curseur et réagit aux deux boutons", async ({ page }) => {
     await page.goto("/rejoindre");
-    await page.waitForLoadState("networkidle");
     const logo = page.locator("[data-fx-logo]");
-    await page.mouse.move(1200, 100, { steps: 4 });
-    await expect.poll(() => logo.evaluate((el: HTMLElement) => el.style.transform)).toContain("rotateY");
+    const bulle = page.locator(".holo-bulle");
+    await expect(logo).toHaveCount(1);
+    // Décoratif ici : le titre de la scène dit déjà de quoi elle parle.
+    await expect(logo).toHaveAttribute("aria-hidden", "true");
+    await holoAwake(page);
+    await expect(page.locator(".holo-toile")).toBeVisible();
+    await expect(page.locator(".holo-logo")).toBeHidden();
+
+    await page.mouse.move(60, 300, { steps: 4 });
+    await expect.poll(async () => (await holoPose(page))?.lacet ?? 0).toBeLessThan(-10);
+    await page.mouse.move(1275, 300, { steps: 4 });
+    await expect.poll(async () => (await holoPose(page))?.lacet ?? 0).toBeGreaterThan(5);
+    expect(await logo.evaluate((el: HTMLElement) => el.style.transform)).toBe("");
 
     // Le logo flotte en permanence : on clique à ses coordonnées, sans attendre qu'il s'immobilise.
     const box = (await logo.boundingBox())!;
@@ -433,13 +445,13 @@ test.describe("à la souris", () => {
     const pulse = seesScriptAnimation(logo);
     await page.mouse.click(center.x, center.y);
     expect(await pulse).toBe(true);
+    await expect(bulle).toHaveText(REACTIONS.clic[0]);
     await expect.poll(() => logo.evaluate((el) => el.getAnimations().length)).toBe(0);
 
     await watchContextMenu(page);
-    const spin = seesScriptAnimation(logo);
     await page.mouse.click(center.x, center.y, { button: "right" });
-    expect(await spin).toBe(true);
     expect(await menuPrevented(page)).toBe(true);
+    await expect.poll(async () => (await holoPose(page))?.tour).toBe(true);
   });
 
   test("les blocs apparaissent en fondu, sans découpe case par case", async ({ page }) => {
@@ -702,6 +714,23 @@ test("si le script du relief ne se charge pas, le guerrier reste à plat et suit
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2, { button: "right" });
   expect(await spin).toBe(true);
   expect(await menuPrevented(page)).toBe(true);
+});
+
+test("sur Rejoindre, le guerrier masqué d'un écran étroit ne charge son relief qu'une fois affiché", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "Testé une seule fois.");
+  const demandes: string[] = [];
+  page.on("request", (r) => {
+    if (r.url().includes("/_astro/holo")) demandes.push(r.url());
+  });
+  await page.setViewportSize({ width: 800, height: 800 });
+  await page.goto("/rejoindre");
+  await page.waitForLoadState("networkidle");
+  await expect(page.locator("[data-fx-logo]")).toBeHidden();
+  expect(demandes).toEqual([]);
+  // La fenêtre s'élargit, comme une tablette qui passe à l'horizontale : le guerrier paraît, puis prend son relief.
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await holoAwake(page);
+  expect(demandes).toHaveLength(1);
 });
 
 test("au toucher, une pression lance une vague et aucun effet de survol n'apparaît", async ({ page }, testInfo) => {

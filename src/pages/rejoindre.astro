@@ -1,13 +1,17 @@
 ---
 import Base from "../layouts/Base.astro";
+import GuerrierRelief from "../components/GuerrierRelief.astro";
 import PageHeader from "../components/PageHeader.astro";
 import { clan } from "../../config/clan";
 import { brandFile } from "../lib/brand";
 import { loadSessions } from "../lib/data";
 import { fmtDate, fmtInt, fmtPct } from "../lib/format";
+import { logoMatriceDepuisImage } from "../lib/logo-matrice-image";
 import { groupStats } from "../lib/sessions";
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+// Le guerrier de l'accueil, à la même finesse (72 colonnes).
+const logoHeros = await logoMatriceDepuisImage(72);
 const hasLogo = brandFile("vertical") !== null;
 const group = groupStats(loadSessions());
 const alone = group?.sizes[0];
@@ -56,14 +60,22 @@ const steps: { title: string; body?: string }[] = [
                 Depuis le {fmtDate(`${clan.archiveStart}T12:00:00Z`)}. Un lien, pas une preuve. <a href={`${base}/activite`}>Voir quand trouver un groupe</a>.
               </p>
             </div>
+            {/* Le même guerrier qu'à l'accueil, décoratif ici (demande du pilote, 14 novembre 2026). Sans son fichier, le logo vertical. */}
             {
-              hasLogo && (
+              logoHeros ? (
                 <div class="fx-stage relative hidden justify-center lg:flex">
                   <div class="hero-glow" aria-hidden="true" />
-                  <div class="float relative w-56 xl:w-64">
-                    <img src={`${base}/generated/logo-vertical-720.webp`} width="720" height="720" alt="" class="h-auto w-full" draggable="false" data-fx-logo />
-                  </div>
+                  <GuerrierRelief data={logoHeros} id="logo-rejoindre" class="w-64 xl:w-80" />
                 </div>
+              ) : (
+                hasLogo && (
+                  <div class="fx-stage relative hidden justify-center lg:flex">
+                    <div class="hero-glow" aria-hidden="true" />
+                    <div class="float relative w-56 xl:w-64">
+                      <img src={`${base}/generated/logo-vertical-720.webp`} width="720" height="720" alt="" class="h-auto w-full" draggable="false" data-fx-logo />
+                    </div>
+                  </div>
+                )
               )
             }
           </section>

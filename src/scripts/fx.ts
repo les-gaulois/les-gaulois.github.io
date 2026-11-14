@@ -432,15 +432,18 @@ function init(): void {
     tipTarget = null;
   }
 
-  /* ---------- Le guerrier de l'accueil, en relief ---------- */
+  /* ---------- Le guerrier en relief (accueil et Rejoindre) ---------- */
 
-  // Son script ne se charge que sur la page qui le montre, et seulement quand les effets sont permis : il prend alors
+  // Son script ne se charge que sur une page qui le montre, et seulement quand les effets sont permis : il prend alors
   // le relais du dessin à plat (src/scripts/holo.ts). S'il ne se charge pas, ou si le dessin n'est pas affiché
   // (contraste élevé), le relief est hors service : le logo reste à plat, et suit le curseur comme les autres logos.
+  // Masqué par la mise en page (Rejoindre sous 1 024 px), le guerrier attend d'être affiché : son script ne se charge
+  // qu'alors, par exemple quand une tablette passe à l'horizontale.
   const holoEl = document.querySelector<HTMLElement>("[data-holo]");
   let holo: Holo | null = null;
   let holoAsked = false;
   let holoOut = false;
+  let holoWatch: ResizeObserver | null = null;
 
   function wakeHolo(): void {
     if (holo) {
@@ -448,6 +451,16 @@ function init(): void {
       return;
     }
     if (!holoEl || holoAsked) return;
+    if (holoEl.clientWidth === 0) {
+      holoWatch ??= new ResizeObserver(() => {
+        if (holoEl.clientWidth === 0) return;
+        holoWatch?.disconnect();
+        holoWatch = null;
+        if (enabled) wakeHolo();
+      });
+      holoWatch.observe(holoEl);
+      return;
+    }
     holoAsked = true;
     import("./holo")
       .then(({ monterHolo }) => {

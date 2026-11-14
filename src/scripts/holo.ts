@@ -1,7 +1,8 @@
 /**
- * Le guerrier de l'accueil en relief : ses caractères deviennent un nuage de points, chacun à sa profondeur, sur une
- * toile posée sur le dessin. Il tourne la tête vers le curseur, le suit du regard, et parle dans une petite bulle.
- * Chargé par `fx.ts` sur la seule page d'accueil, et mené par sa boucle : décoratif, comme tous les effets. Sans ce
+ * Le guerrier en relief de l'accueil et de Rejoindre (`GuerrierRelief.astro`) : ses caractères deviennent un nuage de
+ * points, chacun à sa profondeur, sur une toile posée sur le dessin. Il tourne la tête vers le curseur, le suit du
+ * regard, et parle dans une petite bulle. Chargé par `fx.ts` sur les pages qui le montrent, une fois affiché, et mené
+ * par sa boucle : décoratif, comme tous les effets. Sans ce
  * script, avec « réduire les animations » ou avec le bouton pause, le dessin à plat reste, et la bulle ne paraît pas.
  *
  * Rien n'est écrit deux fois dans la page : la grille, les couleurs et la police se lisent sur le dessin lui-même

@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-14",
+    "kind": "ameliore",
+    "title": "Le guerrier de l'accueil sur Rejoindre",
+    "body": "Sur ordinateur, la page Rejoindre montre le même guerrier qu'à l'accueil : il tourne la tête vers la souris et parle dans sa bulle.",
+    "link": {
+      "href": "/rejoindre",
+      "label": "Rejoindre le clan"
+    }
+  },
+  {
+    "date": "2026-11-14",
     "kind": "nouveau",
     "title": "/feu sur Discord",
     "body": "Tapez /feu sur le Discord du clan : le robot montre le grand feu du village devant la place, avec les points rapportés au clan sur les 7 derniers jours et l'heure du relevé.",

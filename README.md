@@ -101,7 +101,7 @@ Déposez les fichiers sous ces noms, en `.svg`, `.webp`, `.png`, `.jpg` ou `.jpe
 | Fichier | Utilisation |
 |---|---|
 | `banner` | Bas de l'accueil et image de partage |
-| `logo-vertical` | Visuel de la page Rejoindre, à droite de l'argument du jeu en groupe ; celui de l'accueil si `tete` manque |
+| `logo-vertical` | Secours de l'accueil et de la page Rejoindre si `tete` manque (ils montrent le guerrier en relief) |
 | `badge` | En-tête et favicon (recadré en cercle) |
 | `logo-horizontal` | Non utilisé pour l'instant |
 | `tete` | La tête du guerrier dans son cercle, sans texte : le logo en mode Matrix de l'accueil, de la Direction et du QG, redessiné en caractères au moment du build |
@@ -404,7 +404,7 @@ Pour arrêter : supprimer le secret, ou retirer le robot du serveur. Les images 
 
 Les effets au curseur et aux clics sont dans `src/scripts/fx.ts`. Ils sont décrits dans [docs/DESIGN.md](docs/DESIGN.md). Les visiteurs peuvent les couper avec le bouton pause de l'en-tête ou le réglage « réduire les animations » de leur système.
 
-Sur l'accueil, le guerrier prend du relief (`src/scripts/holo.ts`, chargé sur cette seule page) : il tourne la tête vers le curseur, le suit du regard et dit des répliques dans une bulle. Les répliques sont dans `src/lib/fx/repliques.ts` : aucun chiffre ni référence à Astérix, ce qu'un test vérifie, et aucun conseil de jeu, ce qui se relit à chaque ajout. Détail dans [docs/DESIGN.md](docs/DESIGN.md), « Le guerrier en relief ».
+Sur l'accueil et sur Rejoindre (`src/components/GuerrierRelief.astro`), le guerrier prend du relief (`src/scripts/holo.ts`, chargé sur ces seules pages) : il tourne la tête vers le curseur, le suit du regard et dit des répliques dans une bulle. Les répliques sont dans `src/lib/fx/repliques.ts` : aucun chiffre ni référence à Astérix, ce qu'un test vérifie, et aucun conseil de jeu, ce qui se relit à chaque ajout. Détail dans [docs/DESIGN.md](docs/DESIGN.md), « Le guerrier en relief ».
 
 ## Limites connues
 
