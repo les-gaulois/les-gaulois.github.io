@@ -1,3 +1,4 @@
+import type { RivalSeries } from "./rivals";
 import type { RivalsSnapshot } from "./schemas";
 import { winRate, type RankedClan } from "./stats";
 
@@ -39,6 +40,14 @@ export function firstRival(clans: readonly RankedClan[], tag: string): RankedCla
   const index = clans.findIndex((c) => c.clanTag.toUpperCase() === tag.toUpperCase());
   if (index < 0) return null;
   return clans[index - 1] ?? clans[index + 1] ?? null;
+}
+
+/**
+ * Les clans dont « La course avec nos voisins » écrit déjà l'écart, en majuscules : ceux qui y ont une courbe avec au moins une
+ * mesure. Dans la même page, le comparateur ne redit pas leur écart et ne redessine pas leur courbe : il renvoie à la course.
+ */
+export function tagsInRace(series: readonly RivalSeries[] | null): string[] {
+  return (series ?? []).filter((s) => s.points.some((p) => p.value !== null)).map((s) => s.clanTag.toUpperCase());
 }
 
 export interface ScoreHistory {

@@ -12,6 +12,16 @@ import { playerPodiums, podiumDates, PODIUM_SIZE, type PodiumPlace } from "../li
  * Les podiums des Gaulois : les plus longues séries de victoires et le plus de victoires en une journée, joueur par joueur.
  * Calculs et limites dans src/lib/podiums.ts. Un membre sans pseudo public n'y figure jamais.
  */
+interface Props {
+  /**
+   * « complet » (par défaut) : le bloc, ses précisions repliées et sa date, pour une page où il est seul. « bloc » : sans
+   * elles, quand la page les réunit (la date dans son en-tête, les précisions dans son repli unique, en bas : Records).
+   * « note » : ses seules précisions, sous son nom, pour ce repli.
+   */
+  rendu?: "complet" | "bloc" | "note";
+}
+const { rendu = "complet" } = Astro.props;
+const TITLE = "Les podiums des Gaulois";
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const meta = loadMeta();
 const members = loadMembers();
@@ -26,15 +36,19 @@ const boards: { title: string; rows: PodiumPlace[]; testId: string }[] = podiums
       { title: "Le plus de victoires en une journée", rows: podiums.days, testId: "podium-days" },
     ]
   : [];
+// Les précisions ne s'écrivent qu'une fois : dans le bloc, ou seules (« note ») pour le repli unique de la page.
+const Wrapper = rendu === "note" ? Fragment : "section";
 ---
 
-<section class="stage stage-indigo reveal" aria-labelledby="podiums-title" data-testid="player-podiums">
-  <h2 id="podiums-title" class="section-title">Les podiums des Gaulois</h2>
+<Wrapper class="stage stage-indigo reveal" aria-labelledby="podiums-title" data-testid="player-podiums">
+  {rendu !== "note" && <h2 id="podiums-title" class="section-title">{TITLE}</h2>}
   {
     !podiums || podiums.since === null ? (
-      <p class="mt-6 font-display text-lg font-bold">Pas de données</p>
+      rendu !== "note" && <p class="mt-6 font-display text-lg font-bold">Pas de données</p>
     ) : (
       <>
+        {rendu !== "note" && (
+        <>
         <div class="mt-8 grid gap-x-10 gap-y-8 lg:grid-cols-2">
           {boards.map((board) => (
             <div class="panel" data-testid={board.testId}>
@@ -70,7 +84,10 @@ const boards: { title: string; rows: PodiumPlace[]; testId: string }[] = podiums
         <p class="info-discrete tnum mt-6 max-w-3xl" data-testid="podiums-period">
           Parties depuis le {fmtDate(`${podiums.since}T12:00:00Z`)}.{podiums.pending > 0 && ` L'historique de ${fmtCount(podiums.pending, "joueur")} se lit encore : ces podiums vont changer.`}
         </p>
-        <ReadingNote>
+        </>
+        )}
+        {rendu !== "bloc" && (
+        <ReadingNote bloc={rendu === "note" ? TITLE : undefined}>
           <p>
             Les parties publiques en équipe jouées avec le tag {clan.tag}, celles du bilan officiel de chaque joueur, parmi les membres avec pseudo encore dans le clan. Une partie quittée avant d'apparaître sur la carte compte comme une défaite, comme dans ce bilan. Une victoire seul contre des robots ne compte pas. Les podiums se mettent à jour environ une fois par jour, quand la liste des membres est relue.
           </p>
@@ -79,10 +96,15 @@ const boards: { title: string; rows: PodiumPlace[]; testId: string }[] = podiums
           </p>
           <p>Une série se gagne en équipe, et une grosse journée demande d'abord beaucoup de parties : ce n'est pas un classement de niveau.</p>
         </ReadingNote>
+        )}
       </>
     )
   }
-  <div class="mt-4">
-    <DataStatus state={meta.memberResults} maxAgeHours={MAX_AGE_HOURS.memberResults} />
-  </div>
-</section>
+  {
+    rendu === "complet" && (
+      <div class="mt-4">
+        <DataStatus state={meta.memberResults} maxAgeHours={MAX_AGE_HOURS.memberResults} />
+      </div>
+    )
+  }
+</Wrapper>

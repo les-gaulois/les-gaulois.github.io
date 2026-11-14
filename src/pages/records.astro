@@ -5,22 +5,25 @@ import DataStatus from "../components/DataStatus.astro";
 import PageHeader from "../components/PageHeader.astro";
 import PlayerPodiums from "../components/PlayerPodiums.astro";
 import PlayerRecords from "../components/PlayerRecords.astro";
-import { loadMeta } from "../lib/data";
-import { MAX_AGE_HOURS } from "../lib/freshness";
-
-const meta = loadMeta();
+import ReadingNote from "../components/ReadingNote.astro";
 ---
 
 <Base title="Records" description="Les podiums et les records des joueurs du clan GAL, et les records du clan.">
   <div class="wrap">
+    {/* Une date et un repli pour toute la page : les parties (records du clan), les podiums et la liste des membres (records des joueurs). */}
     <PageHeader title="Records">
       <div class="mt-4">
-        <DataStatus state={meta.sessions} maxAgeHours={MAX_AGE_HOURS.sessions} />
+        <DataStatus sources={["sessions", "memberResults", "members"]} />
       </div>
     </PageHeader>
     {/* Les podiums écrivent eux-mêmes « Pas de données » : la page n'est jamais vide. */}
-    <PlayerPodiums />
-    <PlayerRecords />
-    <ClanResults />
+    <PlayerPodiums rendu="bloc" />
+    <PlayerRecords rendu="bloc" />
+    <ClanResults rendu="bloc" />
+    <ReadingNote page>
+      <PlayerPodiums rendu="note" />
+      <PlayerRecords rendu="note" />
+      <ClanResults rendu="note" />
+    </ReadingNote>
   </div>
 </Base>

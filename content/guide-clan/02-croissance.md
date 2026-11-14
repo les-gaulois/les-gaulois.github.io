@@ -16,5 +16,5 @@ Ce pourcentage varie légèrement selon votre capacité. En partie, votre capaci
 Le gain de troupes se calcule à chaque tick (100 ms) :
 
 ```
-gain = (10 + troupes^0,73 ÷ 4) × (1 − troupes ÷ capacité)
+gain = (10 + troupes^0,73 divisé par 4) × (1 − troupes divisées par capacité)
 ```

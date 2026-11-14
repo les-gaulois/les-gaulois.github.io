@@ -8,9 +8,9 @@ import PageJumps from "../components/PageJumps.astro";
 import ReadingNote from "../components/ReadingNote.astro";
 import RivalRace from "../components/RivalRace.tsx";
 import { clan } from "../../config/clan";
+import { tagsInRace } from "../lib/compare";
 import { loadGames, loadLeaderboard, loadMeta, loadRivals, loadSessions } from "../lib/data";
 import { fmtCount, fmtDate, fmtInt, fmtScore } from "../lib/format";
-import { MAX_AGE_HOURS } from "../lib/freshness";
 import { FACE_OFF_MAX_ROWS, FACE_OFF_MIN_MEETINGS, faceOffs, MIN_CLAN_PLAYERS } from "../lib/games";
 import { RESULTS_DAYS } from "../lib/results";
 import { rivalSeries } from "../lib/rivals";
@@ -26,18 +26,25 @@ const lanes = me && near ? [near.above?.clan, me, near.below?.clan].filter((c) =
 const laneMax = Math.max(1, ...lanes.map((c) => c.weightedWins));
 const snapshots = loadRivals();
 const race = leaderboard && snapshots.length > 0 ? rivalSeries(leaderboard.clans, snapshots, clan.tag) : null;
+// Un chiffre n'est dit qu'une fois dans la page : l'écart d'un clan qui a sa courbe dans la course n'est pas répété par le comparateur.
+const inRace = tagsInRace(race);
 const meetings = leaderboard ? faceOffs(loadSessions(), loadGames(), clan.tag, leaderboard.clans.map((c) => c.clanTag), meta.sessions.coveredUntil) : null;
+const showRace = race !== null && race.length > 0;
+const showCompare = me !== null && clans.length > 1;
+const RACE_TITLE = "La course avec nos voisins";
+const COMPARE_TITLE = `Comparer un clan avec [${clan.tag}]`;
 const jumps = [
-  { href: "#race-title", label: "La course", show: race !== null && race.length > 0 },
-  { href: "#compare-title", label: "Comparer un clan", show: me !== null && clans.length > 1 },
+  { href: "#race-title", label: "La course", show: showRace },
+  { href: "#compare-title", label: "Comparer un clan", show: showCompare },
 ].filter((jump) => jump.show);
 ---
 
 <Base title="Nos rivaux" description="Les clans autour de GAL au classement officiel : la course jour après jour et le comparateur.">
   <div class="wrap">
+    {/* Une date et un repli pour toute la page. Le face-à-face du comparateur vient du détail des parties : sa date et ses pannes sont dans l'en-tête. */}
     <PageHeader title="Nos rivaux">
       <div class="mt-4">
-        <DataStatus state={meta.leaderboard} maxAgeHours={MAX_AGE_HOURS.leaderboard} asOf={leaderboard?.end} asOfLabel="Classement arrêté au" />
+        <DataStatus sources={leaderboard && showCompare ? ["leaderboard", "games"] : ["leaderboard"]} asOf={leaderboard?.end} asOfLabel="Classement arrêté au" />
       </div>
       {jumps.length > 1 && <PageJumps links={jumps} />}
     </PageHeader>
@@ -67,21 +74,18 @@ const jumps = [
               </ul>
             </section>
           )}
-          {race && race.length > 0 && (
+          {race && showRace && (
             <section class="reveal mb-section scroll-mt-24" aria-labelledby="race-title" data-testid="rival-race">
-              <h2 id="race-title" class="section-title scroll-mt-24">La course avec nos voisins</h2>
+              <h2 id="race-title" class="section-title scroll-mt-24">{RACE_TITLE}</h2>
               <p class="mb-4 mt-2 max-w-3xl text-sm text-muted">Relevé chaque jour depuis le {fmtDate(`${snapshots[0]?.date}T12:00:00Z`)}.</p>
               <RivalRace client:load series={race} />
-              <ReadingNote>
-                <p>L'écart de score entre [{clan.tag}] et les clans les plus proches au classement. L'API ne donne pas le passé du classement : les courbes commencent au premier relevé. Chaque courbe a sa propre échelle : le tableau donne les valeurs exactes.</p>
-              </ReadingNote>
             </section>
           )}
-          {me && clans.length > 1 && (
+          {me && showCompare && (
             <section class="stage stage-night reveal" aria-labelledby="compare-title" data-testid="clan-compare">
-              <h2 id="compare-title" class="section-title scroll-mt-24">Comparer un clan avec [{clan.tag}]</h2>
+              <h2 id="compare-title" class="section-title scroll-mt-24">{COMPARE_TITLE}</h2>
               <div class="mt-6">
-                <ClanCompare client:load clans={clans} tag={clan.tag} faceOffs={meetings?.reliable ? meetings.rows : []} src={`${base}/classement-scores.json`} />
+                <ClanCompare client:load clans={clans} tag={clan.tag} faceOffs={meetings?.reliable ? meetings.rows : []} src={`${base}/classement-scores.json`} inRace={inRace} raceHref="#race-title" />
               </div>
               <noscript><p class="mt-3 text-sm text-muted">JavaScript est nécessaire pour changer de clan.</p></noscript>
               {meetings && !meetings.reliable && (
@@ -90,24 +94,26 @@ const jumps = [
                 </p>
               )}
               <p class="mt-4 max-w-3xl text-sm text-muted" data-testid="compare-rate-note">Un taux dépend surtout du format et du nombre de joueurs : il ne dit pas qui joue le mieux.</p>
-              <details class="fold mt-6" data-testid="compare-notes">
-                <summary>Comment lire ces chiffres</summary>
-                <div class="max-w-3xl space-y-2 text-sm text-muted">
+            </section>
+          )}
+          {/* Les précisions de la course et du comparateur, chacune sous le nom de son bloc, en un seul repli en bas de la page. */}
+          <ReadingNote page>
+            {showRace && (
+              <ReadingNote bloc={RACE_TITLE}>
+                <p>L'écart de score entre [{clan.tag}] et les clans les plus proches au classement. L'API ne donne pas le passé du classement : les courbes commencent au premier relevé. Chaque courbe a sa propre échelle : le tableau donne les valeurs exactes.</p>
+              </ReadingNote>
+            )}
+            {showCompare && (
+              <ReadingNote bloc={COMPARE_TITLE} data-testid="compare-notes">
                   <p>
-                    Le rang, le score, les parties, les victoires, les défaites et leur rapport pondéré viennent de la liste officielle, sans recalcul ni note, sur 90 jours glissants, hors classé et hors Humains contre Nations. Le taux vaut victoires ÷ parties, et les joueurs par partie, sessions de joueurs ÷ parties. L'écart se relève une fois par jour : l'API ne donne pas le passé du classement.
+                    Le rang, le score, les parties, les victoires, les défaites et leur rapport pondéré viennent de la liste officielle, sans recalcul ni note, sur 90 jours glissants, hors classé et hors Humains contre Nations. Le taux est la part des parties gagnées, et les joueurs par partie, la moyenne des joueurs du clan dans ses parties. L'écart se relève une fois par jour : l'API ne donne pas le passé du classement.
                   </p>
                   <p>
                     Un face-à-face compte, sur {RESULTS_DAYS} jours, les parties publiques en équipe où [{clan.tag}] et l'autre clan avaient chacun au moins {MIN_CLAN_PLAYERS} joueurs, dans des équipes différentes. Il n'apparaît qu'à partir de {FACE_OFF_MIN_MEETINGS} rencontres, pour les {FACE_OFF_MAX_ROWS} clans les plus rencontrés. L'API ne donne pas l'équipe des perdants : le site la calcule avec la règle du jeu, qui place tout un clan dans une seule équipe, et écarte une partie où ce calcul contredit les vainqueurs officiels.
                   </p>
-                </div>
-              </details>
-              {/* Le face-à-face vient du détail des parties : sa date de mise à jour et ses pannes restent visibles. */}
-              <div class="mt-4" data-testid="compare-games-status">
-                <p class="info-discrete">Le détail des parties</p>
-                <DataStatus state={meta.games} maxAgeHours={MAX_AGE_HOURS.games} />
-              </div>
-            </section>
-          )}
+              </ReadingNote>
+            )}
+          </ReadingNote>
         </>
       )
     }

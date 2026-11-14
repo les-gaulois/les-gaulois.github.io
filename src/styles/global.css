@@ -90,14 +90,25 @@
   /* La largeur des pages (.wrap) : depuis le 13 novembre 2026, à la demande du pilote (« prends toute la place disponible
      sur l'écran », « tu n'utilises que la dimension d'un A4 »), le contenu va jusqu'à 120 rem (1 920 px), avec des marges
      de côté qui grandissent avec l'écran (16 px sur téléphone, 4 % de la largeur, 80 px au plus). */
-  --wrap-max: 120rem;
-  --wrap-marge: clamp(1rem, 4vw, 5rem);
+  --page-max: 120rem;
+  --page-marge: clamp(1rem, 4vw, 5rem);
+  --wrap-max: var(--page-max);
+  --wrap-marge: var(--page-marge);
+  /* La colonne d'un espace de travail (QG, Direction) : ses écrans sont dessinés pour elle. */
+  --colonne-travail: 75rem;
 }
-/* Les espaces de travail et les pages en console (QG, Direction, guide, Carte) gardent leur colonne de 75 rem : formulaires,
-   menus et chapitres s'y lisent mieux. L'en-tête et le pied de page prennent toute la largeur partout. */
+/* La Direction garde sa colonne de 75 rem, au milieu de l'écran : formulaires et menus s'y lisent mieux. L'en-tête et le
+   pied de page prennent toute la largeur partout. */
 [data-ambiance="console"] main {
-  --wrap-max: 75rem;
+  --wrap-max: var(--colonne-travail);
   --wrap-marge: 1rem;
+}
+/* Une page en console rangée dans une rubrique (le QG avec Membres, le guide avec Quand jouer) reprend la largeur et les
+   marges du site : d'un onglet à l'autre, la rangée d'onglets, la ligne tricolore et le titre ne bougent pas (14 novembre
+   2026). Le QG garde ses écrans dans la colonne de travail, calée à gauche (.colonne-travail, plus bas). */
+[data-ambiance="console"] main:has(> .wrap > .rubrique) {
+  --wrap-max: var(--page-max);
+  --wrap-marge: var(--page-marge);
 }
 
 /* ---------- Thème rouge : l'encadrement ---------- */
@@ -334,6 +345,11 @@ a.link:hover {
   margin-inline: auto;
   padding-inline: var(--wrap-marge);
 }
+/* La colonne de travail du QG, dans un .wrap à la largeur du site : la largeur qu'avait son .wrap (75 rem moins ses deux
+   marges de 1 rem), calée à gauche, sous les onglets de la rubrique. La porte et l'espace connecté y sont tous les deux. */
+.colonne-travail {
+  max-width: calc(var(--colonne-travail) - 2rem);
+}
 /* Les pages se lisent en grand : dans le contenu, chaque taille de texte de Tailwind monte d'un cran (17 px pour le texte
    courant, 15 px pour le petit texte, 13 px pour le plus petit). L'en-tête et le pied de page gardent les leurs, et les
    espaces de travail (.espace) ont leur propre échelle, plus grande encore. */
@@ -361,8 +377,10 @@ main {
 .page-title-compact.page-title-long {
   font-size: clamp(min(2.25rem, (100vw - 2rem) / 9.2), 5.5vw, 3.5rem);
 }
+/* Un titre de bloc est un cran sous le titre de sa page (14 novembre 2026) : 48 px au plus, quand le titre de page va
+   jusqu'à 80 px. Jusque-là, les deux faisaient 64 px sur un ordinateur, et l'œil ne savait pas où commencer. */
 .section-title {
-  font-size: clamp(2rem, 5vw, 4rem);
+  font-size: clamp(1.75rem, 3.8vw, 3rem);
 }
 /* Dans une scène de l'accueil ou une colonne : le titre garde sa force sans prendre deux lignes de trop. */
 .section-title-sm {
@@ -1518,6 +1536,16 @@ main .fx-in,
 .fx-title-wait .fx-word {
   animation-play-state: paused;
 }
+/* Un chiffre clé (`data-count`) entre à l'écran en se levant doucement, déjà à sa vraie valeur (src/scripts/fx.ts) : depuis
+   le 14 novembre 2026, il ne monte plus de zéro, une animation ne change jamais une valeur. Ceux qui entrent ensemble se
+   lèvent l'un après l'autre. Hors de l'écran, il attend transparent. La pause et « réduire les animations » le montrent
+   aussitôt (règles plus bas, et fx.ts). */
+.fx-count-wait {
+  opacity: 0;
+}
+.fx-count-in {
+  animation: count-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) calc(var(--fx-count-i, 0) * 0.09s) backwards;
+}
 
 @keyframes reveal {
   from {
@@ -1604,6 +1632,12 @@ main .fx-in,
     translate: -14px 0;
   }
 }
+@keyframes count-in {
+  from {
+    opacity: 0;
+    translate: 0 0.35em;
+  }
+}
 @keyframes row-shine {
   from {
     background-position: 130% 0;
@@ -1665,7 +1699,8 @@ main .fx-in,
   #fx-tip {
     display: none;
   }
-  .fx-hidden {
+  .fx-hidden,
+  .fx-count-wait {
     opacity: 1;
   }
 }
@@ -2694,6 +2729,10 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   .console-tete-court .console-logo-tete {
     right: 1rem;
   }
+}
+/* Dans la colonne de travail, qui n'a pas de marge à elle : le logo s'arrête au bord droit de la colonne, comme avant. */
+.colonne-travail.console-tete-court .console-logo-tete {
+  right: 0;
 }
 
 /* En petit, en tête du menu des parties. */
@@ -6824,7 +6863,7 @@ footer h2 {
 /* Un titre de section au mot très long, si sa page lui pose --mot-em. Les titres de scène (.section-title-sm) gardent leur
    taille. */
 :where([data-lettres="onciale"]) .section-title:not(.section-title-sm) {
-  font-size: min(clamp(2rem, 5vw, 4rem), (min(100vw, var(--wrap-max)) - 2 * var(--wrap-marge) - 1rem) / var(--mot-em, 0.01));
+  font-size: min(clamp(1.75rem, 3.8vw, 3rem), (min(100vw, var(--wrap-max)) - 2 * var(--wrap-marge) - 1rem) / var(--mot-em, 0.01));
 }
 /* Les cinq créneaux de Quand jouer, en colonnes étroites : « 21 h – 22 h » tient dans la sienne de 1 024 à 1 920 px. */
 :where([data-lettres="onciale"]) .kpi-value-md {
@@ -9264,8 +9303,8 @@ footer h2 {
   background: var(--color-red);
 }
 
-/* Le haut d'une page (PageHeader.astro) : le filet et l'invite sur une ligne, un titre moins grand (64 px au plus au lieu
-   de 96), et à sa droite, quand la place le permet, l'introduction et la date ; sinon, elles passent dessous. Alignées
+/* Le haut d'une page (PageHeader.astro) : le filet et l'invite sur une ligne, un titre moins grand (80 px au plus au lieu
+   de 96 ; 64 px jusqu'au 14 novembre 2026), et à sa droite, quand la place le permet, l'introduction et la date ; sinon, elles passent dessous. Alignées
    par le haut : un pli qu'on ouvre à droite (« Comment lire ces chiffres ») ne fait pas descendre le titre. */
 .page-tete-ligne {
   display: flex;
@@ -9307,11 +9346,13 @@ footer h2 {
     padding-top: 0.875rem;
   }
 }
+/* Le titre de la page est le plus fort de sa page (14 novembre 2026) : jusqu'à 80 px, 40 px sur téléphone, quand un titre
+   de bloc (.section-title) s'arrête à 48 px et 28 px. À 64 px, il ne pesait pas plus que les titres de ses parties. */
 .page-tete .page-title {
-  font-size: clamp(2.25rem, 6vw, 4rem);
+  font-size: clamp(2.5rem, 6vw, 5rem);
 }
 :where([data-lettres="onciale"]) .page-tete .page-title {
-  font-size: max(1.5rem, min(clamp(2.25rem, 6vw, 4rem), (min(100vw, var(--wrap-max)) - 2 * var(--wrap-marge) - 1rem) / var(--mot-em, 0.01)));
+  font-size: max(1.5rem, min(clamp(2.5rem, 6vw, 5rem),(min(100vw, var(--wrap-max)) - 2 * var(--wrap-marge) - 1rem) / var(--mot-em, 0.01)));
 }
 
 /* ---------- La carte de l'alliance (13 novembre 2026) ---------- */
@@ -16910,6 +16951,16 @@ html:has(.compagnon:not([hidden]), .compagnon-prison:not([hidden])) {
 .compagnon[data-laisse-lire] {
   opacity: 0;
   visibility: hidden;
+}
+/* Arrêté, il ne couvre ni texte ni commande : loin de la place libre la plus proche (plus de trois fois sa hauteur), il
+   s'efface en fondu et réapparaît là, plutôt que de traverser la page en marchant dessus (data-passe, posé le temps du
+   fondu). Plus près, il y va à pied ; enfoncé sous le bord bas, seule sa tête dépasse. */
+.compagnon[data-passe] {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.4s ease,
+    visibility 0s linear 0.4s;
 }
 /* Le bouton ne couvre que son corps : les marges vides du dessin laissent passer les clics. */
 .compagnon-gaulois {

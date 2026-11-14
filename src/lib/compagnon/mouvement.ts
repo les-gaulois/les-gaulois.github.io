@@ -217,9 +217,9 @@ export const touche = (a: Cadre, c: Cadre, jeu = 0): boolean => a.gauche < c.dro
 export const JEU = 8;
 
 /**
- * Où aller pour ne couvrir aucune des `zones` (un champ en cours de saisie, un lien atteint au clavier, ce qui est fixé
- * sur la fenêtre ; pour sa place à côté du curseur, aussi la mention de licence d'OpenFront) : `null` s'il n'en touche
- * aucune, sa place s'il ne tient nulle part.
+ * Où aller pour ne couvrir aucune des `zones` (ce qui est fixé sur la fenêtre, un champ ou un lien qui a le focus) :
+ * `null` s'il n'en touche aucune, sa place s'il ne tient nulle part. Sert à `nullePart` ; sa place de repos, qui évite
+ * aussi le texte et les commandes de la page, est choisie par `repos.ts`.
  * Sinon la place libre la plus proche, à huit pixels au moins de chaque zone : à gauche, à droite, au-dessus ou au-dessous
  * d'une zone, dans la fenêtre.
  */

@@ -40,15 +40,15 @@ Le nombre mondial de bateaux ralentit progressivement les nouveaux spawns : c'e
 **Revenu.** Le seuil de courte portée vaut 300 : la distance pèse fortement autour de cette zone.
 
 ```
-or = (75 000 ÷ (1 + e^(−0,03 × (distance − 300))) + 50 × distance) × multiplicateur d'or
+or = (75 000 divisé par (1 + e^(−0,03 × (distance − 300))) + 50 × distance) × multiplicateur d'or
 ```
 
 **Saturation et cadence (v0.35.12).** T est le nombre de bateaux de trade dans le monde, n le nombre de niveaux de vos Ports.
 
 ```
 S(T) = max(1 − sigmoïde(T ; ln2/50 ; 330) ; 0,25 × (1 − sigmoïde(T ; ln2/100 ; 800)))
-bonus(n) = 1 + 0,5 × borne((6 − n) ÷ 5 ; 0 ; 1) ÷ n
-1 chance sur max(1 ; plancher((100 ÷ bonus(n)²) ÷ (refus + 1) ÷ S(T)))
+bonus(n) = 1 + 0,5 × borne((6 − n) divisé par 5 ; 0 ; 1) divisé par n
+1 chance sur max(1 ; plancher((100 divisé par bonus(n)²) divisé par (refus + 1) divisé par S(T)))
 ```
 
 Lecture simple : les petites économies reçoivent un bonus, qui s'efface à 6 niveaux, puis une saturation progressive s'installe quand la flotte mondiale grossit. Un plateau bas subsiste dans la zone très élevée. Après des refus successifs, la chance de spawn augmente.

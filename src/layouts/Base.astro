@@ -297,7 +297,9 @@ const onciale = lettresOnciale
         const msg = el.querySelector<HTMLElement>("[data-stale-msg]");
         if (msg && age > maxAge) {
           const hours = Math.floor(age / 3_600_000);
-          msg.textContent = `Données périmées : dernière mise à jour il y a ${hours >= 48 ? `${Math.floor(hours / 24)} jours` : `${hours} h`}.`;
+          // Un en-tête qui date plusieurs sources nomme celle qui a vieilli (« de la liste des membres ») : DataStatus.astro.
+          const label = msg.dataset.staleLabel ? ` ${msg.dataset.staleLabel}` : "";
+          msg.textContent = `Données périmées : dernière mise à jour${label} il y a ${hours >= 48 ? `${Math.floor(hours / 24)} jours` : `${hours} h`}.`;
           msg.hidden = false;
         }
       }

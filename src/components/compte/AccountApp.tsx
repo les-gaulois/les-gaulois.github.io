@@ -1,12 +1,13 @@
 import { useEffect, useState } from "preact/hooks";
 import { ADRESSE_ALLIANCE, RETOUR_CARTE_KEY } from "../../lib/alliance/invitation";
-import { basePath, call, signOut } from "../../lib/compte/api";
+import { CODE_LOGIN_OPEN, basePath, call, signOut } from "../../lib/compte/api";
 import { ROLE_LABELS, type Me } from "../../lib/compte/types";
 import { fmtDate } from "../../lib/format";
 import { ADRESSE_VILLAGE, RETOUR_VILLAGE_KEY } from "../../lib/gaulois";
 import { COMPTE_OPENFRONT_URL } from "../../lib/compte/lien-openfront";
 import { CodeLogin, DiscordButton, DiscordGives, Loading, Problem, codeLoginShown, messageOf, useMe } from "./common";
 import { DemandeLienOpenFront, useAllie } from "./LienOpenFront";
+import { PlaceReservee } from "./PlaceReservee";
 
 /** La demande envoyée, en attente d'un officier : on peut l'annuler. Sans demande en cours, le lien OpenFront est demandé. */
 function MembershipRequest({ me, onChange }: { me: Me; onChange: () => Promise<void> }) {
@@ -104,6 +105,30 @@ function retourApresDiscord(me: Me | null): string | null {
   return null;
 }
 
+/** La porte du compte, pour un visiteur sans session. `code` : la connexion par code, sous celle par Discord. */
+function Porte({ code }: { code: boolean }) {
+  return (
+    <section class="card p-6" data-testid="signed-out">
+      <h2 class="text-2xl">Connectez-vous</h2>
+      <p class="mt-2 text-muted">Le site ne reçoit jamais votre mot de passe.</p>
+      <div class="mt-4">
+        <DiscordButton returnPath="/compte" />
+      </div>
+      <DiscordGives />
+      {code && <CodeLogin />}
+    </section>
+  );
+}
+
+/** La place de la porte d'un visiteur, dans la page construite (compte.astro) puis tant que la session se lit : voir `PlaceReservee`. */
+export function PlaceDeLaPorte({ label }: { label?: string }) {
+  return (
+    <PlaceReservee label={label}>
+      <Porte code={CODE_LOGIN_OPEN} />
+    </PlaceReservee>
+  );
+}
+
 export default function AccountApp() {
   const { me, failed, refresh } = useMe();
   const allie = useAllie(me);
@@ -113,23 +138,11 @@ export default function AccountApp() {
     if (attente) setRetour(attente);
   }, [me]);
 
-  if (me === null) return <Loading label="Lecture de votre compte…" />;
+  if (me === null) return <PlaceDeLaPorte label="Lecture de votre compte…" />;
   if (retour) return <Loading label={retour} />;
   if (failed) return <Problem message="Votre compte n'a pas pu être lu pour l'instant. Réessayez dans un moment." onRetry={() => void refresh()} />;
 
-  if (!me.signed_in) {
-    return (
-      <section class="card p-6" data-testid="signed-out">
-        <h2 class="text-2xl">Connectez-vous</h2>
-        <p class="mt-2 text-muted">Le site ne reçoit jamais votre mot de passe.</p>
-        <div class="mt-4">
-          <DiscordButton returnPath="/compte" />
-        </div>
-        <DiscordGives />
-        {codeLoginShown() && <CodeLogin />}
-      </section>
-    );
-  }
+  if (!me.signed_in) return <Porte code={codeLoginShown()} />;
 
   return (
     <div class="grid gap-6" data-testid="account">

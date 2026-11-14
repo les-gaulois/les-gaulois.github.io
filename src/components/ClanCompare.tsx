@@ -12,7 +12,7 @@ const ROWS: { label: string; value: (f: ClanFigures) => string }[] = [
   { label: "Victoires", value: (f) => fmtInt(f.wins) },
   { label: "Défaites", value: (f) => fmtInt(f.losses) },
   { label: "Taux de victoire", value: (f) => fmtPct(f.rate) },
-  { label: "Victoires ÷ défaites, pondérées", value: (f) => fmtScore(f.wlRatio) },
+  { label: "Victoires par défaite, pondérées", value: (f) => fmtScore(f.wlRatio) },
   { label: "Joueurs du clan par partie", value: (f) => (f.playersPerGame === null ? NO_DATA : fmtDec1(f.playersPerGame)) },
 ];
 
@@ -24,10 +24,14 @@ interface Props {
   faceOffs: FaceOff[];
   /** Le fichier des scores relevés chaque jour. */
   src: string;
+  /** Les clans dont la course avec nos voisins, plus haut dans la page, écrit déjà l'écart (`tagsInRace`) : le comparateur y renvoie au lieu de le redire. */
+  inRace?: string[];
+  /** L'ancre de la course dans la page. */
+  raceHref?: string;
 }
 
 /** Deux clans de la liste officielle, côte à côte. Rien n'est noté : le rang et le score sont ceux de la liste, et le reste se calcule à partir de ses chiffres. */
-export default function ClanCompare({ clans, tag, faceOffs, src }: Props) {
+export default function ClanCompare({ clans, tag, faceOffs, src, inRace = [], raceHref }: Props) {
   const me = useMemo(() => findClan(clans, tag), [clans, tag]);
   const [selected, setSelected] = useState(firstRival(clans, tag)?.clanTag ?? "");
   const [history, setHistory] = useState<ScoreHistory | null>(null);
@@ -57,6 +61,8 @@ export default function ClanCompare({ clans, tag, faceOffs, src }: Props) {
   const theirs = clanFigures(other);
   const faceOff = faceOffs.find((row) => row.tag === theirs.tag) ?? null;
   const points = history ? gapPoints(history, mine.tag, theirs.tag) : [];
+  // Un clan qui a sa courbe dans la course : son écart et sa courbe y sont déjà, le comparateur ne les redit pas.
+  const raced = raceHref !== undefined && inRace.includes(theirs.tag.toUpperCase());
 
   return (
     <div>
@@ -94,12 +100,21 @@ export default function ClanCompare({ clans, tag, faceOffs, src }: Props) {
           </table>
         </div>
         <div class="space-y-4">
-          <p class="tnum font-display text-xl font-bold" role="status" data-testid="compare-gap">
-            {fmtGap(mine.score - theirs.score)} pour [{mine.tag}]
-          </p>
-          {/* L'écart du jour est écrit juste au-dessus : la courbe ne le répète pas en grand. */}
-          {points.length > 0 && <LineChart key={theirs.tag} title={`Écart de score avec [${theirs.tag}], jour après jour`} points={points} format={fmtGap} showValue={false} />}
-          {points.length > 1 && (
+          {/* Une seule annonce, qui reste en place quand on change de clan : l'écart, ou le renvoi à la course qui l'écrit déjà. */}
+          <div role="status">
+            {raced ? (
+              <p class="text-muted" data-testid="compare-gap-race">
+                L'écart avec [{theirs.tag}] est plus haut, dans <a href={raceHref}>la course avec nos voisins</a>.
+              </p>
+            ) : (
+              <p class="tnum font-display text-xl font-bold" data-testid="compare-gap">
+                {fmtGap(mine.score - theirs.score)} pour [{mine.tag}]
+              </p>
+            )}
+          </div>
+          {/* L'écart du jour est écrit juste au-dessus : la courbe ne le répète ni en grand ni sous son titre, qui ne garde que la date. */}
+          {!raced && points.length > 0 && <LineChart key={theirs.tag} title={`Écart de score avec [${theirs.tag}], jour après jour`} points={points} format={fmtGap} showValue={false} valueInLine={false} />}
+          {!raced && points.length > 1 && (
             <details class="fold" data-testid="compare-gap-table">
               <summary>Voir le tableau de l'écart</summary>
               <div class="mt-3 max-h-96 overflow-auto" tabIndex={0} aria-label="Tableau de l'écart, zone défilante">
@@ -123,7 +138,7 @@ export default function ClanCompare({ clans, tag, faceOffs, src }: Props) {
               </div>
             </details>
           )}
-          {failed && <p class="text-sm text-muted" role="status">La courbe de l'écart n'a pas pu être chargée. Les chiffres du tableau restent valables.</p>}
+          {!raced && failed && <p class="text-sm text-muted" role="status">La courbe de l'écart n'a pas pu être chargée. Les chiffres du tableau restent valables.</p>}
           <p class="tnum text-sm text-muted" data-testid="compare-face-off">
             {faceOff
               ? `Face-à-face, sur les parties dont le détail est lu : ${fmtCount(faceOff.meetings, "partie")}. L'équipe de [${mine.tag}] gagne ${fmtInt(faceOff.ours)} fois, celle de [${theirs.tag}] ${fmtInt(faceOff.theirs)} fois, une autre équipe ${fmtInt(faceOff.others)} fois.`

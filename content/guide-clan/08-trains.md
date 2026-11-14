@@ -35,8 +35,8 @@ Exemple chez un allié : 35k pendant 10 arrêts, 30k au 11e, 25k au 12e, et ai
 
 ```
 S(U) = max(1 − sigmoïde(U ; ln2/100 ; 560) ; 0,25 × (1 − sigmoïde(U ; ln2/150 ; 900)))
-bonus(n) = 1 + 0,5 × borne((6 − n) ÷ 5 ; 0 ; 1) ÷ n
-1 chance sur max(1 ; plancher((n + 10) × 15 ÷ (S(U) × bonus(n))))
+bonus(n) = 1 + 0,5 × borne((6 − n) divisé par 5 ; 0 ; 1) divisé par n
+1 chance sur max(1 ; plancher((n + 10) × 15 divisé par (S(U) × bonus(n))))
 ```
 
 **Saturation.** Elle devient importante autour de 560 unités de train, et un plateau d'environ 25 % est conservé dans la zone très élevée.

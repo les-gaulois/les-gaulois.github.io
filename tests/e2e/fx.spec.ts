@@ -64,6 +64,43 @@ const seesScriptAnimation = (locator: Locator) =>
       }),
   );
 
+/** Surveille à chaque image si un chiffre clé se lève (`.fx-count-in`, une animation CSS du vrai chiffre). */
+const seesCountIn = (locator: Locator) =>
+  locator.evaluate(
+    (el) =>
+      new Promise<boolean>((resolve) => {
+        const begin = performance.now();
+        const check = () => {
+          if (el.classList.contains("fx-count-in") && el.getAnimations().some((a) => a instanceof CSSAnimation)) return resolve(true);
+          if (performance.now() - begin > 3000) return resolve(false);
+          requestAnimationFrame(check);
+        };
+        check();
+      }),
+  );
+
+/**
+ * Ce qu'on lit dans chaque chiffre clé de l'accueil (`data-count`) à 100, 300 et 700 ms après l'arrivée du premier à l'écran,
+ * et combien de fois leur texte a changé depuis la fin du chargement. `horsEcran` : le premier n'était pas à l'écran au départ.
+ */
+const readCountsWhileEntering = (page: Page) =>
+  page.evaluate(async () => {
+    const els = [...document.querySelectorAll<HTMLElement>("[data-count]")];
+    let changes = 0;
+    const observer = new MutationObserver((list) => (changes += list.length));
+    for (const el of els) observer.observe(el, { childList: true, characterData: true, subtree: true });
+    const offScreen = (els[0]?.getBoundingClientRect().top ?? 0) > innerHeight;
+    els[0]?.scrollIntoView({ block: "center", behavior: "instant" });
+    const begin = performance.now();
+    const readings: { at: number; texts: string[]; lifting: number }[] = [];
+    for (const at of [100, 300, 700]) {
+      await new Promise((r) => setTimeout(r, Math.max(0, at - (performance.now() - begin))));
+      readings.push({ at, texts: els.map((el) => el.textContent?.trim() ?? ""), lifting: els.filter((el) => el.getAnimations().length > 0).length });
+    }
+    observer.disconnect();
+    return { offScreen, readings, changes };
+  });
+
 /** Attend que tous les blocs à l'écran soient entièrement révélés, graphiques sans case compris : avant, une case peut ne pas réagir au survol. */
 const blocksSettled = (page: Page) =>
   page.waitForFunction(
@@ -431,11 +468,17 @@ test.describe("à la souris", () => {
     expect(await sawClip).toBe(false);
   });
 
-  test("les compteurs finissent sur la valeur collectée", async ({ page }) => {
+  test("les chiffres clés entrent déjà à la valeur collectée, en se levant doucement", async ({ page }) => {
     const value = page.getByTestId("stat-card").nth(2).locator("[data-count]");
     const expected = await value.getAttribute("data-count");
+    expect((await value.textContent())?.replace(/\D/g, "")).toBe(expected);
+    // L'entrée se joue quand le chiffre arrive à l'écran : s'il y était dès le chargement, elle est déjà passée.
+    const offScreen = (await value.boundingBox())!.y > page.viewportSize()!.height;
+    const lifted = seesCountIn(value);
     await centerOnScreen(value);
-    await expect.poll(async () => (await value.textContent())?.replace(/\D/g, ""), { timeout: 3000 }).toBe(expected);
+    const sawLift = await lifted;
+    if (offScreen) expect(sawLift).toBe(true);
+    expect((await value.textContent())?.replace(/\D/g, "")).toBe(expected);
   });
 
   test("la barre de progression suit le défilement", async ({ page }) => {
@@ -477,13 +520,34 @@ test.describe("à la souris", () => {
     expect(await page.locator(".chart-sweep").evaluate((el, old) => el !== old, firstSweep)).toBe(true);
   });
 
-  test("les chiffres défilent et finissent sur la bonne valeur", async ({ page }) => {
+  test("changer de période écrit aussitôt le nouveau chiffre, qui se lève doucement sans défiler", async ({ page }) => {
     await page.goto("/progression");
     await hydrated(page);
-    await page.getByRole("button", { name: "7 jours" }).click();
-    const screenReaderValue = page.locator("dd .sr-only").first();
     const value = page.getByTestId("summary-Parties");
-    await expect.poll(async () => value.textContent(), { timeout: 2000 }).toBe(await screenReaderValue.textContent());
+    await centerOnScreen(value);
+    // Chaque texte que prend le chiffre, image après image, pendant une seconde et demie : l'ancien, puis le nouveau, rien entre.
+    const texts = value.evaluate(
+      (el) =>
+        new Promise<string[]>((resolve) => {
+          const seen: string[] = [];
+          const begin = performance.now();
+          const check = () => {
+            const text = el.textContent ?? "";
+            if (seen.at(-1) !== text) seen.push(text);
+            if (performance.now() - begin > 1500) return resolve(seen);
+            requestAnimationFrame(check);
+          };
+          check();
+        }),
+    );
+    const lifted = seesCountIn(value);
+    await page.getByRole("button", { name: "7 jours" }).click();
+    expect(await lifted).toBe(true);
+    const seen = await texts;
+    expect(seen).toHaveLength(2);
+    expect(Number(seen[1]!.replace(/\D/g, ""))).toBeLessThan(Number(seen[0]!.replace(/\D/g, "")));
+    // Un seul texte : celui qu'on voit est celui que lisent les lecteurs d'écran.
+    await expect(page.locator("dd .sr-only")).toHaveCount(0);
   });
 
   test("la heatmap réagit : réticule, infobulle et onde au clic", async ({ page }) => {
@@ -523,6 +587,8 @@ test.describe("à la souris", () => {
   test("trier les membres fait glisser les lignes", async ({ page }) => {
     await page.goto("/liste");
     await expect(page.getByTestId("member-row").first()).toBeVisible();
+    // Les trente premiers sont dans la page construite : le tri attend la liste entière, qui ouvre alors la recherche.
+    await expect(page.locator("#member-search")).toBeEnabled();
     await page.waitForTimeout(800);
     // Trier par parties garde en grande partie les mêmes lignes : elles changent seulement de place.
     const glided = page.evaluate(
@@ -552,6 +618,7 @@ test.describe("à la souris", () => {
     await expect(page.locator("#fx-progress")).toBeHidden();
     await expect(page.locator(".float")).toHaveCSS("animation-name", "none");
     await expect(page.locator(".fx-hidden")).toHaveCount(0);
+    await expect(page.locator(".fx-count-wait, .fx-count-in")).toHaveCount(0);
 
     await watchContextMenu(page);
     await page.mouse.click(BACKGROUND.x, BACKGROUND.y, { button: "right" });
@@ -591,7 +658,8 @@ for (const path of PAGES) {
       .poll(
         () =>
           page.evaluate(() =>
-            [...document.querySelectorAll<HTMLElement>(".stage, main .card, main .fx-block")]
+            // Les chiffres clés aussi : hors de l'écran, ils attendent transparents leur entrée.
+            [...document.querySelectorAll<HTMLElement>(".stage, main .card, main .fx-block, [data-count]")]
               .filter((el) => el.getBoundingClientRect().width > 0)
               .filter((el) => getComputedStyle(el).opacity !== "1" || el.style.clipPath !== "")
               .map((el) => el.className),
@@ -689,6 +757,42 @@ test("avec « réduire les animations », aucun effet n'est lancé", async ({ pa
   await expect(page.locator(".holo-bulle")).toBeHidden();
   await expect(page.locator(".holo-bulle")).toBeEmpty();
   await expect(page.locator("[data-fx-logo]")).toHaveAttribute("data-holo", "");
+});
+
+// Une animation ne change jamais une valeur. Jusqu'au 14 novembre 2026, les chiffres clés de l'accueil montaient de zéro :
+// « 1 497,47 » à 300 ms pour un score de 2 397,86, et un onglet ouvert en arrière-plan restait figé sur un chiffre faux.
+for (const [mode, reducedMotion] of [
+  ["avec les effets", "no-preference"],
+  ["avec « réduire les animations »", "reduce"],
+] as const) {
+  test(`un chiffre clé de l'accueil est déjà sa valeur finale à 100, 300 et 700 ms après son apparition, ${mode}`, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion });
+    // La valeur finale : le texte écrit au build, dans la page telle que le serveur l'envoie.
+    const html = await (await page.request.get("/")).text();
+    const finals = [...html.matchAll(/<p\b[^>]*\sdata-count="[^"]*"[^>]*>([^<]*)<\/p>/g)].map((m) => (m[1] ?? "").replace(/\D/g, ""));
+    expect(finals.length).toBeGreaterThan(0);
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    const { offScreen, readings, changes } = await readCountsWhileEntering(page);
+    for (const r of readings) expect(r.texts.map((t) => t.replace(/\D/g, "")), `à ${r.at} ms`).toEqual(finals);
+    expect(changes, "le texte d'un chiffre clé n'est jamais réécrit").toBe(0);
+    // Avec les effets, l'entrée reste animée (le vrai chiffre se lève) ; sans eux, rien ne bouge.
+    if (reducedMotion === "reduce") expect(readings.map((r) => r.lifting)).toEqual([0, 0, 0]);
+    else if (offScreen) expect(readings[0]!.lifting).toBeGreaterThan(0);
+  });
+}
+
+test("avec la pause, un chiffre clé ne se lève pas et garde sa valeur", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("gal-fx", "off"));
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+  await expect(page.locator("html")).toHaveClass(/fx-off/);
+  const { readings, changes } = await readCountsWhileEntering(page);
+  expect(readings.map((r) => r.lifting)).toEqual([0, 0, 0]);
+  expect(changes).toBe(0);
+  // Ni attente transparente hors de l'écran, ni entrée : le chiffre est là, tel quel.
+  await expect(page.locator(".fx-count-wait, .fx-count-in")).toHaveCount(0);
+  await expect(page.getByTestId("stat-card").nth(1).locator("[data-count]")).toHaveCSS("opacity", "1");
 });
 
 test("sans JavaScript, tout le contenu reste visible", async ({ browser }, testInfo) => {

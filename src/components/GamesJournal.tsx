@@ -25,9 +25,20 @@ function Result({ won }: { won: boolean }) {
   );
 }
 
+/**
+ * Une cible pour le doigt : 44 px de haut sur les cartes du téléphone, la seule commande de chacune ; 24 px dans le tableau
+ * de l'ordinateur. La marge négative rend la place gagnée : le texte, la ligne du tableau et la carte gardent leur hauteur.
+ * `link` garde l'allure d'un lien, et le lien reste un vrai lien (clic droit, nouvel onglet).
+ */
 function Replay({ row }: { row: JournalRow }) {
   return (
-    <a href={replayUrl(row.id)} rel="noopener" aria-label={`Ouvrir sur OpenFront la partie du ${fmtDayAndTime(row.at)}`} data-testid="journal-replay">
+    <a
+      href={replayUrl(row.id)}
+      rel="noopener"
+      class="link inline-flex min-h-11 min-w-11 items-center my-[calc((1lh_-_2.75rem)/2)] lg:min-h-6 lg:my-[calc((1lh_-_1.5rem)/2)]"
+      aria-label={`Ouvrir sur OpenFront la partie du ${fmtDayAndTime(row.at)}`}
+      data-testid="journal-replay"
+    >
       Ouvrir
     </a>
   );
@@ -230,7 +241,8 @@ export default function GamesJournal({ src, initial, sides }: Props) {
                 <p class="mt-1">{mapOf(r)} · {formatOf(r)}</p>
                 <p class="mt-1 text-muted">{fmtInt(r.gaulois)} Gaulois sur {fmtCount(r.players, "joueur")} · {durationOf(r)}</p>
                 {(r.rivals.length > 0 || r.allies.length > 0) && <p class="mt-1 text-muted"><Clans row={r} /></p>}
-                <p class="mt-2"><Replay row={r} /></p>
+                {/* 12 px au-dessus du lien : sa cible de 44 px ne déborde pas sur la ligne d'avant. */}
+                <p class="mt-3"><Replay row={r} /></p>
               </li>
             ))}
           </ul>

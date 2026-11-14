@@ -6,6 +6,17 @@ import { fmtCount, fmtDate } from "../lib/format";
 import { recentRecordKeys, type RecordKey } from "../lib/records-battus";
 import { clanRecords } from "../lib/results";
 
+interface Props {
+  /**
+   * « complet » (par défaut) : le bloc et ses précisions repliées, pour une page où il est seul. « bloc » : sans elles,
+   * quand la page les réunit dans son repli unique, en bas (Records). « note » : ses seules précisions, sous son nom.
+   */
+  rendu?: "complet" | "bloc" | "note";
+}
+const { rendu = "complet" } = Astro.props;
+const TITLE = "Les records du clan";
+// Les précisions ne s'écrivent qu'une fois : dans le bloc, ou seules (« note ») pour le repli unique de la page.
+const Wrapper = rendu === "note" ? Fragment : "section";
 const sessions = loadSessions();
 const records = clanRecords(sessions);
 // Un record des sept derniers jours couverts se signale : le clan vient de le battre.
@@ -23,8 +34,10 @@ const tiles: { key: RecordKey; label: string; value: string; hint: string }[] = 
 
 {
   tiles.length > 0 && (
-    <section class="stage stage-night reveal mt-section" aria-labelledby="records-title" data-testid="clan-records">
-      <h2 id="records-title" class="section-title">Les records du clan</h2>
+    <Wrapper class="stage stage-night reveal mt-section" aria-labelledby="records-title" data-testid="clan-records">
+      {rendu !== "note" && (
+      <>
+      <h2 id="records-title" class="section-title">{TITLE}</h2>
       <dl class="mt-8 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-2 lg:grid-cols-4">
         {
           tiles.map((t) => (
@@ -41,11 +54,15 @@ const tiles: { key: RecordKey; label: string; value: string; hint: string }[] = 
           ))
         }
       </dl>
-      <ReadingNote>
+      </>
+      )}
+      {rendu !== "bloc" && (
+      <ReadingNote bloc={rendu === "note" ? TITLE : undefined}>
         <p>
         Depuis le {start}, parties publiques en équipe jouées avec le tag, tous joueurs du clan confondus : une série mêle donc plusieurs groupes. Le jeu place tout un clan dans une seule équipe : le nombre de Gaulois d'une partie gagnée compte aussi ceux partis avant la fin. Une partie jouée seul contre des robots n'est pas comptée.
       </p>
       </ReadingNote>
-    </section>
+      )}
+    </Wrapper>
   )
 }

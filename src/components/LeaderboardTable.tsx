@@ -110,8 +110,9 @@ export default function LeaderboardTable({ clans, tag }: Props) {
           onInput={(e) => setQuery(e.currentTarget.value)}
         />
       </label>
+      {/* Sans recherche, « 108 clans sur 108 » disait deux fois le même nombre : seulement le nombre de clans listés. */}
       <p class="info-discrete tnum mt-2" role="status">
-        {rows.length} clan{rows.length > 1 ? "s" : ""} sur {clans.length}
+        {searching ? `${rows.length} clan${rows.length > 1 ? "s" : ""} sur ${clans.length}` : `${clans.length} clan${clans.length > 1 ? "s" : ""} dans la liste`}
       </p>
 
       {rows.length === 0 ? (

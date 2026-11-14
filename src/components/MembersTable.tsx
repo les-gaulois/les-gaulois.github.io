@@ -29,6 +29,33 @@ const SORTS: { key: SortKey; label: string }[] = [
 
 type State = { status: "loading" } | { status: "error" } | { status: "ready"; data: StoredMembers };
 
+/** Le tri à l'ouverture de la page, celui de l'aperçu. */
+const START_SORT: SortKey = "wins";
+const START_DIR: SortDir = "desc";
+
+/**
+ * La liste telle qu'elle s'ouvre, calculée à la construction du site : les trente premiers du tri d'ouverture et les comptes
+ * de la liste entière. Le tableau est ainsi dans la page dès son arrivée, à sa hauteur : le pied de page ne saute plus quand
+ * la liste arrive, et elle se lit sans JavaScript. La liste entière (`src`, le même fichier) est lue ensuite pour le tri, la
+ * recherche et les membres suivants : à son arrivée, rien ne change à l'écran.
+ */
+export interface MembersPreview {
+  total: number;
+  count: number;
+  anonymous: number;
+  first: StoredMember[];
+}
+
+export function membersPreview(data: StoredMembers | null): MembersPreview {
+  const members = data?.members ?? [];
+  return {
+    total: data?.total ?? 0,
+    count: members.length,
+    anonymous: members.filter((m) => !m.username).length,
+    first: sortMembers(members, START_SORT, START_DIR).slice(0, PAGE),
+  };
+}
+
 /** `stretch` : sur téléphone, toute la carte du membre mène à sa fiche. Le pseudo seul ne fait que 20 pixels de haut, trop peu pour le doigt. */
 function Name({ m, stretch = false }: { m: StoredMember; stretch?: boolean }) {
   if (!m.username) return <span class="text-muted italic">Membre anonyme</span>;
@@ -105,12 +132,15 @@ function useGlidingRows(container: { current: HTMLElement | null }, change: unkn
   }, [change]);
 }
 
-export default function MembersTable({ src }: { src: string }) {
+/** `preview` : l'ouverture de la liste, rendue dans la page à sa construction (voir `membersPreview`). */
+export default function MembersTable({ src, preview }: { src: string; preview?: MembersPreview }) {
   const [state, setState] = useState<State>({ status: "loading" });
   const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<SortKey>("wins");
-  const [dir, setDir] = useState<SortDir>("desc");
-  const [limit, setLimit] = useState(firstPage);
+  const [sort, setSort] = useState<SortKey>(START_SORT);
+  const [dir, setDir] = useState<SortDir>(START_DIR);
+  // Trente au départ, comme dans la page construite, que le navigateur reprend telle quelle ; dix sur téléphone dès l'effet
+  // de la longueur, plus bas, hors de l'écran.
+  const [limit, setLimit] = useState(PAGE);
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
@@ -139,11 +169,22 @@ export default function MembersTable({ src }: { src: string }) {
 
   useEffect(() => setLimit(firstPage()), [query, sort, dir]);
 
+  // Ce que montre la liste : la liste entière une fois lue ; avant elle, l'aperçu de la construction, mêmes lignes et mêmes
+  // comptes. Les réglages attendent la liste entière (`waiting`) : trier ou chercher dans trente membres serait faux.
+  const view =
+    state.status === "ready"
+      ? { list: rows, found: rows.length, count: members.length, total: state.data.total, anonymous: members.filter((m) => !m.username).length }
+      : preview
+        ? // En attendant la liste entière, et si elle ne se charge pas : les premiers membres restent à l'écran.
+          { list: preview.first, found: preview.count, count: preview.count, total: preview.total, anonymous: preview.anonymous }
+        : null;
+  const waiting = state.status !== "ready";
+  const visible = (view?.list ?? []).slice(0, limit);
+
   const tableBody = useRef<HTMLTableSectionElement>(null);
   const cardList = useRef<HTMLUListElement>(null);
-  const shownRows = rows.slice(0, limit);
-  useGlidingRows(tableBody, shownRows);
-  useGlidingRows(cardList, shownRows);
+  useGlidingRows(tableBody, visible);
+  useGlidingRows(cardList, visible);
 
   const toggleSort = (key: SortKey) => {
     if (key === sort) setDir(dir === "desc" ? "asc" : "desc");
@@ -153,7 +194,7 @@ export default function MembersTable({ src }: { src: string }) {
     }
   };
 
-  if (state.status === "loading") {
+  if (state.status === "loading" && !view) {
     return (
       <div class="card flex items-center justify-center gap-3 p-10 text-muted" role="status">
         <svg class="loader" viewBox="0 0 40 40" aria-hidden="true" fill="none" stroke-width="4">
@@ -166,7 +207,7 @@ export default function MembersTable({ src }: { src: string }) {
       </div>
     );
   }
-  if (state.status === "error") {
+  if (state.status === "error" && !view) {
     return (
       <div class="card p-6 text-center" role="alert">
         <p class="font-semibold">La liste des membres n'a pas pu être chargée.</p>
@@ -174,42 +215,46 @@ export default function MembersTable({ src }: { src: string }) {
       </div>
     );
   }
-  if (members.length === 0) {
+  if (!view || view.count === 0) {
     return <p class="card p-6 text-center text-muted">Pas de données : aucune liste de membres n'a encore été collectée.</p>;
   }
 
-  const visible = rows.slice(0, limit);
-  const named = members.filter((m) => m.username).length;
-
   return (
     <div>
+      {/* La liste entière n'est pas arrivée : les premiers membres restent, la page ne saute pas, et on peut réessayer. */}
+      {state.status === "error" && (
+        <div class="card mb-4 flex flex-wrap items-center gap-3 p-4" role="alert">
+          <p class="font-semibold">La liste des membres n'a pas pu être chargée.</p>
+          <button type="button" class="btn btn-ghost" onClick={() => setAttempt(attempt + 1)}>Réessayer</button>
+        </div>
+      )}
       <p class="tnum text-sm text-muted">
-        {fmtInt(state.data.total)} membres dans la liste officielle, dont {fmtInt(members.length - named)} sans pseudo public, donc sans fiche ni nom dans les podiums.{" "}
+        {fmtInt(view.total)} membres dans la liste officielle, dont {fmtInt(view.anonymous)} sans pseudo public, donc sans fiche ni nom dans les podiums.{" "}
         <ChoisirPseudo />
       </p>
       <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
         <label class="block flex-1 sm:max-w-sm" htmlFor="member-search">
           <span class="mb-1 block text-sm font-semibold">Rechercher par pseudo</span>
-          <input id="member-search" class="field" type="search" value={query} onInput={(e) => setQuery(e.currentTarget.value)} />
+          <input id="member-search" class="field" type="search" value={query} disabled={waiting} onInput={(e) => setQuery(e.currentTarget.value)} />
         </label>
         {/* Jusqu'à 1 024 pixels, la colonne du niveau est sous le pseudo : son tri passe par ce menu. */}
         <div class="flex items-end gap-2 lg:hidden">
           <label class="block flex-1" htmlFor="member-sort">
             <span class="mb-1 block text-sm font-semibold">Trier par</span>
-            <select id="member-sort" class="field" value={sort} onChange={(e) => setSort(e.currentTarget.value as SortKey)}>
+            <select id="member-sort" class="field" value={sort} disabled={waiting} onChange={(e) => setSort(e.currentTarget.value as SortKey)}>
               {SORTS.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
             </select>
           </label>
-          <button type="button" class="btn btn-ghost" onClick={() => setDir(dir === "desc" ? "asc" : "desc")}>
+          <button type="button" class="btn btn-ghost" disabled={waiting} onClick={() => setDir(dir === "desc" ? "asc" : "desc")}>
             {dir === "desc" ? "Décroissant" : "Croissant"}
           </button>
         </div>
       </div>
       <p class="info-discrete tnum mt-2" role="status" data-testid="member-count">
-        {fmtInt(rows.length)} résultat{rows.length > 1 ? "s" : ""}, {fmtInt(visible.length)} affiché{visible.length > 1 ? "s" : ""}
+        {fmtInt(view.found)} résultat{view.found > 1 ? "s" : ""}, {fmtInt(visible.length)} affiché{visible.length > 1 ? "s" : ""}
       </p>
 
-      {rows.length === 0 ? (
+      {view.found === 0 ? (
         <p class="card mt-4 p-5 text-muted">Aucun pseudo ne correspond à « {query.trim()} ». Les membres anonymes ne peuvent pas être recherchés.</p>
       ) : (
         <>
@@ -221,7 +266,7 @@ export default function MembersTable({ src }: { src: string }) {
                   <th scope="col">Membre</th>
                   {SORTS.map((s) => (
                     <th key={s.key} scope="col" class={s.key === "level" ? "hidden lg:table-cell" : s.key === "joinedAt" ? "" : "num"} aria-sort={sort === s.key ? (dir === "asc" ? "ascending" : "descending") : "none"}>
-                      <button type="button" class="uppercase hover:text-white" onClick={() => toggleSort(s.key)}>
+                      <button type="button" class="uppercase hover:text-white" disabled={waiting} onClick={() => toggleSort(s.key)}>
                         {s.label} {sort === s.key ? (dir === "asc" ? "↑" : "↓") : ""}
                       </button>
                     </th>
@@ -285,10 +330,10 @@ export default function MembersTable({ src }: { src: string }) {
             })}
           </ul>
 
-          {visible.length < rows.length && (
+          {visible.length < view.found && (
             <div class="mt-4 text-center">
-              <button type="button" class="btn btn-ghost" data-testid="members-more" onClick={() => setLimit(rows.length)}>
-                {rows.length - visible.length > 1 ? `Voir les ${fmtInt(rows.length - visible.length)} autres membres` : "Voir le dernier membre"}
+              <button type="button" class="btn btn-ghost" data-testid="members-more" disabled={waiting} onClick={() => setLimit(view.found)}>
+                {view.found - visible.length > 1 ? `Voir les ${fmtInt(view.found - visible.length)} autres membres` : "Voir le dernier membre"}
               </button>
             </div>
           )}

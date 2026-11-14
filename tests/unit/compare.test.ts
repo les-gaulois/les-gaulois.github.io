@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clanFigures, COMPARE_DAYS, firstRival, gapPoints, scoreHistory } from "../../src/lib/compare";
+import { clanFigures, COMPARE_DAYS, firstRival, gapPoints, scoreHistory, tagsInRace } from "../../src/lib/compare";
 import type { RivalsSnapshot } from "../../src/lib/schemas";
 import { withOfficialRanks } from "../../src/lib/stats";
 
@@ -47,6 +47,25 @@ describe("firstRival", () => {
   it("ne propose rien si le clan est hors de la liste, ou seul", () => {
     expect(firstRival(clans, "ZZZ")).toBeNull();
     expect(firstRival(withOfficialRanks([entry("GAL")]), "GAL")).toBeNull();
+  });
+});
+
+describe("tagsInRace", () => {
+  const point = (value: number | null) => ({ date: "2026-11-14", value });
+  it("donne les clans dont la course écrit déjà l'écart, en majuscules", () => {
+    expect(
+      tagsInRace([
+        { clanTag: "Un", rank: 1, points: [point(null), point(-8665.53)] },
+        { clanTag: "ITA", rank: 3, points: [point(266.58)] },
+      ]),
+    ).toEqual(["UN", "ITA"]);
+  });
+  it("laisse au comparateur un clan dont la course n'a aucune mesure : son écart n'est écrit nulle part ailleurs", () => {
+    expect(tagsInRace([{ clanTag: "NEW", rank: 3, points: [point(null), point(null)] }])).toEqual([]);
+  });
+  it("sans course, ne renvoie aucun clan", () => {
+    expect(tagsInRace(null)).toEqual([]);
+    expect(tagsInRace([])).toEqual([]);
   });
 });
 

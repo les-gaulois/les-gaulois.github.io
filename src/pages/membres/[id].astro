@@ -10,7 +10,6 @@ import { loadMemberGames, loadMemberResultsOnce, loadMembers, loadMeta, loadSess
 import { fmtCount, fmtDate, fmtInt, fmtPct } from "../../lib/format";
 import { ficheFacts, ficheImageAlt } from "../../lib/fiche-image";
 import { ficheImageVersion } from "../../lib/fiches-discord";
-import { MAX_AGE_HOURS } from "../../lib/freshness";
 import { mapLabel } from "../../lib/map-names";
 import { accountLabel } from "../../lib/niveau";
 import { gamesOf, rateOf, recentGamesTitle, singlePseudos } from "../../lib/members";
@@ -84,8 +83,9 @@ const tiles = member.team
           </div>
         )
       }
+      {/* Une seule date pour la fiche. Ses dernières parties ont leur propre relevé : une panne s'y signale ici, avec son nom. */}
       <div class="mt-4">
-        <DataStatus state={meta.members} maxAgeHours={MAX_AGE_HOURS.members} />
+        <DataStatus sources={games !== null && games > 0 && meta.memberGames.lastError ? ["members", "memberGames"] : ["members"]} />
       </div>
     </PageHeader>
 
@@ -122,11 +122,6 @@ const tiles = member.team
           </div>
         )
       }
-      <ReadingNote>
-        <p>
-          Parties publiques en équipe jouées avec le tag {clan.tag}, sans le classé, le FFA ni Humains contre Nations.{games === 0 && " Cela ne veut pas dire que ce joueur est inactif."}{games !== null && games > 0 && <> <a href={`${base}/membres`}>Les paliers</a> sont choisis par le site. Ils comptent des victoires, donc d'abord des parties jouées : ils ne disent pas qui joue le mieux.</>}
-        </p>
-      </ReadingNote>
     </section>
 
     {
@@ -187,12 +182,6 @@ const tiles = member.team
               </div>
             </details>
           )}
-          <ReadingNote>
-            <p>
-              Parties sous le tag du {fmtDate(groupe.from)} au {fmtDate(groupe.to)}, retrouvées dans les sessions du clan : {fmtInt(groupe.matched)}
-              {groupe.complete ? "." : " ; les plus anciennes ne sont pas encore relues."} Le nombre de Gaulois compte tous les joueurs sous le tag dans la partie, avec ou sans pseudo. Un lien, pas une preuve : le taux dépend aussi du format, de l'heure et des adversaires.
-            </p>
-          </ReadingNote>
         </section>
       )
     }
@@ -231,11 +220,6 @@ const tiles = member.team
                   </table>
                 </div>
               <p class="info-discrete mt-4 max-w-3xl">Relevé le {atDay(recent.readOn)}{recent.seen !== games && " : ses parties les plus récentes n'y sont pas encore"}.</p>
-              <ReadingNote>
-                <p>
-                  Le résultat est celui qu'OpenFront compte pour ce joueur : s'il quitte la partie avant la fin, une victoire de son équipe peut compter comme une défaite pour lui. La fiche n'affiche que le jour, mais la page <a href={`${base}/parties`}>Dernières parties</a> permet souvent de retrouver cette partie, avec son heure et son lien vers OpenFront.{recent.recent.some((game) => game.date < joinedOn) && " Certaines parties sont antérieures à son arrivée dans la liste officielle."}
-                </p>
-              </ReadingNote>
               <MapNamesCredit />
             </>
           ) : (
@@ -244,16 +228,37 @@ const tiles = member.team
               <p class="mt-1 text-sm text-muted">Ses dernières parties ne sont pas disponibles.</p>
             </>
           )}
-          {
-            meta.memberGames.lastError && (
-              <div class="mt-4">
-                <DataStatus state={meta.memberGames} maxAgeHours={MAX_AGE_HOURS.memberGames} />
-              </div>
-            )
-          }
         </section>
       )
     }
+
+    {/* Les précisions des trois blocs, chacune sous le nom de son bloc, en un seul repli en bas de la fiche. */}
+    <ReadingNote page>
+      <ReadingNote bloc="Ses parties sous le tag">
+        <p>
+          Parties publiques en équipe jouées avec le tag {clan.tag}, sans le classé, le FFA ni Humains contre Nations.{games === 0 && " Cela ne veut pas dire que ce joueur est inactif."}{games !== null && games > 0 && <> <a href={`${base}/membres`}>Les paliers</a> sont choisis par le site. Ils comptent des victoires, donc d'abord des parties jouées : ils ne disent pas qui joue le mieux.</>}
+        </p>
+      </ReadingNote>
+      {
+        groupe && (
+          <ReadingNote bloc="Seul ou en groupe">
+            <p>
+              Parties sous le tag du {fmtDate(groupe.from)} au {fmtDate(groupe.to)}, retrouvées dans les sessions du clan : {fmtInt(groupe.matched)}
+              {groupe.complete ? "." : " ; les plus anciennes ne sont pas encore relues."} Le nombre de Gaulois compte tous les joueurs sous le tag dans la partie, avec ou sans pseudo. Un lien, pas une preuve : le taux dépend aussi du format, de l'heure et des adversaires.
+            </p>
+          </ReadingNote>
+        )
+      }
+      {
+        games !== null && games > 0 && recent && recentTitle && (
+          <ReadingNote bloc="Ses dernières parties">
+            <p>
+              Le résultat est celui qu'OpenFront compte pour ce joueur : s'il quitte la partie avant la fin, une victoire de son équipe peut compter comme une défaite pour lui. La fiche n'affiche que le jour, mais la page <a href={`${base}/parties`}>Dernières parties</a> permet souvent de retrouver cette partie, avec son heure et son lien vers OpenFront.{recent.recent.some((game) => game.date < joinedOn) && " Certaines parties sont antérieures à son arrivée dans la liste officielle."}
+            </p>
+          </ReadingNote>
+        )
+      }
+    </ReadingNote>
 
     <div class="reveal mt-section flex flex-col gap-3 sm:flex-row">
       <button type="button" class="btn btn-secondary" data-copy-link data-testid="copy-link" hidden>Copier le lien de cette fiche</button>

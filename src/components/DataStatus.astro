@@ -1,37 +1,63 @@
 ---
 import type { DatasetState } from "../lib/schemas";
+import { loadMeta } from "../lib/data";
 import { fmtDateTime } from "../lib/format";
+import { MAX_AGE_HOURS } from "../lib/freshness";
+import { SOURCE_LABELS, updateLine, type SourceKey } from "../lib/mise-a-jour";
 
 interface Props {
-  state: DatasetState;
-  maxAgeHours: number;
+  /** Une seule source : son état et son âge maximal. */
+  state?: DatasetState;
+  maxAgeHours?: number;
+  /**
+   * Plusieurs sources, pour l'en-tête d'une page dont les blocs viennent de jeux de données différents (Records : les
+   * parties, les podiums et la liste des membres). La date ne s'écrit qu'une fois, en une ligne : une seule date quand
+   * toutes les sources l'ont, sinon chacune sous son nom (src/lib/mise-a-jour.ts). Chaque source garde son message de
+   * données périmées et de collecte échouée, avec son nom.
+   */
+  sources?: SourceKey[];
   /** Date de la donnée elle-même, si elle diffère de la date de collecte. */
   asOf?: string | null;
   asOfLabel?: string;
 }
-const { state, maxAgeHours, asOf = null, asOfLabel = "Données arrêtées au" } = Astro.props;
-const { lastSuccessAt, lastError, lastErrorAt } = state;
+const { state, maxAgeHours, sources, asOf = null, asOfLabel = "Données arrêtées au" } = Astro.props;
+const meta = sources ? loadMeta() : null;
+const list: { label: string; state: DatasetState; maxAgeHours: number }[] =
+  sources && meta ? sources.map((key) => ({ label: SOURCE_LABELS[key], state: meta[key], maxAgeHours: MAX_AGE_HOURS[key] })) : state ? [{ label: "", state, maxAgeHours: maxAgeHours ?? 0 }] : [];
+// Une source seule ne se nomme pas : la ligne reste « Dernière mise à jour : … ».
+const named = list.length > 1;
+const line = updateLine(list.map((s) => ({ label: s.label, lastSuccessAt: s.state.lastSuccessAt })), fmtDateTime);
 ---
 
 {/* La date est une information de service : petite, en italique et en gris. Les avertissements, en jaune, gardent leur taille. */}
-<div class="text-sm text-muted tnum" data-last-success={lastSuccessAt ?? undefined} data-max-age-hours={maxAgeHours} data-testid="data-status">
+<div class="text-sm text-muted tnum" data-testid="data-status">
   {
-    lastSuccessAt ? (
+    line ? (
       <p class="info-discrete">
         {asOf && <>{asOfLabel} {fmtDateTime(asOf)} · </>}
-        Dernière mise à jour : {fmtDateTime(lastSuccessAt)}, heure de Paris.
+        {line}
       </p>
     ) : (
       <p>Aucune donnée collectée pour le moment.</p>
     )
   }
-  <p data-stale-msg hidden class="mt-1 font-semibold text-warn" role="status"></p>
+  {/* Le navigateur du visiteur signale une source périmée (Base.astro) : une par source, avec son nom quand il y en a plusieurs. */}
   {
-    lastError && (
-      <p class="mt-1 font-semibold text-warn" role="status">
-        La dernière collecte a échoué{lastErrorAt && ` (${fmtDateTime(lastErrorAt)})`}.
-        {lastSuccessAt ? " Les dernières données valides restent affichées." : ""}
-      </p>
+    list.map((s) => (
+      <div data-last-success={s.state.lastSuccessAt ?? undefined} data-max-age-hours={s.maxAgeHours}>
+        <p data-stale-msg data-stale-label={named ? s.label : undefined} hidden class="mt-1 font-semibold text-warn" role="status"></p>
+      </div>
+    ))
+  }
+  {
+    list.map(
+      ({ label, state: { lastSuccessAt, lastError, lastErrorAt } }) =>
+        lastError && (
+          <p class="mt-1 font-semibold text-warn" role="status">
+            La dernière collecte{named && ` ${label}`} a échoué{lastErrorAt && ` (${fmtDateTime(lastErrorAt)})`}.
+            {lastSuccessAt ? " Les dernières données valides restent affichées." : ""}
+          </p>
+        ),
     )
   }
 </div>

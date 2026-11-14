@@ -1,7 +1,7 @@
 ---
 import Base from "../layouts/Base.astro";
 import PageHeader from "../components/PageHeader.astro";
-import AccountApp from "../components/compte/AccountApp";
+import AccountApp, { PlaceDeLaPorte } from "../components/compte/AccountApp";
 import NotOpen from "../components/compte/NotOpen.astro";
 import { AUTH_ENABLED } from "../lib/compte/api";
 ---
@@ -10,7 +10,14 @@ import { AUTH_ENABLED } from "../lib/compte/api";
   <div class="wrap">
     <PageHeader title="Mon compte" />
     <div class="mt-6 max-w-3xl">
-      {AUTH_ENABLED ? <AccountApp client:only="preact" /> : <NotOpen />}
+      {/* `fallback` : avant le script, la place de la porte, invisible, pour que le pied de page ne saute pas à son arrivée. */}
+      {AUTH_ENABLED ? (
+        <AccountApp client:only="preact">
+          <PlaceDeLaPorte slot="fallback" />
+        </AccountApp>
+      ) : (
+        <NotOpen />
+      )}
     </div>
   </div>
 </Base>

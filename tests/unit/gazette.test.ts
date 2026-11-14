@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fmtPoints } from "../../src/lib/format";
-import { arrivalsGap, comparisonSentence, editionLead, endingOn, gazetteEditions, type GazetteSources, standingDetails, standingGap, standingSentence, territoryDetails, territoryGap, weekLabel, playersPeriod } from "../../src/lib/gazette";
+import { arrivalsGap, comparisonSentence, editionLead, editionNotes, endingOn, gazetteEditions, gazetteNotes, type GazetteSources, standingDetails, standingGap, standingSentence, territoryDetails, territoryGap, weekLabel, playersPeriod } from "../../src/lib/gazette";
 import type { HistorySnapshot, StoredMember, StoredMembers, StoredSession } from "../../src/lib/schemas";
 import { mondayOf } from "../../src/lib/time";
 
@@ -249,10 +249,14 @@ describe("les phrases", () => {
   });
   it("écrit les lignes du classement, avec leurs dates", () => {
     const at = (date: string, rank: number | null, score: number | null) => snapshot(date, rank, { score });
-    expect(standingDetails({ start: at("2026-10-25", 3, 1000.5), end: at("2026-11-01", 2, 1100) })).toEqual(["3e le 25 oct., 2e le 1 nov.", "Score : 1\u00a0000,50, puis 1\u00a0100,00."]);
+    // Le rang de fin est \u00e9crit en grand au-dessus de ces lignes : elles ne le redisent pas.
+    expect(standingDetails({ start: at("2026-10-25", 3, 1000.5), end: at("2026-11-01", 2, 1100) })).toEqual(["le 1 nov., contre 3e le 25 oct.", "Score : 1\u00a0000,50, puis 1\u00a0100,00."]);
     expect(standingDetails({ start: null, end: at("2026-11-01", 2, 100) })).toEqual(["Seul relevé de la semaine : le 1 nov.", "Score : 100,00."]);
     expect(standingDetails({ start: at("2026-10-25", 2, null), end: at("2026-11-01", 2, 100) })[1]).toBe("Score : 100,00.");
-    expect(standingDetails({ start: at("2026-10-25", 2, 100), end: at("2026-11-01", null, null) })).toEqual(["2e le 25 oct., hors de la liste le 1 nov."]);
+    expect(standingDetails({ start: at("2026-10-25", 2, 100), end: at("2026-11-01", null, null) })).toEqual(["le 1 nov., contre 2e le 25 oct."]);
+    // Le même rang aux deux relevés n'est pas répété ; « hors de la liste » au début se dit à part.
+    expect(standingDetails({ start: at("2026-10-25", 4, 100), end: at("2026-11-01", 4, 100) })[0]).toBe("le 1 nov., comme le 25 oct.");
+    expect(standingDetails({ start: at("2026-10-25", null, null), end: at("2026-11-01", 4, 100) })[0]).toBe("le 1 nov. ; hors de la liste le 25 oct.");
   });
   it("écrit les lignes du territoire, écart signé compris", () => {
     const at = (date: string, pixels: number, rank: number | null = 5) => ({ date, pixels, rank, caps: null, troops: null });
@@ -322,5 +326,31 @@ describe("les phrases", () => {
   it("dit qu'aucune partie n'a eu lieu, et n'annonce pas de taux sans partie", () => {
     expect(editionLead(plain, "GAL")).toBe("Aucune partie enregistrée cette semaine-là.");
     expect(editionLead({ ...plain, previous: { games: 0, wins: 0, winRate: null } }, "GAL")).toBe("Aucune partie enregistrée cette semaine-là.");
+  });
+});
+
+describe("les précisions des éditions", () => {
+  type Parts = Parameters<typeof editionNotes>[0];
+  const bare: Parts = { highlights: null, players: null, active: null, milestones: null, territory: null };
+  // Seule leur présence compte ici : le contenu des parties ne change pas les précisions.
+  const full: Parts = { highlights: {} as never, players: [] as never, active: [] as never, milestones: [{}] as never, territory: {} as never };
+
+  it("ne précise que les parties présentes dans l'édition", () => {
+    expect(editionNotes(bare)).toEqual(["Parties publiques en équipe jouées avec le tag, du lundi au dimanche, heure de Paris."]);
+    const notes = editionNotes(full);
+    expect(notes).toHaveLength(4);
+    expect(notes[2]).toMatch(/^Le plus de victoires et de parties : /);
+    expect(notes[2]).toMatch(/Les paliers sont ceux de la page Membres, à partir de 100 victoires\.$/);
+    expect(editionNotes({ ...full, active: null, milestones: [] })[2]).toMatch(/^Le plus de victoires : .*ce n'est pas un classement de niveau\.$/);
+  });
+
+  it("réunit les éditions en un seul repli : chaque précision une fois, aucune perdue", () => {
+    const editions = [full, bare, { ...bare, territory: full.territory }, { ...full, active: null }];
+    const notes = gazetteNotes(editions);
+    expect(new Set(notes).size).toBe(notes.length);
+    for (const edition of editions) for (const note of editionNotes(edition)) expect(notes).toContain(note);
+    // Deux textes différents restent deux : « et de parties » ne vaut que pour l'édition qui les a.
+    expect(notes.filter((n) => n.startsWith("Le plus de victoires"))).toHaveLength(2);
+    expect(notes[0]).toBe(editionNotes(bare)[0]);
   });
 });

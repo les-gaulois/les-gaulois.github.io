@@ -13,6 +13,12 @@
  *
  * Décoratif : il n'affiche aucune donnée. Pause de l'en-tête (`fx-off`) ou « réduire les animations » : il ne suit plus
  * et ne marche plus, il reste debout à sa place ; on peut toujours lui parler, le déplacer et le mettre en prison.
+ *
+ * Arrêté, il ne couvre jamais du texte ni une commande (revue du site, 14 novembre 2026) : à l'arrivée, à la fin d'un
+ * défilement, d'un redimensionnement, d'une marche, et d'un coup d'œil sous lui toutes les 1,25 s, il se tient à la place
+ * libre la plus proche de celle qu'il voudrait (`src/lib/compagnon/repos.ts`) ; sans place pour lui en entier, il
+ * s'enfonce sous le bord bas, la tête dehors, ou s'y cache le temps qu'une place se libère. Il n'y travaille qu'à ces
+ * moments-là, jamais à chaque image : la carte de ce qu'il ne couvre pas est gardée tant que la page ne bouge pas.
  */
 import { tirage } from "../lib/fx/repliques";
 import {
@@ -32,7 +38,6 @@ import {
   echelleDuCompagnon,
   enPart,
   fenetreGenee,
-  horsDesZones,
   imageDeMarche,
   marcheurA,
   margeDuBord,
@@ -54,6 +59,18 @@ import {
   type Repos,
 } from "../lib/compagnon/mouvement";
 import { REPLIQUES, REPLIQUES_DES_GESTES, dureeDeLaBulle, ponctuer, repliqueDuClic, rubriqueDe, type Geste } from "../lib/compagnon/repliques";
+import {
+  AIR,
+  EMPREINTE_ENDORMI,
+  carteDesZones,
+  empreinteA,
+  etatDeLaPlace,
+  fondDeLaFenetre,
+  formeA,
+  placeAprendre,
+  placeDeRepos,
+  type Carte,
+} from "../lib/compagnon/repos";
 import {
   ATTENTE_DU_SERVEUR_MS,
   CLE_IMAGES,
@@ -85,6 +102,22 @@ const VERSION_DES_IMAGES = 2;
  * village.)
  */
 const OBSTACLES = "[data-compagnon-obstacle], [data-testid='appels-popups']";
+/** Ce qu'il ne couvre pas, arrêté, en entier : les commandes, et les lignes de tableau (la ligne de [GAL] du classement). */
+const COMMANDES =
+  "a[href], button, input:not([type='hidden']), select, textarea, summary, tr, [contenteditable]:not([contenteditable='false']), [role='button'], [role='link'], [role='tab'], [role='checkbox'], [role='radio'], [role='switch'], [role='slider'], [role='menuitem'], [role='option']";
+/** Les images : il ne couvre pas celles qui disent quelque chose ; il peut passer devant celles qui ornent. */
+const BALISES_D_IMAGE = new Set(["img", "svg", "canvas", "video", "iframe", "object", "embed"]);
+const SANS_TEXTE = new Set(["script", "style", "noscript", "template", "link", "meta"]);
+/** Après l'avoir posé à la main (glisser, flèches), le visiteur a ce temps pour le placer avant qu'il ne dégage ce qu'il couvre. */
+const POSE_MS = 2_000;
+/** La fin d'un défilement : plus aucun mouvement de la page depuis ce temps. */
+const FIN_DU_DEFILEMENT_MS = 220;
+/**
+ * Pour dégager ce qu'il couvre, il marche jusqu'à trois fois sa hauteur (sept secondes au plus sur ordinateur) ; plus
+ * loin, il s'efface en fondu et réapparaît à sa nouvelle place, plutôt que de traverser la page en marchant dessus.
+ */
+const PORTEE_EN_HAUTEURS = 3;
+const FONDU_MS = 450;
 
 interface ImagesGardees {
   cle: string;
@@ -142,6 +175,52 @@ const cadreDe = (el: Element): Cadre => {
   const r = el.getBoundingClientRect();
   return { gauche: r.left, droite: r.right, haut: r.top, bas: r.bottom };
 };
+
+/** Un élément est-il vu : ni `visibility: hidden`, ni transparent (lui ou un parent) ? Sans le savoir, on le croit vu. */
+const vu = (el: Element): boolean =>
+  typeof el.checkVisibility !== "function" || el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true, opacityProperty: true, visibilityProperty: true });
+
+/**
+ * Ce qu'il ne couvre pas, arrêté, dans `region` (la fenêtre, ou sa boîte pour un coup d'œil), hors de `exclus` (lui, sa
+ * prison) : chaque ligne de texte vu, chaque commande et chaque ligne de tableau en entier, chaque image qui dit quelque
+ * chose (une image décorative, `aria-hidden` ou sans texte de remplacement, ne compte pas). Les branches de la page hors de
+ * `region` ne sont pas parcourues.
+ */
+function zonesOccupees(region: Cadre, exclus: readonly Element[]): Cadre[] {
+  const trouvees: Cadre[] = [];
+  const dedans = (r: DOMRectReadOnly): boolean => r.right > region.gauche && r.left < region.droite && r.bottom > region.haut && r.top < region.bas;
+  const garder = (r: DOMRectReadOnly): void => {
+    if (r.width >= 2 && r.height >= 2 && dedans(r)) trouvees.push({ gauche: r.left, droite: r.right, haut: r.top, bas: r.bottom });
+  };
+  const parcours = document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
+    acceptNode(n) {
+      if (n.nodeType === Node.TEXT_NODE) return /\S/.test(n.nodeValue ?? "") ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+      const el = n as Element;
+      if (SANS_TEXTE.has(el.localName) || exclus.includes(el)) return NodeFilter.FILTER_REJECT;
+      const r = el.getBoundingClientRect();
+      // Sans boîte : caché (on passe), ou `display: contents` (on regarde dedans).
+      if (r.width === 0 && r.height === 0) return getComputedStyle(el).display === "none" ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_SKIP;
+      if (!dedans(r)) return NodeFilter.FILTER_REJECT;
+      if (BALISES_D_IMAGE.has(el.localName)) {
+        const role = el.getAttribute("role");
+        if (el.getAttribute("aria-hidden") !== "true" && el.getAttribute("alt") !== "" && role !== "presentation" && role !== "none" && vu(el)) garder(r);
+        return NodeFilter.FILTER_REJECT;
+      }
+      if (el.matches(COMMANDES)) {
+        if (vu(el)) garder(r);
+        return NodeFilter.FILTER_REJECT;
+      }
+      return NodeFilter.FILTER_SKIP;
+    },
+  });
+  const plage = document.createRange();
+  for (let n = parcours.nextNode(); n; n = parcours.nextNode()) {
+    if (!n.parentElement || !vu(n.parentElement)) continue;
+    plage.selectNodeContents(n);
+    for (const r of plage.getClientRects()) garder(r);
+  }
+  return trouvees;
+}
 
 function init(): void {
   const racine = document.documentElement;
@@ -230,6 +309,26 @@ function init(): void {
   let veille = 0;
   let fermeture = 0;
   let regard = 0;
+  /**
+   * Où il voudrait se tenir, en parts de la largeur et de la hauteur de ses bornes : sa place gardée dans l'onglet, celle où
+   * on l'a posé, ou celle du visiteur qu'il suit. Arrêté, il se tient à la place libre la plus proche (`repos.ts`).
+   */
+  let ancre = { part: 0, partY: 1 };
+  /** La carte de ce qu'il ne couvre pas, faite à `carteA` ; `carteAJour` passe à faux dès que la page bouge. */
+  let carte: Carte | null = null;
+  let carteA = -Infinity;
+  let carteAJour = false;
+  /** La dernière place libre trouvée pour une place voulue, tant que la carte ne change pas. */
+  let trouvee: { cle: string; place: Point } | null = null;
+  /** Le moment où on l'a posé à la main, et celui du dernier défilement. */
+  let poseA = -Infinity;
+  let defileA = -Infinity;
+  let verification = 0;
+  let finDuDefilement = 0;
+  /** Le fondu d'une longue traversée, tant qu'il dure. */
+  let passage = 0;
+  /** Il est apparu sur cette page (`apparaitre`) : avant, il ne bouge pas. */
+  let apparu = false;
 
   const calme = (): boolean => racine.classList.contains("fx-off") || mouvementReduit.matches;
   const efface = (): boolean => saisie || fenetrePetite || barre;
@@ -269,31 +368,75 @@ function init(): void {
     if (parts !== null) marcheur = { ...marcheur, x: depuisPart(parts.x, bornes.gauche, bornes.droite), y: depuisPart(parts.y, bornes.haut, bornes.bas) };
   }
 
+  /** Les places où il marche : celles des bornes, et sous le bord bas, où il s'enfonce jusqu'à la tête ou se cache. */
+  const bornesDeMarche = (): Bornes => ({ ...bornes, bas: Math.max(bornes.bas, hauteurFenetre()) });
+  const ancreEnPlace = (): Point => ({ x: depuisPart(ancre.part, bornes.gauche, bornes.droite), y: depuisPart(ancre.partY, bornes.haut, bornes.bas) });
+  const poserLAncre = (p: Point): void => {
+    ancre = { part: enPart(p.x, bornes.gauche, bornes.droite), partY: enPart(p.y, bornes.haut, bornes.bas) };
+  };
+
+  /**
+   * La carte de ce qu'il ne couvre pas : le texte et les commandes de la fenêtre, ce qui y est fixé, le champ ou le lien
+   * qui a le focus. Gardée deux secondes tant que la page ne bouge pas ; refaite au plus tous les quarts de seconde sinon.
+   */
+  function carteDuMoment(refaire = false): Carte {
+    const maintenant = performance.now();
+    if (carte && !refaire && maintenant - carteA < (carteAJour ? 2_000 : 250)) return carte;
+    const vue: Cadre = { gauche: 0, droite: largeurFenetre(), haut: 0, bas: hauteurFenetre() };
+    carte = carteDesZones([...zonesOccupees(vue, [boite!, prison!]), ...zones()], vue.droite, vue.bas);
+    carteA = maintenant;
+    carteAJour = true;
+    return carte;
+  }
+
+  /** Le curseur qu'il suit : il ne s'arrête pas dessous. */
+  const curseur = (): Cadre[] => (visiteur && !auDoigt ? [{ gauche: visiteur.x - 8, droite: visiteur.x + 8, haut: visiteur.y - 8, bas: visiteur.y + 8 }] : []);
+
+  /** La place libre la plus proche de `voulue` (et du curseur, s'il le suit), gardée tant que la carte et la place voulue ne changent pas. */
+  function placeLibre(voulue: Point): Point {
+    const c = carteDuMoment();
+    const cle = `${Math.round(voulue.x / 4)}:${Math.round(voulue.y / 4)}:${carteA}:${cote}:${hauteurFenetre()}`;
+    if (trouvee?.cle !== cle) trouvee = { cle, place: placeDeRepos(voulue, c, bornes, cote, hauteurFenetre(), curseur()).place };
+    return trouvee.place;
+  }
+
+  /** Où il voudrait être : à côté du curseur, ou au coin du côté touché, s'il suit le visiteur ; sinon à sa place. */
+  function voulue(): Point {
+    if (!suit || calme() || visiteur === null) return ancreEnPlace();
+    return auDoigt ? coinDuCote(visiteur.x, largeurFenetre(), bornes) : placeAcoteDuCurseur(visiteur, marcheur, largeur, hauteur, bornes);
+  }
+
   /** La dernière place écrite : un mouvement de souris qui ne le fait pas bouger n'écrit rien. */
   let placeEcrite = "";
   function garderLaPlace(): void {
     if (!pret) return;
-    const place = JSON.stringify({ part: enPart(marcheur.x, bornes.gauche, bornes.droite), partY: enPart(marcheur.y, bornes.haut, bornes.bas), vers: marcheur.vers });
+    const a = ancreEnPlace();
+    const place = JSON.stringify({ part: enPart(a.x, bornes.gauche, bornes.droite), partY: enPart(a.y, bornes.haut, bornes.bas), vers: marcheur.vers });
     if (place === placeEcrite) return;
     placeEcrite = place;
     ecrire("sessionStorage", CLE_PLACE, place);
   }
 
-  /** Sa place gardée dans l'onglet (d'une page à l'autre, et au retour arrière) ; sinon sa place de départ. */
+  /**
+   * Sa place gardée dans l'onglet (d'une page à l'autre, et au retour arrière) ; sinon sa place de départ. Il y apparaît
+   * tout de suite, ou à la place libre la plus proche : il n'arrive jamais sur ce qu'on lit.
+   */
   function reprendreLaPlace(): void {
-    const debut = placeDeDepart(bornes);
-    let depart = marcheurA(debut.x, debut.y);
+    poserLAncre(placeDeDepart(bornes));
+    let vers: 1 | -1 = 1;
     try {
       const garde = JSON.parse(lire("sessionStorage", CLE_PLACE) ?? "null") as { part?: unknown; partY?: unknown; vers?: unknown } | null;
       if (garde && typeof garde.part === "number") {
         // Une place gardée avant qu'il ne marche sur toute la fenêtre : au bas, comme alors.
         const partY = typeof garde.partY === "number" ? garde.partY : 1;
-        depart = marcheurA(depuisPart(garde.part, bornes.gauche, bornes.droite), depuisPart(partY, bornes.haut, bornes.bas), garde.vers === -1 ? -1 : 1);
+        poserLAncre({ x: depuisPart(garde.part, bornes.gauche, bornes.droite), y: depuisPart(partY, bornes.haut, bornes.bas) });
+        vers = garde.vers === -1 ? -1 : 1;
       }
     } catch {
       // Place illisible : il repart de sa place de départ.
     }
-    marcheur = depart;
+    const libre = placeDeRepos(ancreEnPlace(), carteDuMoment(true), bornes, cote, hauteurFenetre()).place;
+    marcheur = marcheurA(libre.x, libre.y, vers);
   }
 
   /* ---------- Dessin ---------- */
@@ -348,12 +491,11 @@ function init(): void {
     if (efface()) return { place: null, allure: "suivre" };
     if (ecart !== null) return { place: ecart, allure: "ecarter" };
     if (calme() || !suit || glisse || bulleOuverte || visiteur === null) return { place: null, allure: "suivre" };
-    // Au doigt : le coin bas du côté touché. À la souris : à côté du curseur, où qu'il soit.
-    const voulue = auDoigt ? coinDuCote(visiteur.x, largeurFenetre(), bornes) : placeAcoteDuCurseur(visiteur, marcheur, largeur, hauteur, bornes);
-    const laMention = zoneDeLaMention();
-    const aEviter = laMention ? [...zones(), laMention] : zones();
-    const libre = aEviter.length > 0 ? (horsDesZones(voulue, largeur, hauteur, aEviter, bornes) ?? voulue) : voulue;
-    return { place: libre, allure: auDoigt ? "rejoindre" : "suivre" };
+    // Au doigt : le coin bas du côté touché. À la souris : à côté du curseur, où qu'il soit. Il y va, ou à la place libre la
+    // plus proche : il ne s'arrête ni sur ce qu'on lit (la mention de licence comprise), ni sous le curseur.
+    const voulu = voulue();
+    poserLAncre(voulu);
+    return { place: placeLibre(voulu), allure: auDoigt ? "rejoindre" : "suivre" };
   }
 
   function pasDeTemps(maintenant: number): void {
@@ -361,17 +503,23 @@ function init(): void {
     image0 = maintenant;
     const but = cible();
     const precis = but.allure === "ecarter";
-    marcheur = avancer(marcheur, but.place, dt, bornes, but.allure);
+    marcheur = avancer(marcheur, but.place, dt, bornesDeMarche(), but.allure);
     if (marcheur.enMarche) reveiller(maintenant);
-    if (precis && !marcheur.enMarche) ecart = null;
+    // Écarté : s'il suit le visiteur, il regarde de nouveau où il est à l'image suivante.
+    const ecarte = precis && !marcheur.enMarche;
+    if (ecarte) ecart = null;
     dessiner();
     let attend = false;
     if (but.place !== null && !precis) {
-      const voulue = bornerLaPlace(but.place, bornes);
+      const voulue = bornerLaPlace(but.place, bornesDeMarche());
       attend = Math.hypot(voulue.x - marcheur.x, voulue.y - marcheur.y) > seuilDeDepart(but.allure);
     }
-    boucle = marcheur.enMarche || attend || (precis && ecart !== null) ? requestAnimationFrame(pasDeTemps) : 0;
-    if (!boucle) garderLaPlace();
+    boucle = marcheur.enMarche || attend || (precis && ecart !== null) || (ecarte && suit && visiteur !== null) ? requestAnimationFrame(pasDeTemps) : 0;
+    if (!boucle) {
+      garderLaPlace();
+      // Arrivé : la page a pu changer sous lui pendant sa marche.
+      planifierLaVerification(400);
+    }
   }
 
   function relancer(): void {
@@ -383,7 +531,7 @@ function init(): void {
   function arreter(): void {
     if (boucle) cancelAnimationFrame(boucle);
     boucle = 0;
-    marcheur = avancer(marcheur, null, 0, bornes);
+    marcheur = avancer(marcheur, null, 0, bornesDeMarche());
   }
 
   /** Il va tout de suite à `but` : en marchant, ou d'un coup en pause et pendant un glisser. */
@@ -400,6 +548,87 @@ function init(): void {
       relancer();
     }
   }
+
+  /* ---------- Sa place de repos : jamais sur ce qu'on lit ---------- */
+
+  /**
+   * Arrêté, il ne couvre ni texte ni commande : s'il en couvre, ou s'il peut se montrer davantage (enfoncé sous le bord,
+   * ou caché), il va à la place libre la plus proche de celle qu'il voudrait, en marchant, d'un coup en pause. Une place
+   * libre où il se voit en entier lui reste acquise : il ne change de place que s'il le faut. `urgent` : un champ ou un
+   * lien atteint au clavier, même s'il marche, si sa bulle est ouverte ou si on vient de le poser.
+   */
+  function verifierLaPlace(urgent = false): void {
+    window.clearTimeout(verification);
+    verification = 0;
+    if (!pret || !apparu || range || efface() || glisse || passage || document.hidden || boite!.hidden) return;
+    if (!urgent && (marcheur.enMarche || bulleOuverte)) return;
+    const depuisLaPose = performance.now() - poseA;
+    if (!urgent && depuisLaPose < POSE_MS) return planifierLaVerification(POSE_MS - depuisLaPose + 50);
+    const c = carteDuMoment(true);
+    const endormi = repos === "dort";
+    const but = placeAprendre({ x: marcheur.x, y: marcheur.y }, voulue(), c, bornes, cote, hauteurFenetre(), [], endormi);
+    if (but === null) return;
+    // Couché, son lit n'a plus sa place : il se lève, et ne bouge que si, debout, il couvre encore quelque chose.
+    if (endormi) {
+      reveiller();
+      return verifierLaPlace(urgent);
+    }
+    if (!calme() && Math.hypot(but.place.x - marcheur.x, but.place.y - marcheur.y) > PORTEE_EN_HAUTEURS * hauteur) passer(but.place);
+    else allerA(but.place);
+  }
+
+  /** Une longue traversée : il s'efface en fondu et réapparaît à sa nouvelle place, plutôt que de marcher sur toute la page. */
+  function passer(but: Point): void {
+    fermer(false);
+    arreter();
+    ecart = null;
+    boite!.dataset.passe = "1";
+    window.clearTimeout(passage);
+    passage = window.setTimeout(() => {
+      passage = 0;
+      marcheur = marcheurA(but.x, but.y, marcheur.vers);
+      dessiner();
+      garderLaPlace();
+      delete boite!.dataset.passe;
+    }, FONDU_MS);
+  }
+
+  function planifierLaVerification(delai = 0): void {
+    window.clearTimeout(verification);
+    verification = window.setTimeout(() => {
+      verification = 0;
+      requestAnimationFrame(() => verifierLaPlace());
+    }, delai);
+  }
+
+  /**
+   * Toutes les 1,25 s, arrêté : un coup d'œil sous sa boîte seulement (le texte d'une page peut changer sans qu'elle
+   * bouge) ; enfoncé ou caché, sur toute la fenêtre, pour se remontrer dès qu'une place se libère. Pas pendant un
+   * défilement : la page passe sous lui.
+   */
+  function coupDOeil(): void {
+    if (!pret || !apparu || range || efface() || verification || passage || performance.now() - defileA < FIN_DU_DEFILEMENT_MS) return;
+    if (formeA(marcheur, bornes, cote, hauteurFenetre()) !== "entier") return verifierLaPlace();
+    const ici = empreinteA(marcheur, cote, repos === "dort" ? EMPREINTE_ENDORMI : undefined);
+    const region: Cadre = { gauche: ici.gauche - AIR, droite: ici.droite + AIR, haut: ici.haut - AIR, bas: ici.bas + AIR };
+    if (zonesOccupees(region, [boite!, prison!]).length > 0 || zones().some((z) => touche(region, z))) {
+      carteAJour = false;
+      verifierLaPlace();
+    }
+  }
+
+  /** Caché sous le bord bas, il sort la tête pour parler ou quand le clavier l'atteint : on le voit, et son focus aussi. */
+  function sortirLaTete(): void {
+    if (formeA(marcheur, bornes, cote, hauteurFenetre()) !== "cache") return;
+    arreter();
+    ecart = null;
+    marcheur = marcheurA(marcheur.x, fondDeLaFenetre(bornes, cote, hauteurFenetre()), marcheur.vers);
+    dessiner();
+  }
+
+  /** Il ne se couche que debout en entier, et là où son lit ne couvre rien. */
+  const litPossible = (): boolean =>
+    formeA(marcheur, bornes, cote, hauteurFenetre()) === "entier" && etatDeLaPlace(marcheur, carteDuMoment(), bornes, cote, hauteurFenetre(), [], true).libre;
 
   /* ---------- Repos : il somnole, puis se couche ---------- */
 
@@ -422,8 +651,12 @@ function init(): void {
       // De temps en temps, il regarde aussi ce qui est fixé sur la fenêtre : une barre a pu y venir sans prévenir.
       regarderLesObstacles();
       if (marcheur.enMarche || bulleOuverte || glisse) return;
+      // Et sous lui : un texte a pu y venir sans que la page bouge.
+      coupDOeil();
       const maintenant = performance.now();
-      const suite = reposApres(maintenant - dernierGeste);
+      let suite = reposApres(maintenant - dernierGeste);
+      // Sans la place de son lit, il somnole debout.
+      if (suite === "dort" && repos !== "dort" && !litPossible()) suite = "somnole";
       if (suite === "dort" && repos !== "dort") dortDepuis = maintenant;
       if (suite !== repos || suite === "dort") {
         repos = suite;
@@ -439,6 +672,7 @@ function init(): void {
     window.clearTimeout(fermeture);
     reveiller();
     arreter();
+    sortirLaTete();
     bulleOuverte = true;
     village!.hidden = !lien;
     boutonSuivre!.textContent = suit ? "Reste là" : "Suis-moi";
@@ -548,10 +782,13 @@ function init(): void {
     const toutes = zones();
     barre = toutes.length > 0 && nullePart(marcheur, largeur, hauteur, toutes, bornes);
     effacement();
-    // En marche vers une place libre, il ne fait que passer dessus : il n'est écarté qu'une fois arrêté.
+    // En marche vers une place libre, il ne fait que passer dessus : il n'est écarté qu'une fois arrêté, vers la place libre
+    // la plus proche de celle qu'il voudrait, hors de ce qui est fixé comme du texte.
     if (barre || toutes.length === 0 || (marcheur.enMarche && ecart === null)) return;
-    const libre = horsDesZones(marcheur, largeur, hauteur, toutes, bornes);
-    if (libre) allerA(libre);
+    if (toutes.some((z) => touche(cadreA(marcheur, largeur, hauteur), z, JEU))) {
+      carteAJour = false;
+      verifierLaPlace();
+    }
   }
 
   function planifierLeRegard(): void {
@@ -590,17 +827,19 @@ function init(): void {
   }
 
   /**
-   * Un clic sur la prison : il en sort, en bas à gauche, à côté d'elle (ou à la place libre la plus proche, si quelque
-   * chose y est fixé), prend le focus et remercie. La prison ne se montre qu'une fois ses images posées : il est prêt.
+   * Un clic sur la prison : il en sort, en bas à gauche, à côté d'elle (ou à la place libre la plus proche, s'il y
+   * couvrirait quelque chose), prend le focus et remercie. La prison ne se montre qu'une fois ses images posées : il est prêt.
    */
   function liberer(): void {
     if (!pret) return;
     range = false;
     ecrire("localStorage", CLE_RANGE, null);
     mesurer();
-    const depart = placeDeDepart(bornes);
-    const sortie = horsDesZones(depart, largeur, hauteur, zonesFixees, bornes) ?? depart;
+    poserLAncre(placeDeDepart(bornes));
+    const sortie = placeDeRepos(ancreEnPlace(), carteDuMoment(true), bornes, cote, hauteurFenetre()).place;
     marcheur = marcheurA(sortie.x, sortie.y);
+    apparu = true;
+    delete boite!.dataset.passe;
     repos = "debout";
     dernierGeste = performance.now();
     montrer();
@@ -619,6 +858,17 @@ function init(): void {
   }
 
   /* ---------- Gestes du visiteur ---------- */
+
+  /**
+   * Posé à la main : sa place devient celle qu'il voudrait. S'il y couvre quelque chose, il se pousse à la place libre la
+   * plus proche, une fois le visiteur laissé tranquille (`POSE_MS`) : on peut le faire passer sur un texte.
+   */
+  function poser(): void {
+    poseA = performance.now();
+    poserLAncre(marcheur);
+    garderLaPlace();
+    planifierLaVerification(POSE_MS + 50);
+  }
 
   // Glisser : il se déplace à la main, partout dans la fenêtre, et reste où on le pose.
   let prise: { id: number; x0: number; y0: number; depart: Point; bouge: boolean } | null = null;
@@ -655,7 +905,7 @@ function init(): void {
     clicAvale = true;
     window.setTimeout(() => (clicAvale = false), 0);
     choisirDeSuivre(false);
-    garderLaPlace();
+    poser();
     parler("pose");
   };
   gaulois.addEventListener("pointerup", lacher);
@@ -681,7 +931,7 @@ function init(): void {
     marcheur = marcheurA(place.x, place.y, fleche.x < 0 ? -1 : fleche.x > 0 ? 1 : marcheur.vers);
     choisirDeSuivre(false);
     dessiner();
-    garderLaPlace();
+    poser();
   });
 
   boutonSuivre.addEventListener("click", () => {
@@ -739,9 +989,11 @@ function init(): void {
     if (!champ || !pret || range) return;
     zoneDuChamp = cadreDe(champ);
     if (!touche(cadreA(marcheur, largeur, hauteur), zoneDuChamp, JEU)) return;
-    const but = horsDesZones(marcheur, largeur, hauteur, zones(), bornes);
-    if (but !== null) allerA(but);
+    carteAJour = false;
+    verifierLaPlace(true);
   }
+  // Atteint au clavier, caché sous le bord bas : il sort la tête.
+  gaulois.addEventListener("focus", sortirLaTete);
   document.addEventListener("focusin", (e) => {
     if (!(e.target instanceof HTMLElement) || boite.contains(e.target) || prison.contains(e.target)) return;
     const unChamp: boolean = estUnChamp(e.target as EventTarget);
@@ -764,6 +1016,11 @@ function init(): void {
     () => {
       degager();
       planifierLeRegard();
+      // La page passe sous lui pendant le défilement ; à la fin, il regarde s'il couvre quelque chose.
+      defileA = performance.now();
+      carteAJour = false;
+      window.clearTimeout(finDuDefilement);
+      finDuDefilement = window.setTimeout(() => planifierLaVerification(), FIN_DU_DEFILEMENT_MS);
     },
     { passive: true },
   );
@@ -773,7 +1030,15 @@ function init(): void {
     if (pret) dessiner();
     planifierLeRegard();
     regarderLaFenetre();
+    carteAJour = false;
+    planifierLaVerification(FIN_DU_DEFILEMENT_MS);
   });
+  // La page qui change de taille (un bloc chargé, une police) : ce qui est sous lui a pu changer.
+  if (typeof ResizeObserver === "function")
+    new ResizeObserver(() => {
+      carteAJour = false;
+      planifierLaVerification(400);
+    }).observe(document.body);
   window.visualViewport?.addEventListener("resize", regarderLaFenetre);
   // Une fenêtre d'appel qui s'ouvre (posée dans <body>), un obstacle marqué : il regarde de nouveau.
   new MutationObserver(planifierLeRegard).observe(document.body, { childList: true });
@@ -849,18 +1114,52 @@ function init(): void {
     reprendreLaPlace();
     pret = true;
     dernierGeste = performance.now();
+    if (!range) boite!.dataset.passe = "1";
     montrer();
     dessiner();
     veiller();
     regarderLesObstacles();
     regarderLaFenetre();
-    // Son salut, une seule fois par onglet, et seulement si les animations sont permises : rien ne change tout seul en pause.
-    if (!range && !calme() && lire("sessionStorage", CLE_SALUE) !== "1") {
-      ecrire("sessionStorage", CLE_SALUE, "1");
-      window.setTimeout(() => {
-        if (!range && !bulleOuverte && !glisse && !calme() && !document.hidden) dire(REPLIQUES[suivante()] ?? "", false);
-      }, 1_600);
-    }
+    apparaitre();
+  }
+
+  /**
+   * Il apparaît en fondu une fois la page chargée et ses blocs montés (ses images gardées dans l'onglet le prêtent avant),
+   * à la place libre la plus proche de la sienne, choisie sur la page finie : il n'arrive jamais sur ce qu'on lit.
+   */
+  function apparaitre(): void {
+    const seMontrer = (): void => {
+      if (apparu) return;
+      apparu = true;
+      if (!range) {
+        mesurer();
+        const libre = placeDeRepos(ancreEnPlace(), carteDuMoment(true), bornes, cote, hauteurFenetre()).place;
+        marcheur = marcheurA(libre.x, libre.y, marcheur.vers);
+        dessiner();
+      }
+      delete boite!.dataset.passe;
+      saluer();
+    };
+    const auCalme = (): void => {
+      if ("requestIdleCallback" in window) window.requestIdleCallback(seMontrer, { timeout: 600 });
+      else setTimeout(seMontrer, 200);
+    };
+    if (document.readyState === "complete") auCalme();
+    else window.addEventListener("load", auCalme, { once: true });
+    // Une police chargée après lui déplace le texte : il regarde de nouveau.
+    void document.fonts.ready.then(() => {
+      carteAJour = false;
+      planifierLaVerification();
+    });
+  }
+
+  /** Son salut, une seule fois par onglet, et seulement si les animations sont permises : rien ne change tout seul en pause. */
+  function saluer(): void {
+    if (range || calme() || lire("sessionStorage", CLE_SALUE) === "1") return;
+    ecrire("sessionStorage", CLE_SALUE, "1");
+    window.setTimeout(() => {
+      if (!range && !bulleOuverte && !glisse && !calme() && !document.hidden) dire(REPLIQUES[suivante()] ?? "", false);
+    }, 1_600);
   }
 
   function poserLesImages(images: ImagesGardees): void {

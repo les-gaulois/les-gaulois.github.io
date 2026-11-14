@@ -1,0 +1,47 @@
+---
+// La porte de la Carte sur l'accueil (14 novembre 2026, revue du site : un visiteur pouvait quitter l'accueil sans savoir
+// que la Carte existe). L'image est la carte finale que `scripts/generate-clanmap.ts` dessine déjà pour la page Carte, au
+// dernier relevé de l'historique officiel : rien n'est dessiné pour l'accueil. La place et les pixels de GAL sont ceux du
+// même relevé (`galSummary`), comme sur la page Carte. Le fond de carte vient d'OpenFront (CC BY-SA 4.0) : sa mention
+// reste sous l'image et mène aux crédits des mentions légales.
+import { adresseVersionnee } from "../lib/clanmap/adresse";
+import { versionDeLaCarte } from "../lib/clanmap/version";
+import type { loadClanMapFilm } from "../lib/data";
+import { fmtEpochHour, fmtInt, fmtRank } from "../lib/format";
+
+interface Props {
+  film: NonNullable<ReturnType<typeof loadClanMapFilm>>;
+}
+
+const { film } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+// La même version que la page Carte : le navigateur ne télécharge pas l'image deux fois.
+const version = versionDeLaCarte("public/generated/carte");
+const fichier = (nom: string) => adresseVersionnee(`${base}/generated/carte/`, nom, version);
+const hauteur = Math.round((800 * film.rows) / film.cols);
+const gal = film.galSummary ?? null;
+const ligne = gal && gal.rank !== null ? `GAL : ${fmtRank(gal.rank)} avec ${fmtInt(gal.pixels)} pixels.` : null;
+// La date de la dernière image du film ; absente d'un ancien film, la ligne ne l'invente pas.
+const releve = film.frames.at(-1)?.at;
+---
+
+<section class="stage stage-night reveal flex flex-col items-start" aria-labelledby="accueil-carte-titre" data-testid="home-map">
+  <h2 id="accueil-carte-titre" class="section-title section-title-sm">La carte des clans</h2>
+  <img
+    src={fichier("finale-800.webp")}
+    srcset={`${fichier("finale-800.webp")} 800w, ${fichier("finale-1400.webp")} 1400w`}
+    sizes="(min-width: 1024px) 45vw, calc(100vw - 5rem)"
+    width="800"
+    height={hauteur}
+    loading="lazy"
+    decoding="async"
+    alt="La carte officielle des clans au dernier relevé."
+    class="mt-5 h-auto w-full rounded-lg"
+  />
+  <p class="info-discrete mt-2">
+    {releve !== undefined && <>Relevé le {fmtEpochHour(releve)} · </>}
+    <a href={`${base}/mentions-legales#credits`} class="underline underline-offset-2">© OpenFront and Contributors · CC BY-SA 4.0</a>
+  </p>
+  {ligne && <p class="tnum mt-4 text-lg" data-testid="home-map-line">{ligne}</p>}
+  <a href={`${base}/carte`} class="btn btn-secondary mt-6">Ouvrir la carte</a>
+</section>

@@ -63,10 +63,6 @@ const tip = (d: number, h: number) => `${DAYS[d]} ${h} h : ${fmtInt(count(d, h))
                 ))}
               </ol>
             )}
-            <ReadingNote>
-              <p>Parties publiques en équipe jouées avec le tag : ni FFA, ni classé, ni Humains contre Nations. Ce sont des parties enregistrées, pas des joueurs connectés.</p>
-              <p>Créneaux classés par nombre de parties, puis par joueurs du clan par partie, à partir de 5 parties.</p>
-            </ReadingNote>
           </section>
 
           <section class="mt-section" aria-labelledby="heat-title">
@@ -129,5 +125,16 @@ const tip = (d: number, h: number) => `${DAYS[d]} ${h} h : ${fmtInt(count(d, h))
     <div class="mt-section">
       <GroupPlay />
     </div>
+    {/* Un seul repli pour la page, en bas, sous le nom du bloc qu'il précise. */}
+    {
+      map && map.total > 0 && (
+        <ReadingNote page>
+          <ReadingNote bloc="Meilleurs créneaux pour jouer ensemble">
+            <p>Parties publiques en équipe jouées avec le tag : ni FFA, ni classé, ni Humains contre Nations. Ce sont des parties enregistrées, pas des joueurs connectés.</p>
+            <p>Créneaux classés par nombre de parties, puis par joueurs du clan par partie, à partir de 5 parties.</p>
+          </ReadingNote>
+        </ReadingNote>
+      )
+    }
   </div>
 </Base>

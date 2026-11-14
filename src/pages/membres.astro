@@ -4,11 +4,11 @@ import DataStatus from "../components/DataStatus.astro";
 import PageHeader from "../components/PageHeader.astro";
 import PageJumps from "../components/PageJumps.astro";
 import RankedPlayers from "../components/RankedPlayers.astro";
+import ReadingNote from "../components/ReadingNote.astro";
 import WinTiers from "../components/WinTiers.astro";
 import { loadMembers, loadMeta, loadRanked } from "../lib/data";
 import { singlePseudos } from "../lib/members";
 import { tierRows } from "../lib/paliers";
-import { MAX_AGE_HOURS } from "../lib/freshness";
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const meta = loadMeta();
@@ -17,10 +17,11 @@ const list = loadMembers()?.members ?? [];
 // Une photo Discord ne va qu'à côté d'un pseudo porté par un seul membre : jamais à côté d'un homonyme (src/scripts/visages.ts).
 const faces = singlePseudos(list);
 const command = list.filter((m) => m.role !== "member").sort((a, b) => (a.role === "leader" ? -1 : b.role === "leader" ? 1 : 0));
+const showRanked = loadRanked() !== null || meta.ranked.lastError !== null;
 const jumps = [
   { href: "#paliers", label: "Les paliers", show: tierRows(list).length > 0 },
   { href: "#encadrement", label: "L'encadrement", show: command.length > 0 },
-  { href: "#classe", label: "Au classé", show: loadRanked() !== null || meta.ranked.lastError !== null },
+  { href: "#classe", label: "Au classé", show: showRanked },
 ].filter((jump) => jump.show);
 // La liste officielle a son onglet, « La liste » (src/pages/liste.astro), depuis le 12 novembre 2026.
 ---
@@ -31,14 +32,15 @@ const jumps = [
     if (location.hash === "#liste") location.replace(liste);
   </script>
   <div class="wrap">
+    {/* Une date et un repli pour toute la page : la liste des membres (paliers, encadrement) et le classé. */}
     <PageHeader title="Membres">
       <div class="mt-4">
-        <DataStatus state={meta.members} maxAgeHours={MAX_AGE_HOURS.members} />
+        <DataStatus sources={showRanked ? ["members", "ranked"] : ["members"]} />
       </div>
       <PageJumps links={jumps} />
     </PageHeader>
 
-    <WinTiers />
+    <WinTiers rendu="bloc" />
 
     {
       command.length > 0 && (
@@ -66,6 +68,10 @@ const jumps = [
       )
     }
 
-    <RankedPlayers />
+    <RankedPlayers rendu="bloc" />
+    <ReadingNote page>
+      <WinTiers rendu="note" />
+      <RankedPlayers rendu="note" />
+    </ReadingNote>
   </div>
 </Base>

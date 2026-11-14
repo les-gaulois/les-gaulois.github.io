@@ -152,6 +152,24 @@ export function playersPeriod({ from, to, players, playersSince }: Pick<GazetteE
   return start <= from ? "de la semaine" : `du ${fmtDay(start)} au ${fmtDay(to)}`;
 }
 
+/**
+ * Les précisions d'une édition (« Comment lire ces chiffres »), un paragraphe par partie présente. Sur la page de la gazette,
+ * celles de toutes les éditions se réunissent dans un seul repli, en bas : `gazetteNotes`.
+ */
+export function editionNotes({ highlights, players, active, milestones, territory }: Pick<GazetteEdition, "highlights" | "players" | "active" | "milestones" | "territory">): string[] {
+  const notes = ["Parties publiques en équipe jouées avec le tag, du lundi au dimanche, heure de Paris."];
+  if (highlights) notes.push("Temps forts : tous joueurs du clan confondus, une série mêle donc plusieurs groupes et s'arrête au dimanche. Le nombre de Gaulois compte aussi ceux partis avant la fin. Une partie jouée seul contre des robots n'est pas comptée.");
+  if (players) {
+    const tiers = milestones && milestones.length > 0 ? " Les paliers sont ceux de la page Membres, à partir de 100 victoires." : "";
+    notes.push(`Le plus de victoires${active ? " et de parties" : ""} : en équipe sous le tag, entre deux relevés de la liste des membres, parmi les membres avec pseudo présents aux deux et encore dans le clan. Cela compte d'abord le temps de jeu : ce n'est pas un classement de niveau.${tiers}`);
+  }
+  if (territory) notes.push("La carte des clans compte des pixels peints : ce n'est pas le classement des clans.");
+  return notes;
+}
+
+/** Les précisions de plusieurs éditions : chaque paragraphe une seule fois, dans l'ordre où il apparaît d'abord. */
+export const gazetteNotes = (editions: Parameters<typeof editionNotes>[0][]): string[] => [...new Set(editions.flatMap(editionNotes))];
+
 /** Ce que compte le podium, puis d'où viennent les chiffres : pour le message Discord, dans la description de son image et dans son texte de secours. */
 export const PODIUM_METHOD = "Victoires en équipe sous le tag entre deux relevés, membres avec pseudo présents aux deux.";
 export const DATA_SOURCE = "Données publiques d'OpenFront.";
@@ -182,7 +200,11 @@ export function standingSentence(standing: GazetteEdition["standing"], tag: stri
 
 /** Les lignes du panneau du classement. */
 export function standingDetails({ start, end }: Evolution<HistorySnapshot>): string[] {
-  const ranks = start ? `${rankWords(start.rank)} le ${fmtDay(start.date)}, ${rankWords(end.rank)} le ${endingOn(end.date)}` : `Seul relevé de la semaine : le ${endingOn(end.date)}`;
+  // Le rang de fin est écrit en grand juste au-dessus : la ligne en donne la date, puis le rang du début, sans le redire.
+  // Même rang au début : « comme le … », sans le répéter. Hors de la liste au début : dit à part, « contre hors de la liste »
+  // ne se lit pas.
+  const before = !start ? null : start.rank === end.rank ? `, comme le ${endingOn(start.date)}` : start.rank === null ? ` ; hors de la liste le ${endingOn(start.date)}` : `, contre ${rankWords(start.rank)} le ${endingOn(start.date)}`;
+  const ranks = before !== null ? `le ${fmtDay(end.date)}${before}` : `Seul relevé de la semaine : le ${endingOn(end.date)}`;
   if (end.score === null) return [ranks];
   return [ranks, start && start.score !== null ? `Score : ${fmtScore(start.score)}, puis ${fmtScore(end.score)}.` : `Score : ${fmtScore(end.score)}.`];
 }
