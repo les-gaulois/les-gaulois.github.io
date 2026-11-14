@@ -10,7 +10,8 @@ import { CHOOSE_NAME_URL as SITE_CHOOSE_NAME_URL } from "../../src/lib/pseudo-op
 import { PANEL_ROLES as SITE_PANEL_ROLES } from "../../src/lib/roles-discord";
 import type { StoredMembers } from "../../src/lib/schemas";
 import { lirePng } from "../../supabase/functions/code-discord/billets";
-import { IMAGE_GAULOIS, TENUE_DE_DEPART, decrireGaulois } from "../../supabase/functions/code-discord/gaulois";
+import { IMAGE_GAULOIS, TENUE_DE_DEPART, decrireGaulois, decrireLaScene } from "../../supabase/functions/code-discord/gaulois";
+import { sceneDuGaulois } from "../../supabase/functions/code-discord/scene";
 import {
   APP_PUBLIC_KEY,
   BOT_TOKEN_SECRET,
@@ -655,7 +656,9 @@ describe("les commandes du robot, envoyées par Discord", () => {
     expect(res.headers.get("content-type")).toMatch(/^multipart\/form-data; ?boundary=/);
     const form = await res.formData();
     const payload = JSON.parse(String(form.get("payload_json"))) as Shown & { data: { attachments: unknown[] } };
-    const alt = decrireGaulois(TENUE_DE_DEPART);
+    // La scène : sans partie ni vocal, la place ou les maisons selon l'heure de Paris (scene.ts).
+    const alt = decrireLaScene(TENUE_DE_DEPART, sceneDuGaulois({}, new Date(NOW * 1000)));
+    expect(alt.startsWith(decrireGaulois(TENUE_DE_DEPART))).toBe(true);
     expect(payload.type).toBe(4);
     expect(payload.data.flags).toBe(32768);
     expect(payload.data.components[0]?.items?.[0]).toEqual({ media: { url: `attachment://${GAULOIS_FILE}` }, description: alt });
@@ -666,6 +669,20 @@ describe("les commandes du robot, envoyées par Discord", () => {
     expect(file.name).toBe(GAULOIS_FILE);
     expect(file.type).toBe("image/png");
     expect(await lirePng(new Uint8Array(await file.arrayBuffer()))).toMatchObject({ largeur: IMAGE_GAULOIS.largeur, hauteur: IMAGE_GAULOIS.hauteur });
+  });
+
+  it("/gaulois pose le Gaulois là où la place du village le met : au champ de bataille après une partie, dans la salle de réunion en vocal", async () => {
+    const partie = new Date((NOW - 10 * 60) * 1000).toISOString();
+    const releve = new Date((NOW - 5 * 60) * 1000).toISOString();
+    for (const [faits, mots] of [
+      [{ partie_le: partie }, "au champ de bataille"],
+      [{ vocal: true, releve }, "dans la salle de réunion"],
+    ] as const) {
+      const { deps } = world({ discord_gaulois: () => ({ ok: true, tenue: { ...TENUE_DE_DEPART }, ...faits }) });
+      const form = await (await handle(await fromDiscord(run("gaulois")), deps)).formData();
+      const payload = JSON.parse(String(form.get("payload_json"))) as { data: { attachments: { description: string }[] } };
+      expect(payload.data.attachments[0]?.description).toContain(`Il est ${mots}`);
+    }
   });
 
   it("/gaulois dit au seul joueur où habiller son Gaulois quand il n'en a pas, et ne dessine pas une tenue inconnue", async () => {
