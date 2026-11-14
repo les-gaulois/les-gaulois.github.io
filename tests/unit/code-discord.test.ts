@@ -12,6 +12,7 @@ import type { StoredMembers } from "../../src/lib/schemas";
 import { lirePng } from "../../supabase/functions/code-discord/billets";
 import { IMAGE_GAULOIS, TENUE_DE_DEPART, decrireGaulois, decrireLaScene } from "../../supabase/functions/code-discord/gaulois";
 import { sceneDuGaulois } from "../../supabase/functions/code-discord/scene";
+import { FEU_FILE, IMAGE_DU_FEU, phraseDuFeu, sansFeu, type MondeLu } from "../../supabase/functions/code-discord/feu";
 import {
   APP_PUBLIC_KEY,
   BOT_TOKEN_SECRET,
@@ -29,6 +30,7 @@ import {
   GAULOIS_FILE,
   GAULOIS_MESSAGES,
   MAX_CHOICES,
+  MONDE_URL,
   MESSAGES,
   PANEL_EMOJIS,
   PANEL_FILE,
@@ -702,6 +704,65 @@ describe("les commandes du robot, envoyées par Discord", () => {
     expect((await content(await handle(await fromDiscord(run("gaulois")), world().deps))).data.content).toBe(COMMAND_MESSAGES.down);
   });
 
+  it("/feu montre à tout le salon le grand feu que publie le site, en image jointe, la phrase dessous et un bouton vers le village", async () => {
+    // Un relevé de dix minutes avant la commande.
+    const monde: MondeLu = { releve: new Date((NOW - 600) * 1000).toISOString(), feu: { niveau: 3, points: 412.6, jours: 7 } };
+    const { deps, calls } = world({}, { monde: async () => monde });
+    const res = await handle(await fromDiscord(run("feu")), deps);
+    expect(calls.rpc).toEqual([]);
+    expect(res.headers.get("content-type")).toMatch(/^multipart\/form-data; ?boundary=/);
+    const form = await res.formData();
+    const payload = JSON.parse(String(form.get("payload_json"))) as Shown & { data: { attachments: { filename: string }[] } };
+    expect(payload.type).toBe(4);
+    expect(payload.data.flags).toBe(32768);
+    expect(payload.data.components[0]?.items?.[0]?.media).toEqual({ url: `attachment://${FEU_FILE}` });
+    expect(payload.data.components[1]).toEqual({ type: 10, content: `-# ${phraseDuFeu(monde.feu!, monde.releve!)}` });
+    expect(payload.data.components[2]?.components?.[0]).toMatchObject({ style: 5, label: "Voir le village", url: `${SITE_URL}/village` });
+    expect(payload.data.attachments[0]?.filename).toBe(FEU_FILE);
+    const file = form.get("files[0]") as File;
+    expect(file.name).toBe(FEU_FILE);
+    expect(await lirePng(new Uint8Array(await file.arrayBuffer()))).toMatchObject({ largeur: IMAGE_DU_FEU.largeur, hauteur: IMAGE_DU_FEU.hauteur });
+  });
+
+  it("/feu dit au seul joueur qui la tape quand il n'y a pas de feu à montrer, ou que le site ne répond pas, et ne répond que dans le serveur du clan", async () => {
+    const vieux: MondeLu = { releve: new Date((NOW - 3 * 86_400) * 1000).toISOString(), feu: { niveau: 1, points: 120, jours: 7 } };
+    for (const [over, message] of [
+      [{ monde: async () => null }, COMMAND_MESSAGES.down],
+      [{}, COMMAND_MESSAGES.down],
+      [{ monde: async () => ({ releve: vieux.releve, feu: null }) }, sansFeu(vieux.releve, SITE_URL)],
+      [{ monde: async () => vieux }, sansFeu(vieux.releve, SITE_URL)],
+    ] as const) {
+      const body = await content(await handle(await fromDiscord(run("feu")), world({}, over).deps));
+      expect(body.data.content).toBe(message);
+      expect(body.data.flags).toBe(64);
+    }
+    let lu = 0;
+    const { deps } = world({}, { monde: async () => (lu++, null) });
+    expect((await content(await handle(await fromDiscord(run("feu", [], { guild_id: "111111111111111111" })), deps))).data.content).toBe(COMMAND_MESSAGES.wrongPlace);
+    expect(lu).toBe(0);
+  });
+
+  it("/feu se lit sur le site comme les fiches, gardé cinq minutes", async () => {
+    const logs: string[] = [];
+    const quiet = vi.spyOn(console, "log").mockImplementation((message: string) => void logs.push(message));
+    try {
+      const sent: string[] = [];
+      const monde = { releve: "2026-11-14T12:53:28.840Z", chantier: null, feu: { niveau: 4, points: 617.25, jours: 7 } };
+      const fetcher = (async (input: string | URL | Request) => {
+        sent.push(String(input));
+        return new Response(JSON.stringify(monde));
+      }) as typeof fetch;
+      const deps = liveDeps({ get: () => undefined }, fetcher);
+      expect(await deps.monde?.()).toEqual({ releve: monde.releve, feu: monde.feu });
+      expect(await deps.monde?.()).toEqual({ releve: monde.releve, feu: monde.feu });
+      expect(sent).toEqual([MONDE_URL]);
+      expect(MONDE_URL).toBe(`${SITE_URL}/village/monde.json`);
+    } finally {
+      quiet.mockRestore();
+    }
+    expect(logs).toEqual([]);
+  });
+
   it("/gaulois ne prend l'identifiant que de la commande signée, ni hors du serveur du clan ni pour un robot", async () => {
     const { deps, calls } = world({ discord_gaulois: () => ({ ok: true, tenue: { ...TENUE_DE_DEPART } }) });
     for (const interaction of [run("gaulois", [], { guild_id: "111111111111111111" }), run("gaulois", [], { member: { user: { id: PLAYER, username: "robot", bot: true } } })]) {
@@ -886,9 +947,9 @@ describe("le code tapé sur le site", () => {
         concours_liste: () => ({ ok: false, error: "invalid_request" }),
       },
       // Un délai qui ne finit jamais : la comparaison des commandes répond la première, quel que soit son nombre d'étapes.
-      { botAccepted: async () => true, commandSync: async () => true, sleep: () => new Promise<void>(() => undefined) },
+      { botAccepted: async () => true, commandSync: async () => true, sleep: () => new Promise<void>(() => undefined), monde: async () => ({ releve: "2026-11-14T12:53:28.840Z", feu: null }) },
     );
-    expect(await reply(await handle(fromSite(null, "GET", "/etat"), ready.deps))).toEqual({ ok: true, discord: true, service: true, signature: true, fiches: true, commandes: true, moi: true, gaulois: true, robot: true, concours: true, inscription: true });
+    expect(await reply(await handle(fromSite(null, "GET", "/etat"), ready.deps))).toEqual({ ok: true, discord: true, service: true, signature: true, fiches: true, commandes: true, moi: true, gaulois: true, robot: true, concours: true, inscription: true, feu: true });
     // Une empreinte et des identifiants mal formés : les fonctions SQL les refusent sans rien lire ni écrire.
     expect(ready.calls.rpc).toEqual([
       { name: "discord_code_redeem", args: { p_code_hash: "etat" } },
@@ -899,10 +960,10 @@ describe("le code tapé sur le site", () => {
     const noBase = world();
     expect(await reply(await handle(fromSite(null, "GET", "/etat"), noBase.deps))).toMatchObject({ service: false, moi: false });
     const unset = world({ discord_code_redeem: () => ({ ok: false, error: "invalid_request" }) });
-    expect(await reply(await handle(fromSite(null, "GET", "/etat"), { ...unset.deps, guildId: "", serviceReady: false }))).toEqual({ ok: true, discord: false, service: false, signature: true, fiches: true, commandes: true, moi: false, gaulois: false, robot: false, concours: false, inscription: false });
+    expect(await reply(await handle(fromSite(null, "GET", "/etat"), { ...unset.deps, guildId: "", serviceReady: false }))).toEqual({ ok: true, discord: false, service: false, signature: true, fiches: true, commandes: true, moi: false, gaulois: false, robot: false, concours: false, inscription: false, feu: false });
     expect(unset.calls.rpc).toEqual([]);
-    const noSite = world({}, { fiches: async () => null, commandes: async () => null });
-    expect(await reply(await handle(fromSite(null, "GET", "/etat"), noSite.deps))).toMatchObject({ fiches: false, commandes: false });
+    const noSite = world({}, { fiches: async () => null, commandes: async () => null, monde: async () => null });
+    expect(await reply(await handle(fromSite(null, "GET", "/etat"), noSite.deps))).toMatchObject({ fiches: false, commandes: false, feu: false });
   });
 
   it("n'attend pas sans fin la comparaison des commandes de Discord : au-delà du délai, elle dit non, et elle continue", async () => {

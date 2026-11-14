@@ -4,7 +4,9 @@
  *   npm run images:apercu
  *   npm run images:apercu -- un/autre/dossier
  * La gazette, l'image de l'accueil, la fiche du premier du clan et les nouveautés reprennent les données collectées, vrais
- * pseudos compris : ces images ne se postent pas. Les alertes de place et la course du soir posent des chiffres d'exemple (place
+ * pseudos compris : ces images ne se postent pas. Le bâtiment fini du village (« 17-chantier ») est le dernier fini d'après
+ * les sessions collectées ; les autres « 17-chantier-… » posent des dates et des restes d'exemple sur les vrais dessins des
+ * bâtiments les plus larges et les plus hauts. Les alertes de place et la course du soir posent des chiffres d'exemple (place
  * de départ, points, écarts) sur le vrai classement. Les autres sont des exemples écrits ici, aux pseudos inventés : aucun
  * n'est celui d'un membre. La vignette d'une carte vient du dépôt d'OpenFront, comme au moment d'un envoi : sans réseau,
  * l'image des victoires se dessine sans elle.
@@ -36,6 +38,13 @@ import { newsCard } from "../src/lib/nouveautes-image";
 import { milestoneCard } from "../src/lib/paliers-franchis-image";
 import { recordCard } from "../src/lib/records-image";
 import { readThumbnail, renderVictoryCard, victoryCard, type Thumbnail } from "../src/lib/victoires-image";
+import type { AnnonceDuChantier } from "../src/lib/chantier-discord";
+import { chantierCard, renderChantierCard } from "../src/lib/chantier-image";
+import { dessinDuBatiment } from "../src/lib/village/batiments/index";
+import { batimentEnCours, batimentsFinis } from "../src/lib/village/chantier";
+import { BATIMENTS } from "../src/lib/village/chantier-liste";
+import { PLEIN_JOUR } from "../src/lib/village/lumiere";
+import { etatDuMondeDuSite } from "../src/lib/village/monde-site";
 
 const OUT = process.argv[2] ?? join("test-results", "images-discord");
 const SITE = clan.links.site;
@@ -294,6 +303,41 @@ for (const [file, example, gaulois] of victories) {
     const card = victoryCard(example, TAG, SITE, measure, thumbnail, undefined, gaulois);
     writeFileSync(join(OUT, file), await renderVictoryCard(card, fonts, root, thumbnail));
     console.log(`${file} : ${card.width} × ${card.height}`);
+  } catch (e) {
+    console.log(`${file} : ${e instanceof Error ? e.message : String(e)}`);
+  }
+}
+// Le bâtiment fini du village : le dernier fini d'après les sessions collectées, puis des exemples aux deux bouts des dessins
+// (très larges, très hauts) et le village tout bâti, avec des dates et des restes d'exemple.
+const monde = etatDuMondeDuSite();
+const exempleDe = (i: number, prochain: number | null): AnnonceDuChantier | null => {
+  const b = BATIMENTS[i];
+  const p = prochain === null ? null : BATIMENTS[prochain];
+  if (!b) return null;
+  return {
+    batiment: { ...b, poses: b.cout, fini_le: "2026-11-13T21:03:15.629Z" },
+    prochain: p ? { ...p, poses: Math.round(p.cout / 3), fini_le: null } : null,
+    releve: "2026-11-14T12:53:28.840Z",
+  };
+};
+const reel = monde.chantier && monde.releve ? (batimentsFinis(monde.chantier).at(-1) ?? null) : null;
+const annonces: [string, AnnonceDuChantier | null][] = [
+  ["17-chantier.png", reel && monde.chantier && monde.releve ? { batiment: { ...reel, fini_le: reel.fini_le ?? "" }, prochain: batimentEnCours(monde.chantier), releve: monde.releve } : null],
+  ...(["palissade", "potager", "pont", "tour", "colombier", "chene"] as const).map((id): [string, AnnonceDuChantier | null] => {
+    const i = BATIMENTS.findIndex((b) => b.id === id);
+    return [`17-chantier-${id}.png`, exempleDe(i, i + 1)];
+  }),
+  ["17-chantier-grande-tour.png", exempleDe(BATIMENTS.length - 1, null)],
+];
+for (const [file, annonce] of annonces) {
+  if (!annonce) {
+    console.log(`${file} : pas de bâtiment fini, pas d'image.`);
+    continue;
+  }
+  try {
+    const card = chantierCard(annonce, dessinDuBatiment(annonce.batiment.id, PLEIN_JOUR, 1), SITE, measure);
+    writeFileSync(join(OUT, file), await renderChantierCard(card, fonts, root));
+    console.log(`${file} : ${card.width} × ${card.height}, ${annonce.batiment.id} à ${card.dessin?.echelle ?? 0} pixels par case`);
   } catch (e) {
     console.log(`${file} : ${e instanceof Error ? e.message : String(e)}`);
   }
