@@ -20,6 +20,9 @@ export type PieceOpenFrontId =
   | "navire-transport"
   | "navire-guerre"
   | "navire-commerce"
+  | "navire-ennemi"
+  | "tir-canon"
+  | "obus"
   // Le chemin de fer (lot train)
   | "gare"
   | "rail"
@@ -34,13 +37,18 @@ export type PieceOpenFrontId =
   | "missile"
   | "batterie"
   | "poste-defense"
-  | "ville-lointaine";
+  | "ville-lointaine"
+  | "explosion"
+  | "interception";
 
 export const PIECES_OPENFRONT: readonly PieceOpenFrontId[] = [
   "port",
   "navire-transport",
   "navire-guerre",
   "navire-commerce",
+  "navire-ennemi",
+  "tir-canon",
+  "obus",
   "gare",
   "rail",
   "viaduc",
@@ -54,6 +62,8 @@ export const PIECES_OPENFRONT: readonly PieceOpenFrontId[] = [
   "batterie",
   "poste-defense",
   "ville-lointaine",
+  "explosion",
+  "interception",
 ];
 
 function provisoire(largeur: number, hauteur: number): DessinDeBatiment {
