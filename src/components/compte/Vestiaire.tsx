@@ -30,7 +30,7 @@ import {
 } from "../../lib/gaulois";
 import { tabKeyTarget } from "../../lib/onglets";
 import type { MesStateres } from "../../lib/stateres";
-import type { MaBoutique, PochetteReponse, RefObjet } from "../../lib/village/contrat";
+import type { MaBoutique, PlaqueVue, PochetteReponse, RefObjet } from "../../lib/village/contrat";
 import {
   RAISON_EN_VENTE,
   avecUnExemplaire,
@@ -49,6 +49,8 @@ import {
   raisonBoutiqueFermee,
   stateres,
 } from "../../lib/village/ecran-boutique";
+import { PLAQUES_CHANGEES, motsDeLaPlaque } from "../../lib/village/ecran-forge";
+import { lirePlaques, plaqueDe } from "../../lib/village/forge";
 import {
   NOMS_RAYONS,
   RAYONS,
@@ -73,6 +75,7 @@ import { Bourse } from "../village/Bourse";
 import { DialogueAchat, DialoguePochette, type Issue } from "../village/BoutiqueDialogue";
 import { MarqueDeRarete, Pixels, Prix, peindre } from "../village/BoutiquePixels";
 import { Pochette } from "../village/Pochette";
+import { PetitePlaque } from "../village/monde/FenetreForge";
 import { CodeLogin, DiscordButton, Loading, Problem, Success, codeLoginShown, messageOf, useMe } from "./common";
 
 /** Le Gaulois dessiné case par case, agrandi sans flou par la feuille de style. Son texte de remplacement le décrit. */
@@ -148,7 +151,8 @@ type Vente = { possede: number } | { prix: number | null };
  * Une case : l'image de l'objet, son nom, sa rareté écrite et comptée en losanges (la couleur du cadre n'est jamais le seul
  * repère). Une case de la boutique porte son prix : elle s'essaie sur le Gaulois, elle ne se porte qu'une fois achetée.
  * Une case achetée porte la marque « à vous ». `portee` et `essayee` se disent à part : pendant un essayage, l'objet
- * réellement porté garde sa coche.
+ * réellement porté garde sa coche. Un objet gravé à la forge porte sa petite plaque dorée dans un coin ; son texte est dans
+ * le nom de la case et se lit au survol.
  */
 function Case({
   objet,
@@ -158,6 +162,7 @@ function Case({
   vente,
   enVente = false,
   visage = false,
+  plaque = null,
   onClick,
 }: {
   objet: Objet;
@@ -168,12 +173,14 @@ function Case({
   enVente?: boolean;
   /** Un gros plan du visage : il prend toute la place de l'image. */
   visage?: boolean;
+  /** Le texte de sa plaque de la forge, s'il est gravé. */
+  plaque?: string | null;
   onClick: () => void;
 }) {
   const aVendre = vente && "prix" in vente ? vente : null;
   const possede = vente && "possede" in vente ? vente.possede : 0;
   return (
-    <button type="button" class="case" data-rarete={objet.rarete ?? "aucune"} data-boutique={aVendre ? "" : undefined} data-etat={essayee ? "essayee" : portee ? "portee" : "libre"} aria-pressed={portee || essayee} onClick={onClick}>
+    <button type="button" class="case" data-rarete={objet.rarete ?? "aucune"} data-boutique={aVendre ? "" : undefined} data-etat={essayee ? "essayee" : portee ? "portee" : "libre"} aria-pressed={portee || essayee} data-grave={plaque ? "" : undefined} title={plaque ? motsDeLaPlaque(plaque) : undefined} onClick={onClick}>
       <span class="case-image">{vignette ? visage ? <ImageDeCase vignette={vignette} place={COTE_VISAGE} maximum={4} /> : <ImageDeCase vignette={vignette} /> : <span class="case-rien" aria-hidden="true" />}</span>
       <span class="case-nom">{objet.nom}</span>
       {objet.rarete && <MarqueDeRarete rarete={objet.rarete} />}
@@ -201,6 +208,14 @@ function Case({
           <span class="sr-only">, en </span>essai
         </span>
       )}
+      {plaque && (
+        <>
+          <PetitePlaque />
+          <span class="sr-only" data-testid="case-plaque">
+            . {motsDeLaPlaque(plaque)}
+          </span>
+        </>
+      )}
     </button>
   );
 }
@@ -227,6 +242,8 @@ interface Choix {
   boutique: MaBoutique | null;
   /** Les objets que le membre a mis en vente au marché : sortis de son inventaire, ils ne s'achètent pas à la boutique. */
   enVente: readonly RefObjet[];
+  /** Les plaques de la forge sur ses objets. */
+  plaques: readonly PlaqueVue[];
   onChange: (tenue: Tenue) => void;
   onEssai: (essai: Essai | null) => void;
 }
@@ -321,7 +338,7 @@ function ChoixDeFiltre({ filtre, nom, rang, nombre, choisi, onClick }: { filtre:
  * la plus courante à la plus rare, chacun à son prix. La boutique se réduit à une rareté d'un clic : avec une soixantaine
  * d'objets, on va droit à ce qu'on cherche.
  */
-function Objets({ emplacement, tenue, essai, boutique, enVente, onChange, onEssai, filtre, onFiltre }: Choix & { emplacement: Emplacement; filtre: Filtre | undefined; onFiltre: (filtre: Filtre) => void }) {
+function Objets({ emplacement, tenue, essai, boutique, enVente, plaques, onChange, onEssai, filtre, onFiltre }: Choix & { emplacement: Emplacement; filtre: Filtre | undefined; onFiltre: (filtre: Filtre) => void }) {
   const essaye = essai?.emplacement === emplacement ? essai.id : null;
   const possede = (id: string): number => (boutique ? quantitePossedee(boutique.inventaire, emplacement, id) : 0);
   const vendu = (id: string): boolean => estEnVente(enVente, emplacement, id);
@@ -340,6 +357,7 @@ function Objets({ emplacement, tenue, essai, boutique, enVente, onChange, onEssa
           essayee={essaye === id}
           vente={objet.gratuit ? undefined : libre ? { possede: possede(id) } : { prix: prixDeLObjet(boutique?.prix, emplacement, id) }}
           enVente={!libre && vendu(id)}
+          plaque={libre ? plaqueDe(plaques, { emplacement, objet: id }) : null}
           onClick={() => {
             if (libre) onChange(changerObjet(tenue, emplacement, id));
             else if (!porte) onEssai(essaye === id ? null : { emplacement, id });
@@ -449,6 +467,7 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
   const [bourse, setBourse] = useState<MesStateres | null>(null);
   const [boutique, setBoutique] = useState<MaBoutique | null>(null);
   const [enVente, setEnVente] = useState<RefObjet[]>([]);
+  const [plaques, setPlaques] = useState<PlaqueVue[]>([]);
   const [panne, setPanne] = useState(false);
   const [fenetre, setFenetre] = useState<Fenetre>(null);
   const [annonce, setAnnonce] = useState("");
@@ -489,6 +508,7 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
       const [reponse] = await Promise.all([call<unknown>("get_mon_gaulois"), lireLaBoutique()]);
       const enregistree = tenueDuServeur(reponse);
       setEtat({ kind: "pret", enregistree });
+      setPlaques(lirePlaques((reponse as { gravures?: unknown } | null)?.gravures));
       setCreation(enregistree === null);
       if (enregistree) setTenue(enregistree);
     } catch (e) {
@@ -508,6 +528,19 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
     avant.current = actif;
     if (revenu && etat.kind === "pret") void lireLaBoutique();
   }, [actif]);
+
+  // Une plaque gravée ou effacée à la forge (fenêtre voisine du monde) : les plaques du vestiaire se relisent, sans rien
+  // toucher à la tenue en cours. Une relecture qui échoue garde celles qu'on avait.
+  useEffect(() => {
+    const relire = () => {
+      void call<unknown>("get_mon_gaulois").then(
+        (reponse) => setPlaques(lirePlaques((reponse as { gravures?: unknown } | null)?.gravures)),
+        () => {},
+      );
+    };
+    window.addEventListener(PLAQUES_CHANGEES, relire);
+    return () => window.removeEventListener(PLAQUES_CHANGEES, relire);
+  }, []);
 
   const changer = (suite: Tenue) => {
     setTenue(suite);
@@ -634,7 +667,7 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
   const manqueEssai = boutique && prixEssai !== null ? manque(boutique.solde, prixEssai) : 0;
   const essaiEnVente = essai !== null && estEnVente(enVente, essai.emplacement, essai.id);
   const raisonEssai = fermee ?? (essaiEnVente ? RAISON_EN_VENTE : manqueEssai > 0 ? `Il vous manque ${stateres(manqueEssai)}.` : null);
-  const choix: Choix = { tenue, essai, boutique, enVente, onChange: changer, onEssai: setEssai };
+  const choix: Choix = { tenue, essai, boutique, enVente, plaques, onChange: changer, onEssai: setEssai };
   const achat = fenetre?.kind === "achat" ? objetPayant(fenetre.emplacement, fenetre.id) : null;
   // La bourse et la pochette surprise : au-dessus des rayons, sauf pour qui vient créer son Gaulois. Elles ne lui servent
   // qu'une fois le Gaulois créé : il commence par le corps et le visage, et les trouve sous le bouton « Créer mon Gaulois ».
