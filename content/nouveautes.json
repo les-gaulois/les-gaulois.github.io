@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-14",
+    "kind": "nouveau",
+    "title": "/feu sur Discord",
+    "body": "Tapez /feu sur le Discord du clan : le robot montre le grand feu du village devant la place, avec les points rapportés au clan sur les 7 derniers jours et l'heure du relevé.",
+    "link": {
+      "href": "/village#feu",
+      "label": "Voir le feu"
+    }
+  },
+  {
+    "date": "2026-11-14",
     "kind": "ameliore",
     "title": "Un village plus vivant au loin",
     "body": "Sur les terrasses du fond, les Gaulois se fondent dans la distance, les cheminées fument et des bêtes se promènent. La taverne et la salle de réunion sont redessinées.",
