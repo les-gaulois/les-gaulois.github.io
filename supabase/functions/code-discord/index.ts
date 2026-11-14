@@ -61,6 +61,7 @@ import { CONCOURS_COMMAND_NAME, CONCOURS_PREFIX, concoursCommand, concoursImage,
 import { buttonEmoji, ensureEmojis, vignetteUrl, type EmojiIds } from "./emojis.ts";
 import { decrireGaulois, decrireLaScene, lireTenue, pngDuGaulois, type Tenue } from "./gaulois.ts";
 import { sceneDuGaulois, type Scene } from "./scene.ts";
+import { FEU_COMMAND, FEU_FILE, MONDE_PATH, parseMonde, reponseDuFeu, type MondeLu } from "./feu.ts";
 
 /** Le nom de la commande, tel que le joueur la tape. `definitions.ts` la décrit ; la fonction la crée sur le serveur du clan (`inscription.ts`). */
 export const COMMAND_NAME = "code";
@@ -176,6 +177,11 @@ export interface Deps {
   commandes(): Promise<CommandIndex | null>;
   /** Une image PNG du site, par son chemin : ses octets, ou `null` si le site ne la donne pas. */
   siteImage(path: string): Promise<Uint8Array<ArrayBuffer> | null>;
+  /**
+   * L'état du monde du village que publie le site (`MONDE_URL`), pour /feu, aux mêmes conditions que les fiches. Absent des
+   * tests qui n'en parlent pas : /feu dit alors que le site ne répond pas, et `/etat` dit `"feu":false`.
+   */
+  monde?(): Promise<MondeLu | null>;
   log(message: string): void;
   /** Le numéro du robot, lu dans son jeton (`BOT_TOKEN_SECRET`) ; "" sans jeton lisible. */
   botId: string;
@@ -524,9 +530,11 @@ export const RIVAL_COMMAND = "rival";
 export const RIVAL_OPTION = "clan";
 export const MOI_COMMAND = "moi";
 export const GAULOIS_COMMAND = "gaulois";
-const ROBOT_COMMANDS: ReadonlySet<string> = new Set([FICHE_COMMAND_NAME, CLAN_COMMAND, RECORDS_COMMAND, CARTE_COMMAND, GUIDE_COMMAND, RIVAL_COMMAND, MOI_COMMAND, GAULOIS_COMMAND]);
+const ROBOT_COMMANDS: ReadonlySet<string> = new Set([FICHE_COMMAND_NAME, CLAN_COMMAND, RECORDS_COMMAND, CARTE_COMMAND, GUIDE_COMMAND, RIVAL_COMMAND, MOI_COMMAND, GAULOIS_COMMAND, FEU_COMMAND]);
 /** L'index des commandes que le site publie avec ses pages (`src/lib/commandes-discord.ts`). */
 export const COMMANDES_URL = `${SITE_URL}/commandes.json`;
+/** L'état du monde du village que le site publie avec ses pages, pour /feu (`src/pages/village/monde.json.ts`). */
+export const MONDE_URL = `${SITE_URL}${MONDE_PATH}`;
 
 export interface CommandEntry {
   /** L'adresse de l'image depuis la racine du site, avec sa version. */
@@ -764,6 +772,16 @@ async function gauloisRoute(discordId: string, deps: Deps): Promise<Response> {
   return fileReply(gauloisMessage(tenue, scene), { name: GAULOIS_FILE, type: "image/png", bytes: await pngDuGaulois(tenue, scene) });
 }
 
+/**
+ * /feu : le grand feu du village, d'après l'état du monde que publie le site (`feu.ts`), devant la place au moment de la
+ * journée à Paris. Sans état lisible ni feu récent, une phrase au seul joueur qui la tape, sans image.
+ */
+async function feuRoute(deps: Deps): Promise<Response> {
+  const monde = deps.monde ? await deps.monde() : null;
+  const reponse = await reponseDuFeu(monde, new Date(deps.nowSeconds() * 1000), SITE_URL, COMMAND_MESSAGES.down);
+  return reponse.image ? fileReply(reponse.message, { name: FEU_FILE, type: "image/png", bytes: reponse.png }) : ephemeral(reponse.texte);
+}
+
 /** Les commandes du robot : les propositions pendant la saisie (type 4), puis la réponse à l'envoi (type 2). */
 async function robotRoute(name: string, interaction: Record<string, unknown>, data: Record<string, unknown>, deps: Deps): Promise<Response> {
   if (name === FICHE_COMMAND_NAME) return ficheRoute(interaction, data, deps);
@@ -775,6 +793,7 @@ async function robotRoute(name: string, interaction: Record<string, unknown>, da
     if (typing || user?.["bot"] === true || typeof id !== "string" || !/^[0-9]{17,20}$/.test(id)) return typing ? choicesReply([]) : ephemeral(COMMAND_MESSAGES.wrongPlace);
     return name === MOI_COMMAND ? moiRoute(id, deps) : gauloisRoute(id, deps);
   }
+  if (name === FEU_COMMAND) return typing ? choicesReply([]) : feuRoute(deps);
   const index = await deps.commandes();
   if (typing) {
     if (!index) return choicesReply([]);
@@ -1337,7 +1356,9 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
     // Les commandes du serveur Discord, comparées à celles du code : juste après une mise en ligne, cette page attend la fin
     // de la comparaison, quinze secondes au plus (elle continue en tâche de fond), et dit si elles sont à jour.
     const inscription = deps.commandSync ? await Promise.race([deps.commandSync(), deps.sleep(ETAT_SYNC_WAIT_MS).then(() => false)]) : false;
-    return json({ ok: true, discord, service, signature: await signatureWorks(), fiches, commandes, moi, gaulois, robot, concours, inscription }, 200, CORS);
+    // /feu : l'état du monde du village se lit sur le site et a la forme attendue.
+    const feu = deps.monde ? (await deps.monde()) !== null : false;
+    return json({ ok: true, discord, service, signature: await signatureWorks(), fiches, commandes, moi, gaulois, robot, concours, inscription, feu }, 200, CORS);
   }
   if (req.method === "GET" || req.method === "HEAD") {
     const billet = await concoursImage(path, req.method === "HEAD", deps);
@@ -1580,6 +1601,7 @@ export function liveDeps(env: Env, fetcher: typeof fetch = fetch): Deps {
     },
     fiches: () => readSiteFile(fetcher, FICHES_URL, parseFiches, "fiches", log),
     commandes: () => readSiteFile(fetcher, COMMANDES_URL, parseCommandes, "commandes", log),
+    monde: () => readSiteFile(fetcher, MONDE_URL, parseMonde, "monde", log),
     botId,
     discord: (method, path, call = {}) => (botToken !== "" && botId !== "" ? discordCall(method, path, call, `Bot ${botToken}`) : Promise.resolve(null)),
     webhook: (method, path, call = {}) => (path.startsWith("/webhooks/") ? discordCall(method, path, call, null) : Promise.resolve(null)),

@@ -28,7 +28,7 @@ export const ROBOT_SALON_TEXTS: readonly RobotSalonText[] = [
   {
     id: "nouvelles",
     title: "Le salon des nouvelles",
-    intro: "La gazette, les alertes, les paliers franchis, les messages du jour et la course du soir, postés par le robot du site.",
+    intro: "La gazette, les alertes, les paliers franchis, les messages du jour, la course du soir et les bâtiments finis du village, postés par le robot du site.",
     secret: "DISCORD_WEBHOOK_GAZETTE",
   },
   {
