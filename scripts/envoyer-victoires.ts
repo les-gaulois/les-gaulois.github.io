@@ -5,6 +5,8 @@
  * Avec le lien du salon des victoires, réglé dans Direction > Discord (lu avec SUPABASE_URL et SUPABASE_SECRET_KEY), sinon le
  * secret DISCORD_WEBHOOK_VICTOIRES. Sans lien, ne fait rien, et ne note rien.
  * Les sessions des dernières heures sont lues sur l'API, plus fraîches que celles de la collecte horaire, qui servent aussi.
+ * Après l'envoi, elles sont gardées dans .cache/sessions-du-passage.json pour l'étape des statères qui suit, dans le même job :
+ * elle n'a pas à les relire. Une erreur d'écriture est seulement notée. Voir src/lib/sessions-du-passage.ts.
  * Les victoires passées sont notées dans data/victoires-envoi.json, enregistré sur main par le workflow, et dans
  * .cache/victoires-envoi.json, gardé par le cache du workflow : si l'enregistrement sur main échoue, rien ne repart.
  * Les victoires de config/victoires-rattrapage.json repartent une fois, même déjà notées : pour un salon qui ne les a pas reçues.
@@ -19,6 +21,7 @@ import { ApiClient } from "../src/lib/pipeline";
 import { parseNoted } from "../src/lib/salon-discord";
 import { salonLink } from "../src/lib/salon-lien";
 import type { StoredSession } from "../src/lib/schemas";
+import { garderSessionsDuPassage, SESSIONS_DU_PASSAGE } from "../src/lib/sessions-du-passage";
 import { isClanMember, mergeStates, parseResend, passSessions, readRecentSessions, readVictoryGame, usableOfficialTags, VictoryState, victoryPass, type VictoryState as State } from "../src/lib/victoires";
 import { sendVictory } from "../src/lib/victoires-discord";
 
@@ -47,6 +50,8 @@ if (!isWebhookUrl(link)) {
   process.exit(1);
 }
 
+// Les sessions lues sur l'API à ce passage, gardées pour l'étape des statères une fois l'envoi fini.
+let lues: { sessions: StoredSession[]; lecture: Date } | null = null;
 try {
   // Les deux copies réunies : une victoire notée dans l'une ne repart pas, même si l'enregistrement sur main a échoué. Une copie
   // illisible est ignorée ; sans aucune, les victoires du moment servent de départ.
@@ -62,6 +67,7 @@ try {
   let fresh: StoredSession[] | null = null;
   try {
     fresh = await readRecentSessions(api, clan.tag, now);
+    lues = { sessions: fresh, lecture: now };
   } catch (e) {
     console.log(`Victoires : sessions des dernières heures illisibles (${e instanceof Error ? e.message : String(e)}).`);
   }
@@ -128,4 +134,16 @@ try {
   // Le message d'une erreur ne contient jamais le lien : seul l'appel à Discord le reçoit, et `postWithImage` ne laisse rien sortir de cet appel.
   console.log(`::warning::Victoires : ${e instanceof Error ? e.message : String(e)}`);
   process.exitCode = 1;
+} finally {
+  // Après l'envoi, jamais avant : l'écriture ne retarde aucune image, et une erreur d'écriture est seulement notée.
+  if (lues) {
+    garderSessionsDuPassage({
+      ecrire: (texte) => {
+        mkdirSync(dirname(SESSIONS_DU_PASSAGE), { recursive: true });
+        writeFileSync(SESSIONS_DU_PASSAGE, texte);
+      },
+      ...lues,
+      log: console.log,
+    });
+  }
 }
