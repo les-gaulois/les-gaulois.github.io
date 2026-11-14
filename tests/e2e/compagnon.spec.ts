@@ -67,8 +67,9 @@ async function attendreQuIlSePose(page: Page): Promise<void> {
 }
 
 /**
- * Ce que couvre sa boîte (son dessin entier, marges vides comprises), pour la partie qui est dans la fenêtre : le texte
- * qu'on voit, les commandes (liens, boutons, champs, onglets) et les lignes de tableau. Effacé, il ne couvre rien.
+ * Ce que couvrent sa boîte (son dessin entier, marges vides comprises) et sa bulle ouverte, pour la partie qui est dans la
+ * fenêtre : le texte, les commandes (liens, boutons, champs, onglets) et les lignes de tableau. Un texte encore transparent
+ * compte : il entre en fondu et paraît sous lui l'instant d'après. Effacé ou pas encore apparu, il ne couvre rien.
  */
 const couverts = (page: Page) =>
   page.evaluate(() => {
@@ -76,24 +77,32 @@ const couverts = (page: Page) =>
     if (!boite || boite.hidden) return [];
     const style = getComputedStyle(boite);
     if (style.visibility !== "visible" || Number(style.opacity) === 0) return [];
-    const r = boite.getBoundingClientRect();
     const vue = document.documentElement;
-    const cadre = { gauche: Math.max(0, r.left), droite: Math.min(vue.clientWidth, r.right), haut: Math.max(0, r.top), bas: Math.min(vue.clientHeight, r.bottom) };
-    if (cadre.droite <= cadre.gauche || cadre.bas <= cadre.haut) return [];
-    const touche = (b: DOMRect) => b.width > 1 && b.height > 1 && b.left < cadre.droite && cadre.gauche < b.right && b.top < cadre.bas && cadre.haut < b.bottom;
-    const vu = (el: Element) => typeof el.checkVisibility !== "function" || el.checkVisibility({ opacityProperty: true, visibilityProperty: true });
+    const cadreDe = (el: Element) => {
+      const r = el.getBoundingClientRect();
+      return { gauche: Math.max(0, r.left), droite: Math.min(vue.clientWidth, r.right), haut: Math.max(0, r.top), bas: Math.min(vue.clientHeight, r.bottom) };
+    };
+    const bulle = boite.querySelector<HTMLElement>("[data-compagnon-bulle]");
+    const styleBulle = bulle ? getComputedStyle(bulle) : null;
+    const cadres: [string, { gauche: number; droite: number; haut: number; bas: number }][] = [["corps", cadreDe(boite)]];
+    if (bulle && boite.dataset.bulle && styleBulle?.visibility === "visible" && Number(styleBulle.opacity) > 0) cadres.push(["bulle", cadreDe(bulle)]);
+    const vu = (el: Element) => typeof el.checkVisibility !== "function" || el.checkVisibility({ visibilityProperty: true });
     const ailleurs = (el: Element) => !boite.contains(el) && !el.closest("[data-compagnon-prison], script, style, noscript, template");
     const trouves: string[] = [];
-    for (const el of document.querySelectorAll("a[href], button, input:not([type=hidden]), select, textarea, summary, [role=button], [role=link], [role=tab], tr")) {
-      if (ailleurs(el) && vu(el) && touche(el.getBoundingClientRect())) trouves.push(`${el.tagName.toLowerCase()} « ${(el.textContent ?? "").trim().replace(/\s+/g, " ").slice(0, 40)} »`);
-    }
-    const textes = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-    const plage = document.createRange();
-    for (let n = textes.nextNode(); n; n = textes.nextNode()) {
-      const parent = n.parentElement;
-      if (!parent || !n.textContent?.trim() || !ailleurs(parent)) continue;
-      plage.selectNodeContents(n);
-      if ([...plage.getClientRects()].some(touche) && vu(parent)) trouves.push(`texte « ${n.textContent.trim().replace(/\s+/g, " ").slice(0, 40)} »`);
+    for (const [nom, cadre] of cadres) {
+      if (cadre.droite <= cadre.gauche || cadre.bas <= cadre.haut) continue;
+      const touche = (b: DOMRect) => b.width > 1 && b.height > 1 && b.left < cadre.droite && cadre.gauche < b.right && b.top < cadre.bas && cadre.haut < b.bottom;
+      for (const el of document.querySelectorAll("a[href], button, input:not([type=hidden]), select, textarea, summary, [role=button], [role=link], [role=tab], tr")) {
+        if (ailleurs(el) && vu(el) && touche(el.getBoundingClientRect())) trouves.push(`${nom} : ${el.tagName.toLowerCase()} « ${(el.textContent ?? "").trim().replace(/\s+/g, " ").slice(0, 40)} »`);
+      }
+      const textes = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      const plage = document.createRange();
+      for (let n = textes.nextNode(); n; n = textes.nextNode()) {
+        const parent = n.parentElement;
+        if (!parent || !n.textContent?.trim() || !ailleurs(parent)) continue;
+        plage.selectNodeContents(n);
+        if ([...plage.getClientRects()].some(touche) && vu(parent)) trouves.push(`${nom} : texte « ${n.textContent.trim().replace(/\s+/g, " ").slice(0, 40)} »`);
+      }
     }
     return trouves;
   });
@@ -153,6 +162,21 @@ test("au repos, il ne couvre ni texte ni commande : à l'arrivée, après un dé
     await attendreQuIlSePose(page);
     expect(await couverts(page), `${path}, à côté du curseur`).toEqual([]);
     expect(await page.evaluate(() => Boolean(document.elementFromPoint(640, 560)?.closest("[data-compagnon]"))), path).toBe(false);
+  }
+});
+
+test("au premier chargement d'un onglet, avec son salut, ni lui ni sa bulle ne couvrent rien, dès son apparition", async ({ page }) => {
+  test.setTimeout(120_000);
+  for (const path of ["/", "/classement", "/rivaux"]) {
+    // Un onglet neuf : son salut n'est pas encore dit, et il arrive en même temps que les blocs de la page entrent en fondu.
+    const onglet = await page.context().newPage();
+    await onglet.goto(path);
+    const debut = Date.now();
+    for (const instant of [1, 3, 6, 10]) {
+      await onglet.waitForTimeout(Math.max(0, instant * 1_000 - (Date.now() - debut)));
+      expect(await couverts(onglet), `${path}, à ${instant} s`).toEqual([]);
+    }
+    await onglet.close();
   }
 });
 

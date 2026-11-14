@@ -10,7 +10,7 @@
  *
  * Les longueurs sont en pixels de la page, dans la fenêtre ; une place est le coin haut gauche de son dessin.
  */
-import { CASES_H, CASES_L, touche, type Bornes, type Cadre, type Point } from "./mouvement";
+import { CASES_H, CASES_L, placeDeLaBulle, touche, type Bornes, type Cadre, type Point } from "./mouvement";
 
 /** Ce que couvre sa boîte, en cases depuis son coin haut gauche : tout son dessin, marges vides comprises. */
 export const EMPREINTE: Cadre = { gauche: 0, droite: CASES_L, haut: 0, bas: CASES_H };
@@ -84,17 +84,20 @@ export function carteDesZones(zones: readonly Cadre[], largeur: number, hauteur:
   return { pas, colonnes, lignes, sommes };
 }
 
-/** Un cadre ne touche-t-il aucune case occupée ? Ce qui sort de la fenêtre (sous le bord bas) ne compte pas. */
-export function estLibre(carte: Carte, c: Cadre): boolean {
+/** Le nombre de cases occupées que touche un cadre. Ce qui sort de la fenêtre (sous le bord bas) ne compte pas. */
+export function casesOccupees(carte: Carte, c: Cadre): number {
   const g = Math.max(0, Math.floor(c.gauche / carte.pas));
   const d = Math.min(carte.colonnes, Math.ceil(c.droite / carte.pas));
   const h = Math.max(0, Math.floor(c.haut / carte.pas));
   const b = Math.min(carte.lignes, Math.ceil(c.bas / carte.pas));
-  if (d <= g || b <= h) return true;
+  if (d <= g || b <= h) return 0;
   const l = carte.colonnes + 1;
   const s = carte.sommes;
-  return (s[b * l + d] ?? 0) - (s[h * l + d] ?? 0) - (s[b * l + g] ?? 0) + (s[h * l + g] ?? 0) === 0;
+  return (s[b * l + d] ?? 0) - (s[h * l + d] ?? 0) - (s[b * l + g] ?? 0) + (s[h * l + g] ?? 0);
 }
+
+/** Un cadre ne touche-t-il aucune case occupée ? */
+export const estLibre = (carte: Carte, c: Cadre): boolean => casesOccupees(carte, c) === 0;
 
 const borner = (v: number, min: number, max: number): number => Math.min(Math.max(v, min), Math.max(min, max));
 
@@ -118,8 +121,19 @@ export interface Repos {
  * caché sous le bord, à l'aplomb de `voulue`. `endormi` : la place de son lit en plus.
  */
 export function placeDeRepos(voulue: Point, carte: Carte, b: Bornes, cote: number, hauteurFenetre: number, aussi: readonly Cadre[] = [], endormi = false): Repos {
-  const e = endormi ? EMPREINTE_ENDORMI : EMPREINTE;
   const fond = fondDeLaFenetre(b, cote, hauteurFenetre);
+  // Un lit ne se pose pas sous le bord : couché, il reste entier.
+  const meilleure = chercher(voulue, carte, b, cote, endormi ? b.bas : fond, endormi ? EMPREINTE_ENDORMI : EMPREINTE, aussi);
+  if (meilleure) return { place: meilleure, forme: formeA(meilleure, b, cote, hauteurFenetre) };
+  return { place: { x: borner(voulue.x, b.gauche, b.droite), y: Math.max(fond, hauteurFenetre) }, forme: "cache" };
+}
+
+/**
+ * La place libre la plus proche de `voulue` pour l'empreinte `e` (en cases), entre `b.haut` et `fond` (sous `b.bas`, il
+ * est enfoncé : chaque pixel pèse `PENALITE_ENFONCE` pixels de marche) ; `null` s'il n'y en a aucune.
+ */
+function chercher(voulue: Point, carte: Carte, b: Bornes, cote: number, fond: number, e: Cadre, aussi: readonly Cadre[]): Point | null {
+  if (b.droite < b.gauche || fond < b.haut) return null;
   const vx = borner(voulue.x, b.gauche, b.droite);
   const vy = borner(voulue.y, b.haut, fond);
   const libre = (p: Point): boolean => {
@@ -128,7 +142,7 @@ export function placeDeRepos(voulue: Point, carte: Carte, b: Bornes, cote: numbe
   };
   // Les colonnes de la plus proche à la plus lointaine ; les rangées dans l'ordre de leur coût le plus petit.
   const xs = suite(b.gauche, b.droite, vx).sort((p, q) => Math.abs(p - vx) - Math.abs(q - vx));
-  const rangees = suite(b.haut, fond, vy, b.bas)
+  const rangees = suite(b.haut, fond, vy, Math.min(b.bas, fond))
     .map((y) => {
       const enfonce = Math.max(0, y - b.bas);
       return { y, enfonce, minimum: Math.abs(y - vy) + PENALITE_ENFONCE * enfonce };
@@ -138,8 +152,6 @@ export function placeDeRepos(voulue: Point, carte: Carte, b: Bornes, cote: numbe
   let cout = Infinity;
   for (const r of rangees) {
     if (r.minimum >= cout) break;
-    // Un lit ne se pose pas sous le bord : couché, il reste entier.
-    if (endormi && r.enfonce > 0) continue;
     const dy = r.y - vy;
     for (const x of xs) {
       const c = Math.hypot(x - vx, dy) + PENALITE_ENFONCE * r.enfonce;
@@ -151,8 +163,79 @@ export function placeDeRepos(voulue: Point, carte: Carte, b: Bornes, cote: numbe
       }
     }
   }
-  if (meilleure) return { place: meilleure, forme: formeA(meilleure, b, cote, hauteurFenetre) };
-  return { place: { x: vx, y: Math.max(fond, hauteurFenetre) }, forme: "cache" };
+  return meilleure;
+}
+
+/** La taille d'une bulle, et la fenêtre où elle se pose : `haut`, le bas de l'en-tête collé en haut. */
+export interface Taille {
+  largeur: number;
+  hauteur: number;
+}
+export interface Fenetre {
+  largeur: number;
+  hauteur: number;
+  haut: number;
+}
+
+/** Le cadre de sa bulle, posée à `gauche`, au-dessus de lui ou sous ses pieds (règles `.compagnon-bulle` de global.css). */
+export function cadreDeLaBulle(corps: Point, cote: number, bulle: Taille, gauche: number, dessous: boolean): Cadre {
+  const haut = dessous ? corps.y + (CASES_H - 1) * cote : corps.y + 3 * cote - bulle.hauteur;
+  return { gauche, droite: gauche + bulle.largeur, haut, bas: haut + bulle.hauteur };
+}
+
+/**
+ * Sa bulle, posée au mieux : là où elle couvre le moins de cases occupées de `carte` (aucune, si possible), au-dessus de
+ * lui de préférence, sa queue toujours vers sa tête, sans sortir de la fenêtre. Sans place entière ni au-dessus ni
+ * dessous, la règle de `placeDeLaBulle`. `libre` : elle ne couvre rien.
+ */
+export function bulleAuMieux(corps: Point, cote: number, bulle: Taille, fenetre: Fenetre, carte: Carte | null): { gauche: number; queue: number; dessous: boolean; libre: boolean } {
+  const centre = corps.x + (CASES_L / 2) * cote;
+  const defaut = placeDeLaBulle(centre, bulle.largeur, fenetre.largeur, {
+    hauteur: bulle.hauteur,
+    dessus: corps.y + 3 * cote - fenetre.haut,
+    dessous: fenetre.hauteur - (corps.y + (CASES_H - 1) * cote),
+  });
+  const couvre = (gauche: number, dessous: boolean): number => (carte ? casesOccupees(carte, cadreDeLaBulle(corps, cote, bulle, gauche, dessous)) : 0);
+  const queue = (gauche: number): number => borner(centre - gauche, 18, bulle.largeur - 26);
+  // La queue reste sur sa tête : entre 18 pixels du bord gauche de la bulle et 26 de son bord droit.
+  const min = Math.max(8, centre - (bulle.largeur - 26));
+  const max = Math.min(fenetre.largeur - 8 - bulle.largeur, centre - 18);
+  const gauches = max >= min ? suite(min, max, defaut.gauche) : [defaut.gauche];
+  let meilleure: { gauche: number; dessous: boolean; n: number; score: number } | null = null;
+  for (const dessous of [defaut.dessous, !defaut.dessous]) {
+    const cadre = cadreDeLaBulle(corps, cote, bulle, 0, dessous);
+    if (cadre.haut < fenetre.haut || cadre.bas > fenetre.hauteur) continue;
+    for (const gauche of gauches) {
+      const n = couvre(gauche, dessous);
+      const score = n * 1e6 + (dessous === defaut.dessous ? 0 : 1_000) + Math.abs(gauche - defaut.gauche);
+      if (!meilleure || score < meilleure.score) meilleure = { gauche, dessous, n, score };
+    }
+  }
+  if (!meilleure) return { gauche: defaut.gauche, queue: defaut.queue, dessous: defaut.dessous, libre: couvre(defaut.gauche, defaut.dessous) === 0 };
+  return { gauche: meilleure.gauche, queue: queue(meilleure.gauche), dessous: meilleure.dessous, libre: meilleure.n === 0 };
+}
+
+/**
+ * Où se poser pour saluer : la place libre la plus proche de `voulue` où il tient en entier, sa bulle au-dessus de lui à
+ * sa place habituelle, l'une et l'autre sans rien couvrir ni sortir de la fenêtre ; `null` s'il n'y en a pas.
+ */
+export function placePourSaluer(voulue: Point, carte: Carte, b: Bornes, cote: number, fenetre: Fenetre, bulle: Taille): Point | null {
+  // La bulle à sa place habituelle, au-dessus de lui (`placeDeLaBulle`) : son bord gauche à 36 % de sa largeur avant sa tête.
+  const gaucheBulle = (CASES_L / 2) * cote - bulle.largeur * 0.36;
+  const hautBulle = 3 * cote - bulle.hauteur;
+  const e: Cadre = {
+    gauche: Math.min(0, gaucheBulle) / cote,
+    droite: Math.max(CASES_L * cote, gaucheBulle + bulle.largeur) / cote,
+    haut: Math.min(0, hautBulle) / cote,
+    bas: CASES_H,
+  };
+  const bornes: Bornes = {
+    gauche: Math.max(b.gauche, 8 - gaucheBulle),
+    droite: Math.min(b.droite, fenetre.largeur - 8 - gaucheBulle - bulle.largeur),
+    haut: Math.max(b.haut, fenetre.haut - hautBulle),
+    bas: b.bas,
+  };
+  return chercher(voulue, carte, bornes, cote, bornes.bas, e, []);
 }
 
 /** Sa place, arrêté là : libre (ce qu'il montre de sa boîte ne touche rien), et sa forme. */
