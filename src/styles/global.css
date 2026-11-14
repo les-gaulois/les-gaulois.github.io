@@ -2104,7 +2104,8 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
    Un poste de commandement posé sur le décor du site, qui garde ses couleurs, ses titres et son tricolore : la grille des
    cases de conquête se dessine, l'écran a ses lignes de balayage, et ce que dit la machine (invite, onglets, libellés,
    chiffres, états) s'écrit en chasse fixe. Rien ne bouge seul, sauf à l'ouverture : l'invite s'écrit et une bande de
-   lumière descend, une fois. Le bouton pause et « réduire les animations » coupent les deux. Rien ne clignote.
+   lumière descend, une fois. Le bouton pause et « réduire les animations » coupent les deux. Seul le pavé de l'invite
+   clignote, comme un terminal (.console-curseur).
    Voir docs/DESIGN.md, « Ambiance console ». */
 :root[data-ambiance="console"] {
   --console-grille: color-mix(in srgb, var(--color-red) 7%, transparent);
@@ -2188,8 +2189,8 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   }
 }
 
-/* L'invite au-dessus du titre, décorative (aria-hidden) : elle s'écrit une fois, lettre à lettre, puis reste. Le curseur
-   est un pavé fixe : il ne clignote pas. */
+/* L'invite au-dessus du titre, décorative (aria-hidden) : elle s'écrit une fois, lettre à lettre, puis reste. Son pavé
+   clignote comme le curseur d'un terminal (plus bas, .console-curseur). */
 :root[data-ambiance="console"] .console-invite {
   display: flex;
   align-items: center;
@@ -2211,7 +2212,10 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   font-weight: 700;
   color: var(--color-blue-text);
 }
-/* Le curseur est rouge, le marqueur du site, sur les deux pages : sa lueur aussi, même où la lueur de la page est bleue. */
+/* Le curseur est rouge, le marqueur du site, sur les deux pages : sa lueur aussi, même où la lueur de la page est bleue.
+   Il clignote comme celui d'un terminal, à la demande du pilote (14 novembre 2026) : allumé puis éteint, net, une fois
+   par seconde environ, bien en dessous des trois éclairs par seconde de WCAG 2.3.1. Il ne commence qu'une fois l'invite
+   écrite : il se pose allumé. Le bouton pause et « réduire les animations » le laissent allumé, fixe (WCAG 2.2.2). */
 .console-curseur {
   display: inline-block;
   width: 0.6em;
@@ -2219,6 +2223,20 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   margin-left: 0.4em;
   background: var(--color-red);
   box-shadow: 0 0 0.75rem color-mix(in srgb, var(--color-red) 55%, transparent);
+  animation: console-clignote 1.1s step-end 1s infinite;
+}
+/* L'invite des consoles s'écrit plus lentement (0,2 s d'attente, puis 0,9 s, ou 1,5 s avec sa commande). */
+.console-invite .console-curseur {
+  animation-delay: 1.1s;
+}
+:root[data-console] .console-invite .console-curseur {
+  animation-delay: 1.7s;
+}
+/* Allumé la première moitié du tour, éteint la seconde : le pas net d'un terminal, sans fondu. */
+@keyframes console-clignote {
+  50% {
+    opacity: 0;
+  }
 }
 @keyframes console-frappe {
   from {
@@ -6436,8 +6454,8 @@ html {
 }
 
 /* L'invite au-dessus du titre (Invite.astro), décorative (aria-hidden) : « gal@clan:~/resultats$ ./classement ». Elle
-   s'écrit une fois, lettre à lettre, puis reste ; le curseur rouge ne clignote pas. Sur téléphone, plus petite : la plus
-   longue tient dans 328 px. */
+   s'écrit une fois, lettre à lettre, puis reste ; le curseur rouge clignote (.console-curseur). Sur téléphone, plus
+   petite : la plus longue tient dans 328 px. */
 .invite {
   display: flex;
   align-items: center;
@@ -6719,7 +6737,8 @@ footer h2 {
 
 /* La bulle du guerrier : une bulle de manga passée par la machine. Des angles coupés et une queue en éclair, comme la
    voix d'un appareil dans une planche ; l'encre du site, un trait clair, la chasse fixe. Les paroles sont en capitales,
-   les lignes de la machine en minuscules. Elle s'écrit lettre à lettre, puis son pavé se pose : il ne clignote pas.
+   les lignes de la machine en minuscules. Elle s'écrit lettre à lettre, puis son pavé se pose et clignote, comme le
+   curseur de l'invite.
    Décorative (aria-hidden) : elle ne paraît qu'avec les effets, en haut à droite du guerrier, du côté où il regarde. */
 .holo-bulle {
   --coupe: 0.4375rem;
@@ -6810,6 +6829,8 @@ footer h2 {
     opacity: 0;
   }
 }
+/* Le pavé paraît juste après la dernière lettre (holo.ts lui donne le rang suivant), puis clignote au rythme du curseur
+   de l'invite (console-clignote) : allumé d'abord. */
 .holo-pave {
   display: inline-block;
   width: 0.55em;
@@ -6817,6 +6838,9 @@ footer h2 {
   margin-left: 0.3em;
   vertical-align: -0.12em;
   background: var(--color-red);
+  animation:
+    holo-frappe 1ms linear both,
+    console-clignote 1.1s step-end infinite;
 }
 /* Sur téléphone, le guerrier est petit et centré : la bulle prend sa largeur, et dépasse d'un rien à droite, dans la marge
    de la page. Une réplique y tient sur une ligne, et ne couvre que le haut du cercle. */

@@ -11,6 +11,12 @@
   },
   {
     "date": "2026-11-14",
+    "kind": "ameliore",
+    "title": "Le curseur clignote",
+    "body": "Le petit carré rouge au bout des lignes « gal@… » en haut des pages clignote comme dans un vrai terminal. Le bouton pause l'arrête."
+  },
+  {
+    "date": "2026-11-14",
     "kind": "corrige",
     "title": "Bleu, blanc, rouge sur le site blanc",
     "body": "Le filet tricolore et le guerrier retrouvent leur blanc : le guerrier ressort en relief, sans fond. Les titres du QG et de la Direction sont nets, et le bas de l'accueil reprend de la couleur."
