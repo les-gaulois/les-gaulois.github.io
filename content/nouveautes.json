@@ -1,6 +1,12 @@
 [
   {
     "date": "2026-11-14",
+    "kind": "nouveau",
+    "title": "Un salut dans le salon général",
+    "body": "Sur le Discord du clan, le robot salue aussi chaque nouveau venu dans le salon général : une image à son nom, quatre conseils pour commencer, et des Gaulois du village qui lui disent coucou."
+  },
+  {
+    "date": "2026-11-14",
     "kind": "ameliore",
     "title": "Le guerrier de l'accueil sur Rejoindre",
     "body": "Sur ordinateur, la page Rejoindre montre le même guerrier qu'à l'accueil : il tourne la tête vers la souris et parle dans sa bulle.",

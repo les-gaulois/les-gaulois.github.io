@@ -40,12 +40,16 @@ jobs:
       # serveur Discord, poste une image de bienvenue pour chaque arrivée de moins de deux heures, puis retire le message de
       # Discord. Avec le jeton du robot (secret DISCORD_BOT_TOKEN) ; sans lui, l'étape ne fait rien. Rien n'est noté dans le
       # dépôt : le salon dit lui-même ce qui reste à faire. Une panne de Discord ne bloque rien : le passage suivant réessaie.
+      # Juste après chaque image, il salue aussi le nouveau venu dans le salon général, avec quelques Gaulois du village : leurs
+      # tenues se lisent au serveur du site (SUPABASE_URL, SUPABASE_SECRET_KEY) ; sans eux, l'image part sans Gaulois.
       - name: Accueillir les arrivées sur Discord
         continue-on-error: true
         timeout-minutes: 2
         run: npm run arrivees:accueillir
         env:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
       # Une seconde copie de l'état des envois, hors de Git : si l'enregistrement sur main échoue, les victoires déjà parties sont
       # notées quand même, et ne repartent pas toutes les 5 minutes. Le fichier ne contient que des identifiants de partie et des
       # heures de début, déjà publics.

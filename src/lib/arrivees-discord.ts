@@ -9,6 +9,10 @@
  * dans aucun message, même d'erreur. Les journaux de l'Action sont publics : ils ne nomment personne, et ne donnent le numéro
  * d'aucun joueur.
  *
+ * Juste après l'image, il salue aussi le nouveau venu dans le salon général du serveur, en le mentionnant, avec une seconde
+ * image et quatre conseils (`arrivees-general.ts`, demandé par le pilote le 14 novembre 2026). Il trouve ce salon à son nom ;
+ * il n'y lit rien et n'y retire rien.
+ *
  * L'ordre protège le salon : l'image d'abord, puis le retrait du message de Discord. Si le retrait échoue, le passage suivant
  * retrouve l'image à son nom de fichier et ne retire que le message : jamais deux images pour une arrivée. Et rien n'est posté
  * tant que les droits du robot dans le salon ne sont pas tous là, ou ne se lisent pas.
@@ -29,6 +33,7 @@ import {
   type Decor,
   type Phrase,
 } from "./arrivees";
+import { findChannel, GENERAL_FILENAME, GENERAL_KEYS, generalButtons, generalPayload, missingGeneralPermissions, openToEveryone, readChannels, TICKET_KEYS } from "./arrivees-general";
 import { APPLICATION_ID as GAL_APPLICATION_ID } from "./discord-commande";
 
 export const DISCORD_API = "https://discord.com/api/v10";
@@ -227,6 +232,20 @@ export interface ArrivalsDeps {
   wait?: (ms: number) => Promise<void>;
   /** La page du secret DISCORD_BOT_TOKEN dans GitHub, donnée quand le jeton est à remplacer. */
   secretUrl?: string;
+  /** Le salut du salon général (`arrivees-general.ts`). Sans lui, le robot ne poste que dans le salon des arrivées. */
+  general?: GeneralDeps;
+}
+
+export interface GeneralDeps {
+  /**
+   * Dessine l'image du salon général en PNG, avec le même nom et la même photo que l'image de « nouveaux ». `seed` : le numéro
+   * du message d'arrivée, qui tire les Gaulois du village qui saluent. `gaulois` : combien ont été proposés au dessin.
+   */
+  render: (drawing: ArrivalDrawing, avatar: Buffer | null, seed: string) => Promise<{ png: Uint8Array; gaulois: number }>;
+  /** La description de l'image, pour les lecteurs d'écran. `fullName` : le nom entier du joueur ; `gaulois` : voir `render`. */
+  alt: (fullName: string, gaulois: number) => string;
+  /** L'adresse du site, pour le bouton sous l'image. */
+  siteUrl: string;
 }
 
 export interface ArrivalsResult {
@@ -376,13 +395,15 @@ export async function arrivalsPass(deps: ArrivalsDeps): Promise<ArrivalsResult> 
   if (member.status !== 200 || channel.status !== 200 || !Array.isArray(roles) || !Array.isArray(memberRoles)) {
     return stop(`les droits du robot n'ont pas pu être lus (Discord a répondu ${member.status} et ${channel.status}) : rien n'est remplacé. ${RETRY}`);
   }
+  const roleList = roles.flatMap((r) => {
+    const role = record(r);
+    return role && typeof role["id"] === "string" && typeof role["permissions"] === "string" ? [{ id: role["id"], permissions: role["permissions"] }] : [];
+  });
+  const memberRoleList = memberRoles.filter((r): r is string => typeof r === "string");
   const granted = channelPermissions(
     guildId,
-    roles.flatMap((r) => {
-      const role = record(r);
-      return role && typeof role["id"] === "string" && typeof role["permissions"] === "string" ? [{ id: role["id"], permissions: role["permissions"] }] : [];
-    }),
-    memberRoles.filter((r): r is string => typeof r === "string"),
+    roleList,
+    memberRoleList,
     botId,
     (Array.isArray(overwrites) ? overwrites : []).flatMap((o) => {
       const entry = record(o);
@@ -426,6 +447,73 @@ export async function arrivalsPass(deps: ArrivalsDeps): Promise<ArrivalsResult> 
     return result;
   }
 
+  // Le salon général, cherché une fois par passage, au premier salut : `undefined` tant qu'on ne l'a pas cherché, `null` s'il
+  // n'y a pas de salut à faire à ce passage (pas de salon de ce nom, droits qui manquent, refus de Discord).
+  let general: { channelId: string; ticketId: string | null } | null | undefined = deps.general ? undefined : null;
+  let greeted = 0;
+  const generalTarget = async (): Promise<{ channelId: string; ticketId: string | null } | null> => {
+    if (general !== undefined) return general;
+    general = null;
+    const listed = await api.get(`/guilds/${guildId}/channels`);
+    if (!listed || listed.status !== 200) {
+      log(`::warning::Salon général : ${listed ? `Discord a répondu ${listed.status} à la lecture des salons du serveur` : "Discord n'a pas répondu"}, pas de salut à ce passage.`);
+      return null;
+    }
+    const channels = readChannels(listed.body);
+    const search = findChannel(channels, GENERAL_KEYS);
+    if (!search.found) {
+      log(
+        search.count === 0
+          ? "::warning::Salon général : aucun salon du serveur ne s'appelle « général » (les émoji et les signes autour du nom ne comptent pas), pas de salut."
+          : `::warning::Salon général : ${search.count} salons s'appellent « général », le robot ne choisit pas à la place du serveur : pas de salut. Un seul doit porter ce nom.`,
+      );
+      return null;
+    }
+    // Un serveur qui écrirait ses arrivées dans le salon général : l'image y est déjà, un second message la doublerait.
+    if (search.found.id === channelId) return null;
+    const missingThere = missingGeneralPermissions(channelPermissions(guildId, roleList, memberRoleList, botId, search.found.permission_overwrites));
+    if (missingThere.length > 0) {
+      log(`::warning::Salon général : il manque au robot ${quoted(missingThere)} dans ce salon (Modifier le salon, Permissions) : pas de salut tant que ces droits manquent. L'image de « nouveaux » part quand même.${who}`);
+      return null;
+    }
+    // Le salon des tickets, seulement parmi les salons ouverts à tous : jamais le ticket privé d'un joueur.
+    const tickets = findChannel(
+      channels.filter((c) => openToEveryone(c, guildId)),
+      TICKET_KEYS,
+    );
+    if (!tickets.found) {
+      log(
+        tickets.count === 0
+          ? "Salon général : aucun salon ouvert à tous ne s'appelle « ticket » ou « tickets », le salut part sans le bouton « Salon des tickets »."
+          : `Salon général : ${tickets.count} salons ouverts à tous s'appellent « ticket », le salut part sans le bouton « Salon des tickets ». Un seul doit porter ce nom.`,
+      );
+    }
+    general = { channelId: search.found.id, ticketId: tickets.found?.id ?? null };
+    return general;
+  };
+  /** Salue le nouveau venu dans le salon général. Une fois : sans réponse ou refus de Discord, le salut n'est pas renvoyé. */
+  const greet = async (drawing: ArrivalDrawing, avatar: Buffer | null, fullName: string, userId: string, messageId: string): Promise<void> => {
+    if (!deps.general) return;
+    const target = await generalTarget();
+    if (!target) return;
+    let drawn: { png: Uint8Array; gaulois: number };
+    try {
+      drawn = await deps.general.render(drawing, avatar, messageId);
+    } catch (e) {
+      log(`::warning::Salon général : image impossible à dessiner (${e instanceof Error ? e.message : "erreur inconnue"}), pas de salut pour cette arrivée.`);
+      return;
+    }
+    const payload = generalPayload(userId, deps.general.alt(fullName, drawn.gaulois), generalButtons(guildId, target.ticketId, deps.general.siteUrl));
+    const posted = await api.postImage(`/channels/${target.channelId}/messages`, payload, drawn.png, GENERAL_FILENAME);
+    if (posted && posted.status >= 200 && posted.status < 300) {
+      greeted++;
+      return;
+    }
+    log(`::warning::Salon général : ${posted ? `Discord a répondu ${posted.status} à l'envoi du salut` : "Discord n'a pas répondu à l'envoi du salut"}, il ne sera pas renvoyé.`);
+    // Un refus de droit vaudrait pour les suivants : inutile d'insister à ce passage.
+    if (!posted || posted.status === 403) general = null;
+  };
+
   const recent: PastStyle[] = [...plan.recent];
   for (const task of plan.tasks) {
     const { message } = task;
@@ -456,10 +544,12 @@ export async function arrivalsPass(deps: ArrivalsDeps): Promise<ArrivalsResult> 
       // Le nom affiché d'abord ; si l'image ne se dessine pas avec lui, le nom d'utilisateur, que Discord limite aux lettres simples.
       const avatar = await readAvatar(avatarUrl(guildId, message.author.id, memberAvatar, message.author.avatar), deps.fetch);
       let png: Uint8Array | null = null;
+      let drawnAs = "";
       let problem = "erreur inconnue";
       for (const name of names) {
         try {
           png = await deps.render({ decor: style.decor, phrase, name }, avatar);
+          drawnAs = name;
           break;
         } catch (e) {
           if (e instanceof Error) problem = e.message;
@@ -482,6 +572,9 @@ export async function arrivalsPass(deps: ArrivalsDeps): Promise<ArrivalsResult> 
         continue;
       }
       recent.unshift(style);
+      // L'image est dans « nouveaux » : le salut du salon général part maintenant, une seule fois. Au passage suivant, l'image
+      // déjà là dit que tout est fait pour ce joueur.
+      await greet({ decor: style.decor, phrase, name: drawnAs }, avatar, fullName, message.author.id, message.id);
     }
 
     const removed = await api.remove(`/channels/${channelId}/messages/${message.id}`, REMOVAL_REASON);
@@ -502,6 +595,7 @@ export async function arrivalsPass(deps: ArrivalsDeps): Promise<ArrivalsResult> 
 
   const parts = [plural(result.replaced, "message d'arrivée remplacé par une image", "messages d'arrivée remplacés par une image")];
   if (result.replaced === 0) parts[0] = "aucun message d'arrivée remplacé";
+  if (greeted > 0) parts.push(plural(greeted, "salut dans le salon général", "saluts dans le salon général"));
   if (result.cleaned > 0) parts.push(plural(result.cleaned, "message de Discord retiré après coup", "messages de Discord retirés après coup"));
   if (result.left > 0) parts.push(plural(result.left, "laissé tel quel", "laissés tels quels"));
   if (plan.later > 0) parts.push(plural(plan.later, "remis au passage suivant", "remis au passage suivant"));

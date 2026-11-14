@@ -55,6 +55,8 @@ function fakeDiscord(options: {
   mfaLevel?: number;
   /** Le compte qui possède le robot a-t-il la double authentification ? Sans réponse, Discord ne le dit pas. */
   ownerMfa?: boolean;
+  /** Les salons du serveur, pour le salut du salon général. */
+  channels?: Record<string, unknown>[];
   /** Une réponse forcée pour un appel : « POST /channels/…/messages » → 500. */
   force?: (method: string, path: string, attempt: number) => { status: number; body?: unknown } | "panne" | null;
 }) {
@@ -111,6 +113,7 @@ function fakeDiscord(options: {
       });
     }
     if (method === "GET" && path === `/channels/${CHANNEL}/messages?limit=100`) return json(200, messages);
+    if (method === "GET" && path === `/guilds/${GUILD}/channels`) return json(200, options.channels ?? []);
     if (method === "GET" && path === `/channels/${CHANNEL}`) return json(200, { id: CHANNEL, permission_overwrites: options.overwrites ?? [] });
     if (method === "GET" && path === `/guilds/${GUILD}/members/${BOT}`) return json(200, { roles: [BOT_ROLE], user: { id: BOT } });
     const memberPath = /^\/guilds\/[0-9]+\/members\/([0-9]+)$/.exec(path);
@@ -123,6 +126,8 @@ function fakeDiscord(options: {
       messages.unshift({ id, type: 0, author: { id: BOT, username: "Le Gaulois", bot: true }, content: "", attachments: [{ filename: file instanceof File ? file.name : "" }] });
       return json(200, { id });
     }
+    // Un autre salon, le salon général : le robot y poste sans rien y lire.
+    if (method === "POST" && /^\/channels\/[0-9]+\/messages$/.test(path)) return json(200, { id: snowflake(NOW) });
     const removal = new RegExp(`^/channels/${CHANNEL}/messages/([0-9]+)$`).exec(path);
     if (method === "DELETE" && removal) {
       const index = messages.findIndex((m) => m["id"] === removal[1]);
@@ -821,5 +826,252 @@ describe("un jeton refusé ou mal placé", () => {
       expect(message).toContain("Secrets and variables");
       expect(message).not.toContain("undefined");
     }
+  });
+});
+
+describe("le salut du salon général", () => {
+  const GENERAL = "135090549460002700";
+  const TICKETS = "135090549460002800";
+  const SITE = "https://les-gaulois.github.io";
+  const salons = (extra: Record<string, unknown>[] = []): Record<string, unknown>[] => [
+    { id: CHANNEL, type: 0, name: "・「👋」nouveaux", permission_overwrites: [] },
+    { id: GENERAL, type: 0, name: "・「💬」général", permission_overwrites: [] },
+    { id: TICKETS, type: 0, name: "・「📩」ticket", permission_overwrites: [] },
+    { id: "135090549460002900", type: 2, name: "Général", permission_overwrites: [] },
+    ...extra,
+  ];
+
+  function withGeneral(discord: ReturnType<typeof fakeDiscord>, extra: Partial<ArrivalsDeps> = {}) {
+    const greetings: { drawing: ArrivalDrawing; avatar: boolean }[] = [];
+    const seeds: string[] = [];
+    const base = deps(discord, {
+      general: {
+        render: async (drawing, avatar, seed) => {
+          greetings.push({ drawing, avatar: avatar !== null });
+          seeds.push(seed);
+          return { png: PNG, gaulois: 3 };
+        },
+        alt: (fullName, gaulois) => `SALUT ${fullName} ${gaulois}`,
+        siteUrl: SITE,
+      },
+      ...extra,
+    });
+    return { ...base, greetings, seeds };
+  }
+  const toGeneral = (discord: ReturnType<typeof fakeDiscord>) => discord.calls.filter((c) => c.method === "POST" && c.path === `/channels/${GENERAL}/messages`);
+
+  it("salue le nouveau venu dans le salon général juste après son image, en ne mentionnant que lui", async () => {
+    const arrival = minutesAgo(3);
+    const discord = fakeDiscord({ members: [BRENNOS], messages: [joinMessage(arrival, BRENNOS)], channels: salons() });
+    const { all, logs, drawings, greetings, seeds } = withGeneral(discord);
+    expect(await arrivalsPass(all)).toEqual({ replaced: 1, cleaned: 0, left: 0, failed: false });
+    // Le numéro du message d'arrivée tire les Gaulois du village qui saluent.
+    expect(seeds).toEqual([arrival]);
+
+    expect(discord.ops()).toEqual([`POST /channels/${CHANNEL}/messages`, `POST /channels/${GENERAL}/messages`, `DELETE /channels/${CHANNEL}/messages/${arrival}`]);
+    const salut = toGeneral(discord)[0]!;
+    expect(salut.payload).toEqual({
+      content: `<@${BRENNOS.id}>`,
+      allowed_mentions: { parse: [], users: [BRENNOS.id] },
+      attachments: [{ id: 0, filename: "bienvenue-gaulois.png", description: "SALUT Brennos 3" }],
+      components: [
+        {
+          type: 1,
+          components: [
+            { type: 2, style: 5, label: "Salon des tickets", url: `https://discord.com/channels/${GUILD}/${TICKETS}` },
+            { type: 2, style: 5, label: "Le site du clan", url: SITE },
+          ],
+        },
+      ],
+    });
+    expect(salut.filename).toBe("bienvenue-gaulois.png");
+    // La même couleur, le même nom et la même photo que l'image de « nouveaux ».
+    expect(greetings).toEqual([{ drawing: drawings[0]!.drawing, avatar: true }]);
+    expect(logs).toEqual(["::notice::Arrivées : 1 message d'arrivée remplacé par une image, 1 salut dans le salon général."]);
+  });
+
+  it("ne salue jamais deux fois : au passage suivant, l'image déjà là dit que tout est fait, même si le retrait avait échoué", async () => {
+    const arrival = minutesAgo(3);
+    let failRemoval = true;
+    const discord = fakeDiscord({
+      members: [BRENNOS],
+      messages: [joinMessage(arrival, BRENNOS)],
+      channels: salons(),
+      force: (method) => (method === "DELETE" && failRemoval ? { status: 500 } : null),
+    });
+    await arrivalsPass(withGeneral(discord).all);
+    failRemoval = false;
+    await arrivalsPass(withGeneral(discord).all);
+    await arrivalsPass(withGeneral(discord).all);
+    expect(toGeneral(discord)).toHaveLength(1);
+    expect(discord.messages.some((m) => m["id"] === arrival)).toBe(false);
+  });
+
+  it("ne lit les salons du serveur que s'il y a quelqu'un à saluer, et une seule fois par passage", async () => {
+    const quiet = fakeDiscord({ channels: salons() });
+    await arrivalsPass(withGeneral(quiet).all);
+    expect(quiet.calls.some((c) => c.path === `/guilds/${GUILD}/channels`)).toBe(false);
+
+    const busy = fakeDiscord({ members: [BRENNOS, EPONA], messages: [joinMessage(minutesAgo(2), EPONA), joinMessage(minutesAgo(3), BRENNOS)], channels: salons() });
+    const { all, logs } = withGeneral(busy);
+    await arrivalsPass(all);
+    expect(busy.calls.filter((c) => c.path === `/guilds/${GUILD}/channels`)).toHaveLength(1);
+    expect(toGeneral(busy).map((c) => c.payload?.["content"])).toEqual([`<@${BRENNOS.id}>`, `<@${EPONA.id}>`]);
+    expect(logs).toEqual(["::notice::Arrivées : 2 messages d'arrivée remplacés par une image, 2 saluts dans le salon général."]);
+  });
+
+  it("sans salon des tickets, ne garde que le bouton du site", async () => {
+    const discord = fakeDiscord({ members: [BRENNOS], messages: [joinMessage(minutesAgo(3), BRENNOS)], channels: salons().filter((c) => c["id"] !== TICKETS) });
+    await arrivalsPass(withGeneral(discord).all);
+    expect(toGeneral(discord)[0]?.payload?.["components"]).toEqual([{ type: 1, components: [{ type: 2, style: 5, label: "Le site du clan", url: SITE }] }]);
+  });
+
+  it("sans salon « général », ou avec deux, l'image de « nouveaux » part quand même, et le journal dit pourquoi personne n'est salué", async () => {
+    for (const [channels, words] of [
+      [salons().filter((c) => c["id"] !== GENERAL), "aucun salon du serveur ne s'appelle « général »"],
+      [salons([{ id: "135090549460003000", type: 0, name: "General", permission_overwrites: [] }]), "2 salons s'appellent « général »"],
+    ] as const) {
+      const discord = fakeDiscord({ members: [BRENNOS], messages: [joinMessage(minutesAgo(3), BRENNOS)], channels: [...channels] });
+      const { all, logs, greetings } = withGeneral(discord);
+      expect(await arrivalsPass(all)).toEqual({ replaced: 1, cleaned: 0, left: 0, failed: false });
+      expect(discord.ops()).toEqual([`POST /channels/${CHANNEL}/messages`, expect.stringMatching(/^DELETE /)]);
+      expect(greetings).toEqual([]);
+      expect(logs[0]).toMatch(/^::warning::Salon général : /);
+      expect(logs[0]).toContain(words);
+      expect(logs[1]).toBe("::notice::Arrivées : 1 message d'arrivée remplacé par une image.");
+    }
+  });
+
+  it("ne poste rien dans le salon général s'il y manque un droit au robot, et dit lequel", async () => {
+    const closed = salons().map((c) => (c["id"] === GENERAL ? { ...c, permission_overwrites: [{ id: GUILD, type: 0, allow: "0", deny: String(1n << 11n) }] } : c));
+    // Tout le monde a ses droits sur le serveur ; le salon général retire « Envoyer des messages » à tout le monde.
+    const discord = fakeDiscord({ members: [BRENNOS], messages: [joinMessage(minutesAgo(3), BRENNOS)], channels: closed, botPermissions: (NEEDED_PERMISSIONS_VALUE | (1n << 10n)).toString() });
+    const { all, logs } = withGeneral(discord);
+    expect(await arrivalsPass(all)).toEqual({ replaced: 1, cleaned: 0, left: 0, failed: false });
+    expect(toGeneral(discord)).toEqual([]);
+    expect(logs[0]).toContain("::warning::Salon général : il manque au robot « Envoyer des messages » dans ce salon");
+    expect(logs[0]).toContain("« Le Guetteur »");
+  });
+
+  it("ne salue pas une seconde fois dans le salon des arrivées, si le serveur l'appelle « général »", async () => {
+    const discord = fakeDiscord({ members: [BRENNOS], messages: [joinMessage(minutesAgo(3), BRENNOS)], channels: [{ id: CHANNEL, type: 0, name: "général", permission_overwrites: [] }] });
+    const { all, logs } = withGeneral(discord);
+    await arrivalsPass(all);
+    expect(discord.ops()).toEqual([`POST /channels/${CHANNEL}/messages`, expect.stringMatching(/^DELETE /)]);
+    expect(logs).toEqual(["::notice::Arrivées : 1 message d'arrivée remplacé par une image."]);
+  });
+
+  it("un refus dans le salon général n'arrête ni les images ni les retraits, et le salut n'est pas renvoyé", async () => {
+    const discord = fakeDiscord({
+      members: [BRENNOS, EPONA],
+      messages: [joinMessage(minutesAgo(2), EPONA), joinMessage(minutesAgo(3), BRENNOS)],
+      channels: salons(),
+      force: (method, path) => (method === "POST" && path === `/channels/${GENERAL}/messages` ? { status: 403, body: { code: 50013 } } : null),
+    });
+    const { all, logs } = withGeneral(discord);
+    expect(await arrivalsPass(all)).toEqual({ replaced: 2, cleaned: 0, left: 0, failed: false });
+    // Un seul essai : après un refus de droit, inutile d'insister pour la suivante.
+    expect(toGeneral(discord)).toHaveLength(1);
+    expect(logs).toContain("::warning::Salon général : Discord a répondu 403 à l'envoi du salut, il ne sera pas renvoyé.");
+    expect(logs.at(-1)).toBe("::notice::Arrivées : 2 messages d'arrivée remplacés par une image.");
+  });
+
+  it("une image du salon général qui ne se dessine pas laisse partir celle de « nouveaux »", async () => {
+    const discord = fakeDiscord({ members: [BRENNOS], messages: [joinMessage(minutesAgo(3), BRENNOS)], channels: salons() });
+    const { all, logs } = deps(discord, {
+      general: {
+        render: async () => {
+          throw new Error("police absente");
+        },
+        alt: () => "ALT",
+        siteUrl: SITE,
+      },
+    });
+    expect(await arrivalsPass(all)).toEqual({ replaced: 1, cleaned: 0, left: 0, failed: false });
+    expect(toGeneral(discord)).toEqual([]);
+    expect(logs[0]).toBe("::warning::Salon général : image impossible à dessiner (police absente), pas de salut pour cette arrivée.");
+  });
+
+  it("ne salue que ceux qui ont leur image : ni un joueur déjà reparti, ni un nom qui est une adresse", async () => {
+    const gone: Member = { id: "222222222222222209", username: "parti_trop_vite", gone: true };
+    const pub: Member = { id: "222222222222222210", username: "pub", global_name: "discord.gg/cadeau" };
+    const discord = fakeDiscord({ members: [gone, pub], messages: [joinMessage(minutesAgo(1), gone), joinMessage(minutesAgo(2), pub)], channels: salons() });
+    await arrivalsPass(withGeneral(discord).all);
+    expect(toGeneral(discord)).toEqual([]);
+    expect(discord.calls.some((c) => c.path === `/guilds/${GUILD}/channels`)).toBe(false);
+  });
+
+  it("n'écrit dans le journal ni nom, ni numéro de joueur, ni numéro de salon", async () => {
+    const discord = fakeDiscord({ members: [BRENNOS], messages: [joinMessage(minutesAgo(3), BRENNOS)], channels: salons() });
+    const { all, logs } = withGeneral(discord);
+    await arrivalsPass(all);
+    const journal = logs.join("\n");
+    for (const secret of [TOKEN, BRENNOS.id, BRENNOS.username, "Brennos", GENERAL, TICKETS, GUILD]) expect(journal).not.toContain(secret);
+  });
+
+  it("avec le vrai dessin, poste dans le salon général une autre image que celle de « nouveaux », de sa propre taille", async () => {
+    const { GazetteFonts } = await import("../../src/lib/gazette-image");
+    const { renderArrival, WarriorAssets } = await import("../../src/lib/arrivees-image");
+    const { GENERAL_HEIGHT, GENERAL_WIDTH, renderGeneral } = await import("../../src/lib/arrivees-general-image");
+    const { GENERAL_TIPS, generalAlt } = await import("../../src/lib/arrivees-general");
+    const sharp = (await import("sharp")).default;
+    const root = process.cwd();
+    const fonts = new GazetteFonts(root);
+    const warrior = new WarriorAssets(root);
+    const discord = fakeDiscord({ members: [BRENNOS], messages: [joinMessage(minutesAgo(3), BRENNOS)], channels: salons() });
+    const { all } = deps(discord, {
+      draws: (char) => fonts.draws(char, "name"),
+      render: (drawing, avatar) => renderArrival(drawing, SITE, fonts, warrior, avatar),
+      general: {
+        render: async (drawing, avatar) => ({ png: await renderGeneral({ name: drawing.name, decor: drawing.decor, tips: GENERAL_TIPS, siteUrl: SITE }, fonts, warrior, avatar), gaulois: 0 }),
+        alt: (fullName, gaulois) => generalAlt(fullName, "GAL", gaulois),
+        siteUrl: SITE,
+      },
+    });
+    await arrivalsPass(all);
+    const salut = toGeneral(discord)[0]!;
+    expect(salut.file?.type).toBe("image/png");
+    const meta = await sharp(Buffer.from(await salut.file!.arrayBuffer())).metadata();
+    expect([meta.format, meta.width, meta.height]).toEqual(["png", GENERAL_WIDTH, GENERAL_HEIGHT]);
+    // L'image de « nouveaux » est l'étendard, de 1 200 × 480 : les deux ne se doublent pas.
+    const nouveaux = discord.calls.find((c) => c.method === "POST" && c.path === `/channels/${CHANNEL}/messages`)!;
+    expect((await sharp(Buffer.from(await nouveaux.file!.arrayBuffer())).metadata()).height).toBe(480);
+    expect((salut.payload?.["attachments"] as { description: string }[])[0]!.description).toContain("Ho ! Un nouveau membre : Brennos.");
+  }, 60_000);
+});
+
+describe("le bouton des tickets, après relecture", () => {
+  const GENERAL = "135090549460002700";
+  const GUICHET = "135090549460002800";
+  const PRIVE = "135090549460002850";
+  const VIEW = String(1n << 10n);
+  const salonsAvec = (tickets: Record<string, unknown>[]) => [{ id: GENERAL, type: 0, name: "général", permission_overwrites: [] }, ...tickets];
+  const passe = async (channels: Record<string, unknown>[]) => {
+    const discord = fakeDiscord({ members: [BRENNOS], messages: [joinMessage(minutesAgo(3), BRENNOS)], channels });
+    const { all, logs } = deps(discord, { general: { render: async () => ({ png: PNG, gaulois: 0 }), alt: () => "ALT", siteUrl: "https://les-gaulois.github.io" } });
+    await arrivalsPass(all);
+    const salut = discord.calls.find((c) => c.method === "POST" && c.path === `/channels/${GENERAL}/messages`);
+    const boutons = ((salut?.payload?.["components"] as { components: { url: string }[] }[] | undefined)?.[0]?.components ?? []).map((b) => b.url);
+    return { boutons, logs };
+  };
+
+  it("ne mène jamais au ticket privé d'un joueur resté sous le nom « ticket »", async () => {
+    const { boutons } = await passe(
+      salonsAvec([
+        { id: GUICHET, type: 0, name: "・「📩」ticket", permission_overwrites: [] },
+        { id: PRIVE, type: 0, name: "ticket", permission_overwrites: [{ id: GUILD, type: 0, allow: "0", deny: VIEW }] },
+      ]),
+    );
+    expect(boutons).toEqual([`https://discord.com/channels/${GUILD}/${GUICHET}`, "https://les-gaulois.github.io"]);
+  });
+
+  it("dit dans le journal quand le salut part sans le bouton des tickets", async () => {
+    const seul = await passe(salonsAvec([{ id: PRIVE, type: 0, name: "ticket", permission_overwrites: [{ id: GUILD, type: 0, allow: "0", deny: VIEW }] }]));
+    expect(seul.boutons).toEqual(["https://les-gaulois.github.io"]);
+    expect(seul.logs).toContain("Salon général : aucun salon ouvert à tous ne s'appelle « ticket » ou « tickets », le salut part sans le bouton « Salon des tickets ».");
+
+    const deux = await passe(salonsAvec([{ id: GUICHET, type: 0, name: "ticket", permission_overwrites: [] }, { id: PRIVE, type: 0, name: "tickets", permission_overwrites: [] }]));
+    expect(deux.boutons).toEqual(["https://les-gaulois.github.io"]);
+    expect(deux.logs.some((l) => l.startsWith("Salon général : 2 salons ouverts à tous s'appellent « ticket »"))).toBe(true);
   });
 });

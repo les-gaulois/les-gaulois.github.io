@@ -1,7 +1,8 @@
 /**
  * Les Gaulois du village sur les images du robot, branchés sur les envois et sur la construction (demande du pilote,
  * 14 novembre 2026) : le lien entre la lecture au serveur (`gaulois-joueurs.ts`) et les scripts qui dessinent les images
- * (`scripts/envoyer-*.ts`, `scripts/generate-fiches.ts`, `scripts/generate-accueil-image.ts`).
+ * (`scripts/envoyer-*.ts`, `scripts/accueillir-arrivees.ts` pour le salut du salon général, `scripts/generate-fiches.ts`,
+ * `scripts/generate-accueil-image.ts`).
  *
  * - Une seule lecture au serveur par passage d'un script, et seulement au moment de dessiner une image qui nomme un membre :
  *   un passage sans image, ou une image sans membre nommé, ne demande rien (`gauloisDuPassage`).
