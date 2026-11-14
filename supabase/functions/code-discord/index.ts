@@ -59,7 +59,8 @@ import { newSyncState, syncCommands, type SyncState } from "./inscription.ts";
 import { TICKET_PREFIX, TICKETS_COMMAND_NAME, ticketInteraction, ticketsCommand } from "./tickets.ts";
 import { CONCOURS_COMMAND_NAME, CONCOURS_PREFIX, concoursCommand, concoursImage, concoursInteraction, concoursTic } from "./concours.ts";
 import { buttonEmoji, ensureEmojis, vignetteUrl, type EmojiIds } from "./emojis.ts";
-import { decrireGaulois, lireTenue, pngDuGaulois, type Tenue } from "./gaulois.ts";
+import { decrireGaulois, decrireLaScene, lireTenue, pngDuGaulois, type Tenue } from "./gaulois.ts";
+import { sceneDuGaulois, type Scene } from "./scene.ts";
 
 /** Le nom de la commande, tel que le joueur la tape. `definitions.ts` la décrit ; la fonction la crée sur le serveur du clan (`inscription.ts`). */
 export const COMMAND_NAME = "code";
@@ -723,8 +724,8 @@ export const GAULOIS_MESSAGES = {
 export const GAULOIS_FILE = "gaulois.png";
 
 /** Ce que voit tout le salon après /gaulois : le Gaulois en grand, et un bouton vers le village pour l'habiller. */
-export function gauloisMessage(tenue: Tenue): Record<string, unknown> {
-  const description = decrireGaulois(tenue).slice(0, 1024);
+export function gauloisMessage(tenue: Tenue, scene?: Scene): Record<string, unknown> {
+  const description = (scene ? decrireLaScene(tenue, scene) : decrireGaulois(tenue)).slice(0, 1024);
   return {
     flags: COMPONENTS_V2,
     components: [
@@ -758,7 +759,9 @@ async function gauloisRoute(discordId: string, deps: Deps): Promise<Response> {
   }
   const tenue = lireTenue(found["tenue"]);
   if (!tenue) return ephemeral(GAULOIS_MESSAGES.unreadable);
-  return fileReply(gauloisMessage(tenue), { name: GAULOIS_FILE, type: "image/png", bytes: await pngDuGaulois(tenue) });
+  // Le décor : là où la place du village met ce Gaulois, au moment de la journée à Paris (scene.ts).
+  const scene = sceneDuGaulois(found, new Date(deps.nowSeconds() * 1000));
+  return fileReply(gauloisMessage(tenue, scene), { name: GAULOIS_FILE, type: "image/png", bytes: await pngDuGaulois(tenue, scene) });
 }
 
 /** Les commandes du robot : les propositions pendant la saisie (type 4), puis la réponse à l'envoi (type 2). */
