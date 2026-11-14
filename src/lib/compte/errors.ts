@@ -25,6 +25,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   news_not_found: "Cette publication n'existe plus.",
   already_validated: "Votre compte est déjà validé.",
   invalid_claim: "Indiquez votre pseudo OpenFront ou votre identifiant public.",
+  invalid_profile_link: "Ce n'est pas le lien d'un profil OpenFront. Il commence par https://openfront.io/player/",
   request_open: "Vous avez déjà une demande en cours.",
   no_open_request: "Vous n'avez aucune demande en cours.",
   ambiguous_pseudo: "Plusieurs membres portent ce pseudo : indiquez plutôt votre identifiant public.",

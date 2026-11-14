@@ -14,6 +14,7 @@ import type { ClanWeekFile } from "../../lib/semaine-du-clan";
 import LogoMatrice from "../LogoMatrice";
 import { subscribe } from "./appels";
 import { Avatar, CodeLogin, DiscordButton, DiscordGives, Loading, Problem, messageOf, useMe, useNow, type Loadable } from "./common";
+import { useLienAttendu } from "./LienOpenFront";
 import { Onglets, Partie, reducedMotion, useTabs, type TabItem } from "./Onglets";
 import QgCeSoir from "./QgCeSoir";
 import QgDecisions from "./QgDecisions";
@@ -49,13 +50,14 @@ const QG_TABS = [
 /** La porte du QG, pour un visiteur ou un compte pas encore validé : ce qu'il y a derrière, et comment entrer. */
 function Door({ me }: { me: Me }) {
   const base = basePath();
+  const lien = useLienAttendu(me);
   return (
     <section class="card max-w-3xl p-6" data-testid="qg-door">
       <h2 class="text-2xl">Réservé aux membres de GAL</h2>
       <p class="mt-3 text-muted">Salons, sondages, idées, événements et mur des membres.</p>
       <ol class="mt-4 list-decimal space-y-2 pl-6">
         <li>{CODE_LOGIN_OPEN ? "Connectez-vous avec Discord, ou avec un code demandé dans le Discord du clan." : "Connectez-vous avec Discord."}</li>
-        <li>Indiquez votre pseudo ou votre identifiant OpenFront dans « Mon compte ».</li>
+        <li>Donnez le lien de votre profil OpenFront dans « Mon compte » : c'est obligatoire.</li>
         <li>Le site vérifie qu'il figure dans la liste des membres de GAL.</li>
         <li>Un officier confirme que c'est bien vous. Ensuite, le site vous reconnaît à chaque visite.</li>
       </ol>
@@ -69,7 +71,17 @@ function Door({ me }: { me: Me }) {
           {CODE_LOGIN_OPEN && <CodeLogin />}
         </>
       )}
-      {me.signed_in && me.status === "pending" && (
+      {me.signed_in && me.status === "pending" && lien === true && (
+        <div class="mt-6" data-testid="qg-lien">
+          <p>
+            <strong>Il manque le lien de votre profil OpenFront.</strong>
+          </p>
+          <a class="btn btn-primary mt-3" href={`${base}/compte`}>
+            Donner mon lien OpenFront
+          </a>
+        </div>
+      )}
+      {me.signed_in && me.status === "pending" && lien === false && (
         <p class="mt-6" data-testid="qg-pending">
           <strong>Votre compte attend sa validation.</strong> Faites ou suivez votre demande dans <a href={`${base}/compte`}>Mon compte</a>.
         </p>

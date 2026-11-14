@@ -6,10 +6,12 @@
  * reçoit le pseudo lu dans la liste le jour de la demande : présent, il prouve que le joueur y figurait.
  * `in_roster` compare le profil lié à la liste relue chaque jour (`list_members`).
  *
- * Une demande que la liste n'a pas reconnue garde l'empreinte du texte tapé (`request_membership`), souvent un pseudo.
- * La liste ne garde que l'empreinte de l'identifiant public : un compte validé ainsi n'y est jamais retrouvé, même
- * si le joueur entre dans le clan ensuite. Le site ne peut donc pas dire qu'il en est absent, seulement qu'il ne l'y trouve pas.
- * « Refaire la demande » (`reset_member_link`) remet un tel compte en attente, pour que la personne indique son pseudo exact.
+ * Jusqu'au 14 novembre 2026, une demande que la liste n'avait pas reconnue gardait l'empreinte du texte tapé
+ * (`request_membership`), souvent un pseudo, alors que la liste ne garde que l'empreinte de l'identifiant public : un compte
+ * validé ainsi n'y est jamais retrouvé, même si le joueur entre dans le clan ensuite. Le site ne peut donc pas dire qu'il en
+ * est absent, seulement qu'il ne l'y trouve pas. Depuis, chaque demande donne le lien du profil (`request_membership_link`),
+ * dont l'identifiant est celui de la liste. « Refaire la demande » (`reset_member_link`) remet un tel compte en attente,
+ * pour que la personne donne ce lien.
  */
 import { REQUESTS_LIMIT } from "./requests";
 import { ROLE_LABELS, type MemberRow, type RequestRow, type Role } from "./types";
@@ -67,8 +69,8 @@ export function canRedoRequest(member: Pick<MemberRow, "number" | "status" | "li
   return viewerRank >= 3 && member.status === "validated" && rosterCell(member, null) === "not_found" && ROLE_RANK[member.role] < viewerRank;
 }
 
-/** Ce que la personne indique dans sa nouvelle demande. Un membre sans pseudo public n'est retrouvé que par son identifiant. */
-const WHAT_TO_GIVE = "son pseudo OpenFront exact, ou son identifiant public si elle est anonyme dans la liste";
+/** Ce que la personne donne dans sa nouvelle demande : le lien de son profil, obligatoire depuis le 14 novembre 2026. */
+const WHAT_TO_GIVE = "le lien de son profil OpenFront, celui du compte qui est dans le clan";
 
 /** La question posée avant d'agir : ce qui change pour le compte, et ce que la personne devra faire. */
 export function redoRequestQuestion(name: string, role: Role): string {

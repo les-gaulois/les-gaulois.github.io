@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-14",
+    "kind": "ameliore",
+    "title": "Votre lien OpenFront à la connexion",
+    "body": "Après la connexion, avec Discord ou avec un code, collez le lien de votre profil OpenFront : c'est obligatoire. Le bouton « Ouvrir mon profil OpenFront » mène tout droit là où le copier.",
+    "link": {
+      "href": "/compte",
+      "label": "Mon compte"
+    }
+  },
+  {
+    "date": "2026-11-14",
     "kind": "nouveau",
     "title": "Un Gaulois vous suit sur le site",
     "body": "Un petit Gaulois marche au bas des pages et suit la souris. Un clic le fait parler, « Ranger » le cache. Pour un membre connecté, c'est le sien, habillé au village.",

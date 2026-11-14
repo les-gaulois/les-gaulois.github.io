@@ -1,35 +1,18 @@
 import { useEffect, useState } from "preact/hooks";
 import { ADRESSE_ALLIANCE, RETOUR_CARTE_KEY } from "../../lib/alliance/invitation";
-import type { AccesCarte, AttenteAllie } from "../../lib/alliance/types";
 import { basePath, call, signOut } from "../../lib/compte/api";
 import { ROLE_LABELS, type Me } from "../../lib/compte/types";
 import { fmtDate } from "../../lib/format";
 import { ADRESSE_VILLAGE, RETOUR_VILLAGE_KEY } from "../../lib/gaulois";
+import { COMPTE_OPENFRONT_URL } from "../../lib/compte/lien-openfront";
 import { CodeLogin, DiscordButton, DiscordGives, Loading, Problem, codeLoginShown, messageOf, useMe } from "./common";
+import { DemandeLienOpenFront, useAllie } from "./LienOpenFront";
 
-/** Lier son profil OpenFront et demander sa validation. */
+/** La demande envoyée, en attente d'un officier : on peut l'annuler. Sans demande en cours, le lien OpenFront est demandé. */
 function MembershipRequest({ me, onChange }: { me: Me; onChange: () => Promise<void> }) {
-  const [claim, setClaim] = useState("");
-  const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const request = me.request;
-  const open = request?.status === "pending";
-
-  const send = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      await call("request_membership", { p_claim: claim, p_note: note || null });
-      setClaim("");
-      setNote("");
-      await onChange();
-    } catch (e) {
-      setError(messageOf(e));
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const cancel = async () => {
     setBusy(true);
@@ -43,68 +26,24 @@ function MembershipRequest({ me, onChange }: { me: Me; onChange: () => Promise<v
     }
   };
 
-  if (open) {
-    return (
-      <section class="card p-5" data-testid="request-pending">
-        <h2 class="text-xl">Demande en attente</h2>
-        <p class="mt-2">
-          {request.in_roster ? (
-            <>
-              Profil{request.roster_username ? ` « ${request.roster_username} »` : ""} trouvé dans la liste des membres. Un officier doit encore confirmer que c'est vous.
-            </>
-          ) : (
-            <>Profil pas encore trouvé dans la liste des membres, relue chaque jour : un officier va vérifier.</>
-          )}
-        </p>
-        <p class="mt-2 text-sm text-muted">Envoyée le {fmtDate(request.created_at)}.</p>
-        <button type="button" class="btn btn-ghost mt-4 !min-h-10 !py-1.5 !text-sm" disabled={busy} onClick={() => void cancel()}>
-          Annuler ma demande
-        </button>
-        <Problem message={error} />
-      </section>
-    );
-  }
+  if (request?.status !== "pending") return <DemandeLienOpenFront me={me} onSent={onChange} />;
 
   return (
-    <section class="card p-5" data-testid="request-form">
-      <h2 class="text-xl">Lier mon profil OpenFront</h2>
-      <p class="mt-2 text-muted">Un officier confirmera ensuite que c'est bien vous.</p>
-      {request?.status === "refused" && (
-        <p class="form-problem mt-3" data-testid="request-refused">
-          Votre dernière demande a été refusée{request.reason ? ` : ${request.reason}` : "."}
-        </p>
-      )}
-      {/* Une demande acceptée, et pourtant un compte en attente : l'encadrement l'a remis en attente avec « Refaire la demande ». */}
-      {request?.status === "approved" && (
-        <p class="form-problem mt-3" data-testid="request-redo">
-          Refaites votre demande : votre profil n'a pas été trouvé dans la liste des membres. Indiquez votre pseudo exact, tel qu'il apparaît dans la <a href={`${basePath()}/liste`}>liste des membres</a>, ou votre identifiant public si vous y figurez comme « Membre anonyme ».
-        </p>
-      )}
-      <form
-        class="mt-4 grid gap-3"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void send();
-        }}
-      >
-        <div>
-          <label for="claim" class="text-sm font-semibold">
-            Pseudo OpenFront ou identifiant public
-          </label>
-          <input id="claim" class="field mt-1" required maxLength={64} autocomplete="off" value={claim} onInput={(e) => setClaim(e.currentTarget.value)} />
-        </div>
-        <div>
-          <label for="note" class="text-sm font-semibold">
-            Un mot pour l'officier (facultatif)
-          </label>
-          <input id="note" class="field mt-1" maxLength={300} placeholder="Votre pseudo sur le Discord du clan, par exemple" value={note} onInput={(e) => setNote(e.currentTarget.value)} />
-        </div>
-        <div>
-          <button type="submit" class="btn btn-primary" disabled={busy || claim.trim() === ""}>
-            Demander ma validation
-          </button>
-        </div>
-      </form>
+    <section class="card p-5" data-testid="request-pending">
+      <h2 class="text-xl">Demande en attente</h2>
+      <p class="mt-2">
+        {request.in_roster ? (
+          <>
+            Profil{request.roster_username ? ` « ${request.roster_username} »` : ""} trouvé dans la liste des membres. Un officier doit encore confirmer que c'est vous.
+          </>
+        ) : (
+          <>Profil pas encore trouvé dans la liste des membres, relue chaque jour : un officier va vérifier.</>
+        )}
+      </p>
+      <p class="mt-2 text-sm text-muted">Envoyée le {fmtDate(request.created_at)}.</p>
+      <button type="button" class="btn btn-ghost mt-4 !min-h-10 !py-1.5 !text-sm" disabled={busy} onClick={() => void cancel()}>
+        Annuler ma demande
+      </button>
       <Problem message={error} />
     </section>
   );
@@ -135,27 +74,6 @@ function DeleteAccount({ founder }: { founder: boolean }) {
       <Problem message={error} />
     </section>
   );
-}
-
-/** Ce que la carte de l'alliance ouvre à ce compte, pour un compte en attente : un joueur allié invité y a sa place. */
-function useAllie(me: Me | null): { tag: string; name: string; enAttente: boolean } | null {
-  const [access, setAccess] = useState<{ tag: string; name: string; enAttente: boolean } | null>(null);
-  useEffect(() => {
-    if (!me?.signed_in || me.status !== "pending") {
-      setAccess(null);
-      return;
-    }
-    call<{ access: AccesCarte | null; waiting?: AttenteAllie | null }>("get_map_access")
-      .then((r) => {
-        if (r.access?.kind === "allie") setAccess({ tag: r.access.tag, name: r.access.name, enAttente: false });
-        // Il a ouvert son lien d'invitation : l'encadrement doit encore l'accepter.
-        else if (r.waiting) setAccess({ tag: r.waiting.tag, name: r.waiting.alias, enAttente: true });
-        else setAccess(null);
-      })
-      // Un serveur d'avant la carte de l'alliance ne connaît pas cette fonction : la page reste comme avant.
-      .catch(() => setAccess(null));
-  }, [me?.signed_in, me?.status]);
-  return access;
 }
 
 /** Un retour noté au départ vers Discord ; un départ abandonné il y a plus d'un quart d'heure ne compte plus. */
@@ -262,6 +180,9 @@ export default function AccountApp() {
                 Direction
               </a>
             )}
+            <a class="btn btn-ghost" href={COMPTE_OPENFRONT_URL} target="_blank" rel="noopener" data-testid="account-openfront">
+              Mon profil OpenFront<span class="sr-only"> (nouvel onglet)</span>
+            </a>
           </div>
         )}
       </section>
@@ -280,7 +201,7 @@ export default function AccountApp() {
           </a>
         </section>
       )}
-      {me.status === "pending" && !allie && <MembershipRequest me={me} onChange={refresh} />}
+      {me.status === "pending" && allie === null && <MembershipRequest me={me} onChange={refresh} />}
 
       <DeleteAccount founder={me.role === "founder"} />
     </div>

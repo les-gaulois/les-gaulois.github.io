@@ -449,7 +449,7 @@ export function Members({ me, ask, onReady, active = true }: { me: Me; ask?: Mem
                     <td role="cell" class="comptes-c-action">
                       {(redo || suspend || reinstate) && (
                         <div class="comptes-actions">
-                          {/* Un compte que la liste ne trouve pas : la personne refait sa demande avec son pseudo exact. */}
+                          {/* Un compte que la liste ne trouve pas : la personne refait sa demande avec le lien de son profil. */}
                           {redo && (
                             <button
                               type="button"

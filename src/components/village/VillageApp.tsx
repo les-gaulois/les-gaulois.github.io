@@ -1,3 +1,4 @@
+import { DemandeLienOpenFront, useLienAttendu } from "../compte/LienOpenFront";
 import { Loading, useMe } from "../compte/common";
 import { Onglets, Partie, useTabs, type TabItem } from "../compte/Onglets";
 import Vestiaire from "../compte/Vestiaire";
@@ -17,10 +18,13 @@ const PREFIXE = "village";
  * La page du village : un visiteur voit le Gaulois de départ et la porte, comme avant les onglets ; un compte connecté a
  * trois onglets, comme au QG : son Gaulois (le vestiaire), la place où se tiennent les Gaulois des membres, et le marché.
  * La place et le marché ne lisent le serveur qu'à leur première ouverture ; il décide de ce que chacun peut y voir.
+ * Un compte qui vient de se connecter ici sans avoir donné le lien de son profil OpenFront le donne d'abord, comme dans
+ * « Mon compte » : c'est obligatoire.
  */
 export default function VillageApp() {
-  const { me } = useMe();
+  const { me, refresh } = useMe();
   const { active, slide, shown, select, call } = useTabs(IDS);
+  const lien = useLienAttendu(me);
 
   if (me === null) return <Loading label="Lecture de votre compte…" />;
 
@@ -34,6 +38,15 @@ export default function VillageApp() {
           <Vestiaire />
         </div>
       </section>
+    );
+  }
+
+  if (lien === null) return <Loading label="Lecture de votre compte…" />;
+  if (lien) {
+    return (
+      <div class="max-w-3xl" data-testid="village-lien">
+        <DemandeLienOpenFront me={me} onSent={refresh} />
+      </div>
     );
   }
 

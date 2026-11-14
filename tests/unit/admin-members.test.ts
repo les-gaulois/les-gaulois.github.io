@@ -102,9 +102,9 @@ describe("le bouton « Refaire la demande »", () => {
     expect(canRedoRequest(notFound({ status: "suspended" }), 4)).toBe(false);
   });
 
-  it("dit avant d'agir ce qui change et ce que la personne devra faire, anonymes compris", () => {
+  it("dit avant d'agir ce qui change et ce que la personne devra faire : le lien de son profil", () => {
     expect(redoRequestQuestion("Gaulois n° 9", "member")).toBe(
-      "Remettre le compte Gaulois n° 9 en attente ?\n\nLe QG lui restera fermé jusqu'à sa nouvelle validation. La personne devra refaire sa demande dans « Mon compte », avec son pseudo OpenFront exact, ou son identifiant public si elle est anonyme dans la liste, puis un officier la validera.",
+      "Remettre le compte Gaulois n° 9 en attente ?\n\nLe QG lui restera fermé jusqu'à sa nouvelle validation. La personne devra refaire sa demande dans « Mon compte », avec le lien de son profil OpenFront, celui du compte qui est dans le clan, puis un officier la validera.",
     );
   });
 
@@ -116,14 +116,14 @@ describe("le bouton « Refaire la demande »", () => {
 
   it("dit après coup qui prévenir sur Discord, et où arrivera la nouvelle demande", () => {
     expect(redoRequestDone("Gaulois n° 9", "essai_9")).toBe(
-      "Le compte Gaulois n° 9 est remis en attente. Prévenez essai_9 sur Discord : sa demande est à refaire dans « Mon compte », avec son pseudo OpenFront exact, ou son identifiant public si elle est anonyme dans la liste. Sa nouvelle demande arrivera ensuite dans l'onglet Demandes.",
+      "Le compte Gaulois n° 9 est remis en attente. Prévenez essai_9 sur Discord : sa demande est à refaire dans « Mon compte », avec le lien de son profil OpenFront, celui du compte qui est dans le clan. Sa nouvelle demande arrivera ensuite dans l'onglet Demandes.",
     );
     expect(redoRequestDone("Gaulois n° 9", null)).toContain("Prévenez la personne sur Discord");
   });
 
   it("explique la case sous le tableau, et ne parle du bouton que s'il est à l'écran", () => {
     expect(notFoundHelp(true)).toBe(
-      "« Pas trouvé dans la liste » : un tel compte n'est relié à aucun membre de la liste officielle. « Refaire la demande » le remet en attente, pour que la personne indique son pseudo OpenFront exact, ou son identifiant public si elle est anonyme dans la liste.",
+      "« Pas trouvé dans la liste » : un tel compte n'est relié à aucun membre de la liste officielle. « Refaire la demande » le remet en attente, pour que la personne indique le lien de son profil OpenFront, celui du compte qui est dans le clan.",
     );
     expect(notFoundHelp(false)).toContain("Un admin peut le remettre en attente, ou le fondateur s'il s'agit d'un admin");
     expect(notFoundHelp(false)).not.toContain("« Refaire la demande »");
