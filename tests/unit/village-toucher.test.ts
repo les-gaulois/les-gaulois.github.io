@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { hasardDe } from "../../src/lib/village/mouvement";
-import { AGACES, AIMABLES, EXCEDES, FAMILLES, FURIEUX, LE_SIEN, LE_SIEN_AGACE, MOTS_INTERDITS, SALUTS, SOMMEIL, SOMMEIL_AGACE } from "../../src/lib/village/repliques-toucher";
+import { AGACES, AIMABLES, EXCEDES, FAMILLES, FURIEUX, LE_SIEN, LE_SIEN_AGACE, MOTS_INTERDITS, PHRASE_DU_PILOTE, SALUTS, SOMMEIL, SOMMEIL_AGACE, contientLeMot } from "../../src/lib/village/repliques-toucher";
 import {
   CARNET_JOUR_MS,
   CARNET_MAX,
@@ -12,6 +12,7 @@ import {
   compterLeToucher,
   dureeDeLaBulle,
   ecrireCarnet,
+  empreinte,
   lireCarnet,
   listeDuToucher,
   palierDuToucher,
@@ -74,20 +75,29 @@ describe("les phrases du toucher", () => {
 
   it("ne contiennent aucun mot interdit", () => {
     for (const phrase of TOUTES) {
-      const texte = phrase.toLowerCase();
-      for (const mot of MOTS_INTERDITS) {
-        const entier = new RegExp(`(?<!\\p{L})${mot.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?!\\p{L})`, "u");
-        expect(entier.test(texte), `« ${phrase} » contient « ${mot} »`).toBe(false);
-      }
+      for (const mot of MOTS_INTERDITS) expect(contientLeMot(phrase, mot), `« ${phrase} » contient « ${mot} »`).toBe(false);
     }
   });
 
   it("le contrôle des mots interdits voit un mot accentué et laisse passer un mot qui en contient un autre", () => {
-    const voit = (mot: string, texte: string) => new RegExp(`(?<!\\p{L})${mot}(?!\\p{L})`, "u").test(texte);
+    const voit = (mot: string, texte: string) => contientLeMot(texte, mot);
     expect(voit("étranger", "sale étranger !")).toBe(true);
+    expect(voit("étranger", "Sale Étranger !")).toBe(true);
     expect(voit("con", "tu es content ?")).toBe(false);
     expect(voit("sang", "sangsue !")).toBe(false);
     expect(voit("bête", "va les embêter")).toBe(false);
+    // Un pluriel ne passe pas ; un « e » au bout n'est pas compté : « rang » ne refuse pas « Range ce doigt ».
+    expect(voit("romain", "ces romains !")).toBe(true);
+    expect(voit("crétin", "bande de crétins")).toBe(true);
+    expect(voit("dieu", "par tous les dieux")).toBe(true);
+    expect(voit("rang", "Range ce doigt, ou je le confisque !")).toBe(false);
+    expect(voit("moule à gaufres", "espèce de moule à gaufres !")).toBe(true);
+    for (const feminin of ["idiote", "crétine", "abrutie", "tarée", "attardée", "étrangère", "morte"]) expect(MOTS_INTERDITS, feminin).toContain(feminin);
+  });
+
+  it("« tripoter » ne s'écrit que dans la phrase du pilote", () => {
+    const avec = TOUTES.filter((phrase) => /tripot/i.test(phrase));
+    expect(avec).toEqual([PHRASE_DU_PILOTE]);
   });
 
   it("gardent les trois exemples du pilote", () => {
@@ -137,9 +147,9 @@ describe("le compte d'un Gaulois", () => {
   });
 
   it("repart une heure après le premier toucher, pas après le dernier", () => {
-    const compte = { debut: T0, fois: 12, dites: ["Ouste !"] };
+    const compte = { debut: T0, fois: 12, dites: [empreinte("Ouste !")] };
     expect(compterLeToucher(compte, T0 + HEURE_MS - 1).fois).toBe(13);
-    expect(compterLeToucher(compte, T0 + HEURE_MS)).toEqual({ debut: T0 + HEURE_MS, fois: 1, dites: ["Ouste !"] });
+    expect(compterLeToucher(compte, T0 + HEURE_MS)).toEqual({ debut: T0 + HEURE_MS, fois: 1, dites: [empreinte("Ouste !")] });
   });
 
   it("repart si l'horloge est revenue en arrière", () => {
@@ -202,16 +212,16 @@ describe("le tirage", () => {
   });
 
   it("évite ses dernières phrases", () => {
-    expect(phraseDuToucher(base, [AGACES[0]!], () => 0)).toBe(AGACES[1]);
-    expect(phraseDuToucher(base, [AGACES[1]!, AGACES[0]!], () => 0)).toBe(AGACES[2]);
+    expect(phraseDuToucher(base, [empreinte(AGACES[0]!)], () => 0)).toBe(AGACES[1]);
+    expect(phraseDuToucher(base, [empreinte(AGACES[1]!), empreinte(AGACES[0]!)], () => 0)).toBe(AGACES[2]);
   });
 
   it("sa bulle du serveur ne se dit pas deux fois de suite : un salut prend sa place", () => {
     const touche = { fois: 1, lieu: "place" as const, moi: false, replique: "Le feu est bon ce soir." };
     expect(phraseDuToucher(touche, [], () => 0)).toBe("Le feu est bon ce soir.");
-    expect(phraseDuToucher(touche, ["Ouste !"], () => 0)).toBe("Le feu est bon ce soir.");
-    expect(phraseDuToucher(touche, ["Le feu est bon ce soir."], () => 0)).toBe(SALUTS[0]);
-    expect(phraseDuToucher({ ...touche, moi: true }, ["Le feu est bon ce soir."], () => 0)).toBe(LE_SIEN[0]);
+    expect(phraseDuToucher(touche, [empreinte("Ouste !")], () => 0)).toBe("Le feu est bon ce soir.");
+    expect(phraseDuToucher(touche, [empreinte("Le feu est bon ce soir.")], () => 0)).toBe(SALUTS[0]);
+    expect(phraseDuToucher({ ...touche, moi: true }, [empreinte("Le feu est bon ce soir.")], () => 0)).toBe(LE_SIEN[0]);
   });
 
   it("jamais deux fois la même de suite, sur 400 touchers et plusieurs hasards", () => {
@@ -272,12 +282,30 @@ describe("un toucher", () => {
     const reponse = toucherLeGaulois(carnet, brennos, "place", T0, () => 0);
     expect(carnet).toEqual({ vu: false, comptes: {} });
     expect(reponse.carnet.vu).toBe(true);
-    expect(reponse.carnet.comptes[cleDuGaulois("Brennos")]).toEqual({ debut: T0, fois: 1, dites: [SALUTS[0]] });
+    expect(reponse.carnet.comptes[cleDuGaulois("Brennos")]).toEqual({ debut: T0, fois: 1, dites: [empreinte(SALUTS[0]!)] });
   });
 
   it("garde six phrases au plus en mémoire", () => {
     const { carnet } = insister(30);
     expect(carnet.comptes[cleDuGaulois("Brennos")]!.dites).toHaveLength(MEMOIRE_DES_PHRASES);
+  });
+
+  it("le carnet ne garde ni le nom du Gaulois ni le texte de ses phrases, bulle du serveur comprise", () => {
+    const { carnet } = insister(12, { nom: "Brennos", moi: false, replique: "Le feu est bon ce soir." });
+    const ecrit = ecrireCarnet(carnet, T0 + 720_000);
+    expect(ecrit).not.toContain("Brennos");
+    expect(ecrit).not.toContain("feu");
+    for (const phrase of TOUTES) expect(ecrit, phrase).not.toContain(phrase);
+    expect(ecrit).toMatch(/^[\x20-\x7e]+$/);
+    expect(Object.keys(carnet.comptes)).toEqual([cleDuGaulois("Brennos")]);
+    expect(cleDuGaulois("Brennos")).toMatch(/^g:[0-9a-z]{1,7}$/);
+    expect(cleDuGaulois("Brennos")).toBe(cleDuGaulois("Brennos"));
+    expect(cleDuGaulois("Brennos")).not.toBe(cleDuGaulois("Brennus"));
+    for (const d of carnet.comptes[cleDuGaulois("Brennos")]!.dites) expect(Number.isInteger(d)).toBe(true);
+  });
+
+  it("deux phrases différentes n'ont jamais la même empreinte", () => {
+    expect(new Set(TOUTES.map(empreinte)).size).toBe(TOUTES.length);
   });
 
   it("un nom qui est une clé spéciale d'objet se compte comme un autre", () => {
@@ -301,31 +329,33 @@ describe("le carnet gardé dans le navigateur", () => {
     const texte = JSON.stringify({
       vu: true,
       comptes: {
-        "g:Bon": { debut: T0, fois: 2, dites: ["Ouste !", 4, null] },
-        "g:SansDebut": { fois: 2 },
-        "g:FoisNulle": { debut: T0, fois: 0 },
-        "g:FoisTexte": { debut: T0, fois: "3" },
-        "g:Demi": { debut: T0, fois: 1.5 },
-        "g:Nul": null,
+        "g:bon": { debut: T0, fois: 2, dites: [12, "Ouste !", null, -1, 1.5] },
+        "g:sansdeb": { fois: 2 },
+        "g:foisnul": { debut: T0, fois: 0 },
+        "g:foistxt": { debut: T0, fois: "3" },
+        "g:demi": { debut: T0, fois: 1.5 },
+        "g:nul": null,
+        // Un carnet d'avant, qui gardait le nom : il n'est pas repris.
+        "g:Brennos": { debut: T0, fois: 2, dites: [] },
         autre: { debut: T0, fois: 2 },
       },
     });
-    expect(lireCarnet(texte, T0)).toEqual({ vu: true, comptes: { "g:Bon": { debut: T0, fois: 2, dites: ["Ouste !"] } } });
+    expect(lireCarnet(texte, T0)).toEqual({ vu: true, comptes: { "g:bon": { debut: T0, fois: 2, dites: [12] } } });
   });
 
   it("oublie un Gaulois touché il y a plus d'un jour, à la lecture comme à l'écriture", () => {
-    const carnet: Carnet = { vu: true, comptes: { "g:Hier": { debut: T0 - CARNET_JOUR_MS, fois: 3, dites: [] }, "g:Ce matin": { debut: T0 - CARNET_JOUR_MS + 1, fois: 3, dites: [] } } };
-    expect(Object.keys(lireCarnet(JSON.stringify(carnet), T0).comptes)).toEqual(["g:Ce matin"]);
-    expect(Object.keys((JSON.parse(ecrireCarnet(carnet, T0)) as Carnet).comptes)).toEqual(["g:Ce matin"]);
+    const carnet: Carnet = { vu: true, comptes: { "g:hier": { debut: T0 - CARNET_JOUR_MS, fois: 3, dites: [] }, "g:matin": { debut: T0 - CARNET_JOUR_MS + 1, fois: 3, dites: [] } } };
+    expect(Object.keys(lireCarnet(JSON.stringify(carnet), T0).comptes)).toEqual(["g:matin"]);
+    expect(Object.keys((JSON.parse(ecrireCarnet(carnet, T0)) as Carnet).comptes)).toEqual(["g:matin"]);
   });
 
   it("ne grossit pas sans fin : les plus récents seulement", () => {
     const comptes: Carnet["comptes"] = {};
-    for (let i = 0; i < CARNET_MAX + 50; i++) comptes[`g:N${i}`] = { debut: T0 - i * 1_000, fois: 1, dites: [] };
+    for (let i = 0; i < CARNET_MAX + 50; i++) comptes[`g:n${i}`] = { debut: T0 - i * 1_000, fois: 1, dites: [] };
     const lu = lireCarnet(ecrireCarnet({ vu: true, comptes }, T0), T0);
     expect(Object.keys(lu.comptes)).toHaveLength(CARNET_MAX);
-    expect(lu.comptes["g:N0"]).toBeDefined();
-    expect(lu.comptes[`g:N${CARNET_MAX}`]).toBeUndefined();
+    expect(lu.comptes["g:n0"]).toBeDefined();
+    expect(lu.comptes[`g:n${CARNET_MAX}`]).toBeUndefined();
   });
 });
 

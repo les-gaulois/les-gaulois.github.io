@@ -10897,6 +10897,9 @@ footer h2 {
    du survol et la bulle du serveur lui laissent la place. */
 .vie-acteur:not(.vie-adverse) {
   cursor: pointer;
+  /* Deux clics de suite ne surlignent ni son nom ni sa bulle. */
+  -webkit-user-select: none;
+  user-select: none;
 }
 .toucher {
   position: absolute;
@@ -11043,13 +11046,16 @@ footer h2 {
   gap: 0.375rem;
   min-width: 2.75rem;
   min-height: 2.75rem;
-  margin-left: -0.5rem;
   padding: 0.25rem 0.5rem;
   border-radius: 0.375rem;
   color: #fff;
   text-align: left;
   overflow-wrap: anywhere;
   cursor: pointer;
+}
+/* L'anneau du clavier reste dans le bouton : rien autour ne peut le rogner. */
+.toucher-bouton:focus-visible {
+  outline-offset: -2px;
 }
 .toucher-bouton:hover {
   background: var(--color-surface-2);
@@ -11058,7 +11064,7 @@ footer h2 {
   flex: none;
   color: var(--color-blue-text);
 }
-.vie-liste-replique[data-testid="toucher-dit"] {
+.toucher-dit {
   color: #fff;
 }
 .place-mot,
