@@ -5,15 +5,18 @@
  * échec ne retient jamais une image.
  *   npm run stateres:crediter
  * Avec SUPABASE_URL et SUPABASE_SECRET_KEY dans l'environnement. Sans eux, ne lit rien et n'envoie rien.
- * Les sessions du mois sont celles de la collecte (data/sessions/), avec celles des dernières heures lues sur l'API publique.
+ * Les sessions du mois sont celles de la collecte (data/sessions/), avec celles des dernières heures : celles que l'étape des
+ * victoires vient de lire sur l'API publique et de garder dans .cache/sessions-du-passage.json, si ce fichier vient de ce passage,
+ * sinon une lecture de l'API, comme avant. Voir src/lib/sessions-du-passage.ts.
  * Aucun identifiant de joueur n'est écrit ni affiché : seule son empreinte part au serveur. Voir src/lib/stateres-releve.ts.
  */
+import { existsSync, readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import { clan } from "../config/clan";
 import type { RpcResult } from "../src/lib/compte/roster";
 import { loadSessions, unreadableSessionFiles } from "../src/lib/data";
 import { ApiClient } from "../src/lib/pipeline";
-import type { StoredSession } from "../src/lib/schemas";
+import { SESSIONS_DU_PASSAGE, sessionsFraichesDesStateres } from "../src/lib/sessions-du-passage";
 import { releveStateres } from "../src/lib/stateres-releve";
 import { passSessions, readRecentSessions, readVictoryGame } from "../src/lib/victoires";
 
@@ -30,12 +33,13 @@ const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
 try {
   const now = new Date();
   const api = new ApiClient({ fetch, sleep, delayMs: 300 });
-  let fresh: StoredSession[] | null = null;
-  try {
-    fresh = await readRecentSessions(api, clan.tag, now);
-  } catch (e) {
-    console.log(`Statères : sessions des dernières heures illisibles (${e instanceof Error ? e.message : String(e)}).`);
-  }
+  // Les sessions gardées par l'étape d'avant, si elles viennent de ce passage ; sinon une lecture de l'API, comme avant.
+  const fresh = await sessionsFraichesDesStateres({
+    lire: () => (existsSync(SESSIONS_DU_PASSAGE) ? readFileSync(SESSIONS_DU_PASSAGE, "utf8") : null),
+    now,
+    lireApi: () => readRecentSessions(api, clan.tag, now),
+    log: console.log,
+  });
   // Un mois illisible ferait passer ses parties pour absentes : seules celles des dernières heures servent alors.
   const collected = unreadableSessionFiles().length > 0 ? null : loadSessions();
   const { sessions, warning } = passSessions(collected, fresh);
