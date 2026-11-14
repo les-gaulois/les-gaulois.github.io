@@ -1,35 +1,42 @@
 ---
 // Le Gaulois compagnon (14 novembre 2026, demande du pilote : « que le petit Gaulois se déplace de page en page sur le
-// site, qu'il nous suive et soit interactif ») : le Gaulois du village, en pixels, qui marche au bas de la fenêtre.
+// site, qu'il nous suive et soit interactif », puis « qu'il me suive sur tout l'écran ») : le Gaulois du village, en
+// pixels, qui suit le curseur sur toute la fenêtre. Rangé, il attend dans une petite prison au coin bas gauche, dessinée
+// par Claude Fable 5.2 (`src/lib/compagnon/prison.ts`) ; un clic l'en sort.
 // Monté une fois, dans le pied de page de `Base.astro` : il est donc le dernier dans l'ordre du clavier, et absent de la
 // page Carte, qui n'a pas de pied de page. Rien ne s'affiche sans script : `src/scripts/compagnon.ts` le montre.
 // Voir « Le Gaulois compagnon » dans docs/DESIGN.md.
 import { createHash } from "node:crypto";
+import { PRISONNIER, PRISON_H, PRISON_L } from "../lib/compagnon/prison";
 
-// Le dessin du Gaulois (son catalogue, garde-robe comprise), les poses du village et le dessin du compagnon, lus à la
-// construction du site seulement (rien de ces fichiers n'est écrit dans la page) : leur empreinte change dès que l'un d'eux
-// change, et les images du compagnon (celles du Gaulois de départ, celles peintes et gardées dans l'onglet) sont refaites.
+// Le dessin du Gaulois (son catalogue, garde-robe comprise), les poses du village, le dessin du compagnon et sa prison, lus
+// à la construction du site seulement (rien de ces fichiers n'est écrit dans la page) : leur empreinte change dès que l'un
+// d'eux change, et les images du compagnon (celles du Gaulois de départ, de la prison, celles peintes et gardées dans
+// l'onglet) sont refaites.
 const sources = import.meta.glob<string>(
   [
     "../../supabase/functions/code-discord/gaulois.ts",
     "../../supabase/functions/code-discord/billets.ts",
     "../../supabase/functions/code-discord/garde-robe/**/*.ts",
     "../lib/village/{poses,decor,lumiere}.ts",
-    "../lib/compagnon/dessin.ts",
+    "../lib/compagnon/{dessin,prison}.ts",
   ],
   { query: "?raw", import: "default", eager: true },
 );
 
 // Un fichier déplacé rendrait l'empreinte aveugle à ses changements : la construction s'arrête plutôt.
-for (const attendu of ["/gaulois.ts", "/poses.ts", "/dessin.ts"]) {
+for (const attendu of ["/gaulois.ts", "/poses.ts", "/dessin.ts", "/prison.ts"]) {
   if (!Object.keys(sources).some((chemin) => chemin.endsWith(attendu))) throw new Error(`GauloisCompagnon.astro : ${attendu} introuvable pour l'empreinte du dessin`);
 }
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const empreinte = createHash("sha256");
 for (const chemin of Object.keys(sources).sort()) empreinte.update(`${chemin}\u0000${sources[chemin]}\u0000`);
 const version = empreinte.digest("hex").slice(0, 12);
-// Le Gaulois de départ, peint à la construction (src/pages/compagnon/[planche].png.ts) : ce que voit un visiteur, sans dessin à charger.
+// Le Gaulois de départ et la prison, peints à la construction (src/pages/compagnon/[planche].png.ts) : ce que voit un
+// visiteur, sans dessin à charger. La prison n'est téléchargée que si elle se montre (image de fond d'un bouton caché).
 const depart = { gaulois: `${base}/compagnon/depart-gaulois.png?v=${version}`, lit: `${base}/compagnon/depart-lit.png?v=${version}` };
+const prison = `${base}/compagnon/prison.png?v=${version}`;
+const mesuresDeLaPrison = `--prison-l: ${PRISON_L}; --prison-h: ${PRISON_H}; --prisonnier-x: ${PRISONNIER.x}; --prisonnier-y: ${PRISONNIER.y}; --prison-planche: url("${prison}");`;
 ---
 
 <div class="compagnon" data-compagnon data-version={version} data-depart-gaulois={depart.gaulois} data-depart-lit={depart.lit} hidden>
@@ -42,14 +49,17 @@ const depart = { gaulois: `${base}/compagnon/depart-gaulois.png?v=${version}`, l
     <a class="compagnon-choix compagnon-village" data-compagnon-village href={`${base}/village`} hidden>Aller au village</a>
     <div class="compagnon-actions">
       <button type="button" class="compagnon-choix" data-compagnon-suivre>Reste là</button>
-      <button type="button" class="compagnon-choix" data-compagnon-ranger>Ranger</button>
+      <button type="button" class="compagnon-choix" data-compagnon-ranger>En prison</button>
     </div>
   </div>
 </div>
-{/* Le moyen de le faire revenir : une ligne au bas du pied de page, montrée seulement quand il est rangé. Au village, le script en pose une copie sous le titre. */}
-<div class="wrap compagnon-rappel" data-compagnon-rappel hidden>
-  <button type="button" class="compagnon-choix" data-compagnon-revenir>Faire revenir le Gaulois</button>
-</div>
+{/* Rangé, il attend là, au coin bas gauche de la fenêtre, sur toutes les pages ; un clic le libère. */}
+<button type="button" class="compagnon-prison" data-compagnon-prison aria-label="Libérer le Gaulois" style={mesuresDeLaPrison} hidden>
+  <span class="compagnon-prison-fond" aria-hidden="true"></span>
+  <span class="compagnon-prison-gaulois" data-compagnon-prisonnier aria-hidden="true"></span>
+  <span class="compagnon-prison-devant" aria-hidden="true"></span>
+  <span class="compagnon-prison-mot" aria-hidden="true">Libérer</span>
+</button>
 
 <script>
   import "../scripts/compagnon";

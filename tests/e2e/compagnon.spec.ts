@@ -1,8 +1,8 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
-// Le Gaulois compagnon (src/scripts/compagnon.ts, « Le Gaulois compagnon » dans docs/DESIGN.md) : il suit le visiteur au
-// bas de la fenêtre, de page en page. Ces tests tournent sans serveur : tout le monde y voit le Gaulois de départ. La
+// Le Gaulois compagnon (src/scripts/compagnon.ts, « Le Gaulois compagnon » dans docs/DESIGN.md) : il suit le visiteur sur
+// toute la fenêtre, de page en page ; rangé, il attend dans une petite prison au coin bas gauche. Ces tests tournent sans serveur : tout le monde y voit le Gaulois de départ. La
 // tenue d'un membre connecté s'essaie avec un faux serveur, hors du dépôt (voir docs/DESIGN.md).
 
 const compagnon = (page: Page) => page.locator("[data-compagnon]");
@@ -10,10 +10,16 @@ const gaulois = (page: Page) => page.getByRole("button", { name: "Le Gaulois com
 const bulle = (page: Page) => page.locator("[data-compagnon-bulle]");
 const parole = (page: Page) => page.locator("[data-compagnon-parole]");
 const pauseButton = (page: Page) => page.getByRole("button", { name: "Mettre les animations en pause" });
-const revenir = (page: Page) => page.getByRole("button", { name: "Faire revenir le Gaulois" });
+const prison = (page: Page) => page.getByRole("button", { name: "Libérer le Gaulois" });
 
 /** Le bord gauche de son dessin, en pixels de la page. */
 const placeX = (page: Page) => compagnon(page).evaluate((el) => Math.round(el.getBoundingClientRect().left));
+/** Le haut de son dessin, en pixels de la page. */
+const placeY = (page: Page) => compagnon(page).evaluate((el) => Math.round(el.getBoundingClientRect().top));
+
+/** Deux cadres se chevauchent-ils ? */
+const chevauchent = (a: { x: number; y: number; width: number; height: number } | null, b: { x: number; y: number; width: number; height: number } | null): boolean =>
+  !a || !b ? true : a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
 
 /** Son salut spontané est dit une fois par onglet : déjà dit, il ne gêne pas les tests qui ne le regardent pas. */
 const sansSalut = (page: Page) => page.addInitScript(() => sessionStorage.setItem("gal-compagnon-salue", "1"));
@@ -25,7 +31,7 @@ async function luiParler(page: Page): Promise<void> {
   await expect(parole(page)).not.toBeEmpty();
 }
 
-test("il est là, au bas de la fenêtre, dans le pied de page, et il a un nom", async ({ page }) => {
+test("il arrive au bas de la fenêtre, dans le pied de page, et il a un nom", async ({ page }) => {
   await sansSalut(page);
   for (const path of ["/", "/classement", "/village"]) {
     await page.goto(path);
@@ -47,7 +53,7 @@ test("sa bulle ouverte passe le contrôle d'accessibilité", async ({ page }) =>
   await page.waitForLoadState("networkidle");
   await luiParler(page);
   await expect(bulle(page)).toBeVisible();
-  await expect(page.getByRole("group", { name: "Le Gaulois compagnon" }).getByRole("button", { name: "Ranger" })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Le Gaulois compagnon" }).getByRole("button", { name: "En prison" })).toBeVisible();
   const { violations } = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
   expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target).join(" ; ")}`)).toEqual([]);
 });
@@ -76,6 +82,13 @@ test("au clavier : Entrée ouvre la bulle, Échap la ferme et rend le focus, les
   await page.keyboard.press("ArrowLeft");
   expect(await placeX(page)).toBe(avant + 24);
   await expect(compagnon(page)).toHaveAttribute("data-vers", "gauche");
+  // Vers le haut aussi : il va partout dans la fenêtre.
+  const bas = await placeY(page);
+  await page.keyboard.press("ArrowUp");
+  await page.keyboard.press("ArrowUp");
+  expect(await placeY(page)).toBe(bas - 48);
+  await page.keyboard.press("ArrowDown");
+  expect(await placeY(page)).toBe(bas - 24);
 });
 
 test("il garde sa place d'une page à l'autre, et au retour arrière", async ({ page }) => {
@@ -84,10 +97,13 @@ test("il garde sa place d'une page à l'autre, et au retour arrière", async ({ 
   await expect(compagnon(page)).toBeVisible();
   await gaulois(page).focus();
   for (let i = 0; i < 6; i++) await page.keyboard.press("ArrowRight");
+  for (let i = 0; i < 3; i++) await page.keyboard.press("ArrowUp");
   const ici = await placeX(page);
+  const haut = await placeY(page);
   await page.goto("/classement");
   await expect(compagnon(page)).toBeVisible();
   expect(Math.abs((await placeX(page)) - ici)).toBeLessThanOrEqual(1);
+  expect(Math.abs((await placeY(page)) - haut)).toBeLessThanOrEqual(1);
   // Déplacé sur la seconde page : au retour arrière, il est là où on l'a laissé en dernier, pas sur l'ancienne place.
   await gaulois(page).focus();
   for (let i = 0; i < 4; i++) await page.keyboard.press("ArrowRight");
@@ -110,13 +126,13 @@ test("au retour arrière d'une page gardée par le navigateur, il reprend la pla
   });
   await expect.poll(() => placeX(page)).not.toBe(avant);
   await expect(compagnon(page)).toHaveAttribute("data-vers", "gauche");
-  // Rangé entre-temps sur une autre page : il ne revient pas tout seul.
+  // Mis en prison entre-temps sur une autre page : il n'en sort pas tout seul.
   await page.evaluate(() => {
     localStorage.setItem("gal-compagnon-range", "1");
     window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true }));
   });
   await expect(compagnon(page)).toBeHidden();
-  await expect(revenir(page)).toBeVisible();
+  await expect(prison(page)).toBeVisible();
 });
 
 test("la pause de l'en-tête l'arrête net, sans le faire disparaître", async ({ page }, testInfo) => {
@@ -143,32 +159,96 @@ test("la pause de l'en-tête l'arrête net, sans le faire disparaître", async (
   await expect.poll(() => placeX(page)).toBeGreaterThan(avant);
 });
 
-test("rangé, il ne revient que si on le rappelle, aussi depuis le village", async ({ page }) => {
+test("il suit le curseur sur toute la fenêtre, pas seulement en bas, et s'arrête à côté de lui", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "Le curseur est testé sur desktop.");
   await sansSalut(page);
+  await page.goto("/classement");
+  await expect(compagnon(page)).toBeVisible();
+  const bas = await placeY(page);
+  // Le curseur en haut de la fenêtre, vers le milieu : il monte vers lui.
+  await page.mouse.move(420, 260, { steps: 6 });
+  await expect(compagnon(page)).toHaveAttribute("data-pose", "marche", { timeout: 3_000 });
+  await expect.poll(() => placeY(page), { timeout: 8_000 }).toBeLessThan(bas - 60);
+  // Il arrive à côté du curseur, sans jamais passer sous l'en-tête ni sous le curseur.
+  await expect(compagnon(page)).not.toHaveAttribute("data-pose", "marche", { timeout: 25_000 });
+  const cadre = await page.locator("[data-compagnon-image]").boundingBox();
+  const entete = await page.locator("body > header").boundingBox();
+  expect(cadre).not.toBeNull();
+  expect((cadre?.y ?? 0) + 1).toBeGreaterThanOrEqual((entete?.y ?? 0) + (entete?.height ?? 0));
+  expect(chevauchent(cadre, { x: 419, y: 259, width: 2, height: 2 })).toBe(false);
+  expect(Math.abs((cadre?.x ?? 0) + (cadre?.width ?? 0) / 2 - 420)).toBeLessThan(130);
+  expect(Math.abs((cadre?.y ?? 0) + (cadre?.height ?? 0) / 2 - 260)).toBeLessThan(110);
+  // Sous le curseur, la page, pas lui ni son lit : un clic va toujours à ce qu'on pointe.
+  expect(await page.evaluate(() => Boolean(document.elementFromPoint(420, 260)?.closest("[data-compagnon]")))).toBe(false);
+});
+
+test("en prison, il attend au coin bas gauche sur toutes les pages, et un clic le libère", async ({ page }) => {
+  await sansSalut(page);
+  const planches: string[] = [];
+  page.on("request", (r) => {
+    if (r.url().includes("/compagnon/prison.png")) planches.push(r.url());
+  });
   await page.goto("/");
   await luiParler(page);
-  await page.getByRole("button", { name: "Ranger" }).click();
+  await page.getByRole("button", { name: "En prison" }).click();
   await expect(compagnon(page)).toBeHidden();
-  const piedDePage = page.getByRole("contentinfo").getByRole("button", { name: "Faire revenir le Gaulois" });
-  await expect(piedDePage).toBeVisible();
-  await expect(piedDePage).toBeFocused();
-  await page.goto("/classement");
-  await page.waitForTimeout(2_500);
-  await expect(compagnon(page)).toBeHidden();
-  await expect(piedDePage).toBeVisible();
-  // Rangé, rien n'est chargé ni peint.
-  expect(await page.locator("[data-compagnon-image]").evaluate((el) => el.style.backgroundImage)).toBe("");
-  // Au village, on peut le rappeler sous le titre de la page.
+  await expect(prison(page)).toBeVisible();
+  await expect(prison(page)).toBeFocused();
+  expect(await page.evaluate(() => localStorage.getItem("gal-compagnon-range"))).toBe("1");
+  // Au coin bas gauche de la fenêtre, petite, avec lui dedans.
+  const cadre = await prison(page).boundingBox();
+  const vue = page.viewportSize() ?? { width: 0, height: 0 };
+  expect(cadre?.x ?? 99).toBeLessThan(24);
+  expect(Math.round((cadre?.y ?? 0) + (cadre?.height ?? 0))).toBeGreaterThan(vue.height - 24);
+  expect(cadre?.width ?? 999).toBeLessThan(96);
+  expect(await page.locator("[data-compagnon-prisonnier]").evaluate((el) => el.style.backgroundImage)).toContain("/compagnon/depart-gaulois.png");
+  // Sa planche : le fond et le devant, une case par pixel.
+  await expect.poll(() => planches.length).toBeGreaterThan(0);
+  const taille = await page.evaluate(async (adresse) => {
+    const image = new Image();
+    image.src = adresse;
+    await image.decode();
+    return [image.naturalWidth, image.naturalHeight];
+  }, planches[0] ?? "");
+  expect(taille).toEqual([2 * 68, 91]);
+  // Sur une autre page, toujours en prison.
   await page.goto("/village");
-  await expect(revenir(page)).toHaveCount(2);
-  const sousLeTitre = page.getByRole("main").getByRole("button", { name: "Faire revenir le Gaulois" });
-  await expect(sousLeTitre).toBeVisible();
-  await sousLeTitre.click();
+  await expect(prison(page)).toBeVisible();
+  await page.waitForTimeout(1_500);
+  await expect(compagnon(page)).toBeHidden();
+  // L'ancien bouton « Faire revenir le Gaulois » n'existe plus.
+  await expect(page.getByRole("button", { name: "Faire revenir le Gaulois" })).toHaveCount(0);
+  // Un clic le libère : il sort à côté, remercie, et le focus va sur lui.
+  await prison(page).click();
+  await expect(prison(page)).toBeHidden();
   await expect(compagnon(page)).toBeVisible();
   await expect(gaulois(page)).toBeFocused();
-  await expect(revenir(page).first()).toBeHidden();
-  await expect(revenir(page).last()).toBeHidden();
+  await expect(parole(page)).toHaveText(/^Enfin libre/);
   expect(await page.evaluate(() => localStorage.getItem("gal-compagnon-range"))).toBeNull();
+});
+
+test("la prison passe le contrôle d'accessibilité et remonte au-dessus de ce qui est fixé au même coin", async ({ page }) => {
+  await page.addInitScript(() => {
+    sessionStorage.setItem("gal-compagnon-salue", "1");
+    localStorage.setItem("gal-compagnon-range", "1");
+  });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/classement");
+  await expect(prison(page)).toBeVisible();
+  await page.waitForLoadState("networkidle");
+  const { violations } = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+  expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target).join(" ; ")}`)).toEqual([]);
+  await page.evaluate(() => {
+    const barre = document.createElement("div");
+    barre.dataset.compagnonObstacle = "";
+    barre.id = "essai-barre";
+    barre.style.cssText = "position:fixed;left:0;right:0;bottom:0;height:70px;background:#123";
+    document.body.append(barre);
+  });
+  await expect.poll(async () => chevauchent(await prison(page).boundingBox(), await page.locator("#essai-barre").boundingBox())).toBe(false);
+  await page.evaluate(() => document.getElementById("essai-barre")?.remove());
+  const vue = page.viewportSize() ?? { width: 0, height: 0 };
+  await expect.poll(async () => Math.round(((await prison(page).boundingBox())?.y ?? 0) + ((await prison(page).boundingBox())?.height ?? 0))).toBeGreaterThan(vue.height - 24);
 });
 
 test("il ne vient pas sur la Carte, et retrouve le visiteur à la page suivante", async ({ page }) => {
@@ -237,11 +317,20 @@ test("il ne couvre pas ce qui est fixé au bas de la fenêtre", async ({ page },
     coin.style.cssText = "position:fixed;left:0;bottom:0;width:420px;height:180px;background:#123";
     document.body.append(coin);
   });
-  await expect.poll(() => placeX(page)).toBeGreaterThanOrEqual(428);
-  // Toute la largeur : il s'efface, le temps qu'elle reste.
+  const coin = page.locator("#essai-coin");
+  const image = page.locator("[data-compagnon-image]");
+  await expect.poll(async () => chevauchent(await image.boundingBox(), await coin.boundingBox())).toBe(false);
+  // Toute la largeur : il se tient au-dessus.
   await page.evaluate(() => {
-    const coin = document.getElementById("essai-coin");
-    if (coin) coin.style.width = "100%";
+    const el = document.getElementById("essai-coin");
+    if (el) el.style.width = "100%";
+  });
+  await expect.poll(async () => chevauchent(await image.boundingBox(), await coin.boundingBox())).toBe(false);
+  await expect(gaulois(page)).toBeVisible();
+  // Toute la fenêtre : il ne tient nulle part, il s'efface le temps qu'elle reste.
+  await page.evaluate(() => {
+    const el = document.getElementById("essai-coin");
+    if (el) el.style.height = "100%";
   });
   await expect(compagnon(page)).toHaveAttribute("data-efface", "1");
   await expect(gaulois(page)).toBeHidden();
@@ -273,6 +362,37 @@ test("en bas de page, la mention de licence d'OpenFront et le dernier lien se li
     await page.evaluate(() => window.scrollTo(0, 0));
     await dernier.focus();
     await expect.poll(() => chevauche(dernier), path).toBe(false);
+  }
+});
+
+test("posé n'importe où dans la fenêtre, il ne cache pas la mention de licence d'OpenFront en fin de page", async ({ page }) => {
+  await sansSalut(page);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const mention = page.getByRole("contentinfo").getByText("© OpenFront and Contributors", { exact: false }).first();
+  const corps = page.getByRole("button", { name: "Le Gaulois compagnon : lui parler" });
+  // Des places de toute la fenêtre, de gauche à droite et de haut en bas : celle où arrive la mention en fin de page comprise.
+  for (const [part, partY] of [
+    [0, 0.6],
+    [0, 0.75],
+    [0.05, 0.85],
+    [0.1, 0.5],
+    [0, 1],
+  ]) {
+    for (const path of ["/classement", "/village"]) {
+      await page.goto(path);
+      await page.evaluate(([x, y]) => sessionStorage.setItem("gal-compagnon-place", JSON.stringify({ part: x, partY: y, vers: 1 })), [part, partY] as const);
+      await page.reload();
+      await expect(compagnon(page)).toBeVisible();
+      await expect
+        .poll(async () => {
+          // Jusqu'en bas, de nouveau à chaque essai : la page peut encore s'allonger pendant que ses blocs se chargent.
+          await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+          await page.evaluate(() => new Promise((fin) => requestAnimationFrame(() => requestAnimationFrame(fin))));
+          const visible = await compagnon(page).evaluate((el) => getComputedStyle(el).visibility === "visible" && Number(getComputedStyle(el).opacity) > 0);
+          return visible && chevauchent(await corps.boundingBox(), await mention.boundingBox());
+        }, `${path}, place ${part} × ${partY}`)
+        .toBe(false);
+    }
   }
 });
 
@@ -351,9 +471,11 @@ test("un visiteur ne télécharge pas le dessin du Gaulois : deux petites images
   await sansSalut(page);
   const dessins: string[] = [];
   const planches: string[] = [];
+  const prisons: string[] = [];
   page.on("request", (r) => {
     if (/\/_astro\/(dessin|gaulois|poses)\.[^/]+\.js$/.test(r.url())) dessins.push(r.url());
     if (r.url().includes("/compagnon/depart-")) planches.push(r.url());
+    if (r.url().includes("/compagnon/prison")) prisons.push(r.url());
   });
   await page.goto("/");
   await expect(compagnon(page)).toBeVisible();
@@ -365,6 +487,8 @@ test("un visiteur ne télécharge pas le dessin du Gaulois : deux petites images
   // Ses quatre poses et son lit, une case par pixel, à l'adresse de la version du dessin.
   const adresses = [`/compagnon/depart-gaulois.png?v=${version}`, `/compagnon/depart-lit.png?v=${version}`];
   expect([...new Set(planches.map((u) => new URL(u).pathname + new URL(u).search))].sort()).toEqual(adresses);
+  // Sa prison n'est demandée que s'il y est.
+  expect(prisons).toEqual([]);
   const tailles = await page.evaluate(
     (liste) =>
       Promise.all(

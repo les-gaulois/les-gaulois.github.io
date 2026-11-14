@@ -37,11 +37,12 @@ export const REPLIQUES_DES_RUBRIQUES: Readonly<Record<string, string>> = {
   Rejoindre: "Entre, on ne mord pas.",
 };
 
-/** Ce qu'il répond à un geste : réveillé, posé à la main, rappelé pour suivre, et son invitation à l'habiller. */
+/** Ce qu'il répond à un geste : réveillé, posé à la main, rappelé pour suivre, sorti de prison, et son invitation à l'habiller. */
 export const REPLIQUES_DES_GESTES = {
   reveil: "Hein ? Je veillais.",
   pose: "Ici, c'est bien. Je reste.",
   suivre: "Je te suis.",
+  libere: "Enfin libre ! Merci.",
   invitation: "Habille-moi au village.",
 } as const satisfies Record<string, string>;
 export type Geste = keyof typeof REPLIQUES_DES_GESTES;

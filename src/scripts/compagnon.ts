@@ -1,7 +1,9 @@
 /**
- * Le Gaulois compagnon : le Gaulois du village, en pixels, qui suit le visiteur au bas de la fenêtre, de page en page
- * (demande du pilote, 14 novembre 2026). Balisage : `src/components/GauloisCompagnon.astro`. Calculs, testés :
- * `src/lib/compagnon/` (mouvement, répliques, tenue). Style : la dernière section de `global.css`.
+ * Le Gaulois compagnon : le Gaulois du village, en pixels, qui suit le visiteur sur toute la fenêtre, de page en page
+ * (demande du pilote, 14 novembre 2026 : d'abord au bas de la fenêtre, puis « sur tout l'écran »). Rangé, il attend dans
+ * une petite prison, au coin bas gauche ; un clic l'en sort. Balisage : `src/components/GauloisCompagnon.astro`.
+ * Calculs, testés : `src/lib/compagnon/` (mouvement, répliques, tenue ; la prison, dessin de Claude Fable 5.2, dans
+ * `prison.ts`). Style : la dernière section de `global.css`.
  *
  * Léger sur chaque page : ce script ne contient ni Supabase ni le dessin du Gaulois. Le dessin (`gaulois.ts`, lourd) est
  * dans `src/lib/compagnon/dessin.ts`, chargé à la demande une seule fois par onglet : ses images, une fois peintes,
@@ -10,7 +12,7 @@
  * chargé que s'il y a une session, comme pour l'en-tête.
  *
  * Décoratif : il n'affiche aucune donnée. Pause de l'en-tête (`fx-off`) ou « réduire les animations » : il ne suit plus
- * et ne marche plus, il reste debout à sa place ; on peut toujours lui parler, le déplacer et le ranger.
+ * et ne marche plus, il reste debout à sa place ; on peut toujours lui parler, le déplacer et le mettre en prison.
  */
 import { tirage } from "../lib/fx/repliques";
 import {
@@ -21,23 +23,34 @@ import {
   LIT_L,
   NOMBRE_D_IMAGES,
   avancer,
+  bornerLaPlace,
+  cadreA,
+  coinDuCote,
+  corpsA,
   depuisPart,
-  ecarterDuChamp,
+  echelleDeLaPrison,
   echelleDuCompagnon,
   enPart,
   fenetreGenee,
+  horsDesZones,
   imageDeMarche,
   marcheurA,
   margeDuBord,
+  nullePart,
+  placeAcoteDuCurseur,
   placeDeDepart,
   placeDeLaBulle,
   reposApres,
-  solLibre,
-  souffleA,
-  coinDuCote,
   seuilDeDepart,
+  souffleA,
+  touche,
+  JEU,
+  PRISON_FENETRE_MIN,
   type Allure,
+  type Bornes,
+  type Cadre,
   type Marcheur,
+  type Point,
   type Repos,
 } from "../lib/compagnon/mouvement";
 import { REPLIQUES, REPLIQUES_DES_GESTES, dureeDeLaBulle, ponctuer, repliqueDuClic, rubriqueDe, type Geste } from "../lib/compagnon/repliques";
@@ -53,7 +66,7 @@ import {
   surveillerLeCompte,
 } from "../lib/compagnon/tenue";
 
-/** Dans ce navigateur : rangé, et posé à la main (il ne suit plus). */
+/** Dans ce navigateur : rangé (en prison), et posé à la main (il ne suit plus). */
 const CLE_RANGE = "gal-compagnon-range";
 const CLE_POSE = "gal-compagnon-pose";
 /** Dans cet onglet : où il était, et s'il a déjà salué. Ses images peintes : `CLE_IMAGES` (`tenue.ts`). */
@@ -66,9 +79,10 @@ const CLE_SALUE = "gal-compagnon-salue";
  */
 const VERSION_DES_IMAGES = 2;
 /**
- * Ce qui est fixé au bas de la fenêtre et qu'il ne couvre jamais : tout élément marqué `data-compagnon-obstacle`, la barre
+ * Ce qui est fixé sur la fenêtre et qu'il ne couvre jamais : tout élément marqué `data-compagnon-obstacle`, la barre
  * « Enregistrer » du vestiaire quand elle reste collée en bas (`Vestiaire.tsx`), les fenêtres des appels du QG
- * (`AppelsGaulois.tsx`). Il se tient à côté ; s'il ne tient nulle part, il s'efface le temps qu'ils restent.
+ * (`AppelsGaulois.tsx`). Il se tient à côté ; s'il ne tient nulle part, il s'efface le temps qu'ils restent. Sa prison
+ * remonte au-dessus d'eux.
  */
 const OBSTACLES = "[data-compagnon-obstacle], .vestiaire-envoi[data-colle], [data-testid='appels-popups']";
 
@@ -123,10 +137,16 @@ function imagesGardees(cle: string): ImagesGardees | null {
   return null;
 }
 
+/** Le cadre d'un élément dans la fenêtre. */
+const cadreDe = (el: Element): Cadre => {
+  const r = el.getBoundingClientRect();
+  return { gauche: r.left, droite: r.right, haut: r.top, bas: r.bottom };
+};
+
 function init(): void {
   const racine = document.documentElement;
-  // La Carte tient dans l'écran, sans pied de page ni sol libre : il n'y vient pas, et attend à la page suivante. Une
-  // déconnexion faite là (fenêtre « Alliance ») efface quand même ce qui reste du membre dans l'onglet.
+  // La Carte tient dans l'écran, sans pied de page : il n'y vient pas, et attend à la page suivante. Une déconnexion faite
+  // là (fenêtre « Alliance ») efface quand même ce qui reste du membre dans l'onglet.
   if (document.body.dataset.route === "/carte") {
     // Sans session, ce qui reste du membre dans l'onglet s'efface aussi ici, comme sur les autres pages.
     besoinDeCettePage();
@@ -142,9 +162,11 @@ function init(): void {
   const village = boite?.querySelector<HTMLAnchorElement>("[data-compagnon-village]");
   const boutonSuivre = boite?.querySelector<HTMLButtonElement>("[data-compagnon-suivre]");
   const boutonRanger = boite?.querySelector<HTMLButtonElement>("[data-compagnon-ranger]");
-  const rappel = document.querySelector<HTMLElement>("[data-compagnon-rappel]");
-  const boutonRevenir = rappel?.querySelector<HTMLButtonElement>("[data-compagnon-revenir]");
-  if (!boite || !gaulois || !image || !lit || !bulle || !parole || !village || !boutonSuivre || !boutonRanger || !rappel || !boutonRevenir) return;
+  const prison = document.querySelector<HTMLButtonElement>("[data-compagnon-prison]");
+  const prisonnier = prison?.querySelector<HTMLElement>("[data-compagnon-prisonnier]");
+  /** La mention de licence d'OpenFront, au pied de page : il ne s'y arrête pas, et s'efface s'il s'y trouve. */
+  const mention = document.querySelector<HTMLElement>("[data-compagnon-mention]");
+  if (!boite || !gaulois || !image || !lit || !bulle || !parole || !village || !boutonSuivre || !boutonRanger || !prison || !prisonnier) return;
 
   const mouvementReduit = matchMedia("(prefers-reduced-motion: reduce)");
   const base = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -157,7 +179,7 @@ function init(): void {
   // Son salut est déjà dit dans cet onglet : il ne le redit pas à chaque page.
   if (lire("sessionStorage", CLE_SALUE) === "1") suivante();
 
-  // Sans session, ce qui reste du membre dans l'onglet s'efface dès l'ouverture de la page, même s'il est rangé.
+  // Sans session, ce qui reste du membre dans l'onglet s'efface dès l'ouverture de la page, même s'il est en prison.
   besoinDeCettePage();
 
   let range = lire("localStorage", CLE_RANGE) === "1";
@@ -172,18 +194,19 @@ function init(): void {
   let enLecture: Promise<unknown> | null = null;
   let cote = 2;
   let largeur = CASES_L * cote;
-  let min = 0;
-  let max = 0;
-  /** La part du sol libre quand quelque chose est fixé au bas de la fenêtre ; `null` : tout le sol. */
-  let libre: { min: number; max: number } | null = null;
-  let marcheur: Marcheur = marcheurA(0);
+  let hauteur = CASES_H * cote;
+  let bornes: Bornes = { gauche: 0, droite: 0, haut: 0, bas: 0 };
+  let marcheur: Marcheur = marcheurA(0, 0);
   /** Où est le visiteur : le curseur, ou le dernier endroit touché. `null` tant qu'il n'a pas bougé. */
-  let visiteurX: number | null = null;
+  let visiteur: Point | null = null;
   let auDoigt = false;
-  /** Où aller pour dégager un champ de saisie, ou ce qui est fixé au bas de la fenêtre. */
-  let ecart: number | null = null;
+  /** Où aller pour dégager un champ, un lien atteint au clavier ou ce qui est fixé sur la fenêtre. */
+  let ecart: Point | null = null;
   let champ: HTMLElement | null = null;
-  /** Ce qui l'efface : une saisie sur écran tactile, le clavier du téléphone ou la page agrandie, une barre sur toute la largeur. */
+  /** Ce qu'il ne couvre pas : ce qui est fixé sur la fenêtre (`OBSTACLES`), et le champ ou le lien qui a le focus. */
+  let zonesFixees: Cadre[] = [];
+  let zoneDuChamp: Cadre | null = null;
+  /** Ce qui l'efface : une saisie sur écran tactile, le clavier du téléphone ou la page agrandie, une fenêtre sans place libre. */
   let saisie = false;
   let fenetrePetite = false;
   let barre = false;
@@ -198,34 +221,50 @@ function init(): void {
   let veille = 0;
   let fermeture = 0;
   let regard = 0;
-  /** Rappelé depuis un bouton « Faire revenir le Gaulois » : le focus va sur lui dès qu'il est là. */
-  let focusALArrivee = false;
 
   const calme = (): boolean => racine.classList.contains("fx-off") || mouvementReduit.matches;
   const efface = (): boolean => saisie || fenetrePetite || barre;
-  /** Les bords du sol où il peut aller : toute la largeur, moins ce qui est fixé en bas. */
-  const gauche = (): number => libre?.min ?? min;
-  const droite = (): number => libre?.max ?? max;
-  const borner = (x: number): number => Math.min(Math.max(x, gauche()), Math.max(gauche(), droite()));
+  const zones = (): Cadre[] => (zoneDuChamp ? [...zonesFixees, zoneDuChamp] : zonesFixees);
+  /** La mention de licence, si elle est dans la fenêtre. */
+  function zoneDeLaMention(): Cadre | null {
+    if (!mention) return null;
+    const cadre = cadreDe(mention);
+    return cadre.bas > 0 && cadre.haut < hauteurFenetre() && cadre.droite > cadre.gauche ? cadre : null;
+  }
+  const largeurFenetre = (): number => document.documentElement.clientWidth;
+  const hauteurFenetre = (): number => document.documentElement.clientHeight;
 
   /* ---------- Taille et place ---------- */
 
+  /** Le bas de l'en-tête collé en haut de la fenêtre : il passerait dessous. */
+  function plafond(): number {
+    const tete = document.querySelector("body > header");
+    if (!tete) return 0;
+    const position = getComputedStyle(tete).position;
+    if (position !== "sticky" && position !== "fixed") return 0;
+    return Math.max(0, tete.getBoundingClientRect().bottom);
+  }
+
   function mesurer(): void {
-    const part = pret ? enPart(marcheur.x, min, max) : null;
+    const parts = pret ? { x: enPart(marcheur.x, bornes.gauche, bornes.droite), y: enPart(marcheur.y, bornes.haut, bornes.bas) } : null;
     const echelle = echelleDuCompagnon(window.innerWidth, window.devicePixelRatio);
     cote = echelle.cote;
     largeur = CASES_L * cote;
-    min = margeDuBord(cote);
-    max = document.documentElement.clientWidth - largeur - min;
+    hauteur = CASES_H * cote;
+    const marge = margeDuBord(cote);
+    // Le bas de l'écran d'un téléphone à encoche : `scroll-margin-bottom` porte `env(safe-area-inset-bottom)` (global.css).
+    const sol = Number.parseFloat(getComputedStyle(boite!).scrollMarginBottom) || 0;
+    bornes = { gauche: marge, droite: largeurFenetre() - largeur - marge, haut: plafond() + 4, bas: hauteurFenetre() - hauteur - sol };
     boite!.style.setProperty("--case", `${cote}px`);
-    if (part !== null) marcheur = { ...marcheur, x: depuisPart(part, min, max) };
+    prison!.style.setProperty("--case", `${echelleDeLaPrison(window.devicePixelRatio).cote}px`);
+    if (parts !== null) marcheur = { ...marcheur, x: depuisPart(parts.x, bornes.gauche, bornes.droite), y: depuisPart(parts.y, bornes.haut, bornes.bas) };
   }
 
   /** La dernière place écrite : un mouvement de souris qui ne le fait pas bouger n'écrit rien. */
   let placeEcrite = "";
   function garderLaPlace(): void {
     if (!pret) return;
-    const place = JSON.stringify({ part: enPart(marcheur.x, min, max), vers: marcheur.vers });
+    const place = JSON.stringify({ part: enPart(marcheur.x, bornes.gauche, bornes.droite), partY: enPart(marcheur.y, bornes.haut, bornes.bas), vers: marcheur.vers });
     if (place === placeEcrite) return;
     placeEcrite = place;
     ecrire("sessionStorage", CLE_PLACE, place);
@@ -233,10 +272,15 @@ function init(): void {
 
   /** Sa place gardée dans l'onglet (d'une page à l'autre, et au retour arrière) ; sinon sa place de départ. */
   function reprendreLaPlace(): void {
-    let depart = marcheurA(placeDeDepart(min, max));
+    const debut = placeDeDepart(bornes);
+    let depart = marcheurA(debut.x, debut.y);
     try {
-      const garde = JSON.parse(lire("sessionStorage", CLE_PLACE) ?? "null") as { part?: unknown; vers?: unknown } | null;
-      if (garde && typeof garde.part === "number") depart = marcheurA(depuisPart(garde.part, min, max), garde.vers === -1 ? -1 : 1);
+      const garde = JSON.parse(lire("sessionStorage", CLE_PLACE) ?? "null") as { part?: unknown; partY?: unknown; vers?: unknown } | null;
+      if (garde && typeof garde.part === "number") {
+        // Une place gardée avant qu'il ne marche sur toute la fenêtre : au bas, comme alors.
+        const partY = typeof garde.partY === "number" ? garde.partY : 1;
+        depart = marcheurA(depuisPart(garde.part, bornes.gauche, bornes.droite), depuisPart(partY, bornes.haut, bornes.bas), garde.vers === -1 ? -1 : 1);
+      }
     } catch {
       // Place illisible : il repart de sa place de départ.
     }
@@ -248,7 +292,7 @@ function init(): void {
   function dessiner(): void {
     // Sur un pixel entier de l'écran : le dessin reste net.
     const dpr = window.devicePixelRatio || 1;
-    boite!.style.transform = `translate3d(${Math.round(marcheur.x * dpr) / dpr}px, 0, 0)`;
+    boite!.style.transform = `translate3d(${Math.round(marcheur.x * dpr) / dpr}px, ${Math.round(marcheur.y * dpr) / dpr}px, 0)`;
     boite!.dataset.vers = marcheur.vers === 1 ? "droite" : "gauche";
     let pose: { image: number; leve: boolean } = { image: IMAGES.debout, leve: false };
     if (marcheur.enMarche) pose = imageDeMarche(marcheur.pasMs);
@@ -257,38 +301,66 @@ function init(): void {
     image!.dataset.leve = pose.leve ? "1" : "0";
     boite!.dataset.pose = marcheur.enMarche ? "marche" : repos;
     if (repos === "dort") lit!.style.setProperty("--image", String(souffleA(performance.now() - dortDepuis)));
+    laisserLire();
     if (bulleOuverte) placerLaBulle();
   }
 
+  /**
+   * La mention de licence d'OpenFront se lit toujours en fin de page : sa place à côté du curseur l'évite, au bas de la
+   * fenêtre la place gardée sous le pied de page (global.css) la laisse au-dessus de lui, et s'il se tient ailleurs sur
+   * elle (posé à la main, en pause), il s'efface, sans bouger, tant que la page reste défilée jusqu'en bas. Pendant le
+   * défilement, elle passe sous lui sans qu'il disparaisse : il ne clignote pas.
+   */
+  function laisserLire(): void {
+    const zone = zoneDeLaMention();
+    const finDePage = window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2;
+    const dessus = finDePage && zone !== null && touche(corpsA(marcheur, cote), zone);
+    if (dessus === (boite!.dataset.laisseLire === "1")) return;
+    if (dessus) {
+      boite!.dataset.laisseLire = "1";
+      fermer(false);
+    } else delete boite!.dataset.laisseLire;
+  }
+
   function placerLaBulle(): void {
-    const place = placeDeLaBulle(marcheur.x + largeur / 2, bulle!.offsetWidth, document.documentElement.clientWidth);
+    // Trop haut pour elle au-dessus de lui (sous l'en-tête), elle passe dessous, s'il y a plus de place.
+    const verticale = { hauteur: bulle!.offsetHeight, dessus: marcheur.y + 3 * cote - (bornes.haut - 4), dessous: hauteurFenetre() - (marcheur.y + hauteur - cote) };
+    const place = placeDeLaBulle(marcheur.x + largeur / 2, bulle!.offsetWidth, largeurFenetre(), verticale);
     bulle!.style.setProperty("--bulle-x", `${place.gauche - marcheur.x}px`);
     bulle!.style.setProperty("--queue", `${place.queue}px`);
+    if (place.dessous) boite!.dataset.bulleDessous = "1";
+    else delete boite!.dataset.bulleDessous;
   }
 
   /* ---------- Marche ---------- */
 
-  /** Sa cible : dégager un champ ou le bas de la fenêtre d'abord ; sinon le visiteur, s'il le suit et que rien ne le retient. */
-  function cible(): { x: number | null; allure: Allure } {
-    if (efface()) return { x: null, allure: "suivre" };
-    if (ecart !== null) return { x: ecart, allure: "ecarter" };
-    if (calme() || !suit || glisse || bulleOuverte || visiteurX === null) return { x: null, allure: "suivre" };
-    // Au doigt : le coin du côté touché. À la souris : à côté du curseur.
-    if (auDoigt) return { x: coinDuCote(visiteurX, document.documentElement.clientWidth, gauche(), droite()), allure: "rejoindre" };
-    return { x: visiteurX - largeur / 2, allure: "suivre" };
+  /** Sa cible : dégager un champ ou ce qui est fixé d'abord ; sinon le visiteur, s'il le suit et que rien ne le retient. */
+  function cible(): { place: Point | null; allure: Allure } {
+    if (efface()) return { place: null, allure: "suivre" };
+    if (ecart !== null) return { place: ecart, allure: "ecarter" };
+    if (calme() || !suit || glisse || bulleOuverte || visiteur === null) return { place: null, allure: "suivre" };
+    // Au doigt : le coin bas du côté touché. À la souris : à côté du curseur, où qu'il soit.
+    const voulue = auDoigt ? coinDuCote(visiteur.x, largeurFenetre(), bornes) : placeAcoteDuCurseur(visiteur, marcheur, largeur, hauteur, bornes);
+    const laMention = zoneDeLaMention();
+    const aEviter = laMention ? [...zones(), laMention] : zones();
+    const libre = aEviter.length > 0 ? (horsDesZones(voulue, largeur, hauteur, aEviter, bornes) ?? voulue) : voulue;
+    return { place: libre, allure: auDoigt ? "rejoindre" : "suivre" };
   }
 
   function pasDeTemps(maintenant: number): void {
     const dt = maintenant - image0;
     image0 = maintenant;
     const but = cible();
-    // Pour s'écarter, il marche depuis là où il est, même sur ce qu'il quitte : jamais de saut d'une place à l'autre.
     const precis = but.allure === "ecarter";
-    marcheur = precis ? avancer(marcheur, but.x, dt, min, max, but.allure) : avancer(marcheur, but.x, dt, gauche(), droite(), but.allure);
+    marcheur = avancer(marcheur, but.place, dt, bornes, but.allure);
     if (marcheur.enMarche) reveiller(maintenant);
     if (precis && !marcheur.enMarche) ecart = null;
     dessiner();
-    const attend = but.x !== null && !precis && Math.abs(borner(but.x) - marcheur.x) > seuilDeDepart(but.allure);
+    let attend = false;
+    if (but.place !== null && !precis) {
+      const voulue = bornerLaPlace(but.place, bornes);
+      attend = Math.hypot(voulue.x - marcheur.x, voulue.y - marcheur.y) > seuilDeDepart(but.allure);
+    }
     boucle = marcheur.enMarche || attend || (precis && ecart !== null) ? requestAnimationFrame(pasDeTemps) : 0;
     if (!boucle) garderLaPlace();
   }
@@ -302,16 +374,16 @@ function init(): void {
   function arreter(): void {
     if (boucle) cancelAnimationFrame(boucle);
     boucle = 0;
-    marcheur = avancer(marcheur, null, 0, min, max);
+    marcheur = avancer(marcheur, null, 0, bornes);
   }
 
   /** Il va tout de suite à `but` : en marchant, ou d'un coup en pause et pendant un glisser. */
-  function allerA(but: number): void {
-    if (Math.abs(but - marcheur.x) < 0.5) return;
+  function allerA(but: Point): void {
+    if (Math.hypot(but.x - marcheur.x, but.y - marcheur.y) < 0.5) return;
     fermer(false);
     if (calme() || glisse || efface()) {
       arreter();
-      marcheur = marcheurA(but, marcheur.vers);
+      marcheur = marcheurA(but.x, but.y, marcheur.vers);
       dessiner();
       garderLaPlace();
     } else {
@@ -338,8 +410,8 @@ function init(): void {
     }
     veille = window.setInterval(() => {
       if (document.hidden) return;
-      // De temps en temps, il regarde aussi le bas de la fenêtre : une barre a pu y venir sans prévenir.
-      regarderLeBas();
+      // De temps en temps, il regarde aussi ce qui est fixé sur la fenêtre : une barre a pu y venir sans prévenir.
+      regarderLesObstacles();
       if (marcheur.enMarche || bulleOuverte || glisse) return;
       const maintenant = performance.now();
       const suite = reposApres(maintenant - dernierGeste);
@@ -409,8 +481,11 @@ function init(): void {
 
   /* ---------- Ce qui l'efface, ce qu'il évite ---------- */
 
-  /** Il s'efface (le temps d'une saisie au doigt, du clavier du téléphone, d'une barre sur toute la largeur), puis revient. */
+  /** Il s'efface (le temps d'une saisie au doigt, du clavier du téléphone, d'une fenêtre sans place libre), puis revient. */
   function effacement(): void {
+    // Sa prison s'efface aussi le temps d'une saisie au doigt ou du clavier du téléphone, et dans une fenêtre trop basse.
+    if (saisie || fenetrePetite || hauteurFenetre() < PRISON_FENETRE_MIN) prison!.dataset.efface = "1";
+    else delete prison!.dataset.efface;
     const avant = boite!.dataset.efface === "1";
     const maintenant = efface();
     if (avant === maintenant) return;
@@ -426,38 +501,55 @@ function init(): void {
     }
   }
 
-  // Un élément fixé au bas de la fenêtre dont la taille change (une fenêtre d'appel qui s'allonge) : il regarde de nouveau.
+  // Un élément fixé dont la taille change (une fenêtre d'appel qui s'allonge) : il regarde de nouveau.
   const tailles = typeof ResizeObserver === "function" ? new ResizeObserver(() => planifierLeRegard()) : null;
   const suivis = new WeakSet<Element>();
 
-  /** Ce qui est fixé au bas de la fenêtre, à la hauteur de son corps : il se tient à côté, ou s'efface s'il n'y tient pas. */
-  function regarderLeBas(): void {
-    if (!pret || range) return;
-    const hauteur = window.innerHeight;
-    const haut = hauteur - CASES_H * cote - 12;
-    const zones: { gauche: number; droite: number }[] = [];
+  /** La prison remonte au-dessus de ce qui est fixé au coin bas gauche de la fenêtre (la barre du vestiaire, un appel). */
+  function remonterLaPrison(): void {
+    prison!.style.setProperty("--monte", "0px");
+    if (prison!.hidden) return;
+    const place = cadreDe(prison!);
+    let monte = 0;
+    for (const z of zonesFixees) {
+      if (z.droite <= place.gauche - JEU || z.gauche >= place.droite + JEU || z.bas <= place.haut - JEU || z.haut >= place.bas + JEU) continue;
+      monte = Math.max(monte, place.bas - z.haut + JEU);
+    }
+    if (monte > 0) prison!.style.setProperty("--monte", `${Math.ceil(monte)}px`);
+  }
+
+  /** Ce qui est fixé sur la fenêtre : il se tient à côté, ou s'efface s'il ne tient nulle part ; sa prison remonte. */
+  function regarderLesObstacles(): void {
+    if (!pret) return;
+    const vue: Cadre = { gauche: 0, droite: largeurFenetre(), haut: 0, bas: hauteurFenetre() };
+    const trouvees: Cadre[] = [];
     for (const obstacle of document.querySelectorAll<HTMLElement>(OBSTACLES)) {
-      if (boite!.contains(obstacle)) continue;
+      if (boite!.contains(obstacle) || prison!.contains(obstacle)) continue;
       if (tailles && !suivis.has(obstacle)) {
         suivis.add(obstacle);
         tailles.observe(obstacle);
       }
-      const cadre = obstacle.getBoundingClientRect();
-      if (cadre.width < 1 || cadre.height < 1 || cadre.bottom <= haut || cadre.top >= hauteur) continue;
-      zones.push({ gauche: cadre.left, droite: cadre.right });
+      const cadre = cadreDe(obstacle);
+      if (cadre.droite - cadre.gauche < 1 || cadre.bas - cadre.haut < 1 || !touche(cadre, vue)) continue;
+      trouvees.push(cadre);
     }
-    const sol = zones.length > 0 ? solLibre(marcheur.x, largeur, zones, min, max) : null;
-    libre = sol;
-    barre = zones.length > 0 && sol === null;
+    zonesFixees = trouvees;
+    laisserLire();
+    if (range) return remonterLaPrison();
+    const toutes = zones();
+    barre = toutes.length > 0 && nullePart(marcheur, largeur, hauteur, toutes, bornes);
     effacement();
-    if (sol && (marcheur.x < sol.min || marcheur.x > sol.max)) allerA(borner(marcheur.x));
+    // En marche vers une place libre, il ne fait que passer dessus : il n'est écarté qu'une fois arrêté.
+    if (barre || toutes.length === 0 || (marcheur.enMarche && ecart === null)) return;
+    const libre = horsDesZones(marcheur, largeur, hauteur, toutes, bornes);
+    if (libre) allerA(libre);
   }
 
   function planifierLeRegard(): void {
     if (regard || !pret) return;
     regard = requestAnimationFrame(() => {
       regard = 0;
-      regarderLeBas();
+      regarderLesObstacles();
     });
   }
 
@@ -467,47 +559,49 @@ function init(): void {
     effacement();
   }
 
-  /* ---------- Ranger, revenir ---------- */
-
-  /** Les rappels « Faire revenir le Gaulois » : au bas du pied de page, et au village, sous le titre. */
-  function rappels(): NodeListOf<HTMLElement> {
-    return document.querySelectorAll<HTMLElement>("[data-compagnon-rappel]");
-  }
+  /* ---------- La prison ---------- */
 
   function montrer(): void {
-    boite!.hidden = range || !pret || montree === "";
-    for (const ligne of rappels()) ligne.hidden = !range;
+    const images = pret && montree !== "";
+    boite!.hidden = range || !images;
+    prison!.hidden = !range || !images;
+    if (range) remonterLaPrison();
   }
 
+  /** « En prison » : il quitte la page et attend dans sa prison, au coin bas gauche, sur toutes les pages. */
   function ranger(): void {
     fermer(false);
     arreter();
+    ecart = null;
     range = true;
     ecrire("localStorage", CLE_RANGE, "1");
     montrer();
     veiller();
-    boutonRevenir!.focus({ preventScroll: true });
+    if (!prison!.hidden) prison!.focus({ preventScroll: true });
   }
 
-  function revenir(): void {
+  /**
+   * Un clic sur la prison : il en sort, en bas à gauche, à côté d'elle (ou à la place libre la plus proche, si quelque
+   * chose y est fixé), prend le focus et remercie. La prison ne se montre qu'une fois ses images posées : il est prêt.
+   */
+  function liberer(): void {
+    if (!pret) return;
     range = false;
     ecrire("localStorage", CLE_RANGE, null);
-    focusALArrivee = true;
-    if (!pret) return void preparer();
+    mesurer();
+    const depart = placeDeDepart(bornes);
+    const sortie = horsDesZones(depart, largeur, hauteur, zonesFixees, bornes) ?? depart;
+    marcheur = marcheurA(sortie.x, sortie.y);
+    repos = "debout";
+    dernierGeste = performance.now();
     montrer();
     veiller();
-    dernierGeste = performance.now();
     dessiner();
-    regarderLeBas();
+    garderLaPlace();
+    regarderLesObstacles();
     regarderLaFenetre();
-    arriver();
-  }
-
-  /** Rappelé : le focus va sur lui, s'il est là et visible. */
-  function arriver(): void {
-    if (!focusALArrivee || boite!.hidden) return;
-    focusALArrivee = false;
     if (!efface()) gaulois!.focus({ preventScroll: true });
+    parler("libere");
   }
 
   function choisirDeSuivre(oui: boolean): void {
@@ -517,18 +611,19 @@ function init(): void {
 
   /* ---------- Gestes du visiteur ---------- */
 
-  // Glisser : il se déplace à la main, de gauche à droite, et reste où on le pose.
-  let prise: { id: number; x0: number; depart: number; bouge: boolean } | null = null;
+  // Glisser : il se déplace à la main, partout dans la fenêtre, et reste où on le pose.
+  let prise: { id: number; x0: number; y0: number; depart: Point; bouge: boolean } | null = null;
   let clicAvale = false;
   gaulois.addEventListener("pointerdown", (e) => {
     if (e.button !== 0) return;
-    prise = { id: e.pointerId, x0: e.clientX, depart: marcheur.x, bouge: false };
+    prise = { id: e.pointerId, x0: e.clientX, y0: e.clientY, depart: { x: marcheur.x, y: marcheur.y }, bouge: false };
     gaulois.setPointerCapture(e.pointerId);
   });
   gaulois.addEventListener("pointermove", (e) => {
     if (!prise || e.pointerId !== prise.id) return;
     const dx = e.clientX - prise.x0;
-    if (!prise.bouge && Math.abs(dx) < 6) return;
+    const dy = e.clientY - prise.y0;
+    if (!prise.bouge && Math.hypot(dx, dy) < 6) return;
     if (!prise.bouge) {
       prise.bouge = true;
       glisse = true;
@@ -537,7 +632,8 @@ function init(): void {
       reveiller();
       boite.dataset.glisse = "1";
     }
-    marcheur = { ...marcheurA(borner(prise.depart + dx), dx < 0 ? -1 : 1) };
+    const place = bornerLaPlace({ x: prise.depart.x + dx, y: prise.depart.y + dy }, bornes);
+    marcheur = marcheurA(place.x, place.y, dx < 0 ? -1 : dx > 0 ? 1 : marcheur.vers);
     dessiner();
   });
   const lacher = (e: PointerEvent): void => {
@@ -563,15 +659,17 @@ function init(): void {
     else parler();
   });
 
-  // Au clavier : les flèches le déplacent, comme un glisser.
+  // Au clavier : les flèches le déplacent, comme un glisser, dans les quatre directions.
+  const FLECHES: Readonly<Record<string, Point>> = { ArrowLeft: { x: -1, y: 0 }, ArrowRight: { x: 1, y: 0 }, ArrowUp: { x: 0, y: -1 }, ArrowDown: { x: 0, y: 1 } };
   gaulois.addEventListener("keydown", (e) => {
-    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    const fleche = FLECHES[e.key];
+    if (!fleche) return;
     e.preventDefault();
     fermer(false);
     arreter();
     reveiller();
-    const vers = e.key === "ArrowLeft" ? -1 : 1;
-    marcheur = marcheurA(borner(marcheur.x + vers * 24), vers);
+    const place = bornerLaPlace({ x: marcheur.x + fleche.x * 24, y: marcheur.y + fleche.y * 24 }, bornes);
+    marcheur = marcheurA(place.x, place.y, fleche.x < 0 ? -1 : fleche.x > 0 ? 1 : marcheur.vers);
     choisirDeSuivre(false);
     dessiner();
     garderLaPlace();
@@ -584,10 +682,7 @@ function init(): void {
     gaulois.focus({ preventScroll: true });
   });
   boutonRanger.addEventListener("click", ranger);
-  // Tout bouton « Faire revenir le Gaulois » de la page, celui du pied de page comme celui du village.
-  document.addEventListener("click", (e) => {
-    if (e.target instanceof Element && e.target.closest("[data-compagnon-revenir]")) revenir();
-  });
+  prison.addEventListener("click", liberer);
 
   // Échap ferme sa bulle, et seulement elle : avant les autres (la fenêtre d'un appel du QG écoute aussi Échap), et marqué
   // comme traité pour qu'une seule touche ne ferme pas deux choses.
@@ -607,7 +702,7 @@ function init(): void {
   // Le visiteur : le curseur d'une souris, ou l'endroit touché.
   const suivre = (e: PointerEvent): void => {
     if (boite.contains(e.target as Node)) return;
-    visiteurX = e.clientX;
+    visiteur = { x: e.clientX, y: e.clientY };
     auDoigt = e.pointerType !== "mouse";
     reveiller();
     relancer();
@@ -633,14 +728,13 @@ function init(): void {
       (el instanceof HTMLInputElement && !["checkbox", "radio", "button", "submit", "reset", "range", "file", "color", "image"].includes(el.type)));
   function degager(): void {
     if (!champ || !pret || range) return;
-    const cadre = champ.getBoundingClientRect();
-    const haut = window.innerHeight - CASES_H * cote - 12;
-    if (cadre.bottom < haut || cadre.top > window.innerHeight) return;
-    const but = ecarterDuChamp(marcheur.x, largeur, { gauche: cadre.left, droite: cadre.right }, gauche(), droite());
+    zoneDuChamp = cadreDe(champ);
+    if (!touche(cadreA(marcheur, largeur, hauteur), zoneDuChamp, JEU)) return;
+    const but = horsDesZones(marcheur, largeur, hauteur, zones(), bornes);
     if (but !== null) allerA(but);
   }
   document.addEventListener("focusin", (e) => {
-    if (!(e.target instanceof HTMLElement) || boite.contains(e.target)) return;
+    if (!(e.target instanceof HTMLElement) || boite.contains(e.target) || prison.contains(e.target)) return;
     const unChamp: boolean = estUnChamp(e.target as EventTarget);
     // Un lien ou un bouton atteint au clavier n'est jamais caché derrière lui (WCAG 2.4.11) : il s'écarte aussi, sans s'effacer.
     if (!unChamp && !e.target.matches(":focus-visible")) return;
@@ -652,6 +746,7 @@ function init(): void {
   document.addEventListener("focusout", (e) => {
     if (e.target !== champ) return;
     champ = null;
+    zoneDuChamp = null;
     saisie = false;
     effacement();
   });
@@ -671,7 +766,7 @@ function init(): void {
     regarderLaFenetre();
   });
   window.visualViewport?.addEventListener("resize", regarderLaFenetre);
-  // Une barre qui se colle au bas de la page, une fenêtre d'appel qui s'ouvre (posée dans <body>) : il regarde le bas.
+  // Une barre qui se colle au bas de la page, une fenêtre d'appel qui s'ouvre (posée dans <body>) : il regarde de nouveau.
   new MutationObserver(planifierLeRegard).observe(document.body, { childList: true });
   new MutationObserver(planifierLeRegard).observe(document.body, { subtree: true, attributes: true, attributeFilter: ["data-colle", "data-compagnon-obstacle"] });
 
@@ -689,7 +784,7 @@ function init(): void {
   });
 
   // Retour arrière : le navigateur rend la page telle qu'on l'a quittée. Ce qui a changé depuis, sur les autres pages, fait
-  // foi : sa place, rangé ou non, suivre ou non, la tenue (une déconnexion, un passage au village).
+  // foi : sa place, en prison ou non, suivre ou non, la tenue (une déconnexion, un passage au village).
   window.addEventListener("pageshow", (e) => {
     if (!e.persisted) return;
     range = lire("localStorage", CLE_RANGE) === "1";
@@ -700,17 +795,16 @@ function init(): void {
     glisse = false;
     delete boite.dataset.glisse;
     montrer();
-    if (range) return veiller();
-    if (pret) {
+    if (pret && !range) {
       mesurer();
       reprendreLaPlace();
       dernierGeste = performance.now();
       repos = "debout";
       dessiner();
-      veiller();
-      regarderLeBas();
+      regarderLesObstacles();
       regarderLaFenetre();
     }
+    veiller();
     void preparer();
   });
 
@@ -730,12 +824,12 @@ function init(): void {
 
   /* ---------- La tenue ---------- */
 
-  // Le vestiaire vient d'enregistrer une tenue : il la met aussitôt (sinon, à la page suivante).
+  // Le vestiaire vient d'enregistrer une tenue : il la met aussitôt (sinon, à la page suivante), en prison comme dehors.
   window.addEventListener(
     EVENEMENT_ENREGISTRE,
     (e) => {
       const tenue = recevoirLaTenue((e as CustomEvent<unknown>).detail, auVillage);
-      if (tenue !== undefined && !range) void habiller(tenue);
+      if (tenue !== undefined) void habiller(tenue);
     },
     true,
   );
@@ -745,11 +839,12 @@ function init(): void {
     if (changement === "parti") {
       montree = "";
       image.style.backgroundImage = "";
+      prisonnier.style.backgroundImage = "";
       lit.style.backgroundImage = "";
       fermer(false);
       montrer();
     }
-    if (!range) void preparer();
+    void preparer();
   });
 
   /* ---------- Démarrage ---------- */
@@ -762,7 +857,7 @@ function init(): void {
     montrer();
     dessiner();
     veiller();
-    regarderLeBas();
+    regarderLesObstacles();
     regarderLaFenetre();
     // Son salut, une seule fois par onglet, et seulement si les animations sont permises : rien ne change tout seul en pause.
     if (!range && !calme() && lire("sessionStorage", CLE_SALUE) !== "1") {
@@ -777,10 +872,10 @@ function init(): void {
     montree = images.cle;
     deDepart = images.deDepart;
     image!.style.backgroundImage = `url("${images.gaulois}")`;
+    prisonnier!.style.backgroundImage = `url("${images.gaulois}")`;
     lit!.style.backgroundImage = `url("${images.lit}")`;
     if (!pret) demarrer();
     else montrer();
-    arriver();
   }
 
   /**
@@ -797,11 +892,13 @@ function init(): void {
     if ((brute === null || brute === undefined) && departGaulois && departLit) {
       try {
         // Chargées avant d'être montrées : il n'apparaît pas vide. Gardées ensuite par le navigateur.
-        await Promise.all([departGaulois, departLit].map((adresse) => {
-          const planche = new Image();
-          planche.src = adresse;
-          return planche.decode();
-        }));
+        await Promise.all(
+          [departGaulois, departLit].map((adresse) => {
+            const planche = new Image();
+            planche.src = adresse;
+            return planche.decode();
+          }),
+        );
         if (numero !== habillage) return;
         const images: ImagesGardees = { cle, gaulois: departGaulois, lit: departLit, deDepart: true };
         ecrire("sessionStorage", CLE_IMAGES, JSON.stringify(images));
@@ -856,22 +953,8 @@ function init(): void {
     return habiller(await lecture);
   }
 
-  // Au village, le rappel est aussi sous le titre : on y vient pour lui.
-  if (auVillage) {
-    const tete = document.querySelector("main .page-tete") ?? document.querySelector("main h1")?.closest("header");
-    if (tete) {
-      const ligne = document.createElement("div");
-      ligne.className = "compagnon-rappel-village";
-      ligne.dataset.compagnonRappel = "";
-      ligne.hidden = true;
-      ligne.append(boutonRevenir.cloneNode(true));
-      tete.after(ligne);
-    }
-  }
-
   montrer();
-  // Rangé : rien n'est chargé. Sinon, dès que la page est tranquille ; tout de suite si ses images sont déjà peintes.
-  if (range) return;
+  // Dehors ou en prison, il est habillé dès que la page est tranquille ; tout de suite si ses images sont déjà peintes.
   if (lire("sessionStorage", CLE_IMAGES)) void preparer();
   else if ("requestIdleCallback" in window) window.requestIdleCallback(() => void preparer(), { timeout: 2_000 });
   else setTimeout(() => void preparer(), 300);

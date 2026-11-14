@@ -16748,15 +16748,18 @@ footer h2 {
 }
 
 /* ---------- Gaulois compagnon ---------- */
-/* Le Gaulois du village qui suit le visiteur au bas de la fenêtre (14 novembre 2026). Balisage :
+/* Le Gaulois du village qui suit le visiteur sur toute la fenêtre (14 novembre 2026), et sa petite prison. Balisage :
    GauloisCompagnon.astro ; comportement : src/scripts/compagnon.ts, qui pose --case (le côté d'une case, un nombre
-   entier de pixels de l'écran), sa place (transform) et l'image montrée (--image). Sous l'en-tête et les fenêtres
-   (z-index 30), et seuls lui et sa bulle prennent les clics. Voir « Le Gaulois compagnon » dans docs/DESIGN.md. */
+   entier de pixels de l'écran), sa place (transform, depuis le coin haut gauche de la fenêtre) et l'image montrée
+   (--image). Sous l'en-tête et les fenêtres (z-index 30), et seuls lui et sa bulle prennent les clics. Voir « Le Gaulois
+   compagnon » dans docs/DESIGN.md. */
 .compagnon {
   --case: 2px;
   position: fixed;
   left: 0;
-  bottom: env(safe-area-inset-bottom, 0px);
+  top: 0;
+  /* Lu par le script : le bas de l'écran d'un téléphone à encoche, sous lequel il ne descend pas. */
+  scroll-margin-bottom: env(safe-area-inset-bottom, 0px);
   z-index: 30;
   width: calc(48 * var(--case));
   height: calc(64 * var(--case));
@@ -16766,25 +16769,28 @@ footer h2 {
 .compagnon[hidden] {
   display: none;
 }
-/* Sa place au bas de chaque page, tant qu'il est là : en fin de défilement, tout le pied de page (et sa mention de licence
-   d'OpenFront) se lit au-dessus de lui, et un lien qui prend le focus au clavier n'est jamais caché derrière lui. Sa
-   hauteur la plus grande, plus un peu d'air : 128 px sur ordinateur, 96 px au plus sous 640 px. */
-footer:has(.compagnon:not([hidden])) {
+/* Sa place au bas de chaque page, tant qu'il est là ou en prison : en fin de défilement, tout le pied de page (et sa
+   mention de licence d'OpenFront) se lit au-dessus de sa prison et de lui quand il est en bas. Ailleurs dans la fenêtre,
+   il ne s'arrête pas sur la mention, et s'efface si elle est sous lui en fin de page (data-laisse-lire). Sa hauteur la plus grande,
+   plus un peu d'air : 128 px sur ordinateur, 96 px au plus sous 640 px. */
+footer:has(.compagnon:not([hidden]), .compagnon-prison:not([hidden])) {
   padding-bottom: 9rem;
 }
-html:has(.compagnon:not([hidden])) {
+html:has(.compagnon:not([hidden]), .compagnon-prison:not([hidden])) {
   scroll-padding-bottom: 9rem;
 }
 @media (max-width: 639px) {
-  footer:has(.compagnon:not([hidden])) {
+  footer:has(.compagnon:not([hidden]), .compagnon-prison:not([hidden])) {
     padding-bottom: 7rem;
   }
-  html:has(.compagnon:not([hidden])) {
+  html:has(.compagnon:not([hidden]), .compagnon-prison:not([hidden])) {
     scroll-padding-bottom: 7rem;
   }
 }
-/* Pendant une saisie sur un écran tactile : il s'efface, le clavier prend la place. */
-.compagnon[data-efface] {
+/* Pendant une saisie sur un écran tactile : il s'efface, le clavier prend la place. Sur la mention de licence d'OpenFront,
+   la page défilée jusqu'en bas, il s'efface aussi, le temps qu'elle y reste. */
+.compagnon[data-efface],
+.compagnon[data-laisse-lire] {
   opacity: 0;
   visibility: hidden;
 }
@@ -16798,7 +16804,8 @@ html:has(.compagnon:not([hidden])) {
   background: none;
   cursor: grab;
   pointer-events: auto;
-  touch-action: pan-y;
+  /* Au doigt, il se glisse dans tous les sens : le doigt posé sur lui ne fait pas défiler la page. */
+  touch-action: none;
   -webkit-tap-highlight-color: transparent;
 }
 .compagnon[data-glisse] .compagnon-gaulois {
@@ -16820,11 +16827,13 @@ html:has(.compagnon:not([hidden])) {
   background: color-mix(in srgb, #000 42%, transparent);
   transition: opacity 0.8s ease;
 }
+/* Le dessin et le lit, plus larges que le bouton, ne prennent pas les clics : un lien à côté de lui reste cliquable. */
 .compagnon-image,
 .compagnon-lit {
   position: absolute;
   bottom: 0;
   left: 50%;
+  pointer-events: none;
   background-repeat: no-repeat;
   image-rendering: pixelated;
   transition: opacity 0.8s ease;
@@ -16934,6 +16943,31 @@ html:has(.compagnon:not([hidden])) {
     0 var(--coupe)
   );
 }
+/* En haut de la fenêtre, la bulle passe sous ses pieds, la queue vers lui, en haut. */
+.compagnon[data-bulle-dessous] .compagnon-bulle {
+  bottom: auto;
+  top: calc(100% - var(--case));
+  padding: calc(0.625rem + var(--pointe)) 0.75rem 0.625rem;
+  transform: translateY(-0.25rem);
+}
+.compagnon[data-bulle][data-bulle-dessous] .compagnon-bulle {
+  transform: none;
+}
+.compagnon[data-bulle-dessous] .compagnon-bulle::before {
+  clip-path: polygon(
+    var(--coupe) var(--pointe),
+    calc(var(--queue) - 0.25rem) var(--pointe),
+    var(--queue) 0,
+    calc(var(--queue) + 0.5rem) var(--pointe),
+    calc(100% - var(--coupe)) var(--pointe),
+    100% calc(var(--pointe) + var(--coupe)),
+    100% calc(100% - var(--coupe)),
+    calc(100% - var(--coupe)) 100%,
+    var(--coupe) 100%,
+    0 calc(100% - var(--coupe)),
+    0 calc(var(--pointe) + var(--coupe))
+  );
+}
 .compagnon-parole {
   margin: 0;
   font-weight: 700;
@@ -16975,19 +17009,90 @@ html:has(.compagnon:not([hidden])) {
 .compagnon-village[hidden] {
   display: none;
 }
-.compagnon-rappel {
-  margin-top: -1.5rem;
-  padding-bottom: 2rem;
+/* Sa petite prison, rangé : au coin bas gauche de la fenêtre, sur toutes les pages, environ un pixel de la page par case
+   (--case, posé par le script). Trois couches : le fond de la cellule, lui debout (la planche de ses images), les
+   barreaux devant. Elle remonte au-dessus de ce qui est fixé au même coin (--monte). Un clic, ou Entrée, le libère. */
+.compagnon-prison {
+  --case: 1px;
+  --monte: 0px;
+  position: fixed;
+  left: calc(0.5rem + env(safe-area-inset-left, 0px));
+  bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
+  z-index: 30;
+  width: calc(var(--prison-l) * var(--case));
+  height: calc(var(--prison-h) * var(--case));
+  padding: 0;
+  border: 0;
+  border-radius: 0.25rem;
+  background: none;
+  cursor: pointer;
+  translate: 0 calc(-1 * var(--monte));
+  transition: opacity 0.4s ease;
+  -webkit-tap-highlight-color: transparent;
 }
-.compagnon-rappel[hidden] {
+.compagnon-prison[hidden] {
   display: none;
 }
-/* Au village, la même ligne sous le titre de la page, posée par le script. */
-.compagnon-rappel-village {
-  margin-bottom: -0.5rem;
+.compagnon-prison[data-efface] {
+  opacity: 0;
+  visibility: hidden;
 }
-.compagnon-rappel-village[hidden] {
-  display: none;
+.compagnon-prison:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+.compagnon-prison-fond,
+.compagnon-prison-devant,
+.compagnon-prison-gaulois {
+  position: absolute;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+.compagnon-prison-fond,
+.compagnon-prison-devant {
+  inset: 0;
+  background-image: var(--prison-planche);
+  background-size: calc(2 * var(--prison-l) * var(--case)) calc(var(--prison-h) * var(--case));
+}
+.compagnon-prison-devant {
+  background-position: calc(-1 * var(--prison-l) * var(--case)) 0;
+}
+.compagnon-prison-gaulois {
+  left: calc(var(--prisonnier-x) * var(--case));
+  top: calc(var(--prisonnier-y) * var(--case));
+  width: calc(48 * var(--case));
+  height: calc(64 * var(--case));
+  background-size: calc(192 * var(--case)) calc(64 * var(--case));
+  background-position: 0 0;
+}
+/* Au survol ou au clavier, ce que fait un clic. */
+.compagnon-prison-mot {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 0.375rem);
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--color-blue-text);
+  border-radius: 2px;
+  background: var(--color-night);
+  font-family: var(--font-console);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #fff;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.25s ease,
+    visibility 0s linear 0.25s;
+}
+.compagnon-prison:hover .compagnon-prison-mot,
+.compagnon-prison:focus-visible .compagnon-prison-mot {
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity 0.25s ease,
+    visibility 0s;
 }
 @media (pointer: coarse) {
   .compagnon-choix {
@@ -16998,13 +17103,17 @@ html:has(.compagnon:not([hidden])) {
 }
 /* Pause de l'en-tête, « réduire les animations » : ni fondu, ni saut. */
 .fx-off .compagnon,
-.fx-off .compagnon * {
+.fx-off .compagnon *,
+.fx-off .compagnon-prison,
+.fx-off .compagnon-prison * {
   transition: none;
   animation: none;
 }
 @media (prefers-reduced-motion: reduce) {
   .compagnon,
-  .compagnon * {
+  .compagnon *,
+  .compagnon-prison,
+  .compagnon-prison * {
     transition: none;
     animation: none;
   }
@@ -17021,17 +17130,25 @@ html:has(.compagnon:not([hidden])) {
     display: none;
   }
   .compagnon-image,
-  .compagnon-lit {
+  .compagnon-lit,
+  .compagnon-prison-fond,
+  .compagnon-prison-gaulois,
+  .compagnon-prison-devant {
     forced-color-adjust: none;
   }
-  .compagnon-gaulois:focus-visible {
+  .compagnon-gaulois:focus-visible,
+  .compagnon-prison:focus-visible {
     outline-color: Highlight;
+  }
+  .compagnon-prison-mot {
+    border-color: CanvasText;
+    background: Canvas;
+    color: CanvasText;
   }
 }
 @media print {
   .compagnon,
-  .compagnon-rappel,
-  .compagnon-rappel-village {
+  .compagnon-prison {
     display: none;
   }
 }

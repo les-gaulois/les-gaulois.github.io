@@ -2,6 +2,12 @@
   {
     "date": "2026-11-14",
     "kind": "ameliore",
+    "title": "Le Gaulois vous suit sur tout l'écran",
+    "body": "Le petit Gaulois suit la souris partout sur l'écran, plus seulement au bas des pages. « En prison » l'enferme dans une petite cage au coin bas gauche ; un clic sur la cage le libère."
+  },
+  {
+    "date": "2026-11-14",
+    "kind": "ameliore",
     "title": "Votre lien OpenFront à la connexion",
     "body": "Après la connexion, avec Discord ou avec un code, collez le lien de votre profil OpenFront : c'est obligatoire. Le bouton « Ouvrir mon profil OpenFront » mène tout droit là où le copier.",
     "link": {

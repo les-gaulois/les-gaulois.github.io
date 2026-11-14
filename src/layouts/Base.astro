@@ -256,7 +256,8 @@ const onciale = lettresOnciale
           <p class="font-display text-lg font-extrabold">[{clan.tag}] {clan.name}</p>
           <span class="tribar mt-3"></span>
           <p class="mt-4 text-sm text-muted">{SITE_DISCLAIMER}</p>
-          <p class="mt-2 text-sm text-muted">{SITE_LICENSE_NOTICE}</p>
+          {/* La mention de licence d'OpenFront : le Gaulois compagnon ne s'arrête pas dessus et s'efface s'il s'y trouve (src/scripts/compagnon.ts). */}
+          <p class="mt-2 text-sm text-muted" data-compagnon-mention>{SITE_LICENSE_NOTICE}</p>
         </div>
         <nav aria-label="Plan du site">
           <h2 class="text-sm uppercase tracking-wide text-muted">Le site</h2>

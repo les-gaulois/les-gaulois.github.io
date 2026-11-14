@@ -16,9 +16,9 @@ import { aleatoire } from "../../src/lib/logo-matrice";
 import { SECTIONS } from "../../src/lib/nav";
 
 describe("les répliques du Gaulois compagnon", () => {
-  it("sont dix à seize, courtes, sans doublon", () => {
+  it("sont dix à dix-sept, courtes, sans doublon", () => {
     expect(TOUTES_LES_REPLIQUES.length).toBeGreaterThanOrEqual(10);
-    expect(TOUTES_LES_REPLIQUES.length).toBeLessThanOrEqual(16);
+    expect(TOUTES_LES_REPLIQUES.length).toBeLessThanOrEqual(17);
     expect(new Set(TOUTES_LES_REPLIQUES).size).toBe(TOUTES_LES_REPLIQUES.length);
     for (const replique of TOUTES_LES_REPLIQUES) {
       expect(replique.length, replique).toBeGreaterThan(0);
@@ -88,7 +88,7 @@ describe("les répliques du Gaulois compagnon", () => {
 
   it("gardent le salut en tête et une réponse à chaque geste", () => {
     expect(REPLIQUES[0]).toMatch(/^Salut/);
-    expect(Object.keys(REPLIQUES_DES_GESTES).sort()).toEqual(["invitation", "pose", "reveil", "suivre"]);
+    expect(Object.keys(REPLIQUES_DES_GESTES).sort()).toEqual(["invitation", "libere", "pose", "reveil", "suivre"]);
     expect(REPLIQUES_DES_GESTES.invitation).toMatch(/village/);
   });
 
