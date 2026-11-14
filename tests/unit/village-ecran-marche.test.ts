@@ -150,7 +150,7 @@ describe("les offres à l'écran", () => {
 });
 
 describe("les refus du marché", () => {
-  const REFUS: RefusMarche[] = ["not_validated", "pas_possede", "objet_porte", "achete_au_marche", "prix_invalide", "trop_d_offres", "offre_fermee", "offre_a_soi", "deja_possede", "solde_insuffisant"];
+  const REFUS: RefusMarche[] = ["not_validated", "pas_possede", "objet_porte", "achete_au_marche", "objet_grave", "prix_invalide", "trop_d_offres", "offre_fermee", "offre_a_soi", "deja_possede", "solde_insuffisant"];
 
   it("ont chacun leur message, en français, sans signe à la place d'un mot", () => {
     expect(Object.keys(MESSAGES_DU_MARCHE).sort()).toEqual([...REFUS].sort());
@@ -164,7 +164,7 @@ describe("les refus du marché", () => {
   });
 
   it("gardent dans errors.ts les refus qui n'existent qu'au marché", () => {
-    for (const code of ["pas_possede", "objet_porte", "achete_au_marche", "prix_invalide", "trop_d_offres", "offre_fermee", "offre_a_soi"] as const) {
+    for (const code of ["pas_possede", "objet_porte", "achete_au_marche", "objet_grave", "prix_invalide", "trop_d_offres", "offre_fermee", "offre_a_soi"] as const) {
       expect(ERROR_MESSAGES[code], code).toBe(MESSAGES_DU_MARCHE[code]);
     }
   });

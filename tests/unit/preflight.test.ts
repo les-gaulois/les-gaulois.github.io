@@ -26,6 +26,7 @@ const HEALTHY: Record<string, Route> = {
   "/rest/v1/rpc/get_marche": { status: 401, body: {} },
   "/rest/v1/rpc/get_village_economie": { status: 401, body: {} },
   "/rest/v1/rpc/get_vie_du_village": { status: 401, body: {} },
+  "/rest/v1/rpc/get_ma_forge": { status: 401, body: {} },
   "/rest/v1/profiles": { status: 401, body: {} },
   "/rest/v1/private_links": { status: 401, body: {} },
   "/rest/v1/admin_log": { status: 401, body: {} },
@@ -238,6 +239,25 @@ describe("le contrôle de la mise en ligne", () => {
     expect(corps("mettre_en_vente")).toEqual({ p_emplacement: "tete", p_objet: "verification", p_prix: 1 });
     expect(corps("retirer_offre")).toEqual({ p_id: 0 });
     expect(corps("acheter_offre")).toEqual({ p_id: 0 });
+  });
+
+  it("bloque si un visiteur lit sa forge, grave ou efface une plaque, et signale la forge pas encore installée", async () => {
+    expect(await statusOf(HEALTHY, "ne lit pas de forge")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_ma_forge": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "ne lit pas de forge")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_ma_forge": { status: 200, body: { ok: true, prix: 150, solde: 0 } } }, "ne lit pas de forge")).toBe("fail");
+    const absente = (await run({ ...HEALTHY, "/rest/v1/rpc/get_ma_forge": { status: 404, body: {} } })).find((c) => c.label.includes("forge du village est installée"));
+    expect(absente).toMatchObject({ status: "warn", detail: expect.stringContaining(".cache/a-coller-forge.sql") });
+    expect(absente?.detail).toContain("forge : installée");
+    for (const label of ["ne grave rien à la forge", "n'efface aucune plaque de la forge"]) expect(await statusOf(HEALTHY, label)).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/graver_objet": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "ne grave rien à la forge")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/graver_objet": { status: 200, body: { ok: true, prix: 150 } } }, "ne grave rien à la forge")).toBe("fail");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/effacer_gravure": { status: 200, body: { ok: true } } }, "n'efface aucune plaque de la forge")).toBe("fail");
+    // Les valeurs envoyées ne désignent ni un objet ni une partie qui existe.
+    seen.length = 0;
+    await run();
+    const corps = (fn: string) => JSON.parse(seen.find((s) => s.url.endsWith(`/rpc/${fn}`))?.body ?? "null");
+    expect(corps("graver_objet")).toEqual({ p_emplacement: "arme", p_objet: "verification", p_partie: "verification", p_prix_vu: 0 });
+    expect(corps("effacer_gravure")).toEqual({ p_emplacement: "arme", p_objet: "verification" });
   });
 
   it("bloque si un visiteur lit l'économie du village ou en règle les prix, et signale l'onglet Village pas encore installé", async () => {
