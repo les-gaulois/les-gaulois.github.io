@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { casesDuGaulois } from "../../lib/gaulois";
 import { type Decor, FEU_HAUTEUR, flammesDuFeu } from "../../lib/village/decor";
-import { CASE_DE_LOIN, caseDeLaScene, estSansNom, largeurDuDecor } from "../../lib/village/ecran-place";
+import { CASE_DE_LOIN, caseDeLaScene, largeurDuDecor } from "../../lib/village/ecran-place";
 import { BOITES, composerLieu } from "../../lib/village/lieux";
 import { type Lumiere, cleDeLumiere } from "../../lib/village/lumiere";
 import {
@@ -296,7 +296,6 @@ export default function PlaceScene({ lieu, habitants, lumiere, actif }: { lieu: 
             }}
             class="vie-acteur"
             data-moi={habitant.gaulois.moi ? "" : undefined}
-            data-sans-nom={estSansNom(habitant.gaulois) ? "" : undefined}
             data-ouvert={ouvert === habitant.rang ? "" : undefined}
             data-testid="place-gaulois"
             onClick={() => setOuvert(ouvert === habitant.rang ? null : habitant.rang)}

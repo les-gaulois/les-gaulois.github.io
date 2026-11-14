@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { TENUE_DE_DEPART } from "../../src/lib/gaulois";
 import { DECOR_LARGEUR_MIN } from "../../src/lib/village/decor";
-import { CASE_DE_LOIN, CASE_ORDINATEUR, CASE_TELEPHONE, FOULE_AU_TELEPHONE, FOULE_EN_GRAND, caseDeLaScene, estSansNom, largeurDuDecor, lireVillage, messageDeLaPlace, sonGauloisManque } from "../../src/lib/village/ecran-place";
+import { CASE_DE_LOIN, CASE_ORDINATEUR, CASE_TELEPHONE, FOULE_AU_TELEPHONE, FOULE_EN_GRAND, caseDeLaScene, largeurDuDecor, lireVillage, messageDeLaPlace, sonGauloisManque } from "../../src/lib/village/ecran-place";
 
 const gaulois = (nom: string, moi = false) => ({ nom, tenue: TENUE_DE_DEPART, moi });
 
@@ -20,12 +20,6 @@ describe("les tailles de la scène", () => {
     expect(caseDeLaScene(360, 80)).toBe(CASE_DE_LOIN);
     // Un écran large ne descend jamais sous la case du téléphone.
     expect(caseDeLaScene(1280, 80)).toBe(CASE_TELEPHONE);
-  });
-
-  it("reconnaît le Gaulois sans nom, jamais le sien", () => {
-    expect(estSansNom({ nom: "Un Gaulois", moi: false })).toBe(true);
-    expect(estSansNom({ nom: "Un Gaulois", moi: true })).toBe(false);
-    expect(estSansNom({ nom: "Essai", moi: false })).toBe(false);
   });
 
   it("donne au décor assez de cases pour remplir la scène, jamais moins que le plus petit décor", () => {
@@ -75,11 +69,10 @@ describe("la réponse du serveur", () => {
     expect(sonGauloisManque({ ok: true, gaulois: [gaulois("A"), gaulois("Moi", true)] })).toBe(false);
   });
 
-  // Un compte qui ne se montre pas aux autres membres paraît sous le nom « Un Gaulois » (revue de sécurité du 14 novembre
-  // 2026) : plusieurs Gaulois du même nom sont tous gardés, chacun à son rang.
-  it("garde chaque « Un Gaulois », même nommés pareil, et le sien sous son nom", () => {
-    const v = lireVillage({ ok: true, gaulois: [gaulois("Un Gaulois"), gaulois("Un Gaulois"), gaulois("Moi", true), gaulois("Un Gaulois")] });
-    expect(v?.gaulois.map((g) => g.nom)).toEqual(["Un Gaulois", "Un Gaulois", "Moi", "Un Gaulois"]);
+  // Deux comptes peuvent porter le même nom au QG : plusieurs Gaulois du même nom sont tous gardés, chacun à son rang.
+  it("garde les Gaulois nommés pareil, et le sien sous son nom", () => {
+    const v = lireVillage({ ok: true, gaulois: [gaulois("Homonyme"), gaulois("Homonyme"), gaulois("Moi", true), gaulois("Homonyme")] });
+    expect(v?.gaulois.map((g) => g.nom)).toEqual(["Homonyme", "Homonyme", "Moi", "Homonyme"]);
     expect(sonGauloisManque(v!)).toBe(false);
   });
 

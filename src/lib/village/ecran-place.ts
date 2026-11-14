@@ -30,12 +30,6 @@ export function caseDeLaScene(largeurEcran: number, nombre: number): number {
   return nombre <= FOULE_AU_TELEPHONE ? CASE_TELEPHONE : CASE_DE_LOIN;
 }
 
-/** Le nom que le serveur donne au Gaulois d'un compte qui ne se montre pas aux autres membres. */
-export const NOM_SANS_NOM = "Un Gaulois";
-
-/** Ce Gaulois n'a pas de nom à montrer : son étiquette se fait discrète, pour laisser lire les noms des autres. */
-export const estSansNom = (gaulois: Pick<GauloisDeLaPlace, "nom" | "moi">): boolean => !gaulois.moi && gaulois.nom === NOM_SANS_NOM;
-
 /** Le nombre de cases du décor pour remplir une scène de cette largeur : jamais moins que le plus petit décor. */
 export function largeurDuDecor(largeurScene: number, cote: number): number {
   if (!(largeurScene > 0) || !(cote > 0)) return DECOR_LARGEUR_MIN;

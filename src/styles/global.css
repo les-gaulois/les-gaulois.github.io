@@ -11967,13 +11967,6 @@ footer h2 {
   }
 }
 
-/* « Un Gaulois » : l'étiquette d'un Gaulois sans nom s'efface un peu, pour laisser lire les noms des autres. */
-.vie-acteur[data-sans-nom] .place-nom {
-  background: color-mix(in srgb, var(--color-night) 72%, transparent);
-  color: var(--color-muted);
-  font-weight: 400;
-}
-
 /* Un lieu plein sur un téléphone, vu de plus loin (une case vaut 1 pixel) : les noms ne s'écrivent plus sous chacun, ils
    se chevaucheraient ; le sien reste, les autres se lisent au toucher et dans « Qui est où ». */
 .place-scene[data-loin] .vie-acteur:not([data-moi]) .place-nom {
