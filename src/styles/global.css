@@ -2730,7 +2730,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
     background-color 0.15s,
     color 0.15s;
 }
-.dir-filtre:hover {
+.dir-filtre:hover:where(:not(:disabled, [aria-disabled="true"])) {
   background: color-mix(in srgb, var(--ton, #fff) 16%, transparent);
 }
 .dir-filtre[aria-pressed="true"] {
@@ -2811,12 +2811,14 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
     background-color 0.15s,
     color 0.15s;
 }
-.dir-bouton:hover:where(:not(:disabled)) {
+/* Un bouton inactif, par `disabled` ou par `aria-disabled` (un envoi en cours, qui garde le focus), ne s'allume pas au survol
+   (relevé par la relecture du QG, 14 novembre 2026). */
+.dir-bouton:hover:where(:not(:disabled, [aria-disabled="true"])) {
   border-color: var(--ton, #fff);
   background: var(--ton, #fff);
   color: var(--color-night);
 }
-.dir-bouton:disabled {
+.dir-bouton:is(:disabled, [aria-disabled="true"]) {
   opacity: 0.6;
   cursor: not-allowed;
 }
