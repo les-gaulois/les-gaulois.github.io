@@ -13,7 +13,7 @@ import { PartieTete } from "./Onglets";
  * en bleu celles où des Gaulois viennent. Dessous, une ligne par heure où des membres se montrent sur le mur ; les autres
  * sont seulement comptés. Une heure passée disparaît d'elle-même. Le serveur vérifie tout (`set_play_plan`) et l'écran ne
  * montre que sa réponse, relue après chaque choix. Les calculs sont dans `src/lib/compte/qg-ce-soir.ts`, le dessin dans
- * `global.css`, section « Le QG, onglet Ce soir ».
+ * `12-qg.css`, section « Le QG, onglet Ce soir ».
  */
 export default function QgCeSoir({ plans, busy, problem, onChoose }: { plans: QgTools["plans"]; busy: boolean; problem: string | null; onChoose: (at: string | null) => void }) {
   const now = useNow(60_000);

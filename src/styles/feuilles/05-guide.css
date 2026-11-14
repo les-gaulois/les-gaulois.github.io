@@ -1,0 +1,992 @@
+/* Un morceau de la feuille du site (src/lib/feuilles.ts). Tailwind le lit avec le socle : mêmes jetons, mêmes replis. */
+@reference "./01-socle.css";
+/* ---------- Le guide du clan (/debuter) ---------- */
+/* Le 12 novembre 2026, le pilote a demandé un guide du clan « interactif, très intuitif et facile à comprendre pour les
+   joueurs débutants », « pas surchargé », « avec un design de hacker gaulois », puis, le soir, le style « très prononcé »
+   de la Carte. La page est donc en ambiance console (le Terminal bleu du QG et de la Carte, posé par Base.astro) : un
+   chapitre à la fois, dans une fenêtre en traits doubles, sa ligne de commande, une icône gauloise en pixels, quelques
+   phrases, puis un essai à manipuler quand il aide à comprendre. Le sommaire est un dossier, à gauche sur grand écran,
+   replié sous un bouton sur téléphone. Sans JavaScript, tous les chapitres se suivent dans la page.
+   Le vert de terminal (--console-vert) n'est que la voix de la machine : la machine des commandes, « ~/guide », les « > »
+   et les jalons ; les icônes sont en pastilles de couleur. Jamais une phrase ni un chiffre : le pilote a trouvé « trop de verts dans les textes » sur la Carte.
+   Voir docs/DESIGN.md, « Le guide du clan ». */
+.guide {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+}
+@media (min-width: 64rem) {
+  .guide {
+    grid-template-columns: 18.5rem minmax(0, 1fr);
+    gap: 1.75rem;
+    align-items: start;
+  }
+}
+/* Un libellé de la machine : petites capitales en chasse fixe, comme ceux des chiffres clés. */
+.guide-etiquette {
+  font-family: var(--font-console);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+/* Le sommaire : un dossier « ~/guide », ses groupes, et une ligne par chapitre, sa branche puis son icône, comme la liste
+   du menu du QG. Le chapitre ouvert est en vidéo inversée, blanc sur le bleu des boutons. */
+.guide-plan {
+  min-width: 0;
+  background: var(--color-night);
+  border: 3px double var(--color-line-strong);
+  border-radius: 0.375rem;
+  font-family: var(--font-console);
+}
+@media (min-width: 64rem) {
+  .guide-plan {
+    position: sticky;
+    top: 5.5rem;
+    max-height: calc(100dvh - 7rem);
+    overflow-y: auto;
+  }
+}
+.guide-plan-liste {
+  padding: 0.75rem 0.5rem 0.625rem;
+}
+.guide-plan-racine {
+  padding: 0 0.625rem 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--console-vert, var(--color-blue-text));
+}
+.guide-plan-groupe + .guide-plan-groupe {
+  margin-top: 0.75rem;
+}
+.guide-plan-groupe > .guide-etiquette {
+  padding: 0 0.625rem 0.25rem;
+}
+.guide-plan-lien {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 0.25rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--color-muted);
+  transition:
+    color 0.15s,
+    background-color 0.15s;
+}
+.guide-plan-lien:hover {
+  color: var(--ecriture);
+  background: color-mix(in srgb, var(--ecriture) 7%, transparent);
+}
+/* La branche de l'arborescence, décorative : « └─ » pour le dernier chapitre d'un groupe. Comme tous les signes du guide
+   (« > »), elle s'écrit avec un texte de remplacement vide, pour qu'un lecteur d'écran ne la lise pas. Un
+   navigateur qui ne connaît pas cette écriture ne l'affiche pas, comme au QG : mieux vaut un signe absent qu'un signe lu
+   à voix haute devant chaque ligne. */
+.guide-plan-lien::before {
+  content: "├─" / "";
+  flex: none;
+  white-space: nowrap;
+  color: var(--color-line-strong);
+}
+.guide-plan-groupe li:last-child > .guide-plan-lien::before {
+  content: "└─" / "";
+}
+.guide-plan-lien[aria-current] {
+  --ecriture: #fff;
+  color: var(--ecriture);
+  background: var(--color-blue);
+}
+.guide-plan-lien[aria-current]::before {
+  color: var(--ecriture);
+}
+.guide-plan-lien:focus-visible {
+  outline-offset: -3px;
+}
+/* Le numéro ne se coupe pas : c'est le nom du chapitre qui passe à la ligne. */
+.guide-plan-numero {
+  flex: none;
+  color: var(--color-muted);
+}
+.guide-plan-lien[aria-current] .guide-plan-numero {
+  color: var(--ecriture);
+}
+/* Les icônes du guide : les mêmes dessins en pixels que le menu du QG (src/lib/icones-parties.ts). Treize cases : 26, 39
+   ou 52 px, pour que le bord de chaque case tombe sur un pixel de l'écran. */
+.guide-plan-icone,
+.guide-icone,
+.guide-pion {
+  flex: none;
+  width: 1.625rem;
+  height: 1.625rem;
+}
+/* Dans le chapitre ouvert du sommaire, l'icône est blanche sur le bleu, sans pastille. */
+.guide-plan-lien[aria-current] .pastille-icone {
+  color: var(--ecriture);
+  background: transparent;
+}
+/* Sur téléphone, le sommaire se replie sous un bouton qui dit le chapitre ouvert. Le bouton n'existe qu'une fois le script
+   en place (.guide-pas-a-pas) : sans lui, le sommaire reste ouvert. */
+.guide-plan-bouton {
+  display: none;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 3.25rem;
+  padding: 0.5rem 0.875rem;
+  border-radius: 0.5rem;
+  font-family: var(--font-console);
+  text-align: left;
+  color: var(--ecriture);
+  cursor: pointer;
+}
+.guide-plan-bouton:focus-visible {
+  outline-offset: -3px;
+}
+/* Le nom du chapitre ouvert n'est jamais coupé : s'il ne tient pas sur sa ligne, il passe à la suivante. */
+.guide-plan-ici {
+  flex: 1;
+  min-width: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.guide-plan-fleche {
+  flex: none;
+  transition: rotate 0.2s;
+}
+.guide-plan-bouton[aria-expanded="true"] .guide-plan-fleche {
+  rotate: 180deg;
+}
+@media (max-width: 63.999rem) {
+  .guide-pas-a-pas .guide-plan-bouton {
+    display: flex;
+  }
+  .guide-pas-a-pas .guide-plan-liste {
+    display: none;
+    border-top: 1px solid var(--color-line);
+  }
+  .guide-pas-a-pas .guide-plan-ouvert .guide-plan-liste {
+    display: block;
+  }
+}
+/* Sur un téléphone étroit, le bouton se resserre : le nom le plus long (« 04 · Poste et neutre ») tient sur sa ligne dès
+   360 px. */
+@media (max-width: 24rem) {
+  .guide-plan-bouton {
+    gap: 0.5rem;
+    padding-inline: 0.625rem;
+  }
+}
+/* Entre le téléphone et le grand écran, le sommaire ouvert se range en deux colonnes, un groupe jamais coupé. */
+@media (min-width: 40rem) and (max-width: 63.999rem) {
+  .guide-plan-liste {
+    columns: 2;
+    column-gap: 1.5rem;
+  }
+  .guide-plan-racine {
+    column-span: all;
+  }
+  /* Chaque groupe porte le même écart au-dessus de lui : le premier de chaque colonne commence à la même hauteur. */
+  .guide-plan-groupe,
+  .guide-plan-groupe + .guide-plan-groupe {
+    break-inside: avoid;
+    margin-top: 0;
+    padding-top: 0.5rem;
+  }
+  .guide-plan-racine {
+    padding-bottom: 0;
+  }
+}
+
+/* La fenêtre d'un chapitre : un cadre en traits doubles sous sa barre de titre, comme les fenêtres du QG et de la Carte.
+   Ni halo ni frontière au survol : on y lit et on y règle des curseurs, rien ne doit y tourner. */
+.guide-ecran {
+  display: grid;
+  gap: 1.25rem;
+  min-width: 0;
+}
+.guide-chapitre {
+  position: relative;
+  min-width: 0;
+  scroll-margin-top: 5.5rem;
+  background: var(--color-surface);
+  border: 3px double var(--color-line-strong);
+  border-radius: 0.375rem;
+}
+/* Un chapitre à la fois, une fois le script en place. Celui qu'on ouvre glisse doucement du côté d'où il vient, une fois,
+   comme une partie du QG ; le bouton pause et « réduire les animations » le coupent. */
+.guide-pas-a-pas .guide-chapitre:not(.guide-ouvert) {
+  display: none;
+}
+.guide-de-droite {
+  animation: partie-droite 0.38s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.guide-de-gauche {
+  animation: partie-gauche 0.38s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+/* La barre de titre de la fenêtre : son nom (« ■ bases »), puis l'avancée, un jalon par chapitre. Décorative. */
+.guide-barre {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 2.25rem;
+  padding: 0.25rem 0.875rem;
+  background: var(--color-surface-2);
+  font-family: var(--font-console);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  color: var(--color-muted);
+}
+.guide-barre-nom {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* La ligne de commande du chapitre (« gal@guide:~$ ./bases »), du dessin de l'invite du haut depuis le 14 novembre 2026 :
+   la machine en vert et en gras (.console-hote), le reste en gris. Toute verte avant, comme la ligne des parties du QG,
+   que le pilote n'aimait pas (« deux design »). Elle s'écrit quand le chapitre s'ouvre, en même temps que son glissement ;
+   avec le bouton pause ou « réduire les animations », elle est là d'emblée. */
+.guide-commande {
+  width: fit-content;
+  max-width: 100%;
+  margin-bottom: 1rem;
+  overflow: hidden;
+  font-family: var(--font-console);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+  color: var(--color-muted);
+}
+.guide-de-droite .guide-commande,
+.guide-de-gauche .guide-commande {
+  animation: console-frappe 0.7s steps(28, end) 0.1s backwards;
+}
+.guide-avance {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.625rem;
+}
+.guide-jalons {
+  display: none;
+  gap: 3px;
+}
+.guide-jalons > i {
+  width: 0.5rem;
+  height: 0.5rem;
+  background: var(--color-line);
+}
+.guide-jalons > .guide-jalon-fait {
+  background: var(--console-vert, var(--color-blue-text));
+}
+/* Les jalons paraissent dès que la place le permet. */
+@media (min-width: 40rem) {
+  .guide-jalons {
+    display: flex;
+  }
+}
+
+/* Le chapitre : sa commande, son icône en grand, son titre, puis l'essentiel, chaque
+   phrase derrière un « > ». */
+.guide-corps {
+  padding: 1.25rem 1rem 0.25rem;
+}
+.guide-tete {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.875rem;
+}
+.guide-icone {
+  width: 2.4375rem;
+  height: 2.4375rem;
+}
+/* La pastille de l'en-tête, plus large d'un cran autour de la grande icône. */
+.guide-tete > .pastille-icone {
+  padding: 0.375rem;
+  border-radius: 0.5rem;
+}
+.guide-titre {
+  margin-top: 0.375rem;
+  font-size: clamp(1.375rem, 3vw, 2.125rem);
+  line-height: 1.1;
+}
+/* Un mot composé du titre (« Aide-mémoire ») ne se coupe pas à son trait d'union (motsComposes, src/lib/guide.ts). */
+.guide-insecable {
+  white-space: nowrap;
+}
+/* Le titre reçoit le focus quand on ouvre son chapitre, pour que la lecture reprenne là : il ne se règle pas au clavier et
+   ne porte donc pas de contour. */
+.guide-titre:focus {
+  outline: none;
+}
+.guide-precision {
+  margin-top: 0.5rem;
+  font-size: var(--text-lg);
+  line-height: 1.3;
+  color: var(--color-muted);
+}
+.guide-precision::first-letter {
+  text-transform: uppercase;
+}
+/* La chasse fixe prend plus de place que le texte du site : l'essentiel s'écrit un cran plus petit, jamais sous 17 px. */
+.guide-chapeau,
+.guide-essentiel {
+  max-width: 50rem;
+  margin-top: 1.5rem;
+  font-size: 1.0625rem;
+  line-height: 1.55;
+}
+.guide-essentiel {
+  display: grid;
+  gap: 0.625rem;
+  color: var(--stage-muted);
+}
+.guide-chapeau + .guide-essentiel {
+  margin-top: 0.875rem;
+}
+.guide-essentiel > li {
+  position: relative;
+  padding-left: 1.5rem;
+}
+.guide-essentiel > li::before {
+  content: ">" / "";
+  position: absolute;
+  left: 0;
+  font-family: var(--font-console);
+  font-weight: 700;
+  color: var(--console-vert, var(--color-blue-text));
+}
+.guide-essentiel strong {
+  font-weight: 700;
+  color: var(--ecriture);
+}
+@media (min-width: 40rem) {
+  .guide-corps {
+    padding: 1.5rem 2rem 0.5rem;
+  }
+  .guide-tete {
+    gap: 1.125rem;
+  }
+  .guide-icone {
+    width: 3.25rem;
+    height: 3.25rem;
+  }
+  .guide-chapeau,
+  .guide-essentiel {
+    font-size: 1.125rem;
+  }
+}
+
+/* Le bloc d'un chapitre : un instrument posé dans la fenêtre. « essai », sur son bord, marque ce qui se manipule : c'est
+   un mot, donc gris comme les autres libellés, jamais vert. Le mot reste écrit dans un navigateur qui ne connaît pas le
+   texte de remplacement : lu à voix haute, il ne gêne pas. */
+.guide-outil {
+  position: relative;
+  margin-top: 1.75rem;
+  padding: 1.25rem 0.875rem 1rem;
+  background: var(--color-night);
+  border: 1px solid var(--color-line);
+  border-radius: 0.375rem;
+}
+.guide-outil[data-etiquette]::before {
+  content: attr(data-etiquette);
+  content: attr(data-etiquette) / "";
+  position: absolute;
+  top: 0;
+  left: 0.75rem;
+  translate: 0 -50%;
+  padding: 0.0625rem 0.5rem;
+  background: var(--color-night);
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.1875rem;
+  font-family: var(--font-console);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+/* Le titre d'un bloc se lit comme une question, pas comme un titre de page : sans capitales ni « ## ». Sa graisse et son
+   interlettre sont celles des titres du Terminal. */
+.guide-outil-titre {
+  margin-bottom: 1rem;
+  font-size: 1.125rem;
+  line-height: 1.3;
+  text-transform: none;
+}
+/* La phrase qui répond au titre du bloc, avant l'essai. */
+.guide-outil-texte {
+  max-width: 44rem;
+  margin: -0.5rem 0 1rem;
+  color: var(--stage-muted);
+}
+.guide-outil-texte strong {
+  font-weight: 700;
+  color: var(--ecriture);
+}
+@media (min-width: 40rem) {
+  .guide-outil {
+    padding: 1.5rem 1.5rem 1.25rem;
+  }
+}
+.guide-choix {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.guide-choix > .guide-etiquette {
+  flex-basis: 100%;
+}
+@media (min-width: 40rem) {
+  .guide-choix > .guide-etiquette {
+    flex-basis: auto;
+    margin-right: 0.25rem;
+  }
+}
+.guide-reglage {
+  margin-top: 0.75rem;
+}
+.guide-reglage-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 1rem;
+}
+.guide-reglage-tete > .guide-etiquette {
+  white-space: nowrap;
+}
+.guide-reglage-valeur {
+  font-family: var(--font-console);
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--ecriture);
+}
+/* Le curseur d'un essai : celui du navigateur, habillé. Un pouce large pour le doigt, la partie parcourue plus claire. */
+.guide-curseur {
+  --pouce: 1.25rem;
+  display: block;
+  width: 100%;
+  height: 2.25rem;
+  margin: 0;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+  touch-action: pan-y;
+}
+.guide-curseur::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--color-blue-text) var(--p, 0%), var(--color-line-strong) var(--p, 0%));
+}
+.guide-curseur::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-line-strong);
+}
+.guide-curseur::-moz-range-progress {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-blue-text);
+}
+.guide-curseur::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: var(--pouce);
+  height: 1.75rem;
+  margin-top: -11px;
+  border: 2px solid var(--color-night);
+  border-radius: 0.25rem;
+  background: var(--ecriture);
+  box-shadow: 0 0 0.75rem rgb(61 127 255 / 0.6);
+}
+.guide-curseur::-moz-range-thumb {
+  box-sizing: border-box;
+  width: var(--pouce);
+  height: 1.75rem;
+  border: 2px solid var(--color-night);
+  border-radius: 0.25rem;
+  background: var(--ecriture);
+}
+.guide-mesures {
+  margin-top: 1rem;
+}
+.guide-mesures > .kpi {
+  flex: 1 1 11rem;
+}
+.guide-mesures .kpi-hint {
+  max-width: 20rem;
+}
+/* L'unité d'un chiffre clé (« 30 tuiles ») : en petit, dans la police du texte, sur la ligne du chiffre. */
+.guide-unite {
+  font-family: var(--font-console);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-shadow: none;
+  color: var(--color-muted);
+}
+/* Les pions : les icônes en pixels qui font l'image d'une règle (un casque sur cinq part à l'attaque) ou qui marquent
+   une place sur un dessin. Éteints, ils gardent la forme ; allumés, ils sont blancs. */
+.guide-pions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+/* Les cinq casques de l'attaque, en plus grand : trois pixels par case. */
+.guide-pions > .guide-pion {
+  width: 2.4375rem;
+  height: 2.4375rem;
+}
+.guide-pion {
+  color: var(--color-line-strong);
+}
+.guide-pion-vif {
+  color: var(--ecriture);
+  filter: drop-shadow(0 0 0.375rem rgb(61 127 255 / 0.7));
+}
+
+/* Une courbe calculée (Courbe.tsx), sans case, comme les graphiques du site. */
+.guide-courbe {
+  position: relative;
+  margin: 0 0.625rem 0 3.5rem;
+  padding-top: 1.5rem;
+}
+.guide-courbe-zone {
+  position: relative;
+  height: 9.5rem;
+  cursor: pointer;
+  touch-action: pan-y;
+}
+.guide-courbe-nom {
+  position: absolute;
+  top: 0;
+  translate: -50% 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--ecriture);
+}
+.guide-courbe-seuil {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 1px dashed color-mix(in srgb, var(--ecriture) 50%, transparent);
+}
+.guide-courbe-fil {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: color-mix(in srgb, var(--ecriture) 60%, transparent);
+}
+.guide-courbe-point {
+  position: absolute;
+  width: 0.875rem;
+  height: 0.875rem;
+  translate: -50% -50%;
+  border: 3px solid var(--color-night);
+  border-radius: 999px;
+  background: var(--ecriture);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-win) 35%, transparent);
+}
+.guide-courbe-pion {
+  position: absolute;
+  translate: -50% -100%;
+  pointer-events: none;
+}
+/* Le curseur calé sous une courbe : mêmes marges qu'elle, et il déborde d'un demi-pouce de chaque côté (Reglage.tsx). */
+.guide-courbe + .guide-reglage {
+  margin-inline: 3.5rem 0.625rem;
+}
+
+/* Les barres des arrêts d'un train (EssaiTrain.tsx) : une par arrêt, sa hauteur est son paiement. */
+.guide-barres {
+  padding-top: 2rem;
+}
+.guide-barres-zone {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 8rem;
+  border-bottom: 1px solid var(--hairline);
+}
+.guide-barre-arret {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: var(--h);
+  border-radius: 2px 2px 0 0;
+  background: color-mix(in srgb, var(--color-win) 55%, transparent);
+  cursor: pointer;
+  transition: height 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.guide-barre-arret-vif {
+  background: var(--ecriture);
+}
+.guide-barre-pion {
+  position: absolute;
+  bottom: calc(100% + 0.25rem);
+  left: 50%;
+  translate: -50% 0;
+  pointer-events: none;
+}
+
+/* Les bâtiments (EssaiBatiments.tsx) : une ligne par bâtiment, son dessin, son rôle, son prochain prix et le bouton. */
+.guide-batiments {
+  display: grid;
+  gap: 0.625rem;
+}
+/* Sur téléphone, trois lignes : le dessin, le nom et le prochain prix, puis le rôle, puis le bouton sur toute la largeur. */
+.guide-batiment {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "dessin nom prix"
+    "role role role"
+    "bouton bouton bouton";
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.375rem;
+}
+.guide-batiment > .guide-pion {
+  grid-area: dessin;
+}
+/* Le nom ne se coupe jamais au milieu (« Usin / e ») : le texte du site peut se couper partout, pas lui. */
+.guide-batiment-nom {
+  grid-area: nom;
+  overflow-wrap: normal;
+  font-weight: 700;
+  color: var(--ecriture);
+}
+.guide-batiment-role {
+  grid-area: role;
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+}
+.guide-batiment-prix {
+  grid-area: prix;
+  text-align: right;
+}
+.guide-batiment > .chip {
+  grid-area: bouton;
+}
+.guide-batiment-nombre {
+  font-family: var(--font-console);
+  color: var(--color-blue-text);
+}
+.guide-batiments-pied .chip[aria-disabled="true"] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.guide-batiments-pied .chip[aria-disabled="true"]:hover {
+  color: var(--color-muted);
+  border-color: var(--color-line);
+}
+.guide-batiments-pied .chip[aria-disabled="true"]:active {
+  scale: 1;
+}
+.guide-batiments-pied {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.875rem;
+}
+@media (min-width: 40rem) {
+  .guide-batiment {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "dessin nom prix bouton"
+      "dessin role prix bouton";
+    gap: 0 1rem;
+  }
+}
+
+/* Les repères du terrain : un vrai tableau, une barre devant chaque valeur. */
+.guide-terrains {
+  width: 100%;
+  table-layout: fixed;
+  overflow-wrap: break-word;
+}
+.guide-terrains thead th {
+  padding: 0 0.5rem 0.5rem 0;
+  text-align: left;
+  font-family: var(--font-console);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.guide-terrains tbody th,
+.guide-terrains td {
+  padding: 0.625rem 0.5rem 0.625rem 0;
+  border-top: 1px solid var(--color-line);
+  text-align: left;
+  vertical-align: top;
+}
+.guide-terrains thead th:first-child {
+  width: 38%;
+}
+.guide-terrains tbody th {
+  font-weight: 700;
+}
+.guide-terrain-role {
+  display: block;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--color-blue-text);
+}
+.guide-terrain-lecture {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: 400;
+  color: var(--color-muted);
+}
+.guide-terrains td {
+  font-weight: 700;
+}
+.guide-terrains .meter {
+  display: block;
+  max-width: 11rem;
+  margin: 0.4375rem 0 0.375rem;
+}
+
+/* Les réflexes : six questions numérotées, la réponse du guide sous chacune, puis le lien du chapitre qui l'explique. */
+.guide-questions {
+  display: grid;
+  gap: 0.875rem;
+}
+.guide-question {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.875rem;
+}
+.guide-question + .guide-question {
+  padding-top: 0.875rem;
+  border-top: 1px solid var(--color-line);
+}
+.guide-question-numero {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.25rem;
+  font-family: var(--font-console);
+  font-weight: 700;
+  color: var(--color-blue-text);
+}
+.guide-question-titre {
+  font-weight: 700;
+  line-height: 1.3;
+}
+.guide-question-texte {
+  margin-top: 0.125rem;
+  color: var(--color-muted);
+}
+.guide-question-lien {
+  display: inline-block;
+  margin-top: 0.25rem;
+  padding-block: 0.25rem;
+  font-family: var(--font-console);
+  font-size: 0.875rem;
+}
+
+/* Les situations de trahison : la situation, puis sa conséquence derrière une marque de couleur. Rouge du marqueur pour
+   « Traître », jaune des avertissements pour ce qui dépend des dégâts, bleu clair des liens pour ce qui ne coûte rien :
+   le vert reste à la voix de la machine. Le texte le dit aussi : la couleur n'est jamais seule. */
+.guide-situations {
+  display: grid;
+}
+.guide-situation {
+  --ton: var(--color-line-strong);
+  display: grid;
+  gap: 0.25rem 1.5rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--color-line);
+}
+.guide-situation:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+.guide-situation[data-ton="danger"] {
+  --ton: var(--color-red);
+}
+.guide-situation[data-ton="attention"] {
+  --ton: var(--color-warn);
+}
+.guide-situation[data-ton="calme"] {
+  --ton: var(--color-blue-text);
+}
+.guide-situation-titre {
+  font-weight: 700;
+}
+.guide-situation-effet {
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+}
+.guide-marque {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-right: 0.625rem;
+  font-family: var(--font-console);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--ecriture);
+}
+.guide-marque::before {
+  content: "";
+  width: 0.625rem;
+  height: 0.625rem;
+  background: var(--ton);
+  box-shadow: 0 0 0.5rem color-mix(in srgb, var(--ton) 70%, transparent);
+}
+@media (min-width: 48rem) {
+  .guide-situation {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    align-items: baseline;
+  }
+}
+/* En contraste élevé, le système efface les fonds : la marque et le jalon prennent la couleur du texte. */
+@media (forced-colors: active) {
+  .guide-marque::before,
+  .guide-jalons > .guide-jalon-fait {
+    forced-color-adjust: none;
+    background: CanvasText;
+    box-shadow: none;
+  }
+  /* Le fond bleu du chapitre ouvert disparaît : un cadre le marque dans le sommaire. */
+  .guide-plan-lien[aria-current] {
+    outline: 2px solid CanvasText;
+    outline-offset: -2px;
+  }
+  /* Le système impose ses couleurs au texte, pas à un <svg> : l'icône reprend celle du texte qui la porte. */
+  .guide-plan-icone,
+  .guide-plan-lien[aria-current] .guide-plan-icone,
+  .guide-icone,
+  .guide-pion,
+  .guide-pion-vif {
+    color: inherit;
+    filter: none;
+  }
+  /* La pastille du chapitre ouvert aussi : la couleur du texte, comme les autres (règle des pastilles). */
+  .guide-plan-lien[aria-current] .pastille-icone {
+    color: inherit;
+    background: none;
+  }
+}
+
+/* L'encadré du chapitre : « Important », « Réflexe », « Règle du clan ». */
+.guide-retenir {
+  max-width: 46rem;
+  margin-top: 1.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--color-surface-2);
+  border-left: 3px solid var(--color-blue-text);
+  border-radius: 0 0.375rem 0.375rem 0;
+  color: var(--stage-muted);
+}
+.guide-retenir > strong {
+  font-family: var(--font-console);
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ecriture);
+}
+/* « Détails et formules » : replié, le texte complet du chapitre reste à un geste. Les aide-mémoire, eux, se lisent d'emblée.
+   C'est le modèle de tous les menus déroulants du site (.fold). */
+.guide-details {
+  margin-top: 1.5rem;
+}
+.guide-details > .guide-body {
+  color: var(--color-muted);
+}
+.guide-texte {
+  margin-top: 1.5rem;
+  color: var(--color-muted);
+}
+/* Le bas de la fenêtre : « > Précédent » et « > Suivant », deux commandes du même dessin (le 12 novembre 2026, le pilote :
+   « c pas la mm da sur les deux boutons », quand « Suivant » était le bouton bleu plein). Sur téléphone, « Suivant »
+   prend la place qui reste et passe à la ligne plutôt que d'élargir la page. */
+.guide-pas {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1.25rem 1rem;
+}
+.guide-pas:empty {
+  display: none;
+}
+.guide-pas-suite {
+  flex: 1 1 0;
+  min-width: 9rem;
+  margin-left: auto;
+  white-space: normal;
+  text-align: center;
+}
+@media (min-width: 40rem) {
+  .guide-pas {
+    padding: 1.5rem 2rem 2rem;
+  }
+  .guide-pas-suite {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+}
+/* À l'impression, le guide entier : les onze chapitres, « Détails et formules » dépliés, sans le sommaire ni les boutons
+   « Précédent » et « Suivant ». Ce bloc ferme la section : à poids égal, c'est la règle écrite la dernière qui l'emporte.
+   Le site n'a pas encore de feuille claire pour le papier : les textes y sortent pâles, ici comme ailleurs. */
+@media print {
+  .guide {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .guide-pas-a-pas .guide-chapitre:not(.guide-ouvert) {
+    display: block;
+  }
+  .guide-plan,
+  .guide-pas {
+    display: none;
+  }
+  /* Un <details> fermé cache son contenu par content-visibility : le papier le montre quand même, sans son « + », ni le
+     « − » d'un détail resté ouvert. */
+  .guide-details::details-content {
+    content-visibility: visible;
+  }
+  /* Ouvert, un .fold garde 1 rem sous son contenu ; fermé à l'écran, il le prend sur le papier. */
+  .guide-details:not([open]) > .guide-body {
+    padding-bottom: 1rem;
+  }
+  .guide-details > summary::after,
+  .guide-details[open] > summary::after {
+    content: none;
+  }
+}
+

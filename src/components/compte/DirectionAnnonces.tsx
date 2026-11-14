@@ -1,7 +1,7 @@
 /**
  * L'onglet Annonces de la Direction : publier, modifier, supprimer les annonces de l'accueil.
  * Le formulaire et la liste côte à côte, une ligne courte par annonce, son état en couleur avec son mot (règles dans
- * `src/lib/compte/direction-annonces.ts`), l'aide repliée. Dessin : `global.css`, « Direction, onglet Annonces ».
+ * `src/lib/compte/direction-annonces.ts`), l'aide repliée. Dessin : `03-direction.css`, « Direction, onglet Annonces ».
  */
 import { useEffect, useRef, useState } from "preact/hooks";
 import { call } from "../../lib/compte/api";

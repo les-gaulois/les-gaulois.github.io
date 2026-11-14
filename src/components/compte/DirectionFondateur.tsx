@@ -1,7 +1,7 @@
 /**
  * L'onglet Fondateur de la Direction, que seul le fondateur voit. Refait le 14 novembre 2026 « comme pour la section
  * compte » : le choix du membre est une liste serrée avec recherche à chaque lettre et filtres par rôle, à côté de ce qui va
- * se passer et de la confirmation. Les règles sont dans `src/lib/compte/direction-fondateur.ts`, le dessin dans `global.css`,
+ * se passer et de la confirmation. Les règles sont dans `src/lib/compte/direction-fondateur.ts`, le dessin dans `03-direction.css`,
  * section « Direction, onglet Fondateur ».
  *
  * Une fois le rôle transmis, l'écran le dit et attend : relire le compte (`onDone`) retire aussitôt l'onglet, que seul le

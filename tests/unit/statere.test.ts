@@ -1,8 +1,8 @@
-import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { COULEURS_STATERE, TAILLES_STATERE, casesDuStatere, type TailleStatere } from "../../supabase/functions/code-discord/statere";
+import { feuilleEntiere } from "./feuilles-graphe";
 
-const CSS = readFileSync("src/styles/global.css", "utf8");
+const CSS = feuilleEntiere();
 const rangees = (taille: TailleStatere): (string | null)[][] => {
   const cases = casesDuStatere(taille);
   return Array.from({ length: taille }, (_, y) => cases.slice(y * taille, (y + 1) * taille));

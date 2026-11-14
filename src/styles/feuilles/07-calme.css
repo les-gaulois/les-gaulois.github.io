@@ -1,0 +1,223 @@
+/* Un morceau de la feuille du site (src/lib/feuilles.ts). Tailwind le lit avec le socle : mêmes jetons, mêmes replis. */
+@reference "./01-socle.css";
+/* ---------- Plus calme : le second lot des remarques du 12 novembre 2026 ---------- */
+/* Remarques transmises par le pilote : « enlever la surbrillance sur TOUT », « réagencer les hauts de pages », « enlever le
+   bg dans les tableaux et en mettre un qui contraste », « les dégradés plus discrets avec 3/5 % de changement et pas 30 % »,
+   « plus utiliser la seconde couleur qui est le rouge », « garder la même DA du bleu en bg sur TOUT le site, arrêter le noir
+   et le bleu foncé ». Validé sur planches le 13 novembre 2026 (« Oui, tout »). Toutes les règles ci-dessous visent les pages
+   ouvertes à tous (data-lettres, posé partout sauf au QG et à la Direction) : le QG et la Direction gardent leur écran.
+   Seules exceptions : les aplats des scènes, que reprend aussi le pop-up des appels des Gaulois sur toutes les pages. */
+
+/* Un seul bleu de fond (jetons de @theme, plus haut), sans coins assombris, et une lueur de page presque effacée : 5 % au
+   lieu de 30 %. Plus de blocs noirs : la scène « nuit » et le pied de page prennent le bleu des cartes et de la page. */
+:root[data-lettres="onciale"] {
+  --glow: rgb(11 95 255 / 0.05);
+  --reflection: rgb(255 26 46 / 0.03);
+}
+:root[data-lettres="onciale"] body::after {
+  background: none;
+}
+:root[data-lettres="onciale"] .stage-night {
+  --stage-bg: linear-gradient(var(--color-surface), var(--color-surface));
+}
+:root[data-lettres="onciale"] footer {
+  background-color: var(--color-navy);
+}
+/* La Carte et le guide du clan, en console : le blanc du reste du site (mêmes valeurs que @theme, que la palette du
+   Terminal remplace sinon), sans les lignes d'écran marquées ni la lueur de page du Terminal. */
+:root[data-lettres="onciale"][data-ambiance="console"][data-console="terminal"] {
+  --color-navy: #ffffff;
+  --color-night: #f4f6fb;
+  --color-surface: #f5f7fc;
+  --color-surface-2: #e6ecf9;
+  --color-line: #d5dcee;
+  --color-blue: #0b5fff;
+  --color-blue-hover: #0a4fd6;
+  --glow: rgb(11 95 255 / 0.05);
+  --reflection: rgb(255 26 46 / 0.03);
+}
+:root[data-lettres="onciale"][data-ambiance="console"][data-console="terminal"] body::after {
+  background: repeating-linear-gradient(color-mix(in srgb, var(--ecriture) 3%, transparent) 0 1px, transparent 1px 3px);
+}
+
+/* Des aplats plutôt que des dégradés : de 3 à 5 % d'écart d'un coin à l'autre, au lieu d'un bleu vif qui finissait en bleu
+   nuit. Texte blanc 8,8:1 au moins, texte secondaire des scènes 6,8:1, jaune du survol d'un pseudo 5,7:1. */
+.stage-blue {
+  --stage-bg: linear-gradient(135deg, #0e3fb4, #0d3aa8);
+}
+.stage-indigo {
+  --stage-bg: linear-gradient(135deg, #232478, #1f206d);
+}
+.stage-wine {
+  --stage-bg: linear-gradient(135deg, #6a1230, #61102c);
+}
+.card-accent {
+  --stage-bg: linear-gradient(150deg, #17307a, #152c70);
+}
+
+/* Plus de surbrillance : ni halo qui suit la souris (dans un bloc ou sur la page), ni lumière qui fait le tour d'un bloc
+   au survol, ni lueur autour des gros chiffres, du titre et des icônes, ni reflet sur la ligne de GAL, ni ligne éclairée
+   au survol d'un tableau, ni rayonnement du bouton principal. Le contour blanc du focus clavier reste : il dit où l'on est.
+   Les cases du fond qui s'allument sous la souris et les vagues au clic restent aussi. */
+:root[data-lettres="onciale"] .stage,
+:root[data-lettres="onciale"] main .card {
+  background-image: var(--stage-bg, none);
+}
+:root[data-lettres="onciale"]:not([data-ambiance]) .stage {
+  background-image:
+    linear-gradient(
+      to bottom left,
+      transparent 50%,
+      var(--coupe-trait) 50%,
+      var(--coupe-trait) calc(50% + 1.5px),
+      transparent calc(50% + 1.5px)
+    ),
+    var(--stage-bg, none);
+  background-size:
+    var(--coupe) var(--coupe),
+    auto;
+  background-position:
+    top right,
+    0 0;
+}
+:root[data-lettres="onciale"] .stage:hover::before,
+:root[data-lettres="onciale"] main .card:hover::before {
+  opacity: 0;
+  animation: none;
+}
+:root[data-lettres="onciale"] #fx-aurora {
+  display: none;
+}
+:root[data-lettres="onciale"] .kpi-value,
+:root[data-lettres="onciale"] .carte .kpi-value,
+:root[data-lettres="onciale"] .carte-chiffre,
+:root[data-lettres="onciale"] .carte-session h1,
+:root[data-lettres="onciale"][data-ambiance="console"] .console-valeur,
+:root[data-lettres="onciale"][data-ambiance="console"] .page-title {
+  text-shadow: none;
+}
+:root[data-lettres="onciale"][data-ambiance="console"][data-console="terminal"] :is(.icone-partie, .guide-icone, .guide-plan-icone, .guide-pion-vif) {
+  filter: none;
+}
+:root[data-lettres="onciale"] .console-curseur {
+  box-shadow: none;
+}
+:root[data-lettres="onciale"] .row-highlight {
+  background-image: none;
+  animation: none;
+}
+:root[data-lettres="onciale"] .data-table tbody tr:hover {
+  background-color: transparent;
+}
+:root[data-lettres="onciale"] .data-table tbody tr.row-highlight:hover {
+  background-color: color-mix(in srgb, var(--color-blue) 26%, var(--color-surface));
+}
+:root[data-lettres="onciale"] .btn-primary:hover:not(:disabled) {
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ecriture) 22%, transparent);
+}
+:root[data-lettres="onciale"] .chart-end {
+  box-shadow: none;
+}
+
+/* Les grands tableaux sur un fond à eux, uni et plus clair que la page : la trame du décor ne passe plus derrière les
+   lignes. Coins de carte, filet autour, en-tête un cran plus clair ; la dernière ligne suit les coins du bas. */
+:root[data-lettres="onciale"] .data-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: 0.5rem;
+}
+:root[data-lettres="onciale"] .data-table thead th {
+  background-color: var(--color-surface-2);
+}
+:root[data-lettres="onciale"] .data-table thead th:first-child {
+  border-top-left-radius: calc(0.5rem - 1px);
+}
+:root[data-lettres="onciale"] .data-table thead th:last-child {
+  border-top-right-radius: calc(0.5rem - 1px);
+}
+:root[data-lettres="onciale"] .data-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+:root[data-lettres="onciale"] .data-table tbody tr:last-child > :first-child {
+  border-bottom-left-radius: calc(0.5rem - 1px);
+}
+:root[data-lettres="onciale"] .data-table tbody tr:last-child > :last-child {
+  border-bottom-right-radius: calc(0.5rem - 1px);
+}
+
+/* Le rouge, seconde couleur du clan, en touches (la lettrine des titres de section l'a aussi, voir « L'onciale de
+   cases ») : le repère et le filet du premier chiffre clé, blancs dans une scène, et la barre de lecture en haut de
+   l'écran. 4,8:1 sur la page. Jamais en fond : un fond rouge reste la marque de la Direction. */
+:root[data-lettres="onciale"] .kpi::before {
+  background: var(--color-red);
+}
+:root[data-lettres="onciale"] .kpi-accent {
+  border-left-color: var(--color-red);
+}
+:root[data-lettres="onciale"] .stage .kpi::before {
+  background: var(--ecriture);
+}
+:root[data-lettres="onciale"] .stage .kpi-accent {
+  border-left-color: var(--ecriture);
+}
+:root[data-lettres="onciale"] #fx-progress {
+  background: var(--color-red);
+}
+
+/* Le haut d'une page (PageHeader.astro) : le filet et l'invite sur une ligne, un titre moins grand (80 px au plus au lieu
+   de 96 ; 64 px jusqu'au 14 novembre 2026), et à sa droite, quand la place le permet, l'introduction et la date ; sinon, elles passent dessous. Alignées
+   par le haut : un pli qu'on ouvre à droite (« Comment lire ces chiffres ») ne fait pas descendre le titre. */
+.page-tete-ligne {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 0.875rem;
+  row-gap: 0.75rem;
+  min-width: 0;
+  margin-bottom: 0.75rem;
+}
+.page-tete-ligne .tribar {
+  flex: none;
+}
+:root .page-tete .page-tete-ligne > :not(.tribar) {
+  min-width: 0;
+  margin-bottom: 0;
+}
+.page-tete-corps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  column-gap: 3rem;
+  row-gap: 1rem;
+}
+.page-tete-corps > .page-title {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+/* 28 rem au moins à côté du titre (18 jusqu'au 14 novembre 2026) : avec un titre de 80 px, un long titre (« Dernières
+   parties ») ne laissait à l'introduction et à la date qu'une colonne étroite, sur deux lignes. Sans cette place, elles
+   passent dessous, sur toute la largeur. */
+.page-tete-infos {
+  flex: 1 1 28rem;
+  min-width: 0;
+}
+.page-tete-infos > :first-child {
+  margin-top: 0;
+}
+/* À côté du titre, la première ligne d'informations s'aligne à peu près sur le haut de ses lettres. */
+@media (min-width: 64rem) {
+  .page-tete-infos {
+    padding-top: 0.875rem;
+  }
+}
+/* Le titre de la page est le plus fort de sa page (14 novembre 2026) : jusqu'à 80 px, 40 px sur téléphone, quand un titre
+   de bloc (.section-title) s'arrête à 48 px et 28 px. À 64 px, il ne pesait pas plus que les titres de ses parties. */
+.page-tete .page-title {
+  font-size: clamp(2.5rem, 6vw, 5rem);
+}
+:where([data-lettres="onciale"]) .page-tete .page-title {
+  font-size: max(1.5rem, min(clamp(2.5rem, 6vw, 5rem),(min(100vw, var(--wrap-max)) - 2 * var(--wrap-marge) - 1rem) / var(--mot-em, 0.01)));
+}
+

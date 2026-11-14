@@ -1,14 +1,14 @@
 /**
  * La largeur d'un texte écrit dans l'onciale de cases, calculée au build à partir des dessins (onciale.ts) : un titre de
  * page prend la taille qui laisse son plus long mot sur une ligne (PageHeader.astro, « L'onciale de cases » dans
- * global.css). Code du site, sous l'AGPL comme lui : seuls les dessins d'onciale.ts sont sous la licence de la police.
+ * 04-poste.css). Code du site, sous l'AGPL comme lui : seuls les dessins d'onciale.ts sont sous la licence de la police.
  * Calcul pur, testé dans tests/unit/police.test.ts.
  */
 import { CASE, ESPACE, ESPACE_FINE, ESPACE_INSECABLE, chasse, glyphesOnciale } from "./onciale";
 
 /**
  * La lettrine d'un titre de page : sa première lettre, agrandie de ce facteur et en rouge. La même valeur est écrite dans
- * global.css (`main h1::first-letter`), et un test les compare.
+ * 04-poste.css (`main h1::first-letter`), et un test les compare.
  */
 export const LETTRINE_TITRE = 1.45;
 

@@ -109,7 +109,7 @@ function Pastille({ tone, plain = false, testid, children }: { tone: MemberTone;
  * Les comptes du site. Demande du pilote, 13 novembre 2026 : « c'est chiant de descendre la page pour voir les membres »,
  * « ajoute des codes couleur ». Une barre qui reste sous l'en-tête (recherche à chaque lettre, filtres avec leur nombre),
  * une ligne courte par compte, une couleur par état. Les règles sont dans `src/lib/compte/admin-members.ts`, le dessin dans
- * `global.css`, section « L'onglet Comptes de la Direction » : tout y est sous la classe `comptes`.
+ * `11-comptes.css`, section « L'onglet Comptes de la Direction » : tout y est sous la classe `comptes`.
  */
 export function Members({ me, ask, onReady, active = true }: { me: Me; ask?: MembersAsk | null; onReady?: () => void; active?: boolean }) {
   const [search, setSearch] = useState("");

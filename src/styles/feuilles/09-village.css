@@ -1,0 +1,1687 @@
+/* Un morceau de la feuille du site (src/lib/feuilles.ts). Tailwind le lit avec le socle : mêmes jetons, mêmes replis. */
+@reference "./01-socle.css";
+/* ---------- Page du village : onglets, place et marché (13 novembre 2026) ---------- */
+/* Les trois parties de /village sous leur barre d'onglets, celle du QG d'avant son menu. */
+.village {
+  display: grid;
+  gap: 2rem;
+  min-width: 0;
+}
+.village > * {
+  min-width: 0;
+}
+/* Un dessin en cases, agrandi d'un nombre entier de fois, sans flou (PlaceToile.tsx). */
+.village-pixels {
+  display: block;
+  max-width: none;
+  image-rendering: pixelated;
+}
+
+/* Un Gaulois dans la scène : sa boîte (48 cases sur 64 debout, coupée à table, couchée au lit), son dessin, son nom
+   dessous. L'écran le déplace d'une case à la fois : aucune transition, le pas est celui des pixels. */
+.vie-acteur {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(var(--vie-l) * var(--place-case));
+  height: calc(var(--vie-h) * var(--place-case));
+  -webkit-tap-highlight-color: transparent;
+}
+.vie-toile {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.vie-adverse {
+  pointer-events: none;
+}
+.place-nom {
+  position: absolute;
+  top: calc(var(--vie-nom) * var(--place-case));
+  left: 50%;
+  width: max-content;
+  max-width: calc(var(--vie-nom-l) * var(--place-case));
+  padding: 0.0625rem 0.375rem;
+  translate: -50% 0;
+  overflow: hidden;
+  border-radius: 0.25rem;
+  background: var(--color-night);
+  color: var(--ecriture);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Le sien : son nom en clair, et une flèche au-dessus de lui. Pas seulement une couleur. */
+.vie-acteur[data-moi] .place-nom {
+  background: var(--ecriture);
+  color: var(--color-navy);
+}
+.place-fleche {
+  position: absolute;
+  top: -0.75rem;
+  left: 50%;
+  translate: -50% 0;
+  border-inline: 0.4375rem solid transparent;
+  /* Posée sur la scène peinte, pas sur la page : elle reste blanche. */
+  border-top: 0.5625rem solid var(--sur-couleur);
+}
+/* Au survol ou au toucher : son nom en entier et ce qui le place là. La bulle : ce que le serveur lui fait dire, de
+   temps en temps, deux au plus à la fois (mouvement.ts). L'une et l'autre restent dans la scène : près d'un bord, elles
+   s'alignent sur lui. */
+.vie-info,
+.vie-bulle {
+  position: absolute;
+  bottom: calc(100% + 0.25rem);
+  left: 50%;
+  width: max-content;
+  max-width: min(14rem, 62vw);
+  padding: 0.25rem 0.5rem;
+  translate: -50% 0;
+  border-radius: 0.375rem;
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  text-align: center;
+  overflow-wrap: anywhere;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.8s ease,
+    visibility 0s 0.8s;
+}
+.vie-acteur[data-moi] > :is(.vie-info, .vie-bulle) {
+  bottom: calc(100% + 1rem);
+}
+.vie-acteur[data-bord="gauche"] > :is(.vie-info, .vie-bulle) {
+  left: 0;
+  translate: 0 0;
+}
+.vie-acteur[data-bord="droite"] > :is(.vie-info, .vie-bulle) {
+  right: 0;
+  left: auto;
+  translate: 0 0;
+}
+.vie-info {
+  border: 1px solid var(--color-line-strong);
+  background: var(--color-night);
+  color: var(--color-muted);
+}
+.vie-info-nom {
+  display: block;
+  color: var(--ecriture);
+  font-weight: 600;
+}
+.vie-bulle {
+  border-bottom-left-radius: 0;
+  background: var(--ecriture);
+  color: var(--color-navy);
+}
+.vie-acteur[data-parle] > .vie-bulle,
+.vie-acteur:hover > .vie-info,
+.vie-acteur[data-ouvert] > .vie-info {
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity 0.8s ease,
+    visibility 0s;
+}
+.vie-acteur:hover > .vie-info,
+.vie-acteur[data-ouvert] > .vie-info {
+  transition-duration: 0.15s, 0s;
+}
+.vie-acteur:hover > .vie-bulle,
+.vie-acteur[data-ouvert] > .vie-bulle {
+  opacity: 0;
+}
+.vie-acteur:is(:hover, [data-ouvert], [data-parle]) {
+  z-index: 9999 !important;
+}
+/* Qui dort : un « z » monte lentement de l'oreiller et s'efface. Sans mouvement, il reste posé. */
+.vie-ronfle {
+  position: absolute;
+  top: calc(-3 * var(--place-case));
+  left: calc(20 * var(--place-case));
+  color: var(--sur-couleur);
+  font-family: var(--font-console);
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.vie-ronfle::before {
+  content: "z";
+  content: "z" / "";
+  display: block;
+  opacity: 0.7;
+  animation: vie-ronfle 6s linear infinite;
+  animation-delay: var(--vie-retard, 0s);
+}
+@keyframes vie-ronfle {
+  from {
+    opacity: 0;
+    translate: 0 0.625rem;
+  }
+  30% {
+    opacity: 0.8;
+  }
+  to {
+    opacity: 0;
+    translate: 0.75rem -0.75rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vie-ronfle::before {
+    animation: none;
+  }
+  .vie-info,
+  .vie-bulle {
+    transition: none;
+  }
+}
+/* « Qui est où » : la scène en texte, lieu par lieu, pour le clavier et les lecteurs d'écran comme pour qui cherche un nom. */
+.vie-liste {
+  margin-top: 1rem;
+}
+.vie-liste-titre {
+  color: var(--ecriture);
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+.vie-liste ul {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
+  gap: 0.375rem 1.5rem;
+  margin-top: 0.5rem;
+}
+.vie-liste li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.625rem;
+  min-width: 0;
+}
+.vie-liste-nom {
+  min-width: 0;
+  color: var(--ecriture);
+  overflow-wrap: anywhere;
+}
+.vie-liste-raison,
+.vie-liste-replique {
+  color: var(--color-muted);
+}
+.vie-liste-replique {
+  flex-basis: 100%;
+  overflow-wrap: anywhere;
+}
+/* Toucher un Gaulois (14 novembre 2026 ; PlaceToucher.tsx, règle dans toucher.ts) : un clic ou un toucher le fait
+   répondre. Au-dessus de lui, son nom et ce qui le place là, puis sa phrase dans une bulle : une réponse à un geste, qui
+   paraît donc aussi en pause et en « réduire les animations », posée sans mouvement. Pendant qu'elle est là, l'étiquette
+   du survol et la bulle du serveur lui laissent la place. */
+.vie-acteur:not(.vie-adverse) {
+  cursor: pointer;
+  /* Deux clics de suite ne surlignent ni son nom ni sa bulle. */
+  -webkit-user-select: none;
+  user-select: none;
+}
+.toucher {
+  position: absolute;
+  bottom: calc(100% + 0.5rem);
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  width: max-content;
+  max-width: min(14rem, 62vw);
+  translate: -50% 0;
+  pointer-events: none;
+}
+.vie-acteur[data-moi] > .toucher {
+  bottom: calc(100% + 1.25rem);
+}
+.vie-acteur[data-bord="gauche"] > .toucher {
+  left: 0;
+  align-items: flex-start;
+  translate: 0 0;
+}
+.vie-acteur[data-bord="droite"] > .toucher {
+  right: 0;
+  left: auto;
+  align-items: flex-end;
+  translate: 0 0;
+}
+.vie-acteur:has(> .toucher) {
+  z-index: 9999 !important;
+}
+.vie-acteur:has(> .toucher) > :is(.vie-info, .vie-bulle) {
+  display: none;
+}
+.toucher-qui {
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.375rem;
+  background: var(--color-night);
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.toucher-qui .vie-info-nom {
+  display: inline;
+  margin-right: 0.375rem;
+}
+/* La bulle : de la couleur de l'écriture, son texte de celle de la page ; un cran plus grande que celle du serveur pour se lire d'un coup d'œil, sa pointe tournée vers la
+   tête de celui qui parle. L'humeur ne tient pas à une couleur seule : agacé, la phrase s'épaissit ; excédé, un filet rouge
+   sous la bulle ; furieux, le filet en fait le tour. */
+.toucher-bulle {
+  --toucher-filet: var(--ecriture);
+  position: relative;
+  min-width: calc(var(--vie-l) * var(--place-case));
+  padding: 0.375rem 0.625rem;
+  border: 2px solid var(--ecriture);
+  border-bottom-color: var(--toucher-filet);
+  border-radius: 0.625rem;
+  background: var(--ecriture);
+  color: var(--color-navy);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.3;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.toucher:is([data-palier="agace"], [data-palier="excede"], [data-palier="furieux"]) > .toucher-bulle {
+  font-weight: 700;
+}
+.toucher:is([data-palier="excede"], [data-palier="furieux"]) > .toucher-bulle {
+  --toucher-filet: var(--color-red);
+}
+.toucher[data-palier="furieux"] > .toucher-bulle {
+  border-color: var(--toucher-filet);
+}
+/* La pointe : un carré tourné d'un huitième de tour, à cheval sur le bas de la bulle, au-dessus du milieu du Gaulois. */
+.toucher-bulle::after {
+  content: "";
+  position: absolute;
+  top: calc(100% - 0.1875rem);
+  left: 50%;
+  width: 0.625rem;
+  height: 0.625rem;
+  translate: -50% 0;
+  rotate: 45deg;
+  border: solid var(--toucher-filet);
+  border-width: 0 2px 2px 0;
+  background: var(--ecriture);
+}
+.vie-acteur[data-bord="gauche"] .toucher-bulle::after {
+  left: calc(var(--vie-l) * var(--place-case) / 2);
+}
+.vie-acteur[data-bord="droite"] .toucher-bulle::after {
+  right: calc(var(--vie-l) * var(--place-case) / 2);
+  left: auto;
+  translate: 50% 0;
+}
+/* Le jeu de scène, calme : la bulle arrive en fondu, et le Gaulois qui s'agace sursaute d'une case, une fois. Deux noms
+   pour le même saut : d'un toucher au suivant, le nom change, et le saut repart. Rien de tout cela en pause (fx-off) ni
+   en « réduire les animations ». */
+@media (prefers-reduced-motion: no-preference) {
+  :root:not(.fx-off) .toucher-bulle {
+    animation: toucher-parait 0.25s ease-out;
+  }
+  :root:not(.fx-off) .vie-acteur:has(> .toucher[data-saut="0"]) > .vie-toile {
+    animation: toucher-saut-a 0.8s steps(1, end);
+  }
+  :root:not(.fx-off) .vie-acteur:has(> .toucher[data-saut="1"]) > .vie-toile {
+    animation: toucher-saut-b 0.8s steps(1, end);
+  }
+}
+@keyframes toucher-parait {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes toucher-saut-a {
+  15% {
+    translate: 0 calc(-1 * var(--place-case));
+  }
+  60% {
+    translate: 0 0;
+  }
+}
+@keyframes toucher-saut-b {
+  15% {
+    translate: 0 calc(-1 * var(--place-case));
+  }
+  60% {
+    translate: 0 0;
+  }
+}
+/* Dans « Qui est où » : le nom de chacun est un bouton (« Parler à … »), d'au moins 44 pixels, qui fait la même chose
+   pour le clavier et les lecteurs d'écran. */
+.vie-liste li {
+  align-items: center;
+  align-content: flex-start;
+}
+.toucher-bouton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  color: var(--ecriture);
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+/* L'anneau du clavier reste dans le bouton : rien autour ne peut le rogner. */
+.toucher-bouton:focus-visible {
+  outline-offset: -2px;
+}
+.toucher-bouton:hover {
+  background: var(--color-surface-2);
+}
+.toucher-bouton-icone {
+  flex: none;
+  color: var(--color-blue-text);
+}
+.toucher-dit {
+  color: var(--ecriture);
+}
+.place-mot,
+.marche-mot {
+  color: var(--color-muted);
+}
+
+/* Le marché : le solde et « Vendre un objet » en tête, puis ses offres, puis celles des autres, en cases de rareté. */
+.marche {
+  display: grid;
+  gap: 1.5rem;
+  min-width: 0;
+}
+.marche-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+}
+.marche-solde {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-muted);
+}
+.marche-solde strong {
+  font-size: 1.75rem;
+  line-height: 1;
+  color: var(--ecriture);
+}
+.marche-piece {
+  flex: none;
+}
+.marche-prix {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  font-weight: 700;
+  color: var(--ecriture);
+}
+.marche-partie {
+  display: grid;
+  gap: 0.875rem;
+  min-width: 0;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--hairline);
+}
+.marche-titre {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  font-size: 1.0625rem;
+  font-weight: 700;
+}
+/* Le compte de ses offres, à côté du titre : en lettres courantes, pas dans celles des titres. */
+.marche-titre .info-discrete {
+  font-family: var(--font-sans);
+}
+.marche-champ label {
+  display: block;
+}
+.marche-filtres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.marche-offres {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.25rem, 1fr));
+  gap: 0.75rem;
+}
+.marche-offre {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+  padding: 0.5rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.625rem;
+  background: var(--color-surface);
+  text-align: center;
+}
+.marche-offre .marche-case {
+  width: 100%;
+}
+.marche-offre-prix {
+  margin-top: 0.25rem;
+  font-size: 1.125rem;
+}
+.marche-offre-vendeur,
+.marche-offre-fin {
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+.marche-offre-bouton {
+  width: 100%;
+  margin-top: auto;
+}
+.marche-offre-fin {
+  margin-bottom: 0.375rem;
+}
+/* La case d'un objet, comme au vestiaire : le cadre et le fond prennent la couleur de la rareté (jetons --rarete-…), qui
+   est aussi écrite et comptée en losanges, de un à cinq. */
+.marche-case {
+  --rarete: var(--color-line-strong);
+  --rarete-texte: var(--color-muted);
+  --rarete-cadre: var(--rarete);
+  display: grid;
+  grid-template-rows: 5.5rem auto;
+  align-content: start;
+  justify-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+  padding: 0.375rem 0.25rem 0.5rem;
+  border: 2px solid transparent;
+  border-radius: 0.5rem;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--rarete) 38%, var(--color-navy)), color-mix(in srgb, var(--rarete) 14%, var(--color-navy))) padding-box,
+    var(--rarete-cadre) border-box;
+  color: var(--ecriture);
+  text-align: center;
+}
+.marche-case[data-rarete="commun"] {
+  --rarete: var(--rarete-commun);
+  --rarete-texte: var(--rarete-commun-texte);
+}
+.marche-case[data-rarete="peu-commun"] {
+  --rarete: var(--rarete-peu-commun);
+  --rarete-texte: var(--rarete-peu-commun-texte);
+}
+.marche-case[data-rarete="epique"] {
+  --rarete: var(--rarete-epique);
+  --rarete-texte: var(--rarete-epique-texte);
+}
+.marche-case[data-rarete="mystique"] {
+  --rarete: var(--rarete-mystique);
+  --rarete-texte: var(--rarete-mystique-texte);
+}
+.marche-case[data-rarete="legendaire"] {
+  --rarete: var(--rarete-legendaire);
+  --rarete-texte: var(--rarete-legendaire-texte);
+  --rarete-cadre: var(--rarete-legendaire-degrade);
+}
+.marche-case-image {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 5.5rem;
+}
+.marche-case-nom {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.marche-case-rarete {
+  display: grid;
+  justify-items: center;
+  gap: 0.1875rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--rarete-texte);
+}
+.marche-case-rang {
+  display: flex;
+  gap: 0.25rem;
+}
+.marche-case-rang i {
+  width: 0.4375rem;
+  height: 0.4375rem;
+  rotate: 45deg;
+  background: var(--rarete-texte);
+}
+.marche-case-nombre {
+  margin-top: 0.125rem;
+  padding: 0.0625rem 0.375rem;
+  border-radius: 0.25rem;
+  background: color-mix(in srgb, var(--ecriture) 10%, transparent);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+/* Les fenêtres du marché (acheter, vendre) : par-dessus la page, sur un fond assombri. */
+.marche-dialogue {
+  width: min(34rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  margin: auto;
+  padding: 0;
+  overflow: auto;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.625rem;
+  background: var(--color-surface);
+  color: var(--ecriture);
+}
+.marche-dialogue::backdrop {
+  background: rgb(3 8 26 / 0.75);
+}
+.marche-dialogue-corps {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+}
+.marche-dialogue-titre {
+  font-size: 1.375rem;
+}
+.marche-dialogue-objet {
+  display: grid;
+  grid-template-columns: 7.25rem minmax(0, 1fr);
+  align-items: start;
+  gap: 1rem;
+}
+.marche-compte {
+  display: grid;
+  gap: 0.5rem;
+}
+.marche-compte > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.125rem 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--hairline);
+}
+.marche-compte dt {
+  font-size: 0.9375rem;
+  color: var(--color-muted);
+}
+.marche-compte dd {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.marche-dialogue-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.marche-regle {
+  font-size: 0.9375rem;
+  color: var(--color-muted);
+}
+.marche-vente {
+  display: grid;
+  gap: 1rem;
+}
+/* L'inventaire à vendre : une case par objet ; la choisie a un anneau plein, de la couleur de l'écriture. */
+.marche-choix {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(6.25rem, 1fr));
+  gap: 0.75rem;
+  max-height: 21rem;
+  padding: 0.375rem;
+  overflow-y: auto;
+}
+.marche-choix-case {
+  display: grid;
+  border-radius: 0.5rem;
+  cursor: pointer;
+}
+.marche-choix-case:hover {
+  box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 4px color-mix(in srgb, var(--ecriture) 55%, transparent);
+}
+/* Un objet qui ne se vend pas : éteint, sans main ni anneau ; sa raison est écrite dans la case. */
+.marche-choix-ferme {
+  cursor: default;
+}
+.marche-choix-ferme:hover {
+  box-shadow: none;
+}
+.marche-choix-ferme .village-pixels {
+  opacity: 0.55;
+}
+.marche-choix-case[aria-pressed="true"] {
+  box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 5px var(--ecriture);
+}
+
+/* ---------- Le village des Gaulois : le vestiaire (13 novembre 2026) ---------- */
+/* Le Gaulois à gauche, ses habits à droite ; l'un sous l'autre sur téléphone. Le Gaulois reste en vue pendant qu'on
+   l'habille, sur un grand écran. */
+.vestiaire {
+  display: grid;
+  gap: 2.5rem;
+  align-items: start;
+}
+@media (min-width: 768px) {
+  .vestiaire {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .vestiaire-scene {
+    position: sticky;
+    top: 6rem;
+  }
+}
+.vestiaire-scene {
+  display: grid;
+  justify-items: center;
+  gap: 1.25rem;
+}
+.vestiaire-scene-actions {
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
+}
+/* Le Gaulois fait 48 cases sur 64. Une case vaut 4 pixels, 3 sur téléphone : les bords tombent sur les pixels de l'écran,
+   sans flou. */
+.gaulois-apercu {
+  width: 192px;
+  height: 256px;
+  image-rendering: pixelated;
+  padding: 1.5rem;
+  box-sizing: content-box;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: 0.625rem;
+}
+/* L'objet de la boutique qu'on essaie : son nom sous le Gaulois, et de quoi le retirer. La place reste prise quand rien
+   n'est essayé, pour que la page ne bouge pas. */
+.vestiaire-essai {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem 0.75rem;
+  min-height: 2.5rem;
+  max-width: 15rem;
+  font-size: 0.875rem;
+  color: var(--color-muted);
+  text-align: center;
+}
+.vestiaire-essai strong {
+  color: var(--ecriture);
+}
+/* Sous le nom de l'objet essayé : son prix, ce qui empêche de l'acheter s'il y a lieu, puis « Acheter » et « Retirer ». */
+.vestiaire-essai-raison {
+  flex-basis: 100%;
+  color: var(--color-warn);
+  font-weight: 600;
+}
+.vestiaire-essai-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: inherit;
+  gap: 0.5rem;
+  flex-basis: 100%;
+}
+/* « Acheter » : le bouton plein de l'essayage, de la couleur de l'écriture comme un choix retenu. */
+.chip-fort {
+  color: var(--color-navy);
+  background: var(--ecriture);
+  border-color: var(--ecriture);
+}
+.chip-fort:hover:where(:not(:disabled)) {
+  color: var(--color-navy);
+  background: var(--color-muted);
+}
+/* Sur téléphone, le Gaulois reste en haut de l'écran, sous la barre du site, pendant qu'on descend l'habiller : une case
+   y fait 3 pixels, « Au hasard » et l'essayage se mettent à côté. Pas sur un écran bas (téléphone couché) : il ne resterait
+   presque rien pour les cases. */
+@media (max-width: 767px) and (min-height: 560px) {
+  .vestiaire-scene {
+    position: sticky;
+    top: 4.5rem;
+    z-index: 10;
+    grid-template-columns: auto minmax(0, 1fr);
+    justify-items: start;
+    align-items: center;
+    gap: 0.875rem;
+    padding-block: 0.5rem;
+    /* Un peu plus large que les cases : l'anneau d'une case portée ne dépasse pas sur les côtés en passant dessous. */
+    margin-inline: -0.5rem;
+    padding-inline: 0.5rem;
+    background: var(--color-navy);
+    border-bottom: 1px solid var(--hairline);
+  }
+  .vestiaire-scene .gaulois-apercu {
+    width: 144px;
+    height: 192px;
+    padding: 0.25rem;
+  }
+  .vestiaire-scene-actions {
+    justify-items: start;
+  }
+  .vestiaire-essai {
+    justify-content: flex-start;
+    text-align: left;
+  }
+  .vestiaire-essai-actions .chip {
+    padding-inline: 0.75rem;
+  }
+}
+.vestiaire-porte {
+  max-width: 40rem;
+}
+.vestiaire-colonne {
+  display: grid;
+  gap: 1.75rem;
+  min-width: 0;
+}
+/* Les choix : la barre des rayons, le rayon ouvert, l'enregistrement. En colonne souple et non en grille : dans une
+   grille, un bloc collé ne sort pas de sa rangée, et ni la barre ni l'enregistrement ne suivraient l'écran. */
+.vestiaire-choix {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  min-width: 0;
+}
+
+/* La barre des rayons (14 novembre 2026) : la garde-robe compte une soixantaine d'objets par emplacement, on n'en ouvre
+   qu'un à la fois. Un onglet par rayon, avec l'image de ce que le Gaulois y porte ; l'onglet ouvert a le fond plus clair
+   et le filet rouge des onglets du site. La barre reste collée sous l'en-tête pendant qu'on descend dans les cases. */
+.vestiaire-barre {
+  position: sticky;
+  /* Juste sous l'en-tête du site : le fond plein commence à son bord, aucune case ne se voit entre les deux. */
+  top: 4rem;
+  z-index: 9;
+  /* Un peu plus large et plus haute que la barre : l'anneau d'une case portée ne dépasse pas en passant dessous. */
+  margin: -0.75rem -0.5rem -0.5rem;
+  padding: 0.75rem 0.5rem 0.5rem;
+  background: var(--color-navy);
+}
+.vestiaire-rayons {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.25rem;
+  padding: 0.3125rem;
+  background: var(--color-night);
+  border: 1px solid var(--color-line);
+  border-radius: 0.875rem;
+}
+.vestiaire-rayon-onglet {
+  display: grid;
+  justify-items: center;
+  align-content: end;
+  gap: 0.1875rem;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: 0.375rem 0.125rem 0.5rem;
+  border-radius: 0.625rem;
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: var(--color-muted);
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    background-color 0.15s,
+    box-shadow 0.2s;
+}
+@media (min-width: 1100px) {
+  .vestiaire-rayon-onglet {
+    font-size: 1.0625rem;
+  }
+}
+.vestiaire-rayon-onglet:hover {
+  color: var(--ecriture);
+  background: color-mix(in srgb, var(--ecriture) 7%, transparent);
+}
+.vestiaire-rayon-onglet[aria-selected="true"] {
+  color: var(--ecriture);
+  background: var(--color-surface-2);
+  box-shadow: inset 0 -3px 0 var(--color-red);
+}
+.vestiaire-rayon-onglet:focus-visible {
+  outline-offset: -4px;
+}
+/* Ce que le Gaulois porte dans ce rayon, en petit : son visage pour le corps, l'objet sinon, un rond barré pour « rien ». */
+.vestiaire-rayon-image {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 2.75rem;
+}
+.vestiaire-rayon-image .case-rien {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+/* L'image est agrandie une ou deux fois, en pixels entiers : l'écran donne les deux agrandissements possibles (--serre
+   pour une barre étroite, --large pour une barre large), la largeur de la page choisit. */
+.rayon-dessin {
+  --echelle: var(--serre, 1);
+  width: calc(var(--l) * var(--echelle) * 1px);
+  height: calc(var(--h) * var(--echelle) * 1px);
+}
+@media (min-width: 1100px) {
+  .rayon-dessin {
+    --echelle: var(--large, 1);
+  }
+}
+/* Sur téléphone, la barre se colle sous le Gaulois, lui-même collé sous l'en-tête (sa hauteur est mesurée par l'écran,
+   --vestiaire-scene) : sans image, pour laisser la place aux cases. */
+@media (max-width: 767px) {
+  .vestiaire-barre {
+    margin-block: -0.375rem;
+    padding-block: 0.375rem;
+  }
+  .vestiaire-rayons {
+    gap: 0.125rem;
+    padding: 0.1875rem;
+    border-radius: 0.625rem;
+  }
+  /* Six onglets dans la largeur d'un téléphone : le texte courant, plus étroit que les lettres des titres. */
+  .vestiaire-rayon-onglet {
+    align-content: center;
+    padding: 0.25rem 0;
+    border-radius: 0.5rem;
+    font-family: var(--font-sans);
+  }
+  .vestiaire-rayon-image {
+    display: none;
+  }
+}
+@media (max-width: 767px) and (min-height: 560px) {
+  .vestiaire-barre {
+    top: calc(4.5rem + var(--vestiaire-scene, 13.5rem));
+  }
+  /* Le Gaulois collé laisse un doigt de page entre l'en-tête et lui : le même fond plein, les cases n'y passent plus. */
+  .vestiaire-scene {
+    box-shadow: 0 -0.5rem 0 var(--color-navy);
+  }
+}
+/* Au clavier, la case qui prend le focus ne reste pas cachée sous ce qui est collé : la barre des rayons en haut (et le
+   Gaulois, sur téléphone), l'enregistrement en bas. */
+.vestiaire-panneau :is(.case, .vestiaire-teinte, .filtre) {
+  scroll-margin-block: 11.5rem 8rem;
+}
+@media (max-width: 767px) and (min-height: 560px) {
+  .vestiaire-panneau :is(.case, .vestiaire-teinte, .filtre) {
+    scroll-margin-top: calc(9rem + var(--vestiaire-scene, 13.5rem));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vestiaire-rayon-onglet {
+    transition: none;
+  }
+}
+/* Le rayon ouvert : le corps (peau, cheveux, barbe, yeux, bouche, cicatrice, l'un sous l'autre) ou les objets d'un
+   emplacement (ce qui est au membre, puis la boutique). */
+.vestiaire-panneau {
+  display: grid;
+  gap: 1.75rem;
+  min-width: 0;
+}
+.vestiaire-panneau > .vestiaire-emplacement:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+.vestiaire-rayon {
+  display: grid;
+  gap: 0.875rem;
+  min-width: 0;
+}
+/* Le titre de la boutique d'un rayon, et à côté son filtre : une rareté à la fois, avec le nombre d'objets de chacune. */
+.vestiaire-boutique-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.625rem 1.25rem;
+  margin-top: 0.875rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--hairline);
+}
+.vestiaire-boutique-tete .vestiaire-boutique {
+  margin-top: 0;
+}
+.vestiaire-filtre {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  min-width: 0;
+}
+/* Un choix du filtre : les losanges du rang (le repère de forme des cases), le nom de la rareté, le nombre d'objets. Le
+   choix retenu est en blanc plein, comme tout choix retenu du site. */
+.filtre {
+  --rarete-texte: var(--color-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4375rem;
+  min-height: 2.25rem;
+  padding: 0.1875rem 0.6875rem;
+}
+.filtre[data-rarete="commun"] {
+  --rarete-texte: var(--rarete-commun-texte);
+}
+.filtre[data-rarete="peu-commun"] {
+  --rarete-texte: var(--rarete-peu-commun-texte);
+}
+.filtre[data-rarete="epique"] {
+  --rarete-texte: var(--rarete-epique-texte);
+}
+.filtre[data-rarete="mystique"] {
+  --rarete-texte: var(--rarete-mystique-texte);
+}
+.filtre[data-rarete="legendaire"] {
+  --rarete-texte: var(--rarete-legendaire-texte);
+}
+.filtre-rang {
+  display: flex;
+  gap: 0.1875rem;
+}
+.filtre-rang i {
+  width: 0.375rem;
+  height: 0.375rem;
+  rotate: 45deg;
+  background: var(--rarete-texte);
+}
+.filtre[aria-pressed="true"] .filtre-rang i {
+  background: var(--color-navy);
+}
+.filtre-nombre {
+  color: var(--ecriture);
+  font-weight: 700;
+}
+.filtre[aria-pressed="true"] .filtre-nombre {
+  color: inherit;
+}
+.vestiaire-emplacement {
+  display: grid;
+  gap: 0.875rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--hairline);
+}
+.vestiaire-titre {
+  font-size: 1.0625rem;
+  font-weight: 700;
+}
+.vestiaire-pastilles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+}
+/* Le petit titre des cases de la boutique : elles se regardent et s'essaient, elles ne se portent qu'une fois achetées. */
+.vestiaire-boutique {
+  margin-top: 0.25rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+/* Les cases : une petite case par objet, son image en pixels nets, son nom, sa rareté. Le cadre et le fond prennent la
+   couleur de la rareté (jetons --rarete-…) ; la rareté est aussi écrite et comptée en losanges, de un à cinq. */
+.cases {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(6.25rem, 7.25rem));
+  gap: 0.625rem;
+}
+/* Sur téléphone, trois cases de front au lieu de deux : un rayon d'une soixantaine d'objets se parcourt en vingt rangées. */
+@media (max-width: 479px) {
+  .cases {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+}
+.case {
+  --rarete: var(--color-line-strong);
+  --rarete-texte: var(--color-muted);
+  --rarete-cadre: var(--rarete);
+  position: relative;
+  display: grid;
+  grid-template-rows: 5.5rem auto;
+  align-content: start;
+  justify-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+  padding: 0.375rem 0.25rem 0.5rem;
+  border: 2px solid transparent;
+  border-radius: 0.5rem;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--rarete) 38%, var(--color-navy)), color-mix(in srgb, var(--rarete) 14%, var(--color-navy))) padding-box,
+    var(--rarete-cadre) border-box;
+  color: var(--ecriture);
+  text-align: center;
+  cursor: pointer;
+  transition: box-shadow 0.2s;
+}
+.case[data-rarete="commun"] {
+  --rarete: var(--rarete-commun);
+  --rarete-texte: var(--rarete-commun-texte);
+}
+.case[data-rarete="peu-commun"] {
+  --rarete: var(--rarete-peu-commun);
+  --rarete-texte: var(--rarete-peu-commun-texte);
+}
+.case[data-rarete="epique"] {
+  --rarete: var(--rarete-epique);
+  --rarete-texte: var(--rarete-epique-texte);
+}
+.case[data-rarete="mystique"] {
+  --rarete: var(--rarete-mystique);
+  --rarete-texte: var(--rarete-mystique-texte);
+}
+.case[data-rarete="legendaire"] {
+  --rarete: var(--rarete-legendaire);
+  --rarete-texte: var(--rarete-legendaire-texte);
+  --rarete-cadre: var(--rarete-legendaire-degrade);
+}
+.case-image {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 5.5rem;
+}
+.case-dessin {
+  image-rendering: pixelated;
+}
+/* La case « rien » : un rond barré. */
+.case-rien {
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 2px solid var(--color-line-strong);
+  border-radius: 999px;
+  background: linear-gradient(to top right, transparent calc(50% - 1px), var(--color-line-strong) calc(50% - 1px), var(--color-line-strong) calc(50% + 1px), transparent calc(50% + 1px));
+}
+.case-nom {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.case-rarete {
+  display: grid;
+  justify-items: center;
+  gap: 0.1875rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--rarete-texte);
+}
+.case-rang {
+  display: flex;
+  gap: 0.25rem;
+}
+.case-rang i {
+  width: 0.4375rem;
+  height: 0.4375rem;
+  rotate: 45deg;
+  background: var(--rarete-texte);
+}
+/* Le cadenas d'une case de la boutique, dans son coin ; son image est un peu éteinte. */
+.case-cadenas {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+  width: 1.375rem;
+  height: 1.375rem;
+  padding: 0.25rem;
+  border-radius: 0.25rem;
+  background: var(--ecriture);
+  color: var(--color-navy);
+}
+.case[data-boutique] .case-dessin {
+  opacity: 0.8;
+}
+.case:hover {
+  box-shadow: 0 0 0 2px var(--color-navy), 0 0 0 4px color-mix(in srgb, var(--ecriture) 55%, transparent);
+}
+.case[data-boutique]:hover .case-dessin,
+.case[data-etat="essayee"] .case-dessin {
+  opacity: 1;
+}
+/* La case essayée : un cadre en pointillés, à elle seule, et le mot « essai » dans le coin où la case portée a sa coche.
+   Ni le survol ni la couleur ne le disent à sa place. */
+.case[data-etat="essayee"] {
+  box-shadow: 0 0 0 2px var(--color-navy);
+  outline: 3px dashed var(--ecriture);
+  outline-offset: 2px;
+}
+.case-essai,
+.case-marque {
+  position: absolute;
+  top: 0.25rem;
+  padding: 0.0625rem 0.375rem;
+  border-radius: 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+}
+.case-essai {
+  left: 0.25rem;
+  background: var(--ecriture);
+  color: var(--color-navy);
+}
+/* « à vous » : un objet acheté ou tiré d'une pochette, avec le nombre d'exemplaires s'il y en a plusieurs. « Double » dans
+   la fenêtre de la pochette. */
+.case-marque {
+  right: 0.25rem;
+  background: var(--ecriture);
+  color: var(--color-navy);
+}
+/* Le prix d'une case de la boutique : la pièce et le nombre, sous la rareté. */
+.case-prix {
+  margin-top: 0.125rem;
+  padding: 0.0625rem 0.5rem 0.0625rem 0.3125rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ecriture) 10%, transparent);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+/* Une case montrée dans une fenêtre (achat, pochette) : la même, sans être un bouton. */
+.case-montree {
+  width: 8rem;
+  cursor: default;
+}
+.case-montree:hover {
+  box-shadow: none;
+}
+/* La case portée : un anneau plein, de la couleur de l'écriture, et une coche blanche dans le coin. */
+.case[data-etat="portee"] {
+  box-shadow: 0 0 0 2px var(--color-navy), 0 0 0 5px var(--ecriture);
+}
+.case[data-etat="portee"]::after {
+  content: "";
+  position: absolute;
+  top: 0.25rem;
+  left: 0.25rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 999px;
+  background: var(--ecriture)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2l2.4 2.4 4.6-5' fill='none' stroke='%23ffffff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / 0.875rem no-repeat;
+}
+@media (prefers-reduced-motion: reduce) {
+  .case {
+    transition: none;
+  }
+}
+
+/* Une couleur à choisir : sa pastille et son nom, la couleur n'est jamais le seul repère. La choisie est pleine, de la couleur de l'écriture. */
+.vestiaire-teinte {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+  padding: 0.25rem 0.875rem 0.25rem 0.375rem;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--color-muted);
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    background-color 0.15s,
+    border-color 0.15s;
+}
+.vestiaire-teinte:hover {
+  color: var(--ecriture);
+  border-color: var(--ecriture);
+}
+.vestiaire-teinte[aria-pressed="true"] {
+  color: var(--color-navy);
+  background: var(--ecriture);
+  border-color: var(--ecriture);
+}
+.vestiaire-teinte-rond {
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: none;
+  border: 2px solid var(--color-line-strong);
+  border-radius: 999px;
+}
+/* L'enregistrement, au bout des choix. Dès que la tenue a changé, la barre reste collée en bas de l'écran : le bouton est
+   à portée de main où qu'on soit dans les cases. */
+.vestiaire-envoi {
+  display: grid;
+  gap: 0.5rem;
+  padding-block: 0.75rem;
+}
+.vestiaire-envoi[data-colle] {
+  position: sticky;
+  bottom: 0;
+  z-index: 9;
+  background: var(--color-navy);
+  border-top: 1px solid var(--hairline);
+}
+.vestiaire-envoi-boutons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+}
+.vestiaire-envoi .form-problem,
+.vestiaire-envoi .form-success {
+  margin-top: 0;
+}
+.vestiaire-bloque {
+  color: var(--color-warn);
+  font-weight: 600;
+}
+
+/* ---------- Le village des Gaulois : Mon Gaulois, la bourse, la boutique et la pochette surprise (13 novembre 2026) ---------- */
+/* Un dessin en pixels : chaque case vaut un nombre entier de pixels de l'écran, sans flou. */
+.pixels {
+  flex: none;
+  image-rendering: pixelated;
+}
+/* Un prix : la pièce, puis le nombre, qui ne se coupe pas. */
+.prix {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  font-weight: 700;
+  color: var(--ecriture);
+  white-space: nowrap;
+}
+/* En tête de la colonne des choix : la bourse et la pochette surprise, côte à côte quand la place le permet. */
+.boutique-tete {
+  display: grid;
+  gap: 1.5rem 2.5rem;
+  align-items: start;
+}
+@media (min-width: 1100px) {
+  .boutique-tete {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+.bourse,
+.pochette {
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+  min-width: 0;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--hairline);
+}
+/* Le solde : la pièce, le nombre en grand, le mot. Le nombre ne se coupe jamais. */
+.bourse-solde {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+}
+.bourse-nombre {
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 2rem + 2.5vw, 3.75rem);
+  font-weight: 800;
+  line-height: 1;
+  color: var(--ecriture);
+  white-space: nowrap;
+}
+.bourse-unite {
+  align-self: flex-end;
+  padding-bottom: 0.375rem;
+  font-weight: 600;
+  color: var(--rarete-legendaire-texte);
+}
+.bourse-inconnu {
+  font-weight: 600;
+  color: var(--color-muted);
+}
+.bourse-etat,
+.pochette-raison {
+  color: var(--color-warn);
+  font-weight: 600;
+}
+.bourse-etat a {
+  color: var(--ecriture);
+  text-decoration: underline;
+}
+.bourse-regle,
+.pochette-note {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+.bourse-table {
+  width: 100%;
+  margin-bottom: 0.75rem;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+.bourse-table th {
+  padding: 0.25rem 0.5rem 0.375rem 0;
+  font-weight: 600;
+  color: var(--color-muted);
+  text-align: left;
+}
+.bourse-table td {
+  padding: 0.375rem 0.5rem 0.375rem 0;
+  border-top: 1px solid var(--color-line);
+}
+.bourse-table :is(th, td):not(:first-child) {
+  padding-right: 0;
+  text-align: right;
+}
+/* La pochette surprise : son dessin, son nom et son prix, puis ses chances, toujours écrites avant d'ouvrir. */
+.pochette-tete {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.pochette-nom {
+  display: grid;
+  gap: 0.375rem;
+  justify-items: start;
+}
+.pochette-prix {
+  font-size: 1.125rem;
+}
+/* Une ligne par rareté : ses losanges, son nom, sa chance. La couleur est celle de la rareté, jamais le seul repère. */
+.pochette-chances {
+  display: grid;
+  max-width: 22rem;
+  font-size: var(--text-sm);
+}
+.pochette-chances li {
+  --rarete-texte: var(--color-muted);
+  display: grid;
+  grid-template-columns: 3.5rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding-block: 0.3125rem;
+  border-top: 1px solid var(--color-line);
+  font-weight: 600;
+  color: var(--ecriture);
+}
+.pochette-chances li:first-child {
+  border-top: 0;
+}
+.pochette-chances [data-rarete="commun"] {
+  --rarete-texte: var(--rarete-commun-texte);
+}
+.pochette-chances [data-rarete="peu-commun"] {
+  --rarete-texte: var(--rarete-peu-commun-texte);
+}
+.pochette-chances [data-rarete="epique"] {
+  --rarete-texte: var(--rarete-epique-texte);
+}
+.pochette-chances [data-rarete="mystique"] {
+  --rarete-texte: var(--rarete-mystique-texte);
+}
+.pochette-chances [data-rarete="legendaire"] {
+  --rarete-texte: var(--rarete-legendaire-texte);
+}
+.pochette-rarete {
+  color: var(--rarete-texte);
+}
+
+/* Les fenêtres de confirmation (achat, pochette) : un vrai <dialog>, centré, sur un voile sombre. */
+.boutique-dialogue {
+  width: min(26rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  margin: auto;
+  padding: 0;
+  overflow: auto;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.625rem;
+  background: var(--color-surface);
+  color: var(--texte-courant);
+}
+.boutique-dialogue::backdrop {
+  background: rgb(3 8 26 / 0.8);
+}
+.boutique-dialogue-corps {
+  display: grid;
+  justify-items: center;
+  gap: 1rem;
+  padding: 1.5rem 1.25rem;
+  text-align: center;
+}
+.boutique-dialogue-titre {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--ecriture);
+  text-wrap: balance;
+}
+.boutique-dialogue-titre:focus {
+  outline: none;
+}
+.boutique-dialogue-texte {
+  color: var(--texte-courant);
+}
+.boutique-dialogue-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+/* Le compte d'un achat : le prix, la bourse, ce qu'il restera. */
+.boutique-compte {
+  display: grid;
+  width: 100%;
+  max-width: 18rem;
+}
+.boutique-compte > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-block: 0.4375rem;
+  border-top: 1px solid var(--color-line);
+}
+.boutique-compte > div:first-child {
+  border-top: 0;
+}
+.boutique-compte dt {
+  color: var(--color-muted);
+}
+.boutique-compte dd {
+  font-weight: 700;
+  color: var(--ecriture);
+}
+.boutique-compte-reste {
+  border-top-color: var(--color-line-strong) !important;
+}
+/* La pochette qu'on ouvre : elle se balance doucement pendant que le serveur tire, puis l'objet apparaît dans un fondu
+   lent, avec un halo de la couleur de sa rareté qui s'éteint. Rien ne clignote ; le bouton pause et le réglage « réduire
+   les animations » coupent tout, et l'objet est alors montré d'emblée. */
+.pochette-attente {
+  transform-origin: 50% 20%;
+}
+.pochette-attente[data-envoi] {
+  animation: pochette-balance 2.4s ease-in-out infinite;
+}
+@keyframes pochette-balance {
+  0%,
+  100% {
+    rotate: -4deg;
+  }
+  50% {
+    rotate: 4deg;
+  }
+}
+.pochette-revelation {
+  --rarete: var(--rarete-commun);
+  position: relative;
+  padding: 0.75rem;
+  animation: pochette-revele 1.6s ease-out both;
+}
+.pochette-revelation[data-rarete="peu-commun"] {
+  --rarete: var(--rarete-peu-commun);
+}
+.pochette-revelation[data-rarete="epique"] {
+  --rarete: var(--rarete-epique);
+}
+.pochette-revelation[data-rarete="mystique"] {
+  --rarete: var(--rarete-mystique);
+}
+.pochette-revelation[data-rarete="legendaire"] {
+  --rarete: var(--rarete-legendaire);
+}
+.pochette-revelation::before {
+  content: "";
+  position: absolute;
+  inset: -0.5rem;
+  border-radius: 999px;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--rarete) 60%, transparent), transparent);
+  opacity: 0.35;
+  animation: pochette-halo 3.2s ease-out both;
+}
+.pochette-revelation > * {
+  position: relative;
+}
+@keyframes pochette-revele {
+  from {
+    opacity: 0;
+    translate: 0 1rem;
+  }
+}
+@keyframes pochette-halo {
+  from {
+    opacity: 0;
+    scale: 0.6;
+  }
+  40% {
+    opacity: 0.8;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pochette-attente[data-envoi],
+  .pochette-revelation,
+  .pochette-revelation::before {
+    animation: none;
+  }
+}
+
+/* ---------- Le village, le regard d'ensemble (14 novembre 2026) ---------- */
+/* Les trois onglets vus comme un seul produit : mêmes chiffres, mêmes fenêtres, mêmes cases. Chaque règle dit ce qu'elle
+   accorde. */
+
+/* Les trois onglets tiennent dans la barre sur un téléphone : « Le marché » ne reste plus caché hors de l'écran. Si la
+   place manque quand même, la barre défile comme avant. */
+@media (max-width: 480px) {
+  .village .onglets-defile {
+    gap: 0.125rem;
+  }
+  .village .onglet {
+    flex: 1 0 auto;
+    justify-content: center;
+    padding-inline: 0.3125rem;
+    font-size: 0.875rem;
+  }
+}
+
+/* La bourse du marché : la même que celle de « Mon Gaulois » (la pièce, le nombre en grand, « statères » en doré). */
+.marche-solde {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+}
+.marche-solde strong {
+  font-size: clamp(2.5rem, 2rem + 2.5vw, 3.75rem);
+}
+
+/* Le nom d'une case tient sur deux lignes : il en garde la place, pour que les losanges, la rareté et le prix soient à la
+   même hauteur d'une case à l'autre. Un nom d'une ligne se pose en bas, contre sa rareté. */
+.case-nom,
+.marche-case-nom {
+  display: grid;
+  align-content: end;
+  min-height: 2.4em;
+}
+
+/* Les fenêtres : le même voile, le même titre ; celle d'un achat au marché est centrée comme celle de la boutique, avec
+   les mêmes lignes (prix, bourse, ce qu'il restera). */
+.marche-dialogue::backdrop {
+  background: rgb(3 8 26 / 0.8);
+}
+.marche-dialogue-titre {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+.marche-dialogue-achat {
+  width: min(26rem, calc(100vw - 2rem));
+}
+.marche-dialogue-achat .marche-dialogue-corps {
+  justify-items: center;
+  padding: 1.5rem 1.25rem;
+  text-align: center;
+}
+.marche-dialogue-achat .marche-dialogue-objet {
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  width: 100%;
+}
+.marche-dialogue-achat .marche-case {
+  width: 8rem;
+}
+.marche-dialogue-achat .marche-compte {
+  gap: 0;
+  width: 100%;
+  max-width: 18rem;
+}
+.marche-dialogue-achat .marche-compte > div {
+  flex-wrap: nowrap;
+  align-items: center;
+  padding-block: 0.4375rem;
+  border-top: 1px solid var(--color-line);
+  border-bottom: 0;
+}
+.marche-dialogue-achat .marche-compte > div:first-child {
+  border-top: 0;
+}
+.marche-dialogue-achat .marche-compte > .marche-compte-reste {
+  border-top-color: var(--color-line-strong);
+}
+.marche-dialogue-achat .marche-compte dt {
+  font-size: inherit;
+  text-align: left;
+}
+.marche-dialogue-achat .marche-compte dd {
+  text-align: right;
+}
+.marche-dialogue-achat .marche-dialogue-actions {
+  justify-content: center;
+  margin-top: 0.25rem;
+}
+
+/* Un lieu fermé (compte pas encore validé) : la raison se lit comme dans la bourse, en jaune, avant la scène. */
+.place-mot-fort {
+  color: var(--color-warn);
+  font-weight: 600;
+}
+
+/* Sur un téléphone, la bourse suit le Gaulois collé en haut, qui a déjà son filet : pas de second filet dessous. */
+@media (max-width: 767px) and (min-height: 560px) {
+  .boutique-tete > :first-child {
+    padding-top: 0;
+    border-top: 0;
+  }
+}
+

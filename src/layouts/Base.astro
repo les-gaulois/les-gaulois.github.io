@@ -1,5 +1,4 @@
 ---
-import "../styles/global.css";
 // Les polices du site, préchargées : le texte s'affiche presque toujours directement dans sa police. Outfit ne l'est plus
 // que pour le QG et la Direction : les autres pages écrivent leurs titres dans l'onciale de cases (plus bas).
 import interFont from "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url";
@@ -18,9 +17,14 @@ import NouveautesMenu from "../components/NouveautesMenu.astro";
 import PlayerViewBar from "../components/PlayerViewBar";
 import SectionNav from "../components/SectionNav.astro";
 import { SECTIONS, sectionOf } from "../lib/nav";
+import { feuillesDeLaPage } from "../lib/feuilles";
 import { loadMeta, loadNouveautes } from "../lib/data";
 import { fmtDateTime } from "../lib/format";
 import { newsMarker } from "../lib/nouveautes";
+// La feuille de style, en morceaux (src/lib/feuilles.ts) : chacun est traité par Tailwind et Vite comme un fichier à
+// part, et la page écrit elle-même ses `<link>`, dans l'ordre de la cascade d'origine. Voir « Les feuilles de style, en
+// morceaux » dans docs/DESIGN.md.
+const adressesDesFeuilles = import.meta.glob<string>("../styles/feuilles/*.css", { query: "?url", import: "default", eager: true });
 
 interface Props {
   title?: string;
@@ -61,11 +65,17 @@ const onciale = lettresOnciale
       { famille: "GAL Onciale Cases", url: `${base}/generated/polices/onciale-cases.woff2` },
     ]
   : null;
+// Les morceaux de la feuille de style que cette page charge, dans l'ordre de la cascade.
+const feuilles = feuillesDeLaPage(Astro.routePattern).map((fichier) => {
+  const adresse = adressesDesFeuilles[`../styles/feuilles/${fichier}`];
+  if (!adresse) throw new Error(`Base.astro : le morceau de feuille ${fichier} est introuvable dans src/styles/feuilles/`);
+  return adresse;
+});
 ---
 
 <!doctype html>
 {/* La console de la Direction et du QG est en style Terminal (data-console), voir « Ambiance console » dans docs/DESIGN.md. */}
-{/* data-lettres : les pages écrites dans l'onciale de cases, toutes sauf le QG et la Direction (global.css, « L'onciale de cases »). */}
+{/* data-lettres : les pages écrites dans l'onciale de cases, toutes sauf le QG et la Direction (04-poste.css, « L'onciale de cases »). */}
 <html
   lang="fr"
   data-theme={theme}
@@ -132,6 +142,7 @@ const onciale = lettresOnciale
         </script>
       )
     }
+    {feuilles.map((href) => <link rel="stylesheet" href={href} />)}
   </head>
   <body class="flex min-h-dvh flex-col" data-nouveautes-marker={nouveautesMarker ?? undefined} data-route={Astro.routePattern}>
     <a

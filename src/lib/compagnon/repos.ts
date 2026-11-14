@@ -177,7 +177,7 @@ export interface Fenetre {
   haut: number;
 }
 
-/** Le cadre de sa bulle, posée à `gauche`, au-dessus de lui ou sous ses pieds (règles `.compagnon-bulle` de global.css). */
+/** Le cadre de sa bulle, posée à `gauche`, au-dessus de lui ou sous ses pieds (règles `.compagnon-bulle` de 13-compagnon.css). */
 export function cadreDeLaBulle(corps: Point, cote: number, bulle: Taille, gauche: number, dessous: boolean): Cadre {
   const haut = dessous ? corps.y + (CASES_H - 1) * cote : corps.y + 3 * cote - bulle.hauteur;
   return { gauche, droite: gauche + bulle.largeur, haut, bas: haut + bulle.hauteur };

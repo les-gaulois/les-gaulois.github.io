@@ -9,7 +9,7 @@ interface Props {
 
 /**
  * Un chiffre qui change avec la période (page Progression) : la nouvelle valeur s'écrit tout de suite, puis se lève
- * doucement (`.fx-count-in`, global.css), comme les chiffres clés de l'accueil. Jusqu'au 14 novembre 2026, il défilait
+ * doucement (`.fx-count-in`, 01-socle.css), comme les chiffres clés de l'accueil. Jusqu'au 14 novembre 2026, il défilait
  * d'une valeur à l'autre et montrait des chiffres faux en chemin : une animation ne change jamais une valeur. Le texte est
  * toujours le vrai chiffre, pour les yeux, les lecteurs d'écran et le copier-coller. La pause de l'en-tête et « réduire
  * les animations » coupent l'entrée.

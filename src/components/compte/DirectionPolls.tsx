@@ -153,7 +153,7 @@ function Sondage({ poll, busy, onClose, onDelete }: { poll: DirectionPoll; busy:
  * Le brouillon est gardé par l'espace Direction : un aller-retour en vue joueur ne l'efface pas.
  *
  * Le 14 novembre 2026, l'onglet a été refait « comme pour la section compte » : le formulaire à gauche, la liste à droite,
- * une couleur et un mot par état. Les règles sont dans `src/lib/compte/direction-sondages.ts`, le dessin dans `global.css`,
+ * une couleur et un mot par état. Les règles sont dans `src/lib/compte/direction-sondages.ts`, le dessin dans `03-direction.css`,
  * section « Direction, onglet Sondages », sous la classe `dir-sondages`.
  */
 export default function DirectionPolls({ form, setForm }: { form: PollDraft; setForm: (draft: PollDraft) => void }) {

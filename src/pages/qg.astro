@@ -19,7 +19,7 @@ const direction = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/direction`;
 ---
 
 {/* La face privée du site : cette page ne contient que la porte.
-    Le contenu vient du serveur, pour un membre validé seulement. `espace` : tout y est plus grand, voir global.css.
+    Le contenu vient du serveur, pour un membre validé seulement. `espace` : tout y est plus grand, voir 01-socle.css.
     `console` : depuis le 12 novembre 2026, le style Terminal de la Direction, en bleu, la couleur des membres (docs/DESIGN.md).
     `--console-hote` : la machine des lignes de commande (« gal@qg:~$ ./salons »). */}
 <Base title="Le QG" description="Le QG des membres du clan GAL : salons à rejoindre, décisions, boîte à idées et événements, réservé aux membres reconnus." noindex ambiance="console">
@@ -33,7 +33,7 @@ const direction = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/direction`;
     addEventListener("hashchange", moved);
   </script>
   {/* `.wrap` : la largeur du site, pour que l'en-tête parte du même bord que les onglets de la rubrique Membres.
-      `.colonne-travail` : la porte et les écrans du QG gardent leur colonne de 75 rem, calée à gauche (global.css). */}
+      `.colonne-travail` : la porte et les écrans du QG gardent leur colonne de 75 rem, calée à gauche (01-socle.css). */}
   <div class="wrap">
   <div class="colonne-travail console-tete console-tete-court" style='--console-hote: "qg"'>
     <PageHeader title="Le QG" compact>

@@ -1,0 +1,3347 @@
+/* Un morceau de la feuille du site (src/lib/feuilles.ts). Tailwind le lit avec le socle : mêmes jetons, mêmes replis. */
+@reference "./01-socle.css";
+/* ---------- Direction, onglet Vue d'ensemble ---------- */
+/* Les règles propres à cet onglet (DirectionEnsemble.tsx, SiteHealth.tsx), sous la classe `dir-ensemble`.
+   Moins de hauteur qu'avant : quatre cases basses, puis l'état du site en lignes serrées. Chaque couleur porte son mot
+   (pastilles des pièces communes) ; le choix de la couleur et du mot est dans `src/lib/compte/direction-ensemble.ts`. */
+
+/* Les quatre cases : des liens vers la partie où l'on décide. Le trait de gauche et la pastille disent l'état ; le nombre
+   reste blanc. Au survol et au clavier, la bordure prend la couleur de l'état. Le nom sur sa ligne, puis le nombre et la
+   pastille ; si un grand nombre ne laisse pas la place, la pastille passe dessous au lieu de le chevaucher. */
+.dir-ensemble .dir-ensemble-cases {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+.dir-ensemble .dir-ensemble-case {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.125rem 0.75rem;
+  min-height: 5.25rem;
+  padding: 0.625rem 0.875rem 0.625rem 1.125rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.375rem;
+  background: var(--color-surface);
+  box-shadow: inset 4px 0 0 var(--ton);
+  transition:
+    border-color 0.15s,
+    background-color 0.15s;
+}
+.dir-ensemble .dir-ensemble-case:hover,
+.dir-ensemble .dir-ensemble-case:focus-visible {
+  border-color: var(--ton);
+  background: color-mix(in srgb, var(--ton) 9%, var(--color-surface));
+}
+.dir-ensemble .dir-ensemble-nom {
+  flex: 1 1 100%;
+  grid-area: nom;
+  min-width: 0;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+.dir-ensemble .dir-ensemble-nombre {
+  flex: none;
+  grid-area: nombre;
+  font-size: 2rem;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+.dir-ensemble .dir-ensemble-etat {
+  flex: none;
+  grid-area: etat;
+  margin-left: auto;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+/* L'état du site : une fenêtre de la console, plus basse qu'avant. */
+.dir-ensemble .dir-ensemble-site {
+  margin-top: 1rem;
+  padding: 0.875rem 1.125rem 0.25rem;
+}
+.dir-ensemble .dir-ensemble-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.375rem 1rem;
+}
+.dir-ensemble .dir-ensemble-resume {
+  font-size: 0.9375rem;
+}
+
+/* Une ligne par point : la pastille, le nom, le détail. Les pastilles sont dans une colonne de largeur fixe : d'un coup
+   d'œil, on voit laquelle n'est pas verte. Les lignes ne se cliquent pas : 40 px à l'écran suffisent. */
+.dir-ensemble .dir-ensemble-lignes {
+  margin-top: 0.625rem;
+}
+.dir-ensemble .dir-ensemble-ligne {
+  display: grid;
+  grid-template-columns: 5.75rem minmax(9rem, 15rem) minmax(0, 1fr);
+  grid-template-areas: "niveau source detail";
+  align-items: baseline;
+  gap: 0.125rem 0.875rem;
+  min-height: 2.25rem;
+  padding-block: 0.3125rem;
+}
+.dir-ensemble .dir-ensemble-ligne:hover {
+  background: none;
+}
+.dir-ensemble .dir-ensemble-source {
+  grid-area: source;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+.dir-ensemble .dir-ensemble-niveau {
+  grid-area: niveau;
+  white-space: nowrap;
+}
+/* Le détail en gris quand tout va bien ; en blanc quand la ligne est à voir, pour qu'il se lise en premier. */
+.dir-ensemble .dir-ensemble-detail {
+  grid-area: detail;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--color-muted);
+}
+.dir-ensemble .dir-ensemble-ligne[data-level="warn"] .dir-ensemble-detail {
+  color: var(--ecriture);
+}
+
+/* Les sources de l'API, repliées : le filet de la liste sert de séparation. Le sélecteur passe devant l'air que le thème
+   rouge donne à tout repli (`:root[data-theme="rouge"] .fold`). */
+.dir-ensemble details.dir-ensemble-sources.fold {
+  border-top: 0;
+  padding-block: 0.125rem;
+}
+.dir-ensemble .dir-ensemble-sources .dir-ensemble-lignes {
+  margin-top: 0;
+  margin-bottom: 0.625rem;
+}
+
+/* Tablette : les cases deux par deux. */
+@media (max-width: 63.9375rem) {
+  .dir-ensemble .dir-ensemble-cases {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+/* Téléphone : chaque case devient une ligne (le nom, la pastille, le nombre à droite), et le détail d'un point de l'état
+   passe sous son nom. Rien ne défile de côté. */
+@media (max-width: 39.9375rem) {
+  .dir-ensemble .dir-ensemble-cases {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.5rem;
+  }
+  .dir-ensemble .dir-ensemble-case {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "nom nombre"
+      "etat nombre";
+    gap: 0.25rem 0.75rem;
+    min-height: 4rem;
+    padding-block: 0.5rem;
+  }
+  .dir-ensemble .dir-ensemble-etat {
+    justify-self: start;
+    margin-left: 0;
+  }
+  .dir-ensemble .dir-ensemble-nombre {
+    font-size: 1.75rem;
+    text-align: right;
+  }
+  .dir-ensemble .dir-ensemble-site {
+    padding-inline: 0.75rem;
+  }
+  .dir-ensemble .dir-ensemble-ligne {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "source niveau"
+      "detail detail";
+    padding-block: 0.5rem;
+  }
+  .dir-ensemble .dir-ensemble-niveau {
+    justify-self: end;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dir-ensemble .dir-ensemble-case {
+    transition: none;
+  }
+}
+
+/* ---------- Direction, onglet Activité du site ---------- */
+/* Les règles propres à cet onglet (DirectionActivite.tsx), sous la classe `dir-activite`. D'abord les chiffres clés, dans
+   une seule bande ; puis les deux graphiques côte à côte ; puis les listes en lignes serrées. Une seule couleur d'état :
+   la pastille de la tendance sur sept jours, toujours avec son mot. Les colonnes et les traits ont la couleur des jauges
+   (`--color-blue-text`, rose dans la Direction) : leur longueur seule porte la valeur, rien ne s'anime. */
+.dir-activite-corps {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+/* `minmax(0, 1fr)` : une ligne de texte longue ne pousse jamais la page. */
+.dir-activite-corps,
+.dir-activite-graphes,
+.dir-activite-listes {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* La bande des chiffres clés : des cases séparées par un filet, dans un seul cadre. Le filet est le fond de la bande, vu
+   entre les cases. */
+.dir-activite-chiffres {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.375rem;
+  background: var(--color-line);
+}
+.dir-activite-chiffre {
+  display: grid;
+  align-content: start;
+  gap: 0.125rem;
+  min-width: 0;
+  padding: 0.625rem 0.875rem 0.75rem;
+  background: var(--color-surface);
+}
+.dir-activite-tendance {
+  grid-column: 1 / -1;
+}
+.dir-activite-attente {
+  display: flex;
+  align-items: center;
+  min-height: 2.25rem;
+}
+@media (min-width: 40rem) {
+  .dir-activite-chiffres {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+@media (min-width: 72rem) {
+  .dir-activite-chiffres {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(0, 1.9fr);
+  }
+  .dir-activite-tendance {
+    grid-column: auto;
+  }
+}
+
+/* Un bloc : titre à gauche, période à droite. */
+.dir-activite-bloc {
+  min-width: 0;
+  padding: 0.875rem 1rem 0.75rem;
+}
+.dir-activite-bloc-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.125rem 1rem;
+  margin-bottom: 0.5rem;
+}
+.dir-activite-bloc-tete > h3 {
+  font-size: 1.0625rem;
+}
+.dir-activite .dir-activite-repli {
+  margin-top: 0.5rem;
+  padding-bottom: 0;
+}
+.dir-activite-legende {
+  margin-top: 0.375rem;
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+
+/* Les deux graphiques côte à côte dès qu'il y a la place ; seul, un graphique prend toute la largeur. */
+.dir-activite-graphes,
+.dir-activite-listes {
+  display: grid;
+  align-items: start;
+  gap: 1rem;
+}
+@media (min-width: 64rem) {
+  .dir-activite-graphes {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
+  .dir-activite-graphes[data-seul] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (min-width: 48rem) {
+  .dir-activite-listes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+/* Sur deux colonnes, un troisième bloc seul sur sa ligne prend toute la largeur. */
+@media (min-width: 48rem) and (max-width: 71.99rem) {
+  .dir-activite-listes > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+}
+@media (min-width: 72rem) {
+  .dir-activite-listes {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Le dessin : un trait pointillé en haut, à la hauteur de la plus haute colonne, dont la valeur est écrite au bout. Les
+   repères et les colonnes partagent la même grille : un repère tombe sous sa colonne, sans élargir la page. */
+.dir-activite-trace {
+  position: relative;
+  padding-top: 1.125rem;
+}
+.dir-activite-haut {
+  position: absolute;
+  top: 0;
+  right: 0;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: var(--color-muted);
+}
+.dir-activite-colonnes,
+.dir-activite-reperes {
+  display: grid;
+  grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+  column-gap: 2px;
+}
+.dir-activite-colonnes {
+  height: 7rem;
+  align-items: end;
+  border-top: 1px dashed var(--color-line-strong);
+  border-bottom: 1px solid var(--color-line-strong);
+}
+.dir-activite-colonnes > span {
+  display: flex;
+  align-items: flex-end;
+  height: 100%;
+}
+.dir-activite-colonnes > span > i {
+  display: block;
+  width: 100%;
+  height: var(--v);
+  border-radius: 2px 2px 0 0;
+  background: var(--color-blue-text);
+}
+.dir-activite-colonnes > span[data-encours] > i {
+  opacity: 0.55;
+}
+.dir-activite-colonnes > span[data-actif] > i {
+  background: var(--ecriture);
+}
+.dir-activite-reperes {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: var(--color-muted);
+}
+.dir-activite-reperes > span {
+  white-space: nowrap;
+}
+
+/* Les lignes serrées des listes : le rang, le nom, le nombre ; dessous, un trait dont la longueur vient de la donnée, posé
+   sur le filet de la ligne. */
+.dir-activite-rangs {
+  border-top: 1px solid var(--color-line-strong);
+}
+.dir-activite-rang {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 0.625rem;
+  min-height: 2rem;
+  padding: 0.3125rem 0 0.4375rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+  font-size: 0.9375rem;
+  line-height: 1.3;
+}
+.dir-activite-rang > i {
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: var(--v);
+  min-width: 2px;
+  height: 3px;
+  border-radius: 0 2px 2px 0;
+  background: var(--color-blue-text);
+}
+.dir-activite-place {
+  flex: none;
+  width: 1.375rem;
+  font-size: 0.8125rem;
+  text-align: right;
+  color: var(--color-muted);
+}
+
+/* ---------- Direction, onglet Demandes ---------- */
+/* Les règles propres à cet onglet (DirectionDemandes.tsx), sous la classe `dir-demandes`. Une ligne par demande : qui, le
+   contrôle dans la liste officielle (vert dedans, rouge absent), l'attente (jaune au-delà de deux jours), les boutons. Le mot
+   du joueur et le champ « Raison », ouvert à la demande, prennent toute la largeur sous la ligne. */
+/* Les zones du refus et de la réussite restent dans la page, vides, sans hauteur : cachées par `display: none`, elles
+   sortiraient de ce que lit un lecteur d'écran, qui ne les annoncerait plus en se remplissant. Elles reçoivent le focus après
+   une décision ; le texte se lit sans contour. */
+.dir-demandes-zone:focus {
+  outline: none;
+}
+.dir-demandes-resume {
+  margin-top: 0.875rem;
+  font-size: 0.9375rem;
+}
+/* La colonne de la Direction est trop étroite pour tout mettre sur un rang (elle ne dépasse pas 1 170 px) : qui et l'attente
+   en haut, le contrôle et les boutons dessous. */
+.dir-demandes-ligne {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "qui attente"
+    "controle actions"
+    "mot mot"
+    "raison raison";
+  align-items: center;
+  gap: 0.25rem 1rem;
+  padding-block: 0.4375rem;
+  font-size: 0.9375rem;
+  line-height: 1.35;
+}
+.dir-demandes-qui {
+  grid-area: qui;
+  min-width: 0;
+}
+.dir-demandes-nom {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  color: var(--ecriture);
+}
+.dir-demandes-meta {
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+  color: var(--color-muted);
+}
+.dir-demandes-controle {
+  display: grid;
+  grid-area: controle;
+  gap: 0.125rem;
+  min-width: 0;
+}
+.dir-demandes-pseudo {
+  display: inline-block;
+  overflow-wrap: anywhere;
+}
+.dir-demandes-attente {
+  grid-area: attente;
+  text-align: right;
+}
+.dir-demandes-actions {
+  display: flex;
+  flex-wrap: wrap;
+  grid-area: actions;
+  justify-content: flex-end;
+  gap: 0.375rem;
+}
+/* « Valider » se voit d'abord : un fond vert léger. « Refuser » reste gris, et rougit quand on le vise. */
+.dir-demandes .dir-demandes-oui {
+  background: color-mix(in srgb, var(--color-ok) 14%, transparent);
+}
+.dir-demandes .dir-demandes-non:is(:hover, :focus-visible):where(:not(:disabled)) {
+  --ton: var(--color-danger);
+}
+.dir-demandes .dir-bouton:focus-visible {
+  border-color: var(--ton, var(--ecriture));
+  background: var(--ton, var(--ecriture));
+  color: var(--color-night);
+}
+.dir-demandes-mot {
+  grid-area: mot;
+  max-width: 60rem;
+  padding-left: 0.625rem;
+  border-left: 2px solid var(--color-line-strong);
+  overflow-wrap: anywhere;
+  color: var(--color-muted);
+}
+.dir-demandes-raison {
+  display: grid;
+  grid-area: raison;
+  grid-template-columns: auto minmax(12rem, 1fr);
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-block: 0.25rem 0.125rem;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.375rem;
+  background: color-mix(in srgb, var(--ecriture) 5%, transparent);
+}
+.dir-demandes-raison[hidden] {
+  display: none;
+}
+.dir-demandes-libelle {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.dir-demandes-pretes {
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: 0.375rem 0.5rem;
+}
+.dir-demandes-pretes .dir-bouton {
+  white-space: normal;
+  text-align: left;
+}
+/* Téléphone : une petite carte par demande. Le mot du joueur se lit avant de décider : les boutons, sur toute la largeur,
+   passent après lui. */
+@media (max-width: 47.9375rem) {
+  .dir-demandes .dir-liste {
+    display: grid;
+    gap: 0.625rem;
+    border-top: 0;
+  }
+  .dir-demandes-ligne {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "qui" "controle" "attente" "mot" "actions" "raison";
+    gap: 0.5rem;
+    padding: 0.75rem 0.75rem 0.75rem 0.875rem;
+    border: 1px solid var(--color-line);
+    border-radius: 0.375rem;
+  }
+  .dir-demandes-attente {
+    text-align: left;
+  }
+  .dir-demandes-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+  .dir-demandes-actions .dir-bouton {
+    padding-inline: 0.25rem;
+  }
+  .dir-demandes-raison {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---------- Direction, onglet Journal ---------- */
+/* Les règles propres à cet onglet (DirectionJournal.tsx), sous la classe `dir-journal`. Une ligne par action : l'heure, le
+   type à sa couleur, la phrase. Un intertitre par jour, qui reste sous la barre d'outils pendant qu'on descend. */
+.dir-journal .dir-outils[hidden] {
+  display: none;
+}
+.dir-journal-jour {
+  margin-top: 1rem;
+}
+.dir-journal-date {
+  position: sticky;
+  top: calc(var(--dir-haut, 4rem) + var(--dir-outils, 0px) - 1px);
+  z-index: 10;
+  padding: 0.375rem 0.75rem 0.5rem;
+  background: var(--color-navy);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.dir-journal .dir-liste {
+  margin-top: 0;
+}
+.dir-journal-ligne.dir-ligne {
+  display: grid;
+  grid-template-columns: 3rem 7.5rem minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0.125rem 0.75rem;
+  min-height: 2.25rem;
+  padding-block: 0.375rem;
+  font-size: 0.9375rem;
+  line-height: 1.4;
+}
+.dir-journal-heure {
+  color: var(--color-muted);
+}
+.dir-journal-type {
+  min-width: 0;
+  font-size: 0.8125rem;
+}
+.dir-journal-phrase {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.dir-journal-phrase strong {
+  color: var(--ecriture);
+}
+.dir-journal-vide,
+.dir-journal-suite {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  margin-top: 1rem;
+}
+.dir-journal-suite {
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+.dir-journal-vide .dir-bouton,
+.dir-journal-suite .dir-bouton {
+  min-height: 2.5rem;
+  padding-inline: 0.875rem;
+}
+/* Sur téléphone : l'heure et le type sur une ligne, la phrase dessous, sur toute la largeur. */
+@media (max-width: 39.9375rem) {
+  .dir-journal-ligne.dir-ligne {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    padding-block: 0.5rem;
+  }
+  .dir-journal-phrase {
+    grid-column: 1 / -1;
+  }
+}
+@media (pointer: coarse), (max-width: 47.9375rem) {
+  .dir-journal-vide .dir-bouton,
+  .dir-journal-suite .dir-bouton {
+    min-height: 2.75rem;
+  }
+}
+
+/* ---------- Direction, onglet Annonces ---------- */
+/* Les règles propres à cet onglet (DirectionAnnonces.tsx), sous la classe `dir-annonces`. Le formulaire et la liste côte à
+   côte dès 1 024 px (le formulaire reste en vue pendant qu'on descend la liste), une ligne courte par annonce. Vert : sur
+   l'accueil. Gris : plus ancienne, hors de l'accueil. Jaune : ouverte dans le formulaire. « Supprimer » reste gris et ne
+   rougit qu'au survol, au clavier ou une fois armé : pas de mur de rouge. */
+.dir-annonces-grille {
+  display: grid;
+  align-items: start;
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+.dir-annonces-form {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 1rem 1.125rem 1.125rem;
+}
+.dir-annonces-form[data-dir-ton] {
+  border-color: var(--ton);
+}
+.dir-annonces-publiees {
+  min-width: 0;
+  container: dir-annonces / inline-size;
+}
+.dir-annonces-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+}
+.dir-annonces-total,
+.dir-annonces-compte,
+.dir-annonces-fige {
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+.dir-annonces-libelle {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+.dir-annonces-libelle label {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+.dir-annonces-compte[data-near] {
+  font-weight: 600;
+  color: var(--color-warn);
+}
+.dir-annonces-form textarea.field {
+  display: block;
+  min-height: 7rem;
+  resize: vertical;
+}
+.dir-annonces-envoi {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.dir-annonces-form .form-problem,
+.dir-annonces-form .form-success {
+  margin-top: 0;
+}
+/* Les réponses du serveur. Le focus y vient après une suppression. Sans message, la zone ne prend pas de place ; sa zone
+   `role="status"`, vide, reste dans l'arbre d'accessibilité pour que le message suivant soit lu. */
+.dir-annonces-retour {
+  display: grid;
+  gap: 0.5rem;
+  margin: -0.25rem -0.5rem;
+  padding: 0.25rem 0.5rem;
+}
+.dir-annonces-retour:not(:has(.form-problem, .form-success:not(:empty))) {
+  margin-block: -0.75rem 0;
+  padding-block: 0;
+}
+.dir-annonces-retour .form-success:empty {
+  display: block;
+}
+
+/* Une annonce : le titre et, dessous, la date, l'auteur, le lien et le début du texte ; puis l'état, puis les boutons. */
+.dir-annonces-ligne {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 10.25rem 11.5rem;
+  grid-template-areas: "texte etat actions";
+  gap: 0.125rem 0.75rem;
+  padding-block: 0.4375rem;
+}
+.dir-annonces-ligne[aria-current="true"] {
+  background: color-mix(in srgb, var(--ton) 10%, transparent);
+}
+.dir-annonces-texte {
+  grid-area: texte;
+  min-width: 0;
+}
+.dir-annonces-titre {
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.dir-annonces-meta {
+  display: flex;
+  align-items: center;
+  gap: 0 0.75rem;
+  min-width: 0;
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+.dir-annonces-meta > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dir-annonces-meta > .tnum {
+  flex: none;
+}
+.dir-annonces-auteur {
+  flex: 0 1 auto;
+  min-width: 3rem;
+  max-width: 40%;
+  color: var(--ecriture);
+}
+.dir-annonces-lien {
+  flex: 0 0 auto;
+  max-width: min(14rem, 45%);
+  line-height: 1.75rem;
+  color: var(--color-ally);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+.dir-annonces-lien:hover {
+  color: var(--ecriture);
+}
+.dir-annonces-extrait {
+  flex: 1 1 0;
+  min-width: 3rem;
+}
+.dir-annonces-etat {
+  grid-area: etat;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+/* Les boutons ne prennent pas la couleur de l'état de la ligne. */
+.dir-annonces-actions {
+  --ton: var(--ecriture);
+  grid-area: actions;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.375rem;
+}
+.dir-annonces .dir-bouton[data-dir-ton="danger"]:not(:hover):not(:focus-visible):not([data-arme]) {
+  --ton: var(--color-muted);
+}
+.dir-annonces-aide {
+  margin-top: 1.25rem;
+}
+
+@media (min-width: 64rem) {
+  .dir-annonces-grille {
+    grid-template-columns: minmax(0, 24rem) minmax(0, 1fr);
+  }
+}
+/* `main .card` pose `position: relative` : il faut un sélecteur plus précis pour que le formulaire reste en vue. */
+@media (min-width: 64rem) and (min-height: 44rem) {
+  main .dir-annonces .card.dir-annonces-form {
+    position: sticky;
+    top: calc(var(--dir-haut, 4rem) + 1rem);
+  }
+}
+/* Quand la liste a moins de 704 px pour elle (téléphone, ou à côté du formulaire sur un écran moyen), chaque annonce
+   devient une petite carte : l'état, le texte, puis les boutons. */
+@container dir-annonces (max-width: 44rem) {
+  .dir-annonces-ligne {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "etat etat"
+      "texte texte"
+      "actions actions";
+    padding-block: 0.625rem;
+  }
+  .dir-annonces-ligne[data-fige] {
+    grid-template-areas:
+      "etat actions"
+      "texte texte";
+  }
+  .dir-annonces-ligne:not([data-fige]) .dir-annonces-actions {
+    justify-content: flex-start;
+    margin-top: 0.25rem;
+  }
+  .dir-annonces-meta {
+    flex-wrap: wrap;
+  }
+  .dir-annonces-auteur {
+    max-width: 100%;
+  }
+  .dir-annonces-extrait {
+    flex-basis: 100%;
+  }
+}
+/* Au doigt, le lien garde 44 px de haut sans écarter les lignes : sa zone dépasse au-dessus et au-dessous. */
+@media (pointer: coarse), (max-width: 47.9375rem) {
+  .dir-annonces-lien {
+    margin-block: -0.5rem;
+    line-height: 2.75rem;
+  }
+}
+
+/* ---------- Direction, onglet Événements ---------- */
+/* Les règles propres à cet onglet (DirectionEvenements.tsx), sous la classe `dir-evenements`. Le formulaire et la liste côte
+   à côte dès 1 024 px ; une ligne serrée par événement : la date d'abord, un trait et un mot en couleur pour ce qui est
+   proche (jaune aujourd'hui, bleu demain, gris dans la semaine ou déjà commencé), le nombre de « Je viens » en pastille
+   verte, qui déplie les noms. Les mots et les couleurs sont décidés dans `src/lib/compte/direction-evenements.ts`. */
+.dir-evenements .evt-plan {
+  display: grid;
+  align-items: start;
+  gap: 1.5rem;
+  margin-top: 1.25rem;
+}
+.dir-evenements .evt-form {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem 1.125rem 1.125rem;
+}
+.dir-evenements .evt-form textarea {
+  resize: vertical;
+}
+.dir-evenements .evt-serie,
+.dir-evenements .evt-semaines {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+}
+@media (min-width: 64rem) {
+  .dir-evenements .evt-plan {
+    grid-template-columns: minmax(0, 23rem) minmax(0, 1fr);
+  }
+}
+/* Sur un écran assez haut, le formulaire reste en vue pendant qu'on descend la liste. */
+@media (min-width: 64rem) and (min-height: 48rem) {
+  .dir-evenements .evt-form {
+    position: sticky;
+    top: calc(var(--dir-haut, 4rem) + 1rem);
+  }
+}
+
+/* La liste mesure sa propre largeur : à côté du formulaire, elle est plus étroite que l'écran. */
+.dir-evenements .evt-liste {
+  min-width: 0;
+  container-type: inline-size;
+}
+.dir-evenements .evt-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+}
+.dir-evenements .evt-tete .dir-nombre {
+  color: var(--color-muted);
+}
+.dir-evenements .evt-panne {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 0.75rem;
+  font-size: 0.9375rem;
+  color: var(--color-warn);
+}
+.dir-evenements .evt-panne .dir-pastille {
+  flex: none;
+}
+
+/* Une ligne : la date, puis le nom et sa suite (qui vient, l'auteur, le lien), puis les commandes. Étroite, elle s'empile
+   en petite carte ; rien ne défile de côté. */
+.dir-evenements .evt-ligne {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  gap: 0.25rem 1rem;
+  padding-block: 0.5rem;
+  font-size: 0.9375rem;
+  line-height: 1.35;
+}
+.dir-evenements .evt-ligne[data-editing] {
+  background: color-mix(in srgb, var(--ecriture) 8%, transparent);
+}
+.dir-evenements .evt-quand {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.625rem;
+}
+.dir-evenements .evt-jour {
+  font-weight: 700;
+  white-space: nowrap;
+}
+.dir-evenements .evt-heure {
+  white-space: nowrap;
+}
+.dir-evenements .evt-quand .dir-point {
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.dir-evenements .evt-quoi {
+  min-width: 0;
+}
+.dir-evenements .evt-nom {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.dir-evenements .evt-suite {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.125rem 0.75rem;
+  margin-top: 0.125rem;
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+.dir-evenements .evt-suite:empty {
+  display: none;
+}
+.dir-evenements .evt-auteur {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.dir-evenements .evt-lien {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  color: var(--ecriture);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+/* Le nombre de « Je viens » : une pastille qui se clique. Dépliée, elle est pleine. */
+.dir-evenements .evt-viennent {
+  min-height: 1.75rem;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+}
+.dir-evenements .evt-viennent:hover {
+  background: color-mix(in srgb, var(--ton) 14%, transparent);
+}
+.dir-evenements .evt-viennent[aria-expanded="true"] {
+  border-color: var(--ton);
+  background: var(--ton);
+  color: var(--color-night);
+}
+.dir-evenements .evt-noms {
+  padding: 0.375rem 0.625rem;
+  border-left: 2px solid var(--color-ok);
+  background: color-mix(in srgb, var(--ecriture) 5%, transparent);
+  overflow-wrap: anywhere;
+}
+.dir-evenements .evt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+/* Les commandes ne prennent pas la couleur de la ligne. « Supprimer » est sur presque chaque ligne : gris, il ne passe au
+   rouge que sous la souris, au clavier, ou armé (« Confirmer la suppression »). */
+.dir-evenements .evt-modifier {
+  --ton: var(--ecriture);
+}
+.dir-evenements .evt-ligne[data-editing] .evt-modifier {
+  background: var(--ecriture);
+  color: var(--color-night);
+}
+.dir-evenements .evt-supprimer {
+  --ton: var(--color-muted);
+}
+.dir-evenements .evt-supprimer:is(:hover, :focus-visible, [data-armed]):where(:not(:disabled)) {
+  --ton: var(--color-danger);
+}
+.dir-evenements .evt-supprimer[data-armed] {
+  border-color: var(--ton);
+  background: var(--ton);
+  color: var(--color-night);
+}
+.dir-evenements .evt-aide {
+  margin-top: 1rem;
+}
+@container (min-width: 34rem) {
+  .dir-evenements .evt-ligne {
+    grid-template-columns: 11.5rem minmax(0, 1fr);
+  }
+  .dir-evenements .evt-quand {
+    align-self: start;
+  }
+  .dir-evenements .evt-quoi,
+  .dir-evenements .evt-actions,
+  .dir-evenements .evt-noms {
+    grid-column: 2;
+  }
+  /* Les heures s'alignent d'une ligne à l'autre, que le jour s'écrive « dim. 6 déc. » ou « sam. 14 sept. ». */
+  .dir-evenements .evt-jour {
+    min-width: 13ch;
+  }
+  .dir-evenements .evt-quand .dir-point {
+    flex-basis: 100%;
+  }
+}
+/* Assez large, les commandes passent au bout de la ligne ; sinon elles restent sous le nom, qui garde sa place. */
+@container (min-width: 46rem) {
+  .dir-evenements .evt-ligne {
+    grid-template-columns: 11.5rem minmax(0, 1fr) auto;
+  }
+  .dir-evenements .evt-actions {
+    grid-column: 3;
+    justify-content: flex-end;
+  }
+  .dir-evenements .evt-noms {
+    grid-column: 2 / -1;
+  }
+}
+@media (pointer: coarse) {
+  .dir-evenements .evt-viennent,
+  .dir-evenements .evt-lien {
+    min-height: 2.75rem;
+  }
+}
+@media (max-width: 47.9375rem) {
+  .dir-evenements .evt-viennent,
+  .dir-evenements .evt-lien {
+    min-height: 2.75rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dir-evenements .evt-viennent {
+    transition: none;
+  }
+}
+
+/* ---------- Direction, onglet Sondages ---------- */
+/* Les règles propres à cet onglet (DirectionPolls.tsx), sous la classe `dir-sondages`. Le formulaire à gauche, la liste à
+   droite dès 1 024 px. Un sondage par bloc serré : un trait vert s'il est ouvert, gris s'il est fermé, jaune si ses totaux
+   ne se lisent pas ; son état en pastille ; une ligne par choix (le nom, la barre, les voix, la part). Le choix en tête a
+   son nom en gras, sa barre en blanc et le mot « En tête » ; à égalité, chacun porte « Égalité » en jaune et aucun n'est
+   désigné. Les règles sont dans `src/lib/compte/direction-sondages.ts`. */
+.dir-sondages-plan {
+  display: grid;
+  align-items: start;
+  gap: 1.5rem;
+  margin-top: 1.25rem;
+}
+@media (min-width: 64rem) {
+  .dir-sondages-plan {
+    grid-template-columns: minmax(19rem, 26rem) minmax(0, 1fr);
+    gap: 2rem;
+  }
+}
+
+/* Le formulaire, compact : les noms des champs au-dessus, leur précision en gris à côté. */
+.dir-sondages-form {
+  display: grid;
+  gap: 0.875rem;
+  min-width: 0;
+  max-width: 42rem;
+  padding: 1rem 1.125rem 1.125rem;
+}
+.dir-sondages-form-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.375rem 0.75rem;
+}
+.dir-sondages-form-tete .dir-pastille {
+  font-size: 0.875rem;
+}
+.dir-sondages-plein {
+  margin-top: -0.375rem;
+  font-size: 0.9375rem;
+  color: var(--color-warn);
+}
+.dir-sondages-form label,
+.dir-sondages-form legend {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+.dir-sondages-aide-champ {
+  font-weight: 400;
+  color: var(--color-muted);
+}
+.dir-sondages-choix {
+  display: grid;
+  gap: 0.375rem;
+  min-width: 0;
+}
+.dir-sondages-choix-ligne {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+.dir-sondages-choix-ligne .field {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* Les boutons de ligne restent gris : ils ne prennent leur couleur que sous la souris ou au clavier. Pas de mur de rouge. */
+.dir-sondages .dir-bouton {
+  --ton: var(--color-muted);
+  flex: none;
+}
+.dir-sondages .dir-bouton[data-survol="warn"]:where(:hover, :focus-visible):where(:not(:disabled)) {
+  --ton: var(--color-warn);
+}
+.dir-sondages .dir-bouton[data-survol="danger"]:where(:hover, :focus-visible):where(:not(:disabled)),
+.dir-sondages .dir-bouton[data-arme] {
+  --ton: var(--color-danger);
+}
+/* Armé, « Supprimer » demande sa confirmation en plein rouge. */
+.dir-sondages .dir-bouton[data-arme] {
+  border-color: var(--ton);
+  background: var(--ton);
+  color: var(--color-night);
+}
+/* La zone d'annonce existe avant d'être remplie, sans prendre de place. */
+.dir-sondages .form-success:empty {
+  display: block;
+  margin: 0;
+}
+/* Dans le formulaire, la zone vide ne s'ajoute pas non plus à l'écart de la grille. */
+.dir-sondages-form > .form-success:empty {
+  margin-top: -0.875rem;
+}
+.dir-sondages #polls-done > :not(:empty) {
+  margin-block: 0.5rem;
+}
+/* Le résultat d'une action reçoit le focus : la page s'arrête sous l'en-tête du site et la barre des filtres, pas dessous. */
+.dir-sondages #polls-done {
+  scroll-margin-top: calc(var(--dir-haut, 4rem) + var(--dir-outils, 3.5rem) + 0.75rem);
+}
+
+/* La liste : la barre des filtres reste sous l'en-tête du site. Sans sondage, la colonne ne prend aucune place. */
+.dir-sondages-suivi {
+  min-width: 0;
+  container-type: inline-size;
+}
+.dir-sondages-suivi[data-vide] {
+  display: none;
+}
+.dir-sondages .dir-outils {
+  margin-top: 0;
+  padding-top: 0;
+}
+.dir-sondages-liste {
+  margin-top: 0;
+}
+.dir-sondage {
+  padding: 0.625rem 0.75rem 0.75rem 0.875rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+  box-shadow: inset 3px 0 0 var(--ton, transparent);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 0.75rem;
+}
+/* La question et ses boutons sont posés sur la grille du sondage : les boutons à droite, ou en bas sur une colonne étroite. */
+.dir-sondage-tete {
+  display: contents;
+}
+.dir-sondage > :not(.dir-sondage-tete) {
+  grid-column: 1 / -1;
+}
+.dir-sondage-actions {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: start;
+}
+.dir-sondage-question {
+  grid-column: 1;
+  min-width: 0;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  /* Le « ? » d'une question, précédé d'une espace, ne reste pas seul sur sa ligne. */
+  text-wrap: pretty;
+  color: var(--ecriture);
+}
+.dir-sondage-actions {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+.dir-sondage-etat {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.125rem 0.75rem;
+  margin-top: 0.3125rem;
+  font-size: 0.9375rem;
+  color: var(--color-muted);
+}
+.dir-sondage-etat .dir-pastille {
+  font-size: 0.875rem;
+}
+.dir-sondage-total {
+  font-weight: 700;
+  color: var(--ecriture);
+}
+.dir-sondage-auteur {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.dir-sondage-illisible,
+.dir-sondage-sans-voix {
+  margin-top: 0.4375rem;
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+  color: var(--color-muted);
+}
+.dir-sondage-illisible {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.125rem 0.75rem;
+}
+/* Une ligne par choix, sur les mêmes colonnes d'un choix à l'autre : les voix et les parts s'alignent à droite. */
+.dir-sondage-choix {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(3rem, 4fr) auto auto;
+  gap: 0.25rem 0.875rem;
+  margin-top: 0.5rem;
+  font-size: 0.9375rem;
+  line-height: 1.35;
+}
+.dir-sondage-choix > li {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+  align-items: center;
+}
+.dir-sondage-nom {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.dir-sondage-nom .dir-point {
+  margin-left: 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.dir-sondage-voix,
+.dir-sondage-part {
+  text-align: right;
+  white-space: nowrap;
+}
+.dir-sondage-voix {
+  color: var(--color-muted);
+}
+.dir-sondage-choix > li[data-tete] .dir-sondage-nom,
+.dir-sondage-choix > li[data-tete] .dir-sondage-voix,
+.dir-sondage-choix > li[data-tete] .dir-sondage-part {
+  font-weight: 700;
+  color: var(--ecriture);
+}
+.dir-sondage-choix > li[data-tete] .dir-sondage-barre > i {
+  background: var(--ecriture);
+}
+/* Colonne étroite (téléphone, tablette) : le nom et les nombres sur une ligne, la barre dessous. */
+@container (max-width: 36rem) {
+  .dir-sondage {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dir-sondage-actions {
+    grid-column: 1;
+    grid-row: auto;
+    order: 1;
+    flex-wrap: nowrap;
+    margin-top: 0.625rem;
+  }
+  /* Armé, « Confirmer la suppression » reste sur la ligne de « Fermer », sous le doigt (à 360 px, il partait à la ligne
+     suivante) : si la place manque, c'est son texte qui passe sur deux lignes, dans le bouton. */
+  .dir-sondages .dir-sondage-actions .dir-bouton[data-arme] {
+    flex: 0 1 auto;
+    min-width: 0;
+    white-space: normal;
+  }
+  .dir-sondage-choix {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    row-gap: 0.4375rem;
+  }
+  .dir-sondage-choix > li {
+    row-gap: 0.1875rem;
+  }
+  .dir-sondage-barre {
+    grid-row: 2;
+    grid-column: 1 / -1;
+  }
+}
+.dir-sondages-aide {
+  margin-top: 1.5rem;
+}
+
+/* ---------- Direction, onglet Mot d'accueil ---------- */
+/* Les règles propres à cet onglet (DirectionWelcome.tsx), sous la classe `dir-accueil`. L'état du mot est en pastille à
+   côté du titre. Dessous, le champ et ce que le QG montre : côte à côte dès 1 024 px, l'un sous l'autre avant. La fenêtre
+   « motd » reprend celle du QG (`qg-welcome`) ; elle grandit avec le texte, comme au QG. */
+.dir-accueil-grille {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+.dir-accueil-champ,
+.dir-accueil-vue {
+  display: grid;
+  align-content: start;
+  gap: 0.5rem;
+  min-width: 0;
+}
+/* La ligne au-dessus de chaque colonne : « Texte » et son compteur, « Au QG, en ce moment ». Même hauteur des deux côtés. */
+.dir-accueil-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.125rem 1rem;
+  min-height: 1.5rem;
+}
+.dir-accueil-tete :is(label, h3) {
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.5rem;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.dir-accueil-tete h3::before {
+  content: none;
+}
+.dir-accueil-compte {
+  font-size: 0.8125rem;
+  color: var(--ton);
+}
+.dir-accueil textarea.field {
+  display: block;
+  min-height: 12rem;
+  resize: vertical;
+  line-height: 1.5;
+}
+.dir-accueil-pied {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin-top: 0.25rem;
+}
+.dir-accueil-motd {
+  padding: 1.25rem;
+}
+/* Comme au QG, où ce titre est un `h2` de la console : en capitales. Sans « ## » devant depuis le 14 novembre 2026. */
+.dir-accueil-motd-titre {
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+.dir-accueil-motd-texte {
+  margin-top: 0.5rem;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+/* Un mot long (`welcomeIsTall`) défile dans son cadre : l'onglet tient dans un écran. Au QG, il s'affiche en entier. */
+.dir-accueil-motd-long {
+  max-height: 15rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.5rem;
+  scrollbar-width: thin;
+}
+/* Sans mot, le QG n'a pas de fenêtre : un cadre en pointillé tient sa place, sans rien imiter. */
+.dir-accueil-rien {
+  padding: 1.25rem;
+  border: 1px dashed var(--color-line-strong);
+  border-radius: 0.375rem;
+  color: var(--color-muted);
+}
+.dir-accueil-aide {
+  margin-top: 1.5rem;
+}
+@media (min-width: 64rem) {
+  .dir-accueil-grille {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 2rem;
+  }
+}
+
+/* ---------- Direction, onglet Gaulois de la semaine ---------- */
+/* Les règles propres à cet onglet (DirectionWeeklyPick.tsx), sous la classe `dir-semaine`. */
+/* L'état de la semaine se lit près du titre (pastille et semaine). À gauche, le choix : le champ cherche à chaque lettre
+   dans la liste des membres, qui défile dans son cadre ; à droite, ce que l'accueil montre, puis l'aperçu du choix en
+   cours de saisie. Vert : choisi, en ligne. Jaune : pas encore choisi, ou à regarder. Rouge : illisible, ou retiré de
+   l'accueil. Bleu : un aperçu, pas encore enregistré. */
+.dir-semaine-etat {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 0.75rem;
+  min-height: 2rem;
+  font-size: 0.9375rem;
+}
+.dir-semaine-grille {
+  display: grid;
+  align-items: start;
+  gap: 1.5rem;
+  margin-top: 1.25rem;
+}
+@media (min-width: 64rem) {
+  .dir-semaine-grille {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
+}
+.dir-semaine-choix {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  padding: 1.25rem;
+}
+/* Sous un champ ou au-dessus : deux petits textes face à face (l'état du pseudo tapé et le nombre de membres). */
+.dir-semaine-sous {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.125rem 1rem;
+  margin-top: 0.375rem;
+  font-size: 0.875rem;
+}
+.dir-semaine-sous > [role="status"] {
+  min-height: 1.3125rem;
+}
+
+/* La liste des membres : des cases serrées sur plusieurs colonnes, qui défilent dans leur cadre. */
+.dir-semaine-noms {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));
+  align-content: start;
+  max-height: 15.75rem;
+  margin-top: 0.375rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.375rem;
+  scrollbar-width: thin;
+}
+.dir-semaine-nom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+  min-height: 2.25rem;
+  padding: 0.25rem 0.75rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+  box-shadow: inset 3px 0 0 var(--ton, transparent);
+  font-size: 0.9375rem;
+  line-height: 1.3;
+  cursor: pointer;
+}
+.dir-semaine-nom-texte {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.dir-semaine-marque {
+  flex: none;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ton);
+}
+.dir-semaine-nom:hover {
+  background: color-mix(in srgb, var(--ecriture) 7%, transparent);
+}
+/* Le nom retenu pour le choix : fond plein clair, comme un filtre enfoncé. */
+.dir-semaine-nom[aria-selected="true"] {
+  background: var(--ecriture);
+  box-shadow: none;
+  font-weight: 700;
+  color: var(--color-night);
+}
+.dir-semaine-nom[aria-selected="true"] .dir-semaine-marque {
+  color: inherit;
+}
+/* Le nom désigné aux flèches du clavier. */
+.dir-semaine-nom[data-actif] {
+  outline: 2px solid var(--ecriture);
+  outline-offset: -2px;
+}
+.dir-semaine-nom[aria-selected="true"][data-actif] {
+  outline-color: var(--color-ally);
+}
+
+/* À droite : ce que l'accueil montre, et l'aperçu. */
+.dir-semaine-vues {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+.dir-semaine-vue {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 1.25rem;
+}
+.dir-semaine-pastilles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  font-size: 0.875rem;
+}
+.dir-semaine-honneur {
+  margin-top: 0.75rem;
+}
+.dir-semaine-surtitre {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.dir-semaine-pour {
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+.dir-semaine-pseudo {
+  margin-top: 0.5rem;
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+  color: var(--ecriture);
+}
+.dir-semaine-mot {
+  margin-top: 0.5rem;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  color: var(--color-muted);
+}
+/* Le retrait, à part sous un filet : ce n'est pas le geste courant. */
+.dir-semaine-retirer {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+}
+.dir-semaine-rien {
+  color: var(--color-muted);
+}
+/* Ce que donne un choix ou un retrait, près de son bouton. Vide, il ne prend aucune place ; le focus y va quand le
+   bouton pressé se désactive ou disparaît. */
+.dir-semaine-retour:not(:has(.form-problem, .form-success:not(:empty))) {
+  display: none;
+}
+@media (pointer: coarse) {
+  .dir-semaine-nom {
+    min-height: 2.75rem;
+  }
+}
+@media (max-width: 47.9375rem) {
+  .dir-semaine-choix,
+  .dir-semaine-vue {
+    padding: 1rem;
+  }
+  .dir-semaine-noms {
+    grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+    max-height: 16.5rem;
+  }
+  .dir-semaine-nom {
+    min-height: 2.75rem;
+  }
+}
+
+/* ---------- Direction, onglet Objectif ---------- */
+/* Les règles propres à cet onglet (DirectionObjectif.tsx), sous la classe `dir-objectif`. */
+/* Un petit onglet, qui tient dans un écran : à gauche l'état de l'objectif (trait de couleur, pastille et son mot, puis ce
+   que le QG affiche), à droite le formulaire en trois lignes ; l'un sous l'autre sous 1 024 px. La jauge prend la couleur
+   de l'état : la longueur seule porte la valeur. Les chiffres restent blancs. */
+.dir-objectif-grille {
+  display: grid;
+  gap: 1rem;
+  align-items: start;
+  margin-top: 1rem;
+}
+@media (min-width: 64rem) {
+  .dir-objectif-grille {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1.5rem;
+  }
+}
+.dir-objectif-etat,
+.dir-objectif-form {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 0.875rem 1rem 1rem;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.375rem;
+  background: color-mix(in srgb, var(--ecriture) 5%, transparent);
+}
+.dir-objectif-etat {
+  box-shadow: inset 3px 0 0 var(--ton, transparent);
+}
+.dir-objectif :is(.dir-objectif-etat, .dir-objectif-form) h3 {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.dir-objectif-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.375rem 0.75rem;
+  min-height: 1.75rem;
+}
+.dir-objectif-but {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.dir-objectif-chiffre {
+  margin-top: 0.5rem;
+  font-size: 2.25rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--ecriture);
+}
+.dir-objectif-chiffre > span {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+.dir-objectif .meter {
+  margin-top: 0.625rem;
+}
+.dir-objectif .meter > i {
+  background: var(--ton, var(--color-blue-text));
+}
+.dir-objectif-phrase {
+  margin-top: 0.375rem;
+  font-size: 1.0625rem;
+}
+.dir-objectif .dir-note {
+  margin-top: 0.5rem;
+}
+.dir-objectif .form-problem,
+.dir-objectif .form-success {
+  margin: 0;
+}
+.dir-objectif-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.875rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+}
+.dir-objectif-actions > a.dir-bouton {
+  --ton: var(--ecriture);
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+/* « Supprimer » reste gris : il ne prend son rouge qu'au survol, au clavier, ou une fois armé (second clic). */
+.dir-objectif-retirer:where(:not(:hover, :focus-visible, [data-arme])) {
+  --ton: var(--color-muted);
+}
+.dir-objectif-retirer[data-arme] {
+  border-color: var(--ton);
+  background: var(--ton);
+  color: var(--color-night);
+}
+
+/* Les deux sortes de but : deux boutons radio en pastilles, côte à côte. Le choix est plein, comme un filtre enfoncé. */
+.dir-objectif-sortes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  min-width: 0;
+}
+.dir-objectif-sorte {
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--ecriture) 55%, transparent);
+  border-radius: 0.375rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.dir-objectif-sorte > input {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--color-night);
+}
+.dir-objectif-sorte:hover:where(:not([data-bloque], [data-choisi])) {
+  background: color-mix(in srgb, var(--ecriture) 16%, transparent);
+}
+.dir-objectif-sorte[data-choisi] {
+  border-color: var(--ecriture);
+  background: var(--ecriture);
+  color: var(--color-night);
+}
+.dir-objectif-sorte[data-bloque] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+/* Au clavier, l'anneau blanc entoure toute la pastille : autour du seul bouton radio, il se perdait sur le fond blanc du
+   choix. Sans `:has`, l'anneau reste sur le bouton radio, foncé sur le choix blanc. */
+.dir-objectif-sorte:has(> input:focus-visible) {
+  outline: 3px solid var(--ecriture);
+  outline-offset: 2px;
+}
+@supports selector(:has(*)) {
+  .dir-objectif-sorte > input:focus-visible {
+    outline: none;
+  }
+}
+.dir-objectif-sorte[data-choisi] > input:focus-visible {
+  outline-color: var(--color-night);
+}
+/* La zone de la réussite existe avant l'envoi : vide, elle ne prend pas de place dans la grille. */
+.dir-objectif-message:empty {
+  position: absolute;
+}
+/* Le champ et son bouton sur une ligne, alignés par le bas ; le bouton passe dessous quand la place manque. */
+.dir-objectif-saisie {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+.dir-objectif-saisie > div {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+.dir-objectif-saisie label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.dir-objectif-saisie .field {
+  width: 100%;
+  min-height: 2.75rem;
+}
+.dir-objectif-saisie .btn {
+  flex: none;
+  min-height: 2.75rem;
+}
+.dir-objectif-apercu {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+}
+.dir-objectif-apercu > .dir-point {
+  font-weight: 600;
+}
+.dir-objectif-aide {
+  margin-top: 1rem;
+}
+/* Sur un téléphone, « Confirmer la suppression » ne tient plus à côté de « Voir au QG » : armé, le bouton passait à la ligne
+   et fuyait sous le doigt, qui touchait alors à côté. Les deux boutons y sont l'un sous l'autre dès le départ : le bouton
+   armé s'allonge vers la droite, sans bouger. */
+@media (max-width: 29.9375rem) {
+  .dir-objectif-actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+@media (pointer: coarse), (max-width: 47.9375rem) {
+  .dir-objectif-sorte {
+    min-height: 2.75rem;
+  }
+  .dir-objectif-actions > a.dir-bouton {
+    min-height: 2.75rem;
+  }
+}
+
+/* ---------- Direction, onglet Discord ---------- */
+/* Les règles propres à cet onglet (DirectionDiscord.tsx et ses rubriques), sous la classe `dir-discord`. Le menu et les
+   messages Discord gardent aussi leurs sections plus bas. */
+
+/* Le menu : chaque ligne dit l'état de ses réglages, en pastilles à droite du titre, et porte au bord un trait de la
+   couleur la plus grave. Sous 64 rem, les pastilles passent sous la phrase, sur toute la largeur. */
+.dir-discord.menu-deroulant {
+  gap: 0.625rem;
+}
+:root main .dir-discord .deroule.card[data-dir-ton] {
+  border-inline-start: 3px solid var(--ton);
+}
+.dir-discord .deroule > summary {
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 4.25rem;
+  padding-block: 0.75rem;
+  row-gap: 0.125rem;
+}
+.dir-discord-etats {
+  grid-column: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 1rem;
+  margin-top: 0.375rem;
+  font-size: 0.875rem;
+}
+.dir-discord-etat {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4375rem;
+  white-space: nowrap;
+}
+.dir-discord-etat-nom {
+  color: var(--color-muted);
+}
+@media (min-width: 64rem) {
+  .dir-discord .deroule > summary {
+    grid-template-columns: minmax(0, 1fr) minmax(0, auto) auto;
+  }
+  .dir-discord .deroule > summary::after {
+    grid-column: 3;
+  }
+  .dir-discord-etats {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    justify-content: flex-end;
+    max-width: 34rem;
+    margin-top: 0;
+  }
+}
+.dir-discord .deroule-contenu {
+  padding: clamp(0.75rem, 2vw, 1.25rem);
+}
+
+/* Un réglage (un salon du robot, les appels, le vocal) : un bloc court avec un trait de la couleur de son état. À gauche ce
+   qu'on lit (le nom, la pastille, ce qu'a répondu Discord), à droite ce qu'on fait (le champ du lien, les boutons). */
+.dir-discord-reglages {
+  display: grid;
+  gap: 0.625rem;
+  min-width: 0;
+}
+.dir-discord-reglage {
+  display: grid;
+  gap: 0.875rem 2rem;
+  min-width: 0;
+  padding: 0.75rem 1rem 0.875rem;
+  border: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+  border-radius: 0.25rem;
+  background: color-mix(in srgb, var(--ecriture) 3%, transparent);
+  box-shadow: inset 3px 0 0 var(--ton, transparent);
+}
+@media (min-width: 64rem) {
+  .dir-discord-reglage {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+.dir-discord-reglage-lu,
+.dir-discord-reglage-agir {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.dir-discord-reglage-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 0.75rem;
+  font-size: 0.9375rem;
+}
+.dir-discord-reglage-titre {
+  font-size: var(--text-lg);
+}
+/* Les phrases d'un réglage. La zone d'état (role="status") reste dans la page même vide : elle ne prend alors aucune place. */
+.dir-discord-phrases > * + *:not(:empty) {
+  margin-top: 0.25rem;
+}
+.dir-discord-phrases {
+  overflow-wrap: anywhere;
+}
+.dir-discord-phrases > p {
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+.dir-discord-phrase[data-dir-ton] {
+  font-weight: 600;
+  color: var(--ton);
+}
+/* Un petit repli dans un réglage : ce qui part dans le salon, la règle des pings. */
+.dir-discord-plus {
+  font-size: 0.875rem;
+}
+.dir-discord-plus > summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  color: var(--color-muted);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+.dir-discord-plus > summary:hover,
+.dir-discord-plus[open] > summary {
+  color: var(--ecriture);
+}
+.dir-discord-plus > p {
+  max-width: 44rem;
+  margin-top: 0.25rem;
+  color: var(--color-muted);
+}
+/* Le champ et son bouton sur une ligne ; le bouton passe dessous quand la place manque. */
+.dir-discord-saisie {
+  display: grid;
+  gap: 0.375rem;
+  min-width: 0;
+}
+.dir-discord-saisie-ligne {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.dir-discord-saisie-ligne > .field {
+  flex: 1 1 14rem;
+  width: auto;
+  min-width: 0;
+}
+.dir-discord-saisie-ligne > .btn {
+  flex: 0 1 auto;
+  min-height: 2.5rem;
+  padding-block: 0.375rem;
+  white-space: normal;
+}
+.dir-discord-champs {
+  display: grid;
+  gap: 0.625rem 0.75rem;
+}
+/* Les boutons d'un réglage en place. Celui qui efface (débrancher, retirer) vient après un filet et reste gris : il ne prend
+   son rouge qu'au survol ou au clavier, comme « Suspendre » dans l'onglet Comptes. */
+.dir-discord-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+.dir-discord-filet {
+  align-self: stretch;
+  width: 1px;
+  background: var(--color-line-strong);
+}
+/* « Débrancher le salon » à part, sous un filet, loin de « Renvoyer un essai » : le 11 novembre 2026, le pilote a pris le
+   bouton voisin de l'essai pour la fin de l'essai. L'avertissement du second clic vient dessous. */
+.dir-discord-retirer {
+  display: grid;
+  justify-items: start;
+  gap: 0.5rem;
+  padding-top: 0.625rem;
+  border-top: 1px solid var(--color-line);
+}
+/* Le message de réussite d'une action : sa zone d'état reste dans la page, vide, sans prendre de place dans la grille. */
+.dir-discord-retour:empty {
+  position: absolute;
+}
+/* Un bouton sans couleur propre reste blanc : il ne prend pas celle de l'état du bloc. */
+.dir-discord-actions .dir-bouton:not([data-dir-ton]) {
+  --ton: var(--ecriture);
+}
+/* Une ligne de liste (un message envoyé, un salon ajouté) : ce qu'on lit prend la place, les boutons se rangent à droite. */
+@media (min-width: 64rem) {
+  .dir-discord-ligne {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .dir-discord-ligne .dir-discord-reglage-agir {
+    justify-items: end;
+    max-width: 30rem;
+  }
+  .dir-discord-ligne .dir-discord-actions {
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    justify-content: flex-end;
+  }
+}
+/* Une image de l'inventaire dont le fichier manque : le trait jaune au bord de sa carte. */
+.dir-discord .inventaire-carte[data-dir-ton] {
+  box-shadow: inset 3px 0 0 var(--ton);
+}
+@media (max-width: 39.9375rem) {
+  .dir-discord-filet {
+    display: none;
+  }
+}
+.dir-discord-retrait:where(:not(:hover, :focus-visible)) {
+  border-color: color-mix(in srgb, var(--color-muted) 45%, transparent);
+  color: var(--color-muted);
+}
+@media (max-width: 47.9375rem), (pointer: coarse) {
+  .dir-discord-plus > summary {
+    min-height: 2.75rem;
+  }
+  .dir-discord-saisie-ligne > .btn {
+    min-height: 2.75rem;
+  }
+}
+
+/* ---------- Direction, onglet Fondateur ---------- */
+/* Les règles propres à cet onglet (DirectionFondateur.tsx), sous la classe `dir-fondateur`. */
+/* Deux étapes côte à côte dès 1 024 px : à gauche le choix du membre (recherche, filtres par rôle, liste serrée qui défile
+   dans son cadre), à droite ce qui va se passer et la confirmation. Plus étroit, l'une sous l'autre. Le rouge `danger` ne
+   paraît que deux fois : la pastille « Sans retour », et le bouton une fois le nom bien retapé. */
+.dir-fondateur-plan {
+  display: grid;
+  gap: 1.25rem 2rem;
+  margin-top: 1rem;
+}
+@media (min-width: 64rem) {
+  .dir-fondateur-plan {
+    grid-template-columns: minmax(0, 1fr) minmax(22rem, 30rem);
+    align-items: start;
+  }
+}
+.dir-fondateur-choix {
+  min-width: 0;
+}
+.dir-fondateur-etape {
+  padding: 0;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--ecriture);
+}
+.dir-fondateur-outils {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.625rem;
+}
+/* La liste défile dans son cadre : la confirmation reste à l'écran, sans descendre la page. */
+.dir-fondateur-liste {
+  max-height: min(27rem, 60vh);
+  margin-top: 0.625rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-block: 1px solid var(--color-line-strong);
+  scrollbar-width: thin;
+}
+.dir-fondateur-ligne {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 0.625rem;
+  min-height: 2.25rem;
+  padding: 0.1875rem 0.75rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+  font-size: 0.9375rem;
+  line-height: 1.35;
+  cursor: pointer;
+}
+.dir-fondateur-ligne:last-child {
+  border-bottom: 0;
+}
+.dir-fondateur-ligne:hover {
+  background: color-mix(in srgb, var(--ecriture) 5%, transparent);
+}
+.dir-fondateur-ligne[data-choisi] {
+  background: color-mix(in srgb, var(--ecriture) 10%, transparent);
+  box-shadow: inset 3px 0 0 var(--color-ally);
+}
+/* Le bouton radio couvre sa ligne, invisible : toute la ligne se clique, et le clavier garde ses flèches. Il reste dans le
+   cadre de la ligne, pour ne pas élargir la liste qui défile. */
+.dir-fondateur-radio {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.dir-fondateur-ligne:has(:focus-visible) {
+  outline: 2px solid var(--ecriture);
+  outline-offset: -2px;
+}
+.dir-fondateur-nom {
+  font-weight: 700;
+  color: var(--ecriture);
+  overflow-wrap: anywhere;
+}
+.dir-fondateur-discord,
+.dir-fondateur-vous {
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+.dir-fondateur-fin {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.625rem;
+  margin-left: auto;
+  font-size: 0.875rem;
+}
+.dir-fondateur-rien {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.875rem;
+  padding: 0.75rem;
+  color: var(--color-muted);
+}
+.dir-fondateur .dir-note {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+}
+/* Le rôle en étiquette, comme dans l'onglet Comptes. */
+.dir-fondateur-role {
+  display: inline-block;
+  flex: none;
+  padding: 0.0625rem 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--color-muted);
+}
+.dir-fondateur-role[data-role="member"] {
+  border-color: color-mix(in srgb, var(--color-line) 70%, transparent);
+  font-weight: 400;
+}
+.dir-fondateur-role[data-role="officer"] {
+  border-color: var(--color-line-strong);
+  color: var(--ecriture);
+}
+.dir-fondateur-role[data-role="admin"] {
+  border-color: var(--ecriture);
+  color: var(--ecriture);
+}
+.dir-fondateur-role[data-role="founder"] {
+  border-color: var(--ecriture);
+  background: var(--ecriture);
+  color: var(--color-night);
+}
+
+/* L'étape 2 : l'avertissement, ce que chacun devient, le nom à retaper, le bouton. */
+.dir-fondateur-acte {
+  display: grid;
+  gap: 0.875rem;
+  min-width: 0;
+  padding: 1rem 1.125rem 1.125rem;
+}
+.dir-fondateur-alerte {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 0.625rem;
+  font-size: 0.9375rem;
+}
+.dir-fondateur-suite {
+  display: grid;
+  border-block: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+  font-size: 0.9375rem;
+}
+.dir-fondateur-suite > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+  min-height: 2.25rem;
+  padding-block: 0.3125rem;
+}
+.dir-fondateur-suite > div + div {
+  border-top: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+}
+.dir-fondateur-suite dt {
+  min-width: 0;
+}
+.dir-fondateur-suite dd {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 0.875rem;
+}
+.dir-fondateur-saisie {
+  display: grid;
+  gap: 0.375rem;
+  min-width: 0;
+  font-size: 0.9375rem;
+}
+.dir-fondateur-saisie label {
+  overflow-wrap: anywhere;
+}
+/* La place de la pastille est gardée : le bouton ne bouge pas quand elle paraît. */
+.dir-fondateur-etat {
+  min-height: 1.625rem;
+  font-size: 0.875rem;
+}
+/* Le bouton est gris tant que le nom n'est pas le bon (désactivé), et ne prend le rouge `danger` qu'ensuite. */
+.dir-fondateur-envoi {
+  justify-self: start;
+  border: 1px solid var(--ecriture);
+  color: var(--ecriture);
+}
+.dir-fondateur-envoi::before {
+  content: ">" / "";
+  color: var(--console-vert, currentColor);
+}
+.dir-fondateur-envoi[data-arme] {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+.dir-fondateur-envoi[data-arme]::before {
+  color: inherit;
+}
+.dir-fondateur-envoi[data-arme]:hover:where(:not(:disabled)) {
+  background: var(--color-danger);
+  color: var(--color-night);
+}
+
+/* Le rôle transmis : la pastille verte « Fait » et la phrase, dans une fenêtre comme l'étape 2, puis le bouton qui relit le
+   compte. La zone existe avant, vide et sans hauteur, pour que les lecteurs d'écran annoncent ce qui y paraît. */
+.dir-fondateur-fait:not(:empty) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 0.75rem;
+  margin-top: 1rem;
+  padding: 1rem 1.125rem;
+  font-size: 1rem;
+  color: var(--ecriture);
+}
+.dir-fondateur-retour {
+  margin-top: 1rem;
+}
+
+/* Au doigt et sous 768 px : des lignes de 44 px, une liste moins haute pour que l'étape 2 reste proche. */
+@media (pointer: coarse) {
+  .dir-fondateur-ligne {
+    min-height: 2.75rem;
+  }
+}
+@media (max-width: 47.9375rem) {
+  .dir-fondateur-ligne {
+    min-height: 2.75rem;
+  }
+  .dir-fondateur-liste {
+    max-height: min(19.25rem, 55vh);
+  }
+  .dir-fondateur-envoi {
+    justify-self: stretch;
+  }
+}
+
+/* ---------- Direction, onglet Village ---------- */
+/* Les règles propres à cet onglet (DirectionVillage.tsx), sous la classe `dir-village`. D'abord les chiffres clés, dans une
+   seule bande ; puis les tableaux en lignes serrées (`.dir-table` des pièces communes), trois côte à côte dès 1 152 px ; puis
+   deux blocs à deux colonnes dès 1 024 px : ce qu'on lit à gauche, ce qu'on règle à droite. Chaque état a sa couleur et son
+   mot (pastilles des pièces communes ; règles dans `src/lib/village/direction.ts`), et un trait de cette couleur au bord de
+   son bloc. Les cinq couleurs de rareté sont celles du site (`--rarete-*`), toujours avec le nom de la rareté. Les chiffres
+   restent blancs ; rien ne s'anime. */
+.dir-village-corps {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+/* La bande des chiffres clés : des cases séparées par un filet, dans un seul cadre. Le filet est le fond de la bande, vu
+   entre les cases. Un total de statères à sept chiffres tient sur une ligne dans sa case dès 360 px. */
+.dir-village-chiffres {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.375rem;
+  background: var(--color-line);
+}
+.dir-village-chiffre {
+  display: grid;
+  align-content: start;
+  gap: 0.125rem;
+  min-width: 0;
+  padding: 0.625rem 0.875rem 0.75rem;
+  background: var(--color-surface);
+}
+.dir-village-valeur {
+  font-size: 1.5rem;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+.dir-village-cache {
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+@media (min-width: 40rem) {
+  .dir-village-chiffres {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .dir-village-chiffres[data-petit] {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (min-width: 48rem) {
+  .dir-village-valeur {
+    font-size: 1.75rem;
+  }
+}
+@media (min-width: 64rem) {
+  .dir-village-valeur {
+    font-size: 2.25rem;
+    line-height: 1.15;
+  }
+}
+/* Les chiffres du mois des bulles : la même bande, en petit. Le nom dessus, la valeur dessous. */
+.dir-village-chiffres[data-petit] dt {
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  color: var(--color-muted);
+}
+.dir-village-chiffres[data-petit] dd {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--ecriture);
+}
+
+/* Un bloc : son titre à gauche, son état en pastille à droite. `data-trait` : un trait de la couleur de l'état, au bord. */
+.dir-village-bloc {
+  min-width: 0;
+  padding: 0.875rem 1rem;
+}
+.dir-village-bloc[data-trait="ok"] {
+  --trait: var(--color-ok);
+}
+.dir-village-bloc[data-trait="warn"] {
+  --trait: var(--color-warn);
+}
+.dir-village-bloc[data-trait="danger"] {
+  --trait: var(--color-danger);
+}
+:root main .dir-village .dir-village-bloc.card[data-trait] {
+  border-inline-start: 3px solid var(--trait);
+}
+.dir-village-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.375rem 0.75rem;
+  min-height: 1.75rem;
+  margin-bottom: 0.5rem;
+}
+.dir-village-tete > h3 {
+  font-size: 1.0625rem;
+}
+.dir-village :is(.dir-village-bloc, .dir-village-lu, .dir-village-agir) > .dir-note {
+  margin-top: 0;
+}
+.dir-village .form-problem,
+.dir-village .form-success {
+  margin-top: 0;
+}
+
+/* Les trois tableaux : l'un sous l'autre, puis les deux tableaux par rareté côte à côte, puis les trois. */
+.dir-village-tables {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 1rem;
+}
+@media (min-width: 48rem) {
+  .dir-village-tables {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dir-village-tables > :first-child {
+    grid-column: 1 / -1;
+  }
+}
+@media (min-width: 72rem) {
+  .dir-village-tables {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .dir-village-tables > :first-child {
+    grid-column: auto;
+  }
+}
+
+/* Les tableaux : le `.dir-table` des pièces communes, sans barre d'outils au-dessus (les titres ne se collent pas), les
+   nombres à droite. Ni mot ni nombre ne se coupe : trop large, le tableau défile dans son cadre, jamais la page. */
+.dir-village-cadre {
+  overflow-x: auto;
+}
+.dir-village .dir-table {
+  overflow-wrap: normal;
+}
+.dir-village .dir-table th {
+  position: static;
+  background: none;
+}
+.dir-village .dir-table thead th {
+  vertical-align: bottom;
+}
+.dir-village .dir-table :is(th, td) {
+  padding-inline: 0.5rem;
+}
+.dir-village .dir-table :is(th, td):first-child {
+  padding-inline-start: 0;
+}
+.dir-village .dir-table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+.dir-village .dir-table tbody th {
+  height: 2.25rem;
+  padding-block: 0.1875rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+  font-size: inherit;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ecriture);
+}
+.dir-village .dir-village-nombre {
+  text-align: right;
+}
+.dir-village td.dir-village-nombre {
+  white-space: nowrap;
+}
+/* Un nombre suivi de son unité (« 2 500 statères ») peut passer à la ligne entre les deux, jamais dans le nombre. */
+.dir-village td.dir-village-souple {
+  white-space: normal;
+}
+
+/* Une rareté : un carré de sa couleur, puis son nom dans la teinte claire de cette couleur. Jamais la couleur seule. */
+.dir-village-rarete {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--rarete-texte);
+}
+.dir-village-rarete::before {
+  content: "";
+  flex: none;
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 2px;
+  background: var(--rarete);
+}
+.dir-village-rarete[data-rarete="commun"] {
+  --rarete: var(--rarete-commun);
+  --rarete-texte: var(--rarete-commun-texte);
+}
+.dir-village-rarete[data-rarete="peu-commun"] {
+  --rarete: var(--rarete-peu-commun);
+  --rarete-texte: var(--rarete-peu-commun-texte);
+}
+.dir-village-rarete[data-rarete="epique"] {
+  --rarete: var(--rarete-epique);
+  --rarete-texte: var(--rarete-epique-texte);
+}
+.dir-village-rarete[data-rarete="mystique"] {
+  --rarete: var(--rarete-mystique);
+  --rarete-texte: var(--rarete-mystique-texte);
+}
+.dir-village-rarete[data-rarete="legendaire"] {
+  --rarete: var(--rarete-legendaire-degrade);
+  --rarete-texte: var(--rarete-legendaire-texte);
+}
+
+/* Deux colonnes dès 1 024 px : à gauche ce qu'on lit (ou le formulaire), à droite ce qu'on fait, dans un cadre discret. */
+.dir-village-deux {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 1rem 2rem;
+}
+@media (min-width: 64rem) {
+  .dir-village-deux {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+.dir-village-lu,
+.dir-village-agir {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+  min-width: 0;
+}
+.dir-village-agir {
+  padding: 0.75rem 1rem 0.875rem;
+  border: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+  border-radius: 0.25rem;
+  background: color-mix(in srgb, var(--ecriture) 3%, transparent);
+}
+.dir-village :is(h4, h5) {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.dir-village-lignes {
+  display: grid;
+  gap: 0.25rem;
+  margin-top: 0.375rem;
+  font-size: 0.9375rem;
+  line-height: 1.4;
+}
+.dir-village-boutons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+/* Le formulaire des prix et des chances : une ligne par rareté, le prix et la chance côte à côte. La valeur en vigueur
+   s'écrit sous un champ changé. */
+.dir-village-saisie {
+  table-layout: fixed;
+}
+.dir-village-saisie th:first-child {
+  width: 40%;
+}
+.dir-village .dir-village-saisie td {
+  padding-block: 0.3125rem;
+}
+.dir-village-saisie .field {
+  width: 100%;
+  max-width: 9rem;
+}
+.dir-village-vigueur {
+  margin-top: 0.375rem;
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  color: var(--color-muted);
+}
+@media (min-width: 30rem) {
+  .dir-village-saisie th:first-child {
+    width: 34%;
+  }
+}
+@media (max-width: 29.9375rem) {
+  .dir-village .dir-village-saisie :is(th, td) {
+    padding-inline: 0.25rem;
+  }
+  .dir-village-saisie .field {
+    padding-inline: 0.5rem;
+  }
+}
+
+/* Ce qu'on va enregistrer, à confirmer : un cadre jaune, « à regarder », avec son trait. */
+.dir-village-confirmation {
+  display: grid;
+  gap: 0.625rem;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid color-mix(in srgb, var(--color-warn) 40%, transparent);
+  border-radius: 0.25rem;
+  background: color-mix(in srgb, var(--color-warn) 8%, transparent);
+  box-shadow: inset 3px 0 0 var(--color-warn);
+}
+.dir-village-confirmation .dir-village-lignes {
+  margin-top: 0;
+}
+
+/* La dépense du mois, comme un avancement vers le plafond : la somme en grand, la longueur de la jauge. La jauge passe au
+   jaune quand le serveur dit le plafond atteint. */
+.dir-village-depense {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.5rem;
+  font-size: 0.9375rem;
+  color: var(--color-muted);
+}
+.dir-village-depense > strong {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1.15;
+  white-space: nowrap;
+  color: var(--ecriture);
+}
+.dir-village .meter {
+  margin-top: 0.5rem;
+}
+.dir-village .meter > i {
+  background: var(--ton, var(--color-blue-text));
+}
+.dir-village-atteint {
+  margin-top: 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+.dir-village .dir-village-repli {
+  padding-bottom: 0;
+}
+
+/* Le plafond : le champ et son bouton sur une ligne, alignés par le bas ; le bouton passe dessous quand la place manque. */
+.dir-village-plafond {
+  display: grid;
+  gap: 0.625rem;
+}
+.dir-village-saisie-ligne {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+.dir-village-saisie-ligne label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.dir-village-saisie-ligne .field {
+  width: 8rem;
+  min-height: 2.75rem;
+}
+.dir-village-saisie-ligne .btn {
+  min-height: 2.75rem;
+}
+
+/* Un geste à part, sous un filet, loin d'« Enregistrer » et de « Changer le plafond » : « Revenir aux réglages du pilote »,
+   « Couper les bulles ». L'avertissement du second clic vient dessous : le bouton ne bouge pas entre les deux clics. */
+.dir-village-apart {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: start;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--color-line-strong);
+}
+.dir-village-agir > .dir-village-apart {
+  margin-top: 0.75rem;
+}
+.dir-village-apart-ligne {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+.dir-village-apart-ligne > p {
+  flex: 1 1 20rem;
+  min-width: 0;
+}
+/* « Couper les bulles » reste gris : il ne prend son rouge qu'au survol, au clavier, ou une fois armé (second clic).
+   « Remettre les bulles », son inverse, est vert. */
+.dir-village-coupe[data-dir-ton="danger"]:where(:not(:hover, :focus-visible, [data-arme])) {
+  --ton: var(--color-muted);
+}
+.dir-village-coupe[data-arme] {
+  border-color: var(--ton);
+  background: var(--ton);
+  color: var(--color-night);
+}
+
+/* ---------- Le menu déroulant de l'onglet Discord, à la Direction ---------- */
+/* Une rubrique par ligne : son titre et une phrase. Au clic ou au clavier (<details>), son contenu se déroule dessous, de
+   haut en bas, une fois et lentement ; le menu entier se déroule ainsi quand l'onglet s'ouvre. Le bouton pause
+   (.fx-off *) et le réglage « réduire les animations » coupent ces mouvements, comme toute animation du site. Les
+   rubriques gardent leurs grands titres : le 13 novembre 2026, le pilote a voulu les menus de la Direction « comme avant ». */
+.menu-deroulant {
+  display: grid;
+  gap: 1rem;
+  animation: deroule 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.deroule {
+  min-width: 0;
+}
+.deroule > summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 1rem;
+  row-gap: 0.375rem;
+  min-height: 5rem;
+  padding: 1.125rem clamp(1rem, 3vw, 1.5rem);
+  cursor: pointer;
+  list-style: none;
+  border-radius: inherit;
+}
+.deroule > summary::-webkit-details-marker {
+  display: none;
+}
+.deroule > summary::after {
+  content: "+";
+  /* Le signe est décoratif : les lecteurs d'écran disent déjà « réduit » ou « développé ». */
+  content: "+" / "";
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  font-family: var(--font-display);
+  font-size: 2.25rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.deroule[open] > summary::after {
+  content: "−";
+  content: "−" / "";
+}
+.deroule[open] > summary {
+  border-bottom: 1px solid var(--color-line);
+  border-end-start-radius: 0;
+  border-end-end-radius: 0;
+}
+.deroule-titre {
+  grid-column: 1;
+  font-size: var(--text-2xl);
+}
+.deroule-aide {
+  grid-column: 1;
+  color: var(--color-muted);
+}
+.deroule-contenu {
+  padding: clamp(1rem, 3vw, 1.75rem);
+}
+.deroule[open] > .deroule-contenu {
+  animation: deroule 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes deroule {
+  from {
+    opacity: 0.35;
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+/* ---------- Les messages Discord de la Direction ---------- */
+/* Le formulaire, puis l'aperçu, puis l'envoi. Sur grand écran, l'aperçu passe à droite et reste à l'écran pendant qu'on
+   écrit ; s'il est plus haut que l'écran, il défile dans son cadre. */
+.message-grille {
+  display: grid;
+  gap: 1.75rem;
+}
+@media (min-width: 80rem) {
+  .message-grille {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 28rem);
+    align-items: start;
+  }
+  .message-apercu {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    position: sticky;
+    top: 6rem;
+    max-height: calc(100dvh - 7rem);
+    overflow-y: auto;
+  }
+}
+/* Un embed du formulaire : sa barre prend la couleur choisie, comme dans Discord. */
+.embed-editeur {
+  display: grid;
+  gap: 1.25rem;
+  min-width: 0;
+  padding: clamp(1rem, 3vw, 1.5rem);
+  background: var(--color-night);
+  border: 1px solid var(--color-line);
+  border-left: 6px solid var(--embed-couleur, var(--color-line-strong));
+  border-radius: 1rem;
+}
+.champ-embed {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.75rem;
+}
+.champ-embed > legend {
+  padding-inline: 0.5rem;
+}
+/* Un nom de champ qui n'est pas un <label> (groupe de pastilles, image, légende) : même chasse fixe que les labels, dans
+   l'ambiance console. */
+:root[data-ambiance="console"] .espace .nom-champ {
+  font-family: var(--font-console);
+}
+
+/* Les couleurs toutes prêtes : une pastille par couleur. La choisie a un anneau blanc, séparé d'elle par le fond. */
+.pastille-couleur {
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: none;
+  background: var(--pastille);
+  border: 2px solid var(--color-line-strong);
+  border-radius: 999px;
+}
+.pastille-couleur[aria-pressed="true"] {
+  box-shadow:
+    0 0 0 3px var(--color-navy),
+    0 0 0 6px var(--ecriture);
+}
+.pastille-couleur:focus-visible {
+  outline-offset: 7px;
+}
+.pastille-autre {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0.25rem 0.875rem 0.25rem 0.25rem;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.pastille-autre:focus-within {
+  outline: 3px solid var(--ecriture);
+}
+.pastille-autre input {
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.pastille-autre input:focus-visible {
+  outline: none;
+}
+.pastille-autre input::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.pastille-autre input::-webkit-color-swatch {
+  border: 0;
+  border-radius: 999px;
+}
+.pastille-autre input::-moz-color-swatch {
+  border: 0;
+  border-radius: 999px;
+}
+
+/* La barre de mise en forme : de petits boutons, assez grands pour le doigt (40 px). */
+.outils {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+.outil {
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  padding: 0.25rem 0.75rem;
+  color: var(--ecriture);
+  background: var(--color-night);
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.625rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1.2;
+}
+.outil:hover {
+  background: var(--color-surface-2);
+}
+.outil[aria-pressed="true"],
+.outil[aria-expanded="true"] {
+  color: var(--color-navy);
+  background: var(--ecriture);
+  border-color: var(--ecriture);
+}
+.outil-b {
+  font-weight: 800;
+}
+.outil-i {
+  font-style: italic;
+}
+.outil-u {
+  text-decoration: underline;
+}
+.outil-s {
+  text-decoration: line-through;
+}
+.outil-panneau {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--color-night);
+  border: 1px solid var(--color-line);
+  border-radius: 0.75rem;
+}
+@media (min-width: 40rem) {
+  .outil-panneau {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* L'inventaire d'images, dans un champ d'image du message : des vignettes, choisies d'un clic. Deux de front sur un
+   téléphone ; au-delà de quelques rangées, la liste défile dans son cadre. */
+.inventaire-choix {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
+  gap: 0.5rem;
+  max-height: min(26rem, 70vh);
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  overflow-y: auto;
+  background: var(--color-night);
+  border: 1px solid var(--color-line);
+  border-radius: 0.75rem;
+}
+.inventaire-vignette {
+  display: grid;
+  align-content: start;
+  gap: 0.375rem;
+  min-width: 0;
+  padding: 0.25rem;
+  color: var(--ecriture);
+  text-align: left;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.625rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.inventaire-vignette:hover {
+  background: var(--color-surface-2);
+  border-color: var(--ecriture);
+}
+.inventaire-vignette img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: contain;
+  background: var(--color-navy);
+  border-radius: 0.375rem;
+}
+.inventaire-vignette span {
+  overflow-wrap: anywhere;
+}
+/* La recherche, en tête de la liste : elle couvre le haut du cadre et reste visible quand les vignettes défilent. */
+.inventaire-chercher {
+  position: sticky;
+  top: -0.75rem;
+  z-index: 1;
+  grid-column: 1 / -1;
+  margin: -0.75rem -0.75rem 0;
+  padding: 0.75rem 0.75rem 0.25rem;
+  background: var(--color-night);
+}
+/* Une vignette qui prend le focus en remontant ne passe pas sous la recherche. */
+.inventaire-choix:has(.inventaire-chercher) {
+  scroll-padding-top: 4rem;
+}
+/* La rubrique « Inventaire d'images » : une carte par image, l'image en haut, en entier. */
+.inventaire-grille {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
+  gap: 1rem;
+}
+.inventaire-carte {
+  display: grid;
+  grid-template-areas: "image" "texte" "actions";
+  grid-template-rows: auto auto 1fr;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: 1rem;
+}
+.inventaire-carte-texte {
+  grid-area: texte;
+  min-width: 0;
+  padding: 1rem 1rem 0;
+}
+.inventaire-carte-actions {
+  display: grid;
+  grid-area: actions;
+  align-content: start;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 0.75rem 1rem 1rem;
+}
+/* Sur un téléphone, la vignette passe à gauche du nom : une carte deux fois moins haute. */
+@media (max-width: 39.99rem) {
+  .inventaire-carte {
+    grid-template-columns: 5.5rem minmax(0, 1fr);
+    grid-template-areas: "image texte" "actions actions";
+    grid-template-rows: auto 1fr;
+  }
+  .inventaire-carte .inventaire-carte-image {
+    align-self: start;
+    aspect-ratio: 1;
+    border-right: 1px solid var(--color-line);
+    border-bottom: 1px solid var(--color-line);
+    border-bottom-right-radius: 0.75rem;
+  }
+  .inventaire-carte-texte {
+    padding: 0.75rem 0.75rem 0;
+  }
+}
+/* Une case de même forme pour toutes les images, quelle que soit leur taille : l'image y tient en entier. */
+.inventaire-carte-image {
+  grid-area: image;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  background: var(--color-night);
+  border-bottom: 1px solid var(--color-line);
+}
+/* La carte rogne ce qui dépasse : le contour du focus passe à l'intérieur de l'image. */
+.inventaire-carte-image:focus-visible {
+  outline-offset: -5px;
+}
+.inventaire-carte-image img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Une image du message : un cadre en pointillés, où l'on peut aussi déposer un fichier. */
+.image-choix {
+  min-width: 0;
+  padding: 0.875rem;
+  border: 1px dashed var(--color-line-strong);
+  border-radius: 0.75rem;
+}
+.image-choix-survol {
+  background: var(--color-surface-2);
+  border-style: solid;
+  border-color: var(--ecriture);
+}
+.image-choix-vignette {
+  width: 3rem;
+  height: 3rem;
+  flex: none;
+  object-fit: cover;
+  background: var(--color-night);
+  border-radius: 0.5rem;
+}
+/* Une image en grand du formulaire : un cadre comme celui d'un embed, sans barre de couleur. */
+.image-en-grand {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  padding: clamp(1rem, 3vw, 1.5rem);
+  background: var(--color-night);
+  border: 1px solid var(--color-line);
+  border-radius: 1rem;
+}
+
+/* L'aperçu : la mise en page de Discord, avec les couleurs du site. */
+.apercu {
+  display: grid;
+  grid-template-columns: 2.75rem minmax(0, 1fr);
+  gap: 0.875rem;
+  padding: 1rem;
+  font-size: 1rem;
+  line-height: 1.45;
+  background: var(--color-night);
+  border: 1px solid var(--color-line);
+  border-radius: 1rem;
+}
+.apercu-avatar {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 800;
+  background: var(--color-surface-2);
+  border-radius: 999px;
+}
+.apercu-avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.apercu-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.5rem;
+}
+.apercu-nom {
+  font-weight: 700;
+}
+.apercu-badge {
+  padding: 0 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-navy);
+  background: var(--color-blue-text);
+  border-radius: 0.25rem;
+}
+.apercu-heure,
+.apercu-fil {
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+.apercu-corps {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+.apercu a,
+.embed a {
+  color: var(--color-blue-text);
+  text-decoration: underline;
+}
+.apercu-image-absente {
+  display: block;
+  padding: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--color-warn);
+  border: 1px dashed var(--color-line-strong);
+  border-radius: 0.375rem;
+}
+/* Les images en grand : toute la largeur du message, plus large qu'une image d'embed. Seule, l'image garde ses
+   proportions ; à plusieurs, chacune est rognée à sa case, sur six colonnes (mosaicRows). */
+.apercu-galerie {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.25rem;
+  max-width: 34rem;
+}
+.apercu-galerie-case {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--color-surface);
+  border-radius: 0.5rem;
+}
+.apercu-galerie-image {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+.apercu-galerie-seule .apercu-galerie-case {
+  justify-self: start;
+  background: none;
+}
+.apercu-galerie-seule .apercu-galerie-image {
+  width: auto;
+  max-width: 100%;
+  max-height: 22rem;
+  aspect-ratio: auto;
+  object-fit: contain;
+}
+/* Un spoiler : l'image floutée et le mot au milieu, comme Discord avant le clic. Aucun mouvement. */
+.apercu-spoiler .apercu-galerie-image {
+  filter: blur(1.25rem);
+}
+.apercu-spoiler-mot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  padding: 0.25rem 0.625rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ecriture);
+  background: var(--color-night);
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+}
+.embed {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.625rem;
+  max-width: 32rem;
+  padding: 0.75rem 1rem 1rem 0.875rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-left: 4px solid var(--embed-couleur, var(--color-line-strong));
+  border-radius: 0.5rem;
+}
+.embed-avec-miniature {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.embed-corps {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.embed-miniature {
+  grid-column: 2;
+  grid-row: 1;
+  width: 5rem;
+  height: 5rem;
+  object-fit: contain;
+  border-radius: 0.375rem;
+}
+.embed-image {
+  grid-column: 1 / -1;
+  width: 100%;
+  max-height: 20rem;
+  object-fit: contain;
+  object-position: left top;
+  border-radius: 0.375rem;
+}
+.embed-auteur {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.embed-auteur-icone {
+  width: 1.5rem;
+  height: 1.5rem;
+  object-fit: cover;
+  border-radius: 999px;
+}
+.embed-titre {
+  font-weight: 700;
+}
+.embed-champs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem 1rem;
+}
+.embed-champ {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+.embed-champ-ligne {
+  grid-column: auto;
+}
+.embed-champ-nom {
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+.embed-pied {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+.embed-pied-icone {
+  width: 1.25rem;
+  height: 1.25rem;
+  object-fit: cover;
+  border-radius: 999px;
+}
+/* La mise en forme de Discord dans l'aperçu. Les titres n'y sont pas ceux du site : ni capitales, ni police des titres. */
+.apercu-texte > * + *,
+.embed-description > * + *,
+.embed-champ-valeur > * + * {
+  margin-top: 0.25rem;
+}
+.md-h {
+  font-weight: 800;
+  line-height: 1.25;
+}
+.md-h1 {
+  font-size: 1.5em;
+}
+.md-h2 {
+  font-size: 1.25em;
+}
+.md-h3 {
+  font-size: 1.0625em;
+}
+.md-sub {
+  font-size: 0.8125em;
+  color: var(--color-muted);
+}
+.md-quote {
+  padding-left: 0.75rem;
+  border-left: 4px solid var(--color-line-strong);
+}
+.md-pre {
+  padding: 0.625rem;
+  font-family: var(--font-console);
+  font-size: 0.875em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--color-navy);
+  border: 1px solid var(--color-line);
+  border-radius: 0.375rem;
+}
+.md-code {
+  padding: 0.05em 0.3em;
+  font-family: var(--font-console);
+  font-size: 0.875em;
+  background: var(--color-navy);
+  border-radius: 0.25rem;
+}
+.md-spoiler {
+  padding: 0 0.2em;
+  background: var(--color-line);
+  border-radius: 0.25rem;
+}
+.md-mention {
+  padding: 0 0.2em;
+  font-weight: 600;
+  color: var(--color-blue-text);
+  background: color-mix(in srgb, var(--color-blue-text) 16%, transparent);
+  border-radius: 0.25rem;
+}
+.md-time {
+  padding: 0 0.2em;
+  background: var(--color-surface-2);
+  border-radius: 0.25rem;
+}
+.md-list {
+  padding-left: 1.5rem;
+  list-style: disc;
+}
+.md-list-ol {
+  list-style: decimal;
+}
+

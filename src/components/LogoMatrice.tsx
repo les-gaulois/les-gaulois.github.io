@@ -5,7 +5,7 @@ const CASE = 10;
 
 /**
  * Le logo du guerrier en mode Matrix (données : `src/lib/logo-matrice.ts`). À l'ouverture, les caractères tombent en
- * colonnes, en vert, puis le logo prend son bleu, son blanc et son rouge (voir « Logo Matrix » dans global.css). Rendu
+ * colonnes, en vert, puis le logo prend son bleu, son blanc et son rouge (voir « Le logo du guerrier en mode Matrix » dans 01-socle.css). Rendu
  * au moment de la construction dans l'en-tête de la Direction, et par le navigateur dans le menu des parties.
  * `points` : en petit, des caractères ne se liraient pas ; chaque case devient un point lumineux, comme un écran à
  * matrice de points. Décoratif : masqué aux lecteurs d'écran. `id` : unique dans la page, il nomme le masque des colonnes.

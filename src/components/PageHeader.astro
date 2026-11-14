@@ -24,7 +24,7 @@ const ownPrompt = Astro.slots.has("avant-titre");
 const hasInfos = Boolean(intro) || Astro.slots.has("default");
 // L'onciale de cases est plus large qu'Outfit : sur les pages ouvertes à tous, le titre se réduit juste assez pour que son
 // plus long mot tienne sur une ligne (« Confidentialité » sur un téléphone de 360 px), lettrine du premier mot comprise.
-// Voir global.css, « L'onciale de cases ».
+// Voir 04-poste.css, « L'onciale de cases ».
 const motEm = `--mot-em:${motLePlusLong(title, lettrine ? LETTRINE_TITRE : 1).toFixed(2)}`;
 const titleClass = ["page-title", { "page-title-long": hasLongWord, "page-title-compact": compact, "sans-lettrine": !lettrine }];
 ---

@@ -710,7 +710,7 @@ export class EcranAlliance {
     const f = fenetre?.getBoundingClientRect();
     this.covered = m.width === 0 ? 0 : largeurCouverte(m, f) * (this.canvas.width / m.width);
     // Sur un grand écran, le cadre du titre (« La carte des clans ») est posé sur la carte : les outils et la légende de
-    // l'alliance se rangent dessous (global.css, \`--alliance-haut\`), au lieu de le chevaucher entre 768 et 1 130 px.
+    // l'alliance se rangent dessous (08-alliance.css, \`--alliance-haut\`), au lieu de le chevaucher entre 768 et 1 130 px.
     const session = this.root.querySelector<HTMLElement>(".carte-session")?.getBoundingClientRect();
     const sous = session && session.height > 0 && session.top < m.bottom && session.bottom > m.top ? Math.max(0, session.bottom - m.top) : 0;
     this.map.style.setProperty("--alliance-haut", `${Math.round(sous)}px`);

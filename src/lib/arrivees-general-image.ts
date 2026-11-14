@@ -114,7 +114,7 @@ const VILLAGE = {
 } as const;
 
 /**
- * Les couleurs des quatre boucliers, dans l'ordre : les scènes du site (`global.css` : `.stage-blue`, `.stage-indigo`,
+ * Les couleurs des quatre boucliers, dans l'ordre : les scènes du site (`01-socle.css` : `.stage-blue`, `.stage-indigo`,
  * `.stage-wine`) et un bleu acier foncé, proche de celui de l'étendard (`#31476E`) sans être le même.
  */
 export const GENERAL_SCENES: readonly { color: string; to: string }[] = [STAGES.blue, STAGES.indigo, { color: "#2F4A78", to: "#141F38" }, { color: "#8A1230", to: "#2A1048" }];

@@ -1,5 +1,5 @@
-import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { feuilleEntiere } from "./feuilles-graphe";
 import { TAILLE_TEXTES, aire, casesPleines, contours, tailler, type Case, type Point } from "../../src/lib/police/cases";
 import {
   APPROCHE,
@@ -351,7 +351,7 @@ describe("la largeur des titres", () => {
   });
 
   it("la lettrine a la même taille dans la feuille de style et dans le calcul des largeurs", () => {
-    const css = readFileSync("src/styles/global.css", "utf8");
+    const css = feuilleEntiere();
     const regle = css.match(/main h1:not\(\.sans-lettrine\)::first-letter \{\s*font-size: ([\d.]+)em;/);
     expect(regle?.[1]).toBe(String(LETTRINE_TITRE));
   });

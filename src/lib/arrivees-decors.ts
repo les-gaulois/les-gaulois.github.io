@@ -6,7 +6,7 @@
  * reste cohérent ». Les formes ne changent donc jamais : l'écharpe tricolore, le guerrier en filigrane, la trame de la table des
  * cartes, le médaillon, la place du texte. Seules changent les couleurs : le fond, les lueurs, le guerrier, les reflets, et les
  * touches claires assorties (halo du nom, graduations et fond du médaillon, dossier de l'invite, adresse du site), prises dans
- * les scènes du site (`global.css` : bleu royal, indigo, lie-de-vin, nuit) et dans le bleu acier d'un bouclier. L'écharpe,
+ * les scènes du site (`01-socle.css` : bleu royal, indigo, lie-de-vin, nuit) et dans le bleu acier d'un bouclier. L'écharpe,
  * l'anneau du médaillon et le nom gardent le tricolore du drapeau dans toutes : c'est l'identité du clan.
  *
  * Purement décoratif : aucune donnée du clan. Les formes sont dessinées ici, à la main ; le guerrier est le logo du clan

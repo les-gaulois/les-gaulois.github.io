@@ -1,0 +1,591 @@
+/* Un morceau de la feuille du site (src/lib/feuilles.ts). Tailwind le lit avec le socle : mêmes jetons, mêmes replis. */
+@reference "./01-socle.css";
+/* ---------- Le poste de commandement : tout le site ---------- */
+/* Le 12 novembre 2026, le pilote a demandé le site entier « dans le design hacker », « moins agressif », « dans le thème
+   QG et Direction », avec « une vraie direction artistique ». Le site devient la table des cartes du clan, la nuit :
+   une encre profonde quadrillée comme une carte d'état-major, des scènes comme des territoires éclairés, et la machine du
+   QG qui parle en chasse fixe (invite, menu, onglets, libellés des chiffres). La lumière vient des données ; le tricolore
+   reste un signal. Ni lignes d'écran, ni titre décalé, ni vert de terminal : ils restent au QG et à la Direction, qui
+   gardent leur style Terminal (`data-ambiance="console"`). Voir docs/DESIGN.md, « Le poste de commandement ». */
+
+/* La table des cartes : une croix toutes les quatre cases de conquête (112 px, quatre fois TILE_SIZE de
+   src/lib/fx/territory.ts), sur une trame à peine visible, plus marquée en haut de l'écran, là où l'on lit le titre.
+   Puis des coins assombris, pour la profondeur. Deux calques fixes, sous main et le pied de page (z-index 1) : aucun texte
+   n'y perd. Ils restent avec le bouton pause : ils ne bougent pas. */
+:root:not([data-ambiance]) body::before,
+:root:not([data-ambiance]) body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+:root:not([data-ambiance]) body::before {
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='112' height='112'%3E%3Cpath d='M0 .5H112M.5 0V112' fill='none' stroke='%230b3fa8' stroke-opacity='.05'/%3E%3Cpath d='M0 .5h5M107 .5h5M.5 0v5M.5 107v5' fill='none' stroke='%230a1230' stroke-opacity='.28'/%3E%3C/svg%3E")
+    0 0 / 112px 112px;
+  -webkit-mask-image: radial-gradient(ellipse 120% 90% at 50% 0%, #000 30%, transparent 92%);
+  mask-image: radial-gradient(ellipse 120% 90% at 50% 0%, #000 30%, transparent 92%);
+}
+:root:not([data-ambiance]) body::after {
+  /* Sur le blanc, plus de coins assombris : le calque reste, vide, pour les règles qui le visent. */
+  background: none;
+}
+@media print, (forced-colors: active) {
+  :root:not([data-ambiance]) body::before,
+  :root:not([data-ambiance]) body::after {
+    display: none;
+  }
+}
+::selection {
+  background: var(--color-flag-blue);
+  color: var(--sur-couleur);
+}
+html {
+  scrollbar-color: var(--color-line-strong) var(--color-night);
+}
+
+/* La barre de commande : une vitre claire sur la carte, et l'horizon tricolore dessous, plus vif au centre. */
+.barre {
+  background: color-mix(in srgb, var(--color-navy) 74%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(1.25);
+  backdrop-filter: blur(14px) saturate(1.25);
+}
+.barre::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--color-flag-blue) 75%, transparent) 25%,
+    color-mix(in srgb, var(--ecriture) 55%, transparent) 50%,
+    color-mix(in srgb, var(--color-red) 75%, transparent) 75%,
+    transparent
+  );
+  opacity: 0.55;
+}
+/* Le menu des rubriques, en chasse fixe : la rubrique ouverte en blanc, avec le filet rouge du marqueur de page. */
+.barre-lien {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.25rem;
+  font-family: var(--font-console);
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--color-muted);
+  transition:
+    color 0.15s,
+    background-color 0.15s;
+}
+.barre-lien:hover {
+  color: var(--ecriture);
+  background: color-mix(in srgb, var(--ecriture) 6%, transparent);
+}
+.barre-lien[aria-current] {
+  color: var(--ecriture);
+  text-decoration: underline;
+  text-decoration-color: var(--color-red);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 8px;
+}
+
+/* L'invite au-dessus du titre (Invite.astro), décorative (aria-hidden) : « gal@clan:~/resultats$ ./classement ». Elle
+   s'écrit une fois, lettre à lettre, puis reste ; le curseur rouge clignote (.console-curseur). Sur téléphone, plus
+   petite : la plus longue tient dans 328 px. */
+.invite {
+  display: flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+  font-family: var(--font-console);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+  color: var(--color-muted);
+  animation: console-frappe 0.85s steps(30, end) 0.15s backwards;
+}
+@media (min-width: 40rem) {
+  .invite {
+    font-size: 0.9375rem;
+  }
+}
+.invite-hote {
+  font-weight: 700;
+  color: var(--color-blue-text);
+}
+.invite-commande {
+  color: var(--ecriture);
+}
+
+/* Les onglets d'une rubrique (SectionNav.astro), en chasse fixe comme le menu des parties du QG : l'onglet ouvert, plus
+   clair, porte le filet rouge du marqueur de page, pas seulement une couleur. */
+.rubrique {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+.rubrique-onglet {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.5rem;
+  padding: 0.25rem 0.875rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.25rem;
+  background: var(--color-surface);
+  font-family: var(--font-console);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-muted);
+  transition:
+    color 0.15s,
+    border-color 0.15s,
+    background-color 0.15s;
+}
+.rubrique-onglet:hover {
+  color: var(--ecriture);
+  border-color: var(--color-line-strong);
+}
+.rubrique-onglet[aria-current="page"] {
+  color: var(--ecriture);
+  background: var(--color-surface-2);
+  border-color: var(--color-line-strong);
+  box-shadow: inset 0 -2px 0 var(--color-red);
+}
+
+/* Le titre d'une page prend la largeur de son texte. Une lumière passait sur lui à l'ouverture, du 12 au 13 novembre 2026 :
+   retirée avec la surbrillance (« Plus calme », en fin de fichier). */
+:root:not([data-ambiance]) .page-title {
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+}
+
+/* Les scènes : des territoires éclairés, au coin coupé comme un dossier d'état-major. Le coin garde un trait de lumière,
+   et une trame de carte s'allume dans le haut de la scène, de son côté. Le contenu passe au-dessus (isolation). */
+:root:not([data-ambiance]) .stage {
+  --coupe: 1.25rem;
+  --coupe-trait: color-mix(in srgb, var(--ecriture) 45%, transparent);
+  isolation: isolate;
+  clip-path: polygon(0 0, calc(100% - var(--coupe)) 0, 100% var(--coupe), 100% 100%, 0 100%);
+  background-image:
+    linear-gradient(
+      to bottom left,
+      transparent 50%,
+      var(--coupe-trait) 50%,
+      var(--coupe-trait) calc(50% + 1.5px),
+      transparent calc(50% + 1.5px)
+    ),
+    radial-gradient(26rem circle at var(--mx, 0px) var(--my, 0px), color-mix(in srgb, var(--ecriture) calc(var(--spot, 0) * 10%), transparent), transparent 72%),
+    var(--stage-bg, none);
+  background-size:
+    var(--coupe) var(--coupe),
+    auto,
+    auto;
+  background-position:
+    top right,
+    0 0,
+    0 0;
+  background-repeat: no-repeat;
+}
+@media (min-width: 48rem) {
+  :root:not([data-ambiance]) .stage {
+    --coupe: 1.75rem;
+  }
+}
+:root:not([data-ambiance]) .stage-night {
+  --coupe-trait: var(--color-line-strong);
+}
+:root:not([data-ambiance]) .stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(color-mix(in srgb, var(--ecriture) 7%, transparent) 1px, transparent 1px) 0 0 / 28px 28px,
+    linear-gradient(90deg, color-mix(in srgb, var(--ecriture) 7%, transparent) 1px, transparent 1px) 0 0 / 28px 28px;
+  -webkit-mask-image: radial-gradient(ellipse 55% 75% at 100% 0%, #000, transparent 80%);
+  mask-image: radial-gradient(ellipse 55% 75% at 100% 0%, #000, transparent 80%);
+}
+@media (forced-colors: active) {
+  :root:not([data-ambiance]) .stage::after {
+    display: none;
+  }
+}
+/* Une carte, une vitre : un reflet d'un pixel en haut. */
+/* Pas sur la ligne de GAL au classement (une carte sur téléphone) : son filet rouge, une ombre aussi, doit rester. */
+main .card:not(.row-highlight) {
+  box-shadow: 0 1px 2px rgb(10 18 48 / 0.06);
+}
+
+/* Les chiffres clés, comme des instruments : un libellé en chasse fixe, un trait clair en haut du filet, comme le repère
+   d'une jauge, et le chiffre qui garde une lueur bleue. */
+.kpi {
+  position: relative;
+}
+.kpi::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -1px;
+  width: 1px;
+  height: 1.125rem;
+  background: var(--ecriture);
+}
+.kpi-accent::before {
+  display: none;
+}
+.kpi-label {
+  font-family: var(--font-console);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+:is(.stage-blue, .stage-indigo, .stage-wine) .kpi-value {
+  text-shadow: 0 0 1.75rem rgb(61 127 255 / 0.4);
+}
+
+/* Les boutons s'allument : un reflet d'un pixel en haut, et le bouton principal qui rayonne au survol. */
+.btn-primary {
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ecriture) 22%, transparent);
+}
+.btn-primary:hover:not(:disabled) {
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--ecriture) 22%, transparent),
+    0 0 1.75rem -0.375rem var(--color-blue);
+}
+
+/* Le pied de page : le bas de la table, sous un filet ; ses titres dans la voix de la machine. */
+footer {
+  border-top: 1px solid color-mix(in srgb, var(--color-line) 80%, transparent);
+}
+footer h2 {
+  font-family: var(--font-console);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+}
+
+/* Le guerrier de l'accueil, en mode Matrix comme au QG et à la Direction (LogoMatrice.tsx) : plus fin, et sans le vert
+   de la console, il tombe une fois en colonnes, lentement, directement dans ses couleurs, avec une lueur d'hologramme.
+   Avec le bouton pause ou « réduire les animations », il est là d'emblée. */
+.holo {
+  position: relative;
+}
+/* Le socle : une ellipse de lumière fixe sous le guerrier, et un faisceau très pâle qui monte vers lui. Il ne flotte pas :
+   le guerrier flotte au-dessus. Décoratif. */
+.holo-scene {
+  padding-bottom: 4%;
+}
+.holo-socle {
+  position: absolute;
+  left: 14%;
+  right: 14%;
+  bottom: 0;
+  height: 11%;
+  pointer-events: none;
+  border: 1px solid rgb(157 188 255 / 0.4);
+  border-radius: 50%;
+  opacity: 0.55;
+  background: radial-gradient(closest-side, rgb(61 127 255 / 0.45), rgb(11 95 255 / 0.12) 65%, transparent);
+  box-shadow:
+    0 0 2.5rem 0.25rem rgb(11 95 255 / 0.28),
+    inset 0 0 1.25rem rgb(157 188 255 / 0.18);
+}
+.holo-socle::before {
+  content: "";
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  bottom: 50%;
+  height: 620%;
+  background: linear-gradient(to top, rgb(61 127 255 / 0.16), transparent 85%);
+  clip-path: polygon(8% 100%, 92% 100%, 100% 0, 0 0);
+}
+@media (forced-colors: active) {
+  .holo-socle {
+    display: none;
+  }
+}
+.console-logo.holo-logo {
+  width: 100%;
+  height: auto;
+  animation: none;
+  filter: var(--logo-relief);
+}
+.holo-logo .console-goutte {
+  animation-duration: 1.5s;
+}
+/* En contraste élevé, comme au QG et à la Direction, le dessin du guerrier disparaît (.console-logo) : le nom du logo reste
+   lu par les lecteurs d'écran. */
+
+/* Le guerrier en relief (src/scripts/holo.ts) : une toile posée sur le dessin, où chaque caractère a sa profondeur. Elle
+   dépasse du dessin, pour que rien ne soit coupé quand la tête tourne, et prend son relais une fois les colonnes
+   tombées : le dessin garde sa place, caché. Avec le bouton pause ou « réduire les animations », la toile n'existe pas
+   ou reste cachée, et le dessin à plat est là.
+   Les deux lueurs du dessin sont partagées : la lueur serrée suit les caractères, sur la toile ; la lueur large est
+   une aura fixe, la silhouette du logo en bleu, floutée une seule fois. Recalculer ce grand flou à chaque image
+   coûtait plus cher que tout le reste. */
+.holo-toile,
+.holo-aura {
+  position: absolute;
+  inset: -10%;
+  width: 120%;
+  height: 120%;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+}
+/* Sur le blanc, plus de lueur serrée (elle épaississait les caractères) : le même relief que le dessin à plat, pour que
+   le relais du dessin à la toile ne se voie pas. Deux ombres courtes, sans grand flou à recalculer à chaque image. */
+.holo-toile {
+  filter: var(--logo-relief);
+}
+.holo-aura {
+  filter: blur(1.25rem);
+}
+/* Le relais se fait en fondu, tête droite : la toile et le dessin se superposent exactement, puis le dessin se cache. */
+[data-holo="vif"] .holo-toile,
+[data-holo="vif"] .holo-aura {
+  visibility: visible;
+  transition: opacity 0.4s ease;
+}
+[data-holo="vif"] .holo-toile {
+  opacity: 1;
+}
+[data-holo="vif"] .holo-aura {
+  opacity: 0.06;
+}
+[data-holo="vif"] .holo-logo {
+  visibility: hidden;
+  transition: visibility 0s linear 0.4s;
+}
+.fx-off .holo-toile,
+.fx-off .holo-aura,
+.fx-off .holo-bulle {
+  display: none;
+}
+.fx-off [data-holo] .holo-logo {
+  visibility: visible;
+}
+
+/* La bulle du guerrier : une bulle de manga passée par la machine. Des angles coupés et une queue en éclair, comme la
+   voix d'un appareil dans une planche ; l'encre du site, un trait clair, la chasse fixe. Les paroles sont en capitales,
+   les lignes de la machine en minuscules. Elle s'écrit lettre à lettre, puis son pavé se pose et clignote, comme le
+   curseur de l'invite.
+   Décorative (aria-hidden) : elle ne paraît qu'avec les effets, en haut à droite du guerrier, du côté où il regarde. */
+.holo-bulle {
+  --coupe: 0.4375rem;
+  --pointe: 0.8125rem;
+  --queue: 58%;
+  --trait: var(--color-blue-text);
+  position: absolute;
+  top: -0.875rem;
+  right: -0.25rem;
+  z-index: 2;
+  max-width: min(15rem, 94%);
+  margin: 0;
+  padding: 0.5rem 0.75rem calc(0.4375rem + var(--pointe));
+  font-family: var(--font-console);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+  color: var(--ecriture);
+  pointer-events: none;
+  user-select: none;
+  isolation: isolate;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(0.25rem) scale(0.96);
+  transform-origin: var(--queue) 100%;
+  /* Le trait : quatre ombres nettes d'un pixel font le tour de la forme, queue comprise ; puis la lueur de l'hologramme. */
+  filter: drop-shadow(1px 0 0 var(--trait)) drop-shadow(-1px 0 0 var(--trait)) drop-shadow(0 1px 0 var(--trait)) drop-shadow(0 -1px 0 var(--trait))
+    drop-shadow(0 0 0.75rem color-mix(in srgb, var(--color-flag-blue) 50%, transparent));
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease,
+    visibility 0s linear 0.3s;
+}
+.holo-bulle.parle {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition:
+    opacity 0.2s ease-out,
+    transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1),
+    visibility 0s;
+}
+.holo-bulle::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--color-night);
+  clip-path: polygon(
+    var(--coupe) 0,
+    calc(100% - var(--coupe)) 0,
+    100% var(--coupe),
+    100% calc(100% - var(--pointe) - var(--coupe)),
+    calc(100% - var(--coupe)) calc(100% - var(--pointe)),
+    calc(var(--queue) + 0.875rem) calc(100% - var(--pointe)),
+    calc(var(--queue) + 0.375rem) calc(100% - var(--pointe) * 0.55),
+    calc(var(--queue) + 0.625rem) calc(100% - var(--pointe) * 0.55),
+    calc(var(--queue) - 0.125rem) 100%,
+    calc(var(--queue) + 0.125rem) calc(100% - var(--pointe) * 0.68),
+    calc(var(--queue) - 0.125rem) calc(100% - var(--pointe) * 0.68),
+    calc(var(--queue) + 0.0625rem) calc(100% - var(--pointe)),
+    var(--coupe) calc(100% - var(--pointe)),
+    0 calc(100% - var(--pointe) - var(--coupe)),
+    0 var(--coupe)
+  );
+}
+.holo-machine,
+.holo-parole {
+  display: block;
+}
+/* Ce que la machine affiche, avant la réponse du guerrier : en minuscules, plus léger, dans la couleur des liens. */
+.holo-machine {
+  font-weight: 500;
+  color: var(--color-blue-text);
+}
+.holo-parole {
+  text-transform: uppercase;
+}
+.holo-fin {
+  white-space: nowrap;
+}
+.holo-lettre {
+  animation: holo-frappe 1ms linear both;
+}
+@keyframes holo-frappe {
+  from {
+    opacity: 0;
+  }
+}
+/* Le pavé paraît juste après la dernière lettre (holo.ts lui donne le rang suivant), puis clignote au rythme du curseur
+   de l'invite (console-clignote) : allumé d'abord. */
+.holo-pave {
+  display: inline-block;
+  width: 0.55em;
+  height: 1em;
+  margin-left: 0.3em;
+  vertical-align: -0.12em;
+  background: var(--color-red);
+  animation:
+    holo-frappe 1ms linear both,
+    console-clignote 1.1s step-end infinite;
+}
+/* Sur téléphone, le guerrier est petit et centré : la bulle prend sa largeur, et dépasse d'un rien à droite, dans la marge
+   de la page. Une réplique y tient sur une ligne, et ne couvre que le haut du cercle. */
+@media (max-width: 47.99rem) {
+  .holo-bulle {
+    top: -0.75rem;
+    right: -1rem;
+    max-width: 15rem;
+    font-size: 0.75rem;
+  }
+}
+@media (forced-colors: active) {
+  .holo-toile,
+  .holo-aura,
+  .holo-bulle {
+    display: none;
+  }
+}
+
+/* ---------- L'onciale de cases : les lettres de tout le site, sauf le QG et la Direction ---------- */
+/* Le 12 novembre 2026, le pilote a demandé pour le texte du site, hors QG et Direction, « un style artistique dans le
+   caractère des lettres, dans le design gaulois - hacker ». Les titres et les gros chiffres s'écrivent dans l'onciale de
+   cases (src/lib/police/onciale.ts, déclarée et préchargée par Base.astro) : l'onciale des vieux manuscrits, posée case
+   par case comme un territoire d'OpenFront. Entre trois versions, il a choisi celle aux cases visibles : les grands titres
+   (h1, .section-title) et les chiffres clés montrent le joint entre leurs cases ; le reste (petits h2, h3, tags) s'écrit
+   dans les mêmes lettres taillées, sans marches d'escalier : il aimait les cases des grands titres, mais trouvait les
+   textes trop pixélisés (scripts/generate-police.ts). Un caractère qu'elle n'a pas passe à
+   Outfit, puis à la police de l'appareil (le cyrillique, qu'Outfit n'a pas non plus). Le texte à lire reste en Inter,
+   la machine en JetBrains Mono ; le QG et la Direction gardent Outfit. Base.astro pose data-lettres="onciale" sur
+   toutes les pages sauf ces deux-là : une page qui passerait en ambiance console garderait l'onciale.
+   Voir « Typographie », docs/DESIGN.md. */
+[data-lettres="onciale"] {
+  --font-display: "GAL Onciale", "Outfit Variable", system-ui, sans-serif;
+  --font-cases: "GAL Onciale Cases", "GAL Onciale", "Outfit Variable", system-ui, sans-serif;
+}
+/* Sans spécificité de plus que les règles de base : le pied de page garde ses titres en chasse fixe (footer h2). */
+:where([data-lettres="onciale"]) :is(h1, .section-title),
+:where([data-lettres="onciale"]) .kpi-value {
+  font-family: var(--font-cases);
+}
+/* L'onciale est plus large qu'Outfit (0,8 em la lettre contre 0,65). Un titre qui connaît son plus long mot (--mot-em, en
+   em, calculé au build par motLePlusLong) se réduit juste assez pour qu'il tienne sur une ligne : la largeur du contenu
+   (.wrap, --wrap-max au plus, moins ses deux marges --wrap-marge), avec une marge de plus pour la barre de défilement.
+   Sous 1,5 rem, le mot se coupe plutôt que de rapetisser encore (un très long pseudo sur une fiche). */
+:where([data-lettres="onciale"]) .page-title {
+  font-size: max(1.5rem, min(clamp(2.5rem, 8.5vw, 6rem), (min(100vw, var(--wrap-max)) - 2 * var(--wrap-marge) - 1rem) / var(--mot-em, 0.01)));
+}
+:where([data-lettres="onciale"]) .page-title.page-title-compact {
+  font-size: max(1.5rem, min(clamp(2.25rem, 5.5vw, 3.5rem), (min(100vw, var(--wrap-max)) - 2 * var(--wrap-marge) - 1rem) / var(--mot-em, 0.01)));
+}
+/* Un titre de section au mot très long, si sa page lui pose --mot-em. Les titres de scène (.section-title-sm) gardent leur
+   taille. */
+:where([data-lettres="onciale"]) .section-title:not(.section-title-sm) {
+  font-size: min(clamp(1.75rem, 3.8vw, 3rem), (min(100vw, var(--wrap-max)) - 2 * var(--wrap-marge) - 1rem) / var(--mot-em, 0.01));
+}
+/* Les cinq créneaux de Quand jouer, en colonnes étroites : « 21 h – 22 h » tient dans la sienne de 1 024 à 1 920 px. */
+:where([data-lettres="onciale"]) .kpi-value-md {
+  font-size: clamp(1.625rem, 2.2vw, 2.125rem);
+}
+/* Filet de sécurité : un mot de titre plus large que sa colonne passe à la ligne plutôt que d'élargir la page. Sans effet
+   tant que chaque mot tient, comme pour Outfit. */
+:where([data-lettres="onciale"]) :is(h1, h2, h3) {
+  overflow-wrap: break-word;
+}
+
+/* Les vraies minuscules (12 novembre 2026, choisies par le pilote sur captures, avec les lettrines) : les titres ne sont
+   plus en capitales, et la police a un dessin pour chaque minuscule. Plus lisible, et un titre prend moins de lignes. Une
+   étiquette qui porte `.uppercase` garde ses capitales, et les pages en console (QG, Direction, Carte, guide du clan) gardent les leurs :
+   la règle ne vaut que sans ambiance. Elle ne pèse pas plus qu'une balise (le `:not` est dans un `:where`) : une classe
+   qui demande des capitales les garde, comme `.kpi-label` posée sur un h2 ou un h3 (libellés des courbes). */
+:where([data-lettres="onciale"]:not([data-ambiance])) main :is(h1, h2, h3):where(:not(.uppercase)) {
+  text-transform: none;
+}
+/* Avec des minuscules, les lignes d'un titre ont besoin d'air. En capitales, rien ne dépassait de la ligne et les titres
+   étaient serrés (0,92 à 1). Mesuré sur le site construit, avec la hauteur exacte de chaque signe : sur deux lignes, la
+   jambe d'un g ou d'un p arrivait à une demi-rangée du point d'un i ou de l'accent d'un é de la ligne du dessous. À 1,15,
+   il reste au moins une rangée et demie partout, même sous la cédille de « français », au-dessus du crochet de « [GAL] »
+   sur l'accueil (un crochet monte deux rangées plus haut qu'une capitale), et une capitale accentuée ne touche pas le
+   jambage du dessus. Un titre qui règle lui-même son interligne avec une classe le garde. */
+:where([data-lettres="onciale"]:not([data-ambiance])) main :is(h1, h2, h3),
+:where([data-lettres="onciale"]:not([data-ambiance])) main .page-title {
+  line-height: 1.15;
+}
+/* Les lettrines : la première lettre d'un titre de page, plus grande et rouge, comme l'initiale peinte d'un manuscrit ;
+   celle d'un titre de section, plus grande, rouge elle aussi depuis le 13 novembre 2026 (4,8:1 sur la page), en blanc
+   dans une scène colorée, où le rouge se perdrait. Le facteur du titre de page est aussi LETTRINE_TITRE
+   (src/lib/police/largeur.ts), pour que son premier mot tienne encore sur sa ligne : un test compare les deux.
+   Deux écritures par règle : quand les effets sont actifs, fx.ts pose chaque mot du titre dans un bloc à part (.fx-word)
+   pour le faire entrer mot à mot, et la première lettre du titre est alors celle du premier bloc ; sans effets
+   (mouvement réduit), c'est celle du titre lui-même. Jamais les deux à la fois. Pas de lettrine sur un pseudo, titre
+   d'une fiche de membre (.sans-lettrine, posée par PageHeader.astro) : un nom s'écrit tel quel. */
+:where([data-lettres="onciale"]:not([data-ambiance])) main h1:not(.sans-lettrine) > .fx-word:first-child::first-letter,
+:where([data-lettres="onciale"]:not([data-ambiance])) main h1:not(.sans-lettrine)::first-letter {
+  font-size: 1.45em;
+  color: var(--color-red);
+}
+:where([data-lettres="onciale"]:not([data-ambiance])) main .section-title > .fx-word:first-child::first-letter,
+:where([data-lettres="onciale"]:not([data-ambiance])) main .section-title::first-letter {
+  font-size: 1.3em;
+  /* Rouge depuis le 13 novembre 2026 (« plus utiliser la seconde couleur qui est le rouge ») : 4,8:1 sur la page. */
+  color: var(--color-red);
+}
+:where([data-lettres="onciale"]:not([data-ambiance])) main .stage .section-title > .fx-word:first-child::first-letter,
+:where([data-lettres="onciale"]:not([data-ambiance])) main .stage .section-title::first-letter {
+  color: inherit;
+}
+

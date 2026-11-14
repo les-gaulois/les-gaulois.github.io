@@ -109,7 +109,7 @@ function Bloc({ id, titre, aside, trait, testId, children }: { id: string; titre
  * Au dessin des autres onglets de la Direction (14 novembre 2026, « comme pour la section compte ») : les chiffres clés dans
  * une bande, les tableaux en lignes serrées, chaque état en pastille avec son mot, le formulaire et ce qu'il changera côte à
  * côte, les gestes qui coupent à part. Les règles de couleur sont dans `src/lib/village/direction.ts`, le dessin dans
- * `global.css`, section « Direction, onglet Village ».
+ * `03-direction.css`, section « Direction, onglet Village ».
  */
 export default function DirectionVillage({ rank }: { rank: number }) {
   const [data, setData] = useState<EconomieDuVillage | null>(null);

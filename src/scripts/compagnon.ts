@@ -3,7 +3,7 @@
  * (demande du pilote, 14 novembre 2026 : d'abord au bas de la fenêtre, puis « sur tout l'écran »). Rangé, il attend dans
  * une petite prison, au coin bas gauche ; un clic l'en sort. Balisage : `src/components/GauloisCompagnon.astro`.
  * Calculs, testés : `src/lib/compagnon/` (mouvement, répliques, tenue ; la prison, dessin de Claude Fable 5.2, dans
- * `prison.ts`). Style : la dernière section de `global.css`.
+ * `prison.ts`). Style : `src/styles/feuilles/13-compagnon.css`.
  *
  * Léger sur chaque page : ce script ne contient ni Supabase ni le dessin du Gaulois. Le dessin (`gaulois.ts`, lourd) est
  * dans `src/lib/compagnon/dessin.ts`, chargé à la demande une seule fois par onglet : ses images, une fois peintes,
@@ -401,7 +401,7 @@ function init(): void {
     largeur = CASES_L * cote;
     hauteur = CASES_H * cote;
     const marge = margeDuBord(cote);
-    // Le bas de l'écran d'un téléphone à encoche : `scroll-margin-bottom` porte `env(safe-area-inset-bottom)` (global.css).
+    // Le bas de l'écran d'un téléphone à encoche : `scroll-margin-bottom` porte `env(safe-area-inset-bottom)` (13-compagnon.css).
     const sol = Number.parseFloat(getComputedStyle(boite!).scrollMarginBottom) || 0;
     bornes = { gauche: marge, droite: largeurFenetre() - largeur - marge, haut: plafond() + 4, bas: hauteurFenetre() - hauteur - sol };
     boite!.style.setProperty("--case", `${cote}px`);
@@ -500,7 +500,7 @@ function init(): void {
 
   /**
    * La mention de licence d'OpenFront se lit toujours en fin de page : sa place à côté du curseur l'évite, au bas de la
-   * fenêtre la place gardée sous le pied de page (global.css) la laisse au-dessus de lui, et s'il se tient ailleurs sur
+   * fenêtre la place gardée sous le pied de page (13-compagnon.css) la laisse au-dessus de lui, et s'il se tient ailleurs sur
    * elle (posé à la main, en pause), il s'efface, sans bouger, tant que la page reste défilée jusqu'en bas. Pendant le
    * défilement, elle passe sous lui sans qu'il disparaisse : il ne clignote pas.
    */

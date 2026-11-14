@@ -826,7 +826,7 @@ function init(): void {
   /* ---------- Chiffres clés ---------- */
 
   /*
-   * Un chiffre clé (`data-count`) entre à l'écran en se levant doucement (`.fx-count-in`, global.css), déjà à sa vraie
+   * Un chiffre clé (`data-count`) entre à l'écran en se levant doucement (`.fx-count-in`, 01-socle.css), déjà à sa vraie
    * valeur. Jusqu'au 14 novembre 2026, il montait de zéro en une seconde : la page montrait des chiffres faux (1 497,47 pour
    * 2 397,86), et un onglet ouvert en arrière-plan restait figé sur l'un d'eux. Le texte n'est plus jamais touché : celui du
    * build, que lisent aussi les lecteurs d'écran et le copier-coller. Les chiffres qui entrent ensemble se lèvent l'un après

@@ -1,9 +1,9 @@
-import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { feuilleEntiere } from "./feuilles-graphe";
 
 // Le thème clair « Neige Marine » (14 novembre 2026) : ce que la feuille de style doit tenir pour rester lisible.
-// Voir docs/DESIGN.md, « Le thème clair ».
-const CSS = readFileSync("src/styles/global.css", "utf8").replace(/\r\n/g, "\n");
+// Voir docs/DESIGN.md, « Le thème clair ». La feuille entière : tous ses morceaux (src/styles/feuilles/), bout à bout.
+const CSS = feuilleEntiere();
 /** La feuille sans ses commentaires : un commentaire peut citer une couleur d'avant. */
 const CODE = CSS.replace(/\/\*[\s\S]*?\*\//g, (commentaire) => commentaire.replace(/[^\n]/g, " "));
 

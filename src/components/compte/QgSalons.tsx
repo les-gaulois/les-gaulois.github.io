@@ -76,7 +76,7 @@ function keepFocus(before: Element | null, target: () => HTMLElement | null): vo
  * sans `id`, l'adresse #salons ouvre l'onglet (`Onglets.tsx`) au lieu de faire défiler la page. `voice` : le salon vocal du
  * clan, réglé dans la Direction (`get_qg_tools`), pour se retrouver avant de lancer la partie ; `null`, pas de bouton.
  * Les calculs de la liste (ordre, temps restant, états en couleur) et des envois sont dans `src/lib/compte/qg-salons.ts` ; le
- * dessin, dans `global.css`, section « Le QG, onglet Salons ».
+ * dessin, dans `12-qg.css`, section « Le QG, onglet Salons ».
  */
 export default function QgSalons({ voice = null }: { voice?: string | null }) {
   const [appels, setAppels] = useState<AppelsState | null>(null);

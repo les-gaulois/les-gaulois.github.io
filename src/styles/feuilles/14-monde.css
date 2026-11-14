@@ -1,0 +1,1351 @@
+/* Un morceau de la feuille du site (src/lib/feuilles.ts). Tailwind le lit avec le socle : mêmes jetons, mêmes replis. */
+@reference "./01-socle.css";
+/* ---------- Le monde du village (14 novembre 2026) ---------- */
+/* Demande du pilote : « un vrai univers où les persos se déplacent sans avoir à changer de page, un grand écran immersif,
+   sans page », puis « je veux un maximum de détail, ça doit être immersif ». `/village` est un seul écran : le panorama du
+   village en pixels remplit la fenêtre sous l'en-tête, on s'y promène de gauche à droite, et les fenêtres s'ouvrent
+   par-dessus (src/components/village/monde/, dessins dans src/lib/village/monde/). Design : Claude Fable 5.2.
+
+   Deux étages, comme la Carte. La mise en page d'écran ne vaut qu'avec `:root.village-monde`, que la page pose dès son
+   premier affichage : sans script, la page défile et le village se lit en texte (`.monde-sans-script`). Tout ce qui bouge
+   est lent, démarre et s'arrête en douceur ; le bouton pause de l'en-tête (`fx-off`) et « réduire les animations » figent
+   tout (règles générales du site, plus haut : aucune animation, aucune transition). */
+
+:root.village-monde body {
+  height: 100vh;
+  height: 100dvh;
+}
+:root.village-monde main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+:root.village-monde body > footer,
+:root.village-monde .monde-sans-script {
+  display: none;
+}
+:root:not(.village-monde) .monde {
+  display: none;
+}
+.monde-page {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-height: 0;
+  margin-top: 0.75rem;
+}
+/* Sur un écran large, les onglets de la rubrique (Membres, La liste, Le village, Le QG) se posent sur le ciel, en haut à
+   gauche du monde, au lieu de lui prendre une bande d'écran : ils sont le titre visible de la page. Leur bloc ne prend
+   plus de hauteur, et le monde commence sous l'en-tête. */
+@media (min-width: 48rem) {
+  :root.village-monde main > .wrap:has(> .rubrique) {
+    position: relative;
+    z-index: 25;
+    width: auto;
+    max-width: none;
+    height: 0;
+    margin: 0;
+    padding: 0.625rem 0.75rem 0;
+  }
+  :root.village-monde main > .wrap:has(> .rubrique) > .rubrique {
+    width: max-content;
+  }
+  :root.village-monde .monde-page {
+    margin-top: 0;
+  }
+}
+/* Sur un écran trop bas, le monde garde une hauteur qui se lit, et la page défile un peu. */
+:root.village-monde .monde-page {
+  min-height: 20rem;
+}
+.monde-sans-script {
+  padding-block: 2rem 4rem;
+}
+.monde-sans-script-titre {
+  margin-bottom: 0.5rem;
+  color: var(--ecriture);
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+.monde-sans-script ol {
+  display: grid;
+  gap: 0.25rem;
+  color: var(--color-muted);
+}
+
+/* L'écran : la scène, et sous elle, sur un téléphone, la rangée d'icônes. */
+.monde {
+  --monde-vitre: color-mix(in srgb, var(--color-navy) 92%, transparent);
+  position: relative;
+  display: grid;
+  flex: 1 1 0;
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-height: 0;
+  overflow: hidden;
+  border-top: 1px solid var(--color-line);
+  background: var(--color-night);
+}
+/* La scène : on la glisse à la souris ou au doigt ; elle prend le focus, pour les flèches du clavier. */
+.monde-scene {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.monde-scene[data-glisse] {
+  cursor: grabbing;
+}
+.monde-scene:focus-visible {
+  outline: 3px solid var(--sur-couleur);
+  outline-offset: -3px;
+}
+/* Le titre de la page n'est lu que par les lecteurs d'écran (les onglets de la rubrique le montrent) : ses mots ne se
+   coupent pas, même dans sa boîte d'un pixel. */
+.monde-titre {
+  white-space: nowrap !important;
+  overflow-wrap: normal !important;
+  word-break: normal !important;
+  hyphens: none !important;
+}
+/* Le dessin est caché aux lecteurs d'écran d'un bloc, sans peser sur la mise en page. */
+.monde-dessin {
+  display: contents;
+}
+.monde-ciel,
+.monde-lointain,
+.monde-nuages,
+.monde-monde {
+  position: absolute;
+  left: 0;
+}
+.monde-ciel,
+.monde-monde {
+  bottom: 0;
+}
+.monde-lointain,
+.monde-monde {
+  will-change: transform;
+}
+.monde-tuile,
+.monde-anime {
+  position: absolute;
+  top: 0;
+  pointer-events: none;
+}
+/* Les nuages dérivent très lentement vers la gauche : un quart d'heure pour traverser la couche du fond, dix minutes pour
+   celle de devant. La toile porte deux fois le même ciel : la dérive reprend sans raccord. */
+.monde-nuages {
+  top: 0;
+  pointer-events: none;
+  animation: monde-derive 900s linear infinite;
+}
+.monde-nuages[data-couche="1"] {
+  animation-duration: 600s;
+}
+@keyframes monde-derive {
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+/* Quelques oiseaux passent, le jour : deux images d'ailes, une toutes les secondes, et deux minutes pour traverser. En
+   pause, ils attendent hors de l'écran. */
+.monde-oiseaux,
+.monde-lucioles {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.monde-oiseau {
+  position: absolute;
+  top: var(--monde-haut);
+  left: -3rem;
+  animation: monde-vol 130s linear infinite;
+  animation-delay: var(--monde-retard);
+}
+.monde-oiseau i {
+  position: absolute;
+  width: var(--place-case);
+  height: var(--place-case);
+  color: #1c2a4c;
+  box-shadow:
+    calc(-3 * var(--place-case)) calc(-2 * var(--place-case)) currentColor,
+    calc(-2 * var(--place-case)) calc(-1 * var(--place-case)) currentColor,
+    calc(-1 * var(--place-case)) 0 currentColor,
+    0 var(--place-case) currentColor,
+    var(--place-case) 0 currentColor,
+    calc(2 * var(--place-case)) calc(-1 * var(--place-case)) currentColor,
+    calc(3 * var(--place-case)) calc(-2 * var(--place-case)) currentColor;
+  animation: monde-aile-haute 2s steps(1, end) infinite;
+}
+.monde-oiseau i + i {
+  opacity: 0;
+  box-shadow:
+    calc(-3 * var(--place-case)) var(--place-case) currentColor,
+    calc(-2 * var(--place-case)) 0 currentColor,
+    calc(-1 * var(--place-case)) 0 currentColor,
+    0 0 currentColor,
+    var(--place-case) 0 currentColor,
+    calc(2 * var(--place-case)) 0 currentColor,
+    calc(3 * var(--place-case)) var(--place-case) currentColor;
+  animation-name: monde-aile-basse;
+}
+@keyframes monde-vol {
+  to {
+    transform: translate3d(calc(100vw + 6rem), -2rem, 0);
+  }
+}
+@keyframes monde-aile-haute {
+  50% {
+    opacity: 0;
+  }
+}
+@keyframes monde-aile-basse {
+  50% {
+    opacity: 1;
+  }
+}
+/* Les lucioles des nuits d'été : de petits points qui s'allument et s'éteignent très lentement en dérivant. */
+.monde-lucioles i {
+  position: absolute;
+  width: var(--place-case);
+  height: var(--place-case);
+  background: #e9f58a;
+  opacity: 0.55;
+  animation: monde-luciole 11s ease-in-out infinite alternate;
+  animation-delay: var(--monde-retard);
+}
+@keyframes monde-luciole {
+  from {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  50% {
+    opacity: 0.85;
+  }
+  to {
+    opacity: 0;
+    transform: translate(1.5rem, -1rem);
+  }
+}
+/* La fumée des cheminées : trois carrés qui montent lentement et s'effacent, l'un après l'autre. Sans mouvement, ils
+   restent posés au-dessus de la cheminée. */
+.monde-fumee {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+}
+.monde-fumee i {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  width: calc(4 * var(--place-case));
+  height: calc(4 * var(--place-case));
+  background: #dfe6f4;
+  opacity: 0.3;
+  translate: calc(-2 * var(--place-case)) calc(-8 * var(--place-case));
+  animation: monde-fumee 15s linear infinite;
+  animation-delay: var(--monde-retard);
+}
+.monde-fumee i:nth-child(2) {
+  width: calc(5 * var(--place-case));
+  height: calc(5 * var(--place-case));
+  opacity: 0.2;
+  translate: calc(1 * var(--place-case)) calc(-18 * var(--place-case));
+  animation-delay: calc(var(--monde-retard) - 5s);
+}
+.monde-fumee i:nth-child(3) {
+  width: calc(7 * var(--place-case));
+  height: calc(7 * var(--place-case));
+  opacity: 0.12;
+  translate: calc(4 * var(--place-case)) calc(-30 * var(--place-case));
+  animation-delay: calc(var(--monde-retard) - 10s);
+}
+@keyframes monde-fumee {
+  from {
+    opacity: 0;
+    translate: calc(-2 * var(--place-case)) calc(-2 * var(--place-case));
+  }
+  20% {
+    opacity: 0.34;
+  }
+  to {
+    opacity: 0;
+    translate: calc(9 * var(--place-case)) calc(-44 * var(--place-case));
+  }
+}
+
+/* Un Gaulois dans le monde : les classes de la place (`.vie-acteur`, `.place-nom`, bulles), à sa taille du moment. */
+.monde-acteur {
+  --vie-l: 48;
+  --vie-h: 64;
+  --vie-nom: 65;
+  --vie-nom-l: 50;
+}
+.monde-acteur[data-tenue="debout"]::before {
+  content: "";
+  position: absolute;
+  top: calc(59 * var(--place-case));
+  left: 50%;
+  width: calc(26 * var(--place-case));
+  height: calc(5 * var(--place-case));
+  translate: -50% 0;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.28);
+}
+.monde-acteur .place-nom {
+  z-index: 1;
+}
+/* À l'étroit dans son lieu, ou vu de loin (cases d'un pixel) : son nom ne s'écrit plus dessous, sauf le sien ; il reste au
+   survol, au toucher et dans « Qui est où ». */
+.monde-acteur[data-serre]:not([data-moi]) .place-nom,
+.monde-scene[data-loin] .monde-acteur:not([data-moi]) .place-nom {
+  display: none;
+}
+.monde-acteur:not([data-tenue="couche"]) .vie-ronfle {
+  display: none;
+}
+/* Les plaques de la forge (MondePlaques.tsx), sous ce qui place un Gaulois : au survol, au toucher et dans « Qui est où ».
+   Le nom de l'objet en blanc, le texte gravé dessous, sur le fond plein de l'étiquette. */
+.monde-plaques {
+  display: grid;
+  gap: 0.1875rem;
+  margin-top: 0.3125rem;
+  padding-top: 0.3125rem;
+  border-top: 1px solid var(--color-line-strong);
+}
+.monde-plaque-objet {
+  display: block;
+  color: var(--ecriture);
+  font-weight: 600;
+}
+.monde-plaque-texte {
+  display: block;
+  color: var(--color-muted);
+}
+.vie-liste-plaques {
+  flex-basis: 100%;
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+/* Une zone cliquable posée sur un bâtiment : elle ouvre sa fenêtre. Sous les Gaulois, qu'on touche pour les faire parler. */
+.monde-zone {
+  position: absolute;
+  z-index: 1;
+  border-radius: 0.5rem;
+  cursor: pointer;
+}
+.monde-zone:hover {
+  outline: 2px dashed color-mix(in srgb, var(--sur-couleur) 75%, transparent);
+  outline-offset: 2px;
+}
+.monde-zone:focus-visible {
+  outline: 3px solid var(--sur-couleur);
+  outline-offset: 2px;
+}
+/* Une étiquette posée sur le dessin, au-dessus de ce qu'elle nomme : fond plein, texte blanc (15:1), jamais petite. */
+.monde-etiquette {
+  position: absolute;
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1875rem;
+  width: max-content;
+  max-width: min(19rem, 86vw);
+  padding: 0.375rem 0.75rem;
+  translate: -50% -100%;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.5rem;
+  background: var(--color-night);
+  color: var(--ecriture);
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  text-align: center;
+}
+button.monde-etiquette {
+  cursor: pointer;
+}
+button.monde-etiquette:hover {
+  border-color: var(--ecriture);
+}
+.monde-etiquette:is([data-sorte="chantier"], [data-sorte="feu"])::after {
+  content: "";
+  position: absolute;
+  top: calc(100% - 0.25rem);
+  left: 50%;
+  width: 0.5rem;
+  height: 0.5rem;
+  translate: -50% 0;
+  rotate: 45deg;
+  border: solid var(--color-line-strong);
+  border-width: 0 1px 1px 0;
+  background: var(--color-night);
+}
+.monde-etiquette[data-sorte="lieu"] {
+  flex-direction: row;
+  gap: 0.375rem;
+  padding: 0.1875rem 0.5625rem;
+  font-weight: 600;
+}
+/* En lettres droites, pas en onciale : la phrase du chantier se lit d'un coup d'œil. */
+.monde-etiquette-titre {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+.monde-etiquette-note {
+  color: var(--color-muted);
+}
+.monde-etiquette-compte,
+.monde-carte-compte {
+  min-width: 1.25rem;
+  padding: 0 0.3125rem;
+  border-radius: 999px;
+  background: var(--ecriture);
+  color: var(--color-navy);
+  font-weight: 700;
+  line-height: 1.25rem;
+  text-align: center;
+}
+/* La jauge du chantier : ce qui est posé, en jaune, sur ce qui reste. Le chiffre est écrit à côté. */
+.monde-jauge {
+  display: block;
+  width: 100%;
+  min-width: 9rem;
+  height: 0.375rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-line);
+}
+.monde-jauge i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--color-warn);
+}
+
+/* Ce qui se pose sur le monde : le titre, la petite carte, la ligne des liens. Des vitres claires, au filet du site (thème clair du 14 novembre 2026). */
+.monde-carte,
+.monde-dock,
+.monde-credit,
+.monde-fenetre {
+  cursor: auto;
+  touch-action: auto;
+}
+/* La petite carte : le panorama en une bande, un bouton par quartier à sa place et à sa largeur, et le cadre blanc de ce
+   que l'écran voit. */
+.monde-carte {
+  position: absolute;
+  top: 0.625rem;
+  right: 0.75rem;
+  z-index: 20;
+  width: min(56rem, calc(100% - 30rem));
+  padding: 0.25rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.625rem;
+  background: var(--monde-vitre);
+}
+.monde-carte-bande {
+  position: relative;
+  height: 2.25rem;
+}
+.monde-carte-quartier {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--monde-q-x);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3125rem;
+  width: var(--monde-q-l);
+  min-width: 0;
+  padding: 0 0.125rem;
+  border-left: 1px solid var(--color-line);
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.monde-carte-quartier:hover {
+  background: var(--color-surface);
+  color: var(--ecriture);
+}
+.monde-carte-quartier[aria-current="true"] {
+  background: var(--color-surface-2);
+  color: var(--ecriture);
+}
+.monde-carte-icone {
+  flex: none;
+}
+/* Le nom du quartier où l'on est s'écrit sous la bande ; celui d'un autre, au survol ou au clavier. */
+.monde-carte-nom {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 50%;
+  z-index: 1;
+  display: none;
+  padding: 0.0625rem 0.5rem;
+  translate: -50% 0;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.375rem;
+  background: var(--color-night);
+  color: var(--ecriture);
+  font-size: 0.8125rem;
+  pointer-events: none;
+}
+.monde-carte-quartier:is([aria-current="true"], :hover, :focus-visible) .monde-carte-nom {
+  display: block;
+}
+.monde-carte-quartier:is(:hover, :focus-visible) .monde-carte-nom {
+  z-index: 2;
+}
+.monde-carte-compte {
+  flex: none;
+  font-size: 0.6875rem;
+  line-height: 1.125rem;
+  min-width: 1.125rem;
+}
+.monde-carte-vue {
+  position: absolute;
+  top: -0.1875rem;
+  bottom: -0.1875rem;
+  border: 2px solid var(--ecriture);
+  border-radius: 0.375rem;
+  box-shadow: 0 0 0 1px var(--color-navy);
+  pointer-events: none;
+}
+.monde-carte-moi {
+  position: absolute;
+  bottom: -0.375rem;
+  translate: -50% 0;
+  border-inline: 0.3125rem solid transparent;
+  border-bottom: 0.4375rem solid var(--ecriture);
+  pointer-events: none;
+}
+.monde-carte-moi[hidden] {
+  display: none;
+}
+/* La ligne que le pied de page du site ne montre plus ici. */
+.monde-credit {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.5rem;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0 0.875rem;
+  padding: 0 0.625rem;
+  border-radius: 0.375rem;
+  background: var(--monde-vitre);
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+}
+.monde-credit a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.monde-credit a:hover {
+  color: var(--ecriture);
+}
+
+/* La rangée d'icônes : en rail à gauche sur un écran large. L'entrée ouverte porte le filet rouge du marqueur de page. */
+.monde-dock {
+  position: absolute;
+  top: 4.125rem;
+  left: 0.75rem;
+  z-index: 20;
+  padding: 0.3125rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.75rem;
+  background: var(--monde-vitre);
+}
+.monde-dock ul {
+  display: grid;
+  gap: 0.1875rem;
+}
+.monde-dock-entree {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1875rem;
+  width: 4.5rem;
+  min-height: 3.75rem;
+  padding: 0.3125rem 0.125rem;
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+  cursor: pointer;
+}
+.monde-dock-entree:hover {
+  border-color: var(--color-line-strong);
+  background: var(--color-surface);
+  color: var(--ecriture);
+}
+.monde-dock-entree[aria-expanded="true"] {
+  border-color: var(--color-line-strong);
+  background: var(--color-surface-2);
+  box-shadow: inset 0 -3px 0 var(--color-red);
+  color: var(--ecriture);
+}
+
+/* Une fenêtre posée sur le monde, à droite : sa barre, puis son contenu qui défile dans son cadre. Même famille que
+   celles de la Carte : le bleu des cartes du site, un filet, des coins doux. */
+.monde-fenetre {
+  position: absolute;
+  top: 4.125rem;
+  right: 0.75rem;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  width: min(27rem, calc(100% - 7.5rem));
+  max-height: calc(100% - 6.875rem);
+  overflow: hidden;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.75rem;
+  background: var(--color-navy);
+  box-shadow: 0 1rem 2.5rem var(--ombre);
+  -webkit-user-select: text;
+  user-select: text;
+  animation: monde-fenetre-parait 0.3s ease-out;
+}
+.monde-fenetre[hidden] {
+  display: none;
+}
+.monde-fenetre[data-grande] {
+  width: min(78rem, calc(100% - 7.5rem));
+  height: calc(100% - 6.875rem);
+}
+.monde-fenetre:focus-visible {
+  outline: 2px solid var(--color-blue-text);
+  outline-offset: -2px;
+}
+@keyframes monde-fenetre-parait {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+}
+.monde-fenetre-barre {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.25rem 0.25rem 0.25rem 0.875rem;
+  border-bottom: 1px solid var(--color-line);
+  background: var(--color-surface);
+}
+.monde-fenetre-icone {
+  flex: none;
+}
+.monde-fenetre-titre {
+  flex: 1;
+  min-width: 0;
+  color: var(--ecriture);
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+.monde-fermer {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.5rem;
+  color: var(--color-muted);
+  cursor: pointer;
+}
+.monde-fermer:hover {
+  background: var(--color-surface-2);
+  color: var(--ecriture);
+}
+.monde-fenetre-corps {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 1rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Dans les fenêtres : un chiffre en grand, la phrase du chantier, la liste des bâtiments, l'échelle des feux. */
+.monde-chantier,
+.monde-feu,
+.monde-qui,
+.monde-forge {
+  display: grid;
+  gap: 0.875rem;
+  min-width: 0;
+}
+.monde-chiffre {
+  color: var(--color-muted);
+}
+.monde-chiffre strong {
+  margin-right: 0.25rem;
+  color: var(--ecriture);
+  font-family: var(--font-display);
+  font-size: 2.25rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.monde-en-cours {
+  display: grid;
+  gap: 0.375rem;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.625rem;
+  background: var(--color-surface);
+}
+.monde-en-cours-phrase {
+  color: var(--ecriture);
+  font-weight: 600;
+}
+.monde-batiments {
+  display: grid;
+}
+.monde-batiments li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0 0.625rem;
+  padding: 0.375rem 0;
+  border-top: 1px solid var(--color-line);
+}
+.monde-batiment-marque {
+  grid-row: 1 / 3;
+  width: 0.75rem;
+  height: 0.75rem;
+  border: 2px solid var(--color-line-strong);
+  border-radius: 2px;
+}
+.monde-batiments li[data-etat="fini"] .monde-batiment-marque {
+  border-color: var(--color-ok);
+  background: var(--color-ok);
+}
+.monde-batiments li[data-etat="chantier"] .monde-batiment-marque {
+  border-color: var(--color-warn);
+  background: linear-gradient(to top, var(--color-warn) 50%, transparent 50%);
+}
+.monde-batiment-nom {
+  color: var(--ecriture);
+  font-weight: 600;
+}
+.monde-batiments li[data-etat="attente"] .monde-batiment-nom {
+  color: var(--color-muted);
+}
+.monde-batiment-etat {
+  grid-column: 2;
+  color: var(--color-muted);
+  font-size: 0.875rem;
+}
+.monde-batiments .monde-voir {
+  grid-row: 1 / 3;
+  grid-column: 3;
+}
+.monde-voir,
+.monde-lien {
+  min-height: 1.75rem;
+  padding: 0 0.375rem;
+  color: var(--color-blue-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.monde-voir:hover,
+.monde-lien:hover {
+  color: var(--ecriture);
+}
+.monde-qui .vie-liste {
+  margin-top: 0;
+}
+.monde-qui .vie-liste-titre {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.monde-bouton {
+  justify-self: start;
+}
+.monde-feu-nom {
+  color: var(--ecriture);
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+.monde-feux {
+  display: grid;
+}
+.monde-feux li {
+  display: grid;
+  grid-template-columns: 1.25rem minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 0 0.625rem;
+  padding: 0.375rem 0.5rem;
+  border-top: 1px solid var(--color-line);
+  color: var(--color-muted);
+}
+.monde-feux li[aria-current="true"] {
+  border-radius: 0.375rem;
+  background: var(--color-surface-2);
+  color: var(--ecriture);
+  font-weight: 600;
+}
+.monde-feu-barre {
+  width: 0.75rem;
+  height: calc(0.375rem + var(--monde-niveau) * 0.3125rem);
+  border-radius: 2px 2px 0 0;
+  background: #f58a1f;
+}
+.monde-feux-seuil {
+  font-size: 0.875rem;
+}
+
+/* Un écran étroit (téléphone) : le titre et la petite carte en haut, les liens dessous, la rangée d'icônes en bas, et les
+   fenêtres en panneau qui monte du bas. */
+@media (max-width: 47.9375rem) {
+  /* Huit boutons de même largeur : chacun garde 24 pixels au moins. Le quartier où l'on est porte le fond clair. */
+  .monde-carte {
+    top: 0.5rem;
+    right: 0.5rem;
+    left: 0.5rem;
+    width: auto;
+  }
+  .monde-carte-bande {
+    display: flex;
+    height: 2rem;
+  }
+  .monde-carte-quartier {
+    position: static;
+    flex: 1 1 0;
+    width: auto;
+  }
+  .monde-carte-quartier:first-child {
+    border-left: 0;
+  }
+  .monde-carte-vue,
+  .monde-carte-moi,
+  .monde-carte-compte {
+    display: none;
+  }
+  /* Les liens tiennent sur une ligne au bas de la scène, en petit : une note de bas d'écran. */
+  .monde-credit {
+    right: 0;
+    bottom: 0;
+    left: 0;
+    justify-content: center;
+    gap: 0 0.625rem;
+    padding: 0 0.25rem;
+    border-radius: 0;
+    font-size: 0.75rem;
+  }
+
+  .monde-dock {
+    position: static;
+    padding: 0.1875rem 0.25rem calc(0.1875rem + env(safe-area-inset-bottom, 0px));
+    border: 0;
+    border-top: 1px solid var(--color-line);
+    border-radius: 0;
+    background: var(--color-night);
+  }
+  .monde-dock ul {
+    grid-auto-columns: minmax(0, 1fr);
+    grid-auto-flow: column;
+  }
+  .monde-dock-entree {
+    width: auto;
+    min-height: 3.125rem;
+    font-size: 0.75rem;
+  }
+  .monde-dock-entree .monde-dock-icone {
+    width: 22px !important;
+    height: 22px !important;
+  }
+  /* Le panneau s'arrête au-dessus de la ligne du crédit : la mention d'OpenFront ne se couvre jamais (règle de la Carte). */
+  .monde-fenetre,
+  .monde-fenetre[data-grande] {
+    top: auto;
+    right: 0;
+    bottom: 1.25rem;
+    left: 0;
+    width: auto;
+    height: auto;
+    max-height: 70%;
+    border-width: 1px 0 0;
+    border-radius: 0.875rem 0.875rem 0 0;
+    animation-name: monde-panneau-monte;
+    animation-duration: 0.36s;
+  }
+  .monde-fenetre[data-grande] {
+    height: calc(100% - 4rem);
+    max-height: none;
+  }
+  @keyframes monde-panneau-monte {
+    from {
+      transform: translateY(100%);
+    }
+  }
+}
+/* Un écran bas (téléphone couché, fenêtre réduite) : le rail d'icônes se serre pour tenir. */
+@media (min-width: 48rem) and (max-height: 37rem) {
+  .monde-dock-entree {
+    min-height: 3.125rem;
+  }
+  .monde-dock-entree .monde-dock-icone {
+    width: 22px !important;
+    height: 22px !important;
+  }
+}
+/* En contraste élevé : les dessins gardent leurs couleurs, les vitres prennent celles du système. */
+@media (forced-colors: active) {
+  .monde-scene canvas {
+    forced-color-adjust: none;
+  }
+  .monde-carte-vue {
+    border-color: Highlight;
+  }
+}
+@media print {
+  .monde {
+    display: none;
+  }
+  .monde-sans-script {
+    display: block !important;
+  }
+}
+
+/* ---------- La forge du village (14 novembre 2026) ---------- */
+/* La forge aux souvenirs, dans sa fenêtre du monde : la bourse et le prix, les objets (les cases du vestiaire), l'établi
+   avec la grande plaque dorée, les parties à graver, puis l'effacement, à part sous un filet. L'or est celui de la plaque
+   dessinée (src/lib/village/batiments/forge.ts). Rien ne bouge ici : aucune animation. */
+.forge {
+  --forge-or: #e2b23c;
+  --forge-or-clair: #ffe08a;
+  --forge-grave: #3b2a06;
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+.forge-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.625rem;
+  background: var(--color-surface);
+}
+.forge-bourse {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--rarete-legendaire-texte);
+  font-weight: 600;
+}
+.forge-solde {
+  color: var(--ecriture);
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.forge-prix {
+  color: var(--color-muted);
+  font-size: 0.875rem;
+}
+.forge-prix strong {
+  color: var(--ecriture);
+  white-space: nowrap;
+}
+.forge-etape {
+  color: var(--color-muted);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.forge-mot {
+  color: var(--texte-courant);
+}
+.forge-ferme .monde-lien,
+.forge-mot .monde-lien {
+  padding: 0;
+  font-size: inherit;
+}
+/* Les objets : trois cases de front dans la fenêtre, comme le vestiaire sur un téléphone. */
+.forge-cases {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+/* La petite plaque dorée d'un objet gravé, au coin bas de son image : ici et dans les cases du vestiaire. Son texte est
+   dans le nom de la case et au survol. */
+.case .plaque-coin {
+  position: absolute;
+  top: 4.5rem;
+  right: 0.3125rem;
+  filter: drop-shadow(0 1px 0 rgb(0 0 0 / 0.55));
+  pointer-events: none;
+}
+
+/* L'établi : l'objet choisi et sa plaque. Dans une fenêtre haute, il reste en vue pendant qu'on choisit une partie. */
+.forge-etabli {
+  display: grid;
+  gap: 0.625rem;
+  min-width: 0;
+}
+@media (min-width: 48rem) and (min-height: 46rem) {
+  .forge-etabli {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    margin: -0.5rem -1rem 0;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--color-line);
+    background: var(--color-navy);
+  }
+}
+.forge-etabli-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.125rem 0.75rem;
+}
+.forge-objet-nom {
+  min-width: 0;
+  color: var(--ecriture);
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+.forge-objet-nom:focus {
+  outline: none;
+}
+.forge-porte-mot {
+  color: var(--color-muted);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.forge-etabli-tete .monde-lien {
+  padding-inline: 0;
+}
+
+/* La grande plaque : le dessin en pixels, et le texte écrit par-dessus, sur son champ uni (cases 4 à 35 en largeur, 3 à 12
+   en hauteur). Un texte sombre, comme creusé dans l'or : 7 pour 1 de contraste. */
+.forge-plaque {
+  display: grid;
+  justify-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+  margin: 0;
+}
+.forge-plaque-cadre {
+  position: relative;
+  max-width: 100%;
+  line-height: 0;
+  filter: drop-shadow(0 0.1875rem 0 rgb(0 0 0 / 0.4));
+  forced-color-adjust: none;
+}
+.forge-plaque-texte {
+  position: absolute;
+  top: calc(3 * var(--forge-case));
+  left: calc(4 * var(--forge-case));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: calc(32 * var(--forge-case));
+  height: calc(10 * var(--forge-case));
+  overflow: hidden;
+  color: var(--forge-grave);
+  font-size: calc(1.95 * var(--forge-case));
+  font-weight: 800;
+  line-height: 1.22;
+  text-align: center;
+  text-shadow: 0 1px 0 var(--forge-or-clair);
+  -webkit-user-select: text;
+  user-select: text;
+}
+.forge-plaque-texte > span {
+  display: block;
+  max-width: 100%;
+  white-space: nowrap;
+}
+.forge-plaque-legende {
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+/* Les parties : une rangée par partie, la plaque qu'elle donnerait, l'heure de son début pour la reconnaître. La partie
+   choisie prend le filet d'or ; le rond coché le dit aussi. */
+.forge-parties {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.forge-parties > legend {
+  margin-bottom: 0.5rem;
+  padding: 0;
+}
+.forge-parties ul {
+  display: grid;
+  gap: 0.375rem;
+}
+.forge-partie {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: 2.75rem;
+  padding: 0.4375rem 0.75rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.5rem;
+  background: var(--color-surface);
+  color: var(--ecriture);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  line-height: 1.3;
+  cursor: pointer;
+}
+.forge-partie:hover {
+  border-color: var(--color-line-strong);
+}
+.forge-partie input {
+  width: 1.125rem;
+  height: 1.125rem;
+  margin: 0;
+  accent-color: var(--forge-or);
+  cursor: pointer;
+}
+.forge-partie:has(input:checked) {
+  border-color: var(--forge-or);
+  background: color-mix(in srgb, var(--forge-or) 14%, var(--color-navy));
+  box-shadow: inset 0 0 0 1px var(--forge-or);
+}
+.forge-partie:has(input:focus-visible) {
+  outline: 2px solid var(--color-blue-text);
+  outline-offset: 2px;
+}
+.forge-partie-heure {
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.forge-plus {
+  margin-top: 0.5rem;
+  padding-inline: 0;
+}
+
+/* Graver : le bouton, et sous lui ce qui l'éteint, en mots. */
+.forge-action {
+  display: grid;
+  justify-items: start;
+  gap: 0.375rem;
+}
+.forge-raison {
+  color: var(--color-warn);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+/* Effacer une plaque ne se rattrape pas : à part, sous un filet, au second clic ; armé, le bouton passe au rouge et dit
+   ce qui sera perdu. */
+.forge-effacer {
+  display: grid;
+  justify-items: start;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  padding-block: 1rem;
+  border-block: 1px solid var(--color-line);
+}
+.forge-effacer-bouton[data-arme] {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+.forge-effacer-note {
+  color: var(--color-warn);
+  font-size: 0.875rem;
+}
+/* La porte du visiteur : une plaque vierge, la phrase, la connexion. */
+.forge-porte {
+  display: grid;
+  justify-items: start;
+  gap: 1rem;
+  min-width: 0;
+}
+.forge-porte .forge-plaque {
+  justify-self: center;
+}
+/* La confirmation : la plaque, l'objet dessous, puis le compte de la boutique. */
+.forge-dialogue .forge-plaque-legende {
+  color: var(--ecriture);
+  font-size: 1rem;
+}
+
+/* ---------- Le monde du village : la colline, l'approche, la vie (14 novembre 2026, deuxième étape) ---------- */
+/* Demandes du pilote après les premières planches : « les Gaulois sont trop gros, ainsi que les bâtiments » (on voit le
+   monde de plus loin, avec des niveaux d'approche), « un monde vivant qui pourra accueillir jusqu'à 1000 membres » (le
+   village s'étage en terrasses), « des éléments OpenFront » (le bas : la voie, l'usine, le port, la mer), des bêtes.
+   Ces règles complètent « Le monde du village », plus haut : le monde a maintenant une hauteur, et la caméra deux sens. */
+
+/* Tout le dessin tient dans une optique : pour passer d'un niveau d'approche à l'autre, elle grandit ou rétrécit
+   lentement (une seconde, réglée par l'écran), puis le monde est redessiné net, en cases entières. */
+.monde-optique {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+/* Le fond (ciel, nuages, lointains) monte et descend avec la caméra ; le monde la suit dans les deux sens. */
+.monde-fond {
+  position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform;
+}
+.monde-ciel,
+.monde-monde {
+  top: 0;
+  bottom: auto;
+}
+/* Une terrasse du fond : un calque du monde, rangé sous le décor du premier plan et sous ses propres Gaulois, que
+   l'écran décale de ce que la caméra a parcouru sans lui. */
+.monde-terrasse {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: var(--monde-rang, -1);
+  pointer-events: none;
+  will-change: transform;
+}
+/* Ce que les événements et les bêtes posent sur le monde : de petites toiles, que l'écran déplace. */
+.monde-lutin,
+.monde-bete {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+.monde-habitants,
+.monde-evenements {
+  display: contents;
+}
+/* Les étiquettes passent devant les Gaulois, quelle que soit la hauteur du monde ; une bulle ouverte passe devant elles. */
+.monde-etiquette {
+  z-index: 9000;
+}
+/* Vus de loin, au-delà de soixante Gaulois, leurs noms ne s'écrivent plus sous chacun (sauf le sien) : ils restent au
+   survol, au toucher et dans « Qui est où ». */
+.monde-habitants[data-foule] .monde-acteur:not([data-moi]) .place-nom {
+  display: none;
+}
+.monde-lucioles i {
+  bottom: auto;
+}
+/* La petite carte : un bouton par quartier, tous de la même largeur, la grand-rue d'ouest en est puis le bas. */
+.monde-carte {
+  width: min(44rem, calc(100% - 30rem));
+}
+.monde-carte-bande {
+  display: flex;
+}
+.monde-carte-quartier {
+  position: relative;
+  inset: auto;
+  flex: 1 1 0;
+  width: auto;
+}
+.monde-carte-quartier:first-child {
+  border-left: 0;
+}
+/* Aux deux bouts, le nom du quartier s'aligne sur son bouton : il ne sort pas de l'écran. */
+.monde-carte-quartier:nth-child(-n + 2) .monde-carte-nom {
+  left: 0;
+  translate: none;
+}
+.monde-carte-quartier:nth-last-child(-n + 3) .monde-carte-nom {
+  right: 0;
+  left: auto;
+  translate: none;
+}
+/* S'approcher ou s'éloigner : deux boutons, en bas à droite, au-dessus de la ligne des liens. */
+.monde-approche {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 2.75rem;
+  z-index: 20;
+  display: grid;
+  gap: 0.1875rem;
+  padding: 0.25rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.625rem;
+  background: var(--monde-vitre);
+  cursor: auto;
+  touch-action: auto;
+}
+.monde-approche-bouton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.5rem;
+  color: var(--ecriture);
+  cursor: pointer;
+}
+.monde-approche-bouton:hover:not(:disabled) {
+  background: var(--color-surface-2);
+}
+.monde-approche-bouton:disabled {
+  color: var(--color-line-strong);
+  cursor: default;
+}
+@media (max-width: 47.9375rem) {
+  .monde-carte {
+    width: auto;
+  }
+  .monde-approche {
+    right: 0.5rem;
+    bottom: 2rem;
+  }
+}
+/* Vu de loin, un nom garde la place de s'écrire : il ne se coupe pas à la largeur du Gaulois. */
+.monde-acteur .place-nom {
+  max-width: max(calc(var(--vie-nom-l) * var(--place-case)), 7.5rem);
+}

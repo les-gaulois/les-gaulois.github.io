@@ -1,0 +1,2837 @@
+@import "@fontsource-variable/outfit";
+@import "@fontsource-variable/inter";
+/* La chasse fixe de la console et du poste de commandement : depuis le 12 novembre 2026, toutes les pages s'en servent
+   (invite, menu, onglets, libellés), et Base.astro la précharge partout. */
+@import "@fontsource-variable/jetbrains-mono";
+@import "tailwindcss";
+
+@theme {
+  /* Jusqu'au 14 novembre 2026, un seul bleu de fond, #0A1230 (remarques transmises par le pilote le 12 novembre : « garder
+     la même DA du bleu en bg sur TOUT le site, arrêter le noir et le bleu foncé »). Ce bleu est désormais l'écriture. */
+  /* Le thème clair « Neige Marine », choisi par le pilote sur captures le 14 novembre 2026 (« thèmes en blanc au lieu de
+     bleu », puis « le 1, Neige Marine », guide, QG et Direction compris) : la page est blanche, l'écriture bleu marine.
+     Chaque jeton garde son nom et son rôle d'avant : --color-navy reste le fond de la page, --color-night le creux d'un
+     champ, --color-surface une carte. Les valeurs sombres d'avant vivent encore dans les « îlots sombres » (bouton
+     principal, scènes colorées), plus bas. Contrastes dans docs/DESIGN.md, « Le thème clair ». */
+  --color-navy: #ffffff;
+  --color-night: #f4f6fb;
+  --color-surface: #f5f7fc;
+  --color-surface-2: #e6ecf9;
+  --color-line: #d5dcee;
+  /* Contour des champs et carte survolée : 3:1 au moins sur une carte (3,3:1) et sur un champ. */
+  --color-line-strong: #7a88b4;
+  --color-blue: #0b5fff;
+  --color-blue-hover: #0a4fd6;
+  --color-blue-text: #0a4fd6;
+  /* Le bleu du drapeau : filet tricolore, frontière, barre de progression. Il ne change pas avec le thème. */
+  --color-flag-blue: #0b5fff;
+  --color-red: #d91228;
+  --color-muted: #4a5677;
+  --color-win: #2f6fed;
+  --color-loss: #c9611c;
+  --color-warn: #8a5600;
+  /* Une réussite : le message après un envoi, et les « OK » de l'état du site à la Direction. */
+  --color-ok: #17743a;
+  /* Ce qui est bloqué : un compte suspendu, le bouton « Suspendre » (onglet Comptes de la Direction). Un rouge foncé, lisible
+     en texte sur les fonds clairs : le rouge du drapeau (--color-red) reste un accent, jamais un texte courant. */
+  --color-danger: #c4232f;
+  /* Un joueur allié, dans la liste des comptes de la Direction : le bleu des liens du site. */
+  --color-ally: #0a4fd6;
+  /* Le blanc de Tailwind (text-white, bg-white/15…) suit l'écriture : marine sur la page, blanc dans un îlot sombre. */
+  --color-white: var(--ecriture);
+  /* Les raretés des objets du village des Gaulois : le cadre et le fond de la case, puis le texte, lisible sur ce fond.
+     Commun bleu, peu commun bleu foncé, épique violet, mystique rouge, légendaire doré (choix du pilote, 13 novembre 2026). */
+  --rarete-commun: #4aa3ff;
+  --rarete-commun-texte: #0b5cad;
+  --rarete-peu-commun: #3a4fe8;
+  --rarete-peu-commun-texte: #2a3bc4;
+  --rarete-epique: #9b4dff;
+  --rarete-epique-texte: #6a1fd0;
+  --rarete-mystique: #ff2e4a;
+  --rarete-mystique-texte: #a50f24;
+  --rarete-legendaire: #f2b632;
+  --rarete-legendaire-texte: #7d5900;
+  --rarete-legendaire-degrade: linear-gradient(135deg, #fff1a8, #f2b632 45%, #a86d0c);
+  --font-display: "Outfit Variable", system-ui, sans-serif;
+  --font-sans: "Inter Variable", system-ui, sans-serif;
+  /* Pas --font-mono, dont se servent le champ du code de connexion et les formules des guides : leur chasse fixe reste celle du système. */
+  --font-console: "JetBrains Mono Variable", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  /* L'air entre deux parties d'une page (à la demande du pilote, le 12 novembre 2026 : « laisser respirer », puis le 13 :
+     « encore plus d'air ») : 80 px sur téléphone, puis 10 % de la largeur, jusqu'à 160 px sur grand écran. Donne mt-section,
+     mb-section et gap-section. */
+  --spacing-section: clamp(5rem, 10vw, 10rem);
+}
+
+/* Le décor de la page : une lueur bleue, un reflet rouge et le halo qui suit le curseur, très légers sur le blanc. */
+:root {
+  /* L'écriture : la couleur des titres, des gros chiffres et de tout ce qui s'écrivait en blanc sur le bleu d'avant.
+     Marine sur la page ; blanche dans un îlot sombre. Ne jamais écrire `#fff` pour un texte, un filet ou une icône :
+     toujours `var(--ecriture)` (tests/unit/theme-clair.test.ts le contrôle). */
+  --ecriture: #0a1230;
+  /* L'écriture posée sur une couleur vive (texte sélectionné) : toujours blanche. */
+  --sur-couleur: #fff;
+  /* L'anneau du focus clavier : la couleur de l'écriture de ce qui entoure l'élément. Le bouton principal, îlot sombre à
+     lui seul, ne la repose pas : son anneau, tracé hors de lui, reste marine sur la page et blanc dans une scène colorée. */
+  --anneau: var(--ecriture);
+  --glow: rgb(11 95 255 / 0.1);
+  --reflection: rgb(255 26 46 / 0.05);
+  --aurora: rgb(61 127 255 / 0.1);
+  /* Une ombre portée (menu ouvert, fenêtre libre, bulle) : en marine, plus légère que le noir d'avant. */
+  --ombre: rgb(10 18 48 / 0.22);
+  /* Le filet qui sépare deux groupes posés sur le décor, à la place d'un cadre. */
+  --hairline: color-mix(in srgb, var(--ecriture) 18%, transparent);
+  /* Le texte secondaire d'une scène : le gris de la page ; dans une scène colorée, un bleu très pâle (îlots sombres). */
+  --stage-muted: #4a5677;
+  /* Le texte courant des pages : un marine adouci, 15,2:1 sur la page (voir `main`, plus bas). */
+  --texte-courant: #1b2444;
+  /* Le trait d'une courbe se fonce vers sa fin : le bleu des victoires, puis l'écriture. */
+  --chart-trait-milieu: #2f6fed;
+  --chart-trait-fin: var(--ecriture);
+  /* La largeur des pages (.wrap) : depuis le 13 novembre 2026, à la demande du pilote (« prends toute la place disponible
+     sur l'écran », « tu n'utilises que la dimension d'un A4 »), le contenu va jusqu'à 120 rem (1 920 px), avec des marges
+     de côté qui grandissent avec l'écran (16 px sur téléphone, 4 % de la largeur, 80 px au plus). */
+  --page-max: 120rem;
+  --page-marge: clamp(1rem, 4vw, 5rem);
+  --wrap-max: var(--page-max);
+  --wrap-marge: var(--page-marge);
+  /* La colonne d'un espace de travail (QG, Direction) : ses écrans sont dessinés pour elle. */
+  --colonne-travail: 75rem;
+}
+/* La Direction garde sa colonne de 75 rem, au milieu de l'écran : formulaires et menus s'y lisent mieux. L'en-tête et le
+   pied de page prennent toute la largeur partout. */
+[data-ambiance="console"] main {
+  --wrap-max: var(--colonne-travail);
+  --wrap-marge: 1rem;
+}
+/* Une page en console rangée dans une rubrique (le QG avec Membres, le guide avec Quand jouer) reprend la largeur et les
+   marges du site : d'un onglet à l'autre, la rangée d'onglets, la ligne tricolore et le titre ne bougent pas (14 novembre
+   2026). Le QG garde ses écrans dans la colonne de travail, calée à gauche (.colonne-travail, plus bas). */
+[data-ambiance="console"] main:has(> .wrap > .rubrique) {
+  --wrap-max: var(--page-max);
+  --wrap-marge: var(--page-marge);
+}
+
+/* ---------- Thème rouge : l'encadrement ---------- */
+/* /direction passe theme="rouge" à Base.astro, qui pose data-theme="rouge" sur <html>. Du 10 au 12 novembre 2026, les
+   parties de l'encadrement du QG le portaient aussi : elles sont depuis dans la Direction.
+   Chaque jeton garde son rôle et prend une teinte rouge : aucun composant ne change.
+   Contrastes vérifiés dans docs/DESIGN.md, section « Thème rouge de l'encadrement ». */
+[data-theme="rouge"] {
+  /* En clair depuis le 14 novembre 2026 : une page blanche, des cartes rosées, l'écriture bordeaux, les liens et les
+     boutons rouges. */
+  --ecriture: #3a0812;
+  --color-navy: #ffffff;
+  --color-night: #fdf4f5;
+  --color-surface: #fcf3f4;
+  --color-surface-2: #f7dfe3;
+  --color-line: #edccd2;
+  --color-line-strong: #b56d79;
+  --color-blue: #d4132f;
+  --color-blue-hover: #b00f27;
+  --color-blue-text: #b00f27;
+  --color-muted: #6b4a52;
+  --stage-muted: #6b4a52;
+  /* Le texte courant, un bordeaux presque noir. */
+  --texte-courant: #3b1620;
+  --glow: rgb(255 26 46 / 0.1);
+  --reflection: rgb(11 95 255 / 0.05);
+  --aurora: rgb(255 61 90 / 0.1);
+  --ombre: rgb(58 8 18 / 0.22);
+}
+/* Sur les cartes rosées, un refus écrit en rouge se perdrait dans la couleur de la page : il prend l'ambre des
+   avertissements. */
+[data-theme="rouge"] .form-problem {
+  color: var(--color-warn);
+}
+
+/* ---------- Les îlots sombres ---------- */
+/* Ce qui garde un fond de couleur profonde sur la page blanche : le bouton principal et les scènes colorées (bleu roi,
+   indigo, bordeaux, carte d'accent). L'écriture y redevient blanche, et chaque jeton y reprend sa valeur du thème bleu
+   d'avant le 14 novembre 2026 : tout ce qu'ils contiennent (cartes, champs, liens, pastilles) se lit comme avant, sans
+   une règle de plus. `color` est reposée ici : la couleur héritée de `main` ne suivrait pas le jeton. Le bleu des boutons
+   (--color-blue) n'est pas repris : il est le même en clair, et rouge à la Direction. */
+.btn-primary,
+.stage-blue,
+.stage-indigo,
+.stage-wine,
+.card-accent {
+  color-scheme: dark;
+  --ecriture: #fff;
+  --color-white: #fff;
+  --color-navy: #0a1230;
+  --color-night: #081029;
+  --color-surface: #101b45;
+  --color-surface-2: #182658;
+  --color-line: #24346b;
+  --color-line-strong: #5469ae;
+  --color-blue-text: #9dbcff;
+  --color-red: #ff1a2e;
+  --color-muted: #c0c9e2;
+  --color-win: #4c86f5;
+  --color-loss: #d9742e;
+  --color-warn: #ffc857;
+  --color-ok: #a6e3b4;
+  --color-danger: #ff6b6b;
+  --color-ally: #9dbcff;
+  --rarete-commun-texte: #b5d8ff;
+  --rarete-peu-commun-texte: #bcc5ff;
+  --rarete-epique-texte: #dcbcff;
+  --rarete-mystique-texte: #ffb5bd;
+  --rarete-legendaire-texte: #ffdd80;
+  --hairline: color-mix(in srgb, var(--ecriture) 18%, transparent);
+  --stage-muted: #dbe2f7;
+  --texte-courant: #e3e8f4;
+  --chart-trait-milieu: #8db0ff;
+  --chart-trait-fin: var(--ecriture);
+  --ombre: rgb(0 0 0 / 0.45);
+  color: var(--texte-courant);
+}
+/* Dans une scène colorée, l'anneau du focus suit l'écriture blanche. Pas sur le bouton principal : voir --anneau. */
+.stage-blue,
+.stage-indigo,
+.stage-wine,
+.card-accent {
+  --anneau: var(--ecriture);
+}
+/* Les mêmes îlots dans le thème rouge de l'équipe gauloise : les valeurs sombres du rouge d'avant. */
+[data-theme="rouge"] :is(.btn-primary, .stage-blue, .stage-indigo, .stage-wine, .card-accent) {
+  --color-navy: #300a10;
+  --color-night: #22060b;
+  --color-surface: #3f121a;
+  --color-surface-2: #501a23;
+  --color-line: #6b2c37;
+  --color-line-strong: #9e5d68;
+  --color-blue-text: #ff9dad;
+  --color-muted: #e2c0c6;
+  --stage-muted: #e2c0c6;
+  --texte-courant: #f4e4e7;
+}
+
+/* Variables non héritées : les modifier au survol ne recalcule pas tout le contenu d'un bloc. */
+@property --mx {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+@property --my {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+@property --spot {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+@property --angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+[hidden] {
+  display: none !important;
+}
+main,
+footer {
+  position: relative;
+  z-index: 1;
+}
+html {
+  background: var(--color-navy);
+  color: var(--ecriture);
+  font-family: var(--font-sans);
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  /* Sur Mac, un texte clair sur un fond sombre s'épaissit sans ce lissage : il paraissait écrit en gras (remarque reçue le
+     12 novembre 2026). Sans effet ailleurs. */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+body {
+  min-height: 100dvh;
+  overflow-wrap: anywhere;
+  /* Un environnement plutôt qu'un fond : une lueur bleue et un reflet rouge sur la nuit (l'inverse dans le thème rouge). */
+  background:
+    radial-gradient(70rem 42rem at 88% -8rem, var(--glow), transparent 70%),
+    radial-gradient(48rem 30rem at -8% 24rem, var(--reflection), transparent 70%),
+    var(--color-navy);
+  background-repeat: no-repeat;
+}
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  text-transform: uppercase;
+  overflow-wrap: normal;
+  /* Les grands titres passent à la ligne en lignes de même longueur : pas de « JOURS » seul sur la sienne. */
+  text-wrap: balance;
+}
+:focus-visible {
+  outline: 3px solid var(--anneau);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+/* `.link` : un lien qui a besoin d'une classe (une cible agrandie pour le doigt) garde l'allure d'un lien. */
+a:not([class]),
+a.link {
+  color: var(--color-blue-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+a:not([class]):hover,
+a.link:hover {
+  color: var(--ecriture);
+}
+/* Un pseudo qui mène à la fiche d'un membre : de la couleur de l'écriture, sans trait, ambré au survol et au focus (jaune
+   dans une scène colorée), où il prend son trait.
+   Le même partout (podiums, records, paliers, liste, gazette, accueil). Remarque reçue le 12 novembre 2026 : un pseudo
+   avait trois allures selon la page, dont le bleu souligné des liens. */
+.pseudo {
+  color: var(--ecriture);
+  text-decoration-line: none;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition: color 0.15s ease;
+}
+/* Au milieu d'une phrase, un pseudo blanc ne se distinguerait du texte que par sa couleur (critère WCAG 1.4.1) : un
+   trait fin et pâle dit que c'est un lien. */
+.pseudo-phrase {
+  text-decoration-line: underline;
+  text-decoration-color: color-mix(in srgb, var(--ecriture) 40%, transparent);
+}
+.pseudo:hover,
+.pseudo:focus-visible {
+  color: var(--color-warn);
+  text-decoration-line: underline;
+  text-decoration-color: currentColor;
+  text-decoration-thickness: 2px;
+}
+/* Une information de service (date de mise à jour, période, relevé, compteur d'une recherche) : toujours là, mais
+   petite, en italique et en gris, pour ne pas prendre la place des chiffres (remarque reçue le 12 novembre 2026). Les
+   avertissements, en jaune, gardent leur taille et leur graisse. */
+.info-discrete {
+  font-size: var(--text-xs);
+  font-style: italic;
+  font-weight: 400;
+  color: var(--color-muted);
+}
+/* Dans une scène colorée, le gris s'éclaircit, comme le reste du texte secondaire (6:1 au moins sur chaque dégradé). */
+.stage .info-discrete {
+  color: var(--stage-muted);
+}
+/* Le texte courant en marine adouci (en blanc adouci dans une scène colorée, où le blanc pur paraissait plus gras qu'il
+   n'est). Les titres et les gros chiffres ont la couleur pleine de l'écriture. En couche de base : une classe de couleur
+   (text-muted, text-warn…) l'emporte toujours, comme les règles de ce fichier. */
+@layer base {
+  main {
+    color: var(--texte-courant);
+  }
+  main :is(h1, h2, h3, h4, .kpi-value, .font-display, .console-valeur) {
+    color: var(--ecriture);
+  }
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+/* La largeur et les marges viennent de --wrap-max et --wrap-marge (:root, plus haut). */
+.wrap {
+  width: 100%;
+  max-width: var(--wrap-max);
+  margin-inline: auto;
+  padding-inline: var(--wrap-marge);
+}
+/* La colonne de travail du QG, dans un .wrap à la largeur du site : la largeur qu'avait son .wrap (75 rem moins ses deux
+   marges de 1 rem), calée à gauche, sous les onglets de la rubrique. La porte et l'espace connecté y sont tous les deux. */
+.colonne-travail {
+  max-width: calc(var(--colonne-travail) - 2rem);
+}
+/* Les pages se lisent en grand : dans le contenu, chaque taille de texte de Tailwind monte d'un cran (17 px pour le texte
+   courant, 15 px pour le petit texte, 13 px pour le plus petit). L'en-tête et le pied de page gardent les leurs, et les
+   espaces de travail (.espace) ont leur propre échelle, plus grande encore. */
+main {
+  --text-xs: 0.8125rem;
+  --text-sm: 0.9375rem;
+  --text-base: 1.0625rem;
+  --text-lg: 1.25rem;
+  font-size: var(--text-base);
+}
+.page-title {
+  font-size: clamp(2.5rem, 8.5vw, 6rem);
+  line-height: 0.92;
+  /* Un pseudo peut être un seul très long mot : mieux vaut le couper que faire défiler la page. */
+  overflow-wrap: anywhere;
+}
+/* Sur un petit téléphone, le long mot rétrécit juste assez pour garder ses marges (1rem de chaque côté). */
+.page-title-long {
+  font-size: clamp(min(2.5rem, (100vw - 2rem) / 9.2), 8.5vw, 6rem);
+}
+/* Un espace de travail (QG, Direction) : le titre laisse la place aux onglets. */
+.page-title-compact {
+  font-size: clamp(2.25rem, 5.5vw, 3.5rem);
+}
+.page-title-compact.page-title-long {
+  font-size: clamp(min(2.25rem, (100vw - 2rem) / 9.2), 5.5vw, 3.5rem);
+}
+/* Un titre de bloc est un cran sous le titre de sa page (14 novembre 2026) : 48 px au plus, quand le titre de page va
+   jusqu'à 80 px. Jusque-là, les deux faisaient 64 px sur un ordinateur, et l'œil ne savait pas où commencer. */
+.section-title {
+  font-size: clamp(1.75rem, 3.8vw, 3rem);
+}
+/* Dans une scène de l'accueil ou une colonne : le titre garde sa force sans prendre deux lignes de trop. */
+.section-title-sm {
+  font-size: clamp(1.75rem, 3.6vw, 2.75rem);
+}
+/* ---------- Les chiffres clés, en grand ---------- */
+/* Un libellé court au-dessus, le chiffre en très grand, une ligne d'explication dessous. Pas de cadre : un filet à gauche
+   les sépare. Le chiffre ne se coupe jamais ; la rangée passe à la ligne quand la place manque. */
+.kpi-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem 2.5rem;
+}
+.kpi {
+  min-width: 0;
+  padding-left: 1rem;
+  border-left: 1px solid var(--hairline);
+}
+/* Sur grand écran, les chiffres se répartissent sur toute leur rangée au lieu de se serrer à gauche : les pages prennent
+   toute la largeur depuis le 13 novembre 2026. Le guide, en console, garde les siens serrés. */
+@media (min-width: 80rem) {
+  :root:not([data-ambiance]) .kpi-row > .kpi {
+    flex: 1 1 auto;
+  }
+}
+.kpi-label {
+  font-family: var(--font-display);
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.kpi-value {
+  margin-top: 0.375rem;
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 4.4vw, 3.5rem);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* Le chiffre d'une page : une seule rangée, encore plus grand. */
+.kpi-value-xl {
+  font-size: clamp(2.75rem, 6vw, 4.5rem);
+}
+/* La dernière mesure d'une courbe, au-dessus d'elle. Une valeur en mots (« 8 605,58 de retard ») peut passer à la ligne
+   entre le nombre et les mots, jamais dans le nombre (espaces insécables). */
+.kpi-value-sm {
+  font-size: clamp(2rem, 3.2vw, 2.75rem);
+  white-space: normal;
+  overflow-wrap: normal;
+}
+/* Cinq colonnes étroites (les créneaux de Quand jouer) : « 21 h – 22 h » tient dans la sienne de 1 024 à 1 920 px. */
+.kpi-value-md {
+  font-size: clamp(1.75rem, 2.4vw, 2.25rem);
+}
+/* Le premier d'une liste classée : son filet est blanc et plus épais. */
+.kpi-accent {
+  border-left: 3px solid var(--ecriture);
+}
+.kpi-hint {
+  margin-top: 0.5rem;
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+}
+/* Dans une scène colorée, le texte secondaire s'éclaircit, comme .stage .text-muted. */
+.stage .kpi-label,
+.stage .kpi-hint {
+  color: var(--stage-muted);
+}
+/* Un bloc posé sur le décor, sans cadre : il apparaît en fondu comme une scène (src/scripts/fx.ts), et ses animations
+   attendent qu'il entre à l'écran. */
+.fx-block {
+  position: relative;
+}
+/* Filet tricolore repris de la bande du logo. */
+.tribar {
+  display: block;
+  height: 4px;
+  width: 5.5rem;
+  border-radius: 2px;
+  /* Bleu, blanc, rouge : sur la page blanche, le blanc du drapeau est cerné d'un filet pour rester blanc (il était écrit
+     avec la couleur de l'écriture, donc marine : le filet se lisait bleu, noir, rouge). */
+  background:
+    linear-gradient(90deg, transparent 0 calc(34% + 1px), var(--sur-couleur) calc(34% + 1px) calc(66% - 1px), transparent calc(66% - 1px)) center / 100% calc(100% - 2px) no-repeat,
+    linear-gradient(90deg, var(--color-flag-blue) 0 32%, transparent 32% 34%, var(--color-line-strong) 34% 66%, transparent 66% 68%, var(--color-red) 68%);
+}
+.card {
+  --stage-bg: none;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: 0.5rem;
+}
+.card-accent {
+  --stage-bg: linear-gradient(150deg, #1b3a8f, var(--color-surface) 70%);
+  border-color: #3e57a8;
+}
+/* Halo qui suit le curseur : --mx, --my et --spot sont posées par src/scripts/fx.ts. */
+.stage,
+main .card {
+  background-image:
+    radial-gradient(
+      26rem circle at var(--mx, 0px) var(--my, 0px),
+      color-mix(in srgb, var(--ecriture) calc(var(--spot, 0) * 10%), transparent),
+      transparent 72%
+    ),
+    var(--stage-bg, none);
+  transition:
+    --spot 0.35s ease,
+    border-color 0.25s ease;
+}
+main .card {
+  position: relative;
+}
+main .card:hover {
+  border-color: var(--color-line-strong);
+}
+/* Frontière : une lumière tricolore fait le tour de la bordure d'un bloc. */
+.stage::before,
+main .card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: 2px;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  background: conic-gradient(
+    from var(--angle),
+    transparent 0 58%,
+    var(--color-flag-blue) 70%,
+    var(--ecriture) 82%,
+    var(--color-red) 94%,
+    transparent 100%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  transition: opacity 0.3s ease;
+}
+.stage:hover::before,
+main .card:hover::before {
+  opacity: 1;
+  animation: frontier 2.4s linear infinite;
+}
+
+.hero-glow {
+  position: absolute;
+  inset: -12%;
+  background: radial-gradient(closest-side, rgb(11 95 255 / 0.1), transparent);
+}
+
+/* Scènes : chaque grande section a son propre décor. Profondeur par la couleur, sans ombre. */
+.stage {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0.625rem;
+  /* De l'air dedans aussi : 24 px sur téléphone, 64 px à 1 280 px, 80 px au plus (« encore plus d'air », 13 novembre 2026). */
+  padding: clamp(1.5rem, 5vw, 5rem);
+}
+.stage-blue {
+  --stage-bg: linear-gradient(135deg, #0f46c4, #0b2169 75%);
+}
+.stage-indigo {
+  --stage-bg: linear-gradient(135deg, #2a2b8c, #12174f 80%);
+}
+.stage-wine {
+  --stage-bg: linear-gradient(135deg, #8a1230, #2a1048 85%);
+}
+.stage-night {
+  --stage-bg: linear-gradient(var(--color-night), var(--color-night));
+  border: 1px solid var(--color-line);
+}
+.stage .text-muted {
+  color: var(--stage-muted);
+}
+/* Sur le bleu royal, le bleu des liens manque de contraste (4,1:1 au plus clair du dégradé) : ils y passent en blanc,
+   toujours soulignés. Le survol épaissit le trait. */
+.stage-blue a:not([class]),
+.stage-blue a.link {
+  color: var(--ecriture);
+}
+.stage-blue a:not([class]):hover,
+.stage-blue a.link:hover {
+  text-decoration-thickness: 2px;
+}
+/* Un groupe posé dans une scène : sur le décor, sans cadre ni fond, séparé par un filet au-dessus. Pas de case dans la case. */
+.panel {
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--hairline);
+}
+.avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  background: var(--color-surface-2);
+  font-family: var(--font-display);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+/* La place d'une photo Discord à côté d'un pseudo : vide et masquée dans la page publiée, remplie pour un membre validé
+   connecté par src/scripts/visages.ts. Décorative : le pseudo est écrit à côté. */
+.face-slot {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 1.75rem;
+  height: 1.75rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-surface-2);
+  vertical-align: middle;
+}
+.face-slot[hidden] {
+  display: none;
+}
+.face-slot-lg {
+  width: 3.5rem;
+  height: 3.5rem;
+}
+
+.btn {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.375rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s,
+    transform 0.15s,
+    scale 0.12s,
+    translate 0.15s ease-out;
+}
+.btn:hover {
+  transform: translateY(-2px);
+}
+.btn:active {
+  scale: 0.97;
+}
+/* Reflet qui balaie le bouton au survol. */
+.btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 30%, color-mix(in srgb, var(--ecriture) 30%, transparent) 50%, transparent 70%);
+  translate: -120% 0;
+  transition: translate 0.6s ease;
+}
+.btn:hover::after {
+  translate: 120% 0;
+}
+/* Un bouton inactif doit se voir : sinon, il a seulement l'air de ne pas répondre. `aria-disabled` : inactif, mais il garde le
+   focus du clavier (réglages d'une zone de l'alliance). */
+.btn:disabled,
+.btn[aria-disabled="true"],
+.alliance-mode > button[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+  scale: 1;
+}
+.btn:disabled::after,
+.btn[aria-disabled="true"]::after {
+  display: none;
+}
+.btn-lg {
+  min-height: 3.5rem;
+  padding-inline: 1.75rem;
+}
+.btn-primary {
+  background: var(--color-blue);
+  color: var(--ecriture);
+}
+.btn-primary:hover {
+  background: var(--color-blue-hover);
+}
+.btn-secondary {
+  background: var(--ecriture);
+  color: var(--color-navy);
+}
+.btn-secondary:hover {
+  background: color-mix(in srgb, var(--ecriture) 86%, var(--color-navy));
+}
+.btn-ghost {
+  border: 1px solid var(--ecriture);
+  color: var(--ecriture);
+}
+.btn-ghost:hover {
+  background: color-mix(in srgb, var(--ecriture) 10%, transparent);
+}
+.field {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-night);
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.375rem;
+  color: var(--ecriture);
+}
+.chip {
+  min-height: 2.5rem;
+  padding: 0.25rem 1.125rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.375rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--color-muted);
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    background-color 0.15s,
+    border-color 0.15s,
+    scale 0.12s;
+}
+.chip:disabled,
+.field:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.chip:hover:where(:not(:disabled)) {
+  color: var(--ecriture);
+  border-color: var(--ecriture);
+}
+.chip:active:where(:not(:disabled)) {
+  scale: 0.95;
+}
+.chip[aria-pressed="true"],
+.chip[aria-current="page"] {
+  color: var(--color-navy);
+  background: var(--ecriture);
+  border-color: var(--ecriture);
+}
+.data-table th {
+  text-align: left;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  font-weight: 600;
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--color-line);
+}
+.data-table td {
+  position: relative;
+  padding: 0.75rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-line) 55%, transparent);
+}
+.data-table .num {
+  text-align: right;
+}
+/* Sur un petit téléphone, le texte plus grand demande des cellules plus serrées : le tableau tient dans sa colonne. */
+@media (max-width: 30rem) {
+  .data-table th,
+  .data-table td {
+    padding-inline: 0.5rem;
+  }
+}
+/* Le texte d'un chapitre du guide du clan (/debuter), écrit en Markdown dans content/guide-clan/ : ce qui se déplie sous
+   « Détails et formules ». Titres, listes, tableaux, encadrés, formules. Le reste du guide est plus bas : « Le guide du clan ». */
+.guide-body > * + * {
+  margin-top: 0.75rem;
+}
+.guide-body h3 {
+  margin-top: 1.25rem;
+  font-size: 1rem;
+  line-height: 1.2;
+  color: var(--ecriture);
+}
+.guide-body h3:first-child {
+  margin-top: 0;
+}
+.guide-body strong {
+  font-weight: 600;
+  color: var(--ecriture);
+}
+.guide-body ul,
+.guide-body ol {
+  padding-left: 1.25rem;
+}
+.guide-body ul {
+  list-style: disc;
+}
+.guide-body ol {
+  list-style: decimal;
+}
+.guide-body li + li {
+  margin-top: 0.375rem;
+}
+.guide-body li::marker {
+  color: var(--color-blue-text);
+}
+.guide-body table {
+  width: 100%;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+  /* Sinon `anywhere`, posé sur body, autorise le navigateur à couper les mots pour tasser les colonnes. */
+  overflow-wrap: break-word;
+}
+.guide-body th {
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--color-line);
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.guide-body td {
+  padding: 0.5rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-line) 55%, transparent);
+}
+.guide-body blockquote {
+  padding: 0.625rem 0.875rem;
+  border-left: 3px solid var(--color-blue-text);
+  border-radius: 0.5rem;
+  background: var(--color-surface-2);
+  font-size: 0.875rem;
+}
+.guide-body code {
+  padding: 0.0625rem 0.25rem;
+  border-radius: 0.25rem;
+  background: var(--color-night);
+  font-size: 0.8125rem;
+  color: var(--ecriture);
+}
+.guide-body pre {
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.5rem;
+  background: var(--color-night);
+  white-space: pre-wrap;
+  font-size: 0.8125rem;
+  color: var(--ecriture);
+}
+.guide-body pre code {
+  padding: 0;
+  background: none;
+}
+.data-table tbody tr {
+  transition: background-color 0.15s;
+}
+.data-table tbody tr:hover {
+  background-color: color-mix(in srgb, var(--ecriture) 6%, transparent);
+}
+.row-highlight {
+  background: color-mix(in srgb, var(--color-blue) 26%, var(--color-surface));
+  background-image: linear-gradient(100deg, transparent 40%, color-mix(in srgb, var(--ecriture) 10%, transparent) 50%, transparent 60%);
+  background-size: 250% 100%;
+  background-repeat: no-repeat;
+  box-shadow: inset 3px 0 0 var(--color-red);
+  animation: row-shine 5s ease-in-out infinite;
+}
+.data-table tbody tr.row-highlight:hover {
+  background-color: color-mix(in srgb, var(--color-blue) 36%, var(--color-surface));
+}
+.loader {
+  width: 2.5rem;
+  height: 2.5rem;
+  animation: spin 1.1s linear infinite;
+}
+.reveal {
+  animation: reveal 0.5s ease-out backwards;
+}
+.float {
+  animation: float 7s ease-in-out infinite;
+}
+.tribar {
+  transform-origin: left;
+  animation: bar-in 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+.fx-word {
+  display: inline-block;
+  animation: word-in 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+.fx-grow {
+  transform-origin: bottom;
+  transition: filter 0.15s;
+  animation: grow 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 22ms);
+}
+.heat-cell {
+  transition:
+    scale 0.15s,
+    box-shadow 0.15s,
+    opacity 0.15s,
+    filter 0.15s;
+  animation: cell-in 0.45s ease-out backwards;
+  animation-delay: calc((var(--d, 0) + var(--h, 0)) * 16ms);
+}
+.heat-cell:hover {
+  position: relative;
+  z-index: 1;
+  scale: 1.22;
+  box-shadow: 0 0 0 2px var(--ecriture);
+}
+/* Réticule de la heatmap : le jour et l'heure de la case survolée ressortent. */
+.fx-crosshair .heat-cell:not(.fx-cross) {
+  opacity: 0.62;
+}
+.heat-cell.fx-cross {
+  filter: brightness(1.18);
+}
+th.fx-cross {
+  color: var(--ecriture);
+}
+
+/* Graphique des parties : balayage, colonne survolée, repère de valeur. */
+.chart-sweep {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  opacity: 0;
+  background: linear-gradient(var(--color-flag-blue), var(--ecriture), var(--color-red));
+  pointer-events: none;
+  animation: sweep 0.95s cubic-bezier(0.3, 0.6, 0.4, 1) backwards;
+}
+.chart-cursor {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 0.25rem;
+  background: color-mix(in srgb, var(--ecriture) 10%, transparent);
+  pointer-events: none;
+  transition: left 0.12s ease-out;
+}
+.chart-guide {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  border-top: 1px dashed color-mix(in srgb, var(--ecriture) 60%, transparent);
+  pointer-events: none;
+  transition: bottom 0.12s ease-out;
+}
+.chart-label {
+  position: absolute;
+  z-index: 2;
+  translate: -50% -6px;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.375rem;
+  background: var(--ecriture);
+  color: var(--color-navy);
+  font-size: 0.75rem;
+  font-weight: 700;
+  pointer-events: none;
+  transition:
+    left 0.12s ease-out,
+    bottom 0.12s ease-out;
+}
+.chart-draw {
+  animation: draw 1.2s cubic-bezier(0.3, 0.6, 0.3, 1) backwards;
+}
+/* Les graphiques se posent sur le décor, sans cadre : des repères à peine visibles, l'aire sous la courbe qui s'efface
+   vers le fond, un point au bout de la courbe. Un filet au-dessus d'un graphique le sépare de son voisin. */
+.chart-open {
+  padding-top: 1rem;
+  border-top: 1px solid var(--hairline);
+}
+.chart-gridline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px solid color-mix(in srgb, var(--ecriture) 9%, transparent);
+  pointer-events: none;
+}
+/* Le bout de la courbe, la dernière mesure : il paraît quand le trait l'atteint. */
+.chart-end {
+  position: absolute;
+  width: 0.875rem;
+  height: 0.875rem;
+  translate: -50% -50%;
+  border: 3px solid var(--color-navy);
+  border-radius: 999px;
+  background: var(--ecriture);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-win) 35%, transparent);
+  pointer-events: none;
+  animation: chart-end-in 0.4s ease-out 1s backwards;
+}
+/* Balise : la première mesure d'une courbe qui se construit. */
+.beacon {
+  position: relative;
+  display: inline-block;
+  width: 0.625rem;
+  height: 0.625rem;
+  margin-right: 0.5rem;
+  border-radius: 999px;
+  background: var(--color-win);
+  vertical-align: 0.05em;
+}
+.beacon::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 2px solid var(--color-win);
+  border-radius: inherit;
+  animation: ping 1.8s ease-out infinite;
+}
+
+/* Jauges : leur longueur vient toujours d'une donnée. */
+.meter {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--ecriture) 14%, transparent);
+}
+.meter > i {
+  display: block;
+  width: var(--v);
+  height: 100%;
+  border-radius: inherit;
+  /* Une seule couleur : la longueur seule porte la valeur (remarque reçue le 12 novembre 2026 ; jusque-là, un dégradé du
+     bleu au blanc qui ne voulait rien dire). Le bleu clair des liens suit le thème, rose dans la Direction. Sur le fond de
+     la jauge : 7,2:1 sur la page, 6,4:1 sur une carte, 4:1 au plus clair d'une scène indigo. */
+  background: var(--color-blue-text);
+  transform-origin: left;
+  transition: width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: bar-in 1s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+.stage-blue .meter > i {
+  background: var(--ecriture);
+}
+.meter-lg {
+  height: 10px;
+  border-radius: 5px;
+}
+/* La jauge de GAL, en blanc uni, se détache de celles des autres clans (tricolore en dégradé jusqu'au 12 novembre 2026). */
+.meter-gal > i {
+  background: var(--ecriture);
+}
+.meter-other > i {
+  background: #6f7fb3;
+}
+
+.score-bar {
+  position: absolute;
+  top: 0.25rem;
+  right: 0;
+  bottom: 0.25rem;
+  border-radius: 0.25rem 0 0 0.25rem;
+  background: rgb(76 134 245 / 0.24);
+  transform-origin: right;
+  pointer-events: none;
+  transition: width 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: bar-in 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 25ms);
+}
+.row-highlight .score-bar {
+  background: color-mix(in srgb, var(--ecriture) 20%, transparent);
+}
+.fx-row {
+  animation: row-in 0.45s ease-out backwards;
+  animation-delay: calc(var(--i, 0) * 28ms);
+}
+
+/* Carte des clans : ce que le film dessine et commande (la carte, la date, la légende, le podium, la frise). Depuis le
+   12 novembre 2026, la page est une console qui tient dans l'écran : sa mise en page et ses fenêtres sont en fin de
+   fichier, section « La carte en console ». */
+.film-map {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 1.75 / 1;
+  width: 100%;
+  scroll-margin-top: 4rem;
+  /* Le large de la carte, `OPEN_SEA_CSS` (src/lib/clanmap/terrain.ts) : autour du monde, la mer continue. */
+  background-color: #346a98;
+}
+.film-map > img,
+.film-map > canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+/* La date de l'image affichée, le numéro de l'événement et, au passage de la souris, la position sur la carte. */
+.film-hud {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 0 0.625rem;
+  max-width: calc(100% - 1rem);
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.25rem;
+  background: color-mix(in srgb, var(--color-night) 88%, transparent);
+  font-family: var(--font-console);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  pointer-events: none;
+}
+.film-hud-date {
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+/* Sous-titre des grands moments, comme une ligne tapée dans la console. */
+.film-caption {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  left: 0.5rem;
+  z-index: 3;
+  width: fit-content;
+  max-width: calc(100% - 1rem);
+  margin-inline: auto;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.25rem;
+  background: color-mix(in srgb, var(--color-night) 90%, transparent);
+  font-family: var(--font-console);
+  font-size: clamp(0.8125rem, 0.6rem + 0.9vw, 1.25rem);
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+.film-caption::before {
+  content: "> " / "";
+  color: var(--console-vert, var(--color-blue-text));
+}
+.film-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 5;
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.25rem;
+  background: var(--ecriture);
+  color: var(--color-navy);
+  font-family: var(--font-console);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+}
+/* Le podium : chaque ligne glisse vers sa place (`--rang`, posé par la page puis par le film). La hauteur d'une ligne est
+   une variable : le podium se resserre sur un écran bas. */
+.film-rows {
+  --rang-h: 2.375rem;
+  position: relative;
+  height: calc(5 * var(--rang-h));
+}
+.film-row {
+  position: absolute;
+  inset: 0 0 auto;
+  height: calc(var(--rang-h) - 0.125rem);
+  display: grid;
+  grid-template-columns: 1.375rem minmax(0, 1fr) auto;
+  column-gap: 0.375rem;
+  align-items: center;
+  font-size: 0.875rem;
+  transform: translateY(calc(var(--rang, 0) * var(--rang-h)));
+  transition: transform 0.24s ease;
+}
+.film-row-rank {
+  color: var(--color-muted);
+}
+.film-row.is-gal {
+  font-weight: 700;
+}
+.film-bar {
+  grid-column: 2 / 4;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--color-surface-2);
+}
+.film-bar > i {
+  display: block;
+  height: 100%;
+  transition: width 0.18s linear;
+}
+.film-scrub {
+  position: relative;
+  flex: 1 1 8rem;
+  min-width: 0;
+  height: 4.25rem;
+}
+.film-scrub > svg {
+  position: absolute;
+  inset: 0 0 auto;
+  width: 100%;
+  height: 2.5rem;
+}
+.film-scrub path {
+  fill: color-mix(in srgb, var(--gal, var(--ecriture)) 30%, transparent);
+  stroke: var(--gal, var(--ecriture));
+  stroke-width: 1.2;
+  vector-effect: non-scaling-stroke;
+}
+.film-scrub > input {
+  position: absolute;
+  inset: auto 0 1rem;
+}
+.film-scrub > input,
+.film-range {
+  width: 100%;
+  height: 1.625rem;
+  margin: 0;
+  background: transparent;
+  appearance: none;
+  cursor: pointer;
+}
+.film-scrub > input::-webkit-slider-runnable-track,
+.film-range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-line-strong);
+}
+.film-scrub > input::-moz-range-track,
+.film-range::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-line-strong);
+}
+.film-scrub > input::-webkit-slider-thumb,
+.film-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 1rem;
+  height: 1.375rem;
+  margin-top: -9px;
+  border: 2px solid var(--color-navy);
+  border-radius: 0.25rem;
+  background: var(--ecriture);
+}
+.film-scrub > input::-moz-range-thumb,
+.film-range::-moz-range-thumb {
+  width: 0.875rem;
+  height: 1.25rem;
+  border: 2px solid var(--color-navy);
+  border-radius: 0.25rem;
+  background: var(--ecriture);
+}
+/* Repères des grands moments sur la frise. */
+.film-ticks {
+  position: absolute;
+  inset: auto 0.5rem 2.375rem;
+  height: 0;
+  pointer-events: none;
+}
+.film-tick {
+  position: absolute;
+  top: -0.4375rem;
+  width: 3px;
+  height: 0.5rem;
+  margin-left: -1.5px;
+  border-radius: 1px;
+  background: var(--ecriture);
+}
+/* Les vrais jours, sous la frise. Le film suit les événements : les jours n'ont pas la même largeur. */
+.film-dates {
+  position: absolute;
+  inset: auto 0.5rem 0;
+  height: 1.125rem;
+  pointer-events: none;
+}
+.film-day {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  height: 0.25rem;
+  background: var(--color-muted);
+}
+.film-date {
+  position: absolute;
+  bottom: 0;
+  width: 3.5rem;
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  line-height: 0.875rem;
+  text-align: center;
+  white-space: nowrap;
+}
+/* La vitesse du film, de × 0,1 à × 1 : un curseur gradué, sa valeur écrite à côté. */
+.film-speed {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+.film-speed > label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+.film-speed > input {
+  width: 7.5rem;
+}
+.film-speed > output {
+  min-width: 2.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+/* Les pseudos trouvés de « Ma place », sur l'accueil. */
+.film-moments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+/* Un grand moment ou une zone : une ligne à cliquer, la date ou le numéro d'abord. */
+.film-tile {
+  display: grid;
+  align-content: start;
+  gap: 0.125rem;
+  width: 100%;
+  height: 100%;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  line-height: 1.25;
+  text-align: left;
+  color: inherit;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+  cursor: pointer;
+}
+.film-tile:hover {
+  border-color: var(--color-line-strong);
+  background: var(--color-surface-2);
+}
+.film-tile[aria-current="true"] {
+  border-color: var(--ecriture);
+  color: var(--color-navy);
+  background: var(--ecriture);
+}
+.film-tile[aria-current="true"] > span {
+  color: inherit;
+}
+.film-front-link {
+  color: var(--color-blue-text);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.film-front-link:hover {
+  color: var(--ecriture);
+}
+/* Les menus déroulants : tout ce qui se déplie dans une page est un <details class="fold">. La page reste courte, et tout
+   reste lisible sans JavaScript. Le 12 novembre 2026, le pilote a demandé « tout les menu déroulant fais les comme ca », en
+   montrant « Détails et formules » du guide : un filet au-dessus, le libellé en chasse fixe dans le bleu clair des liens
+   (blanc au survol), un grand « + » au bout de la ligne, « − » une fois ouvert. Le libellé prend la taille du texte courant
+   de la page, même dans une note en petit texte. Les menus de navigation (« Menu » et « Nouveautés » de l'en-tête, menu
+   des parties du QG et de la Direction, sommaire du guide) ouvrent une liste de liens : ils gardent leur bouton.
+   La Direction garde le dessin d'avant : le 13 novembre 2026, le pilote a demandé « les ceux de la direction comme avant ».
+   Ce dessin ne vaut donc que hors du thème rouge ; à la Direction, un repli garde l'écriture, la taille et la couleur que
+   lui donnent le texte qui l'entoure et ses classes, et son air au-dessus et au-dessous. */
+.fold-list {
+  border-bottom: 1px solid var(--color-line);
+}
+.fold {
+  border-top: 1px solid var(--color-line);
+}
+.fold > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 2.75rem;
+  cursor: pointer;
+  list-style: none;
+}
+:root:not([data-theme="rouge"]) .fold[open] {
+  padding-bottom: 1rem;
+}
+:root:not([data-theme="rouge"]) .fold > summary {
+  font-family: var(--font-console);
+  font-size: var(--text-base);
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--color-blue-text);
+}
+:root:not([data-theme="rouge"]) .fold > summary:hover {
+  color: var(--ecriture);
+}
+:root[data-theme="rouge"] .fold {
+  padding-block: 0.875rem;
+}
+.fold > summary::-webkit-details-marker {
+  display: none;
+}
+/* Le signe est décoratif : les lecteurs d'écran disent déjà « réduit » ou « développé ». */
+.fold > summary::after {
+  content: "+";
+  content: "+" / "";
+  flex: none;
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.fold[open] > summary::after {
+  content: "−";
+  content: "−" / "";
+}
+/* Dans une scène, le filet est celui des groupes (.panel) : le bleu nuit de --color-line s'y perdrait. Sur le bleu royal,
+   le bleu des liens manque de contraste (4,1:1 au plus clair du dégradé) : le libellé y passe en blanc, comme les liens. */
+.stage .fold {
+  border-top-color: var(--hairline);
+}
+.stage .fold-list {
+  border-bottom-color: var(--hairline);
+}
+:root:not([data-theme="rouge"]) .stage-blue .fold > summary {
+  color: var(--ecriture);
+}
+/* Le texte de la page peut se couper partout : un chiffre ou un tag de clan, non. */
+.film-fronts {
+  overflow-wrap: normal;
+}
+@media (max-width: 43.75rem) {
+  .film-fronts th,
+  .film-fronts td {
+    padding-inline: 0.5rem;
+  }
+}
+header img {
+  transition: rotate 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+header a:hover img {
+  rotate: 14deg;
+}
+
+/* Effets posés par src/scripts/fx.ts. */
+#fx-territory,
+#fx-sparks {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100lvh;
+  pointer-events: none;
+}
+#fx-territory {
+  z-index: 0;
+  /* Sur le blanc, les cases de conquête ressortent bien plus que sur le bleu d'avant : à moitié. */
+  opacity: 0.45;
+  /* Même pas que TILE_SIZE dans src/lib/fx/territory.ts. */
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--ecriture) 2.2%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--ecriture) 2.2%, transparent) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+#fx-sparks {
+  z-index: 60;
+}
+#fx-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 50;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(90deg, var(--color-flag-blue) 33.3%, var(--ecriture) 33.3% 66.6%, var(--color-red) 66.6%);
+  transform: scaleX(0);
+  transform-origin: left;
+  pointer-events: none;
+}
+#fx-aurora {
+  position: fixed;
+  top: -30rem;
+  left: -30rem;
+  z-index: 0;
+  width: 60rem;
+  height: 60rem;
+  pointer-events: none;
+  background: radial-gradient(closest-side, var(--aurora), transparent);
+  transform: translate3d(75vw, 5vh, 0);
+  will-change: transform;
+}
+#fx-tip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 70;
+  padding: 0.375rem 0.625rem;
+  border-radius: 0.5rem;
+  background: var(--ecriture);
+  color: var(--color-navy);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+}
+[data-fx-logo] {
+  cursor: pointer;
+  user-select: none;
+}
+.fx-toggle[aria-pressed="true"] .fx-icon-pause,
+.fx-toggle[aria-pressed="false"] .fx-icon-play {
+  display: none;
+}
+.fx-hidden {
+  opacity: 0;
+}
+main .fx-in,
+.fx-in {
+  transition:
+    opacity 0.7s ease,
+    --spot 0.35s ease,
+    border-color 0.25s ease;
+}
+/* Évite un bloc visible puis masqué au chargement. Sécurité : il s'affiche seul si le script échoue. */
+.fx-wait .stage,
+.fx-wait main .card,
+.fx-wait main .fx-block {
+  opacity: 0;
+  animation: fx-guard 0.2s linear 1.5s forwards;
+}
+/* Les animations d'un bloc attendent qu'il entre à l'écran. */
+.fx-hidden .fx-grow,
+.fx-hidden .heat-cell,
+.fx-hidden .meter > i,
+.fx-hidden .score-bar,
+.fx-hidden .chart-sweep,
+.fx-hidden .chart-draw,
+.fx-hidden .chart-end,
+.fx-hidden .fx-row,
+.fx-title-wait .fx-word {
+  animation-play-state: paused;
+}
+/* Un chiffre clé (`data-count`) entre à l'écran en se levant doucement, déjà à sa vraie valeur (src/scripts/fx.ts) : depuis
+   le 14 novembre 2026, il ne monte plus de zéro, une animation ne change jamais une valeur. Ceux qui entrent ensemble se
+   lèvent l'un après l'autre. Hors de l'écran, il attend transparent. La pause et « réduire les animations » le montrent
+   aussitôt (règles plus bas, et fx.ts). */
+.fx-count-wait {
+  opacity: 0;
+}
+.fx-count-in {
+  animation: count-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) calc(var(--fx-count-i, 0) * 0.09s) backwards;
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+@keyframes float {
+  50% {
+    transform: translateY(-12px);
+  }
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes bar-in {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes word-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.45em) rotate(2deg);
+  }
+}
+@keyframes grow {
+  from {
+    transform: scaleY(0);
+  }
+}
+@keyframes cell-in {
+  from {
+    opacity: 0;
+    scale: 0.6;
+  }
+}
+@keyframes frontier {
+  to {
+    --angle: 360deg;
+  }
+}
+
+@keyframes fx-guard {
+  to {
+    opacity: 1;
+  }
+}
+@keyframes sweep {
+  from {
+    left: 0;
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  to {
+    left: 100%;
+    opacity: 0;
+  }
+}
+@keyframes draw {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+}
+@keyframes chart-end-in {
+  from {
+    opacity: 0;
+    scale: 0.4;
+  }
+}
+@keyframes ping {
+  to {
+    scale: 3.2;
+    opacity: 0;
+  }
+}
+@keyframes row-in {
+  from {
+    opacity: 0;
+    translate: -14px 0;
+  }
+}
+@keyframes count-in {
+  from {
+    opacity: 0;
+    translate: 0 0.35em;
+  }
+}
+@keyframes row-shine {
+  from {
+    background-position: 130% 0;
+  }
+  to {
+    background-position: -30% 0;
+  }
+}
+
+/* Bouton pause du site : même résultat que « réduire les animations » du système. */
+.fx-off *,
+.fx-off *::before,
+.fx-off *::after {
+  animation: none !important;
+  transition: none !important;
+}
+.fx-off .btn:hover {
+  transform: none;
+}
+.fx-off .btn::after {
+  display: none;
+}
+.fx-off #fx-territory,
+.fx-off #fx-sparks,
+.fx-off #fx-aurora,
+.fx-off #fx-progress,
+.fx-off [data-fx-hint],
+.fx-off .chart-sweep {
+  display: none;
+}
+.fx-off .stage::before,
+.fx-off main .card::before {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  .btn:hover {
+    transform: none;
+  }
+  .btn::after,
+  .stage::before,
+  main .card::before {
+    display: none;
+  }
+}
+@media print {
+  #fx-territory,
+  #fx-sparks,
+  #fx-aurora,
+  #fx-progress,
+  #fx-tip {
+    display: none;
+  }
+  .fx-hidden,
+  .fx-count-wait {
+    opacity: 1;
+  }
+}
+
+/* ---------- Les nouveautés du site ---------- */
+/* Le point : une mise à jour parue depuis le dernier coup d'œil du visiteur. Rouge du marqueur, 3:1 au moins partout où il se pose :
+   4,8:1 sur le marine, 4,6:1 sur le fond de l'encadrement, 3,8:1 sur la ligne active du menu.
+   Pas de display ici : dans un bouton ou un lien en flex, il devient un bloc, et une classe comme lg:hidden peut encore le masquer. */
+.nouveautes-dot {
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--color-red);
+}
+/* En contraste élevé, le système efface les fonds : le point prend la couleur du texte pour rester visible. */
+@media (forced-colors: active) {
+  .nouveautes-dot {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+}
+.nouveautes-menu > summary::-webkit-details-marker {
+  display: none;
+}
+.nouveautes-menu[open] > summary {
+  color: var(--ecriture);
+  border-color: var(--ecriture);
+}
+/* Le panneau tient dans la fenêtre : sur un écran bas, il défile au lieu d'en sortir. */
+.nouveautes-panel {
+  width: min(24rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 6rem);
+  overflow-y: auto;
+}
+
+/* ---------- Les écrans du compte et de l'administration ---------- */
+/* Pastille du lien Direction : les demandes qui attendent. Ambre des avertissements, texte de la couleur de la page (blanc, 6,2:1). */
+.count-pill {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.375rem;
+  height: 1.375rem;
+  padding-inline: 0.375rem;
+  border-radius: 999px;
+  background: var(--color-warn);
+  color: var(--color-navy);
+  font-size: 0.75rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.chip[aria-selected="true"] {
+  color: var(--color-navy);
+  background: var(--ecriture);
+  border-color: var(--ecriture);
+}
+.form-problem {
+  margin-top: 0.5rem;
+  color: var(--color-danger);
+  font-weight: 600;
+}
+.form-success {
+  margin-top: 0.5rem;
+  color: var(--color-ok);
+  font-weight: 600;
+}
+/* Vide, la zone d'état (`role="status"`) reste dans l'arbre d'accessibilité, sans prendre de place : un lecteur d'écran
+   annonce ce qui s'y écrit ensuite. Avec `display: none`, elle n'existait pas pour lui avant son message (relevé par
+   l'onglet Événements de la Direction, 14 novembre 2026). */
+.form-success:empty {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------- Les espaces de travail : le QG et la Direction ---------- */
+/* On y lit, on y tape et on y clique : tout y est plus grand que sur les pages de lecture. Les tailles de texte de
+   Tailwind (text-xs à text-4xl) et son pas d'espacement y sont redéfinis : chaque composant grandit sans changer de classe. */
+.espace {
+  --spacing: 0.28rem;
+  --text-xs: 0.9375rem;
+  --text-sm: 1.0625rem;
+  --text-base: 1.125rem;
+  --text-lg: 1.375rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 1.875rem;
+  --text-3xl: 2.25rem;
+  --text-4xl: 2.75rem;
+  font-size: var(--text-base);
+  line-height: 1.55;
+}
+/* Un long bouton (« Changer le Gaulois de la semaine ») passe à la ligne plutôt que d'élargir la page sur téléphone. */
+.espace .btn {
+  min-height: 3rem;
+  padding: 0.6875rem 1.375rem;
+  white-space: normal;
+  text-align: center;
+}
+.espace .chip {
+  min-height: 2.875rem;
+  padding-inline: 1.25rem;
+  font-size: var(--text-sm);
+}
+.espace .field {
+  min-height: 3.125rem;
+  padding: 0.625rem 0.875rem;
+}
+.espace .avatar {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+.espace .data-table th {
+  font-size: 0.875rem;
+}
+.espace .data-table td {
+  padding: 0.875rem;
+}
+.espace .meter {
+  height: 8px;
+  border-radius: 4px;
+}
+
+/* La barre d'onglets : une seule ligne. Quand la place manque (téléphone), elle défile de côté dans son cadre, sans
+   élargir la page, et ses bords s'estompent du côté où d'autres onglets attendent. Ce ne sont pas des pastilles :
+   les pastilles restent aux onglets des rubriques, qui changent de page. */
+.onglets {
+  position: relative;
+  /* Dans une grille, la barre ne doit pas réclamer la largeur de tous ses onglets. */
+  min-width: 0;
+  scroll-margin-top: 5.5rem;
+  background: var(--color-night);
+  border: 1px solid var(--color-line);
+  border-radius: 1.125rem;
+}
+.onglets-defile {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.375rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 0.375rem;
+  scrollbar-width: none;
+}
+.onglets-defile::-webkit-scrollbar {
+  display: none;
+}
+.onglets-avant .onglets-defile {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 3rem);
+  mask-image: linear-gradient(90deg, transparent, #000 3rem);
+}
+.onglets-apres .onglets-defile {
+  -webkit-mask-image: linear-gradient(270deg, transparent, #000 3rem);
+  mask-image: linear-gradient(270deg, transparent, #000 3rem);
+}
+.onglets-avant.onglets-apres .onglets-defile {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 3rem, #000 calc(100% - 3rem), transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 3rem, #000 calc(100% - 3rem), transparent);
+}
+.onglet {
+  /* Le texte réservé aux lecteurs d'écran (.sr-only, en position absolue) se place dans l'onglet, donc dans le cadre qui
+     défile : placé hors de lui, il élargissait la page sur téléphone. */
+  position: relative;
+  flex: none;
+  scroll-snap-align: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 3.25rem;
+  padding: 0.5rem 1.125rem;
+  border-radius: 0.875rem;
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: var(--color-muted);
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    background-color 0.15s,
+    box-shadow 0.2s;
+}
+.onglet:hover {
+  color: var(--ecriture);
+  background: color-mix(in srgb, var(--ecriture) 7%, transparent);
+}
+/* L'onglet ouvert : fond plus clair et filet rouge dessous, le marqueur de page du site. Pas seulement une couleur. */
+.onglet[aria-selected="true"] {
+  color: var(--ecriture);
+  background: var(--color-surface-2);
+  box-shadow: inset 0 -3px 0 var(--color-red);
+}
+/* Dans un cadre qui défile, le contour du focus reste à l'intérieur de l'onglet. */
+.onglet:focus-visible {
+  outline-offset: -4px;
+}
+/* Ce qui attend derrière un onglet. Le nombre est doublé d'une phrase pour les lecteurs d'écran. */
+.onglet-nombre {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.625rem;
+  height: 1.625rem;
+  padding-inline: 0.4375rem;
+  border-radius: 999px;
+  background: var(--color-line);
+  color: var(--ecriture);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 800;
+  line-height: 1;
+}
+/* Quelqu'un attend dans un salon : le bleu du bouton principal (blanc dessus : 5,1:1 ; en thème rouge, 5,3:1). */
+.onglet-nombre-vif {
+  --ecriture: #fff;
+  background: var(--color-blue);
+  color: var(--ecriture);
+}
+/* Des demandes attendent l'encadrement : le jaune des avertissements, comme la pastille de l'en-tête. */
+.onglet-nombre-alerte {
+  background: var(--color-warn);
+  color: var(--color-navy);
+}
+
+/* Le menu déroulant des parties (option `menu` d'Onglets, la Direction et le QG) : il remplace la barre d'onglets, sur toutes
+   les largeurs. Son bouton dit la partie ouverte, sa liste les donne toutes. Les onglets restent dans la page, masqués :
+   chaque partie garde le nom de son onglet. La liste se place sous toute la barre (.onglets est son bloc de référence). */
+.onglets-avec-menu {
+  display: flex;
+  align-items: center;
+}
+.onglets-avec-menu .onglets-defile {
+  display: none;
+}
+.onglets-menu {
+  flex: 1;
+  min-width: 0;
+  padding: 0.375rem;
+}
+.onglets-menu-bouton,
+.onglets-choix {
+  /* Le texte réservé aux lecteurs d'écran reste dans le bouton : rien ne déborde de la page. */
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  min-height: 3.25rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.875rem;
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: left;
+  color: var(--ecriture);
+  cursor: pointer;
+}
+.onglets-menu-bouton:hover,
+.onglets-menu-bouton[aria-expanded="true"] {
+  background: var(--color-surface-2);
+}
+.onglets-menu-ouverte {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+/* Un nom trop long pour le bouton se termine par « … » au lieu de se couper au milieu d'un mot. */
+.onglets-menu-nom {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.onglets-menu-ouverte .onglet-nombre {
+  flex: none;
+}
+.onglets-menu-fleche {
+  flex: none;
+  transition: rotate 0.2s;
+}
+.onglets-menu-bouton[aria-expanded="true"] .onglets-menu-fleche {
+  rotate: 180deg;
+}
+.onglets-liste {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 0.375rem;
+  z-index: 30;
+  display: grid;
+  gap: 0.125rem;
+  width: min(26rem, calc(100% - 0.75rem));
+  max-height: min(70vh, 36rem);
+  overflow-y: auto;
+  padding: 0.375rem;
+  background: var(--color-night);
+  border: 1px solid var(--color-line-strong);
+  border-radius: 1rem;
+  box-shadow: 0 1.25rem 2.5rem -1rem var(--ombre);
+}
+.onglets-liste[hidden] {
+  display: none;
+}
+/* Sous une partie courte (« Moi » au QG, un formulaire seul), la liste ouverte descend plus bas que la page : `main`
+   passe alors au-dessus du pied de page, qui la couvrirait (les deux sont au même plan, le pied de page vient après). */
+main:has(.onglets-menu-bouton[aria-expanded="true"]) {
+  z-index: 2;
+}
+/* Sur téléphone, la liste prend toute la largeur de la barre et resserre ses lignes : avec son icône, le plus long nom
+   (« Gaulois de la semaine ») tient sur une ligne dès 360 px. Dans une fenêtre étroite d'ordinateur, l'ascenseur de la
+   liste lui prend cette place : le nom passe sur deux lignes, sans rien faire déborder. */
+@media (max-width: 47.999rem) {
+  .onglets-liste {
+    left: 0;
+    width: 100%;
+  }
+  .onglets-choix {
+    gap: 0.5rem;
+    padding-inline: 0.625rem;
+  }
+  /* La case de couleur autour de l'icône (.pastille-icone) se resserre : sans quoi ce nom passerait à la ligne à 360 px. */
+  .onglets-choix .pastille-icone {
+    padding: 0.125rem;
+  }
+}
+.onglets-choix {
+  color: var(--color-muted);
+}
+.onglets-choix:hover {
+  color: var(--ecriture);
+  background: color-mix(in srgb, var(--ecriture) 7%, transparent);
+}
+/* La partie ouverte : fond plus clair et filet rouge à gauche, comme l'onglet ouvert. */
+.onglets-choix[aria-current="true"] {
+  color: var(--ecriture);
+  background: var(--color-surface-2);
+  box-shadow: inset 3px 0 0 var(--color-red);
+}
+.onglets-choix:focus-visible,
+.onglets-menu-bouton:focus-visible {
+  outline-offset: -4px;
+}
+/* La petite icône d'une partie, devant son nom dans le bouton et dans la liste (IconePartie.tsx) : treize cases de 2 px,
+   dans la couleur du texte. Elle garde sa taille quand la place manque : c'est le nom qui se coupe. */
+.icone-partie {
+  flex: none;
+  width: 1.625rem;
+  height: 1.625rem;
+}
+/* Les pastilles (src/lib/teintes.ts) : la palette 5, choisie par le pilote le 14 novembre 2026 pour le guide du clan,
+   puis pour les menus des parties du QG et de la Direction. Chaque icône a sa couleur, du rouge au rose en descendant sa
+   liste (teinteDuRang), posée sur une petite case de la même couleur, pâle (14 % d'elle dans le fond de la carte). Plus
+   de vert, qui reste la voix de la machine, ni de lueur. Les onze teintes tiennent 4,5:1 sur le fond et encore 3:1 sur
+   leur pastille (tests/unit/pastilles.test.ts). Dans la ligne ouverte d'un menu, l'icône est blanche sur le bleu, sans
+   case (règles du guide et du menu des parties). */
+[data-teinte="1"] {
+  --teinte: #d91228;
+}
+[data-teinte="2"] {
+  --teinte: #c2410c;
+}
+[data-teinte="3"] {
+  --teinte: #b45309;
+}
+[data-teinte="4"] {
+  --teinte: #a16207;
+}
+[data-teinte="5"] {
+  --teinte: #0e7490;
+}
+[data-teinte="6"] {
+  --teinte: #0369a1;
+}
+[data-teinte="7"] {
+  --teinte: #0a4fd6;
+}
+[data-teinte="8"] {
+  --teinte: #4338ca;
+}
+[data-teinte="9"] {
+  --teinte: #7c3aed;
+}
+[data-teinte="10"] {
+  --teinte: #a21caf;
+}
+[data-teinte="11"] {
+  --teinte: #be185d;
+}
+.pastille-icone {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  border-radius: 0.375rem;
+  color: var(--teinte, var(--color-blue-text));
+  background: color-mix(in srgb, var(--teinte, var(--color-blue-text)) 14%, var(--color-surface));
+}
+/* En contraste élevé, ni teinte ni case pâle : la couleur du texte qui la porte. */
+@media (forced-colors: active) {
+  .pastille-icone {
+    color: inherit;
+    background: none;
+  }
+}
+
+/* Une partie sous ses onglets. Le « roulement » : la partie choisie glisse doucement du côté de son onglet, une fois,
+   de moins que la marge de la page (rien ne déborde). Le bouton pause (.fx-off *) et le réglage « réduire les animations »
+   le coupent, comme toute animation du site. */
+.partie:focus-visible {
+  outline-offset: 6px;
+  border-radius: 1rem;
+}
+.partie-droite {
+  animation: partie-droite 0.38s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.partie-gauche {
+  animation: partie-gauche 0.38s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes partie-droite {
+  from {
+    opacity: 0;
+    transform: translateX(0.75rem);
+  }
+}
+@keyframes partie-gauche {
+  from {
+    opacity: 0;
+    transform: translateX(-0.75rem);
+  }
+}
+
+/* ---------- Une page de texte : la confidentialité ---------- */
+/* Une partie du texte par titre : de l'air avant chacun (48 px sur téléphone, 64 sur grand écran). */
+.text-page h2 {
+  margin-top: clamp(3rem, 5vw, 4rem);
+  font-size: clamp(1.5rem, 3.5vw, 2.25rem);
+}
+.text-page p,
+.text-page ul {
+  margin-top: 0.75rem;
+}
+.text-page ul {
+  padding-left: 1.25rem;
+  list-style: disc;
+}
+.text-page li + li {
+  margin-top: 0.375rem;
+}
+.text-page a {
+  color: var(--color-blue-text);
+  text-decoration: underline;
+}
+
+/* ---------- Ambiance console : la Direction et le QG ---------- */
+/* /direction passe ambiance="console" à Base.astro, en plus du thème rouge : data-ambiance="console" sur <html>. Le QG
+   la prend aussi depuis le 12 novembre 2026, en bleu, la couleur des membres (« Le style Terminal », plus bas).
+   Un poste de commandement posé sur le décor du site, qui garde ses couleurs, ses titres et son tricolore : la grille des
+   cases de conquête se dessine, l'écran a ses lignes de balayage, et ce que dit la machine (invite, onglets, libellés,
+   chiffres, états) s'écrit en chasse fixe. Rien ne bouge seul, sauf à l'ouverture : l'invite s'écrit et une bande de
+   lumière descend, une fois. Le bouton pause et « réduire les animations » coupent les deux. Seul le pavé de l'invite
+   clignote, comme un terminal (.console-curseur).
+   Voir docs/DESIGN.md, « Ambiance console ». */
+:root[data-ambiance="console"] {
+  --console-grille: color-mix(in srgb, var(--color-red) 7%, transparent);
+  --console-grille-forte: color-mix(in srgb, var(--color-red) 13%, transparent);
+  /* La lueur des chiffres et de l'onglet ouvert : le rouge du marqueur, très adouci sur le blanc. */
+  --console-lueur: color-mix(in srgb, var(--color-red) 20%, transparent);
+  /* Les repères aux coins des cartes, décoratifs. */
+  --console-repere: color-mix(in srgb, var(--color-blue-text) 70%, transparent);
+}
+/* Deux calques fixes derrière le contenu (main et le pied de page sont au-dessus, z-index 1) : la grille, puis l'écran. */
+:root[data-ambiance="console"] body::before,
+:root[data-ambiance="console"] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+/* La grille : le pas des cases de conquête (28 px, TILE_SIZE de src/lib/fx/territory.ts), donc les cases qui s'allument
+   tombent dedans ; un trait plus marqué toutes les quatre cases. Elle s'efface vers les bords. */
+:root[data-ambiance="console"] body::before {
+  background-image:
+    linear-gradient(var(--console-grille-forte) 1px, transparent 1px),
+    linear-gradient(90deg, var(--console-grille-forte) 1px, transparent 1px),
+    linear-gradient(var(--console-grille) 1px, transparent 1px),
+    linear-gradient(90deg, var(--console-grille) 1px, transparent 1px);
+  background-size:
+    112px 112px,
+    112px 112px,
+    28px 28px,
+    28px 28px;
+  -webkit-mask-image: radial-gradient(ellipse 90% 75% at 50% 30%, #000 30%, transparent 100%);
+  mask-image: radial-gradient(ellipse 90% 75% at 50% 30%, #000 30%, transparent 100%);
+}
+/* L'écran : de fines lignes de balayage et des coins assombris. Derrière le texte : aucun contraste n'y perd. */
+:root[data-ambiance="console"] body::after {
+  background: repeating-linear-gradient(color-mix(in srgb, var(--ecriture) 3.5%, transparent) 0 1px, transparent 1px 4px);
+}
+/* À l'ouverture de la page, une seule bande de lumière descend l'écran, lentement, derrière le contenu, puis s'éteint.
+   Au repos elle est invisible : sans animation (bouton pause, « réduire les animations »), elle n'apparaît jamais. */
+:root[data-ambiance="console"]::after {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 0;
+  height: 45vh;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(
+    transparent,
+    color-mix(in srgb, var(--color-red) 9%, transparent) 75%,
+    color-mix(in srgb, var(--color-blue-text) 16%, transparent) 97%,
+    transparent
+  );
+  animation: console-balayage 2.8s cubic-bezier(0.45, 0, 0.3, 1) 0.5s;
+}
+/* `.fx-off *` ne vise que les descendants de <html> : la bande, portée par <html> lui-même, s'arrête ici. */
+:root.fx-off[data-ambiance="console"]::after {
+  animation: none;
+}
+@keyframes console-balayage {
+  from {
+    opacity: 1;
+    transform: translateY(-45vh);
+  }
+  80% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(100vh);
+  }
+}
+@media print, (forced-colors: active) {
+  :root[data-ambiance="console"] body::before,
+  :root[data-ambiance="console"] body::after,
+  :root[data-ambiance="console"]::after {
+    display: none;
+  }
+}
+
+/* L'invite au-dessus du titre, décorative (aria-hidden) : elle s'écrit une fois, lettre à lettre, puis reste. Son pavé
+   clignote comme le curseur d'un terminal (plus bas, .console-curseur). */
+:root[data-ambiance="console"] .console-invite {
+  display: flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  margin-bottom: 0.625rem;
+  font-family: var(--font-console);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+  color: var(--color-muted);
+  animation: console-frappe 0.9s steps(18, end) 0.2s backwards;
+}
+.console-invite {
+  display: none;
+}
+.console-hote {
+  font-weight: 700;
+  color: var(--color-blue-text);
+}
+/* Le curseur est rouge, le marqueur du site, sur les deux pages : sa lueur aussi, même où la lueur de la page est bleue.
+   Il clignote comme celui d'un terminal, à la demande du pilote (14 novembre 2026) : allumé puis éteint, net, une fois
+   par seconde environ, bien en dessous des trois éclairs par seconde de WCAG 2.3.1. Il ne commence qu'une fois l'invite
+   écrite : il se pose allumé. Le bouton pause et « réduire les animations » le laissent allumé, fixe (WCAG 2.2.2). */
+.console-curseur {
+  display: inline-block;
+  width: 0.6em;
+  height: 1.15em;
+  margin-left: 0.4em;
+  background: var(--color-red);
+  box-shadow: 0 0 0.75rem color-mix(in srgb, var(--color-red) 55%, transparent);
+  animation: console-clignote 1.1s step-end 1s infinite;
+}
+/* L'invite des consoles s'écrit plus lentement (0,2 s d'attente, puis 0,9 s, ou 1,5 s avec sa commande). */
+.console-invite .console-curseur {
+  animation-delay: 1.1s;
+}
+:root[data-console] .console-invite .console-curseur {
+  animation-delay: 1.7s;
+}
+/* Allumé la première moitié du tour, éteint la seconde : le pas net d'un terminal, sans fondu. */
+@keyframes console-clignote {
+  50% {
+    opacity: 0;
+  }
+}
+@keyframes console-frappe {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+/* Le titre : un décalage bleu et rouge, fixe et net, le tricolore vu à travers un écran. Sur la page blanche, plus de
+   lueur rouge ni de couleurs à demi transparentes : elles donnaient un titre flou (14 novembre 2026). */
+:root[data-ambiance="console"] .page-title {
+  text-shadow:
+    -0.03em 0 0 var(--color-flag-blue),
+    0.03em 0 0 var(--color-red);
+}
+
+/* Les repères aux quatre coins des cartes, comme un viseur. Décoratifs, peints par-dessus la carte mais dans sa marge
+   intérieure (de 7 à 21 px du bord) : ils ne touchent pas son contenu. */
+:root[data-ambiance="console"] main .card::after {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--console-repere) 0 0) left top / 14px 2px,
+    linear-gradient(var(--console-repere) 0 0) left top / 2px 14px,
+    linear-gradient(var(--console-repere) 0 0) right top / 14px 2px,
+    linear-gradient(var(--console-repere) 0 0) right top / 2px 14px,
+    linear-gradient(var(--console-repere) 0 0) left bottom / 14px 2px,
+    linear-gradient(var(--console-repere) 0 0) left bottom / 2px 14px,
+    linear-gradient(var(--console-repere) 0 0) right bottom / 14px 2px,
+    linear-gradient(var(--console-repere) 0 0) right bottom / 2px 14px;
+  background-repeat: no-repeat;
+}
+
+/* Ce que dit la machine : libellés en capitales espacées, chiffres en grand avec une lueur, dates et heures.
+   Espacement des libellés : « ENCADREMENT » tient sur une ligne dans sa tuile dès 360 px (105,6 px pour 108,2). */
+:root[data-ambiance="console"] .console-libelle {
+  font-family: var(--font-console);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+:root[data-ambiance="console"] .console-valeur {
+  font-family: var(--font-console);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  text-shadow: 0 0 1.25rem var(--console-lueur);
+}
+:root[data-ambiance="console"] .console-valeur.text-warn {
+  text-shadow: 0 0 1.25rem color-mix(in srgb, var(--color-warn) 45%, transparent);
+}
+:root[data-ambiance="console"] .espace .tnum {
+  font-family: var(--font-console);
+  letter-spacing: -0.01em;
+}
+/* Le compte connecté : un voyant vert allumé, puis l'accès, en chasse fixe. */
+:root[data-ambiance="console"] .console-acces {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-family: var(--font-console);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.console-voyant {
+  display: none;
+}
+:root[data-ambiance="console"] .console-voyant {
+  display: inline-block;
+  flex: none;
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 999px;
+  background: var(--color-ok);
+  box-shadow: 0 0 0.625rem color-mix(in srgb, var(--color-ok) 70%, transparent);
+}
+
+/* 16 px en chasse fixe : à l'œil, la taille du texte courant de l'espace (17 px en Inter). */
+:root[data-ambiance="console"] .console-journal dd {
+  font-family: var(--font-console);
+  font-size: 1rem;
+}
+
+/* Un champ : son nom en chasse fixe, le curseur de saisie rouge, et une lueur autour du champ où l'on écrit. Pas de
+   capitales sur le nom : « Retapez « Nom » pour confirmer » doit montrer le nom tel qu'il faut le taper. */
+:root[data-ambiance="console"] .espace label[for] {
+  font-family: var(--font-console);
+}
+:root[data-ambiance="console"] .field {
+  caret-color: var(--color-red);
+}
+:root[data-ambiance="console"] .field:focus {
+  box-shadow: 0 0 1.5rem -0.375rem var(--console-lueur);
+}
+
+/* ---------- Le style Terminal de la console ---------- */
+/* La Direction est en style Terminal : data-console="terminal" sur <html>, posé par Base.astro avec l'ambiance console.
+   Le 11 novembre 2026, le pilote a vu trois styles et n'a gardé que celui-ci, « encore plus hacker » (docs/DESIGN.md).
+   Tout ce qui est écrit en décor (« > », chemins, branches, commandes, noms de fenêtre) passe par
+   `content: … / ""`, que les lecteurs d'écran ne lisent pas. */
+
+/* Ce que seul le style montre : la commande de l'invite, l'heure et la collecte. */
+.console-commande,
+.console-heure,
+.console-collecte {
+  display: none;
+}
+:root[data-ambiance="console"][data-console] .console-commande,
+:root[data-ambiance="console"][data-console] .console-heure,
+:root[data-ambiance="console"][data-console] .console-collecte {
+  display: inline;
+}
+:root[data-ambiance="console"][data-console] .console-heure::before,
+:root[data-ambiance="console"][data-console] .console-collecte::before {
+  content: "·" / "";
+  margin-right: 0.625rem;
+  opacity: 0.7;
+}
+/* Sur téléphone, la ligne passe à la ligne entre deux valeurs, jamais au milieu d'une. */
+:root[data-ambiance="console"][data-console] .console-acces {
+  flex-wrap: wrap;
+  row-gap: 0.25rem;
+}
+:root[data-ambiance="console"][data-console] .console-acces > * {
+  white-space: nowrap;
+}
+/* La collecte, datée quand elle n'est pas du jour, peut encore passer à la ligne entre « collecte » et sa date, qui ne se
+   coupe jamais : au QG, sur un téléphone de 360 px, l'avatar ne laisse qu'environ 200 px à la ligne. */
+:root[data-ambiance="console"][data-console] .console-acces > .console-collecte {
+  white-space: normal;
+}
+.console-collecte-date {
+  white-space: nowrap;
+}
+/* L'invite, plus longue avec sa commande, s'écrit au même rythme. */
+:root[data-ambiance="console"][data-console] .console-invite {
+  animation-duration: 1.5s;
+  animation-timing-function: steps(30, end);
+}
+
+/* Un écran clair depuis le 14 novembre 2026 (thème « Neige Marine », demandé aussi pour le guide, le QG et la
+   Direction) : une page à peine bleutée, quadrillée, des cartes et des champs blancs, l'écriture marine. Bleu au QG, la
+   page des membres : texte secondaire 7,3:1 et liens 6,8:1 sur une carte, contour des champs 4,2:1, « OK » en vert
+   sapin 7,1:1 ; le bleu des boutons et de la partie ouverte du menu est foncé d'un cran (blanc dessus : 6,8:1). Rouge à
+   la Direction (data-theme="rouge") : texte secondaire 7,7:1 et liens 7,1:1 sur une carte, contour des champs 4,4:1. */
+:root[data-ambiance="console"][data-console="terminal"] {
+  --color-navy: #f6f8fd;
+  --color-night: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-2: #e3eaf9;
+  --color-line: #cdd7ee;
+  --color-line-strong: #6a7bad;
+  --color-blue: #0a4fd6;
+  --color-blue-hover: #083fae;
+  --glow: rgb(11 95 255 / 0.08);
+  --reflection: rgb(255 26 46 / 0.04);
+  /* La grille et la lueur des champs, dans le bleu du drapeau : au QG, c'est le bleu qui mène. */
+  --console-grille: color-mix(in srgb, var(--color-flag-blue) 7%, transparent);
+  --console-grille-forte: color-mix(in srgb, var(--color-flag-blue) 13%, transparent);
+  --console-lueur: color-mix(in srgb, var(--color-flag-blue) 22%, transparent);
+  /* Le vert d'un terminal : ce qui va bien (les « OK », le voyant de la session), la machine des commandes et la chute
+     du logo Matrix ; les icônes sont en pastilles de couleur depuis le 14 novembre 2026. Ni textes ni chiffres, au QG, à la Direction et sur la page Carte : ils restent marine ou gris.
+     Un vert sapin, lisible sur le blanc (7,1:1). */
+  --console-vert: #166534;
+}
+/* Le bouton garde le rouge du thème de l'encadrement : la règle bleue ci-dessus, plus forte que [data-theme="rouge"],
+   l'emporterait sinon sur la racine de la Direction. */
+:root[data-ambiance="console"][data-console="terminal"][data-theme="rouge"],
+:root[data-ambiance="console"][data-console="terminal"] [data-theme="rouge"] {
+  --color-navy: #fff9f9;
+  --color-night: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-2: #f9e1e5;
+  --color-line: #efcdd3;
+  --color-line-strong: #b0606d;
+  --color-blue: #d4132f;
+  --color-blue-hover: #b00f27;
+  --glow: rgb(255 26 46 / 0.08);
+  --reflection: rgb(11 95 255 / 0.04);
+  --console-grille: color-mix(in srgb, var(--color-red) 7%, transparent);
+  --console-grille-forte: color-mix(in srgb, var(--color-red) 13%, transparent);
+  --console-lueur: color-mix(in srgb, var(--color-red) 20%, transparent);
+}
+:root[data-ambiance="console"][data-console="terminal"] body::after {
+  background: repeating-linear-gradient(color-mix(in srgb, var(--ecriture) 4.5%, transparent) 0 1px, transparent 1px 3px);
+}
+:root[data-ambiance="console"][data-console="terminal"] ::selection {
+  background: var(--color-blue);
+  color: var(--sur-couleur);
+}
+
+/* Toute la page en chasse fixe, sauf le grand titre, qui reste celui du site. */
+:root[data-ambiance="console"][data-console="terminal"] main {
+  font-family: var(--font-console);
+}
+:root[data-ambiance="console"][data-console="terminal"] main :is(h2, h3) {
+  font-family: var(--font-console);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+/* Des fenêtres aux coins nets, encadrées de traits doubles comme un terminal en mode texte. Les repères de viseur de la
+   console laissent la place au double trait. */
+:root[data-ambiance="console"][data-console="terminal"] main :is(.card, .btn, .field),
+:root[data-ambiance="console"][data-console="terminal"] :is(.onglets, .onglets-liste) {
+  border-radius: 0.375rem;
+}
+:root[data-ambiance="console"][data-console="terminal"] main .card,
+:root[data-ambiance="console"][data-console="terminal"] :is(.onglets, .onglets-liste) {
+  border: 3px double var(--color-line-strong);
+}
+:root[data-ambiance="console"][data-console="terminal"] main .card:hover {
+  border-color: var(--color-blue-text);
+}
+:root[data-ambiance="console"][data-console="terminal"] main .card:not([data-titre])::after {
+  display: none;
+}
+/* Une fenêtre qui a un nom (data-titre) : sa barre de titre. */
+:root[data-ambiance="console"][data-console="terminal"] main .card[data-titre] {
+  border-top: 1.875rem solid var(--color-surface-2);
+}
+:root[data-ambiance="console"][data-console="terminal"] main .card[data-titre]::after {
+  content: "■ " attr(data-titre) / "";
+  inset: -1.875rem 0 auto;
+  display: flex;
+  align-items: center;
+  height: 1.875rem;
+  padding-inline: 0.875rem;
+  background: none;
+  font-family: var(--font-console);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+/* Une ligne de commande au-dessus de chaque partie : « gal@direction:~$ ./annonces », « gal@qg:~$ ./salons ». La
+   machine vient de la page (--console-hote, posé par direction.astro et qg.astro). Elle s'écrit quand la partie paraît,
+   en même temps que son glissement ; avec le bouton pause ou « réduire les animations », elle est là d'emblée.
+   Depuis le 14 novembre 2026, elle a le dessin de l'invite du haut, que le pilote préfère à l'ancienne ligne toute
+   verte : la machine en vert et en gras, le reste en gris (.partie-commande, posée par Partie dans Onglets.tsx). */
+.partie-commande {
+  display: none;
+}
+:root[data-ambiance="console"][data-console="terminal"] .espace .partie-commande {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin-bottom: 0.875rem;
+  overflow: hidden;
+  font-family: var(--font-console);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+  color: var(--color-muted);
+}
+:root[data-ambiance="console"][data-console="terminal"] .espace .partie-commande::before {
+  content: "gal@" var(--console-hote) / "";
+  font-weight: 700;
+}
+:root[data-ambiance="console"][data-console="terminal"] .espace .partie-commande::after {
+  content: ":~$ ./" attr(data-commande) / "";
+}
+:root[data-ambiance="console"][data-console="terminal"] .espace :is(.partie-droite, .partie-gauche) > .partie-commande {
+  animation: console-frappe 0.7s steps(28, end) 0.1s backwards;
+}
+
+/* Les boutons comme des commandes : « > » devant, vidéo inversée au survol. */
+:root[data-ambiance="console"][data-console="terminal"] main .btn-ghost::before {
+  content: ">" / "";
+  color: var(--color-blue-text);
+}
+:root[data-ambiance="console"][data-console="terminal"] main .btn-ghost:hover {
+  --ecriture: #fff;
+  background: var(--color-blue);
+  border-color: var(--color-blue);
+  color: var(--ecriture);
+}
+:root[data-ambiance="console"][data-console="terminal"] main .btn-ghost:hover::before {
+  color: var(--ecriture);
+}
+
+/* Le vert d'un terminal, la voix de la machine : la machine des commandes (« gal@qg »), les « > » des boutons, les
+   chemins du menu et ce qui va bien. Les icônes sont en pastilles de couleur depuis le 14 novembre 2026. Jamais un
+   texte ni un chiffre : le 12 novembre 2026, une règle mettait en vert tous les chiffres (.tnum), avec les phrases, les dates et les tableaux qui les portent ; le pilote a trouvé « un peu trop de vert dans
+   les écritures » au QG, comme sur la page Carte, et la Direction a suivi avec son accord. Les grands chiffres
+   (.console-valeur) sont blancs, avec la lueur des champs : bleue au QG, rouge à la Direction. */
+:root[data-ambiance="console"][data-console="terminal"] .console-hote,
+:root[data-ambiance="console"][data-console="terminal"] .espace .partie-commande::before,
+:root[data-ambiance="console"][data-console="terminal"] main .btn-ghost::before {
+  color: var(--console-vert);
+}
+/* Le mot gris qui suit un grand chiffre (« +36 victoires », « 152 / 300 ») ne prend pas sa lueur. */
+:root[data-ambiance="console"] .console-valeur .text-muted {
+  text-shadow: none;
+}
+
+/* Ce qui va bien, en vert de terminal : le voyant de la session. */
+:root[data-ambiance="console"][data-console="terminal"] .console-voyant {
+  background: var(--console-vert);
+  box-shadow: 0 0 0.625rem color-mix(in srgb, var(--console-vert) 70%, transparent);
+}
+/* « Lecture en cours » comme une ligne de journal. */
+:root[data-ambiance="console"] .espace [role="status"].text-muted::before {
+  content: "[ .. ] " / "";
+  font-family: var(--font-console);
+  font-weight: 800;
+}
+
+/* Le menu des parties, à la Direction et au QG : le petit logo Matrix en tête, le bouton écrit le chemin de la partie
+   ouverte, en vert comme une commande ; la liste en arborescence, « ~/direction » ou « ~/qg », puis « ├── », l'icône de
+   la partie et son nom. */
+:root[data-ambiance="console"][data-console="terminal"] :is(.onglets-menu-bouton, .onglets-choix) {
+  font-family: var(--font-console);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  border-radius: 0.25rem;
+}
+:root[data-ambiance="console"][data-console="terminal"] .onglets-menu-ouverte::before {
+  content: "~/" var(--console-hote) "/" / "";
+  flex: none;
+  margin-right: -0.5rem;
+  font-weight: 500;
+  color: var(--console-vert);
+}
+/* Sur téléphone, la place manque : le bouton garde le logo et le nom de la partie, sans le chemin. */
+@media (max-width: 47.999rem) {
+  :root[data-ambiance="console"][data-console="terminal"] .onglets-menu-ouverte::before {
+    display: none;
+  }
+}
+:root[data-ambiance="console"][data-console="terminal"] .onglets-liste::before {
+  content: "~/" var(--console-hote) / "";
+  padding: 0.375rem 1rem 0.25rem;
+  font-family: var(--font-console);
+  font-weight: 700;
+  color: var(--console-vert);
+}
+:root[data-ambiance="console"][data-console="terminal"] .onglets-choix::before {
+  content: "├──" / "";
+  flex: none;
+  white-space: nowrap;
+  color: var(--color-line-strong);
+}
+:root[data-ambiance="console"][data-console="terminal"] .onglets-liste > li:last-child .onglets-choix::before {
+  content: "└──" / "";
+}
+/* Sur téléphone, une branche plus courte laisse la place à l'icône et au nom. */
+@media (max-width: 47.999rem) {
+  :root[data-ambiance="console"][data-console="terminal"] .onglets-choix::before {
+    content: "├─" / "";
+  }
+  :root[data-ambiance="console"][data-console="terminal"] .onglets-liste > li:last-child .onglets-choix::before {
+    content: "└─" / "";
+  }
+}
+:root[data-ambiance="console"][data-console="terminal"] .onglets-choix[aria-current="true"] {
+  --ecriture: #fff;
+  color: var(--ecriture);
+  background: var(--color-blue);
+  box-shadow: none;
+}
+:root[data-ambiance="console"][data-console="terminal"] .onglets-choix[aria-current="true"]::before {
+  color: var(--ecriture);
+}
+/* Dans la partie ouverte, la pastille bleue « quelqu'un attend » (les Salons du QG) se fondrait dans le fond : elle
+   passe au blanc (chiffre bleu sur blanc : 6,8:1). */
+:root[data-ambiance="console"][data-console="terminal"] .onglets-choix[aria-current="true"] .onglet-nombre-vif {
+  background: var(--ecriture);
+  color: var(--color-blue);
+}
+
+/* Les icônes des parties : en pastilles de couleur depuis le 14 novembre 2026, comme le guide du clan (le pilote :
+   « pareil, mets-moi ça en couleur », pour le QG puis « pareil à la Direction »), à la place du vert de terminal et de sa
+   lueur (règle .pastille-icone, plus haut). Dans la partie ouverte, en vidéo inversée, l'icône est blanche comme son
+   nom, sans case. Rien ne bouge. */
+:root[data-ambiance="console"][data-console="terminal"] .onglets-choix[aria-current="true"] .pastille-icone {
+  color: var(--ecriture);
+  background: transparent;
+}
+/* Dans le bouton, la pastille suit le chemin (« ~/qg/ », puis l'icône et le nom) : un petit écart les sépare. Sur
+   téléphone, sans le chemin, elle vient juste après le logo. */
+@media (min-width: 48rem) {
+  :root[data-ambiance="console"][data-console="terminal"] .onglets-menu-ouverte .pastille-icone {
+    margin-left: 0.25rem;
+  }
+}
+/* En contraste élevé, la pastille de la partie ouverte prend aussi la couleur du texte qui la porte. */
+@media (forced-colors: active) {
+  :root[data-ambiance="console"][data-console="terminal"] .onglets-choix[aria-current="true"] .pastille-icone {
+    color: inherit;
+    background: none;
+  }
+}
+
+/* ---------- Le logo du guerrier en mode Matrix ---------- */
+/* LogoMatrice.tsx : le logo envoyé par le pilote, dessiné en 0, 1 et lettres du tag (src/lib/logo-matrice.ts). À son
+   apparition, chaque colonne tombe de haut en bas avec son propre retard, en vert, puis le logo prend son bleu, son blanc
+   et son rouge. Une seule fois, en moins de 3,5 s ; ensuite plus rien ne bouge. Avec le bouton pause ou « réduire les
+   animations », il est là d'emblée, dans ses couleurs. Décoratif. */
+@property --logo-blanc {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #ffffff;
+}
+@property --logo-bleu {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #4a86ff;
+}
+@property --logo-rouge {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #ff2a3d;
+}
+/* Les couleurs du logo viennent des jetons : le bleu du drapeau éclairci pour se lire sur le noir, le rouge du marqueur.
+   (Les valeurs de @property ci-dessus ne servent que si un navigateur ne connaît pas color-mix.) Ses caractères ne
+   se sélectionnent pas : un copier-coller de la page ne les emporte pas. */
+/* Le guerrier en relief sur la page blanche (choix du pilote sur planche, 14 novembre 2026, « Relief », parmi cinq essais ;
+   un disque sombre derrière lui a été refusé : « je veux que ce soit fondu »). Son blanc reste blanc, sans aucun fond :
+   une ombre serrée et une ombre douce, de la couleur de l'écriture, le détachent de la page comme un gaufrage. Avant,
+   son blanc s'écrivait avec la couleur de l'écriture, marine, et le guerrier se lisait bleu, noir, rouge. L'ombre est
+   dite une fois, ici, pour le dessin et pour la toile du guerrier de l'accueil. */
+.console-logo,
+.holo {
+  --logo-relief: drop-shadow(0 0 1px color-mix(in srgb, var(--ecriture) 90%, transparent)) drop-shadow(0 2px 3px color-mix(in srgb, var(--ecriture) 45%, transparent));
+}
+.console-logo {
+  --logo-blanc: var(--sur-couleur);
+  --logo-bleu: var(--color-flag-blue);
+  --logo-rouge: var(--color-red);
+  display: block;
+  pointer-events: none;
+  user-select: none;
+  animation: console-logo-couleurs 1.4s ease-in-out 1.7s backwards;
+}
+.console-logo text {
+  font-family: var(--font-console);
+  font-size: 13px;
+  font-weight: 800;
+}
+.console-logo-w {
+  fill: var(--logo-blanc);
+}
+.console-logo-b {
+  fill: var(--logo-bleu);
+}
+.console-logo-r {
+  fill: var(--logo-rouge);
+}
+/* Chaque colonne du masque se déroule de haut en bas : les caractères tombent. */
+.console-goutte {
+  transform-box: fill-box;
+  transform-origin: top;
+  animation: console-goutte 1s cubic-bezier(0.35, 0.7, 0.45, 1) var(--goutte, 0ms) backwards;
+}
+@keyframes console-goutte {
+  from {
+    transform: scaleY(0);
+  }
+}
+/* D'abord le vert de Matrix, le vert de terminal du style, plus clair là où le logo est blanc ; puis ses couleurs. */
+@keyframes console-logo-couleurs {
+  from {
+    --logo-blanc: color-mix(in srgb, var(--console-vert) 40%, var(--ecriture));
+    --logo-bleu: color-mix(in srgb, var(--console-vert) 80%, #000);
+    --logo-rouge: var(--console-vert);
+  }
+}
+/* En grand : sous le titre sur téléphone et tablette ; à sa droite sur grand écran, où l'en-tête grandit pour lui. */
+.console-tete {
+  position: relative;
+}
+/* Le relief du guerrier (plus haut), à la place de la lueur d'écran au phosphore d'avant le thème clair. */
+.console-logo-tete,
+.console-logo-menu {
+  filter: var(--logo-relief);
+}
+.console-logo-tete {
+  width: min(16rem, 70%);
+  margin: 0 0 1.5rem;
+}
+@media (min-width: 64rem) {
+  .console-logo-tete {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: 17rem;
+    margin: 0;
+  }
+  .console-tete > header {
+    min-height: 18.5rem;
+  }
+}
+/* Au QG, le titre est court : le logo tient à sa droite à toutes les largeurs, plus petit sur téléphone (7 rem), en grand
+   sur grand écran (17 rem, comme à la Direction). L'en-tête grandit juste assez pour lui : sur téléphone, quelques pixels,
+   au lieu des 260 px qu'il prendrait sous le titre. */
+.console-tete-court {
+  --logo-tete: clamp(7rem, 22vw, 17rem);
+}
+.console-tete-court .console-logo-tete {
+  position: absolute;
+  top: 1rem;
+  right: 0;
+  width: var(--logo-tete);
+  margin: 0;
+}
+.console-tete-court > header {
+  min-height: calc(var(--logo-tete) + 1.5rem);
+}
+@media (min-width: 64rem) {
+  .console-tete-court .console-logo-tete {
+    right: 1rem;
+  }
+}
+/* Dans la colonne de travail, qui n'a pas de marge à elle : le logo s'arrête au bord droit de la colonne, comme avant. */
+.colonne-travail.console-tete-court .console-logo-tete {
+  right: 0;
+}
+
+/* En petit, en tête du menu des parties. */
+.console-logo-menu {
+  flex: none;
+  width: 3.5rem;
+  height: 3.5rem;
+  margin-left: 0.375rem;
+}
+@media (forced-colors: active) {
+  .console-logo {
+    display: none;
+  }
+}
+

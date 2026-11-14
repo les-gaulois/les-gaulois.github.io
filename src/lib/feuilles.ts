@@ -1,0 +1,53 @@
+/**
+ * La feuille de style du site, en morceaux (`src/styles/feuilles/`), et ceux que charge chaque page. Voir docs/DESIGN.md,
+ * « Les feuilles de style, en morceaux ».
+ *
+ * Jusqu'au 14 novembre 2026, une seule feuille de 18 000 lignes partait vers toutes les pages, Direction, QG, Carte, guide
+ * et village compris. Elle est coupée en tranches contiguës, sans qu'une règle ne change ni ne change de place : la liste
+ * ci-dessous est l'ordre d'origine, donc l'ordre de la cascade. Base.astro écrit, pour chaque page, un `<link>` par morceau
+ * qu'elle charge, dans cet ordre : une page voit les mêmes règles qu'avant, dans le même ordre, moins celles qui ne peuvent
+ * pas la toucher. Les morceaux de toutes les pages restent en cache d'une page à l'autre.
+ *
+ * Une page absente de toutes les listes ne charge que les morceaux de toutes les pages. tests/unit/feuilles.test.ts vérifie
+ * qu'aucune règle d'un morceau qu'une page ne charge pas ne peut toucher ce qu'elle affiche, connexion comprise.
+ */
+
+/** Toutes les pages. */
+const TOUTES = "toutes";
+
+/**
+ * Les morceaux, dans l'ordre de la cascade, et les pages qui les chargent (le motif de la route, comme `Astro.routePattern`).
+ * La Direction charge tout : elle montre aussi, en aperçu, les écrans des autres pages.
+ */
+export const FEUILLES: readonly { fichier: string; pages: typeof TOUTES | readonly string[] }[] = [
+  // Tailwind, les jetons, les composants communs, les écrans du compte, l'ambiance console et le logo du guerrier.
+  { fichier: "01-socle.css", pages: TOUTES },
+  // Les pièces communes des onglets (pastilles, filtres, tableaux) : la Direction et le QG.
+  { fichier: "02-onglets-kit.css", pages: ["/direction", "/qg"] },
+  // Les onglets de la Direction, son menu déroulant et ses messages Discord.
+  { fichier: "03-direction.css", pages: ["/direction"] },
+  // Le poste de commandement et l'onciale de cases.
+  { fichier: "04-poste.css", pages: TOUTES },
+  { fichier: "05-guide.css", pages: ["/debuter", "/direction"] },
+  // La carte en console.
+  { fichier: "06-carte.css", pages: ["/carte", "/direction"] },
+  // « Plus calme », le second lot des remarques du 12 novembre 2026.
+  { fichier: "07-calme.css", pages: TOUTES },
+  { fichier: "08-alliance.css", pages: ["/carte", "/direction"] },
+  // Les onglets, la place, le marché, le vestiaire, la bourse et la boutique du village.
+  { fichier: "09-village.css", pages: ["/village", "/direction"] },
+  // Le classement en colonne et les fenêtres de la Carte.
+  { fichier: "10-carte-colonne.css", pages: ["/carte", "/direction"] },
+  // L'onglet Comptes de la Direction.
+  { fichier: "11-comptes.css", pages: ["/direction"] },
+  { fichier: "12-qg.css", pages: ["/qg", "/direction"] },
+  // Le Gaulois compagnon, sur toutes les pages.
+  { fichier: "13-compagnon.css", pages: TOUTES },
+  // Le monde du village et sa forge.
+  { fichier: "14-monde.css", pages: ["/village", "/direction"] },
+];
+
+/** Les morceaux qu'une page charge, dans l'ordre de la cascade. `route` : le motif de la page (`/membres/[id]`). */
+export function feuillesDeLaPage(route: string): string[] {
+  return FEUILLES.filter((f) => f.pages === TOUTES || f.pages.includes(route)).map((f) => f.fichier);
+}

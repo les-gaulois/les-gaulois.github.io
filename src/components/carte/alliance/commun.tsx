@@ -153,7 +153,7 @@ export function TableauZone({ bilan, t }: { bilan: BilanZone; t: Textes }) {
  * couleurs du filet du site, l'Union Jack pour l'anglais. Le tracé de l'Union Jack (découpe des diagonales, traits de 6, 4,
  * 10 et 6) reprend le fichier « Flag of the United Kingdom.svg » de Wikimedia Commons, dans le domaine public (ligne dans
  * NOTICE.md). Les deux à la même taille, en 3 sur 2 : l'Union Jack est rogné sur ses côtés, comme sur les sélecteurs de
- * langue courants. Les couleurs sont dans global.css (`.drapeau-*`).
+ * langue courants. Les couleurs sont dans 08-alliance.css (`.drapeau-*`).
  */
 function Drapeau({ langue }: { langue: Langue }) {
   if (langue === "fr")

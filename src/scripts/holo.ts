@@ -61,7 +61,7 @@ const AURA_REDUIT = 6;
  */
 const LOURD_MS = 7;
 const ECONOME_IMAGE_MS = 60;
-/** Au réveil, la toile remplace le dessin en fondu (même durée dans global.css, `.holo-toile`), puis le regard s'allume en douceur. */
+/** Au réveil, la toile remplace le dessin en fondu (même durée dans 04-poste.css, `.holo-toile`), puis le regard s'allume en douceur. */
 const FONDU_S = 0.4;
 const ALLUMAGE_S = 0.9;
 /** Le curseur sur le casque : à moins de cette part de la largeur du centre, une fois, et pas dès le réveil. */

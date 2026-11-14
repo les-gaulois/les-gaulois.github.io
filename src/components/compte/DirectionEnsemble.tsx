@@ -28,7 +28,7 @@ function Tile({ item, onOpen }: { item: EnsembleCase; onOpen: (part: string, fil
         onOpen(item.part, item.filter);
       }}
     >
-      {/* `console-*` : l'ambiance console de la page, voir global.css. */}
+      {/* `console-*` : l'ambiance console de la page, voir 01-socle.css. */}
       <span class="dir-ensemble-nom console-libelle">{item.label}</span>
       <span class="dir-ensemble-nombre console-valeur tnum">{fmtInt(item.value)}</span>
       <span class="dir-ensemble-etat">

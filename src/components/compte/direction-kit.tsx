@@ -1,6 +1,6 @@
 /**
  * Les pièces communes des onglets de la Direction, reprises de l'onglet Comptes (13 novembre 2026) : le 14 novembre 2026, le
- * pilote a demandé d'améliorer les douze autres onglets « comme pour la section compte ». Le dessin est dans `global.css`,
+ * pilote a demandé d'améliorer les douze autres onglets « comme pour la section compte ». Le dessin est dans `02-onglets-kit.css`,
  * section « Les onglets de la Direction : pièces communes » : classes `dir-*` et attribut `data-dir-ton`.
  *
  * Une couleur par état, jamais seule : chaque pastille porte son mot. Vert `ok` en règle ou fait, jaune `warn` à regarder,

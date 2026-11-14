@@ -420,7 +420,7 @@ test("les titres ont de vraies minuscules et une lettrine, sauf en console, au Q
 });
 
 // Les onglets d'une rubrique font une seule suite de pages : en passant de l'un à l'autre, la rangée d'onglets, la ligne
-// tricolore et le titre partent du même bord, même vers le QG et le guide, qui sont en console (global.css, « --page-max »).
+// tricolore et le titre partent du même bord, même vers le QG et le guide, qui sont en console (01-socle.css, « --page-max »).
 // Le QG garde ses écrans dans la colonne de travail de 75 rem, calée sur ce bord ; la Direction, sans rubrique, reste centrée.
 test("d'un onglet à l'autre d'une rubrique, les onglets, la ligne tricolore et le titre ne bougent pas", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "Largeurs testées une seule fois.");

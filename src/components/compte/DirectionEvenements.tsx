@@ -3,7 +3,7 @@
  * Le formulaire et la liste côte à côte ; une ligne serrée par événement, la date d'abord, un trait et un mot en couleur
  * pour ce qui est proche, le nombre de « Je viens » en pastille et les noms à la demande. Les règles (mots, couleurs,
  * écriture de la date, réponses lues ou non) sont dans `src/lib/compte/direction-evenements.ts` ; le dessin dans
- * `global.css`, section « Direction, onglet Événements ».
+ * `03-direction.css`, section « Direction, onglet Événements ».
  */
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { call } from "../../lib/compte/api";
@@ -35,7 +35,7 @@ const rendreFocus = (id: string) =>
 
 /**
  * « Supprimer » demande une confirmation, sur le même bouton. Il est sur presque chaque ligne : il reste gris et ne passe
- * au rouge que sous la souris, au clavier, ou une fois armé (`global.css`). Armé, il se désarme par Échap, par Tab vers un
+ * au rouge que sous la souris, au clavier, ou une fois armé (`03-direction.css`). Armé, il se désarme par Échap, par Tab vers un
  * autre élément ou par un clic ailleurs : Safari ne donne pas le focus au bouton cliqué, et une perte de focus sans
  * destination (`relatedTarget` nul) ne compte pas, comme partout sur cette page. Le second clic d'un double clic ne
  * confirme pas : il faut un clic à part, ou Entrée.

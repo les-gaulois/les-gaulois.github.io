@@ -1,11 +1,11 @@
-import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { TEINTES, teinteDuRang } from "../../src/lib/teintes";
+import { feuilleEntiere } from "./feuilles-graphe";
 
 // Les icônes en pastilles (palette 5, choisie par le pilote le 14 novembre 2026) : le guide du clan, puis les menus des
 // parties du QG et de la Direction. Une couleur par rang, du rouge au rose, sur une case pâle de la même couleur. Voir
 // docs/DESIGN.md, « Le guide du clan » et « Les icônes des parties ».
-const CSS = readFileSync("src/styles/global.css", "utf8").replace(/\r\n/g, "\n");
+const CSS = feuilleEntiere();
 const TEINTES_CSS = new Map([...CSS.matchAll(/\[data-teinte="(\d+)"\] \{\n {2}--teinte: (#[0-9a-f]{6});\n\}/g)].map((m) => [Number(m[1]), m[2]!]));
 
 const canal = (v: number) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);

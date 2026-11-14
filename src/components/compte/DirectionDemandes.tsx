@@ -4,7 +4,7 @@
  * Une ligne par demande, comme dans l'onglet Comptes : le trait au bord et la pastille disent si le pseudo est dans la liste
  * officielle (vert) ou non (rouge), l'attente passe en jaune au-delà de deux jours (`requestWait`). La raison, facultative,
  * ne prend de la place que lorsqu'on ouvre « Raison ». Les textes et les couleurs sont dans `src/lib/compte/requests.ts`, le
- * dessin dans `global.css`, section « Direction, onglet Demandes ».
+ * dessin dans `03-direction.css`, section « Direction, onglet Demandes ».
  *
  * `list.reload` peut être appelé de l'extérieur (relecture automatique) : les raisons écrites et les champs ouverts sont rangés
  * par numéro de demande, hors de la liste, et survivent à une relecture ; seule une demande qui a quitté la liste perd le sien.
