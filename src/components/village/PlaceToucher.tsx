@@ -33,11 +33,12 @@ function lireDuNavigateur(): Carnet | null {
 }
 
 /** Le carnet rangé dans le navigateur. Plein ou interdit : tant pis, le compte tient le temps de la page. */
-function garderAuNavigateur(carnet: Carnet): void {
+function garderAuNavigateur(carnet: Carnet): boolean {
   try {
     window.localStorage.setItem(CLE_DU_CARNET, ecrireCarnet(carnet, Date.now()));
+    return true;
   } catch {
-    // Rien à faire : le carnet reste en mémoire.
+    return false;
   }
 }
 
@@ -53,6 +54,7 @@ const estDe =(parole: Parole | null, habitant: Habitant): parole is Parole => pa
  */
 export function useToucher(): { parole: Parole | null; dit: Parole | null; mot: boolean; toucher: (habitant: Habitant) => void } {
   const memoire = useRef<Carnet>(carnetVide());
+  const enPanne = useRef(false);
   const minuterie = useRef(0);
   const tour = useRef(0);
   const [parole, setParole] = useState<Parole | null>(null);
@@ -66,10 +68,12 @@ export function useToucher(): { parole: Parole | null; dit: Parole | null; mot: 
   }, []);
 
   const toucher = (habitant: Habitant) => {
-    // Relu à chaque toucher : un autre onglet a pu compter entre-temps.
-    const reponse = toucherLeGaulois(lireDuNavigateur() ?? memoire.current, habitant.gaulois, habitant.presence.lieu, Date.now());
+    // Relu à chaque toucher : un autre onglet a pu compter entre-temps. Sauf après une écriture refusée (stockage plein) :
+    // ce qui est rangé est alors en retard, et le relire ferait piétiner le compte ; la mémoire de la page fait foi.
+    const avant = enPanne.current ? memoire.current : (lireDuNavigateur() ?? memoire.current);
+    const reponse = toucherLeGaulois(avant, habitant.gaulois, habitant.presence.lieu, Date.now());
     memoire.current = reponse.carnet;
-    garderAuNavigateur(reponse.carnet);
+    enPanne.current = !garderAuNavigateur(reponse.carnet);
     tour.current++;
     const nouvelle: Parole = { rang: habitant.rang, nom: habitant.gaulois.nom, phrase: reponse.phrase, palier: reponse.palier, tour: tour.current, saut: sursaute(reponse.palier, habitant.presence.lieu) };
     setParole(nouvelle);
@@ -90,14 +94,23 @@ export function BulleDuToucher({ parole, habitant }: { parole: Parole | null | u
   const boite = useRef<HTMLSpanElement>(null);
   const lui = estDe(parole ?? null, habitant) && parole ? parole : null;
   // Tout en haut d'un lieu, une longue phrase dépasserait de la scène, qui la couperait : elle descend d'autant, quitte à
-  // passer devant le casque.
+  // passer devant le casque. Recalculé quatre fois par seconde tant qu'elle est là : un promeneur peut se remettre à
+  // marcher vers le haut pendant qu'il parle.
   useLayoutEffect(() => {
     const el = boite.current;
     const scene = el?.closest(".place-scene");
     if (!el || !scene) return;
+    let descente = 0;
     el.style.transform = "";
-    const manque = scene.getBoundingClientRect().top + MARGE_DU_HAUT - el.getBoundingClientRect().top;
-    if (manque > 0) el.style.transform = `translateY(${Math.ceil(manque)}px)`;
+    const placer = () => {
+      const manque = Math.max(0, Math.ceil(scene.getBoundingClientRect().top + MARGE_DU_HAUT - (el.getBoundingClientRect().top - descente)));
+      if (manque === descente) return;
+      descente = manque;
+      el.style.transform = manque > 0 ? `translateY(${manque}px)` : "";
+    };
+    placer();
+    const veille = window.setInterval(placer, 250);
+    return () => window.clearInterval(veille);
   }, [lui?.tour]);
   if (!lui) return null;
   return (
@@ -122,6 +135,20 @@ export function BoutonDuToucher({ habitant, onToucher }: { habitant: Habitant; o
         <path d="M1 1h10v7H5l-3 3V8H1z" fill="currentColor" />
       </svg>
     </button>
+  );
+}
+
+/**
+ * Le mot d'emploi, près du compte du lieu, tant que le visiteur n'a touché personne. Les lecteurs d'écran, à qui la scène
+ * est cachée, entendent en plus où sont leurs boutons : la liste « Qui est où » est repliée.
+ */
+export function MotDuToucher() {
+  return (
+    <span class="info-discrete" data-testid="toucher-mot">
+      {" "}
+      Touchez un Gaulois, il répond.
+      <span class="sr-only"> Au clavier : ouvrez « Qui est où », chaque nom y est un bouton « Parler à ».</span>
+    </span>
   );
 }
 

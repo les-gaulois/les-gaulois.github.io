@@ -8,7 +8,7 @@ import { LIEUX, type Lieu, NOMS_DES_LIEUX, compteDuLieu, lieuDOuverture, phraseD
 import { Loading, Problem, messageOf } from "../compte/common";
 import PlaceScene from "./PlaceScene";
 import { Toile } from "./PlaceToile";
-import { AnnonceDuToucher, BoutonDuToucher, phraseDite, useToucher } from "./PlaceToucher";
+import { AnnonceDuToucher, BoutonDuToucher, MotDuToucher, phraseDite, useToucher } from "./PlaceToucher";
 
 /** Ce qui amène dans chaque lieu, en une ligne sous la scène. La place n'en a pas besoin : on s'y promène. */
 const REGLES: Readonly<Record<Lieu, string | null>> = {
@@ -137,12 +137,7 @@ export default function PlaceDuVillage({ actif }: { actif: boolean }) {
         <p class="place-mot" data-testid="place-compte">
           {village.gaulois.length === 0 ? "Le village est vide." : ici.length > 0 ? compteDuLieu(ouvert, ici.length) : NOMS_DES_LIEUX[ouvert].nom}
           {REGLES[ouvert] && <span class="info-discrete"> {REGLES[ouvert]}</span>}
-          {toucher.mot && ici.length > 0 && (
-            <span class="info-discrete" data-testid="toucher-mot">
-              {" "}
-              Touchez un Gaulois, il répond.
-            </span>
-          )}
+          {toucher.mot && ici.length > 0 && <MotDuToucher />}
         </p>
         {releve && (
           <p class="info-discrete" data-testid="place-releve">
@@ -164,7 +159,7 @@ export default function PlaceDuVillage({ actif }: { actif: boolean }) {
                       {habitant.gaulois.moi && " (vous)"}
                     </span>
                     <span class="vie-liste-raison">{habitant.presence.raison}</span>
-                    {(phraseDite(toucher.dit, habitant) ?? habitant.gaulois.replique) && <span class="vie-liste-replique" data-testid={phraseDite(toucher.dit, habitant) ? "toucher-dit" : undefined}>« {phraseDite(toucher.dit, habitant) ?? habitant.gaulois.replique} »</span>}
+                    {(phraseDite(toucher.dit, habitant) ?? habitant.gaulois.replique) && <span class={phraseDite(toucher.dit, habitant) ? "vie-liste-replique toucher-dit" : "vie-liste-replique"} data-testid={phraseDite(toucher.dit, habitant) ? "toucher-dit" : undefined}>« {phraseDite(toucher.dit, habitant) ?? habitant.gaulois.replique} »</span>}
                   </li>
                 ))}
               </ul>

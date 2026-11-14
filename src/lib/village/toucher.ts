@@ -11,6 +11,8 @@
  * - dans les maisons, il dort : il marmonne dans son sommeil (1re à 3e fois), puis il grogne, sans jamais se réveiller ;
  * - son propre Gaulois a ses phrases à lui ;
  * - jamais deux fois la même phrase de suite, et pas une des six dernières tant que la liste le permet.
+ * Le carnet ne garde ni un nom ni une phrase : une empreinte du nom, et les empreintes des dernières phrases. Qui ouvre le
+ * stockage du navigateur n'y lit ni qui a été touché, ni la bulle que le serveur lui a donnée.
  * Les phrases sont dans `repliques-toucher.ts`.
  */
 import { AGACES, AIMABLES, EXCEDES, FURIEUX, LE_SIEN, LE_SIEN_AGACE, SALUTS, SOMMEIL, SOMMEIL_AGACE } from "./repliques-toucher";
@@ -42,12 +44,25 @@ export function palierDuToucher(fois: number): Palier {
   return "furieux";
 }
 
+/**
+ * L'empreinte d'un texte : un nombre entier, toujours le même pour le même texte (FNV-1a, 32 bits). Ce n'est pas un
+ * secret : elle sert seulement à ne pas écrire le texte lui-même dans le navigateur.
+ */
+export function empreinte(texte: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < texte.length; i++) {
+    h ^= texte.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
+
 /** Le compte d'un Gaulois : l'instant du premier toucher de l'heure, le nombre de touchers, ses dernières phrases. */
 export interface Compte {
   debut: number;
   fois: number;
-  /** Ses dernières phrases, la plus récente à la fin : `MEMOIRE_DES_PHRASES` au plus. */
-  dites: string[];
+  /** Les empreintes de ses dernières phrases, la plus récente à la fin : `MEMOIRE_DES_PHRASES` au plus. */
+  dites: number[];
 }
 
 /** Le carnet du visiteur. `vu` : il a déjà touché un Gaulois, le mot d'emploi ne s'affiche plus. */
@@ -58,8 +73,9 @@ export interface Carnet {
 
 export const carnetVide = (): Carnet => ({ vu: false, comptes: {} });
 
-/** La clé d'un Gaulois dans le carnet : son nom, derrière un préfixe (un nom ne peut pas être une clé spéciale d'objet). */
-export const cleDuGaulois = (nom: string): string => `g:${nom}`;
+/** La clé d'un Gaulois dans le carnet : l'empreinte de son nom, jamais le nom, derrière un préfixe. */
+export const cleDuGaulois = (nom: string): string => `g:${empreinte(nom).toString(36)}`;
+const CLE_VALIDE = /^g:[0-9a-z]{1,7}$/;
 
 /** Le compte après un toucher de plus à cet instant. L'heure passée, ou une horloge revenue en arrière : il repart de un. */
 export function compterLeToucher(avant: Compte | undefined, maintenant: number): Compte {
@@ -95,16 +111,16 @@ function tirer(liste: readonly string[], hasard: () => number): string {
 }
 
 /**
- * La phrase de ce toucher. `dites` : ses dernières phrases, la plus récente à la fin. Jamais la dernière ; pas une des
+ * La phrase de ce toucher. `dites` : les empreintes de ses dernières phrases, la plus récente à la fin. Jamais la dernière ; pas une des
  * dernières tant qu'il en reste d'autres. Sa bulle du serveur, s'il vient de la dire, laisse la place à un salut.
  */
-export function phraseDuToucher(touche: Touche, dites: readonly string[], hasard: () => number = Math.random): string {
+export function phraseDuToucher(touche: Touche, dites: readonly number[], hasard: () => number = Math.random): string {
   const derniere = dites[dites.length - 1];
   let liste = listeDuToucher(touche);
-  if (liste.length === 1 && liste[0] === derniere) liste = listeDuToucher({ ...touche, replique: null });
-  const neuves = liste.filter((phrase) => !dites.includes(phrase));
+  if (liste.length === 1 && empreinte(liste[0] ?? "") === derniere) liste = listeDuToucher({ ...touche, replique: null });
+  const neuves = liste.filter((phrase) => !dites.includes(empreinte(phrase)));
   if (neuves.length > 0) return tirer(neuves, hasard);
-  const autres = liste.filter((phrase) => phrase !== derniere);
+  const autres = liste.filter((phrase) => empreinte(phrase) !== derniere);
   return tirer(autres.length > 0 ? autres : liste, hasard);
 }
 
@@ -121,7 +137,7 @@ export function toucherLeGaulois(carnet: Carnet, gaulois: { nom: string; moi: bo
   const cle = cleDuGaulois(gaulois.nom);
   const compte = compterLeToucher(carnet.comptes[cle], maintenant);
   const phrase = phraseDuToucher({ fois: compte.fois, lieu, moi: gaulois.moi, replique: gaulois.replique ?? null }, compte.dites, hasard);
-  const dites = [...compte.dites, phrase].slice(-MEMOIRE_DES_PHRASES);
+  const dites = [...compte.dites, empreinte(phrase)].slice(-MEMOIRE_DES_PHRASES);
   return { phrase, palier: palierDuToucher(compte.fois), fois: compte.fois, carnet: { vu: true, comptes: { ...carnet.comptes, [cle]: { ...compte, dites } } } };
 }
 
@@ -154,10 +170,10 @@ export function lireCarnet(texte: string | null | undefined, maintenant: number)
   const lus: Record<string, Compte> = {};
   if (comptes !== null && typeof comptes === "object" && !Array.isArray(comptes)) {
     for (const [cle, valeur] of Object.entries(comptes as Record<string, unknown>)) {
-      if (!cle.startsWith("g:") || valeur === null || typeof valeur !== "object") continue;
+      if (!CLE_VALIDE.test(cle) || valeur === null || typeof valeur !== "object") continue;
       const { debut, fois, dites } = valeur as Record<string, unknown>;
       if (typeof debut !== "number" || !Number.isFinite(debut) || typeof fois !== "number" || !Number.isInteger(fois) || fois < 1) continue;
-      lus[cle] = { debut, fois, dites: Array.isArray(dites) ? dites.filter((d): d is string => typeof d === "string").slice(-MEMOIRE_DES_PHRASES) : [] };
+      lus[cle] = { debut, fois, dites: Array.isArray(dites) ? dites.filter((d): d is number => typeof d === "number" && Number.isInteger(d) && d >= 0).slice(-MEMOIRE_DES_PHRASES) : [] };
     }
   }
   return { vu: vu === true, comptes: elaguer(lus, maintenant) };
