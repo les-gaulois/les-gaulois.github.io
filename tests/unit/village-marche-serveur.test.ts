@@ -26,6 +26,9 @@ describe("le marché du village, côté serveur", () => {
     // 20261113001900), que l'achat au marché appelle.
     expect(fonction("public.acheter_offre")).toContain("perform internal.village_debiter(v_uid, 'marche_achat', v_offre.prix, v_ref);");
     codes.add("solde_insuffisant");
+    // La forge (migration 20261114001000) remplace mettre_en_vente avec un refus de plus : le dernier exemplaire d'un objet gravé.
+    expect(lire("20261114001000_village_forge")).toContain("perform internal.fail('objet_grave');");
+    codes.add("objet_grave");
     expect(Object.keys(MESSAGES_DU_MARCHE).filter((c) => !codes.has(c))).toEqual([]);
   });
 

@@ -2,7 +2,8 @@
  * Le lien des salons où poste le robot de la GitHub Action. Depuis le 11 novembre 2026, il se règle dans l'espace
  * Direction, onglet Discord (migration `20261111000300_salons_discord.sql`) ; sans réglage, le robot garde le secret
  * GitHub, comme avant.
- * - Le salon des nouvelles : la gazette, les alertes, les paliers, les messages du jour et la course du soir.
+ * - Le salon des nouvelles : la gazette, les alertes, les paliers, les messages du jour, la course du soir et les bâtiments
+ *   finis du village.
  * - Le salon de l'encadrement : les demandes qui attendent et le compte rendu des sauvegardes.
  * - Le salon des victoires, depuis le 11 novembre 2026 (migration `20261111000500_salon_des_victoires.sql`) : chaque victoire du
  *   clan, avec l'image de la carte. Un serveur sans cette migration ne le connaît pas : le robot prend alors son secret.

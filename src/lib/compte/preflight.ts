@@ -253,6 +253,26 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
     else add(label, "fail", `Réponse ${res.status}. Ne mettez pas en ligne : retirez le droit d'appeler ${fn}.`);
   }
 
+  // La forge du village (migration 20261114001000, collée par le fichier .cache/a-coller-forge.sql) : seul un compte connecté
+  // lit sa forge ; seul un compte validé avec son Gaulois grave, et chacun n'efface que sa propre plaque. Absente : 404, le
+  // fichier n'est pas collé. L'objet et la partie demandés n'existent pas, et un visiteur n'a ni objet ni statère : même si le
+  // droit d'appel était mal posé, rien ne serait débité ni effacé.
+  const forge = await rpc("get_ma_forge");
+  const forgeAnswer = forge.ok ? ((await forge.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (forge.status === 404) add("La forge du village est installée", "warn", "get_ma_forge est absente : collez le fichier .cache/a-coller-forge.sql (sa dernière ligne dit « forge : installée ») avant de mettre en ligne ce qui s'en sert.");
+  else if (isClosed(forge.status) || (forge.ok && forgeAnswer?.ok === false)) add("Un visiteur ne lit pas de forge", "ok");
+  else add("Un visiteur ne lit pas de forge", "fail", `Réponse ${forge.status}. Ne mettez pas en ligne : seul un compte connecté lit sa forge et son solde.`);
+  const forgeCalls = [
+    ["graver_objet", { p_emplacement: "arme", p_objet: "verification", p_partie: "verification", p_prix_vu: 0 }, "Un visiteur ne grave rien à la forge"],
+    ["effacer_gravure", { p_emplacement: "arme", p_objet: "verification" }, "Un visiteur n'efface aucune plaque de la forge"],
+  ] as const;
+  for (const [fn, body, label] of forgeCalls) {
+    const res = await rpc(fn, body);
+    const answer = res.ok ? ((await res.json().catch(() => null)) as { ok?: boolean } | null) : null;
+    if (isClosed(res.status) || (res.ok && answer?.ok === false)) add(label, "ok");
+    else add(label, "fail", `Réponse ${res.status}. Ne mettez pas en ligne : seul un compte validé avec son Gaulois grave, et chacun n'efface que sa plaque.`);
+  }
+
   // Les Gaulois sur les images du robot (migration 20261114000400) : la tenue des membres, réservée à la clé de service, celle
   // des scripts du robot. Un visiteur doit être refusé par le droit d'appel lui-même. Une liste vide ne désigne personne.
   const gauloisImages = await rpc("gaulois_des_joueurs", { p_empreintes: [] });

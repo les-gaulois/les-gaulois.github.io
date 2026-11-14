@@ -31,7 +31,9 @@ const entete = `-- LE VILLAGE DES GAULOIS : la suite du vestiaire, en un seul fi
 --
 -- À coller EN ENTIER dans l'éditeur SQL de Supabase (SQL Editor), puis « Run ». Il réunit, dans l'ordre :
 ${noms.map((n) => `--   ${n}`).join("\n")}
--- Il n'efface rien et ne touche aucune donnée existante. Collé une seconde fois, il ne change rien.
+-- Il n'efface rien et ne touche aucune donnée existante. Collé une seconde fois, il ne change rien, TANT QUE la forge
+-- (.cache/a-coller-forge.sql, migration 20261114001000) n'est pas collée : après elle, ne plus le recoller, il remettrait
+-- les versions d'avant de mettre_en_vente (un objet gravé redeviendrait vendable), get_village et get_village_economie.
 -- Ne jamais coller un de ces fichiers seul après coup : il remettrait en place d'anciennes fonctions.
 -- La dernière ligne doit dire : « village : ${FONCTIONS.length} fonctions sur ${FONCTIONS.length}, ${TABLES.length} tables sur ${TABLES.length} ».
 `;
