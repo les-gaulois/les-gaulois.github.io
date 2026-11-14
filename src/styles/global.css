@@ -4850,6 +4850,19 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   width: 1px;
   background: var(--color-line-strong);
 }
+/* « Débrancher le salon » à part, sous un filet, loin de « Renvoyer un essai » : le 11 novembre 2026, le pilote a pris le
+   bouton voisin de l'essai pour la fin de l'essai. L'avertissement du second clic vient dessous. */
+.dir-discord-retirer {
+  display: grid;
+  justify-items: start;
+  gap: 0.5rem;
+  padding-top: 0.625rem;
+  border-top: 1px solid var(--color-line);
+}
+/* Le message de réussite d'une action : sa zone d'état reste dans la page, vide, sans prendre de place dans la grille. */
+.dir-discord-retour:empty {
+  position: absolute;
+}
 /* Un bouton sans couleur propre reste blanc : il ne prend pas celle de l'état du bloc. */
 .dir-discord-actions .dir-bouton:not([data-dir-ton]) {
   --ton: #fff;

@@ -3,9 +3,9 @@ import { cleanImageName, filterImages, IMAGE_NAME_MAX, imageNameProblem, INVENTO
 import { IMAGE_TYPES, imageFileProblem, type ImageType } from "../../lib/compte/discord-message";
 import { errorMessage } from "../../lib/compte/errors";
 import { fmtDate, fmtInt } from "../../lib/format";
-import { Loading, Problem, Success, messageOf } from "./common";
+import { Loading, Problem, messageOf } from "./common";
 import { Pastille } from "./direction-kit";
-import { SecondClic } from "./DirectionMessage";
+import { Retour, SecondClic } from "./DirectionMessage";
 import { useInventaire, type Inventaire } from "./inventaire";
 import { Compteur, fileSize } from "./MessageChamps";
 
@@ -345,7 +345,7 @@ export default function DirectionImages() {
       />
       {inventaire.problem && <Problem message={inventaire.problem} onRetry={() => void inventaire.reload()} />}
       <Problem message={problem} />
-      {done && <Success message={done} />}
+      <Retour id="di-retour" message={done} />
       {images.length > SEARCH_FROM && (
         <div>
           <label for="di-chercher" class="text-sm font-semibold">

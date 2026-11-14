@@ -5,8 +5,9 @@ import { checkFails, checkSentence, isSalonWaiting, parseDiscordSalons, ROBOT_SA
 import { errorMessage } from "../../lib/compte/errors";
 import { etatDuSalon } from "../../lib/compte/discord-etat";
 import { fmtDateTime } from "../../lib/format";
-import { Loading, Problem, Success, messageOf } from "./common";
+import { Loading, Problem, messageOf } from "./common";
 import { Pastille } from "./direction-kit";
+import { rendreLeFocus, Retour, useSecondClic } from "./DirectionMessage";
 
 /** Les relectures qui suivent un essai, le temps que Discord réponde : pg_net envoie d'ordinaire en moins d'une seconde. */
 const FOLLOW_UP_MS = [1_500, 4_000, 10_000, 30_000];
@@ -20,16 +21,23 @@ const FOLLOW_UP_MS = [1_500, 4_000, 10_000, 30_000];
  *
  * Un salon tient en un bloc court (14 novembre 2026, « comme pour la section compte ») : son nom et son état en pastille,
  * ce qu'a répondu Discord, puis le champ du lien et ses boutons à côté. Ce qui part dans le salon et l'aide sont repliés.
- * `onRead` : chaque lecture du serveur est donnée au menu de l'onglet, qui montre l'état de chaque salon sur sa ligne.
+ * `premiere` : la lecture déjà faite par le menu de l'onglet, reprise telle quelle (une seule lecture à l'ouverture) ; si
+ * elle a échoué, la rubrique relit le serveur en s'ouvrant. `onRead` : chaque lecture suivante est donnée au menu.
  */
-export default function DirectionSalons({ level = 2, onRead }: { level?: 2 | 3; onRead?: (salons: RobotSalon[]) => void }) {
+export default function DirectionSalons({ level = 2, premiere, onRead }: { level?: 2 | 3; premiere?: Promise<RobotSalon[] | null>; onRead?: (salons: RobotSalon[]) => void }) {
   const [salons, setSalons] = useState<RobotSalon[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const timers = useRef<number[]>([]);
+  // Le numéro de la dernière lecture lancée, et de la dernière montrée : une réponse en retard n'écrase pas une plus récente.
+  const lancee = useRef(0);
+  const montree = useRef(0);
 
   const load = async (): Promise<RobotSalon[] | null> => {
+    const numero = ++lancee.current;
     try {
       const next = parseDiscordSalons(await call<unknown>("get_discord_salons"));
+      if (numero < montree.current) return next;
+      montree.current = numero;
       if (next === null) {
         setLoadError("La réponse du serveur est illisible.");
         return null;
@@ -39,6 +47,8 @@ export default function DirectionSalons({ level = 2, onRead }: { level?: 2 | 3; 
       onRead?.(next);
       return next;
     } catch (e) {
+      if (numero < montree.current) return null;
+      montree.current = numero;
       setLoadError(messageOf(e));
       return null;
     }
@@ -49,10 +59,8 @@ export default function DirectionSalons({ level = 2, onRead }: { level?: 2 | 3; 
     timers.current = [];
   };
 
-  // Après un envoi : quelques relectures, jusqu'à la réponse de Discord.
-  const reload = async () => {
-    const next = await load();
-    if (!isSalonWaiting(next)) return;
+  // Un essai attend la réponse de Discord : quelques relectures, jusqu'à ce qu'elle arrive.
+  const follow = () => {
     stopFollowing();
     timers.current = FOLLOW_UP_MS.map((ms) =>
       window.setTimeout(() => {
@@ -63,17 +71,32 @@ export default function DirectionSalons({ level = 2, onRead }: { level?: 2 | 3; 
     );
   };
 
+  // Après un envoi : relire, puis suivre la réponse de Discord.
+  const reload = async () => {
+    if (isSalonWaiting(await load())) follow();
+  };
+
   useEffect(() => {
-    void load();
-    return stopFollowing;
+    let alive = true;
+    void (premiere ?? Promise.resolve(null)).then((lu) => {
+      if (!alive) return;
+      if (lu === null) return void reload();
+      // La lecture du menu : le menu l'a déjà, rien à lui redonner.
+      setSalons(lu);
+      if (isSalonWaiting(lu)) follow();
+    });
+    return () => {
+      alive = false;
+      stopFollowing();
+    };
   }, []);
 
   if (salons === null) {
-    return loadError ? <Problem message={loadError} onRetry={() => void load()} /> : <Loading />;
+    return loadError ? <Problem message={loadError} onRetry={() => void reload()} /> : <Loading />;
   }
   return (
     <div class="dir-discord-reglages">
-      {loadError && <Problem message={loadError} onRetry={() => void load()} />}
+      {loadError && <Problem message={loadError} onRetry={() => void reload()} />}
       {ROBOT_SALON_TEXTS.map((text) => {
         const salon = salons.find((s) => s.id === text.id);
         return salon ? <SalonPart key={text.id} text={text} salon={salon} reload={reload} level={level} /> : null;
@@ -93,10 +116,10 @@ function SalonPart({ text, salon, reload, level }: { text: RobotSalonText; salon
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
-  const [armed, setArmed] = useState(false);
   const id = `salon-${text.id}`;
 
   const act = async (action: () => Promise<unknown>, success: string): Promise<boolean> => {
+    const avant = document.activeElement;
     setBusy(true);
     setProblem(null);
     setDone(null);
@@ -110,6 +133,8 @@ function SalonPart({ text, salon, reload, level }: { text: RobotSalonText; salon
       return false;
     } finally {
       setBusy(false);
+      // « Débrancher » disparaît avec le réglage : le focus va au message qui dit la suite.
+      rendreLeFocus(avant, `${id}-retour`);
     }
   };
 
@@ -122,10 +147,9 @@ function SalonPart({ text, salon, reload, level }: { text: RobotSalonText; salon
     if (ok) setLink("");
   };
 
-  const stop = async () => {
-    setArmed(false);
-    await act(() => call("clear_discord_salon", { p_salon: text.id }), text.secret ? `Salon débranché. Le robot reprend le secret GitHub ${text.secret}, s'il existe.` : "Salon débranché. Plus rien n'y part.");
-  };
+  const { armed, bouton: debrancher } = useSecondClic(() => {
+    void act(() => call("clear_discord_salon", { p_salon: text.id }), text.secret ? `Salon débranché. Le robot reprend le secret GitHub ${text.secret}, s'il existe.` : "Salon débranché. Plus rien n'y part.");
+  });
 
   const etat = etatDuSalon(salon);
   const failing = checkFails(salon.check);
@@ -204,37 +228,37 @@ function SalonPart({ text, salon, reload, level }: { text: RobotSalonText; salon
 
         {salon.set && (
           <>
-            {/* Débrancher efface le réglage, lien compris : à part, après un filet, gris tant qu'on n'y passe pas, et seulement au
-                second clic, comme pour les appels. L'avertissement vient dessous : le bouton ne bouge pas entre les deux clics. */}
             <div class="dir-discord-actions">
-              <button type="button" class="dir-bouton" disabled={busy} onClick={() => void act(() => call("test_discord_salon", { p_salon: text.id }), "Essai envoyé.")}>
+              <button type="button" class="dir-bouton" disabled={busy} onClick={() => void act(() => call("test_discord_salon", { p_salon: text.id }), "Essai envoyé.")} data-testid={`direction-${id}-test`}>
                 Renvoyer un essai
               </button>
-              <span class="dir-discord-filet" aria-hidden="true"></span>
+            </div>
+            {/* Débrancher efface le réglage, lien compris : à part, sous un filet, loin de « Renvoyer un essai » (le 11 novembre
+                2026, le pilote a pris le bouton voisin de l'essai pour la fin de l'essai), gris tant qu'on n'y passe pas, et
+                seulement au second clic. L'avertissement vient dessous : le bouton ne bouge pas entre les deux clics. */}
+            <div class="dir-discord-retirer">
               <button
                 type="button"
                 class="dir-bouton dir-discord-retrait"
                 data-dir-ton="danger"
                 disabled={busy}
                 aria-describedby={armed ? `${id}-stop-note` : undefined}
-                onClick={() => (armed ? void stop() : setArmed(true))}
-                onBlur={() => setArmed(false)}
+                {...debrancher}
                 data-testid={`direction-${id}-stop`}
               >
                 {armed ? "Confirmer : débrancher" : "Débrancher le salon"}
               </button>
+              {armed && (
+                <p id={`${id}-stop-note`} class="text-sm text-warn">
+                  {text.secret ? `Le robot reprendra le secret GitHub ${text.secret} s'il existe ; sinon, plus rien ne partira dans ce salon.` : "Plus rien ne partira dans ce salon."} Il faudra recoller le lien du webhook pour le régler de nouveau ici.
+                </p>
+              )}
             </div>
-            {armed && (
-              <p id={`${id}-stop-note`} class="text-sm text-warn">
-                {text.secret ? `Le robot reprendra le secret GitHub ${text.secret} s'il existe ; sinon, plus rien ne partira dans ce salon.` : "Plus rien ne partira dans ce salon."} Il faudra recoller le lien du webhook pour le régler de nouveau ici.
-              </p>
-            )}
           </>
         )}
         <Problem message={problem} />
-        {done && <Success message={done} />}
+        <Retour id={`${id}-retour`} message={done} />
       </div>
     </section>
   );
 }
-

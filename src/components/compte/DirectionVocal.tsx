@@ -3,8 +3,9 @@ import { call } from "../../lib/compte/api";
 import { etatDuVocal } from "../../lib/compte/discord-etat";
 import { errorMessage } from "../../lib/compte/errors";
 import { parseQgTools, voiceLinkOf } from "../../lib/compte/outils";
-import { Loading, Problem, Success, messageOf } from "./common";
+import { Loading, Problem, messageOf } from "./common";
 import { Pastille } from "./direction-kit";
+import { rendreLeFocus, Retour, useSecondClic } from "./DirectionMessage";
 import { PartieTete } from "./Onglets";
 
 /**
@@ -22,7 +23,6 @@ export default function DirectionVocal({ bare = false, onRead }: { bare?: boolea
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
-  const [armed, setArmed] = useState(false);
 
   const load = async () => {
     try {
@@ -41,6 +41,7 @@ export default function DirectionVocal({ bare = false, onRead }: { bare?: boolea
   }, []);
 
   const act = async (action: () => Promise<unknown>, success: string): Promise<boolean> => {
+    const avant = document.activeElement;
     setBusy(true);
     setProblem(null);
     setDone(null);
@@ -54,6 +55,8 @@ export default function DirectionVocal({ bare = false, onRead }: { bare?: boolea
       return false;
     } finally {
       setBusy(false);
+      // « Retirer le lien » disparaît avec le lien, et « Enregistrer » s'éteint avec le champ vidé : le focus va au message.
+      rendreLeFocus(avant, "vocal-retour");
     }
   };
 
@@ -64,10 +67,9 @@ export default function DirectionVocal({ bare = false, onRead }: { bare?: boolea
     if (await act(() => call("save_voice_channel", { p_url: url }), "Lien enregistré : le bouton « Rejoindre le vocal » est au QG.")) setLink("");
   };
 
-  const remove = async () => {
-    setArmed(false);
-    await act(() => call("clear_voice_channel"), "Lien retiré : le QG n'affiche plus le bouton.");
-  };
+  const { armed, bouton: retirer } = useSecondClic(() => {
+    void act(() => call("clear_voice_channel"), "Lien retiré : le QG n'affiche plus le bouton.");
+  });
 
   const etat = current === undefined ? null : etatDuVocal(current);
 
@@ -147,8 +149,7 @@ export default function DirectionVocal({ bare = false, onRead }: { bare?: boolea
                   data-dir-ton="danger"
                   disabled={busy}
                   aria-describedby={armed ? "vocal-retirer-note" : undefined}
-                  onClick={() => (armed ? void remove() : setArmed(true))}
-                  onBlur={() => setArmed(false)}
+                  {...retirer}
                   data-testid="direction-vocal-retirer"
                 >
                   {armed ? "Confirmer : retirer le lien" : "Retirer le lien"}
@@ -162,7 +163,7 @@ export default function DirectionVocal({ bare = false, onRead }: { bare?: boolea
             </>
           )}
           <Problem message={problem} />
-          {done && <Success message={done} />}
+          <Retour id="vocal-retour" message={done} />
         </div>
       </div>
     </section>

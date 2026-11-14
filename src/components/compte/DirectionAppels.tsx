@@ -5,8 +5,9 @@ import { etatDesAppels, etatDuPing } from "../../lib/compte/discord-etat";
 import { errorMessage } from "../../lib/compte/errors";
 import { PING_WAIT_CLAN_MINUTES, PING_WAIT_MEMBER_MINUTES } from "../../lib/compte/salons";
 import { fmtDateTime } from "../../lib/format";
-import { Loading, Problem, Success, messageOf } from "./common";
+import { Loading, Problem, messageOf } from "./common";
 import { Pastille } from "./direction-kit";
+import { rendreLeFocus, Retour, useSecondClic } from "./DirectionMessage";
 
 /** Les relectures qui suivent un essai, le temps que Discord réponde : pg_net envoie d'ordinaire en moins d'une seconde. */
 const FOLLOW_UP_MS = [1_500, 4_000, 10_000, 30_000];
@@ -18,9 +19,11 @@ const FOLLOW_UP_MS = [1_500, 4_000, 10_000, 30_000];
  * mention dans le salon sans notifier personne ; la page relit ensuite la réponse de Discord.
  *
  * Un bloc court, comme les salons du robot (14 novembre 2026) : l'état en pastille et ce qu'a répondu Discord d'un côté, les
- * champs et les boutons de l'autre, l'aide repliée. `onRead` donne chaque lecture du serveur au menu de l'onglet.
+ * champs et les boutons de l'autre, l'aide repliée. `premiere` : la lecture déjà faite par le menu de l'onglet, reprise
+ * telle quelle (une seule lecture à l'ouverture) ; si elle a échoué, la rubrique relit le serveur en s'ouvrant. `onRead`
+ * donne chaque lecture suivante au menu.
  */
-export default function DirectionAppels({ onRead }: { onRead?: (calls: DiscordCalls) => void } = {}) {
+export default function DirectionAppels({ premiere, onRead }: { premiere?: Promise<DiscordCalls | null>; onRead?: (calls: DiscordCalls) => void } = {}) {
   const [state, setState] = useState<DiscordCalls | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [link, setLink] = useState("");
@@ -29,22 +32,33 @@ export default function DirectionAppels({ onRead }: { onRead?: (calls: DiscordCa
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
-  const [armed, setArmed] = useState(false);
   const timers = useRef<number[]>([]);
+  // Le numéro de la dernière lecture lancée, et de la dernière montrée : une réponse en retard n'écrase pas une plus récente.
+  const lancee = useRef(0);
+  const montree = useRef(0);
+
+  const show = (next: DiscordCalls) => {
+    setState(next);
+    setLoadError(null);
+    setRole((current) => current ?? next.role ?? "");
+  };
 
   const load = async (): Promise<DiscordCalls | null> => {
+    const numero = ++lancee.current;
     try {
       const next = parseDiscordCalls(await call<unknown>("get_discord_calls"));
+      if (numero < montree.current) return next;
+      montree.current = numero;
       if (next === null) {
         setLoadError("La réponse du serveur est illisible.");
         return null;
       }
-      setState(next);
-      setLoadError(null);
+      show(next);
       onRead?.(next);
-      setRole((current) => current ?? next.role ?? "");
       return next;
     } catch (e) {
+      if (numero < montree.current) return null;
+      montree.current = numero;
       setLoadError(messageOf(e));
       return null;
     }
@@ -68,11 +82,23 @@ export default function DirectionAppels({ onRead }: { onRead?: (calls: DiscordCa
   };
 
   useEffect(() => {
-    void load();
-    return stopFollowing;
+    let alive = true;
+    void (premiere ?? Promise.resolve(null)).then((lu) => {
+      if (!alive) return;
+      // La lecture du menu a échoué, ou il n'y en a pas : la rubrique lit le serveur elle-même.
+      if (lu === null) return void load().then((next) => isWaiting(next) && follow());
+      // La lecture du menu : le menu l'a déjà, rien à lui redonner.
+      show(lu);
+      if (isWaiting(lu)) follow();
+    });
+    return () => {
+      alive = false;
+      stopFollowing();
+    };
   }, []);
 
   const act = async (action: () => Promise<unknown>, success: string): Promise<boolean> => {
+    const avant = document.activeElement;
     setBusy(true);
     setProblem(null);
     setDone(null);
@@ -87,6 +113,8 @@ export default function DirectionAppels({ onRead }: { onRead?: (calls: DiscordCa
       return false;
     } finally {
       setBusy(false);
+      // « Débrancher » disparaît avec le réglage : le focus va au message qui dit la suite.
+      rendreLeFocus(avant, "discord-retour");
     }
   };
 
@@ -101,10 +129,9 @@ export default function DirectionAppels({ onRead }: { onRead?: (calls: DiscordCa
     if (ok) setLink("");
   };
 
-  const stop = async () => {
-    setArmed(false);
-    await act(() => call("clear_discord_calls"), "Salon débranché : les appels ne partent plus sur Discord.");
-  };
+  const { armed, bouton: debrancher } = useSecondClic(() => {
+    void act(() => call("clear_discord_calls"), "Salon débranché : les appels ne partent plus sur Discord.");
+  });
 
   if (state === null) {
     return (
@@ -227,36 +254,37 @@ export default function DirectionAppels({ onRead }: { onRead?: (calls: DiscordCa
 
           {state.set && (
             <>
-              {/* Débrancher efface le réglage, lien compris : à part, après un filet, gris tant qu'on n'y passe pas, et seulement au
-                  second clic. Le 11 novembre 2026, « Arrêter l'envoi », à côté de « Dernier envoi : l'essai », a été lu comme la
-                  fin de l'essai. L'avertissement vient dessous : le bouton ne bouge pas entre les deux clics. */}
               <div class="dir-discord-actions">
-                <button type="button" class="dir-bouton" disabled={busy} onClick={() => void act(() => call("test_discord_calls"), state.role ? "Essai envoyé : il montre la mention sans notifier personne." : "Essai envoyé.")}>
+                <button type="button" class="dir-bouton" disabled={busy} onClick={() => void act(() => call("test_discord_calls"), state.role ? "Essai envoyé : il montre la mention sans notifier personne." : "Essai envoyé.")} data-testid="direction-discord-test">
                   Renvoyer un essai
                 </button>
-                <span class="dir-discord-filet" aria-hidden="true"></span>
+              </div>
+              {/* Débrancher efface le réglage, lien compris : à part, sous un filet, loin de « Renvoyer un essai », gris tant qu'on
+                  n'y passe pas, et seulement au second clic. Le 11 novembre 2026, « Arrêter l'envoi », à côté de « Dernier envoi :
+                  l'essai », a été lu comme la fin de l'essai. L'avertissement vient dessous : le bouton ne bouge pas entre les deux
+                  clics. */}
+              <div class="dir-discord-retirer">
                 <button
                   type="button"
                   class="dir-bouton dir-discord-retrait"
                   data-dir-ton="danger"
                   disabled={busy}
                   aria-describedby={armed ? "discord-stop-note" : undefined}
-                  onClick={() => (armed ? void stop() : setArmed(true))}
-                  onBlur={() => setArmed(false)}
+                  {...debrancher}
                   data-testid="direction-discord-stop"
                 >
                   {armed ? "Confirmer : débrancher" : "Débrancher le salon"}
                 </button>
+                {armed && (
+                  <p id="discord-stop-note" class="text-sm text-warn">
+                    Les appels ne partiront plus sur Discord, et il faudra recoller le lien du webhook pour rebrancher le salon.
+                  </p>
+                )}
               </div>
-              {armed && (
-                <p id="discord-stop-note" class="text-sm text-warn">
-                  Les appels ne partiront plus sur Discord, et il faudra recoller le lien du webhook pour rebrancher le salon.
-                </p>
-              )}
             </>
           )}
           <Problem message={problem} />
-          {done && <Success message={done} />}
+          <Retour id="discord-retour" message={done} />
         </div>
       </div>
 

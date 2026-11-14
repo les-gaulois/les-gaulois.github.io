@@ -1,10 +1,9 @@
 import type { ComponentChildren } from "preact";
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { call } from "../../lib/compte/api";
 import { parseDiscordCalls, type DiscordCalls } from "../../lib/compte/discord-appels";
-import { etatDesAppels, etatDuPing, etatDuSalon, etatDuVocal, etatsDesImages, tonLePlusGrave, type Etat } from "../../lib/compte/discord-etat";
-import { parseDiscordSalons, type RobotSalon, type RobotSalonId } from "../../lib/compte/discord-salons";
-import { parseQgTools } from "../../lib/compte/outils";
+import { etatsDuMenuAppels, etatsDuMenuImages, etatsDuMenuSalons, etatsDuMenuVocal, traitDuMenu, type EtatDuMenu, type Lu } from "../../lib/compte/discord-etat";
+import { parseDiscordSalons, type RobotSalon } from "../../lib/compte/discord-salons";
 import DirectionAppels from "./DirectionAppels";
 import DirectionImages from "./DirectionImages";
 import DirectionMessage from "./DirectionMessage";
@@ -25,20 +24,6 @@ const RUBRIQUES = [
 
 type RubriqueId = (typeof RUBRIQUES)[number]["id"];
 
-/** Le nom court d'un salon du robot, devant son état sur la ligne du menu. */
-const NOMS_COURTS: Record<RobotSalonId, string> = { nouvelles: "Nouvelles", encadrement: "Encadrement", victoires: "Victoires", alliance: "Alliance" };
-
-/** Un état du menu : son mot, précédé au besoin du nom de ce qu'il décrit. `plain` : le point et le mot seuls. */
-interface EtatDuMenu extends Etat {
-  nom?: string;
-  plain?: boolean;
-}
-
-/** Une lecture du serveur : `undefined` pas encore faite, `null` impossible ou illisible. */
-type Lu<T> = T | null | undefined;
-
-const ILLISIBLE: EtatDuMenu[] = [{ ton: "muted", mot: "État non lu" }];
-
 /** Lit un réglage sans rien afficher d'autre que son état : une panne ou une réponse illisible donne `null`. */
 async function lire<T>(name: string, parse: (raw: unknown) => T | null): Promise<T | null> {
   try {
@@ -46,6 +31,12 @@ async function lire<T>(name: string, parse: (raw: unknown) => T | null): Promise
   } catch {
     return null;
   }
+}
+
+/** Les lectures faites par le menu à l'ouverture de l'onglet, que chaque rubrique reprend au lieu de relire le serveur. */
+interface Premieres {
+  salons: Promise<RobotSalon[] | null>;
+  calls: Promise<DiscordCalls | null>;
 }
 
 /**
@@ -57,8 +48,12 @@ async function lire<T>(name: string, parse: (raw: unknown) => T | null): Promise
  *
  * Depuis le 14 novembre 2026 (« comme pour la section compte »), chaque ligne du menu dit l'état de ses réglages d'un coup
  * d'œil, en pastilles : une couleur et son mot (`discord-etat.ts`), et un trait de la couleur la plus grave au bord de la
- * ligne. L'onglet lit pour cela les réglages dès son ouverture, sans rien écrire ; une rubrique ouverte les relit et donne
- * ses lectures au menu (`onRead`), qui suit ainsi chaque changement. Le lien d'un webhook n'est jamais lu ni montré.
+ * ligne. L'onglet lit pour cela, dès son ouverture, les salons du robot, les appels et l'inventaire : trois fonctions qui ne
+ * font que lire (`get_discord_salons`, `get_discord_calls`, `get_discord_images`), une fois chacune. Une rubrique ouverte
+ * reprend cette lecture (`premiere`), la relit si elle a échoué (« État non lu »), puis donne ses lectures suivantes au menu
+ * (`onRead`), qui suit ainsi chaque changement. Le salon vocal n'a d'état qu'une fois sa rubrique ouverte : sa lecture,
+ * `get_qg_tools`, fait aussi le ménage des outils du QG, et ne part donc pas du menu. Le lien d'un webhook n'est jamais lu
+ * ni montré.
  */
 export default function DirectionDiscord() {
   return (
@@ -72,15 +67,18 @@ function Menu() {
   const [opened, setOpened] = useState<ReadonlySet<RubriqueId>>(new Set());
   const [salons, setSalons] = useState<Lu<RobotSalon[]>>(undefined);
   const [calls, setCalls] = useState<Lu<DiscordCalls>>(undefined);
-  // Le lien du vocal : `false` quand il n'y en a pas, pour le distinguer d'une lecture impossible (`null`).
+  // Le lien du vocal, donné par sa rubrique : `false` quand il n'y en a pas.
   const [voice, setVoice] = useState<Lu<string | false>>(undefined);
+  const premieres = useRef<Premieres | null>(null);
   const inventaire = useInventaire();
 
   useEffect(() => {
     let alive = true;
-    void lire("get_discord_salons", parseDiscordSalons).then((next) => alive && setSalons((now) => now ?? next));
-    void lire("get_discord_calls", parseDiscordCalls).then((next) => alive && setCalls((now) => now ?? next));
-    void lire("get_qg_tools", parseQgTools).then((tools) => alive && setVoice((now) => now ?? (tools === null ? null : (tools.voice ?? false))));
+    const lues: Premieres = { salons: lire("get_discord_salons", parseDiscordSalons), calls: lire("get_discord_calls", parseDiscordCalls) };
+    premieres.current = lues;
+    // Une rubrique ouverte entre-temps a pu donner une lecture plus récente : elle est gardée.
+    void lues.salons.then((next) => alive && setSalons((now) => now ?? next));
+    void lues.calls.then((next) => alive && setCalls((now) => now ?? next));
     inventaire?.ensure();
     return () => {
       alive = false;
@@ -92,17 +90,13 @@ function Menu() {
       case "message":
         return [];
       case "images":
-        return inventaire?.images ? etatsDesImages(inventaire.images).map((etat) => ({ ...etat, plain: etat.ton === "muted" })) : inventaire?.problem ? ILLISIBLE : [];
+        return inventaire ? etatsDuMenuImages(inventaire.images, inventaire.problem) : [];
       case "salons":
-        return salons === undefined ? [] : salons === null ? ILLISIBLE : salons.map((salon) => ({ ...etatDuSalon(salon), nom: NOMS_COURTS[salon.id] }));
-      case "appels": {
-        if (calls === undefined) return [];
-        if (calls === null) return ILLISIBLE;
-        const ping = etatDuPing(calls);
-        return ping ? [etatDesAppels(calls), { ...ping, plain: true }] : [etatDesAppels(calls)];
-      }
+        return etatsDuMenuSalons(salons);
+      case "appels":
+        return etatsDuMenuAppels(calls);
       case "vocal":
-        return voice === undefined ? [] : voice === null ? ILLISIBLE : [etatDuVocal(voice === false ? null : voice)];
+        return etatsDuMenuVocal(voice);
     }
   };
 
@@ -113,9 +107,9 @@ function Menu() {
       case "images":
         return <DirectionImages />;
       case "salons":
-        return <DirectionSalons level={3} onRead={setSalons} />;
+        return <DirectionSalons level={3} premiere={premieres.current?.salons} onRead={setSalons} />;
       case "appels":
-        return <DirectionAppels onRead={setCalls} />;
+        return <DirectionAppels premiere={premieres.current?.calls} onRead={setCalls} />;
       case "vocal":
         return <DirectionVocal bare onRead={(link) => setVoice(link ?? false)} />;
     }
@@ -125,14 +119,12 @@ function Menu() {
     <div class="dir-discord menu-deroulant" data-testid="direction-discord-menu">
       {RUBRIQUES.map((rubrique) => {
         const liste = etats(rubrique.id);
-        // Le trait au bord de la ligne : seulement pour ce qui se règle. Le nombre d'images n'est pas un état.
-        const reglages = liste.filter((etat) => !etat.plain);
         return (
           <details
             key={rubrique.id}
             id={`discord-${rubrique.id}`}
             class="deroule card"
-            data-dir-ton={reglages.length > 0 ? tonLePlusGrave(reglages) : undefined}
+            data-dir-ton={traitDuMenu(liste)}
             data-testid={`direction-discord-${rubrique.id}`}
             onToggle={(e) => {
               if ((e.currentTarget as HTMLDetailsElement).open) setOpened((s) => (s.has(rubrique.id) ? s : new Set([...s, rubrique.id])));
