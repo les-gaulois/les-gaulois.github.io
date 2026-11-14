@@ -127,7 +127,7 @@ export default function PlaceScene({ lieu, habitants, lumiere, actif }: { lieu: 
         if (pose === "gauche" || pose === "droite") dessin = { largeur: boite.largeur, hauteur: boite.hauteur, cases: poseDeMarche(cases, pose) };
         else if (pose === "posee" || pose === "levee") dessin = poseAttable(cases, pose);
         else if (pose === "assis") dessin = poseAttable(cases, null);
-        else if (pose === "couche0" || pose === "couche1") dessin = poseCouche(cases, pose === "couche1" ? 1 : 0, habitants[i]!.rang);
+        else if (pose === "couche0" || pose === "couche1") dessin = poseCouche(habitants[i]!.gaulois.tenue, pose === "couche1" ? 1 : 0, habitants[i]!.rang);
         else dessin = { largeur: boite.largeur, hauteur: boite.hauteur, cases };
         faits.set(cle, dessin);
       }

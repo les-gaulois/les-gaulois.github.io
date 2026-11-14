@@ -4,7 +4,7 @@ import { DECOR_LARGEUR_MIN, FEU_HAUTEUR, FEU_LARGEUR, Planche, feuDuDecor, flamm
 import { BOITES, HAUT_DU_LIEU, composerLieu } from "../../src/lib/village/lieux";
 import { ICONES_DES_LIEUX } from "../../src/lib/village/lieux-icones";
 import { NUIT_PLEINE, PLEIN_JOUR, lumiereDuVillage } from "../../src/lib/village/lumiere";
-import { ADVERSAIRES, ATTABLE_COUPE, ATTABLE_HAUTEUR, LIT_HAUTEUR, LIT_LARGEUR, casesDeLAdversaire, fermerLesYeux, miroir, poseAttable, poseCouche, poseDeMarche, sansArme } from "../../src/lib/village/poses";
+import { ADVERSAIRES, ATTABLE_COUPE, ATTABLE_HAUTEUR, LIT_HAUTEUR, LIT_LARGEUR, casesDeLAdversaire, casesEndormies, miroir, poseAttable, poseCouche, poseDeMarche, sansArme } from "../../src/lib/village/poses";
 import { LIEUX } from "../../src/lib/village/vie";
 
 const COULEUR = /^#[0-9a-f]{6}$/;
@@ -149,11 +149,13 @@ describe("les poses", () => {
     expect(retourne[20 * GAULOIS_LARGEUR + (GAULOIS_LARGEUR - 1 - 18)]).toBe(debout[20 * GAULOIS_LARGEUR + 18]);
   });
 
-  it("ferme les yeux sans changer le reste", () => {
-    const endormi = fermerLesYeux(debout);
-    expect(debout[20 * GAULOIS_LARGEUR + 18]).toBe("#eef2f7");
+  it("ferme les yeux sans changer le reste, quels que soient les yeux choisis", () => {
+    const endormi = casesEndormies(TENUE_DE_DEPART);
+    const eveille = casesDuGaulois(sansArme(TENUE_DE_DEPART));
+    expect(eveille[20 * GAULOIS_LARGEUR + 18]).toBe("#eef2f7");
     expect(endormi.includes("#eef2f7")).toBe(false);
-    expect(endormi.filter((c, i) => c !== debout[i]).length).toBeLessThanOrEqual(14);
+    expect(endormi.filter((c, i) => c !== eveille[i]).length).toBeLessThanOrEqual(14);
+    for (const yeux of Object.keys(OBJETS.yeux)) expect(casesEndormies({ ...TENUE_DE_DEPART, yeux })).toEqual(endormi);
   });
 
   it("attable le Gaulois : coupé à la taille, la chope posée ou levée", () => {
@@ -169,14 +171,14 @@ describe("les poses", () => {
   });
 
   it("couche le Gaulois dans son lit, et la couverture se soulève d'une case", () => {
-    const repos = poseCouche(debout, 0, 3);
-    const souffle = poseCouche(debout, 1, 3);
+    const repos = poseCouche(TENUE_DE_DEPART, 0, 3);
+    const souffle = poseCouche(TENUE_DE_DEPART, 1, 3);
     expect([repos.largeur, repos.hauteur]).toEqual([LIT_LARGEUR, LIT_HAUTEUR]);
     expect(repos.cases).toHaveLength(LIT_LARGEUR * LIT_HAUTEUR);
     expect(repos.cases).not.toEqual(souffle.cases);
     expect(repos.cases.filter((c, i) => c !== souffle.cases[i]).length).toBeLessThan(260);
     expect(repos.cases.includes("#eef2f7")).toBe(false);
-    expect(poseCouche(debout, 0, 0).cases).not.toEqual(poseCouche(debout, 0, 1).cases);
+    expect(poseCouche(TENUE_DE_DEPART, 0, 0).cases).not.toEqual(poseCouche(TENUE_DE_DEPART, 0, 1).cases);
   });
 
   it("pose l'arme pour s'attabler et pour dormir", () => {

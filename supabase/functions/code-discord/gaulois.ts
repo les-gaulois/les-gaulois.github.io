@@ -24,6 +24,7 @@
  * ombre ; n, y et z sont des lumières.
  */
 import { ecrirePng, type Image } from "./billets.ts";
+import { GARDE_ROBE } from "./garde-robe/index.ts";
 
 export const GAULOIS_LARGEUR = 48;
 export const GAULOIS_HAUTEUR = 64;
@@ -93,11 +94,12 @@ const FIXES: Readonly<Record<string, string>> = {
   J: "#c9a51e",
 };
 
+/** Les peaux : la peau (s), son ombre (S), et la cicatrice qui va avec (t, le tissu plus clair ; T, son trait sombre). */
 export const PEAUX = {
-  claire: { nom: "Claire", couleurs: { s: "#f2c9a0", S: "#d9a77c" } },
-  doree: { nom: "Dorée", couleurs: { s: "#e8b48a", S: "#c98e63" } },
-  mate: { nom: "Mate", couleurs: { s: "#c08552", S: "#9a643a" } },
-  foncee: { nom: "Foncée", couleurs: { s: "#7d4e30", S: "#5c3822" } },
+  claire: { nom: "Claire", couleurs: { s: "#f2c9a0", S: "#d9a77c", t: "#f8dcc6", T: "#c27c66" } },
+  doree: { nom: "Dorée", couleurs: { s: "#e8b48a", S: "#c98e63", t: "#f3cfae", T: "#ad6c52" } },
+  mate: { nom: "Mate", couleurs: { s: "#c08552", S: "#9a643a", t: "#dcab82", T: "#7d4630" } },
+  foncee: { nom: "Foncée", couleurs: { s: "#7d4e30", S: "#5c3822", t: "#a5765a", T: "#432517" } },
 } as const satisfies Record<string, Teinte>;
 
 /** Les couleurs des cheveux, que la barbe et les sourcils reprennent. */
@@ -151,18 +153,18 @@ const CORPS: Calque = {
     ".............ksssssssssssssssssssSk.............",
     "............ksssssssssssssssssssssSk............",
     "............kssssssssssssssssssssSSk............",
-    "............ksssHHHHssssssssHHHHSSSk............",
+    "............ksssssssssssssssssssSSSk............",
     "............ksssssssssssssssssssSSSk............",
     "...........kssssssssssssssssssssSSSkk...........",
-    "...........kssssssnkssssssssnkssSSsSk...........",
-    "..........kssssssskksssssssskkssSSssSk..........",
-    "..........kSsssssskksssssssskkssSSssSk..........",
+    "...........kssssssssssssssssssssSSsSk...........",
+    "..........ksssssssssssssssssssssSSssSk..........",
+    "..........kSssssssssssssssssssssSSssSk..........",
     "...........ksssssssssssssSssssssSSsSk...........",
     "...........kSssssssssssssSssssssSSSkk...........",
     "............ksssssssssSSSSssssssSSSk............",
     "............kSssssssssssssssssssSSSk............",
-    ".............kSsssssessssssesssSSSk.............",
-    ".............kksssssseeeeeessssSSkk.............",
+    ".............kSssssssssssssssssSSSk.............",
+    ".............kkssssssssssssssssSSkk.............",
     "...............kSsssssssssssssSSk...............",
     "...............kkSSSSSSSSSSSSSSkk...............",
     ".................kkkkkkkkkkkkkk.................",
@@ -198,6 +200,43 @@ const CORPS: Calque = {
     ".............kkkkkkkkkkkkkkkkkkkkkk.............",
   ],
 };
+
+/**
+ * Le visage d'avant le 14 novembre 2026, sorti du corps pour devenir un choix : les sourcils et les yeux (rangées 17 à 22),
+ * la bouche (rangées 27 et 28). Une tenue enregistrée avant ce jour n'a pas de clé du visage et garde exactement ces
+ * cases. Les yeux fermés sont ceux du Gaulois qui dort, quels que soient ses yeux : un trait sous chaque œil.
+ */
+const VISAGE = {
+  yeux: {
+    y: 17,
+    lignes: [
+      "................HHHH........HHHH................",
+      "................................................",
+      "................................................",
+      "..................nk........nk..................",
+      "..................kk........kk..................",
+      "..................kk........kk..................",
+    ],
+  },
+  bouche: {
+    y: 27,
+    lignes: [
+      "....................e......e....................",
+      ".....................eeeeee.....................",
+    ],
+  },
+  fermes: {
+    y: 17,
+    lignes: [
+      "................HHHH........HHHH................",
+      "................................................",
+      "................................................",
+      "................................................",
+      "................................................",
+      ".................kkk.......kkk..................",
+    ],
+  },
+} satisfies Record<string, Calque>;
 
 /** Les dessins des objets, par emplacement et par objet. */
 const DESSINS = {
@@ -1743,17 +1782,29 @@ export interface Objet {
   couvre?: boolean;
 }
 
-export const EMPLACEMENTS = ["peau", "cheveux", "barbe", "tete", "haut", "bas", "pieds", "arme"] as const;
+export const EMPLACEMENTS = ["peau", "cheveux", "barbe", "yeux", "bouche", "cicatrice", "tete", "haut", "bas", "pieds", "arme"] as const;
 export type Emplacement = (typeof EMPLACEMENTS)[number];
 
 /** Les emplacements du corps, puis ceux des objets à rareté. */
-export const EMPLACEMENTS_CORPS = ["peau", "cheveux", "barbe"] as const satisfies readonly Emplacement[];
+export const EMPLACEMENTS_CORPS = ["peau", "cheveux", "barbe", "yeux", "bouche", "cicatrice"] as const satisfies readonly Emplacement[];
 export const EMPLACEMENTS_OBJETS = ["tete", "haut", "bas", "pieds", "arme"] as const satisfies readonly Emplacement[];
+
+/**
+ * Le visage, au choix et gratuit depuis le 14 novembre 2026 (demande du pilote : « plusieurs modèles œil, bouche, et
+ * cicatrice pour leur perso gratuit au départ de la création »). Une tenue enregistrée avant n'a pas ces trois clés : elle
+ * se lit avec le visage d'avant, case pour case, et le serveur l'accepte toujours.
+ */
+export const EMPLACEMENTS_VISAGE = ["yeux", "bouche", "cicatrice"] as const satisfies readonly Emplacement[];
+export type EmplacementDuVisage = (typeof EMPLACEMENTS_VISAGE)[number];
+export const VISAGE_D_AVANT: Readonly<Record<EmplacementDuVisage, string>> = { yeux: "vifs", bouche: "sourire", cicatrice: "aucune" };
 
 export const NOMS_EMPLACEMENTS: Readonly<Record<Emplacement, string>> = {
   peau: "Peau",
   cheveux: "Cheveux",
   barbe: "Barbe",
+  yeux: "Yeux",
+  bouche: "Bouche",
+  cicatrice: "Cicatrice",
   tete: "Tête",
   haut: "Haut",
   bas: "Bas",
@@ -1769,12 +1820,18 @@ const boutique = (nom: string, rarete: Rarete, dessin: Calque, couleurs: Couleur
 /** Une coiffe qui cache le haut des cheveux. */
 const couvrant = (objet: Objet): Objet => ({ ...objet, couvre: true });
 
+/** Un catalogue : pour chaque emplacement, ses objets par identifiant. */
+export type Catalogue = Readonly<Record<Emplacement, Readonly<Record<string, Objet>>>>;
+
 /**
- * Le catalogue, emplacement par emplacement, dans l'ordre où le vestiaire le montre : les gratuits, puis la boutique de la
- * rareté la plus courante à la plus rare. Les cheveux choisissent toujours une couleur, même rasés : la barbe la reprend.
+ * Le premier catalogue, celui du lot 1 (13 novembre 2026), avec le visage d'avant. Les objets dessinés ensuite sont dans
+ * `garde-robe/` et s'y ajoutent (`OBJETS`).
  */
-export const OBJETS: Readonly<Record<Emplacement, Readonly<Record<string, Objet>>>> = {
+const CATALOGUE_DU_LOT_1: Catalogue = {
   peau: Object.fromEntries(Object.entries(PEAUX).map(([id, teinte]) => [id, rien(teinte.nom)])),
+  yeux: { [VISAGE_D_AVANT.yeux]: corps("Yeux vifs", VISAGE.yeux) },
+  bouche: { [VISAGE_D_AVANT.bouche]: corps("Sourire", VISAGE.bouche) },
+  cicatrice: { [VISAGE_D_AVANT.cicatrice]: rien("Aucune") },
   cheveux: {
     aucun: rien("Rasés"),
     courts: corps("Courts", DESSINS.cheveux.courts),
@@ -1859,10 +1916,60 @@ export const OBJETS: Readonly<Record<Emplacement, Readonly<Record<string, Objet>
 };
 
 /**
- * L'ordre des calques, du fond vers le devant : les bottes sur les braies, la barbe sur la tunique, la capuche sur les
- * cheveux, l'arme par-dessus tout.
+ * Un objet de la garde-robe (`garde-robe/`, un fichier par lot) : le même qu'un objet du catalogue, avec son emplacement
+ * et son identifiant. Un objet du visage est gratuit et sans rareté ; tous les autres ont une rareté.
  */
-const ORDRE: readonly Emplacement[] = ["bas", "pieds", "haut", "barbe", "cheveux", "tete", "arme"];
+export interface ObjetDuLot {
+  emplacement: Emplacement;
+  /** De 1 à 40 lettres minuscules sans accent et tirets, la première une lettre (règle du serveur). */
+  id: string;
+  nom: string;
+  rarete: Rarete | null;
+  gratuit: boolean;
+  /** Pour un objet de tête : cache le haut des cheveux. */
+  couvre?: boolean;
+  /** Les couleurs propres à l'objet, par lettre des grilles. */
+  couleurs?: Readonly<Record<string, string>>;
+  dessin: Calque;
+}
+
+/**
+ * Le catalogue complet : un premier catalogue, puis des objets de la garde-robe, dans l'ordre où le vestiaire les montre —
+ * les gratuits, puis la boutique de la rareté la plus courante à la plus rare ; à rareté égale, l'ordre d'écriture. Un
+ * identifiant déjà pris n'est pas remplacé (un test refuse les doublons).
+ */
+export function construireCatalogue(base: Catalogue, ajouts: readonly ObjetDuLot[]): Catalogue {
+  const rang = (objet: Objet): number => (objet.gratuit ? 0 : RARETES[objet.rarete ?? "commun"].rang);
+  const catalogue = {} as Record<Emplacement, Readonly<Record<string, Objet>>>;
+  for (const emplacement of EMPLACEMENTS) {
+    const objets: [string, Objet][] = Object.entries(base[emplacement]);
+    for (const ajout of ajouts) {
+      if (ajout.emplacement !== emplacement || objets.some(([id]) => id === ajout.id)) continue;
+      const objet: Objet = { nom: ajout.nom, dessin: ajout.dessin, couleurs: ajout.couleurs ?? {}, rarete: ajout.rarete, gratuit: ajout.gratuit };
+      objets.push([ajout.id, ajout.couvre ? couvrant(objet) : objet]);
+    }
+    const ranges = objets.map((entree, ordre) => ({ entree, ordre })).sort((a, b) => rang(a.entree[1]) - rang(b.entree[1]) || a.ordre - b.ordre);
+    catalogue[emplacement] = Object.fromEntries(ranges.map(({ entree }) => entree));
+  }
+  return catalogue;
+}
+
+/**
+ * Le catalogue que le vestiaire, le serveur (par sa propre liste) et l'image de /gaulois connaissent : le lot 1 et la
+ * garde-robe ajoutée le 14 novembre 2026.
+ */
+export const OBJETS: Catalogue = construireCatalogue(CATALOGUE_DU_LOT_1, GARDE_ROBE);
+
+/**
+ * L'ordre des calques, du fond vers le devant : le visage sur le corps, les bottes sur les braies, la barbe sur la tunique
+ * et sur une cicatrice de la joue, la capuche sur les cheveux, l'arme par-dessus tout.
+ */
+const ORDRE: readonly Emplacement[] = ["yeux", "bouche", "cicatrice", "bas", "pieds", "haut", "barbe", "cheveux", "tete", "arme"];
+
+const estDuVisage = (emplacement: Emplacement): emplacement is EmplacementDuVisage => (EMPLACEMENTS_VISAGE as readonly string[]).includes(emplacement);
+
+/** L'objet porté à un emplacement ; pour le visage d'une tenue d'avant le 14 novembre 2026, celui d'avant. */
+export const objetPorte = (tenue: Tenue, emplacement: Emplacement): string => tenue[emplacement] ?? (estDuVisage(emplacement) ? VISAGE_D_AVANT[emplacement] : "");
 
 /** Sous une coiffe qui couvre, les cheveux ne se dessinent qu'à partir de cette rangée : les tempes et la nuque. */
 const HAUT_DES_CHEVEUX = 14;
@@ -1872,7 +1979,8 @@ export const TEINTE_CHEVEUX = "teinte_cheveux";
 
 /**
  * Une tenue : pour chaque emplacement, l'objet porté, et la couleur des cheveux sous `teinte_cheveux`. Rien d'autre : le
- * serveur refuse une clé en trop (`internal.gaulois_tenue_valide`).
+ * serveur refuse une clé en trop (`internal.gaulois_tenue_valide`). Les trois clés du visage peuvent manquer, dans une
+ * tenue enregistrée avant le 14 novembre 2026 : `lireTenue` les remplit alors avec le visage d'avant.
  */
 export type Tenue = Readonly<Record<string, string>>;
 
@@ -1882,6 +1990,7 @@ export const TENUE_DE_DEPART: Tenue = {
   cheveux: "courts",
   teinte_cheveux: "roux",
   barbe: "moustache",
+  ...VISAGE_D_AVANT,
   tete: "aucun",
   haut: "tunique",
   bas: "braies-carreaux",
@@ -1891,27 +2000,36 @@ export const TENUE_DE_DEPART: Tenue = {
 
 const aCle = (objetJson: object, cle: string): boolean => Object.prototype.hasOwnProperty.call(objetJson, cle);
 
-/** Une tenue complète, faite d'objets du catalogue et d'une couleur de cheveux, sans rien d'autre ; sinon `null`. */
+/**
+ * Une tenue complète, faite d'objets du catalogue et d'une couleur de cheveux, sans rien d'autre ; sinon `null`. Une clé
+ * du visage absente prend le visage d'avant ; présente, elle doit nommer un objet du catalogue.
+ */
 export function lireTenue(valeur: unknown): Tenue | null {
   if (valeur === null || typeof valeur !== "object" || Array.isArray(valeur)) return null;
   const brute = valeur as Record<string, unknown>;
   const tenue: Record<string, string> = {};
+  let lues = 0;
   for (const emplacement of EMPLACEMENTS) {
+    if (!aCle(brute, emplacement) && estDuVisage(emplacement)) {
+      tenue[emplacement] = VISAGE_D_AVANT[emplacement];
+      continue;
+    }
     const id = brute[emplacement];
     if (typeof id !== "string" || !aCle(OBJETS[emplacement], id)) return null;
     tenue[emplacement] = id;
+    lues++;
   }
   const teinte = brute[TEINTE_CHEVEUX];
   if (typeof teinte !== "string" || !aCle(POILS, teinte)) return null;
   tenue[TEINTE_CHEVEUX] = teinte;
-  return Object.keys(brute).length === Object.keys(tenue).length ? tenue : null;
+  return Object.keys(brute).length === lues + 1 ? tenue : null;
 }
 
 /** L'objet est-il gratuit ? Faux aussi pour un objet inconnu. */
 export const estGratuit = (emplacement: Emplacement, id: string): boolean => OBJETS[emplacement][id]?.gratuit === true;
 
 /** La tenue ne porte-t-elle que des objets gratuits ? Les seules que le serveur enregistre tant que la boutique n'existe pas. */
-export const tenueGratuite = (tenue: Tenue): boolean => EMPLACEMENTS.every((emplacement) => estGratuit(emplacement, tenue[emplacement] ?? ""));
+export const tenueGratuite = (tenue: Tenue): boolean => EMPLACEMENTS.every((emplacement) => estGratuit(emplacement, objetPorte(tenue, emplacement)));
 
 /** La tenue après le choix d'un autre objet ; inchangée si l'objet n'existe pas. */
 export function changerObjet(tenue: Tenue, emplacement: Emplacement, id: string): Tenue {
@@ -1930,17 +2048,25 @@ export function tenueAuHasard(hasard: () => number): Tenue {
 }
 
 /** Les couleurs communes à tous les calques d'un Gaulois : les fixes, sa peau, ses cheveux. */
-function couleursDeBase(tenue: Tenue): Couleurs {
+export function couleursDeBase(tenue: Tenue): Couleurs {
   const peau = PEAUX[tenue["peau"] as keyof typeof PEAUX]?.couleurs ?? PEAUX.claire.couleurs;
   const poils = POILS[tenue[TEINTE_CHEVEUX] as keyof typeof POILS]?.couleurs ?? POILS.roux.couleurs;
   return { ...FIXES, ...peau, ...poils };
 }
 
+/** Comment dessiner un Gaulois : les yeux fermés (il dort), ou avec un autre catalogue (l'atelier de dessin). */
+export interface OptionsDuDessin {
+  yeuxFermes?: boolean;
+  catalogue?: Catalogue;
+}
+
 /**
  * Le Gaulois case par case, rangée par rangée : 48 × 64 couleurs « #rrggbb », `null` pour une case vide. La tenue doit
- * être lue par `lireTenue` ; une lettre sans couleur laisserait la case vide (un test l'interdit).
+ * être lue par `lireTenue` ; une lettre sans couleur laisserait la case vide (un test l'interdit). Un visage absent ou
+ * inconnu se dessine comme le visage d'avant.
  */
-export function casesDuGaulois(tenue: Tenue): (string | null)[] {
+export function casesDuGaulois(tenue: Tenue, options: OptionsDuDessin = {}): (string | null)[] {
+  const catalogue = options.catalogue ?? OBJETS;
   const cases: (string | null)[] = new Array<string | null>(GAULOIS_LARGEUR * GAULOIS_HAUTEUR).fill(null);
   const base = couleursDeBase(tenue);
   const poser = (calque: Calque, couleurs: Couleurs, depuis = 0) => {
@@ -1955,9 +2081,14 @@ export function casesDuGaulois(tenue: Tenue): (string | null)[] {
     });
   };
   poser(CORPS, base);
-  const coiffe = OBJETS.tete[tenue["tete"] ?? ""]?.couvre === true;
+  const coiffe = catalogue.tete[tenue["tete"] ?? ""]?.couvre === true;
   for (const emplacement of ORDRE) {
-    const porte = OBJETS[emplacement][tenue[emplacement] ?? ""];
+    if (emplacement === "yeux" && options.yeuxFermes) {
+      poser(VISAGE.fermes, base);
+      continue;
+    }
+    const objets = catalogue[emplacement];
+    const porte = objets[objetPorte(tenue, emplacement)] ?? (estDuVisage(emplacement) ? objets[VISAGE_D_AVANT[emplacement]] : undefined);
     if (porte?.dessin) poser(porte.dessin, { ...base, ...porte.couleurs }, emplacement === "cheveux" && coiffe ? HAUT_DES_CHEVEUX : 0);
   }
   return cases;
@@ -1974,8 +2105,8 @@ export interface Vignette {
  * Un objet seul, rogné à son contour, pour l'image de sa case dans le vestiaire ; `null` pour un objet sans dessin
  * (« rien »). La tenue ne sert qu'aux couleurs de la peau et des cheveux, pour une coupe ou une barbe.
  */
-export function vignetteDeLObjet(emplacement: Emplacement, id: string, tenue: Tenue = TENUE_DE_DEPART): Vignette | null {
-  const objet = OBJETS[emplacement][id];
+export function vignetteDeLObjet(emplacement: Emplacement, id: string, tenue: Tenue = TENUE_DE_DEPART, catalogue: Catalogue = OBJETS): Vignette | null {
+  const objet = catalogue[emplacement][id];
   const dessin = objet?.dessin;
   if (!objet || !dessin) return null;
   let gauche = GAULOIS_LARGEUR;
@@ -2003,7 +2134,7 @@ const NBSP = String.fromCharCode(0xa0);
 /** Le Gaulois en mots, pour qui ne voit pas l'image : son texte de remplacement, sur le site comme sur Discord. */
 export function decrireGaulois(tenue: Tenue): string {
   const parties = EMPLACEMENTS.map((emplacement) => {
-    const porte = OBJETS[emplacement][tenue[emplacement] ?? ""];
+    const porte = OBJETS[emplacement][objetPorte(tenue, emplacement)];
     if (!porte) return null;
     const teinte = emplacement === "cheveux" ? POILS[tenue[TEINTE_CHEVEUX] as keyof typeof POILS]?.nom : undefined;
     const mots = [porte.nom, teinte].filter(Boolean).join(", ").toLowerCase();

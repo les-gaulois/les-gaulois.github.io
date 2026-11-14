@@ -42,25 +42,12 @@ export function miroir(cases: Cases, largeur = L): (string | null)[] {
 
 /** Le blanc de l'œil des Gaulois (`FIXES` de `gaulois.ts`). */
 const BLANC_DE_L_OEIL = "#eef2f7";
-/** Les yeux : rangées 20 à 22, colonnes 18 et 19 puis 28 et 29. */
-const YEUX = [18, 28] as const;
 
-/** Les yeux fermés : la peau à la place de l'œil, un trait sombre dessous. Un œil caché par une coiffe n'est pas touché. */
-export function fermerLesYeux(cases: Cases): (string | null)[] {
-  const pose = [...cases];
-  for (const x of YEUX) {
-    if (cases[20 * L + x] !== BLANC_DE_L_OEIL) continue;
-    const peau = cases[20 * L + x - 2] ?? null;
-    const trait = cases[22 * L + x] ?? null;
-    for (const dx of [0, 1]) {
-      pose[20 * L + x + dx] = peau;
-      pose[21 * L + x + dx] = peau;
-      pose[22 * L + x + dx] = trait;
-    }
-    pose[22 * L + x - 1] = trait;
-  }
-  return pose;
-}
+/**
+ * Le Gaulois qui dort, debout avant d'être couché : sans arme, les yeux fermés, quels que soient ses yeux (un trait sous
+ * chaque œil, dessiné par `gaulois.ts` ; un œil caché par une coiffe le reste).
+ */
+export const casesEndormies = (tenue: Tenue): (string | null)[] => casesDuGaulois(sansArme(tenue), { yeuxFermes: true });
 
 /** La taille d'un Gaulois attablé : coupé sous la ceinture, puis la place de la chope posée sur la table. */
 export const ATTABLE_COUPE = 47;
@@ -107,7 +94,7 @@ const COUVERTURES = [
  * fermés, sous une couverture de laine. `souffle` : 0 ou 1, la couverture se soulève d'une case. `rang` choisit la
  * couleur de la couverture.
  */
-export function poseCouche(cases: Cases, souffle: 0 | 1, rang: number): Decor {
+export function poseCouche(tenue: Tenue, souffle: 0 | 1, rang: number): Decor {
   const planche = new Planche(LIT_LARGEUR, LIT_HAUTEUR);
   // Le cadre de bois et la paille.
   planche.rect(0, 2, LIT_LARGEUR, 40, "#4a301c");
@@ -119,7 +106,7 @@ export function poseCouche(cases: Cases, souffle: 0 | 1, rang: number): Decor {
   // L'oreiller.
   planche.rect(3, 6, 27, 32, (x, y) => ((x === 3 || x === 29) && (y === 6 || y === 37) ? null : x === 29 || y === 37 ? "#cfc5aa" : "#e9e2cf"));
   // Le dormeur : la case (x, y) du Gaulois debout va en (y + 3, 45 − x).
-  const endormi = fermerLesYeux(cases);
+  const endormi = casesEndormies(tenue);
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < L; x++) {
       const couleur = endormi[y * L + x];

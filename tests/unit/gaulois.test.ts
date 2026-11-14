@@ -5,6 +5,7 @@ import {
   EMPLACEMENTS,
   EMPLACEMENTS_CORPS,
   EMPLACEMENTS_OBJETS,
+  EMPLACEMENTS_VISAGE,
   GAULOIS_HAUTEUR,
   GAULOIS_LARGEUR,
   DECOR_HAUTEUR,
@@ -16,6 +17,7 @@ import {
   RARETES,
   TEINTE_CHEVEUX,
   TENUE_DE_DEPART,
+  VISAGE_D_AVANT,
   casesDuDecor,
   casesDuGaulois,
   changerObjet,
@@ -32,6 +34,8 @@ import {
 import { memeTenue, tenueDuServeur } from "../../src/lib/gaulois";
 
 const MIGRATION = readFileSync("supabase/migrations/20261113001700_village_des_gaulois_vestiaire.sql", "utf8");
+/** La garde-robe du 14 novembre 2026 : le visage au choix, les objets dessinés ensuite, la tenue vérifiée de nouveau. */
+const GARDE_ROBE_SQL = readFileSync("supabase/migrations/20261114000200_village_garde_robe.sql", "utf8");
 
 /** Un tirage reproductible, pour que les tenues au hasard soient les mêmes à chaque passage. */
 function hasardFixe(graine: number): () => number {
@@ -166,6 +170,9 @@ describe("une tenue", () => {
       { ...TENUE_DE_DEPART, pieds: "patins" },
       { ...TENUE_DE_DEPART, pieds: 3 },
       { ...TENUE_DE_DEPART, peau: "toString" },
+      { ...TENUE_DE_DEPART, yeux: "inconnus" },
+      { ...TENUE_DE_DEPART, bouche: 3 },
+      { ...TENUE_DE_DEPART, cicatrice: null },
     ]) {
       expect(lireTenue(valeur), JSON.stringify(valeur)).toBeNull();
     }
@@ -180,7 +187,7 @@ describe("une tenue", () => {
     const texte = decrireGaulois(TENUE_DE_DEPART);
     const nbsp = String.fromCharCode(0xa0);
     expect(texte).toBe(
-      ["Gaulois en pixels", "Peau : claire", "Cheveux : courts, roux", "Barbe : moustache", "Tête : tête nue", "Haut : tunique bleue", "Bas : braies à carreaux", "Pieds : bottes de cuir", "Arme : gourdin"].join(". ").replaceAll(" :", `${nbsp}:`) + ".",
+      ["Gaulois en pixels", "Peau : claire", "Cheveux : courts, roux", "Barbe : moustache", "Yeux : yeux vifs", "Bouche : sourire", "Cicatrice : aucune", "Tête : tête nue", "Haut : tunique bleue", "Bas : braies à carreaux", "Pieds : bottes de cuir", "Arme : gourdin"].join(". ").replaceAll(" :", `${nbsp}:`) + ".",
     );
     for (const emplacement of EMPLACEMENTS) {
       const nom = OBJETS[emplacement][TENUE_DE_DEPART[emplacement] ?? ""]?.nom ?? "";
@@ -189,6 +196,28 @@ describe("une tenue", () => {
     expect(texte.toLowerCase()).toContain(POILS.roux.nom.toLowerCase());
     expect(texte.length).toBeLessThanOrEqual(1024);
     expect(decrireGaulois(changerObjet(TENUE_DE_DEPART, "arme", "aucune"))).not.toBe(texte);
+  });
+
+  it("d'avant le 14 novembre 2026, sans visage, se lit et se dessine avec le visage d'avant, case pour case", () => {
+    const avant = Object.fromEntries(Object.entries(TENUE_DE_DEPART).filter(([cle]) => !(EMPLACEMENTS_VISAGE as readonly string[]).includes(cle)));
+    expect(Object.keys(avant)).toHaveLength(9);
+    expect(lireTenue(avant)).toEqual({ ...avant, ...VISAGE_D_AVANT });
+    expect(casesDuGaulois(avant)).toEqual(casesDuGaulois(TENUE_DE_DEPART));
+    expect(tenueGratuite(avant)).toBe(true);
+    // Une seule clé du visage suffit : les autres prennent le visage d'avant.
+    const unOeil = Object.keys(OBJETS.yeux).at(-1)!;
+    expect(lireTenue({ ...avant, yeux: unOeil })).toEqual({ ...avant, ...VISAGE_D_AVANT, yeux: unOeil });
+  });
+
+  it("a un visage gratuit au choix : des yeux, une bouche, une cicatrice ou aucune, chacun sur la peau du visage", () => {
+    for (const emplacement of EMPLACEMENTS_VISAGE) {
+      expect(OBJETS[emplacement][VISAGE_D_AVANT[emplacement]], emplacement).toBeDefined();
+      for (const [id, objet] of Object.entries(OBJETS[emplacement])) {
+        expect(objet, `${emplacement}/${id}`).toMatchObject({ rarete: null, gratuit: true });
+        expect(estGratuit(emplacement, id)).toBe(true);
+      }
+    }
+    expect(OBJETS.cicatrice[VISAGE_D_AVANT.cicatrice]?.dessin).toBeNull();
   });
 
   it("revient du serveur telle qu'il l'a gardée, ou pas du tout si elle est illisible", () => {
@@ -205,16 +234,23 @@ describe("une tenue", () => {
 
 describe("le serveur", () => {
   it("connaît exactement les objets du dessin, avec leur rareté et s'ils sont gratuits (migration du vestiaire)", () => {
-    const lignes = [...MIGRATION.matchAll(/^ {2}\('([a-z]+)', '([a-z-]+)', ('[a-z-]+'|null), (true|false)\)/gm)].map(([, emplacement, objet, rarete, gratuit]) => `${emplacement}/${objet}/${rarete?.replaceAll("'", "")}/${gratuit}`);
+    const lignes = [...`${MIGRATION}\n${GARDE_ROBE_SQL}`.matchAll(/^ {2}\('([a-z]+)', '([a-z-]+)', ('[a-z-]+'|null), (true|false)\)/gm)].map(([, emplacement, objet, rarete, gratuit]) => `${emplacement}/${objet}/${rarete?.replaceAll("'", "")}/${gratuit}`);
     const attendues = EMPLACEMENTS.flatMap((emplacement) => Object.entries(OBJETS[emplacement]).map(([id, objet]) => `${emplacement}/${id}/${objet.rarete ?? "null"}/${objet.gratuit}`));
     expect(lignes.sort()).toEqual(attendues.sort());
   });
 
   it("vérifie les mêmes emplacements, les mêmes couleurs de cheveux et les mêmes raretés", () => {
-    expect(MIGRATION).toContain(`foreach v_emplacement in array array[${EMPLACEMENTS.map((e) => `'${e}'`).join(", ")}] loop`);
-    expect(MIGRATION).toContain(`any (array[${Object.keys(POILS).map((p) => `'${p}'`).join(", ")}])`);
+    expect(GARDE_ROBE_SQL).toContain(`foreach v_emplacement in array array[${EMPLACEMENTS.map((e) => `'${e}'`).join(", ")}] loop`);
+    expect(GARDE_ROBE_SQL).toContain(`check (emplacement in (${EMPLACEMENTS.map((e) => `'${e}'`).join(", ")}))`);
+    expect(GARDE_ROBE_SQL).toContain(`if v_emplacement in (${EMPLACEMENTS_VISAGE.map((e) => `'${e}'`).join(", ")}) and not (p_tenue ? v_emplacement) then`);
+    expect(GARDE_ROBE_SQL).toContain(`any (array[${Object.keys(POILS).map((p) => `'${p}'`).join(", ")}])`);
+    expect(GARDE_ROBE_SQL).toContain("return (select count(*) from jsonb_object_keys(p_tenue)) = v_cles;");
+    // La version de la boutique (001900) : un objet gratuit ou de l'inventaire de l'appelant.
+    expect(GARDE_ROBE_SQL).toContain("and (o.gratuit or exists (");
+    expect(GARDE_ROBE_SQL).toContain("revoke all on function internal.gaulois_tenue_valide(jsonb) from public, anon, authenticated;");
+    expect(GARDE_ROBE_SQL).not.toMatch(/raw_user_meta_data|drop table|drop column|truncate|delete from/i);
     expect(MIGRATION).toContain(`rarete in (${ORDRE_RARETES.map((r) => `'${r}'`).join(", ")})`);
-    expect(MIGRATION).toContain(`= ${EMPLACEMENTS.length + 1};`);
+    expect(MIGRATION).toContain("= 9;");
     // Seuls les objets gratuits s'enregistrent tant que la boutique n'existe pas.
     expect(MIGRATION).toContain("o.objet = p_tenue ->> v_emplacement and o.gratuit");
   });
