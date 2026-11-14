@@ -48,20 +48,32 @@ function Libelle({ id, label, value, max }: { id: string; label: string; value: 
 /**
  * Une suppression ne part qu'au second clic : le texte, lui, ne se récupère pas. Gris, rouge au survol et une fois armé.
  * Le bouton se désarme quand le focus part ailleurs (une perte de focus sans destination est ignorée : Safari ne donne pas
- * le focus au bouton cliqué), avec Échap, et après la confirmation : un refus du serveur demande de réarmer.
+ * le focus au bouton cliqué), sur un clic ailleurs (ce qui couvre Safari), avec Échap, et après la confirmation : un refus du
+ * serveur demande de réarmer. Le second clic d'un double-clic ne confirme pas : il faut deux gestes, comme `DeleteButton`.
  */
 function Supprimer({ busy, label, onConfirm }: { busy: boolean; label: string; onConfirm: () => void }) {
   const [armed, setArmed] = useState(false);
+  const self = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!armed) return;
+    const away = (e: PointerEvent) => {
+      if (!self.current?.contains(e.target as Node)) setArmed(false);
+    };
+    document.addEventListener("pointerdown", away);
+    return () => document.removeEventListener("pointerdown", away);
+  }, [armed]);
   return (
     <button
+      ref={self}
       type="button"
       class="dir-bouton"
       data-dir-ton="danger"
       data-arme={armed || undefined}
       disabled={busy}
       aria-label={armed ? `Confirmer la suppression de « ${label} »` : `Supprimer « ${label} »`}
-      onClick={() => {
+      onClick={(e) => {
         if (!armed) return setArmed(true);
+        if (e.detail >= 2) return;
         setArmed(false);
         onConfirm();
       }}

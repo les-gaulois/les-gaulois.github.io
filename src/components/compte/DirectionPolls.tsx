@@ -58,11 +58,12 @@ function Supprimer({ busy, label, onConfirm }: { busy: boolean; label: string; o
       data-arme={armed ? "" : undefined}
       disabled={busy}
       aria-label={armed ? `Confirmer la suppression de « ${label} »` : `Supprimer « ${label} »`}
-      onClick={() => {
-        if (armed) {
-          setArmed(false);
-          onConfirm();
-        } else setArmed(true);
+      onClick={(e) => {
+        if (!armed) return setArmed(true);
+        // Le second clic d'un double-clic ne confirme pas : il faut deux gestes, comme `DeleteButton`.
+        if (e.detail >= 2) return;
+        setArmed(false);
+        onConfirm();
       }}
       onBlur={(e) => {
         if (e.relatedTarget) setArmed(false);

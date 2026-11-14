@@ -61,7 +61,10 @@ function Retirer({ busy, onConfirm }: { busy: boolean; onConfirm: () => Promise<
           setArmed(false);
         }
       }}
-      onBlur={() => setArmed(false)}
+      onBlur={(e) => {
+        // Une perte de focus sans destination (Safari, fenêtre quittée) ne désarme pas : le clic ailleurs s'en charge.
+        if (e.relatedTarget !== null) setArmed(false);
+      }}
     >
       {armed ? "Confirmer la suppression" : "Supprimer"}
     </button>
