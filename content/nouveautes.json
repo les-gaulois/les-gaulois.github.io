@@ -2,6 +2,16 @@
   {
     "date": "2026-11-14",
     "kind": "nouveau",
+    "title": "Touchez un Gaulois, il répond",
+    "body": "Au village, touchez un Gaulois de la place : il vous répond. Si vous insistez dans l'heure, il s'agace, puis s'énerve pour de bon. Plus de 200 phrases à découvrir.",
+    "link": {
+      "href": "/village#place",
+      "label": "Voir la place"
+    }
+  },
+  {
+    "date": "2026-11-14",
+    "kind": "nouveau",
     "title": "Le village s'anime",
     "body": "La place a cinq lieux : place, taverne, salle de réunion, champ de bataille, maisons. Le décor suit l'heure de Paris. Tous les Gaulois créés y sont, avec leur nom.",
     "link": {

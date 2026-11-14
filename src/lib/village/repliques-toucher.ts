@@ -143,7 +143,7 @@ export const LE_SIEN: readonly string[] = [
 
 /** Son propre Gaulois, quand il insiste : ces phrases s'ajoutent à celles du palier. */
 export const LE_SIEN_AGACE: readonly string[] = [
-  "Tu te tripotes toi-même, là. Réfléchis.",
+  "C'est toi-même que tu embêtes, là. Réfléchis.",
   "Je suis ton Gaulois, pas ton jouet.",
   "C'est toi qui m'as créé, et voilà comment tu me traites.",
   "Continue, et je me rhabille tout seul. N'importe comment.",
