@@ -159,6 +159,8 @@ export const ERROR_MESSAGES: Record<string, string> = {
   objet_gratuit: "Cet objet est gratuit : il est déjà dans votre vestiaire.",
   deja_possede: "Vous avez déjà cet objet.",
   solde_insuffisant: "Vous n'avez pas assez de statères.",
+  // Le prix de la boutique a changé entre l'affichage et le clic (revue de sécurité du 14 novembre 2026).
+  prix_change: "Le prix vient de changer : regardez le nouveau avant d'acheter.",
 
   // Le marché du village (contrat : `RefusMarche` de src/lib/village/contrat.ts). Les refus qu'il partage avec la boutique
   // (`deja_possede`, `solde_insuffisant`) sont à la boutique ; le marché a ses propres mots dans `ecran-marche.ts`.

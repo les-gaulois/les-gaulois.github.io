@@ -20,7 +20,7 @@ describe("le marché du village, côté serveur", () => {
   it("ne répond que des refus du contrat, en plus de ceux de tout compte et de la boutique", () => {
     const codes = new Set([...MARCHE.matchAll(/internal\.(?:fail|error_json)\('([a-z_]+)'/g)].map((m) => m[1]!));
     const communs = ["not_signed_in", "suspended", "rate_limited"];
-    const boutique = ["unknown_objet", "objet_gratuit", "no_gaulois", "invalid_request"];
+    const boutique = ["unknown_objet", "objet_gratuit", "no_gaulois", "invalid_request", "prix_change"];
     expect([...codes].filter((c) => !(c in MESSAGES_DU_MARCHE) && !communs.includes(c) && !boutique.includes(c))).toEqual([]);
     // Chaque refus du contrat peut sortir du serveur ; `solde_insuffisant` vient du débit de la boutique (migration
     // 20261113001900), que l'achat au marché appelle.
@@ -31,9 +31,13 @@ describe("le marché du village, côté serveur", () => {
 
   it("n'ajoute que : ni table ni colonne retirée, ni donnée effacée hors d'une fonction", () => {
     expect(MARCHE).not.toMatch(/\bdrop (table|column|function)\b|\btruncate\b/i);
-    // Le seul `delete` retire de l'inventaire l'exemplaire mis en vente, dans mettre_en_vente.
-    expect([...MARCHE.matchAll(/\bdelete from ([\w.]+)/g)].map((m) => m[1])).toEqual(["internal.gaulois_inventaire"]);
+    // Trois `delete`, chacun dans sa fonction : les offres closes depuis plus de 30 jours (à la lecture), l'exemplaire mis en
+    // vente qui quitte l'inventaire, l'offre retirée (revue de sécurité du 14 novembre 2026 : la table ne grossit plus).
+    expect([...MARCHE.matchAll(/\bdelete from ([\w.]+)/g)].map((m) => m[1])).toEqual(["internal.marche_offres", "internal.gaulois_inventaire", "internal.marche_offres"]);
+    expect(fonction("internal.marche_expirer")).toContain("delete from internal.marche_offres m where m.etat <> 'ouverte' and m.ferme_le < now() - interval '30 days';");
     expect(fonction("public.mettre_en_vente")).toContain("delete from internal.gaulois_inventaire");
+    expect(fonction("public.retirer_offre")).toContain("delete from internal.marche_offres m where m.id = v_offre.id;");
+    expect(fonction("public.retirer_offre")).not.toContain("'retiree'");
   });
 
   it("ferme chaque fonction aux visiteurs et n'ouvre que les siennes aux comptes connectés", () => {
@@ -44,22 +48,30 @@ describe("le marché du village, côté serveur", () => {
       ["acheter_offre", "(bigint)"],
       ["get_village", "()"],
       ["get_ma_boutique", "()"],
-      ["acheter_objet", "(text, text)"],
+      ["acheter_objet", "(text, text, integer)"],
     ] as const) {
       expect(MARCHE).toContain(`revoke all on function public.${nom}${signature} from public, anon, authenticated;\ngrant execute on function public.${nom}${signature} to authenticated;`);
     }
-    for (const nom of ["marche_offres_max()", "marche_duree()", "marche_verrou()", "marche_membre()", "marche_rendre(uuid, text, text, text, timestamptz)", "marche_expirer()", "marche_json(uuid)"]) {
+    for (const nom of ["marche_offres_max()", "marche_duree()", "marche_verrou()", "marche_membre()", "marche_rendre(uuid, text, text, text, timestamptz)", "marche_expirer()", "marche_fermer_au_dessus_des_prix()", "marche_json(uuid)"]) {
       expect(MARCHE).toContain(`revoke all on function internal.${nom} from public, anon, authenticated;`);
       expect(MARCHE).not.toContain(`grant execute on function internal.${nom}`);
     }
     expect(MARCHE).toContain("alter table internal.marche_offres enable row level security;\nrevoke all on table internal.marche_offres from public, anon, authenticated;");
   });
 
-  it("limite les gestes, pas les lectures", () => {
-    for (const nom of ["public.mettre_en_vente", "public.retirer_offre", "public.acheter_offre", "public.acheter_objet"]) {
+  it("limite les gestes, et aussi les lectures du marché et de la place, qui renvoient de grosses réponses", () => {
+    for (const nom of ["public.mettre_en_vente", "public.retirer_offre", "public.acheter_offre", "public.acheter_objet", "public.get_marche", "public.get_village"]) {
       expect(fonction(nom), nom).toContain("if internal.limit_exceeded() then return internal.error_json('rate_limited', ''); end if;");
     }
-    for (const nom of ["public.get_marche", "public.get_village"]) expect(fonction(nom), nom).not.toContain("limit_exceeded");
+    // Le compteur s'écrit : la place n'est plus une fonction en lecture seule (`stable`).
+    expect(fonction("public.get_village")).not.toMatch(/language plpgsql stable/);
+  });
+
+  it("ferme les offres plus chères que la boutique, sous les verrous du marché puis des vendeurs", () => {
+    const fermer = fonction("internal.marche_fermer_au_dessus_des_prix");
+    expect(fermer.indexOf("perform internal.marche_verrou();")).toBeLessThan(fermer.indexOf("perform internal.village_verrou(v_vendeur);"));
+    expect(fermer).toContain("where m.etat = 'ouverte' and o.emplacement = m.emplacement and o.objet = m.objet and p.rarete = o.rarete and m.prix > p.prix");
+    expect(fermer).toContain("perform internal.marche_rendre(v_o.vendeur_id, v_o.emplacement, v_o.objet, v_o.origine, now());");
   });
 
   it("paie par deux lignes du journal, dans l'ordre des user_id, sous les verrous pris dans le même ordre", () => {
@@ -87,9 +99,9 @@ describe("le marché du village, côté serveur", () => {
     expect(MARCHE).not.toMatch(/alter table public\.profiles/);
   });
 
-  it("nomme le vendeur comme le QG, jamais par une adresse ni par raw_user_meta_data", () => {
-    expect(fonction("internal.marche_json")).toContain("'vendeur', p.display_name");
-    expect(fonction("public.get_village")).toContain("jsonb_build_object('nom', p.display_name");
+  it("nomme le vendeur comme le QG, seulement s'il se montre aux autres membres, jamais par une adresse ni par raw_user_meta_data", () => {
+    expect(fonction("internal.marche_json")).toContain("'vendeur', case when p.show_to_members or m.vendeur_id = p_uid then p.display_name else 'Un Gaulois' end");
+    expect(fonction("public.get_village")).toContain("'nom', case when p.show_to_members or g.user_id = v_uid then p.display_name else 'Un Gaulois' end");
     for (const nom of ["internal.marche_json", "public.get_village"]) expect(fonction(nom), nom).not.toMatch(/raw_user_meta_data|email|auth\.users/);
   });
 });

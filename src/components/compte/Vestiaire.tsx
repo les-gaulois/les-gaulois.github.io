@@ -362,7 +362,8 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
 
   const acheter = async (emplacement: Emplacement, id: string, prix: number): Promise<Issue<number>> => {
     try {
-      const achat = lireAchat(await call<unknown>("acheter_objet", { p_emplacement: emplacement, p_objet: id }));
+      // Le prix affiché dans la fenêtre : s'il a changé entre-temps, le serveur refuse (`prix_change`) sans rien débiter.
+      const achat = lireAchat(await call<unknown>("acheter_objet", { p_emplacement: emplacement, p_objet: id, p_prix_vu: prix }));
       if (!achat) return { ok: false, message: ILLISIBLE };
       setBoutique((b) => b && { ...b, solde: achat.solde, inventaire: avecUnExemplaire(b.inventaire, achat.objet, "achat", new Date().toISOString()) });
       setEssai(null);
@@ -375,7 +376,7 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
 
   const ouvrirPochette = async (prix: number): Promise<Issue<PochetteReponse>> => {
     try {
-      const tirage = lirePochette(await call<unknown>("ouvrir_pochette"));
+      const tirage = lirePochette(await call<unknown>("ouvrir_pochette", { p_prix_vu: prix }));
       if (!tirage) return { ok: false, message: ILLISIBLE };
       setBoutique((b) => b && { ...b, solde: tirage.solde, inventaire: avecUnExemplaire(b.inventaire, tirage.objet, "pochette", new Date().toISOString()) });
       setAnnonce(`Pochette ouverte. Il vous reste ${stateres(tirage.solde)}.`);

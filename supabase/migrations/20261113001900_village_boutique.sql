@@ -219,10 +219,12 @@ end $$;
 revoke all on function public.get_ma_boutique() from public, anon, authenticated;
 grant execute on function public.get_ma_boutique() to authenticated;
 
--- Achète un objet payant du catalogue au prix de sa rareté : { ok: true, solde, objet: { emplacement, objet } }. Refus :
--- not_validated, no_gaulois, unknown_objet (hors du catalogue), objet_gratuit, deja_possede, solde_insuffisant ; et ceux de
--- tout compte (not_signed_in, suspended, rate_limited). Un refus ne débite rien.
-create or replace function public.acheter_objet(p_emplacement text, p_objet text) returns jsonb
+-- Achète un objet payant du catalogue au prix de sa rareté : { ok: true, solde, objet: { emplacement, objet } }. `p_prix_vu` :
+-- le prix que le membre a vu à l'écran ; s'il n'est plus celui de la boutique (l'encadrement vient de le régler), refus
+-- prix_change, rien n'est débité. Refus : not_validated, no_gaulois, unknown_objet (hors du catalogue), objet_gratuit,
+-- deja_possede, prix_change, solde_insuffisant ; et ceux de tout compte (not_signed_in, suspended, rate_limited). Un refus ne
+-- débite rien.
+create or replace function public.acheter_objet(p_emplacement text, p_objet text, p_prix_vu integer) returns jsonb
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare
   v_uid uuid;
@@ -244,6 +246,7 @@ begin
     if exists (select 1 from internal.gaulois_inventaire i where i.user_id = v_uid and i.emplacement = p_emplacement and i.objet = p_objet) then
       perform internal.fail('deja_possede');
     end if;
+    if p_prix_vu is distinct from v_prix then perform internal.fail('prix_change'); end if;
     perform internal.crediter_stateres(v_uid);
     perform internal.village_debiter(v_uid, 'achat', v_prix, p_emplacement || '/' || p_objet);
     insert into internal.gaulois_inventaire (user_id, emplacement, objet, quantite, origine)
@@ -262,14 +265,15 @@ begin
   end;
 end $$;
 
-revoke all on function public.acheter_objet(text, text) from public, anon, authenticated;
-grant execute on function public.acheter_objet(text, text) to authenticated;
+revoke all on function public.acheter_objet(text, text, integer) from public, anon, authenticated;
+grant execute on function public.acheter_objet(text, text, integer) to authenticated;
 
 -- Ouvre une pochette surprise au prix réglé : { ok: true, solde, objet: { emplacement, objet, rarete, double } }. `double` :
--- l'objet était déjà dans l'inventaire, sa quantité augmente d'un. Mêmes refus que l'achat, sauf ceux d'un objet choisi ;
+-- l'objet était déjà dans l'inventaire, sa quantité augmente d'un. `p_prix_vu` : le prix de la pochette que le membre a
+-- vu ; s'il a changé entre-temps, refus prix_change. Mêmes refus que l'achat, sauf ceux d'un objet choisi ;
 -- 'invalid_request' si aucune rareté ne peut sortir (aucune n'a à la fois des chances et un objet payant). Un refus ne
 -- débite rien.
-create or replace function public.ouvrir_pochette() returns jsonb
+create or replace function public.ouvrir_pochette(p_prix_vu integer) returns jsonb
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare
   v_uid uuid;
@@ -291,6 +295,7 @@ begin
     perform internal.village_verrou(v_uid);
     perform internal.crediter_stateres(v_uid);
     select p.prix into v_prix from internal.village_pochette p where p.id;
+    if v_prix is not null and p_prix_vu is distinct from v_prix then perform internal.fail('prix_change'); end if;
     -- La rareté : parmi celles qui ont des chances et au moins un objet payant, selon leurs chances.
     select sum(c.chance) into v_total from internal.village_chances() c
     where c.chance > 0 and exists (select 1 from internal.gaulois_objets o where o.rarete = c.rarete and not o.gratuit);
@@ -330,8 +335,8 @@ begin
   end;
 end $$;
 
-revoke all on function public.ouvrir_pochette() from public, anon, authenticated;
-grant execute on function public.ouvrir_pochette() to authenticated;
+revoke all on function public.ouvrir_pochette(integer) from public, anon, authenticated;
+grant execute on function public.ouvrir_pochette(integer) to authenticated;
 
 -- La tenue (remplace celle du vestiaire, migration 20261113001700) : pour chaque emplacement un objet de la liste, gratuit ou
 -- dans l'inventaire de l'appelant, la couleur des cheveux, et rien d'autre. Sans appelant, seuls les objets gratuits.

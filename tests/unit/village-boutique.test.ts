@@ -77,7 +77,7 @@ describe("le serveur de la boutique", () => {
       expect(MIGRATION).toContain(`alter table ${table} enable row level security;`);
       expect(MIGRATION).toContain(`revoke all on table ${table} from public, anon, authenticated;`);
     }
-    for (const fn of ["get_ma_boutique()", "acheter_objet(text, text)", "ouvrir_pochette()", "enregistrer_mon_gaulois(jsonb)"]) {
+    for (const fn of ["get_ma_boutique()", "acheter_objet(text, text, integer)", "ouvrir_pochette(integer)", "enregistrer_mon_gaulois(jsonb)"]) {
       expect(MIGRATION).toContain(`revoke all on function public.${fn} from public, anon, authenticated;`);
       expect(MIGRATION).toContain(`grant execute on function public.${fn} to authenticated;`);
     }
@@ -97,8 +97,17 @@ describe("le serveur de la boutique", () => {
     expect(MIGRATION).toContain("perform internal.village_debiter(v_uid, 'achat', v_prix, p_emplacement || '/' || p_objet);");
     expect(MIGRATION).toContain("perform internal.village_debiter(v_uid, 'pochette', v_prix, v_emplacement || '/' || v_objet);");
     expect(MIGRATION).toContain("if v_contrainte = 'stateres_soldes_solde_check' then perform internal.fail('solde_insuffisant'); end if;");
-    // Le hasard vient du serveur : aucune fonction ne reçoit de tirage du navigateur.
-    expect(MIGRATION).toContain("create or replace function public.ouvrir_pochette() returns jsonb");
+    // Le hasard vient du serveur : la pochette ne reçoit du navigateur que le prix qu'il a vu, jamais un tirage.
+    expect(MIGRATION).toContain("create or replace function public.ouvrir_pochette(p_prix_vu integer) returns jsonb");
+  });
+
+  it("refuse un achat ou une pochette dont le prix a changé depuis que le membre l'a vu, avant tout débit", () => {
+    for (const [fn, debit] of [["acheter_objet", "'achat'"], ["ouvrir_pochette", "'pochette'"]] as const) {
+      const corps = new RegExp(`function public\\.${fn}\\([\\s\\S]*?end \\$\\$;`).exec(MIGRATION)?.[0] ?? "";
+      const controle = corps.indexOf("p_prix_vu is distinct from v_prix then perform internal.fail('prix_change')");
+      expect(controle, fn).toBeGreaterThan(0);
+      expect(controle, fn).toBeLessThan(corps.indexOf(`perform internal.village_debiter(v_uid, ${debit}`));
+    }
   });
 
   it("vérifie la tenue comme le vestiaire, en acceptant en plus un objet de l'inventaire de l'appelant", () => {

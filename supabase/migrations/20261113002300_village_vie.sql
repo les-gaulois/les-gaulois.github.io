@@ -15,6 +15,10 @@
 --   de Discord, un membre à la fois.
 -- - `replique` : la bulle en cours, écrite par Claude, montrée 12 heures au plus, et seulement tant que l'encadrement laisse
 --   les bulles.
+-- Pour un compte qui ne se montre pas aux autres membres (le choix du QG, profiles.show_to_members, faux au départ) : son
+-- Gaulois reste sur la place, sous le nom « Un Gaulois », sans `partie_le` ni `vocal`, et le robot ne relève pas son état
+-- vocal. `partie_le` demande en plus un pseudo public unique dans la liste du clan : le début exact d'une partie, croisé avec
+-- les sessions publiques du clan, donnerait l'identifiant OpenFront d'un anonyme (revue de sécurité du 14 novembre 2026).
 --
 -- Les bulles :
 -- - Claude ne reçoit que des faits sans identité : l'heure et le moment de la journée à Paris, le lieu du Gaulois, les points
@@ -52,7 +56,7 @@
 --   Direction ; chaque changement va au journal de l'encadrement (`village_bubbles_set`, `village_cap_set`).
 -- - get_vie_du_village : l'encadrement (officier et au-dessus) lit la dépense du mois, le plafond et les bulles écrites.
 --
--- Trois tables, un déclencheur et vingt fonctions ajoutés, une fonction remplacée, aucune donnée existante touchée.
+-- Trois tables, un déclencheur et vingt et une fonctions ajoutés, une fonction remplacée, aucune donnée existante touchée.
 -- Rejouée, elle se remplace par la même et ne remet pas les réglages à leur valeur de départ.
 
 /* ---------- Les tables ---------- */
@@ -156,11 +160,19 @@ $$;
 
 -- La dernière partie qui a rapporté des points au compte, commencée il y a moins de 24 heures, d'après le journal des
 -- statères : son début et ses points. Aucune ligne : pas de partie récente.
+-- Aucune ligne non plus pour un compte qui ne se montre pas aux autres membres (QG, profiles.show_to_members) ou qui n'a pas
+-- de pseudo public unique dans la liste du clan (internal.member_pseudo, la règle des visages du QG) : le début exact d'une
+-- partie, croisé avec les sessions publiques du clan, donnerait son identifiant OpenFront, que le site ne publie jamais
+-- (revue de sécurité du 14 novembre 2026). Son Gaulois suit alors le vocal et l'heure, et ses bulles n'ont ni points ni
+-- partie. Le Gaulois de l'appelant suit la même règle : ce qu'il voit de lui est ce que les autres voient. Les statères,
+-- eux, ne changent pas (ils lisent le journal sans cette fonction).
 create or replace function internal.village_vie_partie(p_user uuid) returns table (debut timestamptz, points numeric)
 language sql stable security definer set search_path = public, pg_temp as $$
   select m.debut, m.points
   from internal.stateres_mouvements m
+  join public.profiles p on p.user_id = m.user_id
   where m.user_id = p_user and m.nature = 'victoire' and m.debut > now() - interval '24 hours'
+    and p.show_to_members and internal.member_pseudo(p_user) is not null
   order by m.debut desc, m.id desc
   limit 1
 $$;
@@ -187,8 +199,17 @@ language sql immutable set search_path = public, pg_temp as $$
     ' http', ' www', ' discord', ' openfront', ' gal ',
     ' gagn', ' victoir', ' defaite', ' perd',
     ' con ', ' cons ', ' connard', ' connasse', ' salop', ' pute ', ' putes ', ' putain', ' encul', ' nique', ' batard',
-    ' merde', ' pd ', ' pede ', ' pedes ', ' nazi', ' hitler', ' negre', ' bougnoul', ' youpin'
+    ' merde', ' pd ', ' pede ', ' pedes ', ' nazi', ' hitler', ' negre', ' bougnoul', ' youpin',
+    ' nul ', ' nuls ', ' nulle ', ' nulles ', ' abruti', ' idiot', ' tocard', ' cretin', ' debile', ' imbecile'
   ]::text[]
+$$;
+
+-- Les mots qui gardent leur majuscule au milieu d'une phrase. Toute autre majuscule doit ouvrir la bulle ou une phrase
+-- (après « . », « ! », « ? » ou « … » et une espace) : un nom propre (une personne, un clan, une marque) ne passe pas. La même
+-- liste que MAJUSCULES_PERMISES de src/lib/village/consigne-repliques.ts : un test garde les deux identiques.
+create or replace function internal.village_vie_majuscules_permises() returns text[]
+language sql immutable set search_path = public, pg_temp as $$
+  select array['Gauloises', 'Gauloise', 'Gaulois', 'Discord']::text[]
 $$;
 
 -- Le texte ramené aux mots : minuscules sans accents, une espace entre deux mots, une au début et à la fin. Le même que
@@ -237,20 +258,32 @@ begin
 end $$;
 
 -- Une bulle acceptée : 1 à 90 signes, sans espace en trop ; seulement des lettres du français, des chiffres, des espaces et
--- une ponctuation simple (ni « @ », ni « # », ni balise, ni lien, ni émoji) ; pas deux majuscules d'affilée ; pas de point
--- collé entre deux mots (une adresse) ; aucun nombre absent des faits (l'heure et les points) ; aucun mot de la liste. Les
--- mêmes règles que controlerReplique de src/lib/village/vie-releve.ts.
+-- une ponctuation simple (ni « @ », ni « # », ni balise, ni lien, ni émoji) ; pas deux majuscules d'affilée ; aucune
+-- majuscule hors du début d'une phrase, sauf les mots permis (internal.village_vie_majuscules_permises) ; pas de point collé
+-- entre deux mots (une adresse) ; aucun nombre absent des faits (l'heure et les points), comparé par sa valeur décimale
+-- exacte ; aucun mot de la liste. Les mêmes règles que controlerReplique de src/lib/village/vie-releve.ts.
 create or replace function internal.village_vie_replique_valide(p_texte text, p_faits jsonb) returns boolean
 language plpgsql immutable set search_path = public, pg_temp as $$
 declare
   v_permis numeric[];
   v_mots text;
+  v_reste text;
+  v_mot text;
 begin
   if p_texte is null or not internal.village_vie_faits_valides(p_faits) then return false; end if;
   if char_length(p_texte) < 1 or char_length(p_texte) > 90 then return false; end if;
   if p_texte <> btrim(p_texte) or position('  ' in p_texte) > 0 then return false; end if;
   if p_texte !~ '^[A-Za-zÀÂÄÉÈÊËÎÏÔÖÙÛÜŸÇàâäéèêëîïôöùûüÿçŒœÆæ0-9 .,!?''’:;…«»()-]+$' then return false; end if;
   if p_texte ~ '[A-Z]{2}' then return false; end if;
+  -- Les majuscules : les mots permis, entiers, puis le début de la bulle et de chaque phrase (un guillemet « ouvrant permis
+  -- devant), sont retirés ; il ne doit plus en rester aucune.
+  v_reste := p_texte;
+  foreach v_mot in array internal.village_vie_majuscules_permises() loop
+    v_reste := regexp_replace(v_reste, '(?<![A-Za-zÀÂÄÉÈÊËÎÏÔÖÙÛÜŸÇàâäéèêëîïôöùûüÿçŒœÆæ])' || v_mot || '(?![A-Za-zÀÂÄÉÈÊËÎÏÔÖÙÛÜŸÇàâäéèêëîïôöùûüÿçŒœÆæ])', '_', 'g');
+  end loop;
+  v_reste := regexp_replace(v_reste, '^((?:« )?)[A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜŸÇŒÆ]', '\1_');
+  v_reste := regexp_replace(v_reste, '([.!?…] (?:« )?)[A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜŸÇŒÆ]', '\1_', 'g');
+  if v_reste ~ '[A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜŸÇŒÆ]' then return false; end if;
   if p_texte ~ '[A-Za-z0-9]\.[A-Za-z]' then return false; end if;
   v_permis := internal.village_vie_nombres((p_faits ->> 'heure') || ' ' || coalesce(p_faits ->> 'points', ''));
   if exists (select 1 from unnest(internal.village_vie_nombres(p_texte)) as n (valeur) where not (n.valeur = any (v_permis))) then
@@ -348,6 +381,9 @@ create or replace function internal.village_vie_effacer_l_ancien() returns void
 language plpgsql security definer set search_path = public, pg_temp as $$
 begin
   update internal.village_vie set vocal = null, vocal_le = null where vocal_le < now() - interval '24 hours';
+  -- Un compte qui ne se montre plus aux autres membres n'a plus d'état vocal gardé.
+  update internal.village_vie v set vocal = null, vocal_le = null
+  where v.vocal_le is not null and not exists (select 1 from public.profiles p where p.user_id = v.user_id and p.show_to_members);
   update internal.village_vie set replique = null, replique_le = null, replique_faits = null where replique_le < now() - interval '24 hours';
   update internal.village_vie set tente_le = null, tente_cle = null where tente_le < now() - interval '24 hours';
   delete from internal.village_vie v
@@ -396,6 +432,7 @@ revoke all on function internal.village_vie_vocal(boolean, timestamptz) from pub
 revoke all on function internal.village_vie_partie(uuid) from public, anon, authenticated;
 revoke all on function internal.village_vie_cle(timestamptz, boolean, timestamptz) from public, anon, authenticated;
 revoke all on function internal.village_vie_mots_interdits() from public, anon, authenticated;
+revoke all on function internal.village_vie_majuscules_permises() from public, anon, authenticated;
 revoke all on function internal.village_vie_normaliser(text) from public, anon, authenticated;
 revoke all on function internal.village_vie_nombres(text) from public, anon, authenticated;
 revoke all on function internal.village_vie_faits_valides(jsonb) from public, anon, authenticated;
@@ -409,22 +446,28 @@ revoke all on function internal.village_vie_etat() from public, anon, authentica
 
 -- La place (`Village` du contrat) : { ok: true, gaulois: [{ nom, tenue, moi, partie_le, vocal, replique }], releve }. Les
 -- mêmes droits et les mêmes lignes qu'avant : les Gaulois de tous les comptes validés, par ordre de création de leur
--- Gaulois, pour un compte validé ou de l'encadrement ; refus : not_signed_in, suspended, not_validated. En plus :
--- - partie_le : le début de sa dernière partie qui a rapporté des points au clan, de moins de 24 heures ; sinon null ;
--- - vocal : l'état du dernier relevé de moins de 15 minutes ; sinon null ;
+-- Gaulois, pour un compte validé ou de l'encadrement ; refus : not_signed_in, suspended, not_validated, rate_limited. En plus :
+-- - nom : le nom que le QG montre, seulement pour un compte qui se montre aux autres membres (profiles.show_to_members, la
+--   règle du mur du QG) et pour le Gaulois de l'appelant ; sinon « Un Gaulois ». Tout Gaulois d'un compte validé reste sur
+--   la place : le pilote n'a pas voulu de case pour s'en retirer ;
+-- - partie_le : le début de sa dernière partie qui a rapporté des points au clan, de moins de 24 heures, seulement pour un
+--   compte qui se montre et qui a un pseudo public unique (internal.village_vie_partie) ; sinon null ;
+-- - vocal : l'état du dernier relevé de moins de 15 minutes, seulement pour un compte qui se montre ; sinon null ;
 -- - replique : sa bulle de moins de 12 heures, si l'encadrement laisse les bulles ; sinon null ;
--- - releve : l'heure du dernier relevé vocal d'un Gaulois de la place (le robot les relève tous à chaque passage), ou à
---   défaut celle de la dernière relecture des parties ; null : ni l'un ni l'autre. L'écran l'écrit (« Relevé du … ») et en
---   date l'état vocal.
--- Ni solde, ni objet possédé, ni identifiant Discord.
+-- - releve : l'heure du dernier relevé vocal d'un Gaulois qui se montre (le robot les relève à chaque passage), ou à défaut
+--   celle de la dernière relecture des parties ; null : ni l'un ni l'autre. L'écran l'écrit (« Relevé du … ») et en date
+--   l'état vocal.
+-- Ni solde, ni objet possédé, ni identifiant Discord. Limitée comme les gestes (internal.limit_exceeded) : l'écran ne la lit
+-- qu'à l'ouverture de l'onglet et toutes les 5 minutes.
 create or replace function public.get_village() returns jsonb
-language plpgsql stable security definer set search_path = public, pg_temp as $$
+language plpgsql security definer set search_path = public, pg_temp as $$
 declare
   v_uid uuid := auth.uid();
   v_status public.member_status;
   v_role public.site_role;
   v_bulles boolean;
 begin
+  if internal.limit_exceeded() then return internal.error_json('rate_limited', ''); end if;
   if v_uid is null then return internal.error_json('not_signed_in', ''); end if;
   select p.status, p.role into v_status, v_role from public.profiles p where p.user_id = v_uid;
   if not found then return internal.error_json('not_signed_in', ''); end if;
@@ -435,11 +478,11 @@ begin
     'ok', true,
     'gaulois', coalesce((
       select jsonb_agg(jsonb_build_object(
-          'nom', p.display_name,
+          'nom', case when p.show_to_members or g.user_id = v_uid then p.display_name else 'Un Gaulois' end,
           'tenue', g.tenue,
           'moi', g.user_id = v_uid,
           'partie_le', d.debut,
-          'vocal', internal.village_vie_vocal(v.vocal, v.vocal_le),
+          'vocal', case when p.show_to_members then internal.village_vie_vocal(v.vocal, v.vocal_le) end,
           'replique', case when v_bulles and v.replique_le > now() - interval '12 hours' then v.replique end)
         order by g.created_at, g.user_id)
       from internal.gaulois g
@@ -448,7 +491,7 @@ begin
       left join lateral internal.village_vie_partie(g.user_id) d on true
       where p.status = 'validated'), '[]'::jsonb),
     'releve', coalesce(
-      (select max(v.vocal_le) from internal.village_vie v join public.profiles p on p.user_id = v.user_id where p.status = 'validated'),
+      (select max(v.vocal_le) from internal.village_vie v join public.profiles p on p.user_id = v.user_id where p.status = 'validated' and p.show_to_members),
       (select r.le from internal.stateres_releve r where r.id))
   );
 end $$;
@@ -460,7 +503,9 @@ grant execute on function public.get_village() to authenticated;
 
 -- La liste de travail du robot : { ok, maintenant, bulles, modele, depense: { mois, cout, plafond }, gaulois: [{ n, discord,
 -- vocal, partie_le, points, tenue, tente_le, besoin }] }, pour chaque compte validé qui a un Gaulois, les plus anciens
--- relevés vocaux d'abord. `n` : le numéro opaque ; `discord` : l'identifiant Discord, pour le relevé vocal seulement ;
+-- relevés vocaux d'abord. `n` : le numéro opaque ; `discord` : l'identifiant Discord, pour le relevé vocal seulement, et
+-- seulement pour un compte qui se montre aux autres membres (sinon null : le robot ne relève pas son état vocal) ; `vocal`,
+-- `partie_le` et `points` : ce que la place en montre (internal.village_vie_partie), rien de plus ;
 -- `tente_le` : la dernière demande d'une bulle pour lui ; `besoin` : le serveur demande une nouvelle bulle, pas avant 6
 -- heures après la précédente demande, et seulement si ses faits ont changé depuis. `bulles` est faux, et aucun `besoin`
 -- n'est vrai, dès que l'encadrement a coupé les bulles ou que la dépense du mois atteint le plafond. Crée la ligne des
@@ -492,14 +537,14 @@ begin
         select
           jsonb_build_object(
             'n', v.numero,
-            'discord', case when l.discord_id ~ '^[0-9]{17,20}$' then l.discord_id end,
-            'vocal', internal.village_vie_vocal(v.vocal, v.vocal_le),
+            'discord', case when p.show_to_members and l.discord_id ~ '^[0-9]{17,20}$' then l.discord_id end,
+            'vocal', case when p.show_to_members then internal.village_vie_vocal(v.vocal, v.vocal_le) end,
             'partie_le', d.debut,
             'points', d.points,
             'tenue', g.tenue,
             'tente_le', v.tente_le,
             'besoin', v_bulles and (v.tente_le is null or (v.tente_le <= now() - interval '6 hours'
-              and v.tente_cle is distinct from internal.village_vie_cle(d.debut, internal.village_vie_vocal(v.vocal, v.vocal_le), now())))
+              and v.tente_cle is distinct from internal.village_vie_cle(d.debut, case when p.show_to_members then internal.village_vie_vocal(v.vocal, v.vocal_le) end, now())))
           ) as ligne,
           v.vocal_le, g.created_at as cree, g.user_id
         from internal.gaulois g
@@ -551,12 +596,13 @@ begin
         ecartees = d.ecartees + excluded.ecartees, cout = d.cout + excluded.cout, maj_le = now();
   end if;
   for v_e in select value from jsonb_array_elements(coalesce(p_releve -> 'vocaux', '[]'::jsonb)) loop
+    -- L'état vocal d'un compte qui ne se montre pas aux autres membres n'est jamais noté, même si le robot l'envoie.
     update internal.village_vie v
     set vocal = case when jsonb_typeof(v_e -> 'vocal') = 'boolean' then (v_e ->> 'vocal')::boolean end, vocal_le = now()
     where v.numero = v_e ->> 'n'
       and exists (
         select 1 from internal.gaulois g join public.profiles p on p.user_id = g.user_id
-        where g.user_id = v.user_id and p.status = 'validated'
+        where g.user_id = v.user_id and p.status = 'validated' and p.show_to_members
       );
     if found then v_vocaux := v_vocaux + 1; else v_ignores := v_ignores + 1; end if;
   end loop;
@@ -579,7 +625,9 @@ begin
       continue;
     end if;
     select d.debut into v_partie from internal.village_vie_partie(v_v.user_id) d;
-    v_cle := internal.village_vie_cle(v_partie, internal.village_vie_vocal(v_v.vocal, v_v.vocal_le), now());
+    v_cle := internal.village_vie_cle(v_partie,
+      case when exists (select 1 from public.profiles p where p.user_id = v_v.user_id and p.show_to_members)
+        then internal.village_vie_vocal(v_v.vocal, v_v.vocal_le) end, now());
     if v_v.tente_le is not null and v_v.tente_cle is not distinct from v_cle then
       v_ignores := v_ignores + 1;
       continue;
