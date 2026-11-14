@@ -6,6 +6,7 @@
  * Chargée seulement au moment d'envoyer : si elle ne se dessine pas, le message part en texte.
  */
 import { fmtCount } from "./format";
+import { AUCUN_GAULOIS, type GauloisParJoueur } from "./gaulois-joueurs";
 import { CARD_COLORS as C, fitted, kpiParts, type CardText, type GazetteCard, type Measure } from "./gazette-image";
 import { DUOS_HEADING, DUOS_NOTE, duoWords, GROUPS_TITLE, perGameParts, share, weekSpan, type WeekGroups } from "./groupes-discord";
 import { shownAddress } from "./salon-discord";
@@ -28,8 +29,8 @@ export function shareTiles(week: WeekGroups): { label: string; value: string; te
   ];
 }
 
-/** Quoi écrire et où, à partir du bilan seul : se teste sans police. */
-export function groupsCard(week: WeekGroups, tag: string, siteUrl: string, measure: Measure): GazetteCard {
+/** Quoi écrire et où, à partir du bilan seul : se teste sans police. `gaulois` : les Gaulois du village des duos, après leurs noms. */
+export function groupsCard(week: WeekGroups, tag: string, siteUrl: string, measure: Measure, gaulois: GauloisParJoueur = AUCUN_GAULOIS): GazetteCard {
   const address = shownAddress(siteUrl, "/liste");
   const head = headParts({ kicker: `Parties du clan sous le tag [${tag}]`, title: GROUPS_TITLE, period: `Semaine ${weekSpan(week)}` }, measure, address);
   const blocks: CardParts[] = [head];
@@ -62,11 +63,13 @@ export function groupsCard(week: WeekGroups, tag: string, siteUrl: string, measu
     blocks.push(heading(DUOS_HEADING, bottom + HEADING_DROP));
     const most = Math.max(...week.duos.map((d) => d.wins));
     const rows = rowParts(
-      week.duos.map((d) => ({ badge: fmtCount(d.wins, "victoire"), strong: d.wins === most, name: `${d.a.name} et ${d.b.name}`, detail: `sur ${fmtCount(d.games, "partie")}` })),
+      week.duos.map((d) => ({ badge: fmtCount(d.wins, "victoire"), strong: d.wins === most, name: `${d.a.name} et ${d.b.name}`, detail: `sur ${fmtCount(d.games, "partie")}`, ids: [d.a.id, d.b.id] })),
       bottom + HEADING_DROP + HEADING_TO_BLOCK,
       BADGE_WIDTH,
       true,
       measure,
+      undefined,
+      gaulois,
     );
     blocks.push(rows);
     bottom = rows.bottom;

@@ -17,6 +17,8 @@ import { create, type Font } from "fontkit";
 import sharp, { type OverlayOptions } from "sharp";
 import { brandFile } from "./brand";
 import { fmtCount, fmtDay, fmtInt, fmtPct, fmtPoints, fmtRank } from "./format";
+import { AUCUN_GAULOIS, type GauloisParJoueur } from "./gaulois-joueurs";
+import { BUST_CUT, placeSprite, spriteLayers, tenueOf, type SpritePlacement } from "./gaulois-sprite";
 import { comparisonSentence, DATA_SOURCE, playersPeriod, PODIUM_METHOD, rankWords, type GazetteEdition, weekLabel } from "./gazette";
 import { invite } from "./nav";
 import { POLICES_ONCIALE, policeOnciale } from "./police/fabrique";
@@ -102,6 +104,8 @@ export interface GazetteCard {
   rects: CardRect[];
   texts: CardText[];
   logo: { x: number; y: number; size: number };
+  /** Les Gaulois du village posés sur l'image (`gaulois-sprite.ts`). Absent : aucun, l'image est celle d'avant. */
+  gaulois?: SpritePlacement[];
 }
 
 /** La largeur d'un texte : donnée par la vraie police au dessin, et par une approximation dans les tests. */
@@ -163,6 +167,8 @@ function nameLines(name: string, font: CardFont, size: number, maxWidth: number,
 export interface CardParts {
   rects: CardRect[];
   texts: CardText[];
+  /** Les Gaulois du village de ce morceau. Absent : aucun. */
+  gaulois?: SpritePlacement[];
 }
 
 /** Le badge du clan, en haut à gauche de chaque image, et la colonne de l'en-tête à sa droite. */
@@ -346,6 +352,9 @@ function infoRows({ standing, territory, arrivals }: GazetteEdition): InfoRow[] 
   return rows;
 }
 
+/** Le côté d'une case du Gaulois posé derrière une marche du podium. */
+const PODIUM_SPRITE_SCALE = 2;
+
 /** La réserve qui accompagne toujours le podium des victoires. */
 export const PODIUM_NOTE = "Compte d'abord le temps de jeu, pas le niveau.";
 
@@ -353,10 +362,18 @@ export const PODIUM_NOTE = "Compte d'abord le temps de jeu, pas le niveau.";
  * Le podium des Gaulois de la semaine, dans une colonne de `width` à partir de `x` : le premier au milieu et le plus haut,
  * sur des marches posées sur `base`. Plus de trois lignes à cause d'égalités : une liste à partir de `listTop`, sans écarter
  * personne. Sert à l'image de la gazette et à celle de l'accueil. La marche du premier est une scène bleue, au coin coupé.
+ * Le Gaulois d'un joueur qui a créé le sien se tient derrière sa marche, en buste, sans dépasser `ceiling` : le bas de ce qui
+ * est écrit au-dessus du podium. La liste des égalités, aux lignes trop serrées, n'en porte pas.
  */
-export function podiumParts(players: readonly WeekPlayer[], { x, width, base, listTop }: { x: number; width: number; base: number; listTop: number }, measure: Measure): CardParts {
+export function podiumParts(
+  players: readonly WeekPlayer[],
+  { x, width, base, listTop, ceiling = listTop }: { x: number; width: number; base: number; listTop: number; ceiling?: number },
+  measure: Measure,
+  gaulois: GauloisParJoueur = AUCUN_GAULOIS,
+): CardParts {
   const rects: CardRect[] = [];
   const texts: CardText[] = [];
+  const sprites: SpritePlacement[] = [];
   if (players.length <= 3) {
     // Le premier au milieu, comme sur un podium. À égalité, les marches ont la même hauteur.
     const stepGap = 10;
@@ -371,6 +388,9 @@ export function podiumParts(players: readonly WeekPlayer[], { x, width, base, li
       const first = player.place === 1;
       rects.push(first ? { x: stepX, y: top, width: stepWidth, height, radius: 6, ...STAGES.blue, cut: 18 } : { x: stepX, y: top, width: stepWidth, height, radius: 6, color: SURFACE_2, stroke: LINE });
       const center = stepX + stepWidth / 2;
+      const tenue = tenueOf(gaulois, player.id);
+      const sprite = tenue && placeSprite(tenue, { axis: center, bottom: top, scale: PODIUM_SPRITE_SCALE, cut: BUST_CUT, room: top - ceiling });
+      if (sprite) sprites.push(sprite);
       texts.push({ text: fmtRank(player.place), x: center, y: top + 44, size: 36, font: "onciale", color: first ? WHITE : MUTED, anchor: "middle" });
       const name = nameLines(player.username, "strong", 27, stepWidth - 16, measure);
       name.lines.forEach((line, n) => texts.push({ text: line, x: center, y: top + 84 + n * 31, size: name.size, font: "strong", color: WHITE, anchor: "middle" }));
@@ -388,14 +408,15 @@ export function podiumParts(players: readonly WeekPlayer[], { x, width, base, li
       texts.push({ text: wins, x: x + width, y, size: 26, font: "body", color: MUTED, anchor: "end" });
     });
   }
-  return { rects, texts };
+  return sprites.length > 0 ? { rects, texts, gaulois: sprites } : { rects, texts };
 }
 
 /** Quoi écrire et où. Le titre du podium dit sa période : voir `playersPeriod`. */
-export function gazetteCard(edition: GazetteEdition, tag: string, siteUrl: string, measure: Measure): GazetteCard {
+export function gazetteCard(edition: GazetteEdition, tag: string, siteUrl: string, measure: Measure, gaulois: GauloisParJoueur = AUCUN_GAULOIS): GazetteCard {
   const head = pageHead({ path: "/gazette", title: `La gazette de [${tag}]`, period: `Semaine ${weekLabel(edition)}` }, measure);
   const rects: CardRect[] = [...head.rects];
   const texts: CardText[] = [...head.texts];
+  const sprites: SpritePlacement[] = [];
 
   // Les trois grands chiffres, puis d'où partent leurs écarts.
   const stats = weekStats(edition);
@@ -432,13 +453,15 @@ export function gazetteCard(edition: GazetteEdition, tag: string, siteUrl: strin
     const width = WIDTH - MARGIN - x;
     const heading = fitted(`Le plus de victoires ${period}`, "onciale", 26, 18, width, measure);
     texts.push({ ...heading, x, y: columnTop + 24, font: "onciale", color: WHITE });
-    const podium = podiumParts(players, { x, width, base: HEIGHT - 58, listTop: columnTop + 72 }, measure);
+    // Un buste ne monte pas dans le titre du podium, juste au-dessus.
+    const podium = podiumParts(players, { x, width, base: HEIGHT - 58, listTop: columnTop + 72, ceiling: columnTop + 34 }, measure, gaulois);
     rects.push(...podium.rects);
     texts.push(...podium.texts);
+    sprites.push(...(podium.gaulois ?? []));
   }
   const foot = pageFoot(`${siteUrl.replace(/^https?:\/\//, "").replace(/\/$/, "")}/gazette`, hasPlayers ? PODIUM_NOTE : "", HEIGHT - 20, measure);
   texts.push(...foot.texts);
-  return { width: WIDTH, height: HEIGHT, rects, texts, logo: LOGO };
+  return { width: WIDTH, height: HEIGHT, rects, texts, logo: LOGO, ...(sprites.length > 0 ? { gaulois: sprites } : {}) };
 }
 
 /** Ce que l'image dit, pour un lecteur d'écran : Discord le lit comme description du fichier. */
@@ -730,7 +753,8 @@ export async function renderGazetteCard(card: GazetteCard, fonts: GazetteFonts, 
   const svg = Buffer.from(cardSvg(card, fonts, { table: false }));
   // Une taille nulle : une image sans badge, comme les billets de la tombola (tombola-image.ts).
   const logo = card.logo.size > 0 ? await logoLayer(root, card.logo.size) : null;
-  const overlays: OverlayOptions[] = [{ input: svg, left: 0, top: 0 }, ...layers, ...(logo ? [{ input: logo, left: card.logo.x, top: card.logo.y }] : [])];
+  // Les Gaulois du village, case par case et sans lissage, juste au-dessus du dessin.
+  const overlays: OverlayOptions[] = [{ input: svg, left: 0, top: 0 }, ...spriteLayers(card.gaulois, card.width, card.height), ...layers, ...(logo ? [{ input: logo, left: card.logo.x, top: card.logo.y }] : [])];
   return sharp(await tableLayer(card.width, card.height))
     .composite(overlays)
     .png({ compressionLevel: 9 })

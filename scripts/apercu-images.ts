@@ -9,6 +9,9 @@
  * n'est celui d'un membre. La vignette d'une carte vient du dépôt d'OpenFront, comme au moment d'un envoi : sans réseau,
  * l'image des victoires se dessine sans elle.
  * Les images de bienvenue du serveur ont leur propre aperçu : npm run arrivees:apercu.
+ * Chaque image qui nomme des membres est dessinée deux fois : comme avant, puis avec des Gaulois du village (fichier
+ * « -gaulois »). Ces Gaulois sont tirés au sort ici, avec une graine fixe, pour l'aperçu seulement : une image envoyée ne
+ * montre que le Gaulois qu'un membre a créé lui-même.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -21,6 +24,8 @@ import { welcomeCard } from "../src/lib/bienvenue-image";
 import { courseCard } from "../src/lib/course-soir-image";
 import { loadClanMapFilm, loadHistory, loadLeaderboard, loadMembers, loadMemberWeeks, loadMeta, loadNouveautes, loadSessions, loadTerritoryReadings } from "../src/lib/data";
 import { ficheCard, ficheFacts } from "../src/lib/fiche-image";
+import { TENUE_DE_DEPART, tenueAuHasard } from "../src/lib/gaulois";
+import { AUCUN_GAULOIS, type GauloisParJoueur } from "../src/lib/gaulois-joueurs";
 import { gazetteEditions } from "../src/lib/gazette";
 import { GazetteFonts, gazetteCard, renderGazetteCard, type GazetteCard } from "../src/lib/gazette-image";
 import { groupsCard } from "../src/lib/groupes-image";
@@ -38,6 +43,21 @@ const TAG = clan.tag;
 /** Des pseudos inventés, de toutes les formes que prennent les vrais : espaces, points, chiffres, cyrillique. */
 const NAMES = ["Brennos", "Epona la Rapide", "lug_du_nord", "Sucellos", "Taranis.0815", "Belisama", "Иван Петрович", "Capitaine Barbe GOAT.7362", "Cernunnos", "Rosmerta_22", "Ogmios", "Nantosuelta"];
 const name = (i: number) => NAMES[i % NAMES.length] ?? "Brennos";
+
+/** Un tirage toujours le même, pour que l'aperçu ne change pas d'un passage à l'autre. */
+let graine = 20261114;
+const hasard = () => {
+  graine = (graine * 1103515245 + 12345) % 2147483648;
+  return graine / 2147483648;
+};
+/** Des Gaulois d'exemple pour ces identifiants : le premier porte la tenue de départ, les autres une tenue tirée au sort. */
+const gauloisDe = (ids: readonly string[]): GauloisParJoueur => new Map(ids.map((id, i) => [id, i === 0 ? TENUE_DE_DEPART : tenueAuHasard(hasard)]));
+/** Chaque image deux fois : comme avant, puis avec des Gaulois. */
+async function saveBoth(file: string, ids: readonly string[], card: (gaulois: GauloisParJoueur) => GazetteCard | null): Promise<void> {
+  await save(file, () => card(AUCUN_GAULOIS));
+  const gaulois = gauloisDe(ids);
+  await save(file.replace(/\.png$/, "-gaulois.png"), () => card(gaulois));
+}
 
 const root = process.cwd();
 const fonts = new GazetteFonts(root);
@@ -76,7 +96,12 @@ const ranking = rankReading(leaderboard, TAG);
 const territory = mapReading(loadClanMapFilm(), TAG);
 const alertOf = (reading: PlaceReading | null): PlaceAlert | null => (reading ? { kind: reading.kind, from: reading.rank + 1, reading } : null);
 
-await save("01-gazette.png", () => (edition ? gazetteCard(edition, TAG, SITE, measure) : null));
+// Deux des trois joueurs du podium ont un Gaulois.
+await saveBoth(
+  "01-gazette.png",
+  (edition?.players ?? []).filter((_, i) => i !== 1).map((p) => p.id),
+  (gaulois) => (edition ? gazetteCard(edition, TAG, SITE, measure, gaulois) : null),
+);
 await save("02-alerte-classement.png", () => {
   const alert = alertOf(ranking);
   return alert ? alertCard(alert, TAG, SITE, measure) : null;
@@ -85,7 +110,7 @@ await save("03-alerte-carte.png", () => {
   const alert = alertOf(territory);
   return alert ? alertCard(alert, TAG, SITE, measure) : null;
 });
-await save("04-paliers.png", () =>
+await saveBoth("04-paliers.png", ["a", "c", "d"], (gaulois) =>
   milestoneCard(
     [
       { id: "a", username: name(0), tier: 500 },
@@ -97,7 +122,15 @@ await save("04-paliers.png", () =>
     TAG,
     SITE,
     measure,
+    gaulois,
   ),
+);
+// Beaucoup de paliers d'un coup : dix lignes basses, puis les autres en pastilles.
+const manyTiers = Array.from({ length: 17 }, (_, i) => ({ id: `p${i}`, username: name(i + 3), tier: [1000, 500, 500, 250, 250, 100, 100, 100, 50, 50, 50, 25, 25, 25, 10, 10, 10][i] ?? 10 }));
+await saveBoth(
+  "04-paliers-nombreux.png",
+  manyTiers.filter((_, i) => i % 3 !== 1).map((p) => p.id),
+  (gaulois) => milestoneCard(manyTiers, { since: "2026-11-11T21:53:00.000Z", until: "2026-11-12T19:53:00.000Z", players: [] }, TAG, SITE, measure, gaulois),
 );
 await save("05-records.png", () =>
   recordCard(
@@ -135,7 +168,7 @@ await save("06-hier.png", () =>
     measure,
   ),
 );
-await save("07-bienvenue.png", () =>
+await saveBoth("07-bienvenue.png", ["b"], (gaulois) =>
   welcomeCard(
     {
       since: "2026-11-11T09:53:00.000Z",
@@ -150,9 +183,10 @@ await save("07-bienvenue.png", () =>
     TAG,
     SITE,
     measure,
+    gaulois,
   ),
 );
-await save("08-plus-actifs.png", () =>
+await saveBoth("08-plus-actifs.png", ["a", "b", "d"], (gaulois) =>
   activeCard(
     [
       { id: "a", username: name(7), games: 31, wins: 17, place: 1 },
@@ -165,6 +199,7 @@ await save("08-plus-actifs.png", () =>
     TAG,
     SITE,
     measure,
+    gaulois,
   ),
 );
 await save("09-nouveautes.png", () => {
@@ -185,8 +220,8 @@ await save("10-course-du-soir.png", () =>
       )
     : null,
 );
-const duo = (a: number, b: number, wins: number, games: number) => ({ a: { id: `a${a}`, name: name(a) }, b: { id: `b${b}`, name: name(b) }, wins, games });
-await save("11-jouer-ensemble.png", () =>
+const duo = (a: number, b: number, wins: number, games: number) => ({ a: { id: `m${a}`, name: name(a) }, b: { id: `m${b}`, name: name(b) }, wins, games });
+await saveBoth("11-jouer-ensemble.png", ["m0", "m1", "m4"], (gaulois) =>
   groupsCard(
     {
       monday: "2026-11-02",
@@ -200,20 +235,22 @@ await save("11-jouer-ensemble.png", () =>
     TAG,
     SITE,
     measure,
+    gaulois,
   ),
 );
-await save("13-fiche.png", () => {
-  if (!members) return null;
-  for (const member of members.members) {
-    const facts = member.publicId ? ficheFacts(members.members, member) : null;
-    if (facts && facts.rank === 1) return ficheCard(facts, TAG, SITE, members.fetchedAt, measure);
-  }
-  return null;
+const firstMember = members?.members.find((member) => member.publicId && ficheFacts(members.members, member)?.rank === 1) ?? null;
+await saveBoth("13-fiche.png", firstMember?.publicId ? [firstMember.publicId] : [], (gaulois) => {
+  const facts = members && firstMember ? ficheFacts(members.members, firstMember) : null;
+  return members && facts ? ficheCard(facts, TAG, SITE, members.fetchedAt, measure, gaulois) : null;
 });
-await save("14-accueil.png", () => {
-  const facts = accueilFacts(accueilRanking(leaderboard, TAG), edition);
-  return facts ? accueilCard(facts, TAG, clan.name, clan.tagline, SITE, measure) : null;
-});
+await saveBoth(
+  "14-accueil.png",
+  (edition?.players ?? []).map((p) => p.id),
+  (gaulois) => {
+    const facts = accueilFacts(accueilRanking(leaderboard, TAG), edition);
+    return facts ? accueilCard(facts, TAG, clan.name, clan.tagline, SITE, measure, gaulois) : null;
+  },
+);
 // Le guichet des tickets, que pose /tickets : il ne lit aucune donnée.
 await save("15-guichet-tickets.png", () => guichetCard(SITE, measure));
 // Le panneau des rôles, que pose /roles : il ne lit aucune donnée non plus.
@@ -229,7 +266,7 @@ const victory = {
   gaulois: 9,
   players: 23,
   points: 1.81,
-  crew: [0, 1, 2, 3, 4, 5, 6, 7].map((i) => ({ id: null, name: name(i) })),
+  crew: [0, 1, 2, 3, 4, 5, 6, 7].map((i) => ({ id: `v${i}`, name: name(i) })),
   unnamed: 1,
   outsiders: 0,
   // Deux clans en face, pris dans la liste officielle pour l'exemple.
@@ -241,11 +278,24 @@ try {
 } catch (e) {
   console.log(`Vignette illisible (${e instanceof Error ? e.message : String(e)}) : la victoire se dessine sans elle.`);
 }
-try {
-  const card = victoryCard(victory, TAG, SITE, measure, thumbnail);
-  writeFileSync(join(OUT, "12-victoire.png"), await renderVictoryCard(card, fonts, root, thumbnail));
-  console.log(`12-victoire.png : ${card.width} × ${card.height}`);
-} catch (e) {
-  console.log(`12-victoire.png : ${e instanceof Error ? e.message : String(e)}`);
+const ids = (count: number) => Array.from({ length: count }, (_, i) => `v${i}`);
+const crewOf = (count: number) => ids(count).map((id, i) => ({ id, name: name(i) }));
+// La victoire comme avant ; avec un Gaulois sur deux ; à trois, dont deux Gaulois ; à vingt-quatre sur plusieurs lignes, tous avec leur Gaulois.
+const victories: [string, typeof victory, GauloisParJoueur][] = [
+  ["12-victoire.png", victory, AUCUN_GAULOIS],
+  ["12-victoire-gaulois.png", victory, gauloisDe(ids(8).filter((_, i) => i % 2 === 0))],
+  ["12-victoire-peu.png", { ...victory, gaulois: 3, crew: crewOf(3), unnamed: 0 }, AUCUN_GAULOIS],
+  ["12-victoire-peu-gaulois.png", { ...victory, gaulois: 3, crew: crewOf(3), unnamed: 0 }, gauloisDe(["v0", "v2"])],
+  ["12-victoire-beaucoup.png", { ...victory, gaulois: 24, players: 60, crew: crewOf(24), unnamed: 0 }, AUCUN_GAULOIS],
+  ["12-victoire-beaucoup-gaulois.png", { ...victory, gaulois: 24, players: 60, crew: crewOf(24), unnamed: 0 }, gauloisDe(ids(24))],
+];
+for (const [file, example, gaulois] of victories) {
+  try {
+    const card = victoryCard(example, TAG, SITE, measure, thumbnail, gaulois);
+    writeFileSync(join(OUT, file), await renderVictoryCard(card, fonts, root, thumbnail));
+    console.log(`${file} : ${card.width} × ${card.height}`);
+  } catch (e) {
+    console.log(`${file} : ${e instanceof Error ? e.message : String(e)}`);
+  }
 }
 console.log(`Images dans ${OUT}`);
