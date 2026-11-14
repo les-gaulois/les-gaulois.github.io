@@ -26,14 +26,16 @@
 -- - Trou bouché dans la boutique : un objet en vente compte comme possédé. acheter_objet (remplacée) refuse de le racheter
 --   (`deja_possede`), comme acheter_offre.
 -- - `vendeur` : le nom que le QG montre déjà pour ce compte, public.profiles.display_name (internal.member_face, migration
---   20261109000100), seulement s'il se montre aux autres membres (profiles.show_to_members, la règle du mur du QG) ou si
---   c'est l'appelant ; sinon « Un Gaulois ». Jamais une adresse ni raw_user_meta_data.
+--   20261109000100), pour tout vendeur (internal.village_nom). Décision du pilote du 14 novembre 2026 : « tous ceux qui
+--   créent un personnage apparaissent dans le village », sans choix de se cacher ; le marché ne lit pas le choix du mur du
+--   QG (profiles.show_to_members), qui reste celui du QG seulement. Jamais une adresse ni raw_user_meta_data.
 -- - Une baisse des prix de la boutique ferme les offres plus chères que le nouveau prix (internal.marche_fermer_au_dessus_des_prix,
 --   appelée par regler_village_prix, migration 20261113002100) : l'objet revient à son vendeur.
 --
--- La place du village : les Gaulois de tous les comptes validés, par ordre de création de leur Gaulois, avec le nom que le QG
--- montre (« Un Gaulois » pour qui ne se montre pas aux autres membres) et leur tenue. Le pilote n'a pas voulu de case pour s'en retirer (13 novembre 2026). Elle se lit par un compte validé
--- ou de l'encadrement (officier et au-dessus). Un solde ne s'y lit jamais.
+-- La place du village : les Gaulois de tous les comptes validés, par ordre de création de leur Gaulois, chacun avec le nom
+-- que le QG montre pour son compte (internal.village_nom) et sa tenue. Tout Gaulois créé y paraît sous son nom : le pilote n'a
+-- pas voulu de case pour s'en retirer (13 novembre 2026), ni qu'un membre décide de se montrer ou non (14 novembre 2026).
+-- Elle se lit par un compte validé ou de l'encadrement (officier et au-dessus). Un solde ne s'y lit jamais.
 --
 -- Les verrous, pour que deux gestes ne se bloquent jamais en croix : un geste du marché qui touche plusieurs comptes (un
 -- achat, la fin des offres) prend d'abord le verrou du marché (internal.marche_verrou), puis ceux des comptes, dans l'ordre
@@ -55,7 +57,7 @@
 --
 -- Rien n'est écrit au journal de l'encadrement : ce sont des gestes de joueurs. Aucun solde ne se lit pour un autre compte.
 --
--- Une table, une colonne, huit fonctions internes et cinq fonctions publiques ajoutées, deux fonctions remplacées, aucune
+-- Une table, une colonne, neuf fonctions internes et cinq fonctions publiques ajoutées, deux fonctions remplacées, aucune
 -- donnée existante touchée. Rejouée, elle se remplace par la même.
 
 /* ---------- Les tables ---------- */
@@ -205,6 +207,15 @@ begin
   return v_n;
 end $$;
 
+-- Le nom d'un Gaulois au village, sur la place comme au marché : celui que le QG montre pour son compte
+-- (public.profiles.display_name, toujours là : `not null`, de 1 à 64 signes). Un nom fait seulement d'espaces, que l'écran ne
+-- dessinerait pas (lireVillage de src/lib/village/ecran-place.ts saute un nom vide), devient le nom que le site donne à tout
+-- compte à sa création, « Gaulois n° » et son numéro (internal.handle_new_user) : tout Gaulois créé paraît, sous un nom.
+create or replace function internal.village_nom(p_nom text, p_numero integer) returns text
+language sql immutable set search_path = public, pg_temp as $$
+  select coalesce(nullif(btrim(p_nom), ''), 'Gaulois n° ' || p_numero)
+$$;
+
 -- Le marché vu par `p_uid`, l'appelant : son solde, les offres ouvertes (les plus récentes d'abord), sauf celles d'un compte
 -- qui n'est plus validé, et le nombre d'offres permis. Jamais le solde d'un autre.
 create or replace function internal.marche_json(p_uid uuid) returns jsonb
@@ -215,8 +226,8 @@ language sql stable security definer set search_path = public, pg_temp as $$
     'offres', coalesce((
       select jsonb_agg(jsonb_build_object(
           'id', m.id, 'emplacement', m.emplacement, 'objet', m.objet, 'prix', m.prix,
-          -- Le nom du vendeur seulement s'il se montre aux autres membres (le choix du QG), ou si c'est l'appelant.
-          'vendeur', case when p.show_to_members or m.vendeur_id = p_uid then p.display_name else 'Un Gaulois' end,
+          -- Le nom du vendeur, pour tout vendeur : celui du QG (décision du pilote du 14 novembre 2026).
+          'vendeur', internal.village_nom(p.display_name, p.gaul_number),
           'a_moi', m.vendeur_id = p_uid, 'expire_le', m.expire_le)
         order by m.cree_le desc, m.id desc)
       from internal.marche_offres m
@@ -234,6 +245,7 @@ revoke all on function internal.marche_rendre(uuid, text, text, text, timestampt
 revoke all on function internal.marche_expirer() from public, anon, authenticated;
 revoke all on function internal.marche_fermer_au_dessus_des_prix() from public, anon, authenticated;
 revoke all on function internal.marche_json(uuid) from public, anon, authenticated;
+revoke all on function internal.village_nom(text, integer) from public, anon, authenticated;
 
 /* ---------- Le marché ---------- */
 
@@ -417,8 +429,9 @@ grant execute on function public.acheter_offre(bigint) to authenticated;
 -- La place (`Village` du contrat) : { ok: true, gaulois: [{ nom, tenue, moi }] }, les Gaulois de tous les comptes validés,
 -- par ordre de création de leur Gaulois. Pour un compte validé ou de l'encadrement ; refus : not_signed_in, suspended,
 -- not_validated, rate_limited. Ni solde, ni objet possédé : seulement la tenue que chacun porte. `nom` : le nom que le QG
--- montre, seulement pour un compte qui se montre aux autres membres (profiles.show_to_members) et pour l'appelant ; sinon
--- « Un Gaulois ». Remplacée par la vie du village (migration 20261113002300), avec les mêmes règles.
+-- montre pour ce compte (internal.village_nom), pour chaque Gaulois, sans regarder le choix du mur du QG
+-- (profiles.show_to_members) : décision du pilote du 14 novembre 2026. Remplacée par la vie du village (migration
+-- 20261113002300), avec les mêmes règles.
 create or replace function public.get_village() returns jsonb
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare
@@ -436,7 +449,7 @@ begin
     'ok', true,
     'gaulois', coalesce((
       select jsonb_agg(jsonb_build_object(
-          'nom', case when p.show_to_members or g.user_id = v_uid then p.display_name else 'Un Gaulois' end,
+          'nom', internal.village_nom(p.display_name, p.gaul_number),
           'tenue', g.tenue, 'moi', g.user_id = v_uid) order by g.created_at, g.user_id)
       from internal.gaulois g
       join public.profiles p on p.user_id = g.user_id

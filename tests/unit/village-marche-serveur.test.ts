@@ -52,7 +52,7 @@ describe("le marché du village, côté serveur", () => {
     ] as const) {
       expect(MARCHE).toContain(`revoke all on function public.${nom}${signature} from public, anon, authenticated;\ngrant execute on function public.${nom}${signature} to authenticated;`);
     }
-    for (const nom of ["marche_offres_max()", "marche_duree()", "marche_verrou()", "marche_membre()", "marche_rendre(uuid, text, text, text, timestamptz)", "marche_expirer()", "marche_fermer_au_dessus_des_prix()", "marche_json(uuid)"]) {
+    for (const nom of ["marche_offres_max()", "marche_duree()", "marche_verrou()", "marche_membre()", "marche_rendre(uuid, text, text, text, timestamptz)", "marche_expirer()", "marche_fermer_au_dessus_des_prix()", "marche_json(uuid)", "village_nom(text, integer)"]) {
       expect(MARCHE).toContain(`revoke all on function internal.${nom} from public, anon, authenticated;`);
       expect(MARCHE).not.toContain(`grant execute on function internal.${nom}`);
     }
@@ -99,10 +99,22 @@ describe("le marché du village, côté serveur", () => {
     expect(MARCHE).not.toMatch(/alter table public\.profiles/);
   });
 
-  it("nomme le vendeur comme le QG, seulement s'il se montre aux autres membres, jamais par une adresse ni par raw_user_meta_data", () => {
-    expect(fonction("internal.marche_json")).toContain("'vendeur', case when p.show_to_members or m.vendeur_id = p_uid then p.display_name else 'Un Gaulois' end");
-    expect(fonction("public.get_village")).toContain("'nom', case when p.show_to_members or g.user_id = v_uid then p.display_name else 'Un Gaulois' end");
-    for (const nom of ["internal.marche_json", "public.get_village"]) expect(fonction(nom), nom).not.toMatch(/raw_user_meta_data|email|auth\.users/);
+  // Décision du pilote du 14 novembre 2026 : « tous ceux qui créent un personnage apparaissent dans le village », sans choix
+  // de se montrer ou non. Le choix du mur du QG (show_to_members) n'est plus lu par le village.
+  it("nomme chaque vendeur et chaque Gaulois comme le QG, sans lire le choix du mur, jamais par une adresse ni par raw_user_meta_data", () => {
+    expect(fonction("internal.marche_json")).toContain("'vendeur', internal.village_nom(p.display_name, p.gaul_number),");
+    expect(fonction("public.get_village")).toContain("'nom', internal.village_nom(p.display_name, p.gaul_number),");
+    for (const nom of ["internal.marche_json", "public.get_village"]) {
+      expect(fonction(nom), nom).not.toMatch(/raw_user_meta_data|email|auth\.users|show_to_members|Un Gaulois/);
+    }
+  });
+
+  it("donne toujours un nom : celui du QG, ou « Gaulois n° » et le numéro du compte pour un nom fait d'espaces", () => {
+    expect(fonction("internal.village_nom")).toContain("select coalesce(nullif(btrim(p_nom), ''), 'Gaulois n° ' || p_numero)");
+    expect(MARCHE).toContain("revoke all on function internal.village_nom(text, integer) from public, anon, authenticated;");
+    expect(MARCHE).not.toContain("grant execute on function internal.village_nom");
+    // Sans commentaire, la migration du marché et de la place ne lit nulle part le choix du mur du QG.
+    expect(MARCHE.replace(/--.*$/gm, "")).not.toMatch(/show_to_members|'Un Gaulois'/);
   });
 });
 
