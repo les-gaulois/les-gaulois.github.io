@@ -42,7 +42,7 @@ export const SIEGES_DERRIERE = 7;
  * Un toit de chaume vu de face : de la rangée `haut` (le faîte, large de deux fois `demiFaite`) à la rangée `bas`
  * (l'avant-toit, de `x0` à `x1`). En rangs, éclairé à gauche, comme les huttes d'avant.
  */
-function poserChaume(planche: Planche, p: Palette, x0: number, x1: number, haut: number, bas: number, demiFaite: number): void {
+export function poserChaume(planche: Planche, p: Palette, x0: number, x1: number, haut: number, bas: number, demiFaite: number): void {
   const cx = (x0 + x1) / 2;
   const demiBas = (x1 - x0) / 2;
   for (let y = haut; y <= bas; y++) {
@@ -66,7 +66,7 @@ function poserChaume(planche: Planche, p: Palette, x0: number, x1: number, haut:
 }
 
 /** Un toit de bardeaux de bois, plus sombre : celui de la salle de réunion. */
-function poserBardeaux(planche: Planche, p: Palette, x0: number, x1: number, haut: number, bas: number, demiFaite: number): void {
+export function poserBardeaux(planche: Planche, p: Palette, x0: number, x1: number, haut: number, bas: number, demiFaite: number): void {
   const cx = Math.round((x0 + x1) / 2);
   const demiBas = (x1 - x0) / 2;
   for (let y = haut; y <= bas; y++) {
@@ -156,7 +156,7 @@ const CRUCHE = [".aaa.", ".aba.", "aabaa", "abcba", "abcba", "abbba", ".aaa."] a
 const GODET = ["aaaa.", "abbaa", "abbaa", "aaaa."] as const;
 
 /** Une étagère et ce qu'elle porte : cruches et godets, de la colonne `de` à la colonne `a`. */
-function poserEtagere(planche: Planche, de: number, a: number, y: number, t: Teinte): void {
+export function poserEtagere(planche: Planche, de: number, a: number, y: number, t: Teinte): void {
   planche.rect(de, y, a - de, 2, (_i, j) => t(j === y ? "#7d5631" : "#472d19"));
   planche.rect(de + 2, y + 2, 2, 3, t("#472d19"));
   planche.rect(a - 4, y + 2, 2, 3, t("#472d19"));
@@ -226,7 +226,7 @@ function poserPiece(planche: Planche, piece: Piece, t: Teinte): void {
 }
 
 /** Une cheminée de pierre sur un toit : `x` sa colonne de gauche, `haut` sa première rangée, `bas` la dernière. */
-function poserCheminee(planche: Planche, l: Lumiere, x: number, haut: number, bas: number): void {
+export function poserCheminee(planche: Planche, l: Lumiere, x: number, haut: number, bas: number): void {
   const c = (deJour: string, deNuit: string) => couleurDuDehors(deJour, deNuit, l);
   planche.rect(x, haut + 3, 14, bas - haut - 2, (i, j) => {
     const lit = Math.floor((j - haut) / 5);
@@ -239,7 +239,7 @@ function poserCheminee(planche: Planche, l: Lumiere, x: number, haut: number, ba
 /* ---------- Les maisons ---------- */
 
 /** Un lit vide, vu de côté : la tête de lit, le matelas de paille, l'oreiller, une couverture pliée au pied. */
-function poserLitVide(planche: Planche, x: number, y: number, rang: number, t: Teinte): void {
+export function poserLitVide(planche: Planche, x: number, y: number, rang: number, t: Teinte): void {
   const laine = (["#a8483a", "#3f5f9a", "#4f7d3a", "#b98a3a"] as const)[rang % 4]!;
   planche.rect(x, y + 12, 3, LIT_HAUTEUR - 12, (i) => t(i === x ? "#8a5a30" : "#4a301c"));
   planche.rect(x + LIT_LARGEUR - 3, y + 20, 3, LIT_HAUTEUR - 20, (i) => t(i === x + LIT_LARGEUR - 3 ? "#8a5a30" : "#4a301c"));
@@ -349,7 +349,7 @@ function poserCadre(planche: Planche, p: Palette, e: Emplacement, avantToit: num
 }
 
 /** Une lanterne pendue à la sablière : elle éclaire, sa couleur ne change pas. */
-function poserLanterne(planche: Planche, p: Palette, x: number, y: number): void {
+export function poserLanterne(planche: Planche, p: Palette, x: number, y: number): void {
   planche.rect(x, y, 1, 6, p.bois.creux);
   planche.rect(x - 2, y + 6, 5, 1, p.bois.creux);
   planche.rect(x - 2, y + 7, 5, 6, (i, j) => (i === x - 2 || i === x + 2 ? p.bois.creux : j === y + 9 || j === y + 10 ? "#fff1a8" : "#ffd75a"));
