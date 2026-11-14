@@ -1,14 +1,16 @@
 import type { ComponentChildren } from "preact";
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { ServerError, call } from "../../lib/compte/api";
 import {
-  EMPLACEMENTS_OBJETS,
+  EMPLACEMENTS_VISAGE,
   GAULOIS_HAUTEUR,
   GAULOIS_LARGEUR,
   NOMS_EMPLACEMENTS,
   OBJETS,
+  ORDRE_RARETES,
   PEAUX,
   POILS,
+  RARETES,
   RETOUR_VILLAGE_KEY,
   TEINTE_CHEVEUX,
   TENUE_DE_DEPART,
@@ -16,14 +18,17 @@ import {
   changerObjet,
   decrireGaulois,
   memeTenue,
+  objetPorte,
   tenueAuHasard,
   tenueDuServeur,
   vignetteDeLObjet,
   type Emplacement,
+  type EmplacementDuVisage,
   type Objet,
   type Tenue,
   type Vignette,
 } from "../../lib/gaulois";
+import { tabKeyTarget } from "../../lib/onglets";
 import type { MesStateres } from "../../lib/stateres";
 import type { MaBoutique, PochetteReponse, RefObjet } from "../../lib/village/contrat";
 import {
@@ -44,6 +49,26 @@ import {
   raisonBoutiqueFermee,
   stateres,
 } from "../../lib/village/ecran-boutique";
+import {
+  NOMS_RAYONS,
+  RAYONS,
+  RAYON_CORPS,
+  TOUT,
+  cadreDuVisage,
+  choisirFiltre,
+  compterParRarete,
+  echelleEntiere,
+  filtreEffectif,
+  filtrerParRarete,
+  grosPlan,
+  rangerLeRayon,
+  rayonDe,
+  visageNu,
+  type Entree,
+  type Filtre,
+  type Filtres,
+  type Rayon,
+} from "../../lib/village/vestiaire-rayons";
 import { Bourse } from "../village/Bourse";
 import { DialogueAchat, DialoguePochette, type Issue } from "../village/BoutiqueDialogue";
 import { MarqueDeRarete, Pixels, Prix, peindre } from "../village/BoutiquePixels";
@@ -59,12 +84,34 @@ export function ApercuGaulois({ tenue, class: classe = "" }: { tenue: Tenue; cla
 
 /** Le côté, en pixels, de la place réservée à l'image dans une case : la vignette s'y agrandit d'un nombre entier de fois. */
 const COTE_IMAGE = 80;
+/** La place d'un gros plan du visage : toute la largeur d'une case, pour que les yeux se lisent (4 pixels par case du dessin). */
+const COTE_VISAGE = 88;
+/** La place de l'image dans un onglet de la barre des rayons : sa hauteur, et sa largeur dans une barre serrée ou large. */
+const RAYON_HAUTEUR = 44;
+const RAYON_SERRE = 56;
+const RAYON_LARGE = 96;
 
-/** L'image d'une case : décorative, le nom de la case est écrit dessous. Une case du dessin vaut 1, 2 ou 3 pixels. */
-function ImageDeCase({ vignette }: { vignette: Vignette }) {
-  const echelle = Math.max(1, Math.min(3, Math.floor(COTE_IMAGE / Math.max(vignette.largeur, vignette.hauteur))));
-  return <Pixels largeur={vignette.largeur} hauteur={vignette.hauteur} cases={vignette.cases} echelle={echelle} class="case-dessin" />;
+/**
+ * L'image d'une case : décorative, le nom de la case est écrit dessous. Une case du dessin vaut 1, 2 ou 3 pixels dans
+ * `place` ; un gros plan du visage, jusqu'à 4.
+ */
+function ImageDeCase({ vignette, place = COTE_IMAGE, maximum = 3 }: { vignette: Vignette; place?: number; maximum?: number }) {
+  return <Pixels largeur={vignette.largeur} hauteur={vignette.hauteur} cases={vignette.cases} echelle={echelleEntiere(vignette.largeur, vignette.hauteur, place, maximum)} class="case-dessin" />;
 }
+
+/**
+ * L'image d'un onglet de rayon, décorative : ce que le Gaulois y porte. Elle est agrandie une ou deux fois, selon la place
+ * que l'onglet lui laisse : la feuille de style choisit entre les deux agrandissements d'après la largeur de l'écran.
+ */
+function ImageDeRayon({ vignette }: { vignette: Vignette }) {
+  const toile = useRef<HTMLCanvasElement>(null);
+  useEffect(() => peindre(toile.current, vignette.largeur, vignette.hauteur, vignette.cases), [vignette]);
+  const echelle = (place: number): number => Math.min(echelleEntiere(vignette.largeur, 1, place, 2), echelleEntiere(1, vignette.hauteur, RAYON_HAUTEUR, 2));
+  return <canvas ref={toile} width={vignette.largeur} height={vignette.hauteur} class="pixels rayon-dessin" style={`--l:${vignette.largeur};--h:${vignette.hauteur};--serre:${echelle(RAYON_SERRE)};--large:${echelle(RAYON_LARGE)}`} aria-hidden="true" />;
+}
+
+/** Le cadre des gros plans du visage, calculé une fois d'après les dessins du catalogue. */
+const CADRE_VISAGE = cadreDuVisage();
 
 /** Le visage du Gaulois, pour les cases des cheveux et de la barbe : un carré de 40 cases pris dans le dessin entier. */
 function portrait(tenue: Tenue, haut: number): Vignette {
@@ -103,12 +150,31 @@ type Vente = { possede: number } | { prix: number | null };
  * Une case achetée porte la marque « à vous ». `portee` et `essayee` se disent à part : pendant un essayage, l'objet
  * réellement porté garde sa coche.
  */
-function Case({ objet, vignette, portee, essayee = false, vente, enVente = false, onClick }: { objet: Objet; vignette: Vignette | null; portee: boolean; essayee?: boolean; vente?: Vente | undefined; enVente?: boolean; onClick: () => void }) {
+function Case({
+  objet,
+  vignette,
+  portee,
+  essayee = false,
+  vente,
+  enVente = false,
+  visage = false,
+  onClick,
+}: {
+  objet: Objet;
+  vignette: Vignette | null;
+  portee: boolean;
+  essayee?: boolean;
+  vente?: Vente | undefined;
+  enVente?: boolean;
+  /** Un gros plan du visage : il prend toute la place de l'image. */
+  visage?: boolean;
+  onClick: () => void;
+}) {
   const aVendre = vente && "prix" in vente ? vente : null;
   const possede = vente && "possede" in vente ? vente.possede : 0;
   return (
     <button type="button" class="case" data-rarete={objet.rarete ?? "aucune"} data-boutique={aVendre ? "" : undefined} data-etat={essayee ? "essayee" : portee ? "portee" : "libre"} aria-pressed={portee || essayee} onClick={onClick}>
-      <span class="case-image">{vignette ? <ImageDeCase vignette={vignette} /> : <span class="case-rien" aria-hidden="true" />}</span>
+      <span class="case-image">{vignette ? visage ? <ImageDeCase vignette={vignette} place={COTE_VISAGE} maximum={4} /> : <ImageDeCase vignette={vignette} /> : <span class="case-rien" aria-hidden="true" />}</span>
       <span class="case-nom">{objet.nom}</span>
       {objet.rarete && <MarqueDeRarete rarete={objet.rarete} />}
       {possede > 0 && (
@@ -211,18 +277,59 @@ function Poils({ emplacement, tenue, onChange }: Choix & { emplacement: "cheveux
 }
 
 /**
- * Les objets d'un emplacement : ceux qui se portent (les gratuits et ceux que le membre possède), puis ceux de la boutique,
- * de la rareté la plus courante à la plus rare, chacun à son prix.
+ * Les yeux, la bouche ou la cicatrice : une case par modèle, avec un gros plan du visage du Gaulois, sans barbe ni coiffe,
+ * pour voir le trait qu'on choisit. Gratuits, sans rareté.
  */
-function Objets({ emplacement, tenue, essai, boutique, enVente, onChange, onEssai }: Choix & { emplacement: Emplacement }) {
-  const objets = Object.entries(OBJETS[emplacement]);
+function Visage({ emplacement, tenue, onChange }: Choix & { emplacement: EmplacementDuVisage }) {
+  const nu = visageNu(tenue);
+  return (
+    <Partie emplacement={emplacement}>
+      <div class="cases" role="group" aria-labelledby={`vestiaire-${emplacement}`}>
+        {Object.entries(OBJETS[emplacement]).map(([id, objet]) => (
+          <Case key={id} objet={objet} vignette={grosPlan(casesDuGaulois(changerObjet(nu, emplacement, id)), CADRE_VISAGE)} visage portee={objetPorte(tenue, emplacement) === id} onClick={() => onChange(changerObjet(tenue, emplacement, id))} />
+        ))}
+      </div>
+    </Partie>
+  );
+}
+
+/** Le repère de forme d'une rareté, de un à cinq losanges : le même que sur les cases. */
+function Losanges({ rang }: { rang: number }) {
+  return (
+    <span class="filtre-rang" aria-hidden="true">
+      {Array.from({ length: rang }, (_, i) => (
+        <i key={i} />
+      ))}
+    </span>
+  );
+}
+
+/** Un choix du filtre de la boutique : son nom, et le nombre d'objets qu'il montre. Sans objet, il ne se choisit pas. */
+function ChoixDeFiltre({ filtre, nom, rang, nombre, choisi, onClick }: { filtre: Filtre; nom: string; rang: number; nombre: number; choisi: boolean; onClick: () => void }) {
+  return (
+    <button type="button" class="chip filtre" data-rarete={filtre} aria-pressed={choisi} disabled={nombre === 0} onClick={onClick} data-testid={`filtre-${filtre}`}>
+      {rang > 0 && <Losanges rang={rang} />}
+      {nom}
+      <span class="filtre-nombre tnum">{nombre}</span>
+      <span class="sr-only"> {nombre > 1 ? "objets" : "objet"}</span>
+    </button>
+  );
+}
+
+/**
+ * Le rayon d'un emplacement : ce qui se porte (les gratuits et ce que le membre possède), puis la boutique, de la rareté
+ * la plus courante à la plus rare, chacun à son prix. La boutique se réduit à une rareté d'un clic : avec une soixantaine
+ * d'objets, on va droit à ce qu'on cherche.
+ */
+function Objets({ emplacement, tenue, essai, boutique, enVente, onChange, onEssai, filtre, onFiltre }: Choix & { emplacement: Emplacement; filtre: Filtre | undefined; onFiltre: (filtre: Filtre) => void }) {
   const essaye = essai?.emplacement === emplacement ? essai.id : null;
   const possede = (id: string): number => (boutique ? quantitePossedee(boutique.inventaire, emplacement, id) : 0);
   const vendu = (id: string): boolean => estEnVente(enVente, emplacement, id);
-  const aMoi = ([id, objet]: [string, Objet]): boolean => objet.gratuit || possede(id) > 0;
-  const cases = (liste: [string, Objet][]) =>
+  const rayon = rangerLeRayon(OBJETS[emplacement], possede);
+  const comptes = compterParRarete(rayon.boutique);
+  const retenu = filtreEffectif(filtre, comptes);
+  const cases = (liste: readonly Entree[], libre: boolean) =>
     liste.map(([id, objet]) => {
-      const libre = aMoi([id, objet]);
       const porte = tenue[emplacement] === id;
       return (
         <Case
@@ -240,23 +347,81 @@ function Objets({ emplacement, tenue, essai, boutique, enVente, onChange, onEssa
         />
       );
     });
-  const aVendre = objets.filter((entree) => !aMoi(entree));
   return (
-    <Partie emplacement={emplacement}>
-      <div class="cases" role="group" aria-labelledby={`vestiaire-${emplacement}`}>
-        {cases(objets.filter(aMoi))}
+    <div class="vestiaire-rayon" data-testid={`vestiaire-${emplacement}`}>
+      {/* Le nom du rayon est écrit dans son onglet : ici, il ne sert qu'à nommer les groupes de cases. */}
+      <p id={`vestiaire-${emplacement}`} class="sr-only">
+        {NOMS_EMPLACEMENTS[emplacement]}
+      </p>
+      <p id={`a-vous-${emplacement}`} class="vestiaire-boutique">
+        À vous
+      </p>
+      <div class="cases" role="group" aria-labelledby={`vestiaire-${emplacement} a-vous-${emplacement}`}>
+        {cases(rayon.aMoi, true)}
       </div>
-      {aVendre.length > 0 && (
+      {rayon.boutique.length > 0 && (
         <>
-          <p id={`boutique-${emplacement}`} class="vestiaire-boutique">
-            Boutique
-          </p>
-          <div class="cases" role="group" aria-labelledby={`vestiaire-${emplacement} boutique-${emplacement}`}>
-            {cases(aVendre)}
+          <div class="vestiaire-boutique-tete">
+            <p id={`boutique-${emplacement}`} class="vestiaire-boutique">
+              Boutique
+            </p>
+            <div class="vestiaire-filtre" role="group" aria-label="Montrer une rareté" data-testid="vestiaire-filtre">
+              <ChoixDeFiltre filtre={TOUT} nom="Tout" rang={0} nombre={rayon.boutique.length} choisi={retenu === TOUT} onClick={() => onFiltre(TOUT)} />
+              {ORDRE_RARETES.map((rarete) => (
+                <ChoixDeFiltre key={rarete} filtre={rarete} nom={RARETES[rarete].nom} rang={RARETES[rarete].rang} nombre={comptes[rarete]} choisi={retenu === rarete} onClick={() => onFiltre(rarete)} />
+              ))}
+            </div>
+          </div>
+          <div class="cases" role="group" aria-labelledby={`vestiaire-${emplacement} boutique-${emplacement}`} data-testid="vestiaire-boutique">
+            {cases(filtrerParRarete(rayon.boutique, retenu), false)}
           </div>
         </>
       )}
-    </Partie>
+    </div>
+  );
+}
+
+/** Le visage du Gaulois dans l'onglet du corps : avec sa barbe, sans coiffe ni arme. */
+function visageDuRayon(tenue: Tenue): Vignette {
+  return grosPlan(casesDuGaulois({ ...tenue, tete: "aucun", arme: "aucune" }), CADRE_VISAGE);
+}
+
+/**
+ * La barre des rayons : un onglet par rayon, avec l'image de ce que le Gaulois y porte (son visage pour le corps). Au
+ * clavier : flèches, Début et Fin, comme tout groupe d'onglets ; un seul onglet dans l'ordre de tabulation.
+ */
+function Rayons({ rayon, tenue, onChoisir }: { rayon: Rayon; tenue: Tenue; onChoisir: (rayon: Rayon) => void }) {
+  const auClavier = (e: KeyboardEvent, index: number) => {
+    const suivant = RAYONS[tabKeyTarget(e.key, index, RAYONS.length) ?? -1];
+    if (!suivant) return;
+    e.preventDefault();
+    onChoisir(suivant);
+    document.getElementById(`vestiaire-rayon-${suivant}`)?.focus();
+  };
+  return (
+    <div class="vestiaire-rayons" role="tablist" aria-label="Les rayons du vestiaire" data-testid="vestiaire-rayons">
+      {RAYONS.map((id, index) => {
+        const vignette = id === RAYON_CORPS ? visageDuRayon(tenue) : vignetteDeLObjet(id, tenue[id] ?? "", tenue);
+        return (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            id={`vestiaire-rayon-${id}`}
+            class="vestiaire-rayon-onglet"
+            aria-selected={rayon === id}
+            aria-controls="vestiaire-panneau"
+            tabIndex={rayon === id ? 0 : -1}
+            onClick={() => onChoisir(id)}
+            onKeyDown={(e) => auClavier(e, index)}
+            data-testid={`rayon-${id}`}
+          >
+            <span class="vestiaire-rayon-image">{vignette ? <ImageDeRayon vignette={vignette} /> : <span class="case-rien" aria-hidden="true" />}</span>
+            {NOMS_RAYONS[id]}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -271,6 +436,10 @@ const ILLISIBLE = "La réponse du serveur est illisible. Rechargez la page.";
  * sien, lit sa bourse de statères, achète à la boutique et ouvre une pochette surprise. Le serveur décide de tout (tenue,
  * prix, solde, tirage) : l'écran ne fait que proposer et montrer ce qu'il a reçu. Sans réponse de la boutique, le
  * vestiaire reste entier, avec ses cases verrouillées.
+ *
+ * Depuis le 14 novembre 2026, le vestiaire s'ouvre un rayon à la fois (`src/lib/village/vestiaire-rayons.ts`) : le corps
+ * (peau, cheveux, barbe, et le visage au choix : yeux, bouche, cicatrice), puis la tête, le haut, le bas, les pieds et
+ * l'arme, dont la boutique se réduit à une rareté. Seul le rayon ouvert est dessiné : une soixantaine de cases au plus.
  */
 export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
   const { me, refresh } = useMe();
@@ -286,6 +455,16 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
   const [occupe, setOccupe] = useState(false);
   const [probleme, setProbleme] = useState<string | null>(null);
   const [reussite, setReussite] = useState<string | null>(null);
+  // Le rayon ouvert, et le filtre de la boutique de chaque rayon. Le corps d'abord : c'est par lui qu'on crée son Gaulois.
+  const [rayon, setRayon] = useState<Rayon>(RAYON_CORPS);
+  const [filtres, setFiltres] = useState<Filtres>({});
+  // Le membre est venu créer son Gaulois : vrai jusqu'à la prochaine lecture, même une fois le Gaulois enregistré, pour
+  // que rien ne change de place sous ses yeux.
+  const [creation, setCreation] = useState(false);
+  const racine = useRef<HTMLDivElement>(null);
+  const scene = useRef<HTMLDivElement>(null);
+  const barre = useRef<HTMLDivElement>(null);
+  const panneau = useRef<HTMLDivElement>(null);
 
   /**
    * La bourse et la boutique, relues ensemble : l'une sans l'autre ne bloque rien, le vestiaire reste. Avec elles, ses
@@ -310,6 +489,7 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
       const [reponse] = await Promise.all([call<unknown>("get_mon_gaulois"), lireLaBoutique()]);
       const enregistree = tenueDuServeur(reponse);
       setEtat({ kind: "pret", enregistree });
+      setCreation(enregistree === null);
       if (enregistree) setTenue(enregistree);
     } catch (e) {
       setEtat({ kind: "erreur", message: messageOf(e) });
@@ -387,10 +567,36 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
     }
   };
 
+  /** L'objet acheté ou tiré d'une pochette se porte, et son rayon s'ouvre : on le voit coché parmi les siens. */
   const porter = (emplacement: Emplacement, id: string) => {
     changer(changerObjet(tenue, emplacement, id));
+    setRayon(rayonDe(emplacement));
     setFenetre(null);
   };
+
+  // Sur téléphone, le Gaulois reste collé en haut de l'écran et la barre des rayons se colle juste dessous : la feuille de
+  // style a besoin de la hauteur du Gaulois, qui change avec un essayage.
+  useLayoutEffect(() => {
+    const cadre = racine.current;
+    const bloc = scene.current;
+    if (!cadre || !bloc) return;
+    const mesurer = () => cadre.style.setProperty("--vestiaire-scene", `${Math.round(bloc.getBoundingClientRect().height)}px`);
+    mesurer();
+    const observateur = typeof ResizeObserver === "function" ? new ResizeObserver(mesurer) : null;
+    observateur?.observe(bloc);
+    return () => observateur?.disconnect();
+  }, [etat.kind]);
+
+  // Un autre rayon s'ouvre : si le haut du rayon est déjà passé sous la barre (on avait descendu dans les cases), la page
+  // remonte pour le montrer depuis sa première case. Sans glissement : le contenu vient de changer d'un coup.
+  const rayonVu = useRef(rayon);
+  useLayoutEffect(() => {
+    if (rayonVu.current === rayon) return;
+    rayonVu.current = rayon;
+    const sous = barre.current?.getBoundingClientRect().bottom;
+    const haut = panneau.current?.getBoundingClientRect().top;
+    if (sous !== undefined && haut !== undefined && haut < sous) window.scrollBy({ top: haut - sous - 12, behavior: "instant" });
+  }, [rayon]);
 
   if (me === null) return <Loading label="Lecture de votre compte…" />;
 
@@ -427,9 +633,26 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
   const raisonEssai = fermee ?? (essaiEnVente ? RAISON_EN_VENTE : manqueEssai > 0 ? `Il vous manque ${stateres(manqueEssai)}.` : null);
   const choix: Choix = { tenue, essai, boutique, enVente, onChange: changer, onEssai: setEssai };
   const achat = fenetre?.kind === "achat" ? objetPayant(fenetre.emplacement, fenetre.id) : null;
+  // La bourse et la pochette surprise : au-dessus des rayons, sauf pour qui vient créer son Gaulois. Elles ne lui servent
+  // qu'une fois le Gaulois créé : il commence par le corps et le visage, et les trouve sous le bouton « Créer mon Gaulois ».
+  const bourseEtPochette = (
+    <>
+      {(bourse || boutique) && (
+        <div class="boutique-tete">
+          {bourse && <Bourse bourse={bourse} solde={boutique?.solde ?? null} />}
+          {boutique && <Pochette boutique={boutique} solde={boutique.solde} fermee={fermee} onOuvrir={() => setFenetre({ kind: "pochette" })} />}
+        </div>
+      )}
+      {panne && (
+        <div data-testid="boutique-panne">
+          <Problem message={bourse || boutique ? "Une partie de la boutique ne répond pas pour l'instant." : "La bourse et la boutique ne répondent pas pour l'instant."} onRetry={() => void lireLaBoutique()} />
+        </div>
+      )}
+    </>
+  );
   return (
-    <div class="vestiaire" data-testid="vestiaire">
-      <div class="vestiaire-scene">
+    <div ref={racine} class="vestiaire" data-testid="vestiaire">
+      <div ref={scene} class="vestiaire-scene">
         <ApercuGaulois tenue={essai ? changerObjet(tenue, essai.emplacement, essai.id) : tenue} />
         <div class="vestiaire-scene-actions">
           <button type="button" class="btn btn-ghost" onClick={() => changer(tenueAuHasard(Math.random))}>
@@ -463,17 +686,7 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
         </div>
       </div>
       <div class="vestiaire-colonne">
-        {(bourse || boutique) && (
-          <div class="boutique-tete">
-            {bourse && <Bourse bourse={bourse} solde={boutique?.solde ?? null} />}
-            {boutique && <Pochette boutique={boutique} solde={boutique.solde} fermee={fermee} onOuvrir={() => setFenetre({ kind: "pochette" })} />}
-          </div>
-        )}
-        {panne && (
-          <div data-testid="boutique-panne">
-            <Problem message={bourse || boutique ? "Une partie de la boutique ne répond pas pour l'instant." : "La bourse et la boutique ne répondent pas pour l'instant."} onRetry={() => void lireLaBoutique()} />
-          </div>
-        )}
+        {!creation && bourseEtPochette}
         <form
           class="vestiaire-choix"
           onSubmit={(e) => {
@@ -481,12 +694,23 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
             void enregistrer();
           }}
         >
-          <Peau {...choix} />
-          <Poils emplacement="cheveux" {...choix} />
-          <Poils emplacement="barbe" {...choix} />
-          {EMPLACEMENTS_OBJETS.map((emplacement) => (
-            <Objets key={emplacement} emplacement={emplacement} {...choix} />
-          ))}
+          <div ref={barre} class="vestiaire-barre">
+            <Rayons rayon={rayon} tenue={tenue} onChoisir={setRayon} />
+          </div>
+          <div ref={panneau} id="vestiaire-panneau" class="vestiaire-panneau" role="tabpanel" aria-labelledby={`vestiaire-rayon-${rayon}`}>
+            {rayon === RAYON_CORPS ? (
+              <>
+                <Peau {...choix} />
+                <Poils emplacement="cheveux" {...choix} />
+                <Poils emplacement="barbe" {...choix} />
+                {EMPLACEMENTS_VISAGE.map((emplacement) => (
+                  <Visage key={emplacement} emplacement={emplacement} {...choix} />
+                ))}
+              </>
+            ) : (
+              <Objets key={rayon} emplacement={rayon} {...choix} filtre={filtres[rayon]} onFiltre={(filtre) => setFiltres((f) => choisirFiltre(f, rayon, filtre))} />
+            )}
+          </div>
           <div class="vestiaire-envoi" data-colle={change ? "" : undefined}>
             {change && essaye && (
               <p class="vestiaire-bloque" data-testid="vestiaire-bloque">
@@ -508,6 +732,7 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
             {!etat.enregistree && !reussite && <p class="text-sm text-muted">Votre Gaulois n'existe qu'une fois enregistré.</p>}
           </div>
         </form>
+        {creation && bourseEtPochette}
       </div>
       <p class="sr-only" role="status" data-testid="boutique-annonce">
         {annonce}
