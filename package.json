@@ -37,6 +37,7 @@
     "course:envoyer": "tsx scripts/envoyer-course.ts",
     "groupes:envoyer": "tsx scripts/envoyer-groupes.ts",
     "chantier:envoyer": "tsx scripts/envoyer-chantier.ts",
+    "achats:envoyer": "tsx scripts/envoyer-achats.ts",
     "victoires:envoyer": "tsx scripts/envoyer-victoires.ts",
     "stateres:crediter": "tsx scripts/crediter-stateres.ts",
     "village:economie": "tsx scripts/mesurer-economie-village.ts",

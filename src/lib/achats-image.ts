@@ -1,0 +1,195 @@
+/**
+ * L'image des achats d'un Gaulois au village, pour le salon des nouvelles (`achats-discord.ts`) : son nom en titre, puis
+ * chaque objet reçu dessiné en pixels dans sa vitrine, bordée de la couleur de sa rareté, avec son nom, sa rareté en toutes
+ * lettres (la couleur ne la dit pas seule), d'où il vient et son heure. Dans le coin de la vitrine, cinq carrés, pleins jusqu'au
+ * rang de la rareté, comme au vestiaire : un repère de forme. Sous l'objet, son ombre, en cases : il est posé, pas collé.
+ * Même dessin que les autres images du robot (`gazette-image.ts`, « Les images du robot » de docs/DESIGN.md), et même allure
+ * que celle d'un bâtiment fini (`chantier-image.ts`). Mise en page de Claude Fable 5.2, à la demande du pilote.
+ *
+ * Un seul objet : sa vitrine à droite, son nom, sa rareté et son origine à gauche, en chiffres clés. De deux à quatre : une
+ * vitrine chacun, côte à côte. L'objet vient de `vignetteDeLObjet` (le dessin du vestiaire, rogné à son contour) : chaque case
+ * devient un carré d'un nombre entier de pixels, le plus grand qui tienne dans sa vitrine, sans lissage.
+ *
+ * 1 200 × 660 : 1,82 fois plus large que haut, au-dessus des 1,55 qu'il faut pour que Discord la montre en grand.
+ */
+import sharp, { type OverlayOptions } from "sharp";
+import { dateLongue, heureEnMots } from "./chantier-discord";
+import { pixelsDuDessin, type DessinPose } from "./chantier-image";
+import { annonceEnMots, nouveauxObjets, objetDe, ORIGINES, PAYE_EN_STATERES, type AchatDuVillage, type AnnonceDesAchats } from "./achats-discord";
+import { NOMS_EMPLACEMENTS, RARETES, type Rarete, type Vignette } from "./gaulois";
+import { CARD_COLORS as C, fitted, kpiParts, LOGO, MARGIN, pageFoot, pageHead, renderGazetteCard, type CardRect, type CardText, type GazetteCard, type GazetteFonts, type Measure } from "./gazette-image";
+import { shownAddress } from "./salon-discord";
+
+const WIDTH = 1200;
+const HEIGHT = 660;
+/** Le haut des vitrines, sous l'en-tête, et le bas de la vitrine d'un objet seul. */
+const TOP = 240;
+const BOTTOM = HEIGHT - 70;
+/** La vitrine d'un objet seul, à droite. */
+export const SEULE = { width: 420, gap: 32, maxScale: 10 } as const;
+/** Les vitrines côte à côte : l'écart, leur hauteur, la plus grande case. */
+export const RANGEE = { gap: 24, height: 232, maxScale: 8 } as const;
+/** Le jour autour du dessin, dans sa vitrine. */
+const MARGE_VITRINE = 24;
+/** Le coin coupé d'une vitrine, comme une scène du site. */
+const COUPE = 18;
+
+/** Les jetons de rareté du site (`--rarete-…`) : le bord de la vitrine, et le texte clair, lisible sur l'encre du fond. */
+export const COULEURS_RARETE: Readonly<Record<Rarete, { bord: string; texte: string }>> = {
+  commun: { bord: "#4AA3FF", texte: "#B5D8FF" },
+  "peu-commun": { bord: "#3A4FE8", texte: "#BCC5FF" },
+  epique: { bord: "#9B4DFF", texte: "#DCBCFF" },
+  mystique: { bord: "#FF2E4A", texte: "#FFB5BD" },
+  legendaire: { bord: "#F2B632", texte: "#FFDD80" },
+};
+
+export interface AchatsCard extends GazetteCard {
+  /** Les objets posés sur l'image, dans l'ordre des achats. */
+  dessins: DessinPose[];
+}
+
+/** Une vitrine : son rectangle, en pixels. */
+interface Boite {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** Le jour de Paris d'une heure : deux achats du même jour s'écrivent avec une seule date. */
+const memeJour = (achats: readonly AchatDuVillage[]) => new Set(achats.map((a) => dateLongue(a.le))).size === 1;
+
+/** La période de l'en-tête : « Le 14 novembre 2026 à 23 h 15 », « …, de 22 h 10 à 23 h 15 », ou « Du …, …, au …, … ». */
+export function periodeDesAchats(achats: readonly AchatDuVillage[]): string {
+  const premier = achats[0]!;
+  const dernier = achats.at(-1)!;
+  if (!memeJour(achats)) return `Du ${dateLongue(premier.le)}, ${heureEnMots(premier.le)}, au ${dateLongue(dernier.le)}, ${heureEnMots(dernier.le)}`;
+  const debut = heureEnMots(premier.le);
+  const fin = heureEnMots(dernier.le);
+  return debut === fin ? `Le ${dateLongue(premier.le)} à ${debut}` : `Le ${dateLongue(premier.le)}, de ${debut} à ${fin}`;
+}
+
+/** Où poser l'objet dans sa vitrine : la plus grande case entière qui tienne, centré. `null` : aucun dessin. */
+export function placeDansLaVitrine(vignette: Vignette | null, boite: Boite, maxScale: number): DessinPose | null {
+  if (!vignette || vignette.largeur < 1 || vignette.hauteur < 1) return null;
+  const echelle = Math.max(1, Math.min(maxScale, Math.floor((boite.width - 2 * MARGE_VITRINE) / vignette.largeur), Math.floor((boite.height - 2 * MARGE_VITRINE) / vignette.hauteur)));
+  return {
+    decor: vignette,
+    echelle,
+    x: Math.round(boite.x + (boite.width - vignette.largeur * echelle) / 2),
+    y: Math.round(boite.y + (boite.height - vignette.hauteur * echelle) / 2),
+  };
+}
+
+/** Les carrés du rang, dans le coin haut gauche de la vitrine : leur écart au bord, et celui qui les sépare. */
+const RANG = { marge: 12, ecart: 5, nombre: 5 } as const;
+
+/**
+ * Le rang de la rareté, de 1 à 5, en carrés : pleins, de la couleur de la rareté, jusqu'au rang ; vides ensuite. Ils tiennent
+ * dans le jour de la vitrine (`MARGE_VITRINE`), que le dessin ne touche jamais.
+ */
+function carresDuRang(boite: Boite, rarete: Rarete, taille: number): CardRect[] {
+  const y = boite.y + MARGE_VITRINE - taille;
+  return Array.from({ length: RANG.nombre }, (_, i) => {
+    const x = boite.x + RANG.marge + i * (taille + RANG.ecart);
+    return i < RARETES[rarete].rang
+      ? { x, y, width: taille, height: taille, radius: 0, color: COULEURS_RARETE[rarete].bord }
+      : { x: x + 1, y: y + 1, width: taille - 2, height: taille - 2, radius: 0, color: C.NAVY, stroke: C.LINE_STRONG };
+  });
+}
+
+/** L'ombre de l'objet, sous lui, en cases : plus étroite que lui, et toujours dans la vitrine. */
+function ombreDuDessin(dessin: DessinPose, boite: Boite): CardRect {
+  const largeur = dessin.decor.largeur * dessin.echelle;
+  const bas = dessin.y + dessin.decor.hauteur * dessin.echelle;
+  const height = Math.min(dessin.echelle, 8);
+  const retrait = Math.min(2 * dessin.echelle, Math.floor(largeur / 4));
+  const y = Math.min(bas + Math.round(dessin.echelle / 2), boite.y + boite.height - 8 - height);
+  return { x: dessin.x + retrait, y, width: largeur - 2 * retrait, height, radius: 0, color: C.NAVY };
+}
+
+/** Le fond de la vitrine, bordé de la couleur de la rareté. */
+const vitrine = (boite: Boite, rarete: Rarete): CardRect => ({ ...boite, radius: 0, color: C.SURFACE, to: C.SURFACE_2, stroke: COULEURS_RARETE[rarete].bord, cut: COUPE });
+
+/** « Légendaire, tête ». */
+const rareteEtPlace = (achat: AchatDuVillage, rarete: Rarete) => `${RARETES[rarete].nom}, ${NOMS_EMPLACEMENTS[achat.emplacement].toLocaleLowerCase("fr")}`;
+
+/** Ce que dit l'origine, sous le chiffre clé d'un objet seul. */
+const DETAIL_ORIGINE = { achat: "au prix de sa rareté", pochette: "un objet tiré au sort", marche_achat: "auprès d'un autre Gaulois" } as const;
+
+/**
+ * Quoi écrire et où, à partir de l'annonce et du dessin de chaque objet (`vignettes`, dans l'ordre des achats) : se teste
+ * sans police. Un objet que ce code ne connaît pas n'arrive jamais ici (`lireReponseDesAchats` l'écarte).
+ */
+export function achatsCard(annonce: AnnonceDesAchats, vignettes: readonly (Vignette | null)[], siteUrl: string, measure: Measure): AchatsCard {
+  const { achats } = annonce;
+  const n = achats.length;
+  const kicker = n === 1 ? "Nouvel objet au village des Gaulois" : `${nouveauxObjets(n)} au village des Gaulois`;
+  const head = pageHead({ path: "/village", title: annonce.nom, name: true, kicker, period: periodeDesAchats(achats) }, measure);
+  const rects: CardRect[] = [...head.rects];
+  const texts: CardText[] = [...head.texts];
+  const dessins: DessinPose[] = [];
+  const top = Math.max(TOP, head.bottom + 8);
+
+  if (n === 1) {
+    const achat = achats[0]!;
+    const objet = objetDe(achat)!;
+    const boite: Boite = { x: WIDTH - MARGIN - SEULE.width, y: top, width: SEULE.width, height: BOTTOM - top };
+    rects.push(vitrine(boite, objet.rarete));
+    rects.push(...carresDuRang(boite, objet.rarete, 14));
+    const dessin = placeDansLaVitrine(vignettes[0] ?? null, boite, SEULE.maxScale);
+    if (dessin) {
+      rects.push(ombreDuDessin(dessin, boite));
+      dessins.push(dessin);
+    }
+    const width = boite.x - SEULE.gap - MARGIN;
+    // Les deux chiffres clés occupent la hauteur de la vitrine : ce qui reste sous eux passe entre les deux, et au-dessus.
+    const blocs = (y: number, ecart: number) => {
+      const nom = kpiParts([{ label: "Objet", value: objet.nom, hint: { text: rareteEtPlace(achat, objet.rarete), color: COULEURS_RARETE[objet.rarete].texte, strong: true } }], { x: MARGIN, y, width, valueSize: 64, minValueSize: 32 }, measure);
+      const origine = kpiParts([{ label: "Origine", value: ORIGINES[achat.nature].court, hint: { text: DETAIL_ORIGINE[achat.nature] } }], { x: MARGIN, y: nom.bottom + ecart, width, valueSize: 56, minValueSize: 30 }, measure);
+      return { nom, origine };
+    };
+    const reste = Math.max(0, BOTTOM - blocs(top, 26).origine.bottom);
+    const { nom, origine } = blocs(top + Math.round(reste / 4), 26 + Math.round(reste / 2));
+    rects.push(...nom.rects, ...origine.rects);
+    texts.push(...nom.texts, ...origine.texts);
+  } else {
+    const width = (WIDTH - 2 * MARGIN - (n - 1) * RANGEE.gap) / n;
+    const unJour = memeJour(achats);
+    achats.forEach((achat, i) => {
+      const objet = objetDe(achat)!;
+      const boite: Boite = { x: Math.round(MARGIN + i * (width + RANGEE.gap)), y: top, width: Math.floor(width), height: RANGEE.height };
+      rects.push(vitrine(boite, objet.rarete));
+      rects.push(...carresDuRang(boite, objet.rarete, 12));
+      const dessin = placeDansLaVitrine(vignettes[i] ?? null, boite, RANGEE.maxScale);
+      if (dessin) {
+        rects.push(ombreDuDessin(dessin, boite));
+        dessins.push(dessin);
+      }
+      const quand = unJour ? heureEnMots(achat.le) : `${dateLongue(achat.le).replace(/ \d{4}$/, "")} à ${heureEnMots(achat.le)}`;
+      const lignes: { text: string; font: CardText["font"]; size: number; min: number; color: string; y: number }[] = [
+        { text: objet.nom, font: "strong", size: 28, min: 17, color: C.WHITE, y: boite.y + boite.height + 40 },
+        { text: rareteEtPlace(achat, objet.rarete), font: "strong", size: 22, min: 15, color: COULEURS_RARETE[objet.rarete].texte, y: boite.y + boite.height + 72 },
+        { text: `${ORIGINES[achat.nature].court}, ${quand}`, font: "body", size: 21, min: 15, color: C.MUTED, y: boite.y + boite.height + 102 },
+      ];
+      for (const l of lignes) texts.push({ ...fitted(l.text, l.font, l.size, l.min, boite.width, measure), x: boite.x, y: l.y, font: l.font, color: l.color });
+    });
+  }
+
+  texts.push(...pageFoot(shownAddress(siteUrl, "/village"), PAYE_EN_STATERES, HEIGHT - 24, measure).texts);
+  return { width: WIDTH, height: HEIGHT, rects, texts, logo: LOGO, dessins };
+}
+
+/** Ce que l'image dit, pour un lecteur d'écran : Discord le lit comme description du fichier. */
+export const achatsImageAlt = (annonce: AnnonceDesAchats): string => annonceEnMots(annonce).join(" ").slice(0, 1024);
+
+/** Dessine l'image en PNG, chaque objet posé dans sa vitrine. */
+export async function renderAchatsCard(card: AchatsCard, fonts: GazetteFonts, root: string): Promise<Buffer> {
+  const layers: OverlayOptions[] = [];
+  for (const dessin of card.dessins) {
+    const { data, width, height } = pixelsDuDessin(dessin);
+    const png = await sharp(data, { raw: { width, height, channels: 4 } }).png().toBuffer();
+    layers.push({ input: png, left: dessin.x, top: dessin.y });
+  }
+  return renderGazetteCard(card, fonts, root, layers);
+}

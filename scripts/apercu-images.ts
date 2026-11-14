@@ -6,7 +6,8 @@
  * La gazette, l'image de l'accueil, la fiche du premier du clan et les nouveautés reprennent les données collectées, vrais
  * pseudos compris : ces images ne se postent pas. Le bâtiment fini du village (« 17-chantier ») est le dernier fini d'après
  * les sessions collectées ; les autres « 17-chantier-… » posent des dates et des restes d'exemple sur les vrais dessins des
- * bâtiments les plus larges et les plus hauts. Les alertes de place et la course du soir posent des chiffres d'exemple (place
+ * bâtiments les plus larges et les plus hauts. Les achats du village (« 18-achats-… ») posent de vrais objets du catalogue sous
+ * des noms d'exemple (« Gaulois n° » et un numéro inventé). Les alertes de place et la course du soir posent des chiffres d'exemple (place
  * de départ, points, écarts) sur le vrai classement. Les autres sont des exemples écrits ici, aux pseudos inventés : aucun
  * n'est celui d'un membre. La vignette d'une carte vient du dépôt d'OpenFront, comme au moment d'un envoi : sans réseau,
  * l'image des victoires se dessine sans elle.
@@ -45,6 +46,9 @@ import { batimentEnCours, batimentsFinis } from "../src/lib/village/chantier";
 import { BATIMENTS } from "../src/lib/village/chantier-liste";
 import { PLEIN_JOUR } from "../src/lib/village/lumiere";
 import { etatDuMondeDuSite } from "../src/lib/village/monde-site";
+import { NATURES, type AnnonceDesAchats, type EmplacementDObjet } from "../src/lib/achats-discord";
+import { achatsCard, renderAchatsCard } from "../src/lib/achats-image";
+import { EMPLACEMENTS_OBJETS, OBJETS, ORDRE_RARETES, vignetteDeLObjet } from "../src/lib/gaulois";
 
 const OUT = process.argv[2] ?? join("test-results", "images-discord");
 const SITE = clan.links.site;
@@ -338,6 +342,38 @@ for (const [file, annonce] of annonces) {
     const card = chantierCard(annonce, dessinDuBatiment(annonce.batiment.id, PLEIN_JOUR, 1), SITE, measure);
     writeFileSync(join(OUT, file), await renderChantierCard(card, fonts, root));
     console.log(`${file} : ${card.width} × ${card.height}, ${annonce.batiment.id} à ${card.dessin?.echelle ?? 0} pixels par case`);
+  } catch (e) {
+    console.log(`${file} : ${e instanceof Error ? e.message : String(e)}`);
+  }
+}
+
+// Les achats du village : de vrais objets du catalogue, sous des noms d'exemple (« Gaulois n° » et un numéro inventé).
+const payants = EMPLACEMENTS_OBJETS.flatMap((emplacement) =>
+  Object.entries(OBJETS[emplacement])
+    .filter(([, o]) => !o.gratuit && o.rarete)
+    .map(([objet, o]) => ({ emplacement: emplacement as EmplacementDObjet, objet, rarete: o.rarete, nom: o.nom, taille: vignetteDeLObjet(emplacement, objet) })),
+);
+const plusHaut = payants.reduce((a, b) => ((b.taille?.hauteur ?? 0) > (a.taille?.hauteur ?? 0) ? b : a));
+const plusLarge = payants.reduce((a, b) => ((b.taille?.largeur ?? 0) > (a.taille?.largeur ?? 0) ? b : a));
+const plusLong = payants.reduce((a, b) => (b.nom.length > a.nom.length ? b : a));
+const parRarete = ORDRE_RARETES.map((r) => payants.find((p) => p.rarete === r)!);
+const exempleAchats = (nom: string, objets: readonly { emplacement: EmplacementDObjet; objet: string }[]): AnnonceDesAchats => ({
+  nom,
+  achats: objets.map((p, i) => ({ id: 1 + i, nature: NATURES[i % NATURES.length]!, emplacement: p.emplacement, objet: p.objet, compte: 1, nom, le: new Date(Date.parse("2026-11-14T20:05:00.000Z") + i * 720_000).toISOString() })),
+});
+const achatsExemples: [string, AnnonceDesAchats][] = [
+  ["18-achats-1-legendaire.png", exempleAchats("Gaulois n° 12", [parRarete[4]!])],
+  ["18-achats-1-plus-haut.png", exempleAchats("Gaulois n° 12", [plusHaut])],
+  ["18-achats-1-plus-large.png", exempleAchats("Gaulois n° 12", [plusLarge])],
+  ["18-achats-2.png", exempleAchats("Gaulois n° 31", [parRarete[3]!, parRarete[1]!])],
+  ["18-achats-3.png", exempleAchats("Gaulois n° 31", [plusLong, parRarete[2]!, plusHaut])],
+  ["18-achats-4.png", exempleAchats("Gaulois n° 7", [parRarete[0]!, parRarete[2]!, parRarete[4]!, plusLarge])],
+];
+for (const [file, annonce] of achatsExemples) {
+  try {
+    const card = achatsCard(annonce, annonce.achats.map((a) => vignetteDeLObjet(a.emplacement, a.objet)), SITE, measure);
+    writeFileSync(join(OUT, file), await renderAchatsCard(card, fonts, root));
+    console.log(`${file} : ${card.width} × ${card.height}, ${annonce.achats.map((a) => a.objet).join(", ")} à ${card.dessins.map((d) => d.echelle).join(", ")} pixels par case`);
   } catch (e) {
     console.log(`${file} : ${e instanceof Error ? e.message : String(e)}`);
   }

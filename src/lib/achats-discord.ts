@@ -1,0 +1,341 @@
+/**
+ * Les achats du village des Gaulois sur le salon des nouvelles, à côté des bâtiments finis (`chantier-discord.ts`). Demande du
+ * pilote, 14 novembre 2026 : « dans le webhook qui notifie des constructions du village, marquer aussi les achats faits dans
+ * le jeu par les joueurs, avec l'image du cosmétique ». Une image par Gaulois : son nom, et chaque objet reçu dessiné en
+ * pixels, avec sa rareté, d'où il vient et son heure (`achats-image.ts`), puis un bouton vers `/village`, sans texte. Le texte
+ * ne part que si l'image ne se dessine pas, ou si Discord la refuse (`discord-post.ts`).
+ *
+ * - **Ce qui est annoncé** : un objet acheté à la boutique, sorti d'une pochette surprise ou acheté au marché, par un compte
+ *   encore validé. C'est le serveur qui le lit, au journal des statères (migration `20261114001700_village_achats_sur_discord`,
+ *   `achats_du_village`, réservée à la clé de service). La forge grave une plaque, elle ne donne pas d'objet : rien à annoncer.
+ * - **Ce qui ne l'est jamais** : un montant, un prix payé, un solde, un vendeur. Le nom est celui des autres images du robot,
+ *   vues hors du clan : le pseudo public d'aujourd'hui, sinon « Gaulois n° » et le numéro du compte (jamais le nom du QG, qui
+ *   garderait le pseudo d'un membre qui l'a caché depuis).
+ * - **Au premier passage**, le robot note le dernier numéro du journal sans rien envoyer : les achats d'avant ne partent pas.
+ *   Un état illisible repart de même, avec un avertissement : un achat de l'heure peut s'y perdre.
+ * - **Un achat annoncé n'est pas réannoncé** : le robot note le dernier numéro traité (`jusqu_a`) et, au-delà, les achats déjà
+ *   annoncés (`envoyes`). Un envoi refusé arrête le passage : il est retenté au suivant, et ceux d'avant restent notés. Même
+ *   limite que les autres envois : si l'état n'a pas pu être enregistré, une annonce envoyée mais non notée repart une fois.
+ * - Les achats d'un même Gaulois vont sur la même image, quatre au plus ; cinq images au plus par passage, le reste part au
+ *   suivant. Un achat de plus de 48 heures n'est plus annoncé : ce n'est plus une nouvelle (robot arrêté longtemps).
+ * L'état est noté dans `data/achats-envoi.json`, écrit par le robot seulement : des numéros et des heures, aucun nom.
+ */
+import { z } from "zod";
+import { dateLongue, heureEnMots, villageButton } from "./chantier-discord";
+import { imageMessage, postWithImage, textMessage } from "./discord-post";
+import { EMPLACEMENTS_OBJETS, NOMS_EMPLACEMENTS, OBJETS, type Objet, type Rarete } from "./gaulois";
+import { escapeDiscord, type RenderedImage } from "./gazette-discord";
+import { parseNoted, siteLink } from "./salon-discord";
+
+const isoDate = z.iso.datetime();
+
+/** Les objets d'un même Gaulois sur une image : au-delà, une autre image. */
+export const OBJETS_PAR_IMAGE = 4;
+/** Les images d'un passage : au-delà, la suite part au passage suivant. */
+export const IMAGES_PAR_PASSAGE = 5;
+/** Un achat plus vieux n'est plus annoncé. */
+export const TROP_ANCIEN_MS = 48 * 3_600_000;
+/** Le nom de la migration, pour l'avertissement d'une fonction encore absente. */
+export const MIGRATION_ACHATS = "20261114001700_village_achats_sur_discord";
+
+export const AchatsSendState = z.object({
+  /** Le premier passage : les achats d'avant n'ont pas été annoncés. */
+  depuis: isoDate,
+  /** Le dernier numéro du journal traité : tout achat jusque-là est annoncé, trop ancien, ou d'un compte qui n'est plus validé. */
+  jusqu_a: z.number().int().nonnegative(),
+  /** Les achats annoncés au-delà de `jusqu_a` : un passage arrêté en route ne les renvoie pas. */
+  envoyes: z.array(z.number().int().positive()),
+  /** L'heure du dernier message accepté par Discord. */
+  dernier_envoi: isoDate.nullable(),
+});
+export type AchatsSendState = z.infer<typeof AchatsSendState>;
+
+/** L'état noté. Illisible : `null` et un avertissement ; le passage repart alors comme au premier. */
+export const parseAchatsState = (raw: string | null) => parseNoted(AchatsSendState, raw, "les achats d'avant sont notés comme connus, rien n'est envoyé pour eux");
+
+/** D'où vient l'objet : les natures du journal des statères. */
+export const NATURES = ["achat", "pochette", "marche_achat"] as const;
+export type NatureDAchat = (typeof NATURES)[number];
+export type EmplacementDObjet = (typeof EMPLACEMENTS_OBJETS)[number];
+
+/** Un objet reçu par un Gaulois, tel que le robot l'annonce. */
+export interface AchatDuVillage {
+  /** Le numéro de la ligne du journal des statères. */
+  id: number;
+  nature: NatureDAchat;
+  emplacement: EmplacementDObjet;
+  objet: string;
+  /** Le numéro du compte : il range les achats d'un même Gaulois, il ne s'écrit nulle part. */
+  compte: number;
+  /** Le nom que le village montre pour ce compte. */
+  nom: string;
+  /** L'heure de l'achat. */
+  le: string;
+}
+
+/** Une image : les achats d'un même Gaulois, de un à `OBJETS_PAR_IMAGE`, dans l'ordre du journal. */
+export interface AnnonceDesAchats {
+  nom: string;
+  achats: AchatDuVillage[];
+}
+
+/** L'objet du catalogue, s'il est payant : seuls ceux-là s'achètent. */
+export function objetDe(achat: Pick<AchatDuVillage, "emplacement" | "objet">): (Objet & { rarete: Rarete }) | null {
+  const objet = OBJETS[achat.emplacement]?.[achat.objet];
+  return objet && !objet.gratuit && objet.rarete ? (objet as Objet & { rarete: Rarete }) : null;
+}
+
+/** La rareté en mots, accordée à « rareté » : « rareté commune ». */
+const RARETE_ACCORDEE: Readonly<Record<Rarete, string>> = { commun: "commune", "peu-commun": "peu commune", epique: "épique", mystique: "mystique", legendaire: "légendaire" };
+
+/** D'où vient l'objet, dans une phrase, et en court, sur l'image. */
+export const ORIGINES: Readonly<Record<NatureDAchat, { phrase: string; court: string }>> = {
+  achat: { phrase: "à la boutique", court: "Boutique" },
+  pochette: { phrase: "dans une pochette surprise", court: "Pochette surprise" },
+  marche_achat: { phrase: "au marché", court: "Marché" },
+};
+
+/** La réserve de chaque annonce : ce qui a payé ces objets. */
+export const PAYE_EN_STATERES = "Payé en statères, qui viennent des points rapportés au clan.";
+
+/** « Baguette (arme, rareté commune) ». */
+export function objetEnMots(achat: AchatDuVillage): string {
+  const objet = objetDe(achat);
+  if (!objet) return achat.objet;
+  return `${objet.nom} (${NOMS_EMPLACEMENTS[achat.emplacement].toLocaleLowerCase("fr")}, rareté ${RARETE_ACCORDEE[objet.rarete]})`;
+}
+
+/** « 1 nouvel objet », « 3 nouveaux objets ». */
+export const nouveauxObjets = (n: number) => (n >= 2 ? `${n} nouveaux objets` : "1 nouvel objet");
+
+/** Ce que dit l'annonce, pour un lecteur d'écran et pour le texte de secours : le titre, une ligne par objet, la réserve. */
+export function annonceEnMots(annonce: AnnonceDesAchats): string[] {
+  return [
+    `${annonce.nom} au village des Gaulois : ${nouveauxObjets(annonce.achats.length)}.`,
+    ...annonce.achats.map((a) => `${objetEnMots(a)} : ${ORIGINES[a.nature].phrase}, le ${dateLongue(a.le)} à ${heureEnMots(a.le)}.`),
+    PAYE_EN_STATERES,
+  ];
+}
+
+/** Le message. `image` : le fichier joint et sa description, avec le bouton, sans texte. Sans elle, le secours en texte. */
+export function achatsPayload(annonce: AnnonceDesAchats, siteUrl: string, image: { alt: string; filename: string } | null): Record<string, unknown> {
+  const site = siteUrl.replace(/\/$/, "");
+  if (image) return imageMessage(site, image, [villageButton(site)]);
+  const lignes = annonce.achats.map((a) => `- ${escapeDiscord(objetEnMots(a))} : ${ORIGINES[a.nature].phrase}, le ${dateLongue(a.le)} à ${heureEnMots(a.le)}`);
+  return textMessage(site, [`**${escapeDiscord(annonce.nom)}** au village des Gaulois : ${nouveauxObjets(annonce.achats.length)}`, ...lignes, `[Voir le village sur le site](<${siteLink(site, "/village")}>)`, `-# ${PAYE_EN_STATERES}`].join("\n"));
+}
+
+export interface AchatsSendDeps {
+  /** Un lien déjà vérifié par `isWebhookUrl`. */
+  link: string;
+  annonce: AnnonceDesAchats;
+  /** Dessine l'image. Si elle échoue, le message part en texte. */
+  renderImage: (annonce: AnnonceDesAchats) => Promise<RenderedImage>;
+  siteUrl: string;
+  fetch: typeof fetch;
+  log: (line: string) => void;
+}
+
+/** Envoie l'annonce en image, ou en texte si elle ne se dessine pas : voir `postWithImage`. Un échec se retente au passage suivant. */
+export function sendAchats({ link, annonce, renderImage, siteUrl, fetch, log }: AchatsSendDeps): Promise<boolean> {
+  return postWithImage({
+    link,
+    label: "Achats du village",
+    text: achatsPayload(annonce, siteUrl, null),
+    image: async () => {
+      const { png, alt } = await renderImage(annonce);
+      const filename = `achats-${annonce.achats[0]?.id ?? 0}.png`;
+      return { payload: achatsPayload(annonce, siteUrl, { alt, filename }), png, filename };
+    },
+    fetch,
+    log,
+  });
+}
+
+/* ---------- La lecture au serveur ---------- */
+
+/**
+ * Ce que la lecture a donné :
+ * - `lu` : le serveur a répondu ; `jusqu_a` est le dernier numéro qu'il a lu, `achats` ceux à annoncer, `inconnus` les objets
+ *   que ce code ne sait pas dessiner (un objet ajouté au serveur avant d'arriver ici), sautés ;
+ * - `sans-reglage` : pas de `SUPABASE_URL` ou de clé de service, rien n'a été demandé ;
+ * - `fonction-absente` : la migration n'est pas encore collée dans Supabase ;
+ * - `panne` : refus, délai dépassé ou réponse illisible.
+ */
+export type LectureDesAchats =
+  | { etat: "lu"; jusqu_a: number; achats: AchatDuVillage[]; inconnus: number }
+  | { etat: "sans-reglage" | "fonction-absente" | "panne"; warning: string };
+
+const LigneDuServeur = z.object({
+  id: z.number().int().positive(),
+  nature: z.enum(NATURES),
+  emplacement: z.string(),
+  objet: z.string(),
+  compte: z.number().int(),
+  nom: z.string(),
+  le: z.string().refine((s) => !Number.isNaN(Date.parse(s))),
+});
+const ReponseDuServeur = z.object({ ok: z.literal(true), jusqu_a: z.number().int().nonnegative(), achats: z.array(z.unknown()) });
+
+/** Un nom sans retour à la ligne ni caractère de contrôle, coupé à 64 caractères comme au serveur. */
+const nomPropre = (nom: string) =>
+  [...nom.replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu, " ").replace(/\s+/g, " ").trim()]
+    .slice(0, 64)
+    .join("")
+    .trim();
+
+/** La réponse du serveur, relue. `null` : illisible. Une ligne mal formée ou d'un objet inconnu est sautée et comptée. */
+export function lireReponseDesAchats(data: unknown): Extract<LectureDesAchats, { etat: "lu" }> | null {
+  const reponse = ReponseDuServeur.safeParse(data);
+  if (!reponse.success) return null;
+  const achats: AchatDuVillage[] = [];
+  let inconnus = 0;
+  for (const brut of reponse.data.achats) {
+    const ligne = LigneDuServeur.safeParse(brut);
+    const nom = ligne.success ? nomPropre(ligne.data.nom) : "";
+    const emplacement = ligne.success ? (EMPLACEMENTS_OBJETS as readonly string[]).find((e) => e === ligne.data.emplacement) : undefined;
+    if (!ligne.success || !emplacement || !nom || !objetDe({ emplacement: emplacement as EmplacementDObjet, objet: ligne.data.objet })) {
+      inconnus++;
+      continue;
+    }
+    achats.push({ ...ligne.data, emplacement: emplacement as EmplacementDObjet, nom, le: new Date(ligne.data.le).toISOString() });
+  }
+  achats.sort((a, b) => a.id - b.id);
+  return { etat: "lu", jusqu_a: reponse.data.jusqu_a, achats, inconnus };
+}
+
+/** Appelle `achats_du_village` avec la clé de service et rend sa réponse. Lève une erreur si le serveur refuse ou ne répond pas. */
+export type AchatsCall = (url: string, key: string, apres: number | null) => Promise<unknown>;
+
+/** Au-delà, le serveur est tenu pour absent : le même délai que les liens des salons (`DIRECTION_TIMEOUT_MS`). */
+export const ACHATS_TIMEOUT_MS = 10_000;
+
+const callSupabase: AchatsCall = async (url, key, apres) => {
+  const { createClient } = await import("@supabase/supabase-js");
+  const sb = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+  const { data, error } = await sb.rpc("achats_du_village", { p_apres: apres }).abortSignal(AbortSignal.timeout(ACHATS_TIMEOUT_MS));
+  if (error) throw Object.assign(new Error(error.message), { code: error.code });
+  return data;
+};
+
+/** Les codes d'une fonction que le serveur ne connaît pas : celui de PostgREST, puis celui de Postgres. */
+const FONCTION_INCONNUE = new Set(["PGRST202", "42883"]);
+function fonctionAbsente(e: unknown): boolean {
+  const code = typeof e === "object" && e !== null ? (e as { code?: unknown }).code : undefined;
+  if (typeof code === "string" && FONCTION_INCONNUE.has(code)) return true;
+  return e instanceof Error && /could not find the function|function [\w.]*achats_du_village\b.* does not exist/i.test(e.message);
+}
+
+/** Un message d'erreur qui ne peut contenir ni lien ni clé : tout ce qui y ressemble est remplacé par « … », puis le message est coupé. */
+function messageSur(e: unknown, secrets: readonly string[]): string {
+  let texte = (e instanceof Error ? e.message : String(e)).replace(/https?:\/\/\S+/g, "…");
+  for (const secret of secrets) if (secret.length >= 4) texte = texte.split(secret).join("…");
+  return texte
+    .replace(/\b[0-9a-fA-F]{32,}\b/g, "…")
+    .replace(/\b(?:sb_secret_|sb_publishable_|eyJ)[\w.-]+/g, "…")
+    .slice(0, 160);
+}
+
+/** Les achats après le numéro `apres` (`null` : premier passage, le dernier numéro seulement). Ne lève jamais d'erreur. */
+export async function lireAchats(apres: number | null, env: Record<string, string | undefined> = process.env, call: AchatsCall = callSupabase): Promise<LectureDesAchats> {
+  const url = env["SUPABASE_URL"]?.trim();
+  const key = env["SUPABASE_SECRET_KEY"]?.trim();
+  if (!url || !key) return { etat: "sans-reglage", warning: "pas de SUPABASE_URL ou de SUPABASE_SECRET_KEY, aucun achat lu" };
+  try {
+    const lu = lireReponseDesAchats(await call(url, key, apres));
+    return lu ?? { etat: "panne", warning: "réponse du serveur illisible, aucun achat lu" };
+  } catch (e) {
+    if (fonctionAbsente(e)) return { etat: "fonction-absente", warning: `la migration ${MIGRATION_ACHATS} n'est pas encore collée dans Supabase, aucun achat lu` };
+    return { etat: "panne", warning: `lecture impossible (${messageSur(e, [url, key])}), aucun achat lu` };
+  }
+}
+
+/* ---------- Le passage du robot ---------- */
+
+/** Les images à envoyer : les achats rangés par Gaulois, dans l'ordre de son premier achat, `OBJETS_PAR_IMAGE` par image. */
+export function annoncesDesAchats(achats: readonly AchatDuVillage[]): AnnonceDesAchats[] {
+  const parCompte = new Map<number, AchatDuVillage[]>();
+  for (const achat of [...achats].sort((a, b) => a.id - b.id)) {
+    const liste = parCompte.get(achat.compte);
+    if (liste) liste.push(achat);
+    else parCompte.set(achat.compte, [achat]);
+  }
+  const annonces: AnnonceDesAchats[] = [];
+  for (const liste of parCompte.values()) {
+    // Le nom du dernier achat : celui que le village montre aujourd'hui.
+    const nom = liste.at(-1)!.nom;
+    for (let i = 0; i < liste.length; i += OBJETS_PAR_IMAGE) annonces.push({ nom, achats: liste.slice(i, i + OBJETS_PAR_IMAGE) });
+  }
+  return annonces;
+}
+
+export interface AchatsPassDeps {
+  /** L'état noté au passage précédent. `null` : premier passage, ou état illisible. */
+  stored: AchatsSendState | null;
+  /** Lit les achats au serveur (`lireAchats`). */
+  lire: (apres: number | null) => Promise<LectureDesAchats>;
+  now: Date;
+  /** Envoie l'annonce. `true` : Discord l'a acceptée. */
+  send: (annonce: AnnonceDesAchats) => Promise<boolean>;
+  log: (line: string) => void;
+}
+
+export interface AchatsPassResult {
+  /** L'état à écrire. `null` : rien n'a changé, rien à écrire. */
+  state: AchatsSendState | null;
+  /** Une annonce devait partir et Discord ne l'a pas acceptée, ou le serveur est en panne. */
+  failed: boolean;
+}
+
+/** Un passage sans lecture : rien à écrire. Une fonction absente ou un réglage manquant n'est qu'une note. */
+function sansLecture(lecture: Exclude<LectureDesAchats, { etat: "lu" }>, log: (line: string) => void): AchatsPassResult {
+  log(`${lecture.etat === "panne" ? "::warning::" : "::notice::"}Achats du village : ${lecture.warning}.`);
+  return { state: null, failed: lecture.etat === "panne" };
+}
+
+/**
+ * Un passage du robot : lit, décide, envoie au besoin, et rend l'état à noter. Un achat ne devient connu qu'après un envoi
+ * accepté ; après un échec, le passage suivant réessaie.
+ */
+export async function achatsPass({ stored, lire, now, send, log }: AchatsPassDeps): Promise<AchatsPassResult> {
+  const lecture = await lire(stored ? stored.jusqu_a : null);
+  if (lecture.etat !== "lu") return sansLecture(lecture, log);
+  if (lecture.inconnus > 0) log(`::warning::Achats du village : ${lecture.inconnus > 1 ? `${lecture.inconnus} achats d'objets` : "1 achat d'un objet"} que ce code ne sait pas dessiner, non annoncé${lecture.inconnus > 1 ? "s" : ""}.`);
+  if (!stored) {
+    log("::notice::Achats du village : premier passage, les achats d'avant sont notés comme connus, rien n'est envoyé.");
+    return { state: { depuis: now.toISOString(), jusqu_a: lecture.jusqu_a, envoyes: [], dernier_envoi: null }, failed: false };
+  }
+
+  const dejaEnvoyes = new Set(stored.envoyes);
+  const nouveaux = lecture.achats.filter((a) => a.id > stored.jusqu_a && !dejaEnvoyes.has(a.id));
+  const limite = now.getTime() - TROP_ANCIEN_MS;
+  const anciens = nouveaux.filter((a) => Date.parse(a.le) < limite);
+  if (anciens.length > 0) log(`::notice::Achats du village : ${anciens.length > 1 ? `${anciens.length} achats de plus de 48 heures, non annoncés` : "1 achat de plus de 48 heures, non annoncé"}.`);
+  const annonces = annoncesDesAchats(nouveaux.filter((a) => Date.parse(a.le) >= limite));
+
+  const envoyes = [...stored.envoyes];
+  let dernierEnvoi = stored.dernier_envoi;
+  let failed = false;
+  let partis = 0;
+  for (const annonce of annonces) {
+    if (partis >= IMAGES_PAR_PASSAGE) break;
+    if (!(await send(annonce))) {
+      failed = true;
+      break;
+    }
+    partis++;
+    envoyes.push(...annonce.achats.map((a) => a.id));
+    dernierEnvoi = now.toISOString();
+    log(`::notice::Achats du village : ${nouveauxObjets(annonce.achats.length)}, annonce acceptée par Discord.`);
+  }
+  const reste = annonces.length - partis;
+  if (reste > 0 && !failed) log(`Achats du village : ${reste > 1 ? `${reste} images partiront` : "1 image partira"} au prochain passage.`);
+
+  // Tout est parti : le numéro avance jusqu'au dernier lu, même sur ce qui n'était pas à annoncer.
+  const fini = reste === 0;
+  const jusquA = fini ? Math.max(stored.jusqu_a, lecture.jusqu_a) : stored.jusqu_a;
+  const state: AchatsSendState = { ...stored, jusqu_a: jusquA, envoyes: envoyes.filter((id) => id > jusquA).sort((a, b) => a - b), dernier_envoi: dernierEnvoi };
+  const change = state.jusqu_a !== stored.jusqu_a || JSON.stringify(state.envoyes) !== JSON.stringify(stored.envoyes) || state.dernier_envoi !== stored.dernier_envoi;
+  if (!change && annonces.length === 0) log("Achats du village : rien à envoyer (aucun nouvel achat).");
+  return { state: change ? state : null, failed };
+}
