@@ -16,11 +16,12 @@ export const LIEUX: readonly Lieu[] = ["place", "taverne", "reunion", "bataille"
 export const PHASES: readonly Phase[] = ["aube", "jour", "crepuscule", "nuit"];
 
 /** Où il est, en mots, pour qui ne voit pas l'image. */
+/** Où il est et ce qui l'y met, en mots : rien n'est du temps réel (une partie finie, le vocal du dernier relevé). */
 export const LIEUX_EN_MOTS: Readonly<Record<Lieu, string>> = {
   place: "sur la place du village",
-  taverne: "à la taverne",
-  reunion: "dans la salle de réunion",
-  bataille: "au champ de bataille",
+  taverne: "à la taverne, après sa dernière partie",
+  reunion: "dans la salle de réunion, en vocal au dernier relevé",
+  bataille: "au champ de bataille, pour sa dernière partie",
   maisons: "dans sa maison",
 };
 export const PHASES_EN_MOTS: Readonly<Record<Phase, string>> = { aube: "à l'aube", jour: "en plein jour", crepuscule: "au crépuscule", nuit: "la nuit" };

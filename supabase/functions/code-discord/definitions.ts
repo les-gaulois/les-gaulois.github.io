@@ -60,7 +60,7 @@ export const RIVAL_COMMAND = {
 } as const;
 export const MOI_COMMAND = { name: "moi", type: 1, description: "Votre fiche, si le site vous a reconnu comme membre du clan" } as const;
 /** /gaulois (docs/DIRECTION.md, « Le village des Gaulois ») : le Gaulois en pixels de qui la tape, habillé au village du site. */
-export const GAULOIS_COMMAND = { name: "gaulois", type: 1, description: "Montrer à tous votre Gaulois en pixels, habillé au village du site" } as const;
+export const GAULOIS_COMMAND = { name: "gaulois", type: 1, description: "Montrer à tous votre Gaulois en pixels, là où il est au village du site" } as const;
 
 /** Le droit « Gérer les rôles » de Discord (1 << 28), en chiffres. */
 export const MANAGE_ROLES = "268435456";

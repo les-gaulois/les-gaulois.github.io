@@ -9,8 +9,8 @@ import { DECOR_PLACE } from "./place.ts";
 import { DECOR_REUNION } from "./reunion.ts";
 import { DECOR_TAVERNE } from "./taverne.ts";
 
-/** Les dessins, lieu par lieu. Un lieu sans dessin prend celui de la place. */
-export const DESSINS_DES_LIEUX: Partial<Record<Lieu, DessinDuLieu>> = {
+/** Les dessins, lieu par lieu. */
+export const DESSINS_DES_LIEUX: Record<Lieu, DessinDuLieu> = {
   place: DECOR_PLACE,
   taverne: DECOR_TAVERNE,
   reunion: DECOR_REUNION,
@@ -21,12 +21,12 @@ export const DESSINS_DES_LIEUX: Partial<Record<Lieu, DessinDuLieu>> = {
 const deja = new Map<string, Decor>();
 
 /** Le décor d'un lieu à un moment, gardé une fois fait : l'astre compte au centième de sa course. */
-export function decorDe(lieu: Lieu, moment: Moment, repli: DessinDuLieu): Decor {
+export function decorDe(lieu: Lieu, moment: Moment): Decor {
   const astre = moment.astre ? `${moment.astre.sorte}:${Math.round(moment.astre.course * 100)}:${Math.round(moment.astre.hauteur * 100)}` : "-";
   const cle = `${lieu}:${moment.phase}:${astre}`;
   let decor = deja.get(cle);
   if (!decor) {
-    decor = (DESSINS_DES_LIEUX[lieu] ?? DESSINS_DES_LIEUX.place ?? repli)(moment);
+    decor = DESSINS_DES_LIEUX[lieu](moment);
     if (deja.size > 200) deja.clear();
     deja.set(cle, decor);
   }

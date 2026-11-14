@@ -24,7 +24,6 @@
  * ombre ; n, y et z sont des lumières.
  */
 import { ecrirePng, type Image } from "./billets.ts";
-import type { DessinDuLieu } from "./decors/commun.ts";
 import { decorDe } from "./decors/index.ts";
 import { GARDE_ROBE } from "./garde-robe/index.ts";
 import { LOGO_DU_CLAN } from "./logo-du-clan.ts";
@@ -2385,9 +2384,6 @@ export function imageDuGaulois(tenue: Tenue): Image {
   return { largeur, hauteur, rgba };
 }
 
-/** Le décor d'avant le 14 novembre 2026, celui de `imageDuGaulois` : il sert de repli tant qu'un lieu n'a pas de dessin. */
-const DECOR_D_AVANT: DessinDuLieu = () => ({ cases: casesDuDecor(), ombre: NUIT.ombre });
-
 /** Le logo du clan, une fois décodé : ses pixels en RVBA. */
 let logo: Uint8Array | null = null;
 const pixelsDuLogo = (): Uint8Array => (logo ??= Uint8Array.from(atob(LOGO_DU_CLAN.rgba), (c) => c.charCodeAt(0)));
@@ -2418,7 +2414,7 @@ export function imageDeLaScene(tenue: Tenue, scene: Scene): Image {
       }
     }
   };
-  const decor = decorDe(scene.lieu, scene.moment, DECOR_D_AVANT);
+  const decor = decorDe(scene.lieu, scene.moment);
   decor.cases.forEach((couleur, i) => caseA(i % DECOR_LARGEUR, Math.floor(i / DECOR_LARGEUR), couleur));
   // Le Gaulois, au milieu, les pieds sur le sol, sur son ombre, comme dans `imageDuGaulois`.
   const ox = (DECOR_LARGEUR - GAULOIS_LARGEUR) / 2;
