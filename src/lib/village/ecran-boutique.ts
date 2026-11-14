@@ -179,8 +179,17 @@ export function nombre(n: number): string {
   return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, FINE);
 }
 
-/** « 1 statère », « 250 statères ». */
-export const stateres = (n: number): string => `${nombre(n)}${NBSP}${n === 1 ? "statère" : "statères"}`;
+/**
+ * Le mot qui suit un nombre de statères, avec la règle du site (`fmtCount` de `format.ts`) : le pluriel à partir de 2,
+ * « 0 statère », « 1 statère », « 2 statères ». Une seule écriture partout dans le village.
+ */
+export const motStatere = (n: number): string => (n > 1 ? "statères" : "statère");
+
+/** « 0 statère », « 1 statère », « 250 statères ». */
+export const stateres = (n: number): string => `${nombre(n)}${NBSP}${motStatere(n)}`;
+
+/** « 2 exemplaires » : le nombre d'exemplaires d'un objet possédé, en mots (règle du pilote : pas de « × 2 »). */
+export const exemplaires = (n: number): string => `${nombre(n)}${NBSP}${n > 1 ? "exemplaires" : "exemplaire"}`;
 
 /** Les points d'une partie, à la française : 1,67. */
 export const points = (n: number): string => String(Math.round(n * 100) / 100).replace(".", ",");
@@ -237,6 +246,19 @@ export const MESSAGES_BOURSE: Readonly<Record<EtatBourse, string | null>> = {
  */
 export function soldeAMontrer(s: Pick<MesStateres, "valide" | "lie" | "gaulois" | "releve" | "solde">): number | null {
   return s.solde > 0 || etatDeLaBourse(s) === "prete" ? s.solde : null;
+}
+
+/** Ce que les deux bourses, « Mon Gaulois » et le marché, écrivent à la place d'un solde qui ne se sait pas encore. */
+export const SOLDE_INCONNU = "Pas encore de statères comptés";
+
+/**
+ * Le solde à écrire au marché, avec la règle de la bourse de « Mon Gaulois » (`soldeAMontrer`) : le solde que le marché
+ * vient de lire, et l'état de la bourse (`get_mes_stateres`). Sans cet état, un solde nul ne s'écrit pas : « pas de
+ * données » n'est pas zéro.
+ */
+export function soldeDuMarche(solde: number, bourse: Pick<MesStateres, "valide" | "lie" | "gaulois" | "releve"> | null): number | null {
+  if (bourse === null) return solde > 0 ? solde : null;
+  return soldeAMontrer({ ...bourse, solde });
 }
 
 /**

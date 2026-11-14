@@ -184,8 +184,9 @@ describe("le contrôle de la mise en ligne", () => {
     const label = "workflow peut noter les parties pour les statères";
     const avecCle = async (secret: Record<string, Route>) => (await run(HEALTHY, "sb_secret_x", secret)).find((c) => c.label.includes(label));
     expect((await avecCle(SECRET))?.status).toBe("ok");
-    expect(await avecCle({ ...SECRET, "/rest/v1/rpc/stateres_parties_notees": { status: 404, body: {} } })).toMatchObject({ status: "warn", detail: expect.stringContaining("20261113001800") });
+    expect(await avecCle({ ...SECRET, "/rest/v1/rpc/stateres_parties_notees": { status: 404, body: {} } })).toMatchObject({ status: "warn", detail: expect.stringContaining(".cache/a-coller-village.sql") });
     expect(await avecCle({ ...SECRET, "/rest/v1/rpc/stateres_parties_notees": { status: 403, body: {} } })).toMatchObject({ status: "warn", detail: expect.stringContaining("Réponse 403") });
+    expect((await avecCle({ ...SECRET, "/rest/v1/rpc/stateres_parties_notees": { status: 403, body: {} } }))?.detail).toContain(".cache/a-coller-village.sql");
     expect((await avecCle({ ...SECRET, "/rest/v1/rpc/stateres_parties_notees": { status: 200, body: { ok: false, error: "invalid_request" } } }))?.status).toBe("warn");
     // Avec la clé secrète, seule la lecture des parties notées est appelée : jamais noter_victoires_stateres.
     seen.length = 0;
@@ -264,6 +265,29 @@ describe("le contrôle de la mise en ligne", () => {
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/regler_bulles_du_village": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "ne coupe ni ne remet les bulles")).toBe("ok");
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/regler_bulles_du_village": { status: 200, body: { ok: true, bulles: false } } }, "ne coupe ni ne remet les bulles")).toBe("fail");
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/regler_plafond_du_village": { status: 200, body: { ok: true, plafond: 10 } } }, "ne change pas le plafond des bulles")).toBe("fail");
+    // Les valeurs envoyées seraient refusées par la fonction elle-même : ni des bulles coupées ou remises, ni un plafond permis.
+    seen.length = 0;
+    await run();
+    const corps = (fn: string) => JSON.parse(seen.find((s) => s.url.endsWith(`/rpc/${fn}`))?.body ?? "undefined");
+    expect(corps("regler_bulles_du_village")).toEqual({ p_actives: null });
+    expect(corps("regler_plafond_du_village")).toEqual({ p_plafond: -1 });
+  });
+
+  // Une migration du village recollée seule remettrait ses anciennes fonctions (docs/DIRECTION.md) : chaque message du
+  // village renvoie au fichier unique, jamais à une migration.
+  it("renvoie toujours au fichier unique du village, jamais à une de ses migrations", async () => {
+    const absentes = ["get_mes_stateres", "get_ma_boutique", "get_marche", "get_village_economie", "get_vie_du_village"];
+    const routes: Record<string, Route> = { ...HEALTHY };
+    for (const fn of absentes) routes[`/rest/v1/rpc/${fn}`] = { status: 404, body: {} };
+    const secret: Record<string, Route> = { ...SECRET, "/rest/v1/rpc/stateres_parties_notees": { status: 404, body: {} }, "/rest/v1/rpc/noter_vie_du_village": { status: 403, body: {} } };
+    const details = (await run(routes, "sb_secret_x", secret)).filter((c) => c.status === "warn").map((c) => c.detail ?? "");
+    const duVillage = details.filter((d) => /village|stateres|statères|boutique|marche|bulles/i.test(d));
+    expect(duVillage.length).toBeGreaterThanOrEqual(absentes.length + 2);
+    for (const d of duVillage) {
+      expect(d).toContain(".cache/a-coller-village.sql (refait par npx tsx scripts/a-coller-village.ts)");
+      expect(d).not.toMatch(/2026111300(18|19|20|21|22|23|24)00/);
+      expect(d).not.toMatch(/recollez la migration/);
+    }
   });
 
   it("bloque si un visiteur peut appeler les fonctions de la vie du village réservées à la clé de service", async () => {
@@ -285,8 +309,9 @@ describe("le contrôle de la mise en ligne", () => {
     const label = "workflow peut noter la vie du village";
     const avecCle = async (secret: Record<string, Route>) => (await run(HEALTHY, "sb_secret_x", secret)).find((c) => c.label.includes(label));
     expect((await avecCle(SECRET))?.status).toBe("ok");
-    expect(await avecCle({ ...SECRET, "/rest/v1/rpc/noter_vie_du_village": { status: 404, body: {} } })).toMatchObject({ status: "warn", detail: expect.stringContaining("20261113002300") });
+    expect(await avecCle({ ...SECRET, "/rest/v1/rpc/noter_vie_du_village": { status: 404, body: {} } })).toMatchObject({ status: "warn", detail: expect.stringContaining(".cache/a-coller-village.sql") });
     expect(await avecCle({ ...SECRET, "/rest/v1/rpc/noter_vie_du_village": { status: 403, body: {} } })).toMatchObject({ status: "warn", detail: expect.stringContaining("Réponse 403") });
+    expect((await avecCle({ ...SECRET, "/rest/v1/rpc/noter_vie_du_village": { status: 403, body: {} } }))?.detail).toContain(".cache/a-coller-village.sql");
     expect((await avecCle({ ...SECRET, "/rest/v1/rpc/noter_vie_du_village": { status: 200, body: { ok: true, vocaux: 0 } } }))?.status).toBe("warn");
     expect((await run()).some((c) => c.label.includes(label))).toBe(false);
   });

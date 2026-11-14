@@ -14,7 +14,10 @@
 --   ligne ». Le relevé vient de scripts/animer-village.ts (src/lib/village/vie-releve.ts), toutes les 5 minutes, par l'API
 --   de Discord, un membre à la fois.
 -- - `replique` : la bulle en cours, écrite par Claude, montrée 12 heures au plus, et seulement tant que l'encadrement laisse
---   les bulles.
+--   les bulles. Une bulle qui parle de la dernière partie (ses points, la bataille, la taverne) ne se montre que tant que la
+--   place montre cette partie au même compte : pas après qu'il a cessé de se montrer aux autres membres.
+-- Tout ce qui a passé ses 24 heures est effacé à chaque passage du robot ET à chaque lecture de la place
+-- (internal.village_vie_effacer_l_ancien) : la page Confidentialité le promet, même si le robot ne tourne plus.
 -- Pour un compte qui ne se montre pas aux autres membres (le choix du QG, profiles.show_to_members, faux au départ) : son
 -- Gaulois reste sur la place, sous le nom « Un Gaulois », sans `partie_le` ni `vocal`, et le robot ne relève pas son état
 -- vocal. `partie_le` demande en plus un pseudo public unique dans la liste du clan : le début exact d'une partie, croisé avec
@@ -23,12 +26,17 @@
 -- Les bulles :
 -- - Claude ne reçoit que des faits sans identité : l'heure et le moment de la journée à Paris, le lieu du Gaulois, les points
 --   de sa dernière partie, les noms des objets qu'il porte. Ces faits sont gardés avec la bulle.
+-- - Jamais l'état vocal (relecture du 14 novembre 2026) : une bulle se montre 12 heures, l'état vocal 15 minutes. Le lieu
+--   d'une bulle se calcule comme si le vocal n'était pas relevé, et des faits qui disent la salle de réunion sont refusés.
+--   Les points ne sont donnés que d'une partie commencée il y a moins de 12 heures : avec les 12 heures de la bulle, rien de
+--   la partie ne reste à l'écran au-delà des 24 heures où la place la montre.
 -- - Le serveur décide de tout : la liste de travail ne demande une bulle que si les bulles sont permises, que la dépense du
 --   mois n'a pas atteint le plafond, que rien n'a été demandé pour ce Gaulois depuis 6 heures, et que ses faits ont changé
---   depuis la dernière demande (une nouvelle partie, une entrée ou une sortie de vocal, un autre moment de la journée : la
---   clé internal.village_vie_cle). Une demande qui n'a pas donné de bulle (phrase écartée, refus du modèle) compte aussi :
---   Claude n'est pas redemandé à chaque passage pour le même Gaulois.
---   À la réception, il refait ces contrôles (sauf le plafond : la dépense est déjà faite) et contrôle chaque phrase
+--   depuis la dernière demande (une nouvelle partie ou un autre moment de la journée : la clé internal.village_vie_cle).
+--   Une demande qui n'a pas donné de bulle (phrase écartée, refus du modèle) compte aussi : Claude n'est pas redemandé à
+--   chaque passage pour le même Gaulois.
+--   À la réception, il refait ces contrôles (sauf le plafond : la dépense est déjà faite), ignore une bulle qui parle d'une
+--   partie que le serveur ne connaît pas ou de plus de 12 heures, et contrôle chaque phrase
 --   (internal.village_vie_replique_valide, les mêmes règles que controlerReplique de vie-releve.ts) : 90 signes au plus,
 --   des lettres, des chiffres et une ponctuation simple seulement, pas deux majuscules d'affilée, aucun nombre absent des
 --   faits, aucun mot de la liste (la même que MOTS_INTERDITS de src/lib/village/consigne-repliques.ts, un test le garde).
@@ -120,7 +128,7 @@ revoke all on table internal.village_vie from public, anon, authenticated;
 
 -- Un réglage se change, il ne s'efface pas : sans lui, ni plafond ni prix.
 create or replace function internal.village_vie_reglage_garde() returns trigger
-language plpgsql as $$
+language plpgsql set search_path = public, pg_temp as $$
 begin
   raise exception 'le réglage de la vie du village se change, il ne s''efface pas';
 end $$;
@@ -177,12 +185,12 @@ language sql stable security definer set search_path = public, pg_temp as $$
   limit 1
 $$;
 
--- Ce dont une bulle dépend : la dernière partie, l'entrée en vocal, le moment de la journée. Une nouvelle bulle n'est
--- demandée que si cette clé a changé depuis la précédente.
-create or replace function internal.village_vie_cle(p_partie timestamptz, p_vocal boolean, p_at timestamptz) returns text
+-- Ce dont une bulle dépend : la dernière partie et le moment de la journée. Une nouvelle bulle n'est demandée que si cette
+-- clé a changé depuis la précédente. Pas l'état vocal : il n'est jamais donné à Claude, et une entrée en vocal suivie d'une
+-- nouvelle bulle le laisserait deviner.
+create or replace function internal.village_vie_cle(p_partie timestamptz, p_at timestamptz) returns text
 language sql stable set search_path = public, pg_temp as $$
   select coalesce(to_char(p_partie at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS'), '-')
-    || '|' || case when p_vocal is true then 'vocal' else '-' end
     || '|' || internal.village_vie_moment(p_at)
 $$;
 
@@ -206,10 +214,11 @@ $$;
 
 -- Les mots qui gardent leur majuscule au milieu d'une phrase. Toute autre majuscule doit ouvrir la bulle ou une phrase
 -- (après « . », « ! », « ? » ou « … » et une espace) : un nom propre (une personne, un clan, une marque) ne passe pas. La même
--- liste que MAJUSCULES_PERMISES de src/lib/village/consigne-repliques.ts : un test garde les deux identiques.
+-- liste que MAJUSCULES_PERMISES de src/lib/village/consigne-repliques.ts : un test garde les deux identiques. « Discord »
+-- n'y est pas : il est dans les mots interdits, et rien de ce que Claude reçoit ne le nomme.
 create or replace function internal.village_vie_majuscules_permises() returns text[]
 language sql immutable set search_path = public, pg_temp as $$
-  select array['Gauloises', 'Gauloise', 'Gaulois', 'Discord']::text[]
+  select array['Gauloises', 'Gauloise', 'Gaulois']::text[]
 $$;
 
 -- Le texte ramené aux mots : minuscules sans accents, une espace entre deux mots, une au début et à la fin. Le même que
@@ -231,7 +240,9 @@ language sql immutable set search_path = public, pg_temp as $$
 $$;
 
 -- Les faits d'une bulle, tels que le robot les envoie (FaitsDuGaulois de vie-releve.ts) : { heure, moment, lieu, points,
--- objets }, rien d'autre. Les objets sont des noms du catalogue : des lettres, des espaces, des apostrophes et des tirets.
+-- objets }, rien d'autre. Le lieu n'est jamais la salle de réunion : l'état vocal ne se dit pas dans une bulle, qui reste 12
+-- heures à l'écran (LIEUX_DES_BULLES de vie-releve.ts). Les objets sont des noms du catalogue : des lettres, des espaces, des
+-- apostrophes et des tirets.
 create or replace function internal.village_vie_faits_valides(p jsonb) returns boolean
 language plpgsql immutable set search_path = public, pg_temp as $$
 declare
@@ -242,7 +253,7 @@ begin
   -- L'heure comme l'écrit l'écran (heureDeParis de src/lib/village/vie.ts) : « 7 h 05 », « 21 h 38 ».
   if jsonb_typeof(p -> 'heure') is distinct from 'string' or (p ->> 'heure') !~ '^([01]?[0-9]|2[0-3]) h [0-5][0-9]$' then return false; end if;
   if jsonb_typeof(p -> 'moment') is distinct from 'string' or (p ->> 'moment') not in ('nuit', 'matin', 'apres-midi', 'soir') then return false; end if;
-  if jsonb_typeof(p -> 'lieu') is distinct from 'string' or (p ->> 'lieu') not in ('place', 'taverne', 'reunion', 'bataille', 'maisons') then return false; end if;
+  if jsonb_typeof(p -> 'lieu') is distinct from 'string' or (p ->> 'lieu') not in ('place', 'taverne', 'bataille', 'maisons') then return false; end if;
   if jsonb_typeof(p -> 'points') is distinct from 'null'
      and (jsonb_typeof(p -> 'points') is distinct from 'string' or (p ->> 'points') !~ '^[0-9]{1,3}(,[0-9]{1,2})?$') then
     return false;
@@ -376,7 +387,9 @@ begin
 end $$;
 
 -- Efface ce qui a passé son temps : un état vocal ou une bulle de plus de 24 heures, les lignes des comptes qui ne sont plus
--- validés ou n'ont plus de Gaulois, la dépense de plus de treize mois. Appelée par le robot à chaque passage.
+-- validés ou n'ont plus de Gaulois, la dépense de plus de treize mois. Appelée par le robot à chaque passage, et à chaque
+-- lecture de la place (get_village) : sans robot, l'effacement promis par la page Confidentialité se fait quand même. Peu
+-- coûteuse : quelques lignes par Gaulois, et une ligne n'est écrite que si elle a quelque chose à effacer.
 create or replace function internal.village_vie_effacer_l_ancien() returns void
 language plpgsql security definer set search_path = public, pg_temp as $$
 begin
@@ -416,7 +429,10 @@ language sql stable security definer set search_path = public, pg_temp as $$
     'bulles_affichees', case when r.bulles then (
       select count(*) from internal.village_vie v
       join public.profiles p on p.user_id = v.user_id
-      where p.status = 'validated' and v.replique_le > now() - interval '12 hours') else 0 end,
+      left join lateral internal.village_vie_partie(v.user_id) d on true
+      where p.status = 'validated' and v.replique_le > now() - interval '12 hours'
+        -- La règle de get_village : une bulle sur la dernière partie ne se montre que si la place montre cette partie.
+        and (d.debut is not null or (v.replique_faits ->> 'points' is null and coalesce(v.replique_faits ->> 'lieu', '') not in ('bataille', 'taverne')))) else 0 end,
     'dernier_vocal', (select max(v.vocal_le) from internal.village_vie v),
     'derniere_bulle', (select max(v.replique_le) from internal.village_vie v)
   )
@@ -430,7 +446,7 @@ revoke all on function internal.village_vie_moment(timestamptz) from public, ano
 revoke all on function internal.village_vie_mois(timestamptz) from public, anon, authenticated;
 revoke all on function internal.village_vie_vocal(boolean, timestamptz) from public, anon, authenticated;
 revoke all on function internal.village_vie_partie(uuid) from public, anon, authenticated;
-revoke all on function internal.village_vie_cle(timestamptz, boolean, timestamptz) from public, anon, authenticated;
+revoke all on function internal.village_vie_cle(timestamptz, timestamptz) from public, anon, authenticated;
 revoke all on function internal.village_vie_mots_interdits() from public, anon, authenticated;
 revoke all on function internal.village_vie_majuscules_permises() from public, anon, authenticated;
 revoke all on function internal.village_vie_normaliser(text) from public, anon, authenticated;
@@ -453,12 +469,17 @@ revoke all on function internal.village_vie_etat() from public, anon, authentica
 -- - partie_le : le début de sa dernière partie qui a rapporté des points au clan, de moins de 24 heures, seulement pour un
 --   compte qui se montre et qui a un pseudo public unique (internal.village_vie_partie) ; sinon null ;
 -- - vocal : l'état du dernier relevé de moins de 15 minutes, seulement pour un compte qui se montre ; sinon null ;
--- - replique : sa bulle de moins de 12 heures, si l'encadrement laisse les bulles ; sinon null ;
+-- - replique : sa bulle de moins de 12 heures, si l'encadrement laisse les bulles ; sinon null. Une bulle dont les faits
+--   parlent de la dernière partie (des points, la bataille ou la taverne) ne se montre que si la place montre aussi une
+--   partie de ce compte (partie_le) : un compte qui cesse de se montrer aux autres membres ne garde pas à l'écran une
+--   phrase sur sa partie ;
 -- - releve : l'heure du dernier relevé vocal d'un Gaulois qui se montre (le robot les relève à chaque passage), ou à défaut
 --   celle de la dernière relecture des parties ; null : ni l'un ni l'autre. L'écran l'écrit (« Relevé du … ») et en date
 --   l'état vocal.
 -- Ni solde, ni objet possédé, ni identifiant Discord. Limitée comme les gestes (internal.limit_exceeded) : l'écran ne la lit
--- qu'à l'ouverture de l'onglet et toutes les 5 minutes.
+-- qu'à l'ouverture de l'onglet et toutes les 5 minutes. Une fois l'appelant admis, efface d'abord ce qui a passé son temps
+-- (internal.village_vie_effacer_l_ancien) : sans le robot, rien de la vie du village ne reste plus de 24 heures dès qu'on
+-- regarde la place.
 create or replace function public.get_village() returns jsonb
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare
@@ -473,6 +494,7 @@ begin
   if not found then return internal.error_json('not_signed_in', ''); end if;
   if v_status = 'suspended' then return internal.error_json('suspended', ''); end if;
   if v_status <> 'validated' and internal.rank_of(v_role) < 2 then return internal.error_json('not_validated', ''); end if;
+  perform internal.village_vie_effacer_l_ancien();
   v_bulles := coalesce((select r.bulles from internal.village_vie_reglage r where r.id), false);
   return jsonb_build_object(
     'ok', true,
@@ -483,7 +505,9 @@ begin
           'moi', g.user_id = v_uid,
           'partie_le', d.debut,
           'vocal', case when p.show_to_members then internal.village_vie_vocal(v.vocal, v.vocal_le) end,
-          'replique', case when v_bulles and v.replique_le > now() - interval '12 hours' then v.replique end)
+          'replique', case when v_bulles and v.replique_le > now() - interval '12 hours'
+            and (d.debut is not null or (v.replique_faits ->> 'points' is null and coalesce(v.replique_faits ->> 'lieu', '') not in ('bataille', 'taverne')))
+            then v.replique end)
         order by g.created_at, g.user_id)
       from internal.gaulois g
       join public.profiles p on p.user_id = g.user_id
@@ -504,10 +528,13 @@ grant execute on function public.get_village() to authenticated;
 -- La liste de travail du robot : { ok, maintenant, bulles, modele, depense: { mois, cout, plafond }, gaulois: [{ n, discord,
 -- vocal, partie_le, points, tenue, tente_le, besoin }] }, pour chaque compte validé qui a un Gaulois, les plus anciens
 -- relevés vocaux d'abord. `n` : le numéro opaque ; `discord` : l'identifiant Discord, pour le relevé vocal seulement, et
--- seulement pour un compte qui se montre aux autres membres (sinon null : le robot ne relève pas son état vocal) ; `vocal`,
--- `partie_le` et `points` : ce que la place en montre (internal.village_vie_partie), rien de plus ;
+-- seulement pour un compte qui se montre aux autres membres (sinon null : le robot ne relève pas son état vocal) ; `vocal`
+-- et `partie_le` : ce que la place en montre (internal.village_vie_partie), rien de plus ; `points` : ceux de cette partie,
+-- seulement si elle a commencé il y a moins de 12 heures (une bulle se montre 12 heures : ses points ne restent pas à
+-- l'écran plus longtemps que la partie) ;
 -- `tente_le` : la dernière demande d'une bulle pour lui ; `besoin` : le serveur demande une nouvelle bulle, pas avant 6
--- heures après la précédente demande, et seulement si ses faits ont changé depuis. `bulles` est faux, et aucun `besoin`
+-- heures après la précédente demande, et seulement si ses faits ont changé depuis (internal.village_vie_cle, sans l'état
+-- vocal, que les bulles ne disent jamais). `bulles` est faux, et aucun `besoin`
 -- n'est vrai, dès que l'encadrement a coupé les bulles ou que la dépense du mois atteint le plafond. Crée la ligne des
 -- Gaulois qui n'en ont pas encore, et efface ce qui a passé son temps.
 create or replace function public.vie_du_village_travail() returns jsonb
@@ -540,11 +567,11 @@ begin
             'discord', case when p.show_to_members and l.discord_id ~ '^[0-9]{17,20}$' then l.discord_id end,
             'vocal', case when p.show_to_members then internal.village_vie_vocal(v.vocal, v.vocal_le) end,
             'partie_le', d.debut,
-            'points', d.points,
+            'points', case when d.debut > now() - interval '12 hours' then d.points end,
             'tenue', g.tenue,
             'tente_le', v.tente_le,
             'besoin', v_bulles and (v.tente_le is null or (v.tente_le <= now() - interval '6 hours'
-              and v.tente_cle is distinct from internal.village_vie_cle(d.debut, case when p.show_to_members then internal.village_vie_vocal(v.vocal, v.vocal_le) end, now())))
+              and v.tente_cle is distinct from internal.village_vie_cle(d.debut, now())))
           ) as ligne,
           v.vocal_le, g.created_at as cree, g.user_id
         from internal.gaulois g
@@ -624,11 +651,17 @@ begin
       v_ignores := v_ignores + 1;
       continue;
     end if;
+    v_partie := null;
     select d.debut into v_partie from internal.village_vie_partie(v_v.user_id) d;
-    v_cle := internal.village_vie_cle(v_partie,
-      case when exists (select 1 from public.profiles p where p.user_id = v_v.user_id and p.show_to_members)
-        then internal.village_vie_vocal(v_v.vocal, v_v.vocal_le) end, now());
+    v_cle := internal.village_vie_cle(v_partie, now());
     if v_v.tente_le is not null and v_v.tente_cle is not distinct from v_cle then
+      v_ignores := v_ignores + 1;
+      continue;
+    end if;
+    -- Une bulle qui parle de la dernière partie (des points, la bataille, la taverne) : seulement si le serveur montre une
+    -- partie de ce compte, commencée il y a moins de 12 heures, celle dont la liste de travail donne les points.
+    if jsonb_typeof(v_e) = 'object' and ((v_e -> 'faits' ->> 'points') is not null or (v_e -> 'faits' ->> 'lieu') in ('bataille', 'taverne'))
+       and (v_partie is null or v_partie <= now() - interval '12 hours') then
       v_ignores := v_ignores + 1;
       continue;
     end if;

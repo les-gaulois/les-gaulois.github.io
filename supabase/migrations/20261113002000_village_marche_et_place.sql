@@ -55,7 +55,7 @@
 --
 -- Rien n'est écrit au journal de l'encadrement : ce sont des gestes de joueurs. Aucun solde ne se lit pour un autre compte.
 --
--- Une table, une colonne, sept fonctions internes et cinq fonctions publiques ajoutées, deux fonctions remplacées, aucune
+-- Une table, une colonne, huit fonctions internes et cinq fonctions publiques ajoutées, deux fonctions remplacées, aucune
 -- donnée existante touchée. Rejouée, elle se remplace par la même.
 
 /* ---------- Les tables ---------- */
@@ -107,7 +107,7 @@ language sql immutable set search_path = public, pg_temp as $$ select interval '
 
 -- Le verrou du marché, jusqu'à la fin de la transaction : à prendre avant ceux des comptes.
 create or replace function internal.marche_verrou() returns void
-language plpgsql as $$
+language plpgsql set search_path = public, pg_temp as $$
 begin
   perform pg_advisory_xact_lock(hashtext('gal_marche'), 0);
 end $$;

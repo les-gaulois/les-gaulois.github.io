@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { ServerError, call } from "../../lib/compte/api";
 import { fmtInt } from "../../lib/format";
-import { nombre } from "../../lib/village/ecran-boutique";
+import type { MesStateres } from "../../lib/stateres";
+import { SOLDE_INCONNU, lireStateres, motStatere, nombre, soldeDuMarche } from "../../lib/village/ecran-boutique";
 import { NOMS_EMPLACEMENTS } from "../../lib/gaulois";
 import {
   emplacementsEnVente,
@@ -50,6 +51,8 @@ type Etat = { kind: "lecture" } | { kind: "ferme"; message: string } | { kind: "
 export default function MarcheDuVillage({ actif }: { actif: boolean }) {
   const [etat, setEtat] = useState<Etat>({ kind: "lecture" });
   const [boutique, setBoutique] = useState<BoutiqueLue | null>(null);
+  // L'état de la bourse (compte validé, relié, Gaulois créé, parties relues) : le solde s'écrit avec la règle de « Mon Gaulois ».
+  const [bourse, setBourse] = useState<MesStateres | null>(null);
   const [filtre, setFiltre] = useState<FiltreDuMarche>("tout");
   const [achat, setAchat] = useState<OffreLisible | null>(null);
   const [vente, setVente] = useState(false);
@@ -64,13 +67,12 @@ export default function MarcheDuVillage({ actif }: { actif: boolean }) {
     if (!marche) throw new ServerError("network");
     setEtat({ kind: "pret", marche });
   };
-  // L'inventaire et les prix : sans eux, le marché se lit et s'achète quand même ; seule la vente attend.
+  // L'inventaire et les prix : sans eux, le marché se lit et s'achète quand même ; seule la vente attend. Avec eux, l'état
+  // de la bourse : sans lui, un solde nul ne s'écrit pas.
   const lireInventaire = async () => {
-    try {
-      setBoutique(lireBoutique(await call<unknown>("get_ma_boutique")));
-    } catch {
-      setBoutique(null);
-    }
+    const [b, s] = await Promise.all([call<unknown>("get_ma_boutique").then(lireBoutique, () => null), call<unknown>("get_mes_stateres").then(lireStateres, () => null)]);
+    setBoutique(b);
+    setBourse(s);
   };
   const lire = async (discret: boolean) => {
     if (!discret) setEtat({ kind: "lecture" });
@@ -133,6 +135,7 @@ export default function MarcheDuVillage({ actif }: { actif: boolean }) {
   const choisi: FiltreDuMarche = filtre !== "tout" && filtres.includes(filtre) ? filtre : "tout";
   const offres = offresAAcheter(marche.offres, choisi);
   const vendre = (objet: PossedeLisible, prix: number) => void agir("mettre_en_vente", { p_emplacement: objet.emplacement, p_objet: objet.objet, p_prix: prix }, `« ${objet.nom} » est en vente.`, true);
+  const solde = soldeDuMarche(marche.solde, bourse);
 
   return (
     <div class="marche" data-testid="marche">
@@ -140,8 +143,13 @@ export default function MarcheDuVillage({ actif }: { actif: boolean }) {
         <p class="marche-solde" data-testid="marche-solde">
           <span class="sr-only">Votre bourse : </span>
           <Piece taille={24} echelle={2} />
-          <strong class="bourse-nombre tnum">{nombre(marche.solde)}</strong>{" "}
-          <span class="bourse-unite">{marche.solde > 1 ? "statères" : "statère"}</span>
+          {solde === null ? (
+            <span class="bourse-inconnu">{SOLDE_INCONNU}</span>
+          ) : (
+            <>
+              <strong class="bourse-nombre tnum">{nombre(solde)}</strong> <span class="bourse-unite">{motStatere(solde)}</span>
+            </>
+          )}
         </p>
         <div>
           <button

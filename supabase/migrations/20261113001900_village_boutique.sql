@@ -91,7 +91,7 @@ revoke all on table internal.gaulois_inventaire from public, anon, authenticated
 
 -- Un réglage se change, il ne s'efface pas : sans ses cinq prix et sa pochette, la boutique ne saurait plus rien vendre.
 create or replace function internal.village_reglage_garde() returns trigger
-language plpgsql as $$
+language plpgsql set search_path = public, pg_temp as $$
 begin
   raise exception 'un réglage de la boutique se change, il ne s''efface pas';
 end $$;
@@ -106,7 +106,7 @@ revoke all on function internal.village_reglage_garde() from public, anon, authe
 -- Un compte à la fois : ses achats, ses pochettes, sa tenue et, au lot suivant, ses ventes passent l'un après l'autre,
 -- jusqu'à la fin de leur transaction.
 create or replace function internal.village_verrou(p_user uuid) returns void
-language plpgsql as $$
+language plpgsql set search_path = public, pg_temp as $$
 begin
   perform pg_advisory_xact_lock(hashtext('gal_village'), hashtext(p_user::text));
 end $$;
@@ -153,7 +153,7 @@ revoke all on function internal.village_debiter(uuid, text, integer, text) from 
 -- Un nombre au hasard, de 0 compris à 1 non compris, tiré par le générateur sûr de Postgres : les 48 premiers bits d'un UUID
 -- aléatoire (version 4), qui sont tous tirés au hasard.
 create or replace function internal.village_hasard() returns double precision
-language sql volatile as $$
+language sql volatile set search_path = public, pg_temp as $$
   select ('x' || left(replace(gen_random_uuid()::text, '-', ''), 12))::bit(48)::bigint / 281474976710656.0::double precision
 $$;
 

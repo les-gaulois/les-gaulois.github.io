@@ -8,7 +8,8 @@
  * - SUPABASE_URL et SUPABASE_SECRET_KEY : sans eux, ne fait rien ;
  * - DISCORD_BOT_TOKEN, le jeton du robot des arrivées (« Bienvenue Gaulois ») : sans lui, pas de relevé vocal. Le serveur
  *   est celui de src/lib/discord-commande.ts, sauf DISCORD_GUILD_ID ;
- * - ANTHROPIC_API_KEY, la clé de l'API Claude : sans elle, pas de bulles.
+ * - ANTHROPIC_API_KEY, la clé de l'API Claude, donnée au seul client du SDK officiel (`@anthropic-ai/sdk`), qui ne l'envoie
+ *   qu'à api.anthropic.com : sans elle, pas de bulles.
  * Chaque partie marche sans l'autre. Aucun identifiant ni aucune clé n'est écrit au journal : seulement des nombres. Voir
  * src/lib/village/vie-releve.ts.
  */
