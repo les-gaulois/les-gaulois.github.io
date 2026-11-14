@@ -1,6 +1,42 @@
 [
   {
     "date": "2026-11-14",
+    "kind": "nouveau",
+    "title": "Le village s'anime",
+    "body": "La place a cinq lieux : place, taverne, salle de réunion, champ de bataille, maisons. Le décor suit l'heure de Paris, et votre Gaulois bouge selon vos parties et votre vocal Discord.",
+    "link": {
+      "href": "/village#place",
+      "label": "Voir la place"
+    }
+  },
+  {
+    "date": "2026-11-14",
+    "kind": "nouveau",
+    "title": "Le village : statères, boutique et marché",
+    "body": "Chaque point rapporté au clan donne 30 statères à chaque Gaulois de la partie. Ils servent à la boutique, à la pochette surprise et au marché entre membres. Ils ne s'achètent pas.",
+    "link": {
+      "href": "/village",
+      "label": "Ouvrir le village"
+    }
+  },
+  {
+    "date": "2026-11-14",
+    "kind": "nouveau",
+    "title": "Les Gaulois parlent",
+    "body": "Sur la place, un Gaulois dit parfois une petite phrase, écrite par Claude, l'intelligence artificielle d'Anthropic, qui ne reçoit ni votre nom ni votre pseudo.",
+    "link": {
+      "href": "/confidentialite#village",
+      "label": "Lire ce qui est gardé"
+    }
+  },
+  {
+    "date": "2026-11-14",
+    "kind": "ameliore",
+    "title": "Les Gaulois redessinés",
+    "body": "Les braies se voient enfin sous la tunique, les capes tombent droit, et la marmite, le slip, la poêle, le lance-patates et le carnyx se reconnaissent du premier coup d'œil."
+  },
+  {
+    "date": "2026-11-14",
     "kind": "ameliore",
     "title": "Direction : les comptes en couleurs",
     "body": "L'onglet Comptes s'ouvre sur la liste : une ligne par compte, une recherche dès la première lettre, des filtres chiffrés, des couleurs (vert validé, jaune en attente, rouge suspendu, bleu allié)."
