@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-14",
+    "kind": "ameliore",
+    "title": "/gaulois montre où est votre Gaulois",
+    "body": "Sur Discord, l'image de /gaulois change avec l'heure de Paris et le lieu de votre Gaulois au village : place, taverne, salle de réunion, champ de bataille ou maison, à l'aube, le jour, au crépuscule ou la nuit. Le logo du clan est en haut à gauche.",
+    "link": {
+      "href": "/confidentialite#village",
+      "label": "Ce que l'image montre"
+    }
+  },
+  {
+    "date": "2026-11-14",
     "kind": "nouveau",
     "title": "Touchez un Gaulois, il répond",
     "body": "Au village, touchez un Gaulois de la place : il vous répond. Si vous insistez dans l'heure, il s'agace, puis s'énerve pour de bon. Plus de 200 phrases à découvrir.",
