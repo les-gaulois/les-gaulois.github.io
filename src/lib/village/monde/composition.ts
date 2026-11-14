@@ -20,6 +20,7 @@ import { type Lumiere, melanger } from "../lumiere";
 import type { EtatDuMonde } from "../monde-etat";
 import { DESSINS_OPENFRONT, type PieceOpenFrontId } from "../openfront";
 import { poserPenteDeLaRue, poserSiegesDehors, poserSolDuBas, poserTerrasse } from "./etages";
+import { poserJardinDeTerrasse } from "./jardins";
 import { couleursDeLEau, litDuRuisseau, poserBuisson, poserCamp, poserEtal, poserGrandArbre, poserLisiere, poserMaison, poserPiquets, poserReunion, poserRives, poserSol, poserTaverne } from "./pieces";
 import { DESCENTE, type Emplacement, LIGNE, LISIERE, MER_FOND, PAS_DE_TERRASSE, PIED_DU_PONT, type Plan, RAIL, RUE_HAUTEUR, TUILE, type Tailles, dyDeLaTerrasse, emplacementDuBatiment, emplacementsDe, hautDansLeMonde } from "./plan";
 
@@ -146,9 +147,12 @@ export function composerTuile(plan: Plan, etat: EtatDuMonde, l: Lumiere, tx: num
     const dy = dyDeLaTerrasse(plan, t);
     if (!touche(dy, 100, LIGNE + PAS_DE_TERRASSE + 4)) continue;
     const etage = new Etage(tuile, dy);
-    if (visible(0, plan.village.de)) poserLisiere(etage, p, 20, plan.village.de - 30);
-    if (visible(plan.village.a, plan.largeur - plan.village.a)) poserLisiere(etage, p, plan.village.a + 40, plan.largeur - 20);
+    if (visible(0, plan.hauts.de)) poserLisiere(etage, p, 20, plan.hauts.de - 30);
+    if (visible(plan.hauts.a, plan.largeur - plan.hauts.a)) poserLisiere(etage, p, plan.hauts.a + 30, plan.largeur - 20);
     poserTerrasse(etage, p, l, plan, x0, x1, t);
+    for (const jardin of plan.jardins) {
+      if (jardin.dy === dy && visible(jardin.x, 178, 20)) poserJardinDeTerrasse(etage, p, l, jardin.x, LIGNE + 1, jardin.rang);
+    }
     for (const e of plan.emplacements) {
       if (e.dy !== dy || e.piece.sorte !== "maison" || !voit(e)) continue;
       poserMaison(etage, p, l, e, e.piece.rang);

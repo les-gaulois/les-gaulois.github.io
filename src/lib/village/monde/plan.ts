@@ -126,7 +126,7 @@ export const LISIERE = 150;
 const CLAIRIERE = 290;
 const PRE = 430;
 /** L'écart entre deux maisons d'une terrasse, et entre deux sièges du dehors (terrasse de la taverne, bancs de la réunion). */
-const PAS_DE_MAISON = MAISON.largeur + 12;
+const PAS_DE_MAISON = MAISON.largeur + 8;
 export const SIEGE_DEHORS = 34;
 /** Les sièges du dedans d'une salle : au-delà, on s'assoit dehors. */
 export const SIEGES_DEDANS = 15;
@@ -165,8 +165,12 @@ export interface Plan {
   ruisseau: { x: number; largeur: number };
   /** Le chemin de la grand-rue : de la colonne où il sort de la forêt à celle où il se perd dans le pré. */
   chemin: { de: number; a: number };
-  /** Le dedans du village : de la rive du ruisseau à la porte. Les terrasses le surplombent. */
+  /** Le dedans du village : de la rive du ruisseau à la porte. */
   village: { de: number; a: number };
+  /** Les terrasses : elles courent d'un bout à l'autre du monde, entre deux bouts de forêt, de cette colonne à celle-là. */
+  hauts: { de: number; a: number };
+  /** Les places de maison encore libres sur les terrasses : des jardins, que les maisons remplaceront. */
+  jardins: { x: number; dy: number; rang: number }[];
   /** Le pré du champ de bataille, et la colonne du front : les Gaulois à sa gauche, ceux d'en face à sa droite. */
   pre: { x: number; largeur: number; front: number; parRang: number; pas: number };
   /** La terrasse de tables de la taverne, et les bancs dehors de la salle de réunion. */
@@ -381,8 +385,11 @@ export function planDuMonde(tailles: Tailles, habitantsDemandes = 0): Plan {
   for (const navire of navires) poserEnBas(navire.id, navire.x, navire.flottaison, "port");
 
   // Les terrasses : les maisons au-delà des trois premières, du milieu vers les côtés, en laissant passer les escaliers.
+  // Elles courent sur toute la largeur du monde (le pilote, 15 novembre 2026 : deux étages de maisons de moins) : à 1 000
+  // Gaulois, trois terrasses de plus de quatre-vingts maisons.
+  const hauts = { de: LISIERE - 20, a: largeur - LISIERE + 20 };
   const places: number[] = [];
-  for (let gauche = villageDe + 40; gauche + MAISON.largeur <= villageA - 40; gauche += PAS_DE_MAISON) places.push(gauche);
+  for (let gauche = hauts.de + 8; gauche + MAISON.largeur <= hauts.a - 8; gauche += PAS_DE_MAISON) places.push(gauche);
   const libres = (t: number): number[] => {
     const montee = escalierDe(feu.x, t + 1);
     const descente = escalierDe(feu.x, t);
@@ -392,11 +399,16 @@ export function planDuMonde(tailles: Tailles, habitantsDemandes = 0): Plan {
   let reste = maisons - 3;
   let terrasses = 0;
   const hautes: { e: Emplacement; t: number }[] = [];
+  const vides: { x: number; t: number; rang: number }[] = [];
   let rang = 3;
   while (reste > 0) {
     terrasses++;
-    for (const gauche of libres(terrasses)) {
-      if (reste === 0) break;
+    for (const [k, gauche] of libres(terrasses).entries()) {
+      // La terrasse entamée : ses places encore libres sont des jardins, une sur deux près des maisons, plus rares au loin.
+      if (reste === 0) {
+        if (k % 2 === 0 || k < 12) vides.push({ x: gauche, t: terrasses, rang: k });
+        continue;
+      }
       hautes.push({ e: { piece: { sorte: "maison", rang }, quartier: "maisons", x: gauche, largeur: MAISON.largeur, hauteur: MAISON.hauteur, pied: PIED, dy: 0 }, t: terrasses });
       rang++;
       reste--;
@@ -409,6 +421,7 @@ export function planDuMonde(tailles: Tailles, habitantsDemandes = 0): Plan {
   for (const e of emplacements) e.dy = dy0;
   for (const e of bas) e.dy = dyBas;
   for (const { e, t } of hautes) e.dy = dy0 - t * PAS_DE_TERRASSE;
+  const jardins = vides.map((v) => ({ x: v.x, dy: dy0 - v.t * PAS_DE_TERRASSE, rang: v.rang }));
   const escaliers: Escalier[] = [{ x: feu.x - 250, de: 0 }];
   for (let t = 1; t <= terrasses; t++) escaliers.push({ x: escalierDe(feu.x, t), de: t });
 
@@ -436,6 +449,8 @@ export function planDuMonde(tailles: Tailles, habitantsDemandes = 0): Plan {
     ruisseau,
     chemin: { de: cheminDe, a: cheminA },
     village: { de: villageDe, a: villageA },
+    hauts,
+    jardins,
     pre,
     terrasse,
     bancs,

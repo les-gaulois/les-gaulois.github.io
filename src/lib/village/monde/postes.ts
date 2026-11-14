@@ -101,7 +101,7 @@ export function zoneDuPromeneur(plan: Plan, rang: number): { de: number; a: numb
     return { de: gare.x - 260, a: plan.mer.de - 120, haut: plan.dyBas + BAS_BANDE_HAUT - GAULOIS_HAUTEUR, bas: plan.dyBas + BAS_BANDE_BAS - GAULOIS_HAUTEUR, rue: false };
   }
   const milieu = maison.x + maison.largeur / 2;
-  return { de: Math.max(plan.village.de + 30, milieu - 520), a: Math.min(plan.village.a - 70, milieu + 520), haut: maison.dy + TERRASSE_BANDE_HAUT - GAULOIS_HAUTEUR, bas: maison.dy + TERRASSE_BANDE_BAS - GAULOIS_HAUTEUR, rue: false };
+  return { de: Math.max(plan.hauts.de + 30, milieu - 520), a: Math.min(plan.hauts.a - 70, milieu + 520), haut: maison.dy + TERRASSE_BANDE_HAUT - GAULOIS_HAUTEUR, bas: maison.dy + TERRASSE_BANDE_BAS - GAULOIS_HAUTEUR, rue: false };
 }
 
 /** Les places d'un lieu pour ces Gaulois (leurs rangs dans la réponse du serveur), dans le même ordre. */

@@ -122,7 +122,8 @@ describe("les événements du monde d'OpenFront", () => {
         expect(lutin.x).toBeLessThan(plan.largeur + 100);
         expect(lutin.y).toBeGreaterThan(-200);
         expect(lutin.y).toBeLessThan(plan.hauteur);
-        if (lutin.cle === "train-locomotive") expect(lutin.x + taille("locomotive").largeur).toBeLessThanOrEqual(plan.voie.a);
+        // Le train ne se voit jamais au-delà du dépôt du port, au bout de la voie.
+        if (lutin.cle.startsWith("train")) expect(lutin.coupeADroite).toBeLessThanOrEqual(plan.voie.a);
       }
     }
   });

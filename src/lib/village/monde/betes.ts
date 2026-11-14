@@ -161,8 +161,9 @@ export function betesDuPlan(plan: Plan): BeteDuPlan[] {
   // Sur chaque terrasse, des chèvres dans l'herbe, hors des rues ; dans le pré du bas, des chèvres et des poules.
   for (let t = 1; t <= plan.terrasses; t++) {
     const dy = dyDeLaTerrasse(plan, t);
-    dans("chevre", dy, TERRASSE_BANDE_HAUT - 6, TERRASSE_BANDE_BAS, plan.village.a + 40, plan.village.a + 520, t, 3);
-    dans("chevre", dy, TERRASSE_BANDE_HAUT - 4, TERRASSE_BANDE_BAS, 180, plan.village.de - 60, t + 1, 4);
+    dans("chevre", dy, TERRASSE_BANDE_HAUT - 6, TERRASSE_BANDE_BAS, plan.feu.x + 500, plan.feu.x + 1100, t, 3);
+    dans("chevre", dy, TERRASSE_BANDE_HAUT - 4, TERRASSE_BANDE_BAS, plan.feu.x - 1100, plan.feu.x - 500, t + 1, 4);
+    dans("chien", dy, TERRASSE_BANDE_HAUT, TERRASSE_BANDE_BAS, plan.feu.x - 300, plan.feu.x + 300, t, 1);
     dans("poule", dy, TERRASSE_BANDE_HAUT - 8, TERRASSE_BANDE_HAUT + 4, plan.feu.x - 400, plan.feu.x + 400, t, 2);
   }
   const gare = emplacementOpenFront(plan, "gare");

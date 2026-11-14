@@ -88,7 +88,9 @@ export function MondeEvenements({ plan, lumiere, mesure, horloge, fige }: { plan
         }
         // Le missile encore dans son silo : ce qui est sous la bouche ne se voit pas.
         const cache = lutin.coupe === undefined ? 0 : Math.max(0, Math.round(lutin.y) + dessin.hauteur - lutin.coupe);
-        const coupe = cache > 0 ? `inset(0 0 ${cache * cote}px 0)` : "";
+        // Le train qui entre au dépôt : ce qui a passé la porte ne se voit plus.
+        const cacheADroite = lutin.coupeADroite === undefined ? 0 : Math.max(0, Math.round(lutin.x) + dessin.largeur - lutin.coupeADroite);
+        const coupe = cache > 0 || cacheADroite > 0 ? `inset(0 ${cacheADroite * cote}px ${cache * cote}px 0)` : "";
         if (pose.coupe !== coupe) {
           pose.toile.style.clipPath = coupe;
           pose.coupe = coupe;

@@ -6,7 +6,7 @@
  * texte ne les présente comme des parties.
  *
  * Tout est réglé sur l'horloge du monde (huit temps par seconde), dans un cycle de dix minutes : la même heure du cycle
- * donne la même scène. Les événements sont espacés d'une minute au moins, lents, sans éclair ni clignotement (les dessins
+ * donne la même scène. Dans l'ordre : un échange de tirs, le lancement, un autre échange de tirs, le train, l'interception. Les événements sont espacés d'une minute au moins, lents, sans éclair ni clignotement (les dessins
  * des tirs et des explosions n'ont jamais de blanc, `../openfront/`), sans sang ni victime : les explosions tombent sur
  * l'eau ou sur le pré devant les tentes. Figé (bouton pause, « réduire les animations »), il ne se passe rien.
  * Calculs purs : ce fichier ne dit que quoi dessiner et où. Design : Claude Fable 5.2.
@@ -23,9 +23,10 @@ export const CYCLE = 4800;
 const DUELS = [700, 3100] as const;
 const LANCEMENT = 1700;
 const INTERCEPTION = 4000;
-/** La vitesse du train, en cases par temps, et son arrêt au port, en temps. */
-const VITESSE_DU_TRAIN = 6;
-const ARRET_DU_TRAIN = 200;
+/** Le train : son départ dans le cycle, sa vitesse (en cases par temps) et le temps que dure son passage, au plus. */
+const TRAIN = 3500;
+const VITESSE_DU_TRAIN = { min: 8, max: 14 };
+const PASSAGE_DU_TRAIN = 720;
 
 /** Un dessin d'événement qui n'est pas une pièce d'OpenFront : la gerbe d'eau d'un obus, les deux petites fusées. */
 export type DessinDEvenement = PieceOpenFrontId | "gerbe" | "fusee" | "fusee-d-en-face";
@@ -43,6 +44,8 @@ export interface Lutin {
   angle?: 0 | 45 | 90 | 135 | 180;
   /** La rangée du monde sous laquelle il ne se voit pas (le missile encore dans son silo). */
   coupe?: number;
+  /** La colonne du monde à droite de laquelle il ne se voit pas (le train qui entre au dépôt du port). */
+  coupeADroite?: number;
   /** La rangée de son pied : ce qui est plus bas à l'écran passe devant. */
   pied: number;
 }
@@ -55,22 +58,26 @@ const doux = (t: number): number => {
   return v * v * (3 - 2 * v);
 };
 
-/** Le train : il arrive de l'ouest, ralentit jusqu'au port, s'y arrête, puis repart en marche arrière. */
-function train(plan: Plan, tailles: (id: PieceOpenFrontId) => { largeur: number; hauteur: number }, u: number, lutins: Lutin[]): void {
-  // L'avant de la locomotive part du bord ouest du monde (le train est encore caché) et s'arrête au bout de la voie.
-  const course = plan.voie.a - 16;
-  const duree = Math.round(course / VITESSE_DU_TRAIN);
-  let avance: number;
-  if (u < duree) avance = course * Math.sin((u / duree) * (Math.PI / 2));
-  else if (u < duree + ARRET_DU_TRAIN) avance = course;
-  else if (u < duree * 2 + ARRET_DU_TRAIN) avance = course * Math.cos(((u - duree - ARRET_DU_TRAIN) / duree) * (Math.PI / 2));
-  else return;
+/**
+ * Le train : une fois par cycle, il arrive de l'ouest, traverse le bas et entre au dépôt du port, où il disparaît. Il ne
+ * reste qu'une minute et demie au plus (le pilote, 15 novembre 2026 : « je peux l'espacer »), même quand le village est
+ * grand : il va alors un peu plus vite, sans jamais se presser.
+ */
+function train(plan: Plan, tailles: (id: PieceOpenFrontId) => { largeur: number; hauteur: number }, dt: number, lutins: Lutin[]): void {
+  const longueur = tailles("locomotive").largeur + tailles("wagon-voyageurs").largeur + tailles("wagon-citerne").largeur + tailles("wagon-marchandises").largeur;
+  // L'avant de la locomotive part du bord ouest du monde (le train est encore caché) ; le dernier wagon finit dans le dépôt.
+  const depot = plan.voie.a - 30;
+  const course = depot + longueur;
+  const vitesse = Math.min(VITESSE_DU_TRAIN.max, Math.max(VITESSE_DU_TRAIN.min, Math.ceil(course / PASSAGE_DU_TRAIN)));
+  if (dt < 0 || dt * vitesse > course) return;
+  const avance = dt * vitesse;
   const image = Math.floor(avance / 5);
   let x = Math.round(avance);
   for (const id of ["locomotive", "wagon-voyageurs", "wagon-citerne", "wagon-marchandises"] as const) {
     const taille = tailles(id);
     x -= taille.largeur;
-    lutins.push({ cle: `train-${id}`, dessin: id, image, x, y: plan.dyBas + RAIL - taille.hauteur, pied: plan.dyBas + RAIL + 6 });
+    if (x >= depot) continue;
+    lutins.push({ cle: `train-${id}`, dessin: id, image, x, y: plan.dyBas + RAIL - taille.hauteur, coupeADroite: depot, pied: plan.dyBas + RAIL + 6 });
   }
 }
 
@@ -168,7 +175,7 @@ function interception(plan: Plan, tailles: (id: PieceOpenFrontId) => { largeur: 
 export function lutinsDesEvenements(plan: Plan, tailles: (id: PieceOpenFrontId) => { largeur: number; hauteur: number }, temps: number): Lutin[] {
   const u = ((Math.floor(temps) % CYCLE) + CYCLE) % CYCLE;
   const lutins: Lutin[] = [];
-  train(plan, tailles, u, lutins);
+  train(plan, tailles, u - TRAIN, lutins);
   for (const debut of DUELS) duel(plan, u - debut, lutins);
   lancement(plan, tailles, u - LANCEMENT, lutins);
   interception(plan, tailles, u - INTERCEPTION, lutins);
