@@ -219,7 +219,7 @@ export default function DirectionApp({ health, logo }: { health: Omit<SiteHealth
 
         {/* L'administration : lue au premier passage sur son onglet, puis gardée, avec ses champs remplis. */}
         <Partie {...part} id="demandes">
-          {shown.has("demandes") && <DirectionDemandes />}
+          {shown.has("demandes") && <DirectionDemandes active={active === "demandes"} />}
         </Partie>
         <Partie {...part} id="comptes">
           {shown.has("comptes") && <Members me={me} ask={membersAsk} active={active === "comptes"} onReady={() => setMembersReady(true)} />}

@@ -32,7 +32,7 @@ import {
 } from "../../lib/compte/requests";
 import type { RequestRow } from "../../lib/compte/types";
 import { useAction, useList } from "./AdminPanels";
-import { Loading, useNow } from "./common";
+import { Loading, useAutoReload, useNow } from "./common";
 import { Pastille } from "./direction-kit";
 import { PartieTete } from "./Onglets";
 
@@ -49,8 +49,11 @@ function focusStayedOn(line: Element | null): boolean {
   return !active.matches("input, textarea, select, button, a[href], summary, [contenteditable]");
 }
 
-export default function DirectionDemandes() {
+export default function DirectionDemandes({ active = true }: { active?: boolean }) {
   const list = useList<RequestRow>("list_membership_requests");
+  // Une demande envoyée après l'ouverture de la page y paraît sans la recharger, comme dans Comptes (remarque du pilote,
+  // 14 novembre 2026). Une relecture ne déplace pas le focus et garde les raisons en cours de frappe.
+  useAutoReload(list.reload, active);
   // La pastille de l'en-tête et le nombre de l'onglet suivent : une demande traitée ici n'y compte plus.
   const action = useAction(async () => {
     announcePendingChange();

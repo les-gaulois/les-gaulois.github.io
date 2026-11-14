@@ -36,19 +36,28 @@ import { PartieTete } from "./Onglets";
 
 const STATUS_LABELS = { pending: "En attente", validated: "Validé", suspended: "Suspendu" } as const;
 
-/** Lit une liste du serveur et donne de quoi la relire après une action. */
+/**
+ * Lit une liste du serveur et donne de quoi la relire après une action. Chaque lecture a son numéro : la réponse d'une
+ * lecture dépassée par une plus récente est écartée. Sans cela, une relecture automatique lente, partie avant une décision,
+ * pouvait arriver après la relecture de cette décision et réafficher une demande déjà traitée (relevé à l'onglet Demandes,
+ * 14 novembre 2026).
+ */
 export function useList<T>(fn: string, args: Record<string, unknown> = {}) {
   const key = JSON.stringify(args);
   const [rows, setRows] = useState<T[] | null>(null);
   const [extra, setExtra] = useState<Record<string, unknown>>({});
   const [error, setError] = useState<string | null>(null);
+  const reads = useRef(0);
   const reload = async () => {
+    const mine = ++reads.current;
     try {
       const data = await call<{ rows: T[] }>(fn, JSON.parse(key) as Record<string, unknown>);
+      if (mine !== reads.current) return;
       setRows(data.rows);
       setExtra(data as unknown as Record<string, unknown>);
       setError(null);
     } catch (e) {
+      if (mine !== reads.current) return;
       setError(messageOf(e));
     }
   };
