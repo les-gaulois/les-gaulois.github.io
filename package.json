@@ -37,6 +37,9 @@
     "course:envoyer": "tsx scripts/envoyer-course.ts",
     "groupes:envoyer": "tsx scripts/envoyer-groupes.ts",
     "victoires:envoyer": "tsx scripts/envoyer-victoires.ts",
+    "stateres:crediter": "tsx scripts/crediter-stateres.ts",
+    "village:economie": "tsx scripts/mesurer-economie-village.ts",
+    "village:vie": "tsx scripts/animer-village.ts",
     "arrivees:accueillir": "tsx scripts/accueillir-arrivees.ts",
     "arrivees:apercu": "tsx scripts/apercu-arrivees.ts",
     "images:apercu": "tsx scripts/apercu-images.ts",
@@ -47,6 +50,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
     "@astrojs/preact": "^6.0.6",
     "@fontsource-variable/inter": "^5.3.0",
     "@fontsource-variable/jetbrains-mono": "^5.3.0",

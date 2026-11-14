@@ -22,6 +22,7 @@ import DirectionFondateur from "./DirectionFondateur";
 import DirectionJournal from "./DirectionJournal";
 import DirectionObjectif from "./DirectionObjectif";
 import DirectionPolls, { EMPTY_POLL, type PollDraft } from "./DirectionPolls";
+import DirectionVillage from "./DirectionVillage";
 import DirectionWelcome from "./DirectionWelcome";
 import DirectionWeeklyPick, { EMPTY_WEEKLY_PICK, type WeeklyPickDraft } from "./DirectionWeeklyPick";
 import { Onglets, Partie, reducedMotion, useTabs, type TabItem } from "./Onglets";
@@ -49,6 +50,8 @@ const DIRECTION_TABS = [
   { id: "accueil", label: "Mot d'accueil", icon: "hutte" },
   { id: "semaine", label: "Gaulois de la semaine", icon: "coq" },
   { id: "objectif", label: "Objectif", icon: "cible" },
+  // Le village des Gaulois : son économie en totaux, et les prix et les chances, réglés par les admins et le fondateur.
+  { id: "village", label: "Village", icon: "bourse" },
   { id: "discord", label: "Discord", icon: "corbeau", rank: 3 },
   { id: "fondateur", label: "Fondateur", icon: "cle", rank: 4 },
 ] as const;
@@ -258,6 +261,11 @@ export default function DirectionApp({ health, logo }: { health: Omit<SiteHealth
         {/* L'objectif de la semaine, que les membres voient au QG (outils du QG, 11 novembre 2026). */}
         <Partie {...part} id="objectif">
           {shown.has("objectif") && <DirectionObjectif />}
+        </Partie>
+
+        {/* Le village : le serveur rend les totaux à l'encadrement et ne laisse régler que les admins et le fondateur. */}
+        <Partie {...part} id="village">
+          {shown.has("village") && <DirectionVillage rank={rank} />}
         </Partie>
 
         {/* Le serveur refuse le réglage sous le rang d'admin : l'onglet n'est qu'une commodité. */}
