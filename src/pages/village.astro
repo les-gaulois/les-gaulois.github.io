@@ -1,31 +1,71 @@
 ---
 import Base from "../layouts/Base.astro";
-import PageHeader from "../components/PageHeader.astro";
 import NotOpen from "../components/compte/NotOpen.astro";
 import VillageApp from "../components/village/VillageApp";
 import { AUTH_ENABLED } from "../lib/compte/api";
+import { NOMS_DU_FEU } from "../lib/village/chantier-liste";
+import { etatDEssai } from "../lib/village/monde/provisoire";
+import { batimentEnCours, jourDeParis, motPoints, phraseDuChantier, points, pointsDuFeu } from "../lib/village/monde/textes";
+import { phraseDuReleve } from "../lib/village/vie";
+
+// PROVISOIRE : l'état d'essai du designer (src/lib/village/monde/provisoire.ts). À l'intégration, le vrai calcul du
+// chantier et du grand feu (sessions publiques du clan) le remplace ici, et le fichier d'essai est supprimé.
+const etat = etatDEssai();
+const enCours = etat.chantier ? batimentEnCours(etat.chantier) : null;
+const releve = phraseDuReleve(etat.releve);
+const depuis = etat.chantier ? jourDeParis(etat.chantier.depuis) : null;
 ---
 
-{/* Le village des Gaulois (13 novembre 2026, demande du pilote) : chaque membre habille son Gaulois en pixels ; la commande
-    /gaulois du Discord y mène. Un visiteur voit le Gaulois de départ et la porte. Un compte connecté a trois onglets, comme
-    au QG : « Mon Gaulois » (le vestiaire), « La place » (les Gaulois des membres) et « Le marché » (les objets entre
-    membres). Tout vient du serveur, pour un compte connecté : la page ne contient que la porte. */}
-<Base title="Le village" description="Le village des Gaulois du clan GAL : chaque membre habille son Gaulois en pixels, le montre sur la place du village et sur Discord avec /gaulois.">
-  <div class="wrap">
-    <PageHeader title="Le village" />
-    <div class="mt-8">
+{/* Le monde du village (14 novembre 2026, demande du pilote : « un vrai univers où les persos se déplacent sans avoir à
+    changer de page, un grand écran immersif, sans page ») : la page est un seul écran, le panorama du village en pixels
+    sous l'en-tête, où l'on se promène et où les fenêtres s'ouvrent par-dessus (src/components/village/monde/). Le
+    chantier et le grand feu sont publics, calculés à la construction du site ; les Gaulois des membres viennent du
+    serveur, pour un compte connecté. Sans script, la page défile : le chantier et le feu se lisent en texte. */}
+<Base title="Le village" description="Le village des Gaulois du clan GAL : un monde en pixels qui se bâtit avec les points rapportés au clan, où chaque membre habille son Gaulois et le voit vivre.">
+  <div class="monde-page">
+    {/* La mise en page d'écran dès le premier affichage : la page ne saute pas quand le monde arrive. Si le monde n'est pas
+        prêt au bout de six secondes (script bloqué), la page reprend sa forme qui défile, et le texte se lit. */}
+    <script is:inline>
+      document.documentElement.classList.add("village-monde");
+      setTimeout(function () {
+        if (!document.documentElement.hasAttribute("data-monde-pret")) document.documentElement.classList.remove("village-monde");
+      }, 6000);
+    </script>
+    <VillageApp client:only="preact" etat={etat} ouvert={AUTH_ENABLED}>
+      {!AUTH_ENABLED && <NotOpen />}
+    </VillageApp>
+    {/* Sans script : le village en texte. */}
+    <section class="monde-sans-script wrap" aria-labelledby="village-texte">
+      <h1 id="village-texte" class="section-title-sm">Le village</h1>
       {
-        AUTH_ENABLED ? (
-          <VillageApp client:only="preact" />
-        ) : (
-          <section aria-labelledby="vestiaire-titre">
-            <h2 id="vestiaire-titre" class="section-title-sm">Votre Gaulois</h2>
-            <div class="mt-8">
-              <NotOpen />
-            </div>
-          </section>
+        etat.chantier && (
+          <div class="mt-6">
+            <h2 class="monde-sans-script-titre">Le chantier</h2>
+            <p>
+              {points(etat.chantier.points)} {motPoints(etat.chantier.points)} rapportés au clan{depuis && ` depuis le ${depuis}`}.
+              {enCours ? ` ${phraseDuChantier(enCours)}.` : " Tout le village est bâti."}
+            </p>
+            <ol class="mt-3">
+              {etat.chantier.batiments.map((b) => (
+                <li>
+                  {b.titre} : {b.poses >= b.cout ? (jourDeParis(b.fini_le) ? `fini le ${jourDeParis(b.fini_le)}` : "fini") : b.id === etat.chantier!.en_cours ? `en chantier, ${points(b.poses)} sur ${points(b.cout)}` : `à venir, ${points(b.cout)} points`}
+                </li>
+              ))}
+            </ol>
+          </div>
         )
       }
-    </div>
+      {
+        etat.feu && (
+          <div class="mt-6">
+            <h2 class="monde-sans-script-titre">Le grand feu</h2>
+            <p>
+              {NOMS_DU_FEU[etat.feu.niveau].charAt(0).toUpperCase() + NOMS_DU_FEU[etat.feu.niveau].slice(1)} : {pointsDuFeu(etat.feu)}.
+            </p>
+          </div>
+        )
+      }
+      {releve && <p class="info-discrete mt-6">{releve}</p>}
+    </section>
   </div>
 </Base>

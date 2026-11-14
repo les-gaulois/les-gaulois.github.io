@@ -1,70 +1,248 @@
+import type { ComponentChildren } from "preact";
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { ServerError, call } from "../../lib/compte/api";
+import type { Me } from "../../lib/compte/types";
+import type { Village } from "../../lib/village/contrat";
+import { lireVillage, messageDeLaPlace } from "../../lib/village/ecran-place";
+import { lumiereDuVillage } from "../../lib/village/lumiere";
+import type { EtatDuMonde } from "../../lib/village/monde-etat";
+import { taillesDesDessins } from "../../lib/village/monde/composition";
+import { emplacementDuBatiment, emplacementsDe, planDuMonde, quartierDuLieu } from "../../lib/village/monde/plan";
+import { type FenetreDuMonde, fenetreDeLAncre } from "../../lib/village/monde/textes";
+import type { BatimentId } from "../../lib/village/chantier-liste";
+import { type Habitant, type Lieu, lieuDOuverture, repartirLeVillage } from "../../lib/village/vie";
 import { DemandeLienOpenFront, useLienAttendu } from "../compte/LienOpenFront";
-import { Loading, useMe } from "../compte/common";
-import { Onglets, Partie, useTabs, type TabItem } from "../compte/Onglets";
+import { messageOf, useMe } from "../compte/common";
 import Vestiaire from "../compte/Vestiaire";
 import MarcheDuVillage from "./MarcheDuVillage";
-import PlaceDuVillage from "./PlaceDuVillage";
+import { AnnonceDuToucher, useToucher } from "./PlaceToucher";
+import { CameraDuMonde } from "./monde/camera-du-monde";
+import { useFige, useHorloge } from "./monde/horloge";
+import { FenetreChantier, FenetreFeu, FenetreForge, FenetreQui } from "./monde/MondeFenetres";
+import { MondeCarte, MondeCredit, MondeDock, MondeFenetre, MondeTete, comptesDesLieux } from "./monde/MondeInterface";
+import { MondeScene } from "./monde/MondeScene";
 
-/** Les trois parties du village, dans l'ordre de la barre. L'onglet ouvert se retient dans l'adresse (`#place`). */
-const ONGLETS: TabItem[] = [
-  { id: "gaulois", label: "Mon Gaulois" },
-  { id: "place", label: "La place" },
-  { id: "marche", label: "Le marché" },
-];
-const IDS = ONGLETS.map((onglet) => onglet.id);
-const PREFIXE = "village";
+/** Le village se relit toutes les 5 minutes tant que la page est visible : le robot relève le vocal à ce rythme. */
+const RELECTURE_MS = 5 * 60_000;
+
+const PERSONNE: Record<Lieu, Habitant[]> = { place: [], taverne: [], reunion: [], bataille: [], maisons: [] };
+
+/** L'heure qu'il est, relue toutes les trente secondes : la lumière et les lieux la suivent. */
+function useMaintenant(): Date {
+  const [maintenant, setMaintenant] = useState(() => new Date());
+  useEffect(() => {
+    const minuterie = window.setInterval(() => setMaintenant(new Date()), 30_000);
+    return () => window.clearInterval(minuterie);
+  }, []);
+  return maintenant;
+}
+
+type Lecture = { kind: "attente" } | { kind: "fermee"; message: string } | { kind: "erreur"; message: string } | { kind: "prete"; village: Village };
 
 /**
- * La page du village : un visiteur voit le Gaulois de départ et la porte, comme avant les onglets ; un compte connecté a
- * trois onglets, comme au QG : son Gaulois (le vestiaire), la place où se tiennent les Gaulois des membres, et le marché.
- * La place et le marché ne lisent le serveur qu'à leur première ouverture ; il décide de ce que chacun peut y voir.
- * Un compte qui vient de se connecter ici sans avoir donné le lien de son profil OpenFront le donne d'abord, comme dans
- * « Mon compte » : c'est obligatoire.
+ * Le village lu au serveur (`get_village`), pour un membre connecté : à l'arrivée, puis discrètement toutes les 5 minutes,
+ * page visible seulement. Le serveur décide de qui est au village ; une relecture qui échoue garde le village affiché.
+ * PREMIÈRE VERSION (designer) : reprise de `PlaceDuVillage.tsx`, que le développeur du monde revoit.
  */
-export default function VillageApp() {
-  const { me, refresh } = useMe();
-  const { active, slide, shown, select, call } = useTabs(IDS);
-  const lien = useLienAttendu(me);
+function useVillage(actif: boolean): Lecture {
+  const [lecture, setLecture] = useState<Lecture>({ kind: "attente" });
+  const derniere = useRef(0);
+  useEffect(() => {
+    if (!actif) return;
+    const lire = async (discret: boolean) => {
+      derniere.current = Date.now();
+      try {
+        const village = lireVillage(await call<unknown>("get_village"));
+        if (!village) throw new ServerError("network");
+        // Rien de changé : l'écran garde le même village, personne ne bouge.
+        setLecture((avant) => (avant.kind === "prete" && JSON.stringify(avant.village) === JSON.stringify(village) ? avant : { kind: "prete", village }));
+      } catch (e) {
+        const ferme = e instanceof ServerError ? messageDeLaPlace(e.code) : null;
+        if (ferme) setLecture({ kind: "fermee", message: ferme });
+        else if (!discret) setLecture({ kind: "erreur", message: messageOf(e) });
+      }
+    };
+    void lire(false);
+    let minuterie = 0;
+    const armer = () => {
+      window.clearInterval(minuterie);
+      minuterie = 0;
+      if (document.visibilityState !== "visible") return;
+      if (Date.now() - derniere.current >= RELECTURE_MS) void lire(true);
+      minuterie = window.setInterval(() => void lire(true), RELECTURE_MS);
+    };
+    armer();
+    document.addEventListener("visibilitychange", armer);
+    return () => {
+      window.clearInterval(minuterie);
+      document.removeEventListener("visibilitychange", armer);
+    };
+  }, [actif]);
+  return lecture;
+}
 
-  if (me === null) return <Loading label="Lecture de votre compte…" />;
+/**
+ * Le monde du village (demande du pilote, 14 novembre 2026 : « un vrai univers où les persos se déplacent sans avoir à
+ * changer de page, un grand écran immersif, sans page ») : `/village` est un seul écran, le panorama du village en pixels,
+ * où l'on se promène et où les fenêtres s'ouvrent par-dessus. `etat` : le chantier et le grand feu, calculés à la
+ * construction du site, publics. `me` : le compte, ou `null` quand la connexion du site n'est pas ouverte ; `ferme` : ce
+ * que « Mon Gaulois » montre alors.
+ *
+ * Un visiteur voit le monde, le chantier, le feu, et la porte du vestiaire. Un membre voit en plus les Gaulois des
+ * membres (le serveur ne les donne qu'aux comptes validés), « Qui est où » et le marché. Les anciennes adresses restent :
+ * `#gaulois` ouvre « Mon Gaulois », `#marche` « Le marché », `#place` le monde seul.
+ */
+function Monde({ etat, me, lien, rafraichir, ferme }: { etat: EtatDuMonde; me: Me | null; lien: boolean; rafraichir?: () => Promise<void>; ferme?: ComponentChildren }) {
+  const plan = useMemo(() => planDuMonde(taillesDesDessins()), []);
+  const camera = useMemo(() => new CameraDuMonde(), []);
+  const fige = useFige();
+  const horloge = useHorloge(!fige);
+  const maintenant = useMaintenant();
+  const toucher = useToucher();
+  const connecte = me?.signed_in === true && !lien;
+  const lecture = useVillage(connecte);
+  const moi = useRef<number | null>(null);
 
-  if (!me.signed_in) {
-    return (
-      <section aria-labelledby="vestiaire-titre">
-        <h2 id="vestiaire-titre" class="section-title-sm">
-          Votre Gaulois
-        </h2>
-        <div class="mt-8">
-          <Vestiaire />
-        </div>
-      </section>
-    );
-  }
+  // La lumière et les lieux ne changent qu'à la minute.
+  const minute = Math.floor(maintenant.getTime() / 60_000);
+  const date = useMemo(() => new Date(minute * 60_000), [minute]);
+  const lumiere = useMemo(() => lumiereDuVillage(date), [date]);
+  const village = lecture.kind === "prete" ? lecture.village : null;
+  const lieux = useMemo(() => (village ? repartirLeVillage(village.gaulois, date, village.releve) : PERSONNE), [village, date]);
+  const membre = village !== null;
 
-  if (lien === null) return <Loading label="Lecture de votre compte…" />;
-  if (lien) {
-    return (
-      <div class="max-w-3xl" data-testid="village-lien">
-        <DemandeLienOpenFront me={me} onSent={refresh} />
-      </div>
-    );
-  }
+  // La fenêtre ouverte suit l'adresse ; un compte qui doit encore donner son lien OpenFront le donne d'abord.
+  const [ouverte, setOuverte] = useState<FenetreDuMonde | null>(() => fenetreDeLAncre(location.hash));
+  const [vues, setVues] = useState<ReadonlySet<FenetreDuMonde>>(() => new Set(ouverte ? [ouverte] : []));
+  const montrer = (id: FenetreDuMonde | null, adresse = true) => {
+    setOuverte(id);
+    if (id) setVues((avant) => (avant.has(id) ? avant : new Set([...avant, id])));
+    if (adresse) history.replaceState(history.state, "", id ? `#${id}` : location.pathname + location.search);
+  };
+  const choisir = (id: FenetreDuMonde) => montrer(ouverte === id ? null : id);
+  const fermer = () => {
+    const quittee = ouverte;
+    montrer(null);
+    if (quittee) document.getElementById(`monde-entree-${quittee}`)?.focus();
+  };
+  useEffect(() => {
+    const ancre = () => montrer(fenetreDeLAncre(location.hash), false);
+    window.addEventListener("hashchange", ancre);
+    return () => window.removeEventListener("hashchange", ancre);
+  }, []);
+  useEffect(() => {
+    if (lien) montrer("gaulois", false);
+  }, [lien]);
 
+  // Échap ferme la fenêtre ouverte, après ce qui passe avant elle : une fenêtre de la boutique, un menu de l'en-tête.
+  useEffect(() => {
+    if (!ouverte) return;
+    const touche = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      if (document.querySelector("dialog[open], details[data-menu][open], [data-testid='appels-popup']")) return;
+      fermer();
+    };
+    document.addEventListener("keydown", touche);
+    return () => document.removeEventListener("keydown", touche);
+  }, [ouverte]);
+
+  // À l'arrivée, la caméra est sur la place ; dès que le village est lu, sur le lieu où se trouve son Gaulois.
+  const placee = useRef(false);
+  useEffect(() => {
+    if (!placee.current) camera.aller(quartierDuLieu(plan, "place").vue, true);
+    if (village && !placee.current) {
+      placee.current = true;
+      camera.aller(quartierDuLieu(plan, lieuDOuverture(lieux)).vue, true);
+    }
+  }, [village]);
+  useEffect(() => () => camera.fermer(), [camera]);
+
+  // La page est prête : elle garde sa mise en page d'écran (voir le script en ligne de village.astro).
+  useEffect(() => {
+    document.documentElement.dataset["mondePret"] = "";
+    document.documentElement.classList.add("village-monde");
+  }, []);
+
+  /** Sur un téléphone, aller voir quelque chose referme la fenêtre, qui le cacherait. */
+  const voir = (x: number) => {
+    if (window.matchMedia("(max-width: 47.9375rem)").matches) fermer();
+    camera.aller(x);
+  };
+  const parler = (habitant: Habitant) => {
+    toucher.toucher(habitant);
+    // La caméra va à celui qui parle : dans son lieu, à peu près à sa place.
+    if (moi.current !== null && habitant.gaulois.moi) camera.aller(moi.current);
+    else camera.aller(quartierDuLieu(plan, habitant.presence.lieu).vue);
+  };
+
+  const messageDuVillage = lecture.kind === "fermee" || lecture.kind === "erreur" ? lecture.message : null;
   return (
-    <div class="village" data-testid="village">
-      <Onglets label="Les parties du village" prefix={PREFIXE} tabs={ONGLETS} active={active} onSelect={select} call={call} />
-      <Partie prefix={PREFIXE} id="gaulois" active={active} slide={slide}>
-        <h2 class="sr-only">Mon Gaulois</h2>
-        <Vestiaire actif={active === "gaulois"} />
-      </Partie>
-      <Partie prefix={PREFIXE} id="place" active={active} slide={slide}>
-        <h2 class="sr-only">La place du village</h2>
-        {shown.has("place") && <PlaceDuVillage actif={active === "place"} />}
-      </Partie>
-      <Partie prefix={PREFIXE} id="marche" active={active} slide={slide}>
-        <h2 class="sr-only">Le marché du village</h2>
-        {shown.has("marche") && <MarcheDuVillage actif={active === "marche"} />}
-      </Partie>
+    <div class="monde" data-fenetre={ouverte ?? undefined} data-testid="village">
+      <MondeScene plan={plan} etat={etat} lumiere={lumiere} date={date} lieux={lieux} camera={camera} horloge={horloge} fige={fige} parole={toucher.parole} onToucher={toucher.toucher} ouvrir={(id) => montrer(id)} membre={membre} moiA={(x) => (moi.current = x)}>
+        <MondeTete />
+        <MondeCarte plan={plan} camera={camera} comptes={membre ? comptesDesLieux(lieux) : null} moi={moi} />
+        <MondeCredit />
+        <MondeFenetre id="gaulois" ouverte={ouverte === "gaulois"} onFermer={fermer}>
+          {vues.has("gaulois") &&
+            (me === null ? (
+              ferme
+            ) : lien ? (
+              <div data-testid="village-lien">
+                <DemandeLienOpenFront me={me} onSent={rafraichir ?? (async () => {})} />
+              </div>
+            ) : (
+              <Vestiaire actif={ouverte === "gaulois"} />
+            ))}
+        </MondeFenetre>
+        {connecte && (
+          <MondeFenetre id="marche" ouverte={ouverte === "marche"} onFermer={fermer}>
+            {vues.has("marche") && <MarcheDuVillage actif={ouverte === "marche"} />}
+          </MondeFenetre>
+        )}
+        {connecte && (
+          <MondeFenetre id="qui" ouverte={ouverte === "qui"} onFermer={fermer}>
+            <FenetreQui village={village} lieux={lieux} message={messageDuVillage} dit={toucher.dit} onParler={parler} onGaulois={() => montrer("gaulois")} voirLieu={(lieu) => voir(quartierDuLieu(plan, lieu).vue)} />
+          </MondeFenetre>
+        )}
+        <MondeFenetre id="chantier" ouverte={ouverte === "chantier"} onFermer={fermer}>
+          <FenetreChantier
+            etat={etat}
+            voir={(id) => {
+              const e = emplacementDuBatiment(plan, id as BatimentId);
+              voir(e.x + e.largeur / 2);
+            }}
+          />
+        </MondeFenetre>
+        <MondeFenetre id="feu" ouverte={ouverte === "feu"} onFermer={fermer}>
+          <FenetreFeu etat={etat} voir={() => voir(plan.feu.x)} />
+        </MondeFenetre>
+        <MondeFenetre id="forge" ouverte={ouverte === "forge"} onFermer={fermer}>
+          <FenetreForge
+            voir={() => {
+              const e = emplacementsDe(plan, "forge")[0]!;
+              voir(e.x + e.largeur / 2);
+            }}
+          />
+        </MondeFenetre>
+      </MondeScene>
+      <MondeDock ouverte={ouverte} onChoisir={choisir} membre={connecte} />
+      <AnnonceDuToucher dit={toucher.dit} />
     </div>
   );
+}
+
+/** Le monde, pour un site dont la connexion est ouverte : le compte se lit, puis le monde se peuple. */
+function MondeAvecCompte({ etat }: { etat: EtatDuMonde }) {
+  const { me, refresh } = useMe();
+  const lien = useLienAttendu(me);
+  // Le temps de lire le compte, le monde se montre déjà : il est public.
+  return <Monde etat={etat} me={me ?? { signed_in: false }} lien={lien === true} rafraichir={refresh} />;
+}
+
+/**
+ * La page du village. `ouvert` : la connexion du site est ouverte (`AUTH_ENABLED`) ; sinon, le monde se visite sans
+ * compte, et « Mon Gaulois » montre ce que la page a mis dans la balise (`children` : la porte fermée).
+ */
+export default function VillageApp({ etat, ouvert, children }: { etat: EtatDuMonde; ouvert: boolean; children?: ComponentChildren }) {
+  return ouvert ? <MondeAvecCompte etat={etat} /> : <Monde etat={etat} me={null} lien={false} ferme={children} />;
 }
