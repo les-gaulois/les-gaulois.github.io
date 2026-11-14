@@ -136,14 +136,14 @@ limite connue (le rendu de la foule est refait, voir « Le moteur de la foule »
 - **Les maisons** (`maisons.ts`) : quatre modèles de quatre lits (grande hutte ronde, longère, maison à colombages,
   chaumière à appentis) et deux dépendances fermées (grenier sur pilotis, petite hutte). L'intérieur n'est ouvert que
   sur les lits, et l'ouverture suit la charpente. Chaque maison peut être retournée et change de teinte ; deux voisines
-  ne sont jamais du même modèle. La taverne et la salle de réunion gardent leur dessin d'avant.
+  ne sont jamais du même modèle.
 - **Les arbres** (`arbres.ts`) : chêne, hêtre, bouleau, sapin, saule, pommier, noisetier, buisson ; tronc noueux, racines,
   feuillage en masses éclairées d'un côté, ombre portée au pied ; taille, sens et teinte changent d'un arbre à l'autre.
   Ils remplacent partout les anciens arbres : lisières, grand-rue, terrasses, pied de la grande pente du bas.
 - **Les Gaulois des terrasses** (`postes.ts`) : celui qui dort dans une maison du fond, ou qui se promène sur sa terrasse,
   porte l'échelle 0,5 et la parallaxe de sa terrasse ; le moteur de la foule le dessine deux fois plus petit, sous le
   décor du premier plan (`fondDuPlan` de `foule.ts`). En chemin vers un autre lieu, il rejoint la grand-rue d'un saut, par
-  l'escalier. Les bêtes ne vivent que sur la grand-rue et dans le pré du bas.
+  l'escalier.
 - **L'approche** (`camera.ts`) : trois niveaux, une case du premier plan valant 1, 2 ou 4 pixels ; le fond en vaut toujours
   la moitié. À l'arrivée, le niveau 2 (un Gaulois de la grand-rue fait 96 pixels sur 128) ; sur un écran étroit, le
   niveau 1, pour voir plus qu'une maison. Au niveau 1, le fond est à un demi-pixel par case : le navigateur l'adoucit.
@@ -154,12 +154,34 @@ limite connue (le rendu de la foule est refait, voir « Le moteur de la foule »
   (`fondDuPlan`). Les tests du moteur ont été mis à jour.
 - **Le thème clair** : l'interface du monde (fenêtres, rangée d'icônes, petite carte, boutons d'approche, étiquettes)
   suit le thème « Neige Marine » du site ; les contours posés sur le dessin restent blancs (`var(--sur-couleur)`).
-- **Limites connues** : les Gaulois des terrasses ne sont pas pâlis comme leur décor ; les maisons du fond ne fument
-  pas ; au niveau 3 d'avant, plus rien (il n'existe plus) ; rien de tout cela n'a été vu avec un vrai compte ni sur un
-  vrai téléphone.
+- **Limites connues** : rien de tout cela n'a été vu avec un vrai compte ni sur un vrai téléphone.
 - **Cadence mesurée** (Chromium sans carte graphique, 1 920 × 1 080, niveau 2) : à 300 Gaulois, 49 images par seconde au
   repos et 40 pendant un glissement ; à 1 000, 52 et 34. Premier Gaulois à l'écran en 0,4 seconde. Non mesuré sur un vrai
   poste avec carte graphique.
+
+### Quatrième étape : le fond pâli et vivant, les deux salles redessinées (14 novembre 2026)
+
+Le pilote, après la mise en ligne : pâlir les Gaulois des terrasses comme leur décor, faire fumer les maisons du fond et
+y remettre des bêtes, redessiner la taverne et la salle de réunion, « plus carrées que les nouvelles maisons ». Design :
+Claude Fable 5.2.
+
+- **Les Gaulois des terrasses sont pâlis** (`voileDuPlan` de `foule.ts`, `MondeHabitants.tsx`) : une fois les Gaulois
+  d'une toile du fond peints, le moteur pose sur elle un seul voile, de la couleur du ciel près de l'horizon à cette heure
+  (`brumeDuFond` de `lointain.ts`) et de la part de brume de leur terrasse (de 20 à 62 %), qui ne teinte que ce qui est
+  peint. Les dessins tout faits ne changent pas ; les Gaulois de la grand-rue ne sont pas touchés.
+- **Les fumées du fond** (`MondeTerrasses`) : une fumée lente à la cheminée d'une maison sur deux, à l'échelle de sa
+  terrasse, d'autant plus pâle que la terrasse est loin ; elle glisse avec elle. Le bouton pause la fige comme les autres.
+- **Les bêtes des terrasses** (`betes.ts`, `MondeBetes`) : sur chaque terrasse, derrière le village, deux poules, deux
+  chèvres, et un chien une terrasse sur deux ; dessinées à demi-échelle, pâlies comme leur terrasse, rangées en
+  profondeur avec ses Gaulois, et qui glissent avec elle.
+- **La taverne et la salle de réunion** (`salles.ts`) : la taverne est une grande chaumière en croupe, au faîte qui
+  fléchit, avec une lucarne, la souche de sa cheminée, un cellier de pierre adossé sous un appentis de chaume, l'enseigne
+  au bout d'une potence et une guirlande de houblon ; la salle de réunion est une halle à fronton (le bouclier du clan,
+  deux cornes croisées), avec une tourelle de pierre, un mât et sa bannière, deux marches. L'ouverture suit la charpente
+  (deux grands aisseliers cintrés). Les places assises n'ont pas bougé : huit et sept sièges dedans, à la même place
+  depuis le bord gauche, puis la terrasse de tables et les bancs dehors, qui grandissent toujours avec le village (un
+  quart et un cinquième des Gaulois). Les emplacements sont plus larges (456 et 440 cases au lieu de 372) : l'annexe est
+  à droite, ce qui suit est poussé d'autant.
 
 ## Le monde : la marche, l'état du monde et les plaques
 

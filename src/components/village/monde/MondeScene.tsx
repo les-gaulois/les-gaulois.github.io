@@ -5,6 +5,7 @@ import type { EtatDuMonde } from "../../../lib/village/monde-etat";
 import { DUREE_DE_L_APPROCHE, NIVEAUX, niveauDeDepart, niveauVoisin } from "../../../lib/village/monde/camera";
 import { lotEnCours } from "../../../lib/village/monde/composition";
 import { LIGNE, type Plan, emplacementsDe, quartierDuLieu } from "../../../lib/village/monde/plan";
+import { SALLE_LARGEUR } from "../../../lib/village/monde/salles";
 import { avancementDuBatiment, batimentEnCours } from "../../../lib/village/chantier";
 import { type FenetreDuMonde, nomDuFeu, phraseDuChantier, pointsDuFeu } from "../../../lib/village/monde/textes";
 import { type Habitant, type Lieu, NOMS_DES_LIEUX, phraseDuReleve } from "../../../lib/village/vie";
@@ -404,8 +405,8 @@ export function MondeScene({
     const reunion = emplacementsDe(plan, "reunion")[0]!;
     plaque("maisons", maisons[1]!.x + Math.floor(maisons[1]!.largeur / 2), maisons[1]!.pied - 132);
     plaque("place", plan.feu.x - 118, LIGNE - 30);
-    plaque("taverne", taverne.x + Math.floor(taverne.largeur / 2), taverne.pied - 136);
-    plaque("reunion", reunion.x + Math.floor(reunion.largeur / 2), reunion.pied - 136);
+    plaque("taverne", taverne.x + SALLE_LARGEUR / 2, taverne.pied - 136);
+    plaque("reunion", reunion.x + SALLE_LARGEUR / 2, reunion.pied - 136);
     plaque("bataille", quartierDuLieu(plan, "bataille").vue, LIGNE - 8);
     return liste.sort((a, b) => a.x - b.x);
   }, [plan, etat, lieux, membre]);
@@ -455,9 +456,9 @@ export function MondeScene({
             <div class="monde-dessin" aria-hidden="true">
               <MondeTerrasses plan={plan} lumiere={lumiere} mesure={mesure} camera={camera} />
               <MondeDecor plan={plan} etat={etat} lumiere={lumiere} mesure={mesure} camera={camera} horloge={horloge} fige={fige} />
-              <MondeBetes plan={plan} mesure={mesure} camera={camera} horloge={horloge} fige={fige} />
+              <MondeBetes plan={plan} lumiere={lumiere} mesure={mesure} camera={camera} horloge={horloge} fige={fige} />
               <MondeEvenements plan={plan} lumiere={lumiere} mesure={mesure} horloge={horloge} fige={fige} />
-              <MondeHabitants plan={plan} lieux={lieux} mesure={mesure} camera={camera} horloge={horloge} fige={fige} parole={parole} onToucher={onToucher} aGlisse={aGlisse} moiA={moiA} margeGauche={large ? RANGEE_D_ICONES : 0} />
+              <MondeHabitants plan={plan} lieux={lieux} lumiere={lumiere} mesure={mesure} camera={camera} horloge={horloge} fige={fige} parole={parole} onToucher={onToucher} aGlisse={aGlisse} moiA={moiA} margeGauche={large ? RANGEE_D_ICONES : 0} />
             </div>
             {zones.map((zone) => (
               <button

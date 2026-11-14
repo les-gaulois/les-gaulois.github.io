@@ -35,6 +35,9 @@ export const tuilesDeLaTerrasse = (t: Terrasse): number => Math.ceil(t.largeur /
 /** Les rangées des pieds de ceux qui s'y promènent, de la plus lointaine à la plus proche, en cases du fond. */
 export const sentierDeLaTerrasse = (t: Terrasse): { haut: number; bas: number } => ({ haut: t.sol + 6, bas: t.sol + SENTIER - 4 });
 
+/** La couleur vers laquelle la distance pâlit une terrasse, son décor comme ses Gaulois, ses bêtes et ses fumées : le ciel près de l'horizon, à cette heure. */
+export const brumeDuFond = (l: Lumiere): string => cielDuVillage(l)[3]!;
+
 /** Une planche qui ne garde qu'un morceau de la terrasse : on y pose en cases du fond. */
 class Morceau extends Planche {
   constructor(
@@ -176,7 +179,7 @@ export function composerTuileDeTerrasse(t: Terrasse, l: Lumiere, tx: number): De
   }
 
   // La distance : tout pâlit et tire vers la couleur du ciel près de l'horizon.
-  const brume = cielDuVillage(l)[3]!;
+  const brume = brumeDuFond(l);
   const voilees = new Map<string, string>();
   const cases = pl.cases;
   for (let i = 0; i < cases.length; i++) {

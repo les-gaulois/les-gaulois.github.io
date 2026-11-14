@@ -1,7 +1,8 @@
 /**
- * Les pièces du monde du village dessinées pour le panorama, case par case, à la taille des Gaulois (48 × 64) : les
- * maisons, la taverne et la salle de réunion ouvertes sur le devant comme des maisons de poupée, l'étal du marché, le
- * camp d'en face, les grands arbres, le ruisseau et son gué, les piquets d'un emplacement pas encore bâti. Les matières et
+ * Les pièces du monde du village dessinées pour le panorama, case par case, à la taille des Gaulois (48 × 64) : le
+ * mobilier et le dedans des pièces ouvertes (tables, tonneaux, torches, lits vides), l'étal du marché, le camp d'en face,
+ * la lisière, le sol de la grand-rue, le ruisseau et son gué, les piquets d'un emplacement pas encore bâti. Les maisons
+ * sont dans `maisons.ts`, la taverne et la salle de réunion dans `salles.ts`, les arbres dans `arbres.ts`. Les matières et
  * les couleurs sont celles du village d'avant (`decor.ts`, `lieux.ts`) : chaume, torchis, bois, pierre.
  *
  * Tout se pose en colonnes du monde, sur une `Planche` ; rien n'est tiré au hasard : `alea(x, y)` donne un grain qui ne
@@ -10,7 +11,7 @@
  * Design : Claude Fable 5.2.
  */
 import { type Palette, type Planche, alea } from "../decor";
-import { type Lumiere, cielDuVillage, couleurDuDedans, couleurDuDehors, melanger } from "../lumiere";
+import { type Lumiere, cielDuVillage, couleurDuDehors, melanger } from "../lumiere";
 import { type Essence, poserArbre } from "./arbres";
 import { LIT_HAUTEUR, LIT_LARGEUR } from "./poses-monde";
 import { type Emplacement, LIGNE, RUE_HAUTEUR, PIED_DU_PONT, PLANCHER, type Plan } from "./plan";
@@ -18,7 +19,7 @@ import { type Emplacement, LIGNE, RUE_HAUTEUR, PIED_DU_PONT, PLANCHER, type Plan
 type Teinte = (couleur: string) => string;
 
 /** Les couleurs du clan : bleu, blanc, rouge. */
-const TRICOLORE = ["#2456b8", "#e8e6e0", "#c8283a"] as const;
+export const TRICOLORE = ["#2456b8", "#e8e6e0", "#c8283a"] as const;
 
 /* ---------- Les mesures des intérieurs, que `postes.ts` relit pour y asseoir et y coucher les Gaulois ---------- */
 
@@ -86,7 +87,7 @@ export function poserBardeaux(planche: Planche, p: Palette, x0: number, x1: numb
 /* ---------- Le mobilier des intérieurs (mêmes dessins que les lieux d'avant, `lieux.ts`) ---------- */
 
 /** Une torche sur un poteau : sa flamme éclaire, et le mur rougit autour, plus fort la nuit. */
-function poserTorche(planche: Planche, x: number, y: number, l: Lumiere): void {
+export function poserTorche(planche: Planche, x: number, y: number, l: Lumiere): void {
   const force = 0.22 + 0.22 * (1 - l.jour);
   planche.disque(x + 1, y - 2, 11, (dx, dy) => {
     const fond = planche.lire(x + 1 + dx, y - 2 + dy);
@@ -100,7 +101,7 @@ function poserTorche(planche: Planche, x: number, y: number, l: Lumiere): void {
 }
 
 /** Une fenêtre : le ciel de l'heure entre deux volets ouverts. */
-function poserFenetre(planche: Planche, x: number, y: number, l: Lumiere, t: Teinte): void {
+export function poserFenetre(planche: Planche, x: number, y: number, l: Lumiere, t: Teinte): void {
   const ciel = cielDuVillage(l);
   planche.rect(x - 5, y, 5, 16, (i, j) => ((j - y) % 5 === 4 ? t("#523419") : i === x - 5 ? t("#8a5a30") : t("#70492c")));
   planche.rect(x + 20, y, 5, 16, (i, j) => ((j - y) % 5 === 4 ? t("#523419") : i === x + 24 ? t("#523419") : t("#70492c")));
@@ -115,7 +116,7 @@ function poserFenetre(planche: Planche, x: number, y: number, l: Lumiere, t: Tei
 }
 
 /** Un tonneau debout, posé sur la rangée `bas`. */
-function poserTonneau(planche: Planche, x: number, bas: number, t: Teinte): void {
+export function poserTonneau(planche: Planche, x: number, bas: number, t: Teinte): void {
   const haut = bas - 19;
   for (let y = haut; y <= bas; y++) {
     const r = y - haut;
@@ -131,7 +132,7 @@ function poserTonneau(planche: Planche, x: number, bas: number, t: Teinte): void
 }
 
 /** Un grand fût couché sur son chevalet, vu de face, avec son robinet. */
-function poserFut(planche: Planche, cx: number, bas: number, t: Teinte): void {
+export function poserFut(planche: Planche, cx: number, bas: number, t: Teinte): void {
   const cy = bas - 15;
   planche.disque(cx, cy, 12, (dx, dy) => {
     const d = dx * dx + dy * dy;
@@ -165,7 +166,7 @@ export function poserEtagere(planche: Planche, de: number, a: number, y: number,
 }
 
 /** Une longue table sur ses tréteaux : le dessus, la ceinture, les pieds, et son ombre au sol. */
-function poserTable(planche: Planche, x: number, y: number, largeur: number, t: Teinte): void {
+export function poserTable(planche: Planche, x: number, y: number, largeur: number, t: Teinte): void {
   planche.rect(x + 2, y + 19, largeur - 4, 2, (i, j) => ((i + j) % 2 === 0 ? t("#3d2616") : null));
   for (const px of [x + 4, x + Math.floor(largeur / 2) - 2, x + largeur - 8]) {
     planche.rect(px, y + 9, 4, 10, (i) => t(i === px ? "#8a5a30" : i === px + 3 ? "#472d19" : "#6a4424"));
@@ -182,7 +183,7 @@ function poserTable(planche: Planche, x: number, y: number, largeur: number, t: 
 /* ---------- Les intérieurs ouverts : une boîte vue de face, dont on a ôté le mur de devant ---------- */
 
 /** Ce qu'il faut pour dessiner une pièce ouverte : son mur du fond, son sol qui vient vers nous, ses deux murs de côté. */
-interface Piece {
+export interface Piece {
   /** Les colonnes de l'ouverture, sur le devant. */
   de: number;
   a: number;
@@ -198,7 +199,7 @@ interface Piece {
 }
 
 /** Dessine la pièce : le fond, le sol en trapèze, les deux murs de côté dans l'ombre, l'ombre du plafond en haut du mur. */
-function poserPiece(planche: Planche, piece: Piece, t: Teinte): void {
+export function poserPiece(planche: Planche, piece: Piece, t: Teinte): void {
   const { de, a, haut, fond, devant, fuite } = piece;
   for (let y = haut; y <= devant; y++) {
     // Le retrait des murs de côté à cette rangée : entier au fond, nul sur le devant.
@@ -253,24 +254,12 @@ export function poserLitVide(planche: Planche, x: number, y: number, rang: numbe
 /* ---------- La taverne et la salle de réunion ---------- */
 
 /** Les deux rangs de tables d'une salle, que les convives viennent garnir. */
-function poserTables(planche: Planche, e: Emplacement, t: Teinte): void {
+export function poserTables(planche: Planche, e: Emplacement, t: Teinte): void {
   const devant = PLANCHER - 68 + 47;
   poserTable(planche, e.x + SALLE_SIEGE_DERRIERE - 8, devant - SALLE_RECUL, (SIEGES_DERRIERE - 1) * SIEGE + 64, t);
   poserTable(planche, e.x + SALLE_SIEGE_DEVANT - 8, devant, (SIEGES_DEVANT - 1) * SIEGE + 64, t);
 }
 
-/** Les poteaux de devant, leurs aisseliers, et la sablière sous le toit : le cadre de l'ouverture d'une salle. */
-function poserCadre(planche: Planche, p: Palette, e: Emplacement, avantToit: number): void {
-  for (const [px, sens] of [
-    [e.x + 5, 1],
-    [e.x + e.largeur - 12, -1],
-  ] as const) {
-    planche.rect(px, avantToit, 7, e.pied - avantToit + 1, (i, j) => (i === px ? p.bois.clair : i === px + 6 ? p.bois.creux : (j - avantToit) % 23 === 11 ? p.bois.sombre : p.bois.fond));
-    // L'aisselier : une pièce de bois en biais, du poteau à la sablière.
-    for (let k = 0; k < 20; k++) planche.rect(px + (sens === 1 ? 7 + k : -1 - k), avantToit + 23 - k, 1, 4, (_i, j) => (j === avantToit + 23 - k ? p.bois.clair : p.bois.sombre));
-  }
-  planche.rect(e.x + 3, avantToit - 1, e.largeur - 6, 5, (_i, j) => (j === avantToit + 3 ? p.bois.creux : j === avantToit - 1 ? p.bois.clair : p.bois.fond));
-}
 
 /** Une lanterne pendue à la sablière : elle éclaire, sa couleur ne change pas. */
 export function poserLanterne(planche: Planche, p: Palette, x: number, y: number): void {
@@ -280,153 +269,7 @@ export function poserLanterne(planche: Planche, p: Palette, x: number, y: number
   planche.rect(x - 2, y + 13, 5, 1, p.bois.creux);
 }
 
-/** La taverne, ouverte sur le devant : ses tonneaux, son grand fût, ses étagères, deux longues tables, un toit de chaume. */
-export function poserTaverne(planche: Planche, p: Palette, l: Lumiere, e: Emplacement): void {
-  const t: Teinte = (couleur) => couleurDuDedans(couleur, l);
-  const x = e.x;
-  const avantToit = e.pied - SALLE_AVANT_TOIT;
-  const fond = PLANCHER - 36;
-  // Le mur du fond en planches couchées, le plancher en lames qui viennent vers nous.
-  const planches = (i: number, j: number): string => {
-    const bande = Math.floor((j - avantToit) / 7);
-    if ((j - avantToit) % 7 === 6 || (i + bande * 17) % 41 === 0) return "#4a2f1a";
-    if (alea(i >> 1, bande + 60) < 0.012) return "#523419";
-    return bande % 2 === 0 ? "#7a5232" : "#70492c";
-  };
-  poserPiece(
-    planche,
-    {
-      de: x + 10,
-      a: x + e.largeur - 11,
-      haut: avantToit,
-      fond,
-      devant: PLANCHER,
-      fuite: 18,
-      mur: planches,
-      cote: planches,
-      sol: (i, j, part) => {
-        const lame = Math.floor((j - fond) / 6);
-        if ((j - fond) % 6 === 0) return "#7a5c3a";
-        if ((i + lame * 41) % 83 === 0) return "#6a4f32";
-        return alea(i, j) < 0.04 ? "#94744a" : part > 0.5 ? "#a8865a" : "#9a784c";
-      },
-    },
-    t,
-  );
-  // Le long du mur : des tonneaux, une fenêtre, des étagères de cruches, le grand fût sur son chevalet.
-  poserEtagere(planche, x + 78, x + 156, avantToit + 30, t);
-  poserFenetre(planche, x + 176, avantToit + 12, l, t);
-  poserEtagere(planche, x + 218, x + 290, avantToit + 30, t);
-  poserTonneau(planche, x + 34, fond + 2, t);
-  poserTonneau(planche, x + 52, fond + 2, t);
-  poserTonneau(planche, x + 43, fond - 18, t);
-  poserFut(planche, x + e.largeur - 50, fond + 3, t);
-  for (const tx of [x + 66, x + 164, x + 206, x + 302]) poserTorche(planche, tx, avantToit + 24, l);
-  poserTables(planche, e, t);
-  // Le seuil de planches, vu par la tranche.
-  planche.rect(x + 4, PLANCHER + 1, e.largeur - 8, e.pied - PLANCHER, (i, j) => (j === PLANCHER + 1 ? p.bois.clair : j === e.pied ? p.bois.creux : (i - x) % 21 === 0 ? p.bois.sombre : p.bois.autre));
-  // Le cadre de l'ouverture, deux lanternes, le toit de chaume et sa cheminée.
-  poserCadre(planche, p, e, avantToit);
-  poserLanterne(planche, p, x + 122, avantToit + 4);
-  poserLanterne(planche, p, x + 250, avantToit + 4);
-  const faite = e.pied - e.hauteur + 3;
-  poserChaume(planche, p, x, x + e.largeur - 1, faite, avantToit - 2, 112);
-  poserCheminee(planche, l, x + 262, faite - 10, faite + 20);
-  // L'enseigne, pendue à l'avant-toit : une chope.
-  const ex = x + 22;
-  planche.rect(ex + 6, avantToit + 3, 1, 5, p.bois.creux);
-  planche.rect(ex + 17, avantToit + 3, 1, 5, p.bois.creux);
-  planche.rect(ex, avantToit + 8, 24, 20, (i, j) => (i === ex || i === ex + 23 || j === avantToit + 8 || j === avantToit + 27 ? p.bois.creux : p.bois.clair));
-  planche.lettres(ex + 6, avantToit + 11, ["..fffff...", ".fffffff..", ".aaaaaaa..", ".assSssaaa", ".assSssa.a", ".assSssa.a", ".assSssaaa", ".assSssa..", ".aaaaaaa.."], { a: "#1a1410", s: "#8d95a6", S: "#c0c9e2", f: "#fff6dc" });
-}
 
-/** La salle de réunion, ouverte sur le devant : torchis sur pierre, la bannière du clan, des boucliers, un toit de bardeaux. */
-export function poserReunion(planche: Planche, p: Palette, l: Lumiere, e: Emplacement): void {
-  const t: Teinte = (couleur) => couleurDuDedans(couleur, l);
-  const x = e.x;
-  const avantToit = e.pied - SALLE_AVANT_TOIT;
-  const fond = PLANCHER - 36;
-  // Le mur du fond : du torchis sur un soubassement de pierres ; au sol, de larges dalles.
-  const torchis = (i: number, j: number): string => {
-    if (j >= fond - 26) {
-      const lit = Math.floor((j - (fond - 26)) / 6);
-      if ((j - (fond - 26)) % 6 === 5 || (i + lit * 9) % 18 === 0) return "#4d4840";
-      return alea(Math.floor((i + lit * 9) / 18), lit + 3) < 0.4 ? "#7d766a" : "#6a645a";
-    }
-    if ((j - avantToit) % 9 === 8) return "#a88a5c";
-    return alea(i, j) < 0.05 ? "#b0935f" : "#bfa16c";
-  };
-  poserPiece(
-    planche,
-    {
-      de: x + 10,
-      a: x + e.largeur - 11,
-      haut: avantToit,
-      fond,
-      devant: PLANCHER,
-      fuite: 18,
-      mur: torchis,
-      cote: torchis,
-      sol: (i, j) => {
-        const lit = Math.floor((j - fond) / 12);
-        if ((j - fond) % 12 === 0 || (i + lit * 19) % 38 === 0) return "#94846a";
-        return alea(Math.floor((i + lit * 19) / 38), lit + 40) < 0.35 ? "#a89878" : "#9e8e70";
-      },
-    },
-    t,
-  );
-  // La grande bannière du clan, au milieu : trois bandes sous une hampe, le bas en pointes.
-  const centre = x + Math.floor(e.largeur / 2);
-  planche.rect(centre - 26, avantToit + 9, 53, 2, (_i, j) => t(j === avantToit + 9 ? "#8a5a30" : "#472d19"));
-  for (let i = 0; i < 45; i++) {
-    const bande = Math.floor(i / 15);
-    const pointe = avantToit + 42 + (7 - Math.abs((i % 15) - 7));
-    for (let j = avantToit + 11; j <= pointe; j++) planche.poser(centre - 22 + i, j, t(i % 15 === 14 && bande < 2 ? "#9a968c" : TRICOLORE[bande]!));
-  }
-  // De part et d'autre : une fenêtre et deux boucliers accrochés.
-  for (const [fx, bx] of [
-    [x + 70, x + 128],
-    [x + 282, x + 244],
-  ] as const) {
-    poserFenetre(planche, fx, avantToit + 13, l, t);
-    for (const [dx, a, b] of [
-      [-9, TRICOLORE[0], TRICOLORE[1]],
-      [9, TRICOLORE[2], TRICOLORE[1]],
-    ] as const) {
-      planche.disque(bx + dx, avantToit + 24, 8, (i, j) => {
-        const d = i * i + j * j;
-        if (d > 56) return t("#3d2616");
-        if (d <= 3) return t("#8d95a6");
-        return t(i * j >= 0 ? a : b);
-      });
-    }
-  }
-  for (const tx of [x + 50, x + 106, x + 262, x + 318]) poserTorche(planche, tx, avantToit + 26, l);
-  // Les tables : une carte déroulée au milieu de celle de devant, des bougies.
-  poserTables(planche, e, t);
-  const table = PLANCHER - 68 + 47;
-  planche.rect(centre - 14, table + 1, 28, 3, (i, j) => (i === centre - 14 || i === centre + 13 ? t("#b89c6a") : j === table + 2 && (i - centre) % 5 === 0 ? t("#8a6238") : t("#e9dcb8")));
-  for (const bx of [x + 62, x + 138, x + 232, x + 308]) {
-    planche.rect(bx, table - 4, 2, 5, t("#e9e2cf"));
-    planche.rect(bx, table - 6, 2, 2, "#ffd75a");
-    planche.poser(bx, table - 7, "#f58a1f");
-  }
-  // Le seuil de pierre, le cadre de l'ouverture, le toit de bardeaux et ses deux fanions.
-  const c = (deJour: string, deNuit: string) => couleurDuDehors(deJour, deNuit, l);
-  planche.rect(x + 2, PLANCHER + 1, e.largeur - 4, e.pied - PLANCHER, (i, j) => (j === PLANCHER + 1 ? c("#b3aa9a", "#5e5c66") : j === e.pied || (i - x) % 26 === 0 ? c("#5c564c", "#2c2a30") : c("#8a8274", "#474550")));
-  poserCadre(planche, p, e, avantToit);
-  poserLanterne(planche, p, x + 96, avantToit + 4);
-  poserLanterne(planche, p, x + 276, avantToit + 4);
-  poserBardeaux(planche, p, x, x + e.largeur - 1, e.pied - e.hauteur + 5, avantToit - 2, 118);
-  for (const fx of [x + 24, x + e.largeur - 38]) {
-    planche.rect(fx - 1, avantToit + 4, 14, 1, p.bois.creux);
-    for (let i = 0; i < 12; i++) {
-      const pointe = avantToit + 26 + (2 - Math.abs((i % 4) - 2));
-      const teinte = TRICOLORE[Math.floor(i / 4)]!;
-      for (let j = avantToit + 5; j <= pointe; j++) planche.poser(fx + i, j, c(teinte, melanger(teinte, "#0a1230", 0.55)));
-    }
-  }
-}
 
 /* ---------- L'étal du marché ---------- */
 

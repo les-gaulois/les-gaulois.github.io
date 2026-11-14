@@ -140,6 +140,11 @@ export interface BeteDuPlan {
   zone: { de: number; a: number; haut: number; bas: number };
   /** Elle avance d'une case tous les `lenteur` temps (huitièmes de seconde). */
   lenteur: number;
+  /**
+   * Sur une terrasse du fond : la parallaxe et la part de brume de cette terrasse. Son coin se compte alors en cases du
+   * fond, deux fois plus petites ; l'écran la dessine à demi-échelle, pâlie, et la fait glisser avec sa terrasse.
+   */
+  fond?: { parallaxe: number; voile: number };
 }
 
 /** Les bêtes du village, toujours les mêmes pour le même plan : près de l'étable, sur les terrasses, dans le pré du bas. */
@@ -163,5 +168,19 @@ export function betesDuPlan(plan: Plan): BeteDuPlan[] {
   dans("chevre", plan.dyBas, BAS_BANDE_HAUT + 10, BAS_BANDE_BAS, plan.ruisseau.x + 120, gare.x - 60, 0, 3);
   dans("chevre", plan.dyBas, BAS_BANDE_HAUT + 6, BAS_BANDE_BAS, plan.ruisseau.x + 200, gare.x - 20, 1, 4);
   dans("vache", plan.dyBas, BAS_BANDE_HAUT + 16, BAS_BANDE_BAS, 240, plan.ruisseau.x - 110, 1, 5);
+  // Sur chaque terrasse du fond, derrière le village : deux poules, une chèvre de chaque côté, et un chien une terrasse sur deux.
+  for (const t of plan.lointaines) {
+    const fond = { parallaxe: t.parallaxe, voile: t.voile };
+    const milieu = Math.round(2 * (t.parallaxe * ((plan.village.de + plan.village.a) / 2) + (1 - t.parallaxe) * 450));
+    const sur = (bete: Bete, de: number, a: number, variante: number, lenteur: number): void => {
+      const h = TAILLES_DES_BETES[bete].hauteur;
+      betes.push({ cle: `${bete}-${betes.length}`, bete, variante, zone: { de: Math.max(200, de), a: Math.min(t.largeur - 260, a), haut: t.sol + 5 - h, bas: t.sol + 21 - h }, lenteur, fond });
+    };
+    sur("poule", milieu - 620, milieu - 120, t.rang, 2);
+    sur("poule", milieu + 80, milieu + 640, t.rang + 1, 2);
+    sur("chevre", milieu - 1500, milieu - 500, t.rang, 3);
+    sur("chevre", milieu + 420, milieu + 1500, t.rang + 1, 4);
+    if (t.rang % 2 === 1) sur("chien", milieu - 900, milieu + 900, 0, 1);
+  }
   return betes;
 }

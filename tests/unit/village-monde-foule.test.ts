@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type Boite, type Calque, type Figure, type Obstacle, FOULE, OMBRE, PREMIER_PLAN, SOUS_LA_FOULE, calquesDeLaFoule, caseDuPlan, cleDuPlan, contient, couverture, decalageDuPlan, fondDuPlan, milieuPourVoir, nomsSousChacun, ordreDeDessin, planDeLaPlace, seCroisent, sousLeDoigt, vueDuPlan } from "../../src/lib/village/monde/foule";
+import { type Boite, type Calque, type Figure, type Obstacle, FOULE, OMBRE, PREMIER_PLAN, SOUS_LA_FOULE, calquesDeLaFoule, caseDuPlan, cleDuPlan, contient, couverture, decalageDuPlan, fondDuPlan, milieuPourVoir, voileDuPlan, nomsSousChacun, ordreDeDessin, planDeLaPlace, seCroisent, sousLeDoigt, vueDuPlan } from "../../src/lib/village/monde/foule";
 import { taillesDesDessins } from "../../src/lib/village/monde/composition";
 import { planDuMonde } from "../../src/lib/village/monde/plan";
 import { type Place, placesDuLieu } from "../../src/lib/village/monde/postes";
@@ -177,6 +177,16 @@ describe("le plan de chaque Gaulois : échelle et parallaxe", () => {
     expect(proche + 5000).toBeLessThan(0);
     // Entre deux terrasses, la place du décor de la plus proche (`SOUS_LA_FOULE`) et de tous ses Gaulois.
     expect(loin + 5000).toBeLessThan(proche - SOUS_LA_FOULE);
+  });
+
+  it("les Gaulois d'une terrasse du fond prennent la brume de leur terrasse, ceux du premier plan aucune", () => {
+    const terrasses = [
+      { parallaxe: 0.86, voile: 0.2 },
+      { parallaxe: 0.8, voile: 0.27 },
+    ];
+    expect(voileDuPlan(PREMIER_PLAN, terrasses)).toBe(0);
+    expect(voileDuPlan({ echelle: 0.5, parallaxe: 0.8 }, terrasses)).toBe(0.27);
+    expect(voileDuPlan({ echelle: 0.5, parallaxe: 0.5 }, terrasses)).toBe(0);
   });
 
   it("une case du fond vaut un nombre entier de pixels dès qu'elle en atteint un", () => {

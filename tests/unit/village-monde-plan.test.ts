@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { taillesDesDessins } from "../../src/lib/village/monde/composition";
 import { CYCLE, lutinsDesEvenements } from "../../src/lib/village/monde/evenements";
 import { cadreDeLArbre } from "../../src/lib/village/monde/arbres";
+import { TAILLES_DES_BETES, betesDuPlan } from "../../src/lib/village/monde/betes";
+import { SALLE_LARGEUR } from "../../src/lib/village/monde/salles";
 import { bandeDeLaTerrasse } from "../../src/lib/village/monde/lointain";
 import { MODELES, litsDeLaMaison } from "../../src/lib/village/monde/maisons";
 import { AU_DESSUS, BANDE_BAS, CIEL, HABITANTS_MAX, LIGNE, LISIERE_DU_FOND, PAS_DE_TERRASSE, PREMIERE_TERRASSE, type Plan, cadrageDuMonde, emplacementsDe, logisDuRang, maisonsPour, planDuMonde } from "../../src/lib/village/monde/plan";
@@ -110,6 +112,34 @@ describe("le plan du monde du village, de 0 à 1 000 Gaulois", () => {
     });
     // Dans une maison retournée, les lits restent dans la maison.
     for (const modele of Object.values(MODELES)) for (const variante of [1, 2, 3, 4, 5, 6]) for (const lit of litsDeLaMaison(modele, variante)) expect(lit.x >= 0 && lit.x + 72 <= modele.largeur && lit.y <= modele.hauteur && lit.y >= 40).toBe(true);
+  });
+
+  it("garde les tables des deux salles dans la salle elle-même, l'annexe à droite, et met des bêtes sur chaque terrasse", () => {
+    const plan = planDuMonde(tailles, 300);
+    for (const lieu of ["taverne", "reunion"] as const) {
+      const e = emplacementsDe(plan, lieu)[0]!;
+      expect(e.largeur).toBeGreaterThan(SALLE_LARGEUR);
+      // Les quinze sièges du dedans tiennent entre les deux poteaux de la salle.
+      for (const place of placesDuLieu(plan, lieu, rangs(15))) {
+        expect(place.x).toBeGreaterThanOrEqual(e.x + 12);
+        expect(place.x + 48).toBeLessThanOrEqual(e.x + SALLE_LARGEUR - 12);
+      }
+    }
+    const betes = betesDuPlan(plan);
+    for (const t of plan.lointaines) {
+      const ici = betes.filter((b) => b.fond?.parallaxe === t.parallaxe);
+      expect(ici.length).toBeGreaterThanOrEqual(4);
+      for (const b of ici) {
+        expect(b.fond!.voile).toBe(t.voile);
+        expect(b.zone.de).toBeLessThan(b.zone.a);
+        expect(b.zone.de).toBeGreaterThanOrEqual(0);
+        expect(b.zone.a).toBeLessThan(t.largeur);
+        // Ses pattes restent sur le sentier de la terrasse.
+        expect(b.zone.haut + TAILLES_DES_BETES[b.bete].hauteur).toBeGreaterThan(t.sol);
+        expect(b.zone.bas + TAILLES_DES_BETES[b.bete].hauteur).toBeLessThan(t.sol + 26);
+      }
+    }
+    expect(betes.filter((b) => !b.fond).length).toBeGreaterThanOrEqual(8);
   });
 
   it("assoit à l'aise un quart des Gaulois à la taverne et un cinquième à la réunion, et range les combattants sur le pré", () => {

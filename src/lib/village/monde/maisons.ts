@@ -66,7 +66,7 @@ export function fumeeDeLaMaison(modele: ModeleDeMaison, variante: number): { x: 
 
 /* ---------- Le chantier : ce qu'il faut pour dessiner une maison dans son cadre ---------- */
 
-interface Chantier {
+export interface Chantier {
   pl: Planche;
   p: Palette;
   l: Lumiere;
@@ -108,9 +108,14 @@ function paletteDeLaMaison(p: Palette, l: Lumiere, variante: number): Palette {
 /** Le côté d'une case, de 0 (vers la lumière) à 1 (dans l'ombre). */
 const cote = (c: Chantier, u: number): number => (c.envers ? 1 - u : u);
 
+/** Un chantier posé à même une planche, pour dessiner un bâtiment à sa place, à l'endroit (les salles de `salles.ts`). */
+export function chantierSur(planche: Planche, p: Palette, l: Lumiere, pied: number, variante = 0): Chantier {
+  return { pl: planche, p, l, t: (couleur) => couleurDuDedans(couleur, l), envers: false, variante, g: pied };
+}
+
 /* ---------- Les matières ---------- */
 
-interface Toit {
+export interface Toit {
   haut: number;
   bas: number;
   /** Les deux bords du toit à chaque rangée. */
@@ -125,7 +130,7 @@ interface Toit {
 }
 
 /** Un toit de chaume (ou de bardeaux) : des rangs en écailles, la lumière d'un côté, un bord sombre, une frange inégale. */
-function toit(c: Chantier, o: Toit): void {
+export function toit(c: Chantier, o: Toit): void {
   const { pl, p } = c;
   const tons = o.bardeaux ? { fond: p.bois.fond, clair: p.bois.clair, sombre: p.bois.sombre, brin: p.bois.autre, rang: p.bois.creux, bord: p.bois.creux } : p.chaume;
   const pas = o.bardeaux ? 6 : 7;
@@ -162,7 +167,7 @@ function toit(c: Chantier, o: Toit): void {
 }
 
 /** Un mur de torchis, avec ses défauts : la trame qui affleure, l'ombre de l'avant-toit, l'humidité qui monte du sol. */
-function torchis(c: Chantier, x: number, y: number, largeur: number, hauteur: number, rond = false): void {
+export function torchis(c: Chantier, x: number, y: number, largeur: number, hauteur: number, rond = false): void {
   const { pl, p } = c;
   pl.rect(x, y, largeur, hauteur, (i, j) => {
     const g = alea(i >> 1, j >> 1);
@@ -182,7 +187,7 @@ function torchis(c: Chantier, x: number, y: number, largeur: number, hauteur: nu
 }
 
 /** Une fissure qui descend dans le torchis, et, plus bas, une plaque tombée où paraît le clayonnage. */
-function defauts(c: Chantier, x: number, y: number, hauteur: number): void {
+export function defauts(c: Chantier, x: number, y: number, hauteur: number): void {
   const { pl, p } = c;
   let i = x;
   for (let j = y; j < y + Math.min(hauteur, 22); j++) {
@@ -198,7 +203,7 @@ function defauts(c: Chantier, x: number, y: number, hauteur: number): void {
 }
 
 /** Un soubassement de pierres sèches : des lits inégaux, des pierres de trois gris, et un dessus en dents si l'on veut. */
-function pierres(c: Chantier, x: number, y: number, largeur: number, hauteur: number, dents = false): void {
+export function pierres(c: Chantier, x: number, y: number, largeur: number, hauteur: number, dents = false): void {
   const { pl, l } = c;
   const k = (deJour: string, deNuit: string) => couleurDuDehors(deJour, deNuit, l);
   const joint = k("#5c564c", "#2c2a30");
@@ -227,7 +232,7 @@ function pierres(c: Chantier, x: number, y: number, largeur: number, hauteur: nu
 }
 
 /** Une poutre debout, une poutre couchée, une pièce de bois en biais. */
-function poteau(c: Chantier, x: number, y: number, epaisseur: number, hauteur: number): void {
+export function poteau(c: Chantier, x: number, y: number, epaisseur: number, hauteur: number): void {
   const { pl, p } = c;
   pl.rect(x, y, epaisseur, hauteur, (i, j) => {
     const u = cote(c, (i - x) / Math.max(1, epaisseur - 1));
@@ -236,11 +241,11 @@ function poteau(c: Chantier, x: number, y: number, epaisseur: number, hauteur: n
     return (j - y) % 23 === 11 || alea(i, j >> 2) < 0.08 ? p.bois.sombre : p.bois.fond;
   });
 }
-function poutre(c: Chantier, x: number, y: number, largeur: number, epaisseur: number): void {
+export function poutre(c: Chantier, x: number, y: number, largeur: number, epaisseur: number): void {
   const { pl, p } = c;
   pl.rect(x, y, largeur, epaisseur, (i, j) => (j === y ? p.bois.clair : j === y + epaisseur - 1 ? p.bois.creux : (i - x) % 29 === 13 ? p.bois.sombre : p.bois.fond));
 }
-function biais(c: Chantier, x0: number, y0: number, x1: number, y1: number, epaisseur: number): void {
+export function biais(c: Chantier, x0: number, y0: number, x1: number, y1: number, epaisseur: number): void {
   const { pl, p } = c;
   const pas = Math.abs(x1 - x0);
   for (let k = 0; k <= pas; k++) {
@@ -251,7 +256,7 @@ function biais(c: Chantier, x0: number, y0: number, x1: number, y1: number, epai
 }
 
 /** Une porte de planches, ses deux pentures de fer et son anneau. */
-function porte(c: Chantier, x: number, y: number, largeur: number, hauteur: number): void {
+export function porte(c: Chantier, x: number, y: number, largeur: number, hauteur: number): void {
   const { pl, p, l } = c;
   const fer = couleurDuDehors("#5c6474", "#30343f", l);
   pl.rect(x - 2, y - 2, largeur + 4, hauteur + 2, p.bois.creux);
@@ -262,7 +267,7 @@ function porte(c: Chantier, x: number, y: number, largeur: number, hauteur: numb
 }
 
 /** Une petite fenêtre : le ciel de l'heure le jour, la lueur du dedans la nuit, un volet ouvert. */
-function fenetre(c: Chantier, x: number, y: number, largeur = 14, hauteur = 14): void {
+export function fenetre(c: Chantier, x: number, y: number, largeur = 14, hauteur = 14): void {
   const { pl, p, l } = c;
   const ciel = cielDuVillage(l);
   const vitre = melanger(melanger(ciel[3]!, "#20283c", 0.5), "#f5b04a", 0.75 * (1 - l.jour));
@@ -276,7 +281,7 @@ function fenetre(c: Chantier, x: number, y: number, largeur = 14, hauteur = 14):
 }
 
 /** Un tas de bûches rangées, vues par le bout. */
-function tasDeBois(c: Chantier, x: number, bas: number, largeur: number, rangs: number): void {
+export function tasDeBois(c: Chantier, x: number, bas: number, largeur: number, rangs: number): void {
   const { pl, p } = c;
   for (let r = 0; r < rangs; r++) {
     const retrait = r * 3;
@@ -289,7 +294,7 @@ function tasDeBois(c: Chantier, x: number, bas: number, largeur: number, rangs: 
 }
 
 /** Une jarre de terre cuite posée au pied d'un mur. */
-function jarre(c: Chantier, x: number, bas: number): void {
+export function jarre(c: Chantier, x: number, bas: number): void {
   const k = (deJour: string, deNuit: string) => couleurDuDehors(deJour, deNuit, c.l);
   c.pl.lettres(x, bas - 12, ["..aaaa..", "...bb...", "..bccb..", ".bcccbb.", "abccbbba", "abccbbba", "abcbbbba", "abbbbbba", ".abbbba.", ".abbbba.", "..abba..", "..aaaa.."], { a: k("#5a2f18", "#2e1a12"), b: k("#b0683c", "#5e3a26"), c: k("#d08a5a", "#74503a") });
 }

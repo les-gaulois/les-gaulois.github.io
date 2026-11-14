@@ -6,6 +6,7 @@ import { NUAGES_HAUTEUR, PLANS_LOINTAINS, brumeDuMatin, composerCiel, composerNu
 import { type Anime, animesDuMonde, chemineesDuPlan, composerTuile, tuilesDuMonde } from "../../../lib/village/monde/composition";
 import { SOUS_LA_FOULE, caseDuPlan, decalageDuPlan, fondDuPlan, vueDuPlan } from "../../../lib/village/monde/foule";
 import { bandeDeLaTerrasse, composerTuileDeTerrasse, tuilesDeLaTerrasse } from "../../../lib/village/monde/lointain";
+import { MODELES, fumeeDeLaMaison } from "../../../lib/village/monde/maisons";
 import { CIEL, ECHELLE_DU_FOND, type Plan, TUILE } from "../../../lib/village/monde/plan";
 import { DESSINS_OPENFRONT } from "../../../lib/village/openfront";
 import { peindre } from "../PlaceToile";
@@ -254,7 +255,7 @@ export function MondeTerrasses({ plan, lumiere, mesure, camera }: { plan: Plan; 
             }}
             class="monde-terrasse"
             data-testid="monde-terrasse"
-            style={{ "--monde-rang": `${fondDuPlan({ echelle: ECHELLE_DU_FOND, parallaxe: t.parallaxe }) - SOUS_LA_FOULE}` }}
+            style={{ "--monde-rang": `${fondDuPlan({ echelle: ECHELLE_DU_FOND, parallaxe: t.parallaxe }) - SOUS_LA_FOULE}`, "--place-case": `${casePx}px` }}
           >
             {tuiles.map((tx) => {
               const largeur = Math.min(TUILE, t.largeur - tx * TUILE);
@@ -272,6 +273,19 @@ export function MondeTerrasses({ plan, lumiere, mesure, camera }: { plan: Plan; 
                 />
               );
             })}
+            {/* Une fumée lente à la cheminée d'une maison sur deux, à l'échelle de la terrasse, pâlie comme elle. */}
+            {p &&
+              t.places.map((place, n) => {
+                if (place.rang === null || n % 2 !== 0 || place.x + 400 < p.tx0 * TUILE || place.x > (p.tx1 + 1) * TUILE) return null;
+                const fumee = fumeeDeLaMaison(MODELES[place.modele], place.variante);
+                return (
+                  <div key={`f${n}`} class="monde-fumee" style={{ left: `${(place.x + fumee.x) * casePx}px`, top: `${(t.sol - fumee.y) * casePx}px`, opacity: 1 - t.voile, "--monde-retard": `${-((place.x * 7) % 15)}s` }}>
+                    <i />
+                    <i />
+                    <i />
+                  </div>
+                );
+              })}
           </div>
         );
       })}

@@ -118,8 +118,9 @@ export interface Emplacement {
 /** La première rangée d'un emplacement, dans le monde. */
 export const hautDansLeMonde = (e: Pick<Emplacement, "dy" | "pied" | "hauteur">): number => e.dy + e.pied - e.hauteur + 1;
 
-export const TAVERNE: Taille = { largeur: 372, hauteur: 186 };
-export const REUNION: Taille = { largeur: 372, hauteur: 190 };
+/** La taverne et la salle de réunion (`salles.ts`) : la salle de 372 cases où sont les tables, puis son annexe à droite. */
+export const TAVERNE: Taille = { largeur: 456, hauteur: 216 };
+export const REUNION: Taille = { largeur: 440, hauteur: 228 };
 export const ETAL: Taille = { largeur: 124, hauteur: 96 };
 export const CAMP: Taille = { largeur: 300, hauteur: 110 };
 /** La lisière de la forêt, aux deux bouts de la grand-rue. */

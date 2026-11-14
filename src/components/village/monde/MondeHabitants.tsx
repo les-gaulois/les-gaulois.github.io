@@ -3,7 +3,9 @@ import { GAULOIS_HAUTEUR, GAULOIS_LARGEUR, casesDuGaulois } from "../../../lib/g
 import type { Decor } from "../../../lib/village/decor";
 import { type Bulles, avancerLesBulles, bullesAuDepart, chopeLevee, gesteDeCombat, hasardDe, souffleDuDormeur, tourneEnReunion } from "../../../lib/village/mouvement";
 import { type Acteur as ActeurDuMonde, arriver, relireLesActeurs, unTemps } from "../../../lib/village/monde/acteurs";
-import { type Boite, type Figure, type Obstacle, type PlanDeVue, OMBRE, PREMIER_PLAN, boiteDansLeCalque, calquesDeLaFoule, caseDuPlan, cleDuPlan, contient, couverture, decalageDuPlan, fondDuPlan, milieuPourVoir, nomsSousChacun, ordreDeDessin, planDeLaPlace, seCroisent, sousLeDoigt, vueDuPlan } from "../../../lib/village/monde/foule";
+import { type Boite, type Figure, type Obstacle, type PlanDeVue, OMBRE, PREMIER_PLAN, boiteDansLeCalque, calquesDeLaFoule, caseDuPlan, cleDuPlan, contient, couverture, decalageDuPlan, fondDuPlan, voileDuPlan, milieuPourVoir, nomsSousChacun, ordreDeDessin, planDeLaPlace, seCroisent, sousLeDoigt, vueDuPlan } from "../../../lib/village/monde/foule";
+import type { Lumiere } from "../../../lib/village/lumiere";
+import { brumeDuFond } from "../../../lib/village/monde/lointain";
 import { poseDuMarcheur } from "../../../lib/village/monde/marche";
 import type { Plan } from "../../../lib/village/monde/plan";
 import { BOITES_DU_MONDE, type Place, type Tenue, piedDeLEscalier, placesDEnFace, placesDuLieu, seuilDuLieu, surLaGrandRue, tenueDuLieu, zoneDuPromeneur } from "../../../lib/village/monde/postes";
@@ -46,6 +48,8 @@ interface Figurant extends Figure {
 /** Un plan tel qu'il est peint : le côté de ses cases à l'écran, son décalage, et ce qui en est peint (en cases du plan). */
 interface PlanPeint {
   plan: PlanDeVue;
+  /** La part de brume posée sur ses toiles : 0 au premier plan. */
+  voile: number;
   case: number;
   decalage: { x: number; y: number };
   couverture: Boite;
@@ -180,6 +184,7 @@ function obstaclesDuMonde(monde: Element, plan: Plan, cote: number, autour: Boit
 export function MondeHabitants({
   plan,
   lieux,
+  lumiere,
   mesure,
   camera,
   horloge,
@@ -192,6 +197,8 @@ export function MondeHabitants({
 }: {
   plan: Plan;
   lieux: Record<Lieu, Habitant[]>;
+  /** La lumière de l'heure : la couleur de la brume qui pâlit les Gaulois des terrasses du fond. */
+  lumiere: Lumiere;
   mesure: Mesure;
   camera: CameraDuMonde;
   horloge: Horloge;
@@ -222,6 +229,8 @@ export function MondeHabitants({
   const vus = useRef<Figurant[]>([]);
   /** Les plans tels qu'ils ont été peints, et pour chaque toile, son plan et son coin (en cases de son plan). */
   const plansPeints = useRef(new Map<string, PlanPeint>());
+  const brume = useRef("#000000");
+  brume.current = brumeDuFond(lumiere);
   const placees = useRef<{ cle: string; x: number; y: number }[]>([]);
   const etiquettes = useRef(new Map<string, HTMLDivElement>());
   const montrees = useRef<readonly Etiquette[]>([]);
@@ -476,7 +485,7 @@ export function MondeHabitants({
       let p = plans.get(f.cleDuPlan);
       if (!p) {
         const casePx = caseDuPlan(cote, f.planDeVue.echelle);
-        p = { plan: f.planDeVue, case: casePx, decalage: decalageDuPlan(camera, cote, f.planDeVue.parallaxe), couverture: couverture(vueDuPlan(camera, cote, f.planDeVue), (marge * cote) / casePx) };
+        p = { plan: f.planDeVue, voile: voileDuPlan(f.planDeVue, plan.lointaines), case: casePx, decalage: decalageDuPlan(camera, cote, f.planDeVue.parallaxe), couverture: couverture(vueDuPlan(camera, cote, f.planDeVue), (marge * cote) / casePx) };
         plans.set(f.cleDuPlan, p);
       }
       return p;
@@ -567,6 +576,15 @@ export function MondeHabitants({
           contexte.drawImage(dessin.source, 0, 0);
           contexte.setTransform(1, 0, 0, 1, 0, 0);
         }
+      }
+      // Un plan du fond : un seul voile sur toute la toile, qui ne teinte que ce qui y est peint (la distance pâlit).
+      if (p.voile > 0) {
+        contexte.globalCompositeOperation = "source-atop";
+        contexte.globalAlpha = p.voile;
+        contexte.fillStyle = brume.current;
+        contexte.fillRect(0, 0, largeur, hauteur);
+        contexte.globalAlpha = 1;
+        contexte.globalCompositeOperation = "source-over";
       }
     });
     // Les toiles en trop se cachent ; au-delà de quatre de réserve, elles s'en vont.

@@ -88,6 +88,16 @@ export const decalageDuPlan = (camera: { x: number; y: number }, cote: number, p
 export const fondDuPlan = (plan: PlanDeVue): number => (plan.echelle === 1 && plan.parallaxe === 1 ? 0 : -100_000 - Math.round((1 - plan.parallaxe) * 1_000_000));
 export const SOUS_LA_FOULE = 8000;
 
+/**
+ * La part de brume qui pâlit les Gaulois d'un plan : celle de la terrasse du fond qui a cette parallaxe (`Terrasse` de
+ * `plan.ts`), rien au premier plan. Le moteur pose ce voile une fois par toile, après avoir peint ses Gaulois : les dessins
+ * tout faits ne changent pas.
+ */
+export function voileDuPlan(plan: PlanDeVue, terrasses: readonly { parallaxe: number; voile: number }[]): number {
+  if (plan.echelle === 1 && plan.parallaxe === 1) return 0;
+  return terrasses.find((t) => t.parallaxe === plan.parallaxe)?.voile ?? 0;
+}
+
 /** Une boîte de ce plan (en cases du plan), dans le calque du monde (en pixels). */
 export const boiteDansLeCalque = (b: Boite, casePx: number, decalage: { x: number; y: number }): Boite => ({ x: b.x * casePx + decalage.x, y: b.y * casePx + decalage.y, largeur: b.largeur * casePx, hauteur: b.hauteur * casePx });
 

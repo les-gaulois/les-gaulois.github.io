@@ -24,7 +24,8 @@ import { type Essence, cadreDeLArbre, essenceDuSemis, poserArbre } from "./arbre
 import { poserPenteDeLaRue, poserSiegesDehors, poserSolDuBas } from "./etages";
 import { poserCloture, poserHaie, poserMuret, teintesDuJardin } from "./jardins";
 import { MODELES, fumeeDeLaMaison, poserMaisonDuModele } from "./maisons";
-import { couleursDeLEau, litDuRuisseau, poserCamp, poserEtal, poserLisiere, poserPiquets, poserReunion, poserRives, poserSol, poserTaverne } from "./pieces";
+import { couleursDeLEau, litDuRuisseau, poserCamp, poserEtal, poserLisiere, poserPiquets, poserRives, poserSol } from "./pieces";
+import { FUMEE_DE_LA_TAVERNE, poserReunion, poserTaverne } from "./salles";
 import { DESCENTE, type Emplacement, LIGNE, LISIERE, MER_FOND, PIED_DU_PONT, type Plan, RAIL, RUE_HAUTEUR, TUILE, type Tailles, emplacementDuBatiment, emplacementsDe, hautDansLeMonde } from "./plan";
 
 /** Les tailles des dessins faits par d'autres, lues sur les dessins eux-mêmes. */
@@ -172,7 +173,7 @@ export function chemineesDuPlan(plan: Plan): { x: number; y: number }[] {
     if (e.piece.sorte === "maison") {
       const fumee = fumeeDeLaMaison(MODELES[e.piece.modele], e.piece.variante);
       cheminees.push({ x: e.x + fumee.x, y: e.dy + e.pied - fumee.y });
-    } else if (e.piece.sorte === "taverne") cheminees.push({ x: e.x + 262 + 7, y: e.dy + e.pied - e.hauteur - 7 });
+    } else if (e.piece.sorte === "taverne") cheminees.push({ x: e.x + FUMEE_DE_LA_TAVERNE.x, y: e.dy + e.pied - FUMEE_DE_LA_TAVERNE.y });
   }
   return cheminees;
 }

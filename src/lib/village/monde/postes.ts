@@ -17,6 +17,7 @@ import { MODELES, litsDeLaMaison } from "./maisons";
 import { SALLE_RECUL, SALLE_SIEGE_DERRIERE, SALLE_SIEGE_DEVANT, SIEGE, SIEGES_DERRIERE, SIEGES_DEVANT } from "./pieces";
 import { BANDE_BAS, BANDE_HAUT, BAS_BANDE_BAS, BAS_BANDE_HAUT, type Dehors, ECHELLE_DU_FOND, LITS_PAR_MAISON, PLANCHER, type Plan, SIEGE_DEHORS, emplacementOpenFront, emplacementsDe, logisDuRang } from "./plan";
 import { LIT_HAUTEUR, LIT_LARGEUR } from "./poses-monde";
+import { SALLE_LARGEUR } from "./salles";
 
 /** Sur une terrasse du fond, les rangées des pieds de ceux qui s'y promènent, sous la ligne de son sol, en cases du fond. */
 const SENTIER_HAUT = 6;
@@ -200,8 +201,8 @@ export function seuilDuLieu(plan: Plan, lieu: Lieu, place: Place | null): { x: n
   if (lieu === "taverne" || lieu === "reunion") {
     const e = emplacementsDe(plan, lieu)[0]!;
     // Assis dehors : on arrive droit devant sa table.
-    if (place && place.x > e.x + e.largeur) return { x: place.x, y: y + 22 };
-    return { x: e.x + Math.floor(e.largeur / 2) - GAULOIS_LARGEUR / 2, y };
+    if (place && place.x > e.x + SALLE_LARGEUR) return { x: place.x, y: y + 22 };
+    return { x: e.x + SALLE_LARGEUR / 2 - GAULOIS_LARGEUR / 2, y };
   }
   if (lieu === "maisons") {
     if (place?.saut) return piedDeLEscalier(plan, plan.feu.x, false);

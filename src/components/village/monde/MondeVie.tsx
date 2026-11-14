@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef } from "preact/hooks";
 import type { Decor } from "../../../lib/village/decor";
-import { type Lumiere, cleDeLumiere } from "../../../lib/village/lumiere";
+import { type Lumiere, cleDeLumiere, melanger } from "../../../lib/village/lumiere";
 import { hasardDe } from "../../../lib/village/mouvement";
 import { TAILLES_DES_BETES, betesDuPlan, dessinDeLaBete } from "../../../lib/village/monde/betes";
 import { type Lutin, enMiroir, fusee, gerbe, lutinsDesEvenements, tourne } from "../../../lib/village/monde/evenements";
+import { PREMIER_PLAN, caseDuPlan, decalageDuPlan, fondDuPlan, vueDuPlan } from "../../../lib/village/monde/foule";
+import { brumeDuFond } from "../../../lib/village/monde/lointain";
 import { type Marcheur, marcheurA, promener } from "../../../lib/village/monde/marche";
-import type { Plan } from "../../../lib/village/monde/plan";
+import { ECHELLE_DU_FOND, type Plan } from "../../../lib/village/monde/plan";
 import { DESSINS_OPENFRONT, type PieceOpenFrontId } from "../../../lib/village/openfront";
 import { peindre } from "../PlaceToile";
 import type { CameraDuMonde } from "./camera-du-monde";
@@ -118,8 +120,9 @@ export function MondeEvenements({ plan, lumiere, mesure, horloge, fige }: { plan
  * et s'arrête longtemps. Une petite toile chacune, repeinte quand son pas change ; celles qu'on ne voit pas ne sont pas
  * redessinées. Figé, elles restent posées là où elles sont.
  */
-export function MondeBetes({ plan, mesure, camera, horloge, fige }: { plan: Plan; mesure: Mesure; camera: CameraDuMonde; horloge: Horloge; fige: boolean }) {
+export function MondeBetes({ plan, lumiere, mesure, camera, horloge, fige }: { plan: Plan; lumiere: Lumiere; mesure: Mesure; camera: CameraDuMonde; horloge: Horloge; fige: boolean }) {
   const { cote } = mesure;
+  const brume = brumeDuFond(lumiere);
   const betes = useMemo(() => betesDuPlan(plan), [plan]);
   const toiles = useRef(new Map<string, HTMLCanvasElement | null>());
   const marches = useRef(new Map<string, Marcheur>());
@@ -138,28 +141,36 @@ export function MondeBetes({ plan, mesure, camera, horloge, fige }: { plan: Plan
         const toile = toiles.current.get(bete.cle);
         if (!toile) continue;
         const taille = TAILLES_DES_BETES[bete.bete];
-        if (marche.x > camera.x + camera.vue + 60 || marche.x + taille.largeur < camera.x - 60 || marche.y > camera.y + camera.vueH + 60 || marche.y + taille.hauteur < camera.y - 60) continue;
+        // Une bête du fond se compte en cases de sa terrasse : sa vue, sa case à l'écran et son décalage sont ceux de ce plan.
+        const vue = bete.fond ? { echelle: ECHELLE_DU_FOND, parallaxe: bete.fond.parallaxe } : PREMIER_PLAN;
+        const v = vueDuPlan(camera, cote, vue);
+        if (marche.x > v.x + v.largeur + 60 || marche.x + taille.largeur < v.x - 60 || marche.y > v.y + v.hauteur + 60 || marche.y + taille.hauteur < v.y - 60) continue;
+        const casePx = caseDuPlan(cote, vue.echelle);
+        const decalage = decalageDuPlan(camera, cote, vue.parallaxe).x;
         const image = marche.but && !fige ? Math.floor(marche.pas / 2) % 2 : 0;
-        const nom = `${image}:${marche.vers}:${marche.x}:${marche.y}`;
+        const nom = `${image}:${marche.vers}:${marche.x}:${marche.y}:${decalage}`;
         if (peintes.get(bete.cle) === nom) continue;
         if (!peintes.get(bete.cle)?.startsWith(`${image}:`)) {
           const dessin = dessinDeLaBete(bete.bete, image, bete.variante);
-          peindre(toile, dessin.largeur, dessin.hauteur, dessin.cases);
+          // La distance la pâlit comme sa terrasse.
+          const voile = bete.fond?.voile ?? 0;
+          peindre(toile, dessin.largeur, dessin.hauteur, voile > 0 ? dessin.cases.map((couleur) => (couleur ? melanger(couleur, brume, voile) : null)) : dessin.cases);
         }
-        toile.style.transform = `translate(${marche.x * cote}px, ${marche.y * cote}px)${marche.vers === 1 ? "" : " scaleX(-1)"}`;
-        toile.style.zIndex = String(marche.y + taille.hauteur);
+        toile.style.transform = `translate(${marche.x * casePx + decalage}px, ${marche.y * casePx}px)${marche.vers === 1 ? "" : " scaleX(-1)"}`;
+        toile.style.zIndex = String(marche.y + taille.hauteur + fondDuPlan(vue));
         peintes.set(bete.cle, nom);
       }
     };
     montrer(horloge.temps, false);
     const arreter = [fige ? () => {} : horloge.ecouter((temps) => montrer(temps, true)), camera.ecouter(() => montrer(horloge.temps, false))];
     return () => arreter.forEach((f) => f());
-  }, [betes, cote, camera, horloge, fige]);
+  }, [betes, cote, camera, horloge, fige, brume]);
 
   return (
     <>
       {betes.map((bete) => {
         const taille = TAILLES_DES_BETES[bete.bete];
+        const casePx = caseDuPlan(cote, bete.fond ? ECHELLE_DU_FOND : 1);
         return (
           <canvas
             key={bete.cle}
@@ -169,7 +180,7 @@ export function MondeBetes({ plan, mesure, camera, horloge, fige }: { plan: Plan
             width={taille.largeur}
             height={taille.hauteur}
             class="village-pixels monde-bete"
-            style={{ width: `${taille.largeur * cote}px`, height: `${taille.hauteur * cote}px` }}
+            style={{ width: `${taille.largeur * casePx}px`, height: `${taille.hauteur * casePx}px` }}
           />
         );
       })}
