@@ -4,7 +4,7 @@ import { DECOR_LARGEUR_MIN, FEU_HAUTEUR, FEU_LARGEUR, Planche, feuDuDecor, flamm
 import { BOITES, HAUT_DU_LIEU, composerLieu } from "../../src/lib/village/lieux";
 import { ICONES_DES_LIEUX } from "../../src/lib/village/lieux-icones";
 import { NUIT_PLEINE, PLEIN_JOUR, lumiereDuVillage } from "../../src/lib/village/lumiere";
-import { ADVERSAIRES, ATTABLE_COUPE, ATTABLE_HAUTEUR, LIT_HAUTEUR, LIT_LARGEUR, casesDeLAdversaire, casesEndormies, miroir, poseAttable, poseCouche, poseDeMarche, sansArme } from "../../src/lib/village/poses";
+import { ADVERSAIRES, ATTABLE_COUPE, ATTABLE_HAUTEUR, LIT_HAUTEUR, LIT_LARGEUR, casesDeLAdversaire, casesDesPieds, casesEndormies, miroir, poseAttable, poseCouche, poseDeMarche, sansArme } from "../../src/lib/village/poses";
 import { LIEUX } from "../../src/lib/village/vie";
 
 const COULEUR = /^#[0-9a-f]{6}$/;
@@ -147,6 +147,25 @@ describe("les poses", () => {
     expect(retourne).not.toEqual(debout);
     expect(miroir(retourne)).toEqual(debout);
     expect(retourne[20 * GAULOIS_LARGEUR + (GAULOIS_LARGEUR - 1 - 18)]).toBe(debout[20 * GAULOIS_LARGEUR + 18]);
+  });
+
+  it("lève la chaussure entière, même plus large que la jambe ou plus basse que le pied", () => {
+    for (const id of Object.keys(OBJETS.pieds)) {
+      const tenue = { ...TENUE_DE_DEPART, pieds: id };
+      const cases = casesDuGaulois(tenue);
+      const pieds = casesDesPieds(tenue);
+      for (const pied of ["gauche", "droite"] as const) {
+        const pose = poseDeMarche(cases, pied, pieds);
+        pieds.forEach((chaussure, i) => {
+          const x = i % GAULOIS_LARGEUR;
+          const y = Math.floor(i / GAULOIS_LARGEUR);
+          if (!chaussure || y < 53 || (pied === "gauche") !== (x < 24)) return;
+          expect(pose[i - 2 * GAULOIS_LARGEUR], `${id} ${pied} (${x}, ${y})`).toBe(cases[i]);
+        });
+      }
+    }
+    // Sans chaussures données, la jambe seule se lève, comme avant.
+    expect(casesDesPieds({ ...TENUE_DE_DEPART, pieds: "nus" }).some(Boolean)).toBe(false);
   });
 
   it("ferme les yeux sans changer le reste, quels que soient les yeux choisis", () => {

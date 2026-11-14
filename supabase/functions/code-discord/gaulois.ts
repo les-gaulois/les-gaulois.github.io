@@ -2054,10 +2054,14 @@ export function couleursDeBase(tenue: Tenue): Couleurs {
   return { ...FIXES, ...peau, ...poils };
 }
 
-/** Comment dessiner un Gaulois : les yeux fermés (il dort), ou avec un autre catalogue (l'atelier de dessin). */
+/**
+ * Comment dessiner un Gaulois : les yeux fermés (il dort), avec un autre catalogue (l'atelier de dessin), ou seulement
+ * certains calques, sans le corps (les chaussures que la marche soulève).
+ */
 export interface OptionsDuDessin {
   yeuxFermes?: boolean;
   catalogue?: Catalogue;
+  seulement?: readonly Emplacement[];
 }
 
 /**
@@ -2080,9 +2084,10 @@ export function casesDuGaulois(tenue: Tenue, options: OptionsDuDessin = {}): (st
       }
     });
   };
-  poser(CORPS, base);
+  if (!options.seulement) poser(CORPS, base);
   const coiffe = catalogue.tete[tenue["tete"] ?? ""]?.couvre === true;
   for (const emplacement of ORDRE) {
+    if (options.seulement && !options.seulement.includes(emplacement)) continue;
     if (emplacement === "yeux" && options.yeuxFermes) {
       poser(VISAGE.fermes, base);
       continue;

@@ -15,19 +15,35 @@ const H = GAULOIS_HAUTEUR;
 /** La tenue sans son arme : on la pose pour s'attabler et pour dormir. */
 export const sansArme = (tenue: Tenue): Tenue => ({ ...tenue, arme: "aucune" });
 
-/** Les rangées des jambes sous l'entrejambe, et les colonnes de chaque jambe : ce que la marche déplace. */
+/**
+ * Les rangées des jambes sous l'entrejambe, jusqu'au bas de la grille (des patins, des raquettes, des ressorts y
+ * descendent), et les colonnes de chaque jambe : ce que la marche déplace.
+ */
 const JAMBES_DE = 51;
-const JAMBES_A = 61;
+const JAMBES_A = H - 1;
 const JAMBE = { gauche: [10, 23], droite: [24, 35] } as const;
 /** De combien de cases le pied se lève. */
 const LEVEE = 2;
 
-/** Le Gaulois un pied levé : la jambe remonte de deux cases, le reste ne bouge pas. */
-export function poseDeMarche(cases: Cases, pied: "gauche" | "droite"): (string | null)[] {
+/** Les cases des chaussures portées, quelle que soit leur largeur : la jambe levée les emporte toutes. */
+export const casesDesPieds = (tenue: Tenue): boolean[] => casesDuGaulois(tenue, { seulement: ["pieds"] }).map((couleur) => couleur !== null);
+
+/**
+ * Le Gaulois un pied levé : la jambe remonte de deux cases, avec sa chaussure entière si `pieds` (de `casesDesPieds`) la
+ * donne ; le reste ne bouge pas.
+ */
+export function poseDeMarche(cases: Cases, pied: "gauche" | "droite", pieds: readonly boolean[] = []): (string | null)[] {
   const pose = [...cases];
   const [de, a] = JAMBE[pied];
+  const duCote = (x: number) => (pied === "gauche" ? x < JAMBE.droite[0] : x >= JAMBE.droite[0]);
+  const levees: number[] = [];
   for (let y = JAMBES_DE; y <= JAMBES_A; y++) {
-    for (let x = de; x <= a; x++) pose[y * L + x] = y + LEVEE <= JAMBES_A ? (cases[(y + LEVEE) * L + x] ?? null) : null;
+    for (let x = 0; x < L; x++) if ((x >= de && x <= a) || (pieds[y * L + x] === true && duCote(x))) levees.push(y * L + x);
+  }
+  for (const i of levees) pose[i] = null;
+  for (const i of levees) {
+    const couleur = cases[i] ?? null;
+    if (couleur !== null && i - LEVEE * L >= JAMBES_DE * L) pose[i - LEVEE * L] = couleur;
   }
   return pose;
 }
