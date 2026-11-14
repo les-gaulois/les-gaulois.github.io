@@ -13,6 +13,7 @@ import { AUTH_ENABLED } from "../lib/compte/api";
 import { EARLIER_VISIT_KEYS, VISIT_COUNT_KEY } from "../lib/activite-site";
 import AuthMenu from "../components/AuthMenu";
 import AppelsGaulois from "../components/compte/AppelsGaulois";
+import GauloisCompagnon from "../components/GauloisCompagnon.astro";
 import NouveautesMenu from "../components/NouveautesMenu.astro";
 import PlayerViewBar from "../components/PlayerViewBar";
 import SectionNav from "../components/SectionNav.astro";
@@ -282,6 +283,7 @@ const onciale = lettresOnciale
           {lastRun && <p class="mt-2 tnum">Dernière collecte : {fmtDateTime(lastRun)}, heure de Paris.</p>}
         </div>
       </div>
+      <GauloisCompagnon />
     </footer>
 
     <script>
