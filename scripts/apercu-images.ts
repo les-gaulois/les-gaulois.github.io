@@ -357,21 +357,24 @@ const plusHaut = payants.reduce((a, b) => ((b.taille?.hauteur ?? 0) > (a.taille?
 const plusLarge = payants.reduce((a, b) => ((b.taille?.largeur ?? 0) > (a.taille?.largeur ?? 0) ? b : a));
 const plusLong = payants.reduce((a, b) => (b.nom.length > a.nom.length ? b : a));
 const parRarete = ORDRE_RARETES.map((r) => payants.find((p) => p.rarete === r)!);
-const exempleAchats = (nom: string, objets: readonly { emplacement: EmplacementDObjet; objet: string }[]): AnnonceDesAchats => ({
+// Les noms Discord d'exemple sont inventés, au format d'un nom d'utilisateur (minuscules, « _ », « . ») ; le premier porte en
+// plus un émoji, que l'image retire, pour essayer ce cas.
+const exempleAchats = (nom: string, objets: readonly { emplacement: EmplacementDObjet; objet: string }[], discord: string | null = null): AnnonceDesAchats => ({
   nom,
-  achats: objets.map((p, i) => ({ id: 1 + i, nature: NATURES[i % NATURES.length]!, emplacement: p.emplacement, objet: p.objet, compte: 1, nom, le: new Date(Date.parse("2026-11-14T20:05:00.000Z") + i * 720_000).toISOString() })),
+  discord,
+  achats: objets.map((p, i) => ({ id: 1 + i, nature: NATURES[i % NATURES.length]!, emplacement: p.emplacement, objet: p.objet, compte: 1, nom, discord, le: new Date(Date.parse("2026-11-14T20:05:00.000Z") + i * 720_000).toISOString() })),
 });
 const achatsExemples: [string, AnnonceDesAchats][] = [
-  ["18-achats-1-legendaire.png", exempleAchats("Gaulois n° 12", [parRarete[4]!])],
-  ["18-achats-1-plus-haut.png", exempleAchats("Gaulois n° 12", [plusHaut])],
+  ["18-achats-1-legendaire.png", exempleAchats("Gaulois n° 12", [parRarete[4]!], `sanglier_rieur${String.fromCodePoint(0x1f417)}`)],
+  ["18-achats-1-plus-haut.png", exempleAchats("Gaulois n° 12", [plusHaut], "menhir_du_nord")],
   ["18-achats-1-plus-large.png", exempleAchats("Gaulois n° 12", [plusLarge])],
-  ["18-achats-2.png", exempleAchats("Gaulois n° 31", [parRarete[3]!, parRarete[1]!])],
-  ["18-achats-3.png", exempleAchats("Gaulois n° 31", [plusLong, parRarete[2]!, plusHaut])],
-  ["18-achats-4.png", exempleAchats("Gaulois n° 7", [parRarete[0]!, parRarete[2]!, parRarete[4]!, plusLarge])],
+  ["18-achats-2.png", exempleAchats("Gaulois n° 31", [parRarete[3]!, parRarete[1]!], "druide.des.bois")],
+  ["18-achats-3.png", exempleAchats("Gaulois n° 31", [plusLong, parRarete[2]!, plusHaut], "le_grand_chef_barbu_des_marais")],
+  ["18-achats-4.png", exempleAchats("Gaulois n° 7", [parRarete[0]!, parRarete[2]!, parRarete[4]!, plusLarge], "sanglier_rieur")],
 ];
 for (const [file, annonce] of achatsExemples) {
   try {
-    const card = achatsCard(annonce, annonce.achats.map((a) => vignetteDeLObjet(a.emplacement, a.objet)), SITE, measure);
+    const card = achatsCard(annonce, annonce.achats.map((a) => vignetteDeLObjet(a.emplacement, a.objet)), SITE, measure, (char) => fonts.draws(char, "strong"));
     writeFileSync(join(OUT, file), await renderAchatsCard(card, fonts, root));
     console.log(`${file} : ${card.width} × ${card.height}, ${annonce.achats.map((a) => a.objet).join(", ")} à ${card.dessins.map((d) => d.echelle).join(", ")} pixels par case`);
   } catch (e) {

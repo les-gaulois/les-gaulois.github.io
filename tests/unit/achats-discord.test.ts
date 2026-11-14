@@ -10,6 +10,7 @@ import {
   lireAchats,
   lireReponseDesAchats,
   NATURES,
+  nomAffiche,
   OBJETS_PAR_IMAGE,
   objetDe,
   objetEnMots,
@@ -23,7 +24,7 @@ import {
   type EmplacementDObjet,
   type LectureDesAchats,
 } from "../../src/lib/achats-discord";
-import { achatsCard, achatsImageAlt, COULEURS_RARETE, periodeDesAchats, placeDansLaVitrine, renderAchatsCard, RANGEE, SEULE } from "../../src/lib/achats-image";
+import { achatsCard, achatsImageAlt, COULEURS_RARETE, nomSurLImage, periodeDesAchats, placeDansLaVitrine, renderAchatsCard, RANGEE, SEULE } from "../../src/lib/achats-image";
 import { EMPLACEMENTS_OBJETS, OBJETS, ORDRE_RARETES, RARETES, vignetteDeLObjet, type Rarete } from "../../src/lib/gaulois";
 import { drawnWidth, GazetteFonts, type CardText } from "../../src/lib/gazette-image";
 
@@ -50,8 +51,8 @@ const GRATUIT = EMPLACEMENTS_OBJETS.flatMap((e) => Object.entries(OBJETS[e]).fil
 
 let numero = 100;
 /** Un achat : `minutes` avant maintenant. */
-function achat(p: { emplacement: EmplacementDObjet; objet: string }, o: { compte?: number; nom?: string; nature?: AchatDuVillage["nature"]; minutes?: number; id?: number } = {}): AchatDuVillage {
-  return { id: o.id ?? ++numero, nature: o.nature ?? "achat", emplacement: p.emplacement, objet: p.objet, compte: o.compte ?? 7, nom: o.nom ?? "Brennos", le: new Date(NOW.getTime() - (o.minutes ?? 30) * 60_000).toISOString() };
+function achat(p: { emplacement: EmplacementDObjet; objet: string }, o: { compte?: number; nom?: string; discord?: string | null; nature?: AchatDuVillage["nature"]; minutes?: number; id?: number } = {}): AchatDuVillage {
+  return { id: o.id ?? ++numero, nature: o.nature ?? "achat", emplacement: p.emplacement, objet: p.objet, compte: o.compte ?? 7, nom: o.nom ?? "Brennos", discord: o.discord ?? null, le: new Date(NOW.getTime() - (o.minutes ?? 30) * 60_000).toISOString() };
 }
 /** Une réponse du serveur, telle que la fonction la rend. */
 const ligne = (a: AchatDuVillage) => ({ ...a, le: a.le.replace("Z", "+00:00") });
@@ -90,6 +91,19 @@ describe("la réponse du serveur", () => {
       "n'importe quoi",
     ];
     expect(lireReponseDesAchats({ ok: true, jusqu_a: 300, achats: [ligne(bon), ...mauvais] })).toEqual({ etat: "lu", jusqu_a: 300, inconnus: mauvais.length, achats: [bon] });
+  });
+
+  it("le nom Discord : remis d'aplomb, sans « @ » ; absent (ancienne fonction), vide, sans lettre ou comme une adresse : null", () => {
+    const bon = achat(PAR_RARETE[1]!, { id: 8 });
+    const lire = (discord: unknown) => lireReponseDesAchats({ ok: true, jusqu_a: 8, achats: [{ ...ligne(bon), discord }] })!.achats[0]!.discord;
+    expect(lire("  Sanglier   Rieur ")).toBe("Sanglier Rieur");
+    expect(lire(`Sanglier${String.fromCharCode(0x200b)}Rieur`)).toBe("SanglierRieur");
+    expect(lire(String.fromCodePoint(0x1d40f, 0x1d41a, 0x1d42e))).toBe("Pau");
+    expect(lire("x".repeat(40))).toBe("x".repeat(32));
+    for (const rien of [undefined, null, "", "   ", "!!!", "discord.gg/cadeau", "www.exemple.com", "super-promo.xyz"]) expect(lire(rien)).toBeNull();
+    const ancienne = { ...ligne(bon) } as Record<string, unknown>;
+    delete ancienne["discord"];
+    expect(lireReponseDesAchats({ ok: true, jusqu_a: 8, achats: [ancienne] })!.achats[0]).toEqual({ ...bon, discord: null });
   });
 
   it("une réponse illisible ou un refus : null", () => {
@@ -142,13 +156,13 @@ describe("le rangement en images", () => {
     const achats = [
       achat(p, { id: 1, compte: 1, nom: "Ancien nom" }),
       achat(p, { id: 2, compte: 2, nom: "Epona" }),
-      ...[3, 4, 5, 6, 7].map((id) => achat(p, { id, compte: 1, nom: id === 7 ? "Nouveau nom" : "Ancien nom" })),
+      ...[3, 4, 5, 6, 7].map((id) => achat(p, { id, compte: 1, nom: id === 7 ? "Nouveau nom" : "Ancien nom", discord: id === 7 ? "Nouveau Discord" : "Ancien Discord" })),
     ];
     const annonces = annoncesDesAchats([...achats].reverse());
-    expect(annonces.map((a) => [a.nom, a.achats.map((x) => x.id)])).toEqual([
-      ["Nouveau nom", [1, 3, 4, 5]],
-      ["Nouveau nom", [6, 7]],
-      ["Epona", [2]],
+    expect(annonces.map((a) => [a.nom, a.discord, a.achats.map((x) => x.id)])).toEqual([
+      ["Nouveau nom", "Nouveau Discord", [1, 3, 4, 5]],
+      ["Nouveau nom", "Nouveau Discord", [6, 7]],
+      ["Epona", null, [2]],
     ]);
     expect(annonces.every((a) => a.achats.length <= OBJETS_PAR_IMAGE)).toBe(true);
   });
@@ -246,9 +260,10 @@ describe("achatsPass", () => {
 
 const ANNONCE: AnnonceDesAchats = {
   nom: "Brennos",
+  discord: null,
   achats: [
-    { id: 201, nature: "achat", emplacement: PAR_RARETE[4]!.emplacement, objet: PAR_RARETE[4]!.objet, compte: 7, nom: "Brennos", le: "2026-11-14T21:15:00.000Z" },
-    { id: 202, nature: "pochette", emplacement: PAR_RARETE[0]!.emplacement, objet: PAR_RARETE[0]!.objet, compte: 7, nom: "Brennos", le: "2026-11-14T22:02:00.000Z" },
+    { id: 201, nature: "achat", emplacement: PAR_RARETE[4]!.emplacement, objet: PAR_RARETE[4]!.objet, compte: 7, nom: "Brennos", discord: null, le: "2026-11-14T21:15:00.000Z" },
+    { id: 202, nature: "pochette", emplacement: PAR_RARETE[0]!.emplacement, objet: PAR_RARETE[0]!.objet, compte: 7, nom: "Brennos", discord: null, le: "2026-11-14T22:02:00.000Z" },
   ],
 };
 
@@ -260,12 +275,20 @@ describe("le message", () => {
     expect(mots[1]).toBe(`${legendaire.nom} (${OBJETS_LABEL(legendaire.emplacement)}, rareté légendaire) : à la boutique, le 14 novembre 2026 à 22 h 15.`);
     expect(mots[2]).toBe(`${commun.nom} (${OBJETS_LABEL(commun.emplacement)}, rareté commune) : dans une pochette surprise, le 14 novembre 2026 à 23 h 02.`);
     expect(mots[3]).toBe("Payé en statères, qui viennent des points rapportés au clan.");
-    expect(annonceEnMots({ nom: "B", achats: [{ ...ANNONCE.achats[0]!, nature: "marche_achat" }] }).map(plain)).toEqual([
+    expect(annonceEnMots({ nom: "B", discord: null, achats: [{ ...ANNONCE.achats[0]!, nature: "marche_achat" }] }).map(plain)).toEqual([
       "B au village des Gaulois : 1 nouvel objet.",
       expect.stringContaining(" : au marché, le 14 novembre 2026"),
       "Payé en statères, qui viennent des points rapportés au clan.",
     ]);
     expect(mots.join(" ")).not.toMatch(/\d+ statères/);
+  });
+
+  it("avec un nom Discord : « @ » et ce nom, à la place du nom de secours", () => {
+    const avecDiscord = { ...ANNONCE, discord: "Sanglier Rieur" };
+    expect(nomAffiche(avecDiscord)).toBe("@Sanglier Rieur");
+    expect(nomAffiche(ANNONCE)).toBe("Brennos");
+    expect(annonceEnMots(avecDiscord)[0]).toBe("@Sanglier Rieur au village des Gaulois : 2 nouveaux objets.");
+    expect(plain(String(achatsPayload(avecDiscord, SITE, null)["content"])).split("\n")[0]).toBe("**\\@Sanglier Rieur** au village des Gaulois : 2 nouveaux objets");
   });
 
   it("avec l'image : l'image et un bouton vers le village, sans texte", () => {
@@ -320,9 +343,10 @@ describe("l'image des achats", () => {
   const root = process.cwd();
   const fonts = new GazetteFonts(root);
   const plainText = (t: CardText) => t.text.replace(NUMBER_SPACES, " ");
-  const annonceDe = (objets: readonly { emplacement: EmplacementDObjet; objet: string }[], nom = "Brennos", jours = false): AnnonceDesAchats => ({
+  const annonceDe = (objets: readonly { emplacement: EmplacementDObjet; objet: string }[], nom = "Brennos", jours = false, discord: string | null = null): AnnonceDesAchats => ({
     nom,
-    achats: objets.map((p, i) => ({ id: 300 + i, nature: NATURES[i % 3]!, emplacement: p.emplacement, objet: p.objet, compte: 7, nom, le: new Date(Date.parse("2026-11-14T21:05:00.000Z") + i * (jours ? 86_400_000 : 600_000)).toISOString() })),
+    discord,
+    achats: objets.map((p, i) => ({ id: 300 + i, nature: NATURES[i % 3]!, emplacement: p.emplacement, objet: p.objet, compte: 7, nom, discord, le: new Date(Date.parse("2026-11-14T21:05:00.000Z") + i * (jours ? 86_400_000 : 600_000)).toISOString() })),
   });
   const cas: [string, AnnonceDesAchats][] = [
     ...[PLUS_HAUT, PLUS_LARGE, PLUS_LONG, PLUS_PETIT, ...PAR_RARETE].map((p): [string, AnnonceDesAchats] => [`seul : ${p.emplacement}/${p.objet}`, annonceDe([p])]),
@@ -330,8 +354,11 @@ describe("l'image des achats", () => {
     ["trois, sur trois jours", annonceDe([PLUS_LONG, PLUS_HAUT, PLUS_PETIT], "Gaulois n° 1234", true)],
     ["quatre", annonceDe([PLUS_LONG, PLUS_LARGE, PLUS_HAUT, PAR_RARETE[4]!])],
     ["quatre, nom très long", annonceDe(PAR_RARETE.slice(0, 4), "Un pseudo vraiment très très long pour voir")],
+    ["seul, nom Discord le plus large", annonceDe([PLUS_LARGE], "Brennos", false, "W".repeat(32))],
+    ["quatre, nom Discord le plus large", annonceDe(PAR_RARETE.slice(0, 4), "Brennos", false, "W".repeat(32))],
   ];
-  const cards = cas.map(([id, annonce]) => ({ id, annonce, card: achatsCard(annonce, annonce.achats.map((a) => vignetteDeLObjet(a.emplacement, a.objet)), SITE, fonts.width) }));
+  const draws = (char: string) => fonts.draws(char, "strong");
+  const cards = cas.map(([id, annonce]) => ({ id, annonce, card: achatsCard(annonce, annonce.achats.map((a) => vignetteDeLObjet(a.emplacement, a.objet)), SITE, fonts.width, draws) }));
   const bords = (t: CardText) => {
     const width = drawnWidth(t, fonts.width);
     const left = t.anchor === "end" ? t.x - width : t.anchor === "middle" ? t.x - width / 2 : t.x;
@@ -428,6 +455,16 @@ describe("l'image des achats", () => {
     expect(seul).toContain("Boutique");
   });
 
+  it("le titre : « @ » et le nom Discord, sans ce que la police ne dessine pas ; sinon le nom de secours", () => {
+    const sanglier = String.fromCodePoint(0x1f417);
+    expect(nomSurLImage({ nom: "Brennos", discord: `Sanglier ${sanglier} Rieur` }, draws)).toBe("@Sanglier Rieur");
+    expect(nomSurLImage({ nom: "Brennos", discord: `${sanglier}${sanglier}` }, draws)).toBe("Brennos");
+    expect(nomSurLImage({ nom: "Gaulois n° 12", discord: null }, draws)).toBe("Gaulois n° 12");
+    const card = achatsCard(annonceDe([PAR_RARETE[0]!], "Brennos", false, "Sanglier Rieur"), [vignetteDeLObjet(PAR_RARETE[0]!.emplacement, PAR_RARETE[0]!.objet)], SITE, fonts.width, draws);
+    expect(card.texts.map(plainText)).toContain("@Sanglier Rieur");
+    expect(card.texts.map(plainText)).not.toContain("Brennos");
+  });
+
   it("la période : une heure, deux heures du même jour, ou deux jours", () => {
     const a = (le: string) => ({ ...ANNONCE.achats[0]!, le });
     expect(plain(periodeDesAchats([a("2026-11-14T21:15:00.000Z")]))).toBe("Le 14 novembre 2026 à 22 h 15");
@@ -476,5 +513,24 @@ describe("la migration", () => {
     expect(sql).toContain("p.status = 'validated'");
     expect(sql).not.toMatch(/'(montant|solde|prix)'/);
     expect(sql).not.toMatch(/\b(drop|truncate|delete|update|insert)\b/i);
+  });
+});
+
+describe("la migration du nom Discord", () => {
+  const sql = readFileSync("supabase/migrations/20261115000100_achats_nom_discord.sql", "utf8");
+  const code = sql.replace(/^\s*--.*$/gm, "");
+
+  it("garde les droits : la clé de service seulement", () => {
+    expect(sql).toContain("revoke all on function public.achats_du_village(bigint) from public, anon, authenticated;");
+    expect(sql).toContain("grant execute on function public.achats_du_village(bigint) to service_role;");
+    expect(sql).not.toMatch(/grant execute on function public\.achats_du_village\(bigint\) to (anon|authenticated)/);
+  });
+
+  it("lit le nom Discord gardé par le serveur, jamais ce que le navigateur écrit ; ni identifiant, ni montant", () => {
+    expect(code).toContain("'discord', nullif(btrim(pl.discord_name), '')");
+    expect(code).not.toMatch(/raw_user_meta_data|discord_id|'(montant|solde|prix)'/);
+    expect(code).toContain("p.status = 'validated'");
+    for (const liste of [...code.matchAll(/m\.nature in \(([^)]*)\)/g)].map((m) => m[1])) expect(liste).toBe(NATURES.map((n) => `'${n}'`).join(", "));
+    expect(code).not.toMatch(/\b(drop|truncate|delete|update|insert)\b/i);
   });
 });

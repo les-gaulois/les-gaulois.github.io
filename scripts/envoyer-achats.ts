@@ -48,7 +48,7 @@ try {
           const { vignetteDeLObjet } = await import("../src/lib/gaulois");
           const root = process.cwd();
           const fonts = new GazetteFonts(root);
-          const card = achatsCard(a, a.achats.map((achat) => vignetteDeLObjet(achat.emplacement, achat.objet)), clan.links.site, fonts.width);
+          const card = achatsCard(a, a.achats.map((achat) => vignetteDeLObjet(achat.emplacement, achat.objet)), clan.links.site, fonts.width, (char) => fonts.draws(char, "strong"));
           return { png: await renderAchatsCard(card, fonts, root), alt: achatsImageAlt(a) };
         },
         siteUrl: clan.links.site,

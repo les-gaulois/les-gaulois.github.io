@@ -217,6 +217,8 @@ export interface PageHead {
   period?: string | null;
   /** Le titre est un pseudo : en Inter, qui sait écrire le cyrillique, et sans lettrine (un nom s'écrit tel quel). */
   name?: boolean;
+  /** La plus petite taille du titre, avant de le couper : 32 par défaut. Un nom Discord, jusqu'à 32 lettres larges, descend plus bas. */
+  titleMin?: number;
 }
 
 /**
@@ -229,10 +231,11 @@ export function pageHead(head: PageHead, measure: Measure, right = 0): CardParts
   const room = WIDTH - MARGIN - x;
   const prompt = promptParts(head.path, x, HEAD.invite, INVITE_SIZE, measure);
   const texts: CardText[] = [...prompt.texts];
-  if (head.name) texts.push({ ...fitted(head.title, "strong", TITLE_SIZE + 6, 32, room - right, measure), x, y: HEAD.title, font: "strong", color: WHITE });
+  const titleMin = head.titleMin ?? 32;
+  if (head.name) texts.push({ ...fitted(head.title, "strong", TITLE_SIZE + 6, titleMin, room - right, measure), x, y: HEAD.title, font: "strong", color: WHITE });
   else {
     const lettrine = lettrineOf(head.title) ? RED : undefined;
-    texts.push({ ...fittedDrawn({ text: head.title, font: "cases", lettrine }, TITLE_SIZE, 32, room - right, measure), x, y: HEAD.title, font: "cases", color: WHITE, lettrine });
+    texts.push({ ...fittedDrawn({ text: head.title, font: "cases", lettrine }, TITLE_SIZE, titleMin, room - right, measure), x, y: HEAD.title, font: "cases", color: WHITE, lettrine });
   }
   let y = HEAD.title;
   if (head.kicker) {

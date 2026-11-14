@@ -118,14 +118,31 @@ const rareteEtPlace = (achat: AchatDuVillage, rarete: Rarete) => `${RARETES[rare
 const DETAIL_ORIGINE = { achat: "au prix de sa rareté", pochette: "un objet tiré au sort", marche_achat: "auprès d'un autre Gaulois" } as const;
 
 /**
- * Quoi écrire et où, à partir de l'annonce et du dessin de chaque objet (`vignettes`, dans l'ordre des achats) : se teste
- * sans police. Un objet que ce code ne connaît pas n'arrive jamais ici (`lireReponseDesAchats` l'écarte).
+ * Le titre de l'image : « @ » et le nom Discord, sans ce que la police des noms ne sait pas dessiner (émoji, idéogrammes),
+ * comme l'image de bienvenue. S'il n'en reste ni lettre ni chiffre, ou sans nom Discord, le nom de secours. `draws` : la police
+ * sait-elle dessiner ce caractère ? Sans elle (les tests), tout se dessine.
  */
-export function achatsCard(annonce: AnnonceDesAchats, vignettes: readonly (Vignette | null)[], siteUrl: string, measure: Measure): AchatsCard {
+export function nomSurLImage(annonce: Pick<AnnonceDesAchats, "nom" | "discord">, draws: (char: string) => boolean = () => true): string {
+  if (!annonce.discord) return annonce.nom;
+  const garde = [...annonce.discord]
+    .filter((char) => char === " " || draws(char))
+    .join("")
+    .replace(/ +/g, " ")
+    .trim();
+  return /[\p{L}\p{N}]/u.test(garde) ? `@${garde}` : annonce.nom;
+}
+
+/**
+ * Quoi écrire et où, à partir de l'annonce et du dessin de chaque objet (`vignettes`, dans l'ordre des achats) : se teste
+ * sans police. Un objet que ce code ne connaît pas n'arrive jamais ici (`lireReponseDesAchats` l'écarte). `draws` : voir
+ * `nomSurLImage`.
+ */
+export function achatsCard(annonce: AnnonceDesAchats, vignettes: readonly (Vignette | null)[], siteUrl: string, measure: Measure, draws?: (char: string) => boolean): AchatsCard {
   const { achats } = annonce;
   const n = achats.length;
   const kicker = n === 1 ? "Nouvel objet au village des Gaulois" : `${nouveauxObjets(n)} au village des Gaulois`;
-  const head = pageHead({ path: "/village", title: annonce.nom, name: true, kicker, period: periodeDesAchats(achats) }, measure);
+  // Un nom Discord peut compter 32 lettres larges : le titre descend jusqu'à 22 pixels plutôt que d'être coupé.
+  const head = pageHead({ path: "/village", title: nomSurLImage(annonce, draws), name: true, titleMin: 22, kicker, period: periodeDesAchats(achats) }, measure);
   const rects: CardRect[] = [...head.rects];
   const texts: CardText[] = [...head.texts];
   const dessins: DessinPose[] = [];

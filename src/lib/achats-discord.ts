@@ -8,9 +8,12 @@
  * - **Ce qui est annoncé** : un objet acheté à la boutique, sorti d'une pochette surprise ou acheté au marché, par un compte
  *   encore validé. C'est le serveur qui le lit, au journal des statères (migration `20261114001700_village_achats_sur_discord`,
  *   `achats_du_village`, réservée à la clé de service). La forge grave une plaque, elle ne donne pas d'objet : rien à annoncer.
- * - **Ce qui ne l'est jamais** : un montant, un prix payé, un solde, un vendeur. Le nom est celui des autres images du robot,
- *   vues hors du clan : le pseudo public d'aujourd'hui, sinon « Gaulois n° » et le numéro du compte (jamais le nom du QG, qui
- *   garderait le pseudo d'un membre qui l'a caché depuis).
+ * - **Ce qui ne l'est jamais** : un montant, un prix payé, un solde, un vendeur.
+ * - **Le nom** : le nom d'utilisateur Discord de l'acheteur, précédé de « @ » (demande du pilote, 15 novembre 2026), tel que
+ *   le serveur l'a relu chez Discord à sa dernière vraie connexion, qui peut dater (migration
+ *   `20261115000100_achats_nom_discord`). Sans nom Discord lisible (vide, rien que des signes, ou qui ressemble à une adresse : `looksLikeLink`), le nom
+ *   de secours : le pseudo public d'aujourd'hui, sinon « Gaulois n° » et le numéro du compte, jamais le nom du QG, qui
+ *   garderait le pseudo d'un membre qui l'a caché depuis. Avant cette migration, le serveur ne rend que le nom de secours.
  * - **Au premier passage**, le robot note le dernier numéro du journal sans rien envoyer : les achats d'avant ne partent pas.
  *   Un état illisible repart de même, avec un avertissement : un achat de l'heure peut s'y perdre.
  * - **Un achat annoncé n'est pas réannoncé** : le robot note le dernier numéro traité (`jusqu_a`) et, au-delà, les achats déjà
@@ -21,6 +24,7 @@
  * L'état est noté dans `data/achats-envoi.json`, écrit par le robot seulement : des numéros et des heures, aucun nom.
  */
 import { z } from "zod";
+import { looksLikeLink, MAX_NAME, tidyName } from "./arrivees";
 import { dateLongue, heureEnMots, villageButton } from "./chantier-discord";
 import { imageMessage, postWithImage, textMessage } from "./discord-post";
 import { EMPLACEMENTS_OBJETS, NOMS_EMPLACEMENTS, OBJETS, type Objet, type Rarete } from "./gaulois";
@@ -67,8 +71,10 @@ export interface AchatDuVillage {
   objet: string;
   /** Le numéro du compte : il range les achats d'un même Gaulois, il ne s'écrit nulle part. */
   compte: number;
-  /** Le nom que le village montre pour ce compte. */
+  /** Le nom de secours : le pseudo public d'aujourd'hui, sinon « Gaulois n° » et le numéro du compte. */
   nom: string;
+  /** Le nom Discord, remis d'aplomb (`nomDiscord`), sans « @ ». `null` : aucun nom Discord lisible. */
+  discord: string | null;
   /** L'heure de l'achat. */
   le: string;
 }
@@ -76,8 +82,23 @@ export interface AchatDuVillage {
 /** Une image : les achats d'un même Gaulois, de un à `OBJETS_PAR_IMAGE`, dans l'ordre du journal. */
 export interface AnnonceDesAchats {
   nom: string;
+  discord: string | null;
   achats: AchatDuVillage[];
 }
+
+/**
+ * Un nom Discord tel que l'annonce l'écrit : lettres de fantaisie ramenées à leurs lettres, signes invisibles retirés, 32
+ * caractères au plus (`tidyName`, comme l'image de bienvenue). `null` s'il ne reste ni lettre ni chiffre, ou s'il ressemble à
+ * une adresse : l'image l'écrirait en grand, comme une publicité.
+ */
+export function nomDiscord(brut: string | null | undefined): string | null {
+  if (typeof brut !== "string") return null;
+  const nom = [...tidyName(brut)].slice(0, MAX_NAME).join("").trim();
+  return /[\p{L}\p{N}]/u.test(nom) && !looksLikeLink(nom) ? nom : null;
+}
+
+/** Le nom écrit dans la description et le texte de secours : « @nom Discord », sinon le nom de secours. */
+export const nomAffiche = (annonce: Pick<AnnonceDesAchats, "nom" | "discord">): string => (annonce.discord ? `@${annonce.discord}` : annonce.nom);
 
 /** L'objet du catalogue, s'il est payant : seuls ceux-là s'achètent. */
 export function objetDe(achat: Pick<AchatDuVillage, "emplacement" | "objet">): (Objet & { rarete: Rarete }) | null {
@@ -111,7 +132,7 @@ export const nouveauxObjets = (n: number) => (n >= 2 ? `${n} nouveaux objets` : 
 /** Ce que dit l'annonce, pour un lecteur d'écran et pour le texte de secours : le titre, une ligne par objet, la réserve. */
 export function annonceEnMots(annonce: AnnonceDesAchats): string[] {
   return [
-    `${annonce.nom} au village des Gaulois : ${nouveauxObjets(annonce.achats.length)}.`,
+    `${nomAffiche(annonce)} au village des Gaulois : ${nouveauxObjets(annonce.achats.length)}.`,
     ...annonce.achats.map((a) => `${objetEnMots(a)} : ${ORIGINES[a.nature].phrase}, le ${dateLongue(a.le)} à ${heureEnMots(a.le)}.`),
     PAYE_EN_STATERES,
   ];
@@ -122,7 +143,7 @@ export function achatsPayload(annonce: AnnonceDesAchats, siteUrl: string, image:
   const site = siteUrl.replace(/\/$/, "");
   if (image) return imageMessage(site, image, [villageButton(site)]);
   const lignes = annonce.achats.map((a) => `- ${escapeDiscord(objetEnMots(a))} : ${ORIGINES[a.nature].phrase}, le ${dateLongue(a.le)} à ${heureEnMots(a.le)}`);
-  return textMessage(site, [`**${escapeDiscord(annonce.nom)}** au village des Gaulois : ${nouveauxObjets(annonce.achats.length)}`, ...lignes, `[Voir le village sur le site](<${siteLink(site, "/village")}>)`, `-# ${PAYE_EN_STATERES}`].join("\n"));
+  return textMessage(site, [`**${escapeDiscord(nomAffiche(annonce))}** au village des Gaulois : ${nouveauxObjets(annonce.achats.length)}`, ...lignes, `[Voir le village sur le site](<${siteLink(site, "/village")}>)`, `-# ${PAYE_EN_STATERES}`].join("\n"));
 }
 
 export interface AchatsSendDeps {
@@ -173,6 +194,8 @@ const LigneDuServeur = z.object({
   objet: z.string(),
   compte: z.number().int(),
   nom: z.string(),
+  // Absent avant la migration 20261115000100 : l'annonce prend alors le nom de secours.
+  discord: z.string().nullish(),
   le: z.string().refine((s) => !Number.isNaN(Date.parse(s))),
 });
 const ReponseDuServeur = z.object({ ok: z.literal(true), jusqu_a: z.number().int().nonnegative(), achats: z.array(z.unknown()) });
@@ -198,7 +221,7 @@ export function lireReponseDesAchats(data: unknown): Extract<LectureDesAchats, {
       inconnus++;
       continue;
     }
-    achats.push({ ...ligne.data, emplacement: emplacement as EmplacementDObjet, nom, le: new Date(ligne.data.le).toISOString() });
+    achats.push({ ...ligne.data, emplacement: emplacement as EmplacementDObjet, nom, discord: nomDiscord(ligne.data.discord), le: new Date(ligne.data.le).toISOString() });
   }
   achats.sort((a, b) => a.id - b.id);
   return { etat: "lu", jusqu_a: reponse.data.jusqu_a, achats, inconnus };
@@ -262,9 +285,9 @@ export function annoncesDesAchats(achats: readonly AchatDuVillage[]): AnnonceDes
   }
   const annonces: AnnonceDesAchats[] = [];
   for (const liste of parCompte.values()) {
-    // Le nom du dernier achat : celui que le village montre aujourd'hui.
-    const nom = liste.at(-1)!.nom;
-    for (let i = 0; i < liste.length; i += OBJETS_PAR_IMAGE) annonces.push({ nom, achats: liste.slice(i, i + OBJETS_PAR_IMAGE) });
+    // Les noms du dernier achat : les plus récents.
+    const { nom, discord } = liste.at(-1)!;
+    for (let i = 0; i < liste.length; i += OBJETS_PAR_IMAGE) annonces.push({ nom, discord, achats: liste.slice(i, i + OBJETS_PAR_IMAGE) });
   }
   return annonces;
 }
