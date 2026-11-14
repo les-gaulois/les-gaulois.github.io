@@ -24,13 +24,18 @@ export function Pastille({ ton, plain = false, testid, children }: { ton: DirTon
  * Une barre d'outils (`.dir-outils`) qui reste sous l'en-tête du site pendant qu'on descend une longue liste. Les hauteurs de
  * l'en-tête et de la barre sont mesurées et posées sur la racine (`--dir-haut`, `--dir-outils`) : la barre passe sur deux
  * lignes selon la largeur, et les titres d'un `.dir-table` se collent sous elle. Sans mesure possible, les valeurs de la
- * feuille de style restent.
+ * feuille de style restent. La barre peut n'apparaître qu'après la lecture de la liste : chaque rendu vérifie qu'elle est
+ * suivie, et la suit dès qu'elle est là (relevé à l'onglet Sondages, 14 novembre 2026 : elle n'était jamais mesurée).
  */
 export function useBarreCollante<R extends HTMLElement = HTMLElement, B extends HTMLElement = HTMLDivElement>() {
   const root = useRef<R>(null);
   const bar = useRef<B>(null);
+  const followed = useRef<{ tools: B; observer: ResizeObserver } | null>(null);
   useEffect(() => {
     const tools = bar.current;
+    if (followed.current?.tools === tools) return;
+    followed.current?.observer.disconnect();
+    followed.current = null;
     if (!tools || typeof ResizeObserver !== "function") return;
     const header = document.querySelector<HTMLElement>("header.barre");
     const measure = () => {
@@ -41,7 +46,14 @@ export function useBarreCollante<R extends HTMLElement = HTMLElement, B extends 
     observer.observe(tools);
     if (header) observer.observe(header);
     measure();
-    return () => observer.disconnect();
-  }, []);
+    followed.current = { tools, observer };
+  });
+  useEffect(
+    () => () => {
+      followed.current?.observer.disconnect();
+      followed.current = null;
+    },
+    [],
+  );
   return { root, bar };
 }
