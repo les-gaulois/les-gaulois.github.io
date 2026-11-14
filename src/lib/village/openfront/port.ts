@@ -1135,13 +1135,14 @@ function dessinerLeTir(lumiere: Lumiere, image: number): Decor {
   const pl = new Planche(TIR.largeur, TIR.hauteur);
   const cy = TIR_BOUCHE.y;
   // La fumée : des bouffées rondes, de plus en plus larges et de plus en plus loin.
-  const bouffees = [
+  const toutes: readonly (readonly (readonly [number, number, number])[])[] = [
     [[5, -5, 3], [6, 5, 3]],
     [[9, -3, 4], [11, 4, 4]],
     [[12, -6, 7], [14, 6, 7], [24, 0, 8], [6, 0, 5]],
     [[14, -8, 9], [17, 8, 9], [30, -2, 11], [42, 3, 8], [8, 1, 6]],
     [[16, -10, 10], [20, 9, 10], [34, -3, 12], [48, 4, 10], [10, 2, 6]],
-  ][i]! as readonly (readonly [number, number, number])[];
+  ];
+  const bouffees = toutes[i]!;
   for (const [dx, dy, r] of bouffees) {
     pl.disque(dx, cy + dy, r, (ex, ey) => {
       const X = dx + ex;
