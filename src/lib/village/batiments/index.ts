@@ -12,7 +12,7 @@ import { LOT_C } from "./lot-c";
 import type { DessinDeBatiment } from "./type";
 
 export type { DessinDeBatiment } from "./type";
-export { FORGE, PLAQUE } from "./forge";
+export { FORGE, PLAQUE, PLAQUE_GRANDE } from "./forge";
 
 function provisoire(largeur: number, hauteur: number): DessinDeBatiment {
   return {
