@@ -2,6 +2,16 @@
   {
     "date": "2026-11-14",
     "kind": "nouveau",
+    "title": "Touchez un Gaulois, il répond",
+    "body": "Au village, touchez un Gaulois de la place : il vous répond. Si vous insistez dans l'heure, il s'agace, puis s'énerve pour de bon. Plus de 200 phrases à découvrir.",
+    "link": {
+      "href": "/village#place",
+      "label": "Voir la place"
+    }
+  },
+  {
+    "date": "2026-11-14",
+    "kind": "nouveau",
     "title": "200 objets de plus au village",
     "body": "La boutique passe à 245 objets : coiffes, hauts, bas, chaussures et objets à tenir en main. Yeux, bouche et cicatrice se choisissent gratuitement dès la création. Le vestiaire se range en six rayons.",
     "link": {

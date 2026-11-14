@@ -10891,6 +10891,182 @@ footer h2 {
   flex-basis: 100%;
   overflow-wrap: anywhere;
 }
+/* Toucher un Gaulois (14 novembre 2026 ; PlaceToucher.tsx, règle dans toucher.ts) : un clic ou un toucher le fait
+   répondre. Au-dessus de lui, son nom et ce qui le place là, puis sa phrase dans une bulle : une réponse à un geste, qui
+   paraît donc aussi en pause et en « réduire les animations », posée sans mouvement. Pendant qu'elle est là, l'étiquette
+   du survol et la bulle du serveur lui laissent la place. */
+.vie-acteur:not(.vie-adverse) {
+  cursor: pointer;
+  /* Deux clics de suite ne surlignent ni son nom ni sa bulle. */
+  -webkit-user-select: none;
+  user-select: none;
+}
+.toucher {
+  position: absolute;
+  bottom: calc(100% + 0.5rem);
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  width: max-content;
+  max-width: min(14rem, 62vw);
+  translate: -50% 0;
+  pointer-events: none;
+}
+.vie-acteur[data-moi] > .toucher {
+  bottom: calc(100% + 1.25rem);
+}
+.vie-acteur[data-bord="gauche"] > .toucher {
+  left: 0;
+  align-items: flex-start;
+  translate: 0 0;
+}
+.vie-acteur[data-bord="droite"] > .toucher {
+  right: 0;
+  left: auto;
+  align-items: flex-end;
+  translate: 0 0;
+}
+.vie-acteur:has(> .toucher) {
+  z-index: 9999 !important;
+}
+.vie-acteur:has(> .toucher) > :is(.vie-info, .vie-bulle) {
+  display: none;
+}
+.toucher-qui {
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.375rem;
+  background: var(--color-night);
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.toucher-qui .vie-info-nom {
+  display: inline;
+  margin-right: 0.375rem;
+}
+/* La bulle : blanche, un cran plus grande que celle du serveur pour se lire d'un coup d'œil, sa pointe tournée vers la
+   tête de celui qui parle. L'humeur ne tient pas à une couleur seule : agacé, la phrase s'épaissit ; excédé, un filet rouge
+   sous la bulle ; furieux, le filet en fait le tour. */
+.toucher-bulle {
+  --toucher-filet: #fff;
+  position: relative;
+  min-width: calc(var(--vie-l) * var(--place-case));
+  padding: 0.375rem 0.625rem;
+  border: 2px solid #fff;
+  border-bottom-color: var(--toucher-filet);
+  border-radius: 0.625rem;
+  background: #fff;
+  color: var(--color-navy);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.3;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.toucher:is([data-palier="agace"], [data-palier="excede"], [data-palier="furieux"]) > .toucher-bulle {
+  font-weight: 700;
+}
+.toucher:is([data-palier="excede"], [data-palier="furieux"]) > .toucher-bulle {
+  --toucher-filet: var(--color-red);
+}
+.toucher[data-palier="furieux"] > .toucher-bulle {
+  border-color: var(--toucher-filet);
+}
+/* La pointe : un carré tourné d'un huitième de tour, à cheval sur le bas de la bulle, au-dessus du milieu du Gaulois. */
+.toucher-bulle::after {
+  content: "";
+  position: absolute;
+  top: calc(100% - 0.1875rem);
+  left: 50%;
+  width: 0.625rem;
+  height: 0.625rem;
+  translate: -50% 0;
+  rotate: 45deg;
+  border: solid var(--toucher-filet);
+  border-width: 0 2px 2px 0;
+  background: #fff;
+}
+.vie-acteur[data-bord="gauche"] .toucher-bulle::after {
+  left: calc(var(--vie-l) * var(--place-case) / 2);
+}
+.vie-acteur[data-bord="droite"] .toucher-bulle::after {
+  right: calc(var(--vie-l) * var(--place-case) / 2);
+  left: auto;
+  translate: 50% 0;
+}
+/* Le jeu de scène, calme : la bulle arrive en fondu, et le Gaulois qui s'agace sursaute d'une case, une fois. Deux noms
+   pour le même saut : d'un toucher au suivant, le nom change, et le saut repart. Rien de tout cela en pause (fx-off) ni
+   en « réduire les animations ». */
+@media (prefers-reduced-motion: no-preference) {
+  :root:not(.fx-off) .toucher-bulle {
+    animation: toucher-parait 0.25s ease-out;
+  }
+  :root:not(.fx-off) .vie-acteur:has(> .toucher[data-saut="0"]) > .vie-toile {
+    animation: toucher-saut-a 0.8s steps(1, end);
+  }
+  :root:not(.fx-off) .vie-acteur:has(> .toucher[data-saut="1"]) > .vie-toile {
+    animation: toucher-saut-b 0.8s steps(1, end);
+  }
+}
+@keyframes toucher-parait {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes toucher-saut-a {
+  15% {
+    translate: 0 calc(-1 * var(--place-case));
+  }
+  60% {
+    translate: 0 0;
+  }
+}
+@keyframes toucher-saut-b {
+  15% {
+    translate: 0 calc(-1 * var(--place-case));
+  }
+  60% {
+    translate: 0 0;
+  }
+}
+/* Dans « Qui est où » : le nom de chacun est un bouton (« Parler à … »), d'au moins 44 pixels, qui fait la même chose
+   pour le clavier et les lecteurs d'écran. */
+.vie-liste li {
+  align-items: center;
+  align-content: flex-start;
+}
+.toucher-bouton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  color: #fff;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+/* L'anneau du clavier reste dans le bouton : rien autour ne peut le rogner. */
+.toucher-bouton:focus-visible {
+  outline-offset: -2px;
+}
+.toucher-bouton:hover {
+  background: var(--color-surface-2);
+}
+.toucher-bouton-icone {
+  flex: none;
+  color: var(--color-blue-text);
+}
+.toucher-dit {
+  color: #fff;
+}
 .place-mot,
 .marche-mot {
   color: var(--color-muted);

@@ -44,7 +44,7 @@ export interface DepenseDuMois {
   sortie: number;
   /** Les bulles écrites et montrées. */
   repliques: number;
-  /** Les phrases de Claude écartées par le contrôle du robot avant l'envoi. */
+  /** Les Gaulois restés sans bulle parce que le contrôle du robot a écarté toutes leurs phrases, reprise comprise. */
   ecartees: number;
 }
 

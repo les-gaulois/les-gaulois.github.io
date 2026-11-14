@@ -1,27 +1,37 @@
 import { describe, expect, it } from "vitest";
 import type { RpcResult } from "../../src/lib/compte/roster";
 import { TENUE_DE_DEPART } from "../../src/lib/gaulois";
-import { CONSIGNE } from "../../src/lib/village/consigne-repliques";
+import { CONSIGNE, CONSIGNE_DE_REPRISE, MAX_REPLIQUES_PAR_PASSAGE, MOTS_INTERDITS } from "../../src/lib/village/consigne-repliques";
 import {
   ADMINISTRATEUR,
   ANTHROPIC_BASE_URL,
+  ESSAIS_PAR_PASSAGE,
+  FIN_DES_APPELS_MS,
+  GAULOIS_PAR_APPEL,
   LIEUX_DES_BULLES,
   MAX_TOKENS,
   POINTS_DANS_LES_BULLES_MS,
   SE_CONNECTER,
   VOIR_LE_SALON,
   choisirLeLot,
+  choisirPhrase,
   controlerReplique,
   corpsDeLaDemande,
   demanderLesBulles,
+  ecartEcrit,
+  ecartsDeLaPhrase,
   faitsDuGaulois,
+  faitsEcrits,
   jetonsDeLaReponse,
   lieuDUneBulle,
   lirePlafond,
   lireTravail,
   lireVieDuVillage,
   momentDeLaJournee,
+  nettoyage,
+  nettoyerPhrase,
   nombreExact,
+  normaliserPourLesMots,
   objetsPortes,
   permissionsDeTous,
   permissionsDeTousDansLeSalon,
@@ -433,7 +443,7 @@ describe("les faits d'une bulle", () => {
     expect(JSON.stringify(faits)).not.toContain(numeroDe(1));
   });
 
-  it("choisissent au plus 20 Gaulois qui ont besoin d'une bulle, ceux qui n'en ont jamais eu d'abord", () => {
+  it("choisissent au plus 12 Gaulois qui ont besoin d'une bulle, ceux qui n'en ont jamais eu d'abord", () => {
     const lignes = [
       gaulois(1, { tente_le: "2026-11-14T08:00:00+00:00" }),
       gaulois(2, { besoin: false }),
@@ -444,8 +454,10 @@ describe("les faits d'une bulle", () => {
     ];
     const t = lu(travail(lignes));
     const lot = choisirLeLot(t.gaulois, t.maintenant);
-    expect(lot).toHaveLength(20);
-    expect(lot.map((g) => g.g)).toEqual(Array.from({ length: 20 }, (_, i) => `g${i + 1}`));
+    // Trois phrases chacun : un appel de 12 tient dans MAX_TOKENS avec de la marge ; les autres passent 5 minutes plus tard.
+    expect(GAULOIS_PAR_APPEL).toBe(12);
+    expect(lot).toHaveLength(12);
+    expect(lot.map((g) => g.g)).toEqual(Array.from({ length: 12 }, (_, i) => `g${i + 1}`));
     expect(lot[0]?.n).toBe(numeroDe(4));
     expect(lot.some((g) => g.n === numeroDe(2) || g.n === numeroDe(3))).toBe(false);
     const petit = choisirLeLot(lu(travail([gaulois(1, { tente_le: "2026-11-14T08:00:00+00:00" }), gaulois(5, { tente_le: "2026-11-14T02:00:00+00:00" })])).gaulois, t.maintenant);
@@ -530,6 +542,8 @@ function reponseClaude(texte: string, plus: Record<string, unknown> = {}) {
   };
 }
 const json = (repliques: unknown) => JSON.stringify({ repliques });
+/** Les trois phrases d'un Gaulois dans la réponse, comme le schéma les impose ; une phrase absente reste absente. */
+const trois = (g: string, ...textes: string[]) => Object.fromEntries([["g", g], ...textes.map((t, i) => [`texte_${i + 1}`, t])]);
 
 describe("la demande à Claude", () => {
   it("ne contient que la consigne et des faits sans identité", () => {
@@ -544,13 +558,35 @@ describe("la demande à Claude", () => {
     expect(message).toContain('"g":"g1"');
     expect(message).toContain("à la taverne");
     expect(message).toContain('"points_rapportes_au_clan_par_sa_derniere_partie":"1,65"');
-    expect(message).toContain("Casque d'or");
+    // Les objets sans leur majuscule, que Claude recopiait au milieu d'une phrase.
+    expect(message).toContain('"porte":["casque d\'or","gourdin"]');
+    expect(message).not.toContain("Casque");
     // Sans points, pas de champ des points.
     expect(message.split('"g":"g2"')[1]).not.toContain("points");
+    expect(message.startsWith("Les faits de chaque Gaulois")).toBe(true);
+  });
+
+  // Une bulle reste à l'écran des heures après avoir été écrite : « il est 21 h 05 » y deviendrait faux. Recopiée ou
+  // arrondie, l'heure faisait aussi écarter la phrase.
+  it("ne donne plus l'heure à Claude, mais la garde dans les faits de la bulle pour le serveur", () => {
+    const message = corpsDeLaDemande("claude-haiku-5-5", LOT).messages[0]!.content as string;
+    expect(message).not.toContain("heure");
+    expect(message).not.toMatch(/21|05/);
+    expect(faitsEcrits(LOT[0]!)).toEqual({ g: "g1", moment: "le soir", ou: "à la taverne, au retour de sa dernière partie", points_rapportes_au_clan_par_sa_derniere_partie: "1,65", porte: ["casque d'or", "gourdin"] });
+    expect(LOT[0]!.faits.heure).toBe("21 h 05");
+  });
+
+  it("redit à Claude, à la reprise, pourquoi les phrases de chaque Gaulois ont été écartées", () => {
+    const ecarts = new Map([["g1", ["trop longue : 97 signes sur 90", "mot interdit"]]]);
+    const message = corpsDeLaDemande("claude-haiku-5-5", LOT, ecarts).messages[0]!.content as string;
+    expect(message.startsWith(CONSIGNE_DE_REPRISE)).toBe(true);
+    expect(message).toContain('"phrases_ecartees_parce_que":["trop longue : 97 signes sur 90","mot interdit"]');
+    // Un Gaulois sans raison (il n'avait pas de phrase) n'a pas le champ.
+    expect(message.split('"g":"g2"')[1]).not.toContain("phrases_ecartees_parce_que");
   });
 
   it("part par le SDK, une seule fois, à l'adresse de l'API, avec la clé et la version que le SDK pose", async () => {
-    const { send, appels } = fauxFetch(() => ({ status: 200, body: reponseClaude(json([{ g: "g1", texte: "Une pause à la taverne, ça se mérite !" }])) }));
+    const { send, appels } = fauxFetch(() => ({ status: 200, body: reponseClaude(json([trois("g1", "Une pause à la taverne, ça se mérite !", "b", "c")])) }));
     const r = await demanderLesBulles("claude-haiku-5-5", LOT, "cle-essai", send);
     expect(appels).toHaveLength(1);
     expect(appels[0]?.url).toBe(URL_CLAUDE);
@@ -563,7 +599,7 @@ describe("la demande à Claude", () => {
     // Le corps est celui de corpsDeLaDemande, sans rien ajouter.
     expect(JSON.parse(String(appels[0]?.init?.body))).toEqual(JSON.parse(JSON.stringify(corpsDeLaDemande("claude-haiku-5-5", LOT))));
     expect(r.jetons).toEqual({ entree: 812, sortie: 240 });
-    expect(r.phrases.get("g1")).toBe("Une pause à la taverne, ça se mérite !");
+    expect(r.phrases.get("g1")).toEqual(["Une pause à la taverne, ça se mérite !", "b", "c"]);
     expect(r.raison).toBeNull();
   });
 
@@ -580,6 +616,18 @@ describe("la demande à Claude", () => {
     }
   });
 
+  it("donne au SDK le délai plus court d'une reprise, et compte au plus haut un appel qui n'a pas répondu à temps", async () => {
+    // Une API qui ne répond jamais : seul le délai du SDK arrête l'appel.
+    const muette = (async (_input: RequestInfo | URL, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(init.signal?.reason ?? new Error("abandon")));
+      })) as typeof fetch;
+    const debut = Date.now();
+    const r = await demanderLesBulles("claude-haiku-5-5", LOT, "cle", muette, { delaiMs: 50 });
+    expect(Date.now() - debut).toBeLessThan(5_000);
+    expect(r).toMatchObject({ raison: "Claude ne répond pas", avertir: false, jetons: { sortie: MAX_TOKENS } });
+  });
+
   it("lit les jetons, cache compris", () => {
     expect(jetonsDeLaReponse({ usage: { input_tokens: 10, output_tokens: 5, cache_creation_input_tokens: 3, cache_read_input_tokens: 2 } })).toEqual({ entree: 15, sortie: 5 });
     expect(jetonsDeLaReponse({ usage: { input_tokens: 10, output_tokens: 5 } })).toEqual({ entree: 10, sortie: 5 });
@@ -587,11 +635,11 @@ describe("la demande à Claude", () => {
     expect(jetonsDeLaReponse({ usage: { output_tokens: 5 } })).toBeNull();
   });
 
-  it("ne garde que les phrases des étiquettes demandées, une fois chacune", () => {
+  it("ne garde que les phrases des étiquettes demandées, une fois chacune, dans l'ordre des trois champs", () => {
     const etiquettes = new Set(["g1", "g2"]);
-    const { phrases, raison } = phrasesDeLaReponse(reponseClaude(json([{ g: "g1", texte: "A" }, { g: "g1", texte: "B" }, { g: "g9", texte: "C" }, { g: "g2" }, "rien"])), etiquettes);
+    const { phrases, raison } = phrasesDeLaReponse(reponseClaude(json([trois("g1", "A1", "A2", "A3"), trois("g1", "B"), trois("g9", "C"), { g: "g2", texte_2: "D2" }, "rien"])), etiquettes);
     expect(raison).toBeNull();
-    expect([...phrases]).toEqual([["g1", "A"], ["g2", undefined]]);
+    expect([...phrases]).toEqual([["g1", ["A1", "A2", "A3"]], ["g2", [undefined, "D2", undefined]]]);
   });
 
   it("ne tire rien d'un refus, d'une réponse coupée ou d'un JSON mal formé", () => {
@@ -648,58 +696,67 @@ describe("le contrôle d'une bulle", () => {
   const ok = (texte: unknown, faits = FAITS) => controlerReplique(texte, faits);
 
   it("accepte une phrase sage, et la nettoie", () => {
-    expect(ok("Une pause à la taverne, ça se mérite !")).toEqual({ ok: true, texte: "Une pause à la taverne, ça se mérite !" });
-    expect(ok("  « Mon casque d'or brille encore à 21 h 05 ! »  ")).toEqual({ ok: true, texte: "« Mon casque d'or brille encore à 21 h 05 ! »" });
-    expect(ok("\"J'ai rapporté 1,65 point au clan, et toc !\"")).toEqual({ ok: true, texte: "J'ai rapporté 1,65 point au clan, et toc !" });
-    expect(ok("Déjà 21 h… L’heure d’une chope !")).toEqual({ ok: true, texte: "Déjà 21 h… L’heure d’une chope !" });
+    expect(ok("Une pause à la taverne, ça se mérite !")).toEqual({ ok: true, texte: "Une pause à la taverne, ça se mérite !", retouches: [] });
+    expect(ok("  « Mon casque d'or brille encore ce soir ! »  ")).toMatchObject({ ok: true, texte: "« Mon casque d'or brille encore ce soir ! »" });
+    expect(ok("\"J'ai rapporté 1,65 point au clan, et toc !\"")).toMatchObject({ ok: true, texte: "J'ai rapporté 1,65 point au clan, et toc !" });
+    expect(ok("Déjà le soir… L’heure d’une chope !")).toMatchObject({ ok: true, texte: "Déjà le soir… L’heure d’une chope !" });
     expect(ok("Œuf, pâté, bière : le soir est doux.")).toMatchObject({ ok: true });
   });
 
   it("refuse une phrase trop longue, vide ou qui n'en est pas une", () => {
     expect(ok("a".repeat(90))).toMatchObject({ ok: true });
-    expect(ok("a".repeat(91))).toEqual({ ok: false, raison: "trop longue" });
-    expect(ok("   ")).toEqual({ ok: false, raison: "vide" });
-    expect(ok(42)).toEqual({ ok: false, raison: "pas une phrase" });
-    expect(ok(null)).toEqual({ ok: false, raison: "pas une phrase" });
+    expect(ok("a".repeat(91))).toMatchObject({ ok: false, raison: "trop longue", ecarts: [{ raison: "trop longue", detail: "91 signes sur 90" }] });
+    expect(ok("   ")).toMatchObject({ ok: false, raison: "vide" });
+    // Rien qu'un émoji : vide, une fois l'émoji retiré.
+    expect(ok("🍺 🍺")).toMatchObject({ ok: false, raison: "vide" });
+    expect(ok(42)).toMatchObject({ ok: false, raison: "pas une phrase" });
+    expect(ok(null)).toMatchObject({ ok: false, raison: "pas une phrase" });
   });
 
-  it("refuse liens, mentions, balises, émojis et majuscules d'affilée", () => {
-    for (const texte of ["Venez sur https://exemple.test", "Salut @everyone !", "Allez #general", "<b>Bonsoir</b>", "Bonsoir 🍺", "Rendez-vous sur exemple.com ce soir", "Vive GAL !", "OUI !", "C'est 50% de bonheur", "a/b", "Prix : 3 $"]) {
+  it("refuse liens, mentions, balises, signes hors de la liste et majuscules d'affilée", () => {
+    for (const texte of ["Venez sur https://exemple.test", "Salut @everyone !", "Allez #general", "<b>Bonsoir</b>", "Rendez-vous sur exemple.com ce soir", "Vive GAL !", "OUI !", "C'est 50% de bonheur", "a/b", "Prix : 3 $", "Mon gourdin + moi", "Je suis au top ! *rire*", "Bière & chope"]) {
       expect(ok(texte).ok, texte).toBe(false);
     }
   });
 
-  it("refuse un chiffre absent des faits, accepte l'heure et les points", () => {
-    expect(ok("Déjà 21 h, à la taverne !")).toMatchObject({ ok: true });
-    expect(ok("Il est 21 h 5, santé !")).toMatchObject({ ok: true });
+  it("refuse un chiffre absent des points, l'heure comprise : Claude ne la reçoit plus", () => {
     expect(ok("J'ai rapporté 1.65 point !")).toMatchObject({ ok: true });
-    expect(ok("J'ai rapporté 2 points !")).toEqual({ ok: false, raison: "chiffre absent des faits" });
-    expect(ok("Mes 3 chopes m'attendent.")).toEqual({ ok: false, raison: "chiffre absent des faits" });
-    expect(ok("J'ai rapporté 1,65 point !", { ...FAITS, points: null })).toEqual({ ok: false, raison: "chiffre absent des faits" });
-    expect(ok("1488")).toEqual({ ok: false, raison: "chiffre absent des faits" });
+    expect(ok("J'ai rapporté 1,65 point, et toc !")).toMatchObject({ ok: true });
+    expect(ok("J'ai rapporté 2 points !")).toMatchObject({ ok: false, raison: "chiffre absent des faits", ecarts: [{ detail: "« 2 »" }] });
+    expect(ok("Mes 3 chopes m'attendent.")).toMatchObject({ ok: false, raison: "chiffre absent des faits" });
+    expect(ok("J'ai rapporté 1,65 point !", { ...FAITS, points: null })).toMatchObject({ ok: false, raison: "chiffre absent des faits" });
+    expect(ok("1488")).toMatchObject({ ok: false, raison: "chiffre absent des faits" });
+    // L'heure des faits (21 h 05) : le serveur la permettrait, le robot non. Elle serait inventée, ou périmée à l'écran.
+    expect(ok("Déjà 21 h, à la taverne !")).toMatchObject({ ok: false, raison: "chiffre absent des faits", ecarts: [{ detail: "« 21 »" }] });
+    expect(ok("Il est 21 h 05, santé !")).toMatchObject({ ok: false, ecarts: [{ raison: "chiffre absent des faits", detail: "« 21 », « 05 »" }] });
+    // Des chiffres en lettres ne sont pas des chiffres.
+    expect(ok("Neuf chopes et pas une de plus !")).toMatchObject({ ok: true });
   });
 
   it("refuse les mots interdits, Astérix compris", () => {
     for (const texte of ["Une potion et ça repart !", "Ces Romains me fatiguent.", "Ils sont fous, ces voisins !", "Quelle victoire ce soir !", "J'ai gagné ma soirée.", "Par Toutatis !", "Je vais au menhir.", "Quelle merde ce temps.", "Le druide dort.", "Viens sur Discord !"]) {
-      expect(ok(texte), texte).toEqual({ ok: false, raison: "mot interdit" });
+      expect(ok(texte), texte).toMatchObject({ ok: false, raison: "mot interdit" });
     }
   });
 
   // Revue de sécurité du 14 novembre 2026 : la moquerie, les noms propres, et un nombre que JavaScript arrondit.
   it("refuse la moquerie, en mots entiers pour « nul », sans arrêter « annuler » ni « granule »", () => {
     for (const texte of ["Les voisins sont des nuls, je vais les écraser !", "Mon voisin est un abruti.", "Quelle idiote, cette chèvre.", "Un vrai tocard, ce soir.", "Ce crétin a pris ma chope.", "C'est débile !", "Quel imbécile !", "Tu es nul."]) {
-      expect(ok(texte), texte).toEqual({ ok: false, raison: "mot interdit" });
+      expect(ok(texte), texte).toMatchObject({ ok: false, raison: "mot interdit" });
     }
     for (const texte of ["J'annule ma sieste, place à la fête.", "Une granule de sel dans ma chope ?"]) expect(ok(texte), texte).toMatchObject({ ok: true });
   });
 
-  it("refuse une majuscule hors du début d'une phrase, sauf les mots permis", () => {
-    for (const texte of ["Je trinque à la santé de Macron sur la place !", "Bonsoir à toi, Paris.", "Ce soir, j'invite Jean à la taverne.", "Je bois une Kronenbourg."]) {
-      expect(ok(texte), texte).toEqual({ ok: false, raison: "majuscule hors d'un début de phrase" });
+  it("refuse une majuscule hors du début d'une phrase, sauf les mots permis et les mots des faits", () => {
+    for (const texte of ["Je trinque à la santé de Macron sur la place !", "Bonsoir à toi, Paris.", "Ce soir, j'invite Jean à la taverne.", "Je bois une Kronenbourg.", "Je flâne : Mon gourdin me suit.", "« Bonjour ! » Je salue la place."]) {
+      expect(ok(texte), texte).toMatchObject({ ok: false, raison: "majuscule hors d'un début de phrase" });
     }
     for (const texte of ["Les Gaulois de la place trinquent. Santé !", "Une Gauloise passe, et deux Gauloises la suivent.", "Quelle soirée ! Je rentre.", "« Bonsoir » dit le forgeron… Puis il chante."]) {
       expect(ok(texte), texte).toMatchObject({ ok: true });
     }
+    // Un objet ou un lieu des faits, recopié avec sa majuscule : la majuscule tombe, la phrase passe.
+    expect(ok("Mon Casque d'Or brille à la Taverne !")).toMatchObject({ ok: true, texte: "Mon casque d'or brille à la taverne !", retouches: ["majuscule d'un mot des faits"] });
+    expect(ok("Mon Gourdin et moi, au Clan pour toujours !")).toMatchObject({ ok: true, texte: "Mon gourdin et moi, au clan pour toujours !" });
   });
 
   it("compare les nombres par leur écriture décimale exacte, comme le serveur", () => {
@@ -709,9 +766,108 @@ describe("le contrôle d'une bulle", () => {
     expect(nombreExact("21.0")).toBe("21");
     expect(nombreExact("0")).toBe("0");
     expect(nombreExact("21.0000000000000001")).toBe("21.0000000000000001");
-    // Le piège de la revue : 21.0000000000000001 vaut 21 en nombre à virgule flottante, pas pour le serveur.
-    expect(ok("Il est 21.0000000000000001 h, je trinque !")).toEqual({ ok: false, raison: "chiffre absent des faits" });
-    expect(ok("Il est 21,0 h, je trinque !")).toMatchObject({ ok: true });
+    // Le piège de la revue : 1.6500000000000001 vaut 1,65 en nombre à virgule flottante, pas pour le serveur.
+    expect(ok("J'ai rapporté 1.6500000000000001 point !")).toMatchObject({ ok: false, raison: "chiffre absent des faits" });
+    expect(ok("J'ai rapporté 1,650 point !")).toMatchObject({ ok: true });
+  });
+});
+
+/* ---------- Le nettoyage d'une phrase ---------- */
+
+describe("le nettoyage d'une phrase, typographie seulement", () => {
+  const c = (...codes: number[]) => String.fromCodePoint(...codes);
+  const net = (texte: string) => nettoyage(texte, FAITS);
+
+  it("change les tirets longs et moyens d'une incise en virgule, et garde un trait d'union", () => {
+    expect(net(`Ce soir ${c(0x2014)} gourdin en main ${c(0x2014)} je trinque.`).texte).toBe("Ce soir, gourdin en main, je trinque.");
+    expect(net(`Ce soir${c(0x2014)}je trinque.`).texte).toBe("Ce soir, je trinque.");
+    expect(net(`${c(0x2014)} Santé, la taverne !`).texte).toBe("Santé, la taverne !");
+    expect(net(`Santé ${c(0x2013)} !`).texte).toBe("Santé !");
+    expect(net(`Un rendez${c(0x2013)}vous à la taverne.`).texte).toBe("Un rendez-vous à la taverne.");
+    expect(net(`Moi${c(0x2011)}même, je trinque${c(0x2014)}.`).texte).toBe("Moi-même, je trinque.");
+    expect(net(`Ah. ${c(0x2014)} Je trinque.`).texte).toBe("Ah. Je trinque.");
+    expect(net(`Ce soir ${c(0x2014)}`).retouches).toEqual(["tiret long"]);
+  });
+
+  it("change les guillemets droits ou anglais en guillemets français, par paires, et les retire autour", () => {
+    expect(net(`Je dis ${c(0x201c)}santé${c(0x201d)} à la taverne.`).texte).toBe("Je dis « santé » à la taverne.");
+    expect(net('Je dis "santé" à la taverne.').texte).toBe("Je dis « santé » à la taverne.");
+    expect(net(`${c(0x201c)}Santé, la taverne !${c(0x201d)}`).texte).toBe("Santé, la taverne !");
+    // Un guillemet seul : retiré.
+    expect(net('Je dis "santé à la taverne.').texte).toBe("Je dis santé à la taverne.");
+    expect(net("«Santé !» dit mon gourdin.").texte).toBe("« Santé ! » dit mon gourdin.");
+    expect(net(`Il dit ${c(0x2039)}santé${c(0x203a)}.`).texte).toBe("Il dit « santé ».");
+  });
+
+  it("change les espaces insécables, fines et sans largeur, les apostrophes, les points de suspension", () => {
+    expect(net(`Santé${c(0x202f)}! Une chope${c(0xa0)}?`).texte).toBe("Santé ! Une chope ?");
+    expect(net(`Je${c(0x200b)} trinque.`).texte).toBe("Je trinque.");
+    expect(net(`L${c(0x2018)}heure d${c(0x60)}une chope.`).texte).toBe(`L${c(0x2019)}heure d${c(0x2019)}une chope.`);
+    expect(net("Bon... Je trinque. . .").texte).toBe("Bon… Je trinque…");
+    expect(net("Bonsoir , la taverne .").texte).toBe("Bonsoir, la taverne.");
+    expect(net(`Caf${c(0x65, 0x301)} !`).texte).toBe(`Caf${c(0xe9)} !`);
+  });
+
+  it("retire les émojis, leurs teintes, drapeaux et sélecteurs", () => {
+    for (const emoji of [c(0x1f37a), c(0x2600, 0xfe0f), c(0x1f44d, 0x1f3fd), c(0x1f1eb, 0x1f1f7), c(0x1f468, 0x200d, 0x1f33e), c(0x2694, 0xfe0f)]) {
+      const r = net(`Santé ${emoji} la taverne !`);
+      expect(r.texte, JSON.stringify(emoji)).toBe("Santé la taverne !");
+      expect(r.retouches).toContain("émoji");
+    }
+  });
+
+  it("ne retire la majuscule que d'un mot des faits, au milieu d'une phrase", () => {
+    // Le mot des faits en début de phrase garde sa majuscule ; un nom inventé la garde aussi, et la phrase est écartée.
+    expect(net("Gourdin en main, je trinque. Gourdin levé !").texte).toBe("Gourdin en main, je trinque. Gourdin levé !");
+    expect(net("Mon Gourdin salue Macron.").texte).toBe("Mon gourdin salue Macron.");
+    expect(nettoyage("Mon Gourdin salue Macron.").texte).toBe("Mon Gourdin salue Macron.");
+    // Un mot en capitales n'est pas touché : la règle des majuscules d'affilée l'écarte.
+    expect(net("Mon GOURDIN est là.").texte).toBe("Mon GOURDIN est là.");
+  });
+
+  it("ne change jamais un mot, un nombre ou un signe hors de la liste", () => {
+    for (const texte of ["J'ai 3 chopes / 2 gourdins.", "Vive Toutatis !", "Mon gourdin + moi = 100%", "Rendez-vous sur exemple.com", "Je bois une Kronenbourg."]) {
+      const sans = (t: string) => t.toLocaleLowerCase("fr-FR").replace(/[^a-z0-9/+=%.@#]/g, "");
+      expect(sans(net(texte).texte), texte).toBe(sans(texte));
+      expect(controlerReplique(texte, FAITS).ok, texte).toBe(false);
+    }
+  });
+
+  it("donne le même texte une seconde fois, et c'est ce texte que le robot envoie", () => {
+    const textes = [`« Ma Tunique ${c(0x2014)} et mon Gourdin » ${c(0x1f37a)}...`, `"Bonsoir"${c(0x202f)}! ${c(0x2013)} Santé`, "Bon... Je trinque. . ."];
+    for (const texte of textes) {
+      const une = nettoyerPhrase(texte, FAITS);
+      expect(nettoyerPhrase(une, FAITS), texte).toBe(une);
+    }
+  });
+});
+
+describe("ce que le journal dit d'une phrase écartée", () => {
+  it("dit chaque règle en cause et son fragment : le signe, le nombre, le mot à majuscule, la longueur", () => {
+    const ecarts = ecartsDeLaPhrase(`Je bois une Kronenbourg à 22 h / ${"a".repeat(80)}`, FAITS).map(ecartEcrit);
+    expect(ecarts).toEqual(["trop longue : 113 signes sur 90", "signe refusé : « / » (U+002F)", "chiffre absent des faits : « 22 »", "majuscule hors d'un début de phrase : « Kronenbourg »"]);
+    expect(ecartsDeLaPhrase("Vive le CLAN !", FAITS).map(ecartEcrit)).toEqual(["majuscules : « CLAN »", "majuscule hors d'un début de phrase : « CLAN »"]);
+    expect(ecartsDeLaPhrase("Va sur exemple.com", FAITS).map(ecartEcrit)).toEqual(["adresse : « e.c »"]);
+    // Un signe invisible se dit par son code seulement.
+    expect(ecartsDeLaPhrase(`Je${String.fromCodePoint(0x7)} trinque`, FAITS).map(ecartEcrit)).toEqual(["signe refusé : U+0007"]);
+  });
+
+  it("ne répète jamais un mot interdit, même à majuscule", () => {
+    for (const texte of ["Par Toutatis, la belle place !", "Je bois avec Obélix.", "Quel TOCARD !", "Une Potion, vite."]) {
+      const dit = ecartsDeLaPhrase(texte, FAITS).map(ecartEcrit).join(" ; ");
+      expect(dit, texte).toContain("mot interdit");
+      for (const mot of MOTS_INTERDITS) expect(normaliserPourLesMots(dit), `${texte} : ${mot}`).not.toContain(mot);
+    }
+  });
+
+  it("choisit la première phrase qui passe, et ne lit pas les suivantes", () => {
+    const choix = choisirPhrase(["J'ai rapporté 2 points !", `Ma Tunique ${String.fromCodePoint(0x2014)} quelle allure !`, "Par Toutatis !"], { ...FAITS, objets: ["Tunique bleue"] });
+    expect(choix.texte).toBe("Ma tunique, quelle allure !");
+    expect(choix.ecartees).toEqual([{ rang: 1, ecarts: [{ raison: "chiffre absent des faits", detail: "« 2 »" }] }]);
+    expect(choix.retouches.sort()).toEqual(["majuscule d'un mot des faits", "tiret long"]);
+    const aucune = choisirPhrase([undefined, "", "Par Toutatis !"], FAITS);
+    expect(aucune.texte).toBeNull();
+    expect(aucune.ecartees.map((e) => [e.rang, e.ecarts[0]?.raison])).toEqual([[1, "pas une phrase"], [2, "vide"], [3, "mot interdit"]]);
   });
 });
 
@@ -742,36 +898,115 @@ const NOTE_OK = (): RpcResult => ({ ok: true, vocaux: 0, repliques: 0, ignores: 
 describe("un passage de la vie du village", () => {
   const lignes = [gaulois(1), gaulois(2, { partie_le: "2026-11-14T19:30:00+00:00", points: 1.65 }), gaulois(3, { besoin: false })];
 
-  function monde(claude: (lot: number) => Route | "panne") {
+  /**
+   * Le faux monde : Discord, puis Claude, qui reçoit le corps de chaque demande (`corps`), son rang (`essai`, 1 puis 2) et les
+   * étiquettes demandées.
+   */
+  function monde(claude: (lot: number, essai: number, etiquettes: string[], corps: { messages: { content: string }[] }) => Route | "panne") {
+    let essai = 0;
     return fauxFetch((url, init) => {
       // Le rôle @everyone et les salons du serveur : un salon vocal public, celui où est le membre 1.
       if (url === URL_ROLE) return { status: 200, body: roleDeTous(TOUS_ENTRENT) };
       if (url.endsWith("/channels")) return { status: 200, body: [{ id: "1350905494600099999", type: 2, permission_overwrites: [] }] };
       if (url.startsWith("https://discord.com/")) return Number(url.slice(-2)) === 1 ? { status: 200, body: { channel_id: "1350905494600099999" } } : { status: 404, body: { code: 10065 } };
       const corps = JSON.parse(String(init?.body)) as { messages: { content: string }[] };
-      return claude((corps.messages[0]!.content.match(/"g":"g\d+"/g) ?? []).length);
+      const etiquettes = [...corps.messages[0]!.content.matchAll(/"g":"(g\d+)"/g)].map((m) => m[1]!);
+      return claude(etiquettes.length, ++essai, etiquettes, corps);
     });
   }
+  const envoiDe = (a: { args: Record<string, unknown> } | undefined) => a?.args["p_releve"] as Record<string, unknown>;
+  const quoi = (serveur: FauxServeur) => serveur.appels.map((a) => Object.keys((a.args["p_releve"] as object | undefined) ?? {})[0] ?? a.fn);
 
-  it("relève les vocaux, demande les bulles sans relire la liste, note la dépense puis les bulles", async () => {
+  it("relève les vocaux, demande les bulles sans relire la liste, reprend le Gaulois écarté, note la dépense puis les bulles", async () => {
     const serveur = fauxServeur({ vie_du_village_travail: [travail(lignes)], noter_vie_du_village: NOTE_OK });
-    const { send, appels } = monde(() => ({ status: 200, body: reponseClaude(json([{ g: "g1", texte: "Le soir tombe, je flâne sur la place." }, { g: "g2", texte: "Une potion !" }])) }));
+    const { send, appels } = monde(() => ({ status: 200, body: reponseClaude(json([trois("g1", "Le soir tombe, je flâne sur la place.", "b", "c"), trois("g2", "Une potion !", "Par Toutatis !", "J'ai rapporté 3 points !")])) }));
     const journal: string[] = [];
     const bilan = await vieDuVillage({ rpc: serveur.rpc, fetch: send, sleep: sansPause, discord: { token: "Mzk.jeton-robot-essai.Xyz", guildId: GUILDE }, cleClaude: "cle-secrete", log: (l) => journal.push(l) });
-    expect(bilan).toEqual({ vocaux: 3, enVocal: 1, appels: 1, envoyees: 1, ecartees: 1, erreurs: 0 });
+    // g2 : trois phrases écartées, puis trois encore à la reprise (le faux Claude répond pareil) : un Gaulois écarté.
+    expect(bilan).toEqual({ vocaux: 3, enVocal: 1, appels: 2, envoyees: 1, ecartees: 1, phrasesEcartees: 6, erreurs: 0 });
     // L'état vocal ne change pas les faits d'une bulle : la liste de travail n'est lue qu'une fois.
-    expect(serveur.appels.map((a) => a.fn)).toEqual(["vie_du_village_travail", "noter_vie_du_village", "noter_vie_du_village", "noter_vie_du_village"]);
+    expect(quoi(serveur)).toEqual(["vie_du_village_travail", "vocaux", "depense", "depense", "repliques"]);
     expect(serveur.appels[1]?.args).toEqual({ p_releve: { vocaux: [{ n: numeroDe(1), vocal: true }, { n: numeroDe(2), vocal: false }, { n: numeroDe(3), vocal: false }] } });
-    expect(serveur.appels[2]?.args).toEqual({ p_releve: { depense: { appels: 1, entree: 812, sortie: 240, ecartees: 1 } } });
-    const envoi = serveur.appels[3]?.args["p_releve"] as { repliques: { n: string; texte: string; faits: FaitsDuGaulois }[]; sans_bulle: string[] };
+    // La dépense de chaque appel, notée aussitôt ; le Gaulois écarté compté une fois, avec la dernière.
+    expect(envoiDe(serveur.appels[2])).toEqual({ depense: { appels: 1, entree: 812, sortie: 240, ecartees: 0 } });
+    expect(envoiDe(serveur.appels[3])).toEqual({ depense: { appels: 1, entree: 812, sortie: 240, ecartees: 1 } });
+    const envoi = envoiDe(serveur.appels[4]) as { repliques: { n: string; texte: string; faits: FaitsDuGaulois }[]; sans_bulle: string[] };
     // Le membre 1 est en vocal : sa bulle le dit sur la place, pas en salle de réunion.
     expect(envoi.repliques).toEqual([{ n: numeroDe(1), texte: "Le soir tombe, je flâne sur la place.", faits: { heure: "21 h 05", moment: "soir", lieu: "place", points: null, objets: ["Tunique bleue", "Braies à carreaux", "Bottes de cuir", "Gourdin"] } }]);
-    // La phrase écartée : le Gaulois est noté comme demandé, sans bulle, pour ne pas redemander Claude à chaque passage.
+    // Les phrases écartées, reprise comprise : le Gaulois est noté comme demandé, sans bulle, pour 6 heures.
     expect(envoi.sans_bulle).toEqual([numeroDe(2)]);
-    expect(appels.filter((a) => a.url === URL_CLAUDE)).toHaveLength(1);
-    // Le journal de l'Action est public : ni identifiant Discord, ni numéro, ni clé, ni jeton.
+    expect(appels.filter((a) => a.url === URL_CLAUDE)).toHaveLength(ESSAIS_PAR_PASSAGE);
+    // La reprise ne demande que g2, avec les raisons de ses écarts.
+    const reprise = String(appels.filter((a) => a.url === URL_CLAUDE)[1]?.init?.body);
+    expect(reprise.match(/\\"g\\":\\"g\d+\\"/g)).toEqual(['\\"g\\":\\"g2\\"']);
+    expect(reprise).toContain("phrases_ecartees_parce_que");
+    expect(reprise).toContain("chiffre absent des faits : « 3 »");
+    // Le journal de l'Action est public : ni identifiant Discord, ni numéro, ni clé, ni jeton, ni phrase entière, ni mot
+    // interdit. Une ligne par phrase écartée, la règle et le fragment.
     const tout = journal.join("\n");
-    for (const secret of [discordDe(1), discordDe(2), numeroDe(1), "cle-secrete", "jeton-robot-essai"]) expect(tout).not.toContain(secret);
+    for (const secret of [discordDe(1), discordDe(2), numeroDe(1), "cle-secrete", "jeton-robot-essai", "Une potion", "Toutatis", "J'ai rapporté 3 points"]) expect(tout).not.toContain(secret);
+    expect(journal).toContain("Vie du village : g2, phrase 3 sur 3 écartée : chiffre absent des faits : « 3 ».");
+    expect(journal).toContain("Vie du village : g2, phrase 1 sur 3 écartée à la reprise : mot interdit.");
+    expect(journal.filter((l) => / écartée( à la reprise)? : /.test(l))).toHaveLength(6);
+    expect(journal).toContain("Vie du village : 2 bulle(s) demandée(s), 1 envoyée(s), 1 Gaulois sans bulle après le contrôle (6 phrase(s) écartée(s)), 2 appel(s) à Claude, 1624 jetons d'entrée et 480 de sortie.");
+  });
+
+  it("garde la bulle trouvée à la reprise, et ne compte alors aucun Gaulois écarté", async () => {
+    const serveur = fauxServeur({ vie_du_village_travail: [travail(lignes)], noter_vie_du_village: NOTE_OK });
+    const { send } = monde((_lot, essai) =>
+      essai === 1
+        ? { status: 200, body: reponseClaude(json([trois("g1", "Il est 21 h 05, santé !", "La GRANDE place !", "Vive Macron !"), trois("g2", `Une chope ${String.fromCodePoint(0x2014)} au Champ de bataille !`, "b", "c")])) }
+        : { status: 200, body: reponseClaude(json([trois("g1", "Le soir, la place est à moi !", "b", "c")])) },
+    );
+    const journal: string[] = [];
+    const bilan = await vieDuVillage({ rpc: serveur.rpc, fetch: send, sleep: sansPause, discord: null, cleClaude: "cle", log: (l) => journal.push(l) });
+    expect(bilan).toMatchObject({ appels: 2, envoyees: 2, ecartees: 0, phrasesEcartees: 3, erreurs: 0 });
+    expect(quoi(serveur)).toEqual(["vie_du_village_travail", "depense", "depense", "repliques"]);
+    expect(envoiDe(serveur.appels[2])).toEqual({ depense: { appels: 1, entree: 812, sortie: 240, ecartees: 0 } });
+    const envoi = envoiDe(serveur.appels[3]) as { repliques: { n: string; texte: string }[]; sans_bulle: string[] };
+    // La phrase de g2, nettoyée : le tiret long devient une virgule, la majuscule du lieu des faits tombe.
+    expect(envoi.repliques.map((r) => [r.n, r.texte])).toEqual([[numeroDe(2), "Une chope, au champ de bataille !"], [numeroDe(1), "Le soir, la place est à moi !"]]);
+    expect(envoi.sans_bulle).toEqual([]);
+    expect(journal).toContain("Vie du village : g1, phrase 1 sur 3 écartée : chiffre absent des faits : « 21 », « 05 ».");
+    expect(journal).toContain("Vie du village : g1, phrase 2 sur 3 écartée : majuscules : « GRANDE » ; majuscule hors d'un début de phrase : « GRANDE ».");
+    expect(journal).toContain("Vie du village : g1, phrase 3 sur 3 écartée : majuscule hors d'un début de phrase : « Macron ».");
+    expect(journal).toContain("Vie du village : retouches avant le contrôle : tiret long ×1, majuscule d'un mot des faits ×1.");
+  });
+
+  it("ne reprend pas quand le temps du passage manque : les Gaulois écartés sont comptés avec le premier appel", async () => {
+    const serveur = fauxServeur({ vie_du_village_travail: [travail(lignes)], noter_vie_du_village: NOTE_OK });
+    const { send, appels } = monde(() => ({ status: 200, body: reponseClaude(json([trois("g1", "Une potion !", "Vive Macron !", "J'ai 3 chopes."), trois("g2", "Vive Macron !", "Une potion !", "J'ai 3 chopes.")])) }));
+    // Le relevé vocal et l'appel ont pris presque tout le temps du passage.
+    let t = 0;
+    const horloge = () => (t += FIN_DES_APPELS_MS);
+    const journal: string[] = [];
+    const bilan = await vieDuVillage({ rpc: serveur.rpc, fetch: send, sleep: sansPause, discord: null, cleClaude: "cle", log: (l) => journal.push(l), horloge });
+    expect(bilan).toMatchObject({ appels: 1, envoyees: 0, ecartees: 2 });
+    expect(appels.filter((a) => a.url === URL_CLAUDE)).toHaveLength(1);
+    expect(envoiDe(serveur.appels[1])).toEqual({ depense: { appels: 1, entree: 812, sortie: 240, ecartees: 2 } });
+    expect(envoiDe(serveur.appels[2])).toEqual({ repliques: [], sans_bulle: [numeroDe(1), numeroDe(2)] });
+    expect(journal).toContain("Vie du village : plus le temps d'une reprise dans ce passage.");
+  });
+
+  it("compte quand même les Gaulois écartés quand l'API refuse la reprise avant tout calcul, sans erreur", async () => {
+    const serveur = fauxServeur({ vie_du_village_travail: [travail(lignes)], noter_vie_du_village: NOTE_OK });
+    const { send } = monde((_lot, essai) =>
+      essai === 1 ? { status: 200, body: reponseClaude(json([trois("g1", "Vive Macron !", "Une potion !", "J'ai 3 chopes."), trois("g2", "Le soir, je trinque !", "b", "c")])) } : { status: 429, body: { type: "error", error: { type: "rate_limit_error", message: "plus tard" } } },
+    );
+    const bilan = await vieDuVillage({ rpc: serveur.rpc, fetch: send, sleep: sansPause, discord: null, cleClaude: "cle", log: () => {} });
+    expect(bilan).toMatchObject({ appels: 2, envoyees: 1, ecartees: 1, erreurs: 0 });
+    expect(quoi(serveur)).toEqual(["vie_du_village_travail", "depense", "depense", "repliques"]);
+    expect(envoiDe(serveur.appels[1])).toEqual({ depense: { appels: 1, entree: 812, sortie: 240, ecartees: 0 } });
+    // La reprise n'a rien coûté : zéro appel, zéro jeton, le Gaulois écarté seul.
+    expect(envoiDe(serveur.appels[2])).toEqual({ depense: { appels: 0, entree: 0, sortie: 0, ecartees: 1 } });
+    expect(envoiDe(serveur.appels[3])).toMatchObject({ sans_bulle: [numeroDe(1)] });
+  });
+
+  it("reprend un Gaulois oublié par Claude, sans le compter écarté au contrôle", async () => {
+    const serveur = fauxServeur({ vie_du_village_travail: [travail(lignes)], noter_vie_du_village: NOTE_OK });
+    const { send } = monde((_lot, essai, etiquettes) => ({ status: 200, body: reponseClaude(json(essai === 1 ? [trois("g1", "Le soir tombe.", "b", "c")] : etiquettes.map((g) => trois(g, "Une chope à la taverne, enfin !", "b", "c")))) }));
+    const bilan = await vieDuVillage({ rpc: serveur.rpc, fetch: send, sleep: sansPause, discord: null, cleClaude: "cle", log: () => {} });
+    expect(bilan).toMatchObject({ appels: 2, envoyees: 2, ecartees: 0, phrasesEcartees: 0 });
   });
 
   it("garde la dépense quand le serveur refuse les bulles", async () => {
@@ -779,13 +1014,13 @@ describe("un passage de la vie du village", () => {
       vie_du_village_travail: [travail(lignes)],
       noter_vie_du_village: (args) => ("repliques" in (args["p_releve"] as object) ? { ok: false, error: "invalid_releve" } : NOTE_OK()),
     });
-    const { send } = monde(() => ({ status: 200, body: reponseClaude(json([{ g: "g1", texte: "Bonsoir la place !" }])) }));
+    const { send } = monde(() => ({ status: 200, body: reponseClaude(json([trois("g1", "Bonsoir la place !", "b", "c")])) }));
     const journal: string[] = [];
     const bilan = await vieDuVillage({ rpc: serveur.rpc, fetch: send, sleep: sansPause, discord: null, cleClaude: "cle", log: (l) => journal.push(l) });
-    expect(bilan).toMatchObject({ appels: 1, envoyees: 0, erreurs: 1 });
+    expect(bilan).toMatchObject({ appels: 2, envoyees: 0, erreurs: 1 });
     // Refusé en entier : tout le lot est noté comme demandé sans bulle, pour ne pas redemander Claude au passage suivant.
-    expect(serveur.appels.map((a) => Object.keys((a.args["p_releve"] as object | undefined) ?? {})[0] ?? a.fn)).toEqual(["vie_du_village_travail", "depense", "repliques", "sans_bulle"]);
-    expect(serveur.appels[3]?.args).toEqual({ p_releve: { sans_bulle: [numeroDe(1), numeroDe(2)] } });
+    expect(quoi(serveur)).toEqual(["vie_du_village_travail", "depense", "depense", "repliques", "sans_bulle"]);
+    expect(serveur.appels[4]?.args).toEqual({ p_releve: { sans_bulle: [numeroDe(1), numeroDe(2)] } });
     expect(journal.some((l) => l.startsWith("::warning::") && l.includes("invalid_releve"))).toBe(true);
   });
 
@@ -818,15 +1053,16 @@ describe("un passage de la vie du village", () => {
     }
   });
 
-  it("note quand même la dépense d'une réponse refusée, coupée ou mal formée, et ses Gaulois comme demandés sans bulle, sans erreur", async () => {
-    const coupee = reponseClaude(json([{ g: "g1", texte: "Bonsoir la place !" }]), { stop_reason: "max_tokens" });
-    for (const reponse of [reponseClaude("", { stop_reason: "refusal" }), coupee, reponseClaude("pas du JSON"), reponseClaude(json([{ g: "g1", texte: "J'ai rapporté 99 points !" }]))]) {
+  it("note quand même la dépense d'une réponse refusée, coupée ou mal formée, et ses Gaulois comme demandés sans bulle, sans reprise ni erreur", async () => {
+    const coupee = reponseClaude(json([trois("g1", "Bonsoir la place !", "b", "c")]), { stop_reason: "max_tokens" });
+    for (const reponse of [reponseClaude("", { stop_reason: "refusal" }), coupee, reponseClaude("pas du JSON")]) {
       const serveur = fauxServeur({ vie_du_village_travail: [travail(lignes)], noter_vie_du_village: NOTE_OK });
-      const { send } = monde(() => ({ status: 200, body: reponse }));
+      const { send, appels } = monde(() => ({ status: 200, body: reponse }));
       const bilan = await vieDuVillage({ rpc: serveur.rpc, fetch: send, sleep: sansPause, discord: null, cleClaude: "cle", log: () => {} });
-      expect(bilan.envoyees).toBe(0);
-      expect(bilan.erreurs).toBe(0);
-      expect(serveur.appels.map((a) => Object.keys((a.args["p_releve"] as object | undefined) ?? {})[0] ?? a.fn)).toEqual(["vie_du_village_travail", "depense", "repliques"]);
+      expect(bilan).toMatchObject({ appels: 1, envoyees: 0, ecartees: 0, erreurs: 0 });
+      // La même demande donnerait la même chose : pas de reprise.
+      expect(appels.filter((a) => a.url === URL_CLAUDE)).toHaveLength(1);
+      expect(quoi(serveur)).toEqual(["vie_du_village_travail", "depense", "repliques"]);
       expect(serveur.appels[2]?.args).toEqual({ p_releve: { repliques: [], sans_bulle: [numeroDe(1), numeroDe(2)] } });
     }
   });
@@ -861,7 +1097,8 @@ describe("un passage de la vie du village", () => {
     const { send, appels } = fauxFetch((url) => (url.startsWith("https://discord.com/") ? { status: 401, body: { code: 0 } } : { status: 200, body: reponseClaude(json([])) }));
     const journal: string[] = [];
     const bilan = await vieDuVillage({ rpc: serveur.rpc, fetch: send, sleep: sansPause, discord: { token: "jeton", guildId: GUILDE }, cleClaude: "cle", log: (l) => journal.push(l) });
-    expect(bilan).toMatchObject({ vocaux: 0, erreurs: 1, appels: 1 });
+    // Claude n'a donné aucune phrase : une reprise pour les deux Gaulois.
+    expect(bilan).toMatchObject({ vocaux: 0, erreurs: 1, appels: 2 });
     expect(appels.filter((a) => a.url.startsWith("https://discord.com/"))).toHaveLength(1);
     expect(journal.some((l) => l.startsWith("::warning::") && l.includes("401"))).toBe(true);
   });
@@ -870,7 +1107,18 @@ describe("un passage de la vie du village", () => {
     const serveur = fauxServeur({ vie_du_village_travail: [{ ok: false, error: "forbidden" }] });
     await expect(vieDuVillage({ rpc: serveur.rpc, fetch: fauxFetch(() => "panne").send, sleep: sansPause, discord: null, cleClaude: "cle", log: () => {} })).rejects.toThrow("forbidden");
   });
+
+  it("demande au plus 12 Gaulois par appel, jamais plus que le serveur n'en accepte dans un envoi", async () => {
+    expect(GAULOIS_PAR_APPEL).toBeLessThanOrEqual(MAX_REPLIQUES_PAR_PASSAGE);
+    const nombreux = Array.from({ length: 30 }, (_, i) => gaulois(i + 1));
+    const serveur = fauxServeur({ vie_du_village_travail: [travail(nombreux)], noter_vie_du_village: NOTE_OK });
+    const { send } = monde((_lot, _essai, etiquettes) => ({ status: 200, body: reponseClaude(json(etiquettes.map((g) => trois(g, "Le soir tombe sur la place.", "b", "c")))) }));
+    const bilan = await vieDuVillage({ rpc: serveur.rpc, fetch: send, sleep: sansPause, discord: null, cleClaude: "cle", log: () => {} });
+    expect(bilan).toMatchObject({ appels: 1, envoyees: 12 });
+    expect((envoiDe(serveur.appels.at(-1)) as { repliques: unknown[] }).repliques).toHaveLength(12);
+  });
 });
+
 
 /* ---------- La lecture de l'encadrement ---------- */
 

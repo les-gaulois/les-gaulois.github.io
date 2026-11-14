@@ -1,9 +1,22 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { EMPLACEMENTS_OBJETS, OBJETS } from "../../src/lib/gaulois";
-import { CONSIGNE, LIEUX_ECRITS, MAJUSCULES_PERMISES, MAX_REPLIQUES_PAR_PASSAGE, MAX_SIGNES, MOMENTS_ECRITS, MOTS_INTERDITS, SCHEMA_REPONSE } from "../../src/lib/village/consigne-repliques";
+import {
+  CHAMPS_DES_PHRASES,
+  CONSIGNE,
+  CONSIGNE_DE_REPRISE,
+  LIEUX_ECRITS,
+  MAJUSCULES_PERMISES,
+  MAX_REPLIQUES_PAR_PASSAGE,
+  MAX_SIGNES,
+  MOMENTS_ECRITS,
+  MOTS_INTERDITS,
+  PHRASES_PAR_GAULOIS,
+  SCHEMA_REPONSE,
+  SIGNES_DE_LA_CONSIGNE,
+} from "../../src/lib/village/consigne-repliques";
 import { LIEUX } from "../../src/lib/village/vie";
-import { LIEUX_DES_BULLES, MOMENTS, SIGNES_PERMIS, normaliserPourLesMots } from "../../src/lib/village/vie-releve";
+import { GAULOIS_PAR_APPEL, LIEUX_DES_BULLES, MOMENTS, SIGNES_PERMIS, normaliserPourLesMots } from "../../src/lib/village/vie-releve";
 
 // Sous Windows, Git rend les fichiers avec des fins de ligne CRLF : les motifs ci-dessous lisent des « \n ».
 const SQL = readFileSync("supabase/migrations/20261113002300_village_vie.sql", "utf8").replace(/\r\n/g, "\n");
@@ -23,6 +36,34 @@ describe("la consigne des bulles", () => {
     }
     expect(MAX_SIGNES).toBe(90);
     expect(MAX_REPLIQUES_PAR_PASSAGE).toBe(20);
+    // Un appel en demande moins que ce que le serveur accepte dans un envoi.
+    expect(GAULOIS_PAR_APPEL).toBeLessThanOrEqual(MAX_REPLIQUES_PAR_PASSAGE);
+  });
+
+  // Les deux phrases du 14 novembre 2026, 9 h 47, ont été écartées par le contrôle du robot : la consigne dit désormais les
+  // règles du contrôle telles qu'elles sont, pour que Claude n'écrive pas ce qui serait écarté.
+  it("dit exactement les règles du contrôle : une phrase, aucune majuscule, ces signes seulement, pas d'heure", () => {
+    for (const regle of ["une seule phrase", "douze mots au plus", "aucune majuscule, sauf la première lettre", "jamais d'heure", "recopiés exactement", "ni tiret long", "guillemets anglais ou droits", "aucun émoji", "en minuscules"]) {
+      expect(CONSIGNE, regle).toContain(regle);
+    }
+    expect(CONSIGNE).toContain(`ces signes : ${SIGNES_DE_LA_CONSIGNE} ;`);
+    // Les signes de la consigne sont ceux du contrôle, ni plus ni moins (l'espace et les lettres à part).
+    const ponctuation = (SIGNES_PERMIS.source.match(/0-9 (.*)\]\+\$$/)?.[1] ?? "").split("").sort();
+    expect(SIGNES_DE_LA_CONSIGNE.split(" ").sort()).toEqual(ponctuation);
+  });
+
+  it("nomme les mots d'Astérix qu'un Gaulois drôle dirait sans y penser, tous dans la liste interdite", () => {
+    for (const mot of ["Toutatis", "barde", "chaudron", "gui", "serpe", "irréductible", "potion", "druide", "menhir", "sanglier", "Romains"]) {
+      expect(CONSIGNE, mot).toContain(mot);
+      expect(MOTS_INTERDITS.some((m) => normaliserPourLesMots(mot).includes(m)), mot).toBe(true);
+    }
+    for (const mot of ["gagner", "perdre", "perdu", "victoire", "défaite", "nul", "idiot"]) expect(CONSIGNE, mot).toContain(`« ${mot} »`);
+  });
+
+  it("ne donne à Claude aucun nombre à recopier : ni l'heure, ni une durée", () => {
+    for (const texte of [CONSIGNE_DE_REPRISE, ...Object.values(MOMENTS_ECRITS), ...Object.values(LIEUX_ECRITS)]) expect(texte, texte).not.toMatch(/[0-9]/);
+    // La consigne ne cite que la longueur d'une bulle, en plus des noms des champs et de l'étiquette de l'exemple.
+    expect(CONSIGNE.replace(/texte_[0-9]|"g1"/g, "").match(/[0-9]+/g)).toEqual(["90"]);
   });
 
   it("ne donne à Claude que des mots, pour chaque moment et chaque lieu d'une bulle, jamais la salle de réunion", () => {
@@ -42,10 +83,15 @@ describe("la consigne des bulles", () => {
     }
   });
 
-  it("impose une réponse en JSON strict", () => {
+  it("impose une réponse en JSON strict, trois phrases nommées par Gaulois", () => {
     expect(SCHEMA_REPONSE.additionalProperties).toBe(false);
     expect(SCHEMA_REPONSE.properties.repliques.items.additionalProperties).toBe(false);
-    expect(SCHEMA_REPONSE.properties.repliques.items.required).toEqual(["g", "texte"]);
+    expect(SCHEMA_REPONSE.properties.repliques.items.required).toEqual(["g", "texte_1", "texte_2", "texte_3"]);
+    expect(Object.keys(SCHEMA_REPONSE.properties.repliques.items.properties)).toEqual(["g", "texte_1", "texte_2", "texte_3"]);
+    expect(CHAMPS_DES_PHRASES).toHaveLength(PHRASES_PAR_GAULOIS);
+    expect(CONSIGNE).toContain('{"g": "g1", "texte_1": "…", "texte_2": "…", "texte_3": "…"}');
+    // Les sorties structurées ne bornent pas un tableau : aucune contrainte de ce genre dans le schéma.
+    expect(JSON.stringify(SCHEMA_REPONSE)).not.toMatch(/minItems|maxItems|minLength|maxLength/);
   });
 });
 
