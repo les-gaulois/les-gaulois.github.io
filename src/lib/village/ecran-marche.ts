@@ -102,18 +102,26 @@ export function emplacementsEnVente(offres: readonly OffreLisible[]): Emplacemen
 /**
  * Ce que l'écran annonce avant de confirmer un achat : le solde après, ou ce qui l'empêche. Le serveur revérifie tout :
  * ce calcul évite seulement un clic voué au refus. `inventaire` à `null` : pas lu, l'écran ne sait pas si l'objet est déjà
- * possédé.
+ * possédé. `miennes` : ses propres offres ouvertes ; un objet qu'on a en vente compte comme possédé (le serveur répond
+ * alors `deja_possede`), et l'écran le dit à part : `deja_en_vente`.
  */
 export interface ExamenAchat {
   soldeApres: number;
-  refus: "solde_insuffisant" | "deja_possede" | null;
+  refus: "solde_insuffisant" | "deja_possede" | "deja_en_vente" | null;
   /** Les statères qui manquent, quand le solde ne suffit pas. */
   manque: number;
 }
 
-export function examinerAchat(offre: Pick<OffreLisible, "prix" | "emplacement" | "objet">, solde: number, inventaire: readonly Pick<ObjetPossede, "emplacement" | "objet">[] | null): ExamenAchat {
+export function examinerAchat(
+  offre: Pick<OffreLisible, "prix" | "emplacement" | "objet">,
+  solde: number,
+  inventaire: readonly Pick<ObjetPossede, "emplacement" | "objet">[] | null,
+  miennes: readonly Pick<OffreDuMarche, "emplacement" | "objet">[] = [],
+): ExamenAchat {
   const soldeApres = solde - offre.prix;
-  if (inventaire?.some((p) => p.emplacement === offre.emplacement && p.objet === offre.objet)) return { soldeApres, refus: "deja_possede", manque: 0 };
+  const meme = (p: Pick<ObjetPossede, "emplacement" | "objet">) => p.emplacement === offre.emplacement && p.objet === offre.objet;
+  if (miennes.some(meme)) return { soldeApres, refus: "deja_en_vente", manque: 0 };
+  if (inventaire?.some(meme)) return { soldeApres, refus: "deja_possede", manque: 0 };
   if (soldeApres < 0) return { soldeApres, refus: "solde_insuffisant", manque: -soldeApres };
   return { soldeApres, refus: null, manque: 0 };
 }

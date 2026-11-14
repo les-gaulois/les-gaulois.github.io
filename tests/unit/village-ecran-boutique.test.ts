@@ -3,8 +3,10 @@ import { TENUE_DE_DEPART } from "../../src/lib/gaulois";
 import { CHANCES_POCHETTE, PRIX_PAR_RARETE, PRIX_POCHETTE } from "../../src/lib/village/contrat";
 import {
   MESSAGES_BOURSE,
+  RAISON_EN_VENTE,
   avecUnExemplaire,
   chancesDeLaPochette,
+  estEnVente,
   etatDeLaBourse,
   instant,
   jour,
@@ -16,6 +18,7 @@ import {
   messageDuRefus,
   nombre,
   objetPayant,
+  objetsEnVente,
   objetsNonPossedes,
   points,
   pourcent,
@@ -227,5 +230,28 @@ describe("l'état de la bourse", () => {
     expect(soldeAMontrer({ ...prete, lie: false })).toBeNull();
     expect(soldeAMontrer({ ...prete, gaulois: false })).toBeNull();
     expect(soldeAMontrer({ ...prete, valide: false, solde: 120 })).toBe(120);
+  });
+});
+
+describe("les objets que le membre a en vente", () => {
+  const offre = (emplacement: string, objet: string, aMoi: boolean) => ({ id: 1, emplacement, objet, prix: 10, vendeur: "Vendeur", a_moi: aMoi, expire_le: "2026-11-27T12:00:00.000Z" });
+
+  it("se lisent dans le marché : ses offres seulement, des objets payants du catalogue, chacun une fois", () => {
+    const marche = { ok: true, solde: 0, offres_max: 5, offres: [offre("tete", "bandeau", true), offre("arme", "hache", false), offre("tete", "bandeau", true), offre("tete", "bonnet", true), offre("tete", "inconnu", true), null] };
+    expect(objetsEnVente(marche)).toEqual([{ emplacement: "tete", objet: "bandeau" }]);
+  });
+
+  it("ne donnent rien d'une réponse illisible : l'écran ne devine pas", () => {
+    expect(objetsEnVente(null)).toEqual([]);
+    expect(objetsEnVente({ ok: false, error: "not_validated" })).toEqual([]);
+    expect(objetsEnVente({ ok: true, offres: "non" })).toEqual([]);
+  });
+
+  it("ne s'achètent pas à la boutique, et l'essayage dit pourquoi", () => {
+    const enVente = [{ emplacement: "tete" as const, objet: "bandeau" }];
+    expect(estEnVente(enVente, "tete", "bandeau")).toBe(true);
+    expect(estEnVente(enVente, "tete", "beret")).toBe(false);
+    expect(estEnVente([], "tete", "bandeau")).toBe(false);
+    expect(RAISON_EN_VENTE).toContain("marché");
   });
 });

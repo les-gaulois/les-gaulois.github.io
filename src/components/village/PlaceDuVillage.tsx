@@ -32,24 +32,30 @@ function useMaintenant(actif: boolean): Date {
 
 type Etat = { kind: "lecture" } | { kind: "fermee"; message: string } | { kind: "erreur"; message: string } | { kind: "prete"; village: Village };
 
+/** La place se relit toutes les 5 minutes tant que l'onglet est ouvert et la page visible : le robot relève le vocal à ce rythme. */
+const RELECTURE_MS = 5 * 60_000;
+
 /**
  * La place du village, devenue un village vivant (demande du pilote, 13 novembre 2026) : cinq lieux qu'on ouvre, la place,
  * la taverne, la salle de réunion, le champ de bataille et les maisons. Le serveur décide de qui est au village et donne
  * les faits (`get_village`) ; `vie.ts` en tire le lieu de chacun, avec l'heure de Paris, qui règle aussi la lumière. Rien
  * n'est du temps réel : chaque Gaulois dit ce qui le place là, et l'heure du relevé est écrite. Aucun solde, aucun
- * classement. `actif` : l'onglet est ouvert ; le village se relit à chaque ouverture.
+ * classement. `actif` : l'onglet est ouvert ; le village se relit à chaque ouverture, puis toutes les 5 minutes.
  */
 export default function PlaceDuVillage({ actif }: { actif: boolean }) {
   const [etat, setEtat] = useState<Etat>({ kind: "lecture" });
   const [choisi, setChoisi] = useState<Lieu | null>(null);
   const maintenant = useMaintenant(actif);
 
+  const derniere = useRef(0);
   const lire = async (discret: boolean) => {
+    derniere.current = Date.now();
     if (!discret) setEtat({ kind: "lecture" });
     try {
       const village = lireVillage(await call<unknown>("get_village"));
       if (!village) throw new ServerError("network");
-      setEtat({ kind: "prete", village });
+      // Rien de changé : l'écran garde le même village, la scène ne bouge pas.
+      setEtat((avant) => (avant.kind === "prete" && JSON.stringify(avant.village) === JSON.stringify(village) ? avant : { kind: "prete", village }));
     } catch (e) {
       const ferme = e instanceof ServerError ? messageDeLaPlace(e.code) : null;
       // Une relecture discrète qui échoue garde le village déjà affiché.
@@ -63,6 +69,26 @@ export default function PlaceDuVillage({ actif }: { actif: boolean }) {
     if (!actif) return;
     void lire(dejaLue.current);
     dejaLue.current = true;
+  }, [actif]);
+
+  // Puis une relecture discrète toutes les 5 minutes, page visible seulement ; revenu sur la page après plus longtemps, la
+  // place se relit aussitôt. Aucun « Lecture… » : les Gaulois changent de lieu sans que la page bouge.
+  useEffect(() => {
+    if (!actif) return;
+    let minuterie = 0;
+    const armer = () => {
+      window.clearInterval(minuterie);
+      minuterie = 0;
+      if (document.visibilityState !== "visible") return;
+      if (Date.now() - derniere.current >= RELECTURE_MS) void lire(true);
+      minuterie = window.setInterval(() => void lire(true), RELECTURE_MS);
+    };
+    armer();
+    document.addEventListener("visibilitychange", armer);
+    return () => {
+      window.clearInterval(minuterie);
+      document.removeEventListener("visibilitychange", armer);
+    };
   }, [actif]);
 
   // La lumière ne change qu'à la minute : le décor n'a pas à se recomposer plus souvent.

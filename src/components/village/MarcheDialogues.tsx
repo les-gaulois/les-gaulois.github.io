@@ -48,12 +48,14 @@ function Dialogue({ titre, onFermer, children }: { titre: string; onFermer: () =
 
 /**
  * Avant d'acheter : l'objet, son prix, le solde et ce qu'il en restera. Si l'achat est voué au refus (solde trop court,
- * objet déjà possédé), la fenêtre le dit et ne propose pas d'acheter ; le serveur revérifie tout de toute façon.
+ * objet déjà possédé ou déjà mis en vente par soi), la fenêtre le dit et ne propose pas d'acheter ; le serveur revérifie
+ * tout de toute façon. `miennes` : ses propres offres ouvertes, dont l'objet compte comme possédé.
  */
 export function DialogueAchat({
   offre,
   solde,
   boutique,
+  miennes,
   occupe,
   probleme,
   onAcheter,
@@ -62,13 +64,21 @@ export function DialogueAchat({
   offre: OffreLisible;
   solde: number;
   boutique: BoutiqueLue | null;
+  miennes: readonly OffreLisible[];
   occupe: boolean;
   probleme: string | null;
   onAcheter: () => void;
   onFermer: () => void;
 }) {
-  const examen = examinerAchat(offre, solde, boutique?.inventaire ?? null);
-  const empeche = examen.refus === "deja_possede" ? MESSAGES_DU_MARCHE.deja_possede : examen.refus === "solde_insuffisant" ? `Il vous manque ${enStateres(examen.manque)}.` : null;
+  const examen = examinerAchat(offre, solde, boutique?.inventaire ?? null, miennes);
+  const empeche =
+    examen.refus === "deja_en_vente"
+      ? "Vous avez déjà cet objet en vente."
+      : examen.refus === "deja_possede"
+        ? MESSAGES_DU_MARCHE.deja_possede
+        : examen.refus === "solde_insuffisant"
+          ? `Il vous manque ${enStateres(examen.manque)}.`
+          : null;
   return (
     <Dialogue titre="Acheter cet objet" onFermer={onFermer}>
       <div class="marche-dialogue-objet">
@@ -107,13 +117,14 @@ export function DialogueAchat({
       )}
       <Problem message={probleme} />
       <div class="marche-dialogue-actions">
-        {!empeche && (
+        {/* Après un refus du serveur (offre partie entre-temps, solde changé), comme à la boutique : on ferme, sans racheter. */}
+        {!empeche && !probleme && (
           <button type="button" class="btn btn-primary" disabled={occupe} onClick={onAcheter} data-testid="marche-confirmer">
             {occupe ? "Achat…" : "Acheter"}
           </button>
         )}
         <button type="button" class="btn btn-ghost" onClick={onFermer}>
-          {empeche ? "Fermer" : "Annuler"}
+          {empeche || probleme ? "Fermer" : "Annuler"}
         </button>
       </div>
     </Dialogue>
