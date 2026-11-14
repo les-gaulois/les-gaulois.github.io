@@ -4,11 +4,13 @@
  * OpenFront, bateaux, usine, train, missile »). Ici, seulement des mesures en cases : où est chaque étage, chaque quartier,
  * chaque bâtiment. Le dessin est dans `pieces.ts` et `composition.ts`, les places des Gaulois dans `postes.ts`.
  *
- * Le monde est une colline vue de face, en étages. Du haut vers le bas :
+ * Le monde est une colline vue de côté (la proposition « les terrasses » du pilote, 14 novembre 2026). Du fond vers nous :
  * - le ciel et les lointains ;
- * - les **terrasses** : des rues de maisons étagées sur la colline. Chaque maison a 4 lits ; il y en a une par tranche de
- *   4 Gaulois (trois au moins). Les trois premières sont sur la grand-rue, les suivantes garnissent les terrasses, du
- *   milieu vers les côtés, une terrasse de plus quand la précédente est pleine ;
+ * - les **terrasses du fond** (`Terrasse`) : des rues de maisons étagées sur la colline, derrière la grand-rue, dessinées
+ *   deux fois plus petites, pâlies par la distance, et qui glissent moins vite que le premier plan. Chaque maison a 4
+ *   lits ; il y en a une par tranche de 4 Gaulois (trois au moins). Les trois premières sont sur la grand-rue, les
+ *   suivantes sur les terrasses, réparties de l'une à l'autre, du milieu vers les côtés ; une place sur cinq au moins
+ *   reste un jardin, et l'on ajoute une terrasse quand il en faut (deux au moins, 3 à 250 Gaulois, 4 à 350) ;
  * - la **grand-rue** (l'étage 0) : d'ouest en est, la lisière, le ruisseau (le moulin, le pont, le lavoir), le rempart,
  *   les maisons (le potager, trois maisons, l'étable), la place (le grand chêne, le puits, le grand feu, le four, la
  *   grande tour), la taverne et sa terrasse de tables (le grenier), la forge (le colombier), la salle de réunion et ses
@@ -22,12 +24,14 @@
  * cinquième des Gaulois y tiennent à l'aise), pas avec ceux qui s'y trouvent : le monde ne bouge pas d'une relecture à
  * l'autre. Les dessins faits par d'autres changent de taille : le plan lit leur largeur et leur hauteur (`Tailles`).
  *
- * Chaque étage se dessine dans son propre repère, celui de la grand-rue (la ligne du fond à la rangée 300), puis se pose
- * dans le monde à sa hauteur (`dy`). Design : Claude Fable 5.2.
+ * La grand-rue et le bas se dessinent chacun dans son propre repère, celui de la grand-rue (la ligne du fond à la rangée
+ * 300), puis se posent dans le monde à leur hauteur (`dy`). Les terrasses du fond se comptent en cases du fond. Design : Claude Fable 5.2.
  */
 import type { BatimentId } from "../chantier-liste";
 import type { PieceOpenFrontId } from "../openfront";
+import { alea } from "../decor";
 import type { Lieu } from "../vie";
+import { MODELES, type ModeleId, modeleDeLaPlace } from "./maisons";
 
 /** Dans le repère d'un étage : la ligne du fond, la rangée où reposent les bâtiments. */
 export const LIGNE = 300;
@@ -40,13 +44,13 @@ export const BANDE_HAUT = 326;
 export const BANDE_BAS = 372;
 /** La hauteur de la grand-rue dans son repère : dessous commence la pente qui descend vers le bas. */
 export const RUE_HAUTEUR = 400;
-/** Sur une terrasse : la bande où l'on marche, puis le mur de soutènement. */
-export const TERRASSE_BANDE_HAUT = 318;
-export const TERRASSE_BANDE_BAS = 350;
-export const TERRASSE_MUR = 360;
-export const TERRASSE_FIN = 372;
-/** L'écart entre deux terrasses, et entre la plus haute ligne et le haut du monde (le ciel). */
-export const PAS_DE_TERRASSE = 250;
+/** L'écart entre les lignes de deux terrasses du fond, en rangées du monde ; et la rangée de la plus haute ligne : dessus, le ciel et les lointains. */
+export const PAS_DE_TERRASSE = 106;
+/** De la ligne de la grand-rue à celle de la première terrasse, et du haut de la colline à la ligne des lointains. */
+export const PREMIERE_TERRASSE = 94;
+export const AU_DESSUS = 0;
+/** Le milieu de la vue d'un quartier de la grand-rue, au-dessus de sa ligne : on y voit la rue et la colline derrière elle. */
+export const VUE_DE_LA_RUE = 190;
 export const CIEL = 330;
 /** De combien le bas est plus bas que la grand-rue ; dans son repère, la rangée du dessus des rails et celle de la mer. */
 export const DESCENTE = 360;
@@ -90,7 +94,7 @@ export interface Quartier {
 export type Piece =
   | { sorte: "batiment"; id: BatimentId }
   | { sorte: "forge" }
-  | { sorte: "maison"; rang: number }
+  | { sorte: "maison"; rang: number; modele: ModeleId; variante: number }
   | { sorte: "taverne" }
   | { sorte: "reunion" }
   | { sorte: "etal" }
@@ -114,8 +118,6 @@ export interface Emplacement {
 /** La première rangée d'un emplacement, dans le monde. */
 export const hautDansLeMonde = (e: Pick<Emplacement, "dy" | "pied" | "hauteur">): number => e.dy + e.pied - e.hauteur + 1;
 
-/** Les tailles des pièces dessinées ici (`pieces.ts`). */
-export const MAISON: Taille = { largeur: 178, hauteur: 180 };
 export const TAVERNE: Taille = { largeur: 372, hauteur: 186 };
 export const REUNION: Taille = { largeur: 372, hauteur: 190 };
 export const ETAL: Taille = { largeur: 124, hauteur: 96 };
@@ -126,7 +128,6 @@ export const LISIERE = 150;
 const CLAIRIERE = 290;
 const PRE = 430;
 /** L'écart entre deux maisons d'une terrasse, et entre deux sièges du dehors (terrasse de la taverne, bancs de la réunion). */
-const PAS_DE_MAISON = MAISON.largeur + 8;
 export const SIEGE_DEHORS = 34;
 /** Les sièges du dedans d'une salle : au-delà, on s'assoit dehors. */
 export const SIEGES_DEDANS = 15;
@@ -146,14 +147,74 @@ export interface Escalier {
   de: number;
 }
 
+/** Une place de maison sur une terrasse du fond : sa colonne, son modèle, et le rang de la maison qui l'occupe (ou `null` : un jardin). */
+export interface PlaceDeTerrasse {
+  x: number;
+  modele: ModeleId;
+  variante: number;
+  rang: number | null;
+}
+
+/**
+ * Une terrasse du fond (la proposition « les terrasses » du pilote, 14 novembre 2026) : une rue de maisons derrière la
+ * grand-rue, dessinée deux fois plus petite, pâlie par la distance, et qui glisse moins vite que le premier plan. Tout s'y
+ * compte en cases du fond, deux fois plus petites que celles du premier plan : la case (x, y) du fond est à la rangée
+ * y / 2 du monde, et sa colonne glisse de la part `parallaxe` du déplacement de la caméra.
+ */
+export interface Terrasse {
+  /** 1 pour la plus proche. */
+  rang: number;
+  parallaxe: number;
+  /** La part de brume qui la pâlit, de 0 à 1. */
+  voile: number;
+  /** Sa largeur, et la rangée de son sol, en cases du fond. */
+  largeur: number;
+  sol: number;
+  places: PlaceDeTerrasse[];
+  /** Les places, de la plus proche du milieu à la plus éloignée : c'est dans cet ordre qu'on y bâtit. */
+  ordre: number[];
+}
+
+/** L'échelle des terrasses du fond : une case y vaut la moitié d'une case du premier plan. */
+export const ECHELLE_DU_FOND = 0.5;
+/** La part des places d'une terrasse qui portent une maison, au plus : le reste est en jardins. */
+const PART_BATIE = 0.8;
+/** La bordure de forêt aux deux bouts d'une terrasse, en cases du fond. */
+export const LISIERE_DU_FOND = 190;
+/** Le plus large écran prévu, en cases du premier plan : une terrasse ne montre jamais son bout avant lui. */
+const VUE_LA_PLUS_LARGE = 2000;
+
+/** La part du déplacement de la caméra que suit la terrasse `rang` : la première presque tout, chacune un peu moins. */
+export const parallaxeDeLaTerrasse = (rang: number): number => Math.round(Math.max(0.3, 0.86 - 0.06 * (rang - 1)) * 100) / 100;
+
+/** Une terrasse du fond pour un monde de cette largeur : ses places de maison, d'un bout à l'autre, jamais deux voisines pareilles. */
+function terrasseDuFond(rang: number, largeurDuMonde: number): Terrasse {
+  const parallaxe = parallaxeDeLaTerrasse(rang);
+  const largeur = Math.round(2 * (parallaxe * largeurDuMonde + (1 - parallaxe) * VUE_LA_PLUS_LARGE));
+  const places: PlaceDeTerrasse[] = [];
+  let x = LISIERE_DU_FOND + 20 + Math.round(alea(rang, 1) * 60);
+  for (let n = 0; ; n++) {
+    const modele = modeleDeLaPlace(n + rang * 3);
+    if (x + modele.largeur > largeur - LISIERE_DU_FOND - 20) break;
+    places.push({ x, modele: modele.id, variante: rang * 131 + n * 17, rang: null });
+    x += modele.largeur + 70 + Math.round(alea(n, rang + 40) * 90);
+  }
+  const milieu = largeur / 2;
+  const ecart = (n: number): number => Math.abs(places[n]!.x + MODELES[places[n]!.modele].largeur / 2 - milieu);
+  const ordre = places.map((_p, n) => n).sort((a, b) => ecart(a) - ecart(b));
+  return { rang, parallaxe, voile: Math.min(0.62, 0.2 + 0.07 * (rang - 1)), largeur, sol: 0, places, ordre };
+}
+
 export interface Plan {
   largeur: number;
   hauteur: number;
   /** Le nombre de Gaulois pour lequel le monde est bâti, et le nombre de ses maisons. */
   habitants: number;
   maisons: number;
-  /** Le nombre de terrasses au-dessus de la grand-rue, et la hauteur de la grand-rue et du bas dans le monde. */
+  /** Le nombre de terrasses du fond, derrière la grand-rue, et la hauteur de la grand-rue et du bas dans le monde. */
   terrasses: number;
+  /** Les terrasses du fond, de la plus proche à la plus lointaine. */
+  lointaines: Terrasse[];
   dy0: number;
   dyBas: number;
   quartiers: Quartier[];
@@ -167,10 +228,6 @@ export interface Plan {
   chemin: { de: number; a: number };
   /** Le dedans du village : de la rive du ruisseau à la porte. */
   village: { de: number; a: number };
-  /** Les terrasses : elles courent d'un bout à l'autre du monde, entre deux bouts de forêt, de cette colonne à celle-là. */
-  hauts: { de: number; a: number };
-  /** Les places de maison encore libres sur les terrasses : des jardins, que les maisons remplaceront. */
-  jardins: { x: number; dy: number; rang: number }[];
   /** Le pré du champ de bataille, et la colonne du front : les Gaulois à sa gauche, ceux d'en face à sa droite. */
   pre: { x: number; largeur: number; front: number; parRang: number; pas: number };
   /** La terrasse de tables de la taverne, et les bancs dehors de la salle de réunion. */
@@ -206,11 +263,7 @@ export function maisonsPour(habitants: number): number {
   return Math.max(3, Math.ceil(Math.min(HABITANTS_MAX, Math.max(0, habitants)) / LITS_PAR_MAISON));
 }
 
-/** La hauteur d'une terrasse dans le monde : la première est juste au-dessus de la grand-rue. */
-export const dyDeLaTerrasse = (plan: Pick<Plan, "dy0">, terrasse: number): number => plan.dy0 - terrasse * PAS_DE_TERRASSE;
 
-/** La colonne de l'escalier qui descend de la terrasse `t` : d'un côté puis de l'autre du grand feu, d'un étage à l'autre. */
-const escalierDe = (feuX: number, t: number): number => feuX + (t % 2 === 1 ? 112 : -112);
 
 /**
  * Le plan, pour ces tailles de dessins et ce nombre de Gaulois. Sur la grand-rue, tout se suit de gauche à droite :
@@ -269,11 +322,12 @@ export function planDuMonde(tailles: Tailles, habitantsDemandes = 0): Plan {
   espace(34);
   batiment("potager");
   espace(30);
-  poser({ sorte: "maison", rang: 0 }, MAISON);
-  espace(12);
-  vue = milieu(poser({ sorte: "maison", rang: 1 }, MAISON));
-  espace(12);
-  poser({ sorte: "maison", rang: 2 }, MAISON);
+  const maisonDeLaRue = (rang: number, modele: ModeleId): Emplacement => poser({ sorte: "maison", rang, modele, variante: rang * 7 + 3 }, MODELES[modele]);
+  maisonDeLaRue(0, "chaumiere");
+  espace(30);
+  vue = milieu(maisonDeLaRue(1, "ronde"));
+  espace(30);
+  maisonDeLaRue(2, "colombages");
   espace(30);
   batiment("etable");
   espace(40);
@@ -384,48 +438,39 @@ export function planDuMonde(tailles: Tailles, habitantsDemandes = 0): Plan {
   ];
   for (const navire of navires) poserEnBas(navire.id, navire.x, navire.flottaison, "port");
 
-  // Les terrasses : les maisons au-delà des trois premières, du milieu vers les côtés, en laissant passer les escaliers.
-  // Elles courent sur toute la largeur du monde (le pilote, 15 novembre 2026 : deux étages de maisons de moins) : à 1 000
-  // Gaulois, trois terrasses de plus de quatre-vingts maisons.
-  const hauts = { de: LISIERE - 20, a: largeur - LISIERE + 20 };
-  const places: number[] = [];
-  for (let gauche = hauts.de + 8; gauche + MAISON.largeur <= hauts.a - 8; gauche += PAS_DE_MAISON) places.push(gauche);
-  const libres = (t: number): number[] => {
-    const montee = escalierDe(feu.x, t + 1);
-    const descente = escalierDe(feu.x, t);
-    const loin = (gauche: number, colonne: number): boolean => colonne < gauche - 26 || colonne > gauche + MAISON.largeur + 26;
-    return places.filter((gauche) => loin(gauche, montee) && loin(gauche, descente)).sort((a, b) => Math.abs(a + MAISON.largeur / 2 - feu.x) - Math.abs(b + MAISON.largeur / 2 - feu.x));
-  };
-  let reste = maisons - 3;
-  let terrasses = 0;
-  const hautes: { e: Emplacement; t: number }[] = [];
-  const vides: { x: number; t: number; rang: number }[] = [];
-  let rang = 3;
-  while (reste > 0) {
-    terrasses++;
-    for (const [k, gauche] of libres(terrasses).entries()) {
-      // La terrasse entamée : ses places encore libres sont des jardins, une sur deux près des maisons, plus rares au loin.
-      if (reste === 0) {
-        if (k % 2 === 0 || k < 12) vides.push({ x: gauche, t: terrasses, rang: k });
-        continue;
-      }
-      hautes.push({ e: { piece: { sorte: "maison", rang }, quartier: "maisons", x: gauche, largeur: MAISON.largeur, hauteur: MAISON.hauteur, pied: PIED, dy: 0 }, t: terrasses });
-      rang++;
-      reste--;
-    }
+  // Les terrasses du fond : les maisons au-delà des trois premières, réparties d'une terrasse à l'autre, du milieu vers
+  // les côtés. On en bâtit autant qu'il en faut pour que quatre places sur cinq au plus portent une maison : le reste
+  // est en jardins. Deux terrasses au moins, pour que le village ait toujours une colline derrière lui.
+  const besoin = maisons - 3;
+  let terrasses = 2;
+  let lointaines: Terrasse[] = [];
+  for (; terrasses <= 40; terrasses++) {
+    lointaines = [];
+    for (let k = 1; k <= terrasses; k++) lointaines.push(terrasseDuFond(k, largeur));
+    if (lointaines.reduce((somme, t) => somme + Math.floor(t.places.length * PART_BATIE), 0) >= besoin) break;
+  }
+  terrasses = lointaines.length;
+  const logees = lointaines.map(() => 0);
+  for (let n = 0, k = 0; n < besoin; k = (k + 1) % terrasses) {
+    const t = lointaines[k]!;
+    if (logees[k]! >= Math.floor(t.places.length * PART_BATIE)) continue;
+    t.places[t.ordre[logees[k]!]!]!.rang = 3 + n;
+    logees[k]!++;
+    n++;
   }
 
   // Les hauteurs : le ciel, les terrasses de la plus haute à la première, la grand-rue, puis le bas.
-  const dy0 = CIEL - LIGNE + terrasses * PAS_DE_TERRASSE;
+  const dy0 = CIEL + AU_DESSUS + PREMIERE_TERRASSE + (terrasses - 1) * PAS_DE_TERRASSE - LIGNE;
   const dyBas = dy0 + DESCENTE;
   for (const e of emplacements) e.dy = dy0;
   for (const e of bas) e.dy = dyBas;
-  for (const { e, t } of hautes) e.dy = dy0 - t * PAS_DE_TERRASSE;
-  const jardins = vides.map((v) => ({ x: v.x, dy: dy0 - v.t * PAS_DE_TERRASSE, rang: v.rang }));
-  const escaliers: Escalier[] = [{ x: feu.x - 250, de: 0 }];
-  for (let t = 1; t <= terrasses; t++) escaliers.push({ x: escalierDe(feu.x, t), de: t });
+  for (const t of lointaines) t.sol = 2 * (dy0 + LIGNE - PREMIERE_TERRASSE - (t.rang - 1) * PAS_DE_TERRASSE);
+  const escaliers: Escalier[] = [
+    { x: feu.x - 250, de: 0 },
+    { x: feu.x + 112, de: 1 },
+  ];
 
-  for (const q of quartiers) q.vueY = dy0 + 250;
+  for (const q of quartiers) q.vueY = dy0 + VUE_DE_LA_RUE;
   const enBas = (id: QuartierId, de: number, a: number, vueX: number): void => {
     quartiers.push({ id, ...NOMS[id], x: de, largeur: a - de, vue: vueX, vueY: dyBas + 230 });
   };
@@ -443,14 +488,13 @@ export function planDuMonde(tailles: Tailles, habitantsDemandes = 0): Plan {
     dy0,
     dyBas,
     quartiers,
-    emplacements: [...hautes.map((h) => h.e), ...emplacements, ...bas],
+    emplacements: [...emplacements, ...bas],
+    lointaines,
     escaliers,
     feu,
     ruisseau,
     chemin: { de: cheminDe, a: cheminA },
     village: { de: villageDe, a: villageA },
-    hauts,
-    jardins,
     pre,
     terrasse,
     bancs,
@@ -497,8 +541,35 @@ export function quartierDuLieu(plan: Plan, lieu: Lieu): Quartier {
   return plan.quartiers.find((q) => q.lieu === lieu)!;
 }
 
-/** La maison du Gaulois de ce rang (sa place dans la réponse du serveur) : quatre par maison, dans l'ordre. */
-export function maisonDuRang(plan: Plan, rang: number): Emplacement {
-  const maisons = emplacementsDe(plan, "maison");
-  return maisons[Math.min(maisons.length - 1, Math.max(0, Math.floor(rang / LITS_PAR_MAISON)))]!;
+/**
+ * Le cadrage de la caméra sur ce monde : envoyée vers la grand-rue (ou vers une terrasse proche), la vue pose le bas de la
+ * grand-rue en bas de l'écran, et montre la colline au-dessus d'elle ; ailleurs (le bas, le haut de la colline), le point
+ * visé est au milieu de l'écran. Rend la rangée du haut de la vue.
+ */
+export function cadrageDuMonde(plan: Pick<Plan, "dy0">): (milieuY: number, vueH: number) => number {
+  return (milieuY, vueH) => (milieuY > plan.dy0 + 60 && milieuY < plan.dy0 + RUE_HAUTEUR ? plan.dy0 + BANDE_BAS + 14 - vueH : milieuY - vueH / 2);
+}
+
+/** Le logis d'un Gaulois : sa maison, sur la grand-rue (`terrasse` vaut `null`) ou sur une terrasse du fond. */
+export interface Logis {
+  terrasse: Terrasse | null;
+  /** La colonne de gauche de la maison et la rangée de son pied : en cases du monde sur la grand-rue, en cases du fond sur une terrasse. */
+  x: number;
+  pied: number;
+  modele: ModeleId;
+  variante: number;
+}
+
+/** Le logis du Gaulois de ce rang (sa place dans la réponse du serveur) : quatre par maison, dans l'ordre. */
+export function logisDuRang(plan: Plan, rang: number): Logis {
+  const maison = Math.min(plan.maisons - 1, Math.max(0, Math.floor(rang / LITS_PAR_MAISON)));
+  if (maison >= 3) {
+    for (const t of plan.lointaines) {
+      const place = t.places.find((p) => p.rang === maison);
+      if (place) return { terrasse: t, x: place.x, pied: t.sol, modele: place.modele, variante: place.variante };
+    }
+  }
+  const e = emplacementsDe(plan, "maison")[Math.min(2, maison)]!;
+  const piece = e.piece as Extract<Piece, { sorte: "maison" }>;
+  return { terrasse: null, x: e.x, pied: e.dy + e.pied, modele: piece.modele, variante: piece.variante };
 }

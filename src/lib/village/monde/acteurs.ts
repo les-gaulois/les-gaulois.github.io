@@ -19,10 +19,13 @@ export interface PlaceDuMonde {
   y: number;
   serre: boolean;
   saut?: boolean;
+  /** Sur une terrasse du fond : l'échelle et la parallaxe de son plan (`Place` de `postes.ts`). */
+  echelle?: number;
+  parallaxe?: number;
 }
 
 /** Pour qui n'est pas sur la grand-rue : le pied de l'escalier où il la rejoint, d'un coup ; `null` s'il y est déjà. */
-export type Rejoindre = (point: { x: number; y: number }) => Etape | null;
+export type Rejoindre = (point: { x: number; y: number }, place?: PlaceDuMonde) => Etape | null;
 
 /**
  * Un habitant dans le monde. `poste` : il est à sa place dans son lieu (attablé, couché, au combat) ; `promene` : il est
@@ -88,7 +91,7 @@ export function relireLesActeurs<H>(acteurs: Map<string, Acteur<H>>, entrees: re
     // Il change de lieu : il part de là où il est. À son poste, il sort d'abord par la porte (d'un coup, s'il dormait).
     const depart = { x: acteur.marche.x, y: acteur.marche.y };
     // Celui qui se promenait sur une terrasse ou dans le bas rejoint d'abord la grand-rue, par l'escalier.
-    const sortie: Etape | null = acteur.etat === "poste" ? { ...seuil(acteur.lieu, acteur.place), saut: parUnSaut(acteur.lieu) } : (rejoindre?.(depart) ?? null);
+    const sortie: Etape | null = acteur.etat === "poste" ? { ...seuil(acteur.lieu, acteur.place), saut: parUnSaut(acteur.lieu) } : (rejoindre?.(depart, acteur.place) ?? null);
     const entree: Etape | null = lieu === "place" ? (place.saut ? seuil(lieu, place) : null) : seuil(lieu, place);
     acteur.lieu = lieu;
     acteur.place = place;

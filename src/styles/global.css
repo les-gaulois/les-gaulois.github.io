@@ -18192,6 +18192,16 @@ button.monde-etiquette:hover {
   top: 0;
   bottom: auto;
 }
+/* Une terrasse du fond : un calque du monde, rangé sous le décor du premier plan et sous ses propres Gaulois, que
+   l'écran décale de ce que la caméra a parcouru sans lui. */
+.monde-terrasse {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: var(--monde-rang, -1);
+  pointer-events: none;
+  will-change: transform;
+}
 /* Ce que les événements et les bêtes posent sur le monde : de petites toiles, que l'écran déplace. */
 .monde-lutin,
 .monde-bete {

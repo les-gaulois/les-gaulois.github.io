@@ -152,7 +152,7 @@ test("au clavier, la scène prend le focus et les flèches déplacent le monde",
   await expect.poll(decalage).toBeGreaterThan(avant);
 });
 
-test("on voit le monde de loin à l'arrivée ; les boutons et les touches plus et moins approchent ou éloignent d'un niveau", async ({ page }, testInfo) => {
+test("à l'arrivée, la grand-rue et ses terrasses derrière elle ; les boutons et les touches plus et moins approchent ou éloignent d'un niveau", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "Approche testée sur desktop.");
   // Sans mouvement, le niveau change d'un coup.
   await page.emulateMedia({ reducedMotion: "reduce" });
@@ -161,25 +161,32 @@ test("on voit le monde de loin à l'arrivée ; les boutons et les touches plus e
   const scene = page.getByTestId("monde");
   const pres = page.getByTestId("monde-plus-pres");
   const loin = page.getByTestId("monde-plus-loin");
-  // Au plus loin : une case vaut un pixel, et l'on ne peut pas s'éloigner davantage.
-  await expect(scene).toHaveAttribute("data-niveau", "1");
-  await expect(loin).toBeDisabled();
-  await pres.click();
+  // À l'arrivée : une case du premier plan vaut deux pixels, une case des terrasses du fond un seul.
   await expect(scene).toHaveAttribute("data-niveau", "2");
   await expect(loin).toBeEnabled();
-  // Les cases restent entières : le calque du monde est exactement deux fois plus grand.
+  // La colline : deux terrasses au moins derrière la grand-rue, peintes deux fois plus petites.
+  const terrasses = page.getByTestId("monde-terrasse");
+  expect(await terrasses.count()).toBeGreaterThanOrEqual(2);
+  const tuile = terrasses.first().locator("canvas").first();
+  await expect(tuile).toBeAttached();
+  expect(await tuile.evaluate((el) => (el as HTMLCanvasElement).offsetWidth / (el as HTMLCanvasElement).width)).toBe(1);
+  // Les cases restent entières : d'un niveau à l'autre, le calque du monde est exactement deux fois plus grand.
   const largeur = () => page.locator(".monde-monde").evaluate((el) => (el as HTMLElement).offsetWidth);
   const aDeux = await largeur();
   await scene.focus();
+  // La vue d'ensemble : on ne peut pas s'éloigner davantage.
   await page.keyboard.press("-");
   await expect(scene).toHaveAttribute("data-niveau", "1");
+  await expect(loin).toBeDisabled();
   expect(await largeur()).toBe(aDeux / 2);
-  await page.keyboard.press("+");
+  await pres.click();
+  await expect(scene).toHaveAttribute("data-niveau", "2");
   await page.keyboard.press("+");
   await page.keyboard.press("+");
   await page.keyboard.press("+");
   await expect(scene).toHaveAttribute("data-niveau", "4");
   await expect(pres).toBeDisabled();
+  expect(await largeur()).toBe(aDeux * 2);
 });
 
 test("la petite carte mène à chaque quartier, de la grand-rue comme du bas", async ({ page }, testInfo) => {

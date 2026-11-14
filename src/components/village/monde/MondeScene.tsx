@@ -11,7 +11,7 @@ import { type Habitant, type Lieu, NOMS_DES_LIEUX, phraseDuReleve } from "../../
 import type { Parole } from "../PlaceToucher";
 import type { CameraDuMonde } from "./camera-du-monde";
 import { type Horloge } from "./horloge";
-import { type Mesure, MondeDecor, MondeFond } from "./MondeDecor";
+import { type Mesure, MondeDecor, MondeFond, MondeTerrasses } from "./MondeDecor";
 import { MondeHabitants } from "./MondeHabitants";
 import { MondeBetes, MondeEvenements } from "./MondeVie";
 
@@ -102,7 +102,7 @@ export function MondeScene({
       const largeur = el.clientWidth;
       const hauteur = el.clientHeight;
       if (largeur === 0 || hauteur === 0) return;
-      const cote = niveau ?? niveauDeDepart(hauteur);
+      const cote = niveau ?? niveauDeDepart(largeur);
       if (niveau === null) setNiveau(cote);
       const suivante = { cote, colonnes: Math.ceil(largeur / cote), rangees: Math.ceil(hauteur / cote) };
       camera.regler(largeur / cote, hauteur / cote, plan.largeur, plan.hauteur);
@@ -454,6 +454,7 @@ export function MondeScene({
         {mesure && (
           <div ref={monde} class="monde-monde" style={{ width: `${plan.largeur * cote}px`, height: `${plan.hauteur * cote}px` }}>
             <div class="monde-dessin" aria-hidden="true">
+              <MondeTerrasses plan={plan} lumiere={lumiere} mesure={mesure} camera={camera} />
               <MondeDecor plan={plan} etat={etat} lumiere={lumiere} mesure={mesure} camera={camera} horloge={horloge} fige={fige} />
               <MondeBetes plan={plan} mesure={mesure} camera={camera} horloge={horloge} fige={fige} />
               <MondeEvenements plan={plan} lumiere={lumiere} mesure={mesure} horloge={horloge} fige={fige} />

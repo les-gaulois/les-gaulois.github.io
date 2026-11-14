@@ -5,7 +5,7 @@
  * viennent calmement dans leur coin, comme les promeneurs (`marche.ts`). Rien ne dit un chiffre. Design : Claude Fable 5.2.
  */
 import { type Decor, Planche } from "../decor";
-import { BANDE_BAS, BANDE_HAUT, BAS_BANDE_BAS, BAS_BANDE_HAUT, type Plan, TERRASSE_BANDE_BAS, TERRASSE_BANDE_HAUT, dyDeLaTerrasse, emplacementDuBatiment, emplacementOpenFront } from "./plan";
+import { BANDE_BAS, BANDE_HAUT, BAS_BANDE_BAS, BAS_BANDE_HAUT, type Plan, emplacementDuBatiment, emplacementOpenFront } from "./plan";
 
 export type Bete = "poule" | "chien" | "chevre" | "vache" | "charrette";
 
@@ -158,14 +158,7 @@ export function betesDuPlan(plan: Plan): BeteDuPlan[] {
   dans("chien", plan.dy0, BANDE_HAUT + 6, BANDE_BAS, plan.feu.x - 320, plan.feu.x + 320, 0, 1);
   // La charrette suit le chemin de la grand-rue, d'un bout du village à l'autre.
   dans("charrette", plan.dy0, 362, 364, plan.village.de + 60, plan.village.a - 160, 0, 2);
-  // Sur chaque terrasse, des chèvres dans l'herbe, hors des rues ; dans le pré du bas, des chèvres et des poules.
-  for (let t = 1; t <= plan.terrasses; t++) {
-    const dy = dyDeLaTerrasse(plan, t);
-    dans("chevre", dy, TERRASSE_BANDE_HAUT - 6, TERRASSE_BANDE_BAS, plan.feu.x + 500, plan.feu.x + 1100, t, 3);
-    dans("chevre", dy, TERRASSE_BANDE_HAUT - 4, TERRASSE_BANDE_BAS, plan.feu.x - 1100, plan.feu.x - 500, t + 1, 4);
-    dans("chien", dy, TERRASSE_BANDE_HAUT, TERRASSE_BANDE_BAS, plan.feu.x - 300, plan.feu.x + 300, t, 1);
-    dans("poule", dy, TERRASSE_BANDE_HAUT - 8, TERRASSE_BANDE_HAUT + 4, plan.feu.x - 400, plan.feu.x + 400, t, 2);
-  }
+  // Dans le pré du bas, des chèvres et une vache.
   const gare = emplacementOpenFront(plan, "gare");
   dans("chevre", plan.dyBas, BAS_BANDE_HAUT + 10, BAS_BANDE_BAS, plan.ruisseau.x + 120, gare.x - 60, 0, 3);
   dans("chevre", plan.dyBas, BAS_BANDE_HAUT + 6, BAS_BANDE_BAS, plan.ruisseau.x + 200, gare.x - 20, 1, 4);

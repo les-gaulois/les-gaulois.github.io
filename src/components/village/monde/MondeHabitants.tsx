@@ -3,7 +3,7 @@ import { GAULOIS_HAUTEUR, GAULOIS_LARGEUR, casesDuGaulois } from "../../../lib/g
 import type { Decor } from "../../../lib/village/decor";
 import { type Bulles, avancerLesBulles, bullesAuDepart, chopeLevee, gesteDeCombat, hasardDe, souffleDuDormeur, tourneEnReunion } from "../../../lib/village/mouvement";
 import { type Acteur as ActeurDuMonde, arriver, relireLesActeurs, unTemps } from "../../../lib/village/monde/acteurs";
-import { type Boite, type Figure, type Obstacle, type PlanDeVue, OMBRE, PREMIER_PLAN, boiteDansLeCalque, calquesDeLaFoule, caseDuPlan, cleDuPlan, contient, couverture, decalageDuPlan, milieuPourVoir, nomsSousChacun, ordreDeDessin, planDeLaPlace, seCroisent, sousLeDoigt, vueDuPlan } from "../../../lib/village/monde/foule";
+import { type Boite, type Figure, type Obstacle, type PlanDeVue, OMBRE, PREMIER_PLAN, boiteDansLeCalque, calquesDeLaFoule, caseDuPlan, cleDuPlan, contient, couverture, decalageDuPlan, fondDuPlan, milieuPourVoir, nomsSousChacun, ordreDeDessin, planDeLaPlace, seCroisent, sousLeDoigt, vueDuPlan } from "../../../lib/village/monde/foule";
 import { poseDuMarcheur } from "../../../lib/village/monde/marche";
 import type { Plan } from "../../../lib/village/monde/plan";
 import { BOITES_DU_MONDE, type Place, type Tenue, piedDeLEscalier, placesDEnFace, placesDuLieu, seuilDuLieu, surLaGrandRue, tenueDuLieu, zoneDuPromeneur } from "../../../lib/village/monde/postes";
@@ -250,7 +250,8 @@ export function MondeHabitants({
       return lieux[lieu].map((habitant, i) => ({ cle: cleDe(habitant), habitant, lieu, place: places[i]! }));
     });
     // Celui qui se promène sur une terrasse ou dans le bas rejoint la grand-rue par l'escalier, d'un coup, avant de marcher.
-    const rejoindre = (point: { x: number; y: number }) => (surLaGrandRue(plan, point.y + 64) ? null : { ...piedDeLEscalier(plan, point.x, point.y > plan.dy0 + 300), saut: true });
+    const rejoindre = (point: { x: number; y: number }, place?: { echelle?: number }) =>
+      place?.echelle ? { ...piedDeLEscalier(plan, plan.feu.x, false), saut: true } : surLaGrandRue(plan, point.y + 64) ? null : { ...piedDeLEscalier(plan, point.x, true), saut: true };
     relireLesActeurs(acteurs.current, entrees, (lieu, place) => seuilDuLieu(plan, lieu, place), fige, jeu.current.hasard, rejoindre);
   }, [lieux, plan]);
 
@@ -330,7 +331,7 @@ export function MondeHabitants({
       // Le sien : le milieu de la vue qui le montre au milieu de l'écran (dans son plan, s'il est au fond).
       if (habitant.gaulois.moi) moi = milieuPourVoir({ x: x + boite.largeur / 2, y: y + boite.hauteur / 2 }, camera, cote, plan);
       const saut = saute && saute.cle === cle && depuis >= 120 && depuis < 480 ? -1 : 0;
-      liste.push({ cle, habitant, x, y, largeur: boite.largeur, hauteur: boite.hauteur, z: y + boite.hauteur, ordre: liste.length, tenue, dessin, vers, rang: habitant.rang, saut, parle: parlent.includes(i), serre: auPoste && acteur.place.serre, planDeVue: plan, cleDuPlan: cleDuPlan(plan) });
+      liste.push({ cle, habitant, x, y, largeur: boite.largeur, hauteur: boite.hauteur, z: y + boite.hauteur + fondDuPlan(plan), ordre: liste.length, tenue, dessin, vers, rang: habitant.rang, saut, parle: parlent.includes(i), serre: auPoste && acteur.place.serre, planDeVue: plan, cleDuPlan: cleDuPlan(plan) });
     });
     figurants.current = liste;
     moiA?.(moi);
@@ -532,6 +533,8 @@ export function MondeHabitants({
         toile.style.width = taille;
         toile.style.height = `${hauteur * p.case}px`;
       }
+      // Un plan du fond vu de très loin (moins d'un pixel par case) : le navigateur adoucit, au lieu de sauter des cases.
+      toile.style.imageRendering = p.case < 1 ? "auto" : "";
       placees.current[k] = { cle: c.plan, x: boite.x, y: boite.y };
       toile.style.transform = `translate(${boite.x * p.case + p.decalage.x}px, ${boite.y * p.case + p.decalage.y}px)`;
       toile.style.zIndex = String(c.z);

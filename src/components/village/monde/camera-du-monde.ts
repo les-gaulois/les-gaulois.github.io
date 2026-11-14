@@ -23,6 +23,13 @@ export class CameraDuMonde {
   private glisse: { de: [number, number]; a: [number, number]; debut: number; duree: number } | null = null;
   private cible: [number, number] | null = null;
   private elan: [number, number] = [0, 0];
+  /**
+   * Le cadrage : la rangée du haut de la vue quand on l'envoie vers la rangée `milieuY`. Par défaut, le point est au
+   * milieu de l'écran ; l'écran du village pose plutôt la grand-rue en bas de l'écran, la colline au-dessus d'elle.
+   */
+  cadrer: (milieuY: number, vueH: number) => number = (milieuY, vueH) => milieuY - vueH / 2;
+  /** La rangée où l'on a envoyé la caméra, tant qu'on ne l'a pas déplacée soi-même : la vue s'y recadre si elle change de taille. */
+  private visee: number | null = null;
 
   /** S'abonner aux déplacements ; rend de quoi se désabonner. */
   ecouter(ecoute: () => void): () => void {
@@ -39,7 +46,7 @@ export class CameraDuMonde {
     this.largeur = largeur;
     this.hauteur = hauteur;
     this.x = bornerLaVue(milieu - vue / 2, vue, largeur);
-    this.y = bornerLaHauteur(milieuY - vueH / 2, vueH, hauteur);
+    this.y = bornerLaHauteur(this.visee !== null ? this.cadrer(this.visee, vueH) : milieuY - vueH / 2, vueH, hauteur);
     for (const ecoute of this.ecoutes) ecoute();
   }
 
@@ -53,7 +60,7 @@ export class CameraDuMonde {
 
   /** Le milieu qu'aurait la vue si on l'envoyait vers ce point : le point lui-même, ou le plus proche que le monde permet. */
   ouIrait(milieu: number, milieuY: number): [number, number] {
-    const [x, y] = this.borner(milieu - this.vue / 2, milieuY - this.vueH / 2);
+    const [x, y] = this.borner(milieu - this.vue / 2, this.cadrer(milieuY, this.vueH));
     return [x + this.vue / 2, y + this.vueH / 2];
   }
 
@@ -74,6 +81,7 @@ export class CameraDuMonde {
     this.glisse = null;
     this.cible = null;
     this.elan = [0, 0];
+    this.visee = null;
   }
 
   /**
@@ -81,8 +89,9 @@ export class CameraDuMonde {
    * d'un coup si `direct` ou si tout est figé.
    */
   aller(milieu: number, milieuY: number | null = null, direct = false): void {
-    const a = this.borner(milieu - this.vue / 2, milieuY === null ? this.y : milieuY - this.vueH / 2);
+    const a = this.borner(milieu - this.vue / 2, milieuY === null ? this.y : this.cadrer(milieuY, this.vueH));
     this.arreter();
+    this.visee = milieuY;
     const ecart = Math.hypot(a[0] - this.x, a[1] - this.y);
     if (direct || this.fige || ecart < 1) {
       this.poser(a[0], a[1]);

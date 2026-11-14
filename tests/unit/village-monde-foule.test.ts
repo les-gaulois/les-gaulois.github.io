@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type Boite, type Calque, type Figure, type Obstacle, FOULE, OMBRE, PREMIER_PLAN, calquesDeLaFoule, caseDuPlan, cleDuPlan, contient, couverture, decalageDuPlan, milieuPourVoir, nomsSousChacun, ordreDeDessin, planDeLaPlace, seCroisent, sousLeDoigt, vueDuPlan } from "../../src/lib/village/monde/foule";
+import { type Boite, type Calque, type Figure, type Obstacle, FOULE, OMBRE, PREMIER_PLAN, SOUS_LA_FOULE, calquesDeLaFoule, caseDuPlan, cleDuPlan, contient, couverture, decalageDuPlan, fondDuPlan, milieuPourVoir, nomsSousChacun, ordreDeDessin, planDeLaPlace, seCroisent, sousLeDoigt, vueDuPlan } from "../../src/lib/village/monde/foule";
 import { taillesDesDessins } from "../../src/lib/village/monde/composition";
 import { planDuMonde } from "../../src/lib/village/monde/plan";
 import { type Place, placesDuLieu } from "../../src/lib/village/monde/postes";
@@ -153,22 +153,44 @@ describe("le plan de chaque Gaulois : échelle et parallaxe", () => {
     expect(cleDuPlan({ echelle: 0.5, parallaxe: 0.6 })).toBe("0.5|0.6");
   });
 
-  it("les places du monde actuel ne portent aucun réglage : tout le monde reste au premier plan", () => {
+  it("les salles et le champ de bataille sont au premier plan ; les maisons et les promeneurs des terrasses, au fond", () => {
     const plan = planDuMonde(taillesDesDessins(), 120);
     const rangs = Array.from({ length: 120 }, (_, i) => i);
-    for (const lieu of ["place", "taverne", "reunion", "bataille", "maisons"] as const) for (const place of placesDuLieu(plan, lieu, rangs)) expect(planDeLaPlace(place)).toEqual(PREMIER_PLAN);
+    for (const lieu of ["taverne", "reunion", "bataille"] as const) for (const place of placesDuLieu(plan, lieu, rangs)) expect(planDeLaPlace(place)).toEqual(PREMIER_PLAN);
+    const parallaxes = new Set(plan.lointaines.map((t) => t.parallaxe));
+    placesDuLieu(plan, "maisons", rangs).forEach((place, rang) => {
+      const vue = planDeLaPlace(place);
+      if (rang < 12) expect(vue).toEqual(PREMIER_PLAN);
+      else {
+        expect(vue.echelle).toBe(0.5);
+        expect(parallaxes.has(vue.parallaxe)).toBe(true);
+      }
+    });
+    for (const place of placesDuLieu(plan, "place", rangs)) expect(place.echelle === undefined || (place.echelle === 0.5 && parallaxes.has(place.parallaxe!))).toBe(true);
   });
 
-  it("une case du fond vaut toujours un nombre entier de pixels, jamais moins d'un", () => {
+  it("un plan du fond se range sous tout le premier plan, et d'autant plus bas qu'il est loin", () => {
+    expect(fondDuPlan(PREMIER_PLAN)).toBe(0);
+    const proche = fondDuPlan({ echelle: 0.5, parallaxe: 0.86 });
+    const loin = fondDuPlan({ echelle: 0.5, parallaxe: 0.8 });
+    // Une rangée de pieds ne dépasse jamais quelques milliers : le fond reste sous le rang 0 des tuiles du premier plan.
+    expect(proche + 5000).toBeLessThan(0);
+    // Entre deux terrasses, la place du décor de la plus proche (`SOUS_LA_FOULE`) et de tous ses Gaulois.
+    expect(loin + 5000).toBeLessThan(proche - SOUS_LA_FOULE);
+  });
+
+  it("une case du fond vaut un nombre entier de pixels dès qu'elle en atteint un", () => {
     expect([1, 2, 3, 4].map((niveau) => caseDuPlan(niveau, 1))).toEqual([1, 2, 3, 4]);
-    expect([1, 2, 3, 4].map((niveau) => caseDuPlan(niveau, 0.5))).toEqual([1, 1, 2, 2]);
-    expect([1, 2, 3, 4].map((niveau) => caseDuPlan(niveau, 0.75))).toEqual([1, 2, 2, 3]);
+    // Aux niveaux du monde (1, 2 et 4), le fond vaut toujours la moitié du premier plan ; au plus loin, un demi-pixel.
+    expect([1, 2, 3, 4].map((niveau) => caseDuPlan(niveau, 0.5))).toEqual([0.5, 1, 2, 2]);
+    expect([1, 2, 3, 4].map((niveau) => caseDuPlan(niveau, 0.75))).toEqual([0.75, 2, 2, 3]);
   });
 
   it("le premier plan n'est pas décalé ; un plan qui glisse moins vite est décalé du reste de la caméra", () => {
     expect(decalageDuPlan({ x: 1234.6, y: 88.2 }, 3, 1)).toEqual({ x: 0, y: 0 });
-    expect(decalageDuPlan({ x: 1000, y: 200 }, 2, 0.6)).toEqual({ x: 800, y: 160 });
-    expect(decalageDuPlan({ x: 1000, y: 200 }, 2, 0)).toEqual({ x: 2000, y: 400 });
+    // De haut en bas, un plan du fond suit la caméra comme le premier plan : il n'est décalé que de gauche à droite.
+    expect(decalageDuPlan({ x: 1000, y: 200 }, 2, 0.6)).toEqual({ x: 800, y: 0 });
+    expect(decalageDuPlan({ x: 1000, y: 200 }, 2, 0)).toEqual({ x: 2000, y: 0 });
   });
 
   it("à l'écran, un point du fond glisse de la part « parallaxe » du mouvement de la caméra", () => {
@@ -188,7 +210,7 @@ describe("le plan de chaque Gaulois : échelle et parallaxe", () => {
     expect(vueDuPlan(camera, 4, PREMIER_PLAN)).toEqual({ x: 600, y: 40, largeur: 480, hauteur: 270 });
     const fond = vueDuPlan(camera, 4, { echelle: 0.5, parallaxe: 0.5 });
     // Cases de 2 pixels ; décalage de 1 200 pixels : le coin de l'écran (2 400 pixels dans le calque) est à la case 600 du fond.
-    expect(fond).toEqual({ x: 600, y: 40, largeur: 960, hauteur: 540 });
+    expect(fond).toEqual({ x: 600, y: 80, largeur: 960, hauteur: 540 });
   });
 
   it("aller voir un Gaulois du fond met bien son point au milieu de l'écran", () => {
@@ -200,6 +222,8 @@ describe("le plan de chaque Gaulois : échelle et parallaxe", () => {
     const cam = { x: milieu.x - camera.vue / 2, y: milieu.y - camera.vueH / 2 };
     const ecranX = point.x * caseDuPlan(cote, fond.echelle) + decalageDuPlan(cam, cote, fond.parallaxe).x - Math.round(cam.x * cote);
     expect(Math.abs(ecranX - (camera.vue * cote) / 2)).toBeLessThanOrEqual(1);
+    const ecranY = point.y * caseDuPlan(cote, fond.echelle) + decalageDuPlan(cam, cote, fond.parallaxe).y - Math.round(cam.y * cote);
+    expect(Math.abs(ecranY - (camera.vueH * cote) / 2)).toBeLessThanOrEqual(1);
     expect(milieuPourVoir(point, camera, 3, PREMIER_PLAN)).toEqual(point);
   });
 

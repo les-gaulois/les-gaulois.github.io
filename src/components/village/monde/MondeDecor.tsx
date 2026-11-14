@@ -3,9 +3,10 @@ import { type Decor, paletteDuDehors } from "../../../lib/village/decor";
 import { type Lumiere, cleDeLumiere, instantDeParis } from "../../../lib/village/lumiere";
 import type { EtatDuMonde } from "../../../lib/village/monde-etat";
 import { NUAGES_HAUTEUR, PLANS_LOINTAINS, brumeDuMatin, composerCiel, composerNuages, composerPlanLointain } from "../../../lib/village/monde/ciel";
-import { type Anime, animesDuMonde, composerTuile, tuilesDuMonde } from "../../../lib/village/monde/composition";
-import { chemineesDuPlan } from "../../../lib/village/monde/pieces";
-import { CIEL, type Plan, TUILE } from "../../../lib/village/monde/plan";
+import { type Anime, animesDuMonde, chemineesDuPlan, composerTuile, tuilesDuMonde } from "../../../lib/village/monde/composition";
+import { SOUS_LA_FOULE, caseDuPlan, decalageDuPlan, fondDuPlan, vueDuPlan } from "../../../lib/village/monde/foule";
+import { bandeDeLaTerrasse, composerTuileDeTerrasse, tuilesDeLaTerrasse } from "../../../lib/village/monde/lointain";
+import { CIEL, ECHELLE_DU_FOND, type Plan, TUILE } from "../../../lib/village/monde/plan";
 import { DESSINS_OPENFRONT } from "../../../lib/village/openfront";
 import { peindre } from "../PlaceToile";
 import type { CameraDuMonde } from "./camera-du-monde";
@@ -151,6 +152,129 @@ export function MondeFond({ plan, lumiere, date, mesure, camera }: { plan: Plan;
           ))}
         </div>
       )}
+    </>
+  );
+}
+
+/** Les tuiles d'une terrasse à garder peintes : de la première à la dernière, ou `null` quand l'écran ne la voit pas. */
+type PorteeDuFond = ({ tx0: number; tx1: number } | null)[];
+
+function porteeDuFond(camera: CameraDuMonde, plan: Plan, cote: number): PorteeDuFond {
+  return plan.lointaines.map((t) => {
+    const vue = vueDuPlan(camera, cote, { echelle: ECHELLE_DU_FOND, parallaxe: t.parallaxe });
+    const bande = bandeDeLaTerrasse(t);
+    if (bande.haut > vue.y + vue.hauteur + 120 || bande.haut + bande.hauteur < vue.y - 120) return null;
+    const dernier = tuilesDeLaTerrasse(t) - 1;
+    const borne = (v: number) => Math.min(dernier, Math.max(0, v));
+    return { tx0: borne(Math.floor((vue.x - 200) / TUILE)), tx1: borne(Math.floor((vue.x + vue.largeur + 200) / TUILE)) };
+  });
+}
+
+/**
+ * Les terrasses du fond (la proposition « les terrasses » du pilote) : derrière la grand-rue, des rues de maisons
+ * dessinées deux fois plus petites, pâlies par la distance, qui glissent moins vite que le premier plan. Chacune est un
+ * calque du monde, rangé sous le décor du premier plan et sous ses propres Gaulois (`fondDuPlan`), décalé de ce que la
+ * caméra a parcouru sans lui (`decalageDuPlan`), peint par tuiles seulement autour de ce que l'écran voit. Rien n'y
+ * bouge : la parallaxe est le déplacement de la caméra, pas une animation.
+ */
+export function MondeTerrasses({ plan, lumiere, mesure, camera }: { plan: Plan; lumiere: Lumiere; mesure: Mesure; camera: CameraDuMonde }) {
+  const { cote } = mesure;
+  const casePx = caseDuPlan(cote, ECHELLE_DU_FOND);
+  const cle = cleDeLumiere(lumiere, 700);
+  const calques = useRef<(HTMLDivElement | null)[]>([]);
+  const toiles = useRef(new Map<string, HTMLCanvasElement | null>());
+  const composees = useRef<{ signature: object; tuiles: Map<string, Decor> }>({ signature: {}, tuiles: new Map() });
+  const [portee, setPortee] = useState<PorteeDuFond>(() => porteeDuFond(camera, plan, cote));
+
+  useLayoutEffect(() => {
+    const suivre = () => {
+      plan.lointaines.forEach((t, k) => {
+        const calque = calques.current[k];
+        if (calque) calque.style.transform = `translate3d(${decalageDuPlan(camera, cote, t.parallaxe).x}px, 0, 0)`;
+      });
+      const p = porteeDuFond(camera, plan, cote);
+      setPortee((avant) => (JSON.stringify(avant) === JSON.stringify(p) ? avant : p));
+    };
+    suivre();
+    return camera.ecouter(suivre);
+  }, [camera, plan, cote]);
+
+  const signature = useMemo(() => ({}), [plan, cle]);
+  const cles = useMemo(() => {
+    const liste: { cle: string; k: number; tx: number }[] = [];
+    portee.forEach((p, k) => {
+      if (p) for (let tx = p.tx0; tx <= p.tx1; tx++) liste.push({ cle: `${k}:${tx}`, k, tx });
+    });
+    return liste;
+  }, [portee]);
+
+  // Les tuiles pas encore peintes à cette lumière : les plus proches d'abord (les premières terrasses), une à la fois.
+  useEffect(() => {
+    if (composees.current.signature !== signature) composees.current = { signature, tuiles: new Map() };
+    const memoire = composees.current.tuiles;
+    const file = cles.filter((t) => {
+      const toile = toiles.current.get(t.cle) as (HTMLCanvasElement & { peinte?: object }) | null | undefined;
+      return toile && toile.peinte !== signature;
+    });
+    let minuterie = 0;
+    const peindreTuile = (t: { cle: string; k: number; tx: number }) => {
+      const toile = toiles.current.get(t.cle) as (HTMLCanvasElement & { peinte?: object }) | null | undefined;
+      const terrasse = plan.lointaines[t.k];
+      if (!toile || !terrasse) return;
+      let dessin = memoire.get(t.cle);
+      if (!dessin) {
+        dessin = composerTuileDeTerrasse(terrasse, lumiere, t.tx);
+        if (memoire.size >= 64) memoire.delete(memoire.keys().next().value!);
+        memoire.set(t.cle, dessin);
+      }
+      peindre(toile, dessin.largeur, dessin.hauteur, dessin.cases);
+      toile.peinte = signature;
+    };
+    const suite = (rang: number) => {
+      if (rang >= file.length) return;
+      peindreTuile(file[rang]!);
+      minuterie = window.setTimeout(() => suite(rang + 1), 24);
+    };
+    minuterie = window.setTimeout(() => suite(0), 0);
+    return () => window.clearTimeout(minuterie);
+  }, [cles, signature]);
+
+  return (
+    <>
+      {plan.lointaines.map((t, k) => {
+        const bande = bandeDeLaTerrasse(t);
+        const p = portee[k];
+        const tuiles: number[] = [];
+        if (p) for (let tx = p.tx0; tx <= p.tx1; tx++) tuiles.push(tx);
+        return (
+          <div
+            key={t.rang}
+            ref={(el) => {
+              calques.current[k] = el;
+            }}
+            class="monde-terrasse"
+            data-testid="monde-terrasse"
+            style={{ "--monde-rang": `${fondDuPlan({ echelle: ECHELLE_DU_FOND, parallaxe: t.parallaxe }) - SOUS_LA_FOULE}` }}
+          >
+            {tuiles.map((tx) => {
+              const largeur = Math.min(TUILE, t.largeur - tx * TUILE);
+              return (
+                <canvas
+                  key={tx}
+                  ref={(el) => {
+                    if (el) toiles.current.set(`${k}:${tx}`, el);
+                    else toiles.current.delete(`${k}:${tx}`);
+                  }}
+                  width={largeur}
+                  height={bande.hauteur}
+                  class={casePx < 1 ? "monde-tuile" : "village-pixels monde-tuile"}
+                  style={{ left: `${tx * TUILE * casePx}px`, top: `${bande.haut * casePx}px`, width: `${largeur * casePx}px`, height: `${bande.hauteur * casePx}px` }}
+                />
+              );
+            })}
+          </div>
+        );
+      })}
     </>
   );
 }

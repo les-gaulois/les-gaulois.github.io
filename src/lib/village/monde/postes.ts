@@ -13,9 +13,14 @@ import { alea } from "../decor";
 import { ATTABLE_HAUTEUR } from "../poses";
 import type { Lieu } from "../vie";
 import { RANGS_DEHORS } from "./etages";
-import { MAISON_LITS, MAISON_SOUPENTE, SALLE_RECUL, SALLE_SIEGE_DERRIERE, SALLE_SIEGE_DEVANT, SIEGE, SIEGES_DERRIERE, SIEGES_DEVANT } from "./pieces";
-import { BANDE_BAS, BANDE_HAUT, BAS_BANDE_BAS, BAS_BANDE_HAUT, type Dehors, LITS_PAR_MAISON, PLANCHER, type Plan, SIEGE_DEHORS, TERRASSE_BANDE_BAS, TERRASSE_BANDE_HAUT, emplacementOpenFront, emplacementsDe, maisonDuRang } from "./plan";
+import { MODELES, litsDeLaMaison } from "./maisons";
+import { SALLE_RECUL, SALLE_SIEGE_DERRIERE, SALLE_SIEGE_DEVANT, SIEGE, SIEGES_DERRIERE, SIEGES_DEVANT } from "./pieces";
+import { BANDE_BAS, BANDE_HAUT, BAS_BANDE_BAS, BAS_BANDE_HAUT, type Dehors, ECHELLE_DU_FOND, LITS_PAR_MAISON, PLANCHER, type Plan, SIEGE_DEHORS, emplacementOpenFront, emplacementsDe, logisDuRang } from "./plan";
 import { LIT_HAUTEUR, LIT_LARGEUR } from "./poses-monde";
+
+/** Sur une terrasse du fond, les rangées des pieds de ceux qui s'y promènent, sous la ligne de son sol, en cases du fond. */
+const SENTIER_HAUT = 6;
+const SENTIER_BAS = 22;
 
 /** La boîte d'un Gaulois selon ce qu'il fait, en cases, et la rangée où s'écrit son nom, comptée du haut de la boîte. */
 export const BOITES_DU_MONDE = {
@@ -102,18 +107,38 @@ function rangsDeLaSalle(plan: Plan, lieu: "taverne" | "reunion"): Rang[] {
 /** Les rangées des pieds au champ de bataille, de la plus lointaine à la plus proche. */
 const RANGS_DE_COMBAT = [340, 356, 372] as const;
 
-/** Là où se promène le Gaulois de ce rang : la rue de sa maison, la grand-rue, ou le pré du bas. */
-export function zoneDuPromeneur(plan: Plan, rang: number): { de: number; a: number; haut: number; bas: number; rue: boolean } {
+/** Là où l'on se promène : une boîte, en cases de son plan ; `rue` : c'est la grand-rue ; `echelle` et `parallaxe` : c'est une terrasse du fond. */
+export interface ZoneDePromenade {
+  de: number;
+  a: number;
+  haut: number;
+  bas: number;
+  rue: boolean;
+  echelle?: number;
+  parallaxe?: number;
+}
+
+/** Là où se promène le Gaulois de ce rang : la terrasse de sa maison, la grand-rue, ou le pré du bas. */
+export function zoneDuPromeneur(plan: Plan, rang: number): ZoneDePromenade {
   const grandRue = { de: plan.village.de + 30, a: plan.village.a - 70, haut: plan.dy0 + BANDE_HAUT - GAULOIS_HAUTEUR, bas: plan.dy0 + BANDE_BAS - GAULOIS_HAUTEUR, rue: true };
-  const maison = maisonDuRang(plan, rang);
+  const logis = logisDuRang(plan, rang);
   // Un Gaulois sur trois descend sur la grand-rue, où sont la place et le marché ; un sur sept va voir les trains.
-  if (maison.dy === plan.dy0 || rang % 3 === 0) return grandRue;
+  if (!logis.terrasse || rang % 3 === 0) return grandRue;
   if (rang % 7 === 5) {
     const gare = emplacementOpenFront(plan, "gare");
     return { de: gare.x - 260, a: plan.mer.de - 120, haut: plan.dyBas + BAS_BANDE_HAUT - GAULOIS_HAUTEUR, bas: plan.dyBas + BAS_BANDE_BAS - GAULOIS_HAUTEUR, rue: false };
   }
-  const milieu = maison.x + maison.largeur / 2;
-  return { de: Math.max(plan.hauts.de + 30, milieu - 520), a: Math.min(plan.hauts.a - 70, milieu + 520), haut: maison.dy + TERRASSE_BANDE_HAUT - GAULOIS_HAUTEUR, bas: maison.dy + TERRASSE_BANDE_BAS - GAULOIS_HAUTEUR, rue: false };
+  const t = logis.terrasse;
+  const milieu = logis.x + MODELES[logis.modele].largeur / 2;
+  return {
+    de: Math.max(120, milieu - 700),
+    a: Math.min(t.largeur - 170, milieu + 700),
+    haut: t.sol + SENTIER_HAUT - GAULOIS_HAUTEUR,
+    bas: t.sol + SENTIER_BAS - GAULOIS_HAUTEUR,
+    rue: false,
+    echelle: ECHELLE_DU_FOND,
+    parallaxe: t.parallaxe,
+  };
 }
 
 /** Les places d'un lieu pour ces Gaulois (leurs rangs dans la réponse du serveur), dans le même ordre. */
@@ -122,12 +147,11 @@ export function placesDuLieu(plan: Plan, lieu: Lieu, rangs: readonly number[]): 
   if (nombre <= 0) return [];
   if (lieu === "taverne" || lieu === "reunion") return ranger(nombre, rangsDeLaSalle(plan, lieu), false);
   if (lieu === "maisons") {
-    const pas = MAISON_LITS[1] - MAISON_LITS[0];
     return rangs.map((rang) => {
-      const maison = maisonDuRang(plan, rang);
-      const lit = ((rang % LITS_PAR_MAISON) + LITS_PAR_MAISON) % LITS_PAR_MAISON;
-      const y = lit < 2 ? maison.dy + PLANCHER - LIT_HAUTEUR : maison.dy + maison.pied - MAISON_SOUPENTE - LIT_HAUTEUR;
-      return { x: maison.x + MAISON_LITS[0] + (lit % 2) * pas, y, serre: nombre > 12, saut: maison.dy !== plan.dy0 };
+      const logis = logisDuRang(plan, rang);
+      const lit = litsDeLaMaison(MODELES[logis.modele], logis.variante)[((rang % LITS_PAR_MAISON) + LITS_PAR_MAISON) % LITS_PAR_MAISON]!;
+      const place: Place = { x: logis.x + lit.x, y: logis.pied - lit.y, serre: nombre > 12, saut: logis.terrasse !== null };
+      return logis.terrasse ? { ...place, echelle: ECHELLE_DU_FOND, parallaxe: logis.terrasse.parallaxe } : place;
     });
   }
   if (lieu === "bataille") {
@@ -144,7 +168,8 @@ export function placesDuLieu(plan: Plan, lieu: Lieu, rangs: readonly number[]): 
   // La place : chacun part d'un point de sa zone, toujours le même.
   return rangs.map((rang) => {
     const zone = zoneDuPromeneur(plan, rang);
-    return { x: Math.round(zone.de + alea(rang, 11) * (zone.a - zone.de)), y: Math.round(zone.haut + alea(rang, 23) * (zone.bas - zone.haut)), serre: false, saut: !zone.rue };
+    const place: Place = { x: Math.round(zone.de + alea(rang, 11) * (zone.a - zone.de)), y: Math.round(zone.haut + alea(rang, 23) * (zone.bas - zone.haut)), serre: false, saut: !zone.rue };
+    return zone.echelle ? { ...place, echelle: zone.echelle, parallaxe: zone.parallaxe } : place;
   });
 }
 
@@ -179,13 +204,14 @@ export function seuilDuLieu(plan: Plan, lieu: Lieu, place: Place | null): { x: n
     return { x: e.x + Math.floor(e.largeur / 2) - GAULOIS_LARGEUR / 2, y };
   }
   if (lieu === "maisons") {
-    if (place?.saut) return piedDeLEscalier(plan, place.x, false);
+    if (place?.saut) return piedDeLEscalier(plan, plan.feu.x, false);
     const maisons = emplacementsDe(plan, "maison").filter((e) => e.dy === plan.dy0);
     const m = (place && maisons.find((e) => place.x >= e.x && place.x < e.x + e.largeur)) || maisons[1]!;
     return { x: m.x + Math.floor(m.largeur / 2) - GAULOIS_LARGEUR / 2, y };
   }
   if (lieu === "bataille") return { x: plan.pre.x + 40, y: place?.y ?? plan.dy0 + RANGS_DE_COMBAT[1] - GAULOIS_HAUTEUR };
   // La place : pour qui se promène ailleurs que sur la grand-rue, l'escalier qui y mène.
-  if (place && !surLaGrandRue(plan, place.y + GAULOIS_HAUTEUR)) return piedDeLEscalier(plan, place.x, place.y > plan.dy0 + 300);
+  if (place?.echelle) return piedDeLEscalier(plan, plan.feu.x, false);
+  if (place && !surLaGrandRue(plan, place.y + GAULOIS_HAUTEUR)) return piedDeLEscalier(plan, place.x, true);
   return { x: place?.x ?? plan.feu.x, y: place?.y ?? y + 20 };
 }

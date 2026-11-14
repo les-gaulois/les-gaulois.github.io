@@ -59,22 +59,34 @@ export const cleDuPlan = (plan: PlanDeVue): string => (plan.echelle === 1 && pla
 
 /**
  * Le côté d'une case de ce plan à l'écran, en pixels, au niveau d'approche `cote` (le côté d'une case du premier plan) :
- * l'échelle fois le niveau, arrondie, et jamais moins d'un pixel. Ainsi 0,5 donne 1, 1, 2, 2 pixels aux niveaux 1 à 4
- * (au niveau 1, le fond ne peut pas être plus petit qu'un pixel par case).
+ * l'échelle fois le niveau, arrondie dès qu'elle atteint un pixel. Ainsi 0,5 donne un demi-pixel, 1, 2 et 2 pixels aux
+ * niveaux 1 à 4 : aux niveaux du monde (1, 2 et 4, `camera.ts`), le fond vaut toujours la moitié du premier plan. Sous
+ * un pixel par case, le navigateur adoucit le dessin (vue d'ensemble).
  */
-export const caseDuPlan = (cote: number, echelle: number): number => Math.max(1, Math.round(cote * echelle));
+export const caseDuPlan = (cote: number, echelle: number): number => (cote * echelle >= 1 ? Math.round(cote * echelle) : cote * echelle);
 
 /**
  * Le décalage d'un plan dans le calque du monde, en pixels entiers. Le calque suit toute la caméra (il est posé à moins la
- * caméra fois le niveau, arrondi) ; un plan qui n'en suit que la part `parallaxe` y est décalé du reste, dans les deux sens.
+ * caméra fois le niveau, arrondi) ; un plan qui n'en suit que la part `parallaxe` y est décalé du reste, de gauche à droite
+ * seulement : de haut en bas, les plans du fond suivent la caméra comme le premier plan (les terrasses restent posées
+ * derrière la grand-rue, à leur hauteur ; choix du designer, 14 novembre 2026).
  * À l'écran, la case (x, y) de ce plan est donc au pixel
  *   x × caseDuPlan(niveau, echelle) + décalage.x − arrondi(caméra.x × niveau)
- * (de même en hauteur), à partir du coin haut gauche de la scène.
+ * (en hauteur : y × caseDuPlan − arrondi(caméra.y × niveau)), à partir du coin haut gauche de la scène.
  */
 export const decalageDuPlan = (camera: { x: number; y: number }, cote: number, parallaxe: number): { x: number; y: number } => ({
   x: Math.round((1 - parallaxe) * camera.x * cote),
-  y: Math.round((1 - parallaxe) * camera.y * cote),
+  y: 0,
 });
+
+/**
+ * Le rang d'un plan du fond sous le premier plan : ce qu'on ajoute à la rangée des pieds pour ranger ses Gaulois en
+ * profondeur. Le premier plan : 0. Un plan du fond passe sous tout le décor du premier plan (les tuiles sont au rang 0),
+ * et d'autant plus bas qu'il glisse moins vite, donc qu'il est plus loin. Le décor de ce plan se pose juste dessous
+ * (`MondeTerrasses`), à ce rang moins `SOUS_LA_FOULE`.
+ */
+export const fondDuPlan = (plan: PlanDeVue): number => (plan.echelle === 1 && plan.parallaxe === 1 ? 0 : -100_000 - Math.round((1 - plan.parallaxe) * 1_000_000));
+export const SOUS_LA_FOULE = 8000;
 
 /** Une boîte de ce plan (en cases du plan), dans le calque du monde (en pixels). */
 export const boiteDansLeCalque = (b: Boite, casePx: number, decalage: { x: number; y: number }): Boite => ({ x: b.x * casePx + decalage.x, y: b.y * casePx + decalage.y, largeur: b.largeur * casePx, hauteur: b.hauteur * casePx });
@@ -96,7 +108,7 @@ export function vueDuPlan(camera: { x: number; y: number; vue: number; vueH: num
 export function milieuPourVoir(point: { x: number; y: number }, camera: { vue: number; vueH: number }, cote: number, plan: PlanDeVue): { x: number; y: number } {
   const c = caseDuPlan(cote, plan.echelle);
   const p = plan.parallaxe > 0 ? plan.parallaxe : 1;
-  return { x: (point.x * c) / (p * cote) - camera.vue / (2 * p) + camera.vue / 2, y: (point.y * c) / (p * cote) - camera.vueH / (2 * p) + camera.vueH / 2 };
+  return { x: (point.x * c) / (p * cote) - camera.vue / (2 * p) + camera.vue / 2, y: (point.y * c) / cote };
 }
 
 /** Un dessin du décor rangé en profondeur avec les Gaulois (une bête, le grand feu, une fumée, le train…) : sa boîte et son z-index. */

@@ -7,7 +7,7 @@ import { lireVillage, messageDeLaPlace } from "../../lib/village/ecran-place";
 import { lumiereDuVillage } from "../../lib/village/lumiere";
 import type { EtatDuMonde } from "../../lib/village/monde-etat";
 import { taillesDesDessins } from "../../lib/village/monde/composition";
-import { type Emplacement, emplacementDuBatiment, emplacementsDe, hautDansLeMonde, planDuMonde, quartierDuLieu } from "../../lib/village/monde/plan";
+import { type Emplacement, cadrageDuMonde, emplacementDuBatiment, emplacementsDe, hautDansLeMonde, planDuMonde, quartierDuLieu } from "../../lib/village/monde/plan";
 import { type FenetreDuMonde, fenetreDeLAncre } from "../../lib/village/monde/textes";
 import type { BatimentId } from "../../lib/village/chantier-liste";
 import { type Habitant, type Lieu, lieuDOuverture, repartirLeVillage } from "../../lib/village/vie";
@@ -130,6 +130,10 @@ function Monde({ etat, me, lien, rafraichir, ferme }: { etat: EtatDuMonde; me: M
   // à qui le serveur ne dit rien des membres, voit le village de départ.
   const habitants = village?.gaulois.length ?? 0;
   const plan = useMemo(() => planDuMonde(taillesDesDessins(), habitants), [habitants]);
+  // La caméra cadre la grand-rue en bas de l'écran, la colline au-dessus d'elle.
+  useMemo(() => {
+    camera.cadrer = cadrageDuMonde(plan);
+  }, [camera, plan]);
 
   // La fenêtre ouverte suit l'adresse ; un compte qui doit encore donner son lien OpenFront le donne d'abord.
   const [ouverte, setOuverte] = useState<FenetreDuMonde | null>(() => fenetreDeLAncre(location.hash));

@@ -1,21 +1,19 @@
 /**
- * Le terrain des étages du monde du village (`plan.ts`) : la colline vue de face. Chaque fonction dessine dans le repère
- * de son étage (la ligne du fond à la rangée 300), en colonnes du monde :
- * - une terrasse : son herbe, son sentier, son mur de soutènement, puis la pente qui descend jusqu'à l'étage du dessous ;
- * - la pente sous la grand-rue, où le ruisseau tombe en cascade vers le bas ;
+ * Le terrain du monde du village (`plan.ts`). Chaque fonction dessine en colonnes et en rangées de la planche qu'on lui
+ * donne :
+ * - une pente d'herbe vue de face, à contre-jour, sans rien de semé dessus, et son mur de soutènement : le talus sous une
+ *   terrasse du fond (`lointain.ts`) et la grande pente sous la grand-rue, où le ruisseau tombe en cascade vers le bas ;
  * - le bas : le pré, le ballast de la voie, le ravin du ruisseau sous le viaduc, puis la falaise, le rivage et la mer ;
- * - les escaliers de pierre qui relient les étages ;
+ * - les escaliers de pierre, vus de face ;
  * - dehors, la terrasse de tables de la taverne et les bancs de la salle de réunion.
  * Rien n'est tiré au hasard : `alea(x, y)` donne un grain qui ne bouge pas. Design : Claude Fable 5.2.
  */
 import { type Palette, type Planche, alea } from "../decor";
 import { type Lumiere, couleurDuDehors, melanger } from "../lumiere";
-import { poserBordDuPre, poserJardinsDeLaPente } from "./jardins";
-import { couleursDeLEau, poserBuisson } from "./pieces";
-import { type Dehors, DESCENTE, LIGNE, MER_FOND, PAS_DE_TERRASSE, type Plan, RAIL, RUE_HAUTEUR, SIEGE_DEHORS, TERRASSE_FIN, TERRASSE_MUR } from "./plan";
+import { poserBordDuPre } from "./jardins";
+import { couleursDeLEau } from "./pieces";
+import { type Dehors, DESCENTE, LIGNE, MER_FOND, type Plan, RAIL, RUE_HAUTEUR, SIEGE_DEHORS } from "./plan";
 
-/** La première colonne où les pentes portent des jardins : avant, c'est le bord du monde. */
-const LISIERE_DES_JARDINS = 60;
 
 /** Les couleurs de la roche et de la pierre taillée, à cette heure. */
 export function couleursDeLaRoche(l: Lumiere) {
@@ -28,7 +26,6 @@ export function couleursDeLaRoche(l: Lumiere) {
  * plis, semée de pierres, de fleurs et de buissons.
  */
 export function poserPente(planche: Planche, p: Palette, l: Lumiere, de: number, a: number, haut: number, bas: number, graine: number): void {
-  const roche = couleursDeLaRoche(l);
   const ombre = melanger(p.herbe.sombre, "#0a1230", 0.25);
   // Le versant est à contre-jour : un ton plus sombre que l'herbe des rues.
   const versant = melanger(p.herbe.fond, p.herbe.sombre, 0.6);
@@ -49,22 +46,10 @@ export function poserPente(planche: Planche, p: Palette, l: Lumiere, de: number,
       planche.poser(x, y, couleur);
     }
   }
-  // Les pierres, les fleurs et les buissons, toujours aux mêmes endroits.
-  for (let y = haut + 10; y < bas - 12; y += 7) {
-    for (let x = de - (de % 11); x < a; x += 11) {
-      const g = alea(Math.floor(x / 11) + graine * 7, Math.floor(y / 7) + 77);
-      if (g < 0.018) {
-        planche.lettres(x, y, [".ccf.", "cfffs", "ffsss"], { c: roche.clair, f: roche.fond, s: roche.sombre });
-      } else if (g < 0.03) {
-        planche.poser(x, y, couleurDuDehors(g < 0.024 ? "#f4ecc8" : "#ffd75a", "#7f8aa6", l));
-        planche.poser(x, y + 1, p.herbe.sombre);
-      } else if (g > 0.9978) poserBuisson(planche, p, x, y + 12, 0.9 + (g - 0.9978) * 200);
-    }
-  }
 }
 
 /** Un mur de soutènement en pierres sèches, de la rangée `haut` à la rangée `bas`, coiffé d'herbe. */
-function poserMur(planche: Planche, p: Palette, l: Lumiere, de: number, a: number, haut: number, bas: number): void {
+export function poserMur(planche: Planche, p: Palette, l: Lumiere, de: number, a: number, haut: number, bas: number): void {
   const roche = couleursDeLaRoche(l);
   for (let y = haut; y < bas; y++) {
     const lit = Math.floor((y - haut) / 4);
@@ -98,54 +83,12 @@ export function poserEscalier(planche: Planche, l: Lumiere, cx: number, haut: nu
   for (const dx of [-demi - 4, demi + 4]) planche.rect(cx + dx, haut - 3, 1, bas - haut + 3, roche.creux);
 }
 
-/**
- * Une terrasse de la colline : l'herbe et le sentier où l'on marche, le mur de soutènement, puis la pente jusqu'à l'étage
- * du dessous, avec son escalier. `t` : son rang (1 : juste au-dessus de la grand-rue).
- */
-export function poserTerrasse(planche: Planche, p: Palette, l: Lumiere, plan: Plan, de: number, a: number, t: number): void {
-  for (let y = LIGNE; y < TERRASSE_MUR; y++) {
-    for (let x = de; x < a; x++) {
-      const g = alea(x + 3 + t * 13, y + 1009);
-      let couleur: string = g < 0.045 ? p.herbe.claire : g < 0.08 ? p.herbe.sombre : p.herbe.fond;
-      if (y === LIGNE) couleur = g < 0.5 ? p.herbe.bord : p.herbe.fond;
-      // Le sentier de la terrasse, d'un bout de forêt à l'autre : de la terre battue, aux bords mêlés d'herbe.
-      if (x > plan.hauts.de - 20 && x < plan.hauts.a + 20) {
-        const ecart = Math.abs(y - (334 + Math.round(3 * Math.sin((x + t * 90) / 71))));
-        const s = alea(x, y + 300 + t);
-        if (ecart <= 7) couleur = s < 0.1 ? p.terre.claire : s < 0.2 ? p.terre.sombre : p.terre.fond;
-        else if (ecart <= 10 && (x + y) % 2 === 0) couleur = s < 0.5 ? p.terre.fond : p.terre.sombre;
-      }
-      planche.poser(x, y, couleur);
-    }
-  }
-  poserMur(planche, p, l, de, a, TERRASSE_MUR, TERRASSE_FIN);
-  poserPente(planche, p, l, de, a, TERRASSE_FIN, LIGNE + PAS_DE_TERRASSE, t);
-  // Les jardins de la pente, partout où ne passe pas un escalier.
-  const escaliers = plan.escaliers.filter((e) => e.de === t).map((e) => e.x);
-  poserJardinsDeLaPente(planche, p, l, de, a, TERRASSE_FIN + 4, LIGNE + PAS_DE_TERRASSE - 4, t, (x0, x1) => x0 > plan.hauts.de && x1 < plan.hauts.a && escaliers.every((x) => x < x0 - 22 || x > x1 + 22));
-  for (const escalier of plan.escaliers) {
-    if (escalier.de === t && escalier.x + 20 > de && escalier.x - 20 < a) poserEscalier(planche, l, escalier.x, TERRASSE_MUR - 2, LIGNE + PAS_DE_TERRASSE + 2);
-  }
-}
 
 /** La pente sous la grand-rue, jusqu'au bas : son mur, l'herbe, l'escalier, et le ruisseau qui tombe en cascade. */
 export function poserPenteDeLaRue(planche: Planche, p: Palette, l: Lumiere, plan: Plan, de: number, a: number): void {
   const bas = LIGNE + DESCENTE;
   poserMur(planche, p, l, de, a, RUE_HAUTEUR, RUE_HAUTEUR + 12);
   poserPente(planche, p, l, de, a, RUE_HAUTEUR + 12, bas, 0);
-  // Les jardins de la grande pente : ni sur l'escalier, ni sur la cascade, ni au-dessus de la falaise.
-  const descentes = plan.escaliers.filter((e) => e.de === 0).map((e) => e.x);
-  poserJardinsDeLaPente(
-    planche,
-    p,
-    l,
-    de,
-    a,
-    RUE_HAUTEUR + 16,
-    bas - 4,
-    0,
-    (x0, x1) => x0 > LISIERE_DES_JARDINS && x1 < plan.mer.de - 40 && descentes.every((x) => x < x0 - 22 || x > x1 + 22) && (plan.ruisseau.x < x0 - 40 || plan.ruisseau.x > x1 + 40),
-  );
   for (const escalier of plan.escaliers) {
     if (escalier.de === 0 && escalier.x + 20 > de && escalier.x - 20 < a) poserEscalier(planche, l, escalier.x, RUE_HAUTEUR - 2, bas + 2);
   }

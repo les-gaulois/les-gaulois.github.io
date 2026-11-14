@@ -11,6 +11,7 @@
  */
 import { type Palette, type Planche, alea } from "../decor";
 import { type Lumiere, cielDuVillage, couleurDuDedans, couleurDuDehors, melanger } from "../lumiere";
+import { type Essence, poserArbre } from "./arbres";
 import { LIT_HAUTEUR, LIT_LARGEUR } from "./poses-monde";
 import { type Emplacement, LIGNE, RUE_HAUTEUR, PIED_DU_PONT, PLANCHER, type Plan } from "./plan";
 
@@ -21,10 +22,6 @@ const TRICOLORE = ["#2456b8", "#e8e6e0", "#c8283a"] as const;
 
 /* ---------- Les mesures des intérieurs, que `postes.ts` relit pour y asseoir et y coucher les Gaulois ---------- */
 
-/** Une maison : l'avant-toit, le plancher de la soupente, et les lits (deux par étage, l'un à côté de l'autre). */
-export const MAISON_AVANT_TOIT = 124;
-export const MAISON_SOUPENTE = 66;
-export const MAISON_LITS = [12, 92] as const;
 /** Une salle (taverne, salle de réunion) : l'avant-toit, et la colonne du premier siège de chaque rang de table. */
 export const SALLE_AVANT_TOIT = 128;
 export const SALLE_SIEGE_DEVANT = 30;
@@ -252,79 +249,6 @@ export function poserLitVide(planche: Planche, x: number, y: number, rang: numbe
   planche.rect(x + 50, y + 21, 17, 7, (i, j) => t(j === y + 21 || i === x + 50 || i === x + 66 ? melanger(laine, "#1a1410", 0.3) : (i - x) % 4 === 0 ? melanger(laine, "#1a1410", 0.16) : laine));
 }
 
-/**
- * Une maison ouverte sur le devant : deux lits au rez-de-chaussée, deux dans la soupente où mène une échelle, un toit de
- * chaume et sa cheminée. C'est là que dorment les Gaulois ; un clic l'ouvre sur « Mon Gaulois ».
- */
-export function poserMaison(planche: Planche, p: Palette, l: Lumiere, e: Emplacement, rang: number): void {
-  const t: Teinte = (couleur) => couleurDuDedans(couleur, l);
-  const x = e.x;
-  const avantToit = e.pied - MAISON_AVANT_TOIT;
-  const soupente = e.pied - MAISON_SOUPENTE;
-  const de = x + 10;
-  const a = x + e.largeur - 11;
-  const clayonnage = (i: number, j: number): string => ((j - avantToit) % 3 === 2 ? "#7c6040" : alea(i, j) < 0.06 ? "#8a6c47" : "#94744c");
-  const terre = (i: number, j: number, part: number): string => {
-    const g = alea(i, j + 200);
-    return g < 0.03 ? "#b89c5f" : g < 0.08 ? "#5f4a32" : part > 0.6 ? "#775f41" : "#6b5439";
-  };
-  const lames = (i: number, j: number, part: number): string => ((i + Math.floor(part * 3) * 11) % 23 === 0 ? "#6a4f32" : part > 0.55 ? "#a07e50" : "#94744a");
-  // La soupente, puis le rez-de-chaussée : chacun sa pièce.
-  poserPiece(planche, { de, a, haut: avantToit, fond: soupente - 9, devant: soupente - 1, fuite: 8, mur: clayonnage, sol: lames, cote: clayonnage }, t);
-  poserPiece(planche, { de, a, haut: soupente + 4, fond: PLANCHER - 10, devant: PLANCHER, fuite: 8, mur: clayonnage, sol: terre, cote: clayonnage }, t);
-  const centre = x + Math.floor(e.largeur / 2);
-  // Dans la soupente : une lucarne ronde, des herbes à sécher, un bouclier ou une tunique au mur, d'une maison à l'autre.
-  const ciel = cielDuVillage(l);
-  planche.disque(centre, avantToit + 10, 6, (dx, dy) => (dx * dx + dy * dy > 26 ? t("#3d2616") : dx === 0 || dy === 0 ? t("#523419") : dy < 0 ? ciel[2]! : ciel[3]!));
-  for (const dx of rang % 2 === 0 ? [-52, -44, -36, 34, 42] : [-46, -38, 38, 46, 54]) {
-    planche.rect(centre + dx, avantToit + 5, 1, 4, t("#8a7a55"));
-    planche.rect(centre + dx - 1, avantToit + 9, 3, 7, (i, j) => t((i + j) % 2 === 0 ? (dx % 4 === 0 ? "#6f9d56" : "#c9a23a") : dx % 4 === 0 ? "#4f7d3a" : "#9c7a1f"));
-  }
-  // Au rez-de-chaussée : une étagère de pots, et une lanterne pendue sous la soupente, dont la lueur s'élargit la nuit.
-  poserEtagere(planche, x + 24, x + 64, soupente + 17, t);
-  planche.disque(centre + 38, soupente + 13, 6, (i, j) => {
-    const d = i * i + j * j;
-    if (d > 30) return t("#3d2616");
-    if (d <= 2) return t("#8d95a6");
-    return t(i * j >= 0 ? TRICOLORE[rang % 3]! : TRICOLORE[1]);
-  });
-  const force = 0.2 + 0.28 * (1 - l.jour);
-  planche.disque(centre, soupente + 12, 20, (dx, dy) => {
-    const fond = planche.lire(centre + dx, soupente + 12 + dy);
-    const d = (dx * dx) / 2.4 + dy * dy;
-    if (!fond || d > 150 || (d > 60 && (dx + dy) % 2 !== 0)) return null;
-    return melanger(fond, "#f5a83a", force * (d > 60 ? 0.5 : 1));
-  });
-  planche.rect(centre, soupente + 4, 1, 5, t("#3d2616"));
-  planche.rect(centre - 2, soupente + 9, 5, 1, t("#3d2616"));
-  planche.rect(centre - 1, soupente + 10, 3, 4, "#ffd75a");
-  planche.poser(centre, soupente + 11, "#fff1a8");
-  planche.rect(centre - 2, soupente + 14, 5, 1, t("#3d2616"));
-  // Le plancher de la soupente, vu par la tranche, et le seuil.
-  planche.rect(de - 2, soupente, a - de + 5, 4, (i, j) => t(j === soupente ? "#b07a44" : j === soupente + 3 ? "#3d2616" : (i - x) % 19 === 0 ? "#523419" : "#7a5230"));
-  planche.rect(x + 6, PLANCHER + 1, e.largeur - 12, e.pied - PLANCHER, (i, j) => t(j === PLANCHER + 1 ? "#b98a52" : j === e.pied ? "#3d2616" : (i - x) % 17 === 0 ? "#6a4424" : "#8a6238"));
-  // Les lits, vides tant que personne n'y dort.
-  for (const dx of MAISON_LITS) {
-    poserLitVide(planche, x + dx, PLANCHER - LIT_HAUTEUR, rang + dx, t);
-    poserLitVide(planche, x + dx, soupente - LIT_HAUTEUR, rang + dx + 1, t);
-  }
-  // L'échelle de la soupente, entre les deux lits.
-  planche.rect(x + 85, soupente + 4, 1, PLANCHER - soupente - 4, t("#8a5a30"));
-  planche.rect(x + 90, soupente + 4, 1, PLANCHER - soupente - 4, t("#523419"));
-  for (let y = soupente + 8; y < PLANCHER - 2; y += 6) planche.rect(x + 86, y, 4, 1, t("#b07a44"));
-  // Les deux poteaux d'angle en torchis, la sablière, le toit qui déborde et sa cheminée.
-  for (const cote of [x + 4, x + e.largeur - 10]) {
-    planche.rect(cote, avantToit, 6, e.pied - avantToit + 1, (i, j) => {
-      if (i === cote) return p.mur.clair;
-      if (i === cote + 5) return p.mur.ombre;
-      return (j - avantToit) % 3 === 2 ? p.mur.trame : p.mur.fond;
-    });
-  }
-  planche.rect(x + 2, avantToit - 1, e.largeur - 4, 4, (_i, j) => (j === avantToit + 2 ? p.bois.creux : j === avantToit - 1 ? p.bois.clair : p.bois.fond));
-  const faite = e.pied - e.hauteur + 3;
-  poserChaume(planche, p, x, x + e.largeur - 1, faite, avantToit - 2, 30 + (rang % 2) * 8);
-  poserCheminee(planche, l, x + (rang % 2 === 0 ? 112 : 50), faite - 8, faite + 22);
-}
 
 /* ---------- La taverne et la salle de réunion ---------- */
 
@@ -585,81 +509,14 @@ export function poserCamp(planche: Planche, p: Palette, e: Emplacement): void {
   }
 }
 
-/* ---------- Les arbres ---------- */
+/* ---------- La lisière ---------- */
 
-const RAMURE = [
-  { x: 0, y: -108, r: 34 },
-  { x: -32, y: -88, r: 25 },
-  { x: 32, y: -90, r: 26 },
-  { x: -16, y: -128, r: 23 },
-  { x: 19, y: -126, r: 23 },
-  { x: 2, y: -72, r: 27 },
-] as const;
-
-/** Un grand chêne de la forêt, à la taille des Gaulois : `taille` de 0,6 à 1,2 ; `sombre` pour ceux du fond de la lisière. */
-export function poserGrandArbre(planche: Planche, p: Palette, cx: number, pied: number, taille = 1, sombre = false): void {
-  const hautDuTronc = Math.round(66 * taille);
-  const demiTronc = Math.max(3, Math.round(7 * taille));
-  for (let y = pied - hautDuTronc; y <= pied; y++) {
-    const evase = y > pied - 6 ? Math.ceil((y - (pied - 6)) / 2) : 0;
-    for (let dx = -demiTronc - evase; dx <= demiTronc + evase; dx++) {
-      let couleur: string = dx < -demiTronc / 2 ? p.tronc.clair : dx > demiTronc / 3 ? p.tronc.sombre : p.tronc.fond;
-      if (alea(cx + dx, y >> 2) < 0.12) couleur = p.tronc.sombre;
-      planche.poser(cx + dx, y, couleur);
-    }
-  }
-  const boules = RAMURE.map((b) => ({ x: Math.round(b.x * taille), y: Math.round(b.y * taille), r: Math.round(b.r * taille) }));
-  const haut = Math.min(...boules.map((b) => b.y - b.r));
-  const bas = Math.max(...boules.map((b) => b.y + b.r));
-  const demi = Math.max(...boules.map((b) => Math.abs(b.x) + b.r));
-  for (let dy = haut; dy <= bas; dy++) {
-    for (let dx = -demi; dx <= demi; dx++) {
-      // Chaque case prend la boule dont elle est le plus au cœur : la ramure se lit en masses rondes.
-      let boule: (typeof boules)[number] | null = null;
-      let pres = 1;
-      for (const b of boules) {
-        const d = ((dx - b.x) * (dx - b.x) + (dy - b.y) * (dy - b.y)) / (b.r * b.r);
-        if (d <= pres) {
-          pres = d;
-          boule = b;
-        }
-      }
-      if (!boule) continue;
-      // La lumière vient d'en haut à gauche : le haut de chaque masse est clair, son bas sombre, son bord souligné.
-      const pente = ((dx - boule.x) * 0.6 + (dy - boule.y)) / boule.r;
-      const a = alea(cx + dx, dy + 500);
-      let couleur: string = pente < -0.5 ? p.feuilles.claire : pente > 0.38 ? p.feuilles.sombre : p.feuilles.fond;
-      if (pres > 0.8 && pente > -0.2) couleur = p.feuilles.sombre;
-      else if (a < 0.1) couleur = pente < -0.5 ? p.feuilles.fond : p.feuilles.sombre;
-      else if (a > 0.93 && pente < 0.38) couleur = p.feuilles.claire;
-      if (sombre) couleur = couleur === p.feuilles.claire ? p.feuilles.fond : p.feuilles.sombre;
-      planche.poser(cx + dx, pied + dy, couleur);
-    }
-  }
-}
-
-/** Un buisson : trois boules basses. */
-export function poserBuisson(planche: Planche, p: Palette, cx: number, pied: number, taille = 1): void {
-  for (const b of [
-    { x: -8, y: -6, r: 8 },
-    { x: 7, y: -5, r: 7 },
-    { x: 0, y: -10, r: 9 },
-  ]) {
-    const r = Math.round(b.r * taille);
-    planche.disque(cx + Math.round(b.x * taille), pied + Math.round(b.y * taille), r, (dx, dy) => {
-      const pente = (dx * 0.6 + dy) / r;
-      if (dx * dx + dy * dy > r * r * 0.8 && pente > -0.2) return p.feuilles.sombre;
-      if (alea(cx + dx + b.x, dy + 40) < 0.1) return pente < -0.5 ? p.feuilles.fond : p.feuilles.sombre;
-      return pente < -0.5 ? p.feuilles.claire : pente > 0.4 ? p.feuilles.sombre : p.feuilles.fond;
-    });
-  }
-}
-
-/** La lisière de la forêt, à un bout du monde : des chênes serrés sur plusieurs rangs, du plus sombre au plus clair. */
-export function poserLisiere(planche: Planche, p: Palette, de: number, a: number): void {
-  for (let x = de - 20; x <= a + 20; x += 34) poserGrandArbre(planche, p, x + Math.round(alea(x, 3) * 14), LIGNE - 10 - Math.round(alea(x, 9) * 8), 1.05 + alea(x, 5) * 0.2, true);
-  for (let x = de - 4; x <= a + 10; x += 46) poserGrandArbre(planche, p, x + Math.round(alea(x, 13) * 16), LIGNE + 2 + Math.round(alea(x, 19) * 6), 0.85 + alea(x, 15) * 0.3);
-  for (let x = de; x <= a; x += 28) poserBuisson(planche, p, x + Math.round(alea(x, 23) * 10), LIGNE + 12 + Math.round(alea(x, 29) * 8), 1.2);
+/** La lisière de la forêt, à un bout du monde : des arbres serrés sur deux rangs, des buissons devant. */
+export function poserLisiere(planche: Planche, p: Palette, l: Lumiere, de: number, a: number): void {
+  const essences: readonly Essence[] = ["sapin", "hetre", "chene", "sapin", "bouleau", "hetre", "sapin"];
+  for (let x = de - 20, n = 0; x <= a + 20; x += 50, n++) poserArbre(planche, p, l, essences[n % essences.length]!, x + Math.round(alea(x, 3) * 14), LIGNE - 8 - Math.round(alea(x, 9) * 8), 900 + n, 0.96 + alea(x, 5) * 0.16);
+  for (let x = de - 4, n = 0; x <= a + 10; x += 72, n++) poserArbre(planche, p, l, essences[(n * 3 + 2) % essences.length]!, x + Math.round(alea(x, 13) * 16), LIGNE + 3 + Math.round(alea(x, 19) * 6), 950 + n, 0.8 + alea(x, 15) * 0.2);
+  for (let x = de, n = 0; x <= a; x += 44, n++) poserArbre(planche, p, l, "buisson", x + Math.round(alea(x, 23) * 10), LIGNE + 14 + Math.round(alea(x, 29) * 8), 980 + n, 1.1);
 }
 
 /* ---------- Un emplacement pas encore bâti ---------- */
@@ -813,8 +670,8 @@ export function poserRives(planche: Planche, p: Palette, l: Lumiere, plan: Plan,
   const eau = couleursDeLEau(l);
   // La source se perd dans les buissons, au fond.
   const fond = litDuRuisseau(plan, LIGNE);
-  poserBuisson(planche, p, fond.x - 9, LIGNE + 3, 1.1);
-  poserBuisson(planche, p, fond.x + 10, LIGNE + 2, 1.3);
+  poserArbre(planche, p, l, "buisson", fond.x - 9, LIGNE + 3, 61, 1.1);
+  poserArbre(planche, p, l, "buisson", fond.x + 10, LIGNE + 2, 62, 1.3);
   for (let y = LIGNE + 14; y < RUE_HAUTEUR - 4; y += 9) {
     const lit = litDuRuisseau(plan, y);
     const cote = ((y / 9) | 0) % 2 === 0 ? -1 : 1;
@@ -847,13 +704,3 @@ export function poserRives(planche: Planche, p: Palette, l: Lumiere, plan: Plan,
 
 /* ---------- Les cheminées qui fument ---------- */
 
-/** Le haut de chaque cheminée du plan (maisons, taverne) : l'écran y fait monter une fumée lente. */
-export function chemineesDuPlan(plan: Plan): { x: number; y: number }[] {
-  const cheminees: { x: number; y: number }[] = [];
-  for (const e of plan.emplacements) {
-    const faite = e.dy + e.pied - e.hauteur + 3;
-    if (e.piece.sorte === "maison") cheminees.push({ x: e.x + (e.piece.rang % 2 === 0 ? 112 : 50) + 7, y: faite - 8 });
-    else if (e.piece.sorte === "taverne") cheminees.push({ x: e.x + 262 + 7, y: faite - 10 });
-  }
-  return cheminees;
-}

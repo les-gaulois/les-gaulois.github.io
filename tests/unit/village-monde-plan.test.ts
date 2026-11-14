@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { taillesDesDessins } from "../../src/lib/village/monde/composition";
 import { CYCLE, lutinsDesEvenements } from "../../src/lib/village/monde/evenements";
-import { CIEL, HABITANTS_MAX, LIGNE, LITS_PAR_MAISON, dyDeLaTerrasse, emplacementsDe, maisonsPour, planDuMonde } from "../../src/lib/village/monde/plan";
+import { cadreDeLArbre } from "../../src/lib/village/monde/arbres";
+import { bandeDeLaTerrasse } from "../../src/lib/village/monde/lointain";
+import { MODELES, litsDeLaMaison } from "../../src/lib/village/monde/maisons";
+import { AU_DESSUS, BANDE_BAS, CIEL, HABITANTS_MAX, LIGNE, LISIERE_DU_FOND, PAS_DE_TERRASSE, PREMIERE_TERRASSE, type Plan, cadrageDuMonde, emplacementsDe, logisDuRang, maisonsPour, planDuMonde } from "../../src/lib/village/monde/plan";
 import { placesDuLieu, zoneDuPromeneur } from "../../src/lib/village/monde/postes";
 import { DESSINS_OPENFRONT } from "../../src/lib/village/openfront";
 
 const tailles = taillesDesDessins();
 const rangs = (n: number): number[] => Array.from({ length: n }, (_, i) => i);
+/** Le nombre de maisons du village : trois sur la grand-rue, les autres sur les terrasses du fond. */
+const maisonsDuPlan = (plan: Plan): number => emplacementsDe(plan, "maison").length + plan.lointaines.reduce((somme, t) => somme + t.places.filter((p) => p.rang !== null).length, 0);
 
 describe("le plan du monde du village, de 0 à 1 000 Gaulois", () => {
   it("bâtit une maison de 4 lits par tranche de 4 Gaulois, trois au moins", () => {
@@ -16,47 +21,95 @@ describe("le plan du monde du village, de 0 à 1 000 Gaulois", () => {
     expect(maisonsPour(100)).toBe(25);
     expect(maisonsPour(1000)).toBe(250);
     expect(maisonsPour(5000)).toBe(250);
-    for (const n of [0, 15, 100, 1000]) expect(emplacementsDe(planDuMonde(tailles, n), "maison")).toHaveLength(maisonsPour(n));
+    for (const n of [0, 15, 100, 300, 1000]) {
+      const plan = planDuMonde(tailles, n);
+      expect(emplacementsDe(plan, "maison")).toHaveLength(3);
+      expect(maisonsDuPlan(plan)).toBe(maisonsPour(n));
+      // Chaque maison a son rang, une seule fois.
+      const rangsDesMaisons = plan.lointaines.flatMap((t) => t.places.flatMap((p) => (p.rang === null ? [] : [p.rang])));
+      expect(new Set(rangsDesMaisons).size).toBe(rangsDesMaisons.length);
+      expect([...rangsDesMaisons].sort((a, b) => a - b)).toEqual(Array.from({ length: maisonsPour(n) - 3 }, (_, i) => i + 3));
+    }
   });
 
   it("donne le même monde pour le même nombre, et ne le fait bouger que quand le nombre change de tranche", () => {
     expect(planDuMonde(tailles, 100)).toEqual(planDuMonde(tailles, 100));
     const a = planDuMonde(tailles, 13);
     const b = planDuMonde(tailles, 16);
-    expect(emplacementsDe(a, "maison").map((e) => [e.x, e.dy])).toEqual(emplacementsDe(b, "maison").map((e) => [e.x, e.dy]));
+    expect(a.lointaines).toEqual(b.lointaines);
+    expect(a.dy0).toBe(b.dy0);
   });
 
-  it("étage les maisons en terrasses sans qu'elles se chevauchent, la plus haute ligne toujours sous le ciel", () => {
-    for (const n of [0, 15, 100, 400, 1000]) {
+  it("étage les maisons sur des terrasses du fond : deux au moins, des jardins sur une place sur cinq, la plus haute juste sous les lointains", () => {
+    for (const n of [0, 15, 100, 300, 400, 1000]) {
       const plan = planDuMonde(tailles, n);
-      expect(dyDeLaTerrasse(plan, plan.terrasses) + LIGNE).toBe(CIEL);
-      const maisons = emplacementsDe(plan, "maison");
-      const parEtage = new Map<number, typeof maisons>();
-      for (const m of maisons) parEtage.set(m.dy, [...(parEtage.get(m.dy) ?? []), m]);
-      for (const etage of parEtage.values()) {
-        const tri = [...etage].sort((p, q) => p.x - q.x);
-        for (let k = 1; k < tri.length; k++) expect(tri[k]!.x).toBeGreaterThanOrEqual(tri[k - 1]!.x + tri[k - 1]!.largeur);
-      }
-      // Aucune maison de terrasse sur le passage d'un escalier.
-      for (const m of maisons) {
-        if (m.dy === plan.dy0) continue;
-        for (const escalier of plan.escaliers) expect(escalier.x < m.x - 14 || escalier.x > m.x + m.largeur + 14 || escalier.de === 0).toBe(true);
-      }
+      expect(plan.terrasses).toBe(plan.lointaines.length);
+      expect(plan.terrasses).toBeGreaterThanOrEqual(2);
+      const ligne = plan.dy0 + LIGNE;
+      plan.lointaines.forEach((t, k) => {
+        expect(t.rang).toBe(k + 1);
+        // Une case du fond vaut une demi-case du monde : la ligne de la terrasse, en rangées du monde.
+        expect(t.sol / 2).toBe(ligne - PREMIERE_TERRASSE - k * PAS_DE_TERRASSE);
+        if (k > 0) expect(t.parallaxe).toBeLessThan(plan.lointaines[k - 1]!.parallaxe);
+        expect(t.parallaxe).toBeGreaterThan(0);
+        expect(t.parallaxe).toBeLessThan(1);
+        // Les places se suivent sans se chevaucher, entre les deux bouts de forêt ; jamais deux voisines du même modèle.
+        t.places.forEach((p, i) => {
+          expect(p.x).toBeGreaterThanOrEqual(LISIERE_DU_FOND);
+          expect(p.x + MODELES[p.modele].largeur).toBeLessThanOrEqual(t.largeur - LISIERE_DU_FOND);
+          if (i > 0) {
+            const avant = t.places[i - 1]!;
+            expect(p.x).toBeGreaterThanOrEqual(avant.x + MODELES[avant.modele].largeur + 60);
+            expect(p.modele).not.toBe(avant.modele);
+          }
+        });
+        expect(t.places.filter((p) => p.rang !== null).length).toBeLessThanOrEqual(Math.floor(t.places.length * 0.8));
+        // Le talus descend jusque derrière ce qui est devant la terrasse.
+        const bande = bandeDeLaTerrasse(t);
+        const devant = k === 0 ? ligne : plan.lointaines[k - 1]!.sol / 2;
+        expect((bande.haut + bande.hauteur) / 2).toBeGreaterThan(devant);
+        // Le plus grand arbre tient dans la bande.
+        expect(t.sol - bande.haut).toBeGreaterThanOrEqual(cadreDeLArbre("hetre", 0, 1.14).hauteur);
+      });
+      expect(plan.lointaines[plan.terrasses - 1]!.sol / 2).toBe(CIEL + AU_DESSUS);
       expect(plan.hauteur).toBeGreaterThan(plan.dyBas);
       expect(plan.largeur).toBeGreaterThan(plan.mer.de);
     }
+    // La cible du pilote : 250 à 350 Gaulois vivent bien, sur peu de terrasses ; 1 000 tiennent encore.
+    expect(planDuMonde(tailles, 250).terrasses).toBeLessThanOrEqual(3);
+    expect(planDuMonde(tailles, 350).terrasses).toBeLessThanOrEqual(4);
+    expect(planDuMonde(tailles, 1000).terrasses).toBeLessThanOrEqual(12);
   });
 
-  it("donne à chacun des 1 000 Gaulois son lit, dans la maison de son rang", () => {
+  it("cadre la grand-rue en bas de l'écran, la colline au-dessus d'elle ; ailleurs, le point visé au milieu", () => {
+    const plan = planDuMonde(tailles, 300);
+    const cadrer = cadrageDuMonde(plan);
+    expect(cadrer(plan.dy0 + 190, 500) + 500).toBe(plan.dy0 + BANDE_BAS + 14);
+    expect(cadrer(plan.dyBas + 230, 500)).toBe(plan.dyBas + 230 - 250);
+    expect(cadrer(100, 400)).toBe(-100);
+  });
+
+  it("donne à chacun des 1 000 Gaulois son lit, dans la maison de son rang, sur la grand-rue ou sur sa terrasse", () => {
     const plan = planDuMonde(tailles, HABITANTS_MAX);
     const lits = placesDuLieu(plan, "maisons", rangs(HABITANTS_MAX));
-    expect(new Set(lits.map((p) => `${p.x},${p.y}`)).size).toBe(HABITANTS_MAX);
-    const maisons = emplacementsDe(plan, "maison");
+    expect(new Set(lits.map((p) => `${p.parallaxe ?? 1}:${p.x},${p.y}`)).size).toBe(HABITANTS_MAX);
     lits.forEach((lit, rang) => {
-      const maison = maisons[Math.floor(rang / LITS_PAR_MAISON)]!;
-      expect(lit.x).toBeGreaterThanOrEqual(maison.x);
-      expect(lit.x).toBeLessThan(maison.x + maison.largeur);
+      const logis = logisDuRang(plan, rang);
+      const modele = MODELES[logis.modele];
+      expect(lit.x).toBeGreaterThanOrEqual(logis.x);
+      expect(lit.x + 72).toBeLessThanOrEqual(logis.x + modele.largeur);
+      expect(lit.y).toBeGreaterThan(logis.pied - modele.hauteur);
+      expect(lit.y + 40).toBeLessThanOrEqual(logis.pied);
+      // Les douze premiers dorment sur la grand-rue, au premier plan ; les autres au fond, à l'échelle de leur terrasse.
+      if (rang < 12) expect(lit.echelle).toBeUndefined();
+      else {
+        expect(lit.echelle).toBe(0.5);
+        expect(lit.parallaxe).toBe(logis.terrasse!.parallaxe);
+        expect(lit.saut).toBe(true);
+      }
     });
+    // Dans une maison retournée, les lits restent dans la maison.
+    for (const modele of Object.values(MODELES)) for (const variante of [1, 2, 3, 4, 5, 6]) for (const lit of litsDeLaMaison(modele, variante)) expect(lit.x >= 0 && lit.x + 72 <= modele.largeur && lit.y <= modele.hauteur && lit.y >= 40).toBe(true);
   });
 
   it("assoit à l'aise un quart des Gaulois à la taverne et un cinquième à la réunion, et range les combattants sur le pré", () => {
@@ -86,7 +139,19 @@ describe("le plan du monde du village, de 0 à 1 000 Gaulois", () => {
       const zone = zoneDuPromeneur(plan, rang);
       expect(zone.de).toBeLessThan(zone.a);
       expect(zone.haut).toBeLessThanOrEqual(zone.bas);
-      expect(zone.bas).toBeLessThan(plan.hauteur);
+      if (zone.echelle) {
+        // Sur une terrasse du fond : la zone tient sur son sentier, et la place porte le plan de la terrasse.
+        const t = logisDuRang(plan, rang).terrasse!;
+        expect(zone.de).toBeGreaterThanOrEqual(0);
+        expect(zone.a + 48).toBeLessThanOrEqual(t.largeur);
+        expect(zone.haut + 64).toBeGreaterThan(t.sol);
+        expect(zone.bas + 64).toBeLessThan(t.sol + 26);
+        expect(place.echelle).toBe(0.5);
+        expect(place.parallaxe).toBe(t.parallaxe);
+      } else {
+        expect(zone.bas).toBeLessThan(plan.hauteur);
+        expect(place.echelle).toBeUndefined();
+      }
       expect(place.x).toBeGreaterThanOrEqual(zone.de);
       expect(place.x).toBeLessThanOrEqual(zone.a);
       expect(place.y).toBeGreaterThanOrEqual(zone.haut);

@@ -19,10 +19,12 @@ import { type Decor, type Palette, Planche, alea, paletteDuDehors } from "../dec
 import { type Lumiere, melanger } from "../lumiere";
 import type { EtatDuMonde } from "../monde-etat";
 import { DESSINS_OPENFRONT, type PieceOpenFrontId } from "../openfront";
-import { poserPenteDeLaRue, poserSiegesDehors, poserSolDuBas, poserTerrasse } from "./etages";
-import { poserJardinDeTerrasse } from "./jardins";
-import { couleursDeLEau, litDuRuisseau, poserBuisson, poserCamp, poserEtal, poserGrandArbre, poserLisiere, poserMaison, poserPiquets, poserReunion, poserRives, poserSol, poserTaverne } from "./pieces";
-import { DESCENTE, type Emplacement, LIGNE, LISIERE, MER_FOND, PAS_DE_TERRASSE, PIED_DU_PONT, type Plan, RAIL, RUE_HAUTEUR, TUILE, type Tailles, dyDeLaTerrasse, emplacementDuBatiment, emplacementsDe, hautDansLeMonde } from "./plan";
+import { type Essence, cadreDeLArbre, essenceDuSemis, poserArbre } from "./arbres";
+import { poserPenteDeLaRue, poserSiegesDehors, poserSolDuBas } from "./etages";
+import { poserCloture, poserHaie, poserMuret, teintesDuJardin } from "./jardins";
+import { MODELES, fumeeDeLaMaison, poserMaisonDuModele } from "./maisons";
+import { couleursDeLEau, litDuRuisseau, poserCamp, poserEtal, poserLisiere, poserPiquets, poserReunion, poserRives, poserSol, poserTaverne } from "./pieces";
+import { DESCENTE, type Emplacement, LIGNE, LISIERE, MER_FOND, PIED_DU_PONT, type Plan, RAIL, RUE_HAUTEUR, TUILE, type Tailles, emplacementDuBatiment, emplacementsDe, hautDansLeMonde } from "./plan";
 
 /** Les tailles des dessins faits par d'autres, lues sur les dessins eux-mêmes. */
 export function taillesDesDessins(): Tailles {
@@ -104,21 +106,74 @@ function seuilsDuPlan(plan: Plan): { x: number; demi: number }[] {
     .map((e) => ({ x: e.x + Math.floor(e.largeur / 2), demi: Math.round(e.largeur * 0.36) }));
 }
 
+
+/** Ce qui pousse sur la grand-rue : un arbre ou un buisson, vu de côté, posé sur son sol. */
+interface Plante {
+  essence: Essence;
+  x: number;
+  pied: number;
+  variante: number;
+  taille?: number;
+}
+
 /** Les arbres et les buissons plantés entre les bâtiments de la grand-rue : toujours les mêmes, d'après le plan. */
-function plantations(plan: Plan): { sorte: "arbre" | "buisson"; x: number; pied: number; taille: number }[] {
-  const plantes: { sorte: "arbre" | "buisson"; x: number; pied: number; taille: number }[] = [];
+function plantations(plan: Plan): Plante[] {
+  const plantes: Plante[] = [];
+  const petits: readonly Essence[] = ["pommier", "bouleau", "noisetier", "pommier", "sapin"];
   const places = plan.emplacements.filter((e) => e.dy === plan.dy0 && e.pied <= LIGNE + 2).sort((a, b) => a.x - b.x);
   for (let k = 0; k + 1 < places.length; k++) {
     const fin = places[k]!.x + places[k]!.largeur;
     const trou = places[k + 1]!.x - fin;
     const milieu = fin + trou / 2;
     const dehors = (d: { x: number; sieges: number; parRang: number }): boolean => d.sieges > 0 && milieu > d.x - 30 && milieu < d.x + d.parRang * 34 + 70;
-    if (trou >= 22 && trou < 120 && Math.abs(milieu - plan.feu.x) > 150 && !dehors(plan.terrasse) && !dehors(plan.bancs)) plantes.push({ sorte: "buisson", x: Math.floor(milieu), pied: LIGNE + 3, taille: Math.min(1.4, trou / 26) });
+    if (trou < 22 || trou >= 120 || Math.abs(milieu - plan.feu.x) <= 150 || dehors(plan.terrasse) || dehors(plan.bancs)) continue;
+    // Derrière le passage, un petit arbre ; devant lui, un buisson quand il y a la place.
+    plantes.push({ essence: petits[k % petits.length]!, x: Math.floor(milieu), pied: LIGNE - 2, variante: 300 + k, taille: 0.8 });
+    if (trou >= 34) plantes.push({ essence: "buisson", x: Math.floor(milieu) + 8, pied: LIGNE + 3, variante: 340 + k, taille: Math.min(1.3, trou / 30) });
   }
-  // Deux chênes au bord du pré, un près du ruisseau.
-  plantes.push({ sorte: "arbre", x: plan.pre.x + plan.pre.largeur - 30, pied: LIGNE + 2, taille: 0.9 });
-  plantes.push({ sorte: "arbre", x: plan.ruisseau.x - plan.ruisseau.largeur - 6, pied: LIGNE + 22, taille: 0.6 });
+  // Un grand chêne et un saule au bord du pré, un saule penché sur le ruisseau.
+  plantes.push({ essence: "chene", x: plan.pre.x + plan.pre.largeur - 30, pied: LIGNE + 2, variante: 371, taille: 0.9 });
+  plantes.push({ essence: "saule", x: plan.ruisseau.x - plan.ruisseau.largeur - 40, pied: LIGNE + 4, variante: 372, taille: 0.8 });
   return plantes;
+}
+
+/** Au fond de la grand-rue, au pied du talus : par tronçons, une haie, une clôture, un muret, ou rien. */
+function poserFondDeLaRue(etage: Planche, p: Palette, l: Lumiere, plan: Plan, de: number, a: number): void {
+  const t = teintesDuJardin(l);
+  const pas = 148;
+  for (let k = Math.floor(de / pas) - 1; k * pas < a; k++) {
+    const x = k * pas;
+    if (x < plan.village.de - 200 || x + pas > plan.finDeLaRue - 40 || Math.abs(x + pas / 2 - plan.ruisseau.x) < 140) continue;
+    const g = alea(k, 611);
+    if (g < 0.3) poserHaie(etage, p, x + 6, x + pas - 10, LIGNE - 1);
+    else if (g < 0.55) poserCloture(etage, p, x + 4, x + pas - 12, LIGNE);
+    else if (g < 0.78) poserMuret(etage, t, x + 2, x + pas - 6, LIGNE);
+  }
+}
+
+/** Au pied de la grande pente, derrière la voie : des arbres, d'un bout à l'autre du bas, sauf devant l'escalier, la cascade et la mer. */
+function arbresDuBas(plan: Plan): Plante[] {
+  const plantes: Plante[] = [];
+  const descente = plan.escaliers.find((e) => e.de === 0)?.x ?? -999;
+  for (let x = 70, n = 0; x < plan.mer.de - 80; n++) {
+    const essence = essenceDuSemis(n + 3);
+    const libre = Math.abs(x - descente) > 60 && Math.abs(x - plan.ruisseau.x) > 110;
+    if (libre && alea(n, 419) > 0.12) plantes.push({ essence, x, pied: LIGNE - 2 - Math.round(alea(n, 421) * 5), variante: 500 + n });
+    x += 120 + Math.round(alea(n, 423) * 130);
+  }
+  return plantes;
+}
+
+/** Le haut de chaque cheminée du premier plan (maisons de la grand-rue, taverne) : l'écran y fait monter une fumée lente. */
+export function chemineesDuPlan(plan: Plan): { x: number; y: number }[] {
+  const cheminees: { x: number; y: number }[] = [];
+  for (const e of plan.emplacements) {
+    if (e.piece.sorte === "maison") {
+      const fumee = fumeeDeLaMaison(MODELES[e.piece.modele], e.piece.variante);
+      cheminees.push({ x: e.x + fumee.x, y: e.dy + e.pied - fumee.y });
+    } else if (e.piece.sorte === "taverne") cheminees.push({ x: e.x + 262 + 7, y: e.dy + e.pied - e.hauteur - 7 });
+  }
+  return cheminees;
 }
 
 /** Le nombre de tuiles du monde, en colonnes et en rangées. */
@@ -142,42 +197,25 @@ export function composerTuile(plan: Plan, etat: EtatDuMonde, l: Lumiere, tx: num
   const visible = (x: number, l2: number, marge = 60): boolean => x + l2 + marge > x0 && x - marge < x1;
   const voit = (e: Emplacement, marge = 20): boolean => visible(e.x, e.largeur, marge) && hautDansLeMonde(e) < y1 + marge && e.dy + e.pied > y0 - marge;
 
-  // Les terrasses, de la plus haute à la première : l'herbe, le mur, la pente, la forêt aux deux bouts, puis les maisons.
-  for (let t = plan.terrasses; t >= 1; t--) {
-    const dy = dyDeLaTerrasse(plan, t);
-    if (!touche(dy, 100, LIGNE + PAS_DE_TERRASSE + 4)) continue;
-    const etage = new Etage(tuile, dy);
-    if (visible(0, plan.hauts.de)) poserLisiere(etage, p, 20, plan.hauts.de - 30);
-    if (visible(plan.hauts.a, plan.largeur - plan.hauts.a)) poserLisiere(etage, p, plan.hauts.a + 30, plan.largeur - 20);
-    poserTerrasse(etage, p, l, plan, x0, x1, t);
-    for (const jardin of plan.jardins) {
-      if (jardin.dy === dy && visible(jardin.x, 178, 20)) poserJardinDeTerrasse(etage, p, l, jardin.x, LIGNE + 1, jardin.rang);
-    }
-    for (const e of plan.emplacements) {
-      if (e.dy !== dy || e.piece.sorte !== "maison" || !voit(e)) continue;
-      poserMaison(etage, p, l, e, e.piece.rang);
-    }
-  }
-
   // La grand-rue : les deux lisières, le sol, le ruisseau, les plantations, les bâtiments d'ouest en est, puis sa pente.
   if (touche(plan.dy0, 100, LIGNE + DESCENTE + 24)) {
     const etage = new Etage(tuile, plan.dy0);
-    if (visible(0, LISIERE + 40)) poserLisiere(etage, p, 20, LISIERE + 10);
-    if (visible(plan.finDeLaRue - 20, plan.largeur - plan.finDeLaRue + 40)) poserLisiere(etage, p, plan.finDeLaRue + 20, plan.largeur - 20);
+    if (visible(0, LISIERE + 40, 140)) poserLisiere(etage, p, l, 20, LISIERE + 10);
+    if (visible(plan.finDeLaRue - 20, plan.largeur - plan.finDeLaRue + 40, 140)) poserLisiere(etage, p, l, Math.max(plan.finDeLaRue + 20, x0 - 140), Math.min(plan.largeur - 20, x1 + 140));
     poserSol(etage, p, l, plan, x0, x1, seuilsDuPlan(plan));
     const pontBati = etatDuLot(etat, "pont").sorte === "fini";
     if (visible(plan.ruisseau.x - plan.ruisseau.largeur, plan.ruisseau.largeur * 2)) poserRives(etage, p, l, plan, pontBati);
+    poserFondDeLaRue(etage, p, l, plan, x0, x1);
     for (const plante of plantations(plan)) {
-      if (!visible(plante.x - 50, 100)) continue;
-      if (plante.sorte === "arbre") poserGrandArbre(etage, p, plante.x, plante.pied, plante.taille);
-      else poserBuisson(etage, p, plante.x, plante.pied, plante.taille);
+      const cadre = cadreDeLArbre(plante.essence, plante.variante, plante.taille);
+      if (visible(plante.x - cadre.largeur / 2, cadre.largeur, 12)) poserArbre(etage, p, l, plante.essence, plante.x, plante.pied, plante.variante, plante.taille);
     }
     if (visible(plan.terrasse.x, plan.terrasse.parRang * 34 + 60)) poserSiegesDehors(etage, p, l, plan.terrasse, "taverne");
     if (visible(plan.bancs.x, plan.bancs.parRang * 34 + 60)) poserSiegesDehors(etage, p, l, plan.bancs, "reunion");
     for (const e of plan.emplacements) {
       if (e.dy !== plan.dy0 || !voit(e)) continue;
       const piece = e.piece;
-      if (piece.sorte === "maison") poserMaison(etage, p, l, e, piece.rang);
+      if (piece.sorte === "maison") poserMaisonDuModele(etage, p, l, MODELES[piece.modele], e.x, e.pied, piece.variante);
       else if (piece.sorte === "taverne") poserTaverne(etage, p, l, e);
       else if (piece.sorte === "reunion") poserReunion(etage, p, l, e);
       else if (piece.sorte === "etal") poserEtal(etage, p, l, e);
@@ -199,6 +237,10 @@ export function composerTuile(plan: Plan, etat: EtatDuMonde, l: Lumiere, tx: num
   if (touche(plan.dyBas, 40, RUE_HAUTEUR)) {
     const etage = new Etage(tuile, plan.dyBas);
     poserSolDuBas(etage, p, l, plan, x0, x1);
+    for (const plante of arbresDuBas(plan)) {
+      const cadre = cadreDeLArbre(plante.essence, plante.variante, plante.taille);
+      if (visible(plante.x - cadre.largeur / 2, cadre.largeur, 12)) poserArbre(etage, p, l, plante.essence, plante.x, plante.pied, plante.variante, plante.taille);
+    }
     const rail = DESSINS_OPENFRONT.rail;
     const morceau = rail.dessiner(l, 0);
     const viaduc = plan.emplacements.find((e) => e.piece.sorte === "openfront" && e.piece.id === "viaduc");

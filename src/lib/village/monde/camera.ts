@@ -5,12 +5,17 @@
  * d'un niveau à l'autre est lent et doux (goûts du pilote : rien de brusque, pas de zoom rapide).
  */
 
-/** Les niveaux d'approche : le côté d'une case, en pixels. Au plus loin, un Gaulois fait 48 pixels sur 64. */
-export const NIVEAUX = [1, 2, 3, 4] as const;
+/**
+ * Les niveaux d'approche : le côté d'une case du premier plan, en pixels. Trois niveaux, 1, 2 et 4 : les terrasses du
+ * fond sont dessinées deux fois plus petites, leurs cases valent donc un demi-pixel, 1 et 2 pixels (le rapport reste le
+ * même à tous les niveaux). Au niveau 2, un Gaulois de la grand-rue fait 96 pixels sur 128, un Gaulois des terrasses 48
+ * sur 64 ; au niveau 1, la vue d'ensemble, moitié moins.
+ */
+export const NIVEAUX = [1, 2, 4] as const;
 
-/** Le niveau de l'arrivée : de loin, pour voir le village d'un coup d'œil ; un cran plus près sur un très grand écran. */
-export function niveauDeDepart(hauteurScene: number): number {
-  return hauteurScene >= 1500 ? 2 : 1;
+/** Le niveau de l'arrivée : le niveau 2 ; sur un écran étroit (un téléphone), la vue d'ensemble, pour voir plus qu'une maison. */
+export function niveauDeDepart(largeurScene: number): number {
+  return largeurScene < 768 ? 1 : 2;
 }
 
 /** Le niveau voisin, plus près (`+1`) ou plus loin (`-1`) ; le même au bout de l'échelle. */
