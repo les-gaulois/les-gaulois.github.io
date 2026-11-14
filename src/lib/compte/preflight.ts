@@ -135,11 +135,17 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   else if (isClosed(gaulois.status) || (gaulois.ok && gauloisAnswer?.ok === false)) add("Un visiteur ne lit pas de Gaulois", "ok");
   else add("Un visiteur ne lit pas de Gaulois", "fail", `Réponse ${gaulois.status}. Ne mettez pas en ligne : seul un compte connecté lit son Gaulois.`);
 
+  // La suite du village (migrations 20261113001800 à 20261113002400) se colle en un seul fichier, jamais une migration seule :
+  // recollée seule, une migration remettrait en place ses anciennes fonctions (docs/DIRECTION.md, « Le village des Gaulois »).
+  // Chaque message du village renvoie donc à ce fichier.
+  const fichierDuVillage = "le fichier .cache/a-coller-village.sql (refait par npx tsx scripts/a-coller-village.ts)";
+  const aColler = (fn: string) => `${fn} est absente : collez ${fichierDuVillage}`;
+
   // Les statères du village (migration 20261113001800), donnés pour les points rapportés au clan : seul un compte connecté
-  // lit son solde. Absente : 404, la migration n'est pas collée.
+  // lit son solde. Absente : 404, le fichier du village n'est pas collé.
   const stateres = await rpc("get_mes_stateres");
   const stateresAnswer = stateres.ok ? ((await stateres.json().catch(() => null)) as { ok?: boolean } | null) : null;
-  if (stateres.status === 404) add("Les statères du village sont installés", "warn", "get_mes_stateres est absente : collez la migration 20261113001800_village_stateres.sql avant de mettre en ligne ce qui s'en sert.");
+  if (stateres.status === 404) add("Les statères du village sont installés", "warn", `${aColler("get_mes_stateres")} avant de mettre en ligne ce qui s'en sert.`);
   else if (isClosed(stateres.status) || (stateres.ok && stateresAnswer?.ok === false)) add("Un visiteur ne lit pas de solde de statères", "ok");
   else add("Un visiteur ne lit pas de solde de statères", "fail", `Réponse ${stateres.status}. Ne mettez pas en ligne : seul un compte connecté lit son propre solde.`);
   // Ses deux fonctions de la clé de service, celle du workflow des victoires : un visiteur doit être refusé par le droit
@@ -160,7 +166,7 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   // visiteur n'a pas de statères : même si le droit d'appel était mal posé, rien ne serait débité.
   const shop = await rpc("get_ma_boutique");
   const shopAnswer = shop.ok ? ((await shop.json().catch(() => null)) as { ok?: boolean } | null) : null;
-  if (shop.status === 404) add("La boutique du village est installée", "warn", "get_ma_boutique est absente : collez la migration 20261113001900_village_boutique.sql avant de mettre en ligne ce qui s'en sert.");
+  if (shop.status === 404) add("La boutique du village est installée", "warn", `${aColler("get_ma_boutique")} avant de mettre en ligne ce qui s'en sert.`);
   else if (isClosed(shop.status) || (shop.ok && shopAnswer?.ok === false)) add("Un visiteur ne lit pas de boutique", "ok");
   else add("Un visiteur ne lit pas de boutique", "fail", `Réponse ${shop.status}. Ne mettez pas en ligne : seul un compte connecté lit sa boutique et son solde.`);
   const shopCalls = [
@@ -179,7 +185,7 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   // demandés n'existent pas, et un visiteur n'a ni objet ni statère : même si le droit d'appel était mal posé, rien ne bougerait.
   const market = await rpc("get_marche");
   const marketAnswer = market.ok ? ((await market.json().catch(() => null)) as { ok?: boolean } | null) : null;
-  if (market.status === 404) add("Le marché du village est installé", "warn", "get_marche est absente : collez la migration 20261113002000_village_marche_et_place.sql avant de mettre en ligne ce qui s'en sert.");
+  if (market.status === 404) add("Le marché du village est installé", "warn", `${aColler("get_marche")} avant de mettre en ligne ce qui s'en sert.`);
   else if (isClosed(market.status) || (market.ok && marketAnswer?.ok === false)) add("Un visiteur ne lit pas le marché du village", "ok");
   else add("Un visiteur ne lit pas le marché du village", "fail", `Réponse ${market.status}. Ne mettez pas en ligne : seul un compte validé lit le marché.`);
   const villageCalls = [
@@ -201,7 +207,7 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   // le droit d'appel était mal posé, rien ne serait écrit.
   const economie = await rpc("get_village_economie");
   const economieAnswer = economie.ok ? ((await economie.json().catch(() => null)) as { ok?: boolean } | null) : null;
-  if (economie.status === 404) add("L'onglet Village de la Direction est installé", "warn", "get_village_economie est absente : collez la migration 20261113002100_village_direction.sql avant de mettre en ligne l'onglet Village.");
+  if (economie.status === 404) add("L'onglet Village de la Direction est installé", "warn", `${aColler("get_village_economie")} avant de mettre en ligne l'onglet Village.`);
   else if (isClosed(economie.status) || (economie.ok && economieAnswer?.ok === false)) add("Un visiteur ne lit pas l'économie du village", "ok");
   else add("Un visiteur ne lit pas l'économie du village", "fail", `Réponse ${economie.status}. Ne mettez pas en ligne : seuls les officiers et au-dessus lisent l'économie du village.`);
   const directionCalls = [
@@ -216,15 +222,17 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   }
 
   // La vie du village (migration 20261113002300) : seul l'encadrement lit la dépense des bulles ; seuls les admins et le
-  // fondateur coupent les bulles ou changent le plafond. Absente : 404, la migration n'est pas collée.
+  // fondateur coupent les bulles ou changent le plafond. Absente : 404, le fichier du village n'est pas collé. Les valeurs
+  // envoyées sont refusées par la fonction elle-même (des bulles ni coupées ni remises, un plafond négatif) : même si le droit
+  // d'appel était mal posé, rien ne serait écrit.
   const vie = await rpc("get_vie_du_village");
   const vieAnswer = vie.ok ? ((await vie.json().catch(() => null)) as { ok?: boolean } | null) : null;
-  if (vie.status === 404) add("La vie du village est installée", "warn", "get_vie_du_village est absente : collez la migration 20261113002300_village_vie.sql. D'ici là, l'étape « Animer le village » échoue sans rien bloquer, et la place n'a ni bulles ni relevé vocal.");
+  if (vie.status === 404) add("La vie du village est installée", "warn", `${aColler("get_vie_du_village")}. D'ici là, l'étape « Animer le village » échoue sans rien bloquer, et la place n'a ni bulles ni relevé vocal.`);
   else if (isClosed(vie.status) || (vie.ok && vieAnswer?.ok === false)) add("Un visiteur ne lit pas la dépense des bulles du village", "ok");
   else add("Un visiteur ne lit pas la dépense des bulles du village", "fail", `Réponse ${vie.status}. Ne mettez pas en ligne : seul l'encadrement lit la dépense des bulles.`);
   const vieReglages = [
-    ["regler_bulles_du_village", { p_actives: true }, "Un visiteur ne coupe ni ne remet les bulles du village"],
-    ["regler_plafond_du_village", { p_plafond: 10 }, "Un visiteur ne change pas le plafond des bulles du village"],
+    ["regler_bulles_du_village", { p_actives: null }, "Un visiteur ne coupe ni ne remet les bulles du village"],
+    ["regler_plafond_du_village", { p_plafond: -1 }, "Un visiteur ne change pas le plafond des bulles du village"],
   ] as const;
   for (const [fn, body, label] of vieReglages) {
     const res = await rpc(fn, body);
@@ -436,8 +444,8 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   const notees = await fetcher(`${base}/rest/v1/rpc/stateres_parties_notees`, { method: "POST", headers: secretHeaders, body: JSON.stringify({ p_depuis: "2100-01-01T00:00:00Z" }) });
   const noteesAnswer = notees.ok ? ((await notees.json().catch(() => null)) as { ok?: unknown; parties?: unknown } | null) : null;
   if (noteesAnswer?.ok === true && Array.isArray(noteesAnswer.parties)) add(stateresLabel, "ok");
-  else if (notees.status === 404) add(stateresLabel, "warn", "stateres_parties_notees est absente : collez la migration 20261113001800_village_stateres.sql. D'ici là, l'étape « Donner les statères des points rapportés au clan » échoue sans rien bloquer.");
-  else add(stateresLabel, "warn", `Réponse ${notees.status}. La clé de service n'a pas le droit d'appeler stateres_parties_notees : recollez la migration 20261113001800_village_stateres.sql, qui se rejoue sans rien perdre.`);
+  else if (notees.status === 404) add(stateresLabel, "warn", `${aColler("stateres_parties_notees")}. D'ici là, l'étape « Donner les statères des points rapportés au clan » échoue sans rien bloquer.`);
+  else add(stateresLabel, "warn", `Réponse ${notees.status}. La clé de service n'a pas le droit d'appeler stateres_parties_notees : collez de nouveau ${fichierDuVillage}, en entier : il se rejoue sans rien perdre.`);
 
   // La vie du village : le workflow des victoires, avec cette clé, doit pouvoir noter ses relevés. Le relevé envoyé est mal
   // formé : le serveur le refuse sans rien écrire (`invalid_releve`), ce qui prouve qu'il est là et que la clé l'appelle. À
@@ -446,8 +454,8 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   const vieNote = await fetcher(`${base}/rest/v1/rpc/noter_vie_du_village`, { method: "POST", headers: secretHeaders, body: JSON.stringify({ p_releve: { verification: true } }) });
   const vieNoteAnswer = vieNote.ok ? ((await vieNote.json().catch(() => null)) as { ok?: unknown; error?: unknown } | null) : null;
   if (vieNoteAnswer?.ok === false && vieNoteAnswer.error === "invalid_releve") add(vieLabel, "ok");
-  else if (vieNote.status === 404) add(vieLabel, "warn", "noter_vie_du_village est absente : collez la migration 20261113002300_village_vie.sql. D'ici là, l'étape « Animer le village » échoue sans rien bloquer.");
-  else add(vieLabel, "warn", `Réponse ${vieNote.status}. La clé de service n'a pas le droit d'appeler noter_vie_du_village : recollez la migration 20261113002300_village_vie.sql, qui se rejoue sans rien perdre.`);
+  else if (vieNote.status === 404) add(vieLabel, "warn", `${aColler("noter_vie_du_village")}. D'ici là, l'étape « Animer le village » échoue sans rien bloquer.`);
+  else add(vieLabel, "warn", `Réponse ${vieNote.status}. La clé de service n'a pas le droit d'appeler noter_vie_du_village : collez de nouveau ${fichierDuVillage}, en entier : il se rejoue sans rien perdre.`);
 
   return checks;
 }

@@ -6,7 +6,9 @@
  *
  * Claude ne reçoit que des faits sans identité (`vie-releve.ts`, `faitsDuGaulois`) : l'heure et le moment de la journée à
  * Paris, le lieu du Gaulois, les points que sa dernière partie a rapportés au clan, les noms des objets qu'il porte (noms du
- * catalogue, jamais un texte tapé par un joueur). Ni nom, ni pseudo, ni identifiant, ni numéro de compte.
+ * catalogue, jamais un texte tapé par un joueur). Ni nom, ni pseudo, ni identifiant, ni numéro de compte. Jamais l'état
+ * vocal : une bulle reste 12 heures à l'écran, l'état vocal 15 minutes ; le lieu d'une bulle n'est donc jamais la salle de
+ * réunion (`LieuDUneBulle`).
  *
  * Chaque phrase est contrôlée par le robot avant l'envoi, puis par le serveur (`controlerReplique` et
  * `internal.village_vie_replique_valide`, mêmes règles) : 90 signes au plus, des lettres, des chiffres et une ponctuation
@@ -49,13 +51,18 @@ export const MOMENTS_ECRITS: Readonly<Record<Moment, string>> = {
 };
 
 /**
- * L'endroit où est le Gaulois, tel que Claude le lit : le lieu que l'écran montre (`lieuDuGaulois` de `vie.ts`). Chaque
- * phrase dit un fait relevé, rien de plus.
+ * Les lieux d'une bulle : ceux de l'écran (`Lieu` de `vie.ts`), sauf la salle de réunion, qui dirait l'état vocal. Une bulle
+ * se montre 12 heures, l'état vocal 15 minutes (page Confidentialité) : Claude ne l'apprend jamais.
  */
-export const LIEUX_ECRITS: Readonly<Record<Lieu, string>> = {
+export type LieuDUneBulle = Exclude<Lieu, "reunion">;
+
+/**
+ * L'endroit où est le Gaulois, tel que Claude le lit : le lieu que l'écran montrerait sans l'état vocal (`lieuDUneBulle` de
+ * `vie-releve.ts`). Chaque phrase dit un fait relevé, rien de plus.
+ */
+export const LIEUX_ECRITS: Readonly<Record<LieuDUneBulle, string>> = {
   place: "il se promène sur la place du village",
   taverne: "à la taverne, au retour de sa dernière partie",
-  reunion: "en salle de réunion : il est dans un salon vocal du Discord du clan",
   bataille: "au champ de bataille : sa dernière partie a commencé il y a moins de 45 minutes",
   maisons: "dans sa maison : il dort, c'est la nuit",
 };
@@ -148,9 +155,10 @@ export const MOTS_INTERDITS: readonly string[] = [
  * Les mots qui gardent leur majuscule au milieu d'une phrase. Toute autre majuscule doit ouvrir la bulle ou une phrase (après
  * « . », « ! », « ? » ou « … » et une espace) : un nom propre (une personne, un clan, une marque) ne passe pas. La même liste
  * que `internal.village_vie_majuscules_permises` du serveur, dans le même ordre (un test garde les deux identiques) : les
- * plus longs d'abord. « Discord » reste de toute façon arrêté par les mots interdits.
+ * plus longs d'abord. « Discord » n'y est pas : il est dans les mots interdits, et rien de ce que Claude reçoit ne le nomme
+ * (un test le garde).
  */
-export const MAJUSCULES_PERMISES: readonly string[] = ["Gauloises", "Gauloise", "Gaulois", "Discord"];
+export const MAJUSCULES_PERMISES: readonly string[] = ["Gauloises", "Gauloise", "Gaulois"];
 
 /** Le schéma de la réponse, que l'API impose à Claude (sortie structurée, `output_config.format`). */
 export const SCHEMA_REPONSE = {

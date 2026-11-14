@@ -1,6 +1,6 @@
 import { basePath } from "../../lib/compte/api";
 import { STATERES_PAR_POINT, type MesStateres } from "../../lib/stateres";
-import { MESSAGES_BOURSE, etatDeLaBourse, instant, jour, nombre, points, soldeAMontrer } from "../../lib/village/ecran-boutique";
+import { MESSAGES_BOURSE, SOLDE_INCONNU, etatDeLaBourse, instant, jour, motStatere, nombre, points, soldeAMontrer } from "../../lib/village/ecran-boutique";
 import { Piece } from "./BoutiquePixels";
 
 /**
@@ -20,11 +20,11 @@ export function Bourse({ bourse, solde }: { bourse: MesStateres; solde: number |
       <p class="bourse-solde" data-testid="bourse-solde">
         <Piece taille={24} echelle={2} />
         {montre === null ? (
-          <span class="bourse-inconnu">Pas encore de statères comptés</span>
+          <span class="bourse-inconnu">{SOLDE_INCONNU}</span>
         ) : (
           <>
             <span class="bourse-nombre tnum">{nombre(montre)}</span>{" "}
-            <span class="bourse-unite">{montre === 1 ? "statère" : "statères"}</span>
+            <span class="bourse-unite">{motStatere(montre)}</span>
           </>
         )}
       </p>

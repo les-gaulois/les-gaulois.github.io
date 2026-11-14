@@ -10,16 +10,17 @@
  *    serveur qui décide : plus aucune bulle demandée quand l'encadrement les a coupées ou que la dépense du mois atteint le
  *    plafond, une demande toutes les 6 heures au plus par Gaulois, et seulement quand ses faits ont changé depuis la
  *    précédente.
- * 2. Avec le jeton du robot des arrivées (secret DISCORD_BOT_TOKEN) : les salons du serveur, une fois (seul un salon vocal
- *    public compte « en vocal »), puis l'état vocal de chaque membre qui se montre aux autres membres (le serveur ne donne
- *    pas l'identifiant Discord des autres), un appel par membre
- *    (`GET /guilds/{serveur}/voice-states/{membre}`), une pause entre deux, au plus `MAX_VOCAL` appels et `MAX_VOCAL_MS` par
- *    passage, les plus anciens relevés d'abord. Arrêt net au premier 401 ou 403 ; un 429 attend ce que Discord demande, une
- *    fois. Puis `noter_vie_du_village` reçoit les états.
- * 3. Avec la clé ANTHROPIC_API_KEY : un seul appel à Claude pour au plus 20 Gaulois qui ont besoin d'une bulle. Claude ne
- *    reçoit que des faits sans identité (`faitsDuGaulois`). Chaque phrase est contrôlée (`controlerReplique`), puis le serveur
- *    reçoit d'abord les jetons dépensés, toujours, puis les phrases acceptées, qu'il contrôle encore, avec les numéros des
- *    Gaulois demandés sans bulle (phrase écartée, refus) : leur demande compte aussi pour les 6 heures.
+ * 2. Avec le jeton du robot des arrivées (secret DISCORD_BOT_TOKEN) : les droits du rôle @everyone et les salons du
+ *    serveur, une fois (seul un salon vocal que @everyone peut voir et rejoindre compte « en vocal »), puis l'état vocal de
+ *    chaque membre qui se montre aux autres membres (le serveur ne donne pas l'identifiant Discord des autres), un appel par
+ *    membre (`GET /guilds/{serveur}/voice-states/{membre}`), une pause entre deux, au plus `MAX_VOCAL` appels et
+ *    `MAX_VOCAL_MS` par passage, les plus anciens relevés d'abord. Arrêt net au premier 401 ou 403 ; un 429 attend ce que
+ *    Discord demande, une fois. Puis `noter_vie_du_village` reçoit les états.
+ * 3. Avec la clé ANTHROPIC_API_KEY : un seul appel à Claude, par le SDK officiel (`@anthropic-ai/sdk`), pour au plus 20
+ *    Gaulois qui ont besoin d'une bulle. Claude ne reçoit que des faits sans identité (`faitsDuGaulois`), jamais l'état vocal.
+ *    Chaque phrase est contrôlée (`controlerReplique`), puis le serveur reçoit d'abord les jetons dépensés, toujours, puis les
+ *    phrases acceptées, qu'il contrôle encore, avec les numéros des Gaulois demandés sans bulle (phrase écartée, refus) :
+ *    leur demande compte aussi pour les 6 heures.
  *
  * Chaque partie marche sans l'autre. Aucun identifiant n'est écrit au journal de l'Action, qui est public : seulement des
  * nombres.
@@ -30,19 +31,20 @@
  *   du modèle à l'effort « low », environ 1 500 jetons de sortie (0,000 75 $) : environ 0,001 $ l'appel ; jamais plus de
  *   `MAX_TOKENS` en sortie (0,002 $), soit 0,002 5 $ l'appel au plus ;
  * - en vrai, une demande par Gaulois toutes les 6 heures au plus, et aucune pour qui dort : trois à quatre par jour. Avec
- *   50 Gaulois, 200 bulles par jour au plus, une dizaine d'appels de 20, plus des appels pour une nouvelle partie ou une
- *   entrée en vocal, disons 30 appels : 0,03 $ par jour, environ 1 $ par mois (2 $ avec 100 Gaulois) ;
+ *   50 Gaulois, 200 bulles par jour au plus, une dizaine d'appels de 20, plus des appels pour une nouvelle partie, disons
+ *   30 appels : 0,03 $ par jour, environ 1 $ par mois (2 $ avec 100 Gaulois) ;
  * - au pire du pire, un appel complet à chaque passage, 288 par jour : 288 × 0,002 5 $ = 0,72 $ par jour, 22 $ par mois ;
  *   le plafond du serveur coupe avant.
  * Le plafond de départ du serveur est de 10 $ par mois, réglable dans la Direction.
  */
+import Anthropic from "@anthropic-ai/sdk";
 import { DISCORD_API } from "../arrivees-discord";
 import type { RpcResult } from "../compte/roster";
 import { isSnowflake } from "../discord-commande";
 import { EMPLACEMENTS_OBJETS, OBJETS, lireTenue, type Tenue } from "../gaulois";
-import { CONSIGNE, LIEUX_ECRITS, MAJUSCULES_PERMISES, MAX_REPLIQUES_PAR_PASSAGE, MAX_SIGNES, MOMENTS_ECRITS, MOTS_INTERDITS, SCHEMA_REPONSE } from "./consigne-repliques";
+import { CONSIGNE, LIEUX_ECRITS, MAJUSCULES_PERMISES, MAX_REPLIQUES_PAR_PASSAGE, MAX_SIGNES, MOMENTS_ECRITS, MOTS_INTERDITS, SCHEMA_REPONSE, type LieuDUneBulle } from "./consigne-repliques";
 import { instantDeParis } from "./lumiere";
-import { heureDeParis, ilFaitNuit, lieuDuGaulois, type Lieu } from "./vie";
+import { LIEUX, heureDeParis, ilFaitNuit, lieuDuGaulois } from "./vie";
 
 /* ---------- Le moment de la journée ---------- */
 
@@ -145,38 +147,80 @@ export interface ReleveVocal {
   vocal: boolean | null;
 }
 
-/** Pourquoi un relevé s'est arrêté avant la fin. `salons` : la liste des salons ne se lit pas, aucun relevé à ce passage. */
+/**
+ * Pourquoi un relevé s'est arrêté avant la fin. `salons` : les salons du serveur ou les droits du rôle @everyone ne se
+ * lisent pas, aucun relevé à ce passage.
+ */
 export type ArretVocal = "jeton" | "droits" | "serveur" | "limite" | "discord" | "reseau" | "temps" | "nombre" | "salons";
 
-/** Les permissions de Discord qui font un salon public : le voir et s'y connecter. */
+/** Les permissions de Discord qui font un salon public : le voir et s'y connecter. ADMINISTRATOR les donne toutes. */
 export const VOIR_LE_SALON = 1n << 10n;
 export const SE_CONNECTER = 1n << 20n;
-/** Les salons vocaux de Discord : vocal (2) et scène (13). */
+export const ADMINISTRATEUR = 1n << 3n;
+/** Les salons vocaux de Discord : vocal (2) et scène (13) ; une catégorie est de type 4. */
 export const TYPES_VOCAUX: readonly number[] = [2, 13];
+export const TYPE_CATEGORIE = 4;
+
+/** Un champ de permissions de Discord : un entier écrit en chiffres, dans une chaîne. `null` pour toute autre chose. */
+function bitsLus(v: unknown): bigint | null {
+  return typeof v === "string" && /^[0-9]{1,20}$/.test(v) ? BigInt(v) : null;
+}
 
 /**
- * Les salons vocaux publics du serveur, d'après `GET /guilds/{serveur}/channels` : un salon vocal ou une scène où le rôle
- * `@everyone` (son identifiant est celui du serveur) ne se voit refuser ni « Voir le salon » ni « Se connecter » dans les
- * permissions propres du salon. Un membre dans un autre salon (privé, de l'encadrement) n'est pas montré « en vocal » sur la
- * place. `null` : la réponse n'est pas une liste de salons. Un salon aux permissions illisibles ne compte pas comme public.
+ * Les permissions du rôle @everyone au niveau du serveur, d'après `GET /guilds/{serveur}/roles/{serveur}` (« Get Guild
+ * Role » : le rôle @everyone porte l'identifiant du serveur). `null` : la réponse n'est pas ce rôle, ou ses permissions ne
+ * se lisent pas.
  */
-export function salonsVocauxPublics(salons: unknown, guildId: string): Set<string> | null {
-  if (!Array.isArray(salons)) return null;
+export function permissionsDeTous(role: unknown, guildId: string): bigint | null {
+  if (!estObjet(role) || role["id"] !== guildId) return null;
+  return bitsLus(role["permissions"]);
+}
+
+/**
+ * Les permissions de @everyone dans un salon ou une catégorie, dans l'ordre que donne la documentation de Discord
+ * (« Permissions », 14 novembre 2026) : celles du rôle au niveau du serveur ; ADMINISTRATOR passe outre tout réglage ;
+ * sinon le refus, puis l'accord, que le salon pose pour @everyone (son réglage qui porte l'identifiant du serveur). Les
+ * réglages des autres rôles et des membres ne touchent pas @everyone. `null` : un réglage illisible ou en double.
+ */
+export function permissionsDeTousDansLeSalon(base: bigint, salon: Record<string, unknown>, guildId: string): bigint | null {
+  if ((base & ADMINISTRATEUR) === ADMINISTRATEUR) return base | VOIR_LE_SALON | SE_CONNECTER;
+  const reglages = salon["permission_overwrites"] ?? [];
+  if (!Array.isArray(reglages)) return null;
+  const pourTous = reglages.filter((r) => !estObjet(r) || r["id"] === guildId);
+  if (pourTous.length === 0) return base;
+  const reglage = pourTous[0];
+  if (pourTous.length > 1 || !estObjet(reglage)) return null;
+  const refus = reglage["deny"] === undefined ? 0n : bitsLus(reglage["deny"]);
+  const accord = reglage["allow"] === undefined ? 0n : bitsLus(reglage["allow"]);
+  if (refus === null || accord === null) return null;
+  return (base & ~refus) | accord;
+}
+
+/** @everyone voit-il le salon et peut-il s'y connecter ? */
+const ouvertATous = (p: bigint | null): boolean => p !== null && (p & VOIR_LE_SALON) !== 0n && (p & SE_CONNECTER) !== 0n;
+
+/**
+ * Les salons vocaux publics du serveur, d'après `GET /guilds/{serveur}/channels` et les permissions du rôle @everyone au
+ * niveau du serveur (`permissionsDeTous`) : un salon vocal ou une scène que @everyone peut voir et rejoindre, permissions du
+ * serveur puis réglages du salon compris (`permissionsDeTousDansLeSalon`). Discord ne fait pas hériter un salon de sa
+ * catégorie (il copie ses réglages tant qu'ils sont « synchronisés ») ; par prudence, un salon rangé dans une catégorie
+ * que @everyone ne peut ni voir ni rejoindre, ou dans une catégorie absente de la liste, ne compte pas non plus. Un membre
+ * dans un autre salon (privé, de l'encadrement) n'est pas montré « en vocal » sur la place. `null` : la réponse n'est pas
+ * une liste de salons, ou les permissions de @everyone manquent. Un salon aux permissions illisibles ne compte pas.
+ */
+export function salonsVocauxPublics(salons: unknown, guildId: string, base: bigint | null): Set<string> | null {
+  if (!Array.isArray(salons) || base === null) return null;
+  const parId = new Map<string, Record<string, unknown>>();
+  for (const salon of salons) if (estObjet(salon) && typeof salon["id"] === "string") parId.set(salon["id"], salon);
   const publics = new Set<string>();
-  for (const salon of salons) {
-    if (!estObjet(salon) || typeof salon["id"] !== "string" || !TYPES_VOCAUX.includes(salon["type"] as number)) continue;
-    const reglages = salon["permission_overwrites"] ?? [];
-    if (!Array.isArray(reglages)) continue;
-    const tous = reglages.find((r) => estObjet(r) && r["id"] === guildId);
-    let refuse = 0n;
-    if (tous !== undefined) {
-      try {
-        refuse = BigInt(String((tous as Record<string, unknown>)["deny"] ?? "0"));
-      } catch {
-        continue;
-      }
+  for (const [id, salon] of parId) {
+    if (!TYPES_VOCAUX.includes(salon["type"] as number) || !ouvertATous(permissionsDeTousDansLeSalon(base, salon, guildId))) continue;
+    const parent = salon["parent_id"];
+    if (parent !== undefined && parent !== null) {
+      const categorie = typeof parent === "string" ? parId.get(parent) : undefined;
+      if (!categorie || categorie["type"] !== TYPE_CATEGORIE || !ouvertATous(permissionsDeTousDansLeSalon(base, categorie, guildId))) continue;
     }
-    if ((refuse & VOIR_LE_SALON) === 0n && (refuse & SE_CONNECTER) === 0n) publics.add(salon["id"]);
+    publics.add(id);
   }
   return publics;
 }
@@ -222,9 +266,10 @@ async function appelDiscord(url: string, token: string, send: typeof fetch): Pro
 }
 
 /**
- * D'abord la liste des salons du serveur, une fois (`salonsVocauxPublics`) : sans elle, aucun relevé. Puis
- * L'état vocal des Gaulois qui ont un compte Discord, dans l'ordre de la liste (le serveur met les plus anciens relevés
- * d'abord). Réponses de Discord (documentation « Get User Voice State », 13 novembre 2026) :
+ * D'abord, une fois, les permissions du rôle @everyone au niveau du serveur (`GET /guilds/{serveur}/roles/{serveur}`,
+ * l'appel le plus léger qui les donne) et la liste des salons du serveur (`salonsVocauxPublics`) : sans l'une ou l'autre,
+ * aucun relevé. Puis l'état vocal des Gaulois qui ont un compte Discord, dans l'ordre de la liste (le serveur met les plus
+ * anciens relevés d'abord). Réponses de Discord (documentation « Get User Voice State », 13 novembre 2026) :
  * - 200 : l'état vocal ; `channel_id` donne le salon, vide s'il n'est dans aucun ;
  * - 404 « Unknown voice state » (10065), comme un membre inconnu (10007, 10013) : il n'est dans aucun salon vocal ;
  *   « Unknown guild » (10004) : le robot n'est pas sur le serveur, arrêt ;
@@ -239,14 +284,21 @@ export async function releverLesVocaux(gaulois: readonly GauloisAuTravail[], dep
   const debut = deps.horloge();
   let appels = 0;
   if (!gaulois.some((g) => g.discord !== null)) return { releves, arret: null };
-  // D'abord, une fois par passage, les salons du serveur : seul un salon vocal public compte « en vocal ». Sans eux, aucun
-  // relevé : un membre dans un salon privé ne doit jamais être montré en vocal.
-  const liste = await appelDiscord(`${DISCORD_API}/guilds/${deps.guildId}/channels`, deps.token, deps.fetch);
-  if (liste === null) return { releves, arret: "reseau" };
-  if (liste.status === 401) return { releves, arret: "jeton" };
-  if (liste.status === 404 && estObjet(liste.corps) && liste.corps["code"] === 10004) return { releves, arret: "serveur" };
-  if (liste.status === 429) return { releves, arret: "limite" };
-  const publics = liste.status === 200 ? salonsVocauxPublics(liste.corps, deps.guildId) : null;
+  // D'abord, une fois par passage, les droits de @everyone et les salons du serveur : seul un salon vocal que tout le monde
+  // peut voir et rejoindre compte « en vocal ». Sans eux, aucun relevé : un membre dans un salon privé ne doit jamais être
+  // montré en vocal.
+  const lus: Reponse[] = [];
+  for (const chemin of [`roles/${deps.guildId}`, "channels"]) {
+    const lu = await appelDiscord(`${DISCORD_API}/guilds/${deps.guildId}/${chemin}`, deps.token, deps.fetch);
+    if (lu === null) return { releves, arret: "reseau" };
+    if (lu.status === 401) return { releves, arret: "jeton" };
+    if (lu.status === 404 && estObjet(lu.corps) && lu.corps["code"] === 10004) return { releves, arret: "serveur" };
+    if (lu.status === 429) return { releves, arret: "limite" };
+    if (lu.status !== 200) return { releves, arret: "salons" };
+    lus.push(lu);
+  }
+  const [role, liste] = lus as [Reponse, Reponse];
+  const publics = salonsVocauxPublics(liste.corps, deps.guildId, permissionsDeTous(role.corps, deps.guildId));
   if (publics === null) return { releves, arret: "salons" };
   for (const g of gaulois) {
     if (g.discord === null) continue;
@@ -306,22 +358,32 @@ export const ARRETS_VOCAL: Readonly<Record<ArretVocal, string>> = {
   temps: "Vie du village : temps du relevé écoulé, la suite au prochain passage.",
   nombre: "Vie du village : nombre d'appels du passage atteint, la suite au prochain passage.",
   salons:
-    "::warning::Vie du village : la liste des salons du serveur ne se lit pas : aucun état vocal relevé à ce passage (un salon privé ne doit jamais compter « en vocal »).",
+    "::warning::Vie du village : les salons du serveur ou les droits du rôle @everyone ne se lisent pas : aucun état vocal relevé à ce passage (un salon privé ne doit jamais compter « en vocal »).",
 };
 
 /* ---------- Les faits d'une bulle ---------- */
 
-/** Les faits dont une bulle est tirée, gardés avec elle par le serveur. Rien n'y désigne le joueur. */
+/** Les faits dont une bulle est tirée, gardés avec elle par le serveur. Rien n'y désigne le joueur, rien n'y dit le vocal. */
 export interface FaitsDuGaulois {
   /** L'heure de Paris, comme l'écrit l'écran : « 21 h 05 », « 7 h 40 ». */
   heure: string;
   moment: Moment;
-  lieu: Lieu;
-  /** Les points que sa dernière partie de moins de 24 heures a rapportés au clan, « 1,65 » ; `null` : aucune. */
+  lieu: LieuDUneBulle;
+  /** Les points que sa dernière partie de moins de 12 heures a rapportés au clan, « 1,65 » ; `null` : aucune. */
   points: string | null;
   /** Les noms du catalogue des objets qu'il porte. */
   objets: string[];
 }
+
+/** Les lieux d'une bulle, dans l'ordre de l'écran : tous sauf la salle de réunion. Le serveur n'en accepte pas d'autre. */
+export const LIEUX_DES_BULLES: readonly LieuDUneBulle[] = LIEUX.filter((lieu): lieu is LieuDUneBulle => lieu !== "reunion");
+
+/**
+ * Les points d'une partie ne sont donnés à Claude que si elle a commencé il y a moins de tant : une bulle se montre 12
+ * heures, et la place ne montre une partie que pendant ses 24 premières heures. Le serveur ne donne pas les points d'une
+ * partie plus ancienne, et ignore une bulle qui en parlerait.
+ */
+export const POINTS_DANS_LES_BULLES_MS = 12 * 3_600_000;
 
 /** Les points écrits à la française, deux décimales au plus : 1,65 ; 2 ; 1,5. `null` pour rien ou moins. */
 export function pointsEcrits(points: number | null): string | null {
@@ -342,17 +404,30 @@ export function objetsPortes(tenue: Tenue): string[] {
 }
 
 /**
- * Les faits d'un Gaulois à `maintenant` (l'heure du serveur) ; `null` si sa tenue ne se lit pas. Le lieu est celui que
- * l'écran montre (`lieuDuGaulois` de `vie.ts`, une seule règle) : le serveur ne donne l'état vocal que d'un relevé de
- * moins de 15 minutes, sans heure à vérifier de plus.
+ * Le lieu d'une bulle : celui que l'écran montrerait si l'état vocal n'était pas relevé (`lieuDuGaulois` de `vie.ts`, une
+ * seule règle, avec `vocal` à `null`). Une bulle reste 12 heures à l'écran, l'état vocal 15 minutes (page Confidentialité) :
+ * une phrase écrite « en salle de réunion » le dirait bien après. Jamais la salle de réunion, donc.
+ */
+export function lieuDUneBulle(g: Pick<GauloisAuTravail, "partie_le">, maintenant: Date): LieuDUneBulle {
+  const { lieu } = lieuDuGaulois({ partie_le: g.partie_le, vocal: null }, maintenant);
+  if (lieu !== "reunion") return lieu;
+  // Sans vocal, la règle ne mène jamais à la salle de réunion ; si elle changeait, le lieu serait celui de l'heure.
+  return ilFaitNuit(maintenant) ? "maisons" : "place";
+}
+
+/**
+ * Les faits d'un Gaulois à `maintenant` (l'heure du serveur) ; `null` si sa tenue ne se lit pas. Ni l'état vocal, ni son
+ * effet sur le lieu (`lieuDUneBulle`). Les points, seulement d'une partie de moins de 12 heures (`POINTS_DANS_LES_BULLES_MS`).
  */
 export function faitsDuGaulois(g: GauloisAuTravail, maintenant: Date): FaitsDuGaulois | null {
   if (!g.tenue) return null;
+  const debut = g.partie_le === null ? Number.NaN : Date.parse(g.partie_le);
+  const recente = maintenant.getTime() - debut < POINTS_DANS_LES_BULLES_MS && debut <= maintenant.getTime();
   return {
     heure: heureDeParis(maintenant),
     moment: momentDeLaJournee(maintenant),
-    lieu: lieuDuGaulois(g, maintenant).lieu,
-    points: g.partie_le === null ? null : pointsEcrits(g.points),
+    lieu: lieuDUneBulle(g, maintenant),
+    points: recente ? pointsEcrits(g.points) : null,
     objets: objetsPortes(g.tenue),
   };
 }
@@ -384,18 +459,23 @@ export function choisirLeLot(gaulois: readonly GauloisAuTravail[], maintenant: D
 
 /* ---------- L'appel à Claude ---------- */
 
-export const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
-/** La version de l'API (skill claude-api, 13 novembre 2026). */
-export const ANTHROPIC_VERSION = "2026-10-21";
+/**
+ * L'adresse de l'API de Claude, écrite ici et donnée au SDK : une variable ANTHROPIC_BASE_URL dans l'environnement
+ * n'enverrait jamais la clé ailleurs. Le SDK (`@anthropic-ai/sdk`) y ajoute `/v1/messages` et l'en-tête de version.
+ */
+export const ANTHROPIC_BASE_URL = "https://api.anthropic.com";
 /** La sortie la plus longue d'un appel, réflexion du modèle comprise : 20 phrases en prennent environ 1 000. */
 export const MAX_TOKENS = 4000;
 /** L'effort le plus bas : des phrases courtes, à moindre coût. */
 export const EFFORT = "low";
 /**
- * Le délai d'un appel à Claude. Avec le relevé vocal (40 s, plus 10 s pour le dernier appel), le passage tient dans les
- * 2 minutes de l'étape du workflow.
+ * Le délai d'un appel à Claude, en millisecondes (l'unité du SDK), sans aucune reprise (`maxRetries: 0`). Avec le relevé
+ * vocal (40 s, plus 10 s pour le dernier appel), le passage tient dans les 2 minutes de l'étape du workflow ; une reprise
+ * faite en silence par le SDK ferait aussi payer un calcul que le compte des jetons ne verrait pas. Après un refus pour trop
+ * de demandes ou une panne de l'API, le passage suivant réessaie.
  */
 export const DELAI_CLAUDE_MS = 45_000;
+export const REPRISES_CLAUDE = 0;
 
 /** Les faits d'un Gaulois, tels que Claude les lit : des mots, sans code ni identifiant. */
 export function faitsEcrits(gaulois: GauloisDuLot): Record<string, unknown> {
@@ -410,8 +490,12 @@ export function faitsEcrits(gaulois: GauloisDuLot): Record<string, unknown> {
   };
 }
 
-/** Le corps de la demande à l'API Messages : la consigne, les faits, la forme imposée de la réponse. */
-export function corpsDeLaDemande(modele: string, lot: readonly GauloisDuLot[]): Record<string, unknown> {
+/**
+ * Le corps de la demande à l'API Messages : la consigne, les faits, la forme imposée de la réponse (sortie structurée,
+ * `output_config.format`), l'effort le plus bas. Ni `temperature` (refusée par cette version de l'API), ni `thinking` (le
+ * modèle choisit), ni `fallbacks` (le plus petit modèle n'en a pas), ni flux : la réponse est courte.
+ */
+export function corpsDeLaDemande(modele: string, lot: readonly GauloisDuLot[]): Anthropic.MessageCreateParamsNonStreaming {
   return {
     model: modele,
     max_tokens: MAX_TOKENS,
@@ -439,12 +523,16 @@ export function jetonsDeLaReponse(reponse: unknown): Jetons | null {
 
 /**
  * Les phrases de la réponse de Claude, par étiquette ; une étiquette inconnue ou répétée est sautée. `raison` : pourquoi il
- * n'y en a aucune (refus du modèle, réponse coupée, JSON illisible).
+ * n'y en a aucune (refus du modèle, réponse coupée, JSON illisible). La raison de l'arrêt (`stop_reason`) se lit avant le
+ * contenu : un refus ou une réponse coupée ne donnent aucune phrase, quoi que contienne le texte.
  */
 export function phrasesDeLaReponse(reponse: unknown, etiquettes: ReadonlySet<string>): { phrases: Map<string, unknown>; raison: string | null } {
   const phrases = new Map<string, unknown>();
   if (!estObjet(reponse)) return { phrases, raison: "réponse illisible" };
-  if (reponse["stop_reason"] === "refusal") return { phrases, raison: "le modèle a refusé la demande" };
+  const arret = reponse["stop_reason"];
+  if (arret === "refusal") return { phrases, raison: "le modèle a refusé la demande" };
+  if (arret === "max_tokens" || arret === "model_context_window_exceeded") return { phrases, raison: "réponse coupée" };
+  if (arret !== "end_turn") return { phrases, raison: "réponse arrêtée autrement que prévu" };
   const blocs = Array.isArray(reponse["content"]) ? (reponse["content"] as unknown[]) : [];
   const texte = blocs
     .filter((b): b is Record<string, unknown> => estObjet(b) && b["type"] === "text" && typeof b["text"] === "string")
@@ -454,7 +542,7 @@ export function phrasesDeLaReponse(reponse: unknown, etiquettes: ReadonlySet<str
   try {
     lu = JSON.parse(texte);
   } catch {
-    return { phrases, raison: reponse["stop_reason"] === "max_tokens" ? "réponse coupée" : "JSON illisible" };
+    return { phrases, raison: "JSON illisible" };
   }
   if (!estObjet(lu) || !Array.isArray(lu["repliques"])) return { phrases, raison: "JSON hors de la forme demandée" };
   for (const r of lu["repliques"] as unknown[]) {
@@ -473,46 +561,48 @@ export interface AppelClaude {
   avertir: boolean;
 }
 
+/** Ce que le journal dit d'une erreur de l'API : son type et le début de son message (l'API n'y met jamais la clé). */
+function detailDeLErreur(e: InstanceType<typeof Anthropic.APIError>): string {
+  const message = typeof e.apiMessage === "string" ? e.apiMessage.slice(0, 200) : "";
+  return `${e.type ?? "inconnue"}${message ? ` : ${message}` : ""}`;
+}
+
 /**
- * Un appel à l'API Messages, par simple `fetch` : le dépôt n'ajoute pas de dépendance, et l'Action n'a pas le SDK. La clé
- * part dans l'en-tête `x-api-key` seulement ; elle n'est jamais écrite au journal.
+ * Un appel à l'API Messages par le SDK officiel (`@anthropic-ai/sdk`, skill claude-api), avec le `fetch` donné : les essais
+ * simulent les réponses sans réseau. La clé n'est donnée qu'au client du SDK, qui l'envoie à `ANTHROPIC_BASE_URL` ; elle
+ * n'est jamais écrite au journal. Les erreurs, par les classes du SDK, de la plus précise à la plus large :
+ * - 401 (`AuthenticationError`) et 403 (`PermissionDeniedError`) : la clé ; rien n'est compté, avertissement ;
+ * - 429 (`RateLimitError`) et 5xx (`InternalServerError`, surcharge comprise) : rien n'est compté, le passage suivant
+ *   réessaie, sans avertissement ;
+ * - réseau ou délai dépassé (`APIConnectionError`) : l'API a pu calculer quand même, le compte le plus haut possible est
+ *   noté, pour que le plafond tienne ;
+ * - toute autre réponse de l'API (`APIError`, 400 par exemple) : rien n'est compté, avertissement.
+ * Une réponse lue : ses jetons (`usage`, réflexion du modèle comprise), même quand elle est refusée ou coupée.
  */
 export async function demanderLesBulles(modele: string, lot: readonly GauloisDuLot[], cle: string, send: typeof fetch): Promise<AppelClaude> {
-  const corps = JSON.stringify(corpsDeLaDemande(modele, lot));
-  let reponse: Response;
+  const corps = corpsDeLaDemande(modele, lot);
+  // Le compte le plus haut possible, quand l'API a pu calculer sans dire combien : le plafond tient toujours.
+  const auPlusHaut: Jetons = { entree: JSON.stringify(corps).length, sortie: MAX_TOKENS };
+  const client = new Anthropic({ apiKey: cle, baseURL: ANTHROPIC_BASE_URL, fetch: send, maxRetries: REPRISES_CLAUDE, timeout: DELAI_CLAUDE_MS });
+  let reponse: Anthropic.Message;
   try {
-    reponse = await send(ANTHROPIC_URL, {
-      method: "POST",
-      redirect: "error",
-      signal: AbortSignal.timeout(DELAI_CLAUDE_MS),
-      headers: { "content-type": "application/json", "x-api-key": cle, "anthropic-version": ANTHROPIC_VERSION },
-      body: corps,
-    });
-  } catch {
-    // Coupé avant la réponse : l'API a pu calculer quand même. Le compte le plus haut possible, pour que le plafond tienne.
-    return { jetons: { entree: corps.length, sortie: MAX_TOKENS }, phrases: new Map(), raison: "Claude ne répond pas", avertir: false };
-  }
-  let lu: unknown = null;
-  try {
-    lu = JSON.parse(await reponse.text());
-  } catch {
-    lu = null;
-  }
-  if (reponse.status !== 200) {
-    const erreur = estObjet(lu) && estObjet(lu["error"]) ? lu["error"] : {};
-    const type = typeof erreur["type"] === "string" ? erreur["type"] : "inconnue";
-    const message = typeof erreur["message"] === "string" ? erreur["message"].slice(0, 200) : "";
-    const raisons: Record<number, string> = {
-      401: "la clé ANTHROPIC_API_KEY est refusée (401)",
-      403: "la clé ANTHROPIC_API_KEY n'a pas le droit d'appeler ce modèle (403)",
-      429: "trop de demandes, ou la limite de dépense fixée chez Anthropic est atteinte (429)",
-    };
-    const raison = raisons[reponse.status] ?? `réponse ${reponse.status} de l'API (${type}${message ? ` : ${message}` : ""})`;
-    return { jetons: null, phrases: new Map(), raison, avertir: reponse.status < 500 && reponse.status !== 429 };
+    reponse = await client.messages.create(corps);
+  } catch (e) {
+    const rien = new Map<string, unknown>();
+    if (e instanceof Anthropic.AuthenticationError) return { jetons: null, phrases: rien, raison: "la clé ANTHROPIC_API_KEY est refusée (401)", avertir: true };
+    if (e instanceof Anthropic.PermissionDeniedError) return { jetons: null, phrases: rien, raison: "la clé ANTHROPIC_API_KEY n'a pas le droit d'appeler ce modèle (403)", avertir: true };
+    if (e instanceof Anthropic.RateLimitError) {
+      return { jetons: null, phrases: rien, raison: "trop de demandes, ou la limite de dépense fixée chez Anthropic est atteinte (429) : nouvel essai au prochain passage", avertir: false };
+    }
+    if (e instanceof Anthropic.InternalServerError) return { jetons: null, phrases: rien, raison: `l'API ne répond pas bien (${e.status}, ${detailDeLErreur(e)}) : nouvel essai au prochain passage`, avertir: false };
+    if (e instanceof Anthropic.APIConnectionError) return { jetons: auPlusHaut, phrases: rien, raison: "Claude ne répond pas", avertir: false };
+    if (e instanceof Anthropic.APIError) return { jetons: null, phrases: rien, raison: `réponse ${e.status ?? "inconnue"} de l'API (${detailDeLErreur(e)})`, avertir: true };
+    // Une erreur hors de l'API : l'appel a pu partir, le compte le plus haut possible.
+    return { jetons: auPlusHaut, phrases: rien, raison: "appel à Claude interrompu", avertir: true };
   }
   // Une réponse sans compte de jetons : le compte le plus haut possible, pour que le plafond tienne.
-  const jetons = jetonsDeLaReponse(lu) ?? { entree: corps.length, sortie: MAX_TOKENS };
-  const { phrases, raison } = phrasesDeLaReponse(lu, new Set(lot.map((g) => g.g)));
+  const jetons = jetonsDeLaReponse(reponse) ?? auPlusHaut;
+  const { phrases, raison } = phrasesDeLaReponse(reponse, new Set(lot.map((g) => g.g)));
   return { jetons, phrases, raison, avertir: false };
 }
 
@@ -667,17 +757,15 @@ export async function vieDuVillage(deps: VieDeps): Promise<BilanDeLaVie> {
   if (!deps.cleClaude) {
     deps.log("Vie du village : pas de clé ANTHROPIC_API_KEY, aucune bulle écrite.");
   } else {
-    // Relue après le relevé vocal : une entrée en vocal change les faits, et le serveur en décide.
-    const aJour = bilan.vocaux > 0 ? lireTravail(await call("vie_du_village_travail", {})) : travail;
-    if (!aJour) throw new Error("vie_du_village_travail : réponse inattendue");
-    const lot = aJour.bulles && aJour.modele ? choisirLeLot(aJour.gaulois, aJour.maintenant) : [];
-    if (!aJour.bulles) deps.log("Vie du village : bulles coupées par l'encadrement, ou plafond du mois atteint : aucune bulle écrite.");
-    else if (!aJour.modele) {
+    // La liste lue avant le relevé vocal : l'état vocal ne change pas les faits d'une bulle, qui ne le disent jamais.
+    const lot = travail.bulles && travail.modele ? choisirLeLot(travail.gaulois, travail.maintenant) : [];
+    if (!travail.bulles) deps.log("Vie du village : bulles coupées par l'encadrement, ou plafond du mois atteint : aucune bulle écrite.");
+    else if (!travail.modele) {
       bilan.erreurs++;
       deps.log("::warning::Vie du village : le serveur ne donne pas de modèle de Claude lisible, aucune bulle écrite.");
     } else if (lot.length === 0) deps.log("Vie du village : aucun Gaulois n'a besoin d'une nouvelle bulle.");
     else {
-      const appel = await demanderLesBulles(aJour.modele, lot, deps.cleClaude, deps.fetch);
+      const appel = await demanderLesBulles(travail.modele, lot, deps.cleClaude, deps.fetch);
       bilan.appels = 1;
       const acceptees: { n: string; texte: string; faits: FaitsDuGaulois }[] = [];
       for (const g of lot) {

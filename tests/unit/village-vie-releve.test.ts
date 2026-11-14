@@ -3,21 +3,28 @@ import type { RpcResult } from "../../src/lib/compte/roster";
 import { TENUE_DE_DEPART } from "../../src/lib/gaulois";
 import { CONSIGNE } from "../../src/lib/village/consigne-repliques";
 import {
-  ANTHROPIC_URL,
-  ANTHROPIC_VERSION,
+  ADMINISTRATEUR,
+  ANTHROPIC_BASE_URL,
+  LIEUX_DES_BULLES,
   MAX_TOKENS,
+  POINTS_DANS_LES_BULLES_MS,
+  SE_CONNECTER,
+  VOIR_LE_SALON,
   choisirLeLot,
   controlerReplique,
   corpsDeLaDemande,
   demanderLesBulles,
   faitsDuGaulois,
   jetonsDeLaReponse,
+  lieuDUneBulle,
   lirePlafond,
   lireTravail,
   lireVieDuVillage,
   momentDeLaJournee,
   nombreExact,
   objetsPortes,
+  permissionsDeTous,
+  permissionsDeTousDansLeSalon,
   phrasesDeLaReponse,
   pointsEcrits,
   releverLesVocaux,
@@ -54,12 +61,21 @@ function fauxFetch(reponses: (url: string, init: RequestInit | undefined) => Rou
     appels.push({ url, init });
     const r = reponses(url, init);
     if (r === "panne") throw new TypeError("fetch failed");
-    return new Response(r.body === undefined ? "" : JSON.stringify(r.body), { status: r.status, headers: r.headers ?? {} });
+    // Comme Discord et l'API de Claude : un corps JSON dit son type, que le SDK lit pour décoder la réponse.
+    const type: Record<string, string> = r.body === undefined ? {} : { "content-type": "application/json" };
+    return new Response(r.body === undefined ? "" : JSON.stringify(r.body), { status: r.status, headers: { ...type, ...(r.headers ?? {}) } });
   }) as typeof fetch;
   return { send, appels };
 }
 
 const sansPause = async () => {};
+
+/** L'adresse où le SDK envoie la demande à Claude. */
+const URL_CLAUDE = `${ANTHROPIC_BASE_URL}/v1/messages`;
+/** Le rôle @everyone du serveur d'essai, et ses permissions au niveau du serveur : voir les salons et s'y connecter. */
+const URL_ROLE = `https://discord.com/api/v10/guilds/${GUILDE}/roles/${GUILDE}`;
+const roleDeTous = (permissions: bigint) => ({ id: GUILDE, name: "@everyone", permissions: String(permissions) });
+const TOUS_ENTRENT = VOIR_LE_SALON | SE_CONNECTER | (1n << 11n);
 
 /* ---------- Le moment de la journée ---------- */
 
@@ -134,13 +150,15 @@ describe("le relevé vocal sur Discord", () => {
     { id: SCENE, type: 13, permission_overwrites: [{ id: "999", type: 0, allow: "0", deny: String(1n << 10n) }] },
     { id: "1350905494600066666", type: 0, permission_overwrites: [] },
   ];
-  const estListe = (url: string) => url === `https://discord.com/api/v10/guilds/${GUILDE}/channels`;
-  /** Le faux Discord : la liste des salons, puis les états vocaux selon `voix`. */
-  const fauxDiscord = (voix: (url: string) => Route | "panne") => fauxFetch((url) => (estListe(url) ? { status: 200, body: SALONS } : voix(url)));
-  /** Les appels des états vocaux, sans celui de la liste des salons. */
+  const URL_SALONS = `https://discord.com/api/v10/guilds/${GUILDE}/channels`;
+  const estListe = (url: string) => url === URL_SALONS || url === URL_ROLE;
+  /** Le faux Discord : le rôle @everyone (`role`) et la liste des salons (`salons`), puis les états vocaux selon `voix`. */
+  const fauxDiscord = (voix: (url: string) => Route | "panne", salons: unknown = SALONS, role: unknown = roleDeTous(TOUS_ENTRENT)) =>
+    fauxFetch((url) => (url === URL_ROLE ? { status: 200, body: role } : url === URL_SALONS ? { status: 200, body: salons } : voix(url)));
+  /** Les appels des états vocaux, sans ceux du rôle et de la liste des salons. */
   const vocaux = (appels: { url: string }[]) => appels.filter((a) => !estListe(a.url));
 
-  it("lit d'abord les salons, une fois, puis demande l'état vocal de chaque membre lié, un par un, avec le jeton du robot", async () => {
+  it("lit d'abord le rôle @everyone et les salons, une fois, puis l'état vocal de chaque membre lié, un par un, avec le jeton du robot", async () => {
     const { send, appels } = fauxDiscord((url) => {
       const i = membre(url);
       if (i === 1) return { status: 200, body: { channel_id: PUBLIC, user_id: discordDe(1), guild_id: GUILDE } };
@@ -151,7 +169,7 @@ describe("le relevé vocal sur Discord", () => {
     const { releves, arret } = await releverLesVocaux(t.gaulois, deps(send));
     expect(arret).toBeNull();
     expect(releves).toEqual([{ n: numeroDe(1), vocal: true }, { n: numeroDe(2), vocal: false }, { n: numeroDe(4), vocal: false }]);
-    expect(appels.map((a) => a.url)).toEqual([`https://discord.com/api/v10/guilds/${GUILDE}/channels`, ...[1, 2, 4].map((i) => `https://discord.com/api/v10/guilds/${GUILDE}/voice-states/${discordDe(i)}`)]);
+    expect(appels.map((a) => a.url)).toEqual([URL_ROLE, URL_SALONS, ...[1, 2, 4].map((i) => `https://discord.com/api/v10/guilds/${GUILDE}/voice-states/${discordDe(i)}`)]);
     for (const appel of appels) {
       const entetes = new Headers(appel.init?.headers);
       expect(entetes.get("authorization")).toBe("Bot jeton.du.robot");
@@ -172,9 +190,37 @@ describe("le relevé vocal sur Discord", () => {
     ]);
   });
 
-  it("ne relève rien si la liste des salons ne se lit pas, et ne demande alors aucun état vocal", async () => {
+  it("lit, par Discord, les droits de @everyone au niveau du serveur avant de dire qu'un salon est public", async () => {
+    const salonDe: Record<number, string> = { 1: PUBLIC, 2: SCENE };
+    const voix = (url: string): Route => ({ status: 200, body: { channel_id: salonDe[membre(url)] } });
+    const t = lu(travail([gaulois(1), gaulois(2)])).gaulois;
+    // @everyone ne voit pas les salons, ou ne s'y connecte pas, au niveau du serveur : aucun salon sans réglage n'est public.
+    for (const base of [SE_CONNECTER, VOIR_LE_SALON, 0n]) {
+      const { send } = fauxDiscord(voix, SALONS, roleDeTous(base));
+      expect((await releverLesVocaux(t, deps(send))).releves, String(base)).toEqual([{ n: numeroDe(1), vocal: false }, { n: numeroDe(2), vocal: false }]);
+    }
+    // Le salon rend à @everyone ce que le serveur lui refuse : public.
+    const rendu = [{ id: PUBLIC, type: 2, permission_overwrites: [{ id: GUILDE, type: 0, allow: String(VOIR_LE_SALON), deny: "0" }] }];
+    expect((await releverLesVocaux(t, deps(fauxDiscord(voix, rendu, roleDeTous(SE_CONNECTER)).send))).releves).toEqual([{ n: numeroDe(1), vocal: true }, { n: numeroDe(2), vocal: false }]);
+    // Une catégorie cachée à @everyone : son salon ne compte pas.
+    const range = [{ id: "1350905494600011111", type: 4, permission_overwrites: [{ id: GUILDE, type: 0, allow: "0", deny: String(VOIR_LE_SALON) }] }, { id: PUBLIC, type: 2, parent_id: "1350905494600011111", permission_overwrites: [] }];
+    expect((await releverLesVocaux(t, deps(fauxDiscord(voix, range).send))).releves).toEqual([{ n: numeroDe(1), vocal: false }, { n: numeroDe(2), vocal: false }]);
+    // ADMINISTRATOR pour @everyone : tout salon vocal est ouvert à tous, même avec un refus.
+    expect((await releverLesVocaux(t, deps(fauxDiscord(voix, SALONS, roleDeTous(ADMINISTRATEUR)).send))).releves).toEqual([{ n: numeroDe(1), vocal: true }, { n: numeroDe(2), vocal: true }]);
+  });
+
+  it("ne relève rien si la liste des salons ou les droits de @everyone ne se lisent pas, et ne demande alors aucun état vocal", async () => {
     for (const reponse of [{ status: 500, body: null }, { status: 200, body: { salons: [] } }, { status: 403, body: { code: 50013 } }]) {
-      const { send, appels } = fauxFetch((url) => (estListe(url) ? reponse : { status: 200, body: { channel_id: PUBLIC } }));
+      // La liste des salons illisible, puis le rôle @everyone illisible.
+      for (const casse of [URL_SALONS, URL_ROLE]) {
+        const { send, appels } = fauxFetch((url) => (url === casse ? reponse : url === URL_ROLE ? { status: 200, body: roleDeTous(TOUS_ENTRENT) } : url === URL_SALONS ? { status: 200, body: SALONS } : { status: 200, body: { channel_id: PUBLIC } }));
+        expect(await releverLesVocaux(lu(travail([gaulois(1)])).gaulois, deps(send))).toEqual({ releves: [], arret: "salons" });
+        expect(vocaux(appels)).toHaveLength(0);
+      }
+    }
+    // Un rôle qui n'est pas @everyone, ou des permissions qui ne sont pas un nombre : aucun relevé.
+    for (const role of [{ id: "42", permissions: String(TOUS_ENTRENT) }, { id: GUILDE, permissions: "beaucoup" }, { id: GUILDE, permissions: Number(TOUS_ENTRENT) }, { id: GUILDE }, null]) {
+      const { send, appels } = fauxDiscord(() => ({ status: 200, body: { channel_id: PUBLIC } }), SALONS, role);
       expect(await releverLesVocaux(lu(travail([gaulois(1)])).gaulois, deps(send))).toEqual({ releves: [], arret: "salons" });
       expect(vocaux(appels)).toHaveLength(0);
     }
@@ -197,10 +243,78 @@ describe("le relevé vocal sur Discord", () => {
     const publics = salonsVocauxPublics(
       [salon("a", 2, null), salon("b", 2, voir), salon("c", 2, connecter), salon("d", 13, "0"), salon("e", 2, voir, true), salon("f", 0, null), salon("g", 2, "pas un nombre"), "rien", { id: 5, type: 2 }],
       GUILDE,
+      TOUS_ENTRENT,
     );
     expect([...(publics ?? [])].sort()).toEqual(["a", "d", "e"]);
-    expect(salonsVocauxPublics({ id: "a" }, GUILDE)).toBeNull();
-    expect(salonsVocauxPublics(null, GUILDE)).toBeNull();
+    expect(salonsVocauxPublics({ id: "a" }, GUILDE, TOUS_ENTRENT)).toBeNull();
+    expect(salonsVocauxPublics(null, GUILDE, TOUS_ENTRENT)).toBeNull();
+    // Sans les permissions de @everyone au niveau du serveur : rien ne se lit.
+    expect(salonsVocauxPublics([salon("a", 2, null)], GUILDE, null)).toBeNull();
+  });
+
+  // Relecture du 14 novembre 2026 : un salon sans refus pour @everyone n'est pas public si @everyone ne peut, au niveau du
+  // serveur, ni voir les salons ni s'y connecter. L'ordre de Discord : le serveur, puis le refus et l'accord du salon.
+  describe("les droits de @everyone, dans l'ordre de calcul de Discord", () => {
+    const voir = VOIR_LE_SALON;
+    const connecter = SE_CONNECTER;
+    type Reglage = { id: string; type: number; allow?: string; deny?: string };
+    const pourTous = (allow: bigint, deny: bigint): Reglage => ({ id: GUILDE, type: 0, allow: String(allow), deny: String(deny) });
+    const salon = (id: string, reglages: Reglage[] = [], plus: Record<string, unknown> = {}) => ({ id, type: 2, permission_overwrites: reglages, ...plus });
+    const publics = (salons: unknown[], base: bigint) => [...(salonsVocauxPublics(salons, GUILDE, base) ?? [])].sort();
+
+    it("lit les permissions du rôle @everyone, et rien d'autre", () => {
+      expect(permissionsDeTous(roleDeTous(TOUS_ENTRENT), GUILDE)).toBe(TOUS_ENTRENT);
+      expect(permissionsDeTous({ id: GUILDE, permissions: "0" }, GUILDE)).toBe(0n);
+      for (const role of [{ id: "42", permissions: "1024" }, { id: GUILDE, permissions: "-1" }, { id: GUILDE, permissions: "1e3" }, { id: GUILDE, permissions: 1024 }, { id: GUILDE }, "rien", null]) {
+        expect(permissionsDeTous(role, GUILDE), JSON.stringify(role)).toBeNull();
+      }
+    });
+
+    it("ne compte pas un salon sans refus quand @everyone ne voit pas les salons, ou ne s'y connecte pas, au niveau du serveur", () => {
+      expect(publics([salon("a")], voir | connecter)).toEqual(["a"]);
+      expect(publics([salon("a")], connecter)).toEqual([]);
+      expect(publics([salon("a")], voir)).toEqual([]);
+      expect(publics([salon("a")], 0n)).toEqual([]);
+    });
+
+    it("applique le refus puis l'accord du salon pour @everyone, et ignore les réglages des autres rôles et des membres", () => {
+      // Le serveur refuse de voir, le salon l'accorde : public.
+      expect(publics([salon("a", [pourTous(voir, 0n)])], connecter)).toEqual(["a"]);
+      expect(publics([salon("a", [pourTous(voir | connecter, 0n)])], 0n)).toEqual(["a"]);
+      // Le serveur l'accorde, le salon le refuse : pas public. Refus et accord du même bit : l'accord passe après.
+      expect(publics([salon("a", [pourTous(0n, connecter)])], voir | connecter)).toEqual([]);
+      expect(publics([salon("a", [pourTous(voir, voir)])], connecter)).toEqual(["a"]);
+      // Un rôle ou un membre qui reçoit le droit ne rend pas le salon public.
+      expect(publics([salon("a", [{ id: "42", type: 0, allow: String(voir | connecter), deny: "0" }, { id: "43", type: 1, allow: String(voir | connecter), deny: "0" }])], 0n)).toEqual([]);
+      // Un réglage sans « allow » ou sans « deny » compte pour zéro ; illisible ou en double, le salon ne compte pas.
+      expect(publics([salon("a", [{ id: GUILDE, type: 0, deny: "0" }])], voir | connecter)).toEqual(["a"]);
+      expect(publics([salon("a", [{ id: GUILDE, type: 0, allow: "beaucoup", deny: "0" }])], voir | connecter)).toEqual([]);
+      expect(publics([salon("a", [pourTous(0n, 0n), pourTous(0n, 0n)])], voir | connecter)).toEqual([]);
+      expect(publics([salon("a", "rien" as unknown as Reglage[])], voir | connecter)).toEqual([]);
+      expect(permissionsDeTousDansLeSalon(voir | connecter, salon("a", [pourTous(1n << 3n, voir)]), GUILDE)).toBe(connecter | (1n << 3n));
+    });
+
+    it("laisse ADMINISTRATOR passer outre tout réglage, comme Discord", () => {
+      expect(publics([salon("a", [pourTous(0n, voir | connecter)])], ADMINISTRATEUR)).toEqual(["a"]);
+    });
+
+    it("ne compte pas un salon rangé dans une catégorie fermée à @everyone, absente ou qui n'en est pas une", () => {
+      const categorie = (id: string, reglages: Reglage[] = []) => ({ id, type: 4, permission_overwrites: reglages });
+      const salons = [
+        categorie("c-ouverte"),
+        categorie("c-cachee", [pourTous(0n, voir)]),
+        categorie("c-sans-connexion", [pourTous(0n, connecter)]),
+        { id: "t-ecrit", type: 0, permission_overwrites: [] },
+        salon("a", [], { parent_id: "c-ouverte" }),
+        salon("b", [], { parent_id: "c-cachee" }),
+        salon("c", [], { parent_id: "c-sans-connexion" }),
+        salon("d", [], { parent_id: "c-absente" }),
+        salon("e", [], { parent_id: "t-ecrit" }),
+        salon("f", [], { parent_id: null }),
+        salon("g", [pourTous(voir | connecter, 0n)], { parent_id: "c-cachee" }),
+      ];
+      expect(publics(salons, voir | connecter)).toEqual(["a", "f"]);
+    });
   });
 
   it("compte un membre inconnu du serveur comme hors du vocal, mais s'arrête si le serveur est inconnu", async () => {
@@ -339,24 +453,56 @@ describe("les faits d'une bulle", () => {
   });
 });
 
-describe("le lieu des faits, celui de l'écran", () => {
+describe("le lieu des faits, celui de l'écran sans l'état vocal", () => {
   const nuit = "2026-11-14T23:30:00.000Z"; // 0 h 30 à Paris.
 
-  it("suit la règle de vie.ts : la partie avant le vocal, le vocal avant le sommeil, rien du futur", () => {
+  it("suit la règle de vie.ts comme si le vocal n'était pas relevé : la partie, puis le sommeil, rien du futur", () => {
     const lieu = (plus: Partial<Record<string, unknown>>, quand = MAINTENANT) => faitsDuGaulois(lu(travail([gaulois(1, plus)], { maintenant: quand })).gaulois[0]!, new Date(quand))?.lieu;
     expect(lieu({ partie_le: "2026-11-14T19:30:00Z", vocal: true })).toBe("bataille");
     expect(lieu({ partie_le: "2026-11-14T18:30:00Z", vocal: true })).toBe("taverne");
-    expect(lieu({ partie_le: "2026-11-14T16:00:00Z", vocal: true })).toBe("reunion");
-    expect(lieu({ vocal: true }, nuit)).toBe("reunion");
+    // Relecture du 14 novembre 2026 : une bulle reste 12 heures, l'état vocal 15 minutes. En vocal, le lieu d'une bulle
+    // est celui qu'il aurait sans le vocal.
+    expect(lieu({ partie_le: "2026-11-14T16:00:00Z", vocal: true })).toBe("place");
+    expect(lieu({ vocal: true })).toBe("place");
+    expect(lieu({ vocal: true }, nuit)).toBe("maisons");
     expect(lieu({}, nuit)).toBe("maisons");
     expect(lieu({})).toBe("place");
     expect(lieu({ partie_le: "2026-11-14T21:00:00Z" })).toBe("place");
   });
 
+  it("ne donne jamais la salle de réunion, ni rien qui dise le vocal, à aucune heure", () => {
+    expect(LIEUX_DES_BULLES).toEqual(["place", "taverne", "bataille", "maisons"]);
+    for (let quart = 0; quart < 96; quart++) {
+      const quand = new Date(Date.parse("2026-11-14T00:00:00Z") + quart * 15 * 60_000);
+      for (const partie of [null, new Date(quand.getTime() - 20 * 60_000).toISOString(), new Date(quand.getTime() - 2 * 3_600_000).toISOString(), new Date(quand.getTime() - 5 * 3_600_000).toISOString()]) {
+        for (const vocal of [true, false, null]) {
+          const g = lu(travail([gaulois(1, { vocal, partie_le: partie, points: partie ? 1.5 : null })], { maintenant: quand.toISOString() })).gaulois[0]!;
+          const avec = faitsDuGaulois(g, quand)!;
+          expect(LIEUX_DES_BULLES).toContain(avec.lieu);
+          // Le même Gaulois hors du vocal a exactement les mêmes faits.
+          expect(avec).toEqual(faitsDuGaulois({ ...g, vocal: null }, quand));
+          expect(lieuDUneBulle(g, quand)).toBe(avec.lieu);
+        }
+      }
+    }
+  });
+
+  it("ne donne les points que d'une partie de moins de 12 heures", () => {
+    const faits = (heures: number) => faitsDuGaulois(lu(travail([gaulois(1, { partie_le: new Date(Date.parse(MAINTENANT) - heures * 3_600_000).toISOString(), points: 1.65 })])).gaulois[0]!, new Date(MAINTENANT))!;
+    expect(POINTS_DANS_LES_BULLES_MS).toBe(12 * 3_600_000);
+    expect(faits(0.5).points).toBe("1,65");
+    expect(faits(11.9).points).toBe("1,65");
+    expect(faits(12).points).toBeNull();
+    expect(faits(20).points).toBeNull();
+    // Une partie du futur, ou sans date, ne donne rien.
+    expect(faits(-1).points).toBeNull();
+  });
+
   it("n'écrit pas de bulle pour qui dort : l'écran ne la montrerait pas", () => {
     const t = lu(travail([gaulois(1), gaulois(2, { vocal: true }), gaulois(3, { partie_le: "2026-11-14T23:00:00Z", points: 2 })], { maintenant: nuit }));
     const lot = choisirLeLot(t.gaulois, t.maintenant);
-    expect(lot.map((g) => [g.n, g.faits.lieu])).toEqual([[numeroDe(2), "reunion"], [numeroDe(3), "bataille"]]);
+    // En vocal la nuit, il dort pour les bulles : aucune bulle ne le dit éveillé dans un salon.
+    expect(lot.map((g) => [g.n, g.faits.lieu])).toEqual([[numeroDe(3), "bataille"]]);
     expect(lot[0]?.faits.heure).toBe("0 h 30");
   });
 });
@@ -366,7 +512,7 @@ describe("le lieu des faits, celui de l'écran", () => {
 const FAITS: FaitsDuGaulois = { heure: "21 h 05", moment: "soir", lieu: "taverne", points: "1,65", objets: ["Casque d'or", "Gourdin"] };
 const LOT = [
   { g: "g1", n: numeroDe(1), faits: FAITS },
-  { g: "g2", n: numeroDe(2), faits: { ...FAITS, lieu: "reunion" as const, points: null } },
+  { g: "g2", n: numeroDe(2), faits: { ...FAITS, lieu: "place" as const, points: null } },
 ];
 
 /** Une réponse de l'API Messages, de la forme documentée. */
@@ -393,8 +539,8 @@ describe("la demande à Claude", () => {
     expect(corps).not.toHaveProperty("thinking");
     const texte = JSON.stringify(corps);
     for (const interdit of [numeroDe(1), numeroDe(2), discordDe(1), "user_id"]) expect(texte).not.toContain(interdit);
-    const message = (corps["messages"] as { content: string }[])[0]!.content;
-    for (const interdit of ['"n"', '"nom"', "pseudo", "discord"]) expect(message).not.toContain(interdit);
+    const message = corps.messages[0]!.content as string;
+    for (const interdit of ['"n"', '"nom"', "pseudo", "discord", "Discord", "vocal", "réunion"]) expect(message).not.toContain(interdit);
     expect(message).toContain('"g":"g1"');
     expect(message).toContain("à la taverne");
     expect(message).toContain('"points_rapportes_au_clan_par_sa_derniere_partie":"1,65"');
@@ -403,17 +549,35 @@ describe("la demande à Claude", () => {
     expect(message.split('"g":"g2"')[1]).not.toContain("points");
   });
 
-  it("part avec la clé dans l'en-tête et la version de l'API", async () => {
+  it("part par le SDK, une seule fois, à l'adresse de l'API, avec la clé et la version que le SDK pose", async () => {
     const { send, appels } = fauxFetch(() => ({ status: 200, body: reponseClaude(json([{ g: "g1", texte: "Une pause à la taverne, ça se mérite !" }])) }));
     const r = await demanderLesBulles("claude-haiku-5-5", LOT, "cle-essai", send);
-    expect(appels[0]?.url).toBe(ANTHROPIC_URL);
+    expect(appels).toHaveLength(1);
+    expect(appels[0]?.url).toBe(URL_CLAUDE);
+    expect(appels[0]?.init?.method).toBe("POST");
     const entetes = new Headers(appels[0]?.init?.headers);
-    expect(entetes.get("x-api-key")).toBe("cle-essai");
-    expect(entetes.get("anthropic-version")).toBe(ANTHROPIC_VERSION);
+    // Le SDK envoie la clé (en-tête Authorization depuis sa version 1.0) et la version de l'API qu'il connaît.
+    expect(`${entetes.get("authorization") ?? ""} ${entetes.get("x-api-key") ?? ""}`).toContain("cle-essai");
+    expect(entetes.get("anthropic-version")).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(entetes.get("content-type")).toBe("application/json");
+    // Le corps est celui de corpsDeLaDemande, sans rien ajouter.
+    expect(JSON.parse(String(appels[0]?.init?.body))).toEqual(JSON.parse(JSON.stringify(corpsDeLaDemande("claude-haiku-5-5", LOT))));
     expect(r.jetons).toEqual({ entree: 812, sortie: 240 });
     expect(r.phrases.get("g1")).toBe("Une pause à la taverne, ça se mérite !");
     expect(r.raison).toBeNull();
+  });
+
+  it("n'envoie la clé qu'à l'API de Claude, même si l'environnement donne une autre adresse", async () => {
+    const avant = process.env["ANTHROPIC_BASE_URL"];
+    process.env["ANTHROPIC_BASE_URL"] = "https://ailleurs.example.test";
+    try {
+      const { send, appels } = fauxFetch(() => ({ status: 200, body: reponseClaude(json([])) }));
+      await demanderLesBulles("claude-haiku-5-5", LOT, "cle-essai", send);
+      expect(appels.map((a) => a.url)).toEqual([URL_CLAUDE]);
+    } finally {
+      if (avant === undefined) delete process.env["ANTHROPIC_BASE_URL"];
+      else process.env["ANTHROPIC_BASE_URL"] = avant;
+    }
   });
 
   it("lit les jetons, cache compris", () => {
@@ -434,22 +598,47 @@ describe("la demande à Claude", () => {
     const etiquettes = new Set(["g1"]);
     expect(phrasesDeLaReponse(reponseClaude("", { stop_reason: "refusal", stop_details: { type: "refusal", category: "general_harms" } }), etiquettes)).toMatchObject({ raison: "le modèle a refusé la demande" });
     expect(phrasesDeLaReponse(reponseClaude('{"repliques": [{"g": "g1", "te', { stop_reason: "max_tokens" }), etiquettes)).toMatchObject({ raison: "réponse coupée" });
+    expect(phrasesDeLaReponse(reponseClaude(json([{ g: "g1", texte: "A" }]), { stop_reason: "max_tokens" }), etiquettes)).toMatchObject({ raison: "réponse coupée" });
     expect(phrasesDeLaReponse(reponseClaude("Voici les bulles !"), etiquettes)).toMatchObject({ raison: "JSON illisible" });
     expect(phrasesDeLaReponse(reponseClaude('{"bulles": []}'), etiquettes)).toMatchObject({ raison: "JSON hors de la forme demandée" });
     expect(phrasesDeLaReponse("rien", etiquettes)).toMatchObject({ raison: "réponse illisible" });
   });
 
-  it("dit pourquoi l'API refuse, sans compter de jetons, et compte au plus haut une réponse perdue", async () => {
-    const refus = async (status: number, body: unknown) => demanderLesBulles("claude-haiku-5-5", LOT, "cle", fauxFetch(() => ({ status, body })).send);
-    expect(await refus(401, { type: "error", error: { type: "authentication_error", message: "invalid x-api-key" } })).toMatchObject({ jetons: null, avertir: true, raison: expect.stringContaining("ANTHROPIC_API_KEY") });
-    expect(await refus(429, { type: "error", error: { type: "rate_limit_error", message: "slow down" } })).toMatchObject({ jetons: null, avertir: false, raison: expect.stringContaining("429") });
-    expect(await refus(529, { type: "error", error: { type: "overloaded_error", message: "Overloaded" } })).toMatchObject({ jetons: null, avertir: false, raison: expect.stringContaining("overloaded_error") });
-    expect(await refus(400, { type: "error", error: { type: "invalid_request_error", message: "Your credit balance is too low" } })).toMatchObject({ jetons: null, avertir: true, raison: expect.stringContaining("credit balance") });
-    const perdue = await demanderLesBulles("claude-haiku-5-5", LOT, "cle", fauxFetch(() => "panne").send);
+  it("dit pourquoi l'API refuse, sans compter de jetons, sans jamais réessayer, et compte au plus haut une réponse perdue", async () => {
+    const refus = async (status: number, body: unknown) => {
+      const faux = fauxFetch(() => ({ status, body }));
+      const r = await demanderLesBulles("claude-haiku-5-5", LOT, "cle-secrete", faux.send);
+      // Aucune reprise du SDK : un seul appel, quel que soit le refus.
+      expect(faux.appels, String(status)).toHaveLength(1);
+      expect(r.raison ?? "", String(status)).not.toContain("cle-secrete");
+      return r;
+    };
+    const erreur = (type: string, message: string) => ({ type: "error", error: { type, message } });
+    expect(await refus(401, erreur("authentication_error", "invalid x-api-key"))).toMatchObject({ jetons: null, avertir: true, raison: expect.stringContaining("ANTHROPIC_API_KEY") });
+    expect(await refus(403, erreur("permission_error", "not allowed"))).toMatchObject({ jetons: null, avertir: true, raison: expect.stringContaining("403") });
+    expect(await refus(429, erreur("rate_limit_error", "slow down"))).toMatchObject({ jetons: null, avertir: false, raison: expect.stringContaining("429") });
+    expect(await refus(500, erreur("api_error", "Internal server error"))).toMatchObject({ jetons: null, avertir: false, raison: expect.stringContaining("500") });
+    expect(await refus(529, erreur("overloaded_error", "Overloaded"))).toMatchObject({ jetons: null, avertir: false, raison: expect.stringContaining("overloaded_error") });
+    expect(await refus(400, erreur("invalid_request_error", "Your credit balance is too low"))).toMatchObject({ jetons: null, avertir: true, raison: expect.stringContaining("credit balance") });
+    const panne = fauxFetch(() => "panne");
+    const perdue = await demanderLesBulles("claude-haiku-5-5", LOT, "cle", panne.send);
+    expect(panne.appels).toHaveLength(1);
+    expect(perdue).toMatchObject({ raison: "Claude ne répond pas", avertir: false });
     expect(perdue.jetons?.sortie).toBe(MAX_TOKENS);
     expect(perdue.jetons!.entree).toBeGreaterThan(1000);
     const sansCompte = await demanderLesBulles("claude-haiku-5-5", LOT, "cle", fauxFetch(() => ({ status: 200, body: { content: [] } })).send);
     expect(sansCompte.jetons?.sortie).toBe(MAX_TOKENS);
+  });
+
+  it("lit la raison de l'arrêt avant le contenu, et compte les jetons d'une réponse refusée ou coupée", async () => {
+    const valable = json([{ g: "g1", texte: "Une pause à la taverne, ça se mérite !" }]);
+    for (const [arret, raison] of [["refusal", "le modèle a refusé la demande"], ["max_tokens", "réponse coupée"], ["pause_turn", "réponse arrêtée autrement que prévu"]] as const) {
+      // Même un texte qui se lirait ne donne aucune phrase.
+      const corps = reponseClaude(valable, { stop_reason: arret, usage: { input_tokens: 900, output_tokens: MAX_TOKENS, cache_creation_input_tokens: null, cache_read_input_tokens: null } });
+      const r = await demanderLesBulles("claude-haiku-5-5", LOT, "cle", fauxFetch(() => ({ status: 200, body: corps })).send);
+      expect(r, arret).toMatchObject({ jetons: { entree: 900, sortie: MAX_TOKENS }, raison, avertir: false });
+      expect(r.phrases.size, arret).toBe(0);
+    }
   });
 });
 
@@ -555,7 +744,8 @@ describe("un passage de la vie du village", () => {
 
   function monde(claude: (lot: number) => Route | "panne") {
     return fauxFetch((url, init) => {
-      // Les salons du serveur : un salon vocal public, celui où est le membre 1.
+      // Le rôle @everyone et les salons du serveur : un salon vocal public, celui où est le membre 1.
+      if (url === URL_ROLE) return { status: 200, body: roleDeTous(TOUS_ENTRENT) };
       if (url.endsWith("/channels")) return { status: 200, body: [{ id: "1350905494600099999", type: 2, permission_overwrites: [] }] };
       if (url.startsWith("https://discord.com/")) return Number(url.slice(-2)) === 1 ? { status: 200, body: { channel_id: "1350905494600099999" } } : { status: 404, body: { code: 10065 } };
       const corps = JSON.parse(String(init?.body)) as { messages: { content: string }[] };
@@ -563,20 +753,22 @@ describe("un passage de la vie du village", () => {
     });
   }
 
-  it("relève les vocaux, relit la liste, demande les bulles, note la dépense puis les bulles", async () => {
+  it("relève les vocaux, demande les bulles sans relire la liste, note la dépense puis les bulles", async () => {
     const serveur = fauxServeur({ vie_du_village_travail: [travail(lignes)], noter_vie_du_village: NOTE_OK });
     const { send, appels } = monde(() => ({ status: 200, body: reponseClaude(json([{ g: "g1", texte: "Le soir tombe, je flâne sur la place." }, { g: "g2", texte: "Une potion !" }])) }));
     const journal: string[] = [];
     const bilan = await vieDuVillage({ rpc: serveur.rpc, fetch: send, sleep: sansPause, discord: { token: "Mzk.jeton-robot-essai.Xyz", guildId: GUILDE }, cleClaude: "cle-secrete", log: (l) => journal.push(l) });
     expect(bilan).toEqual({ vocaux: 3, enVocal: 1, appels: 1, envoyees: 1, ecartees: 1, erreurs: 0 });
-    expect(serveur.appels.map((a) => a.fn)).toEqual(["vie_du_village_travail", "noter_vie_du_village", "vie_du_village_travail", "noter_vie_du_village", "noter_vie_du_village"]);
+    // L'état vocal ne change pas les faits d'une bulle : la liste de travail n'est lue qu'une fois.
+    expect(serveur.appels.map((a) => a.fn)).toEqual(["vie_du_village_travail", "noter_vie_du_village", "noter_vie_du_village", "noter_vie_du_village"]);
     expect(serveur.appels[1]?.args).toEqual({ p_releve: { vocaux: [{ n: numeroDe(1), vocal: true }, { n: numeroDe(2), vocal: false }, { n: numeroDe(3), vocal: false }] } });
-    expect(serveur.appels[3]?.args).toEqual({ p_releve: { depense: { appels: 1, entree: 812, sortie: 240, ecartees: 1 } } });
-    const envoi = serveur.appels[4]?.args["p_releve"] as { repliques: { n: string; texte: string; faits: FaitsDuGaulois }[]; sans_bulle: string[] };
+    expect(serveur.appels[2]?.args).toEqual({ p_releve: { depense: { appels: 1, entree: 812, sortie: 240, ecartees: 1 } } });
+    const envoi = serveur.appels[3]?.args["p_releve"] as { repliques: { n: string; texte: string; faits: FaitsDuGaulois }[]; sans_bulle: string[] };
+    // Le membre 1 est en vocal : sa bulle le dit sur la place, pas en salle de réunion.
     expect(envoi.repliques).toEqual([{ n: numeroDe(1), texte: "Le soir tombe, je flâne sur la place.", faits: { heure: "21 h 05", moment: "soir", lieu: "place", points: null, objets: ["Tunique bleue", "Braies à carreaux", "Bottes de cuir", "Gourdin"] } }]);
     // La phrase écartée : le Gaulois est noté comme demandé, sans bulle, pour ne pas redemander Claude à chaque passage.
     expect(envoi.sans_bulle).toEqual([numeroDe(2)]);
-    expect(appels.filter((a) => a.url === ANTHROPIC_URL)).toHaveLength(1);
+    expect(appels.filter((a) => a.url === URL_CLAUDE)).toHaveLength(1);
     // Le journal de l'Action est public : ni identifiant Discord, ni numéro, ni clé, ni jeton.
     const tout = journal.join("\n");
     for (const secret of [discordDe(1), discordDe(2), numeroDe(1), "cle-secrete", "jeton-robot-essai"]) expect(tout).not.toContain(secret);
@@ -602,8 +794,8 @@ describe("un passage de la vie du village", () => {
     const claude = monde(() => ({ status: 200, body: reponseClaude(json([])) }));
     const journal: string[] = [];
     await vieDuVillage({ rpc: sansJeton.rpc, fetch: claude.send, sleep: sansPause, discord: null, cleClaude: "cle", log: (l) => journal.push(l) });
-    expect(claude.appels.every((a) => a.url === ANTHROPIC_URL)).toBe(true);
-    // La liste n'est pas relue sans relevé vocal.
+    expect(claude.appels.every((a) => a.url === URL_CLAUDE)).toBe(true);
+    // La liste n'est lue qu'une fois.
     expect(sansJeton.appels.filter((a) => a.fn === "vie_du_village_travail")).toHaveLength(1);
     expect(journal.some((l) => l.includes("DISCORD_BOT_TOKEN"))).toBe(true);
 
@@ -626,12 +818,14 @@ describe("un passage de la vie du village", () => {
     }
   });
 
-  it("note quand même la dépense d'une réponse refusée ou mal formée, et ses Gaulois comme demandés sans bulle", async () => {
-    for (const reponse of [reponseClaude("", { stop_reason: "refusal" }), reponseClaude("pas du JSON"), reponseClaude(json([{ g: "g1", texte: "J'ai rapporté 99 points !" }]))]) {
+  it("note quand même la dépense d'une réponse refusée, coupée ou mal formée, et ses Gaulois comme demandés sans bulle, sans erreur", async () => {
+    const coupee = reponseClaude(json([{ g: "g1", texte: "Bonsoir la place !" }]), { stop_reason: "max_tokens" });
+    for (const reponse of [reponseClaude("", { stop_reason: "refusal" }), coupee, reponseClaude("pas du JSON"), reponseClaude(json([{ g: "g1", texte: "J'ai rapporté 99 points !" }]))]) {
       const serveur = fauxServeur({ vie_du_village_travail: [travail(lignes)], noter_vie_du_village: NOTE_OK });
       const { send } = monde(() => ({ status: 200, body: reponse }));
       const bilan = await vieDuVillage({ rpc: serveur.rpc, fetch: send, sleep: sansPause, discord: null, cleClaude: "cle", log: () => {} });
       expect(bilan.envoyees).toBe(0);
+      expect(bilan.erreurs).toBe(0);
       expect(serveur.appels.map((a) => Object.keys((a.args["p_releve"] as object | undefined) ?? {})[0] ?? a.fn)).toEqual(["vie_du_village_travail", "depense", "repliques"]);
       expect(serveur.appels[2]?.args).toEqual({ p_releve: { repliques: [], sans_bulle: [numeroDe(1), numeroDe(2)] } });
     }
@@ -645,6 +839,21 @@ describe("un passage de la vie du village", () => {
     expect(bilan).toMatchObject({ appels: 1, envoyees: 0, erreurs: 1 });
     expect(serveur.appels.map((a) => a.fn)).toEqual(["vie_du_village_travail"]);
     expect(journal.join("\n")).not.toContain("cle-refusee");
+    expect(journal.some((l) => l.startsWith("::warning::") && l.includes("ANTHROPIC_API_KEY"))).toBe(true);
+  });
+
+  it("abandonne le passage sans erreur ni dépense quand l'API demande de ralentir ou tombe en panne : le suivant réessaie", async () => {
+    for (const [status, type] of [[429, "rate_limit_error"], [500, "api_error"], [529, "overloaded_error"]] as const) {
+      const serveur = fauxServeur({ vie_du_village_travail: [travail(lignes)], noter_vie_du_village: NOTE_OK });
+      const { send, appels } = monde(() => ({ status, body: { type: "error", error: { type, message: "plus tard" } } }));
+      const journal: string[] = [];
+      const bilan = await vieDuVillage({ rpc: serveur.rpc, fetch: send, sleep: sansPause, discord: null, cleClaude: "cle", log: (l) => journal.push(l) });
+      expect(bilan, String(status)).toMatchObject({ appels: 1, envoyees: 0, erreurs: 0 });
+      expect(appels.filter((a) => a.url === URL_CLAUDE)).toHaveLength(1);
+      // Rien de noté : ni dépense, ni Gaulois demandés sans bulle.
+      expect(serveur.appels.map((a) => a.fn)).toEqual(["vie_du_village_travail"]);
+      expect(journal.some((l) => l.startsWith("::warning::"))).toBe(false);
+    }
   });
 
   it("signale un jeton Discord refusé, et continue avec les bulles", async () => {

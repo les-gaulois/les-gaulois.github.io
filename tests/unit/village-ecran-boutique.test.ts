@@ -7,7 +7,9 @@ import {
   avecUnExemplaire,
   chancesDeLaPochette,
   estEnVente,
+  SOLDE_INCONNU,
   etatDeLaBourse,
+  exemplaires,
   instant,
   jour,
   lireAchat,
@@ -16,6 +18,7 @@ import {
   lireStateres,
   manque,
   messageDuRefus,
+  motStatere,
   nombre,
   objetPayant,
   objetsEnVente,
@@ -26,8 +29,11 @@ import {
   quantitePossedee,
   raisonBoutiqueFermee,
   soldeAMontrer,
+  soldeDuMarche,
   stateres,
 } from "../../src/lib/village/ecran-boutique";
+import { fmtCount } from "../../src/lib/format";
+import { enStateres } from "../../src/lib/village/ecran-marche";
 
 const NBSP = String.fromCharCode(0xa0);
 const FINE = String.fromCharCode(0x202f);
@@ -176,6 +182,16 @@ describe("les mots de l'écran", () => {
     expect(nombre(100)).toBe("100");
     expect(stateres(1)).toBe(`1${NBSP}statère`);
     expect(stateres(1860)).toBe(`1${FINE}860${NBSP}statères`);
+    // Zéro au singulier, comme partout sur le site (fmtCount) et au marché (enStateres) : une seule écriture.
+    expect(stateres(0)).toBe(`0${NBSP}statère`);
+    for (const n of [0, 1, 2, 250, 2500]) {
+      expect(motStatere(n), String(n)).toBe(fmtCount(n, "statère").split(" ").pop());
+      expect(stateres(n).split(NBSP).pop(), String(n)).toBe(enStateres(n).split(" ").pop());
+    }
+    // Des mots, pas de signe : « 2 exemplaires », jamais « × 2 ».
+    expect(exemplaires(2)).toBe(`2${NBSP}exemplaires`);
+    expect(exemplaires(1)).toBe(`1${NBSP}exemplaire`);
+    expect(exemplaires(12)).not.toContain("×");
     expect(points(1.67)).toBe("1,67");
     expect(pourcent(50)).toBe(`50${NBSP}%`);
     expect(pourcent(0.5)).toBe(`0,5${NBSP}%`);
@@ -232,6 +248,18 @@ describe("l'état de la bourse", () => {
     expect(soldeAMontrer({ ...prete, lie: false })).toBeNull();
     expect(soldeAMontrer({ ...prete, gaulois: false })).toBeNull();
     expect(soldeAMontrer({ ...prete, valide: false, solde: 120 })).toBe(120);
+  });
+
+  // Relecture du 14 novembre 2026 : le marché écrivait « 0 statère » là où « Mon Gaulois » écrivait « Pas encore de
+  // statères comptés ». Les deux bourses suivent la même règle, dans le même état.
+  it("donne au marché la règle de « Mon Gaulois », et rien de plus quand l'état de la bourse manque", () => {
+    const etats = [prete, { ...prete, releve: null }, { ...prete, valide: false }, { ...prete, lie: false }, { ...prete, gaulois: false }];
+    for (const etat of etats) {
+      for (const solde of [0, 1, 640]) expect(soldeDuMarche(solde, etat), JSON.stringify([etat, solde])).toBe(soldeAMontrer({ ...etat, solde }));
+    }
+    expect(soldeDuMarche(0, null)).toBeNull();
+    expect(soldeDuMarche(640, null)).toBe(640);
+    expect(SOLDE_INCONNU).toBe("Pas encore de statères comptés");
   });
 });
 

@@ -30,6 +30,7 @@ import {
   RAISON_EN_VENTE,
   avecUnExemplaire,
   estEnVente,
+  exemplaires,
   lireAchat,
   lireBoutique,
   lirePochette,
@@ -112,8 +113,8 @@ function Case({ objet, vignette, portee, essayee = false, vente, enVente = false
       {objet.rarete && <MarqueDeRarete rarete={objet.rarete} />}
       {possede > 0 && (
         <span class="case-marque" data-testid="case-a-vous">
-          <span class="sr-only">, </span>à vous{possede > 1 && <span aria-hidden="true"> × {possede}</span>}
-          {possede > 1 && <span class="sr-only">, {possede} exemplaires</span>}
+          {/* Des mots, pas de signe (règle du pilote) : « à vous, 2 exemplaires », le nombre collé à son mot. */}
+          <span class="sr-only">, </span>à vous{possede > 1 && `, ${exemplaires(possede)}`}
         </span>
       )}
       {/* Mis en vente par le membre : il ne s'achète pas à la boutique tant que l'offre est ouverte. */}

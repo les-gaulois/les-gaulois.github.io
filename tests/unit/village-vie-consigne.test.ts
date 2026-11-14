@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { EMPLACEMENTS_OBJETS, OBJETS } from "../../src/lib/gaulois";
 import { CONSIGNE, LIEUX_ECRITS, MAJUSCULES_PERMISES, MAX_REPLIQUES_PAR_PASSAGE, MAX_SIGNES, MOMENTS_ECRITS, MOTS_INTERDITS, SCHEMA_REPONSE } from "../../src/lib/village/consigne-repliques";
 import { LIEUX } from "../../src/lib/village/vie";
-import { MOMENTS, SIGNES_PERMIS, normaliserPourLesMots } from "../../src/lib/village/vie-releve";
+import { LIEUX_DES_BULLES, MOMENTS, SIGNES_PERMIS, normaliserPourLesMots } from "../../src/lib/village/vie-releve";
 
 const SQL = readFileSync("supabase/migrations/20261113002300_village_vie.sql", "utf8");
 
@@ -24,9 +24,21 @@ describe("la consigne des bulles", () => {
     expect(MAX_REPLIQUES_PAR_PASSAGE).toBe(20);
   });
 
-  it("ne donne à Claude que des mots, pour chaque moment et chaque lieu", () => {
+  it("ne donne à Claude que des mots, pour chaque moment et chaque lieu d'une bulle, jamais la salle de réunion", () => {
     expect(Object.keys(MOMENTS_ECRITS).sort()).toEqual([...MOMENTS].sort());
-    expect(Object.keys(LIEUX_ECRITS).sort()).toEqual([...LIEUX].sort());
+    expect(Object.keys(LIEUX_ECRITS).sort()).toEqual(LIEUX.filter((l) => l !== "reunion").sort());
+    expect(Object.keys(LIEUX_ECRITS).sort()).toEqual([...LIEUX_DES_BULLES].sort());
+  });
+
+  // Relecture du 14 novembre 2026 : « Discord » était à la fois permis (majuscule) et interdit (mot), et donné à lire à
+  // Claude. Il reste interdit, et plus rien de ce que Claude reçoit ne le nomme, ni ne parle du vocal.
+  it("ne nomme Discord ni le vocal dans rien de ce que Claude reçoit, et ne permet aucun mot interdit", () => {
+    const lu = normaliserPourLesMots([CONSIGNE, ...Object.values(MOMENTS_ECRITS), ...Object.values(LIEUX_ECRITS)].join(" "));
+    for (const mot of [" discord", " vocal", " reunion"]) expect(lu).not.toContain(mot);
+    expect(MOTS_INTERDITS).toContain(" discord");
+    for (const mot of MAJUSCULES_PERMISES) {
+      expect(MOTS_INTERDITS.some((m) => normaliserPourLesMots(mot).includes(m)), mot).toBe(false);
+    }
   });
 
   it("impose une réponse en JSON strict", () => {
@@ -93,10 +105,11 @@ describe("les signes permis et les faits", () => {
     }
   });
 
-  it("gardent les lieux du serveur identiques à ceux de l'écran", () => {
+  it("gardent les lieux du serveur identiques à ceux d'une bulle : ceux de l'écran, sans la salle de réunion", () => {
     const sql = corps("internal.village_vie_faits_valides");
     const lieux = sql.match(/\(p ->> 'lieu'\) not in \(([^)]*)\)/)?.[1];
-    expect([...(lieux ?? "").matchAll(/'([a-z]+)'/g)].map((m) => m[1]).sort()).toEqual([...LIEUX].sort());
+    expect([...(lieux ?? "").matchAll(/'([a-z]+)'/g)].map((m) => m[1]).sort()).toEqual([...LIEUX_DES_BULLES].sort());
+    expect(LIEUX_DES_BULLES).not.toContain("reunion");
   });
 
   it("gardent le moment de la journée du serveur identique à celui du site", () => {
