@@ -98,8 +98,8 @@ export interface PochetteReponse {
 export type RefusBoutique = "not_validated" | "no_gaulois" | "unknown_objet" | "objet_gratuit" | "deja_possede" | "solde_insuffisant" | "prix_change";
 
 /**
- * Une offre du marché. `vendeur` : le nom que le QG montre déjà pour ce compte, s'il a choisi de se montrer aux autres membres
- * (le choix du QG) ou si c'est l'appelant ; sinon « Un Gaulois ». `a_moi` : c'est l'offre de l'appelant.
+ * Une offre du marché. `vendeur` : le nom du compte au QG, pour tout vendeur (choix du pilote, 14 novembre 2026 : personne ne
+ * décide de se montrer ou non au village). `a_moi` : c'est l'offre de l'appelant.
  */
 export interface OffreDuMarche extends RefObjet {
   id: number;
@@ -150,12 +150,14 @@ export type RefusMarche =
   | "solde_insuffisant";
 
 /**
- * Un Gaulois de la place du village. `nom` : le nom que le QG montre déjà pour ce compte, s'il a choisi de se montrer aux
- * autres membres ou si c'est l'appelant ; sinon « Un Gaulois ». `moi` : celui de l'appelant.
+ * Un Gaulois de la place du village. `nom` : le nom du compte au QG. `moi` : celui de l'appelant.
  *
- * Vie privée (revue du 14 novembre 2026) : `partie_le` et `vocal` ne sont donnés que pour un compte qui se montre aux autres
- * membres ; `partie_le` demande en plus un pseudo public unique dans la liste du clan, sans quoi l'heure d'une partie,
- * croisée avec les parties publiques, désignerait le joueur OpenFront d'un membre anonyme. Son propre Gaulois suit la même règle.
+ * Qui paraît (le pilote, 14 novembre 2026 : « je veux pas qu'il puisse décider de se montrer ou pas, tous ceux qui créent
+ * un personnage apparaissent dans le village ») : tout compte validé qui a créé son Gaulois, avec son nom et son état vocal,
+ * sans regarder le choix « se montrer aux autres membres » du QG. Une seule réserve, qui tient à la règle du site « le
+ * publicId d'un anonyme n'est jamais publié » : `partie_le` n'est donné que pour un compte au pseudo public unique dans la
+ * liste du clan. L'heure exacte d'une partie, croisée avec les parties publiques, désignerait sinon le joueur OpenFront
+ * d'un membre anonyme. Un anonyme suit donc l'heure et le vocal, pas ses parties ; son propre Gaulois suit la même règle.
  *
  * La vie du village (demande du pilote, 13 novembre 2026 : un village animé, où ce que fait le joueur décide de ce que
  * fait son Gaulois) s'appuie sur trois champs que le serveur peut ne pas donner : l'écran les lit alors comme `null`, et

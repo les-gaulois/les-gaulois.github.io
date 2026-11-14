@@ -3,7 +3,7 @@
     "date": "2026-11-14",
     "kind": "nouveau",
     "title": "Le village s'anime",
-    "body": "La place a cinq lieux : place, taverne, salle de réunion, champ de bataille, maisons. Le décor suit l'heure de Paris. Si vous vous montrez au QG, votre Gaulois va au combat après vos parties.",
+    "body": "La place a cinq lieux : place, taverne, salle de réunion, champ de bataille, maisons. Le décor suit l'heure de Paris. Tous les Gaulois créés y sont, et vont au combat après une partie si leur pseudo est public.",
     "link": {
       "href": "/village#place",
       "label": "Voir la place"
