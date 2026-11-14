@@ -34,6 +34,18 @@ export interface Place {
   y: number;
   serre: boolean;
   saut?: boolean;
+  /**
+   * Le plan où se tient le Gaulois, pour le moteur de la foule (`foule.ts`, `MondeHabitants.tsx`) ; facultatif, sans effet
+   * par défaut. `echelle` : la taille d'une case de son plan, en cases du premier plan (1 au premier plan, 0,5 deux fois
+   * plus petit) ; à l'écran, une case de son plan vaut `caseDuPlan(niveau, echelle)` pixels, toujours entiers. La place
+   * (`x`, `y`) se compte alors en cases de son plan.
+   */
+  echelle?: number;
+  /**
+   * La part du déplacement de la caméra que suit son plan (1 : il la suit, comme le premier plan ; 0,6 : il glisse moins
+   * vite, plus loin). Facultatif, sans effet par défaut. Voir `decalageDuPlan` de `foule.ts`.
+   */
+  parallaxe?: number;
 }
 
 /** Un rang où l'on se range : `aise` places à l'écart `pas`, à partir de la colonne `de` (coins gauches des boîtes). */
