@@ -276,6 +276,34 @@ test("en bas de page, la mention de licence d'OpenFront et le dernier lien se li
   }
 });
 
+test("un lien atteint au clavier n'est jamais caché derrière lui", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "Clavier testé sur desktop.");
+  await sansSalut(page);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/classement");
+  await expect(compagnon(page)).toBeVisible();
+  const x = await placeX(page);
+  // Un lien posé juste sous lui, au bas de la fenêtre.
+  await page.evaluate((gauche) => {
+    const lien = document.createElement("a");
+    lien.href = "#essai";
+    lien.id = "essai-lien";
+    lien.textContent = "Essai";
+    lien.style.cssText = `position:fixed;left:${gauche + 20}px;bottom:16px;z-index:1`;
+    document.body.append(lien);
+  }, x);
+  await page.keyboard.press("Shift");
+  await page.locator("#essai-lien").focus();
+  const chevauche = async () => {
+    const a = await page.locator("[data-compagnon-image]").boundingBox();
+    const b = await page.locator("#essai-lien").boundingBox();
+    if (!a || !b) return true;
+    return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+  };
+  await expect.poll(chevauche).toBe(false);
+  await expect(gaulois(page)).toBeVisible();
+});
+
 test("le clavier d'un téléphone ou la page agrandie du bout des doigts l'effacent, le temps qu'il faut", async ({ page }) => {
   await sansSalut(page);
   await page.goto("/classement");

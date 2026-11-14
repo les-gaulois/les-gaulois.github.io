@@ -128,6 +128,8 @@ function init(): void {
   // La Carte tient dans l'écran, sans pied de page ni sol libre : il n'y vient pas, et attend à la page suivante. Une
   // déconnexion faite là (fenêtre « Alliance ») efface quand même ce qui reste du membre dans l'onglet.
   if (document.body.dataset.route === "/carte") {
+    // Sans session, ce qui reste du membre dans l'onglet s'efface aussi ici, comme sur les autres pages.
+    besoinDeCettePage();
     void surveillerLeCompte(() => undefined);
     return;
   }
@@ -219,8 +221,14 @@ function init(): void {
     if (part !== null) marcheur = { ...marcheur, x: depuisPart(part, min, max) };
   }
 
+  /** La dernière place écrite : un mouvement de souris qui ne le fait pas bouger n'écrit rien. */
+  let placeEcrite = "";
   function garderLaPlace(): void {
-    if (pret) ecrire("sessionStorage", CLE_PLACE, JSON.stringify({ part: enPart(marcheur.x, min, max), vers: marcheur.vers }));
+    if (!pret) return;
+    const place = JSON.stringify({ part: enPart(marcheur.x, min, max), vers: marcheur.vers });
+    if (place === placeEcrite) return;
+    placeEcrite = place;
+    ecrire("sessionStorage", CLE_PLACE, place);
   }
 
   /** Sa place gardée dans l'onglet (d'une page à l'autre, et au retour arrière) ; sinon sa place de départ. */
@@ -615,8 +623,8 @@ function init(): void {
   window.addEventListener("scroll", () => reveiller(), { passive: true });
   window.addEventListener("keydown", () => reveiller(), { passive: true });
 
-  // Un champ en cours de saisie n'est jamais couvert : il s'écarte ; sur un écran tactile, où le clavier prend la place,
-  // il s'efface le temps de la saisie.
+  // Un champ en cours de saisie, ou tout élément qui prend le focus au clavier, n'est jamais couvert : il s'écarte ; sur un
+  // écran tactile, où le clavier prend la place, il s'efface le temps d'une saisie.
   const estUnChamp = (el: EventTarget | null): el is HTMLElement =>
     el instanceof HTMLElement &&
     (el instanceof HTMLTextAreaElement ||
@@ -632,9 +640,12 @@ function init(): void {
     if (but !== null) allerA(but);
   }
   document.addEventListener("focusin", (e) => {
-    if (!estUnChamp(e.target) || boite.contains(e.target)) return;
+    if (!(e.target instanceof HTMLElement) || boite.contains(e.target)) return;
+    const unChamp: boolean = estUnChamp(e.target as EventTarget);
+    // Un lien ou un bouton atteint au clavier n'est jamais caché derrière lui (WCAG 2.4.11) : il s'écarte aussi, sans s'effacer.
+    if (!unChamp && !e.target.matches(":focus-visible")) return;
     champ = e.target;
-    saisie = matchMedia("(pointer: coarse)").matches;
+    saisie = unChamp && matchMedia("(pointer: coarse)").matches;
     effacement();
     degager();
   });
