@@ -10,8 +10,9 @@
  *   est celui de src/lib/discord-commande.ts, sauf DISCORD_GUILD_ID ;
  * - ANTHROPIC_API_KEY, la clé de l'API Claude, donnée au seul client du SDK officiel (`@anthropic-ai/sdk`), qui ne l'envoie
  *   qu'à api.anthropic.com : sans elle, pas de bulles.
- * Chaque partie marche sans l'autre. Aucun identifiant ni aucune clé n'est écrit au journal : seulement des nombres. Voir
- * src/lib/village/vie-releve.ts.
+ * Chaque partie marche sans l'autre. Aucun identifiant ni aucune clé n'est écrit au journal : des nombres, et, pour chaque
+ * phrase de Claude écartée par le contrôle, la règle en cause et le fragment qui l'a fait écarter (un signe, un nombre, un mot
+ * à majuscule), jamais la phrase entière ni un mot de la liste interdite. Voir src/lib/village/vie-releve.ts.
  */
 import { createClient } from "@supabase/supabase-js";
 import type { RpcResult } from "../src/lib/compte/roster";

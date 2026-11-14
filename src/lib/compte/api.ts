@@ -23,9 +23,17 @@ export const basePath = (): string => import.meta.env.BASE_URL.replace(/\/$/, ""
 /** Le brouillon des messages Discord de la Direction, gardé dans ce navigateur : effacé à la déconnexion. */
 export const MESSAGE_DRAFT_KEY = "gal-direction-message";
 
+/**
+ * Le carnet des touchers de la place du village (`CLE_DU_CARNET` de `src/lib/village/toucher.ts`), effacé à la déconnexion
+ * lui aussi. La clé est recopiée ici plutôt qu'importée : ce fichier part sur toutes les pages, et l'import amènerait les
+ * deux cents phrases des Gaulois avec lui. Un test garde les deux écritures identiques.
+ */
+export const VILLAGE_TOUCHER_KEY = "gal-village-toucher";
+
 function forgetDrafts(): void {
   try {
     localStorage.removeItem(MESSAGE_DRAFT_KEY);
+    localStorage.removeItem(VILLAGE_TOUCHER_KEY);
   } catch {
     // Stockage refusé : il n'y a rien à effacer.
   }

@@ -23,6 +23,7 @@ import {
 import { casesDeLAdversaire, casesDesPieds, poseAttable, poseCouche, poseDeMarche, sansArme } from "../../lib/village/poses";
 import type { Habitant, Lieu } from "../../lib/village/vie";
 import { Toile, peindre } from "./PlaceToile";
+import { BulleDuToucher, type Parole } from "./PlaceToucher";
 
 /**
  * Les animations sont coupées : par le bouton pause de l'en-tête (`fx-off` sur la page, posé par `fx.ts`) ou par le
@@ -78,7 +79,7 @@ const PRES_DU_BORD = 116;
  * toucher, un Gaulois montre ce qui le place là. Sur un téléphone, un lieu plein se regarde de plus loin (`data-loin`) :
  * les noms ne s'écrivent plus sous chacun, sauf le sien ; ils restent au toucher et dans la liste.
  */
-export default function PlaceScene({ lieu, habitants, lumiere, actif }: { lieu: Lieu; habitants: readonly Habitant[]; lumiere: Lumiere; actif: boolean }) {
+export default function PlaceScene({ lieu, habitants, lumiere, actif, parole, onToucher }: { lieu: Lieu; habitants: readonly Habitant[]; lumiere: Lumiere; actif: boolean; parole?: Parole | null; onToucher?: (habitant: Habitant) => void }) {
   const cadre = useRef<HTMLDivElement>(null);
   const [mesure, setMesure] = useState<{ cote: number; cases: number } | null>(null);
   const [ouvert, setOuvert] = useState<number | null>(null);
@@ -307,7 +308,11 @@ export default function PlaceScene({ lieu, habitants, lumiere, actif }: { lieu: 
             data-moi={habitant.gaulois.moi ? "" : undefined}
             data-ouvert={ouvert === habitant.rang ? "" : undefined}
             data-testid="place-gaulois"
-            onClick={() => setOuvert(ouvert === habitant.rang ? null : habitant.rang)}
+            onClick={() => {
+              // Chaque clic le fait parler (PlaceToucher.tsx) : sa bulle porte alors son nom, l'étiquette du toucher n'a plus à s'ouvrir.
+              setOuvert(onToucher || ouvert === habitant.rang ? null : habitant.rang);
+              onToucher?.(habitant);
+            }}
           >
             {lieu === "maisons" && <span class="vie-ronfle" style={{ "--vie-retard": `${-((habitant.rang * 1.7) % 6)}s` }} />}
             {habitant.gaulois.moi && <span class="place-fleche" />}
@@ -325,6 +330,7 @@ export default function PlaceScene({ lieu, habitants, lumiere, actif }: { lieu: 
               {habitant.presence.raison}
             </span>
             {habitant.gaulois.replique && lieu !== "maisons" && <span class="vie-bulle">{habitant.gaulois.replique}</span>}
+            <BulleDuToucher parole={parole} habitant={habitant} />
           </div>
         ))}
     </div>

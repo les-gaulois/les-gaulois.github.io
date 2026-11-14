@@ -8,6 +8,7 @@ import { LIEUX, type Lieu, NOMS_DES_LIEUX, compteDuLieu, lieuDOuverture, phraseD
 import { Loading, Problem, messageOf } from "../compte/common";
 import PlaceScene from "./PlaceScene";
 import { Toile } from "./PlaceToile";
+import { AnnonceDuToucher, BoutonDuToucher, MotDuToucher, phraseDite, useToucher } from "./PlaceToucher";
 
 /** Ce qui amène dans chaque lieu, en une ligne sous la scène. La place n'en a pas besoin : on s'y promène. */
 const REGLES: Readonly<Record<Lieu, string | null>> = {
@@ -46,6 +47,7 @@ export default function PlaceDuVillage({ actif }: { actif: boolean }) {
   const [etat, setEtat] = useState<Etat>({ kind: "lecture" });
   const [choisi, setChoisi] = useState<Lieu | null>(null);
   const maintenant = useMaintenant(actif);
+  const toucher = useToucher();
 
   const derniere = useRef(0);
   const lire = async (discret: boolean) => {
@@ -130,11 +132,12 @@ export default function PlaceDuVillage({ actif }: { actif: boolean }) {
           );
         })}
       </div>
-      <PlaceScene lieu={ouvert} habitants={ici} lumiere={lumiere} actif={actif} />
+      <PlaceScene lieu={ouvert} habitants={ici} lumiere={lumiere} actif={actif} parole={toucher.parole} onToucher={toucher.toucher} />
       <div class="place-pied">
         <p class="place-mot" data-testid="place-compte">
           {village.gaulois.length === 0 ? "Le village est vide." : ici.length > 0 ? compteDuLieu(ouvert, ici.length) : NOMS_DES_LIEUX[ouvert].nom}
           {REGLES[ouvert] && <span class="info-discrete"> {REGLES[ouvert]}</span>}
+          {toucher.mot && ici.length > 0 && <MotDuToucher />}
         </p>
         {releve && (
           <p class="info-discrete" data-testid="place-releve">
@@ -152,11 +155,11 @@ export default function PlaceDuVillage({ actif }: { actif: boolean }) {
                 {lieux[lieu].map((habitant) => (
                   <li key={habitant.rang}>
                     <span class="vie-liste-nom">
-                      {habitant.gaulois.nom}
+                      <BoutonDuToucher habitant={habitant} onToucher={toucher.toucher} />
                       {habitant.gaulois.moi && " (vous)"}
                     </span>
                     <span class="vie-liste-raison">{habitant.presence.raison}</span>
-                    {habitant.gaulois.replique && <span class="vie-liste-replique">« {habitant.gaulois.replique} »</span>}
+                    {(phraseDite(toucher.dit, habitant) ?? habitant.gaulois.replique) && <span class={phraseDite(toucher.dit, habitant) ? "vie-liste-replique toucher-dit" : "vie-liste-replique"} data-testid={phraseDite(toucher.dit, habitant) ? "toucher-dit" : undefined}>« {phraseDite(toucher.dit, habitant) ?? habitant.gaulois.replique} »</span>}
                   </li>
                 ))}
               </ul>
@@ -164,6 +167,7 @@ export default function PlaceDuVillage({ actif }: { actif: boolean }) {
           ))}
         </details>
       )}
+      <AnnonceDuToucher dit={toucher.dit} />
       {sonGauloisManque(village) && (
         <p class="place-mot" data-testid="place-sans-gaulois">
           <a href="#gaulois" class="underline">
