@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { fmtInt } from "../../src/lib/format";
 import { OBJETS, ORDRE_RARETES, type Rarete } from "../../src/lib/gaulois";
@@ -18,6 +18,7 @@ import {
   memeSaisie,
   reglagesDe,
   reglagesDuPiloteEnMots,
+  regleDuSeuil,
   saisieDe,
   sommeEnMots,
   type EconomieDuVillage,
@@ -154,7 +155,7 @@ describe("le serveur de l'onglet Village", () => {
     expect(fermer).toBeLessThan(c.indexOf("perform internal.log_admin"));
   });
 
-  it("garde le seuil de 5 comptes, et ne lit jamais la table des soldes", () => {
+  it("posait le seuil de 5 comptes, lu à chaque appel par village_passe, et ne lit jamais la table des soldes", () => {
     expect(corps("internal.village_seuil")).toContain("select 5");
     expect(corps("internal.village_passe")).toContain("p_comptes = 0 or p_comptes >= internal.village_seuil()");
     expect(MIGRATION).not.toContain("stateres_soldes");
@@ -173,6 +174,34 @@ describe("le serveur de l'onglet Village", () => {
       expect(corps(fn), fn).toContain("v_valeur <> trunc(v_valeur)");
     }
     expect(corps("public.regler_village_pochette")).toContain("and not exists (select 1 from internal.gaulois_objets o where o.rarete = c.key and not o.gratuit)");
+  });
+});
+
+const SANS_SEUIL_NOM = "20261114001100_village_totaux_sans_seuil.sql";
+const SANS_SEUIL = readFileSync(`supabase/migrations/${SANS_SEUIL_NOM}`, "utf8");
+
+describe("les totaux sans seuil (choix du pilote du 14 novembre 2026)", () => {
+  it("ramènent le seuil à 1 compte, sans rien toucher d'autre", () => {
+    const creees = [...SANS_SEUIL.matchAll(/create or replace function ((?:public|internal)\.[a-z_]+)\(/g)].map((m) => m[1]);
+    expect(creees).toEqual(["internal.village_seuil"]);
+    expect(SANS_SEUIL).toMatch(/function internal\.village_seuil\(\) returns integer\s+language sql stable set search_path = public, pg_temp as \$\$\s+select 1\s+\$\$;/);
+    expect(SANS_SEUIL).toContain("revoke all on function internal.village_seuil() from public, anon, authenticated;");
+    expect(SANS_SEUIL).not.toMatch(/^\s*grant |create table|alter table|drop |truncate|delete from|insert into|stateres_soldes|raw_user_meta_data/im);
+  });
+
+  it("viennent de la dernière migration qui règle le seuil", () => {
+    const reglent = readdirSync("supabase/migrations")
+      .filter((n) => readFileSync(`supabase/migrations/${n}`, "utf8").includes("function internal.village_seuil("))
+      .sort();
+    expect(reglent.at(-1)).toBe(SANS_SEUIL_NOM);
+  });
+
+  it("se disent en une phrase dans l'aide de l'écran ; un seuil plus haut garde l'explication des chiffres cachés", () => {
+    expect(regleDuSeuil(1)).toBe("Chaque total est donné, même s'il ne vient que d'un seul compte.");
+    expect(regleDuSeuil(5)).toContain("Un chiffre qui viendrait de moins de 5 comptes n'est pas donné");
+    expect(regleDuSeuil(5)).toContain("« pas donné » n'est pas zéro.");
+    for (const s of [1, 5]) expect(regleDuSeuil(s)).not.toMatch(/[<>=÷%]/);
+    expect(lireEconomie(avec("seuil", 1))?.seuil).toBe(1);
   });
 });
 

@@ -34,6 +34,7 @@ import {
   pourquoiCache,
   reglagesDe,
   reglagesDuPiloteEnMots,
+  regleDuSeuil,
   saisieDe,
   sommeEnMots,
   stateres,
@@ -149,7 +150,7 @@ export default function DirectionVillage({ rank }: { rank: number }) {
   return (
     <section class="dir-village" aria-labelledby="village-titre" data-testid="direction-village">
       <PartieTete id="village-titre" title="Le village" aside={reload}>
-        <p>Des totaux seulement : jamais le solde ni les achats d'un membre.</p>
+        <p>Des totaux seulement, sans aucun nom.</p>
         {data && (
           <p class="tnum mt-1" data-testid="village-lu">
             Lu à {timeParis.format(new Date(data.lu_le))}, heure de Paris. {data.releve ? `Parties relues le ${fmtDateTime(data.releve)}.` : "Les parties n'ont encore jamais été relues."}
@@ -231,9 +232,7 @@ function Economie({ data }: { data: EconomieDuVillage }) {
           <p>
             Tout vient du journal des statères du serveur. Distribués : les statères donnés pour les points rapportés au clan. Dépensés : les achats à la boutique et les pochettes ouvertes. En circulation : ce que les comptes gardent encore. Les 30 jours se comptent à la date de chaque crédit ou de chaque achat. Un compte supprimé sort des totaux.
           </p>
-          <p>
-            Un chiffre qui viendrait de moins de {fmtInt(s)} comptes n'est pas donné : il pourrait désigner quelqu'un. Il n'est pas donné non plus quand une soustraction le redonnerait : par exemple, les dépenses de la boutique et des pochettes sont cachées ensemble si l'une des deux vient de moins de {fmtInt(s)} comptes, et les 30 derniers jours si ce qui reste d'avant en vient. « {PAS_DONNE} » n'est pas zéro.
-          </p>
+          <p data-testid="village-regle-seuil">{regleDuSeuil(s)}</p>
         </div>
       </details>
     </>

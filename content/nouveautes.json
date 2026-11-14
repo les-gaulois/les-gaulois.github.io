@@ -2,6 +2,12 @@
   {
     "date": "2026-11-14",
     "kind": "ameliore",
+    "title": "Direction : le village donne tous ses chiffres",
+    "body": "Dans l'onglet Village de la Direction, les statères distribués, dépensés et en circulation s'affichent même quand moins de 5 comptes en ont reçu. Toujours des totaux, sans aucun nom."
+  },
+  {
+    "date": "2026-11-14",
+    "kind": "ameliore",
     "title": "Le Gaulois reste à la porte du village",
     "body": "Au village, le petit Gaulois qui vous suit ne vient plus : la place a déjà ses Gaulois. Il vous retrouve à la page suivante, avec la tenue choisie au vestiaire."
   },
