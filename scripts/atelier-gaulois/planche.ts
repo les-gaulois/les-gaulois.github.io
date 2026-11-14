@@ -10,13 +10,15 @@
  *        npx tsx scripts/atelier-gaulois/planche.ts            toutes les planches
  *        npx tsx scripts/atelier-gaulois/planche.ts un/dossier  ailleurs que dans test-results/atelier-gaulois/
  *      Les images vont dans un dossier ignoré par Git. L'ordre des objets, écrit dans le terminal, est celui du catalogue.
- *   4. Un nouvel objet s'ajoute aussi au catalogue `OBJETS` et à la liste du serveur (nouvelle migration) : un test compare.
+ *   4. Un nouvel objet s'ajoute aussi au catalogue (un lot de `garde-robe/`, rangé dans `OBJETS`) et à la liste du serveur
+ *      (nouvelle migration) : un test compare.
  *      Il se juge assemblé avec les autres : aucune tenue ne doit faire reconnaître un personnage d'une œuvre existante.
  *
  * Les planches :
  *   objets.png            tous les objets en vignette, à la taille des cases du vestiaire, une rangée par emplacement
  *   portes-<emplacement>  chaque objet porté, à 4 pixels par case (ordinateur, Discord) puis à 3 (téléphone)
  *   corps.png             coupes, barbes, peaux, couleurs de cheveux
+ *   visage.png            chaque modèle d'yeux, de bouche et de cicatrice, sur peau claire puis foncée
  *   coiffes.png           chaque coiffe sur chaque coupe, à 2 pixels par case
  *   tenues.png            des tenues complètes, dont la plus riche et la plus simple
  *   discord-<n>.png       l'image de /gaulois telle que Discord la reçoit
@@ -26,6 +28,7 @@ import { join } from "node:path";
 import { ecrirePng } from "../../supabase/functions/code-discord/billets";
 import {
   EMPLACEMENTS_OBJETS,
+  EMPLACEMENTS_VISAGE,
   GAULOIS_HAUTEUR as H,
   GAULOIS_LARGEUR as L,
   OBJETS,
@@ -86,15 +89,18 @@ const NU: Tenue = { ...TENUE_DE_DEPART, barbe: "aucune", tete: "aucun", haut: "a
 const SIMPLE: Tenue = { ...TENUE_DE_DEPART, tete: "aucun", arme: "aucune" };
 const dessines = (emplacement: Emplacement): string[] => Object.entries(OBJETS[emplacement]).filter(([, objet]) => objet.dessin).map(([id]) => id);
 
-/** Tous les objets en vignette, dans leur case colorée selon la rareté, à la taille du vestiaire. */
+/** Tous les objets en vignette, dans leur case colorée selon la rareté, à la taille du vestiaire : 16 par rangée au plus. */
 async function plancheDesVignettes(): Promise<void> {
   const cote = 104;
   const pas = cote + 8;
-  const rangees = EMPLACEMENTS_OBJETS.map(dessines);
-  const toile = new Toile(16 + Math.max(...rangees.map((r) => r.length)) * pas, 16 + rangees.length * pas);
-  rangees.forEach((ids, j) => {
+  const parRangee = 16;
+  const rangees = EMPLACEMENTS_OBJETS.flatMap((emplacement) => {
+    const ids = dessines(emplacement);
+    return Array.from({ length: Math.ceil(ids.length / parRangee) }, (_, k) => ({ emplacement, ids: ids.slice(k * parRangee, (k + 1) * parRangee) }));
+  });
+  const toile = new Toile(16 + Math.max(...rangees.map((r) => r.ids.length)) * pas, 16 + rangees.length * pas);
+  rangees.forEach(({ emplacement, ids }, j) => {
     ids.forEach((id, i) => {
-      const emplacement = EMPLACEMENTS_OBJETS[j] as Emplacement;
       const vignette = vignetteDeLObjet(emplacement, id);
       if (!vignette) return;
       const x = 16 + i * pas;
@@ -131,6 +137,17 @@ for (const emplacement of EMPLACEMENTS_OBJETS) {
   console.log(`portes-${emplacement}.png : ${ids.join(", ")}`);
   await plancheDeTenues(`portes-${emplacement}.png`, ids.map((id) => ({ ...SIMPLE, [emplacement]: id })), 6, true);
 }
+
+// Le visage (14 novembre 2026) : chaque modèle d'yeux, de bouche et de cicatrice sur un Gaulois sans barbe ni coiffe, peau
+// claire puis foncée (les cicatrices suivent la peau), à 4 pixels par case.
+console.log(`visage.png : yeux (${Object.keys(OBJETS.yeux).join(", ")}), bouches, cicatrices, sur peau claire puis foncée`);
+await plancheDeTenues(
+  "visage.png",
+  EMPLACEMENTS_VISAGE.flatMap((emplacement) =>
+    ["claire", "foncee"].flatMap((peau) => Object.keys(OBJETS[emplacement]).map((id) => ({ ...SIMPLE, barbe: "aucune", peau, [emplacement]: id }))),
+  ),
+  12,
+);
 
 const coupes = Object.keys(OBJETS.cheveux);
 const coiffes = dessines("tete");

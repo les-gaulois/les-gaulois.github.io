@@ -12,6 +12,16 @@
   {
     "date": "2026-11-14",
     "kind": "nouveau",
+    "title": "200 objets de plus au village",
+    "body": "La boutique passe à 245 objets : coiffes, hauts, bas, chaussures et objets à tenir en main. Yeux, bouche et cicatrice se choisissent gratuitement dès la création. Le vestiaire se range en six rayons.",
+    "link": {
+      "href": "/village",
+      "label": "Habiller mon Gaulois"
+    }
+  },
+  {
+    "date": "2026-11-14",
+    "kind": "nouveau",
     "title": "Le village s'anime",
     "body": "La place a cinq lieux : place, taverne, salle de réunion, champ de bataille, maisons. Le décor suit l'heure de Paris. Tous les Gaulois créés y sont, avec leur nom.",
     "link": {

@@ -20,7 +20,7 @@ import {
   souffleDuDormeur,
   tourneEnReunion,
 } from "../../lib/village/mouvement";
-import { casesDeLAdversaire, poseAttable, poseCouche, poseDeMarche, sansArme } from "../../lib/village/poses";
+import { casesDeLAdversaire, casesDesPieds, poseAttable, poseCouche, poseDeMarche, sansArme } from "../../lib/village/poses";
 import type { Habitant, Lieu } from "../../lib/village/vie";
 import { Toile, peindre } from "./PlaceToile";
 import { BulleDuToucher, type Parole } from "./PlaceToucher";
@@ -110,6 +110,7 @@ export default function PlaceScene({ lieu, habitants, lumiere, actif, parole, on
   // Les dessins de chacun, pose par pose, faits à la demande et gardés tant que la foule ne change pas.
   const dessins = useMemo(() => {
     const debout = new Map<number, (string | null)[]>();
+    const chaussures = new Map<number, boolean[]>();
     const faits = new Map<string, Decor>();
     const base = (i: number): (string | null)[] => {
       let cases = debout.get(i);
@@ -120,15 +121,23 @@ export default function PlaceScene({ lieu, habitants, lumiere, actif, parole, on
       }
       return cases;
     };
+    const pieds = (i: number): boolean[] => {
+      let masque = chaussures.get(i);
+      if (!masque) {
+        masque = casesDesPieds(habitants[i]!.gaulois.tenue);
+        chaussures.set(i, masque);
+      }
+      return masque;
+    };
     return (i: number, pose: string): Decor => {
       const cle = `${i}:${pose}`;
       let dessin = faits.get(cle);
       if (!dessin) {
         const cases = base(i);
-        if (pose === "gauche" || pose === "droite") dessin = { largeur: boite.largeur, hauteur: boite.hauteur, cases: poseDeMarche(cases, pose) };
+        if (pose === "gauche" || pose === "droite") dessin = { largeur: boite.largeur, hauteur: boite.hauteur, cases: poseDeMarche(cases, pose, pieds(i)) };
         else if (pose === "posee" || pose === "levee") dessin = poseAttable(cases, pose);
         else if (pose === "assis") dessin = poseAttable(cases, null);
-        else if (pose === "couche0" || pose === "couche1") dessin = poseCouche(cases, pose === "couche1" ? 1 : 0, habitants[i]!.rang);
+        else if (pose === "couche0" || pose === "couche1") dessin = poseCouche(habitants[i]!.gaulois.tenue, pose === "couche1" ? 1 : 0, habitants[i]!.rang);
         else dessin = { largeur: boite.largeur, hauteur: boite.hauteur, cases };
         faits.set(cle, dessin);
       }
