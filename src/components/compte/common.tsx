@@ -317,20 +317,43 @@ export function Empty({ children }: { children: ComponentChildren }) {
   return <p class="text-muted">{children}</p>;
 }
 
-/** Une suppression ne part qu'au second clic : le texte, lui, ne se récupère pas. */
+/**
+ * Une suppression ne part qu'au second clic : le texte, lui, ne se récupère pas. Le second clic d'un double-clic ne compte
+ * pas (`detail` vaut 2) : il faut deux gestes. Échap, la perte du focus ou un clic ailleurs désarment ; le clic ailleurs
+ * compte pour Safari, qui ne donne pas le focus à un bouton cliqué (relevé à l'onglet Objectif, 14 novembre 2026).
+ */
 export function DeleteButton({ busy, onConfirm, label }: { busy: boolean; onConfirm: () => void; label: string }) {
   const [armed, setArmed] = useState(false);
+  const self = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!armed) return;
+    const away = (e: PointerEvent) => {
+      if (!self.current?.contains(e.target as Node)) setArmed(false);
+    };
+    document.addEventListener("pointerdown", away);
+    return () => document.removeEventListener("pointerdown", away);
+  }, [armed]);
   return (
     <button
+      ref={self}
       type="button"
       class="btn btn-ghost !min-h-10 !py-1.5 !text-sm"
       disabled={busy}
       aria-label={armed ? `Confirmer la suppression de « ${label} »` : `Supprimer « ${label} »`}
-      onClick={() => {
-        if (armed) onConfirm();
-        else setArmed(true);
+      onClick={(e) => {
+        if (!armed) setArmed(true);
+        else if (e.detail < 2) onConfirm();
       }}
-      onBlur={() => setArmed(false)}
+      onKeyDown={(e) => {
+        if (e.key === "Escape" && armed) {
+          e.stopPropagation();
+          setArmed(false);
+        }
+      }}
+      onBlur={(e) => {
+        // Une perte de focus sans destination (Safari, fenêtre quittée) ne désarme pas : le clic ailleurs s'en charge.
+        if (e.relatedTarget !== null) setArmed(false);
+      }}
     >
       {armed ? "Confirmer la suppression" : "Supprimer"}
     </button>
