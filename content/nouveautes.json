@@ -3,7 +3,7 @@
     "date": "2026-11-14",
     "kind": "ameliore",
     "title": "/gaulois montre où est votre Gaulois",
-    "body": "Sur Discord, l'image de /gaulois change avec l'heure de Paris et le lieu de votre Gaulois au village : place, taverne, salle de réunion, champ de bataille ou maison, à l'aube, le jour, au crépuscule ou la nuit. Le logo du clan est en haut à gauche.",
+    "body": "Sur Discord, l'image de /gaulois suit l'heure de Paris et le lieu de votre Gaulois : place, taverne, salle de réunion, champ de bataille ou maison. Le logo du clan est en haut à gauche.",
     "link": {
       "href": "/confidentialite#village",
       "label": "Ce que l'image montre"
