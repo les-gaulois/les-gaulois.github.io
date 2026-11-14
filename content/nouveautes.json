@@ -2,6 +2,16 @@
   {
     "date": "2026-11-14",
     "kind": "nouveau",
+    "title": "Un Gaulois vous suit sur le site",
+    "body": "Un petit Gaulois marche au bas des pages et suit la souris. Un clic le fait parler, « Ranger » le cache. Pour un membre connecté, c'est le sien, habillé au village.",
+    "link": {
+      "href": "/village",
+      "label": "Habiller son Gaulois"
+    }
+  },
+  {
+    "date": "2026-11-14",
+    "kind": "nouveau",
     "title": "200 objets de plus au village",
     "body": "La boutique passe à 245 objets : coiffes, hauts, bas, chaussures et objets à tenir en main. Yeux, bouche et cicatrice se choisissent gratuitement dès la création. Le vestiaire se range en six rayons.",
     "link": {
