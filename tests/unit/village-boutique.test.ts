@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { EMPLACEMENTS, EMPLACEMENTS_OBJETS, OBJETS, ORDRE_RARETES, POILS, type Rarete } from "../../src/lib/gaulois";
+import { EMPLACEMENTS, EMPLACEMENTS_OBJETS, EMPLACEMENTS_VISAGE, OBJETS, ORDRE_RARETES, POILS, type Rarete } from "../../src/lib/gaulois";
 import {
   chanceDeLObjet,
   chancesEffectives,
@@ -111,9 +111,12 @@ describe("le serveur de la boutique", () => {
   });
 
   it("vérifie la tenue comme le vestiaire, en acceptant en plus un objet de l'inventaire de l'appelant", () => {
-    expect(MIGRATION).toContain(`foreach v_emplacement in array array[${EMPLACEMENTS.map((e) => `'${e}'`).join(", ")}] loop`);
+    // Les emplacements d'avant la garde-robe : le visage (14 novembre 2026) est ajouté par une migration suivante, qui
+    // remplace cette vérification en gardant l'inventaire (tests/unit/gaulois.test.ts).
+    const avant = EMPLACEMENTS.filter((e) => !(EMPLACEMENTS_VISAGE as readonly string[]).includes(e));
+    expect(MIGRATION).toContain(`foreach v_emplacement in array array[${avant.map((e) => `'${e}'`).join(", ")}] loop`);
     expect(MIGRATION).toContain(`any (array[${Object.keys(POILS).map((p) => `'${p}'`).join(", ")}])`);
-    expect(MIGRATION).toContain(`= ${EMPLACEMENTS.length + 1};`);
+    expect(MIGRATION).toContain(`= ${avant.length + 1};`);
     expect(MIGRATION).toContain("and (o.gratuit or exists (");
     expect(MIGRATION).toContain("where i.user_id = v_uid and i.emplacement = o.emplacement and i.objet = o.objet))");
     expect(MIGRATION).toContain(`rarete in (${ORDRE_RARETES.map((r) => `'${r}'`).join(", ")})`);

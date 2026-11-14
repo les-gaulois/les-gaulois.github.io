@@ -43,7 +43,7 @@ import {
   type ParRarete,
   type Saisie,
 } from "../../lib/village/direction";
-import { lireVieDuVillage, type VieDuVillage } from "../../lib/village/vie-releve";
+import { lireVieDuVillage, type VieDuVillage } from "../../lib/village/vie-encadrement";
 import { Loading, Problem, Success, messageOf } from "./common";
 import { Pastille } from "./direction-kit";
 import { PartieTete } from "./Onglets";

@@ -14,7 +14,7 @@ import { OBJETS, ORDRE_RARETES, RARETES, type Rarete } from "../gaulois";
 import { frNumber } from "../nombre";
 import { CHANCES_POCHETTE, PRIX_PAR_RARETE, PRIX_POCHETTE } from "./contrat";
 import { controlerReglages, objetsParRarete, valeurMoyennePochette, type Catalogue } from "./economie";
-import { lirePlafond, type VieDuVillage } from "./vie-releve";
+import { lirePlafond, type VieDuVillage } from "./vie-encadrement";
 
 /** Un nombre par rareté. */
 export type ParRarete = Record<Rarete, number>;
@@ -355,7 +355,7 @@ export function memeSaisie(a: Saisie, b: Saisie): boolean {
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Les bulles des Gaulois (migration 20261113002300) : ce que l'onglet en écrit. La réponse se lit par `lireVieDuVillage`,
-// le plafond saisi par `lirePlafond`, tous deux dans `vie-releve.ts`.
+// le plafond saisi par `lirePlafond`, tous deux dans `vie-encadrement.ts`.
 // ---------------------------------------------------------------------------------------------------------------------
 
 const ESPACE_INSECABLE = String.fromCharCode(0xa0);

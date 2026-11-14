@@ -39,7 +39,7 @@ import {
   plafondEnSaisie,
   prixDuModele,
 } from "../../src/lib/village/direction";
-import { PLAFOND_MAX, lirePlafond, lireVieDuVillage, type VieDuVillage } from "../../src/lib/village/vie-releve";
+import { PLAFOND_MAX, lirePlafond, lireVieDuVillage, type VieDuVillage } from "../../src/lib/village/vie-encadrement";
 import { controlerReglages, hasardAGraine, type Catalogue } from "../../src/lib/village/economie";
 
 const MIGRATION = readFileSync("supabase/migrations/20261113002100_village_direction.sql", "utf8");
@@ -391,7 +391,7 @@ const VIE = (): VieDuVillage =>
   })!;
 
 describe("les bulles des Gaulois dans l'onglet Village", () => {
-  it("lisent la réponse du serveur par lireVieDuVillage, de vie-releve.ts", () => {
+  it("lisent la réponse du serveur par lireVieDuVillage, de vie-encadrement.ts", () => {
     expect(VIE().depense.repliques).toBe(540);
     expect(VIE().historique).toHaveLength(1);
   });

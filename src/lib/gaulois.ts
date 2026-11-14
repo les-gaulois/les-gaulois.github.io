@@ -7,7 +7,13 @@ import { lireTenue, type Tenue } from "../../supabase/functions/code-discord/gau
 
 export {
   EMPLACEMENTS,
+  EMPLACEMENTS_CORPS,
   EMPLACEMENTS_OBJETS,
+  EMPLACEMENTS_VISAGE,
+  VISAGE_D_AVANT,
+  objetPorte,
+  type Catalogue,
+  type EmplacementDuVisage,
   GAULOIS_HAUTEUR,
   GAULOIS_LARGEUR,
   NOMS_EMPLACEMENTS,
