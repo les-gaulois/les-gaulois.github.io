@@ -6,6 +6,7 @@ import IconePartie from "../components/compte/IconePartie";
 import CroissanceValeurs from "../components/guide/CroissanceValeurs.astro";
 import GuideBloc from "../components/guide/GuideBloc.astro";
 import { ancreDuChapitre, commandeDuChapitre, morceauxGras, motsComposes, numeroDuChapitre, parGroupe, titreEnDeux } from "../lib/guide";
+import { teinteDuRang } from "../lib/teintes";
 
 // Le guide du clan : un chapitre par fichier de content/guide-clan/, dans l'ordre de leur numéro.
 const entries = (await getCollection("guideClan")).sort((a, b) => a.data.order - b.data.order);
@@ -18,6 +19,8 @@ const chapitres = await Promise.all(
     ancre: ancreDuChapitre(entry.id),
     numero: numeroDuChapitre(index + 1),
     commande: commandeDuChapitre(entry.id),
+    // La couleur de sa pastille, dans le sommaire et en tête du chapitre : du rouge au rose en descendant.
+    teinte: teinteDuRang(index),
     enDeux: titreEnDeux(entry.data.title),
     // Un chapitre peut n'avoir que son en-tête : alors, rien à déplier.
     aDuTexte: Boolean(entry.body?.trim()),
@@ -74,7 +77,9 @@ const premier = chapitres[0];
                   {g.chapitres.map((c) => (
                     <li>
                       <a class="guide-plan-lien" href={`#${c.ancre}`} data-guide-lien={c.ancre}>
-                        <IconePartie nom={c.icone} classe="guide-plan-icone" />
+                        <span class="pastille-icone" data-teinte={c.teinte}>
+                          <IconePartie nom={c.icone} classe="guide-plan-icone" />
+                        </span>
                         <span class="guide-plan-numero tnum">{c.numero}</span>
                         <span>{c.court}</span>
                       </a>
@@ -116,7 +121,9 @@ const premier = chapitres[0];
                     <span class="console-hote">gal@guide</span>:~$ ./{c.commande}
                   </p>
                   <header class="guide-tete">
-                    <IconePartie nom={c.icone} classe="guide-icone" />
+                    <span class="pastille-icone" data-teinte={c.teinte}>
+                      <IconePartie nom={c.icone} classe="guide-icone" />
+                    </span>
                     <div class="min-w-0">
                       <p class="guide-etiquette">
                         Chapitre {c.index + 1} sur {total}

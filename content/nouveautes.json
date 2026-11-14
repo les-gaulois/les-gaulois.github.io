@@ -12,6 +12,22 @@
   {
     "date": "2026-11-14",
     "kind": "ameliore",
+    "title": "Des icônes en couleurs",
+    "body": "Dans le guide du clan et les menus du QG et de la Direction, chaque icône a sa couleur, du rouge au rose, sur une petite case de la même couleur.",
+    "link": {
+      "href": "/debuter",
+      "label": "Ouvrir le guide"
+    }
+  },
+  {
+    "date": "2026-11-14",
+    "kind": "ameliore",
+    "title": "Des titres plus sobres",
+    "body": "Le « ## » rouge devant les titres est retiré. Les lignes « gal@… » au-dessus des parties du QG et de la Direction et des chapitres du guide ne sont plus toutes vertes."
+  },
+  {
+    "date": "2026-11-14",
+    "kind": "ameliore",
     "title": "Un village plus vivant au loin",
     "body": "Sur les terrasses du fond, les Gaulois se fondent dans la distance, les cheminées fument et des bêtes se promènent. La taverne et la salle de réunion sont redessinées.",
     "link": {

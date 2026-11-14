@@ -2024,6 +2024,10 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
     gap: 0.5rem;
     padding-inline: 0.625rem;
   }
+  /* La case de couleur autour de l'icône (.pastille-icone) se resserre : sans quoi ce nom passerait à la ligne à 360 px. */
+  .onglets-choix .pastille-icone {
+    padding: 0.125rem;
+  }
 }
 .onglets-choix {
   color: var(--color-muted);
@@ -2048,6 +2052,62 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   flex: none;
   width: 1.625rem;
   height: 1.625rem;
+}
+/* Les pastilles (src/lib/teintes.ts) : la palette 5, choisie par le pilote le 14 novembre 2026 pour le guide du clan,
+   puis pour les menus des parties du QG et de la Direction. Chaque icône a sa couleur, du rouge au rose en descendant sa
+   liste (teinteDuRang), posée sur une petite case de la même couleur, pâle (14 % d'elle dans le fond de la carte). Plus
+   de vert, qui reste la voix de la machine, ni de lueur. Les onze teintes tiennent 4,5:1 sur le fond et encore 3:1 sur
+   leur pastille (tests/unit/pastilles.test.ts). Dans la ligne ouverte d'un menu, l'icône est blanche sur le bleu, sans
+   case (règles du guide et du menu des parties). */
+[data-teinte="1"] {
+  --teinte: #d91228;
+}
+[data-teinte="2"] {
+  --teinte: #c2410c;
+}
+[data-teinte="3"] {
+  --teinte: #b45309;
+}
+[data-teinte="4"] {
+  --teinte: #a16207;
+}
+[data-teinte="5"] {
+  --teinte: #0e7490;
+}
+[data-teinte="6"] {
+  --teinte: #0369a1;
+}
+[data-teinte="7"] {
+  --teinte: #0a4fd6;
+}
+[data-teinte="8"] {
+  --teinte: #4338ca;
+}
+[data-teinte="9"] {
+  --teinte: #7c3aed;
+}
+[data-teinte="10"] {
+  --teinte: #a21caf;
+}
+[data-teinte="11"] {
+  --teinte: #be185d;
+}
+.pastille-icone {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  border-radius: 0.375rem;
+  color: var(--teinte, var(--color-blue-text));
+  background: color-mix(in srgb, var(--teinte, var(--color-blue-text)) 14%, var(--color-surface));
+}
+/* En contraste élevé, ni teinte ni case pâle : la couleur du texte qui la porte. */
+@media (forced-colors: active) {
+  .pastille-icone {
+    color: inherit;
+    background: none;
+  }
 }
 
 /* Une partie sous ses onglets. Le « roulement » : la partie choisie glisse doucement du côté de son onglet, une fois,
@@ -2340,7 +2400,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 /* ---------- Le style Terminal de la console ---------- */
 /* La Direction est en style Terminal : data-console="terminal" sur <html>, posé par Base.astro avec l'ambiance console.
    Le 11 novembre 2026, le pilote a vu trois styles et n'a gardé que celui-ci, « encore plus hacker » (docs/DESIGN.md).
-   Tout ce qui est écrit en décor (« ## », « > », chemins, branches, commandes, noms de fenêtre) passe par
+   Tout ce qui est écrit en décor (« > », chemins, branches, commandes, noms de fenêtre) passe par
    `content: … / ""`, que les lecteurs d'écran ne lisent pas. */
 
 /* Ce que seul le style montre : la commande de l'invite, l'heure et la collecte. */
@@ -2402,8 +2462,8 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   --console-grille: color-mix(in srgb, var(--color-flag-blue) 7%, transparent);
   --console-grille-forte: color-mix(in srgb, var(--color-flag-blue) 13%, transparent);
   --console-lueur: color-mix(in srgb, var(--color-flag-blue) 22%, transparent);
-  /* Le vert d'un terminal : ce qui va bien (les « OK », le voyant de la session), les commandes, les icônes et la chute
-     du logo Matrix. Ni textes ni chiffres, au QG, à la Direction et sur la page Carte : ils restent marine ou gris.
+  /* Le vert d'un terminal : ce qui va bien (les « OK », le voyant de la session), la machine des commandes et la chute
+     du logo Matrix ; les icônes sont en pastilles de couleur depuis le 14 novembre 2026. Ni textes ni chiffres, au QG, à la Direction et sur la page Carte : ils restent marine ou gris.
      Un vert sapin, lisible sur le blanc (7,1:1). */
   --console-vert: #166534;
 }
@@ -2442,11 +2502,6 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   font-weight: 800;
   letter-spacing: -0.01em;
 }
-/* Les titres comme en Markdown : « ## » en rouge. */
-:root[data-ambiance="console"][data-console="terminal"] .espace h2::before {
-  content: "## " / "";
-  color: var(--color-red);
-}
 
 /* Des fenêtres aux coins nets, encadrées de traits doubles comme un terminal en mode texte. Les repères de viseur de la
    console laissent la place au double trait. */
@@ -2484,9 +2539,13 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 
 /* Une ligne de commande au-dessus de chaque partie : « gal@direction:~$ ./annonces », « gal@qg:~$ ./salons ». La
    machine vient de la page (--console-hote, posé par direction.astro et qg.astro). Elle s'écrit quand la partie paraît,
-   en même temps que son glissement ; avec le bouton pause ou « réduire les animations », elle est là d'emblée. */
-:root[data-ambiance="console"][data-console="terminal"] .espace .partie::before {
-  content: "gal@" var(--console-hote) ":~$ ./" attr(data-partie) / "";
+   en même temps que son glissement ; avec le bouton pause ou « réduire les animations », elle est là d'emblée.
+   Depuis le 14 novembre 2026, elle a le dessin de l'invite du haut, que le pilote préfère à l'ancienne ligne toute
+   verte : la machine en vert et en gras, le reste en gris (.partie-commande, posée par Partie dans Onglets.tsx). */
+.partie-commande {
+  display: none;
+}
+:root[data-ambiance="console"][data-console="terminal"] .espace .partie-commande {
   display: block;
   width: fit-content;
   max-width: 100%;
@@ -2494,11 +2553,19 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   overflow: hidden;
   font-family: var(--font-console);
   font-size: 0.9375rem;
-  font-weight: 600;
+  font-weight: 500;
+  line-height: 1.4;
   white-space: nowrap;
-  color: var(--color-blue-text);
+  color: var(--color-muted);
 }
-:root[data-ambiance="console"][data-console="terminal"] .espace :is(.partie-droite, .partie-gauche)::before {
+:root[data-ambiance="console"][data-console="terminal"] .espace .partie-commande::before {
+  content: "gal@" var(--console-hote) / "";
+  font-weight: 700;
+}
+:root[data-ambiance="console"][data-console="terminal"] .espace .partie-commande::after {
+  content: ":~$ ./" attr(data-commande) / "";
+}
+:root[data-ambiance="console"][data-console="terminal"] .espace :is(.partie-droite, .partie-gauche) > .partie-commande {
   animation: console-frappe 0.7s steps(28, end) 0.1s backwards;
 }
 
@@ -2517,13 +2584,13 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   color: var(--ecriture);
 }
 
-/* Le vert d'un terminal, la voix de la machine : les commandes (invites, « > » des boutons, chemins du menu), les icônes
-   et ce qui va bien. Jamais un texte ni un chiffre : le 12 novembre 2026, une règle mettait en vert tous les chiffres
-   (.tnum), avec les phrases, les dates et les tableaux qui les portent ; le pilote a trouvé « un peu trop de vert dans
+/* Le vert d'un terminal, la voix de la machine : la machine des commandes (« gal@qg »), les « > » des boutons, les
+   chemins du menu et ce qui va bien. Les icônes sont en pastilles de couleur depuis le 14 novembre 2026. Jamais un
+   texte ni un chiffre : le 12 novembre 2026, une règle mettait en vert tous les chiffres (.tnum), avec les phrases, les dates et les tableaux qui les portent ; le pilote a trouvé « un peu trop de vert dans
    les écritures » au QG, comme sur la page Carte, et la Direction a suivi avec son accord. Les grands chiffres
    (.console-valeur) sont blancs, avec la lueur des champs : bleue au QG, rouge à la Direction. */
 :root[data-ambiance="console"][data-console="terminal"] .console-hote,
-:root[data-ambiance="console"][data-console="terminal"] .espace .partie::before,
+:root[data-ambiance="console"][data-console="terminal"] .espace .partie-commande::before,
 :root[data-ambiance="console"][data-console="terminal"] main .btn-ghost::before {
   color: var(--console-vert);
 }
@@ -2607,30 +2674,26 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   color: var(--color-blue);
 }
 
-/* Les icônes des parties : en vert de terminal, comme une commande, avec la lueur d'un écran au phosphore. Dans la
-   partie ouverte, en vidéo inversée, l'icône est blanche comme son nom. Rien ne bouge. */
-:root[data-ambiance="console"][data-console="terminal"] .icone-partie {
-  color: var(--console-vert);
-  filter: drop-shadow(0 0 0.3125rem color-mix(in srgb, var(--console-vert) 45%, transparent));
-}
-:root[data-ambiance="console"][data-console="terminal"] .onglets-choix[aria-current="true"] .icone-partie {
+/* Les icônes des parties : en pastilles de couleur depuis le 14 novembre 2026, comme le guide du clan (le pilote :
+   « pareil, mets-moi ça en couleur », pour le QG puis « pareil à la Direction »), à la place du vert de terminal et de sa
+   lueur (règle .pastille-icone, plus haut). Dans la partie ouverte, en vidéo inversée, l'icône est blanche comme son
+   nom, sans case. Rien ne bouge. */
+:root[data-ambiance="console"][data-console="terminal"] .onglets-choix[aria-current="true"] .pastille-icone {
   color: var(--ecriture);
-  filter: none;
+  background: transparent;
 }
-/* Dans le bouton, l'icône suit le chemin (« ~/qg/ », puis l'icône et le nom) : un petit écart les sépare. Sur téléphone,
-   sans le chemin, elle vient juste après le logo. */
+/* Dans le bouton, la pastille suit le chemin (« ~/qg/ », puis l'icône et le nom) : un petit écart les sépare. Sur
+   téléphone, sans le chemin, elle vient juste après le logo. */
 @media (min-width: 48rem) {
-  :root[data-ambiance="console"][data-console="terminal"] .onglets-menu-ouverte .icone-partie {
+  :root[data-ambiance="console"][data-console="terminal"] .onglets-menu-ouverte .pastille-icone {
     margin-left: 0.25rem;
   }
 }
-/* En contraste élevé, le système impose ses couleurs au texte, pas à un <svg> : l'icône reprend donc celle du texte qui
-   la porte (blanche sur un fond clair, celle de la partie ouverte ne se verrait plus), et perd sa lueur. */
+/* En contraste élevé, la pastille de la partie ouverte prend aussi la couleur du texte qui la porte. */
 @media (forced-colors: active) {
-  :root[data-ambiance="console"][data-console="terminal"] .icone-partie,
-  :root[data-ambiance="console"][data-console="terminal"] .onglets-choix[aria-current="true"] .icone-partie {
+  :root[data-ambiance="console"][data-console="terminal"] .onglets-choix[aria-current="true"] .pastille-icone {
     color: inherit;
-    filter: none;
+    background: none;
   }
 }
 
@@ -4377,16 +4440,12 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 .dir-accueil-motd {
   padding: 1.25rem;
 }
-/* Comme au QG, où ce titre est un `h2` de la console : en capitales, précédé de « ## » en rouge (décoratif). */
+/* Comme au QG, où ce titre est un `h2` de la console : en capitales. Sans « ## » devant depuis le 14 novembre 2026. */
 .dir-accueil-motd-titre {
   font-size: 1.25rem;
   font-weight: 800;
   line-height: 1.2;
   text-transform: uppercase;
-}
-.dir-accueil-motd-titre::before {
-  content: "## " / "";
-  color: var(--color-red);
 }
 .dir-accueil-motd-texte {
   margin-top: 0.5rem;
@@ -6955,8 +7014,8 @@ footer h2 {
    chapitre à la fois, dans une fenêtre en traits doubles, sa ligne de commande, une icône gauloise en pixels, quelques
    phrases, puis un essai à manipuler quand il aide à comprendre. Le sommaire est un dossier, à gauche sur grand écran,
    replié sous un bouton sur téléphone. Sans JavaScript, tous les chapitres se suivent dans la page.
-   Le vert de terminal (--console-vert) n'est que la voix de la machine : les commandes, « ~/guide », les « > », les icônes
-   et les jalons. Jamais une phrase ni un chiffre : le pilote a trouvé « trop de verts dans les textes » sur la Carte.
+   Le vert de terminal (--console-vert) n'est que la voix de la machine : la machine des commandes, « ~/guide », les « > »
+   et les jalons ; les icônes sont en pastilles de couleur. Jamais une phrase ni un chiffre : le pilote a trouvé « trop de verts dans les textes » sur la Carte.
    Voir docs/DESIGN.md, « Le guide du clan ». */
 .guide {
   display: grid;
@@ -7033,7 +7092,7 @@ footer h2 {
   background: color-mix(in srgb, var(--ecriture) 7%, transparent);
 }
 /* La branche de l'arborescence, décorative : « └─ » pour le dernier chapitre d'un groupe. Comme tous les signes du guide
-   (« ## », « > »), elle s'écrit avec un texte de remplacement vide, pour qu'un lecteur d'écran ne la lise pas. Un
+   (« > »), elle s'écrit avec un texte de remplacement vide, pour qu'un lecteur d'écran ne la lise pas. Un
    navigateur qui ne connaît pas cette écriture ne l'affiche pas, comme au QG : mieux vaut un signe absent qu'un signe lu
    à voix haute devant chaque ligne. */
 .guide-plan-lien::before {
@@ -7064,9 +7123,8 @@ footer h2 {
 .guide-plan-lien[aria-current] .guide-plan-numero {
   color: var(--ecriture);
 }
-/* Les icônes du guide : les mêmes dessins en pixels que le menu du QG (src/lib/icones-parties.ts), en vert de terminal
-   avec la lueur d'un écran au phosphore, blanches dans le chapitre ouvert. Treize cases : 26, 39 ou 52 px, pour que le
-   bord de chaque case tombe sur un pixel de l'écran. */
+/* Les icônes du guide : les mêmes dessins en pixels que le menu du QG (src/lib/icones-parties.ts). Treize cases : 26, 39
+   ou 52 px, pour que le bord de chaque case tombe sur un pixel de l'écran. */
 .guide-plan-icone,
 .guide-icone,
 .guide-pion {
@@ -7074,14 +7132,10 @@ footer h2 {
   width: 1.625rem;
   height: 1.625rem;
 }
-.guide-plan-icone,
-.guide-icone {
-  color: var(--console-vert, var(--color-blue-text));
-  filter: drop-shadow(0 0 0.3125rem color-mix(in srgb, var(--console-vert, var(--color-blue-text)) 45%, transparent));
-}
-.guide-plan-lien[aria-current] .guide-plan-icone {
+/* Dans le chapitre ouvert du sommaire, l'icône est blanche sur le bleu, sans pastille. */
+.guide-plan-lien[aria-current] .pastille-icone {
   color: var(--ecriture);
-  filter: none;
+  background: transparent;
 }
 /* Sur téléphone, le sommaire se replie sous un bouton qui dit le chapitre ouvert. Le bouton n'existe qu'une fois le script
    en place (.guide-pas-a-pas) : sans lui, le sommaire reste ouvert. */
@@ -7204,8 +7258,10 @@ footer h2 {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* La ligne de commande du chapitre (« gal@guide:~$ ./bases »), en vert comme une commande. Elle s'écrit quand le chapitre
-   s'ouvre, en même temps que son glissement ; avec le bouton pause ou « réduire les animations », elle est là d'emblée. */
+/* La ligne de commande du chapitre (« gal@guide:~$ ./bases »), du dessin de l'invite du haut depuis le 14 novembre 2026 :
+   la machine en vert et en gras (.console-hote), le reste en gris. Toute verte avant, comme la ligne des parties du QG,
+   que le pilote n'aimait pas (« deux design »). Elle s'écrit quand le chapitre s'ouvre, en même temps que son glissement ;
+   avec le bouton pause ou « réduire les animations », elle est là d'emblée. */
 .guide-commande {
   width: fit-content;
   max-width: 100%;
@@ -7213,9 +7269,10 @@ footer h2 {
   overflow: hidden;
   font-family: var(--font-console);
   font-size: 0.9375rem;
-  font-weight: 600;
+  font-weight: 500;
+  line-height: 1.4;
   white-space: nowrap;
-  color: var(--console-vert, var(--color-blue-text));
+  color: var(--color-muted);
 }
 .guide-de-droite .guide-commande,
 .guide-de-gauche .guide-commande {
@@ -7246,7 +7303,7 @@ footer h2 {
   }
 }
 
-/* Le chapitre : sa commande, son icône en grand, son titre précédé de « ## » comme au QG, puis l'essentiel, chaque
+/* Le chapitre : sa commande, son icône en grand, son titre, puis l'essentiel, chaque
    phrase derrière un « > ». */
 .guide-corps {
   padding: 1.25rem 1rem 0.25rem;
@@ -7259,17 +7316,16 @@ footer h2 {
 .guide-icone {
   width: 2.4375rem;
   height: 2.4375rem;
-  margin-top: 0.125rem;
+}
+/* La pastille de l'en-tête, plus large d'un cran autour de la grande icône. */
+.guide-tete > .pastille-icone {
+  padding: 0.375rem;
+  border-radius: 0.5rem;
 }
 .guide-titre {
   margin-top: 0.375rem;
   font-size: clamp(1.375rem, 3vw, 2.125rem);
   line-height: 1.1;
-}
-/* L'espace après « ## » est insécable (\a0) : le signe ne reste jamais seul sur sa ligne. */
-.guide-titre::before {
-  content: "##\a0" / "";
-  color: var(--color-red);
 }
 /* Un mot composé du titre (« Aide-mémoire ») ne se coupe pas à son trait d'union (motsComposes, src/lib/guide.ts). */
 .guide-insecable {
@@ -7846,6 +7902,11 @@ footer h2 {
     color: inherit;
     filter: none;
   }
+  /* La pastille du chapitre ouvert aussi : la couleur du texte, comme les autres (règle des pastilles). */
+  .guide-plan-lien[aria-current] .pastille-icone {
+    color: inherit;
+    background: none;
+  }
 }
 
 /* L'encadré du chapitre : « Important », « Réflexe », « Règle du clan ». */
@@ -8275,7 +8336,7 @@ footer h2 {
 }
 
 /* Une fenêtre : des coins nets, un cadre en traits doubles, une barre de titre, puis une ligne de commande décorative
-   (« gal@carte:~$ ./objectif ») et le titre, précédé de « ## » comme au QG. */
+   (« gal@carte:~$ ./objectif ») et le titre. */
 .carte-fenetre {
   position: relative;
   border: 3px double var(--color-line-strong);
@@ -8409,10 +8470,6 @@ footer h2 {
 .carte-fenetre h2 {
   font-size: 1.125rem;
   line-height: 1.3;
-}
-.carte-fenetre h2::before {
-  content: "## " / "";
-  color: var(--color-red);
 }
 .carte-fenetre h3 {
   font-size: 1rem;

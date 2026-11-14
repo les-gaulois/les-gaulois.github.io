@@ -3,7 +3,17 @@ import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { fmtInt } from "../../lib/format";
 import type { IconePartieNom } from "../../lib/icones-parties";
 import { slideFrom, tabKeyTarget, tabOfHash, type Slide } from "../../lib/onglets";
+import { teinteDuRang } from "../../lib/teintes";
 import IconePartie from "./IconePartie";
+
+/** L'icône d'une partie dans sa pastille de couleur, celle de son rang dans la liste (src/lib/teintes.ts). */
+function Pastille({ nom, rang }: { nom: IconePartieNom; rang: number }) {
+  return (
+    <span class="pastille-icone" data-teinte={teinteDuRang(rang)}>
+      <IconePartie nom={nom} />
+    </span>
+  );
+}
 
 export interface TabItem {
   id: string;
@@ -277,7 +287,7 @@ export function Onglets({
           >
             <span class="onglets-menu-ouverte">
               <span class="sr-only">Partie ouverte : </span>
-              {opened?.icon && <IconePartie nom={opened.icon} />}
+              {opened?.icon && <Pastille nom={opened.icon} rang={tabs.indexOf(opened)} />}
               <span class="onglets-menu-nom">{opened?.label}</span>
               <Nombre count={opened?.count} />
             </span>
@@ -289,7 +299,7 @@ export function Onglets({
             {tabs.map((tab, i) => (
               <li key={tab.id}>
                 <button type="button" class="onglets-choix" aria-current={tab.id === active ? "true" : undefined} onClick={() => fromMenu(tab.id)} onKeyDown={(e) => onMenuKey(e, i)}>
-                  {tab.icon && <IconePartie nom={tab.icon} />}
+                  {tab.icon && <Pastille nom={tab.icon} rang={i} />}
                   <span class="min-w-0">{tab.label}</span>
                   <Nombre count={tab.count} />
                 </button>
@@ -330,10 +340,13 @@ export function Partie({ prefix, id, active, slide, children }: { prefix: string
       tabIndex={0}
       hidden={!shown}
       class={`partie ${shown && slide ? `partie-${slide}` : ""}`}
-      // Le nom court de la partie, que l'ambiance console de la Direction écrit en commande au-dessus d'elle.
+      // Le nom court de la partie (la commande au-dessus d'elle le reprend, par .partie-commande).
       data-partie={id}
       data-testid={`partie-${id}`}
     >
+      {/* Cette commande (« gal@qg:~$ ./moi ») : écrite par la feuille de style dans le style Terminal du QG et de la
+          Direction, comme l'invite du haut de la page. Vide et décorative : rien à lire ni à copier. */}
+      <span class="partie-commande" data-commande={id} aria-hidden="true" />
       {children}
     </div>
   );

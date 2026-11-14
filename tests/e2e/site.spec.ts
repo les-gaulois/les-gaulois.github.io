@@ -156,8 +156,8 @@ test("seules les pages de l'encadrement passent au rouge", async ({ page }, test
 // Au QG et à la Direction, les phrases, les dates et les tableaux portent des chiffres (.tnum) : le 12 novembre 2026, une
 // règle les mettait tous en vert ; le pilote a trouvé « un peu trop de vert dans les écritures » au QG, et la Direction a
 // suivi avec son accord. Comme sur la page Carte, le vert n'y est plus que la voix de la machine (invite, ligne de
-// commande d'une partie, « ~/qg », « > », icônes). Les tests construisent le site sans serveur de connexion : ces pages
-// n'y montrent que leur porte. Le contrôle pose donc dans chacune le balisage des écrans connectés (une phrase, un texte,
+// commande d'une partie, « ~/qg », « > » ; les icônes sont en pastilles de couleur depuis le 14 novembre 2026). Les tests
+// construisent le site sans serveur de connexion : ces pages n'y montrent que leur porte. Le contrôle pose donc dans chacune le balisage des écrans connectés (une phrase, un texte,
 // un tableau, un grand chiffre).
 test("au QG et à la Direction, aucun texte ni chiffre n'est vert", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "Même rendu sur mobile.");
@@ -1165,9 +1165,9 @@ test("le guide du clan avance chapitre par chapitre, et l'adresse garde le chapi
 });
 
 // Le guide est en console depuis le 12 novembre 2026 (« comme la Carte »). Sur la Carte, le pilote a trouvé « trop de verts
-// dans les textes » : le vert de terminal n'est que la voix de la machine. Trois lignes s'écrivent en vert, l'invite de la
-// page, la ligne de commande de chaque chapitre et le dossier du sommaire ; hors d'elles, seuls des signes (« > »), les
-// icônes et les jalons sont verts. Aucune phrase, aucun chiffre, aucun libellé ne l'est, dans aucun chapitre : ni le texte
+// dans les textes » : le vert de terminal n'est que la voix de la machine. Trois lignes ont du vert : l'invite de la page et
+// la ligne de commande de chaque chapitre (leur machine, « gal@guide »), et le dossier du sommaire ; hors d'elles, seuls
+// des signes (« > ») et les jalons sont verts, les icônes étant en pastilles de couleur depuis le 14 novembre 2026. Aucune phrase, aucun chiffre, aucun libellé ne l'est, dans aucun chapitre : ni le texte
 // de la page, ni un mot écrit par la feuille de style (l'étiquette « essai »), ni un vert voisin du jeton.
 test("dans le guide du clan, le vert ne sert qu'aux lignes de commande, jamais aux textes ni aux chiffres", async ({ page }, testInfo) => {
   const mobile = testInfo.project.name === "mobile";
@@ -1218,9 +1218,11 @@ test("dans le guide du clan, le vert ne sert qu'aux lignes de commande, jamais a
     await openFolds(page);
     expect(await textesVerts(), ancre).toEqual([]);
   }
-  // La voix de la machine, elle, est verte : la ligne de commande du chapitre ouvert et le dossier du sommaire.
+  // La voix de la machine, elle, est verte : la machine de la ligne de commande du chapitre ouvert et le dossier du
+  // sommaire. Depuis le 14 novembre 2026, le reste de la ligne est gris, comme l'invite du haut (« deux design »).
   const couleurDe = (selecteur: string, pseudo?: string) => page.locator(selecteur).first().evaluate((el, p) => getComputedStyle(el, p).color, pseudo);
-  expect(await couleurDe(".guide-ouvert .guide-commande")).toBe(vert);
+  expect(await couleurDe(".guide-ouvert .guide-commande .console-hote")).toBe(vert);
+  expect(await couleurDe(".guide-ouvert .guide-commande")).not.toBe(vert);
   if (mobile) await page.getByRole("navigation", { name: "Chapitres du guide du clan" }).getByRole("button", { name: /Chapitres/ }).click();
   expect(await couleurDe(".guide-plan-racine")).toBe(vert);
   await expect(page.locator(".guide-ouvert .guide-commande")).toHaveText(/^gal@guide:~\$ \.\/memo-economie$/);
