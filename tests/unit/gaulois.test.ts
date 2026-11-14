@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { lirePng } from "../../supabase/functions/code-discord/billets";
@@ -207,6 +208,17 @@ describe("une tenue", () => {
     // Une seule clé du visage suffit : les autres prennent le visage d'avant.
     const unOeil = Object.keys(OBJETS.yeux).at(-1)!;
     expect(lireTenue({ ...avant, yeux: unOeil })).toEqual({ ...avant, ...VISAGE_D_AVANT, yeux: unOeil });
+  });
+
+  it("d'avant le 14 novembre 2026 garde les cases que dessinait le code d'avant (empreintes figées sur main, dacce9a)", () => {
+    const empreinte = (tenue: Tenue) => createHash("sha256").update(JSON.stringify(casesDuGaulois(tenue))).digest("hex");
+    const depart = { peau: "claire", cheveux: "courts", teinte_cheveux: "roux", barbe: "moustache", tete: "aucun", haut: "tunique", bas: "braies-carreaux", pieds: "bottes", arme: "gourdin" };
+    const doree = { peau: "foncee", cheveux: "tresses", teinte_cheveux: "blond", barbe: "grande", tete: "casque-or", haut: "torque-or", bas: "braies-or", pieds: "bottes-or", arme: "carnyx" };
+    const nue = { peau: "mate", cheveux: "aucun", teinte_cheveux: "gris", barbe: "aucune", tete: "aucun", haut: "aucun", bas: "aucun", pieds: "nus", arme: "aucune" };
+    expect(empreinte(depart)).toBe("1e7e963eef6cbff8af706fab3b728de2cfca02ebbb8bd94edad904854c3c1fcf");
+    expect(empreinte(doree)).toBe("ed98b1da9148d5cc6f927d9bc6d25d852bbffd386a57c8270b1c062982051803");
+    expect(empreinte(nue)).toBe("d9e84e5cc5ccd2995ce08e67ad3beb1fc4cafd2b7b490f2a000c9dc2d3d6861d");
+    for (const tenue of [depart, doree, nue]) expect(empreinte(lireTenue(tenue)!)).toBe(empreinte(tenue));
   });
 
   it("a un visage gratuit au choix : des yeux, une bouche, une cicatrice ou aucune, chacun sur la peau du visage", () => {

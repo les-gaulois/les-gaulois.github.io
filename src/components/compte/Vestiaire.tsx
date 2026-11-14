@@ -517,18 +517,18 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
   };
 
   const enregistrer = async () => {
-    const creation = etat.kind === "pret" && !etat.enregistree;
+    const premiereFois = etat.kind === "pret" && !etat.enregistree;
     setOccupe(true);
     setProbleme(null);
     setReussite(null);
     try {
       const enregistree = tenueDuServeur(await call<unknown>("enregistrer_mon_gaulois", { p_tenue: tenue }));
       setEtat({ kind: "pret", enregistree });
-      // Le Gaulois compagnon, qui suit le visiteur sur tout le site, se rhabille aussitôt (« gal:gaulois-enregistre »).
+      // Pour le Gaulois compagnon, en préparation dans une autre session : il écoutera « gal:gaulois-enregistre » pour se rhabiller.
       if (enregistree) window.dispatchEvent(new CustomEvent("gal:gaulois-enregistre", { detail: { tenue: enregistree } }));
       setReussite("Votre Gaulois est enregistré. Tapez /gaulois dans le Discord du clan pour le montrer.");
       // Un Gaulois tout juste créé reçoit ses statères du mois et ouvre la boutique : on relit.
-      if (creation) await lireLaBoutique();
+      if (premiereFois) await lireLaBoutique();
     } catch (e) {
       setProbleme(messageOf(e));
     } finally {
