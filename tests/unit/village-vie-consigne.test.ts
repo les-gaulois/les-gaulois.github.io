@@ -5,7 +5,8 @@ import { CONSIGNE, LIEUX_ECRITS, MAJUSCULES_PERMISES, MAX_REPLIQUES_PAR_PASSAGE,
 import { LIEUX } from "../../src/lib/village/vie";
 import { LIEUX_DES_BULLES, MOMENTS, SIGNES_PERMIS, normaliserPourLesMots } from "../../src/lib/village/vie-releve";
 
-const SQL = readFileSync("supabase/migrations/20261113002300_village_vie.sql", "utf8");
+// Sous Windows, Git rend les fichiers avec des fins de ligne CRLF : les motifs ci-dessous lisent des « \n ».
+const SQL = readFileSync("supabase/migrations/20261113002300_village_vie.sql", "utf8").replace(/\r\n/g, "\n");
 
 /** Le corps d'une fonction SQL de la migration, entre ses `$$`. */
 function corps(nom: string): string {
@@ -123,5 +124,46 @@ describe("les signes permis et les faits", () => {
   it("gardent les mêmes plafonds de longueur et de nombre que le robot", () => {
     expect(corps("internal.village_vie_replique_valide")).toContain(`char_length(p_texte) > ${MAX_SIGNES}`);
     expect(corps("internal.village_vie_releve_valide")).toContain(`jsonb_array_length(p -> 'repliques') > ${MAX_REPLIQUES_PAR_PASSAGE}`);
+  });
+});
+
+// Décision du pilote du 14 novembre 2026 : « tous ceux qui créent un personnage apparaissent dans le village », sans choix
+// de se montrer ou non. Le nom et le vocal pour tous ; la dernière partie seulement avec un pseudo public unique, car son
+// heure exacte, croisée avec les sessions publiques du clan, donnerait l'identifiant OpenFront d'un membre anonyme.
+describe("qui paraît sur la place, et avec quoi", () => {
+  const code = SQL.replace(/\r\n/g, "\n").replace(/--.*$/gm, "");
+
+  it("ne lit jamais le choix du mur du QG, et ne cache plus aucun nom", () => {
+    expect(code).not.toMatch(/show_to_members|'Un Gaulois'/);
+  });
+
+  it("nomme chaque Gaulois comme le QG et donne son état vocal, à la place comme au robot", () => {
+    const place = corps("public.get_village");
+    expect(place).toContain("'nom', internal.village_nom(p.display_name, p.gaul_number),");
+    expect(place).toContain("'vocal', internal.village_vie_vocal(v.vocal, v.vocal_le),");
+    const travail = corps("public.vie_du_village_travail");
+    expect(travail).toContain("'discord', case when l.discord_id ~ '^[0-9]{17,20}$' then l.discord_id end,");
+    expect(travail).toContain("'vocal', internal.village_vie_vocal(v.vocal, v.vocal_le),");
+    // Le robot ne reçoit jamais un nom.
+    expect(travail).not.toMatch(/display_name|village_nom|member_pseudo|username/);
+  });
+
+  it("ne note l'état vocal que d'un compte validé qui a un Gaulois", () => {
+    expect(corps("public.noter_vie_du_village")).toContain(
+      "where v.numero = v_e ->> 'n'\n      and exists (\n        select 1 from internal.gaulois g join public.profiles p on p.user_id = g.user_id\n        where g.user_id = v.user_id and p.status = 'validated'\n      );",
+    );
+  });
+
+  it("ne donne la dernière partie, et ses points, qu'avec un pseudo public unique dans la liste du clan", () => {
+    expect(corps("internal.village_vie_partie")).toContain("and internal.member_pseudo(p_user) is not null");
+    // La place, le robot, la réception des bulles et la lecture de l'encadrement lisent tous la partie par cette fonction.
+    for (const nom of ["public.get_village", "public.vie_du_village_travail", "public.noter_vie_du_village", "internal.village_vie_etat"]) {
+      expect(corps(nom), nom).toContain("internal.village_vie_partie(");
+      expect(corps(nom), nom).not.toContain("internal.stateres_mouvements");
+    }
+    // Une bulle qui parle d'une partie ne se montre que si la place montre cette partie.
+    expect(corps("public.get_village")).toContain(
+      "and (d.debut is not null or (v.replique_faits ->> 'points' is null and coalesce(v.replique_faits ->> 'lieu', '') not in ('bataille', 'taverne')))",
+    );
   });
 });

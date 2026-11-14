@@ -12,7 +12,8 @@
  *    précédente.
  * 2. Avec le jeton du robot des arrivées (secret DISCORD_BOT_TOKEN) : les droits du rôle @everyone et les salons du
  *    serveur, une fois (seul un salon vocal que @everyone peut voir et rejoindre compte « en vocal »), puis l'état vocal de
- *    chaque membre qui se montre aux autres membres (le serveur ne donne pas l'identifiant Discord des autres), un appel par
+ *    chaque Gaulois dont le serveur donne l'identifiant Discord (tout compte validé qui a un Gaulois et un compte Discord
+ *    lié : décision du pilote du 14 novembre 2026, tous paraissent au village), un appel par
  *    membre (`GET /guilds/{serveur}/voice-states/{membre}`), une pause entre deux, au plus `MAX_VOCAL` appels et
  *    `MAX_VOCAL_MS` par passage, les plus anciens relevés d'abord. Arrêt net au premier 401 ou 403 ; un 429 attend ce que
  *    Discord demande, une fois. Puis `noter_vie_du_village` reçoit les états.
