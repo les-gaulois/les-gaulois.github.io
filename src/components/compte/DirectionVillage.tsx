@@ -742,7 +742,7 @@ function BullesLues({ vie }: { vie: VieDuVillage }) {
       <dl class="dir-village-chiffres" data-petit="" data-testid="village-bulles-chiffres">
         {[
           ["Bulles écrites ce mois-ci", fmtInt(vie.depense.repliques)],
-          ["Phrases écartées par le contrôle", fmtInt(vie.depense.ecartees)],
+          ["Gaulois restés sans bulle après le contrôle", fmtInt(vie.depense.ecartees)],
           ["Appels à Claude ce mois-ci", fmtInt(vie.depense.appels)],
           ["Bulles sur la place en ce moment", fmtInt(vie.bulles_affichees)],
           ["Dernier relevé vocal", quand(vie.dernier_vocal)],
@@ -769,7 +769,7 @@ function BullesLues({ vie }: { vie: VieDuVillage }) {
                     Bulles écrites
                   </th>
                   <th scope="col" class="dir-village-nombre">
-                    Phrases écartées
+                    Sans bulle
                   </th>
                   <th scope="col" class="dir-village-nombre">
                     Appels

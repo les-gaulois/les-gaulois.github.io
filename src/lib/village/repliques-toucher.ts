@@ -39,7 +39,7 @@ export const SALUTS: readonly string[] = [
   "Un doigt sur mon épaule ? Bonjour quand même.",
   "Tu admires ma tenue ? Tu as bon goût.",
   "Le clan te salue.",
-  "Hé, salut ! Je ne t'avais pas vu.",
+  "Hé, salut ! Tu m'as surpris.",
   "Qui me demande ?",
 ];
 
@@ -170,14 +170,14 @@ export const AGACES: readonly string[] = [
   "Ça suffit, maintenant.",
   "Va chatouiller quelqu'un d'autre.",
   "Tu me prends pour un tambour ?",
-  "Oui, oui, je t'ai vu. C'est bon.",
+  "Oui, oui, j'ai compris. C'est bon.",
   "Ton doigt ne sait pas s'arrêter ?",
   "Une fois, ça va. Là, ça fait beaucoup.",
   "Je sens que tu vas recommencer.",
   "Tu ne veux pas aller voir à la taverne si j'y suis ?",
   "Stop. On respire. Toi aussi.",
   "C'est fragile, un Gaulois. Enfin, non. Mais arrête.",
-  "Tu comptes me toucher encore longtemps ?",
+  "Tu comptes me taper sur l'épaule encore longtemps ?",
   "Pas touche !",
   "J'ai l'air d'un bouton ?",
   "Mon épaule n'a rien demandé.",
@@ -249,7 +249,7 @@ export const FURIEUX: readonly string[] = [
   "Je boude. Voilà. Ça te plaît ? Je boude.",
   "Je ne te parle plus. Sauf pour te dire que je ne te parle plus.",
   "Espèce de casserole sans manche !",
-  "Qu'on m'apporte un bouclier, il recommence !",
+  "Qu'on m'apporte un bouclier, ça recommence !",
   "Tu es la honte du doigt !",
   "Espèce de tabouret bancal !",
   "Mon casque fume. Bravo.",
@@ -266,7 +266,7 @@ export const FURIEUX: readonly string[] = [
   "Même une ortie est plus agréable que toi !",
   "À force, tu m'as poli l'épaule !",
   "Disparais, courge molle !",
-  "Ça suffit, espèce de bigorneau à roulettes !",
+  "Ça suffit, espèce de bigorneau mal réveillé !",
 ];
 
 /** Toutes les listes, par nom : pour les tests et pour les compter. */
