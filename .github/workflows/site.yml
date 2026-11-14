@@ -360,6 +360,16 @@ jobs:
           restore-keys: clanmap-
       - id: pages
         uses: actions/configure-pages@v6
+      # Les Gaulois des membres au pseudo public, validés, qui ont créé le leur au village, pour l'image d'aperçu de leur fiche :
+      # seule cette étape a la clé de service, pas la construction. Rangés par empreinte dans .cache/gaulois-fiches.json, hors
+      # de Git et de dist/. Sans réglage, sans la migration ou en cas de panne, les fiches se dessinent comme avant.
+      - name: Lire les Gaulois des fiches
+        continue-on-error: true
+        timeout-minutes: 1
+        run: npm run gaulois:fiches
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
       - name: Construire le site
         run: npm run build
         env:
