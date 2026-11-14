@@ -524,7 +524,7 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
     try {
       const enregistree = tenueDuServeur(await call<unknown>("enregistrer_mon_gaulois", { p_tenue: tenue }));
       setEtat({ kind: "pret", enregistree });
-      // Pour le Gaulois compagnon, en préparation dans une autre session : il écoutera « gal:gaulois-enregistre » pour se rhabiller.
+      // Le Gaulois compagnon (src/scripts/compagnon.ts) écoute « gal:gaulois-enregistre » pour se rhabiller aussitôt.
       if (enregistree) window.dispatchEvent(new CustomEvent("gal:gaulois-enregistre", { detail: { tenue: enregistree } }));
       setReussite("Votre Gaulois est enregistré. Tapez /gaulois dans le Discord du clan pour le montrer.");
       // Un Gaulois tout juste créé reçoit ses statères du mois et ouvre la boutique : on relit.
