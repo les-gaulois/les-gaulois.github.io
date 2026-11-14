@@ -105,8 +105,123 @@ export interface AllyMark {
  * un nouveau Gaulois « En attente » qui n'a pas fait sa demande (remarque du pilote, 13 novembre 2026).
  */
 export function allyStatus(ally: AllyMark): string {
+  const { state, who } = allyStatusParts(ally);
+  return `${state} · ${who}`;
+}
+
+/** Les deux moitiés de `allyStatus` : l'état, qui s'écrit dans la pastille de couleur, et le joueur, écrit en gris à côté. */
+export function allyStatusParts(ally: AllyMark): { state: string; who: string } {
   const who = `[${ally.tag}] ${ally.alias}`;
-  if (!ally.approved) return `Allié en attente de votre accord · ${who}`;
-  if (!ally.active) return `Allié sans accès, son clan n'est plus dans notre alliance · ${who}`;
-  return `Allié · ${who}`;
+  if (!ally.approved) return { state: "Allié en attente de votre accord", who };
+  if (!ally.active) return { state: "Allié sans accès, son clan n'est plus dans notre alliance", who };
+  return { state: "Allié", who };
+}
+
+/**
+ * Le serveur ne donne pas plus de comptes à la fois (`list_members` : au plus 500). Il les trie par statut : en demander
+ * moins couperait d'abord les suspendus, et la case « Suspendus » de la vue d'ensemble ouvrirait un filtre vide.
+ */
+export const MEMBERS_LIMIT = 500;
+
+/**
+ * Vrai quand l'écran n'a peut-être pas tous les comptes : la liste est revenue pleine, ou elle vient déjà d'une recherche
+ * faite par le serveur. La recherche à chaque lettre ne voit alors qu'une partie des comptes : la touche Entrée la confie au serveur.
+ */
+export function listMayBeCut(rowCount: number, serverSearch: string): boolean {
+  return serverSearch !== "" || rowCount >= MEMBERS_LIMIT;
+}
+
+/*
+ * Filtres et couleurs de l'onglet Comptes (demande du pilote, 13 novembre 2026 : « c'est chiant de descendre la page pour
+ * voir les membres », « ajoute des code couleur style vert rouge ect »).
+ *
+ * Chaque compte a un seul état : validé, en attente, suspendu, ou allié (un compte en attente que la carte de l'alliance
+ * connaît comme joueur allié). Les quatre filtres d'état font donc, ensemble, le total de « Tous ». « Encadrement » et
+ * « À vérifier » les recoupent. Le serveur revérifie toute action : ces filtres ne font qu'afficher.
+ */
+
+/** La couleur d'une case : vert (ok), jaune (à regarder), rouge (bloqué), bleu (allié), gris (rien à faire). */
+export type MemberTone = "ok" | "warn" | "danger" | "ally" | "muted";
+
+export type MemberState = "validated" | "pending" | "suspended" | "ally";
+
+export function memberState(member: Pick<MemberRow, "status">, ally: AllyMark | undefined): MemberState {
+  if (member.status === "pending" && ally) return "ally";
+  return member.status;
+}
+
+export type MemberFilter = "all" | "validated" | "pending" | "suspended" | "ally" | "staff" | "check";
+
+export const MEMBER_FILTERS: readonly { id: MemberFilter; label: string; tone: MemberTone | null }[] = [
+  { id: "all", label: "Tous", tone: null },
+  { id: "validated", label: "Validés", tone: "ok" },
+  { id: "pending", label: "En attente", tone: "warn" },
+  { id: "suspended", label: "Suspendus", tone: "danger" },
+  { id: "ally", label: "Alliés", tone: "ally" },
+  // Comme la case « Encadrement » de la vue d'ensemble (`get_direction_overview`) : les comptes validés d'un rôle au-dessus de membre.
+  { id: "staff", label: "Encadrement", tone: null },
+  // Ce qui s'écrit en jaune dans la colonne Liste, et l'allié qui attend l'accord de l'encadrement.
+  { id: "check", label: "À vérifier", tone: "warn" },
+];
+
+type Filterable = Pick<MemberRow, "number" | "status" | "linked" | "in_roster" | "openfront_username" | "role">;
+
+/** Ce qui demande un coup d'œil : une case jaune de la colonne Liste, ou un allié qui attend l'accord de l'encadrement. */
+export function needsCheck(member: Filterable, requests: OpenRequests | null, ally: AllyMark | undefined): boolean {
+  if (member.status === "pending" && ally) return !ally.approved;
+  return ROSTER_CELL_WARN.has(rosterCell(member, requests));
+}
+
+export function inFilter(member: Filterable, filter: MemberFilter, requests: OpenRequests | null, ally: AllyMark | undefined): boolean {
+  switch (filter) {
+    case "all":
+      return true;
+    case "staff":
+      return member.status === "validated" && member.role !== "member";
+    case "check":
+      return needsCheck(member, requests, ally);
+    default:
+      return memberState(member, ally) === filter;
+  }
+}
+
+/** Le nombre de comptes de chaque filtre, pour les boutons au-dessus de la liste. */
+export function filterCounts(rows: readonly Filterable[], requests: OpenRequests | null, allies: ReadonlyMap<number, AllyMark>): Record<MemberFilter, number> {
+  const counts = Object.fromEntries(MEMBER_FILTERS.map((f) => [f.id, 0])) as Record<MemberFilter, number>;
+  for (const m of rows) {
+    const ally = allies.get(m.number);
+    for (const f of MEMBER_FILTERS) if (inFilter(m, f.id, requests, ally)) counts[f.id] += 1;
+  }
+  return counts;
+}
+
+/** Sans accents ni majuscules : « teutates » trouve « Teutatès ». */
+const plain = (text: string): string =>
+  text
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .trim();
+
+/** La recherche, à chaque lettre tapée : le nom, le nom Discord, le pseudo OpenFront lié ou le numéro de Gaulois. */
+export function matchesSearch(member: Pick<MemberRow, "number" | "name" | "discord_name" | "openfront_username">, query: string): boolean {
+  const q = plain(query);
+  if (!q) return true;
+  return [member.name, member.discord_name, member.openfront_username, String(member.number)].some((field) => field !== null && plain(field).includes(q));
+}
+
+/** La couleur de la case Statut. */
+export function statusTone(member: Pick<MemberRow, "status">, ally: AllyMark | undefined): MemberTone {
+  if (member.status === "pending" && ally) {
+    if (!ally.approved) return "warn";
+    return ally.active ? "ally" : "muted";
+  }
+  return member.status === "validated" ? "ok" : member.status === "pending" ? "warn" : "danger";
+}
+
+/** La couleur de la case Liste. Un allié n'est pas concerné par la liste officielle de GAL. */
+export function rosterTone(cell: RosterCell, ally: AllyMark | undefined): MemberTone {
+  if (ally) return "muted";
+  if (cell === "in") return "ok";
+  return ROSTER_CELL_WARN.has(cell) ? "warn" : "muted";
 }

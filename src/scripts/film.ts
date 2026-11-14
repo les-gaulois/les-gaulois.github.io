@@ -189,9 +189,7 @@ function mount(
   const speedInput = one<HTMLInputElement>("[data-film-speed]");
   const speedValue = one<HTMLElement>("[data-film-speed-value]");
   const worldChip = one<HTMLButtonElement>("[data-film-world]");
-  const mire = one<HTMLElement>("[data-film-mire]");
   const coords = one<HTMLElement>("[data-film-coords]");
-  const [mireV, mireH] = [...mire.querySelectorAll<HTMLElement>("i")];
 
   /* ---------- Couleurs et état de la carte ---------- */
 
@@ -442,7 +440,7 @@ function mount(
   /* ---------- Caméra : des mouvements lents, sans à-coup ---------- */
 
   const camera: Camera = { x: W / 2, y: H / 2, s: 1, vx: 0, vy: 0, vz: 0 };
-  /** Une vue choisie : par un regard posé sur une zone, un front ou un clan, ou par le visiteur lui-même (`free`). */
+  /** Une vue choisie : par un regard posé sur un front ou un clan, ou par le visiteur lui-même (`free`). */
   let manual: View | null = null;
   /** `true` : le visiteur a zoomé ou déplacé la carte. Sa vue reste pendant la lecture, et rien ne la décale. */
   let free = false;
@@ -897,7 +895,7 @@ function mount(
   }
 
   /**
-   * Retire tout regard posé sur un front, une zone ou un clan. `keepFree` : une vue que le visiteur a choisie lui-même
+   * Retire tout regard posé sur un front ou un clan. `keepFree` : une vue que le visiteur a choisie lui-même
    * (zoom, déplacement) reste en place.
    */
   function releaseView(keepFree = false): void {
@@ -1005,7 +1003,7 @@ function mount(
     button.addEventListener("click", () => replayDay(Number(button.dataset.filmDay), Number(button.dataset.filmDayEnd), button.dataset.filmDayLabel ?? ""));
   }
 
-  /** La carte d'aujourd'hui, à l'arrêt : un regard sur une zone, un front ou un clan se pose sur elle. */
+  /** La carte d'aujourd'hui, à l'arrêt : un regard sur un front ou un clan se pose sur elle. */
   function showToday(): void {
     cancelAutoplay();
     shot = null;
@@ -1028,7 +1026,7 @@ function mount(
     invalidate();
   }
 
-  // Regarder un front ou une zone : la carte d'aujourd'hui, cadrée sur cet endroit.
+  // Regarder un front : la carte d'aujourd'hui, cadrée sur cet endroit.
   for (const button of document.querySelectorAll<HTMLElement>("[data-film-look]")) {
     button.addEventListener("click", () => {
       showToday();
@@ -1128,13 +1126,9 @@ function mount(
     tip.style.transform = `translate(${Math.max(4, left)}px, ${Math.max(4, e.clientY - r.top - 30)}px)`;
   }
 
-  /** La mire suit la souris, et la position sur la carte complète s'écrit à côté de la date (`film.scale` pixels par case du film). */
+  /** La position sur la carte complète, sous la souris, s'écrit à côté de la date (`film.scale` pixels par case du film). */
   function showAim(e: PointerEvent): void {
     if (e.pointerType !== "mouse") return;
-    const r = view.getBoundingClientRect();
-    mire.hidden = false;
-    if (mireV) mireV.style.transform = `translateX(${Math.round(e.clientX - r.left)}px)`;
-    if (mireH) mireH.style.transform = `translateY(${Math.round(e.clientY - r.top)}px)`;
     const [px, py] = inCanvas(e);
     const [mx, my] = pointDeCarte(camera, px, py, ecran());
     const position = positionSurLaCarte(mx, my, monde, film.scale);
@@ -1144,7 +1138,6 @@ function mount(
 
   function hideAim(): void {
     tip.hidden = true;
-    mire.hidden = true;
     coords.hidden = true;
   }
 

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { clan } from "../../config/clan";
-import { ECRAN_POSE, FENETRES } from "../../src/lib/carte-console";
+import { ECRAN_POSE, FENETRES, dansLeRail } from "../../src/lib/carte-console";
 import { changeSinceLastDay, dayHighlights, dayRows, filmDayMarks, parisDayOf } from "../../src/lib/clanmap/days";
 import { findMoments, nextThreshold } from "../../src/lib/clanmap/moments";
 import { filmResume } from "../../src/lib/clanmap/reprise";
@@ -33,13 +33,23 @@ const zoom = async (page: Page) => Number(await canvas(page).getAttribute("data-
 /** Le centre de la vue, en cases du film. */
 const centre = async (page: Page) => ((await canvas(page).getAttribute("data-centre")) ?? "").split(",").map(Number) as [number, number];
 
-/** La rangée du bas de la console, et la fenêtre qu'ouvre une de ses entrées. */
+/** Le rail des entrées, et la fenêtre qu'ouvre une de ses entrées. Les réglages n'ont pas d'entrée dans le rail : la roue
+ * au bout de la pastille du film les ouvre. */
 const dock = (page: Page) => page.getByTestId("carte-dock");
-const entry = (page: Page, id: string) => dock(page).locator(`[data-ouvre="${id}"]`);
+const entry = (page: Page, id: string) => (id === "reglages" ? page.locator('.carte-transport [data-ouvre="reglages"]') : dock(page).locator(`[data-ouvre="${id}"]`));
 const windowOf = (page: Page, id: string) => page.locator(`[data-fenetre="${id}"]`);
 const openWindows = (page: Page) => page.locator("[data-fenetre].est-ouverte").filter({ visible: true });
 
-/** Ouvre une fenêtre de la console depuis la rangée du bas, comme le ferait un visiteur. */
+/** Les fenêtres qu'un visiteur peut ouvrir : les entrées visibles du rail, puis les réglages, par la roue de la pastille. */
+const ouvrables = async (page: Page) => [
+  ...(await dock(page)
+    .getByRole("link")
+    .filter({ visible: true })
+    .evaluateAll((links) => links.map((link) => link.getAttribute("data-ouvre") ?? ""))),
+  ...((await entry(page, "reglages").isVisible()) ? ["reglages"] : []),
+];
+
+/** Ouvre une fenêtre depuis le rail (les réglages : par la roue de la pastille du film), comme le ferait un visiteur. */
 const openWindow = async (page: Page, id: string) => {
   if ((await entry(page, id).getAttribute("aria-current")) !== "true") await entry(page, id).click();
   await expect(windowOf(page, id)).toBeVisible();
@@ -146,7 +156,8 @@ test.describe("film de la carte", () => {
     // La ligne du changement depuis la veille n'existe qu'à partir du deuxième relevé.
     if ((await page.getByTestId("map-journal").count()) > 0) await expect(page.getByTestId("map-journal")).not.toContainText("..");
 
-    await openWindow(page, "fronts");
+    // Les fronts se lisent dans « Chiffres », sous les chiffres de GAL.
+    await openWindow(page, "chiffres");
     await expect(page.getByTestId("film-fronts").locator("tbody tr")).toHaveCount(film.galSummary.fronts.length);
 
     // Un chiffre si le terrain est connu, sinon aucune phrase : jamais un zéro inventé.
@@ -177,8 +188,10 @@ test.describe("film de la carte", () => {
 
     // Le rail : une entrée par fenêtre, dans l'ordre, sur tous les écrans.
     // Les tests tournent sans la connexion du site : la fenêtre de l'alliance n'existe pas, le site reste statique.
-    const names: string[] = FENETRES.filter((f) => f.id !== "alliance").map((f) => f.label);
+    const names: string[] = FENETRES.filter((f) => f.id !== "alliance" && dansLeRail(f)).map((f) => f.label);
     await expect(dock(page).getByRole("link").filter({ visible: true })).toHaveText(names);
+    // Ni « Zones », ni « Fronts » (dans « Chiffres »), ni « Réglages » (la roue de la pastille) dans le rail.
+    for (const nom of ["Zones", "Fronts", "Réglages"]) await expect(dock(page).getByRole("link", { name: nom })).toHaveCount(0);
     // L'objectif est ouvert à l'arrivée, sur tous les écrans.
     await expect(openWindows(page)).toHaveCount(1);
     await expect(entry(page, "objectif")).toHaveAttribute("aria-current", "true");
@@ -194,8 +207,9 @@ test.describe("film de la carte", () => {
       expect(pastille.y + pastille.height).toBeLessThanOrEqual(carte.y + carte.height);
     }
 
-    // Chaque entrée ouvre sa fenêtre, une seule à la fois, et la page ne défile toujours pas.
-    for (const fenetre of FENETRES.filter((f) => names.includes(f.label))) {
+    // Chaque entrée ouvre sa fenêtre, une seule à la fois, et la page ne défile toujours pas ; la roue de la pastille, les
+    // réglages.
+    for (const fenetre of FENETRES.filter((f) => names.includes(f.label) || f.id === "reglages")) {
       await entry(page, fenetre.id).click();
       await expect(windowOf(page, fenetre.id)).toBeVisible();
       await expect(openWindows(page)).toHaveCount(1);
@@ -211,28 +225,37 @@ test.describe("film de la carte", () => {
 
     // Recliquer l'entrée ouverte, ou appuyer sur Échap, ne ferme rien : une fenêtre est toujours ouverte, sans bouton pour
     // la fermer.
-    await entry(page, "fronts").click();
-    await entry(page, "fronts").click();
-    await expect(windowOf(page, "fronts")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Fermer la fenêtre Fronts" })).toBeHidden();
+    await entry(page, "chiffres").click();
+    await entry(page, "chiffres").click();
+    await expect(windowOf(page, "chiffres")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Fermer la fenêtre Chiffres" })).toBeHidden();
     await page.keyboard.press("Escape");
-    await expect(windowOf(page, "fronts")).toBeVisible();
-    expect(new URL(page.url()).hash).toBe("#fronts");
-    // Le bouton rond au bout de la pastille du film ouvre aussi les réglages (sauf sur un petit téléphone, où seule la
-    // rangée les ouvre).
+    await expect(windowOf(page, "chiffres")).toBeVisible();
+    expect(new URL(page.url()).hash).toBe("#chiffres");
+    // La roue au bout de la pastille du film, seul bouton des réglages, est là sur tous les écrans et les ouvre.
     const rond = page.getByRole("link", { name: "Réglages du film" });
-    if (await rond.isVisible()) {
-      await rond.click();
-      await expect(windowOf(page, "reglages")).toBeVisible();
-      await expect(entry(page, "reglages")).toHaveAttribute("aria-current", "true");
-    }
+    await expect(rond).toBeVisible();
+    await rond.click();
+    await expect(windowOf(page, "reglages")).toBeVisible();
+    await expect(rond).toHaveAttribute("aria-current", "true");
+    await expect(page.getByTestId("film-speed")).toBeVisible();
   });
 
   test("l'adresse ouvre une fenêtre, et les anciens liens de la page mènent encore quelque part", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
+    // « Zones », retirée le 13 novembre 2026 : son ancien lien ouvre la page sur l'objectif, la fenêtre de l'arrivée. (En
+    // premier : la suite change seulement l'ancre de la même page, qui ne se recharge pas.)
+    await page.goto("/carte#zones");
+    await expect(windowOf(page, "objectif")).toBeVisible();
+    await page.goto("/carte#chiffres");
+    await expect(windowOf(page, "chiffres")).toBeVisible();
+    await expect(entry(page, "chiffres")).toHaveAttribute("aria-current", "true");
+    // « Fronts », fusionnée dans « Chiffres » le même soir : son ancien lien ouvre « Chiffres ».
+    await page.goto("/carte#objectif");
+    await expect(windowOf(page, "objectif")).toBeVisible();
     await page.goto("/carte#fronts");
-    await expect(windowOf(page, "fronts")).toBeVisible();
-    await expect(entry(page, "fronts")).toHaveAttribute("aria-current", "true");
+    await expect(windowOf(page, "chiffres")).toBeVisible();
+    await expect(page.getByTestId("film-fronts")).toBeVisible();
     // « Revoir l'histoire » et « Les détails », du temps où la page se lisait de haut en bas.
     await page.goto("/carte#histoire");
     await expect(windowOf(page, "moments")).toBeVisible();
@@ -319,7 +342,7 @@ test.describe("film de la carte", () => {
   }
 
   // `.carte` coupe ce qui dépasse d'elle : le contrôle « aucun défilement horizontal » du site ne verrait plus rien ici.
-  // 360 et 768 : tout s'empile. 1 024 et 1 920 : la fenêtre se pose sur la carte, avec ou sans les réglages dans la rangée.
+  // 360 et 768 : tout s'empile. 1 024 et 1 920 : la colonne est à droite de la carte ; chaque fenêtre, réglages compris.
   for (const [width, height] of [
     [360, 800],
     [768, 1024],
@@ -339,7 +362,7 @@ test.describe("film de la carte", () => {
             .map((el) => `${el.className} : ${el.scrollWidth - el.clientWidth} px`),
         );
       expect(await overflow(), "à l'arrivée").toEqual([]);
-      for (const id of await dock(page).getByRole("link").filter({ visible: true }).evaluateAll((links) => links.map((link) => link.getAttribute("data-ouvre") ?? ""))) {
+      for (const id of await ouvrables(page)) {
         await openWindow(page, id);
         expect(await overflow(), id).toEqual([]);
         // Chaque nom de la rangée tient dans sa case.
@@ -667,8 +690,8 @@ test.describe("film de la carte", () => {
     await expect(playButton(page)).toContainText("Lancer le film");
     await page.waitForTimeout(2500);
     expect(await position(page)).toBe(film.frames.length);
-    // Rien ne bouge seul : ni la bande de lumière de l'ouverture, ni la commande d'une fenêtre.
-    expect(await page.locator(".carte-balayage").evaluate((el) => getComputedStyle(el).animationName)).toBe("none");
+    // Rien ne bouge seul, pas même l'ouverture d'une fenêtre. (La bande de lumière de l'ouverture est retirée de la page
+    // depuis le 13 novembre 2026.)
     await openWindow(page, "objectif");
     expect(await page.locator('[data-fenetre="objectif"] .carte-fenetre-corps').evaluate((el) => getComputedStyle(el, "::before").animationName)).toBe("none");
     await playButton(page).click();
@@ -679,14 +702,11 @@ test.describe("film de la carte", () => {
     test.skip(testInfo.project.name !== "desktop", "Bouton testé sur desktop.");
     await page.goto("/carte");
     await expect(playButton(page)).toContainText("Pause", { timeout: 8000 });
-    // À l'ouverture, la bande de lumière passe une fois sur la carte, et la commande d'une fenêtre s'écrit.
-    expect(await page.locator(".carte-balayage").evaluate((el) => getComputedStyle(el).animationName)).toBe("carte-balayage");
     await page.getByRole("button", { name: "Mettre les animations en pause" }).click();
     await expect(playButton(page)).toContainText("Lecture");
     const frozen = await position(page);
     await page.waitForTimeout(400);
     expect(await position(page)).toBe(frozen);
-    expect(await page.locator(".carte-balayage").evaluate((el) => getComputedStyle(el).animationName)).toBe("none");
 
     await page.goto("/carte");
     await expect(playButton(page)).toContainText("Lancer le film");
@@ -904,7 +924,7 @@ test.describe("film de la carte", () => {
       if (i > 0) expect(row.top).toBeGreaterThanOrEqual(inside[i - 1]!.bottom - 1);
     });
     // Les fenêtres qui ne dépendent pas du film s'ouvrent quand même ; celles qui le rejouent n'ont pas d'entrée.
-    await openWindow(page, "fronts");
+    await openWindow(page, "chiffres");
     await expect(page.getByTestId("film-fronts")).toBeVisible();
     await expect(entry(page, "moments")).toBeHidden();
     expect(await pageScroll(page)).toBe(0);
@@ -960,12 +980,12 @@ test.describe("film de la carte", () => {
     }
     // Ce qui ne sert qu'avec le film n'est pas là : ni lecture, ni fenêtre vide, ni bouton pour fermer.
     await expect(playButton(page)).toBeHidden();
-    for (const id of ["moments", "zones", "reglages"]) await expect(windowOf(page, id)).toBeHidden();
+    for (const id of ["moments", "reglages"]) await expect(windowOf(page, id)).toBeHidden();
     await expect(page.getByRole("button", { name: /^Fermer la fenêtre/ })).toHaveCount(0);
     // La rangée reste une liste de liens vers les parties de la page.
-    await dock(page).getByRole("link", { name: "Fronts" }).click();
-    await expect(page).toHaveURL(/#fronts$/);
-    await expect(page.getByTestId("film-fronts")).toBeInViewport();
+    await dock(page).getByRole("link", { name: "Chiffres" }).click();
+    await expect(page).toHaveURL(/#chiffres$/);
+    await expect(page.getByTestId("map-peak")).toBeInViewport();
     await context.close();
   });
 
@@ -1040,14 +1060,14 @@ test.describe("film de la carte", () => {
     expect(await position(page)).toBeGreaterThanOrEqual(frame);
   });
 
-  test("on peut regarder un front ou une zone, puis revenir à la vue d'ensemble", async ({ page }) => {
+  test("on peut regarder un front, puis revenir à la vue d'ensemble", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/carte");
     await expect(playButton(page)).toBeVisible();
     const front = film.galSummary.fronts.find((f: { at: unknown }) => f.at);
     const world = page.getByRole("button", { name: "Vue d'ensemble" });
 
-    await openWindow(page, "fronts");
+    await openWindow(page, "chiffres");
     await page.getByRole("button", { name: `Voir le front avec ${front.tag} sur la carte` }).click();
     await expect(caption(page)).toContainText(`Front ${front.tag}`);
     await expect(world).toBeVisible();
@@ -1057,10 +1077,7 @@ test.describe("film de la carte", () => {
     await expect(caption(page)).toBeHidden();
     await expect(world).toBeHidden();
     await expect.poll(() => zoom(page)).toBe(1);
-
-    await openWindow(page, "zones");
-    await page.getByRole("button", { name: /Zone 1/ }).click();
-    await expect(caption(page)).toContainText("Zone 1");
+    // Regarder un front ne déplace pas le film : il reste sur sa dernière image.
     expect(await position(page)).toBe(film.frames.length);
   });
 
@@ -1085,9 +1102,9 @@ test.describe("film de la carte", () => {
     const reglages = (await windowOf(page, "reglages").boundingBox())!;
     expect((await page.locator("[data-film-rows]").boundingBox())!.y).toBeGreaterThan(reglages.y);
     // Une fenêtre ouverte le reste d'un écran à l'autre.
-    await openWindow(page, "fronts");
+    await openWindow(page, "chiffres");
     await page.setViewportSize({ width: 375, height: 812 });
-    await expect(windowOf(page, "fronts")).toBeVisible();
+    await expect(windowOf(page, "chiffres")).toBeVisible();
     await expect(openWindows(page)).toHaveCount(1);
     expect(await pageScroll(page)).toBe(0);
   });
@@ -1148,7 +1165,7 @@ test.describe("film de la carte", () => {
     await page.goto("/carte");
     await expect(playButton(page)).toBeVisible();
     await page.waitForLoadState("networkidle");
-    for (const id of await dock(page).getByRole("link").filter({ visible: true }).evaluateAll((links) => links.map((link) => link.getAttribute("data-ouvre") ?? ""))) {
+    for (const id of await ouvrables(page)) {
       await openWindow(page, id);
       const { violations } = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
       expect(violations.map((v) => `${id} — ${v.id}: ${v.nodes.map((n) => n.target).join(" ; ")}`)).toEqual([]);
@@ -1195,7 +1212,7 @@ test.describe("film de la carte", () => {
         return trouves;
       });
     expect(await terminal(), "à l'arrivée").toEqual([]);
-    for (const id of await dock(page).getByRole("link").filter({ visible: true }).evaluateAll((links) => links.map((link) => link.getAttribute("data-ouvre") ?? ""))) {
+    for (const id of await ouvrables(page)) {
       await openWindow(page, id);
       expect(await terminal(), id).toEqual([]);
     }

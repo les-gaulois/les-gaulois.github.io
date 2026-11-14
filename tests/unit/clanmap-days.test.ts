@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { changeSinceLastDay, dayHighlights, dayRows, filmDayMarks, parisDayOf, placeDayLabels, territoryReadings, territorySeries, type DayData, type DayRow } from "../../src/lib/clanmap/days";
+import { changeSinceLastDay, dayHighlights, dayRows, filmDayMarks, parisDayOf, placeDayLabels, territoryReadings, type DayData, type DayRow } from "../../src/lib/clanmap/days";
 import { findMoments } from "../../src/lib/clanmap/moments";
 import { fmtEpochDay, fmtEpochHour, fmtEpochTime } from "../../src/lib/format";
 import { StoredClanMapFilm } from "../../src/lib/schemas";
@@ -45,26 +45,6 @@ describe("journées affichées", () => {
 
 describe("territoire jour après jour", () => {
   const row = (date: string, pixels: number, complete = true): DayRow => ({ ...day(date, 1, 0, 1, pixels), net: 1, start: 0, complete });
-
-  it("suit les journées terminées, sans celle en cours", () => {
-    expect(territorySeries([row("2026-11-03", 10), row("2026-11-04", 20), row("2026-11-05", 99, false)])).toEqual([
-      { date: "2026-11-03", value: 10 },
-      { date: "2026-11-04", value: 20 },
-    ]);
-  });
-
-  it("laisse un trou pour un jour sans aucun événement : le temps ne se resserre pas", () => {
-    expect(territorySeries([row("2026-11-03", 10), row("2026-11-05", 20)])).toEqual([
-      { date: "2026-11-03", value: 10 },
-      { date: "2026-11-04", value: null },
-      { date: "2026-11-05", value: 20 },
-    ]);
-  });
-
-  it("reste vide sans journée terminée", () => {
-    expect(territorySeries([])).toEqual([]);
-    expect(territorySeries([row("2026-11-05", 99, false)])).toEqual([]);
-  });
 
   it("mesure l'évolution depuis la fin de la dernière journée terminée", () => {
     expect(changeSinceLastDay([row("2026-11-05", 100), row("2026-11-06", 150), row("2026-11-07", 170, false)], 170)).toEqual({ date: "2026-11-06", change: 20 });

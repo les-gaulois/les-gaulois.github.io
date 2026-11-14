@@ -42,7 +42,7 @@ export default function VillageApp() {
       <Onglets label="Les parties du village" prefix={PREFIXE} tabs={ONGLETS} active={active} onSelect={select} call={call} />
       <Partie prefix={PREFIXE} id="gaulois" active={active} slide={slide}>
         <h2 class="sr-only">Mon Gaulois</h2>
-        <Vestiaire />
+        <Vestiaire actif={active === "gaulois"} />
       </Partie>
       <Partie prefix={PREFIXE} id="place" active={active} slide={slide}>
         <h2 class="sr-only">La place du village</h2>

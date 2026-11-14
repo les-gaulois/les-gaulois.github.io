@@ -18,9 +18,11 @@ export interface Fenetre {
   icon: IconePartieNom;
   /** `true` : la fenêtre ne sert qu'une fois le film chargé, et son entrée n'apparaît qu'alors. */
   film?: boolean;
+  /** `false` : pas d'entrée dans le rail ; la fenêtre s'ouvre par un autre bouton (les réglages : la roue de la pastille). */
+  rail?: false;
 }
 
-/** Dans l'ordre du rail : de haut en bas sur la carte, cinq par ligne sur téléphone. */
+/** Dans l'ordre du rail : de haut en bas sur la carte, trois par ligne sur téléphone. */
 export const FENETRES = [
   { id: "objectif", label: "Objectif", icon: "cible" },
   { id: "clans", label: "Clans", icon: "boucliers" },
@@ -28,18 +30,27 @@ export const FENETRES = [
   { id: "alliance", label: "Alliance", icon: "anneaux" },
   { id: "moments", label: "Moments", icon: "sablier", film: true },
   { id: "journees", label: "Journées", icon: "calendrier" },
-  { id: "zones", label: "Zones", icon: "fanion", film: true },
-  { id: "fronts", label: "Fronts", icon: "epees" },
+  // Les fronts de GAL se lisent dans « Chiffres », sous ses chiffres, depuis le 13 novembre 2026 (« front et chiffre tu peux
+  // fusionner », le pilote).
   { id: "chiffres", label: "Chiffres", icon: "encoches" },
-  { id: "reglages", label: "Réglages", icon: "roue", film: true },
+  // Les réglages du film s'ouvrent par la roue au bout de la pastille du film, pas par le rail (« il y a déjà une icône pour
+  // ça », le pilote, le 13 novembre 2026).
+  { id: "reglages", label: "Réglages", icon: "roue", film: true, rail: false },
   // « Légende » et « À propos », retirées le 13 novembre 2026 à la demande du pilote (« de trop ») : le crédit posé sur la
-  // carte mène aux mentions légales, où sont la licence du fond de carte et le lien que la loi veut sur chaque page.
+  // carte mène aux mentions légales, où sont la licence du fond de carte et le lien que la loi veut sur chaque page. Le même
+  // soir, « Zones » (les plus grandes zones d'un seul tenant de GAL) : « ça sert à rien ».
 ] as const satisfies readonly Fenetre[];
 
 export type FenetreId = (typeof FENETRES)[number]["id"];
 
-/** Les ancres de la page quand elle se lisait de haut en bas, avant le 12 novembre 2026 : un ancien lien ouvre encore quelque chose. */
-const ANCIENNES_ANCRES: Record<string, FenetreId> = { histoire: "moments", details: "journees" };
+/** Une fenêtre qui a une entrée dans le rail. */
+export const dansLeRail = (f: Fenetre): boolean => f.rail !== false;
+
+/**
+ * Les anciennes ancres : celles de la page quand elle se lisait de haut en bas, avant le 12 novembre 2026, et « fronts »,
+ * fusionnée dans « Chiffres » le 13 novembre 2026. Un ancien lien ouvre encore quelque chose.
+ */
+const ANCIENNES_ANCRES: Record<string, FenetreId> = { histoire: "moments", details: "journees", fronts: "chiffres" };
 
 /** L'écran où la carte et la colonne sont côte à côte : assez large, et plus large que haut. Sinon, tout s'empile. */
 export const ECRAN_POSE = "(min-aspect-ratio: 5/4) and (min-width: 48rem)";

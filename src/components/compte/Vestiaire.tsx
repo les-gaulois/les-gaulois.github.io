@@ -25,9 +25,11 @@ import {
   type Vignette,
 } from "../../lib/gaulois";
 import type { MesStateres } from "../../lib/stateres";
-import type { MaBoutique, PochetteReponse } from "../../lib/village/contrat";
+import type { MaBoutique, PochetteReponse, RefObjet } from "../../lib/village/contrat";
 import {
+  RAISON_EN_VENTE,
   avecUnExemplaire,
+  estEnVente,
   lireAchat,
   lireBoutique,
   lirePochette,
@@ -35,6 +37,7 @@ import {
   manque,
   messageDuRefus,
   objetPayant,
+  objetsEnVente,
   prixDeLObjet,
   quantitePossedee,
   raisonBoutiqueFermee,
@@ -99,7 +102,7 @@ type Vente = { possede: number } | { prix: number | null };
  * Une case achetée porte la marque « à vous ». `portee` et `essayee` se disent à part : pendant un essayage, l'objet
  * réellement porté garde sa coche.
  */
-function Case({ objet, vignette, portee, essayee = false, vente, onClick }: { objet: Objet; vignette: Vignette | null; portee: boolean; essayee?: boolean; vente?: Vente | undefined; onClick: () => void }) {
+function Case({ objet, vignette, portee, essayee = false, vente, enVente = false, onClick }: { objet: Objet; vignette: Vignette | null; portee: boolean; essayee?: boolean; vente?: Vente | undefined; enVente?: boolean; onClick: () => void }) {
   const aVendre = vente && "prix" in vente ? vente : null;
   const possede = vente && "possede" in vente ? vente.possede : 0;
   return (
@@ -111,6 +114,12 @@ function Case({ objet, vignette, portee, essayee = false, vente, onClick }: { ob
         <span class="case-marque" data-testid="case-a-vous">
           <span class="sr-only">, </span>à vous{possede > 1 && <span aria-hidden="true"> × {possede}</span>}
           {possede > 1 && <span class="sr-only">, {possede} exemplaires</span>}
+        </span>
+      )}
+      {/* Mis en vente par le membre : il ne s'achète pas à la boutique tant que l'offre est ouverte. */}
+      {enVente && (
+        <span class="case-marque" data-testid="case-en-vente">
+          <span class="sr-only">, </span>en vente
         </span>
       )}
       {aVendre && (
@@ -149,6 +158,8 @@ interface Choix {
   tenue: Tenue;
   essai: Essai | null;
   boutique: MaBoutique | null;
+  /** Les objets que le membre a mis en vente au marché : sortis de son inventaire, ils ne s'achètent pas à la boutique. */
+  enVente: readonly RefObjet[];
   onChange: (tenue: Tenue) => void;
   onEssai: (essai: Essai | null) => void;
 }
@@ -202,10 +213,11 @@ function Poils({ emplacement, tenue, onChange }: Choix & { emplacement: "cheveux
  * Les objets d'un emplacement : ceux qui se portent (les gratuits et ceux que le membre possède), puis ceux de la boutique,
  * de la rareté la plus courante à la plus rare, chacun à son prix.
  */
-function Objets({ emplacement, tenue, essai, boutique, onChange, onEssai }: Choix & { emplacement: Emplacement }) {
+function Objets({ emplacement, tenue, essai, boutique, enVente, onChange, onEssai }: Choix & { emplacement: Emplacement }) {
   const objets = Object.entries(OBJETS[emplacement]);
   const essaye = essai?.emplacement === emplacement ? essai.id : null;
   const possede = (id: string): number => (boutique ? quantitePossedee(boutique.inventaire, emplacement, id) : 0);
+  const vendu = (id: string): boolean => estEnVente(enVente, emplacement, id);
   const aMoi = ([id, objet]: [string, Objet]): boolean => objet.gratuit || possede(id) > 0;
   const cases = (liste: [string, Objet][]) =>
     liste.map(([id, objet]) => {
@@ -219,6 +231,7 @@ function Objets({ emplacement, tenue, essai, boutique, onChange, onEssai }: Choi
           portee={porte}
           essayee={essaye === id}
           vente={objet.gratuit ? undefined : libre ? { possede: possede(id) } : { prix: prixDeLObjet(boutique?.prix, emplacement, id) }}
+          enVente={!libre && vendu(id)}
           onClick={() => {
             if (libre) onChange(changerObjet(tenue, emplacement, id));
             else if (!porte) onEssai(essaye === id ? null : { emplacement, id });
@@ -258,13 +271,14 @@ const ILLISIBLE = "La réponse du serveur est illisible. Rechargez la page.";
  * prix, solde, tirage) : l'écran ne fait que proposer et montrer ce qu'il a reçu. Sans réponse de la boutique, le
  * vestiaire reste entier, avec ses cases verrouillées.
  */
-export default function Vestiaire() {
+export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
   const { me, refresh } = useMe();
   const [etat, setEtat] = useState<Etat>({ kind: "lecture" });
   const [tenue, setTenue] = useState<Tenue>(TENUE_DE_DEPART);
   const [essai, setEssai] = useState<Essai | null>(null);
   const [bourse, setBourse] = useState<MesStateres | null>(null);
   const [boutique, setBoutique] = useState<MaBoutique | null>(null);
+  const [enVente, setEnVente] = useState<RefObjet[]>([]);
   const [panne, setPanne] = useState(false);
   const [fenetre, setFenetre] = useState<Fenetre>(null);
   const [annonce, setAnnonce] = useState("");
@@ -272,14 +286,19 @@ export default function Vestiaire() {
   const [probleme, setProbleme] = useState<string | null>(null);
   const [reussite, setReussite] = useState<string | null>(null);
 
-  /** La bourse et la boutique, relues ensemble : l'une sans l'autre ne bloque rien, le vestiaire reste. */
+  /**
+   * La bourse et la boutique, relues ensemble : l'une sans l'autre ne bloque rien, le vestiaire reste. Avec elles, ses
+   * propres offres du marché : un objet mis en vente ne s'achète pas à la boutique (un compte pas validé n'en a pas).
+   */
   const lireLaBoutique = async (): Promise<MaBoutique | null> => {
-    const [b, s] = await Promise.all([
+    const [b, s, v] = await Promise.all([
       call<unknown>("get_ma_boutique").then(lireBoutique, () => null),
       call<unknown>("get_mes_stateres").then(lireStateres, () => null),
+      call<unknown>("get_marche").then(objetsEnVente, () => []),
     ]);
     setBoutique(b);
     setBourse(s);
+    setEnVente(v);
     setPanne(!b || !s);
     return b;
   };
@@ -299,6 +318,15 @@ export default function Vestiaire() {
   useEffect(() => {
     if (me?.signed_in) void lire();
   }, [me?.signed_in]);
+
+  // De retour sur « Mon Gaulois » après le marché : la bourse, l'inventaire et les offres ont pu changer. Relecture
+  // discrète, sans rien effacer de l'écran ni de la tenue en cours.
+  const avant = useRef(actif);
+  useEffect(() => {
+    const revenu = actif === true && avant.current === false;
+    avant.current = actif;
+    if (revenu && etat.kind === "pret") void lireLaBoutique();
+  }, [actif]);
 
   const changer = (suite: Tenue) => {
     setTenue(suite);
@@ -393,8 +421,9 @@ export default function Vestiaire() {
   const prixEssai = essai ? prixDeLObjet(boutique?.prix, essai.emplacement, essai.id) : null;
   const fermee = boutique && !boutique.peut_acheter ? raisonBoutiqueFermee(etat.enregistree !== null) : null;
   const manqueEssai = boutique && prixEssai !== null ? manque(boutique.solde, prixEssai) : 0;
-  const raisonEssai = fermee ?? (manqueEssai > 0 ? `Il vous manque ${stateres(manqueEssai)}.` : null);
-  const choix: Choix = { tenue, essai, boutique, onChange: changer, onEssai: setEssai };
+  const essaiEnVente = essai !== null && estEnVente(enVente, essai.emplacement, essai.id);
+  const raisonEssai = fermee ?? (essaiEnVente ? RAISON_EN_VENTE : manqueEssai > 0 ? `Il vous manque ${stateres(manqueEssai)}.` : null);
+  const choix: Choix = { tenue, essai, boutique, enVente, onChange: changer, onEssai: setEssai };
   const achat = fenetre?.kind === "achat" ? objetPayant(fenetre.emplacement, fenetre.id) : null;
   return (
     <div class="vestiaire" data-testid="vestiaire">

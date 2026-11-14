@@ -36,6 +36,22 @@
     "body": "Les braies se voient enfin sous la tunique, les capes tombent droit, et la marmite, le slip, la poêle, le lance-patates et le carnyx se reconnaissent du premier coup d'œil."
   },
   {
+    "date": "2026-11-14",
+    "kind": "ameliore",
+    "title": "Direction : les comptes en couleurs",
+    "body": "L'onglet Comptes s'ouvre sur la liste : une ligne par compte, une recherche dès la première lettre, des filtres chiffrés, des couleurs (vert validé, jaune en attente, rouge suspendu, bleu allié)."
+  },
+  {
+    "date": "2026-11-13",
+    "kind": "retire",
+    "title": "Une carte plus simple",
+    "body": "Moins d'entrées sur la carte : les fronts sont dans « Chiffres », les réglages s'ouvrent par la roue du film. « Zones » et la courbe des journées sont retirées.",
+    "link": {
+      "href": "/carte",
+      "label": "Ouvrir la carte"
+    }
+  },
+  {
     "date": "2026-11-13",
     "kind": "ameliore",
     "title": "La carte change d'allure",

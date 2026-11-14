@@ -144,6 +144,28 @@ export function prixDeLObjet(prix: Readonly<Record<Rarete, number>> | null | und
 /** Les statères qui manquent pour payer : 0 quand le solde suffit. */
 export const manque = (solde: number, prix: number): number => Math.max(0, prix - solde);
 
+/**
+ * Les objets que le membre a lui-même mis en vente au marché, lus dans `get_marche` (ses offres `a_moi`). Sortis de son
+ * inventaire jusqu'à la fin de l'offre, ils ne s'achètent pas pour autant à la boutique : le serveur répond `deja_possede`.
+ * Une réponse illisible, ou un refus, ne donne rien : l'écran ne devine pas.
+ */
+export function objetsEnVente(reponse: unknown): RefObjet[] {
+  if (!estObjet(reponse) || reponse["ok"] !== true || !Array.isArray(reponse["offres"])) return [];
+  const liste: RefObjet[] = [];
+  for (const offre of reponse["offres"] as unknown[]) {
+    if (!estObjet(offre) || offre["a_moi"] !== true) continue;
+    const ref = objetPayant(offre["emplacement"], offre["objet"]);
+    if (ref && !estEnVente(liste, ref.emplacement, ref.objet)) liste.push({ emplacement: ref.emplacement, objet: ref.objet });
+  }
+  return liste;
+}
+
+/** Cet objet est-il dans les objets que le membre a en vente ? */
+export const estEnVente = (enVente: readonly RefObjet[], emplacement: Emplacement, id: string): boolean => enVente.some((r) => r.emplacement === emplacement && r.objet === id);
+
+/** Ce que dit l'essayage d'un objet que le membre a en vente au marché. */
+export const RAISON_EN_VENTE = "Vous l'avez mis en vente au marché.";
+
 /** Les objets d'une tenue qui ne sont ni gratuits ni dans l'inventaire : le serveur refuserait de l'enregistrer. */
 export function objetsNonPossedes(tenue: Tenue, inventaire: readonly ObjetPossede[]): RefObjet[] {
   return EMPLACEMENTS_OBJETS.flatMap((emplacement) => {

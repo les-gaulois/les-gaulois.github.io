@@ -218,6 +218,7 @@ export default function MarcheDuVillage({ actif }: { actif: boolean }) {
           offre={achat}
           solde={marche.solde}
           boutique={boutique}
+          miennes={miennes}
           occupe={occupe}
           probleme={problemeFenetre}
           onAcheter={() => void agir("acheter_offre", { p_id: achat.id }, `« ${achat.nom} » est dans votre inventaire.`, true)}

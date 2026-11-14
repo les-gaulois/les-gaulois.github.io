@@ -103,6 +103,16 @@ describe("les offres à l'écran", () => {
     expect(examinerAchat(offres[2]!, 300, null).refus).toBeNull();
   });
 
+  it("dit avant le clic qu'on a déjà cet objet en vente, même sans inventaire lu", () => {
+    const mienne = { emplacement: "tete" as const, objet: "bandeau" };
+    expect(examinerAchat(offres[2]!, 300, [], [mienne])).toEqual({ soldeApres: 240, refus: "deja_en_vente", manque: 0 });
+    expect(examinerAchat(offres[2]!, 300, null, [mienne]).refus).toBe("deja_en_vente");
+    // Avant même le solde : l'achat serait refusé de toute façon.
+    expect(examinerAchat(offres[2]!, 10, [], [mienne]).refus).toBe("deja_en_vente");
+    // Une offre à soi d'un autre objet ne change rien.
+    expect(examinerAchat(offres[2]!, 300, [], [{ emplacement: "arme", objet: "hache" }]).refus).toBeNull();
+  });
+
   it("n'accepte qu'un prix entier, de 1 statère au prix de la boutique", () => {
     expect(lirePrix("1", 250)).toBe(1);
     expect(lirePrix(" 250 ", 250)).toBe(250);
