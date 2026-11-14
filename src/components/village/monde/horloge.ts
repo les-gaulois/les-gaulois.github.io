@@ -1,27 +1,5 @@
-import { useEffect, useLayoutEffect, useMemo, useState } from "preact/hooks";
+import { useEffect, useMemo } from "preact/hooks";
 import { TEMPS_PAR_SECONDE } from "../../../lib/village/mouvement";
-
-/**
- * Les animations sont coupées : par le bouton pause de l'en-tête (`fx-off` sur la page, posé par `fx.ts`) ou par le
- * réglage « réduire les animations ». Le monde reste alors posé, complet : chacun à sa place, les feux allumés.
- */
-export function useFige(): boolean {
-  const [fige, setFige] = useState(false);
-  useLayoutEffect(() => {
-    const racine = document.documentElement;
-    const reglage = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const lire = () => setFige(racine.classList.contains("fx-off") || reglage.matches);
-    lire();
-    const veille = new MutationObserver(lire);
-    veille.observe(racine, { attributes: true, attributeFilter: ["class"] });
-    reglage.addEventListener("change", lire);
-    return () => {
-      veille.disconnect();
-      reglage.removeEventListener("change", lire);
-    };
-  }, []);
-  return fige;
-}
 
 /**
  * L'horloge du monde : un temps tous les huitièmes de seconde, le rythme d'une animation en pixels. Cadencée par le

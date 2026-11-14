@@ -16,6 +16,25 @@ import type { CameraDuMonde } from "./camera-du-monde";
  * la scène n'y prend ni le glissement ni la molette. Même famille que les fenêtres de la Carte, au style du site.
  */
 
+/**
+ * Où est le Gaulois du membre, en colonnes du monde (`null` : il n'est pas au village) : les Gaulois le disent à chaque
+ * pas, la petite carte l'écoute.
+ */
+export class RepereDuMoi {
+  x: number | null = null;
+  private ecoutes = new Set<() => void>();
+  poser(x: number | null): void {
+    const arrondi = x === null ? null : Math.round(x);
+    if (arrondi === this.x) return;
+    this.x = arrondi;
+    for (const ecoute of this.ecoutes) ecoute();
+  }
+  ecouter(ecoute: () => void): () => void {
+    this.ecoutes.add(ecoute);
+    return () => this.ecoutes.delete(ecoute);
+  }
+}
+
 /** Le titre de la page : les onglets de la rubrique, posés sur le ciel, le montrent déjà (« Le village »). */
 export function MondeTete() {
   return <h1 class="sr-only monde-titre">Le village</h1>;
@@ -26,7 +45,7 @@ export function MondeTete() {
  * permet, le nombre de Gaulois des lieux de vie), et un cadre qui montre ce que l'écran voit. Un clic y mène : la caméra
  * glisse lentement. Le triangle blanc marque le Gaulois du membre.
  */
-export function MondeCarte({ plan, camera, comptes, moi }: { plan: Plan; camera: CameraDuMonde; comptes: Record<Lieu, number> | null; moi: { current: number | null } }) {
+export function MondeCarte({ plan, camera, comptes, moi }: { plan: Plan; camera: CameraDuMonde; comptes: Record<Lieu, number> | null; moi: RepereDuMoi }) {
   const vue = useRef<HTMLSpanElement>(null);
   const marque = useRef<HTMLSpanElement>(null);
   const [ici, setIci] = useState<QuartierId>(() => quartierDe(plan, camera.milieu).id);
@@ -44,17 +63,16 @@ export function MondeCarte({ plan, camera, comptes, moi }: { plan: Plan; camera:
     return camera.ecouter(placer);
   }, [camera, plan]);
 
-  // Le repère du Gaulois du membre : relu deux fois par seconde, il marche lentement.
+  // Le repère du Gaulois du membre : il suit chacun de ses pas (rien ne tourne quand il ne bouge pas, ni page cachée).
   useEffect(() => {
     const placer = () => {
       const el = marque.current;
       if (!el) return;
-      el.hidden = moi.current === null;
-      if (moi.current !== null) el.style.left = `${(moi.current / plan.largeur) * 100}%`;
+      el.hidden = moi.x === null;
+      if (moi.x !== null) el.style.left = `${(moi.x / plan.largeur) * 100}%`;
     };
     placer();
-    const minuterie = window.setInterval(placer, 500);
-    return () => window.clearInterval(minuterie);
+    return moi.ecouter(placer);
   }, [plan, moi]);
 
   return (
@@ -123,8 +141,9 @@ export function MondeFenetre({ id, ouverte, onFermer, children }: { id: FenetreD
   const icone = ICONES_DES_FENETRES[id];
   const cadre = useRef<HTMLElement>(null);
   const dejaOuverte = useRef(false);
-  // À l'ouverture, la fenêtre prend le focus : le clavier et les lecteurs d'écran y sont.
-  useEffect(() => {
+  // À l'ouverture, la fenêtre prend le focus : le clavier et les lecteurs d'écran y sont. Tout de suite après l'affichage
+  // (et non plus tard) : Échap pressée aussitôt rend le focus à l'icône, sans qu'il revienne ensuite à une fenêtre fermée.
+  useLayoutEffect(() => {
     if (ouverte && !dejaOuverte.current) cadre.current?.focus({ preventScroll: true });
     dejaOuverte.current = ouverte;
   }, [ouverte]);

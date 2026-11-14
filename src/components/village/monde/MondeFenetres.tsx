@@ -1,10 +1,12 @@
-import { NOMS_DU_FEU, type NiveauDuFeu, SEUILS_DU_FEU } from "../../../lib/village/chantier-liste";
+import { SEUILS_DU_FEU, type NiveauDuFeu } from "../../../lib/village/chantier-liste";
+import { avancementDuBatiment, batimentEnCours, pointsAffiches } from "../../../lib/village/chantier";
 import type { Village } from "../../../lib/village/contrat";
 import { sonGauloisManque } from "../../../lib/village/ecran-place";
 import type { EtatDuMonde } from "../../../lib/village/monde-etat";
-import { batimentEnCours, jourDeParis, motPoints, nomDuFeu, phraseDuChantier, points, resteDe, suiteDuFeu } from "../../../lib/village/monde/textes";
+import { SANS_DONNEES, etatDuBatimentEnMots, jourDeParis, nombre, nomDuFeu, nomDuNiveau, phraseDuChantier, posesDuBatiment, suiteDuChantier, suiteDuFeu } from "../../../lib/village/monde/textes";
 import { type Habitant, LIEUX, type Lieu, compteDuLieu, phraseDuReleve } from "../../../lib/village/vie";
 import { BoutonDuToucher, type Parole, phraseDite } from "../PlaceToucher";
+import { PlaquesDuGaulois } from "./MondePlaques";
 
 /**
  * Le contenu des fenêtres propres au monde : « Le chantier », « Le grand feu », « Qui est où » et « La forge ». Elles
@@ -12,7 +14,16 @@ import { BoutonDuToucher, type Parole, phraseDite } from "../PlaceToucher";
  * rapportés au clan, au dernier relevé des sessions, dont l'heure est écrite. Sans données, c'est dit : jamais de zéro.
  */
 
-const SANS_DONNEES = "Pas de données pour l'instant.";
+/** Pas de données : la phrase, et l'heure du dernier relevé si on la connaît. */
+function SansDonnees({ releve, testid }: { releve: string | null; testid: string }) {
+  const phrase = phraseDuReleve(releve);
+  return (
+    <div class="monde-chantier" data-testid={testid}>
+      <p class="monde-en-cours-phrase">{SANS_DONNEES}</p>
+      {phrase && <p class="info-discrete">{phrase}</p>}
+    </div>
+  );
+}
 
 /**
  * « Le chantier » : le bâtiment en cours et ce qui lui manque, puis chaque bâtiment dans l'ordre : fini (et quand), en
@@ -20,40 +31,35 @@ const SANS_DONNEES = "Pas de données pour l'instant.";
  */
 export function FenetreChantier({ etat, voir }: { etat: EtatDuMonde; voir: (id: string) => void }) {
   const chantier = etat.chantier;
-  if (!chantier) return <p class="info-discrete">{SANS_DONNEES}</p>;
+  if (!chantier) return <SansDonnees releve={etat.releve} testid="monde-chantier-sans-donnees" />;
   const enCours = batimentEnCours(chantier);
   const depuis = jourDeParis(chantier.depuis);
   const releve = phraseDuReleve(etat.releve);
   return (
     <div class="monde-chantier" data-testid="monde-chantier">
       <p class="monde-chiffre">
-        <strong class="tnum">{points(chantier.points)}</strong> {motPoints(chantier.points)} rapportés au clan{depuis && ` depuis le ${depuis}`}
+        <strong class="tnum">{nombre(pointsAffiches(chantier.points))}</strong> {suiteDuChantier(chantier.points)}
+        {depuis && ` depuis le ${depuis}`}
       </p>
       {enCours ? (
         <div class="monde-en-cours">
           <p class="monde-en-cours-phrase">{phraseDuChantier(enCours)}.</p>
           <span class="monde-jauge" aria-hidden="true">
-            <i style={{ width: `${Math.max(1, Math.min(100, (enCours.poses / enCours.cout) * 100))}%` }} />
+            <i style={{ width: `${Math.max(1, avancementDuBatiment(enCours) * 100)}%` }} />
           </span>
-          <p class="info-discrete tnum">
-            {points(enCours.poses)} {motPoints(enCours.poses)} posés sur {points(enCours.cout)}
-          </p>
+          <p class="info-discrete tnum">{posesDuBatiment(enCours)}</p>
         </div>
       ) : (
         <p class="monde-en-cours-phrase">Tout le village est bâti.</p>
       )}
       <ol class="monde-batiments">
         {chantier.batiments.map((b) => {
-          const fini = b.poses >= b.cout;
           const sonTour = b.id === chantier.en_cours;
-          const jour = jourDeParis(b.fini_le);
           return (
-            <li key={b.id} data-etat={fini ? "fini" : sonTour ? "chantier" : "attente"}>
+            <li key={b.id} data-etat={b.fini_le !== null ? "fini" : sonTour ? "chantier" : "attente"}>
               <span class="monde-batiment-marque" aria-hidden="true" />
               <span class="monde-batiment-nom">{b.titre}</span>
-              <span class="monde-batiment-etat tnum">
-                {fini ? (jour ? `Fini le ${jour}` : "Fini") : sonTour ? `En chantier : encore ${points(resteDe(b))} ${motPoints(resteDe(b))}` : `À venir : ${points(b.cout)} points`}
-              </span>
+              <span class="monde-batiment-etat tnum">{etatDuBatimentEnMots(b, sonTour)}</span>
               <button type="button" class="monde-voir" aria-label={`Voir ${b.nom} dans le village`} onClick={() => voir(b.id)}>
                 Voir
               </button>
@@ -75,20 +81,20 @@ function seuilDuFeu(niveau: NiveauDuFeu): string {
 /** « Le grand feu » : son nom, les points rapportés au clan sur 7 jours, l'heure du relevé, puis l'échelle des cinq feux. */
 export function FenetreFeu({ etat, voir }: { etat: EtatDuMonde; voir: () => void }) {
   const feu = etat.feu;
-  if (!feu) return <p class="info-discrete">{SANS_DONNEES}</p>;
+  if (!feu) return <SansDonnees releve={etat.releve} testid="monde-feu-sans-donnees" />;
   const releve = phraseDuReleve(etat.releve);
   return (
     <div class="monde-feu" data-testid="monde-feu">
       <p class="monde-feu-nom">{nomDuFeu(feu)}</p>
       <p class="monde-chiffre">
-        <strong class="tnum">{points(feu.points)}</strong> {suiteDuFeu(feu)}
+        <strong class="tnum">{nombre(pointsAffiches(feu.points))}</strong> {suiteDuFeu(feu)}
       </p>
       {releve && <p class="info-discrete">{releve}</p>}
       <ol class="monde-feux">
         {([0, 1, 2, 3, 4] as const).map((niveau) => (
           <li key={niveau} aria-current={niveau === feu.niveau ? "true" : undefined}>
             <span class="monde-feu-barre" aria-hidden="true" style={{ "--monde-niveau": String(niveau) }} />
-            <span class="monde-feux-nom">{NOMS_DU_FEU[niveau].charAt(0).toUpperCase() + NOMS_DU_FEU[niveau].slice(1)}</span>
+            <span class="monde-feux-nom">{nomDuNiveau(niveau)}</span>
             <span class="monde-feux-seuil tnum">{seuilDuFeu(niveau)}</span>
             {niveau === feu.niveau && <span class="sr-only"> (au dernier relevé)</span>}
           </li>
@@ -141,6 +147,7 @@ export function FenetreQui({ village, lieux, message, dit, onParler, onGaulois, 
                     {habitant.gaulois.moi && " (vous)"}
                   </span>
                   <span class="vie-liste-raison">{habitant.presence.raison}</span>
+                  <PlaquesDuGaulois gaulois={habitant.gaulois} class="vie-liste-plaques" />
                   {(phrase ?? habitant.gaulois.replique) && (
                     <span class={phrase ? "vie-liste-replique toucher-dit" : "vie-liste-replique"} data-testid={phrase ? "toucher-dit" : undefined}>
                       « {phrase ?? habitant.gaulois.replique} »

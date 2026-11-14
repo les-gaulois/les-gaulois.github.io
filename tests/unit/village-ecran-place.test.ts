@@ -1,33 +1,53 @@
 import { describe, expect, it } from "vitest";
-import { TENUE_DE_DEPART } from "../../src/lib/gaulois";
-import { DECOR_LARGEUR_MIN } from "../../src/lib/village/decor";
-import { CASE_DE_LOIN, CASE_ORDINATEUR, CASE_TELEPHONE, FOULE_AU_TELEPHONE, FOULE_EN_GRAND, caseDeLaScene, largeurDuDecor, lireVillage, messageDeLaPlace, sonGauloisManque } from "../../src/lib/village/ecran-place";
+import { OBJETS, TENUE_DE_DEPART } from "../../src/lib/gaulois";
+import { lireVillage, messageDeLaPlace, plaquesEnMots, sonGauloisManque } from "../../src/lib/village/ecran-place";
 
 const gaulois = (nom: string, moi = false) => ({ nom, tenue: TENUE_DE_DEPART, moi });
 
-describe("les tailles de la scène", () => {
-  it("prend la petite case sur téléphone et dans la foule, la grande sur un écran large quand ils sont peu", () => {
-    expect(caseDeLaScene(360, 1)).toBe(CASE_TELEPHONE);
-    expect(caseDeLaScene(767, 1)).toBe(CASE_TELEPHONE);
-    expect(caseDeLaScene(768, 0)).toBe(CASE_ORDINATEUR);
-    expect(caseDeLaScene(1920, FOULE_EN_GRAND)).toBe(CASE_ORDINATEUR);
-    expect(caseDeLaScene(1920, FOULE_EN_GRAND + 1)).toBe(CASE_TELEPHONE);
+/** Un objet à rareté du catalogue, pour un emplacement d'objet : ceux-là seuls se gravent. */
+const graveDe = (emplacement: "tete" | "arme") => Object.entries(OBJETS[emplacement]).find(([, fiche]) => fiche.rarete !== null)!;
+
+describe("les plaques de la forge sur la place", () => {
+  const [arme, ficheArme] = graveDe("arme");
+  const [tete, ficheTete] = graveDe("tete");
+
+  it("lit les plaques de chaque Gaulois et écarte celles qui ne se lisent pas", () => {
+    const village = lireVillage({
+      ok: true,
+      gaulois: [
+        {
+          ...gaulois("A"),
+          gravures: [
+            { emplacement: "arme", objet: arme, texte: " 12 novembre, à quatre, 2,33 points rapportés " },
+            { emplacement: "arme", objet: "inconnu", texte: "faux" },
+            { emplacement: "peau", objet: "claire", texte: "le corps ne se grave pas" },
+            { emplacement: "tete", objet: tete, texte: "" },
+            null,
+          ],
+        },
+        { ...gaulois("B"), gravures: "non" },
+        gaulois("C"),
+      ],
+    });
+    expect(village?.gaulois[0]?.gravures).toEqual([{ emplacement: "arme", objet: arme, texte: "12 novembre, à quatre, 2,33 points rapportés" }]);
+    expect(village?.gaulois[1]?.gravures).toEqual([]);
+    expect(village?.gaulois[2]?.gravures).toEqual([]);
   });
 
-  it("fait prendre du recul au téléphone quand le lieu est plein", () => {
-    expect(caseDeLaScene(375, FOULE_AU_TELEPHONE)).toBe(CASE_TELEPHONE);
-    expect(caseDeLaScene(375, FOULE_AU_TELEPHONE + 1)).toBe(CASE_DE_LOIN);
-    expect(caseDeLaScene(360, 80)).toBe(CASE_DE_LOIN);
-    // Un écran large ne descend jamais sous la case du téléphone.
-    expect(caseDeLaScene(1280, 80)).toBe(CASE_TELEPHONE);
-  });
-
-  it("donne au décor assez de cases pour remplir la scène, jamais moins que le plus petit décor", () => {
-    expect(largeurDuDecor(328, 2)).toBe(164);
-    expect(largeurDuDecor(1175, 3)).toBe(392);
-    expect(largeurDuDecor(100, 2)).toBe(DECOR_LARGEUR_MIN);
-    expect(largeurDuDecor(0, 2)).toBe(DECOR_LARGEUR_MIN);
-    expect(largeurDuDecor(Number.NaN, 3)).toBe(DECOR_LARGEUR_MIN);
+  it("dit chaque plaque avec le nom de son objet, de la tête à l'arme", () => {
+    const plaques = plaquesEnMots({
+      gravures: [
+        { emplacement: "arme", objet: arme, texte: "12 novembre, à quatre, 2,33 points rapportés" },
+        { emplacement: "tete", objet: tete, texte: "3 novembre, seul, 1,5 point rapporté" },
+      ],
+    });
+    expect(plaques.map((p) => [p.objet, p.texte])).toEqual([
+      [ficheTete.nom, "3 novembre, seul, 1,5 point rapporté"],
+      [ficheArme.nom, "12 novembre, à quatre, 2,33 points rapportés"],
+    ]);
+    expect(new Set(plaques.map((p) => p.cle)).size).toBe(2);
+    expect(plaquesEnMots({})).toEqual([]);
+    expect(plaquesEnMots({ gravures: [{ emplacement: "arme", objet: "inconnu", texte: "faux" }] })).toEqual([]);
   });
 });
 

@@ -3,15 +3,15 @@ import Base from "../layouts/Base.astro";
 import NotOpen from "../components/compte/NotOpen.astro";
 import VillageApp from "../components/village/VillageApp";
 import { AUTH_ENABLED } from "../lib/compte/api";
-import { NOMS_DU_FEU } from "../lib/village/chantier-liste";
-import { etatDEssai } from "../lib/village/monde/provisoire";
-import { batimentEnCours, jourDeParis, motPoints, phraseDuChantier, points, pointsDuFeu } from "../lib/village/monde/textes";
+import { batimentEnCours, pointsAffiches } from "../lib/village/chantier";
+import { etatDuMondeDuSite } from "../lib/village/monde-site";
+import { SANS_DONNEES, etatDuBatimentEnMots, jourDeParis, nombre, nomDuFeu, phraseDuChantier, pointsDuFeu, suiteDuChantier } from "../lib/village/monde/textes";
 import { phraseDuReleve } from "../lib/village/vie";
 
-// PROVISOIRE : l'état d'essai du designer (src/lib/village/monde/provisoire.ts). À l'intégration, le vrai calcul du
-// chantier et du grand feu (sessions publiques du clan) le remplace ici, et le fichier d'essai est supprimé.
-const etat = etatDEssai();
-const enCours = etat.chantier ? batimentEnCours(etat.chantier) : null;
+// Le chantier et le grand feu, calculés à la construction du site sur les sessions publiques du clan (data/sessions/) :
+// les mêmes que /village/monde.json, que lit la commande /feu. `null` : pas de données, ce n'est pas zéro.
+const etat = etatDuMondeDuSite();
+const enCours = batimentEnCours(etat.chantier);
 const releve = phraseDuReleve(etat.releve);
 const depuis = etat.chantier ? jourDeParis(etat.chantier.depuis) : null;
 ---
@@ -37,34 +37,32 @@ const depuis = etat.chantier ? jourDeParis(etat.chantier.depuis) : null;
     {/* Sans script : le village en texte. */}
     <section class="monde-sans-script wrap" aria-labelledby="village-texte">
       <h1 id="village-texte" class="section-title-sm">Le village</h1>
-      {
-        etat.chantier && (
-          <div class="mt-6">
-            <h2 class="monde-sans-script-titre">Le chantier</h2>
-            <p>
-              {points(etat.chantier.points)} {motPoints(etat.chantier.points)} rapportés au clan{depuis && ` depuis le ${depuis}`}.
-              {enCours ? ` ${phraseDuChantier(enCours)}.` : " Tout le village est bâti."}
-            </p>
-            <ol class="mt-3">
-              {etat.chantier.batiments.map((b) => (
-                <li>
-                  {b.titre} : {b.poses >= b.cout ? (jourDeParis(b.fini_le) ? `fini le ${jourDeParis(b.fini_le)}` : "fini") : b.id === etat.chantier!.en_cours ? `en chantier, ${points(b.poses)} sur ${points(b.cout)}` : `à venir, ${points(b.cout)} points`}
-                </li>
-              ))}
-            </ol>
-          </div>
-        )
-      }
-      {
-        etat.feu && (
-          <div class="mt-6">
-            <h2 class="monde-sans-script-titre">Le grand feu</h2>
-            <p>
-              {NOMS_DU_FEU[etat.feu.niveau].charAt(0).toUpperCase() + NOMS_DU_FEU[etat.feu.niveau].slice(1)} : {pointsDuFeu(etat.feu)}.
-            </p>
-          </div>
-        )
-      }
+      <div class="mt-6">
+        <h2 class="monde-sans-script-titre">Le chantier</h2>
+        {
+          etat.chantier ? (
+            <>
+              <p>
+                {nombre(pointsAffiches(etat.chantier.points))} {suiteDuChantier(etat.chantier.points)}
+                {depuis && ` depuis le ${depuis}`}.{enCours ? ` ${phraseDuChantier(enCours)}.` : " Tout le village est bâti."}
+              </p>
+              <ol class="mt-3">
+                {etat.chantier.batiments.map((b) => (
+                  <li>
+                    {b.titre} : {etatDuBatimentEnMots(b, b.id === etat.chantier?.en_cours)}
+                  </li>
+                ))}
+              </ol>
+            </>
+          ) : (
+            <p>{SANS_DONNEES}</p>
+          )
+        }
+      </div>
+      <div class="mt-6">
+        <h2 class="monde-sans-script-titre">Le grand feu</h2>
+        <p>{etat.feu ? `${nomDuFeu(etat.feu)} : ${pointsDuFeu(etat.feu)}.` : SANS_DONNEES}</p>
+      </div>
       {releve && <p class="info-discrete mt-6">{releve}</p>}
     </section>
   </div>

@@ -17,9 +17,10 @@ import Vestiaire from "../compte/Vestiaire";
 import MarcheDuVillage from "./MarcheDuVillage";
 import { AnnonceDuToucher, useToucher } from "./PlaceToucher";
 import { CameraDuMonde } from "./monde/camera-du-monde";
-import { useFige, useHorloge } from "./monde/horloge";
+import { useFige } from "./fige";
+import { useHorloge } from "./monde/horloge";
 import { FenetreChantier, FenetreFeu, FenetreForge, FenetreQui } from "./monde/MondeFenetres";
-import { MondeCarte, MondeCredit, MondeDock, MondeFenetre, MondeTete, comptesDesLieux } from "./monde/MondeInterface";
+import { MondeCarte, MondeCredit, MondeDock, MondeFenetre, MondeTete, RepereDuMoi, comptesDesLieux } from "./monde/MondeInterface";
 import { MondeScene } from "./monde/MondeScene";
 
 /** Le village se relit toutes les 5 minutes tant que la page est visible : le robot relève le vocal à ce rythme. */
@@ -27,12 +28,27 @@ const RELECTURE_MS = 5 * 60_000;
 
 const PERSONNE: Record<Lieu, Habitant[]> = { place: [], taverne: [], reunion: [], bataille: [], maisons: [] };
 
-/** L'heure qu'il est, relue toutes les trente secondes : la lumière et les lieux la suivent. */
+/**
+ * L'heure qu'il est, relue toutes les trente secondes tant que la page est visible, et dès qu'elle le redevient : la
+ * lumière et les lieux la suivent. Page cachée, rien ne tourne.
+ */
 function useMaintenant(): Date {
   const [maintenant, setMaintenant] = useState(() => new Date());
   useEffect(() => {
-    const minuterie = window.setInterval(() => setMaintenant(new Date()), 30_000);
-    return () => window.clearInterval(minuterie);
+    let minuterie = 0;
+    const armer = () => {
+      window.clearInterval(minuterie);
+      minuterie = 0;
+      if (document.visibilityState !== "visible") return;
+      setMaintenant(new Date());
+      minuterie = window.setInterval(() => setMaintenant(new Date()), 30_000);
+    };
+    armer();
+    document.addEventListener("visibilitychange", armer);
+    return () => {
+      window.clearInterval(minuterie);
+      document.removeEventListener("visibilitychange", armer);
+    };
   }, []);
   return maintenant;
 }
@@ -41,8 +57,9 @@ type Lecture = { kind: "attente" } | { kind: "fermee"; message: string } | { kin
 
 /**
  * Le village lu au serveur (`get_village`), pour un membre connecté : à l'arrivée, puis discrètement toutes les 5 minutes,
- * page visible seulement. Le serveur décide de qui est au village ; une relecture qui échoue garde le village affiché.
- * PREMIÈRE VERSION (designer) : reprise de `PlaceDuVillage.tsx`, que le développeur du monde revoit.
+ * page visible seulement (au retour sur la page, tout de suite si la dernière lecture a plus de 5 minutes). Le serveur
+ * décide de qui est au village ; une relecture qui échoue garde le village affiché. Une réponse identique ne change rien à
+ * l'écran : personne ne bouge.
  */
 function useVillage(actif: boolean): Lecture {
   const [lecture, setLecture] = useState<Lecture>({ kind: "attente" });
@@ -101,7 +118,7 @@ function Monde({ etat, me, lien, rafraichir, ferme }: { etat: EtatDuMonde; me: M
   const toucher = useToucher();
   const connecte = me?.signed_in === true && !lien;
   const lecture = useVillage(connecte);
-  const moi = useRef<number | null>(null);
+  const moi = useMemo(() => new RepereDuMoi(), []);
 
   // La lumière et les lieux ne changent qu'à la minute.
   const minute = Math.floor(maintenant.getTime() / 60_000);
@@ -114,14 +131,18 @@ function Monde({ etat, me, lien, rafraichir, ferme }: { etat: EtatDuMonde; me: M
   // La fenêtre ouverte suit l'adresse ; un compte qui doit encore donner son lien OpenFront le donne d'abord.
   const [ouverte, setOuverte] = useState<FenetreDuMonde | null>(() => fenetreDeLAncre(location.hash));
   const [vues, setVues] = useState<ReadonlySet<FenetreDuMonde>>(() => new Set(ouverte ? [ouverte] : []));
+  // La fenêtre ouverte, sue tout de suite (avant que l'écran ne se redessine) : Échap pressée juste après une ouverture la
+  // referme, et deux clics rapides sur une icône ne s'emmêlent pas.
+  const ouverteMaintenant = useRef(ouverte);
   const montrer = (id: FenetreDuMonde | null, adresse = true) => {
+    ouverteMaintenant.current = id;
     setOuverte(id);
     if (id) setVues((avant) => (avant.has(id) ? avant : new Set([...avant, id])));
     if (adresse) history.replaceState(history.state, "", id ? `#${id}` : location.pathname + location.search);
   };
-  const choisir = (id: FenetreDuMonde) => montrer(ouverte === id ? null : id);
+  const choisir = (id: FenetreDuMonde) => montrer(ouverteMaintenant.current === id ? null : id);
   const fermer = () => {
-    const quittee = ouverte;
+    const quittee = ouverteMaintenant.current;
     montrer(null);
     if (quittee) document.getElementById(`monde-entree-${quittee}`)?.focus();
   };
@@ -135,16 +156,16 @@ function Monde({ etat, me, lien, rafraichir, ferme }: { etat: EtatDuMonde; me: M
   }, [lien]);
 
   // Échap ferme la fenêtre ouverte, après ce qui passe avant elle : une fenêtre de la boutique, un menu de l'en-tête.
+  // Écoutée dès l'arrivée, et non à chaque ouverture : une touche pressée aussitôt la fenêtre ouverte n'est pas perdue.
   useEffect(() => {
-    if (!ouverte) return;
     const touche = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || e.defaultPrevented) return;
+      if (e.key !== "Escape" || e.defaultPrevented || !ouverteMaintenant.current) return;
       if (document.querySelector("dialog[open], details[data-menu][open], [data-testid='appels-popup']")) return;
       fermer();
     };
     document.addEventListener("keydown", touche);
     return () => document.removeEventListener("keydown", touche);
-  }, [ouverte]);
+  }, []);
 
   // À l'arrivée, la caméra est sur la place ; dès que le village est lu, sur le lieu où se trouve son Gaulois.
   const placee = useRef(false);
@@ -171,14 +192,14 @@ function Monde({ etat, me, lien, rafraichir, ferme }: { etat: EtatDuMonde; me: M
   const parler = (habitant: Habitant) => {
     toucher.toucher(habitant);
     // La caméra va à celui qui parle : dans son lieu, à peu près à sa place.
-    if (moi.current !== null && habitant.gaulois.moi) camera.aller(moi.current);
+    if (moi.x !== null && habitant.gaulois.moi) camera.aller(moi.x);
     else camera.aller(quartierDuLieu(plan, habitant.presence.lieu).vue);
   };
 
   const messageDuVillage = lecture.kind === "fermee" || lecture.kind === "erreur" ? lecture.message : null;
   return (
     <div class="monde" data-fenetre={ouverte ?? undefined} data-testid="village">
-      <MondeScene plan={plan} etat={etat} lumiere={lumiere} date={date} lieux={lieux} camera={camera} horloge={horloge} fige={fige} parole={toucher.parole} onToucher={toucher.toucher} ouvrir={(id) => montrer(id)} membre={membre} moiA={(x) => (moi.current = x)}>
+      <MondeScene plan={plan} etat={etat} lumiere={lumiere} date={date} lieux={lieux} camera={camera} horloge={horloge} fige={fige} parole={toucher.parole} onToucher={toucher.toucher} ouvrir={(id) => montrer(id)} membre={membre} moiA={(x) => moi.poser(x)}>
         <MondeTete />
         <MondeCarte plan={plan} camera={camera} comptes={membre ? comptesDesLieux(lieux) : null} moi={moi} />
         <MondeCredit />

@@ -5,7 +5,8 @@ import type { EtatDuMonde } from "../../../lib/village/monde-etat";
 import { coteDeLaCase } from "../../../lib/village/monde/camera";
 import { lotEnCours } from "../../../lib/village/monde/composition";
 import { LIGNE, MONDE_HAUTEUR, type Plan, emplacementsDe, quartierDuLieu } from "../../../lib/village/monde/plan";
-import { type FenetreDuMonde, batimentEnCours, nomDuFeu, phraseDuChantier, pointsDuFeu } from "../../../lib/village/monde/textes";
+import { avancementDuBatiment, batimentEnCours } from "../../../lib/village/chantier";
+import { type FenetreDuMonde, nomDuFeu, phraseDuChantier, pointsDuFeu } from "../../../lib/village/monde/textes";
 import { type Habitant, type Lieu, NOMS_DES_LIEUX, phraseDuReleve } from "../../../lib/village/vie";
 import type { Parole } from "../PlaceToucher";
 import type { CameraDuMonde } from "./camera-du-monde";
@@ -201,7 +202,8 @@ export function MondeScene({
   const etiquettes = useMemo(() => {
     const liste: Etiquette[] = [];
     const lot = lotEnCours(plan, etat);
-    const enCours = etat.chantier ? batimentEnCours(etat.chantier) : null;
+    const enCours = batimentEnCours(etat.chantier);
+    const releve = phraseDuReleve(etat.releve);
     if (lot && enCours) {
       liste.push({
         cle: "chantier",
@@ -213,14 +215,47 @@ export function MondeScene({
           <>
             <span class="monde-etiquette-titre">{phraseDuChantier(enCours)}</span>
             <span class="monde-jauge" aria-hidden="true">
-              <i style={{ width: `${Math.max(2, Math.min(100, (enCours.poses / enCours.cout) * 100))}%` }} />
+              <i style={{ width: `${Math.max(2, avancementDuBatiment(enCours) * 100)}%` }} />
             </span>
+            {releve && <span class="monde-etiquette-note">{releve}</span>}
+          </>
+        ),
+      });
+    }
+    // Sans données (ce n'est pas zéro) : l'écran le dit là où le chantier et le feu se montreraient.
+    if (!etat.chantier) {
+      liste.push({
+        cle: "chantier",
+        x: plan.feu.x + 160,
+        y: LIGNE - 70,
+        ouvre: "chantier",
+        sorte: "chantier",
+        contenu: (
+          <>
+            <span class="monde-etiquette-titre">Le chantier</span>
+            <span>Pas de données</span>
+            {releve && <span class="monde-etiquette-note">{releve}</span>}
+          </>
+        ),
+      });
+    }
+    if (!etat.feu) {
+      liste.push({
+        cle: "feu",
+        x: plan.feu.x,
+        y: plan.feu.pied - 40,
+        ouvre: "feu",
+        sorte: "feu",
+        contenu: (
+          <>
+            <span class="monde-etiquette-titre">Le grand feu</span>
+            <span>Pas de données</span>
+            {releve && <span class="monde-etiquette-note">{releve}</span>}
           </>
         ),
       });
     }
     if (etat.feu) {
-      const releve = phraseDuReleve(etat.releve);
       liste.push({
         cle: "feu",
         x: plan.feu.x,

@@ -11,6 +11,7 @@
  */
 import { IMAGES_DU_FEU, imageDuGrandFeu } from "../../../../supabase/functions/code-discord/grand-feu";
 import { DESSINS_DES_BATIMENTS, FORGE, dessinDuBatiment } from "../batiments";
+import { avancementDuBatiment } from "../chantier";
 import type { BatimentId, NiveauDuFeu } from "../chantier-liste";
 import { type Decor, type Palette, Planche, alea, paletteDuDehors } from "../decor";
 import { type Lumiere, melanger } from "../lumiere";
@@ -31,8 +32,9 @@ export type EtatDuLot = { sorte: "attente" } | { sorte: "chantier"; avancement: 
 export function etatDuLot(etat: EtatDuMonde, id: BatimentId): EtatDuLot {
   const b = etat.chantier?.batiments.find((ligne) => ligne.id === id);
   if (!b || !etat.chantier) return { sorte: "attente" };
-  if (b.cout > 0 && b.poses >= b.cout) return { sorte: "fini" };
-  if (etat.chantier.en_cours === id) return { sorte: "chantier", avancement: b.cout > 0 ? Math.min(1, Math.max(0, b.poses / b.cout)) : 0 };
+  // Fini : la date où il l'a été (`chantier.ts`) ; l'avancement d'un chantier n'atteint 1 qu'une fois fini.
+  if (b.fini_le !== null) return { sorte: "fini" };
+  if (etat.chantier.en_cours === id) return { sorte: "chantier", avancement: avancementDuBatiment(b) };
   return { sorte: "attente" };
 }
 

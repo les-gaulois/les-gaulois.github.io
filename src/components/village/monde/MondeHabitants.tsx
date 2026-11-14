@@ -3,9 +3,10 @@ import { GAULOIS_HAUTEUR, GAULOIS_LARGEUR, casesDuGaulois } from "../../../lib/g
 import type { GauloisDeLaPlace } from "../../../lib/village/contrat";
 import type { Decor } from "../../../lib/village/decor";
 import { type Bulles, avancerLesBulles, bullesAuDepart, chopeLevee, gesteDeCombat, hasardDe, souffleDuDormeur, tourneEnReunion } from "../../../lib/village/mouvement";
-import { type Marcheur, avancer, marcheurA, poseDuMarcheur, promener } from "../../../lib/village/monde/marche";
+import { type Acteur as ActeurDuMonde, arriver, relireLesActeurs, unTemps } from "../../../lib/village/monde/acteurs";
+import { poseDuMarcheur } from "../../../lib/village/monde/marche";
 import type { Plan } from "../../../lib/village/monde/plan";
-import { BOITES_DU_MONDE, type Place, type Tenue, placesDEnFace, placesDuLieu, seuilDuLieu, tenueDuLieu, zoneDeLaPlace } from "../../../lib/village/monde/postes";
+import { BOITES_DU_MONDE, type Tenue, placesDEnFace, placesDuLieu, seuilDuLieu, tenueDuLieu, zoneDeLaPlace } from "../../../lib/village/monde/postes";
 import { poseAuLit } from "../../../lib/village/monde/poses-monde";
 import { casesDeLAdversaire, casesDesPieds, poseAttable, poseDeMarche, sansArme } from "../../../lib/village/poses";
 import { type Habitant, LIEUX, type Lieu } from "../../../lib/village/vie";
@@ -14,21 +15,13 @@ import { BulleDuToucher, type Parole } from "../PlaceToucher";
 import type { CameraDuMonde } from "./camera-du-monde";
 import type { Horloge } from "./horloge";
 import type { Mesure } from "./MondeDecor";
+import { PlaquesDuGaulois } from "./MondePlaques";
 
 /** La clé d'un habitant, d'une relecture du serveur à la suivante. */
 export const cleDe = (habitant: Habitant): string => `${habitant.rang}-${habitant.gaulois.nom}`;
 
-/**
- * Un habitant dans le monde. `poste` : il est à sa place dans son lieu (attablé, couché, au combat) ; `promene` : il est
- * de la place et va et vient dans le village ; `chemin` : son lieu vient de changer, il marche jusqu'au nouveau.
- */
-interface Acteur {
-  habitant: Habitant;
-  lieu: Lieu;
-  etat: "poste" | "promene" | "chemin";
-  marche: Marcheur;
-  place: Place;
-}
+/** Un habitant dans le monde (`acteurs.ts`). */
+type Acteur = ActeurDuMonde<Habitant>;
 
 /** Ce qui est déjà à l'écran pour un acteur : on n'y retouche que si cela change. */
 interface Pose {
@@ -43,8 +36,6 @@ interface Pose {
 
 /** La moitié de la plus large étiquette (14 rem), en pixels, et un peu d'air : plus près d'un bord, elle sortirait. */
 const PRES_DU_BORD = 116;
-/** La vitesse de celui qui change de lieu, en cases par temps : au pas, un peu plus vif que la promenade. */
-const VITESSE_DU_CHEMIN = 2;
 
 /** Les dessins d'un Gaulois, pose par pose, faits à la demande et gardés tant que sa tenue ne change pas. */
 function dessinsDe(memoire: WeakMap<GauloisDeLaPlace, Map<string, Decor>>, habitant: Habitant, pose: string): Decor {
@@ -76,7 +67,7 @@ function dessinsDe(memoire: WeakMap<GauloisDeLaPlace, Map<string, Decor>>, habit
  * animations »), chacun est posé à sa place, debout, assis ou couché.
  *
  * C'est un dessin : la fenêtre « Qui est où » dit la même chose en texte. Un clic sur un Gaulois le fait parler
- * (`PlaceToucher.tsx`). PREMIÈRE VERSION de la marche (designer) : le développeur du monde la reprend.
+ * (`PlaceToucher.tsx`). La marche et les relectures : `acteurs.ts` et `marche.ts`, testés.
  */
 export function MondeHabitants({
   plan,
@@ -114,41 +105,15 @@ export function MondeHabitants({
   const jeu = useRef<{ bulles: Bulles; hasard: () => number }>({ bulles: bullesAuDepart(), hasard: hasardDe(20261114) });
   const zone = useMemo(() => zoneDeLaPlace(plan), [plan]);
 
-  // La relecture : chacun retrouve sa place ; celui dont le lieu a changé se met en chemin.
+  // La relecture (`acteurs.ts`) : chacun retrouve sa place ; celui dont le lieu a changé se met en chemin, ou y est d'un
+  // coup si tout est figé ; celui qui arrive paraît à sa place ; celui qui part est oublié.
   useLayoutEffect(() => {
-    const vus = new Set<string>();
-    for (const lieu of LIEUX) {
+    const entrees = LIEUX.flatMap((lieu) => {
       const places = placesDuLieu(plan, lieu, lieux[lieu].length);
-      lieux[lieu].forEach((habitant, i) => {
-        const cle = cleDe(habitant);
-        const place = places[i]!;
-        vus.add(cle);
-        const acteur = acteurs.current.get(cle);
-        if (!acteur) {
-          acteurs.current.set(cle, { habitant, lieu, etat: lieu === "place" ? "promene" : "poste", marche: marcheurA(place.x, place.y, jeu.current.hasard), place });
-          return;
-        }
-        acteur.habitant = habitant;
-        if (acteur.lieu !== lieu) {
-          // Il sort par la porte de l'ancien lieu, et vise celle du nouveau (ou un coin du village, s'il va se promener).
-          if (acteur.etat === "poste") {
-            const sortie = seuilDuLieu(plan, acteur.lieu, acteur.place);
-            acteur.marche.x = sortie.x;
-            acteur.marche.y = sortie.y;
-          }
-          acteur.marche.but = lieu === "place" ? { x: place.x, y: place.y } : seuilDuLieu(plan, lieu, place);
-          acteur.marche.pas = 0;
-          acteur.etat = "chemin";
-          acteur.lieu = lieu;
-        }
-        acteur.place = place;
-      });
-    }
-    for (const cle of [...acteurs.current.keys()]) {
-      if (vus.has(cle)) continue;
-      acteurs.current.delete(cle);
-      poses.current.delete(cle);
-    }
+      return lieux[lieu].map((habitant, i) => ({ cle: cleDe(habitant), habitant, lieu, place: places[i]! }));
+    });
+    relireLesActeurs(acteurs.current, entrees, (lieu, place) => seuilDuLieu(plan, lieu, place), fige, jeu.current.hasard);
+    for (const cle of [...poses.current.keys()]) if (!acteurs.current.has(cle)) poses.current.delete(cle);
   }, [lieux, plan]);
 
   // Tout ce qui est déjà peint est oublié quand les toiles changent de taille.
@@ -177,15 +142,8 @@ export function MondeHabitants({
       const el = elements.current.get(cle);
       const toile = toiles.current.get(cle);
       if (!acteur || !el || !toile) return;
-      // Figé, celui qui était en chemin est arrivé.
-      if (pose && acteur.etat === "chemin") {
-        acteur.etat = acteur.lieu === "place" ? "promene" : "poste";
-        acteur.marche.but = null;
-        if (acteur.lieu === "place") {
-          acteur.marche.x = acteur.place.x;
-          acteur.marche.y = acteur.place.y;
-        }
-      }
+      // Figé, celui qui était en chemin est arrivé, d'un coup.
+      if (pose && acteur.etat === "chemin") arriver(acteur, jeu.current.hasard);
       const auPoste = acteur.etat === "poste";
       if (auPoste) {
         acteur.marche.x = acteur.place.x;
@@ -276,10 +234,7 @@ export function MondeHabitants({
   useEffect(() => {
     if (fige) return;
     return horloge.ecouter((temps) => {
-      for (const acteur of acteurs.current.values()) {
-        if (acteur.etat === "promene") promener(acteur.marche, zone, plan.feu.x, jeu.current.hasard);
-        else if (acteur.etat === "chemin" && avancer(acteur.marche, VITESSE_DU_CHEMIN)) acteur.etat = acteur.lieu === "place" ? "promene" : "poste";
-      }
+      for (const acteur of acteurs.current.values()) unTemps(acteur, zone, plan.feu.x, jeu.current.hasard);
       dessiner(false, temps);
     });
   }, [fige, horloge, habitants, plan, cote, zone]);
@@ -331,9 +286,10 @@ export function MondeHabitants({
             <span class="vie-info">
               <span class="vie-info-nom">{habitant.gaulois.nom}</span>
               {habitant.presence.raison}
+              <PlaquesDuGaulois gaulois={habitant.gaulois} />
             </span>
             {habitant.gaulois.replique && !dort && <span class="vie-bulle">{habitant.gaulois.replique}</span>}
-            <BulleDuToucher parole={parole} habitant={habitant} />
+            <BulleDuToucher parole={parole} habitant={habitant} plaques={<PlaquesDuGaulois gaulois={habitant.gaulois} />} />
           </div>
         );
       })}

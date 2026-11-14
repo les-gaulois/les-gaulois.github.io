@@ -61,7 +61,8 @@ test("sans serveur configuré, la connexion n'apparaît pas et le site reste sta
   await page.goto("/carte");
   await expect(page.locator("[data-ouvre=\"alliance\"]")).toHaveCount(0);
   await expect(page.locator("[data-alliance-canvas]")).toHaveCount(0);
-  for (const path of ["/compte", "/direction", "/qg", "/village"]) {
+  // Au village, la porte fermée est dans la fenêtre « Mon Gaulois », que son adresse ouvre.
+  for (const path of ["/compte", "/direction", "/qg", "/village#gaulois"]) {
     await page.goto(path);
     await expect(page.getByTestId("auth-not-open")).toBeVisible();
   }
@@ -779,17 +780,23 @@ test("la liste des membres a son onglet, entre la page Membres et le QG", async 
   await expect(page).toHaveURL(/\/liste\/?$/);
 });
 
-// Le village sans serveur (le site publié sans PUBLIC_SUPABASE_URL) : la porte fermée, sans onglets ni vestiaire. Le Gaulois de
-// départ, la connexion et les trois onglets ne paraissent qu'avec le serveur : ils sont essayés à part, contre les vraies
-// fonctions SQL. L'accessibilité et les largeurs de /village sont contrôlées avec les autres pages (PAGES).
-test("le village sans serveur garde sa porte fermée, sans onglets, avec le bouton pause", async ({ page }) => {
+// Le village sans serveur (le site publié sans PUBLIC_SUPABASE_URL) : le monde se visite, et « Mon Gaulois » montre la porte
+// fermée, sans vestiaire. Le Gaulois de départ, la connexion et les Gaulois des membres ne paraissent qu'avec le serveur :
+// ils sont essayés à part, contre les vraies fonctions SQL. Le monde lui-même : tests/e2e/village.spec.ts. L'accessibilité
+// et les largeurs de /village sont contrôlées avec les autres pages (PAGES).
+test("le village sans serveur garde sa porte fermée dans « Mon Gaulois », avec le bouton pause", async ({ page }) => {
   await page.goto("/village");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Le village");
-  await expect(page.getByRole("heading", { level: 2, name: "Votre Gaulois" })).toBeVisible();
+  await expect(page.getByTestId("village")).toBeVisible();
+  await expect(page.getByTestId("auth-not-open")).toHaveCount(0);
+  await page.getByTestId("monde-entree-gaulois").click();
+  await expect(page.getByRole("heading", { level: 2, name: "Mon Gaulois" })).toBeVisible();
   await expect(page.getByTestId("auth-not-open")).toBeVisible();
   await expect(page.getByRole("tab")).toHaveCount(0);
-  await expect(page.getByTestId("village")).toHaveCount(0);
   await expect(page.getByTestId("vestiaire-porte")).toHaveCount(0);
+  // Sans compte, ni le marché ni « Qui est où » : le serveur ne donne les Gaulois qu'aux membres validés.
+  await expect(page.getByTestId("monde-entree-marche")).toHaveCount(0);
+  await expect(page.getByTestId("monde-entree-qui")).toHaveCount(0);
   const pause = page.getByRole("button", { name: "Mettre les animations en pause" });
   await expect(pause).toBeVisible();
   await pause.click();
@@ -2245,9 +2252,9 @@ test("chaque page donne le code source, la mention d'OpenFront et les mentions l
   test.skip(testInfo.project.name !== "desktop", "Même pied de page sur mobile.");
   for (const path of [...PAGES, "/confidentialite", "/compte", "/direction"]) {
     await page.goto(path);
-    // La page Carte est une console qui tient dans l'écran, sans bas de page : le crédit posé sur la carte donne les trois
-    // (tests/e2e/carte.spec.ts le contrôle aussi).
-    const footer = path === "/carte" ? page.getByTestId("map-credit") : page.locator("footer");
+    // La page Carte et le village sont des écrans qui tiennent dans la fenêtre, sans bas de page : la ligne posée sur la
+    // carte ou sur le monde donne les trois (tests/e2e/carte.spec.ts et village.spec.ts le contrôlent aussi).
+    const footer = path === "/carte" ? page.getByTestId("map-credit") : path === "/village" ? page.getByTestId("monde-credit") : page.locator("footer");
     await expect(footer.getByRole("link", { name: "Code source", exact: true }), path).toHaveAttribute("href", "https://github.com/les-gaulois/les-gaulois.github.io");
     await expect(footer, path).toContainText("© OpenFront and Contributors");
     await expect(footer.getByRole("link", { name: "Mentions légales", exact: true }), path).toHaveAttribute("href", "/mentions-legales");

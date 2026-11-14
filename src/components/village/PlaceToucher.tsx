@@ -1,3 +1,4 @@
+import type { ComponentChildren } from "preact";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { CLE_DU_CARNET, type Carnet, type Palier, carnetVide, dureeDeLaBulle, ecrireCarnet, lireCarnet, ponctuer, sursaute, toucherLeGaulois } from "../../lib/village/toucher";
 import type { Habitant } from "../../lib/village/vie";
@@ -87,10 +88,11 @@ export function useToucher(): { parole: Parole | null; dit: Parole | null; mot: 
 }
 
 /**
- * Dans la scène, au-dessus du Gaulois touché : son nom et ce qui le place là (ce que montrait déjà le survol), puis sa
- * phrase dans une bulle. Un seul toucher sur un téléphone donne donc les deux. Rien, si ce n'est pas lui qui parle.
+ * Dans la scène, au-dessus du Gaulois touché : son nom et ce qui le place là (ce que montrait déjà le survol, avec les
+ * plaques de la forge, `plaques`), puis sa phrase dans une bulle. Un seul toucher sur un téléphone donne donc les deux.
+ * Rien, si ce n'est pas lui qui parle.
  */
-export function BulleDuToucher({ parole, habitant }: { parole: Parole | null | undefined; habitant: Habitant }) {
+export function BulleDuToucher({ parole, habitant, plaques }: { parole: Parole | null | undefined; habitant: Habitant; plaques?: ComponentChildren }) {
   const boite = useRef<HTMLSpanElement>(null);
   const lui = estDe(parole ?? null, habitant) && parole ? parole : null;
   // Tout en haut d'un lieu, une longue phrase dépasserait de la scène, qui la couperait : elle descend d'autant, quitte à
@@ -98,7 +100,7 @@ export function BulleDuToucher({ parole, habitant }: { parole: Parole | null | u
   // marcher vers le haut pendant qu'il parle.
   useLayoutEffect(() => {
     const el = boite.current;
-    const scene = el?.closest(".place-scene");
+    const scene = el?.closest(".monde-scene");
     if (!el || !scene) return;
     let descente = 0;
     el.style.transform = "";
@@ -118,6 +120,7 @@ export function BulleDuToucher({ parole, habitant }: { parole: Parole | null | u
       <span class="toucher-qui">
         <span class="vie-info-nom">{habitant.gaulois.nom}</span>
         {habitant.presence.raison}
+        {plaques}
       </span>
       <span key={lui.tour} class="toucher-bulle" data-testid="toucher-bulle">
         {ponctuer(lui.phrase)}
@@ -135,20 +138,6 @@ export function BoutonDuToucher({ habitant, onToucher }: { habitant: Habitant; o
         <path d="M1 1h10v7H5l-3 3V8H1z" fill="currentColor" />
       </svg>
     </button>
-  );
-}
-
-/**
- * Le mot d'emploi, près du compte du lieu, tant que le visiteur n'a touché personne. Les lecteurs d'écran, à qui la scène
- * est cachée, entendent en plus où sont leurs boutons : la liste « Qui est où » est repliée.
- */
-export function MotDuToucher() {
-  return (
-    <span class="info-discrete" data-testid="toucher-mot">
-      {" "}
-      Touchez un Gaulois, il répond.
-      <span class="sr-only"> Au clavier : ouvrez « Qui est où », chaque nom y est un bouton « Parler à ».</span>
-    </span>
   );
 }
 

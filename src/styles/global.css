@@ -10515,152 +10515,6 @@ footer h2 {
   image-rendering: pixelated;
 }
 
-/* La place : le village vivant (tâche « La vie du village », 13 novembre 2026 ; PlaceDuVillage.tsx, PlaceScene.tsx).
-   Cinq lieux qu'on ouvre par leur bouton ; la scène du lieu ouvert, dessinée en cases (lieux.ts) à la largeur de l'écran,
-   s'allonge vers le bas avec la foule, jamais de côté. Une case vaut 2 pixels sur téléphone et dans la foule, 3 sur un
-   écran large quand ils sont peu (--place-case, posée par l'écran). Les couleurs du décor sont celles du dessin : elles
-   suivent l'heure de Paris (lumiere.ts). */
-.place {
-  display: grid;
-  gap: 1rem;
-  min-width: 0;
-}
-/* Les boutons des lieux : le nom, le nombre de Gaulois, et « vous y êtes ». Le lieu ouvert porte le marqueur rouge. */
-.vie-lieux {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.5rem;
-}
-@media (min-width: 600px) {
-  .vie-lieux {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-@media (min-width: 1024px) {
-  .vie-lieux {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
-}
-.vie-lieu {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  align-content: center;
-  gap: 0.125rem 0.5rem;
-  min-width: 0;
-  min-height: 3rem;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--color-line);
-  border-radius: 0.375rem;
-  background: var(--color-surface);
-  color: #fff;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  line-height: 1.25;
-  text-align: left;
-  cursor: pointer;
-}
-.vie-lieu:hover {
-  border-color: var(--color-line-strong);
-}
-.vie-lieu[aria-pressed="true"] {
-  border-color: #fff;
-  background: var(--color-surface-2);
-  box-shadow: inset 0 -3px 0 var(--color-red);
-}
-.vie-lieu[data-vide] {
-  color: var(--color-muted);
-}
-.vie-lieu-icone {
-  flex: none;
-}
-.vie-lieu-nom {
-  flex: 1 1 0;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-.vie-lieu-compte {
-  font-family: var(--font-console);
-  font-variant-numeric: tabular-nums;
-}
-.vie-lieu-vous {
-  flex-basis: 100%;
-  color: var(--color-muted);
-  font-size: 0.8125rem;
-  font-weight: 400;
-}
-/* La scène : le décor en fond, les Gaulois posés dessus à leur poste (place et pose réglées par l'écran, en cases). */
-.place-scene {
-  --place-case: 2px;
-  position: relative;
-  min-height: 6rem;
-  overflow: hidden;
-  border: 1px solid var(--color-line);
-  border-radius: 0.625rem;
-  background: var(--color-navy);
-}
-.place-decor {
-  position: absolute;
-  top: 0;
-  left: 0;
-}
-/* Le feu : sa flamme, posée sur les bûches du décor, change d'image deux fois par seconde. Coupée, elle reste allumée. */
-.vie-feu {
-  position: absolute;
-  top: calc(var(--feu-y) * var(--place-case));
-  left: calc((var(--feu-x) - 8) * var(--place-case));
-  pointer-events: none;
-}
-.vie-flamme {
-  width: calc(17 * var(--place-case));
-  height: calc(12 * var(--place-case));
-}
-/* La fumée du feu : trois petits carrés qui montent lentement et s'effacent, l'un après l'autre. Sans mouvement (bouton
-   pause, « réduire les animations »), ils restent posés au-dessus de la flamme. */
-.place-fumee {
-  position: absolute;
-  top: 0;
-  left: calc(8 * var(--place-case));
-}
-.place-fumee i {
-  position: absolute;
-  left: 0;
-  top: 0;
-  display: block;
-  width: calc(3 * var(--place-case));
-  height: calc(3 * var(--place-case));
-  background: var(--color-muted);
-  opacity: 0.3;
-  translate: calc(-2 * var(--place-case)) calc(-5 * var(--place-case));
-  animation: place-fumee 12s linear infinite;
-}
-.place-fumee i:nth-child(2) {
-  width: calc(4 * var(--place-case));
-  height: calc(4 * var(--place-case));
-  opacity: 0.2;
-  translate: calc(1 * var(--place-case)) calc(-12 * var(--place-case));
-  animation-delay: -4s;
-}
-.place-fumee i:nth-child(3) {
-  width: calc(5 * var(--place-case));
-  height: calc(5 * var(--place-case));
-  opacity: 0.12;
-  translate: calc(-3 * var(--place-case)) calc(-20 * var(--place-case));
-  animation-delay: -8s;
-}
-@keyframes place-fumee {
-  from {
-    opacity: 0;
-    translate: calc(-1 * var(--place-case)) calc(-2 * var(--place-case));
-  }
-  20% {
-    opacity: 0.32;
-  }
-  to {
-    opacity: 0;
-    translate: calc(-4 * var(--place-case)) calc(-28 * var(--place-case));
-  }
-}
 /* Un Gaulois dans la scène : sa boîte (48 cases sur 64 debout, coupée à table, couchée au lit), son dessin, son nom
    dessous. L'écran le déplace d'une case à la fois : aucune transition, le pas est celui des pixels. */
 .vie-acteur {
@@ -10679,30 +10533,6 @@ footer h2 {
 }
 .vie-adverse {
   pointer-events: none;
-}
-/* L'ombre au sol, sous les pieds de qui est debout. */
-.place-scene:is([data-lieu="place"], [data-lieu="bataille"]) .vie-acteur::before {
-  content: "";
-  position: absolute;
-  top: calc(59 * var(--place-case));
-  left: 50%;
-  width: calc(26 * var(--place-case));
-  height: calc(5 * var(--place-case));
-  translate: -50% 0;
-  border-radius: 50%;
-  background: rgb(0 0 0 / 0.28);
-}
-.place-scene[data-lieu="place"] {
-  --vie-nom-l: 50;
-}
-.place-scene[data-lieu="bataille"] {
-  --vie-nom-l: 39;
-}
-.place-scene:is([data-lieu="taverne"], [data-lieu="reunion"]) {
-  --vie-nom-l: 37;
-}
-.place-scene[data-lieu="maisons"] {
-  --vie-nom-l: 70;
 }
 .place-nom {
   position: absolute;
@@ -10840,7 +10670,6 @@ footer h2 {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .place-fumee i,
   .vie-ronfle::before {
     animation: none;
   }
@@ -10848,14 +10677,6 @@ footer h2 {
   .vie-bulle {
     transition: none;
   }
-}
-/* Sous la scène : le compte du lieu ouvert et ce qui y amène, puis l'heure du relevé. */
-.place-pied {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.25rem 1.5rem;
 }
 /* « Qui est où » : la scène en texte, lieu par lieu, pour le clavier et les lecteurs d'écran comme pour qui cherche un nom. */
 .vie-liste {
@@ -12359,31 +12180,6 @@ footer h2 {
     padding-top: 0;
     border-top: 0;
   }
-}
-
-/* Les cinq lieux sur un téléphone : la place sur toute la largeur, puis deux rangs de deux. */
-@media (max-width: 599px) {
-  .vie-lieu:first-child {
-    grid-column: 1 / -1;
-  }
-}
-
-/* Un lieu plein sur un téléphone, vu de plus loin (une case vaut 1 pixel) : les noms ne s'écrivent plus sous chacun, ils
-   se chevaucheraient ; le sien reste, les autres se lisent au toucher et dans « Qui est où ». */
-.place-scene[data-loin] .vie-acteur:not([data-moi]) .place-nom {
-  display: none;
-}
-.place-scene[data-loin] .vie-acteur[data-moi] .place-nom {
-  max-width: 9rem;
-}
-.place-scene[data-loin] .vie-acteur[data-moi][data-bord="gauche"] .place-nom {
-  left: 0;
-  translate: 0 0;
-}
-.place-scene[data-loin] .vie-acteur[data-moi][data-bord="droite"] .place-nom {
-  right: 0;
-  left: auto;
-  translate: 0 0;
 }
 
 /* ---------- La carte, le classement en colonne (13 novembre 2026, au soir) ---------- */
@@ -17463,6 +17259,30 @@ html:has(.compagnon:not([hidden]), .compagnon-prison:not([hidden])) {
 }
 .monde-acteur:not([data-tenue="couche"]) .vie-ronfle {
   display: none;
+}
+/* Les plaques de la forge (MondePlaques.tsx), sous ce qui place un Gaulois : au survol, au toucher et dans « Qui est où ».
+   Le nom de l'objet en blanc, le texte gravé dessous, sur le fond plein de l'étiquette. */
+.monde-plaques {
+  display: grid;
+  gap: 0.1875rem;
+  margin-top: 0.3125rem;
+  padding-top: 0.3125rem;
+  border-top: 1px solid var(--color-line-strong);
+}
+.monde-plaque-objet {
+  display: block;
+  color: #fff;
+  font-weight: 600;
+}
+.monde-plaque-texte {
+  display: block;
+  color: var(--color-muted);
+}
+.vie-liste-plaques {
+  flex-basis: 100%;
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
 }
 
 /* Une zone cliquable posée sur un bâtiment : elle ouvre sa fenêtre. Sous les Gaulois, qu'on touche pour les faire parler. */
