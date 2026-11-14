@@ -9,7 +9,7 @@
  * Ne pas l'importer depuis un script chargé sur chaque page.
  */
 import { GAULOIS_HAUTEUR, GAULOIS_LARGEUR, TENUE_DE_DEPART, casesDuGaulois, lireTenue, type Tenue } from "../gaulois";
-import { LIT_HAUTEUR, LIT_LARGEUR, fermerLesYeux, poseCouche, poseDeMarche, sansArme } from "../village/poses";
+import { LIT_HAUTEUR, LIT_LARGEUR, casesDesPieds, poseCouche, poseDeMarche } from "../village/poses";
 
 type Cases = readonly (string | null)[];
 
@@ -57,10 +57,11 @@ export function rgbaDeLaPlanche(planche: Planche): Uint8Array {
 export function dessinDuCompagnon(brute: unknown): DessinDuCompagnon {
   const { tenue, deDepart } = tenueDuCompagnon(brute);
   const debout = casesDuGaulois(tenue);
-  const couche = casesDuGaulois(sansArme(tenue));
+  // Les chaussures entières se lèvent avec la jambe (raquettes, patins), comme au village.
+  const pieds = casesDesPieds(tenue);
   return {
-    gaulois: { largeur: GAULOIS_LARGEUR, hauteur: GAULOIS_HAUTEUR, images: [debout, poseDeMarche(debout, "gauche"), poseDeMarche(debout, "droite"), fermerLesYeux(debout)] },
-    lit: { largeur: LIT_LARGEUR, hauteur: LIT_HAUTEUR, images: [poseCouche(couche, 0, 0).cases, poseCouche(couche, 1, 0).cases] },
+    gaulois: { largeur: GAULOIS_LARGEUR, hauteur: GAULOIS_HAUTEUR, images: [debout, poseDeMarche(debout, "gauche", pieds), poseDeMarche(debout, "droite", pieds), casesDuGaulois(tenue, { yeuxFermes: true })] },
+    lit: { largeur: LIT_LARGEUR, hauteur: LIT_HAUTEUR, images: [poseCouche(tenue, 0, 0).cases, poseCouche(tenue, 1, 0).cases] },
     deDepart,
   };
 }
