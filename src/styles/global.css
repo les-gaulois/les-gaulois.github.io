@@ -3471,6 +3471,24 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   opacity: 0.6;
   cursor: not-allowed;
 }
+/* Au clavier, l'anneau blanc entoure toute la pastille : autour du seul bouton radio, il se perdait sur le fond blanc du
+   choix. Sans `:has`, l'anneau reste sur le bouton radio, foncé sur le choix blanc. */
+.dir-objectif-sorte:has(> input:focus-visible) {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+@supports selector(:has(*)) {
+  .dir-objectif-sorte > input:focus-visible {
+    outline: none;
+  }
+}
+.dir-objectif-sorte[data-choisi] > input:focus-visible {
+  outline-color: var(--color-night);
+}
+/* La zone de la réussite existe avant l'envoi : vide, elle ne prend pas de place dans la grille. */
+.dir-objectif-message:empty {
+  position: absolute;
+}
 /* Le champ et son bouton sur une ligne, alignés par le bas ; le bouton passe dessous quand la place manque. */
 .dir-objectif-saisie {
   display: flex;
@@ -3507,6 +3525,15 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 }
 .dir-objectif-aide {
   margin-top: 1rem;
+}
+/* Sur un téléphone, « Confirmer la suppression » ne tient plus à côté de « Voir au QG » : armé, le bouton passait à la ligne
+   et fuyait sous le doigt, qui touchait alors à côté. Les deux boutons y sont l'un sous l'autre dès le départ : le bouton
+   armé s'allonge vers la droite, sans bouger. */
+@media (max-width: 29.9375rem) {
+  .dir-objectif-actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 @media (pointer: coarse), (max-width: 47.9375rem) {
   .dir-objectif-sorte {
