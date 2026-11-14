@@ -3379,10 +3379,16 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 .dir-accueil-motd {
   padding: 1.25rem;
 }
+/* Comme au QG, où ce titre est un `h2` de la console : en capitales, précédé de « ## » en rouge (décoratif). */
 .dir-accueil-motd-titre {
   font-size: 1.25rem;
   font-weight: 800;
   line-height: 1.2;
+  text-transform: uppercase;
+}
+.dir-accueil-motd-titre::before {
+  content: "## " / "";
+  color: var(--color-red);
 }
 .dir-accueil-motd-texte {
   margin-top: 0.5rem;
