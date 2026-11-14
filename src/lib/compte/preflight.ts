@@ -164,8 +164,8 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   else if (isClosed(shop.status) || (shop.ok && shopAnswer?.ok === false)) add("Un visiteur ne lit pas de boutique", "ok");
   else add("Un visiteur ne lit pas de boutique", "fail", `Réponse ${shop.status}. Ne mettez pas en ligne : seul un compte connecté lit sa boutique et son solde.`);
   const shopCalls = [
-    ["acheter_objet", { p_emplacement: "tete", p_objet: "verification" }, "Un visiteur n'achète pas d'objet"],
-    ["ouvrir_pochette", {}, "Un visiteur n'ouvre pas de pochette surprise"],
+    ["acheter_objet", { p_emplacement: "tete", p_objet: "verification", p_prix_vu: 0 }, "Un visiteur n'achète pas d'objet"],
+    ["ouvrir_pochette", { p_prix_vu: 0 }, "Un visiteur n'ouvre pas de pochette surprise"],
   ] as const;
   for (const [fn, body, label] of shopCalls) {
     const res = await rpc(fn, body);

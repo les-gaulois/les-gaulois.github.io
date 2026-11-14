@@ -131,13 +131,23 @@ describe("le serveur de l'onglet Village", () => {
   });
 
   it("note chaque changement au journal de l'encadrement, avec l'avant et l'après, et rien quand rien ne change", () => {
-    expect(corps("public.regler_village_prix")).toContain("perform internal.log_admin(v_actor, 'village_prix_saved', null, jsonb_build_object('avant', v_avant, 'apres', v_apres));");
+    // Les prix : avec, s'il y en a, le nombre d'offres du marché fermées parce que plus chères que le nouveau prix.
+    expect(corps("public.regler_village_prix")).toMatch(
+      /perform internal\.log_admin\(v_actor, 'village_prix_saved', null,\s+jsonb_build_object\('avant', v_avant, 'apres', v_apres\) \|\| case when v_fermees > 0 then jsonb_build_object\('offres_fermees', v_fermees\) else '\{\}'::jsonb end\);/,
+    );
     expect(corps("public.regler_village_pochette")).toContain("perform internal.log_admin(v_actor, 'village_pochette_saved', null, jsonb_build_object('avant', v_avant, 'apres', v_apres));");
     for (const fn of ["public.regler_village_prix", "public.regler_village_pochette"]) {
       const c = corps(fn);
       expect(c.indexOf("if v_avant is not distinct from v_apres then"), fn).toBeGreaterThan(0);
       expect(c.indexOf("if v_avant is not distinct from v_apres then"), fn).toBeLessThan(c.indexOf("perform internal.log_admin"));
     }
+  });
+
+  it("ferme au marché, après une baisse des prix, les offres plus chères que la boutique (revue de sécurité du 14 novembre 2026)", () => {
+    const c = corps("public.regler_village_prix");
+    const fermer = c.indexOf("v_fermees := internal.marche_fermer_au_dessus_des_prix();");
+    expect(fermer).toBeGreaterThan(c.indexOf("insert into internal.village_prix"));
+    expect(fermer).toBeLessThan(c.indexOf("perform internal.log_admin"));
   });
 
   it("garde le seuil de 5 comptes, et ne lit jamais la table des soldes", () => {

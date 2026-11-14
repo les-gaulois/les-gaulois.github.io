@@ -195,13 +195,15 @@ describe("les mots de l'écran", () => {
   });
 
   it("a un message pour chaque refus de la boutique", () => {
-    const codes = ["not_validated", "no_gaulois", "unknown_objet", "objet_gratuit", "deja_possede", "solde_insuffisant"];
+    const codes = ["not_validated", "no_gaulois", "unknown_objet", "objet_gratuit", "deja_possede", "solde_insuffisant", "prix_change"];
     const messages = codes.map((code) => messageDuRefus(code));
     expect(new Set(messages).size).toBe(codes.length);
     for (const message of messages) expect(message).not.toBe("Une erreur inattendue est survenue.");
     expect(messageDuRefus("solde_insuffisant", { manque: 1860 })).toBe(`Il vous manque 1${FINE}860${NBSP}statères.`);
     expect(messageDuRefus("solde_insuffisant", { manque: null })).toBe("Vous n'avez pas assez de statères.");
     expect(messageDuRefus("rate_limited")).toContain("patientez");
+    // Le prix a changé entre l'affichage et le clic : une phrase, la boutique est relue derrière.
+    expect(messageDuRefus("prix_change")).toBe("Le prix vient de changer : regardez le nouveau avant d'acheter.");
     expect(raisonBoutiqueFermee(false)).toBe(messageDuRefus("no_gaulois"));
     expect(raisonBoutiqueFermee(true)).toBe(messageDuRefus("not_validated"));
   });

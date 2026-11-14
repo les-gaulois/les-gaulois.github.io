@@ -26,10 +26,13 @@
 -- - Trou bouché dans la boutique : un objet en vente compte comme possédé. acheter_objet (remplacée) refuse de le racheter
 --   (`deja_possede`), comme acheter_offre.
 -- - `vendeur` : le nom que le QG montre déjà pour ce compte, public.profiles.display_name (internal.member_face, migration
---   20261109000100). Jamais une adresse ni raw_user_meta_data.
+--   20261109000100), seulement s'il se montre aux autres membres (profiles.show_to_members, la règle du mur du QG) ou si
+--   c'est l'appelant ; sinon « Un Gaulois ». Jamais une adresse ni raw_user_meta_data.
+-- - Une baisse des prix de la boutique ferme les offres plus chères que le nouveau prix (internal.marche_fermer_au_dessus_des_prix,
+--   appelée par regler_village_prix, migration 20261113002100) : l'objet revient à son vendeur.
 --
 -- La place du village : les Gaulois de tous les comptes validés, par ordre de création de leur Gaulois, avec le nom que le QG
--- montre et leur tenue. Le pilote n'a pas voulu de case pour s'en retirer (13 novembre 2026). Elle se lit par un compte validé
+-- montre (« Un Gaulois » pour qui ne se montre pas aux autres membres) et leur tenue. Le pilote n'a pas voulu de case pour s'en retirer (13 novembre 2026). Elle se lit par un compte validé
 -- ou de l'encadrement (officier et au-dessus). Un solde ne s'y lit jamais.
 --
 -- Les verrous, pour que deux gestes ne se bloquent jamais en croix : un geste du marché qui touche plusieurs comptes (un
@@ -39,14 +42,15 @@
 --
 -- Ce qui est gardé :
 -- - internal.marche_offres : chaque offre, son vendeur, l'objet, son prix, l'origine de l'exemplaire, son état (ouverte,
---   vendue, retirée, finie), son acheteur et ses dates. S'efface avec le compte du vendeur (une offre ouverte part avec son
---   objet) ; l'acheteur d'un compte effacé n'y est plus nommé.
+--   vendue, finie), son acheteur et ses dates. S'efface avec le compte du vendeur (une offre ouverte part avec son objet) ;
+--   l'acheteur d'un compte effacé n'y est plus nommé. Une offre retirée s'efface aussitôt ; une offre vendue ou finie, 30 jours
+--   après, à la lecture suivante du marché ou de la boutique (internal.marche_expirer) : la table ne grossit pas sans fin.
 -- - internal.gaulois_inventaire.du_marche : le nombre d'exemplaires venus du marché.
 --
 -- Qui peut quoi :
--- - get_marche, mettre_en_vente, retirer_offre, acheter_offre : un compte validé. Les trois dernières sont limitées à 30
---   appels par minute, comme les achats.
--- - get_village : un compte validé ou de l'encadrement.
+-- - get_marche, mettre_en_vente, retirer_offre, acheter_offre : un compte validé. Toutes sont limitées à 30 appels par
+--   minute, comme les achats (les lectures aussi : elles renvoient de grosses réponses).
+-- - get_village : un compte validé ou de l'encadrement, limitée de même.
 -- - get_ma_boutique (remplacée) : la même, qui constate d'abord la fin des offres, pour que l'objet revenu se voie.
 --
 -- Rien n'est écrit au journal de l'encadrement : ce sont des gestes de joueurs. Aucun solde ne se lit pour un autre compte.
@@ -86,6 +90,7 @@ create table if not exists internal.marche_offres (
 );
 create index if not exists marche_offres_ouvertes on internal.marche_offres (vendeur_id) where etat = 'ouverte';
 create index if not exists marche_offres_a_finir on internal.marche_offres (expire_le) where etat = 'ouverte';
+create index if not exists marche_offres_closes on internal.marche_offres (ferme_le) where etat <> 'ouverte';
 
 -- Table privée : seules les fonctions ci-dessous la lisent ou l'écrivent.
 alter table internal.marche_offres enable row level security;
@@ -135,6 +140,8 @@ end $$;
 -- Constate la fin des offres ouvertes dont l'heure est passée : chacune finit à son heure, et son objet revient à son
 -- vendeur, quel que soit l'état de son compte. Appelée à chaque lecture du marché et de la boutique, et avant chaque geste :
 -- aucune tâche planifiée. Rien à faire, rien de verrouillé. Renvoie le nombre d'offres finies.
+-- Efface aussi les offres closes (vendues ou finies) depuis plus de 30 jours : plus rien ne les lit (le journal des statères
+-- ne garde que le numéro d'une offre vendue, dans `ref`), et la table ne grossit pas sans fin.
 create or replace function internal.marche_expirer() returns integer
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare
@@ -142,6 +149,7 @@ declare
   v_o record;
   v_n integer := 0;
 begin
+  delete from internal.marche_offres m where m.etat <> 'ouverte' and m.ferme_le < now() - interval '30 days';
   if not exists (select 1 from internal.marche_offres m where m.etat = 'ouverte' and m.expire_le <= now()) then
     return 0;
   end if;
@@ -162,6 +170,41 @@ begin
   return v_n;
 end $$;
 
+-- Ferme les offres ouvertes plus chères que le prix de leur objet à la boutique : après une baisse des prix par
+-- l'encadrement (regler_village_prix, migration 20261113002100), personne ne paie au marché plus que la boutique. Chacune
+-- finit comme une offre arrivée à son heure (« expiree », maintenant), et son objet revient à son vendeur, avec son origine.
+-- Le verrou du marché, puis ceux des vendeurs dans l'ordre des user_id, comme marche_expirer. Renvoie le nombre d'offres
+-- fermées.
+create or replace function internal.marche_fermer_au_dessus_des_prix() returns integer
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_vendeur uuid;
+  v_o record;
+  v_n integer := 0;
+begin
+  perform internal.marche_verrou();
+  for v_vendeur in
+    select distinct m.vendeur_id
+    from internal.marche_offres m
+    join internal.gaulois_objets o on o.emplacement = m.emplacement and o.objet = m.objet
+    join internal.village_prix p on p.rarete = o.rarete
+    where m.etat = 'ouverte' and m.prix > p.prix
+    order by 1
+  loop
+    perform internal.village_verrou(v_vendeur);
+  end loop;
+  for v_o in
+    update internal.marche_offres m set etat = 'expiree', ferme_le = now()
+    from internal.gaulois_objets o, internal.village_prix p
+    where m.etat = 'ouverte' and o.emplacement = m.emplacement and o.objet = m.objet and p.rarete = o.rarete and m.prix > p.prix
+    returning m.vendeur_id, m.emplacement, m.objet, m.origine
+  loop
+    perform internal.marche_rendre(v_o.vendeur_id, v_o.emplacement, v_o.objet, v_o.origine, now());
+    v_n := v_n + 1;
+  end loop;
+  return v_n;
+end $$;
+
 -- Le marché vu par `p_uid`, l'appelant : son solde, les offres ouvertes (les plus récentes d'abord), sauf celles d'un compte
 -- qui n'est plus validé, et le nombre d'offres permis. Jamais le solde d'un autre.
 create or replace function internal.marche_json(p_uid uuid) returns jsonb
@@ -171,7 +214,9 @@ language sql stable security definer set search_path = public, pg_temp as $$
     'solde', coalesce((select s.solde from internal.stateres_soldes s where s.user_id = p_uid), 0),
     'offres', coalesce((
       select jsonb_agg(jsonb_build_object(
-          'id', m.id, 'emplacement', m.emplacement, 'objet', m.objet, 'prix', m.prix, 'vendeur', p.display_name,
+          'id', m.id, 'emplacement', m.emplacement, 'objet', m.objet, 'prix', m.prix,
+          -- Le nom du vendeur seulement s'il se montre aux autres membres (le choix du QG), ou si c'est l'appelant.
+          'vendeur', case when p.show_to_members or m.vendeur_id = p_uid then p.display_name else 'Un Gaulois' end,
           'a_moi', m.vendeur_id = p_uid, 'expire_le', m.expire_le)
         order by m.cree_le desc, m.id desc)
       from internal.marche_offres m
@@ -187,18 +232,21 @@ revoke all on function internal.marche_verrou() from public, anon, authenticated
 revoke all on function internal.marche_membre() from public, anon, authenticated;
 revoke all on function internal.marche_rendre(uuid, text, text, text, timestamptz) from public, anon, authenticated;
 revoke all on function internal.marche_expirer() from public, anon, authenticated;
+revoke all on function internal.marche_fermer_au_dessus_des_prix() from public, anon, authenticated;
 revoke all on function internal.marche_json(uuid) from public, anon, authenticated;
 
 /* ---------- Le marché ---------- */
 
 -- Le marché de l'appelant (`Marche` du contrat) : { ok: true, solde, offres, offres_max }. Constate d'abord la fin des offres,
--- et crédite ce qui revient déjà à l'appelant, comme la boutique. Refus : not_signed_in, suspended, not_validated.
+-- et crédite ce qui revient déjà à l'appelant, comme la boutique. Refus : not_signed_in, suspended, not_validated,
+-- rate_limited (limitée comme les gestes : l'écran ne la lit qu'à l'ouverture de l'onglet et après un refus).
 create or replace function public.get_marche() returns jsonb
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare
   v_uid uuid;
   v_detail text;
 begin
+  if internal.limit_exceeded() then return internal.error_json('rate_limited', ''); end if;
   begin
     v_uid := internal.marche_membre();
   exception when sqlstate 'GA001' then
@@ -275,8 +323,9 @@ end $$;
 revoke all on function public.mettre_en_vente(text, text, numeric) from public, anon, authenticated;
 grant execute on function public.mettre_en_vente(text, text, numeric) to authenticated;
 
--- Retire une de ses offres ouvertes : l'objet revient dans l'inventaire, avec son origine de départ. Répond le marché à
--- jour. Refus : offre_fermee (offre inconnue, d'un autre, vendue, retirée ou finie), not_validated, et ceux de tout compte.
+-- Retire une de ses offres ouvertes : l'objet revient dans l'inventaire, avec son origine de départ, et l'offre s'efface
+-- (rien ne la lit plus ; gardée, la boucle « mettre en vente, retirer » ferait grossir la table sans fin). Répond le marché
+-- à jour. Refus : offre_fermee (offre inconnue, d'un autre, vendue, retirée ou finie), not_validated, et ceux de tout compte.
 create or replace function public.retirer_offre(p_id bigint) returns jsonb
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare
@@ -291,7 +340,7 @@ begin
     perform internal.village_verrou(v_uid);
     select * into v_offre from internal.marche_offres m where m.id = p_id for update;
     if not found or v_offre.vendeur_id <> v_uid or v_offre.etat <> 'ouverte' then perform internal.fail('offre_fermee'); end if;
-    update internal.marche_offres m set etat = 'retiree', ferme_le = now() where m.id = v_offre.id;
+    delete from internal.marche_offres m where m.id = v_offre.id;
     perform internal.marche_rendre(v_uid, v_offre.emplacement, v_offre.objet, v_offre.origine, now());
     return internal.marche_json(v_uid);
   exception when sqlstate 'GA001' then
@@ -367,14 +416,17 @@ grant execute on function public.acheter_offre(bigint) to authenticated;
 
 -- La place (`Village` du contrat) : { ok: true, gaulois: [{ nom, tenue, moi }] }, les Gaulois de tous les comptes validés,
 -- par ordre de création de leur Gaulois. Pour un compte validé ou de l'encadrement ; refus : not_signed_in, suspended,
--- not_validated. Ni solde, ni objet possédé : seulement la tenue que chacun porte.
+-- not_validated, rate_limited. Ni solde, ni objet possédé : seulement la tenue que chacun porte. `nom` : le nom que le QG
+-- montre, seulement pour un compte qui se montre aux autres membres (profiles.show_to_members) et pour l'appelant ; sinon
+-- « Un Gaulois ». Remplacée par la vie du village (migration 20261113002300), avec les mêmes règles.
 create or replace function public.get_village() returns jsonb
-language plpgsql stable security definer set search_path = public, pg_temp as $$
+language plpgsql security definer set search_path = public, pg_temp as $$
 declare
   v_uid uuid := auth.uid();
   v_status public.member_status;
   v_role public.site_role;
 begin
+  if internal.limit_exceeded() then return internal.error_json('rate_limited', ''); end if;
   if v_uid is null then return internal.error_json('not_signed_in', ''); end if;
   select p.status, p.role into v_status, v_role from public.profiles p where p.user_id = v_uid;
   if not found then return internal.error_json('not_signed_in', ''); end if;
@@ -383,7 +435,9 @@ begin
   return jsonb_build_object(
     'ok', true,
     'gaulois', coalesce((
-      select jsonb_agg(jsonb_build_object('nom', p.display_name, 'tenue', g.tenue, 'moi', g.user_id = v_uid) order by g.created_at, g.user_id)
+      select jsonb_agg(jsonb_build_object(
+          'nom', case when p.show_to_members or g.user_id = v_uid then p.display_name else 'Un Gaulois' end,
+          'tenue', g.tenue, 'moi', g.user_id = v_uid) order by g.created_at, g.user_id)
       from internal.gaulois g
       join public.profiles p on p.user_id = g.user_id
       where p.status = 'validated'), '[]'::jsonb)
@@ -440,10 +494,10 @@ end $$;
 revoke all on function public.get_ma_boutique() from public, anon, authenticated;
 grant execute on function public.get_ma_boutique() to authenticated;
 
--- Comme la version de 20261113001900, et un objet que l'appelant a en vente compte comme possédé (`deja_possede`) : sans
--- cela, il le rachèterait à la boutique, puis retirerait son offre pour en avoir deux. La fin des offres est constatée avant
--- le verrou du compte (verrou du marché d'abord).
-create or replace function public.acheter_objet(p_emplacement text, p_objet text) returns jsonb
+-- Comme la version de 20261113001900 (prix vu compris : `prix_change`), et un objet que l'appelant a en vente compte comme
+-- possédé (`deja_possede`) : sans cela, il le rachèterait à la boutique, puis retirerait son offre pour en avoir deux. La fin
+-- des offres est constatée avant le verrou du compte (verrou du marché d'abord).
+create or replace function public.acheter_objet(p_emplacement text, p_objet text, p_prix_vu integer) returns jsonb
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare
   v_uid uuid;
@@ -469,6 +523,8 @@ begin
       or exists (select 1 from internal.marche_offres m where m.vendeur_id = v_uid and m.etat = 'ouverte' and m.emplacement = p_emplacement and m.objet = p_objet) then
       perform internal.fail('deja_possede');
     end if;
+    -- Le prix a changé depuis que le membre l'a vu : rien n'est débité.
+    if p_prix_vu is distinct from v_prix then perform internal.fail('prix_change'); end if;
     perform internal.crediter_stateres(v_uid);
     perform internal.village_debiter(v_uid, 'achat', v_prix, p_emplacement || '/' || p_objet);
     insert into internal.gaulois_inventaire (user_id, emplacement, objet, quantite, origine)
@@ -487,5 +543,5 @@ begin
   end;
 end $$;
 
-revoke all on function public.acheter_objet(text, text) from public, anon, authenticated;
-grant execute on function public.acheter_objet(text, text) to authenticated;
+revoke all on function public.acheter_objet(text, text, integer) from public, anon, authenticated;
+grant execute on function public.acheter_objet(text, text, integer) to authenticated;

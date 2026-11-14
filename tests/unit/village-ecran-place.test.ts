@@ -61,6 +61,14 @@ describe("la réponse du serveur", () => {
     expect(sonGauloisManque({ ok: true, gaulois: [gaulois("A"), gaulois("Moi", true)] })).toBe(false);
   });
 
+  // Un compte qui ne se montre pas aux autres membres paraît sous le nom « Un Gaulois » (revue de sécurité du 14 novembre
+  // 2026) : plusieurs Gaulois du même nom sont tous gardés, chacun à son rang.
+  it("garde chaque « Un Gaulois », même nommés pareil, et le sien sous son nom", () => {
+    const v = lireVillage({ ok: true, gaulois: [gaulois("Un Gaulois"), gaulois("Un Gaulois"), gaulois("Moi", true), gaulois("Un Gaulois")] });
+    expect(v?.gaulois.map((g) => g.nom)).toEqual(["Un Gaulois", "Un Gaulois", "Moi", "Un Gaulois"]);
+    expect(sonGauloisManque(v!)).toBe(false);
+  });
+
   it("dit en mots qu'un compte pas encore validé n'entre pas", () => {
     expect(messageDeLaPlace("not_validated")).toBe("La place s'ouvre une fois votre compte validé.");
     expect(messageDeLaPlace("network")).toBeNull();

@@ -211,7 +211,7 @@ describe("le contrôle de la mise en ligne", () => {
     // Le visiteur ne demande jamais un objet qui existe : rien ne serait débité même si le droit était mal posé.
     seen.length = 0;
     await run();
-    expect(JSON.parse(seen.find((s) => s.url.endsWith("/rpc/acheter_objet"))?.body ?? "null")).toEqual({ p_emplacement: "tete", p_objet: "verification" });
+    expect(JSON.parse(seen.find((s) => s.url.endsWith("/rpc/acheter_objet"))?.body ?? "null")).toEqual({ p_emplacement: "tete", p_objet: "verification", p_prix_vu: 0 });
   });
 
   it("bloque si un visiteur lit le marché ou la place du village, et signale le marché pas encore installé", async () => {

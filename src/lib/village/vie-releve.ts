@@ -10,7 +10,9 @@
  *    serveur qui décide : plus aucune bulle demandée quand l'encadrement les a coupées ou que la dépense du mois atteint le
  *    plafond, une demande toutes les 6 heures au plus par Gaulois, et seulement quand ses faits ont changé depuis la
  *    précédente.
- * 2. Avec le jeton du robot des arrivées (secret DISCORD_BOT_TOKEN) : l'état vocal de chacun, un appel par membre
+ * 2. Avec le jeton du robot des arrivées (secret DISCORD_BOT_TOKEN) : les salons du serveur, une fois (seul un salon vocal
+ *    public compte « en vocal »), puis l'état vocal de chaque membre qui se montre aux autres membres (le serveur ne donne
+ *    pas l'identifiant Discord des autres), un appel par membre
  *    (`GET /guilds/{serveur}/voice-states/{membre}`), une pause entre deux, au plus `MAX_VOCAL` appels et `MAX_VOCAL_MS` par
  *    passage, les plus anciens relevés d'abord. Arrêt net au premier 401 ou 403 ; un 429 attend ce que Discord demande, une
  *    fois. Puis `noter_vie_du_village` reçoit les états.
@@ -38,7 +40,7 @@ import { DISCORD_API } from "../arrivees-discord";
 import type { RpcResult } from "../compte/roster";
 import { isSnowflake } from "../discord-commande";
 import { EMPLACEMENTS_OBJETS, OBJETS, lireTenue, type Tenue } from "../gaulois";
-import { CONSIGNE, LIEUX_ECRITS, MAX_REPLIQUES_PAR_PASSAGE, MAX_SIGNES, MOMENTS_ECRITS, MOTS_INTERDITS, SCHEMA_REPONSE } from "./consigne-repliques";
+import { CONSIGNE, LIEUX_ECRITS, MAJUSCULES_PERMISES, MAX_REPLIQUES_PAR_PASSAGE, MAX_SIGNES, MOMENTS_ECRITS, MOTS_INTERDITS, SCHEMA_REPONSE } from "./consigne-repliques";
 import { instantDeParis } from "./lumiere";
 import { heureDeParis, ilFaitNuit, lieuDuGaulois, type Lieu } from "./vie";
 
@@ -143,8 +145,41 @@ export interface ReleveVocal {
   vocal: boolean | null;
 }
 
-/** Pourquoi un relevé s'est arrêté avant la fin. */
-export type ArretVocal = "jeton" | "droits" | "serveur" | "limite" | "discord" | "reseau" | "temps" | "nombre";
+/** Pourquoi un relevé s'est arrêté avant la fin. `salons` : la liste des salons ne se lit pas, aucun relevé à ce passage. */
+export type ArretVocal = "jeton" | "droits" | "serveur" | "limite" | "discord" | "reseau" | "temps" | "nombre" | "salons";
+
+/** Les permissions de Discord qui font un salon public : le voir et s'y connecter. */
+export const VOIR_LE_SALON = 1n << 10n;
+export const SE_CONNECTER = 1n << 20n;
+/** Les salons vocaux de Discord : vocal (2) et scène (13). */
+export const TYPES_VOCAUX: readonly number[] = [2, 13];
+
+/**
+ * Les salons vocaux publics du serveur, d'après `GET /guilds/{serveur}/channels` : un salon vocal ou une scène où le rôle
+ * `@everyone` (son identifiant est celui du serveur) ne se voit refuser ni « Voir le salon » ni « Se connecter » dans les
+ * permissions propres du salon. Un membre dans un autre salon (privé, de l'encadrement) n'est pas montré « en vocal » sur la
+ * place. `null` : la réponse n'est pas une liste de salons. Un salon aux permissions illisibles ne compte pas comme public.
+ */
+export function salonsVocauxPublics(salons: unknown, guildId: string): Set<string> | null {
+  if (!Array.isArray(salons)) return null;
+  const publics = new Set<string>();
+  for (const salon of salons) {
+    if (!estObjet(salon) || typeof salon["id"] !== "string" || !TYPES_VOCAUX.includes(salon["type"] as number)) continue;
+    const reglages = salon["permission_overwrites"] ?? [];
+    if (!Array.isArray(reglages)) continue;
+    const tous = reglages.find((r) => estObjet(r) && r["id"] === guildId);
+    let refuse = 0n;
+    if (tous !== undefined) {
+      try {
+        refuse = BigInt(String((tous as Record<string, unknown>)["deny"] ?? "0"));
+      } catch {
+        continue;
+      }
+    }
+    if ((refuse & VOIR_LE_SALON) === 0n && (refuse & SE_CONNECTER) === 0n) publics.add(salon["id"]);
+  }
+  return publics;
+}
 
 export interface VocauxDeps {
   token: string;
@@ -187,6 +222,7 @@ async function appelDiscord(url: string, token: string, send: typeof fetch): Pro
 }
 
 /**
+ * D'abord la liste des salons du serveur, une fois (`salonsVocauxPublics`) : sans elle, aucun relevé. Puis
  * L'état vocal des Gaulois qui ont un compte Discord, dans l'ordre de la liste (le serveur met les plus anciens relevés
  * d'abord). Réponses de Discord (documentation « Get User Voice State », 13 novembre 2026) :
  * - 200 : l'état vocal ; `channel_id` donne le salon, vide s'il n'est dans aucun ;
@@ -202,6 +238,16 @@ export async function releverLesVocaux(gaulois: readonly GauloisAuTravail[], dep
   const releves: ReleveVocal[] = [];
   const debut = deps.horloge();
   let appels = 0;
+  if (!gaulois.some((g) => g.discord !== null)) return { releves, arret: null };
+  // D'abord, une fois par passage, les salons du serveur : seul un salon vocal public compte « en vocal ». Sans eux, aucun
+  // relevé : un membre dans un salon privé ne doit jamais être montré en vocal.
+  const liste = await appelDiscord(`${DISCORD_API}/guilds/${deps.guildId}/channels`, deps.token, deps.fetch);
+  if (liste === null) return { releves, arret: "reseau" };
+  if (liste.status === 401) return { releves, arret: "jeton" };
+  if (liste.status === 404 && estObjet(liste.corps) && liste.corps["code"] === 10004) return { releves, arret: "serveur" };
+  if (liste.status === 429) return { releves, arret: "limite" };
+  const publics = liste.status === 200 ? salonsVocauxPublics(liste.corps, deps.guildId) : null;
+  if (publics === null) return { releves, arret: "salons" };
   for (const g of gaulois) {
     if (g.discord === null) continue;
     if (appels >= limites.max) return { releves, arret: "nombre" };
@@ -222,7 +268,7 @@ export async function releverLesVocaux(gaulois: readonly GauloisAuTravail[], dep
     const code = estObjet(reponse.corps) ? reponse.corps["code"] : undefined;
     if (reponse.status === 200) {
       const salon = estObjet(reponse.corps) ? reponse.corps["channel_id"] : undefined;
-      releves.push({ n: g.n, vocal: typeof salon === "string" && salon !== "" });
+      releves.push({ n: g.n, vocal: typeof salon === "string" && publics.has(salon) });
     } else if (reponse.status === 404) {
       if (code === 10004) return { releves, arret: "serveur" };
       releves.push({ n: g.n, vocal: false });
@@ -259,6 +305,8 @@ export const ARRETS_VOCAL: Readonly<Record<ArretVocal, string>> = {
   reseau: "Vie du village : Discord ne répond pas. La suite du relevé au prochain passage.",
   temps: "Vie du village : temps du relevé écoulé, la suite au prochain passage.",
   nombre: "Vie du village : nombre d'appels du passage atteint, la suite au prochain passage.",
+  salons:
+    "::warning::Vie du village : la liste des salons du serveur ne se lit pas : aucun état vocal relevé à ce passage (un salon privé ne doit jamais compter « en vocal »).",
 };
 
 /* ---------- Les faits d'une bulle ---------- */
@@ -487,7 +535,36 @@ export function normaliserPourLesMots(texte: string): string {
   return ` ${t} `;
 }
 
-const nombresDe = (texte: string): number[] => (texte.match(NOMBRE) ?? []).map((n) => Number(n.replace(",", ".")));
+/**
+ * Un nombre écrit, sous une forme décimale exacte : sans zéro inutile à gauche ni à droite, le point pour virgule. Deux
+ * nombres sont égaux exactement quand leurs formes le sont, comme le compare le serveur (type `numeric`) : « 21,0 » vaut
+ * « 21 », mais « 21.0000000000000001 » ne vaut pas « 21 », alors qu'un nombre à virgule flottante les confondrait.
+ */
+export function nombreExact(ecrit: string): string {
+  const [entier = "", decimales = ""] = ecrit.replace(",", ".").split(".");
+  const e = entier.replace(/^0+(?=\d)/, "");
+  const d = decimales.replace(/0+$/, "");
+  return d === "" ? e : `${e}.${d}`;
+}
+
+const nombresDe = (texte: string): string[] => (texte.match(NOMBRE) ?? []).map(nombreExact);
+
+/** Les lettres du français, pour borner un mot (les mêmes que dans les signes permis). */
+const LETTRES = "A-Za-zÀÂÄÉÈÊËÎÏÔÖÙÛÜŸÇàâäéèêëîïôöùûüÿçŒœÆæ";
+const MAJUSCULE = "A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜŸÇŒÆ";
+
+/**
+ * Une majuscule hors de sa place : ni au début de la bulle, ni au début d'une phrase (après « . », « ! », « ? » ou « … » et
+ * une espace), un guillemet « ouvrant permis devant, ni dans un mot permis (`MAJUSCULES_PERMISES`). Le même calcul que le
+ * serveur (`internal.village_vie_replique_valide`) : les mots permis, puis les débuts de phrase, sont retirés ; il ne doit
+ * plus rester de majuscule.
+ */
+export function majusculeHorsPlace(texte: string): boolean {
+  let reste = texte;
+  for (const mot of MAJUSCULES_PERMISES) reste = reste.replace(new RegExp(`(?<![${LETTRES}])${mot}(?![${LETTRES}])`, "g"), "_");
+  reste = reste.replace(new RegExp(`^((?:« )?)[${MAJUSCULE}]`), "$1_").replace(new RegExp(`([.!?…] (?:« )?)[${MAJUSCULE}]`, "g"), "$1_");
+  return new RegExp(`[${MAJUSCULE}]`).test(reste);
+}
 
 /** La phrase, sans espace en trop ni guillemets droits autour : la forme qu'elle a sur la place. */
 export function nettoyerPhrase(texte: string): string {
@@ -515,6 +592,7 @@ export function controlerReplique(brut: unknown, faits: FaitsDuGaulois): Control
   if (nombresDe(texte).some((n) => !permis.includes(n))) return { ok: false, raison: "chiffre absent des faits" };
   const mots = normaliserPourLesMots(texte);
   if (MOTS_INTERDITS.some((m) => mots.includes(m))) return { ok: false, raison: "mot interdit" };
+  if (majusculeHorsPlace(texte)) return { ok: false, raison: "majuscule hors d'un début de phrase" };
   return { ok: true, texte };
 }
 
@@ -577,7 +655,7 @@ export async function vieDuVillage(deps: VieDeps): Promise<BilanDeLaVie> {
     releves = resultat.releves;
     if (resultat.arret) {
       deps.log(ARRETS_VOCAL[resultat.arret]);
-      if (resultat.arret === "jeton" || resultat.arret === "droits" || resultat.arret === "serveur") bilan.erreurs++;
+      if (resultat.arret === "jeton" || resultat.arret === "droits" || resultat.arret === "serveur" || resultat.arret === "salons") bilan.erreurs++;
     }
     if (releves.length > 0 && (await noter({ vocaux: releves }, "les états vocaux"))) {
       bilan.vocaux = releves.length;
@@ -620,6 +698,9 @@ export async function vieDuVillage(deps: VieDeps): Promise<BilanDeLaVie> {
         const servis = new Set(acceptees.map((a) => a.n));
         const sansBulle = lot.filter((g) => !servis.has(g.n)).map((g) => g.n);
         if (await noter({ repliques: acceptees, sans_bulle: sansBulle }, "les bulles")) bilan.envoyees = acceptees.length;
+        // Refusé en entier (une phrase que le serveur juge autrement) : tout le lot est noté comme demandé sans bulle, pour
+        // que Claude ne soit pas redemandé à chaque passage pour les mêmes Gaulois.
+        else if (acceptees.length > 0) await noter({ sans_bulle: lot.map((g) => g.n) }, "les demandes sans bulle");
       }
       deps.log(
         `Vie du village : ${lot.length} bulle(s) demandée(s), ${bilan.envoyees} envoyée(s), ${bilan.ecartees} écartée(s) au contrôle` +

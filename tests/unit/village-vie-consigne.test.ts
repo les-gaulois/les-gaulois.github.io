@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { EMPLACEMENTS_OBJETS, OBJETS } from "../../src/lib/gaulois";
-import { CONSIGNE, LIEUX_ECRITS, MAX_REPLIQUES_PAR_PASSAGE, MAX_SIGNES, MOMENTS_ECRITS, MOTS_INTERDITS, SCHEMA_REPONSE } from "../../src/lib/village/consigne-repliques";
+import { CONSIGNE, LIEUX_ECRITS, MAJUSCULES_PERMISES, MAX_REPLIQUES_PAR_PASSAGE, MAX_SIGNES, MOMENTS_ECRITS, MOTS_INTERDITS, SCHEMA_REPONSE } from "../../src/lib/village/consigne-repliques";
 import { LIEUX } from "../../src/lib/village/vie";
 import { MOMENTS, SIGNES_PERMIS, normaliserPourLesMots } from "../../src/lib/village/vie-releve";
 
@@ -41,6 +41,18 @@ describe("les mots interdits", () => {
     const liste = corps("internal.village_vie_mots_interdits");
     const duServeur = [...liste.matchAll(/'([^']*)'/g)].map((m) => m[1]);
     expect(duServeur).toEqual([...MOTS_INTERDITS]);
+  });
+
+  it("vont avec les mêmes mots à majuscule permise que le serveur, dans le même ordre", () => {
+    const liste = corps("internal.village_vie_majuscules_permises");
+    expect([...liste.matchAll(/'([^']*)'/g)].map((m) => m[1])).toEqual([...MAJUSCULES_PERMISES]);
+    // Les plus longs d'abord : « Gauloises » ne doit pas être lu « Gaulois » suivi de « es ».
+    expect(MAJUSCULES_PERMISES.every((mot, i) => MAJUSCULES_PERMISES.slice(0, i).every((avant) => !mot.startsWith(avant)))).toBe(true);
+    // Le serveur retire les débuts de phrase comme le robot : au début, ou après « . », « ! », « ? », « … » et une espace,
+    // un guillemet ouvrant permis devant.
+    const sql = corps("internal.village_vie_replique_valide");
+    expect(sql).toContain("regexp_replace(v_reste, '^((?:« )?)[A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜŸÇŒÆ]', '\\1_')");
+    expect(sql).toContain("regexp_replace(v_reste, '([.!?…] (?:« )?)[A-ZÀÂÄÉÈÊËÎÏÔÖÙÛÜŸÇŒÆ]', '\\1_', 'g')");
   });
 
   it("sont écrits comme le texte normalisé : minuscules sans accent, une espace devant", () => {

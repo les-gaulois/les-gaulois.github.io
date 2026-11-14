@@ -275,12 +275,15 @@ revoke all on function internal.village_reglages_verrou() from public, anon, aut
 
 -- Les prix de la boutique : { ok: true, change, prix }. `change` : faux si les prix étaient déjà ceux-là (rien n'est noté).
 -- Refus : prix_invalides ; et ceux de tout réglage (not_signed_in, suspended, not_validated, forbidden, rate_limited).
+-- Après une baisse, les offres du marché plus chères que le nouveau prix de leur objet sont fermées, et leur objet revient
+-- à son vendeur (internal.marche_fermer_au_dessus_des_prix, migration 20261113002000) ; le journal en dit le nombre.
 create or replace function public.regler_village_prix(p_prix jsonb) returns jsonb
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare
   v_actor uuid;
   v_avant jsonb;
   v_apres jsonb;
+  v_fermees integer;
   v_detail text;
 begin
   if internal.limit_exceeded() then return internal.error_json('rate_limited', ''); end if;
@@ -297,7 +300,9 @@ begin
     select n.key, (n.value #>> '{}')::integer, now() from jsonb_each(v_apres) n
     on conflict (rarete) do update set prix = excluded.prix, maj_le = excluded.maj_le
       where p.prix is distinct from excluded.prix;
-    perform internal.log_admin(v_actor, 'village_prix_saved', null, jsonb_build_object('avant', v_avant, 'apres', v_apres));
+    v_fermees := internal.marche_fermer_au_dessus_des_prix();
+    perform internal.log_admin(v_actor, 'village_prix_saved', null,
+      jsonb_build_object('avant', v_avant, 'apres', v_apres) || case when v_fermees > 0 then jsonb_build_object('offres_fermees', v_fermees) else '{}'::jsonb end);
     return jsonb_build_object('ok', true, 'change', true, 'prix', v_apres);
   exception when sqlstate 'GA001' then
     get stacked diagnostics v_detail = pg_exception_detail;

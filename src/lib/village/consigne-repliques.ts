@@ -130,7 +130,27 @@ export const MOTS_INTERDITS: readonly string[] = [
   " negre",
   " bougnoul",
   " youpin",
+  // La moquerie (revue de sécurité du 14 novembre 2026). « nul » et ses formes en mots entiers : ni « annuler » ni « granule »
+  // ne sont arrêtés (« nulle part » l'est, tant pis) ; les autres arrêtent aussi leurs formes (« abrutis », « idiote »).
+  " nul ",
+  " nuls ",
+  " nulle ",
+  " nulles ",
+  " abruti",
+  " idiot",
+  " tocard",
+  " cretin",
+  " debile",
+  " imbecile",
 ];
+
+/**
+ * Les mots qui gardent leur majuscule au milieu d'une phrase. Toute autre majuscule doit ouvrir la bulle ou une phrase (après
+ * « . », « ! », « ? » ou « … » et une espace) : un nom propre (une personne, un clan, une marque) ne passe pas. La même liste
+ * que `internal.village_vie_majuscules_permises` du serveur, dans le même ordre (un test garde les deux identiques) : les
+ * plus longs d'abord. « Discord » reste de toute façon arrêté par les mots interdits.
+ */
+export const MAJUSCULES_PERMISES: readonly string[] = ["Gauloises", "Gauloise", "Gaulois", "Discord"];
 
 /** Le schéma de la réponse, que l'API impose à Claude (sortie structurée, `output_config.format`). */
 export const SCHEMA_REPONSE = {
