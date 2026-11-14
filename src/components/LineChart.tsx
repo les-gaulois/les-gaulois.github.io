@@ -100,6 +100,7 @@ export default function LineChart({
           <div
             class="relative mt-4 h-32 sm:h-44"
             aria-hidden="true"
+            data-graphique
             onPointerLeave={() => setHover(null)}
             onPointerMove={(e) => {
               const r = e.currentTarget.getBoundingClientRect();

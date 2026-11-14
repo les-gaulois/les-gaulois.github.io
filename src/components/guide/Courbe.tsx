@@ -38,7 +38,7 @@ export default function Courbe({ hauteurs, repere, axeX, axeY, legende, onPlace,
   };
 
   return (
-    <div class="guide-courbe select-none" aria-hidden="true" data-testid={testId}>
+    <div class="guide-courbe select-none" aria-hidden="true" data-graphique data-testid={testId}>
       {zone && (
         <span class="guide-courbe-nom tnum" style={{ left: `${(zone.de + zone.a) / 2}%` }}>
           {zone.nom}

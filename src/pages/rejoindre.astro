@@ -88,7 +88,8 @@ const steps: { title: string; body?: string }[] = [
 
       <div class="mt-6 flex flex-col gap-3 sm:flex-row">
         <a href={clan.links.discord} class="btn btn-lg btn-primary" rel="noopener">Rejoindre le Discord</a>
-        <a href={clan.links.openfront} class="btn btn-lg btn-secondary" rel="noopener">Jouer à OpenFront</a>
+        {/* À côté du bouton principal, le second bouton est en contour : plein, en marine, il pesait autant que lui. */}
+        <a href={clan.links.openfront} class="btn btn-lg btn-ghost" rel="noopener">Jouer à OpenFront</a>
       </div>
       <p class="reveal mt-6 max-w-3xl text-muted" data-testid="join-guides">Nouveau sur OpenFront ? <a href={`${base}/debuter`}>Lisez le guide du clan</a>.</p>
 
