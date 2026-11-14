@@ -35,11 +35,13 @@ Un univers de jeu sombre, pas une page de statistiques : grands titres en oncial
 | `red` `#FF1A2E` | Filets, marqueur de page et de ligne active, lettrines (page et section), repère du premier chiffre clé, barre de lecture. Jamais en fond, jamais de texte blanc dessus en petite taille |
 | `muted` `#C0C9E2` | Texte secondaire |
 | `warn` `#FFC857` | Données périmées et erreurs de collecte, et ce qui attend l'encadrement (demandes à traiter, pastille `.count-pill`, état du site) |
-| `ok` `#A6E3B4` | Une réussite : message après un envoi (`.form-success`), `[ OK ]` de l'état du site ; « Validé » et « Oui » dans l'onglet Comptes |
-| `danger` `#FF6B6B` | Ce qui est bloqué, en texte : un compte suspendu dans l'onglet Comptes. Jamais en fond plein sous du texte blanc |
-| `ally` `#9DBCFF` | Un joueur allié, dans l'onglet Comptes. Ne change pas avec le thème |
+| `ok` `#A6E3B4` | Une réussite : message après un envoi (`.form-success`) ; à la Direction, ce qui est en règle ou fait (« Validé », « OK », « Branché ») |
+| `danger` `#FF6B6B` | Ce qui est bloqué ou en échec, en texte (compte suspendu, lien refusé) ; les boutons qui retirent, au survol ou au clavier seulement. Jamais en fond plein sous du texte blanc |
+| `ally` `#9DBCFF` | Un joueur allié dans l'onglet Comptes ; ailleurs à la Direction, une information sans jugement. Ne change pas avec le thème |
 
 Pas de couleur en dur dans un composant : un jeton, ou une classe de `global.css`. Les couleurs des territoires sur la carte sont celles des clans dans le jeu, pas des jetons.
+
+**Onglets de la Direction (et du QG) :** pièces communes de `src/components/compte/direction-kit.tsx` (`Pastille`, `useBarreCollante`) et classes `dir-*` / attribut `data-dir-ton` de `global.css` : une couleur par état, toujours avec son mot. Un onglet a sa section CSS sous sa classe `dir-<onglet>`. Détail : `docs/DESIGN.md`, « Les douze autres onglets de la Direction ».
 
 **Thème rouge de l'encadrement :** `/direction` passe `theme="rouge"` à `Base.astro`, qui pose `data-theme="rouge"` sur `<html>`, et `fx.ts` inverse ses couleurs : le rouge mène, le bleu répond. L'administration (Demandes, Comptes, Journal) est dans la Direction depuis le 12 novembre 2026 : plus aucun onglet rouge au QG. `global.css` redonne alors à chaque jeton une teinte rouge, rôle pour rôle (valeurs et contrastes dans `docs/DESIGN.md`). `/admin` ne fait plus que mener à la Direction. Une future page de l'encadrement passe la même option ; une page de membre, comme `/compte`, reste bleue. Le tricolore garde `flag-blue`, et `.form-problem` (refus du serveur, « Absent de la liste ») s'y écrit en jaune `warn`.
 
