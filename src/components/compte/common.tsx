@@ -342,7 +342,11 @@ export function DeleteButton({ busy, onConfirm, label }: { busy: boolean; onConf
       aria-label={armed ? `Confirmer la suppression de « ${label} »` : `Supprimer « ${label} »`}
       onClick={(e) => {
         if (!armed) setArmed(true);
-        else if (e.detail < 2) onConfirm();
+        else if (e.detail < 2) {
+          // Désarmé aussitôt : si la ligne suivante reprend ce bouton, elle ne commence pas déjà armée.
+          setArmed(false);
+          onConfirm();
+        }
       }}
       onKeyDown={(e) => {
         if (e.key === "Escape" && armed) {
