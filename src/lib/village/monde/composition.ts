@@ -1,12 +1,13 @@
 /**
- * La composition du décor du monde du village : le premier plan de chaque étage (`plan.ts` : les terrasses, la grand-rue,
- * le bas), peint par tuiles carrées de `TUILE` cases pour tenir dans la toile de tout navigateur, et seulement celles
+ * La composition du premier plan du monde du village (`plan.ts` : la grand-rue et le bas ; les terrasses du fond sont dans
+ * `lointain.ts`), peint par tuiles carrées de `TUILE` cases pour tenir dans la toile de tout navigateur, et seulement celles
  * qu'on voit ; puis la liste de ce qui bouge lentement par-dessus (le grand feu, les ailes du moulin, la fumée de l'usine,
  * les navires qui tanguent, les reflets du ruisseau et de la mer). Le ciel et les lointains sont dans `ciel.ts`, le
  * terrain dans `etages.ts`, les pièces dans `pieces.ts`, les dessins des bâtiments du chantier dans `../batiments/`, ceux
  * du monde d'OpenFront dans `../openfront/`.
  *
- * Les étages se peignent du plus haut au plus bas : chacun cache le pied de la pente qui descend vers lui. Chaque bâtiment
+ * La grand-rue se peint avant le bas, qui cache le pied de la pente qui descend vers lui ; au-dessus de la ligne de la
+ * grand-rue, les cases vides laissent voir les terrasses du fond, puis le ciel. Chaque bâtiment
  * du chantier est à son emplacement : des piquets et un écriteau avant son tour, son chantier (ce qui est bâti et
  * l'échafaudage) pendant, fini ensuite. Sans données du chantier, rien n'est montré comme bâti : « pas de données » n'est
  * pas zéro, et l'écran le dit ailleurs. Une animation ne change jamais une valeur.

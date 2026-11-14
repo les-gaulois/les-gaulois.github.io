@@ -187,8 +187,11 @@ const VUE_LA_PLUS_LARGE = 2000;
 /** La part du déplacement de la caméra que suit la terrasse `rang` : la première presque tout, chacune un peu moins. */
 export const parallaxeDeLaTerrasse = (rang: number): number => Math.round(Math.max(0.3, 0.86 - 0.06 * (rang - 1)) * 100) / 100;
 
-/** Une terrasse du fond pour un monde de cette largeur : ses places de maison, d'un bout à l'autre, jamais deux voisines pareilles. */
-function terrasseDuFond(rang: number, largeurDuMonde: number): Terrasse {
+/**
+ * Une terrasse du fond pour un monde de cette largeur : ses places de maison, d'un bout à l'autre, jamais deux voisines
+ * pareilles. `centre` : la colonne du monde (le milieu du village) derrière laquelle on bâtit d'abord.
+ */
+function terrasseDuFond(rang: number, largeurDuMonde: number, centre: number): Terrasse {
   const parallaxe = parallaxeDeLaTerrasse(rang);
   const largeur = Math.round(2 * (parallaxe * largeurDuMonde + (1 - parallaxe) * VUE_LA_PLUS_LARGE));
   const places: PlaceDeTerrasse[] = [];
@@ -199,7 +202,8 @@ function terrasseDuFond(rang: number, largeurDuMonde: number): Terrasse {
     places.push({ x, modele: modele.id, variante: rang * 131 + n * 17, rang: null });
     x += modele.largeur + 70 + Math.round(alea(n, rang + 40) * 90);
   }
-  const milieu = largeur / 2;
+  // La colonne du fond qu'on voit derrière le milieu du village, quand la caméra le regarde (une vue d'environ 900 cases).
+  const milieu = 2 * (parallaxe * centre + (1 - parallaxe) * 450);
   const ecart = (n: number): number => Math.abs(places[n]!.x + MODELES[places[n]!.modele].largeur / 2 - milieu);
   const ordre = places.map((_p, n) => n).sort((a, b) => ecart(a) - ecart(b));
   return { rang, parallaxe, voile: Math.min(0.62, 0.2 + 0.07 * (rang - 1)), largeur, sol: 0, places, ordre };
@@ -446,7 +450,7 @@ export function planDuMonde(tailles: Tailles, habitantsDemandes = 0): Plan {
   let lointaines: Terrasse[] = [];
   for (; terrasses <= 40; terrasses++) {
     lointaines = [];
-    for (let k = 1; k <= terrasses; k++) lointaines.push(terrasseDuFond(k, largeur));
+    for (let k = 1; k <= terrasses; k++) lointaines.push(terrasseDuFond(k, largeur, (villageDe + villageA) / 2));
     if (lointaines.reduce((somme, t) => somme + Math.floor(t.places.length * PART_BATIE), 0) >= besoin) break;
   }
   terrasses = lointaines.length;

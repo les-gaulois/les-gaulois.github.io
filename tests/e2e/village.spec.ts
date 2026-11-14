@@ -181,6 +181,7 @@ test("à l'arrivée, la grand-rue et ses terrasses derrière elle ; les boutons 
   expect(await largeur()).toBe(aDeux / 2);
   await pres.click();
   await expect(scene).toHaveAttribute("data-niveau", "2");
+  await scene.focus();
   await page.keyboard.press("+");
   await page.keyboard.press("+");
   await page.keyboard.press("+");

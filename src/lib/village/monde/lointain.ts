@@ -82,10 +82,9 @@ function arbresDeLaTerrasse(t: Terrasse): { essence: Essence; x: number; pied: n
   return arbres;
 }
 
-/** Une place sans maison : un jardin vu de côté, posé sur le sol. Cinq sortes, selon la place. */
-function poserJardin(pl: Planche, p: Palette, l: Lumiere, x: number, largeur: number, sol: number, graine: number, voit: (x: number, largeur: number) => boolean): void {
+/** Une place sans maison : un jardin vu de côté, posé sur le sol. Cinq sortes (`sorte`, de 0 à 4) : deux voisines ne sont jamais pareilles. */
+function poserJardin(pl: Planche, p: Palette, l: Lumiere, x: number, largeur: number, sol: number, graine: number, sorte: number, voit: (x: number, largeur: number) => boolean): void {
   const t = teintesDuJardin(l);
-  const sorte = Math.floor(alea(graine, 3) * 5);
   const arbre = (essence: Essence, dx: number, variante: number, taille?: number): void => {
     const cadre = cadreDeLArbre(essence, variante, taille);
     if (voit(x + dx - cadre.largeur / 2, cadre.largeur)) poserArbre(pl, p, l, essence, x + dx, sol - 1, variante, taille);
@@ -168,10 +167,11 @@ export function composerTuileDeTerrasse(t: Terrasse, l: Lumiere, tx: number): De
     const cadre = cadreDeLArbre(arbre.essence, arbre.variante, arbre.taille);
     if (voit(arbre.x - cadre.largeur / 2 - 10, cadre.largeur + 20)) poserArbre(pl, p, l, arbre.essence, arbre.x, arbre.pied, arbre.variante, arbre.taille);
   }
-  for (const place of t.places) {
+  for (const [n, place] of t.places.entries()) {
     const modele = MODELES[place.modele];
     if (!voit(place.x - 20, modele.largeur + 40)) continue;
-    if (place.rang === null) poserJardin(pl, p, l, place.x, modele.largeur, sol, place.variante, voit);
+    // D'une place à la suivante, la sorte de jardin avance de trois sur cinq : jamais deux pareilles côte à côte.
+    if (place.rang === null) poserJardin(pl, p, l, place.x, modele.largeur, sol, place.variante, (n * 3 + t.rang * 2) % 5, voit);
     else poserMaisonDuModele(pl, p, l, modele, place.x, sol, place.variante);
   }
 
