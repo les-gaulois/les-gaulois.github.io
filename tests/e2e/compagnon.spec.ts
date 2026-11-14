@@ -250,6 +250,32 @@ test("il ne couvre pas ce qui est fixé au bas de la fenêtre", async ({ page },
   await expect(gaulois(page)).toBeVisible();
 });
 
+test("en bas de page, la mention de licence d'OpenFront et le dernier lien se lisent sans lui devant", async ({ page }) => {
+  await sansSalut(page);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const image = page.locator("[data-compagnon-image]");
+  const chevauche = async (cible: ReturnType<Page["locator"]>) => {
+    const a = await image.boundingBox();
+    const b = await cible.boundingBox();
+    if (!a || !b) return true;
+    return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+  };
+  for (const path of ["/classement", "/village"]) {
+    await page.goto(path);
+    await expect(compagnon(page)).toBeVisible();
+    // Au bout de la page, il se tient sous le pied de page, dans la place qui lui est gardée.
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    const mention = page.getByRole("contentinfo").getByText("© OpenFront and Contributors", { exact: false }).first();
+    await expect.poll(() => chevauche(mention), path).toBe(false);
+    const dernier = page.getByRole("contentinfo").getByRole("link", { name: "Code source" });
+    await expect.poll(() => chevauche(dernier), path).toBe(false);
+    // Un lien qui prend le focus au clavier remonte au-dessus de lui.
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await dernier.focus();
+    await expect.poll(() => chevauche(dernier), path).toBe(false);
+  }
+});
+
 test("le clavier d'un téléphone ou la page agrandie du bout des doigts l'effacent, le temps qu'il faut", async ({ page }) => {
   await sansSalut(page);
   await page.goto("/classement");

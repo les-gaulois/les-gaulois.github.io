@@ -16590,6 +16590,23 @@ footer h2 {
 .compagnon[hidden] {
   display: none;
 }
+/* Sa place au bas de chaque page, tant qu'il est là : en fin de défilement, tout le pied de page (et sa mention de licence
+   d'OpenFront) se lit au-dessus de lui, et un lien qui prend le focus au clavier n'est jamais caché derrière lui. Sa
+   hauteur la plus grande, plus un peu d'air : 128 px sur ordinateur, 96 px au plus sous 640 px. */
+footer:has(.compagnon:not([hidden])) {
+  padding-bottom: 9rem;
+}
+html:has(.compagnon:not([hidden])) {
+  scroll-padding-bottom: 9rem;
+}
+@media (max-width: 639px) {
+  footer:has(.compagnon:not([hidden])) {
+    padding-bottom: 7rem;
+  }
+  html:has(.compagnon:not([hidden])) {
+    scroll-padding-bottom: 7rem;
+  }
+}
 /* Pendant une saisie sur un écran tactile : il s'efface, le clavier prend la place. */
 .compagnon[data-efface] {
   opacity: 0;
