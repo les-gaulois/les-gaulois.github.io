@@ -96,6 +96,7 @@ Titres en lignes équilibrées, `.page-title` pour le H1 (jusqu'à 96 px), `.sec
 - Trois façons de tout couper, à garder : bouton pause de l'en-tête (choix mémorisé dans `localStorage` sous `gal-fx`), réglage système « réduire les animations », absence de JavaScript. Dans ces trois cas le contenu reste complet et les valeurs finales sont dans le HTML.
 - Clic droit : menu natif conservé sur les liens, boutons, champs, images autres que le logo, texte sélectionné, et partout avec Maj.
 - Rien ne clignote ; la boucle s'arrête quand l'onglet est masqué.
+- Le Gaulois compagnon (`GauloisCompagnon.astro`, `src/scripts/compagnon.ts`, `src/lib/compagnon/`) marche au bas de la fenêtre, de page en page : décoratif, lent, arrêté net par la pause et « réduire les animations ». Il ne couvre jamais un champ en saisie ni ce qui est fixé en bas : une nouvelle barre du bas porte `data-compagnon-obstacle`. Détail dans `docs/DESIGN.md`, « Le Gaulois compagnon ».
 
 ## Accessibilité
 
