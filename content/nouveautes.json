@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-14",
+    "kind": "ameliore",
+    "title": "Un village plus vivant au loin",
+    "body": "Sur les terrasses du fond, les Gaulois se fondent dans la distance, les cheminées fument et des bêtes se promènent. La taverne et la salle de réunion sont redessinées.",
+    "link": {
+      "href": "/village",
+      "label": "Entrer au village"
+    }
+  },
+  {
+    "date": "2026-11-14",
     "kind": "corrige",
     "title": "Bleu, blanc, rouge sur le site blanc",
     "body": "Le filet tricolore et le guerrier retrouvent leur blanc : le guerrier ressort en relief, sans fond. Les titres du QG et de la Direction sont nets, et le bas de l'accueil reprend de la couleur."
