@@ -2,6 +2,46 @@
   {
     "date": "2026-11-14",
     "kind": "nouveau",
+    "title": "Le village devient un monde",
+    "body": "Le village est un grand écran en pixels : on s'y promène sans changer de page, on s'approche ou on recule, et les Gaulois marchent d'un lieu à l'autre.",
+    "link": {
+      "href": "/village",
+      "label": "Entrer au village"
+    }
+  },
+  {
+    "date": "2026-11-14",
+    "kind": "nouveau",
+    "title": "Le village se bâtit avec vos points",
+    "body": "Chaque point rapporté au clan depuis le 1er novembre pose une pierre : 15 bâtiments, de la palissade à la grande tour. Chaque bâtiment fini est annoncé sur Discord.",
+    "link": {
+      "href": "/village#chantier",
+      "label": "Voir le chantier"
+    }
+  },
+  {
+    "date": "2026-11-14",
+    "kind": "nouveau",
+    "title": "Le grand feu de la place",
+    "body": "Au milieu de la place, le feu grandit avec les points rapportés au clan sur les 7 derniers jours : des braises quand le clan est calme, un feu de joie quand il a beaucoup rapporté.",
+    "link": {
+      "href": "/village#feu",
+      "label": "Voir le feu"
+    }
+  },
+  {
+    "date": "2026-11-14",
+    "kind": "nouveau",
+    "title": "Le monde d'OpenFront autour du village",
+    "body": "Sous le village : une gare et son train, une usine, un silo d'où part un missile, un port et ses navires, et des combats de temps en temps. Des dessins faits pour le site.",
+    "link": {
+      "href": "/village",
+      "label": "Descendre au port"
+    }
+  },
+  {
+    "date": "2026-11-14",
+    "kind": "nouveau",
     "title": "L'accueil ouvre la Carte et le village",
     "body": "L'accueil montre la carte des clans, avec la place de GAL au dernier relevé, et le village des Gaulois. Un bouton mène à chacun.",
     "link": {

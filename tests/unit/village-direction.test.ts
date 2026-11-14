@@ -211,6 +211,11 @@ describe("la réponse de get_village_economie", () => {
     const vide = { ...copie(REPONSE), debut: null, releve: null, circulation: null, distribues: { total: null, trente_jours: null } };
     expect(lireEconomie(vide)).toEqual(vide);
   });
+  it("lit les statères payés à la forge s'ils sont là, et s'en passe tant que la forge n'est pas installée", () => {
+    const forge = { ...copie(REPONSE), gravures: { total: 450, trente_jours: null } };
+    expect(lireEconomie(forge)?.gravures).toEqual({ total: 450, trente_jours: null });
+    expect(lireEconomie(copie(REPONSE))?.gravures).toBeUndefined();
+  });
 
   it("garde des chances à décimales, réglées à la main dans l'éditeur SQL", () => {
     const chances = { ...CHANCES_POCHETTE, commun: 49.5, "peu-commun": 30.5 };

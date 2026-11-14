@@ -51,6 +51,11 @@ export interface EconomieDuVillage {
   depenses: ParPeriode<number | null>;
   boutique: ParPeriode<number | null>;
   pochettes: ParPeriode<number | null>;
+  /**
+   * Les statères payés à la forge pour graver une partie sur un objet (migration 20261114001000), comptés à part des
+   * dépensés. Absent tant que la forge n'est pas installée sur le serveur.
+   */
+  gravures?: ParPeriode<number | null> | null;
   circulation: number | null;
   achats: ParPeriode<ParRarete | null>;
   ouvertures: ParPeriode<ParRarete | null>;
@@ -149,6 +154,7 @@ export function lireEconomie(reponse: unknown): EconomieDuVillage | null {
       depenses: lirePeriode(reponse["depenses"], lireChiffre),
       boutique: lirePeriode(reponse["boutique"], lireChiffre),
       pochettes: lirePeriode(reponse["pochettes"], lireChiffre),
+      ...(estObjet(reponse["gravures"]) ? { gravures: lirePeriode(reponse["gravures"], lireChiffre) } : {}),
       circulation: lireChiffre(reponse["circulation"]),
       achats: lirePeriode(reponse["achats"], lireNombres),
       ouvertures: lirePeriode(reponse["ouvertures"], lireNombres),

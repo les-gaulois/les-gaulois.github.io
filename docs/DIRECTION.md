@@ -490,6 +490,7 @@ Choisies par le pilote le 12 novembre 2026 (« 1 à 6 », dans une liste de sept
 | `/rival clan` | GAL face à un clan de la liste officielle : les chiffres du comparateur de la page Nos rivaux, l'écart de score, le face-à-face quand il est publié, et la réserve sur le taux | `rivalCard` |
 | `/moi` | La fiche de qui la tape, s'il est un membre validé sur le site | L'image de sa fiche, comme /fiche |
 | `/gaulois` | Le Gaulois en pixels de qui la tape, habillé au village, devant le décor de son lieu à l'heure de Paris, avec le logo du clan (13 et 14 novembre 2026, voir « Le village des Gaulois », lots 1 et 6) | Dessinée par la fonction elle-même (`gaulois.ts`, `scene.ts`, `decors/`), jointe à la réponse |
+| `/feu` | Le grand feu de la place du village, de sa hauteur du moment (points rapportés au clan sur 7 jours), devant la place à l'heure de Paris, avec le logo du clan et l'heure du relevé (14 novembre 2026, voir « Le village des Gaulois », lot 7, et `docs/VILLAGE-MONDE.md`) | Lit `/village/monde.json` sur le site publié, dessine l'image (`feu.ts`, `grand-feu.ts`) |
 
 **Comment ça marche :**
 
@@ -757,6 +758,14 @@ Le fichier à coller a été essayé tel quel le 14 novembre 2026 sur PGlite, su
 - **Le texte de l'image** (pour qui ne la voit pas) finit par le lieu, ce qui l'y met, et le moment : « Il est à la taverne, après sa dernière partie, au crépuscule. » Rien n'est du temps réel : la partie est finie, le vocal est celui du dernier relevé.
 - **Mise en ligne** : coller `.cache/a-coller-gaulois-scene.sql` (dernière ligne : « gaulois sur discord : décor du lieu à jour »), publier le site, puis remettre la fonction `code-discord` en ligne. Avant le SQL, la nouvelle fonction ne reçoit ni partie ni vocal : place ou maison selon l'heure, sans erreur.
 - **Essayé sans vrai compte** : le fichier à coller sur PGlite (13 contrôles : faits d'un compte au pseudo public, d'un anonyme, d'un compte en attente, relevé trop vieux, droits, collé deux fois) ; la réponse de /gaulois dans les tests du robot.
+
+**Lot 7, le monde du village** (14 novembre 2026, migration `20261114001000_village_forge.sql` ; tout le détail dans `docs/VILLAGE-MONDE.md`). Demandes du pilote : « le village qui se bâtit tout seul », « le grand feu », « la forge aux souvenirs », et « un vrai univers où les persos se déplacent sans avoir à changer de page, un grand écran immersif, sans page ».
+
+- **Le monde** : `/village` est un seul grand écran en pixels, sans onglets ni défilement de la page (`src/components/village/monde/`, `src/lib/village/monde/`). La grand-rue au premier plan (place et grand feu, taverne, forge, salle de réunion, marché, chantier, porte du village), des terrasses de maisons derrière, deux fois plus petites et pâlies, en parallaxe, le ciel détaillé au-dessus, et en bas le monde d'OpenFront (gare, usine, silo, port, mer, combats espacés). Une maison de 4 lits par tranche de 4 Gaulois : la place pour 1 000, un rendu fluide pour 250 à 350. Les fenêtres (Mon Gaulois, Le marché, Qui est où, Le chantier, Le feu, La forge) s'ouvrent par-dessus le monde ; les anciennes adresses (`#gaulois`, `#marche`, `#place`) restent. Les Gaulois marchent d'un lieu à l'autre à chaque relecture ; la pause de l'en-tête et « réduire les animations » figent tout. L'ancienne place en onglets (`PlaceScene.tsx`, `PlaceDuVillage.tsx`, `lieux.ts`) est retirée.
+- **Le chantier** : 15 bâtiments (`chantier-liste.ts`), de 100 à 3 000 points rapportés au clan, comptés depuis le 1er novembre 2026 à minuit, heure de Paris (`chantier.ts`, `etatDuMondeDuSite()`, `/village/monde.json`) ; chaque bâtiment fini part sur Discord en image (`npm run chantier:envoyer`, état dans `data/chantier-envoi.json`), sauf ceux déjà finis au premier passage.
+- **Le grand feu** : sa hauteur suit les points rapportés au clan sur 7 × 24 heures jusqu'au relevé (seuils 100, 175, 325, 475) ; `/feu` le montre sur Discord.
+- **La forge aux souvenirs** : 150 statères pour graver une de ses parties à points sur un objet (`get_ma_forge`, `graver_objet`, `effacer_gravure`) ; un objet gravé ne se vend pas ; la plaque ne se voit des autres que pour un pseudo public. L'onglet Village de la Direction compte à part les statères payés à la forge.
+- **Mise en ligne** : coller `.cache/a-coller-forge.sql` (dernière ligne « forge : installée »), publier le site, remettre `code-discord` en ligne pour `/feu`. Après la forge, ne plus recoller le fichier du village (`scripts/a-coller-village.ts` le dit).
 
 ### Les Gaulois sur les images du robot
 

@@ -183,6 +183,7 @@ function Economie({ data }: { data: EconomieDuVillage }) {
     { label: "Dépensés à la boutique", valeurs: data.boutique },
     { label: "Dépensés en pochettes", valeurs: data.pochettes },
     { label: "Dépensés en tout", valeurs: data.depenses },
+    ...(data.gravures ? [{ label: "Payés à la forge", valeurs: data.gravures }] : []),
   ];
   return (
     <>
@@ -230,7 +231,7 @@ function Economie({ data }: { data: EconomieDuVillage }) {
         <summary class="font-semibold">Comment lire ces chiffres</summary>
         <div class="grid gap-3 pb-1 text-muted">
           <p>
-            Tout vient du journal des statères du serveur. Distribués : les statères donnés pour les points rapportés au clan. Dépensés : les achats à la boutique et les pochettes ouvertes. En circulation : ce que les comptes gardent encore. Les 30 jours se comptent à la date de chaque crédit ou de chaque achat. Un compte supprimé sort des totaux.
+            Tout vient du journal des statères du serveur. Distribués : les statères donnés pour les points rapportés au clan. Dépensés : les achats à la boutique et les pochettes ouvertes. Payés à la forge : les gravures d'une partie sur un objet, à part des dépensés. En circulation : ce que les comptes gardent encore. Les 30 jours se comptent à la date de chaque crédit ou de chaque achat. Un compte supprimé sort des totaux.
           </p>
           <p data-testid="village-regle-seuil">{regleDuSeuil(s)}</p>
         </div>
