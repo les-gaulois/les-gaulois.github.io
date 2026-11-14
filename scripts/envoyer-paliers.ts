@@ -5,10 +5,13 @@
  * le secret DISCORD_WEBHOOK_GAZETTE. Sans lien, ne fait rien, et ne note rien.
  * Le palier de chaque membre avec pseudo à la dernière relecture, les paliers en attente et le jour du dernier message
  * sont notés dans data/paliers-envoi.json : voir src/lib/paliers-franchis.ts.
+ * Le Gaulois du village de ceux qui sont cités, après leur nom ou derrière leur pastille : lus au serveur au moment de
+ * dessiner l'image, une fois. Sans lecture, l'image part comme avant. Voir src/lib/gaulois-envois.ts.
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { clan } from "../config/clan";
 import { loadMembers } from "../src/lib/data";
+import { avecOuSansGaulois, gauloisDuPassage } from "../src/lib/gaulois-envois";
 import { isWebhookUrl, lastSentAnyFormat } from "../src/lib/gazette-discord";
 import { parseMilestoneState } from "../src/lib/paliers-franchis";
 import { milestonePass, sendMilestones } from "../src/lib/paliers-franchis-discord";
@@ -34,6 +37,7 @@ if (!isWebhookUrl(link)) {
 try {
   const { state: stored, warning } = parseMilestoneState(readText(STATE_FILE));
   if (warning) console.log(`::warning::Paliers : ${warning}.`);
+  const gauloisDe = gauloisDuPassage();
   const result = await milestonePass({
     stored,
     members: loadMembers(),
@@ -52,7 +56,9 @@ try {
           const fonts = new GazetteFonts(root);
           // Un caractère qu'aucune police ne sait dessiner devient « ? » sur l'image ; sa description garde le pseudo entier.
           const drawn = p.map((player) => ({ ...player, username: fonts.drawable(player.username, "strong") }));
-          return { png: await renderGazetteCard(milestoneCard(drawn, period, clan.tag, clan.links.site, fonts.width), fonts, root), alt: milestoneImageAlt(p, period, clan.tag) };
+          const gaulois = await gauloisDe(p.map((player) => player.id));
+          const png = await avecOuSansGaulois(gaulois, (g) => renderGazetteCard(milestoneCard(drawn, period, clan.tag, clan.links.site, fonts.width, g), fonts, root));
+          return { png, alt: milestoneImageAlt(p, period, clan.tag) };
         },
         tag: clan.tag,
         siteUrl: clan.links.site,

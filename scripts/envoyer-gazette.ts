@@ -3,10 +3,14 @@
  *   npm run gazette:envoyer
  * Avec le lien du salon des nouvelles, réglé dans Direction > Discord (lu avec SUPABASE_URL et SUPABASE_SECRET_KEY), sinon
  * le secret DISCORD_WEBHOOK_GAZETTE. Sans lien, ne fait rien. La dernière édition envoyée est notée dans data/gazette-envoi.json.
+ * Le Gaulois du village des joueurs du podium, derrière leur marche : lus au serveur au moment de dessiner l'image, une fois.
+ * Sans lecture, l'image part comme avant. Ils ne changent pas le format noté (`MESSAGE_FORMAT`) : aucune édition déjà
+ * envoyée ne repart pour eux. Voir src/lib/gaulois-envois.ts.
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { clan } from "../config/clan";
 import { loadHistory, loadMembers, loadMemberWeeks, loadMeta, loadSessions, loadTerritoryReadings, unreadableSessionFiles } from "../src/lib/data";
+import { avecOuSansGaulois, gauloisDuPassage } from "../src/lib/gaulois-envois";
 import { gazetteEditions } from "../src/lib/gazette";
 import { GazetteSendState, lastSentEdition, sendLatestGazette } from "../src/lib/gazette-discord";
 import { salonLink } from "../src/lib/salon-lien";
@@ -40,6 +44,7 @@ try {
     archiveStart: clan.archiveStart,
     completeThrough: loadMeta().sessions.completeThrough,
   });
+  const gauloisDe = gauloisDuPassage();
   const result = await sendLatestGazette({
     webhook,
     editions,
@@ -51,7 +56,9 @@ try {
       const fonts = new GazetteFonts(root);
       // Un caractère qu'aucune police ne sait dessiner devient « ? » sur l'image ; sa description garde le pseudo entier.
       const drawn = edition.players ? { ...edition, players: edition.players.map((p) => ({ ...p, username: fonts.drawable(p.username, "strong") })) } : edition;
-      return { png: await renderGazetteCard(gazetteCard(drawn, clan.tag, clan.links.site, fonts.width), fonts, root), alt: gazetteImageAlt(edition, clan.tag) };
+      const gaulois = await gauloisDe((edition.players ?? []).map((p) => p.id));
+      const png = await avecOuSansGaulois(gaulois, (g) => renderGazetteCard(gazetteCard(drawn, clan.tag, clan.links.site, fonts.width, g), fonts, root));
+      return { png, alt: gazetteImageAlt(edition, clan.tag) };
     },
     lastSent: lastSentEdition(readState()),
     tag: clan.tag,

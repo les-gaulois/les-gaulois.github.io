@@ -5,12 +5,15 @@
  * le secret DISCORD_WEBHOOK_GAZETTE. Sans lien, ne fait rien, et ne note rien.
  * Le relevé de départ (parties et victoires de chaque membre avec pseudo) et le jour du dernier message sont notés dans
  * data/actifs-envoi.json : voir src/lib/actifs.ts. La collecte en retire les membres partis, même sans lien.
+ * Le Gaulois du village de ceux qui sont cités, après leur nom : lus au serveur au moment de dessiner l'image, une fois.
+ * Sans lecture, l'image part comme avant. Voir src/lib/gaulois-envois.ts.
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { clan } from "../config/clan";
 import { ActiveState } from "../src/lib/actifs";
 import { activePass, sendActive } from "../src/lib/actifs-discord";
 import { loadMembers } from "../src/lib/data";
+import { avecOuSansGaulois, gauloisDuPassage } from "../src/lib/gaulois-envois";
 import { isWebhookUrl, lastSentAnyFormat } from "../src/lib/gazette-discord";
 import { parseNoted } from "../src/lib/salon-discord";
 import { salonLink } from "../src/lib/salon-lien";
@@ -35,6 +38,7 @@ if (!isWebhookUrl(link)) {
 try {
   const { state: stored, warning } = parseNoted(ActiveState, readText(STATE_FILE), "la liste du moment sert de nouveau départ");
   if (warning) console.log(`::warning::Plus actifs : ${warning}.`);
+  const gauloisDe = gauloisDuPassage();
   const result = await activePass({
     stored,
     members: loadMembers(),
@@ -53,7 +57,9 @@ try {
           const fonts = new GazetteFonts(root);
           // Un caractère qu'aucune police ne sait dessiner devient « ? » sur l'image ; sa description garde le pseudo entier.
           const drawn = p.map((player) => ({ ...player, username: fonts.drawable(player.username, "strong") }));
-          return { png: await renderGazetteCard(activeCard(drawn, range, clan.tag, clan.links.site, fonts.width), fonts, root), alt: activeImageAlt(p, range, clan.tag) };
+          const gaulois = await gauloisDe(p.map((player) => player.id));
+          const png = await avecOuSansGaulois(gaulois, (g) => renderGazetteCard(activeCard(drawn, range, clan.tag, clan.links.site, fonts.width, g), fonts, root));
+          return { png, alt: activeImageAlt(p, range, clan.tag) };
         },
         tag: clan.tag,
         siteUrl: clan.links.site,
