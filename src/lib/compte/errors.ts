@@ -172,6 +172,14 @@ export const ERROR_MESSAGES: Record<string, string> = {
   trop_d_offres: "Vous avez déjà toutes vos offres ouvertes : retirez-en une d'abord.",
   offre_fermee: "Cette offre n'est plus ouverte : elle est vendue, retirée ou finie.",
   offre_a_soi: "C'est votre offre : elle se retire, elle ne s'achète pas.",
+  objet_grave: "Cet objet porte une plaque de la forge : effacez-la d'abord pour le vendre.",
+
+  // La forge du village (contrat : `RefusForge` de src/lib/village/contrat.ts, migration 20261114001000_village_forge). Les
+  // refus qu'elle partage avec la boutique et le marché sont plus haut ; elle a ses propres mots dans `forge.ts`.
+  objet_non_gravable: "Seuls les objets se gravent : ni le corps, ni le visage, ni une case vide.",
+  partie_inconnue: "Cette partie n'est pas dans votre journal des statères. Rechargez la page.",
+  deja_grave: "Cet objet porte déjà cette plaque.",
+  pas_grave: "Cet objet n'a pas de plaque.",
 
   // L'onglet « Village » de la Direction : les prix et les chances (migration 20261113002100_village_direction).
   prix_invalides: "Chaque prix est un nombre entier de statères, de 1 à 1 000 000, et chaque rareté coûte plus que la précédente.",

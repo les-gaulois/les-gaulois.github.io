@@ -165,6 +165,7 @@ export const MESSAGES_DU_MARCHE: Readonly<Record<RefusMarche, string>> = {
   pas_possede: ERROR_MESSAGES["pas_possede"]!,
   objet_porte: ERROR_MESSAGES["objet_porte"]!,
   achete_au_marche: ERROR_MESSAGES["achete_au_marche"]!,
+  objet_grave: ERROR_MESSAGES["objet_grave"]!,
   prix_invalide: ERROR_MESSAGES["prix_invalide"]!,
   trop_d_offres: ERROR_MESSAGES["trop_d_offres"]!,
   offre_fermee: ERROR_MESSAGES["offre_fermee"]!,
