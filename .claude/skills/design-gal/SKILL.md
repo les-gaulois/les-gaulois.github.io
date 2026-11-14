@@ -41,7 +41,7 @@ Un univers de jeu sombre, pas une page de statistiques : grands titres en oncial
 
 Pas de couleur en dur dans un composant : un jeton, ou une classe de `global.css`. Les couleurs des territoires sur la carte sont celles des clans dans le jeu, pas des jetons.
 
-**Onglets de la Direction :** pièces communes de `src/components/compte/direction-kit.tsx` (`Pastille`, `useBarreCollante`) et classes `dir-*` / attribut `data-dir-ton` de `global.css` : une couleur par état, toujours avec son mot. Un onglet a sa section CSS sous sa classe `dir-<onglet>`. Détail : `docs/DESIGN.md`, « Les douze autres onglets de la Direction ».
+**Onglets de la Direction (et du QG) :** pièces communes de `src/components/compte/direction-kit.tsx` (`Pastille`, `useBarreCollante`) et classes `dir-*` / attribut `data-dir-ton` de `global.css` : une couleur par état, toujours avec son mot. Un onglet a sa section CSS sous sa classe `dir-<onglet>`. Détail : `docs/DESIGN.md`, « Les douze autres onglets de la Direction ».
 
 **Thème rouge de l'encadrement :** `/direction` passe `theme="rouge"` à `Base.astro`, qui pose `data-theme="rouge"` sur `<html>`, et `fx.ts` inverse ses couleurs : le rouge mène, le bleu répond. L'administration (Demandes, Comptes, Journal) est dans la Direction depuis le 12 novembre 2026 : plus aucun onglet rouge au QG. `global.css` redonne alors à chaque jeton une teinte rouge, rôle pour rôle (valeurs et contrastes dans `docs/DESIGN.md`). `/admin` ne fait plus que mener à la Direction. Une future page de l'encadrement passe la même option ; une page de membre, comme `/compte`, reste bleue. Le tricolore garde `flag-blue`, et `.form-problem` (refus du serveur, « Absent de la liste ») s'y écrit en jaune `warn`.
 

@@ -1,35 +1,82 @@
-import { useEffect, useState } from "preact/hooks";
+import type { ComponentChildren } from "preact";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { call } from "../../lib/compte/api";
 import { errorMessage } from "../../lib/compte/errors";
-import { PING_RULE, callKey, callSentence, lobbyIdOf, lobbyUrl, pingRefusal, seatsNote, sinceLabel, type LobbyCall } from "../../lib/compte/salons";
+import { callMarks, callTon, endingSoon, pingNotice, remainingLabel, saveCallArgs, savedNotice, sortCalls, waitingLabel } from "../../lib/compte/qg-salons";
+import { LOBBY_FORMATS, PING_RULE, callKey, lobbyIdOf, lobbyUrl, pingRefusal, seatsNote, type LobbyCall } from "../../lib/compte/salons";
 import { chime, refreshAfterWrite, setSound, start, subscribe, unlockAudio, type AppelsState } from "./appels";
 import { Avatar, Problem, messageOf } from "./common";
+import { Pastille } from "./direction-kit";
 import { PartieTete } from "./Onglets";
 
-/** Ce qu'on sait d'un appel : qui, où, depuis quand, la taille des équipes, et le lien du salon. */
-function CallBody({ call: item, now }: { call: LobbyCall; now: number }) {
+/**
+ * Une ligne par appel : qui, depuis quand, le temps qui reste, ses états en couleur avec leur mot, et le lien du salon. Le
+ * bord de la ligne prend la couleur de l'appel (`callTon`) : bleu le mien, jaune celui qui finit bientôt, vert les autres.
+ * `children` : les boutons de mon propre appel. `note` : pourquoi mon dernier ping n'est pas parti.
+ */
+function Ligne({ call: item, now, children, note = null }: { call: LobbyCall; now: number; children?: ComponentChildren; note?: string | null }) {
   const seats = seatsNote(item.format);
+  const since = waitingLabel(item.createdAt, now);
+  const left = remainingLabel(item.expiresAt, now);
   return (
-    <>
-      <div class="flex items-center gap-3">
-        <Avatar name={item.name} avatar={item.avatar} />
-        <p class="min-w-0 font-semibold [overflow-wrap:anywhere]">{callSentence(item)}</p>
+    <li class="dir-ligne salons-ligne" data-dir-ton={callTon(item, now)} data-testid={item.mine ? "qg-salons-mine" : "qg-salons-call"}>
+      <Avatar name={item.name} avatar={item.avatar} />
+      <strong class="salons-nom">{item.name}</strong>
+      <p class="salons-etat">
+        {since && <span class="tnum">{since}</span>}
+        {left && (
+          <Pastille ton={endingSoon(item.expiresAt, now) ? "warn" : "muted"} plain testid="qg-salons-left">
+            <span class="tnum">{left}</span>
+          </Pastille>
+        )}
+        {/* Un appel d'avant le 10 novembre 2026, ou d'une page restée ouverte, dit encore son format. */}
+        {item.format && <span>{LOBBY_FORMATS[item.format]}</span>}
+        {callMarks(item).map((mark) => (
+          <Pastille key={mark.key} ton={mark.ton} testid={`qg-salons-mark-${mark.key}`}>
+            {mark.label}
+          </Pastille>
+        ))}
+      </p>
+      <div class="salons-actions">
+        {children}
+        {!item.mine && (
+          <a class="btn btn-primary salons-rejoindre" href={lobbyUrl(item.game)} target="_blank" rel="noopener" data-testid="qg-salons-join">
+            Rejoindre<span class="sr-only"> la partie de {item.name} (nouvel onglet)</span>
+          </a>
+        )}
       </div>
-      <p class="tnum mt-1 text-sm text-muted">Appel lancé {sinceLabel(item.createdAt, now)}.</p>
-      {seats && <p class="mt-1 text-sm text-muted">{seats}</p>}
-      <a class="btn btn-primary mt-3 !min-h-10 !py-1.5 !text-sm" href={lobbyUrl(item.game)} target="_blank" rel="noopener" data-testid="qg-salons-join">
-        Rejoindre la partie<span class="sr-only"> (nouvel onglet)</span>
-      </a>
-    </>
+      {seats && <p class="salons-suite">{seats}</p>}
+      {note && (
+        <p class="salons-suite" data-testid="qg-salons-ping-note">
+          <Pastille ton="warn" plain>
+            {note}
+          </Pastille>
+        </p>
+      )}
+    </li>
   );
 }
 
 /**
- * Rejoindre un Gaulois, au QG : la liste des appels en cours et le formulaire pour prévenir les autres. Le pop-up et le son
- * sont communs aux pages du site (`AppelsGaulois.tsx`), et le relevé des appels aussi (`appels.ts`). Le site ne lit
- * rien chez OpenFront. Le serveur revérifie chaque appel (`save_lobby_call`). C'est l'onglet « Salons » du QG : sans `id`,
- * l'adresse #salons ouvre l'onglet (`Onglets.tsx`) au lieu de faire défiler la page. `voice` : le salon vocal du clan,
- * réglé dans la Direction (`get_qg_tools`), pour se retrouver avant de lancer la partie ; `null`, pas de bouton.
+ * Après une action, le bouton qui avait le focus a pu disparaître avec sa ligne (le ping parti, l'appel retiré) : le focus va
+ * alors à `target`, au lieu de tomber sur la page. Rien ne bouge si le focus était ailleurs ou s'il est resté. Le délai laisse
+ * Preact dessiner la liste relue.
+ */
+function keepFocus(before: Element | null, target: () => HTMLElement | null): void {
+  window.setTimeout(() => {
+    const lost = document.activeElement === null || document.activeElement === document.body;
+    if (before instanceof HTMLElement && !before.isConnected && lost) target()?.focus();
+  }, 0);
+}
+
+/**
+ * Rejoindre un Gaulois, au QG : le formulaire pour prévenir les autres, sur une ligne, puis une ligne par appel en cours.
+ * Le pop-up et le son sont communs aux pages du site (`AppelsGaulois.tsx`), et le relevé des appels aussi (`appels.ts`). Le
+ * site ne lit rien chez OpenFront. Le serveur revérifie chaque appel (`save_lobby_call`). C'est l'onglet « Salons » du QG :
+ * sans `id`, l'adresse #salons ouvre l'onglet (`Onglets.tsx`) au lieu de faire défiler la page. `voice` : le salon vocal du
+ * clan, réglé dans la Direction (`get_qg_tools`), pour se retrouver avant de lancer la partie ; `null`, pas de bouton.
+ * Les calculs de la liste (ordre, temps restant, états en couleur) et des envois sont dans `src/lib/compte/qg-salons.ts` ; le
+ * dessin, dans `global.css`, section « Le QG, onglet Salons ».
  */
 export default function QgSalons({ voice = null }: { voice?: string | null }) {
   const [appels, setAppels] = useState<AppelsState | null>(null);
@@ -41,7 +88,11 @@ export default function QgSalons({ voice = null }: { voice?: string | null }) {
   const [ping, setPing] = useState(false);
   // Pourquoi le dernier ping demandé n'est pas parti : l'anti-spam du serveur, un rôle absent, une panne.
   const [pingNote, setPingNote] = useState<string | null>(null);
+  // Le lien collé ne se lit pas : le champ est marqué invalide jusqu'au prochain envoi.
+  const [badLink, setBadLink] = useState(false);
   const [, setTick] = useState(0);
+  const submitButton = useRef<HTMLButtonElement>(null);
+  const withdrawButton = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const unsubscribe = subscribe(setAppels);
@@ -66,28 +117,27 @@ export default function QgSalons({ voice = null }: { voice?: string | null }) {
 
   /**
    * Lance l'appel. Le serveur décide de tout : il ne renvoie rien pour un même salon, sauf un ping demandé après coup, si
-   * l'anti-spam le permet. `discord` : le message est parti vers Discord, sans savoir encore ce que Discord en fait ;
-   * `ping` : 'sent', ou la raison d'un ping refusé. `p_ping` n'est envoyé que coché : la page marche aussi avec un serveur
-   * d'avant la migration 20261111000200_appels_discord_ping_au_choix.sql, qui ne connaît pas ce paramètre.
+   * l'anti-spam le permet. Arguments et annonce : `saveCallArgs` et `savedNotice` (`qg-salons.ts`).
    */
   const submit = async () => {
     const game = lobbyIdOf(link);
-    if (game === null) return setFormProblem(errorMessage("invalid_game"));
+    if (game === null) {
+      setBadLink(true);
+      return setFormProblem(errorMessage("invalid_game"));
+    }
     const withPing = ping && data?.pingPossible === true;
     setBusy(true);
+    setBadLink(false);
     setFormProblem(null);
     setPingNote(null);
     setSaid("");
     try {
-      // Plus de format à choisir (migration 20261110000100_appels_sans_format.sql) : le lien suffit.
-      const answer = await call<{ discord?: boolean; ping?: unknown }>("save_lobby_call", { p_game: game, p_format: null, ...(withPing ? { p_ping: true } : {}) });
+      const answer = await call<{ discord?: boolean; ping?: unknown }>("save_lobby_call", saveCallArgs(game, withPing));
       setLink("");
       setPing(false);
       await refreshAfterWrite();
-      const refusal = pingRefusal(answer?.ping);
-      setPingNote(refusal);
-      const discord = answer?.ping === "sent" ? " L'appel part aussi sur Discord, avec un ping." : answer?.discord === true ? " L'appel part aussi sur Discord." : "";
-      setSaid(`Les Gaulois sont prévenus.${discord}${refusal ? ` ${refusal}` : ""}`);
+      setPingNote(pingRefusal(answer?.ping));
+      setSaid(savedNotice(answer));
     } catch (e) {
       setFormProblem(messageOf(e));
     } finally {
@@ -95,8 +145,12 @@ export default function QgSalons({ voice = null }: { voice?: string | null }) {
     }
   };
 
-  /** Le bouton « Ping sur Discord » : un ping pour l'appel en cours, et lui seul (`ping_lobby_call`). Un appel fini ne repart pas. */
+  /**
+   * Le bouton « Ping sur Discord » : un ping pour l'appel en cours, et lui seul (`ping_lobby_call`). Un appel fini ne repart
+   * pas. Parti, le bouton disparaît : le focus passe à « Retirer mon appel ».
+   */
   const pingNow = async () => {
+    const before = document.activeElement;
     setBusy(true);
     setFormProblem(null);
     setPingNote(null);
@@ -104,19 +158,21 @@ export default function QgSalons({ voice = null }: { voice?: string | null }) {
     try {
       const answer = await call<{ ping?: unknown }>("ping_lobby_call");
       await refreshAfterWrite();
-      const refusal = pingRefusal(answer?.ping);
-      setPingNote(refusal);
-      setSaid(answer?.ping === "sent" ? "Ping parti sur Discord." : (refusal ?? ""));
+      setPingNote(pingRefusal(answer?.ping));
+      setSaid(pingNotice(answer));
     } catch (e) {
       const problem = messageOf(e);
       setPingNote(problem);
       setSaid(problem);
     } finally {
       setBusy(false);
+      keepFocus(before, () => withdrawButton.current);
     }
   };
 
+  /** Retire mon appel (`end_lobby_call`). Sa ligne disparaît avec le bouton : le focus passe au bouton d'envoi, sans ouvrir le clavier d'un téléphone. */
   const withdraw = async () => {
+    const before = document.activeElement;
     setBusy(true);
     setFormProblem(null);
     setPingNote(null);
@@ -129,17 +185,20 @@ export default function QgSalons({ voice = null }: { voice?: string | null }) {
       setFormProblem(messageOf(e));
     } finally {
       setBusy(false);
+      keepFocus(before, () => submitButton.current);
     }
   };
 
   const data = appels?.data ?? null;
   const now = Date.now() + (appels?.offset ?? 0);
   const soundOn = appels?.soundOn ?? true;
-  const mine = data?.calls.find((item) => item.mine) ?? null;
-  const others = data?.calls.filter((item) => !item.mine) ?? [];
+  const calls = sortCalls(data?.calls ?? []);
+  const soundWaits = soundOn && appels !== null && !appels.audioReady;
+  // Le bouton attend le premier relevé, qui seul dit si les appels partent sur Discord.
+  const waiting = busy || data === null;
 
   return (
-    <section aria-labelledby="salons-title" data-testid="qg-salons">
+    <section class="qg-salons" aria-labelledby="salons-title" data-testid="qg-salons">
       <PartieTete
         id="salons-title"
         title="Rejoindre un Gaulois"
@@ -154,104 +213,103 @@ export default function QgSalons({ voice = null }: { voice?: string | null }) {
             <button type="button" class="chip" aria-pressed={soundOn} onClick={toggleSound} data-testid="qg-salons-sound">
               Son des appels
             </button>
-            {soundOn && appels !== null && !appels.audioReady && (
+            {soundWaits && (
               <button type="button" class="underline" onClick={tryAudio} data-testid="qg-salons-try">
                 Essayer le son
               </button>
             )}
           </div>
         }
-      >
-        <p>Les membres connectés sont prévenus sur les pages du site.</p>
-      </PartieTete>
-      {soundOn && appels !== null && !appels.audioReady && <p class="mt-2 text-sm text-muted">Le son jouera après un premier clic sur la page.</p>}
-      <p class="mt-2 text-sm text-muted">Sur téléphone, gardez le site à l'écran.</p>
+      />
       <Problem message={appels?.problem ?? null} />
 
-      {/* Deux colonnes sur grand écran quand quelqu'un attend : la liste à gauche, le formulaire à droite. */}
-      <div class={`mt-6 grid grid-cols-1 items-start gap-8 ${others.length > 0 ? "lg:grid-cols-2" : ""}`}>
-        {/* Personne n'attend : rien, ni titre ni phrase. */}
-        {others.length > 0 && (
-          <div>
-            <h3 class="text-lg">Ils attendent</h3>
-            <ul class="mt-3 grid gap-3" data-testid="qg-salons-list">
-              {others.map((item) => (
-                <li key={callKey(item)} class="card p-5">
-                  <CallBody call={item} now={now} />
-                </li>
-              ))}
-            </ul>
+      {/* L'appel sur une ligne : le lien, le ping au choix, le bouton. */}
+      <form
+        class="salons-appel"
+        data-testid="qg-salons-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!waiting) void submit();
+        }}
+      >
+        <label for="salon-lien" class="salons-libelle">
+          Vous attendez dans un salon ? Collez son lien ou son code
+        </label>
+        <div class="salons-saisie">
+          <input id="salon-lien" class="field salons-champ" inputMode="url" autoComplete="off" spellcheck={false} placeholder="https://openfront.io/game/…" value={link} aria-invalid={badLink || undefined} aria-describedby={badLink && formProblem ? "salon-erreur" : undefined} onInput={(e) => setLink(e.currentTarget.value)} />
+          {/* Le ping n'est proposé que si un rôle est réglé : sans lui, il ne pourrait pas partir. Sa règle se lit dans le repli ;
+              les lecteurs d'écran l'entendent avec la case, par une copie cachée : le contenu d'un repli fermé n'est pas lu. */}
+          {data?.pingPossible && (
+            <>
+              <label class="salons-ping">
+                <input type="checkbox" class="size-5" checked={ping} aria-describedby="salon-ping-regle" onChange={(e) => setPing(e.currentTarget.checked)} data-testid="qg-salons-ping" />
+                Ping du rôle sur Discord
+              </label>
+              <span id="salon-ping-regle" hidden>
+                {PING_RULE}
+              </span>
+            </>
+          )}
+          {/* Pendant l'envoi, le bouton garde le focus : `aria-disabled`, jamais `disabled`. */}
+          <button ref={submitButton} type="submit" class="btn btn-primary salons-envoi" aria-disabled={waiting || undefined} data-testid="qg-salons-submit">
+            Prévenir les Gaulois
+          </button>
+        </div>
+        {/* Le site ne peut pas vérifier le mode du salon : cette phrase est le seul garde-fou contre le chacun pour soi public.
+            Le message Discord reste dans le salon après l'appel, sauf si l'appel est retiré : la phrase le dit avant l'appel. */}
+        <p class="salons-garde" data-testid="qg-salons-privacy">
+          Salons en équipes ou privés seulement. Les membres verront votre pseudo
+          {data?.discord ? " ; l'appel part aussi sur le Discord du clan, où le message reste sauf si vous retirez l'appel." : "."}
+        </p>
+        {formProblem && (
+          <div id="salon-erreur">
+            <Problem message={formProblem} />
           </div>
         )}
+      </form>
 
-        <div class={others.length > 0 ? "" : "max-w-2xl"}>
-          <h3 class="text-lg">Vous attendez dans un salon ?</h3>
-          {mine && (
-            <div class="card mt-3 p-5" data-testid="qg-salons-mine">
-              <p>
-                <strong>Votre appel</strong>, lancé {sinceLabel(mine.createdAt, now)}, dure 15 minutes au plus.
-                {mine.ping && " Ping parti sur Discord."}
-              </p>
-              <div class="mt-3 flex flex-wrap gap-3">
-                <button type="button" class="chip" aria-disabled={busy || undefined} onClick={() => !busy && void withdraw()} data-testid="qg-salons-withdraw">
-                  Retirer mon appel
-                </button>
-                {/* Le ping après coup, pour cet appel : le serveur refait son message Discord avec la mention, si l'anti-spam le permet. */}
-                {data?.pingPossible && !mine.ping && (
-                  <button type="button" class="chip" aria-disabled={busy || undefined} onClick={() => !busy && void pingNow()} data-testid="qg-salons-ping-now">
-                    Ping sur Discord
+      {/* Personne n'attend : rien, ni titre ni phrase. */}
+      {calls.length > 0 && (
+        <div class="salons-en-cours">
+          <h3 class="salons-titre">
+            Appels en cours{" "}
+            <span class="dir-nombre tnum" data-testid="qg-salons-count">
+              {calls.length}
+            </span>
+          </h3>
+          <ul class="dir-liste salons-liste" data-testid="qg-salons-list">
+            {calls.map((item) =>
+              item.mine ? (
+                <Ligne key={callKey(item)} call={item} now={now} note={pingNote}>
+                  {/* Le ping après coup, pour cet appel : le serveur refait son message Discord avec la mention, si l'anti-spam le permet. */}
+                  {data?.pingPossible && !item.ping && (
+                    <button type="button" class="dir-bouton" data-dir-ton="ally" aria-disabled={busy || undefined} onClick={() => !busy && void pingNow()} data-testid="qg-salons-ping-now">
+                      Ping sur Discord
+                    </button>
+                  )}
+                  <button ref={withdrawButton} type="button" class="dir-bouton salons-retirer" data-dir-ton="danger" aria-disabled={busy || undefined} onClick={() => !busy && void withdraw()} data-testid="qg-salons-withdraw">
+                    Retirer mon appel
                   </button>
-                )}
-              </div>
-              {pingNote && (
-                <p class="mt-3 text-sm text-muted" data-testid="qg-salons-ping-note">
-                  {pingNote}
-                </p>
-              )}
-            </div>
-          )}
-          <form
-            class="card mt-3 grid gap-4 p-5"
-            data-testid="qg-salons-form"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!busy && data !== null) void submit();
-            }}
-          >
-            <div>
-              <label for="salon-lien" class="text-sm font-semibold">
-                Le lien de votre salon, copié dans OpenFront
-              </label>
-              <input id="salon-lien" class="field mt-1" inputMode="url" autoComplete="off" spellcheck={false} placeholder="https://openfront.io/game/…" value={link} onInput={(e) => setLink(e.currentTarget.value)} />
-            </div>
-            {/* Le site ne peut pas vérifier le mode du salon : cette phrase est le seul garde-fou contre le chacun pour soi public.
-                Le message Discord reste dans le salon après l'appel, sauf si l'appel est retiré : la phrase le dit avant l'appel,
-                et le bouton attend le premier relevé, qui seul dit si les appels partent sur Discord. */}
-            <p class="text-sm text-muted" data-testid="qg-salons-privacy">
-              Salons en équipes ou privés seulement : en chacun pour soi, OpenFront interdit de s'entendre hors de la partie. Les membres verront votre pseudo pendant l'appel.
-              {data?.discord && " L'appel part aussi sur Discord, avec votre pseudo ; le message y reste, sauf si vous retirez l'appel."}
-            </p>
-            {/* Le ping n'est proposé que si un rôle est réglé : sans lui, il ne pourrait pas partir. */}
-            {data?.pingPossible && (
-              <div>
-                <label class="flex min-h-11 items-center gap-3 font-semibold">
-                  <input type="checkbox" class="size-5" checked={ping} aria-describedby="salon-ping-regle" onChange={(e) => setPing(e.currentTarget.checked)} data-testid="qg-salons-ping" />
-                  Ping du rôle sur Discord
-                </label>
-                <p id="salon-ping-regle" class="text-sm text-muted">
-                  {PING_RULE}
-                </p>
-              </div>
+                </Ligne>
+              ) : (
+                <Ligne key={callKey(item)} call={item} now={now} />
+              ),
             )}
-            <div>
-              <button type="submit" class="btn btn-primary" disabled={busy || data === null}>
-                Prévenir les Gaulois
-              </button>
-            </div>
-            <Problem message={formProblem} />
-          </form>
+          </ul>
         </div>
-      </div>
+      )}
+
+      {/* Ce qui ne se lit qu'une fois : les règles des appels et du ping. */}
+      <details class="fold salons-regles" data-testid="qg-salons-rules">
+        <summary>Règles des appels</summary>
+        <div class="grid gap-3 text-muted">
+          <p>En chacun pour soi, OpenFront interdit de s'entendre hors de la partie : seuls les salons en équipes ou privés s'annoncent ici.</p>
+          <p>Un appel dure 15 minutes au plus. Les membres connectés sont prévenus sur les pages du site ; sur téléphone, gardez le site à l'écran.</p>
+          {data?.pingPossible && <p>{PING_RULE}</p>}
+          <p>Bord vert : un salon ouvert. Jaune : l'appel finit bientôt. Bleu : le vôtre.</p>
+          {soundWaits && <p>Le son jouera après un premier clic sur la page.</p>}
+        </div>
+      </details>
 
       <p class="sr-only" role="status">
         {said}

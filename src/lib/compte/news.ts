@@ -107,7 +107,8 @@ export function goingLabel(going: number | undefined): string | null {
  * justes même si l'encadrement déplace ou supprime un rendez-vous de la série, ce que « chaque semaine » ne serait plus.
  */
 export function seriesNote(series: EventSeries | null | undefined): string | null {
-  if (!series || series.left < 2) return null;
+  // Une date illisible ne fait pas tomber la page (l'accueil, le QG) : `fmtDate` lèverait une erreur.
+  if (!series || series.left < 2 || !Number.isFinite(Date.parse(series.until))) return null;
   return `Encore ${fmtInt(series.left)} rendez-vous, jusqu'au ${fmtDate(series.until)}`;
 }
 
