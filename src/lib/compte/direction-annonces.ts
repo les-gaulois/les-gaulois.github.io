@@ -12,9 +12,31 @@ export const ANNOUNCEMENT_TITLE_MAX = 120;
 export const ANNOUNCEMENT_BODY_MAX = 2000;
 export const ANNOUNCEMENT_URL_MAX = 500;
 
-/** `get_site_news` ne donne à l'accueil que les 10 annonces les plus récentes ; `get_direction_overview` en liste 50. */
+/**
+ * Les annonces que l'accueil montre : `get_site_news` donne les 10 plus récentes (`order by created_at desc limit 10`,
+ * dernière version dans 20261109000200_gaulois_de_la_semaine.sql), sans autre filtre, et `NewsBoard.tsx` les affiche
+ * toutes, mêlées à celles du dépôt qui n'en cachent aucune. `get_direction_overview` liste les 50 plus récentes, dans le
+ * même ordre (`order by created_at desc limit 50`, 20261105000900_direction.sql). `tests/unit/direction-annonces.test.ts`
+ * relit ces deux nombres dans les migrations.
+ */
 export const HOME_ANNOUNCEMENTS = 10;
 export const LISTED_ANNOUNCEMENTS = 50;
+
+/**
+ * La place d'une annonce à l'accueil. `unsure` : deux annonces de la même heure, à la microseconde, se partagent la dixième
+ * place ; le serveur peut alors donner l'une ou l'autre à l'accueil, et l'onglet ne le sait pas.
+ */
+export type HomePlace = "home" | "off" | "unsure";
+
+/**
+ * La place de chaque annonce, dans l'ordre du serveur (la plus récente d'abord), d'après leurs heures de création telles
+ * que le serveur les écrit : deux heures égales ont la même écriture dans une même réponse.
+ */
+export function homePlaces(createdAt: readonly string[]): HomePlace[] {
+  const last = createdAt[HOME_ANNOUNCEMENTS - 1];
+  const tie = last !== undefined && createdAt[HOME_ANNOUNCEMENTS] === last ? last : null;
+  return createdAt.map((at, index) => (tie !== null && at === tie ? "unsure" : index < HOME_ANNOUNCEMENTS ? "home" : "off"));
+}
 
 export interface AnnouncementState {
   ton: DirTon;
@@ -24,13 +46,21 @@ export interface AnnouncementState {
 }
 
 /**
- * L'état d'une annonce, à son rang dans la liste (0 : la plus récente, l'ordre du serveur). Jaune : ouverte dans le
- * formulaire. Vert : parmi les 10 dernières, donc sur l'accueil. Gris : plus ancienne, l'accueil ne la montre plus.
+ * L'état d'une annonce. Jaune : ouverte dans le formulaire. Vert : parmi les 10 dernières, donc sur l'accueil. Gris : plus
+ * ancienne, l'accueil ne la montre plus, ou sa place n'est pas sûre (`homePlaces`).
  */
-export function announcementState(index: number, id: number, editingId: number | null): AnnouncementState {
-  if (editingId !== null && id === editingId) return { ton: "warn", label: "En modification", editing: true };
-  return index < HOME_ANNOUNCEMENTS ? { ton: "ok", label: "Sur l'accueil", editing: false } : { ton: "muted", label: "Hors de l'accueil", editing: false };
+export function announcementState(place: HomePlace, editing: boolean): AnnouncementState {
+  if (editing) return { ton: "warn", label: "En modification", editing: true };
+  if (place === "home") return { ton: "ok", label: "Sur l'accueil", editing: false };
+  if (place === "unsure") return { ton: "muted", label: "Accueil incertain", editing: false };
+  return { ton: "muted", label: "Hors de l'accueil", editing: false };
 }
+
+/**
+ * Vrai si l'annonce ouverte dans le formulaire n'est plus dans la liste relue (supprimée, ou sortie des 50 dernières) :
+ * le formulaire se vide.
+ */
+export const draftGone = (editingId: number | null, listed: readonly number[]): boolean => editingId !== null && !listed.includes(editingId);
 
 export interface FieldCount {
   /** « 12 sur 120 ». */
@@ -39,7 +69,10 @@ export interface FieldCount {
   near: boolean;
 }
 
-/** Le compteur d'un champ limité, en mots : la longueur que le navigateur compte pour `maxlength`. */
+/**
+ * Le compteur d'un champ limité, en mots. Il compte comme `maxlength`, en unités UTF-16 (`length`) : une lettre accentuée
+ * en vaut une, un émoji deux. Le serveur compte en caractères (`char_length`) : il n'en refuse jamais plus que le champ.
+ */
 export function fieldCount(value: string, max: number): FieldCount {
   return { text: `${fmtInt(value.length)} sur ${fmtInt(max)}`, near: value.length >= max * 0.9 };
 }

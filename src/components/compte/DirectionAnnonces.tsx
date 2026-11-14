@@ -3,9 +3,23 @@
  * Le formulaire et la liste côte à côte, une ligne courte par annonce, son état en couleur avec son mot (règles dans
  * `src/lib/compte/direction-annonces.ts`), l'aide repliée. Dessin : `global.css`, « Direction, onglet Annonces ».
  */
-import { useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { call } from "../../lib/compte/api";
-import { ANNOUNCEMENT_BODY_MAX, ANNOUNCEMENT_TITLE_MAX, ANNOUNCEMENT_URL_MAX, HOME_ANNOUNCEMENTS, LISTED_ANNOUNCEMENTS, announcementCount, announcementExcerpt, announcementLink, announcementState, announcementsCapped, fieldCount } from "../../lib/compte/direction-annonces";
+import {
+  ANNOUNCEMENT_BODY_MAX,
+  ANNOUNCEMENT_TITLE_MAX,
+  ANNOUNCEMENT_URL_MAX,
+  HOME_ANNOUNCEMENTS,
+  LISTED_ANNOUNCEMENTS,
+  announcementCount,
+  announcementExcerpt,
+  announcementLink,
+  announcementState,
+  announcementsCapped,
+  draftGone,
+  fieldCount,
+  homePlaces,
+} from "../../lib/compte/direction-annonces";
 import { fmtDate } from "../../lib/format";
 import { Problem, Success, focusField, useRun } from "./common";
 import { Pastille } from "./direction-kit";
@@ -14,6 +28,9 @@ import { PartieTete } from "./Onglets";
 
 export const EMPTY_ANNOUNCEMENT = { id: null as number | null, title: "", body: "", url: "" };
 export type AnnouncementDraft = typeof EMPTY_ANNOUNCEMENT;
+
+/** L'identifiant du bouton « Modifier » d'une annonce : le focus y revient quand on annule sa modification. */
+const editButtonId = (id: number) => `ann-modifier-${id}`;
 
 /** Le libellé d'un champ limité et son compteur, discret, qui passe au jaune près de la limite. */
 function Libelle({ id, label, value, max }: { id: string; label: string; value: string; max: number }) {
@@ -28,7 +45,11 @@ function Libelle({ id, label, value, max }: { id: string; label: string; value: 
   );
 }
 
-/** Une suppression ne part qu'au second clic : le texte, lui, ne se récupère pas. Gris, rouge au survol et une fois armé. */
+/**
+ * Une suppression ne part qu'au second clic : le texte, lui, ne se récupère pas. Gris, rouge au survol et une fois armé.
+ * Le bouton se désarme quand le focus part ailleurs (une perte de focus sans destination est ignorée : Safari ne donne pas
+ * le focus au bouton cliqué), avec Échap, et après la confirmation : un refus du serveur demande de réarmer.
+ */
 function Supprimer({ busy, label, onConfirm }: { busy: boolean; label: string; onConfirm: () => void }) {
   const [armed, setArmed] = useState(false);
   return (
@@ -40,10 +61,19 @@ function Supprimer({ busy, label, onConfirm }: { busy: boolean; label: string; o
       disabled={busy}
       aria-label={armed ? `Confirmer la suppression de « ${label} »` : `Supprimer « ${label} »`}
       onClick={() => {
-        if (armed) onConfirm();
-        else setArmed(true);
+        if (!armed) return setArmed(true);
+        setArmed(false);
+        onConfirm();
       }}
-      onBlur={() => setArmed(false)}
+      onBlur={(e) => {
+        if (e.relatedTarget) setArmed(false);
+      }}
+      onKeyDown={(e) => {
+        if (e.key !== "Escape" || !armed) return;
+        e.preventDefault();
+        e.stopPropagation();
+        setArmed(false);
+      }}
     >
       {armed ? "Confirmer" : "Supprimer"}
     </button>
@@ -53,17 +83,53 @@ function Supprimer({ busy, label, onConfirm }: { busy: boolean; label: string; o
 export default function DirectionAnnonces({ rows, reload, form, setForm }: { rows: AnnouncementRow[]; reload: () => Promise<void>; form: AnnouncementDraft; setForm: (draft: AnnouncementDraft) => void }) {
   const empty = EMPTY_ANNOUNCEMENT;
   const { busy, error, done, run } = useRun(reload);
+  // Une seule demande à la fois : un double clic ou Entrée répétée n'en envoie pas une seconde.
+  const sending = useRef(false);
+  // Les annonces que l'on vient de supprimer d'ici : leur disparition de la liste n'a pas besoin d'être expliquée.
+  const removed = useRef(new Set<number>());
+  // Les réponses du serveur, au bas du formulaire. Le focus y va après une suppression : la ligne n'existe plus.
+  const feedback = useRef<HTMLDivElement>(null);
+  const [note, setNote] = useState<string | null>(null);
+
+  // L'annonce ouverte dans le formulaire a disparu de la liste relue (supprimée par un autre, ou sortie des 50 dernières) :
+  // le formulaire se vide, et le dit.
+  useEffect(() => {
+    if (!draftGone(form.id, rows.map((row) => row.id))) return;
+    if (form.id !== null && !removed.current.has(form.id)) setNote("L'annonce en modification n'est plus dans la liste : le formulaire est vidé.");
+    setForm(empty);
+  }, [rows, form.id]);
 
   const save = async () => {
+    if (sending.current) return;
+    sending.current = true;
+    setNote(null);
     const ok = await run(() => call("save_announcement", { p_id: form.id, p_title: form.title, p_body: form.body, p_url: form.url || null }), form.id ? "Annonce modifiée." : "Annonce publiée : elle est visible sur l'accueil.");
+    sending.current = false;
     if (ok) setForm(empty);
   };
 
   const remove = async (row: AnnouncementRow) => {
+    if (sending.current) return;
+    sending.current = true;
+    removed.current.add(row.id);
+    setNote(null);
     const ok = await run(() => call("delete_announcement", { p_id: row.id }), "Annonce supprimée.");
+    sending.current = false;
     // L'annonce ouverte dans le formulaire n'existe plus : le brouillon repart de zéro.
     if (ok && form.id === row.id) setForm(empty);
+    window.setTimeout(() => feedback.current?.focus(), 0);
   };
+
+  const cancel = () => {
+    const id = form.id;
+    setNote(null);
+    setForm(empty);
+    // Le bouton « Annuler » disparaît : le focus revient au « Modifier » de l'annonce, ou au titre si elle n'est plus là.
+    window.setTimeout(() => ((id !== null && document.getElementById(editButtonId(id))) || document.getElementById("ann-t"))?.focus(), 0);
+  };
+
+  const places = homePlaces(rows.map((row) => row.created_at));
+  const said = [done, note].filter(Boolean).join(" ") || null;
 
   return (
     <section class="dir-annonces" aria-labelledby="ann-title" data-testid="direction-announcements">
@@ -97,17 +163,20 @@ export default function DirectionAnnonces({ rows, reload, form, setForm }: { row
             <input id="ann-u" class="field" type="url" maxLength={ANNOUNCEMENT_URL_MAX} value={form.url} onInput={(e) => setForm({ ...form, url: e.currentTarget.value })} />
           </div>
           <div class="dir-annonces-envoi">
-            <button type="submit" class="btn btn-primary" disabled={busy}>
+            {/* `aria-disabled` et non `disabled` pendant l'envoi : le bouton garde le focus du clavier ; `sending` bloque le second envoi. */}
+            <button type="submit" class="btn btn-primary" aria-disabled={busy ? "true" : undefined} data-testid="direction-announcement-submit">
               {form.id ? "Enregistrer" : "Publier l'annonce"}
             </button>
             {form.id && (
-              <button type="button" class="btn btn-ghost" onClick={() => setForm(empty)}>
+              <button type="button" class="btn btn-ghost" onClick={cancel}>
                 Annuler
               </button>
             )}
           </div>
-          <Problem message={error} />
-          <Success message={done} />
+          <div ref={feedback} tabIndex={-1} class="dir-annonces-retour" data-testid="direction-announcements-feedback">
+            <Problem message={error} />
+            <Success message={said} />
+          </div>
         </form>
         {rows.length > 0 && (
           <div class="dir-annonces-publiees">
@@ -119,7 +188,7 @@ export default function DirectionAnnonces({ rows, reload, form, setForm }: { row
             </div>
             <ul class="dir-liste">
               {rows.map((a, index) => {
-                const state = announcementState(index, a.id, form.id);
+                const state = announcementState(places[index] ?? "off", form.id === a.id);
                 const link = announcementLink(a.url);
                 return (
                   <li key={a.id} class="dir-ligne dir-annonces-ligne" data-dir-ton={state.ton} data-fige={a.editable ? undefined : ""} aria-current={state.editing ? "true" : undefined} data-testid="direction-announcement">
@@ -146,10 +215,12 @@ export default function DirectionAnnonces({ rows, reload, form, setForm }: { row
                         <>
                           <button
                             type="button"
+                            id={editButtonId(a.id)}
                             class="dir-bouton"
                             disabled={busy}
                             aria-label={`Modifier « ${a.title} »`}
                             onClick={() => {
+                              setNote(null);
                               setForm({ id: a.id, title: a.title, body: a.body, url: a.url ?? "" });
                               focusField("ann-t");
                             }}

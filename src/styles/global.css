@@ -3530,6 +3530,21 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 .dir-annonces-form .form-success {
   margin-top: 0;
 }
+/* Les réponses du serveur. Le focus y vient après une suppression. Sans message, la zone ne prend pas de place ; sa zone
+   `role="status"`, vide, reste dans l'arbre d'accessibilité pour que le message suivant soit lu. */
+.dir-annonces-retour {
+  display: grid;
+  gap: 0.5rem;
+  margin: -0.25rem -0.5rem;
+  padding: 0.25rem 0.5rem;
+}
+.dir-annonces-retour:not(:has(.form-problem, .form-success:not(:empty))) {
+  margin-block: -0.75rem 0;
+  padding-block: 0;
+}
+.dir-annonces-retour .form-success:empty {
+  display: block;
+}
 
 /* Une annonce : le titre et, dessous, la date, l'auteur, le lien et le début du texte ; puis l'état, puis les boutons. */
 .dir-annonces-ligne {
