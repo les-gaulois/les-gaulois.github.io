@@ -29,8 +29,12 @@ import {
   confirmationDuPlafond,
   controlerPlafond,
   dollars,
+  depenseEnMorceaux,
   etatDesBulles,
+  etatDuFormulaire,
   moisEnMots,
+  partDuPlafond,
+  pastilleDesBulles,
   phraseDeLaDepense,
   plafondEnSaisie,
   prixDuModele,
@@ -445,5 +449,48 @@ describe("les bulles des Gaulois dans l'onglet Village", () => {
     expect(confirmationDesBulles(true)).toContain("« Remettre les bulles » les rendra.");
     expect(confirmationDesBulles(false)).toContain("de nouveau appelé");
     for (const t of [confirmationDesBulles(true), confirmationDesBulles(false), etatDesBulles(VIE()), PLAFOND_ATTEINT]) expect(t).not.toMatch(/[<>=÷%→]/);
+  });
+});
+
+describe("le dessin de l'onglet Village : une couleur et son mot, une jauge", () => {
+  it("écrit la dépense en trois morceaux qui, bout à bout, font la phrase", () => {
+    const vie = VIE();
+    const morceaux = depenseEnMorceaux(vie);
+    expect(morceaux.map(sp)).toEqual(["Dépense du mois : ", "0,42 $", " sur un plafond de 10 $."]);
+    expect(morceaux.join("")).toBe(phraseDeLaDepense(vie));
+    const cher = { ...vie, plafond: 12.5, depense: { ...vie.depense, cout: 0.0012 } };
+    expect(depenseEnMorceaux(cher).join("")).toBe(phraseDeLaDepense(cher));
+    expect(sp(phraseDeLaDepense(cher))).toBe("Dépense du mois : moins de 0,01 $ sur un plafond de 12,50 $.");
+  });
+
+  it("donne aux bulles une couleur et son mot : coupées avant tout, puis le plafond, sinon permises", () => {
+    expect(pastilleDesBulles({ bulles: true, plafond_atteint: false })).toEqual({ ton: "ok", mot: "Permises" });
+    expect(pastilleDesBulles({ bulles: true, plafond_atteint: true })).toEqual({ ton: "warn", mot: "Plafond atteint" });
+    expect(pastilleDesBulles({ bulles: false, plafond_atteint: false })).toEqual({ ton: "danger", mot: "Coupées" });
+    expect(pastilleDesBulles({ bulles: false, plafond_atteint: true })).toEqual({ ton: "danger", mot: "Coupées" });
+  });
+
+  it("mesure la jauge de la dépense sur le plafond, sans jamais la dire pleine à la place du serveur", () => {
+    const vie = VIE();
+    const avec = (cout: number, plafond: number, atteint = false) => partDuPlafond({ plafond, plafond_atteint: atteint, depense: { cout } });
+    expect(partDuPlafond(vie)).toBeCloseTo(4.235, 6);
+    expect(avec(5, 10)).toBe(50);
+    expect(avec(0, 10)).toBe(0);
+    // Une dépense infime garde un trait ; le serveur seul dit le plafond atteint.
+    expect(avec(0.0001, 100)).toBe(1);
+    expect(avec(9.999, 10)).toBe(99);
+    expect(avec(12, 10)).toBe(99);
+    expect(avec(10, 10, true)).toBe(100);
+    // Un plafond de 0 dollar : atteint d'après le serveur, plein ; sinon rien à mesurer.
+    expect(avec(0, 0, true)).toBe(100);
+    expect(avec(0, 0)).toBe(0);
+    expect(avec(1, 0)).toBe(0);
+  });
+
+  it("donne au formulaire une couleur et son mot : à corriger, modifié, en vigueur", () => {
+    expect(etatDuFormulaire(false, 0)).toEqual({ ton: "ok", mot: "En vigueur" });
+    expect(etatDuFormulaire(true, 0)).toEqual({ ton: "warn", mot: "Modifié, pas enregistré" });
+    expect(etatDuFormulaire(true, 2)).toEqual({ ton: "danger", mot: "À corriger" });
+    for (const mot of [etatDuFormulaire(true, 0).mot, etatDuFormulaire(true, 1).mot, pastilleDesBulles({ bulles: true, plafond_atteint: true }).mot]) expect(mot).not.toMatch(/[<>=÷%→]/);
   });
 });

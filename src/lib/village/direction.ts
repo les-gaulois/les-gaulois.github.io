@@ -378,8 +378,51 @@ export function moisEnMots(mois: string): string {
   return /^\d{4}-\d{2}-\d{2}/.test(mois) && Number.isFinite(date.getTime()) ? moisLong.format(date) : mois;
 }
 
+/**
+ * La dépense du mois et le plafond, en trois morceaux : ce qui précède la somme, la somme, ce qui la suit. L'écran écrit la
+ * somme en grand ; bout à bout, les trois morceaux font la phrase de `phraseDeLaDepense`.
+ */
+export const depenseEnMorceaux = (vie: VieDuVillage): [string, string, string] => ["Dépense du mois : ", dollars(vie.depense.cout), ` sur un plafond de ${dollars(vie.plafond)}.`];
+
 /** La dépense du mois et le plafond, en une phrase. */
-export const phraseDeLaDepense = (vie: VieDuVillage): string => `Dépense du mois : ${dollars(vie.depense.cout)} sur un plafond de ${dollars(vie.plafond)}.`;
+export const phraseDeLaDepense = (vie: VieDuVillage): string => depenseEnMorceaux(vie).join("");
+
+/** Les couleurs d'état de la Direction dont l'onglet se sert (`DirTon` de `direction-kit.tsx`). */
+export type TonDuVillage = "ok" | "warn" | "danger";
+
+/**
+ * L'état des bulles, d'un mot et d'une couleur, jamais l'une sans l'autre : rouge « Coupées » quand l'encadrement les a
+ * coupées (cela passe avant le plafond : rien ne s'écrit, plafond ou pas), jaune « Plafond atteint » quand le serveur dit
+ * que la dépense du mois l'a atteint, vert « Permises » sinon. C'est le serveur qui dit si le plafond est atteint
+ * (`plafond_atteint`) : l'écran ne le recalcule pas.
+ */
+export function pastilleDesBulles(vie: Pick<VieDuVillage, "bulles" | "plafond_atteint">): { ton: TonDuVillage; mot: string } {
+  if (!vie.bulles) return { ton: "danger", mot: "Coupées" };
+  if (vie.plafond_atteint) return { ton: "warn", mot: "Plafond atteint" };
+  return { ton: "ok", mot: "Permises" };
+}
+
+/**
+ * La longueur de la jauge de la dépense, de 0 à 100 : la part du plafond déjà dépensée. Pleine quand le serveur dit le
+ * plafond atteint (un plafond de 0 dollar compris) ; jamais pleine sinon, même si l'arrondi le voudrait ; vide sans dépense.
+ * Une dépense qui existe a toujours un trait, même infime.
+ */
+export function partDuPlafond(vie: Pick<VieDuVillage, "plafond" | "plafond_atteint"> & { depense: Pick<VieDuVillage["depense"], "cout"> }): number {
+  if (vie.plafond_atteint) return 100;
+  const cout = vie.depense.cout;
+  if (!(cout > 0) || !(vie.plafond > 0)) return 0;
+  return Math.min(99, Math.max(1, (cout / vie.plafond) * 100));
+}
+
+/**
+ * L'état du formulaire des prix et des chances, d'un mot et d'une couleur : rouge « À corriger » tant que le contrôle montre
+ * un problème, jaune « Modifié, pas enregistré » dès qu'un champ diffère des réglages en vigueur, vert « En vigueur » sinon.
+ */
+export function etatDuFormulaire(modifie: boolean, problemes: number): { ton: TonDuVillage; mot: string } {
+  if (problemes > 0) return { ton: "danger", mot: "À corriger" };
+  if (modifie) return { ton: "warn", mot: "Modifié, pas enregistré" };
+  return { ton: "ok", mot: "En vigueur" };
+}
 
 /** Les bulles permises ou coupées, en une phrase. */
 export const etatDesBulles = (vie: VieDuVillage): string =>
