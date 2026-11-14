@@ -22,7 +22,7 @@ function Name({ m }: { m: StoredMember }) {
   );
 }
 
-/** La place d'un membre : aussi montrée au QG, dans l'onglet « Moi », où le site connaît déjà le membre. */
+/** La place d'un membre, sur l'accueil. L'onglet « Moi » du QG en tire les mêmes chiffres, par les mêmes fonctions (`src/lib/compte/qg-moi.ts`). */
 export function Result({ members, member }: { members: readonly StoredMember[]; member: StoredMember }) {
   const place = placeOf(members, member);
   if (!place) {
@@ -54,8 +54,7 @@ export function Result({ members, member }: { members: readonly StoredMember[]; 
             <span class="text-muted">{member.username}</span>
           )}
         </p>
-        {/* `console-valeur` : au QG (onglet « Moi »), le grand chiffre de la console, avec sa lueur ; sans effet sur l'accueil. */}
-        <p class="console-valeur tnum font-display text-4xl font-extrabold">{ordinal(place.rank)}</p>
+        <p class="tnum font-display text-4xl font-extrabold">{ordinal(place.rank)}</p>
         <p class="tnum text-sm text-muted">sur {fmtInt(place.ranked)} membres, aux victoires sous le tag</p>
         <p class="tnum mt-2 text-sm">
           {fmtInt(place.wins)} victoires · {fmtInt(member.team?.losses ?? 0)} défaites · {fmtPct(rateOf(member))}

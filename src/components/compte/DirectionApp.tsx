@@ -2,52 +2,32 @@ import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { MemberFilter } from "../../lib/compte/admin-members";
 import { basePath, call } from "../../lib/compte/api";
-import { toLocalInput } from "../../lib/compte/news";
 import { pendingWords } from "../../lib/compte/pending";
-import { ROLE_LABELS, type MemberRow, type Role } from "../../lib/compte/types";
+import { ROLE_LABELS, type Role } from "../../lib/compte/types";
 import { setPlayerView } from "../../lib/compte/vue-joueur";
 import type { SiteHealthInput } from "../../lib/etat-site";
-import { fmtDate, fmtDateTime, fmtInt } from "../../lib/format";
+import { fmtInt } from "../../lib/format";
 import type { LogoMatriceData } from "../../lib/logo-matrice";
 import { tabsFor } from "../../lib/onglets";
 import LogoMatrice from "../LogoMatrice";
-import { Log, Members, Requests, type MembersAsk } from "./AdminPanels";
-import { DeleteButton, DiscordButton, Loading, Problem, Success, messageOf, useMe, usePendingCount, useRun } from "./common";
+import { Members, type MembersAsk } from "./AdminPanels";
+import { DiscordButton, Loading, Problem, messageOf, useMe, usePendingCount } from "./common";
 import DirectionActivite from "./DirectionActivite";
+import DirectionAnnonces, { EMPTY_ANNOUNCEMENT } from "./DirectionAnnonces";
+import DirectionDemandes from "./DirectionDemandes";
 import DirectionDiscord from "./DirectionDiscord";
+import DirectionEnsemble from "./DirectionEnsemble";
+import DirectionEvenements, { EMPTY_EVENT } from "./DirectionEvenements";
+import DirectionFondateur from "./DirectionFondateur";
+import DirectionJournal from "./DirectionJournal";
 import DirectionObjectif from "./DirectionObjectif";
 import DirectionPolls, { EMPTY_POLL, type PollDraft } from "./DirectionPolls";
 import DirectionVillage from "./DirectionVillage";
 import DirectionWelcome from "./DirectionWelcome";
 import DirectionWeeklyPick, { EMPTY_WEEKLY_PICK, type WeeklyPickDraft } from "./DirectionWeeklyPick";
-import { Onglets, Partie, PartieTete, reducedMotion, useTabs, type TabItem } from "./Onglets";
-import SiteHealth from "./SiteHealth";
+import { Onglets, Partie, reducedMotion, useTabs, type TabItem } from "./Onglets";
+import type { Overview } from "./direction-overview";
 import Telemetrie from "./Telemetrie";
-
-interface NewsRow {
-  id: number;
-  title: string;
-  url: string | null;
-  author: string | null;
-  editable: boolean;
-}
-interface AnnouncementRow extends NewsRow {
-  body: string;
-  created_at: string;
-}
-interface EventRow extends NewsRow {
-  description: string | null;
-  starts_at: string;
-}
-interface Overview {
-  pending_requests: number;
-  members: number;
-  officers: number;
-  suspended: number;
-  roster: { total: number; read_at: string } | null;
-  announcements: AnnouncementRow[];
-  events: EventRow[];
-}
 
 /**
  * Les onglets de la Direction. Le journal et Discord ne sont montrés qu'aux admins et au fondateur, le dernier qu'au fondateur.
@@ -75,348 +55,6 @@ const DIRECTION_TABS = [
   { id: "discord", label: "Discord", icon: "corbeau", rank: 3 },
   { id: "fondateur", label: "Fondateur", icon: "cle", rank: 4 },
 ] as const;
-
-/**
- * Une case de la vue d'ensemble : elle ouvre la partie où l'on décide. C'est un vrai lien (`#demandes`) : le clic droit et
- * l'ouverture dans un nouvel onglet restent. Au clic simple, `onOpen` ouvre la partie et y mène le focus.
- * `filter` : la case ouvre l'onglet Comptes avec ce filtre déjà choisi (« Suspendus » montre les comptes suspendus).
- */
-function Tile({ label, value, part, filter, onOpen, alert = false }: { label: string; value: number; part: string; filter?: MemberFilter; onOpen: (part: string, filter?: MemberFilter) => void; alert?: boolean }) {
-  return (
-    <a
-      href={`#${part}`}
-      class="card block p-5 hover:border-white"
-      data-testid="direction-tile"
-      onClick={(e) => {
-        if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-        e.preventDefault();
-        onOpen(part, filter);
-      }}
-    >
-      {/* `console-*` : l'ambiance console de la page, voir global.css. */}
-      <span class="console-libelle font-semibold text-muted">{label}</span>
-      <span class={`console-valeur tnum mt-1 block font-display text-4xl font-extrabold ${alert ? "text-warn" : ""}`}>{fmtInt(value)}</span>
-    </a>
-  );
-}
-
-const EMPTY_ANNOUNCEMENT = { id: null as number | null, title: "", body: "", url: "" };
-type AnnouncementDraft = typeof EMPTY_ANNOUNCEMENT;
-// `repeat` et `weeks` : seulement pour un nouvel événement. Une série crée un événement par semaine, chacun modifiable seul.
-const EMPTY_EVENT = { id: null as number | null, title: "", description: "", url: "", start: "", repeat: false, weeks: "4" };
-type EventDraft = typeof EMPTY_EVENT;
-const SERIES_WEEKS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-
-/** « Modifier » remplit le formulaire, puis y mène : sur téléphone, il est au-dessus de la liste. */
-const focusField = (id: string) => window.setTimeout(() => document.getElementById(id)?.focus(), 0);
-
-function Announcements({ rows, reload, form, setForm }: { rows: AnnouncementRow[]; reload: () => Promise<void>; form: AnnouncementDraft; setForm: (draft: AnnouncementDraft) => void }) {
-  const empty = EMPTY_ANNOUNCEMENT;
-  const { busy, error, done, run } = useRun(reload);
-
-  const save = async () => {
-    const ok = await run(() => call("save_announcement", { p_id: form.id, p_title: form.title, p_body: form.body, p_url: form.url || null }), form.id ? "Annonce modifiée." : "Annonce publiée : elle est visible sur l'accueil.");
-    if (ok) setForm(empty);
-  };
-
-  return (
-    <section aria-labelledby="ann-title" data-testid="direction-announcements">
-      <PartieTete id="ann-title" title="Annonces">
-        <p>Visibles aussitôt sur l'accueil. Le nom de l'auteur n'est pas public.</p>
-      </PartieTete>
-      <div class="mt-6 grid items-start gap-6 lg:grid-cols-2">
-        <form
-          class="card grid gap-4 p-5"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void save();
-          }}
-        >
-          <h3 class="text-lg">{form.id ? "Modifier l'annonce" : "Nouvelle annonce"}</h3>
-          <div>
-            <label for="ann-t" class="text-sm font-semibold">
-              Titre
-            </label>
-            <input id="ann-t" class="field mt-1" required maxLength={120} value={form.title} onInput={(e) => setForm({ ...form, title: e.currentTarget.value })} />
-          </div>
-          <div>
-            <label for="ann-b" class="text-sm font-semibold">
-              Texte
-            </label>
-            <textarea id="ann-b" class="field mt-1" required rows={5} maxLength={2000} value={form.body} onInput={(e) => setForm({ ...form, body: e.currentTarget.value })} />
-          </div>
-          <div>
-            <label for="ann-u" class="text-sm font-semibold">
-              Lien en https (facultatif)
-            </label>
-            <input id="ann-u" class="field mt-1" type="url" maxLength={500} value={form.url} onInput={(e) => setForm({ ...form, url: e.currentTarget.value })} />
-          </div>
-          <div class="flex flex-wrap gap-3">
-            <button type="submit" class="btn btn-primary" disabled={busy}>
-              {form.id ? "Enregistrer" : "Publier l'annonce"}
-            </button>
-            {form.id && (
-              <button type="button" class="btn btn-ghost" onClick={() => setForm(empty)}>
-                Annuler
-              </button>
-            )}
-          </div>
-          <Problem message={error} />
-          {done && <Success message={done} />}
-        </form>
-        {rows.length > 0 && (
-          <div>
-            <h3 class="text-lg">Publiées depuis le site</h3>
-            <ul class="mt-3 grid gap-3">
-              {rows.map((a) => (
-                <li key={a.id} class="card p-5" data-testid="direction-announcement">
-                  <p class="font-semibold [overflow-wrap:anywhere]">{a.title}</p>
-                  <p class="tnum mt-1 text-sm text-muted">
-                    {fmtDate(a.created_at)}
-                    {a.author ? ` · ${a.author}` : ""}
-                  </p>
-                  {a.editable && (
-                    <div class="mt-3 flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        class="btn btn-ghost !min-h-10 !py-1.5 !text-sm"
-                        disabled={busy}
-                        aria-label={`Modifier « ${a.title} »`}
-                        onClick={() => {
-                          setForm({ id: a.id, title: a.title, body: a.body, url: a.url ?? "" });
-                          focusField("ann-t");
-                        }}
-                      >
-                        Modifier
-                      </button>
-                      <DeleteButton busy={busy} label={a.title} onConfirm={() => void run(() => call("delete_announcement", { p_id: a.id }), "Annonce supprimée.")} />
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-    </section>
-  );
-}
-
-function Events({ rows, attendance, reload, form, setForm }: { rows: EventRow[]; attendance: Map<number, string[]> | null | undefined; reload: () => Promise<void>; form: EventDraft; setForm: (draft: EventDraft) => void }) {
-  const empty = EMPTY_EVENT;
-  const { busy, error, done, run } = useRun(reload);
-
-  const save = async () => {
-    const start = form.start ? new Date(form.start).toISOString() : null;
-    const series = form.id === null && form.repeat;
-    const ok = series
-      ? await run(
-          () => call("save_event_series", { p_title: form.title, p_description: form.description || null, p_url: form.url || null, p_starts_at: start, p_weeks: Number(form.weeks) }),
-          `${form.weeks} événements publiés, un par semaine. L'accueil ne montre que le prochain.`,
-        )
-      : await run(
-          () => call("save_event", { p_id: form.id, p_title: form.title, p_description: form.description || null, p_url: form.url || null, p_starts_at: start }),
-          form.id ? "Événement modifié." : "Événement publié : il est visible sur l'accueil.",
-        );
-    if (ok) setForm(empty);
-  };
-
-  return (
-    <section aria-labelledby="evt-title" data-testid="direction-events">
-      <PartieTete id="evt-title" title="Événements">
-        <p>Visibles aussitôt sur l'accueil.</p>
-      </PartieTete>
-      <div class="mt-6 grid items-start gap-6 lg:grid-cols-2">
-        <form
-          class="card grid gap-4 p-5"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void save();
-          }}
-        >
-          <h3 class="text-lg">{form.id ? "Modifier l'événement" : "Nouvel événement"}</h3>
-          <div>
-            <label for="evt-t" class="text-sm font-semibold">
-              Nom de l'événement
-            </label>
-            <input id="evt-t" class="field mt-1" required maxLength={120} value={form.title} onInput={(e) => setForm({ ...form, title: e.currentTarget.value })} />
-          </div>
-          <div>
-            <label for="evt-s" class="text-sm font-semibold">
-              Date et heure
-            </label>
-            <input id="evt-s" class="field mt-1" type="datetime-local" required value={form.start} onInput={(e) => setForm({ ...form, start: e.currentTarget.value })} />
-          </div>
-          <div>
-            <label for="evt-d" class="text-sm font-semibold">
-              Description (facultative)
-            </label>
-            <textarea id="evt-d" class="field mt-1" rows={3} maxLength={2000} value={form.description} onInput={(e) => setForm({ ...form, description: e.currentTarget.value })} />
-          </div>
-          <div>
-            <label for="evt-u" class="text-sm font-semibold">
-              Lien en https (facultatif)
-            </label>
-            <input id="evt-u" class="field mt-1" type="url" maxLength={500} value={form.url} onInput={(e) => setForm({ ...form, url: e.currentTarget.value })} />
-          </div>
-          {form.id === null && (
-            <div class="flex flex-wrap items-end gap-x-4 gap-y-2">
-              <label class="flex min-h-11 items-center gap-3 font-semibold">
-                <input type="checkbox" class="size-5" checked={form.repeat} onChange={(e) => setForm({ ...form, repeat: e.currentTarget.checked })} />
-                Répéter chaque semaine
-              </label>
-              {form.repeat && (
-                <div>
-                  <label for="evt-w" class="text-sm font-semibold">
-                    Pendant
-                  </label>
-                  <select id="evt-w" class="field mt-1 !w-auto" value={form.weeks} onChange={(e) => setForm({ ...form, weeks: e.currentTarget.value })}>
-                    {SERIES_WEEKS.map((n) => (
-                      <option key={n} value={String(n)}>
-                        {n} semaines
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
-          )}
-          <div class="flex flex-wrap gap-3">
-            <button type="submit" class="btn btn-primary" disabled={busy}>
-              {form.id ? "Enregistrer" : form.repeat ? `Publier ${form.weeks} événements` : "Publier l'événement"}
-            </button>
-            {form.id && (
-              <button type="button" class="btn btn-ghost" onClick={() => setForm(empty)}>
-                Annuler
-              </button>
-            )}
-          </div>
-          <Problem message={error} />
-          {done && <Success message={done} />}
-        </form>
-        {rows.length > 0 && (
-          <div>
-            <h3 class="text-lg">À venir</h3>
-            {attendance === null && <p class="mt-2 text-warn">Les réponses « Je viens » n'ont pas pu être lues : rechargez la page.</p>}
-            <ul class="mt-3 grid gap-3">
-              {rows.map((ev) => {
-                const names = attendance?.get(ev.id) ?? [];
-                return (
-                  <li key={ev.id} class="card p-5" data-testid="direction-event">
-                    <p class="font-semibold [overflow-wrap:anywhere]">{ev.title}</p>
-                    <p class="tnum mt-1 text-sm text-muted">
-                      {fmtDateTime(ev.starts_at)}
-                      {ev.author ? ` · ${ev.author}` : ""}
-                    </p>
-                    {names.length > 0 && (
-                      <p class="mt-2" data-testid="direction-event-going">
-                        {names.length === 1 ? "1 vient" : `${fmtInt(names.length)} viennent`} : {names.join(", ")}
-                      </p>
-                    )}
-                    {ev.editable && (
-                      <div class="mt-3 flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          class="btn btn-ghost !min-h-10 !py-1.5 !text-sm"
-                          disabled={busy}
-                          aria-label={`Modifier « ${ev.title} »`}
-                          onClick={() => {
-                            setForm({ ...EMPTY_EVENT, id: ev.id, title: ev.title, description: ev.description ?? "", url: ev.url ?? "", start: toLocalInput(ev.starts_at) });
-                            focusField("evt-t");
-                          }}
-                        >
-                          Modifier
-                        </button>
-                        <DeleteButton busy={busy} label={ev.title} onConfirm={() => void run(() => call("delete_event", { p_id: ev.id }), "Événement supprimé.")} />
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        )}
-      </div>
-    </section>
-  );
-}
-
-/** Le fondateur transmet son rôle. Il faut retaper le nom : on ne revient pas seul en arrière. */
-function FounderTransfer({ onDone }: { onDone: () => Promise<void> }) {
-  const [members, setMembers] = useState<MemberRow[] | null>(null);
-  const [target, setTarget] = useState("");
-  const [typed, setTyped] = useState("");
-  const { busy, error, done, run } = useRun(onDone);
-
-  useEffect(() => {
-    call<{ rows: MemberRow[] }>("list_members", { p_limit: 500 })
-      .then((data) => setMembers(data.rows.filter((m) => m.status === "validated" && m.role !== "founder")))
-      .catch(() => setMembers([]));
-  }, []);
-
-  const chosen = members?.find((m) => m.user_id === target);
-
-  return (
-    <section aria-labelledby="founder-title" data-testid="direction-founder">
-      <PartieTete id="founder-title" title="Transmettre le rôle de fondateur">
-        <p>Vous devenez admin, et seul le nouveau fondateur pourra vous rendre ce rôle.</p>
-      </PartieTete>
-      <div class="card mt-6 max-w-2xl p-5">
-        {members === null ? (
-          <Loading />
-        ) : members.length === 0 ? (
-          <p class="text-muted">Aucun autre membre validé pour l'instant.</p>
-        ) : (
-          <form
-            class="grid gap-4"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void run(() => call("transfer_founder", { p_user: target }), "Rôle transmis.");
-            }}
-          >
-            <div>
-              <label for="heir" class="text-sm font-semibold">
-                Nouveau fondateur
-              </label>
-              <select
-                id="heir"
-                class="field mt-1"
-                required
-                value={target}
-                onChange={(e) => {
-                  setTarget(e.currentTarget.value);
-                  setTyped("");
-                }}
-              >
-                <option value="">Choisir un membre</option>
-                {members.map((m) => (
-                  <option key={m.user_id} value={m.user_id}>
-                    {m.name} ({ROLE_LABELS[m.role as Role]})
-                  </option>
-                ))}
-              </select>
-            </div>
-            {chosen && (
-              <div>
-                <label for="heir-confirm" class="text-sm font-semibold">
-                  Retapez « {chosen.name} » pour confirmer
-                </label>
-                <input id="heir-confirm" class="field mt-1" autocomplete="off" value={typed} onInput={(e) => setTyped(e.currentTarget.value)} />
-              </div>
-            )}
-            <div>
-              <button type="submit" class="btn btn-ghost" disabled={busy || !chosen || typed !== chosen.name}>
-                Transmettre le rôle
-              </button>
-            </div>
-          </form>
-        )}
-        <Problem message={error} />
-        {done && <Success message={done} />}
-      </div>
-    </section>
-  );
-}
 
 /**
  * L'espace Direction, en onglets : une partie à la fois. `health` : l'état de la collecte et de la gazette, lu au moment
@@ -575,20 +213,7 @@ export default function DirectionApp({ health, logo }: { health: Omit<SiteHealth
         />
 
         <Partie {...part} id="ensemble">
-          {withOverview((data) => (
-            <section aria-labelledby="ensemble-titre">
-              <PartieTete id="ensemble-titre" title="Ce qui attend une décision" />
-              <div class="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
-                <Tile label="Demandes à traiter" value={data.pending_requests} part="demandes" onOpen={open} alert={data.pending_requests > 0} />
-                <Tile label="Membres validés" value={data.members} part="comptes" filter="validated" onOpen={open} />
-                <Tile label="Encadrement" value={data.officers} part="comptes" filter="staff" onOpen={open} />
-                <Tile label="Suspendus" value={data.suspended} part="comptes" filter="suspended" onOpen={open} />
-              </div>
-              <div class="mt-6">
-                <SiteHealth meta={health.meta} gazette={health.gazette} roster={data.roster} />
-              </div>
-            </section>
-          ))}
+          {withOverview((data) => <DirectionEnsemble data={data} health={health} onOpen={open} />)}
         </Partie>
 
         <Partie {...part} id="activite">
@@ -597,26 +222,26 @@ export default function DirectionApp({ health, logo }: { health: Omit<SiteHealth
 
         {/* L'administration : lue au premier passage sur son onglet, puis gardée, avec ses champs remplis. */}
         <Partie {...part} id="demandes">
-          {shown.has("demandes") && <Requests />}
+          {shown.has("demandes") && <DirectionDemandes active={active === "demandes"} />}
         </Partie>
         <Partie {...part} id="comptes">
           {shown.has("comptes") && <Members me={me} ask={membersAsk} active={active === "comptes"} onReady={() => setMembersReady(true)} />}
         </Partie>
         {rank >= 3 && (
           <Partie {...part} id="journal">
-            {shown.has("journal") && <Log />}
+            {shown.has("journal") && <DirectionJournal active={active === "journal"} />}
           </Partie>
         )}
 
         <Partie {...part} id="annonces">
           {withOverview((data) => (
-            <Announcements rows={data.announcements} reload={load} form={announcementDraft} setForm={setAnnouncementDraft} />
+            <DirectionAnnonces rows={data.announcements} reload={load} form={announcementDraft} setForm={setAnnouncementDraft} />
           ))}
         </Partie>
 
         <Partie {...part} id="evenements">
           {withOverview((data) => (
-            <Events rows={data.events} attendance={attendance} reload={load} form={eventDraft} setForm={setEventDraft} />
+            <DirectionEvenements rows={data.events} attendance={attendance} reload={load} form={eventDraft} setForm={setEventDraft} />
           ))}
         </Partie>
 
@@ -653,7 +278,7 @@ export default function DirectionApp({ health, logo }: { health: Omit<SiteHealth
         {me.role === "founder" && (
           <Partie {...part} id="fondateur">
             {shown.has("fondateur") && (
-              <FounderTransfer
+              <DirectionFondateur
                 onDone={async () => {
                   await refresh();
                   await load();

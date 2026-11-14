@@ -85,6 +85,7 @@ describe("les réponses aux événements", () => {
     expect(seriesNote(null)).toBeNull();
     expect(seriesNote({ left: 1, until: "2026-12-04T20:00:00Z" })).toBeNull();
     expect(seriesNote({ left: 4, until: "2026-12-04T20:00:00Z" })).toBe("Encore 4 rendez-vous, jusqu'au 4 déc. 2026");
+    expect(seriesNote({ left: 4, until: "pas une date" })).toBeNull();
   });
 });
 

@@ -7,14 +7,15 @@ import { messageOf } from "./common";
 /**
  * L'inventaire d'images de l'onglet Discord de la Direction (12 novembre 2026, demande du pilote : « enregistrer des
  * images pour la prochaine fois, afin d'avoir un inventaire »). Partagé par les rubriques : une image gardée dans
- * « Inventaire d'images » se choisit aussitôt dans « Message Discord », et inversement. Lu une seule fois, à la première
- * rubrique qui en a besoin. Chaque fonction du serveur revérifie l'appelant : masquer un bouton ne protège rien.
+ * « Inventaire d'images » se choisit aussitôt dans « Message Discord », et inversement. Lu une seule fois, à l'ouverture de
+ * l'onglet (son menu en montre l'état) ; une lecture ratée se refait à l'ouverture d'une rubrique qui en a besoin. Chaque
+ * fonction du serveur revérifie l'appelant : masquer un bouton ne protège rien.
  */
 export interface Inventaire {
   /** `null` : pas encore lu, ou illisible ; `problem` dit alors pourquoi. */
   images: SavedImage[] | null;
   problem: string | null;
-  /** Lit l'inventaire, s'il ne l'est pas déjà. */
+  /** Lit l'inventaire, s'il n'est ni lu ni en cours de lecture : une lecture ratée se refait. */
   ensure: () => void;
   reload: () => Promise<SavedImage[] | null>;
   /**
@@ -41,7 +42,9 @@ export const useInventaire = (): Inventaire | null => useContext(InventaireConte
 export function InventaireProvider({ children }: { children: ComponentChildren }) {
   const [images, setImages] = useState<SavedImage[] | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
-  const started = useRef(false);
+  // Lu au moins une fois, et une lecture de `ensure` en cours : plusieurs champs qui s'ouvrent ensemble n'en lancent qu'une.
+  const lu = useRef(false);
+  const enCours = useRef(false);
   const uploads = useRef(new Map<string, string>()).current;
 
   const reload = async (): Promise<SavedImage[] | null> => {
@@ -51,6 +54,7 @@ export function InventaireProvider({ children }: { children: ComponentChildren }
         setProblem("La réponse du serveur est illisible.");
         return null;
       }
+      lu.current = true;
       setImages(next);
       setProblem(null);
       return next;
@@ -83,9 +87,11 @@ export function InventaireProvider({ children }: { children: ComponentChildren }
     images,
     problem,
     ensure: () => {
-      if (started.current) return;
-      started.current = true;
-      void reload();
+      if (lu.current || enCours.current) return;
+      enCours.current = true;
+      void reload().finally(() => {
+        enCours.current = false;
+      });
     },
     reload,
     upload: async (file, extension, key) => {

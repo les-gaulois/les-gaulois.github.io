@@ -1,46 +1,30 @@
-import { useCallback, useEffect, useRef, useState } from "preact/hooks";
+import { useCallback, useEffect, useState } from "preact/hooks";
 import { CODE_LOGIN_OPEN, basePath, call } from "../../lib/compte/api";
 import { othersPlanned, parseQgTools, type QgTools } from "../../lib/compte/outils";
-import { seriesNote } from "../../lib/compte/news";
-import {
-  IDEA_MAX,
-  IDEA_NOTE_MAX,
-  IDEA_STATUS_LABELS,
-  counted,
-  decidedIdeas,
-  ideaProblem,
-  keepOrder,
-  openIdeas,
-  othersLabel,
-  parseQg,
-  pollsAwaitingVote,
-  supportLabel,
-  type IdeaStatus,
-  type QgData,
-  type QgEvent,
-  type QgIdea,
-} from "../../lib/compte/qg";
+import { IDEA_STATUS_LABELS, counted, openIdeas, parseQg, pollsAwaitingVote, type QgData } from "../../lib/compte/qg";
+import { fermeturePassee } from "../../lib/compte/qg-decisions";
+import { predictionClosed } from "../../lib/compte/qg-semaine";
 import { waitingOthers } from "../../lib/compte/salons";
 import { ROLE_LABELS, type Me } from "../../lib/compte/types";
-import { fmtDate, fmtDateTime, fmtInt } from "../../lib/format";
+import { fmtDate } from "../../lib/format";
 import type { LogoMatriceData } from "../../lib/logo-matrice";
+import { tabOfHash } from "../../lib/onglets";
 import type { StoredMembers } from "../../lib/schemas";
 import type { ClanWeekFile } from "../../lib/semaine-du-clan";
 import LogoMatrice from "../LogoMatrice";
 import { subscribe } from "./appels";
-import { Avatar, CodeLogin, DeleteButton, DiscordButton, DiscordGives, Loading, Problem, messageOf, useMe, useNow, type Loadable } from "./common";
-import { Onglets, Partie, PartieTete, useTabs, type TabItem } from "./Onglets";
+import { Avatar, CodeLogin, DiscordButton, DiscordGives, Loading, Problem, messageOf, useMe, useNow, type Loadable } from "./common";
+import { Onglets, Partie, reducedMotion, useTabs, type TabItem } from "./Onglets";
 import QgCeSoir from "./QgCeSoir";
+import QgDecisions from "./QgDecisions";
+import QgEvenements from "./QgEvenements";
+import QgIdees from "./QgIdees";
 import QgMoi from "./QgMoi";
 import QgMur from "./QgMur";
-import QgPolls from "./QgPolls";
 import QgSalons from "./QgSalons";
 import QgSemaine from "./QgSemaine";
 import QgSimulateur from "./QgSimulateur";
 import Telemetrie from "./Telemetrie";
-
-/** Les décisions passées montrées d'abord ; les suivantes restent repliées, à portée. */
-const PAST_SHOWN = 2;
 
 /**
  * Les onglets du QG, ceux des membres. L'administration (demandes, comptes, journal), au QG du 10 au 12 novembre 2026, est
@@ -99,178 +83,6 @@ function Door({ me }: { me: Me }) {
   );
 }
 
-function Events({ events, busy, problemAt, onAnswer }: { events: QgEvent[]; busy: boolean; problemAt: (at: string) => string | null; onAnswer: (event: number, going: boolean) => void }) {
-  return (
-    <ul class="mt-5 grid gap-4 md:grid-cols-2" data-testid="qg-events-list">
-      {events.map((event) => {
-        const series = seriesNote(event.series);
-        const others = othersLabel(event.going, event.faces.length);
-        return (
-          <li key={event.id} class="card p-5" data-testid="qg-event">
-            <p class="tnum text-sm text-muted">{fmtDateTime(event.starts_at)}</p>
-            <h3 class="mt-1 text-xl [overflow-wrap:anywhere]">{event.title}</h3>
-            {event.description && <p class="mt-2 whitespace-pre-line text-muted">{event.description}</p>}
-            {event.url && (
-              <a href={event.url} rel="noopener" class="mt-2 inline-block text-blue-text underline">
-                En savoir plus
-              </a>
-            )}
-            {series && <p class="tnum mt-2 text-sm text-muted">{series}</p>}
-            {event.faces.length > 0 && (
-              <ul class="mt-3 flex flex-wrap gap-x-4 gap-y-2" aria-label="Ils viennent" data-testid="qg-event-faces">
-                {event.faces.map((face, i) => (
-                  <li key={i} class="flex items-center gap-2 text-sm">
-                    <Avatar name={face.name} avatar={face.avatar} />
-                    <span class="[overflow-wrap:anywhere]">{face.name}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {others && <p class="tnum mt-2 text-sm text-muted">{others}</p>}
-            <div class="mt-4 flex flex-wrap items-center gap-3">
-              {/* Pas de `disabled` pendant l'envoi : un bouton désactivé perd le focus du clavier. */}
-              <button type="button" class="chip" aria-pressed={event.mine} aria-disabled={busy || undefined} onClick={() => !busy && onAnswer(event.id, !event.mine)} data-testid="qg-going">
-                Je viens
-              </button>
-            </div>
-            <Problem message={problemAt(`event-${event.id}`)} />
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-/** Pour l'encadrement : trancher une idée, avec un mot facultatif pour les membres. */
-function IdeaDecision({ idea, busy, onDecide }: { idea: QgIdea; busy: boolean; onDecide: (status: IdeaStatus, note: string) => void }) {
-  const [status, setStatus] = useState<IdeaStatus>(idea.status);
-  const [note, setNote] = useState(idea.staff_note ?? "");
-  useEffect(() => {
-    setStatus(idea.status);
-    setNote(idea.staff_note ?? "");
-  }, [idea.status, idea.staff_note]);
-  const unchanged = status === idea.status && note.trim() === (idea.staff_note ?? "");
-  return (
-    <form
-      class="mt-4 grid gap-3 border-t border-line pt-4 sm:grid-cols-[minmax(0,13rem)_minmax(0,1fr)] sm:items-end"
-      data-testid="qg-idea-decision"
-      onSubmit={(e) => {
-        e.preventDefault();
-        onDecide(status, note);
-      }}
-    >
-      <div>
-        <label for={`idea-status-${idea.id}`} class="text-sm font-semibold">
-          Décision de l'encadrement
-        </label>
-        <select id={`idea-status-${idea.id}`} class="field mt-1" value={status} onChange={(e) => setStatus(e.currentTarget.value as IdeaStatus)}>
-          {(Object.keys(IDEA_STATUS_LABELS) as IdeaStatus[]).map((value) => (
-            <option key={value} value={value}>
-              {IDEA_STATUS_LABELS[value]}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div>
-        <label for={`idea-note-${idea.id}`} class="text-sm font-semibold">
-          Un mot pour les membres (facultatif)
-        </label>
-        <input id={`idea-note-${idea.id}`} class="field mt-1" maxLength={IDEA_NOTE_MAX} value={note} disabled={status === "open"} onInput={(e) => setNote(e.currentTarget.value)} />
-      </div>
-      <div class="sm:col-span-2">
-        <button type="submit" class="btn btn-ghost" disabled={busy || unchanged}>
-          Enregistrer la décision
-        </button>
-      </div>
-    </form>
-  );
-}
-
-function IdeaCard({
-  idea,
-  staff,
-  busy,
-  problem,
-  onSupport,
-  onDelete,
-  onDecide,
-}: {
-  idea: QgIdea;
-  staff: boolean;
-  busy: boolean;
-  /** Le refus du serveur pour une action sur cette idée : il s'affiche ici, là où le membre regarde. */
-  problem: string | null;
-  onSupport: (idea: QgIdea) => void;
-  onDelete: (idea: QgIdea) => void;
-  onDecide: (idea: QgIdea, status: IdeaStatus, note: string) => void;
-}) {
-  const open = idea.status === "open";
-  return (
-    <li class="card p-5" data-testid="qg-idea">
-      <p class="tnum text-sm text-muted">
-        {idea.mine ? "Votre idée" : idea.author} · {fmtDate(idea.created_at)}
-      </p>
-      <p class="mt-2 whitespace-pre-line [overflow-wrap:anywhere]">{idea.body}</p>
-      {!open && (
-        <p class="mt-3" data-testid="qg-idea-status">
-          <strong>{IDEA_STATUS_LABELS[idea.status]}</strong>
-          {idea.decided_at ? ` le ${fmtDate(idea.decided_at)}` : ""}
-          {idea.staff_note ? ` : ${idea.staff_note}` : "."}
-        </p>
-      )}
-      <div class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-3">
-        <span class="tnum text-muted" data-testid="qg-idea-supports">
-          {supportLabel(idea.supports)}
-        </span>
-        {open && !idea.mine && (
-          <button type="button" class="chip" aria-pressed={idea.supported} aria-disabled={busy || undefined} aria-label={`Je soutiens l'idée de ${idea.author}`} onClick={() => !busy && onSupport(idea)}>
-            Je soutiens
-          </button>
-        )}
-        {(idea.mine || staff) && <DeleteButton busy={busy} label={idea.mine ? "votre idée" : `l'idée de ${idea.author}`} onConfirm={() => onDelete(idea)} />}
-      </div>
-      <Problem message={problem} />
-      {staff && <IdeaDecision idea={idea} busy={busy} onDecide={(status, note) => onDecide(idea, status, note)} />}
-    </li>
-  );
-}
-
-function IdeaForm({ openMine, busy, refusal, onSend }: { openMine: number; busy: boolean; refusal: string | null; onSend: (body: string) => Promise<boolean> }) {
-  const [body, setBody] = useState("");
-  const [problem, setProblem] = useState<string | null>(null);
-  return (
-    <form
-      class="card grid gap-4 p-5"
-      data-testid="qg-idea-form"
-      onSubmit={(e) => {
-        e.preventDefault();
-        const found = ideaProblem(body, openMine);
-        setProblem(found);
-        if (found) return;
-        void onSend(body).then((sent) => {
-          if (sent) setBody("");
-        });
-      }}
-    >
-      <div>
-        <label for="idea-body" class="font-semibold">
-          Votre idée pour le clan
-        </label>
-        <textarea id="idea-body" class="field mt-2" rows={4} maxLength={IDEA_MAX} aria-describedby="idea-help" value={body} onInput={(e) => setBody(e.currentTarget.value)} />
-        <p id="idea-help" class="tnum mt-2 text-sm text-muted">
-          {fmtInt(body.trim().length)} / {fmtInt(IDEA_MAX)} caractères. Elle paraît sous votre nom.
-        </p>
-      </div>
-      <div>
-        <button type="submit" class="btn btn-primary" disabled={busy || body.trim() === ""}>
-          Proposer cette idée
-        </button>
-      </div>
-      <Problem message={problem ?? refusal} />
-    </form>
-  );
-}
-
 /**
  * Le QG, pour un membre validé : une partie à la fois, sous ses onglets. `rank` : celui du compte affiché (en vue joueur,
  * l'encadrement s'y voit membre sans grade, sans ses commandes de décision). Le serveur revérifie chaque action.
@@ -293,8 +105,6 @@ function Inside({ me, rank, lastRunAt, logo }: { me: Me; rank: number; lastRunAt
   const [busy, setBusy] = useState(false);
   // Le refus du serveur s'affiche à l'endroit de l'action, dans sa partie : un message en haut de page ne se verrait pas.
   const [error, setError] = useState<{ at: string; message: string } | null>(null);
-  // L'ordre des idées à l'étude tel que le membre l'a vu : un soutien ne déplace pas la liste sous son doigt.
-  const shown = useRef<number[]>([]);
   // Ce que les lecteurs d'écran entendent après une action : la zone existe déjà, seul son texte change.
   const [said, setSaid] = useState("");
   // Les autres Gaulois qui attendent dans un salon, d'après la dernière lecture des appels.
@@ -379,6 +189,25 @@ function Inside({ me, rank, lastRunAt, logo }: { me: Me; rank: number; lastRunAt
   // Le relevé des appels est celui de tout le site (`appels.ts`) : l'onglet compte ceux des autres Gaulois.
   useEffect(() => subscribe((next) => setWaiting(waitingOthers(next.data?.calls ?? []))), []);
 
+  // Choisir une partie (dans le menu, ou par une adresse qui en nomme une) fait remonter le menu des parties sous l'en-tête :
+  // la partie remplit l'écran au lieu d'attendre sous le titre, le guerrier et la fenêtre « session », comme Comptes à la
+  // Direction (pilote, 13 et 14 novembre 2026 : « c'est chiant de descendre la page »). La page ne fait que descendre : déjà
+  // plus bas, elle ne bouge pas. Un simple passage sur /qg, sans choix, ne la fait pas bouger.
+  const [chosen, setChosen] = useState(() => (tabOfHash(location.hash, QG_TABS.map((tab) => tab.id)) === null ? 0 : 1));
+  const menuShown = tools.status !== "loading" || toolsLate;
+  const contentRead = state.status !== "loading";
+  useEffect(() => {
+    if (chosen === 0 || !menuShown || !contentRead) return;
+    const frame = requestAnimationFrame(() => {
+      const bar = document.querySelector<HTMLElement>('[data-testid="qg"] .onglets');
+      if (!bar) return;
+      const margin = parseFloat(getComputedStyle(bar).scrollMarginTop) || 0;
+      if (bar.getBoundingClientRect().top <= margin + 8) return;
+      bar.scrollIntoView({ block: "start", behavior: reducedMotion() ? "auto" : "smooth" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [chosen, menuShown, contentRead]);
+
   /**
    * Une action, puis une relecture : ce qui s'affiche vient toujours du serveur, jamais d'un calcul fait ici. `reread` :
    * ce que l'action change, le QG (`get_qg`) ou ses outils (`get_qg_tools`) ; se montrer change les deux.
@@ -405,41 +234,23 @@ function Inside({ me, rank, lastRunAt, logo }: { me: Me; rank: number; lastRunAt
     }
   };
 
-  const openPolls = data?.polls.filter((poll) => poll.is_open) ?? [];
-  const pastPolls = data?.polls.filter((poll) => !poll.is_open) ?? [];
-  const ideasOpen = data ? keepOrder(shown.current, openIdeas(data.ideas)) : [];
-  if (data) shown.current = ideasOpen.map((idea) => idea.id);
   const problemAt = (at: string) => (error?.at === at ? error.message : null);
-  const ideasDecided = data ? decidedIdeas(data.ideas) : [];
-  const openMine = ideasOpen.filter((idea) => idea.mine).length;
-  const notVoted = pollsAwaitingVote(data?.polls ?? []);
-  const vote = (poll: number, choice: number) => void act("polls", () => call("vote_poll", { p_poll: poll, p_choice: choice }), "Vote enregistré.");
+  const ideasToDecide = data ? openIdeas(data.ideas).length : 0;
+  // Un sondage dont l'heure de fermeture est passée ne se vote plus, même avant la relecture du serveur : il ne compte pas.
+  const notVoted = pollsAwaitingVote((data?.polls ?? []).filter((poll) => !fermeturePassee(poll.closes_at, now.getTime())));
 
   // Le nombre d'un onglet dit ce qui attend le membre derrière lui, jamais un total à lire : il disparaît une fois l'affaire faite.
   const counts: Partial<Record<string, TabItem["count"]>> = {
     salons: { value: waiting, words: counted(waiting, "Gaulois attend dans un salon", "Gaulois attendent dans un salon"), tone: "vif" },
     "ce-soir": kit ? { value: othersPlanned(kit.plans, now), words: counted(othersPlanned(kit.plans, now), "autre Gaulois a dit son heure", "autres Gaulois ont dit leur heure") } : null,
-    semaine: kit?.predictions && kit.predictions.mine === null ? { value: 1, words: "1 pronostic à faire" } : null,
+    // Un pronostic clos ne se fait plus : l'onglet ne le compte plus (même règle que La semaine).
+    semaine: kit?.predictions && kit.predictions.mine === null && !predictionClosed(kit.predictions.closesAt, now.getTime()) ? { value: 1, words: "1 pronostic à faire" } : null,
     decisions: { value: notVoted, words: counted(notVoted, "sondage attend votre voix", "sondages attendent votre voix") },
-    idees: staff ? { value: ideasOpen.length, words: counted(ideasOpen.length, "idée à trancher", "idées à trancher") } : null,
+    idees: staff ? { value: ideasToDecide, words: counted(ideasToDecide, "idée à trancher", "idées à trancher") } : null,
   };
   const items: TabItem[] = tabs.map((tab) => ({ id: tab.id, label: tab.label, icon: tab.icon, count: counts[tab.id] ?? null }));
   const part = { prefix: "qg", active, slide };
   const opening = <Loading label="Ouverture du QG…" />;
-
-  const ideaList = (ideas: QgIdea[]) =>
-    ideas.map((idea) => (
-      <IdeaCard
-        key={idea.id}
-        idea={idea}
-        staff={staff}
-        busy={busy}
-        problem={problemAt(`idea-${idea.id}`)}
-        onSupport={(i) => void act(`idea-${i.id}`, () => call("support_idea", { p_idea: i.id, p_on: !i.supported }), i.supported ? "Soutien retiré." : "Soutien noté.")}
-        onDelete={(i) => void act(`idea-${i.id}`, () => call("delete_idea", { p_idea: i.id }), "Idée retirée.")}
-        onDecide={(i, status, note) => void act(`idea-${i.id}`, () => call("decide_idea", { p_idea: i.id, p_status: status, p_note: note.trim() || null }), `Décision enregistrée : ${IDEA_STATUS_LABELS[status].toLowerCase()}.`)}
-      />
-    ));
 
   return (
     <div class="grid grid-cols-1 gap-6" data-testid="qg">
@@ -501,7 +312,10 @@ function Inside({ me, rank, lastRunAt, logo }: { me: Me; rank: number; lastRunAt
             prefix="qg"
             tabs={items}
             active={active}
-            onSelect={(id) => select(id)}
+            onSelect={(id) => {
+              select(id);
+              setChosen((n) => n + 1);
+            }}
             call={called}
             menu
             debut={logo && <LogoMatrice data={logo} id="logo-menu" class="console-logo-menu" points />}
@@ -509,7 +323,19 @@ function Inside({ me, rank, lastRunAt, logo }: { me: Me; rank: number; lastRunAt
 
           {kit && (
             <Partie {...part} id="moi">
-              <QgMoi me={kit.me} members={members} file={weekFile} />
+              <QgMoi
+                me={kit.me}
+                members={members}
+                file={weekFile}
+                now={now}
+                attente={{
+                  waiting,
+                  notVoted,
+                  prediction: kit.predictions,
+                  plan: { mine: kit.plans.mine, others: othersPlanned(kit.plans, now) },
+                  ideasToDecide: staff && data ? ideasToDecide : null,
+                }}
+              />
             </Partie>
           )}
 
@@ -549,82 +375,42 @@ function Inside({ me, rank, lastRunAt, logo }: { me: Me; rank: number; lastRunAt
 
           {data && data.polls.length > 0 && (
             <Partie {...part} id="decisions">
-              <section aria-labelledby="decisions-titre" data-testid="qg-decisions">
-                <PartieTete id="decisions-titre" title="Décisions">
-                  <p>Vote secret, modifiable tant que le sondage est ouvert.</p>
-                </PartieTete>
-                {openPolls.length > 0 && (
-                  <>
-                    <h3 class="mt-6 text-lg">Sondages ouverts</h3>
-                    <QgPolls polls={openPolls} busy={busy} onVote={vote} testId="qg-polls-open" />
-                  </>
-                )}
-                <Problem message={problemAt("polls")} />
-                {pastPolls.length > 0 && (
-                  <>
-                    <h3 class="mt-8 text-lg">Décisions passées</h3>
-                    <QgPolls polls={pastPolls.slice(0, PAST_SHOWN)} busy={busy} onVote={vote} testId="qg-polls-past" />
-                    {pastPolls.length > PAST_SHOWN && (
-                      <details class="fold mt-4">
-                        <summary>Voir les {fmtInt(pastPolls.length - PAST_SHOWN)} autres</summary>
-                        <QgPolls polls={pastPolls.slice(PAST_SHOWN)} busy={busy} onVote={vote} testId="qg-polls-older" />
-                      </details>
-                    )}
-                  </>
-                )}
-              </section>
+              {/* Un vote refusé fait relire le QG : un sondage fermé depuis la dernière lecture s'y montre alors fermé. */}
+              <QgDecisions
+                polls={data.polls}
+                busy={busy}
+                problem={problemAt("polls")}
+                now={now.getTime()}
+                onVote={(poll, choice) => void act("polls", () => call("vote_poll", { p_poll: poll, p_choice: choice }), "Vote enregistré.").then((ok) => (ok ? null : load()))}
+              />
             </Partie>
           )}
 
           {data && data.events.length > 0 && (
             <Partie {...part} id="evenements">
-              <section aria-labelledby="evenements-titre" data-testid="qg-events">
-                <PartieTete id="evenements-titre" title="Événements à venir" />
-                <Events
-                  events={data.events}
-                  busy={busy}
-                  problemAt={problemAt}
-                  onAnswer={(event, going) => void act(`event-${event}`, () => call("set_attendance", { p_event: event, p_going: going }), going ? "Votre présence est notée." : "Votre présence est retirée.")}
-                />
-              </section>
+              <QgEvenements
+                events={data.events}
+                now={now}
+                busy={busy}
+                problemAt={problemAt}
+                onAnswer={(event, going) => void act(`event-${event}`, () => call("set_attendance", { p_event: event, p_going: going }), going ? "Votre présence est notée." : "Votre présence est retirée.")}
+              />
             </Partie>
           )}
 
           {present("idees") && (
             <Partie {...part} id="idees">
               {data ? (
-                <section aria-labelledby="idees-titre" data-testid="qg-ideas">
-                  <PartieTete id="idees-titre" title="Boîte à idées">
-                    <p>L'encadrement tranche. Les soutiens restent anonymes.</p>
-                  </PartieTete>
-                  <div class="mt-6 grid items-start gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-                    <IdeaForm openMine={openMine} busy={busy} refusal={problemAt("idea-form")} onSend={(body) => act("idea-form", () => call("save_idea", { p_body: body }), "Idée proposée.")} />
-                    <div>
-                      {ideasOpen.length > 0 && (
-                        <>
-                          <h3 class="text-lg">À l'étude</h3>
-                          <ul class="mt-3 grid gap-4" data-testid="qg-ideas-open">
-                            {ideaList(ideasOpen)}
-                          </ul>
-                        </>
-                      )}
-                      {ideasDecided.length > 0 && (
-                        <>
-                          <h3 class={`${ideasOpen.length > 0 ? "mt-8 " : ""}text-lg`}>Idées tranchées</h3>
-                          <ul class="mt-3 grid gap-4" data-testid="qg-ideas-decided">
-                            {ideaList(ideasDecided.slice(0, PAST_SHOWN))}
-                          </ul>
-                          {ideasDecided.length > PAST_SHOWN && (
-                            <details class="fold mt-4">
-                              <summary>Voir les {fmtInt(ideasDecided.length - PAST_SHOWN)} autres</summary>
-                              <ul class="mt-1 grid gap-4">{ideaList(ideasDecided.slice(PAST_SHOWN))}</ul>
-                            </details>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </section>
+                <QgIdees
+                  ideas={data.ideas}
+                  staff={staff}
+                  busy={busy}
+                  problemAt={problemAt}
+                  onSend={(body) => act("idea-form", () => call("save_idea", { p_body: body }), "Idée proposée.")}
+                  onSupport={(i) => void act(`idea-${i.id}`, () => call("support_idea", { p_idea: i.id, p_on: !i.supported }), i.supported ? "Soutien retiré." : "Soutien noté.")}
+                  onDelete={(i) => act(`idea-${i.id}`, () => call("delete_idea", { p_idea: i.id }), "Idée retirée.")}
+                  onDecide={(i, d) => act(`idea-${i.id}`, () => call("decide_idea", { p_idea: i.id, p_status: d.status, p_note: d.note }), `Décision enregistrée : ${IDEA_STATUS_LABELS[d.status].toLowerCase()}.`)}
+                />
               ) : (
                 opening
               )}

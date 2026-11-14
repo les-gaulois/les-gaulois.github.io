@@ -226,9 +226,12 @@ export function dayBefore(day: string): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** Une part en pour cent arrondie, ou `null` sans base. */
+/**
+ * Une part en pour cent arrondie, ou `null` sans base. La multiplication avant la division : `23 / 40 * 100` vaut
+ * 57,4999… en nombres à virgule et s'arrondissait à 57 au lieu de 58.
+ */
 export function share(part: number, whole: number): number | null {
-  return whole > 0 ? Math.round((part / whole) * 100) : null;
+  return whole > 0 ? Math.round((part * 100) / whole) : null;
 }
 
 /** Les 24 heures de la journée, de 0 h à 23 h, avec un vrai zéro pour une heure sans page vue. */

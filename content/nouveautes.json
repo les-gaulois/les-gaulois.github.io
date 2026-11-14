@@ -38,6 +38,18 @@
   {
     "date": "2026-11-14",
     "kind": "ameliore",
+    "title": "QG : chaque onglet se lit d'un coup d'œil",
+    "body": "Une ligne courte par élément, des couleurs avec leur mot (vert fait, jaune à faire), des filtres chiffrés. « Moi » commence par ce qui vous attend au QG, et l'on vote d'un clic."
+  },
+  {
+    "date": "2026-11-14",
+    "kind": "ameliore",
+    "title": "Direction : tous les onglets se lisent d'un coup d'œil",
+    "body": "Les douze autres onglets de la Direction suivent Comptes : une ligne courte par élément, chaque état en couleur avec son mot, moins de défilement. Les demandes et le journal se relisent seuls."
+  },
+  {
+    "date": "2026-11-14",
+    "kind": "ameliore",
     "title": "Le robot parle aussi la nuit",
     "body": "Sur Discord, le robot ne se tait plus de 23 h à 8 h : places, records, paliers et avis à l'encadrement partent jour et nuit, comme les victoires. Les messages du jour gardent leur heure de départ."
   },

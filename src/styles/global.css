@@ -940,41 +940,6 @@ th.fx-cross {
   background: #6f7fb3;
 }
 
-/* Les colonnes de l'activité du site, dans la Direction : leur hauteur vient d'une donnée, comme les jauges. La colonne
-   survolée ou touchée passe en blanc et écrit sa valeur au-dessus ; celle de la période en cours est plus pâle. Les
-   repères et les colonnes partagent la même grille : un repère tombe sous sa colonne, sans élargir la page. */
-.colonnes,
-.colonnes-reperes {
-  display: grid;
-  grid-template-columns: repeat(var(--n), minmax(0, 1fr));
-  column-gap: 2px;
-}
-.colonnes {
-  height: 8rem;
-  align-items: end;
-  border-bottom: 1px solid var(--color-line-strong);
-}
-.colonnes > span {
-  display: flex;
-  align-items: flex-end;
-  height: 100%;
-}
-.colonnes > span > i {
-  display: block;
-  width: 100%;
-  height: var(--v);
-  border-radius: 4px 4px 0 0;
-  background: var(--color-blue-text);
-}
-.colonnes > span[data-encours] > i {
-  opacity: 0.55;
-}
-.colonnes > span[data-actif] > i {
-  background: #fff;
-}
-.colonnes-reperes > span {
-  white-space: nowrap;
-}
 .score-bar {
   position: absolute;
   top: 0.25rem;
@@ -1682,8 +1647,17 @@ main .fx-in,
   color: var(--color-ok);
   font-weight: 600;
 }
+/* Vide, la zone d'état (`role="status"`) reste dans l'arbre d'accessibilité, sans prendre de place : un lecteur d'écran
+   annonce ce qui s'y écrit ensuite. Avec `display: none`, elle n'existait pas pour lui avant son message (relevé par
+   l'onglet Événements de la Direction, 14 novembre 2026). */
 .form-success:empty {
-  display: none;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* ---------- Les espaces de travail : le QG et la Direction ---------- */
@@ -2210,36 +2184,6 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   box-shadow: 0 0 0.625rem color-mix(in srgb, var(--color-ok) 70%, transparent);
 }
 
-/* L'état du site, comme un journal de démarrage : [ OK ], [ À VOIR ], [ INFO ] devant chaque ligne. L'étiquette est
-   masquée aux lecteurs d'écran, qui lisent déjà l'état dans le texte. */
-.console-etat {
-  display: none;
-}
-:root[data-ambiance="console"] .console-etat {
-  display: inline-block;
-  margin-right: 0.625rem;
-  font-family: var(--font-console);
-  font-size: 0.875rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
-}
-:root[data-ambiance="console"] .console-etat::before {
-  content: "[ ";
-}
-:root[data-ambiance="console"] .console-etat::after {
-  content: " ]";
-}
-/* « OK » : le vert des réussites du site, 10,9:1 sur une carte rouge. */
-.console-etat-ok {
-  color: var(--color-ok);
-}
-.console-etat-warn {
-  color: var(--color-warn);
-}
-.console-etat-info {
-  color: var(--color-muted);
-}
 /* 16 px en chasse fixe : à l'œil, la taille du texte courant de l'espace (17 px en Inter). */
 :root[data-ambiance="console"] .console-journal dd {
   font-family: var(--font-console);
@@ -2452,11 +2396,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   text-shadow: none;
 }
 
-/* Ce qui va bien, en vert de terminal : les « OK » de l'état du site, le voyant de la session. */
-:root[data-ambiance="console"][data-console="terminal"] .console-etat-ok {
-  color: var(--console-vert);
-  text-shadow: 0 0 0.625rem color-mix(in srgb, var(--console-vert) 55%, transparent);
-}
+/* Ce qui va bien, en vert de terminal : le voyant de la session. */
 :root[data-ambiance="console"][data-console="terminal"] .console-voyant {
   background: var(--console-vert);
   box-shadow: 0 0 0.625rem color-mix(in srgb, var(--console-vert) 70%, transparent);
@@ -2679,6 +2619,2529 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 @media (forced-colors: active) {
   .console-logo {
     display: none;
+  }
+}
+
+/* ---------- Les onglets de la Direction : pièces communes ---------- */
+/* Le 14 novembre 2026, le pilote a demandé d'améliorer les douze autres onglets de la Direction « comme pour la section
+   compte ». Ces pièces reprennent le dessin de l'onglet Comptes (section « L'onglet Comptes de la Direction »), sous des noms
+   communs, avec `src/components/compte/direction-kit.tsx`. Une couleur par état, jamais seule : chaque pastille porte son
+   mot. Vert `ok` en règle ou fait, jaune `warn` à regarder, rouge `danger` bloqué ou en échec, bleu `ally` une information,
+   gris `muted` rien à faire. Le vert est celui des réussites, pas le vert de terminal, et ne se pose sur aucun `.tnum`. */
+[data-dir-ton] {
+  --ton: #fff;
+}
+[data-dir-ton="ok"] {
+  --ton: var(--color-ok);
+}
+[data-dir-ton="warn"] {
+  --ton: var(--color-warn);
+}
+[data-dir-ton="danger"] {
+  --ton: var(--color-danger);
+}
+[data-dir-ton="ally"] {
+  --ton: var(--color-ally);
+}
+[data-dir-ton="muted"] {
+  --ton: var(--color-muted);
+}
+
+/* La pastille d'un état : fond teinté, point et mot de la même couleur. `.dir-point` : le point et le mot seuls. */
+.dir-pastille {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4375rem;
+  padding: 0.0625rem 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--ton) 40%, transparent);
+  border-radius: 0.25rem;
+  background: color-mix(in srgb, var(--ton) 13%, transparent);
+  font-weight: 600;
+  color: var(--ton);
+}
+.dir-point {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4375rem;
+  color: var(--ton);
+}
+.dir-pastille::before,
+.dir-point::before {
+  content: "";
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 1px;
+  background: currentColor;
+}
+
+/* La barre d'outils d'une longue liste : recherche et filtres. Elle reste sous l'en-tête du site (`useBarreCollante`), sur
+   un fond plein de la couleur de la page : la liste passe dessous. */
+.dir-outils {
+  position: sticky;
+  top: var(--dir-haut, 4rem);
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.875rem;
+  padding-block: 0.625rem;
+  background: var(--color-navy);
+  box-shadow:
+    -1rem 0 0 var(--color-navy),
+    1rem 0 0 var(--color-navy);
+}
+.dir-recherche {
+  flex: 1 1 13rem;
+  min-width: 0;
+}
+.dir-champ.field {
+  min-height: 2.5rem;
+  padding: 0.375rem 0.75rem;
+  font-size: 1rem;
+}
+.dir-champ.field::placeholder {
+  color: var(--color-muted);
+  opacity: 1;
+}
+.dir-filtres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  min-width: 0;
+}
+/* Un filtre à bascule (`aria-pressed`), avec son nombre (`.dir-nombre`). */
+.dir-filtre {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+  padding: 0.25rem 0.6875rem;
+  border: 1px solid color-mix(in srgb, var(--ton, #fff) 55%, transparent);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--ton, #fff);
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+}
+.dir-filtre:hover:where(:not(:disabled, [aria-disabled="true"])) {
+  background: color-mix(in srgb, var(--ton, #fff) 16%, transparent);
+}
+.dir-filtre[aria-pressed="true"] {
+  border-color: var(--ton, #fff);
+  background: var(--ton, #fff);
+  color: var(--color-night);
+}
+.dir-nombre {
+  font-weight: 800;
+}
+
+/* Une liste serrée : une ligne courte par élément, un trait de couleur au bord pour son état. */
+.dir-liste {
+  margin-top: 0.75rem;
+  border-top: 1px solid var(--color-line-strong);
+}
+.dir-ligne {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  min-height: 2.75rem;
+  padding: 0.375rem 0.75rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+  box-shadow: inset 3px 0 0 var(--ton, transparent);
+}
+.dir-ligne:hover {
+  background: rgb(255 255 255 / 0.05);
+}
+
+/* Un tableau serré, dont les titres de colonnes restent sous la barre d'outils. */
+.dir-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.9375rem;
+  line-height: 1.35;
+}
+.dir-table th {
+  position: sticky;
+  top: calc(var(--dir-haut, 4rem) + var(--dir-outils, 0px) - 1px);
+  z-index: 10;
+  padding: 0.375rem 0.75rem 0.5rem;
+  border-bottom: 1px solid var(--color-line-strong);
+  background: var(--color-navy);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-align: left;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.dir-table td {
+  height: 2.25rem;
+  padding: 0.1875rem 0.75rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+  vertical-align: middle;
+}
+.dir-table td:first-child {
+  box-shadow: inset 3px 0 0 var(--ton, transparent);
+}
+.dir-table tbody tr:hover {
+  background: rgb(255 255 255 / 0.05);
+}
+
+/* Un petit bouton de ligne, à la couleur de son action. */
+.dir-bouton {
+  min-height: 1.75rem;
+  padding: 0.0625rem 0.625rem;
+  border: 1px solid color-mix(in srgb, var(--ton, #fff) 55%, transparent);
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--ton, #fff);
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+}
+/* Un bouton inactif, par `disabled` ou par `aria-disabled` (un envoi en cours, qui garde le focus), ne s'allume pas au survol
+   (relevé par la relecture du QG, 14 novembre 2026). */
+.dir-bouton:hover:where(:not(:disabled, [aria-disabled="true"])) {
+  border-color: var(--ton, #fff);
+  background: var(--ton, #fff);
+  color: var(--color-night);
+}
+.dir-bouton:is(:disabled, [aria-disabled="true"]) {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.dir-note {
+  margin-top: 0.75rem;
+  font-size: 0.9375rem;
+  color: var(--color-muted);
+}
+
+/* Au doigt et sous 768 px : des cibles de 44 px, et les filtres sur une ligne qui défile dans son cadre. */
+@media (pointer: coarse) {
+  .dir-bouton,
+  .dir-filtre {
+    min-height: 2.75rem;
+  }
+}
+@media (max-width: 47.9375rem) {
+  .dir-recherche {
+    flex-basis: 100%;
+  }
+  .dir-filtres {
+    flex: 1 1 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    padding-bottom: 0.25rem;
+    scrollbar-width: thin;
+  }
+  .dir-bouton,
+  .dir-filtre,
+  .dir-champ.field {
+    min-height: 2.75rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dir-filtre,
+  .dir-bouton {
+    transition: none;
+  }
+}
+
+/* ---------- Direction, onglet Vue d'ensemble ---------- */
+/* Les règles propres à cet onglet (DirectionEnsemble.tsx, SiteHealth.tsx), sous la classe `dir-ensemble`.
+   Moins de hauteur qu'avant : quatre cases basses, puis l'état du site en lignes serrées. Chaque couleur porte son mot
+   (pastilles des pièces communes) ; le choix de la couleur et du mot est dans `src/lib/compte/direction-ensemble.ts`. */
+
+/* Les quatre cases : des liens vers la partie où l'on décide. Le trait de gauche et la pastille disent l'état ; le nombre
+   reste blanc. Au survol et au clavier, la bordure prend la couleur de l'état. Le nom sur sa ligne, puis le nombre et la
+   pastille ; si un grand nombre ne laisse pas la place, la pastille passe dessous au lieu de le chevaucher. */
+.dir-ensemble .dir-ensemble-cases {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+.dir-ensemble .dir-ensemble-case {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.125rem 0.75rem;
+  min-height: 5.25rem;
+  padding: 0.625rem 0.875rem 0.625rem 1.125rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.375rem;
+  background: var(--color-surface);
+  box-shadow: inset 4px 0 0 var(--ton);
+  transition:
+    border-color 0.15s,
+    background-color 0.15s;
+}
+.dir-ensemble .dir-ensemble-case:hover,
+.dir-ensemble .dir-ensemble-case:focus-visible {
+  border-color: var(--ton);
+  background: color-mix(in srgb, var(--ton) 9%, var(--color-surface));
+}
+.dir-ensemble .dir-ensemble-nom {
+  flex: 1 1 100%;
+  grid-area: nom;
+  min-width: 0;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+.dir-ensemble .dir-ensemble-nombre {
+  flex: none;
+  grid-area: nombre;
+  font-size: 2rem;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+.dir-ensemble .dir-ensemble-etat {
+  flex: none;
+  grid-area: etat;
+  margin-left: auto;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+/* L'état du site : une fenêtre de la console, plus basse qu'avant. */
+.dir-ensemble .dir-ensemble-site {
+  margin-top: 1rem;
+  padding: 0.875rem 1.125rem 0.25rem;
+}
+.dir-ensemble .dir-ensemble-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.375rem 1rem;
+}
+.dir-ensemble .dir-ensemble-resume {
+  font-size: 0.9375rem;
+}
+
+/* Une ligne par point : la pastille, le nom, le détail. Les pastilles sont dans une colonne de largeur fixe : d'un coup
+   d'œil, on voit laquelle n'est pas verte. Les lignes ne se cliquent pas : 40 px à l'écran suffisent. */
+.dir-ensemble .dir-ensemble-lignes {
+  margin-top: 0.625rem;
+}
+.dir-ensemble .dir-ensemble-ligne {
+  display: grid;
+  grid-template-columns: 5.75rem minmax(9rem, 15rem) minmax(0, 1fr);
+  grid-template-areas: "niveau source detail";
+  align-items: baseline;
+  gap: 0.125rem 0.875rem;
+  min-height: 2.25rem;
+  padding-block: 0.3125rem;
+}
+.dir-ensemble .dir-ensemble-ligne:hover {
+  background: none;
+}
+.dir-ensemble .dir-ensemble-source {
+  grid-area: source;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+.dir-ensemble .dir-ensemble-niveau {
+  grid-area: niveau;
+  white-space: nowrap;
+}
+/* Le détail en gris quand tout va bien ; en blanc quand la ligne est à voir, pour qu'il se lise en premier. */
+.dir-ensemble .dir-ensemble-detail {
+  grid-area: detail;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--color-muted);
+}
+.dir-ensemble .dir-ensemble-ligne[data-level="warn"] .dir-ensemble-detail {
+  color: #fff;
+}
+
+/* Les sources de l'API, repliées : le filet de la liste sert de séparation. Le sélecteur passe devant l'air que le thème
+   rouge donne à tout repli (`:root[data-theme="rouge"] .fold`). */
+.dir-ensemble details.dir-ensemble-sources.fold {
+  border-top: 0;
+  padding-block: 0.125rem;
+}
+.dir-ensemble .dir-ensemble-sources .dir-ensemble-lignes {
+  margin-top: 0;
+  margin-bottom: 0.625rem;
+}
+
+/* Tablette : les cases deux par deux. */
+@media (max-width: 63.9375rem) {
+  .dir-ensemble .dir-ensemble-cases {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+/* Téléphone : chaque case devient une ligne (le nom, la pastille, le nombre à droite), et le détail d'un point de l'état
+   passe sous son nom. Rien ne défile de côté. */
+@media (max-width: 39.9375rem) {
+  .dir-ensemble .dir-ensemble-cases {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.5rem;
+  }
+  .dir-ensemble .dir-ensemble-case {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "nom nombre"
+      "etat nombre";
+    gap: 0.25rem 0.75rem;
+    min-height: 4rem;
+    padding-block: 0.5rem;
+  }
+  .dir-ensemble .dir-ensemble-etat {
+    justify-self: start;
+    margin-left: 0;
+  }
+  .dir-ensemble .dir-ensemble-nombre {
+    font-size: 1.75rem;
+    text-align: right;
+  }
+  .dir-ensemble .dir-ensemble-site {
+    padding-inline: 0.75rem;
+  }
+  .dir-ensemble .dir-ensemble-ligne {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "source niveau"
+      "detail detail";
+    padding-block: 0.5rem;
+  }
+  .dir-ensemble .dir-ensemble-niveau {
+    justify-self: end;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dir-ensemble .dir-ensemble-case {
+    transition: none;
+  }
+}
+
+/* ---------- Direction, onglet Activité du site ---------- */
+/* Les règles propres à cet onglet (DirectionActivite.tsx), sous la classe `dir-activite`. D'abord les chiffres clés, dans
+   une seule bande ; puis les deux graphiques côte à côte ; puis les listes en lignes serrées. Une seule couleur d'état :
+   la pastille de la tendance sur sept jours, toujours avec son mot. Les colonnes et les traits ont la couleur des jauges
+   (`--color-blue-text`, rose dans la Direction) : leur longueur seule porte la valeur, rien ne s'anime. */
+.dir-activite-corps {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+/* `minmax(0, 1fr)` : une ligne de texte longue ne pousse jamais la page. */
+.dir-activite-corps,
+.dir-activite-graphes,
+.dir-activite-listes {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* La bande des chiffres clés : des cases séparées par un filet, dans un seul cadre. Le filet est le fond de la bande, vu
+   entre les cases. */
+.dir-activite-chiffres {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.375rem;
+  background: var(--color-line);
+}
+.dir-activite-chiffre {
+  display: grid;
+  align-content: start;
+  gap: 0.125rem;
+  min-width: 0;
+  padding: 0.625rem 0.875rem 0.75rem;
+  background: var(--color-surface);
+}
+.dir-activite-tendance {
+  grid-column: 1 / -1;
+}
+.dir-activite-attente {
+  display: flex;
+  align-items: center;
+  min-height: 2.25rem;
+}
+@media (min-width: 40rem) {
+  .dir-activite-chiffres {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+@media (min-width: 72rem) {
+  .dir-activite-chiffres {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(0, 1.9fr);
+  }
+  .dir-activite-tendance {
+    grid-column: auto;
+  }
+}
+
+/* Un bloc : titre à gauche, période à droite. */
+.dir-activite-bloc {
+  min-width: 0;
+  padding: 0.875rem 1rem 0.75rem;
+}
+.dir-activite-bloc-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.125rem 1rem;
+  margin-bottom: 0.5rem;
+}
+.dir-activite-bloc-tete > h3 {
+  font-size: 1.0625rem;
+}
+.dir-activite .dir-activite-repli {
+  margin-top: 0.5rem;
+  padding-bottom: 0;
+}
+.dir-activite-legende {
+  margin-top: 0.375rem;
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+
+/* Les deux graphiques côte à côte dès qu'il y a la place ; seul, un graphique prend toute la largeur. */
+.dir-activite-graphes,
+.dir-activite-listes {
+  display: grid;
+  align-items: start;
+  gap: 1rem;
+}
+@media (min-width: 64rem) {
+  .dir-activite-graphes {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
+  .dir-activite-graphes[data-seul] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (min-width: 48rem) {
+  .dir-activite-listes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+/* Sur deux colonnes, un troisième bloc seul sur sa ligne prend toute la largeur. */
+@media (min-width: 48rem) and (max-width: 71.99rem) {
+  .dir-activite-listes > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+}
+@media (min-width: 72rem) {
+  .dir-activite-listes {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Le dessin : un trait pointillé en haut, à la hauteur de la plus haute colonne, dont la valeur est écrite au bout. Les
+   repères et les colonnes partagent la même grille : un repère tombe sous sa colonne, sans élargir la page. */
+.dir-activite-trace {
+  position: relative;
+  padding-top: 1.125rem;
+}
+.dir-activite-haut {
+  position: absolute;
+  top: 0;
+  right: 0;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: var(--color-muted);
+}
+.dir-activite-colonnes,
+.dir-activite-reperes {
+  display: grid;
+  grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+  column-gap: 2px;
+}
+.dir-activite-colonnes {
+  height: 7rem;
+  align-items: end;
+  border-top: 1px dashed var(--color-line-strong);
+  border-bottom: 1px solid var(--color-line-strong);
+}
+.dir-activite-colonnes > span {
+  display: flex;
+  align-items: flex-end;
+  height: 100%;
+}
+.dir-activite-colonnes > span > i {
+  display: block;
+  width: 100%;
+  height: var(--v);
+  border-radius: 2px 2px 0 0;
+  background: var(--color-blue-text);
+}
+.dir-activite-colonnes > span[data-encours] > i {
+  opacity: 0.55;
+}
+.dir-activite-colonnes > span[data-actif] > i {
+  background: #fff;
+}
+.dir-activite-reperes {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: var(--color-muted);
+}
+.dir-activite-reperes > span {
+  white-space: nowrap;
+}
+
+/* Les lignes serrées des listes : le rang, le nom, le nombre ; dessous, un trait dont la longueur vient de la donnée, posé
+   sur le filet de la ligne. */
+.dir-activite-rangs {
+  border-top: 1px solid var(--color-line-strong);
+}
+.dir-activite-rang {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 0.625rem;
+  min-height: 2rem;
+  padding: 0.3125rem 0 0.4375rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+  font-size: 0.9375rem;
+  line-height: 1.3;
+}
+.dir-activite-rang > i {
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: var(--v);
+  min-width: 2px;
+  height: 3px;
+  border-radius: 0 2px 2px 0;
+  background: var(--color-blue-text);
+}
+.dir-activite-place {
+  flex: none;
+  width: 1.375rem;
+  font-size: 0.8125rem;
+  text-align: right;
+  color: var(--color-muted);
+}
+
+/* ---------- Direction, onglet Demandes ---------- */
+/* Les règles propres à cet onglet (DirectionDemandes.tsx), sous la classe `dir-demandes`. Une ligne par demande : qui, le
+   contrôle dans la liste officielle (vert dedans, rouge absent), l'attente (jaune au-delà de deux jours), les boutons. Le mot
+   du joueur et le champ « Raison », ouvert à la demande, prennent toute la largeur sous la ligne. */
+/* Les zones du refus et de la réussite restent dans la page, vides, sans hauteur : cachées par `display: none`, elles
+   sortiraient de ce que lit un lecteur d'écran, qui ne les annoncerait plus en se remplissant. Elles reçoivent le focus après
+   une décision ; le texte se lit sans contour. */
+.dir-demandes-zone:focus {
+  outline: none;
+}
+.dir-demandes-resume {
+  margin-top: 0.875rem;
+  font-size: 0.9375rem;
+}
+/* La colonne de la Direction est trop étroite pour tout mettre sur un rang (elle ne dépasse pas 1 170 px) : qui et l'attente
+   en haut, le contrôle et les boutons dessous. */
+.dir-demandes-ligne {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "qui attente"
+    "controle actions"
+    "mot mot"
+    "raison raison";
+  align-items: center;
+  gap: 0.25rem 1rem;
+  padding-block: 0.4375rem;
+  font-size: 0.9375rem;
+  line-height: 1.35;
+}
+.dir-demandes-qui {
+  grid-area: qui;
+  min-width: 0;
+}
+.dir-demandes-nom {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  color: #fff;
+}
+.dir-demandes-meta {
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+  color: var(--color-muted);
+}
+.dir-demandes-controle {
+  display: grid;
+  grid-area: controle;
+  gap: 0.125rem;
+  min-width: 0;
+}
+.dir-demandes-pseudo {
+  display: inline-block;
+  overflow-wrap: anywhere;
+}
+.dir-demandes-attente {
+  grid-area: attente;
+  text-align: right;
+}
+.dir-demandes-actions {
+  display: flex;
+  flex-wrap: wrap;
+  grid-area: actions;
+  justify-content: flex-end;
+  gap: 0.375rem;
+}
+/* « Valider » se voit d'abord : un fond vert léger. « Refuser » reste gris, et rougit quand on le vise. */
+.dir-demandes .dir-demandes-oui {
+  background: color-mix(in srgb, var(--color-ok) 14%, transparent);
+}
+.dir-demandes .dir-demandes-non:is(:hover, :focus-visible):where(:not(:disabled)) {
+  --ton: var(--color-danger);
+}
+.dir-demandes .dir-bouton:focus-visible {
+  border-color: var(--ton, #fff);
+  background: var(--ton, #fff);
+  color: var(--color-night);
+}
+.dir-demandes-mot {
+  grid-area: mot;
+  max-width: 60rem;
+  padding-left: 0.625rem;
+  border-left: 2px solid var(--color-line-strong);
+  overflow-wrap: anywhere;
+  color: var(--color-muted);
+}
+.dir-demandes-raison {
+  display: grid;
+  grid-area: raison;
+  grid-template-columns: auto minmax(12rem, 1fr);
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-block: 0.25rem 0.125rem;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.375rem;
+  background: rgb(0 0 0 / 0.22);
+}
+.dir-demandes-raison[hidden] {
+  display: none;
+}
+.dir-demandes-libelle {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.dir-demandes-pretes {
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: 0.375rem 0.5rem;
+}
+.dir-demandes-pretes .dir-bouton {
+  white-space: normal;
+  text-align: left;
+}
+/* Téléphone : une petite carte par demande. Le mot du joueur se lit avant de décider : les boutons, sur toute la largeur,
+   passent après lui. */
+@media (max-width: 47.9375rem) {
+  .dir-demandes .dir-liste {
+    display: grid;
+    gap: 0.625rem;
+    border-top: 0;
+  }
+  .dir-demandes-ligne {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "qui" "controle" "attente" "mot" "actions" "raison";
+    gap: 0.5rem;
+    padding: 0.75rem 0.75rem 0.75rem 0.875rem;
+    border: 1px solid var(--color-line);
+    border-radius: 0.375rem;
+  }
+  .dir-demandes-attente {
+    text-align: left;
+  }
+  .dir-demandes-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+  .dir-demandes-actions .dir-bouton {
+    padding-inline: 0.25rem;
+  }
+  .dir-demandes-raison {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---------- Direction, onglet Journal ---------- */
+/* Les règles propres à cet onglet (DirectionJournal.tsx), sous la classe `dir-journal`. Une ligne par action : l'heure, le
+   type à sa couleur, la phrase. Un intertitre par jour, qui reste sous la barre d'outils pendant qu'on descend. */
+.dir-journal .dir-outils[hidden] {
+  display: none;
+}
+.dir-journal-jour {
+  margin-top: 1rem;
+}
+.dir-journal-date {
+  position: sticky;
+  top: calc(var(--dir-haut, 4rem) + var(--dir-outils, 0px) - 1px);
+  z-index: 10;
+  padding: 0.375rem 0.75rem 0.5rem;
+  background: var(--color-navy);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.dir-journal .dir-liste {
+  margin-top: 0;
+}
+.dir-journal-ligne.dir-ligne {
+  display: grid;
+  grid-template-columns: 3rem 7.5rem minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0.125rem 0.75rem;
+  min-height: 2.25rem;
+  padding-block: 0.375rem;
+  font-size: 0.9375rem;
+  line-height: 1.4;
+}
+.dir-journal-heure {
+  color: var(--color-muted);
+}
+.dir-journal-type {
+  min-width: 0;
+  font-size: 0.8125rem;
+}
+.dir-journal-phrase {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.dir-journal-phrase strong {
+  color: #fff;
+}
+.dir-journal-vide,
+.dir-journal-suite {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  margin-top: 1rem;
+}
+.dir-journal-suite {
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+.dir-journal-vide .dir-bouton,
+.dir-journal-suite .dir-bouton {
+  min-height: 2.5rem;
+  padding-inline: 0.875rem;
+}
+/* Sur téléphone : l'heure et le type sur une ligne, la phrase dessous, sur toute la largeur. */
+@media (max-width: 39.9375rem) {
+  .dir-journal-ligne.dir-ligne {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    padding-block: 0.5rem;
+  }
+  .dir-journal-phrase {
+    grid-column: 1 / -1;
+  }
+}
+@media (pointer: coarse), (max-width: 47.9375rem) {
+  .dir-journal-vide .dir-bouton,
+  .dir-journal-suite .dir-bouton {
+    min-height: 2.75rem;
+  }
+}
+
+/* ---------- Direction, onglet Annonces ---------- */
+/* Les règles propres à cet onglet (DirectionAnnonces.tsx), sous la classe `dir-annonces`. Le formulaire et la liste côte à
+   côte dès 1 024 px (le formulaire reste en vue pendant qu'on descend la liste), une ligne courte par annonce. Vert : sur
+   l'accueil. Gris : plus ancienne, hors de l'accueil. Jaune : ouverte dans le formulaire. « Supprimer » reste gris et ne
+   rougit qu'au survol, au clavier ou une fois armé : pas de mur de rouge. */
+.dir-annonces-grille {
+  display: grid;
+  align-items: start;
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+.dir-annonces-form {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 1rem 1.125rem 1.125rem;
+}
+.dir-annonces-form[data-dir-ton] {
+  border-color: var(--ton);
+}
+.dir-annonces-publiees {
+  min-width: 0;
+  container: dir-annonces / inline-size;
+}
+.dir-annonces-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+}
+.dir-annonces-total,
+.dir-annonces-compte,
+.dir-annonces-fige {
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+.dir-annonces-libelle {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+.dir-annonces-libelle label {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+.dir-annonces-compte[data-near] {
+  font-weight: 600;
+  color: var(--color-warn);
+}
+.dir-annonces-form textarea.field {
+  display: block;
+  min-height: 7rem;
+  resize: vertical;
+}
+.dir-annonces-envoi {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.dir-annonces-form .form-problem,
+.dir-annonces-form .form-success {
+  margin-top: 0;
+}
+/* Les réponses du serveur. Le focus y vient après une suppression. Sans message, la zone ne prend pas de place ; sa zone
+   `role="status"`, vide, reste dans l'arbre d'accessibilité pour que le message suivant soit lu. */
+.dir-annonces-retour {
+  display: grid;
+  gap: 0.5rem;
+  margin: -0.25rem -0.5rem;
+  padding: 0.25rem 0.5rem;
+}
+.dir-annonces-retour:not(:has(.form-problem, .form-success:not(:empty))) {
+  margin-block: -0.75rem 0;
+  padding-block: 0;
+}
+.dir-annonces-retour .form-success:empty {
+  display: block;
+}
+
+/* Une annonce : le titre et, dessous, la date, l'auteur, le lien et le début du texte ; puis l'état, puis les boutons. */
+.dir-annonces-ligne {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 10.25rem 11.5rem;
+  grid-template-areas: "texte etat actions";
+  gap: 0.125rem 0.75rem;
+  padding-block: 0.4375rem;
+}
+.dir-annonces-ligne[aria-current="true"] {
+  background: color-mix(in srgb, var(--ton) 10%, transparent);
+}
+.dir-annonces-texte {
+  grid-area: texte;
+  min-width: 0;
+}
+.dir-annonces-titre {
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.dir-annonces-meta {
+  display: flex;
+  align-items: center;
+  gap: 0 0.75rem;
+  min-width: 0;
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+.dir-annonces-meta > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dir-annonces-meta > .tnum {
+  flex: none;
+}
+.dir-annonces-auteur {
+  flex: 0 1 auto;
+  min-width: 3rem;
+  max-width: 40%;
+  color: #fff;
+}
+.dir-annonces-lien {
+  flex: 0 0 auto;
+  max-width: min(14rem, 45%);
+  line-height: 1.75rem;
+  color: var(--color-ally);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+.dir-annonces-lien:hover {
+  color: #fff;
+}
+.dir-annonces-extrait {
+  flex: 1 1 0;
+  min-width: 3rem;
+}
+.dir-annonces-etat {
+  grid-area: etat;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+/* Les boutons ne prennent pas la couleur de l'état de la ligne. */
+.dir-annonces-actions {
+  --ton: #fff;
+  grid-area: actions;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.375rem;
+}
+.dir-annonces .dir-bouton[data-dir-ton="danger"]:not(:hover):not(:focus-visible):not([data-arme]) {
+  --ton: var(--color-muted);
+}
+.dir-annonces-aide {
+  margin-top: 1.25rem;
+}
+
+@media (min-width: 64rem) {
+  .dir-annonces-grille {
+    grid-template-columns: minmax(0, 24rem) minmax(0, 1fr);
+  }
+}
+/* `main .card` pose `position: relative` : il faut un sélecteur plus précis pour que le formulaire reste en vue. */
+@media (min-width: 64rem) and (min-height: 44rem) {
+  main .dir-annonces .card.dir-annonces-form {
+    position: sticky;
+    top: calc(var(--dir-haut, 4rem) + 1rem);
+  }
+}
+/* Quand la liste a moins de 704 px pour elle (téléphone, ou à côté du formulaire sur un écran moyen), chaque annonce
+   devient une petite carte : l'état, le texte, puis les boutons. */
+@container dir-annonces (max-width: 44rem) {
+  .dir-annonces-ligne {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "etat etat"
+      "texte texte"
+      "actions actions";
+    padding-block: 0.625rem;
+  }
+  .dir-annonces-ligne[data-fige] {
+    grid-template-areas:
+      "etat actions"
+      "texte texte";
+  }
+  .dir-annonces-ligne:not([data-fige]) .dir-annonces-actions {
+    justify-content: flex-start;
+    margin-top: 0.25rem;
+  }
+  .dir-annonces-meta {
+    flex-wrap: wrap;
+  }
+  .dir-annonces-auteur {
+    max-width: 100%;
+  }
+  .dir-annonces-extrait {
+    flex-basis: 100%;
+  }
+}
+/* Au doigt, le lien garde 44 px de haut sans écarter les lignes : sa zone dépasse au-dessus et au-dessous. */
+@media (pointer: coarse), (max-width: 47.9375rem) {
+  .dir-annonces-lien {
+    margin-block: -0.5rem;
+    line-height: 2.75rem;
+  }
+}
+
+/* ---------- Direction, onglet Événements ---------- */
+/* Les règles propres à cet onglet (DirectionEvenements.tsx), sous la classe `dir-evenements`. Le formulaire et la liste côte
+   à côte dès 1 024 px ; une ligne serrée par événement : la date d'abord, un trait et un mot en couleur pour ce qui est
+   proche (jaune aujourd'hui, bleu demain, gris dans la semaine ou déjà commencé), le nombre de « Je viens » en pastille
+   verte, qui déplie les noms. Les mots et les couleurs sont décidés dans `src/lib/compte/direction-evenements.ts`. */
+.dir-evenements .evt-plan {
+  display: grid;
+  align-items: start;
+  gap: 1.5rem;
+  margin-top: 1.25rem;
+}
+.dir-evenements .evt-form {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem 1.125rem 1.125rem;
+}
+.dir-evenements .evt-form textarea {
+  resize: vertical;
+}
+.dir-evenements .evt-serie,
+.dir-evenements .evt-semaines {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+}
+@media (min-width: 64rem) {
+  .dir-evenements .evt-plan {
+    grid-template-columns: minmax(0, 23rem) minmax(0, 1fr);
+  }
+}
+/* Sur un écran assez haut, le formulaire reste en vue pendant qu'on descend la liste. */
+@media (min-width: 64rem) and (min-height: 48rem) {
+  .dir-evenements .evt-form {
+    position: sticky;
+    top: calc(var(--dir-haut, 4rem) + 1rem);
+  }
+}
+
+/* La liste mesure sa propre largeur : à côté du formulaire, elle est plus étroite que l'écran. */
+.dir-evenements .evt-liste {
+  min-width: 0;
+  container-type: inline-size;
+}
+.dir-evenements .evt-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+}
+.dir-evenements .evt-tete .dir-nombre {
+  color: var(--color-muted);
+}
+.dir-evenements .evt-panne {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 0.75rem;
+  font-size: 0.9375rem;
+  color: var(--color-warn);
+}
+.dir-evenements .evt-panne .dir-pastille {
+  flex: none;
+}
+
+/* Une ligne : la date, puis le nom et sa suite (qui vient, l'auteur, le lien), puis les commandes. Étroite, elle s'empile
+   en petite carte ; rien ne défile de côté. */
+.dir-evenements .evt-ligne {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  gap: 0.25rem 1rem;
+  padding-block: 0.5rem;
+  font-size: 0.9375rem;
+  line-height: 1.35;
+}
+.dir-evenements .evt-ligne[data-editing] {
+  background: rgb(255 255 255 / 0.08);
+}
+.dir-evenements .evt-quand {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.625rem;
+}
+.dir-evenements .evt-jour {
+  font-weight: 700;
+  white-space: nowrap;
+}
+.dir-evenements .evt-heure {
+  white-space: nowrap;
+}
+.dir-evenements .evt-quand .dir-point {
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.dir-evenements .evt-quoi {
+  min-width: 0;
+}
+.dir-evenements .evt-nom {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.dir-evenements .evt-suite {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.125rem 0.75rem;
+  margin-top: 0.125rem;
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+.dir-evenements .evt-suite:empty {
+  display: none;
+}
+.dir-evenements .evt-auteur {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.dir-evenements .evt-lien {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  color: #fff;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+/* Le nombre de « Je viens » : une pastille qui se clique. Dépliée, elle est pleine. */
+.dir-evenements .evt-viennent {
+  min-height: 1.75rem;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+}
+.dir-evenements .evt-viennent:hover {
+  background: color-mix(in srgb, var(--ton) 26%, transparent);
+}
+.dir-evenements .evt-viennent[aria-expanded="true"] {
+  border-color: var(--ton);
+  background: var(--ton);
+  color: var(--color-night);
+}
+.dir-evenements .evt-noms {
+  padding: 0.375rem 0.625rem;
+  border-left: 2px solid var(--color-ok);
+  background: rgb(255 255 255 / 0.05);
+  overflow-wrap: anywhere;
+}
+.dir-evenements .evt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+/* Les commandes ne prennent pas la couleur de la ligne. « Supprimer » est sur presque chaque ligne : gris, il ne passe au
+   rouge que sous la souris, au clavier, ou armé (« Confirmer la suppression »). */
+.dir-evenements .evt-modifier {
+  --ton: #fff;
+}
+.dir-evenements .evt-ligne[data-editing] .evt-modifier {
+  background: #fff;
+  color: var(--color-night);
+}
+.dir-evenements .evt-supprimer {
+  --ton: var(--color-muted);
+}
+.dir-evenements .evt-supprimer:is(:hover, :focus-visible, [data-armed]):where(:not(:disabled)) {
+  --ton: var(--color-danger);
+}
+.dir-evenements .evt-supprimer[data-armed] {
+  border-color: var(--ton);
+  background: var(--ton);
+  color: var(--color-night);
+}
+.dir-evenements .evt-aide {
+  margin-top: 1rem;
+}
+@container (min-width: 34rem) {
+  .dir-evenements .evt-ligne {
+    grid-template-columns: 11.5rem minmax(0, 1fr);
+  }
+  .dir-evenements .evt-quand {
+    align-self: start;
+  }
+  .dir-evenements .evt-quoi,
+  .dir-evenements .evt-actions,
+  .dir-evenements .evt-noms {
+    grid-column: 2;
+  }
+  /* Les heures s'alignent d'une ligne à l'autre, que le jour s'écrive « dim. 6 déc. » ou « sam. 14 sept. ». */
+  .dir-evenements .evt-jour {
+    min-width: 13ch;
+  }
+  .dir-evenements .evt-quand .dir-point {
+    flex-basis: 100%;
+  }
+}
+/* Assez large, les commandes passent au bout de la ligne ; sinon elles restent sous le nom, qui garde sa place. */
+@container (min-width: 46rem) {
+  .dir-evenements .evt-ligne {
+    grid-template-columns: 11.5rem minmax(0, 1fr) auto;
+  }
+  .dir-evenements .evt-actions {
+    grid-column: 3;
+    justify-content: flex-end;
+  }
+  .dir-evenements .evt-noms {
+    grid-column: 2 / -1;
+  }
+}
+@media (pointer: coarse) {
+  .dir-evenements .evt-viennent,
+  .dir-evenements .evt-lien {
+    min-height: 2.75rem;
+  }
+}
+@media (max-width: 47.9375rem) {
+  .dir-evenements .evt-viennent,
+  .dir-evenements .evt-lien {
+    min-height: 2.75rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dir-evenements .evt-viennent {
+    transition: none;
+  }
+}
+
+/* ---------- Direction, onglet Sondages ---------- */
+/* Les règles propres à cet onglet (DirectionPolls.tsx), sous la classe `dir-sondages`. Le formulaire à gauche, la liste à
+   droite dès 1 024 px. Un sondage par bloc serré : un trait vert s'il est ouvert, gris s'il est fermé, jaune si ses totaux
+   ne se lisent pas ; son état en pastille ; une ligne par choix (le nom, la barre, les voix, la part). Le choix en tête a
+   son nom en gras, sa barre en blanc et le mot « En tête » ; à égalité, chacun porte « Égalité » en jaune et aucun n'est
+   désigné. Les règles sont dans `src/lib/compte/direction-sondages.ts`. */
+.dir-sondages-plan {
+  display: grid;
+  align-items: start;
+  gap: 1.5rem;
+  margin-top: 1.25rem;
+}
+@media (min-width: 64rem) {
+  .dir-sondages-plan {
+    grid-template-columns: minmax(19rem, 26rem) minmax(0, 1fr);
+    gap: 2rem;
+  }
+}
+
+/* Le formulaire, compact : les noms des champs au-dessus, leur précision en gris à côté. */
+.dir-sondages-form {
+  display: grid;
+  gap: 0.875rem;
+  min-width: 0;
+  max-width: 42rem;
+  padding: 1rem 1.125rem 1.125rem;
+}
+.dir-sondages-form-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.375rem 0.75rem;
+}
+.dir-sondages-form-tete .dir-pastille {
+  font-size: 0.875rem;
+}
+.dir-sondages-plein {
+  margin-top: -0.375rem;
+  font-size: 0.9375rem;
+  color: var(--color-warn);
+}
+.dir-sondages-form label,
+.dir-sondages-form legend {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+.dir-sondages-aide-champ {
+  font-weight: 400;
+  color: var(--color-muted);
+}
+.dir-sondages-choix {
+  display: grid;
+  gap: 0.375rem;
+  min-width: 0;
+}
+.dir-sondages-choix-ligne {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+.dir-sondages-choix-ligne .field {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* Les boutons de ligne restent gris : ils ne prennent leur couleur que sous la souris ou au clavier. Pas de mur de rouge. */
+.dir-sondages .dir-bouton {
+  --ton: var(--color-muted);
+  flex: none;
+}
+.dir-sondages .dir-bouton[data-survol="warn"]:where(:hover, :focus-visible):where(:not(:disabled)) {
+  --ton: var(--color-warn);
+}
+.dir-sondages .dir-bouton[data-survol="danger"]:where(:hover, :focus-visible):where(:not(:disabled)),
+.dir-sondages .dir-bouton[data-arme] {
+  --ton: var(--color-danger);
+}
+/* Armé, « Supprimer » demande sa confirmation en plein rouge. */
+.dir-sondages .dir-bouton[data-arme] {
+  border-color: var(--ton);
+  background: var(--ton);
+  color: var(--color-night);
+}
+/* La zone d'annonce existe avant d'être remplie, sans prendre de place. */
+.dir-sondages .form-success:empty {
+  display: block;
+  margin: 0;
+}
+/* Dans le formulaire, la zone vide ne s'ajoute pas non plus à l'écart de la grille. */
+.dir-sondages-form > .form-success:empty {
+  margin-top: -0.875rem;
+}
+.dir-sondages #polls-done > :not(:empty) {
+  margin-block: 0.5rem;
+}
+/* Le résultat d'une action reçoit le focus : la page s'arrête sous l'en-tête du site et la barre des filtres, pas dessous. */
+.dir-sondages #polls-done {
+  scroll-margin-top: calc(var(--dir-haut, 4rem) + var(--dir-outils, 3.5rem) + 0.75rem);
+}
+
+/* La liste : la barre des filtres reste sous l'en-tête du site. Sans sondage, la colonne ne prend aucune place. */
+.dir-sondages-suivi {
+  min-width: 0;
+  container-type: inline-size;
+}
+.dir-sondages-suivi[data-vide] {
+  display: none;
+}
+.dir-sondages .dir-outils {
+  margin-top: 0;
+  padding-top: 0;
+}
+.dir-sondages-liste {
+  margin-top: 0;
+}
+.dir-sondage {
+  padding: 0.625rem 0.75rem 0.75rem 0.875rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+  box-shadow: inset 3px 0 0 var(--ton, transparent);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 0.75rem;
+}
+/* La question et ses boutons sont posés sur la grille du sondage : les boutons à droite, ou en bas sur une colonne étroite. */
+.dir-sondage-tete {
+  display: contents;
+}
+.dir-sondage > :not(.dir-sondage-tete) {
+  grid-column: 1 / -1;
+}
+.dir-sondage-actions {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: start;
+}
+.dir-sondage-question {
+  grid-column: 1;
+  min-width: 0;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  /* Le « ? » d'une question, précédé d'une espace, ne reste pas seul sur sa ligne. */
+  text-wrap: pretty;
+  color: #fff;
+}
+.dir-sondage-actions {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+.dir-sondage-etat {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.125rem 0.75rem;
+  margin-top: 0.3125rem;
+  font-size: 0.9375rem;
+  color: var(--color-muted);
+}
+.dir-sondage-etat .dir-pastille {
+  font-size: 0.875rem;
+}
+.dir-sondage-total {
+  font-weight: 700;
+  color: #fff;
+}
+.dir-sondage-auteur {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.dir-sondage-illisible,
+.dir-sondage-sans-voix {
+  margin-top: 0.4375rem;
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+  color: var(--color-muted);
+}
+.dir-sondage-illisible {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.125rem 0.75rem;
+}
+/* Une ligne par choix, sur les mêmes colonnes d'un choix à l'autre : les voix et les parts s'alignent à droite. */
+.dir-sondage-choix {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(3rem, 4fr) auto auto;
+  gap: 0.25rem 0.875rem;
+  margin-top: 0.5rem;
+  font-size: 0.9375rem;
+  line-height: 1.35;
+}
+.dir-sondage-choix > li {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+  align-items: center;
+}
+.dir-sondage-nom {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.dir-sondage-nom .dir-point {
+  margin-left: 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.dir-sondage-voix,
+.dir-sondage-part {
+  text-align: right;
+  white-space: nowrap;
+}
+.dir-sondage-voix {
+  color: var(--color-muted);
+}
+.dir-sondage-choix > li[data-tete] .dir-sondage-nom,
+.dir-sondage-choix > li[data-tete] .dir-sondage-voix,
+.dir-sondage-choix > li[data-tete] .dir-sondage-part {
+  font-weight: 700;
+  color: #fff;
+}
+.dir-sondage-choix > li[data-tete] .dir-sondage-barre > i {
+  background: #fff;
+}
+/* Colonne étroite (téléphone, tablette) : le nom et les nombres sur une ligne, la barre dessous. */
+@container (max-width: 36rem) {
+  .dir-sondage {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dir-sondage-actions {
+    grid-column: 1;
+    grid-row: auto;
+    order: 1;
+    flex-wrap: nowrap;
+    margin-top: 0.625rem;
+  }
+  /* Armé, « Confirmer la suppression » reste sur la ligne de « Fermer », sous le doigt (à 360 px, il partait à la ligne
+     suivante) : si la place manque, c'est son texte qui passe sur deux lignes, dans le bouton. */
+  .dir-sondages .dir-sondage-actions .dir-bouton[data-arme] {
+    flex: 0 1 auto;
+    min-width: 0;
+    white-space: normal;
+  }
+  .dir-sondage-choix {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    row-gap: 0.4375rem;
+  }
+  .dir-sondage-choix > li {
+    row-gap: 0.1875rem;
+  }
+  .dir-sondage-barre {
+    grid-row: 2;
+    grid-column: 1 / -1;
+  }
+}
+.dir-sondages-aide {
+  margin-top: 1.5rem;
+}
+
+/* ---------- Direction, onglet Mot d'accueil ---------- */
+/* Les règles propres à cet onglet (DirectionWelcome.tsx), sous la classe `dir-accueil`. L'état du mot est en pastille à
+   côté du titre. Dessous, le champ et ce que le QG montre : côte à côte dès 1 024 px, l'un sous l'autre avant. La fenêtre
+   « motd » reprend celle du QG (`qg-welcome`) ; elle grandit avec le texte, comme au QG. */
+.dir-accueil-grille {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+.dir-accueil-champ,
+.dir-accueil-vue {
+  display: grid;
+  align-content: start;
+  gap: 0.5rem;
+  min-width: 0;
+}
+/* La ligne au-dessus de chaque colonne : « Texte » et son compteur, « Au QG, en ce moment ». Même hauteur des deux côtés. */
+.dir-accueil-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.125rem 1rem;
+  min-height: 1.5rem;
+}
+.dir-accueil-tete :is(label, h3) {
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.5rem;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.dir-accueil-tete h3::before {
+  content: none;
+}
+.dir-accueil-compte {
+  font-size: 0.8125rem;
+  color: var(--ton);
+}
+.dir-accueil textarea.field {
+  display: block;
+  min-height: 12rem;
+  resize: vertical;
+  line-height: 1.5;
+}
+.dir-accueil-pied {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin-top: 0.25rem;
+}
+.dir-accueil-motd {
+  padding: 1.25rem;
+}
+/* Comme au QG, où ce titre est un `h2` de la console : en capitales, précédé de « ## » en rouge (décoratif). */
+.dir-accueil-motd-titre {
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+.dir-accueil-motd-titre::before {
+  content: "## " / "";
+  color: var(--color-red);
+}
+.dir-accueil-motd-texte {
+  margin-top: 0.5rem;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+/* Un mot long (`welcomeIsTall`) défile dans son cadre : l'onglet tient dans un écran. Au QG, il s'affiche en entier. */
+.dir-accueil-motd-long {
+  max-height: 15rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.5rem;
+  scrollbar-width: thin;
+}
+/* Sans mot, le QG n'a pas de fenêtre : un cadre en pointillé tient sa place, sans rien imiter. */
+.dir-accueil-rien {
+  padding: 1.25rem;
+  border: 1px dashed var(--color-line-strong);
+  border-radius: 0.375rem;
+  color: var(--color-muted);
+}
+.dir-accueil-aide {
+  margin-top: 1.5rem;
+}
+@media (min-width: 64rem) {
+  .dir-accueil-grille {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 2rem;
+  }
+}
+
+/* ---------- Direction, onglet Gaulois de la semaine ---------- */
+/* Les règles propres à cet onglet (DirectionWeeklyPick.tsx), sous la classe `dir-semaine`. */
+/* L'état de la semaine se lit près du titre (pastille et semaine). À gauche, le choix : le champ cherche à chaque lettre
+   dans la liste des membres, qui défile dans son cadre ; à droite, ce que l'accueil montre, puis l'aperçu du choix en
+   cours de saisie. Vert : choisi, en ligne. Jaune : pas encore choisi, ou à regarder. Rouge : illisible, ou retiré de
+   l'accueil. Bleu : un aperçu, pas encore enregistré. */
+.dir-semaine-etat {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 0.75rem;
+  min-height: 2rem;
+  font-size: 0.9375rem;
+}
+.dir-semaine-grille {
+  display: grid;
+  align-items: start;
+  gap: 1.5rem;
+  margin-top: 1.25rem;
+}
+@media (min-width: 64rem) {
+  .dir-semaine-grille {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
+}
+.dir-semaine-choix {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  padding: 1.25rem;
+}
+/* Sous un champ ou au-dessus : deux petits textes face à face (l'état du pseudo tapé et le nombre de membres). */
+.dir-semaine-sous {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.125rem 1rem;
+  margin-top: 0.375rem;
+  font-size: 0.875rem;
+}
+.dir-semaine-sous > [role="status"] {
+  min-height: 1.3125rem;
+}
+
+/* La liste des membres : des cases serrées sur plusieurs colonnes, qui défilent dans leur cadre. */
+.dir-semaine-noms {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));
+  align-content: start;
+  max-height: 15.75rem;
+  margin-top: 0.375rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.375rem;
+  scrollbar-width: thin;
+}
+.dir-semaine-nom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+  min-height: 2.25rem;
+  padding: 0.25rem 0.75rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+  box-shadow: inset 3px 0 0 var(--ton, transparent);
+  font-size: 0.9375rem;
+  line-height: 1.3;
+  cursor: pointer;
+}
+.dir-semaine-nom-texte {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.dir-semaine-marque {
+  flex: none;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ton);
+}
+.dir-semaine-nom:hover {
+  background: rgb(255 255 255 / 0.07);
+}
+/* Le nom retenu pour le choix : fond plein clair, comme un filtre enfoncé. */
+.dir-semaine-nom[aria-selected="true"] {
+  background: #fff;
+  box-shadow: none;
+  font-weight: 700;
+  color: var(--color-night);
+}
+.dir-semaine-nom[aria-selected="true"] .dir-semaine-marque {
+  color: inherit;
+}
+/* Le nom désigné aux flèches du clavier. */
+.dir-semaine-nom[data-actif] {
+  outline: 2px solid #fff;
+  outline-offset: -2px;
+}
+.dir-semaine-nom[aria-selected="true"][data-actif] {
+  outline-color: var(--color-ally);
+}
+
+/* À droite : ce que l'accueil montre, et l'aperçu. */
+.dir-semaine-vues {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+.dir-semaine-vue {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 1.25rem;
+}
+.dir-semaine-pastilles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  font-size: 0.875rem;
+}
+.dir-semaine-honneur {
+  margin-top: 0.75rem;
+}
+.dir-semaine-surtitre {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.dir-semaine-pour {
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+.dir-semaine-pseudo {
+  margin-top: 0.5rem;
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+  color: #fff;
+}
+.dir-semaine-mot {
+  margin-top: 0.5rem;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  color: var(--color-muted);
+}
+/* Le retrait, à part sous un filet : ce n'est pas le geste courant. */
+.dir-semaine-retirer {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+}
+.dir-semaine-rien {
+  color: var(--color-muted);
+}
+/* Ce que donne un choix ou un retrait, près de son bouton. Vide, il ne prend aucune place ; le focus y va quand le
+   bouton pressé se désactive ou disparaît. */
+.dir-semaine-retour:not(:has(.form-problem, .form-success:not(:empty))) {
+  display: none;
+}
+@media (pointer: coarse) {
+  .dir-semaine-nom {
+    min-height: 2.75rem;
+  }
+}
+@media (max-width: 47.9375rem) {
+  .dir-semaine-choix,
+  .dir-semaine-vue {
+    padding: 1rem;
+  }
+  .dir-semaine-noms {
+    grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+    max-height: 16.5rem;
+  }
+  .dir-semaine-nom {
+    min-height: 2.75rem;
+  }
+}
+
+/* ---------- Direction, onglet Objectif ---------- */
+/* Les règles propres à cet onglet (DirectionObjectif.tsx), sous la classe `dir-objectif`. */
+/* Un petit onglet, qui tient dans un écran : à gauche l'état de l'objectif (trait de couleur, pastille et son mot, puis ce
+   que le QG affiche), à droite le formulaire en trois lignes ; l'un sous l'autre sous 1 024 px. La jauge prend la couleur
+   de l'état : la longueur seule porte la valeur. Les chiffres restent blancs. */
+.dir-objectif-grille {
+  display: grid;
+  gap: 1rem;
+  align-items: start;
+  margin-top: 1rem;
+}
+@media (min-width: 64rem) {
+  .dir-objectif-grille {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1.5rem;
+  }
+}
+.dir-objectif-etat,
+.dir-objectif-form {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 0.875rem 1rem 1rem;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.375rem;
+  background: rgb(0 0 0 / 0.25);
+}
+.dir-objectif-etat {
+  box-shadow: inset 3px 0 0 var(--ton, transparent);
+}
+.dir-objectif :is(.dir-objectif-etat, .dir-objectif-form) h3 {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.dir-objectif-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.375rem 0.75rem;
+  min-height: 1.75rem;
+}
+.dir-objectif-but {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.dir-objectif-chiffre {
+  margin-top: 0.5rem;
+  font-size: 2.25rem;
+  font-weight: 800;
+  line-height: 1;
+  color: #fff;
+}
+.dir-objectif-chiffre > span {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+.dir-objectif .meter {
+  margin-top: 0.625rem;
+}
+.dir-objectif .meter > i {
+  background: var(--ton, var(--color-blue-text));
+}
+.dir-objectif-phrase {
+  margin-top: 0.375rem;
+  font-size: 1.0625rem;
+}
+.dir-objectif .dir-note {
+  margin-top: 0.5rem;
+}
+.dir-objectif .form-problem,
+.dir-objectif .form-success {
+  margin: 0;
+}
+.dir-objectif-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.875rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+}
+.dir-objectif-actions > a.dir-bouton {
+  --ton: #fff;
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+/* « Supprimer » reste gris : il ne prend son rouge qu'au survol, au clavier, ou une fois armé (second clic). */
+.dir-objectif-retirer:where(:not(:hover, :focus-visible, [data-arme])) {
+  --ton: var(--color-muted);
+}
+.dir-objectif-retirer[data-arme] {
+  border-color: var(--ton);
+  background: var(--ton);
+  color: var(--color-night);
+}
+
+/* Les deux sortes de but : deux boutons radio en pastilles, côte à côte. Le choix est plein, comme un filtre enfoncé. */
+.dir-objectif-sortes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  min-width: 0;
+}
+.dir-objectif-sorte {
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid rgb(255 255 255 / 0.55);
+  border-radius: 0.375rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.dir-objectif-sorte > input {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--color-night);
+}
+.dir-objectif-sorte:hover:where(:not([data-bloque], [data-choisi])) {
+  background: rgb(255 255 255 / 0.16);
+}
+.dir-objectif-sorte[data-choisi] {
+  border-color: #fff;
+  background: #fff;
+  color: var(--color-night);
+}
+.dir-objectif-sorte[data-bloque] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+/* Au clavier, l'anneau blanc entoure toute la pastille : autour du seul bouton radio, il se perdait sur le fond blanc du
+   choix. Sans `:has`, l'anneau reste sur le bouton radio, foncé sur le choix blanc. */
+.dir-objectif-sorte:has(> input:focus-visible) {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+@supports selector(:has(*)) {
+  .dir-objectif-sorte > input:focus-visible {
+    outline: none;
+  }
+}
+.dir-objectif-sorte[data-choisi] > input:focus-visible {
+  outline-color: var(--color-night);
+}
+/* La zone de la réussite existe avant l'envoi : vide, elle ne prend pas de place dans la grille. */
+.dir-objectif-message:empty {
+  position: absolute;
+}
+/* Le champ et son bouton sur une ligne, alignés par le bas ; le bouton passe dessous quand la place manque. */
+.dir-objectif-saisie {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+.dir-objectif-saisie > div {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+.dir-objectif-saisie label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.dir-objectif-saisie .field {
+  width: 100%;
+  min-height: 2.75rem;
+}
+.dir-objectif-saisie .btn {
+  flex: none;
+  min-height: 2.75rem;
+}
+.dir-objectif-apercu {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+}
+.dir-objectif-apercu > .dir-point {
+  font-weight: 600;
+}
+.dir-objectif-aide {
+  margin-top: 1rem;
+}
+/* Sur un téléphone, « Confirmer la suppression » ne tient plus à côté de « Voir au QG » : armé, le bouton passait à la ligne
+   et fuyait sous le doigt, qui touchait alors à côté. Les deux boutons y sont l'un sous l'autre dès le départ : le bouton
+   armé s'allonge vers la droite, sans bouger. */
+@media (max-width: 29.9375rem) {
+  .dir-objectif-actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+@media (pointer: coarse), (max-width: 47.9375rem) {
+  .dir-objectif-sorte {
+    min-height: 2.75rem;
+  }
+  .dir-objectif-actions > a.dir-bouton {
+    min-height: 2.75rem;
+  }
+}
+
+/* ---------- Direction, onglet Discord ---------- */
+/* Les règles propres à cet onglet (DirectionDiscord.tsx et ses rubriques), sous la classe `dir-discord`. Le menu et les
+   messages Discord gardent aussi leurs sections plus bas. */
+
+/* Le menu : chaque ligne dit l'état de ses réglages, en pastilles à droite du titre, et porte au bord un trait de la
+   couleur la plus grave. Sous 64 rem, les pastilles passent sous la phrase, sur toute la largeur. */
+.dir-discord.menu-deroulant {
+  gap: 0.625rem;
+}
+:root main .dir-discord .deroule.card[data-dir-ton] {
+  border-inline-start: 3px solid var(--ton);
+}
+.dir-discord .deroule > summary {
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 4.25rem;
+  padding-block: 0.75rem;
+  row-gap: 0.125rem;
+}
+.dir-discord-etats {
+  grid-column: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 1rem;
+  margin-top: 0.375rem;
+  font-size: 0.875rem;
+}
+.dir-discord-etat {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4375rem;
+  white-space: nowrap;
+}
+.dir-discord-etat-nom {
+  color: var(--color-muted);
+}
+@media (min-width: 64rem) {
+  .dir-discord .deroule > summary {
+    grid-template-columns: minmax(0, 1fr) minmax(0, auto) auto;
+  }
+  .dir-discord .deroule > summary::after {
+    grid-column: 3;
+  }
+  .dir-discord-etats {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    justify-content: flex-end;
+    max-width: 34rem;
+    margin-top: 0;
+  }
+}
+.dir-discord .deroule-contenu {
+  padding: clamp(0.75rem, 2vw, 1.25rem);
+}
+
+/* Un réglage (un salon du robot, les appels, le vocal) : un bloc court avec un trait de la couleur de son état. À gauche ce
+   qu'on lit (le nom, la pastille, ce qu'a répondu Discord), à droite ce qu'on fait (le champ du lien, les boutons). */
+.dir-discord-reglages {
+  display: grid;
+  gap: 0.625rem;
+  min-width: 0;
+}
+.dir-discord-reglage {
+  display: grid;
+  gap: 0.875rem 2rem;
+  min-width: 0;
+  padding: 0.75rem 1rem 0.875rem;
+  border: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+  border-radius: 0.25rem;
+  background: rgb(255 255 255 / 0.03);
+  box-shadow: inset 3px 0 0 var(--ton, transparent);
+}
+@media (min-width: 64rem) {
+  .dir-discord-reglage {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+.dir-discord-reglage-lu,
+.dir-discord-reglage-agir {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.dir-discord-reglage-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 0.75rem;
+  font-size: 0.9375rem;
+}
+.dir-discord-reglage-titre {
+  font-size: var(--text-lg);
+}
+/* Les phrases d'un réglage. La zone d'état (role="status") reste dans la page même vide : elle ne prend alors aucune place. */
+.dir-discord-phrases > * + *:not(:empty) {
+  margin-top: 0.25rem;
+}
+.dir-discord-phrases {
+  overflow-wrap: anywhere;
+}
+.dir-discord-phrases > p {
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+.dir-discord-phrase[data-dir-ton] {
+  font-weight: 600;
+  color: var(--ton);
+}
+/* Un petit repli dans un réglage : ce qui part dans le salon, la règle des pings. */
+.dir-discord-plus {
+  font-size: 0.875rem;
+}
+.dir-discord-plus > summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  color: var(--color-muted);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+.dir-discord-plus > summary:hover,
+.dir-discord-plus[open] > summary {
+  color: #fff;
+}
+.dir-discord-plus > p {
+  max-width: 44rem;
+  margin-top: 0.25rem;
+  color: var(--color-muted);
+}
+/* Le champ et son bouton sur une ligne ; le bouton passe dessous quand la place manque. */
+.dir-discord-saisie {
+  display: grid;
+  gap: 0.375rem;
+  min-width: 0;
+}
+.dir-discord-saisie-ligne {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.dir-discord-saisie-ligne > .field {
+  flex: 1 1 14rem;
+  width: auto;
+  min-width: 0;
+}
+.dir-discord-saisie-ligne > .btn {
+  flex: 0 1 auto;
+  min-height: 2.5rem;
+  padding-block: 0.375rem;
+  white-space: normal;
+}
+.dir-discord-champs {
+  display: grid;
+  gap: 0.625rem 0.75rem;
+}
+/* Les boutons d'un réglage en place. Celui qui efface (débrancher, retirer) vient après un filet et reste gris : il ne prend
+   son rouge qu'au survol ou au clavier, comme « Suspendre » dans l'onglet Comptes. */
+.dir-discord-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+.dir-discord-filet {
+  align-self: stretch;
+  width: 1px;
+  background: var(--color-line-strong);
+}
+/* « Débrancher le salon » à part, sous un filet, loin de « Renvoyer un essai » : le 11 novembre 2026, le pilote a pris le
+   bouton voisin de l'essai pour la fin de l'essai. L'avertissement du second clic vient dessous. */
+.dir-discord-retirer {
+  display: grid;
+  justify-items: start;
+  gap: 0.5rem;
+  padding-top: 0.625rem;
+  border-top: 1px solid var(--color-line);
+}
+/* Le message de réussite d'une action : sa zone d'état reste dans la page, vide, sans prendre de place dans la grille. */
+.dir-discord-retour:empty {
+  position: absolute;
+}
+/* Un bouton sans couleur propre reste blanc : il ne prend pas celle de l'état du bloc. */
+.dir-discord-actions .dir-bouton:not([data-dir-ton]) {
+  --ton: #fff;
+}
+/* Une ligne de liste (un message envoyé, un salon ajouté) : ce qu'on lit prend la place, les boutons se rangent à droite. */
+@media (min-width: 64rem) {
+  .dir-discord-ligne {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .dir-discord-ligne .dir-discord-reglage-agir {
+    justify-items: end;
+    max-width: 30rem;
+  }
+  .dir-discord-ligne .dir-discord-actions {
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    justify-content: flex-end;
+  }
+}
+/* Une image de l'inventaire dont le fichier manque : le trait jaune au bord de sa carte. */
+.dir-discord .inventaire-carte[data-dir-ton] {
+  box-shadow: inset 3px 0 0 var(--ton);
+}
+@media (max-width: 39.9375rem) {
+  .dir-discord-filet {
+    display: none;
+  }
+}
+.dir-discord-retrait:where(:not(:hover, :focus-visible)) {
+  border-color: color-mix(in srgb, var(--color-muted) 45%, transparent);
+  color: var(--color-muted);
+}
+@media (max-width: 47.9375rem), (pointer: coarse) {
+  .dir-discord-plus > summary {
+    min-height: 2.75rem;
+  }
+  .dir-discord-saisie-ligne > .btn {
+    min-height: 2.75rem;
+  }
+}
+
+/* ---------- Direction, onglet Fondateur ---------- */
+/* Les règles propres à cet onglet (DirectionFondateur.tsx), sous la classe `dir-fondateur`. */
+/* Deux étapes côte à côte dès 1 024 px : à gauche le choix du membre (recherche, filtres par rôle, liste serrée qui défile
+   dans son cadre), à droite ce qui va se passer et la confirmation. Plus étroit, l'une sous l'autre. Le rouge `danger` ne
+   paraît que deux fois : la pastille « Sans retour », et le bouton une fois le nom bien retapé. */
+.dir-fondateur-plan {
+  display: grid;
+  gap: 1.25rem 2rem;
+  margin-top: 1rem;
+}
+@media (min-width: 64rem) {
+  .dir-fondateur-plan {
+    grid-template-columns: minmax(0, 1fr) minmax(22rem, 30rem);
+    align-items: start;
+  }
+}
+.dir-fondateur-choix {
+  min-width: 0;
+}
+.dir-fondateur-etape {
+  padding: 0;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: #fff;
+}
+.dir-fondateur-outils {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.625rem;
+}
+/* La liste défile dans son cadre : la confirmation reste à l'écran, sans descendre la page. */
+.dir-fondateur-liste {
+  max-height: min(27rem, 60vh);
+  margin-top: 0.625rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-block: 1px solid var(--color-line-strong);
+  scrollbar-width: thin;
+}
+.dir-fondateur-ligne {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 0.625rem;
+  min-height: 2.25rem;
+  padding: 0.1875rem 0.75rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+  font-size: 0.9375rem;
+  line-height: 1.35;
+  cursor: pointer;
+}
+.dir-fondateur-ligne:last-child {
+  border-bottom: 0;
+}
+.dir-fondateur-ligne:hover {
+  background: rgb(255 255 255 / 0.05);
+}
+.dir-fondateur-ligne[data-choisi] {
+  background: rgb(255 255 255 / 0.1);
+  box-shadow: inset 3px 0 0 var(--color-ally);
+}
+/* Le bouton radio couvre sa ligne, invisible : toute la ligne se clique, et le clavier garde ses flèches. Il reste dans le
+   cadre de la ligne, pour ne pas élargir la liste qui défile. */
+.dir-fondateur-radio {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.dir-fondateur-ligne:has(:focus-visible) {
+  outline: 2px solid #fff;
+  outline-offset: -2px;
+}
+.dir-fondateur-nom {
+  font-weight: 700;
+  color: #fff;
+  overflow-wrap: anywhere;
+}
+.dir-fondateur-discord,
+.dir-fondateur-vous {
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+.dir-fondateur-fin {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.625rem;
+  margin-left: auto;
+  font-size: 0.875rem;
+}
+.dir-fondateur-rien {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.875rem;
+  padding: 0.75rem;
+  color: var(--color-muted);
+}
+.dir-fondateur .dir-note {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+}
+/* Le rôle en étiquette, comme dans l'onglet Comptes. */
+.dir-fondateur-role {
+  display: inline-block;
+  flex: none;
+  padding: 0.0625rem 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--color-muted);
+}
+.dir-fondateur-role[data-role="member"] {
+  border-color: color-mix(in srgb, var(--color-line) 70%, transparent);
+  font-weight: 400;
+}
+.dir-fondateur-role[data-role="officer"] {
+  border-color: var(--color-line-strong);
+  color: #fff;
+}
+.dir-fondateur-role[data-role="admin"] {
+  border-color: #fff;
+  color: #fff;
+}
+.dir-fondateur-role[data-role="founder"] {
+  border-color: #fff;
+  background: #fff;
+  color: var(--color-night);
+}
+
+/* L'étape 2 : l'avertissement, ce que chacun devient, le nom à retaper, le bouton. */
+.dir-fondateur-acte {
+  display: grid;
+  gap: 0.875rem;
+  min-width: 0;
+  padding: 1rem 1.125rem 1.125rem;
+}
+.dir-fondateur-alerte {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 0.625rem;
+  font-size: 0.9375rem;
+}
+.dir-fondateur-suite {
+  display: grid;
+  border-block: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+  font-size: 0.9375rem;
+}
+.dir-fondateur-suite > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+  min-height: 2.25rem;
+  padding-block: 0.3125rem;
+}
+.dir-fondateur-suite > div + div {
+  border-top: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+}
+.dir-fondateur-suite dt {
+  min-width: 0;
+}
+.dir-fondateur-suite dd {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 0.875rem;
+}
+.dir-fondateur-saisie {
+  display: grid;
+  gap: 0.375rem;
+  min-width: 0;
+  font-size: 0.9375rem;
+}
+.dir-fondateur-saisie label {
+  overflow-wrap: anywhere;
+}
+/* La place de la pastille est gardée : le bouton ne bouge pas quand elle paraît. */
+.dir-fondateur-etat {
+  min-height: 1.625rem;
+  font-size: 0.875rem;
+}
+/* Le bouton est gris tant que le nom n'est pas le bon (désactivé), et ne prend le rouge `danger` qu'ensuite. */
+.dir-fondateur-envoi {
+  justify-self: start;
+  border: 1px solid #fff;
+  color: #fff;
+}
+.dir-fondateur-envoi::before {
+  content: ">" / "";
+  color: var(--console-vert, currentColor);
+}
+.dir-fondateur-envoi[data-arme] {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+.dir-fondateur-envoi[data-arme]::before {
+  color: inherit;
+}
+.dir-fondateur-envoi[data-arme]:hover:where(:not(:disabled)) {
+  background: var(--color-danger);
+  color: var(--color-night);
+}
+
+/* Le rôle transmis : la pastille verte « Fait » et la phrase, dans une fenêtre comme l'étape 2, puis le bouton qui relit le
+   compte. La zone existe avant, vide et sans hauteur, pour que les lecteurs d'écran annoncent ce qui y paraît. */
+.dir-fondateur-fait:not(:empty) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 0.75rem;
+  margin-top: 1rem;
+  padding: 1rem 1.125rem;
+  font-size: 1rem;
+  color: #fff;
+}
+.dir-fondateur-retour {
+  margin-top: 1rem;
+}
+
+/* Au doigt et sous 768 px : des lignes de 44 px, une liste moins haute pour que l'étape 2 reste proche. */
+@media (pointer: coarse) {
+  .dir-fondateur-ligne {
+    min-height: 2.75rem;
+  }
+}
+@media (max-width: 47.9375rem) {
+  .dir-fondateur-ligne {
+    min-height: 2.75rem;
+  }
+  .dir-fondateur-liste {
+    max-height: min(19.25rem, 55vh);
+  }
+  .dir-fondateur-envoi {
+    justify-self: stretch;
   }
 }
 
@@ -11427,5 +13890,2059 @@ footer h2 {
   .comptes-filtre,
   .comptes-bouton {
     transition: none;
+  }
+}
+
+/* ---------- Les onglets du QG ---------- */
+/* Le 14 novembre 2026, le pilote a demandé d'améliorer les onglets du QG « comme pour la section compte » de la Direction.
+   Ils reprennent les pièces communes des onglets de la Direction (`direction-kit.tsx`, classes `dir-*` et `data-dir-ton`,
+   plus haut) : mêmes couleurs d'état, mêmes pastilles, mêmes filtres. Ces pièces ne se modifient pas d'ici ; une variante
+   propre au QG va dans la section de son onglet, sous la classe de l'onglet. */
+
+/* ---------- Le QG, onglet Moi ---------- */
+/* Les règles propres à cet onglet (QgMoi.tsx), sous la classe `qg-moi`. Un tableau de bord qui tient dans le premier écran :
+   à gauche « ce qui m'attend », une ligne par sujet (pastille de couleur, phrase, onglet où aller), la ligne entière est
+   le lien ; à droite les chiffres du membre, en cases serrées, puis ses deux jauges. Sur téléphone, tout s'empile, les
+   lignes d'abord. Le vert de terminal ne sert qu'au « > » devant le nom d'un onglet : jamais à une phrase ni à un chiffre. */
+.qg-moi-resume {
+  display: flex;
+  align-items: center;
+  min-height: 2rem;
+}
+.qg-moi-grille {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 1.75rem 2.5rem;
+  margin-top: 1.25rem;
+}
+@media (min-width: 64rem) {
+  .qg-moi-grille {
+    grid-template-columns: minmax(0, 11fr) minmax(0, 10fr);
+  }
+}
+/* Le titre d'un bloc : un libellé, comme les titres de colonnes d'un tableau de la Direction. */
+.qg-moi .qg-moi-titre {
+  font-family: var(--font-console);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+/* Ce qui m'attend : la pastille dans sa colonne, la phrase, et l'onglet à droite. */
+.qg-moi .qg-moi-attente {
+  margin-top: 0.5rem;
+}
+.qg-moi .qg-moi-ligne {
+  position: relative;
+  display: grid;
+  grid-template-columns: 8.5rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0 0.75rem;
+  padding: 0 0 0 0.75rem;
+  font-size: 1rem;
+}
+/* La pastille, dans son enveloppe cachée aux lecteurs d'écran : le nom du lien la dit déjà. */
+.qg-moi .qg-moi-etat {
+  display: flex;
+  justify-self: start;
+  white-space: nowrap;
+}
+.qg-moi-lien {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 3rem;
+  padding: 0.5rem 0.75rem 0.5rem 0;
+  color: #fff;
+  text-decoration: none;
+}
+/* Toute la ligne se clique et se touche, pastille comprise. */
+.qg-moi-lien::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+.qg-moi-phrase {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.qg-moi-lien:hover .qg-moi-phrase,
+.qg-moi-lien:focus-visible .qg-moi-phrase {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+.qg-moi-vers {
+  flex: none;
+  margin-left: auto;
+  font-family: var(--font-console);
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--color-blue-text);
+}
+.qg-moi-vers::before {
+  content: "> ";
+  content: "> " / "";
+  color: var(--console-vert, currentColor);
+}
+
+/* Mes chiffres : le pseudo, puis des cases serrées séparées d'un filet. */
+.qg-moi-qui {
+  margin-top: 0.375rem;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.qg-moi-manque {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 0.75rem;
+  margin-top: 0.625rem;
+  overflow-wrap: anywhere;
+}
+.qg-moi-manque > .dir-pastille {
+  flex: none;
+  white-space: nowrap;
+}
+.qg-moi-manque > span:last-child {
+  min-width: 0;
+}
+.qg-moi-chiffres {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 0.625rem;
+  overflow: hidden;
+  border: 1px solid var(--color-line-strong);
+  background: var(--color-surface);
+}
+/* Un filet à droite et en bas de chaque case : ceux du bord sont coupés par le cadre, une case vide reste unie. */
+.qg-moi-chiffre {
+  min-width: 0;
+  padding: 0.5rem 0.875rem 0.625rem;
+  box-shadow:
+    1px 0 0 var(--color-line),
+    0 1px 0 var(--color-line);
+}
+.qg-moi-chiffre > dt {
+  font-family: var(--font-console);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.qg-moi-chiffre > dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.5rem;
+}
+.qg-moi-valeur {
+  font-size: 1.875rem;
+  line-height: 1.15;
+}
+.qg-moi-sous {
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+
+/* Les jauges : vers le membre de devant, vers le prochain palier. Leur longueur vient d'une donnée. */
+.qg-moi-jauges {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem 2rem;
+  margin-top: 1rem;
+  overflow-wrap: anywhere;
+}
+@media (min-width: 40rem) {
+  .qg-moi-jauges {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  /* Le dernier palier atteint : la jauge du membre de devant (ou « En tête ») reste seule, sur toute la largeur. */
+  .qg-moi-jauges > :only-child {
+    grid-column: 1 / -1;
+  }
+}
+/* Le niveau du compte : tout le jeu, à part des chiffres du clan, sous un filet. */
+.qg-moi-compte {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-line);
+  color: var(--color-muted);
+}
+.qg-moi-aide {
+  margin-top: 1.75rem;
+  border-bottom: 1px solid var(--color-line);
+}
+.qg-moi-aide-liste {
+  display: grid;
+  gap: 0.375rem;
+  max-width: 48rem;
+  padding-left: 1.25rem;
+  list-style: disc;
+  color: var(--color-muted);
+}
+
+/* Sur téléphone, et de 1 024 à 1 280 px où la colonne de gauche est étroite : la pastille et l'onglet sur une ligne, la
+   phrase dessous, sur toute la largeur (sinon elle se coupait en deux ou trois lignes à côté de la pastille). */
+@media (max-width: 29.9375rem), (min-width: 64rem) and (max-width: 80rem) {
+  .qg-moi .qg-moi-ligne {
+    grid-template-columns: minmax(0, 1fr);
+    padding-top: 0.625rem;
+  }
+  .qg-moi-lien {
+    min-height: 2.75rem;
+    padding-top: 0.25rem;
+  }
+  .qg-moi-vers {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+  }
+}
+/* Sur téléphone : deux chiffres par ligne. */
+@media (max-width: 29.9375rem) {
+  .qg-moi-chiffres {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .qg-moi-valeur {
+    font-size: 1.625rem;
+  }
+}
+
+/* ---------- Le QG, onglet Salons ---------- */
+/* Les règles propres à cet onglet (QgSalons.tsx), sous la classe `qg-salons`. Le formulaire d'appel tient sur une ligne ;
+   dessous, une ligne par appel (`.dir-ligne`), rangée en colonnes : photo, pseudo, états, boutons. Sous 640 px, chaque
+   appel devient une petite carte, avec son bouton sur toute la largeur. Les couleurs d'état sont celles des pièces
+   communes (`data-dir-ton`) : le bord bleu est mon appel, le jaune un appel qui finit bientôt, le vert un salon ouvert. */
+.qg-salons .salons-appel {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+.qg-salons .salons-libelle {
+  font-weight: 600;
+}
+.qg-salons .salons-saisie {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.625rem 1rem;
+}
+.qg-salons .salons-champ {
+  flex: 1 1 16rem;
+  width: auto;
+  min-width: 0;
+  min-height: 2.75rem;
+}
+.qg-salons .salons-ping {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: 2.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.qg-salons .salons-envoi {
+  flex: none;
+  min-height: 2.75rem;
+}
+/* Le bouton attend le premier relevé, ou la fin d'un envoi : il reste au clavier, en plus pâle. */
+.qg-salons .salons-envoi[aria-disabled="true"],
+.qg-salons .dir-bouton[aria-disabled="true"] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+/* Inactif, il ne s'allume pas au survol : le survol ne promet rien que le clic ne fera pas. */
+.qg-salons .salons-envoi[aria-disabled="true"]:hover {
+  background: var(--color-blue);
+}
+.qg-salons .dir-bouton[aria-disabled="true"]:hover {
+  border-color: color-mix(in srgb, var(--ton, #fff) 55%, transparent);
+  background: transparent;
+  color: var(--ton, #fff);
+}
+.qg-salons .salons-garde {
+  font-size: 0.9375rem;
+  color: var(--color-muted);
+}
+
+.qg-salons .salons-en-cours {
+  margin-top: 1.75rem;
+}
+.qg-salons .salons-titre {
+  display: flex;
+  align-items: baseline;
+  gap: 0.625rem;
+  font-size: 1.125rem;
+}
+.qg-salons .salons-liste {
+  margin-top: 0.625rem;
+}
+/* La colonne des états garde 11 rem : sans ce minimum, les deux boutons de mon appel la réduisaient à rien entre 640 et
+   1 000 px ; ils passent plutôt l'un sous l'autre. */
+.qg-salons .salons-ligne {
+  display: grid;
+  grid-template-columns: auto minmax(7rem, 15rem) minmax(11rem, 1fr) auto;
+  gap: 0.25rem 0.875rem;
+  min-height: 3.5rem;
+  padding-block: 0.5rem;
+}
+.qg-salons .salons-nom {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.qg-salons .salons-etat {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.875rem;
+  min-width: 0;
+  font-size: 0.9375rem;
+  color: var(--color-muted);
+}
+.qg-salons .salons-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem 0.625rem;
+}
+.qg-salons .salons-rejoindre {
+  min-height: 2.5rem;
+  padding-block: 0.375rem;
+  font-size: 0.9375rem;
+}
+.qg-salons .dir-bouton {
+  min-height: 2.25rem;
+}
+/* Le bouton qui efface se tient à part de celui qui envoie. */
+.qg-salons .salons-retirer {
+  margin-left: 0.75rem;
+}
+/* La taille des équipes d'un ancien appel, ou la raison d'un ping refusé : sous la ligne, sur toute la largeur. */
+.qg-salons .salons-suite {
+  grid-column: 2 / -1;
+  font-size: 0.9375rem;
+  color: var(--color-muted);
+}
+.qg-salons .salons-regles {
+  margin-top: 1.75rem;
+}
+
+@media (pointer: coarse) {
+  .qg-salons .salons-rejoindre,
+  .qg-salons .dir-bouton {
+    min-height: 2.75rem;
+  }
+}
+@media (max-width: 39.9375rem) {
+  .qg-salons .salons-envoi {
+    flex: 1 1 100%;
+  }
+  .qg-salons .salons-liste {
+    display: grid;
+    gap: 0.625rem;
+    border-top: 0;
+  }
+  .qg-salons .salons-ligne {
+    grid-template-columns: auto minmax(0, 1fr);
+    padding: 0.75rem 0.875rem;
+    border: 1px solid var(--color-line-strong);
+    border-radius: 0.375rem;
+  }
+  .qg-salons .salons-etat,
+  .qg-salons .salons-actions,
+  .qg-salons .salons-suite {
+    grid-column: 1 / -1;
+  }
+  .qg-salons .salons-actions {
+    justify-content: stretch;
+    margin-top: 0.25rem;
+  }
+  .qg-salons .salons-rejoindre,
+  .qg-salons .dir-bouton {
+    flex: 1 1 8rem;
+    min-height: 2.75rem;
+  }
+  .qg-salons .salons-retirer {
+    margin-left: 0;
+  }
+}
+
+/* ---------- Le QG, onglet Ce soir ---------- */
+/* Les règles propres à cet onglet (QgCeSoir.tsx), sous la classe `qg-ce-soir`. Une seule bande de douze heures sert à
+   choisir et à voir. Les couleurs sont celles des pièces communes (`data-dir-ton`), jamais seules : vert « moi », jaune
+   « le plus » (de monde), bleu des Gaulois viennent, gris personne ; le nombre reste blanc. La bande suit la largeur de
+   son cadre, pas celle de l'écran : douze colonnes à barres dès 43rem, sinon une grille de quatre ou trois cases, sans
+   défilement. Rien ne bouge : une barre ne s'anime pas. */
+.qg-ce-soir .qg-ce-soir-resume {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.qg-ce-soir .qg-ce-soir-cadre {
+  container-type: inline-size;
+  margin-top: 1.25rem;
+}
+.qg-ce-soir .qg-ce-soir-bande {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.375rem;
+}
+/* Une heure : un bouton à bascule. En grille, l'heure, une barre couchée, puis le nombre et les mots. */
+.qg-ce-soir .qg-ce-soir-heure {
+  display: grid;
+  grid-template:
+    "nom nom" auto
+    "barre barre" auto
+    "nombre mots" minmax(1.375rem, auto) / auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.375rem 0.5rem;
+  min-width: 0;
+  position: relative;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.5rem 0.4375rem;
+  border: 1px solid var(--color-line);
+  background: rgb(255 255 255 / 0.03);
+  text-align: left;
+  color: #fff;
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s;
+}
+.qg-ce-soir .qg-ce-soir-heure:hover {
+  border-color: var(--color-line-strong);
+  background: rgb(255 255 255 / 0.07);
+}
+.qg-ce-soir .qg-ce-soir-heure[data-dir-ton="warn"] {
+  border-color: color-mix(in srgb, var(--ton) 55%, transparent);
+}
+.qg-ce-soir .qg-ce-soir-heure[aria-pressed="true"] {
+  border-color: var(--ton);
+  background: color-mix(in srgb, var(--ton) 14%, transparent);
+  box-shadow: inset 0 0 0 1px var(--ton);
+}
+/* Pendant un envoi, les heures restent focalisables (`aria-disabled`) ; celle qui part a un cadre en tirets jusqu'à la
+   réponse du serveur. */
+.qg-ce-soir .qg-ce-soir-heure[aria-disabled="true"] {
+  cursor: progress;
+}
+.qg-ce-soir .qg-ce-soir-heure[data-envoi] {
+  border-style: dashed;
+}
+.qg-ce-soir .qg-ce-soir-jauge {
+  display: contents;
+}
+.qg-ce-soir .qg-ce-soir-nom {
+  grid-area: nom;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.qg-ce-soir .qg-ce-soir-nombre {
+  grid-area: nombre;
+  font-size: 1.125rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+/* La barre : la part de l'heure la plus remplie (`--part`, de 0 à 1), à la couleur de l'heure. */
+.qg-ce-soir .qg-ce-soir-barre {
+  grid-area: barre;
+  height: 0.375rem;
+  background: linear-gradient(to right, var(--ton) calc(var(--part) * 100%), color-mix(in srgb, var(--color-line) 80%, transparent) 0);
+}
+.qg-ce-soir .qg-ce-soir-mots {
+  grid-area: mots;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+.qg-ce-soir .qg-ce-soir-mots > span {
+  color: var(--ton);
+}
+@container (min-width: 27rem) {
+  .qg-ce-soir .qg-ce-soir-bande {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+/* Texte agrandi sur un téléphone : moins de cases par rangée, pour que « Maintenant » tienne dans la sienne. Sans
+   agrandissement, un écran de 360 px garde ses trois cases. */
+@container (max-width: 20rem) {
+  .qg-ce-soir .qg-ce-soir-bande {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@container (max-width: 13.5rem) {
+  .qg-ce-soir .qg-ce-soir-bande {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+/* En bande : douze colonnes, une barre debout sous son nombre. « Maintenant » est plus long que « 21 h » : sa colonne
+   est plus large. */
+@container (min-width: 43rem) {
+  .qg-ce-soir .qg-ce-soir-bande {
+    grid-template-columns: 2.1fr repeat(11, minmax(0, 1fr));
+    gap: 0.25rem;
+  }
+  .qg-ce-soir .qg-ce-soir-heure {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 0.125rem;
+    text-align: center;
+  }
+  .qg-ce-soir .qg-ce-soir-jauge {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    order: -1;
+    gap: 0.25rem;
+    width: 100%;
+    height: 6.5rem;
+  }
+  .qg-ce-soir .qg-ce-soir-barre {
+    width: min(60%, 2.5rem);
+    height: max(calc(var(--part) * 4.5rem), 2px);
+    background: var(--ton);
+  }
+  .qg-ce-soir .qg-ce-soir-heure[data-dir-ton="muted"] .qg-ce-soir-barre {
+    background: var(--color-line-strong);
+  }
+  .qg-ce-soir .qg-ce-soir-mots {
+    align-items: center;
+    min-height: 1rem;
+    letter-spacing: -0.04em;
+  }
+}
+/* Contraste élevé : le système efface les fonds, donc les barres. Elles prennent la couleur du texte (le rail, celle du
+   texte grisé), et l'heure choisie le fond de sélection du système, en plus de son mot « moi ». */
+@media (forced-colors: active) {
+  .qg-ce-soir .qg-ce-soir-barre {
+    forced-color-adjust: none;
+    --ton: CanvasText;
+    --color-line: GrayText;
+    --color-line-strong: GrayText;
+  }
+  .qg-ce-soir .qg-ce-soir-heure[aria-pressed="true"] {
+    forced-color-adjust: none;
+    border-color: CanvasText;
+    background: Highlight;
+    box-shadow: none;
+    color: HighlightText;
+  }
+  .qg-ce-soir .qg-ce-soir-heure[aria-pressed="true"] :is([data-dir-ton], .qg-ce-soir-barre) {
+    --ton: HighlightText;
+    --color-line: transparent;
+  }
+  .qg-ce-soir .qg-ce-soir-heure:focus-visible {
+    outline-color: CanvasText;
+  }
+}
+
+/* Qui vient : une ligne par heure où des membres se montrent, l'heure et son nombre d'abord, les visages ensuite. */
+.qg-ce-soir .qg-ce-soir-qui {
+  margin-top: 1.25rem;
+}
+.qg-ce-soir .qg-ce-soir-qui .dir-ligne {
+  align-items: flex-start;
+  gap: 0.375rem 1rem;
+  padding-block: 0.5rem;
+}
+.qg-ce-soir .qg-ce-soir-qui-tete {
+  display: flex;
+  flex: 0 0 100%;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.125rem 0.75rem;
+  min-height: 1.75rem;
+}
+.qg-ce-soir .qg-ce-soir-qui-heure {
+  font-weight: 800;
+  color: #fff;
+}
+.qg-ce-soir .qg-ce-soir-qui-mots {
+  display: flex;
+  flex: 0 0 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.125rem 0.875rem;
+  min-height: 1.75rem;
+  font-size: 0.9375rem;
+}
+.qg-ce-soir .qg-ce-soir-visages {
+  display: flex;
+  flex: 1 1 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 1.125rem;
+  min-width: 0;
+  font-size: 0.9375rem;
+}
+.qg-ce-soir .qg-ce-soir-visages > li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  min-height: 1.75rem;
+  overflow-wrap: anywhere;
+}
+/* Au-delà de huit visages, la suite se déplie : la ligne reste courte. */
+.qg-ce-soir .qg-ce-soir-suite {
+  flex: 0 0 100%;
+  order: 3;
+  border-top: 0;
+  font-size: 0.9375rem;
+}
+.qg-ce-soir .qg-ce-soir-suite > summary {
+  justify-content: flex-start;
+  gap: 0.625rem;
+  width: fit-content;
+}
+/* Aussi précis que `.fold[open]` hors du thème rouge (plus haut dans ce fichier), qu'il remplace ici. */
+.qg-ce-soir .qg-ce-soir-qui .qg-ce-soir-suite[open] {
+  padding-bottom: 0.25rem;
+}
+.qg-ce-soir .qg-ce-soir-visages .avatar {
+  width: 1.75rem;
+  height: 1.75rem;
+  font-size: 0.8125rem;
+}
+@media (min-width: 48rem) {
+  .qg-ce-soir .qg-ce-soir-qui-tete {
+    flex-basis: 15rem;
+    align-items: center;
+  }
+  /* Les mots de l'heure passent sur la ligne des visages, alignés avec eux. */
+  .qg-ce-soir .qg-ce-soir-qui-mots {
+    flex-basis: calc(100% - 16rem);
+    order: 1;
+  }
+  .qg-ce-soir .qg-ce-soir-qui-mots + .qg-ce-soir-visages {
+    order: 2;
+    flex-basis: calc(100% - 16rem);
+    margin-left: 16rem;
+  }
+  .qg-ce-soir .qg-ce-soir-suite {
+    flex-basis: calc(100% - 16rem);
+    margin-left: 16rem;
+  }
+  .qg-ce-soir .qg-ce-soir-qui-heure {
+    min-width: 10ch;
+  }
+}
+
+/* ---------- Le QG, onglet La semaine ---------- */
+/* Les règles propres à cet onglet (QgSemaine.tsx), sous la classe `qg-semaine`. L'objectif et le pronostic tiennent côte à
+   côte dans le premier écran, chacun avec son état en pastille (`data-dir-ton`, couleur et mot) ; les semaines closes sont
+   des lignes courtes (`.dir-ligne`), une petite carte par semaine sous 64 rem. Les états sont calculés dans
+   `src/lib/compte/qg-semaine.ts`. Les jauges gardent leur couleur unique : la longueur seule porte la valeur. */
+.qg-semaine-haut {
+  display: grid;
+  align-items: start;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+.qg-semaine-bloc {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 1rem 1.25rem 1.125rem;
+}
+/* Le titre d'un bloc et son état : la pastille reste entière, le titre passe à la ligne. */
+.qg-semaine-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.375rem 1rem;
+}
+.qg-semaine-tete h3,
+.qg-semaine-closes > h3 {
+  min-width: 0;
+  font-size: var(--text-lg);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.qg-semaine .dir-pastille,
+.qg-semaine .dir-point {
+  flex: none;
+  white-space: nowrap;
+}
+.qg-semaine-chiffre {
+  font-size: 2.5rem;
+  line-height: 1;
+}
+.qg-semaine-chiffre > span {
+  font-size: 1.25rem;
+}
+.qg-semaine-phrase {
+  font-weight: 600;
+}
+.qg-semaine-note {
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+/* Objectif « un clan » : les deux scores du classement, une barre chacun, le plus haut remplit la sienne. */
+.qg-semaine-duel {
+  display: grid;
+  gap: 0.375rem;
+}
+.qg-semaine-duel > div {
+  display: grid;
+  grid-template-columns: minmax(3.5rem, auto) minmax(0, 1fr) minmax(4.5rem, auto);
+  align-items: center;
+  gap: 0.75rem;
+}
+.qg-semaine-duel dt {
+  font-weight: 700;
+}
+.qg-semaine-duel dd:last-child {
+  text-align: right;
+}
+/* Le pronostic : la question, puis le champ et son bouton sur une ligne. */
+.qg-semaine-question {
+  font-weight: 600;
+}
+.qg-semaine-saisie {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0.625rem;
+}
+.qg-semaine-saisie .field {
+  flex: 0 1 8.5rem;
+  width: auto;
+  min-width: 6rem;
+  min-height: 2.75rem;
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+.qg-semaine-saisie .btn {
+  flex: 0 1 auto;
+}
+
+/* Les semaines closes. */
+.qg-semaine-closes {
+  margin-top: 1.75rem;
+}
+.qg-semaine .dir-ligne.qg-semaine-close {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0.125rem 1.25rem;
+  padding-block: 0.625rem;
+}
+/* La ligne porte un repli : pas de fond au survol, il laisserait croire qu'elle se clique. */
+.qg-semaine .dir-ligne.qg-semaine-close:hover {
+  background: none;
+}
+.qg-semaine-close-nom {
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+.qg-semaine-close-resultat {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.125rem 0.75rem;
+}
+.qg-semaine-close-pres,
+.qg-semaine-close-moi {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.qg-semaine .fold.qg-semaine-tous {
+  grid-column: 1 / -1;
+  margin-top: 0.375rem;
+  border-top: 0;
+}
+.qg-semaine .fold.qg-semaine-tous[open] {
+  padding-bottom: 0.25rem;
+}
+.qg-semaine .fold.qg-semaine-tous > summary {
+  justify-content: flex-start;
+  gap: 0.625rem;
+  width: fit-content;
+  font-size: 0.9375rem;
+}
+.qg-semaine .fold.qg-semaine-tous > summary::after {
+  font-size: 1.25rem;
+}
+/* Tous les pronostics d'une semaine : des colonnes serrées, autant que la largeur en donne. */
+.qg-semaine-tous > ol {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
+  gap: 0 2rem;
+  font-size: 0.9375rem;
+}
+.qg-semaine-tous > ol > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(6.5rem, auto);
+  align-items: baseline;
+  gap: 0.75rem;
+  padding-block: 0.25rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+}
+.qg-semaine-tous > ol > li > :first-child {
+  overflow-wrap: anywhere;
+}
+.qg-semaine-tous > ol > li > :nth-child(2) {
+  font-weight: 700;
+  text-align: right;
+}
+.qg-semaine-tous > ol > li.qg-semaine-mien > :first-child {
+  font-weight: 700;
+}
+@media (min-width: 64rem) {
+  .qg-semaine-haut {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+  }
+  .qg-semaine-bloc {
+    align-content: start;
+  }
+  .qg-semaine .dir-ligne.qg-semaine-close {
+    /* « Vous : 299, écart de 6 » reste sur une ligne : c'est « Le plus près », plus long, qui passe à la ligne. */
+    grid-template-columns: 12rem 17rem minmax(0, 1fr) auto;
+  }
+}
+
+/* ---------- Le QG, onglet Simulateur ---------- */
+/* Les règles propres à cet onglet (QgSimulateur.tsx), sous la classe `qg-simulateur`. Le bilan (`.sim-bilan`, une barre
+   `.dir-outils`) reste sous l'en-tête du site : le rang projeté, les places gagnées ou perdues en couleur et en mots, le
+   score. Dessous, quatre blocs serrés : le scénario, le détail du résultat, l'objectif, le classement projeté ; sur deux
+   colonnes dès 1 024 px. Les mots de couleur sont des pastilles communes (`direction-kit.tsx`) ; aucun chiffre n'est vert. */
+.qg-simulateur .sim-bilan {
+  align-items: baseline;
+  gap: 0.125rem 1.25rem;
+  margin-top: 1rem;
+  padding-block: 0.625rem 0.75rem;
+  border-bottom: 1px solid var(--color-line-strong);
+}
+.qg-simulateur .sim-quand {
+  flex: 1 1 100%;
+  font-size: 0.875rem;
+  letter-spacing: 0.04em;
+  line-height: 1.3;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.qg-simulateur .sim-place,
+.qg-simulateur .sim-score {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  min-width: 0;
+}
+.qg-simulateur .sim-place {
+  flex: 1 1 auto;
+}
+.qg-simulateur .sim-place .dir-pastille {
+  align-self: center;
+  font-size: 1.0625rem;
+}
+.qg-simulateur .sim-rang,
+.qg-simulateur .sim-score .console-valeur {
+  font-size: clamp(2rem, 1.4rem + 2.6vw, 3.25rem);
+  line-height: 1.05;
+  white-space: nowrap;
+  color: #fff;
+}
+.qg-simulateur .sim-avant {
+  font-size: 0.9375rem;
+}
+.qg-simulateur .sim-libelle {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+/* Les blocs : l'un sous l'autre, puis sur deux colonnes dès 1 024 px (plus bas). */
+.qg-simulateur .sim-grille {
+  display: grid;
+  gap: 1rem;
+  align-items: start;
+  margin-top: 1rem;
+}
+.qg-simulateur .sim-colonne {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+.qg-simulateur .sim-bloc {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 0.875rem 1rem 1rem;
+}
+.qg-simulateur .sim-titre {
+  font-size: 1.0625rem;
+  line-height: 1.25;
+}
+
+/* Un réglage : son nom, ses choix serrés, son unité. */
+.qg-simulateur .sim-reglage {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 0.625rem;
+}
+.qg-simulateur .sim-reglage .sim-libelle {
+  flex: 0 0 9.5rem;
+}
+.qg-simulateur .sim-choix {
+  display: flex;
+  gap: 0.25rem;
+}
+.qg-simulateur .sim-choix .chip {
+  min-width: 2.75rem;
+  min-height: 2.25rem;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.9375rem;
+}
+.qg-simulateur .sim-unite {
+  font-size: 0.9375rem;
+  color: var(--color-muted);
+}
+
+/* Le scénario par taille de groupe : une ligne courte par groupe. */
+.qg-simulateur .sim-groupes {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  overflow-wrap: normal;
+}
+.qg-simulateur .sim-groupes thead th {
+  padding: 0 0.5rem 0.25rem 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.25;
+  vertical-align: bottom;
+  color: var(--color-muted);
+}
+.qg-simulateur .sim-groupes tbody th {
+  padding: 0.1875rem 0.5rem 0.1875rem 0;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.qg-simulateur .sim-groupes td {
+  padding: 0.1875rem 0.5rem 0.1875rem 0;
+}
+.qg-simulateur .sim-groupes :is(th, td):last-child {
+  padding-right: 0;
+}
+.qg-simulateur .sim-champ.field {
+  min-height: 2.25rem;
+  padding: 0.25rem 0.625rem;
+}
+.qg-simulateur .sim-groupes .sim-champ {
+  width: 100%;
+  min-width: 4.5rem;
+  max-width: 7rem;
+}
+.qg-simulateur .sim-champ[aria-invalid="true"] {
+  border-color: var(--color-danger);
+}
+.qg-simulateur .sim-total {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 1rem;
+  padding-top: 0.625rem;
+  border-top: 1px solid var(--color-line);
+}
+.qg-simulateur .sim-total strong {
+  font-size: 1.25rem;
+  color: #fff;
+}
+.qg-simulateur .sim-total .dir-point {
+  font-size: 0.9375rem;
+}
+
+/* Le détail du résultat : une ligne courte par fait, la valeur au bout. */
+.qg-simulateur .sim-faits {
+  margin-top: 0;
+  border-top: 0;
+}
+.qg-simulateur .sim-faits .dir-ligne {
+  padding-inline: 0.625rem;
+}
+.qg-simulateur .sim-valeur {
+  margin-left: auto;
+  text-align: right;
+}
+.qg-simulateur .sim-marge {
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+
+/* L'objectif : le titre, le clan visé et son état sur une ligne. */
+.qg-simulateur .sim-cible {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+.qg-simulateur .sim-cible .sim-titre {
+  flex: 1 1 100%;
+}
+.qg-simulateur .sim-cible .sim-champ {
+  flex: 0 1 11rem;
+  width: auto;
+}
+.qg-simulateur .sim-objectif-texte {
+  display: grid;
+  gap: 0.375rem;
+}
+
+/* Le classement projeté. Peu de lignes : ses titres ne se collent pas, et son cadre ne défile que si un nom déborde. */
+.qg-simulateur .sim-defile {
+  overflow-x: auto;
+}
+.qg-simulateur .sim-table {
+  white-space: nowrap;
+}
+.qg-simulateur .sim-table th {
+  position: static;
+  background: none;
+}
+.qg-simulateur .sim-table tbody th {
+  padding: 0.1875rem 0.75rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+  box-shadow: inset 3px 0 0 var(--ton, transparent);
+  font-size: inherit;
+  letter-spacing: 0;
+  text-transform: none;
+  color: #fff;
+}
+.qg-simulateur .sim-nous {
+  background: color-mix(in srgb, var(--color-ally) 12%, transparent);
+  font-weight: 700;
+}
+.qg-simulateur .sim-face {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 0.75rem;
+}
+.qg-simulateur .sim-methode {
+  margin-top: 1.25rem;
+}
+
+@media (min-width: 64rem) {
+  /* Deux colonnes sans trou, chacune sa pile : le scénario et son détail à gauche, l'objectif et le classement à droite.
+     Une grille plutôt que des colonnes CSS : même dessin dans tous les navigateurs, et le clavier suit l'ordre lu. */
+  .qg-simulateur .sim-grille {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+/* Un réglage qui reçoit le focus en remontant ne s'arrête pas sous le bilan collé (ni sous l'en-tête du site). */
+.qg-simulateur :is(a, button, input, select, summary, [tabindex]) {
+  scroll-margin-top: calc(var(--dir-haut, 4rem) + var(--dir-outils, 6rem) + 0.75rem);
+}
+/* Fenêtre basse (téléphone couché, texte agrandi à 200 %) : le bilan ne reste pas collé, il prendrait la moitié de l'écran. */
+@media (max-height: 33.9375rem) {
+  .qg-simulateur .sim-bilan {
+    position: static;
+  }
+  .qg-simulateur :is(a, button, input, select, summary, [tabindex]) {
+    scroll-margin-top: calc(var(--dir-haut, 4rem) + 0.75rem);
+  }
+}
+/* Au doigt et sous 768 px : des cibles de 44 px. Sous 640 px, les points par victoire, non réglables, laissent la place. */
+@media (pointer: coarse), (max-width: 47.9375rem) {
+  .qg-simulateur .sim-choix .chip,
+  .qg-simulateur .sim-champ.field {
+    min-height: 2.75rem;
+  }
+}
+@media (max-width: 39.9375rem) {
+  .qg-simulateur .sim-large {
+    display: none;
+  }
+  .qg-simulateur .sim-reglage .sim-libelle {
+    flex-basis: 100%;
+  }
+  .qg-simulateur .sim-bloc {
+    padding: 0.75rem;
+  }
+  .qg-simulateur .sim-table {
+    font-size: 0.8125rem;
+  }
+  .qg-simulateur .sim-table :is(th, td),
+  .qg-simulateur .sim-table tbody th {
+    padding-inline: 0.25rem;
+  }
+  .qg-simulateur .sim-table :is(th, td):first-child {
+    padding-left: 0.5rem;
+  }
+  /* Le bilan sur une ligne : le rang et son mot, le score au bout ; « Score » reste dit aux lecteurs d'écran. */
+  .qg-simulateur .sim-bilan {
+    gap: 0.125rem 0.625rem;
+  }
+  .qg-simulateur .sim-place {
+    gap: 0.25rem 0.5rem;
+  }
+  .qg-simulateur .sim-place .dir-pastille {
+    padding-inline: 0.375rem;
+    font-size: 0.875rem;
+  }
+  .qg-simulateur .sim-rang,
+  .qg-simulateur .sim-score .console-valeur {
+    font-size: 1.75rem;
+  }
+  /* Le rang d'aujourd'hui est déjà écrit sous le titre. */
+  .qg-simulateur .sim-avant {
+    display: none;
+  }
+  .qg-simulateur .sim-score .sim-libelle {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .qg-simulateur .sim-faits .dir-ligne {
+    padding-inline: 0.25rem;
+    font-size: 0.9375rem;
+  }
+  .qg-simulateur .sim-table td:last-child {
+    white-space: normal;
+  }
+}
+
+/* ---------- Le QG, onglet Décisions ---------- */
+/* Les règles propres à cet onglet (QgDecisions.tsx, QgPolls.tsx), sous la classe `qg-decisions`. Un bloc par sondage, sans
+   carte : un filet au-dessus, un trait au bord à la couleur de son état (jaune à voter, vert voté, gris fermé, toujours avec
+   le mot en pastille), puis une ligne courte par choix. Sondage ouvert, la ligne entière est le bouton du vote. Deux
+   colonnes de sondages sur un écran large, une seule en dessous. */
+.qg-decisions .qgd-liste {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem 2.5rem;
+  margin-top: 1.25rem;
+}
+/* Sur un écran large, deux colonnes qui se remplissent l'une après l'autre : un sondage à huit choix ne laisse pas de trou à
+   côté d'un sondage à deux choix. Un sondage ne se coupe jamais entre deux colonnes. */
+@media (min-width: 64rem) {
+  .qg-decisions .qgd-liste {
+    display: block;
+    columns: 2;
+    column-gap: 2.5rem;
+  }
+  .qg-decisions .qgd-sondage {
+    break-inside: avoid;
+  }
+  .qg-decisions .qgd-sondage + .qgd-sondage {
+    margin-top: 1.5rem;
+  }
+}
+.qg-decisions .qgd-liste + .qgd-liste,
+.qg-decisions .form-problem + .qgd-liste {
+  margin-top: 1.5rem;
+}
+.qg-decisions .qgd-sondage {
+  min-width: 0;
+  padding: 0.75rem 0 0 0.875rem;
+  border-top: 1px solid var(--color-line-strong);
+  box-shadow: inset 3px 0 0 var(--ton);
+}
+.qg-decisions .qgd-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+.qg-decisions .qgd-delai[data-proche] {
+  color: var(--color-warn);
+}
+.qg-decisions .qgd-total {
+  margin-left: auto;
+}
+.qg-decisions .qgd-question {
+  margin-top: 0.5rem;
+  font-size: 1.125rem;
+  line-height: 1.3;
+  /* Une question se lit comme une phrase : pas en capitales comme les titres de la console. */
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+.qg-decisions .qgd-options {
+  margin-top: 0.625rem;
+}
+
+/* Une ligne par choix : la case (sondage ouvert), le nom, les voix et la part ; la jauge dessous, sur toute la largeur. */
+.qg-decisions .qgd-option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 0.625rem;
+  width: 100%;
+  padding: 0.3125rem 0.5rem 0.3125rem 0;
+  border-top: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+  font-size: 0.9375rem;
+  text-align: left;
+}
+.qg-decisions button.qgd-option {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-height: 2.75rem;
+  padding-left: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+.qg-decisions button.qgd-option:hover {
+  background: rgb(255 255 255 / 0.07);
+}
+.qg-decisions button.qgd-option[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--color-ok) 9%, transparent);
+  cursor: default;
+}
+.qg-decisions button.qgd-option[aria-disabled="true"] {
+  cursor: progress;
+}
+/* La case d'un terminal : la voix de la machine, verte une fois cochée. */
+.qg-decisions .qgd-case {
+  font-family: var(--font-console);
+  font-weight: 700;
+  white-space: pre;
+  color: var(--color-muted);
+}
+.qg-decisions [aria-pressed="true"] .qgd-case {
+  color: var(--console-vert, var(--color-ok));
+}
+.qg-decisions .qgd-choix {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.75rem;
+  min-width: 0;
+}
+.qg-decisions .qgd-nom {
+  min-width: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.qg-decisions .qgd-choix .dir-point {
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+.qg-decisions .qgd-compte {
+  display: flex;
+  align-items: baseline;
+  gap: 0.625rem;
+  white-space: nowrap;
+}
+.qg-decisions .qgd-voix {
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+.qg-decisions .qgd-part {
+  min-width: 3.5em;
+  font-weight: 700;
+  text-align: right;
+}
+.qg-decisions .qgd-jauge {
+  display: block;
+  grid-column: 1 / -1;
+  height: 4px;
+  margin-top: 0.3125rem;
+}
+
+/* Un sondage fermé : des lignes plus basses, en gris ; le choix en tête en blanc. La longueur des jauges ne change pas. */
+.qg-decisions div.qgd-option .qgd-nom {
+  font-weight: 400;
+  color: var(--color-muted);
+}
+.qg-decisions div.qgd-option[data-tete] .qgd-nom {
+  font-weight: 700;
+  color: #fff;
+}
+.qg-decisions div.qgd-option:not([data-tete]) .qgd-part {
+  font-weight: 400;
+  color: var(--color-muted);
+}
+
+.qg-decisions .qgd-anciens,
+.qg-decisions .qgd-aide {
+  margin-top: 1.5rem;
+}
+.qg-decisions .qgd-anciens + .qgd-aide {
+  margin-top: 0;
+}
+.qg-decisions .qgd-aide > p {
+  max-width: 44rem;
+  color: var(--color-muted);
+}
+/* Sur un petit téléphone, les voix et la part se serrent : le nom du choix garde la place. « moins de 1 % » et « plus de
+   99 % » passent sur deux lignes plutôt que d'écraser le nom ; le nombre et « % » ne se séparent jamais. */
+@media (max-width: 30rem) {
+  .qg-decisions .qgd-compte {
+    gap: 0.375rem;
+  }
+  .qg-decisions .qgd-part {
+    min-width: 3em;
+    max-width: 5.5em;
+    white-space: normal;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .qg-decisions button.qgd-option {
+    transition: none;
+  }
+}
+
+/* ---------- Le QG, onglet Événements ---------- */
+/* Les règles propres à cet onglet (QgEvenements.tsx), sous la classe `qg-evenements`. Un agenda : une ligne par événement
+   (`.dir-ligne`, trait vert au bord quand je viens), en quatre colonnes — le jour et l'heure, le titre et sa pastille, ceux
+   qui viennent, « Je viens ». Sous 64 rem, ceux qui viennent passent sous le titre ; sous 48 rem, la ligne devient une carte :
+   la date et le bouton en haut, le reste dessous. */
+.qg-evenements .qg-evenements-ligne {
+  display: grid;
+  grid-template-columns: 10rem minmax(0, 1fr) auto auto;
+  grid-template-areas:
+    "date corps venus viens"
+    "refus refus refus refus";
+  align-items: start;
+  gap: 0 1.25rem;
+  padding: 0.75rem 0.75rem 0.75rem 1rem;
+}
+.qg-evenements .qg-evenements-date {
+  grid-area: date;
+  display: grid;
+  line-height: 1.25;
+}
+.qg-evenements .qg-evenements-jour {
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+.qg-evenements .qg-evenements-heure {
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: #fff;
+}
+.qg-evenements .qg-evenements-corps {
+  grid-area: corps;
+  min-width: 0;
+}
+.qg-evenements .qg-evenements-titre {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 0.75rem;
+  min-height: 2.5rem;
+  font-size: 0.875rem;
+}
+.qg-evenements .qg-evenements-titre h3 {
+  min-width: 0;
+  line-height: 1.25;
+}
+.qg-evenements .qg-evenements-titre .dir-pastille,
+.qg-evenements .qg-evenements-titre .dir-point {
+  flex: none;
+  white-space: nowrap;
+}
+
+/* « Détails » : un repli (`.fold`) sans filet, court, aligné à gauche sous le titre. */
+.qg-evenements .qg-evenements-plus {
+  border-top: 0;
+}
+:root:not([data-theme="rouge"]) .qg-evenements .qg-evenements-plus[open] {
+  padding-bottom: 0.25rem;
+}
+:root:not([data-theme="rouge"]) .qg-evenements .qg-evenements-plus > summary {
+  display: inline-flex;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  min-height: 1.75rem;
+  font-size: 0.875rem;
+}
+.qg-evenements .qg-evenements-plus > summary::after {
+  font-size: 1.125rem;
+}
+.qg-evenements .qg-evenements-detail {
+  display: grid;
+  gap: 0.5rem;
+  max-width: 44rem;
+  padding-top: 0.375rem;
+  font-size: 0.9375rem;
+}
+.qg-evenements .qg-evenements-noms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem 1rem;
+  margin-top: 0.25rem;
+}
+.qg-evenements .qg-evenements-noms li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.qg-evenements .qg-evenements-noms .avatar {
+  width: 1.75rem;
+  height: 1.75rem;
+  font-size: 0.8125rem;
+}
+
+/* Ceux qui viennent : quatre visages au plus, serrés, puis le nombre. */
+.qg-evenements .qg-evenements-venus {
+  grid-area: venus;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: 2.5rem;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  color: var(--color-muted);
+}
+.qg-evenements .qg-evenements-visages {
+  display: flex;
+  padding-left: 0.375rem;
+}
+.qg-evenements .qg-evenements-visages .avatar {
+  width: 1.75rem;
+  height: 1.75rem;
+  margin-left: -0.375rem;
+  box-shadow: 0 0 0 2px var(--color-navy);
+  font-size: 0.8125rem;
+  color: #fff;
+}
+
+/* « Je viens » : un bouton à bascule. Coché, il est vert et porte une coche (décorative : `aria-pressed` le dit déjà). */
+.qg-evenements .qg-evenements-viens {
+  grid-area: viens;
+  justify-content: center;
+  min-width: 7.25rem;
+}
+.qg-evenements .qg-evenements-viens[aria-pressed="true"]::before {
+  content: "";
+  flex: none;
+  width: 0.375rem;
+  height: 0.6875rem;
+  margin-top: -0.1875rem;
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  rotate: 45deg;
+}
+.qg-evenements .qg-evenements-viens[aria-disabled="true"] {
+  cursor: progress;
+}
+.qg-evenements .qg-evenements-refus {
+  grid-area: refus;
+}
+.qg-evenements .qg-evenements-refus:empty {
+  display: none;
+}
+
+@media (max-width: 63.9375rem) {
+  .qg-evenements .qg-evenements-ligne {
+    grid-template-columns: 10rem minmax(0, 1fr) auto;
+    grid-template-areas:
+      "date corps viens"
+      "date venus viens"
+      "refus refus refus";
+  }
+  .qg-evenements .qg-evenements-venus {
+    min-height: 2rem;
+    white-space: normal;
+  }
+}
+@media (max-width: 47.9375rem) {
+  .qg-evenements .qg-evenements-ligne {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "date viens"
+      "corps corps"
+      "venus venus"
+      "refus refus";
+    gap: 0.25rem 0.75rem;
+    padding-block: 0.875rem;
+  }
+  .qg-evenements .qg-evenements-date {
+    align-self: center;
+  }
+  .qg-evenements .qg-evenements-titre {
+    min-height: 0;
+    padding-top: 0.25rem;
+  }
+}
+@media (pointer: coarse) {
+  :root:not([data-theme="rouge"]) .qg-evenements .qg-evenements-plus > summary {
+    min-height: 2.75rem;
+  }
+}
+
+/* ---------- Le QG, onglet Idées ---------- */
+/* Les règles propres à cet onglet (QgIdees.tsx), sous la classe `qg-idees`. Le formulaire, étroit, tient à côté de la liste
+   sur grand écran et se replie sous un bouton en dessous de 1 024 px : la liste reste dans le premier écran. Une ligne
+   courte par idée, son statut en couleur au bord et en pastille (`IDEA_TONES`, `src/lib/compte/qg-idees.ts`) ; une carte
+   par idée sur téléphone. */
+.qg-idees-plan {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+.qg-idees-colonne {
+  min-width: 0;
+}
+.qg-idees-a-trancher {
+  font-size: 1rem;
+}
+
+/* Proposer une idée. */
+.qg-idees-proposer[data-ouvert="false"] .qg-idees-form {
+  display: none;
+}
+.qg-idees-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.5rem;
+  padding: 1rem;
+}
+.qg-idees-proposer[data-ouvert="true"] .qg-idees-form {
+  margin-top: 0.75rem;
+}
+.qg-idees-form-titre {
+  font-weight: 600;
+}
+.qg-idees-quota {
+  font-size: 0.875rem;
+}
+.qg-idees-form .form-problem {
+  margin-top: 0;
+  font-size: 0.9375rem;
+}
+.qg-idees-form textarea.field {
+  min-height: 6.5rem;
+  resize: vertical;
+}
+.qg-idees-form-pied {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+}
+.qg-idees-form [aria-disabled="true"] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.qg-idees-regles {
+  margin-top: 0.25rem;
+}
+.qg-idees-regles ul {
+  display: grid;
+  gap: 0.375rem;
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+
+/* La barre des filtres : sans marge au-dessus, elle s'aligne sur le haut du formulaire. */
+.qg-idees .dir-outils {
+  margin-top: 0;
+}
+
+/* Une idée : ses soutiens à gauche, comme une colonne de chiffres ; son texte, puis son statut, son auteur et les commandes. */
+.qg-idees-liste {
+  border-top: 1px solid var(--color-line-strong);
+}
+.qg-idees-ligne {
+  display: grid;
+  grid-template-columns: 7.25rem minmax(0, 1fr);
+  gap: 0.25rem 1rem;
+  align-items: start;
+  padding: 0.625rem 0.75rem 0.625rem 1rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+  box-shadow: inset 3px 0 0 var(--ton, transparent);
+}
+.qg-idees-ligne:hover {
+  background: rgb(255 255 255 / 0.04);
+}
+/* Une ligne reçoit le focus quand l'idée d'à côté vient de partir (décision, suppression) : son contour reste dedans, et
+   ni elle ni ses boutons ne s'arrêtent sous la barre collée des filtres. */
+.qg-idees-ligne:focus-visible {
+  outline-offset: -3px;
+}
+.qg-idees-liste :is(li, button, input) {
+  scroll-margin-top: calc(var(--dir-haut, 4rem) + var(--dir-outils, 0px) + 0.5rem);
+}
+.qg-idees-voix {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.375rem;
+}
+/* Le nombre de soutiens reste blanc : la couleur du bord dit le statut, pas le chiffre. */
+.qg-idees-soutiens {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.375rem;
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+.qg-idees-soutiens strong {
+  margin-right: 0.125rem;
+  font-size: 1.375rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: #fff;
+}
+/* « Je soutiens » est blanc, plein une fois le soutien donné : il ne prend pas la couleur du statut de la ligne. */
+.qg-idees .qg-idees-soutenir {
+  --ton: #fff;
+  min-height: 1.75rem;
+  padding-inline: 0.5rem;
+  font-size: 0.8125rem;
+}
+.qg-idees [aria-disabled="true"]:where(.dir-filtre, .dir-bouton) {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.qg-idees-corps {
+  min-width: 0;
+}
+.qg-idees-texte {
+  max-width: 46rem;
+  line-height: 1.45;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.qg-idees-texte[data-coupe] {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+.qg-idees-suite {
+  font-size: 0.875rem;
+  color: var(--color-blue-text);
+  text-decoration: underline;
+  text-underline-offset: 0.1875rem;
+  cursor: pointer;
+}
+.qg-idees-pied {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.375rem 1rem;
+  margin-top: 0.375rem;
+}
+.qg-idees-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.125rem 0.75rem;
+  min-width: 0;
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+.qg-idees-auteur {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #fff;
+}
+.qg-idees-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  margin-left: auto;
+}
+/* « Supprimer » (`DeleteButton`, partagé) garde la taille du bouton commun, comme partout ailleurs : ses tailles sont des
+   utilitaires Tailwind marqués `!important`, qu'aucune règle ordinaire ne remplace. Il se tient à l'écart des décisions :
+   on ne supprime pas en visant « Écarter ». L'écart est pris à droite de la dernière décision : passé à la ligne, le bouton
+   reste aligné sur le bord. */
+.qg-idees-actions .dir-bouton:has(+ .btn) {
+  margin-right: 0.5rem;
+}
+.qg-idees-mot {
+  max-width: 46rem;
+  margin-top: 0.375rem;
+  padding-left: 0.625rem;
+  border-left: 2px solid var(--ton, var(--color-line-strong));
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+}
+.qg-idees-mot-titre {
+  margin-right: 0.375rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.qg-idees-ligne .form-problem {
+  font-size: 0.9375rem;
+}
+
+/* La décision de l'encadrement : le mot facultatif et l'envoi, sous la ligne. */
+.qg-idees-decision {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--color-line-strong);
+}
+.qg-idees-mot-champ {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+.qg-idees-mot-champ label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+/* La décision choisie (bouton de la ligne, ou choix du panneau) : pleine, comme un filtre ouvert. */
+.qg-idees .dir-bouton[aria-pressed="true"] {
+  border-color: var(--ton, #fff);
+  background: var(--ton, #fff);
+  color: var(--color-night);
+}
+.qg-idees-choix {
+  flex: 1 0 100%;
+}
+.qg-idees-choix,
+.qg-idees-decision-boutons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+/* Remise à l'étude : le serveur efface le mot de l'encadrement, la ligne le dit avant l'envoi. */
+.qg-idees-efface {
+  flex: 1 1 100%;
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+.qg-idees-decision .dir-bouton {
+  min-height: 2.5rem;
+}
+
+@media (pointer: coarse) {
+  .qg-idees .qg-idees-soutenir,
+  .qg-idees-decision .dir-bouton {
+    min-height: 2.75rem;
+  }
+  .qg-idees-suite {
+    min-height: 2.75rem;
+  }
+}
+
+/* Sous 768 px : une carte par idée, les soutiens et leur bouton sur une ligne en bas de la carte. */
+@media (max-width: 47.9375rem) {
+  /* Cinq filtres : ils passent à la ligne plutôt que de défiler, chaque nombre reste en vue. */
+  .qg-idees .dir-filtres {
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+  /* Sur trois lignes, la barre prendrait trop de l'écran en restant collée : elle défile avec la page. */
+  .qg-idees .dir-outils {
+    position: static;
+  }
+  .qg-idees-liste :is(li, button, input) {
+    scroll-margin-top: calc(var(--dir-haut, 4rem) + 0.5rem);
+  }
+  .qg-idees-liste {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.625rem;
+    margin-top: 0.25rem;
+    border-top: 0;
+  }
+  .qg-idees-ligne {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.5rem;
+    padding: 0.75rem 0.75rem 0.75rem 0.875rem;
+    border: 1px solid var(--color-line);
+    border-radius: 0.375rem;
+    background: var(--color-surface);
+  }
+  .qg-idees-ligne:hover {
+    background: var(--color-surface);
+  }
+  .qg-idees-voix {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    order: 2;
+    padding-top: 0.5rem;
+    border-top: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+  }
+  .qg-idees .qg-idees-soutenir {
+    min-height: 2.75rem;
+    padding-inline: 0.6875rem;
+  }
+  .qg-idees-suite {
+    min-height: 2.75rem;
+  }
+  .qg-idees-actions {
+    gap: 0.25rem;
+    margin-left: 0;
+  }
+  .qg-idees-actions .dir-bouton {
+    padding-inline: 0.4375rem;
+    font-size: 0.8125rem;
+  }
+}
+
+/* À partir de 1 024 px : le formulaire toujours ouvert, à gauche de la liste, et qui reste en vue quand on la descend. */
+@media (min-width: 64rem) {
+  .qg-idees-plan {
+    grid-template-columns: 19rem minmax(0, 1fr);
+    align-items: start;
+    gap: 2rem;
+  }
+  .qg-idees-ouvrir {
+    display: none;
+  }
+  .qg-idees-proposer {
+    position: sticky;
+    top: calc(var(--dir-haut, 4rem) + 0.75rem);
+  }
+  .qg-idees-proposer[data-ouvert] .qg-idees-form {
+    display: grid;
+    margin-top: 0;
+  }
+}
+
+/* ---------- Le QG, onglet Le mur ---------- */
+/* Les règles propres à cet onglet (QgMur.tsx), sous la classe `qg-mur`. */
+/* Demande du pilote, 14 novembre 2026 : les sections du QG « comme pour la section Comptes de la Direction ». Tout se lit
+   dans le premier écran : mes deux réglages et leur état en pastille, le podium des GG et les parrains en lignes courtes,
+   puis le mur en grille serrée. La couleur n'est jamais seule : vert « Montré » et « GG envoyé », bleu « Parrain » et
+   « Vous », gris « Caché ». Le rôle est un mot dans un cadre blanc, jamais en rouge : le rouge dit « encadrement » ailleurs. */
+.qg-mur-haut {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17.5rem), 1fr));
+  align-items: start;
+  gap: 1.5rem 2rem;
+  margin-top: 1.25rem;
+}
+/* Un bloc seul sur sa ligne (sans les outils, ou sans podium ni parrain) ne s'étire pas sur toute la largeur. */
+.qg-mur-haut > section {
+  max-width: 40rem;
+}
+.qg-mur-membres {
+  margin-top: 1.75rem;
+}
+/* Un petit titre de bloc, comme l'en-tête d'un tableau : le grand titre de la partie reste seul en capitales larges. */
+.qg-mur .qg-mur-titre {
+  font-family: var(--font-console);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-shadow: none;
+  color: var(--color-muted);
+}
+.qg-mur-titre .tnum {
+  margin-left: 0.375rem;
+  font-weight: 800;
+  color: #fff;
+}
+.qg-mur .dir-liste {
+  margin-top: 0.5rem;
+}
+/* Un réglage : le bouton à bascule, son état en pastille au bout de la ligne, puis ce que les autres voient, en une ligne. */
+.qg-mur-reglage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.375rem 0.75rem;
+  padding-block: 0.625rem;
+}
+.qg-mur-reglage .chip {
+  justify-self: start;
+  padding-inline: 0.75rem;
+  text-align: left;
+}
+.qg-mur-reglage .dir-pastille {
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+.qg-mur-reglage > :is(.qg-mur-note, .form-problem) {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.qg-mur-note {
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+/* Pendant un envoi, le bouton garde le focus (aria-disabled) : il pâlit sans bouger, et ne se remplit pas au survol. */
+.qg-mur :is(.chip, .dir-bouton)[aria-disabled="true"] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.qg-mur .dir-bouton[aria-disabled="true"]:not([aria-pressed="true"]):hover {
+  border-color: color-mix(in srgb, var(--ton, #fff) 55%, transparent);
+  background: transparent;
+  color: var(--ton, #fff);
+}
+/* Une personne sur une ligne : photo ou initiale, nom et marques, puis ce qui compte au bout. */
+.qg-mur-ligne {
+  flex-wrap: nowrap;
+  gap: 0.625rem;
+}
+.qg-mur-qui {
+  flex: 1 1 0;
+  min-width: 0;
+}
+/* Un nom de 32 lettres passe à la ligne où il faut : il n'élargit ni la ligne ni la page. */
+.qg-mur-nom {
+  font-weight: 700;
+  line-height: 1.25;
+  color: #fff;
+  overflow-wrap: anywhere;
+}
+.qg-mur-suite {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.125rem 0.625rem;
+  margin-top: 0.125rem;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+.qg-mur-discord {
+  color: #fff;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.qg-mur-gg-nombre {
+  flex: none;
+  white-space: nowrap;
+  color: var(--color-muted);
+}
+.qg-mur-gg-nombre b {
+  font-weight: 800;
+  color: #fff;
+}
+.qg-mur-ligne > .qg-mur-gg-nombre {
+  font-size: 0.9375rem;
+}
+/* Le rôle : le fondateur en plein, l'admin et l'officier encadrés. Un membre n'en porte pas. */
+.qg-mur-role {
+  flex: none;
+  padding: 0 0.375rem;
+  border: 1px solid var(--color-line-strong);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: #fff;
+}
+.qg-mur-role[data-role="admin"] {
+  border-color: #fff;
+}
+.qg-mur-role[data-role="founder"] {
+  border-color: #fff;
+  background: #fff;
+  color: var(--color-night);
+}
+.qg-mur .fold {
+  margin-top: 0.25rem;
+  border-top: 0;
+}
+.qg-mur .fold > summary {
+  font-size: 0.875rem;
+}
+.qg-mur .fold > .dir-liste {
+  margin-top: 0;
+}
+/* Le mur : une grille serrée, quatre membres de front sur un grand écran, un par ligne sur téléphone. Le trait de gauche
+   dit l'état : vert, le GG de la semaine est envoyé ; bleu, c'est vous. */
+.qg-mur-grille {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16.5rem), 1fr));
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+.qg-mur-carte {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+  min-height: 3.5rem;
+  padding: 0.375rem 0.625rem 0.375rem 0.75rem;
+  border: 1px solid var(--color-line);
+  border-left: 3px solid var(--ton, var(--color-line-strong));
+  background: var(--color-surface);
+}
+.qg-mur-carte .qg-mur-nom {
+  font-size: 0.9375rem;
+}
+.qg-mur-carte > :is(.dir-point, .dir-bouton) {
+  flex: none;
+  font-size: 0.8125rem;
+}
+.qg-mur-carte > .dir-bouton {
+  padding-inline: 0.5rem;
+}
+/* Le bouton GG : en contour tant qu'il n'est pas donné, plein et « GG envoyé » ensuite. Son nom pour les lecteurs d'écran
+   (`.sr-only`, en position absolue) se place dans le bouton, jamais hors de la page. */
+.qg-mur-gg {
+  position: relative;
+  min-width: 2.75rem;
+  min-height: 2rem;
+}
+.qg-mur-gg[aria-pressed="true"] {
+  border-color: var(--ton);
+  background: var(--ton);
+  color: var(--color-night);
+}
+.qg-mur-vide {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  margin-top: 1rem;
+}
+.qg-mur-vide .dir-bouton {
+  min-height: 2.5rem;
+  padding-inline: 0.875rem;
+}
+/* Le focus d'un bouton GG ne passe pas sous la barre de recherche. */
+.qg-mur-grille .dir-bouton {
+  scroll-margin-top: calc(var(--dir-haut, 4rem) + var(--dir-outils, 0px) + 1rem);
+}
+@media (pointer: coarse), (max-width: 47.9375rem) {
+  .qg-mur-gg,
+  .qg-mur .chip,
+  .qg-mur-vide .dir-bouton {
+    min-height: 2.75rem;
+  }
+  .qg-mur-gg {
+    min-width: 2.75rem;
   }
 }

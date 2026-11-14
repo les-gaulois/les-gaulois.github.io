@@ -1,15 +1,24 @@
-import { siteHealth, type HealthLevel, type SiteHealthInput } from "../../lib/etat-site";
+import { ETAT_PASTILLE, etatResume } from "../../lib/compte/direction-ensemble";
+import { siteHealth, type HealthLine, type SiteHealthInput } from "../../lib/etat-site";
 import { useNow } from "./common";
+import { Pastille } from "./direction-kit";
 
-const TONE: Record<HealthLevel, string> = { ok: "text-muted", info: "text-muted", warn: "font-semibold text-warn" };
-/** L'étiquette du journal, dans l'ambiance console de la Direction. Les lecteurs d'écran lisent déjà l'état dans le texte. */
-const TAG: Record<HealthLevel, string> = { ok: "OK", info: "INFO", warn: "À VOIR" };
-
-function Tag({ level }: { level: HealthLevel }) {
+/**
+ * Une ligne de l'état : la pastille de couleur avec son mot, le nom, puis le détail. Le trait au bord de la ligne reprend
+ * la couleur de la pastille. `plain` : le point et le mot seuls, pour les sources du repli.
+ */
+function Ligne({ line, testid, plain = false }: { line: HealthLine; testid: string; plain?: boolean }) {
+  const { ton, mot } = ETAT_PASTILLE[line.level];
   return (
-    <span class={`console-etat console-etat-${level}`} aria-hidden="true">
-      {TAG[level]}
-    </span>
+    <div class="dir-ligne dir-ensemble-ligne" data-dir-ton={ton} data-testid={testid} data-level={line.level}>
+      <dt class="dir-ensemble-source">{line.label}</dt>
+      <dd class="dir-ensemble-niveau">
+        <Pastille ton={ton} plain={plain}>
+          {mot}
+        </Pastille>
+      </dd>
+      <dd class="dir-ensemble-detail tnum">{line.text}</dd>
+    </div>
   );
 }
 
@@ -19,41 +28,30 @@ function Tag({ level }: { level: HealthLevel }) {
  */
 export default function SiteHealth(props: SiteHealthInput) {
   const health = siteHealth(props, useNow());
-  const warnings = health.lines.filter((line) => line.level === "warn").length;
+  const resume = etatResume(health.lines);
 
   return (
-    <section class="console-journal card p-5" aria-labelledby="health-title" data-testid="direction-health" data-titre="etat-du-site.log">
-      <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+    <section class="dir-ensemble-site console-journal card" aria-labelledby="health-title" data-testid="direction-health" data-titre="etat-du-site.log">
+      <div class="dir-ensemble-tete">
         <h2 id="health-title" class="text-xl">
           État du site
         </h2>
-        <p class={`text-sm ${warnings > 0 ? "font-semibold text-warn" : "text-muted"}`} data-testid="health-summary">
-          <Tag level={warnings > 0 ? "warn" : "ok"} />
-          {warnings === 0 ? "Rien à signaler" : warnings === 1 ? "1 point à surveiller" : `${warnings} points à surveiller`}
+        <p class="dir-ensemble-resume">
+          <Pastille ton={resume.ton} testid="health-summary">
+            {resume.mot}
+          </Pastille>
         </p>
       </div>
-      <dl class="mt-4 grid gap-x-6 gap-y-3 md:grid-cols-2">
+      <dl class="dir-liste dir-ensemble-lignes">
         {health.lines.map((line) => (
-          <div key={line.label} data-testid="health-line" data-level={line.level}>
-            <dt class="text-sm font-semibold">
-              <Tag level={line.level} />
-              {line.label}
-            </dt>
-            <dd class={`tnum text-sm ${TONE[line.level]}`}>{line.text}</dd>
-          </div>
+          <Ligne key={line.label} line={line} testid="health-line" />
         ))}
       </dl>
-      <details class="fold mt-4 !pb-0">
+      <details class="fold dir-ensemble-sources">
         <summary class="text-sm font-semibold">Les {health.sources.length} sources de l'API, une par une</summary>
-        <dl class="grid gap-y-2 pb-1">
+        <dl class="dir-liste dir-ensemble-lignes">
           {health.sources.map((source) => (
-            <div key={source.key} class="grid gap-x-4 sm:grid-cols-[12rem_1fr]" data-testid="health-source" data-level={source.level}>
-              <dt class="text-sm font-semibold">{source.label}</dt>
-              <dd class={`tnum text-sm ${TONE[source.level]}`}>
-                <Tag level={source.level} />
-                {source.text}
-              </dd>
-            </div>
+            <Ligne key={source.key} line={source} testid="health-source" plain />
           ))}
         </dl>
       </details>
