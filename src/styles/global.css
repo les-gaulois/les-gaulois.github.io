@@ -3553,6 +3553,22 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   color: var(--color-night);
 }
 
+/* Le rôle transmis : la pastille verte « Fait » et la phrase, dans une fenêtre comme l'étape 2, puis le bouton qui relit le
+   compte. La zone existe avant, vide et sans hauteur, pour que les lecteurs d'écran annoncent ce qui y paraît. */
+.dir-fondateur-fait:not(:empty) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 0.75rem;
+  margin-top: 1rem;
+  padding: 1rem 1.125rem;
+  font-size: 1rem;
+  color: #fff;
+}
+.dir-fondateur-retour {
+  margin-top: 1rem;
+}
+
 /* Au doigt et sous 768 px : des lignes de 44 px, une liste moins haute pour que l'étape 2 reste proche. */
 @media (pointer: coarse) {
   .dir-fondateur-ligne {
