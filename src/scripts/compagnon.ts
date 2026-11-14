@@ -79,12 +79,12 @@ const CLE_SALUE = "gal-compagnon-salue";
  */
 const VERSION_DES_IMAGES = 2;
 /**
- * Ce qui est fixé sur la fenêtre et qu'il ne couvre jamais : tout élément marqué `data-compagnon-obstacle`, la barre
- * « Enregistrer » du vestiaire quand elle reste collée en bas (`Vestiaire.tsx`), les fenêtres des appels du QG
- * (`AppelsGaulois.tsx`). Il se tient à côté ; s'il ne tient nulle part, il s'efface le temps qu'ils restent. Sa prison
- * remonte au-dessus d'eux.
+ * Ce qui est fixé sur la fenêtre et qu'il ne couvre jamais : tout élément marqué `data-compagnon-obstacle`, les fenêtres
+ * des appels du QG (`AppelsGaulois.tsx`). Il se tient à côté ; s'il ne tient nulle part, il s'efface le temps qu'ils
+ * restent. Sa prison remonte au-dessus d'eux. (La barre « Enregistrer » du vestiaire n'en est plus : il ne vient pas au
+ * village.)
  */
-const OBSTACLES = "[data-compagnon-obstacle], .vestiaire-envoi[data-colle], [data-testid='appels-popups']";
+const OBSTACLES = "[data-compagnon-obstacle], [data-testid='appels-popups']";
 
 interface ImagesGardees {
   cle: string;
@@ -145,12 +145,22 @@ const cadreDe = (el: Element): Cadre => {
 
 function init(): void {
   const racine = document.documentElement;
-  // La Carte tient dans l'écran, sans pied de page : il n'y vient pas, et attend à la page suivante. Une déconnexion faite
-  // là (fenêtre « Alliance ») efface quand même ce qui reste du membre dans l'onglet.
-  if (document.body.dataset.route === "/carte") {
+  const route = document.body.dataset.route;
+  // Il ne vient ni sur la Carte, qui tient dans l'écran sans pied de page, ni au village, qui a déjà ses Gaulois (demande
+  // du pilote, 14 novembre 2026 : « ça fait doublon »), même en prison : il attend à la page suivante. Une déconnexion
+  // faite là (fenêtre « Alliance », compte du village) efface quand même ce qui reste du membre dans l'onglet.
+  if (route === "/carte" || route === "/village") {
     // Sans session, ce qui reste du membre dans l'onglet s'efface aussi ici, comme sur les autres pages.
     besoinDeCettePage();
     void surveillerLeCompte(() => undefined);
+    if (route === "/village") {
+      // La tenue a pu changer ici (vestiaire, marché) : la page suivante la relira une fois au serveur. Marqué dès
+      // l'arrivée et de nouveau en partant, pour un onglet fermé d'un coup comme pour une page ouverte dans un autre.
+      marquerUnPassageAuVillage();
+      window.addEventListener("pagehide", () => marquerUnPassageAuVillage());
+      // Une tenue tout juste enregistrée au vestiaire est gardée : la page suivante la montre avant même la réponse.
+      window.addEventListener(EVENEMENT_ENREGISTRE, (e) => void recevoirLaTenue((e as CustomEvent<unknown>).detail, true), true);
+    }
     return;
   }
   const boite = document.querySelector<HTMLElement>("[data-compagnon]");
@@ -172,7 +182,6 @@ function init(): void {
   const base = import.meta.env.BASE_URL.replace(/\/$/, "");
   const chemin = location.pathname.replace(base, "") || "/";
   const rubrique = rubriqueDe(chemin);
-  const auVillage = chemin.replace(/\/$/, "") === "/village";
   /** La version du dessin du Gaulois, posée à la construction du site : un dessin changé ne garde pas ses anciennes images. */
   const versionDuDessin = boite.dataset.version ?? "";
   const suivante = tirage(REPLIQUES.length, Math.random);
@@ -468,7 +477,7 @@ function init(): void {
   }
 
   function parler(geste?: Geste): void {
-    const invite = deDepart && !auVillage;
+    const invite = deDepart;
     if (geste) return dire(REPLIQUES_DES_GESTES[geste], false);
     if (repos !== "debout") return dire(REPLIQUES_DES_GESTES.reveil, false);
     // Le Gaulois de départ invite à l'habiller, une fois par page, à son deuxième mot.
@@ -505,7 +514,7 @@ function init(): void {
   const tailles = typeof ResizeObserver === "function" ? new ResizeObserver(() => planifierLeRegard()) : null;
   const suivis = new WeakSet<Element>();
 
-  /** La prison remonte au-dessus de ce qui est fixé au coin bas gauche de la fenêtre (la barre du vestiaire, un appel). */
+  /** La prison remonte au-dessus de ce qui est fixé au coin bas gauche de la fenêtre (la fenêtre d'un appel du QG). */
   function remonterLaPrison(): void {
     prison!.style.setProperty("--monte", "0px");
     if (prison!.hidden) return;
@@ -766,9 +775,9 @@ function init(): void {
     regarderLaFenetre();
   });
   window.visualViewport?.addEventListener("resize", regarderLaFenetre);
-  // Une barre qui se colle au bas de la page, une fenêtre d'appel qui s'ouvre (posée dans <body>) : il regarde de nouveau.
+  // Une fenêtre d'appel qui s'ouvre (posée dans <body>), un obstacle marqué : il regarde de nouveau.
   new MutationObserver(planifierLeRegard).observe(document.body, { childList: true });
-  new MutationObserver(planifierLeRegard).observe(document.body, { subtree: true, attributes: true, attributeFilter: ["data-colle", "data-compagnon-obstacle"] });
+  new MutationObserver(planifierLeRegard).observe(document.body, { subtree: true, attributes: true, attributeFilter: ["data-compagnon-obstacle"] });
 
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) arreter();
@@ -777,11 +786,7 @@ function init(): void {
       relancer();
     }
   });
-  window.addEventListener("pagehide", () => {
-    garderLaPlace();
-    // En quittant le village, où la tenue a pu changer (vestiaire, marché) : la page suivante la relira, une fois.
-    if (auVillage) marquerUnPassageAuVillage();
-  });
+  window.addEventListener("pagehide", garderLaPlace);
 
   // Retour arrière : le navigateur rend la page telle qu'on l'a quittée. Ce qui a changé depuis, sur les autres pages, fait
   // foi : sa place, en prison ou non, suivre ou non, la tenue (une déconnexion, un passage au village).
@@ -823,16 +828,6 @@ function init(): void {
   mouvementReduit.addEventListener("change", calmer);
 
   /* ---------- La tenue ---------- */
-
-  // Le vestiaire vient d'enregistrer une tenue : il la met aussitôt (sinon, à la page suivante), en prison comme dehors.
-  window.addEventListener(
-    EVENEMENT_ENREGISTRE,
-    (e) => {
-      const tenue = recevoirLaTenue((e as CustomEvent<unknown>).detail, auVillage);
-      if (tenue !== undefined) void habiller(tenue);
-    },
-    true,
-  );
 
   // Déconnecté (ici ou ailleurs), ou un autre compte : rien du membre ne reste, ni tenue gardée ni image peinte.
   void surveillerLeCompte((changement) => {
@@ -937,7 +932,7 @@ function init(): void {
     const besoin = besoinDeCettePage();
     if (!besoin.lire) return habiller(besoin.tenue);
     // Une lecture déjà en route (la page et le suivi de la session la demandent parfois ensemble) : on l'attend, sans en refaire une.
-    const lecture = (enLecture ??= lireLaTenue(auVillage)
+    const lecture = (enLecture ??= lireLaTenue(false)
       .then((gardee) => (gardee ? gardee.tenue : null))
       .finally(() => {
         enLecture = null;

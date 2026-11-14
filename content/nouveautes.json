@@ -2,6 +2,12 @@
   {
     "date": "2026-11-14",
     "kind": "ameliore",
+    "title": "Le Gaulois reste à la porte du village",
+    "body": "Au village, le petit Gaulois qui vous suit ne vient plus : la place a déjà ses Gaulois. Il vous retrouve à la page suivante, avec la tenue choisie au vestiaire."
+  },
+  {
+    "date": "2026-11-14",
+    "kind": "ameliore",
     "title": "Le Gaulois vous suit sur tout l'écran",
     "body": "Le petit Gaulois suit la souris partout sur l'écran, plus seulement au bas des pages. « En prison » l'enferme dans une petite cage au coin bas gauche ; un clic sur la cage le libère."
   },

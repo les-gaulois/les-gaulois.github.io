@@ -33,7 +33,7 @@ async function luiParler(page: Page): Promise<void> {
 
 test("il arrive au bas de la fenêtre, dans le pied de page, et il a un nom", async ({ page }) => {
   await sansSalut(page);
-  for (const path of ["/", "/classement", "/village"]) {
+  for (const path of ["/", "/classement", "/rejoindre"]) {
     await page.goto(path);
     await expect(compagnon(page), path).toBeVisible();
     await expect(page.getByRole("contentinfo").getByRole("button", { name: "Le Gaulois compagnon : lui parler" })).toBeVisible();
@@ -212,7 +212,7 @@ test("en prison, il attend au coin bas gauche sur toutes les pages, et un clic l
   }, planches[0] ?? "");
   expect(taille).toEqual([2 * 68, 91]);
   // Sur une autre page, toujours en prison.
-  await page.goto("/village");
+  await page.goto("/rejoindre");
   await expect(prison(page)).toBeVisible();
   await page.waitForTimeout(1_500);
   await expect(compagnon(page)).toBeHidden();
@@ -251,20 +251,33 @@ test("la prison passe le contrôle d'accessibilité et remonte au-dessus de ce q
   await expect.poll(async () => Math.round(((await prison(page).boundingBox())?.y ?? 0) + ((await prison(page).boundingBox())?.height ?? 0))).toBeGreaterThan(vue.height - 24);
 });
 
-test("il ne vient pas sur la Carte, et retrouve le visiteur à la page suivante", async ({ page }) => {
+test("il ne vient ni sur la Carte ni au village, même en prison, et retrouve le visiteur à la page suivante", async ({ page }) => {
   await sansSalut(page);
-  await page.goto("/carte");
+  for (const path of ["/carte", "/village"]) {
+    await page.goto(path);
+    await page.waitForTimeout(2_500);
+    await expect(compagnon(page), path).toBeHidden();
+    await expect(prison(page), path).toBeHidden();
+    await page.goto("/");
+    await expect(compagnon(page)).toBeVisible();
+  }
+  // En prison : au village, ni lui ni sa prison ; la page suivante le montre de nouveau en prison.
+  await page.evaluate(() => localStorage.setItem("gal-compagnon-range", "1"));
+  await page.goto("/village");
   await page.waitForTimeout(2_500);
+  await expect(prison(page)).toBeHidden();
   await expect(compagnon(page)).toBeHidden();
-  await page.goto("/");
-  await expect(compagnon(page)).toBeVisible();
+  // Au village, rien ne lui garde de place sous le pied de page.
+  expect(await page.locator("footer").evaluate((el) => getComputedStyle(el).paddingBottom)).toBe("0px");
+  await page.goto("/classement");
+  await expect(prison(page)).toBeVisible();
 });
 
 test("à 360 px, ni lui ni sa bulle ne font défiler la page de côté", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "La largeur est réglée ici.");
   await sansSalut(page);
   await page.setViewportSize({ width: 360, height: 780 });
-  for (const path of ["/", "/village", "/classement"]) {
+  for (const path of ["/", "/rejoindre", "/classement"]) {
     await page.goto(path);
     await expect(compagnon(page)).toBeVisible();
     // Au bord droit, la bulle ouverte.
@@ -349,7 +362,7 @@ test("en bas de page, la mention de licence d'OpenFront et le dernier lien se li
     if (!a || !b) return true;
     return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
   };
-  for (const path of ["/classement", "/village"]) {
+  for (const path of ["/classement", "/rejoindre"]) {
     await page.goto(path);
     await expect(compagnon(page)).toBeVisible();
     // Au bout de la page, il se tient sous le pied de page, dans la place qui lui est gardée.
@@ -378,7 +391,7 @@ test("posé n'importe où dans la fenêtre, il ne cache pas la mention de licenc
     [0.1, 0.5],
     [0, 1],
   ]) {
-    for (const path of ["/classement", "/village"]) {
+    for (const path of ["/classement", "/rejoindre"]) {
       await page.goto(path);
       await page.evaluate(([x, y]) => sessionStorage.setItem("gal-compagnon-place", JSON.stringify({ part: x, partY: y, vers: 1 })), [part, partY] as const);
       await page.reload();

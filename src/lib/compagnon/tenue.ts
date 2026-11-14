@@ -4,8 +4,9 @@
  *
  * Elle vient du serveur, par la fonction SQL `get_mon_gaulois` et `src/lib/compte/api.ts`, seul chemin du navigateur vers
  * lui. Une seule lecture par onglet : la tenue est gardée dans l'onglet (`sessionStorage`) pour les pages suivantes, et
- * relue à la page qui suit un passage au village, où elle a pu changer. Le vestiaire peut aussi annoncer une tenue tout
- * juste enregistrée (l'événement `gal:gaulois-enregistre`) : le compagnon se rhabille aussitôt.
+ * relue à la page qui suit un passage au village, où elle a pu changer et où le compagnon ne vient pas. Le vestiaire
+ * annonce aussi une tenue tout juste enregistrée (l'événement `gal:gaulois-enregistre`) : elle est gardée, et la page
+ * suivante la montre avant même de la relire.
  *
  * Sans session dans ce navigateur, rien n'est lu et Supabase n'est pas chargé ; la tenue gardée et les images peintes du
  * membre sont effacées. À la déconnexion aussi, sur la page même (`surveillerLeCompte`). Une session expirée, une panne ou
@@ -172,8 +173,8 @@ export function marquerUnPassageAuVillage(): void {
 
 /**
  * Ce qu'annonce le vestiaire après un enregistrement (`detail.tenue`, la tenue que le serveur vient d'accepter) : gardée
- * pour les pages suivantes, et rendue pour habiller le compagnon tout de suite. `undefined` : rien à en faire (pas de
- * tenue dans l'annonce, ou plus personne de connecté).
+ * pour les pages suivantes, et rendue. `undefined` : rien à en faire (pas de tenue dans l'annonce, ou plus personne de
+ * connecté).
  */
 export function recevoirLaTenue(detail: unknown, auVillage: boolean): unknown {
   if (detail === null || typeof detail !== "object" || !("tenue" in detail)) return undefined;

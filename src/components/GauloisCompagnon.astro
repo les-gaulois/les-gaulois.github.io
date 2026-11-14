@@ -3,8 +3,9 @@
 // site, qu'il nous suive et soit interactif », puis « qu'il me suive sur tout l'écran ») : le Gaulois du village, en
 // pixels, qui suit le curseur sur toute la fenêtre. Rangé, il attend dans une petite prison au coin bas gauche, dessinée
 // par Claude Fable 5.2 (`src/lib/compagnon/prison.ts`) ; un clic l'en sort.
-// Monté une fois, dans le pied de page de `Base.astro` : il est donc le dernier dans l'ordre du clavier, et absent de la
-// page Carte, qui n'a pas de pied de page. Rien ne s'affiche sans script : `src/scripts/compagnon.ts` le montre.
+// Monté une fois, dans le pied de page de `Base.astro` : il est donc le dernier dans l'ordre du clavier. Le script ne le
+// montre ni sur la Carte, qui n'a pas de pied de page, ni au village, qui a déjà ses Gaulois (« ça fait doublon »), même
+// en prison. Rien ne s'affiche sans script : `src/scripts/compagnon.ts` le montre.
 // Voir « Le Gaulois compagnon » dans docs/DESIGN.md.
 import { createHash } from "node:crypto";
 import { PRISONNIER, PRISON_H, PRISON_L } from "../lib/compagnon/prison";
@@ -53,7 +54,7 @@ const mesuresDeLaPrison = `--prison-l: ${PRISON_L}; --prison-h: ${PRISON_H}; --p
     </div>
   </div>
 </div>
-{/* Rangé, il attend là, au coin bas gauche de la fenêtre, sur toutes les pages ; un clic le libère. */}
+{/* Rangé, il attend là, au coin bas gauche de la fenêtre, sur toutes les pages sauf la Carte et le village ; un clic le libère. */}
 <button type="button" class="compagnon-prison" data-compagnon-prison aria-label="Libérer le Gaulois" style={mesuresDeLaPrison} hidden>
   <span class="compagnon-prison-fond" aria-hidden="true"></span>
   <span class="compagnon-prison-gaulois" data-compagnon-prisonnier aria-hidden="true"></span>
