@@ -5,9 +5,9 @@
  * Rangée en blocs (13 novembre 2026, « que ça respire, ranger les sections proprement ») : ce qui attend l'encadrement,
  * l'invitation, les joueurs alliés, les alliances, puis le rangement des clans. Fenêtre agrandie, les blocs vont par deux.
  */
-import { useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import { COULEURS_ALLIANCE, couleurLibre } from "../../../lib/alliance/couleurs";
-import { lienInvitation } from "../../../lib/alliance/invitation";
+import { clansInvitables, lienInvitation } from "../../../lib/alliance/invitation";
 import { call, basePath } from "../../../lib/compte/api";
 import { fmtDateTime, fmtInt } from "../../../lib/format";
 import { DeleteButton, Problem, Success, messageOf } from "../../compte/common";
@@ -66,6 +66,36 @@ function ChoixCouleur({ id, valeur, onChange }: { id: string; valeur: number; on
         {!COULEURS_ALLIANCE.some((c) => c.valeur === valeur) && <option value={String(valeur)}>Couleur actuelle</option>}
       </select>
     </span>
+  );
+}
+
+/**
+ * « Alliée de la nôtre » : la case suit le clic tout de suite, le temps que le serveur réponde et que la carte se relise ;
+ * refusée, elle revient à ce que dit le serveur.
+ */
+function CaseAmie({ nom, amie, busy, enregistrer }: { nom: string; amie: boolean; busy: boolean; enregistrer: (v: boolean) => Promise<boolean> }) {
+  const [coche, setCoche] = useState(amie);
+  useEffect(() => setCoche(amie), [amie]);
+  return (
+    <label class="alliance-amie">
+      <input
+        type="checkbox"
+        class="size-5 shrink-0"
+        checked={coche}
+        disabled={busy}
+        onChange={(e) => {
+          const v = e.currentTarget.checked;
+          setCoche(v);
+          void enregistrer(v).then((ok) => {
+            if (!ok) setCoche(amie);
+          });
+        }}
+      />
+      {/* Le nom de l'alliance pour un lecteur d'écran : une case par alliance, chacune doit dire laquelle elle règle. */}
+      <span>
+        Alliée de la nôtre : on peut inviter ses joueurs<span class="sr-only"> ({nom})</span>
+      </span>
+    </label>
   );
 }
 
@@ -129,6 +159,11 @@ function Alliances({ ctx }: { ctx: Contexte }) {
                   <span class="alliance-rang-detail tnum">
                     {a.clans.length} clan{a.clans.length > 1 ? "s" : ""}
                   </span>
+                  {/* Une autre alliance, alliée de la nôtre : on peut inviter ses joueurs (migration 20261114001500). Sans la
+                      migration, le serveur ne dit rien de `friend` et la case ne paraît pas. */}
+                  {ctx.donnees.ours != null && a.id !== ctx.donnees.ours && typeof a.friend === "boolean" && (
+                    <CaseAmie nom={a.name} amie={a.friend} busy={busy} enregistrer={(v) => run("set_alliance_friend", { p_id: a.id, p_friend: v }).then((r) => r !== null)} />
+                  )}
                 </span>
                 <button type="button" class="btn btn-ghost !min-h-10 !py-1.5 !text-sm" aria-label={`Modifier l'alliance ${a.name}`} onClick={() => setEdite({ id: a.id, nom: a.name, couleur: a.color })}>
                   Modifier
@@ -313,14 +348,18 @@ function EnAttente({ ctx }: { ctx: Contexte }) {
 
 function Inviter({ ctx }: { ctx: Contexte }) {
   const { busy, erreur, run } = useAction(ctx.relire);
-  const clans = [...ctx.notres].filter((tag) => tag !== "GAL").sort();
+  // Les clans de notre alliance, puis ceux des alliances alliées de la nôtre (le pilote, 14 novembre 2026).
+  const groupes = clansInvitables(ctx.donnees.alliances ?? [], ctx.donnees.ours ?? null);
+  const clans = groupes.flatMap((g) => g.clans);
   const [tag, setTag] = useState("");
   const [pseudo, setPseudo] = useState("");
   const [lien, setLien] = useState<{ url: string; pour: string } | null>(null);
   const [copie, setCopie] = useState<string | null>(null);
+  // Un clan choisi puis sorti des alliés entre deux relectures : le premier de la liste, comme la liste l'affiche.
+  const choisi = clans.includes(tag) ? tag : clans[0];
 
   const inviter = async () => {
-    const r = await run<{ token: string }>("create_alliance_invite", { p_tag: tag || clans[0], p_note: pseudo });
+    const r = await run<{ token: string }>("create_alliance_invite", { p_tag: choisi, p_note: pseudo });
     if (!r) return;
     setLien({ url: lienInvitation(location.origin, basePath(), r.token), pour: pseudo.trim() });
     setPseudo("");
@@ -335,7 +374,7 @@ function Inviter({ ctx }: { ctx: Contexte }) {
     clans.length > 0
       ? null
       : notre
-        ? `Pour inviter un joueur, ajoutez d'abord son clan à « ${notre.name} », l'alliance de GAL.`
+        ? `Pour inviter un joueur, ajoutez d'abord son clan à « ${notre.name} », l'alliance de GAL, ou cochez « Alliée de la nôtre » sous son alliance.`
         : alliances.length > 0
           ? "Pour inviter un joueur, rangez d'abord GAL et le clan de ce joueur dans la même alliance."
           : "Pour inviter un joueur, créez d'abord votre alliance, puis rangez-y GAL et le clan de ce joueur.";
@@ -367,10 +406,17 @@ function Inviter({ ctx }: { ctx: Contexte }) {
           <div class="alliance-champs">
             <div class="alliance-champ">
               <label for="invite-clan">Son clan</label>
-              <select id="invite-clan" class="field" value={tag || clans[0]} onChange={(e) => setTag(e.currentTarget.value)}>
-                {clans.map((t) => (
-                  <option value={t}>{t}</option>
-                ))}
+              <select id="invite-clan" class="field" value={choisi} onChange={(e) => setTag(e.currentTarget.value)}>
+                {/* Par alliance dès qu'une alliance amie s'y trouve, même seule (notre alliance n'ayant que GAL). */}
+                {groupes.some((g) => g.amie)
+                  ? groupes.map((g) => (
+                      <optgroup label={g.name}>
+                        {g.clans.map((t) => (
+                          <option value={t}>{t}</option>
+                        ))}
+                      </optgroup>
+                    ))
+                  : clans.map((t) => <option value={t}>{t}</option>)}
               </select>
             </div>
             <div class="alliance-champ alliance-champ-large">
@@ -454,7 +500,7 @@ function Joueurs({ ctx }: { ctx: Contexte }) {
                   <span class="alliance-rang-detail">
                     {a.discord_name ? `Discord : ${a.discord_name} · ` : ""}depuis le {fmtDateTime(a.joined_at)}
                   </span>
-                  {!a.active && <span class="alliance-rang-detail">sans accès : son clan n'est plus dans notre alliance</span>}
+                  {!a.active && <span class="alliance-rang-detail">sans accès : son clan n'est plus allié</span>}
                 </span>
                 <span class="alliance-a-part">
                   <EnDeuxTemps busy={busy} texte="Retirer l'accès" confirmer="Confirmer le retrait" nom={a.alias} onConfirm={() => void run("remove_alliance_ally", { p_number: a.number })} />

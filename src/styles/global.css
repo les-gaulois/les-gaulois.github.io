@@ -9560,6 +9560,17 @@ footer h2 {
   color: var(--color-muted);
   overflow-wrap: anywhere;
 }
+/* « Alliée de la nôtre » : une autre alliance dont on peut inviter les joueurs. Toute la ligne se clique, 44 px de haut. */
+.alliance-amie {
+  /* Le nom de l'alliance en .sr-only reste dans la ligne, donc dans la fenêtre qui défile. */
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: 2.75rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
 .alliance-vide {
   margin-top: 0.75rem;
   color: var(--color-muted);

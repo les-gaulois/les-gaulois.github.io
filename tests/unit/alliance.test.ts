@@ -4,7 +4,7 @@ import { bilanZone, lireTroupes, totauxAlliances, troupesDeLAlliance } from "../
 import { COULEURS_ALLIANCE, couleurLibre, cssDe, nomDeCouleur, rgbDe } from "../../src/lib/alliance/couleurs";
 import { dernierNumero, nonLus } from "../../src/lib/alliance/discussion";
 import { EN, FR } from "../../src/lib/alliance/textes";
-import { invitationDeLAncre, jetonValable, lienInvitation } from "../../src/lib/alliance/invitation";
+import { clansInvitables, invitationDeLAncre, jetonValable, lienInvitation } from "../../src/lib/alliance/invitation";
 import {
   CADRE_MAX,
   annuler,
@@ -315,6 +315,40 @@ describe("le lien d'invitation", () => {
     const sql = readFileSync("supabase/migrations/20261113000400_alliances_sur_la_carte.sql", "utf8");
     expect(sql).toContain("replace(gen_random_uuid()::text, '-', '')");
     expect(sql).toContain("'^[0-9a-f]{32}$'");
+    // La version de 20261114001500, avec les alliances amies, crée le même jeton.
+    expect(readFileSync("supabase/migrations/20261114001500_alliances_amies.sql", "utf8")).toContain("replace(gen_random_uuid()::text, '-', '')");
+  });
+});
+
+describe("les clans qu'on peut inviter", () => {
+  const coalition = { id: 1, name: "La Coalitions", color: 0x38bdf8, clans: ["GAL", "EXL", "ATR"], friend: false };
+  const amie = { id: 2, name: "Coalitions Ally", color: 0x4ade80, clans: ["ZED", "BRO"], friend: true };
+  const autre = { id: 3, name: "Rivaux", color: 0xfacc15, clans: ["RIV"], friend: false };
+
+  it("sont ceux de notre alliance, puis ceux des alliances alliées de la nôtre, jamais GAL", () => {
+    expect(clansInvitables([coalition, amie, autre], 1)).toEqual([
+      { id: 1, name: "La Coalitions", amie: false, clans: ["ATR", "EXL"] },
+      { id: 2, name: "Coalitions Ally", amie: true, clans: ["BRO", "ZED"] },
+    ]);
+    // Notre alliance d'abord, quel que soit l'ordre reçu.
+    expect(clansInvitables([amie, autre, coalition], 1).map((g) => g.id)).toEqual([1, 2]);
+  });
+
+  it("ne comptent pas une alliance qui n'est pas marquée, ni un serveur qui ne dit rien des alliées", () => {
+    expect(clansInvitables([coalition, { ...amie, friend: false }, autre], 1).map((g) => g.id)).toEqual([1]);
+    const sansMarque = { id: amie.id, name: amie.name, color: amie.color, clans: amie.clans };
+    expect(clansInvitables([coalition, sansMarque, autre], 1).map((g) => g.id)).toEqual([1]);
+  });
+
+  it("n'existent pas tant que GAL n'est dans aucune alliance, comme le veut le serveur", () => {
+    expect(clansInvitables([coalition, amie], null)).toEqual([]);
+    expect(clansInvitables([amie], 9)).toEqual([]);
+  });
+
+  it("laissent de côté une alliance sans clan à inviter, même la nôtre", () => {
+    const seul = { ...coalition, clans: ["GAL"] };
+    expect(clansInvitables([seul, amie], 1)).toEqual([{ id: 2, name: "Coalitions Ally", amie: true, clans: ["BRO", "ZED"] }]);
+    expect(clansInvitables([coalition, { ...amie, clans: [] }], 1).map((g) => g.id)).toEqual([1]);
   });
 });
 

@@ -98,7 +98,7 @@ export interface AllyMark {
   alias: string;
   /** Accepté par l'encadrement ; sinon, il a ouvert son lien et attend. */
   approved: boolean;
-  /** Il entre en ce moment : accepté, et son clan est dans notre alliance. */
+  /** Il entre en ce moment : accepté, et son clan est dans notre alliance ou dans une alliance amie. */
   active: boolean;
 }
 
@@ -115,7 +115,7 @@ export function allyStatus(ally: AllyMark): string {
 export function allyStatusParts(ally: AllyMark): { state: string; who: string } {
   const who = `[${ally.tag}] ${ally.alias}`;
   if (!ally.approved) return { state: "Allié en attente de votre accord", who };
-  if (!ally.active) return { state: "Allié sans accès, son clan n'est plus dans notre alliance", who };
+  if (!ally.active) return { state: "Allié sans accès, son clan n'est plus allié", who };
   return { state: "Allié", who };
 }
 

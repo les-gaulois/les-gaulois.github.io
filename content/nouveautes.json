@@ -2,6 +2,16 @@
   {
     "date": "2026-11-14",
     "kind": "ameliore",
+    "title": "Carte de l'alliance : inviter les joueurs d'une alliance alliée",
+    "body": "L'équipe gauloise peut cocher « Alliée de la nôtre » sous une autre alliance, dans Gestion. On peut alors inviter ses joueurs : ils lisent la carte et écrivent dans la discussion.",
+    "link": {
+      "href": "/carte#alliance",
+      "label": "Ouvrir la carte"
+    }
+  },
+  {
+    "date": "2026-11-14",
+    "kind": "ameliore",
     "title": "Direction : le village donne tous ses chiffres",
     "body": "Dans l'onglet Village de la Direction, les statères distribués, dépensés et en circulation s'affichent même quand moins de 5 comptes en ont reçu. Toujours des totaux, sans aucun nom."
   },

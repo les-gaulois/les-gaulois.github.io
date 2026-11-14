@@ -4,7 +4,30 @@
  * empreinte. Le serveur décide de tout : un lien faux, annulé, déjà servi ou de plus de 7 jours est refusé là-bas.
  */
 
+import type { AllianceLigne } from "./types";
+
 const JETON = /^[0-9a-f]{32}$/;
+
+/** Les clans d'une alliance qu'on peut inviter : `amie` pour une alliance alliée de la nôtre. */
+export interface GroupeInvitable {
+  id: number;
+  name: string;
+  amie: boolean;
+  clans: string[];
+}
+
+/**
+ * Les clans dont l'encadrement peut inviter les joueurs, par alliance : la nôtre d'abord, puis les alliances qu'il a
+ * marquées alliées de la nôtre (migration 20261114001500), jamais GAL. La règle de `internal.allied_clan` : rien tant que
+ * GAL n'est dans aucune alliance. Une alliance sans clan à inviter ne paraît pas. Le serveur revérifie chaque invitation.
+ */
+export function clansInvitables(alliances: readonly AllianceLigne[], ours: number | null): GroupeInvitable[] {
+  const notre = ours === null ? undefined : alliances.find((a) => a.id === ours);
+  if (!notre) return [];
+  return [notre, ...alliances.filter((a) => a.id !== notre.id && a.friend === true)]
+    .map((a) => ({ id: a.id, name: a.name, amie: a.id !== notre.id, clans: a.clans.filter((tag) => tag !== "GAL").sort() }))
+    .filter((g) => g.clans.length > 0);
+}
 
 /** Le jeton d'invitation d'une ancre d'adresse, ou `null`. */
 export function invitationDeLAncre(hash: string): string | null {
