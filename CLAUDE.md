@@ -68,6 +68,7 @@ Node 22 ou plus. Sous Windows, le shell est Git Bash : chemins avec `/`.
 ### Design et accessibilité
 
 - Jetons, scènes et boutons de `docs/DESIGN.md` (skill `design-gal`). Aucune maquette ni valeur fictive dans l'interface.
+- Le site est en thème clair « Neige Marine » depuis le 14 novembre 2026 (choix du pilote, guide, QG et Direction compris) : page blanche, écriture marine, scènes colorées gardées. Jamais `#fff` pour un texte, un filet ou une icône : `var(--ecriture)`. Ne pas revenir au bleu sans sa demande.
 - WCAG AA, `prefers-reduced-motion` respecté, bouton pause de l'en-tête obligatoire, aucun défilement horizontal de 360 à 1 920 px, clic droit natif conservé sur les liens, champs, texte sélectionné et avec Maj. Une animation ne change jamais une valeur.
 - `.btn` écrase la classe `hidden` de Tailwind : masquer via un conteneur.
 

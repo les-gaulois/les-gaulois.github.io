@@ -2,6 +2,12 @@
   {
     "date": "2026-11-14",
     "kind": "ameliore",
+    "title": "Le site passe au blanc",
+    "body": "Le site quitte son fond bleu marine pour une page blanche, avec l'écriture en bleu marine. Les grands blocs colorés restent. Le guide, le QG et la Direction sont en blanc eux aussi."
+  },
+  {
+    "date": "2026-11-14",
+    "kind": "ameliore",
     "title": "Carte de l'alliance : inviter les joueurs d'une alliance alliée",
     "body": "L'équipe gauloise peut cocher « Alliée de la nôtre » sous une autre alliance, dans Gestion. On peut alors inviter ses joueurs : ils lisent la carte et écrivent dans la discussion.",
     "link": {

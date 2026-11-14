@@ -140,8 +140,8 @@ test("seules les pages de l'encadrement passent au rouge", async ({ page }, test
   expect(qg.background).not.toBe(red.background);
   expect(qg.background).toBe(rgbOf(qg.bar));
   // Le guide du clan est une console depuis le 12 novembre 2026 (« comme la Carte »), sans le rouge de l'encadrement. Depuis
-  // le 13 novembre, son fond est le bleu du site, et non plus le noir du Terminal (« garder la même DA du bleu en bg sur
-  // TOUT le site, arrêter le noir et le bleu foncé ») : la barre du navigateur le reprend.
+  // le 13 novembre, son fond est celui du site, et non plus celui du Terminal (« garder la même DA […] sur TOUT le
+  // site ») : blanc depuis le thème clair du 14 novembre, et la barre du navigateur le reprend.
   expect(await look("/debuter")).toEqual({ ...qg, background: blue.background, bar: blue.bar });
   // La page Carte n'est plus une console depuis le 13 novembre 2026 au soir (« j'aime pas trop le design hacker sur la
   // carte ») : ni ambiance ni style Terminal, le bleu des autres pages (« mieux fondre avec les codes couleur »).
@@ -336,7 +336,8 @@ test("les titres ont de vraies minuscules et une lettrine, sauf en console, au Q
       return {
         casse: style.textTransform,
         lettrine: hauteur(debut) / hauteur(debut + 1),
-        rouge: getComputedStyle(porteur, "::first-letter").color === "rgb(255, 26, 46)",
+        // Le rouge du drapeau du thème clair (--color-red, 14 novembre 2026).
+        rouge: getComputedStyle(porteur, "::first-letter").color === "rgb(217, 18, 40)",
         interligne: Math.round((parseFloat(style.lineHeight) / parseFloat(style.fontSize)) * 100) / 100,
         motsAnimes: el.querySelectorAll(".fx-word").length,
       };
@@ -833,7 +834,8 @@ test("les pseudos de la page Membres se touchent du doigt", async ({ page }, tes
 
 test("un pseudo qui mène à une fiche a la même allure sur toutes les pages", async ({ page }) => {
   // Remarque reçue le 12 novembre 2026 : un pseudo avait trois allures selon la page (bleu souligné, blanc souligné, blanc
-  // en gras). Tous portent la classe `pseudo` : blancs, jaunes et soulignés au survol.
+  // en gras). Tous portent la classe `pseudo` : de la couleur de l'écriture (marine sur la page, blancs dans une scène
+  // colorée), ambrés et soulignés au survol.
   let seen = 0;
   for (const path of ["/", "/gazette", "/records", "/membres", "/liste"]) {
     await page.goto(path);
@@ -842,11 +844,18 @@ test("un pseudo qui mène à une fiche a la même allure sur toutes les pages", 
     const links = await page.locator("main").evaluate((main) =>
       [...main.querySelectorAll<HTMLAnchorElement>("a[href]")]
         .filter((a) => /\/membres\/[^/#?]+/.test(a.getAttribute("href") ?? ""))
-        .map((a) => ({ href: a.getAttribute("href"), pseudo: a.classList.contains("pseudo"), color: getComputedStyle(a).color })),
+        .map((a) => ({
+          href: a.getAttribute("href"),
+          pseudo: a.classList.contains("pseudo"),
+          color: getComputedStyle(a).color,
+          // Dans une scène colorée (îlot sombre), l'écriture est blanche ; sur la page, marine.
+          ilot: a.closest(".stage-blue, .stage-indigo, .stage-wine, .card-accent") !== null,
+        })),
     );
     for (const link of links) {
       expect(link.pseudo, `${path} : ${link.href}`).toBe(true);
-      expect(link.color, `${path} : ${link.href}`).toBe("rgb(255, 255, 255)");
+      // La couleur de l'écriture (--ecriture), là où il se trouve : thème clair du 14 novembre 2026.
+      expect(link.color, `${path} : ${link.href}`).toBe(link.ilot ? "rgb(255, 255, 255)" : "rgb(10, 18, 48)");
     }
     seen += links.length;
     // Au milieu d'une phrase, un pseudo garde un trait pâle : sa couleur seule ne le distinguerait pas du texte (WCAG 1.4.1).
@@ -1687,8 +1696,9 @@ test("un bouton de filtre actif reste lisible au survol", async ({ page }, testI
   const active = page.getByRole("button", { name: "Toutes", exact: true });
   await expect(active).toBeEnabled();
   await active.hover();
-  await expect(active).toHaveCSS("color", "rgb(10, 18, 48)");
-  await expect(active).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  // Thème clair du 14 novembre 2026 : le filtre actif est marine, son texte blanc.
+  await expect(active).toHaveCSS("color", "rgb(255, 255, 255)");
+  await expect(active).toHaveCSS("background-color", "rgb(10, 18, 48)");
 });
 
 test("sans le fichier des scores, le comparateur garde ses chiffres et le signale", async ({ page }) => {

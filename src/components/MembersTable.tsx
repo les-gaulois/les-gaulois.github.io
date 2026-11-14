@@ -158,7 +158,8 @@ export default function MembersTable({ src }: { src: string }) {
       <div class="card flex items-center justify-center gap-3 p-10 text-muted" role="status">
         <svg class="loader" viewBox="0 0 40 40" aria-hidden="true" fill="none" stroke-width="4">
           <path d="M6 28A16 16 0 0 1 12 6" stroke="#0B5FFF" />
-          <path d="M15 4.700A16 16 0 0 1 25 4.700" stroke="#fff" />
+          {/* L'arc du milieu, blanc sur le drapeau : de la couleur de l'écriture, pour se voir sur la carte claire. */}
+          <path d="M15 4.700A16 16 0 0 1 25 4.700" style="stroke: var(--ecriture)" />
           <path d="M28 6A16 16 0 0 1 34 28" stroke="#FF1A2E" />
         </svg>
         Chargement de la liste des membres…

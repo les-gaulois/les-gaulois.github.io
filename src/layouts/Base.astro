@@ -76,9 +76,9 @@ const onciale = lettresOnciale
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="color-scheme" content="dark" />
-    {/* La barre du navigateur prend le fond de la page : le noir du Terminal au QG et à la Direction, le bleu du site ailleurs, Carte et guide compris. */}
-    <meta name="theme-color" content={theme === "rouge" ? (ambiance === "console" ? "#13040A" : "#300A10") : ambiance === "console" && !lettresOnciale ? "#03081A" : "#0A1230"} />
+    <meta name="color-scheme" content="light" />
+    {/* La barre du navigateur prend le fond de la page (thème clair du 14 novembre 2026) : le blanc du site, guide compris, l'écran à peine bleuté du Terminal au QG, à peine rosé à la Direction. */}
+    <meta name="theme-color" content={theme === "rouge" ? (ambiance === "console" ? "#FFF9F9" : "#FFFFFF") : ambiance === "console" && !lettresOnciale ? "#F6F8FD" : "#FFFFFF"} />
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
     {noindex && <meta name="robots" content="noindex" />}

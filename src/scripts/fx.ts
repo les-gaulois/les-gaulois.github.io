@@ -267,7 +267,8 @@ function init(): void {
     launchWave(x, y, owner, big ? 520 : 380, 760, 1);
     const main = COLORS[owner];
     const other = COLORS[side === "left" ? reply : lead];
-    const palette = [main, main, main, "#ffffff", "#ffffff", other];
+    // Le marine de l'écriture à la place du blanc : sur la page blanche, des éclats blancs ne se verraient pas.
+    const palette = [main, main, main, "#0a1230", "#0a1230", other];
     const count = (finePointer ? 18 : 10) * (big ? 2 : 1);
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
