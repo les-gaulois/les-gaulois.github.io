@@ -6,7 +6,11 @@ import type { EtatDuMonde } from "../../../lib/village/monde-etat";
 import { SANS_DONNEES, etatDuBatimentEnMots, jourDeParis, nombre, nomDuFeu, nomDuNiveau, phraseDuChantier, posesDuBatiment, suiteDuChantier, suiteDuFeu } from "../../../lib/village/monde/textes";
 import { type Habitant, LIEUX, type Lieu, compteDuLieu, phraseDuReleve } from "../../../lib/village/vie";
 import { BoutonDuToucher, type Parole, phraseDite } from "../PlaceToucher";
+<<<<<<< HEAD
 import { PlaquesDuGaulois } from "./MondePlaques";
+=======
+import AtelierDeLaForge from "./FenetreForge";
+>>>>>>> claude/village-forge-ecran
 
 /**
  * Le contenu des fenêtres propres au monde : « Le chantier », « Le grand feu », « Qui est où » et « La forge ». Elles
@@ -180,7 +184,7 @@ export function FenetreQui({ village, lieux, message, dit, onParler, onGaulois, 
 export function FenetreForge({ voir }: { voir: () => void }) {
   return (
     <div class="monde-forge" data-testid="monde-forge">
-      <p class="monde-en-cours-phrase">La forge ouvre bientôt.</p>
+      <AtelierDeLaForge />
       <button type="button" class="btn btn-ghost monde-bouton" onClick={voir}>
         Voir la forge
       </button>
