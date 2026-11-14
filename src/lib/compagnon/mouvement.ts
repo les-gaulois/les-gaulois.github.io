@@ -158,6 +158,39 @@ export function ecarterDuChamp(x: number, largeur: number, champ: { gauche: numb
   return (champ.gauche + champ.droite) / 2 > (min + max + largeur) / 2 ? min : max;
 }
 
+/**
+ * La part du sol où il peut se tenir sans couvrir ce qui est fixé au bas de la fenêtre (la barre « Enregistrer » du
+ * vestiaire, une fenêtre d'appel du QG…) : les places possibles de son bord gauche, à huit pixels au moins de chaque
+ * obstacle, dans le morceau qui le contient ou, sinon, le plus proche de lui. `null` : il ne tient nulle part, la barre
+ * prend toute la largeur ; il s'efface alors le temps qu'elle reste.
+ */
+export function solLibre(x: number, largeur: number, obstacles: readonly { gauche: number; droite: number }[], min: number, max: number): { min: number; max: number } | null {
+  const jeu = 8;
+  let morceaux: [number, number][] = [[min, Math.max(min, max)]];
+  for (const o of obstacles) {
+    const avant = o.gauche - jeu - largeur;
+    const apres = o.droite + jeu;
+    morceaux = morceaux.flatMap(([a, b]): [number, number][] => [
+      ...(a <= Math.min(b, avant) ? [[a, Math.min(b, avant)] as [number, number]] : []),
+      ...(Math.max(a, apres) <= b ? [[Math.max(a, apres), b] as [number, number]] : []),
+    ]);
+  }
+  const distance = ([a, b]: [number, number]): number => (x < a ? a - x : x > b ? x - b : 0);
+  const proche = morceaux.reduce<[number, number] | null>((meilleur, m) => (meilleur === null || distance(m) < distance(meilleur) ? m : meilleur), null);
+  return proche === null ? null : { min: proche[0], max: proche[1] };
+}
+
+/**
+ * La partie visible de la page (`visualViewport`) est-elle trop petite pour lui ? Agrandie du bout des doigts, il serait
+ * grossi et coupé ; un clavier de téléphone ouvert (la partie visible perd plus d'un cinquième de la fenêtre, 150 pixels
+ * au moins : plus que la barre d'adresse qui se replie), il couvrirait le peu qui reste. Il s'efface le temps qu'il faut.
+ */
+export function fenetreGenee(hauteurFenetre: number, visible: { height: number; scale: number } | null | undefined): boolean {
+  if (!visible) return false;
+  if (visible.scale > 1.01) return true;
+  return hauteurFenetre - visible.height > Math.max(150, hauteurFenetre * 0.2);
+}
+
 /** La bulle au-dessus de lui : son bord gauche, sans sortir de la fenêtre, et la place de sa queue, vers sa tête. */
 export function placeDeLaBulle(centre: number, largeurBulle: number, largeurFenetre: number): { gauche: number; queue: number } {
   const bord = 8;

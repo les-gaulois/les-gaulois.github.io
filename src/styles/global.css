@@ -16564,6 +16564,13 @@ footer h2 {
 .compagnon-rappel[hidden] {
   display: none;
 }
+/* Au village, la même ligne sous le titre de la page, posée par le script. */
+.compagnon-rappel-village {
+  margin-bottom: -0.5rem;
+}
+.compagnon-rappel-village[hidden] {
+  display: none;
+}
 @media (pointer: coarse) {
   .compagnon-choix {
     min-height: 2.75rem;
@@ -16584,19 +16591,29 @@ footer h2 {
     animation: none;
   }
 }
+/* Contraste élevé : la bulle prend un vrai cadre ; le Gaulois, une image, garde ses couleurs ; le focus, celle du système. */
 @media (forced-colors: active) {
   .compagnon-bulle {
     border: 1px solid CanvasText;
     background: Canvas;
     filter: none;
   }
-  .compagnon-bulle::before {
+  .compagnon-bulle::before,
+  .compagnon-gaulois::before {
     display: none;
+  }
+  .compagnon-image,
+  .compagnon-lit {
+    forced-color-adjust: none;
+  }
+  .compagnon-gaulois:focus-visible {
+    outline-color: Highlight;
   }
 }
 @media print {
   .compagnon,
-  .compagnon-rappel {
+  .compagnon-rappel,
+  .compagnon-rappel-village {
     display: none;
   }
 }

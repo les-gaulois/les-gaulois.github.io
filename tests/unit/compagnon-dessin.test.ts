@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dessinDuCompagnon, tenueDuCompagnon } from "../../src/lib/compagnon/dessin";
+import { dessinDuCompagnon, rgbaDeLaPlanche, tenueDuCompagnon } from "../../src/lib/compagnon/dessin";
 import { CASES_H, CASES_L, IMAGES, LIT_H, LIT_L, NOMBRE_D_IMAGES } from "../../src/lib/compagnon/mouvement";
 import { tenueBruteDuCompagnon } from "../../src/lib/compagnon/tenue";
 import { TENUE_DE_DEPART, casesDuGaulois, tenueAuHasard } from "../../src/lib/gaulois";
@@ -52,5 +52,22 @@ describe("le dessin du Gaulois compagnon", () => {
     const souffle = lit.images[0]!.filter((c, i) => c !== lit.images[1]![i]).length;
     expect(souffle).toBeGreaterThan(0);
     expect(souffle).toBeLessThan(LIT_L * LIT_H * 0.15);
+  });
+
+  it("se peint en planche, ses images côte à côte, transparent là où la case est vide", () => {
+    const { gaulois, lit } = dessinDuCompagnon(null);
+    for (const planche of [gaulois, lit]) {
+      const rgba = rgbaDeLaPlanche(planche);
+      const largeur = planche.largeur * planche.images.length;
+      expect(rgba.length).toBe(largeur * planche.hauteur * 4);
+      planche.images.forEach((cases, rang) => {
+        cases.forEach((couleur, i) => {
+          const o = (Math.floor(i / planche.largeur) * largeur + rang * planche.largeur + (i % planche.largeur)) * 4;
+          const pixel = [...rgba.subarray(o, o + 4)];
+          if (couleur === null) expect(pixel[3]).toBe(0);
+          else expect(pixel).toEqual([parseInt(couleur.slice(1, 3), 16), parseInt(couleur.slice(3, 5), 16), parseInt(couleur.slice(5, 7), 16), 255]);
+        });
+      });
+    }
   });
 });

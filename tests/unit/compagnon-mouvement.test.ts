@@ -18,12 +18,14 @@ import {
   ecarterDuChamp,
   echelleDuCompagnon,
   enPart,
+  fenetreGenee,
   imageDeMarche,
   marcheurA,
   margeDuBord,
   placeDeDepart,
   placeDeLaBulle,
   reposApres,
+  solLibre,
   souffleA,
   type Allure,
   type Marcheur,
@@ -224,5 +226,43 @@ describe("la place du Gaulois compagnon", () => {
     // Au milieu d'un grand écran, la queue tombe juste sur lui.
     const { gauche, queue } = placeDeLaBulle(700, 240, 1_440);
     expect(gauche + queue).toBeCloseTo(700, 6);
+  });
+});
+
+describe("ce que le Gaulois compagnon évite au bas de la fenêtre", () => {
+  it("se tient à côté de ce qui est fixé en bas, jamais dessous", () => {
+    // Rien de fixé : tout le sol.
+    expect(solLibre(100, 96, [], 24, 1_160)).toEqual({ min: 24, max: 1_160 });
+    // Une fenêtre d'appel au coin bas droit d'un ordinateur : il reste à sa gauche, à huit pixels.
+    expect(solLibre(100, 96, [{ gauche: 824, droite: 1_256 }], 24, 1_160)).toEqual({ min: 24, max: 824 - 8 - 96 });
+    // Déjà dessous : le morceau le plus proche de lui.
+    expect(solLibre(900, 96, [{ gauche: 824, droite: 1_256 }], 24, 1_160)).toEqual({ min: 24, max: 720 });
+    // Une barre au milieu : le côté où il est, puis l'autre s'il passe de l'autre côté.
+    expect(solLibre(100, 96, [{ gauche: 500, droite: 800 }], 24, 1_160)).toEqual({ min: 24, max: 396 });
+    expect(solLibre(1_000, 96, [{ gauche: 500, droite: 800 }], 24, 1_160)).toEqual({ min: 808, max: 1_160 });
+    expect(solLibre(560, 96, [{ gauche: 500, droite: 800 }], 24, 1_160)).toEqual({ min: 24, max: 396 });
+    expect(solLibre(760, 96, [{ gauche: 500, droite: 800 }], 24, 1_160)).toEqual({ min: 808, max: 1_160 });
+  });
+
+  it("ne tient nulle part sous une barre de toute la largeur d'un téléphone", () => {
+    // La fenêtre d'appel d'un téléphone : 16 pixels de chaque côté. Il s'efface le temps qu'elle reste.
+    expect(solLibre(19, 64, [{ gauche: 16, droite: 359 }], 19, 292)).toBeNull();
+    // Deux obstacles qui ne laissent entre eux qu'une place trop étroite.
+    expect(solLibre(300, 96, [{ gauche: 0, droite: 400 }, { gauche: 480, droite: 1_280 }], 24, 1_160)).toBeNull();
+    // Une place juste assez large suffit.
+    expect(solLibre(300, 96, [{ gauche: 0, droite: 400 }, { gauche: 400 + 8 + 96 + 8, droite: 1_280 }], 24, 1_160)).toEqual({ min: 408, max: 408 });
+  });
+
+  it("s'efface quand le clavier d'un téléphone est ouvert ou la page agrandie, pas quand la barre d'adresse se replie", () => {
+    expect(fenetreGenee(812, null)).toBe(false);
+    expect(fenetreGenee(812, undefined)).toBe(false);
+    expect(fenetreGenee(812, { height: 812, scale: 1 })).toBe(false);
+    // La barre d'adresse : une centaine de pixels.
+    expect(fenetreGenee(812, { height: 712, scale: 1 })).toBe(false);
+    // Le clavier : la moitié de l'écran.
+    expect(fenetreGenee(812, { height: 420, scale: 1 })).toBe(true);
+    // La page agrandie du bout des doigts.
+    expect(fenetreGenee(812, { height: 406, scale: 2 })).toBe(true);
+    expect(fenetreGenee(812, { height: 812, scale: 1.5 })).toBe(true);
   });
 });
