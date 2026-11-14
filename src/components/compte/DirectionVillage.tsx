@@ -247,7 +247,7 @@ function ParRareteTableau({ id, titre, valeurs, depuis, seuil }: { id: string; t
 function datesDesReglages(data: EconomieDuVillage): string | null {
   const { prix_maj_le: prix, pochette } = data.reglages;
   if (!prix && !pochette.maj_le) return null;
-  return [prix ? `Prix réglés le ${fmtDateTime(prix)}.` : null, pochette.maj_le ? `Pochette réglée le ${fmtDateTime(pochette.maj_le)}.` : null].filter(Boolean).join(" ");
+  return [prix ? `Prix en vigueur depuis le ${fmtDateTime(prix)}.` : null, pochette.maj_le ? `Pochette en vigueur depuis le ${fmtDateTime(pochette.maj_le)}.` : null].filter(Boolean).join(" ");
 }
 
 /** Les réglages en vigueur, pour les officiers : seuls les admins et le fondateur les changent. */

@@ -68,14 +68,21 @@ export interface MaBoutique {
   inventaire: ObjetPossede[];
 }
 
-/** `acheter_objet(p_emplacement, p_objet)` : l'objet entre dans l'inventaire, le solde baisse du prix de sa rareté. */
+/**
+ * `acheter_objet(p_emplacement, p_objet, p_prix_vu)` : l'objet entre dans l'inventaire, le solde baisse du prix de sa rareté.
+ * `p_prix_vu` : le prix que le membre a vu à l'écran ; s'il n'est plus celui de la boutique (l'encadrement vient de le régler),
+ * le serveur refuse (`prix_change`) sans rien débiter.
+ */
 export interface AchatReponse {
   ok: true;
   solde: number;
   objet: RefObjet;
 }
 
-/** `ouvrir_pochette()` : l'objet tiré, sa rareté, et s'il était déjà possédé (un double). */
+/**
+ * `ouvrir_pochette(p_prix_vu)` : l'objet tiré, sa rareté, et s'il était déjà possédé (un double). `p_prix_vu` : le prix de la
+ * pochette vu à l'écran ; changé entre-temps, refus `prix_change`.
+ */
 export interface PochetteReponse {
   ok: true;
   solde: number;
@@ -85,11 +92,15 @@ export interface PochetteReponse {
 /**
  * Les refus de la boutique, en plus de ceux de tout compte (`not_signed_in`, `suspended`, `rate_limited`) :
  * `not_validated` compte pas encore validé, `no_gaulois` Gaulois pas encore créé, `unknown_objet` objet hors du catalogue,
- * `objet_gratuit` objet gratuit, `deja_possede` objet déjà dans l'inventaire, `solde_insuffisant` pas assez de statères.
+ * `objet_gratuit` objet gratuit, `deja_possede` objet déjà dans l'inventaire ou en vente au marché, `solde_insuffisant` pas assez de statères, `prix_change` le
+ * prix a changé depuis que le membre l'a vu.
  */
-export type RefusBoutique = "not_validated" | "no_gaulois" | "unknown_objet" | "objet_gratuit" | "deja_possede" | "solde_insuffisant";
+export type RefusBoutique = "not_validated" | "no_gaulois" | "unknown_objet" | "objet_gratuit" | "deja_possede" | "solde_insuffisant" | "prix_change";
 
-/** Une offre du marché. `vendeur` : le nom que le QG montre déjà pour ce compte. `a_moi` : c'est l'offre de l'appelant. */
+/**
+ * Une offre du marché. `vendeur` : le nom que le QG montre déjà pour ce compte, s'il a choisi de se montrer aux autres membres
+ * (le choix du QG) ou si c'est l'appelant ; sinon « Un Gaulois ». `a_moi` : c'est l'offre de l'appelant.
+ */
 export interface OffreDuMarche extends RefObjet {
   id: number;
   prix: number;
@@ -98,7 +109,10 @@ export interface OffreDuMarche extends RefObjet {
   expire_le: string;
 }
 
-/** `get_marche()`, pour un compte validé : les offres ouvertes, les plus récentes d'abord, et le solde de l'appelant. */
+/**
+ * `get_marche()`, pour un compte validé : les offres ouvertes, les plus récentes d'abord, et le solde de l'appelant. Comme
+ * `get_village()`, elle a la limite d'appels des gestes (`rate_limited`).
+ */
 export interface Marche {
   ok: true;
   solde: number;
@@ -136,7 +150,12 @@ export type RefusMarche =
   | "solde_insuffisant";
 
 /**
- * Un Gaulois de la place du village. `nom` : le nom que le QG montre déjà pour ce compte. `moi` : celui de l'appelant.
+ * Un Gaulois de la place du village. `nom` : le nom que le QG montre déjà pour ce compte, s'il a choisi de se montrer aux
+ * autres membres ou si c'est l'appelant ; sinon « Un Gaulois ». `moi` : celui de l'appelant.
+ *
+ * Vie privée (revue du 14 novembre 2026) : `partie_le` et `vocal` ne sont donnés que pour un compte qui se montre aux autres
+ * membres ; `partie_le` demande en plus un pseudo public unique dans la liste du clan, sans quoi l'heure d'une partie,
+ * croisée avec les parties publiques, désignerait le joueur OpenFront d'un membre anonyme. Son propre Gaulois suit la même règle.
  *
  * La vie du village (demande du pilote, 13 novembre 2026 : un village animé, où ce que fait le joueur décide de ce que
  * fait son Gaulois) s'appuie sur trois champs que le serveur peut ne pas donner : l'écran les lit alors comme `null`, et
