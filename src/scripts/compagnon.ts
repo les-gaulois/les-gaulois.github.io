@@ -18,7 +18,9 @@
  * défilement, d'un redimensionnement, d'une marche, et d'un coup d'œil sous lui toutes les 1,25 s, il se tient à la place
  * libre la plus proche de celle qu'il voudrait (`src/lib/compagnon/repos.ts`) ; sans place pour lui en entier, il
  * s'enfonce sous le bord bas, la tête dehors, ou s'y cache le temps qu'une place se libère. Il n'y travaille qu'à ces
- * moments-là, jamais à chaque image : la carte de ce qu'il ne couvre pas est gardée tant que la page ne bouge pas.
+ * moments-là, jamais à chaque image : la carte de ce qu'il ne couvre pas est gardée tant que la page ne bouge pas. Il
+ * n'apparaît qu'une fois finies les entrées en fondu de la page, et son salut spontané ne se dit que d'une place où sa
+ * bulle ne couvre rien non plus.
  */
 import { tirage } from "../lib/fx/repliques";
 import {
@@ -44,7 +46,6 @@ import {
   nullePart,
   placeAcoteDuCurseur,
   placeDeDepart,
-  placeDeLaBulle,
   reposApres,
   seuilDeDepart,
   souffleA,
@@ -62,6 +63,7 @@ import { REPLIQUES, REPLIQUES_DES_GESTES, dureeDeLaBulle, ponctuer, repliqueDuCl
 import {
   AIR,
   EMPREINTE_ENDORMI,
+  bulleAuMieux,
   carteDesZones,
   empreinteA,
   etatDeLaPlace,
@@ -69,7 +71,10 @@ import {
   formeA,
   placeAprendre,
   placeDeRepos,
+  placePourSaluer,
   type Carte,
+  type Fenetre,
+  type Taille,
 } from "../lib/compagnon/repos";
 import {
   ATTENTE_DU_SERVEUR_MS,
@@ -118,6 +123,11 @@ const FIN_DU_DEFILEMENT_MS = 220;
  */
 const PORTEE_EN_HAUTEURS = 3;
 const FONDU_MS = 450;
+/** Son salut se dit 1,6 s après son apparition au plus tôt, et attend au plus 30 s une place où sa bulle ne couvre rien. */
+const SALUT_APRES_MS = 1_600;
+const SALUT_MAX_MS = 30_000;
+/** Il n'apparaît qu'une fois finies les entrées des blocs et des titres de la page (`fx.ts`), une seconde et demie au plus. */
+const ENTREES_MAX_MS = 1_500;
 
 interface ImagesGardees {
   cle: string;
@@ -176,9 +186,12 @@ const cadreDe = (el: Element): Cadre => {
   return { gauche: r.left, droite: r.right, haut: r.top, bas: r.bottom };
 };
 
-/** Un élément est-il vu : ni `visibility: hidden`, ni transparent (lui ou un parent) ? Sans le savoir, on le croit vu. */
-const vu = (el: Element): boolean =>
-  typeof el.checkVisibility !== "function" || el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true, opacityProperty: true, visibilityProperty: true });
+/**
+ * Un élément est-il là, à lire : pas en `visibility: hidden` (lui ou un parent) ? Un élément transparent compte : à
+ * l'arrivée, les blocs, les titres et les lignes de tableau entrent en fondu depuis une opacité nulle (`fx.ts`), et le
+ * Gaulois se posait dessus juste avant qu'ils ne paraissent. Sans le savoir, on le croit là.
+ */
+const vu = (el: Element): boolean => typeof el.checkVisibility !== "function" || el.checkVisibility({ checkVisibilityCSS: true, visibilityProperty: true });
 
 /**
  * Ce qu'il ne couvre pas, arrêté, dans `region` (la fenêtre, ou sa boîte pour un coup d'œil), hors de `exclus` (lui, sa
@@ -329,6 +342,14 @@ function init(): void {
   let passage = 0;
   /** Il est apparu sur cette page (`apparaitre`) : avant, il ne bouge pas. */
   let apparu = false;
+  /**
+   * Son salut, tant qu'il attend de le dire : sa phrase, et le moment où il peut la dire au plus tôt. Il ne le dit que
+   * d'une place où ni lui ni sa bulle ne couvrent quoi que ce soit ; sans une telle place, il attend, puis y renonce
+   * sur cette page (`SALUT_MAX_MS`).
+   */
+  let salut: { texte: string; des: number } | null = null;
+  /** La bulle ouverte est son salut : elle ne le retient pas de dégager ce qu'il couvrirait. */
+  let bulleSpontanee = false;
 
   const calme = (): boolean => racine.classList.contains("fx-off") || mouvementReduit.matches;
   const efface = (): boolean => saisie || fenetrePetite || barre;
@@ -474,10 +495,15 @@ function init(): void {
     } else delete boite!.dataset.laisseLire;
   }
 
+  /** La fenêtre où se pose sa bulle : sous l'en-tête collé en haut. */
+  const fenetreDeLaBulle = (): Fenetre => ({ largeur: largeurFenetre(), hauteur: hauteurFenetre(), haut: bornes.haut - 4 });
+
+  /**
+   * Sa bulle, posée au mieux (`bulleAuMieux`) : là où elle couvre le moins de texte et de commandes, au-dessus de lui de
+   * préférence, sous ses pieds si c'est mieux ; la queue toujours vers sa tête, sans sortir de la fenêtre.
+   */
   function placerLaBulle(): void {
-    // Trop haut pour elle au-dessus de lui (sous l'en-tête), elle passe dessous, s'il y a plus de place.
-    const verticale = { hauteur: bulle!.offsetHeight, dessus: marcheur.y + 3 * cote - (bornes.haut - 4), dessous: hauteurFenetre() - (marcheur.y + hauteur - cote) };
-    const place = placeDeLaBulle(marcheur.x + largeur / 2, bulle!.offsetWidth, largeurFenetre(), verticale);
+    const place = bulleAuMieux(marcheur, cote, { largeur: bulle!.offsetWidth, hauteur: bulle!.offsetHeight }, fenetreDeLaBulle(), carteDuMoment());
     bulle!.style.setProperty("--bulle-x", `${place.gauche - marcheur.x}px`);
     bulle!.style.setProperty("--queue", `${place.queue}px`);
     if (place.dessous) boite!.dataset.bulleDessous = "1";
@@ -561,13 +587,14 @@ function init(): void {
     window.clearTimeout(verification);
     verification = 0;
     if (!pret || !apparu || range || efface() || glisse || passage || document.hidden || boite!.hidden) return;
-    if (!urgent && (marcheur.enMarche || bulleOuverte)) return;
+    // Une bulle qu'on lui a demandée le retient ; celle de son salut, non.
+    if (!urgent && (marcheur.enMarche || (bulleOuverte && !bulleSpontanee))) return;
     const depuisLaPose = performance.now() - poseA;
     if (!urgent && depuisLaPose < POSE_MS) return planifierLaVerification(POSE_MS - depuisLaPose + 50);
     const c = carteDuMoment(true);
     const endormi = repos === "dort";
     const but = placeAprendre({ x: marcheur.x, y: marcheur.y }, voulue(), c, bornes, cote, hauteurFenetre(), [], endormi);
-    if (but === null) return;
+    if (but === null) return essayerDeSaluer();
     // Couché, son lit n'a plus sa place : il se lève, et ne bouge que si, debout, il couvre encore quelque chose.
     if (endormi) {
       reveiller();
@@ -610,11 +637,53 @@ function init(): void {
     if (!pret || !apparu || range || efface() || verification || passage || performance.now() - defileA < FIN_DU_DEFILEMENT_MS) return;
     if (formeA(marcheur, bornes, cote, hauteurFenetre()) !== "entier") return verifierLaPlace();
     const ici = empreinteA(marcheur, cote, repos === "dort" ? EMPREINTE_ENDORMI : undefined);
-    const region: Cadre = { gauche: ici.gauche - AIR, droite: ici.droite + AIR, haut: ici.haut - AIR, bas: ici.bas + AIR };
-    if (zonesOccupees(region, [boite!, prison!]).length > 0 || zones().some((z) => touche(region, z))) {
+    const occupe = (c: Cadre): boolean => {
+      const region: Cadre = { gauche: c.gauche - AIR, droite: c.droite + AIR, haut: c.haut - AIR, bas: c.bas + AIR };
+      return zonesOccupees(region, [boite!, prison!]).length > 0 || zones().some((z) => touche(region, z));
+    };
+    if (occupe(ici)) {
       carteAJour = false;
       verifierLaPlace();
+      return;
     }
+    // La bulle de son salut ne couvre rien non plus : un texte venu dessous la referme.
+    if (bulleOuverte && bulleSpontanee && occupe(cadreDe(bulle!))) fermer(false);
+  }
+
+  /** La taille qu'aurait sa bulle pour cette phrase, mesurée bulle fermée (invisible, les lecteurs d'écran n'en disent rien). */
+  function tailleDeLaBulle(texte: string, lien: boolean): Taille {
+    const avant = { phrase: parole!.textContent, sansLien: village!.hidden, suivre: boutonSuivre!.textContent };
+    parole!.textContent = ponctuer(texte);
+    village!.hidden = !lien;
+    boutonSuivre!.textContent = suit ? "Reste là" : "Suis-moi";
+    const taille = { largeur: bulle!.offsetWidth, hauteur: bulle!.offsetHeight };
+    parole!.textContent = avant.phrase;
+    village!.hidden = avant.sansLien;
+    boutonSuivre!.textContent = avant.suivre;
+    return taille;
+  }
+
+  /**
+   * Son salut, spontané : seulement arrêté, en entier, à une place libre, et si sa bulle y tient sans rien couvrir. Sinon
+   * il attend (un défilement, une place qui se libère : il réessaie à chaque coup d'œil) et y renonce sur cette page au
+   * bout de `SALUT_MAX_MS` ; la page suivante de l'onglet réessaie.
+   */
+  function essayerDeSaluer(): void {
+    if (salut === null || !apparu || range || calme() || bulleOuverte || glisse || passage || efface() || document.hidden || boite!.hidden) return;
+    const maintenant = performance.now();
+    if (maintenant < salut.des || marcheur.enMarche || boucle) return;
+    if (maintenant - salut.des > SALUT_MAX_MS) {
+      salut = null;
+      return;
+    }
+    const c = carteDuMoment(true);
+    const ici = etatDeLaPlace(marcheur, c, bornes, cote, hauteurFenetre());
+    if (!ici.libre || ici.forme !== "entier") return;
+    if (!bulleAuMieux(marcheur, cote, tailleDeLaBulle(salut.texte, false), fenetreDeLaBulle(), c).libre) return;
+    const texte = salut.texte;
+    salut = null;
+    ecrire("sessionStorage", CLE_SALUE, "1");
+    dire(texte, false, true);
   }
 
   /** Caché sous le bord bas, il sort la tête pour parler ou quand le clavier l'atteint : on le voit, et son focus aussi. */
@@ -650,9 +719,12 @@ function init(): void {
       if (document.hidden) return;
       // De temps en temps, il regarde aussi ce qui est fixé sur la fenêtre : une barre a pu y venir sans prévenir.
       regarderLesObstacles();
-      if (marcheur.enMarche || bulleOuverte || glisse) return;
-      // Et sous lui : un texte a pu y venir sans que la page bouge.
-      coupDOeil();
+      if (marcheur.enMarche || glisse) return;
+      // Et sous lui : un texte a pu y venir sans que la page bouge (sous la bulle de son salut aussi). Puis, s'il attend
+      // pour saluer, il regarde si sa place le permet maintenant.
+      if (!bulleOuverte || bulleSpontanee) coupDOeil();
+      if (bulleOuverte) return;
+      essayerDeSaluer();
       const maintenant = performance.now();
       let suite = reposApres(maintenant - dernierGeste);
       // Sans la place de son lit, il somnole debout.
@@ -667,12 +739,19 @@ function init(): void {
 
   /* ---------- Bulle ---------- */
 
-  function dire(texte: string, lien: boolean): void {
+  /** `spontanee` : son salut, qu'on ne lui a pas demandé (il ne le dit que d'une place où sa bulle ne couvre rien). */
+  function dire(texte: string, lien: boolean, spontanee = false): void {
     if (efface()) return;
     window.clearTimeout(fermeture);
     reveiller();
     arreter();
     sortirLaTete();
+    // Le visiteur lui parle avant son salut : il ne saluera plus, dans cet onglet.
+    if (!spontanee && salut !== null) {
+      salut = null;
+      ecrire("sessionStorage", CLE_SALUE, "1");
+    }
+    bulleSpontanee = spontanee;
     bulleOuverte = true;
     village!.hidden = !lien;
     boutonSuivre!.textContent = suit ? "Reste là" : "Suis-moi";
@@ -703,6 +782,7 @@ function init(): void {
     window.clearTimeout(fermeture);
     const dedans = bulle!.contains(document.activeElement);
     bulleOuverte = false;
+    bulleSpontanee = false;
     delete boite!.dataset.bulle;
     gaulois!.setAttribute("aria-expanded", "false");
     if ((rendreLeFocus || dedans) && !efface()) gaulois!.focus({ preventScroll: true });
@@ -1124,25 +1204,31 @@ function init(): void {
   }
 
   /**
-   * Il apparaît en fondu une fois la page chargée et ses blocs montés (ses images gardées dans l'onglet le prêtent avant),
-   * à la place libre la plus proche de la sienne, choisie sur la page finie : il n'arrive jamais sur ce qu'on lit.
+   * Il apparaît en fondu une fois la page chargée (ses images gardées dans l'onglet le prêtent avant), et les entrées de
+   * ses blocs, de ses titres et de ses lignes finies : elles partent d'une opacité nulle et glissent de quelques pixels
+   * (`fx.ts`), et il se posait sur un titre ou un tableau juste avant qu'ils ne paraissent. Il apparaît à la place libre
+   * la plus proche de la sienne, choisie sur la page finie ; s'il a un salut à dire, à une place où sa bulle tient aussi.
    */
   function apparaitre(): void {
     const seMontrer = (): void => {
       if (apparu) return;
       apparu = true;
+      preparerLeSalut();
       if (!range) {
         mesurer();
-        const libre = placeDeRepos(ancreEnPlace(), carteDuMoment(true), bornes, cote, hauteurFenetre()).place;
+        const c = carteDuMoment(true);
+        const pourSaluer = salut ? placePourSaluer(ancreEnPlace(), c, bornes, cote, fenetreDeLaBulle(), tailleDeLaBulle(salut.texte, false)) : null;
+        const libre = pourSaluer ?? placeDeRepos(ancreEnPlace(), c, bornes, cote, hauteurFenetre()).place;
         marcheur = marcheurA(libre.x, libre.y, marcheur.vers);
         dessiner();
       }
       delete boite!.dataset.passe;
-      saluer();
+      if (salut) window.setTimeout(essayerDeSaluer, SALUT_APRES_MS + 50);
     };
     const auCalme = (): void => {
-      if ("requestIdleCallback" in window) window.requestIdleCallback(seMontrer, { timeout: 600 });
-      else setTimeout(seMontrer, 200);
+      const ensuite = (): void => void finDesEntrees().then(seMontrer);
+      if ("requestIdleCallback" in window) window.requestIdleCallback(ensuite, { timeout: 600 });
+      else setTimeout(ensuite, 200);
     };
     if (document.readyState === "complete") auCalme();
     else window.addEventListener("load", auCalme, { once: true });
@@ -1153,13 +1239,24 @@ function init(): void {
     });
   }
 
+  /** Les entrées en cours sur la page (animations finies, hors de lui et de sa prison) : on les attend, `ENTREES_MAX_MS` au plus. */
+  async function finDesEntrees(): Promise<void> {
+    if (typeof document.getAnimations !== "function") return;
+    const enCours = document.getAnimations().filter((a) => {
+      if (a.playState !== "running") return false;
+      const cible = a.effect instanceof KeyframeEffect ? a.effect.target : null;
+      if (!cible || boite!.contains(cible) || prison!.contains(cible)) return false;
+      const fin = a.effect?.getComputedTiming().endTime;
+      return typeof fin === "number" && Number.isFinite(fin);
+    });
+    if (enCours.length === 0) return;
+    await Promise.race([Promise.allSettled(enCours.map((a) => a.finished)), new Promise((fin) => setTimeout(fin, ENTREES_MAX_MS))]);
+  }
+
   /** Son salut, une seule fois par onglet, et seulement si les animations sont permises : rien ne change tout seul en pause. */
-  function saluer(): void {
+  function preparerLeSalut(): void {
     if (range || calme() || lire("sessionStorage", CLE_SALUE) === "1") return;
-    ecrire("sessionStorage", CLE_SALUE, "1");
-    window.setTimeout(() => {
-      if (!range && !bulleOuverte && !glisse && !calme() && !document.hidden) dire(REPLIQUES[suivante()] ?? "", false);
-    }, 1_600);
+    salut = { texte: REPLIQUES[suivante()] ?? "", des: performance.now() + SALUT_APRES_MS };
   }
 
   function poserLesImages(images: ImagesGardees): void {
