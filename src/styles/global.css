@@ -18165,3 +18165,125 @@ button.monde-etiquette:hover {
   color: #fff;
   font-size: 1rem;
 }
+
+/* ---------- Le monde du village : la colline, l'approche, la vie (14 novembre 2026, deuxième étape) ---------- */
+/* Demandes du pilote après les premières planches : « les Gaulois sont trop gros, ainsi que les bâtiments » (on voit le
+   monde de plus loin, avec des niveaux d'approche), « un monde vivant qui pourra accueillir jusqu'à 1000 membres » (le
+   village s'étage en terrasses), « des éléments OpenFront » (le bas : la voie, l'usine, le port, la mer), des bêtes.
+   Ces règles complètent « Le monde du village », plus haut : le monde a maintenant une hauteur, et la caméra deux sens. */
+
+/* Tout le dessin tient dans une optique : pour passer d'un niveau d'approche à l'autre, elle grandit ou rétrécit
+   lentement (une seconde, réglée par l'écran), puis le monde est redessiné net, en cases entières. */
+.monde-optique {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+/* Le fond (ciel, nuages, lointains) monte et descend avec la caméra ; le monde la suit dans les deux sens. */
+.monde-fond {
+  position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform;
+}
+.monde-ciel,
+.monde-monde {
+  top: 0;
+  bottom: auto;
+}
+/* Ce que les événements et les bêtes posent sur le monde : de petites toiles, que l'écran déplace. */
+.monde-lutin,
+.monde-bete {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+.monde-habitants,
+.monde-evenements {
+  display: contents;
+}
+/* Les étiquettes passent devant les Gaulois, quelle que soit la hauteur du monde ; une bulle ouverte passe devant elles. */
+.monde-etiquette {
+  z-index: 9000;
+}
+/* Vus de loin, au-delà de soixante Gaulois, leurs noms ne s'écrivent plus sous chacun (sauf le sien) : ils restent au
+   survol, au toucher et dans « Qui est où ». */
+.monde-habitants[data-foule] .monde-acteur:not([data-moi]) .place-nom {
+  display: none;
+}
+.monde-lucioles i {
+  bottom: auto;
+}
+/* La petite carte : un bouton par quartier, tous de la même largeur, la grand-rue d'ouest en est puis le bas. */
+.monde-carte {
+  width: min(44rem, calc(100% - 30rem));
+}
+.monde-carte-bande {
+  display: flex;
+}
+.monde-carte-quartier {
+  position: relative;
+  inset: auto;
+  flex: 1 1 0;
+  width: auto;
+}
+.monde-carte-quartier:first-child {
+  border-left: 0;
+}
+/* Aux deux bouts, le nom du quartier s'aligne sur son bouton : il ne sort pas de l'écran. */
+.monde-carte-quartier:nth-child(-n + 2) .monde-carte-nom {
+  left: 0;
+  translate: none;
+}
+.monde-carte-quartier:nth-last-child(-n + 3) .monde-carte-nom {
+  right: 0;
+  left: auto;
+  translate: none;
+}
+/* S'approcher ou s'éloigner : deux boutons, en bas à droite, au-dessus de la ligne des liens. */
+.monde-approche {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 2.75rem;
+  z-index: 20;
+  display: grid;
+  gap: 0.1875rem;
+  padding: 0.25rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.625rem;
+  background: var(--monde-vitre);
+  cursor: auto;
+  touch-action: auto;
+}
+.monde-approche-bouton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.5rem;
+  color: #fff;
+  cursor: pointer;
+}
+.monde-approche-bouton:hover:not(:disabled) {
+  background: var(--color-surface-2);
+}
+.monde-approche-bouton:disabled {
+  color: var(--color-line-strong);
+  cursor: default;
+}
+@media (max-width: 47.9375rem) {
+  .monde-carte {
+    width: auto;
+  }
+  .monde-approche {
+    right: 0.5rem;
+    bottom: 2rem;
+  }
+}
+/* Vu de loin, un nom garde la place de s'écrire : il ne se coupe pas à la largeur du Gaulois. */
+.monde-acteur .place-nom {
+  max-width: max(calc(var(--vie-nom-l) * var(--place-case)), 7.5rem);
+}

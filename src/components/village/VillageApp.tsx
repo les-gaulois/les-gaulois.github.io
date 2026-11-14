@@ -7,7 +7,7 @@ import { lireVillage, messageDeLaPlace } from "../../lib/village/ecran-place";
 import { lumiereDuVillage } from "../../lib/village/lumiere";
 import type { EtatDuMonde } from "../../lib/village/monde-etat";
 import { taillesDesDessins } from "../../lib/village/monde/composition";
-import { emplacementDuBatiment, emplacementsDe, planDuMonde, quartierDuLieu } from "../../lib/village/monde/plan";
+import { type Emplacement, emplacementDuBatiment, emplacementsDe, hautDansLeMonde, planDuMonde, quartierDuLieu } from "../../lib/village/monde/plan";
 import { type FenetreDuMonde, fenetreDeLAncre } from "../../lib/village/monde/textes";
 import type { BatimentId } from "../../lib/village/chantier-liste";
 import { type Habitant, type Lieu, lieuDOuverture, repartirLeVillage } from "../../lib/village/vie";
@@ -110,7 +110,6 @@ function useVillage(actif: boolean): Lecture {
  * `#gaulois` ouvre « Mon Gaulois », `#marche` « Le marché », `#place` le monde seul.
  */
 function Monde({ etat, me, lien, rafraichir, ferme }: { etat: EtatDuMonde; me: Me | null; lien: boolean; rafraichir?: () => Promise<void>; ferme?: ComponentChildren }) {
-  const plan = useMemo(() => planDuMonde(taillesDesDessins()), []);
   const camera = useMemo(() => new CameraDuMonde(), []);
   const fige = useFige();
   const horloge = useHorloge(!fige);
@@ -127,6 +126,10 @@ function Monde({ etat, me, lien, rafraichir, ferme }: { etat: EtatDuMonde; me: M
   const village = lecture.kind === "prete" ? lecture.village : null;
   const lieux = useMemo(() => (village ? repartirLeVillage(village.gaulois, date, village.releve) : PERSONNE), [village, date]);
   const membre = village !== null;
+  // Le monde est bâti pour le nombre de Gaulois du village : une maison par tranche de quatre, jusqu'à mille. Un visiteur,
+  // à qui le serveur ne dit rien des membres, voit le village de départ.
+  const habitants = village?.gaulois.length ?? 0;
+  const plan = useMemo(() => planDuMonde(taillesDesDessins(), habitants), [habitants]);
 
   // La fenêtre ouverte suit l'adresse ; un compte qui doit encore donner son lien OpenFront le donne d'abord.
   const [ouverte, setOuverte] = useState<FenetreDuMonde | null>(() => fenetreDeLAncre(location.hash));
@@ -170,12 +173,14 @@ function Monde({ etat, me, lien, rafraichir, ferme }: { etat: EtatDuMonde; me: M
   // À l'arrivée, la caméra est sur la place ; dès que le village est lu, sur le lieu où se trouve son Gaulois.
   const placee = useRef(false);
   useEffect(() => {
-    if (!placee.current) camera.aller(quartierDuLieu(plan, "place").vue, true);
+    const place = quartierDuLieu(plan, "place");
+    if (!placee.current) camera.aller(place.vue, place.vueY, true);
     if (village && !placee.current) {
       placee.current = true;
-      camera.aller(quartierDuLieu(plan, lieuDOuverture(lieux)).vue, true);
+      const lieu = quartierDuLieu(plan, lieuDOuverture(lieux));
+      camera.aller(lieu.vue, lieu.vueY, true);
     }
-  }, [village]);
+  }, [village, plan]);
   useEffect(() => () => camera.fermer(), [camera]);
 
   // La page est prête : elle garde sa mise en page d'écran (voir le script en ligne de village.astro).
@@ -185,23 +190,29 @@ function Monde({ etat, me, lien, rafraichir, ferme }: { etat: EtatDuMonde; me: M
   }, []);
 
   /** Sur un téléphone, aller voir quelque chose referme la fenêtre, qui le cacherait. */
-  const voir = (x: number) => {
+  const voir = (x: number, y: number) => {
     if (window.matchMedia("(max-width: 47.9375rem)").matches) fermer();
-    camera.aller(x);
+    camera.aller(x, y);
+  };
+  const voirLEmplacement = (e: Emplacement) => voir(e.x + e.largeur / 2, hautDansLeMonde(e) + e.hauteur / 2);
+  const voirLeQuartier = (lieu: Lieu) => {
+    const q = quartierDuLieu(plan, lieu);
+    voir(q.vue, q.vueY);
   };
   const parler = (habitant: Habitant) => {
     toucher.toucher(habitant);
     // La caméra va à celui qui parle : dans son lieu, à peu près à sa place.
-    if (moi.x !== null && habitant.gaulois.moi) camera.aller(moi.x);
-    else camera.aller(quartierDuLieu(plan, habitant.presence.lieu).vue);
+    const q = quartierDuLieu(plan, habitant.presence.lieu);
+    if (moi.point !== null && habitant.gaulois.moi) camera.aller(moi.point.x, moi.point.y);
+    else camera.aller(q.vue, q.vueY);
   };
 
   const messageDuVillage = lecture.kind === "fermee" || lecture.kind === "erreur" ? lecture.message : null;
   return (
     <div class="monde" data-fenetre={ouverte ?? undefined} data-testid="village">
-      <MondeScene plan={plan} etat={etat} lumiere={lumiere} date={date} lieux={lieux} camera={camera} horloge={horloge} fige={fige} parole={toucher.parole} onToucher={toucher.toucher} ouvrir={(id) => montrer(id)} membre={membre} moiA={(x) => moi.poser(x)}>
+      <MondeScene plan={plan} etat={etat} lumiere={lumiere} date={date} lieux={lieux} camera={camera} horloge={horloge} fige={fige} parole={toucher.parole} onToucher={toucher.toucher} ouvrir={(id) => montrer(id)} membre={membre} moiA={(point) => moi.poser(point)}>
         <MondeTete />
-        <MondeCarte plan={plan} camera={camera} comptes={membre ? comptesDesLieux(lieux) : null} moi={moi} />
+        <MondeCarte plan={plan} camera={camera} comptes={membre ? comptesDesLieux(lieux) : null} />
         <MondeCredit />
         <MondeFenetre id="gaulois" ouverte={ouverte === "gaulois"} onFermer={fermer}>
           {vues.has("gaulois") &&
@@ -222,27 +233,21 @@ function Monde({ etat, me, lien, rafraichir, ferme }: { etat: EtatDuMonde; me: M
         )}
         {connecte && (
           <MondeFenetre id="qui" ouverte={ouverte === "qui"} onFermer={fermer}>
-            <FenetreQui village={village} lieux={lieux} message={messageDuVillage} dit={toucher.dit} onParler={parler} onGaulois={() => montrer("gaulois")} voirLieu={(lieu) => voir(quartierDuLieu(plan, lieu).vue)} />
+            <FenetreQui village={village} lieux={lieux} message={messageDuVillage} dit={toucher.dit} onParler={parler} onGaulois={() => montrer("gaulois")} voirLieu={voirLeQuartier} />
           </MondeFenetre>
         )}
         <MondeFenetre id="chantier" ouverte={ouverte === "chantier"} onFermer={fermer}>
           <FenetreChantier
             etat={etat}
-            voir={(id) => {
-              const e = emplacementDuBatiment(plan, id as BatimentId);
-              voir(e.x + e.largeur / 2);
-            }}
+            voir={(id) => voirLEmplacement(emplacementDuBatiment(plan, id as BatimentId))}
           />
         </MondeFenetre>
         <MondeFenetre id="feu" ouverte={ouverte === "feu"} onFermer={fermer}>
-          <FenetreFeu etat={etat} voir={() => voir(plan.feu.x)} />
+          <FenetreFeu etat={etat} voir={() => voir(plan.feu.x, plan.dy0 + plan.feu.pied - 60)} />
         </MondeFenetre>
         <MondeFenetre id="forge" ouverte={ouverte === "forge"} onFermer={fermer}>
           <FenetreForge
-            voir={() => {
-              const e = emplacementsDe(plan, "forge")[0]!;
-              voir(e.x + e.largeur / 2);
-            }}
+            voir={() => voirLEmplacement(emplacementsDe(plan, "forge")[0]!)}
           />
         </MondeFenetre>
       </MondeScene>

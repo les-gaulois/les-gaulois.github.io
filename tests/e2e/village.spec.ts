@@ -152,6 +152,49 @@ test("au clavier, la scène prend le focus et les flèches déplacent le monde",
   await expect.poll(decalage).toBeGreaterThan(avant);
 });
 
+test("on voit le monde de loin à l'arrivée ; les boutons et les touches plus et moins approchent ou éloignent d'un niveau", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "Approche testée sur desktop.");
+  // Sans mouvement, le niveau change d'un coup.
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/village");
+  await pret(page);
+  const scene = page.getByTestId("monde");
+  const pres = page.getByTestId("monde-plus-pres");
+  const loin = page.getByTestId("monde-plus-loin");
+  // Au plus loin : une case vaut un pixel, et l'on ne peut pas s'éloigner davantage.
+  await expect(scene).toHaveAttribute("data-niveau", "1");
+  await expect(loin).toBeDisabled();
+  await pres.click();
+  await expect(scene).toHaveAttribute("data-niveau", "2");
+  await expect(loin).toBeEnabled();
+  // Les cases restent entières : le calque du monde est exactement deux fois plus grand.
+  const largeur = () => page.locator(".monde-monde").evaluate((el) => (el as HTMLElement).offsetWidth);
+  const aDeux = await largeur();
+  await scene.focus();
+  await page.keyboard.press("-");
+  await expect(scene).toHaveAttribute("data-niveau", "1");
+  expect(await largeur()).toBe(aDeux / 2);
+  await page.keyboard.press("+");
+  await page.keyboard.press("+");
+  await page.keyboard.press("+");
+  await page.keyboard.press("+");
+  await expect(scene).toHaveAttribute("data-niveau", "4");
+  await expect(pres).toBeDisabled();
+});
+
+test("la petite carte mène à chaque quartier, de la grand-rue comme du bas", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "Petite carte testée sur desktop.");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/village");
+  await pret(page);
+  const carte = page.getByTestId("monde-carte");
+  await expect(carte.locator("[data-quartier]")).toHaveCount(11);
+  for (const quartier of ["port", "gare", "ruisseau", "place"]) {
+    await carte.locator(`[data-quartier="${quartier}"]`).click();
+    await expect(carte.locator(`[data-quartier="${quartier}"]`)).toHaveAttribute("aria-current", "true");
+  }
+});
+
 test("le bouton pause fige le monde : plus rien ne bouge", async ({ page }) => {
   await page.goto("/village");
   await pret(page);

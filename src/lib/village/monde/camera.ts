@@ -1,16 +1,22 @@
 /**
- * La caméra du monde du village : des calculs purs. On se déplace de gauche à droite seulement ; la caméra glisse
- * lentement, démarre et s'arrête en douceur, jamais d'à-coup (goûts du pilote : rien de brusque, pas de zoom).
+ * La caméra du monde du village : des calculs purs. On se déplace dans les deux sens (le monde est une colline, plus haute
+ * que l'écran dès qu'on s'approche) ; la caméra glisse lentement, démarre et s'arrête en douceur, jamais d'à-coup. On
+ * regarde le monde de plus ou moins près, par niveaux : une case vaut toujours un nombre entier de pixels, et le passage
+ * d'un niveau à l'autre est lent et doux (goûts du pilote : rien de brusque, pas de zoom rapide).
  */
 
-/** La hauteur, en cases, que l'écran doit toujours montrer : la bande de l'avant et le haut des plus grands bâtiments. */
-export const RANGEES_VOULUES = 270;
+/** Les niveaux d'approche : le côté d'une case, en pixels. Au plus loin, un Gaulois fait 48 pixels sur 64. */
+export const NIVEAUX = [1, 2, 3, 4] as const;
 
-/** Le côté d'une case, en pixels entiers, pour une scène de cette hauteur : 1 sur un téléphone couché, 2 sur un portable ou un téléphone, 3 ou plus sur un grand écran. */
-export function coteDeLaCase(hauteurScene: number, largeurScene: number): number {
-  const cote = Math.max(1, Math.floor(hauteurScene / RANGEES_VOULUES));
-  // Un écran étroit garde de petites cases : on y voit plus de monde d'un coup.
-  return largeurScene < 640 ? Math.min(2, cote) : Math.min(5, cote);
+/** Le niveau de l'arrivée : de loin, pour voir le village d'un coup d'œil ; un cran plus près sur un très grand écran. */
+export function niveauDeDepart(hauteurScene: number): number {
+  return hauteurScene >= 1500 ? 2 : 1;
+}
+
+/** Le niveau voisin, plus près (`+1`) ou plus loin (`-1`) ; le même au bout de l'échelle. */
+export function niveauVoisin(niveau: number, sens: 1 | -1): number {
+  const rang = NIVEAUX.indexOf(niveau as (typeof NIVEAUX)[number]);
+  return NIVEAUX[Math.min(NIVEAUX.length - 1, Math.max(0, (rang < 0 ? 0 : rang) + sens))]!;
 }
 
 /** La colonne de gauche de la vue, bornée au monde. */
@@ -18,10 +24,22 @@ export function bornerLaVue(x: number, vue: number, largeurDuMonde: number): num
   return Math.min(Math.max(0, largeurDuMonde - vue), Math.max(0, x));
 }
 
+/**
+ * La rangée du haut de la vue, bornée au monde. Un monde moins haut que l'écran se pose en bas : le ciel remplit le haut
+ * (la rangée est alors négative).
+ */
+export function bornerLaHauteur(y: number, vue: number, hauteurDuMonde: number): number {
+  if (hauteurDuMonde <= vue) return hauteurDuMonde - vue;
+  return Math.min(hauteurDuMonde - vue, Math.max(0, y));
+}
+
 /** La durée d'un glissement vers un lieu, en millisecondes : d'autant plus long qu'il va loin, jamais pressé. */
 export function dureeDuGlissement(cases: number): number {
   return Math.round(Math.min(3600, Math.max(900, 700 + Math.abs(cases) * 1.4)));
 }
+
+/** La durée du passage d'un niveau d'approche à l'autre, en millisecondes. */
+export const DUREE_DE_L_APPROCHE = 1100;
 
 /** La part du chemin faite à la part `t` du temps (de 0 à 1) : un départ et une arrivée en douceur. */
 export function douceur(t: number): number {

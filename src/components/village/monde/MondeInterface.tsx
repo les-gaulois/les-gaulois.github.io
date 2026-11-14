@@ -1,9 +1,9 @@
 import type { ComponentChildren } from "preact";
-import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { clan } from "../../../../config/clan";
 import { basePath } from "../../../lib/compte/api";
 import { ICONES_DES_FENETRES, ICONES_DES_QUARTIERS } from "../../../lib/village/monde/icones";
-import { type Plan, type QuartierId, quartierDe } from "../../../lib/village/monde/plan";
+import type { Plan, QuartierId } from "../../../lib/village/monde/plan";
 import { FENETRES_DU_MONDE, type FenetreDuMonde } from "../../../lib/village/monde/textes";
 import type { Habitant, Lieu } from "../../../lib/village/vie";
 import { Toile } from "../PlaceToile";
@@ -17,21 +17,13 @@ import type { CameraDuMonde } from "./camera-du-monde";
  */
 
 /**
- * Où est le Gaulois du membre, en colonnes du monde (`null` : il n'est pas au village) : les Gaulois le disent à chaque
- * pas, la petite carte l'écoute.
+ * Où est le Gaulois du membre dans le monde (`null` : il n'est pas au village) : les Gaulois le disent à chaque pas, la
+ * caméra peut aller à lui.
  */
 export class RepereDuMoi {
-  x: number | null = null;
-  private ecoutes = new Set<() => void>();
-  poser(x: number | null): void {
-    const arrondi = x === null ? null : Math.round(x);
-    if (arrondi === this.x) return;
-    this.x = arrondi;
-    for (const ecoute of this.ecoutes) ecoute();
-  }
-  ecouter(ecoute: () => void): () => void {
-    this.ecoutes.add(ecoute);
-    return () => this.ecoutes.delete(ecoute);
+  point: { x: number; y: number } | null = null;
+  poser(point: { x: number; y: number } | null): void {
+    this.point = point === null ? null : { x: Math.round(point.x), y: Math.round(point.y) };
   }
 }
 
@@ -41,39 +33,41 @@ export function MondeTete() {
 }
 
 /**
- * La petite carte d'ensemble : le panorama en une bande, un bouton par quartier (son icône, son nom quand la place le
- * permet, le nombre de Gaulois des lieux de vie), et un cadre qui montre ce que l'écran voit. Un clic y mène : la caméra
- * glisse lentement. Le triangle blanc marque le Gaulois du membre.
+ * La petite carte d'ensemble : un bouton par quartier du monde (son icône, le nombre de Gaulois des lieux de vie), dans
+ * l'ordre où on les trouve : la grand-rue d'ouest en est, puis le bas (la gare, l'usine, le port). Un clic y mène : la
+ * caméra glisse lentement. Le quartier où l'on est porte le fond clair, et son nom s'écrit dessous.
  */
-export function MondeCarte({ plan, camera, comptes, moi }: { plan: Plan; camera: CameraDuMonde; comptes: Record<Lieu, number> | null; moi: RepereDuMoi }) {
-  const vue = useRef<HTMLSpanElement>(null);
-  const marque = useRef<HTMLSpanElement>(null);
-  const [ici, setIci] = useState<QuartierId>(() => quartierDe(plan, camera.milieu).id);
+/**
+ * Le quartier où l'on est : celui dont la vue (là où la caméra irait si on cliquait son bouton) est la plus proche de ce
+ * que l'écran montre. Sur un grand écran qui voit la grand-rue et le bas à la fois, deux quartiers l'un sous l'autre ont
+ * la même vue : le premier de la liste l'emporte, sauf si l'on vient de demander l'autre (`voulu`).
+ */
+function quartierDeLaVue(plan: Plan, camera: CameraDuMonde, voulu: QuartierId | null): QuartierId {
+  let choisi = plan.quartiers[0]!.id;
+  let ecart = Infinity;
+  for (const q of plan.quartiers) {
+    const [x, y] = camera.ouIrait(q.vue, q.vueY);
+    const d = Math.hypot(x - camera.milieu, y - camera.milieuY) - (q.id === voulu ? 1 : 0);
+    if (d < ecart) {
+      ecart = d;
+      choisi = q.id;
+    }
+  }
+  return choisi;
+}
+
+export function MondeCarte({ plan, camera, comptes }: { plan: Plan; camera: CameraDuMonde; comptes: Record<Lieu, number> | null }) {
+  const voulu = useRef<QuartierId | null>(null);
+  const [ici, setIci] = useState<QuartierId>(() => quartierDeLaVue(plan, camera, null));
 
   useLayoutEffect(() => {
     const placer = () => {
-      if (vue.current) {
-        vue.current.style.left = `${(camera.x / plan.largeur) * 100}%`;
-        vue.current.style.width = `${Math.min(100, (camera.vue / plan.largeur) * 100)}%`;
-      }
-      const quartier = quartierDe(plan, camera.milieu).id;
+      const quartier = quartierDeLaVue(plan, camera, voulu.current);
       setIci((avant) => (avant === quartier ? avant : quartier));
     };
     placer();
     return camera.ecouter(placer);
   }, [camera, plan]);
-
-  // Le repère du Gaulois du membre : il suit chacun de ses pas (rien ne tourne quand il ne bouge pas, ni page cachée).
-  useEffect(() => {
-    const placer = () => {
-      const el = marque.current;
-      if (!el) return;
-      el.hidden = moi.x === null;
-      if (moi.x !== null) el.style.left = `${(moi.x / plan.largeur) * 100}%`;
-    };
-    placer();
-    return moi.ecouter(placer);
-  }, [plan, moi]);
 
   return (
     <nav class="monde-carte" aria-label="Aller à un quartier du village" data-monde-ui data-testid="monde-carte">
@@ -82,16 +76,11 @@ export function MondeCarte({ plan, camera, comptes, moi }: { plan: Plan; camera:
           const icone = ICONES_DES_QUARTIERS[quartier.id];
           const nombre = comptes && quartier.lieu ? comptes[quartier.lieu] : null;
           return (
-            <button
-              key={quartier.id}
-              type="button"
-              class="monde-carte-quartier"
-              data-quartier={quartier.id}
-              aria-current={ici === quartier.id ? "true" : undefined}
-              title={quartier.nom}
-              style={{ "--monde-q-x": `${(quartier.x / plan.largeur) * 100}%`, "--monde-q-l": `${(quartier.largeur / plan.largeur) * 100}%` }}
-              onClick={() => camera.aller(quartier.vue)}
-            >
+            <button key={quartier.id} type="button" class="monde-carte-quartier" data-quartier={quartier.id} aria-current={ici === quartier.id ? "true" : undefined} title={quartier.nom} onClick={() => {
+              voulu.current = quartier.id;
+              camera.aller(quartier.vue, quartier.vueY);
+              setIci(quartierDeLaVue(plan, camera, quartier.id));
+            }}>
               <Toile largeur={icone.largeur} hauteur={icone.hauteur} cases={icone.cases} echelle={2} class="monde-carte-icone" />
               <span class="monde-carte-nom">{quartier.nom}</span>
               {nombre !== null && nombre > 0 && (
@@ -103,8 +92,6 @@ export function MondeCarte({ plan, camera, comptes, moi }: { plan: Plan; camera:
             </button>
           );
         })}
-        <span ref={vue} class="monde-carte-vue" aria-hidden="true" />
-        <span ref={marque} class="monde-carte-moi" aria-hidden="true" hidden />
       </div>
     </nav>
   );

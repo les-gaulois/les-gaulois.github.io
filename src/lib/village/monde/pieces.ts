@@ -12,7 +12,7 @@
 import { type Palette, type Planche, alea } from "../decor";
 import { type Lumiere, cielDuVillage, couleurDuDedans, couleurDuDehors, melanger } from "../lumiere";
 import { LIT_HAUTEUR, LIT_LARGEUR } from "./poses-monde";
-import { type Emplacement, LIGNE, MONDE_HAUTEUR, PIED_DU_PONT, PLANCHER, type Plan } from "./plan";
+import { type Emplacement, LIGNE, RUE_HAUTEUR, PIED_DU_PONT, PLANCHER, type Plan } from "./plan";
 
 type Teinte = (couleur: string) => string;
 
@@ -733,7 +733,7 @@ export function poserSol(planche: Planche, p: Palette, l: Lumiere, plan: Plan, d
   const eau = couleursDeLEau(l);
   const lointaine = melanger(p.herbe.fond, p.herbe.sombre, 0.55);
   const feu = plan.feu;
-  for (let y = LIGNE; y < MONDE_HAUTEUR; y++) {
+  for (let y = LIGNE; y < RUE_HAUTEUR; y++) {
     const lit = litDuRuisseau(plan, y);
     for (let x = de; x < a; x++) {
       // L'herbe : plus sombre au loin, son bord clair sur la ligne du fond, des brins clairs et sombres.
@@ -770,7 +770,7 @@ export function poserSol(planche: Planche, p: Palette, l: Lumiere, plan: Plan, d
       }
       // Le pré du champ de bataille : l'herbe piétinée là où les deux lignes se touchent.
       {
-        const dx = (x - (plan.pre.x + 288)) / 120;
+        const dx = (x - (plan.pre.front + 48)) / Math.max(120, plan.pre.parRang * plan.pre.pas * 0.9);
         const dy = (y - 352) / 26;
         const d = dx * dx + dy * dy;
         const t = alea(x + 13, y + 900);
@@ -788,7 +788,7 @@ export function poserSol(planche: Planche, p: Palette, l: Lumiere, plan: Plan, d
     }
   }
   // Les touffes d'herbe et les fleurs, par-dessus : jamais sur le chemin, la terre ou l'eau.
-  for (let y = LIGNE + 4; y < MONDE_HAUTEUR - 1; y++) {
+  for (let y = LIGNE + 4; y < RUE_HAUTEUR - 1; y++) {
     for (let x = de - 2; x < a + 2; x++) {
       const al = alea(x + 71, y + 13);
       if (al > 0.006) continue;
@@ -815,7 +815,7 @@ export function poserRives(planche: Planche, p: Palette, l: Lumiere, plan: Plan,
   const fond = litDuRuisseau(plan, LIGNE);
   poserBuisson(planche, p, fond.x - 9, LIGNE + 3, 1.1);
   poserBuisson(planche, p, fond.x + 10, LIGNE + 2, 1.3);
-  for (let y = LIGNE + 14; y < MONDE_HAUTEUR - 4; y += 9) {
+  for (let y = LIGNE + 14; y < RUE_HAUTEUR - 4; y += 9) {
     const lit = litDuRuisseau(plan, y);
     const cote = ((y / 9) | 0) % 2 === 0 ? -1 : 1;
     if (Math.abs(y - PIED_DU_PONT) < 16) continue;
@@ -851,7 +851,7 @@ export function poserRives(planche: Planche, p: Palette, l: Lumiere, plan: Plan,
 export function chemineesDuPlan(plan: Plan): { x: number; y: number }[] {
   const cheminees: { x: number; y: number }[] = [];
   for (const e of plan.emplacements) {
-    const faite = e.pied - e.hauteur + 3;
+    const faite = e.dy + e.pied - e.hauteur + 3;
     if (e.piece.sorte === "maison") cheminees.push({ x: e.x + (e.piece.rang % 2 === 0 ? 112 : 50) + 7, y: faite - 8 });
     else if (e.piece.sorte === "taverne") cheminees.push({ x: e.x + 262 + 7, y: faite - 10 });
   }

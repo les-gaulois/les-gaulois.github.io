@@ -33,6 +33,9 @@ const DESSINS = {
   qui: [".jj..nnnnnn", ".jj..nnnnnn", "...........", ".rr..nnnn..", ".rr..nnnn..", "...........", ".bb..nnnnn.", ".bb..nnnnn.", "...........", ".gg..nnn...", ".gg..nnn..."],
   chantier: ["..sssssss..", ".sSSSSSSSs.", ".sSSSSSSSs.", "..sssssss..", "....hB.....", "....hB.....", "....hB.....", "....hB.....", "....hB.....", "....hB.....", "....hB....."],
   forge: ["...........", "SSSSSSSSSs.", ".sssssssss.", "...sssss...", "....sss....", "....sss....", "...sssss...", "..sssssss..", ".aaaaaaaaa.", "..hhhhhhh..", "..hhhhhhh.."],
+  gare: ["...........", "....ss.....", "....aa.....", ".bbbbbbaaa.", ".bnnbbba.a.", ".bbbbbbaaa.", "bbbbbbbbbbb", "brrrbrrrbbb", ".rar.rar...", ".rrr.rrr...", "aaaaaaaaaaa"],
+  usine: [".....s...s.", "....ss..ss.", "....a...a..", "....o...o..", "....o...o..", ".a..o.a.o..", "aaa.oaaao..", "ooooooooooo", "ojjoojjoooo", "ooooooooooo", "aaaaaaaaaaa"],
+  port: ["....sss....", "....s.s....", "....sss....", ".....s.....", "..sssssss..", ".....s.....", "s....s....s", "s....s....s", ".s...s...s.", "..sssssss..", "....sss...."],
   ruisseau: ["...........", ".ee...ee...", "e..e.e..e.e", "....e....e.", "...........", ".ww...ww...", "w..w.w..w.w", "....w....w.", "...........", ".ee...ee...", "e..e.e..e.e"],
 } as const;
 
@@ -66,4 +69,7 @@ export const ICONES_DES_QUARTIERS: Readonly<Record<QuartierId, Decor>> = {
   reunion: ICONES_DES_LIEUX.reunion,
   marche: MARCHE,
   bataille: ICONES_DES_LIEUX.bataille,
+  gare: lire(DESSINS.gare),
+  usine: lire(DESSINS.usine),
+  port: lire(DESSINS.port),
 };
