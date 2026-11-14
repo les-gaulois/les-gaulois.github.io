@@ -779,6 +779,24 @@ test("la liste des membres a son onglet, entre la page Membres et le QG", async 
   await expect(page).toHaveURL(/\/liste\/?$/);
 });
 
+// Le village sans serveur (le site publié sans PUBLIC_SUPABASE_URL) : la porte fermée, sans onglets ni vestiaire. Le Gaulois de
+// départ, la connexion et les trois onglets ne paraissent qu'avec le serveur : ils sont essayés à part, contre les vraies
+// fonctions SQL. L'accessibilité et les largeurs de /village sont contrôlées avec les autres pages (PAGES).
+test("le village sans serveur garde sa porte fermée, sans onglets, avec le bouton pause", async ({ page }) => {
+  await page.goto("/village");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Le village");
+  await expect(page.getByRole("heading", { level: 2, name: "Votre Gaulois" })).toBeVisible();
+  await expect(page.getByTestId("auth-not-open")).toBeVisible();
+  await expect(page.getByRole("tab")).toHaveCount(0);
+  await expect(page.getByTestId("village")).toHaveCount(0);
+  await expect(page.getByTestId("vestiaire-porte")).toHaveCount(0);
+  const pause = page.getByRole("button", { name: "Mettre les animations en pause" });
+  await expect(pause).toBeVisible();
+  await pause.click();
+  await expect(page.locator("html")).toHaveClass(/fx-off/);
+  await expect(pause).toHaveAttribute("aria-pressed", "true");
+});
+
 /** Le lien que le doigt touche en un point d'un élément : celui du dessus, comme un vrai toucher. */
 const linkAt = async (page: Page, x: number, y: number) =>
   page.evaluate(([px, py]) => document.elementFromPoint(px!, py!)?.closest("a")?.getAttribute("href") ?? null, [x, y]);

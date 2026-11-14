@@ -9,8 +9,13 @@
  * transparente. Le message n'a plus de texte depuis le 12 novembre 2026 : c'est l'image qui porte tout le crédit, avec la
  * mention « © OpenFront and Contributors », la licence, ce que le robot a changé, et les adresses de la source et de la
  * licence, écrites en toutes lettres. Jamais le CDN du jeu : voir NOTICE.md.
+ *
+ * Avec la monnaie du village (`STATERES_SUR_LES_VICTOIRES`), la pièce et le nombre de statères que reçoit chaque Gaulois
+ * présent se posent sous les points rapportés au clan, d'où ils viennent (`stateresDeVictoire`, `stateres.ts`). Rien si la
+ * partie ne rapporte pas de points.
  */
 import sharp, { type OverlayOptions } from "sharp";
+import { casesDuStatere, type TailleStatere } from "../../supabase/functions/code-discord/statere";
 import { fmtCount, fmtEpochTime, fmtInt, fmtMinutes, fmtScore } from "./format";
 import { AUCUN_GAULOIS, type GauloisParJoueur } from "./gaulois-joueurs";
 import { CARD_COLORS as C, fitted, kpiHeight, kpiParts, LOGO, MARGIN, pageFoot, pageHead, renderGazetteCard, type CardRect, type CardText, type GazetteCard, type GazetteFonts, type Kpi, type Measure } from "./gazette-image";
@@ -19,6 +24,7 @@ import { mapKey, mapLabel } from "./map-names";
 import { formatLabel } from "./results";
 import { fittedAlt, shownAddress } from "./salon-discord";
 import { chipLayout, chipParts, chipsHeight } from "./salon-image";
+import { stateresDeVictoire } from "./stateres";
 import { parisParts } from "./time";
 import type { Victory } from "./victoires";
 import { countedWords, countWords, crewList, gameLength, LICENSE_URL, mapSource, MAPS_SOURCE, OPENFRONT_CREDIT, pointsLabel, pointsWords, restWords, rivalsWords, rivalTag, victoryTitle } from "./victoires-discord";
@@ -37,6 +43,63 @@ const ROW_VALUE_SIZE = 80;
 const FOOTER_HEIGHT = 104;
 /** Les adresses du crédit ne s'écrivent pas plus petit : au-delà, celle du dossier de toutes les cartes remplace celle de la carte. */
 const CREDIT_MIN_SIZE = 14;
+
+/**
+ * La pièce et les statères de chaque Gaulois, sous les points de la victoire. À passer à `true` le jour où la monnaie du
+ * village est en ligne, et pas avant : l'image annoncerait des statères que personne ne reçoit encore.
+ */
+export const STATERES_SUR_LES_VICTOIRES = false;
+/** La pièce sous les points : ses 16 cases, de 2 pixels chacune, au milieu de la hauteur des capitales de sa ligne. */
+const COIN_CELLS: TailleStatere = 16;
+const COIN_CELL = 2;
+const COIN_GAP = 10;
+/** De la ligne de base d'un chiffre à celle de sa ligne d'explication : la mesure de `kpiParts`. */
+const HINT_DROP = 42;
+/** L'écart entre deux chiffres côte à côte, et ce qu'un chiffre laisse libre dans sa colonne : les mesures de `kpiParts`. */
+const KPI_GAP = 24;
+const KPI_INSET = 26;
+
+/**
+ * « 54 statères par villageois » : seuls les comptes validés qui ont créé leur Gaulois au village en reçoivent,
+ * l'image ne promet donc rien à « chaque Gaulois », et le mot tient dans la colonne. `null` : la partie ne rapporte pas de points.
+ */
+export function staterWords(v: Victory): string | null {
+  const each = stateresDeVictoire(v.points, v.gaulois);
+  if (each < 1) return null;
+  return `${fmtCount(each, "statère")} par villageois`;
+}
+
+/** La pièce, en rectangles : une suite de cases de même couleur sur une rangée n'en fait qu'un. */
+export function coinRects(x: number, y: number, cells: TailleStatere = COIN_CELLS, cell = COIN_CELL): CardRect[] {
+  const colors = casesDuStatere(cells);
+  const rects: CardRect[] = [];
+  for (let row = 0; row < cells; row++) {
+    for (let col = 0; col < cells; ) {
+      const color = colors[row * cells + col];
+      let end = col + 1;
+      while (end < cells && colors[row * cells + end] === color) end++;
+      if (color) rects.push({ x: x + col * cell, y: y + row * cell, width: (end - col) * cell, height: cell, radius: 0, color });
+      col = end;
+    }
+  }
+  return rects;
+}
+
+/**
+ * La pièce et les statères, sous le chiffre des points : à la place de la ligne d'explication, que ce chiffre n'a pas.
+ * `texts` : ceux des chiffres, où se retrouve celui des points ; `room` : la largeur libre de sa colonne.
+ */
+function staterParts(v: Victory, texts: readonly CardText[], room: number, measure: Measure): { rects: CardRect[]; texts: CardText[] } {
+  const words = staterWords(v);
+  const value = texts.find((t) => t.font === "cases" && t.text.startsWith("+"));
+  if (!words || !value) return { rects: [], texts: [] };
+  const coin = COIN_CELLS * COIN_CELL;
+  const baseline = value.y + HINT_DROP;
+  return {
+    rects: coinRects(value.x, baseline - 9 - coin / 2),
+    texts: [{ ...fitted(words, "body", 26, 17, room - coin - COIN_GAP, measure), x: value.x + coin + COIN_GAP, y: baseline, font: "body", color: C.MUTED }],
+  };
+}
 
 /** La mer du jeu, là où l'eau de la vignette est transparente : l'océan du client d'OpenFront, #4785b5 assombri de 10 par canal. */
 export const SEA = "#3D7BAB";
@@ -97,7 +160,15 @@ export interface ThumbnailShape {
  * Quoi écrire et où, à partir de la victoire et de la forme de la vignette : se teste sans police. `gaulois` : le Gaulois du
  * village de chaque membre de la partie qui a créé le sien, en buste derrière sa pastille bleue (`salon-image.ts`).
  */
-export function victoryCard(v: Victory, tag: string, siteUrl: string, measure: Measure, thumbnail: ThumbnailShape | null, gaulois: GauloisParJoueur = AUCUN_GAULOIS): VictoryCard {
+export function victoryCard(
+  v: Victory,
+  tag: string,
+  siteUrl: string,
+  measure: Measure,
+  thumbnail: ThumbnailShape | null,
+  staters = STATERES_SUR_LES_VICTOIRES,
+  gaulois: GauloisParJoueur = AUCUN_GAULOIS,
+): VictoryCard {
   const tiles = victoryTiles(v);
   const contentWidth = WIDTH - 2 * MARGIN;
 
@@ -134,12 +205,22 @@ export function victoryCard(v: Victory, tag: string, siteUrl: string, measure: M
       const kpi = kpiParts([tile], { x, y: Math.round(top + i * Math.min(step, kpiHeight(valueSize) + 24)), width: WIDTH - MARGIN - x, valueSize, minValueSize: 34 }, measure);
       rects.push(...kpi.rects);
       texts.push(...kpi.texts);
+      if (staters) {
+        const coin = staterParts(v, kpi.texts, WIDTH - MARGIN - x - KPI_INSET, measure);
+        rects.push(...coin.rects);
+        texts.push(...coin.texts);
+      }
     });
   } else {
     // Les chiffres, côte à côte.
     const kpis = kpiParts(tiles, { x: MARGIN, y: top, width: contentWidth, valueSize: ROW_VALUE_SIZE }, measure);
     rects.push(...kpis.rects);
     texts.push(...kpis.texts);
+    if (staters) {
+      const coin = staterParts(v, kpis.texts, (contentWidth - (tiles.length - 1) * KPI_GAP) / tiles.length - KPI_INSET, measure);
+      rects.push(...coin.rects);
+      texts.push(...coin.texts);
+    }
   }
 
   // Les Gaulois de la partie, en pastilles, sous leur nom en partie, puis les clans en face.
@@ -159,9 +240,11 @@ export function victoryCard(v: Victory, tag: string, siteUrl: string, measure: M
  * noms, que l'image n'écrit pas. Sans couper un nom : au-delà de ce que Discord accepte, les autres Gaulois sont comptés, et
  * le crédit de la carte reste entier.
  */
-export function victoryImageAlt(v: Victory, tag: string, withMap: boolean): string {
+export function victoryImageAlt(v: Victory, tag: string, withMap: boolean, staters = STATERES_SUR_LES_VICTOIRES): string {
   const head = `${victoryTitle(tag)} sur la carte ${mapLabel(v.map)}${v.format ? `, ${formatLabel(v.format)}` : ""}, ${victoryWhen(v).toLowerCase()}, heure de Paris.`;
   const figures = `${countWords(v)}${v.points === null ? "" : `, ${pointsWords(v.points)}`}, partie de ${tileLength(v.seconds)}.`;
+  const each = staters ? stateresDeVictoire(v.points, v.gaulois) : 0;
+  const coins = each > 0 ? [`Chaque Gaulois du village présent dans la partie reçoit ${fmtCount(each, "statère")}, pour les points rapportés au clan.`] : [];
   const credit = withMap ? `Image et nom de la carte : ${OPENFRONT_CREDIT}, CC BY-SA 4.0, image redimensionnée.` : `Nom de la carte : ${OPENFRONT_CREDIT}, CC BY-SA 4.0.`;
   return fittedAlt(v.crew, (shown, rest) => {
     const crew = crewList(
@@ -169,7 +252,7 @@ export function victoryImageAlt(v: Victory, tag: string, withMap: boolean): stri
       [...(rest > 0 ? [restWords(rest, shown.length)] : []), ...countedWords(v)],
     );
     const rivals = rivalsWords(v.rivals);
-    return [head, figures, ...(crew ? [`Gaulois de la partie, sous leur nom en partie : ${crew}.`] : []), ...(rivals ? [`Victoire ${rivals}.`] : []), credit].join(" ");
+    return [head, figures, ...coins, ...(crew ? [`Gaulois de la partie, sous leur nom en partie : ${crew}.`] : []), ...(rivals ? [`Victoire ${rivals}.`] : []), credit].join(" ");
   });
 }
 

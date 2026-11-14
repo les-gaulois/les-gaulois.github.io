@@ -332,9 +332,9 @@ const ACCUEIL = { ranking: { rank: 2, listed: 100, score: 1234.5, at: LISTED }, 
 
 /** Chaque image qui nomme des membres : dessinée avec la carte des Gaulois donnée. */
 const IMAGES: Record<string, (gaulois?: GauloisParJoueur) => GazetteCard> = {
-  "victoire avec vignette": (g) => victoryCard(VICTORY, "GAL", SITE, measure, SQUARE, g),
-  "victoire sans vignette": (g) => victoryCard(VICTORY, "GAL", SITE, measure, null, g),
-  "victoire à vingt-quatre": (g) => victoryCard({ ...VICTORY, crew: chipItems(24).map(({ text, id }) => ({ id, name: text })) }, "GAL", SITE, measure, SQUARE, g),
+  "victoire avec vignette": (g) => victoryCard(VICTORY, "GAL", SITE, measure, SQUARE, undefined, g),
+  "victoire sans vignette": (g) => victoryCard(VICTORY, "GAL", SITE, measure, null, undefined, g),
+  "victoire à vingt-quatre": (g) => victoryCard({ ...VICTORY, crew: chipItems(24).map(({ text, id }) => ({ id, name: text })) }, "GAL", SITE, measure, SQUARE, undefined, g),
   fiche: (g) => ficheCard(FACTS, "GAL", SITE, LISTED, measure, g),
   "plus actifs": (g) => activeCard(active, PERIOD, "GAL", SITE, measure, g),
   "paliers en lignes": (g) => milestoneCard(players(4), { ...PERIOD, players: [] }, "GAL", SITE, measure, g),
@@ -371,7 +371,7 @@ describe("les images qui nomment des membres", () => {
   }
   it("une victoire ne grandit que de ses lignes de pastilles qui ont un Gaulois", () => {
     const before = victoryCard(VICTORY, "GAL", SITE, measure, SQUARE);
-    const one = victoryCard(VICTORY, "GAL", SITE, measure, SQUARE, gauloisOf(["m0"]));
+    const one = victoryCard(VICTORY, "GAL", SITE, measure, SQUARE, undefined, gauloisOf(["m0"]));
     const sprite = one.gaulois![0]!;
     const grown = one.height - before.height;
     expect(grown).toBeGreaterThan(0);
@@ -381,7 +381,7 @@ describe("les images qui nomment des membres", () => {
     expect(chip).toBeDefined();
     expect(one.texts.find((t) => t.text === "Brennos")!.y).toBeGreaterThan(chip.y);
     // Un membre sans fiche (identifiant absent) n'a jamais de Gaulois.
-    expect(victoryCard({ ...VICTORY, crew: VICTORY.crew.map((p) => ({ ...p, id: null })) }, "GAL", SITE, measure, SQUARE, ALL)).toEqual(before);
+    expect(victoryCard({ ...VICTORY, crew: VICTORY.crew.map((p) => ({ ...p, id: null })) }, "GAL", SITE, measure, SQUARE, undefined, ALL)).toEqual(before);
   });
   it("la fiche garde son format : le Gaulois en entier à droite, la place et les chiffres serrés à gauche", () => {
     const before = ficheCard(FACTS, "GAL", SITE, LISTED, measure);
@@ -418,7 +418,7 @@ describe("le rendu avec les vraies polices", () => {
   const fonts = new GazetteFonts(root);
   it("chaque image se dessine avec ses Gaulois, sans texte couvert ni coupé, à la taille prévue", async () => {
     for (const [name, draw] of Object.entries({
-      victoire: (g: GauloisParJoueur) => victoryCard(VICTORY, "GAL", SITE, fonts.width, SQUARE, g),
+      victoire: (g: GauloisParJoueur) => victoryCard(VICTORY, "GAL", SITE, fonts.width, SQUARE, undefined, g),
       fiche: (g: GauloisParJoueur) => ficheCard(FACTS, "GAL", SITE, LISTED, fonts.width, g),
       paliers: (g: GauloisParJoueur) => milestoneCard(players(17), { ...PERIOD, players: [] }, "GAL", SITE, fonts.width, g),
       duos: (g: GauloisParJoueur) => groupsCard(WEEK, "GAL", SITE, fonts.width, g),

@@ -291,7 +291,7 @@ const victories: [string, typeof victory, GauloisParJoueur][] = [
 ];
 for (const [file, example, gaulois] of victories) {
   try {
-    const card = victoryCard(example, TAG, SITE, measure, thumbnail, gaulois);
+    const card = victoryCard(example, TAG, SITE, measure, thumbnail, undefined, gaulois);
     writeFileSync(join(OUT, file), await renderVictoryCard(card, fonts, root, thumbnail));
     console.log(`${file} : ${card.width} × ${card.height}`);
   } catch (e) {
