@@ -177,7 +177,7 @@ export function FenetreQui({ village, lieux, message, dit, onParler, onGaulois, 
   );
 }
 
-/** « La forge » : sa fenêtre est prête, son atelier ouvre plus tard (la forge aux souvenirs). */
+/** « La forge » : l'atelier de la forge aux souvenirs (`FenetreForge.tsx`), où l'on grave une de ses parties sur un objet. */
 export function FenetreForge({ voir }: { voir: () => void }) {
   return (
     <div class="monde-forge" data-testid="monde-forge">

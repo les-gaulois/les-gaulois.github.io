@@ -60,7 +60,7 @@ const doux = (t: number): number => {
 
 /**
  * Le train : une fois par cycle, il arrive de l'ouest, traverse le bas et entre au dépôt du port, où il disparaît. Il ne
- * reste qu'une minute et demie au plus (le pilote, 15 novembre 2026 : « je peux l'espacer »), même quand le village est
+ * reste qu'une minute et demie au plus (le pilote, 14 novembre 2026 : « je peux l'espacer »), même quand le village est
  * grand : il va alors un peu plus vite, sans jamais se presser.
  */
 function train(plan: Plan, tailles: (id: PieceOpenFrontId) => { largeur: number; hauteur: number }, dt: number, lutins: Lutin[]): void {

@@ -111,7 +111,7 @@ export function phraseDuFeu(feu: FeuLu, releve: string): string {
 /** Ce que /feu dit au seul joueur qui la tape, quand il n'y a pas de feu à montrer. */
 export function sansFeu(releve: string | null, site: string): string {
   const dernier = releve ? ` Dernier relevé : le ${releveEnMots(releve)}.` : "";
-  return `Pas de feu à montrer : le site n'a pas de relevé récent des parties du clan sur les 7 derniers jours.${dernier} Le village : <${site}/village>`;
+  return `Pas de feu à montrer : le site n'a pas toutes les parties du clan des 7 derniers jours.${dernier} Le village : <${site}/village>`;
 }
 
 /* ---------- Le dessin ---------- */

@@ -4,7 +4,7 @@ import { type Lumiere } from "../../../lib/village/lumiere";
 import type { EtatDuMonde } from "../../../lib/village/monde-etat";
 import { DUREE_DE_L_APPROCHE, NIVEAUX, niveauDeDepart, niveauVoisin } from "../../../lib/village/monde/camera";
 import { lotEnCours } from "../../../lib/village/monde/composition";
-import { LIGNE, type Plan, emplacementsDe, hautDansLeMonde, quartierDuLieu } from "../../../lib/village/monde/plan";
+import { LIGNE, type Plan, emplacementsDe, quartierDuLieu } from "../../../lib/village/monde/plan";
 import { avancementDuBatiment, batimentEnCours } from "../../../lib/village/chantier";
 import { type FenetreDuMonde, nomDuFeu, phraseDuChantier, pointsDuFeu } from "../../../lib/village/monde/textes";
 import { type Habitant, type Lieu, NOMS_DES_LIEUX, phraseDuReleve } from "../../../lib/village/vie";
@@ -431,7 +431,6 @@ export function MondeScene({
   };
   // Les étiquettes et les zones sont toutes sur la grand-rue : leurs rangées se comptent dans son repère.
   const dy = plan.dy0;
-  void hautDansLeMonde;
 
   return (
     <div

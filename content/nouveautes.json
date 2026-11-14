@@ -12,6 +12,16 @@
   {
     "date": "2026-11-14",
     "kind": "nouveau",
+    "title": "La forge aux souvenirs",
+    "body": "À la forge, gravez une de vos parties qui ont rapporté des points au clan sur un objet de votre Gaulois, pour 150 statères. Un objet gravé ne se vend pas au marché.",
+    "link": {
+      "href": "/village#forge",
+      "label": "Ouvrir la forge"
+    }
+  },
+  {
+    "date": "2026-11-14",
+    "kind": "nouveau",
     "title": "Le village se bâtit avec vos points",
     "body": "Chaque point rapporté au clan depuis le 1er novembre pose une pierre : 15 bâtiments, de la palissade à la grande tour. Chaque bâtiment fini est annoncé sur Discord.",
     "link": {

@@ -18003,11 +18003,12 @@ button.monde-etiquette:hover {
     width: 22px !important;
     height: 22px !important;
   }
+  /* Le panneau s'arrête au-dessus de la ligne du crédit : la mention d'OpenFront ne se couvre jamais (règle de la Carte). */
   .monde-fenetre,
   .monde-fenetre[data-grande] {
     top: auto;
     right: 0;
-    bottom: 0;
+    bottom: 1.25rem;
     left: 0;
     width: auto;
     height: auto;
@@ -18018,7 +18019,7 @@ button.monde-etiquette:hover {
     animation-duration: 0.36s;
   }
   .monde-fenetre[data-grande] {
-    height: calc(100% - 2.75rem);
+    height: calc(100% - 4rem);
     max-height: none;
   }
   @keyframes monde-panneau-monte {
