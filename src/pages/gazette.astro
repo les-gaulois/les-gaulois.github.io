@@ -5,11 +5,12 @@ import Empty from "../components/Empty.astro";
 import GazetteEditionBlock from "../components/GazetteEdition.astro";
 import GazetteOlder from "../components/GazetteOlder.astro";
 import PageHeader from "../components/PageHeader.astro";
+import ReadingNote from "../components/ReadingNote.astro";
 import { clan } from "../../config/clan";
 import { loadHistory, loadMembers, loadMemberWeeks, loadMeta, loadSessions, loadTerritoryReadings } from "../lib/data";
 import { fmtDay, fmtInt } from "../lib/format";
 import { MAX_AGE_HOURS } from "../lib/freshness";
-import { GAZETTE_RECENT_EDITIONS, gazetteEditions, weekLabel } from "../lib/gazette";
+import { GAZETTE_RECENT_EDITIONS, gazetteEditions, gazetteNotes, weekLabel } from "../lib/gazette";
 import { clanRecords } from "../lib/results";
 import { currentWeek, currentWeekComparison, currentWeekLead } from "../lib/semaine";
 import { addDays } from "../lib/time";
@@ -31,7 +32,9 @@ const week = currentWeek(sessions, meta.sessions.coveredUntil, clan.archiveStart
 const weekComparison = week ? currentWeekComparison(week) : null;
 // Les records de tout l'historique : un temps fort d'une semaine qui les égale, même moment compris, est un record du clan.
 const records = clanRecords(sessions);
-const context = { firstStanding: history[0]?.date ?? null, firstTerritory: territory[0]?.date ?? null, membersAt: members?.fetchedAt ?? null };
+// Les éditions n'ont plus chacune leur « Comment lire ces chiffres » : un seul repli en bas de la page, chaque précision une fois.
+const context = { firstStanding: history[0]?.date ?? null, firstTerritory: territory[0]?.date ?? null, membersAt: members?.fetchedAt ?? null, note: false };
+const notes = gazetteNotes(editions);
 // La date affichée est celle des sessions. Une panne des autres sources doit se voir aussi.
 const failures = [
   { label: "du classement", state: meta.leaderboard },
@@ -100,6 +103,11 @@ const failures = [
               </div>
             </section>
           )}
+          <ReadingNote page>
+            {notes.map((p) => (
+              <p>{p}</p>
+            ))}
+          </ReadingNote>
         </>
       ) : (
         <Empty title="Pas de données">Aucune semaine complète n'a encore été collectée.</Empty>

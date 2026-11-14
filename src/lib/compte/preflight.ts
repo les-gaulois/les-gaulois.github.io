@@ -363,6 +363,8 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
     ["pin_alliance_message", { p_id: 0 }, "Un visiteur n'épingle pas de message de l'alliance"],
     // L'accord des zones des alliés (migration 20261113001100) : aucune zone n'a le numéro 0.
     ["review_alliance_zone", { p_id: 0, p_approve: false, p_seen: "2026-01-01T00:00:00Z" }, "Un visiteur n'accepte ni ne refuse de zone de l'alliance"],
+    // Les alliances amies (migration 20261114001500) : l'encadrement seul. Aucune alliance n'a le numéro 0.
+    ["set_alliance_friend", { p_id: 0, p_friend: false }, "Un visiteur ne marque pas d'alliance amie"],
   ] as const;
   for (const [fn, body, label] of allianceCalls) {
     const res = await rpc(fn, body);

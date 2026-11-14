@@ -4,11 +4,11 @@
 import Base from "../layouts/Base.astro";
 import DataStatus from "../components/DataStatus.astro";
 import PageHeader from "../components/PageHeader.astro";
-import MembersTable from "../components/MembersTable.tsx";
+import MembersTable, { membersPreview } from "../components/MembersTable.tsx";
 import ReadingNote from "../components/ReadingNote.astro";
 import { NiveauEmblem } from "../components/NiveauEmblem";
 import { clan } from "../../config/clan";
-import { loadMeta } from "../lib/data";
+import { loadMembers, loadMeta } from "../lib/data";
 import { MAX_AGE_HOURS } from "../lib/freshness";
 import { prestigeKey } from "../lib/niveau";
 
@@ -16,6 +16,8 @@ const PRESTIGE_KEY = prestigeKey();
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const meta = loadMeta();
 const src = `${base}/data/members.json`;
+// Les trente premiers sont dans la page dès sa construction : le tableau ne la fait plus sauter en arrivant.
+const preview = membersPreview(loadMembers());
 ---
 
 <Base title="Liste des membres" description="La liste officielle des membres du clan GAL sur OpenFront : victoires, parties et taux en équipe sous le tag, date d'arrivée et niveau du compte de ceux qui le montrent.">
@@ -24,7 +26,12 @@ const src = `${base}/data/members.json`;
       <div class="mt-4">
         <DataStatus state={meta.members} maxAgeHours={MAX_AGE_HOURS.members} />
       </div>
-      <ReadingNote>
+    </PageHeader>
+
+    <MembersTable client:load src={src} preview={preview} />
+    <noscript><p class="card mt-4 p-5">JavaScript est nécessaire pour trier la liste, y chercher un pseudo et voir les autres membres.</p></noscript>
+    {/* Comme sur les autres pages, les précisions sont en bas, en un seul repli. */}
+    <ReadingNote page>
         <p data-testid="members-scope">La liste officielle du clan dans OpenFront. Parties publiques en équipe jouées avec le tag {clan.tag}, sans le classé, le FFA ni Humains contre Nations.</p>
         <p>« 0 » signifie aucune partie sous le tag, ce qui ne veut pas dire que le joueur est inactif. « — » signifie pas de données, ou pas de taux sans partie jouée. Un pseudo mène à la fiche du membre.</p>
         <p data-testid="members-level-scope">Le niveau et le prestige sont ceux du compte OpenFront, tout le jeu confondu, pas seulement les parties sous le tag. « non visible » : le réglage « Montrer mon niveau aux autres joueurs » est éteint dans son compte OpenFront, ou il n'a pas encore de niveau. Chaque cran allumé autour de l'emblème est un prestige, dans la couleur que lui donne le jeu :</p>
@@ -36,10 +43,6 @@ const src = `${base}/data/members.json`;
             </li>
           ))}
         </ul>
-      </ReadingNote>
-    </PageHeader>
-
-    <MembersTable client:load src={src} />
-    <noscript><p class="card mt-4 p-5">JavaScript est nécessaire pour afficher et trier la liste des membres.</p></noscript>
+    </ReadingNote>
   </div>
 </Base>

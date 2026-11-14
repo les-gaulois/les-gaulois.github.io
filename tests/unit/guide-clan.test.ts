@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   BATIMENTS,
@@ -64,12 +64,20 @@ describe("partageAttaque", () => {
   });
 
   it("divise comme l'écrivent le chapitre et l'aide-mémoire : le curseur d'attaque à 20 %, une troupe sur cinq", () => {
-    expect(valeurDe("01-bases", "Civil")).toBe(`Attaque = troupes ÷ ${DIVISEUR_ATTAQUE}`);
-    expect(valeurDe("10-memo-combat", "Attaque Civil")).toBe(`1 troupe sur ${DIVISEUR_ATTAQUE} (troupes ÷ ${DIVISEUR_ATTAQUE})`);
-    expect(chapitre("01-bases")).toContain("le ÷ 5 correspond au réglage par défaut de son curseur d'attaque (20 %)");
+    expect(valeurDe("01-bases", "Civil")).toBe(`Attaque = troupes divisées par ${DIVISEUR_ATTAQUE}`);
+    expect(valeurDe("10-memo-combat", "Attaque Civil")).toBe(`1 troupe sur ${DIVISEUR_ATTAQUE} (troupes divisées par ${DIVISEUR_ATTAQUE})`);
+    expect(chapitre("01-bases")).toContain("la division par 5 correspond au réglage par défaut de son curseur d'attaque (20 %)");
     expect(100 / DIVISEUR_ATTAQUE).toBe(20);
     // La phrase qui explique l'essai dit la même chose en clair.
     expect(chapitre("01-bases")).toContain(`votre curseur d'attaque est réglé à 20 % par défaut : **1 troupe sur ${DIVISEUR_ATTAQUE}** part`);
+  });
+});
+
+describe("des mots, pas des signes", () => {
+  it("aucun chapitre n'écrit le signe de division : une division se lit « divisé par » (demande du pilote, 14 novembre 2026)", () => {
+    const fichiers = readdirSync("content/guide-clan").filter((f) => f.endsWith(".md"));
+    expect(fichiers.length).toBeGreaterThan(0);
+    for (const f of fichiers) expect(chapitre(f.replace(/\.md$/, "")), f).not.toContain("÷");
   });
 });
 

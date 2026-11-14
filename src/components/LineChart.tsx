@@ -18,6 +18,7 @@ export default function LineChart({
   format,
   showValue = true,
   lastLabel = "Dernière mesure",
+  valueInLine = !showValue,
 }: {
   title: string;
   points: LinePoint[];
@@ -27,6 +28,8 @@ export default function LineChart({
   showValue?: boolean;
   /** Le nom du dernier point : « Dernière mesure », ou « Projection » pour une courbe calculée (le simulateur du QG). */
   lastLabel?: string;
+  /** La dernière valeur redite après sa date, dans la ligne sous le titre : par défaut quand elle n'est pas écrite en grand. `false` quand la page l'écrit déjà en titre juste au-dessus : la ligne ne garde que la date. */
+  valueInLine?: boolean;
 }) {
   // Les dégradés de chaque courbe ont leur propre identifiant : plusieurs courbes, et plusieurs îlots, se partagent une page.
   const id = `${useId()}-${title.normalize("NFD").replace(/[^A-Za-z0-9]+/g, "-")}`;
@@ -85,7 +88,7 @@ export default function LineChart({
       <p class="tnum mt-2 min-h-6 text-sm text-muted" aria-hidden="true">
         {shown
           ? `${fmtDay(shown.date)} : ${shown.value === null ? "hors classement" : format(shown.value)}`
-          : `${lastLabel}, ${fmtDay(last.date)}${showValue ? "" : ` : ${format(last.value)}`}`}
+          : `${lastLabel}, ${fmtDay(last.date)}${valueInLine ? ` : ${format(last.value)}` : ""}`}
       </p>
       {measured < 2 ? (
         <p class="mt-3 text-sm text-muted">

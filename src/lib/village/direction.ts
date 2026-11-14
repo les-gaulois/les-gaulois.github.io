@@ -3,8 +3,9 @@
  * et le réglage des prix et des chances. Des calculs purs, sans rien de Node ; l'écran est
  * `src/components/compte/DirectionVillage.tsx`, le serveur la migration `20261113002100_village_direction.sql`.
  *
- * Le serveur décide de tout : il ne donne que des totaux, cache un chiffre qui viendrait de moins de 5 comptes (`null`) et
- * revérifie chaque réglage. Ici, la lecture prudente de ses réponses, et le contrôle des réglages avant l'envoi, en phrases
+ * Le serveur décide de tout : il ne donne que des totaux, cache un chiffre qui viendrait de moins de `seuil` comptes (`null`)
+ * et revérifie chaque réglage. Le seuil était de 5 comptes ; depuis le 14 novembre 2026, il est de 1 (migration
+ * `20261114001100_village_totaux_sans_seuil.sql`, choix du pilote) : tout total est donné. Ici, la lecture prudente de ses réponses, et le contrôle des réglages avant l'envoi, en phrases
  * simples, en s'appuyant sur la mesure de l'économie (`controlerReglages` de `economie.ts`) : ce que le serveur refuserait
  * bloque l'envoi ; ce que la mesure trouve en plus (une pochette plus chère que ce qu'elle vaut en moyenne) est seulement dit.
  */
@@ -177,6 +178,16 @@ export const PAS_DONNE = "pas donné";
 
 /** Pourquoi un chiffre n'est pas donné. */
 export const pourquoiCache = (seuil: number): string => `moins de ${fmtInt(seuil)} comptes`;
+
+/**
+ * Ce que l'aide « Comment lire ces chiffres » dit du seuil. Un seuil de 1 (depuis le 14 novembre 2026, choix du pilote) ne
+ * cache rien. Un seuil plus haut, celui d'un serveur sans la migration 20261114001100, garde l'explication des chiffres cachés.
+ */
+export function regleDuSeuil(seuil: number): string {
+  if (seuil <= 1) return "Chaque total est donné, même s'il ne vient que d'un seul compte.";
+  const s = fmtInt(seuil);
+  return `Un chiffre qui viendrait de moins de ${s} comptes n'est pas donné : il pourrait désigner quelqu'un. Il n'est pas donné non plus quand une soustraction le redonnerait : par exemple, les dépenses de la boutique et des pochettes sont cachées ensemble si l'une des deux vient de moins de ${s} comptes, et les 30 derniers jours si ce qui reste d'avant en vient. « ${PAS_DONNE} » n'est pas zéro.`;
+}
 
 /** Un nombre de statères en toutes lettres : « 1 statère », « 2 500 statères ». */
 export const stateres = (n: number): string => `${fmtInt(n)} ${n > 1 ? "statères" : "statère"}`;

@@ -72,6 +72,7 @@ const CATEGORIES: Record<string, LogCategory> = {
   discord_image_removed: "settings",
   alliance_saved: "alliance",
   alliance_deleted: "alliance",
+  alliance_friend_set: "alliance",
   alliance_clan_set: "alliance",
   alliance_invite_created: "alliance",
   alliance_invite_cancelled: "alliance",
@@ -309,6 +310,13 @@ export function describe(row: LogRow, when: (iso: string) => string): LogLine {
     case "alliance_deleted": {
       const name = textOf(details, "name");
       return { who, what: name ? `a supprimé l'alliance « ${name} ».` : "a supprimé une alliance." };
+    }
+    case "alliance_friend_set": {
+      const name = textOf(details, "name");
+      const alliance = name ? `l'alliance « ${name} »` : "une alliance";
+      if (details["friend"] === true) return { who, what: `a marqué ${alliance} alliée de la nôtre.` };
+      if (details["friend"] === false) return { who, what: `a retiré ${alliance} de nos alliées.` };
+      return { who, what: name ? `a changé la marque d'alliée de l'alliance « ${name} ».` : "a changé la marque d'alliée d'une alliance." };
     }
     case "alliance_clan_set": {
       const tag = textOf(details, "tag") ?? "un clan";

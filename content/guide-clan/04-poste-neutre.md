@@ -28,15 +28,15 @@ Le calcul est différent d'un combat de joueur contre joueur.
 
 | Situation | Règle simple |
 |---|---|
-| Civil contre neutre | Les pertes utilisent mag ÷ 5. |
-| Bot contre neutre | Les pertes utilisent mag ÷ 10. |
+| Civil contre neutre | Les pertes utilisent mag divisé par 5. |
+| Bot contre neutre | Les pertes utilisent mag divisé par 10. |
 
 **Vitesse en territoire neutre.** Elle dépend des troupes envoyées.
 
 ```
 budget de tick = taille du front × 2
-coût de la tuile = borne((2 000 × coût de tuile) ÷ troupes de l'attaque ; 5 ; 100)
-part du tick = coût de la tuile ÷ budget de tick
+coût de la tuile = borne((2 000 × coût de tuile) divisé par troupes de l'attaque ; 5 ; 100)
+part du tick = coût de la tuile divisé par budget de tick
 ```
 
 **Fallout (retombées).** Ce modificateur s'applique au mag et au coût de tuile.

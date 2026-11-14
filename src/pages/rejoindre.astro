@@ -4,7 +4,7 @@ import PageHeader from "../components/PageHeader.astro";
 import { clan } from "../../config/clan";
 import { brandFile } from "../lib/brand";
 import { loadSessions } from "../lib/data";
-import { fmtDate, fmtPct } from "../lib/format";
+import { fmtDate, fmtInt, fmtPct } from "../lib/format";
 import { groupStats } from "../lib/sessions";
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -12,67 +12,85 @@ const hasLogo = brandFile("vertical") !== null;
 const group = groupStats(loadSessions());
 const alone = group?.sizes[0];
 const together = group?.sizes[group.sizes.length - 1];
-// Une étape qui se comprend à son titre n'a pas de phrase.
+// Une étape qui se comprend à son titre n'a pas de phrase. Celle du Discord reprend la règle du vocal, écrite sur Quand jouer.
 const steps: { title: string; body?: string }[] = [
   { title: "Créez un compte OpenFront" },
   { title: `Cherchez le clan [${clan.tag}]`, body: "Ouvrez la section Clans du jeu, puis l'onglet Rechercher." },
   clan.join.inviteOnly
     ? { title: "Demandez une invitation", body: "Sur sa fiche : « Demander une invitation ». Un officier vous répond." }
     : { title: "Rejoignez le clan", body: "Sur sa fiche, utilisez « Rejoindre le clan »." },
-  { title: "Retrouvez-nous sur Discord" },
+  { title: "Retrouvez-nous sur Discord", body: "Vocal obligatoire pour jouer en équipe avec le tag." },
 ];
 ---
 
 <Base title="Rejoindre" description="Comment rejoindre le clan GAL dans OpenFront et sur Discord.">
-  {/* Le halo du logo dépasse de sa colonne et suit la souris : il ne doit jamais élargir la page. */}
+  {/* Le logo et son halo tiennent dans la scène de l'argument, qui les rogne : ils ne peuvent pas élargir la page. */}
   <div class="overflow-x-clip">
     <div class="wrap">
       <PageHeader title="Rejoindre le clan" />
 
-      <div class="grid items-center gap-10 lg:grid-cols-[3fr_2fr]">
-        <div>
-          <ol class="grid gap-3" data-testid="join-steps">
-            {
-              steps.map((s, i) => (
-                <li class="card flex gap-4 p-5" data-tilt="2">
-                  <span class="tnum font-display text-3xl font-extrabold text-blue-text" aria-hidden="true">{i + 1}</span>
-                  <div>
-                    <h2 class="text-lg">{s.title}</h2>
-                    {s.body && <p class="mt-1 text-muted">{s.body}</p>}
-                  </div>
-                </li>
-              ))
-            }
-          </ol>
-
-          <div class="mt-6 flex flex-col gap-3 sm:flex-row">
-            <a href={clan.links.discord} class="btn btn-lg btn-primary" rel="noopener">Rejoindre le Discord</a>
-            <a href={clan.links.openfront} class="btn btn-lg btn-secondary" rel="noopener">Jouer à OpenFront</a>
-          </div>
-        </div>
-        {
-          hasLogo && (
-            <div class="fx-stage relative hidden justify-center lg:flex">
-              <div class="hero-glow" aria-hidden="true"></div>
-              <div class="float relative w-full max-w-sm">
-                <img src={`${base}/generated/logo-vertical-720.webp`} width="720" height="720" alt="" class="h-auto w-full" draggable="false" data-fx-logo />
-              </div>
-            </div>
-          )
-        }
-      </div>
-
+      {/* L'argument d'abord : les deux bouts du calcul de Quand jouer (groupStats), sans son tableau. Sans données, pas de bloc. */}
       {
         alone && together && (
-          <section class="reveal mt-8 max-w-3xl" data-testid="join-group">
-            <p class="text-lg text-muted">
-              {alone.label} : {fmtPct(alone.winRate)} de victoires. {together.label} : {fmtPct(together.winRate)}. <a href={`${base}/activite`}>Voir quand trouver un groupe</a>.
-            </p>
-            <p class="mt-1 text-sm text-muted">Depuis le {fmtDate(`${clan.archiveStart}T12:00:00Z`)}. Un lien, pas une preuve.</p>
+          <section class="stage stage-indigo reveal mb-8 grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_auto]" aria-labelledby="join-group-title" data-testid="join-group">
+            <div>
+              <h2 id="join-group-title" class="section-title section-title-sm">Plus on est de Gaulois, plus on gagne</h2>
+              <div class="kpi-row mt-8">
+                {
+                  [alone, together].map((size) => (
+                    <div class="kpi" data-testid="join-rate">
+                      <p class="kpi-label">{size.label}</p>
+                      <p class="kpi-value kpi-value-xl">{fmtPct(size.winRate)}</p>
+                      {/* Deux jauges de la même longueur : elles se comparent à l'œil. */}
+                      <div class="meter meter-lg mt-3 w-56" aria-hidden="true">
+                        <i style={{ "--v": `${size.winRate}%` }} />
+                      </div>
+                      <p class="kpi-hint tnum">
+                        {fmtInt(size.wins)} victoires sur {fmtInt(size.games)} parties
+                      </p>
+                    </div>
+                  ))
+                }
+              </div>
+              <p class="info-discrete mt-6">
+                Depuis le {fmtDate(`${clan.archiveStart}T12:00:00Z`)}. Un lien, pas une preuve. <a href={`${base}/activite`}>Voir quand trouver un groupe</a>.
+              </p>
+            </div>
+            {
+              hasLogo && (
+                <div class="fx-stage relative hidden justify-center lg:flex">
+                  <div class="hero-glow" aria-hidden="true" />
+                  <div class="float relative w-56 xl:w-64">
+                    <img src={`${base}/generated/logo-vertical-720.webp`} width="720" height="720" alt="" class="h-auto w-full" draggable="false" data-fx-logo />
+                  </div>
+                </div>
+              )
+            }
           </section>
         )
       }
-      <p class="reveal mt-4 max-w-3xl text-muted" data-testid="join-guides">Nouveau sur OpenFront ? <a href={`${base}/debuter`}>Lisez le guide du clan</a>.</p>
+
+      <ol class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" data-testid="join-steps">
+        {
+          steps.map((s, i) => (
+            <li class="card flex gap-4 p-5" data-tilt="2">
+              <span class="tnum font-display text-3xl font-extrabold text-blue-text" aria-hidden="true">
+                {i + 1}
+              </span>
+              <div>
+                <h2 class="text-lg">{s.title}</h2>
+                {s.body && <p class="mt-1 text-muted">{s.body}</p>}
+              </div>
+            </li>
+          ))
+        }
+      </ol>
+
+      <div class="mt-6 flex flex-col gap-3 sm:flex-row">
+        <a href={clan.links.discord} class="btn btn-lg btn-primary" rel="noopener">Rejoindre le Discord</a>
+        <a href={clan.links.openfront} class="btn btn-lg btn-secondary" rel="noopener">Jouer à OpenFront</a>
+      </div>
+      <p class="reveal mt-6 max-w-3xl text-muted" data-testid="join-guides">Nouveau sur OpenFront ? <a href={`${base}/debuter`}>Lisez le guide du clan</a>.</p>
 
       {
         clan.entryConditions.length > 0 && (

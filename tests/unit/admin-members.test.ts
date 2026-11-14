@@ -148,7 +148,7 @@ describe("un joueur allié dans la liste des comptes", () => {
   it("se distingue d'un nouveau Gaulois en attente", () => {
     expect(allyStatus(ally)).toBe("Allié · [LUX] Kraken");
     expect(allyStatus({ ...ally, approved: false, active: false })).toBe("Allié en attente de votre accord · [LUX] Kraken");
-    expect(allyStatus({ ...ally, active: false })).toBe("Allié sans accès, son clan n'est plus dans notre alliance · [LUX] Kraken");
+    expect(allyStatus({ ...ally, active: false })).toBe("Allié sans accès, son clan n'est plus allié · [LUX] Kraken");
   });
 });
 

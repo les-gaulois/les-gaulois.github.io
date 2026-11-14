@@ -1,12 +1,11 @@
 ---
-import { clan } from "../../config/clan";
 import { loadMembers } from "../lib/data";
 import ReadingNote from "./ReadingNote.astro";
 import { fmtCount, fmtDate, fmtDay, fmtInt, fmtPct, fmtRank } from "../lib/format";
 import { singlePseudos } from "../lib/members";
 import { weekRecordKeys, type RecordKey } from "../lib/records-battus";
 import type { ClanRecords } from "../lib/results";
-import { arrivalsGap, comparisonSentence, editionLead, type GazetteEdition, playersPeriod, rankWords, standingDetails, standingGap, territoryDetails, territoryGap } from "../lib/gazette";
+import { arrivalsGap, comparisonSentence, editionNotes, type GazetteEdition, playersPeriod, rankWords, standingDetails, standingGap, territoryDetails, territoryGap } from "../lib/gazette";
 
 interface Props {
   edition: GazetteEdition;
@@ -17,8 +16,13 @@ interface Props {
   membersAt: string | null;
   /** Les records de tout l'historique : un temps fort qui les égale, même moment compris, est un record du clan. */
   records?: ClanRecords | null;
+  /**
+   * Ses précisions repliées sous l'édition (par défaut). Faux sur la page de la gazette : celles de toutes les éditions se
+   * réunissent dans un seul repli, en bas de la page (`gazetteNotes`).
+   */
+  note?: boolean;
 }
-const { edition, firstStanding, firstTerritory, membersAt, records = null } = Astro.props;
+const { edition, firstStanding, firstTerritory, membersAt, records = null, note = true } = Astro.props;
 const { totals, highlights, standing, territory, arrivals, players, active, milestones } = edition;
 const period = playersPeriod(edition);
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -37,8 +41,7 @@ const tiles: { key: RecordKey; label: string; value: string; hint: string }[] = 
   : [];
 ---
 
-<p class="mt-4 max-w-3xl text-lg text-muted" data-testid="gazette-lead">{editionLead(edition, clan.tag)}</p>
-
+{/* Pas de phrase d'introduction : elle redisait les parties, les victoires, le taux et le rang écrits juste dessous. L'accueil garde la sienne. */}
 <div class="mt-6 grid gap-x-8 gap-y-6 md:grid-cols-2 lg:grid-cols-3">
   <section class="panel" data-testid="gazette-totals">
     <h3 class="text-xl">Les parties</h3>
@@ -202,16 +205,13 @@ const tiles: { key: RecordKey; label: string; value: string; hint: string }[] = 
   </section>
 </div>
 
-{/* Les précisions de méthode, repliées : le chiffre d'abord. */}
-<ReadingNote>
-  <p>Parties publiques en équipe jouées avec le tag, du lundi au dimanche, heure de Paris.</p>
-  {tiles.length > 0 && <p>Temps forts : tous joueurs du clan confondus, une série mêle donc plusieurs groupes et s'arrête au dimanche. Le nombre de Gaulois compte aussi ceux partis avant la fin. Une partie jouée seul contre des robots n'est pas comptée.</p>}
-  {
-    players && (
-      <p>
-        Le plus de victoires{active ? " et de parties" : ""} : en équipe sous le tag, entre deux relevés de la liste des membres, parmi les membres avec pseudo présents aux deux et encore dans le clan. Cela compte d'abord le temps de jeu : ce n'est pas un classement de niveau.{milestones && milestones.length > 0 && " Les paliers sont ceux de la page Membres, à partir de 100 victoires."}
-      </p>
-    )
-  }
-  {territory && <p>La carte des clans compte des pixels peints : ce n'est pas le classement des clans.</p>}
-</ReadingNote>
+{/* Les précisions de méthode, repliées : le chiffre d'abord (src/lib/gazette.ts, editionNotes). */}
+{
+  note && (
+    <ReadingNote>
+      {editionNotes(edition).map((p) => (
+        <p>{p}</p>
+      ))}
+    </ReadingNote>
+  )
+}

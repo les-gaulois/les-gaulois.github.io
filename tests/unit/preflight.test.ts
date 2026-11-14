@@ -478,6 +478,11 @@ describe("le contrôle de la mise en ligne", () => {
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/save_alliance_zone": { status: 200, body: { ok: true, id: 1 } } }, labels[2]!)).toBe("fail");
   });
 
+  it("bloque si un visiteur marque une alliance amie", async () => {
+    expect(await statusOf(HEALTHY, "marque pas d'alliance amie")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/set_alliance_friend": { status: 200, body: { ok: true } } }, "marque pas d'alliance amie")).toBe("fail");
+  });
+
   it("bloque si un visiteur supprime une zone de l'alliance", async () => {
     expect(await statusOf(HEALTHY, "supprime pas de zone de l'alliance")).toBe("ok");
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/delete_alliance_zone": { status: 200, body: { ok: true } } }, "supprime pas de zone de l'alliance")).toBe("fail");

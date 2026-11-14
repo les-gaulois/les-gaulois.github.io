@@ -6,46 +6,51 @@
 @import "tailwindcss";
 
 @theme {
-  /* Un seul bleu, sans noir (remarques transmises par le pilote le 12 novembre 2026 : « garder la même DA du bleu en bg sur
-     TOUT le site, arrêter le noir et le bleu foncé ») : la page reprend le bleu d'avant le poste de commandement (#050B1F
-     du 12 au 13 novembre), cartes et champs le suivent. Blanc 18,4:1 sur la page, texte secondaire 10:1 et liens 8,8:1 sur
-     une carte. Le QG et la Direction gardent leur écran (palette du style Terminal, plus bas). */
-  --color-navy: #0a1230;
-  --color-night: #081029;
-  --color-surface: #101b45;
-  --color-surface-2: #182658;
-  --color-line: #24346b;
-  /* Contour des champs et carte survolée : 3:1 au moins sur une carte (3,19:1), 3,6:1 sur un champ. */
-  --color-line-strong: #5469ae;
+  /* Jusqu'au 14 novembre 2026, un seul bleu de fond, #0A1230 (remarques transmises par le pilote le 12 novembre : « garder
+     la même DA du bleu en bg sur TOUT le site, arrêter le noir et le bleu foncé »). Ce bleu est désormais l'écriture. */
+  /* Le thème clair « Neige Marine », choisi par le pilote sur captures le 14 novembre 2026 (« thèmes en blanc au lieu de
+     bleu », puis « le 1, Neige Marine », guide, QG et Direction compris) : la page est blanche, l'écriture bleu marine.
+     Chaque jeton garde son nom et son rôle d'avant : --color-navy reste le fond de la page, --color-night le creux d'un
+     champ, --color-surface une carte. Les valeurs sombres d'avant vivent encore dans les « îlots sombres » (bouton
+     principal, scènes colorées), plus bas. Contrastes dans docs/DESIGN.md, « Le thème clair ». */
+  --color-navy: #ffffff;
+  --color-night: #f4f6fb;
+  --color-surface: #f5f7fc;
+  --color-surface-2: #e6ecf9;
+  --color-line: #d5dcee;
+  /* Contour des champs et carte survolée : 3:1 au moins sur une carte (3,3:1) et sur un champ. */
+  --color-line-strong: #7a88b4;
   --color-blue: #0b5fff;
   --color-blue-hover: #0a4fd6;
-  --color-blue-text: #9dbcff;
+  --color-blue-text: #0a4fd6;
   /* Le bleu du drapeau : filet tricolore, frontière, barre de progression. Il ne change pas avec le thème. */
   --color-flag-blue: #0b5fff;
-  --color-red: #ff1a2e;
-  --color-muted: #c0c9e2;
-  --color-win: #4c86f5;
-  --color-loss: #d9742e;
-  --color-warn: #ffc857;
+  --color-red: #d91228;
+  --color-muted: #4a5677;
+  --color-win: #2f6fed;
+  --color-loss: #c9611c;
+  --color-warn: #8a5600;
   /* Une réussite : le message après un envoi, et les « OK » de l'état du site à la Direction. */
-  --color-ok: #a6e3b4;
-  /* Ce qui est bloqué : un compte suspendu, le bouton « Suspendre » (onglet Comptes de la Direction). Un rouge clair, lisible
-     en texte sur les fonds sombres : le rouge du drapeau (--color-red) reste un accent, jamais un texte courant. */
-  --color-danger: #ff6b6b;
-  /* Un joueur allié, dans la liste des comptes de la Direction : le bleu clair des liens du site, qui ne change pas avec le thème. */
-  --color-ally: #9dbcff;
+  --color-ok: #17743a;
+  /* Ce qui est bloqué : un compte suspendu, le bouton « Suspendre » (onglet Comptes de la Direction). Un rouge foncé, lisible
+     en texte sur les fonds clairs : le rouge du drapeau (--color-red) reste un accent, jamais un texte courant. */
+  --color-danger: #c4232f;
+  /* Un joueur allié, dans la liste des comptes de la Direction : le bleu des liens du site. */
+  --color-ally: #0a4fd6;
+  /* Le blanc de Tailwind (text-white, bg-white/15…) suit l'écriture : marine sur la page, blanc dans un îlot sombre. */
+  --color-white: var(--ecriture);
   /* Les raretés des objets du village des Gaulois : le cadre et le fond de la case, puis le texte, lisible sur ce fond.
      Commun bleu, peu commun bleu foncé, épique violet, mystique rouge, légendaire doré (choix du pilote, 13 novembre 2026). */
   --rarete-commun: #4aa3ff;
-  --rarete-commun-texte: #b5d8ff;
+  --rarete-commun-texte: #0b5cad;
   --rarete-peu-commun: #3a4fe8;
-  --rarete-peu-commun-texte: #bcc5ff;
+  --rarete-peu-commun-texte: #2a3bc4;
   --rarete-epique: #9b4dff;
-  --rarete-epique-texte: #dcbcff;
+  --rarete-epique-texte: #6a1fd0;
   --rarete-mystique: #ff2e4a;
-  --rarete-mystique-texte: #ffb5bd;
+  --rarete-mystique-texte: #a50f24;
   --rarete-legendaire: #f2b632;
-  --rarete-legendaire-texte: #ffdd80;
+  --rarete-legendaire-texte: #7d5900;
   --rarete-legendaire-degrade: linear-gradient(135deg, #fff1a8, #f2b632 45%, #a86d0c);
   --font-display: "Outfit Variable", system-ui, sans-serif;
   --font-sans: "Inter Variable", system-ui, sans-serif;
@@ -57,31 +62,53 @@
   --spacing-section: clamp(5rem, 10vw, 10rem);
 }
 
-/* Le décor de la page : une lueur bleue, un reflet rouge et le halo qui suit le curseur. */
+/* Le décor de la page : une lueur bleue, un reflet rouge et le halo qui suit le curseur, très légers sur le blanc. */
 :root {
-  --glow: rgb(11 95 255 / 0.3);
-  --reflection: rgb(255 26 46 / 0.09);
-  --aurora: rgb(61 127 255 / 0.18);
+  /* L'écriture : la couleur des titres, des gros chiffres et de tout ce qui s'écrivait en blanc sur le bleu d'avant.
+     Marine sur la page ; blanche dans un îlot sombre. Ne jamais écrire `#fff` pour un texte, un filet ou une icône :
+     toujours `var(--ecriture)` (tests/unit/theme-clair.test.ts le contrôle). */
+  --ecriture: #0a1230;
+  /* L'écriture posée sur une couleur vive (texte sélectionné) : toujours blanche. */
+  --sur-couleur: #fff;
+  /* L'anneau du focus clavier : la couleur de l'écriture de ce qui entoure l'élément. Le bouton principal, îlot sombre à
+     lui seul, ne la repose pas : son anneau, tracé hors de lui, reste marine sur la page et blanc dans une scène colorée. */
+  --anneau: var(--ecriture);
+  --glow: rgb(11 95 255 / 0.1);
+  --reflection: rgb(255 26 46 / 0.05);
+  --aurora: rgb(61 127 255 / 0.1);
+  /* Une ombre portée (menu ouvert, fenêtre libre, bulle) : en marine, plus légère que le noir d'avant. */
+  --ombre: rgb(10 18 48 / 0.22);
   /* Le filet qui sépare deux groupes posés sur le décor, à la place d'un cadre. */
-  --hairline: rgb(255 255 255 / 0.18);
-  /* Le texte secondaire posé sur une scène colorée : 6:1 au moins sur le plus clair de chaque dégradé. */
-  --stage-muted: #dbe2f7;
-  /* Le texte courant des pages : un blanc adouci, 15,9:1 sur la page (voir `main`, plus bas). */
-  --texte-courant: #e3e8f4;
-  /* Le trait d'une courbe s'éclaircit vers sa fin : le bleu des victoires, puis un bleu pâle, puis le blanc. */
-  --chart-trait-milieu: #8db0ff;
-  --chart-trait-fin: #fff;
+  --hairline: color-mix(in srgb, var(--ecriture) 18%, transparent);
+  /* Le texte secondaire d'une scène : le gris de la page ; dans une scène colorée, un bleu très pâle (îlots sombres). */
+  --stage-muted: #4a5677;
+  /* Le texte courant des pages : un marine adouci, 15,2:1 sur la page (voir `main`, plus bas). */
+  --texte-courant: #1b2444;
+  /* Le trait d'une courbe se fonce vers sa fin : le bleu des victoires, puis l'écriture. */
+  --chart-trait-milieu: #2f6fed;
+  --chart-trait-fin: var(--ecriture);
   /* La largeur des pages (.wrap) : depuis le 13 novembre 2026, à la demande du pilote (« prends toute la place disponible
      sur l'écran », « tu n'utilises que la dimension d'un A4 »), le contenu va jusqu'à 120 rem (1 920 px), avec des marges
      de côté qui grandissent avec l'écran (16 px sur téléphone, 4 % de la largeur, 80 px au plus). */
-  --wrap-max: 120rem;
-  --wrap-marge: clamp(1rem, 4vw, 5rem);
+  --page-max: 120rem;
+  --page-marge: clamp(1rem, 4vw, 5rem);
+  --wrap-max: var(--page-max);
+  --wrap-marge: var(--page-marge);
+  /* La colonne d'un espace de travail (QG, Direction) : ses écrans sont dessinés pour elle. */
+  --colonne-travail: 75rem;
 }
-/* Les espaces de travail et les pages en console (QG, Direction, guide, Carte) gardent leur colonne de 75 rem : formulaires,
-   menus et chapitres s'y lisent mieux. L'en-tête et le pied de page prennent toute la largeur partout. */
+/* La Direction garde sa colonne de 75 rem, au milieu de l'écran : formulaires et menus s'y lisent mieux. L'en-tête et le
+   pied de page prennent toute la largeur partout. */
 [data-ambiance="console"] main {
-  --wrap-max: 75rem;
+  --wrap-max: var(--colonne-travail);
   --wrap-marge: 1rem;
+}
+/* Une page en console rangée dans une rubrique (le QG avec Membres, le guide avec Quand jouer) reprend la largeur et les
+   marges du site : d'un onglet à l'autre, la rangée d'onglets, la ligne tricolore et le titre ne bougent pas (14 novembre
+   2026). Le QG garde ses écrans dans la colonne de travail, calée à gauche (.colonne-travail, plus bas). */
+[data-ambiance="console"] main:has(> .wrap > .rubrique) {
+  --wrap-max: var(--page-max);
+  --wrap-marge: var(--page-marge);
 }
 
 /* ---------- Thème rouge : l'encadrement ---------- */
@@ -90,28 +117,94 @@
    Chaque jeton garde son rôle et prend une teinte rouge : aucun composant ne change.
    Contrastes vérifiés dans docs/DESIGN.md, section « Thème rouge de l'encadrement ». */
 [data-theme="rouge"] {
+  /* En clair depuis le 14 novembre 2026 : une page blanche, des cartes rosées, l'écriture bordeaux, les liens et les
+     boutons rouges. */
+  --ecriture: #3a0812;
+  --color-navy: #ffffff;
+  --color-night: #fdf4f5;
+  --color-surface: #fcf3f4;
+  --color-surface-2: #f7dfe3;
+  --color-line: #edccd2;
+  --color-line-strong: #b56d79;
+  --color-blue: #d4132f;
+  --color-blue-hover: #b00f27;
+  --color-blue-text: #b00f27;
+  --color-muted: #6b4a52;
+  --stage-muted: #6b4a52;
+  /* Le texte courant, un bordeaux presque noir. */
+  --texte-courant: #3b1620;
+  --glow: rgb(255 26 46 / 0.1);
+  --reflection: rgb(11 95 255 / 0.05);
+  --aurora: rgb(255 61 90 / 0.1);
+  --ombre: rgb(58 8 18 / 0.22);
+}
+/* Sur les cartes rosées, un refus écrit en rouge se perdrait dans la couleur de la page : il prend l'ambre des
+   avertissements. */
+[data-theme="rouge"] .form-problem {
+  color: var(--color-warn);
+}
+
+/* ---------- Les îlots sombres ---------- */
+/* Ce qui garde un fond de couleur profonde sur la page blanche : le bouton principal et les scènes colorées (bleu roi,
+   indigo, bordeaux, carte d'accent). L'écriture y redevient blanche, et chaque jeton y reprend sa valeur du thème bleu
+   d'avant le 14 novembre 2026 : tout ce qu'ils contiennent (cartes, champs, liens, pastilles) se lit comme avant, sans
+   une règle de plus. `color` est reposée ici : la couleur héritée de `main` ne suivrait pas le jeton. Le bleu des boutons
+   (--color-blue) n'est pas repris : il est le même en clair, et rouge à la Direction. */
+.btn-primary,
+.stage-blue,
+.stage-indigo,
+.stage-wine,
+.card-accent {
+  color-scheme: dark;
+  --ecriture: #fff;
+  --color-white: #fff;
+  --color-navy: #0a1230;
+  --color-night: #081029;
+  --color-surface: #101b45;
+  --color-surface-2: #182658;
+  --color-line: #24346b;
+  --color-line-strong: #5469ae;
+  --color-blue-text: #9dbcff;
+  --color-red: #ff1a2e;
+  --color-muted: #c0c9e2;
+  --color-win: #4c86f5;
+  --color-loss: #d9742e;
+  --color-warn: #ffc857;
+  --color-ok: #a6e3b4;
+  --color-danger: #ff6b6b;
+  --color-ally: #9dbcff;
+  --rarete-commun-texte: #b5d8ff;
+  --rarete-peu-commun-texte: #bcc5ff;
+  --rarete-epique-texte: #dcbcff;
+  --rarete-mystique-texte: #ffb5bd;
+  --rarete-legendaire-texte: #ffdd80;
+  --hairline: color-mix(in srgb, var(--ecriture) 18%, transparent);
+  --stage-muted: #dbe2f7;
+  --texte-courant: #e3e8f4;
+  --chart-trait-milieu: #8db0ff;
+  --chart-trait-fin: var(--ecriture);
+  --ombre: rgb(0 0 0 / 0.45);
+  color: var(--texte-courant);
+}
+/* Dans une scène colorée, l'anneau du focus suit l'écriture blanche. Pas sur le bouton principal : voir --anneau. */
+.stage-blue,
+.stage-indigo,
+.stage-wine,
+.card-accent {
+  --anneau: var(--ecriture);
+}
+/* Les mêmes îlots dans le thème rouge de l'équipe gauloise : les valeurs sombres du rouge d'avant. */
+[data-theme="rouge"] :is(.btn-primary, .stage-blue, .stage-indigo, .stage-wine, .card-accent) {
   --color-navy: #300a10;
   --color-night: #22060b;
   --color-surface: #3f121a;
   --color-surface-2: #501a23;
   --color-line: #6b2c37;
   --color-line-strong: #9e5d68;
-  --color-blue: #d4132f;
-  --color-blue-hover: #b00f27;
   --color-blue-text: #ff9dad;
   --color-muted: #e2c0c6;
-  /* Le blanc adouci du texte courant, teinté de rose comme le reste. */
+  --stage-muted: #e2c0c6;
   --texte-courant: #f4e4e7;
-  --glow: rgb(255 26 46 / 0.3);
-  --reflection: rgb(11 95 255 / 0.1);
-  --aurora: rgb(255 61 90 / 0.18);
-}
-[data-theme="rouge"] .btn-secondary:hover {
-  background: #f8e3e6;
-}
-/* Sur fond rouge, un refus écrit en rose se perdrait : il prend le jaune des avertissements. */
-[data-theme="rouge"] .form-problem {
-  color: var(--color-warn);
 }
 
 /* Variables non héritées : les modifier au survol ne recalcule pas tout le contenu d'un bloc. */
@@ -146,7 +239,7 @@ footer {
 }
 html {
   background: var(--color-navy);
-  color: #fff;
+  color: var(--ecriture);
   font-family: var(--font-sans);
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
@@ -178,7 +271,7 @@ h3 {
   text-wrap: balance;
 }
 :focus-visible {
-  outline: 3px solid #fff;
+  outline: 3px solid var(--anneau);
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -191,13 +284,14 @@ a.link {
 }
 a:not([class]):hover,
 a.link:hover {
-  color: #fff;
+  color: var(--ecriture);
 }
-/* Un pseudo qui mène à la fiche d'un membre : blanc, sans trait, jaune au survol et au focus, où il prend son trait.
+/* Un pseudo qui mène à la fiche d'un membre : de la couleur de l'écriture, sans trait, ambré au survol et au focus (jaune
+   dans une scène colorée), où il prend son trait.
    Le même partout (podiums, records, paliers, liste, gazette, accueil). Remarque reçue le 12 novembre 2026 : un pseudo
    avait trois allures selon la page, dont le bleu souligné des liens. */
 .pseudo {
-  color: #fff;
+  color: var(--ecriture);
   text-decoration-line: none;
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
@@ -207,7 +301,7 @@ a.link:hover {
    trait fin et pâle dit que c'est un lien. */
 .pseudo-phrase {
   text-decoration-line: underline;
-  text-decoration-color: rgb(255 255 255 / 0.4);
+  text-decoration-color: color-mix(in srgb, var(--ecriture) 40%, transparent);
 }
 .pseudo:hover,
 .pseudo:focus-visible {
@@ -229,15 +323,15 @@ a.link:hover {
 .stage .info-discrete {
   color: var(--stage-muted);
 }
-/* Le texte courant en blanc adouci : en blanc pur sur un fond presque noir, il paraissait plus gras qu'il n'est (même
-   remarque). Les titres et les gros chiffres restent en blanc pur. En couche de base : une classe de couleur
+/* Le texte courant en marine adouci (en blanc adouci dans une scène colorée, où le blanc pur paraissait plus gras qu'il
+   n'est). Les titres et les gros chiffres ont la couleur pleine de l'écriture. En couche de base : une classe de couleur
    (text-muted, text-warn…) l'emporte toujours, comme les règles de ce fichier. */
 @layer base {
   main {
     color: var(--texte-courant);
   }
   main :is(h1, h2, h3, h4, .kpi-value, .font-display, .console-valeur) {
-    color: #fff;
+    color: var(--ecriture);
   }
 }
 
@@ -250,6 +344,11 @@ a.link:hover {
   max-width: var(--wrap-max);
   margin-inline: auto;
   padding-inline: var(--wrap-marge);
+}
+/* La colonne de travail du QG, dans un .wrap à la largeur du site : la largeur qu'avait son .wrap (75 rem moins ses deux
+   marges de 1 rem), calée à gauche, sous les onglets de la rubrique. La porte et l'espace connecté y sont tous les deux. */
+.colonne-travail {
+  max-width: calc(var(--colonne-travail) - 2rem);
 }
 /* Les pages se lisent en grand : dans le contenu, chaque taille de texte de Tailwind monte d'un cran (17 px pour le texte
    courant, 15 px pour le petit texte, 13 px pour le plus petit). L'en-tête et le pied de page gardent les leurs, et les
@@ -278,8 +377,10 @@ main {
 .page-title-compact.page-title-long {
   font-size: clamp(min(2.25rem, (100vw - 2rem) / 9.2), 5.5vw, 3.5rem);
 }
+/* Un titre de bloc est un cran sous le titre de sa page (14 novembre 2026) : 48 px au plus, quand le titre de page va
+   jusqu'à 80 px. Jusque-là, les deux faisaient 64 px sur un ordinateur, et l'œil ne savait pas où commencer. */
 .section-title {
-  font-size: clamp(2rem, 5vw, 4rem);
+  font-size: clamp(1.75rem, 3.8vw, 3rem);
 }
 /* Dans une scène de l'accueil ou une colonne : le titre garde sa force sans prendre deux lignes de trop. */
 .section-title-sm {
@@ -341,7 +442,7 @@ main {
 }
 /* Le premier d'une liste classée : son filet est blanc et plus épais. */
 .kpi-accent {
-  border-left: 3px solid #fff;
+  border-left: 3px solid var(--ecriture);
 }
 .kpi-hint {
   margin-top: 0.5rem;
@@ -368,7 +469,7 @@ main {
     90deg,
     var(--color-flag-blue) 0 32%,
     transparent 32% 34%,
-    #fff 34% 66%,
+    var(--ecriture) 34% 66%,
     transparent 66% 68%,
     var(--color-red) 68%
   );
@@ -389,7 +490,7 @@ main .card {
   background-image:
     radial-gradient(
       26rem circle at var(--mx, 0px) var(--my, 0px),
-      rgb(255 255 255 / calc(var(--spot, 0) * 0.1)),
+      color-mix(in srgb, var(--ecriture) calc(var(--spot, 0) * 10%), transparent),
       transparent 72%
     ),
     var(--stage-bg, none);
@@ -418,7 +519,7 @@ main .card::before {
     from var(--angle),
     transparent 0 58%,
     var(--color-flag-blue) 70%,
-    #fff 82%,
+    var(--ecriture) 82%,
     var(--color-red) 94%,
     transparent 100%
   );
@@ -441,7 +542,7 @@ main .card:hover::before {
 .hero-glow {
   position: absolute;
   inset: -12%;
-  background: radial-gradient(closest-side, rgb(11 95 255 / 0.42), transparent);
+  background: radial-gradient(closest-side, rgb(11 95 255 / 0.1), transparent);
 }
 
 /* Scènes : chaque grande section a son propre décor. Profondeur par la couleur, sans ombre. */
@@ -472,7 +573,7 @@ main .card:hover::before {
    toujours soulignés. Le survol épaissit le trait. */
 .stage-blue a:not([class]),
 .stage-blue a.link {
-  color: #fff;
+  color: var(--ecriture);
 }
 .stage-blue a:not([class]):hover,
 .stage-blue a.link:hover {
@@ -549,7 +650,7 @@ main .card:hover::before {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(110deg, transparent 30%, rgb(255 255 255 / 0.3) 50%, transparent 70%);
+  background: linear-gradient(110deg, transparent 30%, color-mix(in srgb, var(--ecriture) 30%, transparent) 50%, transparent 70%);
   translate: -120% 0;
   transition: translate 0.6s ease;
 }
@@ -576,24 +677,24 @@ main .card:hover::before {
 }
 .btn-primary {
   background: var(--color-blue);
-  color: #fff;
+  color: var(--ecriture);
 }
 .btn-primary:hover {
   background: var(--color-blue-hover);
 }
 .btn-secondary {
-  background: #fff;
+  background: var(--ecriture);
   color: var(--color-navy);
 }
 .btn-secondary:hover {
-  background: #e4e9f8;
+  background: color-mix(in srgb, var(--ecriture) 86%, var(--color-navy));
 }
 .btn-ghost {
-  border: 1px solid #fff;
-  color: #fff;
+  border: 1px solid var(--ecriture);
+  color: var(--ecriture);
 }
 .btn-ghost:hover {
-  background: rgb(255 255 255 / 0.1);
+  background: color-mix(in srgb, var(--ecriture) 10%, transparent);
 }
 .field {
   width: 100%;
@@ -602,7 +703,7 @@ main .card:hover::before {
   background: var(--color-night);
   border: 1px solid var(--color-line-strong);
   border-radius: 0.375rem;
-  color: #fff;
+  color: var(--ecriture);
 }
 .chip {
   min-height: 2.5rem;
@@ -625,8 +726,8 @@ main .card:hover::before {
   cursor: not-allowed;
 }
 .chip:hover:where(:not(:disabled)) {
-  color: #fff;
-  border-color: #fff;
+  color: var(--ecriture);
+  border-color: var(--ecriture);
 }
 .chip:active:where(:not(:disabled)) {
   scale: 0.95;
@@ -634,8 +735,8 @@ main .card:hover::before {
 .chip[aria-pressed="true"],
 .chip[aria-current="page"] {
   color: var(--color-navy);
-  background: #fff;
-  border-color: #fff;
+  background: var(--ecriture);
+  border-color: var(--ecriture);
 }
 .data-table th {
   text-align: left;
@@ -671,14 +772,14 @@ main .card:hover::before {
   margin-top: 1.25rem;
   font-size: 1rem;
   line-height: 1.2;
-  color: #fff;
+  color: var(--ecriture);
 }
 .guide-body h3:first-child {
   margin-top: 0;
 }
 .guide-body strong {
   font-weight: 600;
-  color: #fff;
+  color: var(--ecriture);
 }
 .guide-body ul,
 .guide-body ol {
@@ -729,7 +830,7 @@ main .card:hover::before {
   border-radius: 0.25rem;
   background: var(--color-night);
   font-size: 0.8125rem;
-  color: #fff;
+  color: var(--ecriture);
 }
 .guide-body pre {
   padding: 0.625rem 0.75rem;
@@ -737,7 +838,7 @@ main .card:hover::before {
   background: var(--color-night);
   white-space: pre-wrap;
   font-size: 0.8125rem;
-  color: #fff;
+  color: var(--ecriture);
 }
 .guide-body pre code {
   padding: 0;
@@ -747,11 +848,11 @@ main .card:hover::before {
   transition: background-color 0.15s;
 }
 .data-table tbody tr:hover {
-  background-color: rgb(255 255 255 / 0.06);
+  background-color: color-mix(in srgb, var(--ecriture) 6%, transparent);
 }
 .row-highlight {
   background: color-mix(in srgb, var(--color-blue) 26%, var(--color-surface));
-  background-image: linear-gradient(100deg, transparent 40%, rgb(255 255 255 / 0.1) 50%, transparent 60%);
+  background-image: linear-gradient(100deg, transparent 40%, color-mix(in srgb, var(--ecriture) 10%, transparent) 50%, transparent 60%);
   background-size: 250% 100%;
   background-repeat: no-repeat;
   box-shadow: inset 3px 0 0 var(--color-red);
@@ -799,7 +900,7 @@ main .card:hover::before {
   position: relative;
   z-index: 1;
   scale: 1.22;
-  box-shadow: 0 0 0 2px #fff;
+  box-shadow: 0 0 0 2px var(--ecriture);
 }
 /* Réticule de la heatmap : le jour et l'heure de la case survolée ressortent. */
 .fx-crosshair .heat-cell:not(.fx-cross) {
@@ -809,7 +910,7 @@ main .card:hover::before {
   filter: brightness(1.18);
 }
 th.fx-cross {
-  color: #fff;
+  color: var(--ecriture);
 }
 
 /* Graphique des parties : balayage, colonne survolée, repère de valeur. */
@@ -819,7 +920,7 @@ th.fx-cross {
   bottom: 0;
   width: 2px;
   opacity: 0;
-  background: linear-gradient(var(--color-flag-blue), #fff, var(--color-red));
+  background: linear-gradient(var(--color-flag-blue), var(--ecriture), var(--color-red));
   pointer-events: none;
   animation: sweep 0.95s cubic-bezier(0.3, 0.6, 0.4, 1) backwards;
 }
@@ -828,7 +929,7 @@ th.fx-cross {
   top: 0;
   bottom: 0;
   border-radius: 0.25rem;
-  background: rgb(255 255 255 / 0.1);
+  background: color-mix(in srgb, var(--ecriture) 10%, transparent);
   pointer-events: none;
   transition: left 0.12s ease-out;
 }
@@ -837,7 +938,7 @@ th.fx-cross {
   left: 0;
   right: 0;
   z-index: 1;
-  border-top: 1px dashed rgb(255 255 255 / 0.6);
+  border-top: 1px dashed color-mix(in srgb, var(--ecriture) 60%, transparent);
   pointer-events: none;
   transition: bottom 0.12s ease-out;
 }
@@ -847,7 +948,7 @@ th.fx-cross {
   translate: -50% -6px;
   padding: 0.125rem 0.375rem;
   border-radius: 0.375rem;
-  background: #fff;
+  background: var(--ecriture);
   color: var(--color-navy);
   font-size: 0.75rem;
   font-weight: 700;
@@ -869,7 +970,7 @@ th.fx-cross {
   position: absolute;
   left: 0;
   right: 0;
-  border-top: 1px solid rgb(255 255 255 / 0.09);
+  border-top: 1px solid color-mix(in srgb, var(--ecriture) 9%, transparent);
   pointer-events: none;
 }
 /* Le bout de la courbe, la dernière mesure : il paraît quand le trait l'atteint. */
@@ -880,7 +981,7 @@ th.fx-cross {
   translate: -50% -50%;
   border: 3px solid var(--color-navy);
   border-radius: 999px;
-  background: #fff;
+  background: var(--ecriture);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-win) 35%, transparent);
   pointer-events: none;
   animation: chart-end-in 0.4s ease-out 1s backwards;
@@ -910,7 +1011,7 @@ th.fx-cross {
   height: 6px;
   overflow: hidden;
   border-radius: 3px;
-  background: rgb(255 255 255 / 0.14);
+  background: color-mix(in srgb, var(--ecriture) 14%, transparent);
 }
 .meter > i {
   display: block;
@@ -926,7 +1027,7 @@ th.fx-cross {
   animation: bar-in 1s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
 }
 .stage-blue .meter > i {
-  background: #fff;
+  background: var(--ecriture);
 }
 .meter-lg {
   height: 10px;
@@ -934,7 +1035,7 @@ th.fx-cross {
 }
 /* La jauge de GAL, en blanc uni, se détache de celles des autres clans (tricolore en dégradé jusqu'au 12 novembre 2026). */
 .meter-gal > i {
-  background: #fff;
+  background: var(--ecriture);
 }
 .meter-other > i {
   background: #6f7fb3;
@@ -954,7 +1055,7 @@ th.fx-cross {
   animation-delay: calc(var(--i, 0) * 25ms);
 }
 .row-highlight .score-bar {
-  background: rgb(255 255 255 / 0.2);
+  background: color-mix(in srgb, var(--ecriture) 20%, transparent);
 }
 .fx-row {
   animation: row-in 0.45s ease-out backwards;
@@ -1039,7 +1140,7 @@ th.fx-cross {
   z-index: 5;
   padding: 0.125rem 0.5rem;
   border-radius: 0.25rem;
-  background: #fff;
+  background: var(--ecriture);
   color: var(--color-navy);
   font-family: var(--font-console);
   font-size: 0.8125rem;
@@ -1097,8 +1198,8 @@ th.fx-cross {
   height: 2.5rem;
 }
 .film-scrub path {
-  fill: color-mix(in srgb, var(--gal, #fff) 30%, transparent);
-  stroke: var(--gal, #fff);
+  fill: color-mix(in srgb, var(--gal, var(--ecriture)) 30%, transparent);
+  stroke: var(--gal, var(--ecriture));
   stroke-width: 1.2;
   vector-effect: non-scaling-stroke;
 }
@@ -1135,7 +1236,7 @@ th.fx-cross {
   margin-top: -9px;
   border: 2px solid var(--color-navy);
   border-radius: 0.25rem;
-  background: #fff;
+  background: var(--ecriture);
 }
 .film-scrub > input::-moz-range-thumb,
 .film-range::-moz-range-thumb {
@@ -1143,7 +1244,7 @@ th.fx-cross {
   height: 1.25rem;
   border: 2px solid var(--color-navy);
   border-radius: 0.25rem;
-  background: #fff;
+  background: var(--ecriture);
 }
 /* Repères des grands moments sur la frise. */
 .film-ticks {
@@ -1159,7 +1260,7 @@ th.fx-cross {
   height: 0.5rem;
   margin-left: -1.5px;
   border-radius: 1px;
-  background: #fff;
+  background: var(--ecriture);
 }
 /* Les vrais jours, sous la frise. Le film suit les événements : les jours n'ont pas la même largeur. */
 .film-dates {
@@ -1235,9 +1336,9 @@ th.fx-cross {
   background: var(--color-surface-2);
 }
 .film-tile[aria-current="true"] {
-  border-color: #fff;
+  border-color: var(--ecriture);
   color: var(--color-navy);
-  background: #fff;
+  background: var(--ecriture);
 }
 .film-tile[aria-current="true"] > span {
   color: inherit;
@@ -1250,7 +1351,7 @@ th.fx-cross {
   cursor: pointer;
 }
 .film-front-link:hover {
-  color: #fff;
+  color: var(--ecriture);
 }
 /* Les menus déroulants : tout ce qui se déplie dans une page est un <details class="fold">. La page reste courte, et tout
    reste lisible sans JavaScript. Le 12 novembre 2026, le pilote a demandé « tout les menu déroulant fais les comme ca », en
@@ -1287,7 +1388,7 @@ th.fx-cross {
   color: var(--color-blue-text);
 }
 :root:not([data-theme="rouge"]) .fold > summary:hover {
-  color: #fff;
+  color: var(--ecriture);
 }
 :root[data-theme="rouge"] .fold {
   padding-block: 0.875rem;
@@ -1318,7 +1419,7 @@ th.fx-cross {
   border-bottom-color: var(--hairline);
 }
 :root:not([data-theme="rouge"]) .stage-blue .fold > summary {
-  color: #fff;
+  color: var(--ecriture);
 }
 /* Le texte de la page peut se couper partout : un chiffre ou un tag de clan, non. */
 .film-fronts {
@@ -1349,10 +1450,12 @@ header a:hover img {
 }
 #fx-territory {
   z-index: 0;
+  /* Sur le blanc, les cases de conquête ressortent bien plus que sur le bleu d'avant : à moitié. */
+  opacity: 0.45;
   /* Même pas que TILE_SIZE dans src/lib/fx/territory.ts. */
   background-image:
-    linear-gradient(rgb(255 255 255 / 0.022) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(255 255 255 / 0.022) 1px, transparent 1px);
+    linear-gradient(color-mix(in srgb, var(--ecriture) 2.2%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--ecriture) 2.2%, transparent) 1px, transparent 1px);
   background-size: 28px 28px;
 }
 #fx-sparks {
@@ -1365,7 +1468,7 @@ header a:hover img {
   z-index: 50;
   width: 100%;
   height: 3px;
-  background: linear-gradient(90deg, var(--color-flag-blue) 33.3%, #fff 33.3% 66.6%, var(--color-red) 66.6%);
+  background: linear-gradient(90deg, var(--color-flag-blue) 33.3%, var(--ecriture) 33.3% 66.6%, var(--color-red) 66.6%);
   transform: scaleX(0);
   transform-origin: left;
   pointer-events: none;
@@ -1389,7 +1492,7 @@ header a:hover img {
   z-index: 70;
   padding: 0.375rem 0.625rem;
   border-radius: 0.5rem;
-  background: #fff;
+  background: var(--ecriture);
   color: var(--color-navy);
   font-size: 0.8125rem;
   font-weight: 600;
@@ -1432,6 +1535,16 @@ main .fx-in,
 .fx-hidden .fx-row,
 .fx-title-wait .fx-word {
   animation-play-state: paused;
+}
+/* Un chiffre clé (`data-count`) entre à l'écran en se levant doucement, déjà à sa vraie valeur (src/scripts/fx.ts) : depuis
+   le 14 novembre 2026, il ne monte plus de zéro, une animation ne change jamais une valeur. Ceux qui entrent ensemble se
+   lèvent l'un après l'autre. Hors de l'écran, il attend transparent. La pause et « réduire les animations » le montrent
+   aussitôt (règles plus bas, et fx.ts). */
+.fx-count-wait {
+  opacity: 0;
+}
+.fx-count-in {
+  animation: count-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) calc(var(--fx-count-i, 0) * 0.09s) backwards;
 }
 
 @keyframes reveal {
@@ -1519,6 +1632,12 @@ main .fx-in,
     translate: -14px 0;
   }
 }
+@keyframes count-in {
+  from {
+    opacity: 0;
+    translate: 0 0.35em;
+  }
+}
 @keyframes row-shine {
   from {
     background-position: 130% 0;
@@ -1580,7 +1699,8 @@ main .fx-in,
   #fx-tip {
     display: none;
   }
-  .fx-hidden {
+  .fx-hidden,
+  .fx-count-wait {
     opacity: 1;
   }
 }
@@ -1607,8 +1727,8 @@ main .fx-in,
   display: none;
 }
 .nouveautes-menu[open] > summary {
-  color: #fff;
-  border-color: #fff;
+  color: var(--ecriture);
+  border-color: var(--ecriture);
 }
 /* Le panneau tient dans la fenêtre : sur un écran bas, il défile au lieu d'en sortir. */
 .nouveautes-panel {
@@ -1618,7 +1738,7 @@ main .fx-in,
 }
 
 /* ---------- Les écrans du compte et de l'administration ---------- */
-/* Pastille du lien Direction : les demandes qui attendent. Jaune des avertissements, texte sombre (11,6:1 au moins). */
+/* Pastille du lien Direction : les demandes qui attendent. Ambre des avertissements, texte de la couleur de la page (blanc, 6,2:1). */
 .count-pill {
   display: inline-grid;
   place-items: center;
@@ -1634,12 +1754,12 @@ main .fx-in,
 }
 .chip[aria-selected="true"] {
   color: var(--color-navy);
-  background: #fff;
-  border-color: #fff;
+  background: var(--ecriture);
+  border-color: var(--ecriture);
 }
 .form-problem {
   margin-top: 0.5rem;
-  color: #ffb4bb;
+  color: var(--color-danger);
   font-weight: 600;
 }
 .form-success {
@@ -1769,12 +1889,12 @@ main .fx-in,
     box-shadow 0.2s;
 }
 .onglet:hover {
-  color: #fff;
-  background: rgb(255 255 255 / 0.07);
+  color: var(--ecriture);
+  background: color-mix(in srgb, var(--ecriture) 7%, transparent);
 }
 /* L'onglet ouvert : fond plus clair et filet rouge dessous, le marqueur de page du site. Pas seulement une couleur. */
 .onglet[aria-selected="true"] {
-  color: #fff;
+  color: var(--ecriture);
   background: var(--color-surface-2);
   box-shadow: inset 0 -3px 0 var(--color-red);
 }
@@ -1791,7 +1911,7 @@ main .fx-in,
   padding-inline: 0.4375rem;
   border-radius: 999px;
   background: var(--color-line);
-  color: #fff;
+  color: var(--ecriture);
   font-family: var(--font-sans);
   font-size: 0.875rem;
   font-weight: 800;
@@ -1799,7 +1919,9 @@ main .fx-in,
 }
 /* Quelqu'un attend dans un salon : le bleu du bouton principal (blanc dessus : 5,1:1 ; en thème rouge, 5,3:1). */
 .onglet-nombre-vif {
+  --ecriture: #fff;
   background: var(--color-blue);
+  color: var(--ecriture);
 }
 /* Des demandes attendent l'encadrement : le jaune des avertissements, comme la pastille de l'en-tête. */
 .onglet-nombre-alerte {
@@ -1838,7 +1960,7 @@ main .fx-in,
   font-weight: 700;
   line-height: 1.2;
   text-align: left;
-  color: #fff;
+  color: var(--ecriture);
   cursor: pointer;
 }
 .onglets-menu-bouton:hover,
@@ -1883,7 +2005,7 @@ main .fx-in,
   background: var(--color-night);
   border: 1px solid var(--color-line-strong);
   border-radius: 1rem;
-  box-shadow: 0 1.25rem 2.5rem -1rem rgb(0 0 0 / 0.7);
+  box-shadow: 0 1.25rem 2.5rem -1rem var(--ombre);
 }
 .onglets-liste[hidden] {
   display: none;
@@ -1910,12 +2032,12 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   color: var(--color-muted);
 }
 .onglets-choix:hover {
-  color: #fff;
-  background: rgb(255 255 255 / 0.07);
+  color: var(--ecriture);
+  background: color-mix(in srgb, var(--ecriture) 7%, transparent);
 }
 /* La partie ouverte : fond plus clair et filet rouge à gauche, comme l'onglet ouvert. */
 .onglets-choix[aria-current="true"] {
-  color: #fff;
+  color: var(--ecriture);
   background: var(--color-surface-2);
   box-shadow: inset 3px 0 0 var(--color-red);
 }
@@ -1988,10 +2110,10 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
    lumière descend, une fois. Le bouton pause et « réduire les animations » coupent les deux. Rien ne clignote.
    Voir docs/DESIGN.md, « Ambiance console ». */
 :root[data-ambiance="console"] {
-  --console-grille: color-mix(in srgb, var(--color-red) 9%, transparent);
-  --console-grille-forte: color-mix(in srgb, var(--color-red) 16%, transparent);
-  /* La lueur des chiffres et de l'onglet ouvert : le rouge du marqueur, adouci. */
-  --console-lueur: color-mix(in srgb, var(--color-red) 55%, transparent);
+  --console-grille: color-mix(in srgb, var(--color-red) 7%, transparent);
+  --console-grille-forte: color-mix(in srgb, var(--color-red) 13%, transparent);
+  /* La lueur des chiffres et de l'onglet ouvert : le rouge du marqueur, très adouci sur le blanc. */
+  --console-lueur: color-mix(in srgb, var(--color-red) 20%, transparent);
   /* Les repères aux coins des cartes, décoratifs. */
   --console-repere: color-mix(in srgb, var(--color-blue-text) 70%, transparent);
 }
@@ -2022,9 +2144,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 }
 /* L'écran : de fines lignes de balayage et des coins assombris. Derrière le texte : aucun contraste n'y perd. */
 :root[data-ambiance="console"] body::after {
-  background:
-    radial-gradient(ellipse 110% 85% at 50% 40%, transparent 55%, rgb(0 0 0 / 0.42)),
-    repeating-linear-gradient(rgb(0 0 0 / 0.15) 0 1px, transparent 1px 4px);
+  background: repeating-linear-gradient(color-mix(in srgb, var(--ecriture) 3.5%, transparent) 0 1px, transparent 1px 4px);
 }
 /* À l'ouverture de la page, une seule bande de lumière descend l'écran, lentement, derrière le contenu, puis s'éteint.
    Au repos elle est invisible : sans animation (bouton pause, « réduire les animations »), elle n'apparaît jamais. */
@@ -2247,56 +2367,55 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   animation-timing-function: steps(30, end);
 }
 
-/* Un écran plus noir, dans la couleur de la page. Bleu au QG, la page des membres, aussi sombre que le rouge de la
-   Direction (« bleu un peu plus foncé », a demandé le pilote) : texte secondaire 11,6:1 et liens 10,1:1 sur une carte,
-   contour des champs 3,6:1, « OK » en vert vif 11:1 ; le bleu des boutons et de la partie ouverte du menu est foncé d'un cran
-   (blanc dessus : 6,8:1). Rouge à la Direction (data-theme="rouge") :
-   texte secondaire 11,6:1 et liens 9,9:1 sur une carte, contour des champs 3,6:1, « OK » 11,1:1. */
+/* Un écran clair depuis le 14 novembre 2026 (thème « Neige Marine », demandé aussi pour le guide, le QG et la
+   Direction) : une page à peine bleutée, quadrillée, des cartes et des champs blancs, l'écriture marine. Bleu au QG, la
+   page des membres : texte secondaire 7,3:1 et liens 6,8:1 sur une carte, contour des champs 4,2:1, « OK » en vert
+   sapin 7,1:1 ; le bleu des boutons et de la partie ouverte du menu est foncé d'un cran (blanc dessus : 6,8:1). Rouge à
+   la Direction (data-theme="rouge") : texte secondaire 7,7:1 et liens 7,1:1 sur une carte, contour des champs 4,4:1. */
 :root[data-ambiance="console"][data-console="terminal"] {
-  --color-navy: #03081a;
-  --color-night: #010410;
-  --color-surface: #060d26;
-  --color-surface-2: #0c1736;
-  --color-line: #17254f;
-  --color-line-strong: #4f67b5;
+  --color-navy: #f6f8fd;
+  --color-night: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-2: #e3eaf9;
+  --color-line: #cdd7ee;
+  --color-line-strong: #6a7bad;
   --color-blue: #0a4fd6;
   --color-blue-hover: #083fae;
-  --glow: rgb(11 95 255 / 0.13);
-  --reflection: rgb(255 26 46 / 0.05);
+  --glow: rgb(11 95 255 / 0.08);
+  --reflection: rgb(255 26 46 / 0.04);
   /* La grille et la lueur des champs, dans le bleu du drapeau : au QG, c'est le bleu qui mène. */
-  --console-grille: color-mix(in srgb, var(--color-flag-blue) 10%, transparent);
-  --console-grille-forte: color-mix(in srgb, var(--color-flag-blue) 18%, transparent);
-  --console-lueur: color-mix(in srgb, var(--color-flag-blue) 60%, transparent);
+  --console-grille: color-mix(in srgb, var(--color-flag-blue) 7%, transparent);
+  --console-grille-forte: color-mix(in srgb, var(--color-flag-blue) 13%, transparent);
+  --console-lueur: color-mix(in srgb, var(--color-flag-blue) 22%, transparent);
   /* Le vert d'un terminal : ce qui va bien (les « OK », le voyant de la session), les commandes, les icônes et la chute
-     du logo Matrix. Ni textes ni chiffres, au QG, à la Direction et sur la page Carte : ils restent blancs ou gris. */
-  --console-vert: #4ade80;
+     du logo Matrix. Ni textes ni chiffres, au QG, à la Direction et sur la page Carte : ils restent marine ou gris.
+     Un vert sapin, lisible sur le blanc (7,1:1). */
+  --console-vert: #166534;
 }
 /* Le bouton garde le rouge du thème de l'encadrement : la règle bleue ci-dessus, plus forte que [data-theme="rouge"],
    l'emporterait sinon sur la racine de la Direction. */
 :root[data-ambiance="console"][data-console="terminal"][data-theme="rouge"],
 :root[data-ambiance="console"][data-console="terminal"] [data-theme="rouge"] {
-  --color-navy: #13040a;
-  --color-night: #0a0205;
-  --color-surface: #1c060c;
-  --color-surface-2: #2f0b15;
-  --color-line: #5c1a26;
-  --color-line-strong: #b04656;
+  --color-navy: #fff9f9;
+  --color-night: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-2: #f9e1e5;
+  --color-line: #efcdd3;
+  --color-line-strong: #b0606d;
   --color-blue: #d4132f;
   --color-blue-hover: #b00f27;
-  --glow: rgb(255 26 46 / 0.22);
-  --reflection: rgb(11 95 255 / 0.07);
-  --console-grille: color-mix(in srgb, var(--color-red) 12%, transparent);
-  --console-grille-forte: color-mix(in srgb, var(--color-red) 20%, transparent);
-  --console-lueur: color-mix(in srgb, var(--color-red) 55%, transparent);
+  --glow: rgb(255 26 46 / 0.08);
+  --reflection: rgb(11 95 255 / 0.04);
+  --console-grille: color-mix(in srgb, var(--color-red) 7%, transparent);
+  --console-grille-forte: color-mix(in srgb, var(--color-red) 13%, transparent);
+  --console-lueur: color-mix(in srgb, var(--color-red) 20%, transparent);
 }
 :root[data-ambiance="console"][data-console="terminal"] body::after {
-  background:
-    radial-gradient(ellipse 110% 85% at 50% 40%, transparent 50%, rgb(0 0 0 / 0.55)),
-    repeating-linear-gradient(rgb(0 0 0 / 0.4) 0 1px, transparent 1px 3px);
+  background: repeating-linear-gradient(color-mix(in srgb, var(--ecriture) 4.5%, transparent) 0 1px, transparent 1px 3px);
 }
 :root[data-ambiance="console"][data-console="terminal"] ::selection {
   background: var(--color-blue);
-  color: #fff;
+  color: var(--sur-couleur);
 }
 
 /* Toute la page en chasse fixe, sauf le grand titre, qui reste celui du site. */
@@ -2374,11 +2493,13 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   color: var(--color-blue-text);
 }
 :root[data-ambiance="console"][data-console="terminal"] main .btn-ghost:hover {
+  --ecriture: #fff;
   background: var(--color-blue);
   border-color: var(--color-blue);
+  color: var(--ecriture);
 }
 :root[data-ambiance="console"][data-console="terminal"] main .btn-ghost:hover::before {
-  color: #fff;
+  color: var(--ecriture);
 }
 
 /* Le vert d'un terminal, la voix de la machine : les commandes (invites, « > » des boutons, chemins du menu), les icônes
@@ -2456,17 +2577,18 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   }
 }
 :root[data-ambiance="console"][data-console="terminal"] .onglets-choix[aria-current="true"] {
-  color: #fff;
+  --ecriture: #fff;
+  color: var(--ecriture);
   background: var(--color-blue);
   box-shadow: none;
 }
 :root[data-ambiance="console"][data-console="terminal"] .onglets-choix[aria-current="true"]::before {
-  color: #fff;
+  color: var(--ecriture);
 }
 /* Dans la partie ouverte, la pastille bleue « quelqu'un attend » (les Salons du QG) se fondrait dans le fond : elle
    passe au blanc (chiffre bleu sur blanc : 6,8:1). */
 :root[data-ambiance="console"][data-console="terminal"] .onglets-choix[aria-current="true"] .onglet-nombre-vif {
-  background: #fff;
+  background: var(--ecriture);
   color: var(--color-blue);
 }
 
@@ -2477,7 +2599,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   filter: drop-shadow(0 0 0.3125rem color-mix(in srgb, var(--console-vert) 45%, transparent));
 }
 :root[data-ambiance="console"][data-console="terminal"] .onglets-choix[aria-current="true"] .icone-partie {
-  color: #fff;
+  color: var(--ecriture);
   filter: none;
 }
 /* Dans le bouton, l'icône suit le chemin (« ~/qg/ », puis l'icône et le nom) : un petit écart les sépare. Sur téléphone,
@@ -2521,8 +2643,8 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
    (Les valeurs de @property ci-dessus ne servent que si un navigateur ne connaît pas color-mix.) Ses caractères ne
    se sélectionnent pas : un copier-coller de la page ne les emporte pas. */
 .console-logo {
-  --logo-blanc: #fff;
-  --logo-bleu: color-mix(in srgb, var(--color-flag-blue) 72%, #fff);
+  --logo-blanc: var(--ecriture);
+  --logo-bleu: color-mix(in srgb, var(--color-flag-blue) 72%, var(--ecriture));
   --logo-rouge: var(--color-red);
   display: block;
   pointer-events: none;
@@ -2557,7 +2679,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 /* D'abord le vert de Matrix, le vert de terminal du style, plus clair là où le logo est blanc ; puis ses couleurs. */
 @keyframes console-logo-couleurs {
   from {
-    --logo-blanc: color-mix(in srgb, var(--console-vert) 40%, #fff);
+    --logo-blanc: color-mix(in srgb, var(--console-vert) 40%, var(--ecriture));
     --logo-bleu: color-mix(in srgb, var(--console-vert) 80%, #000);
     --logo-rouge: var(--console-vert);
   }
@@ -2569,7 +2691,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 /* Une lueur autour des caractères, comme sur un écran au phosphore. */
 .console-logo-tete,
 .console-logo-menu {
-  filter: drop-shadow(0 0 0.1875rem rgb(255 255 255 / 0.35)) drop-shadow(0 0 0.875rem rgb(255 255 255 / 0.12));
+  filter: drop-shadow(0 0 0.1875rem color-mix(in srgb, var(--ecriture) 35%, transparent)) drop-shadow(0 0 0.875rem color-mix(in srgb, var(--ecriture) 12%, transparent));
 }
 .console-logo-tete {
   width: min(16rem, 70%);
@@ -2608,6 +2730,10 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
     right: 1rem;
   }
 }
+/* Dans la colonne de travail, qui n'a pas de marge à elle : le logo s'arrête au bord droit de la colonne, comme avant. */
+.colonne-travail.console-tete-court .console-logo-tete {
+  right: 0;
+}
 
 /* En petit, en tête du menu des parties. */
 .console-logo-menu {
@@ -2629,7 +2755,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
    mot. Vert `ok` en règle ou fait, jaune `warn` à regarder, rouge `danger` bloqué ou en échec, bleu `ally` une information,
    gris `muted` rien à faire. Le vert est celui des réussites, pas le vert de terminal, et ne se pose sur aucun `.tnum`. */
 [data-dir-ton] {
-  --ton: #fff;
+  --ton: var(--ecriture);
 }
 [data-dir-ton="ok"] {
   --ton: var(--color-ok);
@@ -2719,23 +2845,23 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   gap: 0.5rem;
   min-height: 2.5rem;
   padding: 0.25rem 0.6875rem;
-  border: 1px solid color-mix(in srgb, var(--ton, #fff) 55%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ton, var(--ecriture)) 55%, transparent);
   border-radius: 0.375rem;
   font-size: 0.875rem;
   font-weight: 600;
   white-space: nowrap;
-  color: var(--ton, #fff);
+  color: var(--ton, var(--ecriture));
   cursor: pointer;
   transition:
     background-color 0.15s,
     color 0.15s;
 }
 .dir-filtre:hover:where(:not(:disabled, [aria-disabled="true"])) {
-  background: color-mix(in srgb, var(--ton, #fff) 16%, transparent);
+  background: color-mix(in srgb, var(--ton, var(--ecriture)) 16%, transparent);
 }
 .dir-filtre[aria-pressed="true"] {
-  border-color: var(--ton, #fff);
-  background: var(--ton, #fff);
+  border-color: var(--ton, var(--ecriture));
+  background: var(--ton, var(--ecriture));
   color: var(--color-night);
 }
 .dir-nombre {
@@ -2758,7 +2884,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   box-shadow: inset 3px 0 0 var(--ton, transparent);
 }
 .dir-ligne:hover {
-  background: rgb(255 255 255 / 0.05);
+  background: color-mix(in srgb, var(--ecriture) 5%, transparent);
 }
 
 /* Un tableau serré, dont les titres de colonnes restent sous la barre d'outils. */
@@ -2793,19 +2919,19 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   box-shadow: inset 3px 0 0 var(--ton, transparent);
 }
 .dir-table tbody tr:hover {
-  background: rgb(255 255 255 / 0.05);
+  background: color-mix(in srgb, var(--ecriture) 5%, transparent);
 }
 
 /* Un petit bouton de ligne, à la couleur de son action. */
 .dir-bouton {
   min-height: 1.75rem;
   padding: 0.0625rem 0.625rem;
-  border: 1px solid color-mix(in srgb, var(--ton, #fff) 55%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ton, var(--ecriture)) 55%, transparent);
   border-radius: 0.25rem;
   font-size: 0.875rem;
   font-weight: 600;
   white-space: nowrap;
-  color: var(--ton, #fff);
+  color: var(--ton, var(--ecriture));
   cursor: pointer;
   transition:
     background-color 0.15s,
@@ -2814,8 +2940,8 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 /* Un bouton inactif, par `disabled` ou par `aria-disabled` (un envoi en cours, qui garde le focus), ne s'allume pas au survol
    (relevé par la relecture du QG, 14 novembre 2026). */
 .dir-bouton:hover:where(:not(:disabled, [aria-disabled="true"])) {
-  border-color: var(--ton, #fff);
-  background: var(--ton, #fff);
+  border-color: var(--ton, var(--ecriture));
+  background: var(--ton, var(--ecriture));
   color: var(--color-night);
 }
 .dir-bouton:is(:disabled, [aria-disabled="true"]) {
@@ -2966,7 +3092,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   color: var(--color-muted);
 }
 .dir-ensemble .dir-ensemble-ligne[data-level="warn"] .dir-ensemble-detail {
-  color: #fff;
+  color: var(--ecriture);
 }
 
 /* Les sources de l'API, repliées : le filet de la liste sert de séparation. Le sélecteur passe devant l'air que le thème
@@ -3189,7 +3315,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   opacity: 0.55;
 }
 .dir-activite-colonnes > span[data-actif] > i {
-  background: #fff;
+  background: var(--ecriture);
 }
 .dir-activite-reperes {
   margin-top: 0.25rem;
@@ -3272,7 +3398,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 .dir-demandes-nom {
   font-weight: 700;
   overflow-wrap: anywhere;
-  color: #fff;
+  color: var(--ecriture);
 }
 .dir-demandes-meta {
   font-size: 0.8125rem;
@@ -3308,8 +3434,8 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   --ton: var(--color-danger);
 }
 .dir-demandes .dir-bouton:focus-visible {
-  border-color: var(--ton, #fff);
-  background: var(--ton, #fff);
+  border-color: var(--ton, var(--ecriture));
+  background: var(--ton, var(--ecriture));
   color: var(--color-night);
 }
 .dir-demandes-mot {
@@ -3330,7 +3456,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   padding: 0.625rem 0.75rem;
   border: 1px solid var(--color-line);
   border-radius: 0.375rem;
-  background: rgb(0 0 0 / 0.22);
+  background: color-mix(in srgb, var(--ecriture) 5%, transparent);
 }
 .dir-demandes-raison[hidden] {
   display: none;
@@ -3429,7 +3555,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   overflow-wrap: anywhere;
 }
 .dir-journal-phrase strong {
-  color: #fff;
+  color: var(--ecriture);
 }
 .dir-journal-vide,
 .dir-journal-suite {
@@ -3588,7 +3714,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   flex: 0 1 auto;
   min-width: 3rem;
   max-width: 40%;
-  color: #fff;
+  color: var(--ecriture);
 }
 .dir-annonces-lien {
   flex: 0 0 auto;
@@ -3599,7 +3725,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   text-underline-offset: 0.15em;
 }
 .dir-annonces-lien:hover {
-  color: #fff;
+  color: var(--ecriture);
 }
 .dir-annonces-extrait {
   flex: 1 1 0;
@@ -3612,7 +3738,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 }
 /* Les boutons ne prennent pas la couleur de l'état de la ligne. */
 .dir-annonces-actions {
-  --ton: #fff;
+  --ton: var(--ecriture);
   grid-area: actions;
   display: flex;
   align-items: center;
@@ -3754,7 +3880,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   line-height: 1.35;
 }
 .dir-evenements .evt-ligne[data-editing] {
-  background: rgb(255 255 255 / 0.08);
+  background: color-mix(in srgb, var(--ecriture) 8%, transparent);
 }
 .dir-evenements .evt-quand {
   display: flex;
@@ -3801,7 +3927,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   display: inline-flex;
   align-items: center;
   min-height: 1.75rem;
-  color: #fff;
+  color: var(--ecriture);
   text-decoration: underline;
   text-underline-offset: 0.2em;
 }
@@ -3815,7 +3941,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
     color 0.15s;
 }
 .dir-evenements .evt-viennent:hover {
-  background: color-mix(in srgb, var(--ton) 26%, transparent);
+  background: color-mix(in srgb, var(--ton) 14%, transparent);
 }
 .dir-evenements .evt-viennent[aria-expanded="true"] {
   border-color: var(--ton);
@@ -3825,7 +3951,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 .dir-evenements .evt-noms {
   padding: 0.375rem 0.625rem;
   border-left: 2px solid var(--color-ok);
-  background: rgb(255 255 255 / 0.05);
+  background: color-mix(in srgb, var(--ecriture) 5%, transparent);
   overflow-wrap: anywhere;
 }
 .dir-evenements .evt-actions {
@@ -3836,10 +3962,10 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 /* Les commandes ne prennent pas la couleur de la ligne. « Supprimer » est sur presque chaque ligne : gris, il ne passe au
    rouge que sous la souris, au clavier, ou armé (« Confirmer la suppression »). */
 .dir-evenements .evt-modifier {
-  --ton: #fff;
+  --ton: var(--ecriture);
 }
 .dir-evenements .evt-ligne[data-editing] .evt-modifier {
-  background: #fff;
+  background: var(--ecriture);
   color: var(--color-night);
 }
 .dir-evenements .evt-supprimer {
@@ -4052,7 +4178,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   overflow-wrap: anywhere;
   /* Le « ? » d'une question, précédé d'une espace, ne reste pas seul sur sa ligne. */
   text-wrap: pretty;
-  color: #fff;
+  color: var(--ecriture);
 }
 .dir-sondage-actions {
   display: flex;
@@ -4074,7 +4200,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 }
 .dir-sondage-total {
   font-weight: 700;
-  color: #fff;
+  color: var(--ecriture);
 }
 .dir-sondage-auteur {
   min-width: 0;
@@ -4129,10 +4255,10 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 .dir-sondage-choix > li[data-tete] .dir-sondage-voix,
 .dir-sondage-choix > li[data-tete] .dir-sondage-part {
   font-weight: 700;
-  color: #fff;
+  color: var(--ecriture);
 }
 .dir-sondage-choix > li[data-tete] .dir-sondage-barre > i {
-  background: #fff;
+  background: var(--ecriture);
 }
 /* Colonne étroite (téléphone, tablette) : le nom et les nombres sur une ligne, la barre dessous. */
 @container (max-width: 36rem) {
@@ -4351,11 +4477,11 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   color: var(--ton);
 }
 .dir-semaine-nom:hover {
-  background: rgb(255 255 255 / 0.07);
+  background: color-mix(in srgb, var(--ecriture) 7%, transparent);
 }
 /* Le nom retenu pour le choix : fond plein clair, comme un filtre enfoncé. */
 .dir-semaine-nom[aria-selected="true"] {
-  background: #fff;
+  background: var(--ecriture);
   box-shadow: none;
   font-weight: 700;
   color: var(--color-night);
@@ -4365,7 +4491,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 }
 /* Le nom désigné aux flèches du clavier. */
 .dir-semaine-nom[data-actif] {
-  outline: 2px solid #fff;
+  outline: 2px solid var(--ecriture);
   outline-offset: -2px;
 }
 .dir-semaine-nom[aria-selected="true"][data-actif] {
@@ -4410,7 +4536,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   font-weight: 800;
   line-height: 1.2;
   overflow-wrap: anywhere;
-  color: #fff;
+  color: var(--ecriture);
 }
 .dir-semaine-mot {
   margin-top: 0.5rem;
@@ -4476,7 +4602,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   padding: 0.875rem 1rem 1rem;
   border: 1px solid var(--color-line-strong);
   border-radius: 0.375rem;
-  background: rgb(0 0 0 / 0.25);
+  background: color-mix(in srgb, var(--ecriture) 5%, transparent);
 }
 .dir-objectif-etat {
   box-shadow: inset 3px 0 0 var(--ton, transparent);
@@ -4507,7 +4633,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   font-size: 2.25rem;
   font-weight: 800;
   line-height: 1;
-  color: #fff;
+  color: var(--ecriture);
 }
 .dir-objectif-chiffre > span {
   font-size: 1.125rem;
@@ -4542,7 +4668,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   border-top: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
 }
 .dir-objectif-actions > a.dir-bouton {
-  --ton: #fff;
+  --ton: var(--ecriture);
   display: inline-flex;
   align-items: center;
   text-decoration: none;
@@ -4571,7 +4697,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   gap: 0.5rem;
   min-height: 2.5rem;
   padding: 0.25rem 0.75rem;
-  border: 1px solid rgb(255 255 255 / 0.55);
+  border: 1px solid color-mix(in srgb, var(--ecriture) 55%, transparent);
   border-radius: 0.375rem;
   font-size: 0.9375rem;
   font-weight: 600;
@@ -4584,11 +4710,11 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   accent-color: var(--color-night);
 }
 .dir-objectif-sorte:hover:where(:not([data-bloque], [data-choisi])) {
-  background: rgb(255 255 255 / 0.16);
+  background: color-mix(in srgb, var(--ecriture) 16%, transparent);
 }
 .dir-objectif-sorte[data-choisi] {
-  border-color: #fff;
-  background: #fff;
+  border-color: var(--ecriture);
+  background: var(--ecriture);
   color: var(--color-night);
 }
 .dir-objectif-sorte[data-bloque] {
@@ -4598,7 +4724,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 /* Au clavier, l'anneau blanc entoure toute la pastille : autour du seul bouton radio, il se perdait sur le fond blanc du
    choix. Sans `:has`, l'anneau reste sur le bouton radio, foncé sur le choix blanc. */
 .dir-objectif-sorte:has(> input:focus-visible) {
-  outline: 3px solid #fff;
+  outline: 3px solid var(--ecriture);
   outline-offset: 2px;
 }
 @supports selector(:has(*)) {
@@ -4737,7 +4863,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   padding: 0.75rem 1rem 0.875rem;
   border: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
   border-radius: 0.25rem;
-  background: rgb(255 255 255 / 0.03);
+  background: color-mix(in srgb, var(--ecriture) 3%, transparent);
   box-shadow: inset 3px 0 0 var(--ton, transparent);
 }
 @media (min-width: 64rem) {
@@ -4792,7 +4918,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 }
 .dir-discord-plus > summary:hover,
 .dir-discord-plus[open] > summary {
-  color: #fff;
+  color: var(--ecriture);
 }
 .dir-discord-plus > p {
   max-width: 44rem;
@@ -4853,7 +4979,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 }
 /* Un bouton sans couleur propre reste blanc : il ne prend pas celle de l'état du bloc. */
 .dir-discord-actions .dir-bouton:not([data-dir-ton]) {
-  --ton: #fff;
+  --ton: var(--ecriture);
 }
 /* Une ligne de liste (un message envoyé, un salon ajouté) : ce qu'on lit prend la place, les boutons se rangent à droite. */
 @media (min-width: 64rem) {
@@ -4915,7 +5041,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   padding: 0;
   font-size: 1.0625rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--ecriture);
 }
 .dir-fondateur-outils {
   display: flex;
@@ -4950,10 +5076,10 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   border-bottom: 0;
 }
 .dir-fondateur-ligne:hover {
-  background: rgb(255 255 255 / 0.05);
+  background: color-mix(in srgb, var(--ecriture) 5%, transparent);
 }
 .dir-fondateur-ligne[data-choisi] {
-  background: rgb(255 255 255 / 0.1);
+  background: color-mix(in srgb, var(--ecriture) 10%, transparent);
   box-shadow: inset 3px 0 0 var(--color-ally);
 }
 /* Le bouton radio couvre sa ligne, invisible : toute la ligne se clique, et le clavier garde ses flèches. Il reste dans le
@@ -4968,12 +5094,12 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   cursor: pointer;
 }
 .dir-fondateur-ligne:has(:focus-visible) {
-  outline: 2px solid #fff;
+  outline: 2px solid var(--ecriture);
   outline-offset: -2px;
 }
 .dir-fondateur-nom {
   font-weight: 700;
-  color: #fff;
+  color: var(--ecriture);
   overflow-wrap: anywhere;
 }
 .dir-fondateur-discord,
@@ -5021,15 +5147,15 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 }
 .dir-fondateur-role[data-role="officer"] {
   border-color: var(--color-line-strong);
-  color: #fff;
+  color: var(--ecriture);
 }
 .dir-fondateur-role[data-role="admin"] {
-  border-color: #fff;
-  color: #fff;
+  border-color: var(--ecriture);
+  color: var(--ecriture);
 }
 .dir-fondateur-role[data-role="founder"] {
-  border-color: #fff;
-  background: #fff;
+  border-color: var(--ecriture);
+  background: var(--ecriture);
   color: var(--color-night);
 }
 
@@ -5092,8 +5218,8 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 /* Le bouton est gris tant que le nom n'est pas le bon (désactivé), et ne prend le rouge `danger` qu'ensuite. */
 .dir-fondateur-envoi {
   justify-self: start;
-  border: 1px solid #fff;
-  color: #fff;
+  border: 1px solid var(--ecriture);
+  color: var(--ecriture);
 }
 .dir-fondateur-envoi::before {
   content: ">" / "";
@@ -5121,7 +5247,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   margin-top: 1rem;
   padding: 1rem 1.125rem;
   font-size: 1rem;
-  color: #fff;
+  color: var(--ecriture);
 }
 .dir-fondateur-retour {
   margin-top: 1rem;
@@ -5217,7 +5343,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   font-size: 1.0625rem;
   font-weight: 700;
   line-height: 1.3;
-  color: #fff;
+  color: var(--ecriture);
 }
 
 /* Un bloc : son titre à gauche, son état en pastille à droite. `data-trait` : un trait de la couleur de l'état, au bord. */
@@ -5313,7 +5439,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   font-weight: 400;
   letter-spacing: 0;
   text-transform: none;
-  color: #fff;
+  color: var(--ecriture);
 }
 .dir-village .dir-village-nombre {
   text-align: right;
@@ -5387,7 +5513,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   padding: 0.75rem 1rem 0.875rem;
   border: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
   border-radius: 0.25rem;
-  background: rgb(255 255 255 / 0.03);
+  background: color-mix(in srgb, var(--ecriture) 3%, transparent);
 }
 .dir-village :is(h4, h5) {
   font-size: 0.8125rem;
@@ -5474,7 +5600,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   font-weight: 800;
   line-height: 1.15;
   white-space: nowrap;
-  color: #fff;
+  color: var(--ecriture);
 }
 .dir-village .meter {
   margin-top: 0.5rem;
@@ -5683,7 +5809,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 .pastille-couleur[aria-pressed="true"] {
   box-shadow:
     0 0 0 3px var(--color-navy),
-    0 0 0 6px #fff;
+    0 0 0 6px var(--ecriture);
 }
 .pastille-couleur:focus-visible {
   outline-offset: 7px;
@@ -5701,7 +5827,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   font-weight: 600;
 }
 .pastille-autre:focus-within {
-  outline: 3px solid #fff;
+  outline: 3px solid var(--ecriture);
 }
 .pastille-autre input {
   width: 2.25rem;
@@ -5737,7 +5863,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   min-width: 2.5rem;
   min-height: 2.5rem;
   padding: 0.25rem 0.75rem;
-  color: #fff;
+  color: var(--ecriture);
   background: var(--color-night);
   border: 1px solid var(--color-line-strong);
   border-radius: 0.625rem;
@@ -5751,8 +5877,8 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 .outil[aria-pressed="true"],
 .outil[aria-expanded="true"] {
   color: var(--color-navy);
-  background: #fff;
-  border-color: #fff;
+  background: var(--ecriture);
+  border-color: var(--ecriture);
 }
 .outil-b {
   font-weight: 800;
@@ -5800,7 +5926,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   gap: 0.375rem;
   min-width: 0;
   padding: 0.25rem;
-  color: #fff;
+  color: var(--ecriture);
   text-align: left;
   background: var(--color-surface);
   border: 1px solid var(--color-line-strong);
@@ -5811,7 +5937,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 }
 .inventaire-vignette:hover {
   background: var(--color-surface-2);
-  border-color: #fff;
+  border-color: var(--ecriture);
 }
 .inventaire-vignette img {
   width: 100%;
@@ -5918,7 +6044,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 .image-choix-survol {
   background: var(--color-surface-2);
   border-style: solid;
-  border-color: #fff;
+  border-color: var(--ecriture);
 }
 .image-choix-vignette {
   width: 3rem;
@@ -6053,7 +6179,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #fff;
+  color: var(--ecriture);
   background: var(--color-night);
   border-radius: 999px;
   transform: translate(-50%, -50%);
@@ -6230,13 +6356,14 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   pointer-events: none;
 }
 :root:not([data-ambiance]) body::before {
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='112' height='112'%3E%3Cpath d='M0 .5H112M.5 0V112' fill='none' stroke='%235b8cff' stroke-opacity='.06'/%3E%3Cpath d='M0 .5h5M107 .5h5M.5 0v5M.5 107v5' fill='none' stroke='%23c6d6ff' stroke-opacity='.3'/%3E%3C/svg%3E")
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='112' height='112'%3E%3Cpath d='M0 .5H112M.5 0V112' fill='none' stroke='%230b3fa8' stroke-opacity='.05'/%3E%3Cpath d='M0 .5h5M107 .5h5M.5 0v5M.5 107v5' fill='none' stroke='%230a1230' stroke-opacity='.28'/%3E%3C/svg%3E")
     0 0 / 112px 112px;
   -webkit-mask-image: radial-gradient(ellipse 120% 90% at 50% 0%, #000 30%, transparent 92%);
   mask-image: radial-gradient(ellipse 120% 90% at 50% 0%, #000 30%, transparent 92%);
 }
 :root:not([data-ambiance]) body::after {
-  background: radial-gradient(ellipse 125% 95% at 50% 30%, transparent 58%, rgb(0 0 0 / 0.4));
+  /* Sur le blanc, plus de coins assombris : le calque reste, vide, pour les règles qui le visent. */
+  background: none;
 }
 @media print, (forced-colors: active) {
   :root:not([data-ambiance]) body::before,
@@ -6246,13 +6373,13 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 }
 ::selection {
   background: var(--color-flag-blue);
-  color: #fff;
+  color: var(--sur-couleur);
 }
 html {
   scrollbar-color: var(--color-line-strong) var(--color-night);
 }
 
-/* La barre de commande : une vitre sombre sur la carte, et l'horizon tricolore dessous, plus vif au centre. */
+/* La barre de commande : une vitre claire sur la carte, et l'horizon tricolore dessous, plus vif au centre. */
 .barre {
   background: color-mix(in srgb, var(--color-navy) 74%, transparent);
   -webkit-backdrop-filter: blur(14px) saturate(1.25);
@@ -6270,7 +6397,7 @@ html {
     90deg,
     transparent,
     color-mix(in srgb, var(--color-flag-blue) 75%, transparent) 25%,
-    rgb(255 255 255 / 0.55) 50%,
+    color-mix(in srgb, var(--ecriture) 55%, transparent) 50%,
     color-mix(in srgb, var(--color-red) 75%, transparent) 75%,
     transparent
   );
@@ -6291,11 +6418,11 @@ html {
     background-color 0.15s;
 }
 .barre-lien:hover {
-  color: #fff;
-  background: rgb(255 255 255 / 0.06);
+  color: var(--ecriture);
+  background: color-mix(in srgb, var(--ecriture) 6%, transparent);
 }
 .barre-lien[aria-current] {
-  color: #fff;
+  color: var(--ecriture);
   text-decoration: underline;
   text-decoration-color: var(--color-red);
   text-decoration-thickness: 2px;
@@ -6330,7 +6457,7 @@ html {
   color: var(--color-blue-text);
 }
 .invite-commande {
-  color: #fff;
+  color: var(--ecriture);
 }
 
 /* Les onglets d'une rubrique (SectionNav.astro), en chasse fixe comme le menu des parties du QG : l'onglet ouvert, plus
@@ -6358,11 +6485,11 @@ html {
     background-color 0.15s;
 }
 .rubrique-onglet:hover {
-  color: #fff;
+  color: var(--ecriture);
   border-color: var(--color-line-strong);
 }
 .rubrique-onglet[aria-current="page"] {
-  color: #fff;
+  color: var(--ecriture);
   background: var(--color-surface-2);
   border-color: var(--color-line-strong);
   box-shadow: inset 0 -2px 0 var(--color-red);
@@ -6380,7 +6507,7 @@ html {
    et une trame de carte s'allume dans le haut de la scène, de son côté. Le contenu passe au-dessus (isolation). */
 :root:not([data-ambiance]) .stage {
   --coupe: 1.25rem;
-  --coupe-trait: rgb(255 255 255 / 0.45);
+  --coupe-trait: color-mix(in srgb, var(--ecriture) 45%, transparent);
   isolation: isolate;
   clip-path: polygon(0 0, calc(100% - var(--coupe)) 0, 100% var(--coupe), 100% 100%, 0 100%);
   background-image:
@@ -6391,7 +6518,7 @@ html {
       var(--coupe-trait) calc(50% + 1.5px),
       transparent calc(50% + 1.5px)
     ),
-    radial-gradient(26rem circle at var(--mx, 0px) var(--my, 0px), rgb(255 255 255 / calc(var(--spot, 0) * 0.1)), transparent 72%),
+    radial-gradient(26rem circle at var(--mx, 0px) var(--my, 0px), color-mix(in srgb, var(--ecriture) calc(var(--spot, 0) * 10%), transparent), transparent 72%),
     var(--stage-bg, none);
   background-size:
     var(--coupe) var(--coupe),
@@ -6418,8 +6545,8 @@ html {
   z-index: -1;
   pointer-events: none;
   background:
-    linear-gradient(rgb(255 255 255 / 0.07) 1px, transparent 1px) 0 0 / 28px 28px,
-    linear-gradient(90deg, rgb(255 255 255 / 0.07) 1px, transparent 1px) 0 0 / 28px 28px;
+    linear-gradient(color-mix(in srgb, var(--ecriture) 7%, transparent) 1px, transparent 1px) 0 0 / 28px 28px,
+    linear-gradient(90deg, color-mix(in srgb, var(--ecriture) 7%, transparent) 1px, transparent 1px) 0 0 / 28px 28px;
   -webkit-mask-image: radial-gradient(ellipse 55% 75% at 100% 0%, #000, transparent 80%);
   mask-image: radial-gradient(ellipse 55% 75% at 100% 0%, #000, transparent 80%);
 }
@@ -6431,7 +6558,7 @@ html {
 /* Une carte, une vitre : un reflet d'un pixel en haut. */
 /* Pas sur la ligne de GAL au classement (une carte sur téléphone) : son filet rouge, une ombre aussi, doit rester. */
 main .card:not(.row-highlight) {
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05);
+  box-shadow: 0 1px 2px rgb(10 18 48 / 0.06);
 }
 
 /* Les chiffres clés, comme des instruments : un libellé en chasse fixe, un trait clair en haut du filet, comme le repère
@@ -6446,7 +6573,7 @@ main .card:not(.row-highlight) {
   left: -1px;
   width: 1px;
   height: 1.125rem;
-  background: #fff;
+  background: var(--ecriture);
 }
 .kpi-accent::before {
   display: none;
@@ -6457,17 +6584,17 @@ main .card:not(.row-highlight) {
   font-weight: 600;
   letter-spacing: 0.06em;
 }
-.kpi-value {
+:is(.stage-blue, .stage-indigo, .stage-wine) .kpi-value {
   text-shadow: 0 0 1.75rem rgb(61 127 255 / 0.4);
 }
 
 /* Les boutons s'allument : un reflet d'un pixel en haut, et le bouton principal qui rayonne au survol. */
 .btn-primary {
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.22);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ecriture) 22%, transparent);
 }
 .btn-primary:hover:not(:disabled) {
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.22),
+    inset 0 1px 0 color-mix(in srgb, var(--ecriture) 22%, transparent),
     0 0 1.75rem -0.375rem var(--color-blue);
 }
 
@@ -6501,6 +6628,7 @@ footer h2 {
   pointer-events: none;
   border: 1px solid rgb(157 188 255 / 0.4);
   border-radius: 50%;
+  opacity: 0.55;
   background: radial-gradient(closest-side, rgb(61 127 255 / 0.45), rgb(11 95 255 / 0.12) 65%, transparent);
   box-shadow:
     0 0 2.5rem 0.25rem rgb(11 95 255 / 0.28),
@@ -6525,7 +6653,7 @@ footer h2 {
   width: 100%;
   height: auto;
   animation: none;
-  filter: drop-shadow(0 0 0.1875rem rgb(157 188 255 / 0.45)) drop-shadow(0 0 1.25rem rgb(11 95 255 / 0.32));
+  filter: drop-shadow(0 0 1.25rem rgb(11 95 255 / 0.12));
 }
 .holo-logo .console-goutte {
   animation-duration: 1.5s;
@@ -6550,9 +6678,9 @@ footer h2 {
   opacity: 0;
   visibility: hidden;
 }
-/* La même lueur serrée que le dessin : le jeton blue-text, à 45 %. */
+/* Sur le blanc, plus de lueur serrée : elle épaississait les caractères. */
 .holo-toile {
-  filter: drop-shadow(0 0 0.1875rem color-mix(in srgb, var(--color-blue-text) 45%, transparent));
+  filter: none;
 }
 .holo-aura {
   filter: blur(1.25rem);
@@ -6567,7 +6695,7 @@ footer h2 {
   opacity: 1;
 }
 [data-holo="vif"] .holo-aura {
-  opacity: 0.16;
+  opacity: 0.06;
 }
 [data-holo="vif"] .holo-logo {
   visibility: hidden;
@@ -6603,7 +6731,7 @@ footer h2 {
   font-weight: 700;
   line-height: 1.4;
   letter-spacing: 0.02em;
-  color: #fff;
+  color: var(--ecriture);
   pointer-events: none;
   user-select: none;
   isolation: isolate;
@@ -6735,7 +6863,7 @@ footer h2 {
 /* Un titre de section au mot très long, si sa page lui pose --mot-em. Les titres de scène (.section-title-sm) gardent leur
    taille. */
 :where([data-lettres="onciale"]) .section-title:not(.section-title-sm) {
-  font-size: min(clamp(2rem, 5vw, 4rem), (min(100vw, var(--wrap-max)) - 2 * var(--wrap-marge) - 1rem) / var(--mot-em, 0.01));
+  font-size: min(clamp(1.75rem, 3.8vw, 3rem), (min(100vw, var(--wrap-max)) - 2 * var(--wrap-marge) - 1rem) / var(--mot-em, 0.01));
 }
 /* Les cinq créneaux de Quand jouer, en colonnes étroites : « 21 h – 22 h » tient dans la sienne de 1 024 à 1 920 px. */
 :where([data-lettres="onciale"]) .kpi-value-md {
@@ -6870,8 +6998,8 @@ footer h2 {
     background-color 0.15s;
 }
 .guide-plan-lien:hover {
-  color: #fff;
-  background: rgb(255 255 255 / 0.07);
+  color: var(--ecriture);
+  background: color-mix(in srgb, var(--ecriture) 7%, transparent);
 }
 /* La branche de l'arborescence, décorative : « └─ » pour le dernier chapitre d'un groupe. Comme tous les signes du guide
    (« ## », « > »), elle s'écrit avec un texte de remplacement vide, pour qu'un lecteur d'écran ne la lise pas. Un
@@ -6887,11 +7015,12 @@ footer h2 {
   content: "└─" / "";
 }
 .guide-plan-lien[aria-current] {
-  color: #fff;
+  --ecriture: #fff;
+  color: var(--ecriture);
   background: var(--color-blue);
 }
 .guide-plan-lien[aria-current]::before {
-  color: #fff;
+  color: var(--ecriture);
 }
 .guide-plan-lien:focus-visible {
   outline-offset: -3px;
@@ -6902,7 +7031,7 @@ footer h2 {
   color: var(--color-muted);
 }
 .guide-plan-lien[aria-current] .guide-plan-numero {
-  color: #fff;
+  color: var(--ecriture);
 }
 /* Les icônes du guide : les mêmes dessins en pixels que le menu du QG (src/lib/icones-parties.ts), en vert de terminal
    avec la lueur d'un écran au phosphore, blanches dans le chapitre ouvert. Treize cases : 26, 39 ou 52 px, pour que le
@@ -6920,7 +7049,7 @@ footer h2 {
   filter: drop-shadow(0 0 0.3125rem color-mix(in srgb, var(--console-vert, var(--color-blue-text)) 45%, transparent));
 }
 .guide-plan-lien[aria-current] .guide-plan-icone {
-  color: #fff;
+  color: var(--ecriture);
   filter: none;
 }
 /* Sur téléphone, le sommaire se replie sous un bouton qui dit le chapitre ouvert. Le bouton n'existe qu'une fois le script
@@ -6935,7 +7064,7 @@ footer h2 {
   border-radius: 0.5rem;
   font-family: var(--font-console);
   text-align: left;
-  color: #fff;
+  color: var(--ecriture);
   cursor: pointer;
 }
 .guide-plan-bouton:focus-visible {
@@ -7159,7 +7288,7 @@ footer h2 {
 }
 .guide-essentiel strong {
   font-weight: 700;
-  color: #fff;
+  color: var(--ecriture);
 }
 @media (min-width: 40rem) {
   .guide-corps {
@@ -7224,7 +7353,7 @@ footer h2 {
 }
 .guide-outil-texte strong {
   font-weight: 700;
-  color: #fff;
+  color: var(--ecriture);
 }
 @media (min-width: 40rem) {
   .guide-outil {
@@ -7264,7 +7393,7 @@ footer h2 {
   font-family: var(--font-console);
   font-weight: 700;
   white-space: nowrap;
-  color: #fff;
+  color: var(--ecriture);
 }
 /* Le curseur d'un essai : celui du navigateur, habillé. Un pouce large pour le doigt, la partie parcourue plus claire. */
 .guide-curseur {
@@ -7302,7 +7431,7 @@ footer h2 {
   margin-top: -11px;
   border: 2px solid var(--color-night);
   border-radius: 0.25rem;
-  background: #fff;
+  background: var(--ecriture);
   box-shadow: 0 0 0.75rem rgb(61 127 255 / 0.6);
 }
 .guide-curseur::-moz-range-thumb {
@@ -7311,7 +7440,7 @@ footer h2 {
   height: 1.75rem;
   border: 2px solid var(--color-night);
   border-radius: 0.25rem;
-  background: #fff;
+  background: var(--ecriture);
 }
 .guide-mesures {
   margin-top: 1rem;
@@ -7348,7 +7477,7 @@ footer h2 {
   color: var(--color-line-strong);
 }
 .guide-pion-vif {
-  color: #fff;
+  color: var(--ecriture);
   filter: drop-shadow(0 0 0.375rem rgb(61 127 255 / 0.7));
 }
 
@@ -7371,20 +7500,20 @@ footer h2 {
   font-size: 0.75rem;
   font-weight: 600;
   white-space: nowrap;
-  color: #fff;
+  color: var(--ecriture);
 }
 .guide-courbe-seuil {
   position: absolute;
   top: 0;
   bottom: 0;
-  border-left: 1px dashed rgb(255 255 255 / 0.5);
+  border-left: 1px dashed color-mix(in srgb, var(--ecriture) 50%, transparent);
 }
 .guide-courbe-fil {
   position: absolute;
   top: 0;
   bottom: 0;
   width: 1px;
-  background: rgb(255 255 255 / 0.6);
+  background: color-mix(in srgb, var(--ecriture) 60%, transparent);
 }
 .guide-courbe-point {
   position: absolute;
@@ -7393,7 +7522,7 @@ footer h2 {
   translate: -50% -50%;
   border: 3px solid var(--color-night);
   border-radius: 999px;
-  background: #fff;
+  background: var(--ecriture);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-win) 35%, transparent);
 }
 .guide-courbe-pion {
@@ -7428,7 +7557,7 @@ footer h2 {
   transition: height 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .guide-barre-arret-vif {
-  background: #fff;
+  background: var(--ecriture);
 }
 .guide-barre-pion {
   position: absolute;
@@ -7465,7 +7594,7 @@ footer h2 {
   grid-area: nom;
   overflow-wrap: normal;
   font-weight: 700;
-  color: #fff;
+  color: var(--ecriture);
 }
 .guide-batiment-role {
   grid-area: role;
@@ -7649,7 +7778,7 @@ footer h2 {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   white-space: nowrap;
-  color: #fff;
+  color: var(--ecriture);
 }
 .guide-marque::before {
   content: "";
@@ -7704,7 +7833,7 @@ footer h2 {
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #fff;
+  color: var(--ecriture);
 }
 /* « Détails et formules » : replié, le texte complet du chapitre reste à un geste. Les aide-mémoire, eux, se lisent d'emblée.
    C'est le modèle de tous les menus déroulants du site (.fold). */
@@ -7801,7 +7930,7 @@ footer h2 {
   --fenetre-large: 0rem;
   /* Le bas de la session posée sur la carte : le script le mesure, et le podium s'arrête dessous. */
   --session-bas: 10.5rem;
-  /* Le fond de ce qui se pose sur la carte : la nuit du Terminal, à peine transparente. */
+  /* Le fond de ce qui se pose sur la carte : le creux d'un champ (jeton night), à peine transparent. */
   --carte-vitre: color-mix(in srgb, var(--color-night) 88%, transparent);
   font-size: 0.9375rem;
 }
@@ -7912,15 +8041,17 @@ footer h2 {
   font-size: 1.0625rem;
   font-weight: 700;
   line-height: 1;
-  color: #fff;
+  color: var(--ecriture);
   cursor: pointer;
   transition:
     background-color 0.15s,
     border-color 0.15s;
 }
 .carte-touche:hover {
+  --ecriture: #fff;
   border-color: var(--color-blue);
   background: var(--color-blue);
+  color: var(--ecriture);
 }
 .carte-touche-large {
   font-size: 0.8125rem;
@@ -7994,7 +8125,7 @@ footer h2 {
   text-align: right;
 }
 .carte-credit a:hover {
-  color: #fff;
+  color: var(--ecriture);
 }
 .carte-credit > .carte-credit-liens {
   display: none;
@@ -8078,15 +8209,16 @@ footer h2 {
 .carte-dock-entree:hover {
   border-color: var(--color-line-strong);
   background: var(--color-surface);
-  color: #fff;
+  color: var(--ecriture);
 }
 .carte-dock-entree[aria-current="true"] {
+  --ecriture: #fff;
   border-color: var(--color-blue);
   background: var(--color-blue);
-  color: #fff;
+  color: var(--ecriture);
 }
 :root[data-ambiance="console"] .carte-dock-entree[aria-current="true"] .icone-partie {
-  color: #fff;
+  color: var(--ecriture);
   filter: none;
 }
 /* En contraste élevé, le système impose ses couleurs : l'icône reprend celle du texte, et l'entrée ouverte, que son fond
@@ -8167,8 +8299,9 @@ footer h2 {
   content: "[x]" / "";
 }
 .carte-fermer:hover {
+  --ecriture: #fff;
   background: var(--color-blue);
-  color: #fff;
+  color: var(--ecriture);
 }
 /* Les gestes d'une fenêtre libre (src/scripts/fenetre-libre.ts) : la poignée, puis remettre en place, réduire, agrandir,
    à côté du bouton qui ferme. Comme lui, seulement là où la fenêtre se pose sur la carte (plus bas) ; les bords et la
@@ -8199,7 +8332,7 @@ footer h2 {
 }
 .carte-geste:hover {
   background: var(--color-line);
-  color: #fff;
+  color: var(--ecriture);
 }
 .carte-geste > svg {
   width: 0.75rem;
@@ -8278,7 +8411,7 @@ footer h2 {
   line-height: 1;
   letter-spacing: -0.03em;
   white-space: nowrap;
-  color: #fff;
+  color: var(--ecriture);
   /* La lueur bleue des champs du QG, pas le vert : le chiffre clé reste blanc. */
   text-shadow: 0 0 1.25rem var(--console-lueur, transparent);
 }
@@ -8310,13 +8443,13 @@ footer h2 {
   font-size: 1.375rem;
   line-height: 1.2;
   letter-spacing: -0.03em;
-  color: #fff;
+  color: var(--ecriture);
   text-shadow: 0 0 1.25rem var(--console-lueur, transparent);
 }
 .carte .kpi-label {
   font-size: 1rem;
   letter-spacing: 0;
-  color: #fff;
+  color: var(--ecriture);
 }
 .carte-bloc {
   margin-top: 0.875rem;
@@ -8348,9 +8481,10 @@ footer h2 {
   color: var(--color-muted);
 }
 .carte .film-tile[aria-current="true"] {
+  --ecriture: #fff;
   border-color: var(--color-blue);
   background: var(--color-blue);
-  color: #fff;
+  color: var(--ecriture);
 }
 .carte .film-tile[aria-current="true"] > span {
   color: inherit;
@@ -8380,7 +8514,7 @@ footer h2 {
 /* La ligne de GAL : le filet rouge du marqueur de ligne active, et un fond. */
 .carte-table tr.est-gal > td {
   background: color-mix(in srgb, var(--color-blue) 30%, transparent);
-  color: #fff;
+  color: var(--ecriture);
 }
 .carte-table tr.est-gal > td:first-child {
   box-shadow: inset 3px 0 0 var(--color-red);
@@ -8390,7 +8524,7 @@ footer h2 {
   background: var(--color-surface-2);
 }
 .carte-table [aria-current="true"] {
-  color: #fff;
+  color: var(--ecriture);
 }
 /* La couleur du clan dans le jeu, à côté de son tag. */
 .carte-pastille {
@@ -8398,7 +8532,7 @@ footer h2 {
   width: 0.625rem;
   height: 0.625rem;
   margin-right: 0.5rem;
-  border: 1px solid rgb(255 255 255 / 0.4);
+  border: 1px solid color-mix(in srgb, var(--ecriture) 40%, transparent);
 }
 .carte-chiffres {
   display: grid;
@@ -8807,7 +8941,7 @@ footer h2 {
   }
   /* Saisie, la fenêtre se soulève un peu de la carte. */
   :root.carte-console [data-libre].est-saisie {
-    box-shadow: 0 1.25rem 2.5rem rgb(0 0 0 / 0.45);
+    box-shadow: 0 1.25rem 2.5rem var(--ombre);
   }
   :root.carte-console [data-libre].est-ouverte:not([data-etat]) > .carte-bord {
     position: absolute;
@@ -9026,21 +9160,21 @@ footer h2 {
 :root[data-lettres="onciale"] footer {
   background-color: var(--color-navy);
 }
-/* La Carte et le guide du clan, en console : le bleu du reste du site (mêmes valeurs que @theme, que la palette du
-   Terminal remplace sinon), sans le noir des lignes d'écran ni la lueur de page du Terminal. */
+/* La Carte et le guide du clan, en console : le blanc du reste du site (mêmes valeurs que @theme, que la palette du
+   Terminal remplace sinon), sans les lignes d'écran marquées ni la lueur de page du Terminal. */
 :root[data-lettres="onciale"][data-ambiance="console"][data-console="terminal"] {
-  --color-navy: #0a1230;
-  --color-night: #081029;
-  --color-surface: #101b45;
-  --color-surface-2: #182658;
-  --color-line: #24346b;
+  --color-navy: #ffffff;
+  --color-night: #f4f6fb;
+  --color-surface: #f5f7fc;
+  --color-surface-2: #e6ecf9;
+  --color-line: #d5dcee;
   --color-blue: #0b5fff;
   --color-blue-hover: #0a4fd6;
   --glow: rgb(11 95 255 / 0.05);
   --reflection: rgb(255 26 46 / 0.03);
 }
 :root[data-lettres="onciale"][data-ambiance="console"][data-console="terminal"] body::after {
-  background: repeating-linear-gradient(rgb(0 0 0 / 0.12) 0 1px, transparent 1px 3px);
+  background: repeating-linear-gradient(color-mix(in srgb, var(--ecriture) 3%, transparent) 0 1px, transparent 1px 3px);
 }
 
 /* Des aplats plutôt que des dégradés : de 3 à 5 % d'écart d'un coin à l'autre, au lieu d'un bleu vif qui finissait en bleu
@@ -9116,7 +9250,7 @@ footer h2 {
   background-color: color-mix(in srgb, var(--color-blue) 26%, var(--color-surface));
 }
 :root[data-lettres="onciale"] .btn-primary:hover:not(:disabled) {
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.22);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ecriture) 22%, transparent);
 }
 :root[data-lettres="onciale"] .chart-end {
   box-shadow: none;
@@ -9160,17 +9294,17 @@ footer h2 {
   border-left-color: var(--color-red);
 }
 :root[data-lettres="onciale"] .stage .kpi::before {
-  background: #fff;
+  background: var(--ecriture);
 }
 :root[data-lettres="onciale"] .stage .kpi-accent {
-  border-left-color: #fff;
+  border-left-color: var(--ecriture);
 }
 :root[data-lettres="onciale"] #fx-progress {
   background: var(--color-red);
 }
 
-/* Le haut d'une page (PageHeader.astro) : le filet et l'invite sur une ligne, un titre moins grand (64 px au plus au lieu
-   de 96), et à sa droite, quand la place le permet, l'introduction et la date ; sinon, elles passent dessous. Alignées
+/* Le haut d'une page (PageHeader.astro) : le filet et l'invite sur une ligne, un titre moins grand (80 px au plus au lieu
+   de 96 ; 64 px jusqu'au 14 novembre 2026), et à sa droite, quand la place le permet, l'introduction et la date ; sinon, elles passent dessous. Alignées
    par le haut : un pli qu'on ouvre à droite (« Comment lire ces chiffres ») ne fait pas descendre le titre. */
 .page-tete-ligne {
   display: flex;
@@ -9212,11 +9346,13 @@ footer h2 {
     padding-top: 0.875rem;
   }
 }
+/* Le titre de la page est le plus fort de sa page (14 novembre 2026) : jusqu'à 80 px, 40 px sur téléphone, quand un titre
+   de bloc (.section-title) s'arrête à 48 px et 28 px. À 64 px, il ne pesait pas plus que les titres de ses parties. */
 .page-tete .page-title {
-  font-size: clamp(2.25rem, 6vw, 4rem);
+  font-size: clamp(2.5rem, 6vw, 5rem);
 }
 :where([data-lettres="onciale"]) .page-tete .page-title {
-  font-size: max(1.5rem, min(clamp(2.25rem, 6vw, 4rem), (min(100vw, var(--wrap-max)) - 2 * var(--wrap-marge) - 1rem) / var(--mot-em, 0.01)));
+  font-size: max(1.5rem, min(clamp(2.5rem, 6vw, 5rem),(min(100vw, var(--wrap-max)) - 2 * var(--wrap-marge) - 1rem) / var(--mot-em, 0.01)));
 }
 
 /* ---------- La carte de l'alliance (13 novembre 2026) ---------- */
@@ -9303,10 +9439,10 @@ footer h2 {
 }
 .alliance-onglets > button:hover {
   background: color-mix(in srgb, var(--color-surface-2) 80%, transparent);
-  color: #fff;
+  color: var(--ecriture);
 }
 .alliance-onglets > button[aria-selected="true"] {
-  color: #fff;
+  color: var(--ecriture);
 }
 .alliance-onglets > button[aria-selected="true"]::after {
   transform: scaleX(1);
@@ -9400,7 +9536,7 @@ footer h2 {
   text-underline-offset: 3px;
 }
 .alliance-retirer:hover {
-  color: #fff;
+  color: var(--ecriture);
 }
 
 /* La discussion : les messages défilent dans leur cadre, le plus récent en bas, en bulles ; les siens à droite, en bleu. */
@@ -9560,6 +9696,17 @@ footer h2 {
   color: var(--color-muted);
   overflow-wrap: anywhere;
 }
+/* « Alliée de la nôtre » : une autre alliance dont on peut inviter les joueurs. Toute la ligne se clique, 44 px de haut. */
+.alliance-amie {
+  /* Le nom de l'alliance en .sr-only reste dans la ligne, donc dans la fenêtre qui défile. */
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: 2.75rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
 .alliance-vide {
   margin-top: 0.75rem;
   color: var(--color-muted);
@@ -9714,7 +9861,7 @@ footer h2 {
   font-family: var(--font-console);
   font-size: 0.75rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--ecriture);
 }
 .alliance-legende > li {
   display: inline-flex;
@@ -9779,9 +9926,9 @@ footer h2 {
   border: 1px solid var(--color-line-strong);
   border-radius: 0.25rem;
   background: color-mix(in srgb, var(--color-night) 95%, transparent);
-  box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 0.45);
+  box-shadow: 0 0.5rem 1.5rem var(--ombre);
   font-size: 0.8125rem;
-  color: #fff;
+  color: var(--ecriture);
 }
 .alliance-bulle-ici {
   max-width: none;
@@ -9813,7 +9960,7 @@ footer h2 {
   font-size: 1.75rem;
   font-weight: 800;
   line-height: 1;
-  color: #fff;
+  color: var(--ecriture);
 }
 .alliance-bulle-pied {
   margin-top: 0.375rem;
@@ -9861,12 +10008,12 @@ footer h2 {
 .alliance-bilan td {
   text-align: right;
   white-space: nowrap;
-  color: #fff;
+  color: var(--ecriture);
 }
 .alliance-bilan tfoot :is(th, td) {
   border-bottom: 0;
   font-weight: 700;
-  color: #fff;
+  color: var(--ecriture);
 }
 .alliance-bilan-detail {
   display: block;
@@ -9991,7 +10138,7 @@ footer h2 {
 .alliance-moi-nom {
   font-family: var(--font-console);
   font-size: 1.0625rem;
-  color: #fff;
+  color: var(--ecriture);
   overflow-wrap: anywhere;
 }
 .alliance-moi > .alliance-marque {
@@ -10076,7 +10223,7 @@ footer h2 {
   fill: var(--color-flag-blue);
 }
 .drapeau-blanc {
-  fill: #fff;
+  fill: var(--ecriture);
 }
 .drapeau-rouge {
   fill: var(--color-red);
@@ -10085,7 +10232,7 @@ footer h2 {
   fill: var(--drapeau-uk-bleu);
 }
 .drapeau-uk-blanc {
-  stroke: #fff;
+  stroke: var(--ecriture);
 }
 .drapeau-uk-rouge {
   stroke: var(--drapeau-uk-rouge);
@@ -10120,12 +10267,13 @@ footer h2 {
 }
 .alliance-mode > button:hover {
   border-color: var(--color-blue-text);
-  color: #fff;
+  color: var(--ecriture);
 }
 .alliance-mode > button[aria-pressed="true"] {
+  --ecriture: #fff;
   border-color: var(--color-blue);
   background: var(--color-blue);
-  color: #fff;
+  color: var(--ecriture);
 }
 @media (forced-colors: active) {
   :is(.alliance-langues, .alliance-mode) > button[aria-pressed="true"] {
@@ -10154,7 +10302,7 @@ footer h2 {
   font-weight: 800;
   line-height: 1.15;
   white-space: nowrap;
-  color: #fff;
+  color: var(--ecriture);
 }
 .alliance-table {
   width: 100%;
@@ -10191,7 +10339,7 @@ footer h2 {
 .alliance-table td {
   text-align: right;
   font-weight: 700;
-  color: #fff;
+  color: var(--ecriture);
 }
 .alliance-table-detail {
   display: block;
@@ -10428,12 +10576,13 @@ footer h2 {
   cursor: pointer;
 }
 :is(.alliance-bouton-outil, .alliance-bouton-taille):hover {
-  color: #fff;
+  color: var(--ecriture);
 }
 :is(.alliance-bouton-outil, .alliance-bouton-taille):has(> input:checked) {
+  --ecriture: #fff;
   border-color: var(--color-blue);
   background: var(--color-blue);
-  color: #fff;
+  color: var(--ecriture);
 }
 :is(.alliance-bouton-outil, .alliance-bouton-taille):has(> input:focus-visible) {
   outline: 2px solid var(--color-blue-text);
@@ -10545,7 +10694,7 @@ footer h2 {
   overflow: hidden;
   border-radius: 0.25rem;
   background: var(--color-night);
-  color: #fff;
+  color: var(--ecriture);
   font-size: 0.8125rem;
   font-weight: 600;
   line-height: 1.25;
@@ -10555,7 +10704,7 @@ footer h2 {
 }
 /* Le sien : son nom en clair, et une flèche au-dessus de lui. Pas seulement une couleur. */
 .vie-acteur[data-moi] .place-nom {
-  background: #fff;
+  background: var(--ecriture);
   color: var(--color-navy);
 }
 .place-fleche {
@@ -10564,7 +10713,8 @@ footer h2 {
   left: 50%;
   translate: -50% 0;
   border-inline: 0.4375rem solid transparent;
-  border-top: 0.5625rem solid #fff;
+  /* Posée sur la scène peinte, pas sur la page : elle reste blanche. */
+  border-top: 0.5625rem solid var(--sur-couleur);
 }
 /* Au survol ou au toucher : son nom en entier et ce qui le place là. La bulle : ce que le serveur lui fait dire, de
    temps en temps, deux au plus à la fois (mouvement.ts). L'une et l'autre restent dans la scène : près d'un bord, elles
@@ -10609,12 +10759,12 @@ footer h2 {
 }
 .vie-info-nom {
   display: block;
-  color: #fff;
+  color: var(--ecriture);
   font-weight: 600;
 }
 .vie-bulle {
   border-bottom-left-radius: 0;
-  background: #fff;
+  background: var(--ecriture);
   color: var(--color-navy);
 }
 .vie-acteur[data-parle] > .vie-bulle,
@@ -10642,7 +10792,7 @@ footer h2 {
   position: absolute;
   top: calc(-3 * var(--place-case));
   left: calc(20 * var(--place-case));
-  color: #fff;
+  color: var(--sur-couleur);
   font-family: var(--font-console);
   font-size: 0.875rem;
   font-weight: 700;
@@ -10683,7 +10833,7 @@ footer h2 {
   margin-top: 1rem;
 }
 .vie-liste-titre {
-  color: #fff;
+  color: var(--ecriture);
   font-size: var(--text-base);
   font-weight: 600;
 }
@@ -10701,7 +10851,7 @@ footer h2 {
 }
 .vie-liste-nom {
   min-width: 0;
-  color: #fff;
+  color: var(--ecriture);
   overflow-wrap: anywhere;
 }
 .vie-liste-raison,
@@ -10770,18 +10920,18 @@ footer h2 {
   display: inline;
   margin-right: 0.375rem;
 }
-/* La bulle : blanche, un cran plus grande que celle du serveur pour se lire d'un coup d'œil, sa pointe tournée vers la
+/* La bulle : de la couleur de l'écriture, son texte de celle de la page ; un cran plus grande que celle du serveur pour se lire d'un coup d'œil, sa pointe tournée vers la
    tête de celui qui parle. L'humeur ne tient pas à une couleur seule : agacé, la phrase s'épaissit ; excédé, un filet rouge
    sous la bulle ; furieux, le filet en fait le tour. */
 .toucher-bulle {
-  --toucher-filet: #fff;
+  --toucher-filet: var(--ecriture);
   position: relative;
   min-width: calc(var(--vie-l) * var(--place-case));
   padding: 0.375rem 0.625rem;
-  border: 2px solid #fff;
+  border: 2px solid var(--ecriture);
   border-bottom-color: var(--toucher-filet);
   border-radius: 0.625rem;
-  background: #fff;
+  background: var(--ecriture);
   color: var(--color-navy);
   font-size: 0.875rem;
   font-weight: 500;
@@ -10810,7 +10960,7 @@ footer h2 {
   rotate: 45deg;
   border: solid var(--toucher-filet);
   border-width: 0 2px 2px 0;
-  background: #fff;
+  background: var(--ecriture);
 }
 .vie-acteur[data-bord="gauche"] .toucher-bulle::after {
   left: calc(var(--vie-l) * var(--place-case) / 2);
@@ -10869,7 +11019,7 @@ footer h2 {
   min-height: 2.75rem;
   padding: 0.25rem 0.5rem;
   border-radius: 0.375rem;
-  color: #fff;
+  color: var(--ecriture);
   text-align: left;
   overflow-wrap: anywhere;
   cursor: pointer;
@@ -10886,7 +11036,7 @@ footer h2 {
   color: var(--color-blue-text);
 }
 .toucher-dit {
-  color: #fff;
+  color: var(--ecriture);
 }
 .place-mot,
 .marche-mot {
@@ -10915,7 +11065,7 @@ footer h2 {
 .marche-solde strong {
   font-size: 1.75rem;
   line-height: 1;
-  color: #fff;
+  color: var(--ecriture);
 }
 .marche-piece {
   flex: none;
@@ -10925,7 +11075,7 @@ footer h2 {
   align-items: center;
   gap: 0.3125rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--ecriture);
 }
 .marche-partie {
   display: grid;
@@ -11010,7 +11160,7 @@ footer h2 {
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--rarete) 38%, var(--color-navy)), color-mix(in srgb, var(--rarete) 14%, var(--color-navy))) padding-box,
     var(--rarete-cadre) border-box;
-  color: #fff;
+  color: var(--ecriture);
   text-align: center;
 }
 .marche-case[data-rarete="commun"] {
@@ -11069,7 +11219,7 @@ footer h2 {
   margin-top: 0.125rem;
   padding: 0.0625rem 0.375rem;
   border-radius: 0.25rem;
-  background: rgb(0 0 0 / 0.5);
+  background: color-mix(in srgb, var(--ecriture) 10%, transparent);
   font-size: 0.75rem;
   font-weight: 700;
 }
@@ -11083,7 +11233,7 @@ footer h2 {
   border: 1px solid var(--color-line-strong);
   border-radius: 0.625rem;
   background: var(--color-surface);
-  color: #fff;
+  color: var(--ecriture);
 }
 .marche-dialogue::backdrop {
   background: rgb(3 8 26 / 0.75);
@@ -11136,7 +11286,7 @@ footer h2 {
   display: grid;
   gap: 1rem;
 }
-/* L'inventaire à vendre : une case par objet ; la choisie a un anneau blanc plein. */
+/* L'inventaire à vendre : une case par objet ; la choisie a un anneau plein, de la couleur de l'écriture. */
 .marche-choix {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(6.25rem, 1fr));
@@ -11151,7 +11301,7 @@ footer h2 {
   cursor: pointer;
 }
 .marche-choix-case:hover {
-  box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 4px color-mix(in srgb, #fff 55%, transparent);
+  box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 4px color-mix(in srgb, var(--ecriture) 55%, transparent);
 }
 /* Un objet qui ne se vend pas : éteint, sans main ni anneau ; sa raison est écrite dans la case. */
 .marche-choix-ferme {
@@ -11164,7 +11314,7 @@ footer h2 {
   opacity: 0.55;
 }
 .marche-choix-case[aria-pressed="true"] {
-  box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 5px #fff;
+  box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 5px var(--ecriture);
 }
 
 /* ---------- Le village des Gaulois : le vestiaire (13 novembre 2026) ---------- */
@@ -11221,7 +11371,7 @@ footer h2 {
   text-align: center;
 }
 .vestiaire-essai strong {
-  color: #fff;
+  color: var(--ecriture);
 }
 /* Sous le nom de l'objet essayé : son prix, ce qui empêche de l'acheter s'il y a lieu, puis « Acheter » et « Retirer ». */
 .vestiaire-essai-raison {
@@ -11236,11 +11386,11 @@ footer h2 {
   gap: 0.5rem;
   flex-basis: 100%;
 }
-/* « Acheter » : le bouton clair de l'essayage, blanc plein comme un choix retenu. */
+/* « Acheter » : le bouton plein de l'essayage, de la couleur de l'écriture comme un choix retenu. */
 .chip-fort {
   color: var(--color-navy);
-  background: #fff;
-  border-color: #fff;
+  background: var(--ecriture);
+  border-color: var(--ecriture);
 }
 .chip-fort:hover:where(:not(:disabled)) {
   color: var(--color-navy);
@@ -11347,11 +11497,11 @@ footer h2 {
   }
 }
 .vestiaire-rayon-onglet:hover {
-  color: #fff;
-  background: rgb(255 255 255 / 0.07);
+  color: var(--ecriture);
+  background: color-mix(in srgb, var(--ecriture) 7%, transparent);
 }
 .vestiaire-rayon-onglet[aria-selected="true"] {
-  color: #fff;
+  color: var(--ecriture);
   background: var(--color-surface-2);
   box-shadow: inset 0 -3px 0 var(--color-red);
 }
@@ -11502,7 +11652,7 @@ footer h2 {
   background: var(--color-navy);
 }
 .filtre-nombre {
-  color: #fff;
+  color: var(--ecriture);
   font-weight: 700;
 }
 .filtre[aria-pressed="true"] .filtre-nombre {
@@ -11564,7 +11714,7 @@ footer h2 {
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--rarete) 38%, var(--color-navy)), color-mix(in srgb, var(--rarete) 14%, var(--color-navy))) padding-box,
     var(--rarete-cadre) border-box;
-  color: #fff;
+  color: var(--ecriture);
   text-align: center;
   cursor: pointer;
   transition: box-shadow 0.2s;
@@ -11641,14 +11791,14 @@ footer h2 {
   height: 1.375rem;
   padding: 0.25rem;
   border-radius: 0.25rem;
-  background: rgb(0 0 0 / 0.55);
-  color: #fff;
+  background: var(--ecriture);
+  color: var(--color-navy);
 }
 .case[data-boutique] .case-dessin {
   opacity: 0.8;
 }
 .case:hover {
-  box-shadow: 0 0 0 2px var(--color-navy), 0 0 0 4px color-mix(in srgb, #fff 55%, transparent);
+  box-shadow: 0 0 0 2px var(--color-navy), 0 0 0 4px color-mix(in srgb, var(--ecriture) 55%, transparent);
 }
 .case[data-boutique]:hover .case-dessin,
 .case[data-etat="essayee"] .case-dessin {
@@ -11658,7 +11808,7 @@ footer h2 {
    Ni le survol ni la couleur ne le disent à sa place. */
 .case[data-etat="essayee"] {
   box-shadow: 0 0 0 2px var(--color-navy);
-  outline: 3px dashed #fff;
+  outline: 3px dashed var(--ecriture);
   outline-offset: 2px;
 }
 .case-essai,
@@ -11674,22 +11824,22 @@ footer h2 {
 }
 .case-essai {
   left: 0.25rem;
-  background: #fff;
+  background: var(--ecriture);
   color: var(--color-navy);
 }
 /* « à vous » : un objet acheté ou tiré d'une pochette, avec le nombre d'exemplaires s'il y en a plusieurs. « Double » dans
    la fenêtre de la pochette. */
 .case-marque {
   right: 0.25rem;
-  background: rgb(0 0 0 / 0.6);
-  color: #fff;
+  background: var(--ecriture);
+  color: var(--color-navy);
 }
 /* Le prix d'une case de la boutique : la pièce et le nombre, sous la rareté. */
 .case-prix {
   margin-top: 0.125rem;
   padding: 0.0625rem 0.5rem 0.0625rem 0.3125rem;
   border-radius: 999px;
-  background: rgb(0 0 0 / 0.45);
+  background: color-mix(in srgb, var(--ecriture) 10%, transparent);
   font-size: 0.8125rem;
   font-weight: 700;
 }
@@ -11701,9 +11851,9 @@ footer h2 {
 .case-montree:hover {
   box-shadow: none;
 }
-/* La case portée : un anneau blanc plein et une coche dans le coin. */
+/* La case portée : un anneau plein, de la couleur de l'écriture, et une coche blanche dans le coin. */
 .case[data-etat="portee"] {
-  box-shadow: 0 0 0 2px var(--color-navy), 0 0 0 5px #fff;
+  box-shadow: 0 0 0 2px var(--color-navy), 0 0 0 5px var(--ecriture);
 }
 .case[data-etat="portee"]::after {
   content: "";
@@ -11713,8 +11863,8 @@ footer h2 {
   width: 1.25rem;
   height: 1.25rem;
   border-radius: 999px;
-  background: #fff
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2l2.4 2.4 4.6-5' fill='none' stroke='%230a1230' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+  background: var(--ecriture)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2l2.4 2.4 4.6-5' fill='none' stroke='%23ffffff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
     center / 0.875rem no-repeat;
 }
 @media (prefers-reduced-motion: reduce) {
@@ -11723,7 +11873,7 @@ footer h2 {
   }
 }
 
-/* Une couleur à choisir : sa pastille et son nom, la couleur n'est jamais le seul repère. La choisie est en blanc plein. */
+/* Une couleur à choisir : sa pastille et son nom, la couleur n'est jamais le seul repère. La choisie est pleine, de la couleur de l'écriture. */
 .vestiaire-teinte {
   display: inline-flex;
   align-items: center;
@@ -11742,13 +11892,13 @@ footer h2 {
     border-color 0.15s;
 }
 .vestiaire-teinte:hover {
-  color: #fff;
-  border-color: #fff;
+  color: var(--ecriture);
+  border-color: var(--ecriture);
 }
 .vestiaire-teinte[aria-pressed="true"] {
   color: var(--color-navy);
-  background: #fff;
-  border-color: #fff;
+  background: var(--ecriture);
+  border-color: var(--ecriture);
 }
 .vestiaire-teinte-rond {
   width: 1.75rem;
@@ -11797,7 +11947,7 @@ footer h2 {
   align-items: center;
   gap: 0.3125rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--ecriture);
   white-space: nowrap;
 }
 /* En tête de la colonne des choix : la bourse et la pochette surprise, côte à côte quand la place le permet. */
@@ -11832,7 +11982,7 @@ footer h2 {
   font-size: clamp(2.5rem, 2rem + 2.5vw, 3.75rem);
   font-weight: 800;
   line-height: 1;
-  color: #fff;
+  color: var(--ecriture);
   white-space: nowrap;
 }
 .bourse-unite {
@@ -11851,7 +12001,7 @@ footer h2 {
   font-weight: 600;
 }
 .bourse-etat a {
-  color: #fff;
+  color: var(--ecriture);
   text-decoration: underline;
 }
 .bourse-regle,
@@ -11908,7 +12058,7 @@ footer h2 {
   padding-block: 0.3125rem;
   border-top: 1px solid var(--color-line);
   font-weight: 600;
-  color: #fff;
+  color: var(--ecriture);
 }
 .pochette-chances li:first-child {
   border-top: 0;
@@ -11959,7 +12109,7 @@ footer h2 {
   font-size: 1.5rem;
   font-weight: 800;
   line-height: 1.2;
-  color: #fff;
+  color: var(--ecriture);
   text-wrap: balance;
 }
 .boutique-dialogue-titre:focus {
@@ -11997,7 +12147,7 @@ footer h2 {
 }
 .boutique-compte dd {
   font-weight: 700;
-  color: #fff;
+  color: var(--ecriture);
 }
 .boutique-compte-reste {
   border-top-color: var(--color-line-strong) !important;
@@ -12258,7 +12408,7 @@ footer h2 {
 .carte .carte-session h1 {
   font-size: 1.5rem;
   line-height: 1.15;
-  color: #fff;
+  color: var(--ecriture);
   white-space: nowrap;
 }
 .carte .carte-session [data-testid="data-status"] {
@@ -12275,10 +12425,12 @@ footer h2 {
   background: var(--color-surface-2);
   font-size: 1.25rem;
   font-weight: 600;
-  color: #fff;
+  color: var(--ecriture);
 }
 .carte .carte-touche:hover {
-  border-color: #fff;
+  /* Le fond n'est plus le bleu vif de la règle de base : l'écriture reprend la couleur de la page. */
+  --ecriture: inherit;
+  border-color: var(--ecriture);
   background: var(--color-surface-2);
 }
 .carte .carte-touche-large {
@@ -12351,7 +12503,7 @@ footer h2 {
 .carte .carte-transport .film-hud-date {
   font-size: 0.9375rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--ecriture);
   white-space: nowrap;
 }
 .carte .carte-transport .film-hud-evenement {
@@ -12382,8 +12534,8 @@ footer h2 {
 }
 .carte-transport-reglages:hover,
 .carte-transport-reglages[aria-current="true"] {
-  border-color: #fff;
-  color: #fff;
+  border-color: var(--ecriture);
+  color: var(--ecriture);
 }
 .carte-transport-reglages[aria-current="true"] {
   box-shadow: inset 0 -2px 0 var(--color-red);
@@ -12408,16 +12560,18 @@ footer h2 {
 .carte .carte-dock-entree:hover {
   border-color: var(--color-line-strong);
   background: var(--color-surface);
-  color: #fff;
+  color: var(--ecriture);
 }
 .carte .carte-dock-entree[aria-current="true"] {
+  /* Le fond n'est plus le bleu vif de la règle de base : l'écriture reprend la couleur de la page. */
+  --ecriture: inherit;
   border-color: var(--color-line-strong);
   background: var(--color-surface-2);
   box-shadow: inset 0 -2px 0 var(--color-red);
-  color: #fff;
+  color: var(--ecriture);
 }
 .carte .carte-dock-entree[aria-current="true"] .icone-partie {
-  color: #fff;
+  color: var(--ecriture);
 }
 
 /* --- Les fenêtres : posées sur le bleu de la page, sans cadre, comme les parties d'une page ; le titre en onciale --- */
@@ -12436,7 +12590,7 @@ footer h2 {
   font-weight: 800;
   line-height: 1.25;
   text-transform: none;
-  color: #fff;
+  color: var(--ecriture);
 }
 .carte .carte-fenetre h3 {
   font-family: var(--font-display);
@@ -12445,7 +12599,7 @@ footer h2 {
 .carte .carte-chiffre {
   font-family: var(--font-cases);
   letter-spacing: 0;
-  color: #fff;
+  color: var(--ecriture);
 }
 /* De quand sont les chiffres : comme les dates et les relevés du site (.info-discrete), en petit italique gris. */
 .carte .carte-sur {
@@ -12462,14 +12616,14 @@ footer h2 {
   border: 1px solid var(--color-line-strong);
   border-radius: 0.5rem;
   background: var(--color-surface);
-  box-shadow: 0 1.25rem 2.5rem rgb(0 0 0 / 0.45);
+  box-shadow: 0 1.25rem 2.5rem var(--ombre);
 }
 .carte .carte-fenetre[data-libre] > .carte-fenetre-barre {
   border-radius: 0.5rem 0.5rem 0 0;
   background: var(--color-surface-2);
   font-family: var(--carte-mono);
   text-transform: capitalize;
-  color: #fff;
+  color: var(--ecriture);
 }
 
 /* --- L'objectif : le duel, puis l'écart en chiffre clé, puis trois repères comme une rangée de chiffres clés --- */
@@ -12503,7 +12657,7 @@ footer h2 {
   font-family: var(--font-cases);
   font-size: clamp(1.25rem, 8cqi, 2.25rem);
   line-height: 1;
-  color: #fff;
+  color: var(--ecriture);
   white-space: nowrap;
 }
 .carte-camp-tag > i {
@@ -12514,7 +12668,7 @@ footer h2 {
 .carte-camp-px {
   font-size: clamp(1rem, 5.2cqi, 1.25rem);
   font-weight: 700;
-  color: #fff;
+  color: var(--ecriture);
   white-space: nowrap;
 }
 .carte-camp-px small {
@@ -12593,14 +12747,14 @@ footer h2 {
   left: -1px;
   width: 1px;
   height: 1.125rem;
-  background: #fff;
+  background: var(--ecriture);
 }
 .carte-trois > li > b {
   display: block;
   margin-bottom: 0.125rem;
   font-size: 1.1875rem;
   font-weight: 800;
-  color: #fff;
+  color: var(--ecriture);
 }
 
 /* --- Le classement du film : comme les tableaux du site, la ligne de GAL comme dans le classement --- */
@@ -12641,7 +12795,7 @@ footer h2 {
 .carte .carte-podium .film-row > :nth-child(2) {
   font-family: var(--font-display);
   font-weight: 700;
-  color: #fff;
+  color: var(--ecriture);
 }
 .carte .carte-podium .film-row > :nth-child(3) {
   grid-column: 4;
@@ -12653,7 +12807,7 @@ footer h2 {
   grid-row: 1;
   height: 0.375rem;
   border-radius: 0.1875rem;
-  background: rgb(255 255 255 / 0.08);
+  background: color-mix(in srgb, var(--ecriture) 8%, transparent);
 }
 .carte .carte-podium .film-row.is-gal {
   z-index: 1;
@@ -12662,7 +12816,7 @@ footer h2 {
   font-weight: 600;
 }
 .carte .carte-podium .film-row.is-gal .film-row-rank {
-  color: #fff;
+  color: var(--ecriture);
 }
 :root.carte-console .carte .carte-podium .carte-podium-gal,
 .carte .carte-podium .carte-podium-gal {
@@ -13158,7 +13312,7 @@ footer h2 {
   text-underline-offset: 3px;
 }
 .carte[data-carte] .carte-aide a:hover {
-  color: #fff;
+  color: var(--ecriture);
 }
 .carte[data-carte] .carte-fenetre .btn {
   min-height: 2.5rem;
@@ -13211,7 +13365,7 @@ footer h2 {
   left: -1px;
   width: 1px;
   height: 1.125rem;
-  background: #fff;
+  background: var(--ecriture);
 }
 .carte[data-carte] .carte-chiffres > div:first-child,
 .carte[data-carte] .carte-fenetre .carte-cle {
@@ -13245,7 +13399,7 @@ footer h2 {
   color: var(--color-muted);
 }
 .carte[data-carte] .carte-chiffres dd.font-semibold {
-  color: #fff;
+  color: var(--ecriture);
 }
 /* Les remarques sous les chiffres : sous un filet, la dernière comme une ligne de service. */
 .carte-notes {
@@ -13289,7 +13443,7 @@ footer h2 {
   font-weight: 800;
   line-height: 1.2;
   letter-spacing: -0.01em;
-  color: #fff;
+  color: var(--ecriture);
 }
 
 /* --- Les tableaux : ceux du site, serrés pour la colonne --- */
@@ -13363,13 +13517,13 @@ footer h2 {
   white-space: nowrap;
 }
 .carte[data-carte] .carte-table td.font-semibold {
-  color: #fff;
+  color: var(--ecriture);
 }
 /* La ligne de GAL, comme dans le classement du site : un fond bleu, le trait rouge à gauche. */
 .carte[data-carte] .carte-table tr.est-gal > td {
   background: color-mix(in srgb, var(--color-blue) 26%, var(--color-surface));
   font-weight: 600;
-  color: #fff;
+  color: var(--ecriture);
 }
 .carte[data-carte] .carte-table tr.est-gal > td:first-child {
   box-shadow: inset 3px 0 0 var(--color-red);
@@ -13379,20 +13533,20 @@ footer h2 {
   background: var(--color-surface-2);
 }
 .carte[data-carte] .carte-table tr:has(> td > [aria-current="true"]) > td:first-child {
-  box-shadow: inset 3px 0 0 #fff;
+  box-shadow: inset 3px 0 0 var(--ecriture);
 }
 /* Un clan ou un jour qui se clique : blanc, souligné d'un filet qui s'éclaire au survol. */
 .carte[data-carte] .film-front-link {
   font-weight: 600;
   white-space: nowrap;
-  color: #fff;
+  color: var(--ecriture);
   text-decoration: underline;
   text-decoration-color: var(--color-line-strong);
   text-decoration-thickness: 1px;
   text-underline-offset: 4px;
 }
 .carte[data-carte] .film-front-link:hover {
-  text-decoration-color: #fff;
+  text-decoration-color: var(--ecriture);
 }
 /* Le tag d'un clan : en onciale, comme dans le classement du film. */
 .carte[data-carte] [data-testid="map-clans"] tbody td:nth-child(2),
@@ -13401,14 +13555,14 @@ footer h2 {
 .carte[data-carte] [data-testid="film-fronts"] tbody td:first-child .film-front-link {
   font-family: var(--font-display);
   font-weight: 700;
-  color: #fff;
+  color: var(--ecriture);
 }
 .carte[data-carte] [data-testid="map-clans"] tbody td:first-child {
   width: 3.25rem;
   color: var(--color-muted);
 }
 .carte[data-carte] [data-testid="map-clans"] tr.est-gal > td:first-child {
-  color: #fff;
+  color: var(--ecriture);
 }
 /* La couleur du clan sur la carte : un trait devant son tag, comme dans le duel de l'objectif. */
 .carte[data-carte] .carte-table .carte-pastille {
@@ -13507,14 +13661,14 @@ footer h2 {
   color: var(--texte-courant);
 }
 .carte[data-carte] .carte-liste .film-tile:hover {
-  background: rgb(255 255 255 / 0.06);
+  background: color-mix(in srgb, var(--ecriture) 6%, transparent);
 }
 /* Le contour du focus reste dans la ligne : le cadre de la liste ne le coupe pas. */
 .carte[data-carte] .carte-liste .film-tile:focus-visible {
   outline-offset: -3px;
 }
 .carte[data-carte] .carte-liste .film-tile > .font-semibold {
-  color: #fff;
+  color: var(--ecriture);
 }
 .carte[data-carte] .carte-liste .carte-date {
   min-width: 0;
@@ -13528,16 +13682,18 @@ footer h2 {
   width: 3px;
   height: 0.75rem;
   border-radius: 1px;
-  background: #fff;
+  background: var(--ecriture);
 }
 .film-tile[data-recul] > .carte-repere {
   background: var(--color-red);
 }
-/* Le moment ou la zone montrés sur la carte : la ligne s'éclaire, un trait blanc à gauche. */
+/* Le moment ou la zone montrés sur la carte : la ligne se teinte, un trait de la couleur de l'écriture à gauche. */
 .carte[data-carte] .carte-liste .film-tile[aria-current="true"] {
+  /* Le fond n'est plus le bleu vif de la règle de base : l'écriture reprend la couleur de la page. */
+  --ecriture: inherit;
   background: var(--color-surface-2);
-  box-shadow: inset 3px 0 0 #fff;
-  color: #fff;
+  box-shadow: inset 3px 0 0 var(--ecriture);
+  color: var(--ecriture);
 }
 .carte[data-carte] .carte-liste .film-tile[aria-current="true"] > .carte-date {
   color: var(--texte-courant);
@@ -13579,7 +13735,7 @@ footer h2 {
   font-size: 0.9375rem;
   font-weight: 700;
   text-align: right;
-  color: #fff;
+  color: var(--ecriture);
 }
 
 /* Le rang écrit à côté des pixels du duel de l'objectif : rien sous 13 px. */
@@ -13651,7 +13807,7 @@ footer h2 {
   font-weight: 700;
   letter-spacing: 0;
   text-transform: none;
-  color: #fff;
+  color: var(--ecriture);
 }
 .carte[data-carte] .alliance-fenetre .alliance-sous-titre {
   margin-top: 1rem;
@@ -13705,7 +13861,7 @@ footer h2 {
   font-weight: 600;
 }
 .carte[data-carte] .alliance-mode > button:hover {
-  border-color: #fff;
+  border-color: var(--ecriture);
 }
 .carte[data-carte] :is(.alliance-bouton-outil, .alliance-bouton-taille) {
   border-color: var(--color-line);
@@ -13713,8 +13869,10 @@ footer h2 {
 }
 .carte[data-carte] .alliance-mode > button[aria-pressed="true"],
 .carte[data-carte] :is(.alliance-bouton-outil, .alliance-bouton-taille):has(> input:checked) {
-  border-color: #fff;
-  background: #fff;
+  /* Le fond n'est plus le bleu vif de la règle de base : l'écriture reprend la couleur de la page. */
+  --ecriture: inherit;
+  border-color: var(--ecriture);
+  background: var(--ecriture);
   color: var(--color-navy);
 }
 
@@ -13726,13 +13884,13 @@ footer h2 {
   border-radius: 0.375rem;
   background: var(--color-navy);
   font-size: 0.9375rem;
-  color: #fff;
+  color: var(--ecriture);
 }
 .carte[data-carte] .alliance-fenetre .field:hover:where(:not(:disabled)) {
   border-color: var(--color-blue-text);
 }
 .carte[data-carte] .alliance-fenetre .field:focus-visible {
-  border-color: #fff;
+  border-color: var(--ecriture);
   outline: 2px solid var(--color-blue-text);
   outline-offset: 1px;
 }
@@ -13780,7 +13938,7 @@ footer h2 {
   left: -1px;
   width: 1px;
   height: 1.125rem;
-  background: #fff;
+  background: var(--ecriture);
 }
 .carte[data-carte] .alliance-kpis > div:first-child {
   border-left: 3px solid var(--color-red);
@@ -13848,7 +14006,7 @@ footer h2 {
 .carte[data-carte] .alliance-table tbody th {
   font-family: var(--font-display);
   font-weight: 700;
-  color: #fff;
+  color: var(--ecriture);
 }
 .carte[data-carte] .alliance-table td {
   font-weight: 600;
@@ -13925,7 +14083,7 @@ footer h2 {
   border-top: 1px solid color-mix(in srgb, var(--color-line) 55%, transparent);
 }
 .carte[data-carte] .alliance-zone[data-choisie] {
-  box-shadow: inset 3px 0 0 #fff;
+  box-shadow: inset 3px 0 0 var(--ecriture);
 }
 .carte[data-carte] .alliance-zone-clan {
   font-family: var(--font-sans);
@@ -13947,7 +14105,7 @@ footer h2 {
 .carte[data-carte] .alliance-barre {
   border: 0;
   border-radius: 0.1875rem;
-  background: rgb(255 255 255 / 0.1);
+  background: color-mix(in srgb, var(--ecriture) 10%, transparent);
 }
 /* Le dessin d'une zone : l'astuce de l'outil est une ligne de service ; le compte des pixels, un chiffre clé. */
 .carte[data-carte] .alliance-astuce {
@@ -13990,7 +14148,7 @@ footer h2 {
   border-top: 1px solid color-mix(in srgb, var(--color-line) 55%, transparent);
 }
 .carte[data-carte] .alliance-fil > li.est-mien {
-  box-shadow: inset 3px 0 0 #fff;
+  box-shadow: inset 3px 0 0 var(--ecriture);
 }
 /* Le message épinglé : sous le filet rouge de ce qui compte d'abord. */
 .carte[data-carte] .alliance-epingle {
@@ -14077,7 +14235,7 @@ footer h2 {
   /* La hauteur de l'en-tête du site et celle de la barre : mesurées par le composant, ces valeurs servent en attendant. */
   --comptes-haut: 4rem;
   --comptes-outils: 3.75rem;
-  --ton: #fff;
+  --ton: var(--ecriture);
 }
 .comptes [data-tone="ok"] {
   --ton: var(--color-ok);
@@ -14149,7 +14307,7 @@ footer h2 {
     color 0.15s;
 }
 .comptes-filtre:hover {
-  background: color-mix(in srgb, var(--ton) 16%, transparent);
+  background: color-mix(in srgb, var(--ton) 12%, transparent);
 }
 .comptes-filtre[aria-pressed="true"] {
   border-color: var(--ton);
@@ -14194,7 +14352,7 @@ footer h2 {
   box-shadow: inset 3px 0 0 var(--ton);
 }
 .comptes-table tbody tr:hover {
-  background: rgb(255 255 255 / 0.05);
+  background: color-mix(in srgb, var(--ecriture) 5%, transparent);
 }
 /* Le focus d'une ligne ne passe pas sous la barre ni sous les titres des colonnes. */
 .comptes-table :is(select, button) {
@@ -14207,7 +14365,7 @@ footer h2 {
   margin-right: 0.625rem;
   font-size: 1rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--ecriture);
   overflow-wrap: anywhere;
 }
 .comptes-discord,
@@ -14277,15 +14435,15 @@ footer h2 {
 }
 .comptes-role[data-role="officer"] {
   border-color: var(--color-line-strong);
-  color: #fff;
+  color: var(--ecriture);
 }
 .comptes-role[data-role="admin"] {
-  border-color: #fff;
-  color: #fff;
+  border-color: var(--ecriture);
+  color: var(--ecriture);
 }
 .comptes-role[data-role="founder"] {
-  border-color: #fff;
-  background: #fff;
+  border-color: var(--ecriture);
+  background: var(--ecriture);
   color: var(--color-night);
 }
 .comptes .comptes-choix {
@@ -14298,10 +14456,10 @@ footer h2 {
 }
 .comptes .comptes-choix:is([data-role="officer"], [data-role="admin"]) {
   font-weight: 600;
-  color: #fff;
+  color: var(--ecriture);
 }
 .comptes .comptes-choix[data-role="admin"] {
-  border-color: #fff;
+  border-color: var(--ecriture);
 }
 .comptes-confirme {
   display: flex;
@@ -14554,7 +14712,7 @@ footer h2 {
   gap: 1rem;
   min-height: 3rem;
   padding: 0.5rem 0.75rem 0.5rem 0;
-  color: #fff;
+  color: var(--ecriture);
   text-decoration: none;
 }
 /* Toute la ligne se clique et se touche, pastille comprise. */
@@ -14764,9 +14922,9 @@ footer h2 {
   background: var(--color-blue);
 }
 .qg-salons .dir-bouton[aria-disabled="true"]:hover {
-  border-color: color-mix(in srgb, var(--ton, #fff) 55%, transparent);
+  border-color: color-mix(in srgb, var(--ton, var(--ecriture)) 55%, transparent);
   background: transparent;
-  color: var(--ton, #fff);
+  color: var(--ton, var(--ecriture));
 }
 .qg-salons .salons-garde {
   font-size: 0.9375rem;
@@ -14910,9 +15068,9 @@ footer h2 {
   min-height: 2.75rem;
   padding: 0.5rem 0.5rem 0.4375rem;
   border: 1px solid var(--color-line);
-  background: rgb(255 255 255 / 0.03);
+  background: color-mix(in srgb, var(--ecriture) 3%, transparent);
   text-align: left;
-  color: #fff;
+  color: var(--ecriture);
   cursor: pointer;
   transition:
     background-color 0.15s,
@@ -14920,7 +15078,7 @@ footer h2 {
 }
 .qg-ce-soir .qg-ce-soir-heure:hover {
   border-color: var(--color-line-strong);
-  background: rgb(255 255 255 / 0.07);
+  background: color-mix(in srgb, var(--ecriture) 7%, transparent);
 }
 .qg-ce-soir .qg-ce-soir-heure[data-dir-ton="warn"] {
   border-color: color-mix(in srgb, var(--ton) 55%, transparent);
@@ -15072,7 +15230,7 @@ footer h2 {
 }
 .qg-ce-soir .qg-ce-soir-qui-heure {
   font-weight: 800;
-  color: #fff;
+  color: var(--ecriture);
 }
 .qg-ce-soir .qg-ce-soir-qui-mots {
   display: flex;
@@ -15364,7 +15522,7 @@ footer h2 {
   font-size: clamp(2rem, 1.4rem + 2.6vw, 3.25rem);
   line-height: 1.05;
   white-space: nowrap;
-  color: #fff;
+  color: var(--ecriture);
 }
 .qg-simulateur .sim-avant {
   font-size: 0.9375rem;
@@ -15471,7 +15629,7 @@ footer h2 {
 }
 .qg-simulateur .sim-total strong {
   font-size: 1.25rem;
-  color: #fff;
+  color: var(--ecriture);
 }
 .qg-simulateur .sim-total .dir-point {
   font-size: 0.9375rem;
@@ -15531,7 +15689,7 @@ footer h2 {
   font-size: inherit;
   letter-spacing: 0;
   text-transform: none;
-  color: #fff;
+  color: var(--ecriture);
 }
 .qg-simulateur .sim-nous {
   background: color-mix(in srgb, var(--color-ally) 12%, transparent);
@@ -15712,7 +15870,7 @@ footer h2 {
   transition: background-color 0.15s;
 }
 .qg-decisions button.qgd-option:hover {
-  background: rgb(255 255 255 / 0.07);
+  background: color-mix(in srgb, var(--ecriture) 7%, transparent);
 }
 .qg-decisions button.qgd-option[aria-pressed="true"] {
   background: color-mix(in srgb, var(--color-ok) 9%, transparent);
@@ -15776,7 +15934,7 @@ footer h2 {
 }
 .qg-decisions div.qgd-option[data-tete] .qgd-nom {
   font-weight: 700;
-  color: #fff;
+  color: var(--ecriture);
 }
 .qg-decisions div.qgd-option:not([data-tete]) .qgd-part {
   font-weight: 400;
@@ -15839,7 +15997,7 @@ footer h2 {
 .qg-evenements .qg-evenements-heure {
   font-size: 1.375rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--ecriture);
 }
 .qg-evenements .qg-evenements-corps {
   grid-area: corps;
@@ -15926,7 +16084,7 @@ footer h2 {
   margin-left: -0.375rem;
   box-shadow: 0 0 0 2px var(--color-navy);
   font-size: 0.8125rem;
-  color: #fff;
+  color: var(--ecriture);
 }
 
 /* « Je viens » : un bouton à bascule. Coché, il est vert et porte une coche (décorative : `aria-pressed` le dit déjà). */
@@ -16078,7 +16236,7 @@ footer h2 {
   box-shadow: inset 3px 0 0 var(--ton, transparent);
 }
 .qg-idees-ligne:hover {
-  background: rgb(255 255 255 / 0.04);
+  background: color-mix(in srgb, var(--ecriture) 4%, transparent);
 }
 /* Une ligne reçoit le focus quand l'idée d'à côté vient de partir (décision, suppression) : son contour reste dedans, et
    ni elle ni ses boutons ne s'arrêtent sous la barre collée des filtres. */
@@ -16108,11 +16266,11 @@ footer h2 {
   font-size: 1.375rem;
   font-weight: 800;
   line-height: 1.2;
-  color: #fff;
+  color: var(--ecriture);
 }
 /* « Je soutiens » est blanc, plein une fois le soutien donné : il ne prend pas la couleur du statut de la ligne. */
 .qg-idees .qg-idees-soutenir {
-  --ton: #fff;
+  --ton: var(--ecriture);
   min-height: 1.75rem;
   padding-inline: 0.5rem;
   font-size: 0.8125rem;
@@ -16164,7 +16322,7 @@ footer h2 {
 .qg-idees-auteur {
   min-width: 0;
   overflow-wrap: anywhere;
-  color: #fff;
+  color: var(--ecriture);
 }
 .qg-idees-actions {
   display: flex;
@@ -16221,8 +16379,8 @@ footer h2 {
 }
 /* La décision choisie (bouton de la ligne, ou choix du panneau) : pleine, comme un filtre ouvert. */
 .qg-idees .dir-bouton[aria-pressed="true"] {
-  border-color: var(--ton, #fff);
-  background: var(--ton, #fff);
+  border-color: var(--ton, var(--ecriture));
+  background: var(--ton, var(--ecriture));
   color: var(--color-night);
 }
 .qg-idees-choix {
@@ -16365,7 +16523,7 @@ footer h2 {
 .qg-mur-titre .tnum {
   margin-left: 0.375rem;
   font-weight: 800;
-  color: #fff;
+  color: var(--ecriture);
 }
 .qg-mur .dir-liste {
   margin-top: 0.5rem;
@@ -16401,9 +16559,9 @@ footer h2 {
   cursor: not-allowed;
 }
 .qg-mur .dir-bouton[aria-disabled="true"]:not([aria-pressed="true"]):hover {
-  border-color: color-mix(in srgb, var(--ton, #fff) 55%, transparent);
+  border-color: color-mix(in srgb, var(--ton, var(--ecriture)) 55%, transparent);
   background: transparent;
-  color: var(--ton, #fff);
+  color: var(--ton, var(--ecriture));
 }
 /* Une personne sur une ligne : photo ou initiale, nom et marques, puis ce qui compte au bout. */
 .qg-mur-ligne {
@@ -16418,7 +16576,7 @@ footer h2 {
 .qg-mur-nom {
   font-weight: 700;
   line-height: 1.25;
-  color: #fff;
+  color: var(--ecriture);
   overflow-wrap: anywhere;
 }
 .qg-mur-suite {
@@ -16432,7 +16590,7 @@ footer h2 {
   color: var(--color-muted);
 }
 .qg-mur-discord {
-  color: #fff;
+  color: var(--ecriture);
   overflow-wrap: anywhere;
   user-select: all;
 }
@@ -16443,7 +16601,7 @@ footer h2 {
 }
 .qg-mur-gg-nombre b {
   font-weight: 800;
-  color: #fff;
+  color: var(--ecriture);
 }
 .qg-mur-ligne > .qg-mur-gg-nombre {
   font-size: 0.9375rem;
@@ -16456,14 +16614,14 @@ footer h2 {
   font-size: 0.75rem;
   font-weight: 600;
   white-space: nowrap;
-  color: #fff;
+  color: var(--ecriture);
 }
 .qg-mur-role[data-role="admin"] {
-  border-color: #fff;
+  border-color: var(--ecriture);
 }
 .qg-mur-role[data-role="founder"] {
-  border-color: #fff;
-  background: #fff;
+  border-color: var(--ecriture);
+  background: var(--ecriture);
   color: var(--color-night);
 }
 .qg-mur .fold {
@@ -16590,6 +16748,16 @@ html:has(.compagnon:not([hidden]), .compagnon-prison:not([hidden])) {
   opacity: 0;
   visibility: hidden;
 }
+/* Arrêté, il ne couvre ni texte ni commande : loin de la place libre la plus proche (plus de trois fois sa hauteur), il
+   s'efface en fondu et réapparaît là, plutôt que de traverser la page en marchant dessus (data-passe, posé le temps du
+   fondu). Plus près, il y va à pied ; enfoncé sous le bord bas, seule sa tête dépasse. */
+.compagnon[data-passe] {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.4s ease,
+    visibility 0s linear 0.4s;
+}
 /* Le bouton ne couvre que son corps : les marges vides du dessin laissent passer les clics. */
 .compagnon-gaulois {
   position: absolute;
@@ -16608,7 +16776,7 @@ html:has(.compagnon:not([hidden]), .compagnon-prison:not([hidden])) {
   cursor: grabbing;
 }
 .compagnon-gaulois:focus-visible {
-  outline: 2px solid #fff;
+  outline: 2px solid var(--ecriture);
   outline-offset: 2px;
 }
 /* Son ombre au sol : il tient debout sur n'importe quel fond. */
@@ -16697,7 +16865,7 @@ html:has(.compagnon:not([hidden]), .compagnon-prison:not([hidden])) {
   font-family: var(--font-console);
   font-size: 0.8125rem;
   line-height: 1.4;
-  color: #fff;
+  color: var(--ecriture);
   isolation: isolate;
   pointer-events: none;
   opacity: 0;
@@ -16795,12 +16963,12 @@ html:has(.compagnon:not([hidden]), .compagnon-prison:not([hidden])) {
 .compagnon-choix:hover,
 .compagnon-choix:focus-visible {
   border-color: var(--color-blue-text);
-  color: #fff;
+  color: var(--ecriture);
 }
 .compagnon-village {
   margin-top: 0.5rem;
   border-color: var(--color-blue-text);
-  color: #fff;
+  color: var(--ecriture);
 }
 .compagnon-village[hidden] {
   display: none;
@@ -16834,7 +17002,7 @@ html:has(.compagnon:not([hidden]), .compagnon-prison:not([hidden])) {
   visibility: hidden;
 }
 .compagnon-prison:focus-visible {
-  outline: 2px solid #fff;
+  outline: 2px solid var(--ecriture);
   outline-offset: 2px;
 }
 .compagnon-prison-fond,
@@ -16874,7 +17042,7 @@ html:has(.compagnon:not([hidden]), .compagnon-prison:not([hidden])) {
   font-family: var(--font-console);
   font-size: 0.75rem;
   font-weight: 500;
-  color: #fff;
+  color: var(--ecriture);
   white-space: nowrap;
   opacity: 0;
   visibility: hidden;
@@ -17012,7 +17180,7 @@ html:has(.compagnon:not([hidden]), .compagnon-prison:not([hidden])) {
 }
 .monde-sans-script-titre {
   margin-bottom: 0.5rem;
-  color: #fff;
+  color: var(--ecriture);
   font-family: var(--font-display);
   font-size: 1.25rem;
   font-weight: 800;
@@ -17025,7 +17193,7 @@ html:has(.compagnon:not([hidden]), .compagnon-prison:not([hidden])) {
 
 /* L'écran : la scène, et sous elle, sur un téléphone, la rangée d'icônes. */
 .monde {
-  --monde-vitre: rgb(8 16 41 / 0.88);
+  --monde-vitre: color-mix(in srgb, var(--color-navy) 92%, transparent);
   position: relative;
   display: grid;
   flex: 1 1 0;
@@ -17050,7 +17218,7 @@ html:has(.compagnon:not([hidden]), .compagnon-prison:not([hidden])) {
   cursor: grabbing;
 }
 .monde-scene:focus-visible {
-  outline: 3px solid #fff;
+  outline: 3px solid var(--sur-couleur);
   outline-offset: -3px;
 }
 /* Le titre de la page n'est lu que par les lecteurs d'écran (les onglets de la rubrique le montrent) : ses mots ne se
@@ -17271,7 +17439,7 @@ html:has(.compagnon:not([hidden]), .compagnon-prison:not([hidden])) {
 }
 .monde-plaque-objet {
   display: block;
-  color: #fff;
+  color: var(--ecriture);
   font-weight: 600;
 }
 .monde-plaque-texte {
@@ -17293,11 +17461,11 @@ html:has(.compagnon:not([hidden]), .compagnon-prison:not([hidden])) {
   cursor: pointer;
 }
 .monde-zone:hover {
-  outline: 2px dashed rgb(255 255 255 / 0.75);
+  outline: 2px dashed color-mix(in srgb, var(--sur-couleur) 75%, transparent);
   outline-offset: 2px;
 }
 .monde-zone:focus-visible {
-  outline: 3px solid #fff;
+  outline: 3px solid var(--sur-couleur);
   outline-offset: 2px;
 }
 /* Une étiquette posée sur le dessin, au-dessus de ce qu'elle nomme : fond plein, texte blanc (15:1), jamais petite. */
@@ -17315,7 +17483,7 @@ html:has(.compagnon:not([hidden]), .compagnon-prison:not([hidden])) {
   border: 1px solid var(--color-line-strong);
   border-radius: 0.5rem;
   background: var(--color-night);
-  color: #fff;
+  color: var(--ecriture);
   font-size: 0.8125rem;
   line-height: 1.3;
   text-align: center;
@@ -17324,7 +17492,7 @@ button.monde-etiquette {
   cursor: pointer;
 }
 button.monde-etiquette:hover {
-  border-color: #fff;
+  border-color: var(--ecriture);
 }
 .monde-etiquette:is([data-sorte="chantier"], [data-sorte="feu"])::after {
   content: "";
@@ -17359,7 +17527,7 @@ button.monde-etiquette:hover {
   min-width: 1.25rem;
   padding: 0 0.3125rem;
   border-radius: 999px;
-  background: #fff;
+  background: var(--ecriture);
   color: var(--color-navy);
   font-weight: 700;
   line-height: 1.25rem;
@@ -17382,7 +17550,7 @@ button.monde-etiquette:hover {
   background: var(--color-warn);
 }
 
-/* Ce qui se pose sur le monde : le titre, la petite carte, la ligne des liens. Des vitres sombres, au filet du site. */
+/* Ce qui se pose sur le monde : le titre, la petite carte, la ligne des liens. Des vitres claires, au filet du site (thème clair du 14 novembre 2026). */
 .monde-carte,
 .monde-dock,
 .monde-credit,
@@ -17428,11 +17596,11 @@ button.monde-etiquette:hover {
 }
 .monde-carte-quartier:hover {
   background: var(--color-surface);
-  color: #fff;
+  color: var(--ecriture);
 }
 .monde-carte-quartier[aria-current="true"] {
   background: var(--color-surface-2);
-  color: #fff;
+  color: var(--ecriture);
 }
 .monde-carte-icone {
   flex: none;
@@ -17449,7 +17617,7 @@ button.monde-etiquette:hover {
   border: 1px solid var(--color-line-strong);
   border-radius: 0.375rem;
   background: var(--color-night);
-  color: #fff;
+  color: var(--ecriture);
   font-size: 0.8125rem;
   pointer-events: none;
 }
@@ -17469,9 +17637,9 @@ button.monde-etiquette:hover {
   position: absolute;
   top: -0.1875rem;
   bottom: -0.1875rem;
-  border: 2px solid #fff;
+  border: 2px solid var(--ecriture);
   border-radius: 0.375rem;
-  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.5);
+  box-shadow: 0 0 0 1px var(--color-navy);
   pointer-events: none;
 }
 .monde-carte-moi {
@@ -17479,7 +17647,7 @@ button.monde-etiquette:hover {
   bottom: -0.375rem;
   translate: -50% 0;
   border-inline: 0.3125rem solid transparent;
-  border-bottom: 0.4375rem solid #fff;
+  border-bottom: 0.4375rem solid var(--ecriture);
   pointer-events: none;
 }
 .monde-carte-moi[hidden] {
@@ -17510,7 +17678,7 @@ button.monde-etiquette:hover {
   text-underline-offset: 3px;
 }
 .monde-credit a:hover {
-  color: #fff;
+  color: var(--ecriture);
 }
 
 /* La rangée d'icônes : en rail à gauche sur un écran large. L'entrée ouverte porte le filet rouge du marqueur de page. */
@@ -17549,13 +17717,13 @@ button.monde-etiquette:hover {
 .monde-dock-entree:hover {
   border-color: var(--color-line-strong);
   background: var(--color-surface);
-  color: #fff;
+  color: var(--ecriture);
 }
 .monde-dock-entree[aria-expanded="true"] {
   border-color: var(--color-line-strong);
   background: var(--color-surface-2);
   box-shadow: inset 0 -3px 0 var(--color-red);
-  color: #fff;
+  color: var(--ecriture);
 }
 
 /* Une fenêtre posée sur le monde, à droite : sa barre, puis son contenu qui défile dans son cadre. Même famille que
@@ -17573,7 +17741,7 @@ button.monde-etiquette:hover {
   border: 1px solid var(--color-line-strong);
   border-radius: 0.75rem;
   background: var(--color-navy);
-  box-shadow: 0 1rem 2.5rem rgb(0 0 0 / 0.5);
+  box-shadow: 0 1rem 2.5rem var(--ombre);
   -webkit-user-select: text;
   user-select: text;
   animation: monde-fenetre-parait 0.3s ease-out;
@@ -17610,7 +17778,7 @@ button.monde-etiquette:hover {
 .monde-fenetre-titre {
   flex: 1;
   min-width: 0;
-  color: #fff;
+  color: var(--ecriture);
   font-family: var(--font-display);
   font-size: 1.125rem;
   font-weight: 800;
@@ -17629,7 +17797,7 @@ button.monde-etiquette:hover {
 }
 .monde-fermer:hover {
   background: var(--color-surface-2);
-  color: #fff;
+  color: var(--ecriture);
 }
 .monde-fenetre-corps {
   flex: 1 1 auto;
@@ -17653,7 +17821,7 @@ button.monde-etiquette:hover {
 }
 .monde-chiffre strong {
   margin-right: 0.25rem;
-  color: #fff;
+  color: var(--ecriture);
   font-family: var(--font-display);
   font-size: 2.25rem;
   font-weight: 800;
@@ -17668,7 +17836,7 @@ button.monde-etiquette:hover {
   background: var(--color-surface);
 }
 .monde-en-cours-phrase {
-  color: #fff;
+  color: var(--ecriture);
   font-weight: 600;
 }
 .monde-batiments {
@@ -17698,7 +17866,7 @@ button.monde-etiquette:hover {
   background: linear-gradient(to top, var(--color-warn) 50%, transparent 50%);
 }
 .monde-batiment-nom {
-  color: #fff;
+  color: var(--ecriture);
   font-weight: 600;
 }
 .monde-batiments li[data-etat="attente"] .monde-batiment-nom {
@@ -17726,7 +17894,7 @@ button.monde-etiquette:hover {
 }
 .monde-voir:hover,
 .monde-lien:hover {
-  color: #fff;
+  color: var(--ecriture);
 }
 .monde-qui .vie-liste {
   margin-top: 0;
@@ -17741,7 +17909,7 @@ button.monde-etiquette:hover {
   justify-self: start;
 }
 .monde-feu-nom {
-  color: #fff;
+  color: var(--ecriture);
   font-family: var(--font-display);
   font-size: 1.75rem;
   font-weight: 800;
@@ -17762,7 +17930,7 @@ button.monde-etiquette:hover {
 .monde-feux li[aria-current="true"] {
   border-radius: 0.375rem;
   background: var(--color-surface-2);
-  color: #fff;
+  color: var(--ecriture);
   font-weight: 600;
 }
 .monde-feu-barre {
@@ -17918,7 +18086,7 @@ button.monde-etiquette:hover {
   font-weight: 600;
 }
 .forge-solde {
-  color: #fff;
+  color: var(--ecriture);
   font-family: var(--font-display);
   font-size: 1.5rem;
   font-weight: 800;
@@ -17929,7 +18097,7 @@ button.monde-etiquette:hover {
   font-size: 0.875rem;
 }
 .forge-prix strong {
-  color: #fff;
+  color: var(--ecriture);
   white-space: nowrap;
 }
 .forge-etape {
@@ -17990,7 +18158,7 @@ button.monde-etiquette:hover {
 }
 .forge-objet-nom {
   min-width: 0;
-  color: #fff;
+  color: var(--ecriture);
   font-family: var(--font-display);
   font-size: 1.25rem;
   font-weight: 800;
@@ -18085,7 +18253,7 @@ button.monde-etiquette:hover {
   border: 1px solid var(--color-line);
   border-radius: 0.5rem;
   background: var(--color-surface);
-  color: #fff;
+  color: var(--ecriture);
   font-weight: 600;
   font-size: 0.9375rem;
   line-height: 1.3;
@@ -18162,7 +18330,7 @@ button.monde-etiquette:hover {
 }
 /* La confirmation : la plaque, l'objet dessous, puis le compte de la boutique. */
 .forge-dialogue .forge-plaque-legende {
-  color: #fff;
+  color: var(--ecriture);
   font-size: 1rem;
 }
 
@@ -18274,7 +18442,7 @@ button.monde-etiquette:hover {
   width: 2.5rem;
   height: 2.5rem;
   border-radius: 0.5rem;
-  color: #fff;
+  color: var(--ecriture);
   cursor: pointer;
 }
 .monde-approche-bouton:hover:not(:disabled) {

@@ -19,7 +19,6 @@ import {
   type Arrival,
   type Grid,
 } from "../lib/fx/territory";
-import { frNumber } from "../lib/nombre";
 import type { Holo } from "./holo";
 
 const STORAGE_KEY = "gal-fx";
@@ -267,7 +266,8 @@ function init(): void {
     launchWave(x, y, owner, big ? 520 : 380, 760, 1);
     const main = COLORS[owner];
     const other = COLORS[side === "left" ? reply : lead];
-    const palette = [main, main, main, "#ffffff", "#ffffff", other];
+    // Le marine de l'écriture à la place du blanc : sur la page blanche, des éclats blancs ne se verraient pas.
+    const palette = [main, main, main, "#0a1230", "#0a1230", other];
     const count = (finePointer ? 18 : 10) * (big ? 2 : 1);
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
@@ -810,33 +810,48 @@ function init(): void {
     }
   }
 
-  /* ---------- Compteurs ---------- */
+  /* ---------- Chiffres clés ---------- */
 
+  /*
+   * Un chiffre clé (`data-count`) entre à l'écran en se levant doucement (`.fx-count-in`, global.css), déjà à sa vraie
+   * valeur. Jusqu'au 14 novembre 2026, il montait de zéro en une seconde : la page montrait des chiffres faux (1 497,47 pour
+   * 2 397,86), et un onglet ouvert en arrière-plan restait figé sur l'un d'eux. Le texte n'est plus jamais touché : celui du
+   * build, que lisent aussi les lecteurs d'écran et le copier-coller. Les chiffres qui entrent ensemble se lèvent l'un après
+   * l'autre. Hors de l'écran, il attend transparent (`.fx-count-wait`) ; déjà sous les yeux au démarrage (la fenêtre ouverte
+   * de la Carte), il reste tel quel : il ne disparaît pas pour revenir.
+   */
   const counterObserver = new IntersectionObserver((entries) => {
+    let rang = 0;
     for (const entry of entries) {
       if (!entry.isIntersecting) continue;
       counterObserver.unobserve(entry.target);
-      runCounter(entry.target as HTMLElement);
+      raiseCounter(entry.target as HTMLElement, rang++);
     }
   });
 
-  function runCounter(el: HTMLElement): void {
-    const target = Number(el.dataset.count);
-    const decimals = Number(el.dataset.decimals ?? 0);
-    const final = el.textContent ?? "";
-    if (!Number.isFinite(target)) return;
-    const fmt = frNumber({ minimumFractionDigits: decimals, maximumFractionDigits: decimals });
-    const begin = performance.now();
-    const step = (t: number) => {
-      const p = Math.max(0, Math.min(1, (t - begin) / 900));
-      if (!enabled || p >= 1) {
-        el.textContent = final;
-        return;
-      }
-      el.textContent = fmt.format(target * (1 - (1 - p) ** 3));
-      requestAnimationFrame(step);
+  function prepareCounters(): void {
+    if (!enabled) return;
+    for (const el of document.querySelectorAll<HTMLElement>("[data-count]")) {
+      if (!el.dataset.count) continue;
+      const r = el.getBoundingClientRect();
+      const seen = r.width > 0 && r.bottom > 0 && r.top < innerHeight && !el.closest(".fx-hidden");
+      if (seen) continue;
+      el.classList.add("fx-count-wait");
+      counterObserver.observe(el);
+    }
+  }
+
+  function raiseCounter(el: HTMLElement, rang: number): void {
+    el.classList.remove("fx-count-wait");
+    if (!enabled) return;
+    el.style.setProperty("--fx-count-i", String(rang));
+    el.classList.add("fx-count-in");
+    const fin = (e: AnimationEvent) => {
+      if (e.target !== el) return;
+      el.classList.remove("fx-count-in");
+      el.removeEventListener("animationend", fin);
     };
-    requestAnimationFrame(step);
+    el.addEventListener("animationend", fin);
   }
 
   /* ---------- Infobulles ---------- */
@@ -891,6 +906,11 @@ function init(): void {
     for (const stage of document.querySelectorAll<HTMLElement>(".fx-stage")) stage.style.translate = "";
     holo?.veille();
     revealAll();
+    // Un chiffre clé qui attend ou se lève : la pause le montre à sa place, et la reprise ne rejoue pas son entrée.
+    for (const el of document.querySelectorAll<HTMLElement>(".fx-count-wait, .fx-count-in")) {
+      counterObserver.unobserve(el);
+      el.classList.remove("fx-count-wait", "fx-count-in");
+    }
   }
 
   function setEnabled(on: boolean, remember: boolean): void {
@@ -920,14 +940,13 @@ function init(): void {
 
   for (const hint of document.querySelectorAll<HTMLElement>("[data-fx-hint]")) hint.hidden = !finePointer;
   resize();
-  for (const el of document.querySelectorAll<HTMLElement>("[data-count]")) {
-    if (el.dataset.count) counterObserver.observe(el);
-  }
   useCustomTips(enabled);
   if (enabled) {
     prepareReveal();
     wakeHolo();
   }
+  // Après les blocs : un chiffre dans un bloc qui attend d'apparaître n'a pas encore été vu.
+  prepareCounters();
   root.classList.remove("fx-wait");
   start();
 

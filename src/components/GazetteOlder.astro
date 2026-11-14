@@ -11,8 +11,10 @@ interface Props {
   firstStanding: string | null;
   firstTerritory: string | null;
   membersAt: string | null;
+  /** Ses précisions repliées sous l'édition (par défaut). Faux sur la page de la gazette, qui les réunit en bas. */
+  note?: boolean;
 }
-const { edition, records, firstStanding, firstTerritory, membersAt } = Astro.props;
+const { edition, records, firstStanding, firstTerritory, membersAt, note = true } = Astro.props;
 ---
 
 <details class="fold" data-testid="gazette-older">
@@ -22,9 +24,9 @@ const { edition, records, firstStanding, firstTerritory, membersAt } = Astro.pro
       <span class="tnum font-normal text-muted"> · {fmtCount(edition.totals.games, "partie")}, {fmtCount(edition.totals.wins, "victoire")}{edition.totals.winRate !== null && `, ${fmtPct(edition.totals.winRate)}`}</span>
     </span>
   </summary>
-  {/* En retrait derrière un filet, comme une branche : les replis de l'édition (« Comment lire ces chiffres ») ont le dessin
-      d'une ligne d'édition et ne doivent pas passer pour l'édition suivante. */}
+  {/* En retrait derrière un filet, comme une branche : les replis de l'édition (« Voir les pseudos » des arrivées) ont le
+      dessin d'une ligne d'édition et ne doivent pas passer pour l'édition suivante. */}
   <div class="border-l border-line pl-4 sm:pl-6">
-    <GazetteEditionBlock edition={edition} records={records} firstStanding={firstStanding} firstTerritory={firstTerritory} membersAt={membersAt} />
+    <GazetteEditionBlock edition={edition} records={records} firstStanding={firstStanding} firstTerritory={firstTerritory} membersAt={membersAt} note={note} />
   </div>
 </details>

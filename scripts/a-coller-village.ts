@@ -35,6 +35,8 @@ ${noms.map((n) => `--   ${n}`).join("\n")}
 -- (.cache/a-coller-forge.sql, migration 20261114001000) n'est pas collée : après elle, ne plus le recoller, il remettrait
 -- les versions d'avant de mettre_en_vente (un objet gravé redeviendrait vendable), get_village et get_village_economie.
 -- Ne jamais coller un de ces fichiers seul après coup : il remettrait en place d'anciennes fonctions.
+-- Depuis le 14 novembre 2026, il remet aussi le seuil de 5 comptes de l'onglet Village de la Direction : le recoller
+-- seulement s'il le faut, puis aussitôt .cache/a-coller-village-sans-seuil.sql (migration 20261114001100).
 -- La dernière ligne doit dire : « village : ${FONCTIONS.length} fonctions sur ${FONCTIONS.length}, ${TABLES.length} tables sur ${TABLES.length} ».
 `;
 const corps = noms.map((n) => `\n-- ==================== ${n} ====================\n\n${readFileSync(`${DOSSIER}/${n}`, "utf8").replace(/\r\n/g, "\n").trimEnd()}\n`).join("\n;\n");

@@ -3,6 +3,8 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import Base from "../layouts/Base.astro";
+import AccueilCarte from "../components/AccueilCarte.astro";
+import AccueilVillage from "../components/AccueilVillage.astro";
 import ClanWeek from "../components/ClanWeek.astro";
 import DataStatus from "../components/DataStatus.astro";
 import Invite from "../components/Invite.astro";
@@ -49,16 +51,19 @@ const cards = [
   { label: "Score", value: me ? fmtScore(me.weightedWins) : null, count: me?.weightedWins, decimals: 2, hint: "victoires pondérées" },
   { label: "Parties", value: me ? fmtInt(me.games) : null, count: me?.games, hint: "sur 90 jours" },
   { label: "Victoires", value: me ? fmtInt(me.wins) : null, count: me?.wins, hint: "sur 90 jours" },
-  { label: "Taux de victoire", value: rate === null ? null : fmtPct(rate), hint: "victoires ÷ parties" },
+  { label: "Taux de victoire", value: rate === null ? null : fmtPct(rate), hint: "part des parties gagnées" },
 ];
 
 // Chaque bloc résume une page et y renvoie : uniquement des données collectées. La carte, les dernières parties
 // et les créneaux ont chacun leur page : l'accueil ne les recopie plus depuis le 12 novembre 2026.
+// Depuis le 14 novembre 2026, la Carte et le village y ont chacun une porte : une image, une ligne, un bouton.
 const sessions = loadSessions();
 const games = loadGames();
 const members = loadMembers();
 const film = loadClanMapFilm();
 const onMap = film?.galSummary ?? null;
+// L'image de la carte finale, dessinée avant les pages (scripts/generate-clanmap.ts) : sans elle, pas de bloc Carte.
+const mapStill = film !== null && existsSync(join("public", "generated", "carte", "finale-800.webp"));
 const memberWeeks = loadMemberWeeks();
 const gazette = gazetteEditions({ sessions, history: loadHistory(), territory: loadTerritoryReadings(), weekTops: memberWeeks.tops, members, archiveStart: clan.archiveStart, completeThrough: meta.sessions.completeThrough })[0] ?? null;
 // Le fil du clan : les paliers franchis depuis le relevé du lundi, et les records des sept derniers jours. Règles dans src/lib/vie-du-clan.ts.
@@ -185,14 +190,7 @@ const imageAlt = hasImage && imageFacts ? accueilImageAlt(imageFacts, clan.tag, 
           </p>
         )
       }
-      {
-        me && near && (near.above || near.below) && (
-          <ul class="tnum mt-6 flex flex-wrap gap-x-8 gap-y-1" data-testid="home-race">
-            {near.above && <li>{fmtScore(near.above.gap)} de retard sur [{near.above.clan.clanTag}], {fmtRank(near.above.clan.rank)}</li>}
-            {near.below && <li>{fmtScore(near.below.gap)} d'avance sur [{near.below.clan.clanTag}], {fmtRank(near.below.clan.rank)}</li>}
-          </ul>
-        )
-      }
+      {/* Les écarts avec les voisins ont leur page (en tête du classement, et leur histoire dans Nos rivaux) : l'accueil y renvoie sans les recopier. */}
       <div class="mt-6 flex flex-wrap gap-3">
         <a href={`${base}/classement`} class="btn btn-secondary">Voir le classement complet</a>
         {me && near && <a href={`${base}/rivaux`} class="btn btn-ghost" data-testid="home-rivals">Voir nos rivaux</a>}
@@ -204,6 +202,13 @@ const imageAlt = hasImage && imageFacts ? accueilImageAlt(imageFacts, clan.tag, 
 
     {/* Ce que les membres viennent de faire : le résumé de la dernière gazette, et ce qui s'est passé depuis. */}
     {gazette && <ClanWeek edition={gazette} currentMilestones={currentMilestones} records={recordLines} territoryRecord={territoryRecord} bestGame={bestYesterday ? bestGameSentence(bestYesterday) : null} creditMaps={(bestYesterday?.map ?? null) !== null} live={AUTH_ENABLED} />}
+
+    {/* Les deux pages à voir : la Carte, avec sa vraie image du dernier relevé, et le village. Sans carte collectée, le village reste seul.
+        Les deux vont ensemble : empilées sur téléphone, elles gardent la gouttière de la rangée, pour ne pas allonger la page de plus d'un écran. */}
+    <div class:list={["grid gap-6", mapStill && "lg:grid-cols-2"]} data-testid="home-discover">
+      {mapStill && film && <AccueilCarte film={film} />}
+      <AccueilVillage />
+    </div>
 
     {/* Ce qui est à chacun : sa place dans le clan, et la porte de la face privée. */}
     <div class:list={["grid gap-x-6 gap-y-section", AUTH_ENABLED && "lg:grid-cols-2"]} id="rangee-moi" data-testid="home-me-row">

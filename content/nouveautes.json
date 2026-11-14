@@ -1,6 +1,82 @@
 [
   {
     "date": "2026-11-14",
+    "kind": "nouveau",
+    "title": "L'accueil ouvre la Carte et le village",
+    "body": "L'accueil montre la carte des clans, avec la place de GAL au dernier relevé, et le village des Gaulois. Un bouton mène à chacun.",
+    "link": {
+      "href": "/carte",
+      "label": "Ouvrir la carte"
+    }
+  },
+  {
+    "date": "2026-11-14",
+    "kind": "ameliore",
+    "title": "Rejoindre : le jeu en groupe d'abord",
+    "body": "La page Rejoindre montre d'abord, en grand, ce que change le jeu en groupe : le taux de victoires seul sous le tag, et à 8 joueurs du clan ou plus. Les quatre étapes viennent ensuite.",
+    "link": {
+      "href": "/rejoindre",
+      "label": "Voir la page Rejoindre"
+    }
+  },
+  {
+    "date": "2026-11-14",
+    "kind": "corrige",
+    "title": "Le petit Gaulois ne cache plus rien",
+    "body": "Le petit Gaulois qui vous suit ne se pose plus sur le texte ni sur les boutons : il se met à côté. Quand il n'y a pas de place, seule sa tête dépasse au bas de l'écran."
+  },
+  {
+    "date": "2026-11-14",
+    "kind": "ameliore",
+    "title": "Des pages plus faciles à lire",
+    "body": "Le titre de chaque page est plus grand que ceux de ses parties. La date de mise à jour n'est donnée qu'une fois, en haut. Les explications sont réunies en bas de la page."
+  },
+  {
+    "date": "2026-11-14",
+    "kind": "ameliore",
+    "title": "Moins de chiffres répétés",
+    "body": "Nos rivaux n'écrit plus trois fois le même écart. Pour les écarts avec nos voisins, l'accueil renvoie au classement et à Nos rivaux. La gazette ne redit plus ses chiffres en introduction.",
+    "link": {
+      "href": "/rivaux",
+      "label": "Voir nos rivaux"
+    }
+  },
+  {
+    "date": "2026-11-14",
+    "kind": "corrige",
+    "title": "Des pages qui ne sautent plus",
+    "body": "Sur la liste des membres, le QG et Mon compte, le bas de page ne saute plus au chargement. D'un onglet à l'autre, le titre reste à sa place. Le guide du clan prend toute la largeur."
+  },
+  {
+    "date": "2026-11-14",
+    "kind": "ameliore",
+    "title": "Petites retouches",
+    "body": "La division s'écrit en mots, sans signe. Sur téléphone, le lien « Ouvrir » d'une partie se touche mieux. Confidentialité commence par un sommaire. Les chiffres ne défilent plus depuis zéro."
+  },
+  {
+    "date": "2026-11-14",
+    "kind": "ameliore",
+    "title": "Le site passe au blanc",
+    "body": "Le site quitte son fond bleu marine pour une page blanche, avec l'écriture en bleu marine. Les grands blocs colorés restent. Le guide, le QG et la Direction sont en blanc eux aussi."
+  },
+  {
+    "date": "2026-11-14",
+    "kind": "ameliore",
+    "title": "Carte de l'alliance : inviter les joueurs d'une alliance alliée",
+    "body": "L'équipe gauloise peut cocher « Alliée de la nôtre » sous une autre alliance, dans Gestion. On peut alors inviter ses joueurs : ils lisent la carte et écrivent dans la discussion.",
+    "link": {
+      "href": "/carte#alliance",
+      "label": "Ouvrir la carte"
+    }
+  },
+  {
+    "date": "2026-11-14",
+    "kind": "ameliore",
+    "title": "Direction : le village donne tous ses chiffres",
+    "body": "Dans l'onglet Village de la Direction, les statères distribués, dépensés et en circulation s'affichent même quand moins de 5 comptes en ont reçu. Toujours des totaux, sans aucun nom."
+  },
+  {
+    "date": "2026-11-14",
     "kind": "ameliore",
     "title": "Le Gaulois reste à la porte du village",
     "body": "Au village, le petit Gaulois qui vous suit ne vient plus : la place a déjà ses Gaulois. Il vous retrouve à la page suivante, avec la tenue choisie au vestiaire."

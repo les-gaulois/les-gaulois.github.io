@@ -7,14 +7,28 @@ import { fmtInt } from "../lib/format";
 import { MAX_AGE_HOURS } from "../lib/freshness";
 import { RANKED_MODES, RANKED_TOP } from "../lib/ranked";
 
+interface Props {
+  /**
+   * « complet » (par défaut) : le bloc, ses précisions repliées et sa date, pour une page où il est seul. « bloc » : sans
+   * elles, quand la page les réunit (la date dans son en-tête, les précisions dans son repli unique, en bas : Membres).
+   * « note » : ses seules précisions, sous son nom, pour ce repli.
+   */
+  rendu?: "complet" | "bloc" | "note";
+}
+const { rendu = "complet" } = Astro.props;
+const TITLE = "Membres présents au classé";
+// Les précisions ne s'écrivent qu'une fois : dans le bloc, ou seules (« note ») pour le repli unique de la page.
+const Wrapper = rendu === "note" ? Fragment : "section";
 const meta = loadMeta();
 const ranked = loadRanked();
 ---
 
 {
   (ranked || meta.ranked.lastError) && (
-    <section class="stage stage-wine reveal mt-6 scroll-mt-24" id="classe" aria-labelledby="ranked-title" data-testid="ranked-block">
-      <h2 id="ranked-title" class="section-title">Membres présents au classé</h2>
+    <Wrapper class="stage stage-wine reveal mt-6 scroll-mt-24" id="classe" aria-labelledby="ranked-title" data-testid="ranked-block">
+      {rendu !== "note" && (
+      <>
+      <h2 id="ranked-title" class="section-title">{TITLE}</h2>
       {/* Le classé est à part : une ligne le dit, le reste est replié. */}
       <p class="mt-4 max-w-3xl text-lg text-muted">Classement individuel, hors score du clan.</p>
       {
@@ -42,12 +56,18 @@ const ranked = loadRanked();
           <p class="mt-6 font-display text-lg font-bold">Pas de données</p>
         )
       }
-      <ReadingNote>
+      </>
+      )}
+      {rendu !== "bloc" && (
+      <ReadingNote bloc={rendu === "note" ? TITLE : undefined}>
         <p>Combien de membres de [{clan.tag}] figurent au classement officiel de chaque mode classé d'OpenFront. Ce classement est individuel et à part : il ne compte pas dans le score du clan, et il ne dit pas sous quel tag ces parties ont été jouées. Seuls les membres avec un pseudo public sont reconnus : ces nombres sont donc des minimums.</p>
       </ReadingNote>
-      <div class="mt-4">
-        <DataStatus state={meta.ranked} maxAgeHours={MAX_AGE_HOURS.ranked} />
-      </div>
-    </section>
+      )}
+      {rendu === "complet" && (
+        <div class="mt-4">
+          <DataStatus state={meta.ranked} maxAgeHours={MAX_AGE_HOURS.ranked} />
+        </div>
+      )}
+    </Wrapper>
   )
 }

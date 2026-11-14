@@ -5,6 +5,17 @@ import { loadMembers } from "../lib/data";
 import { fmtCount } from "../lib/format";
 import { tierRows, WIN_TIERS } from "../lib/paliers";
 
+interface Props {
+  /**
+   * « complet » (par défaut) : le bloc et ses précisions repliées, pour une page où il est seul. « bloc » : sans elles,
+   * quand la page les réunit dans son repli unique, en bas (Membres). « note » : ses seules précisions, sous son nom.
+   */
+  rendu?: "complet" | "bloc" | "note";
+}
+const { rendu = "complet" } = Astro.props;
+const TITLE = "Les paliers du clan";
+// Les précisions ne s'écrivent qu'une fois : dans le bloc, ou seules (« note ») pour le repli unique de la page.
+const Wrapper = rendu === "note" ? Fragment : "section";
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const rows = tierRows(loadMembers()?.members ?? []);
 /** Au-delà, les pseudos d'un palier se replient : ils prendraient toute la page. */
@@ -14,8 +25,10 @@ const profile = (publicId: string | null) => `${base}/membres/${encodeURICompone
 
 {
   rows.length > 0 && (
-    <section class="stage stage-indigo reveal mb-section scroll-mt-24" id="paliers" aria-labelledby="tiers-title" data-testid="win-tiers">
-      <h2 id="tiers-title" class="section-title">Les paliers du clan</h2>
+    <Wrapper class="stage stage-indigo reveal mb-section scroll-mt-24" id="paliers" aria-labelledby="tiers-title" data-testid="win-tiers">
+      {rendu !== "note" && (
+      <>
+      <h2 id="tiers-title" class="section-title">{TITLE}</h2>
       <ul class="mt-6 space-y-3">
         {rows.map((row) => (
           <li class="panel grid gap-2 md:grid-cols-[13rem_1fr] md:gap-6" data-testid="win-tier">
@@ -47,11 +60,15 @@ const profile = (publicId: string | null) => `${base}/membres/${encodeURICompone
           </li>
         ))}
       </ul>
-      <ReadingNote>
+      </>
+      )}
+      {rendu !== "bloc" && (
+      <ReadingNote bloc={rendu === "note" ? TITLE : undefined}>
         <p>
         Chaque membre figure une seule fois, à son plus haut palier de victoires en équipe sous le tag. Un palier compte des victoires, donc d'abord des parties jouées : il ne dit pas qui joue le mieux. Seuils choisis par le site, de {WIN_TIERS[0]} à {fmtCount(WIN_TIERS[WIN_TIERS.length - 1] ?? 0, "victoire")} : ils ne viennent pas du jeu. Parties publiques en équipe jouées avec le tag {clan.tag}, sans le classé, le FFA ni Humains contre Nations. Un membre sous le premier seuil n'apparaît pas ici.
       </p>
       </ReadingNote>
-    </section>
+      )}
+    </Wrapper>
   )
 }

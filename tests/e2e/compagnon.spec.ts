@@ -24,6 +24,80 @@ const chevauchent = (a: { x: number; y: number; width: number; height: number } 
 /** Son salut spontané est dit une fois par onglet : déjà dit, il ne gêne pas les tests qui ne le regardent pas. */
 const sansSalut = (page: Page) => page.addInitScript(() => sessionStorage.setItem("gal-compagnon-salue", "1"));
 
+/**
+ * Le contenu des pages gardé à sa place, mais invisible : toute la fenêtre lui est libre (il ne couvre que ce qu'on voit),
+ * il se tient exactement où on le pose ou à côté du curseur. Pour les tests de sa marche et de sa place, pas de sa place de repos.
+ */
+const pageVide = (page: Page) =>
+  page.addInitScript(() => {
+    // Avant tout script de la page : il peut se poser avant même la fin du chargement.
+    const cacher = (): void => {
+      const style = document.createElement("style");
+      style.textContent = "main { visibility: hidden !important; }";
+      document.documentElement.append(style);
+    };
+    if (document.documentElement) cacher();
+    else
+      new MutationObserver((_, observateur) => {
+        if (!document.documentElement) return;
+        observateur.disconnect();
+        cacher();
+      }).observe(document, { childList: true });
+  });
+
+/** Attend qu'il soit posé : ni en marche, ni déplacé, ni effacé ou montré, pendant une seconde et demie de suite. */
+async function attendreQuIlSePose(page: Page): Promise<void> {
+  await page.evaluate(() => delete (window as unknown as { __compagnonPose?: unknown }).__compagnonPose);
+  await page.waitForFunction(
+    () => {
+      const boite = document.querySelector<HTMLElement>("[data-compagnon]");
+      if (!boite || boite.hidden) return false;
+      const etat = `${boite.dataset.pose ?? ""}|${boite.style.transform}|${boite.dataset.efface ?? ""}`;
+      const w = window as unknown as { __compagnonPose?: { etat: string; depuis: number } };
+      const maintenant = performance.now();
+      if (w.__compagnonPose?.etat !== etat) {
+        w.__compagnonPose = { etat, depuis: maintenant };
+        return false;
+      }
+      return boite.dataset.pose !== "marche" && maintenant - w.__compagnonPose.depuis > 1_500;
+    },
+    undefined,
+    { polling: 200, timeout: 45_000 },
+  );
+}
+
+/**
+ * Ce que couvre sa boîte (son dessin entier, marges vides comprises), pour la partie qui est dans la fenêtre : le texte
+ * qu'on voit, les commandes (liens, boutons, champs, onglets) et les lignes de tableau. Effacé, il ne couvre rien.
+ */
+const couverts = (page: Page) =>
+  page.evaluate(() => {
+    const boite = document.querySelector<HTMLElement>("[data-compagnon]");
+    if (!boite || boite.hidden) return [];
+    const style = getComputedStyle(boite);
+    if (style.visibility !== "visible" || Number(style.opacity) === 0) return [];
+    const r = boite.getBoundingClientRect();
+    const vue = document.documentElement;
+    const cadre = { gauche: Math.max(0, r.left), droite: Math.min(vue.clientWidth, r.right), haut: Math.max(0, r.top), bas: Math.min(vue.clientHeight, r.bottom) };
+    if (cadre.droite <= cadre.gauche || cadre.bas <= cadre.haut) return [];
+    const touche = (b: DOMRect) => b.width > 1 && b.height > 1 && b.left < cadre.droite && cadre.gauche < b.right && b.top < cadre.bas && cadre.haut < b.bottom;
+    const vu = (el: Element) => typeof el.checkVisibility !== "function" || el.checkVisibility({ opacityProperty: true, visibilityProperty: true });
+    const ailleurs = (el: Element) => !boite.contains(el) && !el.closest("[data-compagnon-prison], script, style, noscript, template");
+    const trouves: string[] = [];
+    for (const el of document.querySelectorAll("a[href], button, input:not([type=hidden]), select, textarea, summary, [role=button], [role=link], [role=tab], tr")) {
+      if (ailleurs(el) && vu(el) && touche(el.getBoundingClientRect())) trouves.push(`${el.tagName.toLowerCase()} « ${(el.textContent ?? "").trim().replace(/\s+/g, " ").slice(0, 40)} »`);
+    }
+    const textes = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const plage = document.createRange();
+    for (let n = textes.nextNode(); n; n = textes.nextNode()) {
+      const parent = n.parentElement;
+      if (!parent || !n.textContent?.trim() || !ailleurs(parent)) continue;
+      plage.selectNodeContents(n);
+      if ([...plage.getClientRects()].some(touche) && vu(parent)) trouves.push(`texte « ${n.textContent.trim().replace(/\s+/g, " ").slice(0, 40)} »`);
+    }
+    return trouves;
+  });
+
 /** Ouvre sa bulle d'un clic, et attend la phrase. */
 async function luiParler(page: Page): Promise<void> {
   await gaulois(page).click();
@@ -31,18 +105,54 @@ async function luiParler(page: Page): Promise<void> {
   await expect(parole(page)).not.toBeEmpty();
 }
 
-test("il arrive au bas de la fenêtre, dans le pied de page, et il a un nom", async ({ page }) => {
+test("il arrive dans la fenêtre, dans le pied de page, et il a un nom ; sur une page vide, au bas de la fenêtre", async ({ page }) => {
   await sansSalut(page);
   for (const path of ["/", "/classement", "/rejoindre"]) {
     await page.goto(path);
     await expect(compagnon(page), path).toBeVisible();
     await expect(page.getByRole("contentinfo").getByRole("button", { name: "Le Gaulois compagnon : lui parler" })).toBeVisible();
     await expect(gaulois(page)).toHaveAttribute("aria-expanded", "false");
-    // Son dessin (le Gaulois de départ, peint à la construction du site), et son pied au bas de la fenêtre.
+    // Son dessin (le Gaulois de départ, peint à la construction du site), sous l'en-tête, dans la largeur de la fenêtre.
     expect(await page.locator("[data-compagnon-image]").evaluate((el) => getComputedStyle(el).backgroundImage)).toMatch(/\/compagnon\/depart-gaulois\.png\?v=[0-9a-f]{12}"\)$/);
     const cadre = await compagnon(page).boundingBox();
-    const hauteur = page.viewportSize()?.height ?? 0;
-    expect(Math.round((cadre?.y ?? 0) + (cadre?.height ?? 0))).toBe(hauteur);
+    const entete = await page.locator("body > header").boundingBox();
+    const vue = page.viewportSize() ?? { width: 0, height: 0 };
+    expect((cadre?.y ?? 0) + 1, path).toBeGreaterThanOrEqual((entete?.y ?? 0) + (entete?.height ?? 0));
+    expect(cadre?.x ?? -1, path).toBeGreaterThanOrEqual(0);
+    expect((cadre?.x ?? 0) + (cadre?.width ?? 0), path).toBeLessThanOrEqual(vue.width);
+  }
+  // Rien à ne pas couvrir : il arrive à sa place de départ, en bas à gauche, le pied au bas de la fenêtre.
+  await pageVide(page);
+  await page.goto("/classement");
+  await expect(compagnon(page)).toBeVisible();
+  const cadre = await compagnon(page).boundingBox();
+  const vue = page.viewportSize() ?? { width: 0, height: 0 };
+  expect(Math.round((cadre?.y ?? 0) + (cadre?.height ?? 0))).toBe(vue.height);
+  expect(cadre?.x ?? 999).toBeLessThan(vue.width / 4);
+});
+
+test("au repos, il ne couvre ni texte ni commande : à l'arrivée, après un défilement, à côté du curseur", async ({ page }, testInfo) => {
+  test.setTimeout(150_000);
+  await sansSalut(page);
+  for (const path of ["/", "/classement"]) {
+    await page.goto(path);
+    await expect(compagnon(page), path).toBeVisible();
+    // Le temps de se poser : il peut marcher jusqu'à une place libre.
+    await attendreQuIlSePose(page);
+    expect(await couverts(page), `${path}, à l'arrivée`).toEqual([]);
+    // La page défile sous lui ; à la fin du défilement, il se pose de nouveau là où il ne couvre rien.
+    for (const ecrans of [0.8, 1.7]) {
+      await page.evaluate((part) => window.scrollTo(0, Math.round(window.innerHeight * part)), ecrans);
+      await attendreQuIlSePose(page);
+      expect(await couverts(page), `${path}, défilée de ${ecrans} écran`).toEqual([]);
+    }
+    if (testInfo.project.name !== "desktop") continue;
+    // À la souris : il suit le curseur et s'arrête à côté, ni dessous, ni sur ce qu'on lit (le tableau du classement).
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.mouse.move(640, 560, { steps: 8 });
+    await attendreQuIlSePose(page);
+    expect(await couverts(page), `${path}, à côté du curseur`).toEqual([]);
+    expect(await page.evaluate(() => Boolean(document.elementFromPoint(640, 560)?.closest("[data-compagnon]"))), path).toBe(false);
   }
 });
 
@@ -61,6 +171,7 @@ test("sa bulle ouverte passe le contrôle d'accessibilité", async ({ page }) =>
 test("au clavier : Entrée ouvre la bulle, Échap la ferme et rend le focus, les flèches le déplacent", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "Clavier testé sur desktop.");
   await sansSalut(page);
+  await pageVide(page);
   await page.goto("/classement");
   await expect(compagnon(page)).toBeVisible();
   await gaulois(page).focus();
@@ -93,6 +204,8 @@ test("au clavier : Entrée ouvre la bulle, Échap la ferme et rend le focus, les
 
 test("il garde sa place d'une page à l'autre, et au retour arrière", async ({ page }) => {
   await sansSalut(page);
+  // Sur des pages où rien ne le gêne, il revient exactement à sa place ; sinon à la place libre la plus proche.
+  await pageVide(page);
   await page.goto("/");
   await expect(compagnon(page)).toBeVisible();
   await gaulois(page).focus();
@@ -138,6 +251,7 @@ test("au retour arrière d'une page gardée par le navigateur, il reprend la pla
 test("la pause de l'en-tête l'arrête net, sans le faire disparaître", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "Le curseur est testé sur desktop.");
   await sansSalut(page);
+  await pageVide(page);
   await page.goto("/classement");
   await expect(compagnon(page)).toBeVisible();
   await pauseButton(page).click();
@@ -162,6 +276,8 @@ test("la pause de l'en-tête l'arrête net, sans le faire disparaître", async (
 test("il suit le curseur sur toute la fenêtre, pas seulement en bas, et s'arrête à côté de lui", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "Le curseur est testé sur desktop.");
   await sansSalut(page);
+  // Rien à ne pas couvrir près du curseur : il s'arrête tout à côté (sur une vraie page, à la place libre la plus proche).
+  await pageVide(page);
   await page.goto("/classement");
   await expect(compagnon(page)).toBeVisible();
   const bas = await placeY(page);

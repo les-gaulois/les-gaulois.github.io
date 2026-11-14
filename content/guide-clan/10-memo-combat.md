@@ -10,13 +10,13 @@ ouvert: true
 
 | Élément | Valeur ou règle |
 |---|---|
-| Attaque Civil | 1 troupe sur 5 (troupes ÷ 5) |
-| Attaque Bot | 1 troupe sur 20 (troupes ÷ 20) |
-| Densité du défenseur | troupes ÷ nombre de tuiles |
+| Attaque Civil | 1 troupe sur 5 (troupes divisées par 5) |
+| Attaque Bot | 1 troupe sur 20 (troupes divisées par 20) |
+| Densité du défenseur | troupes divisées par nombre de tuiles |
 | Plaine | mag 80, coût 16,5 |
 | Colline (highland) | mag 100, coût 20 |
 | Montagne | mag 120, coût 25 |
-| Ratio des pertes | borne(défenseur ÷ attaque ; 0,6 ; 2) |
+| Ratio des pertes | borne(défenseur divisé par attaque ; 0,6 ; 2) |
 | Base des pertes | 0,463 |
 | Part de la densité | 0,0039 × troupes par tuile |
 | Poste | portée 30, pertes ×5, coût de vitesse ×3 |

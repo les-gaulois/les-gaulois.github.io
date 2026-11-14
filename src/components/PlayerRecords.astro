@@ -12,6 +12,16 @@ import { playerRecords, type RecordHolder, type WeekRecord } from "../lib/record
  * Les records des joueurs : la meilleure semaine, la semaine la plus active et le plus de victoires sous le tag, au total.
  * Calculs et limites dans src/lib/records-joueurs.ts. Un détenteur sans pseudo public n'est jamais nommé.
  */
+interface Props {
+  /**
+   * « complet » (par défaut) : le bloc, ses précisions repliées et sa date, pour une page où il est seul. « bloc » : sans
+   * elles, quand la page les réunit (la date dans son en-tête, les précisions dans son repli unique, en bas : Records).
+   * « note » : ses seules précisions, sous son nom, pour ce repli.
+   */
+  rendu?: "complet" | "bloc" | "note";
+}
+const { rendu = "complet" } = Astro.props;
+const TITLE = "Les records des joueurs";
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const members = loadMembers();
 const records = playerRecords(loadMemberWeeks(), members);
@@ -24,12 +34,16 @@ const tiles: { label: string; holders: RecordHolder[]; value: string; hint: stri
   records.busiestWeek && { label: "Le plus de parties en une semaine", holders: records.busiestWeek.holders, value: fmtCount(records.busiestWeek.value, "partie"), hint: period(records.busiestWeek) },
   records.mostWins && { label: "Le plus de victoires sous le tag", holders: records.mostWins.holders, value: fmtCount(records.mostWins.value, "victoire"), hint: "au total, d'après la liste officielle" },
 ].filter((tile) => tile !== null);
+// Les précisions ne s'écrivent qu'une fois : dans le bloc, ou seules (« note ») pour le repli unique de la page.
+const Wrapper = rendu === "note" ? Fragment : "section";
 ---
 
 {
   tiles.length > 0 && (
-    <section class="stage stage-blue reveal mt-section" aria-labelledby="player-records-title" data-testid="player-records">
-      <h2 id="player-records-title" class="section-title">Les records des joueurs</h2>
+    <Wrapper class="stage stage-blue reveal mt-section" aria-labelledby="player-records-title" data-testid="player-records">
+      {rendu !== "note" && (
+      <>
+      <h2 id="player-records-title" class="section-title">{TITLE}</h2>
       <dl class="mt-8 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
         {
           tiles.map((t) => (
@@ -63,7 +77,10 @@ const tiles: { label: string; holders: RecordHolder[]; value: string; hint: stri
       </dl>
       {/* La couverture des semaines change la lecture d'un record : elle reste écrite. Le périmètre et la réserve sur le niveau sont repliés. */}
       {records.firstDay && <p class="mt-6 max-w-3xl text-sm text-muted" data-testid="player-records-weeks">Semaines relevées depuis le {fmtDate(`${records.firstDay}T12:00:00Z`)}.</p>}
-      <ReadingNote>
+      </>
+      )}
+      {rendu !== "bloc" && (
+      <ReadingNote bloc={rendu === "note" ? TITLE : undefined}>
         <p data-testid="player-records-scope">
           Parties publiques en équipe jouées avec le tag {clan.tag}, sans le classé, le FFA ni Humains contre Nations, parmi les membres encore dans le clan. Cela compte d'abord le temps de jeu : ce n'est pas un classement de niveau.
           {
@@ -80,9 +97,12 @@ const tiles: { label: string; holders: RecordHolder[]; value: string; hint: stri
         </p>
         <p>Le total sous le tag vient de la liste officielle d'OpenFront : il peut compter des parties jouées sous le tag avant l'arrivée du joueur dans la liste. Un membre sans pseudo public n'est jamais nommé.</p>
       </ReadingNote>
-      <div class="mt-4">
-        <DataStatus state={loadMeta().members} maxAgeHours={MAX_AGE_HOURS.members} />
-      </div>
-    </section>
+      )}
+      {rendu === "complet" && (
+        <div class="mt-4">
+          <DataStatus state={loadMeta().members} maxAgeHours={MAX_AGE_HOURS.members} />
+        </div>
+      )}
+    </Wrapper>
   )
 }

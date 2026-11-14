@@ -68,6 +68,7 @@ Node 22 ou plus. Sous Windows, le shell est Git Bash : chemins avec `/`.
 ### Design et accessibilité
 
 - Jetons, scènes et boutons de `docs/DESIGN.md` (skill `design-gal`). Aucune maquette ni valeur fictive dans l'interface.
+- Le site est en thème clair « Neige Marine » depuis le 14 novembre 2026 (choix du pilote, guide, QG et Direction compris) : page blanche, écriture marine, scènes colorées gardées. Jamais `#fff` pour un texte, un filet ou une icône : `var(--ecriture)`. Ne pas revenir au bleu sans sa demande.
 - WCAG AA, `prefers-reduced-motion` respecté, bouton pause de l'en-tête obligatoire, aucun défilement horizontal de 360 à 1 920 px, clic droit natif conservé sur les liens, champs, texte sélectionné et avec Maj. Une animation ne change jamais une valeur.
 - `.btn` écrase la classe `hidden` de Tailwind : masquer via un conteneur.
 
@@ -80,7 +81,7 @@ Node 22 ou plus. Sous Windows, le shell est Git Bash : chemins avec `/`.
 ### Le village des Gaulois
 
 - Design et graphisme par Claude Fable 5.2, code par Claude Opus 5.5 : c'est la demande du pilote pour tout agent lancé sur le village. Détail des lots, des règles et des choix : « Le village des Gaulois » de `docs/DIRECTION.md`.
-- Les statères viennent des « points rapportés au clan », 30 par point, jamais « des victoires ». Ils ne s'achètent pas. Le solde est privé : aucun classement des plus riches.
+- Les statères viennent des « points rapportés au clan », 30 par point, jamais « des victoires ». Ils ne s'achètent pas. Le solde ne se montre qu'à son titulaire : aucun classement des plus riches. Les totaux de l'onglet Village de la Direction, eux, s'affichent sans seuil, même venus d'un seul compte (choix du pilote, 14 novembre 2026) : ne pas remettre de seuil.
 - Rien n'est du temps réel : OpenFront ne dit pas qui joue en ce moment, et le robot Discord ne voit que l'état vocal, relevé toutes les 5 minutes. L'écran le dit.
 - L'API Claude n'écrit que les bulles des Gaulois, à partir de faits sans identité (`src/lib/village/consigne-repliques.ts`), sous un plafond tenu par le serveur. Toute autre dépense ou tout autre usage de l'API se demande au pilote. La clé est le secret GitHub `ANTHROPIC_API_KEY`, jamais dans le dépôt.
 - Aucun dessin ne rappelle une œuvre existante ; pas de case pour se retirer de la place (choix du pilote).

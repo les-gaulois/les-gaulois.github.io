@@ -1,15 +1,16 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { clan } from "../../config/clan";
 import { accueilFacts, accueilImageAlt, accueilRanking } from "../../src/lib/accueil-image";
 import { GazetteFonts } from "../../src/lib/gazette-image";
 import { worldTerritory } from "../../src/lib/carte-monde";
-import { loadClanMapFilm, loadTerritoryReadings, loadGames, loadHistory, loadMemberGames, loadMemberResults, loadMembers, loadMemberWeeks, loadMeta, loadNouveautes, loadSessions } from "../../src/lib/data";
-import { fmtCount, fmtGap, fmtInt, fmtRank, fmtScore } from "../../src/lib/format";
+import { loadClanMapFilm, loadTerritoryReadings, loadGames, loadHistory, loadMemberGames, loadMemberResults, loadMembers, loadMemberWeeks, loadMeta, loadNouveautes, loadRivals, loadSessions } from "../../src/lib/data";
+import { fmtCount, fmtDateTime, fmtGap, fmtInt, fmtRank, fmtScore } from "../../src/lib/format";
 import type { LeaderboardEntry } from "../../src/lib/schemas";
 import { neighbours, withOfficialRanks } from "../../src/lib/stats";
-import { firstRival } from "../../src/lib/compare";
+import { firstRival, tagsInRace } from "../../src/lib/compare";
+import { rivalSeries } from "../../src/lib/rivals";
 import { faceOffs } from "../../src/lib/games";
 import { editionLead, GAZETTE_RECENT_EDITIONS, gazetteEditions, playersPeriod, rankWords, standingDetails, territoryDetails, weekLabel } from "../../src/lib/gazette";
 import { bestGameOf, bestGameSentence, yesterdayOf } from "../../src/lib/belle-partie";
@@ -141,8 +142,8 @@ test("seules les pages de l'encadrement passent au rouge", async ({ page }, test
   expect(qg.background).not.toBe(red.background);
   expect(qg.background).toBe(rgbOf(qg.bar));
   // Le guide du clan est une console depuis le 12 novembre 2026 (« comme la Carte »), sans le rouge de l'encadrement. Depuis
-  // le 13 novembre, son fond est le bleu du site, et non plus le noir du Terminal (« garder la même DA du bleu en bg sur
-  // TOUT le site, arrêter le noir et le bleu foncé ») : la barre du navigateur le reprend.
+  // le 13 novembre, son fond est celui du site, et non plus celui du Terminal (« garder la même DA […] sur TOUT le
+  // site ») : blanc depuis le thème clair du 14 novembre, et la barre du navigateur le reprend.
   expect(await look("/debuter")).toEqual({ ...qg, background: blue.background, bar: blue.bar });
   // La page Carte n'est plus une console depuis le 13 novembre 2026 au soir (« j'aime pas trop le design hacker sur la
   // carte ») : ni ambiance ni style Terminal, le bleu des autres pages (« mieux fondre avec les codes couleur »).
@@ -337,7 +338,8 @@ test("les titres ont de vraies minuscules et une lettrine, sauf en console, au Q
       return {
         casse: style.textTransform,
         lettrine: hauteur(debut) / hauteur(debut + 1),
-        rouge: getComputedStyle(porteur, "::first-letter").color === "rgb(255, 26, 46)",
+        // Le rouge du drapeau du thème clair (--color-red, 14 novembre 2026).
+        rouge: getComputedStyle(porteur, "::first-letter").color === "rgb(217, 18, 40)",
         interligne: Math.round((parseFloat(style.lineHeight) / parseFloat(style.fontSize)) * 100) / 100,
         motsAnimes: el.querySelectorAll(".fx-word").length,
       };
@@ -407,6 +409,58 @@ test("les titres ont de vraies minuscules et une lettrine, sauf en console, au Q
   expect((await titre("main .section-title"))?.lettrine).toBeCloseTo(1.3, 1);
 });
 
+// Les onglets d'une rubrique font une seule suite de pages : en passant de l'un à l'autre, la rangée d'onglets, la ligne
+// tricolore et le titre partent du même bord, même vers le QG et le guide, qui sont en console (global.css, « --page-max »).
+// Le QG garde ses écrans dans la colonne de travail de 75 rem, calée sur ce bord ; la Direction, sans rubrique, reste centrée.
+test("d'un onglet à l'autre d'une rubrique, les onglets, la ligne tricolore et le titre ne bougent pas", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "Largeurs testées une seule fois.");
+  test.slow();
+  const bords = async (path: string) => {
+    await page.goto(path);
+    return page.evaluate(() => {
+      const gauche = (sel: string) => document.querySelector(sel)?.getBoundingClientRect().left ?? null;
+      const colonne = document.querySelector(".colonne-travail")?.getBoundingClientRect();
+      return {
+        onglet: gauche("main .rubrique .rubrique-onglet"),
+        filet: gauche("main .tribar"),
+        titre: gauche("main h1"),
+        colonne: colonne ? { gauche: colonne.left, largeur: colonne.width } : null,
+        deborde: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      };
+    });
+  };
+  for (const width of [360, 390, 768, 1280, 1440, 1920]) {
+    await page.setViewportSize({ width, height: 900 });
+    const rubriques: [string, ...string[]][] = [
+      ["/membres", "/liste", "/qg"],
+      ["/activite", "/debuter"],
+    ];
+    for (const [repere, ...autres] of rubriques) {
+      const attendu = await bords(repere);
+      expect(attendu.onglet, `${repere} à ${width} px`).not.toBeNull();
+      expect(attendu.filet, `${repere} à ${width} px`).toBeCloseTo(attendu.onglet!, 0);
+      expect(attendu.titre, `${repere} à ${width} px`).toBeCloseTo(attendu.onglet!, 0);
+      for (const path of autres) {
+        const ici = await bords(path);
+        const ou = `${path} à ${width} px`;
+        expect(ici.onglet, ou).toBeCloseTo(attendu.onglet!, 0);
+        expect(ici.filet, ou).toBeCloseTo(attendu.onglet!, 0);
+        expect(ici.titre, ou).toBeCloseTo(attendu.onglet!, 0);
+        expect(ici.deborde, ou).toBeLessThanOrEqual(0);
+        if (path === "/qg") {
+          // La porte et les écrans du QG : la colonne de 75 rem moins ses deux marges de 1 rem, jamais plus large.
+          expect(ici.colonne?.gauche, ou).toBeCloseTo(attendu.onglet!, 0);
+          expect(ici.colonne?.largeur, ou).toBeLessThanOrEqual(1168.5);
+          if (width >= 1440) expect(ici.colonne?.largeur, ou).toBeCloseTo(1168, 0);
+        }
+      }
+    }
+    // La Direction n'a pas d'onglets de rubrique : sa colonne de 75 rem reste au milieu de l'écran.
+    const direction = await bords("/direction");
+    expect(direction.titre, `/direction à ${width} px`).toBeCloseTo(Math.max(16, (width - 1200) / 2 + 16), 0);
+  }
+});
+
 // L'onciale est plus large qu'Outfit : sur un téléphone de 360 px, chaque titre de page prend la taille qui laisse son plus
 // long mot sur une ligne (--mot-em, PageHeader.astro), lettrine comprise, au lieu de le couper en deux.
 test("à 360 px, aucun titre de page ne coupe un mot en deux", async ({ page }, testInfo) => {
@@ -439,6 +493,36 @@ test("à 360 px, aucun titre de page ne coupe un mot en deux", async ({ page }, 
       return out;
     });
     expect(coupes, path).toEqual([]);
+  }
+});
+
+// Le 14 novembre 2026, le titre de la page et les titres de ses blocs faisaient tous 64 px sur un ordinateur (36 et 32 px
+// sur un téléphone) : rien ne disait où commencer. Le titre de la page est maintenant le plus fort, un titre de bloc un
+// cran en dessous, sans descendre sous 44 px sur un ordinateur (le pilote veut un site écrit en gros).
+test("le titre de la page est plus fort que les titres de ses blocs", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "Largeurs testées une seule fois.");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  for (const largeur of [1440, 390]) {
+    await page.setViewportSize({ width: largeur, height: 900 });
+    for (const path of ["/records", "/membres", "/rivaux", "/activite", "/gazette", "/progression"]) {
+      await page.goto(path);
+      await page.evaluate(() => document.fonts.ready);
+      // Les courbes de Progression s'affichent après le chargement de la page.
+      await page.locator("main .section-title").first().waitFor();
+      const tailles = await page.evaluate(() => {
+        const px = (el: Element) => parseFloat(getComputedStyle(el).fontSize);
+        const visibles = (sel: string) => [...document.querySelectorAll(sel)].filter((el) => el.getClientRects().length > 0);
+        return { page: visibles("main h1").map(px), blocs: visibles("main .section-title").map(px) };
+      });
+      const ou = `${path} à ${largeur} px`;
+      expect(tailles.page, ou).toHaveLength(1);
+      expect(tailles.blocs.length, ou).toBeGreaterThan(0);
+      // Un tiers de plus au moins : 80 px contre 48 sur un ordinateur, 40 contre 28 sur un téléphone.
+      expect(tailles.page[0]! / Math.max(...tailles.blocs), ou).toBeGreaterThanOrEqual(1.33);
+      // Tous les titres de bloc d'une page ont la même taille, et restent gros sur un ordinateur.
+      expect(Math.max(...tailles.blocs) - Math.min(...tailles.blocs), ou).toBeLessThan(0.5);
+      if (largeur === 1440) expect(Math.min(...tailles.blocs), ou).toBeGreaterThanOrEqual(44);
+    }
   }
 });
 
@@ -546,9 +630,11 @@ test("parcours principal", async ({ page }, testInfo) => {
   await expect(page.getByRole("link", { name: "Jouer à OpenFront" }).first()).toBeVisible();
   const cards = page.getByTestId("stat-card");
   await expect(cards).toHaveCount(5);
-  await expect(async () => {
-    expect(digits(await cards.nth(2).locator("[data-count]").textContent())).toBe(String(gal.games));
-  }).toPass();
+  // Le vrai chiffre, tout de suite : l'entrée animée ne le fait plus monter depuis zéro.
+  expect(digits(await cards.nth(2).locator("[data-count]").textContent())).toBe(String(gal.games));
+  // Des mots, pas de signe de division.
+  await expect(cards.nth(4)).toContainText("part des parties gagnées");
+  for (const texte of await cards.allTextContents()) expect(texte).not.toContain("÷");
   await expect(page.getByTestId("data-status")).toContainText("Dernière mise à jour");
   await expect(page.getByText("Site communautaire non officiel, sans lien avec les éditeurs d'OpenFront.")).toBeVisible();
 
@@ -558,6 +644,8 @@ test("parcours principal", async ({ page }, testInfo) => {
   await expect(page).toHaveURL(/classement/);
   await hydrated(page);
   await expect(page.locator(".row-highlight").filter({ visible: true })).toContainText("[GAL]");
+  // Sans recherche, le nombre de clans n'est dit qu'une fois (plus de « 108 clans sur 108 »).
+  await expect(page.getByRole("status").filter({ hasText: "dans la liste" })).toHaveText(`${lb.clans.length} clans dans la liste`);
   await page.getByLabel("Rechercher un clan").fill("gal");
   await expect(page.getByText(/clans? sur \d+/)).toContainText("sur");
   await page.getByLabel("Rechercher un clan").fill("zzzzzz");
@@ -638,7 +726,15 @@ test("l'accueil n'affiche que des données collectées", async ({ page }) => {
   const clans = withOfficialRanks(lb.clans as LeaderboardEntry[]);
   const me = clans.find((c) => c.clanTag === clan.tag);
   const above = clans[(me?.rank ?? 2) - 2];
-  if (me && above) await expect(page.getByTestId("home-race")).toContainText(`${fmtScore(above.weightedWins - me.weightedWins)} de retard sur [${above.clanTag}]`);
+  const below = clans[me?.rank ?? 0];
+  // Les écarts avec les voisins ont leur page (le classement, Nos rivaux) : l'accueil y renvoie sans les recopier.
+  await expect(page.getByTestId("home-race")).toHaveCount(0);
+  const ranking = page.locator("#classement-clan");
+  for (const near of [above, below]) {
+    if (me && near) await expect(ranking).not.toContainText(fmtScore(Math.abs(near.weightedWins - me.weightedWins)));
+  }
+  if (me && (above || below)) await expect(ranking.getByTestId("home-rivals")).toHaveAttribute("href", /\/rivaux$/);
+  await expect(ranking.getByRole("link", { name: "Voir le classement complet" })).toHaveAttribute("href", /\/classement$/);
   await expect(page.getByRole("link", { name: "Lire le guide du clan" })).toHaveAttribute("href", /\/debuter$/);
 });
 
@@ -665,6 +761,48 @@ test("l'accueil donne d'abord le classement, et remonte Ma place pour qui a dit 
   const row = (await page.getByTestId("home-me-row").boundingBox())!;
   const ranking = (await page.locator("#classement-clan").boundingBox())!;
   expect(row.y + row.height).toBeLessThanOrEqual(ranking.y);
+});
+
+test("l'accueil ouvre la Carte et le village : une vraie image, les chiffres du relevé, un bouton", async ({ page, request }) => {
+  await page.goto("/");
+  const titles = await page.locator("main h2").allTextContents();
+  const at = (text: string) => titles.findIndex((t) => t.includes(text));
+
+  // Le village : le Gaulois de départ déjà publié pour le compagnon, une phrase, ni chiffre ni pseudo.
+  const village = page.getByTestId("home-village");
+  await expect(village.getByRole("link", { name: "Aller au village" })).toHaveAttribute("href", /\/village$/);
+  expect(await village.innerText()).not.toMatch(/\d/);
+  const gaulois = village.locator("img");
+  // La même adresse versionnée que celle du compagnon : l'image n'est téléchargée qu'une fois.
+  await expect(gaulois).toHaveAttribute("src", /\/compagnon\/depart-gaulois\.png\?v=[0-9a-f]{12}$/);
+  await expect(gaulois).toHaveCSS("image-rendering", "pixelated");
+  await expect.poll(() => gaulois.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth)).toBe(192);
+  // Les blocs validés gardent leur ordre : les deux portes viennent après la semaine, avant « Ma place ».
+  expect(at("Le village des Gaulois")).toBeGreaterThan(at("Le clan au classement officiel"));
+  expect(at("Le village des Gaulois")).toBeGreaterThan(at("Les Gaulois de la semaine"));
+  expect(at("Le village des Gaulois")).toBeLessThan(at("Ma place dans le clan"));
+
+  // La Carte : sans carte collectée, pas de bloc ; sinon l'image de la carte finale, sa mention et les chiffres du film.
+  const film = loadClanMapFilm();
+  const map = page.getByTestId("home-map");
+  if (!film) {
+    await expect(map).toHaveCount(0);
+    return;
+  }
+  await expect(map.getByRole("link", { name: "Ouvrir la carte" })).toHaveAttribute("href", /\/carte$/);
+  expect(at("La carte des clans")).toBeLessThan(at("Le village des Gaulois"));
+  expect(at("La carte des clans")).toBeGreaterThan(at("Les Gaulois de la semaine"));
+  const still = map.locator("img");
+  await expect(still).toHaveAttribute("src", /\/generated\/carte\/finale-800\.webp\?v=[0-9a-f]{12}$/);
+  await expect(still).toHaveAttribute("loading", "lazy");
+  // Les dimensions écrites sont celles du fichier : la page ne saute pas quand l'image arrive.
+  await expect(still).toHaveAttribute("width", "800");
+  await expect(still).toHaveAttribute("height", String(Math.round((800 * film.rows) / film.cols)));
+  expect((await request.get((await still.getAttribute("src"))!)).ok()).toBe(true);
+  await expect(map.getByRole("link", { name: /© OpenFront and Contributors/ })).toHaveAttribute("href", /\/mentions-legales#credits$/);
+  const summary = film.galSummary;
+  if (summary && summary.rank !== null) await expect(map.getByTestId("home-map-line")).toHaveText(`GAL : ${fmtRank(summary.rank)} avec ${fmtInt(summary.pixels)} pixels.`);
+  else await expect(map.getByTestId("home-map-line")).toHaveCount(0);
 });
 
 test("un lien vers l'accueil montre le rang du clan et le podium de la semaine, dessinés à la construction", async ({ page, request }) => {
@@ -840,7 +978,8 @@ test("les pseudos de la page Membres se touchent du doigt", async ({ page }, tes
 
 test("un pseudo qui mène à une fiche a la même allure sur toutes les pages", async ({ page }) => {
   // Remarque reçue le 12 novembre 2026 : un pseudo avait trois allures selon la page (bleu souligné, blanc souligné, blanc
-  // en gras). Tous portent la classe `pseudo` : blancs, jaunes et soulignés au survol.
+  // en gras). Tous portent la classe `pseudo` : de la couleur de l'écriture (marine sur la page, blancs dans une scène
+  // colorée), ambrés et soulignés au survol.
   let seen = 0;
   for (const path of ["/", "/gazette", "/records", "/membres", "/liste"]) {
     await page.goto(path);
@@ -849,11 +988,18 @@ test("un pseudo qui mène à une fiche a la même allure sur toutes les pages", 
     const links = await page.locator("main").evaluate((main) =>
       [...main.querySelectorAll<HTMLAnchorElement>("a[href]")]
         .filter((a) => /\/membres\/[^/#?]+/.test(a.getAttribute("href") ?? ""))
-        .map((a) => ({ href: a.getAttribute("href"), pseudo: a.classList.contains("pseudo"), color: getComputedStyle(a).color })),
+        .map((a) => ({
+          href: a.getAttribute("href"),
+          pseudo: a.classList.contains("pseudo"),
+          color: getComputedStyle(a).color,
+          // Dans une scène colorée (îlot sombre), l'écriture est blanche ; sur la page, marine.
+          ilot: a.closest(".stage-blue, .stage-indigo, .stage-wine, .card-accent") !== null,
+        })),
     );
     for (const link of links) {
       expect(link.pseudo, `${path} : ${link.href}`).toBe(true);
-      expect(link.color, `${path} : ${link.href}`).toBe("rgb(255, 255, 255)");
+      // La couleur de l'écriture (--ecriture), là où il se trouve : thème clair du 14 novembre 2026.
+      expect(link.color, `${path} : ${link.href}`).toBe(link.ilot ? "rgb(255, 255, 255)" : "rgb(10, 18, 48)");
     }
     seen += links.length;
     // Au milieu d'une phrase, un pseudo garde un trait pâle : sa couleur seule ne le distinguerait pas du texte (WCAG 1.4.1).
@@ -879,6 +1025,29 @@ test("les jauges n'ont qu'une couleur, et la date de mise à jour reste discrèt
   await expect(date).toHaveCSS("font-size", "13px");
 });
 
+// Revue du 14 novembre 2026 : la date et « Comment lire ces chiffres » revenaient jusqu'à trois fois par page. La date est
+// dans l'en-tête, une fois, avec chaque source qui a la sienne ; les précisions sont dans un seul repli, en bas du contenu.
+test("une page n'écrit qu'une fois sa date et ses précisions, sans perdre une date", async ({ page }) => {
+  const meta = loadMeta();
+  // Le classé n'est daté que si son bloc s'affiche ; le détail des parties, avec le comparateur.
+  const ranked = existsSync("data/ranked.json") || meta.ranked.lastError !== null ? [meta.ranked] : [];
+  const sources = { "/records": [meta.sessions, meta.memberResults, meta.members], "/membres": [meta.members, ...ranked], "/rivaux": [meta.leaderboard, meta.games] };
+  for (const [path, states] of Object.entries(sources)) {
+    await page.goto(path);
+    const main = page.locator("main");
+    expect((await main.textContent())?.match(/Dernière mise à jour/g) ?? [], path).toHaveLength(1);
+    await expect(main.locator("summary", { hasText: "Comment lire ces chiffres" }), path).toHaveCount(1);
+    // La date est dans l'en-tête de la page, et chaque date distincte de ses sources y est écrite.
+    const status = page.locator("header.page-tete").getByTestId("data-status");
+    await expect(status, path).toHaveCount(1);
+    for (const state of states) if (state.lastSuccessAt) await expect(status, path).toContainText(fmtDateTime(state.lastSuccessAt));
+    // Le repli est un .fold, après le dernier bloc de la page.
+    const note = page.getByTestId("reading-note");
+    await expect(note, path).toHaveClass(/\bfold\b/);
+    expect(await note.evaluate((el) => el.nextElementSibling === null), path).toBe(true);
+  }
+});
+
 test("le bloc de jeu en groupe mène au Discord", async ({ page }) => {
   await page.goto("/activite");
   const block = page.getByTestId("group-play");
@@ -887,12 +1056,30 @@ test("le bloc de jeu en groupe mène au Discord", async ({ page }) => {
 });
 
 test("Rejoindre donne l'argument du jeu en groupe et renvoie vers son détail", async ({ page }) => {
+  // Les deux bouts du tableau de Quand jouer : seul sous le tag, et le plus grand groupe.
+  await page.goto("/activite");
+  const sizes = page.getByTestId("group-play").getByTestId("group-size");
+  const rateOf = async (size: Locator) => [await size.locator("span").first().innerText(), await size.locator("span").nth(1).innerText()];
+  const expected = [await rateOf(sizes.first()), await rateOf(sizes.last())];
+
   await page.goto("/rejoindre");
   await expect(page.getByTestId("group-play")).toHaveCount(0);
-  const line = page.getByTestId("join-group");
-  await expect(line).toContainText("Seul sous le tag");
-  await expect(line).toContainText("Un lien, pas une preuve");
-  await expect(line.getByRole("link")).toHaveAttribute("href", /\/activite$/);
+  const block = page.getByTestId("join-group");
+  await expect(block).toContainText("Un lien, pas une preuve");
+  await expect(block.getByRole("link")).toHaveAttribute("href", /\/activite$/);
+  // L'argument en grand, avant les étapes : deux chiffres clés, les mêmes que sur Quand jouer, pas son tableau.
+  const rates = block.getByTestId("join-rate");
+  await expect(rates).toHaveCount(2);
+  for (const [i, [label, rate]] of expected.entries()) {
+    await expect(rates.nth(i).locator(".kpi-label")).toHaveText(label!);
+    await expect(rates.nth(i).locator(".kpi-value")).toHaveText(rate!);
+    // La jauge a la longueur du taux écrit (sa largeur demandée : une animation d'entrée peut encore l'étirer).
+    const share = await rates.nth(i).locator(".meter > i").evaluate((el: HTMLElement) => Number.parseFloat(el.style.getPropertyValue("--v")));
+    expect(Math.abs(share - Number.parseFloat(rate!.replace(",", "."))), label).toBeLessThan(0.1);
+  }
+  expect(expected[0]![0]).toBe("Seul sous le tag");
+  const [top, steps] = await Promise.all([block.boundingBox(), page.getByTestId("join-steps").boundingBox()]);
+  expect(top!.y).toBeLessThan(steps!.y);
   await expect(page.getByTestId("join-guides").getByRole("link")).toHaveAttribute("href", /\/debuter$/);
 });
 
@@ -1547,8 +1734,10 @@ test("le classé ne publie que des décomptes, à part du classement des clans",
     return;
   }
   const ranked = JSON.parse(readFileSync("data/ranked.json", "utf8"));
-  await expect(block).toContainText("ne compte pas dans le score du clan");
-  await expect(block).toContainText("ces nombres sont donc des minimums");
+  // Ses précisions sont dans le repli unique de la page, sous son nom.
+  const note = page.getByTestId("reading-note").locator('[data-note-bloc="Membres présents au classé"]');
+  await expect(note).toContainText("ne compte pas dans le score du clan");
+  await expect(note).toContainText("ces nombres sont donc des minimums");
   await expect(panels).toHaveCount(3);
   for (const [i, key] of ["1v1", "2v2", "ffa"].entries()) {
     const mode = ranked.modes[key];
@@ -1558,7 +1747,9 @@ test("le classé ne publie que des décomptes, à part du classement des clans",
   // Aucun nom ni chiffre individuel : ni lien de profil, ni tableau de joueurs.
   await expect(block.getByRole("link")).toHaveCount(0);
   await expect(block.getByRole("table")).toHaveCount(0);
-  await expect(block).toContainText("Dernière mise à jour");
+  // Sa date est dans l'en-tête de la page, la seule de la page.
+  await expect(page.getByTestId("data-status")).toHaveCount(1);
+  await expect(page.getByTestId("data-status")).toContainText(fmtDateTime(loadMeta().ranked.lastSuccessAt ?? ""));
 });
 
 test("la course avec les voisins part du premier relevé", async ({ page }) => {
@@ -1570,7 +1761,7 @@ test("la course avec les voisins part du premier relevé", async ({ page }) => {
     await expect(race).toHaveCount(0);
     return;
   }
-  await expect(race).toContainText("L'API ne donne pas le passé du classement");
+  await expect(page.getByTestId("reading-note").locator('[data-note-bloc="La course avec nos voisins"]')).toContainText("L'API ne donne pas le passé du classement");
   const gaps = race.getByRole("heading", { name: /^Face à \[/ });
   // Le clan au-dessus et les deux en dessous, s'ils existent.
   await expect(gaps).toHaveCount(lb.clans.filter((_: unknown, i: number) => i !== me && i >= me - 1 && i <= me + 2).length);
@@ -1582,7 +1773,7 @@ test("la course avec les voisins part du premier relevé", async ({ page }) => {
 test("les records du clan disent ce qu'ils ne comptent pas, sans résultats par format ni par carte", async ({ page }) => {
   await page.goto("/records");
   await expect(page.getByTestId("clan-record")).toHaveCount(4);
-  await expect(page.getByTestId("clan-records")).toContainText("n'est pas comptée");
+  await expect(page.getByTestId("reading-note").locator('[data-note-bloc="Les records du clan"]')).toContainText("n'est pas comptée");
   for (const gone of ["format-results", "map-results"]) await expect(page.getByTestId(gone)).toHaveCount(0);
 });
 
@@ -1591,7 +1782,8 @@ test("les podiums des Gaulois reprennent les chiffres calculés, chaque joueur m
   await page.goto("/records");
   const block = page.getByTestId("player-podiums");
   await expect(block.getByRole("heading", { level: 2 })).toHaveText("Les podiums des Gaulois");
-  await expect(block.getByTestId("data-status")).toBeVisible();
+  // Leur date est dans l'en-tête de la page, avec celles des autres blocs.
+  await expect(page.getByTestId("data-status")).toContainText(fmtDateTime(loadMeta().memberResults.lastSuccessAt ?? ""));
   if (podiums.since === null) {
     await expect(block).toContainText("Pas de données");
     await expect(block.getByTestId("podium-row")).toHaveCount(0);
@@ -1611,17 +1803,19 @@ test("les podiums des Gaulois reprennent les chiffres calculés, chaque joueur m
       await expect(line.getByTestId("podium-dates")).toHaveText(podiumDates(row));
     }
   }
-  // La période reste écrite ; le périmètre et la réserve sur le niveau sont dans le repli.
+  // La période reste écrite ; le périmètre et la réserve sur le niveau sont dans le repli de la page, sous le nom du bloc.
   await expect(block.getByTestId("podiums-period")).toBeVisible();
-  await expect(block.getByTestId("reading-note")).toContainText("ce n'est pas un classement de niveau");
+  await expect(page.getByTestId("reading-note").locator('[data-note-bloc="Les podiums des Gaulois"]')).toContainText("ce n'est pas un classement de niveau");
 });
 
 test("le face-à-face ne reste que dans le comparateur, avec sa méthode, sa date, ses chiffres et sa suspension", async ({ page }) => {
   const result = faceOffs(loadSessions(), loadGames(), clan.tag, lb.clans.map((c: { clanTag: string }) => c.clanTag), loadMeta().sessions.coveredUntil);
   await page.goto("/rivaux");
   await expect(page.getByTestId("face-offs")).toHaveCount(0);
-  await expect(page.getByTestId("compare-notes")).toContainText("L'API ne donne pas l'équipe des perdants");
-  await expect(page.getByTestId("compare-games-status").getByTestId("data-status")).toBeVisible();
+  // Sa méthode est dans le repli unique de la page ; la date du détail des parties, dans son en-tête.
+  await expect(page.getByTestId("reading-note").getByTestId("compare-notes")).toContainText("L'API ne donne pas l'équipe des perdants");
+  await expect(page.getByTestId("data-status")).toHaveCount(1);
+  await expect(page.getByTestId("data-status")).toContainText(fmtDateTime(loadMeta().games.lastSuccessAt ?? ""));
   await expect(page.getByTestId("compare-face-off-suspended")).toHaveCount(result && !result.reliable ? 1 : 0);
   await hydrated(page);
   // Le clan comparé d'abord : sa ligne de face-à-face reprend le calcul, ou dit qu'il n'y en a pas.
@@ -1636,12 +1830,33 @@ test("le face-à-face ne reste que dans le comparateur, avec sa méthode, sa dat
   await expect(line).toContainText(`gagne ${fmtInt(row.ours)} fois, celle de [${row.tag}] ${fmtInt(row.theirs)} fois, une autre équipe ${fmtInt(row.others)} fois`);
 });
 
-test("le comparateur met côte à côte deux clans de la liste officielle", async ({ page }) => {
+/** Les clans dont « La course avec nos voisins » écrit déjà l'écart, comme la page les calcule. */
+const raceTags = () => tagsInRace(rivalSeries(lb.clans as LeaderboardEntry[], loadRivals(), clan.tag));
+/** Le texte, espaces insécables comprises, ramené à des espaces simples. */
+const plain = (s: string) => s.replace(/\s+/g, " ");
+const occurrences = (text: string, part: string) => plain(text).split(plain(part)).length - 1;
+
+test("à l'ouverture de Nos rivaux, l'écart avec le premier voisin n'est écrit qu'une fois", async ({ page }) => {
+  const clans = withOfficialRanks(lb.clans as LeaderboardEntry[]);
+  const me = clans.find((c) => c.clanTag === clan.tag);
+  const rival = firstRival(clans, clan.tag);
+  if (!me || !rival) throw new Error("La liste devrait contenir le clan et un voisin.");
+  // La course écrit l'écart de son dernier relevé ; sans relevé, seul le comparateur l'écrit, d'après le classement.
+  const series = rivalSeries(lb.clans as LeaderboardEntry[], loadRivals(), clan.tag)?.find((s) => s.clanTag === rival.clanTag);
+  const gap = series?.points.findLast((p) => p.value !== null)?.value ?? me.weightedWins - rival.weightedWins;
+  await page.goto("/rivaux");
+  await hydrated(page);
+  await expect(page.getByTestId("compare-table").locator("thead")).toContainText(`[${rival.clanTag}]`);
+  expect(occurrences(await page.locator("main").innerText(), fmtScore(Math.abs(gap)))).toBe(1);
+});
+
+test("le comparateur met côte à côte deux clans de la liste officielle, sans redire l'écart que la course écrit déjà", async ({ page }) => {
   const clans = withOfficialRanks(lb.clans as LeaderboardEntry[]);
   const me = clans.find((c) => c.clanTag === clan.tag);
   const above = clans[(me?.rank ?? 2) - 2];
   const other = clans.at(-1);
   if (!me || !above || !other) throw new Error("La liste devrait contenir le clan et ses voisins.");
+  const inRace = raceTags();
   await page.goto("/rivaux");
   const block = page.getByTestId("clan-compare");
   await block.scrollIntoViewIfNeeded();
@@ -1656,12 +1871,30 @@ test("le comparateur met côte à côte deux clans de la liste officielle", asyn
     await expect(cells.nth(1).locator("td").nth(1)).toHaveText(fmtScore(score));
     expect(digits(await cells.nth(2).locator("td").nth(1).textContent())).toBe(String(games));
   };
+  // L'écart n'est dit qu'une fois dans la page : un clan qui a sa courbe dans la course y renvoie, sans écart ni courbe ici.
+  const checkGap = async (rival: { clanTag: string; weightedWins: number }) => {
+    const gap = fmtGap(me.weightedWins - rival.weightedWins);
+    if (inRace.includes(rival.clanTag.toUpperCase())) {
+      await expect(block.getByTestId("compare-gap")).toHaveCount(0);
+      await expect(block.getByTestId("compare-gap-race")).toContainText(`[${rival.clanTag}]`);
+      await expect(block.getByTestId("compare-gap-race").getByRole("link", { name: "la course avec nos voisins" })).toHaveAttribute("href", "#race-title");
+      await expect(page.locator("#race-title")).toHaveCount(1);
+      await expect(block.getByRole("heading", { name: /^Écart de score avec/ })).toHaveCount(0);
+      await expect(block.getByTestId("compare-gap-table")).toHaveCount(0);
+    } else {
+      await expect(block.getByTestId("compare-gap-race")).toHaveCount(0);
+      await expect(block.getByTestId("compare-gap")).toContainText(gap);
+      // La courbe, sous ce titre, ne redit pas l'écart : sa ligne ne garde que la date de la dernière mesure.
+      if (existsSync("data/rivals") && readdirSync("data/rivals").length > 0) await expect(block.getByRole("heading", { name: `Écart de score avec [${rival.clanTag}], jour après jour` })).toBeVisible();
+      expect(occurrences(await block.innerText(), gap)).toBe(1);
+    }
+  };
   await checkRows(above.clanTag, above.weightedWins, above.games);
-  await expect(block.getByTestId("compare-gap")).toContainText(fmtGap(me.weightedWins - above.weightedWins));
+  await checkGap(above);
 
   await block.getByLabel("Clan à comparer").selectOption(other.clanTag);
   await checkRows(other.clanTag, other.weightedWins, other.games);
-  await expect(block.getByTestId("compare-gap")).toContainText(fmtGap(me.weightedWins - other.weightedWins));
+  await checkGap(other);
   await expect(block.getByTestId("compare-row").first().locator("td").nth(1)).toHaveText(fmtRank(other.rank));
 
   // Le clan lui-même ne se compare pas à lui-même.
@@ -1672,13 +1905,16 @@ test("dès deux relevés, le comparateur double sa courbe d'un tableau", async (
   // Ces deux dates ne servent qu'à ce test, sur un fichier remplacé à la volée : le premier jour de la collecte, il n'y avait qu'un relevé.
   const clans = withOfficialRanks(lb.clans as LeaderboardEntry[]);
   const me = clans.find((c) => c.clanTag === clan.tag);
-  const above = clans[(me?.rank ?? 2) - 2];
-  if (!me || !above) throw new Error("La liste devrait contenir le clan et son voisin.");
+  // Un clan qui n'a pas de courbe dans la course : le comparateur trace la sienne.
+  const inRace = raceTags();
+  const far = clans.find((c) => c.clanTag !== clan.tag && !inRace.includes(c.clanTag.toUpperCase()));
+  if (!me || !far) throw new Error("La liste devrait contenir le clan et un clan hors de la course.");
   await page.route("**/classement-scores.json", (route) =>
-    route.fulfill({ json: { dates: ["2026-11-07", "2026-11-08"], scores: { [me.clanTag]: [100, 120], [above.clanTag]: [150, 110] } } }),
+    route.fulfill({ json: { dates: ["2026-11-07", "2026-11-08"], scores: { [me.clanTag]: [100, 120], [far.clanTag]: [150, 110] } } }),
   );
   await page.goto("/rivaux");
   await hydrated(page);
+  await page.getByTestId("clan-compare").getByLabel("Clan à comparer").selectOption(far.clanTag);
   const table = page.getByTestId("compare-gap-table");
   await table.locator("summary").click();
   const rows = table.locator("tbody tr");
@@ -1694,15 +1930,22 @@ test("un bouton de filtre actif reste lisible au survol", async ({ page }, testI
   const active = page.getByRole("button", { name: "Toutes", exact: true });
   await expect(active).toBeEnabled();
   await active.hover();
-  await expect(active).toHaveCSS("color", "rgb(10, 18, 48)");
-  await expect(active).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  // Thème clair du 14 novembre 2026 : le filtre actif est marine, son texte blanc.
+  await expect(active).toHaveCSS("color", "rgb(255, 255, 255)");
+  await expect(active).toHaveCSS("background-color", "rgb(10, 18, 48)");
 });
 
 test("sans le fichier des scores, le comparateur garde ses chiffres et le signale", async ({ page }) => {
   await page.route("**/classement-scores.json", (route) => route.fulfill({ status: 500, body: "panne" }));
+  // La courbe manquante est celle d'un clan hors de la course : celle d'un voisin est dans la course, pas ici.
+  const inRace = raceTags();
+  const far = withOfficialRanks(lb.clans as LeaderboardEntry[]).find((c) => c.clanTag !== clan.tag && !inRace.includes(c.clanTag.toUpperCase()));
+  if (!far) throw new Error("La liste devrait contenir un clan hors de la course.");
   await page.goto("/rivaux");
   const block = page.getByTestId("clan-compare");
   await block.scrollIntoViewIfNeeded();
+  await hydrated(page);
+  await block.getByLabel("Clan à comparer").selectOption(far.clanTag);
   await expect(block.getByRole("status").filter({ hasText: "n'a pas pu être chargée" })).toBeVisible();
   await expect(block.getByTestId("compare-row").first()).toBeVisible();
 });
@@ -1775,7 +2018,7 @@ test("les paliers rangent chaque membre une fois, sans anonyme nommé", async ({
   if (next) await expect(page.getByTestId("member-tier")).toContainText(`Prochain palier : ${fmtCount(next.wins, "victoire")}`);
 });
 
-test("le journal montre les dernières parties, avec leur replay et des filtres", async ({ page }) => {
+test("le journal montre les dernières parties, avec leur replay et des filtres", async ({ page }, testInfo) => {
   const official = (lb.clans as { clanTag: string }[]).map((c) => c.clanTag);
   const { rows, coverage } = clanJournal({ sessions: loadSessions(), games: loadGames(), coveredUntil: loadMeta().sessions.coveredUntil, tag: clan.tag, officialTags: official });
   const first = rows[0];
@@ -1799,6 +2042,22 @@ test("le journal montre les dernières parties, avec leur replay et des filtres"
   const count = page.getByTestId("journal-count");
   await expect(count).toContainText(journalCount(rows, NO_FILTER));
   await expect(line.first().getByTestId("journal-replay")).toHaveAttribute("href", replayUrl(first.id));
+  // « Ouvrir », seule commande d'une carte sur téléphone : une cible de 44 px de haut pour le doigt, 24 px au moins dans le
+  // tableau (WCAG 2.5.8). Sa marge négative rend la place : une ligne du tableau garde la hauteur d'une ligne de texte.
+  const cible = (await line.first().getByTestId("journal-replay").boundingBox())!;
+  expect(Math.round(cible.height)).toBeGreaterThanOrEqual(testInfo.project.name === "mobile" ? 44 : 24);
+  expect(Math.round(cible.width)).toBeGreaterThanOrEqual(testInfo.project.name === "mobile" ? 44 : 24);
+  if (testInfo.project.name === "desktop") {
+    const sansLien = await line.first().evaluate((tr) => {
+      const lien = tr.querySelector<HTMLElement>('[data-testid="journal-replay"]');
+      const avant = tr.getBoundingClientRect().height;
+      if (lien) lien.style.display = "none";
+      const apres = tr.getBoundingClientRect().height;
+      if (lien) lien.style.display = "";
+      return { avant, apres };
+    });
+    expect(sansLien.avant).toBeCloseTo(sansLien.apres, 0);
+  }
   await expect(line.first()).toContainText(first.won ? "Victoire" : "Défaite");
   if (first.map) await expect(line.first()).toContainText(mapLabel(first.map));
   // La couverture ne s'écrit que lorsqu'il manque des parties.
@@ -1866,6 +2125,25 @@ test("sans son fichier, le journal garde ses premières lignes et le signale", a
   await expect(page.getByRole("alert").filter({ hasText: "n'a pas pu être chargé" })).toBeVisible();
   await expect(page.locator('[data-testid="journal-row"], [data-testid="journal-card"]').filter({ visible: true }).first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Défaites", exact: true })).toBeDisabled();
+});
+
+test("la page Confidentialité s'ouvre sur un sommaire qui mène à chaque grande partie, sous l'en-tête", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/confidentialite");
+  const liens = page.getByTestId("page-jumps").getByRole("link");
+  const titres = page.getByTestId("privacy").locator("h2");
+  // Un lien par grande partie, dans l'ordre de la page, sous le titre exact de la partie, vers l'ancre de ce titre.
+  const textes = (await titres.allTextContents()).map((t) => t.replace(/\s+/g, " ").trim());
+  expect(textes.length).toBeGreaterThanOrEqual(6);
+  await expect(liens).toHaveText(textes);
+  for (let i = 0; i < textes.length; i++) await expect(titres.nth(i)).toHaveAttribute("id", ((await liens.nth(i).getAttribute("href")) ?? "").replace(/^#/, ""));
+  // Un clic amène au titre, visible sous l'en-tête collant (scroll-margin-top).
+  await liens.last().click();
+  await expect(page).toHaveURL(/#effacer-ses-donnees$/);
+  const cible = titres.last();
+  await expect(cible).toBeInViewport();
+  const basEntete = await page.locator("header.barre").evaluate((el) => el.getBoundingClientRect().bottom);
+  expect((await cible.boundingBox())!.y).toBeGreaterThanOrEqual(basEntete);
 });
 
 test("la gazette montre la semaine en cours, datée et comparée au même moment de la semaine d'avant", async ({ page }) => {
@@ -2058,7 +2336,8 @@ test("la gazette donne le bilan de la dernière semaine complète, et n'invente 
   await page.goto("/gazette");
   const block = page.getByTestId("gazette-latest");
   await expect(block.getByRole("heading", { level: 2 })).toHaveText(`Semaine ${weekLabel(latest)}`);
-  await expect(block.getByTestId("gazette-lead")).toHaveText(editionLead(latest, clan.tag));
+  // Chaque chiffre n'est dit qu'une fois : plus de phrase d'introduction qui redisait les panneaux (l'accueil garde la sienne).
+  await expect(block.getByTestId("gazette-lead")).toHaveCount(0);
   expect(digits(await block.getByTestId("gazette-totals").locator("p").first().textContent())).toBe(String(latest.totals.games));
   await expect(block.getByTestId("gazette-totals")).toContainText(fmtCount(latest.totals.wins, "victoire"));
   await expect(page.getByTestId("gazette-older")).toHaveCount(editions.length - 1);
@@ -2076,7 +2355,7 @@ test("la gazette donne le bilan de la dernière semaine complète, et n'invente 
   }
   await expect(page.getByTestId("data-status").first()).toContainText("Dernière mise à jour");
   // Les mois abrégés finissent déjà par un point : aucune phrase ne doit en avoir deux. Les pseudos, eux, sont libres.
-  for (const part of ["gazette-lead", "gazette-totals", "gazette-standing", "gazette-territory", "gazette-highlights"]) {
+  for (const part of ["gazette-totals", "gazette-standing", "gazette-territory", "gazette-highlights"]) {
     expect(await block.getByTestId(part).textContent()).not.toMatch(/\.\./);
   }
 
@@ -2101,8 +2380,10 @@ test("la gazette donne le bilan de la dernière semaine complète, et n'invente 
   if (latest.players) {
     await expect(players.getByTestId("gazette-player")).toHaveCount(latest.players.length);
     await expect(players).toContainText(latest.players[0]!.username);
-    // La réserve sur le niveau reste dans l'édition, avec les autres précisions repliées.
-    await expect(block.getByTestId("reading-note")).toContainText("d'abord le temps de jeu");
+    // La réserve sur le niveau reste dans la page, dans le seul repli de précisions, en bas, qui réunit celles de toutes les éditions.
+    await expect(block.getByTestId("reading-note")).toHaveCount(0);
+    await expect(page.getByTestId("reading-note")).toHaveCount(1);
+    await expect(page.getByTestId("reading-note")).toContainText("d'abord le temps de jeu");
   } else {
     await expect(players).toContainText("Pas de données");
   }
@@ -2143,7 +2424,10 @@ test.describe("fiches des membres", () => {
     expect(digits(await stats.nth(0).locator("dd").textContent())).toBe(String(active.team.wins));
     expect(digits(await stats.nth(1).locator("dd").textContent())).toBe(String(active.team.losses));
     expect(digits(await stats.nth(2).locator("dd").textContent())).toBe(String(gamesOf(active)));
-    await expect(page.getByTestId("member-stats")).toContainText("sans le classé");
+    // Le périmètre de ses stats, sous le nom du bloc, dans le seul repli de la fiche, et une seule date.
+    await expect(page.getByTestId("reading-note")).toHaveCount(1);
+    await expect(page.getByTestId("reading-note").locator('[data-note-bloc="Ses parties sous le tag"]')).toContainText("sans le classé");
+    await expect(page.getByTestId("data-status")).toHaveCount(1);
 
     // Ni heure ni statistique d'un autre mode : le jour, la carte, le format et le résultat.
     const recent = loadMemberGames()[active.publicId ?? ""];
@@ -2208,6 +2492,13 @@ test("signale les données périmées au visiteur", async ({ page }) => {
   await page.goto("/classement");
   // La page peut suivre deux jeux de données, le classement et le classé : chacun a son message. Celui-ci est celui du classement.
   await expect(page.getByTestId("data-status").first().getByText(/Données périmées : dernière mise à jour il y a \d+ jours/)).toBeVisible();
+  // Un en-tête qui date plusieurs sources nomme chacune dans son message.
+  await page.goto("/records");
+  const status = page.getByTestId("data-status");
+  const meta = loadMeta();
+  for (const [name, state] of [["des parties", meta.sessions], ["des podiums", meta.memberResults], ["de la liste des membres", meta.members]] as const) {
+    if (state.lastSuccessAt) await expect(status.getByText(new RegExp(`Données périmées : dernière mise à jour ${name} il y a \\d+ jours`))).toBeVisible();
+  }
 });
 
 test("affiche une erreur si la liste des membres ne charge pas", async ({ page }) => {
@@ -2217,6 +2508,55 @@ test("affiche une erreur si la liste des membres ne charge pas", async ({ page }
   await page.unroute("**/data/members.json");
   await page.getByRole("button", { name: "Réessayer" }).click();
   await expect(page.getByTestId("member-count")).toBeVisible();
+});
+
+// Le pied de page s'affichait, puis sautait d'un coup vers le bas à l'arrivée du contenu : la liste des membres, lue après
+// la page, et la porte du QG et du compte, après la lecture de la session (relevé le 14 novembre 2026 : jusqu'à 0,53). La
+// liste est maintenant dans la page construite, la place de la porte y est réservée. Le saut cumulé (« layout shift »), sans
+// ceux qui suivent un geste, reste sous 0,05 : 0,1 est déjà mauvais. Le site d'essai sans serveur de connexion montre la
+// porte fermée au QG et au compte : le test vaut alors pour elle, et pour la porte dès qu'un serveur est configuré.
+for (const path of ["/liste", "/qg", "/compte"]) {
+  test(`${path} ne saute pas à l'arrivée de son contenu`, async ({ page }, testInfo) => {
+    const sizes = testInfo.project.name === "mobile" ? [{ width: 390, height: 844 }, { width: 360, height: 800 }] : [{ width: 1440, height: 900 }];
+    // Ce qui doit être à l'écran avant la mesure : la liste entière lue (la recherche s'ouvre alors), ou la porte.
+    const content =
+      path === "/liste"
+        ? page.locator("#member-search")
+        : page.getByTestId(path === "/qg" ? "qg-door" : "signed-out").or(page.getByTestId("auth-not-open"));
+    await page.addInitScript(() => {
+      const w = window as unknown as { __saut: number };
+      w.__saut = 0;
+      new PerformanceObserver((list) => {
+        for (const entry of list.getEntries() as (PerformanceEntry & { value: number; hadRecentInput: boolean })[]) if (!entry.hadRecentInput) w.__saut += entry.value;
+      }).observe({ type: "layout-shift", buffered: true });
+    });
+    for (const size of sizes) {
+      await page.setViewportSize(size);
+      await page.goto(path);
+      await hydrated(page);
+      if (path === "/liste") await expect(content).toBeEnabled();
+      else await expect(content).toBeVisible();
+      await page.waitForTimeout(800);
+      const saut = await page.evaluate(() => (window as unknown as { __saut: number }).__saut);
+      expect(saut, `${path} à ${size.width} px`).toBeLessThan(0.05);
+    }
+  });
+}
+
+// La liste des membres est dans la page construite : sans script, ses trente premiers (au plus de victoires) se lisent, avec
+// les vrais comptes. Le tri, la recherche et la suite attendent le script : leurs commandes restent inactives.
+test.describe("sans JavaScript", () => {
+  test.use({ javaScriptEnabled: false });
+  test("la liste des membres montre déjà ses premiers", async ({ page }, testInfo) => {
+    await page.goto("/liste");
+    const shown = page.getByTestId(testInfo.project.name === "mobile" ? "member-card" : "member-row").filter({ visible: true });
+    await expect(shown).toHaveCount(Math.min(30, members.members.length));
+    await expect(page.getByTestId("member-count")).toContainText(fmtInt(members.members.length));
+    type Row = { username: string | null; team: { wins: number } | null };
+    const top = [...(members.members as Row[])].sort((a, b) => (b.team?.wins ?? -1) - (a.team?.wins ?? -1))[0];
+    if (top) await expect(shown.first()).toContainText(top.username ?? "Membre anonyme");
+    await expect(page.getByLabel("Rechercher par pseudo")).toBeDisabled();
+  });
 });
 
 // Les pages de l'encadrement ont leurs propres couleurs, le thème rouge : leurs contrastes sont contrôlés aussi.

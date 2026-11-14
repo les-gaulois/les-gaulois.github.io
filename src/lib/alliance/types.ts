@@ -22,6 +22,11 @@ export interface AllianceLigne {
   /** 0xRRGGBB. */
   color: number;
   clans: string[];
+  /**
+   * Marquée par l'encadrement alliée de la nôtre (migration 20261114001500) : les joueurs de ses clans s'invitent, par un lien, comme ceux
+   * de notre alliance. Absent d'un serveur d'avant : la case à cocher ne s'affiche pas.
+   */
+  friend?: boolean;
 }
 
 /** Des troupes déclarées par un joueur du clan, jamais relevées chez OpenFront. */
@@ -81,7 +86,10 @@ export interface AllieLigne {
   joined_at: string;
   /** Faux tant que l'encadrement ne l'a pas accepté : il a ouvert son lien et attend. */
   approved: boolean;
-  /** Faux tant qu'il attend, ou quand son clan n'est plus dans notre alliance : il n'entre plus, sans avoir été retiré. */
+  /**
+   * Faux tant qu'il attend, ou quand son clan n'est plus allié (ni dans notre alliance, ni dans une alliance amie) : il
+   * n'entre plus, sans avoir été retiré.
+   */
   active: boolean;
 }
 

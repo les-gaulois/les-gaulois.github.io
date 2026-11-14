@@ -16,6 +16,7 @@ import { subscribe } from "./appels";
 import { Avatar, CodeLogin, DiscordButton, DiscordGives, Loading, Problem, messageOf, useMe, useNow, type Loadable } from "./common";
 import { useLienAttendu } from "./LienOpenFront";
 import { Onglets, Partie, reducedMotion, useTabs, type TabItem } from "./Onglets";
+import { PlaceReservee } from "./PlaceReservee";
 import QgCeSoir from "./QgCeSoir";
 import QgDecisions from "./QgDecisions";
 import QgEvenements from "./QgEvenements";
@@ -92,6 +93,18 @@ function Door({ me }: { me: Me }) {
         </p>
       )}
     </section>
+  );
+}
+
+/** Un visiteur sans session : la porte que voient tous ceux qui ne sont pas connectés. */
+const VISITEUR: Me = { signed_in: false };
+
+/** La place de la porte d'un visiteur, dans la page construite (qg.astro) puis tant que la session se lit : voir `PlaceReservee`. */
+export function PlaceDeLaPorte({ label }: { label?: string }) {
+  return (
+    <PlaceReservee label={label}>
+      <Door me={VISITEUR} />
+    </PlaceReservee>
   );
 }
 
@@ -461,7 +474,7 @@ function Inside({ me, rank, lastRunAt, logo }: { me: Me; rank: number; lastRunAt
 export default function QgApp({ lastRunAt = null, logo }: { lastRunAt?: string | null; logo?: LogoMatriceData }) {
   const { me, failed, refresh } = useMe();
 
-  if (me === null) return <Loading label="Lecture de votre compte…" />;
+  if (me === null) return <PlaceDeLaPorte label="Lecture de votre compte…" />;
   if (failed) return <Problem message="Votre compte n'a pas pu être lu pour l'instant. Réessayez dans un moment." onRetry={() => void refresh()} />;
   if (!me.signed_in || me.status !== "validated") return <Door me={me} />;
   return <Inside me={me} rank={me.rank ?? 0} lastRunAt={lastRunAt} logo={logo} />;

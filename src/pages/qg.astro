@@ -3,7 +3,7 @@ import Base from "../layouts/Base.astro";
 import PageHeader from "../components/PageHeader.astro";
 import LogoMatrice from "../components/LogoMatrice";
 import NotOpen from "../components/compte/NotOpen.astro";
-import QgApp from "../components/compte/QgApp";
+import QgApp, { PlaceDeLaPorte } from "../components/compte/QgApp";
 import { AUTH_ENABLED } from "../lib/compte/api";
 import { loadMeta } from "../lib/data";
 import { logoMatriceDepuisImage } from "../lib/logo-matrice-image";
@@ -32,7 +32,10 @@ const direction = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/direction`;
     moved();
     addEventListener("hashchange", moved);
   </script>
-  <div class="wrap console-tete console-tete-court" style='--console-hote: "qg"'>
+  {/* `.wrap` : la largeur du site, pour que l'en-tête parte du même bord que les onglets de la rubrique Membres.
+      `.colonne-travail` : la porte et les écrans du QG gardent leur colonne de 75 rem, calée à gauche (global.css). */}
+  <div class="wrap">
+  <div class="colonne-travail console-tete console-tete-court" style='--console-hote: "qg"'>
     <PageHeader title="Le QG" compact>
       {/* Décorative : le titre dit déjà où l'on est. */}
       <p slot="avant-titre" class="console-invite" aria-hidden="true">
@@ -41,7 +44,15 @@ const direction = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/direction`;
     </PageHeader>
     {logoGrand && <LogoMatrice data={logoGrand} id="logo-tete" class="console-logo-tete" />}
     <div class="espace">
-      {AUTH_ENABLED ? <QgApp client:only="preact" lastRunAt={lastRunAt} logo={logoPetit ?? undefined} /> : <NotOpen />}
+      {/* `fallback` : avant le script, la place de la porte, invisible, pour que le pied de page ne saute pas à son arrivée. */}
+      {AUTH_ENABLED ? (
+        <QgApp client:only="preact" lastRunAt={lastRunAt} logo={logoPetit ?? undefined}>
+          <PlaceDeLaPorte slot="fallback" />
+        </QgApp>
+      ) : (
+        <NotOpen />
+      )}
     </div>
+  </div>
   </div>
 </Base>

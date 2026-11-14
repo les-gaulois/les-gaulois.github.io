@@ -20,12 +20,12 @@ La population donne une capacité de troupes : plus votre population et votre c
 
 | Joueur | Règle simple | À retenir |
 |---|---|---|
-| Civil | Attaque = troupes ÷ 5 | Une grosse réserve ne signifie pas que toute la réserve part sur la tuile. |
-| Bot | Attaque = troupes ÷ 20 | Les bots utilisent une règle d'attaque plus faible. |
+| Civil | Attaque = troupes divisées par 5 | Une grosse réserve ne signifie pas que toute la réserve part sur la tuile. |
+| Bot | Attaque = troupes divisées par 20 | Les bots utilisent une règle d'attaque plus faible. |
 
-Le Civil désigne ici un joueur humain, et le ÷ 5 correspond au réglage par défaut de son curseur d'attaque (20 %). Exemple : 50 000 troupes disponibles sur un Civil donnent une force d'attaque standard de 10 000.
+Le Civil désigne ici un joueur humain, et la division par 5 correspond au réglage par défaut de son curseur d'attaque (20 %). Exemple : 50 000 troupes disponibles sur un Civil donnent une force d'attaque standard de 10 000.
 
-De la population à l'attaque : population (capacité), puis troupes (réserve), puis attaque (troupes ÷ 5). Le reste demeure en défense.
+De la population à l'attaque : population (capacité), puis troupes (réserve), puis attaque (troupes divisées par 5). Le reste demeure en défense.
 
 Dans le code, `cityTroopIncrease() = 250 000` : chaque niveau de Ville ajoute 250 000 troupes de capacité.
 

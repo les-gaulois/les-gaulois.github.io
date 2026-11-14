@@ -1,0 +1,176 @@
+/**
+ * La place de repos du Gaulois compagnon (revue du site, 14 novembre 2026) : arrêté, il ne couvre jamais du texte ni une
+ * commande. Posé au coin bas gauche, il cachait la ligne de [GAL] du classement, des rangs, des liens, des boutons.
+ *
+ * `src/scripts/compagnon.ts` donne les rectangles occupés de la fenêtre (le texte, les commandes, les lignes de tableau,
+ * les images qui disent quelque chose, ce qui est fixé) ; ces calculs purs en font une carte, puis choisissent la place
+ * libre la plus proche de celle qu'il voudrait (à côté du curseur, son coin, sa place gardée). Sans place libre pour lui
+ * en entier, il s'enfonce sous le bord bas de la fenêtre et n'en laisse dépasser que le haut, sa coiffe et ses yeux ;
+ * sans place même pour sa tête, il se cache sous le bord, le temps qu'une place se libère.
+ *
+ * Les longueurs sont en pixels de la page, dans la fenêtre ; une place est le coin haut gauche de son dessin.
+ */
+import { CASES_H, CASES_L, touche, type Bornes, type Cadre, type Point } from "./mouvement";
+
+/** Ce que couvre sa boîte, en cases depuis son coin haut gauche : tout son dessin, marges vides comprises. */
+export const EMPREINTE: Cadre = { gauche: 0, droite: CASES_L, haut: 0, bas: CASES_H };
+/** Couché, son lit en plus : 68 × 40 cases peintes, centré sous lui (`.compagnon-lit`). */
+export const EMPREINTE_ENDORMI: Cadre = { gauche: -10, droite: CASES_L + 10, haut: 0, bas: CASES_H };
+/** Enfoncé sous le bord bas, il laisse voir le haut de son dessin jusqu'à cette rangée : sa coiffe et ses yeux. */
+export const TETE = 30;
+/** L'air qu'il laisse autour de ce qu'il ne couvre pas, en pixels. */
+export const AIR = 6;
+/** Le côté des cases de la carte et le pas des places essayées, en pixels. */
+export const PAS = 8;
+/** Un pixel enfoncé sous le bord pèse trois pixels de marche : il préfère se montrer en entier, si ce n'est pas loin. */
+export const PENALITE_ENFONCE = 3;
+
+/** Entier, enfoncé jusqu'à la tête, ou caché sous le bord bas de la fenêtre. */
+export type Forme = "entier" | "tete" | "cache";
+const RANG: Readonly<Record<Forme, number>> = { entier: 2, tete: 1, cache: 0 };
+/** La forme `a` le montre-t-elle davantage que `b` ? */
+export const plusVisible = (a: Forme, b: Forme): boolean => RANG[a] > RANG[b];
+
+/** Sa boîte (ou celle de son lit), à une place donnée, `cote` pixels par case. */
+export const empreinteA = (p: Point, cote: number, e: Cadre = EMPREINTE): Cadre => ({
+  gauche: p.x + e.gauche * cote,
+  droite: p.x + e.droite * cote,
+  haut: p.y + e.haut * cote,
+  bas: p.y + e.bas * cote,
+});
+
+/** La place la plus basse où sa tête dépasse encore du bord bas d'une fenêtre de `hauteurFenetre` pixels. */
+export const fondDeLaFenetre = (b: Bornes, cote: number, hauteurFenetre: number): number => Math.max(b.bas, hauteurFenetre - TETE * cote);
+
+/** Sa forme à une place : entier dans les bornes, sa tête seule au-dessus du bord bas, ou caché dessous. */
+export function formeA(p: Point, b: Bornes, cote: number, hauteurFenetre: number): Forme {
+  if (p.y <= b.bas + 0.5) return "entier";
+  return p.y <= fondDeLaFenetre(b, cote, hauteurFenetre) + 0.5 ? "tete" : "cache";
+}
+
+/**
+ * La fenêtre en cases de `PAS` pixels : occupée là où touche un rectangle (élargi de `air`), avec ses sommes cumulées,
+ * pour savoir en quatre lectures si un cadre touche une case occupée.
+ */
+export interface Carte {
+  pas: number;
+  colonnes: number;
+  lignes: number;
+  /** Sommes cumulées des cases occupées, sur (colonnes + 1) × (lignes + 1). */
+  sommes: Int32Array;
+}
+
+export function carteDesZones(zones: readonly Cadre[], largeur: number, hauteur: number, air = AIR, pas = PAS): Carte {
+  const colonnes = Math.max(1, Math.ceil(Math.max(0, largeur) / pas));
+  const lignes = Math.max(1, Math.ceil(Math.max(0, hauteur) / pas));
+  const occupe = new Uint8Array(colonnes * lignes);
+  for (const z of zones) {
+    if (!(z.droite > z.gauche && z.bas > z.haut)) continue;
+    const g = Math.max(0, Math.floor((z.gauche - air) / pas));
+    const d = Math.min(colonnes, Math.ceil((z.droite + air) / pas));
+    const h = Math.max(0, Math.floor((z.haut - air) / pas));
+    const b = Math.min(lignes, Math.ceil((z.bas + air) / pas));
+    for (let j = h; j < b; j++) occupe.fill(1, j * colonnes + g, j * colonnes + Math.max(g, d));
+  }
+  const l = colonnes + 1;
+  const sommes = new Int32Array(l * (lignes + 1));
+  for (let j = 0; j < lignes; j++) {
+    let ligne = 0;
+    for (let i = 0; i < colonnes; i++) {
+      ligne += occupe[j * colonnes + i] ?? 0;
+      sommes[(j + 1) * l + i + 1] = (sommes[j * l + i + 1] ?? 0) + ligne;
+    }
+  }
+  return { pas, colonnes, lignes, sommes };
+}
+
+/** Un cadre ne touche-t-il aucune case occupée ? Ce qui sort de la fenêtre (sous le bord bas) ne compte pas. */
+export function estLibre(carte: Carte, c: Cadre): boolean {
+  const g = Math.max(0, Math.floor(c.gauche / carte.pas));
+  const d = Math.min(carte.colonnes, Math.ceil(c.droite / carte.pas));
+  const h = Math.max(0, Math.floor(c.haut / carte.pas));
+  const b = Math.min(carte.lignes, Math.ceil(c.bas / carte.pas));
+  if (d <= g || b <= h) return true;
+  const l = carte.colonnes + 1;
+  const s = carte.sommes;
+  return (s[b * l + d] ?? 0) - (s[h * l + d] ?? 0) - (s[b * l + g] ?? 0) + (s[h * l + g] ?? 0) === 0;
+}
+
+const borner = (v: number, min: number, max: number): number => Math.min(Math.max(v, min), Math.max(min, max));
+
+/** Les valeurs de `min` à `max` au pas de `PAS`, `max` et les valeurs `aussi` comprises, sans doublon. */
+function suite(min: number, max: number, ...aussi: number[]): number[] {
+  const haut = Math.max(min, max);
+  const valeurs = new Set<number>([haut, ...aussi.map((v) => borner(v, min, haut))]);
+  for (let v = min; v < haut; v += PAS) valeurs.add(v);
+  return [...valeurs];
+}
+
+export interface Repos {
+  place: Point;
+  forme: Forme;
+}
+
+/**
+ * Sa place de repos : la place libre la plus proche de `voulue`, dans la fenêtre (`bornes`, sous l'en-tête), sa boîte à
+ * `AIR` pixels au moins de chaque case occupée de `carte` et de chaque cadre de `aussi` (le curseur). Entier si possible ;
+ * sinon enfoncé sous le bord bas jusqu'à la tête (chaque pixel enfoncé pèse `PENALITE_ENFONCE` pixels de marche) ; sinon
+ * caché sous le bord, à l'aplomb de `voulue`. `endormi` : la place de son lit en plus.
+ */
+export function placeDeRepos(voulue: Point, carte: Carte, b: Bornes, cote: number, hauteurFenetre: number, aussi: readonly Cadre[] = [], endormi = false): Repos {
+  const e = endormi ? EMPREINTE_ENDORMI : EMPREINTE;
+  const fond = fondDeLaFenetre(b, cote, hauteurFenetre);
+  const vx = borner(voulue.x, b.gauche, b.droite);
+  const vy = borner(voulue.y, b.haut, fond);
+  const libre = (p: Point): boolean => {
+    const cadre = empreinteA(p, cote, e);
+    return estLibre(carte, cadre) && aussi.every((z) => !touche(cadre, z, AIR));
+  };
+  // Les colonnes de la plus proche à la plus lointaine ; les rangées dans l'ordre de leur coût le plus petit.
+  const xs = suite(b.gauche, b.droite, vx).sort((p, q) => Math.abs(p - vx) - Math.abs(q - vx));
+  const rangees = suite(b.haut, fond, vy, b.bas)
+    .map((y) => {
+      const enfonce = Math.max(0, y - b.bas);
+      return { y, enfonce, minimum: Math.abs(y - vy) + PENALITE_ENFONCE * enfonce };
+    })
+    .sort((p, q) => p.minimum - q.minimum);
+  let meilleure: Point | null = null;
+  let cout = Infinity;
+  for (const r of rangees) {
+    if (r.minimum >= cout) break;
+    // Un lit ne se pose pas sous le bord : couché, il reste entier.
+    if (endormi && r.enfonce > 0) continue;
+    const dy = r.y - vy;
+    for (const x of xs) {
+      const c = Math.hypot(x - vx, dy) + PENALITE_ENFONCE * r.enfonce;
+      if (c >= cout) break;
+      if (libre({ x, y: r.y })) {
+        meilleure = { x, y: r.y };
+        cout = c;
+        break;
+      }
+    }
+  }
+  if (meilleure) return { place: meilleure, forme: formeA(meilleure, b, cote, hauteurFenetre) };
+  return { place: { x: vx, y: Math.max(fond, hauteurFenetre) }, forme: "cache" };
+}
+
+/** Sa place, arrêté là : libre (ce qu'il montre de sa boîte ne touche rien), et sa forme. */
+export function etatDeLaPlace(ici: Point, carte: Carte, b: Bornes, cote: number, hauteurFenetre: number, aussi: readonly Cadre[] = [], endormi = false): { libre: boolean; forme: Forme } {
+  const cadre = empreinteA(ici, cote, endormi ? EMPREINTE_ENDORMI : EMPREINTE);
+  return { libre: estLibre(carte, cadre) && aussi.every((z) => !touche(cadre, z, AIR)), forme: formeA(ici, b, cote, hauteurFenetre) };
+}
+
+/**
+ * Faut-il qu'il bouge, arrêté à `ici` ? Seulement s'il couvre quelque chose, ou s'il peut se montrer davantage qu'enfoncé
+ * ou caché : une place libre où il se voit en entier lui reste acquise, il ne court pas d'une place libre à une autre.
+ * Renvoie sa nouvelle place, ou `null` s'il reste.
+ */
+export function placeAprendre(ici: Point, voulue: Point, carte: Carte, b: Bornes, cote: number, hauteurFenetre: number, aussi: readonly Cadre[] = [], endormi = false): Repos | null {
+  const etat = etatDeLaPlace(ici, carte, b, cote, hauteurFenetre, aussi, endormi);
+  if (etat.libre && etat.forme === "entier") return null;
+  const repos = placeDeRepos(voulue, carte, b, cote, hauteurFenetre, aussi, endormi);
+  if (etat.libre && !plusVisible(repos.forme, etat.forme)) return null;
+  if (Math.abs(repos.place.x - ici.x) < 0.5 && Math.abs(repos.place.y - ici.y) < 0.5) return null;
+  return repos;
+}

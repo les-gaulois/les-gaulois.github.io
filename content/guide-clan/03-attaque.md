@@ -28,8 +28,8 @@ retenir:
 **Densité.** Une forte concentration de troupes sur peu de tuiles augmente le terme de densité utilisé dans le calcul des pertes.
 
 ```
-densité = troupes du défenseur ÷ tuiles du défenseur
-R = troupes du défenseur ÷ troupes de l'attaque
+densité = troupes du défenseur divisées par tuiles du défenseur
+R = troupes du défenseur divisées par troupes de l'attaque
 ```
 
 **Pertes de l'attaquant.** Pour ce calcul, R est limité à l'intervalle de 0,6 à 2. Une grosse attaque fait donc descendre R.
@@ -43,6 +43,6 @@ Un Civil ou une Nation qui attaque un Bot paie 0,7 × mag.
 **Vitesse d'attaque.** Un tick dure 100 ms. La vitesse dépend du ratio, du terrain, de la taille des territoires, puis du poste et du statut de traître. En résumé : grosse attaque, R faible, coût qui diminue, conquête plus rapide.
 
 ```
-coût de vitesse = borne(R ; 0,82 ; 7,5) × borne(R ÷ 20 ; 1 ; 50) ÷ 8,55
-part du tick pour une tuile = coût de vitesse × coût de tuile × bonus de taille × modificateur de traître ÷ taille du front
+coût de vitesse = borne(R ; 0,82 ; 7,5) × borne(R divisé par 20 ; 1 ; 50) divisé par 8,55
+part du tick pour une tuile = coût de vitesse × coût de tuile × bonus de taille × modificateur de traître divisé par taille du front
 ```

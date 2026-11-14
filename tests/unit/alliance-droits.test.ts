@@ -6,7 +6,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const MIGRATIONS = ["20261113000400_alliances_sur_la_carte", "20261113000500_allies_acceptes_par_l_encadrement", "20261113000600_zones_sans_chevauchement", "20261113000700_allies_dessinent_leurs_zones", "20261113001000_zones_etats_epingle_annonces", "20261113001100_zones_des_allies_acceptees"];
+const MIGRATIONS = ["20261113000400_alliances_sur_la_carte", "20261113000500_allies_acceptes_par_l_encadrement", "20261113000600_zones_sans_chevauchement", "20261113000700_allies_dessinent_leurs_zones", "20261113001000_zones_etats_epingle_annonces", "20261113001100_zones_des_allies_acceptees", "20261114001500_alliances_amies"];
 const sql = Object.fromEntries(MIGRATIONS.map((name) => [name, readFileSync(`supabase/migrations/${name}.sql`, "utf8").replace(/\r\n/g, "\n")]));
 const accordSql = sql["20261113000500_allies_acceptes_par_l_encadrement"]!;
 
@@ -116,5 +116,42 @@ describe("la carte de l'alliance, côté serveur", () => {
     expect(carte).toContain("'can_draw', v_staff or v_clan is not null");
     expect(carte).toContain("'can_edit', v_staff or coalesce(z.tag = v_clan, false)");
     expect(sql["20261113000700_allies_dessinent_leurs_zones"]).toContain("revoke all on function internal.map_name(uuid) from public, anon, authenticated;");
+  });
+
+  it("ouvre l'invitation aux clans des alliances amies, jamais à GAL, et rien sans notre alliance", () => {
+    const amies = sql["20261114001500_alliances_amies"]!;
+    // Aucune alliance n'est amie au départ.
+    expect(amies).toContain("alter table internal.alliances add column if not exists friend boolean not null default false;");
+    const allie = corps("internal.allied_clan");
+    expect(allie).toContain("internal.our_alliance() is not null and exists (");
+    expect(allie).toContain("where c.tag = p_tag and (c.alliance_id = internal.our_alliance() or a.friend)");
+    // L'invitation, l'acceptation et l'entrée passent par la même règle, GAL toujours à part.
+    expect(corps("public.create_alliance_invite")).toContain("v_actor := internal.require_rank(2);");
+    expect(corps("public.create_alliance_invite")).toContain("if v_tag = internal.site_clan() or not internal.allied_clan(v_tag) then");
+    expect(corps("public.accept_alliance_invite")).toMatch(/and tag <> internal\.site_clan\(\)\s*(--[^\n]*\n\s*)*and internal\.allied_clan\(alliance_invites\.tag\)/);
+    expect(corps("internal.map_access")).toMatch(/a\.tag <> internal\.site_clan\(\)\s*(--[^\n]*\n\s*)*and internal\.allied_clan\(a\.tag\)/);
+    // Seul l'encadrement marque une alliance, et le journal le note.
+    const marquer = corps("public.set_alliance_friend");
+    expect(marquer).toContain("v_actor := internal.require_rank(2);");
+    expect(marquer).toContain("if p_friend is null then perform internal.fail('invalid_request'); end if;");
+    expect(marquer).toContain("perform internal.log_admin(v_actor, 'alliance_friend_set'");
+    // Notre alliance ne se marque pas, et un geste qui ne change rien ne va pas au journal.
+    expect(marquer).toContain("if p_friend and p_id = internal.our_alliance() then perform internal.fail('invalid_request'); end if;");
+    expect(marquer.indexOf("if v_avant = p_friend then return jsonb_build_object('ok', true); end if;")).toBeLessThan(marquer.indexOf("internal.log_admin"));
+    expect(amies).toContain("revoke all on function internal.allied_clan(text) from public, anon, authenticated;");
+  });
+
+  it("laisse les troupes et les zones aux clans de notre alliance : un joueur d'une alliance amie n'en déclare, n'en dessine ni n'en supprime", () => {
+    // La carte ne lui dit ni de dessiner, ni de modifier une zone, ni ne lui montre celles qui attendent.
+    expect(corps("public.get_alliance_map")).toMatch(/v_clan := case when v_access ->> 'kind' = 'allie' and exists \(\s*select 1 from internal\.alliance_clans c where c\.tag = v_access ->> 'tag' and c\.alliance_id = internal\.our_alliance\(\)\s*\) then v_access ->> 'tag' end;/);
+    expect(corps("public.get_alliance_map")).toContain("'friend', a.friend,");
+    // Le serveur refuse ses zones et ses troupes : ces fonctions ne regardent que notre alliance.
+    expect(corps("public.save_alliance_zone")).toContain("if not exists (select 1 from internal.alliance_clans where tag = v_tag and alliance_id = internal.our_alliance()) then");
+    expect(corps("public.save_alliance_zone")).not.toContain("allied_clan");
+    expect(corps("public.review_alliance_zone")).not.toContain("allied_clan");
+    expect(corps("public.declare_alliance_troops")).toContain("if not exists (select 1 from internal.alliance_clans where tag = v_tag and alliance_id = internal.our_alliance()) then");
+    const supprimer = corps("public.delete_alliance_zone");
+    expect(supprimer).toContain("if not v_staff and not exists (select 1 from internal.alliance_clans c where c.tag = v_tag and c.alliance_id = internal.our_alliance()) then");
+    expect(supprimer.indexOf("c.alliance_id = internal.our_alliance()")).toBeLessThan(supprimer.indexOf("delete from internal.alliance_zones"));
   });
 });

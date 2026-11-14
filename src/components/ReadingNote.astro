@@ -1,12 +1,36 @@
 ---
 interface Props {
   label?: string;
+  /**
+   * Le repli unique d'une page, en bas de son contenu : depuis le 14 novembre 2026, une page n'a plus qu'un « Comment lire
+   * ces chiffres », qui réunit les précisions de ses blocs, chacune sous le nom de son bloc (`bloc`).
+   */
+  page?: boolean;
+  /**
+   * Le nom du bloc dont ces précisions viennent, quand elles rejoignent le repli unique de la page : elles s'écrivent sous
+   * ce nom, sans repli à elles.
+   */
+  bloc?: string;
+  "data-testid"?: string;
 }
-const { label = "Comment lire ces chiffres" } = Astro.props;
+const { label = "Comment lire ces chiffres", page = false, bloc, "data-testid": testId } = Astro.props;
+// Le repli de la page n'existe que si l'un de ses blocs a des précisions à donner : pas de repli vide.
+const content = await Astro.slots.render("default");
 ---
 
 {/* Les précisions restent dans la page et se lisent sans JavaScript, sans noyer les chiffres. */}
-<details class="fold mt-4" data-testid="reading-note">
-  <summary>{label}</summary>
-  <div class="max-w-3xl space-y-2 text-sm text-muted"><slot /></div>
-</details>
+{
+  !content.trim() ? null : bloc ? (
+    <div class="space-y-2 pt-4 first:pt-0" data-note-bloc={bloc} data-testid={testId ?? "reading-note-part"}>
+      <h3 class="text-base text-white">{bloc}</h3>
+      <Fragment set:html={content} />
+    </div>
+  ) : (
+    <details class:list={["fold", page ? "mt-section" : "mt-4"]} data-testid={testId ?? "reading-note"}>
+      <summary>{label}</summary>
+      <div class="max-w-3xl space-y-2 text-sm text-muted">
+        <Fragment set:html={content} />
+      </div>
+    </details>
+  )
+}

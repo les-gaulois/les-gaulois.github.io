@@ -17,12 +17,13 @@ const slots = bestSlots(map);
 const DAYS = WEEKDAYS_FR;
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
 
-// Rampe à une seule teinte, du plus sombre au plus clair sur le fond marine.
-const RAMP = ["#1b2a5c", "#21408f", "#2360d0", "#4c86f5", "#8db0ff", "#d6e4ff"];
+// Rampe à une seule teinte, du plus pâle au plus foncé sur le fond blanc (thème clair du 14 novembre 2026). Le chiffre
+// s'écrit en marine sur les quatre premiers bleus (7:1 au moins), en blanc sur les deux plus foncés (5,7:1 au moins).
+const RAMP = ["#e8eefb", "#c9d8fb", "#a3bffb", "#739ff8", "#2360d0", "#173f96"];
 function cell(n: number) {
-  if (!map || map.max === 0 || n === 0) return { background: "transparent", color: "#a9b4d0" };
+  if (!map || map.max === 0 || n === 0) return { background: "transparent", color: "#4a5677" };
   const step = Math.min(RAMP.length - 1, Math.floor((n / map.max) * RAMP.length));
-  return { background: RAMP[step], color: step >= 3 ? "#0a1230" : "#ffffff" };
+  return { background: RAMP[step], color: step >= 4 ? "#ffffff" : "#0a1230" };
 }
 const count = (d: number, h: number) => map?.grid[d]?.[h] ?? 0;
 const tip = (d: number, h: number) => `${DAYS[d]} ${h} h : ${fmtInt(count(d, h))} partie${count(d, h) > 1 ? "s" : ""}`;
@@ -62,10 +63,6 @@ const tip = (d: number, h: number) => `${DAYS[d]} ${h} h : ${fmtInt(count(d, h))
                 ))}
               </ol>
             )}
-            <ReadingNote>
-              <p>Parties publiques en équipe jouées avec le tag : ni FFA, ni classé, ni Humains contre Nations. Ce sont des parties enregistrées, pas des joueurs connectés.</p>
-              <p>Créneaux classés par nombre de parties, puis par joueurs du clan par partie, à partir de 5 parties.</p>
-            </ReadingNote>
           </section>
 
           <section class="mt-section" aria-labelledby="heat-title">
@@ -128,5 +125,16 @@ const tip = (d: number, h: number) => `${DAYS[d]} ${h} h : ${fmtInt(count(d, h))
     <div class="mt-section">
       <GroupPlay />
     </div>
+    {/* Un seul repli pour la page, en bas, sous le nom du bloc qu'il précise. */}
+    {
+      map && map.total > 0 && (
+        <ReadingNote page>
+          <ReadingNote bloc="Meilleurs créneaux pour jouer ensemble">
+            <p>Parties publiques en équipe jouées avec le tag : ni FFA, ni classé, ni Humains contre Nations. Ce sont des parties enregistrées, pas des joueurs connectés.</p>
+            <p>Créneaux classés par nombre de parties, puis par joueurs du clan par partie, à partir de 5 parties.</p>
+          </ReadingNote>
+        </ReadingNote>
+      )
+    }
   </div>
 </Base>

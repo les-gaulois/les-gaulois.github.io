@@ -101,7 +101,7 @@ Déposez les fichiers sous ces noms, en `.svg`, `.webp`, `.png`, `.jpg` ou `.jpe
 | Fichier | Utilisation |
 |---|---|
 | `banner` | Bas de l'accueil et image de partage |
-| `logo-vertical` | Grand visuel de la page Rejoindre ; celui de l'accueil si `tete` manque |
+| `logo-vertical` | Visuel de la page Rejoindre, à droite de l'argument du jeu en groupe ; celui de l'accueil si `tete` manque |
 | `badge` | En-tête et favicon (recadré en cercle) |
 | `logo-horizontal` | Non utilisé pour l'instant |
 | `tete` | La tête du guerrier dans son cercle, sans texte : le logo en mode Matrix de l'accueil, de la Direction et du QG, redessiné en caractères au moment du build |
