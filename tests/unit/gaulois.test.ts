@@ -7,6 +7,8 @@ import {
   EMPLACEMENTS_OBJETS,
   GAULOIS_HAUTEUR,
   GAULOIS_LARGEUR,
+  DECOR_HAUTEUR,
+  DECOR_LARGEUR,
   IMAGE_GAULOIS,
   OBJETS,
   ORDRE_RARETES,
@@ -14,6 +16,7 @@ import {
   RARETES,
   TEINTE_CHEVEUX,
   TENUE_DE_DEPART,
+  casesDuDecor,
   casesDuGaulois,
   changerObjet,
   decrireGaulois,
@@ -236,23 +239,60 @@ describe("l'image de /gaulois", () => {
     expect(image).toMatchObject({ largeur: 496, hauteur: 320 });
   });
 
-  it("montre le Gaulois sur le fond du site, en entier, avec n'importe quel objet du catalogue", () => {
+  it("pose un décor de nuit en cases de 4 pixels : le ciel du site en haut, le sol en bas, et seulement des couleurs écrites", () => {
+    const decor = casesDuDecor();
+    expect([DECOR_LARGEUR, DECOR_HAUTEUR]).toEqual([124, 80]);
+    expect(decor).toHaveLength(DECOR_LARGEUR * DECOR_HAUTEUR);
+    for (const couleur of decor) expect(couleur).toMatch(/^#[0-9a-f]{6}$/);
+    // Le haut du ciel est le fond du site, comme sur les autres images du robot ; le sol est plus bas que le ciel.
+    expect([decor[0], decor[DECOR_LARGEUR - 1]]).toEqual(["#0a1230", "#0a1230"]);
+    expect(decor[decor.length - 1]).not.toBe("#0a1230");
+    // Sobre : une vingtaine de couleurs au plus, et le même décor à chaque image.
+    expect(new Set(decor).size).toBeLessThanOrEqual(32);
+    expect(casesDuDecor()).toBe(decor);
+    // Les seules couleurs chaudes sont les feux : la porte de la hutte et la torche, moins d'une case sur cinquante.
+    const chaudes = decor.filter((couleur) => parseInt(couleur.slice(1, 3), 16) > parseInt(couleur.slice(5, 7), 16)).length;
+    expect(chaudes).toBeGreaterThan(0);
+    expect(chaudes / decor.length).toBeLessThan(0.02);
+  });
+
+  it("montre le Gaulois devant le décor, en entier, avec n'importe quel objet du catalogue", { timeout: 30_000 }, () => {
     const { largeur, hauteur, echelle } = IMAGE_GAULOIS;
     expect(GAULOIS_HAUTEUR * echelle).toBeLessThanOrEqual(hauteur);
+    const decor = casesDuDecor();
     const pixel = (image: ReturnType<typeof imageDuGaulois>, x: number, y: number) => {
       const i = (y * largeur + x) * 4;
       return `#${[0, 1, 2].map((d) => (image.rgba[i + d] ?? 0).toString(16).padStart(2, "0")).join("")}`;
     };
+    const duDecor = (x: number, y: number) => decor[Math.floor(y / echelle) * DECOR_LARGEUR + Math.floor(x / echelle)];
     for (const tenue of chaqueObjet()) {
       const image = imageDuGaulois(tenue);
       expect(image.rgba).toHaveLength(largeur * hauteur * 4);
-      // Les coins restent au fond du site : rien ne déborde du cadre.
-      expect(pixel(image, 2, hauteur - 2)).toBe("#0a1230");
-      expect(pixel(image, largeur - 3, hauteur - 2)).toBe("#0a1230");
+      // Les quatre coins et les bords gauche et droit restent au décor : rien ne déborde du cadre.
+      for (const [x, y] of [[2, 2], [largeur - 3, 2], [2, hauteur - 2], [largeur - 3, hauteur - 2], [2, hauteur / 2], [largeur - 3, hauteur / 2]] as const) expect(pixel(image, x, y)).toBe(duDecor(x, y));
+      expect(pixel(image, 2, 2)).toBe("#0a1230");
       // Chaque couleur du Gaulois est dans l'image.
       const dans = new Set<string>();
       for (let i = 0; i < image.rgba.length; i += 4) dans.add(`#${[0, 1, 2].map((d) => (image.rgba[i + d] ?? 0).toString(16).padStart(2, "0")).join("")}`);
       for (const couleur of new Set(casesDuGaulois(tenue))) if (couleur) expect(dans.has(couleur), couleur).toBe(true);
     }
+  });
+
+  it("pose le Gaulois au milieu, les pieds sur le sol, sur son ombre", () => {
+    const { largeur, echelle } = IMAGE_GAULOIS;
+    const image = imageDuGaulois(TENUE_DE_DEPART);
+    const pixel = (x: number, y: number) => {
+      const i = (y * largeur + x) * 4;
+      return `#${[0, 1, 2].map((d) => (image.rgba[i + d] ?? 0).toString(16).padStart(2, "0")).join("")}`;
+    };
+    const cases = casesDuGaulois(TENUE_DE_DEPART);
+    const ox = (DECOR_LARGEUR - GAULOIS_LARGEUR) / 2;
+    const oy = 10;
+    // Chaque case pleine du Gaulois est à sa place, agrandie quatre fois.
+    cases.forEach((couleur, i) => {
+      if (couleur) expect(pixel((ox + (i % GAULOIS_LARGEUR)) * echelle + 1, (oy + Math.floor(i / GAULOIS_LARGEUR)) * echelle + 1)).toBe(couleur);
+    });
+    // Sous ses pieds, à côté de lui : l'ombre, plus sombre que le sol.
+    expect(pixel((largeur / 2 - 17 * echelle) | 0, 72 * echelle + 6)).toBe("#060b1f");
   });
 });
