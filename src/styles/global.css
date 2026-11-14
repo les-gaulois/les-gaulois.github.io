@@ -3237,10 +3237,10 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 /* Les règles propres à cet onglet (DirectionDemandes.tsx), sous la classe `dir-demandes`. Une ligne par demande : qui, le
    contrôle dans la liste officielle (vert dedans, rouge absent), l'attente (jaune au-delà de deux jours), les boutons. Le mot
    du joueur et le champ « Raison », ouvert à la demande, prennent toute la largeur sous la ligne. */
-.dir-demandes-fait:empty {
-  display: none;
-}
-.dir-demandes-fait:focus {
+/* Les zones du refus et de la réussite restent dans la page, vides, sans hauteur : cachées par `display: none`, elles
+   sortiraient de ce que lit un lecteur d'écran, qui ne les annoncerait plus en se remplissant. Elles reçoivent le focus après
+   une décision ; le texte se lit sans contour. */
+.dir-demandes-zone:focus {
   outline: none;
 }
 .dir-demandes-resume {
