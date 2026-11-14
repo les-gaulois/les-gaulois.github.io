@@ -151,6 +151,36 @@ export const ERROR_MESSAGES: Record<string, string> = {
   too_many_codes: "Cinq codes en dix minutes : attendez un peu avant d'en demander un autre.",
   discord_taken: "Votre compte Discord a déjà un compte sur le site, ouvert avec un code. Déconnectez-vous, puis connectez-vous avec un code : tapez /code dans le Discord du clan.",
   invalid_tenue: "Cette tenue n'est pas dans le vestiaire. Rechargez la page.",
+  invalid_parties: "Les parties envoyées pour les statères sont mal formées : rien n'a été noté.",
+
+  // La boutique et la pochette surprise du village (migration 20261113001900_village_boutique).
+  no_gaulois: "Créez d'abord votre Gaulois dans le vestiaire, puis enregistrez-le.",
+  unknown_objet: "Cet objet n'est pas dans la boutique. Rechargez la page.",
+  objet_gratuit: "Cet objet est gratuit : il est déjà dans votre vestiaire.",
+  deja_possede: "Vous avez déjà cet objet.",
+  solde_insuffisant: "Vous n'avez pas assez de statères.",
+  // Le prix de la boutique a changé entre l'affichage et le clic (revue de sécurité du 14 novembre 2026).
+  prix_change: "Le prix vient de changer : regardez le nouveau avant d'acheter.",
+
+  // Le marché du village (contrat : `RefusMarche` de src/lib/village/contrat.ts). Les refus qu'il partage avec la boutique
+  // (`deja_possede`, `solde_insuffisant`) sont à la boutique ; le marché a ses propres mots dans `ecran-marche.ts`.
+  pas_possede: "Cet objet n'est plus dans votre inventaire.",
+  objet_porte: "Votre Gaulois porte cet objet : enlevez-le d'abord, dans « Mon Gaulois ».",
+  achete_au_marche: "Un objet acheté au marché ne se remet pas en vente.",
+  prix_invalide: "Ce prix n'est pas accepté : un nombre entier, de 1 statère au prix de la boutique.",
+  trop_d_offres: "Vous avez déjà toutes vos offres ouvertes : retirez-en une d'abord.",
+  offre_fermee: "Cette offre n'est plus ouverte : elle est vendue, retirée ou finie.",
+  offre_a_soi: "C'est votre offre : elle se retire, elle ne s'achète pas.",
+
+  // L'onglet « Village » de la Direction : les prix et les chances (migration 20261113002100_village_direction).
+  prix_invalides: "Chaque prix est un nombre entier de statères, de 1 à 1 000 000, et chaque rareté coûte plus que la précédente.",
+  prix_pochette_invalide: "Le prix de la pochette est un nombre entier de statères, de 1 à 1 000 000.",
+  chances_invalides: "Les chances sont des nombres entiers de 0 à 100, qui font 100 en tout.",
+  rarete_sans_objet: "Une rareté qui n'a aucun objet à vendre ne peut pas avoir de chance dans la pochette.",
+
+  // La vie du village : les bulles et l'état vocal (migration 20261113002300_village_vie).
+  invalid_plafond: "Indiquez un plafond de 0 à 100 dollars, au centime près.",
+  invalid_releve: "Le relevé de la vie du village est mal formé : rien n'a été noté.",
 };
 
 export function errorMessage(code: string): string {
