@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { TENUE_DE_DEPART } from "../../src/lib/gaulois";
 import { DECOR_LARGEUR_MIN } from "../../src/lib/village/decor";
-import { CASE_ORDINATEUR, CASE_TELEPHONE, FOULE_EN_GRAND, caseDeLaScene, largeurDuDecor, lireVillage, messageDeLaPlace, sonGauloisManque } from "../../src/lib/village/ecran-place";
+import { CASE_DE_LOIN, CASE_ORDINATEUR, CASE_TELEPHONE, FOULE_AU_TELEPHONE, FOULE_EN_GRAND, caseDeLaScene, estSansNom, largeurDuDecor, lireVillage, messageDeLaPlace, sonGauloisManque } from "../../src/lib/village/ecran-place";
 
 const gaulois = (nom: string, moi = false) => ({ nom, tenue: TENUE_DE_DEPART, moi });
 
@@ -12,6 +12,20 @@ describe("les tailles de la scène", () => {
     expect(caseDeLaScene(768, 0)).toBe(CASE_ORDINATEUR);
     expect(caseDeLaScene(1920, FOULE_EN_GRAND)).toBe(CASE_ORDINATEUR);
     expect(caseDeLaScene(1920, FOULE_EN_GRAND + 1)).toBe(CASE_TELEPHONE);
+  });
+
+  it("fait prendre du recul au téléphone quand le lieu est plein", () => {
+    expect(caseDeLaScene(375, FOULE_AU_TELEPHONE)).toBe(CASE_TELEPHONE);
+    expect(caseDeLaScene(375, FOULE_AU_TELEPHONE + 1)).toBe(CASE_DE_LOIN);
+    expect(caseDeLaScene(360, 80)).toBe(CASE_DE_LOIN);
+    // Un écran large ne descend jamais sous la case du téléphone.
+    expect(caseDeLaScene(1280, 80)).toBe(CASE_TELEPHONE);
+  });
+
+  it("reconnaît le Gaulois sans nom, jamais le sien", () => {
+    expect(estSansNom({ nom: "Un Gaulois", moi: false })).toBe(true);
+    expect(estSansNom({ nom: "Un Gaulois", moi: true })).toBe(false);
+    expect(estSansNom({ nom: "Essai", moi: false })).toBe(false);
   });
 
   it("donne au décor assez de cases pour remplir la scène, jamais moins que le plus petit décor", () => {

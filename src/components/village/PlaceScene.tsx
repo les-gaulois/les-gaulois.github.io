@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { casesDuGaulois } from "../../lib/gaulois";
 import { type Decor, FEU_HAUTEUR, flammesDuFeu } from "../../lib/village/decor";
-import { caseDeLaScene, largeurDuDecor } from "../../lib/village/ecran-place";
+import { CASE_DE_LOIN, caseDeLaScene, estSansNom, largeurDuDecor } from "../../lib/village/ecran-place";
 import { BOITES, composerLieu } from "../../lib/village/lieux";
 import { type Lumiere, cleDeLumiere } from "../../lib/village/lumiere";
 import {
@@ -65,6 +65,8 @@ interface Pose {
 }
 
 const FLAMMES = flammesDuFeu();
+/** La moitié de la plus large étiquette (14 rem), en pixels, et un peu d'air : plus près d'un bord, elle sortirait. */
+const PRES_DU_BORD = 116;
 
 /**
  * Un lieu du village et ceux qui s'y trouvent. Le décor est une toile, à la largeur de l'écran ; chaque Gaulois est posé
@@ -73,7 +75,8 @@ const FLAMMES = flammesDuFeu();
  * ouvert (`actif`), quand la page est cachée, ni quand les animations sont coupées.
  *
  * La scène est un dessin : les lecteurs d'écran et le clavier ont la liste « Qui est où », sous elle. Au survol ou au
- * toucher, un Gaulois montre ce qui le place là.
+ * toucher, un Gaulois montre ce qui le place là. Sur un téléphone, un lieu plein se regarde de plus loin (`data-loin`) :
+ * les noms ne s'écrivent plus sous chacun, sauf le sien ; ils restent au toucher et dans la liste.
  */
 export default function PlaceScene({ lieu, habitants, lumiere, actif }: { lieu: Lieu; habitants: readonly Habitant[]; lumiere: Lumiere; actif: boolean }) {
   const cadre = useRef<HTMLDivElement>(null);
@@ -187,7 +190,9 @@ export default function PlaceScene({ lieu, habitants, lumiere, actif }: { lieu: 
       } else if (lieu === "maisons") dessin = pose ? "couche0" : `couche${souffleDuDormeur(temps, i)}`;
 
       const place = `translate(${x * cote}px, ${y * cote}px)`;
-      const bord = x < 30 ? "gauche" : x + boite.largeur > largeurScene - 30 ? "droite" : "";
+      // Près d'un bord, l'étiquette du survol et la bulle s'alignent sur lui : comptées en pixels, pour toute taille de case.
+      const milieu = (x + boite.largeur / 2) * cote;
+      const bord = milieu < PRES_DU_BORD ? "gauche" : largeurScene * cote - milieu < PRES_DU_BORD ? "droite" : "";
       const parle = parlent.includes(i);
       const avant = poses.current[i];
       if (!avant || avant.place !== place) {
@@ -249,6 +254,7 @@ export default function PlaceScene({ lieu, habitants, lumiere, actif }: { lieu: 
       ref={cadre}
       class="place-scene"
       data-lieu={lieu}
+      data-loin={cote === CASE_DE_LOIN ? "" : undefined}
       data-testid="place-scene"
       aria-hidden="true"
       style={{ "--place-case": `${cote}px`, "--vie-l": String(boite.largeur), "--vie-h": String(boite.hauteur), "--vie-nom": String(boite.nom), height: scene ? `${scene.decor.hauteur * cote}px` : undefined }}
@@ -290,6 +296,7 @@ export default function PlaceScene({ lieu, habitants, lumiere, actif }: { lieu: 
             }}
             class="vie-acteur"
             data-moi={habitant.gaulois.moi ? "" : undefined}
+            data-sans-nom={estSansNom(habitant.gaulois) ? "" : undefined}
             data-ouvert={ouvert === habitant.rang ? "" : undefined}
             data-testid="place-gaulois"
             onClick={() => setOuvert(ouvert === habitant.rang ? null : habitant.rang)}

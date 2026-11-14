@@ -498,7 +498,7 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
               </button>
               {change && etat.enregistree && (
                 <button type="button" class="btn btn-ghost" onClick={() => changer(etat.enregistree ?? TENUE_DE_DEPART)}>
-                  Annuler les changements
+                  Annuler
                 </button>
               )}
             </div>
