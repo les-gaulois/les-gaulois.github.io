@@ -95,7 +95,8 @@ export function backupSummary(content: unknown): string {
 
 /**
  * L'heure, en temps universel, où commence le lundi d'une semaine de sauvegarde : 7 h, soit 8 h ou 9 h à Paris.
- * Après les heures de silence : le compte rendu sur le salon de l'encadrement ne part jamais la nuit.
+ * Choisie quand le robot se taisait la nuit, jusqu'au 14 novembre 2026 ; gardée pour ne pas décaler les semaines déjà
+ * sauvegardées.
  */
 export const BACKUP_WEEK_START_HOUR_UTC = 7;
 

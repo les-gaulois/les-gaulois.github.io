@@ -600,7 +600,7 @@ export default function DirectionApp({ health, logo }: { health: Omit<SiteHealth
           {shown.has("demandes") && <Requests />}
         </Partie>
         <Partie {...part} id="comptes">
-          {shown.has("comptes") && <Members me={me} ask={membersAsk} onReady={() => setMembersReady(true)} />}
+          {shown.has("comptes") && <Members me={me} ask={membersAsk} active={active === "comptes"} onReady={() => setMembersReady(true)} />}
         </Partie>
         {rank >= 3 && (
           <Partie {...part} id="journal">

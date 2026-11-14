@@ -8,7 +8,7 @@
  * - La belle partie de la veille, la même que sur l'accueil (`bestGameOf`) : celle où le plus de Gaulois jouaient ensemble.
  *   Sans le nom de la carte : sa traduction française est sous licence CC BY-SA et demanderait un crédit dans le message.
  * - Le message attend que la collecte ait fini la journée (`completeThrough`) : un message posté ne se corrige pas.
- * - À partir de 9 h, jamais la nuit, une fois par jour. Une journée sans partie n'envoie rien : il n'y aurait rien à raconter.
+ * - À partir de 9 h et jusqu'à minuit, une fois par jour. Une journée sans partie n'envoie rien : il n'y aurait rien à raconter.
  *   Un jour manqué n'est pas rattrapé.
  * - Le message est une image et un bouton, sans texte : le texte ne part que si l'image ne se dessine pas.
  */

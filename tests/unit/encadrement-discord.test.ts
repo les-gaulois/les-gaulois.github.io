@@ -1,7 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { clan } from "../../config/clan";
-import { QUIET_FROM_HOUR, QUIET_UNTIL_HOUR } from "../../src/lib/alerts";
 import { instantNotes, REMIND_AFTER_HOURS, sendStaffNotice, staffNotice, type StaffDigest } from "../../src/lib/encadrement-discord";
 import { fmtDuration } from "../../src/lib/format";
 
@@ -48,27 +47,25 @@ describe("le message à l'encadrement", () => {
     expect(staffNotice(digest({ newest_id: 10, oldest_at: hoursAgo(5), notice: { newest_id: 10, reminded_at: null } }), NOW, SITE).send).toBe(false);
   });
 
-  it("se tait sans demande, et la nuit", () => {
+  it("se tait sans demande, mais parle jour et nuit", () => {
     expect(staffNotice(digest({ pending: 0, newest_id: null, oldest_at: null }), NOW, SITE)).toEqual({ send: false, reason: "aucune demande en attente" });
-    // 23 h 30 à Paris.
-    expect(staffNotice(digest(), new Date("2026-11-08T22:30:00Z"), SITE).send).toBe(false);
-    // 7 h 59 à Paris.
-    expect(staffNotice(digest(), new Date("2026-11-08T06:59:00Z"), SITE).send).toBe(false);
-    // 8 h à Paris.
-    expect(staffNotice(digest(), new Date("2026-11-08T07:00:00Z"), SITE).send).toBe(true);
+    // 23 h 30, 3 h et 7 h 59 à Paris : depuis le 14 novembre 2026, plus d'heures de silence.
+    for (const at of ["2026-11-08T22:30:00Z", "2026-11-08T02:00:00Z", "2026-11-08T06:59:00Z"]) {
+      expect(staffNotice(digest(), new Date(at), SITE), at).toMatchObject({ send: true, kind: "nouvelle" });
+    }
   });
 
-  it("annonce une seule fois sa mise en service, de jour, quand rien n'a encore été noté", () => {
+  it("annonce une seule fois sa mise en service, quand rien n'a encore été noté", () => {
     const first = digest({ pending: 0, newest_id: null, oldest_at: null, notice: null });
     const decision = staffNotice(first, NOW, SITE);
     expect(decision).toEqual({
       send: true,
       kind: "service",
-      text: `L'avis à l'encadrement est en place : ce salon sera prévenu dans l'heure des demandes d'adhésion qui attendent sur le site du clan, sans aucun nom, et du résultat de chaque sauvegarde chiffrée, jamais entre 23 h et 8 h. Les demandes se traitent ici : ${SITE}/direction#demandes`,
+      text: `L'avis à l'encadrement est en place : ce salon sera prévenu dans l'heure, jour et nuit, des demandes d'adhésion qui attendent sur le site du clan, sans aucun nom, et du résultat de chaque sauvegarde chiffrée. Les demandes se traitent ici : ${SITE}/direction#demandes`,
       note: { newest_id: null, reminded_at: null },
     });
-    // La nuit, il attend 8 h.
-    expect(staffNotice(first, new Date("2026-11-08T22:30:00Z"), SITE).send).toBe(false);
+    // La nuit aussi.
+    expect(staffNotice(first, new Date("2026-11-08T22:30:00Z"), SITE).send).toBe(true);
     // Une fois noté, plus jamais ; et la première demande qui suit est bien annoncée.
     const noted = { newest_id: null, reminded_at: null };
     expect(staffNotice(digest({ pending: 0, newest_id: null, oldest_at: null, notice: noted }), NOW, SITE).send).toBe(false);
@@ -214,12 +211,15 @@ describe("les demandes annoncées dès leur arrivée (migration 20261112000600)"
     expect(SQL).not.toMatch(/grant [^;]* to [^;]*\b(anon|authenticated|public)\b/);
     for (const name of ["internal.announce_request_now", "public.staff_digest"]) expect(body(name), name).toContain("security definer set search_path = public, pg_temp");
   });
-  it("se tait aux mêmes heures que le robot", () => {
-    const quiet = body("internal.staff_quiet_hour");
-    expect(quiet).toContain("'Europe/Paris'");
-    expect(quiet).toContain(`>= ${QUIET_FROM_HOUR}`);
-    expect(quiet).toContain(`< ${QUIET_UNTIL_HOUR}`);
+  it("demande au serveur s'il doit se taire, question à laquelle la migration 20261114000100 répond toujours non", () => {
     expect(trigger).toContain("if internal.staff_quiet_hour(now()) then return null; end if;");
+    const LATER = readFileSync("supabase/migrations/20261114000100_plus_de_silence_la_nuit.sql", "utf8").replaceAll("\r\n", "\n");
+    // Même signature, donc la même fonction remplacée, et le déclencheur n'a pas à changer.
+    expect(LATER).toContain("create or replace function internal.staff_quiet_hour(p_at timestamptz) returns boolean");
+    expect(LATER.slice(LATER.indexOf("as $$"), LATER.indexOf("$$;") + 3)).toBe("as $$\n  select false\n$$;");
+    expect(LATER).toContain("revoke all on function internal.staff_quiet_hour(timestamptz) from public, anon, authenticated;");
+    // Elle ne fait que remplacer une fonction : rien n'est retiré, rien n'est ouvert.
+    expect(LATER).not.toMatch(/\b(drop|truncate|delete|grant)\b/i);
   });
   it("poste le même avis que le robot, vers les demandes de la Direction, sans nom et sans mention", () => {
     expect(trigger).toContain("'allowed_mentions', jsonb_build_object('parse', jsonb_build_array())");

@@ -1,5 +1,5 @@
 import type { ComponentChildren } from "preact";
-import { useCallback, useEffect, useState } from "preact/hooks";
+import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { CODE_LOGIN_OPEN, ServerError, basePath, call, getSession, signInWithCode, signInWithDiscord, supabase } from "../../lib/compte/api";
 import { ERROR_MESSAGES_EN, errorMessageEn } from "../../lib/compte/errors";
 import { PENDING_CHANGED } from "../../lib/compte/pending";
@@ -356,4 +356,47 @@ export function useRun(after: () => Promise<void>) {
     }
   };
   return { busy, error, done, run };
+}
+
+/** Le délai entre deux relectures automatiques d'une liste de l'encadrement, tant qu'elle est sous les yeux. */
+export const AUTO_RELOAD_EVERY = 60_000;
+
+/**
+ * Relit d'elle-même une liste de l'encadrement : à la réouverture de sa partie, au retour sur la page (après un passage sur
+ * Discord, par exemple) et chaque minute tant qu'elle est ouverte et visible. Sans cela, une demande arrivée après l'ouverture
+ * de la page n'y paraissait pas : un compte affichait « Aucune demande en cours » alors que la personne venait d'envoyer la
+ * sienne (remarque du pilote, 14 novembre 2026). Deux relectures automatiques sont espacées d'au moins 3 secondes.
+ */
+export function useAutoReload(reload: () => Promise<unknown>, active: boolean): void {
+  const latest = useRef(reload);
+  latest.current = reload;
+  const last = useRef(Date.now());
+  const run = (force: boolean) => {
+    if (!force && Date.now() - last.current < 3000) return;
+    last.current = Date.now();
+    void latest.current();
+  };
+  // Pas au premier affichage : la liste vient d'être lue.
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    if (active) run(true);
+  }, [active]);
+  useEffect(() => {
+    if (!active) return;
+    const back = () => {
+      if (document.visibilityState === "visible") run(false);
+    };
+    const timer = window.setInterval(back, AUTO_RELOAD_EVERY);
+    window.addEventListener("focus", back);
+    document.addEventListener("visibilitychange", back);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", back);
+      document.removeEventListener("visibilitychange", back);
+    };
+  }, [active]);
 }

@@ -6,7 +6,7 @@
  *   le clan au dernier relevé. Si la liste donne une nouvelle date d'arrivée à un joueur parti puis revenu, il est de nouveau accueilli.
  * - Un membre avec pseudo est cité. Un anonyme est seulement compté : ni nom ni identifiant publiés.
  * - Le message est une image et un bouton, sans texte ; le texte de secours relie chaque pseudo à sa fiche.
- * - À partir de 12 h, jamais la nuit, une fois par jour, et pas avant que le site montre les fiches des nouveaux.
+ * - À partir de 12 h et jusqu'à minuit, une fois par jour, et pas avant que le site montre les fiches des nouveaux.
  * - Au premier passage, le relevé du moment sert de départ : rien n'est envoyé.
  */
 import { z } from "zod";

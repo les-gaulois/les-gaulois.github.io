@@ -7,7 +7,8 @@
  *   d'un calcul à l'autre n'envoie rien. L'alerte donne la place du dernier calcul.
  * - Carte : relevée environ une fois par jour. Chaque relevé est comparé à la dernière place annoncée. L'alerte attend le passage
  *   suivant, quand le site montre ce relevé.
- * - Rien la nuit, de 23 h à 8 h à Paris : l'alerte attend le matin, et ne part plus si la place est revenue entre-temps.
+ * - Jour et nuit : depuis le 14 novembre 2026, à la demande du pilote (« il peut parler 24h24 »), le robot ne se tait
+ *   plus de 23 h à 8 h. Aucun message du salon ne garde d'heures de silence.
  * - Au plus deux alertes par jour à Paris, une seule par passage du robot, et toujours sur un relevé récent.
  * - Au premier passage, les places du moment servent de départ : rien n'est envoyé.
  */
@@ -21,9 +22,6 @@ const MINUTE_MS = 60_000;
 const HOUR_MS = 60 * MINUTE_MS;
 /** Deux calculs d'OpenFront, et non deux lectures du même calcul. */
 export const CONFIRM_MS = 50 * MINUTE_MS;
-/** La nuit, à Paris : de 23 h à 8 h. */
-export const QUIET_FROM_HOUR = 23;
-export const QUIET_UNTIL_HOUR = 8;
 export const MAX_ALERTS_PER_DAY = 2;
 /** Au-delà, le relevé ne part pas : le robot relit le classement à chaque passage, la carte environ une fois par jour. */
 export const MAX_READING_AGE_MS = { rank: 2 * HOUR_MS, map: 24 * HOUR_MS } as const;
@@ -220,8 +218,7 @@ export function planAlert(stored: AlertState | null, readings: { rank: PlaceRead
     return { state, alert: null, reason: pending ? `classement : ${fmtRank(pending.rank)} en attente d'un second calcul` : "aucune place n'a changé" };
   }
 
-  const { date, hour } = parisParts(now);
-  if (hour >= QUIET_FROM_HOUR || hour < QUIET_UNTIL_HOUR) return { state, alert: null, reason: `la nuit : l'alerte attend ${QUIET_UNTIL_HOUR} h` };
+  const { date } = parisParts(now);
   const today = state.sent.filter((at) => parisParts(at).date === date).length;
   if (today >= MAX_ALERTS_PER_DAY) return { state, alert: null, reason: `déjà ${today} alertes aujourd'hui : la suivante attend demain` };
   const alert = due.find((a) => fresh(a, now) && shownOnSite(a, now));

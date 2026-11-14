@@ -157,7 +157,7 @@ jobs:
           SUPABASE_URL: ${{ vars.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           DISCORD_WEBHOOK_GAZETTE: ${{ secrets.DISCORD_WEBHOOK_GAZETTE }}
-      # Les messages du jour, même salon et même secret : chacun au plus une fois par jour, à partir de son heure, jamais la nuit.
+      # Les messages du jour, même salon et même secret : chacun au plus une fois par jour, de son heure à minuit.
       # Le bilan de la veille dès 9 h, quand la collecte a fini la journée.
       - name: Envoyer « Hier chez les Gaulois » sur Discord
         if: github.ref_name == 'main'

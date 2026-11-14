@@ -32,7 +32,7 @@ import { announcePendingChange } from "../../lib/compte/pending";
 import { READY_REASONS, requestWait, requestsSummary } from "../../lib/compte/requests";
 import { ROLE_LABELS, type LogRow, type Me, type MemberRow, type RequestRow, type Role } from "../../lib/compte/types";
 import { fmtCount, fmtDateTime, fmtInt } from "../../lib/format";
-import { Empty, Loading, Problem, Success, messageOf, useNow } from "./common";
+import { Empty, Loading, Problem, Success, messageOf, useAutoReload, useNow } from "./common";
 import { PartieTete } from "./Onglets";
 
 const STATUS_LABELS = { pending: "En attente", validated: "Validé", suspended: "Suspendu" } as const;
@@ -196,7 +196,7 @@ function Pastille({ tone, plain = false, testid, children }: { tone: MemberTone;
  * une ligne courte par compte, une couleur par état. Les règles sont dans `src/lib/compte/admin-members.ts`, le dessin dans
  * `global.css`, section « L'onglet Comptes de la Direction » : tout y est sous la classe `comptes`.
  */
-export function Members({ me, ask, onReady }: { me: Me; ask?: MembersAsk | null; onReady?: () => void }) {
+export function Members({ me, ask, onReady, active = true }: { me: Me; ask?: MembersAsk | null; onReady?: () => void; active?: boolean }) {
   const [search, setSearch] = useState("");
   // Ce que le serveur a cherché lui-même : seulement quand il a coupé la liste (voir `listMayBeCut`).
   const [query, setQuery] = useState("");
@@ -212,19 +212,32 @@ export function Members({ me, ask, onReady }: { me: Me; ask?: MembersAsk | null;
   const pending = useList<RequestRow>("list_membership_requests");
   const requests = openRequests(pending.error ? null : pending.rows);
   const roster = pending.error ? undefined : (pending.extra["roster"] as { read_at: string } | null | undefined);
-  // Une demande a pu arriver entre-temps : chaque relecture reprend les deux listes.
-  const reloadAll = async () => {
-    await Promise.all([list.reload(), pending.reload()]);
-  };
-  const action = useAction(reloadAll);
   // Les joueurs alliés de la carte de l'alliance, par numéro de compte : sans ce repère, ils ressemblent à de nouveaux Gaulois
   // « En attente ». Un serveur d'avant cette lecture la refuse : la liste reste alors comme avant.
   const [allies, setAllies] = useState<Map<number, AllyMark>>(new Map());
-  useEffect(() => {
+  const readAllies = () =>
     call<{ allies: AllyMark[] }>("list_alliance_allies")
       .then((r) => setAllies(new Map(r.allies.map((a) => [a.number, a]))))
       .catch(() => setAllies(new Map()));
+  useEffect(() => {
+    void readAllies();
   }, []);
+  // Une demande a pu arriver entre-temps, un allié être accepté : chaque relecture reprend les trois listes.
+  const reloadAll = async () => {
+    await Promise.all([list.reload(), pending.reload(), readAllies()]);
+  };
+  const action = useAction(reloadAll);
+  // Et la liste se relit d'elle-même : à la réouverture de l'onglet, au retour sur la page et chaque minute (`useAutoReload`).
+  useAutoReload(reloadAll, active);
+  // Une demande arrivée ou traitée depuis la lecture précédente : la pastille de l'en-tête et le nombre de l'onglet Demandes
+  // se relisent aussi, pour ne pas dire autre chose que la liste.
+  const openCount = pending.error ? null : (pending.rows?.length ?? null);
+  const lastOpenCount = useRef<number | null>(null);
+  useEffect(() => {
+    if (openCount === null) return;
+    if (lastOpenCount.current !== null && lastOpenCount.current !== openCount) announcePendingChange();
+    lastOpenCount.current = openCount;
+  }, [openCount]);
   // Un rôle choisi dans la liste attend une confirmation : au clavier ou d'un doigt, on choisit vite un autre rôle par erreur.
   const [draft, setDraft] = useState<{ user: string; role: Role } | null>(null);
   // Après « Confirmer » ou « Annuler », le focus revient à la liste du rôle, une fois l'envoi fini : sinon, il repartirait du haut de la page.

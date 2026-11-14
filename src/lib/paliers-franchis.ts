@@ -7,7 +7,7 @@
  * - La liste des membres est relue environ une fois par jour. Chaque relecture est comparée à la précédente : un membre avec pseudo
  *   présent aux deux, qui a franchi un palier entre elles, est noté. Un nouveau membre ou un pseudo apparu n'a pas de point de départ :
  *   rien n'est noté pour lui. Un anonyme n'a pas d'identifiant dans les fichiers du site : il ne peut être ni suivi ni cité.
- * - Un seul message par jour à Paris, jamais la nuit, avec tous les paliers notés depuis le précédent. Il attend le passage suivant
+ * - Un seul message par jour à Paris, jour et nuit, avec tous les paliers notés depuis le précédent. Il attend le passage suivant
  *   la relecture, quand le site montre le nouveau palier.
  * - Un membre parti ou sans pseudo est oublié à chaque passage de la collecte, même sans lien Discord (`forgetMilestoneMembers`) :
  *   il n'est plus cité, et son identifiant n'est plus gardé. Un membre sans stats l'est à l'envoi suivant.
@@ -16,7 +16,7 @@
  * Un palier compte des victoires, donc d'abord des parties jouées : il ne dit pas qui joue le mieux.
  */
 import { z } from "zod";
-import { MAP_SITE_DELAY_MS, QUIET_FROM_HOUR, QUIET_UNTIL_HOUR } from "./alerts";
+import { MAP_SITE_DELAY_MS } from "./alerts";
 import { fmtDayAndTime, fmtInt } from "./format";
 import { WIN_TIERS } from "./paliers";
 import type { StoredMembers } from "./schemas";
@@ -125,13 +125,12 @@ export function observeMembers(stored: MilestoneState | null, members: StoredMem
 }
 
 /**
- * Faut-il envoyer maintenant ? Un message par jour à Paris, jamais la nuit, et pas avant que le site montre les nouveaux paliers :
+ * Faut-il envoyer maintenant ? Un message par jour à Paris, jour et nuit, et pas avant que le site montre les nouveaux paliers :
  * il se reconstruit quelques minutes après le passage qui a relu la liste, comme pour les alertes de la carte.
  */
 export function milestonesDue(state: MilestoneState, now: Date): { due: boolean; reason: string } {
   if (!state.pending) return { due: false, reason: "aucun palier franchi depuis le dernier message" };
-  const { date, hour } = parisParts(now);
-  if (hour >= QUIET_FROM_HOUR || hour < QUIET_UNTIL_HOUR) return { due: false, reason: `la nuit : le message attend ${QUIET_UNTIL_HOUR} h` };
+  const { date } = parisParts(now);
   if (state.lastSentOn === date) return { due: false, reason: "déjà un message aujourd'hui : la suite attend demain" };
   if (now.getTime() - Date.parse(state.pending.until) < MAP_SITE_DELAY_MS) return { due: false, reason: "le message attend que le site montre les nouveaux paliers" };
   return { due: true, reason: "" };

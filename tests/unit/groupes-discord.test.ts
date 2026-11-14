@@ -131,8 +131,8 @@ describe("le moment du message", () => {
     expect((await pass("2026-11-11T13:10:00.000Z", first.state)).sent).toEqual([]);
   });
 
-  it("rattrape un mardi manqué, jamais la nuit", async () => {
-    expect((await pass("2026-11-12T22:30:00.000Z", null)).sent).toEqual([]); // 23 h 30 à Paris
+  it("rattrape un mardi manqué, la nuit aussi", async () => {
+    expect((await pass("2026-11-12T22:30:00.000Z", null)).sent).toEqual(["2026-11-02"]); // jeudi 23 h 30 à Paris
     expect((await pass("2026-11-13T09:00:00.000Z", null)).sent).toEqual([]); // vendredi 10 h : avant 14 h
     expect((await pass("2026-11-13T13:30:00.000Z", null)).sent).toEqual(["2026-11-02"]);
   });

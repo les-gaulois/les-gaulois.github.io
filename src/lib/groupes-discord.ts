@@ -4,7 +4,7 @@
  * ensemble. Demandé par le pilote le 11 novembre 2026, après la mesure : sur 90 jours, 39 % des parties se jouaient seul et
  * ne rapportaient que 3 % des points.
  *
- * - La semaine finie, du lundi au dimanche à Paris. Le message part à partir du mardi 14 h, jamais la nuit, une seule fois,
+ * - La semaine finie, du lundi au dimanche à Paris. Le message part à partir du mardi, de 14 h à minuit, une seule fois,
  *   jusqu'au dimanche qui suit : qui jouait avec qui vient des listes officielles des membres, relues au plus une fois par
  *   jour (`.cache/member-games/results.json`), d'où le jour d'attente. Les parties et les points, eux, viennent des sessions
  *   du clan.

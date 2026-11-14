@@ -2,12 +2,13 @@
  * Ce que partagent les messages du jour sur le salon de la gazette : « Hier chez les Gaulois », les plus actifs, la bienvenue
  * et les nouveautés du site, demandés par le pilote le 11 novembre 2026 pour que le salon vive tous les jours.
  *
- * Chacun part au plus une fois par jour à Paris, jamais la nuit, et à partir d'une heure à lui : les messages s'étalent dans la
+ * Chacun part au plus une fois par jour à Paris, à partir d'une heure à lui et jusqu'à minuit : les messages s'étalent dans la
  * journée au lieu de partir ensemble. Le robot passe vers la 53e minute de chaque heure : un message de 17 h part vers 17 h 53.
+ * Plus d'heures de silence depuis le 14 novembre 2026 (« il peut parler 24h24 ») : un message en retard, après une panne
+ * de Discord par exemple, part encore à 23 h 53.
  * Comme les alertes, aucun ne part avant la gazette du lundi 9 novembre, premier message du salon (`alertsStarted`).
  */
 import { z } from "zod";
-import { QUIET_FROM_HOUR, QUIET_UNTIL_HOUR } from "./alerts";
 import { parisParts } from "./time";
 
 /** Un jour de Paris, AAAA-MM-JJ. */
@@ -16,10 +17,9 @@ export const ParisDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 /** L'heure de Paris à partir de laquelle part chaque message. La course du soir (`course-soir.ts`) suit les mêmes règles. */
 export const SEND_FROM_HOUR = { hier: 9, bienvenue: 12, actifs: 17, nouveautes: 19, course: 21 } as const;
 
-/** Le message peut-il partir maintenant ? Jamais la nuit, pas avant son heure, et une fois par jour à Paris. */
+/** Le message peut-il partir maintenant ? Pas avant son heure, et une fois par jour à Paris. */
 export function sendWindow(now: Date, fromHour: number, lastSentOn: string | null): { open: boolean; reason: string } {
   const { date, hour } = parisParts(now);
-  if (hour >= QUIET_FROM_HOUR || hour < QUIET_UNTIL_HOUR) return { open: false, reason: `la nuit : le message attend ${fromHour} h` };
   if (hour < fromHour) return { open: false, reason: `le message part à partir de ${fromHour} h` };
   if (lastSentOn === date) return { open: false, reason: "déjà un message aujourd'hui : la suite attend demain" };
   return { open: true, reason: "" };

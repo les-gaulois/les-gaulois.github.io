@@ -4,7 +4,7 @@
  *
  * - Une entrée se reconnaît à son jour et à son titre. Une entrée dont le titre est corrigé repart, si elle a moins de trois
  *   jours. Plus ancienne, ce n'est plus une nouvelle : elle est notée sans être envoyée.
- * - À partir de 19 h, jamais la nuit, une fois par jour. Le message est une image (`nouveautes-image.ts`), avec le titre de
+ * - À partir de 19 h et jusqu'à minuit, une fois par jour. Le message est une image (`nouveautes-image.ts`), avec le titre de
  *   chaque nouveauté, et un bouton vers la page, sans texte. La phrase de chacune se lit sur le site. Le texte, avec la phrase
  *   et le lien de chaque page, ne part que si l'image ne se dessine pas.
  * - Au premier passage, les entrées du moment servent de départ : rien n'est envoyé.
