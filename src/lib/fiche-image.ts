@@ -4,6 +4,8 @@
  * membres (`stats.team`) : rien n'est recalculé ici, et un membre sans stats n'a pas d'image.
  */
 import { fmtDate, fmtInt, fmtPct, fmtRank } from "./format";
+import { AUCUN_GAULOIS, type GauloisParJoueur } from "./gaulois-joueurs";
+import { placeSprite, spriteRect, tenueOf } from "./gaulois-sprite";
 import { CARD_COLORS as C, fitted, kpiParts, LOGO, MARGIN, pageFoot, pageHead, STAGES, type CardRect, type CardText, type GazetteCard, type Measure } from "./gazette-image";
 import { gamesOf, placeOf, rateOf } from "./members";
 import { nextTier, tierOf } from "./paliers";
@@ -14,8 +16,14 @@ const WIDTH = 1200;
 const HEIGHT = 630;
 /** La scène de la place, sous l'en-tête. */
 const PLACE_HEIGHT = 136;
+/** Le Gaulois du membre, en entier, à droite de la fiche : la colonne qu'il prend, le côté d'une case, et le sol sous ses pieds. */
+const SPRITE = { column: 280, scale: 6, ground: HEIGHT - 62 } as const;
+/** Son ombre au sol, comme sur l'image de /gaulois : plus sombre que l'encre du fond. */
+const SPRITE_SHADOW = "#02050F";
 
 export interface FicheFacts {
+  /** L'identifiant public (publicID) du membre, celui de sa fiche : pour retrouver son Gaulois du village. Jamais écrit sur l'image. */
+  id?: string | null;
   username: string;
   rank: number;
   ranked: number;
@@ -34,6 +42,7 @@ export function ficheFacts(members: readonly StoredMember[], member: StoredMembe
   if (!place) return null;
   const next = nextTier(place.wins);
   return {
+    id: member.publicId,
     username: member.username,
     rank: place.rank,
     ranked: place.ranked,
@@ -46,13 +55,25 @@ export function ficheFacts(members: readonly StoredMember[], member: StoredMembe
   };
 }
 
-/** Quoi écrire et où, à partir des faits seuls : se teste sans police. */
-export function ficheCard(facts: FicheFacts, tag: string, siteUrl: string, listedAt: string, measure: Measure): GazetteCard {
+/**
+ * Quoi écrire et où, à partir des faits seuls : se teste sans police. `gaulois` : si le membre a créé son Gaulois au village,
+ * il se tient en entier à droite de la fiche, et la place et les chiffres se serrent à gauche ; sinon, la fiche d'avant.
+ */
+export function ficheCard(facts: FicheFacts, tag: string, siteUrl: string, listedAt: string, measure: Measure, gaulois: GauloisParJoueur = AUCUN_GAULOIS): GazetteCard {
+  const tenue = tenueOf(gaulois, facts.id);
+  const sprite = tenue && placeSprite(tenue, { axis: WIDTH - MARGIN - SPRITE.column / 2 + 10, bottom: SPRITE.ground, scale: SPRITE.scale, room: SPRITE.ground - LOGO.y });
+  const column = sprite ? SPRITE.column : 0;
   // Le pseudo en Inter, comme dans la gazette : elle sait écrire le cyrillique et le grec, pas l'onciale. Pas de lettrine sur un nom.
-  const head = pageHead({ path: "/membres/fiche", title: facts.username, name: true, kicker: `Membre de [${tag}]` }, measure);
+  const head = pageHead({ path: "/membres/fiche", title: facts.username, name: true, kicker: `Membre de [${tag}]` }, measure, column);
   const rects: CardRect[] = [...head.rects];
   const texts: CardText[] = [...head.texts];
-  const width = WIDTH - 2 * MARGIN;
+  const width = WIDTH - 2 * MARGIN - column;
+  if (sprite) {
+    // Son ombre au sol, sous ses pieds.
+    const body = spriteRect(sprite);
+    const shadow = { width: 36 * SPRITE.scale, height: 5 * SPRITE.scale };
+    rects.push({ x: WIDTH - MARGIN - SPRITE.column / 2 + 10 - shadow.width / 2, y: body.y + body.height - Math.round(shadow.height * 0.6), ...shadow, radius: shadow.height / 2, color: SPRITE_SHADOW });
+  }
 
   // La place, en grand, et ce qu'elle mesure : une scène bleue, comme le classement sur l'accueil du site.
   const placeTop = head.bottom;
@@ -74,7 +95,8 @@ export function ficheCard(facts: FicheFacts, tag: string, siteUrl: string, liste
       { label: "Taux de victoire", value: fmtPct(facts.rate) },
       { label: "Palier", value: facts.tier === null ? "Pas encore" : `${fmtInt(facts.tier)} victoires` },
     ],
-    { x: MARGIN, y: placeTop + PLACE_HEIGHT + 26, width, valueSize: 44, minValueSize: 26 },
+    // À côté du Gaulois, les colonnes sont plus étroites : un palier s'écrit plus petit plutôt que coupé.
+    { x: MARGIN, y: placeTop + PLACE_HEIGHT + 26, width, valueSize: 44, minValueSize: sprite ? 18 : 26 },
     measure,
   );
   rects.push(...kpis.rects);
@@ -86,7 +108,7 @@ export function ficheCard(facts: FicheFacts, tag: string, siteUrl: string, liste
 
   const url = `${siteUrl.replace(/^https?:\/\//, "").replace(/\/$/, "")}/membres`;
   texts.push(...pageFoot(url, `Liste officielle du ${fmtDate(listedAt)}. Parties publiques en équipe sous le tag.`, HEIGHT - 24, measure).texts);
-  return { width: WIDTH, height: HEIGHT, rects, texts, logo: LOGO };
+  return { width: WIDTH, height: HEIGHT, rects, texts, logo: LOGO, ...(sprite ? { gaulois: [sprite] } : {}) };
 }
 
 /** Ce que l'image dit, pour un lecteur d'écran et pour la description du lien. */

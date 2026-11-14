@@ -7,6 +7,8 @@
  * Ce qui manque n'est pas dessiné, jamais remplacé par un zéro ; sans aucun des deux, pas d'image, et l'accueil garde celle du site.
  */
 import { fmtCount, fmtDate, fmtInt, fmtRank, fmtScore } from "./format";
+import { AUCUN_GAULOIS, type GauloisParJoueur } from "./gaulois-joueurs";
+import type { SpritePlacement } from "./gaulois-sprite";
 import { playersPeriod, weekLabel, type GazetteEdition } from "./gazette";
 import { CARD_COLORS as C, fitted, fittedDrawn, LOGO, MARGIN, pageFoot, pageHead, PODIUM_NOTE, podiumParts, STAGES, type CardRect, type CardText, type GazetteCard, type Measure } from "./gazette-image";
 import type { StoredLeaderboard } from "./schemas";
@@ -43,11 +45,12 @@ export function accueilFacts(ranking: AccueilFacts["ranking"], edition: GazetteE
 }
 
 /** Quoi écrire et où, à partir des faits seuls : se teste sans police. */
-export function accueilCard(facts: AccueilFacts, tag: string, name: string, tagline: string, siteUrl: string, measure: Measure): GazetteCard {
+export function accueilCard(facts: AccueilFacts, tag: string, name: string, tagline: string, siteUrl: string, measure: Measure, gaulois: GauloisParJoueur = AUCUN_GAULOIS): GazetteCard {
   // L'en-tête : l'invite de l'accueil, le clan, et sa phrase.
   const head = pageHead({ path: "/", title: `[${tag}] ${name}`, period: tagline }, measure);
   const rects: CardRect[] = [...head.rects];
   const texts: CardText[] = [...head.texts];
+  const sprites: SpritePlacement[] = [];
 
   const { ranking, podium } = facts;
   const top = head.bottom;
@@ -80,15 +83,17 @@ export function accueilCard(facts: AccueilFacts, tag: string, name: string, tagl
     const width = WIDTH - MARGIN - x;
     texts.push({ ...fitted(`Le plus de victoires ${podium.period}`, "onciale", 26, 18, width, measure), x, y: top + 26, font: "onciale", color: C.WHITE });
     texts.push({ ...fitted(`Semaine ${podium.week}`, "body", 23, 17, width, measure), x, y: top + 58, font: "body", color: C.MUTED });
-    const parts = podiumParts(podium.players, { x, width, base, listTop: top + 106 }, measure);
+    // Le Gaulois du village d'un joueur du podium, derrière sa marche, sans monter dans la ligne de la semaine.
+    const parts = podiumParts(podium.players, { x, width, base, listTop: top + 106, ceiling: top + 68 }, measure, gaulois);
     rects.push(...parts.rects);
     texts.push(...parts.texts);
+    sprites.push(...(parts.gaulois ?? []));
   }
 
   // Le pied : l'adresse du site, et la réserve du podium.
   const url = siteUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
   texts.push(...pageFoot(url, podium ? PODIUM_NOTE : "", HEIGHT - 30, measure).texts);
-  return { width: WIDTH, height: HEIGHT, rects, texts, logo: LOGO };
+  return { width: WIDTH, height: HEIGHT, rects, texts, logo: LOGO, ...(sprites.length > 0 ? { gaulois: sprites } : {}) };
 }
 
 /** Ce que l'image dit, pour un lecteur d'écran et pour la description du lien. Discord n'en garde que 1 024 caractères. */
