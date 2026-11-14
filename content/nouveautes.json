@@ -2,6 +2,16 @@
   {
     "date": "2026-11-14",
     "kind": "nouveau",
+    "title": "Votre Gaulois sur les images Discord",
+    "body": "Sur les images du robot (victoires, paliers, plus actifs, gazette…) et sur la fiche, un membre validé au pseudo public qui a créé son Gaulois le voit à côté de son nom.",
+    "link": {
+      "href": "/confidentialite#village",
+      "label": "Lire ce qui est montré"
+    }
+  },
+  {
+    "date": "2026-11-14",
+    "kind": "nouveau",
     "title": "Un Gaulois vous suit sur le site",
     "body": "Un petit Gaulois marche au bas des pages et suit la souris. Un clic le fait parler, « Ranger » le cache. Pour un membre connecté, c'est le sien, habillé au village.",
     "link": {
