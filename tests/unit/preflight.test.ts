@@ -42,6 +42,7 @@ const SECRET: Record<string, Route> = {
   "/rest/v1/profiles": { status: 200, body: [{ gaul_number: 1 }] },
   "/rest/v1/rpc/stateres_parties_notees": { status: 200, body: { ok: true, parties: [] } },
   "/rest/v1/rpc/noter_vie_du_village": { status: 200, body: { ok: false, error: "invalid_releve" } },
+  "/rest/v1/rpc/gaulois_des_joueurs": { status: 200, body: { ok: true, gaulois: {} } },
 };
 
 const SITE = "https://exemple.supabase.co";
@@ -313,6 +314,33 @@ describe("le contrôle de la mise en ligne", () => {
     expect(await avecCle({ ...SECRET, "/rest/v1/rpc/noter_vie_du_village": { status: 403, body: {} } })).toMatchObject({ status: "warn", detail: expect.stringContaining("Réponse 403") });
     expect((await avecCle({ ...SECRET, "/rest/v1/rpc/noter_vie_du_village": { status: 403, body: {} } }))?.detail).toContain(".cache/a-coller-village.sql");
     expect((await avecCle({ ...SECRET, "/rest/v1/rpc/noter_vie_du_village": { status: 200, body: { ok: true, vocaux: 0 } } }))?.status).toBe("warn");
+    expect((await run()).some((c) => c.label.includes(label))).toBe(false);
+  });
+
+  it("bloque si un visiteur peut lire les Gaulois des joueurs, la fonction des images du robot", async () => {
+    const label = "ne lit pas les Gaulois des joueurs";
+    expect(await statusOf(HEALTHY, label)).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/gaulois_des_joueurs": { status: 401, body: {} } }, label)).toBe("ok");
+    // Un refus de la fonction elle-même ne suffit pas : le droit d'appel doit être fermé.
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/gaulois_des_joueurs": { status: 200, body: { ok: false, error: "invalid_request" } } }, label)).toBe("fail");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/gaulois_des_joueurs": { status: 200, body: { ok: true, gaulois: {} } } }, label)).toBe("fail");
+  });
+
+  it("dit, avec la clé secrète, si le robot peut lire les Gaulois des images, sans jamais bloquer ni désigner personne", async () => {
+    const label = "robot peut lire les Gaulois des images";
+    const avecCle = async (secret: Record<string, Route>) => (await run(HEALTHY, "sb_secret_x", secret)).find((c) => c.label.includes(label));
+    expect((await avecCle(SECRET))?.status).toBe("ok");
+    expect(await avecCle({ ...SECRET, "/rest/v1/rpc/gaulois_des_joueurs": { status: 404, body: {} } })).toMatchObject({ status: "warn", detail: expect.stringContaining("20261114000400_gaulois_sur_les_images.sql") });
+    expect(await avecCle({ ...SECRET, "/rest/v1/rpc/gaulois_des_joueurs": { status: 403, body: {} } })).toMatchObject({ status: "warn", detail: expect.stringContaining("Réponse 403") });
+    expect((await avecCle({ ...SECRET, "/rest/v1/rpc/gaulois_des_joueurs": { status: 200, body: { ok: false, error: "invalid_request" } } }))?.status).toBe("warn");
+    expect((await avecCle({ ...SECRET, "/rest/v1/rpc/gaulois_des_joueurs": { status: 200, body: { ok: true } } }))?.status).toBe("warn");
+    // Une liste vide, avec ou sans la clé : aucune empreinte, donc aucun membre, n'est jamais demandée.
+    seen.length = 0;
+    await run(HEALTHY, "sb_secret_x");
+    const appels = seen.filter((s) => s.url.endsWith("/rpc/gaulois_des_joueurs"));
+    expect(appels.map((s) => s.apikey)).toEqual(["sb_publishable_x", "sb_secret_x"]);
+    for (const appel of appels) expect(JSON.parse(appel.body ?? "null")).toEqual({ p_empreintes: [] });
+    // Sans la clé secrète, ce contrôle n'est pas fait.
     expect((await run()).some((c) => c.label.includes(label))).toBe(false);
   });
 

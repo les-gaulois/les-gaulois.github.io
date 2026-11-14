@@ -6,10 +6,13 @@
  * Qui jouait avec qui vient de .cache/member-games/results.json, restauré par l'Action avant la collecte.
  * La dernière semaine passée et le jour du dernier message sont notés dans data/groupes-envoi.json :
  * voir src/lib/groupes-discord.ts.
+ * Le Gaulois du village des membres des duos, après leurs noms : lus au serveur au moment de dessiner l'image, une fois.
+ * Sans lecture, l'image part comme avant. Voir src/lib/gaulois-envois.ts.
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { clan } from "../config/clan";
 import { loadMemberResults, loadMembers, loadMeta, loadSessions } from "../src/lib/data";
+import { avecOuSansGaulois, gauloisDuPassage } from "../src/lib/gaulois-envois";
 import { isWebhookUrl, lastSentAnyFormat } from "../src/lib/gazette-discord";
 import { GroupsState, groupsPass, sendGroups, weekGroups, weekReady } from "../src/lib/groupes-discord";
 import { parseNoted } from "../src/lib/salon-discord";
@@ -38,6 +41,7 @@ try {
   const sessions = loadSessions();
   const results = loadMemberResults();
   const members = loadMembers();
+  const gauloisDe = gauloisDuPassage();
   const result = await groupsPass({
     stored,
     gazetteLastSent: lastSentAnyFormat(readText(GAZETTE_FILE)),
@@ -57,7 +61,9 @@ try {
           // Un caractère qu'aucune police ne sait dessiner devient « ? » sur l'image ; sa description garde le pseudo entier.
           const drawable = (p: { id: string; name: string }) => ({ ...p, name: fonts.drawable(p.name, "strong") });
           const drawn = { ...w, duos: w.duos.map((d) => ({ ...d, a: drawable(d.a), b: drawable(d.b) })) };
-          return { png: await renderGazetteCard(groupsCard(drawn, clan.tag, clan.links.site, fonts.width), fonts, root), alt: groupsImageAlt(w, clan.tag) };
+          const gaulois = await gauloisDe(w.duos.flatMap((d) => [d.a.id, d.b.id]));
+          const png = await avecOuSansGaulois(gaulois, (g) => renderGazetteCard(groupsCard(drawn, clan.tag, clan.links.site, fonts.width, g), fonts, root));
+          return { png, alt: groupsImageAlt(w, clan.tag) };
         },
         siteUrl: clan.links.site,
         fetch,

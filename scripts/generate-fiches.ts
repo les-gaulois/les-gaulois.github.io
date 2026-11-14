@@ -3,6 +3,9 @@
  * c'est elle que Discord montre quand un membre colle le lien de sa fiche. Seuls les membres avec pseudo et stats en ont une,
  * à partir de la liste officielle déjà collectée. Sans liste, rien n'est généré et les fiches gardent l'image du site.
  * Un pseudo que les polices ne savent pas écrire n'arrête jamais la construction : sa fiche garde l'image du site, et le journal le compte.
+ * Le Gaulois du village d'un membre qui a créé le sien se tient sur sa fiche : lu avant la construction par
+ * `npm run gaulois:fiches` dans .cache/gaulois-fiches.json (hors de Git et de dist/). Sans ce fichier, les fiches d'avant.
+ * L'adresse de l'image porte la version de son fichier (`ficheImageVersion`) : elle change quand un Gaulois paraît ou change.
  */
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -10,6 +13,8 @@ import sharp from "sharp";
 import { clan } from "../config/clan";
 import { loadMembers } from "../src/lib/data";
 import { ficheCard, ficheFacts } from "../src/lib/fiche-image";
+import { avecOuSansGaulois, seulement } from "../src/lib/gaulois-envois";
+import { GAULOIS_FICHES_FILE, gauloisDuCache } from "../src/lib/gaulois-joueurs";
 import { GazetteFonts, renderGazetteCard } from "../src/lib/gazette-image";
 
 const out = join("public", "generated", "fiches");
@@ -29,6 +34,8 @@ const todo = list.members.flatMap((member) => {
   const facts = member.publicId ? ficheFacts(list.members, member) : null;
   return facts && member.publicId ? [{ id: member.publicId, facts }] : [];
 });
+// Seuls les membres au pseudo public ont une fiche (`ficheFacts`) : les Gaulois gardés pour eux, et chaque fiche le sien seul.
+const gaulois = gauloisDuCache(GAULOIS_FICHES_FILE, todo.map(({ id }) => id));
 let drawn = 0;
 let skipped = 0;
 // Huit images à la fois : le dessin attend surtout la bibliothèque d'images, qui sait travailler en parallèle.
@@ -37,7 +44,7 @@ for (let i = 0; i < todo.length; i += BATCH) {
   await Promise.all(
     todo.slice(i, i + BATCH).map(async ({ id, facts }) => {
       try {
-        const png = await renderGazetteCard(ficheCard(facts, clan.tag, clan.links.site, list.fetchedAt, fonts.width), fonts, root);
+        const png = await avecOuSansGaulois(seulement(gaulois, [id]), (g) => renderGazetteCard(ficheCard(facts, clan.tag, clan.links.site, list.fetchedAt, fonts.width, g), fonts, root));
         // Une palette de 256 couleurs, tramée, garde le rendu net malgré les dégradés du fond et divise le poids par plus de deux.
         writeFileSync(join(out, `${id}.png`), await sharp(png).png({ palette: true, compressionLevel: 9 }).toBuffer());
         drawn++;
@@ -49,4 +56,4 @@ for (let i = 0; i < todo.length; i += BATCH) {
     }),
   );
 }
-console.log(`Fiches : ${drawn} images d'aperçu${skipped > 0 ? `, ${skipped} sautée(s)` : ""} en ${((Date.now() - started) / 1000).toFixed(1)} s.`);
+console.log(`Fiches : ${drawn} images d'aperçu${skipped > 0 ? `, ${skipped} sautée(s)` : ""}${gaulois.size > 0 ? `, ${gaulois.size} avec le Gaulois du village` : ""} en ${((Date.now() - started) / 1000).toFixed(1)} s.`);

@@ -3,6 +3,8 @@
  * lien du site. Le rang du clan au classement officiel et le podium de la dernière gazette, comme sur la page, redessinés à
  * chaque construction, donc à chaque collecte. Sans classement ni gazette, rien n'est dessiné et l'accueil garde l'image du
  * site. Un pseudo que les polices ne savent pas écrire n'arrête jamais la construction : l'accueil garde alors l'image du site.
+ * Le Gaulois du village des joueurs du podium, derrière leur marche, lus avec ceux des fiches (.cache/gaulois-fiches.json,
+ * `npm run gaulois:fiches`) ; sans ce fichier, l'image d'avant. Son adresse porte la version du fichier (`index.astro`).
  */
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -10,6 +12,8 @@ import sharp from "sharp";
 import { clan } from "../config/clan";
 import { ACCUEIL_IMAGE, accueilCard, accueilFacts, accueilRanking } from "../src/lib/accueil-image";
 import { loadHistory, loadLeaderboard, loadMembers, loadMemberWeeks, loadMeta, loadSessions, loadTerritoryReadings } from "../src/lib/data";
+import { avecOuSansGaulois } from "../src/lib/gaulois-envois";
+import { GAULOIS_FICHES_FILE, gauloisDuCache } from "../src/lib/gaulois-joueurs";
 import { gazetteEditions } from "../src/lib/gazette";
 import { GazetteFonts, renderGazetteCard } from "../src/lib/gazette-image";
 
@@ -36,7 +40,9 @@ if (!facts) {
   try {
     const root = process.cwd();
     const fonts = new GazetteFonts(root);
-    const png = await renderGazetteCard(accueilCard(facts, clan.tag, clan.name, clan.tagline, clan.links.site, fonts.width), fonts, root);
+    // Les joueurs du podium sont des membres au pseudo public (`namedWeekPlayers`), comme ceux des fiches.
+    const gaulois = gauloisDuCache(GAULOIS_FICHES_FILE, facts.podium?.players.map((p) => p.id) ?? []);
+    const png = await avecOuSansGaulois(gaulois, (g) => renderGazetteCard(accueilCard(facts, clan.tag, clan.name, clan.tagline, clan.links.site, fonts.width, g), fonts, root));
     mkdirSync(dirname(out), { recursive: true });
     // Une palette de 256 couleurs, tramée, garde le rendu net malgré les dégradés du fond et divise le poids par plus de deux.
     writeFileSync(out, await sharp(png).png({ palette: true, compressionLevel: 9 }).toBuffer());

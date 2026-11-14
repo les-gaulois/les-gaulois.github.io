@@ -5,11 +5,14 @@
  * le secret DISCORD_WEBHOOK_GAZETTE. Sans lien, ne fait rien, et ne note rien.
  * Le relevé de la liste jusqu'auquel les arrivées sont passées et le jour du dernier message sont notés dans
  * data/bienvenue-envoi.json : voir src/lib/bienvenue-discord.ts. Aucun identifiant de membre n'y est écrit.
+ * Le Gaulois du village de ceux qui ont déjà créé le leur : lus au serveur au moment de dessiner l'image, une fois. Sans
+ * lecture, l'image part comme avant. Voir src/lib/gaulois-envois.ts.
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { clan } from "../config/clan";
 import { sendWelcome, welcomePass, WelcomeState } from "../src/lib/bienvenue-discord";
 import { loadMembers } from "../src/lib/data";
+import { avecOuSansGaulois, gauloisDuPassage } from "../src/lib/gaulois-envois";
 import { isWebhookUrl, lastSentAnyFormat } from "../src/lib/gazette-discord";
 import { parseNoted } from "../src/lib/salon-discord";
 import { salonLink } from "../src/lib/salon-lien";
@@ -34,6 +37,7 @@ if (!isWebhookUrl(link)) {
 try {
   const { state: stored, warning } = parseNoted(WelcomeState, readText(STATE_FILE), "la liste du moment sert de nouveau départ");
   if (warning) console.log(`::warning::Bienvenue : ${warning}.`);
+  const gauloisDe = gauloisDuPassage();
   const result = await welcomePass({
     stored,
     members: loadMembers(),
@@ -51,7 +55,10 @@ try {
           const fonts = new GazetteFonts(root);
           // Un caractère qu'aucune police ne sait dessiner devient « ? » sur l'image ; sa description garde le pseudo entier.
           const drawn = { ...a, named: a.named.map((p) => ({ ...p, username: fonts.drawable(p.username, "strong") })) };
-          return { png: await renderGazetteCard(welcomeCard(drawn, clan.tag, clan.links.site, fonts.width), fonts, root), alt: welcomeImageAlt(a, clan.tag) };
+          // Seules les arrivées au pseudo public ont un identifiant : les autres sont seulement comptées (`arrivalsSince`).
+          const gaulois = await gauloisDe(a.named.map((p) => p.id));
+          const png = await avecOuSansGaulois(gaulois, (g) => renderGazetteCard(welcomeCard(drawn, clan.tag, clan.links.site, fonts.width, g), fonts, root));
+          return { png, alt: welcomeImageAlt(a, clan.tag) };
         },
         tag: clan.tag,
         siteUrl: clan.links.site,

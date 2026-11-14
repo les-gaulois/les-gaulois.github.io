@@ -11,11 +11,15 @@
  * .cache/victoires-envoi.json, gardé par le cache du workflow : si l'enregistrement sur main échoue, rien ne repart.
  * Les victoires de config/victoires-rattrapage.json repartent une fois, même déjà notées : pour un salon qui ne les a pas reçues.
  * Voir src/lib/victoires.ts.
+ * Le Gaulois du village de chaque membre nommé, sur sa pastille : lus au serveur une seule fois par passage, à la première
+ * image, pour tous les membres au pseudo public de la liste ; chaque image ne porte que ceux de sa partie. Sans lecture, les
+ * images partent comme avant. Voir src/lib/gaulois-envois.ts.
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { clan } from "../config/clan";
 import { loadGames, loadLeaderboard, loadMembers, loadMeta, loadSessions, unreadableSessionFiles } from "../src/lib/data";
+import { avecOuSansGaulois, gauloisDuPassage, idsAuPseudoPublic } from "../src/lib/gaulois-envois";
 import { isWebhookUrl } from "../src/lib/gazette-discord";
 import { ApiClient } from "../src/lib/pipeline";
 import { parseNoted } from "../src/lib/salon-discord";
@@ -88,10 +92,13 @@ try {
   drawing.catch(() => {});
   // Une même carte revient souvent dans la soirée : sa vignette n'est lue qu'une fois par passage.
   const thumbnails = new Map<string, Promise<import("../src/lib/victoires-image").Thumbnail | null>>();
+  const members = loadMembers();
+  // Les Gaulois du village : une seule lecture par passage, à la première image, pour tous ceux qu'une pastille peut nommer.
+  const gauloisDe = gauloisDuPassage({ tous: () => idsAuPseudoPublic(members) });
   const result = await victoryPass({
     stored,
     sessions,
-    members: loadMembers(),
+    members,
     tag: clan.tag,
     official,
     now,
@@ -114,8 +121,13 @@ try {
           const thumb = await thumbnail;
           // Un caractère qu'aucune police ne sait dessiner devient « ? » sur l'image ; sa description garde le nom entier.
           const drawn = { ...v, crew: v.crew.map((p) => ({ ...p, name: fonts.drawable(p.name, "strong") })), rivals: v.rivals.map((t) => fonts.drawable(t, "strong")) };
-          const card = image.victoryCard(drawn, clan.tag, clan.links.site, fonts.width, thumb);
-          return { png: await image.renderVictoryCard(card, fonts, root, thumb), alt: image.victoryImageAlt(v, clan.tag, card.map !== null) };
+          // Seuls les membres au pseudo public de la partie ont un identifiant (`victoryOf`) : les autres n'ont jamais de Gaulois.
+          const gaulois = await gauloisDe(v.crew.map((p) => p.id));
+          return avecOuSansGaulois(gaulois, async (g) => {
+            // `undefined` : les statères gardent leur réglage.
+            const card = image.victoryCard(drawn, clan.tag, clan.links.site, fonts.width, thumb, undefined, g);
+            return { png: await image.renderVictoryCard(card, fonts, root, thumb), alt: image.victoryImageAlt(v, clan.tag, card.map !== null) };
+          });
         },
         tag: clan.tag,
         siteUrl: clan.links.site,

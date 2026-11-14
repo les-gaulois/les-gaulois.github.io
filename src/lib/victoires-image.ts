@@ -17,6 +17,7 @@
 import sharp, { type OverlayOptions } from "sharp";
 import { casesDuStatere, type TailleStatere } from "../../supabase/functions/code-discord/statere";
 import { fmtCount, fmtEpochTime, fmtInt, fmtMinutes, fmtScore } from "./format";
+import { AUCUN_GAULOIS, type GauloisParJoueur } from "./gaulois-joueurs";
 import { CARD_COLORS as C, fitted, kpiHeight, kpiParts, LOGO, MARGIN, pageFoot, pageHead, renderGazetteCard, type CardRect, type CardText, type GazetteCard, type GazetteFonts, type Kpi, type Measure } from "./gazette-image";
 import { dayTitle } from "./hier-discord";
 import { mapKey, mapLabel } from "./map-names";
@@ -155,8 +156,19 @@ export interface ThumbnailShape {
   open: boolean;
 }
 
-/** Quoi écrire et où, à partir de la victoire et de la forme de la vignette : se teste sans police. */
-export function victoryCard(v: Victory, tag: string, siteUrl: string, measure: Measure, thumbnail: ThumbnailShape | null, staters = STATERES_SUR_LES_VICTOIRES): VictoryCard {
+/**
+ * Quoi écrire et où, à partir de la victoire et de la forme de la vignette : se teste sans police. `gaulois` : le Gaulois du
+ * village de chaque membre de la partie qui a créé le sien, en buste derrière sa pastille bleue (`salon-image.ts`).
+ */
+export function victoryCard(
+  v: Victory,
+  tag: string,
+  siteUrl: string,
+  measure: Measure,
+  thumbnail: ThumbnailShape | null,
+  staters = STATERES_SUR_LES_VICTOIRES,
+  gaulois: GauloisParJoueur = AUCUN_GAULOIS,
+): VictoryCard {
   const tiles = victoryTiles(v);
   const contentWidth = WIDTH - 2 * MARGIN;
 
@@ -169,7 +181,7 @@ export function victoryCard(v: Victory, tag: string, siteUrl: string, measure: M
   // Tous les Gaulois de la partie, en pastilles sous leur nom en partie, jamais « et autres » ; puis ceux qui sont seulement
   // comptés ; puis « contre » et les clans en face, en rouge.
   const rivals = v.rivals.length > 0 ? [{ text: "contre", named: false, word: true }, ...v.rivals.map((t) => ({ text: rivalTag(t), named: false, red: true }))] : [];
-  const chips = chipLayout([...v.crew.map((p) => ({ text: p.name, named: true })), ...countedWords(v).map((text) => ({ text, named: false })), ...rivals], measure, contentWidth);
+  const chips = chipLayout([...v.crew.map((p) => ({ text: p.name, named: true, id: p.id })), ...countedWords(v).map((text) => ({ text, named: false })), ...rivals], measure, contentWidth, gaulois);
   const bodyBottom = top + (thumbnail ? BODY_HEIGHT : kpiHeight(ROW_VALUE_SIZE));
   const chipsTop = bodyBottom + 28;
   const contentBottom = chips.rows.length > 0 ? chipsTop + chipsHeight(chips) : bodyBottom;
@@ -220,7 +232,7 @@ export function victoryCard(v: Victory, tag: string, siteUrl: string, measure: M
   texts.push(...pageFoot(shownAddress(siteUrl, "/parties"), thumbnail ? MAP_NOTE : NAME_NOTE, height - 54, measure).texts);
   const addresses = creditAddresses(v.map, (line) => measure(line, "body", CREDIT_MIN_SIZE) <= contentWidth);
   texts.push({ ...fitted(addresses, "body", 20, CREDIT_MIN_SIZE, contentWidth, measure), x: WIDTH - MARGIN, y: height - 22, font: "body", color: C.MUTED, anchor: "end" });
-  return { width: WIDTH, height, rects, texts, logo: LOGO, map };
+  return { width: WIDTH, height, rects, texts, logo: LOGO, map, ...(drawn.gaulois ? { gaulois: drawn.gaulois } : {}) };
 }
 
 /**

@@ -16746,3 +16746,292 @@ footer h2 {
     min-width: 2.75rem;
   }
 }
+
+/* ---------- Gaulois compagnon ---------- */
+/* Le Gaulois du village qui suit le visiteur au bas de la fenêtre (14 novembre 2026). Balisage :
+   GauloisCompagnon.astro ; comportement : src/scripts/compagnon.ts, qui pose --case (le côté d'une case, un nombre
+   entier de pixels de l'écran), sa place (transform) et l'image montrée (--image). Sous l'en-tête et les fenêtres
+   (z-index 30), et seuls lui et sa bulle prennent les clics. Voir « Le Gaulois compagnon » dans docs/DESIGN.md. */
+.compagnon {
+  --case: 2px;
+  position: fixed;
+  left: 0;
+  bottom: env(safe-area-inset-bottom, 0px);
+  z-index: 30;
+  width: calc(48 * var(--case));
+  height: calc(64 * var(--case));
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+.compagnon[hidden] {
+  display: none;
+}
+/* Sa place au bas de chaque page, tant qu'il est là : en fin de défilement, tout le pied de page (et sa mention de licence
+   d'OpenFront) se lit au-dessus de lui, et un lien qui prend le focus au clavier n'est jamais caché derrière lui. Sa
+   hauteur la plus grande, plus un peu d'air : 128 px sur ordinateur, 96 px au plus sous 640 px. */
+footer:has(.compagnon:not([hidden])) {
+  padding-bottom: 9rem;
+}
+html:has(.compagnon:not([hidden])) {
+  scroll-padding-bottom: 9rem;
+}
+@media (max-width: 639px) {
+  footer:has(.compagnon:not([hidden])) {
+    padding-bottom: 7rem;
+  }
+  html:has(.compagnon:not([hidden])) {
+    scroll-padding-bottom: 7rem;
+  }
+}
+/* Pendant une saisie sur un écran tactile : il s'efface, le clavier prend la place. */
+.compagnon[data-efface] {
+  opacity: 0;
+  visibility: hidden;
+}
+/* Le bouton ne couvre que son corps : les marges vides du dessin laissent passer les clics. */
+.compagnon-gaulois {
+  position: absolute;
+  inset: calc(4 * var(--case)) calc(8 * var(--case)) 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0.25rem;
+  background: none;
+  cursor: grab;
+  pointer-events: auto;
+  touch-action: pan-y;
+  -webkit-tap-highlight-color: transparent;
+}
+.compagnon[data-glisse] .compagnon-gaulois {
+  cursor: grabbing;
+}
+.compagnon-gaulois:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+/* Son ombre au sol : il tient debout sur n'importe quel fond. */
+.compagnon-gaulois::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: var(--case);
+  width: calc(26 * var(--case));
+  height: calc(3 * var(--case));
+  margin-left: calc(-13 * var(--case));
+  background: color-mix(in srgb, #000 42%, transparent);
+  transition: opacity 0.8s ease;
+}
+.compagnon-image,
+.compagnon-lit {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  transition: opacity 0.8s ease;
+}
+.compagnon-image {
+  --image: 0;
+  width: calc(48 * var(--case));
+  height: calc(64 * var(--case));
+  margin-left: calc(-24 * var(--case));
+  background-size: calc(192 * var(--case)) calc(64 * var(--case));
+  background-position: calc(var(--image) * -48 * var(--case)) 0;
+}
+/* Le dessin regarde à droite ; vers la gauche, il est retourné. */
+.compagnon[data-vers="gauche"] .compagnon-image {
+  scale: -1 1;
+}
+/* Le léger rebond de la marche : une case, quand un pied est levé. */
+.compagnon-image[data-leve="1"] {
+  translate: 0 calc(-1 * var(--case));
+}
+.compagnon[data-glisse] .compagnon-image {
+  translate: 0 calc(-3 * var(--case));
+}
+/* Son salut : un saut lent. */
+.compagnon-image.compagnon-saut {
+  animation: compagnon-saut 0.9s ease-in-out both;
+}
+@keyframes compagnon-saut {
+  45% {
+    translate: 0 calc(-4 * var(--case));
+  }
+}
+/* Endormi : son lit prend sa place, en fondu. */
+.compagnon-lit {
+  --image: 0;
+  width: calc(68 * var(--case));
+  height: calc(44 * var(--case));
+  margin-left: calc(-34 * var(--case));
+  background-size: calc(136 * var(--case)) calc(44 * var(--case));
+  background-position: calc(var(--image) * -68 * var(--case)) 0;
+  opacity: 0;
+}
+.compagnon[data-pose="dort"] .compagnon-lit {
+  opacity: 1;
+}
+.compagnon[data-pose="dort"] .compagnon-image,
+.compagnon[data-pose="dort"] .compagnon-gaulois::before {
+  opacity: 0;
+}
+
+/* Sa bulle : celle du guerrier de l'accueil (angles coupés, encre, trait dans le bleu des liens, chasse fixe), la queue
+   vers sa tête. Elle porte des boutons : elle prend les clics. */
+.compagnon-bulle {
+  --coupe: 0.4375rem;
+  --pointe: 0.75rem;
+  --queue: 2rem;
+  --bulle-x: 0px;
+  --trait: var(--color-blue-text);
+  position: absolute;
+  left: var(--bulle-x);
+  bottom: calc(100% - 3 * var(--case));
+  width: max-content;
+  max-width: min(15.5rem, calc(100vw - 1rem));
+  padding: 0.625rem 0.75rem calc(0.625rem + var(--pointe));
+  font-family: var(--font-console);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: #fff;
+  isolation: isolate;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(0.25rem);
+  filter: drop-shadow(1px 0 0 var(--trait)) drop-shadow(-1px 0 0 var(--trait)) drop-shadow(0 1px 0 var(--trait)) drop-shadow(0 -1px 0 var(--trait));
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease,
+    visibility 0s linear 0.3s;
+}
+.compagnon[data-bulle] .compagnon-bulle {
+  pointer-events: auto;
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition:
+    opacity 0.25s ease-out,
+    transform 0.3s ease-out,
+    visibility 0s;
+}
+.compagnon-bulle::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--color-night);
+  clip-path: polygon(
+    var(--coupe) 0,
+    calc(100% - var(--coupe)) 0,
+    100% var(--coupe),
+    100% calc(100% - var(--pointe) - var(--coupe)),
+    calc(100% - var(--coupe)) calc(100% - var(--pointe)),
+    calc(var(--queue) + 0.5rem) calc(100% - var(--pointe)),
+    var(--queue) 100%,
+    calc(var(--queue) - 0.25rem) calc(100% - var(--pointe)),
+    var(--coupe) calc(100% - var(--pointe)),
+    0 calc(100% - var(--pointe) - var(--coupe)),
+    0 var(--coupe)
+  );
+}
+.compagnon-parole {
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+.compagnon-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-top: 0.5rem;
+}
+.compagnon-choix {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 2px;
+  background: none;
+  font-family: var(--font-console);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-blue-text);
+  text-decoration: none;
+  cursor: pointer;
+}
+.compagnon-choix:hover,
+.compagnon-choix:focus-visible {
+  border-color: var(--color-blue-text);
+  color: #fff;
+}
+.compagnon-village {
+  margin-top: 0.5rem;
+  border-color: var(--color-blue-text);
+  color: #fff;
+}
+.compagnon-village[hidden] {
+  display: none;
+}
+.compagnon-rappel {
+  margin-top: -1.5rem;
+  padding-bottom: 2rem;
+}
+.compagnon-rappel[hidden] {
+  display: none;
+}
+/* Au village, la même ligne sous le titre de la page, posée par le script. */
+.compagnon-rappel-village {
+  margin-bottom: -0.5rem;
+}
+.compagnon-rappel-village[hidden] {
+  display: none;
+}
+@media (pointer: coarse) {
+  .compagnon-choix {
+    min-height: 2.75rem;
+    padding-inline: 0.75rem;
+    font-size: 0.8125rem;
+  }
+}
+/* Pause de l'en-tête, « réduire les animations » : ni fondu, ni saut. */
+.fx-off .compagnon,
+.fx-off .compagnon * {
+  transition: none;
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .compagnon,
+  .compagnon * {
+    transition: none;
+    animation: none;
+  }
+}
+/* Contraste élevé : la bulle prend un vrai cadre ; le Gaulois, une image, garde ses couleurs ; le focus, celle du système. */
+@media (forced-colors: active) {
+  .compagnon-bulle {
+    border: 1px solid CanvasText;
+    background: Canvas;
+    filter: none;
+  }
+  .compagnon-bulle::before,
+  .compagnon-gaulois::before {
+    display: none;
+  }
+  .compagnon-image,
+  .compagnon-lit {
+    forced-color-adjust: none;
+  }
+  .compagnon-gaulois:focus-visible {
+    outline-color: Highlight;
+  }
+}
+@media print {
+  .compagnon,
+  .compagnon-rappel,
+  .compagnon-rappel-village {
+    display: none;
+  }
+}

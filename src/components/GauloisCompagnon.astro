@@ -1,0 +1,56 @@
+---
+// Le Gaulois compagnon (14 novembre 2026, demande du pilote : « que le petit Gaulois se déplace de page en page sur le
+// site, qu'il nous suive et soit interactif ») : le Gaulois du village, en pixels, qui marche au bas de la fenêtre.
+// Monté une fois, dans le pied de page de `Base.astro` : il est donc le dernier dans l'ordre du clavier, et absent de la
+// page Carte, qui n'a pas de pied de page. Rien ne s'affiche sans script : `src/scripts/compagnon.ts` le montre.
+// Voir « Le Gaulois compagnon » dans docs/DESIGN.md.
+import { createHash } from "node:crypto";
+
+// Le dessin du Gaulois (son catalogue, garde-robe comprise), les poses du village et le dessin du compagnon, lus à la
+// construction du site seulement (rien de ces fichiers n'est écrit dans la page) : leur empreinte change dès que l'un d'eux
+// change, et les images du compagnon (celles du Gaulois de départ, celles peintes et gardées dans l'onglet) sont refaites.
+const sources = import.meta.glob<string>(
+  [
+    "../../supabase/functions/code-discord/gaulois.ts",
+    "../../supabase/functions/code-discord/billets.ts",
+    "../../supabase/functions/code-discord/garde-robe/**/*.ts",
+    "../lib/village/{poses,decor,lumiere}.ts",
+    "../lib/compagnon/dessin.ts",
+  ],
+  { query: "?raw", import: "default", eager: true },
+);
+
+// Un fichier déplacé rendrait l'empreinte aveugle à ses changements : la construction s'arrête plutôt.
+for (const attendu of ["/gaulois.ts", "/poses.ts", "/dessin.ts"]) {
+  if (!Object.keys(sources).some((chemin) => chemin.endsWith(attendu))) throw new Error(`GauloisCompagnon.astro : ${attendu} introuvable pour l'empreinte du dessin`);
+}
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const empreinte = createHash("sha256");
+for (const chemin of Object.keys(sources).sort()) empreinte.update(`${chemin}\u0000${sources[chemin]}\u0000`);
+const version = empreinte.digest("hex").slice(0, 12);
+// Le Gaulois de départ, peint à la construction (src/pages/compagnon/[planche].png.ts) : ce que voit un visiteur, sans dessin à charger.
+const depart = { gaulois: `${base}/compagnon/depart-gaulois.png?v=${version}`, lit: `${base}/compagnon/depart-lit.png?v=${version}` };
+---
+
+<div class="compagnon" data-compagnon data-version={version} data-depart-gaulois={depart.gaulois} data-depart-lit={depart.lit} hidden>
+  <button type="button" class="compagnon-gaulois" data-compagnon-gaulois aria-label="Le Gaulois compagnon : lui parler" aria-expanded="false" aria-controls="compagnon-bulle">
+    <span class="compagnon-image" data-compagnon-image aria-hidden="true"></span>
+    <span class="compagnon-lit" data-compagnon-lit aria-hidden="true"></span>
+  </button>
+  <div class="compagnon-bulle" id="compagnon-bulle" data-compagnon-bulle role="group" aria-label="Le Gaulois compagnon">
+    <p class="compagnon-parole" data-compagnon-parole aria-live="polite"></p>
+    <a class="compagnon-choix compagnon-village" data-compagnon-village href={`${base}/village`} hidden>Aller au village</a>
+    <div class="compagnon-actions">
+      <button type="button" class="compagnon-choix" data-compagnon-suivre>Reste là</button>
+      <button type="button" class="compagnon-choix" data-compagnon-ranger>Ranger</button>
+    </div>
+  </div>
+</div>
+{/* Le moyen de le faire revenir : une ligne au bas du pied de page, montrée seulement quand il est rangé. Au village, le script en pose une copie sous le titre. */}
+<div class="wrap compagnon-rappel" data-compagnon-rappel hidden>
+  <button type="button" class="compagnon-choix" data-compagnon-revenir>Faire revenir le Gaulois</button>
+</div>
+
+<script>
+  import "../scripts/compagnon";
+</script>

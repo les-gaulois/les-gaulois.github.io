@@ -7,6 +7,7 @@
  */
 import { anonymousWords, otherNewcomersWords, STILL_HERE, STILL_HERE_SHORT, WELCOME_TITLE, type Arrivals } from "./bienvenue-discord";
 import { fmtDayAndTime } from "./format";
+import { AUCUN_GAULOIS, type GauloisParJoueur } from "./gaulois-joueurs";
 import type { GazetteCard, Measure } from "./gazette-image";
 import { periodWords } from "./paliers-franchis";
 import { fittedAlt, shownAddress } from "./salon-discord";
@@ -14,8 +15,8 @@ import { MAX_CHIPS, MAX_ROWS, rowsCard } from "./salon-image";
 
 const WELCOME_NOTE = "Seuls les pseudos publics sont écrits.";
 
-/** Quoi écrire et où : se teste sans police. */
-export function welcomeCard(arrivals: Arrivals, tag: string, siteUrl: string, measure: Measure): GazetteCard {
+/** Quoi écrire et où : se teste sans police. `gaulois` : le Gaulois du village de ceux qui ont déjà créé le leur. */
+export function welcomeCard(arrivals: Arrivals, tag: string, siteUrl: string, measure: Measure, gaulois: GauloisParJoueur = AUCUN_GAULOIS): GazetteCard {
   const { named } = arrivals;
   const many = named.length > MAX_ROWS;
   const rest = many ? Math.max(0, named.length - MAX_CHIPS) : 0;
@@ -28,8 +29,8 @@ export function welcomeCard(arrivals: Arrivals, tag: string, siteUrl: string, me
       kicker: `Arrivées dans le clan [${tag}], ${STILL_HERE_SHORT}`,
       title: WELCOME_TITLE,
       period: `Entre les relevés de la liste du ${fmtDayAndTime(arrivals.since)} et du ${fmtDayAndTime(arrivals.until)}`,
-      rows: many ? [] : named.map((p) => ({ badge: fmtDayAndTime(p.joinedAt), strong: true, name: p.username, detail: null })),
-      chips: many ? named.slice(0, MAX_CHIPS).map((p) => p.username) : [],
+      rows: many ? [] : named.map((p) => ({ badge: fmtDayAndTime(p.joinedAt), strong: true, name: p.username, detail: null, ids: [p.id] })),
+      chips: many ? named.slice(0, MAX_CHIPS).map((p) => ({ text: p.username, id: p.id })) : [],
       footnotes,
       address: shownAddress(siteUrl, "/liste"),
       note: WELCOME_NOTE,
@@ -38,6 +39,7 @@ export function welcomeCard(arrivals: Arrivals, tag: string, siteUrl: string, me
       badgeFont: "monoStrong",
     },
     measure,
+    gaulois,
   );
 }
 
