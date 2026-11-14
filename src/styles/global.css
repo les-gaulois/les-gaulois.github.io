@@ -3657,14 +3657,25 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   display: block;
   margin: 0;
 }
+/* Dans le formulaire, la zone vide ne s'ajoute pas non plus à l'écart de la grille. */
+.dir-sondages-form > .form-success:empty {
+  margin-top: -0.875rem;
+}
 .dir-sondages #polls-done > :not(:empty) {
   margin-block: 0.5rem;
 }
+/* Le résultat d'une action reçoit le focus : la page s'arrête sous l'en-tête du site et la barre des filtres, pas dessous. */
+.dir-sondages #polls-done {
+  scroll-margin-top: calc(var(--dir-haut, 4rem) + var(--dir-outils, 3.5rem) + 0.75rem);
+}
 
-/* La liste : la barre des filtres reste sous l'en-tête du site. */
+/* La liste : la barre des filtres reste sous l'en-tête du site. Sans sondage, la colonne ne prend aucune place. */
 .dir-sondages-suivi {
   min-width: 0;
   container-type: inline-size;
+}
+.dir-sondages-suivi[data-vide] {
+  display: none;
 }
 .dir-sondages .dir-outils {
   margin-top: 0;
@@ -3699,6 +3710,8 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   font-weight: 700;
   line-height: 1.35;
   overflow-wrap: anywhere;
+  /* Le « ? » d'une question, précédé d'une espace, ne reste pas seul sur sa ligne. */
+  text-wrap: pretty;
   color: #fff;
 }
 .dir-sondage-actions {
@@ -3790,7 +3803,15 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
     grid-column: 1;
     grid-row: auto;
     order: 1;
+    flex-wrap: nowrap;
     margin-top: 0.625rem;
+  }
+  /* Armé, « Confirmer la suppression » reste sur la ligne de « Fermer », sous le doigt (à 360 px, il partait à la ligne
+     suivante) : si la place manque, c'est son texte qui passe sur deux lignes, dans le bouton. */
+  .dir-sondages .dir-sondage-actions .dir-bouton[data-arme] {
+    flex: 0 1 auto;
+    min-width: 0;
+    white-space: normal;
   }
   .dir-sondage-choix {
     grid-template-columns: minmax(0, 1fr) auto auto;
