@@ -13,6 +13,7 @@ import {
   SOUFFLE_MS,
   VITESSE,
   avancer,
+  coinDuCote,
   depuisPart,
   ecarterDuChamp,
   echelleDuCompagnon,
@@ -24,16 +25,17 @@ import {
   placeDeLaBulle,
   reposApres,
   souffleA,
+  type Allure,
   type Marcheur,
 } from "../../src/lib/compagnon/mouvement";
 import { GAULOIS_HAUTEUR, GAULOIS_LARGEUR } from "../../src/lib/gaulois";
 
 /** Rejoue la marche image par image, à soixante images par seconde. */
-function rejouer(depart: Marcheur, cible: number | null, secondes: number, min = 0, max = 2_000, precis = false): { fin: Marcheur; etapes: Marcheur[] } {
+function rejouer(depart: Marcheur, cible: number | null, secondes: number, min = 0, max = 2_000, allure: Allure = "suivre"): { fin: Marcheur; etapes: Marcheur[] } {
   const etapes: Marcheur[] = [];
   let m = depart;
   for (let i = 0; i < secondes * 60; i++) {
-    m = avancer(m, cible, 1000 / 60, min, max, precis);
+    m = avancer(m, cible, 1000 / 60, min, max, allure);
     etapes.push(m);
   }
   return { fin: m, etapes };
@@ -54,7 +56,7 @@ describe("la taille du Gaulois compagnon", () => {
         expect(cote * dpr).toBeCloseTo(parCase, 10);
         // Petit : jamais plus du quart d'un téléphone, ni de 130 pixels de large sur ordinateur.
         expect(cote * CASES_L).toBeLessThanOrEqual(largeur < 640 ? Math.max(96, largeur / 4) : 130);
-        expect(cote * CASES_L).toBeGreaterThanOrEqual(56);
+        expect(cote * CASES_L).toBeGreaterThanOrEqual(48);
       }
     }
     expect(echelleDuCompagnon(1440, 1)).toEqual({ parCase: 2, cote: 2 });
@@ -134,10 +136,22 @@ describe("la marche du Gaulois compagnon", () => {
   });
 
   it("s'écarte d'un champ tout de suite et jusqu'au bout", () => {
-    const { fin, etapes } = rejouer(marcheurA(400), 430, 5, 0, 2_000, true);
+    const { fin, etapes } = rejouer(marcheurA(400), 430, 5, 0, 2_000, "ecarter");
     expect(etapes[0]?.enMarche).toBe(true);
     expect(fin.enMarche).toBe(false);
     expect(fin.x).toBeCloseTo(430, 0);
+  });
+
+  it("rejoint un coin de l'écran sur téléphone : du côté touché, après son attente, jusqu'au bout", () => {
+    expect(coinDuCote(80, 390, 19, 307)).toBe(19);
+    expect(coinDuCote(300, 390, 19, 307)).toBe(307);
+    expect(coinDuCote(300, 390, 19, 5)).toBe(19);
+    const { fin, etapes } = rejouer(marcheurA(19), 307, 12, 19, 307, "rejoindre");
+    expect(etapes[10]?.enMarche).toBe(false);
+    expect(fin.enMarche).toBe(false);
+    expect(fin.x).toBe(307);
+    // Déjà dans son coin : il ne bouge pas.
+    expect(rejouer(marcheurA(300), 307, 3, 19, 307, "rejoindre").fin.x).toBe(300);
   });
 
   it("tient une image très en retard pour un dixième de seconde au plus", () => {

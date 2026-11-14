@@ -30,7 +30,9 @@ import {
   placeDeLaBulle,
   reposApres,
   souffleA,
-  DEPART,
+  coinDuCote,
+  seuilDeDepart,
+  type Allure,
   type Marcheur,
   type Repos,
 } from "../lib/compagnon/mouvement";
@@ -110,6 +112,8 @@ function init(): void {
   const rubrique = rubriqueDe(chemin);
   const auVillage = chemin.replace(/\/$/, "") === "/village";
   const suivante = tirage(REPLIQUES.length, Math.random);
+  // Son salut est déjà dit dans cet onglet : il ne le redit pas à chaque page.
+  if (lire("sessionStorage", CLE_SALUE) === "1") suivante();
 
   let range = lire("localStorage", CLE_RANGE) === "1";
   let suit = lire("localStorage", CLE_POSE) !== "1";
@@ -122,6 +126,7 @@ function init(): void {
   let marcheur: Marcheur = marcheurA(0);
   /** Où est le visiteur : le curseur, ou le dernier endroit touché. `null` tant qu'il n'a pas bougé. */
   let visiteurX: number | null = null;
+  let auDoigt = false;
   /** Où aller pour dégager un champ de saisie. */
   let ecart: number | null = null;
   let champ: HTMLElement | null = null;
@@ -181,22 +186,25 @@ function init(): void {
   /* ---------- Marche ---------- */
 
   /** Sa cible : dégager un champ d'abord ; sinon le visiteur, s'il le suit et que rien ne le retient. */
-  function cible(): { x: number | null; precis: boolean } {
-    if (ecart !== null) return { x: ecart, precis: true };
-    if (calme() || !suit || glisse || bulleOuverte || visiteurX === null) return { x: null, precis: false };
-    return { x: visiteurX - largeur / 2, precis: false };
+  function cible(): { x: number | null; allure: Allure } {
+    if (ecart !== null) return { x: ecart, allure: "ecarter" };
+    if (calme() || !suit || glisse || bulleOuverte || visiteurX === null) return { x: null, allure: "suivre" };
+    // Au doigt : le coin du côté touché. À la souris : à côté du curseur.
+    if (auDoigt) return { x: coinDuCote(visiteurX, document.documentElement.clientWidth, min, max), allure: "rejoindre" };
+    return { x: visiteurX - largeur / 2, allure: "suivre" };
   }
 
   function pasDeTemps(maintenant: number): void {
     const dt = maintenant - image0;
     image0 = maintenant;
     const but = cible();
-    marcheur = avancer(marcheur, but.x, dt, min, max, but.precis);
+    marcheur = avancer(marcheur, but.x, dt, min, max, but.allure);
     if (marcheur.enMarche) reveiller(maintenant);
-    if (but.precis && !marcheur.enMarche) ecart = null;
+    const precis = but.allure === "ecarter";
+    if (precis && !marcheur.enMarche) ecart = null;
     dessiner();
-    const attend = but.x !== null && !but.precis && Math.abs(but.x - marcheur.x) > DEPART;
-    boucle = marcheur.enMarche || attend || (but.precis && ecart !== null) ? requestAnimationFrame(pasDeTemps) : 0;
+    const attend = but.x !== null && !precis && Math.abs(Math.min(Math.max(but.x, min), max) - marcheur.x) > seuilDeDepart(but.allure);
+    boucle = marcheur.enMarche || attend || (precis && ecart !== null) ? requestAnimationFrame(pasDeTemps) : 0;
     if (!boucle) garderLaPlace();
   }
 
@@ -410,6 +418,7 @@ function init(): void {
   const suivre = (e: PointerEvent): void => {
     if (boite.contains(e.target as Node)) return;
     visiteurX = e.clientX;
+    auDoigt = e.pointerType !== "mouse";
     reveiller();
     relancer();
   };
@@ -513,7 +522,7 @@ function init(): void {
     if (!range && !calme() && lire("sessionStorage", CLE_SALUE) !== "1") {
       ecrire("sessionStorage", CLE_SALUE, "1");
       window.setTimeout(() => {
-        if (!range && !bulleOuverte && !glisse && !calme() && !document.hidden) dire(REPLIQUES[0] ?? "", false);
+        if (!range && !bulleOuverte && !glisse && !calme() && !document.hidden) dire(REPLIQUES[suivante()] ?? "", false);
       }, 1_600);
     }
   }
