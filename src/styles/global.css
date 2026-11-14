@@ -3318,8 +3318,8 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 /* ---------- Direction, onglet Événements ---------- */
 /* Les règles propres à cet onglet (DirectionEvenements.tsx), sous la classe `dir-evenements`. Le formulaire et la liste côte
    à côte dès 1 024 px ; une ligne serrée par événement : la date d'abord, un trait et un mot en couleur pour ce qui est
-   proche (jaune aujourd'hui, bleu demain, gris dans la semaine), le nombre de « Je viens » en pastille verte, qui déplie
-   les noms. Les mots et les couleurs sont décidés dans `src/lib/compte/direction-evenements.ts`. */
+   proche (jaune aujourd'hui, bleu demain, gris dans la semaine ou déjà commencé), le nombre de « Je viens » en pastille
+   verte, qui déplie les noms. Les mots et les couleurs sont décidés dans `src/lib/compte/direction-evenements.ts`. */
 .dir-evenements .evt-plan {
   display: grid;
   align-items: start;
@@ -3333,6 +3333,18 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 }
 .dir-evenements .evt-form textarea {
   resize: vertical;
+}
+/* Vide, la zone d'état reste lisible par un lecteur d'écran (la règle commune `.form-success:empty` la retirerait de
+   l'arbre d'accessibilité) : il annonce ce qui s'y écrit ensuite. Hors du flux, elle n'ajoute pas d'espace au formulaire. */
+.dir-evenements .evt-fait:empty {
+  display: block;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 .dir-evenements .evt-serie,
 .dir-evenements .evt-semaines {
@@ -3477,7 +3489,7 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 .dir-evenements .evt-modifier {
   --ton: #fff;
 }
-.dir-evenements .evt-modifier[aria-pressed="true"] {
+.dir-evenements .evt-ligne[data-editing] .evt-modifier {
   background: #fff;
   color: var(--color-night);
 }

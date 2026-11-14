@@ -2,12 +2,12 @@
  * L'onglet Événements de la Direction : publier un événement ou une série, voir qui vient.
  * Le formulaire et la liste côte à côte ; une ligne serrée par événement, la date d'abord, un trait et un mot en couleur
  * pour ce qui est proche, le nombre de « Je viens » en pastille et les noms à la demande. Les règles (mots, couleurs,
- * écriture de la date) sont dans `src/lib/compte/direction-evenements.ts` ; le dessin dans `global.css`, section
- * « Direction, onglet Événements ».
+ * écriture de la date, réponses lues ou non) sont dans `src/lib/compte/direction-evenements.ts` ; le dessin dans
+ * `global.css`, section « Direction, onglet Événements ».
  */
-import { useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { call } from "../../lib/compte/api";
-import { jourEtHeure, proximite, viennentLabel } from "../../lib/compte/direction-evenements";
+import { basculer, garderPresents, jourEtHeure, presence, proximite, viennentLabel } from "../../lib/compte/direction-evenements";
 import { safeUrl, toLocalInput } from "../../lib/compte/news";
 import { fmtInt } from "../../lib/format";
 import { Problem, focusField, useNow, useRun } from "./common";
@@ -21,23 +21,66 @@ export type EventDraft = typeof EMPTY_EVENT;
 const SERIES_WEEKS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
 /**
- * « Supprimer » demande une confirmation, sur le même bouton. Il est sur presque chaque ligne : il reste gris et ne passe
- * au rouge que sous la souris, au clavier, ou une fois armé (`global.css`).
+ * Après une action, le bouton cliqué a pu disparaître (ligne supprimée) ou être désactivé le temps de l'envoi : le focus
+ * est alors retombé sur la page, ou sur la partie qui l'entoure (un second clic sur le bouton désactivé). Il revient à
+ * `id`, une fois la liste redessinée. Un champ où l'on écrit garde le sien.
  */
-function Supprimer({ busy, label, onConfirm }: { busy: boolean; label: string; onConfirm: () => void }) {
+const rendreFocus = (id: string) =>
+  window.setTimeout(() => {
+    const actif = document.activeElement;
+    const onglet = document.querySelector('[data-testid="direction-events"]');
+    if (actif?.isConnected && onglet && !actif.contains(onglet)) return;
+    document.getElementById(id)?.focus();
+  }, 0);
+
+/**
+ * « Supprimer » demande une confirmation, sur le même bouton. Il est sur presque chaque ligne : il reste gris et ne passe
+ * au rouge que sous la souris, au clavier, ou une fois armé (`global.css`). Armé, il se désarme par Échap, par Tab vers un
+ * autre élément ou par un clic ailleurs : Safari ne donne pas le focus au bouton cliqué, et une perte de focus sans
+ * destination (`relatedTarget` nul) ne compte pas, comme partout sur cette page. Le second clic d'un double clic ne
+ * confirme pas : il faut un clic à part, ou Entrée.
+ */
+function Supprimer({ id, busy, label, onConfirm }: { id: string; busy: boolean; label: string; onConfirm: () => void }) {
   const [armed, setArmed] = useState(false);
+  const self = useRef<HTMLButtonElement>(null);
+  // Sans focus sur le bouton (Safari), Échap et le clic ailleurs s'écoutent sur toute la page, dès que le bouton est armé.
+  useLayoutEffect(() => {
+    if (!armed) return;
+    const ailleurs = (e: PointerEvent) => {
+      if (!(e.target instanceof Node) || !self.current?.contains(e.target)) setArmed(false);
+    };
+    const echap = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setArmed(false);
+    };
+    document.addEventListener("pointerdown", ailleurs, true);
+    document.addEventListener("keydown", echap);
+    return () => {
+      document.removeEventListener("pointerdown", ailleurs, true);
+      document.removeEventListener("keydown", echap);
+    };
+  }, [armed]);
   return (
     <button
+      ref={self}
+      id={id}
       type="button"
       class="dir-bouton evt-supprimer"
       data-armed={armed ? "" : undefined}
       disabled={busy}
       aria-label={armed ? `Confirmer la suppression de « ${label} »` : `Supprimer « ${label} »`}
-      onClick={() => {
-        if (armed) onConfirm();
-        else setArmed(true);
+      onClick={(e) => {
+        if (!armed) setArmed(true);
+        else if (e.detail < 2) {
+          setArmed(false);
+          onConfirm();
+        }
       }}
-      onBlur={() => setArmed(false)}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") setArmed(false);
+      }}
+      onBlur={(e) => {
+        if (e.relatedTarget) setArmed(false);
+      }}
     >
       {armed ? "Confirmer la suppression" : "Supprimer"}
     </button>
@@ -47,28 +90,52 @@ function Supprimer({ busy, label, onConfirm }: { busy: boolean; label: string; o
 export default function DirectionEvenements({ rows, attendance, reload, form, setForm }: { rows: EventRow[]; attendance: Map<number, string[]> | null | undefined; reload: () => Promise<void>; form: EventDraft; setForm: (draft: EventDraft) => void }) {
   const empty = EMPTY_EVENT;
   const { busy, error, done, run } = useRun(reload);
+  // L'heure, relue chaque minute : « Aujourd'hui », « Demain », « Dans N jours » et « Commencé » changent seuls à minuit
+  // et à l'heure de début, sur une page laissée ouverte.
   const now = useNow();
-  // Les événements dont la liste des noms est dépliée.
+  // Les événements dont la liste des noms est dépliée. Un événement supprimé, ou qui n'est plus donné, en sort.
   const [open, setOpen] = useState<ReadonlySet<number>>(new Set());
-  const toggle = (id: number) => {
-    const next = new Set(open);
-    if (!next.delete(id)) next.add(id);
-    setOpen(next);
+  useEffect(() => {
+    setOpen((ouverts) => garderPresents(ouverts, rows.map((ev) => ev.id)));
+  }, [rows]);
+  // Une seule demande à la fois : un double clic, ou Entrée tapée deux fois avant que le bouton se désactive, n'envoie rien
+  // de plus. `null` : refusé sans rien envoyer.
+  const enCours = useRef(false);
+  const une = async (action: () => Promise<boolean>): Promise<boolean | null> => {
+    if (enCours.current) return null;
+    enCours.current = true;
+    try {
+      return await action();
+    } finally {
+      enCours.current = false;
+    }
   };
 
   const save = async () => {
     const start = form.start ? new Date(form.start).toISOString() : null;
     const series = form.id === null && form.repeat;
-    const ok = series
-      ? await run(
-          () => call("save_event_series", { p_title: form.title, p_description: form.description || null, p_url: form.url || null, p_starts_at: start, p_weeks: Number(form.weeks) }),
-          `${form.weeks} événements publiés, un par semaine. L'accueil ne montre que le prochain.`,
-        )
-      : await run(
-          () => call("save_event", { p_id: form.id, p_title: form.title, p_description: form.description || null, p_url: form.url || null, p_starts_at: start }),
-          form.id ? "Événement modifié." : "Événement publié : il est visible sur l'accueil.",
-        );
+    const ok = await une(() =>
+      series
+        ? run(
+            () => call("save_event_series", { p_title: form.title, p_description: form.description || null, p_url: form.url || null, p_starts_at: start, p_weeks: Number(form.weeks) }),
+            `${form.weeks} événements publiés, un par semaine. L'accueil ne montre que le prochain.`,
+          )
+        : run(
+            () => call("save_event", { p_id: form.id, p_title: form.title, p_description: form.description || null, p_url: form.url || null, p_starts_at: start }),
+            form.id ? "Événement modifié." : "Événement publié : il est visible sur l'accueil.",
+          ),
+    );
+    if (ok === null) return;
     if (ok) setForm(empty);
+    rendreFocus(ok ? "evt-fait" : "evt-envoyer");
+  };
+
+  const supprimer = async (ev: EventRow) => {
+    const ok = await une(() => run(() => call("delete_event", { p_id: ev.id }), "Événement supprimé."));
+    if (ok === null) return;
+    // L'événement en cours de modification n'existe plus : le formulaire redevient vide.
+    if (ok && form.id === ev.id) setForm(empty);
+    rendreFocus(ok ? "evt-fait" : `evt-supprimer-${ev.id}`);
   };
 
   return (
@@ -132,18 +199,28 @@ export default function DirectionEvenements({ rows, attendance, reload, form, se
             </div>
           )}
           <div class="flex flex-wrap gap-3">
-            <button type="submit" class="btn btn-primary" disabled={busy}>
+            <button id="evt-envoyer" type="submit" class="btn btn-primary" disabled={busy}>
               {form.id ? "Enregistrer" : form.repeat ? `Publier ${form.weeks} événements` : "Publier l'événement"}
             </button>
             {form.id && (
-              <button type="button" class="btn btn-ghost" onClick={() => setForm(empty)}>
+              <button
+                type="button"
+                class="btn btn-ghost"
+                onClick={() => {
+                  const id = form.id;
+                  setForm(empty);
+                  // Le bouton disparaît : le focus revient au « Modifier » de la ligne quittée.
+                  window.setTimeout(() => (document.getElementById(`evt-modifier-${id}`) ?? document.getElementById("evt-t"))?.focus(), 0);
+                }}
+              >
                 Annuler
               </button>
             )}
           </div>
           <Problem message={error} />
-          {/* La zone existe avant de changer : un lecteur d'écran annonce ce qui s'y écrit. */}
-          <p class="form-success" role="status" data-testid="direction-event-done">
+          {/* La zone existe avant de changer : un lecteur d'écran annonce ce qui s'y écrit. Après une suppression, le focus
+              y vient (la ligne a disparu). */}
+          <p id="evt-fait" class="form-success evt-fait" role="status" tabIndex={-1} data-testid="direction-event-done">
             {done}
           </p>
         </form>
@@ -163,7 +240,9 @@ export default function DirectionEvenements({ rows, attendance, reload, form, se
             </div>
             <ul class="dir-liste">
               {rows.map((ev) => {
-                const names = attendance ? (attendance.get(ev.id) ?? []) : null;
+                const lu = presence(attendance, ev.id);
+                // `null` : pas lu, ou lecture en panne. La ligne ne dit alors rien, et surtout pas « Personne ».
+                const names = lu.etat === "lu" ? lu.noms : null;
                 const near = proximite(ev.starts_at, now);
                 const { jour, heure } = jourEtHeure(ev.starts_at, now);
                 const url = safeUrl(ev.url);
@@ -193,7 +272,7 @@ export default function DirectionEvenements({ rows, attendance, reload, form, se
                               aria-controls={`evt-noms-${ev.id}`}
                               aria-label={`${viennentLabel(names.length)} à « ${ev.title} » : ${shown ? "masquer" : "voir"} les noms`}
                               data-testid="direction-event-going"
-                              onClick={() => toggle(ev.id)}
+                              onClick={() => setOpen((ouverts) => basculer(ouverts, ev.id))}
                             >
                               {viennentLabel(names.length)}
                             </button>
@@ -213,19 +292,20 @@ export default function DirectionEvenements({ rows, attendance, reload, form, se
                     {ev.editable && (
                       <div class="evt-actions">
                         <button
+                          id={`evt-modifier-${ev.id}`}
                           type="button"
                           class="dir-bouton evt-modifier"
                           disabled={busy}
-                          aria-pressed={editing}
-                          aria-label={`Modifier « ${ev.title} »`}
+                          aria-label={editing ? `Modifier « ${ev.title} », en cours dans le formulaire` : `Modifier « ${ev.title} »`}
                           onClick={() => {
-                            setForm({ ...EMPTY_EVENT, id: ev.id, title: ev.title, description: ev.description ?? "", url: ev.url ?? "", start: toLocalInput(ev.starts_at) });
+                            // Déjà dans le formulaire : on y retourne, sans effacer ce qui a été changé.
+                            if (!editing) setForm({ ...EMPTY_EVENT, id: ev.id, title: ev.title, description: ev.description ?? "", url: ev.url ?? "", start: toLocalInput(ev.starts_at) });
                             focusField("evt-t");
                           }}
                         >
                           Modifier
                         </button>
-                        <Supprimer busy={busy} label={ev.title} onConfirm={() => void run(() => call("delete_event", { p_id: ev.id }), "Événement supprimé.")} />
+                        <Supprimer id={`evt-supprimer-${ev.id}`} busy={busy} label={ev.title} onConfirm={() => void supprimer(ev)} />
                       </div>
                     )}
                     {/* Le cadre existe toujours : le bouton le désigne (`aria-controls`) même replié. */}
@@ -239,9 +319,9 @@ export default function DirectionEvenements({ rows, attendance, reload, form, se
             <details class="fold evt-aide">
               <summary class="font-semibold">Comment lire cette liste</summary>
               <div class="grid gap-3 pb-1 text-muted">
-                <p>Jaune : aujourd'hui. Bleu : demain. Gris : dans la semaine. Vert : des membres ont répondu « Je viens » ; un clic montre leurs noms.</p>
+                <p>Jaune : aujourd'hui. Bleu : demain. Gris : dans la semaine, ou déjà commencé. Vert : des membres ont répondu « Je viens » ; un clic montre leurs noms.</p>
                 <p>Les dates et les heures sont celles de Paris. Une série crée un événement par semaine : chacun se modifie ou se supprime seul.</p>
-                <p>« Modifier » et « Supprimer » n'apparaissent que sur vos événements, ou sur tous pour un admin. Le serveur revérifie chaque changement.</p>
+                <p>« Modifier » et « Supprimer » n'apparaissent que sur vos événements, ou sur tous pour les admins et le fondateur. Le serveur revérifie chaque changement.</p>
               </div>
             </details>
           </div>
