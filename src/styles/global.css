@@ -4087,6 +4087,11 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 .dir-semaine-rien {
   color: var(--color-muted);
 }
+/* Ce que donne un choix ou un retrait, près de son bouton. Vide, il ne prend aucune place ; le focus y va quand le
+   bouton pressé se désactive ou disparaît. */
+.dir-semaine-retour:not(:has(.form-problem, .form-success:not(:empty))) {
+  display: none;
+}
 @media (pointer: coarse) {
   .dir-semaine-nom {
     min-height: 2.75rem;
