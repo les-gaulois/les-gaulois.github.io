@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-14",
+    "kind": "ameliore",
+    "title": "/gaulois montre où est votre Gaulois",
+    "body": "Sur Discord, l'image de /gaulois suit l'heure de Paris et le lieu de votre Gaulois : place, taverne, salle de réunion, champ de bataille ou maison. Le logo du clan est en haut à gauche.",
+    "link": {
+      "href": "/confidentialite#village",
+      "label": "Ce que l'image montre"
+    }
+  },
+  {
+    "date": "2026-11-14",
     "kind": "nouveau",
     "title": "Un Gaulois vous suit sur le site",
     "body": "Un petit Gaulois marche au bas des pages et suit la souris. Un clic le fait parler, « Ranger » le cache. Pour un membre connecté, c'est le sien, habillé au village.",

@@ -236,7 +236,7 @@ La même application a une seconde commande, `/fiche`, installée le 12 novembre
 
 Six autres commandes, `/clan`, `/records`, `/carte`, `/guide`, `/rival` et `/moi`, sont installées depuis le 12 novembre 2026 : chacune montre une image que le site dessine à chaque construction (`/commandes/…png`, index `/commandes.json`), et `/moi` la fiche de qui la tape, que le serveur retrouve pour un membre validé. Voir « Les commandes du robot » dans [docs/DIRECTION.md](docs/DIRECTION.md).
 
-Depuis le 13 novembre 2026, `/gaulois` montre à tout le salon le Gaulois en pixels de qui la tape, habillé au village du site, dessiné par la fonction elle-même. Voir « Le village des Gaulois » dans [docs/DIRECTION.md](docs/DIRECTION.md).
+Depuis le 13 novembre 2026, `/gaulois` montre à tout le salon le Gaulois en pixels de qui la tape, habillé au village du site, dessiné par la fonction elle-même ; depuis le 14 novembre 2026, devant le décor du lieu où la place du village le met, à l'heure de Paris, avec le logo du clan. Voir « Le village des Gaulois » dans [docs/DIRECTION.md](docs/DIRECTION.md).
 
 Le panneau des rôles, prêt le 12 novembre 2026 et à installer par le pilote : `/roles`, tapée par l'encadrement, poste dans le salon une image (`/commandes/roles.png`) et un bouton par rôle (Rassemblement, Giveaway, Tournois, Membre GAL) ; un clic donne le rôle, un second le retire, et le robot le dit au seul membre qui a cliqué. Il faut pour cela le jeton de « Le Gaulois » dans le secret `LE_GAULOIS_BOT_TOKEN` de la fonction, dans Supabase, jamais dans GitHub. Voir « Les rôles sur Discord » dans [docs/DIRECTION.md](docs/DIRECTION.md).
 

@@ -24,7 +24,10 @@
  * ombre ; n, y et z sont des lumières.
  */
 import { ecrirePng, type Image } from "./billets.ts";
+import { decorDe } from "./decors/index.ts";
 import { GARDE_ROBE } from "./garde-robe/index.ts";
+import { LOGO_DU_CLAN } from "./logo-du-clan.ts";
+import { LIEUX_EN_MOTS, PHASES_EN_MOTS, type Scene } from "./scene.ts";
 
 export const GAULOIS_LARGEUR = 48;
 export const GAULOIS_HAUTEUR = 64;
@@ -2381,5 +2384,67 @@ export function imageDuGaulois(tenue: Tenue): Image {
   return { largeur, hauteur, rgba };
 }
 
-/** L'image de /gaulois, en PNG. */
-export const pngDuGaulois = (tenue: Tenue): Promise<Uint8Array<ArrayBuffer>> => ecrirePng(imageDuGaulois(tenue));
+/** Le logo du clan, une fois décodé : ses pixels en RVBA. */
+let logo: Uint8Array | null = null;
+const pixelsDuLogo = (): Uint8Array => (logo ??= Uint8Array.from(atob(LOGO_DU_CLAN.rgba), (c) => c.charCodeAt(0)));
+/** La place du logo dans l'image, en pixels : en haut à gauche, dans les 18 premières cases (`LOGO` des décors). */
+export const PLACE_DU_LOGO = { x: 8, y: 8, cote: LOGO_DU_CLAN.cote } as const;
+
+/**
+ * L'image de /gaulois depuis le 14 novembre 2026 (demande du pilote : « plus de 12 fonds différents en fonction de la
+ * journée et où se trouve la personne au moment de /gaulois », « et affiche en haut à gauche le logo du clan ») : le
+ * Gaulois au milieu, devant le décor de son lieu à ce moment de la journée (`decors/`), le logo du clan en haut à gauche.
+ * Mêmes dimensions que `imageDuGaulois`.
+ */
+export function imageDeLaScene(tenue: Tenue, scene: Scene): Image {
+  const { largeur, hauteur, echelle } = IMAGE_GAULOIS;
+  const rgba = new Uint8Array(new ArrayBuffer(largeur * hauteur * 4));
+  const caseA = (cx: number, cy: number, couleur: string) => {
+    const [r, g, b] = rgb(couleur);
+    for (let dy = 0; dy < echelle; dy++) {
+      for (let dx = 0; dx < echelle; dx++) {
+        const x = cx * echelle + dx;
+        const y = cy * echelle + dy;
+        if (x < 0 || y < 0 || x >= largeur || y >= hauteur) continue;
+        const i = (y * largeur + x) * 4;
+        rgba[i] = r;
+        rgba[i + 1] = g;
+        rgba[i + 2] = b;
+        rgba[i + 3] = 255;
+      }
+    }
+  };
+  const decor = decorDe(scene.lieu, scene.moment);
+  decor.cases.forEach((couleur, i) => caseA(i % DECOR_LARGEUR, Math.floor(i / DECOR_LARGEUR), couleur));
+  // Le Gaulois, au milieu, les pieds sur le sol, sur son ombre, comme dans `imageDuGaulois`.
+  const ox = (DECOR_LARGEUR - GAULOIS_LARGEUR) / 2;
+  const oy = PIEDS - 62;
+  for (let y = PIEDS - 3; y <= PIEDS + 3; y++) {
+    for (let x = 0; x < DECOR_LARGEUR; x++) {
+      if (((x + 0.5 - DECOR_LARGEUR / 2) / 19) ** 2 + ((y + 0.5 - PIEDS - 0.5) / 2.9) ** 2 <= 1) caseA(x, y, decor.ombre);
+    }
+  }
+  casesDuGaulois(tenue).forEach((couleur, i) => {
+    if (couleur) caseA(ox + (i % GAULOIS_LARGEUR), oy + Math.floor(i / GAULOIS_LARGEUR), couleur);
+  });
+  // Le logo, posé par-dessus en tenant compte de sa transparence.
+  const pixels = pixelsDuLogo();
+  const { x: lx, y: ly, cote } = PLACE_DU_LOGO;
+  for (let y = 0; y < cote; y++) {
+    for (let x = 0; x < cote; x++) {
+      const s = (y * cote + x) * 4;
+      const a = (pixels[s + 3] ?? 0) / 255;
+      if (a === 0) continue;
+      const d = ((ly + y) * largeur + lx + x) * 4;
+      for (let k = 0; k < 3; k++) rgba[d + k] = Math.round((pixels[s + k] ?? 0) * a + (rgba[d + k] ?? 0) * (1 - a));
+    }
+  }
+  return { largeur, hauteur, rgba };
+}
+
+/** L'image de /gaulois, en PNG : devant le décor de sa scène si elle est donnée, sinon devant le décor d'avant. */
+export const pngDuGaulois = (tenue: Tenue, scene?: Scene): Promise<Uint8Array<ArrayBuffer>> => ecrirePng(scene ? imageDeLaScene(tenue, scene) : imageDuGaulois(tenue));
+
+/** Le Gaulois en mots, avec sa scène : « … Il est à la taverne, au crépuscule. » */
+export const decrireLaScene = (tenue: Tenue, scene: Scene): string =>
+  `${decrireGaulois(tenue)} Il est ${LIEUX_EN_MOTS[scene.lieu]}, ${PHASES_EN_MOTS[scene.moment.phase]}.`;
