@@ -725,7 +725,7 @@ Demandé par le pilote le 13 novembre 2026 : chaque membre a son Gaulois en pixe
 3. Pour le relevé vocal : le rôle du robot « Bienvenue Gaulois » doit avoir « Voir les salons » et « Se connecter » sur les salons vocaux ouverts à tous. Sans cela, pas de salle de réunion, et le reste marche.
 4. Pour les bulles : une clé de l'API Claude dans le secret GitHub `ANTHROPIC_API_KEY`, avec une limite de dépense mensuelle fixée chez Anthropic. Sans elle, pas de bulles, et le reste marche.
 5. Pour le nouveau décor de l'image de /gaulois sur Discord : remettre la fonction `code-discord` en ligne (commande du lot 1).
-6. Plus tard, une fois les statères vus marcher avec un vrai compte : passer `STATERES_SUR_LES_VICTOIRES` à `true` (`src/lib/victoires-image.ts`) pour montrer la pièce sur l'image des parties gagnées.
+6. Fait le 14 novembre 2026, une fois un solde vu dans la bourse du pilote : `STATERES_SUR_LES_VICTOIRES` est à `true` (`src/lib/victoires-image.ts`), la pièce paraît sur l'image des parties gagnées.
 
 Le fichier à coller a été essayé tel quel le 14 novembre 2026 sur PGlite, sur une base où la 001700 était déjà appliquée avec des comptes et des Gaulois, collé deux fois de suite, avec la migration `20261114000100` posée avant puis après : 17 contrôles. Il se refait par `npx tsx scripts/a-coller-village.ts` après tout changement d'une migration ; ne jamais le coller sans l'avoir refait.
 

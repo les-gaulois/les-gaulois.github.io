@@ -45,10 +45,10 @@ const FOOTER_HEIGHT = 104;
 const CREDIT_MIN_SIZE = 14;
 
 /**
- * La pièce et les statères de chaque Gaulois, sous les points de la victoire. À passer à `true` le jour où la monnaie du
- * village est en ligne, et pas avant : l'image annoncerait des statères que personne ne reçoit encore.
+ * La pièce et les statères de chaque Gaulois, sous les points de la victoire. Allumée le 14 novembre 2026, une fois les
+ * statères vus arriver dans une bourse avec un vrai compte ; à `false`, l'image redevient celle d'avant la monnaie.
  */
-export const STATERES_SUR_LES_VICTOIRES = false;
+export const STATERES_SUR_LES_VICTOIRES = true;
 /** La pièce sous les points : ses 16 cases, de 2 pixels chacune, au milieu de la hauteur des capitales de sa ligne. */
 const COIN_CELLS: TailleStatere = 16;
 const COIN_CELL = 2;

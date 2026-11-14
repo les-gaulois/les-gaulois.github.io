@@ -22,6 +22,16 @@
   {
     "date": "2026-11-14",
     "kind": "nouveau",
+    "title": "Les statères sur l'image des victoires",
+    "body": "Sur Discord, l'image de chaque victoire montre la pièce et les statères reçus par chaque villageois de la partie, pour les points rapportés au clan.",
+    "link": {
+      "href": "/village",
+      "label": "Voir ma bourse"
+    }
+  },
+  {
+    "date": "2026-11-14",
+    "kind": "nouveau",
     "title": "Touchez un Gaulois, il répond",
     "body": "Au village, touchez un Gaulois de la place : il vous répond. Si vous insistez dans l'heure, il s'agace, puis s'énerve pour de bon. Plus de 200 phrases à découvrir.",
     "link": {
