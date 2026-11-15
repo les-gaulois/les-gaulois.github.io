@@ -105,7 +105,10 @@ export const PEAUX = {
   foncee: { nom: "Foncée", couleurs: { s: "#7d4e30", S: "#5c3822", t: "#a5765a", T: "#432517" } },
 } as const satisfies Record<string, Teinte>;
 
-/** Les couleurs des cheveux, que la barbe et les sourcils reprennent. */
+/**
+ * Les couleurs des cheveux, que la barbe et les sourcils reprennent : les six d'avant, puis dix de plus le 15 novembre 2026,
+ * naturelles et teintes. Le serveur garde la même liste, dans le même ordre (`internal.gaulois_tenue_valide`).
+ */
 export const POILS = {
   roux: { nom: "Roux", couleurs: { h: "#c4561f", H: "#8e3a12" } },
   blond: { nom: "Blond", couleurs: { h: "#e3c25b", H: "#b69636" } },
@@ -113,6 +116,16 @@ export const POILS = {
   noir: { nom: "Noir", couleurs: { h: "#2e2724", H: "#171312" } },
   gris: { nom: "Gris", couleurs: { h: "#a9a9a9", H: "#7c7c7c" } },
   blanc: { nom: "Blanc", couleurs: { h: "#ececec", H: "#c4c4c4" } },
+  auburn: { nom: "Auburn", couleurs: { h: "#9c2216", H: "#6e160e" } },
+  cuivre: { nom: "Cuivré", couleurs: { h: "#e8842e", H: "#b05e1a" } },
+  platine: { nom: "Blond platine", couleurs: { h: "#f6ecaa", H: "#cdbf78" } },
+  cendre: { nom: "Blond cendré", couleurs: { h: "#a89c78", H: "#7c7254" } },
+  acajou: { nom: "Acajou", couleurs: { h: "#5a260e", H: "#3c1808" } },
+  guede: { nom: "Bleu de guède", couleurs: { h: "#2f5fa8", H: "#1f4278" } },
+  vert: { nom: "Vert mousse", couleurs: { h: "#4f7d3a", H: "#36572a" } },
+  garance: { nom: "Rouge garance", couleurs: { h: "#d02244", H: "#94162e" } },
+  violet: { nom: "Violet", couleurs: { h: "#7a3fa0", H: "#552a72" } },
+  rose: { nom: "Rose", couleurs: { h: "#e77fb0", H: "#b3557f" } },
 } as const satisfies Record<string, Teinte>;
 
 /** Les teintures des tissus, comme on teignait la laine et le lin : garance, guède, gaude. */

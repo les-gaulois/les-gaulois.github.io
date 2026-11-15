@@ -115,7 +115,8 @@ describe("le serveur de la boutique", () => {
     // remplace cette vérification en gardant l'inventaire (tests/unit/gaulois.test.ts).
     const avant = EMPLACEMENTS.filter((e) => !(EMPLACEMENTS_VISAGE as readonly string[]).includes(e));
     expect(MIGRATION).toContain(`foreach v_emplacement in array array[${avant.map((e) => `'${e}'`).join(", ")}] loop`);
-    expect(MIGRATION).toContain(`any (array[${Object.keys(POILS).map((p) => `'${p}'`).join(", ")}])`);
+    // Les six couleurs de cheveux d'avant le 15 novembre 2026 : les suivantes viennent avec la migration des coupes.
+    expect(MIGRATION).toContain(`any (array[${Object.keys(POILS).slice(0, 6).map((p) => `'${p}'`).join(", ")}])`);
     expect(MIGRATION).toContain(`= ${avant.length + 1};`);
     expect(MIGRATION).toContain("and (o.gratuit or exists (");
     expect(MIGRATION).toContain("where i.user_id = v_uid and i.emplacement = o.emplacement and i.objet = o.objet))");

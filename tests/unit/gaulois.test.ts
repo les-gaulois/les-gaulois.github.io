@@ -37,6 +37,8 @@ import { memeTenue, tenueDuServeur } from "../../src/lib/gaulois";
 const MIGRATION = readFileSync("supabase/migrations/20261113001700_village_des_gaulois_vestiaire.sql", "utf8");
 /** La garde-robe du 14 novembre 2026 : le visage au choix, les objets dessinés ensuite, la tenue vérifiée de nouveau. */
 const GARDE_ROBE_SQL = readFileSync("supabase/migrations/20261114000200_village_garde_robe.sql", "utf8");
+/** Les coupes, les barbes et les couleurs de cheveux du 15 novembre 2026 : la tenue vérifiée avec plus de couleurs. */
+const COUPES_SQL = readFileSync("supabase/migrations/20261115000600_village_coupes_et_couleurs.sql", "utf8");
 
 /** Un tirage reproductible, pour que les tenues au hasard soient les mêmes à chaque passage. */
 function hasardFixe(graine: number): () => number {
@@ -75,6 +77,38 @@ describe("les dessins du Gaulois", () => {
     const depart = casesDuGaulois(TENUE_DE_DEPART).join();
     expect(casesDuGaulois({ ...TENUE_DE_DEPART, peau: "foncee" }).join()).not.toBe(depart);
     expect(casesDuGaulois({ ...TENUE_DE_DEPART, [TEINTE_CHEVEUX]: "blanc" }).join()).not.toBe(depart);
+  });
+
+  it("ont seize couleurs de cheveux bien distinctes, les six d'avant en tête (demande du pilote, 15 novembre 2026)", () => {
+    const teintes = Object.entries(POILS);
+    expect(teintes).toHaveLength(16);
+    // Des tenues sont enregistrées avec les six d'avant : elles ne changent ni de nom ni de couleur.
+    expect(teintes.slice(0, 6).map(([id, t]) => `${id} ${t.nom} ${t.couleurs.h} ${t.couleurs.H}`)).toEqual([
+      "roux Roux #c4561f #8e3a12",
+      "blond Blond #e3c25b #b69636",
+      "chatain Châtain #7a4a26 #55321a",
+      "noir Noir #2e2724 #171312",
+      "gris Gris #a9a9a9 #7c7c7c",
+      "blanc Blanc #ececec #c4c4c4",
+    ]);
+    const rvb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+    const ecart = (a: string, b: string) => Math.hypot(...rvb(a).map((v, i) => v - (rvb(b)[i] ?? 0)));
+    const clarte = (hex: string) => rvb(hex).reduce((n, v) => n + v, 0);
+    for (const [id, teinte] of teintes) {
+      expect(id).toMatch(/^[a-z][a-z-]{0,39}$/);
+      expect(teinte.couleurs.h, id).toMatch(/^#[0-9a-f]{6}$/);
+      expect(teinte.couleurs.H, id).toMatch(/^#[0-9a-f]{6}$/);
+      // L'ombre est plus sombre que la couleur.
+      expect(clarte(teinte.couleurs.H), id).toBeLessThan(clarte(teinte.couleurs.h));
+    }
+    for (let i = 0; i < teintes.length; i++) {
+      for (let j = i + 1; j < teintes.length; j++) {
+        const [a, ta] = teintes[i]!;
+        const [b, tb] = teintes[j]!;
+        expect(ecart(ta.couleurs.h, tb.couleurs.h), `${a} et ${b}`).toBeGreaterThanOrEqual(48);
+      }
+    }
+    expect(new Set(teintes.map(([, t]) => t.nom.toLowerCase())).size).toBe(16);
   });
 
   it("ont une vignette pour chaque objet dessiné, rognée à son contour, et aucune pour une case « rien »", () => {
@@ -167,7 +201,9 @@ describe("une tenue", () => {
       sans(TEINTE_CHEVEUX),
       { ...TENUE_DE_DEPART, en_trop: "x" },
       { ...TENUE_DE_DEPART, teinte_haut: "bleu" },
-      { ...TENUE_DE_DEPART, [TEINTE_CHEVEUX]: "violet" },
+      // « violet » existe depuis le 15 novembre 2026 : une couleur qui n'existe pas.
+      { ...TENUE_DE_DEPART, [TEINTE_CHEVEUX]: "arc-en-ciel" },
+      { ...TENUE_DE_DEPART, [TEINTE_CHEVEUX]: "toString" },
       { ...TENUE_DE_DEPART, pieds: "patins" },
       { ...TENUE_DE_DEPART, pieds: 3 },
       { ...TENUE_DE_DEPART, peau: "toString" },
@@ -246,21 +282,22 @@ describe("une tenue", () => {
 
 describe("le serveur", () => {
   it("connaît exactement les objets du dessin, avec leur rareté et s'ils sont gratuits (migration du vestiaire)", () => {
-    const lignes = [...`${MIGRATION}\n${GARDE_ROBE_SQL}`.matchAll(/^ {2}\('([a-z]+)', '([a-z-]+)', ('[a-z-]+'|null), (true|false)\)/gm)].map(([, emplacement, objet, rarete, gratuit]) => `${emplacement}/${objet}/${rarete?.replaceAll("'", "")}/${gratuit}`);
+    const lignes = [...`${MIGRATION}\n${GARDE_ROBE_SQL}\n${COUPES_SQL}`.matchAll(/^ {2}\('([a-z]+)', '([a-z-]+)', ('[a-z-]+'|null), (true|false)\)/gm)].map(([, emplacement, objet, rarete, gratuit]) => `${emplacement}/${objet}/${rarete?.replaceAll("'", "")}/${gratuit}`);
     const attendues = EMPLACEMENTS.flatMap((emplacement) => Object.entries(OBJETS[emplacement]).map(([id, objet]) => `${emplacement}/${id}/${objet.rarete ?? "null"}/${objet.gratuit}`));
     expect(lignes.sort()).toEqual(attendues.sort());
   });
 
   it("vérifie les mêmes emplacements, les mêmes couleurs de cheveux et les mêmes raretés", () => {
-    expect(GARDE_ROBE_SQL).toContain(`foreach v_emplacement in array array[${EMPLACEMENTS.map((e) => `'${e}'`).join(", ")}] loop`);
     expect(GARDE_ROBE_SQL).toContain(`check (emplacement in (${EMPLACEMENTS.map((e) => `'${e}'`).join(", ")}))`);
-    expect(GARDE_ROBE_SQL).toContain(`if v_emplacement in (${EMPLACEMENTS_VISAGE.map((e) => `'${e}'`).join(", ")}) and not (p_tenue ? v_emplacement) then`);
-    expect(GARDE_ROBE_SQL).toContain(`any (array[${Object.keys(POILS).map((p) => `'${p}'`).join(", ")}])`);
-    expect(GARDE_ROBE_SQL).toContain("return (select count(*) from jsonb_object_keys(p_tenue)) = v_cles;");
+    // La dernière version de la vérification d'une tenue est celle des coupes (15 novembre 2026).
+    expect(COUPES_SQL).toContain(`foreach v_emplacement in array array[${EMPLACEMENTS.map((e) => `'${e}'`).join(", ")}] loop`);
+    expect(COUPES_SQL).toContain(`if v_emplacement in (${EMPLACEMENTS_VISAGE.map((e) => `'${e}'`).join(", ")}) and not (p_tenue ? v_emplacement) then`);
+    expect(COUPES_SQL).toContain(`any (array[${Object.keys(POILS).map((p) => `'${p}'`).join(", ")}])`);
+    expect(COUPES_SQL).toContain("return (select count(*) from jsonb_object_keys(p_tenue)) = v_cles;");
     // La version de la boutique (001900) : un objet gratuit ou de l'inventaire de l'appelant.
-    expect(GARDE_ROBE_SQL).toContain("and (o.gratuit or exists (");
-    expect(GARDE_ROBE_SQL).toContain("revoke all on function internal.gaulois_tenue_valide(jsonb) from public, anon, authenticated;");
-    expect(GARDE_ROBE_SQL).not.toMatch(/raw_user_meta_data|drop table|drop column|truncate|delete from/i);
+    expect(COUPES_SQL).toContain("and (o.gratuit or exists (");
+    expect(COUPES_SQL).toContain("revoke all on function internal.gaulois_tenue_valide(jsonb) from public, anon, authenticated;");
+    for (const sql of [GARDE_ROBE_SQL, COUPES_SQL]) expect(sql).not.toMatch(/raw_user_meta_data|drop table|drop column|truncate|delete from/i);
     expect(MIGRATION).toContain(`rarete in (${ORDRE_RARETES.map((r) => `'${r}'`).join(", ")})`);
     expect(MIGRATION).toContain("= 9;");
     // Seuls les objets gratuits s'enregistrent tant que la boutique n'existe pas.

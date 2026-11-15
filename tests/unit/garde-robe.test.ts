@@ -21,9 +21,14 @@ import {
 import { MOTS_INTERDITS } from "../../src/lib/village/consigne-repliques";
 import { SIGNES_PERMIS, normaliserPourLesMots } from "../../src/lib/village/vie-releve";
 
-/** La garde-robe du 14 novembre 2026 : 200 objets de boutique, et le visage gratuit au choix. */
-const BOUTIQUE = GARDE_ROBE.filter((o) => !(EMPLACEMENTS_VISAGE as readonly string[]).includes(o.emplacement));
+/**
+ * La garde-robe du 14 novembre 2026 : 200 objets de boutique, et le visage gratuit au choix ; puis, le 15 novembre 2026,
+ * dix coupes de cheveux et dix barbes gratuites.
+ */
+const AU_CHOIX: readonly string[] = ["cheveux", "barbe", ...EMPLACEMENTS_VISAGE];
+const BOUTIQUE = GARDE_ROBE.filter((o) => !AU_CHOIX.includes(o.emplacement));
 const VISAGE = GARDE_ROBE.filter((o) => (EMPLACEMENTS_VISAGE as readonly string[]).includes(o.emplacement));
+const POILS_DU_LOT = GARDE_ROBE.filter((o) => o.emplacement === "cheveux" || o.emplacement === "barbe");
 const estDuVisage = (emplacement: Emplacement) => (EMPLACEMENTS_VISAGE as readonly string[]).includes(emplacement);
 
 /** Les lettres de couleur qu'un objet peut ajouter : jamais une couleur fixe, de peau ou de cheveux. */
@@ -43,7 +48,31 @@ describe("la garde-robe", () => {
     for (const o of BOUTIQUE) expect(ORDRE_RARETES, o.id).toContain(o.rarete);
     for (const emplacement of EMPLACEMENTS_VISAGE) expect(VISAGE.filter((o) => o.emplacement === emplacement).length, emplacement).toBeGreaterThanOrEqual(8);
     for (const o of VISAGE) expect(o, o.id).toMatchObject({ rarete: null, gratuit: true });
-    expect(GARDE_ROBE.every((o) => !["peau", "cheveux", "barbe"].includes(o.emplacement))).toBe(true);
+    expect(GARDE_ROBE.every((o) => o.emplacement !== "peau")).toBe(true);
+  });
+
+  it("ajoute dix coupes de cheveux et dix barbes, gratuites et sans rareté (demande du pilote, 15 novembre 2026)", () => {
+    expect(POILS_DU_LOT.filter((o) => o.emplacement === "cheveux")).toHaveLength(10);
+    expect(POILS_DU_LOT.filter((o) => o.emplacement === "barbe")).toHaveLength(10);
+    for (const o of POILS_DU_LOT) expect(o, o.id).toMatchObject({ rarete: null, gratuit: true });
+    expect(Object.keys(OBJETS.cheveux)).toHaveLength(15);
+    expect(Object.keys(OBJETS.barbe)).toHaveLength(15);
+    // La case « rien » reste la première, comme avant.
+    expect(Object.keys(OBJETS.cheveux)[0]).toBe("aucun");
+    expect(Object.keys(OBJETS.barbe)[0]).toBe("aucune");
+  });
+
+  it("ne cache jamais les yeux : aucune coupe ni barbe entre les sourcils et le bas des yeux", () => {
+    // Les yeux de tous les modèles tiennent entre les rangées 16 et 23, colonnes 16 à 31.
+    for (const emplacement of ["cheveux", "barbe"] as const) {
+      for (const [id, objet] of Object.entries(OBJETS[emplacement])) {
+        objet.dessin?.lignes.forEach((ligne, dy) => {
+          const y = objet.dessin!.y + dy;
+          if (y < 16 || y > 23) return;
+          for (let x = 16; x <= 31; x++) expect(ligne[x], `${emplacement}/${id} (${x}, ${y})`).toBe(".");
+        });
+      }
+    }
   });
 
   it("entre tout entière au catalogue, sous des identifiants que le serveur accepte, sans doublon ni objet du lot 1 remplacé", () => {

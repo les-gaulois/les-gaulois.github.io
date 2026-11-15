@@ -2,6 +2,16 @@
   {
     "date": "2026-11-15",
     "kind": "nouveau",
+    "title": "Dix coupes, dix barbes et dix couleurs de plus",
+    "body": "Votre Gaulois a dix coupes de cheveux et dix barbes de plus, de la queue de cheval à la barbe fleuve, et seize couleurs de cheveux au lieu de six. Tout est gratuit, dans « Mon Gaulois ».",
+    "link": {
+      "href": "/village",
+      "label": "Habiller mon Gaulois"
+    }
+  },
+  {
+    "date": "2026-11-15",
+    "kind": "nouveau",
     "title": "Revoir une partie",
     "body": "Les dernières parties du clan, victoires et défaites, se revoient en film sur le site : la carte de la partie rejouée par le moteur du jeu, du départ à la fin. « Revoir » sur chaque partie filmée.",
     "link": {
