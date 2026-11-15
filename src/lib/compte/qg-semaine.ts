@@ -90,7 +90,7 @@ export function stakeWords(stake: number): string {
 export const PREDICTION_CLOSED = "Les pronostics de cette semaine sont clos.";
 
 /**
- * Les pronostics sont clos, à la milliseconde de `closesAt` (le mercredi à minuit, heure de Paris, en temps universel) :
+ * Les pronostics sont clos, à la milliseconde de `closesAt` (le lundi à 0 h, heure de Paris, en temps universel) :
  * pas à la minute suivante. Une heure illisible ferme le pronostic plutôt que de laisser envoyer à l'aveugle.
  */
 export function predictionClosed(closesAt: string, nowMs: number): boolean {
@@ -132,7 +132,9 @@ export function nextReread(done: Rereads | null, closesAt: string, nowMs: number
 }
 
 /**
- * Ce que la semaine pronostiquée compte déjà, si elle a commencé : un fait relevé, avec son heure, pas une tendance.
+ * Ce que la semaine pronostiquée compte déjà, si elle a commencé : un fait relevé, avec son heure, pas une tendance. Depuis
+ * que les pronostics ferment le lundi à 0 h (migration 20261115000500), la semaine pronostiquée n'a jamais commencé : rien
+ * ne s'affiche, sauf d'un serveur resté à l'ancienne règle.
  * `null` : semaine pas commencée ou absente des données, fichier illisible ou en lecture, semaine déjà finie, ou objectif de
  * victoires de la même semaine, qui montre déjà ce chiffre.
  */

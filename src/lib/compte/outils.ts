@@ -339,7 +339,7 @@ export function clanGoalSentence(theirs: string, gap: number): string {
 
 /* ---------- Le pronostic ---------- */
 
-/** La fin des pronostics, dite comme un membre la lit : « jusqu'au mardi 17 nov. à minuit ». */
+/** La fin des pronostics, dite comme un membre la lit : « jusqu'au dimanche 22 nov. à minuit ». */
 export function closesLabel(closesAt: string): string {
   const day = parisParts(new Date(Date.parse(closesAt) - 1)).date;
   const weekday = WEEKDAYS_FR[parisParts(`${day}T12:00:00.000Z`).weekday] ?? "";

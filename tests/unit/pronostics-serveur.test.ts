@@ -79,3 +79,19 @@ describe("les pronostics avec mise, côté serveur", () => {
     expect(SQL).toContain("alter table internal.prediction_results enable row level security;\nrevoke all on table internal.prediction_results from public, anon, authenticated;");
   });
 });
+
+describe("les pronostics ferment le lundi à 0 h", () => {
+  const LUNDI = readFileSync("supabase/migrations/20261115000500_mises_fermees_le_lundi.sql", "utf8").replace(/\r\n/g, "\n");
+
+  it("donne toujours la semaine suivante, fermée à son lundi 0 h à Paris", () => {
+    expect(LUNDI).toContain("create or replace function internal.prediction_week() returns date\nlanguage sql stable set search_path = public, pg_temp as $$\n  select internal.paris_monday() + 7\n$$;");
+    expect(LUNDI).toContain("create or replace function internal.prediction_closes(p_week date) returns timestamptz\nlanguage sql stable set search_path = public, pg_temp as $$\n  select p_week::timestamp at time zone 'Europe/Paris'\n$$;");
+  });
+
+  it("ne touche aucune donnée et garde les deux fonctions fermées", () => {
+    expect(LUNDI).not.toMatch(/\b(drop|truncate|delete|update|insert|alter)\b/i);
+    expect(LUNDI).toContain("revoke all on function internal.prediction_week() from public, anon, authenticated;");
+    expect(LUNDI).toContain("revoke all on function internal.prediction_closes(date) from public, anon, authenticated;");
+    expect(LUNDI).not.toContain("grant ");
+  });
+});

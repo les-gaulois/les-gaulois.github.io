@@ -273,6 +273,9 @@ describe("le pronostic", () => {
   it("dit la clôture comme un membre la lit, changement d'heure compris", () => {
     expect(closesLabel("2026-11-17T23:00:00+00:00")).toBe("jusqu'au mardi 17 nov. à minuit");
     expect(closesLabel("2026-03-31T22:00:00+00:00")).toBe("jusqu'au mardi 31 mars à minuit");
+    // Depuis la migration 20261115000500 : le lundi 0 h à Paris se dit « dimanche à minuit », en hiver comme en été.
+    expect(closesLabel("2026-11-22T23:00:00+00:00")).toBe("jusqu'au dimanche 22 nov. à minuit");
+    expect(closesLabel("2026-05-31T22:00:00+00:00")).toBe("jusqu'au dimanche 31 mai à minuit");
   });
 
   it("trouve les plus proches, tous en cas d'égalité", () => {

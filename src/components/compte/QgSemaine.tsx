@@ -280,7 +280,7 @@ function Cagnotte({ predictions, expired }: { predictions: Predictions; expired:
 
 /**
  * La semaine du clan : l'objectif fixé par l'encadrement, s'il y en a un, et le pronostic de la semaine. On pronostique la
- * semaine en cours le lundi et le mardi, la suivante ensuite ; les pronostics des autres ne se voient qu'après la clôture.
+ * semaine suivante, jusqu'à son lundi 0 h (migration 20261115000500) ; les pronostics des autres ne se voient qu'après la clôture.
  * Les chiffres viennent des données publiques du site, avec leur heure. Le serveur vérifie tout (`place_prediction`).
  *
  * Depuis le 15 novembre 2026 (demande du pilote), un pronostic se pose une fois, avec une mise en statères de 0 à 1 000, et
