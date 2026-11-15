@@ -4,7 +4,9 @@ import { type Lumiere } from "../../../lib/village/lumiere";
 import type { EtatDuMonde } from "../../../lib/village/monde-etat";
 import { DUREE_DE_L_APPROCHE, NIVEAUX, niveauDeDepart, niveauVoisin } from "../../../lib/village/monde/camera";
 import { lotEnCours } from "../../../lib/village/monde/composition";
-import { LIGNE, type Plan, emplacementsDe, quartierDuLieu } from "../../../lib/village/monde/plan";
+import { LIGNE, type Plan, emplacementDuBatiment, emplacementsDe, quartierDuLieu } from "../../../lib/village/monde/plan";
+import { entrerDans, interieursOuverts } from "../../../lib/village/ecran-interieur";
+import type { InterieurId } from "../../../lib/village/interieurs";
 import { SALLE_LARGEUR } from "../../../lib/village/monde/salles";
 import { avancementDuBatiment, batimentEnCours } from "../../../lib/village/chantier";
 import { type FenetreDuMonde, nomDuFeu, phraseDuChantier, pointsDuFeu } from "../../../lib/village/monde/textes";
@@ -34,16 +36,11 @@ interface Etiquette {
   contenu: ComponentChildren;
 }
 
-/** Une zone cliquable posée sur un bâtiment : elle ouvre sa fenêtre. */
-interface Zone {
-  cle: string;
-  x: number;
-  y: number;
-  largeur: number;
-  hauteur: number;
-  ouvre: FenetreDuMonde;
-  nom: string;
-}
+/**
+ * Une zone cliquable posée sur un bâtiment : elle ouvre sa fenêtre (`ouvre`), ou, sur un bâtiment du chantier fini qui a
+ * son dedans, y fait entrer (`interieur`).
+ */
+type Zone = { cle: string; x: number; y: number; largeur: number; hauteur: number; nom: string } & ({ ouvre: FenetreDuMonde; interieur?: undefined } | { ouvre?: undefined; interieur: InterieurId });
 
 /**
  * La scène du monde du village : tout l'écran sous l'en-tête. Le fond (ciel, nuages, lointains), puis le calque du monde
@@ -66,6 +63,7 @@ export function MondeScene({
   parole,
   onToucher,
   ouvrir,
+  entrer,
   membre,
   moiA,
   children,
@@ -81,6 +79,8 @@ export function MondeScene({
   parole: Parole | null;
   onToucher: (habitant: Habitant) => void;
   ouvrir: (id: FenetreDuMonde) => void;
+  /** Entrer dans un bâtiment fini qui a son dedans ; `depuis` : le bouton qui l'a demandé, à qui le focus revient. */
+  entrer?: (id: InterieurId, depuis: HTMLElement) => void;
   /** Un membre dont le village est lu : les lieux portent leur compte, et mènent à « Qui est où ». */
   membre: boolean;
   moiA?: (point: { x: number; y: number } | null) => void;
@@ -422,6 +422,11 @@ export function MondeScene({
     const lot = lotEnCours(plan, etat);
     if (lot) liste.push({ cle: "lot", x: lot.x, y: lot.pied - lot.hauteur, largeur: lot.largeur, hauteur: lot.hauteur, ouvre: "chantier", nom: "Le chantier" });
     if (etat.feu) liste.push({ cle: "grand-feu", x: plan.feu.x - 40, y: plan.feu.pied - 100, largeur: 80, hauteur: 104, ouvre: "feu", nom: "Le grand feu" });
+    // Un bâtiment fini qui a son dedans : on y entre. Les autres (en chantier, à venir, sans dessin) ne changent pas.
+    for (const id of interieursOuverts(etat)) {
+      const e = emplacementDuBatiment(plan, id);
+      liste.push({ cle: `interieur-${id}`, x: e.x, y: e.pied - e.hauteur, largeur: e.largeur, hauteur: e.hauteur, interieur: id, nom: entrerDans(id) });
+    }
     return liste.filter((zone) => membre || zone.ouvre !== "marche").sort((a, b) => a.x - b.x);
   }, [plan, etat, membre]);
 
@@ -466,11 +471,12 @@ export function MondeScene({
                 type="button"
                 class="monde-zone"
                 data-testid={`monde-zone-${zone.cle}`}
-                aria-label={`${zone.nom} : ouvrir la fenêtre`}
+                data-interieur={zone.interieur}
+                aria-label={zone.interieur ? zone.nom : `${zone.nom} : ouvrir la fenêtre`}
                 title={zone.nom}
                 style={{ left: `${zone.x * cote}px`, top: `${(zone.y + dy) * cote}px`, width: `${zone.largeur * cote}px`, height: `${zone.hauteur * cote}px` }}
                 onFocus={() => venirA(zone.x + zone.largeur / 2, zone.y + dy + zone.hauteur / 2)}
-                onClick={() => ouvrir(zone.ouvre)}
+                onClick={(e) => (zone.interieur ? entrer?.(zone.interieur, e.currentTarget) : ouvrir(zone.ouvre))}
               />
             ))}
             {etiquettes.map((etiquette) =>

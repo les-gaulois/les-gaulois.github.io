@@ -1,7 +1,9 @@
 import { SEUILS_DU_FEU, type NiveauDuFeu } from "../../../lib/village/chantier-liste";
 import { avancementDuBatiment, batimentEnCours, pointsAffiches } from "../../../lib/village/chantier";
 import type { Village } from "../../../lib/village/contrat";
+import { entrerDans, interieursOuverts } from "../../../lib/village/ecran-interieur";
 import { sonGauloisManque } from "../../../lib/village/ecran-place";
+import type { InterieurId } from "../../../lib/village/interieurs";
 import type { EtatDuMonde } from "../../../lib/village/monde-etat";
 import { SANS_DONNEES, etatDuBatimentEnMots, jourDeParis, nombre, nomDuFeu, nomDuNiveau, phraseDuChantier, posesDuBatiment, suiteDuChantier, suiteDuFeu } from "../../../lib/village/monde/textes";
 import { type Habitant, LIEUX, type Lieu, compteDuLieu, phraseDuReleve } from "../../../lib/village/vie";
@@ -28,14 +30,16 @@ function SansDonnees({ releve, testid }: { releve: string | null; testid: string
 
 /**
  * « Le chantier » : le bâtiment en cours et ce qui lui manque, puis chaque bâtiment dans l'ordre : fini (et quand), en
- * chantier (ce qui est posé), ou à venir (ce qu'il demandera). `voir` mène la caméra à un bâtiment.
+ * chantier (ce qui est posé), ou à venir (ce qu'il demandera). `voir` mène la caméra à un bâtiment ; `entrer` ouvre le
+ * dedans d'un bâtiment fini qui en a un dessiné (`interieursOuverts`), comme un clic sur lui dans le monde.
  */
-export function FenetreChantier({ etat, voir }: { etat: EtatDuMonde; voir: (id: string) => void }) {
+export function FenetreChantier({ etat, voir, entrer }: { etat: EtatDuMonde; voir: (id: string) => void; entrer?: (id: InterieurId, depuis: HTMLElement) => void }) {
   const chantier = etat.chantier;
   if (!chantier) return <SansDonnees releve={etat.releve} testid="monde-chantier-sans-donnees" />;
   const enCours = batimentEnCours(chantier);
   const depuis = jourDeParis(chantier.depuis);
   const releve = phraseDuReleve(etat.releve);
+  const ouverts: readonly string[] = interieursOuverts(etat);
   return (
     <div class="monde-chantier" data-testid="monde-chantier">
       <p class="monde-chiffre">
@@ -61,9 +65,16 @@ export function FenetreChantier({ etat, voir }: { etat: EtatDuMonde; voir: (id: 
               <span class="monde-batiment-marque" aria-hidden="true" />
               <span class="monde-batiment-nom">{b.titre}</span>
               <span class="monde-batiment-etat tnum">{etatDuBatimentEnMots(b, sonTour)}</span>
-              <button type="button" class="monde-voir" aria-label={`Voir ${b.nom} dans le village`} onClick={() => voir(b.id)}>
-                Voir
-              </button>
+              <span class="monde-batiment-gestes">
+                <button type="button" class="monde-voir" aria-label={`Voir ${b.nom} dans le village`} onClick={() => voir(b.id)}>
+                  Voir
+                </button>
+                {entrer && ouverts.includes(b.id) && (
+                  <button type="button" class="monde-voir" aria-label={entrerDans(b.id as InterieurId)} data-testid={`monde-entrer-${b.id}`} onClick={(e) => entrer(b.id as InterieurId, e.currentTarget)}>
+                    Entrer
+                  </button>
+                )}
+              </span>
             </li>
           );
         })}

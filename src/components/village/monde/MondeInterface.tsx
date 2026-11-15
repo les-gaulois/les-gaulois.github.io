@@ -2,6 +2,7 @@ import type { ComponentChildren } from "preact";
 import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { clan } from "../../../../config/clan";
 import { basePath } from "../../../lib/compte/api";
+import type { Decor } from "../../../lib/village/decor";
 import { ICONES_DES_FENETRES, ICONES_DES_QUARTIERS } from "../../../lib/village/monde/icones";
 import type { Plan, QuartierId } from "../../../lib/village/monde/plan";
 import { FENETRES_DU_MONDE, type FenetreDuMonde } from "../../../lib/village/monde/textes";
@@ -97,8 +98,11 @@ export function MondeCarte({ plan, camera, comptes }: { plan: Plan; camera: Came
   );
 }
 
-/** La rangée d'icônes : une entrée par fenêtre. En rail à gauche sur un écran large, en rangée du bas sur un téléphone. */
-export function MondeDock({ ouverte, onChoisir, membre }: { ouverte: FenetreDuMonde | null; onChoisir: (id: FenetreDuMonde) => void; membre: boolean }) {
+/**
+ * La rangée d'icônes : une entrée par fenêtre. En rail à gauche sur un écran large, en rangée du bas sur un téléphone.
+ * `ouverte` : la fenêtre ouverte, qui peut être celle d'un intérieur (aucune icône n'est alors ouverte).
+ */
+export function MondeDock({ ouverte, onChoisir, membre }: { ouverte: string | null; onChoisir: (id: FenetreDuMonde) => void; membre: boolean }) {
   return (
     <nav class="monde-dock" aria-label="Les fenêtres du village" data-monde-ui data-testid="monde-dock">
       <ul>
@@ -125,7 +129,18 @@ export function MondeDock({ ouverte, onChoisir, membre }: { ouverte: FenetreDuMo
  */
 export function MondeFenetre({ id, ouverte, onFermer, children }: { id: FenetreDuMonde; ouverte: boolean; onFermer: () => void; children: ComponentChildren }) {
   const fenetre = FENETRES_DU_MONDE.find((f) => f.id === id)!;
-  const icone = ICONES_DES_FENETRES[id];
+  return (
+    <CadreDeFenetre id={id} titre={fenetre.titre} icone={ICONES_DES_FENETRES[id]} grande={fenetre.grande} ouverte={ouverte} onFermer={onFermer}>
+      {children}
+    </CadreDeFenetre>
+  );
+}
+
+/**
+ * Le cadre de toute fenêtre du monde, celles de la rangée d'icônes comme celle d'un intérieur : la barre (l'icône, le
+ * titre, le bouton qui ferme) et le corps. `sorte` et `interieur` se lisent dans la page (`data-sorte`, `data-interieur`).
+ */
+export function CadreDeFenetre({ id, titre, icone, grande = false, sorte, interieur, ouverte, onFermer, children }: { id: string; titre: string; icone: Decor; grande?: boolean; sorte?: string; interieur?: string; ouverte: boolean; onFermer: () => void; children: ComponentChildren }) {
   const cadre = useRef<HTMLElement>(null);
   const dejaOuverte = useRef(false);
   // À l'ouverture, la fenêtre prend le focus : le clavier et les lecteurs d'écran y sont. Tout de suite après l'affichage
@@ -135,13 +150,13 @@ export function MondeFenetre({ id, ouverte, onFermer, children }: { id: FenetreD
     dejaOuverte.current = ouverte;
   }, [ouverte]);
   return (
-    <section ref={cadre} id={`monde-fenetre-${id}`} class="monde-fenetre" data-grande={fenetre.grande ? "" : undefined} hidden={!ouverte} aria-labelledby={`monde-fenetre-${id}-titre`} tabIndex={-1} data-monde-ui data-testid={`monde-fenetre-${id}`}>
+    <section ref={cadre} id={`monde-fenetre-${id}`} class="monde-fenetre" data-grande={grande ? "" : undefined} data-sorte={sorte} data-interieur={interieur} hidden={!ouverte} aria-labelledby={`monde-fenetre-${id}-titre`} tabIndex={-1} data-monde-ui data-testid={`monde-fenetre-${id}`}>
       <header class="monde-fenetre-barre">
         <Toile largeur={icone.largeur} hauteur={icone.hauteur} cases={icone.cases} echelle={2} class="monde-fenetre-icone" />
         <h2 id={`monde-fenetre-${id}-titre`} class="monde-fenetre-titre">
-          {fenetre.titre}
+          {titre}
         </h2>
-        <button type="button" class="monde-fermer" aria-label={`Fermer la fenêtre ${fenetre.titre}`} data-testid="monde-fermer" onClick={onFermer}>
+        <button type="button" class="monde-fermer" aria-label={`Fermer la fenêtre ${titre}`} data-testid="monde-fermer" onClick={onFermer}>
           <svg viewBox="0 0 12 12" width="14" height="14" aria-hidden="true" focusable="false">
             <path d="M2 1 1 2l4 4-4 4 1 1 4-4 4 4 1-1-4-4 4-4-1-1-4 4z" fill="currentColor" />
           </svg>

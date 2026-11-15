@@ -10,6 +10,8 @@ import { taillesDesDessins } from "../../lib/village/monde/composition";
 import { type Emplacement, cadrageDuMonde, emplacementDuBatiment, emplacementsDe, hautDansLeMonde, planDuMonde, quartierDuLieu } from "../../lib/village/monde/plan";
 import { type FenetreDuMonde, fenetreDeLAncre } from "../../lib/village/monde/textes";
 import type { BatimentId } from "../../lib/village/chantier-liste";
+import { type FenetreDInterieur, fenetreDeLInterieur, interieurDeLAncre, interieurDeLaFenetre, interieursOuverts } from "../../lib/village/ecran-interieur";
+import { type InterieurId, interieurDe } from "../../lib/village/interieurs";
 import { type Habitant, type Lieu, lieuDOuverture, repartirLeVillage } from "../../lib/village/vie";
 import { DemandeLienOpenFront, useLienAttendu } from "../compte/LienOpenFront";
 import { messageOf, useMe } from "../compte/common";
@@ -19,6 +21,7 @@ import { AnnonceDuToucher, useToucher } from "./PlaceToucher";
 import { CameraDuMonde } from "./monde/camera-du-monde";
 import { useFige } from "./fige";
 import { useHorloge } from "./monde/horloge";
+import { FenetreInterieur } from "./monde/FenetreInterieur";
 import { FenetreChantier, FenetreFeu, FenetreForge, FenetreQui } from "./monde/MondeFenetres";
 import { MondeCarte, MondeCredit, MondeDock, MondeFenetre, MondeTete, RepereDuMoi, comptesDesLieux } from "./monde/MondeInterface";
 import { MondeScene } from "./monde/MondeScene";
@@ -27,6 +30,9 @@ import { MondeScene } from "./monde/MondeScene";
 const RELECTURE_MS = 5 * 60_000;
 
 const PERSONNE: Record<Lieu, Habitant[]> = { place: [], taverne: [], reunion: [], bataille: [], maisons: [] };
+
+/** Ce qui peut être ouvert sur le monde : une fenêtre de la rangée d'icônes, ou le dedans d'un bâtiment. */
+type Ouverte = FenetreDuMonde | FenetreDInterieur;
 
 /**
  * L'heure qu'il est, relue toutes les trente secondes tant que la page est visible, et dès qu'elle le redevient : la
@@ -107,7 +113,8 @@ function useVillage(actif: boolean): Lecture {
  *
  * Un visiteur voit le monde, le chantier, le feu, et la porte du vestiaire. Un membre voit en plus les Gaulois des
  * membres (le serveur ne les donne qu'aux comptes validés), « Qui est où » et le marché. Les anciennes adresses restent :
- * `#gaulois` ouvre « Mon Gaulois », `#marche` « Le marché », `#place` le monde seul.
+ * `#gaulois` ouvre « Mon Gaulois », `#marche` « Le marché », `#place` le monde seul. Un bâtiment du chantier fini qui a son
+ * dedans s'ouvre d'un clic sur lui, ou par `#interieur-moulin` (`FenetreInterieur.tsx`), une fenêtre comme les autres.
  */
 function Monde({ etat, me, lien, rafraichir, ferme }: { etat: EtatDuMonde; me: Me | null; lien: boolean; rafraichir?: () => Promise<void>; ferme?: ComponentChildren }) {
   const camera = useMemo(() => new CameraDuMonde(), []);
@@ -135,26 +142,47 @@ function Monde({ etat, me, lien, rafraichir, ferme }: { etat: EtatDuMonde; me: M
     camera.cadrer = cadrageDuMonde(plan);
   }, [camera, plan]);
 
+  // Les bâtiments finis qui ont leur dedans dessiné : on y entre (`ecran-interieur.ts`), par `#interieur-moulin` aussi.
+  const ouverts = useMemo(() => interieursOuverts(etat), [etat]);
+  const fenetreDeLAdresse = (ancre: string): Ouverte | null => {
+    const interieur = interieurDeLAncre(ancre, ouverts);
+    return interieur ? fenetreDeLInterieur(interieur) : fenetreDeLAncre(ancre);
+  };
+
   // La fenêtre ouverte suit l'adresse ; un compte qui doit encore donner son lien OpenFront le donne d'abord.
-  const [ouverte, setOuverte] = useState<FenetreDuMonde | null>(() => fenetreDeLAncre(location.hash));
-  const [vues, setVues] = useState<ReadonlySet<FenetreDuMonde>>(() => new Set(ouverte ? [ouverte] : []));
+  const [ouverte, setOuverte] = useState<Ouverte | null>(() => fenetreDeLAdresse(location.hash));
+  const [vues, setVues] = useState<ReadonlySet<Ouverte>>(() => new Set(ouverte ? [ouverte] : []));
   // La fenêtre ouverte, sue tout de suite (avant que l'écran ne se redessine) : Échap pressée juste après une ouverture la
   // referme, et deux clics rapides sur une icône ne s'emmêlent pas.
   const ouverteMaintenant = useRef(ouverte);
-  const montrer = (id: FenetreDuMonde | null, adresse = true) => {
+  const montrer = (id: Ouverte | null, adresse = true) => {
     ouverteMaintenant.current = id;
     setOuverte(id);
     if (id) setVues((avant) => (avant.has(id) ? avant : new Set([...avant, id])));
     if (adresse) history.replaceState(history.state, "", id ? `#${id}` : location.pathname + location.search);
   };
   const choisir = (id: FenetreDuMonde) => montrer(ouverteMaintenant.current === id ? null : id);
+  // Ce qui a fait entrer dans un bâtiment (sa zone dans le monde, ou « Entrer » dans le chantier) : le focus y revient.
+  const entreeDuDedans = useRef<HTMLElement | null>(null);
+  const entrer = (id: InterieurId, depuis: HTMLElement | null) => {
+    entreeDuDedans.current = depuis;
+    montrer(fenetreDeLInterieur(id));
+  };
   const fermer = () => {
     const quittee = ouverteMaintenant.current;
     montrer(null);
-    if (quittee) document.getElementById(`monde-entree-${quittee}`)?.focus();
+    const interieur = interieurDeLaFenetre(quittee);
+    if (interieur) {
+      // On ressort devant le bâtiment : le focus revient à ce qui y a fait entrer s'il se voit encore, sinon au bâtiment
+      // lui-même (la caméra vient à lui). Ni l'un ni l'autre ne fait défiler la scène.
+      const depuis = entreeDuDedans.current;
+      entreeDuDedans.current = null;
+      const cible = depuis?.isConnected && depuis.getClientRects().length > 0 ? depuis : document.querySelector<HTMLElement>(`.monde-zone[data-interieur="${interieur}"]`);
+      cible?.focus({ preventScroll: true });
+    } else if (quittee) document.getElementById(`monde-entree-${quittee}`)?.focus();
   };
   useEffect(() => {
-    const ancre = () => montrer(fenetreDeLAncre(location.hash), false);
+    const ancre = () => montrer(fenetreDeLAdresse(location.hash), false);
     window.addEventListener("hashchange", ancre);
     return () => window.removeEventListener("hashchange", ancre);
   }, []);
@@ -212,9 +240,12 @@ function Monde({ etat, me, lien, rafraichir, ferme }: { etat: EtatDuMonde; me: M
   };
 
   const messageDuVillage = lecture.kind === "fermee" || lecture.kind === "erreur" ? lecture.message : null;
+  // Le dedans ouvert, et le Gaulois du visiteur qui s'y tient : le sien seulement, que le serveur marque (`moi`).
+  const dedans = interieurDe(interieurDeLaFenetre(ouverte) ?? "");
+  const tenueDuSien = village?.gaulois.find((g) => g.moi)?.tenue ?? null;
   return (
     <div class="monde" data-fenetre={ouverte ?? undefined} data-testid="village">
-      <MondeScene plan={plan} etat={etat} lumiere={lumiere} date={date} lieux={lieux} camera={camera} horloge={horloge} fige={fige} parole={toucher.parole} onToucher={toucher.toucher} ouvrir={(id) => montrer(id)} membre={membre} moiA={(point) => moi.poser(point)}>
+      <MondeScene plan={plan} etat={etat} lumiere={lumiere} date={date} lieux={lieux} camera={camera} horloge={horloge} fige={fige} parole={toucher.parole} onToucher={toucher.toucher} ouvrir={(id) => montrer(id)} entrer={entrer} membre={membre} moiA={(point) => moi.poser(point)}>
         <MondeTete />
         <MondeCarte plan={plan} camera={camera} comptes={membre ? comptesDesLieux(lieux) : null} />
         <MondeCredit />
@@ -244,6 +275,7 @@ function Monde({ etat, me, lien, rafraichir, ferme }: { etat: EtatDuMonde; me: M
           <FenetreChantier
             etat={etat}
             voir={(id) => voirLEmplacement(emplacementDuBatiment(plan, id as BatimentId))}
+            entrer={entrer}
           />
         </MondeFenetre>
         <MondeFenetre id="feu" ouverte={ouverte === "feu"} onFermer={fermer}>
@@ -254,6 +286,7 @@ function Monde({ etat, me, lien, rafraichir, ferme }: { etat: EtatDuMonde; me: M
             voir={() => voirLEmplacement(emplacementsDe(plan, "forge")[0]!)}
           />
         </MondeFenetre>
+        {dedans && <FenetreInterieur key={dedans.id} dessin={dedans} lumiere={lumiere} horloge={horloge} fige={fige} tenue={tenueDuSien} onFermer={fermer} />}
       </MondeScene>
       <MondeDock ouverte={ouverte} onChoisir={choisir} membre={connecte} />
       <AnnonceDuToucher dit={toucher.dit} />
