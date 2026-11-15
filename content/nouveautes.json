@@ -9,7 +9,7 @@
     "date": "2026-11-15",
     "kind": "nouveau",
     "title": "Entrer dans les bâtiments du village",
-    "body": "Au village, un bâtiment fini s'ouvre : un clic dessus montre son dedans, dessiné en pixels, avec votre Gaulois debout dedans. Sept bâtiments ont un dedans ; chacun s'ouvrira quand les points rapportés au clan l'auront fini.",
+    "body": "Au village, un clic sur un bâtiment fini montre son dedans en pixels, avec votre Gaulois debout dedans. Sept bâtiments en ont un : chacun s'ouvre quand les points rapportés au clan l'ont fini.",
     "link": {
       "href": "/village#interieur-four",
       "label": "Entrer dans le fournil"
