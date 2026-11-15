@@ -255,17 +255,30 @@ describe("l'écriture de l'almanach, avec un faux client", () => {
     expect(e.ecrits).toEqual([]);
   });
 
-  it("à l'essai, envoie une seule requête sans lot, montre les moments et leurs refus, et n'écrit rien", async () => {
+  it("à l'essai, envoie une seule requête sans lot, montre les moments et leurs refus, et n'écrit que essai.json", async () => {
     const d = depot();
     const client = fauxClient();
     expect(await ecrireLAlmanach(d.deps(client, { essai: true }))).toBe(0);
     expect(client.demandes).toBe(1);
     expect(client.lots).toEqual([]);
-    expect(d.ecrits).toEqual([]);
+    expect(d.ecrits).toEqual([CHEMINS.essai]);
     const texte = d.journal.join("\n");
     expect(texte).toContain("moment 1 : valide");
     expect(texte).toContain("moment 2 : refusé, durée hors des bornes");
     expect(texte).toMatch(/2 moments lus, 1 valides/);
+    const rendu = JSON.parse(d.disque.get(CHEMINS.essai)!) as { lus: number; valides: unknown[]; modele: string; cout_dollars: number };
+    expect(rendu).toMatchObject({ lus: 2, modele: "claude-fable-5-2" });
+    expect(rendu.valides).toHaveLength(1);
+    expect(rendu.cout_dollars).toBeGreaterThan(0);
+  });
+
+  it("fait l'essai quand config/almanach.json le demande, sans option du script", async () => {
+    const d = depot({ moments: 20, plafond_dollars: 60, essai: true } as { moments: number; plafond_dollars: number });
+    const client = fauxClient();
+    expect(await ecrireLAlmanach(d.deps(client))).toBe(0);
+    expect(client.demandes).toBe(1);
+    expect(client.lots).toEqual([]);
+    expect(d.ecrits).toEqual([CHEMINS.essai]);
   });
 });
 

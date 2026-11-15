@@ -19,8 +19,9 @@
  *   demandé, gardé, refusé par raison, jetons, coût en dollars). Le journal est public : il ne dit que des nombres, des
  *   identifiants et des raisons. Un lot en route y est noté : une Action coupée reprend le même lot au passage suivant, sans
  *   rien renvoyer ni repayer.
- * - **L'essai** (`--essai`) : une seule requête, sans lot, au prix normal, qui affiche les moments et leurs refus sans rien
- *   écrire.
+ * - **L'essai** (`--essai`, ou `"essai": true` dans `config/almanach.json` pour l'Action) : une seule requête, sans lot, au
+ *   prix normal, qui affiche les moments et leurs refus et ne les écrit que dans `essai.json`, pour les regarder avant de
+ *   payer le lot. Son coût est hors du plafond du lot (une requête : 1,67 $ au pire).
  */
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
@@ -69,10 +70,15 @@ export const CHEMINS = {
   config: "config/almanach.json",
   moments: "src/lib/village/monde/almanach/moments.json",
   ecriture: "src/lib/village/monde/almanach/ecriture.json",
+  /** Ce que rend l'essai : les moments valides et les raisons des refus, pour les regarder avant le lot. Jamais lu par le site. */
+  essai: "src/lib/village/monde/almanach/essai.json",
 } as const;
 
-/** Ce que règle le pilote : le nombre de moments voulus et le plafond de dépense, en dollars. */
-export const CONFIG = z.object({ moments: z.number().int().min(1).max(2000), plafond_dollars: z.number().positive().max(1000) });
+/**
+ * Ce que règle le pilote : le nombre de moments voulus et le plafond de dépense, en dollars. `essai` à vrai fait de la
+ * prochaine Action un essai d'une seule requête (l'Action ne passe pas d'option au script : c'est ce fichier qu'on pousse).
+ */
+export const CONFIG = z.object({ moments: z.number().int().min(1).max(2000), plafond_dollars: z.number().positive().max(1000), essai: z.boolean().optional() });
 export type ConfigDeLAlmanach = z.infer<typeof CONFIG>;
 
 /* ---------- Le catalogue ---------- */
@@ -611,7 +617,7 @@ export async function ecrireLAlmanach(deps: DepsDeLEcriture): Promise<Sortie> {
   const format = formatDeLaReponse(catalogue);
   log(`Catalogue : ${catalogue.figurants.length} figurants, ${catalogue.ancres.length} lieux. Moments gardés : ${moments.length} sur ${reglage.moments}. Dépensé : ${dollars(ecriture.cout_dollars)} sur ${dollars(reglage.plafond_dollars)}.`);
 
-  if (deps.essai) {
+  if (deps.essai || reglage.essai === true) {
     const g = graine(0, catalogue.ancres);
     const corps = corpsDeLaRequete(systeme, format, g, titresAuxLieux(moments, g));
     const pire = pireCout([corps], false);
@@ -620,7 +626,7 @@ export async function ecrireLAlmanach(deps: DepsDeLEcriture): Promise<Sortie> {
       log(`Essai : son pire coût (${dollars(pire)}) dépasse ce qui reste du plafond (${dollars(reste)}) : rien n'est envoyé.`);
       return 1;
     }
-    log(`Essai : une requête, sans lot, au prix normal (pire coût ${dollars(pire)}). Rien ne sera écrit.`);
+    log(`Essai : une requête, sans lot, au prix normal (pire coût ${dollars(pire)}). Seul ${CHEMINS.essai} sera écrit.`);
     let message: Anthropic.Message;
     try {
       message = await client.demander(corps);
@@ -634,6 +640,9 @@ export async function ecrireLAlmanach(deps: DepsDeLEcriture): Promise<Sortie> {
     const lecture = controlerLesMoments(reponse.moments, catalogue, log);
     reponse.moments.forEach((m, i) => log(`moment ${i + 1} : ${JSON.stringify(m)}`));
     log(`Essai : ${lecture.lus} moments lus, ${lecture.valides.length} valides ; refus : ${JSON.stringify(lecture.refus)}. Jetons : ${cout.jetons.entree} en entrée, ${cout.jetons.sortie} en sortie ; coût ${dollars(cout.dollars)}.`);
+    // Les moments de l'essai, pour les regarder dans le vrai monde avant de payer le lot. Ni moments.json ni ecriture.json.
+    const rendu = { date: deps.maintenant().toISOString(), modele: MODELE, effort: EFFORT, raison: reponse.raison, lus: lecture.lus, refus: lecture.refus, jetons: cout.jetons, cout_dollars: cout.dollars, valides: lecture.valides };
+    deps.ecrire(CHEMINS.essai, `${JSON.stringify(rendu, null, 2)}\n`);
     return 0;
   }
 

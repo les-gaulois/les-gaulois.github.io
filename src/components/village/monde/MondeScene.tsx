@@ -462,7 +462,7 @@ export function MondeScene({
               <MondeTerrasses plan={plan} lumiere={lumiere} mesure={mesure} camera={camera} />
               <MondeDecor plan={plan} etat={etat} lumiere={lumiere} mesure={mesure} camera={camera} horloge={horloge} fige={fige} />
               <MondeBetes plan={plan} lumiere={lumiere} mesure={mesure} camera={camera} horloge={horloge} fige={fige} />
-              <MondeEvenements plan={plan} lumiere={lumiere} mesure={mesure} horloge={horloge} fige={fige} />
+              <MondeEvenements plan={plan} lumiere={lumiere} mesure={mesure} horloge={horloge} fige={fige} etat={etat} />
               <MondeHabitants plan={plan} lieux={lieux} lumiere={lumiere} mesure={mesure} camera={camera} horloge={horloge} fige={fige} parole={parole} onToucher={onToucher} aGlisse={aGlisse} moiA={moiA} margeGauche={large ? RANGEE_D_ICONES : 0} />
             </div>
             {zones.map((zone) => (
