@@ -1,8 +1,10 @@
-import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
-import { GAULOIS_HAUTEUR, GAULOIS_LARGEUR, casesDuGaulois, decrireGaulois, type Objet, type Tenue, type Vignette } from "../../lib/gaulois";
+import { useEffect, useLayoutEffect, useMemo, useRef } from "preact/hooks";
+import type { Objet, Tenue, Vignette } from "../../lib/gaulois";
 import { tabKeyTarget } from "../../lib/onglets";
 import { exemplaires } from "../../lib/village/ecran-boutique";
+import { decrireLApercu, tailleDeLApercu } from "../../lib/village/ecran-familiers";
 import { motsDeLaPlaque } from "../../lib/village/ecran-forge";
+import { apercuAvecFamilier, type Familier } from "../../lib/village/familiers";
 import { echelleEntiere } from "../../lib/village/vestiaire-rayons";
 import { MarqueDeRarete, PetitePlaque, Pixels, Prix, peindre } from "./BoutiquePixels";
 
@@ -12,11 +14,31 @@ import { MarqueDeRarete, PetitePlaque, Pixels, Prix, peindre } from "./BoutiqueP
  * boutique a pris sa propre page : rien n'y a changé d'apparence.
  */
 
-/** Le Gaulois dessiné case par case, agrandi sans flou par la feuille de style. Son texte de remplacement le décrit. */
-export function ApercuGaulois({ tenue, class: classe = "" }: { tenue: Tenue; class?: string }) {
+/**
+ * Le Gaulois dessiné case par case, agrandi sans flou par la feuille de style. Son texte de remplacement le décrit. Avec le
+ * familier qu'il montre (15 novembre 2026), une seule grille : le Gaulois à gauche, le familier à droite, les pieds sur la
+ * même rangée. La grille s'élargit : la feuille de style lit sa largeur en cases (`--cases`) et sa taille
+ * (`data-familier`, « petit » ou « large »), et réduit la case d'un nombre entier de pixels quand il le faut. La scène qui
+ * porte l'aperçu reçoit la même taille (`tailleDeLApercu`), pour se ranger autrement sur téléphone.
+ */
+export function ApercuGaulois({ tenue, familier = null, class: classe = "" }: { tenue: Tenue; familier?: Familier | null; class?: string }) {
   const toile = useRef<HTMLCanvasElement>(null);
-  useEffect(() => peindre(toile.current, GAULOIS_LARGEUR, GAULOIS_HAUTEUR, casesDuGaulois(tenue)), [tenue]);
-  return <canvas ref={toile} width={GAULOIS_LARGEUR} height={GAULOIS_HAUTEUR} class={`gaulois-apercu ${classe}`} role="img" aria-label={decrireGaulois(tenue)} data-testid="gaulois-apercu" />;
+  const grille = useMemo(() => apercuAvecFamilier(tenue, familier), [tenue, familier]);
+  useEffect(() => peindre(toile.current, grille.largeur, grille.hauteur, grille.cases), [grille]);
+  const taille = tailleDeLApercu(familier);
+  return (
+    <canvas
+      ref={toile}
+      width={grille.largeur}
+      height={grille.hauteur}
+      class={`gaulois-apercu ${classe}`}
+      style={taille ? `--cases:${grille.largeur}` : undefined}
+      data-familier={taille ?? undefined}
+      role="img"
+      aria-label={decrireLApercu(tenue, familier)}
+      data-testid="gaulois-apercu"
+    />
+  );
 }
 
 /**

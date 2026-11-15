@@ -39,7 +39,7 @@ import { newsCard } from "../src/lib/nouveautes-image";
 import { milestoneCard } from "../src/lib/paliers-franchis-image";
 import { recordCard } from "../src/lib/records-image";
 import { readThumbnail, renderVictoryCard, victoryCard, type Thumbnail } from "../src/lib/victoires-image";
-import { NATURES, type AnnonceDesAchats, type EmplacementDObjet } from "../src/lib/achats-discord";
+import { NATURES, vignetteDeLAchat, type AnnonceDesAchats, type EmplacementDObjet } from "../src/lib/achats-discord";
 import { achatsCard, renderAchatsCard } from "../src/lib/achats-image";
 import { EMPLACEMENTS_OBJETS, OBJETS, ORDRE_RARETES, vignetteDeLObjet } from "../src/lib/gaulois";
 
@@ -345,7 +345,7 @@ const achatsExemples: [string, AnnonceDesAchats][] = [
 ];
 for (const [file, annonce] of achatsExemples) {
   try {
-    const card = achatsCard(annonce, annonce.achats.map((a) => vignetteDeLObjet(a.emplacement, a.objet)), SITE, measure, (char) => fonts.draws(char, "strong"));
+    const card = achatsCard(annonce, annonce.achats.map((a) => vignetteDeLAchat(a)), SITE, measure, (char) => fonts.draws(char, "strong"));
     writeFileSync(join(OUT, file), await renderAchatsCard(card, fonts, root));
     console.log(`${file} : ${card.width} × ${card.height}, ${annonce.achats.map((a) => a.objet).join(", ")} à ${card.dessins.map((d) => d.echelle).join(", ")} pixels par case`);
   } catch (e) {

@@ -25,6 +25,7 @@
  */
 import { ecrirePng, type Image } from "./billets.ts";
 import { decorDe } from "./decors/index.ts";
+import type { FamilierAPoser } from "./familiers/familier.ts";
 import { GARDE_ROBE } from "./garde-robe/index.ts";
 import { peindreLesRectangles, type Rectangle } from "./insignes.ts";
 import { LOGO_DU_CLAN } from "./logo-du-clan.ts";
@@ -2362,7 +2363,54 @@ export function casesDuDecor(): readonly string[] {
 
 const rgb = (hex: string): [number, number, number] => [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
 
-export function imageDuGaulois(tenue: Tenue): Image {
+/**
+ * L'écart, en cases, entre le bord droit de la grille du Gaulois et le cadre de son familier (`familiers/familier.ts`) : écrit
+ * ici pour que ce fichier n'importe des familiers que leur type.
+ */
+export const ECART_DU_FAMILIER = 1;
+
+/**
+ * Où poser le Gaulois et son familier dans l'image (en cases du décor) : le Gaulois et son familier côte à côte, centrés
+ * ensemble ; sans familier, le Gaulois seul au milieu, comme avant le 15 novembre 2026. Avec un grand familier, le groupe
+ * ne va pas plus à gauche que GAULOIS_OX_MIN, tant qu'il tient dans l'image : la tête du Gaulois ne cache pas les insignes
+ * posés à droite du logo (`insignes.ts`). `oy` : la rangée 0 du Gaulois, ses semelles (rangée 62) sur la rangée PIEDS du
+ * décor. Le familier garde la hauteur de sa grille : sa rangée 63, celle de ses pattes, se pose une rangée sous les
+ * semelles, sur l'ombre.
+ */
+export function placeDuGroupe(familier: FamilierAPoser | null): { ox: number; oy: number; fx: number } {
+  const largeur = GAULOIS_LARGEUR + (familier ? ECART_DU_FAMILIER + familier.largeur : 0);
+  const centre = Math.floor((DECOR_LARGEUR - largeur) / 2);
+  const ox = familier ? Math.max(0, Math.min(Math.max(centre, GAULOIS_OX_MIN), DECOR_LARGEUR - largeur)) : centre;
+  return { ox, oy: PIEDS - 62, fx: ox + GAULOIS_LARGEUR + ECART_DU_FAMILIER };
+}
+
+/** La case la plus à gauche où poser la grille du Gaulois à côté d'un familier : sa tête reste à droite des insignes. */
+const GAULOIS_OX_MIN = 16;
+
+/** Une ombre au sol, en ellipse, centrée en `cx` (en cases), de demi-largeur `rayon`. */
+function ombreAuSol(cx: number, rayon: number, poser: (x: number, y: number) => void): void {
+  for (let y = PIEDS - 3; y <= PIEDS + 3; y++) {
+    for (let x = 0; x < DECOR_LARGEUR; x++) {
+      if (((x + 0.5 - cx) / rayon) ** 2 + ((y + 0.5 - PIEDS - 0.5) / 2.9) ** 2 <= 1) poser(x, y);
+    }
+  }
+}
+
+/** Le Gaulois, son familier s'il en a un, et leurs ombres, posés case par case. */
+function poserLeGroupe(tenue: Tenue, familier: FamilierAPoser | null, caseA: (x: number, y: number, couleur: string) => void, ombre: string): void {
+  const { ox, oy, fx } = placeDuGroupe(familier);
+  ombreAuSol(ox + GAULOIS_LARGEUR / 2, 19, (x, y) => caseA(x, y, ombre));
+  if (familier?.auSol) ombreAuSol(fx + familier.largeur / 2, Math.max(4, familier.largeur * 0.45), (x, y) => caseA(x, y, ombre));
+  casesDuGaulois(tenue).forEach((couleur, i) => {
+    if (couleur) caseA(ox + (i % GAULOIS_LARGEUR), oy + Math.floor(i / GAULOIS_LARGEUR), couleur);
+  });
+  if (!familier) return;
+  familier.cases.forEach((couleur, i) => {
+    if (couleur) caseA(fx + (i % familier.largeur), oy + familier.haut + Math.floor(i / familier.largeur), couleur);
+  });
+}
+
+export function imageDuGaulois(tenue: Tenue, familier: FamilierAPoser | null = null): Image {
   const { largeur, hauteur, echelle } = IMAGE_GAULOIS;
   const rgba = new Uint8Array(new ArrayBuffer(largeur * hauteur * 4));
   const peindre = (x: number, y: number, [r, g, b]: [number, number, number]) => {
@@ -2383,18 +2431,8 @@ export function imageDuGaulois(tenue: Tenue): Image {
   DRAPEAU.forEach((couleur, i) => {
     for (let x = 0; x < 5; x++) caseA(6 + i * 6 + x, 5, couleur);
   });
-  // Le Gaulois, au milieu, les pieds sur le sol : la rangée 62 de sa grille est celle de ses semelles.
-  const ox = (DECOR_LARGEUR - GAULOIS_LARGEUR) / 2;
-  const oy = PIEDS - 62;
-  // Son ombre au sol, une ellipse sous les pieds.
-  for (let y = PIEDS - 3; y <= PIEDS + 3; y++) {
-    for (let x = 0; x < DECOR_LARGEUR; x++) {
-      if (((x + 0.5 - DECOR_LARGEUR / 2) / 19) ** 2 + ((y + 0.5 - PIEDS - 0.5) / 2.9) ** 2 <= 1) caseA(x, y, NUIT.ombre);
-    }
-  }
-  casesDuGaulois(tenue).forEach((couleur, i) => {
-    if (couleur) caseA(ox + (i % GAULOIS_LARGEUR), oy + Math.floor(i / GAULOIS_LARGEUR), couleur);
-  });
+  // Le Gaulois (et son familier), les pieds sur le sol, sur son ombre : une ellipse sous les pieds.
+  poserLeGroupe(tenue, familier, caseA, NUIT.ombre);
   return { largeur, hauteur, rgba };
 }
 
@@ -2410,9 +2448,10 @@ export const PLACE_DU_LOGO = { x: 8, y: 8, cote: LOGO_DU_CLAN.cote } as const;
  * Gaulois au milieu, devant le décor de son lieu à ce moment de la journée (`decors/`), le logo du clan en haut à gauche.
  * Mêmes dimensions que `imageDuGaulois`. `insignes` : l'emblème de niveau et la flamme de série d'un membre au pseudo public
  * (`insignes.ts`, 15 novembre 2026), peints après le décor, avant l'ombre et le Gaulois, qui passent devant. Sans insigne,
- * l'image d'avant au pixel près.
+ * l'image d'avant au pixel près. Avec un familier (15 novembre 2026), le Gaulois et lui côte à côte, centrés ensemble
+ * (`placeDuGroupe`).
  */
-export function imageDeLaScene(tenue: Tenue, scene: Scene, insignes: readonly Rectangle[] = []): Image {
+export function imageDeLaScene(tenue: Tenue, scene: Scene, insignes: readonly Rectangle[] = [], familier: FamilierAPoser | null = null): Image {
   const { largeur, hauteur, echelle } = IMAGE_GAULOIS;
   const rgba = new Uint8Array(new ArrayBuffer(largeur * hauteur * 4));
   const caseA = (cx: number, cy: number, couleur: string) => {
@@ -2432,19 +2471,10 @@ export function imageDeLaScene(tenue: Tenue, scene: Scene, insignes: readonly Re
   };
   const decor = decorDe(scene.lieu, scene.moment);
   decor.cases.forEach((couleur, i) => caseA(i % DECOR_LARGEUR, Math.floor(i / DECOR_LARGEUR), couleur));
-  // Les insignes, à droite du logo : le Gaulois et son ombre passent devant.
+  // Les insignes, à droite du logo : le Gaulois, son familier et leurs ombres passent devant.
   if (insignes.length > 0) peindreLesRectangles({ largeur, hauteur, rgba }, insignes);
-  // Le Gaulois, au milieu, les pieds sur le sol, sur son ombre, comme dans `imageDuGaulois`.
-  const ox = (DECOR_LARGEUR - GAULOIS_LARGEUR) / 2;
-  const oy = PIEDS - 62;
-  for (let y = PIEDS - 3; y <= PIEDS + 3; y++) {
-    for (let x = 0; x < DECOR_LARGEUR; x++) {
-      if (((x + 0.5 - DECOR_LARGEUR / 2) / 19) ** 2 + ((y + 0.5 - PIEDS - 0.5) / 2.9) ** 2 <= 1) caseA(x, y, decor.ombre);
-    }
-  }
-  casesDuGaulois(tenue).forEach((couleur, i) => {
-    if (couleur) caseA(ox + (i % GAULOIS_LARGEUR), oy + Math.floor(i / GAULOIS_LARGEUR), couleur);
-  });
+  // Le Gaulois (et son familier), les pieds sur le sol, sur leurs ombres, comme dans `imageDuGaulois`.
+  poserLeGroupe(tenue, familier, caseA, decor.ombre);
   // Le logo, posé par-dessus en tenant compte de sa transparence.
   const pixels = pixelsDuLogo();
   const { x: lx, y: ly, cote } = PLACE_DU_LOGO;
@@ -2460,10 +2490,13 @@ export function imageDeLaScene(tenue: Tenue, scene: Scene, insignes: readonly Re
   return { largeur, hauteur, rgba };
 }
 
-/** L'image de /gaulois, en PNG : devant le décor de sa scène si elle est donnée, sinon devant le décor d'avant. */
-export const pngDuGaulois = (tenue: Tenue, scene?: Scene, insignes: readonly Rectangle[] = []): Promise<Uint8Array<ArrayBuffer>> =>
-  ecrirePng(scene ? imageDeLaScene(tenue, scene, insignes) : imageDuGaulois(tenue));
+/**
+ * L'image de /gaulois, en PNG : devant le décor de sa scène si elle est donnée, sinon devant le décor d'avant ; avec ses
+ * insignes, et son familier à côté de lui s'il en montre un.
+ */
+export const pngDuGaulois = (tenue: Tenue, scene?: Scene, insignes: readonly Rectangle[] = [], familier: FamilierAPoser | null = null): Promise<Uint8Array<ArrayBuffer>> =>
+  ecrirePng(scene ? imageDeLaScene(tenue, scene, insignes, familier) : imageDuGaulois(tenue, familier));
 
-/** Le Gaulois en mots, avec sa scène : « … Il est à la taverne, au crépuscule. » */
-export const decrireLaScene = (tenue: Tenue, scene: Scene): string =>
-  `${decrireGaulois(tenue)} Il est ${LIEUX_EN_MOTS[scene.lieu]}, ${PHASES_EN_MOTS[scene.moment.phase]}.`;
+/** Le Gaulois en mots, avec sa scène : « … Il est à la taverne, au crépuscule. » ; et son familier s'il est nommé. */
+export const decrireLaScene = (tenue: Tenue, scene: Scene, nomDuFamilier?: string | null): string =>
+  `${decrireGaulois(tenue)} Il est ${LIEUX_EN_MOTS[scene.lieu]}, ${PHASES_EN_MOTS[scene.moment.phase]}.${nomDuFamilier ? ` Son familier${NBSP}: ${nomDuFamilier.toLowerCase()}.` : ""}`;

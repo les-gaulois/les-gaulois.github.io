@@ -17,18 +17,22 @@ import {
   type Essai,
   type RayonBoutique,
 } from "../../lib/village/boutique-rayons";
-import type { MaBoutique, PochetteReponse, RefObjet } from "../../lib/village/contrat";
+import type { MaBoutique, PochetteFamiliersReponse, PochetteReponse, RefObjet } from "../../lib/village/contrat";
 import { avecUnExemplaire, lireAchat, lireBoutique, lirePochette, lireStateres, manque, messageDuRefus, objetPayant, prixDeLObjet, quantitePossedee, raisonBoutiqueFermee } from "../../lib/village/ecran-boutique";
+import { ANCRE_FAMILIERS, demandeLesFamiliers, tailleDeLApercu } from "../../lib/village/ecran-familiers";
 import { finDeLOffre, lireBoutique as lireBoutiqueDuMarche, lireMarche, mesOffres, messageDuMarche, raisonDeLOffre, type MarcheLu, type OffreLisible, type PossedeLisible } from "../../lib/village/ecran-marche";
+import { familierDe } from "../../lib/village/familiers";
 import { TOUT, choisirFiltre, type Filtre, type Filtres } from "../../lib/village/vestiaire-rayons";
 import { Loading, Problem, Success, messageOf, useNow } from "../compte/common";
 import { Bourse } from "./Bourse";
 import { DialogueAchat, DialoguePochette, type Issue } from "./BoutiqueDialogue";
 import { Prix } from "./BoutiquePixels";
 import { ApercuGaulois, BarreDesRayons, Case, useSceneCollee } from "./Cases";
+import { useFamiliers } from "./Familiers";
 import { CaseObjet, Prix as PrixDuMarche } from "./MarcheCase";
 import { DialogueAchat as DialogueOffre, DialogueVente } from "./MarcheDialogues";
 import { Pochette } from "./Pochette";
+import { DialogueFamiliers, PochetteFamiliers } from "./PochetteFamiliers";
 
 /** Le repère de forme d'une rareté, de un à cinq losanges : le même que sur les cases. */
 function Losanges({ rang }: { rang: number }) {
@@ -97,9 +101,11 @@ function MonOffre({ offre, maintenant, occupe, onRetirer }: { offre: OffreLisibl
 type Etat = { kind: "lecture" } | { kind: "erreur"; message: string } | { kind: "pret"; enregistree: Tenue | null };
 /** Le marché des membres : fermé à un compte pas encore validé (la phrase du serveur), en panne, ou lu. */
 type EtatDuMarche = { kind: "lecture" } | { kind: "ferme"; message: string } | { kind: "panne"; message: string } | { kind: "pret"; marche: MarcheLu };
-type Fenetre = { kind: "achat"; emplacement: Emplacement; id: string; prix: number } | { kind: "pochette" } | { kind: "offre"; offre: OffreLisible } | { kind: "vente" } | null;
+type Fenetre = { kind: "achat"; emplacement: Emplacement; id: string; prix: number } | { kind: "pochette" } | { kind: "familiers" } | { kind: "offre"; offre: OffreLisible } | { kind: "vente" } | null;
 /** Le dernier objet reçu (boutique, pochette ou marché) : il se porte d'un clic. */
 type Acquis = RefObjet & { porte: boolean };
+/** Le dernier familier sorti de la pochette des familiers : il se montre d'un clic. */
+type FamilierRecu = { id: string; montre: boolean };
 
 const refusDe = (e: unknown): string => (e instanceof ServerError ? e.code : "network");
 /** Le refus du serveur, dans les mots du marché quand il en a. */
@@ -112,6 +118,10 @@ const SANS_OFFRE: readonly OffreLisible[] = [];
  * d'essayage : il porte la tenue enregistrée, et essaie un objet de la boutique du clan comme l'offre d'un membre. Chaque
  * rayon (tête, haut, bas, pieds, arme) montre ce que vendent les membres, puis ce que vend la boutique, réduits ensemble à
  * une rareté. La pochette surprise, « Vendre un objet » et « Vos offres » sont au-dessus des rayons.
+ *
+ * La pochette des familiers et la ménagerie (15 novembre 2026, `PochetteFamiliers.tsx`) sont entre la bourse et le marché :
+ * un familier ne s'obtient que là. Le familier que le compte montre se tient à côté du Gaulois d'essayage. Leurs fonctions
+ * (`get_mes_familiers`, `ouvrir_pochette_familiers`, `choisir_familier`) sont à part : en panne, le reste de la page marche.
  *
  * Le serveur décide de tout (prix, solde, tirage, achat, vente) par les fonctions qui existaient déjà : `get_mon_gaulois`,
  * `get_ma_boutique`, `get_mes_stateres`, `acheter_objet`, `ouvrir_pochette`, `get_marche`, `mettre_en_vente`,
@@ -137,6 +147,8 @@ export default function Boutique() {
   const [filtres, setFiltres] = useState<Filtres>({});
   const [fenetre, setFenetre] = useState<Fenetre>(null);
   const [acquis, setAcquis] = useState<Acquis | null>(null);
+  const familiers = useFamiliers();
+  const [familierRecu, setFamilierRecu] = useState<FamilierRecu | null>(null);
   const [occupe, setOccupe] = useState(false);
   const [probleme, setProbleme] = useState<string | null>(null);
   const [problemeFenetre, setProblemeFenetre] = useState<string | null>(null);
@@ -184,7 +196,7 @@ export default function Boutique() {
   const lire = async () => {
     setEtat({ kind: "lecture" });
     try {
-      const [reponse, , marche] = await Promise.all([call<unknown>("get_mon_gaulois"), lireLaBoutique(), lireLeMarche(false)]);
+      const [reponse, , marche] = await Promise.all([call<unknown>("get_mon_gaulois"), lireLaBoutique(), lireLeMarche(false), familiers.lire()]);
       const enregistree = tenueDuServeur(reponse);
       setEtat({ kind: "pret", enregistree });
       if (enregistree) setTenue(enregistree);
@@ -214,6 +226,19 @@ export default function Boutique() {
     if (appelDuMarche > 0) document.getElementById(ANCRE_MARCHE)?.scrollIntoView({ behavior: "instant", block: "start" });
   }, [appelDuMarche]);
 
+  // Arrivé par l'adresse de la pochette des familiers (`#familiers`, le lien de « Mon Gaulois ») : la page y descend, une
+  // fois dessinée, et de nouveau si le lien est suivi dans la page.
+  const familiersPrets = etat.kind === "pret" && etat.enregistree !== null && familiers.etat.kind !== "lecture";
+  useEffect(() => {
+    if (!familiersPrets) return;
+    const descendre = () => {
+      if (demandeLesFamiliers(location.hash)) document.getElementById(ANCRE_FAMILIERS)?.scrollIntoView({ behavior: "instant", block: "start" });
+    };
+    descendre();
+    window.addEventListener("hashchange", descendre);
+    return () => window.removeEventListener("hashchange", descendre);
+  }, [familiersPrets]);
+
   // L'offre qu'on essayait est partie (achetée, retirée, finie) : l'essayage s'arrête.
   useEffect(() => {
     setEssai((e) => essaiValide(e, offres));
@@ -224,6 +249,7 @@ export default function Boutique() {
     setReussite(null);
     setProbleme(null);
     setAcquis(null);
+    setFamilierRecu(null);
   };
 
   /** Après un refus, la boutique est relue : le message dit ce qui manque d'après le solde du serveur, pas d'après l'écran. */
@@ -240,6 +266,7 @@ export default function Boutique() {
   const recevoir = (ref: RefObjet, nom: string) => {
     setEssai(null);
     setProbleme(null);
+    setFamilierRecu(null);
     setAcquis({ emplacement: ref.emplacement, objet: ref.objet, porte: tenue[ref.emplacement] === ref.objet });
     setReussite(`« ${nom} » est dans votre inventaire.`);
   };
@@ -273,6 +300,42 @@ export default function Boutique() {
   };
 
   /**
+   * Ouvrir une pochette des familiers : le serveur tire, débite et répond le familier reçu. Le solde de la page suit ;
+   * après un refus, la boutique se relit, pour que le solde affiché soit celui du serveur.
+   */
+  const ouvrirPochetteFamiliers = async (prix: number): Promise<Issue<PochetteFamiliersReponse>> => {
+    const issue = await familiers.ouvrir(prix);
+    if (!issue.ok) {
+      void lireLaBoutique();
+      return issue;
+    }
+    const { solde: reste, familier: recu } = issue.valeur;
+    setBoutique((b) => b && { ...b, solde: reste });
+    setSolde(reste);
+    setProbleme(null);
+    setAcquis(null);
+    setFamilierRecu({ id: recu.familier, montre: false });
+    setReussite(`« ${familierDe(recu.familier)?.nom ?? "Ce familier"} » a rejoint vos familiers.`);
+    return issue;
+  };
+
+  /** Montrer un familier à côté de son Gaulois : le serveur vérifie qu'il est au compte, et répond celui qu'il montre. */
+  const montrerLeFamilier = async (id: string) => {
+    setFenetre(null);
+    setOccupe(true);
+    setProbleme(null);
+    const issue = await familiers.choisir(id);
+    if (issue.ok) {
+      setFamilierRecu((recu) => (recu && recu.id === id ? { ...recu, montre: issue.valeur === id } : recu));
+      setReussite(`« ${familierDe(id)?.nom ?? "Ce familier"} » se tient à côté de votre Gaulois.`);
+    } else {
+      setReussite(null);
+      setProbleme(issue.message);
+    }
+    setOccupe(false);
+  };
+
+  /**
    * Une action du marché (vendre, retirer, acheter une offre) : le serveur répond le marché à jour, et l'inventaire se
    * relit. `dansFenetre` : le refus s'écrit dans la fenêtre ouverte. Rend vrai si le serveur a accepté.
    */
@@ -282,6 +345,7 @@ export default function Boutique() {
     setProblemeFenetre(null);
     setReussite(null);
     setAcquis(null);
+    setFamilierRecu(null);
     try {
       recevoirLeMarche(await call<unknown>(fonction, args));
       setFenetre(null);
@@ -390,8 +454,8 @@ export default function Boutique() {
 
   return (
     <div ref={racine} class="vestiaire boutique-page" data-testid="boutique">
-      <div ref={scene} class="vestiaire-scene">
-        <ApercuGaulois tenue={essai ? changerObjet(tenue, essai.emplacement, essai.objet) : tenue} />
+      <div ref={scene} class="vestiaire-scene" data-familier={tailleDeLApercu(familiers.montre) ?? undefined}>
+        <ApercuGaulois tenue={essai ? changerObjet(tenue, essai.emplacement, essai.objet) : tenue} familier={familiers.montre} />
         <div class="vestiaire-scene-actions">
           <div class="vestiaire-essai" role="status" data-testid="boutique-essai">
             {essai && ficheEnEssai && (
@@ -437,6 +501,18 @@ export default function Boutique() {
                 </a>
               </p>
             )}
+            {familierRecu && (
+              <p class="boutique-avis-suite">
+                {!familierRecu.montre && (
+                  <button type="button" class="chip chip-fort" disabled={occupe} onClick={() => void montrerLeFamilier(familierRecu.id)} data-testid="familiers-montrer-ici">
+                    {occupe ? "Enregistrement…" : "Le montrer"}
+                  </button>
+                )}
+                <a href={village} data-testid="familiers-avis-village">
+                  Voir dans Mon Gaulois
+                </a>
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -452,6 +528,13 @@ export default function Boutique() {
         {panne && (
           <div data-testid="boutique-panne">
             <Problem message={bourse || boutique ? "Une partie de la boutique ne répond pas pour l'instant." : "La bourse et la boutique ne répondent pas pour l'instant."} onRetry={() => void lireLaBoutique()} />
+          </div>
+        )}
+
+        {familiers.mes && <PochetteFamiliers mes={familiers.mes} solde={soldeConnu ?? familiers.mes.solde} onOuvrir={() => setFenetre({ kind: "familiers" })} />}
+        {familiers.etat.kind === "panne" && (
+          <div data-testid="familiers-panne">
+            <Problem message="La pochette des familiers ne répond pas pour l'instant." onRetry={() => void familiers.lire()} />
           </div>
         )}
 
@@ -598,6 +681,17 @@ export default function Boutique() {
           vignetteDe={(tire) => vignetteDeLObjet(tire.emplacement, tire.objet, tenue)}
           dejaPorte={(tire) => tenue[tire.emplacement] === tire.objet}
           onPorter={(tire) => void porter({ emplacement: tire.emplacement, objet: tire.objet })}
+          onFermer={fermerLaFenetre}
+        />
+      )}
+      {fenetre?.kind === "familiers" && familiers.mes && (
+        <DialogueFamiliers
+          prix={familiers.mes.pochette.prix}
+          solde={soldeConnu ?? familiers.mes.solde}
+          village={village}
+          ouvrir={() => ouvrirPochetteFamiliers(familiers.mes?.pochette.prix ?? 0)}
+          dejaMontre={(id) => familiers.mes?.porte === id}
+          onMontrer={(id) => void montrerLeFamilier(id)}
           onFermer={fermerLaFenetre}
         />
       )}

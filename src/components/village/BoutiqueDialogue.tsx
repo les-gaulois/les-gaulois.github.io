@@ -14,7 +14,7 @@ export type Issue<T> = { ok: true; valeur: T } | { ok: false; message: string };
  * à côté, et rend le focus au bouton qui l'a ouverte. Pendant un envoi (`occupe`), elle ne se ferme pas. À chaque étape
  * (`etape`), le focus va au titre : un lecteur d'écran lit ce qui vient de changer.
  */
-function Dialogue({ titre, etape, occupe, onFermer, testid, children }: { titre: string; etape: string; occupe: boolean; onFermer: () => void; testid: string; children: ComponentChildren }) {
+export function Dialogue({ titre, etape, occupe, onFermer, testid, children }: { titre: string; etape: string; occupe: boolean; onFermer: () => void; testid: string; children: ComponentChildren }) {
   const fenetre = useRef<HTMLDialogElement>(null);
   const tete = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
@@ -62,7 +62,7 @@ function CaseMontree({ objet, rarete, vignette, double = false }: { objet: Objet
 }
 
 /** Le compte d'un achat : le prix, la bourse, ce qu'il restera. */
-function Compte({ prix, solde }: { prix: number; solde: number }) {
+export function Compte({ prix, solde }: { prix: number; solde: number }) {
   return (
     <dl class="boutique-compte">
       <div>
@@ -87,7 +87,7 @@ function Compte({ prix, solde }: { prix: number; solde: number }) {
   );
 }
 
-function Refus({ message }: { message: string | null }) {
+export function Refus({ message }: { message: string | null }) {
   return message ? (
     <p class="form-problem" role="alert" data-testid="boutique-refus">
       {message}

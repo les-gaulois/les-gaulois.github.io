@@ -287,3 +287,66 @@ export type RefusForge =
   | "prix_change"
   | "solde_insuffisant"
   | "pas_grave";
+
+/*
+ * Les familiers du Gaulois (demande du pilote, 15 novembre 2026 : « des pets pour les gaulois obtenables uniquement en
+ * pochettes prix min 2000 ») ; migration 20261115000800_familiers_du_gaulois, dessins et liste dans
+ * `supabase/functions/code-discord/familiers/`, lecture et calculs dans `familiers.ts`.
+ *
+ * Un familier ne s'obtient que dans la pochette des familiers : jamais à la boutique ni au marché. La pochette ne donne
+ * jamais un familier déjà possédé : elle tire une rareté parmi celles où le compte a encore un familier à recevoir (une
+ * rareté épuisée est sautée, les autres se partagent ses chances à proportion), puis un de ces familiers, à chances égales.
+ * Le compte montre un familier à la fois, ou aucun, à côté de son Gaulois, sur le site et sur l'image de /gaulois.
+ */
+
+/** Le prix de départ de la pochette des familiers, en statères : le plus bas permis (le serveur refuse moins de 2 000). */
+export const PRIX_POCHETTE_FAMILIERS = 2000;
+
+/** Les chances de départ de la pochette des familiers, en pour cent, par rareté (choix du chef de chantier) : 100 en tout. */
+export const CHANCES_POCHETTE_FAMILIERS: Readonly<Record<Rarete, number>> = {
+  commun: 45,
+  "peu-commun": 28,
+  epique: 15,
+  mystique: 8,
+  legendaire: 4,
+};
+
+/** Un familier possédé, et quand il a été reçu. */
+export interface FamilierPossede {
+  familier: string;
+  acquis_le: string;
+}
+
+/**
+ * `get_mes_familiers()`, pour un compte connecté : son solde, ses familiers (les plus récents d'abord), celui qu'il montre
+ * (`porte`, ou `null`) et la pochette. `peut_ouvrir` : compte validé avec un Gaulois créé.
+ */
+export interface MesFamiliers {
+  ok: true;
+  solde: number;
+  peut_ouvrir: boolean;
+  pochette: { prix: number; chances: Record<Rarete, number> };
+  familiers: FamilierPossede[];
+  porte: string | null;
+}
+
+/** `ouvrir_pochette_familiers(p_prix_vu)` : le familier reçu, sa rareté, et combien il en reste à recevoir. */
+export interface PochetteFamiliersReponse {
+  ok: true;
+  solde: number;
+  familier: { familier: string; rarete: Rarete };
+  reste: number;
+}
+
+/** `choisir_familier(p_familier)` : le familier montré, ou `null` (aucun). */
+export interface ChoixFamilierReponse {
+  ok: true;
+  porte: string | null;
+}
+
+/**
+ * Les refus des familiers, en plus de ceux de tout compte (`not_signed_in`, `suspended`, `rate_limited`) : `not_validated`,
+ * `no_gaulois`, `prix_change`, `tout_possede` (il les a tous : rien n'est débité), `solde_insuffisant` ; pour le choix,
+ * `unknown_familier` et `pas_possede`. Un refus ne débite rien.
+ */
+export type RefusFamiliers = "not_validated" | "no_gaulois" | "prix_change" | "tout_possede" | "solde_insuffisant" | "unknown_familier" | "pas_possede";

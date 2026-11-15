@@ -1392,3 +1392,276 @@
   font-size: 1.25rem;
   color: var(--ecriture);
 }
+
+/* ---------- Les familiers du Gaulois (15 novembre 2026) ---------- */
+/* Les écrans des familiers : l'aperçu du Gaulois avec son familier, la pochette des familiers et la ménagerie sur « La
+   boutique », la révélation du familier reçu, et « Mon familier » dans « Mon Gaulois ». Les cases, les chances, les
+   fenêtres et le fondu de la révélation sont ceux du vestiaire et de la pochette surprise ; ici, seulement ce que les
+   familiers ont de plus. */
+
+/* L'aperçu avec un familier : la grille s'élargit (--cases, donné par l'écran), jusqu'à 113 cases pour un géant. Une case
+   vaut toujours un nombre entier de pixels : 4 comme le Gaulois seul sur un grand écran (3 pour un familier « large », de
+   plus de 30 cases), un de moins sur un écran moyen, pour laisser leur place aux rayons. */
+.gaulois-apercu[data-familier] {
+  --case: 4px;
+  width: calc(var(--cases) * var(--case));
+  height: calc(64 * var(--case));
+}
+.gaulois-apercu[data-familier="large"] {
+  --case: 3px;
+}
+@media (max-width: 1099px) {
+  .gaulois-apercu[data-familier] {
+    --case: 3px;
+  }
+  .gaulois-apercu[data-familier="large"] {
+    --case: 2px;
+  }
+}
+/* Sur téléphone, le Gaulois collé en haut de l'écran passe à 2 pixels par case avec son familier : les deux tiennent à
+   côté des boutons. Avec un familier large, les boutons passent dessous, en ligne. */
+@media (max-width: 767px) and (min-height: 560px) {
+  .vestiaire-scene .gaulois-apercu[data-familier] {
+    --case: 2px;
+    width: calc(var(--cases) * var(--case));
+    height: calc(64 * var(--case));
+  }
+  .vestiaire-scene[data-familier="large"] {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.5rem;
+  }
+  .vestiaire-scene[data-familier="large"] .vestiaire-essai:empty {
+    display: none;
+  }
+}
+
+/* La pochette des familiers : l'objet le plus rare de la boutique, dans un cadre doré comme une case légendaire. Son
+   dessin et son nom, son prix, le nombre de familiers du compte et le bouton ; ses chances à côté sur un grand écran,
+   dessous sinon ; la règle au pied. Un lien vers elle (#familiers) s'arrête sous l'en-tête, et sous le Gaulois collé. */
+.familiers {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+  scroll-margin-top: 5.5rem;
+}
+@media (max-width: 767px) and (min-height: 560px) {
+  .familiers {
+    scroll-margin-top: calc(5.5rem + var(--vestiaire-scene, 13.5rem));
+  }
+}
+.familiers-vitrine {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 1rem 1.25rem;
+  padding: 1.25rem;
+  border: 2px solid transparent;
+  border-radius: 0.75rem;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--rarete-legendaire) 22%, var(--color-navy)), color-mix(in srgb, var(--rarete-epique) 9%, var(--color-navy)) 75%) padding-box,
+    var(--rarete-legendaire-degrade) border-box;
+}
+.familiers-nom {
+  display: grid;
+  gap: 0.5rem;
+  justify-items: start;
+  min-width: 0;
+}
+.familiers-titre {
+  font-size: 1.375rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+.familiers-prix {
+  font-size: 1.5rem;
+}
+.familiers-compte {
+  color: var(--texte-courant);
+}
+.familiers-compte strong {
+  font-size: 1.25rem;
+  color: var(--ecriture);
+}
+.familiers-chances,
+.familiers-regle {
+  grid-column: 1 / -1;
+}
+.familiers-chances {
+  width: 100%;
+}
+.familiers-vitrine .pochette-chances li {
+  border-top-color: var(--hairline);
+}
+/* Une rareté dont le compte a déjà tous les familiers : la pochette la saute. */
+.familiers-complet {
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+.familiers-vitrine .pochette-note {
+  color: var(--texte-courant);
+}
+@media (max-width: 479px) {
+  .familiers-vitrine {
+    padding: 1rem 0.875rem;
+  }
+  /* 32 cases de 3 pixels au lieu de 4 : le nom garde sa place à côté. */
+  .familiers-dessin {
+    width: 96px !important;
+    height: 96px !important;
+  }
+}
+@media (min-width: 1100px) {
+  .familiers-vitrine {
+    grid-template-columns: auto minmax(0, 1fr) minmax(0, 19rem);
+    gap: 1rem 2rem;
+    padding: 1.5rem;
+  }
+  .familiers-chances {
+    grid-column: 3;
+  }
+}
+
+/* La ménagerie : les cent familiers dans un pli, famille par famille. Le filtre par rareté est celui des rayons. */
+.familiers-menagerie > summary,
+.familier-choix > summary {
+  justify-content: flex-start;
+}
+.familiers-menagerie > summary::after,
+.familier-choix > summary::after {
+  margin-left: auto;
+}
+.familiers-menagerie > summary .info-discrete,
+.familier-choix > summary .info-discrete {
+  font-family: var(--font-sans);
+}
+.familiers-menagerie-corps {
+  display: grid;
+  gap: 1.25rem;
+  min-width: 0;
+  margin-top: 0.5rem;
+}
+.familiers-famille {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+.familiers-famille-compte {
+  margin-left: 0.375rem;
+  letter-spacing: 0;
+  color: var(--ecriture);
+}
+/* Une case de la ménagerie ne se clique pas : un familier ne s'achète pas. Celui qu'on n'a pas garde le cadre de sa
+   rareté, écrite dessous ; son dessin est une silhouette, adoucie. */
+.familier-case {
+  cursor: default;
+}
+.familier-case:hover {
+  box-shadow: none;
+}
+.familier-case:not([data-possede]) .familier-dessin {
+  opacity: 0.6;
+}
+.familier-chance {
+  margin-top: 0.125rem;
+  padding: 0.0625rem 0.5rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ecriture) 10%, transparent);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--ecriture);
+}
+
+/* Le familier reçu, dans la fenêtre : en grand (jusqu'à 256 pixels de côté), puis son nom, sa rareté et sa taille. */
+/* Le contenu de la révélation ne s'élargit jamais au-delà de la fenêtre : sur téléphone, le bouton passe sur deux lignes. */
+.familier-recu {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  gap: 1rem;
+  width: 100%;
+  min-width: 0;
+}
+.familier-montrer {
+  white-space: normal;
+  text-wrap: balance;
+}
+.familier-revelation {
+  display: grid;
+  place-items: center;
+  min-height: 9rem;
+  padding: 1rem;
+}
+.familier-revelation-nom {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--ecriture);
+  text-wrap: balance;
+}
+.familier-revelation-traits {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem 1.25rem;
+}
+.familier-rarete {
+  --rarete-texte: var(--color-muted);
+}
+.familier-rarete[data-rarete="commun"] {
+  --rarete-texte: var(--rarete-commun-texte);
+}
+.familier-rarete[data-rarete="peu-commun"] {
+  --rarete-texte: var(--rarete-peu-commun-texte);
+}
+.familier-rarete[data-rarete="epique"] {
+  --rarete-texte: var(--rarete-epique-texte);
+}
+.familier-rarete[data-rarete="mystique"] {
+  --rarete-texte: var(--rarete-mystique-texte);
+}
+.familier-rarete[data-rarete="legendaire"] {
+  --rarete-texte: var(--rarete-legendaire-texte);
+}
+.familier-rarete .case-rarete {
+  font-size: 0.9375rem;
+}
+.familier-taille {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+.familier-revelation-lien,
+.familier-invite a {
+  color: var(--ecriture);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+.familier-revelation-lien {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+}
+
+/* « Mon familier », dans « Mon Gaulois » : un pli au-dessus des rayons, avec « Aucun » puis les familiers qu'on a. Sans
+   familier, une ligne mène à la pochette. */
+.familier-choix .cases {
+  margin-top: 0.5rem;
+}
+.familier-choix .form-problem {
+  margin-top: 0.75rem;
+}
+.familier-choix .case {
+  scroll-margin-block: 6rem 2rem;
+}
+@media (max-width: 767px) and (min-height: 560px) {
+  .familier-choix .case {
+    scroll-margin-top: calc(5.5rem + var(--vestiaire-scene, 13.5rem));
+  }
+}
+.familier-invite {
+  color: var(--color-muted);
+}

@@ -15,6 +15,7 @@ import {
   OBJETS_PAR_IMAGE,
   objetDe,
   objetEnMots,
+  vignetteDeLAchat,
   parseAchatsState,
   sendAchats,
   type AchatDuVillage,
@@ -377,7 +378,7 @@ describe("l'image des achats", () => {
     ["quatre, nom Discord le plus large", annonceDe(PAR_RARETE.slice(0, 4), "Brennos", false, "W".repeat(32))],
   ];
   const draws = (char: string) => fonts.draws(char, "strong");
-  const cards = cas.map(([id, annonce]) => ({ id, annonce, card: achatsCard(annonce, annonce.achats.map((a) => vignetteDeLObjet(a.emplacement, a.objet)), SITE, fonts.width, draws) }));
+  const cards = cas.map(([id, annonce]) => ({ id, annonce, card: achatsCard(annonce, annonce.achats.map((a) => vignetteDeLAchat(a)), SITE, fonts.width, draws) }));
   const bords = (t: CardText) => {
     const width = drawnWidth(t, fonts.width);
     const left = t.anchor === "end" ? t.x - width : t.anchor === "middle" ? t.x - width / 2 : t.x;

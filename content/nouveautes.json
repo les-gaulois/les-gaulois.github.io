@@ -2,6 +2,16 @@
   {
     "date": "2026-11-15",
     "kind": "nouveau",
+    "title": "Les familiers du Gaulois",
+    "body": "100 familiers, de la souris au dragon, à côté de votre Gaulois, sur le site et sur /gaulois. Ils ne sortent que de la pochette des familiers, à 2 000 statères, jamais deux fois le même.",
+    "link": {
+      "href": "/boutique",
+      "label": "Ouvrir la boutique"
+    }
+  },
+  {
+    "date": "2026-11-15",
+    "kind": "nouveau",
     "title": "Votre niveau et votre flamme sur /gaulois",
     "body": "Sur Discord, /gaulois montre à côté de votre Gaulois l'emblème de niveau de votre compte OpenFront (tout le jeu) et votre flamme de série, dorée pour un record, si votre fiche les montre."
   },

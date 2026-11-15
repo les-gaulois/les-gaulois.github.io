@@ -27,11 +27,14 @@ import type { MesStateres } from "../../lib/stateres";
 import { ADRESSE_BOUTIQUE } from "../../lib/village/boutique-rayons";
 import type { MaBoutique, PlaqueVue } from "../../lib/village/contrat";
 import { SOLDE_INCONNU, lireBoutique, lireStateres, motStatere, nombre, quantitePossedee, soldeAffiche } from "../../lib/village/ecran-boutique";
+import { tailleDeLApercu } from "../../lib/village/ecran-familiers";
 import { PLAQUES_CHANGEES } from "../../lib/village/ecran-forge";
+import { familierDe } from "../../lib/village/familiers";
 import { lirePlaques, plaqueDe } from "../../lib/village/forge";
 import { NOMS_RAYONS, RAYONS, RAYON_CORPS, cadreDuVisage, grosPlan, rangerLeRayon, visageNu, type Rayon } from "../../lib/village/vestiaire-rayons";
 import { Piece } from "../village/BoutiquePixels";
 import { ApercuGaulois, BarreDesRayons, Case, noterLeRetour, useSceneCollee } from "../village/Cases";
+import { MonFamilier, useFamiliers } from "../village/Familiers";
 import { CodeLogin, DiscordButton, Loading, Problem, Success, codeLoginShown, messageOf, useMe } from "./common";
 
 /** Le cadre des gros plans du visage, calculé une fois d'après les dessins du catalogue. */
@@ -200,6 +203,12 @@ type Etat = { kind: "lecture" } | { kind: "erreur"; message: string } | { kind: 
  * l'arme. Depuis le 15 novembre 2026, les achats (la boutique de chaque rayon, la pochette surprise, le marché) et la
  * bourse détaillée sont sur la page « La boutique » (`/boutique`, `src/components/village/Boutique.tsx`) :
  * ici, la bourse tient en une ligne, avec le lien.
+ *
+ * Le familier montré à côté du Gaulois (15 novembre 2026) se choisit au-dessus des rayons, parmi ceux qu'on a
+ * (`MonFamilier` de `src/components/village/Familiers.tsx`) : le choix part tout de suite au serveur
+ * (`choisir_familier`), sans passer par l'enregistrement de la tenue, qui ne change pas. Il ne s'annonce pas par
+ * `gal:gaulois-enregistre` : cette annonce porte la tenue enregistrée, que le Gaulois compagnon garde, et le compagnon
+ * n'a pas de familier.
  */
 export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
   const { me, refresh } = useMe();
@@ -217,6 +226,11 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
   // Le Gaulois existait déjà à la dernière lecture : vrai ou faux jusqu'à la suivante, même une fois le Gaulois créé, pour
   // que rien ne change de place sous les yeux de qui vient le créer (ici comme à l'inscription, dans « Mon compte »).
   const [existait, setExistait] = useState(false);
+  // Le familier montré : son choix a son propre envoi, ses propres mots.
+  const familiers = useFamiliers();
+  const [occupeFamilier, setOccupeFamilier] = useState(false);
+  const [problemeFamilier, setProblemeFamilier] = useState<string | null>(null);
+  const [annonceFamilier, setAnnonceFamilier] = useState<string | null>(null);
 
   /** L'inventaire (dans la réponse de la boutique) et l'état de la bourse, relus ensemble : sans eux, le vestiaire reste. */
   const lireLInventaire = async (): Promise<void> => {
@@ -229,7 +243,7 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
   const lire = async () => {
     setEtat({ kind: "lecture" });
     try {
-      const [reponse] = await Promise.all([call<unknown>("get_mon_gaulois"), lireLInventaire()]);
+      const [reponse] = await Promise.all([call<unknown>("get_mon_gaulois"), lireLInventaire(), familiers.lire()]);
       const enregistree = tenueDuServeur(reponse);
       setEtat({ kind: "pret", enregistree });
       setPlaques(lirePlaques((reponse as { gravures?: unknown } | null)?.gravures));
@@ -293,6 +307,16 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
     }
   };
 
+  const choisirLeFamilier = async (id: string | null) => {
+    setOccupeFamilier(true);
+    setProblemeFamilier(null);
+    setAnnonceFamilier(null);
+    const issue = await familiers.choisir(id);
+    if (issue.ok) setAnnonceFamilier(issue.valeur ? `« ${familierDe(issue.valeur)?.nom ?? "Ce familier"} » se tient à côté de votre Gaulois.` : "Votre Gaulois ne montre plus de familier.");
+    else setProblemeFamilier(issue.message);
+    setOccupeFamilier(false);
+  };
+
   const { racine, scene, barre, panneau } = useSceneCollee(rayon, etat.kind);
 
   if (me === null) return <Loading label="Lecture de votre compte…" />;
@@ -325,8 +349,8 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
   const choix: Choix = { tenue, boutique, plaques, onChange: changer };
   return (
     <div ref={racine} class="vestiaire" data-testid="vestiaire">
-      <div ref={scene} class="vestiaire-scene">
-        <ApercuGaulois tenue={tenue} />
+      <div ref={scene} class="vestiaire-scene" data-familier={tailleDeLApercu(familiers.montre) ?? undefined}>
+        <ApercuGaulois tenue={tenue} familier={familiers.montre} />
         <div class="vestiaire-scene-actions">
           <button type="button" class="btn btn-ghost" onClick={() => changer(tenueAuHasard(Math.random))}>
             Au hasard
@@ -343,6 +367,8 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
             <Problem message="Votre inventaire ne répond pas pour l'instant : seuls les objets gratuits se montrent." onRetry={() => void lireLInventaire()} />
           </div>
         )}
+        {/* Le familier ne se montre qu'à côté d'un Gaulois qui existe : rien pendant l'inscription. */}
+        {existait && <MonFamilier etat={familiers.etat} occupe={occupeFamilier} probleme={problemeFamilier} annonce={annonceFamilier} onChoisir={(id) => void choisirLeFamilier(id)} onRelire={() => void familiers.lire()} />}
         <form
           class="vestiaire-choix"
           onSubmit={(e) => {

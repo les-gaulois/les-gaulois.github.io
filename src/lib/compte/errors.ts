@@ -187,6 +187,12 @@ export const ERROR_MESSAGES: Record<string, string> = {
   deja_grave: "Cet objet porte déjà cette plaque.",
   pas_grave: "Cet objet n'a pas de plaque.",
 
+  // Les familiers du Gaulois (contrat : `RefusFamiliers` de src/lib/village/contrat.ts, migration
+  // 20261115000800_familiers_du_gaulois). Les refus qu'ils partagent avec la boutique sont plus haut ; `pas_possede` a ses
+  // propres mots dans `familiers.ts`.
+  tout_possede: "Vous avez déjà tous les familiers : la pochette n'a plus rien à vous donner.",
+  unknown_familier: "Ce familier n'existe pas. Rechargez la page.",
+
   // L'onglet « Village » de la Direction : les prix et les chances (migration 20261113002100_village_direction).
   prix_invalides: "Chaque prix est un nombre entier de statères, de 1 à 1 000 000, et chaque rareté coûte plus que la précédente.",
   prix_pochette_invalide: "Le prix de la pochette est un nombre entier de statères, de 1 à 1 000 000.",

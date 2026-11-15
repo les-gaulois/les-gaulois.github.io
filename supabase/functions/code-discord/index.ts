@@ -61,6 +61,8 @@ import { CONCOURS_COMMAND_NAME, CONCOURS_PREFIX, concoursCommand, concoursImage,
 import { buttonEmoji, ensureEmojis, vignetteUrl, type EmojiIds } from "./emojis.ts";
 import { decrireGaulois, decrireLaScene, lireTenue, pngDuGaulois, type Tenue } from "./gaulois.ts";
 import { insignesDeLaScene } from "./insignes.ts";
+import { familierAPoser } from "./familiers/familier.ts";
+import { familierDe } from "./familiers/index.ts";
 import { sceneDuGaulois, type Scene } from "./scene.ts";
 import { FEU_COMMAND, FEU_FILE, MONDE_PATH, parseMonde, releveEnMots, reponseDuFeu, type MondeLu } from "./feu.ts";
 
@@ -799,13 +801,14 @@ export function ligneSousLImage(fiche: Pick<Fiche, "niveau" | "flamme"> | null):
 }
 
 /**
- * Ce que voit tout le salon après /gaulois : le Gaulois en grand, et un bouton vers « Mon Gaulois » pour l'habiller.
- * `fiche` : celle du membre au pseudo public, avec son niveau et sa flamme (`/fiches.json`), pour les insignes ; `null` :
- * l'image d'avant.
+ * Ce que voit tout le salon après /gaulois : le Gaulois en grand (avec son familier s'il en montre un), et un bouton vers
+ * « Mon Gaulois » pour l'habiller. `fiche` : celle du membre au pseudo public, avec son niveau et sa flamme
+ * (`/fiches.json`), pour les insignes ; `null` : l'image d'avant. `familier` : le nom du familier montré, pour le texte de
+ * remplacement.
  */
-export function gauloisMessage(tenue: Tenue, scene?: Scene, fiche: Pick<Fiche, "niveau" | "flamme"> | null = null): Record<string, unknown> {
+export function gauloisMessage(tenue: Tenue, scene?: Scene, fiche: Pick<Fiche, "niveau" | "flamme"> | null = null, familier: string | null = null): Record<string, unknown> {
   const phrases = scene ? phrasesDesInsignes(fiche) : "";
-  const base = scene ? decrireLaScene(tenue, scene) : decrireGaulois(tenue);
+  const base = scene ? decrireLaScene(tenue, scene, familier) : decrireGaulois(tenue);
   // Les phrases des insignes passent toujours : la description de la tenue, plus longue, est coupée avant elles.
   const description = phrases ? `${base.slice(0, 1024 - phrases.length - 1)} ${phrases}` : base.slice(0, 1024);
   return {
@@ -852,7 +855,10 @@ async function gauloisRoute(discordId: string, deps: Deps): Promise<Response> {
   const scene = sceneDuGaulois(found, new Date(deps.nowSeconds() * 1000));
   const fiche = ficheDuMembre(moi, fiches);
   const insignes = insignesDeLaScene({ niveau: fiche?.niveau ?? null, serie: fiche?.flamme ? { victoires: fiche.flamme.victoires, doree: fiche.flamme.doree } : null });
-  return fileReply(gauloisMessage(tenue, scene, fiche), { name: GAULOIS_FILE, type: "image/png", bytes: await pngDuGaulois(tenue, scene, insignes) });
+  // Son familier, s'il en montre un (migration 20261115000800) ; un familier inconnu de ce dessin ne se montre pas.
+  const familier = familierDe(found["familier"]);
+  const pose = familier ? familierAPoser(familier) : null;
+  return fileReply(gauloisMessage(tenue, scene, fiche, pose ? (familier?.nom ?? null) : null), { name: GAULOIS_FILE, type: "image/png", bytes: await pngDuGaulois(tenue, scene, insignes, pose) });
 }
 
 /**

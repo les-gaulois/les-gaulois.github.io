@@ -66,10 +66,10 @@ try {
         renderImage: async (a) => {
           const { GazetteFonts } = await import("../src/lib/gazette-image");
           const { achatsCard, achatsImageAlt, renderAchatsCard } = await import("../src/lib/achats-image");
-          const { vignetteDeLObjet } = await import("../src/lib/gaulois");
+          const { vignetteDeLAchat } = await import("../src/lib/achats-discord");
           const root = process.cwd();
           const fonts = new GazetteFonts(root);
-          const card = achatsCard(a, a.achats.map((achat) => vignetteDeLObjet(achat.emplacement, achat.objet)), clan.links.site, fonts.width, (char) => fonts.draws(char, "strong"));
+          const card = achatsCard(a, a.achats.map((achat) => vignetteDeLAchat(achat)), clan.links.site, fonts.width, (char) => fonts.draws(char, "strong"));
           return { png: await renderAchatsCard(card, fonts, root), alt: achatsImageAlt(a) };
         },
         siteUrl: clan.links.site,

@@ -7,15 +7,16 @@
  * que celle d'un bâtiment fini du village, retirée le 15 novembre 2026. Mise en page de Claude Fable 5.2, à la demande du pilote.
  *
  * Un seul objet : sa vitrine à droite, son nom, sa rareté et son origine à gauche, en chiffres clés. De deux à quatre : une
- * vitrine chacun, côte à côte. L'objet vient de `vignetteDeLObjet` (le dessin du vestiaire, rogné à son contour) : chaque case
+ * vitrine chacun, côte à côte. Depuis le 15 novembre 2026, un familier sorti de la pochette des familiers s'y annonce de même
+ * (« Familier » au lieu d'« Objet »). L'objet vient de `vignetteDeLAchat` (le dessin du vestiaire, ou le familier, rogné à son contour) : chaque case
  * devient un carré d'un nombre entier de pixels, le plus grand qui tienne dans sa vitrine, sans lissage.
  *
  * 1 200 × 660 : 1,82 fois plus large que haut, au-dessus des 1,55 qu'il faut pour que Discord la montre en grand.
  */
 import sharp, { type OverlayOptions } from "sharp";
 import type { Decor } from "./village/decor";
-import { annonceEnMots, dateLongue, heureEnMots, nouveauxObjets, objetDe, ORIGINES, PAYE_EN_STATERES, type AchatDuVillage, type AnnonceDesAchats } from "./achats-discord";
-import { NOMS_EMPLACEMENTS, RARETES, type Rarete, type Vignette } from "./gaulois";
+import { annonceEnMots, choseDe, dateLongue, FAMILIER, heureEnMots, nouveautes, origineDe, PAYE_EN_STATERES, type AchatDuVillage, type AnnonceDesAchats, type ChoseRecue } from "./achats-discord";
+import { RARETES, type Rarete, type Vignette } from "./gaulois";
 import { CARD_COLORS as C, fitted, kpiParts, LOGO, MARGIN, pageFoot, pageHead, renderGazetteCard, type CardRect, type CardText, type GazetteCard, type GazetteFonts, type Measure } from "./gazette-image";
 import { shownAddress } from "./salon-discord";
 
@@ -144,11 +145,12 @@ function ombreDuDessin(dessin: DessinPose, boite: Boite): CardRect {
 /** Le fond de la vitrine, bordé de la couleur de la rareté. */
 const vitrine = (boite: Boite, rarete: Rarete): CardRect => ({ ...boite, radius: 0, color: C.SURFACE, to: C.SURFACE_2, stroke: COULEURS_RARETE[rarete].bord, cut: COUPE });
 
-/** « Légendaire, tête ». */
-const rareteEtPlace = (achat: AchatDuVillage, rarete: Rarete) => `${RARETES[rarete].nom}, ${NOMS_EMPLACEMENTS[achat.emplacement].toLocaleLowerCase("fr")}`;
+/** « Légendaire, tête », « Légendaire, familier ». */
+const rareteEtPlace = (chose: ChoseRecue) => `${RARETES[chose.rarete].nom}, ${chose.place}`;
 
 /** Ce que dit l'origine, sous le chiffre clé d'un objet seul. */
 const DETAIL_ORIGINE = { achat: "au prix de sa rareté", pochette: "un objet tiré au sort", marche_achat: "auprès d'un autre Gaulois" } as const;
+const detailDeLOrigine = (achat: AchatDuVillage): string => (achat.emplacement === FAMILIER ? "un familier tiré au sort" : DETAIL_ORIGINE[achat.nature]);
 
 /**
  * Le titre de l'image : « @ » et le nom Discord, sans ce que la police des noms ne sait pas dessiner (émoji, idéogrammes),
@@ -173,7 +175,7 @@ export function nomSurLImage(annonce: Pick<AnnonceDesAchats, "nom" | "discord">,
 export function achatsCard(annonce: AnnonceDesAchats, vignettes: readonly (Vignette | null)[], siteUrl: string, measure: Measure, draws?: (char: string) => boolean): AchatsCard {
   const { achats } = annonce;
   const n = achats.length;
-  const kicker = n === 1 ? "Nouvel objet pour son Gaulois" : `${nouveauxObjets(n)} pour son Gaulois`;
+  const kicker = n === 1 ? (achats[0]?.emplacement === FAMILIER ? "Nouveau familier pour son Gaulois" : "Nouvel objet pour son Gaulois") : `${nouveautes(achats)} pour son Gaulois`;
   // Un nom Discord peut compter 32 lettres larges : le titre descend jusqu'à 22 pixels plutôt que d'être coupé.
   const head = pageHead({ path: "/village", title: nomSurLImage(annonce, draws), name: true, titleMin: 22, kicker, period: periodeDesAchats(achats) }, measure);
   const rects: CardRect[] = [...head.rects];
@@ -183,7 +185,7 @@ export function achatsCard(annonce: AnnonceDesAchats, vignettes: readonly (Vigne
 
   if (n === 1) {
     const achat = achats[0]!;
-    const objet = objetDe(achat)!;
+    const objet = choseDe(achat)!;
     const boite: Boite = { x: WIDTH - MARGIN - SEULE.width, y: top, width: SEULE.width, height: BOTTOM - top };
     rects.push(vitrine(boite, objet.rarete));
     rects.push(...carresDuRang(boite, objet.rarete, 14));
@@ -195,8 +197,8 @@ export function achatsCard(annonce: AnnonceDesAchats, vignettes: readonly (Vigne
     const width = boite.x - SEULE.gap - MARGIN;
     // Les deux chiffres clés occupent la hauteur de la vitrine : ce qui reste sous eux passe entre les deux, et au-dessus.
     const blocs = (y: number, ecart: number) => {
-      const nom = kpiParts([{ label: "Objet", value: objet.nom, hint: { text: rareteEtPlace(achat, objet.rarete), color: COULEURS_RARETE[objet.rarete].texte, strong: true } }], { x: MARGIN, y, width, valueSize: 64, minValueSize: 32 }, measure);
-      const origine = kpiParts([{ label: "Origine", value: ORIGINES[achat.nature].court, hint: { text: DETAIL_ORIGINE[achat.nature] } }], { x: MARGIN, y: nom.bottom + ecart, width, valueSize: 56, minValueSize: 30 }, measure);
+      const nom = kpiParts([{ label: achat.emplacement === FAMILIER ? "Familier" : "Objet", value: objet.nom, hint: { text: rareteEtPlace(objet), color: COULEURS_RARETE[objet.rarete].texte, strong: true } }], { x: MARGIN, y, width, valueSize: 64, minValueSize: 32 }, measure);
+      const origine = kpiParts([{ label: "Origine", value: origineDe(achat).court, hint: { text: detailDeLOrigine(achat) } }], { x: MARGIN, y: nom.bottom + ecart, width, valueSize: 56, minValueSize: 30 }, measure);
       return { nom, origine };
     };
     const reste = Math.max(0, BOTTOM - blocs(top, 26).origine.bottom);
@@ -207,7 +209,7 @@ export function achatsCard(annonce: AnnonceDesAchats, vignettes: readonly (Vigne
     const width = (WIDTH - 2 * MARGIN - (n - 1) * RANGEE.gap) / n;
     const unJour = memeJour(achats);
     achats.forEach((achat, i) => {
-      const objet = objetDe(achat)!;
+      const objet = choseDe(achat)!;
       const boite: Boite = { x: Math.round(MARGIN + i * (width + RANGEE.gap)), y: top, width: Math.floor(width), height: RANGEE.height };
       rects.push(vitrine(boite, objet.rarete));
       rects.push(...carresDuRang(boite, objet.rarete, 12));
@@ -219,8 +221,8 @@ export function achatsCard(annonce: AnnonceDesAchats, vignettes: readonly (Vigne
       const quand = unJour ? heureEnMots(achat.le) : `${dateLongue(achat.le).replace(/ \d{4}$/, "")} à ${heureEnMots(achat.le)}`;
       const lignes: { text: string; font: CardText["font"]; size: number; min: number; color: string; y: number }[] = [
         { text: objet.nom, font: "strong", size: 28, min: 17, color: C.WHITE, y: boite.y + boite.height + 40 },
-        { text: rareteEtPlace(achat, objet.rarete), font: "strong", size: 22, min: 15, color: COULEURS_RARETE[objet.rarete].texte, y: boite.y + boite.height + 72 },
-        { text: `${ORIGINES[achat.nature].court}, ${quand}`, font: "body", size: 21, min: 15, color: C.MUTED, y: boite.y + boite.height + 102 },
+        { text: rareteEtPlace(objet), font: "strong", size: 22, min: 15, color: COULEURS_RARETE[objet.rarete].texte, y: boite.y + boite.height + 72 },
+        { text: `${origineDe(achat).court}, ${quand}`, font: "body", size: 21, min: 15, color: C.MUTED, y: boite.y + boite.height + 102 },
       ];
       for (const l of lignes) texts.push({ ...fitted(l.text, l.font, l.size, l.min, boite.width, measure), x: boite.x, y: l.y, font: l.font, color: l.color });
     });
