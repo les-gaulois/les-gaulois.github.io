@@ -1,7 +1,7 @@
 import { useCallback, useState } from "preact/hooks";
 import { ServerError, basePath, call } from "../../lib/compte/api";
 import type { Objet, Rarete } from "../../lib/gaulois";
-import { ADRESSE_BOUTIQUE } from "../../lib/village/boutique-rayons";
+import { adresseDansLaBoutique } from "../../lib/village/boutique-rayons";
 import type { MesFamiliers, PochetteFamiliersReponse } from "../../lib/village/contrat";
 import { manque } from "../../lib/village/ecran-boutique";
 import { ANCRE_FAMILIERS, apresLaPochette, echelleDuDessin, familierMontre, familiersPossedes, messageDuRefusDesFamiliers, silhouetteDuFamilier, vignetteDuFamilier } from "../../lib/village/ecran-familiers";
@@ -111,7 +111,7 @@ export function MonFamilier({ etat, occupe, probleme, annonce, onChoisir, onReli
   if (possedes.length === 0) {
     return (
       <p class="familier-invite" data-testid="familier-invite">
-        Pour un familier à côté de votre Gaulois : <a href={`${basePath()}${ADRESSE_BOUTIQUE}#${ANCRE_FAMILIERS}`}>la pochette des familiers</a>.
+        Pour un familier à côté de votre Gaulois : <a href={`${basePath()}${adresseDansLaBoutique(ANCRE_FAMILIERS)}`}>la pochette des familiers</a>.
       </p>
     );
   }

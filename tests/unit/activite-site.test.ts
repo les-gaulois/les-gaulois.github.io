@@ -96,6 +96,8 @@ describe("la lecture de l'encadrement", () => {
     expect(pageLabel("/")).toBe("Accueil");
     expect(pageLabel("/classement")).toBe("Classement");
     expect(pageLabel("/membres/[id]")).toBe("Fiches des membres");
+    // L'ancienne page de la boutique, devenue un renvoi vers l'onglet de /village (15 novembre 2026), garde son nom.
+    expect(pageLabel("/boutique")).toBe("Ancienne page de la boutique");
     expect(pageLabel("/inconnue")).toBe("Autres pages");
   });
 

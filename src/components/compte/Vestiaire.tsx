@@ -1,6 +1,6 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { basePath, call } from "../../lib/compte/api";
+import { call } from "../../lib/compte/api";
 import {
   EMPLACEMENTS_VISAGE,
   GAULOIS_LARGEUR,
@@ -23,8 +23,8 @@ import {
   type Tenue,
   type Vignette,
 } from "../../lib/gaulois";
+import { EVENEMENT_ENREGISTRE } from "../../lib/compagnon/tenue";
 import type { MesStateres } from "../../lib/stateres";
-import { ADRESSE_BOUTIQUE } from "../../lib/village/boutique-rayons";
 import type { MaBoutique, PlaqueVue } from "../../lib/village/contrat";
 import { SOLDE_INCONNU, lireBoutique, lireStateres, motStatere, nombre, quantitePossedee, soldeAffiche } from "../../lib/village/ecran-boutique";
 import { tailleDeLApercu } from "../../lib/village/ecran-familiers";
@@ -133,7 +133,7 @@ function Visage({ emplacement, tenue, onChange }: Choix & { emplacement: Emplace
 
 /**
  * Le rayon d'un emplacement : ce qui se porte, les objets gratuits et ceux que le membre possède. Ce qui reste à acheter
- * est à la boutique (`/boutique`), plus ici, depuis le 15 novembre 2026.
+ * est à la boutique (l'onglet « La boutique » de `/village`), plus ici, depuis le 15 novembre 2026.
  */
 function Objets({ emplacement, tenue, boutique, plaques, onChange }: Choix & { emplacement: Emplacement }) {
   const possede = (id: string): number => (boutique ? quantitePossedee(boutique.inventaire, emplacement, id) : 0);
@@ -166,10 +166,11 @@ function visageDuRayon(tenue: Tenue): Vignette {
 }
 
 /**
- * La bourse en une ligne, et le lien vers la boutique : le seul de la page. Le détail de la bourse (d'où viennent les
- * statères, les derniers reçus) est à la boutique. Un solde qui ne se sait pas encore ne s'écrit pas zéro.
+ * La bourse en une ligne. Le détail de la bourse (d'où viennent les statères, les derniers reçus) est dans l'onglet « La
+ * boutique », à côté ; le bouton « Aller à la boutique » est parti le 15 novembre 2026 avec la boutique en onglet (demande
+ * du pilote). Un solde qui ne se sait pas encore ne s'écrit pas zéro.
  */
-function VersLaBoutique({ solde }: { solde: number | null }) {
+function LaBourse({ solde }: { solde: number | null }) {
   return (
     <p class="vestiaire-bourse" data-testid="vestiaire-bourse">
       <span class="vestiaire-bourse-solde">
@@ -183,9 +184,6 @@ function VersLaBoutique({ solde }: { solde: number | null }) {
           </span>
         )}
       </span>
-      <a class="btn btn-secondary" href={`${basePath()}${ADRESSE_BOUTIQUE}`} data-testid="vestiaire-vers-boutique">
-        Aller à la boutique
-      </a>
     </p>
   );
 }
@@ -201,8 +199,8 @@ type Etat = { kind: "lecture" } | { kind: "erreur"; message: string } | { kind: 
  * Depuis le 14 novembre 2026, le vestiaire s'ouvre un rayon à la fois (`src/lib/village/vestiaire-rayons.ts`) : le corps
  * (peau, cheveux, barbe, et le visage au choix : yeux, bouche, cicatrice), puis la tête, le haut, le bas, les pieds et
  * l'arme. Depuis le 15 novembre 2026, les achats (la boutique de chaque rayon, la pochette surprise, le marché) et la
- * bourse détaillée sont sur la page « La boutique » (`/boutique`, `src/components/village/Boutique.tsx`) :
- * ici, la bourse tient en une ligne, avec le lien.
+ * bourse détaillée sont dans l'onglet « La boutique » (`src/components/village/Boutique.tsx`), à côté de celui-ci :
+ * ici, la bourse tient en une ligne.
  *
  * Le familier montré à côté du Gaulois (15 novembre 2026) se choisit au-dessus des rayons, parmi ceux qu'on a
  * (`MonFamilier` de `src/components/village/Familiers.tsx`) : le choix part tout de suite au serveur
@@ -266,6 +264,20 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
     avant.current = actif;
     if (revenu && etat.kind === "pret") void lireLInventaire();
   }, [actif]);
+
+  // « Le porter », dans l'onglet « La boutique » voisin, enregistre une tenue et l'annonce : le vestiaire la prend,
+  // sinon il montrerait l'ancienne, et son « Enregistrer » retirerait l'objet tout juste porté. Sa propre annonce lui
+  // revient aussi : c'est la tenue qu'il vient d'enregistrer, rien ne change.
+  useEffect(() => {
+    const prendre = (e: Event) => {
+      const enregistree = tenueDuServeur((e as CustomEvent<unknown>).detail);
+      if (!enregistree) return;
+      setTenue(enregistree);
+      setEtat((x) => (x.kind === "pret" ? { kind: "pret", enregistree } : x));
+    };
+    window.addEventListener(EVENEMENT_ENREGISTRE, prendre);
+    return () => window.removeEventListener(EVENEMENT_ENREGISTRE, prendre);
+  }, []);
 
   // Une plaque gravée ou effacée à la forge (l'onglet voisin) : les plaques du vestiaire se relisent, sans rien
   // toucher à la tenue en cours. Une relecture qui échoue garde celles qu'on avait.
@@ -360,7 +372,7 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
       <div class="vestiaire-colonne">
         {/* La bourse et la boutique ne servent qu'une fois le Gaulois créé : la ligne ne paraît que pour un Gaulois qui
             existait déjà à la lecture, jamais sous les yeux de qui vient de le créer. */}
-        {existait && boutique && <VersLaBoutique solde={soldeAffiche(boutique.solde, bourse)} />}
+        {existait && boutique && <LaBourse solde={soldeAffiche(boutique.solde, bourse)} />}
         {/* Sans réponse de l'inventaire, le vestiaire marche quand même : un compte qui crée son Gaulois ne voit rien de plus. */}
         {panne && existait && (
           <div data-testid="vestiaire-panne">

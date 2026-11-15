@@ -1,5 +1,5 @@
 /**
- * Les calculs de la bourse, de la boutique et de la pochette surprise (page « La boutique », `/boutique`) : la lecture prudente de ce que
+ * Les calculs de la bourse, de la boutique et de la pochette surprise (l'onglet « La boutique » de « Mon Gaulois », `/village#boutique`) : la lecture prudente de ce que
  * répond le serveur, ce qu'un objet coûte et ce qui manque pour l'acheter, et les mots de chaque refus. Le serveur décide
  * de tout (`contrat.ts`) : rien ici n'accorde un achat, l'écran ne fait que dire ce qu'il a reçu.
  *

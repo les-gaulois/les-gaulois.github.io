@@ -9,7 +9,7 @@ import { echelleEntiere } from "../../lib/village/vestiaire-rayons";
 import { MarqueDeRarete, PetitePlaque, Pixels, Prix, peindre } from "./BoutiquePixels";
 
 /**
- * Les pièces que partagent le vestiaire de « Mon Gaulois » (`/village`) et la page « La boutique » (`/boutique`) : le
+ * Les pièces que partagent le vestiaire de « Mon Gaulois » (`/village`) et son onglet « La boutique » (`#boutique`) : le
  * Gaulois dessiné, la case d'un objet et la barre des rayons. Sorties de `Vestiaire.tsx` le 15 novembre 2026, quand la
  * boutique a pris sa propre page : rien n'y a changé d'apparence.
  */

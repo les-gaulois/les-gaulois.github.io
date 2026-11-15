@@ -18,7 +18,7 @@ const NBSP = String.fromCharCode(0xa0);
 /** L'ancre de la pochette des familiers dans la page « La boutique » : « Mon Gaulois » y mène. */
 export const ANCRE_FAMILIERS = "familiers";
 
-/** L'adresse demande-t-elle la pochette des familiers (`/boutique#familiers`) ? */
+/** L'adresse demande-t-elle la pochette des familiers (`/village#familiers`, qui ouvre l'onglet « La boutique ») ? */
 export const demandeLesFamiliers = (hash: string): boolean => hash === `#${ANCRE_FAMILIERS}`;
 
 /** Les identifiants des familiers du compte. */

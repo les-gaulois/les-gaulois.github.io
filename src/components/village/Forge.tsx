@@ -304,7 +304,7 @@ function Atelier() {
   };
 
   // La forge se lit quand sa fenêtre s'ouvre, et se relit à chaque retour : la bourse, la tenue et l'inventaire ont pu
-  // changer au vestiaire ou à la boutique (`/boutique`).
+  // changer au vestiaire ou à la boutique (les onglets voisins).
   const connecte = me?.signed_in === true;
   useEffect(() => {
     if (connecte) void lire(lecture.kind === "prete");
@@ -440,10 +440,11 @@ function Atelier() {
             </div>
           ) : (
             <p class="forge-mot" data-testid="forge-sans-objet">
-              Seuls les objets à rareté se gravent : la boutique en vend.{" "}
+              Seuls les objets à rareté se gravent :{" "}
               <a class="forge-lien" href={`${basePath()}${ADRESSE_BOUTIQUE}`}>
-                Aller à la boutique
-              </a>
+                la boutique
+              </a>{" "}
+              en vend.
             </p>
           )}
           <p class="info-discrete" data-testid="forge-vues">

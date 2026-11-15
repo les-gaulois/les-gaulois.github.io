@@ -114,7 +114,8 @@ const ILLISIBLE = "La réponse du serveur est illisible. Rechargez la page.";
 const SANS_OFFRE: readonly OffreLisible[] = [];
 
 /**
- * « La boutique » (`/boutique`) : les achats en statères (boutique, pochette, marché), sur une seule page. Une seule bourse, un seul Gaulois
+ * « La boutique », troisième onglet de « Mon Gaulois » (`/village#boutique`, 15 novembre 2026) : les achats en statères
+ * (boutique, pochette, marché), au même endroit. Une seule bourse, un seul Gaulois
  * d'essayage : il porte la tenue enregistrée, et essaie un objet de la boutique du clan comme l'offre d'un membre. Chaque
  * rayon (tête, haut, bas, pieds, arme) montre ce que vendent les membres, puis ce que vend la boutique, réduits ensemble à
  * une rareté. La pochette surprise, « Vendre un objet » et « Vos offres » sont au-dessus des rayons.
@@ -496,7 +497,7 @@ export default function Boutique() {
                     {occupe ? "Enregistrement…" : "Le porter"}
                   </button>
                 )}
-                <a href={village} data-testid="boutique-vers-village">
+                <a href={`${village}#gaulois`} data-testid="boutique-vers-village">
                   Voir dans Mon Gaulois
                 </a>
               </p>
@@ -508,7 +509,7 @@ export default function Boutique() {
                     {occupe ? "Enregistrement…" : "Le montrer"}
                   </button>
                 )}
-                <a href={village} data-testid="familiers-avis-village">
+                <a href={`${village}#gaulois`} data-testid="familiers-avis-village">
                   Voir dans Mon Gaulois
                 </a>
               </p>
@@ -518,7 +519,7 @@ export default function Boutique() {
       </div>
 
       <div class="vestiaire-colonne">
-        <h2 class="sr-only">Vos statères</h2>
+        <h3 class="sr-only">Vos statères</h3>
         {(bourse || boutique) && (
           <div class="boutique-tete">
             {bourse && <Bourse bourse={bourse} solde={soldeConnu} />}
@@ -540,9 +541,9 @@ export default function Boutique() {
 
         <section id={ANCRE_MARCHE} class="boutique-membres" aria-labelledby="boutique-membres-titre" data-testid="marche" data-etat={etatMarche.kind}>
           <div class="boutique-membres-tete">
-            <h2 id="boutique-membres-titre" class="nom-champ vestiaire-titre">
+            <h3 id="boutique-membres-titre" class="nom-champ vestiaire-titre">
               Le marché des membres
-            </h2>
+            </h3>
             {marcheLu && (
               <div>
                 <button
@@ -587,7 +588,7 @@ export default function Boutique() {
         </section>
 
         <div class="vestiaire-choix">
-          <h2 class="sr-only">Les rayons</h2>
+          <h3 class="sr-only">Les rayons</h3>
           <div ref={barre} class="vestiaire-barre">
             <BarreDesRayons
               prefixe="boutique"
@@ -611,9 +612,9 @@ export default function Boutique() {
             )}
             {range.offres.length > 0 && (
               <div class="vestiaire-rayon">
-                <h3 id="boutique-des-membres" class="vestiaire-boutique">
+                <h4 id="boutique-des-membres" class="vestiaire-boutique">
                   Vendu par des membres
-                </h3>
+                </h4>
                 <ul class="marche-offres" aria-labelledby={`boutique-rayon-${rayon} boutique-des-membres`} data-testid="marche-offres">
                   {range.offres.map((offre) => (
                     <Offre
@@ -634,9 +635,9 @@ export default function Boutique() {
             )}
             {range.boutique.length > 0 && (
               <div class="vestiaire-rayon">
-                <h3 id="boutique-du-clan" class="vestiaire-boutique">
+                <h4 id="boutique-du-clan" class="vestiaire-boutique">
                   Boutique du clan
-                </h3>
+                </h4>
                 <div class="cases" role="group" aria-labelledby={`boutique-rayon-${rayon} boutique-du-clan`} data-testid="boutique-cases">
                   {range.boutique.map(([id, objet]) => {
                     const essayee = essai?.source === "boutique" && essai.emplacement === rayon && essai.objet === id;

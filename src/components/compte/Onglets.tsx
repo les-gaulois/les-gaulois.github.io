@@ -24,6 +24,8 @@ export interface TabItem {
   count?: { value: number; words: string; tone?: "alerte" | "vif" } | null;
 }
 
+const SANS_ALIAS: Readonly<Record<string, string>> = {};
+
 export const reducedMotion = () => document.documentElement.classList.contains("fx-off") || matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /**
@@ -32,11 +34,15 @@ export const reducedMotion = () => document.documentElement.classList.contains("
  * `shown` : les onglets déjà ouverts une fois, pour ne lire le serveur qu'au premier passage.
  * Tant que personne n'a choisi d'onglet, ni par un clic ni par l'adresse, c'est le premier qui est ouvert, même s'il ne
  * paraît qu'après une lecture du serveur (« Moi », au QG).
+ * `alias` : d'autres adresses qui ouvrent un onglet (`tabOfHash`). Elles restent dans l'adresse : la partie ouverte
+ * peut s'en servir (`#marche` fait descendre « La boutique » au marché).
  */
-export function useTabs(ids: readonly string[]) {
+export function useTabs(ids: readonly string[], alias: Readonly<Record<string, string>> = SANS_ALIAS) {
   const key = ids.join(" ");
+  const aliasRef = useRef(alias);
+  aliasRef.current = alias;
   const [state, setState] = useState(() => {
-    const named = tabOfHash(location.hash, ids);
+    const named = tabOfHash(location.hash, ids, alias);
     const first = named ?? ids[0] ?? "";
     return { active: first, slide: null as Slide | null, shown: new Set([first]), call: 0, chosen: named !== null };
   });
@@ -51,18 +57,19 @@ export function useTabs(ids: readonly string[]) {
         const previous = s.chosen && list.includes(s.active) ? s.active : (list[0] ?? s.active);
         return { active: id, slide: slideFrom(list.indexOf(previous), list.indexOf(id)), shown, call: bringIntoView ? s.call + 1 : s.call, chosen: true };
       });
-      if (location.hash !== `#${id}`) history.replaceState(history.state, "", `#${id}`);
+      // Une adresse qui nomme déjà cet onglet, par son nom ou un alias, reste telle quelle.
+      if (tabOfHash(location.hash, [id], aliasRef.current) !== id) history.replaceState(history.state, "", `#${id}`);
     },
     [key],
   );
 
   useEffect(() => {
     const onHash = () => {
-      const id = tabOfHash(location.hash, key.split(" "));
+      const id = tabOfHash(location.hash, key.split(" "), aliasRef.current);
       if (id) select(id, true);
     };
     // Un onglet nommé par l'adresse peut n'apparaître qu'une fois le compte lu (celui du fondateur, par exemple).
-    const named = tabOfHash(location.hash, key.split(" "));
+    const named = tabOfHash(location.hash, key.split(" "), aliasRef.current);
     if (named) setState((s) => (s.active === named ? s : { ...s, active: named, shown: new Set([...s.shown, named]), chosen: true }));
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);

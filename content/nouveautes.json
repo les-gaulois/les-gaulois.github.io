@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-15",
+    "kind": "ameliore",
+    "title": "La boutique revient dans « Mon Gaulois »",
+    "body": "La boutique, la pochette surprise et le marché sont maintenant un onglet de « Mon Gaulois », à côté de la forge. Les anciens liens de la boutique y mènent.",
+    "link": {
+      "href": "/village#boutique",
+      "label": "Ouvrir la boutique"
+    }
+  },
+  {
+    "date": "2026-11-15",
     "kind": "nouveau",
     "title": "Les familiers du Gaulois",
     "body": "100 familiers, de la souris au dragon, à côté de votre Gaulois, sur le site et sur /gaulois. Ils ne sortent que de la pochette des familiers, à 2 000 statères, jamais deux fois le même.",

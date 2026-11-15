@@ -29,9 +29,9 @@ export const SECTIONS: NavSection[] = [
   // La liste officielle a son onglet depuis le 12 novembre 2026, à la demande du pilote : la page Membres garde les paliers,
   // l'encadrement et le classé. Le QG : la face privée du site. Sa page ne montre que la porte tant que le serveur n'a pas
   // reconnu un membre validé. « Mon Gaulois » (13 novembre 2026, à l'adresse /village) : le Gaulois en pixels de chaque
-  // membre, ouvert à tout compte lié à Discord ; le monde du village a été retiré le 15 novembre 2026. « La boutique » (15
-  // novembre 2026, demande du pilote) : les achats (boutique, pochette, marché), sortis de « Mon Gaulois », juste après lui.
-  section("Membres", { href: "/membres", label: "Membres" }, { href: "/liste", label: "La liste" }, { href: "/village", label: "Mon Gaulois" }, { href: "/boutique", label: "La boutique" }, { href: "/qg", label: "Le QG" }),
+  // membre, ouvert à tout compte lié à Discord ; le monde du village a été retiré le 15 novembre 2026. « La boutique » a eu
+  // son onglet ici le 15 novembre 2026, puis, le même jour, le pilote l'a mise dans « Mon Gaulois », à côté de la forge.
+  section("Membres", { href: "/membres", label: "Membres" }, { href: "/liste", label: "La liste" }, { href: "/village", label: "Mon Gaulois" }, { href: "/qg", label: "Le QG" }),
   section("Carte", { href: "/carte", label: "Carte" }),
   // « Calculateur et outils » a été retiré le 12 novembre 2026, à la demande du pilote : ne pas le remettre sans sa demande.
   // Le même jour, les guides par mode aussi : il ne reste que le guide du clan, qui donne son nom à l'onglet.

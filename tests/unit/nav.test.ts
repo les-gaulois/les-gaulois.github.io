@@ -33,12 +33,12 @@ describe("sectionOf", () => {
   });
   it("met la liste des membres entre la page Membres et le QG", () => {
     expect(sectionOf("/liste")?.label).toBe("Membres");
-    expect(SECTIONS.find((s) => s.label === "Membres")?.pages.map((p) => p.href)).toEqual(["/membres", "/liste", "/village", "/boutique", "/qg"]);
+    expect(SECTIONS.find((s) => s.label === "Membres")?.pages.map((p) => p.href)).toEqual(["/membres", "/liste", "/village", "/qg"]);
   });
   it("range le village avec les membres, avant le QG", () => {
     expect(sectionOf("/village")?.label).toBe("Membres");
-    // « La boutique » (15 novembre 2026) : sortie de « Mon Gaulois », juste après lui.
-    expect(sectionOf("/boutique")?.label).toBe("Membres");
+    // « La boutique » : un onglet de « Mon Gaulois » depuis le 15 novembre 2026, plus une entrée du menu.
+    expect(SECTIONS.flatMap((s) => s.pages.map((p) => p.href))).not.toContain("/boutique");
   });
   it("ne range ni l'accueil ni les pages personnelles", () => {
     expect(sectionOf("/")).toBeNull();

@@ -3,19 +3,26 @@ import { DemandeLienOpenFront } from "../compte/LienOpenFront";
 import { Onglets, Partie, useTabs, type TabItem } from "../compte/Onglets";
 import { Loading, useMe } from "../compte/common";
 import Vestiaire from "../compte/Vestiaire";
+import { ANCRE_MARCHE } from "../../lib/village/boutique-rayons";
+import { ANCRE_FAMILIERS } from "../../lib/village/ecran-familiers";
+import Boutique from "./Boutique";
 import AtelierDeLaForge from "./Forge";
 
 /**
- * Les deux parties de la page, dans l'ordre de la barre. L'onglet ouvert se retient dans l'adresse (`#forge`). Le marché,
- * troisième onglet jusqu'au 15 novembre 2026, est sur la page « La boutique » : `/village#marche` y renvoie, par le script
- * en ligne de `village.astro`, qui marche aussi sans serveur. Les adresses du monde du village, retiré le 15 novembre 2026
- * (`#place`, `#chantier`, `#feu`, `#qui`, `#interieur-…`), ne nomment plus d'onglet : elles ouvrent « Mon Gaulois ».
+ * Les trois parties de la page, dans l'ordre de la barre. L'onglet ouvert se retient dans l'adresse (`#forge`,
+ * `#boutique`). « La boutique » (la bourse, la pochette surprise, les rayons et le marché des membres) a eu sa page,
+ * `/boutique`, le 15 novembre 2026 ; le même jour, le pilote l'a voulue ici, en onglet à côté de la forge (« déplace la
+ * boutique »). `/boutique` renvoie à `#boutique` ; `#marche` (l'adresse de l'ancien onglet du marché) et `#familiers` (le lien du
+ * vestiaire vers la pochette des familiers) ouvrent la boutique, qui y descend alors. Les adresses du monde du village, retiré le 15 novembre 2026 (`#place`, `#chantier`,
+ * `#feu`, `#qui`, `#interieur-…`), ne nomment plus d'onglet : elles ouvrent « Mon Gaulois ».
  */
 const ONGLETS: TabItem[] = [
   { id: "gaulois", label: "Mon Gaulois" },
   { id: "forge", label: "La forge" },
+  { id: "boutique", label: "La boutique" },
 ];
 const IDS = ONGLETS.map((onglet) => onglet.id);
+const ALIAS: Readonly<Record<string, string>> = { [ANCRE_MARCHE]: "boutique", [ANCRE_FAMILIERS]: "boutique" };
 const PREFIXE = "village";
 
 /**
@@ -23,14 +30,15 @@ const PREFIXE = "village";
  * du pilote (« enlève la partie villages ») : il garde le Gaulois et ses objets, qui paraissent sur les images du clan.
  * Un visiteur voit le Gaulois de départ et la porte. Un compte connecté finit d'abord son inscription
  * (src/lib/compte/arrivee.ts, 15 novembre 2026) : le lien de son profil OpenFront, puis son Gaulois, seul au vestiaire ;
- * la forge attend qu'il soit créé. Ensuite, deux onglets, comme au QG : son Gaulois (le vestiaire : ce qui est à lui) et
- * la forge, où l'on grave une de ses parties sur un objet. Les achats (boutique, pochette, marché) sont sur `/boutique`.
- * Chaque onglet ne lit le serveur qu'à son ouverture ; la forge se relit à chaque retour.
+ * la forge et la boutique attendent qu'il soit créé. Ensuite, trois onglets, comme au QG : son Gaulois (le vestiaire : ce
+ * qui est à lui), la forge, où l'on grave une de ses parties sur un objet, et la boutique, où l'on achète.
+ * Chaque onglet ne lit le serveur qu'à son ouverture ; la forge et la boutique se relisent à chaque retour, et le
+ * vestiaire aussi : un objet acheté y paraît aussitôt.
  */
 export default function VillageApp() {
   const { me, refresh } = useMe();
   const { etape } = useArrivee(me);
-  const { active, slide, select, call } = useTabs(IDS);
+  const { active, slide, select, call } = useTabs(IDS, ALIAS);
 
   if (me === null) return <Loading label="Lecture de votre compte…" />;
 
@@ -83,6 +91,12 @@ export default function VillageApp() {
         <Partie prefix={PREFIXE} id="forge" active={active} slide={slide}>
           <h2 class="sr-only">La forge</h2>
           {active === "forge" && <AtelierDeLaForge />}
+        </Partie>
+      )}
+      {!aCreer && (
+        <Partie prefix={PREFIXE} id="boutique" active={active} slide={slide}>
+          <h2 class="sr-only">La boutique</h2>
+          {active === "boutique" && <Boutique />}
         </Partie>
       )}
     </div>

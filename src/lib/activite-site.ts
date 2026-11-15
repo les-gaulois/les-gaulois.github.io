@@ -150,6 +150,8 @@ const OTHER_PAGES: Record<string, string> = {
   "/compte": "Mon compte",
   "/direction": "Direction",
   "/admin": "Ancienne administration",
+  // La page de la boutique, le matin du 15 novembre 2026 : depuis, un renvoi vers l'onglet « La boutique » de /village.
+  "/boutique": "Ancienne page de la boutique",
   "/confidentialite": "Confidentialité",
   "/mentions-legales": "Mentions légales",
   "/autre": "Autres pages",

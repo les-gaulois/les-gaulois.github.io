@@ -102,9 +102,9 @@ function Menagerie({ mes }: { mes: MesFamiliers }) {
           {range.possedes < range.total && <p class="pochette-note">Sous une silhouette : sa chance de sortir de votre prochaine pochette.</p>}
           {range.familles.map(({ famille, possedes: nombre, total, familiers }, index) => (
             <section key={famille} class="familiers-famille" aria-labelledby={`menagerie-famille-${index}`} data-testid="menagerie-famille">
-              <h3 id={`menagerie-famille-${index}`} class="vestiaire-boutique">
+              <h4 id={`menagerie-famille-${index}`} class="vestiaire-boutique">
                 {famille} <span class="tnum familiers-famille-compte">{surCombien(nombre, total)}</span>
-              </h3>
+              </h4>
               <ul class="cases familiers-cases">
                 {familiers.map((familier) => (
                   <CaseDeMenagerie key={familier.id} familier={familier} possede={possedes.has(familier.id)} montre={mes.porte === familier.id} chance={chanceDuFamilier(familier.id, mes.pochette.chances, possedes)} />
@@ -133,9 +133,9 @@ export function PochetteFamiliers({ mes, solde, onOuvrir }: { mes: MesFamiliers;
       <div class="familiers-vitrine">
         <DessinPochetteFamiliers echelle={4} class="familiers-dessin" />
         <div class="familiers-nom">
-          <h2 id="familiers-titre" class="nom-champ familiers-titre">
+          <h3 id="familiers-titre" class="nom-champ familiers-titre">
             La pochette des familiers
-          </h2>
+          </h3>
           <Prix montant={mes.pochette.prix} class="familiers-prix" />
           <p class="familiers-compte" data-testid="familiers-compte">
             <strong class="tnum">{possedes.size}</strong> sur {FAMILIERS.length} familiers à vous

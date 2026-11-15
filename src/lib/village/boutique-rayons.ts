@@ -1,5 +1,5 @@
 /**
- * Le rangement de la page « La boutique » (`/boutique`, 15 novembre 2026) : les achats en statères au même
+ * Le rangement de « La boutique » (15 novembre 2026 ; page `/boutique`, puis onglet de `/village` le même jour) : les achats en statères au même
  * endroit. Dans chaque rayon, ce que vend la boutique du clan et ce que vendent les membres au marché, l'un sous l'autre,
  * réduits ensemble à une rareté ; un seul Gaulois essaie l'un comme l'autre.
  *
@@ -13,10 +13,13 @@ import { RAISON_EN_VENTE, estEnVente, manque, stateres } from "./ecran-boutique"
 import { offresAAcheter, type OffreLisible } from "./ecran-marche";
 import { compterParRarete, filtreEffectif, filtrerParRarete, rangerLeRayon, type Entree, type Filtre } from "./vestiaire-rayons";
 
-/** La page de la boutique. */
-export const ADRESSE_BOUTIQUE = "/boutique";
+/** La boutique : l'onglet de « Mon Gaulois » (`/boutique` y renvoie). */
+export const ADRESSE_BOUTIQUE = "/village#boutique";
 
-/** L'ancre du marché des membres dans la page : `/village#marche`, l'ancien onglet, y mène. */
+/** L'adresse d'une partie de la boutique (`/village#marche`, `/village#familiers`) : elle ouvre l'onglet, qui y descend. */
+export const adresseDansLaBoutique = (ancre: string): string => `/village#${ancre}`;
+
+/** L'ancre du marché des membres dans la boutique : `/village#marche` ouvre l'onglet et y descend. */
 export const ANCRE_MARCHE = "marche";
 
 /**

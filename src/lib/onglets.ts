@@ -15,15 +15,21 @@ export function tabsFor<T extends TabRule>(tabs: readonly T[], rank: number): T[
   return tabs.filter((tab) => rank >= (tab.rank ?? 0));
 }
 
-/** L'onglet nommé par l'adresse (`#demandes`), s'il existe pour ce compte. `null` : l'adresse n'en nomme aucun. */
-export function tabOfHash(hash: string, ids: readonly string[]): string | null {
+/**
+ * L'onglet nommé par l'adresse (`#demandes`), s'il existe pour ce compte. `null` : l'adresse n'en nomme aucun.
+ * `alias` : d'autres adresses qui ouvrent un onglet, sans être son nom (`#marche` ouvre « La boutique » de /village, où
+ * la partie elle-même descend ensuite au marché).
+ */
+export function tabOfHash(hash: string, ids: readonly string[], alias: Readonly<Record<string, string>> = {}): string | null {
   let id = hash.replace(/^#/, "");
   try {
     id = decodeURIComponent(id);
   } catch {
     // Adresse mal formée : on la lit telle quelle.
   }
-  return ids.includes(id) ? id : null;
+  if (ids.includes(id)) return id;
+  const vers = Object.hasOwn(alias, id) ? alias[id] : undefined;
+  return vers !== undefined && ids.includes(vers) ? vers : null;
 }
 
 /**

@@ -1,5 +1,5 @@
 /**
- * L'écran du marché du village (sur la page « La boutique », `/boutique`, depuis le 15 novembre 2026) : ce que la page calcule à partir des réponses du
+ * L'écran du marché du village (dans l'onglet « La boutique » de « Mon Gaulois », depuis le 15 novembre 2026) : ce que la page calcule à partir des réponses du
  * serveur (`get_marche`, `get_ma_boutique`, contrat dans `contrat.ts`). Le serveur décide de tout, achat, vente et prix ;
  * ici, seulement la lecture des réponses, les filtres, ce qui s'annonce avant de confirmer, et les mots des refus.
  */

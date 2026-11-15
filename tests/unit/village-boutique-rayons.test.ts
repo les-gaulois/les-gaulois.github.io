@@ -15,7 +15,7 @@ import {
 import { RAISON_EN_VENTE } from "../../src/lib/village/ecran-boutique";
 import { MESSAGES_DU_MARCHE, raisonDeLOffre, type OffreLisible } from "../../src/lib/village/ecran-marche";
 
-// La page « La boutique » (/boutique) : ce que montre un rayon, boutique du clan et offres des membres ensemble, et ce qui
+// « La boutique », onglet de « Mon Gaulois » (/village#boutique) : ce que montre un rayon, boutique du clan et offres des membres ensemble, et ce qui
 // empêche d'acheter ce qu'on essaie. Les objets viennent du vrai catalogue : rien n'est inventé ici.
 
 /** Les objets payants d'un emplacement, dans l'ordre du catalogue. */

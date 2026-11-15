@@ -14,9 +14,9 @@ export function Bourse({ bourse, solde }: { bourse: MesStateres; solde: number |
   const montre = soldeAMontrer({ ...bourse, solde: solde ?? bourse.solde });
   return (
     <section class="bourse" aria-labelledby="bourse-titre" data-testid="bourse" data-etat={etat}>
-      <h3 id="bourse-titre" class="nom-champ vestiaire-titre">
+      <h4 id="bourse-titre" class="nom-champ vestiaire-titre">
         Votre bourse
-      </h3>
+      </h4>
       <p class="bourse-solde" data-testid="bourse-solde">
         <Piece taille={24} echelle={2} />
         {montre === null ? (

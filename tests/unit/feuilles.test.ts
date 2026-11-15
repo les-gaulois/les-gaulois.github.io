@@ -50,6 +50,7 @@ const PAS_DES_CLASSES: PasUneClasse[] = [
   { fichier: "src/lib/alliance/capture.ts", mots: ["pixels"], raison: "l'unité écrite sur l'image capturée de la carte de l'alliance" },
   { fichier: "src/lib/alliance/textes.ts", mots: ["pixels"], raison: "un libellé de la carte de l'alliance, écrit comme texte" },
   { fichier: "src/components/compte/QgApp.tsx", mots: ["outils"], raison: "ce que le QG relit après une action (« qg », « outils » ou « tout »)" },
+  { fichier: "src/pages/boutique.astro", mots: ["village"], raison: "l'adresse /village, où l'ancienne page de la boutique renvoie" },
 ];
 
 /** Les pages du site (les .astro de src/pages) et leur route, comme `Astro.routePattern`. */

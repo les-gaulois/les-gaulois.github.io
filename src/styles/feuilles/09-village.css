@@ -1248,8 +1248,8 @@
 }
 
 
-/* ---------- La boutique, sur sa page (/boutique, 15 novembre 2026) ---------- */
-/* Les achats sont sortis de « Mon Gaulois » : la bourse, la pochette surprise, la boutique du clan et le marché des
+/* ---------- La boutique (15 novembre 2026 : sa page /boutique, puis l'onglet « La boutique » de /village) ---------- */
+/* Les achats sont à part du vestiaire : la bourse, la pochette surprise, la boutique du clan et le marché des
    membres (la gravure de la forge, payée en statères elle aussi, reste sur /village). La page reprend la scène du vestiaire (le Gaulois à gauche, collé en haut sur téléphone), ses cases
    et sa barre de rayons ; ici, seulement ce qu'elle a de plus. */
 
@@ -1374,7 +1374,7 @@
   }
 }
 
-/* « Mon Gaulois » : la bourse en une ligne et le lien vers la boutique, le seul de la page, au-dessus des rayons. */
+/* « Mon Gaulois » : la bourse en une ligne, au-dessus des rayons (la boutique est dans l'onglet voisin). */
 .vestiaire-bourse {
   display: flex;
   flex-wrap: wrap;

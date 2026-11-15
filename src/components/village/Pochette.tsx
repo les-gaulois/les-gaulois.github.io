@@ -23,9 +23,9 @@ export function Pochette({ boutique, solde, fermee, onOuvrir }: { boutique: MaBo
       <div class="pochette-tete">
         <DessinPochette class="pochette-dessin" />
         <div class="pochette-nom">
-          <h3 id="pochette-titre" class="nom-champ vestiaire-titre">
+          <h4 id="pochette-titre" class="nom-champ vestiaire-titre">
             La pochette surprise
-          </h3>
+          </h4>
           <Prix montant={prix} class="pochette-prix" />
         </div>
       </div>

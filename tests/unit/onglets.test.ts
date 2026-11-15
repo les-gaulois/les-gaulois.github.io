@@ -23,6 +23,18 @@ describe("les onglets d'un espace de travail", () => {
     expect(tabOfHash("#%E0%A4%A", ids)).toBeNull();
   });
 
+  it("une autre adresse peut ouvrir un onglet : #marche ouvre la boutique de « Mon Gaulois »", () => {
+    const ids = ["gaulois", "forge", "boutique"];
+    const alias = { marche: "boutique" };
+    expect(tabOfHash("#marche", ids, alias)).toBe("boutique");
+    expect(tabOfHash("#boutique", ids, alias)).toBe("boutique");
+    expect(tabOfHash("#marche", ids)).toBeNull();
+    // Un alias vers un onglet absent n'ouvre rien ; une propriété héritée d'un objet n'est pas un alias.
+    expect(tabOfHash("#marche", ["gaulois", "forge"], alias)).toBeNull();
+    expect(tabOfHash("#constructor", ids, alias)).toBeNull();
+    expect(tabOfHash("#toString", ids, {})).toBeNull();
+  });
+
   it("au clavier, les flèches font le tour, Début et Fin vont aux bouts", () => {
     expect(tabKeyTarget("ArrowRight", 0, 3)).toBe(1);
     expect(tabKeyTarget("ArrowRight", 2, 3)).toBe(0);
