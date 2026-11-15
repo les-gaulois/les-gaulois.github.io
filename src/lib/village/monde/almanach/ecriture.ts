@@ -21,7 +21,9 @@
  *   rien renvoyer ni repayer.
  * - **L'essai** (`--essai`, ou `"essai": true` dans `config/almanach.json` pour l'Action) : une seule requête, sans lot, au
  *   prix normal, qui affiche les moments et leurs refus et ne les écrit que dans `essai.json`, pour les regarder avant de
- *   payer le lot. Son coût est hors du plafond du lot (une requête : 1,67 $ au pire).
+ *   payer le lot. Son coût (une requête : 1,67 $ au pire) est compté dans `ecriture.json`, sous le même plafond.
+ * - **Jamais deux fois** : chaque lot créé est noté dans `lots_connus` ; avant d'en créer un, les lots récents du compte sont
+ *   relus, et un lot inconnu arrête tout. Le lot est créé sans nouvel essai du SDK.
  */
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
@@ -463,6 +465,13 @@ export const ECRITURE = z.object({
   jetons: JETONS,
   lots: z.array(LOT),
   lot_en_cours: EN_COURS.nullable(),
+  /**
+   * Chaque lot créé par l'almanach, noté dès sa création : avant d'en envoyer un autre, le compte est relu, et un lot récent
+   * qui n'est pas ici arrête tout (une Action perdue avant d'avoir poussé son `ecriture.json` ne fait jamais payer deux fois).
+   */
+  lots_connus: z.array(z.string()).default([]),
+  /** Ce qu'ont coûté les essais : déjà compté dans `cout_dollars`, donc sous le plafond. */
+  essais_dollars: z.number().min(0).default(0),
 });
 export type Ecriture = z.infer<typeof ECRITURE>;
 export type LotEcrit = z.infer<typeof LOT>;
@@ -477,7 +486,12 @@ export const ecritureVide = (config: ConfigDeLAlmanach): Ecriture => ({
   jetons: { entree: 0, sortie: 0 },
   lots: [],
   lot_en_cours: null,
+  lots_connus: [],
+  essais_dollars: 0,
 });
+
+/** Depuis combien de temps un lot du compte compte comme récent : au-delà, un lot inconnu n'est plus le nôtre. */
+export const LOTS_RECENTS_MS = 7 * 24 * 3600_000;
 
 const auCentime = (dollars: number): number => Math.round(dollars * 10_000) / 10_000;
 
@@ -509,6 +523,8 @@ export function prochainLot(ecriture: Ecriture, config: ConfigDeLAlmanach, garde
 
 /** Ce dont l'écriture a besoin de l'API : un lot (le créer, le relire, en lire les résultats), et une seule demande pour l'essai. */
 export interface ClientDeLAlmanach {
+  /** Les lots les plus récents du compte (une vingtaine), pour ne jamais envoyer un lot quand un autre est inconnu. */
+  lotsDuCompte(): Promise<{ id: string; processing_status: string; created_at: string }[]>;
   creerLeLot(requetes: Anthropic.Messages.BatchCreateParams.Request[]): Promise<{ id: string }>;
   lireLeLot(id: string): Promise<{ processing_status: string; request_counts?: Partial<Anthropic.Messages.MessageBatchRequestCounts> }>;
   resultatsDuLot(id: string): Promise<AsyncIterable<Anthropic.Messages.MessageBatchIndividualResponse>>;
@@ -518,7 +534,17 @@ export interface ClientDeLAlmanach {
 /** Le client du SDK officiel (`@anthropic-ai/sdk`) ; l'essai passe en flux, comme le veut le SDK pour une réponse aussi longue. */
 export function clientDuSdk(sdk: Anthropic): ClientDeLAlmanach {
   return {
-    creerLeLot: (requests) => sdk.messages.batches.create({ requests }),
+    lotsDuCompte: async () => {
+      const lus: { id: string; processing_status: string; created_at: string }[] = [];
+      for await (const lot of sdk.messages.batches.list({ limit: 20 })) {
+        lus.push({ id: lot.id, processing_status: lot.processing_status, created_at: lot.created_at });
+        if (lus.length >= 20) break;
+      }
+      return lus;
+    },
+    // Sans nouvel essai du SDK : un délai dépassé peut cacher un lot bel et bien créé, qu'un second envoi ferait payer deux
+    // fois. Le passage suivant relit le compte et s'arrête s'il le trouve.
+    creerLeLot: (requests) => sdk.messages.batches.create({ requests }, { maxRetries: 0 }),
     lireLeLot: (id) => sdk.messages.batches.retrieve(id),
     resultatsDuLot: (id) => sdk.messages.batches.results(id),
     demander: (corps) => sdk.messages.stream(corps).finalMessage(),
@@ -640,9 +666,14 @@ export async function ecrireLAlmanach(deps: DepsDeLEcriture): Promise<Sortie> {
     const lecture = controlerLesMoments(reponse.moments, catalogue, log);
     reponse.moments.forEach((m, i) => log(`moment ${i + 1} : ${JSON.stringify(m)}`));
     log(`Essai : ${lecture.lus} moments lus, ${lecture.valides.length} valides ; refus : ${JSON.stringify(lecture.refus)}. Jetons : ${cout.jetons.entree} en entrée, ${cout.jetons.sortie} en sortie ; coût ${dollars(cout.dollars)}.`);
-    // Les moments de l'essai, pour les regarder dans le vrai monde avant de payer le lot. Ni moments.json ni ecriture.json.
-    const rendu = { date: deps.maintenant().toISOString(), modele: MODELE, effort: EFFORT, raison: reponse.raison, lus: lecture.lus, refus: lecture.refus, jetons: cout.jetons, cout_dollars: cout.dollars, valides: lecture.valides };
+    // Les moments de l'essai, pour les regarder dans le vrai monde avant de payer le lot (jamais dans moments.json). Son coût
+    // est compté sous le plafond, dans ecriture.json ; sans `usage`, son pire coût.
+    const depense = message.usage ? cout.dollars : pire;
+    const rendu = { date: deps.maintenant().toISOString(), modele: MODELE, effort: EFFORT, raison: reponse.raison, lus: lecture.lus, refus: lecture.refus, jetons: cout.jetons, cout_dollars: auCentime(depense), valides: lecture.valides };
     deps.ecrire(CHEMINS.essai, `${JSON.stringify(rendu, null, 2)}\n`);
+    ecriture.cout_dollars = auCentime(ecriture.cout_dollars + depense);
+    ecriture.essais_dollars = auCentime(ecriture.essais_dollars + depense);
+    deps.ecrire(CHEMINS.ecriture, `${JSON.stringify(ecriture, null, 2)}\n`);
     return 0;
   }
 
@@ -675,13 +706,29 @@ export async function ecrireLAlmanach(deps: DepsDeLEcriture): Promise<Sortie> {
         log(`Lot ${prochain.rang} : ${requetes.length} requêtes, pire coût ${dollars(pire)}, au-dessus de ce qui reste du plafond (${dollars(reste)}) : rien n'est envoyé.`);
         return 1;
       }
+      // Jamais deux fois le même lot : un lot récent du compte que ce fichier ne connaît pas (une Action perdue avant d'avoir
+      // poussé son ecriture.json, un envoi dont la réponse s'est perdue) arrête tout, à rattacher à la main.
+      let inconnus: { id: string; processing_status: string }[];
+      try {
+        const connus = new Set(ecriture.lots_connus);
+        const depuis = deps.maintenant().getTime() - LOTS_RECENTS_MS;
+        inconnus = (await client.lotsDuCompte()).filter((l) => !connus.has(l.id) && !(Date.parse(l.created_at) < depuis));
+      } catch (e) {
+        log(`Lot ${prochain.rang} : les lots du compte ne se lisent pas, ${erreurDeLAPI(e)}. Rien n'est envoyé.`);
+        return 1;
+      }
+      if (inconnus.length > 0) {
+        log(`Lot ${prochain.rang} : ${inconnus.length} lot(s) récent(s) du compte inconnu(s) de ${CHEMINS.ecriture} (${inconnus.map((l) => `${l.id} ${l.processing_status}`).join(", ")}) : rien n'est envoyé, pour ne jamais payer deux fois.`);
+        return 1;
+      }
       let id: string;
       try {
         id = (await client.creerLeLot(requetes)).id;
       } catch (e) {
-        log(`Lot ${prochain.rang} : non créé, ${erreurDeLAPI(e)}. Rien n'est parti.`);
+        log(`Lot ${prochain.rang} : non créé, ${erreurDeLAPI(e)}. Rien n'est parti, ou un lot créé sans réponse : le passage suivant le trouvera sur le compte et s'arrêtera.`);
         return 1;
       }
+      ecriture.lots_connus.push(id);
       enCours = ecriture.lot_en_cours = { rang: prochain.rang, lot: id, date: deps.maintenant().toISOString(), graines: prochain.graines, pire_cout_dollars: auCentime(pire) };
       // Noté tout de suite : une Action coupée pendant l'attente reprendra ce lot, sans le renvoyer.
       sauver();
@@ -747,7 +794,8 @@ export async function ecrireLAlmanach(deps: DepsDeLEcriture): Promise<Sortie> {
           parGraine.set(rang, []);
           continue;
         }
-        const cout = coutReel(r.result.message.usage, true);
+        // Une réponse sans `usage` compte sa part du pire coût du lot, jamais zéro : le plafond ne se rend pas.
+        const cout = r.result.message.usage ? coutReel(r.result.message.usage, true) : { jetons: { entree: 0, sortie: 0 }, dollars: enCours.pire_cout_dollars / enCours.graines.length };
         lot.jetons.entree += cout.jetons.entree;
         lot.jetons.sortie += cout.jetons.sortie;
         lot.cout_dollars += cout.dollars;
