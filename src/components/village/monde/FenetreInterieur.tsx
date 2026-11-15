@@ -30,12 +30,13 @@ export function FenetreInterieur({ dessin, lumiere, horloge, fige, tenue, onFerm
   );
 }
 
-const memeTaille = (a: DedansALEcran | null, b: DedansALEcran | null): boolean => a === b || (a !== null && b !== null && a.css === b.css && a.gauche === b.gauche && a.haut === b.haut);
+const memeTaille = (a: DedansALEcran | null, b: DedansALEcran | null): boolean => a === b || (a !== null && b !== null && a.css === b.css && a.largeur === b.largeur && a.hauteur === b.hauteur);
 
 /**
- * Le dedans peint. Le cadre prend la largeur de la fenêtre et la hauteur qu'y donnerait le dessin entier, sans dépasser
- * ce que la fenêtre laisse (la feuille de style) ; la toile s'y pose, mesurée à chaque changement de taille du cadre (le
- * zoom du navigateur compris). `tenue` : celle du Gaulois du visiteur, ou `null` (la pièce vide).
+ * Le dedans peint. La place qu'il peut prendre se mesure sur la fenêtre à sa plus grande taille (`data-mesure`, la
+ * feuille de style dit laquelle), puis le cadre prend la taille exacte du dessin et la fenêtre se resserre autour de lui :
+ * ni cadre vide autour d'un petit dessin, ni règle de mise en page recopiée ici. Mesuré à l'ouverture et à chaque
+ * changement de taille de la scène (le zoom du navigateur compris). `tenue` : celle du Gaulois du visiteur, ou `null`.
  */
 function DedansPeint({ dessin, lumiere, horloge, fige, tenue }: { dessin: DessinDInterieur; lumiere: Lumiere; horloge: Horloge; fige: boolean; tenue: Tenue | null }) {
   const cadre = useRef<HTMLDivElement>(null);
@@ -44,14 +45,27 @@ function DedansPeint({ dessin, lumiere, horloge, fige, tenue }: { dessin: Dessin
 
   useLayoutEffect(() => {
     const el = cadre.current;
-    if (!el) return;
+    const fenetre = el?.closest<HTMLElement>(".monde-fenetre");
+    if (!el || !fenetre) return;
     const mesurer = () => {
-      const suivante = dedansALEcran(dessin, { largeur: el.clientWidth, hauteur: el.clientHeight }, window.devicePixelRatio);
+      // La fenêtre à sa plus grande taille, le cadre aussi grand qu'elle le laisse : lu, puis tout reprend sa place, avant
+      // que l'écran ne se redessine.
+      fenetre.dataset["mesure"] = "";
+      el.style.width = "";
+      el.style.height = "";
+      const place = { largeur: el.clientWidth, hauteur: el.clientHeight };
+      delete fenetre.dataset["mesure"];
+      const suivante = dedansALEcran(dessin, place, window.devicePixelRatio);
+      if (suivante) {
+        el.style.width = `${suivante.largeur}px`;
+        el.style.height = `${suivante.hauteur}px`;
+      }
       setTaille((avant) => (memeTaille(avant, suivante) ? avant : suivante));
     };
     mesurer();
-    const observateur = typeof ResizeObserver === "function" ? new ResizeObserver(mesurer) : null;
-    observateur?.observe(el);
+    const scene = fenetre.closest(".monde-scene") ?? fenetre.parentElement;
+    const observateur = typeof ResizeObserver === "function" && scene ? new ResizeObserver(mesurer) : null;
+    if (scene) observateur?.observe(scene);
     return () => observateur?.disconnect();
   }, [dessin]);
 
@@ -83,7 +97,7 @@ function DedansPeint({ dessin, lumiere, horloge, fige, tenue }: { dessin: Dessin
   }, [images, fige, horloge]);
 
   return (
-    <div ref={cadre} class="monde-dedans" data-testid="monde-dedans" style={{ "--dedans-l": String(dessin.largeur), "--dedans-h": String(dessin.hauteur) }}>
+    <div ref={cadre} class="monde-dedans" data-testid="monde-dedans">
       <canvas
         ref={toile}
         width={dessin.largeur}
@@ -94,11 +108,7 @@ function DedansPeint({ dessin, lumiere, horloge, fige, tenue }: { dessin: Dessin
         data-images={String(dessin.images)}
         data-pixels={taille ? String(taille.pixels) : undefined}
         data-net={taille ? String(taille.net) : undefined}
-        style={
-          taille
-            ? { width: `${taille.largeur}px`, height: `${taille.hauteur}px`, left: `${taille.gauche}px`, top: `${taille.haut}px`, imageRendering: taille.net ? undefined : "auto" }
-            : { visibility: "hidden" }
-        }
+        style={taille ? { width: `${taille.largeur}px`, height: `${taille.hauteur}px`, imageRendering: taille.net ? undefined : "auto" } : { visibility: "hidden" }}
       />
       <p class="sr-only">{phraseDuDedans(dessin.id)}.</p>
     </div>

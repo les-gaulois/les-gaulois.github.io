@@ -944,37 +944,42 @@ button.monde-etiquette:hover {
 }
 
 /* ---------- Le dedans d'un bâtiment du chantier (15 novembre 2026) ---------- */
-/* Un bâtiment fini s'ouvre sur son dedans (FenetreInterieur.tsx) : une fenêtre large, le dessin centré dans son cadre, à
-   la plus grande case entière qui tienne. Le cadre prend la largeur de la fenêtre et la hauteur qu'y aurait le dessin
-   entier ; quand la fenêtre ne laisse pas tant, il rétrécit au lieu de défiler, et le dessin avec lui. */
+/* Un bâtiment fini s'ouvre sur son dedans (FenetreInterieur.tsx), à la plus grande case entière qui tienne. La place se
+   mesure sur la fenêtre à sa plus grande taille (`data-mesure`, le temps d'une lecture : sur un écran large, la largeur
+   des grandes fenêtres, 78 rem au plus ; sur un téléphone, le panneau du bas), puis la fenêtre se resserre autour du
+   dessin, centré, sous une marge fine qui laisse une case de plus. */
 @media (min-width: 48rem) {
   .monde-fenetre[data-sorte="interieur"] {
+    width: fit-content;
+    max-width: min(78rem, calc(100% - 7.5rem));
+  }
+  .monde-fenetre[data-sorte="interieur"][data-mesure] {
     width: min(78rem, calc(100% - 7.5rem));
   }
 }
 .monde-fenetre[data-sorte="interieur"] .monde-fenetre-corps {
   display: flex;
   flex-direction: column;
+  align-items: center;
+  padding: 0.5rem;
   overflow: hidden;
 }
 .monde-dedans {
   position: relative;
-  flex: 0 1 auto;
-  width: 100%;
-  min-height: 0;
-  aspect-ratio: var(--dedans-l) / var(--dedans-h);
+  flex: none;
   overflow: hidden;
-  border-radius: 0.375rem;
   background: var(--color-surface-2);
+}
+.monde-fenetre[data-mesure] .monde-dedans {
+  flex: 1 1 auto;
+  align-self: stretch;
+  height: 100vh;
+  min-height: 0;
 }
 .monde-dedans-toile {
   position: absolute;
-}
-/* Sur un téléphone, le panneau qui monte du bas : moins de marge, pour une case de plus. */
-@media (max-width: 47.9375rem) {
-  .monde-fenetre[data-sorte="interieur"] .monde-fenetre-corps {
-    padding: 0.5rem;
-  }
+  top: 0;
+  left: 0;
 }
 
 /* ---------- La forge du village (14 novembre 2026) ---------- */
