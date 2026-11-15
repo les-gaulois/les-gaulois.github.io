@@ -3,7 +3,8 @@
  * (https://github.com/openfrontio/OpenFrontIO), © OpenFront and Contributors, AGPL-3.0 : `TIER_COLORS` et `LEGEND_COLOR`
  * de src/client/Progression.ts, `PRISM` de src/client/components/LevelBadge.ts, commit 2f0252d du 13 novembre 2026.
  * Modifiées le 13 novembre 2026 : seules les couleurs sont gardées, rangées par prestige ; l'emblème qui les porte est
- * redessiné par le site sur le modèle du badge du jeu, sans en reprendre le code (src/components/NiveauEmblem.tsx).
+ * redessiné par le site sur le modèle du badge du jeu, sans en reprendre le code (src/components/NiveauEmblem.tsx, et depuis
+ * le 15 novembre 2026 l'image de la fiche, src/lib/fiche-image.ts, qui écrit « © OpenFront and Contributors » sous l'emblème).
  * Dans le jeu, chaque prestige a son rang (fer, bronze, argent, or, platine, émeraude, diamant, maître, grand maître, champion) ;
  * le site n'en écrit pas le nom, que le jeu n'affiche pas. Voir NOTICE.md.
  */
@@ -80,6 +81,26 @@ export function prestigeKey(): { label: string; account: AccountLevel }[] {
     { label: "Légende", account: { level: 100, prestige: PRESTIGE_STEPS, legend: true } },
   ];
 }
+
+/**
+ * La forme de l'emblème, dans un repère de 100 × 100 : une case hexagonale de rayon 32, et dix crans de rayon 43 autour,
+ * un par prestige, séparés de 9 degrés. Une seule écriture pour la page (`NiveauEmblem.tsx`) et pour l'image de la fiche
+ * (`gazette-image.ts`), dessinée par le site sur le modèle du badge du jeu.
+ */
+const EMBLEME_RAYON = 43;
+const EMBLEME_ECART = 9;
+const pointDeLEmbleme = (deg: number, r: number) => {
+  const rad = (deg * Math.PI) / 180;
+  return `${(50 + r * Math.cos(rad)).toFixed(2)} ${(50 + r * Math.sin(rad)).toFixed(2)}`;
+};
+const PAS = 360 / PRESTIGE_STEPS;
+/** Les dix crans, en chemins SVG, du haut dans le sens des aiguilles d'une montre. */
+export const EMBLEME_CRANS: readonly string[] = Array.from({ length: PRESTIGE_STEPS }, (_, i) => {
+  const from = -90 + i * PAS + EMBLEME_ECART / 2;
+  return `M ${pointDeLEmbleme(from, EMBLEME_RAYON)} A ${EMBLEME_RAYON} ${EMBLEME_RAYON} 0 0 1 ${pointDeLEmbleme(from + PAS - EMBLEME_ECART, EMBLEME_RAYON)}`;
+});
+/** La case hexagonale, en points SVG. */
+export const EMBLEME_HEXAGONE = Array.from({ length: 6 }, (_, i) => pointDeLEmbleme(-90 + i * 60, 32).replace(" ", ",")).join(" ");
 
 /** L'ordre du tri : le prestige d'abord, puis le niveau ; une Légende tout en haut. */
 export function accountRank(a: AccountLevel): number {

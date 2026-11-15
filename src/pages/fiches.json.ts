@@ -1,5 +1,5 @@
 import { clan } from "../../config/clan";
-import { loadMembers } from "../lib/data";
+import { loadMembers, loadSeriesEnCours } from "../lib/data";
 import { ficheImageVersion, ficheIndex } from "../lib/fiches-discord";
 
 /**
@@ -9,6 +9,6 @@ import { ficheImageVersion, ficheIndex } from "../lib/fiches-discord";
  */
 export function GET() {
   const list = loadMembers();
-  const index = list ? ficheIndex(list, clan.tag, ficheImageVersion) : { listedAt: null, fiches: [] };
+  const index = list ? ficheIndex(list, clan.tag, ficheImageVersion, loadSeriesEnCours()) : { listedAt: null, fiches: [] };
   return new Response(JSON.stringify(index), { headers: { "Content-Type": "application/json" } });
 }

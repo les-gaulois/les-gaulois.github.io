@@ -3,6 +3,7 @@ import { join } from "node:path";
 import type { z } from "zod";
 import { dayRows, territoryReadings, type TerritoryReading } from "./clanmap/days";
 import { GazetteSendState } from "./gazette-discord";
+import { serieEnCours, type SerieEnCours } from "./serie-en-cours";
 import { EMPTY_MEMBER_WEEKS } from "./week-players";
 import {
   Announcements,
@@ -83,6 +84,29 @@ let memberResults: StoredMemberResults | null = null;
 export const loadSessionIndex = (): Map<string, StoredSession> => (sessionIndex ??= new Map(loadSessions().map((s) => [s.gameId, s])));
 /** Les listes de parties des membres, lues une fois. */
 export const loadMemberResultsOnce = (): StoredMemberResults => (memberResults ??= loadMemberResults());
+
+let seriesEnCours: ReadonlyMap<string, SerieEnCours> | null = null;
+/**
+ * La série de victoires en cours de chaque membre avec pseudo de la liste officielle dont les parties sont toutes lues
+ * (`serie-en-cours.ts`), par identifiant public, calculée une fois. Vide si un mois de sessions est illisible : sans lui, une victoire ne serait pas reconnue, et une flamme
+ * fausse vaut moins que pas de flamme (même règle que les podiums de Records).
+ */
+export function loadSeriesEnCours(): ReadonlyMap<string, SerieEnCours> {
+  if (seriesEnCours) return seriesEnCours;
+  const series = new Map<string, SerieEnCours>();
+  if (unreadableSessionFiles().length === 0) {
+    const byId = loadSessionIndex();
+    const coveredUntil = loadMeta().sessions.coveredUntil;
+    const list = loadMembers();
+    const results = loadMemberResultsOnce();
+    for (const m of list?.members ?? []) {
+      if (!list || !m.username || !m.publicId || !m.team) continue;
+      const serie = serieEnCours(results[m.publicId], byId, coveredUntil, { parties: m.team.wins + m.team.losses, le: list.fetchedAt });
+      if (serie) series.set(m.publicId, serie);
+    }
+  }
+  return (seriesEnCours = series);
+}
 
 /** Les mois de sessions illisibles. Une page les ignore et se corrige au build suivant ; un message posté ne se corrige pas. */
 export function unreadableSessionFiles(): string[] {

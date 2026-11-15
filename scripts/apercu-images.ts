@@ -3,7 +3,8 @@
  * par Git) :
  *   npm run images:apercu
  *   npm run images:apercu -- un/autre/dossier
- * La gazette, l'image de l'accueil, la fiche du premier du clan et les nouveautés reprennent les données collectées, vrais
+ * La gazette, l'image de l'accueil, la fiche du premier du clan (et celle du membre à la plus longue série en cours, « 13-fiche-flamme »,
+ * si une flamme est allumée) et les nouveautés reprennent les données collectées, vrais
  * pseudos compris : ces images ne se postent pas. Les achats du village (« 18-achats-… ») posent de vrais objets du catalogue sous
  * des noms d'exemple (« Gaulois n° » et un numéro inventé). Les alertes de place et la course du soir posent des chiffres d'exemple (place
  * de départ, points, écarts) sur le vrai classement. Les autres sont des exemples écrits ici, aux pseudos inventés : aucun
@@ -23,8 +24,9 @@ import { mapReading, rankReading, type PlaceAlert, type PlaceReading } from "../
 import { alertCard } from "../src/lib/alerts-image";
 import { welcomeCard } from "../src/lib/bienvenue-image";
 import { courseCard } from "../src/lib/course-soir-image";
-import { loadClanMapFilm, loadHistory, loadLeaderboard, loadMembers, loadMemberWeeks, loadMeta, loadNouveautes, loadSessions, loadTerritoryReadings } from "../src/lib/data";
+import { loadClanMapFilm, loadHistory, loadLeaderboard, loadMembers, loadMemberWeeks, loadMeta, loadNouveautes, loadSeriesEnCours, loadSessions, loadTerritoryReadings } from "../src/lib/data";
 import { ficheCard, ficheFacts } from "../src/lib/fiche-image";
+import { flammeAllumee } from "../src/lib/serie-en-cours";
 import { TENUE_DE_DEPART, tenueAuHasard } from "../src/lib/gaulois";
 import { AUCUN_GAULOIS, type GauloisParJoueur } from "../src/lib/gaulois-joueurs";
 import { gazetteEditions } from "../src/lib/gazette";
@@ -242,11 +244,20 @@ await saveBoth("11-jouer-ensemble.png", ["m0", "m1", "m4"], (gaulois) =>
     gaulois,
   ),
 );
-const firstMember = members?.members.find((member) => member.publicId && ficheFacts(members.members, member)?.rank === 1) ?? null;
-await saveBoth("13-fiche.png", firstMember?.publicId ? [firstMember.publicId] : [], (gaulois) => {
-  const facts = members && firstMember ? ficheFacts(members.members, firstMember) : null;
+// La flamme de série et l'emblème de niveau, comme au build : la série en cours de chacun, lue dans .cache/member-games/.
+const series = loadSeriesEnCours();
+const ficheDe = (member: NonNullable<typeof members>["members"][number] | null) => (gaulois: GauloisParJoueur) => {
+  const facts = members && member?.publicId ? ficheFacts(members.members, member, series.get(member.publicId) ?? null) : null;
   return members && facts ? ficheCard(facts, TAG, SITE, members.fetchedAt, measure, gaulois) : null;
-});
+};
+const firstMember = members?.members.find((member) => member.publicId && ficheFacts(members.members, member)?.rank === 1) ?? null;
+await saveBoth("13-fiche.png", firstMember?.publicId ? [firstMember.publicId] : [], ficheDe(firstMember));
+// Le membre à la plus longue série en cours, s'il a une flamme : la flamme, et son emblème s'il montre son niveau.
+const enFeu = (members?.members ?? [])
+  .filter((m) => m.publicId && m.username && flammeAllumee(series.get(m.publicId) ?? null))
+  .sort((a, b) => (series.get(b.publicId!)?.victoires ?? 0) - (series.get(a.publicId!)?.victoires ?? 0))[0];
+if (enFeu?.publicId) await saveBoth("13-fiche-flamme.png", [enFeu.publicId], ficheDe(enFeu));
+else console.log("13-fiche-flamme.png : aucune flamme allumée, pas d'image.");
 await saveBoth(
   "14-accueil.png",
   (edition?.players ?? []).map((p) => p.id),

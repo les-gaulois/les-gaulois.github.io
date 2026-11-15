@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { ficheCard, ficheFacts, ficheImageAlt } from "../../src/lib/fiche-image";
-import type { Measure } from "../../src/lib/gazette-image";
-import type { StoredMember } from "../../src/lib/schemas";
+import { ficheCard, ficheFacts, ficheImageAlt, type FicheFacts } from "../../src/lib/fiche-image";
+import { cardSvg, type Measure } from "../../src/lib/gazette-image";
+import { FLAMME } from "../../src/lib/flamme-serie";
+import { prestigeColor } from "../../src/lib/niveau";
+import { TENUE_DE_DEPART } from "../../src/lib/gaulois";
+import type { GauloisParJoueur } from "../../src/lib/gaulois-joueurs";
+import { spriteRect } from "../../src/lib/gaulois-sprite";
+import type { AccountLevel, StoredMember } from "../../src/lib/schemas";
+import type { SerieEnCours } from "../../src/lib/serie-en-cours";
 
 const member = (publicId: string, username: string | null, team: { wins: number; losses: number } | null): StoredMember => ({ role: "member", joinedAt: "2026-05-03T20:17:40.935Z", publicId, username, team });
 const members = [member("a", "Alpha", { wins: 738, losses: 619 }), member("b", "Bravo", { wins: 900, losses: 100 }), member("c", "Charlie", { wins: 12, losses: 30 }), member("d", null, { wins: 5000, losses: 1 }), member("e", "Echo", null)];
@@ -12,7 +18,7 @@ const LISTED = "2026-11-08T08:53:00.000Z";
 
 describe("ficheFacts", () => {
   it("reprend la place et les chiffres de la liste des membres, et le palier", () => {
-    expect(ficheFacts(members, members[0]!)).toEqual({ id: "a", username: "Alpha", rank: 3, ranked: 4, wins: 738, losses: 619, games: 1357, rate: (738 / 1357) * 100, tier: 500, nextTier: { wins: 1000, missing: 262 } });
+    expect(ficheFacts(members, members[0]!)).toEqual({ id: "a", username: "Alpha", rank: 3, ranked: 4, wins: 738, losses: 619, games: 1357, rate: (738 / 1357) * 100, tier: 500, nextTier: { wins: 1000, missing: 262 }, niveau: null, serie: null });
   });
   it("n'a rien à dire d'un anonyme ni d'un membre sans stats", () => {
     expect(ficheFacts(members, members[3]!)).toBeNull();
@@ -67,5 +73,132 @@ describe("ficheImageAlt", () => {
   it("ne lit pas des zéros ni un tiret pour un membre sans partie", () => {
     const facts = { ...ficheFacts(members, members[0]!)!, games: 0, wins: 0, losses: 0, rate: null, tier: null, nextTier: null };
     expect(plain(ficheImageAlt(facts, "GAL", LISTED))).toBe("Alpha, membre de [GAL] : aucune partie sous le tag, pas encore de palier. Liste officielle du 8 nov. 2026.");
+  });
+});
+
+// La flamme de série et l'emblème de niveau (15 novembre 2026, conception de Claude Fable 5.2) : huit cas, selon qu'il y a
+// un Gaulois, un niveau visible et une série d'au moins 5 victoires d'affilée.
+describe("la flamme de série et l'emblème de niveau sur la fiche", () => {
+  const base = ficheFacts(members, members[0]!)!;
+  const NIVEAU: AccountLevel = { level: 62, prestige: 1, legend: false };
+  const serie = (victoires: number, auMoins = false): SerieEnCours => ({ victoires, auMoins, depuis: "2026-09-18T19:00:00.000Z", jusqua: "2026-09-21T20:00:00.000Z", releve: LISTED });
+  const avecGaulois: GauloisParJoueur = new Map([["a", TENUE_DE_DEPART]]);
+  const carte = (niveau: AccountLevel | null, s: SerieEnCours | null, gaulois?: GauloisParJoueur) => ficheCard({ ...base, niveau, serie: s }, "GAL", "https://les-gaulois.github.io", LISTED, measure, gaulois);
+  const boite = (t: { text: string; font: Parameters<Measure>[1]; size: number; x: number; y: number; anchor?: "start" | "middle" | "end" }) => {
+    const w = measure(t.text, t.font, t.size);
+    const left = t.anchor === "end" ? t.x - w : t.anchor === "middle" ? t.x - w / 2 : t.x;
+    return { left, right: left + w, top: t.y - t.size, bottom: t.y + t.size * 0.25 };
+  };
+
+  it("sans niveau ni série, l'image est celle d'avant, avec ou sans Gaulois", () => {
+    // Les faits tels que les donnaient les appels d'avant le 15 novembre 2026 : sans ces deux champs.
+    const ancien: FicheFacts = { ...base };
+    delete ancien.niveau;
+    delete ancien.serie;
+    for (const g of [undefined, avecGaulois]) {
+      const avant = ficheCard(ancien, "GAL", "https://les-gaulois.github.io", LISTED, measure, g);
+      expect(carte(null, null, g)).toEqual(avant);
+      expect(avant.emblemes).toBeUndefined();
+      expect(avant.dessins).toBeUndefined();
+    }
+  });
+
+  it("sous 5 victoires d'affilée, aucune flamme ni aucun mot de série", () => {
+    const c = carte(null, serie(4));
+    expect(c.dessins).toBeUndefined();
+    expect(c.texts.some((t) => t.text.includes("affilée"))).toBe(false);
+  });
+
+  for (const g of [undefined, avecGaulois]) {
+    for (const niveau of [null, NIVEAU]) {
+      for (const s of [null, serie(7)]) {
+        const nom = `${g ? "avec" : "sans"} Gaulois, ${niveau ? "avec" : "sans"} niveau, ${s ? "avec" : "sans"} série`;
+        it(`${nom} : tout tient dans l'image, rien ne se chevauche`, () => {
+          const c = carte(niveau, s, g);
+          const boites = c.texts.map((t) => ({ t: t.text, ...boite(t) }));
+          for (const b of boites) {
+            expect(b.left, b.t).toBeGreaterThanOrEqual(0);
+            expect(b.right, b.t).toBeLessThanOrEqual(1200);
+          }
+          // Les textes de la flamme et de l'emblème ne touchent aucun autre texte (ceux d'avant ont leurs propres tests).
+          const nouveaux = new Set(["62", "Prestige 1 · Niveau 62", "tout le jeu", "© OpenFront and Contributors", "7 victoires d'affilée", "sous le tag, du 18 au 21 sept. 2026"]);
+          for (let i = 0; i < boites.length; i++)
+            for (let j = i + 1; j < boites.length; j++) {
+              const a = boites[i]!;
+              const b = boites[j]!;
+              if (!nouveaux.has(plain(a.t)) && !nouveaux.has(plain(b.t))) continue;
+              const touche = a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+              expect(touche, `« ${a.t} » et « ${b.t} »`).toBe(false);
+            }
+          // La flamme et l'emblème ne touchent ni un texte (sauf le chiffre du niveau, posé dans l'emblème), ni le Gaulois.
+          const formes = [
+            ...(c.dessins ?? []).map((d) => ({ nom: "flamme", left: d.x, top: d.y, right: d.x + d.decor.largeur * d.echelle, bottom: d.y + d.decor.hauteur * d.echelle })),
+            ...(c.emblemes ?? []).map((e) => ({ nom: "emblème", left: e.x, top: e.y, right: e.x + e.size, bottom: e.y + e.size })),
+          ];
+          for (const f of formes) {
+            expect(f.left).toBeGreaterThanOrEqual(0);
+            expect(f.right).toBeLessThanOrEqual(1200);
+            expect(f.bottom).toBeLessThanOrEqual(630);
+            for (const b of boites) {
+              if (f.nom === "emblème" && b.t === String(NIVEAU.level)) continue;
+              const touche = f.left < b.right && b.left < f.right && f.top < b.bottom && b.top < f.bottom;
+              expect(touche, `${f.nom} et « ${b.t} »`).toBe(false);
+            }
+            for (const sprite of c.gaulois ?? []) {
+              const r = spriteRect(sprite);
+              const touche = f.left < r.x + r.width && r.x < f.right && f.top < r.y + r.height && r.y < f.bottom;
+              expect(touche, `${f.nom} et le Gaulois`).toBe(false);
+            }
+          }
+          expect(c.emblemes?.length ?? 0).toBe(niveau ? 1 : 0);
+          expect(c.dessins?.length ?? 0).toBe(s ? 1 : 0);
+          const mots = c.texts.map((t) => plain(t.text));
+          if (niveau) expect(mots).toEqual(expect.arrayContaining(["62", "Prestige 1 · Niveau 62", "tout le jeu", "© OpenFront and Contributors"]));
+          if (s) expect(mots).toEqual(expect.arrayContaining(["7 victoires d'affilée", "sous le tag, du 18 au 21 sept. 2026"]));
+        });
+      }
+    }
+  }
+
+  it("écrit « au moins » quand le chiffre est un minimum, et un niveau à trois chiffres plus petit", () => {
+    const c = carte({ level: 100, prestige: 10, legend: true }, serie(12, true), avecGaulois);
+    const mots = c.texts.map((t) => plain(t.text));
+    expect(mots).toContain("au moins 12 victoires d'affilée");
+    expect(mots).toContain("Légende");
+    expect(c.texts.find((t) => t.text === "100")?.size).toBe(27);
+  });
+
+  it("garde la place du Gaulois sous l'emblème, et arrête un long pseudo avant la colonne de l'emblème", () => {
+    const c = carte(NIVEAU, serie(7), avecGaulois);
+    expect(spriteRect(c.gaulois![0]!).y).toBeGreaterThanOrEqual(190);
+    const long = ficheCard({ ...base, niveau: NIVEAU, username: "Vercingétorix-le-grand-chef-des-Arvernes-et-de-toute-la-Gaule" }, "GAL", "https://les-gaulois.github.io", LISTED, measure);
+    const titre = long.texts.find((t) => t.text.endsWith("…"))!;
+    expect(boite(titre).right).toBeLessThanOrEqual(1200 - 36 - 280);
+  });
+
+  it("le dit au lecteur d'écran, la série puis le compte, deux phrases à part", () => {
+    expect(plain(ficheImageAlt({ ...base, niveau: NIVEAU, serie: serie(7) }, "GAL", LISTED))).toBe(
+      "Alpha, membre de [GAL] : 3e sur 4 membres aux victoires sous le tag. 738 victoires, 619 défaites, 54,4 %, palier des 500 victoires. Série en cours : 7 victoires d'affilée sous le tag, du 18 au 21 sept. 2026, sans défaite depuis. Compte OpenFront, tout le jeu : Prestige 1 · Niveau 62. Liste officielle du 8 nov. 2026.",
+    );
+    expect(plain(ficheImageAlt({ ...base, niveau: null, serie: serie(4) }, "GAL", LISTED))).not.toContain("Série");
+  });
+  it("dessine l'emblème aux couleurs du prestige, ses crans éteints en filet, et la flamme case par case, nette", () => {
+    const c = carte(NIVEAU, serie(7), avecGaulois);
+    const svg = cardSvg(c, { paths: () => "" }, { table: false });
+    // La case, bordée de la couleur du prestige 1 ; un cran allumé, neuf éteints.
+    expect(svg).toContain(`stroke="${prestigeColor(NIVEAU)}" stroke-width="4"`);
+    expect(svg.match(/stroke-opacity="0.45" stroke-width="8"/g)).toHaveLength(9);
+    expect(svg.match(new RegExp(`stroke="${prestigeColor(NIVEAU)}" stroke-width="8"`, "g"))).toHaveLength(1);
+    // La flamme : chaque case pleine couverte une fois, à 6 px, à sa place, sans lissage.
+    const dessin = c.dessins![0]!;
+    const groupe = svg.match(/<g shape-rendering="crispEdges">(.*?)<\/g>/)![1]!;
+    const rects = [...groupe.matchAll(/<rect x="(\d+)" y="(\d+)" width="(\d+)" height="(\d+)" fill="(#[0-9a-f]{6})"\/>/gi)].map((m) => m.slice(1, 5).map(Number));
+    const aire = rects.reduce((n, [, , w, h]) => n + w! * h!, 0);
+    expect(aire).toBe(FLAMME.cases.filter((x) => x).length * 36);
+    for (const [x, y, , h] of rects) {
+      expect((x! - dessin.x) % 6).toBe(0);
+      expect((y! - dessin.y) % 6).toBe(0);
+      expect(h).toBe(6);
+    }
   });
 });

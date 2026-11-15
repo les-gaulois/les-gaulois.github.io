@@ -1,13 +1,14 @@
 ---
 import Base from "../../layouts/Base.astro";
 import DataStatus from "../../components/DataStatus.astro";
+import FlammeSerie from "../../components/FlammeSerie.astro";
 import MapNamesCredit from "../../components/MapNamesCredit.astro";
 import { NiveauEmblem } from "../../components/NiveauEmblem";
 import PageHeader from "../../components/PageHeader.astro";
 import ReadingNote from "../../components/ReadingNote.astro";
 import { clan } from "../../../config/clan";
-import { loadMemberGames, loadMemberResultsOnce, loadMembers, loadMeta, loadSessionIndex } from "../../lib/data";
-import { fmtCount, fmtDate, fmtInt, fmtPct } from "../../lib/format";
+import { loadMemberGames, loadMemberResultsOnce, loadMembers, loadMeta, loadSeriesEnCours, loadSessionIndex } from "../../lib/data";
+import { fmtCount, fmtDate, fmtDateTime, fmtInt, fmtPct } from "../../lib/format";
 import { ficheFacts, ficheImageAlt } from "../../lib/fiche-image";
 import { ficheImageVersion } from "../../lib/fiches-discord";
 import { mapLabel } from "../../lib/map-names";
@@ -18,6 +19,7 @@ import { formatLabel } from "../../lib/results";
 import type { StoredMember } from "../../lib/schemas";
 import { groupSentence, groupStats, winRateOf } from "../../lib/seul-groupe";
 import { GROUP_LABELS, GROUP_SIZES } from "../../lib/simulateur";
+import { datesDeLaSerie, flammeAllumee, serieEnMots } from "../../lib/serie-en-cours";
 import { parisParts } from "../../lib/time";
 
 /** Une fiche par membre avec pseudo : un anonyme n'en a pas, et son identifiant n'est écrit nulle part. */
@@ -45,7 +47,11 @@ const RESULT = { victory: "Victoire", defeat: "Défaite" } as const;
 const atDay = (date: string) => fmtDate(`${date}T12:00:00Z`);
 // L'image d'aperçu du lien, dessinée au build (scripts/generate-fiches.ts) : sans elle, celle du site.
 const list = loadMembers();
-const facts = list ? ficheFacts(list.members, member) : null;
+// Sa série en cours (`serie-en-cours.ts`) : la flamme ne s'allume qu'à 5 victoires d'affilée.
+const serie = member.publicId ? (loadSeriesEnCours().get(member.publicId) ?? null) : null;
+const facts = list ? ficheFacts(list.members, member, serie) : null;
+// « 7 victoires d'affilée », ou « Au moins 7 victoires d'affilée » en tête de ligne.
+const serieLigne = flammeAllumee(serie) ? serieEnMots(serie).replace(/^a/, "A") : null;
 // Son adresse porte la version de son dessin : quand l'image change, Discord ne montre pas celle qu'il a gardée.
 const imageVersion = facts !== null && member.publicId !== null ? ficheImageVersion(member.publicId) : null;
 const hasImage = imageVersion !== null;
@@ -72,6 +78,21 @@ const tiles = member.team
       {/* Vide pour un visiteur : sa photo Discord, s'il a choisi de se montrer, pour un membre validé connecté (src/scripts/visages.ts). */}
       <span class="face-slot face-slot-lg mt-4" aria-hidden="true" data-face={face} hidden></span>
       {ROLE[member.role] && <p class="mt-2 font-semibold" data-testid="member-role">{ROLE[member.role]}</p>}
+      {/* La flamme de série (src/lib/serie-en-cours.ts) : à partir de 5 victoires d'affilée sous le tag, au dernier relevé. Elle
+          vient avant le niveau, qui est tout le jeu ; deux blocs à part. Sous 5, ou sans données : rien. */}
+      {
+        serie && serieLigne && (
+          <div class="mt-4 flex items-center gap-4" data-testid="member-streak">
+            <span class="flex w-24 shrink-0 justify-center">
+              <FlammeSerie />
+            </span>
+            <p>
+              <span class="block font-display text-2xl font-bold">{serieLigne}</span>
+              <span class="block text-sm text-muted">Victoires {datesDeLaSerie(serie)}, sans défaite sous le tag depuis, au dernier relevé du {fmtDateTime(serie.releve)}</span>
+            </p>
+          </div>
+        )
+      }
       {
         member.account && (
           <div class="mt-4 flex items-center gap-4" data-testid="member-level">

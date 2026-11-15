@@ -21,8 +21,10 @@ import { AUCUN_GAULOIS, type GauloisParJoueur } from "./gaulois-joueurs";
 import { BUST_CUT, placeSprite, spriteLayers, tenueOf, type SpritePlacement } from "./gaulois-sprite";
 import { comparisonSentence, DATA_SOURCE, playersPeriod, PODIUM_METHOD, rankWords, type GazetteEdition, weekLabel } from "./gazette";
 import { invite } from "./nav";
+import { EMBLEME_CRANS, EMBLEME_HEXAGONE, prestigeColor, segmentColors } from "./niveau";
 import { POLICES_ONCIALE, policeOnciale } from "./police/fabrique";
 import { LETTRINE_TITRE, lettrineDe } from "./police/largeur";
+import type { AccountLevel } from "./schemas";
 import type { WeekPlayer } from "./week-players";
 
 const WIDTH = 1200;
@@ -106,6 +108,27 @@ export interface GazetteCard {
   logo: { x: number; y: number; size: number };
   /** Les Gaulois du village posés sur l'image (`gaulois-sprite.ts`). Absent : aucun, l'image est celle d'avant. */
   gaulois?: SpritePlacement[];
+  /**
+   * Les emblèmes de niveau du compte OpenFront (`niveau.ts`), carrés de `size` pixels, coin haut gauche en (x, y). Dessinés
+   * entre les formes et les textes : le chiffre du niveau, un texte de la carte, passe par-dessus.
+   */
+  emblemes?: CardEmbleme[];
+  /** Des dessins en cases (la flamme de série, `flamme-serie.ts`), chaque case un carré de `echelle` pixels, sans lissage. */
+  dessins?: CardDessin[];
+}
+
+export interface CardEmbleme {
+  account: AccountLevel;
+  x: number;
+  y: number;
+  size: number;
+}
+
+export interface CardDessin {
+  decor: { largeur: number; hauteur: number; cases: readonly (string | null)[] };
+  x: number;
+  y: number;
+  echelle: number;
 }
 
 /** La largeur d'un texte : donnée par la vraie police au dessin, et par une approximation dans les tests. */
@@ -709,8 +732,38 @@ const SCENE_TRAME = `<pattern id="scene-trame" width="30" height="30" patternUni
 const GLOW = { filter: `<filter id="lueur" x="-25%" y="-60%" width="150%" height="220%"><feGaussianBlur stdDeviation="12"/></filter>`, color: "#3D7FFF", opacity: 0.55 };
 
 /**
- * Le dessin entier, en SVG : la table des cartes, les rectangles, puis les textes. `table: false` : sans la table, sur un fond
- * transparent, pour la poser sur la table déjà dessinée (`renderGazetteCard`).
+ * Un emblème de niveau, aux couleurs de l'image : la case sur la surface claire de l'encre, bordée de la couleur du prestige,
+ * les crans allumés à ses couleurs, les autres en filet. Les couleurs de prestige ne vont jamais sur un texte.
+ */
+function emblemeSvg(e: CardEmbleme): string {
+  const lit = segmentColors(e.account);
+  const crans = EMBLEME_CRANS.map((d, i) => {
+    const color = lit[i];
+    return color ? `<path d="${d}" fill="none" stroke="${color}" stroke-width="8"/>` : `<path d="${d}" fill="none" stroke="${LINE_STRONG}" stroke-opacity="0.45" stroke-width="8"/>`;
+  }).join("");
+  return `<g transform="translate(${e.x} ${e.y}) scale(${e.size / 100})"><polygon points="${EMBLEME_HEXAGONE}" fill="${SURFACE_2}" stroke="${prestigeColor(e.account)}" stroke-width="4" stroke-linejoin="round"/>${crans}</g>`;
+}
+
+/** Un dessin en cases : une case pleine, un carré net ; les cases d'une même couleur côte à côte, un seul rectangle. */
+function dessinSvg(d: CardDessin): string {
+  const { largeur, hauteur, cases } = d.decor;
+  const rects: string[] = [];
+  for (let y = 0; y < hauteur; y++) {
+    let x = 0;
+    while (x < largeur) {
+      const color = cases[y * largeur + x];
+      let fin = x + 1;
+      while (fin < largeur && cases[y * largeur + fin] === color) fin++;
+      if (color && /^#[0-9a-f]{6}$/i.test(color)) rects.push(`<rect x="${d.x + x * d.echelle}" y="${d.y + y * d.echelle}" width="${(fin - x) * d.echelle}" height="${d.echelle}" fill="${color}"/>`);
+      x = fin;
+    }
+  }
+  return `<g shape-rendering="crispEdges">${rects.join("")}</g>`;
+}
+
+/**
+ * Le dessin entier, en SVG : la table des cartes, les rectangles, les emblèmes de niveau et les dessins en cases, puis les
+ * textes. `table: false` : sans la table, sur un fond transparent, pour la poser sur la table déjà dessinée (`renderGazetteCard`).
  */
 export function cardSvg(card: GazetteCard, fonts: Pick<GazetteFonts, "paths">, { table = true }: { table?: boolean } = {}): string {
   const decor = table ? tableSvg(card.width, card.height) : { defs: "", body: "" };
@@ -725,6 +778,8 @@ export function cardSvg(card: GazetteCard, fonts: Pick<GazetteFonts, "paths">, {
     `<defs>${decor.defs}${SCENE_TRAME}${GLOW.filter}${shapes.map((s) => s.defs).join("")}</defs>` +
     decor.body +
     shapes.map((s) => s.body).join("") +
+    (card.emblemes ?? []).map(emblemeSvg).join("") +
+    (card.dessins ?? []).map(dessinSvg).join("") +
     (glows ? `<g filter="url(#lueur)" opacity="${GLOW.opacity}">${glows}</g>` : "") +
     texts +
     `</svg>`

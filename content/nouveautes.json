@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-15",
+    "kind": "nouveau",
+    "title": "La flamme de série et le niveau sur les fiches",
+    "body": "Dès 5 victoires d'affilée sous le tag, une flamme brûle sur la fiche du membre et sur son image /fiche, au dernier relevé. L'image montre aussi le niveau de son compte, tout le jeu.",
+    "link": {
+      "href": "/membres",
+      "label": "Voir les membres"
+    }
+  },
+  {
+    "date": "2026-11-15",
     "kind": "ameliore",
     "title": "L'inscription en trois étapes",
     "body": "« Mon compte » guide la première connexion pas à pas : se connecter, donner son lien OpenFront, créer son Gaulois. Sans ces trois étapes, le QG et la carte de l'alliance restent fermés.",

@@ -5,7 +5,8 @@ import { clan } from "../../config/clan";
 import { accueilFacts, accueilImageAlt, accueilRanking } from "../../src/lib/accueil-image";
 import { GazetteFonts } from "../../src/lib/gazette-image";
 import { worldTerritory } from "../../src/lib/carte-monde";
-import { loadClanMapFilm, loadTerritoryReadings, loadGames, loadHistory, loadMemberGames, loadMemberResults, loadMembers, loadMemberWeeks, loadMeta, loadNouveautes, loadRivals, loadSessions } from "../../src/lib/data";
+import { loadClanMapFilm, loadTerritoryReadings, loadGames, loadHistory, loadMemberGames, loadMemberResults, loadMembers, loadMemberWeeks, loadMeta, loadNouveautes, loadRivals, loadSeriesEnCours, loadSessions } from "../../src/lib/data";
+import { datesDeLaSerie, flammeAllumee, serieEnMots } from "../../src/lib/serie-en-cours";
 import { fmtCount, fmtDateTime, fmtGap, fmtInt, fmtRank, fmtScore } from "../../src/lib/format";
 import type { LeaderboardEntry } from "../../src/lib/schemas";
 import { neighbours, withOfficialRanks } from "../../src/lib/stats";
@@ -1724,6 +1725,42 @@ test("une fiche de membre se partage : un bouton copie son lien, et l'aperçu du
   await page.getByTestId("copy-link").click();
   await expect(page.getByTestId("copy-status")).toContainText("Lien copié");
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(page.url());
+});
+
+// La flamme de série (15 novembre 2026) : à partir de 5 victoires d'affilée sous le tag, un bloc dans l'en-tête de la fiche,
+// avant le niveau ; sous 5, ou sans données, rien. Sans liste des parties des membres (.cache/member-games/), aucune flamme.
+test("la fiche montre la flamme de série à partir de 5 victoires d'affilée, et rien en dessous", async ({ page }) => {
+  const series = loadSeriesEnCours();
+  const nommes = (members.members as { username: string | null; team: unknown; publicId: string | null }[]).filter((m) => m.username && m.team && m.publicId);
+  const enFeu = nommes.find((m) => flammeAllumee(series.get(m.publicId!) ?? null));
+  const sansFeu = nommes.find((m) => !flammeAllumee(series.get(m.publicId!) ?? null));
+  if (sansFeu) {
+    await page.goto(`/membres/${sansFeu.publicId}`);
+    await expect(page.getByTestId("member-streak")).toHaveCount(0);
+  }
+  if (!enFeu) return;
+  const serie = series.get(enFeu.publicId!)!;
+  await page.goto(`/membres/${enFeu.publicId}`);
+  const bloc = page.getByTestId("member-streak");
+  await expect(bloc).toBeVisible();
+  await expect(bloc).toContainText(serieEnMots(serie).replace(/^a/, "A"));
+  await expect(bloc).toContainText(`Victoires ${datesDeLaSerie(serie)}, sans défaite sous le tag depuis, au dernier relevé du ${fmtDateTime(serie.releve)}`);
+  // La flamme est décorative, en cases entières de 4 px ; le nombre est écrit à côté.
+  const flamme = bloc.getByTestId("flamme-serie");
+  await expect(flamme).toHaveAttribute("aria-hidden", "true");
+  // Au centième de pixel près : le navigateur peut rendre 59,99997 pour 60.
+  expect(await flamme.evaluate((svg) => [svg.getBoundingClientRect().width, svg.getBoundingClientRect().height].map((v) => Math.round(v * 100) / 100))).toEqual([44, 60]);
+  // Le bloc vient avant celui du niveau, quand il y en a un.
+  const niveau = page.getByTestId("member-level");
+  if ((await niveau.count()) > 0) {
+    const [haut, bas] = await Promise.all([bloc.boundingBox(), niveau.boundingBox()]);
+    expect(haut!.y).toBeLessThan(bas!.y);
+  }
+  // L'image de la fiche le dit aussi au lecteur d'écran.
+  const alt = await page.locator('meta[property="og:image:alt"]').getAttribute("content");
+  expect(alt).toContain(`Série en cours : ${serieEnMots(serie)} sous le tag, ${datesDeLaSerie(serie)}, sans défaite depuis.`);
+  const axe = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).include("[data-testid=member-streak]").analyze();
+  expect(axe.violations).toEqual([]);
 });
 
 test("le site s'installe comme une application : un fichier d'installation et ses icônes", async ({ page }) => {

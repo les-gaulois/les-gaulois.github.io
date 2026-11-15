@@ -6,10 +6,14 @@
 import { fmtDate, fmtInt, fmtPct, fmtRank } from "./format";
 import { AUCUN_GAULOIS, type GauloisParJoueur } from "./gaulois-joueurs";
 import { placeSprite, spriteRect, tenueOf } from "./gaulois-sprite";
-import { CARD_COLORS as C, fitted, kpiParts, LOGO, MARGIN, pageFoot, pageHead, STAGES, type CardRect, type CardText, type GazetteCard, type Measure } from "./gazette-image";
+import { FLAMME } from "./flamme-serie";
+import { CARD_COLORS as C, fitted, kpiParts, LOGO, MARGIN, pageFoot, pageHead, STAGES, type CardDessin, type CardEmbleme, type CardRect, type CardText, type GazetteCard, type Measure } from "./gazette-image";
 import { gamesOf, placeOf, rateOf } from "./members";
+import { accountLabel } from "./niveau";
+import { OPENFRONT_CREDIT } from "./victoires-discord";
 import { nextTier, tierOf } from "./paliers";
-import type { StoredMember } from "./schemas";
+import type { AccountLevel, StoredMember } from "./schemas";
+import { datesDeLaSerie, flammeAllumee, serieEnMots, type SerieEnCours } from "./serie-en-cours";
 
 /** Le format des aperçus de lien : Discord, comme les autres, attend 1200 × 630. */
 const WIDTH = 1200;
@@ -20,6 +24,20 @@ const PLACE_HEIGHT = 136;
 const SPRITE = { column: 280, scale: 6, ground: HEIGHT - 62 } as const;
 /** Son ombre au sol, comme sur l'image de /gaulois : plus sombre que l'encre du fond. */
 const SPRITE_SHADOW = "#02050F";
+/** L'axe du Gaulois, sur lequel se centre aussi l'emblème de niveau, avec ou sans Gaulois. */
+const AXE = WIDTH - MARGIN - SPRITE.column / 2 + 10;
+/**
+ * L'emblème du niveau du compte, en haut à droite, au-dessus de la tête du Gaulois (conception de Claude Fable 5.2,
+ * 15 novembre 2026) : un carré de 96 px, puis le niveau en mots, « tout le jeu », et la mention d'OpenFront, à qui les
+ * couleurs des prestiges sont reprises (NOTICE.md). Avec lui, le Gaulois garde la hauteur sous ces lignes (`room`), et le
+ * titre s'arrête avant sa colonne.
+ */
+const EMBLEME = { size: 96, top: 26, label: 144, jeu: 166, credit: 186, room: SPRITE.ground - 190 } as const;
+/**
+ * La flamme de série, au sol, à la gauche du Gaulois (ou contre la marge sans Gaulois) : une case vaut 6 px, comme une case
+ * du Gaulois. Ses deux lignes finissent 16 px avant elle.
+ */
+const FLAMME_POSE = { echelle: 6, gauche: 858, avecGaulois: SPRITE.ground, sansGaulois: HEIGHT - 90, ligne1: 498, ligne2: 526, ecart: 16 } as const;
 
 export interface FicheFacts {
   /** L'identifiant public (publicID) du membre, celui de sa fiche : pour retrouver son Gaulois du village. Jamais écrit sur l'image. */
@@ -33,10 +51,17 @@ export interface FicheFacts {
   rate: number | null;
   tier: number | null;
   nextTier: { wins: number; missing: number } | null;
+  /** Le niveau et le prestige de son compte OpenFront, tout le jeu (`niveau.ts`), à part des stats du clan. `null` : il ne le montre pas. */
+  niveau?: AccountLevel | null;
+  /** Sa série de victoires en cours (`serie-en-cours.ts`), seulement quand la flamme est allumée (5 d'affilée et plus). */
+  serie?: SerieEnCours | null;
 }
 
-/** Ce que l'image dit d'un membre. `null` : pas de pseudo ou pas de stats, donc pas d'image. */
-export function ficheFacts(members: readonly StoredMember[], member: StoredMember): FicheFacts | null {
+/**
+ * Ce que l'image dit d'un membre. `null` : pas de pseudo ou pas de stats, donc pas d'image. `serie` : sa série en cours
+ * (`loadSeriesEnCours`), gardée seulement si la flamme est allumée.
+ */
+export function ficheFacts(members: readonly StoredMember[], member: StoredMember, serie: SerieEnCours | null = null): FicheFacts | null {
   if (!member.username || !member.team) return null;
   const place = placeOf(members, member);
   if (!place) return null;
@@ -52,6 +77,8 @@ export function ficheFacts(members: readonly StoredMember[], member: StoredMembe
     rate: rateOf(member),
     tier: tierOf(place.wins),
     nextTier: next ? { wins: next.wins, missing: next.missing } : null,
+    niveau: member.account ?? null,
+    serie: flammeAllumee(serie) ? serie : null,
   };
 }
 
@@ -60,11 +87,14 @@ export function ficheFacts(members: readonly StoredMember[], member: StoredMembe
  * il se tient en entier à droite de la fiche, et la place et les chiffres se serrent à gauche ; sinon, la fiche d'avant.
  */
 export function ficheCard(facts: FicheFacts, tag: string, siteUrl: string, listedAt: string, measure: Measure, gaulois: GauloisParJoueur = AUCUN_GAULOIS): GazetteCard {
+  const niveau = facts.niveau ?? null;
+  const serie = flammeAllumee(facts.serie ?? null) ? facts.serie! : null;
   const tenue = tenueOf(gaulois, facts.id);
-  const sprite = tenue && placeSprite(tenue, { axis: WIDTH - MARGIN - SPRITE.column / 2 + 10, bottom: SPRITE.ground, scale: SPRITE.scale, room: SPRITE.ground - LOGO.y });
+  const sprite = tenue && placeSprite(tenue, { axis: AXE, bottom: SPRITE.ground, scale: SPRITE.scale, room: niveau ? EMBLEME.room : SPRITE.ground - LOGO.y });
   const column = sprite ? SPRITE.column : 0;
   // Le pseudo en Inter, comme dans la gazette : elle sait écrire le cyrillique et le grec, pas l'onciale. Pas de lettrine sur un nom.
-  const head = pageHead({ path: "/membres/fiche", title: facts.username, name: true, kicker: `Membre de [${tag}]` }, measure, column);
+  // Il s'arrête avant la colonne du Gaulois, ou de l'emblème seul : un long pseudo ne passe jamais dessous.
+  const head = pageHead({ path: "/membres/fiche", title: facts.username, name: true, kicker: `Membre de [${tag}]` }, measure, sprite || niveau ? SPRITE.column : 0);
   const rects: CardRect[] = [...head.rects];
   const texts: CardText[] = [...head.texts];
   const width = WIDTH - 2 * MARGIN - column;
@@ -101,19 +131,59 @@ export function ficheCard(facts: FicheFacts, tag: string, siteUrl: string, liste
   );
   rects.push(...kpis.rects);
   texts.push(...kpis.texts);
+  // L'emblème de niveau : tout le jeu, à part des chiffres du clan. Le chiffre est blanc, jamais dans la couleur du prestige.
+  const emblemes: CardEmbleme[] = [];
+  if (niveau) {
+    emblemes.push({ account: niveau, x: AXE - EMBLEME.size / 2, y: EMBLEME.top, size: EMBLEME.size });
+    const grand = niveau.level >= 100;
+    texts.push({ text: String(niveau.level), x: AXE, y: EMBLEME.top + (grand ? 58 : 59), size: grand ? 27 : 31, font: "strong", color: C.WHITE, anchor: "middle" });
+    texts.push({ ...fitted(accountLabel(niveau), "strong", 21, 16, SPRITE.column - 20, measure), x: AXE, y: EMBLEME.label, font: "strong", color: C.WHITE, anchor: "middle" });
+    texts.push({ text: "tout le jeu", x: AXE, y: EMBLEME.jeu, size: 17, font: "body", color: C.MUTED, anchor: "middle" });
+    texts.push({ text: OPENFRONT_CREDIT, x: AXE, y: EMBLEME.credit, size: 13, font: "body", color: C.MUTED, anchor: "middle" });
+  }
+
+  // La flamme de série : au sol à la gauche du Gaulois, ou contre la marge droite sans lui ; ses deux lignes avant elle.
+  const dessins: CardDessin[] = [];
+  let gaucheFlamme: number | null = null;
+  if (serie) {
+    const largeur = FLAMME.largeur * FLAMME_POSE.echelle;
+    const hauteur = FLAMME.hauteur * FLAMME_POSE.echelle;
+    gaucheFlamme = sprite ? Math.min(FLAMME_POSE.gauche, spriteRect(sprite).x - 12 - largeur) : WIDTH - MARGIN - largeur;
+    const pied = sprite ? FLAMME_POSE.avecGaulois : FLAMME_POSE.sansGaulois;
+    dessins.push({ decor: FLAMME, x: gaucheFlamme, y: pied - hauteur, echelle: FLAMME_POSE.echelle });
+    const ancre = gaucheFlamme - FLAMME_POSE.ecart;
+    texts.push({ ...fitted(serieEnMots(serie), "strong", 28, 20, 400, measure), x: ancre, y: FLAMME_POSE.ligne1, font: "strong", color: C.WHITE, anchor: "end" });
+    // Ses dates, toujours : un membre qui ne joue plus garde sa série, qui ne doit pas se lire comme d'aujourd'hui.
+    texts.push({ ...fitted(`sous le tag, ${datesDeLaSerie(serie)}`, "body", 20, 16, 400, measure), x: ancre, y: FLAMME_POSE.ligne2, font: "body", color: C.MUTED, anchor: "end" });
+  }
+
   if (facts.nextTier && facts.games > 0) {
     const next = `Prochain palier : ${fmtInt(facts.nextTier.wins)} victoires, encore ${fmtInt(facts.nextTier.missing)}.`;
-    texts.push({ ...fitted(next, "body", 23, 18, width, measure), x: MARGIN, y: HEIGHT - 70, font: "body", color: C.MUTED });
+    // À côté d'une flamme posée au sol, la ligne s'arrête avant elle.
+    const room = gaucheFlamme !== null && sprite ? Math.min(width, gaucheFlamme - MARGIN - FLAMME_POSE.ecart) : width;
+    texts.push({ ...fitted(next, "body", 23, 18, room, measure), x: MARGIN, y: HEIGHT - 70, font: "body", color: C.MUTED });
   }
 
   const url = `${siteUrl.replace(/^https?:\/\//, "").replace(/\/$/, "")}/membres`;
   texts.push(...pageFoot(url, `Liste officielle du ${fmtDate(listedAt)}. Parties publiques en équipe sous le tag.`, HEIGHT - 24, measure).texts);
-  return { width: WIDTH, height: HEIGHT, rects, texts, logo: LOGO, ...(sprite ? { gaulois: [sprite] } : {}) };
+  return {
+    width: WIDTH,
+    height: HEIGHT,
+    rects,
+    texts,
+    logo: LOGO,
+    ...(sprite ? { gaulois: [sprite] } : {}),
+    ...(emblemes.length > 0 ? { emblemes } : {}),
+    ...(dessins.length > 0 ? { dessins } : {}),
+  };
 }
 
 /** Ce que l'image dit, pour un lecteur d'écran et pour la description du lien. */
 export function ficheImageAlt(facts: FicheFacts, tag: string, listedAt: string): string {
-  const listed = `Liste officielle du ${fmtDate(listedAt)}.`;
+  // La série, puis le compte : deux phrases à part, chacune seulement si l'image la dessine.
+  const serie = flammeAllumee(facts.serie ?? null) ? `Série en cours : ${serieEnMots(facts.serie!)} sous le tag, ${datesDeLaSerie(facts.serie!)}, sans défaite depuis. ` : "";
+  const niveau = facts.niveau ? `Compte OpenFront, tout le jeu : ${accountLabel(facts.niveau)}. ` : "";
+  const listed = `${serie}${niveau}Liste officielle du ${fmtDate(listedAt)}.`;
   if (facts.games === 0) return `${facts.username}, membre de [${tag}] : aucune partie sous le tag, pas encore de palier. ${listed}`;
   const tier = facts.tier === null ? "pas encore de palier" : `palier des ${fmtInt(facts.tier)} victoires`;
   return `${facts.username}, membre de [${tag}] : ${fmtRank(facts.rank)} sur ${fmtInt(facts.ranked)} membres aux victoires sous le tag. ${fmtInt(facts.wins)} victoires, ${fmtInt(facts.losses)} défaites, ${fmtPct(facts.rate)}, ${tier}. ${listed}`;
