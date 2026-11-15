@@ -6,7 +6,7 @@
  * Une barbe se dessine en h (la couleur des cheveux) et H (son ombre), cernée de k ; elle ne cache jamais les yeux.
  * Le lot va du plus léger au plus long : la barbe de trois jours, deux moustaches et des favoris, le collier, le bouc et
  * la barbiche, puis les barbes qui descendent sur le torse, fourchue, tressée (un anneau d'or ou des liens de cuir) et
- * fleuve. Toutes laissent la bouche visible.
+ * fleuve. Toutes laissent voir le milieu de la bouche ; les barbes pleines en couvrent les coins.
  */
 import type { ObjetDuLot } from "../gaulois.ts";
 

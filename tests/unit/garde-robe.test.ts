@@ -63,13 +63,25 @@ describe("la garde-robe", () => {
   });
 
   it("ne cache jamais les yeux : aucune coupe ni barbe entre les sourcils et le bas des yeux", () => {
-    // Les yeux de tous les modèles tiennent entre les rangées 16 et 23, colonnes 16 à 31.
+    // Le cadre de tous les modèles d'yeux, sourcils compris, calculé sur leurs dessins : un modèle plus large l'élargit.
+    const cadre = { haut: GAULOIS_HAUTEUR, bas: 0, gauche: GAULOIS_LARGEUR, droite: 0 };
+    for (const objet of Object.values(OBJETS.yeux)) {
+      objet.dessin?.lignes.forEach((ligne, dy) => {
+        for (let x = 0; x < GAULOIS_LARGEUR; x++) {
+          if (ligne[x] === "." || ligne[x] === undefined) continue;
+          const y = objet.dessin!.y + dy;
+          Object.assign(cadre, { haut: Math.min(cadre.haut, y), bas: Math.max(cadre.bas, y), gauche: Math.min(cadre.gauche, x), droite: Math.max(cadre.droite, x) });
+        }
+      });
+    }
+    // Aujourd'hui : rangées 16 à 23, colonnes 16 à 31.
+    expect(cadre.bas - cadre.haut).toBeGreaterThanOrEqual(5);
     for (const emplacement of ["cheveux", "barbe"] as const) {
       for (const [id, objet] of Object.entries(OBJETS[emplacement])) {
         objet.dessin?.lignes.forEach((ligne, dy) => {
           const y = objet.dessin!.y + dy;
-          if (y < 16 || y > 23) return;
-          for (let x = 16; x <= 31; x++) expect(ligne[x], `${emplacement}/${id} (${x}, ${y})`).toBe(".");
+          if (y < cadre.haut || y > cadre.bas) return;
+          for (let x = cadre.gauche; x <= cadre.droite; x++) expect(ligne[x], `${emplacement}/${id} (${x}, ${y})`).toBe(".");
         });
       }
     }

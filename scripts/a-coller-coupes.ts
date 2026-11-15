@@ -36,8 +36,10 @@ on conflict (version) do nothing;
 
 commit;
 
--- Le contrôle : les coupes et les barbes gratuites sont-elles dans la liste, et la vérification connaît-elle chaque couleur ?
-select 'coupes : '
+-- Le contrôle : la migration est-elle notée, les coupes et les barbes gratuites sont-elles dans la liste, et la
+-- vérification connaît-elle chaque couleur ?
+select case when exists (select 1 from supabase_migrations.schema_migrations where version = '20261115000600')
+            then 'coupes : ' else 'PAS NOTÉE, coupes : ' end
   || (select count(*) from internal.gaulois_objets where emplacement = 'cheveux' and gratuit) || ' coupes, '
   || (select count(*) from internal.gaulois_objets where emplacement = 'barbe' and gratuit) || ' barbes, '
   || (select count(*) from unnest(array[${Object.keys(POILS).map((id) => `'${id}'`).join(", ")}]) as t (id)
