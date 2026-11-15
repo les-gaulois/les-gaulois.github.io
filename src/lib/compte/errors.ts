@@ -193,6 +193,10 @@ export const ERROR_MESSAGES: Record<string, string> = {
   tout_possede: "Vous avez déjà tous les familiers : la pochette n'a plus rien à vous donner.",
   unknown_familier: "Ce familier n'existe pas. Rechargez la page.",
 
+  // Les bannières du Gaulois (contrat : `RefusBannieres` de src/lib/village/contrat.ts, migration
+  // 20261115000900_bannieres_du_gaulois). `deja_possede` et `pas_possede` ont leurs propres mots dans `bannieres.ts`.
+  unknown_banniere: "Cette bannière n'existe pas. Rechargez la page.",
+
   // L'onglet « Village » de la Direction : les prix et les chances (migration 20261113002100_village_direction).
   prix_invalides: "Chaque prix est un nombre entier de statères, de 1 à 1 000 000, et chaque rareté coûte plus que la précédente.",
   prix_pochette_invalide: "Le prix de la pochette est un nombre entier de statères, de 1 à 1 000 000.",

@@ -32,6 +32,7 @@ import { PLAQUES_CHANGEES } from "../../lib/village/ecran-forge";
 import { familierDe } from "../../lib/village/familiers";
 import { lirePlaques, plaqueDe } from "../../lib/village/forge";
 import { NOMS_RAYONS, RAYONS, RAYON_CORPS, cadreDuVisage, grosPlan, rangerLeRayon, visageNu, type Rayon } from "../../lib/village/vestiaire-rayons";
+import { MaBanniere } from "../village/Bannieres";
 import { Piece } from "../village/BoutiquePixels";
 import { ApercuGaulois, BarreDesRayons, Case, noterLeRetour, useSceneCollee } from "../village/Cases";
 import { MonFamilier, useFamiliers } from "../village/Familiers";
@@ -381,6 +382,8 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
         )}
         {/* Le familier ne se montre qu'à côté d'un Gaulois qui existe : rien pendant l'inscription. */}
         {existait && <MonFamilier etat={familiers.etat} occupe={occupeFamilier} probleme={problemeFamilier} annonce={annonceFamilier} onChoisir={(id) => void choisirLeFamilier(id)} onRelire={() => void familiers.lire()} />}
+        {/* La bannière montrée sur /gaulois, comme le familier : pour un Gaulois qui existe. */}
+        {existait && <MaBanniere actif={actif} />}
         <form
           class="vestiaire-choix"
           onSubmit={(e) => {

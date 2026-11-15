@@ -63,6 +63,7 @@ import { decrireGaulois, decrireLaScene, lireTenue, pngDuGaulois, type Tenue } f
 import { insignesDeLaScene } from "./insignes.ts";
 import { familierAPoser } from "./familiers/familier.ts";
 import { familierDe } from "./familiers/index.ts";
+import { banniereParId, dessinDeLaBanniere, type Banniere } from "./bannieres/index.ts";
 import { sceneDuGaulois, type Scene } from "./scene.ts";
 import { FEU_COMMAND, FEU_FILE, MONDE_PATH, parseMonde, releveEnMots, reponseDuFeu, type MondeLu } from "./feu.ts";
 
@@ -804,11 +805,17 @@ export function ligneSousLImage(fiche: Pick<Fiche, "niveau" | "flamme"> | null):
  * Ce que voit tout le salon après /gaulois : le Gaulois en grand (avec son familier s'il en montre un), et un bouton vers
  * « Mon Gaulois » pour l'habiller. `fiche` : celle du membre au pseudo public, avec son niveau et sa flamme
  * (`/fiches.json`), pour les insignes ; `null` : l'image d'avant. `familier` : le nom du familier montré, pour le texte de
- * remplacement.
+ * remplacement ; `banniere` : la bannière qu'il montre (15 novembre 2026), qui remplace son lieu dans ce texte.
  */
-export function gauloisMessage(tenue: Tenue, scene?: Scene, fiche: Pick<Fiche, "niveau" | "flamme"> | null = null, familier: string | null = null): Record<string, unknown> {
+export function gauloisMessage(
+  tenue: Tenue,
+  scene?: Scene,
+  fiche: Pick<Fiche, "niveau" | "flamme"> | null = null,
+  familier: string | null = null,
+  banniere: Pick<Banniere, "nom" | "description"> | null = null,
+): Record<string, unknown> {
   const phrases = scene ? phrasesDesInsignes(fiche) : "";
-  const base = scene ? decrireLaScene(tenue, scene, familier) : decrireGaulois(tenue);
+  const base = scene ? decrireLaScene(tenue, scene, familier, banniere) : decrireGaulois(tenue);
   // Les phrases des insignes passent toujours : la description de la tenue, plus longue, est coupée avant elles.
   const description = phrases ? `${base.slice(0, 1024 - phrases.length - 1)} ${phrases}` : base.slice(0, 1024);
   return {
@@ -858,7 +865,15 @@ async function gauloisRoute(discordId: string, deps: Deps): Promise<Response> {
   // Son familier, s'il en montre un (migration 20261115000800) ; un familier inconnu de ce dessin ne se montre pas.
   const familier = familierDe(found["familier"]);
   const pose = familier ? familierAPoser(familier) : null;
-  return fileReply(gauloisMessage(tenue, scene, fiche, pose ? (familier?.nom ?? null) : null), { name: GAULOIS_FILE, type: "image/png", bytes: await pngDuGaulois(tenue, scene, insignes, pose) });
+  // Sa bannière, s'il en montre une (migration 20261115000900) : elle prend la place du décor de son lieu. Une bannière
+  // inconnue de ce dessin (le serveur en avance sur la fonction) laisse le décor du lieu.
+  const banniere = banniereParId(typeof found["banniere"] === "string" ? found["banniere"] : null);
+  const fond = banniere ? dessinDeLaBanniere(banniere.id) : null;
+  return fileReply(gauloisMessage(tenue, scene, fiche, pose ? (familier?.nom ?? null) : null, fond ? banniere : null), {
+    name: GAULOIS_FILE,
+    type: "image/png",
+    bytes: await pngDuGaulois(tenue, scene, insignes, pose, fond),
+  });
 }
 
 /**

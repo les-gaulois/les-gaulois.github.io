@@ -24,6 +24,7 @@ import { finDeLOffre, lireBoutique as lireBoutiqueDuMarche, lireMarche, mesOffre
 import { familierDe } from "../../lib/village/familiers";
 import { TOUT, choisirFiltre, type Filtre, type Filtres } from "../../lib/village/vestiaire-rayons";
 import { Loading, Problem, Success, messageOf, useNow } from "../compte/common";
+import { SectionDesBannieres } from "./Bannieres";
 import { Bourse } from "./Bourse";
 import { DialogueAchat, DialoguePochette, type Issue } from "./BoutiqueDialogue";
 import { Prix } from "./BoutiquePixels";
@@ -538,6 +539,19 @@ export default function Boutique() {
             <Problem message="La pochette des familiers ne répond pas pour l'instant." onRetry={() => void familiers.lire()} />
           </div>
         )}
+
+        {/* Les bannières de /gaulois : derrière la tenue enregistrée, jamais derrière un essayage. Après un achat, la bourse
+            de la page prend le solde que le serveur a répondu ; après un refus, elle se relit. */}
+        <SectionDesBannieres
+          tenue={etat.enregistree}
+          familier={familiers.montre}
+          solde={soldeConnu}
+          onSolde={(reste) => {
+            setBoutique((b) => b && { ...b, solde: reste });
+            setSolde(reste);
+          }}
+          onRefus={() => void lireLaBoutique()}
+        />
 
         <section id={ANCRE_MARCHE} class="boutique-membres" aria-labelledby="boutique-membres-titre" data-testid="marche" data-etat={etatMarche.kind}>
           <div class="boutique-membres-tete">

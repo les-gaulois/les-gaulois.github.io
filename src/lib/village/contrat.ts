@@ -350,3 +350,66 @@ export interface ChoixFamilierReponse {
  * `unknown_familier` et `pas_possede`. Un refus ne débite rien.
  */
 export type RefusFamiliers = "not_validated" | "no_gaulois" | "prix_change" | "tout_possede" | "solde_insuffisant" | "unknown_familier" | "pas_possede";
+
+/*
+ * Les bannières du Gaulois (demande du pilote, 15 novembre 2026 : « un lot de bannières, dans le thème OpenFront, des thèmes
+ * spéciaux, de tous les goûts, avec un lot de rareté », « 3 fois plus cher que les cosmétiques », « achetables par statères »,
+ * « il pourra choisir la bannière qui s'affichera en faisant /gaulois ») ; migration 20261115000900_bannieres_du_gaulois,
+ * dessins et liste dans `supabase/functions/code-discord/bannieres/`, lecture et calculs dans `bannieres.ts`.
+ *
+ * Une bannière est un fond de l'image de /gaulois, à la place du décor de son lieu. Elle s'achète à la boutique au triple
+ * du prix d'un objet de sa rareté, en un seul exemplaire : ni pochette, ni marché, ni forge. Le compte en montre une, ou
+ * aucune (le décor du lieu).
+ */
+
+/** Combien de fois le prix d'un objet de la même rareté coûte une bannière (demande du pilote). Le même que le serveur. */
+export const FOIS_LE_PRIX_D_UN_OBJET = 3;
+
+/** Le prix de départ d'une bannière, par rareté, en statères : le triple des prix de la boutique. */
+export const PRIX_BANNIERE_PAR_RARETE: Readonly<Record<Rarete, number>> = {
+  commun: PRIX_PAR_RARETE.commun * FOIS_LE_PRIX_D_UN_OBJET,
+  "peu-commun": PRIX_PAR_RARETE["peu-commun"] * FOIS_LE_PRIX_D_UN_OBJET,
+  epique: PRIX_PAR_RARETE.epique * FOIS_LE_PRIX_D_UN_OBJET,
+  mystique: PRIX_PAR_RARETE.mystique * FOIS_LE_PRIX_D_UN_OBJET,
+  legendaire: PRIX_PAR_RARETE.legendaire * FOIS_LE_PRIX_D_UN_OBJET,
+};
+
+/** Une bannière possédée, et quand elle a été achetée. */
+export interface BannierePossedee {
+  banniere: string;
+  acquis_le: string;
+}
+
+/**
+ * `get_mes_bannieres()`, pour un compte connecté : son solde, le prix d'une bannière de chaque rareté, ses bannières (les
+ * plus récentes d'abord) et celle qu'il montre sur /gaulois (`porte`, ou `null` : le décor de son lieu). `peut_acheter` :
+ * compte validé avec un Gaulois créé.
+ */
+export interface MesBannieres {
+  ok: true;
+  solde: number;
+  peut_acheter: boolean;
+  prix: Record<Rarete, number>;
+  bannieres: BannierePossedee[];
+  porte: string | null;
+}
+
+/** `acheter_banniere(p_banniere, p_prix_vu)` : la bannière achetée, sa rareté, et le solde après l'achat. */
+export interface AchatBanniereReponse {
+  ok: true;
+  solde: number;
+  banniere: { banniere: string; rarete: Rarete };
+}
+
+/** `choisir_banniere(p_banniere)` : la bannière montrée sur /gaulois, ou `null` (le décor de son lieu). */
+export interface ChoixBanniereReponse {
+  ok: true;
+  porte: string | null;
+}
+
+/**
+ * Les refus des bannières, en plus de ceux de tout compte (`not_signed_in`, `suspended`, `rate_limited`) : `not_validated`,
+ * `no_gaulois`, `unknown_banniere` (hors de la liste), `deja_possede`, `prix_change`, `solde_insuffisant` ; pour le choix,
+ * `pas_possede`. Un refus ne débite rien.
+ */
+export type RefusBannieres = "not_validated" | "no_gaulois" | "unknown_banniere" | "deja_possede" | "prix_change" | "solde_insuffisant" | "pas_possede";

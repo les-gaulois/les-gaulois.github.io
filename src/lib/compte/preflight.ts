@@ -293,6 +293,25 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
     else add(label, "fail", `Réponse ${res.status}. Ne mettez pas en ligne : seul un compte validé avec son Gaulois ouvre la pochette des familiers et choisit le sien.`);
   }
 
+  // Les bannières du Gaulois (migration 20261115000900, collée par le fichier .cache/a-coller-bannieres.sql) : seul un compte
+  // connecté lit ses bannières ; seul un compte validé avec son Gaulois en achète ou choisit celle de /gaulois. Absente : 404,
+  // le fichier n'est pas collé.
+  const bannieres = await rpc("get_mes_bannieres");
+  const bannieresAnswer = bannieres.ok ? ((await bannieres.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (bannieres.status === 404) add("Les bannières du Gaulois sont installées", "warn", "get_mes_bannieres est absente : collez le fichier .cache/a-coller-bannieres.sql (sa dernière ligne dit « bannières : 40 installées ») avant de mettre en ligne ce qui s'en sert.");
+  else if (isClosed(bannieres.status) || (bannieres.ok && bannieresAnswer?.ok === false)) add("Un visiteur ne lit pas de bannières", "ok");
+  else add("Un visiteur ne lit pas de bannières", "fail", `Réponse ${bannieres.status}. Ne mettez pas en ligne : seul un compte connecté lit ses bannières et son solde.`);
+  const bannieresCalls = [
+    ["acheter_banniere", { p_banniere: "", p_prix_vu: 0 }, "Un visiteur n'achète pas de bannière"],
+    ["choisir_banniere", { p_banniere: null }, "Un visiteur ne choisit aucune bannière"],
+  ] as const;
+  for (const [fn, body, label] of bannieresCalls) {
+    const res = await rpc(fn, body);
+    const answer = res.ok ? ((await res.json().catch(() => null)) as { ok?: boolean } | null) : null;
+    if (isClosed(res.status) || (res.ok && answer?.ok === false)) add(label, "ok");
+    else add(label, "fail", `Réponse ${res.status}. Ne mettez pas en ligne : seul un compte validé avec son Gaulois achète une bannière et choisit la sienne.`);
+  }
+
   // Les Gaulois sur les images du robot (migration 20261114000400) : la tenue des membres, réservée à la clé de service, celle
   // des scripts du robot. Un visiteur doit être refusé par le droit d'appel lui-même. Une liste vide ne désigne personne.
   const gauloisImages = await rpc("gaulois_des_joueurs", { p_empreintes: [] });

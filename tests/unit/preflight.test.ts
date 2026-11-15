@@ -28,6 +28,7 @@ const HEALTHY: Record<string, Route> = {
   "/rest/v1/rpc/get_vie_du_village": { status: 401, body: {} },
   "/rest/v1/rpc/get_ma_forge": { status: 401, body: {} },
   "/rest/v1/rpc/get_mes_familiers": { status: 401, body: {} },
+  "/rest/v1/rpc/get_mes_bannieres": { status: 401, body: {} },
   "/rest/v1/profiles": { status: 401, body: {} },
   "/rest/v1/private_links": { status: 401, body: {} },
   "/rest/v1/admin_log": { status: 401, body: {} },
@@ -560,5 +561,20 @@ describe("le contrôle de la mise en ligne, les familiers du Gaulois", () => {
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/ouvrir_pochette_familiers": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "n'ouvre pas de pochette des familiers")).toBe("ok");
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/ouvrir_pochette_familiers": { status: 200, body: { ok: true, solde: 0 } } }, "n'ouvre pas de pochette des familiers")).toBe("fail");
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/choisir_familier": { status: 200, body: { ok: true, porte: null } } }, "ne choisit aucun familier")).toBe("fail");
+  });
+});
+
+describe("le contrôle de la mise en ligne, les bannières du Gaulois", () => {
+  it("bloque si un visiteur lit ses bannières, en achète ou en choisit une, et signale les bannières pas encore installées", async () => {
+    expect(await statusOf(HEALTHY, "ne lit pas de bannières")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_mes_bannieres": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "ne lit pas de bannières")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_mes_bannieres": { status: 200, body: { ok: true, solde: 0 } } }, "ne lit pas de bannières")).toBe("fail");
+    const absente = (await run({ ...HEALTHY, "/rest/v1/rpc/get_mes_bannieres": { status: 404, body: {} } })).find((c) => c.label.includes("bannières du Gaulois sont installées"));
+    expect(absente).toMatchObject({ status: "warn", detail: expect.stringContaining(".cache/a-coller-bannieres.sql") });
+    expect(absente?.detail).toContain("bannières : 40 installées");
+    for (const label of ["n'achète pas de bannière", "ne choisit aucune bannière"]) expect(await statusOf(HEALTHY, label)).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/acheter_banniere": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "n'achète pas de bannière")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/acheter_banniere": { status: 200, body: { ok: true, solde: 0 } } }, "n'achète pas de bannière")).toBe("fail");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/choisir_banniere": { status: 200, body: { ok: true, porte: null } } }, "ne choisit aucune bannière")).toBe("fail");
   });
 });

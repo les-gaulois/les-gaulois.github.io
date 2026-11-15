@@ -1665,3 +1665,365 @@
 .familier-invite {
   color: var(--color-muted);
 }
+
+/* ---------- Les bannières du Gaulois (15 novembre 2026) ---------- */
+/* Les écrans des bannières : la section « Les bannières » de « La boutique » (la vitrine, les filtres, les cases), la
+   fenêtre d'achat, et « Ma bannière sur /gaulois » dans « Mon Gaulois ». Une bannière fait 124 cases sur 80 : elle est
+   toujours agrandie d'un nombre entier de fois (--banniere-e pour la scène, --banniere-c pour les cases), sans flou. Les
+   couleurs sont celles des raretés du site (jetons --rarete-…) ; la rareté est aussi écrite et comptée en losanges. */
+
+/* La section mesure sa propre largeur : dans la colonne de la boutique, la place dépend du Gaulois collé à côté et de
+   son familier, pas seulement de l'écran. Un lien vers elle (#bannieres) s'arrête sous l'en-tête, et sous le Gaulois
+   collé sur téléphone. */
+.bannieres {
+  container: bannieres / inline-size;
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--hairline);
+  scroll-margin-top: 5.5rem;
+}
+.bannieres-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 1.5rem;
+}
+.bannieres-titre {
+  font-size: 1.375rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+.bannieres-compte,
+.bannieres-porte {
+  color: var(--texte-courant);
+}
+.bannieres-compte strong {
+  font-size: 1.25rem;
+  color: var(--ecriture);
+}
+/* Ce que /gaulois montre aujourd'hui, et de quoi revenir au décor de son lieu : toujours au même endroit. */
+.bannieres-porte {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  min-height: 2.5rem;
+}
+.bannieres-porte strong {
+  color: var(--ecriture);
+}
+
+/* La couleur d'une rareté, pour tout ce qui montre une bannière. */
+.banniere-vitrine,
+.banniere-case,
+.banniere-rarete {
+  --rarete: var(--color-line-strong);
+  --rarete-texte: var(--color-muted);
+  --rarete-cadre: var(--rarete);
+}
+:is(.banniere-vitrine, .banniere-case, .banniere-rarete)[data-rarete="commun"] {
+  --rarete: var(--rarete-commun);
+  --rarete-texte: var(--rarete-commun-texte);
+}
+:is(.banniere-vitrine, .banniere-case, .banniere-rarete)[data-rarete="peu-commun"] {
+  --rarete: var(--rarete-peu-commun);
+  --rarete-texte: var(--rarete-peu-commun-texte);
+}
+:is(.banniere-vitrine, .banniere-case, .banniere-rarete)[data-rarete="epique"] {
+  --rarete: var(--rarete-epique);
+  --rarete-texte: var(--rarete-epique-texte);
+}
+:is(.banniere-vitrine, .banniere-case, .banniere-rarete)[data-rarete="mystique"] {
+  --rarete: var(--rarete-mystique);
+  --rarete-texte: var(--rarete-mystique-texte);
+}
+:is(.banniere-vitrine, .banniere-case, .banniere-rarete)[data-rarete="legendaire"] {
+  --rarete: var(--rarete-legendaire);
+  --rarete-texte: var(--rarete-legendaire-texte);
+  --rarete-cadre: var(--rarete-legendaire-degrade);
+}
+
+/* La vitrine : la bannière choisie en grand, avec le Gaulois du membre devant, dans un cadre de la couleur de sa rareté
+   (doré en dégradé pour une légendaire, comme une case légendaire). La scène au-dessus de sa fiche ; côte à côte dès que
+   la place le permet. Quand une case la change alors qu'elle est sortie de l'écran, la page y revient, sous ce qui est
+   collé en haut. */
+.banniere-vitrine {
+  --banniere-e: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  gap: 1rem 2rem;
+  padding: 1rem 0.875rem;
+  border: 2px solid transparent;
+  border-radius: 0.75rem;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--rarete) 18%, var(--color-navy)), color-mix(in srgb, var(--rarete) 5%, var(--color-navy)) 70%) padding-box,
+    var(--rarete-cadre) border-box;
+  scroll-margin-block: 6.5rem 1rem;
+}
+@media (max-width: 767px) and (min-height: 560px) {
+  .bannieres,
+  .banniere-vitrine {
+    scroll-margin-top: calc(5.5rem + var(--vestiaire-scene, 13.5rem));
+  }
+}
+.banniere-vue {
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  margin: 0;
+}
+.banniere-vue figcaption {
+  max-width: calc(124px * var(--banniere-e));
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  color: var(--color-muted);
+  text-align: center;
+  text-wrap: balance;
+}
+/* La scène : 124 cases sur 80, cernée d'un trait fin pour se détacher de la page blanche. */
+.banniere-scene {
+  width: calc(124px * var(--banniere-e));
+  height: calc(80px * var(--banniere-e));
+  border-radius: 0.25rem;
+  background: var(--color-surface-2);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ecriture) 40%, transparent);
+}
+.banniere-fiche {
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 0.5rem;
+  width: 100%;
+  min-width: 0;
+}
+.banniere-famille {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.banniere-nom {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1.15;
+  color: var(--ecriture);
+  text-wrap: balance;
+}
+/* La rareté hors d'une case : les losanges, puis son nom, sur une ligne. */
+.banniere-rarete .case-rarete {
+  grid-auto-flow: column;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9375rem;
+}
+.banniere-description {
+  max-width: 36rem;
+  color: var(--texte-courant);
+}
+.banniere-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+  margin-top: 0.375rem;
+}
+.banniere-prix {
+  font-size: 1.625rem;
+  font-weight: 800;
+}
+.banniere-avis :is(.form-problem, .form-success) {
+  margin-top: 0;
+}
+@container bannieres (min-width: 26rem) {
+  .banniere-vitrine {
+    --banniere-e: 3;
+    padding: 1.25rem;
+  }
+}
+@container bannieres (min-width: 46rem) {
+  .banniere-vitrine {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    justify-items: start;
+    padding: 1.5rem;
+  }
+  .banniere-nom {
+    font-size: 2rem;
+  }
+}
+@container bannieres (min-width: 60rem) {
+  .banniere-vitrine {
+    --banniere-e: 4;
+    gap: 1rem 2.5rem;
+  }
+  .banniere-nom {
+    font-size: 2.375rem;
+  }
+}
+
+/* « À vous » : cerné. « Sur /gaulois » : plein, de la couleur de l'écriture, comme tout choix retenu du site. */
+.banniere-etat {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.0625rem 0.5rem;
+  border: 1px solid var(--ecriture);
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--ecriture);
+  white-space: nowrap;
+}
+.banniere-etat[data-etat="montree"] {
+  background: var(--ecriture);
+  color: var(--color-navy);
+}
+.banniere-fiche .banniere-etat {
+  padding: 0.1875rem 0.75rem;
+  font-size: 0.9375rem;
+}
+
+/* Les filtres : une famille à la fois (ou toutes), puis une rareté. Ce sont les choix des rayons. */
+.bannieres-filtres {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.bannieres-famille {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+.bannieres-famille-compte {
+  margin-left: 0.375rem;
+  letter-spacing: 0;
+  color: var(--ecriture);
+}
+
+/* Les cases : la bannière seule (son cadre de rareté est dans le dessin), son nom, sa rareté, puis son prix, « À vous »
+   ou « Sur /gaulois ». Deux de front sur un téléphone ; les vignettes doublent dès que trois tiennent de front. */
+.banniere-cases {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(calc(124px * var(--banniere-c, 1) + 1rem), 1fr));
+  gap: 0.625rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+@container bannieres (min-width: 50rem) {
+  .banniere-cases {
+    --banniere-c: 2;
+    gap: 0.875rem;
+  }
+}
+.banniere-case {
+  position: relative;
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 0.3125rem;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  padding: 0.375rem 0.375rem 0.625rem;
+  border: 2px solid transparent;
+  border-radius: 0.5rem;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--rarete) 30%, var(--color-navy)), color-mix(in srgb, var(--rarete) 10%, var(--color-navy))) padding-box,
+    var(--rarete-cadre) border-box;
+  color: var(--ecriture);
+  text-align: center;
+  cursor: pointer;
+  transition: box-shadow 0.2s;
+  scroll-margin-block: 6rem 2rem;
+}
+.banniere-case:hover {
+  box-shadow: 0 0 0 2px var(--color-navy), 0 0 0 4px color-mix(in srgb, var(--ecriture) 55%, transparent);
+}
+/* La case montrée dans la vitrine (ou la bannière choisie, dans « Mon Gaulois ») : l'anneau plein des choix retenus. */
+.banniere-case[aria-pressed="true"] {
+  box-shadow: 0 0 0 2px var(--color-navy), 0 0 0 5px var(--ecriture);
+}
+.banniere-case-image {
+  display: grid;
+  place-items: center;
+  width: 100%;
+}
+.banniere-vignette,
+.banniere-lieu {
+  width: calc(124px * var(--banniere-c, 1));
+  height: calc(80px * var(--banniere-c, 1));
+  border-radius: 0.1875rem;
+}
+/* Avant que la vignette soit peinte (elles le sont une à une), sa place est déjà prise. */
+.banniere-vignette {
+  background: color-mix(in srgb, var(--rarete) 22%, var(--color-surface-2));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ecriture) 30%, transparent);
+}
+/* « Le décor de mon lieu » : pas une bannière, une place vide en pointillés. */
+.banniere-lieu {
+  border: 2px dashed var(--color-line-strong);
+  background: repeating-linear-gradient(135deg, transparent 0 7px, color-mix(in srgb, var(--ecriture) 8%, transparent) 7px 8px);
+}
+.banniere-case-nom {
+  display: grid;
+  align-content: center;
+  min-height: 2.4em;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+@media (prefers-reduced-motion: reduce) {
+  .banniere-case {
+    transition: none;
+  }
+}
+
+/* La fenêtre d'achat : la bannière derrière son Gaulois, trois fois agrandie quand la fenêtre a toute sa largeur. */
+.banniere-fenetre {
+  --banniere-e: 2;
+  display: grid;
+  place-items: center;
+}
+@media (min-width: 30rem) {
+  .banniere-fenetre {
+    --banniere-e: 3;
+  }
+}
+
+/* « Ma bannière sur /gaulois », dans « Mon Gaulois » : un pli au-dessus des rayons, fermé à l'arrivée, avec « Le décor de
+   mon lieu » puis les bannières qu'on a. Sans bannière, une ligne mène à la boutique (.familier-invite). */
+.banniere-choix > summary {
+  justify-content: flex-start;
+}
+.banniere-choix > summary::after {
+  margin-left: auto;
+}
+.banniere-choix > summary .info-discrete {
+  font-family: var(--font-sans);
+}
+.banniere-choix .banniere-cases {
+  grid-template-columns: repeat(auto-fill, minmax(8.75rem, 9.75rem));
+  margin-top: 0.5rem;
+}
+.banniere-choix .form-problem {
+  margin-top: 0.75rem;
+}
+@media (max-width: 767px) and (min-height: 560px) {
+  .banniere-choix .banniere-case {
+    scroll-margin-top: calc(5.5rem + var(--vestiaire-scene, 13.5rem));
+  }
+}
+@media (max-width: 479px) {
+  .banniere-choix .banniere-cases {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

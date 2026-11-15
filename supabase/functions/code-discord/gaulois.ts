@@ -24,6 +24,7 @@
  * ombre ; n, y et z sont des lumières.
  */
 import { ecrirePng, type Image } from "./billets.ts";
+import type { Decor } from "./decors/commun.ts";
 import { decorDe } from "./decors/index.ts";
 import type { FamilierAPoser } from "./familiers/familier.ts";
 import { GARDE_ROBE } from "./garde-robe/index.ts";
@@ -2410,6 +2411,24 @@ function poserLeGroupe(tenue: Tenue, familier: FamilierAPoser | null, caseA: (x:
   });
 }
 
+/**
+ * La scène de /gaulois en cases (124 × 80, rangée par rangée), sans le logo ni les insignes : le fond (une bannière ou un
+ * décor), puis les ombres, le Gaulois et son familier, posés comme dans `imageDeLaScene`. Pour les aperçus du site, qui
+ * montrent une bannière derrière le Gaulois du membre.
+ */
+export function casesDeLaScene(tenue: Tenue, fond: Decor, familier: FamilierAPoser | null = null): string[] {
+  const cases = [...fond.cases];
+  poserLeGroupe(
+    tenue,
+    familier,
+    (x, y, couleur) => {
+      if (x >= 0 && y >= 0 && x < DECOR_LARGEUR && y < DECOR_HAUTEUR) cases[y * DECOR_LARGEUR + x] = couleur;
+    },
+    fond.ombre,
+  );
+  return cases;
+}
+
 export function imageDuGaulois(tenue: Tenue, familier: FamilierAPoser | null = null): Image {
   const { largeur, hauteur, echelle } = IMAGE_GAULOIS;
   const rgba = new Uint8Array(new ArrayBuffer(largeur * hauteur * 4));
@@ -2449,9 +2468,10 @@ export const PLACE_DU_LOGO = { x: 8, y: 8, cote: LOGO_DU_CLAN.cote } as const;
  * Mêmes dimensions que `imageDuGaulois`. `insignes` : l'emblème de niveau et la flamme de série d'un membre au pseudo public
  * (`insignes.ts`, 15 novembre 2026), peints après le décor, avant l'ombre et le Gaulois, qui passent devant. Sans insigne,
  * l'image d'avant au pixel près. Avec un familier (15 novembre 2026), le Gaulois et lui côte à côte, centrés ensemble
- * (`placeDuGroupe`).
+ * (`placeDuGroupe`). `banniere` : le dessin de la bannière que le membre montre (`bannieres/`, 15 novembre 2026), cadre
+ * compris, qui prend la place du décor du lieu ; sans bannière, le décor du lieu, comme avant.
  */
-export function imageDeLaScene(tenue: Tenue, scene: Scene, insignes: readonly Rectangle[] = [], familier: FamilierAPoser | null = null): Image {
+export function imageDeLaScene(tenue: Tenue, scene: Scene, insignes: readonly Rectangle[] = [], familier: FamilierAPoser | null = null, banniere: Decor | null = null): Image {
   const { largeur, hauteur, echelle } = IMAGE_GAULOIS;
   const rgba = new Uint8Array(new ArrayBuffer(largeur * hauteur * 4));
   const caseA = (cx: number, cy: number, couleur: string) => {
@@ -2469,7 +2489,7 @@ export function imageDeLaScene(tenue: Tenue, scene: Scene, insignes: readonly Re
       }
     }
   };
-  const decor = decorDe(scene.lieu, scene.moment);
+  const decor = banniere ?? decorDe(scene.lieu, scene.moment);
   decor.cases.forEach((couleur, i) => caseA(i % DECOR_LARGEUR, Math.floor(i / DECOR_LARGEUR), couleur));
   // Les insignes, à droite du logo : le Gaulois, son familier et leurs ombres passent devant.
   if (insignes.length > 0) peindreLesRectangles({ largeur, hauteur, rgba }, insignes);
@@ -2492,11 +2512,19 @@ export function imageDeLaScene(tenue: Tenue, scene: Scene, insignes: readonly Re
 
 /**
  * L'image de /gaulois, en PNG : devant le décor de sa scène si elle est donnée, sinon devant le décor d'avant ; avec ses
- * insignes, et son familier à côté de lui s'il en montre un.
+ * insignes, et son familier à côté de lui s'il en montre un ; devant sa bannière s'il en montre une.
  */
-export const pngDuGaulois = (tenue: Tenue, scene?: Scene, insignes: readonly Rectangle[] = [], familier: FamilierAPoser | null = null): Promise<Uint8Array<ArrayBuffer>> =>
-  ecrirePng(scene ? imageDeLaScene(tenue, scene, insignes, familier) : imageDuGaulois(tenue, familier));
+export const pngDuGaulois = (
+  tenue: Tenue,
+  scene?: Scene,
+  insignes: readonly Rectangle[] = [],
+  familier: FamilierAPoser | null = null,
+  banniere: Decor | null = null,
+): Promise<Uint8Array<ArrayBuffer>> => ecrirePng(scene ? imageDeLaScene(tenue, scene, insignes, familier, banniere) : imageDuGaulois(tenue, familier));
 
-/** Le Gaulois en mots, avec sa scène : « … Il est à la taverne, au crépuscule. » ; et son familier s'il est nommé. */
-export const decrireLaScene = (tenue: Tenue, scene: Scene, nomDuFamilier?: string | null): string =>
-  `${decrireGaulois(tenue)} Il est ${LIEUX_EN_MOTS[scene.lieu]}, ${PHASES_EN_MOTS[scene.moment.phase]}.${nomDuFamilier ? ` Son familier${NBSP}: ${nomDuFamilier.toLowerCase()}.` : ""}`;
+/**
+ * Le Gaulois en mots, avec sa scène : « … Il est à la taverne, au crépuscule. » ; et son familier s'il est nommé. Devant
+ * une bannière, elle remplace le lieu : « … Il pose devant sa bannière « Aube de la bombe H » : Un champignon… ».
+ */
+export const decrireLaScene = (tenue: Tenue, scene: Scene, nomDuFamilier?: string | null, banniere?: { nom: string; description: string } | null): string =>
+  `${decrireGaulois(tenue)} ${banniere ? `Il pose devant sa bannière «${NBSP}${banniere.nom}${NBSP}»${NBSP}: ${banniere.description}` : `Il est ${LIEUX_EN_MOTS[scene.lieu]}, ${PHASES_EN_MOTS[scene.moment.phase]}.`}${nomDuFamilier ? ` Son familier${NBSP}: ${nomDuFamilier.toLowerCase()}.` : ""}`;

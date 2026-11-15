@@ -15,7 +15,7 @@
  */
 import sharp, { type OverlayOptions } from "sharp";
 import type { Decor } from "./village/decor";
-import { annonceEnMots, choseDe, dateLongue, FAMILIER, heureEnMots, nouveautes, origineDe, PAYE_EN_STATERES, type AchatDuVillage, type AnnonceDesAchats, type ChoseRecue } from "./achats-discord";
+import { annonceEnMots, BANNIERE, choseDe, dateLongue, FAMILIER, heureEnMots, nouveautes, origineDe, PAYE_EN_STATERES, type AchatDuVillage, type AnnonceDesAchats, type ChoseRecue } from "./achats-discord";
 import { RARETES, type Rarete, type Vignette } from "./gaulois";
 import { CARD_COLORS as C, fitted, kpiParts, LOGO, MARGIN, pageFoot, pageHead, renderGazetteCard, type CardRect, type CardText, type GazetteCard, type GazetteFonts, type Measure } from "./gazette-image";
 import { shownAddress } from "./salon-discord";
@@ -150,7 +150,11 @@ const rareteEtPlace = (chose: ChoseRecue) => `${RARETES[chose.rarete].nom}, ${ch
 
 /** Ce que dit l'origine, sous le chiffre clé d'un objet seul. */
 const DETAIL_ORIGINE = { achat: "au prix de sa rareté", pochette: "un objet tiré au sort", marche_achat: "auprès d'un autre Gaulois" } as const;
-const detailDeLOrigine = (achat: AchatDuVillage): string => (achat.emplacement === FAMILIER ? "un familier tiré au sort" : DETAIL_ORIGINE[achat.nature]);
+const detailDeLOrigine = (achat: AchatDuVillage): string =>
+  achat.emplacement === FAMILIER ? "un familier tiré au sort" : achat.emplacement === BANNIERE ? "le fond de son image /gaulois" : DETAIL_ORIGINE[achat.nature];
+
+/** Le nom de ce qui a été reçu, au-dessus de son nom : « Objet », « Familier » ou « Bannière ». */
+const sorteDeLAchat = (achat: AchatDuVillage): string => (achat.emplacement === FAMILIER ? "Familier" : achat.emplacement === BANNIERE ? "Bannière" : "Objet");
 
 /**
  * Le titre de l'image : « @ » et le nom Discord, sans ce que la police des noms ne sait pas dessiner (émoji, idéogrammes),
@@ -175,7 +179,8 @@ export function nomSurLImage(annonce: Pick<AnnonceDesAchats, "nom" | "discord">,
 export function achatsCard(annonce: AnnonceDesAchats, vignettes: readonly (Vignette | null)[], siteUrl: string, measure: Measure, draws?: (char: string) => boolean): AchatsCard {
   const { achats } = annonce;
   const n = achats.length;
-  const kicker = n === 1 ? (achats[0]?.emplacement === FAMILIER ? "Nouveau familier pour son Gaulois" : "Nouvel objet pour son Gaulois") : `${nouveautes(achats)} pour son Gaulois`;
+  const seul = achats[0]?.emplacement;
+  const kicker = n === 1 ? (seul === FAMILIER ? "Nouveau familier pour son Gaulois" : seul === BANNIERE ? "Nouvelle bannière pour son Gaulois" : "Nouvel objet pour son Gaulois") : `${nouveautes(achats)} pour son Gaulois`;
   // Un nom Discord peut compter 32 lettres larges : le titre descend jusqu'à 22 pixels plutôt que d'être coupé.
   const head = pageHead({ path: "/village", title: nomSurLImage(annonce, draws), name: true, titleMin: 22, kicker, period: periodeDesAchats(achats) }, measure);
   const rects: CardRect[] = [...head.rects];
@@ -197,7 +202,7 @@ export function achatsCard(annonce: AnnonceDesAchats, vignettes: readonly (Vigne
     const width = boite.x - SEULE.gap - MARGIN;
     // Les deux chiffres clés occupent la hauteur de la vitrine : ce qui reste sous eux passe entre les deux, et au-dessus.
     const blocs = (y: number, ecart: number) => {
-      const nom = kpiParts([{ label: achat.emplacement === FAMILIER ? "Familier" : "Objet", value: objet.nom, hint: { text: rareteEtPlace(objet), color: COULEURS_RARETE[objet.rarete].texte, strong: true } }], { x: MARGIN, y, width, valueSize: 64, minValueSize: 32 }, measure);
+      const nom = kpiParts([{ label: sorteDeLAchat(achat), value: objet.nom, hint: { text: rareteEtPlace(objet), color: COULEURS_RARETE[objet.rarete].texte, strong: true } }], { x: MARGIN, y, width, valueSize: 64, minValueSize: 32 }, measure);
       const origine = kpiParts([{ label: "Origine", value: origineDe(achat).court, hint: { text: detailDeLOrigine(achat) } }], { x: MARGIN, y: nom.bottom + ecart, width, valueSize: 56, minValueSize: 30 }, measure);
       return { nom, origine };
     };
