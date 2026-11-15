@@ -70,6 +70,22 @@ function Piece({ taille = 16, echelle = 1 }: { taille?: TailleStatere; echelle?:
   return <canvas ref={toile} width={taille} height={taille} class="qg-semaine-piece" style={{ width: `${taille * echelle}px`, height: `${taille * echelle}px` }} aria-hidden="true" />;
 }
 
+/** Une mise en mots (`stakeWords`), la pièce devant : la pièce et le nombre ne se séparent pas en fin de ligne. */
+function Mise({ stake, taille }: { stake: number; taille?: TailleStatere }) {
+  const words = stakeWords(stake);
+  if (stake < 1) return <>{words}</>;
+  const cut = words.indexOf(" ");
+  return (
+    <>
+      <span class="qg-semaine-insecable">
+        <Piece taille={taille} />
+        {words.slice(0, cut)}
+      </span>
+      {words.slice(cut)}
+    </>
+  );
+}
+
 /** `undefined` : en lecture ; `null` : le fichier public n'a pas pu être lu. */
 type WeekFile = ClanWeekFile | null | undefined;
 
@@ -246,7 +262,9 @@ function Cagnotte({ predictions, expired }: { predictions: Predictions; expired:
   return (
     <div class="qg-semaine-cagnotte" data-testid="qg-cagnotte">
       <div class="qg-semaine-cagnotte-tete">
-        <h4>Cagnotte</h4>
+        <h4>
+          Cagnotte <span>les mises de tous</span>
+        </h4>
         {predictions.count > 0 && <p class="qg-semaine-note tnum">{counted(predictions.count, "pronostic fait", "pronostics faits")}</p>}
       </div>
       <p class="qg-semaine-cagnotte-total console-valeur font-display tnum" data-testid="qg-cagnotte-total">
@@ -397,6 +415,9 @@ export default function QgSemaine({
         .filter((part): part is string => typeof part === "string" && part !== "")
         .join(" ")
     : "";
+  // « 1 250 statères » : le nombre en grand, son nom en plus petit, comme la cagnotte.
+  const bourse = predictions ? fmtCount(predictions.balance, "statère") : "";
+  const bourseCut = bourse.lastIndexOf(" ");
   const describedBy = (...ids: (string | false)[]) => ids.filter(Boolean).join(" ") || undefined;
 
   /** Relit les deux champs : un problème s'affiche, sinon la confirmation. Rien ne part au serveur. */
@@ -465,11 +486,21 @@ export default function QgSemaine({
                 {aide}
               </p>
             )}
+            {/* La bourse du membre, la sienne seule, toujours là : avant de poser, à la confirmation, une fois posé et après
+                la clôture. En haut du bloc et sans encart, pour ne pas la confondre avec la cagnotte, la somme des mises
+                de tous, dans son encart au bas du bloc. */}
+            <p id="pronostic-bourse" class="qg-semaine-bourse tnum" data-testid="qg-pronostic-bourse">
+              <span class="qg-semaine-question">Votre bourse : </span>
+              <strong class="console-valeur font-display">
+                <Piece taille={16} echelle={2} />
+                {bourse.slice(0, bourseCut)}
+                <span class="text-muted">{bourse.slice(bourseCut)}</span>
+              </strong>
+            </p>
             {placed && mine !== null ? (
               <p class="qg-semaine-pose tnum" data-testid="qg-pronostic-mien">
                 <span class="qg-semaine-note">Posé pour les victoires du clan {weekSpan(predictions.week)} : </span>
-                <strong class="console-valeur font-display">{fmtCount(mine, "victoire")}</strong>, {(predictions.stake ?? 0) > 0 && <Piece />}
-                {stakeWords(predictions.stake ?? 0)}.
+                <strong class="console-valeur font-display">{fmtCount(mine, "victoire")}</strong>, <Mise stake={predictions.stake ?? 0} />.
               </p>
             ) : (
               <>
@@ -514,7 +545,7 @@ export default function QgSemaine({
                       autoComplete="off"
                       spellcheck={false}
                       placeholder="0"
-                      aria-describedby={describedBy("mise-aide", stakeInvalid && "pronostic-probleme")}
+                      aria-describedby={describedBy("mise-aide", "pronostic-bourse", stakeInvalid && "pronostic-probleme")}
                       aria-invalid={stakeInvalid || undefined}
                       value={stakeText}
                       onInput={(e) => {
@@ -523,9 +554,8 @@ export default function QgSemaine({
                       }}
                     />
                   </div>
-                  <p id="mise-aide" class="qg-semaine-note tnum" data-testid="qg-pronostic-bourse">
-                    <Piece />
-                    Votre bourse : {fmtCount(predictions.balance, "statère")}. De 0, pour l'honneur, à {fmtInt(predictions.stakeMax)}.
+                  <p id="mise-aide" class="qg-semaine-note tnum">
+                    De 0, pour l'honneur, à {fmtInt(predictions.stakeMax)}.
                   </p>
                 </div>
               </>
@@ -540,8 +570,7 @@ export default function QgSemaine({
                 <div class="qg-semaine-confirme" data-dir-ton="warn" data-testid="qg-pronostic-confirme">
                   <p ref={confirmText} tabIndex={-1} class="tnum">
                     <strong class="console-valeur font-display">
-                      {fmtCount(confirming.wins, "victoire")}, {confirming.stake > 0 && <Piece taille={24} />}
-                      {stakeWords(confirming.stake)}.
+                      {fmtCount(confirming.wins, "victoire")}, <Mise stake={confirming.stake} taille={24} />.
                     </strong>{" "}
                     <span>Une fois posé, ni changement ni retour.</span>
                   </p>

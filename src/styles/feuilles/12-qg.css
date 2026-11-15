@@ -735,9 +735,13 @@
   vertical-align: -0.15em;
   image-rendering: pixelated;
 }
+.qg-semaine-bourse .qg-semaine-piece,
 .qg-semaine-cagnotte-total > .qg-semaine-piece {
   margin-right: 0.25em;
   vertical-align: -0.05em;
+}
+.qg-semaine-insecable {
+  white-space: nowrap;
 }
 .qg-semaine-mises .qg-semaine-piece {
   vertical-align: -0.1em;
@@ -747,6 +751,26 @@
    cagnotte dans son encart. Les notes grises ne s'empilent plus : chacune est posée contre ce qu'elle explique. */
 .qg-semaine-echeance {
   margin-top: -0.375rem;
+}
+/* La bourse du membre (16 novembre 2026, demande du pilote : « je vois pas ma cagnotte ») : son total de statères, la
+   pièce et le nombre en grand, toujours en haut du bloc, sur un filet. Sans encart ni capitales : la cagnotte, somme des
+   mises de tous, garde les siens au bas du bloc, pour que les deux ne se confondent pas. */
+.qg-semaine-bourse {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  padding-block: 0.625rem 0.75rem;
+  border-block: 1px solid var(--color-line);
+}
+.qg-semaine-bourse > strong {
+  font-size: 2.5rem;
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+.qg-semaine-bourse > strong > span {
+  font-size: 1.25rem;
 }
 .qg-semaine-question {
   font-weight: 600;
@@ -802,7 +826,7 @@
     gap: 0.375rem;
   }
   .qg-semaine-champs > .qg-semaine-note {
-    grid-column: 1 / -1;
+    grid-column: 2;
     margin-top: 0.125rem;
   }
   .qg-semaine-champ > label {
@@ -874,6 +898,12 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--color-muted);
+}
+/* « les mises de tous » : ce que la cagnotte est, à côté de son nom, pour ne pas la prendre pour sa bourse. */
+.qg-semaine-cagnotte-tete > h4 > span {
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
 }
 .qg-semaine-cagnotte-total {
   font-size: 2.5rem;

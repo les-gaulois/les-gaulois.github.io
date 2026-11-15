@@ -2,6 +2,16 @@
   {
     "date": "2026-11-15",
     "kind": "ameliore",
+    "title": "Votre bourse au QG",
+    "body": "Au QG, dans « Mon pronostic », votre total de statères s'affiche en grand, avant comme après avoir posé. La cagnotte, à part, reste la somme des mises de tous.",
+    "link": {
+      "href": "/qg#semaine",
+      "label": "Voir ma bourse"
+    }
+  },
+  {
+    "date": "2026-11-15",
+    "kind": "ameliore",
     "title": "Les pronostics ferment avant la semaine",
     "body": "Au QG, on pronostique la semaine suivante jusqu'au dimanche à minuit. Plus personne ne mise en connaissant déjà des victoires de la semaine.",
     "link": {
