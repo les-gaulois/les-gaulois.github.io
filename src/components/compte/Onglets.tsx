@@ -91,10 +91,14 @@ export function useTabs(ids: readonly string[]) {
  * La barre d'onglets : une seule ligne, qui défile de côté dans son cadre quand la place manque, sans élargir la page.
  * Au clavier : flèches, Début et Fin, comme dans tout groupe d'onglets. Un nombre dit ce qui attend derrière un onglet.
  * `call` : augmenté quand un lien a demandé un onglet, la barre revient alors à l'écran.
- * `menu` : la barre est remplacée par un menu déroulant, sur toutes les largeurs. Son bouton dit la partie ouverte, et
- * sa liste donne toutes les parties d'un coup (la Direction : le pilote ne voyait pas la fin de la barre ; le QG a le
- * même menu depuis le 12 novembre 2026, à sa demande). Les onglets restent dans la page, masqués : chaque partie garde
- * le nom de son onglet. Dans le menu, chaque partie est précédée de sa petite icône (`icon`).
+ * `menu` : la barre est remplacée par un menu déroulant. Son bouton dit la partie ouverte, et sa liste donne toutes les
+ * parties d'un coup (la Direction : le pilote ne voyait pas la fin de la barre ; le QG a le même menu depuis le 12 novembre
+ * 2026, à sa demande). Les onglets restent dans la page, masqués : chaque partie garde le nom de son onglet. Dans le
+ * menu, chaque partie est précédée de sa petite icône (`icon`).
+ * `cote` (avec `menu`) : sur grand écran, dès 96 rem (1 536 px), les onglets se montrent en colonne, à gauche des parties,
+ * toujours ouverts, avec leur icône et le chemin « ~/direction » au-dessus, et le menu déroulant se cache ; plus étroit, le
+ * menu déroulant revient (pilote, 15 novembre 2026, sur le panneau de MEE6 : « pourquoi il prend tout l'écran »). Le
+ * conteneur des parties porte `.parties-cote` (01-socle.css).
  */
 export function Onglets({
   label,
@@ -104,6 +108,7 @@ export function Onglets({
   onSelect,
   call = 0,
   menu = false,
+  cote = false,
   debut,
 }: {
   label: string;
@@ -113,6 +118,7 @@ export function Onglets({
   onSelect: (id: string) => void;
   call?: number;
   menu?: boolean;
+  cote?: boolean;
   /** Ce qui se place en tête de la barre, avant les onglets ou le menu : à la Direction et au QG, le petit logo. */
   debut?: ComponentChildren;
 }) {
@@ -165,8 +171,26 @@ export function Onglets({
     el.scrollTo({ left: Math.max(0, tab.offsetLeft - (el.clientWidth - tab.offsetWidth) / 2), behavior: reducedMotion() ? "auto" : "smooth" });
   }, [active]);
 
+  // Les onglets se montrent en colonne, à côté des parties (option `cote`, sur grand écran) : la feuille de style les affiche.
+  const colonne = menu && cote;
+  const side = () => colonne && strip.current !== null && getComputedStyle(strip.current).display !== "none";
+
+  // Avec les onglets en colonne, collés sous l'en-tête : la partie choisie revient en haut, sous l'en-tête, si elle commence
+  // plus haut que l'écran (on avait descendu une longue liste) ou trop bas. Sinon, la page ne bouge pas.
+  const revealBeside = (id: string) => {
+    const part = document.getElementById(`${prefix}-partie-${id}`);
+    if (!part) return;
+    const top = part.getBoundingClientRect().top;
+    const margin = parseFloat(getComputedStyle(part).scrollMarginTop) || 0;
+    if (top < margin - 1 || top > window.innerHeight - 160) part.scrollIntoView({ block: "start", behavior: reducedMotion() ? "auto" : "smooth" });
+  };
+
+  // Un lien ou une case de la vue d'ensemble a demandé une partie : la barre revient à l'écran ; en colonne, toujours à
+  // l'écran, c'est la partie ouverte qui revient sous l'en-tête si elle commence hors de l'écran.
   useEffect(() => {
-    if (call > 0) strip.current?.parentElement?.scrollIntoView({ block: "nearest", behavior: reducedMotion() ? "auto" : "smooth" });
+    if (call === 0) return;
+    if (side()) revealBeside(active);
+    else strip.current?.parentElement?.scrollIntoView({ block: "nearest", behavior: reducedMotion() ? "auto" : "smooth" });
   }, [call]);
 
   // Au doigt ou à la souris : si la partie choisie s'ouvre presque hors de l'écran (sur téléphone, la barre est souvent en bas
@@ -174,6 +198,7 @@ export function Onglets({
   const choose = (id: string) => {
     onSelect(id);
     requestAnimationFrame(() => {
+      if (side()) return revealBeside(id);
       const part = document.getElementById(`${prefix}-partie-${id}`);
       if (part && part.getBoundingClientRect().top > window.innerHeight - 160) {
         strip.current?.parentElement?.scrollIntoView({ block: "start", behavior: reducedMotion() ? "auto" : "smooth" });
@@ -182,13 +207,15 @@ export function Onglets({
   };
 
   const onKey = (e: KeyboardEvent, index: number) => {
-    const next = tabKeyTarget(e.key, index, tabs.length);
+    // En colonne, les flèches haut et bas passent d'un onglet à l'autre.
+    const next = tabKeyTarget(e.key, index, tabs.length, colonne);
     if (next === null) return;
     e.preventDefault();
     const tab = tabs[next];
     if (!tab) return;
     onSelect(tab.id);
     document.getElementById(`${prefix}-onglet-${tab.id}`)?.focus();
+    if (side()) requestAnimationFrame(() => revealBeside(tab.id));
   };
 
   // Une partie choisie dans le menu : le focus va sur son onglet, ou revient au bouton du menu quand la barre est cachée.
@@ -214,7 +241,7 @@ export function Onglets({
       closeMenu();
       return;
     }
-    const next = tabKeyTarget(e.key === "ArrowDown" ? "ArrowRight" : e.key === "ArrowUp" ? "ArrowLeft" : e.key, index, tabs.length);
+    const next = tabKeyTarget(e.key, index, tabs.length, true);
     if (next === null) return;
     e.preventDefault();
     list.current?.querySelectorAll<HTMLButtonElement>("button")[next]?.focus();
@@ -225,7 +252,7 @@ export function Onglets({
   return (
     <div
       ref={bar}
-      class={`onglets ${edges.start ? "onglets-avant" : ""} ${edges.end ? "onglets-apres" : ""} ${menu ? "onglets-avec-menu" : ""}`}
+      class={`onglets ${edges.start ? "onglets-avant" : ""} ${edges.end ? "onglets-apres" : ""} ${menu ? "onglets-avec-menu" : ""} ${colonne ? "onglets-cote" : ""}`}
       onFocusOut={(e) => {
         // Le focus part vers un élément hors de la barre (touche Tab) : le menu se ferme. Sans destination, rien : Safari
         // et Firefox sur Mac ne donnent pas le focus au bouton cliqué, et fermer ici masquerait la liste avant le clic.
@@ -234,7 +261,15 @@ export function Onglets({
       }}
     >
       {debut}
-      <div ref={strip} class="onglets-defile" role="tablist" aria-label={label} data-testid={`${prefix}-onglets`}>
+      {/* En colonne, sur grand écran : le chemin des parties, comme en tête de la liste du menu (« ~/direction »). Un vrai
+          texte, pour que le Gaulois compagnon ne se pose pas dessus ; décoratif, caché aux lecteurs d'écran. Masqué ailleurs. */}
+      {colonne && (
+        <span class="onglets-chemin" aria-hidden="true">
+          ~/{prefix}
+        </span>
+      )}
+      {/* En colonne, la liste n'est visible que verticale (sinon le menu déroulant la remplace) : d'où son orientation. */}
+      <div ref={strip} class="onglets-defile" role="tablist" aria-label={label} aria-orientation={colonne ? "vertical" : undefined} data-testid={`${prefix}-onglets`}>
         {tabs.map((tab, i) => {
           const selected = tab.id === active;
           const count = tab.count && tab.count.value > 0 ? tab.count : null;
@@ -252,6 +287,7 @@ export function Onglets({
               onClick={() => choose(tab.id)}
               onKeyDown={(e) => onKey(e, i)}
             >
+              {colonne && tab.icon && <Pastille nom={tab.icon} rang={i} />}
               {tab.label}
               {count && (
                 <>

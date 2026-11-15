@@ -421,7 +421,8 @@ test("les titres ont de vraies minuscules et une lettrine, sauf en console, au Q
 
 // Les onglets d'une rubrique font une seule suite de pages : en passant de l'un à l'autre, la rangée d'onglets, la ligne
 // tricolore et le titre partent du même bord, même vers le QG et le guide, qui sont en console (01-socle.css, « --page-max »).
-// Le QG garde ses écrans dans la colonne de travail de 75 rem, calée sur ce bord ; la Direction, sans rubrique, reste centrée.
+// Depuis le 15 novembre 2026, le QG prend toute la largeur du site, sous ses onglets ; la Direction, sans rubrique, prend
+// tout l'écran (data-largeur="ecran"), avec les marges du site.
 test("d'un onglet à l'autre d'une rubrique, les onglets, la ligne tricolore et le titre ne bougent pas", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "Largeurs testées une seule fois.");
   test.slow();
@@ -429,17 +430,24 @@ test("d'un onglet à l'autre d'une rubrique, les onglets, la ligne tricolore et 
     await page.goto(path);
     return page.evaluate(() => {
       const gauche = (sel: string) => document.querySelector(sel)?.getBoundingClientRect().left ?? null;
-      const colonne = document.querySelector(".colonne-travail")?.getBoundingClientRect();
+      const tete = document.querySelector("main .console-tete")?.getBoundingClientRect();
+      const wrap = document.querySelector<HTMLElement>("main > .wrap");
+      const style = wrap ? getComputedStyle(wrap) : null;
       return {
         onglet: gauche("main .rubrique .rubrique-onglet"),
         filet: gauche("main .tribar"),
         titre: gauche("main h1"),
-        colonne: colonne ? { gauche: colonne.left, largeur: colonne.width } : null,
+        tete: tete ? { gauche: tete.left, largeur: tete.width } : null,
+        // La largeur utile du contenu de la page : son .wrap, moins ses deux marges.
+        contenu: wrap && style ? wrap.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) : null,
+        // Le bord droit du grand guerrier de l'en-tête (QG, Direction).
+        logo: document.querySelector("main .console-logo-tete")?.getBoundingClientRect().right ?? null,
+        fenetre: document.documentElement.clientWidth,
         deborde: document.documentElement.scrollWidth - document.documentElement.clientWidth,
       };
     });
   };
-  for (const width of [360, 390, 768, 1280, 1440, 1920]) {
+  for (const width of [360, 390, 768, 1280, 1440, 1920, 2560]) {
     await page.setViewportSize({ width, height: 900 });
     const rubriques: [string, ...string[]][] = [
       ["/membres", "/liste", "/qg"],
@@ -458,16 +466,26 @@ test("d'un onglet à l'autre d'une rubrique, les onglets, la ligne tricolore et 
         expect(ici.titre, ou).toBeCloseTo(attendu.onglet!, 0);
         expect(ici.deborde, ou).toBeLessThanOrEqual(0);
         if (path === "/qg") {
-          // La porte et les écrans du QG : la colonne de 75 rem moins ses deux marges de 1 rem, jamais plus large.
-          expect(ici.colonne?.gauche, ou).toBeCloseTo(attendu.onglet!, 0);
-          expect(ici.colonne?.largeur, ou).toBeLessThanOrEqual(1168.5);
-          if (width >= 1440) expect(ici.colonne?.largeur, ou).toBeCloseTo(1168, 0);
+          // La porte et les écrans du QG : toute la largeur du contenu, comme Membres et La liste.
+          expect(ici.tete?.gauche, ou).toBeCloseTo(attendu.onglet!, 0);
+          expect(ici.tete?.largeur, ou).toBeCloseTo(ici.contenu!, 0);
         }
       }
     }
-    // La Direction n'a pas d'onglets de rubrique : sa colonne de 75 rem reste au milieu de l'écran.
+    // La Direction n'a pas d'onglets de rubrique : elle prend tout l'écran, avec les marges du site (16 px sur téléphone,
+    // 4 % de la largeur, 80 px au plus), au-delà des 120 rem des autres pages.
     const direction = await bords("/direction");
-    expect(direction.titre, `/direction à ${width} px`).toBeCloseTo(Math.max(16, (width - 1200) / 2 + 16), 0);
+    const marge = Math.min(80, Math.max(16, width * 0.04));
+    const ou = `/direction à ${width} px`;
+    expect(direction.titre, ou).toBeCloseTo(marge, 0);
+    expect(direction.contenu, ou).toBeCloseTo(direction.fenetre - 2 * marge, 0);
+    // Sur grand écran, le guerrier se place à droite du titre et s'arrête au bord droit du contenu, comme au QG.
+    if (width >= 1024) {
+      expect(direction.logo, ou).toBeCloseTo(direction.fenetre - marge, 0);
+      const qg = await bords("/qg");
+      expect(qg.logo, `/qg à ${width} px`).toBeCloseTo(qg.onglet! + qg.contenu!, 0);
+    }
+    expect(direction.deborde, ou).toBeLessThanOrEqual(0);
   }
 });
 

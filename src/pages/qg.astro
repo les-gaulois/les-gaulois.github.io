@@ -32,10 +32,10 @@ const direction = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/direction`;
     moved();
     addEventListener("hashchange", moved);
   </script>
-  {/* `.wrap` : la largeur du site, pour que l'en-tête parte du même bord que les onglets de la rubrique Membres.
-      `.colonne-travail` : la porte et les écrans du QG gardent leur colonne de 75 rem, calée à gauche (01-socle.css). */}
+  {/* `.wrap` : la largeur du site, pour que l'en-tête parte du même bord que les onglets de la rubrique Membres. Depuis le
+      15 novembre 2026, la porte et les écrans du QG prennent toute cette largeur, au lieu d'une colonne de 75 rem. */}
   <div class="wrap">
-  <div class="colonne-travail console-tete console-tete-court" style='--console-hote: "qg"'>
+  <div class="console-tete console-tete-court" style='--console-hote: "qg"'>
     <PageHeader title="Le QG" compact>
       {/* Décorative : le titre dit déjà où l'on est. */}
       <p slot="avant-titre" class="console-invite" aria-hidden="true">

@@ -28,12 +28,13 @@ export function tabOfHash(hash: string, ids: readonly string[]): string | null {
 
 /**
  * Où va le focus avec une touche, comme dans tout groupe d'onglets : flèches gauche et droite, en boucle ; Début et Fin.
- * `null` : la touche ne concerne pas les onglets.
+ * `vertical` : des onglets les uns sous les autres (la colonne de la Direction et du QG sur grand écran, une liste de menu),
+ * où ce sont les flèches bas et haut. `null` : la touche ne concerne pas les onglets.
  */
-export function tabKeyTarget(key: string, index: number, count: number): number | null {
+export function tabKeyTarget(key: string, index: number, count: number, vertical = false): number | null {
   if (count < 1) return null;
-  if (key === "ArrowRight") return (index + 1) % count;
-  if (key === "ArrowLeft") return (index - 1 + count) % count;
+  if (key === (vertical ? "ArrowDown" : "ArrowRight")) return (index + 1) % count;
+  if (key === (vertical ? "ArrowUp" : "ArrowLeft")) return (index - 1 + count) % count;
   if (key === "Home") return 0;
   if (key === "End") return count - 1;
   return null;

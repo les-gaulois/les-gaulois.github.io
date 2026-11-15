@@ -35,6 +35,16 @@ describe("les onglets d'un espace de travail", () => {
     expect(tabKeyTarget("ArrowRight", 0, 0)).toBeNull();
   });
 
+  it("en colonne, les flèches bas et haut passent d'un onglet à l'autre, en boucle, et plus les flèches de côté", () => {
+    expect(tabKeyTarget("ArrowDown", 0, 3, true)).toBe(1);
+    expect(tabKeyTarget("ArrowDown", 2, 3, true)).toBe(0);
+    expect(tabKeyTarget("ArrowUp", 0, 3, true)).toBe(2);
+    expect(tabKeyTarget("Home", 2, 3, true)).toBe(0);
+    expect(tabKeyTarget("End", 0, 3, true)).toBe(2);
+    expect(tabKeyTarget("ArrowRight", 0, 3, true)).toBeNull();
+    expect(tabKeyTarget("ArrowLeft", 1, 3, true)).toBeNull();
+  });
+
   it("la partie choisie glisse du côté de son onglet, et rien ne bouge au premier affichage", () => {
     expect(slideFrom(0, 2)).toBe("droite");
     expect(slideFrom(3, 1)).toBe("gauche");

@@ -329,8 +329,9 @@ function Inside({ me, rank, lastRunAt, logo }: { me: Me; rank: number; lastRunAt
       {tools.status === "loading" && !toolsLate ? (
         opening
       ) : (
-        <div class="grid grid-cols-1 gap-5">
+        <div class="parties-cote grid grid-cols-1 gap-5">
           {/* `menu` : le menu déroulant de la Direction, à la place de la barre d'onglets (demande du pilote, 12 novembre 2026). */}
+          {/* `cote` : sur grand écran, les parties en colonne à gauche, comme à la Direction (15 novembre 2026). */}
           {/* `debut` : le petit logo du guerrier en mode Matrix, en tête du menu, comme à la Direction. */}
           <Onglets
             label="Les parties du QG"
@@ -343,6 +344,7 @@ function Inside({ me, rank, lastRunAt, logo }: { me: Me; rank: number; lastRunAt
             }}
             call={called}
             menu
+            cote
             debut={logo && <LogoMatrice data={logo} id="logo-menu" class="console-logo-menu" points />}
           />
 

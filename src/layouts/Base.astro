@@ -38,11 +38,16 @@ interface Props {
    * couleur de la page (rouge à la Direction, bleu au QG). Voir « Ambiance console » dans docs/DESIGN.md.
    */
   ambiance?: "console";
+  /**
+   * La Direction, depuis le 15 novembre 2026 : la page prend tout l'écran, en-tête et pied de page compris, au lieu de la
+   * largeur du site (120 rem), comme un panneau d'administration. Voir « La largeur » dans docs/DESIGN.md.
+   */
+  largeur?: "ecran";
   /** L'image d'aperçu du lien, à la place de celle du site : un chemin qui commence par la base, et ce qu'elle montre. */
   image?: string;
   imageAlt?: string;
 }
-const { title, description = `${clan.tagline} Classement, progression, membres et activité du clan.`, noindex = false, theme, ambiance, image, imageAlt } = Astro.props;
+const { title, description = `${clan.tagline} Classement, progression, membres et activité du clan.`, noindex = false, theme, ambiance, largeur, image, imageAlt } = Astro.props;
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const fullTitle = title ? `${title} · [${clan.tag}] ${clan.name}` : `[${clan.tag}] ${clan.name} · Clan OpenFront`;
@@ -81,6 +86,7 @@ const feuilles = feuillesDeLaPage(Astro.routePattern).map((fichier) => {
   data-theme={theme}
   data-ambiance={ambiance}
   data-console={ambiance === "console" ? "terminal" : undefined}
+  data-largeur={largeur}
   data-lettres={lettresOnciale ? "onciale" : undefined}
 >
   <head>

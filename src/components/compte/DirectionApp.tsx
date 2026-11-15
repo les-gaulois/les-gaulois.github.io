@@ -198,8 +198,9 @@ export default function DirectionApp({ health, logo }: { health: Omit<SiteHealth
           </button>
         </div>
       </section>
-      <div class="grid grid-cols-1 gap-5">
-        {/* `menu` : treize parties pour le fondateur, la barre ne les montrait pas toutes ; à la place, un menu déroulant, à toutes les largeurs. */}
+      <div class="parties-cote grid grid-cols-1 gap-5">
+        {/* `menu` : treize parties pour le fondateur, la barre ne les montrait pas toutes ; à la place, un menu déroulant. */}
+        {/* `cote` : sur grand écran, les parties en colonne à gauche, toujours ouvertes, comme un panneau d'administration. */}
         {/* `debut` : le petit logo du guerrier en mode Matrix, en tête du menu (style Terminal). */}
         <Onglets
           label="Les parties de la Direction"
@@ -209,6 +210,7 @@ export default function DirectionApp({ health, logo }: { health: Omit<SiteHealth
           onSelect={(id) => select(id)}
           call={called}
           menu
+          cote
           debut={logo && <LogoMatrice data={logo} id="logo-menu" class="console-logo-menu" points />}
         />
 

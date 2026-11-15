@@ -94,21 +94,14 @@
   --page-marge: clamp(1rem, 4vw, 5rem);
   --wrap-max: var(--page-max);
   --wrap-marge: var(--page-marge);
-  /* La colonne d'un espace de travail (QG, Direction) : ses écrans sont dessinés pour elle. */
-  --colonne-travail: 75rem;
 }
-/* La Direction garde sa colonne de 75 rem, au milieu de l'écran : formulaires et menus s'y lisent mieux. L'en-tête et le
-   pied de page prennent toute la largeur partout. */
-[data-ambiance="console"] main {
-  --wrap-max: var(--colonne-travail);
-  --wrap-marge: 1rem;
-}
-/* Une page en console rangée dans une rubrique (le QG avec Membres, le guide avec Quand jouer) reprend la largeur et les
-   marges du site : d'un onglet à l'autre, la rangée d'onglets, la ligne tricolore et le titre ne bougent pas (14 novembre
-   2026). Le QG garde ses écrans dans la colonne de travail, calée à gauche (.colonne-travail, plus bas). */
-[data-ambiance="console"] main:has(> .wrap > .rubrique) {
-  --wrap-max: var(--page-max);
-  --wrap-marge: var(--page-marge);
+/* La Direction prend tout l'écran, en-tête et pied de page compris (pilote, 15 novembre 2026 : « pourquoi le panel MEE6
+   prend tout l'écran tandis que le mien a la largeur d'une page A4 »). Jusqu'alors, elle gardait une colonne de 75 rem au
+   milieu : 1 168 px sur un écran de 3 400 px. Ses parties se rangent à droite de leur menu (.parties-cote, plus bas).
+   Le QG, rangé dans la rubrique Membres, garde la largeur du site : d'un onglet à l'autre, les onglets ne bougent pas.
+   100vw et non « none » : les tailles de titres qui calculent avec --wrap-max restent des longueurs. */
+:root[data-largeur="ecran"] {
+  --wrap-max: 100vw;
 }
 
 /* ---------- Thème rouge : l'encadrement ---------- */
@@ -344,11 +337,6 @@ a.link:hover {
   max-width: var(--wrap-max);
   margin-inline: auto;
   padding-inline: var(--wrap-marge);
-}
-/* La colonne de travail du QG, dans un .wrap à la largeur du site : la largeur qu'avait son .wrap (75 rem moins ses deux
-   marges de 1 rem), calée à gauche, sous les onglets de la rubrique. La porte et l'espace connecté y sont tous les deux. */
-.colonne-travail {
-  max-width: calc(var(--colonne-travail) - 2rem);
 }
 /* Les pages se lisent en grand : dans le contenu, chaque taille de texte de Tailwind monte d'un cran (17 px pour le texte
    courant, 15 px pour le petit texte, 13 px pour le plus petit). L'en-tête et le pied de page gardent les leurs, et les
@@ -2046,6 +2034,78 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 .onglets-menu-bouton:focus-visible {
   outline-offset: -4px;
 }
+/* Le menu des parties sur le côté (option `cote` d'Onglets, la Direction et le QG) : sur grand écran, dès 96 rem, les
+   parties se rangent dans une colonne à gauche, toujours ouverte et collée sous l'en-tête du site, et la partie choisie
+   prend le reste de la largeur, comme un panneau d'administration (pilote, 15 novembre 2026, d'après celui de MEE6). Ce
+   sont les onglets eux-mêmes, en colonne, avec leur icône : le menu déroulant se cache. Plus étroit, rien ne change.
+   Une partie masquée (hidden) n'a pas de place dans la grille : la partie ouverte est seule dans la colonne de droite.
+   Le chemin (« ~/direction ») est un vrai texte, caché aux lecteurs d'écran : le Gaulois compagnon ne se pose pas dessus. */
+.onglets-chemin {
+  display: none;
+}
+@media (min-width: 96rem) {
+  /* La colonne du menu prend la largeur de son plus long nom (« Gaulois de la semaine »), sur une ligne. La place de
+     l'ascenseur est gardée : sur un écran bas, il ne la prend pas au plus long nom. */
+  .parties-cote {
+    grid-template-columns: minmax(17rem, max-content) minmax(0, 1fr);
+    column-gap: 2.5rem;
+    align-items: start;
+  }
+  .parties-cote > .onglets {
+    grid-column: 1;
+    grid-row: 1;
+    position: sticky;
+    top: 5rem;
+    display: block;
+    max-height: calc(100dvh - 6rem);
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+  .onglets-cote .onglets-chemin {
+    display: block;
+    padding: 0.375rem 1rem 0.25rem;
+    font-family: var(--font-console);
+    font-weight: 700;
+    color: var(--console-vert, var(--ecriture));
+  }
+  .parties-cote > .partie {
+    grid-column: 2;
+    grid-row: 1;
+    scroll-margin-top: 5rem;
+  }
+  .onglets-cote .onglets-menu {
+    display: none;
+  }
+  .onglets-cote .onglets-defile {
+    display: grid;
+    gap: 0.125rem;
+    overflow: visible;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .onglets-cote .onglet {
+    width: 100%;
+    gap: 0.625rem;
+    padding: 0.5rem 1rem;
+    text-align: left;
+  }
+  .onglets-cote .onglet .onglet-nombre {
+    margin-left: auto;
+  }
+  .onglets-cote .console-logo-menu {
+    display: block;
+    margin: 0.375rem 0 0 0.375rem;
+  }
+}
+/* En contraste élevé, le fond de l'onglet ouvert disparaît : un cadre le marque. */
+@media (min-width: 96rem) and (forced-colors: active) {
+  .onglets-cote .onglet[aria-selected="true"] {
+    outline: 2px solid CanvasText;
+    outline-offset: -2px;
+  }
+}
 /* La petite icône d'une partie, devant son nom dans le bouton et dans la liste (IconePartie.tsx) : treize cases de 2 px,
    dans la couleur du texte. Elle garde sa taille quand la place manque : c'est le nom qui se coupe. */
 .icone-partie {
@@ -2613,8 +2673,10 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 
 /* Le menu des parties, à la Direction et au QG : le petit logo Matrix en tête, le bouton écrit le chemin de la partie
    ouverte, en vert comme une commande ; la liste en arborescence, « ~/direction » ou « ~/qg », puis « ├── », l'icône de
-   la partie et son nom. */
-:root[data-ambiance="console"][data-console="terminal"] :is(.onglets-menu-bouton, .onglets-choix) {
+   la partie et son nom. Les onglets en colonne du grand écran (.onglets-cote .onglet) ont le même dessin que la liste. */
+:root[data-ambiance="console"][data-console="terminal"] .onglets-menu-bouton,
+:root[data-ambiance="console"][data-console="terminal"] .onglets-choix,
+:root[data-ambiance="console"][data-console="terminal"] .onglets-cote .onglet {
   font-family: var(--font-console);
   font-size: 1.0625rem;
   font-weight: 600;
@@ -2640,13 +2702,15 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   font-weight: 700;
   color: var(--console-vert);
 }
-:root[data-ambiance="console"][data-console="terminal"] .onglets-choix::before {
+:root[data-ambiance="console"][data-console="terminal"] .onglets-choix::before,
+:root[data-ambiance="console"][data-console="terminal"] .onglets-cote .onglet::before {
   content: "├──" / "";
   flex: none;
   white-space: nowrap;
   color: var(--color-line-strong);
 }
-:root[data-ambiance="console"][data-console="terminal"] .onglets-liste > li:last-child .onglets-choix::before {
+:root[data-ambiance="console"][data-console="terminal"] .onglets-liste > li:last-child .onglets-choix::before,
+:root[data-ambiance="console"][data-console="terminal"] .onglets-cote .onglet:last-child::before {
   content: "└──" / "";
 }
 /* Sur téléphone, une branche plus courte laisse la place à l'icône et au nom. */
@@ -2658,18 +2722,21 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
     content: "└─" / "";
   }
 }
-:root[data-ambiance="console"][data-console="terminal"] .onglets-choix[aria-current="true"] {
+:root[data-ambiance="console"][data-console="terminal"] .onglets-choix[aria-current="true"],
+:root[data-ambiance="console"][data-console="terminal"] .onglets-cote .onglet[aria-selected="true"] {
   --ecriture: #fff;
   color: var(--ecriture);
   background: var(--color-blue);
   box-shadow: none;
 }
-:root[data-ambiance="console"][data-console="terminal"] .onglets-choix[aria-current="true"]::before {
+:root[data-ambiance="console"][data-console="terminal"] .onglets-choix[aria-current="true"]::before,
+:root[data-ambiance="console"][data-console="terminal"] .onglets-cote .onglet[aria-selected="true"]::before {
   color: var(--ecriture);
 }
 /* Dans la partie ouverte, la pastille bleue « quelqu'un attend » (les Salons du QG) se fondrait dans le fond : elle
    passe au blanc (chiffre bleu sur blanc : 6,8:1). */
-:root[data-ambiance="console"][data-console="terminal"] .onglets-choix[aria-current="true"] .onglet-nombre-vif {
+:root[data-ambiance="console"][data-console="terminal"] .onglets-choix[aria-current="true"] .onglet-nombre-vif,
+:root[data-ambiance="console"][data-console="terminal"] .onglets-cote .onglet[aria-selected="true"] .onglet-nombre-vif {
   background: var(--ecriture);
   color: var(--color-blue);
 }
@@ -2678,7 +2745,8 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
    « pareil, mets-moi ça en couleur », pour le QG puis « pareil à la Direction »), à la place du vert de terminal et de sa
    lueur (règle .pastille-icone, plus haut). Dans la partie ouverte, en vidéo inversée, l'icône est blanche comme son
    nom, sans case. Rien ne bouge. */
-:root[data-ambiance="console"][data-console="terminal"] .onglets-choix[aria-current="true"] .pastille-icone {
+:root[data-ambiance="console"][data-console="terminal"] .onglets-choix[aria-current="true"] .pastille-icone,
+:root[data-ambiance="console"][data-console="terminal"] .onglets-cote .onglet[aria-selected="true"] .pastille-icone {
   color: var(--ecriture);
   background: transparent;
 }
@@ -2691,7 +2759,8 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 }
 /* En contraste élevé, la pastille de la partie ouverte prend aussi la couleur du texte qui la porte. */
 @media (forced-colors: active) {
-  :root[data-ambiance="console"][data-console="terminal"] .onglets-choix[aria-current="true"] .pastille-icone {
+  :root[data-ambiance="console"][data-console="terminal"] .onglets-choix[aria-current="true"] .pastille-icone,
+  :root[data-ambiance="console"][data-console="terminal"] .onglets-cote .onglet[aria-selected="true"] .pastille-icone {
     color: inherit;
     background: none;
   }
@@ -2784,11 +2853,12 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
   width: min(16rem, 70%);
   margin: 0 0 1.5rem;
 }
+/* À la Direction, l'en-tête est lui-même le .wrap : le logo s'arrête à sa marge, au bord droit du contenu. */
 @media (min-width: 64rem) {
   .console-logo-tete {
     position: absolute;
     top: 1rem;
-    right: 1rem;
+    right: var(--wrap-marge);
     width: 17rem;
     margin: 0;
   }
@@ -2798,7 +2868,8 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 }
 /* Au QG, le titre est court : le logo tient à sa droite à toutes les largeurs, plus petit sur téléphone (7 rem), en grand
    sur grand écran (17 rem, comme à la Direction). L'en-tête grandit juste assez pour lui : sur téléphone, quelques pixels,
-   au lieu des 260 px qu'il prendrait sous le titre. */
+   au lieu des 260 px qu'il prendrait sous le titre. Son en-tête est dans le .wrap de la page : le logo s'arrête à son bord
+   droit, le bord droit du contenu, à toutes les largeurs. */
 .console-tete-court {
   --logo-tete: clamp(7rem, 22vw, 17rem);
 }
@@ -2811,15 +2882,6 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 }
 .console-tete-court > header {
   min-height: calc(var(--logo-tete) + 1.5rem);
-}
-@media (min-width: 64rem) {
-  .console-tete-court .console-logo-tete {
-    right: 1rem;
-  }
-}
-/* Dans la colonne de travail, qui n'a pas de marge à elle : le logo s'arrête au bord droit de la colonne, comme avant. */
-.colonne-travail.console-tete-court .console-logo-tete {
-  right: 0;
 }
 
 /* En petit, en tête du menu des parties. */
