@@ -1,10 +1,12 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
-import type { Objet, Rarete, Vignette } from "../../lib/gaulois";
-import type { PochetteReponse } from "../../lib/village/contrat";
+import { OBJETS, vignetteDeLObjet, type Objet, type Rarete, type Vignette } from "../../lib/gaulois";
+import type { PochetteReponse, RefObjet } from "../../lib/village/contrat";
 import { stateres } from "../../lib/village/ecran-boutique";
+import { bandeDeLaPochette, type Rangee } from "../../lib/village/tambour";
 import { MarqueDeRarete, Pixels, Prix } from "./BoutiquePixels";
 import { DessinPochette } from "./Pochette";
+import { BoutonSon, Tambour, preparerLeSon, useSonDuTambour, type RangeeVue } from "./Tambour";
 
 /** Ce que rend un achat : le résultat du serveur, ou les mots de son refus. */
 export type Issue<T> = { ok: true; valeur: T } | { ok: false; message: string };
@@ -49,14 +51,13 @@ export function Dialogue({ titre, etape, occupe, onFermer, testid, children }: {
 }
 
 /** Une case montrée dans une fenêtre : la même que celles du vestiaire, sans être un bouton. */
-function CaseMontree({ objet, rarete, vignette, double = false }: { objet: Objet; rarete: Rarete; vignette: Vignette | null; double?: boolean }) {
+function CaseMontree({ objet, rarete, vignette }: { objet: Objet; rarete: Rarete; vignette: Vignette | null }) {
   const echelle = vignette ? Math.max(1, Math.min(3, Math.floor(80 / Math.max(vignette.largeur, vignette.hauteur)))) : 1;
   return (
     <div class="case case-montree" data-rarete={rarete}>
       <span class="case-image">{vignette && <Pixels largeur={vignette.largeur} hauteur={vignette.hauteur} cases={vignette.cases} echelle={echelle} class="case-dessin" />}</span>
       <span class="case-nom">{objet.nom}</span>
       <MarqueDeRarete rarete={rarete} />
-      {double && <span class="case-marque">Double</span>}
     </div>
   );
 }
@@ -155,22 +156,31 @@ export function DialogueAchat({ objet, rarete, vignette, prix, solde, acheter, o
 }
 
 /**
- * Ouvrir une pochette surprise : la fenêtre dit le prix et ce qu'il restera, demande au serveur, puis montre l'objet tiré,
- * sa rareté, et « Double » s'il était déjà possédé. La révélation est un fondu lent, coupé quand les animations le sont :
- * elle ne fait que montrer ce que le serveur a déjà tiré.
+ * Ouvrir une pochette surprise : la fenêtre dit le prix et ce qu'il restera, demande au serveur, puis fait tourner le
+ * tambour (`Tambour.tsx`, choix du pilote du 15 novembre 2026) jusqu'à l'objet tiré, et écrit dessous son nom, sa rareté,
+ * et que c'est un double s'il était déjà possédé. Le tambour ne fait que montrer ce que le serveur a déjà tiré : les autres
+ * rangées sont tirées aux chances de la pochette (`bandeDeLaPochette`). « Passer » l'arrête tout de suite ; il ne tourne pas
+ * quand les animations sont coupées.
  */
-export function DialoguePochette({ prix, solde, ouvrir, objetDe, vignetteDe, dejaPorte, onPorter, onFermer }: { prix: number; solde: number; ouvrir: () => Promise<Issue<PochetteReponse>>; objetDe: (tire: PochetteReponse["objet"]) => Objet | undefined; vignetteDe: (tire: PochetteReponse["objet"]) => Vignette | null; dejaPorte: (tire: PochetteReponse["objet"]) => boolean; onPorter: (tire: PochetteReponse["objet"]) => void; onFermer: () => void }) {
-  const [etape, setEtape] = useState<"confirmer" | "envoi" | "revele">("confirmer");
+export function DialoguePochette({ prix, chances, solde, ouvrir, objetDe, vignetteDe, dejaPorte, onPorter, onFermer }: { prix: number; chances: Readonly<Record<Rarete, number>>; solde: number; ouvrir: () => Promise<Issue<PochetteReponse>>; objetDe: (tire: PochetteReponse["objet"]) => Objet | undefined; vignetteDe: (tire: PochetteReponse["objet"]) => Vignette | null; dejaPorte: (tire: PochetteReponse["objet"]) => boolean; onPorter: (tire: PochetteReponse["objet"]) => void; onFermer: () => void }) {
+  const [etape, setEtape] = useState<"confirmer" | "envoi" | "tourne" | "revele">("confirmer");
   const [refus, setRefus] = useState<string | null>(null);
   const [tirage, setTirage] = useState<PochetteReponse | null>(null);
+  const [bande, setBande] = useState<BandeVue | null>(null);
+  const [passer, setPasser] = useState(false);
+  const [son, basculerSon] = useSonDuTambour();
   const [depart] = useState(solde);
   const envoyer = async () => {
+    if (son) preparerLeSon();
     setEtape("envoi");
     setRefus(null);
     const issue = await ouvrir();
     if (issue.ok) {
+      const tire = issue.valeur.objet;
+      const tour = bandeDeLaPochette(tire, chances);
+      setBande({ depart: tour.depart, cible: tour.cible, rangees: tour.rangees.map((rangee, i) => (i === tour.cible ? { nom: objetDe(tire)?.nom ?? "", rarete: tire.rarete, dessin: vignetteDe(tire) } : vueDeLObjet(rangee))) });
       setTirage(issue.valeur);
-      setEtape("revele");
+      setEtape("tourne");
     } else {
       setRefus(issue.message);
       setEtape("confirmer");
@@ -178,29 +188,52 @@ export function DialoguePochette({ prix, solde, ouvrir, objetDe, vignetteDe, dej
   };
   const tire = tirage?.objet;
   const objet = tire ? objetDe(tire) : undefined;
+  const ouverte = etape === "tourne" || etape === "revele";
   return (
-    <Dialogue titre={tire && objet ? "Dans votre pochette" : refus ? "La pochette reste fermée" : "Ouvrir une pochette surprise ?"} etape={etape === "revele" ? "revele" : "confirmer"} occupe={etape === "envoi"} onFermer={onFermer} testid="dialogue-pochette">
-      {tirage && tire && objet ? (
+    <Dialogue titre={ouverte && tire && objet ? (etape === "revele" ? "Dans votre pochette" : "La pochette s'ouvre…") : refus ? "La pochette reste fermée" : "Ouvrir une pochette surprise ?"} etape={ouverte ? etape : "confirmer"} occupe={etape === "envoi" || etape === "tourne"} onFermer={onFermer} testid="dialogue-pochette">
+      {ouverte && tirage && tire && objet && bande ? (
         <>
-          <div class="pochette-revelation" data-rarete={tire.rarete} data-testid="pochette-tirage" data-objet={`${tire.emplacement}/${tire.objet}`}>
-            <CaseMontree objet={objet} rarete={tire.rarete} vignette={vignetteDe(tire)} double={tire.double} />
-          </div>
-          {tire.double && (
-            <p class="boutique-dialogue-texte" data-testid="pochette-double">
-              Vous l'aviez déjà : ce double se vend au marché.
-            </p>
-          )}
-          <p class="boutique-dialogue-texte">Il vous reste {stateres(tirage.solde)}.</p>
-          <div class="boutique-dialogue-actions">
-            {!dejaPorte(tire) && (
-              <button type="button" class="btn btn-primary" onClick={() => onPorter(tire)} data-testid="pochette-porter">
-                Le porter
+          <Tambour rangees={bande.rangees} depart={bande.depart} cible={bande.cible} passer={passer} son={son} onArrive={() => setEtape((e) => (e === "tourne" ? "revele" : e))} />
+          {etape === "tourne" ? (
+            <div class="boutique-dialogue-actions">
+              {/* « Passer » montre le résultat tout de suite, sans attendre la toile : la fenêtre ne reste jamais bloquée. */}
+              <button
+                type="button"
+                class="btn btn-ghost"
+                onClick={() => {
+                  setPasser(true);
+                  setEtape("revele");
+                }}
+                data-testid="pochette-passer"
+              >
+                Passer
               </button>
-            )}
-            <button type="button" class="btn btn-ghost" onClick={onFermer} data-testid="pochette-fermer">
-              Fermer
-            </button>
-          </div>
+              <BoutonSon son={son} onBasculer={basculerSon} testid="pochette-son" />
+            </div>
+          ) : (
+            <>
+              <div class="tambour-sortie" data-rarete={tire.rarete} data-testid="pochette-tirage" data-objet={`${tire.emplacement}/${tire.objet}`}>
+                <p class="tambour-nom">{objet.nom}</p>
+                <MarqueDeRarete rarete={tire.rarete} />
+              </div>
+              {tire.double && (
+                <p class="boutique-dialogue-texte" data-testid="pochette-double">
+                  Vous l'aviez déjà : ce double se vend au marché.
+                </p>
+              )}
+              <p class="boutique-dialogue-texte">Il vous reste {stateres(tirage.solde)}.</p>
+              <div class="boutique-dialogue-actions">
+                {!dejaPorte(tire) && (
+                  <button type="button" class="btn btn-primary" onClick={() => onPorter(tire)} data-testid="pochette-porter">
+                    Le porter
+                  </button>
+                )}
+                <button type="button" class="btn btn-ghost" onClick={onFermer} data-testid="pochette-fermer">
+                  Fermer
+                </button>
+              </div>
+            </>
+          )}
         </>
       ) : (
         <>
@@ -223,4 +256,17 @@ export function DialoguePochette({ prix, solde, ouvrir, objetDe, vignetteDe, dej
       )}
     </Dialogue>
   );
+}
+
+/** Les rangées d'un tour de tambour, prêtes à dessiner. */
+export interface BandeVue {
+  rangees: RangeeVue[];
+  depart: number;
+  cible: number;
+}
+
+/** Une rangée du tambour de la pochette surprise : le nom et le dessin d'un objet du catalogue. */
+function vueDeLObjet(rangee: Rangee<RefObjet>): RangeeVue {
+  const { emplacement, objet } = rangee.valeur;
+  return { nom: OBJETS[emplacement][objet]?.nom ?? "", rarete: rangee.rarete, dessin: vignetteDeLObjet(emplacement, objet) };
 }

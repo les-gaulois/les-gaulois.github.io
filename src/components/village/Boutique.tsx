@@ -19,7 +19,7 @@ import {
 } from "../../lib/village/boutique-rayons";
 import type { MaBoutique, PochetteFamiliersReponse, PochetteReponse, RefObjet } from "../../lib/village/contrat";
 import { avecUnExemplaire, lireAchat, lireBoutique, lirePochette, lireStateres, manque, messageDuRefus, objetPayant, prixDeLObjet, quantitePossedee, raisonBoutiqueFermee } from "../../lib/village/ecran-boutique";
-import { ANCRE_FAMILIERS, demandeLesFamiliers, tailleDeLApercu } from "../../lib/village/ecran-familiers";
+import { ANCRE_FAMILIERS, demandeLesFamiliers, idsPossedes, tailleDeLApercu } from "../../lib/village/ecran-familiers";
 import { finDeLOffre, lireBoutique as lireBoutiqueDuMarche, lireMarche, mesOffres, messageDuMarche, raisonDeLOffre, type MarcheLu, type OffreLisible, type PossedeLisible } from "../../lib/village/ecran-marche";
 import { familierDe } from "../../lib/village/familiers";
 import { TOUT, choisirFiltre, type Filtre, type Filtres } from "../../lib/village/vestiaire-rayons";
@@ -449,6 +449,7 @@ export default function Boutique() {
   const achat = fenetre?.kind === "achat" ? objetPayant(fenetre.emplacement, fenetre.id) : null;
   // Ce que les fenêtres du marché lisent de la boutique déjà lue (ses prix, l'inventaire avec le nom de chaque objet).
   const pourLeMarche = boutique && lireBoutiqueDuMarche(boutique);
+  const pochetteOuverte = fenetre?.kind === "pochette" || fenetre?.kind === "familiers";
   const fermerLaFenetre = () => {
     setFenetre(null);
     setProblemeFenetre(null);
@@ -487,11 +488,13 @@ export default function Boutique() {
             )}
           </div>
           {/* Ce qui vient de se passer, près du Gaulois, qui reste en vue : l'objet reçu se porte d'ici. La seule zone de
-              la page qui annonce un achat aux lecteurs d'écran ; le solde qui reste est dit dans la fenêtre. */}
+              la page qui annonce un achat aux lecteurs d'écran ; le solde qui reste est dit dans la fenêtre. Pendant qu'une
+              pochette est ouverte, elle se tait : le tambour tourne encore, et la page, visible derrière la fenêtre, ne
+              dirait pas avant lui ce qui est sorti. Elle parle quand la fenêtre se ferme. */}
           <div class="boutique-avis" data-testid="boutique-avis">
-            <Success message={reussite} />
+            <Success message={pochetteOuverte ? null : reussite} />
             <Problem message={probleme} />
-            {acquis && (
+            {acquis && !pochetteOuverte && (
               <p class="boutique-avis-suite">
                 {!acquis.porte && (
                   <button type="button" class="chip chip-fort" disabled={occupe} onClick={() => void porter(acquis)} data-testid="boutique-porter">
@@ -503,7 +506,7 @@ export default function Boutique() {
                 </a>
               </p>
             )}
-            {familierRecu && (
+            {familierRecu && !pochetteOuverte && (
               <p class="boutique-avis-suite">
                 {!familierRecu.montre && (
                   <button type="button" class="chip chip-fort" disabled={occupe} onClick={() => void montrerLeFamilier(familierRecu.id)} data-testid="familiers-montrer-ici">
@@ -690,6 +693,7 @@ export default function Boutique() {
       {fenetre?.kind === "pochette" && boutique && (
         <DialoguePochette
           prix={boutique.pochette.prix}
+          chances={boutique.pochette.chances}
           solde={soldeConnu ?? boutique.solde}
           ouvrir={() => ouvrirPochette(boutique.pochette.prix)}
           objetDe={(tire) => OBJETS[tire.emplacement][tire.objet]}
@@ -702,6 +706,8 @@ export default function Boutique() {
       {fenetre?.kind === "familiers" && familiers.mes && (
         <DialogueFamiliers
           prix={familiers.mes.pochette.prix}
+          chances={familiers.mes.pochette.chances}
+          possedes={idsPossedes(familiers.mes)}
           solde={soldeConnu ?? familiers.mes.solde}
           village={village}
           ouvrir={() => ouvrirPochetteFamiliers(familiers.mes?.pochette.prix ?? 0)}

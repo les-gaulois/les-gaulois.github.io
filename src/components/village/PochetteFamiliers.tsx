@@ -1,14 +1,17 @@
-import { useState } from "preact/hooks";
-import { ORDRE_RARETES, RARETES } from "../../lib/gaulois";
+import { useEffect, useState } from "preact/hooks";
+import { ORDRE_RARETES, RARETES, type Rarete } from "../../lib/gaulois";
 import type { MesFamiliers, PochetteFamiliersReponse } from "../../lib/village/contrat";
 import { pourcent, stateres } from "../../lib/village/ecran-boutique";
-import { ANCRE_FAMILIERS, idsPossedes, lignesDesChances, raisonPochetteFermee, rangerLaMenagerie, surCombien } from "../../lib/village/ecran-familiers";
+import { ANCRE_FAMILIERS, idsPossedes, lignesDesChances, raisonPochetteFermee, rangerLaMenagerie, surCombien, vignetteDuFamilier } from "../../lib/village/ecran-familiers";
 import { FAMILIERS, chanceDuFamilier, familierDe, tailleDuFamilier, TAILLES, type Familier } from "../../lib/village/familiers";
+import { motionAllowed } from "../../lib/fx/motion";
+import { bandeDesFamiliers } from "../../lib/village/tambour";
 import { TOUT, type Filtre } from "../../lib/village/vestiaire-rayons";
-import { Compte, Dialogue, Refus, type Issue } from "./BoutiqueDialogue";
+import { Compte, Dialogue, Refus, type BandeVue, type Issue } from "./BoutiqueDialogue";
 import { MarqueDeRarete, Pixels, Prix } from "./BoutiquePixels";
 import { DessinFamilier, RareteDuFamilier } from "./Familiers";
 import { POCHETTE_FAMILIERS_COTE, casesDeLaPochetteFamiliers } from "./PochetteFamiliersDessin";
+import { BoutonSon, Tambour, preparerLeSon, useSonDuTambour } from "./Tambour";
 
 const CASES_POCHETTE = casesDeLaPochetteFamiliers();
 
@@ -171,22 +174,35 @@ export function PochetteFamiliers({ mes, solde, onOuvrir }: { mes: MesFamiliers;
 }
 
 /**
- * Ouvrir une pochette des familiers : la fenêtre dit le prix et ce qu'il restera, demande au serveur, puis montre le
- * familier reçu en grand, son nom, sa rareté et sa taille. La révélation est le fondu lent de la pochette surprise, coupé
- * quand les animations le sont : elle ne fait que montrer ce que le serveur a déjà tiré. Si le serveur refuse, le compte de
- * l'ouverture s'efface : il ne reste que les mots du refus et « Fermer ».
+ * Ouvrir une pochette des familiers : la fenêtre dit le prix et ce qu'il restera, demande au serveur, puis fait tourner le
+ * tambour (`Tambour.tsx`) jusqu'au familier reçu et, un instant après l'arrêt, le montre en grand avec son nom, sa rareté
+ * et sa taille. Le tambour ne fait défiler que des familiers que ce compte n'avait pas, aux chances qu'avait sa pochette
+ * (`bandeDesFamiliers`) : il ne fait que montrer ce que le serveur a déjà tiré. « Passer » l'arrête ; animations coupées, il
+ * ne tourne pas. Si le serveur refuse, le compte de l'ouverture s'efface : il ne reste que les mots du refus et « Fermer ».
  */
-export function DialogueFamiliers({ prix, solde, village, ouvrir, dejaMontre, onMontrer, onFermer }: { prix: number; solde: number; village: string; ouvrir: () => Promise<Issue<PochetteFamiliersReponse>>; dejaMontre: (id: string) => boolean; onMontrer: (id: string) => void; onFermer: () => void }) {
-  const [etape, setEtape] = useState<"confirmer" | "envoi" | "revele">("confirmer");
+export function DialogueFamiliers({ prix, chances, possedes, solde, village, ouvrir, dejaMontre, onMontrer, onFermer }: { prix: number; chances: Readonly<Record<Rarete, number>>; possedes: ReadonlySet<string>; solde: number; village: string; ouvrir: () => Promise<Issue<PochetteFamiliersReponse>>; dejaMontre: (id: string) => boolean; onMontrer: (id: string) => void; onFermer: () => void }) {
+  const [etape, setEtape] = useState<"confirmer" | "envoi" | "tourne" | "arrete" | "revele">("confirmer");
   const [refus, setRefus] = useState<string | null>(null);
   const [tirage, setTirage] = useState<PochetteFamiliersReponse | null>(null);
+  const [bande, setBande] = useState<BandeVue | null>(null);
+  const [passer, setPasser] = useState(false);
+  const [son, basculerSon] = useSonDuTambour();
   // Le compte montré est celui du moment où la fenêtre s'ouvre : il ne bouge pas quand le solde change derrière.
   const [depart] = useState(solde);
+  // Ce que ce compte avait en ouvrant : la pochette a tiré parmi les autres familiers, le tambour aussi.
+  const [avant] = useState(possedes);
   const envoyer = async () => {
+    if (son) preparerLeSon();
     setEtape("envoi");
     setRefus(null);
     const issue = await ouvrir();
-    if (issue.ok) {
+    const familier = issue.ok ? familierDe(issue.valeur.familier.familier) : null;
+    if (issue.ok && familier) {
+      const tour = bandeDesFamiliers(familier, chances, avant);
+      setBande({ depart: tour.depart, cible: tour.cible, rangees: tour.rangees.map((rangee) => ({ nom: rangee.valeur.nom, rarete: rangee.rarete, dessin: vignetteDuFamilier(rangee.valeur) })) });
+      setTirage(issue.valeur);
+      setEtape("tourne");
+    } else if (issue.ok) {
       setTirage(issue.valeur);
       setEtape("revele");
     } else {
@@ -194,10 +210,36 @@ export function DialogueFamiliers({ prix, solde, village, ouvrir, dejaMontre, on
       setEtape("confirmer");
     }
   };
+  // Le tambour arrêté reste un instant, le temps de voir la rareté fêtée, puis le familier paraît en grand.
+  useEffect(() => {
+    if (etape !== "arrete") return;
+    const minuterie = window.setTimeout(() => setEtape("revele"), motionAllowed() ? 1600 : 0);
+    return () => window.clearTimeout(minuterie);
+  }, [etape]);
   const recu = tirage ? familierDe(tirage.familier.familier) : null;
+  const tourne = etape === "tourne" || etape === "arrete";
   return (
-    <Dialogue titre={recu ? "Un nouveau familier" : refus ? "La pochette reste fermée" : "Ouvrir une pochette des familiers ?"} etape={etape === "revele" ? "revele" : "confirmer"} occupe={etape === "envoi"} onFermer={onFermer} testid="dialogue-familiers">
-      {tirage && recu ? (
+    <Dialogue titre={recu && tourne ? "La pochette s'ouvre…" : recu ? "Un nouveau familier" : refus ? "La pochette reste fermée" : "Ouvrir une pochette des familiers ?"} etape={tourne ? "tourne" : etape === "revele" ? "revele" : "confirmer"} occupe={etape === "envoi" || tourne} onFermer={onFermer} testid="dialogue-familiers">
+      {tourne && recu && bande ? (
+        <>
+          <Tambour rangees={bande.rangees} depart={bande.depart} cible={bande.cible} passer={passer} son={son} onArrive={() => setEtape((e) => (e === "tourne" ? "arrete" : e))} />
+          <div class="boutique-dialogue-actions">
+            {/* « Passer » montre le familier tout de suite, sans attendre la toile : la fenêtre ne reste jamais bloquée. */}
+            <button
+              type="button"
+              class="btn btn-ghost"
+              onClick={() => {
+                setPasser(true);
+                setEtape("revele");
+              }}
+              data-testid="familiers-passer"
+            >
+              Passer
+            </button>
+            <BoutonSon son={son} onBasculer={basculerSon} testid="familiers-son" />
+          </div>
+        </>
+      ) : tirage && recu ? (
         <div class="familier-recu">
           <div class="pochette-revelation familier-revelation" data-rarete={recu.rarete} data-testid="familiers-tirage" data-familier={recu.id}>
             <DessinFamilier familier={recu} place={256} maximum={8} />

@@ -1141,10 +1141,53 @@
     opacity: 0.8;
   }
 }
+/* Le tambour des deux pochettes (Tambour.tsx, choisi par le pilote le 15 novembre 2026) : une toile de 6 sur 5, toute la
+   largeur de la fenêtre, qui peint sa propre scène. Sous elle, en texte, ce qui est sorti : le nom, puis la rareté écrite et
+   comptée en losanges, dans sa couleur de texte. */
+.tambour {
+  display: block;
+  width: 100%;
+  aspect-ratio: 6 / 5;
+  border-radius: 0.5rem;
+}
+.tambour-sortie {
+  --rarete-texte: var(--color-muted);
+  display: grid;
+  justify-items: center;
+  gap: 0.375rem;
+  animation: pochette-revele 1.2s ease-out both;
+}
+.tambour-sortie[data-rarete="commun"] {
+  --rarete-texte: var(--rarete-commun-texte);
+}
+.tambour-sortie[data-rarete="peu-commun"] {
+  --rarete-texte: var(--rarete-peu-commun-texte);
+}
+.tambour-sortie[data-rarete="epique"] {
+  --rarete-texte: var(--rarete-epique-texte);
+}
+.tambour-sortie[data-rarete="mystique"] {
+  --rarete-texte: var(--rarete-mystique-texte);
+}
+.tambour-sortie[data-rarete="legendaire"] {
+  --rarete-texte: var(--rarete-legendaire-texte);
+}
+.tambour-nom {
+  font-family: var(--font-display);
+  font-size: 1.375rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--ecriture);
+  text-wrap: balance;
+}
+.tambour-sortie .case-rarete {
+  font-size: 0.9375rem;
+}
 @media (prefers-reduced-motion: reduce) {
   .pochette-attente[data-envoi],
   .pochette-revelation,
-  .pochette-revelation::before {
+  .pochette-revelation::before,
+  .tambour-sortie {
     animation: none;
   }
 }

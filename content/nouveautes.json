@@ -2,6 +2,16 @@
   {
     "date": "2026-11-15",
     "kind": "nouveau",
+    "title": "Un tambour pour ouvrir les pochettes",
+    "body": "Ouvrir une pochette fait tourner un tambour de vrais objets, avec un son qui se coupe. Il s'arrête sur le vôtre, tiré avant qu'il tourne, et ce qui défile suit les vraies chances.",
+    "link": {
+      "href": "/village#boutique",
+      "label": "Ouvrir la boutique"
+    }
+  },
+  {
+    "date": "2026-11-15",
+    "kind": "nouveau",
     "title": "Les bannières de /gaulois",
     "body": "40 bannières à acheter en statères dans la boutique de « Mon Gaulois », de la bombe H à l'aurore boréale. Celle que vous choisissez devient le fond de votre image /gaulois sur Discord.",
     "link": {
