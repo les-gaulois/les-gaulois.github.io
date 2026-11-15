@@ -14,19 +14,25 @@
  * Le Gaulois du village de chaque membre nommé, sur sa pastille : lus au serveur une seule fois par passage, à la première
  * image, pour tous les membres au pseudo public de la liste ; chaque image ne porte que ceux de sa partie. Sans lecture, les
  * images partent comme avant. Voir src/lib/gaulois-envois.ts.
+ * La carte de fin de chaque victoire, laissée dans .cache/cartes-finales/ par le job du rejeu (scripts/rejouer-victoires.ts),
+ * qui n'a aucun secret : relue et vérifiée ici comme une donnée venue de l'extérieur. Sans elle, la vignette de la carte. Une
+ * victoire que ce rejeu n'a pas vue attend le passage suivant, s'il vient encore dans les 10 minutes après la fin de la partie
+ * (waitsForFinalMap). Voir src/lib/carte-finale.ts.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { clan } from "../config/clan";
 import { loadGames, loadLeaderboard, loadMembers, loadMeta, loadSessions, unreadableSessionFiles } from "../src/lib/data";
+import { lireEtatFinal, MAX_OCTETS_CASES, MAX_OCTETS_DESCRIPTION, type EtatFinal } from "../src/lib/carte-finale";
 import { avecOuSansGaulois, gauloisDuPassage, idsAuPseudoPublic } from "../src/lib/gaulois-envois";
 import { isWebhookUrl } from "../src/lib/gazette-discord";
 import { ApiClient } from "../src/lib/pipeline";
+import { FICHIER_PASSAGE, fichiersDeLaPartie, lirePassage } from "../src/lib/rejeu-openfront";
 import { parseNoted } from "../src/lib/salon-discord";
 import { salonLink } from "../src/lib/salon-lien";
 import type { StoredSession } from "../src/lib/schemas";
 import { garderSessionsDuPassage, SESSIONS_DU_PASSAGE } from "../src/lib/sessions-du-passage";
-import { isClanMember, mergeStates, parseResend, passSessions, readRecentSessions, readVictoryGame, usableOfficialTags, VictoryState, victoryPass, type VictoryState as State } from "../src/lib/victoires";
+import { isClanMember, mergeStates, parseResend, passSessions, readRecentSessions, readVictoryGame, usableOfficialTags, VictoryState, victoryPass, waitsForFinalMap, type VictoryState as State } from "../src/lib/victoires";
 import { sendVictory } from "../src/lib/victoires-discord";
 
 const STATE_FILE = "data/victoires-envoi.json";
@@ -92,6 +98,21 @@ try {
   drawing.catch(() => {});
   // Une même carte revient souvent dans la soirée : sa vignette n'est lue qu'une fois par passage.
   const thumbnails = new Map<string, Promise<import("../src/lib/victoires-image").Thumbnail | null>>();
+  // La carte de fin laissée par le rejeu, relue et vérifiée : un fichier qui ne passe pas est écarté, l'image garde la vignette.
+  const finalMap = (gameId: string): EtatFinal | null => {
+    const files = fichiersDeLaPartie(gameId);
+    if (!files || !existsSync(files.meta) || !existsSync(files.cases)) return null;
+    try {
+      if (statSync(files.meta).size > MAX_OCTETS_DESCRIPTION || statSync(files.cases).size > MAX_OCTETS_CASES) throw new Error("fichiers trop lourds");
+      return lireEtatFinal(readFileSync(files.meta, "utf8"), readFileSync(files.cases), gameId);
+    } catch (e) {
+      console.log(`::warning::Victoires : la carte de fin de la partie ${gameId} est écartée (${e instanceof Error ? e.message : String(e)}), l'image garde la vignette.`);
+      return null;
+    }
+  };
+  // Les parties que le rejeu a vues à ce passage. Sans liste lisible (rejeu en panne), rien n'attend.
+  const seenByReplay = lirePassage(readText(FICHIER_PASSAGE));
+  if (!seenByReplay) console.log("Victoires : pas de liste du rejeu, les victoires partent sans attendre leur carte de fin.");
   const members = loadMembers();
   // Les Gaulois du village : une seule lecture par passage, à la première image, pour tous ceux qu'une pastille peut nommer.
   const gauloisDe = gauloisDuPassage({ tous: () => idsAuPseudoPublic(members) });
@@ -110,6 +131,23 @@ try {
         victory,
         renderImage: async (v) => {
           const { fonts, image } = await drawing;
+          // Un caractère qu'aucune police ne sait dessiner devient « ? » sur l'image ; sa description garde le nom entier.
+          const drawn = { ...v, crew: v.crew.map((p) => ({ ...p, name: fonts.drawable(p.name, "strong") })), rivals: v.rivals.map((t) => fonts.drawable(t, "strong")) };
+          // Seuls les membres au pseudo public de la partie ont un identifiant (`victoryOf`) : les autres n'ont jamais de Gaulois.
+          const gaulois = await gauloisDe(v.crew.map((p) => p.id));
+          const etat = finalMap(v.id);
+          if (etat) {
+            try {
+              return await avecOuSansGaulois(gaulois, async (g) => {
+                const card = image.victoryCard(drawn, clan.tag, clan.links.site, fonts.width, image.finalMapShape(etat), undefined, g);
+                if (!card.map) throw new Error("pas de place pour la carte");
+                const final = await image.renderFinalMap(etat, v, card.map);
+                return { png: await image.renderVictoryCard(card, fonts, root, final), alt: image.victoryImageAlt(v, clan.tag, true, undefined, image.finalMapWords(etat, v)) };
+              });
+            } catch (e) {
+              console.log(`::warning::Victoires : la carte de fin de la partie ${v.id} ne se dessine pas (${e instanceof Error ? e.message : String(e)}), l'image garde la vignette.`);
+            }
+          }
           let thumbnail = thumbnails.get(v.map);
           if (!thumbnail) {
             thumbnail = image.readThumbnail(v.map, fetch).catch((e: unknown) => {
@@ -119,10 +157,6 @@ try {
             thumbnails.set(v.map, thumbnail);
           }
           const thumb = await thumbnail;
-          // Un caractère qu'aucune police ne sait dessiner devient « ? » sur l'image ; sa description garde le nom entier.
-          const drawn = { ...v, crew: v.crew.map((p) => ({ ...p, name: fonts.drawable(p.name, "strong") })), rivals: v.rivals.map((t) => fonts.drawable(t, "strong")) };
-          // Seuls les membres au pseudo public de la partie ont un identifiant (`victoryOf`) : les autres n'ont jamais de Gaulois.
-          const gaulois = await gauloisDe(v.crew.map((p) => p.id));
           return avecOuSansGaulois(gaulois, async (g) => {
             // `undefined` : les statères gardent leur réglage.
             const card = image.victoryCard(drawn, clan.tag, clan.links.site, fonts.width, thumb, undefined, g);
@@ -139,6 +173,7 @@ try {
     progress: writeState,
     log: console.log,
     resend,
+    waitFor: (gameId, end) => waitsForFinalMap(seenByReplay, gameId, end, now.getTime()),
   });
   if (result.state) writeState(result.state);
   if (result.failed) process.exitCode = 1;

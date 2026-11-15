@@ -5,10 +5,11 @@ import { casesDuStatere } from "../../supabase/functions/code-discord/statere";
 import { CARD_COLORS, GazetteFonts, type CardText, type GazetteCard, type Measure } from "../../src/lib/gazette-image";
 import { ApiClient } from "../../src/lib/pipeline";
 import { ApiVictoryGame, type StoredGame, type StoredMembers, type StoredSession } from "../../src/lib/schemas";
-import { crewName, FORGET_MS, isClanMember, isVictory, MAX_PER_PASS, MAX_RESEND, mergeStates, parseResend, passSessions, PAUSE_MS, readRecentSessions, readVictoryGame, rivalsOf, usableOfficialTags, toVerify, victoryOf, victoryPass, VictoryState, WINDOW_MS, type Victory, type VictoryPassDeps } from "../../src/lib/victoires";
+import { crewName, FORGET_MS, isClanMember, isVictory, MAX_PER_PASS, MAX_RESEND, mergeStates, parseResend, passSessions, PAUSE_MS, readRecentSessions, readVictoryGame, rivalsOf, usableOfficialTags, toVerify, victoriesToAnnounce, victoryOf, victoryPass, VictoryState, PASS_MS, WAIT_FINAL_MS, waitsForFinalMap, WINDOW_MS, type Victory, type VictoryPassDeps } from "../../src/lib/victoires";
 import { frenchList, gameLength, rivalsWords, sendVictory, victoryContent, victoryPayload } from "../../src/lib/victoires-discord";
 import { CHIP_GAP, CHIP_STEPS, chipLayout } from "../../src/lib/salon-image";
-import { coinRects, creditAddresses, MAP_NOTE, NAME_NOTE, openAround, readThumbnail, renderVictoryCard, SEA, staterWords, STATERES_SUR_LES_VICTOIRES, thumbnailUrl, tileLength, victoryCard, victoryImageAlt } from "../../src/lib/victoires-image";
+import { coinRects, creditAddresses, FINAL_NOTE, finalMapShape, finalMapWords, MAP_NOTE, NAME_NOTE, openAround, readThumbnail, renderFinalMap, renderVictoryCard, SEA, staterWords, STATERES_SUR_LES_VICTOIRES, thumbnailUrl, tileLength, victoryCard, victoryImageAlt } from "../../src/lib/victoires-image";
+import { MER_FINALE_CSS, type EtatFinal } from "../../src/lib/carte-finale";
 
 const WEBHOOK = "https://discord.com/api/webhooks/123456/abc-DEF_123";
 const SITE = "https://x.test/";
@@ -89,6 +90,9 @@ describe("victoryOf", () => {
       unnamed: 1,
       outsiders: 1,
       rivals: [],
+      // Pour la carte de fin : les membres, nommés ou seulement comptés, jamais le porteur du tag hors du clan ; l'équipe gagnante.
+      clients: ["c1", "c2", "c3", "c7"],
+      team: "Red",
     });
   });
   it("ne nomme jamais un porteur du tag que rien ne donne membre du clan", () => {
@@ -537,6 +541,59 @@ describe("victoryPass", () => {
       expect([...first.sent, ...second.sent]).toEqual([]);
     });
   });
+
+  describe("la carte de fin", () => {
+    it("le rejeu prépare les mêmes victoires que l'envoi annonce, dans le même ordre, renvois compris", async () => {
+      const sessions = [session("c", ago(0.5)), session("a", ago(2)), session("b", ago(1)), session("vieille", ago(8)), session("notee", ago(1.2)), session("perdue", ago(1), { hasWon: false }), session("renvoi", ago(10))];
+      const stored: VictoryState = { done: [["notee", ago(1.2)], ["renvoi", ago(10)]] };
+      const resend = new Set(["renvoi"]);
+      const { deps, sent } = setup(sessions, { stored, resend });
+      await victoryPass(deps);
+      expect(victoriesToAnnounce(stored, sessions, NOW, resend).map((s) => s.gameId)).toEqual(sent);
+      expect(sent).toEqual(["renvoi", "a", "b", "c"]);
+      // Au plus ce qu'un passage envoie ; rien au premier passage ni sans sessions.
+      const many = Array.from({ length: MAX_PER_PASS + 3 }, (_, i) => session(`m${i}`, ago(1 + i / 100)));
+      expect(victoriesToAnnounce({ done: [] }, many, NOW)).toHaveLength(MAX_PER_PASS);
+      expect(victoriesToAnnounce(null, sessions, NOW)).toEqual([]);
+      expect(victoriesToAnnounce(stored, null, NOW)).toEqual([]);
+    });
+    it("une victoire que le rejeu n'a pas vue attend le passage suivant, sans être notée ; la fin de la partie vient de son détail", async () => {
+      const ends: [string, number][] = [];
+      const { deps, sent, logs } = setup([session("a", ago(1)), session("b", ago(0.5))], {
+        waitFor: (id, end) => {
+          ends.push([id, end]);
+          return id === "b";
+        },
+      });
+      const result = await victoryPass(deps);
+      expect(sent).toEqual(["a"]);
+      expect(result.state?.done.map(([id]) => id)).toEqual(["a"]);
+      expect(ends).toEqual([
+        ["a", Date.parse(ago(1)) + 943_400],
+        ["b", Date.parse(ago(0.5)) + 943_400],
+      ]);
+      expect(logs).toContain("Victoires : 1 victoire attend sa carte de fin, au passage suivant.");
+      // Au passage suivant, vue par le rejeu : elle part.
+      const next = setup([session("a", ago(1)), session("b", ago(0.5))], { stored: result.state, waitFor: () => false });
+      await victoryPass(next.deps);
+      expect(next.sent).toEqual(["b"]);
+    });
+    it("l'attente tient les 10 minutes après la fin de la partie que demande le pilote, passage suivant compris", () => {
+      expect(WAIT_FINAL_MS).toBe(10 * 60_000);
+      expect(PASS_MS).toBe(5 * 60_000);
+      const fin = Date.parse("2026-11-15T10:00:00.000Z");
+      const vues = new Set(["vue"]);
+      const min = 60_000;
+      // Pas encore vue, et le passage suivant arrive avant 10 minutes : elle attend.
+      expect(waitsForFinalMap(vues, "autre", fin, fin + 2 * min)).toBe(true);
+      expect(waitsForFinalMap(vues, "autre", fin, fin + 5 * min)).toBe(true);
+      // Le passage suivant arriverait après 10 minutes : elle part tout de suite, avec la vignette.
+      expect(waitsForFinalMap(vues, "autre", fin, fin + 5 * min + 1)).toBe(false);
+      // Vue par le rejeu : jamais d'attente ; sans liste du rejeu (rejeu en panne ou arrêté en route) : non plus.
+      expect(waitsForFinalMap(vues, "vue", fin, fin + min)).toBe(false);
+      expect(waitsForFinalMap(null, "autre", fin, fin + min)).toBe(false);
+    });
+  });
 });
 
 describe("le texte de secours", () => {
@@ -834,6 +891,80 @@ describe("victoryCard", () => {
     expect(written).toBeGreaterThan(10);
     expect(written).toBeLessThan(80);
     expect(alt.endsWith(`${huge.crew[written - 1]!.name}, ${80 - written} autres Gaulois et 1 Gaulois sans nom. Image et nom de la carte : © OpenFront and Contributors, CC BY-SA 4.0, image redimensionnée.`)).toBe(true);
+  });
+});
+
+describe("la carte de fin dans l'image", () => {
+  const TERRE = 0x80;
+  /** Une carte inventée de 6 × 4 cases : de l'eau tout autour, la terre au milieu, tenue par un Gaulois et un adversaire. */
+  const etat = (): EtatFinal => {
+    const largeur = 6;
+    const hauteur = 4;
+    const terrain = new Uint8Array(largeur * hauteur);
+    const proprio = new Uint16Array(largeur * hauteur);
+    for (const i of [7, 8, 9, 10, 13, 14, 15, 16]) terrain[i] = TERRE | 3;
+    for (const i of [7, 8, 13]) proprio[i] = 1;
+    for (const i of [10, 16]) proprio[i] = 2;
+    return {
+      format: 1,
+      partie: "dVEWLLQHx1",
+      commit: "8b5d071eed95f07c701b32e4c64e95b03f8577c1",
+      largeur,
+      hauteur,
+      tours: 9_431,
+      toursFiche: 9_434,
+      empreintes: 943,
+      joueurs: [
+        { n: 1, client: "c1", equipe: "Red", type: "HUMAN" },
+        { n: 2, client: "c9", equipe: "Blue", type: "HUMAN" },
+      ],
+      proprio,
+      terrain,
+      retombees: new Uint8Array(largeur * hauteur),
+    };
+  };
+  it("prend la place de la vignette, sur la mer de nuit, avec son propre crédit", () => {
+    const shape = finalMapShape(etat());
+    expect(shape).toEqual({ width: 6, height: 4, open: true, final: true });
+    const card = victoryCard(VICTORY, "GAL", SITE, measure, shape);
+    expect(card.texts.map((t) => t.text)).toContain(FINAL_NOTE);
+    expect(card.texts.map((t) => t.text)).not.toContain(MAP_NOTE);
+    expect(card.rects).toContainEqual({ x: 36, y: 230, width: 660, height: 420, radius: 8, color: MER_FINALE_CSS });
+    expect(card.rects.some((r) => r.color === SEA)).toBe(false);
+    // Une carte coupée à son bord : la mer de nuit sous la carte seulement.
+    const closed = victoryCard(VICTORY, "GAL", SITE, measure, { ...shape, open: false });
+    expect(closed.rects).toContainEqual({ ...closed.map, color: MER_FINALE_CSS });
+    expectClean(card);
+  });
+  it("le crédit de la carte de fin tient en entier au pied de l'image, avec les vraies polices", () => {
+    const fonts = new GazetteFonts(process.cwd());
+    const card = victoryCard(VICTORY, "GAL", SITE, fonts.width, finalMapShape(etat()));
+    expect(card.texts.find((t) => t.text === FINAL_NOTE)).toBeDefined();
+  });
+  it("se dessine au double de sa place, avec les Gaulois de la victoire en bleu", async () => {
+    const card = victoryCard(VICTORY, "GAL", SITE, measure, finalMapShape(etat()));
+    const final = await renderFinalMap(etat(), VICTORY, card.map!);
+    const meta = await sharp(final.data).metadata();
+    expect([meta.width, meta.height, meta.format]).toEqual([card.map!.width * 2, card.map!.height * 2, "png"]);
+    expect(final.final).toBe(true);
+    // Le milieu de la case tenue par le Gaulois, loin de son bord : bleu.
+    const { data, info } = await sharp(final.data).raw().toBuffer({ resolveWithObject: true });
+    const at = (x: number, y: number) => [...data.subarray((y * info.width + x) * info.channels, (y * info.width + x) * info.channels + 3)];
+    const [r, g, b] = at(Math.round(info.width * (1.5 / 6)), Math.round(info.height * (1.5 / 4)));
+    expect(b! - Math.max(r!, g!)).toBeGreaterThan(60);
+  });
+  it("la description dit ce que montrent les couleurs, seulement celles qui y sont, et garde le crédit", () => {
+    const words = finalMapWords(etat(), VICTORY);
+    expect(words).toBe("La carte montre la fin de la partie, rejouée par le moteur du jeu à partir de sa fiche publique : en bleu les territoires des Gaulois, dans d'autres couleurs ceux des adversaires.");
+    const alt = plain(victoryImageAlt(VICTORY, "GAL", true, true, words));
+    expect(alt.endsWith(`${words} Terrain et nom de la carte : © OpenFront and Contributors, CC BY-SA 4.0.`)).toBe(true);
+    expect(alt.length).toBeLessThanOrEqual(1024);
+    // Personne ne tient de terre : la description dit encore que c'est la carte de fin, jamais « vignette redimensionnée ».
+    const vide = finalMapWords({ ...etat(), proprio: new Uint16Array(24) }, VICTORY);
+    expect(vide).toBe("La carte montre la fin de la partie, rejouée par le moteur du jeu à partir de sa fiche publique.");
+    expect(victoryImageAlt(VICTORY, "GAL", true, true, vide)).not.toContain("redimensionnée");
+    // Sans les identifiants des Gaulois (victoire d'avant), leur territoire n'est pas dit « des Gaulois ».
+    expect(finalMapWords(etat(), { ...VICTORY, clients: [] })).not.toContain("Gaulois");
   });
 });
 

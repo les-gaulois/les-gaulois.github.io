@@ -6,7 +6,8 @@ name: Victoires et arrivées sur Discord
 # Le planning de GitHub n'est pas utilisé : il saute la plupart de ses passages sur ce dépôt. Voir src/lib/victoires.ts.
 #
 # Le même passage remplace les messages d'arrivée du serveur Discord par une image de bienvenue (demande du pilote, 12 novembre
-# 2026) : une arrivée est donc remplacée dans les 5 minutes. Voir src/lib/arrivees.ts.
+# 2026) : une arrivée est donc remplacée dans les 5 minutes, plus le temps du rejeu des victoires, qui passe avant (environ
+# une minute). Voir src/lib/arrivees.ts.
 #
 # Il annonce aussi les achats du village des Gaulois (demande du pilote, 15 novembre 2026 : toutes les 5 minutes), dans le
 # salon des achats réglé dans la Direction, sinon celui des nouvelles. Voir src/lib/achats-discord.ts.
@@ -23,9 +24,73 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  envoyer:
-    # Sur une autre branche, la trace des envois ne reviendrait pas sur main, et les victoires repartiraient.
+  # La carte de fin de chaque victoire (demande du pilote, 15 novembre 2026 : « l'image de la map en fin game ») : chaque victoire
+  # que l'envoi va annoncer est rejouée avec le moteur d'OpenFront, lu sur GitHub au commit de la partie, et vérifiée par les
+  # empreintes du jeu. Ce code venu d'ailleurs ne tourne que dans un conteneur Docker sans réseau, sans droits et en lecture
+  # seule : il ne peut rien toucher de ce job (ni ses actions, ni son jeton du cache). Le job lui-même n'a aucun secret, seulement
+  # le droit de lire le dépôt, ne garde pas le jeton de GitHub après le checkout, et ne partage pas le cache de npm. Il ne transmet que des données (`.cache/cartes-finales/`), que l'envoi
+  # vérifie avant de s'en servir. Voir scripts/rejouer-victoires.ts. Une panne ne retient aucune victoire : elle part avec la
+  # vignette de la carte.
+  rejouer:
     if: github.ref_name == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref_name }}
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: npm ci
+      # La copie en cache de l'état des envois, lue seulement : le rejeu choisit les mêmes victoires que l'envoi.
+      - name: Restaurer l'état des envois
+        continue-on-error: true
+        uses: actions/cache/restore@v6
+        with:
+          path: .cache/victoires-envoi.json
+          key: victoires-envoi-${{ github.run_id }}
+          restore-keys: victoires-envoi-
+      # Un moteur par version du jeu, construit une fois : quelques méga-octets.
+      - name: Restaurer les moteurs du jeu
+        continue-on-error: true
+        uses: actions/cache/restore@v6
+        with:
+          path: .cache/openfront/moteurs
+          key: openfront-moteurs-${{ github.run_id }}
+          restore-keys: openfront-moteurs-
+      - name: Rejouer les nouvelles victoires
+        continue-on-error: true
+        timeout-minutes: 9
+        run: npm run victoires:rejouer
+      - name: Conserver les moteurs du jeu
+        if: ${{ !cancelled() && hashFiles('.cache/openfront/moteurs/*.mjs') != '' }}
+        continue-on-error: true
+        uses: actions/cache/save@v6
+        with:
+          path: .cache/openfront/moteurs
+          key: openfront-moteurs-${{ hashFiles('.cache/openfront/moteurs/*.mjs') }}
+      # Gardées un jour : le dépôt est public, ses artefacts aussi. Elles ne contiennent que des cases de carte, les équipes et
+      # les identifiants en partie des joueurs, déjà publics dans la fiche de la partie, et la notice de licence du terrain
+      # (LISEZ-MOI.txt : les cartes du jeu, CC BY-SA 4.0).
+      - name: Transmettre les cartes de fin
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: cartes-finales
+          path: .cache/cartes-finales/
+          retention-days: 1
+          if-no-files-found: ignore
+
+  envoyer:
+    needs: rejouer
+    # Sur une autre branche, la trace des envois ne reviendrait pas sur main, et les victoires repartiraient. Même si le rejeu
+    # échoue : les victoires partent alors avec la vignette.
+    if: ${{ !cancelled() && github.ref_name == 'main' }}
     runs-on: ubuntu-latest
     # La somme des délais des étapes, achats du village compris (15 novembre 2026).
     timeout-minutes: 22
@@ -63,6 +128,13 @@ jobs:
           path: .cache/victoires-envoi.json
           key: victoires-envoi-${{ github.run_id }}
           restore-keys: victoires-envoi-
+      # Les cartes de fin du job « rejouer » : relues et vérifiées par l'envoi, jamais exécutées. Sans elles, la vignette.
+      - name: Récupérer les cartes de fin
+        continue-on-error: true
+        uses: actions/download-artifact@v7
+        with:
+          name: cartes-finales
+          path: .cache/cartes-finales/
       # Le lien réglé dans la Direction, sinon le secret DISCORD_WEBHOOK_VICTOIRES ; sans l'un ni l'autre, l'étape ne fait rien.
       # Au premier passage, les victoires du moment servent de départ. Une panne de Discord ou de l'API ne bloque rien : le
       # passage suivant réessaie.

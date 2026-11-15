@@ -13,8 +13,13 @@
  * Avec la monnaie du village (`STATERES_SUR_LES_VICTOIRES`), la pièce et le nombre de statères que reçoit chaque Gaulois
  * présent se posent sous les points rapportés au clan, d'où ils viennent (`stateresDeVictoire`, `stateres.ts`). Rien si la
  * partie ne rapporte pas de points.
+ *
+ * Depuis le 15 novembre 2026, la carte de fin remplace la vignette quand la partie a pu être rejouée (`carte-finale.ts`) : la
+ * même place, le même cadre, mais les territoires de chacun au dernier contrôle de la partie, les Gaulois dans le bleu de leurs
+ * pastilles. Le crédit le dit, et la description de l'image dit ce que montrent les couleurs.
  */
 import sharp, { type OverlayOptions } from "sharp";
+import { COULEUR_EQUIPE, COULEUR_GAULOIS, COULEUR_ROBOTS, couleursDesJoueurs, dessinerCarteFinale, MER_FINALE_CSS, ouverteSurLaMer, partsDesCouleurs, type EtatFinal, type Rgb } from "./carte-finale";
 import { casesDuStatere, type TailleStatere } from "../../supabase/functions/code-discord/statere";
 import { fmtCount, fmtEpochTime, fmtInt, fmtMinutes, fmtScore } from "./format";
 import { AUCUN_GAULOIS, type GauloisParJoueur } from "./gaulois-joueurs";
@@ -107,6 +112,8 @@ export const SEA = "#3D7BAB";
 /** Le crédit de la carte, en bas de l'image : la mention que demande OpenFront, la licence, et ce que le robot a changé. */
 export const MAP_NOTE = `Carte : ${OPENFRONT_CREDIT}, CC BY-SA 4.0, redimensionnée`;
 export const NAME_NOTE = `Nom de la carte : ${OPENFRONT_CREDIT}, CC BY-SA 4.0`;
+/** La carte de fin : le terrain du jeu, et la partie rejouée par son moteur (dit en entier dans la description de l'image). */
+export const FINAL_NOTE = `Carte de fin rejouée : ${OPENFRONT_CREDIT}, CC BY-SA 4.0`;
 
 const shownUrl = (url: string) => url.replace(/^https?:\/\//, "");
 
@@ -154,6 +161,8 @@ export interface ThumbnailShape {
   width: number;
   height: number;
   open: boolean;
+  /** La carte de fin, rejouée, au lieu de la vignette : le crédit change. */
+  final?: boolean;
 }
 
 /**
@@ -191,12 +200,14 @@ export function victoryCard(
   if (thumbnail) {
     // La vignette, aussi grande que possible dans son cadre, au centre, sur la mer du jeu. Une carte entourée d'eau baigne dans
     // la mer jusqu'au bord du cadre ; les autres s'arrêtent à leur bord, pour ne pas couper une terre net au milieu de l'eau.
-    rects.push(thumbnail.open ? { x: MARGIN, y: top, width: MAP_BOX_WIDTH, height: BODY_HEIGHT, radius: 8, color: SEA } : { x: MARGIN, y: top, width: MAP_BOX_WIDTH, height: BODY_HEIGHT, radius: 8, color: C.SURFACE, stroke: C.LINE });
+    // La carte de fin a sa mer de nuit (`MER_FINALE_CSS`), la vignette la mer du jeu.
+    const sea = thumbnail.final ? MER_FINALE_CSS : SEA;
+    rects.push(thumbnail.open ? { x: MARGIN, y: top, width: MAP_BOX_WIDTH, height: BODY_HEIGHT, radius: 8, color: sea } : { x: MARGIN, y: top, width: MAP_BOX_WIDTH, height: BODY_HEIGHT, radius: 8, color: C.SURFACE, stroke: C.LINE });
     const zoom = Math.min((MAP_BOX_WIDTH - 2 * MAP_PADDING) / thumbnail.width, (BODY_HEIGHT - 2 * MAP_PADDING) / thumbnail.height, MAX_ZOOM);
     const width = Math.max(1, Math.round(thumbnail.width * zoom));
     const mapHeight = Math.max(1, Math.round(thumbnail.height * zoom));
     map = { x: MARGIN + Math.round((MAP_BOX_WIDTH - width) / 2), y: top + Math.round((BODY_HEIGHT - mapHeight) / 2), width, height: mapHeight, radius: 6 };
-    if (!thumbnail.open) rects.push({ ...map, color: SEA });
+    if (!thumbnail.open) rects.push({ ...map, color: sea });
     // Les chiffres, empilés à droite, comme les chiffres clés du site.
     const x = MARGIN + MAP_BOX_WIDTH + GAP;
     const valueSize = 56;
@@ -229,7 +240,7 @@ export function victoryCard(
   texts.push(...drawn.texts);
 
   // L'adresse du site et le crédit de la carte, puis, dessous, les adresses de la source et de la licence.
-  texts.push(...pageFoot(shownAddress(siteUrl, "/parties"), thumbnail ? MAP_NOTE : NAME_NOTE, height - 54, measure).texts);
+  texts.push(...pageFoot(shownAddress(siteUrl, "/parties"), thumbnail ? (thumbnail.final ? FINAL_NOTE : MAP_NOTE) : NAME_NOTE, height - 54, measure).texts);
   const addresses = creditAddresses(v.map, (line) => measure(line, "body", CREDIT_MIN_SIZE) <= contentWidth);
   texts.push({ ...fitted(addresses, "body", 20, CREDIT_MIN_SIZE, contentWidth, measure), x: WIDTH - MARGIN, y: height - 22, font: "body", color: C.MUTED, anchor: "end" });
   return { width: WIDTH, height, rects, texts, logo: LOGO, map, ...(drawn.gaulois ? { gaulois: drawn.gaulois } : {}) };
@@ -240,12 +251,17 @@ export function victoryCard(
  * noms, que l'image n'écrit pas. Sans couper un nom : au-delà de ce que Discord accepte, les autres Gaulois sont comptés, et
  * le crédit de la carte reste entier.
  */
-export function victoryImageAlt(v: Victory, tag: string, withMap: boolean, staters = STATERES_SUR_LES_VICTOIRES): string {
+export function victoryImageAlt(v: Victory, tag: string, withMap: boolean, staters = STATERES_SUR_LES_VICTOIRES, finalWords: string | null = null): string {
   const head = `${victoryTitle(tag)} sur la carte ${mapLabel(v.map)}${v.format ? `, ${formatLabel(v.format)}` : ""}, ${victoryWhen(v).toLowerCase()}, heure de Paris.`;
   const figures = `${countWords(v)}${v.points === null ? "" : `, ${pointsWords(v.points)}`}, partie de ${tileLength(v.seconds)}.`;
   const each = staters ? stateresDeVictoire(v.points, v.gaulois) : 0;
   const coins = each > 0 ? [`Chaque Gaulois du village présent dans la partie reçoit ${fmtCount(each, "statère")}, pour les points rapportés au clan.`] : [];
-  const credit = withMap ? `Image et nom de la carte : ${OPENFRONT_CREDIT}, CC BY-SA 4.0, image redimensionnée.` : `Nom de la carte : ${OPENFRONT_CREDIT}, CC BY-SA 4.0.`;
+  const credit =
+    withMap && finalWords
+      ? `${finalWords} Terrain et nom de la carte : ${OPENFRONT_CREDIT}, CC BY-SA 4.0.`
+      : withMap
+        ? `Image et nom de la carte : ${OPENFRONT_CREDIT}, CC BY-SA 4.0, image redimensionnée.`
+        : `Nom de la carte : ${OPENFRONT_CREDIT}, CC BY-SA 4.0.`;
   return fittedAlt(v.crew, (shown, rest) => {
     const crew = crewList(
       shown.map((p) => p.name),
@@ -294,6 +310,48 @@ export async function readThumbnail(map: string, get: typeof fetch): Promise<Thu
   if (!width || !height || width > 4096 || height > 4096) throw new Error("dimensions inattendues");
   const alpha = await sharp(data).ensureAlpha().extractChannel("alpha").raw().toBuffer();
   return { data, width, height, open: openAround(alpha, width, height) };
+}
+
+/* ---------- La carte de fin ---------- */
+
+/** La forme de la carte de fin, pour la mise en page : la taille de la carte du jeu, et si la mer l'entoure. */
+export function finalMapShape(etat: EtatFinal): ThumbnailShape {
+  return { width: etat.largeur, height: etat.hauteur, open: ouverteSurLaMer(etat.terrain, etat.largeur, etat.hauteur), final: true };
+}
+
+/** Le dessin se fait au double de sa place, puis se réduit : les côtes et les bords s'adoucissent comme ceux de la vignette. */
+const FINAL_SCALE = 2;
+
+/**
+ * La carte de fin, dessinée pour sa place dans l'image (`card.map`) : une vignette comme une autre pour `renderVictoryCard`.
+ * Les territoires des Gaulois de la victoire (`v.clients`) en bleu, ceux de leur équipe (`v.team`) en bleu clair.
+ */
+export async function renderFinalMap(etat: EtatFinal, v: Victory, place: MapPlacement): Promise<Thumbnail> {
+  const couleurs = couleursDesJoueurs(etat.joueurs, new Set(v.clients ?? []), v.team ?? null);
+  const width = place.width * FINAL_SCALE;
+  const height = place.height * FINAL_SCALE;
+  const pixels = dessinerCarteFinale(etat, couleurs, width, height, FINAL_SCALE);
+  const data = await sharp(Buffer.from(pixels.buffer, pixels.byteOffset, pixels.byteLength), { raw: { width, height, channels: 3 } })
+    .png()
+    .toBuffer();
+  return { ...finalMapShape(etat), data };
+}
+
+/** Ce que montre la carte de fin, en mots, pour la description de l'image : seules les couleurs qui y sont. */
+export function finalMapWords(etat: EtatFinal, v: Victory): string {
+  const couleurs = couleursDesJoueurs(etat.joueurs, new Set(v.clients ?? []), v.team ?? null);
+  const parts = partsDesCouleurs(etat, couleurs);
+  const debut = "La carte montre la fin de la partie, rejouée par le moteur du jeu à partir de sa fiche publique";
+  if (parts.size === 0) return `${debut}.`;
+  const has = (c: Rgb) => (parts.get(c) ?? 0) > 0;
+  const others = [...parts.keys()].some((c) => c !== COULEUR_GAULOIS && c !== COULEUR_EQUIPE && c !== COULEUR_ROBOTS);
+  const said = [
+    has(COULEUR_GAULOIS) ? "en bleu les territoires des Gaulois" : null,
+    has(COULEUR_EQUIPE) ? "en bleu clair ceux de leur équipe" : null,
+    others ? "dans d'autres couleurs ceux des adversaires" : null,
+    has(COULEUR_ROBOTS) ? "en gris ceux des robots" : null,
+  ].filter((s): s is string => s !== null);
+  return `${debut} : ${said.join(", ")}.`;
 }
 
 /** Dessine l'image en PNG, avec la vignette à sa place, aux coins arrondis. Sans vignette, `card.map` doit être `null`. */

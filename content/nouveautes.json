@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-15",
+    "kind": "nouveau",
+    "title": "La carte de fin sur les victoires",
+    "body": "Sur Discord, une victoire montre la carte en fin de partie, Gaulois en bleu, terres bombardées en vert, quand le robot a pu la rejouer avec le moteur du jeu et vérifier qu'elle concorde.",
+    "link": {
+      "href": "/parties",
+      "label": "Dernières parties"
+    }
+  },
+  {
+    "date": "2026-11-15",
     "kind": "ameliore",
     "title": "Des pronostics avec mise",
     "body": "Au QG, le pronostic se pose une fois, avec une mise de 0 à 1 000 statères. La cagnotte va aux plus proches du résultat, selon la mise : aucun statère n'est créé. Chacun voit qui a misé quoi.",

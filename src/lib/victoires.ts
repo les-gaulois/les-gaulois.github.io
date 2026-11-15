@@ -29,6 +29,10 @@
  *   écrit : les tags libres contiennent des injures. Si les équipes ne concordent pas avec les vainqueurs, sans liste
  *   officielle, ou si le journal des parties ne dit plus qui jouait contre qui (`usableOfficialTags`), aucun clan n'est écrit :
  *   rien n'est deviné. Sur la page Dernières parties, la ligne de la même partie peut donc citer moins de clans que l'image.
+ * - La carte de fin, demandée par le pilote le 15 novembre 2026 (« l'image de la map en fin game », comme OFStats) : un job
+ *   sans secret rejoue d'abord chaque victoire à annoncer avec le moteur du jeu (`scripts/rejouer-victoires.ts`), dans le même
+ *   ordre (`victoriesToAnnounce`). Une victoire que ce rejeu n'a pas encore vue attend le passage suivant, au plus
+ *   `WAIT_FINAL_MS` après la fin de la partie, puis part avec la vignette de la carte. Voir `carte-finale.ts`.
  */
 import { z } from "zod";
 import { digestGame, faceOffs } from "./games";
@@ -44,6 +48,22 @@ export const FORGET_MS = 24 * 3_600_000;
 export const MAX_PER_PASS = 10;
 /** Entre deux messages, loin de la limite de Discord, cinq envois en deux secondes par webhook. */
 export const PAUSE_MS = 2_000;
+/**
+ * Une victoire que le rejeu n'a pas encore vue attend sa carte de fin, mais jamais au-delà de tant après la fin de la partie :
+ * les 10 minutes au plus que demande le pilote (« au maximum 10 min après la victoire »). Voir `waitsForFinalMap`.
+ */
+export const WAIT_FINAL_MS = 10 * 60_000;
+/** Entre deux passages du workflow des victoires, lancé toutes les 5 minutes par la tâche « Victoires GAL » de cron-job.org. */
+export const PASS_MS = 5 * 60_000;
+
+/**
+ * La victoire attend-elle sa carte de fin au passage suivant ? Seulement si le rejeu de ce passage est allé au bout
+ * (`seenByReplay`, `null` sinon), ne l'a pas vue (apparue après sa lecture), et si le passage suivant arrive encore dans les
+ * `WAIT_FINAL_MS` après la fin de la partie (`end`) : sinon elle part tout de suite, avec la vignette.
+ */
+export function waitsForFinalMap(seenByReplay: ReadonlySet<string> | null, gameId: string, end: number, now: number): boolean {
+  return seenByReplay !== null && !seenByReplay.has(gameId) && now - end + PASS_MS <= WAIT_FINAL_MS;
+}
 /** Un nom de partie plus long est coupé : le jeu en limite la taille, et un message reste lisible. */
 const NAME_MAX = 40;
 
@@ -120,6 +140,13 @@ export interface Victory {
    * une autre équipe. Vide : aucun, ou les équipes ne se déduisent pas.
    */
   rivals: string[];
+  /**
+   * Les identifiants en partie des membres du clan de la partie, nommés ou seulement comptés comme Gaulois : leurs territoires
+   * se dessinent en bleu sur la carte de fin. Jamais écrits, ni sur l'image ni ailleurs.
+   */
+  clients?: string[];
+  /** L'équipe gagnante, celle du clan (`winner` de la partie) ; `null` dans une partie sans équipes. */
+  team?: string | null;
 }
 
 /**
@@ -181,6 +208,7 @@ export function victoryOf(session: StoredSession, game: ApiVictoryGame, members:
   const known = namedMembers(members);
   const crew: CrewMember[] = [];
   const linked = new Set<string>();
+  const clients: string[] = [];
   let unnamed = 0;
   let outsiders = 0;
   for (const p of game.info.players) {
@@ -190,6 +218,7 @@ export function victoryOf(session: StoredSession, game: ApiVictoryGame, members:
       outsiders++;
       continue;
     }
+    if (p.clientID) clients.push(p.clientID);
     // Une fiche par membre : un même compte deux fois dans la partie n'est relié qu'une fois.
     const id = p.publicID && pseudo !== undefined && !linked.has(p.publicID) ? p.publicID : null;
     if (id) linked.add(id);
@@ -197,6 +226,7 @@ export function victoryOf(session: StoredSession, game: ApiVictoryGame, members:
     if (name) crew.push({ name, id });
     else unnamed++;
   }
+  const winner = game.info.winner;
   return {
     id: session.gameId,
     start: session.gameStart,
@@ -210,6 +240,8 @@ export function victoryOf(session: StoredSession, game: ApiVictoryGame, members:
     unnamed,
     outsiders,
     rivals: rivalsOf(session, game, tag, official),
+    clients,
+    team: winner?.[0] === "team" && typeof winner[1] === "string" && winner[1] ? winner[1] : null,
   };
 }
 
@@ -304,6 +336,35 @@ export interface VictoryPassDeps {
   log: (line: string) => void;
   /** Les parties à renvoyer une fois, même déjà notées : `config/victoires-rattrapage.json`. */
   resend?: ReadonlySet<string>;
+  /**
+   * La victoire doit-elle attendre le passage suivant, pour sa carte de fin ? `end` : la fin de la partie, en millisecondes.
+   * Absent : rien n'attend.
+   */
+  waitFor?: (gameId: string, end: number) => boolean;
+}
+
+/** Ce qu'un passage fait de chaque victoire : les notées gardées, celles trop vieilles pour partir, celles à annoncer. */
+function passPlan(stored: VictoryState, wins: readonly StoredSession[], now: Date, resend: ReadonlySet<string>) {
+  const recent = (s: StoredSession) => ageOf(s, now) <= FORGET_MS;
+  const kept = ([, start]: readonly [string, string]) => now.getTime() - Date.parse(start) <= FORGET_MS;
+  const done = stored.done.filter(kept);
+  const resent = (stored.resent ?? []).filter(kept);
+  const seen = new Set(done.map(([id]) => id));
+  const seenAgain = new Set(resent.map(([id]) => id));
+  // Demandée par le fichier des renvois, pas encore renvoyée, et commencée il y a moins d'un jour.
+  const again = (s: StoredSession) => resend.has(s.gameId) && !seenAgain.has(s.gameId) && recent(s);
+  const late = wins.filter((s) => !seen.has(s.gameId) && recent(s) && ageOf(s, now) > WINDOW_MS && !again(s));
+  const todo = wins.filter((s) => again(s) || (!seen.has(s.gameId) && ageOf(s, now) <= WINDOW_MS)).sort(byStart);
+  return { done, resent, seen, again, late, todo };
+}
+
+/**
+ * Les victoires qu'un passage annoncera, dans l'ordre, au plus `MAX_PER_PASS` : ce que le rejeu prépare avant l'envoi. Aucune
+ * sans état (premier passage) ni sans sessions.
+ */
+export function victoriesToAnnounce(stored: VictoryState | null, sessions: readonly StoredSession[] | null, now: Date, resend: ReadonlySet<string> = new Set()): StoredSession[] {
+  if (!stored || !sessions) return [];
+  return passPlan(stored, mergeSessions([], sessions.filter(isVictory)), now, resend).todo.slice(0, MAX_PER_PASS);
 }
 
 /**
@@ -311,7 +372,7 @@ export interface VictoryPassDeps {
  * refuse, reste à annoncer : le passage suivant réessaie, tant qu'elle a moins de `WINDOW_MS`, ou moins de `FORGET_MS` si elle
  * est à renvoyer.
  */
-export async function victoryPass({ stored, sessions, members, tag, official = [], now, readGame, isMember, send, pause, progress, log, resend = new Set() }: VictoryPassDeps): Promise<{ state: VictoryState | null; failed: boolean }> {
+export async function victoryPass({ stored, sessions, members, tag, official = [], now, readGame, isMember, send, pause, progress, log, resend = new Set(), waitFor }: VictoryPassDeps): Promise<{ state: VictoryState | null; failed: boolean }> {
   if (!sessions) {
     log("::warning::Victoires : aucune session lisible, rien n'est envoyé.");
     return { state: null, failed: false };
@@ -326,23 +387,16 @@ export async function victoryPass({ stored, sessions, members, tag, official = [
     log(`Victoires : premier passage, les victoires du moment servent de départ (${done.length}). Les suivantes partiront.`);
     return { state: stateOf(done, done.filter(([id]) => resend.has(id))), failed: false };
   }
-  const kept = ([, start]: readonly [string, string]) => now.getTime() - Date.parse(start) <= FORGET_MS;
-  const done = stored.done.filter(kept);
-  const resent = (stored.resent ?? []).filter(kept);
-  const seen = new Set(done.map(([id]) => id));
-  const seenAgain = new Set(resent.map(([id]) => id));
-  // Demandée par le fichier des renvois, pas encore renvoyée, et commencée il y a moins d'un jour.
-  const again = (s: StoredSession) => resend.has(s.gameId) && !seenAgain.has(s.gameId) && recent(s);
-  const late = wins.filter((s) => !seen.has(s.gameId) && recent(s) && ageOf(s, now) > WINDOW_MS && !again(s));
+  const { done, resent, seen, again, late, todo } = passPlan(stored, wins, now, resend);
   if (late.length > 0) log(`::warning::Victoires : ${late.length > 1 ? `${late.length} victoires trop anciennes ne seront pas annoncées` : "1 victoire trop ancienne ne sera pas annoncée"}.`);
   for (const s of late) done.push(noted(s));
-  const todo = wins.filter((s) => again(s) || (!seen.has(s.gameId) && ageOf(s, now) <= WINDOW_MS)).sort(byStart);
   const asked = todo.filter(again).length;
   if (asked > 0) log(`Victoires : ${asked > 1 ? `${asked} victoires à renvoyer` : "1 victoire à renvoyer"} (config/victoires-rattrapage.json).`);
   if (todo.length > MAX_PER_PASS) log(`Victoires : ${todo.length - MAX_PER_PASS} de plus attendent le passage suivant.`);
   // Un même joueur revient souvent dans la soirée : il n'est vérifié qu'une fois par passage.
   const checked = new Map<string, boolean>();
   let sent = 0;
+  let waiting = 0;
   let failed = false;
   for (const session of todo.slice(0, MAX_PER_PASS)) {
     let game: ApiVictoryGame;
@@ -350,6 +404,11 @@ export async function victoryPass({ stored, sessions, members, tag, official = [
       game = await readGame(session.gameId);
     } catch (e) {
       log(`::warning::Victoires : le détail de la partie ${session.gameId} ne se lit pas (${e instanceof Error ? e.message : String(e)}). Nouvel essai au prochain passage.`);
+      continue;
+    }
+    // Pas encore rejouée : elle attend sa carte de fin au passage suivant, dans la limite fixée par `waitFor`.
+    if (waitFor?.(session.gameId, Date.parse(session.gameStart) + game.info.duration * 1000)) {
+      waiting++;
       continue;
     }
     // Les porteurs du tag hors de la liste relue : vérifiés un par un. Si une fiche ne se lit pas, la victoire attend le passage
@@ -383,6 +442,7 @@ export async function victoryPass({ stored, sessions, members, tag, official = [
     if (resend.has(session.gameId)) resent.push(noted(session));
     progress?.(stateOf(done, resent));
   }
+  if (waiting > 0) log(`Victoires : ${waiting > 1 ? `${waiting} victoires attendent leur` : "1 victoire attend sa"} carte de fin, au passage suivant.`);
   log(todo.length === 0 ? "Victoires : aucune nouvelle victoire." : `Victoires : ${sent > 1 ? `${sent} victoires annoncées` : `${sent} victoire annoncée`}.`);
   return { state: sent > 0 || late.length > 0 ? stateOf(done, resent) : null, failed };
 }

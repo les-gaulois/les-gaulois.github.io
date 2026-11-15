@@ -272,15 +272,38 @@ describe("le workflow des victoires", () => {
   const jobs = yml.slice(yml.search(/^jobs:/m));
 
   it("lance les deux étapes dans le même job, les victoires d'abord : le fichier passe de l'une à l'autre", () => {
-    expect([...jobs.matchAll(/^ {2}([\w-]+):\s*$/gm)].map((m) => m[1])).toEqual(["envoyer"]);
-    const victoires = jobs.indexOf("run: npm run victoires:envoyer");
+    // Depuis le 15 novembre 2026, le rejeu des cartes de fin passe d'abord, dans un job à lui, sans secret.
+    expect([...jobs.matchAll(/^ {2}([\w-]+):\s*$/gm)].map((m) => m[1])).toEqual(["rejouer", "envoyer"]);
+    const envoyer = jobs.slice(jobs.search(/^ {2}envoyer:\s*$/m));
+    const victoires = envoyer.indexOf("run: npm run victoires:envoyer");
     expect(victoires).toBeGreaterThan(0);
-    expect(jobs.indexOf("run: npm run stateres:crediter")).toBeGreaterThan(victoires);
+    expect(envoyer.indexOf("run: npm run stateres:crediter")).toBeGreaterThan(victoires);
   });
 
   it("ne garde pas le fichier dans son cache : il ne passe jamais d'un passage à l'autre", () => {
     expect(yml).not.toContain("sessions-du-passage");
-    // Seules les copies de l'état des envois passent d'un passage à l'autre : celle des victoires, puis celle des achats du village.
-    expect([...yml.matchAll(/^\s+path: (.+?)\s*$/gm)].map((m) => m[1])).toEqual([".cache/victoires-envoi.json", ".cache/victoires-envoi.json", ".cache/achats-envoi.json", ".cache/achats-envoi.json"]);
+    // Passent d'un passage à l'autre : les copies de l'état des envois (victoires, puis achats du village) et les moteurs du jeu
+    // du rejeu. Les cartes de fin ne vont que du job du rejeu à celui de l'envoi, dans le même passage.
+    expect([...yml.matchAll(/^\s+path: (.+?)\s*$/gm)].map((m) => m[1])).toEqual([
+      ".cache/victoires-envoi.json",
+      ".cache/openfront/moteurs",
+      ".cache/openfront/moteurs",
+      ".cache/cartes-finales/",
+      ".cache/victoires-envoi.json",
+      ".cache/cartes-finales/",
+      ".cache/victoires-envoi.json",
+      ".cache/achats-envoi.json",
+      ".cache/achats-envoi.json",
+    ]);
+  });
+
+  it("le job du rejeu exécute le code du jeu : il n'a aucun secret, seulement le droit de lire, et ne garde pas le jeton", () => {
+    const rejouer = jobs.slice(jobs.search(/^ {2}rejouer:\s*$/m), jobs.search(/^ {2}envoyer:\s*$/m));
+    expect(rejouer).not.toMatch(/secrets\.|vars\.|contents: write|github\.token|cache: npm/);
+    expect(rejouer).toContain("contents: read");
+    expect(rejouer).toContain("persist-credentials: false");
+    expect(rejouer).toContain("retention-days: 1");
+    // L'envoi part même si le rejeu échoue : les victoires gardent alors la vignette.
+    expect(jobs).toMatch(/needs: rejouer\s+[\s\S]*?if: \$\{\{ !cancelled\(\) && github\.ref_name == 'main' \}\}/);
   });
 });
