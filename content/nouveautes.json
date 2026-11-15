@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-15",
+    "kind": "corrige",
+    "title": "« Revoir » et « Ouvrir » sur une ligne",
+    "body": "Dans « Dernières parties », sur grand écran, une partie filmée garde ses deux liens côte à côte : sa ligne ne grandit plus.",
+    "link": {
+      "href": "/parties",
+      "label": "Dernières parties"
+    }
+  },
+  {
+    "date": "2026-11-15",
     "kind": "ameliore",
     "title": "Les films montrent noms et constructions",
     "body": "La carte de « Revoir une partie » montre villes, ports, usines, défenses, silos, navires et bombes avec les icônes du jeu, le pseudo des Gaulois et le tag des clans officiels.",

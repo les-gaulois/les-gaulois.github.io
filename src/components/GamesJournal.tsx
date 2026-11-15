@@ -62,10 +62,13 @@ function Film({ row, base }: { row: JournalRow; base: string }) {
   );
 }
 
-/** Les liens d'une partie : son film sur le site s'il existe, et la partie sur OpenFront. */
+/**
+ * Les liens d'une partie : son film sur le site s'il existe, et la partie sur OpenFront. Dans le tableau (grand écran), sur une
+ * seule ligne : sinon la colonne prend la largeur du plus long des deux, « Ouvrir » passe sous « Revoir » et la ligne grandit.
+ */
 function Liens({ row, base, films }: { row: JournalRow; base: string; films: ReadonlySet<string> }) {
   return (
-    <span class="inline-flex flex-wrap gap-x-4">
+    <span class="inline-flex flex-wrap gap-x-4 lg:flex-nowrap">
       {films.has(row.id) && <Film row={row} base={base} />}
       <Replay row={row} />
     </span>
