@@ -4,7 +4,8 @@ import { fmtDayAndTime, fmtInt } from "../lib/format";
 import { filmSpeed, speedLabel, speedText, SPEED_MAX, SPEED_MIN, SPEED_STEP } from "../lib/fx/speed";
 import { replayUrl } from "../lib/journal";
 import { mapLabel } from "../lib/map-names";
-import { Bobine, CLASSE, COULEURS_DES_CLASSES, contientRetombees, decompresser, dureeDite, horloge, lireFilm, PeintreFilm, secondesDeLImage, type Film } from "../lib/rejeu/film";
+import { DessinateurDetails, type ChoixDetails } from "../lib/rejeu/details";
+import { Bobine, CLASSE, CONSTRUCTIONS, COULEURS_DES_CLASSES, contientRetombees, decompresser, dureeDite, etiquettesDe, horloge, lireFilm, PeintreFilm, secondesDeLImage, UNITES, unitesDuFilm, type Film } from "../lib/rejeu/film";
 import { formatLabel } from "../lib/results";
 
 /** Les images par seconde à la vitesse normale : une partie de 8 minutes se revoit en une demi-minute. */
@@ -23,6 +24,8 @@ interface Props {
   jours: number;
   /** Le tag du clan, pour la légende. */
   tag: string;
+  /** Le vrai lecteur du jeu de chaque partie qui l'a, sur son site à lui (`https://<…>.github.io/jeu/<version>/#replay-viewer=<partie>`). */
+  jeux?: Record<string, string>;
 }
 
 const css = (c: Rgb) => `rgb(${c[0]} ${c[1]} ${c[2]})`;
@@ -60,12 +63,53 @@ function Legende({ film, retombees, tag }: { film: Film; retombees: boolean; tag
   );
 }
 
+/** Le côté d'une icône de la légende, en pixels CSS : deux fois la case d'un sprite du jeu, qui s'agrandit en pixels entiers. */
+const COTE_ICONE = 26;
+
+/** Une unité de la légende : la vraie icône du jeu, dessinée comme sur la carte, dans la couleur des Gaulois. */
+function IconeUnite({ dessinateur, code, chantier = false }: { dessinateur: DessinateurDetails; code: number; chantier?: boolean }) {
+  const toile = useRef<HTMLCanvasElement>(null);
+  const [cote, setCote] = useState(COTE_ICONE);
+  useEffect(() => setCote(COTE_ICONE * Math.max(1, Math.round(devicePixelRatio || 1))), []);
+  useEffect(() => {
+    const ctx = toile.current?.getContext("2d");
+    if (ctx) dessinateur.dessinerIcone(ctx, code, CLASSE.gaulois, cote, chantier);
+  }, [dessinateur, code, chantier, cote]);
+  return <canvas ref={toile} class="revoir-icone" width={cote} height={cote} aria-hidden="true" />;
+}
+
+/**
+ * La légende des unités : celles qui paraissent dans ce film, chacune avec son icône du jeu et son nom. Elle attend les
+ * planches d'icônes : sans elles, une liste de noms ne dirait rien de la carte.
+ */
+function LegendeUnites({ film, dessinateur }: { film: Film; dessinateur: DessinateurDetails }) {
+  const codes = useMemo(() => [...unitesDuFilm(film)].sort((a, b) => a - b), [film]);
+  if (codes.length === 0) return null;
+  const chantier = codes.find((c) => c < CONSTRUCTIONS);
+  return (
+    <ul class="revoir-unites" aria-label="Légende des constructions et des unités" data-testid="rejeu-unites">
+      {codes.map((c) => (
+        <li key={c}>
+          <IconeUnite dessinateur={dessinateur} code={c} />
+          {UNITES[c]}
+        </li>
+      ))}
+      {chantier !== undefined && (
+        <li>
+          <IconeUnite dessinateur={dessinateur} code={chantier} chantier />
+          En chantier
+        </li>
+      )}
+    </ul>
+  );
+}
+
 /**
  * Le lecteur des films de parties (page « Revoir une partie ») : la carte de la partie, rejouée par le moteur du jeu, image par
  * image, avec la lecture, la barre du temps et la vitesse. Le film est un fichier statique du site : le navigateur n'appelle
  * jamais OpenFront. Rien ne part tout seul : la lecture attend le visiteur, et le bouton pause de l'en-tête l'arrête.
  */
-export default function RejeuPartie({ base, dernier, jours, tag }: Props) {
+export default function RejeuPartie({ base, dernier, jours, tag, jeux = {} }: Props) {
   const [partie, setPartie] = useState<string | null>(null);
   const [etat, setEtat] = useState<Etat>("charge");
   const [film, setFilm] = useState<Film | null>(null);
@@ -73,7 +117,14 @@ export default function RejeuPartie({ base, dernier, jours, tag }: Props) {
   const [lecture, setLecture] = useState(false);
   const [vitesse, setVitesse] = useState(SPEED_MAX);
   const [essai, setEssai] = useState(0);
+  const [choix, setChoix] = useState<ChoixDetails>({ noms: true, unites: true });
+  // La taille de la toile des détails, en pixels de l'écran : celle de la carte affichée.
+  const [taille, setTaille] = useState<{ l: number; h: number } | null>(null);
   const toile = useRef<HTMLCanvasElement>(null);
+  const toileDetails = useRef<HTMLCanvasElement>(null);
+  // Les icônes du jeu (public/openfront/) : sans elles, les constructions gardent leur forme, sans icône.
+  const dessinateur = useRef(new DessinateurDetails(null));
+  const [planches, setPlanches] = useState(false);
   const bobine = useRef<Bobine | null>(null);
   const peintre = useRef<PeintreFilm | null>(null);
   const pixels = useRef<ImageData | null>(null);
@@ -127,6 +178,50 @@ export default function RejeuPartie({ base, dernier, jours, tag }: Props) {
     peintre.current.peindre(bobine.current.grille, pixels.current.data);
     ctx.putImageData(pixels.current, 0, 0);
   }, [film, image, etat]);
+
+  // La toile des détails suit la taille de la carte à l'écran, en pixels réels : noms et icônes restent nets.
+  useEffect(() => {
+    const cadre = toileDetails.current?.parentElement;
+    if (!cadre || typeof ResizeObserver === "undefined") return;
+    const mesurer = () => {
+      const r = devicePixelRatio || 1;
+      setTaille({ l: Math.max(1, Math.round(cadre.clientWidth * r)), h: Math.max(1, Math.round(cadre.clientHeight * r)) });
+    };
+    const observateur = new ResizeObserver(mesurer);
+    observateur.observe(cadre);
+    mesurer();
+    return () => observateur.disconnect();
+  }, [film]);
+
+  // Les deux planches d'icônes du jeu, chargées une fois.
+  useEffect(() => {
+    const charger = (src: string) =>
+      new Promise<HTMLImageElement>((ok, ko) => {
+        const img = new Image();
+        img.onload = () => ok(img);
+        img.onerror = () => ko(new Error(src));
+        img.src = src;
+      });
+    let annule = false;
+    Promise.all([charger(`${base}/openfront/icon-atlas.png`), charger(`${base}/openfront/unit-atlas.png`)])
+      .then(([icones, unites]) => {
+        if (annule) return;
+        dessinateur.current = new DessinateurDetails({ icones, unites });
+        setPlanches(true);
+      })
+      .catch(() => {});
+    return () => {
+      annule = true;
+    };
+  }, [base]);
+
+  // Les noms et les unités de l'image montrée, par-dessus la carte (après elle : la bobine est à la bonne image).
+  useEffect(() => {
+    const ctx = toileDetails.current?.getContext("2d");
+    if (!film || !ctx || !bobine.current || !taille) return;
+    bobine.current.aller(image);
+    dessinateur.current.dessiner(ctx, film, bobine.current.unites.values(), etiquettesDe(film, image), choix, taille.l, taille.h, devicePixelRatio || 1);
+  }, [film, image, etat, choix, taille, planches]);
 
   // La lecture : tant d'images par seconde, selon la vitesse. Elle s'arrête à la dernière image.
   useEffect(() => {
@@ -230,6 +325,18 @@ export default function RejeuPartie({ base, dernier, jours, tag }: Props) {
           </span>
         )}
       </div>
+      {/* Le vrai lecteur de replay du jeu, construit par le site pour la version de cette partie (src/lib/rejeu/lecteur-jeu.ts). */}
+      {partie !== null && jeux[partie] && (
+        <p class="revoir-jeu">
+          <a class="btn btn-secondary" href={jeux[partie]} rel="noopener" data-testid="rejeu-jeu">
+            <svg viewBox="0 0 14 14" width="14" height="14" fill="currentColor" aria-hidden="true">
+              <path d="M2 1l11 6-11 6z" />
+            </svg>
+            Voir le replay du jeu
+          </a>
+          <span class="revoir-jeu-note">Le lecteur d'OpenFront lui-même : noms, troupes, constructions, attaques.</span>
+        </p>
+      )}
 
       {/* La carte et sa barre de lecture d'un côté, les faits de la partie et la légende de l'autre (dessous sur téléphone). */}
       <div class="revoir-corps" style={e ? { "--revoir-forme": String(e.largeur / e.hauteur) } : undefined}>
@@ -244,6 +351,8 @@ export default function RejeuPartie({ base, dernier, jours, tag }: Props) {
               aria-label={e ? `Carte de la partie à ${dureeDite(maintenant)} sur ${dureeDite(fin)} : qui tient chaque territoire, selon la légende.` : "Carte de la partie, en chargement"}
               data-testid="rejeu-toile"
             />
+            {/* Les noms et les unités, dessinés à la taille de l'écran ; la carte dessous dit déjà ce qu'elle montre. */}
+            <canvas ref={toileDetails} class="revoir-details" width={taille?.l ?? 1} height={taille?.h ?? 1} aria-hidden="true" data-testid="rejeu-details" />
           </div>
 
           <div class="revoir-transport">
@@ -317,6 +426,20 @@ export default function RejeuPartie({ base, dernier, jours, tag }: Props) {
             </dl>
           )}
           {film && <Legende film={film} retombees={retombees} tag={tag} />}
+          {film && planches && <LegendeUnites film={film} dessinateur={dessinateur.current} />}
+          {film && (
+            <fieldset class="revoir-choix" data-testid="rejeu-choix">
+              <legend>Sur la carte</legend>
+              <label>
+                <input type="checkbox" checked={choix.noms} onChange={(ev) => setChoix({ ...choix, noms: ev.currentTarget.checked })} />
+                Noms
+              </label>
+              <label>
+                <input type="checkbox" checked={choix.unites} onChange={(ev) => setChoix({ ...choix, unites: ev.currentTarget.checked })} />
+                Constructions et unités
+              </label>
+            </fieldset>
+          )}
           {partie !== null && (
             <p class="revoir-sortie">
               <a class="link" href={replayUrl(partie)} rel="noopener" data-testid="rejeu-openfront">

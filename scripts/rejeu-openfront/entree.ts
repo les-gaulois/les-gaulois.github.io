@@ -7,8 +7,9 @@
  *   node moteur.mjs <fiche de la partie.json> <dossier de la carte> <sortie, sans extension> [film]
  *
  * Avec `film` (`scripts/filmer-parties.ts`, demande du pilote du 15 novembre 2026 : revoir les parties déjà jouées), il note
- * aussi, toutes les `pas` étapes, qui tient chaque case d'une grille réduite de la carte : `<sortie>.film.bin.gz`, décrit dans
- * `film` de `<sortie>.json` (voir `FilmBrutMeta`, src/lib/rejeu/film-brut.ts).
+ * aussi, toutes les `pas` étapes, qui tient chaque case d'une grille réduite de la carte, et les unités suivies (constructions,
+ * navires, bombes : `UNITES_FILMEES`) : `<sortie>.film.bin.gz`, décrit dans `film` de `<sortie>.json` (voir `FilmBrutMeta`,
+ * src/lib/rejeu/film-brut.ts). Aucun nom : le site choisit lui-même ceux qu'il publie.
  *
  * Appelle le moteur d'OpenFront (https://github.com/openfrontio/OpenFrontIO, AGPL-3.0, © OpenFront and Contributors) :
  * createGameRunner (packages/engine/src/GameRunner.ts), decompressGameRecord et toWireGameStartInfo
@@ -56,10 +57,19 @@ function varint(sortie: number[], v: number) {
 }
 
 /**
+ * Les unités que le film suit, dans les noms du moteur (`UnitType`) : les constructions, les navires de guerre et de transport,
+ * les bombes en vol. Pas les navires marchands, les trains, les obus ni les missiles des SAM : trop nombreux ou trop brefs. Comme
+ * `UNITES_DU_FILM` de src/lib/rejeu/film-brut.ts, qui vérifie la liste écrite dans la description.
+ */
+const UNITES_FILMEES = ["City", "Port", "Factory", "Defense Post", "SAM Launcher", "Missile Silo", "Warship", "Transport", "Atom Bomb", "Hydrogen Bomb", "MIRV", "MIRV Warhead"];
+
+/**
  * Le film d'une partie : la grille réduite de la carte (une case sur `facteur`, dans chaque sens, celle du centre), l'octet de
  * terrain de chaque case de la grille, puis une image toutes les `pas` étapes et à la dernière. Chaque image ne donne que les
  * cases qui ont changé depuis la précédente : leur nombre, puis pour chacune l'écart avec la précédente changée (moins un) et
- * sa valeur, le propriétaire fois deux, plus un s'il y a des retombées.
+ * sa valeur, le propriétaire fois deux, plus un s'il y a des retombées. Puis les unités qui ont changé : leur nombre, puis
+ * pour chacune son numéro fois deux, plus un si elle est là ; si elle est là, son type (rang dans `UNITES_FILMEES`), sa case
+ * (x, y, sur la carte entière), son propriétaire, son niveau, 1 si elle est en construction. Une unité partie : son numéro seul.
  */
 class Film {
   readonly facteur: number;
@@ -69,6 +79,8 @@ class Film {
   private readonly refs: Int32Array;
   private readonly avant: Int32Array;
   private readonly octets: number[] = [];
+  private readonly unites = new Map<number, string>();
+  private readonly types = new Map(UNITES_FILMEES.map((t, i) => [t, i]));
   images = 0;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -110,6 +122,32 @@ class Film {
     }
     varint(this.octets, nombre);
     for (const o of changees) this.octets.push(o);
+
+    const vues = new Set<number>();
+    const unites: number[] = [];
+    let changeesU = 0;
+    for (const u of this.jeu.units()) {
+      const type = this.types.get(u.type());
+      if (type === undefined || !u.isActive()) continue;
+      const id = u.id();
+      const tile = u.tile();
+      const valeurs = [type, this.jeu.x(tile), this.jeu.y(tile), u.owner().smallID(), Math.max(1, u.level?.() ?? 1), u.isUnderConstruction?.() ? 1 : 0];
+      vues.add(id);
+      const cle = valeurs.join(",");
+      if (this.unites.get(id) === cle) continue;
+      this.unites.set(id, cle);
+      varint(unites, id * 2 + 1);
+      for (const v of valeurs) varint(unites, v);
+      changeesU++;
+    }
+    for (const id of [...this.unites.keys()]) {
+      if (vues.has(id)) continue;
+      this.unites.delete(id);
+      varint(unites, id * 2);
+      changeesU++;
+    }
+    varint(this.octets, changeesU);
+    for (const o of unites) this.octets.push(o);
     this.images++;
   }
 
@@ -182,7 +220,7 @@ async function rejouer(fichePath: string, carteDir: string, sortie: string, film
     }
   }
   const joueurs = jeu.allPlayers().map((p) => ({ n: p.smallID(), client: p.clientID() ?? null, equipe: p.team() ?? null, type: String(p.type()) }));
-  const descriptionDuFilm = film ? { facteur: film.facteur, largeur: film.largeur, hauteur: film.hauteur, pas: film.pas, images: film.images } : undefined;
+  const descriptionDuFilm = film ? { facteur: film.facteur, largeur: film.largeur, hauteur: film.hauteur, pas: film.pas, images: film.images, unites: UNITES_FILMEES } : undefined;
   const meta = { format: 1, partie: fiche.info.gameID, commit: fiche.gitCommit, largeur, hauteur, tours: derniere + 1, toursFiche: turns.length, empreintes: retrouvees, joueurs, film: descriptionDuFilm };
   writeFileSync(`${sortie}.bin.gz`, gzipSync(octets, { level: 9 }));
   if (film) writeFileSync(`${sortie}.film.bin.gz`, gzipSync(film.enOctets(), { level: 9 }));

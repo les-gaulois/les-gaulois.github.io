@@ -1,0 +1,12 @@
+Icônes du jeu OpenFront, reprises pour la page « Revoir une partie » du site du clan [GAL] (https://les-gaulois.github.io/revoir/).
+
+icon-atlas.png : resources/atlases/icon-atlas.png (constructions : ville, port, usine, poste de défense, lance-missiles SAM, silo)
+unit-atlas.png : resources/atlases/unit-atlas.png (unités : transport, navire marchand, navire de guerre, bombe atomique,
+                 bombe H, MIRV, missile SAM, obus, ogive de MIRV, trains)
+
+Source : dépôt https://github.com/openfrontio/OpenFrontIO, commit 8b5d071eed95f07c701b32e4c64e95b03f8577c1.
+© OpenFront and Contributors, sous licence Creative Commons Attribution - Partage dans les mêmes conditions 4.0 (CC BY-SA 4.0) :
+https://creativecommons.org/licenses/by-sa/4.0/deed.fr
+
+Copiées sans modification le 15 novembre 2026. La page les colore et les pose sur la carte comme le jeu (formes, couleurs
+des joueurs, contours), dans src/lib/rejeu/details.ts. Ces images restent sous la même licence.

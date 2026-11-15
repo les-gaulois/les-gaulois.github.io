@@ -41,6 +41,7 @@
     "victoires:rejouer": "tsx scripts/rejouer-victoires.ts",
     "parties:filmer": "tsx scripts/filmer-parties.ts",
     "films:publier": "tsx scripts/publier-films.ts",
+    "lecteurs:construire": "tsx scripts/construire-lecteurs.ts",
     "stateres:crediter": "tsx scripts/crediter-stateres.ts",
     "pronostics:regler": "tsx scripts/regler-pronostics.ts",
     "village:economie": "tsx scripts/mesurer-economie-village.ts",

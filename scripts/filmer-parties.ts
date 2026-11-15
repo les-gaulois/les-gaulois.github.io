@@ -14,16 +14,17 @@
  */
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { gunzipSync } from "node:zlib";
+import { gunzipSync, gzipSync } from "node:zlib";
 import { z } from "zod";
 import { clan } from "../config/clan";
 import { MAX_OCTETS_DESCRIPTION } from "../src/lib/carte-finale";
-import { loadSessions } from "../src/lib/data";
+import { loadLeaderboard, loadMembers, loadSessions } from "../src/lib/data";
 import { mapKey } from "../src/lib/map-names";
 import { dossierDeCarte } from "../src/lib/rejeu-openfront";
 import { lireFilm } from "../src/lib/rejeu/film";
-import { filmDeLaPartie } from "../src/lib/rejeu/film-brut";
-import { DOSSIER_FILMS, INDEX_DES_FILMS, lireIndex, MAX_OCTETS_FILM, MAX_OCTETS_FILM_DECOMPRESSE, nomDuFilm, noterEchec, noterFilm, partiesAFilmer, rangerLesFilms, type IndexDesFilms } from "../src/lib/rejeu/films-index";
+import { filmDeLaPartie, nomsPubliables } from "../src/lib/rejeu/film-brut";
+import { ficheNettoyee } from "../src/lib/rejeu/lecteur-jeu";
+import { DOSSIER_FILMS, INDEX_DES_FILMS, lireIndex, MAX_OCTETS_FILM, MAX_OCTETS_FILM_DECOMPRESSE, nomDeLaFiche, nomDuFilm, noterEchec, noterFilm, partiesAFilmer, rangerLesFilms, type IndexDesFilms } from "../src/lib/rejeu/films-index";
 import type { StoredSession } from "../src/lib/schemas";
 import { construireMoteur, FicheInattendue, lancerMoteur, lireCarte, lireFiche, message, type Moteur, RACINE, rangerCartes, rangerMoteurs, TropLong } from "./rejeu-commun";
 
@@ -41,10 +42,19 @@ const now = new Date();
 const readText = (path: string) => (existsSync(path) ? readFileSync(path, "utf8") : null);
 
 /**
- * Les joueurs de la fiche, pour reconnaître les Gaulois : ceux qui portent le tag du clan et ont des stats, comme les compte la
- * session du clan (`clanPlayerCount`, affiché à côté du film) et le message des victoires. Rien d'autre n'en est gardé.
+ * Les joueurs de la fiche, pour reconnaître les Gaulois (ceux qui portent le tag du clan et ont des stats, comme les compte la
+ * session du clan, `clanPlayerCount`, affiché à côté du film, et le message des victoires) et choisir les noms publiables
+ * (l'identifiant public relie un joueur à la liste du clan, le tag à la liste officielle : `nomsPubliables`). Rien d'autre n'en
+ * est gardé : ni l'identifiant public ni le pseudo de la partie n'entrent dans le film.
  */
-const JoueursDeLaFiche = z.object({ info: z.object({ players: z.array(z.object({ clientID: z.string().nullish(), clanTag: z.string().nullish(), stats: z.unknown().optional() })).max(5_000) }) });
+const JoueursDeLaFiche = z.object({ info: z.object({ players: z.array(z.object({ clientID: z.string().nullish(), publicID: z.string().nullish(), clanTag: z.string().nullish(), stats: z.unknown().optional() })).max(5_000) }) });
+
+/**
+ * Les pseudos des membres de la liste du clan, par identifiant public, et les tags du classement officiel : les seuls noms que
+ * les films posent sur la carte (`nomsPubliables`). Un anonyme de la liste n'y est pas.
+ */
+const pseudosDuClan = new Map((loadMembers()?.members ?? []).filter((m) => m.publicId && m.username).map((m) => [m.publicId!, m.username!]));
+const tagsOfficiels = loadLeaderboard()?.clans.map((c) => c.clanTag) ?? [];
 
 let index: IndexDesFilms = lireIndex(readText(INDEX_DES_FILMS));
 const noter = () => {
@@ -129,6 +139,7 @@ async function filmer(s: StoredSession, moteurs: Map<string, Promise<Moteur>>): 
         gaulois: s.clanPlayerCount,
         joueurs: s.totalPlayerCount,
         clients,
+        noms: nomsPubliables(joueurs.data.info.players, pseudosDuClan, tagsOfficiels),
       }));
       if (octets.length > MAX_OCTETS_FILM) throw new Error("film trop lourd");
       // Relu comme la page le relira : un film qu'elle refuserait n'est pas gardé.
@@ -140,7 +151,18 @@ async function filmer(s: StoredSession, moteurs: Map<string, Promise<Moteur>>): 
     const chemin = join(DOSSIER_FILMS, nom);
     writeFileSync(`${chemin}.partiel`, octets);
     renameSync(`${chemin}.partiel`, chemin);
-    index = noterFilm(index, s.gameId, s.gameStart, octets.length);
+    // La fiche nettoyée, pour le vrai lecteur du jeu : sans identifiant public ni cosmétiques (`ficheNettoyee`).
+    const nomFiche = nomDeLaFiche(s.gameId);
+    if (nomFiche) {
+      try {
+        const cheminFiche = join(DOSSIER_FILMS, nomFiche);
+        writeFileSync(`${cheminFiche}.partiel`, gzipSync(ficheNettoyee(fiche.texte, s.gameId), { level: 9 }));
+        renameSync(`${cheminFiche}.partiel`, cheminFiche);
+      } catch (e) {
+        console.log(`::warning::Films : la fiche de la partie ${s.gameId} n'est pas gardée pour le lecteur du jeu (${message(e)}).`);
+      }
+    }
+    index = noterFilm(index, s.gameId, s.gameStart, octets.length, commit);
     console.log(`Films : partie ${s.gameId} (${info.config.gameMap}, ${s.hasWon ? "victoire" : "défaite"}) filmée en ${Math.round((Date.now() - t0) / 1000)} s, ${Math.round(octets.length / 1024)} Ko.`);
   } finally {
     rmSync(travail, { recursive: true, force: true });
@@ -155,7 +177,7 @@ function ranger() {
     const nom = nomDuFilm(partie);
     if (nom) rmSync(join(DOSSIER_FILMS, nom), { force: true });
   }
-  const connus = new Set(index.films.map((f) => nomDuFilm(f.partie)));
+  const connus = new Set(index.films.flatMap((f) => [nomDuFilm(f.partie), nomDeLaFiche(f.partie)]));
   for (const nom of readdirSync(DOSSIER_FILMS)) if (nom !== "index.json" && !connus.has(nom)) rmSync(join(DOSSIER_FILMS, nom), { recursive: true, force: true });
 }
 

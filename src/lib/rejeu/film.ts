@@ -5,14 +5,23 @@
  * partie avec le moteur du jeu (`scripts/filmer-parties.ts`), et n'en garde que ce film, qui se lit ici. Sans rien de Node : ce
  * fichier va aussi dans le navigateur.
  *
- * Le film ne montre que qui tient chaque case, sur une grille réduite de la carte (une case sur `facteur` dans chaque sens), une
- * image toutes les `pas` étapes du jeu (une étape dure 100 ms) et à la dernière. Pas de nom : les couleurs disent le camp.
+ * Le film montre qui tient chaque case, sur une grille réduite de la carte (une case sur `facteur` dans chaque sens), une image
+ * toutes les `pas` étapes du jeu (une étape dure 100 ms) et à la dernière ; depuis la version 2 (demande du pilote, « le nom des
+ * joueurs ainsi que ce qu'il pose en jeu »), aussi les noms posés sur les territoires et les unités : constructions, navires de
+ * guerre et de transport, bombes en vol. Les noms ne sont que ceux que le site peut publier (`film-brut.ts`) : le pseudo des
+ * membres du clan, le tag des clans du classement officiel, jamais le pseudo libre d'un inconnu.
  *
  * Format (avant compression gzip du fichier entier) :
  *   « GALF », un octet de version, la longueur de l'en-tête sur deux octets (petit-boutiste), l'en-tête en JSON (`EnteteFilm`),
- *   l'octet de terrain de chaque case de la grille (au format des cartes du jeu), puis chaque image : son nombre de plages de
- *   cases changées, et pour chaque plage l'écart depuis la fin de la précédente, sa longueur moins un (deux entiers LEB128) et
- *   la valeur de ses cases, un octet : la classe (`CLASSE`) plus `RETOMBEES` si des retombées nucléaires la touchent.
+ *   l'octet de terrain de chaque case de la grille (au format des cartes du jeu), puis chaque image, en trois parties, chaque
+ *   nombre en entier LEB128 :
+ *   - les cases : le nombre de plages de cases changées, et pour chaque plage l'écart depuis la fin de la précédente, sa
+ *     longueur moins un et la valeur de ses cases, un octet : la classe (`CLASSE`) plus `RETOMBEES` si des retombées
+ *     nucléaires la touchent ;
+ *   - les noms : leur nombre, et pour chacun son rang dans `noms` de l'en-tête, sa case (x, y, sur la grille) et sa taille (la
+ *     distance de cette case au bord du territoire, en cases) ;
+ *   - les unités qui ont changé : leur nombre, et pour chacune son numéro fois deux, plus un si elle est là ; si elle est là, son
+ *     code (`UNITES`), sa case sur la carte entière (x, y), sa classe, son niveau et 1 si elle est en construction.
  *
  * Le dessin d'une image (`PeintreFilm`) reprend celui de la carte de fin des victoires (`carte-dessin.ts`), lui-même repris
  * d'OpenFront (https://github.com/openfrontio/OpenFrontIO, AGPL-3.0, commit a0abccc) : remplissage des territoires de
@@ -23,7 +32,7 @@
  */
 import { ALPHA_RETOMBEES, ALPHA_TERRITOIRE, COULEUR_EQUIPE, COULEUR_GAULOIS, COULEUR_RETOMBEES, COULEUR_ROBOTS, COULEURS_ADVERSES, couleurBord, couleurDeFond, estTerre, sature, type Rgb } from "../carte-dessin";
 
-export const FORMAT_FILM = 1;
+export const FORMAT_FILM = 2;
 const MAGIE = [0x47, 0x41, 0x4c, 0x46];
 
 /** La grille du film tient en au plus tant de cases : la carte du monde géante (4 108 × 1 948) devient 514 × 244. */
@@ -42,6 +51,39 @@ export const NOMBRE_DE_CLASSES = CLASSE.adverses + COULEURS_ADVERSES.length;
 
 /** La couleur de chaque classe, celles de la carte de fin des victoires. `null` : personne. */
 export const COULEURS_DES_CLASSES: readonly (Rgb | null)[] = [null, COULEUR_GAULOIS, COULEUR_EQUIPE, COULEUR_ROBOTS, ...COULEURS_ADVERSES];
+
+/**
+ * Les unités du film, dans l'ordre des types du moteur (`UNITES_FILMEES` de scripts/rejeu-openfront/entree.ts, `UNITES_DU_FILM`
+ * de film-brut.ts) : leur code est leur rang. Les six premières sont des constructions, fixes ; les autres bougent.
+ */
+export const UNITES = ["Ville", "Port", "Usine", "Poste de défense", "Lance-missiles SAM", "Silo à missiles", "Navire de guerre", "Transport de troupes", "Bombe atomique", "Bombe H", "MIRV", "Ogive de MIRV"] as const;
+export const CONSTRUCTIONS = 6;
+/** Bornes d'un film : au-delà, il est refusé. */
+const NOMS_MAX = 300;
+const ETIQUETTES_MAX = 2_000;
+const UNITES_MAX = 50_000;
+
+/** Un nom posé sur un territoire à une image : son rang dans `noms`, sa case sur la grille, la place qu'il a. */
+export interface Etiquette {
+  nom: number;
+  x: number;
+  y: number;
+  taille: number;
+}
+/** Une unité à une image : `code` dans `UNITES`, case sur la carte entière, classe de son propriétaire. */
+export interface Unite {
+  code: number;
+  x: number;
+  y: number;
+  classe: number;
+  niveau: number;
+  chantier: boolean;
+}
+/** Une unité qui change à une image : `null`, elle n'est plus là. */
+export interface ChangementUnite {
+  id: number;
+  unite: Unite | null;
+}
 
 /**
  * La grille réduite d'une carte, comme le moteur la note (`Film` de scripts/rejeu-openfront/entree.ts) : le plus petit
@@ -87,13 +129,17 @@ export interface EnteteFilm {
   adverses: number;
   /** Une équipe aux Gaulois, avec d'autres joueurs qu'eux : la légende montre « leur équipe ». */
   equipe: boolean;
+  /** Les noms que le film pose sur les territoires, avec la classe de leur joueur. */
+  noms: { texte: string; classe: number }[];
 }
 
 export interface Film {
   entete: EnteteFilm;
   terrain: Uint8Array;
-  /** Où commence chaque image dans `donnees`. */
+  /** Où commence chaque image dans `donnees` : ses cases, ses noms, ses unités. */
   debuts: Uint32Array;
+  debutsNoms: Uint32Array;
+  debutsUnites: Uint32Array;
   donnees: Uint8Array;
 }
 
@@ -123,7 +169,7 @@ export class EcrivainFilm {
     this.avant = new Uint8Array(largeur * hauteur);
   }
 
-  ajouter(grille: Uint8Array) {
+  ajouter(grille: Uint8Array, etiquettes: readonly Etiquette[] = [], unites: readonly ChangementUnite[] = []) {
     if (grille.length !== this.avant.length) throw new Error("grille de la mauvaise taille");
     const plages: number[] = [];
     let nombre = 0;
@@ -148,6 +194,13 @@ export class EcrivainFilm {
     }
     varint(this.octets, nombre);
     for (const o of plages) this.octets.push(o);
+    varint(this.octets, etiquettes.length);
+    for (const e of etiquettes) for (const v of [e.nom, e.x, e.y, e.taille]) varint(this.octets, v);
+    varint(this.octets, unites.length);
+    for (const { id, unite: u } of unites) {
+      varint(this.octets, id * 2 + (u ? 1 : 0));
+      if (u) for (const v of [u.code, u.x, u.y, u.classe, u.niveau, u.chantier ? 1 : 0]) varint(this.octets, v);
+    }
     this.images++;
   }
 
@@ -173,6 +226,8 @@ export class EcrivainFilm {
 
 const entier = (v: unknown, min: number, max: number): v is number => typeof v === "number" && Number.isInteger(v) && v >= min && v <= max;
 const texte = (v: unknown, motif: RegExp): v is string => typeof v === "string" && motif.test(v);
+/** Un nom posé sur la carte : une ligne courte, sans caractère de contrôle ni chevron. */
+export const NOM_PERMIS = /^[^\p{Cc}\p{Cf}<>]{1,40}$/u;
 
 /** Relit l'en-tête d'un film : lève une erreur, en mots, s'il ne convient pas. */
 export function lireEntete(brut: unknown): EnteteFilm {
@@ -194,11 +249,14 @@ export function lireEntete(brut: unknown): EnteteFilm {
     entier(e.images, 1, IMAGES_FILM_MAX) &&
     entier(e.tours, 1, 100_000_000) &&
     entier(e.adverses, 0, COULEURS_ADVERSES.length) &&
-    typeof e.equipe === "boolean";
+    typeof e.equipe === "boolean" &&
+    Array.isArray(e.noms) &&
+    e.noms.length <= NOMS_MAX &&
+    e.noms.every((n: unknown) => typeof n === "object" && n !== null && texte((n as { texte?: unknown }).texte, NOM_PERMIS) && entier((n as { classe?: unknown }).classe, 0, NOMBRE_DE_CLASSES - 1));
   if (!ok) throw new Error("en-tête au mauvais format");
   const entete = e as unknown as EnteteFilm;
   if (entete.largeur * entete.hauteur > CASES_FILM_MAX) throw new Error("grille trop grande");
-  return { ...entete };
+  return { ...entete, noms: entete.noms.map((n) => ({ texte: n.texte, classe: n.classe })) };
 }
 
 /**
@@ -223,6 +281,10 @@ export function lireFilm(octets: Uint8Array): Film {
   const terrain = octets.slice(debutTerrain, debutTerrain + n);
   const donnees = octets.subarray(debutTerrain + n);
   const debuts = new Uint32Array(entete.images);
+  const debutsNoms = new Uint32Array(entete.images);
+  const debutsUnites = new Uint32Array(entete.images);
+  const largeurCarte = entete.largeur * entete.facteur;
+  const hauteurCarte = entete.hauteur * entete.facteur;
   let p = 0;
   const lire = () => {
     let v = 0;
@@ -250,9 +312,34 @@ export function lireFilm(octets: Uint8Array): Film {
       if (debut + longueurPlage > n) throw new Error("plage hors de la grille");
       fin = debut + longueurPlage;
     }
+    debutsNoms[k] = p;
+    const etiquettes = lire();
+    if (etiquettes > ETIQUETTES_MAX) throw new Error("trop de noms");
+    for (let q = 0; q < etiquettes; q++) {
+      const nom = lire();
+      const x = lire();
+      const y = lire();
+      lire();
+      if (nom >= entete.noms.length) throw new Error("nom inconnu");
+      if (x >= entete.largeur || y >= entete.hauteur) throw new Error("nom hors de la grille");
+    }
+    debutsUnites[k] = p;
+    const unites = lire();
+    if (unites > UNITES_MAX) throw new Error("trop d'unités");
+    for (let q = 0; q < unites; q++) {
+      if (lire() % 2 === 0) continue;
+      const code = lire();
+      const x = lire();
+      const y = lire();
+      const classe = lire();
+      const niveau = lire();
+      const chantier = lire();
+      if (code >= UNITES.length || classe >= NOMBRE_DE_CLASSES || niveau > 1_000 || chantier > 1) throw new Error("unité inconnue");
+      if (x >= largeurCarte || y >= hauteurCarte) throw new Error("unité hors de la carte");
+    }
   }
   if (p !== donnees.length) throw new Error("octets en trop à la fin du film");
-  return { entete, terrain, debuts, donnees };
+  return { entete, terrain, debuts, debutsNoms, debutsUnites, donnees };
 }
 
 /** Pose l'image `k` sur la grille, qui doit montrer l'image `k - 1` (ou être vide pour la première). */
@@ -279,13 +366,69 @@ export function appliquerImage(film: Film, k: number, grille: Uint8Array) {
   }
 }
 
+/** Un lecteur d'entiers LEB128 dans les données d'un film déjà vérifié par `lireFilm`. */
+function lecteur(d: Uint8Array, depart: number) {
+  let p = depart;
+  return () => {
+    let v = 0;
+    let echelle = 1;
+    for (;;) {
+      const o = d[p++]!;
+      v += (o & 0x7f) * echelle;
+      if (o < 0x80) return v;
+      echelle *= 128;
+    }
+  };
+}
+
+/** Les noms posés à l'image `k`. */
+export function etiquettesDe(film: Film, k: number): Etiquette[] {
+  if (!Number.isInteger(k) || k < 0 || k >= film.entete.images) return [];
+  const lire = lecteur(film.donnees, film.debutsNoms[k]!);
+  const n = lire();
+  const out: Etiquette[] = [];
+  for (let q = 0; q < n; q++) out.push({ nom: lire(), x: lire(), y: lire(), taille: lire() });
+  return out;
+}
+
+/** Pose les unités de l'image `k` sur `unites`, qui doit montrer celles de l'image `k - 1` (ou être vide). */
+export function appliquerUnites(film: Film, k: number, unites: Map<number, Unite>) {
+  if (!Number.isInteger(k) || k < 0 || k >= film.entete.images) return;
+  const lire = lecteur(film.donnees, film.debutsUnites[k]!);
+  const n = lire();
+  for (let q = 0; q < n; q++) {
+    const v = lire();
+    const id = Math.floor(v / 2);
+    if (v % 2 === 0) unites.delete(id);
+    else unites.set(id, { code: lire(), x: lire(), y: lire(), classe: lire(), niveau: lire(), chantier: lire() === 1 });
+  }
+}
+
+/** Les codes des unités qui paraissent dans le film : la légende ne montre qu'elles. */
+export function unitesDuFilm(film: Film): Set<number> {
+  const codes = new Set<number>();
+  for (let k = 0; k < film.entete.images; k++) {
+    const lire = lecteur(film.donnees, film.debutsUnites[k]!);
+    const n = lire();
+    for (let q = 0; q < n; q++) {
+      if (lire() % 2 === 0) continue;
+      codes.add(lire());
+      for (let j = 0; j < 5; j++) lire();
+    }
+  }
+  return codes;
+}
+
 /**
  * Les grilles de quelques images, gardées pour revenir en arrière sans tout relire : une toutes les `ecart` images. La grille
  * de l'image `k` se retrouve depuis la plus proche gardée avant elle.
  */
 export class Bobine {
   private readonly gardees: Uint8Array[] = [];
+  private readonly unitesGardees: Map<number, Unite>[] = [];
   readonly grille: Uint8Array;
+  /** Les unités de l'image montrée, par numéro. */
+  readonly unites = new Map<number, Unite>();
   /** L'image que montre `grille`. */
   image = -1;
 
@@ -295,9 +438,14 @@ export class Bobine {
   ) {
     this.grille = new Uint8Array(film.entete.largeur * film.entete.hauteur);
     const g = new Uint8Array(this.grille.length);
+    const u = new Map<number, Unite>();
     for (let k = 0; k < film.entete.images; k++) {
       appliquerImage(film, k, g);
-      if (k % ecart === 0) this.gardees.push(g.slice());
+      appliquerUnites(film, k, u);
+      if (k % ecart === 0) {
+        this.gardees.push(g.slice());
+        this.unitesGardees.push(new Map(u));
+      }
     }
   }
 
@@ -307,9 +455,15 @@ export class Bobine {
     if (cible < this.image || cible - this.image > this.ecart) {
       const depart = Math.floor(cible / this.ecart);
       this.grille.set(this.gardees[depart]!);
+      this.unites.clear();
+      for (const [id, u] of this.unitesGardees[depart]!) this.unites.set(id, u);
       this.image = depart * this.ecart;
     }
-    while (this.image < cible) appliquerImage(this.film, ++this.image, this.grille);
+    while (this.image < cible) {
+      this.image++;
+      appliquerImage(this.film, this.image, this.grille);
+      appliquerUnites(this.film, this.image, this.unites);
+    }
   }
 }
 
@@ -402,18 +556,19 @@ export class PeintreFilm {
 /** Des retombées nucléaires paraissent-elles dans le film ? La légende ne les montre que si oui. */
 export function contientRetombees(film: Film): boolean {
   const d = film.donnees;
-  let p = 0;
-  const lire = () => {
-    let v = 0;
-    let echelle = 1;
-    for (;;) {
-      const o = d[p++]!;
-      v += (o & 0x7f) * echelle;
-      if (o < 0x80) return v;
-      echelle *= 128;
-    }
-  };
   for (let k = 0; k < film.entete.images; k++) {
+    // Les plages de l'image : deux entiers, puis l'octet de la valeur.
+    let p = film.debuts[k]!;
+    const lire = () => {
+      let v = 0;
+      let echelle = 1;
+      for (;;) {
+        const o = d[p++]!;
+        v += (o & 0x7f) * echelle;
+        if (o < 0x80) return v;
+        echelle *= 128;
+      }
+    };
     const plages = lire();
     for (let q = 0; q < plages; q++) {
       lire();

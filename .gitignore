@@ -9,3 +9,4 @@ playwright-report/
 supabase/.temp/
 .claude/worktrees/
 public/films/
+public/jeu/

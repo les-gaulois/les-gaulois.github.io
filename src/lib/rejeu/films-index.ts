@@ -33,8 +33,10 @@ const Partie = z.string().regex(/^[A-Za-z0-9]{1,32}$/);
 const Debut = z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/);
 
 export const IndexDesFilms = z.object({
-  format: z.literal(1),
-  films: z.array(z.object({ partie: Partie, debut: Debut, octets: z.number().int().min(1).max(MAX_OCTETS_FILM) })).max(10_000),
+  // 2 depuis les films à noms et unités (version 2 de film.ts) : un index plus ancien repart de zéro, et ses films se refont.
+  format: z.literal(2),
+  /** `commit` : la version du jeu qui a joué la partie (depuis le vrai lecteur du jeu, 15 novembre 2026), pour lui trouver son lecteur. */
+  films: z.array(z.object({ partie: Partie, debut: Debut, octets: z.number().int().min(1).max(MAX_OCTETS_FILM), commit: z.string().regex(/^[0-9a-f]{40}$/).optional() })).max(10_000),
   /** Les parties qui n'ont pas pu être filmées : `definitive`, elles ne le seront jamais (fiche inutilisable, partie trop longue). */
   ratees: z.array(z.object({ partie: Partie, debut: Debut, raison: z.string().max(200), essais: z.number().int().min(1), definitive: z.boolean() })).max(10_000),
   /** La fin du dernier passage du robot des films allé à son terme : la date que la page montre. `null` : aucun encore. */
@@ -42,21 +44,34 @@ export const IndexDesFilms = z.object({
 });
 export type IndexDesFilms = z.infer<typeof IndexDesFilms>;
 
-export const indexVide = (): IndexDesFilms => ({ format: 1, films: [], ratees: [], passage: null });
+export const indexVide = (): IndexDesFilms => ({ format: 2, films: [], ratees: [], passage: null });
 
 /** L'index du cache. Absent ou illisible : vide, et les films se refont. */
 export function lireIndex(texte: string | null): IndexDesFilms {
   if (texte === null) return indexVide();
+  let brut: unknown;
   try {
-    return IndexDesFilms.parse(JSON.parse(texte));
+    brut = JSON.parse(texte);
   } catch {
     return indexVide();
   }
+  const lu = IndexDesFilms.safeParse(brut);
+  if (lu.success) return lu.data;
+  // Un index de la version 1 : ses films se refont, mais ses échecs pour de bon restent (une partie trop longue ne reprend pas
+  // les 4 minutes d'un passage), comme la date de son dernier passage.
+  const ancien = IndexDesFilms.extend({ format: z.literal(1) }).safeParse(brut);
+  if (ancien.success) return { ...indexVide(), ratees: ancien.data.ratees.filter((r) => r.definitive), passage: ancien.data.passage };
+  return indexVide();
 }
 
 /** Le fichier du film d'une partie. L'identifiant vient de l'API : vérifié avant d'en faire un nom de fichier. */
 export function nomDuFilm(partie: string): string | null {
   return Partie.safeParse(partie).success ? `${partie}.film` : null;
+}
+
+/** La fiche nettoyée de la partie, compressée, gardée avec son film pour le vrai lecteur du jeu (`ficheNettoyee`, lecteur-jeu.ts). */
+export function nomDeLaFiche(partie: string): string | null {
+  return Partie.safeParse(partie).success ? `${partie}.fiche.json.gz` : null;
 }
 
 const ageMs = (debut: string, now: Date) => now.getTime() - Date.parse(debut);
@@ -92,8 +107,8 @@ export function noterEchec(index: IndexDesFilms, partie: string, debut: string, 
 }
 
 /** Note un film fait : la partie sort des échecs. */
-export function noterFilm(index: IndexDesFilms, partie: string, debut: string, octets: number): IndexDesFilms {
-  return { ...index, films: [...index.films.filter((f) => f.partie !== partie), { partie, debut, octets }], ratees: index.ratees.filter((r) => r.partie !== partie) };
+export function noterFilm(index: IndexDesFilms, partie: string, debut: string, octets: number, commit?: string): IndexDesFilms {
+  return { ...index, films: [...index.films.filter((f) => f.partie !== partie), { partie, debut, octets, ...(commit ? { commit } : {}) }], ratees: index.ratees.filter((r) => r.partie !== partie) };
 }
 
 /**
@@ -111,7 +126,7 @@ export function rangerLesFilms(index: IndexDesFilms, now: Date): { index: IndexD
       total += f.octets;
     } else retires.push(f.partie);
   }
-  return { index: { format: 1, films: gardes, ratees: index.ratees.filter((r) => recent(r.debut, now)), passage: index.passage }, retires };
+  return { index: { format: 2, films: gardes, ratees: index.ratees.filter((r) => recent(r.debut, now)), passage: index.passage }, retires };
 }
 
 /** Un film de la liste publiée : ce que la page en montre avant de l'ouvrir. */
@@ -125,6 +140,15 @@ export const FilmPublie = z.object({
   joueurs: z.number().int().min(0),
   /** La durée rejouée, en secondes : les étapes du jeu jusqu'au dernier contrôle. */
   secondes: z.number().int().min(0),
+  /**
+   * Le vrai lecteur du jeu pour cette partie, sur son site à lui (`https://<…>.github.io/jeu/<version>/#replay-viewer=<partie>`),
+   * s'il est construit et réglé ; sinon le film seul.
+   */
+  jeu: z
+    .string()
+    .regex(/^https:\/\/[a-z0-9-]+\.github\.io\/jeu\/[0-9a-f]{10}\/#replay-viewer=[A-Za-z0-9]{1,32}$/)
+    .nullable()
+    .default(null),
   octets: z.number().int().min(1).max(MAX_OCTETS_FILM),
 });
 export type FilmPublie = z.infer<typeof FilmPublie>;

@@ -280,3 +280,133 @@
 .revoir-liste a[aria-current] .revoir-ici {
   display: inline;
 }
+
+/* Les noms et les unités (demande du pilote, 15 novembre 2026) : une seconde toile posée sur la carte, à la taille de l'écran,
+   qui ne prend aucun clic. Ses dessins viennent de src/lib/rejeu/details.ts. */
+.revoir-ecran .revoir-details {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  image-rendering: auto;
+}
+/* La légende des unités, sous celle des camps : la vraie icône du jeu (une petite toile, dessinée comme sur la carte) et son
+   nom. En colonnes égales, pour que les icônes s'alignent (deux sur un téléphone) ; un nom long passe sur deux lignes.
+   Chaque icône est sur une case de nuit, la mer de la carte : le bleu des Gaulois se perdrait sur le bleu de la scène. */
+.revoir-unites {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.25rem, 1fr));
+  gap: 0.375rem 1rem;
+  margin-top: 1rem;
+  font-size: 0.9375rem;
+  line-height: 1.2;
+}
+/* Quand la fiche est large (sous une carte du monde), des colonnes où chaque nom tient sur une ligne. */
+@container revoir-fiche (min-width: 40rem) {
+  .revoir-unites {
+    grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));
+  }
+}
+.revoir-unites li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.revoir-icone {
+  box-sizing: content-box;
+  flex: none;
+  width: 1.625rem;
+  height: 1.625rem;
+  padding: 0.1875rem;
+  border-radius: 0.25rem;
+  background: color-mix(in srgb, var(--color-night) 70%, transparent);
+}
+/* Les deux cases : des cases du site sur le bleu de la scène, blanches une fois cochées, dans une cible de 44 px. */
+.revoir-choix {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 1.5rem;
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--hairline);
+}
+.revoir-choix legend {
+  float: left;
+  width: 100%;
+  margin-bottom: 0.125rem;
+  font-family: var(--font-console);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--stage-muted);
+}
+.revoir-choix label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: 2.75rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.revoir-choix input {
+  display: grid;
+  flex: none;
+  place-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+  border: 2px solid var(--stage-muted);
+  border-radius: 0.25rem;
+  background: color-mix(in srgb, var(--color-night) 70%, transparent);
+  appearance: none;
+  cursor: pointer;
+}
+/* La coche : une forme découpée, dans le bleu de nuit, sur la case devenue blanche. */
+.revoir-choix input::before {
+  content: "";
+  width: 0.75rem;
+  height: 0.75rem;
+  background: var(--color-night);
+  clip-path: polygon(13% 52%, 27% 38%, 42% 54%, 74% 18%, 88% 31%, 43% 82%);
+  opacity: 0;
+}
+.revoir-choix input:checked {
+  border-color: var(--ecriture);
+  background: var(--ecriture);
+}
+.revoir-choix input:checked::before {
+  opacity: 1;
+}
+.revoir-choix label:hover input {
+  border-color: var(--ecriture);
+}
+.revoir-choix input:focus-visible {
+  outline: 2px solid var(--anneau);
+  outline-offset: 3px;
+}
+/* Couleurs imposées par le système : la case cochée garde une coche visible. */
+@media (forced-colors: active) {
+  .revoir-choix input:checked {
+    background: Highlight;
+  }
+  .revoir-choix input::before {
+    background: HighlightText;
+  }
+}
+
+/* Le vrai lecteur du jeu (15 novembre 2026) : un bouton sous le titre, et ce qu'il ouvre en une ligne. */
+.revoir-jeu {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin-top: 1rem;
+}
+.revoir-jeu .btn {
+  gap: 0.5rem;
+}
+.revoir-jeu-note {
+  font-size: 0.875rem;
+  color: var(--stage-muted);
+}

@@ -6,11 +6,13 @@ import {
   Bobine,
   CASES_FILM_MAX,
   CLASSE,
+  CONSTRUCTIONS,
   contientRetombees,
   decompresser,
   dureeDite,
   EcrivainFilm,
   etapeDeLImage,
+  etiquettesDe,
   FORMAT_FILM,
   grilleDuFilm,
   horloge,
@@ -21,13 +23,17 @@ import {
   PeintreFilm,
   RETOMBEES,
   secondesDeLImage,
+  UNITES,
+  unitesDuFilm,
   type EnteteFilm,
+  type Unite,
 } from "../../src/lib/rejeu/film";
+import { UNITES_DU_FILM } from "../../src/lib/rejeu/film-brut";
 
 const TERRE = 0x80;
 
 function entete(largeur: number, hauteur: number, images: number, autre: Partial<EnteteFilm> = {}): EnteteFilm {
-  return { format: FORMAT_FILM, partie: "abc123", carte: "World", debut: "2026-11-15T09:31:11.450Z", victoire: true, equipes: "Duos", gaulois: 2, joueurs: 20, largeur, hauteur, facteur: 4, pas: 10, images, tours: (images - 1) * 10 + 1, adverses: 1, equipe: false, ...autre };
+  return { format: FORMAT_FILM, partie: "abc123", carte: "World", debut: "2026-11-15T09:31:11.450Z", victoire: true, equipes: "Duos", gaulois: 2, joueurs: 20, largeur, hauteur, facteur: 4, pas: 10, images, tours: (images - 1) * 10 + 1, adverses: 1, equipe: false, noms: [], ...autre };
 }
 
 /** Un petit film : 4 × 3 cases de terre, trois images. */
@@ -71,6 +77,10 @@ describe("la grille et les images d'un film", () => {
     expect(entree).toContain("let facteur = Math.max(1, Math.ceil(Math.sqrt((l * h) / CASES_FILM_MAX)));");
     expect(entree).toContain("while (Math.ceil(l / facteur) * Math.ceil(h / facteur) > CASES_FILM_MAX) facteur++;");
     expect(entree).toContain("Math.max(PAS_FILM_MIN, Math.ceil(derniere / (IMAGES_FILM_MAX - 2)))");
+    // Les mêmes unités suivies, dans le même ordre, que la conversion du site.
+    const unites = /const UNITES_FILMEES = (\[[^\]]*\]);/.exec(entree)?.[1];
+    expect(unites && JSON.parse(unites)).toEqual([...UNITES_DU_FILM]);
+    expect(UNITES).toHaveLength(UNITES_DU_FILM.length);
     const site = readFileSync("src/lib/rejeu/film.ts", "utf8");
     expect(site).toContain("while (Math.ceil(largeur / facteur) * Math.ceil(hauteur / facteur) > CASES_FILM_MAX) facteur++;");
     expect(site).toContain("Math.max(PAS_FILM_MIN, Math.ceil(derniere / (IMAGES_FILM_MAX - 2)))");
@@ -115,15 +125,15 @@ describe("écrire et relire un film", () => {
       expect([...b.grille]).toEqual([...grilles[k]!]);
     }
   });
-  it("n'écrit que les plages changées : une image sans changement tient en un octet", () => {
+  it("n'écrit que les plages changées : une image sans changement tient en trois octets", () => {
     const e = new EcrivainFilm(100, 100);
     const g = new Uint8Array(10_000).fill(1);
     e.ajouter(g);
     const avant = lireFilm(e.octetsDuFilm(entete(100, 100, 1), new Uint8Array(10_000))).donnees.length;
     e.ajouter(g);
-    expect(lireFilm(e.octetsDuFilm(entete(100, 100, 2), new Uint8Array(10_000))).donnees.length).toBe(avant + 1);
-    // La première image : une seule plage de 10 000 cases.
-    expect(avant).toBe(1 + 1 + 2 + 1);
+    expect(lireFilm(e.octetsDuFilm(entete(100, 100, 2), new Uint8Array(10_000))).donnees.length).toBe(avant + 3);
+    // La première image : une seule plage de 10 000 cases, aucun nom, aucune unité ; une image sans changement : trois zéros.
+    expect(avant).toBe(1 + 1 + 2 + 1 + 1 + 1);
   });
   it("refuse un fichier qui n'est pas un film du site, coupé, ou avec des octets en trop", () => {
     const { octets } = petitFilm();
@@ -131,7 +141,7 @@ describe("écrire et relire un film", () => {
     expect(() => lireFilm(octets.subarray(0, octets.length - 2))).toThrow();
     expect(() => lireFilm(Uint8Array.from([...octets, 0]))).toThrow("octets en trop");
     const autreVersion = octets.slice();
-    autreVersion[4] = 2;
+    autreVersion[4] = FORMAT_FILM + 1;
     expect(() => lireFilm(autreVersion)).toThrow("version");
   });
   it("refuse une classe inconnue ou une plage hors de la grille", () => {
@@ -140,7 +150,7 @@ describe("écrire et relire un film", () => {
     expect(() => lireFilm(e.octetsDuFilm(entete(2, 1, 1), new Uint8Array(2)))).toThrow("classe inconnue");
     // Une plage de trois cases sur une grille de deux, écrite à la main : « GALF », version, en-tête, terrain, une image.
     const texte = new TextEncoder().encode(JSON.stringify(entete(2, 1, 1)));
-    const brut = Uint8Array.from([0x47, 0x41, 0x4c, 0x46, 1, texte.length & 0xff, texte.length >> 8, ...texte, 0, 0, 1, 0, 2, 1]);
+    const brut = Uint8Array.from([0x47, 0x41, 0x4c, 0x46, FORMAT_FILM, texte.length & 0xff, texte.length >> 8, ...texte, 0, 0, 1, 0, 2, 1]);
     expect(() => lireFilm(brut)).toThrow("hors de la grille");
   });
   it("refuse un en-tête au mauvais format : carte avec du HTML, grille trop grande, identifiant étrange", () => {
@@ -185,5 +195,48 @@ describe("dessiner une image", () => {
     const plein = sature(COULEUR_GAULOIS);
     expect(pixel(4)).toEqual([0, 1, 2].map((j) => Math.round(fond[j]! + (plein[j]! - fond[j]!) * ALPHA_TERRITOIRE)));
     expect(rgba[4 * 4 + 3]).toBe(255);
+  });
+});
+
+describe("les noms et les unités d'un film", () => {
+  const ville: Unite = { code: 0, x: 5, y: 2, classe: CLASSE.gaulois, niveau: 3, chantier: false };
+  const navire: Unite = { code: 6, x: 11, y: 7, classe: CLASSE.adverses, niveau: 1, chantier: false };
+  function filmAvecDetails(autre: Partial<EnteteFilm> = {}) {
+    const e = new EcrivainFilm(3, 2);
+    e.ajouter(new Uint8Array(6).fill(1), [{ nom: 0, x: 1, y: 1, taille: 1 }], [{ id: 0, unite: ville }, { id: 1, unite: navire }]);
+    e.ajouter(new Uint8Array(6).fill(1), [{ nom: 0, x: 2, y: 0, taille: 1 }, { nom: 1, x: 0, y: 0, taille: 1 }], [{ id: 1, unite: null }]);
+    return e.octetsDuFilm(entete(3, 2, 2, { noms: [{ texte: "Vercingé", classe: CLASSE.gaulois }, { texte: "[UN]", classe: CLASSE.adverses }], ...autre }), new Uint8Array(6).fill(TERRE));
+  }
+  it("rend les noms de chaque image et les unités, en avant comme en arrière", () => {
+    const film = lireFilm(filmAvecDetails());
+    expect(film.entete.noms).toEqual([{ texte: "Vercingé", classe: CLASSE.gaulois }, { texte: "[UN]", classe: CLASSE.adverses }]);
+    expect(etiquettesDe(film, 0)).toEqual([{ nom: 0, x: 1, y: 1, taille: 1 }]);
+    expect(etiquettesDe(film, 1)).toHaveLength(2);
+    const b = new Bobine(film);
+    b.aller(1);
+    expect([...b.unites.values()]).toEqual([ville]);
+    b.aller(0);
+    expect([...b.unites.values()]).toEqual([ville, navire]);
+    expect([...unitesDuFilm(film)].sort()).toEqual([0, 6]);
+    expect(UNITES.slice(0, CONSTRUCTIONS)).toContain("Ville");
+  });
+  it("refuse un nom inconnu, hors de la grille, ou écrit avec des chevrons", () => {
+    const e = new EcrivainFilm(3, 2);
+    e.ajouter(new Uint8Array(6), [{ nom: 1, x: 0, y: 0, taille: 1 }]);
+    expect(() => lireFilm(e.octetsDuFilm(entete(3, 2, 1, { noms: [{ texte: "A", classe: 1 }] }), new Uint8Array(6)))).toThrow("nom inconnu");
+    const f = new EcrivainFilm(3, 2);
+    f.ajouter(new Uint8Array(6), [{ nom: 0, x: 3, y: 0, taille: 1 }]);
+    expect(() => lireFilm(f.octetsDuFilm(entete(3, 2, 1, { noms: [{ texte: "A", classe: 1 }] }), new Uint8Array(6)))).toThrow("hors de la grille");
+    expect(() => lireFilm(filmAvecDetails({ noms: [{ texte: "<b>x</b>", classe: 1 }, { texte: "B", classe: 1 }] }))).toThrow("en-tête");
+    expect(() => lireFilm(filmAvecDetails({ noms: [{ texte: "A\u0007", classe: 1 }, { texte: "B", classe: 1 }] }))).toThrow("en-tête");
+  });
+  it("refuse une unité inconnue ou hors de la carte", () => {
+    const e = new EcrivainFilm(3, 2);
+    e.ajouter(new Uint8Array(6), [], [{ id: 0, unite: { ...ville, code: UNITES.length } }]);
+    expect(() => lireFilm(e.octetsDuFilm(entete(3, 2, 1), new Uint8Array(6)))).toThrow("unité inconnue");
+    // La carte entière fait 3 × 4 = 12 cases de large.
+    const f = new EcrivainFilm(3, 2);
+    f.ajouter(new Uint8Array(6), [], [{ id: 0, unite: { ...ville, x: 12 } }]);
+    expect(() => lireFilm(f.octetsDuFilm(entete(3, 2, 1), new Uint8Array(6)))).toThrow("hors de la carte");
   });
 });

@@ -19,6 +19,8 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const liste = loadFilms();
 const films = liste?.films ?? [];
 const plusAncien = films.at(-1)?.debut ?? null;
+// Le vrai lecteur du jeu n'est décrit que si des parties y mènent (son site à part réglé et déposé).
+const avecLeJeu = films.some((f) => f.jeu);
 ---
 
 <Base title="Revoir une partie" description="Les dernières parties du clan GAL rejouées par le moteur d'OpenFront : qui tenait chaque territoire, du début à la fin.">
@@ -32,7 +34,7 @@ const plusAncien = films.at(-1)?.debut ?? null;
         <Empty title="Pas de film">Les films des parties paraissent ici environ une heure après leur fin.</Empty>
       ) : (
         <>
-          <RejeuPartie client:idle base={base} dernier={films[0]!.partie} jours={JOURS_DE_FILMS} tag={clan.tag} />
+          <RejeuPartie client:idle base={base} dernier={films[0]!.partie} jours={JOURS_DE_FILMS} tag={clan.tag} jeux={Object.fromEntries(films.filter((f) => f.jeu).map((f) => [f.partie, f.jeu!]))} />
           <noscript>
             <p class="card mt-4 p-4 text-sm text-muted">JavaScript est nécessaire pour lire les films.</p>
           </noscript>
@@ -75,14 +77,16 @@ const plusAncien = films.at(-1)?.debut ?? null;
     }
 
     <p class="mt-section max-w-3xl text-sm text-muted" data-testid="revoir-credit">
-      Parties rejouées avec le moteur du jeu <a class="link" href="https://github.com/openfrontio/OpenFrontIO" rel="noopener">OpenFront</a> (AGPL-3.0), sur ses cartes : © OpenFront and Contributors, <a class="link" href="https://creativecommons.org/licenses/by-sa/4.0/deed.fr" rel="noopener">CC BY-SA 4.0</a>. Terrain réduit et redessiné aux couleurs du site.
+      Parties rejouées avec le moteur du jeu <a class="link" href="https://github.com/openfrontio/OpenFrontIO" rel="noopener">OpenFront</a> (AGPL-3.0), sur ses cartes et avec ses icônes : © OpenFront and Contributors, <a class="link" href="https://creativecommons.org/licenses/by-sa/4.0/deed.fr" rel="noopener">CC BY-SA 4.0</a>. Terrain réduit et redessiné aux couleurs du site, icônes copiées telles quelles et colorées comme dans le jeu (<a class="link" href={`${base}/openfront/LISEZ-MOI.txt`}>notice</a>).
     </p>
     <MapNamesCredit />
     <ReadingNote label="Comment lire ce film">
       <p>Chaque film est la partie rejouée par le moteur d'OpenFront, à la version qui l'a jouée, à partir de sa fiche publique. Toutes les empreintes de contrôle du jeu ont été retrouvées : c'est la partie telle qu'elle s'est jouée.</p>
       <p>La carte est réduite : une case du film en couvre plusieurs du jeu, et celle du milieu donne sa couleur. Une image toutes les quelques secondes de jeu.</p>
-      <p>Aucun nom : les couleurs disent le camp. « Gaulois » : les joueurs qui portaient le tag [{clan.tag}] dans la partie, avec des stats, comme OpenFront les compte pour le clan. Le résultat est celui qu'OpenFront compte pour le clan.</p>
-      <p>OpenFront n'autorise pas l'affichage de son jeu dans un autre site : « Ouvrir la partie sur OpenFront » mène à son propre replay.</p>
+      <p>Les couleurs disent le camp. « Gaulois » : les joueurs qui portaient le tag [{clan.tag}] dans la partie, avec des stats, comme OpenFront les compte pour le clan. Le résultat est celui qu'OpenFront compte pour le clan.</p>
+      <p>Les noms : le pseudo des membres de la liste du clan, et le tag des joueurs dont le clan est au classement officiel. Dans le film, les autres joueurs restent sans nom : un pseudo se choisit librement, et le site ne dessine pas celui d'un inconnu.</p>
+      <p>Les constructions et les unités sont celles du jeu, avec ses icônes : villes, ports, usines, postes de défense, lance-missiles SAM, silos, navires de guerre, transports de troupes et bombes en vol. Une construction grise est en chantier. Les navires marchands et les trains ne sont pas montrés.</p>
+      <p>{avecLeJeu && "« Voir le replay du jeu » ouvre le lecteur de replay d'OpenFront lui-même, construit par le site à partir de son code libre, pour les parties des dernières versions du jeu, sur un site du clan à part : sans publicité ni mesure, non officiel, avec tous les pseudos de la partie comme dans le jeu. "}« Ouvrir la partie sur OpenFront » mène à son propre site.</p>
       <p>Une partie est filmée environ une heure après sa fin. Les films gardés sont les plus récents, {JOURS_DE_FILMS} jours au plus, tant qu'ils tiennent dans la place réservée aux films.</p>
     </ReadingNote>
   </div>

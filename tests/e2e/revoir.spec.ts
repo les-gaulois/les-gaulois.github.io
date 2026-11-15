@@ -5,6 +5,7 @@ import { fmtDayAndTime } from "../../src/lib/format";
 import { mapLabel } from "../../src/lib/map-names";
 import { EcrivainFilm, FORMAT_FILM, type EnteteFilm } from "../../src/lib/rejeu/film";
 import { LISTE_DES_FILMS, ListeDesFilms } from "../../src/lib/rejeu/films-index";
+import { DOSSIER_DES_FICHES, DOSSIER_SITE_DU_LECTEUR } from "../../src/lib/rejeu/lecteur-jeu";
 
 /**
  * « Revoir une partie ». Les films ne sont pas dans Git : ils viennent du cache du workflow, ou d'un `npm run parties:filmer`
@@ -16,14 +17,29 @@ const films = liste?.films ?? [];
 
 const hydrated = (page: Page) => page.waitForFunction(() => !document.querySelector("astro-island[ssr]"));
 
-/** Un film de 3 × 2 cases sur la carte « World », deux images : les Gaulois prennent une case, puis trois. */
+/**
+ * Un film de 3 × 2 cases sur la carte « World », deux images : les Gaulois prennent une case, puis trois. À la seconde image,
+ * une ville gauloise au milieu de la carte entière (12 × 8 cases) et un navire adverse.
+ */
 function filmEssai(partie: string, victoire: boolean): Buffer {
-  const entete: EnteteFilm = { format: FORMAT_FILM, partie, carte: "World", debut: "2026-11-15T09:31:11.450Z", victoire, equipes: "Duos", gaulois: 2, joueurs: 20, largeur: 3, hauteur: 2, facteur: 4, pas: 600, images: 2, tours: 601, adverses: 1, equipe: false };
+  const entete: EnteteFilm = { format: FORMAT_FILM, partie, carte: "World", debut: "2026-11-15T09:31:11.450Z", victoire, equipes: "Duos", gaulois: 2, joueurs: 20, largeur: 3, hauteur: 2, facteur: 4, pas: 600, images: 2, tours: 601, adverses: 1, equipe: false, noms: [{ texte: "Vercingé", classe: 1 }] };
   const e = new EcrivainFilm(3, 2);
   e.ajouter(Uint8Array.from([1, 0, 0, 4, 0, 3]));
-  e.ajouter(Uint8Array.from([1, 1, 1, 4, 4, 3]));
+  e.ajouter(Uint8Array.from([1, 1, 1, 4, 4, 3]), [{ nom: 0, x: 1, y: 0, taille: 1 }], [
+    { id: 0, unite: { code: 0, x: 6, y: 4, classe: 1, niveau: 1, chantier: false } },
+    { id: 1, unite: { code: 6, x: 2, y: 6, classe: 4, niveau: 1, chantier: false } },
+  ]);
   return gzipSync(e.octetsDuFilm(entete, new Uint8Array(6).fill(0x80)));
 }
+
+/** Les pixels peints de la toile des détails : noms et unités. */
+const pixelsPeints = (page: Page) =>
+  page.getByTestId("rejeu-details").evaluate((c: HTMLCanvasElement) => {
+    const d = c.getContext("2d")!.getImageData(0, 0, c.width, c.height).data;
+    let n = 0;
+    for (let i = 3; i < d.length; i += 4) if (d[i]! > 0) n++;
+    return n;
+  });
 
 test("sans film publié, la page le dit ; avec, elle ouvre la dernière partie et liste les autres", async ({ page }) => {
   await page.goto("/revoir");
@@ -71,6 +87,23 @@ test.describe("le lecteur", () => {
     await expect(page.getByTestId("rejeu-lecture")).toHaveText("Lecture");
   });
 
+  test("pose les constructions, les navires et les noms sur la carte, et les cache sur demande", async ({ page }) => {
+    await page.route("**/films/essai00002.film", (route) => route.fulfill({ status: 200, contentType: "application/octet-stream", body: filmEssai("essai00002", true) }));
+    await page.goto("/revoir?partie=essai00002");
+    await hydrated(page);
+    await expect(page.getByTestId("rejeu-horloge")).toHaveText("1:00 / 1:00");
+    // Les icônes du jeu se chargent, puis la toile des détails se peint.
+    await expect.poll(() => pixelsPeints(page), { timeout: 10_000 }).toBeGreaterThan(0);
+    const avec = await pixelsPeints(page);
+    const choix = page.getByTestId("rejeu-choix");
+    await choix.getByLabel("Constructions et unités").uncheck();
+    await choix.getByLabel("Noms").uncheck();
+    await expect.poll(() => pixelsPeints(page)).toBe(0);
+    await choix.getByLabel("Constructions et unités").check();
+    await expect.poll(() => pixelsPeints(page)).toBeGreaterThan(0);
+    expect(await pixelsPeints(page)).toBeLessThanOrEqual(avec);
+  });
+
   test("dit quand une partie n'a pas de film, et mène quand même au jeu", async ({ page }) => {
     await page.route("**/films/absente0001.film", (route) => route.fulfill({ status: 404, body: "" }));
     await page.goto("/revoir?partie=absente0001");
@@ -95,5 +128,33 @@ test.describe("le lecteur", () => {
     const filmes = new Set(films.map((f) => `/revoir?partie=${f.partie}`));
     for (const href of await liens.evaluateAll((as) => as.map((a) => a.getAttribute("href")))) expect(filmes.has(href ?? "")).toBe(true);
     await expect(page.getByTestId("journal-link-note")).toContainText("« Revoir » montre le film de la partie sur le site.");
+  });
+});
+
+test.describe("le vrai lecteur du jeu", () => {
+  const avecJeu = films.find((f) => f.jeu);
+  test.skip(!avecJeu, "Aucun lecteur du jeu publié dans ce build : chaque partie garde son film.");
+
+  test("la page d'une partie filmée mène au lecteur, sur son adresse à lui, sans publicité ni mesure", async ({ page }) => {
+    await page.goto(`/revoir?partie=${avecJeu!.partie}`);
+    await hydrated(page);
+    const lien = page.getByTestId("rejeu-jeu");
+    await expect(lien).toHaveAttribute("href", avecJeu!.jeu!);
+    // Jamais sur l'adresse du site du clan : le code du jeu n'y tourne pas.
+    expect(new URL(avecJeu!.jeu!).origin).not.toBe(new URL(page.url()).origin);
+    expect(new URL(avecJeu!.jeu!).hostname).not.toBe("les-gaulois.github.io");
+    expect((await page.request.get(new URL(avecJeu!.jeu!).pathname)).ok()).toBe(false);
+    // Le site du lecteur, préparé à côté du build (`.cache/site-du-lecteur/`), que le robot dépose sur son adresse.
+    const dossier = `${DOSSIER_SITE_DU_LECTEUR}${new URL(avecJeu!.jeu!).pathname}`;
+    const html = readFileSync(`${dossier}index.html`, "utf8");
+    expect(html).toContain('http-equiv="Content-Security-Policy"');
+    expect(html).toContain('<meta name="robots" content="noindex, nofollow">');
+    expect(html).toContain("© OpenFront and Contributors");
+    expect(html).toContain("non officiel");
+    expect(html).not.toMatch(/googletag|gtag\(|intergient|cloudflareinsights|challenges\.cloudflare\.com|<title>OpenFront/);
+    // La fiche publiée de la partie : sans identifiant public des joueurs.
+    const fiche = readFileSync(`${DOSSIER_SITE_DU_LECTEUR}/${DOSSIER_DES_FICHES}game/${avecJeu!.partie}/index.html`, "utf8");
+    expect(fiche).not.toContain("publicID");
+    expect(fiche).not.toMatch(/[<>]/);
   });
 });

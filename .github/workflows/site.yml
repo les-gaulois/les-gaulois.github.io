@@ -302,7 +302,7 @@ jobs:
     needs: update-data
     if: ${{ !cancelled() && github.event_name != 'push' && github.ref_name == 'main' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 20
     permissions:
       contents: read
     steps:
@@ -351,6 +351,31 @@ jobs:
         with:
           path: .cache/films
           key: films-${{ hashFiles('.cache/films/index.json') }}
+      # Le vrai lecteur de replay du jeu (demande du pilote, 15 novembre 2026 : « je veux reconnaître le jeu »), construit une
+      # fois par version du jeu qui a joué une partie filmée, trois versions au plus. Le code du jeu est lu sur GitHub au commit ;
+      # ses bibliothèques sont installées sans leurs scripts ; sa construction, qui exécute sa configuration, ne tourne que dans
+      # un conteneur Node 24 sans réseau ni droits. Rien n'est exécuté ici de ce qu'elle produit : le job « lecteur » le dépose
+      # sur son site à lui, à une autre adresse que celle du clan (REPLAY_SITE), où le navigateur des visiteurs le lit sous une
+      # règle de sécurité qui ne laisse rien partir ailleurs. Voir scripts/construire-lecteurs.ts et src/lib/rejeu/lecteur-jeu.ts.
+      - name: Restaurer les lecteurs du jeu
+        continue-on-error: true
+        uses: actions/cache/restore@v6
+        with:
+          path: .cache/lecteurs
+          key: lecteurs-${{ github.run_id }}
+          restore-keys: lecteurs-
+      - name: Construire les lecteurs du jeu
+        if: ${{ !cancelled() && hashFiles('.cache/films/index.json') != '' }}
+        continue-on-error: true
+        timeout-minutes: 8
+        run: npm run lecteurs:construire
+      - name: Conserver les lecteurs du jeu
+        if: ${{ !cancelled() && hashFiles('.cache/lecteurs/*/modele.html') != '' }}
+        continue-on-error: true
+        uses: actions/cache/save@v6
+        with:
+          path: .cache/lecteurs
+          key: lecteurs-${{ hashFiles('.cache/lecteurs/*/modele.html') }}
 
   # Depuis le 13 novembre 2026, l'historique de la carte se garde à chaque passage (plusieurs dizaines de Mo chaque fois) :
   # seuls les trois plus récents restent, pour ne pas remplir l'espace des caches du dépôt (10 Go), où GitHub effacerait
@@ -374,7 +399,7 @@ jobs:
       - name: Effacer les anciens films des parties et leurs moteurs
         continue-on-error: true
         run: |
-          for prefixe in films- moteurs-films-; do
+          for prefixe in films- moteurs-films- lecteurs-; do
             gh cache list --repo "$GITHUB_REPOSITORY" --ref "refs/heads/${GITHUB_REF_NAME}" --key "$prefixe" --sort created_at --order desc --limit 100 --json id --jq '.[3:][].id' |
               while read -r id; do gh cache delete "$id" --repo "$GITHUB_REPOSITORY"; done
           done
@@ -452,10 +477,33 @@ jobs:
           path: .cache/films
           key: films-${{ github.run_id }}
           restore-keys: films-
+      # Les vrais lecteurs du jeu, construits par le job « films » : préparés avec les fiches des parties de leur version, dans
+      # .cache/site-du-lecteur/, jamais dans dist/. Sans ce cache, ou sans REPLAY_SITE, chaque partie garde son film, sans le
+      # bouton du replay du jeu.
+      - name: Restaurer les lecteurs du jeu
+        continue-on-error: true
+        uses: actions/cache/restore@v6
+        with:
+          path: .cache/lecteurs
+          key: lecteurs-${{ github.run_id }}
+          restore-keys: lecteurs-
       - name: Publier les films des parties
         continue-on-error: true
-        timeout-minutes: 2
+        timeout-minutes: 3
         run: npm run films:publier
+        env:
+          BASE_PATH: ""
+          # Sans le jeton, le lecteur ne serait pas déposé : pas de liens vers lui.
+          REPLAY_SITE: ${{ secrets.REPLAY_DEPLOY_TOKEN != '' && github.ref_name == 'main' && vars.REPLAY_SITE || '' }}
+      - name: Garder le site du lecteur pour son dépôt
+        if: ${{ !cancelled() && vars.REPLAY_SITE != '' && hashFiles('.cache/site-du-lecteur/jeu/LISEZ-MOI.txt') != '' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: site-du-lecteur
+          path: .cache/site-du-lecteur
+          include-hidden-files: true
+          retention-days: 1
       - id: pages
         uses: actions/configure-pages@v6
       # Les Gaulois des membres au pseudo public, validés, qui ont créé le leur au village, pour l'image d'aperçu de leur fiche :
@@ -481,7 +529,7 @@ jobs:
           path: dist
 
   deploy:
-    needs: build
+    needs: [build, lecteur]
     if: ${{ !cancelled() && needs.build.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
@@ -493,3 +541,60 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v5
+
+  # Le vrai lecteur de replay du jeu sur son site à lui (choix du pilote du 15 novembre 2026) : le dépôt GitHub Pages
+  # <REPLAY_SITE> d'une organisation à part, jamais celui du clan, pour que le code du jeu ne tourne jamais là où les membres
+  # ont leur connexion. Ce job n'installe ni n'exécute rien : il dépose les fichiers préparés par « build », en un seul commit
+  # sans historique (les fiches de plus de quelques jours n'y restent pas), avec le jeton REPLAY_DEPLOY_TOKEN, limité à ce
+  # seul dépôt. Les liens « Voir le replay du jeu » du site mènent à ce dépôt : « deploy » attend ce job (sans dépendre de sa
+  # réussite), pour que le lecteur soit en place quand les liens paraissent. En panne, les nouvelles parties mènent à une page
+  # introuvable jusqu'au passage suivant, et l'Action le signale. Sans réglage, rien ne se fait et chaque partie garde son film.
+  lecteur:
+    needs: build
+    if: ${{ !cancelled() && needs.build.result == 'success' && vars.REPLAY_SITE != '' && github.ref_name == 'main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Reprendre le site du lecteur
+        id: site
+        continue-on-error: true
+        uses: actions/download-artifact@v7
+        with:
+          name: site-du-lecteur
+          path: site-du-lecteur
+      - name: Déposer le lecteur sur son site
+        if: ${{ steps.site.outcome == 'success' }}
+        timeout-minutes: 8
+        env:
+          REPLAY_SITE: ${{ vars.REPLAY_SITE }}
+          REPLAY_DEPLOY_TOKEN: ${{ secrets.REPLAY_DEPLOY_TOKEN }}
+        run: |
+          set -euo pipefail
+          site="$(printf '%s' "${REPLAY_SITE#https://}" | tr 'A-Z' 'a-z')"
+          site="${site%/}"
+          if ! [[ "$site" =~ ^[a-z0-9-]+\.github\.io$ ]] || [ "$site" = "les-gaulois.github.io" ]; then
+            echo "::warning::REPLAY_SITE doit être l'adresse d'un autre site GitHub Pages, comme gal-replay.github.io : rien n'est déposé."
+            exit 0
+          fi
+          if [ -z "$REPLAY_DEPLOY_TOKEN" ]; then
+            echo "::warning::Le secret REPLAY_DEPLOY_TOKEN manque : le lecteur du jeu n'est pas déposé sur $site."
+            exit 0
+          fi
+          if [ ! -f site-du-lecteur/jeu/LISEZ-MOI.txt ]; then
+            echo "Rien à déposer."
+            exit 0
+          fi
+          depot="https://x-access-token:${REPLAY_DEPLOY_TOKEN}@github.com/${site%.github.io}/${site}.git"
+          cd site-du-lecteur
+          touch .nojekyll
+          git init -q -b main
+          git config user.name "Clan GAL"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Le dépôt tel qu'il est, pour n'envoyer que les fichiers nouveaux ; vide la première fois.
+          git fetch -q --depth=1 "$depot" main 2>/dev/null || true
+          git add .nojekyll robots.txt jeu
+          git commit -q -m "Lecteur de replay d'OpenFront pour le site du clan [GAL] (passage ${GITHUB_RUN_ID})"
+          git push -q --force "$depot" HEAD:main
+          echo "::notice::Lecteur du jeu déposé sur https://$site/"
