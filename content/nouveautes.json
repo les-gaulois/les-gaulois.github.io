@@ -2,6 +2,12 @@
   {
     "date": "2026-11-15",
     "kind": "nouveau",
+    "title": "Votre niveau et votre flamme sur /gaulois",
+    "body": "Sur Discord, /gaulois montre à côté de votre Gaulois l'emblème de niveau de votre compte OpenFront (tout le jeu) et votre flamme de série, dorée pour un record, si votre fiche les montre."
+  },
+  {
+    "date": "2026-11-15",
+    "kind": "nouveau",
     "title": "Dix coupes, dix barbes et dix couleurs de plus",
     "body": "Votre Gaulois a dix coupes de cheveux et dix barbes de plus, de la queue de cheval à la barbe fleuve, et seize couleurs de cheveux au lieu de six. Tout est gratuit, dans « Mon Gaulois ».",
     "link": {

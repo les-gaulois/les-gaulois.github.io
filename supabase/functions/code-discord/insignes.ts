@@ -407,15 +407,19 @@ export function rectanglesDeLaFlamme(
 
 /**
  * Les places, à droite du logo du clan (qui finit au pixel 69), dans la bande que les cinq décors laissent libre aux
- * quatre moments et où aucune coiffe du Gaulois ne monte. La flamme : au pixel 74, tout en haut de l'image ; son nombre
- * finit au pixel 80. Le médaillon : à la case 19 s'il est seul, à la case 31 à côté de la flamme, depuis la rangée 2.
+ * quatre moments (pixels 74 à 177, lignes 9 à 89). Tout est centré sur la ligne du logo, visible des lignes 10 à 68
+ * (demande du pilote, 15 novembre 2026 : « en haut à gauche, que ce soit aligné ») : le corps de la flamme (60 pixels)
+ * descend à la ligne 9, son nombre en dessous jusqu'à la ligne 89 ; le médaillon (52 pixels, 56 avec son liseré) descend à
+ * la ligne 13. Leurs centres tombent à 39, comme celui du logo, à un demi-pixel près. La flamme : au pixel 74. Le médaillon : à la case 19 s'il
+ * est seul, à la case 31 à côté de la flamme. Seules deux coiffes, les bois de cerf et le chapeau à panache, passent devant
+ * le bord droit du médaillon (au plus 6 pixels de large), sans toucher au nombre : le Gaulois reste devant.
  */
 export const PLACES_DES_INSIGNES = {
   flamme: 74,
   premiere: 19 * CASE,
   seconde: 31 * CASE,
-  hautDeLaFlamme: 0,
-  hautDeLEmbleme: 2 * CASE,
+  hautDeLaFlamme: 9,
+  hautDeLEmbleme: 13,
 } as const;
 
 /**

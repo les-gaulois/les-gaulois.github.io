@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { IMAGE_GAULOIS, TENUE_DE_DEPART, imageDeLaScene } from "../../supabase/functions/code-discord/gaulois";
+import { IMAGE_GAULOIS, PLACE_DU_LOGO, TENUE_DE_DEPART, imageDeLaScene } from "../../supabase/functions/code-discord/gaulois";
+import { LOGO_DU_CLAN } from "../../supabase/functions/code-discord/logo-du-clan";
 import { ligneSousLImage, niveauEnMots, phrasesDesInsignes } from "../../supabase/functions/code-discord/index";
 import {
   COULEURS_DES_PRESTIGES,
@@ -74,12 +75,32 @@ describe("les insignes sur l'image de /gaulois", () => {
         for (const r of insignesDeLaScene({ niveau, serie })) {
           expect(r.x, JSON.stringify({ niveau, serie })).toBeGreaterThanOrEqual(74);
           expect(r.x + r.largeur).toBeLessThanOrEqual(178);
-          expect(r.y).toBeGreaterThanOrEqual(0);
-          expect(r.y + r.hauteur).toBeLessThanOrEqual(81);
+          expect(r.y).toBeGreaterThanOrEqual(9);
+          expect(r.y + r.hauteur).toBeLessThanOrEqual(90);
           expect(r.couleur).toMatch(/^#[0-9a-f]{6}$/i);
         }
       }
     }
+  });
+
+  it("sont alignés sur le logo : le corps de la flamme et le médaillon ont le même centre que lui, à un demi-pixel près", () => {
+    const boite = (rs: { y: number; hauteur: number }[]) => ({ haut: Math.min(...rs.map((r) => r.y)), bas: Math.max(...rs.map((r) => r.y + r.hauteur)) });
+    // Les lignes visibles du logo (opacité au-dessus de 128), lues dans ses pixels à sa place dans l'image.
+    const pixels = Buffer.from(LOGO_DU_CLAN.rgba, "base64");
+    const lignes = Array.from({ length: LOGO_DU_CLAN.cote }, (_, y) => y).filter((y) =>
+      Array.from({ length: LOGO_DU_CLAN.cote }, (_, x) => pixels[(y * LOGO_DU_CLAN.cote + x) * 4 + 3]!).some((a) => a > 128),
+    );
+    const centreDuLogo = PLACE_DU_LOGO.y + (lignes[0]! + lignes.at(-1)! + 1) / 2;
+    expect(centreDuLogo).toBe(39.5);
+    for (const niveau of NIVEAUX) {
+      const m = boite(insignesDeLaScene({ niveau }));
+      expect(Math.abs((m.haut + m.bas) / 2 - centreDuLogo), JSON.stringify(niveau)).toBeLessThanOrEqual(1);
+      const avecLaFlamme = boite(insignesDeLaScene({ niveau, serie: { victoires: 12, doree: true } }).filter((r) => r.x >= 120));
+      expect(avecLaFlamme).toEqual(m);
+    }
+    const f = boite(insignesDeLaScene({ serie: { victoires: 12, doree: false } }));
+    const corps = { haut: f.haut, bas: f.haut + FLAMME_LIGNES.length * 4 };
+    expect(Math.abs((corps.haut + corps.bas) / 2 - centreDuLogo)).toBeLessThanOrEqual(1);
   });
 
   it("changent l'image seulement dans leur bande, et laissent le Gaulois devant, dans les vingt décors", () => {
@@ -96,7 +117,7 @@ describe("les insignes sur l'image de /gaulois", () => {
           change++;
           const x = (i / 4) % IMAGE_GAULOIS.largeur;
           const y = Math.floor(i / 4 / IMAGE_GAULOIS.largeur);
-          expect(x >= 74 && x < 178 && y < 81, `${lieu} ${phase} : (${x}, ${y})`).toBe(true);
+          expect(x >= 74 && x < 178 && y >= 9 && y < 90, `${lieu} ${phase} : (${x}, ${y})`).toBe(true);
         }
         expect(change, `${lieu} ${phase}`).toBeGreaterThan(0);
       }
