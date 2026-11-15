@@ -6,14 +6,14 @@
 import { fmtDate, fmtInt, fmtPct, fmtRank } from "./format";
 import { AUCUN_GAULOIS, type GauloisParJoueur } from "./gaulois-joueurs";
 import { placeSprite, spriteRect, tenueOf } from "./gaulois-sprite";
-import { FLAMME } from "./flamme-serie";
+import { FLAMME, FLAMME_DOREE } from "./flamme-serie";
 import { CARD_COLORS as C, fitted, kpiParts, LOGO, MARGIN, pageFoot, pageHead, STAGES, type CardDessin, type CardEmbleme, type CardRect, type CardText, type GazetteCard, type Measure } from "./gazette-image";
 import { gamesOf, placeOf, rateOf } from "./members";
 import { accountLabel } from "./niveau";
 import { OPENFRONT_CREDIT } from "./victoires-discord";
 import { nextTier, tierOf } from "./paliers";
 import type { AccountLevel, StoredMember } from "./schemas";
-import { datesDeLaSerie, flammeAllumee, serieEnMots, type SerieEnCours } from "./serie-en-cours";
+import { datesDeLaSerie, flammeAllumee, serieEnMots, type RecordPersonnel, type SerieEnCours } from "./serie-en-cours";
 
 /** Le format des aperçus de lien : Discord, comme les autres, attend 1200 × 630. */
 const WIDTH = 1200;
@@ -55,13 +55,18 @@ export interface FicheFacts {
   niveau?: AccountLevel | null;
   /** Sa série de victoires en cours (`serie-en-cours.ts`), seulement quand la flamme est allumée (5 d'affilée et plus). */
   serie?: SerieEnCours | null;
+  /**
+   * La série en cours bat son ancien record, qui avait eu sa flamme : la flamme est dorée (`RecordPersonnel.doree`).
+   * `luesDepuis` : le jour de la première de ses parties lues, d'où se compte ce record.
+   */
+  record?: { luesDepuis: string } | null;
 }
 
 /**
  * Ce que l'image dit d'un membre. `null` : pas de pseudo ou pas de stats, donc pas d'image. `serie` : sa série en cours
  * (`loadSeriesEnCours`), gardée seulement si la flamme est allumée.
  */
-export function ficheFacts(members: readonly StoredMember[], member: StoredMember, serie: SerieEnCours | null = null): FicheFacts | null {
+export function ficheFacts(members: readonly StoredMember[], member: StoredMember, serie: SerieEnCours | null = null, record: RecordPersonnel | null = null): FicheFacts | null {
   if (!member.username || !member.team) return null;
   const place = placeOf(members, member);
   if (!place) return null;
@@ -79,6 +84,7 @@ export function ficheFacts(members: readonly StoredMember[], member: StoredMembe
     nextTier: next ? { wins: next.wins, missing: next.missing } : null,
     niveau: member.account ?? null,
     serie: flammeAllumee(serie) ? serie : null,
+    record: flammeAllumee(serie) && record?.doree ? { luesDepuis: record.luesDepuis } : null,
   };
 }
 
@@ -150,11 +156,13 @@ export function ficheCard(facts: FicheFacts, tag: string, siteUrl: string, liste
     const hauteur = FLAMME.hauteur * FLAMME_POSE.echelle;
     gaucheFlamme = sprite ? Math.min(FLAMME_POSE.gauche, spriteRect(sprite).x - 12 - largeur) : WIDTH - MARGIN - largeur;
     const pied = sprite ? FLAMME_POSE.avecGaulois : FLAMME_POSE.sansGaulois;
-    dessins.push({ decor: FLAMME, x: gaucheFlamme, y: pied - hauteur, echelle: FLAMME_POSE.echelle });
+    // La flamme d'or du record battu : même forme, même place ; « record » le dit en mots sur la deuxième ligne.
+    dessins.push({ decor: facts.record ? FLAMME_DOREE : FLAMME, x: gaucheFlamme, y: pied - hauteur, echelle: FLAMME_POSE.echelle });
     const ancre = gaucheFlamme - FLAMME_POSE.ecart;
     texts.push({ ...fitted(serieEnMots(serie), "strong", 28, 20, 400, measure), x: ancre, y: FLAMME_POSE.ligne1, font: "strong", color: C.WHITE, anchor: "end" });
-    // Ses dates, toujours : un membre qui ne joue plus garde sa série, qui ne doit pas se lire comme d'aujourd'hui.
-    texts.push({ ...fitted(`sous le tag, ${datesDeLaSerie(serie)}`, "body", 20, 16, 400, measure), x: ancre, y: FLAMME_POSE.ligne2, font: "body", color: C.MUTED, anchor: "end" });
+    // Ses dates, toujours : un membre qui ne joue plus garde sa série, qui ne doit pas se lire comme d'aujourd'hui. 480 px :
+    // la plus longue, « record sous le tag, du 28 sept. au 14 nov. 2026 », tient sans être coupée, au-dessus du prochain palier.
+    texts.push({ ...fitted(`${facts.record ? "record " : ""}sous le tag, ${datesDeLaSerie(serie)}`, "body", 20, 16, 480, measure), x: ancre, y: FLAMME_POSE.ligne2, font: "body", color: C.MUTED, anchor: "end" });
   }
 
   if (facts.nextTier && facts.games > 0) {
@@ -181,7 +189,7 @@ export function ficheCard(facts: FicheFacts, tag: string, siteUrl: string, liste
 /** Ce que l'image dit, pour un lecteur d'écran et pour la description du lien. */
 export function ficheImageAlt(facts: FicheFacts, tag: string, listedAt: string): string {
   // La série, puis le compte : deux phrases à part, chacune seulement si l'image la dessine.
-  const serie = flammeAllumee(facts.serie ?? null) ? `Série en cours : ${serieEnMots(facts.serie!)} sous le tag, ${datesDeLaSerie(facts.serie!)}, sans défaite depuis. ` : "";
+  const serie = flammeAllumee(facts.serie ?? null) ? `Série en cours : ${serieEnMots(facts.serie!)} sous le tag, ${datesDeLaSerie(facts.serie!)}, sans défaite depuis. ${facts.record ? `C'est son record, sur ses parties lues depuis le ${fmtDate(facts.record.luesDepuis)}. ` : ""}` : "";
   const niveau = facts.niveau ? `Compte OpenFront, tout le jeu : ${accountLabel(facts.niveau)}. ` : "";
   const listed = `${serie}${niveau}Liste officielle du ${fmtDate(listedAt)}.`;
   if (facts.games === 0) return `${facts.username}, membre de [${tag}] : aucune partie sous le tag, pas encore de palier. ${listed}`;

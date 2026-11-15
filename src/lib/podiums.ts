@@ -21,7 +21,7 @@
  * pas un classement de niveau. Mesuré contre le hasard le 10 novembre 2026 : docs/API_AUDIT.md.
  */
 import { fmtDate, fmtDay } from "./format";
-import type { ApiPlayerSession, StoredMembers, StoredMemberResults, StoredSession } from "./schemas";
+import type { ApiPlayerSession, StoredMemberResult, StoredMembers, StoredMemberResults, StoredSession } from "./schemas";
 import { parisParts } from "./time";
 
 export const PODIUM_SIZE = 5;
@@ -94,6 +94,54 @@ function podium(candidates: readonly Candidate[], size: number): PodiumPlace[] {
     });
 }
 
+/** La plus longue série de victoires d'un membre : heures ISO de début de sa première et de sa dernière victoire. */
+export interface PlusLongueSerie {
+  value: number;
+  from: string;
+  to: string;
+  /** L'heure de la partie qui a porté la série à sa valeur (sa dernière victoire) : à égalité, la plus ancienne garde le titre. */
+  reachedAt: string;
+}
+
+/**
+ * Les parties d'un membre qui comptent, dans l'ordre : chaque partie une fois, jusqu'aux sessions relevées. Une partie plus
+ * récente attend le passage suivant : sans sa session, une victoire ne serait pas reconnue.
+ */
+export function rangeesDuMembre(entry: StoredMemberResult, coveredUntil: string): [string, string, 0 | 1][] {
+  const seen = new Set<string>();
+  return entry.games
+    .filter(([gameId, start]) => {
+      if (seen.has(gameId) || start > coveredUntil) return false;
+      seen.add(gameId);
+      return true;
+    })
+    .sort(([a, startA], [b, startB]) => compare(startA, startB) || compare(a, b));
+}
+
+/**
+ * La plus longue série de victoires d'un membre, avec les règles des podiums (voir en tête) : une défaite coupe toujours, une
+ * victoire sans session du clan ou seul contre des robots ne compte pas et ne coupe rien. À égalité, la première atteinte.
+ * `null` : aucune victoire comptée. Partagée avec le record personnel des fiches (`serie-en-cours.ts`) : les deux chiffres
+ * sont toujours les mêmes.
+ */
+export function plusLongueSerie(entry: StoredMemberResult, byId: ReadonlyMap<string, Pick<StoredSession, "totalPlayerCount">>, coveredUntil: string): PlusLongueSerie | null {
+  let run = 0;
+  let runFrom = "";
+  let best: PlusLongueSerie | null = null;
+  for (const [gameId, start, won] of rangeesDuMembre(entry, coveredUntil)) {
+    if (won === 0) {
+      run = 0;
+      continue;
+    }
+    const session = byId.get(gameId);
+    if (!session || session.totalPlayerCount < 2) continue;
+    run++;
+    if (run === 1) runFrom = start;
+    if (!best || run > best.value) best = { value: run, from: runFrom, to: start, reachedAt: start };
+  }
+  return best;
+}
+
 /**
  * `coveredUntil` : jusqu'où les sessions du clan sont relevées sans trou. Une partie plus récente n'est pas encore comptée :
  * sans sa session, une victoire ne pourrait pas être reconnue.
@@ -111,38 +159,20 @@ export function playerPodiums(results: StoredMemberResults, sessions: readonly S
   for (const { id, username } of named) {
     const entry = results[id];
     if (!entry) continue;
-    const seen = new Set<string>();
-    const rows = entry.games
-      .filter(([gameId, start]) => {
-        if (seen.has(gameId) || start > coveredUntil) return false;
-        seen.add(gameId);
-        return true;
-      })
-      .sort(([a, startA], [b, startB]) => compare(startA, startB) || compare(a, b));
-
-    let run = 0;
-    let runFrom = "";
-    let streak: Candidate | null = null;
+    const longest = plusLongueSerie(entry, byId, coveredUntil);
     const wins = new Map<string, { value: number; last: string }>();
-    for (const [gameId, start, won] of rows) {
-      // Une défaite coupe toujours la série : elle compte dans `stats.team`, même sans session du clan ou seul contre des robots.
-      if (won === 0) {
-        run = 0;
-        continue;
-      }
-      // Une victoire n'est pas comptée sans session du clan (Humains contre Nations), ni seul contre des robots : elle ne coupe rien.
+    for (const [gameId, start, won] of rangeesDuMembre(entry, coveredUntil)) {
+      // Une journée ne compte que des victoires reconnues : avec une session du clan, et pas seul contre des robots.
+      if (won === 0) continue;
       const session = byId.get(gameId);
       if (!session || session.totalPlayerCount < 2) continue;
-      run++;
-      if (run === 1) runFrom = start;
-      if (!streak || run > streak.value) streak = { id, username, value: run, from: dayOf(runFrom), to: dayOf(start), reachedAt: start };
       const day = dayOf(start);
       const tally = wins.get(day) ?? { value: 0, last: start };
       tally.value++;
       tally.last = start;
       wins.set(day, tally);
     }
-    if (streak && streak.value >= MIN_STREAK) streaks.push(streak);
+    if (longest && longest.value >= MIN_STREAK) streaks.push({ id, username, value: longest.value, from: dayOf(longest.from), to: dayOf(longest.to), reachedAt: longest.reachedAt });
 
     let best: Candidate | null = null;
     for (const [day, tally] of [...wins].sort(([a], [b]) => compare(a, b))) {

@@ -12,6 +12,16 @@
   {
     "date": "2026-11-15",
     "kind": "nouveau",
+    "title": "Le record personnel",
+    "body": "La fiche d'un membre montre sa meilleure série de victoires d'affilée sous le tag. Quand sa série en cours bat une ancienne flamme, la flamme passe à l'or : c'est son record.",
+    "link": {
+      "href": "/membres",
+      "label": "Voir les membres"
+    }
+  },
+  {
+    "date": "2026-11-15",
+    "kind": "nouveau",
     "title": "La flamme de série et le niveau sur les fiches",
     "body": "Dès 5 victoires d'affilée sous le tag, une flamme brûle sur la fiche du membre et sur son image /fiche, au dernier relevé. L'image montre aussi le niveau de son compte, tout le jeu.",
     "link": {

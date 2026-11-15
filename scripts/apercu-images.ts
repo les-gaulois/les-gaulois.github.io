@@ -24,7 +24,7 @@ import { mapReading, rankReading, type PlaceAlert, type PlaceReading } from "../
 import { alertCard } from "../src/lib/alerts-image";
 import { welcomeCard } from "../src/lib/bienvenue-image";
 import { courseCard } from "../src/lib/course-soir-image";
-import { loadClanMapFilm, loadHistory, loadLeaderboard, loadMembers, loadMemberWeeks, loadMeta, loadNouveautes, loadSeriesEnCours, loadSessions, loadTerritoryReadings } from "../src/lib/data";
+import { loadClanMapFilm, loadHistory, loadLeaderboard, loadMembers, loadMemberWeeks, loadMeta, loadNouveautes, loadRecordsPersonnels, loadSeriesEnCours, loadSessions, loadTerritoryReadings } from "../src/lib/data";
 import { ficheCard, ficheFacts } from "../src/lib/fiche-image";
 import { flammeAllumee } from "../src/lib/serie-en-cours";
 import { TENUE_DE_DEPART, tenueAuHasard } from "../src/lib/gaulois";
@@ -246,8 +246,9 @@ await saveBoth("11-jouer-ensemble.png", ["m0", "m1", "m4"], (gaulois) =>
 );
 // La flamme de série et l'emblème de niveau, comme au build : la série en cours de chacun, lue dans .cache/member-games/.
 const series = loadSeriesEnCours();
+const records = loadRecordsPersonnels();
 const ficheDe = (member: NonNullable<typeof members>["members"][number] | null) => (gaulois: GauloisParJoueur) => {
-  const facts = members && member?.publicId ? ficheFacts(members.members, member, series.get(member.publicId) ?? null) : null;
+  const facts = members && member?.publicId ? ficheFacts(members.members, member, series.get(member.publicId) ?? null, records.get(member.publicId) ?? null) : null;
   return members && facts ? ficheCard(facts, TAG, SITE, members.fetchedAt, measure, gaulois) : null;
 };
 const firstMember = members?.members.find((member) => member.publicId && ficheFacts(members.members, member)?.rank === 1) ?? null;
@@ -258,6 +259,10 @@ const enFeu = (members?.members ?? [])
   .sort((a, b) => (series.get(b.publicId!)?.victoires ?? 0) - (series.get(a.publicId!)?.victoires ?? 0))[0];
 if (enFeu?.publicId) await saveBoth("13-fiche-flamme.png", [enFeu.publicId], ficheDe(enFeu));
 else console.log("13-fiche-flamme.png : aucune flamme allumée, pas d'image.");
+// Le membre dont la flamme est dorée (record personnel battu), s'il y en a un.
+const enOr = (members?.members ?? []).find((m) => m.publicId && m.username && records.get(m.publicId)?.doree);
+if (enOr?.publicId) await saveBoth("13-fiche-flamme-doree.png", [enOr.publicId], ficheDe(enOr));
+else console.log("13-fiche-flamme-doree.png : aucune flamme dorée, pas d'image.");
 await saveBoth(
   "14-accueil.png",
   (edition?.players ?? []).map((p) => p.id),

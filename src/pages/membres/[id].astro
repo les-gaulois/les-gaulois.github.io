@@ -7,7 +7,7 @@ import { NiveauEmblem } from "../../components/NiveauEmblem";
 import PageHeader from "../../components/PageHeader.astro";
 import ReadingNote from "../../components/ReadingNote.astro";
 import { clan } from "../../../config/clan";
-import { loadMemberGames, loadMemberResultsOnce, loadMembers, loadMeta, loadSeriesEnCours, loadSessionIndex } from "../../lib/data";
+import { loadMemberGames, loadMemberResultsOnce, loadMembers, loadMeta, loadRecordsPersonnels, loadSeriesEnCours, loadSessionIndex } from "../../lib/data";
 import { fmtCount, fmtDate, fmtDateTime, fmtInt, fmtPct } from "../../lib/format";
 import { ficheFacts, ficheImageAlt } from "../../lib/fiche-image";
 import { ficheImageVersion } from "../../lib/fiches-discord";
@@ -19,7 +19,7 @@ import { formatLabel } from "../../lib/results";
 import type { StoredMember } from "../../lib/schemas";
 import { groupSentence, groupStats, winRateOf } from "../../lib/seul-groupe";
 import { GROUP_LABELS, GROUP_SIZES } from "../../lib/simulateur";
-import { datesDeLaSerie, flammeAllumee, serieEnMots } from "../../lib/serie-en-cours";
+import { datesDeLaSerie, datesDuRecord, flammeAllumee, serieEnMots } from "../../lib/serie-en-cours";
 import { parisParts } from "../../lib/time";
 
 /** Une fiche par membre avec pseudo : un anonyme n'en a pas, et son identifiant n'est écrit nulle part. */
@@ -49,7 +49,14 @@ const atDay = (date: string) => fmtDate(`${date}T12:00:00Z`);
 const list = loadMembers();
 // Sa série en cours (`serie-en-cours.ts`) : la flamme ne s'allume qu'à 5 victoires d'affilée.
 const serie = member.publicId ? (loadSeriesEnCours().get(member.publicId) ?? null) : null;
-const facts = list ? ficheFacts(list.members, member, serie) : null;
+// Son record personnel (`serie-en-cours.ts`) : sa plus longue série, celle des podiums ; la flamme passe à l'or quand la
+// série en cours bat une ancienne flamme.
+const record = member.publicId ? (loadRecordsPersonnels().get(member.publicId) ?? null) : null;
+const facts = list ? ficheFacts(list.members, member, serie, record) : null;
+// Toujours ses dates, les mêmes qu'au podium de Records : une série de septembre ne se lit pas comme d'aujourd'hui.
+const recordLigne = record
+  ? `${datesDuRecord(record).replace(/^./, (c) => c.toUpperCase())}${record.courante ? ", sans défaite sous le tag depuis" : ""}, sur ses parties lues depuis le ${fmtDate(record.luesDepuis)}`
+  : null;
 // « 7 victoires d'affilée », ou « Au moins 7 victoires d'affilée » en tête de ligne.
 const serieLigne = flammeAllumee(serie) ? serieEnMots(serie).replace(/^a/, "A") : null;
 // Son adresse porte la version de son dessin : quand l'image change, Discord ne montre pas celle qu'il a gardée.
@@ -82,12 +89,15 @@ const tiles = member.team
           vient avant le niveau, qui est tout le jeu ; deux blocs à part. Sous 5, ou sans données : rien. */}
       {
         serie && serieLigne && (
-          <div class="mt-4 flex items-center gap-4" data-testid="member-streak">
+          <div class="mt-4 flex items-center gap-4" data-testid="member-streak" data-record={record?.doree ? "" : undefined}>
             <span class="flex w-24 shrink-0 justify-center">
-              <FlammeSerie />
+              <FlammeSerie doree={record?.doree ?? false} />
             </span>
             <p>
-              <span class="block font-display text-2xl font-bold">{serieLigne}</span>
+              <span class="block font-display text-2xl font-bold">
+                {serieLigne}
+                {record?.doree && ", son record"}
+              </span>
               <span class="block text-sm text-muted">Victoires {datesDeLaSerie(serie)}, sans défaite sous le tag depuis, au dernier relevé du {fmtDateTime(serie.releve)}</span>
             </p>
           </div>
@@ -140,6 +150,15 @@ const tiles = member.team
             ) : (
               <p class="mt-1 text-sm text-muted">C'est le dernier palier du site.</p>
             )}
+          </div>
+        )
+      }
+      {/* Le record personnel : sa plus longue série sous le tag, la même qu'aux podiums de Records. Chacun se mesure à lui-même. */}
+      {
+        record && recordLigne && games !== null && games > 0 && (
+          <div class="mt-6 max-w-xl" data-testid="member-best-streak">
+            <p class="tnum font-display text-xl font-bold">Meilleure série : {serieEnMots(record)}</p>
+            <p class="mt-1 text-sm text-muted">{recordLigne}</p>
           </div>
         )
       }

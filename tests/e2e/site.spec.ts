@@ -5,9 +5,9 @@ import { clan } from "../../config/clan";
 import { accueilFacts, accueilImageAlt, accueilRanking } from "../../src/lib/accueil-image";
 import { GazetteFonts } from "../../src/lib/gazette-image";
 import { worldTerritory } from "../../src/lib/carte-monde";
-import { loadClanMapFilm, loadTerritoryReadings, loadGames, loadHistory, loadMemberGames, loadMemberResults, loadMembers, loadMemberWeeks, loadMeta, loadNouveautes, loadRivals, loadSeriesEnCours, loadSessions } from "../../src/lib/data";
-import { datesDeLaSerie, flammeAllumee, serieEnMots } from "../../src/lib/serie-en-cours";
-import { fmtCount, fmtDateTime, fmtGap, fmtInt, fmtRank, fmtScore } from "../../src/lib/format";
+import { loadClanMapFilm, loadTerritoryReadings, loadGames, loadHistory, loadMemberGames, loadMemberResults, loadMembers, loadMemberWeeks, loadMeta, loadNouveautes, loadRecordsPersonnels, loadRivals, loadSeriesEnCours, loadSessions } from "../../src/lib/data";
+import { datesDeLaSerie, datesDuRecord, flammeAllumee, serieEnMots } from "../../src/lib/serie-en-cours";
+import { fmtCount, fmtDate, fmtDateTime, fmtGap, fmtInt, fmtRank, fmtScore } from "../../src/lib/format";
 import type { LeaderboardEntry } from "../../src/lib/schemas";
 import { neighbours, withOfficialRanks } from "../../src/lib/stats";
 import { firstRival, tagsInRace } from "../../src/lib/compare";
@@ -1801,6 +1801,46 @@ test("la fiche montre la flamme de série à partir de 5 victoires d'affilée, e
   expect(alt).toContain(`Série en cours : ${serieEnMots(serie)} sous le tag, ${datesDeLaSerie(serie)}, sans défaite depuis.`);
   const axe = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).include("[data-testid=member-streak]").analyze();
   expect(axe.violations).toEqual([]);
+});
+
+// Le record personnel (15 novembre 2026) : dans la scène des parties sous le tag, sa plus longue série, la même qu'aux podiums
+// de Records ; la flamme passe à l'or quand la série en cours bat une ancienne flamme, et « son record » le dit.
+test("la fiche montre la meilleure série du membre, et la flamme d'or d'un record battu", async ({ page }) => {
+  const records = loadRecordsPersonnels();
+  const nommes = (members.members as { username: string | null; team: unknown; publicId: string | null }[]).filter((m) => m.username && m.team && m.publicId);
+  const avec = nommes.find((m) => records.has(m.publicId!));
+  const sans = nommes.find((m) => !records.has(m.publicId!));
+  if (sans) {
+    await page.goto(`/membres/${sans.publicId}`);
+    await expect(page.getByTestId("member-best-streak")).toHaveCount(0);
+  }
+  if (avec) {
+    const record = records.get(avec.publicId!)!;
+    await page.goto(`/membres/${avec.publicId}`);
+    const bloc = page.getByTestId("member-best-streak");
+    await expect(bloc).toContainText(`Meilleure série : ${serieEnMots(record)}`);
+    // Toujours ses dates, même en cours : une ancienne série ne se lit pas comme d'aujourd'hui.
+    const dates = datesDuRecord(record).replace(/^./, (c) => c.toUpperCase());
+    await expect(bloc).toContainText(`${dates}${record.courante ? ", sans défaite sous le tag depuis" : ""}, sur ses parties lues depuis le ${fmtDate(record.luesDepuis)}`);
+    // Dans la scène des parties sous le tag, avec les chiffres du clan.
+    await expect(page.getByTestId("member-stats").getByTestId("member-best-streak")).toHaveCount(1);
+  }
+  // Le record d'un membre des podiums de Records est le même chiffre, aux mêmes dates, que sur sa fiche.
+  const podium = playerPodiums(loadMemberResults(), loadSessions(), loadMembers(), loadMeta().sessions.coveredUntil).streaks[0];
+  const record = podium ? records.get(podium.id) : undefined;
+  if (podium && record) {
+    expect(record.victoires).toBe(podium.value);
+    expect(datesDuRecord(record)).toBe(podiumDates(podium));
+  }
+  const enOr = nommes.find((m) => records.get(m.publicId!)?.doree);
+  if (!enOr) return;
+  await page.goto(`/membres/${enOr.publicId}`);
+  const flamme = page.getByTestId("member-streak");
+  await expect(flamme).toHaveAttribute("data-record", "");
+  await expect(flamme).toContainText("son record");
+  await expect(flamme.getByTestId("flamme-serie")).toHaveAttribute("data-doree", "");
+  const alt = await page.locator('meta[property="og:image:alt"]').getAttribute("content");
+  expect(alt).toContain(`C'est son record, sur ses parties lues depuis le ${fmtDate(records.get(enOr.publicId!)!.luesDepuis)}.`);
 });
 
 test("le site s'installe comme une application : un fichier d'installation et ses icônes", async ({ page }) => {

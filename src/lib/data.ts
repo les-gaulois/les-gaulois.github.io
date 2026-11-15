@@ -3,7 +3,7 @@ import { join } from "node:path";
 import type { z } from "zod";
 import { dayRows, territoryReadings, type TerritoryReading } from "./clanmap/days";
 import { GazetteSendState } from "./gazette-discord";
-import { serieEnCours, type SerieEnCours } from "./serie-en-cours";
+import { recordPersonnel, serieEnCours, type RecordPersonnel, type SerieEnCours } from "./serie-en-cours";
 import { EMPTY_MEMBER_WEEKS } from "./week-players";
 import {
   Announcements,
@@ -86,6 +86,7 @@ export const loadSessionIndex = (): Map<string, StoredSession> => (sessionIndex 
 export const loadMemberResultsOnce = (): StoredMemberResults => (memberResults ??= loadMemberResults());
 
 let seriesEnCours: ReadonlyMap<string, SerieEnCours> | null = null;
+let recordsPersonnels: ReadonlyMap<string, RecordPersonnel> | null = null;
 /**
  * La série de victoires en cours de chaque membre avec pseudo de la liste officielle dont les parties sont toutes lues
  * (`serie-en-cours.ts`), par identifiant public, calculée une fois. Vide si un mois de sessions est illisible : sans lui, une victoire ne serait pas reconnue, et une flamme
@@ -94,6 +95,7 @@ let seriesEnCours: ReadonlyMap<string, SerieEnCours> | null = null;
 export function loadSeriesEnCours(): ReadonlyMap<string, SerieEnCours> {
   if (seriesEnCours) return seriesEnCours;
   const series = new Map<string, SerieEnCours>();
+  const records = new Map<string, RecordPersonnel>();
   if (unreadableSessionFiles().length === 0) {
     const byId = loadSessionIndex();
     const coveredUntil = loadMeta().sessions.coveredUntil;
@@ -101,11 +103,21 @@ export function loadSeriesEnCours(): ReadonlyMap<string, SerieEnCours> {
     const results = loadMemberResultsOnce();
     for (const m of list?.members ?? []) {
       if (!list || !m.username || !m.publicId || !m.team) continue;
-      const serie = serieEnCours(results[m.publicId], byId, coveredUntil, { parties: m.team.wins + m.team.losses, le: list.fetchedAt });
+      const liste = { parties: m.team.wins + m.team.losses, le: list.fetchedAt };
+      const serie = serieEnCours(results[m.publicId], byId, coveredUntil, liste);
       if (serie) series.set(m.publicId, serie);
+      const record = recordPersonnel(results[m.publicId], byId, coveredUntil, serie);
+      if (record) records.set(m.publicId, record);
     }
   }
+  recordsPersonnels = records;
   return (seriesEnCours = series);
+}
+
+/** Le record personnel de chaque membre (`serie-en-cours.ts`), calculé avec les séries en cours, aux mêmes conditions. */
+export function loadRecordsPersonnels(): ReadonlyMap<string, RecordPersonnel> {
+  loadSeriesEnCours();
+  return recordsPersonnels ?? new Map();
 }
 
 /** Les mois de sessions illisibles. Une page les ignore et se corrige au build suivant ; un message posté ne se corrige pas. */

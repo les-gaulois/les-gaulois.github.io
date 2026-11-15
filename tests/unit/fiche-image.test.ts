@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ficheCard, ficheFacts, ficheImageAlt, type FicheFacts } from "../../src/lib/fiche-image";
 import { cardSvg, type Measure } from "../../src/lib/gazette-image";
-import { FLAMME } from "../../src/lib/flamme-serie";
+import { FLAMME, FLAMME_DOREE } from "../../src/lib/flamme-serie";
 import { prestigeColor } from "../../src/lib/niveau";
 import { TENUE_DE_DEPART } from "../../src/lib/gaulois";
 import type { GauloisParJoueur } from "../../src/lib/gaulois-joueurs";
@@ -18,7 +18,7 @@ const LISTED = "2026-11-08T08:53:00.000Z";
 
 describe("ficheFacts", () => {
   it("reprend la place et les chiffres de la liste des membres, et le palier", () => {
-    expect(ficheFacts(members, members[0]!)).toEqual({ id: "a", username: "Alpha", rank: 3, ranked: 4, wins: 738, losses: 619, games: 1357, rate: (738 / 1357) * 100, tier: 500, nextTier: { wins: 1000, missing: 262 }, niveau: null, serie: null });
+    expect(ficheFacts(members, members[0]!)).toEqual({ id: "a", username: "Alpha", rank: 3, ranked: 4, wins: 738, losses: 619, games: 1357, rate: (738 / 1357) * 100, tier: 500, nextTier: { wins: 1000, missing: 262 }, niveau: null, serie: null, record: null });
   });
   it("n'a rien à dire d'un anonyme ni d'un membre sans stats", () => {
     expect(ficheFacts(members, members[3]!)).toBeNull();
@@ -182,6 +182,27 @@ describe("la flamme de série et l'emblème de niveau sur la fiche", () => {
     );
     expect(plain(ficheImageAlt({ ...base, niveau: null, serie: serie(4) }, "GAL", LISTED))).not.toContain("Série");
   });
+  it("dore la flamme d'un record battu, et le dit en mots sur l'image et au lecteur d'écran", () => {
+    for (const g of [undefined, avecGaulois]) {
+      const normale = carte(NIVEAU, serie(7), g);
+      const doree = ficheCard({ ...base, niveau: NIVEAU, serie: serie(7), record: { luesDepuis: "2026-04-10T18:00:00.000Z" } }, "GAL", "https://les-gaulois.github.io", LISTED, measure, g);
+      expect(normale.dessins![0]!.decor).toBe(FLAMME);
+      expect(doree.dessins![0]!.decor).toBe(FLAMME_DOREE);
+      // Même place, même taille : seule la couleur et un mot changent.
+      expect({ ...doree.dessins![0]!, decor: null }).toEqual({ ...normale.dessins![0]!, decor: null });
+      const mots = doree.texts.map((t) => plain(t.text));
+      expect(mots).toContain("7 victoires d'affilée");
+      expect(mots).toContain("record sous le tag, du 18 au 21 sept. 2026");
+    }
+    // La plus longue deuxième ligne tient dans ses 480 px, sans être coupée.
+    const longue = ficheCard({ ...base, serie: { ...serie(19), depuis: "2026-09-28T19:00:00.000Z", jusqua: "2026-11-14T20:00:00.000Z" }, record: { luesDepuis: "2026-04-10T18:00:00.000Z" } }, "GAL", "https://les-gaulois.github.io", LISTED, measure);
+    const ligne = longue.texts.find((t) => t.text.startsWith("record "))!;
+    expect(plain(ligne.text)).toBe("record sous le tag, du 28 sept. au 14 nov. 2026");
+    expect(measure(ligne.text, ligne.font, ligne.size)).toBeLessThanOrEqual(480);
+    expect(plain(ficheImageAlt({ ...base, serie: serie(7), record: { luesDepuis: "2026-04-10T18:00:00.000Z" } }, "GAL", LISTED))).toContain("sans défaite depuis. C'est son record, sur ses parties lues depuis le 10 avr. 2026. Liste officielle");
+    expect(plain(ficheImageAlt({ ...base, serie: serie(7), record: null }, "GAL", LISTED))).not.toContain("record");
+  });
+
   it("dessine l'emblème aux couleurs du prestige, ses crans éteints en filet, et la flamme case par case, nette", () => {
     const c = carte(NIVEAU, serie(7), avecGaulois);
     const svg = cardSvg(c, { paths: () => "" }, { table: false });

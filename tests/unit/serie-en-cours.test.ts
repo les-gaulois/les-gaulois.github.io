@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { playerPodiums } from "../../src/lib/podiums";
 import type { StoredMemberResult, StoredMembers, StoredSession } from "../../src/lib/schemas";
-import { datesDeLaSerie, FLAMME_DES, flammeAllumee, serieEnCours, serieEnMots } from "../../src/lib/serie-en-cours";
+import { datesDeLaSerie, datesDuRecord, FLAMME_DES, flammeAllumee, recordPersonnel, serieEnCours, serieEnMots } from "../../src/lib/serie-en-cours";
 
 const LU = "2026-11-15T09:00:00.000Z";
 const COUVERT = "2026-11-15T08:00:00.000Z";
@@ -117,5 +117,70 @@ describe("la série en cours", () => {
     expect(enCours).toBe(5);
     expect(enCours).toBeLessThanOrEqual(longue);
     expect(longue).toBe(5);
+  });
+});
+
+describe("le record personnel", () => {
+  /** Des victoires (1) et des défaites (0) d'affilée, une partie par heure, à partir de l'heure 0. */
+  const suite = (resultats: (0 | 1)[]): Ligne[] => resultats.map((won, i) => [i + 1, i, won]);
+  const record = (lignes: Ligne[], options: Parameters<typeof sessions>[1] = {}, { couvert = COUVERT, older = null as string | null, liste = undefined as { parties: number; le: string } | undefined } = {}) => {
+    const r = resultat(lignes, older);
+    const idx = sessions(lignes, options);
+    return recordPersonnel(r, idx, couvert, serieEnCours(r, idx, couvert, liste));
+  };
+
+  it("est sa plus longue série, avec ses dates et le jour de sa première partie lue", () => {
+    const lignes = suite([0, 1, 1, 1, 0, 1, 1]);
+    const r = record(lignes)!;
+    expect(r).toEqual({ victoires: 3, auMoins: false, debut: heure(1), fin: heure(3), luesDepuis: heure(0), doree: false, courante: false, ancien: null });
+    expect(datesDuRecord(r)).toBe("le 10 nov. 2026");
+  });
+
+  it("passe à l'or quand la série en cours bat une ancienne flamme, même de 5 tout juste, et dit l'ancien record", () => {
+    expect(record(suite([1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1]))).toMatchObject({ victoires: 7, debut: heure(7), fin: heure(13), doree: true, courante: true, ancien: 6 });
+    expect(record(suite([1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1]))).toMatchObject({ victoires: 6, doree: true, courante: true, ancien: 5 });
+  });
+
+  it("reste normale à égalité, contre une ancienne série sans flamme, ou pour une première série", () => {
+    expect(record(suite([1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1]))).toMatchObject({ victoires: 6, fin: heure(5), doree: false, courante: false, ancien: null });
+    expect(record(suite([1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1]))).toMatchObject({ victoires: 9, doree: false, courante: true, ancien: null });
+    expect(record(suite([1, 1, 1, 1, 1, 1, 1]))).toMatchObject({ victoires: 7, doree: false, courante: true, ancien: null });
+  });
+
+  it("ne dore rien quand la série en cours est coupée, même si l'ancien record était une flamme", () => {
+    expect(record(suite([1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0]))).toMatchObject({ victoires: 7, doree: false, courante: false });
+  });
+
+  it("ne dore rien quand le début de son historique n'est pas lu : une série plus ancienne pourrait être plus longue", () => {
+    expect(record(suite([1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1]), {}, { older: "curseur" })).toMatchObject({ victoires: 7, doree: false, courante: true, auMoins: false });
+  });
+
+  it("une défaite plus récente que les sessions coupe la série en cours : le record finit sur sa dernière victoire, sans être en cours", () => {
+    const lignes = suite([0, 1, 1, 1, 0]);
+    expect(record(lignes, {}, { couvert: heure(3) })).toMatchObject({ victoires: 3, fin: heure(3), courante: false });
+  });
+
+  it("une victoire plus récente que les sessions attend : le record en cours devient un minimum", () => {
+    const lignes = suite([0, 1, 1, 1, 1]);
+    expect(record(lignes, {}, { couvert: heure(3) })).toMatchObject({ victoires: 3, fin: heure(3), courante: true, auMoins: true });
+  });
+
+  it("suit les règles des podiums : une victoire sans session ne compte pas et ne coupe rien", () => {
+    const lignes = suite([1, 1, 1, 1]);
+    expect(record(lignes, { sans: [2] })).toMatchObject({ victoires: 3 });
+    expect(record(lignes, { seul: [1, 2, 3] })).toBeNull();
+  });
+
+  it("reste donné quand des parties récentes ne sont pas lues, comme aux podiums, mais n'est alors ni en cours ni doré", () => {
+    const lignes = suite([1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1]);
+    expect(record(lignes, {}, { liste: { parties: lignes.length + 1, le: LU } })).toMatchObject({ victoires: 7, courante: false, doree: false });
+    expect(record(lignes, {}, { liste: { parties: lignes.length, le: LU } })).toMatchObject({ victoires: 7, courante: true, doree: true });
+  });
+
+  it("rien sous 2 victoires d'affilée ni sans données", () => {
+    expect(record(suite([1, 0, 1, 0]))).toBeNull();
+    expect(recordPersonnel(undefined, new Map(), COUVERT, null)).toBeNull();
+    const lignes = suite([1, 1, 1]);
+    expect(recordPersonnel(resultat(lignes), sessions(lignes), null, null)).toBeNull();
   });
 });

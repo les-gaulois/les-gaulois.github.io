@@ -47,3 +47,30 @@ export const FLAMME: Decor = (() => {
   });
   return planche.decor();
 })();
+
+/** L'or du record personnel, du bord au cœur : le contour, le vieil or, l'or, l'or clair, l'éclat. Ni rouge ni orange. */
+const OR = {
+  contour: "#3a2606",
+  vieilOr: "#9c6a0c",
+  or: "#d9a21b",
+  clair: "#ffd84a",
+  eclat: "#fffbe6",
+};
+
+/**
+ * La flamme dorée : la même forme, case pour case, quand la série en cours bat l'ancien record du membre, qui avait lui-même
+ * eu sa flamme (5 victoires d'affilée et plus ; `RecordPersonnel.doree`). L'or ne dit rien seul : « son record » s'écrit en
+ * mots à côté.
+ * Design : Claude Fable 5.2, 15 novembre 2026.
+ */
+export const FLAMME_DOREE: Decor = (() => {
+  const planche = new Planche(LIGNES[0].length, LIGNES.length);
+  planche.lettres(0, 0, LIGNES, {
+    o: OR.contour,
+    r: OR.vieilOr,
+    e: OR.or,
+    j: OR.clair,
+    c: OR.eclat,
+  });
+  return planche.decor();
+})();

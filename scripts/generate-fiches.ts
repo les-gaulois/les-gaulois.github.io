@@ -11,7 +11,7 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import sharp from "sharp";
 import { clan } from "../config/clan";
-import { loadMembers, loadSeriesEnCours } from "../src/lib/data";
+import { loadMembers, loadRecordsPersonnels, loadSeriesEnCours } from "../src/lib/data";
 import { ficheCard, ficheFacts } from "../src/lib/fiche-image";
 import { avecOuSansGaulois, seulement } from "../src/lib/gaulois-envois";
 import { GAULOIS_FICHES_FILE, gauloisDuCache } from "../src/lib/gaulois-joueurs";
@@ -32,8 +32,9 @@ mkdirSync(out, { recursive: true });
 const started = Date.now();
 // La flamme de série (`serie-en-cours.ts`) : lue dans .cache/member-games/results.json, restauré par l'Action ; sans lui, pas de flamme.
 const series = loadSeriesEnCours();
+const records = loadRecordsPersonnels();
 const todo = list.members.flatMap((member) => {
-  const facts = member.publicId ? ficheFacts(list.members, member, series.get(member.publicId) ?? null) : null;
+  const facts = member.publicId ? ficheFacts(list.members, member, series.get(member.publicId) ?? null, records.get(member.publicId) ?? null) : null;
   return facts && member.publicId ? [{ id: member.publicId, facts }] : [];
 });
 // Seuls les membres au pseudo public ont une fiche (`ficheFacts`) : les Gaulois gardés pour eux, et chaque fiche le sien seul.

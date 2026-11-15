@@ -21,7 +21,7 @@
  * ses dates s'écrivent toujours avec elle (`datesDeLaSerie`), pour qu'une série de septembre ne se lise pas comme d'aujourd'hui.
  */
 import { fmtInt } from "./format";
-import { podiumDates } from "./podiums";
+import { MIN_STREAK, plusLongueSerie, podiumDates, rangeesDuMembre } from "./podiums";
 import type { StoredMemberResult, StoredSession } from "./schemas";
 import { parisParts } from "./time";
 
@@ -99,11 +99,65 @@ export function serieEnCours(
 /** La flamme est-elle allumée ? */
 export const flammeAllumee = (serie: SerieEnCours | null): serie is SerieEnCours => serie !== null && serie.victoires >= FLAMME_DES;
 
-/** « 7 victoires d'affilée », « au moins 7 victoires d'affilée ». Seulement pour une flamme allumée (5 et plus : toujours au pluriel). */
-export const serieEnMots = (serie: SerieEnCours): string => `${serie.auMoins ? "au moins " : ""}${fmtInt(serie.victoires)} victoires d'affilée`;
+/** « 7 victoires d'affilée », « au moins 7 victoires d'affilée ». Seulement à partir de 2 (toujours au pluriel). */
+export const serieEnMots = (serie: Pick<SerieEnCours, "victoires" | "auMoins">): string => `${serie.auMoins ? "au moins " : ""}${fmtInt(serie.victoires)} victoires d'affilée`;
+
+/**
+ * Le record personnel d'un membre (demande du pilote, 15 novembre 2026) : sa plus longue série de victoires d'affilée sous
+ * le tag, la même que celle des podiums de Records (`plusLongueSerie`), comptée depuis la première de ses parties lues.
+ * Chacun se mesure à lui-même : ce n'est pas un classement.
+ */
+export interface RecordPersonnel {
+  victoires: number;
+  /** Un minimum : c'est la série en cours, et une de ses victoires attend sa session (`SerieEnCours.auMoins`). */
+  auMoins: boolean;
+  /** Le début de la première et de la dernière victoire de cette série (heures ISO). */
+  debut: string;
+  fin: string;
+  /** Le début de la première de ses parties lues et comptées : la série la plus longue se compte depuis ce jour. */
+  luesDepuis: string;
+  /**
+   * La série en cours bat l'ancien record du membre, qui avait lui-même eu sa flamme (5 et plus) : la flamme passe à l'or.
+   * Une première série, ou une ancienne plus courte que 5, ne suffit pas : mesuré le 15 novembre 2026, battre n'importe
+   * quelle série d'avant aurait doré 6 flammes sur 11, battre une ancienne flamme 1 sur 11. À égalité, non. Seulement quand
+   * tout son historique est lu : une série plus ancienne, pas encore lue, pourrait être plus longue.
+   */
+  doree: boolean;
+  /** Ce record est la série en cours, qui n'a pas pris fin : « sans défaite depuis », toujours avec ses dates. */
+  courante: boolean;
+  /** Son record d'avant la série en cours, quand celle-ci le bat ; sinon `null`. */
+  ancien: number | null;
+}
+
+/**
+ * Le record personnel d'un membre. `null` : pas de données, ou pas de série d'au moins 2 victoires, le seuil des podiums.
+ * Comme aux podiums de Records, il se donne même quand des parties récentes attendent d'être lues : sa plus longue série
+ * passée reste juste. `serie` : sa série en cours (`null` quand ses parties ne sont pas toutes lues), pour savoir si elle
+ * est ce record : seule elle peut le dire en cours ou doré.
+ */
+export function recordPersonnel(
+  entry: StoredMemberResult | undefined,
+  byId: ReadonlyMap<string, Pick<StoredSession, "totalPlayerCount">>,
+  coveredUntil: string | null,
+  serie: SerieEnCours | null,
+): RecordPersonnel | null {
+  if (!entry || coveredUntil === null) return null;
+  const best = plusLongueSerie(entry, byId, coveredUntil);
+  const premiere = rangeesDuMembre(entry, coveredUntil)[0];
+  if (!best || best.value < MIN_STREAK || !premiere) return null;
+  // La plus longue série garde la première atteinte : si elle finit sur la dernière victoire de la série en cours, celle-ci la
+  // bat. Son record d'avant se lit dans les parties d'avant le début de la série en cours.
+  const courante = serie !== null && serie.victoires === best.value && serie.depuis !== null && serie.jusqua === best.to;
+  const ancien = courante && flammeAllumee(serie) ? (plusLongueSerie({ ...entry, games: entry.games.filter(([, start]) => start < serie.depuis!) }, byId, coveredUntil)?.value ?? 0) : 0;
+  const doree = ancien >= FLAMME_DES && entry.older === null;
+  return { victoires: best.value, auMoins: courante && serie.auMoins, debut: best.from, fin: best.to, luesDepuis: premiere[1], doree, courante, ancien: doree ? ancien : null };
+}
 
 /** Les jours de Paris de ses victoires, comme aux podiums : « le 2 nov. 2026 », « du 18 au 21 sept. 2026 ». Vide sans série. */
 export function datesDeLaSerie(serie: SerieEnCours): string {
   if (!serie.depuis || !serie.jusqua) return "";
   return podiumDates({ from: parisParts(serie.depuis).date, to: parisParts(serie.jusqua).date });
 }
+
+/** Les jours de Paris du record, les mêmes qu'au podium de Records : « le 2 nov. 2026 », « du 3 au 4 oct. 2026 ». */
+export const datesDuRecord = (record: RecordPersonnel): string => podiumDates({ from: parisParts(record.debut).date, to: parisParts(record.fin).date });

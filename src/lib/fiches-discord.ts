@@ -10,7 +10,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { ficheFacts, ficheImageAlt } from "./fiche-image";
 import type { StoredMembers } from "./schemas";
-import type { SerieEnCours } from "./serie-en-cours";
+import type { RecordPersonnel, SerieEnCours } from "./serie-en-cours";
 
 export interface FicheEntry {
   /** L'identifiant public du membre, celui de l'adresse de sa fiche et de son image. */
@@ -48,10 +48,10 @@ export function ficheImageVersion(id: string, root = ""): string | null {
 }
 
 /** `imageVersion` : la version de l'image de la fiche (`ficheImageVersion`), ou `null` si elle n'a pas été dessinée. */
-export function ficheIndex(list: StoredMembers, tag: string, imageVersion: (id: string) => string | null, series: ReadonlyMap<string, SerieEnCours> = new Map()): FicheIndex {
+export function ficheIndex(list: StoredMembers, tag: string, imageVersion: (id: string) => string | null, series: ReadonlyMap<string, SerieEnCours> = new Map(), records: ReadonlyMap<string, RecordPersonnel> = new Map()): FicheIndex {
   const fiches = list.members.flatMap((member): FicheEntry[] => {
     if (!member.username || !member.publicId) return [];
-    const facts = ficheFacts(list.members, member, series.get(member.publicId) ?? null);
+    const facts = ficheFacts(list.members, member, series.get(member.publicId) ?? null, records.get(member.publicId) ?? null);
     const v = facts ? imageVersion(member.publicId) : null;
     const alt = facts && v ? ficheImageAlt(facts, tag, list.fetchedAt) : null;
     return [{ id: member.publicId, pseudo: member.username, alt, v: alt ? v : null }];

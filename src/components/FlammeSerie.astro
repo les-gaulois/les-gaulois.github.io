@@ -1,14 +1,18 @@
 ---
-import { FLAMME } from "../lib/flamme-serie";
+import { FLAMME, FLAMME_DOREE } from "../lib/flamme-serie";
 
 /**
  * La flamme de série, sur la page d'une fiche (conception de Claude Fable 5.2, 15 novembre 2026) : le dessin de
  * `flamme-serie.ts` en SVG statique, construit au build, sans script ; 4 px par case (44 × 60 px), jamais en rem ni en
  * pourcentage, pour que chaque case reste entière. Décorative : le nombre de victoires d'affilée est écrit à côté.
- * Aucune animation.
+ * Aucune animation. `doree` : la flamme d'or du record personnel battu, même forme, même taille.
  */
+interface Props {
+  doree?: boolean;
+}
+const { doree = false } = Astro.props;
 const ECHELLE = 4;
-const { largeur, hauteur, cases } = FLAMME;
+const { largeur, hauteur, cases } = doree ? FLAMME_DOREE : FLAMME;
 // Les cases d'une même couleur côte à côte : un seul rectangle.
 const rects: { x: number; y: number; w: number; color: string }[] = [];
 for (let y = 0; y < hauteur; y++) {
@@ -32,6 +36,7 @@ for (let y = 0; y < hauteur; y++) {
   shape-rendering="crispEdges"
   style="image-rendering: pixelated"
   data-testid="flamme-serie"
+  data-doree={doree ? "" : undefined}
 >
   {rects.map((r) => <rect x={r.x} y={r.y} width={r.w} height="1" fill={r.color} />)}
 </svg>
