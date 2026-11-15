@@ -50,7 +50,7 @@ jobs:
       - name: Garder les moments sur la branche
         if: always()
         run: |
-          for fichier in src/lib/village/monde/almanach/moments.json src/lib/village/monde/almanach/ecriture.json; do
+          for fichier in src/lib/village/monde/almanach/moments.json src/lib/village/monde/almanach/ecriture.json src/lib/village/monde/almanach/essai.json; do
             if [ -f "$fichier" ]; then git add -- "$fichier"; fi
           done
           if git diff --cached --quiet; then

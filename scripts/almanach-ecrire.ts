@@ -3,7 +3,8 @@
  * une fois par Claude Fable 5.2, par l'API Message Batches, contrôlés par le code, gardés dans le dépôt. Lancé par
  * l'Action `.github/workflows/almanach.yml`, sur la seule branche `robot/almanach`.
  *   npx tsx scripts/almanach-ecrire.ts            le prochain lot (ou la reprise d'un lot en route), puis les compléments
- *   npx tsx scripts/almanach-ecrire.ts --essai    une seule requête, sans lot, qui affiche les moments et leurs refus, sans rien écrire
+ *   npx tsx scripts/almanach-ecrire.ts --essai    une seule requête, sans lot, qui affiche les moments et leurs refus, et ne les écrit que dans essai.json
+ *   (l'Action fait de même quand config/almanach.json porte "essai": true)
  * Avec ANTHROPIC_API_KEY dans l'environnement, donnée au seul client du SDK officiel (`@anthropic-ai/sdk`), qui ne l'envoie
  * qu'à api.anthropic.com ; sans elle, rien ne part. Le plafond de dépense est dans config/almanach.json. Le journal ne dit
  * que des nombres, des identifiants et des raisons : jamais la clé.
