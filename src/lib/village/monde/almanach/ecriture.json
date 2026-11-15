@@ -1,0 +1,16 @@
+{
+  "modele": "claude-fable-5-2",
+  "effort": "medium",
+  "objectif": 650,
+  "plafond_dollars": 60,
+  "gardes": 0,
+  "cout_dollars": 0.4858,
+  "jetons": {
+    "entree": 0,
+    "sortie": 0
+  },
+  "lots": [],
+  "lot_en_cours": null,
+  "lots_connus": [],
+  "essais_dollars": 0.4858
+}
