@@ -284,15 +284,24 @@ test("il garde sa place d'une page à l'autre, et au retour arrière", async ({ 
 
 test("au retour arrière d'une page gardée par le navigateur, il reprend la place et l'état de l'onglet", async ({ page }) => {
   await sansSalut(page);
+  // Sans rien à éviter, il se tient exactement à la place gardée. Sur la vraie page, sa place libre dépend des données
+  // (l'avis « Données périmées » décale les chiffres), et deux places gardées peuvent mener à la même.
+  await pageVide(page);
   await page.goto("/classement");
   await expect(compagnon(page)).toBeVisible();
-  const avant = await placeX(page);
-  // Ce qu'aurait changé une autre page de l'onglet, puis le retour d'une page gardée en mémoire (bfcache).
+  const vue = page.viewportSize() ?? { width: 0, height: 0 };
+  const centreX = () => compagnon(page).evaluate((el) => Math.round(el.getBoundingClientRect().left + el.getBoundingClientRect().width / 2));
+  // Il arrive en bas à gauche.
+  expect(await centreX()).toBeLessThan(vue.width / 2);
+  // Ce qu'aurait changé une autre page de l'onglet, puis le retour d'une page gardée en mémoire (bfcache) : une place en
+  // haut à droite, au format qu'écrit `garderLaPlace`.
   await page.evaluate(() => {
-    sessionStorage.setItem("gal-compagnon-place", JSON.stringify({ part: 0.5, vers: -1 }));
+    sessionStorage.setItem("gal-compagnon-place", JSON.stringify({ part: 0.9, partY: 0.2, vers: -1 }));
     window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true }));
   });
-  await expect.poll(() => placeX(page)).not.toBe(avant);
+  await expect.poll(centreX).toBeGreaterThan(vue.width * 0.75);
+  await expect(compagnon(page)).toBeVisible();
+  expect(await placeY(page)).toBeLessThan(vue.height / 2);
   await expect(compagnon(page)).toHaveAttribute("data-vers", "gauche");
   // Mis en prison entre-temps sur une autre page : il n'en sort pas tout seul.
   await page.evaluate(() => {
