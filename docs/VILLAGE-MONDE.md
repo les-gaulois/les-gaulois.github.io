@@ -96,7 +96,9 @@ où les fenêtres s'ouvrent par-dessus. Design et écran : Claude Fable 5.2.
   canon (l'obus tombe à l'eau devant la cible) ; la trappe du silo s'ouvre, le missile monte, file au-dessus du village
   et explose sur le pré devant le camp d'en face ; une fusée d'en face est arrêtée en l'air par la batterie. Espacés
   d'une minute au moins, lents, sans éclair ni clignotement, sans sang ni victime ; rien ne vient d'une vraie partie,
-  aucun texte ne les présente comme tels, et rien ne se passe en pause ni avec « réduire les animations ».
+  aucun texte ne les présente comme tels, et rien ne se passe en pause ni avec « réduire les animations ». Depuis
+  l'almanach (15 novembre 2026, plus bas), le cycle suit l'heure réelle, la même pour tous, et non plus le temps passé
+  sur la page ; un cycle sur deux, un petit moment de l'almanach peut prendre la place du missile.
 - **Les bêtes** (`betes.ts`) : deux vaches devant l'étable, des poules près du potager, le chien de la place, une
   charrette et son âne sur le chemin, des chèvres et des poules sur les terrasses et dans le pré du bas. Dessins
   originaux ; elles vont et viennent comme des promeneurs.
@@ -520,3 +522,91 @@ donc plus grand que son dehors. Il en reprend les matières et les formes, vues 
   - jamais vu sur un vrai téléphone ni avec un vrai compte ;
   - à 1 920 × 1 080, la largeur des grandes fenêtres limite les dessins larges à 2 pixels par case ;
   - comme les grandes fenêtres, celle-ci peut couvrir les boutons d'approche, jamais la mention d'OpenFront.
+
+## L'almanach des petits moments (15 novembre 2026)
+
+Le pilote a choisi cette idée de Claude Fable 5.2 le 15 novembre 2026, avec 650 moments. De temps en temps, un moment rare
+passe dans le monde : une charrette de foin, un vol d'oies, la brume du matin sur le ruisseau. On ne revoit presque
+jamais le même.
+
+C'est un décor animé, comme les événements d'OpenFront :
+- rien ne vient d'une vraie partie ni d'un membre ;
+- rien ne change une valeur, aucun texte ne s'affiche ;
+- rien ne se passe en pause, avec « réduire les animations » ou page cachée.
+
+Contrat : `src/lib/village/monde/almanach/type.ts`.
+
+### Les figurants (design : Claude Fable 5.2)
+
+`figurants.ts` réunit 50 dessins originaux, case par case, à l'échelle des Gaulois, tournés vers la droite, de 1 à 4
+images. Ils sont rangés par milieu, chacun dans son fichier `figurants-<milieu>.ts`, avec la boîte à dessin dans
+`figurants-outils.ts` :
+- **ciel** : 12 (oies, étourneaux, cigognes, corbeaux, mouettes, buse, héron, hirondelles, arc-en-ciel, chouette, chauves-souris, étoile filante) ;
+- **eau** : 11 (canards, cygne, héron au gué, poisson, barque, bois flotté, libellules, grenouille, martin-pêcheur, loutre, bateau d'écorce) ;
+- **sol** : 10 bêtes (lapin, renard, hérisson, biche et faon, écureuil, chat, faisan, moineaux, papillons, lucioles), et 6 gens de passage (colporteur, berger et moutons, porteur de lanterne, pêcheur, gardeuse d'oies, porteur de fagot) ;
+- **toits** : 5 ;
+- **nappes** : 6 (brume du matin, brume sur l'eau, pluie fine, feuilles, fumée qui traîne, aigrettes).
+
+Ils ne refont pas les bêtes de `betes.ts`. Il n'y a pas de sanglier, et rien ne dit une saison. Les gens de passage, sous
+capuche, chapeau ou coiffe, ne ressemblent à aucun Gaulois de membre, et leur description pour l'API le redit.
+
+### Le moteur (code : Claude Opus 5.5)
+
+- **Les lieux** (`ancres.ts`) : 24 points du premier plan, du bas et du ciel, sans les terrasses du fond. Chacun a :
+  - sa phrase pour l'API, son milieu et sa place autour ;
+  - ses zones par milieu (au gué, l'eau et la rive suivent le vrai lit du ruisseau) ;
+  - les bâtiments qu'il demande (devant le moulin, le lavoir, le colombier…).
+
+  Les 24 se posent dans le monde de 0 à 1 000 Gaulois.
+- **Les réglages des figurants** (`reglages-figurants.ts`) :
+  - le pêcheur, assis sur la rive, son fil sur l'eau, ne se retourne pas ;
+  - l'étoile filante et la fumée ne vont que vers la droite ;
+  - le pied d'un figurant d'eau est dans l'eau ;
+  - chacun garde ses heures.
+- **Le moment** (`moment.ts`) : un titre (jamais affiché), des phases de la journée, des bâtiments, un lieu, une durée de
+  15 à 120 secondes, et 1 à 4 rôles faits d'étapes (`t`, `x`, `y`, opacité). `validerMoment` rend la raison de chaque
+  refus (19 raisons). Elle contrôle :
+  - la vitesse selon l'allure : posé 0, lent 4, au pas 12, en vol 40 cases par seconde ;
+  - l'entrée et la sortie en fondu, l'opacité changeant de 0,5 par seconde au plus ;
+  - le sens imposé, et le pied dans sa zone, huit fois par seconde, comme l'écran le pose.
+
+  `sontDoublons` écarte le même passage au même lieu.
+- **Le jeu** (`jeu.ts`, `MondeVie.tsx`) : des lignes droites à vitesse égale. Le figurant se tourne du côté où il va, ses
+  images tournent lentement, il se range par la rangée de son pied, et ce qui vole passe devant le décor. Ses dessins sont
+  gardés par lumière. `moments.json` est chargé à part, seulement quand le monde s'anime.
+- **Le programme** (`programme.ts`) :
+  - tout suit l'heure réelle, la même pour tous ;
+  - un créneau toutes les vingt minutes, une minute après le premier échange de tirs et une minute avant le second ;
+  - quand un moment y passe, le missile de ce cycle ne part pas, et rien ne joue jamais en même temps ;
+  - chaque jour de Paris a son ordre des moments ;
+  - un moment ne vient qu'à sa phase et quand ses bâtiments sont finis (`MondeScene` passe l'état du chantier), et il ne repasse pas dans la journée tant qu'il en reste d'autres ;
+  - sans moments, rien ne change.
+
+### L'écriture par l'API Claude, une seule fois
+
+C'est le seul usage de l'API Claude hors des bulles, demandé par le pilote (règle de `CLAUDE.md`).
+
+- **Le modèle** : Claude Fable 5.2, effort `medium`, par l'API Message Batches (moitié prix), en sortie structurée
+  (`ecriture.ts`, `scripts/almanach-ecrire.ts`).
+- **La consigne** : le catalogue des 50 figurants avec leurs règles, les 24 lieux, les règles et deux exemples validés.
+  Elle ne contient aucune donnée du site, aucun membre, aucun chiffre du clan, et un test vérifie qu'elle ne lit ni le
+  disque ni le réseau.
+- **Les requêtes** : 65 requêtes de 10 moments, chacune avec sa graine (une phase, trois lieux, une forme). Puis
+  validation, doublons écartés, et deux lots de complément au plus, jusqu'à 650 moments gardés dans `moments.json`. Le
+  journal de l'écriture est dans `ecriture.json`.
+- **L'argent** :
+  - le plafond est dans `config/almanach.json` (60 $) ;
+  - avant chaque envoi, le pire coût (chaque requête à 32 000 jetons de sortie) doit tenir sous ce qui reste ;
+  - le pire cas du premier lot est de 54,18 $ ; le coût réel estimé, de 15 à 25 $ ;
+  - une réponse sans `usage` compte sa part du pire coût ;
+  - les essais sont comptés sous le même plafond.
+- **Jamais deux fois** : chaque lot créé est noté dans `lots_connus`. Avant d'en créer un, les lots récents du compte sont
+  relus, et un lot inconnu arrête tout. Le lot est créé sans nouvel essai du SDK.
+- **L'Action** (`.github/workflows/almanach.yml`) :
+  - elle ne part que sur un push de la branche `robot/almanach`, jamais sur `main` ni à heure fixe ;
+  - elle commite `moments.json`, `ecriture.json` et `essai.json` sur cette branche ;
+  - avec `"essai": true` dans `config/almanach.json`, elle ne fait qu'une requête, écrite dans `essai.json`, pour regarder les moments avant de payer le lot ;
+  - un lot pas fini reste noté en route (sortie 2), et un nouveau push le reprend sans le renvoyer.
+- **Tests** : `tests/unit/village-almanach-*.test.ts`, avec un faux client. Ils couvrent les ancres à 0, 1, 50, 300 et
+  1 000 Gaulois, chaque règle de validation, le programme, la consigne sans données, le plafond, les lots inconnus du
+  compte et les réponses sans `usage`.
