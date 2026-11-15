@@ -45,8 +45,8 @@ export const MAX_OCTETS_FICHE = 64_000_000;
 export function fichiersDeCarte(taille: "Normal" | "Compact"): string[] {
   return taille === "Normal" ? ["manifest.json", "map.bin", "map4x.bin"] : ["manifest.json", "map4x.bin", "map16x.bin"];
 }
-/** La plus grande carte, 4 108 × 1 948 cases, pèse 8 Mo en `map.bin`. */
-export const MAX_OCTETS_CARTE = 16_000_000;
+/** La plus grande carte, world10000 (10 000 × 5 000 cases, relevée le 15 novembre 2026), pèse 50 Mo en `map.bin`, un octet par case. */
+export const MAX_OCTETS_CARTE = 64_000_000;
 
 /**
  * Le dossier d'une carte dans `resources/maps/`, d'après le fichier où le jeu nomme ses cartes : le nom de la constante, en

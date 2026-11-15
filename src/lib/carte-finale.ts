@@ -18,9 +18,14 @@ import { z } from "zod";
 export * from "./carte-dessin";
 
 export const FORMAT_CARTE_FINALE = 1;
-/** La plus grande carte du jeu, la carte du monde géante, fait 4 108 × 1 948 cases : de la marge, sans laisser passer n'importe quoi. */
-export const MAX_COTE = 5_000;
-export const MAX_CASES = 12_000_000;
+/**
+ * Les cartes du jeu, relevées le 15 novembre 2026 sur ses 146 cartes (commit 8b5d071) : la plus grande, world10000, fait
+ * 10 000 × 5 000 cases ; Passage, 6 000 × 400 ; Fleuve Amazone, 5 536 × 276 ; Mississippi, 400 × 4 200. De la marge pour les
+ * cartes à venir, sans laisser passer n'importe quoi. La première limite, 5 000 de côté, a écarté la carte de fin d'une victoire
+ * sur le Fleuve Amazone le jour même : un test garde ces cartes, et la carte du monde géante.
+ */
+export const MAX_COTE = 16_000;
+export const MAX_CASES = 64_000_000;
 /** Octets par case dans le fichier binaire : deux pour le propriétaire, un pour le terrain, un pour les retombées. */
 export const OCTETS_PAR_CASE = 4;
 /**

@@ -18,7 +18,8 @@ import {
   MER_FINALE,
   ouverteSurLaMer,
   partsDesCouleurs,
-  type EtatFinalMeta,
+  EtatFinalMeta,
+  MAX_COTE,
   type JoueurFinal,
   type Rgb,
 } from "../../src/lib/carte-finale";
@@ -84,13 +85,28 @@ describe("lireEtatFinal", () => {
     const essais: object[] = [
       { ...META, joueurs: [...META.joueurs, META.joueurs[0]] },
       { ...META, joueurs: [{ ...META.joueurs[0]!, client: "../x" }] },
-      { ...META, largeur: 5_001 },
-      { ...META, largeur: 5_000, hauteur: 5_000 },
       { ...META, commit: "main" },
       { ...META, format: 2 },
       { ...META, partie: "../../etc" },
     ];
-    for (const meta of essais) expect(() => lireEtatFinal(JSON.stringify(meta), cases, META.partie)).toThrow();
+    for (const meta of essais) expect(() => lireEtatFinal(JSON.stringify(meta), cases, META.partie)).toThrow("mauvais format");
+    // Une carte démesurée est refusée par la description elle-même, avant toute lecture des cases.
+    for (const [largeur, hauteur] of [[MAX_COTE + 1, 10], [10, MAX_COTE + 1], [10_000, 10_000]]) {
+      expect(EtatFinalMeta.safeParse({ ...META, largeur, hauteur }).success).toBe(false);
+    }
+  });
+  it("accepte toutes les cartes du jeu, même très longues : la carte de fin du Fleuve Amazone a été écartée le 15 novembre 2026", () => {
+    // Relevé le 15 novembre 2026 sur les 146 cartes du jeu (commit 8b5d071) : les plus larges, la plus haute, la plus grande.
+    for (const [largeur, hauteur] of [[10_000, 5_000], [6_000, 400], [5_536, 276], [400, 4_200], [4_108, 1_948]]) {
+      expect(EtatFinalMeta.safeParse({ ...META, largeur, hauteur }).success).toBe(true);
+    }
+    // Une carte de 5 536 cases de large se relit en entier.
+    const largeur = 5_536;
+    const n = largeur * 2;
+    const proprio = new Uint16Array(n).fill(1);
+    const terrain = new Uint8Array(n).fill(TERRE | 3);
+    const { texte, cases } = fichier({ ...META, largeur, hauteur: 2 }, proprio, terrain, new Uint8Array(n));
+    expect(lireEtatFinal(texte, cases, META.partie).largeur).toBe(largeur);
   });
 });
 
