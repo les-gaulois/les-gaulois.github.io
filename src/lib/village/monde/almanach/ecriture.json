@@ -3,14 +3,58 @@
   "effort": "medium",
   "objectif": 650,
   "plafond_dollars": 60,
-  "gardes": 0,
-  "cout_dollars": 0.4858,
+  "gardes": 650,
+  "cout_dollars": 23.18,
   "jetons": {
-    "entree": 0,
-    "sortie": 0
+    "entree": 1911182,
+    "sortie": 752474
   },
-  "lots": [],
+  "lots": [
+    {
+      "rang": 1,
+      "date": "2026-11-15T01:11:52.113Z",
+      "requetes": 65,
+      "demandes": 650,
+      "lus": 650,
+      "valides": 650,
+      "gardes": 460,
+      "doublons": 190,
+      "en_trop": 0,
+      "refus": {},
+      "requetes_sans_moments": {},
+      "jetons": {
+        "entree": 1250960,
+        "sortie": 472580
+      },
+      "pire_cout_dollars": 54.1785,
+      "cout_dollars": 14.4554
+    },
+    {
+      "rang": 2,
+      "date": "2026-11-15T01:14:54.871Z",
+      "requetes": 33,
+      "demandes": 330,
+      "lus": 330,
+      "valides": 329,
+      "gardes": 190,
+      "doublons": 69,
+      "en_trop": 70,
+      "refus": {
+        "titre invalide": 1
+      },
+      "requetes_sans_moments": {},
+      "jetons": {
+        "entree": 660222,
+        "sortie": 279894
+      },
+      "pire_cout_dollars": 27.7387,
+      "cout_dollars": 8.2388
+    }
+  ],
   "lot_en_cours": null,
-  "lots_connus": [],
+  "lots_connus": [
+    "msgbatch_015jQqAw8pGwxGTzREMbHR15",
+    "msgbatch_01WkWKwbVB6wp83woAqq4rzG"
+  ],
   "essais_dollars": 0.4858
 }
