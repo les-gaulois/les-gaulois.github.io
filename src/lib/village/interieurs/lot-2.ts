@@ -1316,7 +1316,7 @@ export const INTERIEURS_LOT_2: Readonly<Partial<Record<InterieurId, DessinDInter
   },
   etable: {
     id: "etable",
-    titre: "Dans l’étable",
+    titre: "Dans l'étable",
     largeur: ETA.l,
     hauteur: ETA.h,
     images: ETA_IMAGES,

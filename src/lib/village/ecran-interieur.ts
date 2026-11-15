@@ -179,6 +179,22 @@ function sousLaLumiere(couleur: string, part: readonly [number, number, number])
  * (`lumiereDeLEndroit`), en comparant le dessin à cette lumière et en plein jour. En plein jour, il est inchangé ; sa
  * tenue ne change pas.
  */
+/**
+ * Le plein jour de la pièce ouverte, image par image : il ne change jamais, et le refaire à chaque changement de lumière
+ * doublait le travail (un dessin coûte de 50 à 90 ms). Seule la dernière pièce est gardée, pour ne pas tenir sept pièces
+ * en mémoire. Il n'est que lu (`lumiereDeLEndroit`), jamais modifié.
+ */
+let jourGarde: { dessin: DessinDInterieur; images: Map<number, Decor> } | null = null;
+function pleinJourDe(dessin: DessinDInterieur, image: number): Decor {
+  if (jourGarde?.dessin !== dessin) jourGarde = { dessin, images: new Map() };
+  let jour = jourGarde.images.get(image);
+  if (!jour) {
+    jour = dessin.dessiner(PLEIN_JOUR, image);
+    jourGarde.images.set(image, jour);
+  }
+  return jour;
+}
+
 export function dedansAvecLeGaulois(dessin: DessinDInterieur, lumiere: Lumiere, image: number, gaulois: Decor | null): Decor {
   const fond = dessin.dessiner(lumiere, image);
   if (!gaulois) return fond;
@@ -186,7 +202,7 @@ export function dedansAvecLeGaulois(dessin: DessinDInterieur, lumiere: Lumiere, 
   const cases = fond.cases.slice();
   const coin = boiteDuGaulois(dessin.place, gaulois);
   const dedans = (x: number, y: number): boolean => x >= 0 && y >= 0 && x < largeur && y < hauteur;
-  const part = lumiereDeLEndroit(fond, dessin.dessiner(PLEIN_JOUR, image), { ...coin, largeur: gaulois.largeur, hauteur: gaulois.hauteur });
+  const part = lumiereDeLEndroit(fond, pleinJourDe(dessin, image), { ...coin, largeur: gaulois.largeur, hauteur: gaulois.hauteur });
   // Ses couleurs à cette lumière : quelques dizaines, calculées une fois chacune.
   const eclairees = new Map<string, string>();
   const eclairer = (couleur: string): string => {

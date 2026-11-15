@@ -155,28 +155,29 @@ function Monde({ etat, me, lien, rafraichir, ferme }: { etat: EtatDuMonde; me: M
   // La fenêtre ouverte, sue tout de suite (avant que l'écran ne se redessine) : Échap pressée juste après une ouverture la
   // referme, et deux clics rapides sur une icône ne s'emmêlent pas.
   const ouverteMaintenant = useRef(ouverte);
+  // Ce qui a fait entrer dans un bâtiment (sa zone dans le monde, ou « Entrer » dans le chantier) : le focus y revient.
+  // Toute autre fenêtre ouverte l'oublie : sortir d'un dedans ouvert par l'adresse ne ramène pas devant le précédent.
+  const entreeDuDedans = useRef<HTMLElement | null>(null);
   const montrer = (id: Ouverte | null, adresse = true) => {
+    entreeDuDedans.current = null;
     ouverteMaintenant.current = id;
     setOuverte(id);
     if (id) setVues((avant) => (avant.has(id) ? avant : new Set([...avant, id])));
     if (adresse) history.replaceState(history.state, "", id ? `#${id}` : location.pathname + location.search);
   };
   const choisir = (id: FenetreDuMonde) => montrer(ouverteMaintenant.current === id ? null : id);
-  // Ce qui a fait entrer dans un bâtiment (sa zone dans le monde, ou « Entrer » dans le chantier) : le focus y revient.
-  const entreeDuDedans = useRef<HTMLElement | null>(null);
   const entrer = (id: InterieurId, depuis: HTMLElement | null) => {
-    entreeDuDedans.current = depuis;
     montrer(fenetreDeLInterieur(id));
+    entreeDuDedans.current = depuis;
   };
   const fermer = () => {
     const quittee = ouverteMaintenant.current;
+    const depuis = entreeDuDedans.current;
     montrer(null);
     const interieur = interieurDeLaFenetre(quittee);
     if (interieur) {
       // On ressort devant le bâtiment : le focus revient à ce qui y a fait entrer s'il se voit encore, sinon au bâtiment
       // lui-même (la caméra vient à lui). Ni l'un ni l'autre ne fait défiler la scène.
-      const depuis = entreeDuDedans.current;
-      entreeDuDedans.current = null;
       const cible = depuis?.isConnected && depuis.getClientRects().length > 0 ? depuis : document.querySelector<HTMLElement>(`.monde-zone[data-interieur="${interieur}"]`);
       cible?.focus({ preventScroll: true });
     } else if (quittee) document.getElementById(`monde-entree-${quittee}`)?.focus();

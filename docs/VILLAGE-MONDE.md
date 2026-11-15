@@ -489,7 +489,7 @@ donc plus grand que son dehors. Il en reprend les matières et les formes, vues 
   - Ce qui est dedans suit `couleurDuDedans`, ce qui est dehors suit `couleurDuDehors`.
   - Le jour, le soleil entre par les ouvertures (rougi à l'aube et au crépuscule).
   - Quand le jour baisse, une lanterne par pièce et la gueule du four s'allument, sans bouger ni clignoter.
-- **Le reste** : rien n'est tiré au hasard. Aucun texte ni chiffre, sauf les lettres « GAL » de la bannière, comme dehors. Un dessin coûte de 50 à 90 ms, et les derniers sont gardés en mémoire.
+- **Le reste** : rien n'est tiré au hasard. Aucun texte ni chiffre, sauf les lettres « GAL » de la bannière, comme dehors. Un dessin coûte de 50 à 90 ms. Le lot 2 garde ses derniers dessins en mémoire ; la fenêtre garde le plein jour de la pièce ouverte (voir plus bas).
 
 ### La fenêtre (code : Claude Opus 5.5)
 
@@ -509,7 +509,7 @@ donc plus grand que son dehors. Il en reprend les matières et les formes, vues 
 - **Lumière et mouvement** : le dessin suit la lumière du village, relue à la minute. Il change d'image une fois par seconde au plus. En pause ou avec « réduire les animations », il reste sur l'image 0. Page cachée, rien ne tourne.
 - **Le Gaulois du visiteur** (`dedansAvecLeGaulois`) :
   - seulement celui que `get_village` marque `moi`, jamais un autre : debout, dans sa tenue, tourné vers la droite, avec son ombre, ses 64 cases posées sur `place.pied` ;
-  - il est éclairé comme la pièce là où il se tient (`lumiereDeLEndroit` : le dessin à cette lumière comparé au même en plein jour), jamais plus clair qu'en plein jour. La nuit, il garde environ la moitié de ses couleurs dans le four, les trois quarts dans l'étable ;
+  - il est éclairé comme la pièce là où il se tient (`lumiereDeLEndroit` : le dessin à cette lumière comparé au même en plein jour, gardé pour la pièce ouverte), jamais plus clair qu'en plein jour. La nuit, il garde environ la moitié de ses couleurs dans le four, les trois quarts dans l'étable ;
   - un visiteur, ou un membre sans Gaulois, voit la pièce vide.
 - **Tests** :
   - `tests/unit/village-interieurs-fenetre.test.ts` : qui entre, adresse, pixel par case sur des milliers de tailles et six densités, image, Gaulois posé et éclairé ;
