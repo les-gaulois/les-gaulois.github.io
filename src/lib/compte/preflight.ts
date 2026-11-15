@@ -320,9 +320,14 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   const voice = await rpc("save_voice_channel", { p_url: "verification" });
   if (await refused(voice)) add("Un visiteur ne règle pas le salon vocal", "ok");
   else add("Un visiteur ne règle pas le salon vocal", "fail", `Réponse ${voice.status}. Ne mettez pas en ligne : seuls les admins et le fondateur règlent le salon vocal.`);
-  const guess = await rpc("save_prediction", { p_wins: -1 });
-  if (await refused(guess)) add("Un visiteur ne fait pas de pronostic", "ok");
-  else add("Un visiteur ne fait pas de pronostic", "fail", `Réponse ${guess.status}. Ne mettez pas en ligne : seuls les membres validés font un pronostic.`);
+  // Le pronostic avec mise (migration 20261115000400) : posé par un membre validé, réglé par la clé de service seule. Le
+  // lundi donné au règlement n'en est pas un : même si le droit d'appel était mal posé, rien ne serait écrit.
+  const guess = await rpc("place_prediction", { p_week: "2000-01-03", p_wins: -1, p_stake: -1 });
+  if (await refused(guess)) add("Un visiteur ne pose pas de pronostic", "ok");
+  else add("Un visiteur ne pose pas de pronostic", "fail", `Réponse ${guess.status}. Ne mettez pas en ligne : seuls les membres validés posent un pronostic.`);
+  const settle = await rpc("settle_predictions", { p_week: "2000-01-04", p_wins: 0 });
+  if (isClosed(settle.status)) add("Un visiteur ne règle pas la cagnotte des pronostics", "ok");
+  else add("Un visiteur ne règle pas la cagnotte des pronostics", "fail", `Réponse ${settle.status}. Ne mettez pas en ligne : seul le robot du site, avec la clé de service, règle la cagnotte.`);
 
   // Les messages Discord de la Direction : seuls les admins et le fondateur les lisent, les envoient et règlent leurs
   // salons. Le salon et le lien donnés n'existent pas : même si le droit d'appel était mal posé, rien ne partirait.

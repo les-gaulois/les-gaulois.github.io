@@ -10,9 +10,13 @@ import {
   closestWords,
   gapWords,
   mineWords,
+  moneyWords,
   nextReread,
+  potWords,
   predictionClosed,
   predictionState,
+  predictionToDo,
+  stakeWords,
   untilClose,
   winsGoalState,
   type Rereads,
@@ -22,7 +26,16 @@ import type { ClanWeek, ClanWeekFile } from "../../src/lib/semaine-du-clan";
 // Les espaces insécables des nombres français, ramenées à une espace simple.
 const plain = (s: string | null | undefined) => s?.replace(/\s/g, " ");
 const week = (wins: number, complete: boolean, from = "2026-11-02"): ClanWeek => ({ from, games: wins * 2, wins, complete });
-const closed = (guesses: ClosedWeek["guesses"]): ClosedWeek => ({ week: "2026-11-02", closesAt: "2026-11-03T23:00:00.000Z", guesses });
+/** Un pronostic d'essai : sans mise ni gain, sauf mention. */
+type G = { name: string; wins: number; mine: boolean; stake?: number; gain?: number | null };
+const closed = (guesses: G[], extra: Partial<Omit<ClosedWeek, "guesses">> = {}): ClosedWeek => ({
+  week: "2026-11-02",
+  closesAt: "2026-11-03T23:00:00.000Z",
+  pot: 0,
+  result: null,
+  ...extra,
+  guesses: guesses.map((guess) => ({ stake: 0, gain: null, ...guess })),
+});
 const file = (weeks: ClanWeek[], until: string | null = "2026-11-10T21:53:32.706Z"): ClanWeekFile => ({ until, weeks, gains: null, clans: null });
 const ms = (iso: string) => Date.parse(iso);
 
@@ -92,11 +105,23 @@ describe("l'objectif « un clan »", () => {
 });
 
 describe("l'état du pronostic", () => {
-  it("à faire, fait, puis clos une fois l'heure passée", () => {
-    expect(predictionState(null, false)).toEqual({ ton: "warn", mot: "À faire" });
-    expect(predictionState(0, false)).toEqual({ ton: "ok", mot: "Fait" });
-    expect(predictionState(250, true)).toEqual({ ton: "muted", mot: "Clos" });
-    expect(predictionState(null, true)).toEqual({ ton: "muted", mot: "Clos" });
+  it("à faire, posé, puis clos une fois l'heure passée", () => {
+    expect(predictionState(false, null, false)).toEqual({ ton: "warn", mot: "À faire" });
+    expect(predictionState(true, 0, false)).toEqual({ ton: "ok", mot: "Posé" });
+    expect(predictionState(true, 250, true)).toEqual({ ton: "muted", mot: "Clos" });
+    expect(predictionState(false, null, true)).toEqual({ ton: "muted", mot: "Clos" });
+  });
+  it("un pronostic d'avant les mises est « à poser » tant que c'est ouvert", () => {
+    expect(predictionState(false, 314, false)).toEqual({ ton: "warn", mot: "À poser" });
+    expect(predictionState(false, 314, true)).toEqual({ ton: "muted", mot: "Clos" });
+    expect(predictionToDo(false, false)).toBe(true);
+    expect(predictionToDo(true, false)).toBe(false);
+    expect(predictionToDo(false, true)).toBe(false);
+  });
+  it("dit la mise en mots, accordée", () => {
+    expect(plain(stakeWords(200))).toBe("200 statères misés");
+    expect(stakeWords(1)).toBe("1 statère misé");
+    expect(stakeWords(0)).toBe("pour l'honneur");
   });
 });
 
@@ -266,7 +291,7 @@ describe("une semaine close", () => {
 });
 
 describe("le plus près, en mots", () => {
-  const final = (list: ClosedWeek["guesses"], wins = 293) => closedSummary(closed(list), week(wins, true));
+  const final = (list: G[], wins = 293) => closedSummary(closed(list), week(wins, true));
 
   it("un seul : son nom, son pronostic, son écart ; « vous » pour le membre", () => {
     expect(closestWords(final([{ name: "Tarvos", wins: 300, mine: false }]).closest)).toEqual({ label: "Le plus près", text: "Tarvos (300), écart de 7" });
@@ -308,5 +333,60 @@ describe("le pronostic du membre et les écarts en mots", () => {
     expect(gapWords(0)).toBe("exact");
     expect(gapWords(1)).toBe("écart de 1");
     expect(plain(gapWords(1250))).toBe("écart de 1 250");
+  });
+});
+
+describe("la cagnotte d'une semaine close", () => {
+  // Le règlement du serveur : Epona et Tarvos, à 10 du résultat, se partagent 1 000 statères selon leur mise.
+  const guesses: G[] = [
+    { name: "Epona", wins: 290, mine: false, stake: 100, gain: 333 },
+    { name: "Moi", wins: 310, mine: true, stake: 200, gain: 667 },
+    { name: "Belenos", wins: 400, mine: false, stake: 700, gain: 0 },
+    { name: "Honneur", wins: 300, mine: false },
+  ];
+  const regle = closed(guesses, { pot: 1000, result: { outcome: "regle", wins: 300, pot: 1000, at: "2026-11-09T06:23:00.000Z" } });
+
+  it("prend le résultat du règlement, même sans fichier public", () => {
+    const summary = closedSummary(regle, null);
+    expect(summary.status).toBe("final");
+    expect(summary.etat).toEqual({ ton: "ok", mot: "Réglé" });
+    expect(summary.wins).toBe(300);
+    expect(summary.winners.map((g) => g.name)).toEqual(["Epona", "Moi"]);
+    expect(summary.closest.map((g) => g.name)).toEqual(["Honneur"]);
+  });
+  it("garde le résultat du règlement si le fichier public a changé depuis", () => {
+    expect(closedSummary(regle, week(305, true)).wins).toBe(300);
+  });
+  it("dit à qui la cagnotte est allée, et combien", () => {
+    expect(plain(potWords(closedSummary(regle, null)))).toBe("1 000 statères, à Epona (333) et vous (667).");
+  });
+  it("dit ce que chaque mise est devenue", () => {
+    const summary = closedSummary(regle, null);
+    const words = Object.fromEntries(summary.guesses.map((g) => [g.name, plain(moneyWords(g, summary.settled))]));
+    expect(words).toEqual({ Epona: "100 misés, 333 reçus", Moi: "200 misés, 667 reçus", Belenos: "700 misés, perdus", Honneur: "pour l'honneur" });
+  });
+  it("avant le règlement : les mises seules, la cagnotte à partager", () => {
+    const attente = closed(guesses.map((g) => ({ ...g, gain: null })), { pot: 1000 });
+    const summary = closedSummary(attente, week(300, true));
+    expect(summary.etat).toEqual({ ton: "ally", mot: "Cagnotte à verser" });
+    expect(summary.winners).toEqual([]);
+    expect(plain(potWords(summary))).toBe("1 000 statères, à partager.");
+    expect(plain(moneyWords(summary.guesses.find((g) => g.name === "Epona")!, summary.settled))).toBe("100 misés");
+    expect(closedSummary(attente, week(250, false)).etat).toEqual({ ton: "warn", mot: "Provisoire" });
+  });
+  it("mises rendues faute de résultat", () => {
+    const rendu = closed([{ name: "A", wins: 3, mine: false, stake: 50, gain: 50 }], { pot: 50, result: { outcome: "rendu", pot: 50, at: "2026-11-16T06:23:00.000Z" } });
+    const summary = closedSummary(rendu, null);
+    expect(summary.etat).toEqual({ ton: "muted", mot: "Mises rendues" });
+    expect(summary.wins).toBeNull();
+    expect(plain(moneyWords(summary.guesses[0]!, summary.settled))).toBe("50 rendus");
+    expect(potWords(summary)).toBe("50 statères, rendus à chacun : pas de résultat relevé à temps.");
+    // Le résultat relevé depuis se montre, mais la cagnotte reste rendue, sans gagnant.
+    const tard = closedSummary(rendu, week(3, true));
+    expect(tard).toMatchObject({ wins: 3, etat: { ton: "muted", mot: "Mises rendues" }, winners: [] });
+    expect(plain(moneyWords(tard.guesses[0]!, tard.settled))).toBe("50 rendus");
+  });
+  it("sans mise, pas de ligne de cagnotte", () => {
+    expect(potWords(closedSummary(closed([{ name: "A", wins: 1, mine: false }]), week(2, true)))).toBeNull();
   });
 });

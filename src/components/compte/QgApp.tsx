@@ -3,7 +3,7 @@ import { CODE_LOGIN_OPEN, basePath, call } from "../../lib/compte/api";
 import { othersPlanned, parseQgTools, type QgTools } from "../../lib/compte/outils";
 import { IDEA_STATUS_LABELS, counted, openIdeas, parseQg, pollsAwaitingVote, type QgData } from "../../lib/compte/qg";
 import { fermeturePassee } from "../../lib/compte/qg-decisions";
-import { predictionClosed } from "../../lib/compte/qg-semaine";
+import { predictionClosed, predictionToDo } from "../../lib/compte/qg-semaine";
 import { waitingOthers } from "../../lib/compte/salons";
 import { ROLE_LABELS, type Me } from "../../lib/compte/types";
 import { fmtDate } from "../../lib/format";
@@ -269,7 +269,7 @@ function Inside({ me, rank, lastRunAt, logo }: { me: Me; rank: number; lastRunAt
     salons: { value: waiting, words: counted(waiting, "Gaulois attend dans un salon", "Gaulois attendent dans un salon"), tone: "vif" },
     "ce-soir": kit ? { value: othersPlanned(kit.plans, now), words: counted(othersPlanned(kit.plans, now), "autre Gaulois a dit son heure", "autres Gaulois ont dit leur heure") } : null,
     // Un pronostic clos ne se fait plus : l'onglet ne le compte plus (même règle que La semaine).
-    semaine: kit?.predictions && kit.predictions.mine === null && !predictionClosed(kit.predictions.closesAt, now.getTime()) ? { value: 1, words: "1 pronostic à faire" } : null,
+    semaine: kit?.predictions && predictionToDo(kit.predictions.placed, predictionClosed(kit.predictions.closesAt, now.getTime())) ? { value: 1, words: kit.predictions.mine === null ? "1 pronostic à faire" : "1 pronostic à poser" } : null,
     decisions: { value: notVoted, words: counted(notVoted, "sondage attend votre voix", "sondages attendent votre voix") },
     idees: staff ? { value: ideasToDecide, words: counted(ideasToDecide, "idée à trancher", "idées à trancher") } : null,
   };
@@ -389,7 +389,13 @@ function Inside({ me, rank, lastRunAt, logo }: { me: Me; rank: number; lastRunAt
                 file={weekFile}
                 busy={busy}
                 problem={problemAt("pronostic")}
-                onPredict={(wins) => act("pronostic", () => call("save_prediction", { p_wins: wins }), "Pronostic enregistré.", "outils")}
+                // Un refus (déjà posé, clos, bourse trop maigre) fait relire les outils : le formulaire et la bourse suivent le serveur.
+                onPredict={(week, wins, stake) =>
+                  act("pronostic", () => call("place_prediction", { p_week: week, p_wins: wins, p_stake: stake }), "Pronostic posé.", "outils").then(async (ok) => {
+                    if (!ok) await loadTools();
+                    return ok;
+                  })
+                }
                 onExpired={() => void loadTools()}
               />
             </Partie>

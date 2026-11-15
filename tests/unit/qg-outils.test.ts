@@ -18,6 +18,8 @@ import {
   planOthersLabel,
   predictionProblem,
   sameHour,
+  stakeProblem,
+  stakeValue,
   voiceLinkOf,
   weekSpan,
   winsProgress,
@@ -50,8 +52,28 @@ const answer = {
     week: "2026-11-16",
     closes_at: "2026-11-17T23:00:00+00:00",
     mine: null,
+    stake: null,
+    placed: false,
+    balance: 1250,
+    stake_max: 1000,
     count: 4,
-    closed: [{ week: "2026-11-09", closes_at: "2026-11-10T23:00:00+00:00", guesses: [{ name: "Alpha", wins: 280, mine: true }] }],
+    pot: 550,
+    stakes: [
+      { name: "Epona", stake: 200, mine: false },
+      { name: "Tarvos", stake: 350, mine: false },
+    ],
+    closed: [
+      {
+        week: "2026-11-09",
+        closes_at: "2026-11-10T23:00:00+00:00",
+        pot: 300,
+        result: { outcome: "regle", wins: 293, pot: 300, at: "2026-11-16T06:23:00+00:00" },
+        guesses: [
+          { name: "Alpha", wins: 280, mine: true, stake: 300, gain: 300 },
+          { name: "Bravo", wins: 250, mine: false, stake: 0, gain: null },
+        ],
+      },
+    ],
   },
 };
 
@@ -64,7 +86,55 @@ describe("parseQgTools", () => {
     expect(tools.goal).toEqual({ week: "2026-11-09", kind: "wins", wins: 300 });
     expect(tools.wall[1]).toEqual({ name: "Alpha", role: "member", avatar: AVATAR, number: 7, gg: 2, given: false });
     expect(tools.mentors[0]).toEqual({ name: "Bravo", role: "officer", avatar: null, discord: "bravo_42", mine: false });
-    expect(tools.predictions).toEqual({ week: "2026-11-16", closesAt: "2026-11-17T23:00:00+00:00", mine: null, count: 4, closed: [{ week: "2026-11-09", closesAt: "2026-11-10T23:00:00+00:00", guesses: [{ name: "Alpha", wins: 280, mine: true }] }] });
+    expect(tools.predictions).toEqual({
+      week: "2026-11-16",
+      closesAt: "2026-11-17T23:00:00+00:00",
+      mine: null,
+      stake: null,
+      placed: false,
+      balance: 1250,
+      stakeMax: 1000,
+      count: 4,
+      pot: 550,
+      stakes: [
+        { name: "Epona", stake: 200, mine: false },
+        { name: "Tarvos", stake: 350, mine: false },
+      ],
+      closed: [
+        {
+          week: "2026-11-09",
+          closesAt: "2026-11-10T23:00:00+00:00",
+          pot: 300,
+          result: { outcome: "regle", wins: 293, pot: 300, at: "2026-11-16T06:23:00+00:00" },
+          guesses: [
+            { name: "Alpha", wins: 280, mine: true, stake: 300, gain: 300 },
+            { name: "Bravo", wins: 250, mine: false, stake: 0, gain: null },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("n'ouvre pas le pronostic sur un serveur sans les mises : il ne saurait pas le recevoir", () => {
+    const old: Record<string, unknown> = { ...answer.predictions };
+    delete old["stake_max"];
+    expect(parseQgTools({ ...answer, predictions: old })?.predictions).toBeNull();
+  });
+
+  it("lit un pronostic d'avant les mises, un règlement rendu, et écarte une mise illisible", () => {
+    const tools = parseQgTools({
+      ...answer,
+      predictions: {
+        ...answer.predictions,
+        mine: 314,
+        placed: false,
+        stakes: [{ name: "Zéro", stake: 0, mine: false }, { name: "", stake: 5 }, { name: "Ok", stake: 5, mine: true }],
+        closed: [{ week: "2026-11-02", closes_at: "2026-11-03T23:00:00+00:00", pot: 50, result: { outcome: "rendu", wins: null, pot: 50, at: "2026-11-16T06:23:00+00:00" }, guesses: [] }, { week: "2026-11-09", closes_at: "2026-11-10T23:00:00+00:00", result: { outcome: "inconnu", pot: 1, at: "x" }, guesses: [{ name: "A", wins: 1, stake: "beaucoup" }] }],
+      },
+    })!;
+    expect(tools.predictions).toMatchObject({ mine: 314, placed: false, stake: null, stakes: [{ name: "Ok", stake: 5, mine: true }] });
+    expect(tools.predictions?.closed[0]?.result).toEqual({ outcome: "rendu", pot: 50, at: "2026-11-16T06:23:00+00:00" });
+    expect(tools.predictions?.closed[1]).toMatchObject({ pot: 0, result: null, guesses: [{ name: "A", wins: 1, stake: 0, gain: null }] });
   });
 
   it("écarte ce qui est illisible plutôt que de le deviner", () => {
@@ -223,6 +293,25 @@ describe("le pronostic", () => {
     expect(predictionProblem("12,5")).not.toBeNull();
     expect(predictionProblem("10001")).not.toBeNull();
     expect(predictionProblem("")).not.toBeNull();
+  });
+
+  it("refuse une mise hors bornes ou au-dessus de la bourse ; vide, c'est 0", () => {
+    expect(stakeProblem("", 0, 1000)).toBeNull();
+    expect(stakeValue("")).toBe(0);
+    expect(stakeValue(" 250 ")).toBe(250);
+    expect(stakeValue("1 000")).toBe(1000);
+    expect(stakeProblem("1 000", 5000, 1000)).toBeNull();
+    // Un texte qui n'est pas un nombre entier est refusé, jamais lu comme 0.
+    for (const bad of ["12-", "1e3", "abc", "5."]) expect(stakeProblem(bad, 5000, 1000), bad).not.toBeNull();
+    expect(stakeProblem("0", 0, 1000)).toBeNull();
+    expect(stakeProblem("250", 300, 1000)).toBeNull();
+    expect(stakeProblem("1000", 5000, 1000)).toBeNull();
+    expect(plain(stakeProblem("1001", 5000, 1000))).toBe("Misez de 0 à 1 000 statères.");
+    expect(stakeProblem("-5", 300, 1000)).not.toBeNull();
+    expect(stakeProblem("2,5", 300, 1000)).not.toBeNull();
+    expect(stakeProblem("301", 300, 1000)).toBe("Votre bourse n'a que 300 statères.");
+    expect(stakeProblem("2", 1, 1000)).toBe("Votre bourse n'a que 1 statère.");
+    expect(stakeProblem("1", 0, 1000)).toBe("Votre bourse est vide : posez pour l'honneur, avec une mise de 0.");
   });
 });
 

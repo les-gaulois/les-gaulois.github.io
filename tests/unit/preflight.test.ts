@@ -95,8 +95,12 @@ describe("le contrôle de la mise en ligne", () => {
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_qg_tools": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "outils du QG")).toBe("ok");
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/save_weekly_goal": { status: 200, body: { ok: true } } }, "objectif")).toBe("fail");
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/save_voice_channel": { status: 200, body: { ok: true } } }, "salon vocal")).toBe("fail");
-    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/save_prediction": { status: 200, body: { ok: true } } }, "pronostic")).toBe("fail");
-    expect(await statusOf(HEALTHY, "pronostic")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/place_prediction": { status: 200, body: { ok: true } } }, "pose pas de pronostic")).toBe("fail");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/place_prediction": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "pose pas de pronostic")).toBe("ok");
+    expect(await statusOf(HEALTHY, "pose pas de pronostic")).toBe("ok");
+    // Le règlement : seul un refus du droit d'appel passe, pas une réponse de la fonction.
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/settle_predictions": { status: 200, body: { ok: false, error: "invalid_week" } } }, "cagnotte")).toBe("fail");
+    expect(await statusOf(HEALTHY, "cagnotte")).toBe("ok");
   });
 
   it("bloque si un visiteur peut exporter les données du site", async () => {

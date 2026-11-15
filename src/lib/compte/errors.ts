@@ -74,6 +74,12 @@ export const ERROR_MESSAGES: Record<string, string> = {
   goal_not_found: "Aucun objectif n'est fixé pour cette semaine.",
   invalid_voice: "Collez le lien d'un salon du serveur Discord : une adresse https://discord.com/channels/…, copiée par un clic droit sur le salon.",
   invalid_prediction: "Indiquez un nombre de victoires, de 0 à 10 000.",
+  invalid_stake: "Misez de 0 à 1 000 statères.",
+  prediction_placed: "Votre pronostic est déjà posé : il ne change plus.",
+  prediction_closed: "Les pronostics de cette semaine sont clos. Rechargez la page pour la semaine suivante.",
+  // Les refus du règlement des pronostics, lus seulement par scripts/regler-pronostics.ts.
+  invalid_week: "Cette semaine n'est pas valable.",
+  week_not_over: "Cette semaine n'est pas encore finie.",
 
   invalid_message: "Ce message n'est pas valable. Rechargez la page.",
   message_empty: "Écrivez un texte, ou ajoutez un embed ou une image en grand.",

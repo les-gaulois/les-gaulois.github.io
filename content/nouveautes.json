@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-15",
+    "kind": "ameliore",
+    "title": "Des pronostics avec mise",
+    "body": "Au QG, le pronostic se pose une fois, avec une mise de 0 à 1 000 statères. La cagnotte va aux plus proches du résultat, selon la mise : aucun statère n'est créé. Chacun voit qui a misé quoi.",
+    "link": {
+      "href": "/qg#semaine",
+      "label": "Poser mon pronostic"
+    }
+  },
+  {
+    "date": "2026-11-15",
     "kind": "retire",
     "title": "Le monde du village retiré",
     "body": "Le monde du village en pixels est retiré. Votre Gaulois reste : la page « Mon Gaulois » garde le vestiaire, la boutique, la forge et le marché, et il paraît toujours sur les images du clan.",

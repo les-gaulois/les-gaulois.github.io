@@ -249,6 +249,16 @@ jobs:
         env:
           SUPABASE_URL: ${{ vars.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      # Verse la cagnotte des pronostics de chaque semaine entièrement relevée, d'après les victoires que le QG affiche
+      # (scripts/regler-pronostics.ts). Une semaine ne se règle qu'une fois. Sans réglages, l'étape ne s'exécute pas.
+      - name: Régler les pronostics de la semaine
+        if: ${{ !cancelled() && github.ref_name == 'main' && vars.SUPABASE_URL != '' }}
+        continue-on-error: true
+        timeout-minutes: 2
+        run: npm run pronostics:regler
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
       # Prévient l'encadrement, sur un salon Discord privé, des demandes d'adhésion qui attendent. Ni nom ni identifiant dans le message.
       # Le lien réglé dans la Direction, sinon le secret DISCORD_WEBHOOK_ENCADREMENT ; sans l'un ni l'autre, rien n'est envoyé.
       # Ce qui a été annoncé est noté dans Supabase, pas dans data/.

@@ -13,8 +13,10 @@ import { faceOf, type Face } from "./qg";
 
 /** Les heures proposées : l'heure en cours et les onze suivantes, comme le serveur les accepte (`set_play_plan`). */
 export const PLAN_HOURS = 12;
-/** Bornes du serveur (`save_prediction`, `save_weekly_goal`). */
+/** Bornes du serveur (`place_prediction`, `save_weekly_goal`). */
 export const PREDICTION_MAX = 10_000;
+/** La plus grosse mise d'un pronostic, en statères : `internal.prediction_stake_max` (migration 20261115000400). */
+export const PREDICTION_STAKE_MAX = 1_000;
 export const GOAL_WINS_MAX = 10_000;
 /** Le podium des GG : trois places, et cinq lignes au plus en cas d'égalité, comme les joueurs de la semaine. */
 export const GG_PODIUM = 3;
@@ -48,21 +50,48 @@ export interface Guess {
   name: string;
   wins: number;
   mine: boolean;
+  /** Les statères misés ; 0 : pour l'honneur, ou pronostic d'avant les mises. */
+  stake: number;
+  /** Les statères reçus au règlement (0 : mise perdue). `null` : pas encore réglée, ou rien de misé. */
+  gain: number | null;
 }
 
-/** Une semaine dont les pronostics sont clos : chacun y est visible, sous le nom de son auteur. */
+/** Le règlement d'une semaine par le serveur : la cagnotte partagée d'après le résultat, ou chaque mise rendue. */
+export type Settlement = { outcome: "regle"; wins: number; pot: number; at: string } | { outcome: "rendu"; pot: number; at: string };
+
+/** Une semaine dont les pronostics sont clos : chacun y est visible, sous le nom de son auteur, avec sa mise. */
 export interface ClosedWeek {
   week: string;
   closesAt: string;
+  /** La cagnotte : la somme des mises. */
+  pot: number;
+  /** `null` : pas encore réglée. */
+  result: Settlement | null;
   guesses: Guess[];
 }
 
-/** La semaine ouverte aux pronostics : seulement celui du membre et leur nombre, jamais ceux des autres. */
+/** Une mise de la semaine ouverte : qui, et combien. Jamais son pronostic. */
+export interface Stake {
+  name: string;
+  stake: number;
+  mine: boolean;
+}
+
+/** La semaine ouverte aux pronostics : celui du membre, sa mise et son solde, la cagnotte et qui a misé combien. */
 export interface Predictions {
   week: string;
   closesAt: string;
   mine: number | null;
+  /** Sa mise. `null` : pas encore posé (ou pronostic d'avant les mises). */
+  stake: number | null;
+  /** Posé : il ne change plus. Faux pour un pronostic d'avant les mises, qui se pose une fois encore. */
+  placed: boolean;
+  /** Son solde de statères, à lui seul. */
+  balance: number;
+  stakeMax: number;
   count: number;
+  pot: number;
+  stakes: Stake[];
   closed: ClosedWeek[];
 }
 
@@ -121,22 +150,51 @@ function goalOf(raw: unknown): WeeklyGoal | null {
 
 function guessOf(raw: unknown): Guess | null {
   if (!isRecord(raw) || typeof raw["name"] !== "string" || raw["name"] === "" || !isCount(raw["wins"])) return null;
-  return { name: raw["name"], wins: raw["wins"], mine: raw["mine"] === true };
+  const { stake, gain } = raw;
+  return { name: raw["name"], wins: raw["wins"], mine: raw["mine"] === true, stake: isCount(stake) ? stake : 0, gain: isCount(gain) ? gain : null };
+}
+
+function settlementOf(raw: unknown): Settlement | null {
+  if (!isRecord(raw) || !isCount(raw["pot"]) || !isInstant(raw["at"])) return null;
+  if (raw["outcome"] === "regle" && isCount(raw["wins"])) return { outcome: "regle", wins: raw["wins"], pot: raw["pot"], at: raw["at"] };
+  if (raw["outcome"] === "rendu") return { outcome: "rendu", pot: raw["pot"], at: raw["at"] };
+  return null;
 }
 
 function closedOf(raw: unknown): ClosedWeek | null {
   if (!isRecord(raw) || !isDay(raw["week"]) || !isInstant(raw["closes_at"])) return null;
-  return { week: raw["week"], closesAt: raw["closes_at"], guesses: listOf(raw["guesses"]).flatMap((guess) => guessOf(guess) ?? []) };
+  return {
+    week: raw["week"],
+    closesAt: raw["closes_at"],
+    pot: isCount(raw["pot"]) ? raw["pot"] : 0,
+    result: settlementOf(raw["result"]),
+    guesses: listOf(raw["guesses"]).flatMap((guess) => guessOf(guess) ?? []),
+  };
 }
 
+function stakeItemOf(raw: unknown): Stake | null {
+  if (!isRecord(raw) || typeof raw["name"] !== "string" || raw["name"] === "" || !isCount(raw["stake"]) || raw["stake"] < 1) return null;
+  return { name: raw["name"], stake: raw["stake"], mine: raw["mine"] === true };
+}
+
+/**
+ * Le pronostic de la semaine. Sans `stake_max`, le serveur n'a pas encore les mises (migration 20261115000400) : la partie
+ * n'est pas montrée, plutôt que de laisser poser un pronostic qu'il ne saurait pas recevoir.
+ */
 function predictionsOf(raw: unknown): Predictions | null {
-  if (!isRecord(raw) || !isDay(raw["week"]) || !isInstant(raw["closes_at"]) || !isCount(raw["count"])) return null;
-  const mine = raw["mine"];
+  if (!isRecord(raw) || !isDay(raw["week"]) || !isInstant(raw["closes_at"]) || !isCount(raw["count"]) || !isCount(raw["stake_max"])) return null;
+  const { mine, stake, balance, pot } = raw;
   return {
     week: raw["week"],
     closesAt: raw["closes_at"],
     mine: isCount(mine) ? mine : null,
+    stake: isCount(stake) ? stake : null,
+    placed: raw["placed"] === true,
+    balance: isCount(balance) ? balance : 0,
+    stakeMax: raw["stake_max"],
     count: raw["count"],
+    pot: isCount(pot) ? pot : 0,
+    stakes: listOf(raw["stakes"]).flatMap((item) => stakeItemOf(item) ?? []),
     closed: listOf(raw["closed"]).flatMap((week) => closedOf(week) ?? []),
   };
 }
@@ -289,7 +347,7 @@ export function closesLabel(closesAt: string): string {
 }
 
 /** Les pronostics les plus proches du résultat, tous en cas d'égalité. Vide : aucun pronostic. */
-export function closestGuesses(guesses: readonly Guess[], actual: number): Guess[] {
+export function closestGuesses<T extends Pick<Guess, "wins">>(guesses: readonly T[], actual: number): T[] {
   if (guesses.length === 0) return [];
   const best = Math.min(...guesses.map((guess) => Math.abs(guess.wins - actual)));
   return guesses.filter((guess) => Math.abs(guess.wins - actual) === best);
@@ -301,6 +359,25 @@ export function predictionProblem(text: string): string | null {
   if (!/^\d{1,5}$/.test(value) || Number(value) > PREDICTION_MAX) return `Indiquez un nombre de victoires, de 0 à ${fmtInt(PREDICTION_MAX)}.`;
   return null;
 }
+
+/** Le texte d'une mise, sans ses espaces : « 1 000 » se lit 1000. */
+const stakeDigits = (text: string) => text.replace(/\s/g, "");
+
+/**
+ * Ce qui empêche de miser, dit en français. Un champ vide vaut 0 : pour l'honneur. Tout autre texte qui n'est pas un
+ * nombre entier est refusé, jamais lu comme 0 : le pronostic posé ne se reprend pas. La mise ne dépasse ni la borne du
+ * serveur ni le solde ; le serveur revérifie les deux. `null` : rien.
+ */
+export function stakeProblem(text: string, balance: number, max: number): string | null {
+  const value = stakeDigits(text);
+  if (value === "") return null;
+  if (!/^\d{1,7}$/.test(value) || Number(value) > max) return `Misez de 0 à ${fmtInt(max)} statères.`;
+  if (Number(value) > balance) return balance > 0 ? `Votre bourse n'a que ${fmtInt(balance)} statère${balance > 1 ? "s" : ""}.` : "Votre bourse est vide : posez pour l'honneur, avec une mise de 0.";
+  return null;
+}
+
+/** La mise d'un champ : vide, 0. À n'appeler qu'après `stakeProblem`. */
+export const stakeValue = (text: string): number => (stakeDigits(text) === "" ? 0 : Number(stakeDigits(text)));
 
 /* ---------- Moi ---------- */
 

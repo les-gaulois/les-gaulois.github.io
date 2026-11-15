@@ -35,7 +35,7 @@ export interface MoiAttente {
   /** Les sondages ouverts où le membre n'a pas voté. */
   notVoted: number;
   /** La semaine ouverte aux pronostics. `null` : aucune, ou les outils ne la donnent pas. */
-  prediction: { mine: number | null; closesAt: string } | null;
+  prediction: { mine: number | null; closesAt: string; placed?: boolean; stake?: number | null } | null;
   /** L'heure annoncée par le membre, et le nombre d'autres Gaulois qui ont dit la leur. */
   plan: { mine: string | null; others: number };
   /** Les idées à trancher. `null` : le membre n'est pas de l'encadrement. */
@@ -79,8 +79,12 @@ export function lignesAttente(attente: MoiAttente, now: Date): MoiLigne[] {
   const prediction = attente.prediction;
   if (prediction !== null) {
     // Accordé comme « Enregistré : … » dans l'onglet « La semaine » : « 0 victoire », « 2 victoires ».
-    if (prediction.mine !== null) {
-      lignes.push({ onglet: "semaine", ton: "ok", etat: "Fait", texte: `Votre pronostic de la semaine : ${fmtCount(prediction.mine, "victoire")}` });
+    // Un pronostic d'avant les mises se pose une fois encore, tant que c'est ouvert ; posé, il dit sa mise.
+    if (prediction.mine !== null && prediction.placed === false && pronosticOuvert(prediction.closesAt, now)) {
+      lignes.push({ onglet: "semaine", ton: "warn", etat: "À poser", texte: `Votre pronostic de la semaine, à poser : ${fmtCount(prediction.mine, "victoire")}` });
+    } else if (prediction.mine !== null) {
+      const mise = prediction.placed === true && (prediction.stake ?? 0) > 0 ? `, ${fmtCount(prediction.stake ?? 0, "statère")} misé${(prediction.stake ?? 0) > 1 ? "s" : ""}` : "";
+      lignes.push({ onglet: "semaine", ton: "ok", etat: prediction.placed === true ? "Posé" : "Fait", texte: `Votre pronostic de la semaine : ${fmtCount(prediction.mine, "victoire")}${mise}` });
     } else if (pronosticOuvert(prediction.closesAt, now)) {
       lignes.push({ onglet: "semaine", ton: "warn", etat: "À faire", texte: `Pronostic de la semaine, ${closesLabel(prediction.closesAt)}` });
     }
