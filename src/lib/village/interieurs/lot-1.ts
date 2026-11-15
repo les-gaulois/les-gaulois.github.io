@@ -82,6 +82,8 @@ const borner = (v: number, min = 0, max = 1): number => Math.min(max, Math.max(m
 /** De 0 en plein jour à 1 à la nuit : la force de ce qui éclaire (comme les bâtiments du dehors). */
 const eclatDe = (l: Lumiere): number => borner((0.8 - l.jour) / 0.5);
 const NOIR = "#1a1410";
+/** Le bleu nuit de la bannière du clan (comme celle de la grande tour). */
+const BLEU_NUIT = "#1c2a5e";
 const PENOMBRE = "#16122a";
 const LUEUR = "#f5a83a";
 
@@ -766,9 +768,11 @@ function four(l: Lumiere, image: number): Decor {
     [154, DEVANT - 29],
     [160, DEVANT - 25],
   ] as const) {
-    for (let k = 0; k < 12; k++) {
+    for (let k = 0; k < 18; k++) {
       if ((k + 3 - n) % 3 === 0) continue;
-      t.voiler(bx + Math.round(1.6 * Math.sin((k + bx) / 2.2)), by - k, "#fff8ea", 0.38 * (1 - k / 13));
+      const wx = bx + Math.round(2 * Math.sin((k + bx) / 2.2));
+      t.voiler(wx, by - k, "#ffffff", 0.72 * (1 - k / 19));
+      t.voiler(wx + 1, by - k, "#ffffff", 0.4 * (1 - k / 19));
     }
   }
 
@@ -922,18 +926,18 @@ function four(l: Lumiere, image: number): Decor {
     t.rect(315, toit(326) - 2, 23, 3, (i, j) => (j === toit(326) - 2 ? p.mur.fond : i > 330 ? p.mur.ombre : p.mur.sombre));
     const fumee = c("#dcdcd6");
     const fumeeOmbre = c("#b4b6b8");
-    for (let k = -1; k < 4; k++) {
+    for (let k = -1; k < 5; k++) {
       const monte = 6 * k + 2 * n;
-      const y = 7 - monte;
+      const y = 8 - Math.round(monte * 0.3);
       if (monte < 0) continue;
-      const r = 2 + Math.floor(monte / 8);
-      const fx = 327 + Math.round(monte / 2);
+      const r = 2 + Math.floor(monte / 7);
+      const fx = 327 + Math.round(monte * 1.5);
       for (let dy = -r; dy <= r; dy++) {
         for (let dx = -r - 2; dx <= r + 2; dx++) {
           const d = (dx * dx) / ((r + 2) * (r + 2)) + (dy * dy) / (r * r + 0.5);
           if (d > 1) continue;
-          if (monte > 6 && d > 0.55 && (fx + dx + y + dy) % 2 === 0) continue;
-          if (monte > 12 && (d > 0.6 || (fx + dx + y + dy) % 2 === 0)) continue;
+          if (monte > 12 && d > 0.55 && (fx + dx + y + dy) % 2 === 0) continue;
+          if (monte > 22 && (d > 0.6 || (fx + dx + y + dy) % 2 === 0)) continue;
           t.poser(fx + dx, y + dy, dy > 0 || dx > r ? fumeeOmbre : fumee);
         }
       }
@@ -1010,6 +1014,8 @@ function poserAstre(t: Toile, l: Lumiere, horizon: number): void {
 
 /** Le pays vu de là-haut : des collines, la forêt, les champs, la rivière, le chemin, et les toits du village tout en bas. */
 function paysVuDeHaut(t: Toile, p: Palette, l: Lumiere, ciel: readonly string[], horizon: number): void {
+  /** La rangée où commence la terre, colonne par colonne : au-dessus, c'est le ciel. */
+  const cretes: number[] = [];
   const c = (deJour: string, deNuit: string): string => couleurDuDehors(deJour, deNuit, l);
   const eclat = eclatDe(l);
   const eau = { fond: c("#4f8fb5", "#1e3d63"), clair: c("#86bcd6", "#335f88") };
@@ -1033,6 +1039,7 @@ function paysVuDeHaut(t: Toile, p: Palette, l: Lumiere, ciel: readonly string[],
   const loin2 = melanger(p.foret.loin, ciel[4]!, 0.25);
   for (let x = 0; x < t.largeur; x++) {
     const a = horizon - 20 - Math.round(7 * Math.sin(x / 47 + 1) + 4 * Math.sin(x / 19));
+    cretes[x] = a;
     const b = horizon - 11 - Math.round(5 * Math.sin(x / 31 + 3) + 2 * Math.sin(x / 11 + 2));
     const d = horizon - 5 - Math.round(3 * Math.sin(x / 17 + 5) + 1.5 * Math.sin(x / 6) + alea(x, 2));
     for (let y = a; y < horizon; y++) t.poser(x, y, y >= d ? (alea(x, y) < 0.3 ? p.foret.presClaire : p.foret.pres) : y >= b ? loin2 : loin1);
@@ -1095,16 +1102,30 @@ function paysVuDeHaut(t: Toile, p: Palette, l: Lumiere, ciel: readonly string[],
     const bas = vy + 5 - Math.round(4 * Math.sqrt(Math.max(0, 1 - ((x - vx) * (x - vx)) / 900)));
     t.rect(x, bas - 2, 1, 3, x % 3 === 0 ? p.bois.sombre : p.bois.fond);
   }
-  for (const [hx, hy, demi] of [
+  const PORTES = [
     [vx - 18, vy - 2, 5],
     [vx - 6, vy - 5, 6],
     [vx + 8, vy - 3, 5],
     [vx + 19, vy - 1, 4],
     [vx + 1, vy + 3, 5],
-  ] as const) {
+  ] as const;
+  for (const [hx, hy, demi] of PORTES) {
     for (let r = 0; r <= demi; r++) for (let dx = -r; dx <= r; dx++) t.poser(hx + dx, hy - demi + r, Math.abs(dx) === r ? p.chaume.bord : dx < 0 ? p.chaume.clair : p.chaume.sombre);
-    t.rect(hx - demi + 2, hy + 1, demi * 2 - 3, 2, (i) => (i === hx ? melanger(p.bois.creux, "#ffd75a", eclat) : i < hx ? p.mur.fond : p.mur.sombre));
+    t.rect(hx - demi + 2, hy + 1, demi * 2 - 3, 2, (i) => (i === hx ? p.bois.creux : i < hx ? p.mur.fond : p.mur.sombre));
   }
+  // Tout le pays suit l'heure, comme les lointains du monde : sombre et bleuté la nuit, rougi au lever et au coucher.
+  const nuit = 1 - l.jour;
+  if (nuit > 0 || l.rougeur > 0) {
+    for (let x = 0; x < t.largeur; x++) {
+      for (let y = cretes[x] ?? horizon; y < t.hauteur; y++) {
+        const loin = 1 - Math.min(1, Math.max(0, y - horizon) / 60);
+        if (nuit > 0) t.voiler(x, y, "#0a1230", (0.5 + 0.14 * loin) * nuit);
+        if (l.rougeur > 0) t.voiler(x, y, ciel[4]!, (0.14 + 0.2 * loin) * l.rougeur);
+      }
+    }
+  }
+  // Les portes du village, elles, éclairent : elles gardent leur couleur.
+  if (eclat > 0) for (const [hx, hy] of PORTES) t.rect(hx, hy + 1, 1, 2, melanger(t.lire(hx, hy + 1) ?? "#000000", "#ffd75a", eclat));
 }
 
 function tour(l: Lumiere, image: number): Decor {
@@ -1264,7 +1285,8 @@ function tour(l: Lumiere, image: number): Decor {
     const d = dx * dx + dy * dy;
     if (d > 74) return B.creux;
     if (d <= 4) return dx + dy < 0 ? FER.clair : FER.fond;
-    return dx * dy >= 0 ? (dx < 0 ? TRICOLORE[0] : TRICOLORE[2]) : TRICOLORE[1];
+    if (d > 52) return TRICOLORE[1];
+    return dx * dy >= 0 ? BLEU_NUIT : "#2c3f80";
   });
 
   /* --- Au milieu et à droite : la trappe et l'échelle, la cloche, le tonneau, la corde --- */
@@ -1331,10 +1353,14 @@ function tour(l: Lumiere, image: number): Decor {
     t.rect(cx - 5, POINTE - 6, 11, 2, (i) => (i % 2 === 0 ? p.chaume.bord : p.chaume.fond));
     t.rect(cx, 1, 1, POINTE - 6, p.bois.sombre);
     const drapeau = (couleur: string): string => couleurDuDehors(couleur, melanger(couleur, "#0a1230", 0.55), l);
-    for (let i = 0; i < 21; i++) {
-      const vague = Math.round(1.4 * Math.sin((i - n * 5.25) / 3.34) * (i / 21));
-      const haute = 9 - Math.floor(i / 5);
-      for (let j = 0; j < haute; j++) t.poser(cx + 1 + i, 2 + vague + j + Math.floor(i / 10), drapeau(TRICOLORE[Math.min(2, Math.floor(i / 7))]!));
+    // Le fanion du clan : bleu nuit, les trois couleurs en bande à la hampe, deux pointes ; il ondule, lent.
+    for (let i = 0; i < 32; i++) {
+      const vague = Math.round(2.2 * Math.sin((i * 2 * Math.PI) / 22 - (n * Math.PI) / 2) * Math.min(1, i / 10));
+      for (let j = 0; j < 9; j++) {
+        if (i > 27 && Math.abs(j - 4) < i - 27) continue;
+        const couleur = i < 6 ? TRICOLORE[i >> 1]! : j === 0 || j === 8 ? TRICOLORE[1] : (i >> 2) % 2 === 0 ? BLEU_NUIT : "#182450";
+        t.poser(cx + 1 + i, 3 + vague + j, drapeau(couleur));
+      }
     }
   });
 
@@ -1588,11 +1614,11 @@ function grenier(l: Lumiere, image: number): Decor {
   };
   t.lettres(196, cy - 39, ["..a....a....", "..aa..aa....", "..abaaba....", "..aebbba....", "..aecbca....", "..aebdba....", "...abba.....", "..aebbba....", ".aebbbbba...", ".aebbbbba...", ".aebbbbba...", ".aebbbbba...", ".aabbbbaa...", "..aaaaaa...."], chat);
   // Sa queue pend le long du coffre et se balance, lente.
-  const balance = [0, 1, 2, 1][n]!;
-  for (let k = 0; k < 14; k++) {
-    const qx = k < 5 ? 205 + k : 210 + Math.round((balance * Math.max(0, k - 6)) / 7);
+  const balance = [-3, 0, 3, 0][n]!;
+  for (let k = 0; k < 19; k++) {
+    const qx = k < 5 ? 205 + k : 210 + Math.round((balance * Math.max(0, k - 6)) / 12);
     const qy = k < 5 ? cy - 27 : cy - 27 + (k - 4);
-    t.rect(qx, qy, 2, 2, k > 10 ? "#8a6a4a" : chat.b);
+    t.rect(qx, qy, 2, 2, k > 15 ? "#8a6a4a" : chat.b);
   }
   // La balance, pendue à l'entrait : le grain d'un côté, les poids de l'autre.
   const bx = 232;
