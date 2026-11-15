@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { playerPodiums } from "../../src/lib/podiums";
 import type { StoredMemberResult, StoredMembers, StoredSession } from "../../src/lib/schemas";
-import { datesDeLaSerie, datesDuRecord, FLAMME_DES, flammeAllumee, recordPersonnel, serieEnCours, serieEnMots } from "../../src/lib/serie-en-cours";
+import { compagnonsDeFlamme, datesDeLaSerie, partiesDeLaSerie, phraseDesCompagnons, datesDuRecord, FLAMME_DES, nommesParPartie, flammeAllumee, recordPersonnel, serieEnCours, serieEnMots } from "../../src/lib/serie-en-cours";
 
 const LU = "2026-11-15T09:00:00.000Z";
 const COUVERT = "2026-11-15T08:00:00.000Z";
@@ -182,5 +182,108 @@ describe("le record personnel", () => {
     expect(recordPersonnel(undefined, new Map(), COUVERT, null)).toBeNull();
     const lignes = suite([1, 1, 1]);
     expect(recordPersonnel(resultat(lignes), sessions(lignes), null, null)).toBeNull();
+  });
+});
+
+describe("les compagnons de flamme", () => {
+  /** Le joueur « moi » : une défaite puis six victoires, parties g1 à g7 ; ses compagnons gagnent certaines de ces parties. */
+  const moi: Ligne[] = [[1, 0, 0], [2, 1, 1], [3, 2, 1], [4, 3, 1], [5, 4, 1], [6, 5, 1], [7, 6, 1]];
+  const avec = (lignes: [number, 0 | 1][]): StoredMemberResult => ({ seen: lignes.length, readAt: LU, older: null, games: lignes.map(([id, won]): [string, string, 0 | 1] => [`g${id}`, heure(id - 1), won]) });
+  const results = {
+    moi: resultat(moi, null),
+    brennos: avec([[2, 1], [3, 1], [4, 1]]),
+    alix: avec([[5, 1]]),
+    // Dans la partie g1, perdue par tous : avant la série, il n'en est pas.
+    cotta: avec([[1, 0]]),
+    // Une partie de la série qu'il aurait perdue : pas un compagnon.
+    dumno: avec([[6, 0]]),
+    // Un anonyme : jamais nommé, même gagnant.
+    anonyme: avec([[7, 1]]),
+  };
+  const nommes = new Map([["moi", "Moi"], ["brennos", "Brennos"], ["alix", "Alix"], ["cotta", "Cotta"], ["dumno", "Dumno"]]);
+  const clan = (n: (id: number) => number) => new Map(moi.map(([id]) => [`g${id}`, { totalPlayerCount: 40, clanPlayerCount: n(id) }]));
+  const calcul = (byId: ReturnType<typeof clan>) => {
+    const serie = serieEnCours(results.moi, byId, COUVERT);
+    return compagnonsDeFlamme("moi", serie, results.moi, byId, COUVERT, nommesParPartie(results, nommes), nommes);
+  };
+
+  it("nomme ceux qui ont gagné une partie de la série avec lui, du plus présent au moins présent", () => {
+    // Juste assez de Gaulois dans chaque partie pour lui et ceux nommés : personne d'autre.
+    const juste = clan((id) => (id <= 4 ? 2 : id === 5 ? 2 : 1));
+    expect(calcul(juste)).toEqual({ noms: [{ id: "brennos", username: "Brennos" }, { id: "alix", username: "Alix" }], autres: false });
+  });
+
+  it("dit « d'autres Gaulois » quand une partie comptait plus de Gaulois du clan que ceux nommés : un anonyme n'est jamais nommé", () => {
+    const c = calcul(clan((id) => (id === 7 ? 2 : id <= 4 ? 2 : id === 5 ? 2 : 1)))!;
+    expect(c.noms.map((n) => n.id)).toEqual(["brennos", "alix"]);
+    expect(c.autres).toBe(true);
+    expect(c.noms.some((n) => n.id === "anonyme" || n.id === "dumno" || n.id === "cotta")).toBe(false);
+  });
+
+  it("ne compte pas parmi « d'autres Gaulois » un membre nommé qui a perdu la partie selon OpenFront", () => {
+    // g6 : lui, et Dumno qui l'a perdue (parti avant la fin) ; personne d'autre.
+    const c = calcul(clan((id) => (id <= 4 ? 2 : id === 5 ? 2 : id === 6 ? 2 : 1)))!;
+    expect(c.noms.map((n) => n.id)).toEqual(["brennos", "alix"]);
+    expect(c.autres).toBe(false);
+    // Un Gaulois de plus dans g6 : quelqu'un d'autre était là.
+    expect(calcul(clan((id) => (id <= 4 ? 2 : id === 5 ? 2 : id === 6 ? 3 : 1)))!.autres).toBe(true);
+  });
+
+  it("ne retient que les parties de la série : ni avant la dernière défaite, ni sans session, ni seul, ni après les sessions relevées", () => {
+    // Lui : g10 gagnée avec Brennos avant la défaite g11, puis g12 à g19 gagnées. g13 sans session, g14 seul contre des robots,
+    // g18 après les sessions relevées : aucune ne compte, Brennos les a pourtant gagnées avec lui.
+    const lignes: Ligne[] = [[10, 0, 1], [11, 1, 0], [12, 2, 1], [13, 3, 1], [14, 4, 1], [15, 5, 1], [16, 6, 1], [17, 7, 1], [19, 8, 1], [18, 9, 1]];
+    const lui = resultat(lignes, null);
+    const brennos: StoredMemberResult = { seen: 4, readAt: LU, older: null, games: [10, 13, 14, 18].map((id): [string, string, 0 | 1] => [`g${id}`, heure(id - 10), 1]) };
+    const byId = new Map(lignes.filter(([id]) => id !== 13).map(([id]) => [`g${id}`, { totalPlayerCount: id === 14 ? 1 : 40, clanPlayerCount: 1 }]));
+    const couvert = heure(8);
+    const serie = serieEnCours(lui, byId, couvert)!;
+    expect(serie.victoires).toBe(5);
+    expect(partiesDeLaSerie(lui, byId, couvert)).toEqual(["g12", "g15", "g16", "g17", "g19"]);
+    const res = { lui, brennos };
+    const noms = new Map([["lui", "Lui"], ["brennos", "Brennos"]]);
+    expect(compagnonsDeFlamme("lui", serie, lui, byId, couvert, nommesParPartie(res, noms), noms)).toBeNull();
+  });
+
+  it("range à égalité par ordre alphabétique", () => {
+    const egal = { ...results, alix: avec([[5, 1], [6, 1], [7, 1]]) };
+    const byId = clan(() => 3);
+    const serie = serieEnCours(egal.moi, byId, COUVERT);
+    const c = compagnonsDeFlamme("moi", serie, egal.moi, byId, COUVERT, nommesParPartie(egal, nommes), nommes)!;
+    expect(c.noms.map((n) => n.username)).toEqual(["Alix", "Brennos"]);
+  });
+
+  it("rien sans flamme, ou quand personne du clan n'était avec lui", () => {
+    const byId = clan(() => 1);
+    const seul = { moi: results.moi };
+    expect(compagnonsDeFlamme("moi", serieEnCours(seul.moi, byId, COUVERT), seul.moi, byId, COUVERT, nommesParPartie(seul, nommes), nommes)).toBeNull();
+    const courte = resultat(moi.slice(0, 4), null);
+    expect(compagnonsDeFlamme("moi", serieEnCours(courte, byId, COUVERT), courte, byId, COUVERT, nommesParPartie(results, nommes), nommes)).toBeNull();
+  });
+});
+
+describe("la phrase des compagnons", () => {
+  const n = (...noms: string[]) => noms.map((username) => ({ id: username.toLowerCase(), username }));
+  const texte = (noms: { id: string; username: string }[], autres: boolean) => {
+    const p = phraseDesCompagnons({ noms, autres });
+    return p ? p.intro + p.noms.map((x) => x.avant + x.username).join("") + p.fin : null;
+  };
+
+  it("dit les sept cas de la conception, sans virgule avant « et », sans point final", () => {
+    expect(texte(n("Alba"), false)).toBe("Série gagnée avec : Alba");
+    expect(texte(n("Alba", "Brennos"), false)).toBe("Série gagnée avec : Alba et Brennos");
+    expect(texte(n("Alba", "Brennos", "Катя"), false)).toBe("Série gagnée avec : Alba, Brennos et Катя");
+    expect(texte(n("Alba"), true)).toBe("Série gagnée avec : Alba et d'autres Gaulois");
+    expect(texte(n("Alba", "Brennos", "Катя"), true)).toBe("Série gagnée avec : Alba, Brennos, Катя et d'autres Gaulois");
+    expect(texte([], true)).toBe("Série gagnée avec d'autres Gaulois");
+    expect(texte([], false)).toBeNull();
+    expect(phraseDesCompagnons(null)).toBeNull();
+  });
+
+  it("nomme cinq Gaulois au plus, le reste dans « d'autres Gaulois », sans nombre", () => {
+    const six = n("A", "B", "C", "D", "E", "F");
+    expect(texte(six, false)).toBe("Série gagnée avec : A, B, C, D, E et d'autres Gaulois");
+    expect(texte(six.slice(0, 5), false)).toBe("Série gagnée avec : A, B, C, D et E");
+    expect(phraseDesCompagnons({ noms: six, autres: false })!.noms.map((x) => x.id)).toEqual(["a", "b", "c", "d", "e"]);
   });
 });

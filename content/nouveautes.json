@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-15",
+    "kind": "nouveau",
+    "title": "Les compagnons de flamme",
+    "body": "Sur la fiche d'un membre, sous sa flamme : les Gaulois avec qui il a gagné sa série en cours.",
+    "link": {
+      "href": "/membres",
+      "label": "Voir les membres"
+    }
+  },
+  {
+    "date": "2026-11-15",
     "kind": "ameliore",
     "title": "La boutique a sa page",
     "body": "La boutique, la pochette surprise et le marché entre membres ont leur page. Le même Gaulois essaie les objets du clan et ceux des membres. « Mon Gaulois » garde le vestiaire et la forge.",

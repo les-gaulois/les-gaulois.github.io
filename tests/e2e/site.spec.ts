@@ -5,8 +5,8 @@ import { clan } from "../../config/clan";
 import { accueilFacts, accueilImageAlt, accueilRanking } from "../../src/lib/accueil-image";
 import { GazetteFonts } from "../../src/lib/gazette-image";
 import { worldTerritory } from "../../src/lib/carte-monde";
-import { loadClanMapFilm, loadTerritoryReadings, loadGames, loadHistory, loadMemberGames, loadMemberResults, loadMembers, loadMemberWeeks, loadMeta, loadNouveautes, loadRecordsPersonnels, loadRivals, loadSeriesEnCours, loadSessions } from "../../src/lib/data";
-import { datesDeLaSerie, datesDuRecord, flammeAllumee, serieEnMots } from "../../src/lib/serie-en-cours";
+import { loadClanMapFilm, loadTerritoryReadings, loadGames, loadHistory, loadMemberGames, loadMemberResults, loadMembers, loadMemberWeeks, loadMeta, loadNouveautes, loadCompagnonsDeFlamme, loadRecordsPersonnels, loadRivals, loadSeriesEnCours, loadSessions } from "../../src/lib/data";
+import { datesDeLaSerie, datesDuRecord, flammeAllumee, phraseDesCompagnons, serieEnMots } from "../../src/lib/serie-en-cours";
 import { fmtCount, fmtDate, fmtDateTime, fmtGap, fmtInt, fmtRank, fmtScore } from "../../src/lib/format";
 import type { LeaderboardEntry } from "../../src/lib/schemas";
 import { neighbours, withOfficialRanks } from "../../src/lib/stats";
@@ -1841,6 +1841,25 @@ test("la fiche montre la meilleure série du membre, et la flamme d'or d'un reco
   await expect(flamme.getByTestId("flamme-serie")).toHaveAttribute("data-doree", "");
   const alt = await page.locator('meta[property="og:image:alt"]').getAttribute("content");
   expect(alt).toContain(`C'est son record, sur ses parties lues depuis le ${fmtDate(records.get(enOr.publicId!)!.luesDepuis)}.`);
+});
+
+// Les compagnons de flamme (15 novembre 2026) : sous la flamme, ceux qui ont gagné sa série avec lui, cinq au plus, en liens
+// vers leur fiche ; le reste et les Gaulois sans pseudo public dans « d'autres Gaulois ». Aucun nombre.
+test("la flamme dit avec qui la série a été gagnée, en liens vers leurs fiches, sans déborder à 360 px", async ({ page }) => {
+  const compagnons = loadCompagnonsDeFlamme();
+  const [id, c] = [...compagnons].sort((a, b) => b[1].noms.length - a[1].noms.length)[0] ?? [];
+  if (!id || !c) return;
+  const phrase = phraseDesCompagnons(c)!;
+  await page.setViewportSize({ width: 360, height: 740 });
+  await page.goto(`/membres/${id}`);
+  const ligne = page.getByTestId("member-streak").getByTestId("member-streak-mates");
+  await expect(ligne).toHaveText(phrase.intro + phrase.noms.map((n) => n.avant + n.username).join("") + phrase.fin);
+  // Aucun nombre hors des pseudos, qui peuvent en porter (« Nonex.5264 ») : ni par compagnon, ni pour les autres.
+  expect((phrase.intro + phrase.noms.map((n) => n.avant).join("") + phrase.fin).match(/\d/)).toBeNull();
+  const liens = ligne.getByRole("link");
+  await expect(liens).toHaveCount(phrase.noms.length);
+  for (const [i, n] of phrase.noms.entries()) await expect(liens.nth(i)).toHaveAttribute("href", `/membres/${encodeURIComponent(n.id)}`);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });
 
 test("le site s'installe comme une application : un fichier d'installation et ses icônes", async ({ page }) => {

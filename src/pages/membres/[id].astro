@@ -7,7 +7,7 @@ import { NiveauEmblem } from "../../components/NiveauEmblem";
 import PageHeader from "../../components/PageHeader.astro";
 import ReadingNote from "../../components/ReadingNote.astro";
 import { clan } from "../../../config/clan";
-import { loadMemberGames, loadMemberResultsOnce, loadMembers, loadMeta, loadRecordsPersonnels, loadSeriesEnCours, loadSessionIndex } from "../../lib/data";
+import { loadCompagnonsDeFlamme, loadMemberGames, loadMemberResultsOnce, loadMembers, loadMeta, loadRecordsPersonnels, loadSeriesEnCours, loadSessionIndex } from "../../lib/data";
 import { fmtCount, fmtDate, fmtDateTime, fmtInt, fmtPct } from "../../lib/format";
 import { ficheFacts, ficheImageAlt } from "../../lib/fiche-image";
 import { ficheImageVersion } from "../../lib/fiches-discord";
@@ -19,7 +19,7 @@ import { formatLabel } from "../../lib/results";
 import type { StoredMember } from "../../lib/schemas";
 import { groupSentence, groupStats, winRateOf } from "../../lib/seul-groupe";
 import { GROUP_LABELS, GROUP_SIZES } from "../../lib/simulateur";
-import { datesDeLaSerie, datesDuRecord, flammeAllumee, serieEnMots } from "../../lib/serie-en-cours";
+import { datesDeLaSerie, datesDuRecord, flammeAllumee, phraseDesCompagnons, serieEnMots } from "../../lib/serie-en-cours";
 import { parisParts } from "../../lib/time";
 
 /** Une fiche par membre avec pseudo : un anonyme n'en a pas, et son identifiant n'est écrit nulle part. */
@@ -53,6 +53,9 @@ const serie = member.publicId ? (loadSeriesEnCours().get(member.publicId) ?? nul
 // série en cours bat une ancienne flamme.
 const record = member.publicId ? (loadRecordsPersonnels().get(member.publicId) ?? null) : null;
 const facts = list ? ficheFacts(list.members, member, serie, record) : null;
+// Les compagnons de flamme (conception de Claude Fable 5.2) : cinq noms au plus, en liens vers leur fiche ; le reste, et les
+// Gaulois sans pseudo public, dans « et d'autres Gaulois ». Aucun nombre. La phrase est préparée en morceaux (`phraseDesCompagnons`).
+const compagnons = phraseDesCompagnons(member.publicId && flammeAllumee(serie) ? (loadCompagnonsDeFlamme().get(member.publicId) ?? null) : null);
 // Toujours ses dates, les mêmes qu'au podium de Records : une série de septembre ne se lit pas comme d'aujourd'hui.
 const recordLigne = record
   ? `${datesDuRecord(record).replace(/^./, (c) => c.toUpperCase())}${record.courante ? ", sans défaite sous le tag depuis" : ""}, sur ses parties lues depuis le ${fmtDate(record.luesDepuis)}`
@@ -93,12 +96,26 @@ const tiles = member.team
             <span class="flex w-24 shrink-0 justify-center">
               <FlammeSerie doree={record?.doree ?? false} />
             </span>
-            <p>
+            <p class="min-w-0">
               <span class="block font-display text-2xl font-bold">
                 {serieLigne}
                 {record?.doree && ", son record"}
               </span>
               <span class="block text-sm text-muted">Victoires {datesDeLaSerie(serie)}, sans défaite sous le tag depuis, au dernier relevé du {fmtDateTime(serie.releve)}</span>
+              {
+                compagnons && (
+                  <span class="mt-1 block text-sm leading-relaxed text-muted [overflow-wrap:anywhere]" data-testid="member-streak-mates">
+                    {compagnons.intro}
+                    {compagnons.noms.map((c) => (
+                      <Fragment>
+                        {c.avant}
+                        <a class="pseudo pseudo-phrase" href={`${base}/membres/${encodeURIComponent(c.id)}`}>{c.username}</a>
+                      </Fragment>
+                    ))}
+                    {compagnons.fin}
+                  </span>
+                )
+              }
             </p>
           </div>
         )

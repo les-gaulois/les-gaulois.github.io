@@ -22,7 +22,7 @@
  */
 import { fmtInt } from "./format";
 import { MIN_STREAK, plusLongueSerie, podiumDates, rangeesDuMembre } from "./podiums";
-import type { StoredMemberResult, StoredSession } from "./schemas";
+import type { StoredMemberResult, StoredMemberResults, StoredSession } from "./schemas";
 import { parisParts } from "./time";
 
 /** La flamme s'allume à partir de 5 victoires d'affilée. */
@@ -151,6 +151,104 @@ export function recordPersonnel(
   const ancien = courante && flammeAllumee(serie) ? (plusLongueSerie({ ...entry, games: entry.games.filter(([, start]) => start < serie.depuis!) }, byId, coveredUntil)?.value ?? 0) : 0;
   const doree = ancien >= FLAMME_DES && entry.older === null;
   return { victoires: best.value, auMoins: courante && serie.auMoins, debut: best.from, fin: best.to, luesDepuis: premiere[1], doree, courante, ancien: doree ? ancien : null };
+}
+
+/**
+ * Les compagnons de flamme (demande du pilote, 15 novembre 2026, idée de Claude Fable 5.2) : les Gaulois qui ont gagné avec
+ * le membre au moins une partie de sa série en cours. Seuls les membres au pseudo public de la liste officielle sont nommés,
+ * reconnus dans leur propre liste de parties (la même partie, gagnée) ; un anonyme n'est jamais nommé.
+ */
+export interface CompagnonsDeFlamme {
+  /** Du plus présent dans la série au moins présent, puis par ordre alphabétique. Aucun nombre n'est montré. */
+  noms: { id: string; username: string }[];
+  /**
+   * Une partie de la série comptait plus de Gaulois du clan (`clanPlayerCount` de sa session) que lui, ceux nommés, et les
+   * membres nommés dont la liste la donne perdue : des membres sans pseudo public, partis, ou dont les parties ne sont pas
+   * encore lues. Un membre nommé qui l'a perdue selon OpenFront (parti avant la fin) n'en est pas.
+   */
+  autres: boolean;
+}
+
+/** Pour chaque partie, les membres nommés qui l'ont gagnée et ceux qui l'ont perdue : construit une fois pour toutes les fiches. */
+export function nommesParPartie(results: StoredMemberResults, nommes: ReadonlyMap<string, string>): Map<string, { gagnants: Set<string>; perdants: Set<string> }> {
+  const index = new Map<string, { gagnants: Set<string>; perdants: Set<string> }>();
+  for (const [id, entry] of Object.entries(results)) {
+    if (!nommes.has(id)) continue;
+    for (const [gameId, , won] of entry.games) {
+      let partie = index.get(gameId);
+      if (!partie) index.set(gameId, (partie = { gagnants: new Set(), perdants: new Set() }));
+      (won === 1 ? partie.gagnants : partie.perdants).add(id);
+    }
+  }
+  return index;
+}
+
+/**
+ * Les parties de la série en cours d'un membre : ses victoires reconnues (une session du clan, pas seul contre des robots)
+ * depuis sa dernière défaite, jusqu'aux sessions relevées. Les mêmes que compte `serieEnCours` quand la flamme est allumée :
+ * une défaite plus récente que les sessions l'aurait éteinte.
+ */
+export function partiesDeLaSerie(entry: StoredMemberResult, byId: ReadonlyMap<string, Pick<StoredSession, "totalPlayerCount">>, coveredUntil: string): string[] {
+  const rangees = rangeesDuMembre(entry, coveredUntil);
+  let derniereDefaite = -1;
+  rangees.forEach(([, , won], i) => {
+    if (won === 0) derniereDefaite = i;
+  });
+  return rangees.slice(derniereDefaite + 1).flatMap(([gameId]) => {
+    const session = byId.get(gameId);
+    return session && session.totalPlayerCount >= 2 ? [gameId] : [];
+  });
+}
+
+/**
+ * Les compagnons de la série en cours d'un membre. `null` : pas de flamme, ou personne avec lui (des parties gagnées sans
+ * autre Gaulois). `nommes` : identifiant public → pseudo, les membres au pseudo public de la liste.
+ */
+export function compagnonsDeFlamme(
+  id: string,
+  serie: SerieEnCours | null,
+  entry: StoredMemberResult | undefined,
+  byId: ReadonlyMap<string, Pick<StoredSession, "totalPlayerCount" | "clanPlayerCount">>,
+  coveredUntil: string | null,
+  parPartie: ReadonlyMap<string, { gagnants: ReadonlySet<string>; perdants: ReadonlySet<string> }>,
+  nommes: ReadonlyMap<string, string>,
+): CompagnonsDeFlamme | null {
+  if (!flammeAllumee(serie) || !entry || coveredUntil === null) return null;
+  const presences = new Map<string, number>();
+  let autres = false;
+  for (const gameId of partiesDeLaSerie(entry, byId, coveredUntil)) {
+    const session = byId.get(gameId)!;
+    const partie = parPartie.get(gameId);
+    const avec = [...(partie?.gagnants ?? [])].filter((autre) => autre !== id);
+    const perdants = [...(partie?.perdants ?? [])].filter((autre) => autre !== id).length;
+    for (const autre of avec) presences.set(autre, (presences.get(autre) ?? 0) + 1);
+    if (session.clanPlayerCount - 1 - perdants > avec.length) autres = true;
+  }
+  const noms = [...presences]
+    .map(([autre, fois]) => ({ id: autre, username: nommes.get(autre)!, fois }))
+    .sort((a, b) => b.fois - a.fois || a.username.localeCompare(b.username, "fr"))
+    .map(({ id: autre, username }) => ({ id: autre, username }));
+  return noms.length > 0 || autres ? { noms, autres } : null;
+}
+
+/** Cinq compagnons nommés au plus sur la fiche : le reste entre dans « et d'autres Gaulois », sans nombre. */
+export const MAX_COMPAGNONS = 5;
+
+/**
+ * La phrase des compagnons, en morceaux pour la page (conception de Claude Fable 5.2) : « Série gagnée avec : Alba, Brennos
+ * et Катя », « … Alba, Brennos et d'autres Gaulois », « Série gagnée avec d'autres Gaulois ». Chaque nom garde son
+ * identifiant, pour le lien vers sa fiche ; `avant` est ce qui le précède. `null` : pas de ligne.
+ */
+export function phraseDesCompagnons(c: CompagnonsDeFlamme | null): { intro: string; noms: { id: string; username: string; avant: string }[]; fin: string } | null {
+  if (!c) return null;
+  const affiches = c.noms.slice(0, MAX_COMPAGNONS);
+  const autres = c.autres || c.noms.length > MAX_COMPAGNONS;
+  if (affiches.length === 0 && !autres) return null;
+  return {
+    intro: affiches.length > 0 ? "Série gagnée avec : " : "Série gagnée avec ",
+    noms: affiches.map((n, i) => ({ ...n, avant: i === 0 ? "" : i === affiches.length - 1 && !autres ? " et " : ", " })),
+    fin: autres ? `${affiches.length > 0 ? " et " : ""}d'autres Gaulois` : "",
+  };
 }
 
 /** Les jours de Paris de ses victoires, comme aux podiums : « le 2 nov. 2026 », « du 18 au 21 sept. 2026 ». Vide sans série. */

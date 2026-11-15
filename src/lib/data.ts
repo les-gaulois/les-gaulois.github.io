@@ -3,7 +3,7 @@ import { join } from "node:path";
 import type { z } from "zod";
 import { dayRows, territoryReadings, type TerritoryReading } from "./clanmap/days";
 import { GazetteSendState } from "./gazette-discord";
-import { recordPersonnel, serieEnCours, type RecordPersonnel, type SerieEnCours } from "./serie-en-cours";
+import { compagnonsDeFlamme, nommesParPartie, recordPersonnel, serieEnCours, type CompagnonsDeFlamme, type RecordPersonnel, type SerieEnCours } from "./serie-en-cours";
 import { EMPTY_MEMBER_WEEKS } from "./week-players";
 import {
   Announcements,
@@ -87,6 +87,7 @@ export const loadMemberResultsOnce = (): StoredMemberResults => (memberResults ?
 
 let seriesEnCours: ReadonlyMap<string, SerieEnCours> | null = null;
 let recordsPersonnels: ReadonlyMap<string, RecordPersonnel> | null = null;
+let compagnons: ReadonlyMap<string, CompagnonsDeFlamme> | null = null;
 /**
  * La série de victoires en cours de chaque membre avec pseudo de la liste officielle dont les parties sont toutes lues
  * (`serie-en-cours.ts`), par identifiant public, calculée une fois. Vide si un mois de sessions est illisible : sans lui, une victoire ne serait pas reconnue, et une flamme
@@ -96,11 +97,15 @@ export function loadSeriesEnCours(): ReadonlyMap<string, SerieEnCours> {
   if (seriesEnCours) return seriesEnCours;
   const series = new Map<string, SerieEnCours>();
   const records = new Map<string, RecordPersonnel>();
+  const avec = new Map<string, CompagnonsDeFlamme>();
   if (unreadableSessionFiles().length === 0) {
     const byId = loadSessionIndex();
     const coveredUntil = loadMeta().sessions.coveredUntil;
     const list = loadMembers();
     const results = loadMemberResultsOnce();
+    // Les membres au pseudo public de la liste : seuls nommés parmi les compagnons de flamme.
+    const nommes = new Map((list?.members ?? []).flatMap((m) => (m.username && m.publicId ? [[m.publicId, m.username] as const] : [])));
+    const parPartie = nommesParPartie(results, nommes);
     for (const m of list?.members ?? []) {
       if (!list || !m.username || !m.publicId || !m.team) continue;
       const liste = { parties: m.team.wins + m.team.losses, le: list.fetchedAt };
@@ -108,10 +113,19 @@ export function loadSeriesEnCours(): ReadonlyMap<string, SerieEnCours> {
       if (serie) series.set(m.publicId, serie);
       const record = recordPersonnel(results[m.publicId], byId, coveredUntil, serie);
       if (record) records.set(m.publicId, record);
+      const compagnonsDuMembre = compagnonsDeFlamme(m.publicId, serie, results[m.publicId], byId, coveredUntil, parPartie, nommes);
+      if (compagnonsDuMembre) avec.set(m.publicId, compagnonsDuMembre);
     }
   }
   recordsPersonnels = records;
+  compagnons = avec;
   return (seriesEnCours = series);
+}
+
+/** Les compagnons de flamme de chaque membre à la flamme allumée (`serie-en-cours.ts`), calculés avec les séries en cours. */
+export function loadCompagnonsDeFlamme(): ReadonlyMap<string, CompagnonsDeFlamme> {
+  loadSeriesEnCours();
+  return compagnons ?? new Map();
 }
 
 /** Le record personnel de chaque membre (`serie-en-cours.ts`), calculé avec les séries en cours, aux mêmes conditions. */
