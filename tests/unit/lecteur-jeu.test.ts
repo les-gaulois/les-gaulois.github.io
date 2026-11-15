@@ -109,7 +109,8 @@ describe("le vrai lecteur du jeu : où il vit, d'où il lit", () => {
     expect(IMAGE_DU_LECTEUR).toMatch(/^node:24[\w.-]*@sha256:[0-9a-f]{64}$/);
     expect(args.filter((a) => a.startsWith("--volume="))).toEqual(["--volume=/w/construction:/jeu"]);
     expect(args.filter((a) => a.startsWith("--env="))).toEqual(["--env=GAME_ENV=prod", "--env=GAL_MANIFEST=/jeu/gal-manifest.json", "--env=HOME=/tmp"]);
-    expect(args.slice(-2)).toEqual(["--base", "/jeu/8b5d071eed/"]);
+    // Ce qu'elle crée reste effaçable par le workflow ; la base est passée en argument, jamais collée dans la commande.
+    expect(args.slice(-4)).toEqual(["sh", "-c", 'umask 0000 && exec node node_modules/vite/bin/vite.js build --base "$0"', "/jeu/8b5d071eed/"]);
   });
 });
 

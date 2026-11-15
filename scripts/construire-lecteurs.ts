@@ -74,6 +74,18 @@ function sansLien(dossier: string) {
   }
 }
 
+/**
+ * Efface le dossier de travail après une construction. Un échec n'annule pas un lecteur construit (la machine du workflow est
+ * jetée après le passage) : il est signalé, sans plus.
+ */
+function effacerTravail(chemin: string) {
+  try {
+    rmSync(chemin, { recursive: true, force: true });
+  } catch (e) {
+    console.log(`::warning::Lecteurs : le dossier de travail ne s'efface pas (${e instanceof Error ? e.message.slice(0, 160) : String(e)}).`);
+  }
+}
+
 /** Les SVG d'un dossier, chemins relatifs. */
 function svgs(dossier: string, prefixe = ""): string[] {
   if (!existsSync(dossier)) return [];
@@ -165,7 +177,7 @@ async function construire(commit: string, drapeaux: boolean): Promise<void> {
     rmSync(final, { recursive: true, force: true });
     renameSync(partiel, final);
   } finally {
-    rmSync(travail, { recursive: true, force: true });
+    effacerTravail(travail);
   }
 }
 
@@ -190,7 +202,7 @@ for (const nom of readdirSync(DOSSIER_DES_LECTEURS)) {
   if (/^[0-9a-f]{40}$/.test(nom) && !gardes.includes(nom)) rmSync(join(DOSSIER_DES_LECTEURS, nom), { recursive: true, force: true });
   if (nom.endsWith(".partiel") || nom === "construction") rmSync(join(DOSSIER_DES_LECTEURS, nom), { recursive: true, force: true });
 }
-rmSync(TRAVAIL, { recursive: true, force: true });
+effacerTravail(TRAVAIL);
 // Rien que des fichiers ordinaires ne part dans le cache : un dossier qui contiendrait autre chose est effacé.
 for (const nom of readdirSync(DOSSIER_DES_LECTEURS)) {
   const chemin = join(DOSSIER_DES_LECTEURS, nom);

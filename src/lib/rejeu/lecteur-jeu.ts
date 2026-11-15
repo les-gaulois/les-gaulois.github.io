@@ -229,7 +229,11 @@ export function pageDuLecteur(modele: string, v: ValeursDeLaPage): string {
  */
 export const IMAGE_DU_LECTEUR = "node:24-bookworm-slim@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54";
 
-/** La commande `docker run` qui construit le lecteur dans `dossier`, déjà rempli (code du jeu, bibliothèques, manifeste). */
+/**
+ * La commande `docker run` qui construit le lecteur dans `dossier`, déjà rempli (code du jeu, bibliothèques, manifeste). Les
+ * fichiers que la construction crée appartiennent à l'utilisateur du conteneur : écrits ouverts à tous (`umask 0000`), pour que le
+ * workflow puisse ensuite les copier et les effacer (le 15 novembre 2026, sans cela, `.well-known/` ne s'effaçait pas).
+ */
 export function commandeDeConstruction(dossier: string, commit: string, nom: string): string[] {
   return [
     "run",
@@ -249,10 +253,9 @@ export function commandeDeConstruction(dossier: string, commit: string, nom: str
     "--env=GAL_MANIFEST=/jeu/gal-manifest.json",
     "--env=HOME=/tmp",
     IMAGE_DU_LECTEUR,
-    "node",
-    "node_modules/vite/bin/vite.js",
-    "build",
-    "--base",
+    "sh",
+    "-c",
+    'umask 0000 && exec node node_modules/vite/bin/vite.js build --base "$0"',
     `/${dossierDuLecteur(commit)}`,
   ];
 }
