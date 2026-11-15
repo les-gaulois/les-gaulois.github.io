@@ -4,8 +4,6 @@ import { PRIX_PAR_RARETE } from "../../src/lib/village/contrat";
 import type { RefusMarche } from "../../src/lib/village/contrat";
 import {
   MESSAGES_DU_MARCHE,
-  emplacementsEnVente,
-  enStateres,
   examinerAchat,
   finDeLOffre,
   lireBoutique,
@@ -86,12 +84,10 @@ describe("les offres à l'écran", () => {
     expect(offresAAcheter(offres, "tout").map((o) => o.id)).toEqual([1, 3, 4]);
   });
 
-  it("filtre par emplacement, et ne propose que les emplacements en vente chez les autres", () => {
+  it("filtre par emplacement", () => {
     expect(offresAAcheter(offres, "tete").map((o) => o.id)).toEqual([1, 3]);
     expect(offresAAcheter(offres, "arme").map((o) => o.id)).toEqual([4]);
     expect(offresAAcheter(offres, "bas")).toEqual([]);
-    expect(emplacementsEnVente(offres)).toEqual(["tete", "arme"]);
-    expect(emplacementsEnVente(mesOffres(offres))).toEqual([]);
   });
 
   it("annonce le solde après l'achat, ou ce qui l'empêche", () => {
@@ -142,11 +138,6 @@ describe("les offres à l'écran", () => {
     expect(finDeLOffre("pas une date", maintenant)).toBe("");
   });
 
-  it("écrit un nombre de statères", () => {
-    expect(enStateres(1)).toBe("1 statère");
-    expect(enStateres(0)).toBe("0 statère");
-    expect(enStateres(1700).replace(/\s/g, " ")).toBe("1 700 statères");
-  });
 });
 
 describe("les refus du marché", () => {

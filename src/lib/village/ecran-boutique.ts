@@ -1,5 +1,5 @@
 /**
- * Les calculs de l'écran « Mon Gaulois » du village (bourse, boutique, pochette surprise) : la lecture prudente de ce que
+ * Les calculs de la bourse, de la boutique et de la pochette surprise (page « La boutique », `/boutique`) : la lecture prudente de ce que
  * répond le serveur, ce qu'un objet coûte et ce qui manque pour l'acheter, et les mots de chaque refus. Le serveur décide
  * de tout (`contrat.ts`) : rien ici n'accorde un achat, l'écran ne fait que dire ce qu'il a reçu.
  *
@@ -145,22 +145,9 @@ export function prixDeLObjet(prix: Readonly<Record<Rarete, number>> | null | und
 export const manque = (solde: number, prix: number): number => Math.max(0, prix - solde);
 
 /**
- * Les objets que le membre a lui-même mis en vente au marché, lus dans `get_marche` (ses offres `a_moi`). Sortis de son
- * inventaire jusqu'à la fin de l'offre, ils ne s'achètent pas pour autant à la boutique : le serveur répond `deja_possede`.
- * Une réponse illisible, ou un refus, ne donne rien : l'écran ne devine pas.
+ * Cet objet est-il dans les objets que le membre a lui-même mis en vente au marché (ses offres) ? Sortis de son inventaire
+ * jusqu'à la fin de l'offre, ils ne s'achètent pas pour autant à la boutique : le serveur répond `deja_possede`.
  */
-export function objetsEnVente(reponse: unknown): RefObjet[] {
-  if (!estObjet(reponse) || reponse["ok"] !== true || !Array.isArray(reponse["offres"])) return [];
-  const liste: RefObjet[] = [];
-  for (const offre of reponse["offres"] as unknown[]) {
-    if (!estObjet(offre) || offre["a_moi"] !== true) continue;
-    const ref = objetPayant(offre["emplacement"], offre["objet"]);
-    if (ref && !estEnVente(liste, ref.emplacement, ref.objet)) liste.push({ emplacement: ref.emplacement, objet: ref.objet });
-  }
-  return liste;
-}
-
-/** Cet objet est-il dans les objets que le membre a en vente ? */
 export const estEnVente = (enVente: readonly RefObjet[], emplacement: Emplacement, id: string): boolean => enVente.some((r) => r.emplacement === emplacement && r.objet === id);
 
 /** Ce que dit l'essayage d'un objet que le membre a en vente au marché. */
@@ -248,15 +235,15 @@ export function soldeAMontrer(s: Pick<MesStateres, "valide" | "lie" | "gaulois" 
   return s.solde > 0 || etatDeLaBourse(s) === "prete" ? s.solde : null;
 }
 
-/** Ce que les deux bourses, « Mon Gaulois » et le marché, écrivent à la place d'un solde qui ne se sait pas encore. */
+/** Ce que la bourse de la boutique et la ligne de bourse de « Mon Gaulois » écrivent à la place d'un solde qui ne se sait pas encore. */
 export const SOLDE_INCONNU = "Pas encore de statères comptés";
 
 /**
- * Le solde à écrire au marché, avec la règle de la bourse de « Mon Gaulois » (`soldeAMontrer`) : le solde que le marché
- * vient de lire, et l'état de la bourse (`get_mes_stateres`). Sans cet état, un solde nul ne s'écrit pas : « pas de
- * données » n'est pas zéro.
+ * Le solde à écrire quand il ne vient pas de la bourse elle-même (la ligne de bourse de « Mon Gaulois » le lit dans
+ * `get_ma_boutique`), avec la règle de la bourse (`soldeAMontrer`) : ce solde, et l'état de la bourse
+ * (`get_mes_stateres`). Sans cet état, un solde nul ne s'écrit pas : « pas de données » n'est pas zéro.
  */
-export function soldeDuMarche(solde: number, bourse: Pick<MesStateres, "valide" | "lie" | "gaulois" | "releve"> | null): number | null {
+export function soldeAffiche(solde: number, bourse: Pick<MesStateres, "valide" | "lie" | "gaulois" | "releve"> | null): number | null {
   if (bourse === null) return solde > 0 ? solde : null;
   return soldeAMontrer({ ...bourse, solde });
 }

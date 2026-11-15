@@ -2,7 +2,7 @@ import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { fmtInt } from "../../lib/format";
 import { MARCHE_DUREE_JOURS } from "../../lib/village/contrat";
-import { MESSAGES_DU_MARCHE, enStateres, examinerAchat, lirePrix, seVend, type BoutiqueLue, type OffreLisible, type PossedeLisible } from "../../lib/village/ecran-marche";
+import { MESSAGES_DU_MARCHE, examinerAchat, lirePrix, raisonDeLOffre, seVend, type BoutiqueLue, type OffreLisible, type PossedeLisible } from "../../lib/village/ecran-marche";
 import { Problem } from "../compte/common";
 import { CaseObjet, Prix } from "./MarcheCase";
 
@@ -71,14 +71,7 @@ export function DialogueAchat({
   onFermer: () => void;
 }) {
   const examen = examinerAchat(offre, solde, boutique?.inventaire ?? null, miennes);
-  const empeche =
-    examen.refus === "deja_en_vente"
-      ? "Vous avez déjà cet objet en vente."
-      : examen.refus === "deja_possede"
-        ? MESSAGES_DU_MARCHE.deja_possede
-        : examen.refus === "solde_insuffisant"
-          ? `Il vous manque ${enStateres(examen.manque)}.`
-          : null;
+  const empeche = raisonDeLOffre(offre, solde, boutique?.inventaire ?? null, miennes);
   return (
     <Dialogue titre={empeche || probleme ? "Achat impossible" : `Acheter ${offre.nom} ?`} achat onFermer={onFermer}>
       <div class="marche-dialogue-objet">

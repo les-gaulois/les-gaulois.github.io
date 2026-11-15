@@ -35,7 +35,7 @@ import { SITE_URL, ficheImageUrl, ficheUrl, parseCommandes, parseFiches } from "
 import { currentMilestonesPeriod, homeMilestones, recentRecordLines, recentTerritoryRecord } from "../../src/lib/vie-du-clan";
 import { milestonesSinceMonday } from "../../src/lib/week-players";
 
-const PAGES = ["/", "/gazette", "/parties", "/nouveautes", "/classement", "/rivaux", "/progression", "/records", "/membres", "/liste", "/village", "/qg", "/carte", "/activite", "/debuter", "/rejoindre", "/mentions-legales"];
+const PAGES = ["/", "/gazette", "/parties", "/nouveautes", "/classement", "/rivaux", "/progression", "/records", "/membres", "/liste", "/village", "/boutique", "/qg", "/carte", "/activite", "/debuter", "/rejoindre", "/mentions-legales"];
 const lb = JSON.parse(readFileSync("data/leaderboard.json", "utf8"));
 const members = JSON.parse(readFileSync("data/members.json", "utf8"));
 const gal = lb.clans.find((c: { clanTag: string }) => c.clanTag === "GAL");
@@ -64,7 +64,7 @@ test("sans serveur configuré, la connexion n'apparaît pas et le site reste sta
   await expect(page.locator("[data-ouvre=\"alliance\"]")).toHaveCount(0);
   await expect(page.locator("[data-alliance-canvas]")).toHaveCount(0);
   // « Mon Gaulois » aussi, même par l'ancienne adresse de sa fenêtre dans le monde du village.
-  for (const path of ["/compte", "/direction", "/qg", "/village", "/village#gaulois"]) {
+  for (const path of ["/compte", "/direction", "/qg", "/village", "/village#gaulois", "/boutique"]) {
     await page.goto(path);
     await expect(page.getByTestId("auth-not-open")).toBeVisible();
   }
@@ -931,11 +931,12 @@ test("les images des commandes du robot sont publiées, chacune à son adresse",
 });
 
 // Le 12 novembre 2026, à la demande du pilote : la liste a son onglet, entre la page Membres et le QG, et n'est qu'à un endroit.
-// « Mon Gaulois » (13 novembre 2026, à l'adresse /village) se range entre la liste et le QG.
+// « Mon Gaulois » (13 novembre 2026, à l'adresse /village) se range entre la liste et le QG ; « La boutique » (15 novembre
+// 2026), sortie de « Mon Gaulois », juste après lui.
 test("la liste des membres a son onglet, entre la page Membres et le QG", async ({ page }) => {
   await page.goto("/membres");
   const tabs = page.getByTestId("section-nav").locator("a");
-  await expect(tabs).toHaveText(["Membres", "La liste", "Mon Gaulois", "Le QG"]);
+  await expect(tabs).toHaveText(["Membres", "La liste", "Mon Gaulois", "La boutique", "Le QG"]);
   await expect(page.locator('astro-island[component-url*="MembersTable"]')).toHaveCount(0);
   await tabs.filter({ hasText: "La liste" }).click();
   await expect(page).toHaveURL(/\/liste\/?$/);
@@ -948,7 +949,7 @@ test("la liste des membres a son onglet, entre la page Membres et le QG", async 
 });
 
 // « Mon Gaulois » sans serveur (le site publié sans PUBLIC_SUPABASE_URL) : la porte fermée, sans vestiaire ni onglets. Le
-// Gaulois de départ, la connexion, la forge et le marché ne paraissent qu'avec le serveur : ils sont essayés à part, contre
+// Gaulois de départ, la connexion et la forge ne paraissent qu'avec le serveur : ils sont essayés à part, contre
 // les vraies fonctions SQL. Le monde du village, retiré le 15 novembre 2026, ne revient pas : ni scène, ni chantier, ni feu.
 // L'accessibilité et les largeurs de /village sont contrôlées avec les autres pages (PAGES).
 test("« Mon Gaulois » sans serveur garde sa porte fermée, sans le monde du village, avec le bouton pause", async ({ page }) => {
@@ -965,6 +966,45 @@ test("« Mon Gaulois » sans serveur garde sa porte fermée, sans le monde du vi
   await pause.click();
   await expect(page.locator("html")).toHaveClass(/fx-off/);
   await expect(pause).toHaveAttribute("aria-pressed", "true");
+});
+
+// « La boutique » (15 novembre 2026) : les achats (boutique, pochette, marché), sortis de « Mon Gaulois ». Sans serveur, la porte
+// fermée, comme /village : ni bourse, ni rayons, ni marché, et aucun appel. Ses écrans connectés sont essayés à part.
+// L'accessibilité et les largeurs de /boutique sont contrôlées avec les autres pages (PAGES).
+test("« La boutique » sans serveur garde sa porte fermée, avec le bouton pause", async ({ page }) => {
+  const calls: string[] = [];
+  page.on("request", (r) => {
+    if (r.url().includes("supabase") || r.url().includes("/rest/v1/")) calls.push(r.url());
+  });
+  await page.goto("/boutique");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("La boutique");
+  await expect(page.getByTestId("auth-not-open")).toBeVisible();
+  await expect(page.getByRole("tab")).toHaveCount(0);
+  for (const id of ["boutique", "boutique-porte", "bourse", "pochette", "marche"]) await expect(page.getByTestId(id), id).toHaveCount(0);
+  // Rangée avec les membres : son onglet est celui de la page ouverte.
+  await expect(page.getByTestId("section-nav").locator('a[aria-current="page"]')).toHaveText("La boutique");
+  const pause = page.getByRole("button", { name: "Mettre les animations en pause" });
+  await expect(pause).toBeVisible();
+  await pause.click();
+  await expect(page.locator("html")).toHaveClass(/fx-off/);
+  expect(calls).toEqual([]);
+});
+
+// L'ancien onglet « Le marché » de « Mon Gaulois » : son adresse mène au marché de la boutique, même sans serveur (script
+// en ligne de village.astro), à l'arrivée comme par un lien suivi dans la page. Les autres adresses de /village restent.
+test("l'ancienne adresse du marché, /village#marche, mène à la boutique", async ({ page }) => {
+  await page.goto("/village#marche");
+  await expect(page).toHaveURL(/\/boutique\/?#marche$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("La boutique");
+  for (const path of ["/village", "/village#gaulois", "/village#forge"]) {
+    await page.goto(path);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Mon Gaulois");
+    expect(new URL(page.url()).pathname).toMatch(/\/village\/?$/);
+  }
+  await page.evaluate(() => {
+    location.hash = "#marche";
+  });
+  await expect(page).toHaveURL(/\/boutique\/?#marche$/);
 });
 
 // La commande /feu du robot Discord lit le grand feu dans /village/monde.json : le site le publie toujours, même sans le

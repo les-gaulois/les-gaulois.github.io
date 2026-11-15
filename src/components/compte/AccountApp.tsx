@@ -5,6 +5,7 @@ import { ROLE_LABELS, type Me } from "../../lib/compte/types";
 import { fmtDate } from "../../lib/format";
 import { ADRESSE_VILLAGE, RETOUR_VILLAGE_KEY } from "../../lib/gaulois";
 import { EVENEMENT_ENREGISTRE } from "../../lib/compagnon/tenue";
+import { ADRESSE_BOUTIQUE, RETOUR_BOUTIQUE_KEY } from "../../lib/village/boutique-rayons";
 import { COMPTE_OPENFRONT_URL } from "../../lib/compte/lien-openfront";
 import { CodeLogin, DiscordButton, DiscordGives, Loading, Problem, codeLoginShown, messageOf, useMe } from "./common";
 import { useArrivee } from "./arrivee";
@@ -92,7 +93,7 @@ function retourDemande(cle: string): boolean {
 }
 
 /**
- * Revenir de Discord vers la carte de l'alliance ou le village : Discord ne ramène qu'ici, la page l'a noté avant le départ.
+ * Revenir de Discord vers la carte de l'alliance, le village ou la boutique : Discord ne ramène qu'ici, la page l'a noté avant le départ.
  * Le libellé de l'attente, ou `null` s'il n'y a nulle part où revenir.
  */
 function retourApresDiscord(me: Me | null): string | null {
@@ -104,6 +105,10 @@ function retourApresDiscord(me: Me | null): string | null {
   if (retourDemande(RETOUR_VILLAGE_KEY)) {
     location.replace(`${basePath()}${ADRESSE_VILLAGE}`);
     return "Retour à « Mon Gaulois »…";
+  }
+  if (retourDemande(RETOUR_BOUTIQUE_KEY)) {
+    location.replace(`${basePath()}${ADRESSE_BOUTIQUE}`);
+    return "Retour à la boutique…";
   }
   return null;
 }

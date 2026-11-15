@@ -1,7 +1,9 @@
 /* Un morceau de la feuille du site (src/lib/feuilles.ts). Tailwind le lit avec le socle : mêmes jetons, mêmes replis. */
 @reference "./01-socle.css";
 /* ---------- Page « Mon Gaulois » : onglets et marché (13 novembre 2026 ; sans le monde du village depuis le 15 novembre) ---------- */
-/* Les trois parties de /village (Mon Gaulois, la forge, le marché) sous leur barre d'onglets, celle du QG d'avant son menu. */
+/* Les deux parties de /village (Mon Gaulois, la forge) sous leur barre d'onglets, celle du QG d'avant son menu. Le marché
+   est sur la page « La boutique » depuis le 15 novembre 2026 : ses cases, ses offres et ses fenêtres restent ici, la tête de
+   l'ancien onglet (solde, titres, filtres par emplacement) est retirée. */
 .village {
   display: grid;
   gap: 2rem;
@@ -21,30 +23,6 @@
   color: var(--color-muted);
 }
 
-/* Le marché : le solde et « Vendre un objet » en tête, puis ses offres, puis celles des autres, en cases de rareté. */
-.marche {
-  display: grid;
-  gap: 1.5rem;
-  min-width: 0;
-}
-.marche-tete {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem 1.5rem;
-}
-.marche-solde {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--color-muted);
-}
-.marche-solde strong {
-  font-size: 1.75rem;
-  line-height: 1;
-  color: var(--ecriture);
-}
 .marche-piece {
   flex: none;
 }
@@ -55,32 +33,8 @@
   font-weight: 700;
   color: var(--ecriture);
 }
-.marche-partie {
-  display: grid;
-  gap: 0.875rem;
-  min-width: 0;
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--hairline);
-}
-.marche-titre {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.25rem 0.75rem;
-  font-size: 1.0625rem;
-  font-weight: 700;
-}
-/* Le compte de ses offres, à côté du titre : en lettres courantes, pas dans celles des titres. */
-.marche-titre .info-discrete {
-  font-family: var(--font-sans);
-}
 .marche-champ label {
   display: block;
-}
-.marche-filtres {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
 }
 .marche-offres {
   display: grid;
@@ -572,19 +526,7 @@
   gap: 0.875rem;
   min-width: 0;
 }
-/* Le titre de la boutique d'un rayon, et à côté son filtre : une rareté à la fois, avec le nombre d'objets de chacune. */
-.vestiaire-boutique-tete {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.625rem 1.25rem;
-  margin-top: 0.875rem;
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--hairline);
-}
-.vestiaire-boutique-tete .vestiaire-boutique {
-  margin-top: 0;
-}
+/* Le filtre d'un rayon de la boutique : une rareté à la fois, avec le nombre d'objets de chacune. */
 .vestiaire-filtre {
   display: flex;
   flex-wrap: wrap;
@@ -821,6 +763,16 @@
   font-size: 0.8125rem;
   font-weight: 700;
 }
+/* La petite plaque dorée d'un objet gravé à la forge, au coin bas de son image : dans les cases du vestiaire et de la forge.
+   Son texte est dans le nom de la case et au survol. Ici, avec les cases, et non dans le morceau de la forge : toute page
+   qui dessine une case a cette règle. */
+.case .plaque-coin {
+  position: absolute;
+  top: 4.5rem;
+  right: 0.3125rem;
+  filter: drop-shadow(0 1px 0 rgb(0 0 0 / 0.55));
+  pointer-events: none;
+}
 /* Une case montrée dans une fenêtre (achat, pochette) : la même, sans être un bouton. */
 .case-montree {
   width: 8rem;
@@ -907,10 +859,6 @@
 .vestiaire-envoi .form-problem,
 .vestiaire-envoi .form-success {
   margin-top: 0;
-}
-.vestiaire-bloque {
-  color: var(--color-warn);
-  font-weight: 600;
 }
 
 /* ---------- Le village des Gaulois : Mon Gaulois, la bourse, la boutique et la pochette surprise (13 novembre 2026) ---------- */
@@ -1205,8 +1153,7 @@
 /* Les trois onglets vus comme un seul produit : mêmes chiffres, mêmes fenêtres, mêmes cases. Chaque règle dit ce qu'elle
    accorde. */
 
-/* Les trois onglets tiennent dans la barre sur un téléphone : « Le marché » ne reste plus caché hors de l'écran. Si la
-   place manque quand même, la barre défile comme avant. */
+/* Les onglets tiennent dans la barre sur un téléphone. Si la place manque quand même, la barre défile comme avant. */
 @media (max-width: 480px) {
   .village .onglets-defile {
     gap: 0.125rem;
@@ -1217,16 +1164,6 @@
     padding-inline: 0.3125rem;
     font-size: 0.875rem;
   }
-}
-
-/* La bourse du marché : la même que celle de « Mon Gaulois » (la pièce, le nombre en grand, « statères » en doré). */
-.marche-solde {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem 0.75rem;
-}
-.marche-solde strong {
-  font-size: clamp(2.5rem, 2rem + 2.5vw, 3.75rem);
 }
 
 /* Le nom d'une case tient sur deux lignes : il en garde la place, pour que les losanges, la rareté et le prix soient à la
@@ -1310,3 +1247,148 @@
   }
 }
 
+
+/* ---------- La boutique, sur sa page (/boutique, 15 novembre 2026) ---------- */
+/* Les achats sont sortis de « Mon Gaulois » : la bourse, la pochette surprise, la boutique du clan et le marché des
+   membres (la gravure de la forge, payée en statères elle aussi, reste sur /village). La page reprend la scène du vestiaire (le Gaulois à gauche, collé en haut sur téléphone), ses cases
+   et sa barre de rayons ; ici, seulement ce qu'elle a de plus. */
+
+/* Cinq rayons (tête, haut, bas, pieds, arme) : le corps, gratuit, n'en a pas. */
+.boutique-page .vestiaire-rayons {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+/* Sous le nom d'un rayon : le nombre d'offres que des membres y ont posées, en lettres courantes. */
+.vestiaire-rayon-mention {
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+/* Sous le Gaulois, qui reste en vue : le vendeur de l'offre essayée, puis ce qui vient de se passer (objet reçu, objet
+   porté, refus), avec « Le porter » et le lien vers « Mon Gaulois ». */
+.boutique-essai-vendeur {
+  flex-basis: 100%;
+  overflow-wrap: anywhere;
+}
+.boutique-avis {
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
+  max-width: 15rem;
+  font-size: 0.875rem;
+  text-align: center;
+}
+.boutique-avis :is(.form-problem, .form-success) {
+  margin-top: 0;
+}
+.boutique-avis-suite {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem 0.875rem;
+}
+.boutique-avis-suite a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  color: var(--ecriture);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+@media (max-width: 767px) and (min-height: 560px) {
+  .boutique-avis {
+    justify-items: start;
+    text-align: left;
+  }
+  .boutique-avis-suite {
+    justify-content: flex-start;
+  }
+}
+/* Le marché des membres, entre la bourse et les rayons : « Vendre un objet », puis ses propres offres dans un pli. Un
+   lien vers le marché (#marche) s'arrête sous l'en-tête du site, et sous le Gaulois collé sur téléphone. */
+.boutique-membres {
+  display: grid;
+  gap: 0.875rem;
+  min-width: 0;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--hairline);
+  scroll-margin-top: 5.5rem;
+}
+@media (max-width: 767px) and (min-height: 560px) {
+  .boutique-membres {
+    scroll-margin-top: calc(5.5rem + var(--vestiaire-scene, 13.5rem));
+  }
+}
+.boutique-membres-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+}
+.boutique-mes-offres > summary {
+  justify-content: flex-start;
+}
+.boutique-mes-offres > summary::after {
+  margin-left: auto;
+}
+.boutique-mes-offres > summary .info-discrete {
+  font-family: var(--font-sans);
+}
+.boutique-mes-offres .marche-offres {
+  margin-top: 0.5rem;
+}
+/* L'offre d'un membre s'essaie comme une case de la boutique : sa case est un bouton, avec le même anneau au survol et
+   le même cadre en pointillés, à lui seul, quand le Gaulois la porte à l'essai. */
+.marche-offre-essai {
+  position: relative;
+  display: block;
+  width: 100%;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: box-shadow 0.2s;
+}
+.marche-offre-essai:hover {
+  box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 4px color-mix(in srgb, var(--ecriture) 55%, transparent);
+}
+.marche-offre-essai[aria-pressed="true"] {
+  box-shadow: 0 0 0 2px var(--color-surface);
+  outline: 3px dashed var(--ecriture);
+  outline-offset: 2px;
+}
+/* Au clavier, l'offre qui prend le focus ne reste pas cachée sous la barre des rayons collée. */
+.vestiaire-panneau :is(.marche-offre-essai, .marche-offre-bouton) {
+  scroll-margin-block: 11.5rem 2rem;
+}
+@media (max-width: 767px) and (min-height: 560px) {
+  .vestiaire-panneau :is(.marche-offre-essai, .marche-offre-bouton) {
+    scroll-margin-top: calc(9rem + var(--vestiaire-scene, 13.5rem));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .marche-offre-essai {
+    transition: none;
+  }
+}
+
+/* « Mon Gaulois » : la bourse en une ligne et le lien vers la boutique, le seul de la page, au-dessus des rayons. */
+.vestiaire-bourse {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+}
+.vestiaire-bourse-solde {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-muted);
+}
+.vestiaire-bourse-solde strong {
+  font-size: 1.25rem;
+  color: var(--ecriture);
+}

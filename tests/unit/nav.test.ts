@@ -33,10 +33,12 @@ describe("sectionOf", () => {
   });
   it("met la liste des membres entre la page Membres et le QG", () => {
     expect(sectionOf("/liste")?.label).toBe("Membres");
-    expect(SECTIONS.find((s) => s.label === "Membres")?.pages.map((p) => p.href)).toEqual(["/membres", "/liste", "/village", "/qg"]);
+    expect(SECTIONS.find((s) => s.label === "Membres")?.pages.map((p) => p.href)).toEqual(["/membres", "/liste", "/village", "/boutique", "/qg"]);
   });
   it("range le village avec les membres, avant le QG", () => {
     expect(sectionOf("/village")?.label).toBe("Membres");
+    // « La boutique » (15 novembre 2026) : sortie de « Mon Gaulois », juste après lui.
+    expect(sectionOf("/boutique")?.label).toBe("Membres");
   });
   it("ne range ni l'accueil ni les pages personnelles", () => {
     expect(sectionOf("/")).toBeNull();

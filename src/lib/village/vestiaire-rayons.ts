@@ -16,7 +16,6 @@ import {
   OBJETS,
   ORDRE_RARETES,
   type Catalogue,
-  type Emplacement,
   type Objet,
   type Rarete,
   type Tenue,
@@ -38,11 +37,6 @@ export const NOMS_RAYONS: Readonly<Record<Rayon, string>> = {
   pieds: NOMS_EMPLACEMENTS.pieds,
   arme: NOMS_EMPLACEMENTS.arme,
 };
-
-/** Le rayon où se trouve un emplacement : le sien pour un objet, le corps pour tout le reste. */
-export function rayonDe(emplacement: Emplacement): Rayon {
-  return (EMPLACEMENTS_OBJETS as readonly string[]).includes(emplacement) ? (emplacement as Rayon) : RAYON_CORPS;
-}
 
 /** Un objet et son identifiant, comme les donne le catalogue. */
 export type Entree = readonly [id: string, objet: Objet];

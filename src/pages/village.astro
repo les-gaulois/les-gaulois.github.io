@@ -4,6 +4,11 @@ import PageHeader from "../components/PageHeader.astro";
 import NotOpen from "../components/compte/NotOpen.astro";
 import VillageApp from "../components/village/VillageApp";
 import { AUTH_ENABLED } from "../lib/compte/api";
+import { ADRESSE_BOUTIQUE, ANCRE_MARCHE } from "../lib/village/boutique-rayons";
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+// L'ancien onglet « Le marché » : son adresse mène à la boutique, sur son marché.
+const marche = { ancre: `#${ANCRE_MARCHE}`, cible: `${base}${ADRESSE_BOUTIQUE}#${ANCRE_MARCHE}` };
 ---
 
 {/* Le Gaulois de chaque membre (13 novembre 2026, demande du pilote) : il l'habille en pixels, et son Gaulois paraît sur
@@ -11,9 +16,18 @@ import { AUTH_ENABLED } from "../lib/compte/api";
     chantier, grand feu, intérieurs, almanach) est retiré depuis le 15 novembre 2026, à la demande du pilote (« enlève la
     partie villages ») ; l'adresse /village reste, pour les liens déjà donnés. Un visiteur voit le Gaulois de départ et la
     porte. Un compte connecté finit d'abord son inscription (lien OpenFront, puis Gaulois au vestiaire seul :
-    src/lib/compte/arrivee.ts), puis a trois onglets, comme au QG : « Mon Gaulois » (le vestiaire, la bourse, la boutique et la
-    pochette surprise), « La forge » et « Le marché ». Tout vient du serveur : la page ne contient que la porte. */}
+    src/lib/compte/arrivee.ts), puis a deux onglets, comme au QG : « Mon Gaulois » (le vestiaire : ce qui est à lui) et
+    « La forge ». Depuis le 15 novembre 2026, la boutique, la pochette surprise et le marché sont sur la page « La
+    boutique » (/boutique) : l'ancienne adresse /village#marche y renvoie, par un script en ligne qui marche aussi sans
+    serveur. Tout vient du serveur : la page ne contient que la porte. */}
 <Base title="Mon Gaulois" description="Le Gaulois en pixels de chaque membre du clan GAL : il l'habille avec les statères des points rapportés au clan, et le voit sur les images du clan sur Discord.">
+  <script is:inline define:vars={{ marche }}>
+    const versLaBoutique = () => {
+      if (location.hash === marche.ancre) location.replace(marche.cible);
+    };
+    versLaBoutique();
+    addEventListener("hashchange", versLaBoutique);
+  </script>
   <div class="wrap">
     <PageHeader title="Mon Gaulois" />
     <div class="mt-8">

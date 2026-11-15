@@ -260,13 +260,15 @@ function init(): void {
   const route = document.body.dataset.route;
   // Il ne vient ni sur la Carte, qui tient dans l'écran sans pied de page, ni au village, qui a déjà ses Gaulois (demande
   // du pilote, 14 novembre 2026 : « ça fait doublon »), même en prison : il attend à la page suivante. Une déconnexion
-  // faite là (fenêtre « Alliance », compte du village) efface quand même ce qui reste du membre dans l'onglet.
-  if (route === "/carte" || route === "/village") {
+  // faite là (fenêtre « Alliance », compte du village) efface quand même ce qui reste du membre dans l'onglet. La boutique
+  // (/boutique, 15 novembre 2026), sortie de « Mon Gaulois », montre elle aussi le Gaulois du membre : il n'y vient pas non plus.
+  const auVillage = route === "/village" || route === "/boutique";
+  if (route === "/carte" || auVillage) {
     // Sans session, ce qui reste du membre dans l'onglet s'efface aussi ici, comme sur les autres pages.
     besoinDeCettePage();
     void surveillerLeCompte(() => undefined);
-    if (route === "/village") {
-      // La tenue a pu changer ici (vestiaire, marché) : la page suivante la relira une fois au serveur. Marqué dès
+    if (auVillage) {
+      // La tenue a pu changer ici (vestiaire, « Le porter » de la boutique) : la page suivante la relira une fois au serveur. Marqué dès
       // l'arrivée et de nouveau en partant, pour un onglet fermé d'un coup comme pour une page ouverte dans un autre.
       marquerUnPassageAuVillage();
       window.addEventListener("pagehide", () => marquerUnPassageAuVillage());

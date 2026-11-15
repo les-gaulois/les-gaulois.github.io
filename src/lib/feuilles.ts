@@ -34,9 +34,9 @@ export const FEUILLES: readonly { fichier: string; pages: typeof TOUTES | readon
   // « Plus calme », le second lot des remarques du 12 novembre 2026.
   { fichier: "07-calme.css", pages: TOUTES },
   { fichier: "08-alliance.css", pages: ["/carte", "/direction"] },
-  // « Mon Gaulois » (/village) : les onglets, le marché, le vestiaire, la bourse et la boutique. « Mon compte » montre le
-  // vestiaire à l'inscription (ParcoursArrivee.tsx, 15 novembre 2026).
-  { fichier: "09-village.css", pages: ["/compte", "/village", "/direction"] },
+  // « Mon Gaulois » (/village) et « La boutique » (/boutique) : les onglets, le vestiaire, la bourse, la boutique et le marché.
+  // « Mon compte » montre le vestiaire à l'inscription (ParcoursArrivee.tsx, 15 novembre 2026).
+  { fichier: "09-village.css", pages: ["/compte", "/village", "/boutique", "/direction"] },
   // Le classement en colonne et les fenêtres de la Carte.
   { fichier: "10-carte-colonne.css", pages: ["/carte", "/direction"] },
   // L'onglet Comptes de la Direction.

@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-15",
+    "kind": "ameliore",
+    "title": "La boutique a sa page",
+    "body": "La boutique, la pochette surprise et le marché entre membres ont leur page. Le même Gaulois essaie les objets du clan et ceux des membres. « Mon Gaulois » garde le vestiaire et la forge.",
+    "link": {
+      "href": "/boutique",
+      "label": "Ouvrir la boutique"
+    }
+  },
+  {
+    "date": "2026-11-15",
     "kind": "nouveau",
     "title": "La flamme de série et le niveau sur les fiches",
     "body": "Dès 5 victoires d'affilée sous le tag, une flamme brûle sur la fiche du membre et sur son image /fiche, au dernier relevé. L'image montre aussi le niveau de son compte, tout le jeu.",

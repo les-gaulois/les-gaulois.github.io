@@ -2,6 +2,7 @@ import { useEffect, useRef } from "preact/hooks";
 import { casesDuStatere, type TailleStatere } from "../../../supabase/functions/code-discord/statere";
 import { RARETES, type Rarete } from "../../lib/gaulois";
 import { nombre } from "../../lib/village/ecran-boutique";
+import { PLAQUE } from "../../lib/village/plaque";
 
 /** Des cases de couleur peintes telles quelles dans une toile, que la feuille de style agrandit sans flou. */
 export function peindre(toile: HTMLCanvasElement | null, largeur: number, hauteur: number, cases: readonly (string | null)[]): void {
@@ -63,4 +64,12 @@ export function MarqueDeRarete({ rarete }: { rarete: Rarete }) {
       {RARETES[rarete].nom}
     </span>
   );
+}
+
+/**
+ * La petite plaque dorée d'un objet gravé à la forge, décorative : son texte est écrit à côté ou dans le nom de la case.
+ * Ici, et non dans Forge.tsx, pour que les cases du vestiaire la dessinent sans charger la forge.
+ */
+export function PetitePlaque({ echelle = 3 }: { echelle?: number }) {
+  return <Pixels largeur={PLAQUE.largeur} hauteur={PLAQUE.hauteur} cases={PLAQUE.cases} echelle={echelle} class="plaque-coin" />;
 }

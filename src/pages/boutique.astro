@@ -1,0 +1,26 @@
+---
+import Base from "../layouts/Base.astro";
+import PageHeader from "../components/PageHeader.astro";
+import NotOpen from "../components/compte/NotOpen.astro";
+import BoutiqueApp from "../components/village/BoutiqueApp";
+import { AUTH_ENABLED } from "../lib/compte/api";
+---
+
+{/* « La boutique » (15 novembre 2026, demande du pilote : « séparer dans Mon Gaulois la boutique et la mettre sur une page
+    à part », marché fusionné) : les achats en statères. La bourse, la pochette surprise, et, rayon par rayon, ce
+    que vendent les membres et ce que vend la boutique du clan, avec un seul Gaulois pour tout essayer. « Mon Gaulois »
+    (/village) garde ce qui est à soi : le vestiaire et la forge. Tout vient du serveur : la page ne contient que la porte. */}
+<Base title="La boutique" description="La boutique du clan GAL : les objets du Gaulois de chaque membre, la pochette surprise et le marché entre membres, payés en statères, la monnaie des points rapportés au clan.">
+  <div class="wrap">
+    <PageHeader title="La boutique" />
+    <div class="mt-8">
+      {
+        AUTH_ENABLED ? (
+          <BoutiqueApp client:only="preact" />
+        ) : (
+          <NotOpen />
+        )
+      }
+    </div>
+  </div>
+</Base>

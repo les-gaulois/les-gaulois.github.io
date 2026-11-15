@@ -74,16 +74,6 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
-/* La petite plaque dorée d'un objet gravé, au coin bas de son image : ici et dans les cases du vestiaire. Son texte est
-   dans le nom de la case et au survol. */
-.case .plaque-coin {
-  position: absolute;
-  top: 4.5rem;
-  right: 0.3125rem;
-  filter: drop-shadow(0 1px 0 rgb(0 0 0 / 0.55));
-  pointer-events: none;
-}
-
 /* L'établi : l'objet choisi et sa plaque. */
 .forge-etabli {
   display: grid;

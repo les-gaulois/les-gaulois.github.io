@@ -431,9 +431,10 @@ test("la prison passe le contrôle d'accessibilité et remonte au-dessus de ce q
   await expect.poll(async () => Math.round(((await prison(page).boundingBox())?.y ?? 0) + ((await prison(page).boundingBox())?.height ?? 0))).toBeGreaterThan(vue.height - 24);
 });
 
+// La boutique (/boutique, 15 novembre 2026), sortie de « Mon Gaulois », montre elle aussi le Gaulois du membre.
 test("il ne vient ni sur la Carte ni au village, même en prison, et retrouve le visiteur à la page suivante", async ({ page }) => {
   await sansSalut(page);
-  for (const path of ["/carte", "/village"]) {
+  for (const path of ["/carte", "/village", "/boutique"]) {
     await page.goto(path);
     await page.waitForTimeout(2_500);
     await expect(compagnon(page), path).toBeHidden();

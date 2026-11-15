@@ -1,12 +1,12 @@
 /**
- * L'écran du marché du village (onglet « Le marché » de `/village`) : ce que la page calcule à partir des réponses du
+ * L'écran du marché du village (sur la page « La boutique », `/boutique`, depuis le 15 novembre 2026) : ce que la page calcule à partir des réponses du
  * serveur (`get_marche`, `get_ma_boutique`, contrat dans `contrat.ts`). Le serveur décide de tout, achat, vente et prix ;
  * ici, seulement la lecture des réponses, les filtres, ce qui s'annonce avant de confirmer, et les mots des refus.
  */
 import { EMPLACEMENTS_OBJETS, OBJETS, ORDRE_RARETES, RARETES, type Emplacement, type Rarete } from "../gaulois";
 import { ERROR_MESSAGES } from "../compte/errors";
-import { nombre } from "./ecran-boutique";
-import type { MaBoutique, Marche, ObjetPossede, OffreDuMarche, RefusMarche } from "./contrat";
+import { stateres } from "./ecran-boutique";
+import type { MaBoutique, Marche, ObjetPossede, OffreDuMarche, RefObjet, RefusMarche } from "./contrat";
 
 /** Un objet payant du catalogue, avec ce qu'il faut pour dessiner sa case. */
 export interface ObjetDuMarche {
@@ -94,11 +94,6 @@ export function offresAAcheter(offres: readonly OffreLisible[], filtre: FiltreDu
 
 export const mesOffres = (offres: readonly OffreLisible[]): OffreLisible[] => offres.filter((o) => o.a_moi);
 
-/** Les emplacements où une offre d'un autre membre attend : seuls ceux-là ont un filtre. */
-export function emplacementsEnVente(offres: readonly OffreLisible[]): Emplacement[] {
-  return EMPLACEMENTS_OBJETS.filter((emplacement) => offres.some((o) => !o.a_moi && o.emplacement === emplacement));
-}
-
 /**
  * Ce que l'écran annonce avant de confirmer un achat : le solde après, ou ce qui l'empêche. Le serveur revérifie tout :
  * ce calcul évite seulement un clic voué au refus. `inventaire` à `null` : pas lu, l'écran ne sait pas si l'objet est déjà
@@ -153,8 +148,17 @@ export function finDeLOffre(expireLe: string, maintenant: Date): string {
   return jours === 1 ? "Fin dans 1 jour" : `Fin dans ${jours} jours`;
 }
 
-/** « 1 statère », « 250 statères ». */
-export const enStateres = (montant: number): string => `${nombre(montant)} ${Math.abs(montant) > 1 ? "statères" : "statère"}`;
+/**
+ * Ce qui empêche d'acheter l'offre d'un membre, en mots ; `null` : rien. L'examen de `examinerAchat`, écrit une fois pour
+ * la fenêtre d'achat et pour l'essayage de la page « La boutique » : objet déjà en vente par soi, déjà possédé, solde
+ * trop court. Le serveur revérifie tout.
+ */
+export function raisonDeLOffre(offre: Pick<OffreLisible, "prix" | "emplacement" | "objet">, solde: number, inventaire: readonly RefObjet[] | null, miennes: readonly RefObjet[] = []): string | null {
+  const examen = examinerAchat(offre, solde, inventaire, miennes);
+  if (examen.refus === "deja_en_vente") return "Vous avez déjà cet objet en vente.";
+  if (examen.refus === "deja_possede") return MESSAGES_DU_MARCHE.deja_possede;
+  return examen.refus === "solde_insuffisant" ? `Il vous manque ${stateres(examen.manque)}.` : null;
+}
 
 /**
  * Les mots du marché pour chaque refus du contrat (`RefusMarche`). Ceux qui n'existent qu'au marché sont dans

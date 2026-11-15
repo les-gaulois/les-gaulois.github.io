@@ -21,7 +21,6 @@ import {
   motStatere,
   nombre,
   objetPayant,
-  objetsEnVente,
   objetsNonPossedes,
   points,
   pourcent,
@@ -29,11 +28,10 @@ import {
   quantitePossedee,
   raisonBoutiqueFermee,
   soldeAMontrer,
-  soldeDuMarche,
+  soldeAffiche,
   stateres,
 } from "../../src/lib/village/ecran-boutique";
 import { fmtCount } from "../../src/lib/format";
-import { enStateres } from "../../src/lib/village/ecran-marche";
 
 const NBSP = String.fromCharCode(0xa0);
 const FINE = String.fromCharCode(0x202f);
@@ -182,11 +180,11 @@ describe("les mots de l'écran", () => {
     expect(nombre(100)).toBe("100");
     expect(stateres(1)).toBe(`1${NBSP}statère`);
     expect(stateres(1860)).toBe(`1${FINE}860${NBSP}statères`);
-    // Zéro au singulier, comme partout sur le site (fmtCount) et au marché (enStateres) : une seule écriture.
+    // Zéro au singulier, comme partout sur le site (fmtCount) : une seule écriture.
     expect(stateres(0)).toBe(`0${NBSP}statère`);
     for (const n of [0, 1, 2, 250, 2500]) {
       expect(motStatere(n), String(n)).toBe(fmtCount(n, "statère").split(" ").pop());
-      expect(stateres(n).split(NBSP).pop(), String(n)).toBe(enStateres(n).split(" ").pop());
+      expect(stateres(n).split(NBSP).pop(), String(n)).toBe(motStatere(n));
     }
     // Des mots, pas de signe : « 2 exemplaires », jamais « × 2 ».
     expect(exemplaires(2)).toBe(`2${NBSP}exemplaires`);
@@ -250,33 +248,20 @@ describe("l'état de la bourse", () => {
     expect(soldeAMontrer({ ...prete, valide: false, solde: 120 })).toBe(120);
   });
 
-  // Relecture du 14 novembre 2026 : le marché écrivait « 0 statère » là où « Mon Gaulois » écrivait « Pas encore de
-  // statères comptés ». Les deux bourses suivent la même règle, dans le même état.
-  it("donne au marché la règle de « Mon Gaulois », et rien de plus quand l'état de la bourse manque", () => {
+  // Relecture du 14 novembre 2026 : le marché écrivait « 0 statère » là où la bourse écrivait « Pas encore de statères
+  // comptés ». Un solde lu ailleurs que dans la bourse (la ligne de « Mon Gaulois ») suit la même règle, dans le même état.
+  it("donne à un solde lu hors de la bourse la règle de la bourse, et rien de plus quand son état manque", () => {
     const etats = [prete, { ...prete, releve: null }, { ...prete, valide: false }, { ...prete, lie: false }, { ...prete, gaulois: false }];
     for (const etat of etats) {
-      for (const solde of [0, 1, 640]) expect(soldeDuMarche(solde, etat), JSON.stringify([etat, solde])).toBe(soldeAMontrer({ ...etat, solde }));
+      for (const solde of [0, 1, 640]) expect(soldeAffiche(solde, etat), JSON.stringify([etat, solde])).toBe(soldeAMontrer({ ...etat, solde }));
     }
-    expect(soldeDuMarche(0, null)).toBeNull();
-    expect(soldeDuMarche(640, null)).toBe(640);
+    expect(soldeAffiche(0, null)).toBeNull();
+    expect(soldeAffiche(640, null)).toBe(640);
     expect(SOLDE_INCONNU).toBe("Pas encore de statères comptés");
   });
 });
 
 describe("les objets que le membre a en vente", () => {
-  const offre = (emplacement: string, objet: string, aMoi: boolean) => ({ id: 1, emplacement, objet, prix: 10, vendeur: "Vendeur", a_moi: aMoi, expire_le: "2026-11-27T12:00:00.000Z" });
-
-  it("se lisent dans le marché : ses offres seulement, des objets payants du catalogue, chacun une fois", () => {
-    const marche = { ok: true, solde: 0, offres_max: 5, offres: [offre("tete", "bandeau", true), offre("arme", "hache", false), offre("tete", "bandeau", true), offre("tete", "bonnet", true), offre("tete", "inconnu", true), null] };
-    expect(objetsEnVente(marche)).toEqual([{ emplacement: "tete", objet: "bandeau" }]);
-  });
-
-  it("ne donnent rien d'une réponse illisible : l'écran ne devine pas", () => {
-    expect(objetsEnVente(null)).toEqual([]);
-    expect(objetsEnVente({ ok: false, error: "not_validated" })).toEqual([]);
-    expect(objetsEnVente({ ok: true, offres: "non" })).toEqual([]);
-  });
-
   it("ne s'achètent pas à la boutique, et l'essayage dit pourquoi", () => {
     const enVente = [{ emplacement: "tete" as const, objet: "bandeau" }];
     expect(estEnVente(enVente, "tete", "bandeau")).toBe(true);

@@ -4,7 +4,8 @@ import { AUTH_ENABLED, ServerError, basePath, call } from "../../lib/compte/api"
 import { clicSurBoutonArme, desarmerALaPerte } from "../../lib/compte/discord-etat";
 import { errorMessage } from "../../lib/compte/errors";
 import { RETOUR_VILLAGE_KEY, vignetteDeLObjet } from "../../lib/gaulois";
-import { PLAQUE, PLAQUE_GRANDE } from "../../lib/village/plaque";
+import { ADRESSE_BOUTIQUE } from "../../lib/village/boutique-rayons";
+import { PLAQUE_GRANDE } from "../../lib/village/plaque";
 import type { MaForge, ObjetGravable, PartieGravable } from "../../lib/village/contrat";
 import { motStatere, nombre, stateres } from "../../lib/village/ecran-boutique";
 import {
@@ -25,7 +26,7 @@ import {
 import { MESSAGES_DE_LA_FORGE, lireMaForge, messageDeLaForge } from "../../lib/village/forge";
 import { echelleEntiere } from "../../lib/village/vestiaire-rayons";
 import { CodeLogin, DiscordButton, Loading, Problem, codeLoginShown, useMe } from "../compte/common";
-import { MarqueDeRarete, Piece, Pixels } from "./BoutiquePixels";
+import { MarqueDeRarete, PetitePlaque, Piece, Pixels } from "./BoutiquePixels";
 
 /**
  * La forge, onglet de la page « Mon Gaulois » : la forge aux souvenirs (idée du pilote, 14 novembre 2026 : « On paie des
@@ -43,11 +44,6 @@ const refusDe = (e: unknown): string => {
   const code = e instanceof ServerError ? e.code : "network";
   return messageDeLaForge(code) ?? errorMessage(code);
 };
-
-/** La petite plaque dorée d'un objet gravé, décorative : son texte est écrit à côté ou dans le nom de la case. */
-export function PetitePlaque({ echelle = 3 }: { echelle?: number }) {
-  return <Pixels largeur={PLAQUE.largeur} hauteur={PLAQUE.hauteur} cases={PLAQUE.cases} echelle={echelle} class="plaque-coin" />;
-}
 
 /**
  * La grande plaque dorée, son texte écrit par-dessus, une ligne par fait. `texte` nul : la plaque est vierge. Le dessin est
@@ -308,7 +304,7 @@ function Atelier() {
   };
 
   // La forge se lit quand sa fenêtre s'ouvre, et se relit à chaque retour : la bourse, la tenue et l'inventaire ont pu
-  // changer au vestiaire ou au marché.
+  // changer au vestiaire ou à la boutique (`/boutique`).
   const connecte = me?.signed_in === true;
   useEffect(() => {
     if (connecte) void lire(lecture.kind === "prete");
@@ -445,8 +441,8 @@ function Atelier() {
           ) : (
             <p class="forge-mot" data-testid="forge-sans-objet">
               Seuls les objets à rareté se gravent : la boutique en vend.{" "}
-              <a class="forge-lien" href="#gaulois">
-                Voir mon Gaulois
+              <a class="forge-lien" href={`${basePath()}${ADRESSE_BOUTIQUE}`}>
+                Aller à la boutique
               </a>
             </p>
           )}

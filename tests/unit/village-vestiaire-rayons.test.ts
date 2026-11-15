@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  EMPLACEMENTS,
-  EMPLACEMENTS_CORPS,
   EMPLACEMENTS_OBJETS,
   EMPLACEMENTS_VISAGE,
   GAULOIS_HAUTEUR,
@@ -28,7 +26,6 @@ import {
   filtrerParRarete,
   grosPlan,
   rangerLeRayon,
-  rayonDe,
   visageNu,
   type Entree,
 } from "../../src/lib/village/vestiaire-rayons";
@@ -52,12 +49,6 @@ describe("les rayons du vestiaire", () => {
     for (const rayon of RAYONS) expect(NOMS_RAYONS[rayon]).toMatch(/^[A-ZÀ-Ý]/);
   });
 
-  it("rangent chaque emplacement : un objet dans son rayon, tout le reste au corps", () => {
-    for (const emplacement of EMPLACEMENTS_OBJETS) expect(rayonDe(emplacement)).toBe(emplacement);
-    for (const emplacement of EMPLACEMENTS_CORPS) expect(rayonDe(emplacement)).toBe(RAYON_CORPS);
-    // Aucun emplacement n'est oublié : chacun a son rayon dans la barre.
-    for (const emplacement of EMPLACEMENTS) expect(RAYONS).toContain(rayonDe(emplacement));
-  });
 });
 
 describe("le rangement d'un rayon", () => {
