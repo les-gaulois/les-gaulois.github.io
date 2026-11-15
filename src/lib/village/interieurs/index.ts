@@ -10,5 +10,6 @@ export * from "./type";
 
 export const INTERIEURS: Readonly<Partial<Record<InterieurId, DessinDInterieur>>> = { ...INTERIEURS_LOT_1, ...INTERIEURS_LOT_2 };
 
-/** L'intérieur d'un bâtiment, s'il en a un et qu'il est dessiné. */
-export const interieurDe = (id: string): DessinDInterieur | null => (INTERIEURS as Record<string, DessinDInterieur | undefined>)[id] ?? null;
+/** L'intérieur d'un bâtiment, s'il en a un et qu'il est dessiné. Seules les clés propres comptent : « toString » n'en est pas une. */
+export const interieurDe = (id: string): DessinDInterieur | null =>
+  Object.hasOwn(INTERIEURS, id) ? ((INTERIEURS as Record<string, DessinDInterieur | undefined>)[id] ?? null) : null;
