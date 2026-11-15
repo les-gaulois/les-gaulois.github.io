@@ -8,6 +8,16 @@
   {
     "date": "2026-11-15",
     "kind": "nouveau",
+    "title": "Entrer dans les bâtiments du village",
+    "body": "Au village, un bâtiment fini s'ouvre : un clic dessus montre son dedans, dessiné en pixels, avec votre Gaulois debout dedans. Sept bâtiments ont un dedans ; chacun s'ouvrira quand les points rapportés au clan l'auront fini.",
+    "link": {
+      "href": "/village#interieur-four",
+      "label": "Entrer dans le fournil"
+    }
+  },
+  {
+    "date": "2026-11-15",
+    "kind": "nouveau",
     "title": "Les achats du village sur Discord",
     "body": "Sur le Discord du clan, le robot montre toutes les 5 minutes les objets reçus au village (boutique, pochette surprise, marché) : leur dessin, leur rareté et l'heure, jamais le prix.",
     "link": {

@@ -450,3 +450,73 @@ gardées : ni sang, ni victime, ni personnage blessé, pas de champignon atomiqu
 blanc (du rouge au jaune pâle), la clarté ne change que peu à peu d'une image à l'autre. Les couleurs du clan (bleu,
 blanc, rouge sur bleu nuit, lues sur le blason de `public/brand/`) sont sur le missile, l'enseigne de l'usine, la
 batterie et le drapeau du poste.
+
+## Entrer dans les bâtiments (15 novembre 2026)
+
+Le pilote a choisi cette idée de Claude Fable 5.2 le 15 novembre 2026, dans une liste d'usages pour son crédit de l'API
+Claude. Les dessins ont été faits par des agents de Claude Code, sans ce crédit. Quand les points rapportés au clan
+finissent un bâtiment du chantier, on peut y entrer : une fenêtre montre son dedans, dessiné case par case et vu de côté
+comme une maison de poupée, avec le Gaulois du visiteur debout dedans. Un bâtiment pas encore fini ne s'ouvre pas : son
+intérieur se découvre le jour où le chantier le termine.
+
+### Les dessins (design : Claude Fable 5.2)
+
+Le contrat est dans `src/lib/village/interieurs/type.ts`. Sept bâtiments ont un vrai dedans (`BATIMENTS_A_INTERIEUR`).
+La palissade, le puits, le potager, le pont, le lavoir, la halle (ouverte entre ses poteaux), le grand chêne et le
+rempart n'en ont pas. Chaque dessin fait de 320 à 480 cases de large et de 180 à 270 de haut, à l'échelle des Gaulois,
+donc plus grand que son dehors. Il en reprend les matières et les formes, vues de près, et toutes ses cases sont pleines.
+
+| Id | Titre | Taille | Images | Ce qui bouge |
+|---|---|---|---|---|
+| `four` | Dans le fournil | 400 × 236 | 3 | la fumée du conduit, la buée des pains |
+| `tour` | En haut de la tour de guet | 360 × 264 | 4 | le fanion du clan à la pointe du toit |
+| `grenier` | Dans le grenier | 400 × 232 | 4 | la queue du chat sur le coffre |
+| `moulin` | Dans le moulin | 440 × 264 | 4 | la roue, l'arbre, le rouet, la lanterne, la meule, le grain, la farine, l'eau |
+| `colombier` | Dans le colombier | 320 × 270 | 4 | les pigeons qui picorent tour à tour |
+| `etable` | Dans l'étable | 440 × 210 | 4 | les vaches qui baissent la tête à leur tour |
+| `grande-tour` | Dans la grande tour | 360 × 270 | 2 | les plis de la bannière du clan |
+
+- **Lot 1** (`lot-1.ts`) : des coupes, le chaume tranché en haut, le ciel de l'heure autour, la terre tranchée en bas.
+  - Le fournil a le dôme du dehors en grand : la gueule où la braise rougeoie, les pains qui refroidissent, le pétrin, les sacs de farine et leur chat.
+  - La tour de guet est sa plateforme. On y voit le coin du guetteur, la corne, la cloche et le pays vu de haut, qui suit l'heure. Son fanion est bleu nuit, les trois couleurs seulement à la hampe.
+  - Le grenier : les lames de lumière entre les planches, les sacs, le van, la souris sous les pilotis.
+  - Le moulin est vu tourné d'un quart, pour que l'arbre de la roue traverse le mur et mène le rouet, la lanterne et la meule.
+- **Lot 2** (`lot-2.ts`) : les deux tours sont rondes, et une même projection courbe le mur, le sol et le plafond.
+  - Le colombier : neuf rangs de nids, le mât tournant et son échelle.
+  - L'étable : le fenil, la vache fauve du dehors, une vache pie et un veau.
+  - La grande tour est la salle de garde. Au mur, la grande bannière bleu nuit « GAL » à frange d'or, avec un râtelier de lances et l'escalier vers la trappe.
+- **La lumière** : chaque dessin est fait aux couleurs du plein jour, puis éclairé.
+  - Ce qui est dedans suit `couleurDuDedans`, ce qui est dehors suit `couleurDuDehors`.
+  - Le jour, le soleil entre par les ouvertures (rougi à l'aube et au crépuscule).
+  - Quand le jour baisse, une lanterne par pièce et la gueule du four s'allument, sans bouger ni clignoter.
+- **Le reste** : rien n'est tiré au hasard. Aucun texte ni chiffre, sauf les lettres « GAL » de la bannière, comme dehors. Un dessin coûte de 50 à 90 ms, et les derniers sont gardés en mémoire.
+
+### La fenêtre (code : Claude Opus 5.5)
+
+- **Qui peut entrer** (`src/lib/village/ecran-interieur.ts`, `interieursOuverts`) : un bâtiment fini (`fini_le`) dont le
+  dedans est dessiné (`interieurDe`), dans l'ordre du chantier. Sans données du chantier, rien ne s'ouvre.
+- **Trois chemins pour entrer** :
+  - un bouton posé sur le bâtiment dans le monde, « Entrer dans le four à pain » (`data-interieur`), au clic, au toucher ou au clavier ;
+  - le bouton « Entrer » de la fenêtre du chantier ;
+  - l'adresse `#interieur-<id>`. Celle d'un bâtiment fermé ou inconnu laisse le monde seul.
+- **La fenêtre** (`FenetreInterieur.tsx`, sur le cadre commun des fenêtres du monde) : le titre du dessin, Échap, une
+  seule fenêtre à la fois. Le focus revient au bâtiment à la fermeture. La toile est `aria-hidden`. À côté, pour les
+  lecteurs d'écran seulement : « Le dedans du four à pain, dessiné en pixels. »
+- **La taille d'une case** (`dedansALEcran`) : le plus grand nombre entier de pixels de l'écran qui laisse tout le dessin
+  tenir. Ce sont des pixels de l'écran, pas de la page : c'est ce qui garde les cases nettes à 125 % sous Windows et sur
+  téléphone. Mesuré : 2 pixels à 1 280 × 800, la fenêtre resserrée autour du dessin. Si même un pixel ne tient pas, le
+  dessin est réduit et adouci (`data-net="false"`).
+- **Lumière et mouvement** : le dessin suit la lumière du village, relue à la minute. Il change d'image une fois par seconde au plus. En pause ou avec « réduire les animations », il reste sur l'image 0. Page cachée, rien ne tourne.
+- **Le Gaulois du visiteur** (`dedansAvecLeGaulois`) :
+  - seulement celui que `get_village` marque `moi`, jamais un autre : debout, dans sa tenue, tourné vers la droite, avec son ombre, ses 64 cases posées sur `place.pied` ;
+  - il est éclairé comme la pièce là où il se tient (`lumiereDeLEndroit` : le dessin à cette lumière comparé au même en plein jour), jamais plus clair qu'en plein jour. La nuit, il garde environ la moitié de ses couleurs dans le four, les trois quarts dans l'étable ;
+  - un visiteur, ou un membre sans Gaulois, voit la pièce vide.
+- **Tests** :
+  - `tests/unit/village-interieurs-fenetre.test.ts` : qui entre, adresse, pixel par case sur des milliers de tailles et six densités, image, Gaulois posé et éclairé ;
+  - `village-interieurs-dessins.test.ts` : le contrat de chaque dessin ;
+  - `village-interieurs-lot-1.test.ts` et `village-interieurs-lot-2.test.ts` ;
+  - `tests/e2e/village.spec.ts` : clavier, clic, Échap, focus, adresse, « Entrer » du chantier, pause, axe, de 360 à 1 920 px. Ces tests trouvent les bâtiments ouverts dans la page.
+- **Limites** :
+  - jamais vu sur un vrai téléphone ni avec un vrai compte ;
+  - à 1 920 × 1 080, la largeur des grandes fenêtres limite les dessins larges à 2 pixels par case ;
+  - comme les grandes fenêtres, celle-ci peut couvrir les boutons d'approche, jamais la mention d'OpenFront.
