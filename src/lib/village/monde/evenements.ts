@@ -19,10 +19,16 @@ import { type Emplacement, PIED, type Plan, RAIL, emplacementOpenFront, emplacem
 
 /** La durée du cycle des événements, en temps (huitièmes de seconde) : dix minutes. */
 export const CYCLE = 4800;
-/** Où commence chaque événement dans le cycle. Le train part au début. */
-const DUELS = [700, 3100] as const;
-const LANCEMENT = 1700;
+/**
+ * Où commence chaque événement dans le cycle, et ce qu'il dure au plus (en temps) : passé ce temps, il ne montre plus rien.
+ * L'almanach des petits moments (`almanach/programme.ts`) lit ces bornes pour ne jamais jouer en même temps qu'eux.
+ */
+export const DUELS = [700, 3100] as const;
+export const DUREE_DU_DUEL = 240;
+export const LANCEMENT = 1700;
+export const DUREE_DU_LANCEMENT = 330;
 const INTERCEPTION = 4000;
+const DUREE_DE_L_INTERCEPTION = 200;
 /** Le train : son départ dans le cycle, sa vitesse (en cases par temps) et le temps que dure son passage, au plus. */
 const TRAIN = 3500;
 const VITESSE_DU_TRAIN = { min: 8, max: 14 };
@@ -103,7 +109,7 @@ function coup(plan: Plan, de: Emplacement, vers: Emplacement, versLaDroite: bool
 
 /** L'échange de tirs : notre navire tire, celui d'en face répond une quinzaine de secondes plus tard. */
 function duel(plan: Plan, dt: number, lutins: Lutin[]): void {
-  if (dt < 0 || dt > 240) return;
+  if (dt < 0 || dt > DUREE_DU_DUEL) return;
   const notre = emplacementOpenFront(plan, "navire-guerre");
   const enFace = emplacementOpenFront(plan, "navire-ennemi");
   coup(plan, notre, enFace, true, dt, "notre", lutins);
@@ -112,7 +118,7 @@ function duel(plan: Plan, dt: number, lutins: Lutin[]): void {
 
 /** Le lancement : la trappe du silo s'ouvre, le missile monte, file au-dessus du village, et tombe exploser devant le camp d'en face. */
 function lancement(plan: Plan, tailles: (id: PieceOpenFrontId) => { largeur: number; hauteur: number }, dt: number, lutins: Lutin[]): void {
-  if (dt < 0 || dt > 330) return;
+  if (dt < 0 || dt > DUREE_DU_LANCEMENT) return;
   const silo = emplacementOpenFront(plan, "silo");
   const camp = emplacementsDe(plan, "camp")[0]!;
   const bouche = { x: silo.x + 120, y: hautDansLeMonde(silo) + 78 };
@@ -144,7 +150,7 @@ function lancement(plan: Plan, tailles: (id: PieceOpenFrontId) => { largeur: num
 
 /** Une fusée d'en face part de son navire vers le village ; la batterie tire, et l'arrête en l'air, au-dessus de la mer. */
 function interception(plan: Plan, tailles: (id: PieceOpenFrontId) => { largeur: number; hauteur: number }, dt: number, lutins: Lutin[]): void {
-  if (dt < 0 || dt > 200) return;
+  if (dt < 0 || dt > DUREE_DE_L_INTERCEPTION) return;
   const batterie = emplacementOpenFront(plan, "batterie");
   const enFace = emplacementOpenFront(plan, "navire-ennemi");
   const bouche = { x: batterie.x + 74, y: hautDansLeMonde(batterie) + 40 };
@@ -170,14 +176,15 @@ function interception(plan: Plan, tailles: (id: PieceOpenFrontId) => { largeur: 
 
 /**
  * Ce que les événements montrent au temps `temps` de l'horloge du monde : rien la plupart du temps, puis un train, un
- * échange de tirs, un lancement ou une interception. `tailles` : la taille de chaque pièce d'OpenFront.
+ * échange de tirs, un lancement ou une interception. `tailles` : la taille de chaque pièce d'OpenFront. `lancement` à
+ * faux : ce cycle-ci, le missile reste dans son silo, la place est à un petit moment de l'almanach (`almanach/programme.ts`).
  */
-export function lutinsDesEvenements(plan: Plan, tailles: (id: PieceOpenFrontId) => { largeur: number; hauteur: number }, temps: number): Lutin[] {
+export function lutinsDesEvenements(plan: Plan, tailles: (id: PieceOpenFrontId) => { largeur: number; hauteur: number }, temps: number, options: { lancement?: boolean } = {}): Lutin[] {
   const u = ((Math.floor(temps) % CYCLE) + CYCLE) % CYCLE;
   const lutins: Lutin[] = [];
   train(plan, tailles, u - TRAIN, lutins);
   for (const debut of DUELS) duel(plan, u - debut, lutins);
-  lancement(plan, tailles, u - LANCEMENT, lutins);
+  if (options.lancement !== false) lancement(plan, tailles, u - LANCEMENT, lutins);
   interception(plan, tailles, u - INTERCEPTION, lutins);
   return lutins;
 }
