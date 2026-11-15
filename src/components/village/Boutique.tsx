@@ -1,13 +1,17 @@
 import { useEffect, useState } from "preact/hooks";
 import { ServerError, basePath, call } from "../../lib/compte/api";
 import { fmtInt } from "../../lib/format";
-import { ADRESSE_VILLAGE, NOMS_EMPLACEMENTS, OBJETS, ORDRE_RARETES, RARETES, TENUE_DE_DEPART, changerObjet, tenueDuServeur, vignetteDeLObjet, type Emplacement, type Tenue } from "../../lib/gaulois";
+import { ADRESSE_VILLAGE, OBJETS, ORDRE_RARETES, RARETES, TENUE_DE_DEPART, changerObjet, tenueDuServeur, vignetteDeLObjet, type Emplacement, type Tenue } from "../../lib/gaulois";
 import type { MesStateres } from "../../lib/stateres";
 import {
   ANCRE_MARCHE,
+  IMAGE_DU_RAYON_BANNIERE,
+  NOMS_RAYONS,
   RAYONS_BOUTIQUE,
+  RAYON_BANNIERE,
   demandeLeMarche,
   essaiValide,
+  estUnRayonDObjets,
   motsDesOffres,
   offreEssayee,
   offresParRayon,
@@ -18,6 +22,7 @@ import {
   type RayonBoutique,
 } from "../../lib/village/boutique-rayons";
 import type { MaBoutique, PochetteFamiliersReponse, PochetteReponse, RefObjet } from "../../lib/village/contrat";
+import { demandeLesBannieres } from "../../lib/village/ecran-bannieres";
 import { avecUnExemplaire, lireAchat, lireBoutique, lirePochette, lireStateres, manque, messageDuRefus, objetPayant, prixDeLObjet, quantitePossedee, raisonBoutiqueFermee } from "../../lib/village/ecran-boutique";
 import { ANCRE_FAMILIERS, demandeLesFamiliers, idsPossedes, tailleDeLApercu } from "../../lib/village/ecran-familiers";
 import { finDeLOffre, lireBoutique as lireBoutiqueDuMarche, lireMarche, mesOffres, messageDuMarche, raisonDeLOffre, type MarcheLu, type OffreLisible, type PossedeLisible } from "../../lib/village/ecran-marche";
@@ -113,13 +118,18 @@ const refusDe = (e: unknown): string => (e instanceof ServerError ? e.code : "ne
 const motsDuMarche = (e: unknown): string => (e instanceof ServerError ? (messageDuMarche(e.code) ?? e.message) : messageOf(e));
 const ILLISIBLE = "La réponse du serveur est illisible. Rechargez la page.";
 const SANS_OFFRE: readonly OffreLisible[] = [];
+/** Le bloc des rayons (la barre et le rayon ouvert) : l'adresse des bannières y descend. */
+const ID_DES_RAYONS = "boutique-rayons-choix";
 
 /**
  * « La boutique », troisième onglet de « Mon Gaulois » (`/village#boutique`, 15 novembre 2026) : les achats en statères
  * (boutique, pochette, marché), au même endroit. Une seule bourse, un seul Gaulois
  * d'essayage : il porte la tenue enregistrée, et essaie un objet de la boutique du clan comme l'offre d'un membre. Chaque
- * rayon (tête, haut, bas, pieds, arme) montre ce que vendent les membres, puis ce que vend la boutique, réduits ensemble à
- * une rareté. La pochette surprise, « Vendre un objet » et « Vos offres » sont au-dessus des rayons.
+ * rayon d'objets (tête, haut, bas, pieds, arme) montre ce que vendent les membres, puis ce que vend la boutique, réduits
+ * ensemble à une rareté. Le sixième onglet, « Bannière », tient les bannières de /gaulois (`Bannieres.tsx`). Jusqu'au 15
+ * novembre 2026, elles formaient une section entière de la page ; le pilote trouvait la page trop longue, et elles sont
+ * passées dans cet onglet. Ce qui s'ajoutera prendra un onglet à la suite (`RAYONS_BOUTIQUE`). La pochette surprise,
+ * « Vendre un objet » et « Vos offres » sont au-dessus des rayons.
  *
  * La pochette des familiers et la ménagerie (15 novembre 2026, `PochetteFamiliers.tsx`) sont entre la bourse et le marché :
  * un familier ne s'obtient que là. Le familier que le compte montre se tient à côté du Gaulois d'essayage. Leurs fonctions
@@ -146,6 +156,9 @@ export default function Boutique() {
   const [panne, setPanne] = useState(false);
   const [essai, setEssai] = useState<Essai | null>(null);
   const [rayon, setRayon] = useState<RayonBoutique>(RAYONS_BOUTIQUE[0]);
+  // Les bannières ne se lisent qu'au premier passage dans leur onglet (leurs dessins pèsent lourd) ; elles restent
+  // ensuite à la page, cachées dans un autre rayon, pour garder la vitrine et les filtres choisis.
+  const [bannieresOuvertes, setBannieresOuvertes] = useState(false);
   const [filtres, setFiltres] = useState<Filtres>({});
   const [fenetre, setFenetre] = useState<Fenetre>(null);
   const [acquis, setAcquis] = useState<Acquis | null>(null);
@@ -158,6 +171,8 @@ export default function Boutique() {
   const [mesOffresOuvertes, setMesOffresOuvertes] = useState(false);
   // Augmenté quand l'adresse demande le marché (`#marche`) : la page y descend une fois dessinée.
   const [appelDuMarche, setAppelDuMarche] = useState(0);
+  // De même pour les bannières (`#bannieres`, le lien de « Mon Gaulois ») : leur onglet s'ouvre, la page descend aux rayons.
+  const [appelDesBannieres, setAppelDesBannieres] = useState(0);
   const maintenant = useNow();
 
   /** La boutique et la bourse, relues ensemble : l'une sans l'autre ne bloque rien. */
@@ -195,6 +210,12 @@ export default function Boutique() {
     setAppelDuMarche((n) => n + 1);
   };
 
+  /** Arrivé par l'adresse des bannières : leur onglet s'ouvre, la page descend aux rayons. */
+  const allerAuxBannieres = () => {
+    setRayon(RAYON_BANNIERE);
+    setAppelDesBannieres((n) => n + 1);
+  };
+
   const lire = async () => {
     setEtat({ kind: "lecture" });
     try {
@@ -203,6 +224,7 @@ export default function Boutique() {
       setEtat({ kind: "pret", enregistree });
       if (enregistree) setTenue(enregistree);
       if (demandeLeMarche(location.hash)) allerAuMarche(marche);
+      if (demandeLesBannieres(location.hash)) allerAuxBannieres();
     } catch (e) {
       setEtat({ kind: "erreur", message: messageOf(e) });
     }
@@ -215,10 +237,11 @@ export default function Boutique() {
   const marcheLu = etatMarche.kind === "pret" ? etatMarche.marche : null;
   const offres = marcheLu?.offres ?? SANS_OFFRE;
 
-  // Un lien vers le marché suivi dans la page elle-même.
+  // Un lien vers le marché ou vers les bannières suivi dans la page elle-même.
   useEffect(() => {
     const surAdresse = () => {
       if (demandeLeMarche(location.hash)) allerAuMarche(marcheLu);
+      if (demandeLesBannieres(location.hash)) allerAuxBannieres();
     };
     window.addEventListener("hashchange", surAdresse);
     return () => window.removeEventListener("hashchange", surAdresse);
@@ -227,6 +250,13 @@ export default function Boutique() {
   useEffect(() => {
     if (appelDuMarche > 0) document.getElementById(ANCRE_MARCHE)?.scrollIntoView({ behavior: "instant", block: "start" });
   }, [appelDuMarche]);
+  useEffect(() => {
+    if (appelDesBannieres > 0) document.getElementById(ID_DES_RAYONS)?.scrollIntoView({ behavior: "instant", block: "start" });
+  }, [appelDesBannieres]);
+
+  useEffect(() => {
+    if (rayon === RAYON_BANNIERE) setBannieresOuvertes(true);
+  }, [rayon]);
 
   // Arrivé par l'adresse de la pochette des familiers (`#familiers`, le lien de « Mon Gaulois ») : la page y descend, une
   // fois dessinée, et de nouveau si le lien est suivi dans la page.
@@ -429,8 +459,10 @@ export default function Boutique() {
   const miennes = mesOffres(offres);
   const soldeConnu = solde ?? boutique?.solde ?? null;
   const fermee = boutique && !boutique.peut_acheter ? raisonBoutiqueFermee(true) : null;
-  const possede = (id: string): number => (boutique ? quantitePossedee(boutique.inventaire, rayon, id) : 0);
-  const range = rangerLaBoutique(rayon, possede, offres, filtres[rayon]);
+  // Le rayon d'objets ouvert, s'il en est un (et non celui des bannières).
+  const rayonObjets = estUnRayonDObjets(rayon) ? rayon : null;
+  const possede = (id: string): number => (boutique && rayonObjets ? quantitePossedee(boutique.inventaire, rayonObjets, id) : 0);
+  const range = rayonObjets ? rangerLaBoutique(rayonObjets, possede, offres, filtres[rayonObjets]) : null;
   const comptesDesOffres = offresParRayon(offres);
 
   // Ce que le Gaulois essaie : son nom, son prix, qui le vend, et ce qui empêche de l'acheter.
@@ -543,19 +575,6 @@ export default function Boutique() {
           </div>
         )}
 
-        {/* Les bannières de /gaulois : derrière la tenue enregistrée, jamais derrière un essayage. Après un achat, la bourse
-            de la page prend le solde que le serveur a répondu ; après un refus, elle se relit. */}
-        <SectionDesBannieres
-          tenue={etat.enregistree}
-          familier={familiers.montre}
-          solde={soldeConnu}
-          onSolde={(reste) => {
-            setBoutique((b) => b && { ...b, solde: reste });
-            setSolde(reste);
-          }}
-          onRefus={() => void lireLaBoutique()}
-        />
-
         <section id={ANCRE_MARCHE} class="boutique-membres" aria-labelledby="boutique-membres-titre" data-testid="marche" data-etat={etatMarche.kind}>
           <div class="boutique-membres-tete">
             <h3 id="boutique-membres-titre" class="nom-champ vestiaire-titre">
@@ -604,30 +623,30 @@ export default function Boutique() {
           )}
         </section>
 
-        <div class="vestiaire-choix">
+        <div id={ID_DES_RAYONS} class="vestiaire-choix boutique-choix">
           <h3 class="sr-only">Les rayons</h3>
           <div ref={barre} class="vestiaire-barre">
             <BarreDesRayons
               prefixe="boutique"
               label="Les rayons de la boutique"
               rayons={RAYONS_BOUTIQUE}
-              noms={NOMS_EMPLACEMENTS}
+              noms={NOMS_RAYONS}
               rayon={rayon}
-              vignette={(id) => vignetteDeLObjet(id, tenue[id] ?? "", tenue)}
-              mention={(id) => (comptesDesOffres[id] > 0 ? motsDesOffres(comptesDesOffres[id]) : null)}
+              vignette={(id) => (estUnRayonDObjets(id) ? vignetteDeLObjet(id, tenue[id] ?? "", tenue) : IMAGE_DU_RAYON_BANNIERE)}
+              mention={(id) => (estUnRayonDObjets(id) && comptesDesOffres[id] > 0 ? motsDesOffres(comptesDesOffres[id]) : null)}
               onChoisir={setRayon}
             />
           </div>
           <div ref={panneau} id="boutique-panneau" class="vestiaire-panneau" role="tabpanel" aria-labelledby={`boutique-rayon-${rayon}`} data-testid={`boutique-rayon-${rayon}`}>
-            {range.total > 0 && (
+            {rayonObjets && range && range.total > 0 && (
               <div class="vestiaire-filtre" role="group" aria-label="Montrer une rareté" data-testid="boutique-filtre">
-                <ChoixDeFiltre filtre={TOUT} nom="Tout" rang={0} nombre={range.total} choisi={range.retenu === TOUT} onClick={() => setFiltres((f) => choisirFiltre(f, rayon, TOUT))} />
+                <ChoixDeFiltre filtre={TOUT} nom="Tout" rang={0} nombre={range.total} choisi={range.retenu === TOUT} onClick={() => setFiltres((f) => choisirFiltre(f, rayonObjets, TOUT))} />
                 {ORDRE_RARETES.map((rarete) => (
-                  <ChoixDeFiltre key={rarete} filtre={rarete} nom={RARETES[rarete].nom} rang={RARETES[rarete].rang} nombre={range.comptes[rarete]} choisi={range.retenu === rarete} onClick={() => setFiltres((f) => choisirFiltre(f, rayon, rarete))} />
+                  <ChoixDeFiltre key={rarete} filtre={rarete} nom={RARETES[rarete].nom} rang={RARETES[rarete].rang} nombre={range.comptes[rarete]} choisi={range.retenu === rarete} onClick={() => setFiltres((f) => choisirFiltre(f, rayonObjets, rarete))} />
                 ))}
               </div>
             )}
-            {range.offres.length > 0 && (
+            {range && range.offres.length > 0 && (
               <div class="vestiaire-rayon">
                 <h4 id="boutique-des-membres" class="vestiaire-boutique">
                   Vendu par des membres
@@ -650,28 +669,45 @@ export default function Boutique() {
                 </ul>
               </div>
             )}
-            {range.boutique.length > 0 && (
+            {rayonObjets && range && range.boutique.length > 0 && (
               <div class="vestiaire-rayon">
                 <h4 id="boutique-du-clan" class="vestiaire-boutique">
                   Boutique du clan
                 </h4>
                 <div class="cases" role="group" aria-labelledby={`boutique-rayon-${rayon} boutique-du-clan`} data-testid="boutique-cases">
                   {range.boutique.map(([id, objet]) => {
-                    const essayee = essai?.source === "boutique" && essai.emplacement === rayon && essai.objet === id;
+                    const essayee = essai?.source === "boutique" && essai.emplacement === rayonObjets && essai.objet === id;
                     return (
                       <Case
                         key={id}
                         objet={objet}
-                        vignette={vignetteDeLObjet(rayon, id, tenue)}
+                        vignette={vignetteDeLObjet(rayonObjets, id, tenue)}
                         portee={false}
                         essayee={essayee}
-                        vente={{ prix: prixDeLObjet(boutique?.prix, rayon, id) }}
-                        enVente={miennes.some((offre) => offre.emplacement === rayon && offre.objet === id)}
-                        onClick={() => essayer(essayee ? null : { source: "boutique", emplacement: rayon, objet: id })}
+                        vente={{ prix: prixDeLObjet(boutique?.prix, rayonObjets, id) }}
+                        enVente={miennes.some((offre) => offre.emplacement === rayonObjets && offre.objet === id)}
+                        onClick={() => essayer(essayee ? null : { source: "boutique", emplacement: rayonObjets, objet: id })}
                       />
                     );
                   })}
                 </div>
+              </div>
+            )}
+            {/* Les bannières de /gaulois : derrière la tenue enregistrée, jamais derrière un essayage. Après un achat, la
+                bourse de la page prend le solde que le serveur a répondu ; après un refus, elle se relit. Lues à la
+                première ouverture de leur onglet, puis seulement cachées quand un autre rayon s'ouvre. */}
+            {(bannieresOuvertes || rayon === RAYON_BANNIERE) && (
+              <div hidden={rayon !== RAYON_BANNIERE}>
+                <SectionDesBannieres
+                  tenue={etat.enregistree}
+                  familier={familiers.montre}
+                  solde={soldeConnu}
+                  onSolde={(reste) => {
+                    setBoutique((b) => b && { ...b, solde: reste });
+                    setSolde(reste);
+                  }}
+                  onRefus={() => void lireLaBoutique()}
+                />
               </div>
             )}
           </div>

@@ -4,7 +4,7 @@ import { ORDRE_RARETES, RARETES, type Rarete, type Tenue } from "../../lib/gaulo
 import type { Banniere, EtatDeLaBanniere, FamilleDeBanniere } from "../../lib/village/bannieres";
 import { adresseDansLaBoutique } from "../../lib/village/boutique-rayons";
 import type { MesBannieres } from "../../lib/village/contrat";
-import { ANCRE_BANNIERES, BANNIERE_HAUTEUR, BANNIERE_LARGEUR, apresLAchat, banniereDOuverture, demandeLesBannieres, idsDesBannieres, messageDuRefusDAchat, raisonDeLaBanniere, sansBanniere, surCombien } from "../../lib/village/ecran-bannieres";
+import { ANCRE_BANNIERES, BANNIERE_HAUTEUR, BANNIERE_LARGEUR, apresLAchat, banniereDOuverture, idsDesBannieres, messageDuRefusDAchat, raisonDeLaBanniere, sansBanniere, surCombien } from "../../lib/village/ecran-bannieres";
 import { manque, stateres } from "../../lib/village/ecran-boutique";
 import type { Familier } from "../../lib/village/familiers";
 import { Problem, Success, messageOf } from "../compte/common";
@@ -13,8 +13,8 @@ import { MarqueDeRarete, Prix, peindre } from "./BoutiquePixels";
 
 /**
  * Les bannières du Gaulois à l'écran (15 novembre 2026, demande du pilote : « un lot de bannières », « achetables par
- * statères », « il pourra choisir la bannière qui s'affichera en faisant /gaulois ») : la section « Les bannières » de
- * « La boutique » (`SectionDesBannieres`) et le choix de la bannière de /gaulois dans « Mon Gaulois » (`MaBanniere`).
+ * statères », « il pourra choisir la bannière qui s'affichera en faisant /gaulois ») : l'onglet « Bannière » des rayons
+ * de « La boutique » (`SectionDesBannieres`) et le choix de la bannière de /gaulois dans « Mon Gaulois » (`MaBanniere`).
  * Le serveur décide de tout par `get_mes_bannieres`, `acheter_banniere` et `choisir_banniere` ; l'écran ne montre que ce
  * qu'il a reçu.
  *
@@ -302,11 +302,13 @@ function DialogueBanniere({ lib, banniere, prix, solde, tenue, familier, acheter
 }
 
 /**
- * « Les bannières », sur « La boutique » : l'objet le plus cher de la boutique (le triple d'un objet de la même rareté).
- * En tête, la vitrine : la bannière choisie en grand, avec le Gaulois du membre devant, sa description, son prix, et de
- * quoi l'acheter ou la mettre sur /gaulois. Dessous, les quarante bannières, une famille à la fois (ou toutes), réduites à
- * une rareté si on le veut. `tenue` et `familier` : la tenue enregistrée et le familier montré. `solde` : le dernier que
- * le serveur a donné à la page ; `onSolde` le lui rend après un achat, `onRefus` après un refus (la bourse se relit).
+ * « Les bannières », l'onglet « Bannière » des rayons de « La boutique » : l'objet le plus cher de la boutique (le triple
+ * d'un objet de la même rareté). En tête, la vitrine : la bannière choisie en grand, avec le Gaulois du membre devant, sa
+ * description, son prix, et de quoi l'acheter ou la mettre sur /gaulois. Dessous, les quarante bannières, une famille à
+ * la fois (ou toutes), réduites à une rareté si on le veut. Le nom de l'onglet sert de titre : celui de la section ne se
+ * lit qu'aux lecteurs d'écran. L'adresse des bannières (`#bannieres`) est suivie par la boutique, qui ouvre cet onglet.
+ * `tenue` et `familier` : la tenue enregistrée et le familier montré. `solde` : le dernier que le serveur a donné à la
+ * page ; `onSolde` le lui rend après un achat, `onRefus` après un refus (la bourse se relit).
  */
 export function SectionDesBannieres({ tenue, familier, solde, onSolde, onRefus }: { tenue: Tenue; familier: Familier | null; solde: number | null; onSolde: (solde: number) => void; onRefus: () => void }) {
   const { etat, lire, acheter, choisir } = useBannieres();
@@ -317,32 +319,18 @@ export function SectionDesBannieres({ tenue, familier, solde, onSolde, onRefus }
   const [occupe, setOccupe] = useState(false);
   const [probleme, setProbleme] = useState<string | null>(null);
   const [reussite, setReussite] = useState<string | null>(null);
-  const racine = useRef<HTMLElement>(null);
   const vitrine = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     void lire();
   }, [lire]);
 
-  // Arrivé par l'adresse des bannières (`#bannieres`, le lien de « Mon Gaulois ») : la page y descend une fois la section
-  // dessinée, et de nouveau si le lien est suivi dans la page.
-  const dessinee = etat.kind !== "lecture";
-  useEffect(() => {
-    if (!dessinee) return;
-    const descendre = () => {
-      if (demandeLesBannieres(location.hash)) racine.current?.scrollIntoView({ behavior: "instant", block: "start" });
-    };
-    descendre();
-    window.addEventListener("hashchange", descendre);
-    return () => window.removeEventListener("hashchange", descendre);
-  }, [dessinee]);
-
   if (etat.kind !== "pret") {
     return (
-      <section ref={racine} id={ANCRE_BANNIERES} class="bannieres" aria-labelledby="bannieres-titre" data-testid="bannieres" data-etat={etat.kind}>
-        <h3 id="bannieres-titre" class="nom-champ bannieres-titre">
+      <section class="bannieres" aria-labelledby="bannieres-titre" data-testid="bannieres" data-etat={etat.kind}>
+        <h4 id="bannieres-titre" class="sr-only">
           Les bannières
-        </h3>
+        </h4>
         {etat.kind === "lecture" ? (
           <p class="text-muted" role="status">
             Lecture des bannières…
@@ -414,11 +402,11 @@ export function SectionDesBannieres({ tenue, familier, solde, onSolde, onRefus }
   const aAcheter = fenetre ? lib.banniereParId(fenetre) : null;
 
   return (
-    <section ref={racine} id={ANCRE_BANNIERES} class="bannieres" aria-labelledby="bannieres-titre" data-testid="bannieres" data-etat="pret">
+    <section class="bannieres" aria-labelledby="bannieres-titre" data-testid="bannieres" data-etat="pret">
       <div class="bannieres-tete">
-        <h3 id="bannieres-titre" class="nom-champ bannieres-titre">
+        <h4 id="bannieres-titre" class="sr-only">
           Les bannières
-        </h3>
+        </h4>
         <p class="bannieres-compte" data-testid="bannieres-compte">
           <strong class="tnum">{possedees.size}</strong> sur {lib.BANNIERES.length} à vous
         </p>
@@ -442,9 +430,9 @@ export function SectionDesBannieres({ tenue, familier, solde, onSolde, onRefus }
           </figure>
           <div class="banniere-fiche">
             <p class="banniere-famille">{lib.FAMILLES_DES_BANNIERES[vue.famille]}</p>
-            <h4 class="banniere-nom" data-testid="banniere-nom">
+            <h5 class="banniere-nom" data-testid="banniere-nom">
               {vue.nom}
-            </h4>
+            </h5>
             <RareteDeLaBanniere rarete={vue.rarete} />
             <p class="banniere-description">{vue.description}</p>
             <div class="banniere-actions">
@@ -517,10 +505,10 @@ export function SectionDesBannieres({ tenue, familier, solde, onSolde, onRefus }
       {rangees.map((rangee) => (
         <section key={rangee.famille} class="bannieres-famille" aria-labelledby={`bannieres-famille-${rangee.famille}`} data-testid="bannieres-famille">
           {/* Une seule famille : son nom est déjà celui du choix retenu, juste au-dessus. */}
-          <h4 id={`bannieres-famille-${rangee.famille}`} class={filtreFamille ? "sr-only" : "vestiaire-boutique"}>
+          <h5 id={`bannieres-famille-${rangee.famille}`} class={filtreFamille ? "sr-only" : "vestiaire-boutique"}>
             {rangee.nom} <span class="tnum bannieres-famille-compte">{surCombien(rangee.possedees, rangee.total)}</span>
             <span class="sr-only"> à vous</span>
-          </h4>
+          </h5>
           <ul class="banniere-cases">
             {rangee.bannieres.map((banniere) => (
               <CaseDeBanniere key={banniere.id} lib={lib} banniere={banniere} etat={lib.etatDeLaBanniere(banniere.id, mes)} prix={mes.prix[banniere.rarete]} choisie={vue?.id === banniere.id} onClick={() => voir(banniere.id)} />

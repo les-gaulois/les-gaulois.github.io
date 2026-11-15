@@ -1296,9 +1296,18 @@
    membres (la gravure de la forge, payée en statères elle aussi, reste sur /village). La page reprend la scène du vestiaire (le Gaulois à gauche, collé en haut sur téléphone), ses cases
    et sa barre de rayons ; ici, seulement ce qu'elle a de plus. */
 
-/* Cinq rayons (tête, haut, bas, pieds, arme) : le corps, gratuit, n'en a pas. */
+/* Six rayons : tête, haut, bas, pieds, arme, puis les bannières ; le corps, gratuit, n'en a pas. Chaque onglet a au
+   moins la place de son nom (« Bannière », le plus long, ne déborde pas sur un téléphone de 360 px) et du plus long mot
+   de ses offres, qui passent à la ligne quand la place manque (« 10 / offres ») ; la place qui reste se partage à parts
+   égales, et sur grand écran les six onglets ont la même largeur. */
 .boutique-page .vestiaire-rayons {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(min-content, 1fr));
+}
+/* Sur téléphone, l'onglet ouvert garde un peu de fond de chaque côté de son nom. */
+@media (max-width: 767px) {
+  .boutique-page .vestiaire-rayon-onglet {
+    padding-inline: 0.1875rem;
+  }
 }
 /* Sous le nom d'un rayon : le nombre d'offres que des membres y ont posées, en lettres courantes. */
 .vestiaire-rayon-mention {
@@ -1307,6 +1316,8 @@
   font-weight: 600;
   line-height: 1.2;
   letter-spacing: 0.01em;
+  white-space: normal;
+  text-align: center;
 }
 /* Sous le Gaulois, qui reste en vue : le vendeur de l'offre essayée, puis ce qui vient de se passer (objet reçu, objet
    porté, refus), avec « Le porter » et le lien vers « Mon Gaulois ». */
@@ -1402,13 +1413,24 @@
   outline: 3px dashed var(--ecriture);
   outline-offset: 2px;
 }
-/* Au clavier, l'offre qui prend le focus ne reste pas cachée sous la barre des rayons collée. */
-.vestiaire-panneau :is(.marche-offre-essai, .marche-offre-bouton) {
+/* Au clavier, l'offre ou la bannière qui prend le focus ne reste pas cachée sous la barre des rayons collée. La vitrine
+   des bannières, quand une case la fait revenir à l'écran, s'arrête elle aussi sous la barre. */
+.vestiaire-panneau :is(.marche-offre-essai, .marche-offre-bouton, .banniere-case, .banniere-vitrine) {
   scroll-margin-block: 11.5rem 2rem;
 }
 @media (max-width: 767px) and (min-height: 560px) {
-  .vestiaire-panneau :is(.marche-offre-essai, .marche-offre-bouton) {
+  .vestiaire-panneau :is(.marche-offre-essai, .marche-offre-bouton, .banniere-case, .banniere-vitrine) {
     scroll-margin-top: calc(9rem + var(--vestiaire-scene, 13.5rem));
+  }
+}
+/* Le lien des bannières (#bannieres) ouvre leur onglet et descend aux rayons : sous l'en-tête, et sous le Gaulois collé
+   sur téléphone. */
+.boutique-choix {
+  scroll-margin-top: 5.5rem;
+}
+@media (max-width: 767px) and (min-height: 560px) {
+  .boutique-choix {
+    scroll-margin-top: calc(5.5rem + var(--vestiaire-scene, 13.5rem));
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -1710,22 +1732,19 @@
 }
 
 /* ---------- Les bannières du Gaulois (15 novembre 2026) ---------- */
-/* Les écrans des bannières : la section « Les bannières » de « La boutique » (la vitrine, les filtres, les cases), la
-   fenêtre d'achat, et « Ma bannière sur /gaulois » dans « Mon Gaulois ». Une bannière fait 124 cases sur 80 : elle est
-   toujours agrandie d'un nombre entier de fois (--banniere-e pour la scène, --banniere-c pour les cases), sans flou. Les
-   couleurs sont celles des raretés du site (jetons --rarete-…) ; la rareté est aussi écrite et comptée en losanges. */
+/* Les écrans des bannières : l'onglet « Bannière » des rayons de « La boutique » (la vitrine, les filtres, les cases),
+   la fenêtre d'achat, et « Ma bannière sur /gaulois » dans « Mon Gaulois ». Une bannière fait 124 cases sur 80 : elle
+   est toujours agrandie d'un nombre entier de fois (--banniere-e pour la scène, --banniere-c pour les cases), sans flou.
+   Les couleurs sont celles des raretés du site (jetons --rarete-…) ; la rareté est aussi écrite et comptée en losanges. */
 
 /* La section mesure sa propre largeur : dans la colonne de la boutique, la place dépend du Gaulois collé à côté et de
-   son familier, pas seulement de l'écran. Un lien vers elle (#bannieres) s'arrête sous l'en-tête, et sous le Gaulois
-   collé sur téléphone. */
+   son familier, pas seulement de l'écran. Elle est le rayon ouvert : le nom de l'onglet, juste au-dessus, lui sert de
+   titre. */
 .bannieres {
   container: bannieres / inline-size;
   display: grid;
   gap: 1rem;
   min-width: 0;
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--hairline);
-  scroll-margin-top: 5.5rem;
 }
 .bannieres-tete {
   display: flex;
@@ -1733,11 +1752,6 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 0.25rem 1.5rem;
-}
-.bannieres-titre {
-  font-size: 1.375rem;
-  font-weight: 800;
-  line-height: 1.2;
 }
 .bannieres-compte,
 .bannieres-porte {
@@ -1805,13 +1819,6 @@
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--rarete) 18%, var(--color-navy)), color-mix(in srgb, var(--rarete) 5%, var(--color-navy)) 70%) padding-box,
     var(--rarete-cadre) border-box;
-  scroll-margin-block: 6.5rem 1rem;
-}
-@media (max-width: 767px) and (min-height: 560px) {
-  .bannieres,
-  .banniere-vitrine {
-    scroll-margin-top: calc(5.5rem + var(--vestiaire-scene, 13.5rem));
-  }
 }
 .banniere-vue {
   display: grid;

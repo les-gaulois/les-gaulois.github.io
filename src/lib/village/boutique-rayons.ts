@@ -1,13 +1,13 @@
 /**
  * Le rangement de « La boutique » (15 novembre 2026 ; page `/boutique`, puis onglet de `/village` le même jour) : les achats en statères au même
- * endroit. Dans chaque rayon, ce que vend la boutique du clan et ce que vendent les membres au marché, l'un sous l'autre,
- * réduits ensemble à une rareté ; un seul Gaulois essaie l'un comme l'autre.
+ * endroit. Dans chaque rayon d'objets, ce que vend la boutique du clan et ce que vendent les membres au marché, l'un sous
+ * l'autre, réduits ensemble à une rareté ; un seul Gaulois essaie l'un comme l'autre. Après l'arme, le rayon des bannières.
  *
  * Ici, seulement des calculs purs : ce qu'un rayon montre, combien d'offres de membres attendent dans chacun, ce qui
  * empêche d'acheter ce qu'on essaie. Rien ne décide d'un droit ni d'un prix : le serveur le fait (`contrat.ts`), et
  * l'écran (`src/components/village/Boutique.tsx`) ne range que ce qu'il a reçu.
  */
-import { EMPLACEMENTS_OBJETS, OBJETS, type Rarete } from "../gaulois";
+import { EMPLACEMENTS_OBJETS, NOMS_EMPLACEMENTS, OBJETS, type Rarete, type Vignette } from "../gaulois";
 import type { RefObjet } from "./contrat";
 import { RAISON_EN_VENTE, estEnVente, manque, stateres } from "./ecran-boutique";
 import { offresAAcheter, type OffreLisible } from "./ecran-marche";
@@ -28,9 +28,58 @@ export const ANCRE_MARCHE = "marche";
  */
 export const RETOUR_BOUTIQUE_KEY = "gal-boutique-retour";
 
-/** Les rayons de la boutique, dans l'ordre de la barre : un par emplacement d'objets. Le corps, gratuit, n'en a pas. */
-export const RAYONS_BOUTIQUE = EMPLACEMENTS_OBJETS;
+/** Les rayons des objets : un par emplacement d'objets. Le corps, gratuit, n'en a pas. */
+export const RAYONS_OBJETS = EMPLACEMENTS_OBJETS;
+export type RayonObjet = (typeof RAYONS_OBJETS)[number];
+
+/** Le rayon des bannières de /gaulois. */
+export const RAYON_BANNIERE = "banniere";
+
+/**
+ * Les rayons de la boutique, dans l'ordre de la barre. Le 15 novembre 2026, le pilote trouvait la page longue : les
+ * bannières, jusque-là une section entière au-dessus du marché, sont devenues un onglet après l'arme (« ranger les
+ * bannières et futur ajout dans la suite tête, haut, bas, pied, arme, bannière »). Ce qui s'ajoutera à la boutique
+ * prendra de même un onglet à la suite, plutôt qu'une section de plus sur la page.
+ */
+export const RAYONS_BOUTIQUE = [...RAYONS_OBJETS, RAYON_BANNIERE] as const;
 export type RayonBoutique = (typeof RAYONS_BOUTIQUE)[number];
+
+/** Le nom de chaque onglet de la barre. */
+export const NOMS_RAYONS = Object.fromEntries(RAYONS_BOUTIQUE.map((rayon) => [rayon, rayon === RAYON_BANNIERE ? "Bannière" : NOMS_EMPLACEMENTS[rayon]])) as Readonly<Record<RayonBoutique, string>>;
+
+/** Un rayon d'objets (la boutique du clan et le marché des membres), et non celui des bannières ? */
+export const estUnRayonDObjets = (rayon: RayonBoutique): rayon is RayonObjet => (RAYONS_OBJETS as readonly string[]).includes(rayon);
+
+/**
+ * L'image de l'onglet des bannières, décorative : une bannière pendue à sa traverse, rouge à liseré d'or, dans les
+ * couleurs des objets du Gaulois (le contour, le bois, l'or et le rouge de `gaulois.ts`). Les autres onglets montrent ce
+ * que le Gaulois porte ; celui-ci, ce qu'on y trouve.
+ */
+const DESSIN_ONGLET_BANNIERE = [
+  ".kkkkkkkkkkk.",
+  "kgffffffffFgk",
+  ".kkkkkkkkkkk.",
+  "..kgggggggk..",
+  "..kgrrrrRgk..",
+  "..kgrrrrRgk..",
+  "..kgrryrRgk..",
+  "..kgryyyRgk..",
+  "..kgrryrRgk..",
+  "..kgrrrrRgk..",
+  "..kgrrrrRgk..",
+  "..kgrrrrRgk..",
+  "..kggrrRggk..",
+  "...kggRggk...",
+  "....kgggk....",
+  ".....kgk.....",
+  "......k......",
+] as const;
+const COULEURS_ONGLET_BANNIERE: Readonly<Record<string, string>> = { k: "#1a1410", f: "#9a6b3f", F: "#6e4a28", g: "#d4a017", y: "#ffe07a", r: "#e0283a", R: "#a51c2a" };
+export const IMAGE_DU_RAYON_BANNIERE: Vignette = {
+  largeur: DESSIN_ONGLET_BANNIERE[0].length,
+  hauteur: DESSIN_ONGLET_BANNIERE.length,
+  cases: DESSIN_ONGLET_BANNIERE.flatMap((ligne) => [...ligne].map((lettre) => COULEURS_ONGLET_BANNIERE[lettre] ?? null)),
+};
 
 /** Un rayon rangé : ce que vend la boutique du clan, ce que vendent les membres, et de quoi les réduire à une rareté. */
 export interface RayonRange {
@@ -50,7 +99,7 @@ export interface RayonRange {
  * Un rayon de la boutique : les objets du catalogue que le membre n'a pas (d'après `possede`) et les offres des autres
  * membres pour cet emplacement, réduits ensemble par le filtre.
  */
-export function rangerLaBoutique(rayon: RayonBoutique, possede: (id: string) => number, offres: readonly OffreLisible[], filtre: Filtre | undefined): RayonRange {
+export function rangerLaBoutique(rayon: RayonObjet, possede: (id: string) => number, offres: readonly OffreLisible[], filtre: Filtre | undefined): RayonRange {
   const boutique = rangerLeRayon(OBJETS[rayon], possede).boutique;
   const membres = offresAAcheter(offres, rayon);
   const comptes = compterParRarete(boutique);
@@ -65,10 +114,10 @@ export function rangerLaBoutique(rayon: RayonBoutique, possede: (id: string) => 
   };
 }
 
-/** Combien d'offres d'autres membres attendent dans chaque rayon. */
-export function offresParRayon(offres: readonly OffreLisible[]): Record<RayonBoutique, number> {
-  const comptes = Object.fromEntries(RAYONS_BOUTIQUE.map((rayon) => [rayon, 0])) as Record<RayonBoutique, number>;
-  for (const offre of offres) if (!offre.a_moi && offre.emplacement in comptes) comptes[offre.emplacement as RayonBoutique] += 1;
+/** Combien d'offres d'autres membres attendent dans chaque rayon d'objets (une bannière ne se revend pas). */
+export function offresParRayon(offres: readonly OffreLisible[]): Record<RayonObjet, number> {
+  const comptes = Object.fromEntries(RAYONS_OBJETS.map((rayon) => [rayon, 0])) as Record<RayonObjet, number>;
+  for (const offre of offres) if (!offre.a_moi && offre.emplacement in comptes) comptes[offre.emplacement as RayonObjet] += 1;
   return comptes;
 }
 
@@ -82,9 +131,9 @@ export const demandeLeMarche = (hash: string): boolean => hash === `#${ANCRE_MAR
  * Le rayon ouvert à l'arrivée : le premier. Arrivé par l'adresse du marché, le premier rayon où un membre vend quelque
  * chose, s'il y en a un.
  */
-export function rayonDOuverture(offres: readonly OffreLisible[], versLeMarche: boolean): RayonBoutique {
+export function rayonDOuverture(offres: readonly OffreLisible[], versLeMarche: boolean): RayonObjet {
   const comptes = offresParRayon(offres);
-  return (versLeMarche ? RAYONS_BOUTIQUE.find((rayon) => comptes[rayon] > 0) : undefined) ?? RAYONS_BOUTIQUE[0];
+  return (versLeMarche ? RAYONS_OBJETS.find((rayon) => comptes[rayon] > 0) : undefined) ?? RAYONS_OBJETS[0];
 }
 
 /** Ce que le Gaulois essaie : un objet de la boutique du clan, ou l'offre d'un membre. Il ne porte que ce qui est acheté. */

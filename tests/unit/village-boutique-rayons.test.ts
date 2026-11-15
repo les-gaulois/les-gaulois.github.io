@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { EMPLACEMENTS_OBJETS, OBJETS, type Emplacement, type Rarete } from "../../src/lib/gaulois";
 import {
+  IMAGE_DU_RAYON_BANNIERE,
+  NOMS_RAYONS,
   RAYONS_BOUTIQUE,
+  RAYONS_OBJETS,
+  RAYON_BANNIERE,
   demandeLeMarche,
   essaiValide,
+  estUnRayonDObjets,
   motsDesOffres,
   offreEssayee,
   offresParRayon,
@@ -34,8 +39,26 @@ function offre(emplacement: Emplacement, objet: string, plus: Partial<OffreLisib
 }
 
 describe("les rayons de la boutique", () => {
-  it("sont les emplacements d'objets : le corps, gratuit, n'a pas de rayon", () => {
-    expect(RAYONS_BOUTIQUE).toEqual(EMPLACEMENTS_OBJETS);
+  it("sont les emplacements d'objets, puis les bannières : le corps, gratuit, n'a pas de rayon", () => {
+    // L'ordre voulu par le pilote le 15 novembre 2026 : tête, haut, bas, pieds, arme, bannière.
+    expect(RAYONS_OBJETS).toEqual(EMPLACEMENTS_OBJETS);
+    expect(RAYONS_BOUTIQUE).toEqual([...EMPLACEMENTS_OBJETS, RAYON_BANNIERE]);
+    expect(RAYONS_BOUTIQUE.map((rayon) => NOMS_RAYONS[rayon])).toEqual(["Tête", "Haut", "Bas", "Pieds", "Arme", "Bannière"]);
+    expect(RAYONS_BOUTIQUE.filter(estUnRayonDObjets)).toEqual(EMPLACEMENTS_OBJETS);
+    expect(estUnRayonDObjets(RAYON_BANNIERE)).toBe(false);
+  });
+
+  it("l'onglet des bannières a son image, entière et dans les couleurs du Gaulois", () => {
+    const { largeur, hauteur, cases } = IMAGE_DU_RAYON_BANNIERE;
+    expect(cases).toHaveLength(largeur * hauteur);
+    // Assez petite pour l'onglet (44 pixels de haut), agrandie deux fois.
+    expect(hauteur * 2).toBeLessThanOrEqual(44);
+    expect(cases.every((couleur) => couleur === null || /^#[0-9a-f]{6}$/.test(couleur))).toBe(true);
+    expect(cases.some((couleur) => couleur !== null)).toBe(true);
+  });
+
+  it("le marché ne compte pas d'offre dans le rayon des bannières : une bannière ne se revend pas", () => {
+    expect(Object.keys(offresParRayon([offre("tete", objetDe("tete", "commun"))]))).toEqual([...RAYONS_OBJETS]);
   });
 
   it("un rayon montre les objets que le membre n'a pas, et les offres des autres membres pour cet emplacement", () => {
