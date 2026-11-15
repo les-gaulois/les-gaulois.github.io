@@ -1,62 +1,13 @@
-import { useEffect, useState } from "preact/hooks";
-import type { AccesCarte, AttenteAllie } from "../../lib/alliance/types";
+import { useState } from "preact/hooks";
 import { basePath, call } from "../../lib/compte/api";
-import { COMPTE_OPENFRONT_URL, DEBUT_DU_LIEN, identifiantDuLien, lienAttendu, profilOpenFront } from "../../lib/compte/lien-openfront";
+import { EVENEMENT_LIEN_ENVOYE } from "../../lib/compte/arrivee";
+import { COMPTE_OPENFRONT_URL, DEBUT_DU_LIEN, identifiantDuLien, profilOpenFront } from "../../lib/compte/lien-openfront";
 import { errorMessage } from "../../lib/compte/errors";
 import type { Me } from "../../lib/compte/types";
 import { Problem, focusField, messageOf } from "./common";
 
 /** L'espace insécable autour des guillemets et avant « : » : ni guillemet ni deux-points seuls en début de ligne. */
 const NBSP = String.fromCharCode(0xa0);
-
-export interface Allie {
-  tag: string;
-  name: string;
-  enAttente: boolean;
-}
-
-/**
- * Ce que la carte de l'alliance ouvre à ce compte, pour un compte en attente : un joueur allié invité y a sa place.
- * `undefined` le temps de la lecture, `null` pour qui n'est pas un allié invité, ou un compte qui n'est pas en attente.
- */
-export function useAllie(me: Me | null): Allie | null | undefined {
-  // La réponse ne vaut que pour le compte qui l'a demandée : un autre compte, ou un autre état, attend la sienne.
-  const cle = me === null ? null : me.signed_in && me.status === "pending" ? `attente-${me.number ?? ""}` : "autre";
-  const [lu, setLu] = useState<{ cle: string; allie: Allie | null } | null>(null);
-  useEffect(() => {
-    if (cle === null || cle === "autre") return;
-    let parti = false;
-    const noter = (allie: Allie | null) => {
-      if (!parti) setLu({ cle, allie });
-    };
-    call<{ access: AccesCarte | null; waiting?: AttenteAllie | null }>("get_map_access")
-      .then((r) => {
-        if (r.access?.kind === "allie") noter({ tag: r.access.tag, name: r.access.name, enAttente: false });
-        // Il a ouvert son lien d'invitation : l'encadrement doit encore l'accepter.
-        else if (r.waiting) noter({ tag: r.waiting.tag, name: r.waiting.alias, enAttente: true });
-        else noter(null);
-      })
-      // Un serveur d'avant la carte de l'alliance ne connaît pas cette fonction : la page reste comme avant.
-      .catch(() => noter(null));
-    return () => {
-      parti = true;
-    };
-  }, [cle]);
-  if (cle === null) return undefined;
-  if (cle === "autre") return null;
-  return lu?.cle === cle ? lu.allie : undefined;
-}
-
-/**
- * Le compte doit-il donner son lien avant d'aller plus loin (village, porte du QG) ? Seulement s'il n'a jamais rien envoyé
- * (`lienAttendu`) et qu'il n'est pas un joueur allié invité, qui n'est pas un Gaulois : la carte de l'alliance lui suffit.
- * `null` le temps de le savoir.
- */
-export function useLienAttendu(me: Me | null): boolean | null {
-  const allie = useAllie(me);
-  if (me === null || !lienAttendu(me)) return false;
-  return allie === undefined ? null : allie === null;
-}
 
 /**
  * Le lien du profil OpenFront, obligatoire pour demander sa validation : un bouton ouvre la fenêtre « Compte » du jeu, où le
@@ -82,6 +33,7 @@ export function DemandeLienOpenFront({ me, onSent }: { me: Me; onSent: () => Pro
     setError(null);
     try {
       await call("request_membership_link", { p_public_id: identifiant, p_note: note || null });
+      window.dispatchEvent(new Event(EVENEMENT_LIEN_ENVOYE));
       setLien("");
       setNote("");
       await onSent();

@@ -1764,6 +1764,89 @@ main .fx-in,
   clip-path: inset(50%);
   white-space: nowrap;
 }
+/* L'inscription, dans « Mon compte » (ParcoursArrivee.tsx, 15 novembre 2026) : trois étapes côte à côte, reliées par un
+   filet ; chacune a son numéro dans un rond. Faite : rond plein, vert des réussites, coché. En cours : cerclé du rouge des
+   marqueurs, nom en gras. À venir : en gris. Les trois tiennent de front dès 360 px, le nom passe à la ligne s'il le faut. */
+.arrivee-etapes {
+  max-width: 48rem;
+}
+.arrivee-compte {
+  font-family: var(--font-console);
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+.arrivee-etapes ol {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.arrivee-etapes li {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 0.5rem;
+  text-align: center;
+  font-size: 0.9375rem;
+  line-height: 1.3;
+  color: var(--color-muted);
+}
+.arrivee-etapes li + li::before {
+  content: "";
+  position: absolute;
+  top: 1.0625rem;
+  right: calc(50% + 1.5rem);
+  left: calc(-50% + 1.25rem);
+  height: 2px;
+  background: var(--color-line);
+}
+.arrivee-etapes li[data-etat="faite"] + li::before {
+  background: var(--color-ok);
+}
+.arrivee-numero {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 2px solid var(--color-line-strong);
+  border-radius: 999px;
+  background: var(--color-navy);
+  font-weight: 800;
+  color: var(--color-muted);
+}
+.arrivee-etapes li[data-etat="en-cours"] {
+  font-weight: 700;
+  color: var(--ecriture);
+}
+.arrivee-etapes li[data-etat="en-cours"] .arrivee-numero {
+  border-color: var(--color-red);
+  border-width: 3px;
+  color: var(--ecriture);
+}
+.arrivee-etapes li[data-etat="faite"] {
+  color: var(--ecriture);
+}
+/* La coche, dessinée : le numéro s'efface derrière elle, et « faite » est dit aux lecteurs d'écran. */
+.arrivee-etapes li[data-etat="faite"] .arrivee-numero {
+  border-color: var(--color-ok);
+  background: var(--color-ok);
+  color: transparent;
+}
+.arrivee-etapes li[data-etat="faite"] .arrivee-numero::after {
+  content: "";
+  position: absolute;
+  top: 0.4375rem;
+  left: 0.6875rem;
+  width: 0.5rem;
+  height: 0.9375rem;
+  border: solid var(--color-navy);
+  border-width: 0 3px 3px 0;
+  transform: rotate(45deg);
+}
 
 /* ---------- Les espaces de travail : le QG et la Direction ---------- */
 /* On y lit, on y tape et on y clique : tout y est plus grand que sur les pages de lecture. Les tailles de texte de

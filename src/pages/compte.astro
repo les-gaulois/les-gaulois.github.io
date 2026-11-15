@@ -9,7 +9,8 @@ import { AUTH_ENABLED } from "../lib/compte/api";
 <Base title="Mon compte" description="Votre compte sur le site du clan GAL : statut, validation et confidentialité." noindex>
   <div class="wrap">
     <PageHeader title="Mon compte" />
-    <div class="mt-6 max-w-3xl">
+    {/* Les cartes du compte gardent leur colonne (max-w-3xl) ; le vestiaire de l'inscription prend la largeur du site. */}
+    <div class="mt-6">
       {/* `fallback` : avant le script, la place de la porte, invisible, pour que le pied de page ne saute pas à son arrivée. */}
       {AUTH_ENABLED ? (
         <AccountApp client:only="preact">

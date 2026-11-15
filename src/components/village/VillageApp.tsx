@@ -1,4 +1,5 @@
-import { DemandeLienOpenFront, useLienAttendu } from "../compte/LienOpenFront";
+import { useArrivee } from "../compte/arrivee";
+import { DemandeLienOpenFront } from "../compte/LienOpenFront";
 import { Onglets, Partie, useTabs, type TabItem } from "../compte/Onglets";
 import { Loading, useMe } from "../compte/common";
 import Vestiaire from "../compte/Vestiaire";
@@ -21,14 +22,15 @@ const PREFIXE = "village";
 /**
  * La page de son Gaulois (`/village`). Le monde du village en pixels est retiré depuis le 15 novembre 2026, à la demande
  * du pilote (« enlève la partie villages ») : il garde le Gaulois et ses objets, qui paraissent sur les images du clan.
- * Un visiteur voit le Gaulois de départ et la porte. Un compte qui doit encore donner le lien de son profil OpenFront le
- * donne d'abord. Un compte connecté a trois onglets, comme au QG : son Gaulois (le vestiaire, la bourse, la boutique et la
+ * Un visiteur voit le Gaulois de départ et la porte. Un compte connecté finit d'abord son inscription
+ * (src/lib/compte/arrivee.ts, 15 novembre 2026) : le lien de son profil OpenFront, puis son Gaulois, seul au vestiaire ;
+ * la forge et le marché attendent qu'il soit créé. Ensuite, trois onglets, comme au QG : son Gaulois (le vestiaire, la bourse, la boutique et la
  * pochette surprise), la forge, où l'on grave une de ses parties sur un objet, et le marché entre membres. Chaque onglet
  * ne lit le serveur qu'à son ouverture ; la forge se relit à chaque retour, la bourse ayant pu changer au vestiaire.
  */
 export default function VillageApp() {
   const { me, refresh } = useMe();
-  const lien = useLienAttendu(me);
+  const { etape } = useArrivee(me);
   const { active, slide, shown, select, call } = useTabs(IDS);
 
   if (me === null) return <Loading label="Lecture de votre compte…" />;
@@ -46,8 +48,8 @@ export default function VillageApp() {
     );
   }
 
-  if (lien === null) return <Loading label="Lecture de votre compte…" />;
-  if (lien) {
+  if (etape === undefined) return <Loading label="Lecture de votre compte…" />;
+  if (etape === "lien") {
     return (
       <div data-testid="village-lien">
         <DemandeLienOpenFront me={me} onSent={refresh} />
@@ -55,21 +57,41 @@ export default function VillageApp() {
     );
   }
 
+  // Le Gaulois à créer : le vestiaire seul, sous son titre, qui nomme aussi sa partie (`village-onglet-gaulois`, l'onglet
+  // qu'il remplace). Il reste à la même place une fois le Gaulois créé : les onglets paraissent sans qu'il se relise.
+  const aCreer = etape === "gaulois";
   return (
     <div class="village" data-testid="village">
-      <Onglets label="Les parties de la page" prefix={PREFIXE} tabs={ONGLETS} active={active} onSelect={select} call={call} />
-      <Partie prefix={PREFIXE} id="gaulois" active={active} slide={slide}>
-        <h2 class="sr-only">Mon Gaulois</h2>
-        <Vestiaire actif={active === "gaulois"} />
+      {aCreer ? (
+        <div data-testid="village-gaulois">
+          <h2 id={`${PREFIXE}-onglet-gaulois`} class="section-title-sm">
+            Votre Gaulois
+          </h2>
+          {/* Un compte en attente n'ouvre la forge, le marché et le QG qu'une fois validé : le texte ne lui promet rien de plus. */}
+          <p class="mt-3 text-muted">
+            {me.status === "validated" ? "La forge, le marché, le QG et la carte de l'alliance s'ouvrent dès qu'il est créé." : "Dernière étape de l'inscription : ensuite, un officier valide votre compte."}
+          </p>
+        </div>
+      ) : (
+        <Onglets label="Les parties de la page" prefix={PREFIXE} tabs={ONGLETS} active={active} onSelect={select} call={call} />
+      )}
+      <Partie prefix={PREFIXE} id="gaulois" active={aCreer ? "gaulois" : active} slide={aCreer ? null : slide}>
+        {/* Le titre caché de la partie, sauf quand « Votre Gaulois », juste au-dessus, la nomme déjà. */}
+        {!aCreer && <h2 class="sr-only">Mon Gaulois</h2>}
+        <Vestiaire actif={aCreer || active === "gaulois"} />
       </Partie>
-      <Partie prefix={PREFIXE} id="forge" active={active} slide={slide}>
-        <h2 class="sr-only">La forge</h2>
-        {active === "forge" && <AtelierDeLaForge />}
-      </Partie>
-      <Partie prefix={PREFIXE} id="marche" active={active} slide={slide}>
-        <h2 class="sr-only">Le marché</h2>
-        {shown.has("marche") && <MarcheDuVillage actif={active === "marche"} />}
-      </Partie>
+      {!aCreer && (
+        <Partie prefix={PREFIXE} id="forge" active={active} slide={slide}>
+          <h2 class="sr-only">La forge</h2>
+          {active === "forge" && <AtelierDeLaForge />}
+        </Partie>
+      )}
+      {!aCreer && (
+        <Partie prefix={PREFIXE} id="marche" active={active} slide={slide}>
+          <h2 class="sr-only">Le marché</h2>
+          {shown.has("marche") && <MarcheDuVillage actif={active === "marche"} />}
+        </Partie>
+      )}
     </div>
   );
 }

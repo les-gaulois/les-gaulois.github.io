@@ -5,6 +5,7 @@ import { IDEA_STATUS_LABELS, counted, openIdeas, parseQg, pollsAwaitingVote, typ
 import { fermeturePassee } from "../../lib/compte/qg-decisions";
 import { predictionClosed, predictionToDo } from "../../lib/compte/qg-semaine";
 import { waitingOthers } from "../../lib/compte/salons";
+import type { EtapeArrivee } from "../../lib/compte/arrivee";
 import { ROLE_LABELS, type Me } from "../../lib/compte/types";
 import { fmtDate } from "../../lib/format";
 import type { LogoMatriceData } from "../../lib/logo-matrice";
@@ -14,7 +15,7 @@ import type { ClanWeekFile } from "../../lib/semaine-du-clan";
 import LogoMatrice from "../LogoMatrice";
 import { subscribe } from "./appels";
 import { Avatar, CodeLogin, DiscordButton, DiscordGives, Loading, Problem, messageOf, useMe, useNow, type Loadable } from "./common";
-import { useLienAttendu } from "./LienOpenFront";
+import { PorteArrivee, useArrivee } from "./arrivee";
 import { Onglets, Partie, reducedMotion, useTabs, type TabItem } from "./Onglets";
 import { PlaceReservee } from "./PlaceReservee";
 import QgCeSoir from "./QgCeSoir";
@@ -48,18 +49,31 @@ const QG_TABS = [
   { id: "mur", label: "Le mur", icon: "mur" },
 ] as const;
 
-/** La porte du QG, pour un visiteur ou un compte pas encore validé : ce qu'il y a derrière, et comment entrer. */
-function Door({ me }: { me: Me }) {
+/**
+ * La porte du QG, pour un visiteur, un compte pas encore validé, ou un membre validé qui n'a pas encore créé son Gaulois :
+ * ce qu'il y a derrière, et comment entrer. `etape` : ce qui reste de l'inscription (src/lib/compte/arrivee.ts), qui se
+ * finit dans « Mon compte ».
+ */
+function Door({ me, etape }: { me: Me; etape?: EtapeArrivee | null | undefined }) {
   const base = basePath();
-  const lien = useLienAttendu(me);
+  const manque = me.signed_in && (etape === "lien" || etape === "gaulois") ? etape : null;
+  // Un membre validé n'a plus que son Gaulois à créer : la porte ne redit pas les étapes qu'il a faites.
+  if (me.signed_in && me.status === "validated" && manque) {
+    return (
+      <section class="card max-w-3xl p-6" data-testid="qg-door">
+        <h2 class="text-2xl">Plus qu'une étape</h2>
+        <PorteArrivee etape={manque} class="mt-4" />
+      </section>
+    );
+  }
   return (
     <section class="card max-w-3xl p-6" data-testid="qg-door">
       <h2 class="text-2xl">Réservé aux membres de GAL</h2>
       <p class="mt-3 text-muted">Salons, sondages, idées, événements et mur des membres.</p>
       <ol class="mt-4 list-decimal space-y-2 pl-6">
         <li>{CODE_LOGIN_OPEN ? "Connectez-vous avec Discord, ou avec un code demandé dans le Discord du clan." : "Connectez-vous avec Discord."}</li>
-        <li>Donnez le lien de votre profil OpenFront dans « Mon compte » : c'est obligatoire.</li>
-        <li>Le site vérifie qu'il figure dans la liste des membres de GAL.</li>
+        <li>Donnez le lien de votre profil OpenFront : le site le cherche dans la liste des membres de GAL.</li>
+        <li>Créez votre Gaulois.</li>
         <li>Un officier confirme que c'est bien vous. Ensuite, le site vous reconnaît à chaque visite.</li>
       </ol>
       {!me.signed_in && (
@@ -72,17 +86,8 @@ function Door({ me }: { me: Me }) {
           {CODE_LOGIN_OPEN && <CodeLogin />}
         </>
       )}
-      {me.signed_in && me.status === "pending" && lien === true && (
-        <div class="mt-6" data-testid="qg-lien">
-          <p>
-            <strong>Il manque le lien de votre profil OpenFront.</strong>
-          </p>
-          <a class="btn btn-primary mt-3" href={`${base}/compte`}>
-            Donner mon lien OpenFront
-          </a>
-        </div>
-      )}
-      {me.signed_in && me.status === "pending" && lien === false && (
+      {manque && <PorteArrivee etape={manque} class="mt-6" />}
+      {me.signed_in && me.status === "pending" && etape === null && (
         <p class="mt-6" data-testid="qg-pending">
           <strong>Votre compte attend sa validation.</strong> Faites ou suivez votre demande dans <a href={`${base}/compte`}>Mon compte</a>.
         </p>
@@ -481,9 +486,13 @@ function Inside({ me, rank, lastRunAt, logo }: { me: Me; rank: number; lastRunAt
  */
 export default function QgApp({ lastRunAt = null, logo }: { lastRunAt?: string | null; logo?: LogoMatriceData }) {
   const { me, failed, refresh } = useMe();
+  // Pour entrer, il faut aussi avoir créé son Gaulois (src/lib/compte/arrivee.ts) : un écran, pas un droit.
+  const { etape } = useArrivee(me);
 
   if (me === null) return <PlaceDeLaPorte label="Lecture de votre compte…" />;
   if (failed) return <Problem message="Votre compte n'a pas pu être lu pour l'instant. Réessayez dans un moment." onRetry={() => void refresh()} />;
-  if (!me.signed_in || me.status !== "validated") return <Door me={me} />;
+  if (!me.signed_in || me.status !== "validated") return <Door me={me} etape={etape} />;
+  if (etape === undefined) return <PlaceDeLaPorte label="Lecture de votre inscription…" />;
+  if (etape === "gaulois") return <Door me={me} etape={etape} />;
   return <Inside me={me} rank={me.rank ?? 0} lastRunAt={lastRunAt} logo={logo} />;
 }

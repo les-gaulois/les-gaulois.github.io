@@ -1,9 +1,11 @@
 import { useEffect, useState } from "preact/hooks";
 import { basePath, call, mayHaveSession, supabase } from "../lib/compte/api";
+import { EVENEMENT_LIEN_ENVOYE } from "../lib/compte/arrivee";
 import { pendingWords } from "../lib/compte/pending";
 import type { Me } from "../lib/compte/types";
 import { viewedAccount } from "../lib/compte/vue-joueur";
 import { fmtInt } from "../lib/format";
+import { useArrivee } from "./compte/arrivee";
 import { usePendingCount, usePlayerView } from "./compte/common";
 
 const LINK = "btn btn-ghost !min-h-10 !py-1.5 !text-sm whitespace-nowrap";
@@ -15,8 +17,13 @@ const LINK = "btn btn-ghost !min-h-10 !py-1.5 !text-sm whitespace-nowrap";
  */
 export default function AuthMenu() {
   const [me, setMe] = useState<Me | null>(null);
+  // L'inscription (src/lib/compte/arrivee.ts) ; pour un compte en attente, s'il est un joueur allié invité, accepté ou
+  // encore attendu par l'encadrement : sa place est alors la carte de l'alliance.
+  const { etape, allie } = useArrivee(me);
   // Le nom choisi sur la carte de l'alliance, pour un joueur allié invité : son compte n'a pas d'autre nom que « Gaulois n° … ».
-  const [ally, setAlly] = useState<string | null>(null);
+  const ally = allie?.name ?? null;
+  // Une étape de l'inscription manque : l'en-tête y mène, à la place du QG et du nom.
+  const aFinir = etape === "lien" || etape === "gaulois";
   const playerView = usePlayerView();
   // En vue joueur, l'en-tête est celui d'un membre sans grade : la bande placée dessous permet d'en sortir.
   const canDirect = me !== null && (viewedAccount(me, playerView).rank ?? 0) >= 2;
@@ -34,22 +41,22 @@ export default function AuthMenu() {
       unsubscribe = () => data.subscription.unsubscribe();
       if (stopped) unsubscribe();
     });
-    call<Me>("get_me")
-      .then((data) => {
-        setMe(data.signed_in ? data : null);
-        // Un compte en attente peut être un joueur allié invité sur la carte de l'alliance.
-        if (data.signed_in && data.status === "pending") {
-          call<{ access: { kind: string; name: string } | null; waiting?: { alias: string } | null }>("get_map_access")
-            // Accepté, ou encore en attente de l'accord de l'encadrement : sa place est la carte de l'alliance.
-            .then((r) => setAlly(r.access?.kind === "allie" ? r.access.name : (r.waiting?.alias ?? null)))
-            // Un serveur d'avant la carte de l'alliance ne connaît pas cette fonction : l'en-tête reste comme avant.
-            .catch(() => setAlly(null));
-        }
-      })
-      .catch(() => setMe(null));
+    const lire = () => {
+      call<Me>("get_me")
+        .then((data) => {
+          if (!stopped) setMe(data.signed_in ? data : null);
+        })
+        .catch(() => {
+          if (!stopped) setMe(null);
+        });
+    };
+    lire();
+    // Le lien OpenFront envoyé sur cette page : l'inscription passe au Gaulois, l'en-tête le suit.
+    window.addEventListener(EVENEMENT_LIEN_ENVOYE, lire);
     return () => {
       stopped = true;
       unsubscribe();
+      window.removeEventListener(EVENEMENT_LIEN_ENVOYE, lire);
     };
   }, []);
 
@@ -86,9 +93,19 @@ export default function AuthMenu() {
           )}
         </a>
       )}
+      {/* L'inscription à finir, dans « Mon compte » : le lien OpenFront, puis le Gaulois. Sur téléphone, en un mot ; l'encadrement
+          y garde « Direction ». */}
+      {aFinir && (
+        <span class={canDirect ? "hidden sm:inline-flex" : "inline-flex"}>
+          <a href={`${base}/compte`} class={LINK} data-testid="auth-arrivee">
+            <span class="sm:hidden">Inscription</span>
+            <span class="hidden sm:inline">Finir mon inscription</span>
+          </a>
+        </span>
+      )}
       {/* Le QG, à un clic de toutes les pages pour un membre validé. Sur téléphone, la place manque : l'encadrement garde
           « Direction », où se traitent les demandes, et ouvre le QG depuis la Direction. */}
-      {validated && (
+      {validated && !aFinir && (
         <span class={canDirect ? "hidden sm:inline-flex" : "inline-flex"}>
           <a href={`${base}/qg`} class={LINK} data-testid="auth-qg" data-qg-link>
             QG
@@ -96,7 +113,7 @@ export default function AuthMenu() {
         </span>
       )}
       {/* Le nom mène au compte. L'encadrement, qui a déjà deux liens, ouvre le sien depuis le QG ou la Direction ; sur téléphone, un membre validé aussi. */}
-      {!canDirect && (
+      {!canDirect && !aFinir && (
         <span class={validated || ally ? "hidden sm:inline-flex" : "inline-flex"}>
           <a href={`${base}/compte`} class={LINK} data-testid="auth-account" title={ally ?? me.name}>
             <span class="block max-w-24 truncate sm:max-w-32">{ally ?? me.name ?? "Mon compte"}</span>

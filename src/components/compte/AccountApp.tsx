@@ -1,12 +1,15 @@
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { ADRESSE_ALLIANCE, RETOUR_CARTE_KEY } from "../../lib/alliance/invitation";
 import { CODE_LOGIN_OPEN, basePath, call, signOut } from "../../lib/compte/api";
 import { ROLE_LABELS, type Me } from "../../lib/compte/types";
 import { fmtDate } from "../../lib/format";
 import { ADRESSE_VILLAGE, RETOUR_VILLAGE_KEY } from "../../lib/gaulois";
+import { EVENEMENT_ENREGISTRE } from "../../lib/compagnon/tenue";
 import { COMPTE_OPENFRONT_URL } from "../../lib/compte/lien-openfront";
 import { CodeLogin, DiscordButton, DiscordGives, Loading, Problem, codeLoginShown, messageOf, useMe } from "./common";
-import { DemandeLienOpenFront, useAllie } from "./LienOpenFront";
+import { useArrivee } from "./arrivee";
+import { DemandeLienOpenFront } from "./LienOpenFront";
+import ParcoursArrivee, { ArriveeFinie } from "./ParcoursArrivee";
 import { PlaceReservee } from "./PlaceReservee";
 
 /** La demande envoyée, en attente d'un officier : on peut l'annuler. Sans demande en cours, le lien OpenFront est demandé. */
@@ -108,7 +111,7 @@ function retourApresDiscord(me: Me | null): string | null {
 /** La porte du compte, pour un visiteur sans session. `code` : la connexion par code, sous celle par Discord. */
 function Porte({ code }: { code: boolean }) {
   return (
-    <section class="card p-6" data-testid="signed-out">
+    <section class="card max-w-3xl p-6" data-testid="signed-out">
       <h2 class="text-2xl">Connectez-vous</h2>
       <p class="mt-2 text-muted">Le site ne reçoit jamais votre mot de passe.</p>
       <div class="mt-4">
@@ -131,12 +134,26 @@ export function PlaceDeLaPorte({ label }: { label?: string }) {
 
 export default function AccountApp() {
   const { me, failed, refresh } = useMe();
-  const allie = useAllie(me);
+  // L'inscription (src/lib/compte/arrivee.ts) : le lien OpenFront, puis le Gaulois. Pour un compte en attente, on sait aussi
+  // s'il est un joueur allié invité.
+  const { etape, allie } = useArrivee(me);
+  // Le Gaulois vient d'être créé sur cette page : la suite s'affiche, jusqu'au prochain passage.
+  const [fini, setFini] = useState(false);
+  // Le lien a été demandé sur cette page : l'étape du Gaulois qui suit y fait remonter la page.
+  const lienVu = useRef(false);
+  if (etape === "lien") lienVu.current = true;
   const [retour, setRetour] = useState<string | null>(null);
   useEffect(() => {
     const attente = retourApresDiscord(me);
     if (attente) setRetour(attente);
   }, [me]);
+  const enGaulois = etape === "gaulois";
+  useEffect(() => {
+    if (!enGaulois) return;
+    const cree = () => setFini(true);
+    window.addEventListener(EVENEMENT_ENREGISTRE, cree);
+    return () => window.removeEventListener(EVENEMENT_ENREGISTRE, cree);
+  }, [enGaulois]);
 
   if (me === null) return <PlaceDeLaPorte label="Lecture de votre compte…" />;
   if (retour) return <Loading label={retour} />;
@@ -144,9 +161,11 @@ export default function AccountApp() {
 
   if (!me.signed_in) return <Porte code={codeLoginShown()} />;
 
+  // Une étape de l'inscription manque : elle passe avant tout le reste, et le QG attend qu'elle soit faite.
+  const aFinir = etape === "lien" || etape === "gaulois" ? etape : null;
   return (
     <div class="grid gap-6" data-testid="account">
-      <section class="card p-5">
+      <section class="card max-w-3xl p-5">
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p class="font-display text-2xl font-extrabold" data-testid="account-name">
@@ -184,10 +203,14 @@ export default function AccountApp() {
         </p>
         {me.status === "validated" && (
           <div class="mt-4 flex flex-wrap gap-3">
-            {/* Le mot de l'encadrement, les sondages, les idées et le mur sont au QG, réservé aux membres validés. L'administration est dans la Direction. */}
-            <a class="btn btn-primary" href={`${basePath()}/qg`} data-testid="account-qg">
-              Entrer dans le QG
-            </a>
+            {/* Le mot de l'encadrement, les sondages, les idées et le mur sont au QG, réservé aux membres validés. L'administration
+                est dans la Direction. Le QG attend que l'inscription soit sue finie (pas de bouton qui paraît puis disparaît), et
+                l'écran de fin a déjà le sien. L'encadrement garde la Direction pendant son inscription : il y valide les nouveaux. */}
+            {etape === null && !fini && (
+              <a class="btn btn-primary" href={`${basePath()}/qg`} data-testid="account-qg">
+                Entrer dans le QG
+              </a>
+            )}
             {(me.rank ?? 0) >= 2 && (
               <a class="btn btn-secondary" href={`${basePath()}/direction`}>
                 Direction
@@ -200,9 +223,17 @@ export default function AccountApp() {
         )}
       </section>
 
+      {aFinir && <ParcoursArrivee me={me} etape={aFinir} onSent={refresh} suite={aFinir === "gaulois" && lienVu.current} />}
+      {etape === undefined && <Loading label="Lecture de votre inscription…" />}
+      {fini && etape === null && (
+        <div class="max-w-3xl">
+          <ArriveeFinie me={me} />
+        </div>
+      )}
+
       {/* Un joueur allié invité n'est pas un Gaulois : sa place est la carte de l'alliance, pas la demande de validation. */}
       {allie && (
-        <section class="card p-5" data-testid="account-allie">
+        <section class="card max-w-3xl p-5" data-testid="account-allie">
           <h2 class="text-xl">Carte de l'alliance</h2>
           <p class="mt-2">
             {allie.enAttente
@@ -214,9 +245,15 @@ export default function AccountApp() {
           </a>
         </section>
       )}
-      {me.status === "pending" && allie === null && <MembershipRequest me={me} onChange={refresh} />}
+      {me.status === "pending" && allie === null && !aFinir && etape !== undefined && (
+        <div class="max-w-3xl">
+          <MembershipRequest me={me} onChange={refresh} />
+        </div>
+      )}
 
-      <DeleteAccount founder={me.role === "founder"} />
+      <div class="max-w-3xl">
+        <DeleteAccount founder={me.role === "founder"} />
+      </div>
     </div>
   );
 }

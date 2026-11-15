@@ -66,12 +66,12 @@ Jusqu'au 14 novembre 2026, une seule feuille de 18 000 lignes, `src/styles/globa
 | `06-carte.css` | La carte en console | Carte, Direction |
 | `07-calme.css` | « Plus calme » | toutes |
 | `08-alliance.css` | La carte de l'alliance | Carte, Direction |
-| `09-village.css` | Les onglets de « Mon Gaulois », le marché, le vestiaire, la boutique | Village, Direction |
+| `09-village.css` | Les onglets de « Mon Gaulois », le marché, le vestiaire, la boutique | Compte (le vestiaire de l'inscription), Village, Direction |
 | `10-carte-colonne.css` | Le classement en colonne, les fenêtres de la Carte | Carte, Direction |
 | `11-comptes.css` | L'onglet Comptes | Direction |
 | `12-qg.css` | Les onglets du QG | QG, Direction |
 | `13-compagnon.css` | Le Gaulois compagnon | toutes |
-| `14-forge.css` | La forge de « Mon Gaulois » (jusqu'au 15 novembre 2026, `14-monde.css`, avec le monde du village) | Village, Direction |
+| `14-forge.css` | La forge de « Mon Gaulois » (jusqu'au 15 novembre 2026, `14-monde.css`, avec le monde du village) | Compte (les plaques du vestiaire), Village, Direction |
 
 - **Qui charge quoi :** `src/lib/feuilles.ts`. Les quatre morceaux de toutes les pages (27,2 Ko compressés) restent en cache d'une page à l'autre. La Direction charge tout : elle montre aussi, en aperçu, les écrans des autres pages. Une page qui n'est dans aucune liste ne charge que les quatre communs.
 - **L'ordre est celui d'avant :** `Base.astro` écrit lui-même les `<link rel="stylesheet">` de la page, dans l'ordre des numéros (Astro ne garantit pas l'ordre de feuilles importées dans des fichiers différents) ; chaque morceau est importé avec `?url`, et Vite le publie à part. Une page lit donc les mêmes règles qu'avant, dans le même ordre, moins celles qui ne peuvent pas la toucher : une section tardive qui corrige une section plus haute la corrige toujours.

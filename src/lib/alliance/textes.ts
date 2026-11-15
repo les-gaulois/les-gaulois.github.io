@@ -45,6 +45,9 @@ export interface Textes {
   lectureCarte: string;
   sansAcces: string;
   sansAccesAide: string;
+  /** Un Gaulois validé qui n'a pas encore créé son Gaulois : il le crée dans « Mon compte » (src/lib/compte/arrivee.ts). */
+  gauloisAttendu: string;
+  creerGaulois: string;
   carteEnPanne: string;
   chargementCarte: string;
   connecte: string;
@@ -309,6 +312,8 @@ export const FR: Textes = {
   lectureCarte: "Lecture de la carte de l'alliance…",
   sansAcces: "Ce compte n'a pas accès à la carte de l'alliance.",
   sansAccesAide: "Un joueur allié entre avec le lien d'invitation de l'encadrement de GAL ; un Gaulois, une fois son compte validé.",
+  gauloisAttendu: "Il manque votre Gaulois.",
+  creerGaulois: "Créer mon Gaulois",
   carteEnPanne: "La carte n'a pas pu se charger. Rechargez la page.",
   chargementCarte: "Chargement de la carte…",
   connecte: `Connecté${NBSP}:`,
@@ -509,6 +514,8 @@ export const EN: Textes = {
   lectureCarte: "Loading the alliance map…",
   sansAcces: "This account has no access to the alliance map.",
   sansAccesAide: "Allied players join with an invitation link from the GAL leadership; GAL members, once their account is validated.",
+  gauloisAttendu: "Your Gaul is missing.",
+  creerGaulois: "Create my Gaul",
   carteEnPanne: "The map could not load. Reload the page.",
   chargementCarte: "Loading the map…",
   connecte: "Signed in:",

@@ -34,8 +34,9 @@ export const FEUILLES: readonly { fichier: string; pages: typeof TOUTES | readon
   // « Plus calme », le second lot des remarques du 12 novembre 2026.
   { fichier: "07-calme.css", pages: TOUTES },
   { fichier: "08-alliance.css", pages: ["/carte", "/direction"] },
-  // « Mon Gaulois » (/village) : les onglets, le marché, le vestiaire, la bourse et la boutique.
-  { fichier: "09-village.css", pages: ["/village", "/direction"] },
+  // « Mon Gaulois » (/village) : les onglets, le marché, le vestiaire, la bourse et la boutique. « Mon compte » montre le
+  // vestiaire à l'inscription (ParcoursArrivee.tsx, 15 novembre 2026).
+  { fichier: "09-village.css", pages: ["/compte", "/village", "/direction"] },
   // Le classement en colonne et les fenêtres de la Carte.
   { fichier: "10-carte-colonne.css", pages: ["/carte", "/direction"] },
   // L'onglet Comptes de la Direction.
@@ -44,7 +45,8 @@ export const FEUILLES: readonly { fichier: string; pages: typeof TOUTES | readon
   // Le Gaulois compagnon, sur toutes les pages.
   { fichier: "13-compagnon.css", pages: TOUTES },
   // La forge de « Mon Gaulois » ; le monde du village, qui partageait ce morceau, est retiré depuis le 15 novembre 2026.
-  { fichier: "14-forge.css", pages: ["/village", "/direction"] },
+  // « Mon compte » aussi : le vestiaire de l'inscription montre les plaques de la forge.
+  { fichier: "14-forge.css", pages: ["/compte", "/village", "/direction"] },
 ];
 
 /** Les morceaux qu'une page charge, dans l'ordre de la cascade. `route` : le motif de la page (`/membres/[id]`). */

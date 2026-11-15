@@ -24,8 +24,9 @@ import { masqueDeLaZone } from "../../../lib/alliance/masque";
 import { FR, textesDe, type Textes } from "../../../lib/alliance/textes";
 import type { AccesCarte, AllianceLigne, CarteAlliance, MessageAlliance, MessageEpingle } from "../../../lib/alliance/types";
 import { voisinsDe } from "../../../lib/alliance/voisins";
-import { ServerError, call, mayHaveSession, signOut, supabase } from "../../../lib/compte/api";
+import { ServerError, basePath, call, mayHaveSession, signOut, supabase } from "../../../lib/compte/api";
 import { COULEUR_PERDU, COULEUR_PRIS, ecranAlliance, type Chargement, type Survol, type ZoneAffichee } from "../../../scripts/alliance-ecran";
+import { useGauloisCree } from "../../compte/arrivee";
 import { CodeLogin, DiscordButton, DiscordGives, Problem, codeLoginShown, messageIn, usePlayerView } from "../../compte/common";
 import AllianceCapture from "./AllianceCapture";
 import AllianceGestion from "./AllianceGestion";
@@ -246,6 +247,11 @@ export default function AllianceApp() {
   const playerView = usePlayerView();
 
   const access: AccesCarte | null = carte.status === "prete" ? carte.donnees.access : null;
+  // Un Gaulois entre une fois son Gaulois créé (src/lib/compte/arrivee.ts) ; un joueur allié n'en a pas à créer, ni
+  // l'encadrement, qui y accepte les zones et les joueurs des alliés (comme la Direction, jamais fermée). Un écran, pas un
+  // droit : le serveur donne la carte à tout membre validé.
+  const gauloisDemande = access?.kind === "gaulois" && !access.staff;
+  const gaulois = useGauloisCree(gauloisDemande ? `${access.tag}-${access.name}` : null);
   // Sans choix gardé : la langue du navigateur pour un joueur invité ou allié, le français pour un Gaulois.
   // Le joueur a ouvert son lien d'invitation et attend l'accord de l'encadrement.
   const attenteEnCours = carte.status === "prete" && carte.donnees.access === null && Boolean(carte.donnees.waiting);
@@ -694,6 +700,29 @@ export default function AllianceApp() {
         </div>
       );
     }
+
+    // Le Gaulois se crée dans « Mon compte », où se finit l'inscription.
+    if (gauloisDemande && gaulois === undefined)
+      return (
+        <>
+          {enTete()}
+          <p class="text-muted" role="status">
+            {t.lectureCarte}
+          </p>
+        </>
+      );
+    if (gauloisDemande && gaulois === false)
+      return (
+        <div data-testid="alliance-gaulois">
+          {enTete()}
+          <p>
+            <strong>{t.gauloisAttendu}</strong>
+          </p>
+          <a class="btn btn-primary mt-3" href={`${basePath()}/compte`} hreflang="fr">
+            {t.creerGaulois}
+          </a>
+        </div>
+      );
 
     if (chargeErreur)
       return (
