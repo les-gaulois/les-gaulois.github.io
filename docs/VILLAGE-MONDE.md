@@ -610,3 +610,17 @@ C'est le seul usage de l'API Claude hors des bulles, demandé par le pilote (rè
 - **Tests** : `tests/unit/village-almanach-*.test.ts`, avec un faux client. Ils couvrent les ancres à 0, 1, 50, 300 et
   1 000 Gaulois, chaque règle de validation, le programme, la consigne sans données, le plafond, les lots inconnus du
   compte et les réponses sans `usage`.
+
+### L'écriture faite (15 novembre 2026, nuit)
+
+- **L'essai** (run 43661380946) : une requête, 10 moments lus, 10 valides, 0,49 $. Regardés dans le vrai monde sur des
+  planches : le pêcheur lance au gué, le colporteur passe devant le moulin avec un chat, la biche et son faon traversent
+  la lisière.
+- **Le lot** (run 43661651687) :
+  - premier lot : 65 requêtes, 650 moments lus et tous valides, dont 460 gardés et 190 doublons écartés (14,46 $) ;
+  - complément : 33 requêtes, 329 valides sur 330 (un titre refusé), 190 gardés (8,24 $) ;
+  - aucune requête perdue.
+- **Ce qu'on a** : 650 moments gardés pour 23,18 $ en tout, essai compris, sous le plafond de 60 $ (`ecriture.json`).
+  Les 50 figurants, les 24 lieux et les quatre moments de la journée sont tous servis : 258 moments de jour, 208 de nuit,
+  184 au crépuscule et 162 à l'aube, un moment pouvant valoir pour plusieurs.
+- `essai.json` est resté sur la branche `robot/almanach` : le site ne le lit pas.

@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-15",
+    "kind": "nouveau",
+    "title": "L'almanach des petits moments",
+    "body": "De temps en temps, un moment rare passe dans le village : un vol d'oies, un renard au puits, la brume sur le gué. Il y en a 650, et on revoit rarement le même.",
+    "link": {
+      "href": "/village",
+      "label": "Voir le village"
+    }
+  },
+  {
+    "date": "2026-11-15",
     "kind": "ameliore",
     "title": "La Direction sur tout l'écran",
     "body": "La Direction prend toute la largeur de l'écran, le QG toute celle du site. Sur grand écran, leurs parties sont listées à gauche, toujours visibles, et la partie choisie remplit le reste."
