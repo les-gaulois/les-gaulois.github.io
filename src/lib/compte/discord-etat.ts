@@ -10,7 +10,7 @@
 import type { DiscordCalls, LastSend } from "./discord-appels";
 import type { SavedImage } from "./discord-images";
 import type { MessageSalon, SentMessage } from "./discord-message";
-import { checkFails, type RobotCheck, type RobotSalon, type RobotSalonId } from "./discord-salons";
+import { checkFails, ROBOT_SALON_TEXTS, type RobotCheck, type RobotSalon, type RobotSalonId } from "./discord-salons";
 
 export type EtatTon = "ok" | "warn" | "danger" | "ally" | "muted";
 
@@ -83,6 +83,9 @@ export function etatDuSalon(salon: RobotSalon): Etat {
     const controle = check?.source === "direction" && !essaiPlusRecent ? etatDuControle(check, { ton: "danger", mot: "Lien refusé" }) : null;
     return lePlusGrave([controle, etatDuDernierEnvoi(last)]) ?? BRANCHE;
   }
+  // Un salon de repli (les achats) suit un autre salon du robot : ses messages partent quand même.
+  const repli = ROBOT_SALON_TEXTS.find((text) => text.id === salon.id)?.repli;
+  if (repli) return { ton: "ally", mot: repli.etat };
   if (check?.source !== "secret") return PAS_REGLE;
   return etatDuControle(check, { ton: "danger", mot: "Secret GitHub refusé" }) ?? { ton: "ally", mot: "Par le secret GitHub" };
 }
@@ -165,7 +168,7 @@ export interface EtatDuMenu extends Etat {
 export const ETAT_NON_LU: EtatDuMenu = { ton: "muted", mot: "État non lu" };
 
 /** Le nom court d'un salon du robot, devant son état sur la ligne du menu. */
-export const NOMS_COURTS: Readonly<Record<RobotSalonId, string>> = { nouvelles: "Nouvelles", encadrement: "Encadrement", victoires: "Victoires", alliance: "Alliance" };
+export const NOMS_COURTS: Readonly<Record<RobotSalonId, string>> = { nouvelles: "Nouvelles", encadrement: "Encadrement", victoires: "Victoires", alliance: "Alliance", achats: "Achats" };
 
 /** La ligne « Salons du robot » : l'état de chaque salon, avec son nom. Rien tant que la lecture n'est pas faite. */
 export function etatsDuMenuSalons(salons: Lu<readonly RobotSalon[]>): EtatDuMenu[] {

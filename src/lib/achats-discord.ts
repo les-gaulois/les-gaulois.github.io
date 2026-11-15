@@ -1,7 +1,8 @@
 /**
- * Les achats du village des Gaulois sur le salon des nouvelles, à côté des bâtiments finis (`chantier-discord.ts`). Demande du
- * pilote, 14 novembre 2026 : « dans le webhook qui notifie des constructions du village, marquer aussi les achats faits dans
- * le jeu par les joueurs, avec l'image du cosmétique ». Une image par Gaulois : son nom, et chaque objet reçu dessiné en
+ * Les achats du village des Gaulois sur Discord. Demande du pilote, 14 novembre 2026 : « dans le webhook qui notifie des
+ * constructions du village, marquer aussi les achats faits dans le jeu par les joueurs, avec l'image du cosmétique » ; puis,
+ * le 15 novembre, toutes les 5 minutes (workflow `victoires.yml`) et dans un salon à choisir dans Direction > Discord (le
+ * salon des achats, sinon celui des nouvelles, `SALON_REPLI` de `salon-lien.ts`). Une image par Gaulois : son nom, et chaque objet reçu dessiné en
  * pixels, avec sa rareté, d'où il vient et son heure (`achats-image.ts`), puis un bouton vers `/village`, sans texte. Le texte
  * ne part que si l'image ne se dessine pas, ou si Discord la refuse (`discord-post.ts`).
  *
@@ -15,10 +16,11 @@
  *   de secours : le pseudo public d'aujourd'hui, sinon « Gaulois n° » et le numéro du compte, jamais le nom du QG, qui
  *   garderait le pseudo d'un membre qui l'a caché depuis. Avant cette migration, le serveur ne rend que le nom de secours.
  * - **Au premier passage**, le robot note le dernier numéro du journal sans rien envoyer : les achats d'avant ne partent pas.
- *   Un état illisible repart de même, avec un avertissement : un achat de l'heure peut s'y perdre.
+ *   Un état illisible repart de même, avec un avertissement : un achat des dernières minutes peut s'y perdre.
  * - **Un achat annoncé n'est pas réannoncé** : le robot note le dernier numéro traité (`jusqu_a`) et, au-delà, les achats déjà
- *   annoncés (`envoyes`). Un envoi refusé arrête le passage : il est retenté au suivant, et ceux d'avant restent notés. Même
- *   limite que les autres envois : si l'état n'a pas pu être enregistré, une annonce envoyée mais non notée repart une fois.
+ *   annoncés (`envoyes`), après chaque annonce acceptée (`note`) et dans une copie gardée par le cache du workflow
+ *   (`mergeAchatsStates`). Un envoi refusé arrête le passage : il est retenté au suivant, et ceux d'avant restent notés.
+ * - **Direction illisible** : le salon choisi n'est pas connu, rien ne part ce passage-là (`scripts/envoyer-achats.ts`).
  * - Les achats d'un même Gaulois vont sur la même image, quatre au plus ; cinq images au plus par passage, le reste part au
  *   suivant. Un achat de plus de 48 heures n'est plus annoncé : ce n'est plus une nouvelle (robot arrêté longtemps).
  * L'état est noté dans `data/achats-envoi.json`, écrit par le robot seulement : des numéros et des heures, aucun nom.
@@ -55,7 +57,22 @@ export const AchatsSendState = z.object({
 export type AchatsSendState = z.infer<typeof AchatsSendState>;
 
 /** L'état noté. Illisible : `null` et un avertissement ; le passage repart alors comme au premier. */
-export const parseAchatsState = (raw: string | null) => parseNoted(AchatsSendState, raw, "les achats d'avant sont notés comme connus, rien n'est envoyé pour eux");
+export const parseAchatsState = (raw: string | null, restart = "les achats d'avant sont notés comme connus, rien n'est envoyé pour eux") => parseNoted(AchatsSendState, raw, restart);
+
+/**
+ * L'état noté dans `data/` et sa copie gardée par le cache du workflow, réunis : le plus avancé des deux numéros, les achats
+ * annoncés de l'un ou de l'autre au-delà, le premier départ et le dernier envoi. Si l'enregistrement sur main a échoué, la
+ * copie garde ce qui est parti, et rien ne repart au passage suivant. `null` : ni l'un ni l'autre.
+ */
+export function mergeAchatsStates(...states: readonly (AchatsSendState | null)[]): AchatsSendState | null {
+  const present = states.filter((s): s is AchatsSendState => s !== null);
+  if (present.length === 0) return null;
+  const jusqu_a = Math.max(...present.map((s) => s.jusqu_a));
+  const envoyes = [...new Set(present.flatMap((s) => s.envoyes))].filter((id) => id > jusqu_a).sort((a, b) => a - b);
+  const depuis = present.map((s) => s.depuis).sort()[0]!;
+  const envois = present.map((s) => s.dernier_envoi).filter((d): d is string => d !== null).sort();
+  return { depuis, jusqu_a, envoyes, dernier_envoi: envois.at(-1) ?? null };
+}
 
 /** D'où vient l'objet : les natures du journal des statères. */
 export const NATURES = ["achat", "pochette", "marche_achat"] as const;
@@ -300,6 +317,8 @@ export interface AchatsPassDeps {
   now: Date;
   /** Envoie l'annonce. `true` : Discord l'a acceptée. */
   send: (annonce: AnnonceDesAchats) => Promise<boolean>;
+  /** Note l'état après chaque annonce acceptée : un passage coupé en route garde ce qui est parti. */
+  note?: (state: AchatsSendState) => void;
   log: (line: string) => void;
 }
 
@@ -320,7 +339,7 @@ function sansLecture(lecture: Exclude<LectureDesAchats, { etat: "lu" }>, log: (l
  * Un passage du robot : lit, décide, envoie au besoin, et rend l'état à noter. Un achat ne devient connu qu'après un envoi
  * accepté ; après un échec, le passage suivant réessaie.
  */
-export async function achatsPass({ stored, lire, now, send, log }: AchatsPassDeps): Promise<AchatsPassResult> {
+export async function achatsPass({ stored, lire, now, send, note, log }: AchatsPassDeps): Promise<AchatsPassResult> {
   const lecture = await lire(stored ? stored.jusqu_a : null);
   if (lecture.etat !== "lu") return sansLecture(lecture, log);
   if (lecture.inconnus > 0) log(`::warning::Achats du village : ${lecture.inconnus > 1 ? `${lecture.inconnus} achats d'objets` : "1 achat d'un objet"} que ce code ne sait pas dessiner, non annoncé${lecture.inconnus > 1 ? "s" : ""}.`);
@@ -349,6 +368,7 @@ export async function achatsPass({ stored, lire, now, send, log }: AchatsPassDep
     partis++;
     envoyes.push(...annonce.achats.map((a) => a.id));
     dernierEnvoi = now.toISOString();
+    note?.({ ...stored, envoyes: [...envoyes].sort((a, b) => a - b), dernier_envoi: dernierEnvoi });
     log(`::notice::Achats du village : ${nouveauxObjets(annonce.achats.length)}, annonce acceptée par Discord.`);
   }
   const reste = annonces.length - partis;

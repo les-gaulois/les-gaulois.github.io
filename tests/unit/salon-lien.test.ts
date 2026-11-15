@@ -233,3 +233,60 @@ describe("la migration du salon des victoires", () => {
     });
   });
 });
+
+describe("le salon des achats du village", () => {
+  const ACHATS = "https://discord.com/api/webhooks/623456789012345678/achatsachatsachatsachatsach";
+  it("son lien d'abord ; sans lui, celui des nouvelles réglé dans la Direction ; sinon le secret des nouvelles", () => {
+    expect(chooseLink("achats", { nouvelles: NEWS, achats: ACHATS }, OLD)).toEqual({ link: ACHATS, source: "direction" });
+    expect(chooseLink("achats", { nouvelles: NEWS, achats: null }, OLD)).toEqual({ link: NEWS, source: "direction" });
+    expect(chooseLink("achats", { nouvelles: null, achats: null }, ` ${OLD} `)).toEqual({ link: OLD, source: "secret" });
+    expect(chooseLink("achats", null, "")).toEqual({ link: null, source: "none" });
+    // Les autres salons n'ont pas de repli : celui des nouvelles ne sert qu'aux achats.
+    expect(chooseLink("victoires", { nouvelles: NEWS }, "")).toEqual({ link: null, source: "none" });
+  });
+  it("le robot lit la Direction, puis prend le secret DISCORD_WEBHOOK_GAZETTE, comme avant ce réglage", async () => {
+    expect(await salonLink("achats", ENV, answering({ nouvelles: NEWS, encadrement: null }))).toEqual({ link: NEWS, source: "direction", warning: null });
+    expect(await salonLink("achats", ENV, answering({ nouvelles: null, encadrement: null }))).toEqual({ link: OLD, source: "secret", warning: null });
+    expect(await salonLink("achats", ENV, answering({ nouvelles: NEWS, encadrement: null, achats: ACHATS }))).toEqual({ link: ACHATS, source: "direction", warning: null });
+  });
+  it("le contrôle du passage ne le lit et ne le note que s'il a son lien ; sinon il dit qu'il suit les nouvelles", async () => {
+    const run = async (call: DirectionCall) => {
+      const logs: string[] = [];
+      const noted: Parameters<NoteCall>[2][] = [];
+      const get = vi.fn(async () => new Response(JSON.stringify({ name: "Achats" }), { status: 200 }));
+      const fine = await checkSalons({ env: { ...ENV, DISCORD_WEBHOOK_ENCADREMENT: STAFF }, fetch: get as unknown as typeof fetch, log: (l) => logs.push(l), call, note: async (_u, _k, args) => void noted.push(args) });
+      return { fine, logs, noted, get };
+    };
+    const sansLien = await run(answering({ nouvelles: NEWS, encadrement: null, victoires: null, achats: null }));
+    expect(sansLien.fine).toBe(true);
+    expect(sansLien.noted.map((n) => n.p_salon)).toEqual(["nouvelles", "encadrement", "victoires"]);
+    expect(sansLien.get).not.toHaveBeenCalledWith(ACHATS, expect.anything());
+    expect(sansLien.logs).toContain("Salon des achats du village : pas de lien réglé pour lui, ses messages partent dans le salon des nouvelles.");
+    const avecLien = await run(answering({ nouvelles: NEWS, encadrement: null, victoires: null, achats: ACHATS }));
+    expect(avecLien.get).toHaveBeenCalledWith(ACHATS, { method: "GET", redirect: "error" });
+    expect(avecLien.noted.at(-1)).toEqual({ p_salon: "achats", p_source: "direction", p_status: 200, p_name: "Achats" });
+    // Direction illisible : son lien n'est pas connu, le journal ne prétend pas qu'il n'en a pas.
+    const panne = await run(failing("panne"));
+    expect(panne.logs).toContain("Salon des achats du village : liens de la Direction non lus, son lien n'est pas connu : pas de contrôle à ce passage.");
+    expect(panne.logs.join("\n")).not.toContain("pas de lien réglé pour lui");
+  });
+});
+
+describe("la migration du salon des achats", () => {
+  const SQL = readFileSync("supabase/migrations/20261115000200_salon_des_achats.sql", "utf8");
+  const outside = SQL.split("$$").filter((_, i) => i % 2 === 0).join(" ");
+  it("n'efface aucune ligne : ses seuls « drop » retirent les deux contrôles des salons, aussitôt remplacés", () => {
+    expect(SQL).not.toMatch(/\b(truncate|drop\s+(table|column|function|schema|policy))\b/i);
+    expect(outside.replace(/^\s*--.*$/gm, "")).not.toMatch(/\b(delete|update)\b/i);
+    expect(outside.replace(/^\s*--.*$/gm, "").match(/\bdrop\b/gi)).toHaveLength(2);
+    expect(outside).toContain("check (salon in ('nouvelles', 'encadrement', 'victoires', 'alliance', 'achats'))");
+    expect(outside).toContain("check (salon in ('nouvelles', 'encadrement', 'victoires', 'achats'))");
+  });
+  it("permet le salon des achats au réglage, au robot et à son contrôle, et garde les droits", () => {
+    expect(SQL.match(/'nouvelles', 'encadrement', 'victoires', 'alliance', 'achats'/g)).toHaveLength(5);
+    expect(SQL).toContain("'achats', (select webhook_url from internal.discord_salons where salon = 'achats')");
+    expect(SQL).toContain("p_salon not in ('nouvelles', 'encadrement', 'victoires', 'achats')");
+    expect(SQL).toContain("grant execute on function public.robot_discord_salons() to service_role;");
+    expect(SQL).not.toMatch(/grant execute on function public\.(robot_discord_salons|note_discord_salon)\([^)]*\) to (anon|authenticated)/);
+  });
+});

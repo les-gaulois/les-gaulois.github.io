@@ -9,6 +9,7 @@ import {
   IMAGES_PAR_PASSAGE,
   lireAchats,
   lireReponseDesAchats,
+  mergeAchatsStates,
   NATURES,
   nomAffiche,
   OBJETS_PAR_IMAGE,
@@ -67,6 +68,21 @@ describe("l'état noté des envois", () => {
       expect(read.state).toBeNull();
       expect(read.warning).toContain("rien n'est envoyé pour eux");
     }
+  });
+});
+
+describe("les deux copies de l'état", () => {
+  const A: AchatsSendState = { depuis: "2026-11-15T00:10:00.000Z", jusqu_a: 476, envoyes: [], dernier_envoi: null };
+  it("réunies : le numéro le plus avancé, les annonces au-delà, le premier départ, le dernier envoi", () => {
+    const enCache: AchatsSendState = { depuis: "2026-11-15T00:10:00.000Z", jusqu_a: 476, envoyes: [480, 478], dernier_envoi: "2026-11-15T01:00:00.000Z" };
+    expect(mergeAchatsStates(A, enCache)).toEqual({ ...A, envoyes: [478, 480], dernier_envoi: "2026-11-15T01:00:00.000Z" });
+    const plusLoin: AchatsSendState = { depuis: "2026-11-15T02:00:00.000Z", jusqu_a: 479, envoyes: [481], dernier_envoi: "2026-11-15T00:50:00.000Z" };
+    expect(mergeAchatsStates(enCache, plusLoin)).toEqual({ depuis: "2026-11-15T00:10:00.000Z", jusqu_a: 479, envoyes: [480, 481], dernier_envoi: "2026-11-15T01:00:00.000Z" });
+  });
+  it("une seule copie : elle-même ; aucune : null", () => {
+    expect(mergeAchatsStates(null, A)).toEqual(A);
+    expect(mergeAchatsStates(A, null)).toEqual(A);
+    expect(mergeAchatsStates(null, null)).toBeNull();
   });
 });
 
@@ -208,7 +224,10 @@ describe("achatsPass", () => {
     const b = achat(PAR_RARETE[1]!, { id: 102, compte: 2 });
     const c = achat(PAR_RARETE[2]!, { id: 103, compte: 3 });
     const first = setup(STORED, lu([a, b, c], 103), [true, false]);
-    const result = await achatsPass(first.deps);
+    const notes: AchatsSendState[] = [];
+    const result = await achatsPass({ ...first.deps, note: (s) => notes.push(s) });
+    // Noté aussitôt après l'annonce acceptée : un passage coupé en route garde ce qui est parti.
+    expect(notes).toEqual([{ ...STORED, envoyes: [101], dernier_envoi: NOW.toISOString() }]);
     expect(result).toEqual({ state: { ...STORED, jusqu_a: 100, envoyes: [101], dernier_envoi: NOW.toISOString() }, failed: true });
     const next = setup(result.state, lu([a, b, c], 103));
     const after = await achatsPass(next.deps);

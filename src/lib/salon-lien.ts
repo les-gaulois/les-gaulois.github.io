@@ -7,20 +7,29 @@
  * - Le salon de l'encadrement : les demandes qui attendent et le compte rendu des sauvegardes.
  * - Le salon des victoires, depuis le 11 novembre 2026 (migration `20261111000500_salon_des_victoires.sql`) : chaque victoire du
  *   clan, avec l'image de la carte. Un serveur sans cette migration ne le connaît pas : le robot prend alors son secret.
+ * - Le salon des achats du village, depuis le 15 novembre 2026 (migration `20261115000200_salon_des_achats.sql`) : les objets
+ *   reçus au village des Gaulois. Il n'a pas de secret GitHub propre : sans lien réglé pour lui, les achats suivent le salon
+ *   des nouvelles (`SALON_REPLI`), lien de la Direction puis secret, comme avant ce réglage.
  * À chaque passage, le robot lit aussi chaque webhook sans rien poster (`probeWebhook`) et note la réponse de Discord pour
  * l'espace Direction : un webhook supprimé s'y voit.
  * Le lien vaut un mot de passe pour le salon : il n'est écrit dans aucun journal, même d'erreur.
  */
 import { isWebhookUrl } from "./gazette-discord";
 
-export type RobotSalon = "nouvelles" | "encadrement" | "victoires";
-export const ROBOT_SALONS: readonly RobotSalon[] = ["nouvelles", "encadrement", "victoires"];
+export type RobotSalon = "nouvelles" | "encadrement" | "victoires" | "achats";
+export const ROBOT_SALONS: readonly RobotSalon[] = ["nouvelles", "encadrement", "victoires", "achats"];
 
-/** Le secret GitHub de chaque salon, qui sert quand rien n'est réglé dans la Direction. */
-export const SALON_SECRETS: Record<RobotSalon, string> = { nouvelles: "DISCORD_WEBHOOK_GAZETTE", encadrement: "DISCORD_WEBHOOK_ENCADREMENT", victoires: "DISCORD_WEBHOOK_VICTOIRES" };
+/**
+ * Le secret GitHub de chaque salon, qui sert quand rien n'est réglé dans la Direction. Les achats n'ont pas le leur : celui
+ * des nouvelles, par leur salon de repli.
+ */
+export const SALON_SECRETS: Record<RobotSalon, string> = { nouvelles: "DISCORD_WEBHOOK_GAZETTE", encadrement: "DISCORD_WEBHOOK_ENCADREMENT", victoires: "DISCORD_WEBHOOK_VICTOIRES", achats: "DISCORD_WEBHOOK_GAZETTE" };
+
+/** Le salon dont un salon prend le lien quand rien n'est réglé pour lui dans la Direction. */
+export const SALON_REPLI: Partial<Record<RobotSalon, RobotSalon>> = { achats: "nouvelles" };
 
 /** « Salon des nouvelles », pour le journal de l'Action. */
-export const SALON_LABELS: Record<RobotSalon, string> = { nouvelles: "Salon des nouvelles", encadrement: "Salon de l'encadrement", victoires: "Salon des victoires" };
+export const SALON_LABELS: Record<RobotSalon, string> = { nouvelles: "Salon des nouvelles", encadrement: "Salon de l'encadrement", victoires: "Salon des victoires", achats: "Salon des achats du village" };
 
 /** D'où vient le lien : réglé dans la Direction, secret GitHub, ou aucun. */
 export type LinkSource = "direction" | "secret" | "none";
@@ -38,10 +47,16 @@ export type DirectionLinks = Partial<Record<RobotSalon, string | null>>;
 /** Lit `robot_discord_salons` avec la clé de service. Lève une erreur si le serveur refuse ou ne répond pas. */
 export type DirectionCall = (url: string, key: string) => Promise<unknown>;
 
-/** Le lien de la Direction d'abord, sinon le secret. Un copier-coller peut laisser une espace autour du secret. */
+/**
+ * Le lien de la Direction d'abord, sinon le secret. Un copier-coller peut laisser une espace autour du secret. Un salon de
+ * repli (`SALON_REPLI`) sans lien à lui prend ensuite le lien de la Direction de son repli, puis le secret.
+ */
 export function chooseLink(salon: RobotSalon, direction: DirectionLinks | null, secret: string | undefined): Omit<SalonLink, "warning"> {
   const fromDirection = direction?.[salon]?.trim();
   if (fromDirection) return { link: fromDirection, source: "direction" };
+  const repli = SALON_REPLI[salon];
+  const fromRepli = repli ? direction?.[repli]?.trim() : undefined;
+  if (fromRepli) return { link: fromRepli, source: "direction" };
   const fromSecret = secret?.trim();
   if (fromSecret) return { link: fromSecret, source: "secret" };
   return { link: null, source: "none" };
@@ -185,6 +200,16 @@ export async function checkSalons({ env, fetch: get, log, call = callSupabase, n
   if (warning) log(`::warning::Salons Discord : ${warning}.`);
   let fine = true;
   for (const salon of ROBOT_SALONS) {
+    // Sans lien à lui, un salon de repli suit son repli, déjà contrôlé : rien à lire ni à noter deux fois.
+    const repli = SALON_REPLI[salon];
+    if (repli && links === null) {
+      log(`${SALON_LABELS[salon]} : liens de la Direction non lus, son lien n'est pas connu : pas de contrôle à ce passage.`);
+      continue;
+    }
+    if (repli && !links?.[salon]?.trim()) {
+      log(`${SALON_LABELS[salon]} : pas de lien réglé pour lui, ses messages partent dans le ${SALON_LABELS[repli].toLocaleLowerCase("fr")}.`);
+      continue;
+    }
     const link = { ...chooseLink(salon, links, env[SALON_SECRETS[salon]]), warning };
     const probe = await probeWebhook(salon, link, get, log);
     // Un lien mal formé ou inconnu de Discord ne laissera rien partir. Une absence de réponse peut n'être que passagère.

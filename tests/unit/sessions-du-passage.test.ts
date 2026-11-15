@@ -280,6 +280,7 @@ describe("le workflow des victoires", () => {
 
   it("ne garde pas le fichier dans son cache : il ne passe jamais d'un passage à l'autre", () => {
     expect(yml).not.toContain("sessions-du-passage");
-    expect([...yml.matchAll(/^\s+path: (.+?)\s*$/gm)].map((m) => m[1])).toEqual([".cache/victoires-envoi.json", ".cache/victoires-envoi.json"]);
+    // Seules les copies de l'état des envois passent d'un passage à l'autre : celle des victoires, puis celle des achats du village.
+    expect([...yml.matchAll(/^\s+path: (.+?)\s*$/gm)].map((m) => m[1])).toEqual([".cache/victoires-envoi.json", ".cache/victoires-envoi.json", ".cache/achats-envoi.json", ".cache/achats-envoi.json"]);
   });
 });

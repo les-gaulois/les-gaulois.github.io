@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkFails, checkSentence, isSalonWaiting, parseDiscordSalons, ROBOT_SALON_TEXTS, testSentence, type RobotCheck } from "../../src/lib/compte/discord-salons";
+import { checkFails, checkSentence, isSalonWaiting, parseDiscordSalons, phraseAvantDebranchement, phraseDebranche, phraseSansReglage, ROBOT_SALON_TEXTS, testSentence, type RobotCheck } from "../../src/lib/compte/discord-salons";
 
 const NOW = "2026-11-11T16:00:00.000Z";
 const when = (iso: string) => `[${iso}]`;
@@ -79,7 +79,7 @@ describe("les phrases", () => {
 describe("le salon des victoires", () => {
   const WINS = ROBOT_SALON_TEXTS.find((t) => t.id === "victoires")!;
   it("vient après les deux autres, avec son secret de secours", () => {
-    expect(ROBOT_SALON_TEXTS.map((t) => t.id)).toEqual(["nouvelles", "encadrement", "victoires", "alliance"]);
+    expect(ROBOT_SALON_TEXTS.map((t) => t.id)).toEqual(["nouvelles", "encadrement", "victoires", "alliance", "achats"]);
     expect(WINS.secret).toBe("DISCORD_WEBHOOK_VICTOIRES");
   });
   it("un serveur sans sa migration ne le rend pas : la page montre les deux autres, sans erreur", () => {
@@ -97,8 +97,8 @@ describe("le salon des victoires", () => {
 
 describe("le salon de l'alliance", () => {
   const ALLIANCE = ROBOT_SALON_TEXTS.find((t) => t.id === "alliance")!;
-  it("vient en dernier, sans secret GitHub : c'est le serveur qui y poste", () => {
-    expect(ROBOT_SALON_TEXTS.at(-1)?.id).toBe("alliance");
+  it("vient après les victoires, sans secret GitHub : c'est le serveur qui y poste", () => {
+    expect(ROBOT_SALON_TEXTS.findIndex((t) => t.id === "alliance")).toBe(ROBOT_SALON_TEXTS.findIndex((t) => t.id === "victoires") + 1);
     expect(ALLIANCE.secret).toBeNull();
     expect(ALLIANCE.optional).toBe(true);
   });
@@ -109,5 +109,35 @@ describe("le salon de l'alliance", () => {
   });
   it("sans lien, la phrase ne parle d'aucun secret", () => {
     expect(checkSentence({ at: NOW, source: "none", status: null, name: null }, ALLIANCE, when)).toBe(`Contrôle du robot, le [${NOW}] : aucun lien. Rien ne part dans ce salon.`);
+  });
+});
+
+describe("le salon des achats du village", () => {
+  const ACHATS = ROBOT_SALON_TEXTS.find((t) => t.id === "achats")!;
+  const NEWS_TEXT = ROBOT_SALON_TEXTS.find((t) => t.id === "nouvelles")!;
+  const STAFF_TEXT = ROBOT_SALON_TEXTS.find((t) => t.id === "encadrement")!;
+  const ALLIANCE = ROBOT_SALON_TEXTS.find((t) => t.id === "alliance")!;
+  it("vient en dernier, sans secret à lui, et suit le salon des nouvelles sans lien ici", () => {
+    expect(ROBOT_SALON_TEXTS.at(-1)?.id).toBe("achats");
+    expect(ACHATS.secret).toBeNull();
+    expect(ACHATS.optional).toBe(true);
+    expect(phraseSansReglage(ACHATS)).toBe("Sans lien ici, les achats partent dans le salon des nouvelles.");
+    expect(phraseDebranche(ACHATS)).toBe("Salon débranché. Sans lien ici, les achats partent dans le salon des nouvelles.");
+    expect(phraseAvantDebranchement(ACHATS)).toBe("Une fois débranché, les achats partent dans le salon des nouvelles.");
+    expect(NEWS_TEXT.intro).toContain("les achats du village tant que leur salon n'est pas branché");
+  });
+  it("les phrases des autres salons ne changent pas", () => {
+    expect(phraseSansReglage(NEWS_TEXT)).toBe("Le robot prend le secret GitHub DISCORD_WEBHOOK_GAZETTE, s'il existe.");
+    expect(phraseSansReglage(STAFF_TEXT)).toBe(`Le robot prend le secret GitHub DISCORD_WEBHOOK_ENCADREMENT, s'il existe. ${STAFF_TEXT.secretNote}`);
+    expect(phraseSansReglage(ALLIANCE)).toBe("Rien ne part dans ce salon tant qu'il n'est pas branché ici.");
+    expect(phraseDebranche(NEWS_TEXT)).toBe("Salon débranché. Le robot reprend le secret GitHub DISCORD_WEBHOOK_GAZETTE, s'il existe.");
+    expect(phraseDebranche(ALLIANCE)).toBe("Salon débranché. Plus rien n'y part.");
+    expect(phraseAvantDebranchement(NEWS_TEXT)).toBe("Le robot reprendra le secret GitHub DISCORD_WEBHOOK_GAZETTE s'il existe ; sinon, plus rien ne partira dans ce salon.");
+    expect(phraseAvantDebranchement(ALLIANCE)).toBe("Plus rien ne partira dans ce salon.");
+  });
+  it("un serveur sans sa migration ne le rend pas ; avec elle, il se relit comme les autres", () => {
+    const quatre = [unset("nouvelles"), unset("encadrement"), unset("victoires"), unset("alliance")];
+    expect(parseDiscordSalons(answer(quatre))?.map((s) => s.id)).toEqual(["nouvelles", "encadrement", "victoires", "alliance"]);
+    expect(parseDiscordSalons(answer([...quatre, unset("achats")]))?.map((s) => s.id)).toEqual(["nouvelles", "encadrement", "victoires", "alliance", "achats"]);
   });
 });

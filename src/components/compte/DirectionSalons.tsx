@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { call } from "../../lib/compte/api";
 import { isWebhookLink } from "../../lib/compte/discord-appels";
-import { checkFails, checkSentence, isSalonWaiting, parseDiscordSalons, ROBOT_SALON_TEXTS, testSentence, type RobotSalon, type RobotSalonText } from "../../lib/compte/discord-salons";
+import { checkFails, checkSentence, isSalonWaiting, parseDiscordSalons, phraseAvantDebranchement, phraseDebranche, phraseSansReglage, ROBOT_SALON_TEXTS, testSentence, type RobotSalon, type RobotSalonText } from "../../lib/compte/discord-salons";
 import { errorMessage } from "../../lib/compte/errors";
 import { etatDuSalon } from "../../lib/compte/discord-etat";
 import { fmtDateTime } from "../../lib/format";
@@ -14,7 +14,8 @@ const FOLLOW_UP_MS = [1_500, 4_000, 10_000, 30_000];
 
 /**
  * Les salons Discord du robot, pour les admins et le fondateur : le salon des nouvelles, celui de l'encadrement et, quand le
- * serveur a leur migration, celui des victoires et celui de l'alliance (où le serveur poste lui-même, sans secret GitHub).
+ * serveur a leur migration, celui des victoires, celui de l'alliance (où le serveur poste lui-même, sans secret GitHub) et
+ * celui des achats du village (sans lien ici, les achats suivent le salon des nouvelles).
  * Le robot de la GitHub Action y poste avec le lien réglé ici, sinon avec le secret GitHub. Le lien n'est jamais relu :
  * le serveur le garde, et le champ se vide après l'enregistrement. Chaque enregistrement envoie un essai, sans mention ;
  * la page relit ensuite la réponse de Discord, et montre le dernier contrôle du robot, fait à chaque passage.
@@ -148,7 +149,7 @@ function SalonPart({ text, salon, reload, level }: { text: RobotSalonText; salon
   };
 
   const { armed, bouton: debrancher } = useSecondClic(() => {
-    void act(() => call("clear_discord_salon", { p_salon: text.id }), text.secret ? `Salon débranché. Le robot reprend le secret GitHub ${text.secret}, s'il existe.` : "Salon débranché. Plus rien n'y part.");
+    void act(() => call("clear_discord_salon", { p_salon: text.id }), phraseDebranche(text));
   });
 
   const etat = etatDuSalon(salon);
@@ -178,7 +179,7 @@ function SalonPart({ text, salon, reload, level }: { text: RobotSalonText; salon
             )
           ) : (
             <p class="text-sm text-muted">
-              {text.secret ? `Le robot prend le secret GitHub ${text.secret}, s'il existe.${text.secretNote ? ` ${text.secretNote}` : ""}` : "Rien ne part dans ce salon tant qu'il n'est pas branché ici."}
+              {phraseSansReglage(text)}
             </p>
           )}
           {/* La zone d'état existe avant de changer : un lecteur d'écran annonce la réponse de Discord quand elle arrive. */}
@@ -250,7 +251,7 @@ function SalonPart({ text, salon, reload, level }: { text: RobotSalonText; salon
               </button>
               {armed && (
                 <p id={`${id}-stop-note`} class="text-sm text-warn">
-                  {text.secret ? `Le robot reprendra le secret GitHub ${text.secret} s'il existe ; sinon, plus rien ne partira dans ce salon.` : "Plus rien ne partira dans ce salon."} Il faudra recoller le lien du webhook pour le régler de nouveau ici.
+                  {phraseAvantDebranchement(text)} Il faudra recoller le lien du webhook pour le régler de nouveau ici.
                 </p>
               )}
             </div>

@@ -7,7 +7,7 @@
  */
 import { lastSendSentence, outcomeSentence, type LastSend, type SendOutcome } from "./discord-appels";
 
-export type RobotSalonId = "nouvelles" | "encadrement" | "victoires" | "alliance";
+export type RobotSalonId = "nouvelles" | "encadrement" | "victoires" | "alliance" | "achats";
 
 export interface RobotSalonText {
   id: RobotSalonId;
@@ -20,6 +20,11 @@ export interface RobotSalonText {
   secret: string | null;
   /** Ce que le secret ne fait pas, dit quand rien n'est réglé ici. */
   secretNote?: string;
+  /**
+   * Un salon qui, sans lien réglé ici, suit un autre salon du robot (`SALON_REPLI` de `salon-lien.ts`) : la phrase qui le
+   * dit, et l'état court de sa pastille. Il n'a pas de secret GitHub à lui.
+   */
+  repli?: { phrase: string; etat: string };
   /** Ajouté après les autres : un serveur sans sa migration ne le rend pas, et la page ne le montre pas. */
   optional?: boolean;
 }
@@ -28,7 +33,7 @@ export const ROBOT_SALON_TEXTS: readonly RobotSalonText[] = [
   {
     id: "nouvelles",
     title: "Le salon des nouvelles",
-    intro: "La gazette, les alertes, les paliers franchis, les messages du jour, la course du soir et les bâtiments finis du village, postés par le robot du site.",
+    intro: "La gazette, les alertes, les paliers franchis, les messages du jour, la course du soir et les bâtiments finis du village, postés par le robot du site, et les achats du village tant que leur salon n'est pas branché.",
     secret: "DISCORD_WEBHOOK_GAZETTE",
   },
   {
@@ -58,7 +63,35 @@ export const ROBOT_SALON_TEXTS: readonly RobotSalonText[] = [
     secret: null,
     optional: true,
   },
+  {
+    // Migration 20261115000200 (demande du pilote, 15 novembre 2026) : le robot de la GitHub Action y poste les achats du
+    // village toutes les 5 minutes ; sans lien ici, ils partent dans le salon des nouvelles, comme avant ce réglage.
+    id: "achats",
+    title: "Le salon des achats du village",
+    intro: "Chaque objet reçu au village des Gaulois (boutique, pochette surprise, marché), en image, sous le nom Discord de l'acheteur, sans le prix, quelques minutes après l'achat.",
+    secret: null,
+    repli: { phrase: "Sans lien ici, les achats partent dans le salon des nouvelles.", etat: "Avec les nouvelles" },
+    optional: true,
+  },
 ];
+
+/** Ce qui part quand rien n'est réglé ici, en une phrase. */
+export function phraseSansReglage(text: RobotSalonText): string {
+  if (text.repli) return text.repli.phrase;
+  return text.secret ? `Le robot prend le secret GitHub ${text.secret}, s'il existe.${text.secretNote ? ` ${text.secretNote}` : ""}` : "Rien ne part dans ce salon tant qu'il n'est pas branché ici.";
+}
+
+/** Ce qui part une fois le salon débranché, en une phrase : le message qui le confirme. */
+export function phraseDebranche(text: RobotSalonText): string {
+  if (text.repli) return `Salon débranché. ${text.repli.phrase}`;
+  return text.secret ? `Salon débranché. Le robot reprend le secret GitHub ${text.secret}, s'il existe.` : "Salon débranché. Plus rien n'y part.";
+}
+
+/** L'avertissement avant de débrancher, en une phrase. */
+export function phraseAvantDebranchement(text: RobotSalonText): string {
+  if (text.repli) return `${text.repli.phrase.replace(/^Sans lien ici, /, "Une fois débranché, ")}`;
+  return text.secret ? `Le robot reprendra le secret GitHub ${text.secret} s'il existe ; sinon, plus rien ne partira dans ce salon.` : "Plus rien ne partira dans ce salon.";
+}
 
 /** Le dernier contrôle du robot : d'où venait le lien, et ce que Discord a répondu (0 : pas de réponse). */
 export interface RobotCheck {

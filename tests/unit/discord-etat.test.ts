@@ -54,6 +54,13 @@ describe("un salon du robot qui n'est pas branché ici", () => {
     expect(etatDuSalon(salon({ id: "alliance", check: check("none", null) }))).toEqual(PAS_REGLE);
   });
 
+  it("le salon des achats, sans lien ici, dit qu'il suit le salon des nouvelles : ses messages partent quand même", () => {
+    expect(etatDuSalon(salon({ id: "achats" }))).toEqual({ ton: "ally", mot: "Avec les nouvelles" });
+    expect(etatDuSalon(salon({ id: "achats", check: check("none", null) }))).toEqual({ ton: "ally", mot: "Avec les nouvelles" });
+    // Branché ici, il se lit comme les autres.
+    expect(etatDuSalon(salon({ id: "achats", set: true }))).toEqual(BRANCHE);
+  });
+
   it("dit que le robot poste par le secret GitHub quand son contrôle réussit", () => {
     expect(etatDuSalon(salon({ check: check("secret", 200) }))).toEqual({ ton: "ally", mot: "Par le secret GitHub" });
     expect(etatDuSalon(salon({ check: check("secret", 204) }))).toEqual({ ton: "ally", mot: "Par le secret GitHub" });

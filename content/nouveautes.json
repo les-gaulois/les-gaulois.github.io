@@ -3,7 +3,7 @@
     "date": "2026-11-15",
     "kind": "nouveau",
     "title": "Les achats du village sur Discord",
-    "body": "À côté des bâtiments finis, le robot montre chaque heure les objets que les Gaulois ont reçus au village (boutique, pochette surprise, marché) : leur dessin, leur rareté et l'heure, jamais le prix.",
+    "body": "Sur le Discord du clan, le robot montre toutes les 5 minutes les objets reçus au village (boutique, pochette surprise, marché) : leur dessin, leur rareté et l'heure, jamais le prix.",
     "link": {
       "href": "/village",
       "label": "Voir le village"
