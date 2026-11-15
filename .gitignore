@@ -8,3 +8,4 @@ playwright-report/
 .cache/
 supabase/.temp/
 .claude/worktrees/
+public/films/

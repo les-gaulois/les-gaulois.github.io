@@ -17,7 +17,8 @@ export interface NavSection {
 const section = (label: string, first: NavPage, ...others: NavPage[]): NavSection => ({ label, href: first.href, pages: [first, ...others] });
 
 export const SECTIONS: NavSection[] = [
-  section("Actu", { href: "/gazette", label: "La gazette" }, { href: "/parties", label: "Dernières parties" }, { href: "/nouveautes", label: "Nouveautés du site" }),
+  // « Revoir une partie » (15 novembre 2026, demande du pilote) : les films des dernières parties, rejouées par le moteur du jeu.
+  section("Actu", { href: "/gazette", label: "La gazette" }, { href: "/parties", label: "Dernières parties" }, { href: "/revoir", label: "Revoir une partie" }, { href: "/nouveautes", label: "Nouveautés du site" }),
   section(
     "Résultats",
     { href: "/classement", label: "Classement" },

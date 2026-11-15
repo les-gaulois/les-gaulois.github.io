@@ -47,6 +47,8 @@ export const FEUILLES: readonly { fichier: string; pages: typeof TOUTES | readon
   // La forge de « Mon Gaulois » ; le monde du village, qui partageait ce morceau, est retiré depuis le 15 novembre 2026.
   // « Mon compte » aussi : le vestiaire de l'inscription montre les plaques de la forge.
   { fichier: "14-forge.css", pages: ["/compte", "/village", "/direction"] },
+  // Le lecteur des films de parties, « Revoir une partie » (15 novembre 2026).
+  { fichier: "15-revoir.css", pages: ["/revoir", "/direction"] },
 ];
 
 /** Les morceaux qu'une page charge, dans l'ordre de la cascade. `route` : le motif de la page (`/membres/[id]`). */

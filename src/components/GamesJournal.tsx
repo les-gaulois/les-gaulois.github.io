@@ -44,6 +44,34 @@ function Replay({ row }: { row: JournalRow }) {
   );
 }
 
+/** Le film de la partie sur le site (« Revoir une partie »), s'il existe. Une cible de la même taille que « Ouvrir ». */
+function Film({ row, base }: { row: JournalRow; base: string }) {
+  return (
+    <a
+      href={`${base}/revoir?partie=${encodeURIComponent(row.id)}`}
+      class="link inline-flex min-h-11 min-w-11 items-center my-[calc((1lh_-_2.75rem)/2)] lg:min-h-6 lg:my-[calc((1lh_-_1.5rem)/2)]"
+      aria-label={`Revoir sur le site la partie du ${fmtDayAndTime(row.at)}`}
+      data-testid="journal-film"
+    >
+      {/* Le triangle de la lecture : ce lien-là reste sur le site, et montre un film. */}
+      <svg class="mr-1.5 flex-none" viewBox="0 0 14 14" width="10" height="10" fill="currentColor" aria-hidden="true">
+        <path d="M2 1l11 6-11 6z" />
+      </svg>
+      Revoir
+    </a>
+  );
+}
+
+/** Les liens d'une partie : son film sur le site s'il existe, et la partie sur OpenFront. */
+function Liens({ row, base, films }: { row: JournalRow; base: string; films: ReadonlySet<string> }) {
+  return (
+    <span class="inline-flex flex-wrap gap-x-4">
+      {films.has(row.id) && <Film row={row} base={base} />}
+      <Replay row={row} />
+    </span>
+  );
+}
+
 /** Les clans d'une partie. Une partie sans clan cité n'écrit rien : ce n'est pas la preuve qu'il n'y en avait aucun. */
 function Clans({ row }: { row: JournalRow }) {
   if (row.rivals.length === 0 && row.allies.length === 0) return null;
@@ -61,13 +89,18 @@ interface Props {
   initial: JournalRow[];
   /** Faux : les équipes des clans ne sont plus affichées, comme les face-à-face. */
   sides: boolean;
+  /** Le chemin du site, pour les liens vers « Revoir une partie ». */
+  base?: string;
+  /** Les parties qui ont un film sur le site. */
+  films?: string[];
 }
 
 /**
  * Le journal des parties. Les premières lignes viennent de la page, donc se lisent sans JavaScript.
  * Le reste, et avec lui les filtres, arrive d'un fichier statique : le navigateur n'appelle jamais l'API d'OpenFront.
  */
-export default function GamesJournal({ src, initial, sides }: Props) {
+export default function GamesJournal({ src, initial, sides, base = "", films: avecFilm = [] }: Props) {
+  const films = useMemo(() => new Set(avecFilm), [avecFilm]);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [all, setAll] = useState<JournalRow[]>(initial);
   const [filter, setFilter] = useState<JournalFilter>(NO_FILTER);
@@ -177,7 +210,7 @@ export default function GamesJournal({ src, initial, sides }: Props) {
       </p>
       {unread && <p class="tnum mt-1 text-sm text-muted" data-testid="journal-unread">{unread}</p>}
       <p class="mt-1 max-w-3xl text-sm text-muted" data-testid="journal-link-note">
-        « Ouvrir » lance le replay sur OpenFront. Une partie ancienne peut s'arrêter sur « Rejoindre un salon privé ».
+        {films.size > 0 && "« Revoir » montre le film de la partie sur le site. "}« Ouvrir » lance le replay sur OpenFront. Une partie ancienne peut s'arrêter sur « Rejoindre un salon privé ».
       </p>
       {state === "error" && (
         <div class="card mt-3 p-4" role="alert">
@@ -211,7 +244,7 @@ export default function GamesJournal({ src, initial, sides }: Props) {
                   {sides && <th scope="col">Autres clans</th>}
                   <th scope="col" class="num">Durée</th>
                   <th scope="col">Résultat</th>
-                  <th scope="col"><span class="sr-only">Lien vers OpenFront</span></th>
+                  <th scope="col"><span class="sr-only">Liens</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -224,7 +257,7 @@ export default function GamesJournal({ src, initial, sides }: Props) {
                     {sides && <td class="text-muted"><Clans row={r} /></td>}
                     <td class="num whitespace-nowrap">{durationOf(r)}</td>
                     <td><Result won={r.won} /></td>
-                    <td class="whitespace-nowrap"><Replay row={r} /></td>
+                    <td class="whitespace-nowrap"><Liens row={r} base={base} films={films} /></td>
                   </tr>
                 ))}
               </tbody>
@@ -242,7 +275,7 @@ export default function GamesJournal({ src, initial, sides }: Props) {
                 <p class="mt-1 text-muted">{fmtInt(r.gaulois)} Gaulois sur {fmtCount(r.players, "joueur")} · {durationOf(r)}</p>
                 {(r.rivals.length > 0 || r.allies.length > 0) && <p class="mt-1 text-muted"><Clans row={r} /></p>}
                 {/* 12 px au-dessus du lien : sa cible de 44 px ne déborde pas sur la ligne d'avant. */}
-                <p class="mt-3"><Replay row={r} /></p>
+                <p class="mt-3"><Liens row={r} base={base} films={films} /></p>
               </li>
             ))}
           </ul>

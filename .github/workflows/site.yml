@@ -290,11 +290,74 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
+  # Le film de chaque partie du clan, victoires et défaites, pour « Revoir une partie » (demande du pilote, 15 novembre 2026 :
+  # revoir les parties déjà jouées). Chaque nouvelle partie des derniers jours est rejouée avec le moteur d'OpenFront, lu sur
+  # GitHub au commit de la partie, et vérifiée par les empreintes du jeu, comme les cartes de fin des victoires (victoires.yml).
+  # Ce code venu d'ailleurs ne tourne que dans un conteneur Docker sans réseau, sans droits et en lecture seule : il ne peut
+  # rien toucher de ce job. Le job lui-même n'a aucun secret, seulement le droit de lire le dépôt, ne garde pas le jeton de
+  # GitHub après le checkout et ne partage pas le cache de npm. Les films vont dans le cache du workflow, hors de Git ; la
+  # construction du site les relit avant de les publier. Une panne ne bloque rien : le site se publie avec les films d'avant.
+  # Voir scripts/filmer-parties.ts.
+  films:
+    needs: update-data
+    if: ${{ !cancelled() && github.event_name != 'push' && github.ref_name == 'main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    steps:
+      # La branche telle qu'elle est maintenant : avec les sessions que la collecte vient de pousser.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref_name }}
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Restaurer les films
+        continue-on-error: true
+        uses: actions/cache/restore@v6
+        with:
+          path: .cache/films
+          key: films-${{ github.run_id }}
+          restore-keys: films-
+      # Un moteur par version du jeu, construit une fois, dans un cache à part de celui des victoires (openfront-moteurs-) :
+      # en rattrapant de vieilles parties, les films construisent d'anciennes versions, qui ne doivent pas chasser du cache
+      # la version que le rejeu des victoires attend. Le préfixe ne commence pas par « films- », que ranger-caches trie à part.
+      - name: Restaurer les moteurs du jeu
+        continue-on-error: true
+        uses: actions/cache/restore@v6
+        with:
+          path: .cache/openfront/moteurs
+          key: moteurs-films-${{ github.run_id }}
+          restore-keys: moteurs-films-
+      - name: Filmer les nouvelles parties
+        continue-on-error: true
+        timeout-minutes: 7
+        run: npm run parties:filmer
+      - name: Conserver les moteurs du jeu
+        if: ${{ !cancelled() && hashFiles('.cache/openfront/moteurs/*.mjs') != '' }}
+        continue-on-error: true
+        uses: actions/cache/save@v6
+        with:
+          path: .cache/openfront/moteurs
+          key: moteurs-films-${{ hashFiles('.cache/openfront/moteurs/*.mjs') }}
+      # La clé suit l'index, qui note l'heure de chaque passage : un cache par passage, ranger-caches n'en garde que trois.
+      - name: Conserver les films
+        if: ${{ !cancelled() && hashFiles('.cache/films/index.json') != '' }}
+        continue-on-error: true
+        uses: actions/cache/save@v6
+        with:
+          path: .cache/films
+          key: films-${{ hashFiles('.cache/films/index.json') }}
+
   # Depuis le 13 novembre 2026, l'historique de la carte se garde à chaque passage (plusieurs dizaines de Mo chaque fois) :
   # seuls les trois plus récents restent, pour ne pas remplir l'espace des caches du dépôt (10 Go), où GitHub effacerait
-  # sinon d'autres caches. Job à part, avec le seul droit Actions : il n'écrit rien dans le dépôt.
+  # sinon d'autres caches. Les films des parties (quelques dizaines de Mo) de même, depuis le 15 novembre 2026, après leur
+  # job. Job à part, avec le seul droit Actions : il n'écrit rien dans le dépôt.
   ranger-caches:
-    needs: update-data
+    needs: [update-data, films]
     if: ${{ !cancelled() && github.event_name != 'push' }}
     runs-on: ubuntu-latest
     timeout-minutes: 3
@@ -306,6 +369,15 @@ jobs:
         run: |
           gh cache list --repo "$GITHUB_REPOSITORY" --ref "refs/heads/${GITHUB_REF_NAME}" --key clanmap- --sort created_at --order desc --limit 100 --json id --jq '.[3:][].id' |
             while read -r id; do gh cache delete "$id" --repo "$GITHUB_REPOSITORY"; done
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Effacer les anciens films des parties et leurs moteurs
+        continue-on-error: true
+        run: |
+          for prefixe in films- moteurs-films-; do
+            gh cache list --repo "$GITHUB_REPOSITORY" --ref "refs/heads/${GITHUB_REF_NAME}" --key "$prefixe" --sort created_at --order desc --limit 100 --json id --jq '.[3:][].id' |
+              while read -r id; do gh cache delete "$id" --repo "$GITHUB_REPOSITORY"; done
+          done
         env:
           GH_TOKEN: ${{ github.token }}
 
@@ -340,8 +412,9 @@ jobs:
           SAUVEGARDE_CLE_POSEE: ${{ secrets.SAUVEGARDE_CLE != '' }}
 
   build:
-    needs: update-data
-    # Sur un push, update-data est ignoré : le site se reconstruit quand même.
+    needs: [update-data, films]
+    # Sur un push, update-data est ignoré : le site se reconstruit quand même. Il attend les films, sans en dépendre : un
+    # job des films en panne ou ignoré ne retient pas le site.
     if: ${{ !cancelled() && (needs.update-data.result == 'success' || needs.update-data.result == 'skipped') }}
     runs-on: ubuntu-latest
     steps:
@@ -370,6 +443,19 @@ jobs:
           path: .cache/clanmap
           key: clanmap-${{ github.run_id }}
           restore-keys: clanmap-
+      # Les films des parties, faits par le job « films » : relus un par un, puis copiés dans public/films/ avec leur liste.
+      # Sans ce cache, « Revoir une partie » le dit, et le site se publie quand même.
+      - name: Restaurer les films des parties
+        continue-on-error: true
+        uses: actions/cache/restore@v6
+        with:
+          path: .cache/films
+          key: films-${{ github.run_id }}
+          restore-keys: films-
+      - name: Publier les films des parties
+        continue-on-error: true
+        timeout-minutes: 2
+        run: npm run films:publier
       - id: pages
         uses: actions/configure-pages@v6
       # Les Gaulois des membres au pseudo public, validés, qui ont créé le leur au village, pour l'image d'aperçu de leur fiche :

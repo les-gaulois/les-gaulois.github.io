@@ -110,6 +110,11 @@ describe("l'isolement du moteur", () => {
     expect(args.filter((a) => a.startsWith("--volume="))).toEqual(["--volume=/w/m.mjs:/rejeu/moteur.mjs:ro", "--volume=/w/f.json:/rejeu/fiche.json:ro", "--volume=/w/carte:/rejeu/carte:ro", "--volume=/w/sortie:/rejeu/sortie"]);
     expect(args.some((a) => /^(-e$|--env|--privileged|--network=host|--pid=|--ipc=|--userns=host)/.test(a))).toBe(false);
   });
+  it("demande le film de la partie au moteur seulement pour les films, dans le même conteneur", () => {
+    expect(args.at(-1)).toBe("/rejeu/sortie/etat");
+    const film = commandeIsolee({ moteur: "/w/m.mjs", fiche: "/w/f.json", carte: "/w/carte", sortie: "/w/sortie" }, "rejeu-x", true);
+    expect(film).toEqual([...args, "film"]);
+  });
 });
 
 describe("la notice des cartes de fin", () => {

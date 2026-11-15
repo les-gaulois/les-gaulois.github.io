@@ -4,6 +4,7 @@ import type { z } from "zod";
 import { dayRows, territoryReadings, type TerritoryReading } from "./clanmap/days";
 import { GazetteSendState } from "./gazette-discord";
 import { compagnonsDeFlamme, nommesParPartie, recordPersonnel, serieEnCours, type CompagnonsDeFlamme, type RecordPersonnel, type SerieEnCours } from "./serie-en-cours";
+import { LISTE_DES_FILMS, ListeDesFilms } from "./rejeu/films-index";
 import { EMPTY_MEMBER_WEEKS } from "./week-players";
 import {
   Announcements,
@@ -66,6 +67,8 @@ export const loadMemberResults = () => read(MEMBER_RESULTS_FILE, StoredMemberRes
 /** Les relevés du lundi : voir `src/lib/week-players.ts`. */
 export const loadMemberWeeks = () => read("data/member-weeks.json", StoredMemberWeeks) ?? EMPTY_MEMBER_WEEKS;
 export const loadClanMapFilm = () => read("data/clanmap/film.json", StoredClanMapFilm);
+/** Les films des parties publiés avec le site, hors de Git : voir `src/lib/rejeu/films-index.ts`. `null` : aucun. */
+export const loadFilms = () => read(LISTE_DES_FILMS, ListeDesFilms);
 export const loadClanMapJournal = () => read("data/clanmap/journal.json", ClanMapJournal) ?? [];
 /** Le territoire de GAL jour après jour, pour la gazette : voir `territoryReadings`. */
 export function loadTerritoryReadings(): TerritoryReading[] {

@@ -2,6 +2,16 @@
   {
     "date": "2026-11-15",
     "kind": "nouveau",
+    "title": "Revoir une partie",
+    "body": "Les dernières parties du clan, victoires et défaites, se revoient en film sur le site : la carte de la partie rejouée par le moteur du jeu, du départ à la fin. « Revoir » sur chaque partie filmée.",
+    "link": {
+      "href": "/revoir",
+      "label": "Revoir une partie"
+    }
+  },
+  {
+    "date": "2026-11-15",
+    "kind": "nouveau",
     "title": "Les compagnons de flamme",
     "body": "Sur la fiche d'un membre, sous sa flamme : les Gaulois avec qui il a gagné sa série en cours.",
     "link": {

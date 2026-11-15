@@ -39,6 +39,8 @@
     "achats:envoyer": "tsx scripts/envoyer-achats.ts",
     "victoires:envoyer": "tsx scripts/envoyer-victoires.ts",
     "victoires:rejouer": "tsx scripts/rejouer-victoires.ts",
+    "parties:filmer": "tsx scripts/filmer-parties.ts",
+    "films:publier": "tsx scripts/publier-films.ts",
     "stateres:crediter": "tsx scripts/crediter-stateres.ts",
     "pronostics:regler": "tsx scripts/regler-pronostics.ts",
     "village:economie": "tsx scripts/mesurer-economie-village.ts",

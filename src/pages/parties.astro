@@ -7,7 +7,7 @@ import MapNamesCredit from "../components/MapNamesCredit.astro";
 import PageHeader from "../components/PageHeader.astro";
 import ReadingNote from "../components/ReadingNote.astro";
 import { clan } from "../../config/clan";
-import { loadGames, loadLeaderboard, loadMeta, loadSessions } from "../lib/data";
+import { loadFilms, loadGames, loadLeaderboard, loadMeta, loadSessions } from "../lib/data";
 import { fmtInt } from "../lib/format";
 import { MIN_CLAN_PLAYERS } from "../lib/games";
 import { clanJournal, JOURNAL_DAYS, JOURNAL_FIRST_ROWS } from "../lib/journal";
@@ -21,6 +21,8 @@ const { rows, sides, coverage } = clanJournal({
   tag: clan.tag,
   officialTags: loadLeaderboard()?.clans.map((c) => c.clanTag) ?? [],
 });
+// Les parties qui ont un film sur « Revoir une partie » : un lien « Revoir » de plus sur leur ligne.
+const films = (loadFilms()?.films ?? []).map((f) => f.partie);
 ---
 
 <Base title="Dernières parties" description="Les dernières parties du clan GAL sur OpenFront : carte, format, résultat, clans rencontrés et lien vers le jeu.">
@@ -37,7 +39,7 @@ const { rows, sides, coverage } = clanJournal({
         <Empty title="Pas de données">Aucune partie enregistrée n'est disponible sur cette période.</Empty>
       ) : (
         <>
-          <GamesJournal client:load src={`${base}/parties.json`} initial={rows.slice(0, JOURNAL_FIRST_ROWS)} sides={sides} />
+          <GamesJournal client:load src={`${base}/parties.json`} initial={rows.slice(0, JOURNAL_FIRST_ROWS)} sides={sides} base={base} films={films} />
           {!sides && (
             <p class="mt-4 max-w-3xl font-semibold text-warn" role="status" data-testid="journal-clans-suspended">
               Les autres clans ne sont plus affichés : trop de parties récentes contredisent le calcul de leurs équipes. Les règles du jeu ont peut-être changé.

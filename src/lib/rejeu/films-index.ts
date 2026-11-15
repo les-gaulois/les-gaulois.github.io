@@ -1,0 +1,137 @@
+/**
+ * Quels films de parties le robot fait et garde (`scripts/filmer-parties.ts`), et la liste que lisent les pages
+ * (`scripts/publier-films.ts`, page « Revoir une partie »). Le clan joue environ 75 parties par jour (novembre 2026), un film
+ * pèse 60 à 320 Ko (165 Ko en moyenne sur les 14 premiers) : seules les parties des derniers jours restent, les plus récentes
+ * d'abord, dans un budget de place, soit environ trois jours de parties.
+ *
+ * Les films vivent hors de Git, dans le cache du workflow (`.cache/films/`) : le dépôt n'en garde aucune trace. Perdu, le cache
+ * se refait en quelques passages, les parties les plus récentes d'abord.
+ */
+import { z } from "zod";
+
+export const DOSSIER_FILMS = ".cache/films";
+export const INDEX_DES_FILMS = `${DOSSIER_FILMS}/index.json`;
+/** Ce que la page lit, copié au build par `scripts/publier-films.ts` ; hors de Git. */
+export const DOSSIER_PUBLIC_FILMS = "public/films";
+export const LISTE_DES_FILMS = `${DOSSIER_PUBLIC_FILMS}/liste.json`;
+
+/** Les parties de moins de tant de jours seulement. */
+export const JOURS_DE_FILMS = 7;
+/**
+ * Au plus tant d'octets de films en tout : le paquet du site, publié chaque heure, en garde la taille raisonnable (17 Mo sans
+ * eux, le 10 novembre 2026).
+ */
+export const BUDGET_FILMS_OCTETS = 40_000_000;
+/** Un film plus lourd n'est pas gardé : aucune des 14 premières parties n'a dépassé 320 Ko. */
+export const MAX_OCTETS_FILM = 2_000_000;
+/** Ni une fois décompressé : 160 000 cases de terrain et 360 images de plages changées. Le même seuil au filmage et à la publication. */
+export const MAX_OCTETS_FILM_DECOMPRESSE = 24_000_000;
+/** Une partie qui échoue autant de fois n'est plus essayée. */
+export const ESSAIS_MAX = 3;
+
+const Partie = z.string().regex(/^[A-Za-z0-9]{1,32}$/);
+const Debut = z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/);
+
+export const IndexDesFilms = z.object({
+  format: z.literal(1),
+  films: z.array(z.object({ partie: Partie, debut: Debut, octets: z.number().int().min(1).max(MAX_OCTETS_FILM) })).max(10_000),
+  /** Les parties qui n'ont pas pu être filmées : `definitive`, elles ne le seront jamais (fiche inutilisable, partie trop longue). */
+  ratees: z.array(z.object({ partie: Partie, debut: Debut, raison: z.string().max(200), essais: z.number().int().min(1), definitive: z.boolean() })).max(10_000),
+  /** La fin du dernier passage du robot des films allé à son terme : la date que la page montre. `null` : aucun encore. */
+  passage: Debut.nullable().default(null),
+});
+export type IndexDesFilms = z.infer<typeof IndexDesFilms>;
+
+export const indexVide = (): IndexDesFilms => ({ format: 1, films: [], ratees: [], passage: null });
+
+/** L'index du cache. Absent ou illisible : vide, et les films se refont. */
+export function lireIndex(texte: string | null): IndexDesFilms {
+  if (texte === null) return indexVide();
+  try {
+    return IndexDesFilms.parse(JSON.parse(texte));
+  } catch {
+    return indexVide();
+  }
+}
+
+/** Le fichier du film d'une partie. L'identifiant vient de l'API : vérifié avant d'en faire un nom de fichier. */
+export function nomDuFilm(partie: string): string | null {
+  return Partie.safeParse(partie).success ? `${partie}.film` : null;
+}
+
+const ageMs = (debut: string, now: Date) => now.getTime() - Date.parse(debut);
+const recent = (debut: string, now: Date) => ageMs(debut, now) <= JOURS_DE_FILMS * 86_400_000;
+
+/**
+ * Les parties à filmer, de la plus récente à la plus ancienne : celles des derniers jours, sans film, qui n'ont pas échoué
+ * pour de bon ni trop souvent. Quand le budget est plein, une partie plus ancienne que le plus ancien film gardé ne se filme
+ * pas : son film serait retiré aussitôt.
+ */
+export function partiesAFilmer<S extends { gameId: string; gameStart: string }>(sessions: readonly S[], index: IndexDesFilms, now: Date): S[] {
+  const faites = new Set(index.films.map((f) => f.partie));
+  const abandonnees = new Set(index.ratees.filter((r) => r.definitive || r.essais >= ESSAIS_MAX).map((r) => r.partie));
+  const total = index.films.reduce((s, f) => s + f.octets, 0);
+  const plusAncien = index.films.reduce<string | null>((m, f) => (m === null || f.debut < m ? f.debut : m), null);
+  const vues = new Set<string>();
+  return sessions
+    .filter((s) => {
+      if (vues.has(s.gameId)) return false;
+      vues.add(s.gameId);
+      if (!Partie.safeParse(s.gameId).success || !Debut.safeParse(s.gameStart).success) return false;
+      if (!recent(s.gameStart, now) || faites.has(s.gameId) || abandonnees.has(s.gameId)) return false;
+      return !(total >= BUDGET_FILMS_OCTETS && plusAncien !== null && s.gameStart < plusAncien);
+    })
+    .sort((a, b) => b.gameStart.localeCompare(a.gameStart) || a.gameId.localeCompare(b.gameId));
+}
+
+/** Note un échec : `definitive`, la partie ne sera plus essayée ; sinon, au plus `ESSAIS_MAX` fois. */
+export function noterEchec(index: IndexDesFilms, partie: string, debut: string, raison: string, definitive: boolean): IndexDesFilms {
+  const avant = index.ratees.find((r) => r.partie === partie);
+  const ratee = { partie, debut, raison: raison.slice(0, 200), essais: (avant?.essais ?? 0) + 1, definitive };
+  return { ...index, ratees: [...index.ratees.filter((r) => r.partie !== partie), ratee] };
+}
+
+/** Note un film fait : la partie sort des échecs. */
+export function noterFilm(index: IndexDesFilms, partie: string, debut: string, octets: number): IndexDesFilms {
+  return { ...index, films: [...index.films.filter((f) => f.partie !== partie), { partie, debut, octets }], ratees: index.ratees.filter((r) => r.partie !== partie) };
+}
+
+/**
+ * Ce qui reste : les films des derniers jours, du plus récent au plus ancien, tant que le budget le permet, et les échecs des
+ * derniers jours. `retires` : les films à effacer du cache.
+ */
+export function rangerLesFilms(index: IndexDesFilms, now: Date): { index: IndexDesFilms; retires: string[] } {
+  const tries = [...index.films].sort((a, b) => b.debut.localeCompare(a.debut) || a.partie.localeCompare(b.partie));
+  const gardes: IndexDesFilms["films"] = [];
+  const retires: string[] = [];
+  let total = 0;
+  for (const f of tries) {
+    if (recent(f.debut, now) && total + f.octets <= BUDGET_FILMS_OCTETS) {
+      gardes.push(f);
+      total += f.octets;
+    } else retires.push(f.partie);
+  }
+  return { index: { format: 1, films: gardes, ratees: index.ratees.filter((r) => recent(r.debut, now)), passage: index.passage }, retires };
+}
+
+/** Un film de la liste publiée : ce que la page en montre avant de l'ouvrir. */
+export const FilmPublie = z.object({
+  partie: Partie,
+  debut: Debut,
+  carte: z.string().min(1).max(80),
+  victoire: z.boolean(),
+  equipes: z.string().min(1).max(20),
+  gaulois: z.number().int().min(0),
+  joueurs: z.number().int().min(0),
+  /** La durée rejouée, en secondes : les étapes du jeu jusqu'au dernier contrôle. */
+  secondes: z.number().int().min(0),
+  octets: z.number().int().min(1).max(MAX_OCTETS_FILM),
+});
+export type FilmPublie = z.infer<typeof FilmPublie>;
+
+/**
+ * La liste publiée avec les films, la plus récente partie d'abord. `fait` : la fin du dernier passage du robot des films (pas
+ * l'heure du build) ; une panne du robot se voit donc à sa date. `null` : inconnue.
+ */
+export const ListeDesFilms = z.object({ format: z.literal(1), fait: Debut.nullable(), films: z.array(FilmPublie).max(10_000) });
+export type ListeDesFilms = z.infer<typeof ListeDesFilms>;

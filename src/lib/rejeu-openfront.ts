@@ -161,9 +161,10 @@ export const MEMOIRE_DU_MOTEUR_MO = 6_144;
 
 /**
  * La commande `docker run` qui lance le moteur sur une partie : seuls le moteur, la fiche et la carte y sont visibles, en
- * lecture seule, et un dossier de sortie à elle, en écriture. Ni réseau, ni variable du job, ni droit de l'utilisateur.
+ * lecture seule, et un dossier de sortie à elle, en écriture. Ni réseau, ni variable du job, ni droit de l'utilisateur. `film` :
+ * le moteur note aussi le film de la partie (`scripts/filmer-parties.ts`).
  */
-export function commandeIsolee(chemins: { moteur: string; fiche: string; carte: string; sortie: string }, nom: string): string[] {
+export function commandeIsolee(chemins: { moteur: string; fiche: string; carte: string; sortie: string }, nom: string, film = false): string[] {
   return [
     "run",
     "--rm",
@@ -188,6 +189,7 @@ export function commandeIsolee(chemins: { moteur: string; fiche: string; carte: 
     "/rejeu/fiche.json",
     "/rejeu/carte",
     "/rejeu/sortie/etat",
+    ...(film ? ["film"] : []),
   ];
 }
 

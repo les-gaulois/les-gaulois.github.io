@@ -35,7 +35,7 @@ import { SITE_URL, ficheImageUrl, ficheUrl, parseCommandes, parseFiches } from "
 import { currentMilestonesPeriod, homeMilestones, recentRecordLines, recentTerritoryRecord } from "../../src/lib/vie-du-clan";
 import { milestonesSinceMonday } from "../../src/lib/week-players";
 
-const PAGES = ["/", "/gazette", "/parties", "/nouveautes", "/classement", "/rivaux", "/progression", "/records", "/membres", "/liste", "/village", "/boutique", "/qg", "/carte", "/activite", "/debuter", "/rejoindre", "/mentions-legales"];
+const PAGES = ["/", "/gazette", "/parties", "/revoir", "/nouveautes", "/classement", "/rivaux", "/progression", "/records", "/membres", "/liste", "/village", "/boutique", "/qg", "/carte", "/activite", "/debuter", "/rejoindre", "/mentions-legales"];
 const lb = JSON.parse(readFileSync("data/leaderboard.json", "utf8"));
 const members = JSON.parse(readFileSync("data/members.json", "utf8"));
 const gal = lb.clans.find((c: { clanTag: string }) => c.clanTag === "GAL");
