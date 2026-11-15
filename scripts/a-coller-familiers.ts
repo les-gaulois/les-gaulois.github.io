@@ -42,7 +42,9 @@ select 'familiers : '
        and has_function_privilege('authenticated', 'public.get_mes_familiers()', 'execute')
        and has_function_privilege('authenticated', 'public.ouvrir_pochette_familiers(integer)', 'execute')
        and has_function_privilege('authenticated', 'public.choisir_familier(text)', 'execute')
+       and not has_function_privilege('anon', 'public.get_mes_familiers()', 'execute')
        and not has_function_privilege('anon', 'public.ouvrir_pochette_familiers(integer)', 'execute')
+       and not has_function_privilege('anon', 'public.choisir_familier(text)', 'execute')
        and not has_function_privilege('authenticated', 'public.discord_gaulois(text)', 'execute')
        and (public.export_site() ->> 'version') = '7'
        and exists (select 1 from supabase_migrations.schema_migrations where version = '20261115000800')

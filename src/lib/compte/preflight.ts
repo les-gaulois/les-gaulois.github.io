@@ -273,6 +273,26 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
     else add(label, "fail", `Réponse ${res.status}. Ne mettez pas en ligne : seul un compte validé avec son Gaulois grave, et chacun n'efface que sa plaque.`);
   }
 
+  // Les familiers du Gaulois (migration 20261115000800, collée par le fichier .cache/a-coller-familiers.sql) : seul un compte
+  // connecté lit ses familiers ; seul un compte validé avec son Gaulois ouvre la pochette des familiers ou choisit le familier
+  // montré. Absente : 404, le fichier n'est pas collé. Un visiteur n'a ni statère ni familier : même si le droit d'appel était
+  // mal posé, rien ne serait débité ni montré.
+  const familiers = await rpc("get_mes_familiers");
+  const familiersAnswer = familiers.ok ? ((await familiers.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (familiers.status === 404) add("Les familiers du village sont installés", "warn", "get_mes_familiers est absente : collez le fichier .cache/a-coller-familiers.sql (sa dernière ligne dit « familiers : 100 installés ») avant de mettre en ligne ce qui s'en sert.");
+  else if (isClosed(familiers.status) || (familiers.ok && familiersAnswer?.ok === false)) add("Un visiteur ne lit pas de familiers", "ok");
+  else add("Un visiteur ne lit pas de familiers", "fail", `Réponse ${familiers.status}. Ne mettez pas en ligne : seul un compte connecté lit ses familiers et son solde.`);
+  const familiersCalls = [
+    ["ouvrir_pochette_familiers", { p_prix_vu: 0 }, "Un visiteur n'ouvre pas de pochette des familiers"],
+    ["choisir_familier", { p_familier: null }, "Un visiteur ne choisit aucun familier"],
+  ] as const;
+  for (const [fn, body, label] of familiersCalls) {
+    const res = await rpc(fn, body);
+    const answer = res.ok ? ((await res.json().catch(() => null)) as { ok?: boolean } | null) : null;
+    if (isClosed(res.status) || (res.ok && answer?.ok === false)) add(label, "ok");
+    else add(label, "fail", `Réponse ${res.status}. Ne mettez pas en ligne : seul un compte validé avec son Gaulois ouvre la pochette des familiers et choisit le sien.`);
+  }
+
   // Les Gaulois sur les images du robot (migration 20261114000400) : la tenue des membres, réservée à la clé de service, celle
   // des scripts du robot. Un visiteur doit être refusé par le droit d'appel lui-même. Une liste vide ne désigne personne.
   const gauloisImages = await rpc("gaulois_des_joueurs", { p_empreintes: [] });

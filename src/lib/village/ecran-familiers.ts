@@ -7,13 +7,13 @@
  */
 import { ECART_DU_FAMILIER } from "../../../supabase/functions/code-discord/familiers/familier";
 import { GAULOIS_LARGEUR, ORDRE_RARETES, RARETES, decrireGaulois, type Rarete, type Tenue } from "../gaulois";
-
-/** L'espace qui ne se coupe pas, devant un deux-points. */
-const NBSP = String.fromCharCode(0xa0);
 import type { MesFamiliers, PochetteFamiliersReponse } from "./contrat";
 import { manque, messageDuRefus, stateres } from "./ecran-boutique";
 import { FAMILIERS, FAMILLES, chancesPourMoi, familierAPoser, familierDe, familiersParRarete, messageDesFamiliers, restantsParRarete, type Familier } from "./familiers";
 import { TOUT, echelleEntiere, type Filtre } from "./vestiaire-rayons";
+
+/** L'espace qui ne se coupe pas, devant un deux-points. */
+const NBSP = String.fromCharCode(0xa0);
 
 /** L'ancre de la pochette des familiers dans la page « La boutique » : « Mon Gaulois » y mène. */
 export const ANCRE_FAMILIERS = "familiers";

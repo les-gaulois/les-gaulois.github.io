@@ -1,4 +1,4 @@
--- La restauration du village des Gaulois depuis une sauvegarde chiffrée ouverte (export_site, version 6), APRÈS celle des
+-- La restauration du village des Gaulois depuis une sauvegarde chiffrée ouverte (export_site, version 6 ou 7), APRÈS celle des
 -- comptes (docs/DIRECTION.md, « La sauvegarde chiffrée »). Le contenu du fichier .json ouvert par `npm run sauvegarde:ouvrir`
 -- est d'abord collé dans une table `sauvegarde (contenu jsonb)`, puis ce fichier se colle en entier dans l'éditeur SQL.
 --
@@ -7,7 +7,8 @@
 --
 -- Les étapes 1 à 7 ont été essayées telles quelles sur PGlite (restauration complète sur une base neuve : soldes retrouvés,
 -- partie d'avant la sauvegarde pas payée deux fois, partie d'après payée). Les étapes 8 et 9 reprennent les requêtes de
--- l'essai de la version 6. Jamais essayée sur le vrai projet. Une partie pas encore relue à l'heure de la sauvegarde est
+-- l'essai de la version 6 ; les étapes 10 à 12 (familiers, version 7) ont été essayées telles quelles sur PGlite le
+-- 15 novembre 2026. Jamais essayée sur le vrai projet. Une partie pas encore relue à l'heure de la sauvegarde est
 -- perdue pour les statères : c'est accepté. Si le projet Supabase est perdu, les identifiants des comptes changent : les
 -- `user_id` de la sauvegarde sont alors à faire correspondre aux nouveaux comptes avant ces étapes.
 
@@ -75,3 +76,22 @@ where v.id;
 insert into internal.village_vie_depense
 select r.* from sauvegarde, jsonb_populate_recordset(null::internal.village_vie_depense, contenu -> 'village_vie_depense') as r
 on conflict do nothing;
+
+-- 10. Version 7 : le réglage de la pochette des familiers (une seule ligne). Une sauvegarde de version 6 n'en a pas : rien
+-- ne change.
+update internal.familiers_pochette p
+set prix = r.prix, commun = r.commun, peu_commun = r.peu_commun, epique = r.epique, mystique = r.mystique, legendaire = r.legendaire, maj_le = r.maj_le
+from sauvegarde, jsonb_to_recordset(contenu -> 'familiers_pochette') as r (prix integer, commun numeric, peu_commun numeric, epique numeric, mystique numeric, legendaire numeric, maj_le timestamptz)
+where p.id;
+
+-- 11. Version 7 : les familiers de chaque compte. Leurs débits sont déjà au journal (étape 5, « familier/<identifiant> »).
+insert into internal.gaulois_familiers (user_id, familier, acquis_le)
+select r.user_id, r.familier, r.acquis_le
+from sauvegarde, jsonb_to_recordset(contenu -> 'gaulois_familiers') as r (user_id uuid, familier text, acquis_le timestamptz)
+on conflict (user_id, familier) do nothing;
+
+-- 12. Version 7 : le familier montré, gardé avec la ligne du Gaulois. Après l'étape 11 : la table n'accepte qu'un familier
+-- possédé (contrainte gaulois_familier_possede).
+update internal.gaulois g set familier = r.familier
+from sauvegarde, jsonb_to_recordset(contenu -> 'gaulois') as r (user_id uuid, familier text)
+where g.user_id = r.user_id and r.familier is not null;

@@ -27,7 +27,6 @@ import {
   lireChoixFamilier,
   lireMesFamiliers,
   lirePochetteFamiliers,
-  manquePourOuvrir,
   messageDesFamiliers,
   restantsParRarete,
 } from "../../src/lib/village/familiers";
@@ -134,10 +133,6 @@ describe("les chances de la pochette pour un compte", () => {
     expect(chanceDuFamilier("phenix", CHANCES_POCHETTE_FAMILIERS, sansRien)).toBeCloseTo(4 / 10, 10);
   });
 
-  it("disent ce qui manque pour ouvrir", () => {
-    expect(manquePourOuvrir(1500, 2000)).toBe(500);
-    expect(manquePourOuvrir(2500, 2000)).toBe(0);
-  });
 });
 
 const MES: MesFamiliers = {

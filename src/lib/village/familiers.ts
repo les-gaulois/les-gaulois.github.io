@@ -2,12 +2,12 @@
  * Les familiers du Gaulois côté site (contrat : `contrat.ts`, « Les familiers du Gaulois » ; serveur : migration
  * 20261115000800_familiers_du_gaulois ; dessins : `supabase/functions/code-discord/familiers/`). Des calculs purs, sans
  * rien de Node : la lecture prudente des réponses du serveur, les chances réelles de la pochette pour un compte (qui ne
- * reçoit jamais un familier qu'il a déjà), et ce que l'écran en déduit. Le serveur décide de tout : le prix, le solde, le
+ * reçoit jamais un familier qu'il a déjà), et l'aperçu du Gaulois avec son familier. Le serveur décide de tout : le prix, le solde, le
  * tirage, le familier montré.
  */
 import { familierAPoser, gauloisEtFamilier, tailleDuFamilier, TAILLES, type Familier, type FamilierAPoser, type Taille } from "../../../supabase/functions/code-discord/familiers/familier";
 import { FAMILIERS, FAMILLES, familierDe } from "../../../supabase/functions/code-discord/familiers/index";
-import { casesDuGaulois, GAULOIS_HAUTEUR, GAULOIS_LARGEUR, ORDRE_RARETES, RARETES, type Rarete, type Tenue } from "../gaulois";
+import { casesDuGaulois, GAULOIS_HAUTEUR, GAULOIS_LARGEUR, ORDRE_RARETES, type Rarete, type Tenue } from "../gaulois";
 import { errorMessage } from "../compte/errors";
 import type { ChoixFamilierReponse, FamilierPossede, MesFamiliers, PochetteFamiliersReponse } from "./contrat";
 
@@ -54,12 +54,6 @@ export function chanceDuFamilier(id: string, chances: Valeurs, possedes: Readonl
   const restants = restantsParRarete(possedes, liste)[familier.rarete];
   return effectives && restants > 0 ? effectives[familier.rarete] / restants : 0;
 }
-
-/** Les statères qui manquent pour ouvrir une pochette : 0 quand le solde suffit. */
-export const manquePourOuvrir = (solde: number, prix: number): number => Math.max(0, prix - solde);
-
-/** Le nom d'une rareté, au féminin d'un « familier » : « Commun », « Légendaire »… */
-export const nomDeLaRarete = (rarete: Rarete): string => RARETES[rarete].nom;
 
 /** Le Gaulois et son familier sur une seule grille, pour un aperçu du site ; sans familier, le Gaulois seul. */
 export function apercuAvecFamilier(tenue: Tenue, familier: Familier | null): { largeur: number; hauteur: number; cases: (string | null)[] } {
