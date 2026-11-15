@@ -13,6 +13,7 @@ import {
   interieurDeLAncre,
   interieurDeLaFenetre,
   interieursOuverts,
+  lumiereDeLEndroit,
   phraseDuDedans,
 } from "../../src/lib/village/ecran-interieur";
 import { BATIMENTS_A_INTERIEUR, type DessinDInterieur, INTERIEURS, type InterieurId } from "../../src/lib/village/interieurs";
@@ -59,6 +60,11 @@ function chantierOu(finis: readonly BatimentId[]): EtatDuChantier {
   } as EtatDuChantier;
 }
 const etatOu = (finis: readonly BatimentId[]): Pick<EtatDuMonde, "chantier"> => ({ chantier: chantierOu(finis) });
+
+/** Deux couleurs « #rrggbb » à l'arrondi près : deux unités au plus par composante. */
+function proches(a: string, b: string): boolean {
+  return [1, 3, 5].every((i) => Math.abs(parseInt(a.slice(i, i + 2), 16) - parseInt(b.slice(i, i + 2), 16)) <= 2);
+}
 
 describe("qui peut entrer", () => {
   const dessine = (ids: readonly InterieurId[]) => (id: InterieurId) => (ids.includes(id) ? interieurDEssai(id) : null);
@@ -249,7 +255,7 @@ describe("le Gaulois du visiteur, posé à sa place", () => {
         const oi = i - OMBRE.x;
         const oj = j - OMBRE.y;
         const ombre = oi >= 0 && oj >= 0 && oi < OMBRE.largeur && oj < OMBRE.hauteur && OMBRE.masque[oj * OMBRE.largeur + oi];
-        if (sienne) expect(avec.cases[k]).toBe(couleurDuDedans(sienne, NUIT_PLEINE));
+        if (sienne) expect(proches(avec.cases[k]!, couleurDuDedans(sienne, NUIT_PLEINE))).toBe(true);
         else if (ombre) {
           expect(avec.cases[k]).toBe(melanger(fond.cases[k]!, "#000000", OMBRE.opacite));
           ombrees++;
@@ -279,26 +285,58 @@ describe("le Gaulois du visiteur, posé à sa place", () => {
     expect(coin.y + Math.max(...rangees)).toBeLessThanOrEqual(dessin.place.pied);
   });
 
-  it("est éclairé comme la pièce : inchangé en plein jour, assombri la nuit par la règle du dedans, sa tenue intacte", () => {
-    const dessin = interieurDEssai();
+  /** Ses couleurs telles que peintes dans le dedans, à côté des siennes. */
+  function sesCases(dessin: DessinDInterieur, l: Lumiere, debout: Decor) {
+    const avec = dedansAvecLeGaulois(dessin, l, 0, debout);
+    const coin = boiteDuGaulois(dessin.place, debout);
+    return debout.cases.flatMap((c, k) => (c ? [{ propre: c, peinte: avec.cases[(coin.y + Math.floor(k / GAULOIS_LARGEUR)) * avec.largeur + coin.x + (k % GAULOIS_LARGEUR)]! }] : []));
+  }
+  const composantes = (c: string) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
+
+  /** Une pièce d'une seule couleur le jour, et de `ailleurs(couleur, x)` à toute autre lumière. */
+  function pieceUnie(ailleurs: (couleur: string, x: number) => string): DessinDInterieur {
+    const base = interieurDEssai("moulin", 1);
+    return {
+      ...base,
+      dessiner(l: Lumiere): Decor {
+        const cases: string[] = [];
+        for (let y = 0; y < base.hauteur; y++) for (let x = 0; x < base.largeur; x++) cases.push(l === PLEIN_JOUR ? "#a08060" : ailleurs("#a08060", x));
+        return { largeur: base.largeur, hauteur: base.hauteur, cases };
+      },
+    };
+  }
+
+  it("est éclairé comme la pièce là où il se tient : inchangé en plein jour, aussi sombre qu'elle la nuit, sa tenue intacte", () => {
     const tenue = { ...TENUE_DE_DEPART };
     const debout = gauloisDebout(tenue);
-    const coin = boiteDuGaulois(dessin.place, debout);
     const crepuscule = lumiereDuVillage(new Date("2026-11-14T16:20:00.000Z"));
-    const sesCases = (l: Lumiere) => {
-      const avec = dedansAvecLeGaulois(dessin, l, 0, debout);
-      return debout.cases.flatMap((c, k) => (c ? [{ propre: c, peinte: avec.cases[(coin.y + Math.floor(k / GAULOIS_LARGEUR)) * avec.largeur + coin.x + (k % GAULOIS_LARGEUR)]! }] : []));
-    };
-    const luminosite = (c: string) => parseInt(c.slice(1, 3), 16) + parseInt(c.slice(3, 5), 16) + parseInt(c.slice(5, 7), 16);
-    for (const { propre, peinte } of sesCases(PLEIN_JOUR)) expect(peinte).toBe(propre);
-    for (const l of [NUIT_PLEINE, crepuscule]) {
-      const cases = sesCases(l);
-      for (const { propre, peinte } of cases) expect(peinte).toBe(couleurDuDedans(propre, l));
-      // La nuit, plus sombre que de jour, comme le mur de la pièce.
-      expect(cases.reduce((s, c) => s + luminosite(c.peinte), 0)).toBeLessThan(cases.reduce((s, c) => s + luminosite(c.propre), 0));
+    // Une pièce qui suit `couleurDuDedans` : il la suit aussi, à l'arrondi près.
+    for (const { propre, peinte } of sesCases(interieurDEssai(), PLEIN_JOUR, debout)) expect(peinte).toBe(propre);
+    for (const l of [NUIT_PLEINE, crepuscule]) for (const { propre, peinte } of sesCases(interieurDEssai(), l, debout)) expect(proches(peinte, couleurDuDedans(propre, l))).toBe(true);
+    // Une pièce bien plus sombre la nuit (un voile bleu) : lui aussi, dans la même mesure, composante par composante.
+    const voilee = pieceUnie((c) => melanger(c, "#101830", 0.7));
+    const part = [0, 1, 2].map((k) => composantes(melanger("#a08060", "#101830", 0.7))[k]! / composantes("#a08060")[k]!);
+    for (const { propre, peinte } of sesCases(voilee, NUIT_PLEINE, debout)) {
+      const p = composantes(peinte);
+      composantes(propre).forEach((v, k) => expect(Math.abs(p[k]! - Math.round(v * part[k]!))).toBeLessThanOrEqual(1));
     }
     expect(tenue).toEqual(TENUE_DE_DEPART);
     expect(debout.cases).toEqual(casesDuGaulois(TENUE_DE_DEPART));
+  });
+
+  it("la lumière est celle de l'endroit, jamais plus claire que le plein jour, même près d'une lanterne", () => {
+    const debout = gauloisDebout(TENUE_DE_DEPART);
+    // Sombre à gauche, plus clair à droite : à sa place (x de 96 à 143), la pièce est sombre.
+    const aGauche = sesCases(pieceUnie((c, x) => melanger(c, "#000000", x < 200 ? 0.6 : 0.1)), NUIT_PLEINE, debout);
+    const aDroite = sesCases(pieceUnie((c, x) => melanger(c, "#000000", x < 200 ? 0.1 : 0.6)), NUIT_PLEINE, debout);
+    const somme = (cases: { peinte: string }[]) => cases.reduce((s, c) => s + composantes(c.peinte).reduce((a, b) => a + b, 0), 0);
+    expect(somme(aGauche)).toBeLessThan(somme(aDroite));
+    // Une lanterne qui éclaire plus que le jour : il garde ses couleurs, sans pâlir.
+    for (const { propre, peinte } of sesCases(pieceUnie((c) => melanger(c, "#ffe8a0", 0.5)), NUIT_PLEINE, debout)) expect(peinte).toBe(propre);
+    // Une boîte hors du dessin, ou noire en plein jour : rien ne change.
+    const noir: Decor = { largeur: 2, hauteur: 2, cases: ["#000000", "#000000", "#000000", "#000000"] };
+    expect(lumiereDeLEndroit(noir, noir, { x: 0, y: 0, largeur: 2, hauteur: 2 })).toEqual([1, 1, 1]);
+    expect(lumiereDeLEndroit(noir, noir, { x: 10, y: 10, largeur: 2, hauteur: 2 })).toEqual([1, 1, 1]);
   });
 
   it("suit la lumière et l'image du dessin, sans le modifier ; ce qui sort du dessin est ignoré", () => {

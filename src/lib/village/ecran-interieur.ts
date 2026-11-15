@@ -11,7 +11,7 @@ import { GAULOIS_HAUTEUR, GAULOIS_LARGEUR, type Tenue, casesDuGaulois } from "..
 import { BATIMENTS } from "./chantier-liste";
 import type { Decor } from "./decor";
 import { BATIMENTS_A_INTERIEUR, type DessinDInterieur, type InterieurId, interieurDe } from "./interieurs";
-import { type Lumiere, couleurDuDedans, melanger } from "./lumiere";
+import { type Lumiere, PLEIN_JOUR, melanger } from "./lumiere";
 import type { EtatDuMonde } from "./monde-etat";
 import { OMBRE } from "./monde/foule";
 
@@ -129,13 +129,55 @@ export function boiteDuGaulois(place: DessinDInterieur["place"], gaulois: { larg
   return { x: place.x - Math.floor(gaulois.largeur / 2), y: place.pied - gaulois.hauteur + 1 };
 }
 
+/** Une boîte du dessin, en cases. */
+interface Boite {
+  x: number;
+  y: number;
+  largeur: number;
+  hauteur: number;
+}
+
+/**
+ * La lumière de la pièce à cet endroit : pour le rouge, le vert et le bleu, la part de son plein jour que le dessin garde
+ * à cette heure, mesurée sur toutes les cases de la boîte (`maintenant` et `deJour` : le même dessin, à cette lumière et
+ * en plein jour). 1 en plein jour ; plus sombre et plus bleue la nuit si le dessin l'est ; jamais plus que le plein jour,
+ * même près d'une lanterne. Une boîte hors du dessin, ou noire en plein jour, ne change rien.
+ */
+export function lumiereDeLEndroit(maintenant: Decor, deJour: Decor, boite: Boite): readonly [number, number, number] {
+  const somme = [0, 0, 0];
+  const jour = [0, 0, 0];
+  for (let y = Math.max(0, boite.y); y < Math.min(maintenant.hauteur, boite.y + boite.hauteur); y++) {
+    for (let x = Math.max(0, boite.x); x < Math.min(maintenant.largeur, boite.x + boite.largeur); x++) {
+      const a = maintenant.cases[y * maintenant.largeur + x];
+      const b = deJour.cases[y * deJour.largeur + x];
+      if (!a || !b) continue;
+      for (let k = 0; k < 3; k++) {
+        somme[k]! += parseInt(a.slice(1 + 2 * k, 3 + 2 * k), 16);
+        jour[k]! += parseInt(b.slice(1 + 2 * k, 3 + 2 * k), 16);
+      }
+    }
+  }
+  const part = (k: number): number => (jour[k]! > 0 ? Math.min(1, somme[k]! / jour[k]!) : 1);
+  return [part(0), part(1), part(2)];
+}
+
+/** Une couleur « #rrggbb » sous cette lumière : chaque composante multipliée par sa part. */
+function sousLaLumiere(couleur: string, part: readonly [number, number, number]): string {
+  let sortie = "#";
+  for (let k = 0; k < 3; k++) sortie += Math.round(parseInt(couleur.slice(1 + 2 * k, 3 + 2 * k), 16) * part[k]!).toString(16).padStart(2, "0");
+  return sortie;
+}
+
 /**
  * Le dedans à cette lumière et à cette image, avec le Gaulois du visiteur par-dessus (`gaulois`, ou `null` : la pièce
  * vide). Comme dans le monde pour le sien : son ombre d'abord (l'ellipse de `OMBRE`, qui assombrit ce qui est dessous),
- * puis lui ; rien du dessin ne passe devant lui. Il est éclairé comme la pièce : chacune de ses couleurs suit
- * `couleurDuDedans` à cette lumière, la règle de tout ce qui n'éclaire pas dans un intérieur (remarque du dessinateur,
- * 15 novembre 2026 : peint tel quel, il paraissait bien plus clair que la pièce la nuit). Le jour, il est inchangé ; sa
- * tenue ne change pas. Ce qui sortirait du dessin est ignoré. Le dessin reçu n'est pas modifié.
+ * puis lui ; rien du dessin ne passe devant lui. Ce qui sortirait du dessin est ignoré. Le dessin reçu n'est pas modifié.
+ *
+ * Il est éclairé comme la pièce là où il se tient (remarque du dessinateur, 15 novembre 2026 : peint tel quel, il
+ * paraissait bien plus clair que la pièce la nuit). Chaque dessin a sa nuit (`couleurDuDedans`, un voile bleu, la lueur
+ * d'une lanterne) : ses couleurs prennent la part de leur plein jour que garde la pièce sur sa boîte
+ * (`lumiereDeLEndroit`), en comparant le dessin à cette lumière et en plein jour. En plein jour, il est inchangé ; sa
+ * tenue ne change pas.
  */
 export function dedansAvecLeGaulois(dessin: DessinDInterieur, lumiere: Lumiere, image: number, gaulois: Decor | null): Decor {
   const fond = dessin.dessiner(lumiere, image);
@@ -144,12 +186,13 @@ export function dedansAvecLeGaulois(dessin: DessinDInterieur, lumiere: Lumiere, 
   const cases = fond.cases.slice();
   const coin = boiteDuGaulois(dessin.place, gaulois);
   const dedans = (x: number, y: number): boolean => x >= 0 && y >= 0 && x < largeur && y < hauteur;
-  // Ses couleurs à la lumière du dedans : quelques dizaines, calculées une fois chacune.
+  const part = lumiereDeLEndroit(fond, dessin.dessiner(PLEIN_JOUR, image), { ...coin, largeur: gaulois.largeur, hauteur: gaulois.hauteur });
+  // Ses couleurs à cette lumière : quelques dizaines, calculées une fois chacune.
   const eclairees = new Map<string, string>();
   const eclairer = (couleur: string): string => {
     let c = eclairees.get(couleur);
     if (c === undefined) {
-      c = couleurDuDedans(couleur, lumiere);
+      c = sousLaLumiere(couleur, part);
       eclairees.set(couleur, c);
     }
     return c;
