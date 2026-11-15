@@ -63,15 +63,21 @@ interface Faux extends ClientDeLAlmanach {
   demandes: number;
 }
 
+type LotDuCompte = { id: string; processing_status: string; created_at: string };
+
 /**
  * Le faux client : chaque lot finit à la deuxième relecture. La requête de rang r rend dix moments : les numéros 10 r à
- * 10 r + 7, un moment trop rapide, et une copie du premier ; sauf `coupees`, qui finissent à `max_tokens`, et `refusees`.
+ * 10 r + 7, un moment trop rapide, et une copie du premier ; sauf `coupees`, qui finissent à `max_tokens`, `refusees`, et
+ * `sansUsage`, dont la réponse ne dit pas ses jetons. Le compte montre ses lots, plus `autres`.
  */
-function fauxClient(options: { coupees?: number[]; refusees?: number[]; erreurs?: number[] } = {}): Faux {
+function fauxClient(options: { coupees?: number[]; refusees?: number[]; erreurs?: number[]; sansUsage?: number[]; autres?: LotDuCompte[] } = {}): Faux {
   const faux: Faux = {
     lots: [],
     relectures: 0,
     demandes: 0,
+    async lotsDuCompte() {
+      return [...faux.lots.map((_l, i) => ({ id: `msgbatch_essai_${i + 1}`, processing_status: "ended", created_at: "2026-11-16T10:00:00Z" })), ...(options.autres ?? [])];
+    },
     async creerLeLot(requetes) {
       faux.lots.push(requetes);
       return { id: `msgbatch_essai_${faux.lots.length}` };
@@ -95,7 +101,9 @@ function fauxClient(options: { coupees?: number[]; refusees?: number[]; erreurs?
           const rapide = traversee({ titre: "Trop rapide" });
           rapide.roles[0]!.etapes[2]!.x = 400 - 20;
           const moments = [...bons, rapide, bons[0]];
-          yield { custom_id: r.custom_id, result: { type: "succeeded", message: message(stop === "end_turn" ? JSON.stringify({ moments }) : '{"moments": [', stop) } };
+          const m = message(stop === "end_turn" ? JSON.stringify({ moments }) : '{"moments": [', stop);
+          if (options.sansUsage?.includes(rang)) delete (m as Partial<Anthropic.Message>).usage;
+          yield { custom_id: r.custom_id, result: { type: "succeeded", message: m } };
         }
       }
       return resultats();
@@ -255,13 +263,19 @@ describe("l'écriture de l'almanach, avec un faux client", () => {
     expect(e.ecrits).toEqual([]);
   });
 
-  it("à l'essai, envoie une seule requête sans lot, montre les moments et leurs refus, et n'écrit que essai.json", async () => {
+  it("à l'essai, envoie une seule requête sans lot, montre les moments et leurs refus, et compte son coût sous le plafond", async () => {
     const d = depot();
     const client = fauxClient();
     expect(await ecrireLAlmanach(d.deps(client, { essai: true }))).toBe(0);
     expect(client.demandes).toBe(1);
     expect(client.lots).toEqual([]);
-    expect(d.ecrits).toEqual([CHEMINS.essai]);
+    // Jamais moments.json : seulement les moments de l'essai à regarder, et son coût.
+    expect(d.ecrits).toEqual([CHEMINS.essai, CHEMINS.ecriture]);
+    const ecriture = ECRITURE.parse(JSON.parse(d.disque.get(CHEMINS.ecriture)!));
+    expect(ecriture.cout_dollars).toBeGreaterThan(0);
+    expect(ecriture.essais_dollars).toBe(ecriture.cout_dollars);
+    expect(ecriture.lots).toEqual([]);
+    expect(ecriture.lot_en_cours).toBeNull();
     const texte = d.journal.join("\n");
     expect(texte).toContain("moment 1 : valide");
     expect(texte).toContain("moment 2 : refusé, durée hors des bornes");
@@ -278,7 +292,35 @@ describe("l'écriture de l'almanach, avec un faux client", () => {
     expect(await ecrireLAlmanach(d.deps(client))).toBe(0);
     expect(client.demandes).toBe(1);
     expect(client.lots).toEqual([]);
-    expect(d.ecrits).toEqual([CHEMINS.essai]);
+    expect(d.ecrits).toEqual([CHEMINS.essai, CHEMINS.ecriture]);
+  });
+
+  it("n'envoie jamais un lot quand un lot récent du compte est inconnu de ecriture.json, et note chaque lot créé", async () => {
+    // Une Action perdue après avoir créé son lot, sans avoir poussé son ecriture.json : le passage suivant s'arrête.
+    const d = depot();
+    const client = fauxClient({ autres: [{ id: "msgbatch_perdu", processing_status: "in_progress", created_at: "2026-11-16T09:00:00Z" }] });
+    expect(await ecrireLAlmanach(d.deps(client))).toBe(1);
+    expect(client.lots).toEqual([]);
+    expect(d.ecrits).toEqual([]);
+    expect(d.journal.join("\n")).toContain("msgbatch_perdu in_progress");
+    // Un lot inconnu de plus d'une semaine n'est plus le nôtre : il n'arrête rien. Le lot créé est noté.
+    const e = depot();
+    const ancien = fauxClient({ autres: [{ id: "msgbatch_ancien", processing_status: "ended", created_at: "2026-10-01T09:00:00Z" }] });
+    expect(await ecrireLAlmanach(e.deps(ancien))).toBe(0);
+    const ecriture = ECRITURE.parse(JSON.parse(e.disque.get(CHEMINS.ecriture)!));
+    expect(ecriture.lots_connus).toEqual(ancien.lots.map((_l, i) => `msgbatch_essai_${i + 1}`));
+    expect(ecriture.lots_connus.length).toBeGreaterThan(0);
+  });
+
+  it("compte une réponse sans usage à sa part du pire coût du lot, jamais à zéro", async () => {
+    const d = depot();
+    const client = fauxClient({ sansUsage: [0, 1] });
+    expect(await ecrireLAlmanach(d.deps(client))).toBe(0);
+    const ecriture = ECRITURE.parse(JSON.parse(d.disque.get(CHEMINS.ecriture)!));
+    const premier = ecriture.lots[0]!;
+    // Les deux requêtes du premier lot n'ont pas dit leurs jetons : chacune compte la moitié du pire coût.
+    expect(premier.jetons).toEqual({ entree: 0, sortie: 0 });
+    expect(premier.cout_dollars).toBeCloseTo(premier.pire_cout_dollars, 2);
   });
 });
 
