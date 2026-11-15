@@ -290,12 +290,12 @@ describe("le message", () => {
   it("dit le Gaulois, chaque objet, sa rareté, d'où il vient et son heure, et ce qui l'a payé ; jamais un montant", () => {
     const [legendaire, commun] = [PAR_RARETE[4]!, PAR_RARETE[0]!];
     const mots = annonceEnMots(ANNONCE).map(plain);
-    expect(mots[0]).toBe("Brennos au village des Gaulois : 2 nouveaux objets.");
+    expect(mots[0]).toBe("Brennos habille son Gaulois : 2 nouveaux objets.");
     expect(mots[1]).toBe(`${legendaire.nom} (${OBJETS_LABEL(legendaire.emplacement)}, rareté légendaire) : à la boutique, le 14 novembre 2026 à 22 h 15.`);
     expect(mots[2]).toBe(`${commun.nom} (${OBJETS_LABEL(commun.emplacement)}, rareté commune) : dans une pochette surprise, le 14 novembre 2026 à 23 h 02.`);
     expect(mots[3]).toBe("Payé en statères, qui viennent des points rapportés au clan.");
     expect(annonceEnMots({ nom: "B", discord: null, achats: [{ ...ANNONCE.achats[0]!, nature: "marche_achat" }] }).map(plain)).toEqual([
-      "B au village des Gaulois : 1 nouvel objet.",
+      "B habille son Gaulois : 1 nouvel objet.",
       expect.stringContaining(" : au marché, le 14 novembre 2026"),
       "Payé en statères, qui viennent des points rapportés au clan.",
     ]);
@@ -306,25 +306,25 @@ describe("le message", () => {
     const avecDiscord = { ...ANNONCE, discord: "Sanglier Rieur" };
     expect(nomAffiche(avecDiscord)).toBe("@Sanglier Rieur");
     expect(nomAffiche(ANNONCE)).toBe("Brennos");
-    expect(annonceEnMots(avecDiscord)[0]).toBe("@Sanglier Rieur au village des Gaulois : 2 nouveaux objets.");
-    expect(plain(String(achatsPayload(avecDiscord, SITE, null)["content"])).split("\n")[0]).toBe("**\\@Sanglier Rieur** au village des Gaulois : 2 nouveaux objets");
+    expect(annonceEnMots(avecDiscord)[0]).toBe("@Sanglier Rieur habille son Gaulois : 2 nouveaux objets.");
+    expect(plain(String(achatsPayload(avecDiscord, SITE, null)["content"])).split("\n")[0]).toBe("**\\@Sanglier Rieur** habille son Gaulois : 2 nouveaux objets");
   });
 
-  it("avec l'image : l'image et un bouton vers le village, sans texte", () => {
+  it("avec l'image : l'image et un bouton vers « Mon Gaulois », sans texte", () => {
     expect(achatsPayload(ANNONCE, SITE, { alt: "Description.", filename: "achats-201.png" })).toEqual({
       avatar_url: "https://x.test/generated/icon-192.png",
       allowed_mentions: { parse: [] },
       attachments: [{ id: 0, filename: "achats-201.png", description: "Description." }],
-      components: [{ type: 1, components: [{ type: 2, style: 5, label: "Voir le village", url: "https://x.test/village" }] }],
+      components: [{ type: 1, components: [{ type: 2, style: 5, label: "Habiller mon Gaulois", url: "https://x.test/village" }] }],
     });
   });
 
   it("en secours, un texte qui ne mentionne personne et n'interprète pas le nom", () => {
     const payload = achatsPayload({ ...ANNONCE, nom: "@everyone **gras**" }, SITE, null);
     const lignes = plain(String(payload["content"])).split("\n");
-    expect(lignes[0]).toBe("**\\@everyone \\*\\*gras\\*\\*** au village des Gaulois : 2 nouveaux objets");
+    expect(lignes[0]).toBe("**\\@everyone \\*\\*gras\\*\\*** habille son Gaulois : 2 nouveaux objets");
     expect(lignes).toHaveLength(5);
-    expect(lignes[3]).toBe("[Voir le village sur le site](<https://x.test/village>)");
+    expect(lignes[3]).toBe("[Habiller son Gaulois sur le site](<https://x.test/village>)");
     expect(lignes[4]).toBe("-# Payé en statères, qui viennent des points rapportés au clan.");
     expect(payload).toMatchObject({ allowed_mentions: { parse: [] } });
     expect(payload).not.toHaveProperty("components");
@@ -460,7 +460,7 @@ describe("l'image des achats", () => {
     const { card, annonce } = cards.find((c) => c.id === "quatre")!;
     const textes = card.texts.map(plainText);
     expect(textes).toContain("Brennos");
-    expect(textes).toContain("4 nouveaux objets au village des Gaulois");
+    expect(textes).toContain("4 nouveaux objets pour son Gaulois");
     expect(textes).toContain("Le 14 novembre 2026, de 22 h 05 à 22 h 35");
     for (const a of annonce.achats) expect(textes).toContain(objetDe(a)!.nom);
     expect(textes).toContain("Boutique, 22 h 05");
@@ -470,7 +470,7 @@ describe("l'image des achats", () => {
     expect(textes).toContain("Payé en statères, qui viennent des points rapportés au clan.");
     expect(textes.join(" ")).not.toMatch(/\d+ statères/);
     const seul = cards.find((c) => c.annonce.achats.length === 1)!.card.texts.map(plainText);
-    expect(seul).toContain("Nouvel objet au village des Gaulois");
+    expect(seul).toContain("Nouvel objet pour son Gaulois");
     expect(seul).toContain("Boutique");
   });
 
@@ -494,7 +494,7 @@ describe("l'image des achats", () => {
 
   it("sa description dit tout ce que montre l'image", () => {
     const alt = plain(achatsImageAlt(ANNONCE));
-    for (const words of ["Brennos au village des Gaulois : 2 nouveaux objets.", objetEnMots(ANNONCE.achats[0]!), "à la boutique", "dans une pochette surprise", "22 h 15", "23 h 02", "Payé en statères"]) expect(alt).toContain(plain(words));
+    for (const words of ["Brennos habille son Gaulois : 2 nouveaux objets.", objetEnMots(ANNONCE.achats[0]!), "à la boutique", "dans une pochette surprise", "22 h 15", "23 h 02", "Payé en statères"]) expect(alt).toContain(plain(words));
   });
 
   it("se dessine, chaque objet posé sans lissage", async () => {

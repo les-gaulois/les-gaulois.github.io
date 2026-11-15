@@ -2595,65 +2595,8 @@
   margin-top: 0;
 }
 
-/* La dépense du mois, comme un avancement vers le plafond : la somme en grand, la longueur de la jauge. La jauge passe au
-   jaune quand le serveur dit le plafond atteint. */
-.dir-village-depense {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0 0.5rem;
-  font-size: 0.9375rem;
-  color: var(--color-muted);
-}
-.dir-village-depense > strong {
-  font-size: 2rem;
-  font-weight: 800;
-  line-height: 1.15;
-  white-space: nowrap;
-  color: var(--ecriture);
-}
-.dir-village .meter {
-  margin-top: 0.5rem;
-}
-.dir-village .meter > i {
-  background: var(--ton, var(--color-blue-text));
-}
-.dir-village-atteint {
-  margin-top: 0.5rem;
-  font-size: 0.9375rem;
-  font-weight: 600;
-}
-.dir-village .dir-village-repli {
-  padding-bottom: 0;
-}
-
-/* Le plafond : le champ et son bouton sur une ligne, alignés par le bas ; le bouton passe dessous quand la place manque. */
-.dir-village-plafond {
-  display: grid;
-  gap: 0.625rem;
-}
-.dir-village-saisie-ligne {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 0.75rem;
-}
-.dir-village-saisie-ligne label {
-  display: block;
-  margin-bottom: 0.25rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-.dir-village-saisie-ligne .field {
-  width: 8rem;
-  min-height: 2.75rem;
-}
-.dir-village-saisie-ligne .btn {
-  min-height: 2.75rem;
-}
-
-/* Un geste à part, sous un filet, loin d'« Enregistrer » et de « Changer le plafond » : « Revenir aux réglages du pilote »,
-   « Couper les bulles ». L'avertissement du second clic vient dessous : le bouton ne bouge pas entre les deux clics. */
+/* Un geste à part, sous un filet, loin d'« Enregistrer » : « Revenir aux réglages du pilote ». L'avertissement du second clic
+   vient dessous : le bouton ne bouge pas entre les deux clics. */
 .dir-village-apart {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -2675,16 +2618,6 @@
 .dir-village-apart-ligne > p {
   flex: 1 1 20rem;
   min-width: 0;
-}
-/* « Couper les bulles » reste gris : il ne prend son rouge qu'au survol, au clavier, ou une fois armé (second clic).
-   « Remettre les bulles », son inverse, est vert. */
-.dir-village-coupe[data-dir-ton="danger"]:where(:not(:hover, :focus-visible, [data-arme])) {
-  --ton: var(--color-muted);
-}
-.dir-village-coupe[data-arme] {
-  border-color: var(--ton);
-  background: var(--ton);
-  color: var(--color-night);
 }
 
 /* ---------- Le menu déroulant de l'onglet Discord, à la Direction ---------- */

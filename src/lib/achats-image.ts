@@ -4,7 +4,7 @@
  * lettres (la couleur ne la dit pas seule), d'où il vient et son heure. Dans le coin de la vitrine, cinq carrés, pleins jusqu'au
  * rang de la rareté, comme au vestiaire : un repère de forme. Sous l'objet, son ombre, en cases : il est posé, pas collé.
  * Même dessin que les autres images du robot (`gazette-image.ts`, « Les images du robot » de docs/DESIGN.md), et même allure
- * que celle d'un bâtiment fini (`chantier-image.ts`). Mise en page de Claude Fable 5.2, à la demande du pilote.
+ * que celle d'un bâtiment fini du village, retirée le 15 novembre 2026. Mise en page de Claude Fable 5.2, à la demande du pilote.
  *
  * Un seul objet : sa vitrine à droite, son nom, sa rareté et son origine à gauche, en chiffres clés. De deux à quatre : une
  * vitrine chacun, côte à côte. L'objet vient de `vignetteDeLObjet` (le dessin du vestiaire, rogné à son contour) : chaque case
@@ -13,12 +13,45 @@
  * 1 200 × 660 : 1,82 fois plus large que haut, au-dessus des 1,55 qu'il faut pour que Discord la montre en grand.
  */
 import sharp, { type OverlayOptions } from "sharp";
-import { dateLongue, heureEnMots } from "./chantier-discord";
-import { pixelsDuDessin, type DessinPose } from "./chantier-image";
-import { annonceEnMots, nouveauxObjets, objetDe, ORIGINES, PAYE_EN_STATERES, type AchatDuVillage, type AnnonceDesAchats } from "./achats-discord";
+import type { Decor } from "./village/decor";
+import { annonceEnMots, dateLongue, heureEnMots, nouveauxObjets, objetDe, ORIGINES, PAYE_EN_STATERES, type AchatDuVillage, type AnnonceDesAchats } from "./achats-discord";
 import { NOMS_EMPLACEMENTS, RARETES, type Rarete, type Vignette } from "./gaulois";
 import { CARD_COLORS as C, fitted, kpiParts, LOGO, MARGIN, pageFoot, pageHead, renderGazetteCard, type CardRect, type CardText, type GazetteCard, type GazetteFonts, type Measure } from "./gazette-image";
 import { shownAddress } from "./salon-discord";
+
+/** Un dessin posé sur l'image : ses cases, le coin haut gauche en pixels, le côté d'une case. */
+export interface DessinPose {
+  decor: Decor;
+  x: number;
+  y: number;
+  echelle: number;
+}
+
+/** Les pixels d'un dessin : rouge, vert, bleu, opacité, chaque case un carré plein, sans lissage. */
+export function pixelsDuDessin({ decor, echelle }: DessinPose): { data: Buffer; width: number; height: number } {
+  const width = decor.largeur * echelle;
+  const height = decor.hauteur * echelle;
+  const data = Buffer.alloc(width * height * 4);
+  for (let row = 0; row < decor.hauteur; row++) {
+    for (let column = 0; column < decor.largeur; column++) {
+      const color = decor.cases[row * decor.largeur + column];
+      if (!color || !/^#[0-9a-f]{6}$/i.test(color)) continue;
+      const r = parseInt(color.slice(1, 3), 16);
+      const g = parseInt(color.slice(3, 5), 16);
+      const b = parseInt(color.slice(5, 7), 16);
+      for (let dy = 0; dy < echelle; dy++) {
+        let at = ((row * echelle + dy) * width + column * echelle) * 4;
+        for (let dx = 0; dx < echelle; dx++) {
+          data[at++] = r;
+          data[at++] = g;
+          data[at++] = b;
+          data[at++] = 255;
+        }
+      }
+    }
+  }
+  return { data, width, height };
+}
 
 const WIDTH = 1200;
 const HEIGHT = 660;
@@ -140,7 +173,7 @@ export function nomSurLImage(annonce: Pick<AnnonceDesAchats, "nom" | "discord">,
 export function achatsCard(annonce: AnnonceDesAchats, vignettes: readonly (Vignette | null)[], siteUrl: string, measure: Measure, draws?: (char: string) => boolean): AchatsCard {
   const { achats } = annonce;
   const n = achats.length;
-  const kicker = n === 1 ? "Nouvel objet au village des Gaulois" : `${nouveauxObjets(n)} au village des Gaulois`;
+  const kicker = n === 1 ? "Nouvel objet pour son Gaulois" : `${nouveauxObjets(n)} pour son Gaulois`;
   // Un nom Discord peut compter 32 lettres larges : le titre descend jusqu'à 22 pixels plutôt que d'être coupé.
   const head = pageHead({ path: "/village", title: nomSurLImage(annonce, draws), name: true, titleMin: 22, kicker, period: periodeDesAchats(achats) }, measure);
   const rects: CardRect[] = [...head.rects];

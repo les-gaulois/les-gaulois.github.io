@@ -62,8 +62,8 @@ test("sans serveur configuré, la connexion n'apparaît pas et le site reste sta
   await page.goto("/carte");
   await expect(page.locator("[data-ouvre=\"alliance\"]")).toHaveCount(0);
   await expect(page.locator("[data-alliance-canvas]")).toHaveCount(0);
-  // Au village, la porte fermée est dans la fenêtre « Mon Gaulois », que son adresse ouvre.
-  for (const path of ["/compte", "/direction", "/qg", "/village#gaulois"]) {
+  // « Mon Gaulois » aussi, même par l'ancienne adresse de sa fenêtre dans le monde du village.
+  for (const path of ["/compte", "/direction", "/qg", "/village", "/village#gaulois"]) {
     await page.goto(path);
     await expect(page.getByTestId("auth-not-open")).toBeVisible();
   }
@@ -791,14 +791,14 @@ test("l'accueil donne d'abord le classement, et remonte Ma place pour qui a dit 
   expect(row.y + row.height).toBeLessThanOrEqual(ranking.y);
 });
 
-test("l'accueil ouvre la Carte et le village : une vraie image, les chiffres du relevé, un bouton", async ({ page, request }) => {
+test("l'accueil ouvre la Carte et « Mon Gaulois » : une vraie image, les chiffres du relevé, un bouton", async ({ page, request }) => {
   await page.goto("/");
   const titles = await page.locator("main h2").allTextContents();
   const at = (text: string) => titles.findIndex((t) => t.includes(text));
 
-  // Le village : le Gaulois de départ déjà publié pour le compagnon, une phrase, ni chiffre ni pseudo.
+  // « Votre Gaulois » : le Gaulois de départ déjà publié pour le compagnon, une phrase, ni chiffre ni pseudo.
   const village = page.getByTestId("home-village");
-  await expect(village.getByRole("link", { name: "Aller au village" })).toHaveAttribute("href", /\/village$/);
+  await expect(village.getByRole("link", { name: "Habiller mon Gaulois" })).toHaveAttribute("href", /\/village$/);
   expect(await village.innerText()).not.toMatch(/\d/);
   const gaulois = village.locator("img");
   // La même adresse versionnée que celle du compagnon : l'image n'est téléchargée qu'une fois.
@@ -806,9 +806,9 @@ test("l'accueil ouvre la Carte et le village : une vraie image, les chiffres du 
   await expect(gaulois).toHaveCSS("image-rendering", "pixelated");
   await expect.poll(() => gaulois.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth)).toBe(192);
   // Les blocs validés gardent leur ordre : les deux portes viennent après la semaine, avant « Ma place ».
-  expect(at("Le village des Gaulois")).toBeGreaterThan(at("Le clan au classement officiel"));
-  expect(at("Le village des Gaulois")).toBeGreaterThan(at("Les Gaulois de la semaine"));
-  expect(at("Le village des Gaulois")).toBeLessThan(at("Ma place dans le clan"));
+  expect(at("Votre Gaulois")).toBeGreaterThan(at("Le clan au classement officiel"));
+  expect(at("Votre Gaulois")).toBeGreaterThan(at("Les Gaulois de la semaine"));
+  expect(at("Votre Gaulois")).toBeLessThan(at("Ma place dans le clan"));
 
   // La Carte : sans carte collectée, pas de bloc ; sinon l'image de la carte finale, sa mention et les chiffres du film.
   const film = loadClanMapFilm();
@@ -818,7 +818,7 @@ test("l'accueil ouvre la Carte et le village : une vraie image, les chiffres du 
     return;
   }
   await expect(map.getByRole("link", { name: "Ouvrir la carte" })).toHaveAttribute("href", /\/carte$/);
-  expect(at("La carte des clans")).toBeLessThan(at("Le village des Gaulois"));
+  expect(at("La carte des clans")).toBeLessThan(at("Votre Gaulois"));
   expect(at("La carte des clans")).toBeGreaterThan(at("Les Gaulois de la semaine"));
   const still = map.locator("img");
   await expect(still).toHaveAttribute("src", /\/generated\/carte\/finale-800\.webp\?v=[0-9a-f]{12}$/);
@@ -930,11 +930,11 @@ test("les images des commandes du robot sont publiées, chacune à son adresse",
 });
 
 // Le 12 novembre 2026, à la demande du pilote : la liste a son onglet, entre la page Membres et le QG, et n'est qu'à un endroit.
-// Le village (13 novembre 2026) se range entre la liste et le QG.
+// « Mon Gaulois » (13 novembre 2026, à l'adresse /village) se range entre la liste et le QG.
 test("la liste des membres a son onglet, entre la page Membres et le QG", async ({ page }) => {
   await page.goto("/membres");
   const tabs = page.getByTestId("section-nav").locator("a");
-  await expect(tabs).toHaveText(["Membres", "La liste", "Le village", "Le QG"]);
+  await expect(tabs).toHaveText(["Membres", "La liste", "Mon Gaulois", "Le QG"]);
   await expect(page.locator('astro-island[component-url*="MembersTable"]')).toHaveCount(0);
   await tabs.filter({ hasText: "La liste" }).click();
   await expect(page).toHaveURL(/\/liste\/?$/);
@@ -946,28 +946,36 @@ test("la liste des membres a son onglet, entre la page Membres et le QG", async 
   await expect(page).toHaveURL(/\/liste\/?$/);
 });
 
-// Le village sans serveur (le site publié sans PUBLIC_SUPABASE_URL) : le monde se visite, et « Mon Gaulois » montre la porte
-// fermée, sans vestiaire. Le Gaulois de départ, la connexion et les Gaulois des membres ne paraissent qu'avec le serveur :
-// ils sont essayés à part, contre les vraies fonctions SQL. Le monde lui-même : tests/e2e/village.spec.ts. L'accessibilité
-// et les largeurs de /village sont contrôlées avec les autres pages (PAGES).
-test("le village sans serveur garde sa porte fermée dans « Mon Gaulois », avec le bouton pause", async ({ page }) => {
+// « Mon Gaulois » sans serveur (le site publié sans PUBLIC_SUPABASE_URL) : la porte fermée, sans vestiaire ni onglets. Le
+// Gaulois de départ, la connexion, la forge et le marché ne paraissent qu'avec le serveur : ils sont essayés à part, contre
+// les vraies fonctions SQL. Le monde du village, retiré le 15 novembre 2026, ne revient pas : ni scène, ni chantier, ni feu.
+// L'accessibilité et les largeurs de /village sont contrôlées avec les autres pages (PAGES).
+test("« Mon Gaulois » sans serveur garde sa porte fermée, sans le monde du village, avec le bouton pause", async ({ page }) => {
   await page.goto("/village");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Le village");
-  await expect(page.getByTestId("village")).toBeVisible();
-  await expect(page.getByTestId("auth-not-open")).toHaveCount(0);
-  await page.getByTestId("monde-entree-gaulois").click();
-  await expect(page.getByRole("heading", { level: 2, name: "Mon Gaulois" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Mon Gaulois");
+  await expect(page.getByRole("heading", { level: 2, name: "Votre Gaulois" })).toBeVisible();
   await expect(page.getByTestId("auth-not-open")).toBeVisible();
   await expect(page.getByRole("tab")).toHaveCount(0);
   await expect(page.getByTestId("vestiaire-porte")).toHaveCount(0);
-  // Sans compte, ni le marché ni « Qui est où » : le serveur ne donne les Gaulois qu'aux membres validés.
-  await expect(page.getByTestId("monde-entree-marche")).toHaveCount(0);
-  await expect(page.getByTestId("monde-entree-qui")).toHaveCount(0);
+  await expect(page.locator(".monde, .monde-sans-script")).toHaveCount(0);
+  await expect(page.locator("html")).not.toHaveClass(/village-monde/);
   const pause = page.getByRole("button", { name: "Mettre les animations en pause" });
   await expect(pause).toBeVisible();
   await pause.click();
   await expect(page.locator("html")).toHaveClass(/fx-off/);
   await expect(pause).toHaveAttribute("aria-pressed", "true");
+});
+
+// La commande /feu du robot Discord lit le grand feu dans /village/monde.json : le site le publie toujours, même sans le
+// monde du village à l'écran (15 novembre 2026). Le chantier et le feu y sont un objet, ou null quand il n'y a pas de données.
+test("/village/monde.json reste publié pour la commande /feu", async ({ request }) => {
+  const reponse = await request.get("/village/monde.json");
+  expect(reponse.ok()).toBe(true);
+  expect(reponse.headers()["content-type"]).toContain("application/json");
+  const etat = (await reponse.json()) as Record<string, unknown>;
+  expect(Object.keys(etat).sort()).toEqual(["chantier", "feu", "releve"]);
+  if (etat["feu"] !== null) expect(etat["feu"]).toEqual(expect.objectContaining({ niveau: expect.any(Number), points: expect.any(Number) }));
+  if (etat["releve"] !== null) expect(Number.isNaN(Date.parse(String(etat["releve"])))).toBe(false);
 });
 
 /** Le lien que le doigt touche en un point d'un élément : celui du dessus, comme un vrai toucher. */
@@ -2622,9 +2630,9 @@ test("chaque page donne le code source, la mention d'OpenFront et les mentions l
   test.skip(testInfo.project.name !== "desktop", "Même pied de page sur mobile.");
   for (const path of [...PAGES, "/confidentialite", "/compte", "/direction"]) {
     await page.goto(path);
-    // La page Carte et le village sont des écrans qui tiennent dans la fenêtre, sans bas de page : la ligne posée sur la
-    // carte ou sur le monde donne les trois (tests/e2e/carte.spec.ts et village.spec.ts le contrôlent aussi).
-    const footer = path === "/carte" ? page.getByTestId("map-credit") : path === "/village" ? page.getByTestId("monde-credit") : page.locator("footer");
+    // La page Carte est un écran qui tient dans la fenêtre, sans bas de page : la ligne posée sur la carte donne les trois
+    // (tests/e2e/carte.spec.ts le contrôle aussi).
+    const footer = path === "/carte" ? page.getByTestId("map-credit") : page.locator("footer");
     await expect(footer.getByRole("link", { name: "Code source", exact: true }), path).toHaveAttribute("href", "https://github.com/les-gaulois/les-gaulois.github.io");
     await expect(footer, path).toContainText("© OpenFront and Contributors");
     await expect(footer.getByRole("link", { name: "Mentions légales", exact: true }), path).toHaveAttribute("href", "/mentions-legales");

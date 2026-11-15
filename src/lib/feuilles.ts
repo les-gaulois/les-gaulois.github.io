@@ -34,7 +34,7 @@ export const FEUILLES: readonly { fichier: string; pages: typeof TOUTES | readon
   // « Plus calme », le second lot des remarques du 12 novembre 2026.
   { fichier: "07-calme.css", pages: TOUTES },
   { fichier: "08-alliance.css", pages: ["/carte", "/direction"] },
-  // Les onglets, la place, le marché, le vestiaire, la bourse et la boutique du village.
+  // « Mon Gaulois » (/village) : les onglets, le marché, le vestiaire, la bourse et la boutique.
   { fichier: "09-village.css", pages: ["/village", "/direction"] },
   // Le classement en colonne et les fenêtres de la Carte.
   { fichier: "10-carte-colonne.css", pages: ["/carte", "/direction"] },
@@ -43,8 +43,8 @@ export const FEUILLES: readonly { fichier: string; pages: typeof TOUTES | readon
   { fichier: "12-qg.css", pages: ["/qg", "/direction"] },
   // Le Gaulois compagnon, sur toutes les pages.
   { fichier: "13-compagnon.css", pages: TOUTES },
-  // Le monde du village et sa forge.
-  { fichier: "14-monde.css", pages: ["/village", "/direction"] },
+  // La forge de « Mon Gaulois » ; le monde du village, qui partageait ce morceau, est retiré depuis le 15 novembre 2026.
+  { fichier: "14-forge.css", pages: ["/village", "/direction"] },
 ];
 
 /** Les morceaux qu'une page charge, dans l'ordre de la cascade. `route` : le motif de la page (`/membres/[id]`). */

@@ -24,9 +24,8 @@ export const basePath = (): string => import.meta.env.BASE_URL.replace(/\/$/, ""
 export const MESSAGE_DRAFT_KEY = "gal-direction-message";
 
 /**
- * Le carnet des touchers de la place du village (`CLE_DU_CARNET` de `src/lib/village/toucher.ts`), effacé à la déconnexion
- * lui aussi. La clé est recopiée ici plutôt qu'importée : ce fichier part sur toutes les pages, et l'import amènerait les
- * deux cents phrases des Gaulois avec lui. Un test garde les deux écritures identiques.
+ * Le carnet des touchers de la place du village, effacé à la déconnexion lui aussi. La place et le toucher des Gaulois ont
+ * été retirés le 15 novembre 2026 avec le monde du village : la clé reste, pour vider ce carnet chez qui l'a encore.
  */
 export const VILLAGE_TOUCHER_KEY = "gal-village-toucher";
 

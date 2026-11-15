@@ -1039,7 +1039,8 @@ describe("un passage de la vie du village", () => {
     const bilan = await vieDuVillage({ rpc: sansCle.rpc, fetch: discord.send, sleep: sansPause, discord: { token: "jeton", guildId: GUILDE }, cleClaude: null, log: (l) => journal.push(l) });
     expect(bilan).toMatchObject({ vocaux: 3, appels: 0 });
     expect(discord.appels.every((a) => a.url.startsWith("https://discord.com/"))).toBe(true);
-    expect(journal.some((l) => l.includes("ANTHROPIC_API_KEY"))).toBe(true);
+    // Sans clé, le journal dit que les bulles sont coupées (le robot n'en reçoit plus depuis le 15 novembre 2026), et rien de plus.
+    expect(journal).toContain("Vie du village : bulles coupées depuis le retrait du monde du village (15 novembre 2026), aucune bulle écrite.");
   });
 
   it("n'appelle pas Claude quand le serveur coupe les bulles ou n'en demande aucune", async () => {

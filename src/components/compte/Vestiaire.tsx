@@ -75,7 +75,7 @@ import { Bourse } from "../village/Bourse";
 import { DialogueAchat, DialoguePochette, type Issue } from "../village/BoutiqueDialogue";
 import { MarqueDeRarete, Pixels, Prix, peindre } from "../village/BoutiquePixels";
 import { Pochette } from "../village/Pochette";
-import { PetitePlaque } from "../village/monde/FenetreForge";
+import { PetitePlaque } from "../village/Forge";
 import { CodeLogin, DiscordButton, Loading, Problem, Success, codeLoginShown, messageOf, useMe } from "./common";
 
 /** Le Gaulois dessiné case par case, agrandi sans flou par la feuille de style. Son texte de remplacement le décrit. */
@@ -529,7 +529,7 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
     if (revenu && etat.kind === "pret") void lireLaBoutique();
   }, [actif]);
 
-  // Une plaque gravée ou effacée à la forge (fenêtre voisine du monde) : les plaques du vestiaire se relisent, sans rien
+  // Une plaque gravée ou effacée à la forge (l'onglet voisin) : les plaques du vestiaire se relisent, sans rien
   // toucher à la tenue en cours. Une relecture qui échoue garde celles qu'on avait.
   useEffect(() => {
     const relire = () => {

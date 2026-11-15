@@ -227,7 +227,7 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   // d'appel était mal posé, rien ne serait écrit.
   const vie = await rpc("get_vie_du_village");
   const vieAnswer = vie.ok ? ((await vie.json().catch(() => null)) as { ok?: boolean } | null) : null;
-  if (vie.status === 404) add("La vie du village est installée", "warn", `${aColler("get_vie_du_village")}. D'ici là, l'étape « Animer le village » échoue sans rien bloquer, et la place n'a ni bulles ni relevé vocal.`);
+  if (vie.status === 404) add("La vie du village est installée", "warn", `${aColler("get_vie_du_village")}. D'ici là, l'étape « Relever le vocal des Gaulois » échoue sans rien bloquer, et /gaulois n'a pas de relevé vocal.`);
   else if (isClosed(vie.status) || (vie.ok && vieAnswer?.ok === false)) add("Un visiteur ne lit pas la dépense des bulles du village", "ok");
   else add("Un visiteur ne lit pas la dépense des bulles du village", "fail", `Réponse ${vie.status}. Ne mettez pas en ligne : seul l'encadrement lit la dépense des bulles.`);
   const vieReglages = [
@@ -482,7 +482,7 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   const vieNote = await fetcher(`${base}/rest/v1/rpc/noter_vie_du_village`, { method: "POST", headers: secretHeaders, body: JSON.stringify({ p_releve: { verification: true } }) });
   const vieNoteAnswer = vieNote.ok ? ((await vieNote.json().catch(() => null)) as { ok?: unknown; error?: unknown } | null) : null;
   if (vieNoteAnswer?.ok === false && vieNoteAnswer.error === "invalid_releve") add(vieLabel, "ok");
-  else if (vieNote.status === 404) add(vieLabel, "warn", `${aColler("noter_vie_du_village")}. D'ici là, l'étape « Animer le village » échoue sans rien bloquer.`);
+  else if (vieNote.status === 404) add(vieLabel, "warn", `${aColler("noter_vie_du_village")}. D'ici là, l'étape « Relever le vocal des Gaulois » échoue sans rien bloquer.`);
   else add(vieLabel, "warn", `Réponse ${vieNote.status}. La clé de service n'a pas le droit d'appeler noter_vie_du_village : collez de nouveau ${fichierDuVillage}, en entier : il se rejoue sans rien perdre.`);
 
   // Les Gaulois sur les images : les scripts du robot, avec cette clé, doivent pouvoir les lire. Lecture seule, et une liste

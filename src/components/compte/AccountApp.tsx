@@ -100,7 +100,7 @@ function retourApresDiscord(me: Me | null): string | null {
   }
   if (retourDemande(RETOUR_VILLAGE_KEY)) {
     location.replace(`${basePath()}${ADRESSE_VILLAGE}`);
-    return "Retour au village…";
+    return "Retour à « Mon Gaulois »…";
   }
   return null;
 }

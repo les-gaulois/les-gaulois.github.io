@@ -127,7 +127,8 @@ describe("le bouton « Graver »", () => {
 
 describe("ce que la forge dit en plus", () => {
   it("dit qui voit les plaques", () => {
-    expect(phraseDesPlaquesVues(true)).toContain("les autres membres voient");
+    expect(phraseDesPlaquesVues(true)).toBe("Votre pseudo est public : les autres membres validés peuvent lire les plaques des objets que vous portez.");
+    expect(phraseDesPlaquesVues(true)).not.toMatch(/place/);
     expect(phraseDesPlaquesVues(false)).toBe("Votre pseudo n'est pas public : vous seul voyez vos plaques.");
   });
 

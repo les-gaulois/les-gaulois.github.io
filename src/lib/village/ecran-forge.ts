@@ -1,5 +1,6 @@
 /**
- * Les calculs de l'écran de la forge aux souvenirs (fenêtre « La forge » du monde du village, 14 novembre 2026) : l'ordre
+ * Les calculs de l'écran de la forge aux souvenirs (14 novembre 2026 ; onglet « La forge » de « Mon Gaulois » depuis le
+ * retrait du monde du village, le 15 novembre 2026) : l'ordre
  * des objets, les lignes de la plaque, l'heure qui distingue deux parties, et ce que dit le bouton « Graver ». Le serveur
  * décide de tout (`forge.ts`, `contrat.ts`) : rien ici n'accorde une gravure, ce ne sont que des politesses de l'écran.
  */
@@ -83,7 +84,7 @@ export function etatDuBouton(forge: Pick<MaForge, "prix" | "solde">, objet: Obje
 
 /** Qui voit les plaques du membre, en une phrase. */
 export const phraseDesPlaquesVues = (vues: boolean): string =>
-  vues ? "Sur la place, les autres membres voient les plaques des objets que vous portez." : "Votre pseudo n'est pas public : vous seul voyez vos plaques.";
+  vues ? "Votre pseudo est public : les autres membres validés peuvent lire les plaques des objets que vous portez." : "Votre pseudo n'est pas public : vous seul voyez vos plaques.";
 
 /** Ce qu'une case d'objet gravé ajoute à son nom, pour un lecteur d'écran et au survol : « Gravé : 12 novembre, … ». */
 export const motsDeLaPlaque = (texte: string): string => `Gravé : ${texte}`;

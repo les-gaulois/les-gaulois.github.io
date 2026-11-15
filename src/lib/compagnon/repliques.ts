@@ -43,7 +43,7 @@ export const REPLIQUES_DES_GESTES = {
   pose: "Ici, c'est bien. Je reste.",
   suivre: "Je te suis.",
   libere: "Enfin libre ! Merci.",
-  invitation: "Habille-moi au village.",
+  invitation: "Viens m'habiller.",
 } as const satisfies Record<string, string>;
 export type Geste = keyof typeof REPLIQUES_DES_GESTES;
 

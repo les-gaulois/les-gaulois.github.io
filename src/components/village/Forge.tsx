@@ -1,12 +1,12 @@
-import type { ComponentChildren, RefObject } from "preact";
+import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { AUTH_ENABLED, ServerError, basePath, call } from "../../../lib/compte/api";
-import { clicSurBoutonArme, desarmerALaPerte } from "../../../lib/compte/discord-etat";
-import { errorMessage } from "../../../lib/compte/errors";
-import { RETOUR_VILLAGE_KEY, vignetteDeLObjet } from "../../../lib/gaulois";
-import { PLAQUE, PLAQUE_GRANDE } from "../../../lib/village/batiments";
-import type { MaForge, ObjetGravable, PartieGravable } from "../../../lib/village/contrat";
-import { motStatere, nombre, stateres } from "../../../lib/village/ecran-boutique";
+import { AUTH_ENABLED, ServerError, basePath, call } from "../../lib/compte/api";
+import { clicSurBoutonArme, desarmerALaPerte } from "../../lib/compte/discord-etat";
+import { errorMessage } from "../../lib/compte/errors";
+import { RETOUR_VILLAGE_KEY, vignetteDeLObjet } from "../../lib/gaulois";
+import { PLAQUE, PLAQUE_GRANDE } from "../../lib/village/plaque";
+import type { MaForge, ObjetGravable, PartieGravable } from "../../lib/village/contrat";
+import { motStatere, nombre, stateres } from "../../lib/village/ecran-boutique";
 import {
   PARTIES_MONTREES,
   PLAQUES_CHANGEES,
@@ -21,14 +21,14 @@ import {
   partieChoisie,
   phraseDesPlaquesVues,
   rangerLesObjets,
-} from "../../../lib/village/ecran-forge";
-import { MESSAGES_DE_LA_FORGE, lireMaForge, messageDeLaForge } from "../../../lib/village/forge";
-import { echelleEntiere } from "../../../lib/village/vestiaire-rayons";
-import { CodeLogin, DiscordButton, Loading, Problem, codeLoginShown, useMe } from "../../compte/common";
-import { MarqueDeRarete, Piece, Pixels } from "../BoutiquePixels";
+} from "../../lib/village/ecran-forge";
+import { MESSAGES_DE_LA_FORGE, lireMaForge, messageDeLaForge } from "../../lib/village/forge";
+import { echelleEntiere } from "../../lib/village/vestiaire-rayons";
+import { CodeLogin, DiscordButton, Loading, Problem, codeLoginShown, useMe } from "../compte/common";
+import { MarqueDeRarete, Piece, Pixels } from "./BoutiquePixels";
 
 /**
- * La fenêtre « La forge » du monde du village : la forge aux souvenirs (idée du pilote, 14 novembre 2026 : « On paie des
+ * La forge, onglet de la page « Mon Gaulois » : la forge aux souvenirs (idée du pilote, 14 novembre 2026 : « On paie des
  * statères pour graver une vraie partie sur son épée »). Le membre choisit un de ses objets, puis une de ses parties qui
  * ont rapporté des points au clan, voit la plaque avant de payer, confirme, et la plaque est gravée. Effacer une plaque
  * est gratuit, mais ne se rattrape pas : à part, sous un filet, au second clic.
@@ -43,24 +43,6 @@ const refusDe = (e: unknown): string => {
   const code = e instanceof ServerError ? e.code : "network";
   return messageDeLaForge(code) ?? errorMessage(code);
 };
-
-/** La fenêtre du monde qui contient la forge est-elle ouverte ? Sans fenêtre autour d'elle, la forge se tient pour vue. */
-function useOuverte(racine: RefObject<HTMLElement>): boolean {
-  const [ouverte, setOuverte] = useState(false);
-  useEffect(() => {
-    const cadre = racine.current?.closest(".monde-fenetre");
-    if (!cadre) {
-      setOuverte(true);
-      return;
-    }
-    const lire = () => setOuverte(!cadre.hasAttribute("hidden"));
-    lire();
-    const observateur = new MutationObserver(lire);
-    observateur.observe(cadre, { attributes: true, attributeFilter: ["hidden"] });
-    return () => observateur.disconnect();
-  }, []);
-  return ouverte;
-}
 
 /** La petite plaque dorée d'un objet gravé, décorative : son texte est écrit à côté ou dans le nom de la case. */
 export function PetitePlaque({ echelle = 3 }: { echelle?: number }) {
@@ -289,7 +271,7 @@ function EffacerLaPlaque({ occupe, onConfirmer }: { occupe: boolean; onConfirmer
 /** Un message de la forge fermée, et où aller. */
 function Ferme({ testid, children }: { testid: string; children: ComponentChildren }) {
   return (
-    <p class="monde-en-cours-phrase forge-ferme" data-testid={testid}>
+    <p class="forge-phrase forge-ferme" data-testid={testid}>
       {children}
     </p>
   );
@@ -301,7 +283,6 @@ type Lecture = { kind: "attente" } | { kind: "lecture" } | { kind: "erreur"; mes
 function Atelier() {
   const { me, refresh } = useMe();
   const racine = useRef<HTMLDivElement>(null);
-  const ouverte = useOuverte(racine);
   const [lecture, setLecture] = useState<Lecture>({ kind: "attente" });
   const [cle, setCle] = useState<string | null>(null);
   const [partie, setPartie] = useState<string | null>(null);
@@ -330,17 +311,16 @@ function Atelier() {
   // changer au vestiaire ou au marché.
   const connecte = me?.signed_in === true;
   useEffect(() => {
-    if (ouverte && connecte) void lire(lecture.kind === "prete");
-  }, [ouverte, connecte]);
+    if (connecte) void lire(lecture.kind === "prete");
+  }, [connecte]);
 
   // Le focus suit le parcours : au titre de l'établi quand un objet est choisi, à la case quittée quand on en change.
   const avant = useRef(cle);
   useEffect(() => {
     if (avant.current === cle) return;
     avant.current = cle;
-    if (cle) etabli.current?.focus({ preventScroll: true });
+    if (cle) etabli.current?.focus();
     else if (quitte.current) racine.current?.querySelector<HTMLElement>(`[data-cle="${CSS.escape(quitte.current)}"]`)?.focus();
-    racine.current?.closest(".monde-fenetre-corps")?.scrollTo({ top: 0 });
   }, [cle]);
 
   const choisir = (suite: string | null) => {
@@ -395,7 +375,7 @@ function Atelier() {
     corps = (
       <div class="forge-porte" data-testid="forge-porte">
         <GrandePlaque texte={null} echelle={6} />
-        <p class="monde-en-cours-phrase">Connectez-vous pour graver vos parties sur vos objets.</p>
+        <p class="forge-phrase">Connectez-vous pour graver vos parties sur vos objets.</p>
         <div>
           <DiscordButton
             returnPath="/compte"
@@ -434,14 +414,14 @@ function Atelier() {
           {me.status === "validated" ? (
             <Ferme testid="forge-sans-gaulois">
               La forge grave les objets de votre Gaulois.{" "}
-              <a class="monde-lien" href="#gaulois">
+              <a class="forge-lien" href="#gaulois">
                 Créez votre Gaulois
               </a>
             </Ferme>
           ) : (
             <Ferme testid="forge-attente">
               {MESSAGES_DE_LA_FORGE.not_validated}{" "}
-              <a class="monde-lien" href={`${basePath()}/compte`}>
+              <a class="forge-lien" href={`${basePath()}/compte`}>
                 Voir mon compte
               </a>
             </Ferme>
@@ -465,7 +445,7 @@ function Atelier() {
           ) : (
             <p class="forge-mot" data-testid="forge-sans-objet">
               Seuls les objets à rareté se gravent : la boutique en vend.{" "}
-              <a class="monde-lien" href="#gaulois">
+              <a class="forge-lien" href="#gaulois">
                 Voir mon Gaulois
               </a>
             </p>
@@ -491,7 +471,7 @@ function Atelier() {
                 {nomDeLObjet(objet)}
                 {objet.porte && <span class="forge-porte-mot"> (porté)</span>}
               </h3>
-              <button type="button" class="monde-lien" onClick={() => choisir(null)} data-testid="forge-changer">
+              <button type="button" class="forge-lien" onClick={() => choisir(null)} data-testid="forge-changer">
                 Changer d'objet
               </button>
             </div>
@@ -525,7 +505,7 @@ function Atelier() {
                   })}
                 </ul>
                 {!toutes && forge.parties.length > PARTIES_MONTREES && (
-                  <button type="button" class="monde-lien forge-plus" onClick={() => setToutes(true)} data-testid="forge-plus">
+                  <button type="button" class="forge-lien forge-plus" onClick={() => setToutes(true)} data-testid="forge-plus">
                     Voir les parties plus anciennes
                   </button>
                 )}
@@ -575,14 +555,14 @@ function Atelier() {
 }
 
 /**
- * La forge du village, dans sa fenêtre du monde (`MondeFenetres.tsx`, qui garde le bouton « Voir la forge »). Sans
- * connexion ouverte sur le site (`AUTH_ENABLED`), elle le dit : graver demande un compte.
+ * La forge, onglet de la page « Mon Gaulois » (`VillageApp.tsx`) depuis le retrait du monde du village (15 novembre
+ * 2026). Sans connexion ouverte sur le site (`AUTH_ENABLED`), elle le dit : graver demande un compte.
  */
 export default function AtelierDeLaForge() {
   if (AUTH_ENABLED) return <Atelier />;
   return (
     <div class="forge" data-testid="forge">
-      <p class="monde-en-cours-phrase">La forge grave les parties des membres : la connexion au site n'est pas ouverte.</p>
+      <p class="forge-phrase">La forge grave les parties des membres : la connexion au site n'est pas ouverte.</p>
     </div>
   );
 }

@@ -10,7 +10,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 ---
 
 <section class="stage stage-night reveal flex flex-col items-start" aria-labelledby="accueil-village-titre" data-testid="home-village">
-  <h2 id="accueil-village-titre" class="section-title section-title-sm">Le village des Gaulois</h2>
+  <h2 id="accueil-village-titre" class="section-title section-title-sm">Votre Gaulois</h2>
   <div class="mt-5 flex items-center gap-5 sm:gap-8">
     {/* 48 × 64 cases, deux fois plus grand sur téléphone, trois puis quatre fois ensuite : toujours un nombre entier d'écrans par case. */}
     <img
@@ -23,9 +23,9 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
       draggable="false"
     />
     <div class="flex flex-col items-start">
-      {/* La phrase suit la description de la page /village, refaite en monde en pixels le 14 novembre 2026. */}
-      <p class="max-w-md text-muted">Un monde en pixels qui se bâtit avec les points rapportés au clan : chaque membre y habille son Gaulois et le voit vivre.</p>
-      <a href={`${base}/village`} class="btn btn-secondary mt-6">Aller au village</a>
+      {/* La phrase suit la description de la page /village, « Mon Gaulois » depuis le retrait du monde du village (15 novembre 2026). */}
+      <p class="max-w-md text-muted">Chaque membre habille son Gaulois en pixels avec les statères des points rapportés au clan, et le voit sur les images du clan sur Discord.</p>
+      <a href={`${base}/village`} class="btn btn-secondary mt-6">Habiller mon Gaulois</a>
     </div>
   </div>
 </section>

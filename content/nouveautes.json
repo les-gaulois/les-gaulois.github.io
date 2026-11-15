@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-15",
+    "kind": "retire",
+    "title": "Le monde du village retiré",
+    "body": "Le monde du village en pixels est retiré. Votre Gaulois reste : la page « Mon Gaulois » garde le vestiaire, la boutique, la forge et le marché, et il paraît toujours sur les images du clan.",
+    "link": {
+      "href": "/village",
+      "label": "Habiller mon Gaulois"
+    }
+  },
+  {
+    "date": "2026-11-15",
     "kind": "nouveau",
     "title": "L'almanach des petits moments",
     "body": "De temps en temps, un moment rare passe dans le village : un vol d'oies, un renard au puits, la brume sur le gué. Il y en a 650, et on revoit rarement le même.",

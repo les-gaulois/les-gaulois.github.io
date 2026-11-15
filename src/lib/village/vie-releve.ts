@@ -1063,7 +1063,7 @@ export async function vieDuVillage(deps: VieDeps): Promise<BilanDeLaVie> {
 
   // 2. Les bulles.
   if (!deps.cleClaude) {
-    deps.log("Vie du village : pas de clé ANTHROPIC_API_KEY, aucune bulle écrite.");
+    deps.log("Vie du village : bulles coupées depuis le retrait du monde du village (15 novembre 2026), aucune bulle écrite.");
   } else {
     // La liste lue avant le relevé vocal : l'état vocal ne change pas les faits d'une bulle, qui ne le disent jamais.
     const lot = travail.bulles && travail.modele ? choisirLeLot(travail.gaulois, travail.maintenant) : [];
@@ -1162,6 +1162,6 @@ export async function vieDuVillage(deps: VieDeps): Promise<BilanDeLaVie> {
 
 /* ---------- La lecture de l'encadrement ---------- */
 
-// Dans `vie-encadrement.ts`, sans le SDK d'Anthropic : l'écran de la Direction l'importe de là. Redonnée ici pour les essais
+// Dans `vie-encadrement.ts`, sans le SDK d'Anthropic (l'écran de la Direction l'importait de là, avant le retrait des bulles). Redonnée ici pour les essais
 // du robot qui lisent tout au même endroit.
 export { PLAFOND_MAX, lirePlafond, lireVieDuVillage, type DepenseDuMois, type VieDuVillage } from "./vie-encadrement";

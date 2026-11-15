@@ -1,21 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { GAULOIS_HAUTEUR, GAULOIS_LARGEUR, OBJETS, TENUE_DE_DEPART, casesDuGaulois, lireTenue } from "../../src/lib/gaulois";
-import { ICONES_DES_LIEUX } from "../../src/lib/village/lieux-icones";
 import { ADVERSAIRES, ATTABLE_COUPE, ATTABLE_HAUTEUR, LIT_HAUTEUR, LIT_LARGEUR, casesDeLAdversaire, casesDesPieds, casesEndormies, miroir, poseAttable, poseCouche, poseDeMarche, sansArme } from "../../src/lib/village/poses";
-import { LIEUX } from "../../src/lib/village/vie";
 
 const COULEUR = /^#[0-9a-f]{6}$/;
-
-describe("les cinq lieux", () => {
-  it("ont chacun leur petite image", () => {
-    for (const lieu of LIEUX) {
-      const icone = ICONES_DES_LIEUX[lieu];
-      expect([icone.largeur, icone.hauteur]).toEqual([11, 11]);
-      expect(icone.cases).toHaveLength(121);
-      expect(icone.cases.filter((c) => c !== null).length).toBeGreaterThan(30);
-    }
-  });
-});
 
 describe("les poses", () => {
   const debout = casesDuGaulois(TENUE_DE_DEPART);

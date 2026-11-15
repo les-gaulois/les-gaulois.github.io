@@ -27,13 +27,24 @@
  */
 import { z } from "zod";
 import { looksLikeLink, MAX_NAME, tidyName } from "./arrivees";
-import { dateLongue, heureEnMots, villageButton } from "./chantier-discord";
 import { imageMessage, postWithImage, textMessage } from "./discord-post";
 import { EMPLACEMENTS_OBJETS, NOMS_EMPLACEMENTS, OBJETS, type Objet, type Rarete } from "./gaulois";
 import { escapeDiscord, type RenderedImage } from "./gazette-discord";
 import { parseNoted, siteLink } from "./salon-discord";
 
 const isoDate = z.iso.datetime();
+
+const PARIS = "Europe/Paris";
+const jourLong = new Intl.DateTimeFormat("fr-FR", { timeZone: PARIS, day: "numeric", month: "long", year: "numeric" });
+const heureMinute = new Intl.DateTimeFormat("fr-FR", { timeZone: PARIS, hour: "numeric", minute: "2-digit", hourCycle: "h23" });
+
+/** « 2 novembre 2026 », et « 1er » pour le premier du mois. */
+export const dateLongue = (iso: string) => jourLong.format(new Date(iso)).replace(/^1 /, "1er ");
+/** « 20 h 10 ». */
+export const heureEnMots = (iso: string) => heureMinute.format(new Date(iso)).replace(":", " h ");
+
+/** Le bouton du message : la page de son Gaulois, `/village`, comme le bouton de /gaulois. */
+export const gauloisButton = (siteUrl: string) => ({ label: "Habiller mon Gaulois", url: siteLink(siteUrl, "/village") });
 
 /** Les objets d'un même Gaulois sur une image : au-delà, une autre image. */
 export const OBJETS_PAR_IMAGE = 4;
@@ -149,7 +160,7 @@ export const nouveauxObjets = (n: number) => (n >= 2 ? `${n} nouveaux objets` : 
 /** Ce que dit l'annonce, pour un lecteur d'écran et pour le texte de secours : le titre, une ligne par objet, la réserve. */
 export function annonceEnMots(annonce: AnnonceDesAchats): string[] {
   return [
-    `${nomAffiche(annonce)} au village des Gaulois : ${nouveauxObjets(annonce.achats.length)}.`,
+    `${nomAffiche(annonce)} habille son Gaulois : ${nouveauxObjets(annonce.achats.length)}.`,
     ...annonce.achats.map((a) => `${objetEnMots(a)} : ${ORIGINES[a.nature].phrase}, le ${dateLongue(a.le)} à ${heureEnMots(a.le)}.`),
     PAYE_EN_STATERES,
   ];
@@ -158,9 +169,9 @@ export function annonceEnMots(annonce: AnnonceDesAchats): string[] {
 /** Le message. `image` : le fichier joint et sa description, avec le bouton, sans texte. Sans elle, le secours en texte. */
 export function achatsPayload(annonce: AnnonceDesAchats, siteUrl: string, image: { alt: string; filename: string } | null): Record<string, unknown> {
   const site = siteUrl.replace(/\/$/, "");
-  if (image) return imageMessage(site, image, [villageButton(site)]);
+  if (image) return imageMessage(site, image, [gauloisButton(site)]);
   const lignes = annonce.achats.map((a) => `- ${escapeDiscord(objetEnMots(a))} : ${ORIGINES[a.nature].phrase}, le ${dateLongue(a.le)} à ${heureEnMots(a.le)}`);
-  return textMessage(site, [`**${escapeDiscord(nomAffiche(annonce))}** au village des Gaulois : ${nouveauxObjets(annonce.achats.length)}`, ...lignes, `[Voir le village sur le site](<${siteLink(site, "/village")}>)`, `-# ${PAYE_EN_STATERES}`].join("\n"));
+  return textMessage(site, [`**${escapeDiscord(nomAffiche(annonce))}** habille son Gaulois : ${nouveauxObjets(annonce.achats.length)}`, ...lignes, `[Habiller son Gaulois sur le site](<${siteLink(site, "/village")}>)`, `-# ${PAYE_EN_STATERES}`].join("\n"));
 }
 
 export interface AchatsSendDeps {

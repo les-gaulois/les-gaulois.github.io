@@ -16,11 +16,12 @@ describe("la lecture de l'encadrement, à part du robot des bulles", () => {
     expect(imports(lire("src/lib/village/vie-encadrement.ts"))).toEqual([]);
   });
 
-  it("est ce que l'écran de la Direction importe, jamais le fichier du robot", () => {
+  // Depuis le retrait du monde du village (15 novembre 2026), l'onglet ne lit plus les bulles : il n'importe ni cette
+  // lecture ni le robot. Il ne doit pas non plus s'en remettre à dépendre.
+  it("n'est plus lue par l'écran de la Direction, qui n'importe jamais le fichier du robot", () => {
     for (const fichier of ["src/components/compte/DirectionVillage.tsx", "src/lib/village/direction.ts"]) {
       const lus = imports(lire(fichier));
-      expect(lus.some((i) => i.endsWith("/vie-encadrement")), fichier).toBe(true);
-      expect(lus.filter((i) => i.endsWith("/vie-releve") || i.startsWith("@anthropic-ai/")), fichier).toEqual([]);
+      expect(lus.filter((i) => i.endsWith("/vie-encadrement") || i.endsWith("/vie-releve") || i.startsWith("@anthropic-ai/")), fichier).toEqual([]);
     }
   });
 

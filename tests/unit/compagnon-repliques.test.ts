@@ -89,7 +89,7 @@ describe("les répliques du Gaulois compagnon", () => {
   it("gardent le salut en tête et une réponse à chaque geste", () => {
     expect(REPLIQUES[0]).toMatch(/^Salut/);
     expect(Object.keys(REPLIQUES_DES_GESTES).sort()).toEqual(["invitation", "libere", "pose", "reveil", "suivre"]);
-    expect(REPLIQUES_DES_GESTES.invitation).toMatch(/village/);
+    expect(REPLIQUES_DES_GESTES.invitation).toMatch(/habiller/);
   });
 
   it("collent la ponctuation double à son mot et restent le temps d'être lues", () => {
