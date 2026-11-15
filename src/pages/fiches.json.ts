@@ -5,7 +5,8 @@ import { ficheImageVersion, ficheIndex } from "../lib/fiches-discord";
 /**
  * Les fiches que les commandes /fiche et /moi de Discord peuvent montrer, lues par la fonction `code-discord`
  * (src/lib/fiches-discord.ts). Rien de plus que les pages des membres : un pseudo, l'identifiant de sa fiche, la description
- * de son image et sa version. Sans liste, `listedAt` vaut `null`, et la commande dit que les fiches ne répondent pas.
+ * de son image et sa version, et, depuis le 15 novembre 2026, pour les insignes de /gaulois, le niveau du compte et la
+ * flamme de série tels que la fiche les montre, avec l'heure de leur relevé. Sans liste, `listedAt` vaut `null`, et la commande dit que les fiches ne répondent pas.
  */
 export function GET() {
   const list = loadMembers();

@@ -9,8 +9,8 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { ficheFacts, ficheImageAlt } from "./fiche-image";
-import type { StoredMembers } from "./schemas";
-import type { RecordPersonnel, SerieEnCours } from "./serie-en-cours";
+import type { AccountLevel, StoredMembers } from "./schemas";
+import { datesDeLaSerie, flammeAllumee, type RecordPersonnel, type SerieEnCours } from "./serie-en-cours";
 
 export interface FicheEntry {
   /** L'identifiant public du membre, celui de l'adresse de sa fiche et de son image. */
@@ -23,6 +23,25 @@ export interface FicheEntry {
    * et Discord ne montre pas l'image qu'il a gardée. `null` sans image.
    */
   v: string | null;
+  /**
+   * Le niveau et le prestige du compte OpenFront, tout le jeu, tels que la fiche les montre : `null` s'il ne les montre pas.
+   * Pour l'emblème de /gaulois (15 novembre 2026).
+   */
+  niveau: AccountLevel | null;
+  /** La flamme de série, telle que la fiche la montre (5 victoires d'affilée et plus) : `null` sans flamme. Pour /gaulois. */
+  flamme: FicheFlamme | null;
+}
+
+/**
+ * La flamme d'une fiche, prête pour /gaulois : le nombre, « au moins », ses dates (« du 12 au 14 nov. 2026 »), l'or, et
+ * l'heure du relevé (ISO), que /gaulois écrit : la série est celle de ce moment, pas du temps réel.
+ */
+export interface FicheFlamme {
+  victoires: number;
+  auMoins: boolean;
+  dates: string;
+  doree: boolean;
+  releve: string;
 }
 
 export interface FicheIndex {
@@ -54,7 +73,11 @@ export function ficheIndex(list: StoredMembers, tag: string, imageVersion: (id: 
     const facts = ficheFacts(list.members, member, series.get(member.publicId) ?? null, records.get(member.publicId) ?? null);
     const v = facts ? imageVersion(member.publicId) : null;
     const alt = facts && v ? ficheImageAlt(facts, tag, list.fetchedAt) : null;
-    return [{ id: member.publicId, pseudo: member.username, alt, v: alt ? v : null }];
+    const serie = series.get(member.publicId) ?? null;
+    const flamme: FicheFlamme | null = flammeAllumee(serie)
+      ? { victoires: serie.victoires, auMoins: serie.auMoins, dates: datesDeLaSerie(serie), doree: records.get(member.publicId)?.doree === true, releve: serie.releve }
+      : null;
+    return [{ id: member.publicId, pseudo: member.username, alt, v: alt ? v : null, niveau: member.account ?? null, flamme }];
   });
   fiches.sort((a, b) => a.pseudo.localeCompare(b.pseudo, "fr"));
   return { listedAt: list.fetchedAt, fiches };

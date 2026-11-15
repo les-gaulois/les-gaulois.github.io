@@ -68,7 +68,7 @@ describe("la phrase du feu", () => {
 });
 
 describe("la réponse à /feu", () => {
-  it("montre à tout le salon le feu en image jointe, la phrase sous l'image et un bouton vers le village", async () => {
+  it("montre à tout le salon le feu en image jointe, la phrase sous l'image et un bouton vers le site du clan", async () => {
     const reponse = await reponseDuFeu(MONDE, MAINTENANT, SITE, DOWN);
     if (!reponse.image) throw new Error("une image était attendue");
     const message = reponse.message as { flags: number; components: { type: number; items?: { media: { url: string }; description: string }[]; content?: string; components?: { url: string; label: string; style: number }[] }[]; attachments: { filename: string; description: string }[]; allowed_mentions: unknown };
@@ -79,7 +79,7 @@ describe("la réponse à /feu", () => {
     expect(description.startsWith(phrase)).toBe(true);
     expect(description).toContain("au milieu de la place du village");
     expect(message.components[1]).toEqual({ type: 10, content: `-# ${phrase}` });
-    expect(message.components[2]?.components?.[0]).toEqual({ type: 2, style: 5, label: "Voir le village", url: `${SITE}/village` });
+    expect(message.components[2]?.components?.[0]).toEqual({ type: 2, style: 5, label: "Le site du clan", url: SITE });
     expect(message.attachments).toEqual([{ id: 0, filename: FEU_FILE, description }]);
     expect(message.allowed_mentions).toEqual({ parse: [] });
     expect(await lirePng(reponse.png)).toMatchObject({ largeur: IMAGE_DU_FEU.largeur, hauteur: IMAGE_DU_FEU.hauteur });
@@ -93,7 +93,7 @@ describe("la réponse à /feu", () => {
     expect(await reponseDuFeu(MONDE, vieux, SITE, DOWN)).toEqual({ image: false, texte: sansFeu(RELEVE, SITE) });
     expect((await reponseDuFeu(MONDE, new Date(Date.parse(RELEVE) + RELEVE_DU_FEU_MAX_MS), SITE, DOWN)).image).toBe(true);
     expect(sansFeu(RELEVE, SITE)).toContain("Dernier relevé : le 14 novembre à 13 h 53.");
-    expect(sansFeu(RELEVE, SITE)).toContain(`<${SITE}/village>`);
+    expect(sansFeu(RELEVE, SITE)).toContain(`Le site du clan : <${SITE}>`);
     expect(sansFeu(null, SITE)).not.toContain("Dernier relevé");
   });
 });

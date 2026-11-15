@@ -9,6 +9,7 @@ import { profileUrl } from "../../src/lib/paliers-franchis-discord";
 import { CHOOSE_NAME_URL as SITE_CHOOSE_NAME_URL } from "../../src/lib/pseudo-openfront";
 import { PANEL_ROLES as SITE_PANEL_ROLES } from "../../src/lib/roles-discord";
 import type { StoredMembers } from "../../src/lib/schemas";
+import type { RecordPersonnel, SerieEnCours } from "../../src/lib/serie-en-cours";
 import { lirePng } from "../../supabase/functions/code-discord/billets";
 import { IMAGE_GAULOIS, TENUE_DE_DEPART, decrireGaulois, decrireLaScene } from "../../supabase/functions/code-discord/gaulois";
 import { sceneDuGaulois } from "../../supabase/functions/code-discord/scene";
@@ -28,6 +29,7 @@ import {
   FICHE_MESSAGES,
   GAL_GUILD_ID,
   GAULOIS_FILE,
+  MENTION_DU_NIVEAU,
   GAULOIS_MESSAGES,
   MAX_CHOICES,
   MONDE_URL,
@@ -94,7 +96,7 @@ type Answers = Record<string, (args: Record<string, unknown>) => Record<string, 
 
 // Des fiches inventées, comme celles que le site publie : des pseudos, dont deux portent le nombre que le jeu ajoute.
 const LISTED_AT = "2026-11-12T10:53:37.089Z";
-const fiche = (id: string, pseudo: string, alt: string | null = `${pseudo}, membre de [GAL] : 3e sur 300 membres aux victoires sous le tag.`): Fiche => ({ id, pseudo, alt, v: null });
+const fiche = (id: string, pseudo: string, alt: string | null = `${pseudo}, membre de [GAL] : 3e sur 300 membres aux victoires sous le tag.`): Fiche => ({ id, pseudo, alt, v: null, niveau: null, flamme: null });
 const FICHES: FicheList = {
   listedAt: LISTED_AT,
   fiches: [
@@ -651,10 +653,14 @@ describe("les commandes du robot, envoyées par Discord", () => {
     expect(calls.rpc).toEqual([]);
   });
 
-  it("/gaulois montre à tout le salon le Gaulois de qui la tape, en image jointe, avec un bouton vers le village", async () => {
+  it("/gaulois montre à tout le salon le Gaulois de qui la tape, en image jointe, avec un bouton vers « Mon Gaulois »", async () => {
     const { deps, calls } = world({ discord_gaulois: () => ({ ok: true, tenue: { ...TENUE_DE_DEPART } }) });
     const res = await handle(await fromDiscord(run("gaulois")), deps);
-    expect(calls.rpc).toEqual([{ name: "discord_gaulois", args: { p_discord_id: PLAYER } }]);
+    // La tenue, et le pseudo public du membre pour ses insignes (`discord_moi`, celle de /moi) : ici, pas de pseudo, pas d'insigne.
+    expect(calls.rpc).toEqual([
+      { name: "discord_gaulois", args: { p_discord_id: PLAYER } },
+      { name: "discord_moi", args: { p_discord_id: PLAYER } },
+    ]);
     expect(res.headers.get("content-type")).toMatch(/^multipart\/form-data; ?boundary=/);
     const form = await res.formData();
     const payload = JSON.parse(String(form.get("payload_json"))) as Shown & { data: { attachments: unknown[] } };
@@ -671,6 +677,53 @@ describe("les commandes du robot, envoyées par Discord", () => {
     expect(file.name).toBe(GAULOIS_FILE);
     expect(file.type).toBe("image/png");
     expect(await lirePng(new Uint8Array(await file.arrayBuffer()))).toMatchObject({ largeur: IMAGE_GAULOIS.largeur, hauteur: IMAGE_GAULOIS.hauteur });
+  });
+
+  // L'emblème de niveau et la flamme de série (15 novembre 2026, dessins de Claude Fable 5.2) : pour un membre au pseudo public,
+  // d'après sa fiche du site ; en mots dans la description, la mention d'OpenFront sous l'image avec l'emblème.
+  it("/gaulois pose l'emblème de niveau et la flamme d'un membre au pseudo public, et les dit en mots, avec l'heure du relevé", async () => {
+    const niveau = { level: 62, prestige: 1, legend: false };
+    const flamme = { victoires: 7, auMoins: false, dates: "du 12 au 14 nov. 2026", doree: true, releve: "2026-11-15T05:53:45.391Z" };
+    const marquer = (list: FicheList, pseudo: string) => ({ ...list, fiches: list.fiches.map((f) => (f.pseudo === pseudo ? { ...f, niveau, flamme } : f)) });
+    const avecFiche = marquer(FICHES, "Taranis_Sky");
+    type Rep = Record<string, unknown> | null;
+    const reponse = async (moi: Rep | (() => never), fiches: () => Promise<FicheList | null> = async () => avecFiche) => {
+      const { deps } = world({ discord_gaulois: () => ({ ok: true, tenue: { ...TENUE_DE_DEPART } }), discord_moi: typeof moi === "function" ? moi : () => moi }, { fiches });
+      const form = await (await handle(await fromDiscord(run("gaulois")), deps)).formData();
+      const payload = JSON.parse(String(form.get("payload_json"))) as Shown & { data: { attachments: { description: string }[] } };
+      return { payload, png: new Uint8Array(await (form.get("files[0]") as File).arrayBuffer()) };
+    };
+    const avec = await reponse({ ok: true, pseudo: "Taranis_Sky" });
+    const description = avec.payload.data.attachments[0]!.description;
+    expect(description).toContain("Son compte OpenFront, tout le jeu : Prestige 1 · Niveau 62.");
+    expect(description).toContain("Série en cours au relevé du 15 novembre à 6 h 53 : 7 victoires d'affilée sous le tag, du 12 au 14 nov. 2026, sans défaite depuis. C'est son record.");
+    expect(description.length).toBeLessThanOrEqual(1024);
+    expect(avec.payload.data.components[1]).toEqual({ type: 10, content: `-# Série au relevé du 15 novembre à 6 h 53. ${MENTION_DU_NIVEAU}` });
+    expect(avec.payload.data.components[2]?.components?.[0]).toMatchObject({ label: "Habiller mon Gaulois" });
+    expect(avec.png).not.toEqual((await reponse({ ok: false, error: "no_pseudo" })).png);
+
+    // Sans pseudo public, un pseudo partagé (deux fiches qui ne diffèrent que par les accents ou la casse), un pseudo qui ne
+    // diffère que par la casse, un pseudo sans fiche, une panne de discord_moi ou des fiches : l'image et le message d'avant.
+    const sans = await reponse({ ok: false, error: "no_pseudo" });
+    const partage = marquer({ ...FICHES, fiches: [...FICHES.fiches, fiche("Zz99Yy88", "taranis_sky")] }, "Taranis_Sky");
+    const panne = () => {
+      throw new Error("panne");
+    };
+    for (const [moi, fiches] of [
+      [{ ok: true, pseudo: "Brennos.9999" }, undefined],
+      [{ ok: true, pseudo: "taranis_sky" }, undefined],
+      [{ ok: true, pseudo: "Taranis_Sky" }, async () => partage],
+      [{ ok: true, pseudo: "Taranis_Sky" }, async () => null],
+      [{ ok: true, pseudo: "Taranis_Sky" }, async () => Promise.reject(new Error("panne"))],
+      [panne, undefined],
+      [null, undefined],
+    ] as const) {
+      const autre = await reponse(moi as Rep | (() => never), fiches as (() => Promise<FicheList | null>) | undefined);
+      expect(autre.payload.data.attachments[0]!.description, JSON.stringify(moi)).toBe(sans.payload.data.attachments[0]!.description);
+      expect(autre.png).toEqual(sans.png);
+      expect(autre.payload.data.components.some((c) => c.type === 10)).toBe(false);
+    }
+    expect(sans.payload.data.attachments[0]!.description).not.toContain("tout le jeu");
   });
 
   it("/gaulois pose le Gaulois là où la place du village le met : au champ de bataille après une partie, dans la salle de réunion en vocal", async () => {
@@ -704,7 +757,7 @@ describe("les commandes du robot, envoyées par Discord", () => {
     expect((await content(await handle(await fromDiscord(run("gaulois")), world().deps))).data.content).toBe(COMMAND_MESSAGES.down);
   });
 
-  it("/feu montre à tout le salon le grand feu que publie le site, en image jointe, la phrase dessous et un bouton vers le village", async () => {
+  it("/feu montre à tout le salon le grand feu que publie le site, en image jointe, la phrase dessous et un bouton vers le site du clan", async () => {
     // Un relevé de dix minutes avant la commande.
     const monde: MondeLu = { releve: new Date((NOW - 600) * 1000).toISOString(), feu: { niveau: 3, points: 412.6, jours: 7 } };
     const { deps, calls } = world({}, { monde: async () => monde });
@@ -717,7 +770,7 @@ describe("les commandes du robot, envoyées par Discord", () => {
     expect(payload.data.flags).toBe(32768);
     expect(payload.data.components[0]?.items?.[0]?.media).toEqual({ url: `attachment://${FEU_FILE}` });
     expect(payload.data.components[1]).toEqual({ type: 10, content: `-# ${phraseDuFeu(monde.feu!, monde.releve!)}` });
-    expect(payload.data.components[2]?.components?.[0]).toMatchObject({ style: 5, label: "Voir le village", url: `${SITE_URL}/village` });
+    expect(payload.data.components[2]?.components?.[0]).toMatchObject({ style: 5, label: "Le site du clan", url: SITE_URL });
     expect(payload.data.attachments[0]?.filename).toBe(FEU_FILE);
     const file = form.get("files[0]") as File;
     expect(file.name).toBe(FEU_FILE);
@@ -862,7 +915,7 @@ describe("les fiches publiées par le site", () => {
       expect(after).not.toBe(before);
       expect(ficheImageVersion("Ef56Gh78", root)).toBeNull();
       // La fonction met cette version dans l'adresse de l'image, et la liste des membres n'a pas à changer.
-      const shown = (v: string | null) => JSON.stringify(ficheMessage({ id: "Ab12Cd34", pseudo: "Brennos", alt: "a", v }, LISTED_AT));
+      const shown = (v: string | null) => JSON.stringify(ficheMessage({ id: "Ab12Cd34", pseudo: "Brennos", alt: "a", v, niveau: null, flamme: null }, LISTED_AT));
       expect(shown(after)).toContain(`/generated/fiches/Ab12Cd34.png?v=${after}`);
       expect(shown(after)).not.toBe(shown(before));
     } finally {
@@ -890,6 +943,24 @@ describe("les fiches publiées par le site", () => {
     expect(parseFiches(JSON.parse(JSON.stringify(index)))).toEqual(index);
   });
 
+  // Pour les insignes de /gaulois (15 novembre 2026) : le niveau et la flamme tels que la fiche les montre, relus par le robot.
+  it("portent le niveau du compte et la flamme dès 5 victoires d'affilée, dorée pour un record, avec l'heure du relevé", () => {
+    const releve = "2026-11-15T05:53:45.391Z";
+    const avecNiveau: StoredMembers = { ...members, members: members.members.map((m) => (m.publicId === "Ab12Cd34" ? { ...m, account: { level: 62, prestige: 1, legend: false } } : m)) };
+    const serie = (victoires: number): SerieEnCours => ({ victoires, auMoins: false, depuis: "2026-11-12T19:00:00.000Z", jusqua: "2026-11-14T20:00:00.000Z", releve });
+    const doree: RecordPersonnel = { victoires: 7, auMoins: false, debut: "2026-11-12T19:00:00.000Z", fin: "2026-11-14T20:00:00.000Z", luesDepuis: "2026-04-10T18:00:00.000Z", doree: true, courante: true, ancien: 6 };
+    const series = new Map([["Ab12Cd34", serie(7)], ["Ef56Gh78", serie(4)]]);
+    const index = ficheIndex(avecNiveau, "GAL", () => "0123456789ab", series, new Map([["Ab12Cd34", doree]]));
+    const taranis = index.fiches.find((f) => f.id === "Ab12Cd34")!;
+    expect(taranis.niveau).toEqual({ level: 62, prestige: 1, legend: false });
+    expect(taranis.flamme).toEqual({ victoires: 7, auMoins: false, dates: "du 12 au 14 nov. 2026", doree: true, releve });
+    // Sous 5, pas de flamme ; sans niveau visible, pas d'emblème.
+    expect(index.fiches.find((f) => f.id === "Ef56Gh78")).toMatchObject({ niveau: null, flamme: null });
+    expect(index.fiches.find((f) => f.id === "Ij90Kl12")).toMatchObject({ niveau: null, flamme: null });
+    // Le robot relit exactement ce que le site écrit.
+    expect(parseFiches(JSON.parse(JSON.stringify(index)))).toEqual(index);
+  });
+
   it("écartent une fiche mal formée, et un fichier qui n'a pas la forme attendue ne vaut rien", () => {
     for (const bad of [null, [], { listedAt: null, fiches: [] }, { listedAt: "hier", fiches: [] }, { listedAt: LISTED_AT }]) expect(parseFiches(bad)).toBeNull();
     expect(
@@ -900,13 +971,36 @@ describe("les fiches publiées par le site", () => {
     ).toEqual({
       listedAt: LISTED_AT,
       fiches: [
-        { id: "Ab12Cd34", pseudo: "Brennos", alt: "a", v: "0123456789ab" },
-        { id: "Ij90Kl12", pseudo: "Sans image", alt: null, v: null },
-        { id: "Mn34Op56", pseudo: "Version bizarre", alt: "b", v: null },
+        { id: "Ab12Cd34", pseudo: "Brennos", alt: "a", v: "0123456789ab", niveau: null, flamme: null },
+        { id: "Ij90Kl12", pseudo: "Sans image", alt: null, v: null, niveau: null, flamme: null },
+        { id: "Mn34Op56", pseudo: "Version bizarre", alt: "b", v: null, niveau: null, flamme: null },
         // Une fiche d'un site d'avant la version : l'adresse suit alors l'heure de la liste, comme avant.
-        { id: "Qr78St90", pseudo: "Ancien site", alt: "c", v: null },
+        { id: "Qr78St90", pseudo: "Ancien site", alt: "c", v: null, niveau: null, flamme: null },
       ],
     });
+  });
+
+  // Le niveau et la flamme de /gaulois (15 novembre 2026), lus sans confiance : une forme inattendue ne vaut rien, sans écarter la fiche.
+  it("lisent le niveau et la flamme d'une fiche, et ignorent ceux qui n'ont pas la forme attendue", () => {
+    const lire = (niveau: unknown, flamme: unknown) => parseFiches({ listedAt: LISTED_AT, fiches: [{ id: "Ab12Cd34", pseudo: "Brennos", alt: "a", v: null, niveau, flamme }] })!.fiches[0]!;
+    const bon = lire({ level: 62, prestige: 1, legend: false }, { victoires: 7, auMoins: false, dates: "du 12 au 14 nov. 2026", doree: true, releve: "2026-11-15T05:53:45.391Z" });
+    expect(bon.niveau).toEqual({ level: 62, prestige: 1, legend: false });
+    expect(bon.flamme).toEqual({ victoires: 7, auMoins: false, dates: "du 12 au 14 nov. 2026", doree: true, releve: "2026-11-15T05:53:45.391Z" });
+    for (const [niveau, flamme] of [
+      [{ level: 0, prestige: 1, legend: false }, { victoires: 4, auMoins: false, dates: "le 1 nov.", doree: false }],
+      [{ level: 62, prestige: -1, legend: false }, { victoires: 7, auMoins: "non", dates: "x", doree: false }],
+      [{ level: 62.5, prestige: 1, legend: false }, { victoires: 7, auMoins: false, dates: "", doree: false }],
+      [{ level: 62, prestige: 1 }, { victoires: 7, auMoins: false, dates: "x".repeat(81), doree: false }],
+      ["62", null],
+      // Une flamme sans heure de relevé, ou avec une heure illisible : jamais montrée.
+      [null, { victoires: 7, auMoins: false, dates: "le 1er nov.", doree: false }],
+      [null, { victoires: 7, auMoins: false, dates: "le 1er nov.", doree: false, releve: "hier" }],
+    ] as const) {
+      const f = lire(niveau, flamme);
+      expect(f.niveau, JSON.stringify(niveau)).toBeNull();
+      expect(f.flamme, JSON.stringify(flamme)).toBeNull();
+      expect(f.pseudo).toBe("Brennos");
+    }
   });
 
   it("mènent aux mêmes adresses que le site et les autres messages du robot", () => {

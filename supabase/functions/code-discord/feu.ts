@@ -111,7 +111,7 @@ export function phraseDuFeu(feu: FeuLu, releve: string): string {
 /** Ce que /feu dit au seul joueur qui la tape, quand il n'y a pas de feu à montrer. */
 export function sansFeu(releve: string | null, site: string): string {
   const dernier = releve ? ` Dernier relevé : le ${releveEnMots(releve)}.` : "";
-  return `Pas de feu à montrer : le site n'a pas toutes les parties du clan des 7 derniers jours.${dernier} Le village : <${site}/village>`;
+  return `Pas de feu à montrer : le site n'a pas toutes les parties du clan des 7 derniers jours.${dernier} Le site du clan : <${site}>`;
 }
 
 /* ---------- Le dessin ---------- */
@@ -195,7 +195,7 @@ export const descriptionDuFeu = (feu: FeuLu, releve: string, moment: Moment): st
 /** Les messages de Discord à composants (« Components V2 ») : l'image, puis le texte et le bouton. */
 const COMPONENTS_V2 = 32768;
 
-/** Ce que voit tout le salon après /feu : le feu en grand, la phrase en petit (l'heure du relevé est toujours écrite), un bouton vers le village. */
+/** Ce que voit tout le salon après /feu : le feu en grand, la phrase en petit (l'heure du relevé est toujours écrite), un bouton vers le site du clan (le monde du village, où était le feu, est retiré du site depuis le 15 novembre 2026). */
 export function feuMessage(feu: FeuLu, releve: string, moment: Moment, site: string): Record<string, unknown> {
   const description = descriptionDuFeu(feu, releve, moment);
   return {
@@ -203,7 +203,7 @@ export function feuMessage(feu: FeuLu, releve: string, moment: Moment, site: str
     components: [
       { type: 12, items: [{ media: { url: `attachment://${FEU_FILE}` }, description }] },
       { type: 10, content: `-# ${phraseDuFeu(feu, releve)}` },
-      { type: 1, components: [{ type: 2, style: 5, label: "Voir le village", url: `${site}/village` }] },
+      { type: 1, components: [{ type: 2, style: 5, label: "Le site du clan", url: site }] },
     ],
     attachments: [{ id: 0, filename: FEU_FILE, description }],
     allowed_mentions: { parse: [] },

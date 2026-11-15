@@ -60,8 +60,9 @@ import { TICKET_PREFIX, TICKETS_COMMAND_NAME, ticketInteraction, ticketsCommand 
 import { CONCOURS_COMMAND_NAME, CONCOURS_PREFIX, concoursCommand, concoursImage, concoursInteraction, concoursTic } from "./concours.ts";
 import { buttonEmoji, ensureEmojis, vignetteUrl, type EmojiIds } from "./emojis.ts";
 import { decrireGaulois, decrireLaScene, lireTenue, pngDuGaulois, type Tenue } from "./gaulois.ts";
+import { insignesDeLaScene } from "./insignes.ts";
 import { sceneDuGaulois, type Scene } from "./scene.ts";
-import { FEU_COMMAND, FEU_FILE, MONDE_PATH, parseMonde, reponseDuFeu, type MondeLu } from "./feu.ts";
+import { FEU_COMMAND, FEU_FILE, MONDE_PATH, parseMonde, releveEnMots, reponseDuFeu, type MondeLu } from "./feu.ts";
 
 /** Le nom de la commande, tel que le joueur la tape. `definitions.ts` la décrit ; la fonction la crée sur le serveur du clan (`inscription.ts`). */
 export const COMMAND_NAME = "code";
@@ -375,6 +376,10 @@ export interface Fiche {
   alt: string | null;
   /** La version de l'image, tirée de son dessin par le site : `null` s'il ne la donne pas (voir `ficheImageUrl`). */
   v: string | null;
+  /** Le niveau du compte OpenFront, tout le jeu, pour l'emblème de /gaulois : `null` si le site ne le donne pas. */
+  niveau: { level: number; prestige: number; legend: boolean } | null;
+  /** La flamme de série (5 victoires d'affilée et plus), pour /gaulois : `null` sans flamme. */
+  flamme: { victoires: number; auMoins: boolean; dates: string; doree: boolean; releve: string } | null;
 }
 
 export interface FicheList {
@@ -387,6 +392,33 @@ export interface FicheList {
 const FICHE_ID = /^[A-Za-z0-9]{1,32}$/;
 /** La version d'une image, comme celles des images des commandes : des chiffres et des lettres minuscules. */
 const FICHE_VERSION = /^[0-9a-z]{1,32}$/;
+
+const entier = (v: unknown, min: number, max: number): v is number => typeof v === "number" && Number.isInteger(v) && v >= min && v <= max;
+
+/** Le niveau d'une fiche, relu sans confiance : `null` s'il manque ou n'a pas la forme attendue. */
+function niveauDeLaFiche(value: unknown): Fiche["niveau"] {
+  const n = record(value);
+  return n && entier(n["level"], 1, 9999) && entier(n["prestige"], 0, 99) && typeof n["legend"] === "boolean" ? { level: n["level"], prestige: n["prestige"], legend: n["legend"] } : null;
+}
+
+/** La flamme d'une fiche, relue sans confiance : `null` si elle manque, est sous 5, ou n'a pas la forme attendue. */
+function flammeDeLaFiche(value: unknown): Fiche["flamme"] {
+  const f = record(value);
+  const dates = f?.["dates"];
+  const releve = f?.["releve"];
+  // Sans heure de relevé lisible, pas de flamme : elle ne se montre jamais sans dire de quand elle date.
+  return f &&
+    entier(f["victoires"], 5, 99999) &&
+    typeof f["auMoins"] === "boolean" &&
+    typeof dates === "string" &&
+    dates.trim() !== "" &&
+    dates.length <= 80 &&
+    typeof f["doree"] === "boolean" &&
+    typeof releve === "string" &&
+    Number.isFinite(Date.parse(releve))
+    ? { victoires: f["victoires"], auMoins: f["auMoins"], dates, doree: f["doree"], releve }
+    : null;
+}
 
 /** Le fichier du site, relu sans lui faire confiance : `null` s'il n'a pas la forme attendue. Une fiche mal formée est écartée. */
 export function parseFiches(value: unknown): FicheList | null {
@@ -402,7 +434,14 @@ export function parseFiches(value: unknown): FicheList | null {
     const alt = entry?.["alt"];
     const v = entry?.["v"];
     if (typeof id !== "string" || !FICHE_ID.test(id) || typeof pseudo !== "string" || pseudo.trim() === "" || pseudo.length > 64) continue;
-    fiches.push({ id, pseudo, alt: typeof alt === "string" && alt.trim() !== "" ? alt.slice(0, 1024) : null, v: typeof v === "string" && FICHE_VERSION.test(v) ? v : null });
+    fiches.push({
+      id,
+      pseudo,
+      alt: typeof alt === "string" && alt.trim() !== "" ? alt.slice(0, 1024) : null,
+      v: typeof v === "string" && FICHE_VERSION.test(v) ? v : null,
+      niveau: niveauDeLaFiche(entry?.["niveau"]),
+      flamme: flammeDeLaFiche(entry?.["flamme"]),
+    });
   }
   return { listedAt, fiches };
 }
@@ -724,20 +763,56 @@ async function moiRoute(discordId: string, deps: Deps): Promise<Response> {
 
 /** Ce que /gaulois dit au seul joueur qui la tape, quand il n'y a pas de Gaulois à montrer. */
 export const GAULOIS_MESSAGES = {
-  none: `Vous n'avez pas encore de Gaulois. Habillez-le au village du site : <${SITE_URL}/village>. Connectez-vous avec Discord, ou avec un code que donne /code ici.`,
-  unreadable: `Votre Gaulois n'a pas pu être dessiné. Enregistrez de nouveau sa tenue au village du site : <${SITE_URL}/village>`,
+  none: `Vous n'avez pas encore de Gaulois. Habillez-le sur la page « Mon Gaulois » du site : <${SITE_URL}/village>. Connectez-vous avec Discord, ou avec un code que donne /code ici.`,
+  unreadable: `Votre Gaulois n'a pas pu être dessiné. Enregistrez de nouveau sa tenue sur la page « Mon Gaulois » du site : <${SITE_URL}/village>`,
 };
 
 /** Le nom de l'image de /gaulois, jointe à la réponse. */
 export const GAULOIS_FILE = "gaulois.png";
 
-/** Ce que voit tout le salon après /gaulois : le Gaulois en grand, et un bouton vers le village pour l'habiller. */
-export function gauloisMessage(tenue: Tenue, scene?: Scene): Record<string, unknown> {
-  const description = (scene ? decrireLaScene(tenue, scene) : decrireGaulois(tenue)).slice(0, 1024);
+/** Le niveau d'un compte en mots, comme sur le site : copie de `accountLabel` (`src/lib/niveau.ts`), gardée identique par un test. */
+export const niveauEnMots = (n: { level: number; prestige: number; legend: boolean }): string =>
+  n.legend ? "Légende" : n.prestige > 0 ? `Prestige ${n.prestige} · Niveau ${n.level}` : `Sans prestige · Niveau ${n.level}`;
+
+/**
+ * Ce que disent les insignes de /gaulois, pour la description de l'image (conception de Claude Fable 5.2) : le niveau, tout
+ * le jeu, puis la série en cours, ses dates, et « C'est son record. » quand la flamme est dorée. Vide sans insigne.
+ */
+export function phrasesDesInsignes(fiche: Pick<Fiche, "niveau" | "flamme"> | null): string {
+  const phrases: string[] = [];
+  if (fiche?.niveau) phrases.push(`Son compte OpenFront, tout le jeu : ${niveauEnMots(fiche.niveau)}.`);
+  const f = fiche?.flamme;
+  if (f) phrases.push(`Série en cours au relevé du ${releveEnMots(f.releve)} : ${f.auMoins ? "au moins " : ""}${f.victoires} victoires d'affilée sous le tag, ${f.dates}, sans défaite depuis.${f.doree ? " C'est son record." : ""}`);
+  return phrases.join(" ");
+}
+
+/** La mention d'OpenFront, quand l'emblème de niveau est sur l'image : ses couleurs de prestige viennent du jeu (NOTICE.md). */
+export const MENTION_DU_NIVEAU = "Niveau du compte OpenFront : tout le jeu. Couleurs © OpenFront and Contributors";
+
+/**
+ * La ligne sous l'image, quand elle porte un insigne : l'heure du relevé de la flamme (rien n'est du temps réel), puis,
+ * avec l'emblème, « tout le jeu » et la mention d'OpenFront. `null` sans insigne : le message d'avant.
+ */
+export function ligneSousLImage(fiche: Pick<Fiche, "niveau" | "flamme"> | null): string | null {
+  const parts = [...(fiche?.flamme ? [`Série au relevé du ${releveEnMots(fiche.flamme.releve)}.`] : []), ...(fiche?.niveau ? [MENTION_DU_NIVEAU] : [])];
+  return parts.length > 0 ? `-# ${parts.join(" ")}` : null;
+}
+
+/**
+ * Ce que voit tout le salon après /gaulois : le Gaulois en grand, et un bouton vers « Mon Gaulois » pour l'habiller.
+ * `fiche` : celle du membre au pseudo public, avec son niveau et sa flamme (`/fiches.json`), pour les insignes ; `null` :
+ * l'image d'avant.
+ */
+export function gauloisMessage(tenue: Tenue, scene?: Scene, fiche: Pick<Fiche, "niveau" | "flamme"> | null = null): Record<string, unknown> {
+  const phrases = scene ? phrasesDesInsignes(fiche) : "";
+  const base = scene ? decrireLaScene(tenue, scene) : decrireGaulois(tenue);
+  // Les phrases des insignes passent toujours : la description de la tenue, plus longue, est coupée avant elles.
+  const description = phrases ? `${base.slice(0, 1024 - phrases.length - 1)} ${phrases}` : base.slice(0, 1024);
   return {
     flags: COMPONENTS_V2,
     components: [
       { type: 12, items: [{ media: { url: `attachment://${GAULOIS_FILE}` }, description }] },
+      ...(scene && ligneSousLImage(fiche) ? [{ type: 10, content: ligneSousLImage(fiche)! }] : []),
       { type: 1, components: [{ type: 2, style: 5, label: "Habiller mon Gaulois", url: `${SITE_URL}/village` }] },
     ],
     attachments: [{ id: 0, filename: GAULOIS_FILE, description }],
@@ -759,7 +834,13 @@ function fileReply(data: Record<string, unknown>, file: DiscordFile): Response {
  * L'identifiant Discord vient de la commande signée par Discord, jamais d'autre chose.
  */
 async function gauloisRoute(discordId: string, deps: Deps): Promise<Response> {
-  const found = await deps.rpc("discord_gaulois", { p_discord_id: discordId });
+  // La tenue, et, en même temps, le pseudo public du membre (`discord_moi`, celle de /moi) et les fiches du site : son niveau
+  // et sa flamme. Une panne de ces deux-là ne retient jamais le Gaulois : l'image part sans insigne.
+  const [found, moi, fiches] = await Promise.all([
+    deps.rpc("discord_gaulois", { p_discord_id: discordId }),
+    deps.rpc("discord_moi", { p_discord_id: discordId }).catch(() => null),
+    deps.fiches().catch(() => null),
+  ]);
   if (!found) return ephemeral(COMMAND_MESSAGES.down);
   if (found["ok"] !== true) {
     const error = found["error"];
@@ -769,7 +850,20 @@ async function gauloisRoute(discordId: string, deps: Deps): Promise<Response> {
   if (!tenue) return ephemeral(GAULOIS_MESSAGES.unreadable);
   // Le décor : là où la place du village met ce Gaulois, au moment de la journée à Paris (scene.ts).
   const scene = sceneDuGaulois(found, new Date(deps.nowSeconds() * 1000));
-  return fileReply(gauloisMessage(tenue, scene), { name: GAULOIS_FILE, type: "image/png", bytes: await pngDuGaulois(tenue, scene) });
+  const fiche = ficheDuMembre(moi, fiches);
+  const insignes = insignesDeLaScene({ niveau: fiche?.niveau ?? null, serie: fiche?.flamme ? { victoires: fiche.flamme.victoires, doree: fiche.flamme.doree } : null });
+  return fileReply(gauloisMessage(tenue, scene, fiche), { name: GAULOIS_FILE, type: "image/png", bytes: await pngDuGaulois(tenue, scene, insignes) });
+}
+
+/**
+ * La fiche du membre qui tape /gaulois, pour ses insignes : celle de son pseudo public (`discord_moi`), seule à ce pseudo,
+ * comme pour /moi. `null` : pas de pseudo public, pseudo partagé, pas de fiche, ou une panne : l'image part sans insigne.
+ */
+export function ficheDuMembre(moi: Record<string, unknown> | null, list: FicheList | null): Fiche | null {
+  const pseudo = moi?.["ok"] === true ? moi["pseudo"] : null;
+  if (typeof pseudo !== "string" || !list) return null;
+  const [fiche, other] = list.fiches.filter((f) => foldName(f.pseudo) === foldName(pseudo));
+  return fiche && !other && fiche.pseudo === pseudo ? fiche : null;
 }
 
 /**

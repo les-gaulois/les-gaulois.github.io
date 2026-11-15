@@ -26,6 +26,7 @@
 import { ecrirePng, type Image } from "./billets.ts";
 import { decorDe } from "./decors/index.ts";
 import { GARDE_ROBE } from "./garde-robe/index.ts";
+import { peindreLesRectangles, type Rectangle } from "./insignes.ts";
 import { LOGO_DU_CLAN } from "./logo-du-clan.ts";
 import { LIEUX_EN_MOTS, PHASES_EN_MOTS, type Scene } from "./scene.ts";
 
@@ -2407,9 +2408,11 @@ export const PLACE_DU_LOGO = { x: 8, y: 8, cote: LOGO_DU_CLAN.cote } as const;
  * L'image de /gaulois depuis le 14 novembre 2026 (demande du pilote : « plus de 12 fonds différents en fonction de la
  * journée et où se trouve la personne au moment de /gaulois », « et affiche en haut à gauche le logo du clan ») : le
  * Gaulois au milieu, devant le décor de son lieu à ce moment de la journée (`decors/`), le logo du clan en haut à gauche.
- * Mêmes dimensions que `imageDuGaulois`.
+ * Mêmes dimensions que `imageDuGaulois`. `insignes` : l'emblème de niveau et la flamme de série d'un membre au pseudo public
+ * (`insignes.ts`, 15 novembre 2026), peints après le décor, avant l'ombre et le Gaulois, qui passent devant. Sans insigne,
+ * l'image d'avant au pixel près.
  */
-export function imageDeLaScene(tenue: Tenue, scene: Scene): Image {
+export function imageDeLaScene(tenue: Tenue, scene: Scene, insignes: readonly Rectangle[] = []): Image {
   const { largeur, hauteur, echelle } = IMAGE_GAULOIS;
   const rgba = new Uint8Array(new ArrayBuffer(largeur * hauteur * 4));
   const caseA = (cx: number, cy: number, couleur: string) => {
@@ -2429,6 +2432,8 @@ export function imageDeLaScene(tenue: Tenue, scene: Scene): Image {
   };
   const decor = decorDe(scene.lieu, scene.moment);
   decor.cases.forEach((couleur, i) => caseA(i % DECOR_LARGEUR, Math.floor(i / DECOR_LARGEUR), couleur));
+  // Les insignes, à droite du logo : le Gaulois et son ombre passent devant.
+  if (insignes.length > 0) peindreLesRectangles({ largeur, hauteur, rgba }, insignes);
   // Le Gaulois, au milieu, les pieds sur le sol, sur son ombre, comme dans `imageDuGaulois`.
   const ox = (DECOR_LARGEUR - GAULOIS_LARGEUR) / 2;
   const oy = PIEDS - 62;
@@ -2456,7 +2461,8 @@ export function imageDeLaScene(tenue: Tenue, scene: Scene): Image {
 }
 
 /** L'image de /gaulois, en PNG : devant le décor de sa scène si elle est donnée, sinon devant le décor d'avant. */
-export const pngDuGaulois = (tenue: Tenue, scene?: Scene): Promise<Uint8Array<ArrayBuffer>> => ecrirePng(scene ? imageDeLaScene(tenue, scene) : imageDuGaulois(tenue));
+export const pngDuGaulois = (tenue: Tenue, scene?: Scene, insignes: readonly Rectangle[] = []): Promise<Uint8Array<ArrayBuffer>> =>
+  ecrirePng(scene ? imageDeLaScene(tenue, scene, insignes) : imageDuGaulois(tenue));
 
 /** Le Gaulois en mots, avec sa scène : « … Il est à la taverne, au crépuscule. » */
 export const decrireLaScene = (tenue: Tenue, scene: Scene): string =>
