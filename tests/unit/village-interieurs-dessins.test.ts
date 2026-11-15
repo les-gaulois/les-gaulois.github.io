@@ -24,10 +24,11 @@ describe("les dessins des intérieurs", () => {
     expect(interieurDe("puits")).toBeNull();
   });
 
-  it("un titre en mots (« Dans le moulin »), une taille dans les bornes, de une à quatre images", () => {
+  it("un titre en mots (« Dans le moulin », « En haut de la tour de guet »), une taille dans les bornes, de une à quatre images", () => {
     for (const [cle, dessin] of DESSINES) {
       const d = dessin!;
-      expect(d.titre, cle).toMatch(/^Dans /);
+      // Le titre de la fenêtre : une phrase qui commence par une majuscule, sans chiffre.
+      expect(d.titre, cle).toMatch(/^\p{Lu}\p{Ll}*( \S+)+$/u);
       expect(d.titre, cle).not.toMatch(/\d/);
       expect(Number.isInteger(d.largeur) && d.largeur >= INTERIEUR_LARGEUR.min && d.largeur <= INTERIEUR_LARGEUR.max, `${cle} : largeur ${d.largeur}`).toBe(true);
       expect(Number.isInteger(d.hauteur) && d.hauteur >= INTERIEUR_HAUTEUR.min && d.hauteur <= INTERIEUR_HAUTEUR.max, `${cle} : hauteur ${d.hauteur}`).toBe(true);
@@ -44,7 +45,8 @@ describe("les dessins des intérieurs", () => {
     }
   });
 
-  it("à chaque lumière et à chaque image : sa taille, toutes les cases pleines, le même dessin à chaque fois", () => {
+  // Une soixantaine de dessins de 50 à 90 millisecondes chacun : plus que le délai ordinaire d'un test.
+  it("à chaque lumière et à chaque image : sa taille, toutes les cases pleines, le même dessin à chaque fois", { timeout: 120_000 }, () => {
     for (const [cle, dessin] of DESSINES) {
       const d = dessin!;
       for (const lumiere of LUMIERES) {
