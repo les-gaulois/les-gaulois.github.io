@@ -43,6 +43,17 @@ describe("la pochette surprise dans l'album", () => {
     }
   });
 
+  it("range « Tout » par rareté, tous rayons mêlés, les rayons dans leur ordre dans chaque rareté", () => {
+    const cases = casesDuGroupe(album.elements, TOUS);
+    expect(cases).toHaveLength(album.elements.length);
+    const rangs = cases.map((e) => ORDRE_RARETES.indexOf(e.rarete));
+    expect(rangs).toEqual([...rangs].sort((a, b) => a - b));
+    expect(new Set(cases.filter((e) => e.rarete === "commun").map((e) => e.groupe)).size).toBeGreaterThan(1);
+    for (const rarete of ORDRE_RARETES) {
+      expect(cases.filter((e) => e.rarete === rarete).map((e) => e.id)).toEqual(album.elements.filter((e) => e.rarete === rarete).map((e) => e.id));
+    }
+  });
+
   it("donne à chaque objet la chance du tirage, et la somme fait 100 %", () => {
     for (const element of album.elements) {
       const [emplacement, objet] = element.id.split("/") as [(typeof EMPLACEMENTS_OBJETS)[number], string];
@@ -139,6 +150,20 @@ describe("les puces et la loupe", () => {
     expect(casesDuGroupe(album.elements, famille).every((e) => e.groupe === famille)).toBe(true);
     expect(casesDuGroupe(album.elements, TOUS)).toHaveLength(FAMILIERS.length);
     expect(casesDuGroupe(album.elements, "inconnue")).toHaveLength(FAMILIERS.length);
+  });
+
+  it("range les cases par rareté, de la plus courante à la plus rare, en gardant l'ordre des familles dans une rareté", () => {
+    const rang = (e: ElementDeLAlbum): number => ORDRE_RARETES.indexOf(e.rarete);
+    for (const groupe of [TOUS, FAMILLES[1]!]) {
+      const cases = casesDuGroupe(album.elements, groupe);
+      expect(cases.map(rang)).toEqual([...cases.map(rang)].sort((a, b) => a - b));
+      for (const rarete of ORDRE_RARETES) {
+        const attendu = album.elements.filter((e) => e.rarete === rarete && (groupe === TOUS || e.groupe === groupe)).map((e) => e.id);
+        expect(cases.filter((e) => e.rarete === rarete).map((e) => e.id)).toEqual(attendu);
+      }
+    }
+    // Les puces gardent l'ordre des familles.
+    expect(groupesDeLAlbum(album.elements).slice(1).map((g) => g.nom)).toEqual([...FAMILLES]);
   });
 
   it("met d'abord à la loupe le plus rare que la pochette peut encore donner", () => {

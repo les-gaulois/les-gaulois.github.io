@@ -12,6 +12,16 @@
   {
     "date": "2026-11-16",
     "kind": "ameliore",
+    "title": "Les pochettes rangées par rareté",
+    "body": "Au survol d'une pochette, les cases sont rangées par rareté, de la plus courante à la plus rare : la pochette surprise, la ménagerie des familiers et les Gaulois uniques.",
+    "link": {
+      "href": "/village#pochettes",
+      "label": "Les pochettes"
+    }
+  },
+  {
+    "date": "2026-11-16",
+    "kind": "ameliore",
     "title": "Le replay seul",
     "body": "Dans « Revoir une partie », seul le replay du jeu reste : le film n'est plus montré. Une partie dont le replay n'est pas encore prêt le dit, avec le lien vers OpenFront.",
     "link": {

@@ -4,6 +4,7 @@
  * qui montre en grand celle qu'on survole. La pochette surprise montre ses objets, rayon par rayon ; la pochette des
  * familiers, la ménagerie ; la pochette des bannières, ses trésors par rareté (`albumDesTresors` de `bannieres.ts`, chargé
  * à la demande) ; la pochette des Gaulois uniques, ses modèles par famille (`albumDesModeles` de `ecran-modeles.ts`).
+ * C'est l'ordre des puces ; les cases, elles, se montrent toujours par rareté (`casesDuGroupe`).
  * Écran dans `src/components/village/AlbumPochette.tsx`.
  *
  * Des calculs purs : ce que contient chaque pochette pour ce compte, avec la chance de chaque élément calculée comme le
@@ -173,10 +174,16 @@ export function groupesDeLAlbum(elements: readonly ElementDeLAlbum[]): GroupeDeL
   return [{ groupe: TOUS, nom: "Tout", nombre: elements.length }, ...[...nombres].map(([groupe, nombre]) => ({ groupe, nom: groupe, nombre }))];
 }
 
-/** Les cases d'un groupe ; tout l'album pour « Tout » ou un groupe inconnu. */
+/**
+ * Les cases d'un groupe ; tout l'album pour « Tout » ou un groupe inconnu. Toujours rangées par rareté, de la plus courante
+ * à la plus rare (demande du pilote, 16 novembre 2026) ; dans une rareté, l'ordre de l'album : les rayons de la pochette
+ * surprise, les familles de la ménagerie. Les puces, elles, gardent l'ordre de l'album (`groupesDeLAlbum`).
+ */
 export function casesDuGroupe(elements: readonly ElementDeLAlbum[], groupe: string): readonly ElementDeLAlbum[] {
   const choisis = elements.filter((element) => element.groupe === groupe);
-  return groupe === TOUS || choisis.length === 0 ? elements : choisis;
+  const cases = groupe === TOUS || choisis.length === 0 ? elements : choisis;
+  // Le tri de JavaScript garde l'ordre des cases de même rareté.
+  return [...cases].sort((a, b) => RARETES_DES_OBJETS[a.rarete].rang - RARETES_DES_OBJETS[b.rarete].rang);
 }
 
 /**

@@ -125,7 +125,7 @@ function nuRogne(modele: ModeleRange, liste: readonly ModeleRange[]): DessinEnCa
 }
 
 /**
- * L'album de la pochette des Gaulois uniques (16 novembre 2026, `AlbumPochette.tsx`) : les modèles famille par famille,
+ * L'album de la pochette des Gaulois uniques (16 novembre 2026, `AlbumPochette.tsx`) : les modèles famille par famille (montrés par rareté, `casesDuGroupe`),
  * en couleur comme dans la vitrine, avec leur chance dans la prochaine pochette de ce compte, comme le tirage : la part qui
  * donne un modèle, la rareté selon ses chances pour lui (`chancesDeLaPochetteDesModeles`), puis un de ses modèles manquants, à
  * chances égales ; 0 pour un modèle déjà reçu, la pochette ne le redonne jamais. Avec la part des remboursements, que
