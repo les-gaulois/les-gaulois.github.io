@@ -4,6 +4,8 @@ import {
   COFFRE_COMMAND_NAME,
   COFFRE_MESSAGES,
   COFFRE_OPTION,
+  COFFRE_SALON,
+  estLeSalonDuCoffre,
   CONSIGNE_DU_MOT,
   DRUIDE_MODELE,
   FATIGUE_ESSAIS,
@@ -263,6 +265,7 @@ const interaction = (message: string, extra: Record<string, unknown> = {}): Reco
   application_id: APP,
   token: TOKEN,
   guild_id: GUILD,
+  channel: { id: "444444444444444444", type: 0, name: "coffre-du-druide" },
   member: { nick: "Jod", user: { id: JOUEUR, username: "jod" } },
   data: { name: "coffre", options: [{ name: "message", type: 3, value: message }] },
   ...extra,
@@ -282,6 +285,24 @@ describe("/coffre", () => {
     expect(await corps(await coffreCommand(interaction(" a "), m.deps))).toMatchObject({ type: 4, data: { content: COFFRE_MESSAGES.short } });
     // Un seul émoji : un signe pour la base, même s'il en vaut deux pour JavaScript.
     expect(await corps(await coffreCommand(interaction(String.fromCodePoint(0x1f525)), m.deps))).toMatchObject({ type: 4, data: { content: COFFRE_MESSAGES.short } });
+    expect(m.calls.rpc).toEqual([]);
+    expect(m.calls.claude).toEqual([]);
+  });
+
+  it("ne joue que dans le salon du coffre, quel que soit ce qui décore son nom", async () => {
+    expect(estLeSalonDuCoffre({ type: 0, name: COFFRE_SALON })).toBe(true);
+    expect(estLeSalonDuCoffre({ type: 0, name: String.fromCodePoint(0x1f5dd, 0x3003) + "Coffre-du-Druide" })).toBe(true);
+    expect(estLeSalonDuCoffre({ type: 0, name: "général" })).toBe(false);
+    expect(estLeSalonDuCoffre({ type: 0, name: "coffre" })).toBe(false);
+    // Un fil (11) au bon nom, que tout membre peut créer, ne compte pas.
+    expect(estLeSalonDuCoffre({ type: 11, name: COFFRE_SALON })).toBe(false);
+    expect(estLeSalonDuCoffre({ name: COFFRE_SALON })).toBe(false);
+    expect(estLeSalonDuCoffre(undefined)).toBe(false);
+    const m = monde({ rpc: { coffre_ouvrir: () => ouverture() } });
+    for (const channel of [{ id: "555555555555555555", type: 0, name: "général" }, { id: "555555555555555555", type: 11, name: COFFRE_SALON }, undefined]) {
+      expect(await corps(await coffreCommand(interaction("Bonjour druide", { channel }), m.deps))).toMatchObject({ type: 4, data: { content: COFFRE_MESSAGES.wrongChannel, flags: 64 } });
+    }
+    await m.fini();
     expect(m.calls.rpc).toEqual([]);
     expect(m.calls.claude).toEqual([]);
   });

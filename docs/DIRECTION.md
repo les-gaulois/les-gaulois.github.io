@@ -701,7 +701,7 @@ Demandé par le pilote le 16 novembre 2026 : un jeu « trop rigolo » sur le ser
 - changer les essais par membre : `update internal.coffre_reglages set essais_par_membre = 15 where id;`
 - voir les gagnants : `select id, mot, gagnant_nom, trouvee_le from internal.coffre_manches order by id;` (la manche sans gagnant est celle en cours : son mot s'y lit).
 
-Pour réserver le jeu à un salon : sur Discord, **Paramètres du serveur → Intégrations → Le Gaulois → /coffre**, puis choisir les salons.
+**Un seul salon** (demande du pilote, 16 novembre 2026) : `/coffre` ne joue que dans un salon dont le nom contient `coffre-du-druide` (`COFFRE_SALON` de `coffre.ts`) ; un émoji ou un signe devant ne gêne pas. Seul un salon écrit ordinaire compte, jamais un fil, dont un membre choisit le nom. Ne pas renommer le salon : sans ces mots dans son nom, le jeu s'arrête sans bruit. Ailleurs, le membre lit, à lui seul, que le druide l'attend dans ce salon, et aucun appel ne part. Le salon se crée à la main sur Discord ; le robot n'a besoin d'aucun droit particulier pour y répondre.
 
 **Ce qui est gardé** (page Confidentialité, « Sur le serveur Discord du clan ») : chaque essai (identifiant et nom Discord, message, réponse, heure) pendant 30 jours, effacé ensuite chaque nuit par pg_cron (tâche `gal-coffre`) ; le gagnant de chaque manche et, quand le druide a lâché le mot, le message qui l'a fait tomber. Anthropic reçoit le message, le nom porté sur le serveur et les derniers échanges, jamais l'identifiant Discord.
 
@@ -711,7 +711,8 @@ Pour réserver le jeu à un salon : sur Discord, **Paramètres du serveur → In
 2. Poser la clé de Claude : sur <https://console.anthropic.com/settings/keys>, créer une clé ; puis Supabase, **Edge Functions → Secrets**, ajouter le secret `ANTHROPIC_API_KEY` avec cette clé. Elle ne va nulle part ailleurs.
 3. Remettre la fonction en ligne, depuis un dossier du projet à jour : `npx supabase functions deploy code-discord --remote=zxavwcupauheheqxfdez --use-api --no-verify-jwt --yes`. Elle a deux fichiers de plus, `coffre.ts` et `deno.json`. Si la commande échoue en parlant de `@anthropic-ai/sdk`, ne rien forcer : l'ancienne version reste en ligne, le dire à Claude.
 4. Ouvrir `https://zxavwcupauheheqxfdez.supabase.co/functions/v1/code-discord/etat` : la page doit dire `"coffre":true` (le SQL est installé), `"druide":true` (la clé est posée) et `"inscription":true` (Discord connaît `/coffre`).
-5. Essayer : `/coffre` avec « Bonjour druide ».
+5. Créer sur Discord le salon du jeu, avec `coffre-du-druide` dans son nom.
+6. Essayer, dans ce salon : `/coffre` avec « Bonjour druide ».
 
 ## Le village des Gaulois
 

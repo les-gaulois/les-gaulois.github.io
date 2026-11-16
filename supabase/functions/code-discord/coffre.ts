@@ -24,6 +24,23 @@ type Json = Record<string, unknown>;
 /** Le nom de la commande et de son option, tels que `definitions.ts` les décrit : un test le vérifie. */
 export const COFFRE_COMMAND_NAME = "coffre";
 export const COFFRE_OPTION = "message";
+/**
+ * Le salon du jeu (demande du pilote, 16 novembre 2026 : « uniquement sur un seul salon ») : /coffre ne joue que dans un
+ * salon dont le nom contient ces mots. Un émoji ou un signe devant le nom ne gêne pas. Ailleurs, le membre est renvoyé
+ * vers ce salon, à lui seul, et rien n'est demandé au serveur ni à Claude.
+ */
+export const COFFRE_SALON = "coffre-du-druide";
+
+/**
+ * Ce salon est-il celui du jeu ? Discord donne le nom et la sorte du salon avec chaque commande. Seul un salon écrit
+ * ordinaire compte (sorte 0) : un fil, dont n'importe quel membre choisit le nom, ne compte jamais.
+ */
+export const estLeSalonDuCoffre = (channel: unknown): boolean => {
+  const salon = record(channel);
+  const nom = salon?.["name"];
+  return salon?.["type"] === 0 && typeof nom === "string" && plier(nom).includes(COFFRE_SALON);
+};
+
 /** Ce qu'un membre peut écrire au druide, en signes : la limite de l'option, que la fonction vérifie de nouveau. */
 export const MESSAGE_MIN = 2;
 export const MESSAGE_MAX = 300;
@@ -285,6 +302,7 @@ const essaisEnMots = (n: number): string => (n === 0 ? "plus d'essai" : n === 1 
 
 export const COFFRE_MESSAGES = {
   wrongPlace: "Tapez /coffre dans le serveur Discord du clan.",
+  wrongChannel: `Le druide ne garde son coffre que dans le salon « ${COFFRE_SALON} » : venez lui parler là-bas.`,
   short: `Écrivez au druide un message de ${MESSAGE_MIN} à ${MESSAGE_MAX} signes.`,
   down: "Le druide ne répond pas pour l'instant. Réessayez dans un moment.",
   asleep: "Le druide dort : le jeu n'est pas ouvert.",
@@ -445,6 +463,7 @@ export async function coffreCommand(interaction: Json, deps: CoffreDeps): Promis
   const user = record(membre?.["user"]);
   const id = user?.["id"];
   if (deps.guildId === "" || interaction["guild_id"] !== deps.guildId || !user || user["bot"] === true || !isId(id)) return prive(COFFRE_MESSAGES.wrongPlace);
+  if (!estLeSalonDuCoffre(interaction["channel"])) return prive(COFFRE_MESSAGES.wrongChannel);
   const message = optionDuMessage(record(interaction["data"]));
   if (signes(message) < MESSAGE_MIN || signes(message) > MESSAGE_MAX) return prive(COFFRE_MESSAGES.short);
   if (!deps.claude) return prive(COFFRE_MESSAGES.asleep);
