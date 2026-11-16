@@ -134,5 +134,16 @@ export const CONCOURS_COMMAND = {
   ],
 } as const;
 
+/**
+ * /coffre (docs/DIRECTION.md, « Le coffre du druide ») : écrire au druide qui garde le mot secret, devant tout le salon. Son
+ * nom et son option sont ceux qu'attend `supabase/functions/code-discord/coffre.ts` : un test le vérifie.
+ */
+export const COFFRE_COMMAND = {
+  name: "coffre",
+  type: 1,
+  description: "Jeu : faites dire au druide le mot secret du coffre, par la ruse. Tout le salon voit sa réponse",
+  options: [{ type: 3, name: "message", description: "Ce que vous dites au druide, qui est joué par une intelligence artificielle", required: true, min_length: 2, max_length: 300 }],
+} as const;
+
 /** Les commandes du serveur du clan : la fonction les crée ou les remet à jour, chacune à part (`inscription.ts`). */
-export const COMMANDS = [CODE_COMMAND, FICHE_COMMAND, CLAN_COMMAND, RECORDS_COMMAND, CARTE_COMMAND, GUIDE_COMMAND, RIVAL_COMMAND, MOI_COMMAND, GAULOIS_COMMAND, FEU_COMMAND, ROLES_COMMAND, TICKETS_COMMAND, CONCOURS_COMMAND] as const;
+export const COMMANDS = [CODE_COMMAND, FICHE_COMMAND, CLAN_COMMAND, RECORDS_COMMAND, CARTE_COMMAND, GUIDE_COMMAND, RIVAL_COMMAND, MOI_COMMAND, GAULOIS_COMMAND, FEU_COMMAND, ROLES_COMMAND, TICKETS_COMMAND, CONCOURS_COMMAND, COFFRE_COMMAND] as const;

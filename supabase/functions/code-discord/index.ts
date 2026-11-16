@@ -42,12 +42,19 @@
  * `definitions.ts`, au premier appel de chaque instance (une neuve après chaque mise en ligne), avec le jeton du robot. Une
  * nouvelle commande ne demande donc plus de « Reset Token » : seulement la mise en ligne de la fonction.
  *
+ * Et au coffre du druide (« Le coffre du druide », `coffre.ts`) : /coffre, un jeu de ruse où Claude, l'intelligence
+ * artificielle d'Anthropic, joue un druide qui garde un mot secret. C'est le seul appel de la fonction à Claude, avec la clé
+ * du secret `ANTHROPIC_API_KEY` (`CLAUDE_KEY_SECRET`) ; sans elle, /coffre dit que le druide dort et tout le reste marche.
+ *
  * Réglages : le jeton du robot « Le Gaulois », dans le secret `LE_GAULOIS_BOT_TOKEN` (`BOT_TOKEN_SECRET`), pour les rôles,
  * les tickets et les concours ; sans lui, tout le reste marche. Le serveur du clan, l'application et sa clé publique sont écrits plus bas,
  * publics tous trois ; les secrets `DISCORD_GUILD_ID`, `DISCORD_APPLICATION_ID` et `DISCORD_PUBLIC_KEY` les remplacent
  * s'ils sont posés. Supabase donne lui-même `SUPABASE_URL` et la clé de service. Déployée sans vérification de jeton
  * (`verify_jwt = false`, `supabase/config.toml`) : Discord n'en envoie pas, et la fonction vérifie elle-même chaque appel.
  * Elle ne note jamais un code, une adresse ni un jeton dans ses journaux.
+ *
+ * `coffre.ts` s'y ajoute, avec `deno.json`, qui dit à Deno où trouver le SDK de Claude (`@anthropic-ai/sdk`, le même que
+ * celui du dépôt pour Node), et ses tests (`tests/unit/coffre-discord.test.ts`).
  *
  * Sept fichiers, `index.ts`, `tickets.ts`, `concours.ts`, `billets.ts`, `emojis.ts`, `definitions.ts` et `inscription.ts`,
  * que la commande `supabase functions deploy` envoie ensemble ; les tests du dépôt les lisent avec Node
@@ -66,6 +73,7 @@ import { familierDe } from "./familiers/index.ts";
 import { banniereParId, dessinDeLaBanniere, type Banniere } from "./bannieres/index.ts";
 import { sceneDuGaulois, type Scene } from "./scene.ts";
 import { FEU_COMMAND, FEU_FILE, MONDE_PATH, parseMonde, releveEnMots, reponseDuFeu, type MondeLu } from "./feu.ts";
+import { COFFRE_COMMAND_NAME, coffreCommand, DRUIDE_MODELE, JETONS_MAX, type Tour } from "./coffre.ts";
 
 /** Le nom de la commande, tel que le joueur la tape. `definitions.ts` la décrit ; la fonction la crée sur le serveur du clan (`inscription.ts`). */
 export const COMMAND_NAME = "code";
@@ -161,6 +169,26 @@ export const pathForLog = (path: string): string =>
     .replace(/\/(members|users|permissions)\/[0-9]{17,20}/g, "/$1/…")
     .split("?")[0] ?? "";
 
+/** Le secret de la fonction où est la clé de l'API de Claude, pour le seul jeu du coffre (`coffre.ts`). Jamais dans le dépôt. */
+export const CLAUDE_KEY_SECRET = "ANTHROPIC_API_KEY";
+/** Ce qu'un appel à Claude peut durer, en millisecondes, avant d'être abandonné. */
+export const CLAUDE_TIMEOUT_MS = 40_000;
+
+/** Une demande à Claude : ce qu'il lit avant la conversation, la conversation, et l'effort de réflexion. */
+export interface DemandeClaude {
+  system: string;
+  messages: Tour[];
+  effort: "low" | "medium" | "high";
+}
+
+/** Sa réponse : le texte, le modèle qui a répondu, et les jetons lus et écrits, pour le compte de la dépense. */
+export interface ReponseClaude {
+  texte: string;
+  modele: string;
+  entree: number;
+  sortie: number;
+}
+
 /** Ce dont la fonction a besoin du monde : remplacé dans les tests. */
 export interface Deps {
   publicKey: string;
@@ -186,6 +214,13 @@ export interface Deps {
    * tests qui n'en parlent pas : /feu dit alors que le site ne répond pas, et `/etat` dit `"feu":false`.
    */
   monde?(): Promise<MondeLu | null>;
+  /**
+   * Une demande à Claude, pour le jeu du coffre (`coffre.ts`) : sa réponse, ou `null` sans clé ou si Claude ne répond pas.
+   * S'il refuse, son texte est vide, avec les jetons consommés. Un seul appel par demande, jamais repris. Absent des tests qui n'en parlent pas : /coffre dit alors que le druide dort.
+   */
+  claude?(demande: DemandeClaude): Promise<ReponseClaude | null>;
+  /** La clé de Claude est-elle posée (`CLAUDE_KEY_SECRET`) ? `/etat` le dit, sans la montrer ni appeler Claude. */
+  claudeReady?: boolean;
   log(message: string): void;
   /** Le numéro du robot, lu dans son jeton (`BOT_TOKEN_SECRET`) ; "" sans jeton lisible. */
   botId: string;
@@ -1360,6 +1395,7 @@ async function discordRoute(req: Request, deps: Deps): Promise<Response> {
   if (interaction["type"] === 2 && name === ROLES_COMMAND) return rolesCommand(interaction, sentAt, deps);
   if (interaction["type"] === 2 && name === TICKETS_COMMAND_NAME) return ticketsCommand(interaction, deps);
   if ((interaction["type"] === 2 || interaction["type"] === 4) && name === CONCOURS_COMMAND_NAME) return concoursCommand(interaction, deps);
+  if (interaction["type"] === 2 && name === COFFRE_COMMAND_NAME) return coffreCommand(interaction, deps);
   if (data && typeof name === "string" && ROBOT_COMMANDS.has(name) && (interaction["type"] === 2 || interaction["type"] === 4)) return robotRoute(name, interaction, data, deps);
   if (interaction["type"] !== 2 || name !== COMMAND_NAME) return ephemeral(MESSAGES.unknown);
 
@@ -1473,7 +1509,11 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
     const inscription = deps.commandSync ? await Promise.race([deps.commandSync(), deps.sleep(ETAT_SYNC_WAIT_MS).then(() => false)]) : false;
     // /feu : l'état du monde du village se lit sur le site et a la forme attendue.
     const feu = deps.monde ? (await deps.monde()) !== null : false;
-    return json({ ok: true, discord, service, signature: await signatureWorks(), fiches, commandes, moi, gaulois, robot, concours, inscription, feu }, 200, CORS);
+    // Le coffre du druide : un identifiant mal formé, refusé sans rien écrire, prouve que sa migration est installée ; et la
+    // clé de Claude est posée ou non, sans qu'aucun appel à Claude parte d'ici.
+    const coffre = deps.serviceReady ? (await deps.rpc("coffre_ouvrir", { p_discord_id: "etat", p_nom: "etat", p_message: "etat", p_interaction_id: "etat" }))?.["error"] === "invalid_request" : false;
+    const druide = deps.claudeReady === true;
+    return json({ ok: true, discord, service, signature: await signatureWorks(), fiches, commandes, moi, gaulois, robot, concours, inscription, feu, coffre, druide }, 200, CORS);
   }
   if (req.method === "GET" || req.method === "HEAD") {
     const billet = await concoursImage(path, req.method === "HEAD", deps);
@@ -1607,6 +1647,7 @@ export function liveDeps(env: Env, fetcher: typeof fetch = fetch): Deps {
   const botId = botIdOf(botToken);
   const applicationId = (env.get("DISCORD_APPLICATION_ID") ?? "").trim() || GAL_APPLICATION_ID;
   const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+  const claudeKey = (env.get(CLAUDE_KEY_SECRET) ?? "").trim();
 
   /** Un appel à l'API de Discord ; `auth` : l'en-tête du jeton du robot, ou `null` pour le webhook d'une interaction. */
   async function discordCall(method: string, path: string, call: DiscordCall, auth: string | null): Promise<DiscordReply | null> {
@@ -1747,6 +1788,37 @@ export function liveDeps(env: Env, fetcher: typeof fetch = fetch): Deps {
     },
     sleep: wait,
     siteImage: siteImageDe(fetcher, log),
+    claudeReady: claudeKey !== "",
+    async claude(demande) {
+      if (claudeKey === "") return null;
+      // Le SDK officiel, chargé seulement quand le druide parle : le reste du robot ne dépend pas de lui.
+      const { default: Anthropic } = await import("@anthropic-ai/sdk");
+      try {
+        const client = new Anthropic({ apiKey: claudeKey, maxRetries: 0, timeout: CLAUDE_TIMEOUT_MS });
+        // Si le modèle refuse une demande, l'API la confie à un autre modèle dans le même appel (`fallbacks`).
+        const message = await client.beta.messages.create({
+          model: DRUIDE_MODELE,
+          max_tokens: JETONS_MAX,
+          betas: ["server-side-fallback-2026-07-01"],
+          fallbacks: "default",
+          output_config: { effort: demande.effort },
+          system: demande.system,
+          messages: demande.messages,
+        });
+        // Un refus a consommé des jetons : ils sont rendus avec un texte vide, pour que la dépense soit comptée.
+        if (message.stop_reason === "refusal") log("Claude : demande refusée");
+        const texte = message.stop_reason === "refusal" ? "" : message.content.map((block) => (block.type === "text" ? block.text : "")).join("").trim();
+        return { texte, modele: message.model, entree: message.usage.input_tokens, sortie: message.usage.output_tokens };
+      } catch (e) {
+        // Ni la clé ni la demande ne vont au journal : seulement la sorte d'erreur.
+        if (e instanceof Anthropic.AuthenticationError) log("Claude : clé refusée");
+        else if (e instanceof Anthropic.RateLimitError) log("Claude : trop de demandes");
+        else if (e instanceof Anthropic.APIConnectionError) log("Claude : injoignable ou délai dépassé");
+        else if (e instanceof Anthropic.APIError) log(`Claude : erreur ${String(e.status)}`);
+        else log("Claude : erreur inattendue");
+        return null;
+      }
+    },
     projectUrl: url === "" ? undefined : url,
   };
 }

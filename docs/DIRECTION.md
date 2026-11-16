@@ -668,6 +668,51 @@ Un formulaire demande ensuite le titre (le lot, au départ) et un texte facultat
 3. Ouvrir `https://zxavwcupauheheqxfdez.supabase.co/functions/v1/code-discord/concours/billet/17.png` : un billet n° 017 doit s'afficher.
 4. Essayer : `/concours lancer` avec la fin à « 2 min », « Prendre un billet », attendre le tirage.
 
+## Le coffre du druide
+
+Demandé par le pilote le 16 novembre 2026 : un jeu « trop rigolo » sur le serveur Discord, avec le crédit de l'API de Claude qu'il lui reste (175 euros, à dépenser avant le 15 décembre 2026), et « un druide très intelligent ». **Écrit et testé dans le dépôt ; pas encore essayé sur Discord, ni avec le vrai Claude** : ni la justesse des réponses du druide, ni la difficulté réelle des paliers n'ont été vues.
+
+**Le jeu.** Un druide, joué par Claude (modèle Claude Opus 5.5), garde un mot secret. Avec `/coffre` et un message de 2 à 300 signes, chaque membre lui écrit ; tout le salon voit le message et la réponse. Le premier qui lui fait dire le mot, ou qui le devine et l'écrit, gagne la manche : le robot le nomme, dit le mot, et une nouvelle manche commence avec un nouveau mot. Rien ne se gagne en statères : le jeu n'en crée pas.
+
+**Qui décide de quoi.**
+
+- Le mot d'une manche est choisi par Claude (un nom commun concret, de 5 à 10 lettres, sans accent, jamais déjà sorti, et pas un mot du décor comme « coffre » ou « druide », qu'on écrirait par accident), puis vérifié et gardé par le serveur. Il n'est dans aucun fichier du dépôt, qui est public.
+- Ce n'est jamais Claude qui dit s'il a perdu : `coffre.ts` regarde si sa réponse contient le mot en toutes lettres, épelé, à l'envers ou en acrostiche (`motDit`), ou si le message du membre le contient (`motDevine`). Une traduction ou une description ne comptent pas : au membre de dire alors le mot.
+- Le serveur désigne le gagnant : si deux membres trouvent en même temps, seul le premier enregistré gagne, l'autre lit « Trop tard ».
+- Le druide ne ment jamais sur le mot : c'est écrit dans sa consigne. Il peut refuser de répondre, pas tromper.
+
+**Sa vigilance** (`PALIERS` de `coffre.ts`) monte avec le nombre de coffres déjà ouverts :
+
+| Coffres ouverts | Ce qui marche encore contre lui |
+|---|---|
+| 0 ou 1 | Toute ruse un peu maligne : il refuse seulement la demande directe |
+| 2 ou 3 | La flatterie, le défi de conteur ou de poète ; il donne des indices sur la forme du mot à qui demande poliment |
+| 4 à 6 | Plus rien ne lui fait dire le mot ; il répond par oui ou par non à une question par message |
+| 7 et plus | La même chose, et rien d'autre : il reste la déduction |
+
+À partir du deuxième palier, il relit les six derniers messages qui l'ont fait tomber, pour ne pas retomber dans la même ruse. Pour qu'aucune manche ne dure sans fin : après 40 essais dans une manche, sa vigilance baisse d'un palier ; après 80, il laisse échapper un indice vrai à chaque réponse. Il se souvient des huit derniers échanges de la manche.
+
+**Les limites**, toutes tenues par le serveur (`internal.coffre_reglages`) : 10 essais par membre et par jour, 300 essais par jour pour tout le serveur, la fin du jeu le 15 décembre 2026 à 0 h (heure de Paris), et un plafond de dépense de 150 dollars. Chaque appel à Claude dit combien de jetons il a lus et écrits ; la fonction en tire son prix (4 dollars le million de jetons lus, 20 le million écrits : tarifs publics d'Anthropic relevés le 3 novembre 2026, à relire sur <https://platform.claude.com/docs/en/about-claude/pricing> ; si un autre modèle répond à sa place, le compte prend 10 et 50) et le serveur l'ajoute au compte. Un appel qui échoue sans dire ce qu'il a consommé est compté 0,20 dollar, plus qu'un appel réussi ne peut coûter (6 000 jetons écrits au plus). Plafond atteint ou date passée, `/coffre` répond que le jeu est fini et plus aucun appel ne part. Un essai auquel Claude n'a pas répondu, ou qu'il a refusé, est marqué annulé : il compte quand même dans les essais du jour, sinon un membre pourrait faire partir des appels sans fin. Chaque demande ne part qu'une fois, 40 secondes au plus. Le dépassement possible du plafond est celui des essais déjà partis au moment où il est atteint.
+
+**Pour régler ou arrêter le jeu**, dans l'éditeur SQL de Supabase :
+
+- voir la dépense, en dollars : `select depense_microdollars / 1000000.0 as dollars, plafond_microdollars / 1000000.0 as plafond, fin, ouvert from internal.coffre_reglages;`
+- fermer le jeu : `update internal.coffre_reglages set ouvert = false where id;` (`true` pour le rouvrir) ;
+- changer les essais par membre : `update internal.coffre_reglages set essais_par_membre = 15 where id;`
+- voir les gagnants : `select id, mot, gagnant_nom, trouvee_le from internal.coffre_manches order by id;` (la manche sans gagnant est celle en cours : son mot s'y lit).
+
+Pour réserver le jeu à un salon : sur Discord, **Paramètres du serveur → Intégrations → Le Gaulois → /coffre**, puis choisir les salons.
+
+**Ce qui est gardé** (page Confidentialité, « Sur le serveur Discord du clan ») : chaque essai (identifiant et nom Discord, message, réponse, heure) pendant 30 jours, effacé ensuite chaque nuit par pg_cron (tâche `gal-coffre`) ; le gagnant de chaque manche et, quand le druide a lâché le mot, le message qui l'a fait tomber. Anthropic reçoit le message, le nom porté sur le serveur et les derniers échanges, jamais l'identifiant Discord.
+
+**Installer le jeu**, une fois, par le pilote, dans cet ordre :
+
+1. Coller le fichier préparé par Claude (`.cache/a-coller-coffre.sql`, hors de Git, refait par `npx tsx scripts/a-coller-coffre.ts`) dans l'éditeur SQL de Supabase, puis **Run**. Sa dernière ligne doit dire : « coffre du druide : installé ».
+2. Poser la clé de Claude : sur <https://console.anthropic.com/settings/keys>, créer une clé ; puis Supabase, **Edge Functions → Secrets**, ajouter le secret `ANTHROPIC_API_KEY` avec cette clé. Elle ne va nulle part ailleurs.
+3. Remettre la fonction en ligne, depuis un dossier du projet à jour : `npx supabase functions deploy code-discord --remote=zxavwcupauheheqxfdez --use-api --no-verify-jwt --yes`. Elle a deux fichiers de plus, `coffre.ts` et `deno.json`. Si la commande échoue en parlant de `@anthropic-ai/sdk`, ne rien forcer : l'ancienne version reste en ligne, le dire à Claude.
+4. Ouvrir `https://zxavwcupauheheqxfdez.supabase.co/functions/v1/code-discord/etat` : la page doit dire `"coffre":true` (le SQL est installé), `"druide":true` (la clé est posée) et `"inscription":true` (Discord connaît `/coffre`).
+5. Essayer : `/coffre` avec « Bonjour druide ».
+
 ## Le village des Gaulois
 
 **Le monde du village, retiré le 15 novembre 2026.** Le pilote : « je crois que je suis parti trop loin, sauf la partie cosmétiques et perso, c'est sympa car il s'affiche sur les images du clan », puis « enlève la partie villages ». Le site est fait pour les joueurs d'OpenFront, et le système est là pour valoriser les bons joueurs du clan. Ne pas refaire le monde sans sa demande.

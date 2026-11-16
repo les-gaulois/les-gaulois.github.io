@@ -93,7 +93,7 @@ describe("la commande /fiche", () => {
 
   it("part avec /code et les commandes du robot, chacune à part, sans doublon", () => {
     const names = COMMANDS.map((c) => c.name);
-    expect(names).toEqual([CODE_COMMAND.name, FICHE_COMMAND.name, "clan", "records", "carte", "guide", "rival", "moi", "gaulois", "feu", "roles", "tickets", "concours"]);
+    expect(names).toEqual([CODE_COMMAND.name, FICHE_COMMAND.name, "clan", "records", "carte", "guide", "rival", "moi", "gaulois", "feu", "roles", "tickets", "concours", "coffre"]);
     expect(new Set(names).size).toBe(names.length);
   });
 });
@@ -152,7 +152,9 @@ describe("les commandes du robot", () => {
         expect(option.description.length).toBeLessThanOrEqual(100);
         expect(option.required).toBe(true);
         // Du texte : la fonction propose pendant la saisie. Un salon ou un rôle : Discord les propose lui-même.
-        if (option.type === 3) expect(option).toMatchObject({ autocomplete: true });
+        // Seule exception : ce qu'on écrit au druide de /coffre est un texte libre, sans proposition.
+        if (command.name === "coffre") expect(option).not.toHaveProperty("autocomplete");
+        else if (option.type === 3) expect(option).toMatchObject({ autocomplete: true });
         else expect([7, 8]).toContain(option.type);
       }
     }

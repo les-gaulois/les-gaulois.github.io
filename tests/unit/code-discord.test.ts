@@ -1039,22 +1039,24 @@ describe("le code tapé sur le site", () => {
         discord_moi: () => ({ ok: false, error: "invalid_request" }),
         discord_gaulois: () => ({ ok: false, error: "invalid_request" }),
         concours_liste: () => ({ ok: false, error: "invalid_request" }),
+        coffre_ouvrir: () => ({ ok: false, error: "invalid_request" }),
       },
       // Un délai qui ne finit jamais : la comparaison des commandes répond la première, quel que soit son nombre d'étapes.
-      { botAccepted: async () => true, commandSync: async () => true, sleep: () => new Promise<void>(() => undefined), monde: async () => ({ releve: "2026-11-14T12:53:28.840Z", feu: null }) },
+      { botAccepted: async () => true, commandSync: async () => true, sleep: () => new Promise<void>(() => undefined), monde: async () => ({ releve: "2026-11-14T12:53:28.840Z", feu: null }), claudeReady: true },
     );
-    expect(await reply(await handle(fromSite(null, "GET", "/etat"), ready.deps))).toEqual({ ok: true, discord: true, service: true, signature: true, fiches: true, commandes: true, moi: true, gaulois: true, robot: true, concours: true, inscription: true, feu: true });
+    expect(await reply(await handle(fromSite(null, "GET", "/etat"), ready.deps))).toEqual({ ok: true, discord: true, service: true, signature: true, fiches: true, commandes: true, moi: true, gaulois: true, robot: true, concours: true, inscription: true, feu: true, coffre: true, druide: true });
     // Une empreinte et des identifiants mal formés : les fonctions SQL les refusent sans rien lire ni écrire.
     expect(ready.calls.rpc).toEqual([
       { name: "discord_code_redeem", args: { p_code_hash: "etat" } },
       { name: "discord_moi", args: { p_discord_id: "etat" } },
       { name: "discord_gaulois", args: { p_discord_id: "etat" } },
       { name: "concours_liste", args: { p_guild: "etat", p_filtre: null } },
+      { name: "coffre_ouvrir", args: { p_discord_id: "etat", p_nom: "etat", p_message: "etat", p_interaction_id: "etat" } },
     ]);
     const noBase = world();
     expect(await reply(await handle(fromSite(null, "GET", "/etat"), noBase.deps))).toMatchObject({ service: false, moi: false });
     const unset = world({ discord_code_redeem: () => ({ ok: false, error: "invalid_request" }) });
-    expect(await reply(await handle(fromSite(null, "GET", "/etat"), { ...unset.deps, guildId: "", serviceReady: false }))).toEqual({ ok: true, discord: false, service: false, signature: true, fiches: true, commandes: true, moi: false, gaulois: false, robot: false, concours: false, inscription: false, feu: false });
+    expect(await reply(await handle(fromSite(null, "GET", "/etat"), { ...unset.deps, guildId: "", serviceReady: false }))).toEqual({ ok: true, discord: false, service: false, signature: true, fiches: true, commandes: true, moi: false, gaulois: false, robot: false, concours: false, inscription: false, feu: false, coffre: false, druide: false });
     expect(unset.calls.rpc).toEqual([]);
     const noSite = world({}, { fiches: async () => null, commandes: async () => null, monde: async () => null });
     expect(await reply(await handle(fromSite(null, "GET", "/etat"), noSite.deps))).toMatchObject({ fiches: false, commandes: false, feu: false });
