@@ -48,6 +48,7 @@ const SECRET: Record<string, Route> = {
   "/rest/v1/rpc/stateres_parties_notees": { status: 200, body: { ok: true, parties: [] } },
   "/rest/v1/rpc/noter_vie_du_village": { status: 200, body: { ok: false, error: "invalid_releve" } },
   "/rest/v1/rpc/gaulois_des_joueurs": { status: 200, body: { ok: true, gaulois: {} } },
+  "/rest/v1/rpc/bannieres_des_joueurs": { status: 200, body: { ok: true, bannieres: {} } },
 };
 
 const SITE = "https://exemple.supabase.co";
@@ -352,6 +353,19 @@ describe("le contrôle de la mise en ligne", () => {
     // Un refus de la fonction elle-même ne suffit pas : le droit d'appel doit être fermé.
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/gaulois_des_joueurs": { status: 200, body: { ok: false, error: "invalid_request" } } }, label)).toBe("fail");
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/gaulois_des_joueurs": { status: 200, body: { ok: true, gaulois: {} } } }, label)).toBe("fail");
+  });
+
+  it("bloque si un visiteur peut lire les bannières des joueurs, et dit avec la clé secrète si l'Action peut les lire", async () => {
+    const ferme = "ne lit pas les bannières des joueurs";
+    expect(await statusOf(HEALTHY, ferme)).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/bannieres_des_joueurs": { status: 200, body: { ok: true, bannieres: {} } } }, ferme)).toBe("fail");
+    const label = "peut lire les bannières de la liste";
+    const avecCle = async (secret: Record<string, Route>) => (await run(HEALTHY, "sb_secret_x", secret)).find((c) => c.label.includes(label));
+    expect((await avecCle(SECRET))?.status).toBe("ok");
+    expect(await avecCle({ ...SECRET, "/rest/v1/rpc/bannieres_des_joueurs": { status: 404, body: {} } })).toMatchObject({ status: "warn", detail: expect.stringContaining("a-coller-bannieres-joueurs.sql") });
+    expect((await avecCle({ ...SECRET, "/rest/v1/rpc/bannieres_des_joueurs": { status: 200, body: { ok: true } } }))?.status).toBe("warn");
+    // Sans la clé secrète, la question n'est pas posée.
+    expect((await run()).some((c) => c.label.includes(label))).toBe(false);
   });
 
   it("dit, avec la clé secrète, si le robot peut lire les Gaulois des images, sans jamais bloquer ni désigner personne", async () => {

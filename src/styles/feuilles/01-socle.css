@@ -1047,6 +1047,107 @@ th.fx-cross {
   animation-delay: calc(var(--i, 0) * 28ms);
 }
 
+/* La bannière du Gaulois sur la ligne d'un membre de la liste (choix du pilote, 16 novembre 2026, la variante « bannière
+   intacte, écriture à contour ») : l'image de /bannieres/ en pleine couleur, répétée sur la ligne, sans voile ni cartouche.
+   L'écriture y est claire et cernée de marine, seule exception à « jamais de blanc pour un texte » : elle n'est jamais sur
+   la page blanche, toujours sur l'image, et le cerne la porte sur les bannières claires comme sur les sombres. La rareté
+   se lit au cadre, sans un mot à l'écran (un texte .sr-only la dit aux lecteurs d'écran) : de sa couleur, plus épais et
+   plus lumineux à mesure qu'elle monte. `--cerne` est un marine écrit en dur : `var(--ecriture)` changerait avec le
+   thème, le cerne doit rester sombre. `--banniere` est posée par MembersTable.tsx. */
+:is(tr, li).ligne-banniere {
+  --cerne: #0a1230;
+  --cadre: var(--rarete-commun);
+  --lueur: transparent;
+  --trait: 2px;
+  --bords:
+    inset 0 var(--trait) 0 var(--cadre), inset 0 calc(-1 * var(--trait)) 0 var(--cadre), inset 0 1rem 0.7rem -0.8rem var(--lueur),
+    inset 0 -1rem 0.7rem -0.8rem var(--lueur);
+  background-color: var(--cerne);
+  background-image: var(--banniere);
+  background-repeat: repeat-x;
+  background-position: left 58%;
+  background-size: max(34%, 20rem) auto;
+  image-rendering: pixelated;
+  color: var(--sur-couleur);
+  font-weight: 700;
+  text-shadow:
+    -2px 0 var(--cerne),
+    2px 0 var(--cerne),
+    0 -2px var(--cerne),
+    0 2px var(--cerne),
+    -1.5px -1.5px var(--cerne),
+    1.5px -1.5px var(--cerne),
+    -1.5px 1.5px var(--cerne),
+    1.5px 1.5px var(--cerne),
+    0 3px 4px color-mix(in srgb, var(--cerne) 70%, transparent);
+}
+:is(tr, li).ligne-banniere-peu-commun {
+  --cadre: var(--rarete-peu-commun);
+}
+:is(tr, li).ligne-banniere-epique {
+  --cadre: var(--rarete-epique);
+  --lueur: color-mix(in srgb, var(--rarete-epique) 60%, transparent);
+}
+:is(tr, li).ligne-banniere-mystique {
+  --cadre: var(--rarete-mystique);
+  --lueur: color-mix(in srgb, var(--rarete-mystique) 65%, transparent);
+  --trait: 3px;
+}
+:is(tr, li).ligne-banniere-legendaire {
+  --cadre: var(--rarete-legendaire);
+  --lueur: color-mix(in srgb, var(--rarete-legendaire) 80%, transparent);
+  --trait: 4px;
+}
+.ligne-banniere :is(.pseudo, .pseudo:hover, .pseudo:focus-visible, .text-muted, .role-badge) {
+  color: inherit;
+}
+.ligne-banniere .role-badge {
+  border-color: currentColor;
+}
+tr.ligne-banniere > td {
+  border-bottom-color: transparent;
+  box-shadow: var(--bords);
+}
+tr.ligne-banniere > td:first-child {
+  padding-left: 1.25rem;
+  box-shadow:
+    inset calc(var(--trait) + 7px) 0 0 var(--cadre),
+    var(--bords);
+}
+tr.ligne-banniere > td:last-child {
+  box-shadow:
+    inset calc(-1 * var(--trait)) 0 0 var(--cadre),
+    var(--bords);
+}
+/* Sous 1 024 pixels, la colonne du niveau est cachée : le bord droit du cadre passe à la colonne d'avant. */
+@media (width < 64rem) {
+  tr.ligne-banniere > td:nth-last-child(2) {
+    box-shadow:
+      inset calc(-1 * var(--trait)) 0 0 var(--cadre),
+      var(--bords);
+  }
+}
+@media (width >= 64rem) {
+  tr.ligne-banniere {
+    font-size: 1rem;
+  }
+}
+/* Sur téléphone, la ligne est une carte : la bannière la couvre en hauteur, le cadre en fait le tour. */
+/* « :root main li.card » : les cartes reçoivent ailleurs un halo en image de fond et une ombre (« main .card », puis la
+   feuille 07 sous :root[data-lettres]) ; ce sélecteur passe devant, pour que la bannière et le cadre tiennent. */
+:root main li.card.ligne-banniere,
+:root main li.card.ligne-banniere:hover {
+  padding-left: 1.25rem;
+  border-color: transparent;
+  background-image: var(--banniere);
+  background-position: left center;
+  background-size: auto 100%;
+  box-shadow:
+    inset calc(var(--trait) + 7px) 0 0 var(--cadre),
+    inset calc(-1 * var(--trait)) 0 0 var(--cadre),
+    var(--bords);
+}
+
 /* Carte des clans : ce que le film dessine et commande (la carte, la date, la légende, le podium, la frise). Depuis le
    12 novembre 2026, la page est une console qui tient dans l'écran : sa mise en page et ses fenêtres sont en fin de
    fichier, section « La carte en console ». */

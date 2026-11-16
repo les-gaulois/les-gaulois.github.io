@@ -1059,8 +1059,9 @@ test("un pseudo qui mène à une fiche a la même allure sur toutes les pages", 
           href: a.getAttribute("href"),
           pseudo: a.classList.contains("pseudo"),
           color: getComputedStyle(a).color,
-          // Dans une scène colorée (îlot sombre), l'écriture est blanche ; sur la page, marine.
-          ilot: a.closest(".stage-blue, .stage-indigo, .stage-wine, .card-accent") !== null,
+          // Dans une scène colorée (îlot sombre), l'écriture est blanche ; sur la page, marine. De même sur la ligne d'un
+          // membre qui porte sa bannière dans la liste (16 novembre 2026) : blanche et cernée, sur l'image.
+          ilot: a.closest(".stage-blue, .stage-indigo, .stage-wine, .card-accent, .ligne-banniere") !== null,
         })),
     );
     for (const link of links) {

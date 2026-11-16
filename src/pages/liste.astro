@@ -8,6 +8,7 @@ import MembersTable, { membersPreview } from "../components/MembersTable.tsx";
 import ReadingNote from "../components/ReadingNote.astro";
 import { NiveauEmblem } from "../components/NiveauEmblem";
 import { clan } from "../../config/clan";
+import { BANNIERES_MEMBRES_FILE, bannieresDuCache, fondsDesLignes } from "../lib/bannieres-joueurs";
 import { loadMembers, loadMeta } from "../lib/data";
 import { MAX_AGE_HOURS } from "../lib/freshness";
 import { prestigeKey } from "../lib/niveau";
@@ -17,7 +18,10 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const meta = loadMeta();
 const src = `${base}/data/members.json`;
 // Les trente premiers sont dans la page dès sa construction : le tableau ne la fait plus sauter en arrivant.
-const preview = membersPreview(loadMembers());
+const liste = loadMembers();
+const preview = membersPreview(liste);
+// La bannière que montre le Gaulois d'un membre au pseudo public, relevée avant la construction (src/lib/bannieres-joueurs.ts).
+const fonds = fondsDesLignes(bannieresDuCache(BANNIERES_MEMBRES_FILE, (liste?.members ?? []).map((m) => (m.username ? m.publicId : null))));
 ---
 
 <Base title="Liste des membres" description="La liste officielle des membres du clan GAL sur OpenFront : victoires, parties et taux en équipe sous le tag, date d'arrivée et niveau du compte de ceux qui le montrent.">
@@ -28,12 +32,13 @@ const preview = membersPreview(loadMembers());
       </div>
     </PageHeader>
 
-    <MembersTable client:load src={src} preview={preview} />
+    <MembersTable client:load src={src} preview={preview} fonds={fonds} />
     <noscript><p class="card mt-4 p-5">JavaScript est nécessaire pour trier la liste, y chercher un pseudo et voir les autres membres.</p></noscript>
     {/* Comme sur les autres pages, les précisions sont en bas, en un seul repli. */}
     <ReadingNote page>
         <p data-testid="members-scope">La liste officielle du clan dans OpenFront. Parties publiques en équipe jouées avec le tag {clan.tag}, sans le classé, le FFA ni Humains contre Nations.</p>
         <p>« 0 » signifie aucune partie sous le tag, ce qui ne veut pas dire que le joueur est inactif. « — » signifie pas de données, ou pas de taux sans partie jouée. Un pseudo mène à la fiche du membre.</p>
+        {Object.keys(fonds).length > 0 && <p data-testid="members-banner-scope">Une ligne en couleurs porte la bannière que le membre a choisie pour son Gaulois, relevée à la dernière mise à jour du site. Son cadre a la couleur de sa rareté : bleu clair pour commune, bleu pour peu commune, violet pour épique, rouge pour mystique, or pour légendaire.</p>}
         <p data-testid="members-level-scope">Le niveau et le prestige sont ceux du compte OpenFront, tout le jeu confondu, pas seulement les parties sous le tag. « non visible » : le réglage « Montrer mon niveau aux autres joueurs » est éteint dans son compte OpenFront, ou il n'a pas encore de niveau. Chaque cran allumé autour de l'emblème est un prestige, dans la couleur que lui donne le jeu :</p>
         <ul class="mt-2 flex flex-wrap gap-x-6 gap-y-2" data-testid="prestige-colors">
           {PRESTIGE_KEY.map((k) => (

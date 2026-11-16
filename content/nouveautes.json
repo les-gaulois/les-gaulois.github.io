@@ -2,6 +2,16 @@
   {
     "date": "2026-11-16",
     "kind": "nouveau",
+    "title": "Les bannières sur la liste des membres",
+    "body": "La ligne d'un membre qui a choisi une bannière pour son Gaulois la porte en couleurs dans la liste. Son cadre a la couleur de sa rareté. Relevé à chaque mise à jour du site.",
+    "link": {
+      "href": "/liste",
+      "label": "Voir la liste"
+    }
+  },
+  {
+    "date": "2026-11-16",
+    "kind": "nouveau",
     "title": "La vitrine des Gaulois",
     "body": "L'onglet « La vitrine » de « Mon Gaulois » montre tous les Gaulois du clan : tenue, familier, nom, et derrière chacun sa bannière. La carte a la couleur de son objet le plus rare.",
     "link": {

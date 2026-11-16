@@ -71,7 +71,7 @@ function Name({ m, stretch = false }: { m: StoredMember; stretch?: boolean }) {
 
 function RoleBadge({ role }: { role: StoredMember["role"] }) {
   if (role === "member") return null;
-  return <span class="ml-2 rounded border border-line px-1.5 py-0.5 text-xs font-semibold text-muted">{ROLE[role]}</span>;
+  return <span class="role-badge ml-2 rounded border border-line px-1.5 py-0.5 text-xs font-semibold text-muted">{ROLE[role]}</span>;
 }
 
 /** « — » : pas de stats reçues. Zéro partie : affiché tel quel, sans taux. */
@@ -96,6 +96,21 @@ function Level({ m }: { m: StoredMember }) {
       </span>
     </span>
   );
+}
+
+/**
+ * La bannière que le Gaulois du membre montre, en fond de sa ligne (demande du pilote, 16 novembre 2026) : son image,
+ * publiée par le site, et le cadre de sa rareté. Le texte passe en clair cerné de sombre (feuille 01-socle,
+ * « .ligne-banniere »). La page les donne par identifiant public (`fondsDesLignes` de src/lib/bannieres-joueurs.ts).
+ * `null` : pas de bannière, la ligne reste comme avant.
+ */
+export type FondsDesLignes = Readonly<Record<string, { image: string; rarete: string }>>;
+/** La rareté dite en toutes lettres à qui ne voit pas le cadre (lecteur d'écran) : à l'œil, elle ne se lit qu'à sa couleur. */
+const RARETE_DITE: Readonly<Record<string, string>> = { commun: "commune", "peu-commun": "peu commune", epique: "épique", mystique: "mystique", legendaire: "légendaire" };
+function fondDeLigne(m: StoredMember, fonds: FondsDesLignes | undefined): { classe: string; style: Record<string, string>; dit: string } | null {
+  const fond = m.username && m.publicId && fonds && Object.hasOwn(fonds, m.publicId) ? fonds[m.publicId] : undefined;
+  if (!fond) return null;
+  return { classe: ` ligne-banniere ligne-banniere-${fond.rarete}`, dit: `, bannière ${RARETE_DITE[fond.rarete] ?? "du Gaulois"}`, style: { "--banniere": `url("${BASE}${fond.image}")` } };
 }
 
 const memberKey = (m: StoredMember) => m.publicId ?? `anon-${m.joinedAt}`;
@@ -133,7 +148,7 @@ function useGlidingRows(container: { current: HTMLElement | null }, change: unkn
 }
 
 /** `preview` : l'ouverture de la liste, rendue dans la page à sa construction (voir `membersPreview`). */
-export default function MembersTable({ src, preview }: { src: string; preview?: MembersPreview }) {
+export default function MembersTable({ src, preview, fonds }: { src: string; preview?: MembersPreview; fonds?: FondsDesLignes }) {
   const [state, setState] = useState<State>({ status: "loading" });
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>(START_SORT);
@@ -276,10 +291,12 @@ export default function MembersTable({ src, preview }: { src: string; preview?: 
               <tbody ref={tableBody}>
                 {visible.map((m, i) => {
                   const rate = rateOf(m);
+                  const fond = fondDeLigne(m, fonds);
                   return (
-                    <tr key={memberKey(m)} class="fx-row" data-key={memberKey(m)} data-testid="member-row" style={{ "--i": Math.min(i, 18) }}>
+                    <tr key={memberKey(m)} class={`fx-row${fond?.classe ?? ""}`} data-key={memberKey(m)} data-testid="member-row" style={{ "--i": Math.min(i, 18), ...fond?.style }}>
                       <td>
                         <Name m={m} /><RoleBadge role={m.role} />
+                        {fond && <span class="sr-only">{fond.dit}</span>}
                         {/* De 768 à 1 023 pixels, six colonnes coupaient les taux et les dates : le niveau passe sous le pseudo. */}
                         <span class="mt-1 flex items-center gap-2 text-xs text-muted lg:hidden" data-testid="member-row-level">
                           {m.account ? (
@@ -295,7 +312,7 @@ export default function MembersTable({ src, preview }: { src: string; preview?: 
                       <td class="num">{m.team ? fmtInt(m.team.wins) : "—"}</td>
                       <td class="num">{fmtInt(gamesOf(m))}</td>
                       <td class="num">
-                        {rate !== null && <span class="score-bar" aria-hidden="true" style={{ width: `${rate}%`, "--i": Math.min(i, 18) }} />}
+                        {rate !== null && !fond && <span class="score-bar" aria-hidden="true" style={{ width: `${rate}%`, "--i": Math.min(i, 18) }} />}
                         <span class="relative">{fmtPct(rate)}</span>
                       </td>
                       <td>{fmtDate(m.joinedAt)}</td>
@@ -310,9 +327,10 @@ export default function MembersTable({ src, preview }: { src: string; preview?: 
           <ul class="mt-4 space-y-2 md:hidden" ref={cardList}>
             {visible.map((m, i) => {
               const note = wlText(m);
+              const fond = fondDeLigne(m, fonds);
               return (
-                <li key={memberKey(m)} class="fx-row card tnum relative p-3" data-key={memberKey(m)} data-testid="member-card" style={{ "--i": Math.min(i, 18) }}>
-                  <p><Name m={m} stretch /><RoleBadge role={m.role} /></p>
+                <li key={memberKey(m)} class={`fx-row card tnum relative p-3${fond?.classe ?? ""}`} data-key={memberKey(m)} data-testid="member-card" style={{ "--i": Math.min(i, 18), ...fond?.style }}>
+                  <p><Name m={m} stretch /><RoleBadge role={m.role} />{fond && <span class="sr-only">{fond.dit}</span>}</p>
                   <p class="mt-1 text-sm">
                     {note ?? `${fmtInt(m.team?.wins)} victoires · ${fmtInt(gamesOf(m))} parties · ${fmtPct(rateOf(m))}`}
                   </p>

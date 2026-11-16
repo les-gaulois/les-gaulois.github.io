@@ -509,6 +509,8 @@ jobs:
       # Les Gaulois des membres au pseudo public, validés, qui ont créé le leur au village, pour l'image d'aperçu de leur fiche :
       # seule cette étape a la clé de service, pas la construction. Rangés par empreinte dans .cache/gaulois-fiches.json, hors
       # de Git et de dist/. Sans réglage, sans la migration ou en cas de panne, les fiches se dessinent comme avant.
+      # La même étape lit la bannière que ces membres montrent, pour leur ligne de la liste des membres
+      # (.cache/bannieres-membres.json, src/lib/bannieres-joueurs.ts) : sans elle, la liste s'affiche sans bannière.
       - name: Lire les Gaulois des fiches
         continue-on-error: true
         timeout-minutes: 1
