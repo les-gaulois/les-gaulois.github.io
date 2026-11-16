@@ -10,7 +10,6 @@
 import { imageMessage, postWithImage, textMessage } from "./discord-post";
 import { fmtCount, fmtInt, fmtScore } from "./format";
 import { escapeDiscord, type RenderedImage } from "./gazette-discord";
-import { replayUrl } from "./journal";
 import { mapKey, mapLabel } from "./map-names";
 import { MAX_CONTENT, profileUrl } from "./paliers-franchis-discord";
 import { formatLabel } from "./results";
@@ -108,7 +107,7 @@ export function victoryContent(v: Victory, tag: string, siteUrl: string): { cont
       ...(crew ? [`👥 ${crew}`] : []),
       ...(rivals ? [`🆚 ${rivals.charAt(0).toUpperCase()}${rivals.slice(1)}`] : []),
       `⏱️ ${gameLength(v.seconds)}, commencée à <t:${start}:t>${v.points === null ? "" : ` · ${pointsWords(v.points)}`}`,
-      `[Revoir la partie](<${replayUrl(v.id)}>) · [Dernières parties](<${siteLink(site, "/parties")}>)`,
+      `[Revoir la partie](<${revoirLaPartie(site, v.id)}>) · [Dernières parties](<${siteLink(site, "/parties")}>)`,
       victoryNote(v),
     ];
     return lines.join("\n");
@@ -122,6 +121,13 @@ export function victoryContent(v: Victory, tag: string, siteUrl: string): { cont
 }
 
 /**
+ * « Revoir la partie » mène à la page du site (demande du pilote, 16 novembre 2026), où la partie se revoit dans le vrai lecteur
+ * du jeu, et non plus au site d'OpenFront. Une partie s'y filme environ une heure après sa fin : d'ici là, la page le dit et
+ * garde le lien vers OpenFront.
+ */
+export const revoirLaPartie = (site: string, partie: string) => siteLink(site, `/revoir/?partie=${encodeURIComponent(partie)}`);
+
+/**
  * Le message. `image` : le fichier joint et sa description, avec deux boutons, sans texte : l'image porte elle-même le crédit
  * de la carte. Sans elle, le secours en texte, sans bouton ni vignette.
  */
@@ -129,7 +135,7 @@ export function victoryPayload(v: Victory, tag: string, siteUrl: string, image: 
   const site = siteUrl.replace(/\/$/, "");
   if (!image) return textMessage(site, victoryContent(v, tag, site).content);
   return imageMessage(site, image, [
-    { label: "Revoir la partie", url: replayUrl(v.id) },
+    { label: "Revoir la partie", url: revoirLaPartie(site, v.id) },
     { label: "Dernières parties", url: siteLink(site, "/parties") },
   ]);
 }

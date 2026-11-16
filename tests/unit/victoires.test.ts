@@ -603,7 +603,7 @@ describe("le texte de secours", () => {
       "⚔️ 4 équipes · 6 Gaulois sur 23 joueurs",
       "👥 [**alpha**](<https://x.test/membres/id-alpha/>), **Caché**, [**Zoé en jeu**](<https://x.test/membres/id-zoe/>), 1 Gaulois sans nom et 1 joueur sous le tag, hors du clan",
       "⏱️ 15 min 43 s, commencée à <t:1794416698:t> · +1,81 point gagné",
-      "[Revoir la partie](<https://openfront.io/game/dVEWLLQHx1>) · [Dernières parties](<https://x.test/parties>)",
+      "[Revoir la partie](<https://x.test/revoir/?partie=dVEWLLQHx1>) · [Dernières parties](<https://x.test/parties>)",
       "-# Noms portés dans la partie. Carte : [© OpenFront and Contributors](<https://github.com/openfrontio/OpenFrontIO/tree/main/resources/maps/fourislands>), [CC BY-SA 4.0](<https://creativecommons.org/licenses/by-sa/4.0/deed.fr>).",
     ]);
   });
@@ -653,7 +653,7 @@ describe("le texte de secours", () => {
     expect(counted(0, 2)).toBe("👥 2 joueurs sous le tag, hors du clan");
     expect(counted(1, 1)).toBe("👥 1 Gaulois sans nom et 1 joueur sous le tag, hors du clan");
   });
-  it("avec l'image : le fichier joint et deux boutons, la partie sur OpenFront et les dernières parties, sans aucun texte", () => {
+  it("avec l'image : le fichier joint et deux boutons, la partie sur la page « Revoir une partie » du site et les dernières parties, sans aucun texte", () => {
     expect(victoryPayload(VICTORY, "GAL", SITE, { alt: "Description.", filename: "victoire.png" })).toEqual({
       avatar_url: "https://x.test/generated/icon-192.png",
       allowed_mentions: { parse: [] },
@@ -662,7 +662,7 @@ describe("le texte de secours", () => {
         {
           type: 1,
           components: [
-            { type: 2, style: 5, label: "Revoir la partie", url: "https://openfront.io/game/dVEWLLQHx1" },
+            { type: 2, style: 5, label: "Revoir la partie", url: "https://x.test/revoir/?partie=dVEWLLQHx1" },
             { type: 2, style: 5, label: "Dernières parties", url: "https://x.test/parties" },
           ],
         },

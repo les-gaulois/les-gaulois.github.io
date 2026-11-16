@@ -5,7 +5,7 @@ import { filmSpeed, speedLabel, speedText, SPEED_MAX, SPEED_MIN, SPEED_STEP } fr
 import { replayUrl } from "../lib/journal";
 import { mapLabel } from "../lib/map-names";
 import { DessinateurDetails, type ChoixDetails } from "../lib/rejeu/details";
-import { ficheDuLecteur } from "../lib/rejeu/fiche-du-lecteur";
+import { adresseEnLecture, ficheDuLecteur } from "../lib/rejeu/fiche-du-lecteur";
 import { Bobine, CLASSE, CONSTRUCTIONS, COULEURS_DES_CLASSES, contientRetombees, decompresser, dureeDite, etiquettesDe, horloge, lireFilm, PeintreFilm, secondesDeLImage, UNITES, unitesDuFilm, type Film } from "../lib/rejeu/film";
 import { formatLabel } from "../lib/results";
 
@@ -108,7 +108,8 @@ function LegendeUnites({ film, dessinateur }: { film: Film; dessinateur: Dessina
 /**
  * Le lecteur des films de parties (page « Revoir une partie ») : la carte de la partie, rejouée par le moteur du jeu, image par
  * image, avec la lecture, la barre du temps et la vitesse. Le film est un fichier statique du site : le navigateur n'appelle
- * jamais OpenFront. Rien ne part tout seul : la lecture attend le visiteur, et le bouton pause de l'en-tête l'arrête.
+ * jamais OpenFront. Le film ne part pas tout seul : sa lecture attend le visiteur, et le bouton pause de l'en-tête l'arrête.
+ * Le vrai replay du jeu, lui, part de lui-même en × 8 (demande du pilote), sauf pour qui veut moins d'animations.
  */
 export default function RejeuPartie({ base, dernier, jours, tag, jeux = {} }: Props) {
   const [partie, setPartie] = useState<string | null>(null);
@@ -138,6 +139,10 @@ export default function RejeuPartie({ base, dernier, jours, tag, jeux = {} }: Pr
   // de cette page : le cadre laisse ses scripts tourner, ils ne doivent le faire qu'à part (src/lib/rejeu/lecteur-jeu.ts).
   const jeuDemande = partie !== null ? jeux[partie] : undefined;
   const [jeuEtat, setJeuEtat] = useState<"verif" | "pret" | "absent">("verif");
+  // La lecture d'office en ×8 (demande du pilote, 16 novembre 2026), décidée au moment de monter le cadre : jamais pour qui a
+  // demandé moins d'animations (bouton pause de l'en-tête, ou réglage du système).
+  const [enLecture, setEnLecture] = useState(false);
+  const cadreDuJeu = useRef<HTMLIFrameElement>(null);
   useEffect(() => {
     if (jeuDemande === undefined) return;
     const fiche = ficheDuLecteur(jeuDemande);
@@ -147,6 +152,7 @@ export default function RejeuPartie({ base, dernier, jours, tag, jeux = {} }: Pr
     }
     let annule = false;
     setJeuEtat("verif");
+    setEnLecture(!document.documentElement.classList.contains("fx-off") && !matchMedia("(prefers-reduced-motion: reduce)").matches);
     fetch(fiche, { method: "HEAD", cache: "no-store", credentials: "omit", referrerPolicy: "no-referrer" })
       .then((r) => {
         if (!annule) setJeuEtat(r.ok ? "pret" : "absent");
@@ -274,16 +280,41 @@ export default function RejeuPartie({ base, dernier, jours, tag, jeux = {} }: Pr
     return () => cancelAnimationFrame(raf);
   }, [lecture, film, vitesse]);
 
-  // Le bouton pause de l'en-tête arrête aussi le film, comme le passage du système à « réduire les animations ».
+  // Le bouton pause de l'en-tête arrête aussi le film et le replay du jeu, comme le passage du système à « réduire les
+  // animations ». Le replay vient d'un autre site : la pause lui est demandée par un message, que sa page n'accepte que d'ici
+  // et écoute dès son chargement ; le cadre la redemande quand il a fini de charger (`onLoad`), au cas où le clic l'a précédé.
+  const [animationsCoupees, setAnimationsCoupees] = useState(false);
+  const coupees = useRef(false);
+  coupees.current = animationsCoupees;
+  const pauseDuJeu = () => {
+    const f = cadreDuJeu.current;
+    if (!f?.contentWindow) return;
+    try {
+      f.contentWindow.postMessage({ gal: "pause" }, new URL(f.src).origin);
+    } catch {
+      /* Un cadre sans adresse lisible : rien à arrêter. */
+    }
+  };
   useEffect(() => {
     const racine = document.documentElement;
+    const reduire = matchMedia("(prefers-reduced-motion: reduce)");
+    const relever = () => {
+      const oui = racine.classList.contains("fx-off") || reduire.matches;
+      coupees.current = oui;
+      setAnimationsCoupees(oui);
+      return oui;
+    };
+    relever();
     const observateur = new MutationObserver(() => {
-      if (racine.classList.contains("fx-off")) setLecture(false);
+      if (!relever()) return;
+      setLecture(false);
+      pauseDuJeu();
     });
     observateur.observe(racine, { attributes: true, attributeFilter: ["class"] });
-    const reduire = matchMedia("(prefers-reduced-motion: reduce)");
-    const arreter = (ev: MediaQueryListEvent) => {
-      if (ev.matches) setLecture(false);
+    const arreter = () => {
+      if (!relever()) return;
+      setLecture(false);
+      pauseDuJeu();
     };
     reduire.addEventListener("change", arreter);
     return () => {
@@ -360,16 +391,18 @@ export default function RejeuPartie({ base, dernier, jours, tag, jeux = {} }: Pr
           de replay du jeu (src/lib/rejeu/lecteur-jeu.ts) ne montre que lui ; le film du site est son secours. */}
       <div class="revoir-corps" style={e ? { "--revoir-forme": String(e.largeur / e.hauteur) } : undefined}>
         {/* Le vrai lecteur du jeu, dans un cadre à la forme de la carte : elle le remplit, sans fond autour. Il vient d'un autre site : enfermé (`sandbox`), sans autre droit que ses
-            scripts, son propre stockage et ses liens en nouvel onglet. Il s'ouvre en pause : le visiteur le lance. */}
+            scripts, son propre stockage et ses liens en nouvel onglet. Il part de lui-même en ×8, sauf pour qui veut moins
+            d'animations, à qui il s'ouvre en pause. */}
         {montreLeJeu && (
-          <div class="revoir-scene">
+          <div class="revoir-scene revoir-scene-jeu">
             {/* Cadre vide le temps de vérifier que la fiche de la partie est bien sur le site du lecteur. */}
             {/* Obstacle du compagnon : à l'arrêt, il se tient à côté du lecteur et de son bandeau « © OpenFront and Contributors ». */}
             <div class="revoir-cadre" aria-busy={jeuEtat !== "pret"} data-compagnon-obstacle>
               {jeuEtat === "pret" && (
                 <iframe
                   key={partie}
-                  src={jeu}
+                  ref={cadreDuJeu}
+                  src={enLecture ? adresseEnLecture(jeu) : jeu}
                   title={e ? `Replay du jeu OpenFront : ${mapLabel(e.carte)}, ${fmtDayAndTime(e.debut)}` : "Replay du jeu OpenFront"}
                   sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
                   allow="fullscreen"
@@ -377,6 +410,9 @@ export default function RejeuPartie({ base, dernier, jours, tag, jeux = {} }: Pr
                   referrerpolicy="no-referrer"
                   loading="lazy"
                   data-testid="rejeu-jeu-cadre"
+                  onLoad={() => {
+                    if (coupees.current) pauseDuJeu();
+                  }}
                 />
               )}
             </div>
@@ -486,7 +522,7 @@ export default function RejeuPartie({ base, dernier, jours, tag, jeux = {} }: Pr
           {partie !== null && (
             <p class="revoir-sortie">
               {jeu !== undefined && (
-                <a class="link" href={jeu} target="_blank" rel="noopener" data-testid="rejeu-jeu">
+                <a class="link" href={animationsCoupees ? jeu : adresseEnLecture(jeu)} target="_blank" rel="noopener" data-testid="rejeu-jeu">
                   Ouvrir le replay en grand
                   <span class="sr-only"> (nouvel onglet)</span>
                 </a>

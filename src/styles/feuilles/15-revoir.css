@@ -410,11 +410,18 @@
   border: 0;
 }
 /* Une carte très large, sur un téléphone, ferait un cadre trop bas pour le classement (68 px) et la frise (44 px) du jeu :
-   il garde 18 rem de haut. Le lecteur remplit toujours sa vue de carte, sans gris : elle déborde alors sur les côtés, à
-   faire glisser du doigt. */
+   il garde 18 rem de haut. Sa largeur reste celle de la page (une hauteur minimale sur une forme imposée l'élargirait, et la
+   page déborderait) : sa hauteur suit la forme de la carte sur cette largeur, mesurée en largeur de son conteneur (`cqw`),
+   jamais moins de 18 rem. Le lecteur remplit toujours sa vue de carte, sans gris : elle déborde alors sur les côtés, à faire
+   glisser du doigt. */
 @media (max-width: 40rem) {
+  .revoir-scene-jeu {
+    container-type: inline-size;
+  }
   .revoir-cadre {
-    min-height: 18rem;
+    width: 100%;
+    aspect-ratio: auto;
+    height: max(18rem, calc(100cqw / var(--revoir-forme)));
   }
 }
 

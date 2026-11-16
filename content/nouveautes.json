@@ -2,6 +2,26 @@
   {
     "date": "2026-11-16",
     "kind": "ameliore",
+    "title": "Le replay part tout seul, en × 8",
+    "body": "Dans « Revoir une partie », le replay du jeu démarre de lui-même, en accéléré × 8. Il reste en pause pour qui a demandé moins d'animations, et le bouton pause en haut de page l'arrête.",
+    "link": {
+      "href": "/revoir",
+      "label": "Revoir une partie"
+    }
+  },
+  {
+    "date": "2026-11-16",
+    "kind": "ameliore",
+    "title": "« Revoir la partie » mène au site",
+    "body": "Sur Discord, le bouton « Revoir la partie » des victoires ouvre maintenant « Revoir une partie » sur le site, et non plus OpenFront. Une partie y arrive environ une heure après sa fin.",
+    "link": {
+      "href": "/revoir",
+      "label": "Revoir une partie"
+    }
+  },
+  {
+    "date": "2026-11-16",
+    "kind": "ameliore",
     "title": "Le moule de la forge",
     "body": "Quand vous fondez trois objets, un moule de pierre montre en creux la forme de l'objet reçu : le métal y coule, refroidit, puis le moule s'ouvre.",
     "link": {

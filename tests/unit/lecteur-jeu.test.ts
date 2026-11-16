@@ -24,7 +24,7 @@ import {
   SITE_DU_CLAN,
   svgRepris,
 } from "../../src/lib/rejeu/lecteur-jeu";
-import { ficheDuLecteur } from "../../src/lib/rejeu/fiche-du-lecteur";
+import { adresseEnLecture, ficheDuLecteur, VITESSE_D_OFFICE } from "../../src/lib/rejeu/fiche-du-lecteur";
 
 const COMMIT = "8b5d071eed95f07c701b32e4c64e95b03f8577c1";
 
@@ -247,6 +247,37 @@ describe("la page du lecteur", () => {
   it("pose la règle de sécurité juste après l'encodage, avant tout ce qui charge quelque chose", () => {
     expect(page.indexOf('<meta charset="UTF-8" />')).toBeLessThan(page.indexOf("Content-Security-Policy"));
     expect(page.slice(0, page.indexOf("Content-Security-Policy"))).not.toMatch(/<(script|link|style|img)\b/i);
+  });
+  it("lance la lecture en ×8 quand le lien le demande, jamais pour qui veut moins d'animations, et ne prend la pause que du site du clan", () => {
+    const corps = /<script>(\(function \(\) \{ var pause = false[\s\S]*?)<\/script>/.exec(page)?.[1] ?? "";
+    expect(corps).toContain("window.galLecture = ");
+    const essai = (search: string, reduit: boolean, avant?: [string, unknown]) => {
+      const ecoutes: ((e: { origin: string; data: unknown }) => void)[] = [];
+      const fenetre: { galLecture?: (l: unknown) => void } = {};
+      new Function("window", "location", "matchMedia", "addEventListener", "URLSearchParams", corps)(fenetre, { search }, () => ({ matches: reduit }), (_: string, f: (e: { origin: string; data: unknown }) => void) => ecoutes.push(f), URLSearchParams);
+      const message = (origin: string, data: unknown) => ecoutes.forEach((f) => f({ origin, data }));
+      // Un message arrivé pendant que le jeu prépare la partie, avant qu'il ne confie sa lecture.
+      if (avant) message(...avant);
+      const appels: unknown[][] = [];
+      fenetre.galLecture!({ setSpeed: (s: number) => appels.push(["vitesse", s]), play: () => appels.push(["lecture"]), pause: () => appels.push(["pause"]) });
+      return { appels, message };
+    };
+    expect(essai("?lecture=8", false, ["https://les-gaulois.github.io", { gal: "pause" }]).appels).toEqual([]);
+    expect(essai("?lecture=8", false, ["https://ailleurs.example", { gal: "pause" }]).appels).toEqual([["vitesse", 8], ["lecture"]]);
+    expect(essai(`?lecture=${VITESSE_D_OFFICE}`, false).appels).toEqual([["vitesse", 8], ["lecture"]]);
+    expect(essai("", false).appels).toEqual([]);
+    expect(essai("?lecture=8", true).appels).toEqual([]);
+    const e = essai("?lecture=8", false);
+    e.message("https://ailleurs.example", { gal: "pause" });
+    e.message("https://les-gaulois.github.io", { gal: "autre" });
+    expect(e.appels).toEqual([["vitesse", 8], ["lecture"]]);
+    e.message("https://les-gaulois.github.io", { gal: "pause" });
+    expect(e.appels.at(-1)).toEqual(["pause"]);
+    // Le lien qui la demande, posé par « Revoir une partie ».
+    expect(adresseEnLecture("https://gal-replay.github.io/jeu/8b5d071eed/#replay-viewer=abc123")).toBe("https://gal-replay.github.io/jeu/8b5d071eed/?lecture=8#replay-viewer=abc123");
+    // Le jeu confie sa lecture à ce script, une fois la partie prête.
+    const viewer = RETOUCHES_DU_CODE.find((r) => r.fichier === "src/client/replay/ReplayViewer.ts" && r.apres.includes("galLecture"))!;
+    expect(appliquerRetouche("x\n" + viewer.avant + "y\n", viewer)).toContain('if (typeof galLecture === "function") galLecture(playback);');
   });
   it("refuse un modèle qu'il ne sait pas remplir, ou où la règle de sécurité arriverait trop tard", () => {
     expect(() => pageDuLecteur("<html><head></head><body></body></html>", VALEURS)).toThrow("modèle");

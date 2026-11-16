@@ -5,6 +5,7 @@ import { fmtDayAndTime } from "../../src/lib/format";
 import { mapLabel } from "../../src/lib/map-names";
 import { EcrivainFilm, FORMAT_FILM, lireFilm, type EnteteFilm } from "../../src/lib/rejeu/film";
 import { DOSSIER_PUBLIC_FILMS, LISTE_DES_FILMS, ListeDesFilms } from "../../src/lib/rejeu/films-index";
+import { adresseEnLecture } from "../../src/lib/rejeu/fiche-du-lecteur";
 import { DOSSIER_DES_FICHES, DOSSIER_SITE_DU_LECTEUR } from "../../src/lib/rejeu/lecteur-jeu";
 
 /**
@@ -145,7 +146,7 @@ test.describe("le vrai lecteur du jeu", () => {
     await page.goto(`/revoir?partie=${avecJeu!.partie}`);
     await hydrated(page);
     const lien = page.getByTestId("rejeu-jeu");
-    await expect(lien).toHaveAttribute("href", avecJeu!.jeu!);
+    await expect(lien).toHaveAttribute("href", adresseEnLecture(avecJeu!.jeu!));
     // Jamais sur l'adresse du site du clan : le code du jeu n'y tourne pas.
     expect(new URL(avecJeu!.jeu!).origin).not.toBe(new URL(page.url()).origin);
     expect(new URL(avecJeu!.jeu!).hostname).not.toBe("les-gaulois.github.io");
@@ -169,16 +170,56 @@ test.describe("le vrai lecteur du jeu", () => {
     await hydrated(page);
     const cadre = page.getByTestId("rejeu-jeu-cadre");
     await expect(cadre).toBeVisible();
-    await expect(cadre).toHaveAttribute("src", avecJeu!.jeu!);
+    // Il part de lui-même en ×8 (demande du pilote) : son lien le lui demande.
+    await expect(cadre).toHaveAttribute("src", adresseEnLecture(avecJeu!.jeu!));
+    expect(adresseEnLecture(avecJeu!.jeu!)).toContain("/?lecture=8#replay-viewer=");
     // Ni navigation de la page qui l'encadre, ni formulaire : seulement ses scripts, son stockage à lui et les liens qu'il ouvre.
     await expect(cadre).toHaveAttribute("sandbox", "allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox");
     await expect(cadre).toHaveAttribute("referrerpolicy", "no-referrer");
     await expect(cadre).toHaveAttribute("allow", "fullscreen");
     expect((await cadre.getAttribute("title")) ?? "").toContain("Replay du jeu");
     const lien = page.getByTestId("rejeu-jeu");
-    await expect(lien).toHaveAttribute("href", avecJeu!.jeu!);
+    await expect(lien).toHaveAttribute("href", adresseEnLecture(avecJeu!.jeu!));
     await expect(lien).toHaveAttribute("target", "_blank");
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+  });
+
+  test("pour qui veut moins d'animations, le replay du jeu s'ouvre en pause", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto(`/revoir?partie=${avecJeu!.partie}`);
+    await hydrated(page);
+    await expect(page.getByTestId("rejeu-jeu-cadre")).toHaveAttribute("src", avecJeu!.jeu!);
+    await expect(page.getByTestId("rejeu-jeu")).toHaveAttribute("href", avecJeu!.jeu!);
+  });
+
+  /** Le site du lecteur, remplacé par une page qui note les messages qu'elle reçoit et d'où ils viennent. */
+  const NOTEUR = '<!doctype html><html lang="fr"><title>Replay du jeu</title><script>window.recus = []; addEventListener("message", (e) => window.recus.push([e.origin, e.data]));</script></html>';
+  /** Les messages reçus par le cadre du lecteur, une fois chargé ; `null` tant qu'il ne l'est pas. */
+  const recus = async (page: Page) => {
+    const lecteur = page.frames().find((f) => f.url().startsWith(new URL(avecJeu!.jeu!).origin));
+    return lecteur ? lecteur.evaluate(() => (window as unknown as { recus?: [string, unknown][] }).recus ?? null).catch(() => null) : null;
+  };
+
+  test("le bouton pause de l'en-tête demande la pause au replay du jeu, et à lui seul", async ({ page }) => {
+    await page.route(LECTEUR, (r) => r.fulfill({ status: 200, contentType: "text/html", body: NOTEUR }));
+    await page.goto(`/revoir?partie=${avecJeu!.partie}`);
+    await hydrated(page);
+    await expect(page.getByTestId("rejeu-jeu-cadre")).toBeVisible();
+    await expect.poll(() => recus(page)).toEqual([]);
+    await page.locator("[data-fx-toggle]").click();
+    await expect.poll(() => recus(page)).toEqual([[new URL(page.url()).origin, { gal: "pause" }]]);
+    // Le lien « en grand » ne demande plus la lecture d'office.
+    await expect(page.getByTestId("rejeu-jeu")).toHaveAttribute("href", avecJeu!.jeu!);
+  });
+
+  test("la pause déjà choisie sur le site : le replay du jeu s'ouvre en pause, et sa page le lui redit au chargement", async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem("gal-fx", "off"));
+    await page.route(LECTEUR, (r) => r.fulfill({ status: 200, contentType: "text/html", body: NOTEUR }));
+    await page.goto(`/revoir?partie=${avecJeu!.partie}`);
+    await hydrated(page);
+    await expect(page.getByTestId("rejeu-jeu-cadre")).toHaveAttribute("src", avecJeu!.jeu!);
+    await expect(page.getByTestId("rejeu-jeu")).toHaveAttribute("href", avecJeu!.jeu!);
+    await expect.poll(() => recus(page)).toEqual([[new URL(page.url()).origin, { gal: "pause" }]]);
   });
 
   test("une partie qui a le replay du jeu ne montre que lui, au cadre de la forme de sa carte", async ({ page }, testInfo) => {

@@ -25,6 +25,8 @@
  * site à part et non indexé, jamais pour les pages du site du clan ni pour les films.
  */
 
+import { VITESSE_D_OFFICE } from "./fiche-du-lecteur";
+
 /** Le dépôt du jeu, et ce que le site en prend pour construire le lecteur : tout, sauf les fichiers propriétaires, les cartes et les outils. */
 export const DEPOT_DU_JEU = "https://github.com/openfrontio/OpenFrontIO.git";
 export const MOTIFS_DU_LECTEUR = ["/*", "!/proprietary/", "!/map-generator/", "!/resources/maps/", "!/tests/", "!/.npmrc"] as const;
@@ -206,6 +208,11 @@ export function pageDuLecteur(modele: string, v: ValeursDeLaPage): string {
     `<script>try { localStorage.setItem("apiHost", ${JSON.stringify(v.apiHost)}.replace(/^\\//, location.origin + "/")); } catch (e) {}</script>`,
     // Le jeu remet son titre en changeant de langue : le titre du site reste.
     `<script>try { Object.defineProperty(document, "title", { configurable: false, get: function () { return ${JSON.stringify(TITRE)}; }, set: function () {} }); } catch (e) {}</script>`,
+    // La lecture, confiée par le jeu une fois la partie prête (retouche de ReplayViewer.ts) : d'office en × 8 quand le lien le
+    // demande (`?lecture=8`, posé par « Revoir une partie »), jamais pour qui veut moins d'animations ; en pause quand le site du
+    // clan, et lui seul, le demande (bouton pause de son en-tête). La demande est écoutée dès le chargement : arrivée pendant que
+    // le jeu prépare la partie, elle empêche la lecture d'office.
+    `<script>(function () { var pause = false, lecture = null; addEventListener("message", function (e) { if (e.origin !== ${JSON.stringify(new URL(v.retour).origin)} || !e.data || e.data.gal !== "pause") return; pause = true; if (lecture) lecture.pause(); }); window.galLecture = function (l) { lecture = l; try { if (!pause && new URLSearchParams(location.search).get("lecture") === "${VITESSE_D_OFFICE}" && !matchMedia("(prefers-reduced-motion: reduce)").matches) { l.setSpeed(${VITESSE_D_OFFICE}); l.play(); } } catch (e) {} }; })();</script>`,
     // Encadrée dans « Revoir une partie » (depuis le 16 novembre 2026, demande du pilote : « met le replay sur cette page »), la
     // page le sait : le retour vers cette même page et les morceaux longs du bandeau se cachent.
     `<script>try { if (window.top !== window.self) document.documentElement.classList.add("gal-encadre"); } catch (e) { document.documentElement.classList.add("gal-encadre"); }</script>`,
@@ -275,8 +282,9 @@ export const MANIFESTE_DU_SITE = '__ASSET_MANIFEST__: process.env.GAL_MANIFEST ?
  * refait, et n'est pas publié tant qu'il n'est pas refait (chaque partie garde alors son film).
  * 2 (16 novembre 2026) : la retouche CrazyGames, pour le lecteur encadré dans « Revoir une partie ».
  * 3 (16 novembre 2026) : la carte remplit toujours la vue (caméra du lecteur de replay).
+ * 4 (16 novembre 2026) : la lecture confiée à la page du lecteur (`galLecture`), qui la lance d'office en ×8 dans le cadre.
  */
-export const RECETTE_DU_LECTEUR = 3;
+export const RECETTE_DU_LECTEUR = 4;
 
 /** La recette lue dans `recette.txt` d'un lecteur construit ; `null` si le fichier manque ou ne dit pas un nombre. */
 export function lireRecette(texte: string | null): number | null {
@@ -331,6 +339,19 @@ export const RETOUCHES_DU_CODE: readonly Retouche[] = [
     avant: "      camera.step(last === null ? 0 : now - last);",
     apres: "      camera.step(last === null ? 0 : now - last);\n      camera.vue(canvas.clientWidth, canvas.clientHeight); /* Site du clan [GAL] */",
     raison: "la caméra reçoit la taille de la vue à chaque image",
+  },
+  // La lecture, une fois la partie prête, est confiée à la page du lecteur (`galLecture`, posé par `pageDuLecteur`) : dans le
+  // cadre de « Revoir une partie », elle la lance en ×8 (demande du pilote, 16 novembre 2026 : « quand la page se charge la
+  // vidéo soit sur play et non sur pause et que la vidéo soit réglée en x8 »), et l'arrête quand le site demande la pause.
+  {
+    fichier: "src/client/replay/ReplayViewer.ts",
+    avant: "    await playback.seek(0);\n    // disconnectedCallback has disposed the renderer by now.\n    if (this.abort.signal.aborted) return;\n",
+    apres:
+      "    await playback.seek(0);\n    // disconnectedCallback has disposed the renderer by now.\n    if (this.abort.signal.aborted) return;\n" +
+      "    /* Site du clan [GAL] : la lecture confiée à la page du lecteur (lecture d'office en ×8 dans le cadre, pause demandée par le site). */\n" +
+      "    const galLecture = (globalThis as { galLecture?: (lecture: ReplayPlayback) => void }).galLecture;\n" +
+      "    if (typeof galLecture === \"function\") galLecture(playback);\n",
+    raison: "la page du lecteur lance la lecture en ×8 dans le cadre du site du clan, et la met en pause à sa demande",
   },
 ];
 
