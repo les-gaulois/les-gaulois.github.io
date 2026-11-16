@@ -216,9 +216,9 @@ export function lignesDesChancesDesTresors(chances: Readonly<Record<Rarete, numb
  */
 export function bandeDesTresors(recue: Banniere, chances: Readonly<Record<Rarete, number>>, possedees: ReadonlySet<string>, hasard: () => number = Math.random, liste: readonly Banniere[] = BANNIERES): Bande<Banniere> {
   const restants = tresorsAGagner(possedees, liste);
-  const parRarete = Object.fromEntries(ORDRE_RARETES.map((rarete) => [rarete, restants.filter((b) => b.rarete === rarete)])) as Record<Rarete, Banniere[]>;
+  const parRarete = Object.fromEntries(ORDRE_RARETES.map((rarete) => [rarete, restants.filter((b) => b.rarete === rarete)])) as Partial<Record<string, Banniere[]>>;
   const pourMoi = chancesDesTresorsPourMoi(chances, possedees, liste) ?? chances;
-  return bandeDuTambour({ valeur: recue, rarete: recue.rarete }, () => rangeeAuHasard(pourMoi, (rarete) => parRarete[rarete], hasard));
+  return bandeDuTambour({ valeur: recue, rarete: recue.rarete }, () => rangeeAuHasard(pourMoi, (rarete) => parRarete[rarete] ?? [], hasard));
 }
 
 /** Les bannières du compte après une pochette ouverte : le nouveau solde, et le trésor reçu en tête (les plus récentes d'abord). */

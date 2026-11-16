@@ -1,6 +1,6 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { OBJETS, vignetteDeLObjet, type Objet, type Rarete, type Vignette } from "../../lib/gaulois";
+import { OBJETS, vignetteDeLObjet, type Objet, type RareteDObjet as Rarete, type Vignette } from "../../lib/gaulois";
 import type { PochetteReponse, RefObjet } from "../../lib/village/contrat";
 import { stateres } from "../../lib/village/ecran-boutique";
 import { bandeDeLaPochette, type Rangee } from "../../lib/village/tambour";

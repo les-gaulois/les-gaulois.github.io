@@ -7,7 +7,6 @@ import { Pixels, Prix } from "./BoutiquePixels";
 import { POCHETTE_COTE, casesDeLaPochette } from "./PochetteDessin";
 
 const CASES_POCHETTE = casesDeLaPochette();
-const NOMBRE_D_OBJETS = nombreDansLaPochetteSurprise();
 
 /** Le dessin de la pochette surprise, décoratif : son nom est écrit à côté. */
 export function DessinPochette({ echelle = 3, class: classe = "" }: { echelle?: number; class?: string }) {
@@ -27,7 +26,7 @@ export function Pochette({ boutique, solde, fermee, onOuvrir }: { boutique: MaBo
   return (
     <section class="pochette" aria-labelledby="pochette-titre" data-testid="pochette">
       <div class="pochette-tete">
-        <AlbumDePochette lireAlbum={lireAlbum} nombre={NOMBRE_D_OBJETS} nom="Voir ce que contient la pochette surprise" testid="pochette">
+        <AlbumDePochette lireAlbum={lireAlbum} nombre={nombreDansLaPochetteSurprise(chances)} nom="Voir ce que contient la pochette surprise" testid="pochette">
           <DessinPochette class="pochette-dessin" />
         </AlbumDePochette>
         <div class="pochette-nom">

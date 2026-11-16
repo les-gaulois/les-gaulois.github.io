@@ -6,8 +6,8 @@
  * chances de la pochette et ce qu'elle vaut en moyenne. Les formules de la pochette sont celles de la mesure de l'économie
  * (`economie.ts`), appliquées aux chances réelles du tirage.
  */
-import { EMPLACEMENTS_OBJETS, OBJETS, ORDRE_RARETES, type Emplacement, type Objet, type Rarete } from "../gaulois";
-import type { AchatReponse, MaBoutique, ObjetPossede, PochetteReponse, RefObjet } from "./contrat";
+import { EMPLACEMENTS_OBJETS, OBJETS, ORDRE_RARETES, ORDRE_RARETES_DES_OBJETS, RARETE_DIVINE, type Emplacement, type Objet, type Rarete, type RareteDObjet } from "../gaulois";
+import { chancesAvecLeDivin, type AchatReponse, type MaBoutique, type ObjetPossede, type PochetteReponse, type RefObjet } from "./contrat";
 import { objetsParRarete, valeurMoyennePochette } from "./economie";
 
 /** Le catalogue des objets, celui du dessin (`OBJETS`) ; un autre seulement dans les tests. */
@@ -15,6 +15,9 @@ export type Catalogue = Readonly<Record<Emplacement, Readonly<Record<string, Obj
 
 /** Une valeur par rareté : un prix en statères, ou une chance en pour cent. */
 type Valeurs = Readonly<Record<Rarete, number>>;
+
+/** Les chances du tirage de la pochette, en pour cent, divin compris. */
+type Chances = Readonly<Record<RareteDObjet, number>>;
 
 const ORIGINES: readonly ObjetPossede["origine"][] = ["achat", "pochette", "marche"];
 
@@ -26,21 +29,22 @@ const estEmplacementObjet = (valeur: unknown): valeur is (typeof EMPLACEMENTS_OB
 
 /**
  * L'objet payant du catalogue désigné par son emplacement et son identifiant, avec sa rareté ; `null` pour un objet gratuit,
- * sans rareté (le corps, les cases « rien »), inconnu ou hors des cinq emplacements d'objets.
+ * sans rareté (le corps, les cases « rien »), inconnu ou hors des cinq emplacements d'objets. Un objet divin en est un :
+ * il se possède et se porte, même s'il ne s'achète pas.
  */
-export function objetPayant(emplacement: unknown, objet: unknown, catalogue: Catalogue = OBJETS): (Objet & { rarete: Rarete }) | null {
+export function objetPayant(emplacement: unknown, objet: unknown, catalogue: Catalogue = OBJETS): (Objet & { rarete: RareteDObjet }) | null {
   if (!estEmplacementObjet(emplacement) || typeof objet !== "string") return null;
   const liste = catalogue[emplacement];
   if (!aCle(liste, objet)) return null;
   const trouve = liste[objet];
   if (!trouve || trouve.gratuit || trouve.rarete === null) return null;
-  return trouve as Objet & { rarete: Rarete };
+  return trouve as Objet & { rarete: RareteDObjet };
 }
 
 /** Le prix d'un objet à la boutique : celui de sa rareté, tel que le serveur l'a donné ; `null` pour un objet qui ne s'achète pas. */
 export function prixDeLObjet(emplacement: Emplacement, objet: string, prix: Valeurs, catalogue: Catalogue = OBJETS): number | null {
   const trouve = objetPayant(emplacement, objet, catalogue);
-  return trouve ? prix[trouve.rarete] : null;
+  return trouve && trouve.rarete !== RARETE_DIVINE ? prix[trouve.rarete] : null;
 }
 
 /** Les statères qui manquent pour payer `prix` avec `solde` : 0 quand le solde suffit. */
@@ -54,7 +58,14 @@ export function quantitePossedee(inventaire: readonly ObjetPossede[], emplacemen
 }
 
 /** Les objets payants d'une rareté, ceux que la pochette peut donner quand elle tire cette rareté, dans l'ordre du catalogue. */
-export function objetsDeLaPochette(rarete: Rarete, catalogue: Catalogue = OBJETS): RefObjet[] {
+export function objetsDeLaPochette(rarete: RareteDObjet, catalogue: Catalogue = OBJETS): RefObjet[] {
+  if (rarete === RARETE_DIVINE) {
+    return EMPLACEMENTS_OBJETS.flatMap((emplacement) =>
+      Object.entries(catalogue[emplacement])
+        .filter(([, o]) => !o.gratuit && o.rarete === RARETE_DIVINE)
+        .map(([objet]) => ({ emplacement: emplacement as Emplacement, objet })),
+    );
+  }
   return objetsParRarete(catalogue)[rarete].map(({ emplacement, objet }) => ({ emplacement: emplacement as Emplacement, objet }));
 }
 
@@ -63,18 +74,17 @@ export function objetsDeLaPochette(rarete: Rarete, catalogue: Catalogue = OBJETS
  * payant est sautée et que les autres se partagent ses chances à proportion, comme le fait le tirage (`ouvrir_pochette`).
  * Aujourd'hui chaque rareté a des objets payants : ce sont les chances reçues. `null` si aucune rareté ne peut sortir.
  */
-export function chancesEffectives(chances: Valeurs, catalogue: Catalogue = OBJETS): Record<Rarete, number> | null {
-  const rangs = objetsParRarete(catalogue);
-  const possibles = ORDRE_RARETES.filter((rarete) => chances[rarete] > 0 && rangs[rarete].length > 0);
+export function chancesEffectives(chances: Chances, catalogue: Catalogue = OBJETS): Record<RareteDObjet, number> | null {
+  const possibles = ORDRE_RARETES_DES_OBJETS.filter((rarete) => chances[rarete] > 0 && objetsDeLaPochette(rarete, catalogue).length > 0);
   const total = possibles.reduce((somme, rarete) => somme + chances[rarete], 0);
   if (!(total > 0)) return null;
-  const effectives = Object.fromEntries(ORDRE_RARETES.map((rarete) => [rarete, 0])) as Record<Rarete, number>;
+  const effectives = Object.fromEntries(ORDRE_RARETES_DES_OBJETS.map((rarete) => [rarete, 0])) as Record<RareteDObjet, number>;
   for (const rarete of possibles) effectives[rarete] = (chances[rarete] * 100) / total;
   return effectives;
 }
 
 /** La chance, en pour cent, que la pochette donne cet objet précis : celle de sa rareté, partagée à égalité entre ses objets payants. */
-export function chanceDeLObjet(emplacement: Emplacement, objet: string, chances: Valeurs, catalogue: Catalogue = OBJETS): number {
+export function chanceDeLObjet(emplacement: Emplacement, objet: string, chances: Chances, catalogue: Catalogue = OBJETS): number {
   const trouve = objetPayant(emplacement, objet, catalogue);
   const effectives = chancesEffectives(chances, catalogue);
   if (!trouve || !effectives) return 0;
@@ -85,9 +95,10 @@ export function chanceDeLObjet(emplacement: Emplacement, objet: string, chances:
  * Ce que vaut en moyenne une pochette, au prix de la boutique, d'après les chances reçues et le catalogue : la valeur de la
  * mesure de l'économie (`valeurMoyennePochette` de `economie.ts` : pour chaque rareté, sa chance fois son prix), calculée
  * sur les chances réelles du tirage (`chancesEffectives`). Un double compte comme un objet, au prix de la boutique, même s'il
- * ne se vend qu'au marché, au prix que choisit son vendeur. `null` si rien ne peut sortir.
+ * ne se vend qu'au marché, au prix que choisit son vendeur. Un objet divin, sans prix, compte pour rien. `null` si rien ne
+ * peut sortir.
  */
-export function valeurMoyenneDeLaPochette(chances: Valeurs, prix: Valeurs, catalogue: Catalogue = OBJETS): number | null {
+export function valeurMoyenneDeLaPochette(chances: Chances, prix: Valeurs, catalogue: Catalogue = OBJETS): number | null {
   const effectives = chancesEffectives(chances, catalogue);
   return effectives ? valeurMoyennePochette(effectives, prix) : null;
 }
@@ -104,8 +115,11 @@ function lirePrix(valeur: unknown): Record<Rarete, number> | null {
   return prix as Record<Rarete, number>;
 }
 
-/** Les cinq chances, chacune de 0 à 100 pour cent, 100 en tout ; sinon `null`. Une rareté inconnue est ignorée. */
-function lireChances(valeur: unknown): Record<Rarete, number> | null {
+/**
+ * Les cinq chances réglées, chacune de 0 à 100 pour cent, 100 en tout, réunies avec celle du divin (`divin`, donnée à part
+ * par le serveur ; absente : 0) ; sinon `null`. Une rareté inconnue est ignorée.
+ */
+function lireChances(valeur: unknown, divin: unknown): Record<RareteDObjet, number> | null {
   if (!estObjetJson(valeur)) return null;
   const chances: Partial<Record<Rarete, number>> = {};
   let total = 0;
@@ -115,7 +129,9 @@ function lireChances(valeur: unknown): Record<Rarete, number> | null {
     chances[rarete] = c;
     total += c;
   }
-  return Math.abs(total - 100) < 1e-6 ? (chances as Record<Rarete, number>) : null;
+  if (Math.abs(total - 100) >= 1e-6) return null;
+  if (divin !== undefined && (typeof divin !== "number" || !Number.isFinite(divin) || divin < 0 || divin > 100)) return null;
+  return chancesAvecLeDivin(chances as Record<Rarete, number>, divin ?? 0);
 }
 
 /** Une ligne de l'inventaire : un objet payant du catalogue, une quantité, une origine et une date lisibles ; sinon `null`. */
@@ -143,7 +159,7 @@ export function lireMaBoutique(reponse: unknown, catalogue: Catalogue = OBJETS):
   const pochette = reponse["pochette"];
   if (!prix || !estObjetJson(pochette)) return null;
   const prixPochette = pochette["prix"];
-  const chances = lireChances(pochette["chances"]);
+  const chances = lireChances(pochette["chances"], pochette["divin"]);
   if (!entier(prixPochette, 1) || !chances) return null;
   const lignes = reponse["inventaire"];
   if (!Array.isArray(lignes)) return null;

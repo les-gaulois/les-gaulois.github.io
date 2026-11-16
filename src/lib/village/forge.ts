@@ -11,7 +11,8 @@
 import { ERROR_MESSAGES } from "../compte/errors";
 import { EMPLACEMENTS_OBJETS, OBJETS, type Emplacement } from "../gaulois";
 import { parisParts } from "../time";
-import type { FaitsDeLaPartie, MaForge, ObjetGravable, PartieGravable, Plaque, PlaqueVue, RefObjet, RefusForge } from "./contrat";
+import type { FaitsDeLaPartie, FusionReponse, MaForge, ObjetGravable, PartieGravable, Plaque, PlaqueVue, RefObjet, RefusForge } from "./contrat";
+import { lireFusion, lireRecu } from "./fusion";
 
 const MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"] as const;
 /** Les nombres de Gaulois écrits en mots, de deux à vingt ; au-delà, en chiffres. */
@@ -154,7 +155,16 @@ export function lireMaForge(reponse: unknown): MaForge | null {
     plaques_vues: reponse["plaques_vues"] === true,
     parties: liste(reponse["parties"], lirePartie),
     objets: liste(reponse["objets"], lireObjet),
+    fusion: lireFusion(reponse["fusion"]),
   };
+}
+
+/** `fusionner_objets` : l'objet reçu et la forge à jour ; `null` si l'un des deux est illisible. */
+export function lireFusionReponse(reponse: unknown): FusionReponse | null {
+  if (!estObjet(reponse) || reponse["ok"] !== true) return null;
+  const recu = lireRecu(reponse["recu"]);
+  const forge = lireMaForge(reponse["forge"]);
+  return recu && forge ? { ok: true, recu, forge } : null;
 }
 
 /**

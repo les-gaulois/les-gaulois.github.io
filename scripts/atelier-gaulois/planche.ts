@@ -47,7 +47,7 @@ const SORTIE = process.argv[2] ?? join("test-results", "atelier-gaulois");
 const FOND = "#0a1230";
 const SURFACE = "#101b45";
 /** Les couleurs des raretés, comme les jetons `--rarete-…` de la feuille de style. */
-const RARETES: Readonly<Record<string, string>> = { commun: "#2f8cff", "peu-commun": "#2b3fc4", epique: "#8b3fe0", mystique: "#d9203a", legendaire: "#e0a81c" };
+const RARETES: Readonly<Record<string, string>> = { commun: "#2f8cff", "peu-commun": "#2b3fc4", epique: "#8b3fe0", mystique: "#d9203a", legendaire: "#e0a81c", divin: "#19d3c5" };
 /** Le côté de l'image d'une case du vestiaire (`COTE_IMAGE` de Vestiaire.tsx) : la vignette s'y agrandit 1, 2 ou 3 fois. */
 const COTE_IMAGE = 80;
 

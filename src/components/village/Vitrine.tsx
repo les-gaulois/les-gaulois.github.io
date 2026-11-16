@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { GAULOIS as PLACE_DU_GAULOIS, LARGEUR as DECOR_LARGEUR, HAUTEUR as DECOR_HAUTEUR } from "../../../supabase/functions/code-discord/decors/commun";
-import { decrireGaulois, type Rarete } from "../../lib/gaulois";
+import { decrireGaulois, type RareteDObjet as Rarete } from "../../lib/gaulois";
 import { ServerError, call } from "../../lib/compte/api";
 import { apercuAvecFamilier, familierDe } from "../../lib/village/familiers";
 import { lireVitrine, rareteDuCadre, type GauloisVitrine } from "../../lib/village/vitrine";

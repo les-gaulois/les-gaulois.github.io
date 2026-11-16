@@ -170,7 +170,7 @@ describe("la lecture de la forge", () => {
     expect(lireMaForge({ ...reponse, prix: 0 })).toBeNull();
     expect(lireMaForge({ ...reponse, solde: -1 })).toBeNull();
     expect(lireMaForge({ ...reponse, solde: "420" })).toBeNull();
-    expect(lireMaForge({ ok: true, prix: 150, solde: 0 })).toEqual({ ok: true, prix: 150, solde: 0, peut_graver: false, plaques_vues: false, parties: [], objets: [] });
+    expect(lireMaForge({ ok: true, prix: 150, solde: 0 })).toEqual({ ok: true, prix: 150, solde: 0, peut_graver: false, plaques_vues: false, parties: [], objets: [], fusion: null });
   });
 
   it("dit si le solde suffit", () => {

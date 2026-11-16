@@ -8,7 +8,7 @@
  * empêche d'acheter ce qu'on essaie. Rien ne décide d'un droit ni d'un prix : le serveur le fait (`contrat.ts`), et
  * l'écran (`src/components/village/Boutique.tsx`) ne range que ce qu'il a reçu.
  */
-import { EMPLACEMENTS_OBJETS, NOMS_EMPLACEMENTS, OBJETS, type Rarete, type Vignette } from "../gaulois";
+import { EMPLACEMENTS_OBJETS, NOMS_EMPLACEMENTS, OBJETS, type RareteDObjet, type Vignette } from "../gaulois";
 import type { RefObjet } from "./contrat";
 import { RAISON_EN_VENTE, estEnVente, manque, stateres } from "./ecran-boutique";
 import { offresAAcheter, type OffreLisible } from "./ecran-marche";
@@ -154,7 +154,7 @@ export interface RayonRange {
   /** Les offres des autres membres dans ce rayon, dans l'ordre du serveur, pour le filtre retenu. */
   offres: OffreLisible[];
   /** Combien d'objets à vendre par rareté, boutique et membres ensemble, sans filtre. */
-  comptes: Record<Rarete, number>;
+  comptes: Record<RareteDObjet, number>;
   /** Tout ce qui se vend dans le rayon, sans filtre. */
   total: number;
   /** Le filtre qui s'applique vraiment : une rareté sans objet remontre tout. */

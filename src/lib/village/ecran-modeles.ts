@@ -4,7 +4,7 @@
  * calculs purs : les lignes des chances de la pochette, la bande de son tambour, les modèles du compte, l'essayage. Rien
  * ne décide d'un droit, d'un prix ni d'un tirage : le serveur le fait, et `modeles.ts` lit ses réponses.
  */
-import { RARETES, type Rarete } from "../gaulois";
+import { RARETES } from "../gaulois";
 import { rognerLeDessin, type Album, type ElementDeLAlbum } from "./album-pochette";
 import type { MesModeles } from "./contrat";
 import type { DessinEnCases } from "./ecran-familiers";
@@ -54,7 +54,7 @@ export function modelesPossedes(mes: Pick<MesModeles, "modeles"> | null, liste: 
  * d'ouvrir (la pochette ne donne jamais un modèle déjà reçu), aux chances qu'elle avait pour lui ; le modèle reçu au bout.
  */
 export function bandeDesModeles(recu: ModeleRange, chances: Valeurs, possedes: ReadonlySet<string>, hasard: () => number = Math.random, liste: readonly ModeleRange[] = MODELES): Bande<ModeleRange> {
-  const parRarete = Object.fromEntries(RARETES_DES_GAULOIS_UNIQUES.map((rarete) => [rarete, liste.filter((m) => m.rarete === rarete && !possedes.has(m.id))])) as Record<Rarete, ModeleRange[]>;
+  const parRarete = Object.fromEntries(RARETES_DES_GAULOIS_UNIQUES.map((rarete) => [rarete, liste.filter((m) => m.rarete === rarete && !possedes.has(m.id))])) as Partial<Record<string, ModeleRange[]>>;
   const pourMoi = chancesPourMoi(chances, possedes, liste) ?? chances;
   return bandeDuTambour({ valeur: recu, rarete: recu.rarete }, () => rangeeAuHasard(pourMoi, (rarete) => parRarete[rarete] ?? [], hasard));
 }

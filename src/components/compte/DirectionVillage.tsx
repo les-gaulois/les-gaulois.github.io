@@ -304,6 +304,7 @@ function ReglagesLus({ data }: { data: EconomieDuVillage }) {
         <div class="dir-village-agir">
           <p class="tnum">La pochette surprise coûte {stateres(r.pochette.prix)}.</p>
           <p class="dir-note tnum">Seuls les admins et le fondateur les changent.{dates ? ` ${dates}` : ""}</p>
+          <p class="dir-note" data-testid="village-divin">Le divin, sans prix, sort de la pochette dix fois moins souvent que le légendaire : sa chance est prise sur celle du commun.</p>
         </div>
       </div>
     </Bloc>

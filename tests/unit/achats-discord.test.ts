@@ -27,7 +27,7 @@ import {
   type LectureDesAchats,
 } from "../../src/lib/achats-discord";
 import { achatsCard, achatsImageAlt, COULEURS_RARETE, nomSurLImage, periodeDesAchats, placeDansLaVitrine, renderAchatsCard, RANGEE, SEULE } from "../../src/lib/achats-image";
-import { EMPLACEMENTS_OBJETS, OBJETS, ORDRE_RARETES, RARETES, vignetteDeLObjet, type Rarete } from "../../src/lib/gaulois";
+import { EMPLACEMENTS_OBJETS, OBJETS, ORDRE_RARETES, RARETES_DES_OBJETS, vignetteDeLObjet, type Rarete } from "../../src/lib/gaulois";
 import { drawnWidth, GazetteFonts, type CardText } from "../../src/lib/gazette-image";
 
 const WEBHOOK = "https://discord.com/api/webhooks/123456/abc-DEF_123";
@@ -433,14 +433,14 @@ describe("l'image des achats", () => {
     }
   });
 
-  it("la rareté se lit aussi à la forme : autant de carrés pleins que son rang, sur cinq, dans le coin de chaque vitrine", () => {
+  it("la rareté se lit aussi à la forme : autant de carrés pleins que son rang, sur cinq (six pour le divin), dans le coin de chaque vitrine", () => {
     for (const { id, card, annonce } of cards) {
       const vitrines = card.rects.filter((r) => r.cut === 18);
       vitrines.forEach((v, i) => {
         const rarete = objetDe(annonce.achats[i]!)!.rarete;
         const coin = card.rects.filter((r) => r !== v && r.x >= v.x && r.x + r.width <= v.x + v.width / 2 && r.y >= v.y && r.y + r.height <= v.y + 24 && r.width === r.height);
-        expect(coin, id).toHaveLength(5);
-        expect(coin.filter((r) => !r.stroke && r.color === COULEURS_RARETE[rarete].bord), id).toHaveLength(RARETES[rarete].rang);
+        expect(coin, id).toHaveLength(Math.max(5, RARETES_DES_OBJETS[rarete].rang));
+        expect(coin.filter((r) => !r.stroke && r.color === COULEURS_RARETE[rarete].bord), id).toHaveLength(RARETES_DES_OBJETS[rarete].rang);
       });
     }
   });

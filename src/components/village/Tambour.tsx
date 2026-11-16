@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "preact/hooks";
-import { ORDRE_RARETES, RARETES, type Rarete } from "../../lib/gaulois";
+import { ORDRE_RARETES_DES_OBJETS as ORDRE_RARETES, RARETES_DES_OBJETS as RARETES, type RareteDObjet as Rarete } from "../../lib/gaulois";
 import { motionAllowed } from "../../lib/fx/motion";
 import { DUREE_DE_LA_FETE, DUREE_DU_TAMBOUR, positionDuTambour } from "../../lib/village/tambour";
 
@@ -112,12 +112,12 @@ function note(frequence: number, dans: number, duree: number, volume: number, fo
   o.stop(t + duree + 0.05);
 }
 
-/** Une note par rang de rareté, puis un accord tenu pour mystique et légendaire. */
+/** Une note par rang de rareté, puis un accord tenu pour mystique, légendaire et divin. */
 function carillon(rang: number): void {
   if (!contexte || contexte.state !== "running") return;
-  const gamme = [523.25, 659.25, 783.99, 1046.5, 1318.5];
+  const gamme = [523.25, 659.25, 783.99, 1046.5, 1318.5, 1567.98];
   for (let i = 0; i < rang; i++) note(gamme[i] ?? 523.25, 0.03 + i * 0.11, 0.7, 0.07, "triangle");
-  if (rang >= 4) for (const f of rang === 5 ? [523.25, 783.99, 1046.5, 1318.5, 1567.98] : [523.25, 783.99, 1046.5]) note(f, 0.08 + rang * 0.11, 2.4, 0.03, "sine");
+  if (rang >= 4) for (const f of rang >= 5 ? [523.25, 783.99, 1046.5, 1318.5, 1567.98] : [523.25, 783.99, 1046.5]) note(f, 0.08 + rang * 0.11, 2.4, 0.03, "sine");
 }
 
 // ---------- Le dessin ----------
@@ -151,6 +151,7 @@ const REPLI: Record<Rarete, string> = {
   epique: "#9b4dff",
   mystique: "#ff2e4a",
   legendaire: "#f2b632",
+  divin: "#19d3c5",
 };
 function couleursDuSite(el: Element): Record<Rarete, string> {
   const style = getComputedStyle(el);
@@ -307,7 +308,7 @@ function peindre(ctx: CanvasRenderingContext2D, W: number, H: number, dpr: numbe
     const lumiere = 0.25 + 0.75 * Math.max(0, face);
     const couleur = s.couleurs[rangee.rarete];
     // Le doré, plus clair que les autres raretés, est foncé un peu plus pour que le nom blanc s'y lise.
-    ctx.fillStyle = melange(melange(couleur, "#0a1230", rangee.rarete === "legendaire" ? 0.5 : 0.35), "#000000", 1 - lumiere);
+    ctx.fillStyle = melange(melange(couleur, "#0a1230", rangee.rarete === "legendaire" || rangee.rarete === "divin" ? 0.5 : 0.35), "#000000", 1 - lumiere);
     ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
     ctx.fillStyle = `rgba(255,255,255,${0.14 * lumiere})`;
     ctx.fillRect(x0, y0, x1 - x0, Math.max(1, 1.5 * k * face));
@@ -488,7 +489,7 @@ export function Tambour({ rangees, depart, cible, passer, son, onArrive }: { ran
     const tour = (now: number) => {
       if (arrivee === null && (!anime || reglages.current.passer || now - debut >= DUREE_DU_TAMBOUR)) {
         arrivee = anime ? now : now - DUREE_DE_LA_FETE;
-        if (anime && resultat && RARETES[resultat.rarete].rang === 5) pluie = pluieDOr();
+        if (anime && resultat && RARETES[resultat.rarete].rang >= 5) pluie = pluieDOr();
         if (reglages.current.son && resultat) carillon(RARETES[resultat.rarete].rang);
         reglages.current.onArrive();
       }

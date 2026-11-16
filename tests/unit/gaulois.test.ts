@@ -14,6 +14,7 @@ import {
   IMAGE_GAULOIS,
   OBJETS,
   ORDRE_RARETES,
+  ORDRE_RARETES_DES_OBJETS,
   POILS,
   RARETES,
   TEINTE_CHEVEUX,
@@ -39,6 +40,8 @@ const MIGRATION = readFileSync("supabase/migrations/20261113001700_village_des_g
 const GARDE_ROBE_SQL = readFileSync("supabase/migrations/20261114000200_village_garde_robe.sql", "utf8");
 /** Les coupes, les barbes et les couleurs de cheveux du 15 novembre 2026 : la tenue vérifiée avec plus de couleurs. */
 const COUPES_SQL = readFileSync("supabase/migrations/20261115000600_village_coupes_et_couleurs.sql", "utf8");
+// Les quinze objets divins (16 novembre 2026).
+const DIVIN_SQL = readFileSync("supabase/migrations/20261116000300_divin_et_fusion.sql", "utf8");
 
 /** Un tirage reproductible, pour que les tenues au hasard soient les mêmes à chaque passage. */
 function hasardFixe(graine: number): () => number {
@@ -71,7 +74,8 @@ describe("les dessins du Gaulois", () => {
       vus.add(cases.join());
     }
     expect(vus.size).toBe(new Set(chaqueObjet().map((tenue) => JSON.stringify(tenue))).size);
-  });
+    // Plus de trois cents Gaulois dessinés : une seconde seul, davantage quand toute la suite tourne.
+  }, 30_000);
 
   it("changent avec la peau et la couleur des cheveux", () => {
     const depart = casesDuGaulois(TENUE_DE_DEPART).join();
@@ -161,7 +165,7 @@ describe("le catalogue", () => {
       const riens = Object.values(OBJETS[emplacement]).filter((objet) => objet.dessin === null);
       expect(riens, emplacement).toHaveLength(1);
       expect(riens[0]).toMatchObject({ rarete: null, gratuit: true });
-      for (const objet of Object.values(OBJETS[emplacement])) if (objet.dessin) expect(ORDRE_RARETES).toContain(objet.rarete);
+      for (const objet of Object.values(OBJETS[emplacement])) if (objet.dessin) expect(ORDRE_RARETES_DES_OBJETS).toContain(objet.rarete);
       // Chaque rareté a au moins un objet à montrer dans chaque emplacement.
       for (const rarete of ORDRE_RARETES) expect(Object.values(OBJETS[emplacement]).some((objet) => objet.rarete === rarete), `${emplacement} ${rarete}`).toBe(true);
     }
@@ -282,7 +286,7 @@ describe("une tenue", () => {
 
 describe("le serveur", () => {
   it("connaît exactement les objets du dessin, avec leur rareté et s'ils sont gratuits (migration du vestiaire)", () => {
-    const lignes = [...`${MIGRATION}\n${GARDE_ROBE_SQL}\n${COUPES_SQL}`.matchAll(/^ {2}\('([a-z]+)', '([a-z-]+)', ('[a-z-]+'|null), (true|false)\)/gm)].map(([, emplacement, objet, rarete, gratuit]) => `${emplacement}/${objet}/${rarete?.replaceAll("'", "")}/${gratuit}`);
+    const lignes = [...`${MIGRATION}\n${GARDE_ROBE_SQL}\n${COUPES_SQL}\n${DIVIN_SQL}`.matchAll(/^ {2}\('([a-z]+)', '([a-z-]+)', ('[a-z-]+'|null), (true|false)\)/gm)].map(([, emplacement, objet, rarete, gratuit]) => `${emplacement}/${objet}/${rarete?.replaceAll("'", "")}/${gratuit}`);
     const attendues = EMPLACEMENTS.flatMap((emplacement) => Object.entries(OBJETS[emplacement]).map(([id, objet]) => `${emplacement}/${id}/${objet.rarete ?? "null"}/${objet.gratuit}`));
     expect(lignes.sort()).toEqual(attendues.sort());
   });

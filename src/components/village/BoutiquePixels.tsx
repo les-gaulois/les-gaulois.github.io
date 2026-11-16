@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "preact/hooks";
 import { casesDuStatere, type TailleStatere } from "../../../supabase/functions/code-discord/statere";
-import { RARETES, type Rarete } from "../../lib/gaulois";
+import { RARETES_DES_OBJETS as RARETES, type RareteDObjet as Rarete } from "../../lib/gaulois";
 import { nombre } from "../../lib/village/ecran-boutique";
 import { PLAQUE } from "../../lib/village/plaque";
 
@@ -52,7 +52,7 @@ export function Prix({ montant, class: classe = "" }: { montant: number; class?:
   );
 }
 
-/** La rareté, écrite et comptée en losanges, de un à cinq : la couleur n'est jamais le seul repère. */
+/** La rareté, écrite et comptée en losanges, de un à cinq, six pour le divin : la couleur n'est jamais le seul repère. */
 export function MarqueDeRarete({ rarete }: { rarete: Rarete }) {
   return (
     <span class="case-rarete">

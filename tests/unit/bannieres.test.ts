@@ -408,7 +408,7 @@ describe("les chances de la pochette des bannières, pour un compte", () => {
     const possedees = new Set([ids("epique")[0]!, BOUTIQUE[0]!.id]);
     const album = albumDesTresors(chances, possedees);
     expect(album.elements.map((e) => e.id).sort()).toEqual(TRESORS.map((b) => b.id).sort());
-    const rangs = album.elements.map((e) => ORDRE_RARETES.indexOf(e.rarete));
+    const rangs = album.elements.map((e) => (ORDRE_RARETES as readonly string[]).indexOf(e.rarete));
     expect(rangs).toEqual([...rangs].sort((a, b) => a - b));
     for (const e of album.elements) {
       expect(e.chance).toBeCloseTo(chanceDuTresor(e.id, chances, possedees), 10);

@@ -14,10 +14,11 @@ import {
   GAULOIS_LARGEUR,
   NOMS_EMPLACEMENTS,
   OBJETS,
-  ORDRE_RARETES,
+  ORDRE_RARETES_DES_OBJETS,
+  RARETE_DIVINE,
   type Catalogue,
   type Objet,
-  type Rarete,
+  type RareteDObjet,
   type Tenue,
   type Vignette,
 } from "../gaulois";
@@ -49,24 +50,26 @@ export interface Rangement {
 
 /**
  * Les objets d'un emplacement en deux tas, dans l'ordre du catalogue (les gratuits, puis de la rareté la plus courante à
- * la plus rare) : ceux qui se portent (gratuits, ou possédés d'après `possede`) et ceux de la boutique.
+ * la plus rare) : ceux qui se portent (gratuits, ou possédés d'après `possede`) et ceux de la boutique. Un objet divin que
+ * le membre n'a pas n'est dans aucun tas : il ne s'achète pas, seule la pochette le donne.
  */
 export function rangerLeRayon(objets: Readonly<Record<string, Objet>>, possede: (id: string) => number): Rangement {
   const rangement: Rangement = { aMoi: [], boutique: [] };
   for (const entree of Object.entries(objets)) {
     const [id, objet] = entree;
-    (objet.gratuit || possede(id) > 0 ? rangement.aMoi : rangement.boutique).push(entree);
+    if (objet.gratuit || possede(id) > 0) rangement.aMoi.push(entree);
+    else if (objet.rarete !== RARETE_DIVINE) rangement.boutique.push(entree);
   }
   return rangement;
 }
 
 /** Le filtre de la boutique d'un rayon : une rareté, ou tout. */
 export const TOUT = "tout";
-export type Filtre = Rarete | typeof TOUT;
+export type Filtre = RareteDObjet | typeof TOUT;
 
 /** Combien d'objets de chaque rareté dans une liste. Un objet sans rareté ne compte nulle part. */
-export function compterParRarete(liste: readonly Entree[]): Record<Rarete, number> {
-  const comptes = Object.fromEntries(ORDRE_RARETES.map((rarete) => [rarete, 0])) as Record<Rarete, number>;
+export function compterParRarete(liste: readonly Entree[]): Record<RareteDObjet, number> {
+  const comptes = Object.fromEntries(ORDRE_RARETES_DES_OBJETS.map((rarete) => [rarete, 0])) as Record<RareteDObjet, number>;
   for (const [, objet] of liste) if (objet.rarete) comptes[objet.rarete] += 1;
   return comptes;
 }
@@ -75,7 +78,7 @@ export function compterParRarete(liste: readonly Entree[]): Record<Rarete, numbe
  * Le filtre qui s'applique vraiment : une rareté qui n'a plus d'objet dans la liste (le dernier vient d'être acheté) ne
  * laisse pas une boutique vide, tout se remontre.
  */
-export function filtreEffectif(filtre: Filtre | undefined, comptes: Readonly<Record<Rarete, number>>): Filtre {
+export function filtreEffectif(filtre: Filtre | undefined, comptes: Readonly<Record<RareteDObjet, number>>): Filtre {
   return filtre && filtre !== TOUT && comptes[filtre] > 0 ? filtre : TOUT;
 }
 

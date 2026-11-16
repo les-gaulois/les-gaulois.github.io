@@ -16,7 +16,7 @@
 import sharp, { type OverlayOptions } from "sharp";
 import type { Decor } from "./village/decor";
 import { annonceEnMots, BANNIERE, choseDe, dateLongue, FAMILIER, heureEnMots, MODELE, nouveautes, origineDe, PAYE_EN_STATERES, type AchatDuVillage, type AnnonceDesAchats, type ChoseRecue } from "./achats-discord";
-import { RARETES, type Rarete, type Vignette } from "./gaulois";
+import { RARETES_DES_OBJETS as RARETES, type RareteDObjet as Rarete, type Vignette } from "./gaulois";
 import { CARD_COLORS as C, fitted, kpiParts, LOGO, MARGIN, pageFoot, pageHead, renderGazetteCard, type CardRect, type CardText, type GazetteCard, type GazetteFonts, type Measure } from "./gazette-image";
 import { shownAddress } from "./salon-discord";
 
@@ -75,6 +75,7 @@ export const COULEURS_RARETE: Readonly<Record<Rarete, { bord: string; texte: str
   epique: { bord: "#9B4DFF", texte: "#DCBCFF" },
   mystique: { bord: "#FF2E4A", texte: "#FFB5BD" },
   legendaire: { bord: "#F2B632", texte: "#FFDD80" },
+  divin: { bord: "#19D3C5", texte: "#C4FFF7" },
 };
 
 export interface AchatsCard extends GazetteCard {
@@ -124,7 +125,7 @@ const RANG = { marge: 12, ecart: 5, nombre: 5 } as const;
  */
 function carresDuRang(boite: Boite, rarete: Rarete, taille: number): CardRect[] {
   const y = boite.y + MARGE_VITRINE - taille;
-  return Array.from({ length: RANG.nombre }, (_, i) => {
+  return Array.from({ length: Math.max(RANG.nombre, RARETES[rarete].rang) }, (_, i) => {
     const x = boite.x + RANG.marge + i * (taille + RANG.ecart);
     return i < RARETES[rarete].rang
       ? { x, y, width: taille, height: taille, radius: 0, color: COULEURS_RARETE[rarete].bord }

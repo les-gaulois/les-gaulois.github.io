@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EMPLACEMENTS_OBJETS, OBJETS, type Emplacement, type Rarete } from "../../src/lib/gaulois";
+import { EMPLACEMENTS_OBJETS, OBJETS, ORDRE_RARETES, type Emplacement, type Rarete } from "../../src/lib/gaulois";
 import {
   IMAGE_DU_RAYON_BANNIERE,
   IMAGE_DU_RAYON_POCHETTES,
@@ -28,7 +28,7 @@ import { MESSAGES_DU_MARCHE, raisonDeLOffre, type OffreLisible } from "../../src
 // empêche d'acheter ce qu'on essaie. Les objets viennent du vrai catalogue : rien n'est inventé ici.
 
 /** Les objets payants d'un emplacement, dans l'ordre du catalogue. */
-const payants = (emplacement: Emplacement) => Object.entries(OBJETS[emplacement]).filter(([, objet]) => !objet.gratuit && objet.rarete);
+const payants = (emplacement: Emplacement) => Object.entries(OBJETS[emplacement]).filter(([, objet]) => !objet.gratuit && objet.rarete && objet.rarete !== "divin");
 /** Le premier objet payant d'une rareté, dans un emplacement. */
 function objetDe(emplacement: Emplacement, rarete: Rarete): string {
   const trouve = payants(emplacement).find(([, objet]) => objet.rarete === rarete);
@@ -39,7 +39,7 @@ function objetDe(emplacement: Emplacement, rarete: Rarete): string {
 let numero = 0;
 function offre(emplacement: Emplacement, objet: string, plus: Partial<OffreLisible> = {}): OffreLisible {
   const fiche = OBJETS[emplacement][objet]!;
-  return { id: ++numero, emplacement, objet, nom: fiche.nom, rarete: fiche.rarete!, prix: 40, vendeur: "Vendeur", a_moi: false, expire_le: "2026-11-29T12:00:00Z", ...plus };
+  return { id: ++numero, emplacement, objet, nom: fiche.nom, rarete: ORDRE_RARETES.find((r) => r === fiche.rarete)!, prix: 40, vendeur: "Vendeur", a_moi: false, expire_le: "2026-11-29T12:00:00Z", ...plus };
 }
 
 describe("les rayons de la boutique", () => {

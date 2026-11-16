@@ -52,6 +52,26 @@
   {
     "date": "2026-11-16",
     "kind": "nouveau",
+    "title": "Fondre ses objets à la forge",
+    "body": "À la forge, 3 objets d'une même rareté en donnent 1 de la rareté suivante, tiré au hasard, du commun au légendaire. Vos doubles s'y fondent aussi.",
+    "link": {
+      "href": "/village#forge",
+      "label": "Ouvrir la forge"
+    }
+  },
+  {
+    "date": "2026-11-16",
+    "kind": "nouveau",
+    "title": "Le divin, plus rare que le légendaire",
+    "body": "Quatre tenues de cinq pièces : Origine inconnue, Enlèvement, Champignon atomique et Missile humain. Seule la pochette surprise les donne, dix fois moins souvent qu'un objet légendaire.",
+    "link": {
+      "href": "/village#boutique",
+      "label": "Ouvrir la boutique"
+    }
+  },
+  {
+    "date": "2026-11-16",
+    "kind": "nouveau",
     "title": "Les Gaulois uniques",
     "body": "11 corps de créature pour votre Gaulois, du lézard au dragon : dans l'onglet « Uniques » de la boutique, ou dans leur pochette, qui ne donne jamais deux fois le même. Vos objets se portent dessus.",
     "link": {

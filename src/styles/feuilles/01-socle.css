@@ -52,6 +52,10 @@
   --rarete-legendaire: #f2b632;
   --rarete-legendaire-texte: #7d5900;
   --rarete-legendaire-degrade: linear-gradient(135deg, #fff1a8, #f2b632 45%, #a86d0c);
+  /* Divin (16 novembre 2026) : au-dessus du légendaire, turquoise, au cadre irisé du turquoise au violet et au rose. */
+  --rarete-divin: #19d3c5;
+  --rarete-divin-texte: #00706a;
+  --rarete-divin-degrade: linear-gradient(135deg, #c8fff6, #19d3c5 30%, #7a5cff 68%, #ff5fdc);
   --font-display: "Outfit Variable", system-ui, sans-serif;
   --font-sans: "Inter Variable", system-ui, sans-serif;
   /* Pas --font-mono, dont se servent le champ du code de connexion et les formules des guides : leur chasse fixe reste celle du système. */
@@ -171,6 +175,7 @@
   --rarete-epique-texte: #dcbcff;
   --rarete-mystique-texte: #ffb5bd;
   --rarete-legendaire-texte: #ffdd80;
+  --rarete-divin-texte: #c4fff7;
   --hairline: color-mix(in srgb, var(--ecriture) 18%, transparent);
   --stage-muted: #dbe2f7;
   --texte-courant: #e3e8f4;

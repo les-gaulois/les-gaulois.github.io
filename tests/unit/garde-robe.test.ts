@@ -8,9 +8,9 @@ import {
   GAULOIS_LARGEUR,
   OBJETS,
   ORDRE_RARETES,
+  RARETES_DES_OBJETS,
   PEAUX,
   POILS,
-  RARETES,
   TENUE_DE_DEPART,
   VISAGE_D_AVANT,
   casesDuGaulois,
@@ -26,7 +26,7 @@ import { SIGNES_PERMIS, normaliserPourLesMots } from "../../src/lib/village/vie-
  * dix coupes de cheveux et dix barbes gratuites.
  */
 const AU_CHOIX: readonly string[] = ["cheveux", "barbe", ...EMPLACEMENTS_VISAGE];
-const BOUTIQUE = GARDE_ROBE.filter((o) => !AU_CHOIX.includes(o.emplacement));
+const BOUTIQUE = GARDE_ROBE.filter((o) => !AU_CHOIX.includes(o.emplacement) && o.rarete !== "divin");
 const VISAGE = GARDE_ROBE.filter((o) => (EMPLACEMENTS_VISAGE as readonly string[]).includes(o.emplacement));
 const POILS_DU_LOT = GARDE_ROBE.filter((o) => o.emplacement === "cheveux" || o.emplacement === "barbe");
 const estDuVisage = (emplacement: Emplacement) => (EMPLACEMENTS_VISAGE as readonly string[]).includes(emplacement);
@@ -153,7 +153,7 @@ describe("la garde-robe", () => {
 
   it("se range au vestiaire : la case « rien » et les gratuits d'abord, puis de la rareté la plus courante à la plus rare", () => {
     for (const emplacement of EMPLACEMENTS) {
-      const rangs = Object.values(OBJETS[emplacement]).map((o) => (o.gratuit ? 0 : RARETES[o.rarete ?? "commun"].rang));
+      const rangs = Object.values(OBJETS[emplacement]).map((o) => (o.gratuit ? 0 : RARETES_DES_OBJETS[o.rarete ?? "commun"].rang));
       expect(rangs, emplacement).toEqual([...rangs].sort((a, b) => a - b));
     }
     expect(Object.keys(OBJETS.yeux)[0]).toBe(VISAGE_D_AVANT.yeux);

@@ -27,9 +27,12 @@ import { MESSAGES_DE_LA_FORGE, lireMaForge, messageDeLaForge } from "../../lib/v
 import { echelleEntiere } from "../../lib/village/vestiaire-rayons";
 import { CodeLogin, DiscordButton, Loading, Problem, codeLoginShown, useMe } from "../compte/common";
 import { MarqueDeRarete, PetitePlaque, Piece, Pixels } from "./BoutiquePixels";
+import { Fusion } from "./Fusion";
 
 /**
- * La forge, onglet de la page « Mon Gaulois » : la forge aux souvenirs (idée du pilote, 14 novembre 2026 : « On paie des
+ * La forge, onglet de la page « Mon Gaulois ». Deux ateliers, au choix en haut de l'onglet : « Fondre » (`Fusion.tsx`,
+ * demande du pilote du 16 novembre 2026 : trois objets d'une rareté en donnent un de la suivante), ouvert d'abord, et
+ * « Graver », la forge aux souvenirs (idée du pilote, 14 novembre 2026 : « On paie des
  * statères pour graver une vraie partie sur son épée »). Le membre choisit un de ses objets, puis une de ses parties qui
  * ont rapporté des points au clan, voit la plaque avant de payer, confirme, et la plaque est gravée. Effacer une plaque
  * est gratuit, mais ne se rattrape pas : à part, sous un filet, au second clic.
@@ -283,6 +286,8 @@ function Atelier() {
   const [cle, setCle] = useState<string | null>(null);
   const [partie, setPartie] = useState<string | null>(null);
   const [toutes, setToutes] = useState(false);
+  // L'atelier ouvert : la fusion d'abord. Un serveur qui ne la connaît pas encore ne montre que la gravure.
+  const [atelier, setAtelier] = useState<"fusion" | "gravure">("fusion");
   // Ce que la confirmation a vu en s'ouvrant : l'objet, la partie et le prix. Elle reste ouverte après la gravure.
   const [dialogue, setDialogue] = useState<{ prix: number; objet: ObjetGravable; partie: PartieGravable } | null>(null);
   const [occupe, setOccupe] = useState(false);
@@ -404,6 +409,16 @@ function Atelier() {
         </p>
       </div>
     );
+    const ateliers = forge.fusion && (
+      <div class="forge-ateliers" role="group" aria-label="Atelier de la forge" data-testid="forge-ateliers">
+        <button type="button" class="chip" aria-pressed={atelier === "fusion"} onClick={() => setAtelier("fusion")} data-testid="forge-atelier-fusion">
+          Fondre
+        </button>
+        <button type="button" class="chip" aria-pressed={atelier === "gravure"} onClick={() => setAtelier("gravure")} data-testid="forge-atelier-gravure">
+          Graver
+        </button>
+      </div>
+    );
     if (!forge.peut_graver) {
       corps = (
         <>
@@ -424,10 +439,18 @@ function Atelier() {
           )}
         </>
       );
+    } else if (forge.fusion && atelier === "fusion") {
+      corps = (
+        <>
+          {ateliers}
+          <Fusion fusion={forge.fusion} onForge={(suite) => setLecture({ kind: "prete", forge: suite })} onRelire={() => lire(true)} />
+        </>
+      );
     } else if (!objet) {
       const objets = rangerLesObjets(forge.objets);
       corps = (
         <>
+          {ateliers}
           {tete}
           <h3 id="forge-objets" class="forge-etape">
             Choisissez un objet
@@ -461,6 +484,7 @@ function Atelier() {
       const legende = choisie ? (objet.gravure ? "Aperçu de la nouvelle plaque" : "Aperçu de la plaque") : objet.gravure ? "Plaque gravée" : null;
       corps = (
         <>
+          {ateliers}
           {tete}
           <div class="forge-etabli" data-testid="forge-etabli">
             <div class="forge-etabli-tete">

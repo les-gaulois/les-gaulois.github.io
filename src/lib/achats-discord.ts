@@ -36,7 +36,7 @@ import { familierAPoser } from "../../supabase/functions/code-discord/familiers/
 import { familierDe } from "../../supabase/functions/code-discord/familiers/index";
 import { banniereParId, dessinDeLaBanniere, estDeLaPochette } from "../../supabase/functions/code-discord/bannieres/index";
 import { modeleParId } from "../../supabase/functions/code-discord/modeles/index";
-import { CLE_MODELE, EMPLACEMENTS_OBJETS, GAULOIS_LARGEUR, NOMS_EMPLACEMENTS, OBJETS, TENUE_NUE, casesDuGaulois, vignetteDeLObjet, type Objet, type Rarete, type Vignette } from "./gaulois";
+import { CLE_MODELE, EMPLACEMENTS_OBJETS, GAULOIS_LARGEUR, NOMS_EMPLACEMENTS, OBJETS, TENUE_NUE, casesDuGaulois, vignetteDeLObjet, type Objet, type RareteDObjet as Rarete, type Vignette } from "./gaulois";
 import { escapeDiscord, type RenderedImage } from "./gazette-discord";
 import { parseNoted, siteLink } from "./salon-discord";
 
@@ -208,7 +208,7 @@ export function vignetteDeLAchat(achat: Pick<AchatDuVillage, "emplacement" | "ob
 }
 
 /** La rareté en mots, accordée à « rareté » : « rareté commune ». */
-const RARETE_ACCORDEE: Readonly<Record<Rarete, string>> = { commun: "commune", "peu-commun": "peu commune", epique: "épique", mystique: "mystique", legendaire: "légendaire" };
+const RARETE_ACCORDEE: Readonly<Record<Rarete, string>> = { commun: "commune", "peu-commun": "peu commune", epique: "épique", mystique: "mystique", legendaire: "légendaire", divin: "divine" };
 
 /** D'où vient l'objet, dans une phrase, et en court, sur l'image. */
 export const ORIGINES: Readonly<Record<NatureDAchat, { phrase: string; court: string }>> = {

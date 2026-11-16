@@ -160,6 +160,16 @@ export const RARETES = {
 export type Rarete = keyof typeof RARETES;
 export const ORDRE_RARETES = Object.keys(RARETES) as readonly Rarete[];
 
+/**
+ * Les raretés des objets : celles de la boutique, puis « Divin » (16 novembre 2026), dix fois plus rare que le légendaire.
+ * Un objet divin n'a pas de prix : il ne sort que de la pochette surprise, ne se vend pas au marché et la forge n'en
+ * fabrique pas. Les familiers, les bannières et les Gaulois uniques gardent les cinq raretés de `RARETES`.
+ */
+export const RARETE_DIVINE = "divin";
+export const RARETES_DES_OBJETS = { ...RARETES, [RARETE_DIVINE]: { nom: "Divin", rang: 6 } } as const;
+export type RareteDObjet = keyof typeof RARETES_DES_OBJETS;
+export const ORDRE_RARETES_DES_OBJETS = Object.keys(RARETES_DES_OBJETS) as readonly RareteDObjet[];
+
 // Les dessins : ces grilles font foi. L'atelier `scripts/atelier-gaulois/` les montre, les remplace et en tire des
 // planches de contrôle (objets seuls et portés, aux tailles réelles). La lumière vient d'en haut à gauche. Un haut
 // s'arrête rangée 46, un bas va des rangées 46 à 57 et des bottes hautes commencent rangée 53 : les braies se voient.
@@ -1797,7 +1807,7 @@ export interface Objet {
   nom: string;
   dessin: Calque | null;
   couleurs: Readonly<Record<string, string>>;
-  rarete: Rarete | null;
+  rarete: RareteDObjet | null;
   gratuit: boolean;
   /** Pour un objet de tête : cache le haut des cheveux, qui dépasserait d'un bonnet ou d'un casque. */
   couvre?: boolean;
@@ -1945,7 +1955,7 @@ export interface ObjetDuLot {
   /** De 1 à 40 lettres minuscules sans accent et tirets, la première une lettre (règle du serveur). */
   id: string;
   nom: string;
-  rarete: Rarete | null;
+  rarete: RareteDObjet | null;
   gratuit: boolean;
   /** Pour un objet de tête : cache le haut des cheveux. */
   couvre?: boolean;
@@ -1960,7 +1970,7 @@ export interface ObjetDuLot {
  * identifiant déjà pris n'est pas remplacé (un test refuse les doublons).
  */
 export function construireCatalogue(base: Catalogue, ajouts: readonly ObjetDuLot[]): Catalogue {
-  const rang = (objet: Objet): number => (objet.gratuit ? 0 : RARETES[objet.rarete ?? "commun"].rang);
+  const rang = (objet: Objet): number => (objet.gratuit ? 0 : RARETES_DES_OBJETS[objet.rarete ?? "commun"].rang);
   const catalogue = {} as Record<Emplacement, Readonly<Record<string, Objet>>>;
   for (const emplacement of EMPLACEMENTS) {
     const objets: [string, Objet][] = Object.entries(base[emplacement]);

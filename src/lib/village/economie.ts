@@ -11,7 +11,7 @@
  * Le modèle de la pochette est celui du contrat : une rareté tirée selon les chances, puis un objet payant de cette rareté,
  * tous à chances égales ; un objet déjà possédé sort en double.
  */
-import { ORDRE_RARETES, type Rarete } from "../gaulois";
+import { ORDRE_RARETES, RARETE_DIVINE, type Rarete, type RareteDObjet } from "../gaulois";
 import { stateresDeVictoire } from "../stateres";
 import { parisParts } from "../time";
 
@@ -21,7 +21,7 @@ import { parisParts } from "../time";
 
 /** Ce que la mesure lit d'un objet du catalogue (`OBJETS` de `gaulois.ts`). */
 export interface ObjetDuCatalogue {
-  rarete: Rarete | null;
+  rarete: RareteDObjet | null;
   gratuit: boolean;
 }
 
@@ -41,12 +41,15 @@ export interface ObjetPayant {
 
 export const cleObjet = (emplacement: string, objet: string): string => `${emplacement}/${objet}`;
 
-/** Les objets payants du catalogue, emplacement par emplacement, dans l'ordre du catalogue. */
+/**
+ * Les objets payants du catalogue, ceux que la boutique vend, emplacement par emplacement, dans l'ordre du catalogue. Un
+ * objet divin n'en est pas : il n'a pas de prix et ne sort que de la pochette, dix fois moins souvent qu'un légendaire.
+ */
 export function objetsPayants(catalogue: Catalogue): ObjetPayant[] {
   const liste: ObjetPayant[] = [];
   for (const [emplacement, objets] of Object.entries(catalogue)) {
     for (const [objet, o] of Object.entries(objets)) {
-      if (!o.gratuit && o.rarete !== null) liste.push({ cle: cleObjet(emplacement, objet), emplacement, objet, rarete: o.rarete });
+      if (!o.gratuit && o.rarete !== null && o.rarete !== RARETE_DIVINE) liste.push({ cle: cleObjet(emplacement, objet), emplacement, objet, rarete: o.rarete });
     }
   }
   return liste;

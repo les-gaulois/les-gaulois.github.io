@@ -11,7 +11,7 @@
  * droit ni d'un tirage : les chances viennent de la réponse du serveur (`get_ma_boutique`, `get_mes_familiers`,
  * `get_mes_bannieres`, `get_mes_modeles`).
  */
-import { EMPLACEMENTS_OBJETS, NOMS_EMPLACEMENTS, OBJETS, ORDRE_RARETES, RARETES, vignetteDeLObjet, type Catalogue, type Emplacement, type Rarete } from "../gaulois";
+import { EMPLACEMENTS_OBJETS, NOMS_EMPLACEMENTS, OBJETS, ORDRE_RARETES_DES_OBJETS, RARETE_DIVINE, RARETES_DES_OBJETS, vignetteDeLObjet, type Catalogue, type Emplacement, type RareteDObjet } from "../gaulois";
 import { chanceDeLObjet, objetsDeLaPochette, quantitePossedee } from "./boutique";
 import type { MesFamiliers, ObjetPossede } from "./contrat";
 import { pourcent } from "./ecran-boutique";
@@ -26,7 +26,7 @@ export const TOUS = TOUT;
 export interface ElementDeLAlbum {
   id: string;
   nom: string;
-  rarete: Rarete;
+  rarete: RareteDObjet;
   /** Le rayon d'un objet, la famille d'un familier ou d'un Gaulois unique, la rareté d'un trésor : les puces de l'album. */
   groupe: string;
   /** Ce que la loupe écrit sous la rareté : le rayon, la famille et la taille, ou « Les trésors de la pochette ». */
@@ -97,12 +97,14 @@ const objets = (n: number): string => `${n} ${n > 1 ? "objets" : "objet"}`;
  * La pochette surprise : tous les objets payants qu'elle peut donner, rayon par rayon (tête, haut, bas, pieds, arme), du
  * plus courant au plus rare dans chaque rayon. La chance de chacun : celle de sa rareté, partagée entre les objets payants
  * de cette rareté, comme le tirage (`chanceDeLObjet`). Un objet que le compte a déjà reste dans l'album, avec sa chance :
- * il peut ressortir en double.
+ * il peut ressortir en double. Les objets divins n'y sont que si la pochette peut les donner (un serveur d'avant le divin
+ * ne leur donne aucune chance).
  */
-export function albumDeLaPochetteSurprise(chances: Readonly<Record<Rarete, number>>, inventaire: readonly ObjetPossede[], catalogue: Catalogue = OBJETS): Album {
+export function albumDeLaPochetteSurprise(chances: Readonly<Record<RareteDObjet, number>>, inventaire: readonly ObjetPossede[], catalogue: Catalogue = OBJETS): Album {
   const elements: ElementDeLAlbum[] = [];
   for (const emplacement of EMPLACEMENTS_OBJETS) {
-    for (const rarete of ORDRE_RARETES) {
+    for (const rarete of ORDRE_RARETES_DES_OBJETS) {
+      if (rarete === RARETE_DIVINE && !(chances[rarete] > 0)) continue;
       for (const ref of objetsDeLaPochette(rarete, catalogue)) {
         if (ref.emplacement !== emplacement) continue;
         const fiche = catalogue[emplacement][ref.objet];
@@ -125,8 +127,9 @@ export function albumDeLaPochetteSurprise(chances: Readonly<Record<Rarete, numbe
   return { titre: "Dans la pochette surprise", sous: objets(elements.length), libelleDesGroupes: "Montrer un rayon", elements };
 }
 
-/** Combien d'objets la pochette surprise peut donner : tous les objets payants, chacun une fois. */
-export const nombreDansLaPochetteSurprise = (catalogue: Catalogue = OBJETS): number => ORDRE_RARETES.reduce((n, rarete) => n + objetsDeLaPochette(rarete, catalogue).length, 0);
+/** Combien d'objets la pochette surprise peut donner : tous les objets payants, chacun une fois ; les divins, si elle peut les donner. */
+export const nombreDansLaPochetteSurprise = (chances: Readonly<Record<RareteDObjet, number>>, catalogue: Catalogue = OBJETS): number =>
+  ORDRE_RARETES_DES_OBJETS.reduce((n, rarete) => n + (rarete === RARETE_DIVINE && !(chances[rarete] > 0) ? 0 : objetsDeLaPochette(rarete, catalogue).length), 0);
 
 /** Le nom d'une taille de familier : « Minuscule », « Géant »… */
 const nomDeLaTaille = (familier: Familier): string => TAILLES.find((taille) => taille.id === tailleDuFamilier(familier).classe)?.nom ?? "";
@@ -184,7 +187,7 @@ export function premiereALaLoupe(elements: readonly ElementDeLAlbum[]): ElementD
   let choisi: ElementDeLAlbum | null = null;
   for (const element of elements) {
     if (element.chance <= 0) continue;
-    if (!choisi || RARETES[element.rarete].rang > RARETES[choisi.rarete].rang) choisi = element;
+    if (!choisi || RARETES_DES_OBJETS[element.rarete].rang > RARETES_DES_OBJETS[choisi.rarete].rang) choisi = element;
   }
   return choisi ?? elements[0] ?? null;
 }
@@ -194,7 +197,7 @@ export function premiereALaLoupe(elements: readonly ElementDeLAlbum[]): ElementD
  * chance », « Loup gris, Épique, Forêt, Moyen, à vous ».
  */
 export function decrireLaCase(element: ElementDeLAlbum): string {
-  const morceaux = [element.nom, RARETES[element.rarete].nom, ...element.detail.split(" · ")];
+  const morceaux = [element.nom, RARETES_DES_OBJETS[element.rarete].nom, ...element.detail.split(" · ")];
   if (element.possede) morceaux.push(element.montre ? "montré à côté de votre Gaulois" : "à vous");
   if (element.chance > 0) morceaux.push(`${pourcent(element.chance)} de chance`);
   return morceaux.join(", ");

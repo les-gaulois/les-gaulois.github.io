@@ -3,7 +3,7 @@
  * serveur (`get_marche`, `get_ma_boutique`, contrat dans `contrat.ts`). Le serveur décide de tout, achat, vente et prix ;
  * ici, seulement la lecture des réponses, les filtres, ce qui s'annonce avant de confirmer, et les mots des refus.
  */
-import { EMPLACEMENTS_OBJETS, OBJETS, ORDRE_RARETES, RARETES, type Emplacement, type Rarete } from "../gaulois";
+import { EMPLACEMENTS_OBJETS, OBJETS, ORDRE_RARETES, RARETE_DIVINE, RARETES, type Emplacement, type Rarete } from "../gaulois";
 import { ERROR_MESSAGES } from "../compte/errors";
 import { stateres } from "./ecran-boutique";
 import type { MaBoutique, Marche, ObjetPossede, OffreDuMarche, RefObjet, RefusMarche } from "./contrat";
@@ -24,11 +24,14 @@ export type PossedeLisible = ObjetPossede & ObjetDuMarche;
 const estEmplacement = (valeur: unknown): valeur is Emplacement => typeof valeur === "string" && (EMPLACEMENTS_OBJETS as readonly string[]).includes(valeur);
 const entier = (valeur: unknown): valeur is number => typeof valeur === "number" && Number.isInteger(valeur);
 
-/** L'objet payant que désignent un emplacement et un identifiant ; `null` s'il n'est pas au catalogue, ou s'il est gratuit. */
+/**
+ * L'objet payant que désignent un emplacement et un identifiant ; `null` s'il n'est pas au catalogue, s'il est gratuit, ou
+ * s'il est divin : un objet divin ne se vend pas au marché.
+ */
 export function objetDuMarche(emplacement: unknown, objet: unknown): ObjetDuMarche | null {
   if (!estEmplacement(emplacement) || typeof objet !== "string") return null;
   const fiche = OBJETS[emplacement][objet];
-  if (!fiche || fiche.gratuit || !fiche.rarete) return null;
+  if (!fiche || fiche.gratuit || !fiche.rarete || fiche.rarete === RARETE_DIVINE) return null;
   return { emplacement, objet, nom: fiche.nom, rarete: fiche.rarete };
 }
 

@@ -1,4 +1,4 @@
-import { CLE_MODELE, EMPLACEMENTS, EMPLACEMENTS_OBJETS, OBJETS, POILS, RARETES, TEINTE_CHEVEUX, TENUE_DE_DEPART, lireTenue, modeleDuGaulois, objetPorte, type Rarete, type Tenue } from "../gaulois";
+import { CLE_MODELE, EMPLACEMENTS, EMPLACEMENTS_OBJETS, OBJETS, POILS, RARETES_DES_OBJETS as RARETES, TEINTE_CHEVEUX, TENUE_DE_DEPART, lireTenue, modeleDuGaulois, objetPorte, type RareteDObjet as Rarete, type Tenue } from "../gaulois";
 import type { GauloisDeLaPlace } from "./contrat";
 
 /**

@@ -10,7 +10,7 @@
  * ils ne s'achètent jamais.
  */
 import type { RareteDUnique } from "../../../supabase/functions/code-discord/modeles/modele";
-import type { Emplacement, Rarete, Tenue } from "../gaulois";
+import type { Emplacement, Rarete, RareteDObjet, Tenue } from "../gaulois";
 
 /** Le prix d'un objet de la boutique, par rareté, en statères. */
 export const PRIX_PAR_RARETE: Readonly<Record<Rarete, number>> = {
@@ -39,6 +39,24 @@ export const CHANCES_POCHETTE: Readonly<Record<Rarete, number>> = {
   legendaire: 2,
 };
 
+/**
+ * Le divin (demande du pilote, 16 novembre 2026 : « 10 fois plus rare que les légendaires et obtenable uniquement dans la
+ * pochette ») ; migration 20261116000300_divin_et_fusion. Un objet divin n'a pas de prix : il ne s'achète pas, ne se vend
+ * pas au marché, et la forge n'en fabrique pas. La pochette surprise le donne dix fois moins souvent qu'un légendaire : sa
+ * chance est celle du légendaire divisée par dix, prise sur celle du commun (jamais plus que celle-ci). Elle suit donc le
+ * réglage de la Direction sans champ de plus. Le même calcul que `internal.village_chance_divine` du serveur.
+ */
+export const LEGENDAIRES_POUR_UN_DIVIN = 10;
+
+/** Les chances du tirage, divin compris, d'après les cinq chances réglées : 100 en tout. `divin` : la chance donnée par le serveur. */
+export function chancesAvecLeDivin(chances: Readonly<Record<Rarete, number>>, divin: number = chances.legendaire / LEGENDAIRES_POUR_UN_DIVIN): Record<RareteDObjet, number> {
+  const part = Math.min(Math.max(divin, 0), chances.commun);
+  return { ...chances, commun: chances.commun - part, divin: part };
+}
+
+/** Les chances de départ du tirage : 49,8 ; 30 ; 13 ; 5 ; 2 ; et 0,2 pour le divin. */
+export const CHANCES_DU_TIRAGE: Readonly<Record<RareteDObjet, number>> = chancesAvecLeDivin(CHANCES_POCHETTE);
+
 /** Le marché : nombre d'offres ouvertes par membre, et durée d'une offre en jours. */
 export const MARCHE_OFFRES_MAX = 5;
 export const MARCHE_DUREE_JOURS = 14;
@@ -59,13 +77,15 @@ export interface ObjetPossede extends RefObjet {
 /**
  * `get_ma_boutique()`, pour un compte connecté : son solde, ce qu'il possède et les réglages en vigueur.
  * `peut_acheter` : compte validé avec un Gaulois créé ; sinon la boutique se regarde sans s'ouvrir.
+ * `pochette.chances` : les chances du tirage, divin compris. Le serveur donne les cinq chances réglées et, à part, celle du
+ * divin (`pochette.divin`) ; la lecture les réunit (`chancesAvecLeDivin`). Un serveur d'avant le divin n'en donne pas : 0.
  */
 export interface MaBoutique {
   ok: true;
   solde: number;
   peut_acheter: boolean;
   prix: Record<Rarete, number>;
-  pochette: { prix: number; chances: Record<Rarete, number> };
+  pochette: { prix: number; chances: Record<RareteDObjet, number> };
   inventaire: ObjetPossede[];
 }
 
@@ -87,7 +107,7 @@ export interface AchatReponse {
 export interface PochetteReponse {
   ok: true;
   solde: number;
-  objet: RefObjet & { rarete: Rarete; double: boolean };
+  objet: RefObjet & { rarete: RareteDObjet; double: boolean };
 }
 
 /**
@@ -257,7 +277,7 @@ export interface ObjetGravable extends RefObjet {
  * `get_ma_forge()`, pour un compte connecté non suspendu, et la réponse de `graver_objet` et `effacer_gravure` : la forge à
  * jour. `prix` vient toujours du serveur. `peut_graver` : compte validé avec un Gaulois créé. `plaques_vues` : les autres
  * membres voient ses plaques sur la place (son pseudo est public) ; sinon lui seul les voit. Limitée comme les gestes
- * (`rate_limited`).
+ * (`rate_limited`). `fusion` : de quoi fondre ses objets ; `null` si le serveur ne connaît pas encore la fusion.
  */
 export interface MaForge {
   ok: true;
@@ -267,6 +287,7 @@ export interface MaForge {
   plaques_vues: boolean;
   parties: PartieGravable[];
   objets: ObjetGravable[];
+  fusion: FusionDeLaForge | null;
 }
 
 /**
@@ -295,6 +316,52 @@ export type RefusForge =
   | "prix_change"
   | "solde_insuffisant"
   | "pas_grave";
+
+/*
+ * La fusion à la forge (demande du pilote, 16 novembre 2026 : « tant d'objets rares fusionnés deviennent épique, tant
+ * d'épiques deviennent légendaire ») ; migration 20261116000300_divin_et_fusion, lecture et calculs dans `fusion.ts`.
+ *
+ * Un membre validé qui a créé son Gaulois donne trois objets payants d'une même rareté (trois exemplaires de son
+ * inventaire, d'un même objet ou non) et reçoit un objet payant de la rareté suivante, tiré au hasard parmi tous ceux de
+ * cette rareté, à chances égales ; un double est possible. Du commun au mystique : ni le légendaire ni le divin ne se
+ * fondent, et la forge ne fabrique pas de divin. Aucun statère n'est payé ni rendu. Le dernier exemplaire d'un objet porté
+ * ou gravé ne se donne pas.
+ */
+
+/** Combien d'objets d'une rareté donnent un objet de la suivante. Le même nombre que `internal.forge_fusion_nombre`. */
+export const OBJETS_POUR_UNE_FUSION = 3;
+
+/** Un objet qui peut se fondre : sa rareté, ses exemplaires, et ceux qu'il peut donner (`libres`). */
+export interface ObjetAFondre extends RefObjet {
+  rarete: Rarete;
+  quantite: number;
+  libres: number;
+}
+
+/** `fusion` de `MaForge` : le nombre d'objets à donner, et les objets du compte qui peuvent se fondre. */
+export interface FusionDeLaForge {
+  nombre: number;
+  objets: ObjetAFondre[];
+}
+
+/** L'objet reçu d'une fusion ; `double` : le compte l'avait déjà. */
+export type FusionRecu = RefObjet & { rarete: Rarete; double: boolean };
+
+/** `fusionner_objets(p_objets)`, `p_objets` : `[{ emplacement, objet }]`, un par exemplaire donné : l'objet reçu et la forge à jour. */
+export interface FusionReponse {
+  ok: true;
+  recu: FusionRecu;
+  forge: MaForge;
+}
+
+/**
+ * Les refus de la fusion, en plus de ceux de tout compte (`not_signed_in`, `suspended`, `rate_limited`), dans l'ordre où
+ * le serveur les vérifie : `not_validated`, `no_gaulois`, `fusion_invalide` (pas la bonne liste), `unknown_objet` (un
+ * objet hors du catalogue, ou gratuit), `raretes_melangees`, `rarete_sans_fusion` (légendaire ou divin), `pas_possede`
+ * (pas assez d'exemplaires), `objet_porte` et `objet_grave` (le dernier exemplaire d'un objet porté ou gravé). Un refus ne
+ * prend aucun objet.
+ */
+export type RefusFusion = "not_validated" | "no_gaulois" | "fusion_invalide" | "unknown_objet" | "raretes_melangees" | "rarete_sans_fusion" | "pas_possede" | "objet_porte" | "objet_grave";
 
 /*
  * Les familiers du Gaulois (demande du pilote, 15 novembre 2026 : « des pets pour les gaulois obtenables uniquement en

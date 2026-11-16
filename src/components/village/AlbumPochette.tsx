@@ -1,6 +1,6 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
-import { RARETES } from "../../lib/gaulois";
+import { RARETES_DES_OBJETS as RARETES } from "../../lib/gaulois";
 import { ALBUM_ETROIT, TOUS, casesDuGroupe, decrireLaCase, groupesDeLAlbum, placerLAlbum, premiereALaLoupe, type Album, type ElementDeLAlbum } from "../../lib/village/album-pochette";
 import { pourcent } from "../../lib/village/ecran-boutique";
 import { echelleDuDessin, type DessinEnCases } from "../../lib/village/ecran-familiers";

@@ -10,17 +10,19 @@
  * égales. Ce qu'on voit défiler ressemble donc à ce que la pochette donne vraiment, sans rangée arrangée pour faire croire
  * qu'on a frôlé mieux. L'animation ne change rien au tirage.
  */
-import { OBJETS, ORDRE_RARETES, type Catalogue, type Rarete } from "../gaulois";
+import { OBJETS, ORDRE_RARETES, ORDRE_RARETES_DES_OBJETS, type Catalogue, type Rarete, type RareteDObjet } from "../gaulois";
 import { objetsDeLaPochette } from "./boutique";
 import type { RefObjet } from "./contrat";
 import { FAMILIERS, chancesPourMoi, type Familier } from "./familiers";
 
-type Valeurs = Readonly<Record<Rarete, number>>;
+/** Des chances par rareté : celles d'une pochette à cinq raretés, ou celles de la pochette surprise, divin compris. Une rareté absente vaut 0. */
+type Valeurs = Readonly<Record<Rarete, number>> & { readonly divin?: number };
+const chanceDe = (chances: Valeurs, rarete: RareteDObjet): number => Math.max(0, chances[rarete] ?? 0);
 
 /** Une rangée du tambour : ce qu'elle montre, et sa rareté. */
 export interface Rangee<T> {
   valeur: T;
-  rarete: Rarete;
+  rarete: RareteDObjet;
 }
 
 /** Les rangées d'un tour de tambour : `depart` est au milieu quand il commence, `cible` (le résultat) quand il s'arrête. */
@@ -48,13 +50,13 @@ export const DUREE_DE_LA_FETE = 4800;
  * Une rareté tirée selon des chances (en pour cent ou dans toute autre unité positive), par un nombre `u` de 0 à 1 : les
  * raretés se suivent dans l'ordre, chacune sur une longueur égale à sa chance. `null` si aucune chance n'est positive.
  */
-export function rareteSelon(chances: Valeurs, u: number): Rarete | null {
-  const total = ORDRE_RARETES.reduce((somme, rarete) => somme + Math.max(0, chances[rarete]), 0);
+export function rareteSelon(chances: Valeurs, u: number): RareteDObjet | null {
+  const total = ORDRE_RARETES_DES_OBJETS.reduce((somme, rarete) => somme + chanceDe(chances, rarete), 0);
   if (!(total > 0)) return null;
   let reste = Math.min(Math.max(u, 0), 1) * total;
-  let derniere: Rarete | null = null;
-  for (const rarete of ORDRE_RARETES) {
-    const chance = Math.max(0, chances[rarete]);
+  let derniere: RareteDObjet | null = null;
+  for (const rarete of ORDRE_RARETES_DES_OBJETS) {
+    const chance = chanceDe(chances, rarete);
     if (chance <= 0) continue;
     derniere = rarete;
     if (reste < chance) return rarete;
@@ -67,8 +69,8 @@ export function rareteSelon(chances: Valeurs, u: number): Rarete | null {
  * Une rangée tirée comme le serveur tire : la rareté selon `chances`, en sautant celles qui n'ont rien à donner (les autres
  * se partagent leurs chances à proportion), puis une des valeurs de cette rareté, à chances égales. `null` si rien ne peut sortir.
  */
-export function rangeeAuHasard<T>(chances: Valeurs, valeursDe: (rarete: Rarete) => readonly T[], hasard: () => number): Rangee<T> | null {
-  const possibles = Object.fromEntries(ORDRE_RARETES.map((rarete) => [rarete, valeursDe(rarete).length > 0 ? chances[rarete] : 0])) as Record<Rarete, number>;
+export function rangeeAuHasard<T>(chances: Valeurs, valeursDe: (rarete: RareteDObjet) => readonly T[], hasard: () => number): Rangee<T> | null {
+  const possibles = Object.fromEntries(ORDRE_RARETES_DES_OBJETS.map((rarete) => [rarete, valeursDe(rarete).length > 0 ? chanceDe(chances, rarete) : 0])) as Record<RareteDObjet, number>;
   const rarete = rareteSelon(possibles, hasard());
   if (!rarete) return null;
   const valeurs = valeursDe(rarete);
@@ -83,8 +85,8 @@ export function bandeDuTambour<T>(resultat: Rangee<T>, tirer: () => Rangee<T> | 
 }
 
 /** La bande de la pochette surprise : les objets payants du catalogue, aux chances de la pochette ; l'objet tiré au bout. */
-export function bandeDeLaPochette(tire: RefObjet & { rarete: Rarete }, chances: Valeurs, hasard: () => number = Math.random, catalogue: Catalogue = OBJETS): Bande<RefObjet> {
-  const parRarete = Object.fromEntries(ORDRE_RARETES.map((rarete) => [rarete, objetsDeLaPochette(rarete, catalogue)])) as Record<Rarete, RefObjet[]>;
+export function bandeDeLaPochette(tire: RefObjet & { rarete: RareteDObjet }, chances: Valeurs, hasard: () => number = Math.random, catalogue: Catalogue = OBJETS): Bande<RefObjet> {
+  const parRarete = Object.fromEntries(ORDRE_RARETES_DES_OBJETS.map((rarete) => [rarete, objetsDeLaPochette(rarete, catalogue)])) as Record<RareteDObjet, RefObjet[]>;
   return bandeDuTambour(
     {
       valeur: { emplacement: tire.emplacement, objet: tire.objet },
@@ -99,9 +101,9 @@ export function bandeDeLaPochette(tire: RefObjet & { rarete: Rarete }, chances: 
  * pochette ne donne jamais un familier déjà reçu), aux chances qu'elle avait pour lui (`chancesPourMoi`) ; le familier reçu au bout.
  */
 export function bandeDesFamiliers(recu: Familier, chances: Valeurs, possedes: ReadonlySet<string>, hasard: () => number = Math.random, liste: readonly Familier[] = FAMILIERS): Bande<Familier> {
-  const parRarete = Object.fromEntries(ORDRE_RARETES.map((rarete) => [rarete, liste.filter((f) => f.rarete === rarete && !possedes.has(f.id))])) as Record<Rarete, Familier[]>;
+  const parRarete = Object.fromEntries(ORDRE_RARETES.map((rarete) => [rarete, liste.filter((f) => f.rarete === rarete && !possedes.has(f.id))])) as Partial<Record<string, Familier[]>>;
   const pourMoi = chancesPourMoi(chances, possedes, liste) ?? chances;
-  return bandeDuTambour({ valeur: recu, rarete: recu.rarete }, () => rangeeAuHasard(pourMoi, (rarete) => parRarete[rarete], hasard));
+  return bandeDuTambour({ valeur: recu, rarete: recu.rarete }, () => rangeeAuHasard(pourMoi, (rarete) => parRarete[rarete] ?? [], hasard));
 }
 
 // La vitesse du tambour, de 0 à 1 du temps : elle monte en douceur (un quart de sinus sur les 8 premiers centièmes), puis

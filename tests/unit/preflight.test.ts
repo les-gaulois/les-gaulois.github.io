@@ -27,6 +27,7 @@ const HEALTHY: Record<string, Route> = {
   "/rest/v1/rpc/get_village_economie": { status: 401, body: {} },
   "/rest/v1/rpc/get_vie_du_village": { status: 401, body: {} },
   "/rest/v1/rpc/get_ma_forge": { status: 401, body: {} },
+  "/rest/v1/rpc/fusionner_objets": { status: 401, body: {} },
   "/rest/v1/rpc/get_mes_familiers": { status: 401, body: {} },
   "/rest/v1/rpc/get_mes_bannieres": { status: 401, body: {} },
   "/rest/v1/rpc/ouvrir_pochette_bannieres": { status: 401, body: {} },
@@ -267,6 +268,18 @@ describe("le contrôle de la mise en ligne", () => {
     const corps = (fn: string) => JSON.parse(seen.find((s) => s.url.endsWith(`/rpc/${fn}`))?.body ?? "null");
     expect(corps("graver_objet")).toEqual({ p_emplacement: "arme", p_objet: "verification", p_partie: "verification", p_prix_vu: 0 });
     expect(corps("effacer_gravure")).toEqual({ p_emplacement: "arme", p_objet: "verification" });
+  });
+
+  it("bloque si un visiteur fond des objets à la forge, et signale la fusion pas encore installée", async () => {
+    expect(await statusOf(HEALTHY, "ne fond aucun objet à la forge")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/fusionner_objets": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "ne fond aucun objet à la forge")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/fusionner_objets": { status: 200, body: { ok: true, recu: {} } } }, "ne fond aucun objet à la forge")).toBe("fail");
+    const absente = (await run({ ...HEALTHY, "/rest/v1/rpc/fusionner_objets": { status: 404, body: {} } })).find((c) => c.label.includes("fusion à la forge est installée"));
+    expect(absente).toMatchObject({ status: "warn", detail: expect.stringContaining(".cache/a-coller-divin-fusion.sql") });
+    // La liste envoyée est vide : rien ne peut se fondre.
+    seen.length = 0;
+    await run();
+    expect(JSON.parse(seen.find((s) => s.url.endsWith("/rpc/fusionner_objets"))?.body ?? "null")).toEqual({ p_objets: [] });
   });
 
   it("bloque si un visiteur lit l'économie du village ou en règle les prix, et signale l'onglet Village pas encore installé", async () => {

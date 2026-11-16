@@ -13,6 +13,7 @@ import { LOT_ARME_B } from "./arme-b.ts";
 import { LOT_BARBE } from "./barbe.ts";
 import { LOT_BAS } from "./bas.ts";
 import { LOT_CHEVEUX } from "./cheveux.ts";
+import { LOT_DIVIN } from "./divin.ts";
 import { LOT_HAUT_A } from "./haut-a.ts";
 import { LOT_HAUT_B } from "./haut-b.ts";
 import { LOT_PIEDS } from "./pieds.ts";
@@ -21,4 +22,4 @@ import { LOT_TETE_B } from "./tete-b.ts";
 import { LOT_VISAGE } from "./visage.ts";
 
 /** Tous les objets de la garde-robe, lot après lot. */
-export const GARDE_ROBE: readonly ObjetDuLot[] = [...LOT_VISAGE, ...LOT_CHEVEUX, ...LOT_BARBE, ...LOT_TETE_A, ...LOT_TETE_B, ...LOT_HAUT_A, ...LOT_HAUT_B, ...LOT_BAS, ...LOT_PIEDS, ...LOT_ARME_A, ...LOT_ARME_B];
+export const GARDE_ROBE: readonly ObjetDuLot[] = [...LOT_VISAGE, ...LOT_CHEVEUX, ...LOT_BARBE, ...LOT_TETE_A, ...LOT_TETE_B, ...LOT_HAUT_A, ...LOT_HAUT_B, ...LOT_BAS, ...LOT_PIEDS, ...LOT_ARME_A, ...LOT_ARME_B, ...LOT_DIVIN];

@@ -22,6 +22,9 @@ export {
   NOMS_EMPLACEMENTS,
   OBJETS,
   ORDRE_RARETES,
+  ORDRE_RARETES_DES_OBJETS,
+  RARETE_DIVINE,
+  RARETES_DES_OBJETS,
   PEAUX,
   POILS,
   RARETES,
@@ -39,6 +42,7 @@ export {
   type Emplacement,
   type Objet,
   type Rarete,
+  type RareteDObjet,
   type Tenue,
   type Vignette,
 } from "../../supabase/functions/code-discord/gaulois";

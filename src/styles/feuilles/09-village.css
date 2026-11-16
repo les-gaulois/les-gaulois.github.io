@@ -558,6 +558,9 @@
 .filtre[data-rarete="legendaire"] {
   --rarete-texte: var(--rarete-legendaire-texte);
 }
+.filtre[data-rarete="divin"] {
+  --rarete-texte: var(--rarete-divin-texte);
+}
 .filtre-rang {
   display: flex;
   gap: 0.1875rem;
@@ -659,6 +662,11 @@
   --rarete: var(--rarete-legendaire);
   --rarete-texte: var(--rarete-legendaire-texte);
   --rarete-cadre: var(--rarete-legendaire-degrade);
+}
+.case[data-rarete="divin"] {
+  --rarete: var(--rarete-divin);
+  --rarete-texte: var(--rarete-divin-texte);
+  --rarete-cadre: var(--rarete-divin-degrade);
 }
 .case-image {
   display: grid;
@@ -1004,6 +1012,9 @@
 .pochette-chances [data-rarete="legendaire"] {
   --rarete-texte: var(--rarete-legendaire-texte);
 }
+.pochette-chances [data-rarete="divin"] {
+  --rarete-texte: var(--rarete-divin-texte);
+}
 .pochette-rarete {
   color: var(--rarete-texte);
 }
@@ -1269,6 +1280,11 @@
   --rarete-texte: var(--rarete-legendaire-texte);
   --rarete-cadre: var(--rarete-legendaire-degrade);
 }
+:is(.album-case, .album-loupe)[data-rarete="divin"] {
+  --rarete: var(--rarete-divin);
+  --rarete-texte: var(--rarete-divin-texte);
+  --rarete-cadre: var(--rarete-divin-degrade);
+}
 /* La loupe : la case choisie en grand, son nom, sa rareté, son rayon ou sa famille, et sa chance pour ce compte. */
 .album-loupe {
   --rarete: var(--color-line-strong);
@@ -1481,6 +1497,9 @@
 .pochette-revelation[data-rarete="legendaire"] {
   --rarete: var(--rarete-legendaire);
 }
+.pochette-revelation[data-rarete="divin"] {
+  --rarete: var(--rarete-divin);
+}
 .pochette-revelation::before {
   content: "";
   position: absolute;
@@ -1538,6 +1557,9 @@
 }
 .tambour-sortie[data-rarete="legendaire"] {
   --rarete-texte: var(--rarete-legendaire-texte);
+}
+.tambour-sortie[data-rarete="divin"] {
+  --rarete-texte: var(--rarete-divin-texte);
 }
 .tambour-nom {
   font-family: var(--font-display);
@@ -2946,6 +2968,11 @@
   --rarete-texte: var(--rarete-legendaire-texte);
   --rarete-cadre: var(--rarete-legendaire-degrade);
 }
+.vitrine-teinte[data-rarete="divin"] {
+  --rarete: var(--rarete-divin);
+  --rarete-texte: var(--rarete-divin-texte);
+  --rarete-cadre: var(--rarete-divin-degrade);
+}
 /* Un pseudo s'écrit tel quel, dans la police du texte : jamais en onciale. */
 .vitrine-nom {
   font-family: var(--font-sans);
@@ -3059,8 +3086,8 @@
     0 0 0 2px var(--color-navy),
     0 0 0 5px var(--color-red);
 }
-/* Un reflet lent passe sur une carte légendaire, puis attend longtemps. */
-.vitrine-carte[data-rarete="legendaire"]::after {
+/* Un reflet lent passe sur une carte légendaire ou divine, puis attend longtemps. */
+.vitrine-carte:is([data-rarete="legendaire"], [data-rarete="divin"])::after {
   content: "";
   position: absolute;
   inset: -20% auto -20% -60%;
@@ -3087,7 +3114,7 @@
   transition: none;
 }
 @media (prefers-reduced-motion: reduce) {
-  .vitrine-carte[data-rarete="legendaire"]::after {
+  .vitrine-carte:is([data-rarete="legendaire"], [data-rarete="divin"])::after {
     display: none;
   }
   .vitrine-carte-fond {

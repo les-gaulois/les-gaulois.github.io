@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { EMPLACEMENTS, EMPLACEMENTS_OBJETS, EMPLACEMENTS_VISAGE, OBJETS, ORDRE_RARETES, POILS, type Rarete } from "../../src/lib/gaulois";
+import { EMPLACEMENTS, EMPLACEMENTS_OBJETS, EMPLACEMENTS_VISAGE, OBJETS, ORDRE_RARETES, ORDRE_RARETES_DES_OBJETS, POILS, type Rarete } from "../../src/lib/gaulois";
 import {
   chanceDeLObjet,
   chancesEffectives,
@@ -20,7 +20,10 @@ import { CHANCES_POCHETTE, PRIX_PAR_RARETE, PRIX_POCHETTE, type MaBoutique } fro
 // Sous Windows, Git rend le fichier avec des fins de ligne CRLF : les motifs ci-dessous lisent des « \n ».
 const MIGRATION = readFileSync("supabase/migrations/20261113001900_village_boutique.sql", "utf8").replace(/\r\n/g, "\n");
 
-/** Tous les objets payants du catalogue, « emplacement/objet ». */
+/** Les chances réglées, sans divin : celles d'un serveur d'avant le divin, ou d'une pochette qui n'en donne pas. */
+const SANS_DIVIN = { ...CHANCES_POCHETTE, divin: 0 };
+
+/** Tous les objets payants du catalogue, divins compris, « emplacement/objet ». */
 const PAYANTS = EMPLACEMENTS_OBJETS.flatMap((emplacement) =>
   Object.entries(OBJETS[emplacement])
     .filter(([, objet]) => !objet.gratuit)
@@ -38,7 +41,7 @@ const BOUTIQUE: MaBoutique = {
   solde: 340,
   peut_acheter: true,
   prix: { ...PRIX_PAR_RARETE },
-  pochette: { prix: PRIX_POCHETTE, chances: { ...CHANCES_POCHETTE } },
+  pochette: { prix: PRIX_POCHETTE, chances: { ...SANS_DIVIN } },
   inventaire: [
     { emplacement: "tete", objet: "bandeau", quantite: 1, origine: "achat", acquis_le: "2026-11-13T10:00:00+00:00" },
     { emplacement: "arme", objet: "epee", quantite: 3, origine: "pochette", acquis_le: "2026-11-13T11:00:00.123456+00:00" },
@@ -130,14 +133,14 @@ describe("le serveur de la boutique", () => {
 
 describe("le catalogue de la boutique", () => {
   it("a au moins un objet payant dans chaque rareté : la pochette peut tout donner, aux chances affichées", () => {
-    for (const rarete of ORDRE_RARETES) expect(objetsDeLaPochette(rarete).length, rarete).toBeGreaterThan(0);
-    expect(chancesEffectives(CHANCES_POCHETTE)).toEqual(CHANCES_POCHETTE);
+    for (const rarete of ORDRE_RARETES_DES_OBJETS) expect(objetsDeLaPochette(rarete).length, rarete).toBeGreaterThan(0);
+    expect(chancesEffectives(SANS_DIVIN)).toEqual(SANS_DIVIN);
   });
 
   it("donne à la pochette chaque objet payant, une seule fois, et aucun gratuit", () => {
-    const dansLaPochette = ORDRE_RARETES.flatMap((rarete) => objetsDeLaPochette(rarete).map(({ emplacement, objet }) => `${emplacement}/${objet}`));
+    const dansLaPochette = ORDRE_RARETES_DES_OBJETS.flatMap((rarete) => objetsDeLaPochette(rarete).map(({ emplacement, objet }) => `${emplacement}/${objet}`));
     expect(dansLaPochette.sort()).toEqual([...PAYANTS].sort());
-    for (const rarete of ORDRE_RARETES) for (const { emplacement, objet } of objetsDeLaPochette(rarete)) expect(OBJETS[emplacement][objet]?.rarete).toBe(rarete);
+    for (const rarete of ORDRE_RARETES_DES_OBJETS) for (const { emplacement, objet } of objetsDeLaPochette(rarete)) expect(OBJETS[emplacement][objet]?.rarete).toBe(rarete);
   });
 });
 
@@ -150,7 +153,9 @@ describe("le prix d'un objet", () => {
     expect(prixDeLObjet("tete", "bandeau", { ...PRIX_PAR_RARETE, commun: 120 })).toBe(120);
     for (const cle of PAYANTS) {
       const [emplacement, objet] = cle.split("/") as ["tete", string];
-      expect(prixDeLObjet(emplacement, objet, PRIX_PAR_RARETE), cle).toBe(PRIX_PAR_RARETE[OBJETS[emplacement][objet]!.rarete!]);
+      const rarete = OBJETS[emplacement][objet]!.rarete!;
+      // Un objet divin n'a pas de prix : il ne s'achète pas.
+      expect(prixDeLObjet(emplacement, objet, PRIX_PAR_RARETE), cle).toBe(rarete === "divin" ? null : PRIX_PAR_RARETE[rarete]);
     }
   });
 
@@ -184,31 +189,31 @@ describe("les chances de la pochette", () => {
   it("se partagent à égalité entre les objets d'une rareté, et font 100 en tout", () => {
     const total = PAYANTS.reduce((s, cle) => {
       const [emplacement, objet] = cle.split("/") as ["tete", string];
-      return s + chanceDeLObjet(emplacement, objet, CHANCES_POCHETTE);
+      return s + chanceDeLObjet(emplacement, objet, SANS_DIVIN);
     }, 0);
     expect(total).toBeCloseTo(100, 9);
-    expect(chanceDeLObjet("tete", "couronne", CHANCES_POCHETTE)).toBeCloseTo(CHANCES_POCHETTE.legendaire / objetsDeLaPochette("legendaire").length, 12);
-    expect(chanceDeLObjet("tete", "bonnet", CHANCES_POCHETTE)).toBe(0);
-    expect(chanceDeLObjet("tete", "inconnu", CHANCES_POCHETTE)).toBe(0);
+    expect(chanceDeLObjet("tete", "couronne", SANS_DIVIN)).toBeCloseTo(CHANCES_POCHETTE.legendaire / objetsDeLaPochette("legendaire").length, 12);
+    expect(chanceDeLObjet("tete", "bonnet", SANS_DIVIN)).toBe(0);
+    expect(chanceDeLObjet("tete", "inconnu", SANS_DIVIN)).toBe(0);
   });
 
   it("sautent une rareté sans objet payant, ou à zéro, et donnent sa part aux autres à proportion", () => {
     const sansLegendaire = sansPayantDe("legendaire");
-    const effectives = chancesEffectives(CHANCES_POCHETTE, sansLegendaire);
+    const effectives = chancesEffectives(SANS_DIVIN, sansLegendaire);
     expect(effectives?.legendaire).toBe(0);
     expect(effectives?.commun).toBeCloseTo((CHANCES_POCHETTE.commun * 100) / (100 - CHANCES_POCHETTE.legendaire), 12);
     expect(ORDRE_RARETES.reduce((s, r) => s + (effectives?.[r] ?? 0), 0)).toBeCloseTo(100, 9);
-    expect(chancesEffectives({ commun: 0, "peu-commun": 100, epique: 0, mystique: 0, legendaire: 0 })).toEqual({ commun: 0, "peu-commun": 100, epique: 0, mystique: 0, legendaire: 0 });
-    expect(chancesEffectives({ commun: 0, "peu-commun": 0, epique: 0, mystique: 0, legendaire: 100 }, sansLegendaire)).toBeNull();
+    expect(chancesEffectives({ commun: 0, "peu-commun": 100, epique: 0, mystique: 0, legendaire: 0, divin: 0 })).toEqual({ commun: 0, "peu-commun": 100, epique: 0, mystique: 0, legendaire: 0, divin: 0 });
+    expect(chancesEffectives({ commun: 0, "peu-commun": 0, epique: 0, mystique: 0, legendaire: 100, divin: 0 }, sansLegendaire)).toBeNull();
   });
 
   it("valent en moyenne 290 statères au prix de la boutique, pour une pochette à 200", () => {
     // 50 % de 100, 30 % de 250, 13 % de 500, 5 % de 1 000, 2 % de 2 500.
-    expect(valeurMoyenneDeLaPochette(CHANCES_POCHETTE, PRIX_PAR_RARETE)).toBeCloseTo(290, 9);
-    expect(valeurMoyenneDeLaPochette({ commun: 100, "peu-commun": 0, epique: 0, mystique: 0, legendaire: 0 }, PRIX_PAR_RARETE)).toBeCloseTo(100, 9);
+    expect(valeurMoyenneDeLaPochette(SANS_DIVIN, PRIX_PAR_RARETE)).toBeCloseTo(290, 9);
+    expect(valeurMoyenneDeLaPochette({ commun: 100, "peu-commun": 0, epique: 0, mystique: 0, legendaire: 0, divin: 0 }, PRIX_PAR_RARETE)).toBeCloseTo(100, 9);
     // Sans légendaire payant, l'autre moitié des chances revient au commun.
-    expect(valeurMoyenneDeLaPochette({ commun: 50, "peu-commun": 0, epique: 0, mystique: 0, legendaire: 50 }, PRIX_PAR_RARETE, sansPayantDe("legendaire"))).toBeCloseTo(100, 9);
-    expect(valeurMoyenneDeLaPochette({ commun: 0, "peu-commun": 0, epique: 0, mystique: 0, legendaire: 100 }, PRIX_PAR_RARETE, sansPayantDe("legendaire"))).toBeNull();
+    expect(valeurMoyenneDeLaPochette({ commun: 50, "peu-commun": 0, epique: 0, mystique: 0, legendaire: 50, divin: 0 }, PRIX_PAR_RARETE, sansPayantDe("legendaire"))).toBeCloseTo(100, 9);
+    expect(valeurMoyenneDeLaPochette({ commun: 0, "peu-commun": 0, epique: 0, mystique: 0, legendaire: 100, divin: 0 }, PRIX_PAR_RARETE, sansPayantDe("legendaire"))).toBeNull();
   });
 });
 

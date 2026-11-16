@@ -187,6 +187,12 @@ export const ERROR_MESSAGES: Record<string, string> = {
   deja_grave: "Cet objet porte déjà cette plaque.",
   pas_grave: "Cet objet n'a pas de plaque.",
 
+  // La fusion à la forge (contrat : `RefusFusion`, migration 20261116000300_divin_et_fusion). Les refus qu'elle partage avec
+  // le marché ont leurs propres mots dans `fusion.ts`.
+  fusion_invalide: "Cette fusion n'est pas valable. Rechargez la page.",
+  raretes_melangees: "Une fusion prend des objets d'une seule rareté.",
+  rarete_sans_fusion: "Les objets de cette rareté ne se fondent pas.",
+
   // Les familiers du Gaulois (contrat : `RefusFamiliers` de src/lib/village/contrat.ts, migration
   // 20261115000800_familiers_du_gaulois). Les refus qu'ils partagent avec la boutique sont plus haut ; `pas_possede` a ses
   // propres mots dans `familiers.ts`.

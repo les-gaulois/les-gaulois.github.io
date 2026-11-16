@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { OBJETS, ORDRE_RARETES, type Rarete } from "../../src/lib/gaulois";
+import { OBJETS, ORDRE_RARETES, type RareteDObjet as Rarete } from "../../src/lib/gaulois";
 import { chancesEffectives, objetsDeLaPochette } from "../../src/lib/village/boutique";
 import { CHANCES_POCHETTE, CHANCES_POCHETTE_FAMILIERS } from "../../src/lib/village/contrat";
 import { FAMILIERS, chancesPourMoi } from "../../src/lib/village/familiers";
@@ -110,7 +110,7 @@ describe("bandeDeLaPochette", () => {
         total++;
       });
     }
-    const attendues = chancesEffectives(CHANCES_POCHETTE)!;
+    const attendues = chancesEffectives({ ...CHANCES_POCHETTE, divin: 0 })!;
     for (const rarete of ORDRE_RARETES) expect(Math.abs((vues[rarete] * 100) / total - attendues[rarete])).toBeLessThan(1);
   });
 });

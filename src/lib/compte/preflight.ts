@@ -266,6 +266,13 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
     ["graver_objet", { p_emplacement: "arme", p_objet: "verification", p_partie: "verification", p_prix_vu: 0 }, "Un visiteur ne grave rien à la forge"],
     ["effacer_gravure", { p_emplacement: "arme", p_objet: "verification" }, "Un visiteur n'efface aucune plaque de la forge"],
   ] as const;
+  // La fusion à la forge (migration 20261116000300, collée par le fichier .cache/a-coller-divin-fusion.sql) : seul un compte
+  // validé avec son Gaulois fond ses propres objets. Absente : 404, le fichier n'est pas collé.
+  const fusion = await rpc("fusionner_objets", { p_objets: [] });
+  const fusionAnswer = fusion.ok ? ((await fusion.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (fusion.status === 404) add("La fusion à la forge est installée", "warn", "fusionner_objets est absente : collez le fichier .cache/a-coller-divin-fusion.sql (sa dernière ligne commence par « divin et fusion : ») avant de mettre en ligne ce qui s'en sert.");
+  else if (isClosed(fusion.status) || (fusion.ok && fusionAnswer?.ok === false)) add("Un visiteur ne fond aucun objet à la forge", "ok");
+  else add("Un visiteur ne fond aucun objet à la forge", "fail", `Réponse ${fusion.status}. Ne mettez pas en ligne : seul un compte validé avec son Gaulois fond ses objets.`);
   for (const [fn, body, label] of forgeCalls) {
     const res = await rpc(fn, body);
     const answer = res.ok ? ((await res.json().catch(() => null)) as { ok?: boolean } | null) : null;

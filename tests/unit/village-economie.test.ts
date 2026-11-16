@@ -93,10 +93,11 @@ describe("le catalogue", () => {
   });
 
   it("additionne le vrai catalogue objet par objet", () => {
-    const payants = Object.values(OBJETS).flatMap((objets) => Object.values(objets).filter((o) => !o.gratuit && o.rarete !== null));
+    // Un objet divin n'a pas de prix : la boutique ne le vend pas, il n'est pas dans le coût du catalogue.
+    const payants = Object.values(OBJETS).flatMap((objets) => Object.values(objets).flatMap((o) => (!o.gratuit && o.rarete !== null && o.rarete !== "divin" ? [o.rarete] : [])));
     const cout = coutDuCatalogue(OBJETS, PRIX_PAR_RARETE);
     expect(cout.nombre).toBe(payants.length);
-    expect(cout.cout).toBe(payants.reduce((n, o) => n + PRIX_PAR_RARETE[o.rarete ?? "commun"], 0));
+    expect(cout.cout).toBe(payants.reduce((n, rarete) => n + PRIX_PAR_RARETE[rarete], 0));
     expect(ORDRE_RARETES.reduce((n, r) => n + cout.parRarete[r].cout, 0)).toBe(cout.cout);
     expect(Object.values(cout.parEmplacement).reduce((n, e) => n + e.nombre, 0)).toBe(cout.nombre);
   });

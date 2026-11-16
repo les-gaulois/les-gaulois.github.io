@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { EMPLACEMENTS_OBJETS, NOMS_EMPLACEMENTS, ORDRE_RARETES, type Rarete } from "../../src/lib/gaulois";
+import { EMPLACEMENTS_OBJETS, NOMS_EMPLACEMENTS, ORDRE_RARETES_DES_OBJETS as ORDRE_RARETES, type RareteDObjet as Rarete } from "../../src/lib/gaulois";
 import { ALBUM_ETROIT, TOUS, albumDeLaMenagerie, albumDeLaPochetteSurprise, casesDuGroupe, nombreDansLaPochetteSurprise, decrireLaCase, groupesDeLAlbum, placerLAlbum, premiereALaLoupe, rognerLeDessin, rognerLesRangees, type ElementDeLAlbum } from "../../src/lib/village/album-pochette";
 import { chanceDeLObjet, objetsDeLaPochette } from "../../src/lib/village/boutique";
-import { CHANCES_POCHETTE, CHANCES_POCHETTE_FAMILIERS, PRIX_POCHETTE_FAMILIERS, type MesFamiliers, type ObjetPossede } from "../../src/lib/village/contrat";
+import { CHANCES_DU_TIRAGE as CHANCES_POCHETTE, CHANCES_POCHETTE_FAMILIERS, PRIX_POCHETTE_FAMILIERS, type MesFamiliers, type ObjetPossede } from "../../src/lib/village/contrat";
 import { COULEUR_SILHOUETTE } from "../../src/lib/village/ecran-familiers";
 import { FAMILIERS, FAMILLES, chanceDuFamilier } from "../../src/lib/village/familiers";
 
@@ -27,7 +27,11 @@ describe("la pochette surprise dans l'album", () => {
     expect(new Set(album.elements.map((e) => e.id))).toEqual(new Set(payants.map((ref) => `${ref.emplacement}/${ref.objet}`)));
     expect(album.sous).toBe(`${payants.length} objets`);
     expect(album.libelleDesGroupes).toBe("Montrer un rayon");
-    expect(nombreDansLaPochetteSurprise()).toBe(payants.length);
+    expect(nombreDansLaPochetteSurprise(CHANCES_POCHETTE)).toBe(payants.length);
+    // Un serveur d'avant le divin ne lui donne aucune chance : ses objets ne sont pas dans l'album.
+    const sansDivin = { ...CHANCES_POCHETTE, commun: CHANCES_POCHETTE.commun + CHANCES_POCHETTE.divin, divin: 0 };
+    expect(albumDeLaPochetteSurprise(sansDivin, []).elements.some((e) => e.rarete === "divin")).toBe(false);
+    expect(nombreDansLaPochetteSurprise(sansDivin)).toBe(payants.length - objetsDeLaPochette("divin").length);
   });
 
   it("range les objets rayon par rayon, du plus courant au plus rare dans chaque rayon", () => {
@@ -48,10 +52,19 @@ describe("la pochette surprise dans l'album", () => {
   });
 
   it("suit les chances que le serveur envoie, pas celles de départ", () => {
-    const reglees: Record<Rarete, number> = { commun: 40, "peu-commun": 30, epique: 15, mystique: 10, legendaire: 5 };
+    const reglees: Record<Rarete, number> = { commun: 39.5, "peu-commun": 30, epique: 15, mystique: 10, legendaire: 5, divin: 0.5 };
     const autre = albumDeLaPochetteSurprise(reglees, []);
     const legendaires = autre.elements.filter((e) => e.rarete === "legendaire");
     expect(somme(legendaires)).toBeCloseTo(5, 8);
+    expect(somme(autre.elements.filter((e) => e.rarete === "divin"))).toBeCloseTo(0.5, 8);
+  });
+
+  it("montre les objets divins, dix fois plus rares ensemble que les légendaires", () => {
+    const divins = album.elements.filter((e) => e.rarete === "divin");
+    expect(divins).toHaveLength(objetsDeLaPochette("divin").length);
+    expect(divins.length).toBeGreaterThan(0);
+    expect(somme(divins)).toBeCloseTo(CHANCES_POCHETTE.legendaire / 10, 8);
+    expect(new Set(divins.map((e) => e.groupe)).size).toBe(EMPLACEMENTS_OBJETS.length);
   });
 
   it("garde un objet déjà possédé, avec sa chance : il peut ressortir en double", () => {
