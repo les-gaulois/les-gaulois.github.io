@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-16",
+    "kind": "ameliore",
+    "title": "Le livre des bannières",
+    "body": "Dans « Mon Gaulois », vos bannières sont dans un album : la vignette touchée vole et se dresse derrière votre Gaulois. Dessous, /gaulois et votre carte de la vitrine changent dès le survol.",
+    "link": {
+      "href": "/village",
+      "label": "Ouvrir Mon Gaulois"
+    }
+  },
+  {
+    "date": "2026-11-16",
     "kind": "nouveau",
     "title": "Les bannières sur la liste des membres",
     "body": "La ligne d'un membre qui a choisi une bannière pour son Gaulois la porte en couleurs dans la liste. Son cadre a la couleur de sa rareté. Relevé à chaque mise à jour du site.",

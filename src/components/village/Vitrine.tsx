@@ -174,14 +174,17 @@ function useLibDesBannieres(utile: boolean): LibDesBannieres | null {
   return lib;
 }
 
-/** Les cartes : une par Gaulois, aussi large que lui et son familier, au cadre de la rareté la plus haute portée. */
-function Cartes({ gaulois }: { gaulois: readonly GauloisVitrine[] }) {
+/**
+ * Les cartes : une par Gaulois, aussi large que lui et son familier, au cadre de la rareté la plus haute portée. Le livre
+ * des bannières (`LivreDesBannieres.tsx`) s'en sert aussi pour montrer au membre sa propre carte avec la bannière qu'il essaie.
+ */
+export function CartesDeLaVitrine({ gaulois, testid = "vitrine", label = "Les Gaulois du clan" }: { gaulois: readonly GauloisVitrine[]; testid?: string; label?: string }) {
   const fiches = useMemo(() => fichesDe(gaulois), [gaulois]);
   const echelle = useEcranDe(768) ? 3 : 2;
   const lib = useLibDesBannieres(fiches.some((f) => Boolean(f.gaulois.banniere)));
   if (fiches.length === 0) return null;
   return (
-    <ul class="vitrine-cartes" data-testid="vitrine" aria-label="Les Gaulois du clan">
+    <ul class="vitrine-cartes" data-testid={testid} aria-label={label}>
       {fiches.map((f) => {
         const banniere = lib?.banniereParId(f.gaulois.banniere) ?? null;
         const large = f.groupe.largeur * echelle;
@@ -237,5 +240,5 @@ export default function VitrineDuClan({ actif }: { actif: boolean }) {
 
   if (lecture.kind === "attente" || lecture.kind === "lecture") return <Loading label="Lecture de la vitrine…" />;
   if (lecture.kind === "erreur") return <Problem message={lecture.message} onRetry={lecture.reessayer ? () => void lire(false) : undefined} />;
-  return <Cartes gaulois={lecture.gaulois} />;
+  return <CartesDeLaVitrine gaulois={lecture.gaulois} />;
 }

@@ -13,6 +13,7 @@ import { AlbumDePochette } from "./AlbumPochette";
 import { Compte, Dialogue, Refus, type BandeVue, type Issue } from "./BoutiqueDialogue";
 import { MarqueDeRarete, Pixels, Prix, peindre } from "./BoutiquePixels";
 import { POCHETTE_BANNIERES_COTE, casesDeLaPochetteBannieres } from "./PochetteBannieresDessin";
+import { LivreDesBannieres } from "./LivreDesBannieres";
 import { BoutonSon, Tambour, preparerLeSon, useSonDuTambour } from "./Tambour";
 
 /**
@@ -850,16 +851,14 @@ export function SectionDesBannieres({ partie = "bannieres", tenue, familier, sol
 
 /**
  * « Ma bannière », dans « Mon Gaulois » : la bannière montrée sur /gaulois, à choisir parmi celles qu'on a, ou le décor de
- * son lieu. Le choix part tout de suite au serveur (`choisir_banniere`) : il ne passe pas par l'enregistrement de la
- * tenue. Sans bannière, une ligne mène aux bannières de « La boutique », sans charger leurs dessins. En panne, le
- * vestiaire reste. `actif` : l'onglet est ouvert ; au retour de la boutique, les bannières se relisent.
+ * son lieu, dans le livre des bannières (`LivreDesBannieres.tsx`). Le choix part tout de suite au serveur
+ * (`choisir_banniere`) : il ne passe pas par l'enregistrement de la tenue. Sans bannière, une ligne mène aux bannières de
+ * « La boutique », sans charger leurs dessins. En panne, le vestiaire reste. `actif` : l'onglet est ouvert ; au retour de
+ * la boutique, les bannières se relisent. `nom`, `tenue` et `familier` : le membre et son Gaulois enregistré, ceux que /gaulois et la vitrine montrent.
  */
-export function MaBanniere({ actif }: { actif?: boolean | undefined }) {
+export function MaBanniere({ actif, nom, tenue, familier }: { actif?: boolean | undefined; nom: string; tenue: Tenue; familier: Familier | null }) {
   const { etat, lire, choisir } = useBannieres({ leger: true });
   const [ouvert, setOuvert] = useState(false);
-  const [occupe, setOccupe] = useState(false);
-  const [probleme, setProbleme] = useState<string | null>(null);
-  const [annonce, setAnnonce] = useState<string | null>(null);
 
   useEffect(() => {
     void lire();
@@ -889,45 +888,13 @@ export function MaBanniere({ actif }: { actif?: boolean | undefined }) {
   const { mes, lib } = etat;
   const montree = lib.banniereParId(mes.porte);
   const miennes = mes.bannieres.flatMap((ligne) => lib.banniereParId(ligne.banniere) ?? []);
-  const poser = async (id: string | null) => {
-    if (occupe || id === (montree?.id ?? null)) return;
-    setOccupe(true);
-    setProbleme(null);
-    setAnnonce(null);
-    const issue = await choisir(id);
-    if (issue.ok) setAnnonce(issue.valeur ? `« ${lib.banniereParId(issue.valeur)?.nom ?? "Cette bannière"} » est sur /gaulois.` : "Sur /gaulois, votre Gaulois retrouve le décor de son lieu.");
-    else setProbleme(issue.message);
-    setOccupe(false);
-  };
   return (
     <details class="fold banniere-choix" open={ouvert} onToggle={(e) => setOuvert(e.currentTarget.open)} data-testid="banniere-choix">
       <summary>
         <span id="banniere-choix-titre">Ma bannière sur /gaulois</span> <span class="info-discrete">{montree ? montree.nom : "le décor de mon lieu"}</span>
       </summary>
-      {/* Les vignettes ne se dessinent qu'une fois le pli ouvert. */}
-      {ouvert && (
-        <div class="banniere-cases" role="group" aria-labelledby="banniere-choix-titre" aria-busy={occupe}>
-          <button type="button" class="banniere-case" data-rarete="aucune" data-etat={montree ? "a-moi" : "montree"} aria-pressed={montree === null} onClick={() => void poser(null)} data-testid="banniere-choix-decor">
-            <span class="banniere-case-image">
-              <span class="banniere-lieu" aria-hidden="true" />
-            </span>
-            <span class="banniere-case-nom">Le décor de mon lieu</span>
-          </button>
-          {miennes.map((banniere) => (
-            <button key={banniere.id} type="button" class="banniere-case" data-rarete={banniere.rarete} data-etat={montree?.id === banniere.id ? "montree" : "a-moi"} aria-pressed={montree?.id === banniere.id} onClick={() => void poser(banniere.id)} data-testid="banniere-choix-case" data-banniere={banniere.id}>
-              <span class="banniere-case-image">
-                <Vignette lib={lib} id={banniere.id} />
-              </span>
-              <span class="banniere-case-nom">{banniere.nom}</span>
-              <MarqueDeRarete rarete={banniere.rarete} />
-            </button>
-          ))}
-        </div>
-      )}
-      <Problem message={probleme} />
-      <p class="sr-only" role="status" data-testid="banniere-annonce">
-        {annonce}
-      </p>
+      {/* Le livre ne se dessine qu'une fois le pli ouvert. */}
+      {ouvert && <LivreDesBannieres lib={lib} miennes={miennes} montree={montree} nom={nom} tenue={tenue} familier={familier} choisir={choisir} />}
     </details>
   );
 }

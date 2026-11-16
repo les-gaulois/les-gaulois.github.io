@@ -405,7 +405,7 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
         {/* Le familier ne se montre qu'à côté d'un Gaulois qui existe : rien pendant l'inscription. */}
         {existait && <MonFamilier etat={familiers.etat} occupe={occupeFamilier} probleme={problemeFamilier} annonce={annonceFamilier} onChoisir={(id) => void choisirLeFamilier(id)} onRelire={() => void familiers.lire()} />}
         {/* La bannière montrée sur /gaulois, comme le familier : pour un Gaulois qui existe. */}
-        {existait && <MaBanniere actif={actif} />}
+        {existait && <MaBanniere actif={actif} nom={me.name ?? "Moi"} tenue={etat.enregistree ?? tenue} familier={familiers.montre} />}
         <form
           class="vestiaire-choix"
           onSubmit={(e) => {
