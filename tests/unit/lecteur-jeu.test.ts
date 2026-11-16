@@ -1,3 +1,4 @@
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 import {
   adresseDuLecteur,
@@ -129,6 +130,54 @@ describe("le vrai lecteur du jeu : où il vit, d'où il lit", () => {
     const notice = noticeDuLecteur([COMMIT]);
     expect(notice).toContain("src/client/CrazyGamesSDK.ts");
     expect(notice).toContain("/* Site du clan [GAL] : jamais sur CrazyGames, même encadré. */ return false;");
+  });
+  it("retouche la caméra du lecteur : la carte remplit toujours la vue, sans fond autour ni dézoom au-delà", () => {
+    const camera = RETOUCHES_DU_CODE.find((r) => r.fichier === "src/client/replay/ReplayCamera.ts")!;
+    const viewer = RETOUCHES_DU_CODE.find((r) => r.fichier === "src/client/replay/ReplayViewer.ts")!;
+    expect(appliquerRetouche("    let last = null;\n      camera.step(last === null ? 0 : now - last);\n", viewer)).toContain("camera.vue(canvas.clientWidth, canvas.clientHeight)");
+    // La classe du jeu, réduite à ce que la retouche touche, compilée puis essayée.
+    const source = appliquerRetouche(
+      [
+        "const MAX_ZOOM = 20;",
+        "",
+        "export class ReplayCamera {",
+        "  x = 0;",
+        "  y = 0;",
+        "  zoom = 1;",
+        "  constructor(private readonly mapWidth: number, private readonly mapHeight: number) {",
+        "    this.x = mapWidth / 2;",
+        "    this.y = mapHeight / 2;",
+        "  }",
+        "",
+        "  /** Fit the whole map in view, like the game does at the start. */",
+        "  fit(): void {}",
+        "}",
+      ].join("\n"),
+      camera,
+    );
+    const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+    const module = { exports: {} as { ReplayCamera?: new (l: number, h: number) => { x: number; y: number; zoom: number; vue(l: number, h: number): void } } };
+    new Function("module", "exports", js)(module, module.exports);
+    const c = new module.exports.ReplayCamera!(200, 100);
+    // Une vue de même forme que la carte : la carte entière, et pas moins.
+    c.zoom = 0.5;
+    c.vue(400, 200);
+    expect(c.zoom).toBe(2);
+    expect([c.x, c.y]).toEqual([100, 50]);
+    // Zoomée, la carte se déplace, mais son bord ne quitte jamais celui de la vue.
+    c.zoom = 4;
+    c.x = -30;
+    c.y = 500;
+    c.vue(400, 200);
+    expect([c.x, c.y]).toEqual([50, 75]);
+    // Une vue d'une autre forme : la carte la couvre, quitte à déborder d'un côté.
+    c.zoom = 0.1;
+    c.vue(300, 300);
+    expect(c.zoom).toBe(3);
+    expect(c.y).toBe(50);
+    // Une vue pas encore mesurée ne change rien.
+    c.vue(0, 0);
+    expect(c.zoom).toBe(3);
   });
   it("ne publie un lecteur gardé en cache que s'il est de la recette du jour", () => {
     expect(RECETTE_DU_LECTEUR).toBeGreaterThanOrEqual(2);

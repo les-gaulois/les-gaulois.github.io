@@ -119,8 +119,6 @@ export default function RejeuPartie({ base, dernier, jours, tag, jeux = {} }: Pr
   const [vitesse, setVitesse] = useState(SPEED_MAX);
   const [essai, setEssai] = useState(0);
   const [choix, setChoix] = useState<ChoixDetails>({ noms: true, unites: true });
-  // Ce que montre le cadre d'une partie qui a le vrai lecteur du jeu : lui d'abord, le film du site au choix.
-  const [vue, setVue] = useState<"jeu" | "film">("jeu");
   // La taille de la toile des détails, en pixels de l'écran : celle de la carte affichée.
   const [taille, setTaille] = useState<{ l: number; h: number } | null>(null);
   const toile = useRef<HTMLCanvasElement>(null);
@@ -331,9 +329,9 @@ export default function RejeuPartie({ base, dernier, jours, tag, jeux = {} }: Pr
   }
 
   const e = film?.entete;
-  // Le replay du jeu, sauf si sa fiche manque sur son site (dépôt en panne ou en retard) : le film, alors, comme sans lui.
+  // Le replay du jeu seul, sauf si sa fiche manque sur son site (dépôt en panne ou en retard) : le film, alors, en secours.
   const jeu = jeuDemande !== undefined && jeuEtat !== "absent" ? jeuDemande : undefined;
-  const montreLeJeu = jeu !== undefined && vue === "jeu";
+  const montreLeJeu = jeu !== undefined;
   const fin = e ? secondesDeLImage(e, e.images - 1) : 0;
   const maintenant = e ? secondesDeLImage(e, image) : 0;
   const auBout = e !== undefined && image >= e.images - 1;
@@ -344,7 +342,9 @@ export default function RejeuPartie({ base, dernier, jours, tag, jeux = {} }: Pr
   };
 
   return (
-    <section class="stage stage-blue revoir" aria-labelledby="rejeu-titre" aria-busy={etat === "charge"} data-testid="rejeu">
+    <section class="revoir" aria-labelledby="rejeu-titre" aria-busy={etat === "charge"} data-testid="rejeu" style={{ "--revoir-mer": MER_FINALE_CSS }}>
+      {/* La mer de nuit de la carte (`--revoir-mer`, posée sur la section depuis sa constante de carte-dessin.ts) : le fond
+          du film et des icônes de sa légende. */}
       <div class="revoir-tete">
         <h2 id="rejeu-titre" class="revoir-titre">
           {e ? `${mapLabel(e.carte)}, ${fmtDayAndTime(e.debut)}` : "Chargement du film…"}
@@ -356,36 +356,16 @@ export default function RejeuPartie({ base, dernier, jours, tag, jeux = {} }: Pr
           </span>
         )}
       </div>
-      {/* Une partie qui a le vrai lecteur de replay du jeu (src/lib/rejeu/lecteur-jeu.ts) : le cadre le montre d'emblée, le
-          film du site reste à un bouton. Deux boutons à bascule, pas des onglets : le reste de la fiche ne change pas de page. */}
-      {jeu !== undefined && (
-        <div class="revoir-vues" role="group" aria-label="Ce que montre le cadre">
-          {/* Le film s'arrête quand le replay du jeu prend sa place : il reprendra, en pause, là où il en était. */}
-          <button
-            type="button"
-            aria-pressed={vue === "jeu"}
-            onClick={() => {
-              setLecture(false);
-              setVue("jeu");
-            }}
-            data-testid="rejeu-vue-jeu"
-          >
-            Replay du jeu
-          </button>
-          <button type="button" aria-pressed={vue === "film"} onClick={() => setVue("film")} data-testid="rejeu-vue-film">
-            Film du site
-          </button>
-        </div>
-      )}
-
-      {/* Le cadre d'un côté, les faits de la partie et la légende de l'autre (dessous sur téléphone). */}
-      <div class="revoir-corps" data-vue={montreLeJeu ? "jeu" : "film"} style={e ? { "--revoir-forme": String(e.largeur / e.hauteur) } : undefined}>
-        {/* Le vrai lecteur du jeu, dans un carré. Il vient d'un autre site : enfermé (`sandbox`), sans autre droit que ses
+      {/* Le cadre d'un côté, les faits de la partie de l'autre (dessous quand la place manque). Une partie qui a le vrai lecteur
+          de replay du jeu (src/lib/rejeu/lecteur-jeu.ts) ne montre que lui ; le film du site est son secours. */}
+      <div class="revoir-corps" style={e ? { "--revoir-forme": String(e.largeur / e.hauteur) } : undefined}>
+        {/* Le vrai lecteur du jeu, dans un cadre à la forme de la carte : elle le remplit, sans fond autour. Il vient d'un autre site : enfermé (`sandbox`), sans autre droit que ses
             scripts, son propre stockage et ses liens en nouvel onglet. Il s'ouvre en pause : le visiteur le lance. */}
         {montreLeJeu && (
           <div class="revoir-scene">
-            {/* Fond de nuit vide le temps de vérifier que la fiche de la partie est bien sur le site du lecteur. */}
-            <div class="revoir-cadre" aria-busy={jeuEtat !== "pret"}>
+            {/* Cadre vide le temps de vérifier que la fiche de la partie est bien sur le site du lecteur. */}
+            {/* Obstacle du compagnon : à l'arrêt, il se tient à côté du lecteur et de son bandeau « © OpenFront and Contributors ». */}
+            <div class="revoir-cadre" aria-busy={jeuEtat !== "pret"} data-compagnon-obstacle>
               {jeuEtat === "pret" && (
                 <iframe
                   key={partie}
@@ -402,10 +382,9 @@ export default function RejeuPartie({ base, dernier, jours, tag, jeux = {} }: Pr
             </div>
           </div>
         )}
-        {/* Le film reste dans la page, masqué : ses toiles gardent leur image, et il reprend où il en était. */}
+        {/* Le film reste dans la page, masqué : ses toiles sont prêtes si la fiche du lecteur manque. */}
         <div class="revoir-scene" hidden={montreLeJeu}>
-          {/* Le fond du cadre : la mer de nuit de la carte, posée depuis sa constante (carte-dessin.ts). */}
-          <div class="revoir-ecran" style={{ "--revoir-mer": MER_FINALE_CSS }}>
+          <div class="revoir-ecran">
             <canvas
               ref={toile}
               width={e?.largeur ?? 1}

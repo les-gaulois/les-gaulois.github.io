@@ -274,8 +274,9 @@ export const MANIFESTE_DU_SITE = '__ASSET_MANIFEST__: process.env.GAL_MANIFEST ?
  * La recette du lecteur : à augmenter quand la façon de le construire change. Un lecteur gardé en cache d'une autre recette se
  * refait, et n'est pas publié tant qu'il n'est pas refait (chaque partie garde alors son film).
  * 2 (16 novembre 2026) : la retouche CrazyGames, pour le lecteur encadré dans « Revoir une partie ».
+ * 3 (16 novembre 2026) : la carte remplit toujours la vue (caméra du lecteur de replay).
  */
-export const RECETTE_DU_LECTEUR = 2;
+export const RECETTE_DU_LECTEUR = 3;
 
 /** La recette lue dans `recette.txt` d'un lecteur construit ; `null` si le fichier manque ou ne dit pas un nombre. */
 export function lireRecette(texte: string | null): number | null {
@@ -303,6 +304,33 @@ export const RETOUCHES_DU_CODE: readonly Retouche[] = [
     avant: "isOnCrazyGames(): boolean {",
     apres: "isOnCrazyGames(): boolean {\n    /* Site du clan [GAL] : jamais sur CrazyGames, même encadré. */\n    return false;",
     raison: "le lecteur, encadré dans la page du clan, ne se croit jamais sur le portail CrazyGames",
+  },
+  // La caméra du lecteur de replay cadre la carte à 90 %, laisse dézoomer jusqu'à 0,1 et sortir de la carte : un fond gris
+  // l'entoure. Demande du pilote (16 novembre 2026) : « je veux pas voir de gris et pas pouvoir dégrossir au-delà de la taille
+  // du replay ». À chaque image, la caméra reçoit la taille de la vue, ne dézoome pas en deçà d'une carte qui la remplit, et
+  // garde la carte collée aux bords.
+  {
+    fichier: "src/client/replay/ReplayCamera.ts",
+    avant: "  /** Fit the whole map in view, like the game does at the start. */",
+    apres:
+      "  /* Site du clan [GAL] : la carte couvre toujours la vue, jamais de fond autour, ni de dézoom au-delà de la carte. */\n" +
+      "  vue(viewWidth: number, viewHeight: number): void {\n" +
+      "    if (!(viewWidth > 0 && viewHeight > 0)) return;\n" +
+      "    this.zoom = Math.min(MAX_ZOOM, Math.max(this.zoom, viewWidth / this.mapWidth, viewHeight / this.mapHeight));\n" +
+      "    const demiL = Math.min(viewWidth / 2 / this.zoom, this.mapWidth / 2);\n" +
+      "    const demiH = Math.min(viewHeight / 2 / this.zoom, this.mapHeight / 2);\n" +
+      "    this.x = Math.min(Math.max(this.x, demiL), this.mapWidth - demiL);\n" +
+      "    this.y = Math.min(Math.max(this.y, demiH), this.mapHeight - demiH);\n" +
+      "  }\n" +
+      "\n" +
+      "  /** Fit the whole map in view, like the game does at the start. */",
+    raison: "la carte remplit toujours la vue du lecteur, sans fond autour ni dézoom au-delà de la carte",
+  },
+  {
+    fichier: "src/client/replay/ReplayViewer.ts",
+    avant: "      camera.step(last === null ? 0 : now - last);",
+    apres: "      camera.step(last === null ? 0 : now - last);\n      camera.vue(canvas.clientWidth, canvas.clientHeight); /* Site du clan [GAL] */",
+    raison: "la caméra reçoit la taille de la vue à chaque image",
   },
 ];
 

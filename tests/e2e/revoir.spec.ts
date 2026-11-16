@@ -1,10 +1,10 @@
 import { existsSync, readFileSync } from "node:fs";
-import { gzipSync } from "node:zlib";
+import { gunzipSync, gzipSync } from "node:zlib";
 import { expect, test, type Page } from "@playwright/test";
 import { fmtDayAndTime } from "../../src/lib/format";
 import { mapLabel } from "../../src/lib/map-names";
-import { EcrivainFilm, FORMAT_FILM, type EnteteFilm } from "../../src/lib/rejeu/film";
-import { LISTE_DES_FILMS, ListeDesFilms } from "../../src/lib/rejeu/films-index";
+import { EcrivainFilm, FORMAT_FILM, lireFilm, type EnteteFilm } from "../../src/lib/rejeu/film";
+import { DOSSIER_PUBLIC_FILMS, LISTE_DES_FILMS, ListeDesFilms } from "../../src/lib/rejeu/films-index";
 import { DOSSIER_DES_FICHES, DOSSIER_SITE_DU_LECTEUR } from "../../src/lib/rejeu/lecteur-jeu";
 
 /**
@@ -181,27 +181,24 @@ test.describe("le vrai lecteur du jeu", () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
   });
 
-  test("« Film du site » montre le film et sa légende, « Replay du jeu » remet le cadre et arrête le film", async ({ page }) => {
+  test("une partie qui a le replay du jeu ne montre que lui, au cadre de la forme de sa carte", async ({ page }, testInfo) => {
     await page.goto(`/revoir?partie=${avecJeu!.partie}`);
     await hydrated(page);
-    const jeu = page.getByTestId("rejeu-vue-jeu");
-    const filmDuSite = page.getByTestId("rejeu-vue-film");
-    await expect(jeu).toHaveAttribute("aria-pressed", "true");
+    const cadre = page.getByTestId("rejeu-jeu-cadre");
+    await expect(cadre).toBeVisible();
+    // Plus de film à côté : ni bascule, ni toile, ni légende, ni cases du film (demande du pilote, 16 novembre 2026).
+    await expect(page.getByTestId("rejeu-vue-film")).toHaveCount(0);
     await expect(page.getByTestId("rejeu-toile")).toBeHidden();
     await expect(page.getByTestId("rejeu-choix")).toHaveCount(0);
-    await filmDuSite.click();
-    await expect(filmDuSite).toHaveAttribute("aria-pressed", "true");
-    await expect(page.getByTestId("rejeu-jeu-cadre")).toHaveCount(0);
-    await expect(page.getByTestId("rejeu-toile")).toBeVisible();
-    await expect(page.getByTestId("rejeu-choix")).toBeVisible();
-    // Le film lancé s'arrête quand le replay du jeu reprend la place.
-    await page.getByTestId("rejeu-temps").fill("0");
-    await page.getByTestId("rejeu-lecture").click();
-    await expect(page.getByTestId("rejeu-lecture")).toHaveText("Pause");
-    await jeu.click();
-    await expect(page.getByTestId("rejeu-jeu-cadre")).toBeVisible();
-    await filmDuSite.click();
-    await expect(page.getByTestId("rejeu-lecture")).not.toHaveText("Pause");
+    await expect(page.getByTestId("rejeu-lecture")).toBeHidden();
+    // La forme de la carte (celle du film publié de la partie), pour que la carte la remplisse sans gris.
+    const boite = (await cadre.boundingBox())!;
+    const { entete } = lireFilm(gunzipSync(readFileSync(`${DOSSIER_PUBLIC_FILMS}/${avecJeu!.partie}.film`)));
+    const forme = entete.largeur / entete.hauteur;
+    // Sur un téléphone, une carte très large garde 18 rem de haut (classement et frise du jeu) : le cadre est alors moins large
+    // que la carte, jamais plus (la carte le remplit en débordant sur les côtés, sans gris).
+    if (testInfo.project.name === "mobile" && boite.height <= 18 * 16 + 1 && forme > boite.width / boite.height) expect(boite.height).toBeCloseTo(18 * 16, 0);
+    else expect(boite.width / boite.height).toBeCloseTo(forme, 1);
   });
 
   test("si la fiche manque sur le site du lecteur, la partie montre son film, sans cadre ni bascule", async ({ page }) => {

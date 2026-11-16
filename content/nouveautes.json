@@ -2,6 +2,16 @@
   {
     "date": "2026-11-16",
     "kind": "ameliore",
+    "title": "Le replay du jeu remplit son cadre",
+    "body": "Dans « Revoir une partie », le replay du jeu prend la forme de la carte, sans gris autour, sur fond blanc. « Film du site » est retiré : le film ne sert plus qu'en secours.",
+    "link": {
+      "href": "/revoir",
+      "label": "Revoir une partie"
+    }
+  },
+  {
+    "date": "2026-11-16",
+    "kind": "ameliore",
     "title": "Le livre des bannières",
     "body": "Dans « Mon Gaulois », vos bannières sont dans un album : la vignette touchée vole et se dresse derrière votre Gaulois. Dessous, /gaulois et votre carte de la vitrine changent dès le survol.",
     "link": {
