@@ -519,7 +519,8 @@ export function imageDeLEssai(d: DessinDeLEssai): Image {
     t.r(px, y + 37, 2, 2, NUIT);
     t.r(px + 10, y + 37, 2, 2, NUIT);
   }
-  cagnotte(t, droite, y + 49, String(Math.max(0, Math.round(d.cagnotte))));
+  // La cagnotte, et par combien le gagnant la verra multipliée : la garde plus un (FOIS_PAR_GARDE de coffre.ts), en mots.
+  cagnotte(t, droite, y + 49, `${Math.max(0, Math.round(d.cagnotte))} fois ${garde + 1}`);
   return t.image();
 }
 
@@ -702,7 +703,7 @@ export function decrireLEssai(d: DessinDeLEssai): string {
     `${FICHES_DES_GARDIENS[d.gardien].nom}, ${FICHES_DES_HUMEURS[d.humeur].mot}, derrière son coffre fermé, face au Gaulois du membre.`,
     motEnMots(d.tableau),
     indices.length > 0 ? `Indices : ${indices.join(", ")}.` : "",
-    `Manche ${d.manche}, essai ${d.essai}. Garde du gardien : ${Math.max(1, Math.min(4, Math.round(d.garde)))} sur 4. Cagnotte : ${Math.max(0, Math.round(d.cagnotte))} statères.`,
+    `Manche ${d.manche}, essai ${d.essai}. Garde du gardien : ${Math.max(1, Math.min(4, Math.round(d.garde)))} sur 4. Cagnotte : ${Math.max(0, Math.round(d.cagnotte))} statères, multipliée par ${Math.max(1, Math.min(4, Math.round(d.garde))) + 1} pour qui ouvre le coffre.`,
     d.soir ? `${TITRES_DES_SOIRS[d.soir]}.` : "",
   ]
     .filter((phrase) => phrase !== "")

@@ -252,7 +252,7 @@ describe("les images", () => {
     expect(mots).toContain("Le forgeron, paniqué");
     expect(mots).toContain("Le mot : E … … L … … ….");
     expect(mots).toContain("Indices : 7 lettres, un outil.");
-    expect(mots).toContain("Manche 5, essai 23. Garde du gardien : 3 sur 4. Cagnotte : 1260 statères.");
+    expect(mots).toContain("Manche 5, essai 23. Garde du gardien : 3 sur 4. Cagnotte : 1260 statères, multipliée par 4 pour qui ouvre le coffre.");
     expect(mots).toContain("Soir de cervoise.");
     expect(mots).not.toContain("enclume");
     expect(decrireLEssai({ ...essai, soir: null, tableau: { mot: "enclume", longueurDite: false, lettres: [], indices: [] } })).toContain("Rien n'est encore connu du mot.");
