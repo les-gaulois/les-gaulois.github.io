@@ -726,7 +726,7 @@ export function SectionDesBannieres({ partie = "bannieres", tenue, familier, sol
                 <>
                   <MotsDeLEtat etat={etatVu} />
                   <p class="banniere-pochette-mot" data-testid="banniere-pochette-mot">
-                    Ne s'achète pas : elle ne sort que de la pochette des bannières, dans l'onglet « Pochettes »
+                    Ne s'achète pas : elle ne sort que de la pochette des bannières, dans « Les pochettes »
                     {chanceVue > 0 && (
                       <>
                         , <span class="tnum">{pourcent(chanceVue)}</span> de chance dans votre prochaine pochette
@@ -831,10 +831,22 @@ export function MaBanniere({ actif, nom, tenue, familier }: { actif?: boolean | 
   const { mes, lib } = etat;
   const montree = lib.banniereParId(mes.porte);
   const miennes = trierParRarete(mes.bannieres.flatMap((ligne) => lib.banniereParId(ligne.banniere) ?? []), ORDRE_RARETES);
+  // La bannière montrée, en petit dans le cadre : une seule, peinte tout de suite.
+  const vignette = montree ? lib.vignetteDeLaBanniere(montree.id) : null;
   return (
     <details class="fold banniere-choix" open={ouvert} onToggle={(e) => setOuvert(e.currentTarget.open)} data-testid="banniere-choix">
+      {/* Un cadre entier à cliquer, avec la bannière montrée en petit et un bouton écrit : le pli d'une ligne ne se voyait pas. */}
       <summary>
-        <span id="banniere-choix-titre">Ma bannière sur /gaulois</span> <span class="info-discrete">{montree ? montree.nom : "le décor de mon lieu"}</span>
+        {vignette ? <Pixels largeur={vignette.largeur} hauteur={vignette.hauteur} cases={vignette.cases} echelle={1} class="banniere-vignette" /> : <span class="banniere-lieu" aria-hidden="true" />}
+        <span class="banniere-choix-mots">
+          <span id="banniere-choix-titre" class="banniere-choix-titre">
+            Ma bannière sur /gaulois
+          </span>
+          <span class="banniere-choix-nom">{montree ? montree.nom : "Le décor de mon lieu"}</span>
+        </span>
+        <span class="banniere-choix-bouton" aria-hidden="true">
+          {ouvert ? "Fermer" : "Changer"}
+        </span>
       </summary>
       {/* Le livre ne se dessine qu'une fois le pli ouvert. */}
       {ouvert && <LivreDesBannieres lib={lib} miennes={miennes} montree={montree} nom={nom} tenue={tenue} familier={familier} choisir={choisir} />}

@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { EMPLACEMENTS_OBJETS, OBJETS, ORDRE_RARETES, type Emplacement, type Rarete } from "../../src/lib/gaulois";
 import {
   IMAGE_DU_RAYON_BANNIERE,
-  IMAGE_DU_RAYON_POCHETTES,
   IMAGE_DU_RAYON_UNIQUES,
   NOMS_RAYONS,
   RAYONS_BOUTIQUE,
@@ -43,11 +42,11 @@ function offre(emplacement: Emplacement, objet: string, plus: Partial<OffreLisib
 }
 
 describe("les rayons de la boutique", () => {
-  it("sont les emplacements d'objets, puis les bannières, les Gaulois uniques et les pochettes : le corps, gratuit, n'a pas de rayon", () => {
+  it("sont les emplacements d'objets, puis les bannières et les Gaulois uniques : ni le corps, gratuit, ni les pochettes, qui ont leur partie de la page", () => {
     // L'ordre voulu par le pilote le 15 novembre 2026 : tête, haut, bas, pieds, arme, bannière ; tout ajout à la suite.
     expect(RAYONS_OBJETS).toEqual(EMPLACEMENTS_OBJETS);
-    expect(RAYONS_BOUTIQUE).toEqual([...EMPLACEMENTS_OBJETS, RAYON_BANNIERE, RAYON_UNIQUES, RAYON_POCHETTES]);
-    expect(RAYONS_BOUTIQUE.map((rayon) => NOMS_RAYONS[rayon])).toEqual(["Tête", "Haut", "Bas", "Pieds", "Arme", "Bannière", "Uniques", "Pochettes"]);
+    expect(RAYONS_BOUTIQUE).toEqual([...EMPLACEMENTS_OBJETS, RAYON_BANNIERE, RAYON_UNIQUES]);
+    expect(RAYONS_BOUTIQUE.map((rayon) => NOMS_RAYONS[rayon])).toEqual(["Tête", "Haut", "Bas", "Pieds", "Arme", "Bannière", "Uniques"]);
     expect(RAYONS_BOUTIQUE.filter(estUnRayonDObjets)).toEqual(EMPLACEMENTS_OBJETS);
     expect(estUnRayonDObjets(RAYON_BANNIERE)).toBe(false);
     expect(estUnRayonDObjets(RAYON_UNIQUES)).toBe(false);
@@ -69,7 +68,6 @@ describe("les rayons de la boutique", () => {
 
   it.each([
     ["bannières", IMAGE_DU_RAYON_BANNIERE],
-    ["pochettes", IMAGE_DU_RAYON_POCHETTES],
   ])("l'onglet des %s a son image, entière et sans lettre oubliée", (_nom, { largeur, hauteur, cases }) => {
     expect(largeur).toBeGreaterThan(0);
     expect(cases).toHaveLength(largeur * hauteur);

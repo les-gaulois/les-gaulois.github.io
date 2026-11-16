@@ -6,7 +6,6 @@ import type { MesStateres } from "../../lib/stateres";
 import {
   ANCRE_MARCHE,
   IMAGE_DU_RAYON_BANNIERE,
-  IMAGE_DU_RAYON_POCHETTES,
   IMAGE_DU_RAYON_UNIQUES,
   NOMS_RAYONS,
   RAYONS_BOUTIQUE,
@@ -24,6 +23,7 @@ import {
   rayonDOuverture,
   type Essai,
   type RayonBoutique,
+  type RayonOuvert,
 } from "../../lib/village/boutique-rayons";
 import type { MaBoutique, PochetteFamiliersReponse, PochetteReponse, PochetteStateresReponse, RefObjet } from "../../lib/village/contrat";
 import { demandeLesBannieres } from "../../lib/village/ecran-bannieres";
@@ -142,7 +142,8 @@ const ID_DES_RAYONS = "boutique-rayons-choix";
  * passées dans cet onglet. Le septième, « Uniques », tient les Gaulois uniques (`SectionModeles.tsx`). Ce qui s'ajoutera
  * prendra un onglet à la suite (`RAYONS_BOUTIQUE`). « Vendre un objet » et « Vos offres » sont au-dessus des rayons.
  *
- * Le huitième onglet, « Pochettes » (16 novembre 2026, à la demande du pilote), tient les quatre pochettes : la surprise,
+ * Les pochettes ont leur partie de la page depuis le soir du 16 novembre 2026 (`/village#pochettes`, `pochettes` ici) :
+ * le même écran, sans le marché ni la barre des rayons. Elle tient les quatre pochettes : la surprise,
  * celle des familiers avec sa ménagerie (`PochetteFamiliers.tsx`), celle des bannières (dans `Bannieres.tsx`) et celle des
  * Gaulois uniques (dans `SectionModeles.tsx`). Jusque-là, les deux premières étaient au-dessus des rayons, les deux autres
  * en tête de leur onglet. Un familier ne s'obtient
@@ -163,7 +164,7 @@ const ID_DES_RAYONS = "boutique-rayons-choix";
  * serveur l'enregistre (`enregistrer_mon_gaulois`, qui vérifie la propriété) ; puis `gal:gaulois-enregistre`, comme le
  * vestiaire, pour le Gaulois compagnon et l'inscription.
  */
-export default function Boutique() {
+export default function Boutique({ pochettes = false }: { pochettes?: boolean }) {
   const [etat, setEtat] = useState<Etat>({ kind: "lecture" });
   const [tenue, setTenue] = useState<Tenue>(TENUE_DE_DEPART);
   const [bourse, setBourse] = useState<MesStateres | null>(null);
@@ -173,7 +174,9 @@ export default function Boutique() {
   const [solde, setSolde] = useState<number | null>(null);
   const [panne, setPanne] = useState(false);
   const [essai, setEssai] = useState<Essai | null>(null);
-  const [rayon, setRayon] = useState<RayonBoutique>(RAYONS_BOUTIQUE[0]);
+  const [rayonChoisi, setRayon] = useState<RayonBoutique>(RAYONS_BOUTIQUE[0]);
+  // Dans la partie « Pochettes » de la page, l'écran ne montre qu'elles : ni marché, ni barre des rayons.
+  const rayon: RayonOuvert = pochettes ? RAYON_POCHETTES : rayonChoisi;
   // Les bannières ne se lisent qu'au premier passage dans leur onglet ou dans celui des pochettes (leurs dessins pèsent
   // lourd) ; elles restent ensuite à la page, cachées dans un autre rayon, pour garder la vitrine et les filtres choisis.
   const [bannieresOuvertes, setBannieresOuvertes] = useState(false);
@@ -198,7 +201,7 @@ export default function Boutique() {
   const [appelDuMarche, setAppelDuMarche] = useState(0);
   // De même pour les bannières (`#bannieres`, le lien de « Mon Gaulois ») : leur onglet s'ouvre, la page descend aux rayons.
   const [appelDesRayons, setAppelDesRayons] = useState(0);
-  // De même pour la pochette des familiers (`#familiers`) : l'onglet « Pochettes » s'ouvre, la page y descend.
+  // De même pour la pochette des familiers (`#familiers`, qui ouvre la partie « Pochettes ») : la page y descend.
   const [appelDesFamiliers, setAppelDesFamiliers] = useState(0);
   const maintenant = useNow();
 
@@ -249,16 +252,16 @@ export default function Boutique() {
     setAppelDesRayons((n) => n + 1);
   };
 
-  /** Arrivé par l'adresse de la pochette des familiers : l'onglet « Pochettes » s'ouvre, la page y descend. */
+  /** Arrivé par l'adresse de la pochette des familiers, dans la partie « Pochettes » : la page y descend. */
   const allerAuxFamiliers = () => {
-    setRayon(RAYON_POCHETTES);
+    if (!pochettes) return;
     setAppelDesFamiliers((n) => n + 1);
   };
 
   const lire = async () => {
     setEtat({ kind: "lecture" });
     try {
-      const [reponse, , marche] = await Promise.all([call<unknown>("get_mon_gaulois"), lireLaBoutique(), lireLeMarche(false), familiers.lire(), pochetteStateres.lire()]);
+      const [reponse, , marche] = await Promise.all([call<unknown>("get_mon_gaulois"), lireLaBoutique(), pochettes ? null : lireLeMarche(false), familiers.lire(), pochetteStateres.lire()]);
       const enregistree = tenueDuServeur(reponse);
       setEtat({ kind: "pret", enregistree });
       if (enregistree) setTenue(enregistree);
@@ -588,7 +591,7 @@ export default function Boutique() {
   if (rayon === RAYON_UNIQUES) partieDesUniques.current = "modeles";
   else if (rayon === RAYON_POCHETTES) partieDesUniques.current = "pochette";
 
-  if (etat.kind === "lecture") return <Loading label="Lecture de la boutique…" />;
+  if (etat.kind === "lecture") return <Loading label={pochettes ? "Lecture des pochettes…" : "Lecture de la boutique…"} />;
   if (etat.kind === "erreur") return <Problem message={etat.message} onRetry={() => void lire()} />;
 
   const village = `${basePath()}${ADRESSE_VILLAGE}`;
@@ -750,6 +753,7 @@ export default function Boutique() {
           </div>
         )}
 
+        {!pochettes && (
         <section id={ANCRE_MARCHE} class="boutique-membres" aria-labelledby="boutique-membres-titre" data-testid="marche" data-etat={etatMarche.kind}>
           <div class="boutique-membres-tete">
             <h3 id="boutique-membres-titre" class="nom-champ vestiaire-titre">
@@ -797,22 +801,25 @@ export default function Boutique() {
             </details>
           )}
         </section>
+        )}
 
         <div id={ID_DES_RAYONS} class="vestiaire-choix boutique-choix">
-          <h3 class="sr-only">Les rayons</h3>
+          {!pochettes && <h3 class="sr-only">Les rayons</h3>}
+          {!pochettes && (
           <div ref={barre} class="vestiaire-barre">
             <BarreDesRayons
               prefixe="boutique"
               label="Les rayons de la boutique"
               rayons={RAYONS_BOUTIQUE}
               noms={NOMS_RAYONS}
-              rayon={rayon}
-              vignette={(id) => (estUnRayonDObjets(id) ? vignetteDeLObjet(id, tenue[id] ?? "", tenue) : id === RAYON_UNIQUES ? IMAGE_DU_RAYON_UNIQUES : id === RAYON_BANNIERE ? IMAGE_DU_RAYON_BANNIERE : IMAGE_DU_RAYON_POCHETTES)}
+              rayon={rayonChoisi}
+              vignette={(id) => (estUnRayonDObjets(id) ? vignetteDeLObjet(id, tenue[id] ?? "", tenue) : id === RAYON_UNIQUES ? IMAGE_DU_RAYON_UNIQUES : IMAGE_DU_RAYON_BANNIERE)}
               mention={(id) => (estUnRayonDObjets(id) && comptesDesOffres[id] > 0 ? motsDesOffres(comptesDesOffres[id]) : null)}
               onChoisir={setRayon}
             />
           </div>
-          <div ref={panneau} id="boutique-panneau" class="vestiaire-panneau" role="tabpanel" aria-labelledby={`boutique-rayon-${rayon}`} data-testid={`boutique-rayon-${rayon}`}>
+          )}
+          <div ref={panneau} id="boutique-panneau" class="vestiaire-panneau" role={pochettes ? undefined : "tabpanel"} aria-labelledby={pochettes ? undefined : `boutique-rayon-${rayon}`} data-testid={`boutique-rayon-${rayon}`}>
             {rayonObjets && range && range.total > 0 && (
               <div class="vestiaire-filtre" role="group" aria-label="Montrer une rareté" data-testid="boutique-filtre">
                 <ChoixDeFiltre filtre={TOUT} nom="Tout" rang={0} nombre={range.total} choisi={range.retenu === TOUT} onClick={() => setFiltres((f) => choisirFiltre(f, rayonObjets, TOUT))} />
@@ -872,9 +879,15 @@ export default function Boutique() {
                 section des bannières. Une fonction en panne n'emporte pas les autres pochettes. */}
             {rayon === RAYON_POCHETTES && (
               <>
-                {boutique && <Pochette boutique={boutique} solde={soldeConnu ?? boutique.solde} fermee={fermee} onOuvrir={() => setFenetre({ kind: "pochette" })} />}
+                {/* Les deux petites pochettes, chacune dans son cadre, sur un tiers de la largeur : la place d'une troisième
+                    reste libre à leur droite (demande du pilote, 16 novembre 2026). */}
+                {(boutique || pochetteStateres.ma) && (
+                  <div class="pochettes-tiers" data-testid="pochettes-tiers">
+                    {boutique && <Pochette boutique={boutique} solde={soldeConnu ?? boutique.solde} fermee={fermee} onOuvrir={() => setFenetre({ kind: "pochette" })} />}
+                    {pochetteStateres.ma && <PochetteStateres ma={pochetteStateres.ma} solde={soldeConnu ?? pochetteStateres.ma.solde} onOuvrir={() => setFenetre({ kind: "stateres" })} />}
+                  </div>
+                )}
                 {familiers.mes && <PochetteFamiliers mes={familiers.mes} solde={soldeConnu ?? familiers.mes.solde} onOuvrir={() => setFenetre({ kind: "familiers" })} />}
-                {pochetteStateres.ma && <PochetteStateres ma={pochetteStateres.ma} solde={soldeConnu ?? pochetteStateres.ma.solde} onOuvrir={() => setFenetre({ kind: "stateres" })} />}
                 {pochetteStateres.etat.kind === "panne" && (
                   <div data-testid="pochette-stateres-panne">
                     <Problem message="La pochette de statères ne répond pas pour l'instant." onRetry={() => void pochetteStateres.lire()} />

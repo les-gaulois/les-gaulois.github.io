@@ -2,11 +2,21 @@
   {
     "date": "2026-11-16",
     "kind": "ameliore",
+    "title": "Les pochettes ont leur onglet",
+    "body": "Dans « Mon Gaulois », les pochettes quittent la boutique pour leur onglet, avant la vitrine. Et « Ma bannière sur /gaulois » est un grand cadre avec un bouton « Changer ».",
+    "link": {
+      "href": "/village#pochettes",
+      "label": "Ouvrir les pochettes"
+    }
+  },
+  {
+    "date": "2026-11-16",
+    "kind": "ameliore",
     "title": "La pochette des bannières à 1 500 statères",
     "body": "Elle coûtait 3 000. 60 pochettes sur 100 donnent un trésor ; les 40 autres rendent 20 à 60 % de leur prix, de 300 à 900 statères.",
     "link": {
-      "href": "/village#boutique",
-      "label": "Ouvrir la boutique"
+      "href": "/village#pochettes",
+      "label": "Ouvrir les pochettes"
     }
   },
   {
@@ -53,10 +63,10 @@
     "date": "2026-11-16",
     "kind": "nouveau",
     "title": "La pochette de statères",
-    "body": "À la boutique, onglet « Pochettes » : pour 200 statères, elle rend des statères, de 60 à 13 100. Chaque gain est écrit avec sa chance. En moyenne, elle rend son prix. Dix par jour au plus.",
+    "body": "Dans « Les pochettes » : pour 200 statères, elle rend des statères, de 60 à 13 100. Chaque gain est écrit avec sa chance. En moyenne, elle rend son prix. Dix par jour au plus.",
     "link": {
-      "href": "/village#boutique",
-      "label": "Ouvrir la boutique"
+      "href": "/village#pochettes",
+      "label": "Ouvrir les pochettes"
     }
   },
   {
@@ -135,8 +145,8 @@
     "title": "Les pochettes dans leur onglet",
     "body": "La pochette surprise, celle des familiers, celle des bannières et celle des Gaulois uniques sont réunies dans un onglet « Pochettes », au bout de la barre des rayons de la boutique.",
     "link": {
-      "href": "/village#boutique",
-      "label": "Ouvrir la boutique"
+      "href": "/village#pochettes",
+      "label": "Ouvrir les pochettes"
     }
   },
   {

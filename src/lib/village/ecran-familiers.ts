@@ -15,10 +15,10 @@ import { echelleEntiere } from "./vestiaire-rayons";
 /** L'espace qui ne se coupe pas, devant un deux-points. */
 const NBSP = String.fromCharCode(0xa0);
 
-/** L'ancre de la pochette des familiers dans la page « La boutique » : « Mon Gaulois » y mène. */
+/** L'ancre de la pochette des familiers dans l'onglet « Les pochettes » de `/village` : « Mon Gaulois » y mène. */
 export const ANCRE_FAMILIERS = "familiers";
 
-/** L'adresse demande-t-elle la pochette des familiers (`/village#familiers`, qui ouvre l'onglet « La boutique ») ? */
+/** L'adresse demande-t-elle la pochette des familiers (`/village#familiers`, qui ouvre l'onglet « Les pochettes ») ? */
 export const demandeLesFamiliers = (hash: string): boolean => hash === `#${ANCRE_FAMILIERS}`;
 
 /** Les identifiants des familiers du compte. */

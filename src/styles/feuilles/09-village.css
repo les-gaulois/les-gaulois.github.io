@@ -963,6 +963,34 @@
   padding-right: 0;
   text-align: right;
 }
+/* Les deux petites pochettes (la surprise, celle de statères) : chacune dans un cadre, comme les grandes, sur un tiers de
+   la largeur ; la troisième place reste libre. Jamais plus de trois par rangée, jamais moins de 17 rem de large : la
+   colonne étroite d'une tablette ou d'un téléphone en met deux ou une. Le bouton tient au pied du cadre, à la même
+   hauteur dans les deux. */
+.pochettes-tiers {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, max(17rem, calc((100% - 2rem) / 3))), 1fr));
+  gap: 1rem;
+  min-width: 0;
+}
+.pochettes-tiers > .pochette {
+  --pochette-teinte: var(--rarete-legendaire);
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem;
+  border: 2px solid color-mix(in srgb, var(--pochette-teinte) 70%, var(--color-navy));
+  border-radius: 0.75rem;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--pochette-teinte) 20%, var(--color-navy)), color-mix(in srgb, var(--pochette-teinte) 6%, var(--color-navy)) 75%);
+}
+.pochettes-tiers > .pochette-stateres {
+  --pochette-teinte: var(--rarete-divin);
+}
+.pochettes-tiers > .pochette > :last-child {
+  margin-top: auto;
+}
+.pochettes-tiers .pochette-chances {
+  max-width: none;
+}
 /* La pochette surprise : son dessin, son nom et son prix, puis ses chances, toujours écrites avant d'ouvrir. */
 .pochette-tete {
   display: flex;
@@ -2444,14 +2472,69 @@ main:has(.album) {
 
 /* « Ma bannière sur /gaulois », dans « Mon Gaulois » : un pli au-dessus des rayons, fermé à l'arrivée, avec « Le décor de
    mon lieu » puis les bannières qu'on a. Sans bannière, une ligne mène à la boutique (.familier-invite). */
-.banniere-choix > summary {
+/* Le soir du 16 novembre 2026, le pilote ne voyait pas qu'il fallait cliquer sur cette ligne : c'est un cadre entier, avec
+   la bannière montrée en petit, son nom et un bouton écrit (« Changer », « Fermer »), à la place du « + » des plis. */
+.banniere-choix {
+  border-top: 0;
+  margin-top: 1rem;
+}
+:root:not([data-theme="rouge"]) .banniere-choix > summary {
+  flex-wrap: wrap;
   justify-content: flex-start;
-}
-.banniere-choix > summary::after {
-  margin-left: auto;
-}
-.banniere-choix > summary .info-discrete {
+  gap: 0.75rem 1rem;
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--color-line-strong);
+  border-radius: 0.5rem;
+  background: var(--color-surface-2);
   font-family: var(--font-sans);
+  color: var(--ecriture);
+  transition:
+    border-color 0.15s,
+    background-color 0.15s;
+}
+:root:not([data-theme="rouge"]) .banniere-choix > summary:hover,
+:root:not([data-theme="rouge"]) .banniere-choix[open] > summary {
+  border-color: var(--ecriture);
+}
+.banniere-choix > summary::after,
+.banniere-choix[open] > summary::after {
+  content: none;
+}
+.banniere-choix > summary > .banniere-vignette,
+.banniere-choix > summary > .banniere-lieu {
+  flex: none;
+}
+.banniere-choix-mots {
+  display: grid;
+  gap: 0.125rem;
+  flex: 1 1 9rem;
+  min-width: 0;
+}
+.banniere-choix-titre {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+.banniere-choix-nom {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--ecriture);
+}
+/* Le bouton écrit : celui des boutons pleins du site (.btn-secondary). Tout le cadre se clique ; lui le dit. */
+.banniere-choix-bouton {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  margin-left: auto;
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.375rem;
+  background: var(--ecriture);
+  color: var(--color-navy);
+  font-weight: 600;
+}
+.banniere-choix > summary:hover .banniere-choix-bouton {
+  background: color-mix(in srgb, var(--ecriture) 86%, var(--color-navy));
 }
 .banniere-choix .banniere-cases {
   grid-template-columns: repeat(auto-fill, minmax(8.75rem, 9.75rem));
