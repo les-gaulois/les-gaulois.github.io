@@ -29,6 +29,8 @@ import {
   setupReport,
   snowflakeSeconds,
   ticketChannelName,
+  markedChannelName,
+  TICKET_MARKS,
   ticketCustomId,
   welcomeMessage,
   type GuildChannel,
@@ -341,6 +343,11 @@ describe("les réponses des joueurs", () => {
     expect(ticketChannelName("signalement", "Éponà.du.Bois")).toBe("signalement-epona-du-bois");
     expect(ticketChannelName("question", "...")).toBe("question-joueur");
     expect(ticketChannelName("question", "a".repeat(80))).toHaveLength("question-".length + 32);
+    // La pastille : orange en attente, verte une fois pris ; jamais doublée.
+    const waiting = markedChannelName("question-brennos", "waiting");
+    expect(waiting).toBe(`${TICKET_MARKS.waiting}・question-brennos`);
+    expect(markedChannelName(waiting, "taken")).toBe(`${TICKET_MARKS.taken}・question-brennos`);
+    expect(markedChannelName(markedChannelName(waiting, "taken"), "taken")).toBe(`${TICKET_MARKS.taken}・question-brennos`);
   });
 
   it("lisent l'heure d'un numéro de Discord", () => {
@@ -557,13 +564,13 @@ describe("un ticket, du guichet à la fermeture", () => {
     expect(res).toEqual({ type: 5, data: { flags: 64 } });
     await w.settle();
     const channel = w.g.channels.find((c) => c.parent_id === CATEGORY);
-    expect(channel?.name).toBe("recrutement-brennos_42");
+    expect(channel?.name).toBe("🟠・recrutement-brennos_42");
     const create = w.g.sent.find((s) => s.method === "POST" && s.path === `/guilds/${GUILD}/channels`);
     // Créé sans réglage de droits, il prend ceux de la catégorie, privée ; et un nom neutre, sans sujet, tant que rien n'est vérifié.
     expect(create?.body).toEqual({ name: "ticket", type: 0, parent_id: CATEGORY });
     expect(create?.reason).toBe("Ticket « Rejoindre le clan » ouvert par Brennos_42");
     const named = w.g.sent.find((s) => s.method === "PATCH");
-    expect(named?.body).toEqual({ name: "recrutement-brennos_42", topic: `Ticket de <@${PLAYER}> : Rejoindre le clan. Ouvert le <t:${NOW}:f>.` });
+    expect(named?.body).toEqual({ name: "🟠・recrutement-brennos_42", topic: `Ticket de <@${PLAYER}> : Rejoindre le clan. Ouvert le <t:${NOW}:f>.` });
     // Le nom vient après les droits du joueur.
     expect(w.g.sent.findIndex((s) => s.method === "PATCH")).toBeGreaterThan(w.g.sent.findIndex((s) => s.method === "PUT"));
     expect(channel?.topic).toContain(`<@${PLAYER}>`);
@@ -574,7 +581,7 @@ describe("un ticket, du guichet à la fermeture", () => {
     const logText = JSON.stringify(log?.body);
     expect(logText).toContain("**Ticket ouvert** : Rejoindre le clan");
     expect(logText).toContain(`Par <@${PLAYER}> (\`Brennos_42\`)`);
-    expect(logText).toContain("(`recrutement-brennos_42`)");
+    expect(logText).toContain("(`🟠・recrutement-brennos_42`)");
     expect((log?.body as { allowed_mentions: unknown }).allowed_mentions).toEqual({ parse: [] });
 
     const welcome = w.g.messages.get(channel!.id)?.[0];
@@ -799,9 +806,13 @@ describe("un ticket, du guichet à la fermeture", () => {
       expect((await send(w.deps, click(take, who, components, { channel_id: channel!.id }))).data?.["content"]).toBe(TICKET_MESSAGES.staffOnly);
     }
     w.hooks.length = 0;
-    const res = await send(w.deps, click(take, OFFICER, components, { channel_id: channel!.id }));
+    const waitingName = channel!.name;
+    expect(waitingName.startsWith(TICKET_MARKS.waiting)).toBe(true);
+    const res = await send(w.deps, click(take, OFFICER, components, { channel_id: channel!.id, channel: { id: channel!.id, name: waitingName } }));
     await w.settle();
     expect(res.type).toBe(7);
+    // La pastille du salon passe de l'orange au vert.
+    expect(w.g.channels.find((c) => c.id === channel!.id)?.name).toBe(markedChannelName(waitingName, "taken"));
     const updated = JSON.stringify(res.data);
     expect(updated).toContain(`**Pris en charge par <@${OFFICER}>**, <t:${NOW}:R>.`);
     expect(customIdsOf((res.data as { components: unknown }).components).map((id) => parseTicketId(id)?.action)).toEqual(["fermer"]);
@@ -864,7 +875,7 @@ describe("un ticket, du guichet à la fermeture", () => {
     expect(body.message_reference).toEqual({ message_id: log!.id, channel_id: JOURNAL, fail_if_not_exists: false });
     expect(body.allowed_mentions).toEqual({ parse: [] });
     const text = JSON.stringify(reply?.body);
-    expect(text).toContain(`**Ticket fermé** : \`question-brennos_42\`, par <@${OFFICER}>`);
+    expect(text).toContain(`**Ticket fermé** : \`${markedChannelName("question-brennos_42", "waiting")}\`, par <@${OFFICER}>`);
     expect(text).toContain(`Ouvert <t:${NOW}:R> par <@${PLAYER}>.`);
     expect(text).toContain("Raison : Réglé \\\\:");
     expect(hookContents(w.hooks)).toEqual([TICKET_MESSAGES.closing(OFFICER)]);

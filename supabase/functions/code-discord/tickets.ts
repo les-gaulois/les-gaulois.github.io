@@ -465,6 +465,22 @@ export function ticketChannelName(kind: TicketKind, username: string): string {
   return `${KINDS[kind].prefix}-${name || "joueur"}`;
 }
 
+/**
+ * La pastille en tête du nom du salon : orange tant que personne de l'encadrement n'a pris la demande, verte ensuite.
+ * D'un coup d'œil sur la liste des salons, l'encadrement voit les tickets qui attendent.
+ */
+export const TICKET_MARKS = { waiting: "🟠", taken: "🟢" } as const;
+const MARK_SEPARATOR = "・";
+
+/** Le nom d'un salon avec sa pastille : celle qu'il portait déjà est remplacée, jamais doublée. */
+export function markedChannelName(name: string, state: keyof typeof TICKET_MARKS): string {
+  const marks: readonly string[] = Object.values(TICKET_MARKS);
+  let bare = name;
+  for (const mark of marks) if (bare.startsWith(mark)) bare = bare.slice(mark.length);
+  if (bare.startsWith(MARK_SEPARATOR)) bare = bare.slice(MARK_SEPARATOR.length);
+  return `${TICKET_MARKS[state]}${MARK_SEPARATOR}${bare}`.slice(0, 100);
+}
+
 /** L'heure d'un numéro de Discord, en secondes : les 42 premiers bits comptent les millisecondes depuis 2015. */
 export const snowflakeSeconds = (id: string): number => (SNOWFLAKE.test(id) ? Number(((BigInt(id) >> 22n) + 1_420_070_400_000n) / 1000n) : 0);
 
@@ -924,6 +940,13 @@ export async function ticketInteraction(interaction: Record<string, unknown>, de
     const hook = original(interaction);
     // Le joueur est prévenu, sauf s'il prend lui-même son ticket.
     if (hook && member.id !== parsed.opener) deps.background(tellOpener(deps, hook, TICKET_MESSAGES.claimed(parsed.opener, member.id), parsed.opener));
+    // La pastille du salon passe au vert. Un refus (Discord limite les renommages) laisse l'ancien nom : le ticket marche quand même.
+    const channel = text(interaction["channel_id"]);
+    const current = text(record(interaction["channel"])?.["name"]).slice(0, 100);
+    const renamed = current === "" ? "" : markedChannelName(current, "taken");
+    if (SNOWFLAKE.test(channel) && renamed !== "" && renamed !== current) {
+      deps.background(deps.discord("PATCH", `/channels/${channel}`, { body: { name: renamed }, reason: "Ticket pris en charge" }).then(() => undefined, () => undefined));
+    }
     return json({ type: 7, data: { flags: COMPONENTS_V2, components, allowed_mentions: quietly } });
   }
   if (button && parsed.action === "fermer") {
@@ -1010,7 +1033,7 @@ async function openTicket(deps: Deps, hook: string, config: Extract<TicketAction
   if (limited && ok(journal) && recentTicketsOf(journal?.body, deps.botId, member.id, openedAt) >= TICKETS_PER_DAY) return answer(deps, hook, TICKET_MESSAGES.tooMany);
 
   const spec = KINDS[config.kind];
-  const name = ticketChannelName(config.kind, member.username);
+  const name = markedChannelName(ticketChannelName(config.kind, member.username), "waiting");
   const reason = `Ticket « ${spec.button} » ouvert par ${member.username}`;
   // Sans réglages de droits, le salon prend ceux de la catégorie, privée. Et un nom neutre, sans sujet, tant que rien n'est
   // vérifié : un salon qui resterait visible ne dirait ni qui, ni pourquoi.
