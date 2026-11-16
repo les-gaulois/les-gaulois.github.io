@@ -19,7 +19,9 @@
  * persistant de chaque joueur (un anonyme ne doit pas être reconnaissable, CLAUDE.md) et ses cosmétiques payants (propriété
  * d'OpenFront), sauf son drapeau, fichier libre du jeu ; des tribus de robots ne reste que le nom, dont le moteur a besoin pour
  * rejouer la partie (noms achetés en boutique : l'exception est dite dans la notice). Les pseudos restent, comme dans le jeu :
- * choix du pilote du 15 novembre 2026.
+ * choix du pilote du 15 novembre 2026. Les tags de clan aussi, même libres (choix du pilote du 16 novembre 2026) : c'est la seule
+ * exception à la règle du site, qui n'affiche ailleurs que les tags de la liste officielle ; elle vaut pour ce lecteur, sur son
+ * site à part et non indexé, jamais pour les pages du site du clan ni pour les films.
  */
 
 /** Le dépôt du jeu, et ce que le site en prend pour construire le lecteur : tout, sauf les fichiers propriétaires, les cartes et les outils. */
