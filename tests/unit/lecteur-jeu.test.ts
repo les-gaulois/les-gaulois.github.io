@@ -2,12 +2,17 @@ import { describe, expect, it } from "vitest";
 import {
   adresseDuLecteur,
   adresseJsDelivr,
+  appliquerRetouche,
   commandeDeConstruction,
   dependanceHorsRegistre,
+  DOSSIER_DES_FICHES,
   dossierDuLecteur,
   drapeauxDeLaFiche,
   ficheNettoyee,
   IMAGE_DU_LECTEUR,
+  lireRecette,
+  RECETTE_DU_LECTEUR,
+  RETOUCHES_DU_CODE,
   MANIFESTE_DU_JEU,
   MANIFESTE_DU_SITE,
   manifesteDuLecteur,
@@ -15,8 +20,10 @@ import {
   origineDuLecteur,
   pageDuLecteur,
   regleDeSecurite,
+  SITE_DU_CLAN,
   svgRepris,
 } from "../../src/lib/rejeu/lecteur-jeu";
+import { ficheDuLecteur } from "../../src/lib/rejeu/fiche-du-lecteur";
 
 const COMMIT = "8b5d071eed95f07c701b32e4c64e95b03f8577c1";
 
@@ -76,6 +83,13 @@ describe("le vrai lecteur du jeu : où il vit, d'où il lit", () => {
     expect(dossierDuLecteur(COMMIT)).toBe("jeu/8b5d071eed/");
     expect(() => dossierDuLecteur("../x")).toThrow();
     expect(adresseDuLecteur("https://gal-replay.github.io", COMMIT, "abc123")).toBe("https://gal-replay.github.io/jeu/8b5d071eed/#replay-viewer=abc123");
+    // La fiche que la page demande avant de montrer le cadre, là où la publication la pose ; aucune sur l'adresse du clan ni
+    // pour un lien inattendu.
+    expect(ficheDuLecteur(adresseDuLecteur("https://gal-replay.github.io", COMMIT, "abc123"))).toBe(`https://gal-replay.github.io/${DOSSIER_DES_FICHES}game/abc123/`);
+    expect(ficheDuLecteur(`${SITE_DU_CLAN}/jeu/8b5d071eed/#replay-viewer=abc123`)).toBeNull();
+    expect(ficheDuLecteur("https://les-gaulois.github.io/jeu/8b5d071eed/#replay-viewer=abc123")).toBeNull();
+    expect(ficheDuLecteur("https://ailleurs.example/jeu/8b5d071eed/#replay-viewer=abc123")).toBeNull();
+    expect(ficheDuLecteur("https://gal-replay.github.io/jeu/8b5d071eed/#replay-viewer=../x")).toBeNull();
   });
   it("lit les fichiers du jeu sur jsDelivr, au commit, sauf les SVG, servis par son site, et sans logos de marques", () => {
     const m = manifesteDuLecteur(["atlases/icon-atlas.png", "maps/world/map.bin", "images/CityIconWhite.svg", "images/DiscordLogo.svg", "images/PlutoniumIcon.svg", "icons/github-mark-white.svg", "flags/fr.svg", "public/robots.txt", "../x.png"], COMMIT, "/");
@@ -102,6 +116,26 @@ describe("le vrai lecteur du jeu : où il vit, d'où il lit", () => {
     expect(dependanceHorsRegistre(verrou({ "node_modules/z": { resolved: "../hors-du-depot", link: true } }))).toBe("node_modules/z");
     expect(dependanceHorsRegistre(verrou({ "node_modules/w": { resolved: "file:/tmp/w.tgz" } }))).toBe("node_modules/w");
     expect(dependanceHorsRegistre(JSON.stringify({ lockfileVersion: 3 }))).not.toBeNull();
+  });
+  it("retouche le jeu pour qu'il ne se croie jamais sur CrazyGames, même encadré, et s'arrête si le code a changé", () => {
+    const sdk = "export class CrazyGamesSDK {\n  isOnCrazyGames(): boolean {\n    try {\n      if (window.self !== window.top) return true;\n      return false;\n    } catch { return true; }\n  }\n}\n";
+    const [crazy] = RETOUCHES_DU_CODE;
+    expect(crazy!.fichier).toBe("src/client/CrazyGamesSDK.ts");
+    const retouche = appliquerRetouche(sdk, crazy!);
+    expect(retouche).toMatch(/isOnCrazyGames\(\): boolean \{\n\s*\/\*[^\n]*\*\/\n\s*return false;\n\s*try \{/);
+    expect(() => appliquerRetouche("export class Autre {}", crazy!)).toThrow("a changé");
+    expect(() => appliquerRetouche(sdk + sdk, crazy!)).toThrow("2 fois");
+    // La notice dit chaque retouche, avant et après.
+    const notice = noticeDuLecteur([COMMIT]);
+    expect(notice).toContain("src/client/CrazyGamesSDK.ts");
+    expect(notice).toContain("/* Site du clan [GAL] : jamais sur CrazyGames, même encadré. */ return false;");
+  });
+  it("ne publie un lecteur gardé en cache que s'il est de la recette du jour", () => {
+    expect(RECETTE_DU_LECTEUR).toBeGreaterThanOrEqual(2);
+    expect(lireRecette(`${RECETTE_DU_LECTEUR}\n`)).toBe(RECETTE_DU_LECTEUR);
+    expect(lireRecette(null)).toBeNull();
+    expect(lireRecette("deux")).toBeNull();
+    expect(lireRecette("")).toBeNull();
   });
   it("le construit dans un conteneur Node 24 sans réseau ni droits, à la base de son dossier", () => {
     const args = commandeDeConstruction("/w/construction", COMMIT, "lecteur-x");
@@ -150,6 +184,14 @@ describe("la page du lecteur", () => {
     // Sur un téléphone, les morceaux longs se cachent : le retour, « modifié », « non officiel », le © et les licences restent.
     expect(texte(bandeau.replace(/<span class="gal-long">[^<]*<\/span>/g, ""))).toBe("← Revoir une partie · modifié, non officiel · © OpenFront and Contributors · licences");
     expect(page).toMatch(/@media \(max-width:40rem\)\{[^}]*bottom:3rem[^}]*\}#gal-bandeau \.gal-long\{display:none\}\}/);
+    // Encadrée dans « Revoir une partie », la page le sait : le retour vers cette même page se cache, comme les morceaux longs ;
+    // « modifié », « non officiel », le © et les licences (dans un nouvel onglet) restent.
+    const tete = page.slice(0, page.indexOf("BOOTSTRAP_CONFIG"));
+    expect(tete).toContain('if (window.top !== window.self) document.documentElement.classList.add("gal-encadre")');
+    expect(page).toContain(".gal-encadre #gal-bandeau .gal-long,.gal-encadre #gal-bandeau .gal-retour-bloc{display:none}");
+    const encadre = bandeau.replace(/<span class="gal-retour-bloc">[\s\S]*?<\/a> · <\/span>/, "").replace(/<span class="gal-long">[^<]*<\/span>/g, "");
+    expect(texte(encadre)).toBe("modifié, non officiel · © OpenFront and Contributors · licences");
+    expect(bandeau).toMatch(/<a href="\/jeu\/LISEZ-MOI\.txt" target="_blank" rel="noopener">/);
     expect(page).toContain('href="https://les-gaulois.github.io/revoir"');
     expect(page).toContain('href="/jeu/LISEZ-MOI.txt"');
   });

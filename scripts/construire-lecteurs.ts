@@ -14,7 +14,7 @@
 import { spawn } from "node:child_process";
 import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { commandeDeConstruction, dependanceHorsRegistre, DEPOT_DU_JEU, DOSSIER_DES_LECTEURS, IMAGE_DU_LECTEUR, manifesteDuLecteur, MANIFESTE_DU_JEU, MANIFESTE_DU_SITE, MOTIFS_DU_LECTEUR, svgRepris } from "../src/lib/rejeu/lecteur-jeu";
+import { appliquerRetouche, commandeDeConstruction, dependanceHorsRegistre, DEPOT_DU_JEU, lireRecette, RECETTE_DU_LECTEUR, RETOUCHES_DU_CODE, DOSSIER_DES_LECTEURS, IMAGE_DU_LECTEUR, manifesteDuLecteur, MANIFESTE_DU_JEU, MANIFESTE_DU_SITE, MOTIFS_DU_LECTEUR, svgRepris } from "../src/lib/rejeu/lecteur-jeu";
 import { INDEX_DES_FILMS, lireIndex } from "../src/lib/rejeu/films-index";
 
 
@@ -86,6 +86,12 @@ function effacerTravail(chemin: string) {
   }
 }
 
+/** La recette d'un lecteur construit (`recette.txt`), `null` sans elle. */
+function recetteDe(dossier: string): number | null {
+  const chemin = join(dossier, "recette.txt");
+  return lstatSync(chemin, { throwIfNoEntry: false })?.isFile() ? lireRecette(readFileSync(chemin, "utf8")) : null;
+}
+
 /** Les SVG d'un dossier, chemins relatifs. */
 function svgs(dossier: string, prefixe = ""): string[] {
   if (!existsSync(dossier)) return [];
@@ -127,6 +133,7 @@ async function construire(commit: string, drapeaux: boolean): Promise<void> {
     const config = readFileSync(join(travail, "vite.config.ts"), "utf8");
     if (!config.includes(MANIFESTE_DU_JEU)) throw new Error("la configuration du jeu a changé (manifeste)");
     writeFileSync(join(travail, "vite.config.ts"), config.replace(MANIFESTE_DU_JEU, MANIFESTE_DU_SITE));
+    for (const r of RETOUCHES_DU_CODE) writeFileSync(join(travail, r.fichier), appliquerRetouche(readFileSync(join(travail, r.fichier), "utf8"), r));
     // `npm ci` tourne hors du conteneur : pas de réglages npm venus du jeu (déjà écartés par les motifs), et seulement des
     // bibliothèques du registre public, vérifiées par leur empreinte, jamais tirées de Git ou d'une autre adresse.
     rmSync(join(travail, ".npmrc"), { force: true });
@@ -161,6 +168,7 @@ async function construire(commit: string, drapeaux: boolean): Promise<void> {
     cpSync(join(statique, "assets"), join(partiel, "assets"), { recursive: true });
     cpSync(join(statique, "index.html"), join(partiel, "modele.html"));
     writeFileSync(join(partiel, "fichiers.txt"), `${fichiers.join("\n")}\n`);
+    writeFileSync(join(partiel, "recette.txt"), `${RECETTE_DU_LECTEUR}\n`);
     for (const f of svgs(join(travail, "resources")).filter((f) => !f.startsWith("flags/") && svgRepris(f))) {
       mkdirSync(join(partiel, "res", f, ".."), { recursive: true });
       cpSync(join(travail, "resources", f), join(partiel, "res", f));
@@ -188,7 +196,8 @@ const commits: string[] = [];
 for (const f of [...index.films].sort((a, b) => b.debut.localeCompare(a.debut))) if (f.commit && !commits.includes(f.commit)) commits.push(f.commit);
 const gardes = commits.slice(0, LECTEURS_MAX);
 for (const [i, commit] of gardes.entries()) {
-  if (existsSync(join(DOSSIER_DES_LECTEURS, commit, "modele.html")) && (i > 0 || existsSync(join(DOSSIER_DES_LECTEURS, "drapeaux")))) continue;
+  // Déjà construit, de la même recette : rien à refaire.
+  if (existsSync(join(DOSSIER_DES_LECTEURS, commit, "modele.html")) && recetteDe(join(DOSSIER_DES_LECTEURS, commit)) === RECETTE_DU_LECTEUR && (i > 0 || existsSync(join(DOSSIER_DES_LECTEURS, "drapeaux")))) continue;
   const t0 = Date.now();
   try {
     await construire(commit, i === 0);

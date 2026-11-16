@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BUDGET_FILMS_OCTETS, ESSAIS_MAX, indexVide, lireIndex, nomDuFilm, noterEchec, noterFilm, partiesAFilmer, rangerLesFilms, type IndexDesFilms } from "../../src/lib/rejeu/films-index";
+import { BUDGET_FILMS_OCTETS, ESSAIS_MAX, FilmPublie, indexVide, lireIndex, nomDuFilm, noterEchec, noterFilm, partiesAFilmer, rangerLesFilms, type IndexDesFilms } from "../../src/lib/rejeu/films-index";
 
 const NOW = new Date("2026-11-15T12:00:00Z");
 const s = (gameId: string, gameStart: string) => ({ gameId, gameStart });
@@ -69,5 +69,15 @@ describe("ce que le cache garde", () => {
     const v1 = { format: 1, films: [{ partie: "a", debut: "2026-11-15T08:00:00.000Z", octets: 1 }], ratees: [{ partie: "b", debut: "2026-11-15T08:00:00.000Z", raison: "partie trop longue à rejouer", essais: 1, definitive: true }, { partie: "c", debut: "2026-11-15T08:00:00.000Z", raison: "?", essais: 1, definitive: false }], passage: "2026-11-15T12:00:00.000Z" };
     // … en gardant ses échecs pour de bon et la date de son dernier passage.
     expect(lireIndex(JSON.stringify(v1))).toEqual({ ...indexVide(), ratees: [v1.ratees[0]], passage: "2026-11-15T12:00:00.000Z" });
+  });
+});
+
+describe("la liste publiée", () => {
+  const film = { partie: "abc123", debut: "2026-11-16T07:31:38.340Z", carte: "World", victoire: true, equipes: "Duos", gaulois: 2, joueurs: 20, secondes: 60, octets: 1000 };
+  it("accepte le lien du vrai lecteur sur son site à part, jamais sur l'adresse du clan", () => {
+    expect(FilmPublie.parse({ ...film, jeu: "https://gal-revoir.github.io/jeu/8b5d071eed/#replay-viewer=abc123" }).jeu).toBe("https://gal-revoir.github.io/jeu/8b5d071eed/#replay-viewer=abc123");
+    expect(FilmPublie.parse(film).jeu).toBeNull();
+    expect(FilmPublie.safeParse({ ...film, jeu: "https://les-gaulois.github.io/jeu/8b5d071eed/#replay-viewer=abc123" }).success).toBe(false);
+    expect(FilmPublie.safeParse({ ...film, jeu: "/jeu/8b5d071eed/#replay-viewer=abc123" }).success).toBe(false);
   });
 });

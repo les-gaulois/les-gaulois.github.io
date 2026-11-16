@@ -17,6 +17,12 @@ const films = liste?.films ?? [];
 
 const hydrated = (page: Page) => page.waitForFunction(() => !document.querySelector("astro-island[ssr]"));
 
+/** Le site du vrai lecteur du jeu n'est jamais joint pendant les tests : une page vide le remplace, fiches comprises. */
+const LECTEUR = /^https:\/\/[a-z0-9-]+\.github\.io\/jeu\//;
+test.beforeEach(async ({ page }) => {
+  await page.route(LECTEUR, (r) => r.fulfill({ status: 200, contentType: "text/html", body: '<!doctype html><html lang="fr"><title>Replay du jeu</title></html>' }));
+});
+
 /**
  * Un film de 3 × 2 cases sur la carte « World », deux images : les Gaulois prennent une case, puis trois. À la seconde image,
  * une ville gauloise au milieu de la carte entière (12 × 8 cases) et un navire adverse.
@@ -156,5 +162,65 @@ test.describe("le vrai lecteur du jeu", () => {
     const fiche = readFileSync(`${DOSSIER_SITE_DU_LECTEUR}/${DOSSIER_DES_FICHES}game/${avecJeu!.partie}/index.html`, "utf8");
     expect(fiche).not.toContain("publicID");
     expect(fiche).not.toMatch(/[<>]/);
+  });
+
+  test("le replay du jeu s'ouvre dans la page, sans clic, dans un cadre isolé, et s'ouvre aussi en grand", async ({ page }) => {
+    await page.goto(`/revoir?partie=${avecJeu!.partie}`);
+    await hydrated(page);
+    const cadre = page.getByTestId("rejeu-jeu-cadre");
+    await expect(cadre).toBeVisible();
+    await expect(cadre).toHaveAttribute("src", avecJeu!.jeu!);
+    // Ni navigation de la page qui l'encadre, ni formulaire : seulement ses scripts, son stockage à lui et les liens qu'il ouvre.
+    await expect(cadre).toHaveAttribute("sandbox", "allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox");
+    await expect(cadre).toHaveAttribute("referrerpolicy", "no-referrer");
+    await expect(cadre).toHaveAttribute("allow", "fullscreen");
+    expect((await cadre.getAttribute("title")) ?? "").toContain("Replay du jeu");
+    const lien = page.getByTestId("rejeu-jeu");
+    await expect(lien).toHaveAttribute("href", avecJeu!.jeu!);
+    await expect(lien).toHaveAttribute("target", "_blank");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+  });
+
+  test("« Film du site » montre le film et sa légende, « Replay du jeu » remet le cadre et arrête le film", async ({ page }) => {
+    await page.goto(`/revoir?partie=${avecJeu!.partie}`);
+    await hydrated(page);
+    const jeu = page.getByTestId("rejeu-vue-jeu");
+    const filmDuSite = page.getByTestId("rejeu-vue-film");
+    await expect(jeu).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByTestId("rejeu-toile")).toBeHidden();
+    await expect(page.getByTestId("rejeu-choix")).toHaveCount(0);
+    await filmDuSite.click();
+    await expect(filmDuSite).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByTestId("rejeu-jeu-cadre")).toHaveCount(0);
+    await expect(page.getByTestId("rejeu-toile")).toBeVisible();
+    await expect(page.getByTestId("rejeu-choix")).toBeVisible();
+    // Le film lancé s'arrête quand le replay du jeu reprend la place.
+    await page.getByTestId("rejeu-temps").fill("0");
+    await page.getByTestId("rejeu-lecture").click();
+    await expect(page.getByTestId("rejeu-lecture")).toHaveText("Pause");
+    await jeu.click();
+    await expect(page.getByTestId("rejeu-jeu-cadre")).toBeVisible();
+    await filmDuSite.click();
+    await expect(page.getByTestId("rejeu-lecture")).not.toHaveText("Pause");
+  });
+
+  test("si la fiche manque sur le site du lecteur, la partie montre son film, sans cadre ni bascule", async ({ page }) => {
+    await page.route(LECTEUR, (r) => r.fulfill({ status: 404, contentType: "text/html", body: "introuvable" }));
+    await page.goto(`/revoir?partie=${avecJeu!.partie}`);
+    await hydrated(page);
+    await expect(page.getByTestId("rejeu-toile")).toBeVisible();
+    await expect(page.getByTestId("rejeu-jeu-cadre")).toHaveCount(0);
+    await expect(page.getByTestId("rejeu-vue-film")).toHaveCount(0);
+    await expect(page.getByTestId("rejeu-jeu")).toHaveCount(0);
+  });
+
+  test("une partie sans lecteur du jeu garde son film, sans cadre", async ({ page }) => {
+    const sansJeu = films.find((f) => !f.jeu);
+    test.skip(!sansJeu, "Toutes les parties publiées ont le lecteur du jeu.");
+    await page.goto(`/revoir?partie=${sansJeu!.partie}`);
+    await hydrated(page);
+    await expect(page.getByTestId("rejeu-toile")).toBeVisible();
+    await expect(page.getByTestId("rejeu-jeu-cadre")).toHaveCount(0);
+    await expect(page.getByTestId("rejeu-jeu")).toHaveCount(0);
   });
 });

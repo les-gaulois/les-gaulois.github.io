@@ -147,6 +147,8 @@ export const FilmPublie = z.object({
   jeu: z
     .string()
     .regex(/^https:\/\/[a-z0-9-]+\.github\.io\/jeu\/[0-9a-f]{10}\/#replay-viewer=[A-Za-z0-9]{1,32}$/)
+    // Jamais l'adresse du clan : la page l'encadre avec ses scripts, qui n'y tournent qu'à part (src/lib/rejeu/lecteur-jeu.ts).
+    .refine((a) => !a.startsWith("https://les-gaulois.github.io/"), "le lecteur du jeu ne vit jamais sur l'adresse du clan")
     .nullable()
     .default(null),
   octets: z.number().int().min(1).max(MAX_OCTETS_FILM),

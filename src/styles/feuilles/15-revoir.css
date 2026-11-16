@@ -395,18 +395,82 @@
   }
 }
 
-/* Le vrai lecteur du jeu (15 novembre 2026) : un bouton sous le titre, et ce qu'il ouvre en une ligne. */
-.revoir-jeu {
+/* Le vrai lecteur du jeu dans la page (16 novembre 2026, demande du pilote : « en petit carré », sans clic de plus). Sous le
+   titre, deux boutons à bascule disent ce que montre le cadre : le replay du jeu, montré d'abord, ou le film du site. Une
+   seule pièce au filet clair sur un fond de nuit ; le choix en cours est blanc, écrit en bleu de nuit, comme une case
+   cochée de « Sur la carte ». Rien ne bouge : la couleur seule change. */
+.revoir-vues {
+  display: inline-flex;
+  max-width: 100%;
+  margin-top: 1rem;
+  padding: 0.1875rem;
+  border: 1px solid var(--hairline);
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--color-night) 70%, transparent);
+}
+.revoir-vues button {
+  min-height: 2.75rem;
+  padding: 0 1rem;
+  border-radius: 0.3125rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--ecriture);
+  cursor: pointer;
+}
+.revoir-vues button:hover {
+  background: color-mix(in srgb, var(--ecriture) 14%, transparent);
+}
+.revoir-vues button[aria-pressed="true"] {
+  background: var(--ecriture);
+  color: var(--color-night);
+}
+.revoir-vues button:focus-visible {
+  outline: 2px solid var(--anneau);
+  outline-offset: 2px;
+}
+@media (forced-colors: active) {
+  .revoir-vues button[aria-pressed="true"] {
+    background: Highlight;
+    color: HighlightText;
+  }
+}
+
+/* Le film masqué reste dans la page : `display: flex` de sa barre ne doit pas le faire reparaître. */
+.revoir-scene[hidden] {
+  display: none;
+}
+
+/* Le carré du jeu : à la place de la carte du film, côté égal à 70 % de la hauteur de l'écran au plus, comme elle. Le lecteur
+   y tient entier, son classement en haut, sa frise en bas, et son bandeau « modifié, non officiel » reste à lui : rien du
+   site ne passe par-dessus. Fond de nuit pendant qu'il se charge. */
+.revoir-corps[data-vue="jeu"] .revoir-scene {
+  flex-basis: 70vh;
+}
+.revoir-cadre {
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.375rem;
+  background: var(--color-night);
+}
+.revoir-cadre iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+/* Sur un téléphone, un carré laisserait trop peu de carte entre le classement et la frise du jeu : le cadre se dresse, sans
+   jamais dépasser la hauteur de l'écran. */
+@media (max-width: 40rem) {
+  .revoir-cadre {
+    aspect-ratio: 3 / 4;
+    max-height: 80svh;
+  }
+}
+
+/* Les deux sorties, côte à côte, à la ligne s'il le faut : le replay en grand, puis la partie sur OpenFront. */
+.revoir-sortie {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem 1rem;
-  margin-top: 1rem;
-}
-.revoir-jeu .btn {
-  gap: 0.5rem;
-}
-.revoir-jeu-note {
-  font-size: 0.875rem;
-  color: var(--stage-muted);
+  gap: 0 1.5rem;
 }

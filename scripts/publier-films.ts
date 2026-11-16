@@ -13,7 +13,7 @@ import { gunzipSync } from "node:zlib";
 import { loadLeaderboard, loadMembers } from "../src/lib/data";
 import { MAX_OCTETS_FICHE } from "../src/lib/rejeu-openfront";
 import { lireFilm, secondesDeLImage } from "../src/lib/rejeu/film";
-import { adresseDuLecteur, DOSSIER_DES_DRAPEAUX, DOSSIER_DES_FICHES, DOSSIER_DES_LECTEURS, DOSSIER_SITE_DU_LECTEUR, dossierDuLecteur, drapeauxDeLaFiche, ficheNettoyee, manifesteDuLecteur, noticeDuLecteur, origineDuLecteur, pageDuLecteur, SITE_DU_CLAN, svgRepris } from "../src/lib/rejeu/lecteur-jeu";
+import { adresseDuLecteur, DOSSIER_DES_DRAPEAUX, DOSSIER_DES_FICHES, DOSSIER_DES_LECTEURS, DOSSIER_SITE_DU_LECTEUR, dossierDuLecteur, drapeauxDeLaFiche, ficheNettoyee, lireRecette, manifesteDuLecteur, noticeDuLecteur, origineDuLecteur, pageDuLecteur, RECETTE_DU_LECTEUR, SITE_DU_CLAN, svgRepris } from "../src/lib/rejeu/lecteur-jeu";
 import { DOSSIER_FILMS, DOSSIER_PUBLIC_FILMS, INDEX_DES_FILMS, LISTE_DES_FILMS, ListeDesFilms, lireIndex, MAX_OCTETS_FILM, MAX_OCTETS_FILM_DECOMPRESSE, nomDeLaFiche, nomDuFilm, type FilmPublie } from "../src/lib/rejeu/films-index";
 
 /** Posé avec les films : un film téléchargé seul dit d'où vient son terrain et sous quelle licence il reste. */
@@ -82,6 +82,9 @@ for (const commit of origine && existsSync(DOSSIER_DES_LECTEURS) ? readdirSync(D
   if (!/^[0-9a-f]{40}$/.test(commit) || !existsSync(join(source, "modele.html")) || !existsSync(join(source, "fichiers.txt"))) continue;
   try {
     if (!lstatSync(join(source, "modele.html")).isFile() || !lstatSync(join(source, "fichiers.txt")).isFile()) throw new Error("fichier inattendu");
+    // Un lecteur d'une autre recette attend d'être refait par le job « films » : ses parties gardent leur film d'ici là.
+    const recette = lstatSync(join(source, "recette.txt"), { throwIfNoEntry: false })?.isFile() ? lireRecette(readFileSync(join(source, "recette.txt"), "utf8")) : null;
+    if (recette !== RECETTE_DU_LECTEUR) throw new Error(`construit selon une autre recette (${recette ?? "aucune"} au lieu de ${RECETTE_DU_LECTEUR}), à refaire`);
     const cible = join(DOSSIER_SITE_DU_LECTEUR, dossierDuLecteur(commit));
     const fichiers = readFileSync(join(source, "fichiers.txt"), "utf8").split("\n").filter(Boolean);
     const page = pageDuLecteur(readFileSync(join(source, "modele.html"), "utf8"), { commit, manifeste: manifesteDuLecteur(fichiers, commit, "/"), apiHost: `/${DOSSIER_DES_FICHES}`.replace(/\/$/, ""), retour: `${SITE_DU_CLAN}/revoir`, notice: "/jeu/LISEZ-MOI.txt" });

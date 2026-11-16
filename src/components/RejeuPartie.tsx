@@ -5,6 +5,7 @@ import { filmSpeed, speedLabel, speedText, SPEED_MAX, SPEED_MIN, SPEED_STEP } fr
 import { replayUrl } from "../lib/journal";
 import { mapLabel } from "../lib/map-names";
 import { DessinateurDetails, type ChoixDetails } from "../lib/rejeu/details";
+import { ficheDuLecteur } from "../lib/rejeu/fiche-du-lecteur";
 import { Bobine, CLASSE, CONSTRUCTIONS, COULEURS_DES_CLASSES, contientRetombees, decompresser, dureeDite, etiquettesDe, horloge, lireFilm, PeintreFilm, secondesDeLImage, UNITES, unitesDuFilm, type Film } from "../lib/rejeu/film";
 import { formatLabel } from "../lib/results";
 
@@ -118,6 +119,8 @@ export default function RejeuPartie({ base, dernier, jours, tag, jeux = {} }: Pr
   const [vitesse, setVitesse] = useState(SPEED_MAX);
   const [essai, setEssai] = useState(0);
   const [choix, setChoix] = useState<ChoixDetails>({ noms: true, unites: true });
+  // Ce que montre le cadre d'une partie qui a le vrai lecteur du jeu : lui d'abord, le film du site au choix.
+  const [vue, setVue] = useState<"jeu" | "film">("jeu");
   // La taille de la toile des détails, en pixels de l'écran : celle de la carte affichée.
   const [taille, setTaille] = useState<{ l: number; h: number } | null>(null);
   const toile = useRef<HTMLCanvasElement>(null);
@@ -132,6 +135,31 @@ export default function RejeuPartie({ base, dernier, jours, tag, jeux = {} }: Pr
   imageCourante.current = image;
 
   useEffect(() => setPartie(partieDeLAdresse() ?? dernier), [dernier]);
+
+  // Le vrai lecteur du jeu de cette partie : sa fiche est demandée à son site avant de montrer le cadre. Jamais sur l'adresse
+  // de cette page : le cadre laisse ses scripts tourner, ils ne doivent le faire qu'à part (src/lib/rejeu/lecteur-jeu.ts).
+  const jeuDemande = partie !== null ? jeux[partie] : undefined;
+  const [jeuEtat, setJeuEtat] = useState<"verif" | "pret" | "absent">("verif");
+  useEffect(() => {
+    if (jeuDemande === undefined) return;
+    const fiche = ficheDuLecteur(jeuDemande);
+    if (fiche === null || new URL(fiche).origin === window.location.origin) {
+      setJeuEtat("absent");
+      return;
+    }
+    let annule = false;
+    setJeuEtat("verif");
+    fetch(fiche, { method: "HEAD", cache: "no-store", credentials: "omit", referrerPolicy: "no-referrer" })
+      .then((r) => {
+        if (!annule) setJeuEtat(r.ok ? "pret" : "absent");
+      })
+      .catch(() => {
+        if (!annule) setJeuEtat("absent");
+      });
+    return () => {
+      annule = true;
+    };
+  }, [jeuDemande]);
 
   // Le film : un fichier du site, décompressé et relu ici.
   useEffect(() => {
@@ -303,6 +331,9 @@ export default function RejeuPartie({ base, dernier, jours, tag, jeux = {} }: Pr
   }
 
   const e = film?.entete;
+  // Le replay du jeu, sauf si sa fiche manque sur son site (dépôt en panne ou en retard) : le film, alors, comme sans lui.
+  const jeu = jeuDemande !== undefined && jeuEtat !== "absent" ? jeuDemande : undefined;
+  const montreLeJeu = jeu !== undefined && vue === "jeu";
   const fin = e ? secondesDeLImage(e, e.images - 1) : 0;
   const maintenant = e ? secondesDeLImage(e, image) : 0;
   const auBout = e !== undefined && image >= e.images - 1;
@@ -325,22 +356,54 @@ export default function RejeuPartie({ base, dernier, jours, tag, jeux = {} }: Pr
           </span>
         )}
       </div>
-      {/* Le vrai lecteur de replay du jeu, construit par le site pour la version de cette partie (src/lib/rejeu/lecteur-jeu.ts). */}
-      {partie !== null && jeux[partie] && (
-        <p class="revoir-jeu">
-          <a class="btn btn-secondary" href={jeux[partie]} rel="noopener" data-testid="rejeu-jeu">
-            <svg viewBox="0 0 14 14" width="14" height="14" fill="currentColor" aria-hidden="true">
-              <path d="M2 1l11 6-11 6z" />
-            </svg>
-            Voir le replay du jeu
-          </a>
-          <span class="revoir-jeu-note">Le lecteur d'OpenFront lui-même : noms, troupes, constructions, attaques.</span>
-        </p>
+      {/* Une partie qui a le vrai lecteur de replay du jeu (src/lib/rejeu/lecteur-jeu.ts) : le cadre le montre d'emblée, le
+          film du site reste à un bouton. Deux boutons à bascule, pas des onglets : le reste de la fiche ne change pas de page. */}
+      {jeu !== undefined && (
+        <div class="revoir-vues" role="group" aria-label="Ce que montre le cadre">
+          {/* Le film s'arrête quand le replay du jeu prend sa place : il reprendra, en pause, là où il en était. */}
+          <button
+            type="button"
+            aria-pressed={vue === "jeu"}
+            onClick={() => {
+              setLecture(false);
+              setVue("jeu");
+            }}
+            data-testid="rejeu-vue-jeu"
+          >
+            Replay du jeu
+          </button>
+          <button type="button" aria-pressed={vue === "film"} onClick={() => setVue("film")} data-testid="rejeu-vue-film">
+            Film du site
+          </button>
+        </div>
       )}
 
-      {/* La carte et sa barre de lecture d'un côté, les faits de la partie et la légende de l'autre (dessous sur téléphone). */}
-      <div class="revoir-corps" style={e ? { "--revoir-forme": String(e.largeur / e.hauteur) } : undefined}>
-        <div class="revoir-scene">
+      {/* Le cadre d'un côté, les faits de la partie et la légende de l'autre (dessous sur téléphone). */}
+      <div class="revoir-corps" data-vue={montreLeJeu ? "jeu" : "film"} style={e ? { "--revoir-forme": String(e.largeur / e.hauteur) } : undefined}>
+        {/* Le vrai lecteur du jeu, dans un carré. Il vient d'un autre site : enfermé (`sandbox`), sans autre droit que ses
+            scripts, son propre stockage et ses liens en nouvel onglet. Il s'ouvre en pause : le visiteur le lance. */}
+        {montreLeJeu && (
+          <div class="revoir-scene">
+            {/* Fond de nuit vide le temps de vérifier que la fiche de la partie est bien sur le site du lecteur. */}
+            <div class="revoir-cadre" aria-busy={jeuEtat !== "pret"}>
+              {jeuEtat === "pret" && (
+                <iframe
+                  key={partie}
+                  src={jeu}
+                  title={e ? `Replay du jeu OpenFront : ${mapLabel(e.carte)}, ${fmtDayAndTime(e.debut)}` : "Replay du jeu OpenFront"}
+                  sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+                  allow="fullscreen"
+                  allowFullScreen
+                  referrerpolicy="no-referrer"
+                  loading="lazy"
+                  data-testid="rejeu-jeu-cadre"
+                />
+              )}
+            </div>
+          </div>
+        )}
+        {/* Le film reste dans la page, masqué : ses toiles gardent leur image, et il reprend où il en était. */}
+        <div class="revoir-scene" hidden={montreLeJeu}>
           {/* Le fond du cadre : la mer de nuit de la carte, posée depuis sa constante (carte-dessin.ts). */}
           <div class="revoir-ecran" style={{ "--revoir-mer": MER_FINALE_CSS }}>
             <canvas
@@ -425,9 +488,10 @@ export default function RejeuPartie({ base, dernier, jours, tag, jeux = {} }: Pr
               </div>
             </dl>
           )}
-          {film && <Legende film={film} retombees={retombees} tag={tag} />}
-          {film && planches && <LegendeUnites film={film} dessinateur={dessinateur.current} />}
-          {film && (
+          {/* Les légendes et les cases ne parlent que du film : le jeu a ses propres couleurs. */}
+          {film && !montreLeJeu && <Legende film={film} retombees={retombees} tag={tag} />}
+          {film && !montreLeJeu && planches && <LegendeUnites film={film} dessinateur={dessinateur.current} />}
+          {film && !montreLeJeu && (
             <fieldset class="revoir-choix" data-testid="rejeu-choix">
               <legend>Sur la carte</legend>
               <label>
@@ -442,6 +506,12 @@ export default function RejeuPartie({ base, dernier, jours, tag, jeux = {} }: Pr
           )}
           {partie !== null && (
             <p class="revoir-sortie">
+              {jeu !== undefined && (
+                <a class="link" href={jeu} target="_blank" rel="noopener" data-testid="rejeu-jeu">
+                  Ouvrir le replay en grand
+                  <span class="sr-only"> (nouvel onglet)</span>
+                </a>
+              )}
               <a class="link" href={replayUrl(partie)} rel="noopener" data-testid="rejeu-openfront">
                 Ouvrir la partie sur OpenFront
               </a>

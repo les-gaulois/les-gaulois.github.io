@@ -7,8 +7,9 @@
  * **Sur une autre adresse que le site** (choix du pilote du 15 novembre 2026, après relecture) : le code du jeu, et chaque
  * nouvelle version construite sans relecture, ne doit jamais tourner là où les membres ont leur connexion (stockage local de
  * les-gaulois.github.io). Le lecteur est préparé par le job « build » du workflow du site, puis déposé par le job « lecteur » sur
- * un second site GitHub Pages, à lui seul (`REPLAY_SITE`, par exemple `gal-replay.github.io`) ; le site n'y renvoie que par des
- * liens.
+ * un second site GitHub Pages, à lui seul (`REPLAY_SITE`, par exemple `gal-replay.github.io`). Le site du clan le montre dans un
+ * cadre (`<iframe>` sous `sandbox`, sans navigation de sa page ni formulaires) : un autre site (github.io est sur la liste
+ * publique des suffixes), donc sans accès à la connexion ni au stockage du site du clan.
  *
  * Retiré de la page du jeu : tous les scripts de publicité et de mesure (Google, Playwire/RAMP, AdShield, CrazyGames, Turnstile,
  * Cloudflare Insights), ses balises qui la présentent comme le jeu officiel, et son titre « OpenFront », que le jeu ne peut plus
@@ -74,7 +75,7 @@ export function origineDuLecteur(reglage: string | undefined): string | null {
   return /^https:\/\/[a-z0-9-]+\.github\.io$/.test(adresse) && adresse !== SITE_DU_CLAN ? adresse : null;
 }
 
-/** Le lien du vrai lecteur pour une partie. */
+/** Le lien du vrai lecteur pour une partie. Sa fiche, que la page demande avant de le montrer : `fiche-du-lecteur.ts`. */
 export function adresseDuLecteur(origine: string, commit: string, partie: string): string {
   return `${origine}/${dossierDuLecteur(commit)}#replay-viewer=${encodeURIComponent(partie)}`;
 }
@@ -205,9 +206,12 @@ export function pageDuLecteur(modele: string, v: ValeursDeLaPage): string {
     `<script>try { localStorage.setItem("apiHost", ${JSON.stringify(v.apiHost)}.replace(/^\\//, location.origin + "/")); } catch (e) {}</script>`,
     // Le jeu remet son titre en changeant de langue : le titre du site reste.
     `<script>try { Object.defineProperty(document, "title", { configurable: false, get: function () { return ${JSON.stringify(TITRE)}; }, set: function () {} }); } catch (e) {}</script>`,
+    // Encadrée dans « Revoir une partie » (depuis le 16 novembre 2026, demande du pilote : « met le replay sur cette page »), la
+    // page le sait : le retour vers cette même page et les morceaux longs du bandeau se cachent.
+    `<script>try { if (window.top !== window.self) document.documentElement.classList.add("gal-encadre"); } catch (e) { document.documentElement.classList.add("gal-encadre"); }</script>`,
     // Le bandeau, en haut à droite, où le jeu ne met rien. Sur un téléphone, le classement du jeu prend tout le haut et sa
     // frise tout le bas (44 px) : le bandeau, plus court, se pose juste au-dessus de la frise, à gauche, sans couvrir de commande.
-    `<style>#gal-bandeau{position:fixed;top:0;right:0;z-index:2147483647;max-width:min(36rem,100vw);padding:.35rem .6rem;font:12px/1.35 system-ui,sans-serif;color:#e8ecf8;background:rgba(10,18,48,.86);border-bottom-left-radius:.4rem}#gal-bandeau a{color:#9dbcff}#gal-bandeau .gal-retour{font-weight:700}@media (max-width:40rem){#gal-bandeau{top:auto;right:auto;bottom:3rem;left:0;max-width:min(20rem,100vw);border-radius:0 .4rem .4rem 0}#gal-bandeau .gal-long{display:none}}</style>`,
+    `<style>#gal-bandeau{position:fixed;top:0;right:0;z-index:2147483647;max-width:min(36rem,100vw);padding:.35rem .6rem;font:12px/1.35 system-ui,sans-serif;color:#e8ecf8;background:rgba(10,18,48,.86);border-bottom-left-radius:.4rem}#gal-bandeau a{color:#9dbcff}#gal-bandeau .gal-retour{font-weight:700}@media (max-width:40rem){#gal-bandeau{top:auto;right:auto;bottom:3rem;left:0;max-width:min(20rem,100vw);border-radius:0 .4rem .4rem 0}#gal-bandeau .gal-long{display:none}}.gal-encadre #gal-bandeau .gal-long,.gal-encadre #gal-bandeau .gal-retour-bloc{display:none}</style>`,
   ].join("\n    ");
   // Juste après l'encodage s'il ouvre la tête, sinon tout en haut de la tête : avant tout ce qui charge quelque chose.
   const ouverture = /<head\b[^>]*>(\s*<meta\s+charset=["']?[A-Za-z0-9-]+["']?\s*\/?>)?/i;
@@ -216,9 +220,9 @@ export function pageDuLecteur(modele: string, v: ValeursDeLaPage): string {
   if (page.indexOf(regle) < 0 || /<(script|link|style|img|iframe|object|embed|base|svg|video|audio|source|meta\s+http-equiv)\b/i.test(avant)) throw new Error("modèle du lecteur inattendu (avant la règle de sécurité)");
   const bandeau = [
     `<div id="gal-bandeau" lang="fr">`,
-    `<a class="gal-retour" href="${v.retour}">← Revoir une partie</a> · `,
+    `<span class="gal-retour-bloc"><a class="gal-retour" href="${v.retour}">← Revoir une partie</a> · </span>`,
     `<span class="gal-long">lecteur de replay d'OpenFront, code libre (AGPL-3.0), </span>modifié<span class="gal-long"> par le clan [GAL]</span>, non officiel · © OpenFront and Contributors · `,
-    `<a href="${v.notice}">licences<span class="gal-long"> et sources</span></a></div>`,
+    `<a href="${v.notice}" target="_blank" rel="noopener">licences<span class="gal-long"> et sources</span></a></div>`,
   ].join("");
   page = page.replace(/<\/body\s*>/i, `${bandeau}\n  </body>`);
   return page;
@@ -266,6 +270,49 @@ export function commandeDeConstruction(dossier: string, commit: string, nom: str
 export const MANIFESTE_DU_JEU = "__ASSET_MANIFEST__: JSON.stringify(assetManifest),";
 export const MANIFESTE_DU_SITE = '__ASSET_MANIFEST__: process.env.GAL_MANIFEST ? fs.readFileSync(process.env.GAL_MANIFEST, "utf8") : JSON.stringify(assetManifest),';
 
+/**
+ * La recette du lecteur : à augmenter quand la façon de le construire change. Un lecteur gardé en cache d'une autre recette se
+ * refait, et n'est pas publié tant qu'il n'est pas refait (chaque partie garde alors son film).
+ * 2 (16 novembre 2026) : la retouche CrazyGames, pour le lecteur encadré dans « Revoir une partie ».
+ */
+export const RECETTE_DU_LECTEUR = 2;
+
+/** La recette lue dans `recette.txt` d'un lecteur construit ; `null` si le fichier manque ou ne dit pas un nombre. */
+export function lireRecette(texte: string | null): number | null {
+  const t = (texte ?? "").trim();
+  return /^\d{1,4}$/.test(t) ? Number(t) : null;
+}
+
+/** Une retouche du code du jeu : un passage exact de l'un de ses fichiers, remplacé avant la construction. */
+export interface Retouche {
+  fichier: string;
+  avant: string;
+  apres: string;
+  /** Pourquoi, dit dans la notice du lecteur. */
+  raison: string;
+}
+
+/**
+ * Les retouches du code du jeu, en plus du manifeste. Le jeu prend tout cadre qu'il ne reconnaît pas pour le portail CrazyGames
+ * (compte, publicités et salons du portail) : encadré dans « Revoir une partie », il ouvrait « Erreur de connexion ! » par-dessus
+ * le replay (16 novembre 2026). Ici, il n'est jamais sur un portail.
+ */
+export const RETOUCHES_DU_CODE: readonly Retouche[] = [
+  {
+    fichier: "src/client/CrazyGamesSDK.ts",
+    avant: "isOnCrazyGames(): boolean {",
+    apres: "isOnCrazyGames(): boolean {\n    /* Site du clan [GAL] : jamais sur CrazyGames, même encadré. */\n    return false;",
+    raison: "le lecteur, encadré dans la page du clan, ne se croit jamais sur le portail CrazyGames",
+  },
+];
+
+/** Applique une retouche à un fichier du jeu. Lève une erreur si le passage n'y est pas exactement une fois : le jeu a changé. */
+export function appliquerRetouche(texte: string, r: Retouche): string {
+  const morceaux = texte.split(r.avant);
+  if (morceaux.length !== 2) throw new Error(`le code du jeu a changé (${r.fichier} : ${morceaux.length - 1} fois au lieu d'une)`);
+  return morceaux.join(r.apres);
+}
+
 /** La notice posée avec les lecteurs (`/jeu/LISEZ-MOI.txt`) : d'où viennent le code et les fichiers, sous quelles licences, ce qui a changé. */
 export function noticeDuLecteur(commits: readonly string[]): string {
   return [
@@ -278,6 +325,7 @@ export function noticeDuLecteur(commits: readonly string[]): string {
     "fichiers remplacé pour lire les fichiers libres du jeu sur jsDelivr ou sur ce site, par cette seule ligne de vite.config.ts :",
     `  avant : ${MANIFESTE_DU_JEU}`,
     `  après : ${MANIFESTE_DU_SITE}`,
+    ...RETOUCHES_DU_CODE.flatMap((r) => [`depuis le 16 novembre 2026, dans ${r.fichier} (${r.raison}) :`, `  avant : ${r.avant}`, `  après : ${r.apres.replace(/\n\s*/g, " ")}`]),
     "page sans aucun script de publicité ni de mesure, avec une règle de sécurité qui n'autorise que ce site et le dépôt du jeu sur",
     "jsDelivr, un titre, un bandeau, et un renvoi vers le site du clan quand aucune partie n'est choisie ; sans logos ni icônes de",
     "l'application.",

@@ -2727,6 +2727,9 @@ test.describe("sans JavaScript", () => {
 for (const path of [...PAGES, "/direction"]) {
   test(`accessibilité WCAG AA : ${path}`, async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
+    // Le vrai lecteur du jeu, encadré dans « Revoir une partie », vient d'un autre site et montre l'interface d'OpenFront telle
+    // quelle : le test contrôle la page du site et le cadre (son titre), pas le jeu, et ne dépend pas d'un site en ligne.
+    await page.route(/^https:\/\/[a-z0-9-]+\.github\.io\/jeu\//, (r) => r.fulfill({ status: 200, contentType: "text/html", body: '<!doctype html><html lang="fr"><title>Replay du jeu</title><main></main></html>' }));
     await page.goto(path);
     await page.waitForLoadState("networkidle");
     await openFolds(page);
