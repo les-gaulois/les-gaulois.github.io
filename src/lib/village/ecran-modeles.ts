@@ -5,8 +5,10 @@
  * ne décide d'un droit, d'un prix ni d'un tirage : le serveur le fait, et `modeles.ts` lit ses réponses.
  */
 import { ORDRE_RARETES, RARETES, type Rarete } from "../gaulois";
+import { rognerLeDessin, type Album, type ElementDeLAlbum } from "./album-pochette";
 import type { MesModeles } from "./contrat";
-import { MODELES, chancesPourMoi, etatDuModele, modelesParRarete, restantsParRarete, type EtatDuModele, type ModeleRange } from "./modeles";
+import type { DessinEnCases } from "./ecran-familiers";
+import { MODELES, chancesPourMoi, etatDuModele, modeleNu, modelesParRarete, restantsParRarete, type EtatDuModele, type ModeleRange } from "./modeles";
 import { bandeDuTambour, rangeeAuHasard, type Bande } from "./tambour";
 
 type Valeurs = Readonly<Record<Rarete, number>>;
@@ -72,3 +74,40 @@ export const actionDeLEssai = (id: string, mes: Pick<MesModeles, "modeles" | "po
 
 /** L'essayage tient-il encore ? Un modèle porté ne s'essaie pas : le Gaulois le porte déjà. */
 export const essaiDuModeleValide = (id: string | null, mes: Pick<MesModeles, "modeles" | "porte"> | null): string | null => (id !== null && etatDuModele(id, mes) !== "porte" ? id : null);
+
+const NUS_ROGNES = new Map<string, DessinEnCases | null>();
+/** Le modèle seul, rogné à son dessin : calculé une fois par modèle de la vraie liste. */
+function nuRogne(modele: ModeleRange, liste: readonly ModeleRange[]): DessinEnCases | null {
+  if (liste === MODELES && NUS_ROGNES.has(modele.id)) return NUS_ROGNES.get(modele.id) ?? null;
+  const nu = modeleNu(modele.id);
+  const dessin = nu && rognerLeDessin(nu);
+  if (liste === MODELES) NUS_ROGNES.set(modele.id, dessin);
+  return dessin;
+}
+
+/**
+ * L'album de la pochette des Gaulois uniques (16 novembre 2026, `AlbumPochette.tsx`) : les modèles famille par famille,
+ * en couleur comme dans la vitrine, avec leur chance dans la prochaine pochette de ce compte, comme le tirage : la rareté
+ * selon ses chances pour lui (`chancesPourMoi`), puis un de ses modèles manquants, à chances égales ; 0 pour un modèle
+ * déjà reçu, la pochette ne le redonne jamais.
+ */
+export function albumDesModeles(mes: Pick<MesModeles, "modeles" | "pochette">, liste: readonly ModeleRange[] = MODELES): Album {
+  const possedes = new Set(mes.modeles.map((ligne) => ligne.modele));
+  const pourMoi = chancesPourMoi(mes.pochette.chances, possedes, liste);
+  const restants = restantsParRarete(possedes, liste);
+  const elements = liste.map(
+    (modele): ElementDeLAlbum => ({
+      id: modele.id,
+      nom: modele.nom,
+      rarete: modele.rarete,
+      groupe: modele.famille,
+      detail: modele.famille,
+      dessin: nuRogne(modele, liste),
+      silhouette: false,
+      possede: possedes.has(modele.id),
+      montre: false,
+      chance: possedes.has(modele.id) || !pourMoi || restants[modele.rarete] === 0 ? 0 : pourMoi[modele.rarete] / restants[modele.rarete],
+    }),
+  );
+  return { titre: "Dans la pochette des Gaulois uniques", sous: `${surCombien(elements.filter((e) => e.possede).length, elements.length)} à vous`, libelleDesGroupes: "Montrer une famille", elements };
+}

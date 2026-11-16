@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { EMPLACEMENTS_OBJETS, NOMS_EMPLACEMENTS, ORDRE_RARETES, type Rarete } from "../../src/lib/gaulois";
-import { ALBUM_ETROIT, TOUS, albumDeLaMenagerie, albumDeLaPochetteSurprise, casesDuGroupe, nombreDansLaPochetteSurprise, decrireLaCase, groupesDeLAlbum, placerLAlbum, premiereALaLoupe, rognerLesRangees, type ElementDeLAlbum } from "../../src/lib/village/album-pochette";
+import { ALBUM_ETROIT, TOUS, albumDeLaMenagerie, albumDeLaPochetteSurprise, casesDuGroupe, nombreDansLaPochetteSurprise, decrireLaCase, groupesDeLAlbum, placerLAlbum, premiereALaLoupe, rognerLeDessin, rognerLesRangees, type ElementDeLAlbum } from "../../src/lib/village/album-pochette";
 import { chanceDeLObjet, objetsDeLaPochette } from "../../src/lib/village/boutique";
 import { CHANCES_POCHETTE, CHANCES_POCHETTE_FAMILIERS, PRIX_POCHETTE_FAMILIERS, type MesFamiliers, type ObjetPossede } from "../../src/lib/village/contrat";
 import { COULEUR_SILHOUETTE } from "../../src/lib/village/ecran-familiers";
@@ -155,6 +155,14 @@ describe("rogner un dessin", () => {
     const dessin = { largeur: 2, hauteur: 5, cases: [null, null, x, null, null, null, null, x, null, null] };
     expect(rognerLesRangees(dessin)).toEqual({ largeur: 2, hauteur: 3, cases: [x, null, null, null, null, x] });
     expect(rognerLesRangees({ largeur: 2, hauteur: 2, cases: [null, null, null, null] })).toBeNull();
+  });
+
+  it("retire aussi les colonnes vides de chaque côté", () => {
+    const x = "#123456";
+    const y = "#abcdef";
+    const dessin = { largeur: 4, hauteur: 3, cases: [null, null, null, null, null, x, null, null, null, null, y, null] };
+    expect(rognerLeDessin(dessin)).toEqual({ largeur: 2, hauteur: 2, cases: [x, null, null, y] });
+    expect(rognerLeDessin({ largeur: 1, hauteur: 1, cases: [null] })).toBeNull();
   });
 });
 

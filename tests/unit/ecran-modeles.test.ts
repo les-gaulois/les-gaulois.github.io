@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MesModeles } from "../../src/lib/village/contrat";
-import { actionDeLEssai, bandeDesModeles, essaiDuModeleValide, lignesDesChances, modelesDeLaPochette, modelesPossedes, resteADecouvrir, surCombien } from "../../src/lib/village/ecran-modeles";
+import { actionDeLEssai, albumDesModeles, bandeDesModeles, essaiDuModeleValide, lignesDesChances, modelesDeLaPochette, modelesPossedes, resteADecouvrir, surCombien } from "../../src/lib/village/ecran-modeles";
 import { MODELES, chancesPourMoi, modeleParId } from "../../src/lib/village/modeles";
 import { CIBLE_DU_TAMBOUR, DEPART_DU_TAMBOUR } from "../../src/lib/village/tambour";
 
@@ -128,5 +128,38 @@ describe("l'essayage d'un Gaulois unique", () => {
     expect(essaiDuModeleValide("lezard", mes(["lezard"], "lezard"))).toBeNull();
     expect(essaiDuModeleValide("dragon", mes(["lezard"], "lezard"))).toBe("dragon");
     expect(essaiDuModeleValide(null, mes([]))).toBeNull();
+  });
+});
+
+describe("l'album de la pochette des Gaulois uniques", () => {
+  const pochette = { prix: 2000, chances: { ...CHANCES } };
+
+  it("montre les modèles famille par famille, en couleur, avec la chance du tirage : 100 en tout", () => {
+    const album = albumDesModeles({ ...mes([]), pochette });
+    expect(album.elements.map((e) => e.id)).toEqual(MODELES.map((m) => m.id));
+    expect(album.elements.every((e) => !e.silhouette && e.dessin !== null)).toBe(true);
+    expect(album.elements.reduce((n, e) => n + e.chance, 0)).toBeCloseTo(100, 8);
+    expect(album.sous).toBe(`0 sur ${MODELES.length} à vous`);
+    expect(album.libelleDesGroupes).toBe("Montrer une famille");
+  });
+
+  it("ne donne aucune chance à un modèle déjà reçu, et sa part revient aux autres de sa rareté", () => {
+    const premier = MODELES[0]!;
+    const album = albumDesModeles({ ...mes([premier.id]), pochette });
+    const pourMoi = chancesPourMoi(CHANCES, ids(premier.id))!;
+    const memes = MODELES.filter((m) => m.rarete === premier.rarete && m.id !== premier.id);
+    expect(album.elements.find((e) => e.id === premier.id)).toMatchObject({ possede: true, chance: 0 });
+    for (const m of memes) expect(album.elements.find((e) => e.id === m.id)!.chance).toBeCloseTo(pourMoi[premier.rarete] / memes.length, 10);
+    expect(album.elements.reduce((n, e) => n + e.chance, 0)).toBeCloseTo(100, 8);
+  });
+
+  it("rogne chaque modèle à son dessin", () => {
+    for (const e of albumDesModeles({ ...mes([]), pochette }).elements) {
+      const { largeur, hauteur, cases } = e.dessin!;
+      expect(cases).toHaveLength(largeur * hauteur);
+      expect(cases.slice(0, largeur).some((c) => c !== null)).toBe(true);
+      expect(Array.from({ length: hauteur }, (_, y) => cases[y * largeur]).some((c) => c !== null)).toBe(true);
+      expect(Array.from({ length: hauteur }, (_, y) => cases[y * largeur + largeur - 1]).some((c) => c !== null)).toBe(true);
+    }
   });
 });

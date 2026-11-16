@@ -3,9 +3,10 @@ import { motionAllowed } from "../../lib/fx/motion";
 import { type Rarete, type Tenue } from "../../lib/gaulois";
 import type { AchatModeleReponse, MesModeles, PochetteModelesReponse } from "../../lib/village/contrat";
 import { pourcent, stateres } from "../../lib/village/ecran-boutique";
-import { bandeDesModeles, lignesDesChances, modelesDeLaPochette, resteADecouvrir, surCombien, type ActionDeLEssai } from "../../lib/village/ecran-modeles";
+import { albumDesModeles, bandeDesModeles, lignesDesChances, modelesDeLaPochette, resteADecouvrir, surCombien, type ActionDeLEssai } from "../../lib/village/ecran-modeles";
 import { MODELES, apercuDuModele, decrireLeModele, etatDuModele, idsDesModeles, modeleNu, modeleParId, modelesParFamille, raisonPochetteFermee, silhouetteDuModele, type DessinDuModele, type EtatDuModele, type ModeleRange } from "../../lib/village/modeles";
 import { Problem } from "../compte/common";
+import { AlbumDePochette } from "./AlbumPochette";
 import { Compte, Dialogue, Refus, type BandeVue, type Issue } from "./BoutiqueDialogue";
 import { MarqueDeRarete, Prix, peindre } from "./BoutiquePixels";
 import type { EtatDesModeles } from "./Modeles";
@@ -145,9 +146,15 @@ export function SectionDesModeles({ partie = "modeles", etat, solde, essaye, occ
   const lignes = lignesDesChances(mes.pochette.chances, possedes);
   const raison = raisonPochetteFermee(mes, soldeConnu);
   const reste = resteADecouvrir(possedes);
+  // L'album de la pochette : les onze modèles, chacun avec sa chance (`albumDesModeles`). Calculé à l'ouverture, puis à
+  // chaque rendu de la section tant qu'il est ouvert : onze cases aux dessins gardés, sans coût notable. Pas de
+  // useCallback ici : la section rend plus tôt pendant la lecture, un hook après ce retour casserait leur ordre.
+  const lireAlbum = () => albumDesModeles(mes);
   const pochette = (
     <section class="uniques-pochette" aria-labelledby="uniques-pochette-titre" data-testid="uniques-pochette">
-      <DessinDeLaPochette possedes={possedes} />
+      <AlbumDePochette lireAlbum={lireAlbum} nombre={MODELES.length} nom="Voir les Gaulois uniques de cette pochette" testid="uniques-pochette">
+        <DessinDeLaPochette possedes={possedes} />
+      </AlbumDePochette>
       <div class="uniques-pochette-nom">
         <h4 id="uniques-pochette-titre" class="nom-champ uniques-pochette-titre">
           La pochette des Gaulois uniques

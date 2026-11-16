@@ -2709,7 +2709,7 @@
     position: relative;
     grid-template-columns: minmax(0, 1fr);
   }
-  .uniques-pochette > .uniques-ombres {
+  .uniques-pochette > .album-declencheur {
     position: absolute;
     top: 1rem;
     right: 0.875rem;

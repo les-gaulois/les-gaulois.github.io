@@ -23,7 +23,7 @@
     "date": "2026-11-16",
     "kind": "nouveau",
     "title": "Ce que contient une pochette, au survol",
-    "body": "Le curseur sur le dessin d'une pochette ouvre ce qu'elle contient : objets, familiers ou trésors. Une loupe montre la case survolée, sa rareté et sa chance ; sur téléphone, touchez le dessin.",
+    "body": "Le curseur sur le dessin d'une pochette ouvre tout ce qu'elle peut donner. Une loupe montre la case survolée, sa rareté et sa chance ; sur téléphone, touchez le dessin.",
     "link": {
       "href": "/village#boutique",
       "label": "Ouvrir la boutique"

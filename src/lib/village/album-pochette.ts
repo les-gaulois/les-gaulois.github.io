@@ -3,12 +3,13 @@
  * passe sur le dessin d'une pochette de « La boutique », ce qu'elle peut donner s'ouvre en petites cases, avec une loupe
  * qui montre en grand celle qu'on survole. La pochette surprise montre ses objets, rayon par rayon ; la pochette des
  * familiers, la ménagerie ; la pochette des bannières, ses trésors par rareté (`albumDesTresors` de `bannieres.ts`, chargé
- * à la demande). Écran dans `src/components/village/AlbumPochette.tsx`.
+ * à la demande) ; la pochette des Gaulois uniques, ses modèles par famille (`albumDesModeles` de `ecran-modeles.ts`).
+ * Écran dans `src/components/village/AlbumPochette.tsx`.
  *
  * Des calculs purs : ce que contient chaque pochette pour ce compte, avec la chance de chaque élément calculée comme le
  * tirage du serveur (`chanceDeLObjet`, `chanceDuFamilier`), et la place du panneau près du dessin. Rien ne décide d'un
  * droit ni d'un tirage : les chances viennent de la réponse du serveur (`get_ma_boutique`, `get_mes_familiers`,
- * `get_mes_bannieres`).
+ * `get_mes_bannieres`, `get_mes_modeles`).
  */
 import { EMPLACEMENTS_OBJETS, NOMS_EMPLACEMENTS, OBJETS, ORDRE_RARETES, RARETES, vignetteDeLObjet, type Catalogue, type Emplacement, type Rarete } from "../gaulois";
 import { chanceDeLObjet, objetsDeLaPochette, quantitePossedee } from "./boutique";
@@ -21,19 +22,19 @@ import { TOUT } from "./vestiaire-rayons";
 /** Le groupe « tout » de l'album : celui du filtre des rayons. */
 export const TOUS = TOUT;
 
-/** Une case de l'album : un objet, un familier ou un trésor des bannières que la pochette peut donner. */
+/** Une case de l'album : un objet, un familier, un trésor des bannières ou un Gaulois unique que la pochette peut donner. */
 export interface ElementDeLAlbum {
   id: string;
   nom: string;
   rarete: Rarete;
-  /** Le rayon d'un objet, la famille d'un familier, la rareté d'un trésor : les puces de l'album. */
+  /** Le rayon d'un objet, la famille d'un familier ou d'un Gaulois unique, la rareté d'un trésor : les puces de l'album. */
   groupe: string;
   /** Ce que la loupe écrit sous la rareté : le rayon, la famille et la taille, ou « Les trésors de la pochette ». */
   detail: string;
   /** Le dessin, rogné à son cadre ; la silhouette d'un familier que le compte n'a pas. `null` pour un dessin vide. */
   dessin: DessinEnCases | null;
   silhouette: boolean;
-  /** Le compte l'a déjà. Un objet peut ressortir en double ; un familier ou un trésor, jamais. */
+  /** Le compte l'a déjà. Un objet peut ressortir en double ; un familier, un trésor ou un Gaulois unique, jamais. */
   possede: boolean;
   /** Le familier que le compte montre à côté de son Gaulois. */
   montre: boolean;
@@ -63,6 +64,20 @@ export function rognerLesRangees(dessin: DessinEnCases): DessinEnCases | null {
   let bas = hauteur - 1;
   while (bas > haut && !pleine(bas)) bas--;
   return { largeur, hauteur: bas - haut + 1, cases: cases.slice(haut * largeur, (bas + 1) * largeur) };
+}
+
+/** Un dessin sans ses rangées ni ses colonnes vides : un Gaulois unique garde toute la grille du Gaulois. */
+export function rognerLeDessin(dessin: DessinEnCases): DessinEnCases | null {
+  const rangees = rognerLesRangees(dessin);
+  if (!rangees) return null;
+  const { largeur, hauteur, cases } = rangees;
+  const pleine = (x: number): boolean => Array.from({ length: hauteur }, (_, y) => cases[y * largeur + x]).some((c) => c !== null && c !== undefined);
+  let gauche = 0;
+  while (!pleine(gauche)) gauche++;
+  let droite = largeur - 1;
+  while (droite > gauche && !pleine(droite)) droite--;
+  const l = droite - gauche + 1;
+  return { largeur: l, hauteur, cases: Array.from({ length: hauteur }, (_, y) => cases.slice(y * largeur + gauche, y * largeur + droite + 1)).flat() };
 }
 
 /** Le dessin d'un objet du catalogue pour l'album, rogné de tous les côtés. Calculé une fois par objet du vrai catalogue. */
