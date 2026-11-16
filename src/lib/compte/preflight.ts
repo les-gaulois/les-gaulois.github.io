@@ -313,6 +313,22 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   if (isClosed(ouvertureStateres.status) || (ouvertureStateres.ok && ouvertureStateresAnswer?.ok === false)) add("Un visiteur n'ouvre pas de pochette de statères", "ok");
   else add("Un visiteur n'ouvre pas de pochette de statères", "fail", `Réponse ${ouvertureStateres.status}. Ne mettez pas en ligne : seul un compte validé avec son Gaulois ouvre la pochette de statères.`);
 
+  // Le sentier des Gaulois (migration 20261116001100, collée par le fichier .cache/a-coller-sentier.sql) : seul un compte
+  // connecté le lit ; seul un compte validé avec son Gaulois prend un palier ou achète à l'étal. Absent : 404, le fichier
+  // n'est pas collé.
+  const sentier = await rpc("get_mon_sentier");
+  const sentierAnswer = sentier.ok ? ((await sentier.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (sentier.status === 404) add("Le sentier des Gaulois est installé", "warn", "get_mon_sentier est absente : collez le fichier .cache/a-coller-sentier.sql (sa dernière ligne dit « sentier des Gaulois : installé ») avant de mettre en ligne ce qui s'en sert.");
+  else if (isClosed(sentier.status) || (sentier.ok && sentierAnswer?.ok === false)) add("Un visiteur ne lit pas le sentier", "ok");
+  else add("Un visiteur ne lit pas le sentier", "fail", `Réponse ${sentier.status}. Ne mettez pas en ligne : seul un compte connecté lit son sentier et son solde.`);
+  const palier = await rpc("prendre_palier", { p_palier: 1 });
+  const palierAnswer = palier.ok ? ((await palier.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (isClosed(palier.status) || palier.status === 404 || (palier.ok && palierAnswer?.ok === false)) add("Un visiteur ne prend pas de palier", "ok");
+  else add("Un visiteur ne prend pas de palier", "fail", `Réponse ${palier.status}. Ne mettez pas en ligne : seul un compte validé avec son Gaulois prend l'objet d'un palier.`);
+  const partiesDuSentier = await rpc("noter_parties_sentier", { p_parties: [] });
+  if (isClosed(partiesDuSentier.status) || partiesDuSentier.status === 404) add("Un visiteur ne note pas de parties pour le sentier", "ok");
+  else add("Un visiteur ne note pas de parties pour le sentier", "fail", `Réponse ${partiesDuSentier.status}. Ne mettez pas en ligne : seule la clé de service note les parties du sentier.`);
+
   // Les bannières du Gaulois (migration 20261115000900, collée par le fichier .cache/a-coller-bannieres.sql) : seul un compte
   // connecté lit ses bannières ; seul un compte validé avec son Gaulois en achète ou choisit celle de /gaulois. Absente : 404,
   // le fichier n'est pas collé.

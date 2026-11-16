@@ -43,6 +43,7 @@
     "films:publier": "tsx scripts/publier-films.ts",
     "lecteurs:construire": "tsx scripts/construire-lecteurs.ts",
     "stateres:crediter": "tsx scripts/crediter-stateres.ts",
+    "sentier:parties": "tsx scripts/noter-parties-sentier.ts",
     "pronostics:regler": "tsx scripts/regler-pronostics.ts",
     "village:economie": "tsx scripts/mesurer-economie-village.ts",
     "village:vie": "tsx scripts/animer-village.ts",

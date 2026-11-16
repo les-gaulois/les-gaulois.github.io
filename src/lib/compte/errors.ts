@@ -210,6 +210,13 @@ export const ERROR_MESSAGES: Record<string, string> = {
   // La pochette de statères (contrat : `RefusPochetteStateres`, migration 20261116000800_pochette_de_stateres).
   plafond_du_jour: "Vous avez ouvert vos dix pochettes de statères d'aujourd'hui. Revenez demain.",
 
+  // Le sentier des Gaulois (contrat : `RefusDuSentier`, migration 20261116001100_sentier_des_gaulois).
+  saison_fermee: "Aucune saison du sentier n'est en cours.",
+  unknown_palier: "Ce palier n'existe pas. Rechargez la page.",
+  palier_pas_atteint: "Ce palier n'est pas encore atteint.",
+  deja_pris: "Vous avez déjà pris l'objet de ce palier.",
+  etal_change: "L'étal a changé : il se renouvelle à minuit. Rechargez la page.",
+
   // Les Gaulois uniques (contrat : `RefusModeles` de src/lib/village/contrat.ts, migration 20261115001000_gaulois_uniques).
   // `deja_possede` et `tout_possede` ont leurs propres mots dans `modeles.ts`.
   unknown_modele: "Ce Gaulois unique n'existe pas. Rechargez la page.",

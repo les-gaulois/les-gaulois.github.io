@@ -244,6 +244,19 @@ jobs:
         env:
           SUPABASE_URL: ${{ vars.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      # Les parties du sentier des Gaulois (docs/DIRECTION.md, « Le sentier des Gaulois ») : les parties du clan d'hier et
+      # d'aujourd'hui qui n'ont pas rapporté de points sont relues une fois, et l'empreinte SHA-256 de chaque Gaulois présent
+      # part au serveur, pour les missions du jour (« jouer une partie »). Le même appel ouvre le jour : ses missions, le
+      # défi du clan et l'étal. Après les statères et à part d'eux : une panne ne retient ni une image ni un statère. Avec
+      # SUPABASE_URL et SUPABASE_SECRET_KEY ; sans eux, l'étape ne fait rien. Rien n'est écrit dans le dépôt.
+      - name: Noter les parties du sentier des Gaulois
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        timeout-minutes: 3
+        run: npm run sentier:parties
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
       # Le relevé vocal des Gaulois (docs/DIRECTION.md, « Le village des Gaulois ») : l'état vocal de chaque membre sur le
       # Discord du clan, relevé par le robot des arrivées (secret DISCORD_BOT_TOKEN), pour le fond de /gaulois. Les bulles que
       # Claude écrivait pour la place du village sont coupées depuis le 15 novembre 2026, avec le monde du village : l'étape

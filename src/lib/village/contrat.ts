@@ -719,3 +719,134 @@ export interface PochetteStateresReponse {
  * `solde_insuffisant`. Un refus ne débite rien.
  */
 export type RefusPochetteStateres = "not_validated" | "no_gaulois" | "prix_change" | "plafond_du_jour" | "solde_insuffisant";
+
+/* ---------- Le sentier des Gaulois (16 novembre 2026, migration 20261116001100) ---------- */
+
+/** Les raretés qu'un palier du sentier peut donner : celles qui ont un prix à la boutique. */
+export type RareteDePalier = "commun" | "peu-commun" | "epique" | "mystique" | "legendaire";
+
+/** Les pas que donnent une mission faite, un jour de visite, chaque septième jour de visite, et le défi du clan rempli. Les mêmes que le serveur. */
+export const PAS_DU_SENTIER = { mission: 10, visite: 5, semaine: 30, tous_les: 7, defi: 30 } as const;
+
+/** La remise de l'étal du jour, en pour cent du prix de la boutique. La même que le serveur. */
+export const REMISE_DE_L_ETAL = 30;
+
+/** Les sept missions du jour. Les mêmes codes que le serveur (`internal.sentier_missions`). */
+export const MISSIONS_DU_SENTIER = ["partie", "vocal", "pochette", "parties_3", "victoire", "points_3", "equipe"] as const;
+export type MissionDuSentier = (typeof MISSIONS_DU_SENTIER)[number];
+
+/** La première saison : du 17 novembre au 31 décembre 2026, 30 paliers de 30 pas. La même que le serveur. */
+export const SAISON_1 = { id: "saison-1", nom: "Saison 1", debut: "2026-11-17", fin: "2026-12-31", paliers: 30, pas_par_palier: 30 } as const;
+
+/** La rareté de l'objet de chaque palier de la saison 1, du palier 1 au palier 30. Les mêmes que le serveur. */
+export const PALIERS_DE_LA_SAISON_1: readonly RareteDePalier[] = [
+  "commun",
+  "commun",
+  "commun",
+  "peu-commun",
+  "commun",
+  "commun",
+  "peu-commun",
+  "commun",
+  "peu-commun",
+  "epique",
+  "commun",
+  "peu-commun",
+  "commun",
+  "peu-commun",
+  "epique",
+  "commun",
+  "peu-commun",
+  "peu-commun",
+  "epique",
+  "mystique",
+  "commun",
+  "peu-commun",
+  "epique",
+  "peu-commun",
+  "mystique",
+  "peu-commun",
+  "epique",
+  "mystique",
+  "mystique",
+  "legendaire",
+];
+
+/** Une saison du sentier : son premier et son dernier jour, compris, à l'heure de Paris. */
+export interface SaisonDuSentier {
+  id: string;
+  nom: string;
+  debut: string;
+  fin: string;
+  paliers: number;
+  pas_par_palier: number;
+  /** La saison est passée : plus de missions, mais ses paliers atteints se prennent encore jusqu'à `prendre_jusqu_au` compris. */
+  finie: boolean;
+  prendre_jusqu_au: string | null;
+}
+
+/** Un palier : la rareté de son objet, et l'objet reçu une fois pris. */
+export interface PalierDuSentier {
+  palier: number;
+  rarete: RareteDePalier;
+  pris: RefObjet | null;
+}
+
+/** Une mission du jour : ce qui est fait, ce qu'il faut, et si ses pas sont donnés. */
+export interface MissionDuJour {
+  code: MissionDuSentier;
+  fait: number;
+  cible: number;
+  gagnee: boolean;
+}
+
+/** Le défi du clan du jour : la cible et les points du clan, si le compte a joué, et si ses pas sont donnés. */
+export interface DefiDuClan {
+  cible: number;
+  points: number;
+  joue: boolean;
+  gagne: boolean;
+}
+
+/** L'étal du jour : un objet payant de la boutique, à prix réduit. */
+export interface EtalDuJour extends RefObjet {
+  rarete: RareteDePalier;
+  prix: number;
+  prix_boutique: number;
+  possede: boolean;
+}
+
+/**
+ * `get_mon_sentier()`, pour un compte connecté. `peut_avancer` : compte validé avec un Gaulois créé. Hors saison, `saison`
+ * est `null`, `pas` et `visites` valent 0, `paliers` et `missions` sont vides et `defi` est `null` ; l'étal reste.
+ * `releve` : l'heure de la dernière relecture des parties.
+ */
+export interface MonSentier {
+  ok: true;
+  peut_avancer: boolean;
+  solde: number;
+  jour: string;
+  releve: string | null;
+  regles: { mission: number; visite: number; semaine: number; tous_les: number; defi: number; remise: number };
+  saison: SaisonDuSentier | null;
+  pas: number;
+  paliers: PalierDuSentier[];
+  visites: number;
+  missions: MissionDuJour[];
+  defi: DefiDuClan | null;
+  etal: EtalDuJour | null;
+}
+
+/** `prendre_palier(p_palier)` : l'objet reçu ; `double` : le compte l'avait déjà. */
+export interface PalierReponse {
+  ok: true;
+  palier: number;
+  objet: RefObjet & { rarete: RareteDePalier; double: boolean };
+}
+
+/**
+ * Les refus du sentier, en plus de ceux de tout compte : `not_validated`, `no_gaulois`, `mode_god`, `saison_fermee`, `unknown_palier`,
+ * `palier_pas_atteint`, `deja_pris` pour un palier ; `etal_change`, `deja_possede`, `prix_change`, `solde_insuffisant`
+ * pour l'étal. Un refus ne donne ni ne débite rien.
+ */
+export type RefusDuSentier = "not_validated" | "no_gaulois" | "mode_god" | "saison_fermee" | "unknown_palier" | "palier_pas_atteint" | "deja_pris" | "etal_change" | "deja_possede" | "prix_change" | "solde_insuffisant";

@@ -51,7 +51,7 @@ export function Dialogue({ titre, etape, occupe, onFermer, testid, children }: {
 }
 
 /** Une case montrée dans une fenêtre : la même que celles du vestiaire, sans être un bouton. */
-function CaseMontree({ objet, rarete, vignette }: { objet: Objet; rarete: Rarete; vignette: Vignette | null }) {
+export function CaseMontree({ objet, rarete, vignette }: { objet: Objet; rarete: Rarete; vignette: Vignette | null }) {
   const echelle = vignette ? Math.max(1, Math.min(3, Math.floor(80 / Math.max(vignette.largeur, vignette.hauteur)))) : 1;
   return (
     <div class="case case-montree" data-rarete={rarete}>

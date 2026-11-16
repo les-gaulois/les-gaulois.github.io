@@ -31,6 +31,9 @@ const HEALTHY: Record<string, Route> = {
   "/rest/v1/rpc/get_mes_familiers": { status: 401, body: {} },
   "/rest/v1/rpc/get_pochette_stateres": { status: 401, body: {} },
   "/rest/v1/rpc/ouvrir_pochette_stateres": { status: 401, body: {} },
+  "/rest/v1/rpc/get_mon_sentier": { status: 401, body: {} },
+  "/rest/v1/rpc/prendre_palier": { status: 401, body: {} },
+  "/rest/v1/rpc/noter_parties_sentier": { status: 401, body: {} },
   "/rest/v1/rpc/get_mes_bannieres": { status: 401, body: {} },
   "/rest/v1/rpc/ouvrir_pochette_bannieres": { status: 401, body: {} },
   "/rest/v1/rpc/get_mes_modeles": { status: 401, body: {} },
@@ -606,6 +609,20 @@ describe("le contrôle de la mise en ligne, la pochette de statères", () => {
     expect(await statusOf(HEALTHY, "n'ouvre pas de pochette de statères")).toBe("ok");
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/ouvrir_pochette_stateres": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "n'ouvre pas de pochette de statères")).toBe("ok");
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/ouvrir_pochette_stateres": { status: 200, body: { ok: true, solde: 0 } } }, "n'ouvre pas de pochette de statères")).toBe("fail");
+  });
+});
+
+describe("le contrôle de la mise en ligne, le sentier des Gaulois", () => {
+  it("bloque si un visiteur lit le sentier, prend un palier ou note des parties, et signale qu'il n'est pas encore installé", async () => {
+    expect(await statusOf(HEALTHY, "ne lit pas le sentier")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_mon_sentier": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "ne lit pas le sentier")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_mon_sentier": { status: 200, body: { ok: true, pas: 0 } } }, "ne lit pas le sentier")).toBe("fail");
+    const absent = (await run({ ...HEALTHY, "/rest/v1/rpc/get_mon_sentier": { status: 404, body: {} } })).find((c) => c.label.includes("sentier des Gaulois est installé"));
+    expect(absent).toMatchObject({ status: "warn", detail: expect.stringContaining(".cache/a-coller-sentier.sql") });
+    expect(await statusOf(HEALTHY, "ne prend pas de palier")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/prendre_palier": { status: 200, body: { ok: true, palier: 1 } } }, "ne prend pas de palier")).toBe("fail");
+    expect(await statusOf(HEALTHY, "ne note pas de parties pour le sentier")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/noter_parties_sentier": { status: 200, body: { ok: true, notees: 0 } } }, "ne note pas de parties pour le sentier")).toBe("fail");
   });
 });
 
