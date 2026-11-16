@@ -20,7 +20,8 @@ import {
 import { familierAPoser, type Familier } from "../../../supabase/functions/code-discord/familiers/familier";
 import { casesDeLaScene, DECOR_HAUTEUR, DECOR_LARGEUR } from "../../../supabase/functions/code-discord/gaulois";
 import { errorMessage } from "../compte/errors";
-import { ORDRE_RARETES, type Rarete, type Tenue } from "../gaulois";
+import { ORDRE_RARETES, RARETES, type Rarete, type Tenue } from "../gaulois";
+import type { Album, ElementDeLAlbum } from "./album-pochette";
 import type { AchatBanniereReponse, BannierePossedee, ChoixBanniereReponse, MesBannieres, PochetteBannieresReponse } from "./contrat";
 import { bandeDuTambour, rangeeAuHasard, type Bande } from "./tambour";
 
@@ -287,4 +288,32 @@ export function sceneDeLaBanniere(id: string, tenue: Tenue, familier: Familier |
 export function vignetteDeLaBanniere(id: string): SceneDApercu | null {
   const fond = dessinDeLaBanniere(id);
   return fond ? { largeur: DECOR_LARGEUR, hauteur: DECOR_HAUTEUR, cases: [...fond.cases] } : null;
+}
+
+/**
+ * L'album de la pochette des bannières (16 novembre 2026, `AlbumPochette.tsx`) : ses trésors, rangés de la rareté la plus
+ * courante à la plus rare, en couleur comme dans l'onglet « Bannière », avec leur chance dans la prochaine pochette de ce
+ * compte (`chanceDuTresor` : 0 pour un trésor déjà reçu, la pochette ne le redonne jamais). Les puces sont les raretés.
+ */
+export function albumDesTresors(chances: Readonly<Record<Rarete, number>>, possedees: ReadonlySet<string>, liste: readonly Banniere[] = BANNIERES): Album {
+  const tresors = liste.filter(estDeLaPochette);
+  const elements = ORDRE_RARETES.flatMap((rarete) =>
+    tresors
+      .filter((b) => b.rarete === rarete)
+      .map(
+        (b): ElementDeLAlbum => ({
+          id: b.id,
+          nom: b.nom,
+          rarete,
+          groupe: RARETES[rarete].nom,
+          detail: FAMILLES_DES_BANNIERES[FAMILLE_DE_LA_POCHETTE],
+          dessin: vignetteDeLaBanniere(b.id),
+          silhouette: false,
+          possede: possedees.has(b.id),
+          montre: false,
+          chance: chanceDuTresor(b.id, chances, possedees, liste),
+        }),
+      ),
+  );
+  return { titre: "Dans la pochette des bannières", sous: `${elements.filter((e) => e.possede).length} sur ${elements.length} à vous`, libelleDesGroupes: "Montrer une rareté", elements };
 }

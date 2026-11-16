@@ -9,6 +9,7 @@ import { ANCRE_BANNIERES, BANNIERE_HAUTEUR, BANNIERE_LARGEUR, apresLAchat, banni
 import { manque, pourcent, stateres } from "../../lib/village/ecran-boutique";
 import type { Familier } from "../../lib/village/familiers";
 import { Problem, Success, messageOf } from "../compte/common";
+import { AlbumDePochette } from "./AlbumPochette";
 import { Compte, Dialogue, Refus, type BandeVue, type Issue } from "./BoutiqueDialogue";
 import { MarqueDeRarete, Pixels, Prix, peindre } from "./BoutiquePixels";
 import { POCHETTE_BANNIERES_COTE, casesDeLaPochetteBannieres } from "./PochetteBannieresDessin";
@@ -253,14 +254,25 @@ function LosangesDeCase({ rang }: { rang: number }) {
 /**
  * La pochette des bannières, en tête de l'onglet « Bannière » : la seule façon d'avoir un trésor de la pochette. Son
  * dessin, son prix (celui du serveur), combien de trésors le compte a, ses chances par rareté, toujours écrites avant
- * d'ouvrir, et le bouton d'ouverture, ou la raison pour laquelle il ne peut pas ouvrir.
+ * d'ouvrir, et le bouton d'ouverture, ou la raison pour laquelle il ne peut pas ouvrir. Le dessin ouvre l'album de ses
+ * trésors (`AlbumPochette.tsx`), chacun avec sa chance.
  */
 function PochetteDesBannieres({ lib, mes, possedees, raison, onOuvrir }: { lib: Lib; mes: MesBannieres & { pochette: NonNullable<MesBannieres["pochette"]> }; possedees: ReadonlySet<string>; raison: string | null; onOuvrir: () => void }) {
   const lignes = lib.lignesDesChancesDesTresors(mes.pochette.chances, possedees);
   const aMoi = lib.TRESORS.filter((b) => possedees.has(b.id)).length;
+  const chances = mes.pochette.chances;
+  // L'album se calcule sur les bannières reçues du serveur (un nouvel ensemble à chaque rendu ne le recalculerait pas).
+  const lireAlbum = useCallback(() => lib.albumDesTresors(chances, idsDesBannieres(mes)), [lib, chances, mes]);
+  // Les trésors se peignent en arrière-plan, un par tour de la boucle : au premier survol, l'album les trouve prêts. Les
+  // dessiner tous d'un coup à l'ouverture figerait la page une bonne demi-seconde.
+  useEffect(() => {
+    for (const tresor of lib.TRESORS) plusTard(() => void lib.dessinDeLaBanniere(tresor.id));
+  }, [lib]);
   return (
     <section class="bannieres-pochette" aria-labelledby="bannieres-pochette-titre" data-testid="bannieres-pochette">
-      <DessinPochetteBannieres echelle={4} class="bannieres-pochette-dessin" />
+      <AlbumDePochette lireAlbum={lireAlbum} nombre={lib.TRESORS.length} nom="Voir les trésors de la pochette des bannières" testid="bannieres-pochette">
+        <DessinPochetteBannieres echelle={4} class="bannieres-pochette-dessin" />
+      </AlbumDePochette>
       <div class="bannieres-pochette-nom">
         <h4 id="bannieres-pochette-titre" class="nom-champ bannieres-pochette-titre">
           La pochette des bannières

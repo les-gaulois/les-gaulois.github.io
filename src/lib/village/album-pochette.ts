@@ -2,11 +2,13 @@
  * L'album d'une pochette (16 novembre 2026, choix du pilote parmi cinq modèles : « l'album à loupe ») : quand le curseur
  * passe sur le dessin d'une pochette de « La boutique », ce qu'elle peut donner s'ouvre en petites cases, avec une loupe
  * qui montre en grand celle qu'on survole. La pochette surprise montre ses objets, rayon par rayon ; la pochette des
- * familiers, la ménagerie. Écran dans `src/components/village/AlbumPochette.tsx`.
+ * familiers, la ménagerie ; la pochette des bannières, ses trésors par rareté (`albumDesTresors` de `bannieres.ts`, chargé
+ * à la demande). Écran dans `src/components/village/AlbumPochette.tsx`.
  *
  * Des calculs purs : ce que contient chaque pochette pour ce compte, avec la chance de chaque élément calculée comme le
  * tirage du serveur (`chanceDeLObjet`, `chanceDuFamilier`), et la place du panneau près du dessin. Rien ne décide d'un
- * droit ni d'un tirage : les chances viennent de la réponse du serveur (`get_ma_boutique`, `get_mes_familiers`).
+ * droit ni d'un tirage : les chances viennent de la réponse du serveur (`get_ma_boutique`, `get_mes_familiers`,
+ * `get_mes_bannieres`).
  */
 import { EMPLACEMENTS_OBJETS, NOMS_EMPLACEMENTS, OBJETS, ORDRE_RARETES, RARETES, vignetteDeLObjet, type Catalogue, type Emplacement, type Rarete } from "../gaulois";
 import { chanceDeLObjet, objetsDeLaPochette, quantitePossedee } from "./boutique";
@@ -19,19 +21,19 @@ import { TOUT } from "./vestiaire-rayons";
 /** Le groupe « tout » de l'album : celui du filtre des rayons. */
 export const TOUS = TOUT;
 
-/** Une case de l'album : un objet ou un familier que la pochette peut donner. */
+/** Une case de l'album : un objet, un familier ou un trésor des bannières que la pochette peut donner. */
 export interface ElementDeLAlbum {
   id: string;
   nom: string;
   rarete: Rarete;
-  /** Le rayon d'un objet, la famille d'un familier : les puces de l'album. */
+  /** Le rayon d'un objet, la famille d'un familier, la rareté d'un trésor : les puces de l'album. */
   groupe: string;
-  /** Ce que la loupe écrit sous la rareté : le rayon, ou la famille et la taille. */
+  /** Ce que la loupe écrit sous la rareté : le rayon, la famille et la taille, ou « Les trésors de la pochette ». */
   detail: string;
   /** Le dessin, rogné à son cadre ; la silhouette d'un familier que le compte n'a pas. `null` pour un dessin vide. */
   dessin: DessinEnCases | null;
   silhouette: boolean;
-  /** Le compte l'a déjà. Un objet peut ressortir en double ; un familier, jamais. */
+  /** Le compte l'a déjà. Un objet peut ressortir en double ; un familier ou un trésor, jamais. */
   possede: boolean;
   /** Le familier que le compte montre à côté de son Gaulois. */
   montre: boolean;

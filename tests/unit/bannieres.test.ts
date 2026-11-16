@@ -21,6 +21,7 @@ import { GazetteFonts } from "../../src/lib/gazette-image";
 import { ORDRE_RARETES } from "../../src/lib/gaulois";
 import {
   TRESORS,
+  albumDesTresors,
   apresLaPochetteDesBannieres,
   bandeDesTresors,
   chanceDuTresor,
@@ -401,6 +402,23 @@ describe("les chances de la pochette des bannières, pour un compte", () => {
     expect(chanceDuTresor(ids("epique")[0]!, chances, possedees)).toBe(0);
     expect(chanceDuTresor(BOUTIQUE[0]!.id, chances, possedees)).toBe(0);
     expect(chanceDuTresor(ids("legendaire")[1]!, chances, new Set())).toBeCloseTo(10 / 4, 6);
+  });
+
+  it("font l'album de la pochette : les trésors seuls, par rareté, en couleur, avec la chance du tirage", () => {
+    const possedees = new Set([ids("epique")[0]!, BOUTIQUE[0]!.id]);
+    const album = albumDesTresors(chances, possedees);
+    expect(album.elements.map((e) => e.id).sort()).toEqual(TRESORS.map((b) => b.id).sort());
+    const rangs = album.elements.map((e) => ORDRE_RARETES.indexOf(e.rarete));
+    expect(rangs).toEqual([...rangs].sort((a, b) => a - b));
+    for (const e of album.elements) {
+      expect(e.chance).toBeCloseTo(chanceDuTresor(e.id, chances, possedees), 10);
+      expect(e.silhouette).toBe(false);
+      expect(e.dessin).not.toBeNull();
+      expect(e.possede).toBe(possedees.has(e.id));
+    }
+    expect(album.elements.reduce((n, e) => n + e.chance, 0)).toBeCloseTo(100, 6);
+    expect(album.sous).toBe(`1 sur ${TRESORS.length} à vous`);
+    expect(album.libelleDesGroupes).toBe("Montrer une rareté");
   });
 
   it("s'écrivent une ligne par rareté qui a des trésors, avec ce qu'il en reste", () => {
