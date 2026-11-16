@@ -2577,7 +2577,7 @@ test("le Gaulois d'un membre ne paraît qu'à côté de qui a créé le sien, ja
   const command = (loadMembers()?.members ?? []).filter((m) => m.role !== "member");
   await page.goto("/membres");
   await expect(page.getByTestId("command").locator(".gaulois-portrait")).toHaveCount(command.filter((m) => m.username && portraitDuGaulois(m.publicId)).length);
-  for (const path of ["/gazette", "/records", "/membres", "/revoir"]) {
+  for (const path of ["/", "/gazette", "/records", "/membres", "/revoir", "/parties"]) {
     await page.goto(path);
     const portraits = page.locator(".gaulois-portrait");
     if (avec.size === 0) await expect(portraits).toHaveCount(0);

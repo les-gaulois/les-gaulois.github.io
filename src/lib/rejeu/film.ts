@@ -260,10 +260,10 @@ export function lireEntete(brut: unknown): EnteteFilm {
 }
 
 /**
- * Relit un film décompressé. Lève une erreur, en mots, si quoi que ce soit ne va pas : une plage hors de la grille, une classe
- * inconnue, des octets en trop ou en moins.
+ * L'en-tête d'un film décompressé, sans relire ses images : ce qu'il faut à qui ne veut que ses faits ou ses noms. Lève une
+ * erreur, en mots, si ce n'est pas un film du site, s'il est coupé ou si son en-tête ne convient pas.
  */
-export function lireFilm(octets: Uint8Array): Film {
+export function enteteDuFilm(octets: Uint8Array): EnteteFilm {
   if (octets.length < 7 || MAGIE.some((o, i) => octets[i] !== o)) throw new Error("ce n'est pas un film du site");
   if (octets[4] !== FORMAT_FILM) throw new Error("version du film inconnue");
   const longueur = octets[5]! | (octets[6]! << 8);
@@ -274,7 +274,16 @@ export function lireFilm(octets: Uint8Array): Film {
   } catch {
     throw new Error("en-tête illisible");
   }
-  const entete = lireEntete(brut);
+  return lireEntete(brut);
+}
+
+/**
+ * Relit un film décompressé. Lève une erreur, en mots, si quoi que ce soit ne va pas : une plage hors de la grille, une classe
+ * inconnue, des octets en trop ou en moins.
+ */
+export function lireFilm(octets: Uint8Array): Film {
+  const entete = enteteDuFilm(octets);
+  const longueur = octets[5]! | (octets[6]! << 8);
   const n = entete.largeur * entete.hauteur;
   const debutTerrain = 7 + longueur;
   if (debutTerrain + n > octets.length) throw new Error("film coupé");

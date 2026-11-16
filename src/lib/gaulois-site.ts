@@ -1,6 +1,7 @@
 /**
  * Les Gaulois des membres sur les pages du site (demande du pilote, 16 novembre 2026) : le Gaulois qu'un membre a créé
- * paraît à côté de son pseudo dans la gazette, les records, la page Membres et les dernières parties de « Revoir une partie ».
+ * paraît à côté de son pseudo sur l'accueil, dans la gazette, les records, la page Membres, les dernières parties de
+ * « Revoir une partie » et, sous les parties qui ont leur replay sur le site, dans « Dernières parties ».
  *
  * Même chemin que les images des fiches (`gaulois-joueurs.ts`) : l'étape « Lire les Gaulois des fiches » de la GitHub
  * Action, seule à avoir la clé de service, range les tenues dans `.cache/gaulois-fiches.json` ; la construction les relit
@@ -20,7 +21,7 @@ import sharp from "sharp";
 import { loadMemberResultsOnce, loadMembers } from "./data";
 import { GAULOIS_FICHES_FILE, gauloisDuCache, type GauloisParJoueur } from "./gaulois-joueurs";
 import { BUST_CUT, placeSprite, spritePixels, tenueOf, type SpritePlacement } from "./gaulois-sprite";
-import { CLASSE, lireFilm } from "./rejeu/film";
+import { CLASSE, enteteDuFilm } from "./rejeu/film";
 import { DOSSIER_FILMS, MAX_OCTETS_FILM_DECOMPRESSE, nomDuFilm } from "./rejeu/films-index";
 import { nommesParPartie } from "./serie-en-cours";
 
@@ -151,18 +152,51 @@ export function gauloisDesNoms(
  * illisible : les listes seules.
  */
 export function gauloisDeLaPartie(partie: string): GauloisDePartie[] {
+  // « Revoir une partie » et « Dernières parties » demandent les mêmes parties : un film n'est ouvert qu'une fois.
+  const deja = lusParPartie.get(partie);
+  if (deja) return deja;
+  const lus = lireGauloisDeLaPartie(partie);
+  lusParPartie.set(partie, lus);
+  return lus;
+}
+
+const lusParPartie = new Map<string, GauloisDePartie[]>();
+
+function lireGauloisDeLaPartie(partie: string): GauloisDePartie[] {
   const presents = new Map((gauloisDesParties().get(partie) ?? []).map((g) => [g.id, g]));
   const gaulois = gauloisDuSite();
   const nom = gaulois.size > 0 ? nomDuFilm(partie) : null;
   if (nom) {
     try {
-      const { entete } = lireFilm(gunzipSync(readFileSync(join(DOSSIER_FILMS, nom)), { maxOutputLength: MAX_OCTETS_FILM_DECOMPRESSE }));
+      // L'en-tête seul, au début du film : ses noms suffisent, inutile de relire toutes ses images.
+      const entete = enteteDuFilm(gunzipSync(readFileSync(join(DOSSIER_FILMS, nom)), { maxOutputLength: MAX_OCTETS_FILM_DECOMPRESSE }));
       if (entete.partie === partie) for (const g of gauloisDesNoms(entete.noms, loadMembers()?.members ?? [], gaulois)) presents.set(g.id, g);
     } catch {
       // Pas de film : rien de plus à montrer.
     }
   }
   return [...presents.values()].sort((a, b) => a.username.localeCompare(b.username, "fr"));
+}
+
+/**
+ * Ce que le journal des parties (« Dernières parties ») reçoit : le portrait de chaque membre montré, une fois, et pour
+ * chaque partie les identifiants de ses Gaulois. Seulement les parties données : la page n'envoie que celles qui ont leur
+ * replay sur le site, où ces pseudos se lisent déjà.
+ */
+export interface GauloisDuJournal {
+  portraits: Record<string, { username: string; image: string; largeur: number; hauteur: number; buste: number }>;
+  parties: Record<string, string[]>;
+}
+
+export function gauloisDuJournal(parties: readonly string[], de: (partie: string) => GauloisDePartie[] = gauloisDeLaPartie): GauloisDuJournal {
+  const journal: GauloisDuJournal = { portraits: {}, parties: {} };
+  for (const partie of parties) {
+    const presents = de(partie);
+    if (presents.length === 0) continue;
+    journal.parties[partie] = presents.map((g) => g.id);
+    for (const g of presents) journal.portraits[g.id] = { username: g.username, image: g.portrait.image, largeur: g.portrait.largeur, hauteur: g.portrait.hauteur, buste: g.portrait.buste };
+  }
+  return journal;
 }
 
 /** Le même index, calculé une fois par construction. */

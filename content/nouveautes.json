@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-16",
+    "kind": "ameliore",
+    "title": "Les Gaulois sur l'accueil et les parties",
+    "body": "Le Gaulois des membres paraît aussi sur l'accueil, devant les pseudos de la semaine, et dans « Dernières parties », sous chaque partie qui a son replay sur le site.",
+    "link": {
+      "href": "/parties",
+      "label": "Dernières parties"
+    }
+  },
+  {
+    "date": "2026-11-16",
     "kind": "nouveau",
     "title": "Les Gaulois à côté des pseudos",
     "body": "Le Gaulois d'un membre qui a créé le sien paraît à côté de son pseudo : dans la gazette, qui gagne un podium, sur les records, sur Membres et sur les dernières parties à revoir.",

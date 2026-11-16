@@ -9,6 +9,7 @@ import ReadingNote from "../components/ReadingNote.astro";
 import { clan } from "../../config/clan";
 import { loadFilms, loadGames, loadLeaderboard, loadMeta, loadSessions } from "../lib/data";
 import { fmtInt } from "../lib/format";
+import { gauloisDuJournal } from "../lib/gaulois-site";
 import { MIN_CLAN_PLAYERS } from "../lib/games";
 import { clanJournal, JOURNAL_DAYS, JOURNAL_FIRST_ROWS } from "../lib/journal";
 
@@ -23,6 +24,8 @@ const { rows, sides, coverage } = clanJournal({
 });
 // Les parties qui ont leur replay sur « Revoir une partie » : un lien « Revoir » de plus sur leur ligne.
 const films = (loadFilms()?.films ?? []).filter((f) => f.jeu).map((f) => f.partie);
+// Sur ces parties-là, les membres au pseudo public qui les ont jouées et qui ont créé leur Gaulois (src/lib/gaulois-site.ts).
+const gaulois = gauloisDuJournal(films);
 ---
 
 <Base title="Dernières parties" description="Les dernières parties du clan GAL sur OpenFront : carte, format, résultat, clans rencontrés et lien vers le jeu.">
@@ -39,7 +42,7 @@ const films = (loadFilms()?.films ?? []).filter((f) => f.jeu).map((f) => f.parti
         <Empty title="Pas de données">Aucune partie enregistrée n'est disponible sur cette période.</Empty>
       ) : (
         <>
-          <GamesJournal client:load src={`${base}/parties.json`} initial={rows.slice(0, JOURNAL_FIRST_ROWS)} sides={sides} base={base} films={films} />
+          <GamesJournal client:load src={`${base}/parties.json`} initial={rows.slice(0, JOURNAL_FIRST_ROWS)} sides={sides} base={base} films={films} gaulois={gaulois} />
           {!sides && (
             <p class="mt-4 max-w-3xl font-semibold text-warn" role="status" data-testid="journal-clans-suspended">
               Les autres clans ne sont plus affichés : trop de parties récentes contredisent le calcul de leurs équipes. Les règles du jeu ont peut-être changé.
@@ -54,6 +57,7 @@ const films = (loadFilms()?.films ?? []).filter((f) => f.jeu).map((f) => f.parti
                 « Contre » et « Avec » ne citent que les clans de la liste officielle, avec au moins {MIN_CLAN_PLAYERS} joueurs dans la partie, et leur nombre entre parenthèses. Les autres tags ne sont pas repris : chacun choisit le sien librement. L'API ne donne pas l'équipe des perdants : elle est calculée avec la règle du jeu, et rien n'est écrit si le calcul contredit le résultat officiel. Le face-à-face du <a href={`${base}/rivaux#compare-title`}>comparateur de clans</a> utilise ce calcul, mais il ne garde que les parties à {MIN_CLAN_PLAYERS} Gaulois ou plus, sur 90 jours : ses chiffres ne sont pas ceux du filtre « Contre le clan ».
               </p>
             )}
+            {Object.keys(gaulois.parties).length > 0 && <p data-testid="journal-gaulois-note">Sous une partie à revoir : le Gaulois des membres au pseudo public qui l'ont jouée et qui ont créé le leur, relevé à la dernière mise à jour du site.</p>}
             <p>« — » : le détail de cette partie n'est pas encore lu. C'est lui qui donne la carte, la durée et les autres clans.</p>
           </ReadingNote>
           {/* La couverture ne s'écrit que lorsqu'il manque des parties : c'est alors elle qui change la lecture des chiffres. */}

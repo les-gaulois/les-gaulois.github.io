@@ -2,7 +2,7 @@ import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 import { tenueAuHasard, type Tenue } from "../../src/lib/gaulois";
 import { AUCUN_GAULOIS } from "../../src/lib/gaulois-joueurs";
-import { gauloisDesNoms, gauloisParPartie, pngDuGaulois, portraitDuGaulois } from "../../src/lib/gaulois-site";
+import { gauloisDesNoms, gauloisDuJournal, gauloisParPartie, pngDuGaulois, portraitDuGaulois } from "../../src/lib/gaulois-site";
 import { CLASSE } from "../../src/lib/rejeu/film";
 import { BUST_CUT } from "../../src/lib/gaulois-sprite";
 
@@ -73,6 +73,14 @@ describe("les Gaulois d'une partie", () => {
     // Deux membres portent le même pseudo : le nom ne désigne personne.
     expect(gauloisDesNoms(noms, [...membres, membre(B, "Zoe")], gaulois)).toEqual([]);
     expect(gauloisDesNoms(noms, membres, AUCUN_GAULOIS)).toEqual([]);
+  });
+
+  it("range pour le journal chaque portrait une fois, et seulement les parties qui ont quelqu'un à montrer", () => {
+    const index = gauloisParPartie(resultats, membres, gaulois);
+    const journal = gauloisDuJournal(["partie1", "partie2", "partie3", "inconnue"], (partie) => index.get(partie) ?? []);
+    expect(journal.parties).toEqual({ partie1: [B, A], partie2: [A] });
+    expect(Object.keys(journal.portraits).sort()).toEqual([A, B].sort());
+    expect(journal.portraits[A]).toEqual({ username: "Zoe", ...portraitDuGaulois(A, gaulois)! });
   });
 
   it("ne montre personne sans relevé des Gaulois", () => {

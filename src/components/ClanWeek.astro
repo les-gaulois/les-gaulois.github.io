@@ -1,10 +1,12 @@
 ---
+import GauloisPortrait from "./GauloisPortrait.astro";
 import MapNamesCredit from "./MapNamesCredit.astro";
 import WeeklyPickCard from "./WeeklyPickCard";
 import { clan } from "../../config/clan";
 import { fmtCount, fmtInt, fmtRank } from "../lib/format";
 import { loadMembers } from "../lib/data";
 import { editionLead, type GazetteEdition, playersPeriod, weekLabel } from "../lib/gazette";
+import { portraitDuGaulois } from "../lib/gaulois-site";
 import { singlePseudos } from "../lib/members";
 import { currentMilestonesPeriod, endSentence, homeMilestones, NAMES_SHOWN, restAfter, type CurrentMilestones } from "../lib/vie-du-clan";
 
@@ -64,11 +66,13 @@ const faces = singlePseudos(loadMembers()?.members ?? []);
           <h3 class="text-xl">Le plus de victoires{period && ` ${period}`}</h3>
           <ol class="tnum mt-3 space-y-2">
             {players.map((p) => (
-              <li class="flex flex-wrap items-baseline gap-x-3 [overflow-wrap:anywhere]" data-testid="home-podium-player">
+              <li class="flex flex-wrap items-center gap-x-3 [overflow-wrap:anywhere]" data-testid="home-podium-player">
                 <span class="w-12 flex-none font-display text-lg font-extrabold">{fmtRank(p.place)}</span>
                 <span class="min-w-0 text-lg">
                   {/* Vide pour un visiteur : la photo Discord d'un membre qui se montre, pour un membre validé connecté (src/scripts/visages.ts). */}
-                  <span class="face-slot mr-2" aria-hidden="true" data-face={faces.has(p.username) ? p.username : undefined} hidden></span>
+                  {/* Le Gaulois de qui a créé le sien prend la place de la photo (src/lib/gaulois-site.ts). */}
+                  <GauloisPortrait portrait={portraitDuGaulois(p.id)} class="mr-2" />
+                  {!portraitDuGaulois(p.id) && <span class="face-slot mr-2" aria-hidden="true" data-face={faces.has(p.username) ? p.username : undefined} hidden />}
                   <a class="pseudo" href={fiche(p.id)}>{p.username}</a>
                 </span>
                 <span class="ml-auto text-sm text-muted">{fmtCount(p.wins, "victoire")}</span>
@@ -81,10 +85,11 @@ const faces = singlePseudos(loadMembers()?.members ?? []);
                 <h3 class="mt-6 text-xl">Les plus actifs</h3>
                 <ol class="tnum mt-3 space-y-2">
                   {active.map((p) => (
-                    <li class="flex flex-wrap items-baseline gap-x-3 [overflow-wrap:anywhere]" data-testid="home-active-player">
+                    <li class="flex flex-wrap items-center gap-x-3 [overflow-wrap:anywhere]" data-testid="home-active-player">
                       <span class="w-12 flex-none font-display text-lg font-extrabold">{fmtRank(p.place)}</span>
                       <span class="min-w-0 text-lg">
-                        <span class="face-slot mr-2" aria-hidden="true" data-face={faces.has(p.username) ? p.username : undefined} hidden></span>
+                        <GauloisPortrait portrait={portraitDuGaulois(p.id)} class="mr-2" />
+                        {!portraitDuGaulois(p.id) && <span class="face-slot mr-2" aria-hidden="true" data-face={faces.has(p.username) ? p.username : undefined} hidden />}
                         <a class="pseudo" href={fiche(p.id)}>{p.username}</a>
                       </span>
                       <span class="ml-auto text-sm text-muted">{fmtCount(p.games, "partie")}</span>

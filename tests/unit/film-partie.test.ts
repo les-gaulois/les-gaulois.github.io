@@ -11,6 +11,7 @@ import {
   decompresser,
   dureeDite,
   EcrivainFilm,
+  enteteDuFilm,
   etapeDeLImage,
   etiquettesDe,
   FORMAT_FILM,
@@ -238,5 +239,36 @@ describe("les noms et les unités d'un film", () => {
     const f = new EcrivainFilm(3, 2);
     f.ajouter(new Uint8Array(6), [], [{ id: 0, unite: { ...ville, x: 12 } }]);
     expect(() => lireFilm(f.octetsDuFilm(entete(3, 2, 1), new Uint8Array(6)))).toThrow("hors de la carte");
+  });
+});
+
+describe("l'en-tête seul d'un film", () => {
+  const octets = () => {
+    const e = entete(2, 1, 1, { noms: [{ texte: "Alba", classe: CLASSE.gaulois }] });
+    const ecrivain = new EcrivainFilm(2, 1);
+    ecrivain.ajouter(new Uint8Array([CLASSE.gaulois, CLASSE.personne]));
+    return ecrivain.octetsDuFilm(e, new Uint8Array([TERRE, TERRE]));
+  };
+
+  it("rend les faits et les noms sans relire les images, comme lireFilm", () => {
+    const film = octets();
+    expect(enteteDuFilm(film)).toEqual(lireFilm(film).entete);
+    expect(enteteDuFilm(film).noms).toEqual([{ texte: "Alba", classe: CLASSE.gaulois }]);
+    // Les images peuvent manquer : l'en-tête se lit quand même.
+    const longueur = film[5]! | (film[6]! << 8);
+    expect(enteteDuFilm(film.subarray(0, 7 + longueur)).partie).toBe("abc123");
+  });
+
+  it("refuse ce qui n'est pas un film, un film d'une autre version, coupé ou à l'en-tête illisible", () => {
+    const film = octets();
+    expect(() => enteteDuFilm(new Uint8Array(3))).toThrow("ce n'est pas un film du site");
+    expect(() => enteteDuFilm(new TextEncoder().encode("pas un film du tout"))).toThrow("ce n'est pas un film du site");
+    const autre = film.slice();
+    autre[4] = FORMAT_FILM + 1;
+    expect(() => enteteDuFilm(autre)).toThrow("version du film inconnue");
+    expect(() => enteteDuFilm(film.subarray(0, 12))).toThrow("film coupé");
+    const abime = film.slice();
+    abime[7] = 0x21;
+    expect(() => enteteDuFilm(abime)).toThrow("en-tête illisible");
   });
 });

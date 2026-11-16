@@ -621,6 +621,30 @@ main .card:hover::before {
   max-width: none;
   image-rendering: pixelated;
 }
+/* Les Gaulois d'une partie du journal (« Dernières parties ») : buste et pseudo, à la suite, sous le compte des Gaulois. */
+.journal-gaulois {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  margin-top: 0.375rem;
+  font-size: 0.8125rem;
+}
+.journal-gaulois > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 1.5rem;
+}
+/* Sur les cartes du téléphone et de la tablette, chaque pseudo est une cible pour le doigt, comme « Revoir ». */
+@media (max-width: 63.99rem) {
+  .journal-gaulois {
+    row-gap: 0;
+  }
+  .journal-gaulois > a {
+    min-height: 2.75rem;
+  }
+}
 /* Une ligne « rang, Gaulois, pseudo, chiffre ». */
 .gazette-ligne {
   display: flex;

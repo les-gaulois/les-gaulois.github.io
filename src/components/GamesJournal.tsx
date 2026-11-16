@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { fmtCount, fmtDayAndTime, fmtInt, fmtMinutes, NO_DATA } from "../lib/format";
+import type { GauloisDuJournal } from "../lib/gaulois-site";
 import { filterJournal, isFiltered, JOURNAL_FIRST_ROWS, journalChoices, journalCount, journalUnread, NO_FILTER, replayUrl, type JournalClan, type JournalFilter, type JournalRow } from "../lib/journal";
 import { mapLabel } from "../lib/map-names";
 import { formatLabel } from "../lib/results";
@@ -75,6 +76,35 @@ function Liens({ row, base, films }: { row: JournalRow; base: string; films: Rea
   );
 }
 
+/** Les Gaulois montrés sous une partie ; les autres sont comptés à la suite. */
+const GAULOIS_PAR_PARTIE = 6;
+
+/**
+ * Les Gaulois d'une partie à revoir : le buste de chaque membre au pseudo public qui l'a jouée et qui a créé le sien, et
+ * son pseudo, qui mène à sa fiche. Rien si personne n'est à montrer. Le dessin est décoratif : le pseudo est écrit à côté.
+ */
+function Gaulois({ row, base, gaulois }: { row: JournalRow; base: string; gaulois: GauloisDuJournal | undefined }) {
+  const ids = gaulois?.parties[row.id] ?? [];
+  if (!gaulois || ids.length === 0) return null;
+  return (
+    <span class="journal-gaulois" data-testid="journal-gaulois">
+      {ids.slice(0, GAULOIS_PAR_PARTIE).map((id) => {
+        const g = gaulois.portraits[id];
+        if (!g) return null;
+        return (
+          <a key={id} class="pseudo" href={`${base}/membres/${encodeURIComponent(id)}`}>
+            <span class="gaulois-portrait" aria-hidden="true" style={{ width: `${g.largeur}px`, height: `${g.buste}px` }}>
+              <img src={`${base}${g.image}`} width={g.largeur} height={g.hauteur} alt="" loading="lazy" decoding="async" />
+            </span>
+            {g.username}
+          </a>
+        );
+      })}
+      {ids.length > GAULOIS_PAR_PARTIE && <span class="text-muted">et {fmtInt(ids.length - GAULOIS_PAR_PARTIE)} de plus</span>}
+    </span>
+  );
+}
+
 /** Les clans d'une partie. Une partie sans clan cité n'écrit rien : ce n'est pas la preuve qu'il n'y en avait aucun. */
 function Clans({ row }: { row: JournalRow }) {
   if (row.rivals.length === 0 && row.allies.length === 0) return null;
@@ -96,13 +126,15 @@ interface Props {
   base?: string;
   /** Les parties qui ont leur replay sur le site. */
   films?: string[];
+  /** Les Gaulois des membres qui ont joué ces parties-là (src/lib/gaulois-site.ts). */
+  gaulois?: GauloisDuJournal;
 }
 
 /**
  * Le journal des parties. Les premières lignes viennent de la page, donc se lisent sans JavaScript.
  * Le reste, et avec lui les filtres, arrive d'un fichier statique : le navigateur n'appelle jamais l'API d'OpenFront.
  */
-export default function GamesJournal({ src, initial, sides, base = "", films: avecFilm = [] }: Props) {
+export default function GamesJournal({ src, initial, sides, base = "", films: avecFilm = [], gaulois }: Props) {
   const films = useMemo(() => new Set(avecFilm), [avecFilm]);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [all, setAll] = useState<JournalRow[]>(initial);
@@ -256,7 +288,10 @@ export default function GamesJournal({ src, initial, sides, base = "", films: av
                     <td class="whitespace-nowrap">{fmtDayAndTime(r.at)}</td>
                     <td>{mapOf(r)}</td>
                     <td class="whitespace-nowrap">{formatOf(r)}</td>
-                    <td class="whitespace-nowrap">{fmtInt(r.gaulois)} sur {fmtInt(r.players)}</td>
+                    <td>
+                      <span class="whitespace-nowrap">{fmtInt(r.gaulois)} sur {fmtInt(r.players)}</span>
+                      <Gaulois row={r} base={base} gaulois={gaulois} />
+                    </td>
                     {sides && <td class="text-muted"><Clans row={r} /></td>}
                     <td class="num whitespace-nowrap">{durationOf(r)}</td>
                     <td><Result won={r.won} /></td>
@@ -276,6 +311,7 @@ export default function GamesJournal({ src, initial, sides, base = "", films: av
                 </div>
                 <p class="mt-1">{mapOf(r)} · {formatOf(r)}</p>
                 <p class="mt-1 text-muted">{fmtInt(r.gaulois)} Gaulois sur {fmtCount(r.players, "joueur")} · {durationOf(r)}</p>
+                <Gaulois row={r} base={base} gaulois={gaulois} />
                 {(r.rivals.length > 0 || r.allies.length > 0) && <p class="mt-1 text-muted"><Clans row={r} /></p>}
                 {/* 12 px au-dessus du lien : sa cible de 44 px ne déborde pas sur la ligne d'avant. */}
                 <p class="mt-3"><Liens row={r} base={base} films={films} /></p>
