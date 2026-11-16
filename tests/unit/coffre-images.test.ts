@@ -315,7 +315,8 @@ const ouverture = (extra: Record<string, unknown> = {}): Record<string, unknown>
 const clos = (extra: Record<string, unknown> = {}): Record<string, unknown> => ({ ok: true, gagne: false, manche: 2, essai: 4, mise: 0, cagnotte: 60, gain: 0, tableau: { longueur_dite: false, lettres: [1, 2, 3], indices: [] }, champion: null, ancien_champion: null, ...extra });
 const structure = (objet: Record<string, unknown>): ReponseClaude => ({ texte: JSON.stringify({ reponse: "Non.", humeur: "confiant", longueur_dite: false, lettres: [], indice: "", ...objet }), modele: DRUIDE_MODELE, entree: 10, sortie: 10 });
 const dernier = <T,>(liste: T[]): T => liste[liste.length - 1] as T;
-const ecrit = (m: ReturnType<typeof monde>): string => String((dernier(m.calls.webhook).call?.body as Record<string, unknown>)["content"]);
+// La réponse du gardien : le message d'origine, que le robot remplace (PATCH). Après une victoire, un vide le suit (POST).
+const ecrit = (m: ReturnType<typeof monde>): string => String((dernier(m.calls.webhook.filter((w) => w.method === "PATCH")).call?.body as Record<string, unknown>)["content"]);
 const corps = async (res: Response): Promise<Record<string, unknown>> => (await res.json()) as Record<string, unknown>;
 
 describe("/coffre, avec le tableau, la mise et le rôle", () => {
@@ -337,18 +338,20 @@ describe("/coffre, avec le tableau, la mise et le rôle", () => {
     await m.fini();
     expect(m.calls.rpc[1]?.args).toMatchObject({ p_gagne: true, p_devine: false, p_humeur: "vaincu", p_lettres: [4, 5, 6] });
     expect(ecrit(m)).toContain("a ouvert le coffre");
-    expect(dernier(m.calls.webhook).call?.files?.[0]).toMatchObject({ name: COFFRE_FILE });
+    expect(dernier(m.calls.webhook.filter((w) => w.method === "PATCH")).call?.files?.[0]).toMatchObject({ name: COFFRE_FILE });
+    // Puis le vide qui sépare la manche suivante, en message de suite.
+    expect(dernier(m.calls.webhook)).toMatchObject({ method: "POST", path: `/webhooks/${APP}/${TOKEN}` });
   });
 
-  it("la mise demandée part au serveur ; une mise qui n'est pas dans la liste vaut la plus petite", async () => {
-    const m = monde({ rpc: { coffre_ouvrir: () => ouverture(), coffre_clore: () => clos({ mise: 50, cagnotte: 110 }) } });
+  it("la mise est la même pour tous : une mise demandée par une vieille commande ne compte pas", async () => {
+    const m = monde({ rpc: { coffre_ouvrir: () => ouverture(), coffre_clore: () => clos({ mise: 10, cagnotte: 70 }) } });
     await coffreCommand(interaction("Bonjour barde", 50), m.deps);
     await m.fini();
-    expect(m.calls.rpc[0]?.args).toMatchObject({ p_mise: 50 });
-    expect(ecrit(m)).toContain("Mise : 50 statères, dans la cagnotte.");
+    expect(m.calls.rpc[0]?.args).toMatchObject({ p_mise: 10 });
+    expect(ecrit(m)).toContain("Mise : 10 statères, dans la cagnotte.");
     const triche = monde({ rpc: { coffre_ouvrir: () => ({ ok: false, error: "daily_limit" }) } });
     await coffreCommand(interaction("Bonjour barde", 5000), triche.deps);
-    expect(triche.calls.rpc[0]?.args).toMatchObject({ p_mise: 20 });
+    expect(triche.calls.rpc[0]?.args).toMatchObject({ p_mise: 10 });
   });
 
   it("une mise refusée n'est dite qu'au membre, et rien ne part chez Claude", async () => {

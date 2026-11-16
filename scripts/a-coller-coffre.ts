@@ -187,3 +187,53 @@ select 'mise obligatoire : '
 const texte4 = entete4 + migration4 + fin4;
 writeFileSync(".cache/a-coller-coffre-mise.sql", texte4);
 console.log(`.cache/a-coller-coffre-mise.sql : ${texte4.split("\n").length} lignes, ${(texte4.match(/\$\$/g) ?? []).length} « $$ » (la migration en a ${(migration4.match(/\$\$/g) ?? []).length})`);
+
+/* ---------- La mise de 10 statères et la garde : la cinquième migration, à coller après la mise obligatoire ---------- */
+
+const NOM_5 = "20261117000100_coffre_mise_dix_et_garde";
+const migration5 = readFileSync(`supabase/migrations/${NOM_5}.sql`, "utf8").split("\r\n").join("\n").trimEnd();
+const ATTENDU_5 = "mise de 10 et garde : installé";
+
+const entete5 = `-- LA MISE DE 10 STATÈRES ET LA GARDE (17 novembre 2026), à coller en un seul fichier, APRÈS la mise obligatoire.
+-- Chaque essai coûte 10 statères, et la cagnotte du gagnant est multipliée selon la garde du gardien (2 à 5 fois).
+--
+-- À coller EN ENTIER dans l'éditeur SQL de Supabase (SQL Editor), puis « Run ». Il contient la seule migration ${NOM_5}.sql,
+-- notée comme appliquée. Il remplace deux fonctions par les mêmes, avec la nouvelle règle, et refait la règle qui dit quelles
+-- mises un essai peut porter. Il n'efface rien et ne touche à aucune donnée : la manche en cours et sa cagnotte restent.
+-- Collé une seconde fois, il ne change rien. La dernière ligne doit dire : « ${ATTENDU_5} ».
+
+begin;
+
+`;
+
+const fin5 = `
+
+insert into supabase_migrations.schema_migrations (version, name, statements)
+values ('20261117000100', 'coffre_mise_dix_et_garde', array[]::text[])
+on conflict (version) do nothing;
+
+commit;
+
+-- Le contrôle : les deux fonctions portent-elles la nouvelle règle, une mise de 10 est-elle acceptée, les droits et la note sont-ils là ?
+select 'mise de 10 et garde : '
+  || case when (select p.prosrc like '%v_garde + 1%' from pg_proc p join pg_namespace s on s.oid = p.pronamespace where s.nspname = 'public' and p.proname = 'coffre_clore' and p.pronargs = 10)
+       and (select p.prosrc like '%internal.coffre_garde(p_manche, p_essai)%' from pg_proc p join pg_namespace s on s.oid = p.pronamespace where s.nspname = 'public' and p.proname = 'coffre_clore' and p.pronargs = 10)
+       and internal.coffre_garde(coalesce((select max(id) from internal.coffre_manches), 0), 0) between 1 and 4
+       and not has_function_privilege('anon', 'internal.coffre_garde(bigint, bigint)', 'execute')
+       and not has_function_privilege('authenticated', 'internal.coffre_garde(bigint, bigint)', 'execute')
+       and (select p.prosrc like '%v_mise integer := 10;%' from pg_proc p join pg_namespace s on s.oid = p.pronamespace where s.nspname = 'public' and p.proname = 'coffre_ouvrir' and p.pronargs = 5)
+       and (select count(*) = 1 and bool_and(pg_get_constraintdef(c.oid) like '%0, 10, 20%') from pg_constraint c where c.conrelid = 'internal.coffre_essais'::regclass and c.contype = 'c' and pg_get_constraintdef(c.oid) like '%mise%')
+       and not has_function_privilege('anon', 'public.coffre_ouvrir(text, text, text, text, integer)', 'execute')
+       and not has_function_privilege('authenticated', 'public.coffre_ouvrir(text, text, text, text, integer)', 'execute')
+       and not has_function_privilege('anon', 'public.coffre_clore(bigint, bigint, text, boolean, boolean, bigint, text, boolean, integer[], text)', 'execute')
+       and not has_function_privilege('authenticated', 'public.coffre_clore(bigint, bigint, text, boolean, boolean, bigint, text, boolean, integer[], text)', 'execute')
+       and has_function_privilege('service_role', 'public.coffre_ouvrir(text, text, text, text, integer)', 'execute')
+       and has_function_privilege('service_role', 'public.coffre_clore(bigint, bigint, text, boolean, boolean, bigint, text, boolean, integer[], text)', 'execute')
+       and (public.coffre_ouvrir('etat', 'etat', 'etat', 'etat', 0) ->> 'error') = 'invalid_request'
+       and exists (select 1 from supabase_migrations.schema_migrations where version = '20261117000100')
+     then 'installé' else 'PAS INSTALLÉ' end as controle;
+`;
+
+const texte5 = entete5 + migration5 + fin5;
+writeFileSync(".cache/a-coller-coffre-garde.sql", texte5);
+console.log(`.cache/a-coller-coffre-garde.sql : ${texte5.split("\n").length} lignes, ${(texte5.match(/\$\$/g) ?? []).length} « $$ » (la migration en a ${(migration5.match(/\$\$/g) ?? []).length})`);

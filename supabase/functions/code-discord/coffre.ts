@@ -20,10 +20,11 @@
  * la semaine ; le vendredi soir le gardien se méfie moins, le dimanche soir les essais sont doublés.
  *
  * Depuis la migration `20261116001700_coffre_mise_obligatoire.sql` (demande du pilote, 16 novembre 2026, après un coffre
- * ouvert sans que personne ait misé) : chaque essai coûte une mise, 20 statères si le membre n'en choisit pas d'autre, et
- * il faut donc un compte validé avec son Gaulois. La cagnotte n'est faite que des mises ; quand le coffre s'ouvre, le jeu
- * la multiplie selon la mise du gagnant sur son essai gagnant (`FOIS_PAR_MISE`) : c'est la seule création de statères du
- * coffre, décidée par le serveur. Le gardien ne sait rien d'OpenFront et n'en dit rien.
+ * ouvert sans que personne ait misé) : chaque essai coûte une mise, et il faut donc un compte validé avec son Gaulois.
+ * Depuis `20261117000100_coffre_mise_dix_et_garde.sql` (choix du pilote, 17 novembre 2026), la mise est de 10 statères,
+ * la même pour tous, sans option. La cagnotte n'est faite que des mises ; quand le coffre s'ouvre, le jeu la multiplie
+ * selon la garde du gardien, les boucliers de l'image (`FOIS_PAR_GARDE`) : c'est la seule création de statères du coffre,
+ * décidée par le serveur. Le gardien ne sait rien d'OpenFront et n'en dit rien.
  *
  * L'appel à Claude passe par `deps.claude` (`index.ts`, SDK officiel) avec la clé du secret `ANTHROPIC_API_KEY` de la
  * fonction. Sans clé, /coffre répond que le druide dort, et tout le reste du robot marche.
@@ -53,7 +54,6 @@ type Json = Record<string, unknown>;
 /** Le nom de la commande et de son option, tels que `definitions.ts` les décrit : un test le vérifie. */
 export const COFFRE_COMMAND_NAME = "coffre";
 export const COFFRE_OPTION = "message";
-export const COFFRE_OPTION_MISE = "mise";
 /** /perceurs : le podium de la semaine. */
 export const PERCEURS_COMMAND_NAME = "perceurs";
 /**
@@ -510,12 +510,10 @@ const COUPE = String.fromCodePoint(0x1f3c6);
 
 const essaisEnMots = (n: number): string => (n === 0 ? "plus d'essai" : n === 1 ? "1 essai" : `${n} essais`);
 
-/** Les mises permises, en statères : celles que la commande propose et que le serveur accepte. */
-export const MISES = [20, 50, 100] as const;
-/** La mise d'un essai dont le membre n'a pas choisi la mise : la plus petite. Personne ne joue sans miser. */
-export const MISE_PAR_DEFAUT = 20;
-/** Par combien le serveur multiplie la cagnotte, selon la mise du gagnant sur son essai gagnant. Le serveur décide ; ceci sert aux textes. */
-export const FOIS_PAR_MISE: Readonly<Record<(typeof MISES)[number], number>> = { 20: 2, 50: 3, 100: 4 };
+/** La mise de chaque essai, en statères, la même pour tous : personne ne joue sans miser. Le serveur la décide ; ceci sert aux textes. */
+export const MISE_DU_COFFRE = 10;
+/** Par combien le serveur multiplie la cagnotte du gagnant, selon la garde du gardien (1 à 4 boucliers). Le serveur décide ; ceci sert aux textes. */
+export const FOIS_PAR_GARDE = [2, 3, 4, 5] as const;
 /** Le rôle Discord du champion de la semaine : le robot le donne s'il existe sous ce nom sur le serveur. */
 export const ROLE_DU_CHAMPION = "Perceur de coffres";
 export const RAISON_DU_ROLE = "Coffre du druide : champion de la semaine";
@@ -538,8 +536,8 @@ export const COFFRE_MESSAGES = {
   dailyLimit: "Vous avez fait tous vos essais du jour, villageois. Revenez demain : le gardien sera à son poste.",
   dailyTotal: "Tout le village a défilé devant le gardien aujourd'hui : il a la gorge sèche. Il rouvre son coffre demain.",
   pending: "Patience, villageois : le gardien cherche encore sa réponse à votre dernière ruse. Attendez-la avant de lui réécrire.",
-  noStake: `Le gardien ne parle qu'à qui mise : chaque essai coûte au moins ${MISE_PAR_DEFAUT} statères. Il faut un compte validé sur le site du clan, avec votre Gaulois : https://les-gaulois.github.io/village`,
-  stakeShort: `Votre bourse est trop légère pour cette mise : chaque essai coûte au moins ${MISE_PAR_DEFAUT} statères. Les statères viennent des points que vous rapportez au clan.`,
+  noStake: `Le gardien ne parle qu'à qui mise : chaque essai coûte ${MISE_DU_COFFRE} statères. Il faut un compte validé sur le site du clan, avec votre Gaulois : https://les-gaulois.github.io/village`,
+  stakeShort: `Votre bourse est trop légère : chaque essai coûte ${MISE_DU_COFFRE} statères. Les statères viennent des points que vous rapportez au clan.`,
   noWord: "Le gardien grave encore son nouveau mot sous le couvercle. Réessayez dans un moment.",
   failed: "Le gardien a perdu le fil de sa pensée. Réessayez dans un moment.",
   speechless: "Le gardien en reste sans voix.",
@@ -591,6 +589,8 @@ export interface Tirage {
   gain: number;
   /** Par combien le serveur a multiplié la cagnotte pour le gagnant : 1 s'il ne l'a pas dit. */
   fois?: number;
+  /** La garde du gardien que le serveur a retenue pour ce multiplicateur, de 1 à 4 ; absente s'il ne l'a pas dite. */
+  garde?: number | null;
 }
 
 /**
@@ -604,7 +604,7 @@ export function messageDuCoffre(t: Tirage, image: string | null = null): Json {
     const cagnotte =
       t.gain > 0
         ? fois > 1
-          ? ` Il remporte ${t.gain} statères : la cagnotte de ${Math.round(t.gain / fois)}, multipliée par ${fois} pour sa mise de ${t.mise}.`
+          ? ` Il remporte ${t.gain} statères : la cagnotte de ${Math.round(t.gain / fois)}, multipliée par ${fois}${t.garde ? ` face à un gardien à ${t.garde} sur ${FOIS_PAR_GARDE.length} de garde` : ""}.`
           : ` Il remporte la cagnotte : ${t.gain} statères.`
         : t.cagnotte > 0
           ? ` La cagnotte de ${t.cagnotte} statères reste dans le coffre : pour la gagner, il faut un compte validé sur le site, avec son Gaulois.`
@@ -621,6 +621,21 @@ export function messageDuCoffre(t: Tirage, image: string | null = null): Json {
     flags: 4,
     allowed_mentions: t.gagne !== null ? { parse: [], users: [t.discordId] } : { parse: [] },
     ...(image === null ? {} : { attachments: [{ id: 0, filename: COFFRE_FILE, description: image.slice(0, 1024) }] }),
+  };
+}
+
+/**
+ * Le vide entre deux manches (demande du pilote, 17 novembre 2026 : « des gros espacements, qu'on ne voie pas les
+ * conversations de la manche d'avant ») : après un coffre ouvert, le robot pose un message fait de lignes vides, plus haut
+ * qu'un écran, puis le titre de la manche qui commence. Rien n'est effacé : la manche d'avant reste au-dessus.
+ */
+export const LIGNES_VIDES_ENTRE_MANCHES = 45;
+export function separateurDeManche(prochaine: number): Json {
+  // « _ _ » : une ligne que Discord affiche vide, sans la retirer.
+  const lignes = [...Array.from({ length: LIGNES_VIDES_ENTRE_MANCHES }, () => "_ _"), `# Manche ${prochaine}`, "Un nouveau mot est sous clé, et un autre gardien monte la garde. À vous, villageois : /coffre"];
+  return {
+    content: lignes.join(String.fromCharCode(10)),
+    allowed_mentions: { parse: [] },
   };
 }
 
@@ -643,13 +658,11 @@ export const ENVOI_ATTENTE_MS = 1500;
 
 function optionsDuCoffre(data: Json | null): { message: string; mise: number } {
   let message = "";
-  let mise: number = MISE_PAR_DEFAUT;
   for (const option of Array.isArray(data?.["options"]) ? (data["options"] as unknown[]) : []) {
     const entry = record(option);
     if (entry?.["name"] === COFFRE_OPTION && typeof entry["value"] === "string") message = entry["value"].replace(/\s+/g, " ").trim();
-    if (entry?.["name"] === COFFRE_OPTION_MISE && (MISES as readonly unknown[]).includes(entry["value"])) mise = entry["value"] as number;
   }
-  return { message, mise };
+  return { message, mise: MISE_DU_COFFRE };
 }
 
 /** Ce qu'un appel a coûté : d'après ses jetons s'il a répondu, sinon le forfait. */
@@ -779,6 +792,7 @@ async function jouer(interaction: Json, joueur: { id: string; nom: string }, mes
       gagne: gagne ? manche.mot : null,
       gain,
       fois: Math.max(1, entier(clos["fois"]) ?? 1),
+      garde: entier(clos["garde"]),
     };
     // L'image de la scène : si son dessin échoue, la réponse part en texte seul.
     let image: { png: Uint8Array<ArrayBuffer>; description: string } | null = null;
@@ -805,7 +819,11 @@ async function jouer(interaction: Json, joueur: { id: string; nom: string }, mes
       deps.log(`coffre : image non dessinée (${e instanceof Error ? e.message : String(e)})`);
     }
     await repondre(messageDuCoffre(tirage, image?.description ?? null), image ? [{ name: COFFRE_FILE, type: "image/png", bytes: image.png }] : undefined);
-    if (gagne) await passerLeRole(clos["champion"], clos["ancien_champion"], deps);
+    if (gagne) {
+      // Le salon repart propre pour la manche suivante. Si ce message ne part pas, le jeu continue sans lui.
+      if (isId(appId) && typeof token === "string" && /^[A-Za-z0-9._-]{20,500}$/.test(token)) await deps.webhook("POST", `/webhooks/${appId}/${token}`, { body: separateurDeManche(numero + 1) });
+      await passerLeRole(clos["champion"], clos["ancien_champion"], deps);
+    }
   } catch (e) {
     deps.log(`coffre : ${e instanceof Error ? e.message : String(e)}`);
     // La panne a pu suivre un appel à Claude : le forfait est compté.

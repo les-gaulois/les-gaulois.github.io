@@ -142,7 +142,7 @@ describe("les commandes du robot", () => {
 
   it("tiennent dans les limites de Discord, et chaque option de texte propose pendant la saisie", () => {
     // /concours a des sous-commandes, contrôlées dans tests/unit/concours-discord.test.ts.
-    // /coffre a un texte libre et une mise facultative, contrôlés dans tests/unit/coffre-discord.test.ts.
+    // /coffre a un texte libre, contrôlé dans tests/unit/coffre-discord.test.ts.
     for (const command of COMMANDS.filter((c) => c.name !== "concours" && c.name !== "coffre")) {
       expect(command.name).toMatch(/^[a-z0-9_-]{1,32}$/);
       expect(command.type).toBe(1);

@@ -1,14 +1,13 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { COFFRE_COMMAND, COMMANDS, PERCEURS_COMMAND } from "../../supabase/functions/code-discord/definitions";
 import {
   CARACTERES,
   COFFRE_COMMAND_NAME,
   COFFRE_FILE,
-  COFFRE_OPTION_MISE,
-  FOIS_PAR_MISE,
-  MISE_PAR_DEFAUT,
+  FOIS_PAR_GARDE,
+  MISE_DU_COFFRE,
   FORME_DE_LA_REPONSE,
-  MISES,
   PERCEURS_COMMAND_NAME,
   parseManche,
   type MancheDuCoffre,
@@ -40,6 +39,8 @@ import {
   motPropose,
   nomPropre,
   palierDuDruide,
+  LIGNES_VIDES_ENTRE_MANCHES,
+  separateurDeManche,
   parseEtat,
   refusDuCoffre,
   reponsePropre,
@@ -224,10 +225,27 @@ describe("ce que le salon lit", () => {
     expect(messageDuCoffre({ ...base, cagnotte: 0, gain: 340 })["content"]).toContain("Il remporte la cagnotte : 340 statères.");
     expect(messageDuCoffre({ ...base, cagnotte: 340, gain: 0 })["content"]).toContain("La cagnotte de 340 statères reste dans le coffre");
     expect(messageDuCoffre({ ...base, cagnotte: 0, gain: 0 })["content"]).not.toContain("cagnotte");
-    // La cagnotte multipliée par le serveur selon la mise du gagnant : le message dit la cagnotte, le multiplicateur et la mise.
-    expect(messageDuCoffre({ ...base, mise: 50, cagnotte: 0, gain: 360, fois: 3 })["content"]).toContain("Il remporte 360 statères : la cagnotte de 120, multipliée par 3 pour sa mise de 50.");
-    expect(Object.keys(FOIS_PAR_MISE).map(Number)).toEqual([...MISES]);
-    expect(MISES).toContain(MISE_PAR_DEFAUT);
+    // La cagnotte multipliée par le serveur selon la garde : le message dit la cagnotte, le multiplicateur et la garde.
+    expect(messageDuCoffre({ ...base, mise: 10, cagnotte: 0, gain: 360, fois: 3, garde: 2 })["content"]).toContain("Il remporte 360 statères : la cagnotte de 120, multipliée par 3 face à un gardien à 2 sur 4 de garde.");
+    expect(messageDuCoffre({ ...base, mise: 10, cagnotte: 0, gain: 360, fois: 3 })["content"]).toContain("la cagnotte de 120, multipliée par 3.");
+    // Une garde de 1 à 4 : la cagnotte fois 2 à fois 5.
+    expect(FOIS_PAR_GARDE).toEqual([2, 3, 4, 5]);
+    expect(MISE_DU_COFFRE).toBe(10);
+    // Le serveur recalcule la garde avec la règle de palierDuDruide : mêmes seuils, même fatigue, même soir.
+    const sql = readFileSync("supabase/migrations/20261117000100_coffre_mise_dix_et_garde.sql", "utf8");
+    expect(sql).toContain("case when count(*) < 2 then 0 when count(*) < 4 then 1 when count(*) < 7 then 2 else 3 end");
+    expect(sql).toContain(`case when count(*) >= ${FATIGUE_ESSAIS} then 1 else 0 end`);
+    expect(sql).toContain("internal.coffre_soir() = 'cervoise'");
+    expect(sql).toContain("v_fois := case when v_mise > 0 then v_garde + 1 else 1 end;");
+    expect([0, 1, 2, 3].map((p) => p + 2)).toEqual([...FOIS_PAR_GARDE]);
+    expect([0, 1, 2, 3, 4, 6, 7, 30].map((n) => palierDuDruide(n, 0))).toEqual([0, 0, 1, 1, 2, 2, 3, 3]);
+    expect(palierDuDruide(7, FATIGUE_ESSAIS)).toBe(2);
+    expect(palierDuDruide(7, FATIGUE_ESSAIS, "cervoise")).toBe(1);
+    // Le vide entre deux manches : plus haut qu'un écran, puis le titre de la manche qui commence, sans mention.
+    const vide = String(separateurDeManche(6)["content"]).split(String.fromCharCode(10));
+    expect(vide.slice(0, LIGNES_VIDES_ENTRE_MANCHES).every((ligne) => ligne === "_ _")).toBe(true);
+    expect(vide[LIGNES_VIDES_ENTRE_MANCHES]).toBe("# Manche 6");
+    expect(separateurDeManche(6)["allowed_mentions"]).toEqual({ parse: [] });
   });
 
   it("chaque refus du serveur a sa phrase", () => {
@@ -269,12 +287,9 @@ describe("la commande, telle que Discord la montre", () => {
     expect(COFFRE_COMMAND.description).toContain("Tout le salon voit");
     expect(COFFRE_COMMAND.description.length).toBeLessThanOrEqual(100);
     expect(COMMANDS).toContain(COFFRE_COMMAND);
-    // La mise : sans choix, la plus petite ; et seulement celles que le serveur accepte.
-    const mise = COFFRE_COMMAND.options[1];
-    expect(mise.name).toBe(COFFRE_OPTION_MISE);
-    expect(mise).not.toHaveProperty("required");
-    expect(mise.choices.map((c) => c.value)).toEqual([...MISES]);
-    expect(mise.description.length).toBeLessThanOrEqual(100);
+    // La mise est la même pour tous : la commande n'a plus que son message, et dit le prix de l'essai.
+    expect(COFFRE_COMMAND.options).toHaveLength(1);
+    expect(COFFRE_COMMAND.description).toContain(`${MISE_DU_COFFRE} statères l'essai`);
     expect(PERCEURS_COMMAND.name).toBe(PERCEURS_COMMAND_NAME);
     expect(PERCEURS_COMMAND.description.length).toBeLessThanOrEqual(100);
     expect(COMMANDS).toContain(PERCEURS_COMMAND);
@@ -357,7 +372,8 @@ const interaction = (message: string, extra: Record<string, unknown> = {}): Reco
 const ouverture = (extra: Record<string, unknown> = {}): Record<string, unknown> => ({ ok: true, essai: 9, manche: { id: 2, mot: "menhir", essais: 3 }, niveau: 1, passes: ["enclume", "menhir"], ruses: [], historique: [], restants: 7, ...extra });
 const corps = async (res: Response): Promise<Record<string, unknown>> => (await res.json()) as Record<string, unknown>;
 const dernier = <T,>(liste: T[]): T => liste[liste.length - 1] as T;
-const ecrit = (m: ReturnType<typeof monde>): string => String((dernier(m.calls.webhook).call?.body as Record<string, unknown>)["content"]);
+// La réponse du gardien : le message d'origine, que le robot remplace (PATCH). Après une victoire, un vide le suit (POST).
+const ecrit = (m: ReturnType<typeof monde>): string => String((dernier(m.calls.webhook.filter((w) => w.method === "PATCH")).call?.body as Record<string, unknown>)["content"]);
 
 describe("/coffre", () => {
   it("refuse, au seul membre, hors du serveur du clan, un robot, ou un message trop court", async () => {
@@ -408,7 +424,7 @@ describe("/coffre", () => {
     const m = monde({ rpc: { coffre_ouvrir: () => ouverture({ historique: [{ nom: "Ana", message: "Salut", reponse: "Bonjour." }] }), coffre_clore: () => ({ ok: true, gagne: false, manche: 2, essai: 4 }) } });
     expect(await corps(await coffreCommand(interaction("  Quel est   le mot ? "), m.deps))).toEqual({ type: 5 });
     await m.fini();
-    expect(m.calls.rpc[0]).toEqual({ name: "coffre_ouvrir", args: { p_discord_id: JOUEUR, p_nom: "Jod", p_message: "Quel est le mot ?", p_interaction_id: INTERACTION, p_mise: 20 } });
+    expect(m.calls.rpc[0]).toEqual({ name: "coffre_ouvrir", args: { p_discord_id: JOUEUR, p_nom: "Jod", p_message: "Quel est le mot ?", p_interaction_id: INTERACTION, p_mise: 10 } });
     const [demande] = m.calls.claude;
     expect(demande?.system).toContain("« menhir »");
     expect(demande?.effort).toBe("medium");

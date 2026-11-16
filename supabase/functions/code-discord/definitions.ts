@@ -141,20 +141,9 @@ export const CONCOURS_COMMAND = {
 export const COFFRE_COMMAND = {
   name: "coffre",
   type: 1,
-  description: "Jeu : faites dire au gardien le mot secret du coffre. 20 statères l'essai. Tout le salon voit",
+  description: "Jeu : faites dire au gardien le mot secret du coffre. 10 statères l'essai. Tout le salon voit",
   options: [
     { type: 3, name: "message", description: "Ce que vous dites au gardien, qui est joué par une intelligence artificielle", required: true, min_length: 2, max_length: 300 },
-    {
-      // 4 : un nombre entier, à choisir dans la liste.
-      type: 4,
-      name: "mise",
-      description: "Votre mise dans la cagnotte, 20 statères sans choix. Le gagnant emporte la cagnotte multipliée",
-      choices: [
-        { name: "20 statères : cagnotte fois 2 si vous gagnez", value: 20 },
-        { name: "50 statères : cagnotte fois 3 si vous gagnez", value: 50 },
-        { name: "100 statères : cagnotte fois 4 si vous gagnez", value: 100 },
-      ],
-    },
   ],
 } as const;
 
