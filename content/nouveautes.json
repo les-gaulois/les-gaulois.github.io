@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-16",
+    "kind": "nouveau",
+    "title": "Le sentier des Gaulois",
+    "body": "Nouvel onglet de « Mon Gaulois » : 30 paliers, du 17 novembre au 31 décembre. On avance par les missions du jour, ses jours de visite et le défi du clan. Chaque palier donne un objet de la boutique.",
+    "link": {
+      "href": "/village#sentier",
+      "label": "Le sentier"
+    }
+  },
+  {
+    "date": "2026-11-16",
     "kind": "ameliore",
     "title": "La loterie change d'écran",
     "body": "L'onglet « La loterie » est refait : les trois lots en grand avec leurs pochettes, chaque gagnant devant sa bannière, la ligne des parts en ruban et un guichet pour vos billets.",
