@@ -3557,6 +3557,16 @@
   font-size: 0.9375rem;
   font-weight: 700;
 }
+.livre-apercu .fiche-banniere {
+  width: 100%;
+  margin: 0;
+}
+.livre-apercu-note {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+  text-align: center;
+}
 .livre-apercu-scene {
   width: 100%;
   height: auto;

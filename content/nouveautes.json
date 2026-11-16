@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-16",
+    "kind": "nouveau",
+    "title": "La bannière sur la fiche de membre",
+    "body": "La fiche d'un membre montre en tête la bannière de son Gaulois, relevée à chaque mise à jour du site. Dans le livre des bannières, un aperçu « Sur ma fiche » la montre avant de choisir.",
+    "link": {
+      "href": "/liste",
+      "label": "Voir les membres"
+    }
+  },
+  {
+    "date": "2026-11-16",
     "kind": "ameliore",
     "title": "Le replay du jeu remplit son cadre",
     "body": "Dans « Revoir une partie », le replay du jeu prend la forme de la carte, sans gris autour, sur fond blanc. « Film du site » est retiré : le film ne sert plus qu'en secours.",

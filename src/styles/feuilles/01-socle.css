@@ -1137,6 +1137,27 @@ tr.ligne-banniere > td:last-child {
     font-size: 1rem;
   }
 }
+/* La même bannière en tête de la fiche du membre (src/pages/membres/[id].astro), et dans l'aperçu « Sur ma fiche » du livre
+   des bannières : le dessin entier, agrandi sans lissage, son cadre de rareté dessiné dedans. */
+.fiche-banniere {
+  display: grid;
+  gap: 0.375rem;
+  max-width: 31rem;
+  margin: 1rem 0 0;
+}
+.fiche-banniere :is(img, canvas) {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 124 / 80;
+  image-rendering: pixelated;
+  border-radius: 0.25rem;
+  box-shadow: 0 0.5rem 1rem -0.5rem var(--ombre);
+}
+.fiche-banniere figcaption {
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
 /* Sur téléphone, la ligne est une carte : la bannière la couvre en hauteur, le cadre en fait le tour. */
 /* « :root main li.card » : les cartes reçoivent ailleurs un halo en image de fond et une ombre (« main .card », puis la
    feuille 07 sous :root[data-lettres]) ; ce sélecteur passe devant, pour que la bannière et le cadre tiennent. */

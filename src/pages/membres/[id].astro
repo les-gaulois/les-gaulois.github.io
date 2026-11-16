@@ -7,6 +7,8 @@ import { NiveauEmblem } from "../../components/NiveauEmblem";
 import PageHeader from "../../components/PageHeader.astro";
 import ReadingNote from "../../components/ReadingNote.astro";
 import { clan } from "../../../config/clan";
+import { banniereParId } from "../../../supabase/functions/code-discord/bannieres/index";
+import { BANNIERES_MEMBRES_FILE, bannieresDuCache } from "../../lib/bannieres-joueurs";
 import { loadCompagnonsDeFlamme, loadMemberGames, loadMemberResultsOnce, loadMembers, loadMeta, loadRecordsPersonnels, loadSeriesEnCours, loadSessionIndex } from "../../lib/data";
 import { fmtCount, fmtDate, fmtDateTime, fmtInt, fmtPct } from "../../lib/format";
 import { ficheFacts, ficheImageAlt } from "../../lib/fiche-image";
@@ -72,6 +74,9 @@ const imageAlt = hasImage && facts && list ? ficheImageAlt(facts, clan.tag, list
 // Seul ou en groupe : ses parties de sa liste officielle, rangées selon le nombre de Gaulois de la session du clan (src/lib/seul-groupe.ts).
 const groupe = member.publicId ? groupStats(loadMemberResultsOnce()[member.publicId], loadSessionIndex()) : null;
 const groupLine = groupe ? groupSentence(groupe, username, fmtPct) : null;
+// La bannière que son Gaulois montre, relevée avant la construction comme pour la liste (src/lib/bannieres-joueurs.ts) : le
+// serveur décide de qui en montre une. Sans relevé, la fiche reste comme avant.
+const banniere = banniereParId(member.publicId ? bannieresDuCache(BANNIERES_MEMBRES_FILE, [member.publicId]).get(member.publicId)?.id : null);
 const tiles = member.team
   ? [
       { label: "Victoires", value: fmtInt(member.team.wins) },
@@ -88,6 +93,17 @@ const tiles = member.team
       {/* Vide pour un visiteur : sa photo Discord, s'il a choisi de se montrer, pour un membre validé connecté (src/scripts/visages.ts). */}
       <span class="face-slot face-slot-lg mt-4" aria-hidden="true" data-face={face} hidden></span>
       {ROLE[member.role] && <p class="mt-2 font-semibold" data-testid="member-role">{ROLE[member.role]}</p>}
+      {/* La bannière de son Gaulois, celle de /gaulois et de sa ligne dans la liste : son dessin entier, cadre de rareté compris. */}
+      {
+        banniere && (
+          <figure class="fiche-banniere" data-testid="member-banner" data-banniere={banniere.id}>
+            <img src={`${base}/bannieres/${encodeURIComponent(banniere.id)}.png`} alt={banniere.description} width="124" height="80" decoding="async" />
+            <figcaption>
+              La bannière de son Gaulois : « {banniere.nom} »
+            </figcaption>
+          </figure>
+        )
+      }
       {/* La flamme de série (src/lib/serie-en-cours.ts) : à partir de 5 victoires d'affilée sous le tag, au dernier relevé. Elle
           vient avant le niveau, qui est tout le jeu ; deux blocs à part. Sous 5, ou sans données : rien. */}
       {

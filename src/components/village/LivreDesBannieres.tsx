@@ -16,8 +16,8 @@ import { CartesDeLaVitrine } from "./Vitrine";
  * livres puis cinq variantes) : un album couché, qu'on penche avec la souris. Sur la page du bas, une vignette par
  * bannière du compte, et « le décor de mon lieu » ; la vignette touchée se décolle, vole au-dessus du livre et se dresse
  * en décor, le Gaulois du membre devant elle. Aucun bouton de page : on glisse la page, on touche son coin corné, ou on
- * prend les flèches du clavier. Sous le livre, deux aperçus changent dès le survol d'une vignette : l'image de /gaulois et
- * la carte du membre dans « La vitrine ».
+ * prend les flèches du clavier. Sous le livre, trois aperçus changent dès le survol d'une vignette : l'image de /gaulois, la
+ * bannière en tête de sa fiche de membre et sa carte dans « La vitrine ».
  *
  * Le serveur décide (`choisir_banniere`) : le décor ne se dresse qu'après sa réponse, et reste l'ancien s'il refuse. Avec
  * le bouton pause ou « réduire les animations », tout se pose sans mouvement. Calculs : `src/lib/village/livre-bannieres.ts`.
@@ -361,6 +361,17 @@ export function LivreDesBannieres({ lib, miennes, montree, nom, tenue, familier,
         <figure class="livre-apercu">
           <figcaption>Sur /gaulois</figcaption>
           <ApercuDeGaulois lib={lib} banniere={vue === null ? null : (parId.get(vue) ?? null)} tenue={tenue} familier={familier} />
+        </figure>
+        <figure class="livre-apercu" data-testid="livre-apercu-fiche">
+          <figcaption>Sur ma fiche</figcaption>
+          {vue === null ? (
+            <p class="livre-apercu-lieu">Pas de bannière sur votre fiche.</p>
+          ) : (
+            <div class="fiche-banniere">
+              <Vignette lib={lib} id={vue} />
+            </div>
+          )}
+          <p class="livre-apercu-note">À la prochaine mise à jour du site, si votre pseudo est public.</p>
         </figure>
         <figure class="livre-apercu">
           <figcaption>Dans la vitrine</figcaption>
