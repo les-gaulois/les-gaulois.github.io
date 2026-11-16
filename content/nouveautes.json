@@ -1,5 +1,15 @@
 [
   {
+    "date": "2026-11-16",
+    "kind": "nouveau",
+    "title": "Le vrai replay du jeu",
+    "body": "Dans « Revoir une partie », « Voir le replay du jeu » ouvre le lecteur d'OpenFront lui-même : noms, troupes, constructions, attaques, comme dans le jeu, sans publicité.",
+    "link": {
+      "href": "/revoir",
+      "label": "Revoir une partie"
+    }
+  },
+  {
     "date": "2026-11-15",
     "kind": "ameliore",
     "title": "Les bannières dans un onglet de la boutique",
