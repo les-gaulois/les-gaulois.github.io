@@ -478,7 +478,7 @@ jobs:
           key: films-${{ github.run_id }}
           restore-keys: films-
       # Les vrais lecteurs du jeu, construits par le job « films » : préparés avec les fiches des parties de leur version, dans
-      # .cache/site-du-lecteur/, jamais dans dist/. Sans ce cache, ou sans REPLAY_SITE, chaque partie garde son film, sans le
+      # .cache/site-du-lecteur/, jamais dans dist/. Sans ce cache, ou sans REPLAY_SITE, la page « Revoir une partie » dit qu'il n'y a pas de replay, sans le
       # cadre du replay du jeu.
       - name: Restaurer les lecteurs du jeu
         continue-on-error: true
@@ -550,7 +550,7 @@ jobs:
   # sans historique (les fiches de plus de quelques jours n'y restent pas), avec le jeton REPLAY_DEPLOY_TOKEN, limité à ce
   # seul dépôt. Le cadre « Replay du jeu » de /revoir montre ce dépôt : « deploy » attend ce job (sans dépendre de sa
   # réussite), pour que le lecteur soit en place quand le cadre paraît. En panne, la page voit que la fiche de la partie manque
-  # et montre le film à la place, et l'Action le signale. Sans réglage, rien ne se fait et chaque partie garde son film.
+  # et dit que le replay n'est pas disponible, et l'Action le signale. Sans réglage, rien ne se fait et la page dit qu'il n'y a pas de replay.
   lecteur:
     needs: build
     if: ${{ !cancelled() && needs.build.result == 'success' && vars.REPLAY_SITE != '' && github.ref_name == 'main' }}

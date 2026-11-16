@@ -140,6 +140,8 @@ export const FilmPublie = z.object({
   joueurs: z.number().int().min(0),
   /** La durée rejouée, en secondes : les étapes du jeu jusqu'au dernier contrôle. */
   secondes: z.number().int().min(0),
+  /** La forme de la carte, largeur sur hauteur : le cadre du replay la prend, pour que la carte le remplisse sans gris. */
+  forme: z.number().positive().max(100).nullable().default(null),
   /**
    * Le vrai lecteur du jeu pour cette partie, sur son site à lui (`https://<…>.github.io/jeu/<version>/#replay-viewer=<partie>`),
    * s'il est construit et réglé ; sinon le film seul.

@@ -1,20 +1,23 @@
 import { existsSync, readFileSync } from "node:fs";
-import { gunzipSync, gzipSync } from "node:zlib";
+import { join } from "node:path";
+import { gunzipSync } from "node:zlib";
 import { expect, test, type Page } from "@playwright/test";
 import { fmtDayAndTime } from "../../src/lib/format";
 import { mapLabel } from "../../src/lib/map-names";
-import { EcrivainFilm, FORMAT_FILM, lireFilm, type EnteteFilm } from "../../src/lib/rejeu/film";
-import { DOSSIER_PUBLIC_FILMS, LISTE_DES_FILMS, ListeDesFilms } from "../../src/lib/rejeu/films-index";
+import { lireFilm } from "../../src/lib/rejeu/film";
+import { DOSSIER_FILMS, LISTE_DES_FILMS, ListeDesFilms, nomDuFilm } from "../../src/lib/rejeu/films-index";
 import { adresseEnLecture } from "../../src/lib/rejeu/fiche-du-lecteur";
 import { DOSSIER_DES_FICHES, DOSSIER_SITE_DU_LECTEUR } from "../../src/lib/rejeu/lecteur-jeu";
 
 /**
- * « Revoir une partie ». Les films ne sont pas dans Git : ils viennent du cache du workflow, ou d'un `npm run parties:filmer`
- * suivi de `npm run films:publier` sur un ordinateur. Sans eux, la page le dit ; avec eux, le lecteur est essayé, et des films
- * fabriqués ici remplacent ceux du site pour vérifier ce qu'il montre.
+ * « Revoir une partie » : le vrai replay du jeu, seul (plus de film depuis le 16 novembre 2026). La liste des parties ne vient pas
+ * de Git : du cache du workflow, ou d'un `npm run parties:filmer` suivi de `npm run films:publier` sur un ordinateur. Sans parties
+ * qui ont leur replay, la page le dit ; avec elles, le cadre est essayé, le site du replay étant remplacé par une page vide.
  */
 const liste = existsSync(LISTE_DES_FILMS) ? ListeDesFilms.parse(JSON.parse(readFileSync(LISTE_DES_FILMS, "utf8"))) : null;
 const films = liste?.films ?? [];
+/** Les parties proposées par la page : celles qui ont le vrai lecteur du jeu. */
+const parties = films.filter((f) => f.jeu);
 
 const hydrated = (page: Page) => page.waitForFunction(() => !document.querySelector("astro-island[ssr]"));
 
@@ -24,125 +27,83 @@ test.beforeEach(async ({ page }) => {
   await page.route(LECTEUR, (r) => r.fulfill({ status: 200, contentType: "text/html", body: '<!doctype html><html lang="fr"><title>Replay du jeu</title></html>' }));
 });
 
-/**
- * Un film de 3 × 2 cases sur la carte « World », deux images : les Gaulois prennent une case, puis trois. À la seconde image,
- * une ville gauloise au milieu de la carte entière (12 × 8 cases) et un navire adverse.
- */
-function filmEssai(partie: string, victoire: boolean): Buffer {
-  const entete: EnteteFilm = { format: FORMAT_FILM, partie, carte: "World", debut: "2026-11-15T09:31:11.450Z", victoire, equipes: "Duos", gaulois: 2, joueurs: 20, largeur: 3, hauteur: 2, facteur: 4, pas: 600, images: 2, tours: 601, adverses: 1, equipe: false, noms: [{ texte: "Vercingé", classe: 1 }] };
-  const e = new EcrivainFilm(3, 2);
-  e.ajouter(Uint8Array.from([1, 0, 0, 4, 0, 3]));
-  e.ajouter(Uint8Array.from([1, 1, 1, 4, 4, 3]), [{ nom: 0, x: 1, y: 0, taille: 1 }], [
-    { id: 0, unite: { code: 0, x: 6, y: 4, classe: 1, niveau: 1, chantier: false } },
-    { id: 1, unite: { code: 6, x: 2, y: 6, classe: 4, niveau: 1, chantier: false } },
-  ]);
-  return gzipSync(e.octetsDuFilm(entete, new Uint8Array(6).fill(0x80)));
-}
-
-/** Les pixels peints de la toile des détails : noms et unités. */
-const pixelsPeints = (page: Page) =>
-  page.getByTestId("rejeu-details").evaluate((c: HTMLCanvasElement) => {
-    const d = c.getContext("2d")!.getImageData(0, 0, c.width, c.height).data;
-    let n = 0;
-    for (let i = 3; i < d.length; i += 4) if (d[i]! > 0) n++;
-    return n;
-  });
-
-test("sans film publié, la page le dit ; avec, elle ouvre la dernière partie et liste les autres", async ({ page }) => {
+test("sans replay publié, la page le dit ; avec, elle ouvre la dernière partie et liste les autres", async ({ page }) => {
   await page.goto("/revoir");
-  if (films.length === 0) {
-    await expect(page.getByText("Pas de film", { exact: true })).toBeVisible();
+  if (parties.length === 0) {
+    await expect(page.getByText("Pas de replay", { exact: true })).toBeVisible();
     await expect(page.getByTestId("rejeu")).toHaveCount(0);
     return;
   }
   await hydrated(page);
-  const dernier = films[0]!;
+  const dernier = parties[0]!;
   await expect(page.locator("#rejeu-titre")).toHaveText(`${mapLabel(dernier.carte)}, ${fmtDayAndTime(dernier.debut)}`);
   await expect(page.getByTestId("rejeu-resultat")).toHaveText(dernier.victoire ? "Victoire" : "Défaite");
-  await expect(page.getByTestId("revoir-liste").locator("a")).toHaveCount(Math.min(12, films.length));
-  // La date du dernier passage du robot des films, pas celle du build : absente si elle est inconnue.
+  await expect(page.getByTestId("revoir-liste").locator("a")).toHaveCount(Math.min(12, parties.length));
+  // La date du dernier passage du robot, pas celle du build : absente si elle est inconnue.
   if (liste!.fait) await expect(page.getByTestId("revoir-date")).toContainText(fmtDayAndTime(liste!.fait));
   else await expect(page.getByTestId("revoir-date")).toHaveCount(0);
   await expect(page.getByTestId("revoir-credit")).toContainText("© OpenFront and Contributors");
-  await expect(page.getByTestId("revoir-credit")).toContainText("CC BY-SA 4.0");
   await expect(page.getByTestId("revoir-credit").getByRole("link", { name: "CC BY-SA 4.0" })).toHaveAttribute("href", "https://creativecommons.org/licenses/by-sa/4.0/deed.fr");
-  // La notice de licence posée avec les films.
-  expect((await page.request.get("/films/LISEZ-MOI.txt")).ok()).toBe(true);
   await expect(page.getByTestId("rejeu-openfront")).toHaveAttribute("href", `https://openfront.io/game/${dernier.partie}`);
+  // Plus de film : ni toile, ni barre de lecture, ni légende, ni cases, et ses fichiers ne sont plus publiés.
+  for (const repere of ["rejeu-toile", "rejeu-details", "rejeu-lecture", "rejeu-temps", "rejeu-choix", "rejeu-unites", "rejeu-vue-film"]) await expect(page.getByTestId(repere)).toHaveCount(0);
+  expect((await page.request.get(`/films/${nomDuFilm(dernier.partie)}`)).ok()).toBe(false);
+  expect((await page.request.get("/films/LISEZ-MOI.txt")).ok()).toBe(false);
 });
 
-test.describe("le lecteur", () => {
-  test.skip(films.length === 0, "Aucun film publié dans ce build : le lecteur n'est pas sur la page.");
+test.describe("les messages à la place du replay", () => {
+  test.skip(parties.length === 0, "Aucune partie avec son replay dans ce build : le lecteur n'est pas sur la page.");
 
-  test("montre la fin d'abord, se lance, s'arrête au bout, et revient au début", async ({ page }) => {
-    await page.route("**/films/essai00001.film", (route) => route.fulfill({ status: 200, contentType: "application/octet-stream", body: filmEssai("essai00001", true) }));
-    await page.goto("/revoir?partie=essai00001");
-    await hydrated(page);
-    await expect(page.locator("#rejeu-titre")).toHaveText(`${mapLabel("World")}, ${fmtDayAndTime("2026-11-15T09:31:11.450Z")}`);
-    await expect(page.getByTestId("rejeu-resultat")).toHaveText("Victoire");
-    // 601 étapes de 100 ms : la dernière image est à 1 min, la première au début.
-    await expect(page.getByTestId("rejeu-horloge")).toHaveText("1:00 / 1:00");
-    await expect(page.getByTestId("rejeu-temps")).toHaveAttribute("aria-valuetext", "1 min 0 s sur 1 min 0 s");
-    // La toile montre bien la dernière image : la case du coin haut droit est aux Gaulois (bord, donc plus sombre que le bleu).
-    const pixel = await page.getByTestId("rejeu-toile").evaluate((c: HTMLCanvasElement) => [...c.getContext("2d")!.getImageData(2, 0, 1, 1).data]);
-    expect(pixel[2]).toBeGreaterThan(pixel[0]! + 80);
-    await page.getByTestId("rejeu-lecture").click();
-    await expect(page.getByTestId("rejeu-lecture")).toHaveText("Revoir");
-    await expect(page.getByTestId("rejeu-horloge")).toHaveText("1:00 / 1:00");
-    await page.getByTestId("rejeu-temps").fill("0");
-    await expect(page.getByTestId("rejeu-horloge")).toHaveText("0:00 / 1:00");
-    await expect(page.getByTestId("rejeu-lecture")).toHaveText("Lecture");
-  });
-
-  test("pose les constructions, les navires et les noms sur la carte, et les cache sur demande", async ({ page }) => {
-    await page.route("**/films/essai00002.film", (route) => route.fulfill({ status: 200, contentType: "application/octet-stream", body: filmEssai("essai00002", true) }));
-    await page.goto("/revoir?partie=essai00002");
-    await hydrated(page);
-    await expect(page.getByTestId("rejeu-horloge")).toHaveText("1:00 / 1:00");
-    // Les icônes du jeu se chargent, puis la toile des détails se peint.
-    await expect.poll(() => pixelsPeints(page), { timeout: 10_000 }).toBeGreaterThan(0);
-    const avec = await pixelsPeints(page);
-    const choix = page.getByTestId("rejeu-choix");
-    await choix.getByLabel("Constructions et unités").uncheck();
-    await choix.getByLabel("Noms").uncheck();
-    await expect.poll(() => pixelsPeints(page)).toBe(0);
-    await choix.getByLabel("Constructions et unités").check();
-    await expect.poll(() => pixelsPeints(page)).toBeGreaterThan(0);
-    expect(await pixelsPeints(page)).toBeLessThanOrEqual(avec);
-  });
-
-  test("dit quand une partie n'a pas de film, et mène quand même au jeu", async ({ page }) => {
-    await page.route("**/films/absente0001.film", (route) => route.fulfill({ status: 404, body: "" }));
+  test("une partie qui n'est pas dans la liste : pas de replay, et le lien vers le jeu", async ({ page }) => {
     await page.goto("/revoir?partie=absente0001");
     await hydrated(page);
-    await expect(page.getByTestId("rejeu-probleme")).toContainText("Pas de film pour cette partie");
+    await expect(page.getByTestId("rejeu-probleme")).toContainText("Pas de replay pour cette partie");
     await expect(page.getByTestId("rejeu-probleme").getByRole("link")).toHaveAttribute("href", "https://openfront.io/game/absente0001");
   });
 
-  test("refuse un fichier qui n'est pas un film du site", async ({ page }) => {
-    await page.route("**/films/abime00001.film", (route) => route.fulfill({ status: 200, body: gzipSync(Buffer.from("pas un film")) }));
-    await page.goto("/revoir?partie=abime00001");
+  test("une partie rejouée dont le replay n'est pas prêt : le message, jamais un film", async ({ page }) => {
+    const sansJeu = films.find((f) => !f.jeu);
+    test.skip(!sansJeu, "Toutes les parties rejouées ont leur replay dans ce build.");
+    await page.goto(`/revoir?partie=${sansJeu!.partie}`);
     await hydrated(page);
-    await expect(page.getByTestId("rejeu-probleme")).toContainText("n'a pas pu être chargé");
-    await expect(page.getByRole("button", { name: "Réessayer" })).toBeVisible();
+    await expect(page.getByTestId("rejeu-probleme")).toContainText("Le replay de cette partie n'est pas disponible pour l'instant");
+    await expect(page.getByTestId("rejeu-jeu-cadre")).toHaveCount(0);
+    await expect(page.getByTestId("rejeu-toile")).toHaveCount(0);
   });
 
-  test("chaque partie filmée a son lien « Revoir » dans « Dernières parties »", async ({ page }) => {
+  test("le site du replay injoignable : le message, et « Réessayer », qui le redemande", async ({ page }) => {
+    let refus = true;
+    await page.route(LECTEUR, (r) => (refus ? r.abort() : r.fulfill({ status: 200, contentType: "text/html", body: "<!doctype html><title>x</title>" })));
+    await page.goto(`/revoir?partie=${parties[0]!.partie}`);
+    await hydrated(page);
+    await expect(page.getByTestId("rejeu-probleme")).toContainText("Le replay n'a pas pu être chargé");
+    refus = false;
+    await page.getByRole("button", { name: "Réessayer" }).click();
+    await expect(page.getByTestId("rejeu-jeu-cadre")).toBeVisible();
+  });
+
+  test("chaque partie qui a son replay a son lien « Revoir » dans « Dernières parties »", async ({ page }) => {
     await page.goto("/parties");
     await hydrated(page);
     const liens = page.getByTestId("journal-film").filter({ visible: true });
     await expect(liens.first()).toBeVisible();
-    const filmes = new Set(films.map((f) => `/revoir?partie=${f.partie}`));
-    for (const href of await liens.evaluateAll((as) => as.map((a) => a.getAttribute("href")))) expect(filmes.has(href ?? "")).toBe(true);
-    await expect(page.getByTestId("journal-link-note")).toContainText("« Revoir » montre le film de la partie sur le site.");
+    const avecReplay = new Set(parties.map((f) => `/revoir?partie=${f.partie}`));
+    for (const href of await liens.evaluateAll((as) => as.map((a) => a.getAttribute("href")))) expect(avecReplay.has(href ?? "")).toBe(true);
+    await expect(page.getByTestId("journal-link-note")).toContainText("« Revoir » montre le replay de la partie sur le site.");
   });
 });
 
-test.describe("le vrai lecteur du jeu", () => {
-  const avecJeu = films.find((f) => f.jeu);
-  test.skip(!avecJeu, "Aucun lecteur du jeu publié dans ce build : chaque partie garde son film.");
+/** La forme de la carte d'une partie, lue dans son film du cache (source indépendante de la liste publiée). */
+const formeDuFilm = (partie: string) => {
+  const { entete } = lireFilm(gunzipSync(readFileSync(join(DOSSIER_FILMS, nomDuFilm(partie)!))));
+  return entete.largeur / entete.hauteur;
+};
 
-  test("la page d'une partie filmée mène au lecteur, sur son adresse à lui, sans publicité ni mesure", async ({ page }) => {
+test.describe("le vrai lecteur du jeu", () => {
+  const avecJeu = parties[0];
+  test.skip(!avecJeu, "Aucune partie avec son replay dans ce build.");
+
+  test("la page d'une partie mène au lecteur, sur son adresse à lui, sans publicité ni mesure", async ({ page }) => {
     await page.goto(`/revoir?partie=${avecJeu!.partie}`);
     await hydrated(page);
     const lien = page.getByTestId("rejeu-jeu");
@@ -227,38 +188,25 @@ test.describe("le vrai lecteur du jeu", () => {
     await hydrated(page);
     const cadre = page.getByTestId("rejeu-jeu-cadre");
     await expect(cadre).toBeVisible();
-    // Plus de film à côté : ni bascule, ni toile, ni légende, ni cases du film (demande du pilote, 16 novembre 2026).
-    await expect(page.getByTestId("rejeu-vue-film")).toHaveCount(0);
-    await expect(page.getByTestId("rejeu-toile")).toBeHidden();
-    await expect(page.getByTestId("rejeu-choix")).toHaveCount(0);
-    await expect(page.getByTestId("rejeu-lecture")).toBeHidden();
-    // La forme de la carte (celle du film publié de la partie), pour que la carte la remplisse sans gris.
+    // La forme de la carte, donnée par la liste publiée et vérifiée sur le film de la partie, pour que la carte remplisse le
+    // cadre sans gris.
     const boite = (await cadre.boundingBox())!;
-    const { entete } = lireFilm(gunzipSync(readFileSync(`${DOSSIER_PUBLIC_FILMS}/${avecJeu!.partie}.film`)));
-    const forme = entete.largeur / entete.hauteur;
+    expect(avecJeu!.forme).not.toBeNull();
+    const forme = formeDuFilm(avecJeu!.partie);
+    expect(avecJeu!.forme!).toBeCloseTo(forme, 3);
     // Sur un téléphone, une carte très large garde 18 rem de haut (classement et frise du jeu) : le cadre est alors moins large
     // que la carte, jamais plus (la carte le remplit en débordant sur les côtés, sans gris).
     if (testInfo.project.name === "mobile" && boite.height <= 18 * 16 + 1 && forme > boite.width / boite.height) expect(boite.height).toBeCloseTo(18 * 16, 0);
     else expect(boite.width / boite.height).toBeCloseTo(forme, 1);
   });
 
-  test("si la fiche manque sur le site du lecteur, la partie montre son film, sans cadre ni bascule", async ({ page }) => {
+  test("si la fiche manque sur le site du lecteur, la page dit que le replay n'est pas prêt, sans cadre ni film", async ({ page }) => {
     await page.route(LECTEUR, (r) => r.fulfill({ status: 404, contentType: "text/html", body: "introuvable" }));
     await page.goto(`/revoir?partie=${avecJeu!.partie}`);
     await hydrated(page);
-    await expect(page.getByTestId("rejeu-toile")).toBeVisible();
+    await expect(page.getByTestId("rejeu-probleme")).toContainText("Le replay de cette partie n'est pas disponible pour l'instant");
     await expect(page.getByTestId("rejeu-jeu-cadre")).toHaveCount(0);
-    await expect(page.getByTestId("rejeu-vue-film")).toHaveCount(0);
-    await expect(page.getByTestId("rejeu-jeu")).toHaveCount(0);
-  });
-
-  test("une partie sans lecteur du jeu garde son film, sans cadre", async ({ page }) => {
-    const sansJeu = films.find((f) => !f.jeu);
-    test.skip(!sansJeu, "Toutes les parties publiées ont le lecteur du jeu.");
-    await page.goto(`/revoir?partie=${sansJeu!.partie}`);
-    await hydrated(page);
-    await expect(page.getByTestId("rejeu-toile")).toBeVisible();
-    await expect(page.getByTestId("rejeu-jeu-cadre")).toHaveCount(0);
+    await expect(page.getByTestId("rejeu-toile")).toHaveCount(0);
     await expect(page.getByTestId("rejeu-jeu")).toHaveCount(0);
   });
 });

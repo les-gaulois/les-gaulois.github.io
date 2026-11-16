@@ -5,46 +5,50 @@ import MapNamesCredit from "../components/MapNamesCredit.astro";
 import PageHeader from "../components/PageHeader.astro";
 import ReadingNote from "../components/ReadingNote.astro";
 import RejeuPartie from "../components/RejeuPartie.tsx";
-import { clan } from "../../config/clan";
 import { loadFilms } from "../lib/data";
 import { fmtDayAndTime, fmtInt } from "../lib/format";
 import { mapLabel } from "../lib/map-names";
 import { JOURS_DE_FILMS } from "../lib/rejeu/films-index";
 import { formatLabel } from "../lib/results";
 
-/** Les films listés sous le lecteur ; les autres s'ouvrent depuis « Dernières parties ». */
+/** Les parties listées sous le lecteur ; les autres s'ouvrent depuis « Dernières parties ». */
 const LISTES = 12;
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const liste = loadFilms();
-const films = liste?.films ?? [];
-const plusAncien = films.at(-1)?.debut ?? null;
-// Le vrai lecteur du jeu n'est décrit que si des parties y mènent (son site à part réglé et déposé).
-const avecLeJeu = films.some((f) => f.jeu);
+// Le replay seul (demande du pilote, 16 novembre 2026 : « je veux plus de film mais uniquement le replay ») : seules les parties
+// qui ont le vrai lecteur du jeu sont proposées.
+const parties = (liste?.films ?? []).filter((f) => f.jeu);
+// Ce que le lecteur reçoit, écrit dans la page au build : pas de fichier lu au chargement, que le cache de GitHub Pages pourrait
+// servir en retard. Les parties rejouées sans replay prêt sont seulement nommées, pour le dire.
+const pourLeLecteur = parties.map(({ partie, debut, carte, victoire, equipes, gaulois, joueurs, secondes, forme, jeu }) => ({ partie, debut, carte, victoire, equipes, gaulois, joueurs, secondes, forme, jeu: jeu! }));
+const enAttente = (liste?.films ?? []).filter((f) => !f.jeu).map((f) => f.partie);
+const plusAncien = parties.at(-1)?.debut ?? null;
+const siteDuLecteur = parties[0]?.jeu ? new URL(parties[0].jeu).origin : null;
 ---
 
-<Base title="Revoir une partie" description="Les dernières parties du clan GAL rejouées par le moteur d'OpenFront : qui tenait chaque territoire, du début à la fin.">
+<Base title="Revoir une partie" description="Les dernières parties du clan GAL dans le lecteur de replay d'OpenFront : qui tenait chaque territoire, du début à la fin.">
   <div class="wrap">
-    <PageHeader title="Revoir une partie" intro={plusAncien ? `${films.length > 1 ? `${fmtInt(films.length)} parties rejouées` : "1 partie rejouée"} par le moteur du jeu, depuis le ${fmtDayAndTime(plusAncien)}.` : "Les parties du clan, rejouées par le moteur du jeu."}>
-      {liste?.fait && <p class="info-discrete tnum mt-2" data-testid="revoir-date">Films à jour du {fmtDayAndTime(liste.fait)}.</p>}
+    <PageHeader title="Revoir une partie" intro={plusAncien ? `${parties.length > 1 ? `${fmtInt(parties.length)} parties à revoir` : "1 partie à revoir"}, depuis le ${fmtDayAndTime(plusAncien)}.` : "Les parties du clan, dans le lecteur de replay du jeu."}>
+      {liste?.fait && <p class="info-discrete tnum mt-2" data-testid="revoir-date">À jour du {fmtDayAndTime(liste.fait)}.</p>}
     </PageHeader>
 
     {
-      films.length === 0 ? (
-        <Empty title="Pas de film">Les films des parties paraissent ici environ une heure après leur fin.</Empty>
+      parties.length === 0 ? (
+        <Empty title="Pas de replay">Les parties paraissent ici environ une heure après leur fin.</Empty>
       ) : (
         <>
-          <RejeuPartie client:idle base={base} dernier={films[0]!.partie} jours={JOURS_DE_FILMS} tag={clan.tag} jeux={Object.fromEntries(films.filter((f) => f.jeu).map((f) => [f.partie, f.jeu!]))} />
+          <RejeuPartie client:idle parties={pourLeLecteur} enAttente={enAttente} jours={JOURS_DE_FILMS} />
           <noscript>
-            <p class="card mt-4 p-4 text-sm text-muted">JavaScript est nécessaire pour lire les films.</p>
+            <p class="card mt-4 p-4 text-sm text-muted">JavaScript est nécessaire pour voir le replay.</p>
           </noscript>
 
-          <h2 class="section-title-sm mt-section">Dernières parties filmées</h2>
+          <h2 class="section-title-sm mt-section">Dernières parties</h2>
           {/* Le nom du lien est son contenu (résultat, carte, date, format) : pas d'étiquette à part, qui ne dirait pas ce qu'on lit.
               Le résultat d'abord, d'un coup d'œil (filet de couleur et mot), puis la carte en grand. Le lecteur repère la
               partie à l'écran (`data-revoir-partie`, RejeuPartie.tsx). */}
           <ul class="revoir-liste mt-6" data-testid="revoir-liste">
-            {films.slice(0, LISTES).map((f) => (
+            {parties.slice(0, LISTES).map((f) => (
               <li>
                 <a
                   href={`${base}/revoir?partie=${encodeURIComponent(f.partie)}`}
@@ -67,9 +71,9 @@ const avecLeJeu = films.some((f) => f.jeu);
               </li>
             ))}
           </ul>
-          {films.length > LISTES && (
+          {parties.length > LISTES && (
             <p class="info-discrete mt-4">
-              Les {fmtInt(films.length - LISTES)} autres s'ouvrent par « Revoir » dans <a class="link" href={`${base}/parties`}>Dernières parties</a>.
+              Les {fmtInt(parties.length - LISTES)} autres s'ouvrent par « Revoir » dans <a class="link" href={`${base}/parties`}>Dernières parties</a>.
             </p>
           )}
         </>
@@ -77,17 +81,13 @@ const avecLeJeu = films.some((f) => f.jeu);
     }
 
     <p class="mt-section max-w-3xl text-sm text-muted" data-testid="revoir-credit">
-      Parties rejouées avec le moteur du jeu <a class="link" href="https://github.com/openfrontio/OpenFrontIO" rel="noopener">OpenFront</a> (AGPL-3.0), sur ses cartes et avec ses icônes : © OpenFront and Contributors, <a class="link" href="https://creativecommons.org/licenses/by-sa/4.0/deed.fr" rel="noopener">CC BY-SA 4.0</a>. Terrain réduit et redessiné aux couleurs du site, icônes copiées telles quelles et colorées comme dans le jeu (<a class="link" href={`${base}/openfront/LISEZ-MOI.txt`}>notice</a>).
+      Lecteur de replay et moteur du jeu <a class="link" href="https://github.com/openfrontio/OpenFrontIO" rel="noopener">OpenFront</a> (AGPL-3.0), légèrement modifiés, avec ses cartes et ses images : © OpenFront and Contributors, <a class="link" href="https://creativecommons.org/licenses/by-sa/4.0/deed.fr" rel="noopener">CC BY-SA 4.0</a>{siteDuLecteur && <> (<a class="link" href={`${siteDuLecteur}/jeu/LISEZ-MOI.txt`} rel="noopener">notice</a>)</>}.
     </p>
     <MapNamesCredit />
-    <ReadingNote label="Comment lire ce film">
-      <p>Chaque film est la partie rejouée par le moteur d'OpenFront, à la version qui l'a jouée, à partir de sa fiche publique. Toutes les empreintes de contrôle du jeu ont été retrouvées : c'est la partie telle qu'elle s'est jouée.</p>
-      <p>La carte est réduite : une case du film en couvre plusieurs du jeu, et celle du milieu donne sa couleur. Une image toutes les quelques secondes de jeu.</p>
-      <p>Les couleurs disent le camp. « Gaulois » : les joueurs qui portaient le tag [{clan.tag}] dans la partie, avec des stats, comme OpenFront les compte pour le clan. Le résultat est celui qu'OpenFront compte pour le clan.</p>
-      <p>Les noms : le pseudo des membres de la liste du clan, et le tag des joueurs dont le clan est au classement officiel. Dans le film, les autres joueurs restent sans nom : un pseudo se choisit librement, et le site ne dessine pas celui d'un inconnu.</p>
-      <p>Les constructions et les unités sont celles du jeu, avec ses icônes : villes, ports, usines, postes de défense, lance-missiles SAM, silos, navires de guerre, transports de troupes et bombes en vol. Une construction grise est en chantier. Les navires marchands et les trains ne sont pas montrés.</p>
-      <p>{avecLeJeu && "Les parties des dernières versions du jeu s'ouvrent dans le lecteur de replay d'OpenFront lui-même, légèrement modifié et construit par le site à partir de son code libre, sur un site du clan à part : sans publicité ni mesure, non officiel, avec tous les pseudos de la partie comme dans le jeu. Le lecteur part de lui-même en accéléré (× 8), sauf si vous avez demandé moins d'animations (bouton pause en haut de la page, ou réglage de l'appareil). Les autres montrent le film décrit ici. "}« Ouvrir la partie sur OpenFront » mène à son propre site.</p>
-      <p>Une partie est filmée environ une heure après sa fin. Les films gardés sont les plus récents, {JOURS_DE_FILMS} jours au plus, tant qu'ils tiennent dans la place réservée aux films.</p>
+    <ReadingNote label="Comment lire ce replay">
+      <p>C'est le lecteur de replay d'OpenFront lui-même, légèrement modifié et construit par le site à partir de son code libre, sur un site du clan à part : sans publicité ni mesure, non officiel, avec tous les pseudos de la partie comme dans le jeu.</p>
+      <p>Il part de lui-même en accéléré (× 8), sauf si vous avez demandé moins d'animations (bouton pause en haut de la page, ou réglage de l'appareil). « Ouvrir le replay en grand » l'ouvre dans un onglet ; « Ouvrir la partie sur OpenFront » mène à son propre site.</p>
+      <p>Une partie arrive ici environ une heure après sa fin, rejouée d'abord par le robot du site avec le moteur du jeu, à la version qui l'a jouée. Seules les plus récentes restent, {JOURS_DE_FILMS} jours au plus.</p>
     </ReadingNote>
   </div>
 </Base>

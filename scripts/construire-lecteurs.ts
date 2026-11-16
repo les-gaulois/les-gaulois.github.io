@@ -203,7 +203,7 @@ for (const [i, commit] of gardes.entries()) {
     await construire(commit, i === 0);
     console.log(`Lecteurs : version ${commit.slice(0, 10)} construite en ${Math.round((Date.now() - t0) / 1000)} s.`);
   } catch (e) {
-    console.log(`::warning::Lecteurs : la version ${commit.slice(0, 10)} du jeu ne se construit pas (${e instanceof Error ? e.message.slice(0, 200) : String(e)}). Ses parties gardent le film du site.`);
+    console.log(`::warning::Lecteurs : la version ${commit.slice(0, 10)} du jeu ne se construit pas (${e instanceof Error ? e.message.slice(0, 200) : String(e)}). Ses parties n'ont pas de replay en attendant.`);
   }
 }
 // Les lecteurs des versions qui n'ont plus de partie filmée s'en vont.

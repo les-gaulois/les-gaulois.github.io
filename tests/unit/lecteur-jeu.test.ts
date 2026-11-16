@@ -13,6 +13,8 @@ import {
   IMAGE_DU_LECTEUR,
   lireRecette,
   RECETTE_DU_LECTEUR,
+  RECETTE_MINIMALE,
+  recettePubliable,
   RETOUCHES_DU_CODE,
   MANIFESTE_DU_JEU,
   MANIFESTE_DU_SITE,
@@ -179,8 +181,13 @@ describe("le vrai lecteur du jeu : où il vit, d'où il lit", () => {
     c.vue(0, 0);
     expect(c.zoom).toBe(3);
   });
-  it("ne publie un lecteur gardé en cache que s'il est de la recette du jour", () => {
-    expect(RECETTE_DU_LECTEUR).toBeGreaterThanOrEqual(2);
+  it("garde en ligne un lecteur d'une recette un peu ancienne en attendant de le refaire, jamais d'une recette trop ancienne", () => {
+    expect(RECETTE_DU_LECTEUR).toBeGreaterThanOrEqual(RECETTE_MINIMALE);
+    // La 1 ouvrait « Erreur de connexion ! » dans le cadre, la 2 laissait du gris autour de la carte : plus jamais en ligne.
+    expect(RECETTE_MINIMALE).toBeGreaterThanOrEqual(3);
+    for (const r of [null, 1, 2, RECETTE_MINIMALE - 1]) expect(recettePubliable(r)).toBe(false);
+    for (let r = RECETTE_MINIMALE; r <= RECETTE_DU_LECTEUR; r++) expect(recettePubliable(r)).toBe(true);
+    expect(recettePubliable(RECETTE_DU_LECTEUR + 1)).toBe(false);
     expect(lireRecette(`${RECETTE_DU_LECTEUR}\n`)).toBe(RECETTE_DU_LECTEUR);
     expect(lireRecette(null)).toBeNull();
     expect(lireRecette("deux")).toBeNull();

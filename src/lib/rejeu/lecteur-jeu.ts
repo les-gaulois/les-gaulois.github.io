@@ -279,12 +279,28 @@ export const MANIFESTE_DU_SITE = '__ASSET_MANIFEST__: process.env.GAL_MANIFEST ?
 
 /**
  * La recette du lecteur : à augmenter quand la façon de le construire change. Un lecteur gardé en cache d'une autre recette se
- * refait, et n'est pas publié tant qu'il n'est pas refait (chaque partie garde alors son film).
+ * refait au prochain passage du job « films » ; en attendant, il reste publié s'il n'est pas plus ancien que `RECETTE_MINIMALE`
+ * (sinon la page dit que le replay de ses parties n'est pas disponible pour l'instant). Un lecteur de la recette 3 n'a pas
+ * `galLecture` : en attendant d'être refait, il ne part pas tout seul en × 8 et la pause de l'en-tête ne l'arrête pas.
  * 2 (16 novembre 2026) : la retouche CrazyGames, pour le lecteur encadré dans « Revoir une partie ».
  * 3 (16 novembre 2026) : la carte remplit toujours la vue (caméra du lecteur de replay).
  * 4 (16 novembre 2026) : la lecture confiée à la page du lecteur (`galLecture`), qui la lance d'office en ×8 dans le cadre.
  */
 export const RECETTE_DU_LECTEUR = 4;
+
+/**
+ * La plus ancienne recette encore publiable. Un lecteur gardé en cache d'une recette plus ancienne que celle du jour, mais pas
+ * plus que celle-ci, reste en ligne le temps que le job « films » le refasse : une mise en ligne par un push ne le refait pas,
+ * et sans cela les parties repassaient au film pendant une heure (le pilote l'a vu le 16 novembre 2026 : « pourquoi c'est
+ * revenu comme avant ? »). À relever quand une recette corrige un défaut qu'on ne veut plus jamais montrer : 3, car la 1 ouvrait
+ * « Erreur de connexion ! » dans le cadre et la 2 laissait du gris autour de la carte.
+ */
+export const RECETTE_MINIMALE = 3;
+
+/** Un lecteur de cette recette peut-il être publié ? Ni trop ancien (`RECETTE_MINIMALE`), ni d'une recette à venir. */
+export function recettePubliable(recette: number | null): boolean {
+  return recette !== null && recette >= RECETTE_MINIMALE && recette <= RECETTE_DU_LECTEUR;
+}
 
 /** La recette lue dans `recette.txt` d'un lecteur construit ; `null` si le fichier manque ou ne dit pas un nombre. */
 export function lireRecette(texte: string | null): number | null {

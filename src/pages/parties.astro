@@ -21,8 +21,8 @@ const { rows, sides, coverage } = clanJournal({
   tag: clan.tag,
   officialTags: loadLeaderboard()?.clans.map((c) => c.clanTag) ?? [],
 });
-// Les parties qui ont un film sur « Revoir une partie » : un lien « Revoir » de plus sur leur ligne.
-const films = (loadFilms()?.films ?? []).map((f) => f.partie);
+// Les parties qui ont leur replay sur « Revoir une partie » : un lien « Revoir » de plus sur leur ligne.
+const films = (loadFilms()?.films ?? []).filter((f) => f.jeu).map((f) => f.partie);
 ---
 
 <Base title="Dernières parties" description="Les dernières parties du clan GAL sur OpenFront : carte, format, résultat, clans rencontrés et lien vers le jeu.">

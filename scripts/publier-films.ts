@@ -1,9 +1,10 @@
 /**
- * Copie les films des parties que garde le cache du workflow (`.cache/films/`, écrits par `scripts/filmer-parties.ts`) dans
- * `public/films/`, que le build publie avec le site, et écrit leur liste (`public/films/liste.json`), que lisent les pages
- * « Revoir une partie » et « Dernières parties ». Seuls les films de l'index sont publiés : l'index tient le budget de place et
- * l'âge des films. Chaque film est relu comme la page le relira avant d'être copié : un fichier illisible, d'une autre partie
- * ou trop lourd reste dehors. Lancé par le job « build » de `.github/workflows/site.yml`, avant `npm run build`. Sans films
+ * Relit les films des parties que garde le cache du workflow (`.cache/films/`, écrits par `scripts/filmer-parties.ts`) et écrit
+ * leur liste (`public/films/liste.json`), que lisent au build les pages « Revoir une partie » et « Dernières parties ». Les films
+ * eux-mêmes ne sont plus publiés depuis le 16 novembre 2026 (le pilote : « je veux plus de film mais uniquement le replay ») :
+ * ils restent la matière des faits de chaque partie et de la forme de sa carte. Seuls les films de l'index sont pris : l'index
+ * tient le budget de place et l'âge des films. Chaque film est relu : un fichier illisible, d'une autre partie ou trop lourd
+ * reste dehors. Lancé par le job « build » de `.github/workflows/site.yml`, avant `npm run build`. Sans films
  * (sur un ordinateur, ou cache perdu) : la page le dit, et le site se construit quand même.
  *   npm run films:publier
  */
@@ -13,22 +14,8 @@ import { gunzipSync } from "node:zlib";
 import { loadLeaderboard, loadMembers } from "../src/lib/data";
 import { MAX_OCTETS_FICHE } from "../src/lib/rejeu-openfront";
 import { lireFilm, secondesDeLImage } from "../src/lib/rejeu/film";
-import { adresseDuLecteur, DOSSIER_DES_DRAPEAUX, DOSSIER_DES_FICHES, DOSSIER_DES_LECTEURS, DOSSIER_SITE_DU_LECTEUR, dossierDuLecteur, drapeauxDeLaFiche, ficheNettoyee, lireRecette, manifesteDuLecteur, noticeDuLecteur, origineDuLecteur, pageDuLecteur, RECETTE_DU_LECTEUR, SITE_DU_CLAN, svgRepris } from "../src/lib/rejeu/lecteur-jeu";
+import { adresseDuLecteur, DOSSIER_DES_DRAPEAUX, DOSSIER_DES_FICHES, DOSSIER_DES_LECTEURS, DOSSIER_SITE_DU_LECTEUR, dossierDuLecteur, drapeauxDeLaFiche, ficheNettoyee, lireRecette, manifesteDuLecteur, noticeDuLecteur, origineDuLecteur, pageDuLecteur, RECETTE_DU_LECTEUR, RECETTE_MINIMALE, recettePubliable, SITE_DU_CLAN, svgRepris } from "../src/lib/rejeu/lecteur-jeu";
 import { DOSSIER_FILMS, DOSSIER_PUBLIC_FILMS, INDEX_DES_FILMS, LISTE_DES_FILMS, ListeDesFilms, lireIndex, MAX_OCTETS_FILM, MAX_OCTETS_FILM_DECOMPRESSE, nomDeLaFiche, nomDuFilm, type FilmPublie } from "../src/lib/rejeu/films-index";
-
-/** Posé avec les films : un film téléchargé seul dit d'où vient son terrain et sous quelle licence il reste. */
-const LISEZ_MOI = [
-  "Films des parties du clan [GAL], rejouées par le robot du site https://les-gaulois.github.io/ (page « Revoir une partie »).",
-  "",
-  "Chaque fichier .film contient, pour une grille réduite de la carte de la partie, l'octet de terrain des cartes du jeu",
-  "OpenFront (resources/maps/<carte>/ du dépôt https://github.com/openfrontio/OpenFrontIO, au commit de la partie),",
-  "© OpenFront and Contributors, CC BY-SA 4.0 : https://creativecommons.org/licenses/by-sa/4.0/deed.fr",
-  "Modifié par le site du clan depuis le 15 novembre 2026 : terrain réduit (une case sur plusieurs, celle du milieu) et, image",
-  "par image, le camp qui tient chaque case pendant la partie, rejouée par le moteur du jeu, ses constructions, navires et",
-  "bombes, et des noms posés sur les territoires (pseudos des membres du clan, tags des clans du classement officiel). Ces",
-  "données restent sous la même licence.",
-  "",
-].join("\n");
 
 /**
  * Les noms qu'un film peut encore montrer : le pseudo d'un membre qui est toujours sur la liste du clan, avec ce pseudo, et le
@@ -68,7 +55,7 @@ function copierFichiers(source: string, cible: string, garder: (chemin: string) 
  * que celle du clan (`REPLAY_SITE`, choix du pilote du 15 novembre 2026 : le code du jeu ne tourne jamais là où les membres ont
  * leur connexion) : une page par version, ses images, les drapeaux des joueurs, les fiches, un `robots.txt` qui refuse les moteurs
  * de recherche. Le job « build » garde ce dossier, le job « lecteur » le dépose sur ce site. Sans `REPLAY_SITE`, rien n'est
- * préparé et chaque partie garde son film.
+ * préparé et la page « Revoir une partie » dit qu'il n'y a pas de replay.
  */
 rmSync(DOSSIER_SITE_DU_LECTEUR, { recursive: true, force: true });
 // Sa première place, dans le site du clan, essayée sur un ordinateur le 15 novembre 2026 et jamais publiée : effacée, pour
@@ -82,9 +69,10 @@ for (const commit of origine && existsSync(DOSSIER_DES_LECTEURS) ? readdirSync(D
   if (!/^[0-9a-f]{40}$/.test(commit) || !existsSync(join(source, "modele.html")) || !existsSync(join(source, "fichiers.txt"))) continue;
   try {
     if (!lstatSync(join(source, "modele.html")).isFile() || !lstatSync(join(source, "fichiers.txt")).isFile()) throw new Error("fichier inattendu");
-    // Un lecteur d'une autre recette attend d'être refait par le job « films » : ses parties gardent leur film d'ici là.
+    // Un lecteur d'une recette trop ancienne n'est pas publié : la page dit d'ici là que le replay n'est pas disponible.
     const recette = lstatSync(join(source, "recette.txt"), { throwIfNoEntry: false })?.isFile() ? lireRecette(readFileSync(join(source, "recette.txt"), "utf8")) : null;
-    if (recette !== RECETTE_DU_LECTEUR) throw new Error(`construit selon une autre recette (${recette ?? "aucune"} au lieu de ${RECETTE_DU_LECTEUR}), à refaire`);
+    if (!recettePubliable(recette)) throw new Error(`construit selon une recette trop ancienne (${recette ?? "aucune"}, ${RECETTE_MINIMALE} au moins), à refaire`);
+    if (recette !== RECETTE_DU_LECTEUR) console.log(`::notice::Films : le lecteur du jeu de la version ${commit.slice(0, 10)} est de la recette ${recette} : publié en attendant d'être refait selon la recette ${RECETTE_DU_LECTEUR} au prochain passage du job « films ».`);
     const cible = join(DOSSIER_SITE_DU_LECTEUR, dossierDuLecteur(commit));
     const fichiers = readFileSync(join(source, "fichiers.txt"), "utf8").split("\n").filter(Boolean);
     const page = pageDuLecteur(readFileSync(join(source, "modele.html"), "utf8"), { commit, manifeste: manifesteDuLecteur(fichiers, commit, "/"), apiHost: `/${DOSSIER_DES_FICHES}`.replace(/\/$/, ""), retour: `${SITE_DU_CLAN}/revoir`, notice: "/jeu/LISEZ-MOI.txt" });
@@ -119,7 +107,6 @@ for (const { partie, commit } of index.films) {
     const e = film.entete;
     if (e.partie !== partie) throw new Error("film d'une autre partie");
     if (!e.noms.every((n) => nomEncorePublie(n.texte))) throw new Error("un nom n'est plus sur la liste du clan ni au classement officiel");
-    copyFileSync(chemin, join(DOSSIER_PUBLIC_FILMS, nom));
     // La fiche, pour le vrai lecteur du jeu de sa version, s'il est construit.
     let jeu: string | null = null;
     const nomFiche = nomDeLaFiche(partie);
@@ -132,7 +119,7 @@ for (const { partie, commit } of index.films) {
       for (const d of drapeauxDeLaFiche(propre)) drapeaux.add(d);
       jeu = adresseDuLecteur(origine, commit, partie);
     }
-    films.push({ partie, debut: e.debut, carte: e.carte, victoire: e.victoire, equipes: e.equipes, gaulois: e.gaulois, joueurs: e.joueurs, secondes: secondesDeLImage(e, e.images - 1), octets: lu.size, jeu });
+    films.push({ partie, debut: e.debut, carte: e.carte, victoire: e.victoire, equipes: e.equipes, gaulois: e.gaulois, joueurs: e.joueurs, secondes: secondesDeLImage(e, e.images - 1), forme: Math.round((e.largeur / e.hauteur) * 10_000) / 10_000, octets: lu.size, jeu });
   } catch (e) {
     refuses++;
     console.log(`::warning::Films : ${nom} n'est pas publié (${e instanceof Error ? e.message : String(e)}).`);
@@ -149,5 +136,4 @@ for (const d of drapeaux) {
 films.sort((a, b) => b.debut.localeCompare(a.debut) || a.partie.localeCompare(b.partie));
 const liste = ListeDesFilms.parse({ format: 1, fait: index.passage, films });
 writeFileSync(LISTE_DES_FILMS, `${JSON.stringify(liste)}\n`);
-writeFileSync(join(DOSSIER_PUBLIC_FILMS, "LISEZ-MOI.txt"), LISEZ_MOI);
 console.log(`Films : ${films.length} publiés${refuses > 0 ? `, ${refuses} refusés` : ""}, ${films.filter((f) => f.jeu).length} avec le vrai lecteur du jeu (${lecteurs.size} version${lecteurs.size > 1 ? "s" : ""}).`);

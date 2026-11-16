@@ -4,10 +4,9 @@
 /* Le lecteur de « Revoir une partie » (RejeuPartie.tsx) et la liste des dernières parties (src/pages/revoir.astro). Depuis
    le 16 novembre 2026 (demande du pilote : « enlève ce bleu »), le lecteur n'est plus une scène : il est posé sur la page
    blanche, écriture marine, et le replay est le seul aplat de couleur. Un cadre au filet fin, à la forme de la carte ; les
-   faits de la partie et les sorties à côté, dessous quand la place manque. Une partie qui a le vrai lecteur du jeu ne
-   montre que lui ; sinon le film du site, sa barre de lecture dessous (pièces du film de la Carte, dans le socle :
-   `.film-range`, `.film-speed`) et ses légendes. Le film se dessine case par case, une case de sa grille par pixel de la
-   toile : agrandie sans lissage, comme les dessins en pixels du site. Rien ne bouge sans le visiteur. */
+   faits de la partie et les sorties à côté, dessous quand la place manque. Depuis le 16 novembre 2026 aussi (« je veux plus
+   de film mais uniquement le replay »), le replay du jeu seul : ses règles du film sont retirées. Une partie sans replay
+   prêt donne une carte de message. */
 
 /* Le titre (la carte, la date) et le résultat, sur une ligne quand la place le permet. */
 .revoir-tete {
@@ -52,10 +51,10 @@
   --revoir-ton: var(--color-loss);
 }
 
-/* Le cadre d'un côté, la fiche de l'autre. Le cadre a la forme de la carte (`--revoir-forme`, largeur sur hauteur, posée
-   par le lecteur dès que le film est lu ; 16 sur 9 d'ici là) : la carte le remplit, sans bande autour. Il prend toute la
+/* Le cadre d'un côté, la fiche de l'autre. Le cadre a la forme de la carte (`--revoir-forme`, largeur sur hauteur, donnée
+   par la liste publiée ; 16 sur 9 sans elle) : la carte le remplit, sans bande autour. Il prend toute la
    largeur que cette forme permet sans dépasser la hauteur de l'écran, en-tête du site déduit : une carte haute donne un
-   cadre moins large, une carte large un cadre bas, téléphone compris. Quand il ne reste pas la place d'une colonne, la
+   cadre moins large, une carte large un cadre bas (sur téléphone, 18 rem de haut au moins). Quand il ne reste pas la place d'une colonne, la
    fiche passe dessous. */
 .revoir-corps {
   --revoir-forme: 1.7778;
@@ -70,80 +69,8 @@
   flex: 0 1 calc(var(--revoir-haut) * var(--revoir-forme));
   min-width: min(100%, 17rem);
 }
-.revoir-ecran {
-  position: relative;
-  aspect-ratio: var(--revoir-forme);
-  overflow: hidden;
-  border: 1px solid var(--color-line-strong);
-  border-bottom: 0;
-  border-radius: 0.375rem 0.375rem 0 0;
-  background: var(--revoir-mer);
-}
-.revoir-ecran canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  image-rendering: pixelated;
-}
-
-/* La barre de lecture, collée sous la carte comme celle de la Carte : le bouton, la barre du temps, l'horloge, la vitesse. */
-.revoir-transport {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.375rem 0.875rem;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--color-line-strong);
-  border-top: 3px double var(--color-line-strong);
-  border-radius: 0 0 0.375rem 0.375rem;
-  background: var(--color-night);
-}
-/* La même largeur pour « Lecture », « Pause » et « Revoir » : la barre du temps ne bouge pas quand le bouton change. */
-.revoir-lecture {
-  flex: none;
-  min-width: 7.75rem;
-}
-/* La barre du temps prend toute la place qui reste ; sur un téléphone, elle passe seule sur sa ligne. */
-.revoir-temps {
-  display: flex;
-  align-items: center;
-  flex: 1 1 9rem;
-  min-width: 0;
-  min-height: 2.75rem;
-}
-.revoir-transport .film-range {
-  min-height: 2.75rem;
-}
-.revoir-transport .film-range:disabled {
-  cursor: default;
-  opacity: 0.5;
-}
-.revoir-transport .film-range:focus-visible {
-  outline: 2px solid var(--anneau);
-  outline-offset: 2px;
-  border-radius: 0.25rem;
-}
-.revoir-horloge {
-  font-family: var(--font-console);
-  font-size: 0.875rem;
-  white-space: nowrap;
-}
-.revoir-vitesse > input {
-  width: 6rem;
-}
-@media (max-width: 40rem) {
-  .revoir-temps {
-    order: -1;
-    flex-basis: 100%;
-  }
-  .revoir-horloge {
-    margin-right: auto;
-  }
-}
-
-/* La fiche : les faits de la partie (libellés en chasse fixe, comme ceux des chiffres clés), la légende, la sortie vers
-   OpenFront. Une colonne à côté de la carte ; sous elle, les faits se rangent en ligne. */
+/* La fiche : les faits de la partie (libellés en chasse fixe, comme ceux des chiffres clés) et les sorties, vers le replay
+   en grand et vers OpenFront. Une colonne à côté de la carte ; sous elle, les faits se rangent en ligne. */
 .revoir-fiche {
   flex: 1 1 15rem;
   min-width: 0;
@@ -166,35 +93,10 @@
   font-weight: 600;
 }
 
-.revoir-legende {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1.25rem;
-  font-size: 0.9375rem;
-}
-.revoir-faits + .revoir-legende,
 .revoir-sortie {
   margin-top: 1.25rem;
   padding-top: 1.25rem;
   border-top: 1px solid var(--hairline);
-}
-.revoir-legende li {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-/* Les teintes d'une ligne de la légende, serrées : les huit couleurs des autres équipes se lisent comme un seul nom. */
-.revoir-teintes {
-  display: inline-flex;
-  flex: none;
-  gap: 0.125rem;
-}
-.revoir-legende i {
-  flex: none;
-  width: 1rem;
-  height: 1rem;
-  border: 1px solid var(--stage-muted);
-  border-radius: 0.1875rem;
 }
 /* Sur téléphone, le lien de sortie garde une cible de 44 px. */
 .revoir-sortie > a,
@@ -203,20 +105,19 @@
   align-items: center;
   min-height: 2.75rem;
 }
-/* Dans une colonne étroite, donc à côté de la carte : les faits l'un sous l'autre, la légende en colonne. La règle suit la
+/* Dans une colonne étroite, donc à côté de la carte : les faits l'un sous l'autre. La règle suit la
    largeur de la fiche, pas celle de l'écran : sous une carte très large, la fiche reste en lignes, et sur un
    téléphone aussi, pour rester courte. */
 @media (min-width: 40rem) {
   @container revoir-fiche (max-width: 30rem) {
-    .revoir-faits,
-    .revoir-legende {
+    .revoir-faits {
       flex-direction: column;
       gap: 0.75rem;
     }
   }
 }
 
-/* Pas de film, navigateur trop ancien, fichier illisible : la carte du site, centrée comme « Pas de données ». */
+/* Pas de replay, replay pas disponible ou injoignable : la carte du site, centrée comme « Pas de données ». */
 .revoir-probleme {
   padding: 1.5rem;
   text-align: center;
@@ -271,125 +172,6 @@
 }
 .revoir-liste a[aria-current] .revoir-ici {
   display: inline;
-}
-
-/* Les noms et les unités (demande du pilote, 15 novembre 2026) : une seconde toile posée sur la carte, à la taille de l'écran,
-   qui ne prend aucun clic. Ses dessins viennent de src/lib/rejeu/details.ts. */
-.revoir-ecran .revoir-details {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  image-rendering: auto;
-}
-/* La légende des unités, sous celle des camps : la vraie icône du jeu (une petite toile, dessinée comme sur la carte) et son
-   nom. En colonnes égales, pour que les icônes s'alignent (deux sur un téléphone) ; un nom long passe sur deux lignes.
-   Chaque icône est sur une case de la mer de nuit du film (`--revoir-mer`) : elle se lit comme sur la carte. */
-.revoir-unites {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(8.25rem, 1fr));
-  gap: 0.375rem 1rem;
-  margin-top: 1rem;
-  font-size: 0.9375rem;
-  line-height: 1.2;
-}
-/* Quand la fiche est large (sous une carte du monde), des colonnes où chaque nom tient sur une ligne. */
-@container revoir-fiche (min-width: 40rem) {
-  .revoir-unites {
-    grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));
-  }
-}
-.revoir-unites li {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-width: 0;
-}
-.revoir-icone {
-  box-sizing: content-box;
-  flex: none;
-  width: 1.625rem;
-  height: 1.625rem;
-  padding: 0.1875rem;
-  border-radius: 0.25rem;
-  background: var(--revoir-mer);
-}
-/* Les deux cases : marine une fois cochées, coche claire, dans une cible de 44 px. */
-.revoir-choix {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0 1.5rem;
-  margin-top: 1.25rem;
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--hairline);
-}
-.revoir-choix legend {
-  float: left;
-  width: 100%;
-  margin-bottom: 0.125rem;
-  font-family: var(--font-console);
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--stage-muted);
-}
-.revoir-choix label {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.625rem;
-  min-height: 2.75rem;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-.revoir-choix input {
-  display: grid;
-  flex: none;
-  place-content: center;
-  width: 1.25rem;
-  height: 1.25rem;
-  margin: 0;
-  border: 2px solid var(--stage-muted);
-  border-radius: 0.25rem;
-  background: var(--color-night);
-  appearance: none;
-  cursor: pointer;
-}
-/* La coche : une forme découpée, de la couleur du fond, sur la case devenue marine. */
-.revoir-choix input::before {
-  content: "";
-  width: 0.75rem;
-  height: 0.75rem;
-  background: var(--color-night);
-  clip-path: polygon(13% 52%, 27% 38%, 42% 54%, 74% 18%, 88% 31%, 43% 82%);
-  opacity: 0;
-}
-.revoir-choix input:checked {
-  border-color: var(--ecriture);
-  background: var(--ecriture);
-}
-.revoir-choix input:checked::before {
-  opacity: 1;
-}
-.revoir-choix label:hover input {
-  border-color: var(--ecriture);
-}
-.revoir-choix input:focus-visible {
-  outline: 2px solid var(--anneau);
-  outline-offset: 3px;
-}
-/* Couleurs imposées par le système : la case cochée garde une coche visible. */
-@media (forced-colors: active) {
-  .revoir-choix input:checked {
-    background: Highlight;
-  }
-  .revoir-choix input::before {
-    background: HighlightText;
-  }
-}
-
-/* Le film masqué reste dans la page : `display: flex` de sa barre ne doit pas le faire reparaître. */
-.revoir-scene[hidden] {
-  display: none;
 }
 
 /* Le vrai lecteur du jeu dans la page (16 novembre 2026), seul quand la partie l'a. Son cadre a la forme de la carte, que

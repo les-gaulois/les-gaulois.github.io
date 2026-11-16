@@ -44,7 +44,7 @@ function Replay({ row }: { row: JournalRow }) {
   );
 }
 
-/** Le film de la partie sur le site (« Revoir une partie »), s'il existe. Une cible de la même taille que « Ouvrir ». */
+/** Le replay de la partie sur le site (« Revoir une partie »), s'il existe. Une cible de la même taille que « Ouvrir ». */
 function Film({ row, base }: { row: JournalRow; base: string }) {
   return (
     <a
@@ -53,7 +53,7 @@ function Film({ row, base }: { row: JournalRow; base: string }) {
       aria-label={`Revoir sur le site la partie du ${fmtDayAndTime(row.at)}`}
       data-testid="journal-film"
     >
-      {/* Le triangle de la lecture : ce lien-là reste sur le site, et montre un film. */}
+      {/* Le triangle de la lecture : ce lien-là reste sur le site, et montre le replay. */}
       <svg class="mr-1.5 flex-none" viewBox="0 0 14 14" width="10" height="10" fill="currentColor" aria-hidden="true">
         <path d="M2 1l11 6-11 6z" />
       </svg>
@@ -63,7 +63,7 @@ function Film({ row, base }: { row: JournalRow; base: string }) {
 }
 
 /**
- * Les liens d'une partie : son film sur le site s'il existe, et la partie sur OpenFront. Dans le tableau (grand écran), sur une
+ * Les liens d'une partie : son replay sur le site s'il existe, et la partie sur OpenFront. Dans le tableau (grand écran), sur une
  * seule ligne : sinon la colonne prend la largeur du plus long des deux, « Ouvrir » passe sous « Revoir » et la ligne grandit.
  */
 function Liens({ row, base, films }: { row: JournalRow; base: string; films: ReadonlySet<string> }) {
@@ -94,7 +94,7 @@ interface Props {
   sides: boolean;
   /** Le chemin du site, pour les liens vers « Revoir une partie ». */
   base?: string;
-  /** Les parties qui ont un film sur le site. */
+  /** Les parties qui ont leur replay sur le site. */
   films?: string[];
 }
 
@@ -213,7 +213,7 @@ export default function GamesJournal({ src, initial, sides, base = "", films: av
       </p>
       {unread && <p class="tnum mt-1 text-sm text-muted" data-testid="journal-unread">{unread}</p>}
       <p class="mt-1 max-w-3xl text-sm text-muted" data-testid="journal-link-note">
-        {films.size > 0 && "« Revoir » montre le film de la partie sur le site. "}« Ouvrir » lance le replay sur OpenFront. Une partie ancienne peut s'arrêter sur « Rejoindre un salon privé ».
+        {films.size > 0 && "« Revoir » montre le replay de la partie sur le site. "}« Ouvrir » lance le replay sur OpenFront. Une partie ancienne peut s'arrêter sur « Rejoindre un salon privé ».
       </p>
       {state === "error" && (
         <div class="card mt-3 p-4" role="alert">
