@@ -142,3 +142,48 @@ const texte3 = entete3 + migration3 + fin3;
 writeFileSync(".cache/a-coller-coffre-podium.sql", texte3);
 console.log(`.cache/a-coller-coffre-podium.sql : ${texte3.split("\n").length} lignes`);
 console.log(`.cache/a-coller-coffre-images.sql : ${texte2.split("\n").length} lignes, ${(texte2.match(/\$\$/g) ?? []).length} « $$ » (la migration en a ${(migration2.match(/\$\$/g) ?? []).length})`);
+
+/* ---------- La mise obligatoire : la quatrième migration, à coller après les trois autres ---------- */
+
+const NOM_4 = "20261116001700_coffre_mise_obligatoire";
+const migration4 = readFileSync(`supabase/migrations/${NOM_4}.sql`, "utf8").split("\r\n").join("\n").trimEnd();
+const ATTENDU_4 = "mise obligatoire : installé";
+
+const entete4 = `-- LA MISE OBLIGATOIRE DU COFFRE (16 novembre 2026), à coller en un seul fichier, APRÈS le coffre en images.
+-- Chaque essai coûte au moins 20 statères, et la cagnotte est multipliée pour le gagnant selon sa mise (2, 3 ou 4 fois).
+--
+-- À coller EN ENTIER dans l'éditeur SQL de Supabase (SQL Editor), puis « Run ». Il contient la seule migration ${NOM_4}.sql,
+-- notée comme appliquée. Il remplace deux fonctions par les mêmes, avec la nouvelle règle. Il n'efface rien et ne touche à
+-- aucune donnée : la manche en cours et sa cagnotte restent. Collé une seconde fois, il ne change rien.
+-- La dernière ligne doit dire : « ${ATTENDU_4} ».
+
+begin;
+
+`;
+
+const fin4 = `
+
+insert into supabase_migrations.schema_migrations (version, name, statements)
+values ('20261116001700', 'coffre_mise_obligatoire', array[]::text[])
+on conflict (version) do nothing;
+
+commit;
+
+-- Le contrôle : les deux fonctions portent-elles la nouvelle règle, restent-elles fermées à tous sauf au robot, la migration est-elle notée ?
+select 'mise obligatoire : '
+  || case when (select p.prosrc like '%coffre_prime%' from pg_proc p join pg_namespace s on s.oid = p.pronamespace where s.nspname = 'public' and p.proname = 'coffre_clore' and p.pronargs = 10)
+       and (select p.prosrc like '%then 20 else p_mise%' from pg_proc p join pg_namespace s on s.oid = p.pronamespace where s.nspname = 'public' and p.proname = 'coffre_ouvrir' and p.pronargs = 5)
+       and not has_function_privilege('anon', 'public.coffre_ouvrir(text, text, text, text, integer)', 'execute')
+       and not has_function_privilege('authenticated', 'public.coffre_ouvrir(text, text, text, text, integer)', 'execute')
+       and not has_function_privilege('anon', 'public.coffre_clore(bigint, bigint, text, boolean, boolean, bigint, text, boolean, integer[], text)', 'execute')
+       and not has_function_privilege('authenticated', 'public.coffre_clore(bigint, bigint, text, boolean, boolean, bigint, text, boolean, integer[], text)', 'execute')
+       and has_function_privilege('service_role', 'public.coffre_ouvrir(text, text, text, text, integer)', 'execute')
+       and has_function_privilege('service_role', 'public.coffre_clore(bigint, bigint, text, boolean, boolean, bigint, text, boolean, integer[], text)', 'execute')
+       and (public.coffre_ouvrir('etat', 'etat', 'etat', 'etat', 0) ->> 'error') = 'invalid_request'
+       and exists (select 1 from supabase_migrations.schema_migrations where version = '20261116001700')
+     then 'installé' else 'PAS INSTALLÉ' end as controle;
+`;
+
+const texte4 = entete4 + migration4 + fin4;
+writeFileSync(".cache/a-coller-coffre-mise.sql", texte4);
+console.log(`.cache/a-coller-coffre-mise.sql : ${texte4.split("\n").length} lignes, ${(texte4.match(/\$\$/g) ?? []).length} « $$ » (la migration en a ${(migration4.match(/\$\$/g) ?? []).length})`);

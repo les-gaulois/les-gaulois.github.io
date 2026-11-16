@@ -16,10 +16,14 @@
  * chaque réponse part avec l'image de la scène (`coffre-image.ts`) ; le gardien change à chaque manche (druide, forgeron,
  * barde, marchande, `CARACTERES`) ; Claude dit avec sa réponse l'humeur du gardien et ce qu'elle a donné du mot, que le
  * tableau des indices montre à tous (`lireLaReponse` : rien n'est cru sans contrôle, et les lettres viennent du mot gardé
- * par le serveur) ; qui le veut mise des statères dans une cagnotte, que le gagnant emporte ; /perceurs montre le podium de
+ * par le serveur) ; chaque essai met une mise dans une cagnotte, que le gagnant emporte ; /perceurs montre le podium de
  * la semaine ; le vendredi soir le gardien se méfie moins, le dimanche soir les essais sont doublés.
  *
- * Le jeu ne crée aucun statère : la cagnotte n'est faite que des mises. Le gardien ne sait rien d'OpenFront et n'en dit rien.
+ * Depuis la migration `20261116001700_coffre_mise_obligatoire.sql` (demande du pilote, 16 novembre 2026, après un coffre
+ * ouvert sans que personne ait misé) : chaque essai coûte une mise, 20 statères si le membre n'en choisit pas d'autre, et
+ * il faut donc un compte validé avec son Gaulois. La cagnotte n'est faite que des mises ; quand le coffre s'ouvre, le jeu
+ * la multiplie selon la mise du gagnant sur son essai gagnant (`FOIS_PAR_MISE`) : c'est la seule création de statères du
+ * coffre, décidée par le serveur. Le gardien ne sait rien d'OpenFront et n'en dit rien.
  *
  * L'appel à Claude passe par `deps.claude` (`index.ts`, SDK officiel) avec la clé du secret `ANTHROPIC_API_KEY` de la
  * fonction. Sans clé, /coffre répond que le druide dort, et tout le reste du robot marche.
@@ -508,6 +512,10 @@ const essaisEnMots = (n: number): string => (n === 0 ? "plus d'essai" : n === 1 
 
 /** Les mises permises, en statères : celles que la commande propose et que le serveur accepte. */
 export const MISES = [20, 50, 100] as const;
+/** La mise d'un essai dont le membre n'a pas choisi la mise : la plus petite. Personne ne joue sans miser. */
+export const MISE_PAR_DEFAUT = 20;
+/** Par combien le serveur multiplie la cagnotte, selon la mise du gagnant sur son essai gagnant. Le serveur décide ; ceci sert aux textes. */
+export const FOIS_PAR_MISE: Readonly<Record<(typeof MISES)[number], number>> = { 20: 2, 50: 3, 100: 4 };
 /** Le rôle Discord du champion de la semaine : le robot le donne s'il existe sous ce nom sur le serveur. */
 export const ROLE_DU_CHAMPION = "Perceur de coffres";
 export const RAISON_DU_ROLE = "Coffre du druide : champion de la semaine";
@@ -530,8 +538,8 @@ export const COFFRE_MESSAGES = {
   dailyLimit: "Vous avez fait tous vos essais du jour, villageois. Revenez demain : le gardien sera à son poste.",
   dailyTotal: "Tout le village a défilé devant le gardien aujourd'hui : il a la gorge sèche. Il rouvre son coffre demain.",
   pending: "Patience, villageois : le gardien cherche encore sa réponse à votre dernière ruse. Attendez-la avant de lui réécrire.",
-  noStake: "Pas de mise sans Gaulois : il faut un compte validé sur le site du clan, avec votre Gaulois. Rejouez sans mise, ou créez-le sur https://les-gaulois.github.io/village",
-  stakeShort: "Votre bourse est trop légère pour cette mise. Rejouez avec une mise plus petite, ou sans mise.",
+  noStake: `Le gardien ne parle qu'à qui mise : chaque essai coûte au moins ${MISE_PAR_DEFAUT} statères. Il faut un compte validé sur le site du clan, avec votre Gaulois : https://les-gaulois.github.io/village`,
+  stakeShort: `Votre bourse est trop légère pour cette mise : chaque essai coûte au moins ${MISE_PAR_DEFAUT} statères. Les statères viennent des points que vous rapportez au clan.`,
   noWord: "Le gardien grave encore son nouveau mot sous le couvercle. Réessayez dans un moment.",
   failed: "Le gardien a perdu le fil de sa pensée. Réessayez dans un moment.",
   speechless: "Le gardien en reste sans voix.",
@@ -581,6 +589,8 @@ export interface Tirage {
   /** Le mot, si cet essai ouvre le coffre ; et ce que le gagnant reçoit de la cagnotte. */
   gagne: string | null;
   gain: number;
+  /** Par combien le serveur a multiplié la cagnotte pour le gagnant : 1 s'il ne l'a pas dit. */
+  fois?: number;
 }
 
 /**
@@ -590,9 +600,12 @@ export interface Tirage {
 export function messageDuCoffre(t: Tirage, image: string | null = null): Json {
   const lignes = [`> **${sansForme(t.nom)}** : ${sansForme(t.message)}`, `**${FICHES_DES_GARDIENS[t.gardien].nom}** : ${t.reponse}`];
   if (t.gagne !== null) {
+    const fois = t.fois ?? 1;
     const cagnotte =
       t.gain > 0
-        ? ` Il remporte la cagnotte : ${t.gain} statères.`
+        ? fois > 1
+          ? ` Il remporte ${t.gain} statères : la cagnotte de ${Math.round(t.gain / fois)}, multipliée par ${fois} pour sa mise de ${t.mise}.`
+          : ` Il remporte la cagnotte : ${t.gain} statères.`
         : t.cagnotte > 0
           ? ` La cagnotte de ${t.cagnotte} statères reste dans le coffre : pour la gagner, il faut un compte validé sur le site, avec son Gaulois.`
           : "";
@@ -630,7 +643,7 @@ export const ENVOI_ATTENTE_MS = 1500;
 
 function optionsDuCoffre(data: Json | null): { message: string; mise: number } {
   let message = "";
-  let mise = 0;
+  let mise: number = MISE_PAR_DEFAUT;
   for (const option of Array.isArray(data?.["options"]) ? (data["options"] as unknown[]) : []) {
     const entry = record(option);
     if (entry?.["name"] === COFFRE_OPTION && typeof entry["value"] === "string") message = entry["value"].replace(/\s+/g, " ").trim();
@@ -765,6 +778,7 @@ async function jouer(interaction: Json, joueur: { id: string; nom: string }, mes
       cagnotte,
       gagne: gagne ? manche.mot : null,
       gain,
+      fois: Math.max(1, entier(clos["fois"]) ?? 1),
     };
     // L'image de la scène : si son dessin échoue, la réponse part en texte seul.
     let image: { png: Uint8Array<ArrayBuffer>; description: string } | null = null;

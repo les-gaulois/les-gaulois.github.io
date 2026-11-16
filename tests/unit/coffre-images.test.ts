@@ -340,7 +340,7 @@ describe("/coffre, avec le tableau, la mise et le rôle", () => {
     expect(dernier(m.calls.webhook).call?.files?.[0]).toMatchObject({ name: COFFRE_FILE });
   });
 
-  it("la mise demandée part au serveur ; une mise qui n'est pas dans la liste vaut zéro", async () => {
+  it("la mise demandée part au serveur ; une mise qui n'est pas dans la liste vaut la plus petite", async () => {
     const m = monde({ rpc: { coffre_ouvrir: () => ouverture(), coffre_clore: () => clos({ mise: 50, cagnotte: 110 }) } });
     await coffreCommand(interaction("Bonjour barde", 50), m.deps);
     await m.fini();
@@ -348,7 +348,7 @@ describe("/coffre, avec le tableau, la mise et le rôle", () => {
     expect(ecrit(m)).toContain("Mise : 50 statères, dans la cagnotte.");
     const triche = monde({ rpc: { coffre_ouvrir: () => ({ ok: false, error: "daily_limit" }) } });
     await coffreCommand(interaction("Bonjour barde", 5000), triche.deps);
-    expect(triche.calls.rpc[0]?.args).toMatchObject({ p_mise: 0 });
+    expect(triche.calls.rpc[0]?.args).toMatchObject({ p_mise: 20 });
   });
 
   it("une mise refusée n'est dite qu'au membre, et rien ne part chez Claude", async () => {
