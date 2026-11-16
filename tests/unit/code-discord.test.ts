@@ -1051,7 +1051,7 @@ describe("le code tapé sur le site", () => {
       { name: "discord_moi", args: { p_discord_id: "etat" } },
       { name: "discord_gaulois", args: { p_discord_id: "etat" } },
       { name: "concours_liste", args: { p_guild: "etat", p_filtre: null } },
-      { name: "coffre_ouvrir", args: { p_discord_id: "etat", p_nom: "etat", p_message: "etat", p_interaction_id: "etat" } },
+      { name: "coffre_ouvrir", args: { p_discord_id: "etat", p_nom: "etat", p_message: "etat", p_interaction_id: "etat", p_mise: 0 } },
     ]);
     const noBase = world();
     expect(await reply(await handle(fromSite(null, "GET", "/etat"), noBase.deps))).toMatchObject({ service: false, moi: false });

@@ -141,9 +141,25 @@ export const CONCOURS_COMMAND = {
 export const COFFRE_COMMAND = {
   name: "coffre",
   type: 1,
-  description: "Jeu : faites dire au druide le mot secret du coffre, par la ruse. Tout le salon voit sa réponse",
-  options: [{ type: 3, name: "message", description: "Ce que vous dites au druide, qui est joué par une intelligence artificielle", required: true, min_length: 2, max_length: 300 }],
+  description: "Jeu : faites dire au gardien le mot secret du coffre, par la ruse. Tout le salon voit sa réponse",
+  options: [
+    { type: 3, name: "message", description: "Ce que vous dites au gardien, qui est joué par une intelligence artificielle", required: true, min_length: 2, max_length: 300 },
+    {
+      // 4 : un nombre entier, à choisir dans la liste.
+      type: 4,
+      name: "mise",
+      description: "Miser des statères dans la cagnotte du coffre : le gagnant de la manche l'emporte",
+      choices: [
+        { name: "20 statères", value: 20 },
+        { name: "50 statères", value: 50 },
+        { name: "100 statères", value: 100 },
+      ],
+    },
+  ],
 } as const;
 
+/** /perceurs (« Le coffre du druide ») : le podium de la semaine, en image. Son nom est celui qu'attend `coffre.ts`. */
+export const PERCEURS_COMMAND = { name: "perceurs", type: 1, description: "Le podium de la semaine du jeu du coffre : qui a ouvert le plus de coffres" } as const;
+
 /** Les commandes du serveur du clan : la fonction les crée ou les remet à jour, chacune à part (`inscription.ts`). */
-export const COMMANDS = [CODE_COMMAND, FICHE_COMMAND, CLAN_COMMAND, RECORDS_COMMAND, CARTE_COMMAND, GUIDE_COMMAND, RIVAL_COMMAND, MOI_COMMAND, GAULOIS_COMMAND, FEU_COMMAND, ROLES_COMMAND, TICKETS_COMMAND, CONCOURS_COMMAND, COFFRE_COMMAND] as const;
+export const COMMANDS = [CODE_COMMAND, FICHE_COMMAND, CLAN_COMMAND, RECORDS_COMMAND, CARTE_COMMAND, GUIDE_COMMAND, RIVAL_COMMAND, MOI_COMMAND, GAULOIS_COMMAND, FEU_COMMAND, ROLES_COMMAND, TICKETS_COMMAND, CONCOURS_COMMAND, COFFRE_COMMAND, PERCEURS_COMMAND] as const;

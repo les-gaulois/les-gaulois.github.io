@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { COFFRE_COMMAND, COMMANDS } from "../../supabase/functions/code-discord/definitions";
+import { COFFRE_COMMAND, COMMANDS, PERCEURS_COMMAND } from "../../supabase/functions/code-discord/definitions";
 import {
+  CARACTERES,
   COFFRE_COMMAND_NAME,
+  COFFRE_FILE,
+  COFFRE_OPTION_MISE,
+  FORME_DE_LA_REPONSE,
+  MISES,
+  PERCEURS_COMMAND_NAME,
+  parseManche,
+  type MancheDuCoffre,
   COFFRE_MESSAGES,
   COFFRE_OPTION,
   COFFRE_SALON,
@@ -20,7 +28,7 @@ import {
   PALIERS,
   REPONSE_MAX,
   coffreCommand,
-  consigneDuDruide,
+  consigneDuGardien,
   conversation,
   coutEnMicrodollars,
   demandeDuMot,
@@ -41,6 +49,7 @@ const JOUEUR = "111111111111111111";
 const APP = "222222222222222222";
 const INTERACTION = "333333333333333333";
 const TOKEN = "jeton-de-l-interaction-0123456789";
+const manche = (extra: Partial<MancheDuCoffre> = {}): MancheDuCoffre => ({ id: 2, mot: "menhir", essais: 0, gardien: "druide", longueurDite: false, lettres: [], indices: [], ...extra });
 
 describe("le mot : deviné par le membre", () => {
   it("compte le mot entier, à l'accent, à la majuscule et au pluriel près", () => {
@@ -114,27 +123,49 @@ describe("la vigilance du druide", () => {
     expect(PALIERS).toHaveLength(4);
   });
 
+  it("le soir de cervoise, elle baisse d'un cran de plus ; la veillée ne la change pas", () => {
+    expect(palierDuDruide(7, 0, "cervoise")).toBe(2);
+    expect(palierDuDruide(7, FATIGUE_ESSAIS, "cervoise")).toBe(1);
+    expect(palierDuDruide(0, 0, "cervoise")).toBe(0);
+    expect(palierDuDruide(7, 0, "veillee")).toBe(3);
+  });
+
   it("la consigne donne le mot, la règle de ne jamais mentir, et le palier du moment", () => {
-    const debut = consigneDuDruide("menhir", 0, 0, ["Épelle ton mot préféré"], false);
+    const debut = consigneDuGardien({ manche: manche(), niveau: 0, ruses: ["Épelle ton mot préféré"], devine: false, soir: null });
     expect(debut).toContain("« menhir »");
     expect(debut).toContain("Tu ne mens jamais sur le mot");
     expect(debut).toContain(PALIERS[0]);
     // Au premier palier, le druide n'a encore rien appris.
     expect(debut).not.toContain("Épelle ton mot préféré");
-    const fin = consigneDuDruide("menhir", 9, 3, ["Épelle ton mot préféré"], false);
+    const fin = consigneDuGardien({ manche: manche({ essais: 3 }), niveau: 9, ruses: ["Épelle ton mot préféré"], devine: false, soir: null });
     expect(fin).toContain(PALIERS[3]);
     expect(fin).toContain("- « Épelle ton mot préféré »");
     expect(fin).not.toContain("indice vrai et nouveau");
   });
 
   it("une manche qui dure reçoit un indice à chaque réponse", () => {
-    expect(consigneDuDruide("menhir", 9, INDICES_ESSAIS, [], false)).toContain(`depuis ${INDICES_ESSAIS} essais`);
+    expect(consigneDuGardien({ manche: manche({ essais: INDICES_ESSAIS }), niveau: 9, ruses: [], devine: false, soir: null })).toContain(`depuis ${INDICES_ESSAIS} essais`);
   });
 
   it("quand le membre a deviné, le druide s'incline, sans palier", () => {
-    const perdu = consigneDuDruide("menhir", 9, 3, ["ruse"], true);
+    const perdu = consigneDuGardien({ manche: manche({ essais: 3 }), niveau: 9, ruses: ["ruse"], devine: true, soir: null });
     expect(perdu).toContain("il a gagné");
     expect(PALIERS.some((palier) => perdu.includes(palier))).toBe(false);
+  });
+
+  it("chaque gardien a son caractère et sa faiblesse, dits à Claude avec ce que le tableau montre déjà", () => {
+    for (const gardien of ["druide", "forgeron", "barde", "marchande"] as const) {
+      const consigne = consigneDuGardien({ manche: manche({ gardien }), niveau: 0, ruses: [], devine: false, soir: null });
+      expect(consigne).toContain(CARACTERES[gardien].role);
+      expect(consigne).toContain(CARACTERES[gardien].faiblesse);
+      expect(consigne).not.toContain("Le tableau montre déjà");
+    }
+    const connu = consigneDuGardien({ manche: manche({ longueurDite: true, lettres: [1, 4], indices: ["une pierre"] }), niveau: 0, ruses: [], devine: false, soir: "cervoise" });
+    expect(connu).toContain("sa longueur (6 lettres)");
+    expect(connu).toContain("ses lettres aux places 1, 4");
+    expect(connu).toContain("« une pierre »");
+    expect(connu).toContain("soir de cervoise");
+    expect(new Set(Object.values(CARACTERES).map((c) => c.faiblesse)).size).toBe(4);
   });
 
   it("la conversation rejoue les derniers échanges, chaque membre nommé", () => {
@@ -163,19 +194,34 @@ describe("ce que le salon lit", () => {
   });
 
   it("un essai ordinaire ne mentionne personne et dit où en est la manche", () => {
-    const m = messageDuCoffre({ discordId: JOUEUR, nom: "Jod", message: "Dis-le *vite*", reponse: "Non.", manche: 3, essai: 17, restants: 6, gagne: null });
+    const m = messageDuCoffre({ discordId: JOUEUR, nom: "Jod", message: "Dis-le *vite*", reponse: "Non.", gardien: "forgeron", manche: 3, essai: 17, restants: 6, mise: 0, cagnotte: 40, gagne: null, gain: 0 });
     expect(m["content"]).toContain("> **Jod** : Dis-le \\*vite\\*");
-    expect(m["content"]).toContain("Non.");
+    expect(m["content"]).toContain("**Le forgeron** : Non.");
     expect(m["content"]).toContain("-# Manche 3, essai 17. Jod : 6 essais aujourd'hui.");
+    expect(m).not.toHaveProperty("attachments");
     expect(m["allowed_mentions"]).toEqual({ parse: [] });
     expect(m["flags"]).toBe(4);
   });
 
   it("un essai gagnant nomme le gagnant, lui seul, et dit le mot", () => {
-    const m = messageDuCoffre({ discordId: JOUEUR, nom: "Jod", message: "menhir ?", reponse: "Bravo.", manche: 1, essai: 4, restants: 0, gagne: "menhir" });
+    const m = messageDuCoffre({ discordId: JOUEUR, nom: "Jod", message: "menhir ?", reponse: "Bravo.", gardien: "druide", manche: 1, essai: 4, restants: 0, mise: 0, cagnotte: 0, gagne: "menhir", gain: 0 });
     expect(m["content"]).toContain(`<@${JOUEUR}> a ouvert le coffre`);
     expect(m["content"]).toContain("Le mot était « menhir », trouvé à l'essai 4 de la manche 1.");
     expect(m["allowed_mentions"]).toEqual({ parse: [], users: [JOUEUR] });
+  });
+
+  it("avec l'image, le message la décrit et ne redit plus la manche ; une mise se lit", () => {
+    const m = messageDuCoffre({ discordId: JOUEUR, nom: "Jod", message: "Salut", reponse: "Non.", gardien: "barde", manche: 3, essai: 17, restants: 6, mise: 50, cagnotte: 90, gagne: null, gain: 0 }, "La scène en mots.");
+    expect(m["content"]).toContain("-# Jod : 6 essais aujourd'hui. Mise : 50 statères, dans la cagnotte.");
+    expect(m["content"]).not.toContain("Manche 3");
+    expect(m["attachments"]).toEqual([{ id: 0, filename: COFFRE_FILE, description: "La scène en mots." }]);
+  });
+
+  it("la cagnotte va au gagnant, ou reste dans le coffre s'il n'a pas de compte", () => {
+    const base = { discordId: JOUEUR, nom: "Jod", message: "menhir", reponse: "Bravo.", gardien: "druide" as const, manche: 1, essai: 4, restants: 0, mise: 0, gagne: "menhir" };
+    expect(messageDuCoffre({ ...base, cagnotte: 0, gain: 340 })["content"]).toContain("Il remporte la cagnotte : 340 statères.");
+    expect(messageDuCoffre({ ...base, cagnotte: 340, gain: 0 })["content"]).toContain("La cagnotte de 340 statères reste dans le coffre");
+    expect(messageDuCoffre({ ...base, cagnotte: 0, gain: 0 })["content"]).not.toContain("cagnotte");
   });
 
   it("chaque refus du serveur a sa phrase", () => {
@@ -185,6 +231,8 @@ describe("ce que le salon lit", () => {
     expect(refusDuCoffre("ended")).toBe(COFFRE_MESSAGES.ended);
     expect(refusDuCoffre("closed")).toBe(COFFRE_MESSAGES.asleep);
     expect(refusDuCoffre("pending")).toBe(COFFRE_MESSAGES.pending);
+    expect(refusDuCoffre("no_stake")).toBe(COFFRE_MESSAGES.noStake);
+    expect(refusDuCoffre("stake_short")).toBe(COFFRE_MESSAGES.stakeShort);
     expect(refusDuCoffre("autre")).toBe(COFFRE_MESSAGES.down);
   });
 });
@@ -208,9 +256,22 @@ describe("la commande, telle que Discord la montre", () => {
     expect(option.name).toBe(COFFRE_OPTION);
     expect(option.min_length).toBe(MESSAGE_MIN);
     expect(option.max_length).toBe(MESSAGE_MAX);
+    // Ce qu'on écrit au gardien est un texte libre : la fonction ne propose rien pendant la saisie.
+    expect(option).not.toHaveProperty("autocomplete");
+    expect(option.required).toBe(true);
     expect(option.description.length).toBeLessThanOrEqual(100);
     expect(COFFRE_COMMAND.description).toContain("Tout le salon voit");
+    expect(COFFRE_COMMAND.description.length).toBeLessThanOrEqual(100);
     expect(COMMANDS).toContain(COFFRE_COMMAND);
+    // La mise : facultative, et seulement celles que le serveur accepte.
+    const mise = COFFRE_COMMAND.options[1];
+    expect(mise.name).toBe(COFFRE_OPTION_MISE);
+    expect(mise).not.toHaveProperty("required");
+    expect(mise.choices.map((c) => c.value)).toEqual([...MISES]);
+    expect(mise.description.length).toBeLessThanOrEqual(100);
+    expect(PERCEURS_COMMAND.name).toBe(PERCEURS_COMMAND_NAME);
+    expect(PERCEURS_COMMAND.description.length).toBeLessThanOrEqual(100);
+    expect(COMMANDS).toContain(PERCEURS_COMMAND);
   });
 });
 
@@ -218,13 +279,22 @@ describe("l'état rendu par le serveur", () => {
   it("se lit sans rien croire", () => {
     expect(parseEtat({ essai: 5, manche: { id: 2, mot: "menhir", essais: 3 }, niveau: 1, passes: ["enclume", 4], ruses: ["x"], historique: [{ nom: "A", message: "m", reponse: "r" }, { nom: "B" }], restants: 7 })).toEqual({
       essai: 5,
-      manche: { id: 2, mot: "menhir", essais: 3 },
+      manche: { id: 2, mot: "menhir", essais: 3, gardien: "druide", longueurDite: false, lettres: [], indices: [] },
       niveau: 1,
       passes: ["enclume"],
       ruses: ["x"],
       historique: [{ nom: "A", message: "m", reponse: "r" }],
       restants: 7,
+      soir: null,
+      cagnotte: 0,
+      tenue: null,
     });
+    // Le gardien, le tableau, le soir et la cagnotte de la seconde migration ; rien n'est cru sans contrôle.
+    const complet = parseEtat({ essai: 5, manche: { id: 2, mot: "menhir", essais: 3, gardien: "barde", longueur_dite: true, lettres: [4, 1, 1, 9, "x"], indices: ["une pierre", 3] }, niveau: 1, restants: 7, soir: "veillee", cagnotte: 120, tenue: { peau: "x" } });
+    expect(complet?.manche).toEqual({ id: 2, mot: "menhir", essais: 3, gardien: "barde", longueurDite: true, lettres: [1, 4], indices: ["une pierre"] });
+    expect(complet).toMatchObject({ soir: "veillee", cagnotte: 120, tenue: null });
+    expect(parseManche({ id: 2, mot: "menhir", essais: 0, gardien: "dragon" })?.gardien).toBe("druide");
+    expect(parseEtat({ essai: 5, manche: null, niveau: 0, restants: 10, soir: "noel" })?.soir).toBeNull();
     expect(parseEtat({ essai: 5, manche: null, niveau: 0, restants: 10 })?.manche).toBeNull();
     expect(parseEtat({ essai: 5, manche: { id: 2, mot: "Pas Un Mot", essais: 0 }, niveau: 0, restants: 10 })?.manche).toBeNull();
     expect(parseEtat({ essai: -1, niveau: 0, restants: 10 })).toBeNull();
@@ -233,8 +303,8 @@ describe("l'état rendu par le serveur", () => {
 });
 
 /** Un monde de test : le serveur et Claude répondent ce qu'on leur dit, et tout ce qui part est noté. */
-function monde(options: { rpc?: Record<string, (args: Record<string, unknown>) => Record<string, unknown> | null>; claude?: ((demande: DemandeClaude) => ReponseClaude | null) | null; discord?: (envoi: number) => { status: number; body: unknown } | null }) {
-  const calls = { rpc: [] as { name: string; args: Record<string, unknown> }[], webhook: [] as { method: string; path: string; call?: DiscordCall }[], claude: [] as DemandeClaude[], log: [] as string[], sleep: [] as number[] };
+function monde(options: { rpc?: Record<string, (args: Record<string, unknown>) => Record<string, unknown> | null>; claude?: ((demande: DemandeClaude) => ReponseClaude | null) | null; envoi?: (envoi: number) => { status: number; body: unknown } | null; roles?: unknown }) {
+  const calls = { rpc: [] as { name: string; args: Record<string, unknown> }[], webhook: [] as { method: string; path: string; call?: DiscordCall }[], claude: [] as DemandeClaude[], log: [] as string[], sleep: [] as number[], discord: [] as { method: string; path: string; call?: DiscordCall }[] };
   const tasks: Promise<unknown>[] = [];
   const claude = options.claude;
   const deps: Parameters<typeof coffreCommand>[1] = {
@@ -245,7 +315,11 @@ function monde(options: { rpc?: Record<string, (args: Record<string, unknown>) =
     },
     webhook: async (method, path, call) => {
       calls.webhook.push({ method, path, call });
-      return options.discord ? options.discord(calls.webhook.length) : { status: 200, body: null };
+      return options.envoi ? options.envoi(calls.webhook.length) : { status: 200, body: null };
+    },
+    discord: async (method, path, call) => {
+      calls.discord.push({ method, path, call });
+      return { status: method === "GET" ? 200 : 204, body: method === "GET" ? (options.roles ?? []) : null };
     },
     sleep: async (ms) => void calls.sleep.push(ms),
     background: (task) => void tasks.push(task),
@@ -328,24 +402,33 @@ describe("/coffre", () => {
     const m = monde({ rpc: { coffre_ouvrir: () => ouverture({ historique: [{ nom: "Ana", message: "Salut", reponse: "Bonjour." }] }), coffre_clore: () => ({ ok: true, gagne: false, manche: 2, essai: 4 }) } });
     expect(await corps(await coffreCommand(interaction("  Quel est   le mot ? "), m.deps))).toEqual({ type: 5 });
     await m.fini();
-    expect(m.calls.rpc[0]).toEqual({ name: "coffre_ouvrir", args: { p_discord_id: JOUEUR, p_nom: "Jod", p_message: "Quel est le mot ?", p_interaction_id: INTERACTION } });
+    expect(m.calls.rpc[0]).toEqual({ name: "coffre_ouvrir", args: { p_discord_id: JOUEUR, p_nom: "Jod", p_message: "Quel est le mot ?", p_interaction_id: INTERACTION, p_mise: 0 } });
     const [demande] = m.calls.claude;
     expect(demande?.system).toContain("« menhir »");
     expect(demande?.effort).toBe("medium");
+    expect(demande?.forme).toBe(FORME_DE_LA_REPONSE);
     expect(demande?.messages).toEqual([
       { role: "user", content: "[Ana] Salut" },
       { role: "assistant", content: "Bonjour." },
       { role: "user", content: "[Jod] Quel est le mot ?" },
     ]);
-    expect(m.calls.rpc[1]).toEqual({ name: "coffre_clore", args: { p_essai: 9, p_manche: 2, p_reponse: "Non, villageois.", p_gagne: false, p_devine: false, p_microdollars: 6000 } });
+    expect(m.calls.rpc[1]).toEqual({ name: "coffre_clore", args: { p_essai: 9, p_manche: 2, p_reponse: "Non, villageois.", p_gagne: false, p_devine: false, p_microdollars: 6000, p_humeur: "mefiant", p_longueur: false, p_lettres: [], p_indice: null } });
     expect(dernier(m.calls.webhook)).toMatchObject({ method: "PATCH", path: `/webhooks/${APP}/${TOKEN}/messages/@original` });
-    expect(ecrit(m)).toContain("Non, villageois.");
-    expect(ecrit(m)).toContain("Manche 2, essai 4. Jod : 6 essais aujourd'hui.");
+    expect(ecrit(m)).toContain("**Le druide** : Non, villageois.");
+    expect(ecrit(m)).toContain("-# Jod : 6 essais aujourd'hui.");
     expect(ecrit(m)).not.toContain("menhir");
+    // L'image de la scène part avec la réponse, et sa description ne dit pas le mot.
+    const [fichier] = dernier(m.calls.webhook).call?.files ?? [];
+    expect(fichier).toMatchObject({ name: COFFRE_FILE, type: "image/png" });
+    expect([...(fichier?.bytes.slice(1, 4) ?? [])]).toEqual([80, 78, 71]);
+    const jointe = (dernier(m.calls.webhook).call?.body as { attachments: { description: string }[] }).attachments[0];
+    expect(jointe?.description).toContain("Le druide, méfiant");
+    expect(jointe?.description).not.toContain("menhir");
+    expect(m.calls.discord).toEqual([]);
   });
 
   it("Discord ne répond pas à l'envoi : le robot réessaie, et la réponse s'affiche", async () => {
-    const m = monde({ rpc: { coffre_ouvrir: () => ouverture(), coffre_clore: () => ({ ok: true, gagne: false, manche: 2, essai: 4 }) }, discord: (envoi) => (envoi === 1 ? null : envoi === 2 ? { status: 503, body: null } : { status: 200, body: null }) });
+    const m = monde({ rpc: { coffre_ouvrir: () => ouverture(), coffre_clore: () => ({ ok: true, gagne: false, manche: 2, essai: 4 }) }, envoi: (envoi) => (envoi === 1 ? null : envoi === 2 ? { status: 503, body: null } : { status: 200, body: null }) });
     await coffreCommand(interaction("Bonjour druide"), m.deps);
     await m.fini();
     expect(m.calls.webhook).toHaveLength(3);
@@ -357,12 +440,12 @@ describe("/coffre", () => {
   });
 
   it("Discord reste injoignable : le robot s'arrête après ses essais, et le note ; un refus net n'est pas réessayé", async () => {
-    const m = monde({ rpc: { coffre_ouvrir: () => ouverture(), coffre_clore: () => ({ ok: true, gagne: false, manche: 2, essai: 4 }) }, discord: () => null });
+    const m = monde({ rpc: { coffre_ouvrir: () => ouverture(), coffre_clore: () => ({ ok: true, gagne: false, manche: 2, essai: 4 }) }, envoi: () => null });
     await coffreCommand(interaction("Bonjour druide"), m.deps);
     await m.fini();
     expect(m.calls.webhook).toHaveLength(ENVOIS_MAX);
     expect(m.calls.log).toEqual(["coffre : réponse non affichée, Discord injoignable"]);
-    const refus = monde({ rpc: { coffre_ouvrir: () => ouverture(), coffre_clore: () => ({ ok: true, gagne: false, manche: 2, essai: 4 }) }, discord: () => ({ status: 404, body: null }) });
+    const refus = monde({ rpc: { coffre_ouvrir: () => ouverture(), coffre_clore: () => ({ ok: true, gagne: false, manche: 2, essai: 4 }) }, envoi: () => ({ status: 404, body: null }) });
     await coffreCommand(interaction("Bonjour druide"), refus.deps);
     await refus.fini();
     expect(refus.calls.webhook).toHaveLength(1);
@@ -417,11 +500,11 @@ describe("/coffre", () => {
     expect(ecrit(m)).toContain("a ouvert le coffre");
   });
 
-  it("le serveur n'enregistre pas la réponse : l'essai est annulé, sans promettre qu'il ne compte pas", async () => {
+  it("le serveur n'enregistre pas la réponse : l'essai est annulé, l'appel à Claude compté, sans promettre qu'il ne compte pas", async () => {
     const m = monde({ rpc: { coffre_ouvrir: () => ouverture(), coffre_clore: () => ({ ok: false, error: "unknown_round" }), coffre_annuler: () => ({ ok: true }) } });
     await coffreCommand(interaction("Bonjour druide"), m.deps);
     await m.fini();
-    expect(dernier(m.calls.rpc)).toEqual({ name: "coffre_annuler", args: { p_essai: 9, p_microdollars: 0 } });
+    expect(dernier(m.calls.rpc)).toEqual({ name: "coffre_annuler", args: { p_essai: 9, p_microdollars: 6000 } });
     expect(ecrit(m)).toBe(COFFRE_MESSAGES.failed);
     expect(Object.values(COFFRE_MESSAGES).some((phrase) => phrase.includes("ne compte pas"))).toBe(false);
   });
@@ -458,7 +541,8 @@ describe("/coffre", () => {
     // La nouvelle manche repart sans souvenir de la précédente.
     expect(m.calls.claude[2]?.messages).toEqual([{ role: "user", content: "[Jod] Bonjour druide" }]);
     expect(m.calls.claude[2]?.system).toContain("« enclume »");
-    expect(ecrit(m)).toContain("Manche 3, essai 1.");
+    expect(ecrit(m)).toContain("Nouveau coffre, nouvelle vigilance.");
+    expect(m.calls.rpc[3]?.args).toMatchObject({ p_manche: 3 });
   });
 
   it("aucun mot valable : l'essai est annulé, et le membre le sait", async () => {

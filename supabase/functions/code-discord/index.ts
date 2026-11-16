@@ -53,7 +53,7 @@
  * (`verify_jwt = false`, `supabase/config.toml`) : Discord n'en envoie pas, et la fonction vérifie elle-même chaque appel.
  * Elle ne note jamais un code, une adresse ni un jeton dans ses journaux.
  *
- * `coffre.ts` s'y ajoute, avec `deno.json`, qui dit à Deno où trouver le SDK de Claude (`@anthropic-ai/sdk`, le même que
+ * `coffre.ts` et `coffre-image.ts` (ses images) s'y ajoutent, avec `deno.json`, qui dit à Deno où trouver le SDK de Claude (`@anthropic-ai/sdk`, le même que
  * celui du dépôt pour Node), et ses tests (`tests/unit/coffre-discord.test.ts`).
  *
  * Sept fichiers, `index.ts`, `tickets.ts`, `concours.ts`, `billets.ts`, `emojis.ts`, `definitions.ts` et `inscription.ts`,
@@ -73,7 +73,7 @@ import { familierDe } from "./familiers/index.ts";
 import { banniereParId, dessinDeLaBanniere, type Banniere } from "./bannieres/index.ts";
 import { sceneDuGaulois, type Scene } from "./scene.ts";
 import { FEU_COMMAND, FEU_FILE, MONDE_PATH, parseMonde, releveEnMots, reponseDuFeu, type MondeLu } from "./feu.ts";
-import { COFFRE_COMMAND_NAME, coffreCommand, DRUIDE_MODELE, JETONS_MAX, type Tour } from "./coffre.ts";
+import { COFFRE_COMMAND_NAME, coffreCommand, DRUIDE_MODELE, JETONS_MAX, PERCEURS_COMMAND_NAME, perceursCommand, type Tour } from "./coffre.ts";
 
 /** Le nom de la commande, tel que le joueur la tape. `definitions.ts` la décrit ; la fonction la crée sur le serveur du clan (`inscription.ts`). */
 export const COMMAND_NAME = "code";
@@ -179,6 +179,8 @@ export interface DemandeClaude {
   system: string;
   messages: Tour[];
   effort: "low" | "medium" | "high";
+  /** La forme que doit prendre la réponse (un schéma JSON) : Claude répond alors par un objet de cette forme, en texte. */
+  forme?: Record<string, unknown>;
 }
 
 /** Sa réponse : le texte, le modèle qui a répondu, et les jetons lus et écrits, pour le compte de la dépense. */
@@ -1396,6 +1398,7 @@ async function discordRoute(req: Request, deps: Deps): Promise<Response> {
   if (interaction["type"] === 2 && name === TICKETS_COMMAND_NAME) return ticketsCommand(interaction, deps);
   if ((interaction["type"] === 2 || interaction["type"] === 4) && name === CONCOURS_COMMAND_NAME) return concoursCommand(interaction, deps);
   if (interaction["type"] === 2 && name === COFFRE_COMMAND_NAME) return coffreCommand(interaction, deps);
+  if (interaction["type"] === 2 && name === PERCEURS_COMMAND_NAME) return perceursCommand(interaction, deps);
   if (data && typeof name === "string" && ROBOT_COMMANDS.has(name) && (interaction["type"] === 2 || interaction["type"] === 4)) return robotRoute(name, interaction, data, deps);
   if (interaction["type"] !== 2 || name !== COMMAND_NAME) return ephemeral(MESSAGES.unknown);
 
@@ -1509,9 +1512,10 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
     const inscription = deps.commandSync ? await Promise.race([deps.commandSync(), deps.sleep(ETAT_SYNC_WAIT_MS).then(() => false)]) : false;
     // /feu : l'état du monde du village se lit sur le site et a la forme attendue.
     const feu = deps.monde ? (await deps.monde()) !== null : false;
-    // Le coffre du druide : un identifiant mal formé, refusé sans rien écrire, prouve que sa migration est installée ; et la
+    // Le coffre du druide : un identifiant mal formé, refusé sans rien écrire, prouve que ses deux migrations sont installées
+    // (la fonction à cinq paramètres vient de la seconde, celle des images) ; et la
     // clé de Claude est posée ou non, sans qu'aucun appel à Claude parte d'ici.
-    const coffre = deps.serviceReady ? (await deps.rpc("coffre_ouvrir", { p_discord_id: "etat", p_nom: "etat", p_message: "etat", p_interaction_id: "etat" }))?.["error"] === "invalid_request" : false;
+    const coffre = deps.serviceReady ? (await deps.rpc("coffre_ouvrir", { p_discord_id: "etat", p_nom: "etat", p_message: "etat", p_interaction_id: "etat", p_mise: 0 }))?.["error"] === "invalid_request" : false;
     const druide = deps.claudeReady === true;
     return json({ ok: true, discord, service, signature: await signatureWorks(), fiches, commandes, moi, gaulois, robot, concours, inscription, feu, coffre, druide }, 200, CORS);
   }
@@ -1801,7 +1805,7 @@ export function liveDeps(env: Env, fetcher: typeof fetch = fetch): Deps {
           max_tokens: JETONS_MAX,
           betas: ["server-side-fallback-2026-07-01"],
           fallbacks: "default",
-          output_config: { effort: demande.effort },
+          output_config: { effort: demande.effort, ...(demande.forme ? { format: { type: "json_schema" as const, schema: demande.forme } } : {}) },
           system: demande.system,
           messages: demande.messages,
         });
