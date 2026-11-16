@@ -74,7 +74,11 @@ export function usePochetteStateres() {
       try {
         // Le prix affiché dans la fenêtre : s'il a changé entre-temps, le serveur refuse (`prix_change`) sans rien débiter.
         const tirage = lireOuvertureDeStateres(await call<unknown>("ouvrir_pochette_stateres", { p_prix_vu: prix }));
-        if (!tirage) return { ok: false, message: ILLISIBLE };
+        if (!tirage) {
+          // Le prix a pu être débité : la pochette se relit, pour que le solde et le compte du jour soient ceux du serveur.
+          void lire(true);
+          return { ok: false, message: ILLISIBLE };
+        }
         setEtat((e) => (e.kind === "pret" ? { kind: "pret", ma: apresLOuverture(e.ma, tirage) } : e));
         return { ok: true, valeur: tirage };
       } catch (e) {
@@ -196,7 +200,9 @@ export function DialogueStateres({ ma, solde, ouvrir, onFermer }: { ma: MaPochet
   const tourne = (etape === "tourne" || etape === "arrete") && tirage !== null && bande !== null;
   const revele = etape === "revele" && tirage !== null;
   const encore = tirage ? Math.max(0, ma.plafond - tirage.ouvertes) : 0;
-  const peutRejouer = tirage !== null && encore > 0 && tirage.solde >= ma.prix;
+  // La chance du lot tiré, si la liste le connaît : sinon, la phrase ne s'écrit pas (jamais un zéro à la place).
+  const chanceDuLot = tirage ? lots.find((lot) => lot.rang === tirage.lot.rang)?.chance : undefined;
+  const peutRejouer =tirage !== null && encore > 0 && tirage.solde >= ma.prix;
   const rejouer = () => {
     if (!tirage) return;
     setDepart(tirage.solde);
@@ -230,9 +236,11 @@ export function DialogueStateres({ ma, solde, ouvrir, onFermer }: { ma: MaPochet
           <div class="pochette-revelation pochette-stateres-revelation" data-rarete={rareteDuLot(tirage.lot.rang)} data-testid="pochette-stateres-tirage" data-rang={tirage.lot.rang}>
             <DessinDuLot rang={tirage.lot.rang} echelle={5} />
           </div>
-          <p class="familier-revelation-traits">
-            <span class="tnum">Ce lot sort {pourcent(lots.find((lot) => lot.rang === tirage.lot.rang)?.chance ?? 0)} du temps.</span>
-          </p>
+          {chanceDuLot !== undefined && (
+            <p class="familier-revelation-traits">
+              <span class="tnum">Ce lot sort {pourcent(chanceDuLot)} du temps.</span>
+            </p>
+          )}
           <p class="boutique-dialogue-texte" data-testid="pochette-stateres-reste">
             Il vous reste {stateres(tirage.solde)}. {encore > 0 ? `Encore ${encore} ${encore > 1 ? "pochettes" : "pochette"} aujourd'hui.` : "C'était la dernière d'aujourd'hui."}
           </p>
@@ -252,7 +260,8 @@ export function DialogueStateres({ ma, solde, ouvrir, onFermer }: { ma: MaPochet
           <div class="pochette-attente" data-envoi={etape === "envoi" ? "" : undefined}>
             <DessinPochetteStateres echelle={4} />
           </div>
-          {!refus && <Compte prix={ma.prix} solde={depart} />}
+          {/* La pochette rend toujours un lot : ce qu'il restera est un minimum. */}
+          {!refus && <Compte prix={ma.prix} solde={depart} auMoins />}
           <Refus message={refus} />
           <div class="boutique-dialogue-actions">
             {!refus && (

@@ -875,6 +875,11 @@ export default function Boutique() {
                 {boutique && <Pochette boutique={boutique} solde={soldeConnu ?? boutique.solde} fermee={fermee} onOuvrir={() => setFenetre({ kind: "pochette" })} />}
                 {familiers.mes && <PochetteFamiliers mes={familiers.mes} solde={soldeConnu ?? familiers.mes.solde} onOuvrir={() => setFenetre({ kind: "familiers" })} />}
                 {pochetteStateres.ma && <PochetteStateres ma={pochetteStateres.ma} solde={soldeConnu ?? pochetteStateres.ma.solde} onOuvrir={() => setFenetre({ kind: "stateres" })} />}
+                {pochetteStateres.etat.kind === "panne" && (
+                  <div data-testid="pochette-stateres-panne">
+                    <Problem message="La pochette de statères ne répond pas pour l'instant." onRetry={() => void pochetteStateres.lire()} />
+                  </div>
+                )}
                 {familiers.etat.kind === "panne" && (
                   <div data-testid="familiers-panne">
                     <Problem message="La pochette des familiers ne répond pas pour l'instant." onRetry={() => void familiers.lire()} />
