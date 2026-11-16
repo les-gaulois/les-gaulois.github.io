@@ -54,7 +54,7 @@ function Loupe({ element }: { element: ElementDeLAlbum }) {
 }
 
 /** Le panneau de l'album, ouvert : les puces des groupes, les cases, la loupe. */
-function Panneau({ album, id, onFermer, onPlacer }: { album: Album; id: string; onFermer: () => void; onPlacer: () => void }) {
+function Panneau({ album, id, entete, onFermer, onPlacer }: { album: Album; id: string; entete?: ComponentChildren; onFermer: () => void; onPlacer: () => void }) {
   const [groupe, setGroupe] = useState(TOUS);
   // Une puce change la hauteur de l'album : il se replace, la pointe toujours vers le dessin.
   useLayoutEffect(onPlacer, [groupe]);
@@ -76,6 +76,7 @@ function Panneau({ album, id, onFermer, onPlacer }: { album: Album; id: string; 
           </svg>
         </button>
       </div>
+      {entete}
       <div class="album-corps">
         <div class="album-gauche">
           <div class="album-groupes" role="group" aria-label={album.libelleDesGroupes} data-testid="album-groupes">
@@ -111,9 +112,10 @@ function Panneau({ album, id, onFermer, onPlacer }: { album: Album; id: string; 
 /**
  * Le dessin d'une pochette, qui ouvre son album. `lireAlbum` : ce que la pochette peut donner à ce compte, calculé à
  * l'ouverture seulement (cent dessins de moins à préparer à l'arrivée sur la page). `nombre` : combien elle contient, écrit
- * sur la pastille du dessin. `nom` : ce que le bouton dit aux lecteurs d'écran.
+ * sur la pastille du dessin. `nom` : ce que le bouton dit aux lecteurs d'écran. `entete` : ce que la pochette peut donner
+ * d'autre que ses cases, montré entre le titre et les cases (les remboursements de la pochette des Gaulois uniques).
  */
-export function AlbumDePochette({ lireAlbum, nombre, nom, testid, children }: { lireAlbum: () => Album; nombre: number; nom: string; testid: string; children: ComponentChildren }) {
+export function AlbumDePochette({ lireAlbum, nombre, nom, testid, entete, children }: { lireAlbum: () => Album; nombre: number; nom: string; testid: string; entete?: ComponentChildren; children: ComponentChildren }) {
   const [mode, setMode] = useState<"survol" | "clic" | null>(null);
   const declencheur = useRef<HTMLButtonElement>(null);
   const panneau = useRef<HTMLDivElement>(null);
@@ -274,7 +276,7 @@ export function AlbumDePochette({ lireAlbum, nombre, nom, testid, children }: { 
           }}
           data-testid="album"
         >
-          <Panneau album={album} id={id} onFermer={() => fermer(true)} onPlacer={placer} />
+          <Panneau album={album} id={id} entete={entete} onFermer={() => fermer(true)} onPlacer={placer} />
         </div>
       )}
     </>

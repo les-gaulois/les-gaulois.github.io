@@ -84,6 +84,12 @@ export function lireMesModeles(reponse: unknown, liste: readonly ModeleRange[] =
   const prixPochette = pochette["prix"];
   const chances = lireChances(pochette["chances"]);
   if (!entier(prixPochette, 1) || !chances) return null;
+  const remboursement = pochette["remboursement"] ?? 0;
+  if (typeof remboursement !== "number" || !Number.isFinite(remboursement) || remboursement < 0 || remboursement >= 100) return null;
+  const paliers = pochette["paliers"] ?? [];
+  if (!Array.isArray(paliers) || !paliers.every((p) => entier(p, 1) && p <= 100)) return null;
+  // Une part de remboursements sans palier ne se lit pas : la pochette ne saurait pas ce qu'elle rend.
+  if (remboursement > 0 && paliers.length === 0) return null;
   const connus = new Set(liste.map((modele) => modele.id));
   const modeles: ModelePossede[] = [];
   const vus = new Set<string>();
@@ -101,7 +107,7 @@ export function lireMesModeles(reponse: unknown, liste: readonly ModeleRange[] =
     solde,
     peut_acheter: peutAcheter,
     prix,
-    pochette: { prix: prixPochette, chances },
+    pochette: { prix: prixPochette, chances, remboursement, paliers: paliers as number[] },
     modeles,
     porte: typeof porte === "string" && vus.has(porte) ? porte : null,
   };
@@ -124,8 +130,15 @@ export function lireAchatModele(reponse: unknown, liste: readonly ModeleRange[] 
 /** La réponse de `ouvrir_pochette_modeles`, vérifiée ; sinon `null`. */
 export function lirePochetteModeles(reponse: unknown, liste: readonly ModeleRange[] = MODELES): PochetteModelesReponse | null {
   if (!estObjetJson(reponse) || reponse["ok"] !== true || !entier(reponse["solde"], 0) || !entier(reponse["reste"], 0)) return null;
+  const base = { ok: true as const, solde: reponse["solde"], reste: reponse["reste"] };
+  const rendu = reponse["remboursement"];
+  if (rendu !== null && rendu !== undefined) {
+    if (reponse["modele"] !== null && reponse["modele"] !== undefined) return null;
+    if (!estObjetJson(rendu) || !entier(rendu["pourcent"], 1) || rendu["pourcent"] > 100 || !entier(rendu["rendu"], 1)) return null;
+    return { ...base, modele: null, remboursement: { pourcent: rendu["pourcent"], rendu: rendu["rendu"] } };
+  }
   const modele = lireRecu(reponse["modele"], liste);
-  return modele ? { ok: true, solde: reponse["solde"], modele, reste: reponse["reste"] } : null;
+  return modele ? { ...base, modele, remboursement: null } : null;
 }
 
 /** Les identifiants des Gaulois uniques du compte. */
@@ -212,10 +225,46 @@ export function pochettesEnMoyenne(chances: Valeurs, liste: readonly ModeleRange
   return Object.fromEntries(liste.map((modele, i) => [modele.id, moyenne[i] ?? 0]));
 }
 
+/** Une pochette telle que le serveur la décrit : son prix, ses chances par rareté, la part des remboursements, leurs paliers. */
+export type PochetteDesModeles = MesModeles["pochette"];
+
+/** Ce que rend en moyenne un remboursement, en statères : la moyenne des paliers, appliquée au prix. */
+export function remboursementMoyen(pochette: Pick<PochetteDesModeles, "prix" | "paliers">): number {
+  if (pochette.paliers.length === 0) return 0;
+  return (pochette.prix * pochette.paliers.reduce((s, p) => s + p, 0)) / pochette.paliers.length / 100;
+}
+
+/**
+ * Les chances de la prochaine pochette pour ce compte, en pour cent de toutes les pochettes : la part des remboursements,
+ * puis chaque rareté, prise dans la part qui donne un modèle (`chancesPourMoi`). `null` s'il n'y a plus rien à recevoir :
+ * le serveur refuse alors d'ouvrir la pochette, remboursement compris.
+ */
+export function chancesDeLaPochetteDesModeles(pochette: Pick<PochetteDesModeles, "chances" | "remboursement">, possedes: ReadonlySet<string>, liste: readonly ModeleRange[] = MODELES): { remboursement: number; parRarete: Record<RareteDUnique, number> } | null {
+  const parRarete = chancesPourMoi(pochette.chances, possedes, liste);
+  if (!parRarete) return null;
+  const part = (100 - pochette.remboursement) / 100;
+  const toutes = Object.fromEntries(RARETES_DES_GAULOIS_UNIQUES.map((r) => [r, parRarete[r] * part])) as Record<RareteDUnique, number>;
+  return { remboursement: pochette.remboursement, parRarete: toutes };
+}
+
+/**
+ * Ce que vaut en moyenne la prochaine pochette pour ce compte, en statères : chaque modèle compté au prix de la boutique,
+ * chaque remboursement à ce qu'il rend. `null` s'il n'y a plus rien à recevoir. Au départ, avec 85 % de remboursements :
+ * 3 249 statères pour une pochette à 3 000 ; sans remboursement, 14 860.
+ */
+export function valeurMoyenneDeLaPochette(pochette: PochetteDesModeles, prix: Readonly<Record<RareteDUnique, number>>, possedes: ReadonlySet<string>, liste: readonly ModeleRange[] = MODELES): number | null {
+  const chances = chancesDeLaPochetteDesModeles(pochette, possedes, liste);
+  if (!chances) return null;
+  const modeles = RARETES_DES_GAULOIS_UNIQUES.reduce((s, r) => s + (chances.parRarete[r] / 100) * prix[r], 0);
+  return modeles + (chances.remboursement / 100) * remboursementMoyen(pochette);
+}
+
 /**
  * Le prix d'un Gaulois unique de chaque rareté à la boutique, d'après la règle choisie le 16 novembre 2026 : ce que coûtent
  * en moyenne les pochettes qu'il faut pour tirer ce modèle-là (`pochettesEnMoyenne` fois le prix de la pochette), arrondi
- * aux 500 statères. Acheter, c'est payer le sûr : autant, en moyenne, que le hasard, sans les autres modèles qu'il donne en
+ * aux 500 statères (règle du 16 novembre, faite pour une pochette sans remboursement : depuis les remboursements, la
+ * pochette coûte bien plus pour un modèle précis, et ces prix restent ceux de la boutique). Acheter, c'était payer le sûr :
+ * autant, en moyenne, que le hasard, sans les autres modèles qu'il donne en
  * chemin. Les modèles d'une même rareté ont la même moyenne : le premier de la liste la donne.
  */
 export function prixCalculesDeLaBoutique(prixPochette: number, chances: Valeurs, liste: readonly ModeleRange[] = MODELES): Record<RareteDUnique, number> {
@@ -255,6 +304,7 @@ export function apresLAchat(mes: MesModeles, achat: AchatModeleReponse, maintena
 
 /** Les modèles du compte après une pochette ouverte : le nouveau solde, et le modèle reçu en tête. */
 export function apresLaPochette(mes: MesModeles, reponse: PochetteModelesReponse, maintenant: string): MesModeles {
+  if (!reponse.modele) return { ...mes, solde: reponse.solde };
   const recu = reponse.modele.modele;
   return { ...mes, solde: reponse.solde, modeles: [{ modele: recu, acquis_le: maintenant }, ...mes.modeles.filter((ligne) => ligne.modele !== recu)] };
 }

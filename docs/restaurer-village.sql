@@ -112,10 +112,12 @@ where g.user_id = r.user_id and r.banniere is not null;
 -- 15. Version 9 : le réglage de la pochette des Gaulois uniques (une seule ligne). Une sauvegarde de version 6, 7 ou 8 n'en
 -- a pas : rien ne change. Une sauvegarde faite avant le 16 novembre 2026 (migration 20261116000500) remet l'ancien réglage,
 -- 2 000 statères et 45, 28, 15, 8, 4 : le remettre ensuite à 3 000 et 50, 30, 12, 6, 2. Les prix de la boutique
--- (internal.modeles_prix) ne sont pas dans la sauvegarde : la migration les remet.
+-- (internal.modeles_prix) ne sont pas dans la sauvegarde : la migration les remet. La part des remboursements (migration
+-- 20261116000600) revient avec la ligne ; une sauvegarde d'avant ne l'a pas : la part du serveur reste.
 update internal.modeles_pochette p
-set prix = r.prix, commun = r.commun, peu_commun = r.peu_commun, epique = r.epique, mystique = r.mystique, legendaire = r.legendaire, maj_le = r.maj_le
-from sauvegarde, jsonb_to_recordset(contenu -> 'modeles_pochette') as r (prix integer, commun numeric, peu_commun numeric, epique numeric, mystique numeric, legendaire numeric, maj_le timestamptz)
+set prix = r.prix, commun = r.commun, peu_commun = r.peu_commun, epique = r.epique, mystique = r.mystique, legendaire = r.legendaire,
+  remboursement = coalesce(r.remboursement, p.remboursement), maj_le = r.maj_le
+from sauvegarde, jsonb_to_recordset(contenu -> 'modeles_pochette') as r (prix integer, commun numeric, peu_commun numeric, epique numeric, mystique numeric, legendaire numeric, remboursement numeric, maj_le timestamptz)
 where p.id;
 
 -- 16. Version 9 : les Gaulois uniques de chaque compte. Leurs débits sont déjà au journal (étape 5, « modele/<identifiant> »).

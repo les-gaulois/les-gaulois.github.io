@@ -22,6 +22,16 @@
   {
     "date": "2026-11-16",
     "kind": "ameliore",
+    "title": "La pochette des Gaulois uniques rembourse",
+    "body": "15 pochettes sur 100 donnent un Gaulois unique. Les autres rendent de 20 à 60 % de leur prix : de 600 à 1 800 statères.",
+    "link": {
+      "href": "/village#boutique",
+      "label": "Ouvrir la boutique"
+    }
+  },
+  {
+    "date": "2026-11-16",
+    "kind": "ameliore",
     "title": "Le livre des bannières",
     "body": "Dans « Mon Gaulois », vos bannières sont dans un album : la vignette touchée vole et se dresse derrière votre Gaulois. Dessous, /gaulois et votre carte de la vitrine changent dès le survol.",
     "link": {

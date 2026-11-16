@@ -540,7 +540,17 @@ export type RefusBannieres = "not_validated" | "no_gaulois" | "unknown_banniere"
  * - À la boutique, un modèle coûte ce que coûtent en moyenne les pochettes qu'il faut pour le tirer, arrondi aux 500
  *   statères (`prixCalculesDeLaBoutique` de `modeles.ts`, calcul exact, testé) : 3,8 pochettes pour un commun, 5,1 pour un
  *   peu commun, 6,7 pour un épique, 8,3 pour un mystique, 9,3 pour le dragon. Acheter, c'est payer le sûr ; la pochette
- *   donne en chemin d'autres modèles. Onze pochettes donnent forcément les onze.
+ *   donne en chemin d'autres modèles. C'était la règle du 16 novembre, avant les remboursements : depuis ceux-ci,
+ *   chercher un modèle précis par les pochettes coûte bien plus que la boutique (voir plus bas).
+ *
+ * Les remboursements, depuis le soir du 16 novembre 2026 (le pilote : « le moins bien qu'on peut avoir, c'est un commun à
+ * 11 500 ; rajoute la probabilité de récupérer 20 à 60 % de sa somme », puis le choix de 85 % ; migration
+ * 20261116000600_gaulois_uniques_remboursements) : une pochette rend, 85 fois sur 100, 20, 30, 40, 50 ou 60 % de son prix
+ * (paliers à chances égales), et donne, 15 fois sur 100, un Gaulois unique selon les chances par rareté ci-dessous, prises
+ * dans cette part. Au prix de la boutique, elle vaut alors en moyenne 3 249 statères pour 3 000 au départ
+ * (`valeurMoyenneDeLaPochette` de `modeles.ts`) ; sans remboursement, elle en valait 14 860. C'est un pari juste en
+ * moyenne, pas un chemin vers un modèle précis : tirer un modèle donné coûte en moyenne, remboursements déduits, environ
+ * 50 000 statères pour un commun et 123 000 pour le dragon, quatre fois plus que la boutique.
  */
 
 /** Le prix de chaque Gaulois unique à la boutique, par rareté, en statères (table `internal.modeles_prix` du serveur). */
@@ -555,7 +565,13 @@ export const PRIX_MODELE_PAR_RARETE: Readonly<Record<RareteDUnique, number>> = {
 /** Le prix de la pochette des Gaulois uniques, en statères (demande du pilote ; le serveur refuse moins de 500). */
 export const PRIX_POCHETTE_MODELES = 3000;
 
-/** Les chances de la pochette des Gaulois uniques, en pour cent, par rareté : 100 en tout. */
+/** La part des pochettes qui rendent une partie de leur prix au lieu d'un Gaulois unique, en pour cent (choix du pilote). */
+export const REMBOURSEMENT_POCHETTE_MODELES = 85;
+
+/** Ce que rend un remboursement, en pour cent du prix de la pochette : cinq paliers à chances égales, 40 % en moyenne. */
+export const PALIERS_DE_REMBOURSEMENT = [20, 30, 40, 50, 60] as const;
+
+/** Les chances de la pochette des Gaulois uniques par rareté, en pour cent de la part qui donne un modèle : 100 en tout. */
 export const CHANCES_POCHETTE_MODELES: Readonly<Record<RareteDUnique, number>> = {
   commun: 50,
   "peu-commun": 30,
@@ -580,7 +596,12 @@ export interface MesModeles {
   solde: number;
   peut_acheter: boolean;
   prix: Record<RareteDUnique, number>;
-  pochette: { prix: number; chances: Record<RareteDUnique, number> };
+  /**
+   * La pochette : son prix, les chances par rareté (de la part qui donne un modèle), la part des remboursements en pour
+   * cent et leurs paliers (en pour cent du prix). Un serveur d'avant les remboursements ne dit ni l'une ni les autres :
+   * 0 et aucun palier.
+   */
+  pochette: { prix: number; chances: Record<RareteDUnique, number>; remboursement: number; paliers: number[] };
   modeles: ModelePossede[];
   porte: string | null;
 }
@@ -592,11 +613,16 @@ export interface AchatModeleReponse {
   modele: { modele: string; rarete: RareteDUnique };
 }
 
-/** `ouvrir_pochette_modeles(p_prix_vu)` : le modèle reçu, sa rareté, et combien il en reste à recevoir. */
+/**
+ * `ouvrir_pochette_modeles(p_prix_vu)` : le modèle reçu et sa rareté, ou le remboursement (la part du prix rendue, en pour
+ * cent, et les statères rendus) ; l'un des deux, jamais les deux. Le solde après l'ouverture, et combien de modèles il reste
+ * à recevoir.
+ */
 export interface PochetteModelesReponse {
   ok: true;
   solde: number;
-  modele: { modele: string; rarete: RareteDUnique };
+  modele: { modele: string; rarete: RareteDUnique } | null;
+  remboursement: { pourcent: number; rendu: number } | null;
   reste: number;
 }
 

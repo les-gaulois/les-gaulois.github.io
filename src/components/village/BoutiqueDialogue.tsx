@@ -62,8 +62,11 @@ function CaseMontree({ objet, rarete, vignette }: { objet: Objet; rarete: Rarete
   );
 }
 
-/** Le compte d'un achat : le prix, la bourse, ce qu'il restera. */
-export function Compte({ prix, solde }: { prix: number; solde: number }) {
+/**
+ * Le compte d'un achat : le prix, la bourse, ce qu'il restera. `auMoins` : la dépense peut rendre une part du prix (la
+ * pochette des Gaulois uniques) ; ce qu'il restera est alors un minimum.
+ */
+export function Compte({ prix, solde, auMoins = false }: { prix: number; solde: number; auMoins?: boolean }) {
   return (
     <dl class="boutique-compte">
       <div>
@@ -79,7 +82,7 @@ export function Compte({ prix, solde }: { prix: number; solde: number }) {
         </dd>
       </div>
       <div class="boutique-compte-reste">
-        <dt>Il vous restera</dt>
+        <dt>{auMoins ? "Il vous restera au moins" : "Il vous restera"}</dt>
         <dd data-testid="boutique-reste">
           <Prix montant={solde - prix} />
         </dd>

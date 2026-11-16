@@ -1064,6 +1064,12 @@
   width: 0.75rem;
   height: 0.75rem;
 }
+/* Sous un onglet court (« Pochettes »), l'album ouvert descend jusqu'au pied de page, qui le couvrirait : `main` et le pied
+   de page sont au même plan et le pied de page vient après. `main` passe au-dessus tant qu'un album est ouvert, comme pour
+   la liste des onglets (01-socle.css). */
+main:has(.album) {
+  z-index: 2;
+}
 .album {
   position: fixed;
   z-index: 70;
@@ -2928,7 +2934,99 @@
 .uniques-corps .form-problem {
   margin-top: 0;
 }
+
+/* Les remboursements de la pochette (16 novembre 2026) : 85 pochettes sur 100 rendent une part du prix. Ils se montrent
+   par la pièce du village et jamais par une couleur de rareté : dans les chances, dans l'album, dans la fenêtre. */
+/* Dans les chances : la première ligne, la pièce à la place des losanges, et ce qui peut revenir écrit dessous. */
+.uniques-chance-rendu small {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--texte-courant);
+}
+.uniques-chances .uniques-chance-rendu + li {
+  border-top-color: var(--color-line-strong);
+}
+/* Dans l'album, entre le titre et les cases : la part des pochettes qui remboursent, puis les cinq paliers. */
+.uniques-album-rendus {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 1rem;
+  padding: 0.625rem 1rem;
+  border-bottom: 1px solid var(--color-line);
+  background: var(--color-surface-2);
+}
+.uniques-album-rendus-titre {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--ecriture);
+}
+.uniques-album-rendus-titre strong {
+  margin-right: 0.25rem;
+  font-size: 1.125rem;
+  font-weight: 800;
+}
+.uniques-album-paliers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.uniques-album-paliers li {
+  padding: 0.125rem 0.5rem 0.125rem 0.375rem;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 999px;
+  background: var(--color-navy);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+/* Dans la fenêtre : la pièce en grand, les statères rendus, leur part du prix. Un cadre neutre, sans rareté ni halo. */
+.uniques-rendu {
+  display: grid;
+  justify-items: center;
+  gap: 0.375rem;
+  width: 100%;
+  max-width: 18rem;
+  padding: 1.25rem 1rem 1rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.625rem;
+  background: var(--color-surface-2);
+  text-align: center;
+  animation: uniques-rendu-entree 0.5s ease-out;
+}
+@keyframes uniques-rendu-entree {
+  from {
+    opacity: 0;
+  }
+}
+.uniques-rendu .piece {
+  margin-bottom: 0.375rem;
+}
+.uniques-rendu-montant {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--ecriture);
+}
+.uniques-rendu-montant strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 2.25rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+.uniques-rendu-part {
+  font-size: 0.9375rem;
+  color: var(--texte-courant);
+}
 @media (prefers-reduced-motion: reduce) {
+  .uniques-rendu {
+    animation: none;
+  }
   .uniques-case {
     transition: none;
   }

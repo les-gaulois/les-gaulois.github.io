@@ -1,16 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { casesDuStatere } from "../../../supabase/functions/code-discord/statere";
 import { motionAllowed } from "../../lib/fx/motion";
 import { type Rarete, type Tenue } from "../../lib/gaulois";
 import type { AchatModeleReponse, MesModeles, PochetteModelesReponse } from "../../lib/village/contrat";
-import { pourcent, stateres } from "../../lib/village/ecran-boutique";
-import { albumDesModeles, bandeDesModeles, lignesDesChances, modelesDeLaPochette, resteADecouvrir, surCombien, type ActionDeLEssai } from "../../lib/village/ecran-modeles";
+import { nombre, pourcent, stateres } from "../../lib/village/ecran-boutique";
+import { albumDesModeles, bandeDesModeles, lignesDesChances, modelesDeLaPochette, rendusDeLaPochette, resteADecouvrir, surCombien, type ActionDeLEssai, type Rendu, type SortieDeLaPochette } from "../../lib/village/ecran-modeles";
 import { MODELES, apercuDuModele, decrireLeModele, etatDuModele, idsDesModeles, modeleNu, modeleParId, modelesParFamille, raisonPochetteFermee, silhouetteDuModele, type DessinDuModele, type EtatDuModele, type ModeleRange } from "../../lib/village/modeles";
 import { Problem } from "../compte/common";
 import { AlbumDePochette } from "./AlbumPochette";
 import { Compte, Dialogue, Refus, type BandeVue, type Issue } from "./BoutiqueDialogue";
-import { MarqueDeRarete, Prix, peindre } from "./BoutiquePixels";
+import { MarqueDeRarete, Piece, Prix, peindre } from "./BoutiquePixels";
 import type { EtatDesModeles } from "./Modeles";
-import { BoutonSon, Tambour, preparerLeSon, useSonDuTambour } from "./Tambour";
+import { BoutonSon, Tambour, preparerLeSon, useSonDuTambour, type RangeeVue } from "./Tambour";
 
 /**
  * Les Gaulois uniques sur « La boutique » (15 novembre 2026, demande du pilote : « mets-les en pochette dédiée et en
@@ -79,6 +80,45 @@ function DessinDeLaPochette({ possedes }: { possedes: ReadonlySet<string> }) {
   );
 }
 
+/** « 600 à 1 800 » : le plus petit et le plus grand remboursement, en statères. */
+const etendueDesRendus = (paliers: readonly Rendu[]): string => {
+  const petit = paliers[0]?.rendu ?? 0;
+  const grand = paliers[paliers.length - 1]?.rendu ?? petit;
+  return petit === grand ? nombre(petit) : `${nombre(petit)} à ${nombre(grand)}`;
+};
+
+/**
+ * Ce que la pochette rend, dans son album, entre le titre et les cases des modèles : la part des pochettes qui
+ * remboursent, puis les paliers en statères, du plus petit au plus grand, tous à chances égales.
+ */
+function RendusDeLAlbum({ chance, paliers }: { chance: number; paliers: readonly Rendu[] }) {
+  return (
+    <div class="uniques-album-rendus" data-testid="uniques-album-rendus">
+      <p class="uniques-album-rendus-titre">
+        <strong class="tnum">{pourcent(chance)}</strong> statères rendus
+      </p>
+      <ul class="uniques-album-paliers" aria-label="Ce qu'une pochette peut rendre, à chances égales">
+        {paliers.map((palier) => (
+          <li key={palier.pourcent}>
+            <Prix montant={palier.rendu} />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** La pièce des rangées de remboursement du tambour : une seule, la même pour tous les paliers. */
+const PIECE_DU_TAMBOUR: NonNullable<RangeeVue["dessin"]> = { largeur: 16, hauteur: 16, cases: casesDuStatere(16) };
+/** La couleur des rangées de remboursement : une ardoise, qu'aucune rareté ne porte. */
+const TEINTE_DU_RENDU = "#6f7890";
+
+/** Une rangée du tambour : un modèle, avec sa rareté, ou un remboursement (la pièce, les statères rendus, la part du prix). */
+function vueDeLaSortie(sortie: SortieDeLaPochette): RangeeVue {
+  if (sortie.kind === "modele") return { nom: sortie.modele.nom, rarete: sortie.modele.rarete, dessin: nuDe(sortie.modele.id) };
+  return { nom: `${stateres(sortie.rendu)} ${sortie.rendu > 1 ? "rendus" : "rendu"}`, rarete: "commun", dessin: PIECE_DU_TAMBOUR, hors: { teinte: TEINTE_DU_RENDU, marque: pourcent(sortie.pourcent) } };
+}
+
 /**
  * Une case de la vitrine : le modèle seul, son nom, sa rareté, puis son prix, « à vous » ou « porté ». Un bouton : il
  * l'essaie sur le Gaulois du membre. Celui qu'on porte ne s'essaie pas : sa case arrête l'essayage en cours.
@@ -112,7 +152,7 @@ function CaseDeModele({ modele, etat, prix, essaye, onClick }: { modele: ModeleR
 /**
  * « Gaulois uniques », l'onglet « Uniques » des rayons de « La boutique » : le nom de l'onglet sert de titre, celui de la
  * section ne se lit qu'aux lecteurs d'écran. L'adresse `#gaulois-uniques` est suivie par la boutique, qui ouvre cet onglet. En tête, le corps que le Gaulois porte et de quoi revenir à l'humain ;
- * puis la pochette (son prix, les chances réelles de ce compte, ce qu'il lui reste à découvrir), puis les onze modèles,
+ * puis la pochette (son prix, les chances réelles de ce compte, remboursements compris, ce qu'il lui reste à découvrir), puis les onze modèles,
  * famille par famille. `solde` : le dernier que le serveur a donné à la page. `essaye` : le modèle que le Gaulois de la
  * page essaie.
  *
@@ -143,7 +183,8 @@ export function SectionDesModeles({ partie = "modeles", etat, solde, essaye, occ
   const possedes = idsDesModeles(mes);
   const porte = modeleParId(mes.porte);
   const soldeConnu = solde ?? mes.solde;
-  const lignes = lignesDesChances(mes.pochette.chances, possedes);
+  const lignes = lignesDesChances(mes.pochette, possedes);
+  const rendus = rendusDeLaPochette(mes.pochette);
   const raison = raisonPochetteFermee(mes, soldeConnu);
   const reste = resteADecouvrir(possedes);
   // L'album de la pochette : les onze modèles, chacun avec sa chance (`albumDesModeles`). Calculé à l'ouverture, puis à
@@ -152,7 +193,7 @@ export function SectionDesModeles({ partie = "modeles", etat, solde, essaye, occ
   const lireAlbum = () => albumDesModeles(mes);
   const pochette = (
     <section class="uniques-pochette" aria-labelledby="uniques-pochette-titre" data-testid="uniques-pochette">
-      <AlbumDePochette lireAlbum={lireAlbum} nombre={MODELES.length} nom="Voir les Gaulois uniques de cette pochette" testid="uniques-pochette">
+      <AlbumDePochette lireAlbum={lireAlbum} nombre={MODELES.length} nom="Voir ce que cette pochette peut donner" testid="uniques-pochette" entete={lignes && rendus ? <RendusDeLAlbum chance={rendus.chance} paliers={rendus.paliers} /> : undefined}>
         <DessinDeLaPochette possedes={possedes} />
       </AlbumDePochette>
       <div class="uniques-pochette-nom">
@@ -178,7 +219,20 @@ export function SectionDesModeles({ partie = "modeles", etat, solde, essaye, occ
         )}
       </div>
       {lignes && (
-        <ul class="pochette-chances uniques-chances" aria-label="Vos chances par rareté" data-testid="uniques-chances">
+        <ul class="pochette-chances uniques-chances" aria-label="Vos chances à chaque pochette" data-testid="uniques-chances">
+          {rendus && (
+            <li class="uniques-chance-rendu" data-testid="uniques-chance-rendu">
+              <Piece />
+              <span>
+                Statères rendus
+                <small>
+                  <span class="tnum">{etendueDesRendus(rendus.paliers)}</span>
+                  <span class="sr-only"> statères</span>
+                </small>
+              </span>
+              <span class="tnum">{pourcent(rendus.chance)}</span>
+            </li>
+          )}
           {lignes.map(({ rarete, nom, rang, chance, reste: aRecevoir }) => (
             <li key={rarete} data-rarete={rarete}>
               <Losanges rang={rang} />
@@ -339,9 +393,10 @@ export function DialogueAchatModele({ modele, prix, solde, tenue, acheter, onPor
 
 /**
  * Ouvrir une pochette des Gaulois uniques : la fenêtre dit le prix et ce qu'il restera, demande au serveur, puis fait
- * tourner le tambour (`Tambour.tsx`) jusqu'au modèle reçu et, un instant après l'arrêt, le montre en grand sur le Gaulois
- * du membre, avec son nom et sa rareté. Le tambour ne fait défiler que des modèles que ce compte n'avait pas, aux chances
- * qu'avait sa pochette (`bandeDesModeles`) : il ne fait que montrer ce que le serveur a déjà tiré. « Passer » l'arrête ;
+ * tourner le tambour (`Tambour.tsx`) jusqu'à ce qu'elle a donné et, un instant après l'arrêt, le montre : un modèle en
+ * grand sur le Gaulois du membre, avec son nom et sa rareté, ou un remboursement (les statères rendus, leur part du prix,
+ * la bourse). Le tambour fait défiler des remboursements et des modèles que ce compte n'avait pas, aux chances qu'avait
+ * sa pochette (`bandeDesModeles`) : il ne fait que montrer ce que le serveur a déjà tiré. « Passer » l'arrête ;
  * animations coupées, il ne tourne pas. Si le serveur refuse, le compte de l'ouverture s'efface : il ne reste que les
  * mots du refus et « Fermer ».
  */
@@ -352,21 +407,22 @@ export function DialogueModeles({ mes, solde, tenue, ouvrir, onPorter, onFermer 
   const [bande, setBande] = useState<BandeVue | null>(null);
   const [passer, setPasser] = useState(false);
   const [son, basculerSon] = useSonDuTambour();
-  // Le compte, le prix, les chances et les modèles du moment où la fenêtre s'ouvre : la pochette a tiré parmi ceux que le
-  // compte n'avait pas alors, le tambour aussi.
+  // Le compte, la pochette (prix, chances, remboursements) et les modèles du moment où la fenêtre s'ouvre : la pochette a
+  // tiré parmi ceux que le compte n'avait pas alors, le tambour aussi.
   const [depart] = useState(solde);
-  const [prix] = useState(mes.pochette.prix);
-  const [chances] = useState(mes.pochette.chances);
+  const [pochette] = useState(mes.pochette);
+  const prix = pochette.prix;
   const [avant] = useState(() => idsDesModeles(mes));
   const envoyer = async () => {
     if (son) preparerLeSon();
     setEtape("envoi");
     setRefus(null);
     const issue = await ouvrir(prix);
-    const modele = issue.ok ? modeleParId(issue.valeur.modele.modele) : null;
-    if (issue.ok && modele) {
-      const tour = bandeDesModeles(modele, chances, avant);
-      setBande({ depart: tour.depart, cible: tour.cible, rangees: tour.rangees.map((rangee) => ({ nom: rangee.valeur.nom, rarete: rangee.rarete, dessin: nuDe(rangee.valeur.id) })) });
+    const modele = issue.ok && issue.valeur.modele ? modeleParId(issue.valeur.modele.modele) : null;
+    const sortie: SortieDeLaPochette | null = !issue.ok ? null : issue.valeur.remboursement ? { kind: "rendu", ...issue.valeur.remboursement } : modele ? { kind: "modele", modele } : null;
+    if (issue.ok && sortie) {
+      const tour = bandeDesModeles(sortie, pochette, avant);
+      setBande({ depart: tour.depart, cible: tour.cible, rangees: tour.rangees.map(vueDeLaSortie) });
       setTirage(issue.valeur);
       setEtape("tourne");
     } else {
@@ -375,21 +431,23 @@ export function DialogueModeles({ mes, solde, tenue, ouvrir, onPorter, onFermer 
       setEtape("confirmer");
     }
   };
-  // Le tambour arrêté reste un instant, le temps de voir la rareté fêtée, puis le modèle paraît en grand.
+  // Le tambour arrêté reste un instant, le temps de voir la rangée (et la rareté fêtée), puis le résultat paraît en grand.
   useEffect(() => {
     if (etape !== "arrete") return;
     const minuterie = window.setTimeout(() => setEtape("revele"), motionAllowed() ? 1600 : 0);
     return () => window.clearTimeout(minuterie);
   }, [etape]);
-  const recu = tirage ? modeleParId(tirage.modele.modele) : null;
+  const recu = tirage?.modele ? modeleParId(tirage.modele.modele) : null;
+  const rendu = tirage?.remboursement ?? null;
+  const sorti = recu !== null || rendu !== null;
   const tourne = etape === "tourne" || etape === "arrete";
   return (
-    <Dialogue titre={recu && tourne ? "La pochette s'ouvre…" : recu ? "Un nouveau Gaulois unique" : refus ? "La pochette reste fermée" : "Ouvrir une pochette des Gaulois uniques ?"} etape={tourne ? "tourne" : etape === "revele" ? "revele" : "confirmer"} occupe={etape === "envoi" || tourne} onFermer={onFermer} testid="dialogue-modeles">
-      {tourne && recu && bande ? (
+    <Dialogue titre={sorti && tourne ? "La pochette s'ouvre…" : rendu ? "Des statères rendus" : recu ? "Un nouveau Gaulois unique" : refus ? "La pochette reste fermée" : "Ouvrir une pochette des Gaulois uniques ?"} etape={tourne ? "tourne" : etape === "revele" ? "revele" : "confirmer"} occupe={etape === "envoi" || tourne} onFermer={onFermer} testid="dialogue-modeles">
+      {tourne && sorti && bande ? (
         <>
           <Tambour rangees={bande.rangees} depart={bande.depart} cible={bande.cible} passer={passer} son={son} onArrive={() => setEtape((e) => (e === "tourne" ? "arrete" : e))} />
           <div class="boutique-dialogue-actions">
-            {/* « Passer » montre le modèle tout de suite, sans attendre la toile : la fenêtre ne reste jamais bloquée. */}
+            {/* « Passer » montre le résultat tout de suite, sans attendre la toile : la fenêtre ne reste jamais bloquée. */}
             <button
               type="button"
               class="btn btn-ghost"
@@ -404,6 +462,42 @@ export function DialogueModeles({ mes, solde, tenue, ouvrir, onPorter, onFermer 
             <BoutonSon son={son} onBasculer={basculerSon} testid="uniques-son" />
           </div>
         </>
+      ) : tirage && rendu ? (
+        <div class="uniques-recu">
+          {/* Un remboursement : ce qui revient, en statères et en part du prix, puis la bourse. Sans rareté ni fête. */}
+          <div class="uniques-rendu" data-testid="uniques-rendu" data-pourcent={rendu.pourcent}>
+            <Piece taille={24} echelle={3} />
+            <p class="uniques-rendu-montant" data-testid="uniques-rendu-montant">
+              <strong class="tnum">{nombre(rendu.rendu)}</strong> {rendu.rendu > 1 ? "statères rendus" : "statère rendu"}
+            </p>
+            <p class="uniques-rendu-part">{pourcent(rendu.pourcent)} du prix de la pochette</p>
+          </div>
+          <dl class="boutique-compte">
+            <div>
+              <dt>Prix</dt>
+              <dd>
+                <Prix montant={prix} />
+              </dd>
+            </div>
+            <div>
+              <dt>Rendu</dt>
+              <dd>
+                <Prix montant={rendu.rendu} />
+              </dd>
+            </div>
+            <div class="boutique-compte-reste">
+              <dt>Votre bourse</dt>
+              <dd data-testid="uniques-rendu-solde">
+                <Prix montant={tirage.solde} />
+              </dd>
+            </div>
+          </dl>
+          <div class="boutique-dialogue-actions">
+            <button type="button" class="btn btn-primary" onClick={onFermer} data-testid="uniques-rendu-fermer">
+              Fermer
+            </button>
+          </div>
+        </div>
       ) : tirage && recu ? (
         <div class="uniques-recu">
           <div class="pochette-revelation uniques-revelation" data-rarete={recu.rarete} data-testid="uniques-tirage" data-modele={recu.id}>
@@ -430,7 +524,8 @@ export function DialogueModeles({ mes, solde, tenue, ouvrir, onPorter, onFermer 
           <div class="pochette-attente uniques-attente" data-envoi={etape === "envoi" ? "" : undefined}>
             <DessinDeLaPochette possedes={avant} />
           </div>
-          {!refus && <Compte prix={prix} solde={depart} />}
+          {/* Une pochette qui peut rendre une part de son prix : ce qu'il restera est un minimum. */}
+          {!refus && <Compte prix={prix} solde={depart} auMoins={mes.pochette.remboursement > 0} />}
           <Refus message={refus} />
           <div class="boutique-dialogue-actions">
             {!refus && (

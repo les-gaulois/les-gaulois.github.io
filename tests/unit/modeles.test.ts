@@ -16,12 +16,20 @@ import {
 import { FAMILLES_DES_MODELES, LOTS_DE_MODELES, MODELES, RARETES_DES_MODELES, modeleParId } from "../../supabase/functions/code-discord/modeles/index";
 import { LETTRES_PARTAGEES, MODELE_COULEURS_MAX } from "../../supabase/functions/code-discord/modeles/modele";
 import { choseDe, lireReponseDesAchats, nouveautes, objetEnMots, origineDe, titreEnMots, vignetteDeLAchat } from "../../src/lib/achats-discord";
-import { CHANCES_POCHETTE_MODELES, PRIX_MODELE_PAR_RARETE, PRIX_POCHETTE_MODELES, type MesModeles } from "../../src/lib/village/contrat";
+import {
+  CHANCES_POCHETTE_MODELES,
+  PALIERS_DE_REMBOURSEMENT,
+  PRIX_MODELE_PAR_RARETE,
+  PRIX_POCHETTE_MODELES,
+  REMBOURSEMENT_POCHETTE_MODELES,
+  type MesModeles,
+} from "../../src/lib/village/contrat";
 import {
   apercuDuModele,
   apresLAchat,
   apresLaPochette,
   apresLaTenue,
+  chancesDeLaPochetteDesModeles,
   chancesPourMoi,
   decrireLeModele,
   etatDuModele,
@@ -36,6 +44,8 @@ import {
   prixCalculesDeLaBoutique,
   RARETES_DES_GAULOIS_UNIQUES,
   raisonDeLAchat,
+  remboursementMoyen,
+  valeurMoyenneDeLaPochette,
   raisonPochetteFermee,
   silhouetteDuModele,
   tenueAvecModele,
@@ -44,6 +54,7 @@ import {
 // Sous Windows, Git rend le fichier avec des fins de ligne CRLF : les motifs ci-dessous lisent des « \n ».
 const MIGRATION = readFileSync("supabase/migrations/20261115001000_gaulois_uniques.sql", "utf8").replace(/\r\n/g, "\n");
 const MIGRATION_PRIX = readFileSync("supabase/migrations/20261116000500_gaulois_uniques_prix.sql", "utf8").replace(/\r\n/g, "\n");
+const MIGRATION_REMBOURSEMENTS = readFileSync("supabase/migrations/20261116000600_gaulois_uniques_remboursements.sql", "utf8").replace(/\r\n/g, "\n");
 const HEX = /^#[0-9a-f]{6}$/;
 const COMMUNES = couleursDeBase(TENUE_DE_DEPART);
 
@@ -249,6 +260,63 @@ describe("les prix et les chances des Gaulois uniques (16 novembre 2026)", () =>
   });
 });
 
+describe("les remboursements de la pochette (16 novembre 2026, au soir)", () => {
+  const pochette = { prix: PRIX_POCHETTE_MODELES, chances: CHANCES_POCHETTE_MODELES, remboursement: REMBOURSEMENT_POCHETTE_MODELES, paliers: [...PALIERS_DE_REMBOURSEMENT] };
+
+  it("rendent 85 fois sur 100 de 20 à 60 % du prix, et donnent un Gaulois unique le reste du temps", () => {
+    expect(REMBOURSEMENT_POCHETTE_MODELES).toBe(85);
+    expect([...PALIERS_DE_REMBOURSEMENT]).toEqual([20, 30, 40, 50, 60]);
+    expect(remboursementMoyen(pochette)).toBe(1200);
+    const toutes = chancesDeLaPochetteDesModeles(pochette, new Set())!;
+    expect(toutes.remboursement).toBe(85);
+    const nombre = modelesParRarete();
+    const parModele = RARETES_DES_GAULOIS_UNIQUES.map((r) => Math.round((toutes.parRarete[r] / nombre[r]) * 100) / 100);
+    expect(parModele).toEqual([2.5, 1.5, 0.9, 0.45, 0.3]);
+    expect(toutes.remboursement + RARETES_DES_GAULOIS_UNIQUES.reduce((s, r) => s + toutes.parRarete[r], 0)).toBeCloseTo(100, 10);
+    expect(chancesDeLaPochetteDesModeles(pochette, new Set(MODELES.map((m) => m.id)))).toBeNull();
+  });
+
+  it("valent en moyenne à peu près leur prix au départ, au prix de la boutique", () => {
+    expect(valeurMoyenneDeLaPochette({ ...pochette, remboursement: 0, paliers: [] }, PRIX_MODELE_PAR_RARETE, new Set())).toBeCloseTo(14860, 6);
+    const valeur = valeurMoyenneDeLaPochette(pochette, PRIX_MODELE_PAR_RARETE, new Set())!;
+    expect(Math.round(valeur)).toBe(3249);
+    expect(valeur / PRIX_POCHETTE_MODELES).toBeGreaterThan(1);
+    expect(valeur / PRIX_POCHETTE_MODELES).toBeLessThan(1.1);
+    // Mais tirer un modèle précis par les pochettes coûte, en moyenne et remboursements déduits, bien plus que la boutique :
+    // les chiffres écrits dans contrat.ts et docs/DIRECTION.md.
+    const netParPochette = PRIX_POCHETTE_MODELES - (REMBOURSEMENT_POCHETTE_MODELES / 100) * remboursementMoyen(pochette);
+    const moyennes = pochettesEnMoyenne(CHANCES_POCHETTE_MODELES);
+    const cout = (id: string) => ((moyennes[id] ?? 0) / (1 - REMBOURSEMENT_POCHETTE_MODELES / 100)) * netParPochette;
+    expect(netParPochette).toBe(1980);
+    expect(Math.round(cout("lezard") / 100) * 100).toBe(50200);
+    expect(Math.round(cout("axolotl") / 500) * 500).toBe(67500);
+    expect(Math.round(cout("givre") / 1000) * 1000).toBe(88000);
+    expect(Math.round(cout("magma") / 1000) * 1000).toBe(110000);
+    expect(Math.round(cout("dragon") / 1000) * 1000).toBe(123000);
+    expect(cout("dragon") / PRIX_MODELE_PAR_RARETE.legendaire).toBeGreaterThan(4);
+    // Les communs possédés, la pochette ne donne plus que des modèles plus chers : elle vaut davantage.
+    expect(valeurMoyenneDeLaPochette(pochette, PRIX_MODELE_PAR_RARETE, new Set(["lezard", "loup", "sanglier"]))!).toBeGreaterThan(valeur);
+  });
+
+  it("sont tirés par le serveur, sans annonce sur Discord ni modèle, et comptés en pochette nette", () => {
+    expect(MIGRATION_REMBOURSEMENTS).toContain("if internal.village_hasard() * 100 < coalesce(v_rembourse, 0) then");
+    expect(MIGRATION_REMBOURSEMENTS).toContain(`select array[${PALIERS_DE_REMBOURSEMENT.join(", ")}]`);
+    expect(MIGRATION_REMBOURSEMENTS).toContain("update internal.modeles_pochette set remboursement = " + REMBOURSEMENT_POCHETTE_MODELES + ", maj_le = now() where id;");
+    expect(MIGRATION_REMBOURSEMENTS).toContain("perform internal.village_debiter(v_uid, 'pochette', v_prix, 'modeles-rembourse');");
+    expect(MIGRATION_REMBOURSEMENTS).toContain("insert into internal.stateres_mouvements (user_id, nature, montant, ref) values (v_uid, 'pochette', v_rendu, 'modeles-rembourse');");
+    // La référence d'un remboursement n'a pas la forme « emplacement/objet » que lit l'annonce des achats.
+    expect("modeles-rembourse").not.toMatch(/^[a-z]{1,20}\/[a-z][a-z-]{0,39}$/);
+    // Tout possédé : refusé avant tout tirage, remboursement compris.
+    const refus = MIGRATION_REMBOURSEMENTS.indexOf("perform internal.fail('tout_possede')");
+    expect(refus).toBeGreaterThan(0);
+    expect(refus).toBeLessThan(MIGRATION_REMBOURSEMENTS.indexOf("internal.village_hasard() * 100"));
+    expect(MIGRATION_REMBOURSEMENTS).toContain("revoke all on function internal.modeles_paliers() from public, anon, authenticated;");
+    expect(MIGRATION_REMBOURSEMENTS).toContain("grant execute on function public.ouvrir_pochette_modeles(integer) to authenticated;");
+    expect(MIGRATION_REMBOURSEMENTS).toContain("grant execute on function public.get_mes_modeles() to authenticated;");
+    expect(MIGRATION_REMBOURSEMENTS).not.toMatch(/raw_user_meta_data|drop table|drop column|truncate|delete from/i);
+  });
+});
+
 describe("la lecture des réponses du serveur", () => {
   const prix = { commun: 500, "peu-commun": 1250, epique: 2500, mystique: 5000, legendaire: 12500 };
   const chances = { commun: 45, "peu-commun": 28, epique: 15, mystique: 8, legendaire: 4 };
@@ -270,12 +338,17 @@ describe("la lecture des réponses du serveur", () => {
 
   it("lit get_mes_modeles en écartant l'inconnu, le double et le mal daté", () => {
     const mes = lireMesModeles(reponse());
-    expect(mes).toEqual({ ok: true, solde: 4200, peut_acheter: true, prix, pochette: { prix: 2000, chances }, modeles: [{ modele: "loup", acquis_le: "2026-11-15T18:00:00Z" }], porte: "loup" });
+    expect(mes).toEqual({ ok: true, solde: 4200, peut_acheter: true, prix, pochette: { prix: 2000, chances, remboursement: 0, paliers: [] }, modeles: [{ modele: "loup", acquis_le: "2026-11-15T18:00:00Z" }], porte: "loup" });
     expect(lireMesModeles(reponse({ porte: "dragon" }))?.porte).toBeNull();
     expect(lireMesModeles(reponse({ porte: null }))?.porte).toBeNull();
     expect(lireMesModeles(reponse({ solde: -1 }))).toBeNull();
     expect(lireMesModeles(reponse({ prix: { ...prix, legendaire: 0 } }))).toBeNull();
     expect(lireMesModeles(reponse({ pochette: { prix: 2000, chances: { ...chances, commun: 44 } } }))).toBeNull();
+    // Les remboursements du serveur d'aujourd'hui : leur part et leurs paliers.
+    expect(lireMesModeles(reponse({ pochette: { prix: 3000, chances, remboursement: 85, paliers: [20, 30, 40, 50, 60] } }))?.pochette).toEqual({ prix: 3000, chances, remboursement: 85, paliers: [20, 30, 40, 50, 60] });
+    expect(lireMesModeles(reponse({ pochette: { prix: 3000, chances, remboursement: 85, paliers: [] } }))).toBeNull();
+    expect(lireMesModeles(reponse({ pochette: { prix: 3000, chances, remboursement: 100, paliers: [20] } }))).toBeNull();
+    expect(lireMesModeles(reponse({ pochette: { prix: 3000, chances, remboursement: 85, paliers: [20, 0] } }))).toBeNull();
     expect(lireMesModeles(reponse({ peut_acheter: "oui" }))).toBeNull();
     expect(lireMesModeles({ ok: false, error: "not_signed_in" })).toBeNull();
   });
@@ -284,7 +357,11 @@ describe("la lecture des réponses du serveur", () => {
     expect(lireAchatModele({ ok: true, solde: 100, modele: { modele: "dragon", rarete: "legendaire" } })).toEqual({ ok: true, solde: 100, modele: { modele: "dragon", rarete: "legendaire" } });
     expect(lireAchatModele({ ok: true, solde: 100, modele: { modele: "dragon", rarete: "commun" } })).toBeNull();
     expect(lireAchatModele({ ok: true, solde: 100, modele: { modele: "golem", rarete: "commun" } })).toBeNull();
-    expect(lirePochetteModeles({ ok: true, solde: 0, modele: { modele: "ovni", rarete: "mystique" }, reste: 9 })).toEqual({ ok: true, solde: 0, modele: { modele: "ovni", rarete: "mystique" }, reste: 9 });
+    expect(lirePochetteModeles({ ok: true, solde: 0, modele: { modele: "ovni", rarete: "mystique" }, reste: 9 })).toEqual({ ok: true, solde: 0, modele: { modele: "ovni", rarete: "mystique" }, remboursement: null, reste: 9 });
+    expect(lirePochetteModeles({ ok: true, solde: 900, modele: null, remboursement: { pourcent: 30, rendu: 900 }, reste: 11 })).toEqual({ ok: true, solde: 900, modele: null, remboursement: { pourcent: 30, rendu: 900 }, reste: 11 });
+    expect(lirePochetteModeles({ ok: true, solde: 900, modele: { modele: "ovni", rarete: "mystique" }, remboursement: { pourcent: 30, rendu: 900 }, reste: 11 })).toBeNull();
+    expect(lirePochetteModeles({ ok: true, solde: 900, modele: null, remboursement: { pourcent: 0, rendu: 900 }, reste: 11 })).toBeNull();
+    expect(lirePochetteModeles({ ok: true, solde: 900, modele: null, remboursement: null, reste: 11 })).toBeNull();
     expect(lirePochetteModeles({ ok: true, solde: 0, modele: { modele: "ovni", rarete: "mystique" } })).toBeNull();
   });
 });
@@ -295,7 +372,7 @@ describe("ce que l'écran déduit", () => {
     solde: 1000,
     peut_acheter: true,
     prix: { commun: 500, "peu-commun": 1250, epique: 2500, mystique: 5000, legendaire: 12500 },
-    pochette: { prix: 2000, chances: { commun: 45, "peu-commun": 28, epique: 15, mystique: 8, legendaire: 4 } },
+    pochette: { prix: 2000, chances: { commun: 45, "peu-commun": 28, epique: 15, mystique: 8, legendaire: 4 }, remboursement: 0, paliers: [] },
     modeles: [{ modele: "loup", acquis_le: "2026-11-15T18:00:00Z" }],
     porte: null,
   };
@@ -333,7 +410,10 @@ describe("ce que l'écran déduit", () => {
     const apres = apresLAchat(mes, { ok: true, solde: 500, modele: { modele: "sanglier", rarete: "commun" } }, "2026-11-15T19:00:00Z");
     expect(apres.solde).toBe(500);
     expect(apres.modeles.map((l) => l.modele)).toEqual(["sanglier", "loup"]);
-    const pochette = apresLaPochette(mes, { ok: true, solde: 0, modele: { modele: "ovni", rarete: "mystique" }, reste: 9 }, "2026-11-15T19:00:00Z");
+    const pochette = apresLaPochette(mes, { ok: true, solde: 0, modele: { modele: "ovni", rarete: "mystique" }, remboursement: null, reste: 9 }, "2026-11-15T19:00:00Z");
+    const rendue = apresLaPochette(mes, { ok: true, solde: 1600, modele: null, remboursement: { pourcent: 20, rendu: 600 }, reste: 10 }, "2026-11-15T19:00:00Z");
+    expect(rendue.solde).toBe(1600);
+    expect(rendue.modeles).toEqual(mes.modeles);
     expect(pochette.modeles.map((l) => l.modele)).toEqual(["ovni", "loup"]);
     expect(apresLaTenue(mes, { ...TENUE_DE_DEPART, [CLE_MODELE]: "loup" }).porte).toBe("loup");
     expect(apresLaTenue({ ...mes, porte: "loup" }, TENUE_DE_DEPART).porte).toBeNull();

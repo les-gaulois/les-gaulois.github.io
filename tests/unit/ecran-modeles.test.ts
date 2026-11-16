@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
-import type { MesModeles } from "../../src/lib/village/contrat";
-import { actionDeLEssai, albumDesModeles, bandeDesModeles, essaiDuModeleValide, lignesDesChances, modelesDeLaPochette, modelesPossedes, resteADecouvrir, surCombien } from "../../src/lib/village/ecran-modeles";
+import { CHANCES_POCHETTE_MODELES, REMBOURSEMENT_POCHETTE_MODELES, type MesModeles } from "../../src/lib/village/contrat";
+import { actionDeLEssai, albumDesModeles, bandeDesModeles, essaiDuModeleValide, lignesDesChances, modelesDeLaPochette, modelesPossedes, rendusDeLaPochette, resteADecouvrir, surCombien, type SortieDeLaPochette } from "../../src/lib/village/ecran-modeles";
 import { MODELES, chancesPourMoi, modeleParId } from "../../src/lib/village/modeles";
 import { CIBLE_DU_TAMBOUR, DEPART_DU_TAMBOUR } from "../../src/lib/village/tambour";
 
 const CHANCES = { commun: 45, "peu-commun": 28, epique: 15, mystique: 8, legendaire: 4 } as const;
+/** Une pochette d'essai : 85 pochettes sur 100 rendent 20 à 60 % du prix ; et la même sans remboursement, comme avant. */
+const POCHETTE = { prix: 3000, chances: { ...CHANCES }, remboursement: 85, paliers: [20, 30, 40, 50, 60] };
+const SANS_RENDU = { prix: 2000, chances: { ...CHANCES }, remboursement: 0, paliers: [] as number[] };
 const ids = (...liste: string[]): ReadonlySet<string> => new Set(liste);
 const mes = (modeles: string[], porte: string | null = null): Pick<MesModeles, "modeles" | "porte"> => ({ modeles: modeles.map((modele) => ({ modele, acquis_le: "2026-11-15T10:00:00Z" })), porte });
 /** Un hasard qui se répète, pour des tirages toujours les mêmes. */
@@ -18,7 +21,7 @@ function hasardFixe(graine: number): () => number {
 
 describe("les chances de la pochette des Gaulois uniques, ligne par ligne", () => {
   it("donne celles du serveur à un compte sans modèle, avec ce qu'il reste par rareté", () => {
-    const lignes = lignesDesChances(CHANCES, ids());
+    const lignes = lignesDesChances(SANS_RENDU, ids());
     expect(lignes?.map((ligne) => [ligne.rarete, ligne.chance, ligne.reste, ligne.total])).toEqual([
       ["commun", 45, 3, 3],
       ["peu-commun", 28, 3, 3],
@@ -29,16 +32,48 @@ describe("les chances de la pochette des Gaulois uniques, ligne par ligne", () =
     expect(lignes?.[0]).toMatchObject({ nom: "Commun", rang: 1 });
   });
 
+  it("compte les remboursements : chaque rareté en pour cent de toutes les pochettes, cent avec leur part", () => {
+    const lignes = lignesDesChances(POCHETTE, ids());
+    expect(lignes?.map((ligne) => Math.round(ligne.chance * 100) / 100)).toEqual([6.75, 4.2, 2.25, 1.2, 0.6]);
+    expect((lignes?.reduce((somme, ligne) => somme + ligne.chance, 0) ?? 0) + POCHETTE.remboursement).toBeCloseTo(100);
+    // Les réglages du départ : 85 % de remboursements, puis 7,5, 4,5, 1,8, 0,9 et 0,3.
+    const depart = lignesDesChances({ chances: CHANCES_POCHETTE_MODELES, remboursement: REMBOURSEMENT_POCHETTE_MODELES }, ids());
+    expect(depart?.map((ligne) => Math.round(ligne.chance * 100) / 100)).toEqual([7.5, 4.5, 1.8, 0.9, 0.3]);
+  });
+
   it("saute une rareté épuisée : les autres se partagent ses chances, cent en tout", () => {
-    const lignes = lignesDesChances(CHANCES, ids("lezard", "loup", "sanglier", "dragon"));
+    const lignes = lignesDesChances(SANS_RENDU, ids("lezard", "loup", "sanglier", "dragon"));
     expect(lignes?.find((ligne) => ligne.rarete === "commun")).toMatchObject({ chance: 0, reste: 0 });
     expect(lignes?.find((ligne) => ligne.rarete === "legendaire")).toMatchObject({ chance: 0, reste: 0 });
     expect(lignes?.find((ligne) => ligne.rarete === "peu-commun")?.chance).toBeCloseTo((28 * 100) / 51);
     expect(lignes?.reduce((somme, ligne) => somme + ligne.chance, 0)).toBeCloseTo(100);
+    const avecRendus = lignesDesChances(POCHETTE, ids("lezard", "loup", "sanglier", "dragon"));
+    expect(avecRendus?.find((ligne) => ligne.rarete === "peu-commun")?.chance).toBeCloseTo((28 * 15) / 51);
+    expect(avecRendus?.reduce((somme, ligne) => somme + ligne.chance, 0)).toBeCloseTo(15);
   });
 
   it("ne rend rien quand le compte les a tous", () => {
-    expect(lignesDesChances(CHANCES, ids(...MODELES.map((modele) => modele.id)))).toBeNull();
+    expect(lignesDesChances(POCHETTE, ids(...MODELES.map((modele) => modele.id)))).toBeNull();
+  });
+
+  it("dit ce que la pochette rend : sa part, et chaque palier en statères, du plus petit au plus grand", () => {
+    expect(rendusDeLaPochette(POCHETTE)).toEqual({
+      chance: 85,
+      paliers: [
+        { pourcent: 20, rendu: 600 },
+        { pourcent: 30, rendu: 900 },
+        { pourcent: 40, rendu: 1200 },
+        { pourcent: 50, rendu: 1500 },
+        { pourcent: 60, rendu: 1800 },
+      ],
+    });
+    // Arrondi comme le serveur ; les paliers rangés même s'ils arrivent en désordre.
+    expect(rendusDeLaPochette({ prix: 2505, remboursement: 50, paliers: [30, 10] })?.paliers).toEqual([
+      { pourcent: 10, rendu: 251 },
+      { pourcent: 30, rendu: 752 },
+    ]);
+    expect(rendusDeLaPochette(SANS_RENDU)).toBeNull();
+    expect(rendusDeLaPochette({ prix: 3000, remboursement: 85, paliers: [] })).toBeNull();
   });
 });
 
@@ -69,49 +104,63 @@ describe("ce qu'un compte a et ce qu'il lui reste", () => {
 describe("le tambour de la pochette des Gaulois uniques", () => {
   const dragon = modeleParId("dragon");
   if (!dragon) throw new Error("le dragon manque à la liste");
+  const recu: SortieDeLaPochette = { kind: "modele", modele: dragon };
+  const idsDe = (rangees: readonly SortieDeLaPochette[]): string[] => rangees.flatMap((rangee) => (rangee.kind === "modele" ? [rangee.modele.id] : []));
 
-  it("pose le modèle reçu à la rangée où il s'arrête", () => {
-    const bande = bandeDesModeles(dragon, CHANCES, ids(), hasardFixe(7));
+  it("pose ce que le serveur a répondu à la rangée où il s'arrête : un modèle, ou un remboursement", () => {
+    const bande = bandeDesModeles(recu, POCHETTE, ids(), hasardFixe(7));
     expect(bande.depart).toBe(DEPART_DU_TAMBOUR);
     expect(bande.cible).toBe(CIBLE_DU_TAMBOUR);
-    expect(bande.rangees[bande.cible]).toEqual({ valeur: dragon, rarete: "legendaire" });
+    expect(bande.rangees[bande.cible]).toEqual({ kind: "modele", modele: dragon });
     expect(bande.rangees).toHaveLength(CIBLE_DU_TAMBOUR + 4);
+    const rendu: SortieDeLaPochette = { kind: "rendu", pourcent: 30, rendu: 900 };
+    expect(bandeDesModeles(rendu, POCHETTE, ids(), hasardFixe(7)).rangees[CIBLE_DU_TAMBOUR]).toEqual(rendu);
   });
 
-  it("ne fait défiler que des modèles que le compte n'avait pas, chacun avec sa rareté", () => {
+  it("tire les autres rangées sans regarder la réponse : les mêmes, quel que soit le résultat", () => {
+    const a = bandeDesModeles(recu, POCHETTE, ids(), hasardFixe(11));
+    const b = bandeDesModeles({ kind: "rendu", pourcent: 20, rendu: 600 }, POCHETTE, ids(), hasardFixe(11));
+    expect(a.rangees.filter((_, i) => i !== a.cible)).toEqual(b.rangees.filter((_, i) => i !== b.cible));
+  });
+
+  it("ne fait défiler que des modèles que le compte n'avait pas, et des remboursements aux paliers de la pochette", () => {
     const possedes = ids("lezard", "loup", "sanglier", "givre");
-    const bande = bandeDesModeles(dragon, CHANCES, possedes, hasardFixe(42));
+    const bande = bandeDesModeles(recu, POCHETTE, possedes, hasardFixe(42));
+    const paliers = rendusDeLaPochette(POCHETTE)?.paliers ?? [];
     for (const rangee of bande.rangees) {
-      expect(possedes.has(rangee.valeur.id)).toBe(false);
-      expect(rangee.rarete).toBe(rangee.valeur.rarete);
+      if (rangee.kind === "modele") expect(possedes.has(rangee.modele.id)).toBe(false);
+      else expect(paliers).toContainEqual({ pourcent: rangee.pourcent, rendu: rangee.rendu });
     }
   });
 
-  it("suit les chances réelles du compte : sur beaucoup de rangées, chaque rareté sort à sa fréquence", () => {
+  it("suit les chances réelles du compte : les remboursements à leur part, chaque palier et chaque rareté à sa fréquence", () => {
     const possedes = ids("lezard", "loup", "sanglier");
-    const pourMoi = chancesPourMoi(CHANCES, possedes);
+    const attendues = lignesDesChances(POCHETTE, possedes);
     const hasard = hasardFixe(2026);
     const sorties: Record<string, number> = {};
     let total = 0;
-    for (let tour = 0; tour < 400; tour++) {
-      const bande = bandeDesModeles(dragon, CHANCES, possedes, hasard);
+    for (let tour = 0; tour < 1200; tour++) {
+      const bande = bandeDesModeles(recu, POCHETTE, possedes, hasard);
       bande.rangees.forEach((rangee, i) => {
         if (i === bande.cible) return;
-        sorties[rangee.rarete] = (sorties[rangee.rarete] ?? 0) + 1;
+        const cle = rangee.kind === "modele" ? rangee.modele.rarete : `rendu-${rangee.pourcent}`;
+        sorties[cle] = (sorties[cle] ?? 0) + 1;
         total++;
       });
     }
+    const part = (cle: string): number => ((sorties[cle] ?? 0) * 100) / total;
     expect(sorties["commun"]).toBeUndefined();
-    for (const rarete of ["peu-commun", "epique", "mystique", "legendaire"] as const) {
-      // À un point et demi près : quinze mille rangées tirées.
-      expect(Math.abs(((sorties[rarete] ?? 0) * 100) / total - (pourMoi?.[rarete] ?? 0))).toBeLessThan(1.5);
-    }
+    // Quarante-huit mille rangées tirées : à un point près.
+    for (const palier of POCHETTE.paliers) expect(Math.abs(part(`rendu-${palier}`) - 85 / 5)).toBeLessThan(1);
+    for (const ligne of attendues ?? []) expect(Math.abs(part(ligne.rarete) - ligne.chance)).toBeLessThan(1);
   });
 
-  it("ne montre que le dernier modèle quand il ne restait que lui", () => {
+  it("sans remboursement, ne montre que des modèles ; et que le dernier quand il ne restait que lui", () => {
     const possedes = ids(...MODELES.filter((modele) => modele.id !== "dragon").map((modele) => modele.id));
-    const bande = bandeDesModeles(dragon, CHANCES, possedes, hasardFixe(3));
-    expect(new Set(bande.rangees.map((rangee) => rangee.valeur.id))).toEqual(new Set(["dragon"]));
+    const bande = bandeDesModeles(recu, SANS_RENDU, possedes, hasardFixe(3));
+    expect(bande.rangees.every((rangee) => rangee.kind === "modele")).toBe(true);
+    expect(new Set(idsDe(bande.rangees))).toEqual(new Set(["dragon"]));
+    expect(new Set(idsDe(bandeDesModeles(recu, POCHETTE, possedes, hasardFixe(3)).rangees))).toEqual(new Set(["dragon"]));
   });
 });
 
@@ -132,7 +181,7 @@ describe("l'essayage d'un Gaulois unique", () => {
 });
 
 describe("l'album de la pochette des Gaulois uniques", () => {
-  const pochette = { prix: 2000, chances: { ...CHANCES } };
+  const pochette = { ...SANS_RENDU };
 
   it("montre les modèles famille par famille, en couleur, avec la chance du tirage : 100 en tout", () => {
     const album = albumDesModeles({ ...mes([]), pochette });
@@ -151,6 +200,12 @@ describe("l'album de la pochette des Gaulois uniques", () => {
     expect(album.elements.find((e) => e.id === premier.id)).toMatchObject({ possede: true, chance: 0 });
     for (const m of memes) expect(album.elements.find((e) => e.id === m.id)!.chance).toBeCloseTo(pourMoi[premier.rarete] / memes.length, 10);
     expect(album.elements.reduce((n, e) => n + e.chance, 0)).toBeCloseTo(100, 8);
+  });
+
+  it("compte les remboursements : les chances des modèles font ce qu'ils laissent", () => {
+    const album = albumDesModeles({ ...mes([]), pochette: POCHETTE });
+    expect(album.elements.reduce((n, e) => n + e.chance, 0)).toBeCloseTo(15, 8);
+    expect(album.elements.find((e) => e.id === "dragon")?.chance).toBeCloseTo(4 * 0.15, 10);
   });
 
   it("rogne chaque modèle à son dessin", () => {

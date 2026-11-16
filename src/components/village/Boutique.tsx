@@ -27,7 +27,7 @@ import {
 } from "../../lib/village/boutique-rayons";
 import type { MaBoutique, PochetteFamiliersReponse, PochetteReponse, RefObjet } from "../../lib/village/contrat";
 import { demandeLesBannieres } from "../../lib/village/ecran-bannieres";
-import { avecUnExemplaire, lireAchat, lireBoutique, lirePochette, lireStateres, manque, messageDuRefus, objetPayant, prixDeLObjet, quantitePossedee, raisonBoutiqueFermee } from "../../lib/village/ecran-boutique";
+import { avecUnExemplaire, lireAchat, lireBoutique, lirePochette, lireStateres, manque, messageDuRefus, objetPayant, prixDeLObjet, quantitePossedee, raisonBoutiqueFermee, stateres } from "../../lib/village/ecran-boutique";
 import { ANCRE_FAMILIERS, demandeLesFamiliers, idsPossedes, tailleDeLApercu } from "../../lib/village/ecran-familiers";
 import { actionDeLEssai, essaiDuModeleValide } from "../../lib/village/ecran-modeles";
 import { finDeLOffre, lireBoutique as lireBoutiqueDuMarche, lireMarche, mesOffres, messageDuMarche, raisonDeLOffre, type MarcheLu, type OffreLisible, type PossedeLisible } from "../../lib/village/ecran-marche";
@@ -452,8 +452,18 @@ export default function Boutique() {
   };
   const ouvrirPochetteModeles = async (prix: number) => {
     const issue = await modeles.ouvrir(prix);
-    if (issue.ok) recevoirLeModele(issue.valeur.modele.modele, issue.valeur.solde);
-    else void lireLaBoutique();
+    if (issue.ok && issue.valeur.modele) recevoirLeModele(issue.valeur.modele.modele, issue.valeur.solde);
+    else if (issue.ok) {
+      // Un remboursement : rien n'entre au compte, la bourse seule change, et la page le dit.
+      const { solde: reste, remboursement } = issue.valeur;
+      setBoutique((b) => b && { ...b, solde: reste });
+      setSolde(reste);
+      setProbleme(null);
+      setAcquis(null);
+      setFamilierRecu(null);
+      setModeleRecu(null);
+      setReussite(remboursement ? `La pochette vous a rendu ${stateres(remboursement.rendu)}.` : null);
+    } else void lireLaBoutique();
     return issue;
   };
 

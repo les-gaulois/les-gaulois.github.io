@@ -21,6 +21,12 @@ export interface RangeeVue {
     hauteur: number;
     cases: readonly (string | null)[];
   } | null;
+  /**
+   * Une rangée qui n'est pas d'une rareté (un remboursement de la pochette des Gaulois uniques, 16 novembre 2026) : sa
+   * couleur à elle, et quelques mots à la place des losanges. `rarete` ne sert alors à rien. À l'arrêt, une lueur seule
+   * et une note basse : ni anneau, ni rayons, ni pluie.
+   */
+  hors?: { teinte: string; marque: string };
 }
 
 // ---------- Le son ----------
@@ -112,9 +118,10 @@ function note(frequence: number, dans: number, duree: number, volume: number, fo
   o.stop(t + duree + 0.05);
 }
 
-/** Une note par rang de rareté, puis un accord tenu pour mystique, légendaire et divin. */
+/** Une note par rang de rareté, puis un accord tenu pour mystique, légendaire et divin ; une seule note basse hors rareté (rang 0). */
 function carillon(rang: number): void {
   if (!contexte || contexte.state !== "running") return;
+  if (rang === 0) note(392, 0.03, 0.6, 0.06, "triangle");
   const gamme = [523.25, 659.25, 783.99, 1046.5, 1318.5, 1567.98];
   for (let i = 0; i < rang; i++) note(gamme[i] ?? 523.25, 0.03 + i * 0.11, 0.7, 0.07, "triangle");
   if (rang >= 4) for (const f of rang >= 5 ? [523.25, 783.99, 1046.5, 1318.5, 1567.98] : [523.25, 783.99, 1046.5]) note(f, 0.08 + rang * 0.11, 2.4, 0.03, "sine");
@@ -306,9 +313,9 @@ function peindre(ctx: CanvasRenderingContext2D, W: number, H: number, dpr: numbe
     if (y1 - y0 < 0.5) continue;
     const face = Math.cos(angle);
     const lumiere = 0.25 + 0.75 * Math.max(0, face);
-    const couleur = s.couleurs[rangee.rarete];
+    const couleur = rangee.hors?.teinte ?? s.couleurs[rangee.rarete];
     // Le doré, plus clair que les autres raretés, est foncé un peu plus pour que le nom blanc s'y lise.
-    ctx.fillStyle = melange(melange(couleur, "#0a1230", rangee.rarete === "legendaire" || rangee.rarete === "divin" ? 0.5 : 0.35), "#000000", 1 - lumiere);
+    ctx.fillStyle = melange(melange(couleur, "#0a1230", (rangee.rarete === "legendaire" || rangee.rarete === "divin") && !rangee.hors ? 0.5 : 0.35), "#000000", 1 - lumiere);
     ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
     ctx.fillStyle = `rgba(255,255,255,${0.14 * lumiere})`;
     ctx.fillRect(x0, y0, x1 - x0, Math.max(1, 1.5 * k * face));
@@ -330,7 +337,12 @@ function peindre(ctx: CanvasRenderingContext2D, W: number, H: number, dpr: numbe
       const mesure = ctx.measureText(rangee.nom).width;
       if (mesure > largeurMax) ctx.font = `600 ${(taille * largeurMax) / mesure}px ${s.police}`;
       ctx.fillText(rangee.nom, x0 + W * 0.17, 0);
-      losanges(ctx, x1 - W * 0.075, 0, RARETES[rangee.rarete].rang, 2.4 * k, melange(couleur, "#ffffff", 0.55));
+      if (rangee.hors) {
+        ctx.font = `700 ${14 * k}px ${s.police}`;
+        ctx.textAlign = "right";
+        ctx.fillStyle = melange(couleur, "#ffffff", 0.8);
+        ctx.fillText(rangee.hors.marque, x1 - W * 0.03, 0);
+      } else losanges(ctx, x1 - W * 0.075, 0, RARETES[rangee.rarete].rang, 2.4 * k, melange(couleur, "#ffffff", 0.55));
       ctx.restore();
     }
   }
@@ -344,7 +356,7 @@ function peindre(ctx: CanvasRenderingContext2D, W: number, H: number, dpr: numbe
   const resultat = s.rangees[Math.round(s.position)];
   if (s.fete >= 0 && resultat) {
     const hauteur = 2 * rayon * Math.sin(pas / 2);
-    ctx.strokeStyle = rgba(melange(s.couleurs[resultat.rarete], "#ffffff", 0.55), 0.55 + 0.4 * (1 - lisse(0, 2, s.fete)));
+    ctx.strokeStyle = rgba(melange(resultat.hors?.teinte ?? s.couleurs[resultat.rarete], "#ffffff", 0.55), 0.55 + 0.4 * (1 - lisse(0, 2, s.fete)));
     ctx.lineWidth = 2.5 * k;
     ctx.beginPath();
     arrondi(ctx, x0 + 3 * k, cy - hauteur / 2, x1 - x0 - 6 * k, hauteur, 6 * k);
@@ -367,7 +379,7 @@ function peindre(ctx: CanvasRenderingContext2D, W: number, H: number, dpr: numbe
     ctx.lineWidth = 1.2 * k;
     ctx.stroke();
   }
-  if (s.fete >= 0 && resultat) feter(ctx, W, H, k, s.fete, RARETES[resultat.rarete].rang, s.couleurs[resultat.rarete], s.pluie);
+  if (s.fete >= 0 && resultat) feter(ctx, W, H, k, s.fete, resultat.hors ? 0 : RARETES[resultat.rarete].rang, resultat.hors?.teinte ?? s.couleurs[resultat.rarete], s.pluie);
 }
 
 /** La fête, selon le rang : une lueur qui se pose, puis un anneau, des rayons lents, une pluie d'or. Rien ne clignote. */
@@ -489,8 +501,8 @@ export function Tambour({ rangees, depart, cible, passer, son, onArrive }: { ran
     const tour = (now: number) => {
       if (arrivee === null && (!anime || reglages.current.passer || now - debut >= DUREE_DU_TAMBOUR)) {
         arrivee = anime ? now : now - DUREE_DE_LA_FETE;
-        if (anime && resultat && RARETES[resultat.rarete].rang >= 5) pluie = pluieDOr();
-        if (reglages.current.son && resultat) carillon(RARETES[resultat.rarete].rang);
+        if (anime && resultat && !resultat.hors && RARETES[resultat.rarete].rang >= 5) pluie = pluieDOr();
+        if (reglages.current.son && resultat) carillon(resultat.hors ? 0 : RARETES[resultat.rarete].rang);
         reglages.current.onArrive();
       }
       const position = dessiner(now);
