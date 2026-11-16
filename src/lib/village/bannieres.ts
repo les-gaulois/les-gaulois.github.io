@@ -62,11 +62,22 @@ function lireChances(valeur: unknown): Record<Rarete, number> | null {
   return Math.abs(total - 100) < 1e-6 ? (chances as Record<Rarete, number>) : null;
 }
 
-/** La pochette des bannières de `get_mes_bannieres` : un prix entier d'au moins 1 statère et des chances lisibles ; sinon `null`. */
+/** Un pourcentage entier, de 1 à 100. */
+const estPalier = (valeur: unknown): valeur is number => entier(valeur, 1) && valeur <= 100;
+
+/**
+ * La pochette des bannières de `get_mes_bannieres` : un prix entier d'au moins 1 statère et des chances lisibles ; sinon
+ * `null`. Les remboursements (leur part, de 0 à 95 pour cent, et leurs paliers) se lisent ensemble : absents (serveur
+ * d'avant eux) ou illisibles, la pochette se lit sans remboursement, 0 et aucun palier.
+ */
 function lirePochette(valeur: unknown): MesBannieres["pochette"] {
   if (!estObjetJson(valeur) || !entier(valeur["prix"], 1)) return null;
   const chances = lireChances(valeur["chances"]);
-  return chances ? { prix: valeur["prix"], chances } : null;
+  if (!chances) return null;
+  const part = valeur["remboursement"];
+  const paliers = valeur["paliers"];
+  const rembourse = typeof part === "number" && part > 0 && part <= 95 && Array.isArray(paliers) && paliers.length > 0 && paliers.every(estPalier);
+  return { prix: valeur["prix"], chances, remboursement: rembourse ? part : 0, paliers: rembourse ? [...(paliers as number[])] : [] };
 }
 
 /** Les prix : un entier d'au moins 1 statère pour chaque rareté ; sinon `null`. */
@@ -110,16 +121,22 @@ export function lireMesBannieres(reponse: unknown, liste: readonly Banniere[] = 
 }
 
 /**
- * La réponse de `ouvrir_pochette_bannieres`, vérifiée : un trésor de la pochette connu, avec la rareté que la liste lui
- * donne, un solde et un reste entiers ; sinon `null`.
+ * La réponse de `ouvrir_pochette_bannieres`, vérifiée : un solde et un reste entiers, et soit un trésor de la pochette
+ * connu, avec la rareté que la liste lui donne, soit un remboursement (un pourcentage et des statères rendus entiers) ;
+ * jamais les deux, jamais aucun ; sinon `null`.
  */
 export function lirePochetteBannieres(reponse: unknown, liste: readonly Banniere[] = BANNIERES): PochetteBannieresReponse | null {
   if (!estObjetJson(reponse) || reponse["ok"] !== true || !entier(reponse["solde"], 0) || !entier(reponse["reste"], 0)) return null;
-  const recue = reponse["banniere"];
-  if (!estObjetJson(recue) || typeof recue["banniere"] !== "string" || !estRarete(recue["rarete"])) return null;
+  const recue = reponse["banniere"] ?? null;
+  const rendu = reponse["remboursement"] ?? null;
+  if (recue === null) {
+    if (!estObjetJson(rendu) || !estPalier(rendu["pourcent"]) || !entier(rendu["rendu"], 1)) return null;
+    return { ok: true, solde: reponse["solde"], banniere: null, remboursement: { pourcent: rendu["pourcent"], rendu: rendu["rendu"] }, reste: reponse["reste"] };
+  }
+  if (rendu !== null || !estObjetJson(recue) || typeof recue["banniere"] !== "string" || !estRarete(recue["rarete"])) return null;
   const banniere = liste.find((b) => b.id === recue["banniere"]);
   if (!banniere || !estDeLaPochette(banniere) || banniere.rarete !== recue["rarete"]) return null;
-  return { ok: true, solde: reponse["solde"], banniere: { banniere: banniere.id, rarete: banniere.rarete }, reste: reponse["reste"] };
+  return { ok: true, solde: reponse["solde"], banniere: { banniere: banniere.id, rarete: banniere.rarete }, remboursement: null, reste: reponse["reste"] };
 }
 
 /** La réponse de `acheter_banniere`, vérifiée : une bannière connue, avec la rareté que la liste lui donne ; sinon `null`. */
@@ -166,17 +183,45 @@ function tresorsParRarete(liste: readonly Banniere[]): Record<Rarete, number> {
 }
 
 /**
- * Les chances réelles de la pochette des bannières pour ce compte, en pour cent, par rareté : celles du serveur, sauf
+ * Les chances d'un trésor de chaque rareté à chaque pochette, en pour cent : celles du serveur, qui font 100 dans la part
+ * des pochettes qui donnent un trésor, ramenées à cette part (60, 30 et 10 deviennent 36, 18 et 6 quand 40 pochettes sur
+ * 100 remboursent). Sans remboursement, les mêmes.
+ */
+export function chancesDUnTresor(pochette: Pick<NonNullable<MesBannieres["pochette"]>, "chances" | "remboursement">): Record<Rarete, number> {
+  return Object.fromEntries(ORDRE_RARETES.map((rarete) => [rarete, (pochette.chances[rarete] * (100 - pochette.remboursement)) / 100])) as Record<Rarete, number>;
+}
+
+/** Les statères que rend chaque palier d'un remboursement, pour ce prix, comme le serveur les arrondit. */
+export function rendusDesPaliers(prix: number, paliers: readonly number[]): number[] {
+  return paliers.map((palier) => Math.round((prix * palier) / 100));
+}
+
+/**
+ * Ce que vaut en moyenne une pochette pour un compte qui n'a aucun trésor, en statères : chaque trésor compté au prix
+ * d'une bannière de sa rareté à la boutique, chaque remboursement pour ce qu'il rend. Un calcul, pour juger le prix de la
+ * pochette ; aucun écran ne le montre.
+ */
+export function valeurMoyenneDeLaPochetteDesBannieres(prix: number, chances: Readonly<Record<Rarete, number>>, remboursement: number, paliers: readonly number[], prixParRarete: Readonly<Record<Rarete, number>>): number {
+  const tresor = ORDRE_RARETES.reduce((somme, rarete) => somme + (chances[rarete] / 100) * prixParRarete[rarete], 0);
+  const rendus = rendusDesPaliers(prix, paliers);
+  const rendu = rendus.length > 0 ? rendus.reduce((somme, r) => somme + r, 0) / rendus.length : 0;
+  return ((100 - remboursement) / 100) * tresor + (remboursement / 100) * rendu;
+}
+
+/**
+ * Les chances réelles de la pochette des bannières pour ce compte, en pour cent, par rareté : celles données, sauf
  * qu'une rareté où il a déjà tous les trésors est sautée et que les autres se partagent ses chances à proportion, comme le
- * fait le tirage. `null` s'il n'y a plus rien à recevoir (ou plus aucune chance).
+ * fait le tirage. Leur somme reste celle des chances données : 100, ou la part des pochettes qui donnent un trésor
+ * (`chancesDUnTresor`). `null` s'il n'y a plus rien à recevoir (ou plus aucune chance).
  */
 export function chancesDesTresorsPourMoi(chances: Readonly<Record<Rarete, number>>, possedees: ReadonlySet<string>, liste: readonly Banniere[] = BANNIERES): Record<Rarete, number> | null {
   const restants = tresorsParRarete(tresorsAGagner(possedees, liste));
   const possibles = ORDRE_RARETES.filter((rarete) => chances[rarete] > 0 && restants[rarete] > 0);
   const total = possibles.reduce((somme, rarete) => somme + chances[rarete], 0);
   if (!(total > 0)) return null;
+  const part = ORDRE_RARETES.reduce((somme, rarete) => somme + chances[rarete], 0);
   const effectives = Object.fromEntries(ORDRE_RARETES.map((rarete) => [rarete, 0])) as Record<Rarete, number>;
-  for (const rarete of possibles) effectives[rarete] = (chances[rarete] * 100) / total;
+  for (const rarete of possibles) effectives[rarete] = (chances[rarete] * part) / total;
   return effectives;
 }
 
@@ -221,8 +266,12 @@ export function bandeDesTresors(recue: Banniere, chances: Readonly<Record<Rarete
   return bandeDuTambour({ valeur: recue, rarete: recue.rarete }, () => rangeeAuHasard(pourMoi, (rarete) => parRarete[rarete] ?? [], hasard));
 }
 
-/** Les bannières du compte après une pochette ouverte : le nouveau solde, et le trésor reçu en tête (les plus récentes d'abord). */
+/**
+ * Les bannières du compte après une pochette ouverte : le nouveau solde, et le trésor reçu en tête (les plus récentes
+ * d'abord). Après un remboursement, seul le solde change.
+ */
 export function apresLaPochetteDesBannieres(mes: MesBannieres, reponse: PochetteBannieresReponse, quand: string): MesBannieres {
+  if (!reponse.banniere) return { ...mes, solde: reponse.solde };
   const recue = reponse.banniere.banniere;
   return { ...mes, solde: reponse.solde, bannieres: [{ banniere: recue, acquis_le: quand }, ...mes.bannieres.filter((ligne) => ligne.banniere !== recue)] };
 }

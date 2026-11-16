@@ -23,6 +23,9 @@ import {
   TRESORS,
   albumDesTresors,
   apresLaPochetteDesBannieres,
+  chancesDUnTresor,
+  rendusDesPaliers,
+  valeurMoyenneDeLaPochetteDesBannieres,
   bandeDesTresors,
   chanceDuTresor,
   chancesDesTresorsPourMoi,
@@ -40,11 +43,12 @@ import {
   tresorsAGagner,
   vignetteDeLaBanniere,
 } from "../../src/lib/village/bannieres";
-import { CHANCES_POCHETTE_BANNIERES, FOIS_LE_PRIX_D_UN_OBJET, PRIX_BANNIERE_PAR_RARETE, PRIX_PAR_RARETE, PRIX_POCHETTE_BANNIERES } from "../../src/lib/village/contrat";
+import { CHANCES_POCHETTE_BANNIERES, FOIS_LE_PRIX_D_UN_OBJET, PALIERS_DE_REMBOURSEMENT_DES_BANNIERES, PRIX_BANNIERE_PAR_RARETE, PRIX_PAR_RARETE, PRIX_POCHETTE_BANNIERES, REMBOURSEMENT_POCHETTE_BANNIERES } from "../../src/lib/village/contrat";
 
 // Sous Windows, Git rend le fichier avec des fins de ligne CRLF : les motifs ci-dessous lisent des « \n ».
 const MIGRATION = readFileSync("supabase/migrations/20261115000900_bannieres_du_gaulois.sql", "utf8").replace(/\r\n/g, "\n");
 const MIGRATION_POCHETTE = readFileSync("supabase/migrations/20261116000100_pochette_des_bannieres.sql", "utf8").replace(/\r\n/g, "\n");
+const MIGRATION_REMBOURSEMENTS = readFileSync("supabase/migrations/20261116000700_pochette_bannieres_remboursements.sql", "utf8").replace(/\r\n/g, "\n");
 const LOTS_BOUTIQUE = { A: LOT_A, B: LOT_B, C: LOT_C, D: LOT_D, E: LOT_E };
 const LOTS_POCHETTE = { F: LOT_F, G: LOT_G, H: LOT_H, I: LOT_I };
 const LOTS = { ...LOTS_BOUTIQUE, ...LOTS_POCHETTE };
@@ -216,10 +220,10 @@ describe("la liste et les règles du serveur (migration des bannières)", () => 
   });
 });
 
-describe("la pochette des bannières au serveur (migration 20261116000100)", () => {
+describe("la pochette des bannières au serveur (migrations 20261116000100 et 20261116000700)", () => {
   it("a le prix et les chances du contrat", () => {
-    expect(PRIX_POCHETTE_BANNIERES).toBe(3000);
-    expect(MIGRATION_POCHETTE).toContain(`select ${PRIX_POCHETTE_BANNIERES}\n`);
+    expect(PRIX_POCHETTE_BANNIERES).toBe(1500);
+    expect(MIGRATION_REMBOURSEMENTS).toContain(`select ${PRIX_POCHETTE_BANNIERES}\n`);
     expect(ORDRE_RARETES.reduce((n, r) => n + CHANCES_POCHETTE_BANNIERES[r], 0)).toBe(100);
     ORDRE_RARETES.forEach((r, i) => expect(MIGRATION_POCHETTE, r).toContain(`('${r}', ${i + 1}, ${CHANCES_POCHETTE_BANNIERES[r]}::numeric)`));
     // Rien ne sort d'une rareté qui n'a pas de trésor.
@@ -252,6 +256,57 @@ describe("la pochette des bannières au serveur (migration 20261116000100)", () 
   });
 });
 
+describe("le prix baissé et les remboursements de la pochette (migration 20261116000700)", () => {
+  it("a la part des remboursements et les paliers du contrat", () => {
+    expect(MIGRATION_REMBOURSEMENTS).toContain(`select ${REMBOURSEMENT_POCHETTE_BANNIERES}::numeric\n`);
+    expect(MIGRATION_REMBOURSEMENTS).toContain(`select array[${PALIERS_DE_REMBOURSEMENT_DES_BANNIERES.join(", ")}]\n`);
+  });
+
+  it("débite la pochette entière puis crédite ce qu'elle rend, sans jamais donner de bannière avec", () => {
+    const ouverture = MIGRATION_REMBOURSEMENTS.slice(MIGRATION_REMBOURSEMENTS.indexOf("create or replace function public.ouvrir_pochette_bannieres"));
+    const rendu = ouverture.slice(ouverture.indexOf("if internal.village_hasard() * 100 < internal.bannieres_pochette_remboursement() then"), ouverture.indexOf("-- Sinon, la rareté"));
+    expect(rendu).toContain("perform internal.village_debiter(v_uid, 'pochette', v_prix, 'bannieres-rembourse');");
+    expect(rendu).toContain("values (v_uid, 'pochette', v_rendu, 'bannieres-rembourse');");
+    expect(rendu.indexOf("village_debiter")).toBeLessThan(rendu.indexOf("insert into internal.stateres_mouvements"));
+    expect(rendu).not.toContain("gaulois_bannieres (user_id");
+    // Qui a tout ne paie rien, même pour un remboursement : le refus vient avant le tirage.
+    expect(ouverture.indexOf("perform internal.fail('tout_possede');")).toBeLessThan(ouverture.indexOf("if internal.village_hasard() * 100 <"));
+    expect(ouverture.indexOf("perform internal.village_verrou(v_uid);")).toBeLessThan(ouverture.indexOf("if internal.village_hasard() * 100 <"));
+    expect(ouverture).toContain("perform internal.village_debiter(v_uid, 'pochette', v_prix, 'banniere/' || v_banniere);");
+  });
+
+  it("n'ouvre ses fonctions qu'aux comptes connectés, garde les autres privées, et n'efface rien", () => {
+    for (const fonction of ["public.get_mes_bannieres()", "public.ouvrir_pochette_bannieres(integer)"]) {
+      expect(MIGRATION_REMBOURSEMENTS).toContain(`revoke all on function ${fonction} from public, anon, authenticated;`);
+      expect(MIGRATION_REMBOURSEMENTS).toContain(`grant execute on function ${fonction} to authenticated;`);
+    }
+    for (const fonction of ["internal.bannieres_pochette_prix()", "internal.bannieres_pochette_remboursement()", "internal.bannieres_pochette_paliers()"]) {
+      expect(MIGRATION_REMBOURSEMENTS).toContain(`revoke all on function ${fonction} from public, anon, authenticated;`);
+      expect(MIGRATION_REMBOURSEMENTS).not.toContain(`grant execute on function ${fonction}`);
+    }
+    expect(MIGRATION_REMBOURSEMENTS).not.toMatch(/raw_user_meta_data|drop table|drop column|truncate|delete from/i);
+  });
+
+  it("vaut en moyenne un peu plus que son prix, au prix de la boutique", () => {
+    expect(rendusDesPaliers(PRIX_POCHETTE_BANNIERES, PALIERS_DE_REMBOURSEMENT_DES_BANNIERES)).toEqual([300, 450, 600, 750, 900]);
+    expect(valeurMoyenneDeLaPochetteDesBannieres(PRIX_POCHETTE_BANNIERES, CHANCES_POCHETTE_BANNIERES, REMBOURSEMENT_POCHETTE_BANNIERES, PALIERS_DE_REMBOURSEMENT_DES_BANNIERES, PRIX_BANNIERE_PAR_RARETE)).toBeCloseTo(1770, 6);
+    // Sans remboursement, à l'ancien prix : 2 550 statères de bannières pour 3 000.
+    expect(valeurMoyenneDeLaPochetteDesBannieres(3000, CHANCES_POCHETTE_BANNIERES, 0, [], PRIX_BANNIERE_PAR_RARETE)).toBeCloseTo(2550, 6);
+  });
+
+  it("ramène les chances des raretés à la part des pochettes qui donnent un trésor", () => {
+    const chances = chancesDUnTresor({ chances: CHANCES_POCHETTE_BANNIERES, remboursement: REMBOURSEMENT_POCHETTE_BANNIERES });
+    expect(ORDRE_RARETES.map((r) => chances[r])).toEqual([0, 0, 36, 18, 6]);
+    expect(chancesDUnTresor({ chances: CHANCES_POCHETTE_BANNIERES, remboursement: 0 })).toEqual(CHANCES_POCHETTE_BANNIERES);
+    // Une rareté épuisée laisse ses chances aux autres : la part des trésors reste 60.
+    const sansLegendaire = new Set(TRESORS.filter((b) => b.rarete === "legendaire").map((b) => b.id));
+    const pourMoi = chancesDesTresorsPourMoi(chances, sansLegendaire)!;
+    expect(pourMoi.epique + pourMoi.mystique).toBeCloseTo(60, 9);
+    expect(pourMoi.legendaire).toBe(0);
+    expect(pourMoi.epique).toBeCloseTo(40, 9);
+  });
+});
+
 describe("la lecture des réponses du serveur", () => {
   const [a, b] = BANNIERES;
   const prix = { commun: 300, "peu-commun": 750, epique: 1500, mystique: 3000, legendaire: 7500 };
@@ -260,7 +315,7 @@ describe("la lecture des réponses du serveur", () => {
     solde: 4200,
     peut_acheter: true,
     prix,
-    pochette: { prix: 3000, chances: { commun: 0, "peu-commun": 0, epique: 60, mystique: 30, legendaire: 10 } },
+    pochette: { prix: 1500, chances: { commun: 0, "peu-commun": 0, epique: 60, mystique: 30, legendaire: 10 }, remboursement: 40, paliers: [20, 30, 40, 50, 60] },
     bannieres: [
       { banniere: a!.id, acquis_le: "2026-11-15T14:00:00Z" },
       { banniere: b!.id, acquis_le: "2026-11-14T14:00:00Z" },
@@ -280,9 +335,29 @@ describe("la lecture des réponses du serveur", () => {
     expect(lireMesBannieres(reponse({ pochette: undefined }))?.solde).toBe(4200);
   });
 
+  it("lit sans remboursement la pochette d'un serveur d'avant eux, ou aux remboursements illisibles", () => {
+    const chances = { commun: 0, "peu-commun": 0, epique: 60, mystique: 30, legendaire: 10 };
+    expect(lireMesBannieres(reponse({ pochette: { prix: 3000, chances } }))?.pochette).toEqual({ prix: 3000, chances, remboursement: 0, paliers: [] });
+    expect(lireMesBannieres(reponse({ pochette: { prix: 1500, chances, remboursement: 40, paliers: [] } }))?.pochette).toEqual({ prix: 1500, chances, remboursement: 0, paliers: [] });
+    expect(lireMesBannieres(reponse({ pochette: { prix: 1500, chances, remboursement: 100, paliers: [20] } }))?.pochette?.remboursement).toBe(0);
+    expect(lireMesBannieres(reponse({ pochette: { prix: 1500, chances, remboursement: 40, paliers: [20, 150] } }))?.pochette?.paliers).toEqual([]);
+  });
+
+  it("lit une pochette qui rend des statères : un pourcentage et un montant entiers, jamais avec une bannière", () => {
+    const t = TRESORS[0]!;
+    const rendue = (p: Record<string, unknown> = {}) => ({ ok: true, solde: 900, banniere: null, remboursement: { pourcent: 40, rendu: 600 }, reste: 20, ...p });
+    expect(lirePochetteBannieres(rendue())).toEqual(rendue());
+    expect(lirePochetteBannieres(rendue({ remboursement: null }))).toBeNull();
+    expect(lirePochetteBannieres(rendue({ remboursement: { pourcent: 40, rendu: 0 } }))).toBeNull();
+    expect(lirePochetteBannieres(rendue({ remboursement: { pourcent: 140, rendu: 600 } }))).toBeNull();
+    expect(lirePochetteBannieres(rendue({ banniere: { banniere: t.id, rarete: t.rarete } }))).toBeNull();
+  });
+
   it("lit l'ouverture d'une pochette : un trésor connu, avec sa rareté, jamais une bannière de la boutique", () => {
     const t = TRESORS[0]!;
-    const ouverture = (p: Record<string, unknown> = {}) => ({ ok: true, solde: 1200, banniere: { banniere: t.id, rarete: t.rarete }, reste: 19, ...p });
+    const ouverture = (p: Record<string, unknown> = {}) => ({ ok: true, solde: 1200, banniere: { banniere: t.id, rarete: t.rarete }, remboursement: null, reste: 19, ...p });
+    // Un serveur d'avant les remboursements ne dit pas `remboursement` : la même lecture.
+    expect(lirePochetteBannieres({ ok: true, solde: 1200, banniere: { banniere: t.id, rarete: t.rarete }, reste: 19 })).toEqual(ouverture());
     expect(lirePochetteBannieres(ouverture())).toEqual(ouverture());
     expect(lirePochetteBannieres(ouverture({ reste: -1 }))).toBeNull();
     expect(lirePochetteBannieres(ouverture({ banniere: { banniere: t.id, rarete: "commun" } }))).toBeNull();
@@ -446,9 +521,13 @@ describe("les chances de la pochette des bannières, pour un compte", () => {
   it("mettent le trésor reçu en tête des bannières du compte, avec le solde du serveur", () => {
     const t = TRESORS[1]!;
     const mes = { ok: true as const, solde: 5000, peut_acheter: true, prix: { ...PRIX_BANNIERE_PAR_RARETE }, pochette: null, bannieres: [{ banniere: BOUTIQUE[0]!.id, acquis_le: "2026-11-15T10:00:00Z" }], porte: null };
-    const apres = apresLaPochetteDesBannieres(mes, { ok: true, solde: 2000, banniere: { banniere: t.id, rarete: t.rarete }, reste: 19 }, "2026-11-16T10:00:00Z");
+    const apres = apresLaPochetteDesBannieres(mes, { ok: true, solde: 2000, banniere: { banniere: t.id, rarete: t.rarete }, remboursement: null, reste: 19 }, "2026-11-16T10:00:00Z");
     expect(apres.solde).toBe(2000);
     expect(apres.bannieres.map((b) => b.banniere)).toEqual([t.id, BOUTIQUE[0]!.id]);
+    // Une pochette qui rend des statères ne change que le solde.
+    const rendue = apresLaPochetteDesBannieres(mes, { ok: true, solde: 4100, banniere: null, remboursement: { pourcent: 40, rendu: 600 }, reste: 20 }, "2026-11-16T10:00:00Z");
+    expect(rendue.solde).toBe(4100);
+    expect(rendue.bannieres).toEqual(mes.bannieres);
   });
 });
 

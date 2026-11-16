@@ -2547,6 +2547,17 @@ main:has(.album) {
     grid-column: 3;
   }
 }
+/* Les remboursements de la pochette (16 novembre 2026) : la première ligne des chances, la pièce du village à la place des
+   losanges, jamais une couleur de rareté ; ce qui peut revenir est écrit dessous. */
+.bannieres-chance-rendu small {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--texte-courant);
+}
+.bannieres-pochette .pochette-chances .bannieres-chance-rendu + li {
+  border-top-color: var(--color-line-strong);
+}
 /* « Pochette » sur un trésor qu'on n'a pas : cerné et pointillé, comme une case qu'on ne peut pas acheter. */
 .banniere-etat[data-etat="a-gagner"] {
   border-style: dashed;
@@ -2564,6 +2575,54 @@ main:has(.album) {
   width: 100%;
   min-width: 0;
   text-align: center;
+}
+/* Dans la fenêtre, une pochette qui rend des statères : la pièce en grand, les statères rendus, leur part du prix. Un cadre
+   neutre, sans rareté ni halo. */
+.banniere-rendu {
+  display: grid;
+  justify-items: center;
+  gap: 0.375rem;
+  width: 100%;
+  max-width: 18rem;
+  padding: 1.25rem 1rem 1rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.625rem;
+  background: var(--color-surface-2);
+  text-align: center;
+  animation: banniere-rendu-entree 0.5s ease-out;
+}
+@keyframes banniere-rendu-entree {
+  from {
+    opacity: 0;
+  }
+}
+.fx-off .banniere-rendu {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .banniere-rendu {
+    animation: none;
+  }
+}
+.banniere-rendu .piece {
+  margin-bottom: 0.375rem;
+}
+.banniere-rendu-montant {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--ecriture);
+}
+.banniere-rendu-montant strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 2.25rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+.banniere-rendu-part {
+  font-size: 0.9375rem;
+  color: var(--texte-courant);
 }
 .banniere-recue-nom {
   font-family: var(--font-display);

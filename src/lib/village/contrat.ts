@@ -462,12 +462,26 @@ export interface BannierePossedee {
  * (`pochette_seulement`). La pochette ne donne jamais une bannière déjà possédée : elle tire une rareté parmi celles où le
  * compte a encore un trésor à recevoir (une rareté épuisée est sautée, les autres se partagent ses chances à proportion),
  * puis un de ces trésors, à chances égales. Prix et chances sont fixés par la migration : aucun réglage dans la Direction.
+ *
+ * Le prix baissé et les remboursements, depuis le soir du 16 novembre 2026 (le pilote : « baisse le prix des pochettes de
+ * bannière car c'est déséquilibré par rapport au prix des bannières dans l'ensemble, et instaure la possibilité de gagner
+ * un % de la somme investie en statères, comme pour la pochette des Gaulois » ; migration
+ * 20261116000700_pochette_bannieres_remboursements) : la pochette coûte 1 500 statères au lieu de 3 000 ; 40 fois sur 100
+ * elle rend 20, 30, 40, 50 ou 60 % de son prix (paliers à chances égales), 60 fois sur 100 elle donne un trésor selon les
+ * chances par rareté ci-dessous, prises dans cette part. Au prix de la boutique pour la même rareté, elle vaut en moyenne
+ * 1 770 statères pour 1 500 au départ (`valeurMoyenneDeLaPochetteDesBannieres` de `bannieres.ts`, testé).
  */
 
-/** Le prix de la pochette des bannières, en statères : celui d'une bannière mystique de la boutique, au départ. */
-export const PRIX_POCHETTE_BANNIERES = 3000;
+/** Le prix de la pochette des bannières, en statères : celui d'une bannière épique de la boutique, au départ. */
+export const PRIX_POCHETTE_BANNIERES = 1500;
 
-/** Les chances de la pochette des bannières, en pour cent, par rareté : 100 en tout. Ses trésors sont épiques ou plus. */
+/** La part des pochettes des bannières qui rendent une partie de leur prix au lieu d'un trésor, en pour cent. */
+export const REMBOURSEMENT_POCHETTE_BANNIERES = 40;
+
+/** Ce que rend un remboursement, en pour cent du prix de la pochette : cinq paliers à chances égales, 40 % en moyenne. */
+export const PALIERS_DE_REMBOURSEMENT_DES_BANNIERES = [20, 30, 40, 50, 60] as const;
+
+/** Les chances de la pochette des bannières par rareté, en pour cent de la part qui donne un trésor : 100 en tout. Ses trésors sont épiques ou plus. */
 export const CHANCES_POCHETTE_BANNIERES: Readonly<Record<Rarete, number>> = {
   commun: 0,
   "peu-commun": 0,
@@ -487,16 +501,26 @@ export interface MesBannieres {
   solde: number;
   peut_acheter: boolean;
   prix: Record<Rarete, number>;
-  pochette: { prix: number; chances: Record<Rarete, number> } | null;
+  /**
+   * La pochette : son prix, les chances par rareté (de la part qui donne un trésor), la part des remboursements en pour
+   * cent et leurs paliers (en pour cent du prix). Un serveur d'avant les remboursements ne dit ni l'une ni les autres :
+   * 0 et aucun palier.
+   */
+  pochette: { prix: number; chances: Record<Rarete, number>; remboursement: number; paliers: number[] } | null;
   bannieres: BannierePossedee[];
   porte: string | null;
 }
 
-/** `ouvrir_pochette_bannieres(p_prix_vu)` : la bannière reçue, sa rareté, et combien de trésors il reste à recevoir. */
+/**
+ * `ouvrir_pochette_bannieres(p_prix_vu)` : la bannière reçue et sa rareté, ou le remboursement (la part du prix rendue, en
+ * pour cent, et les statères rendus) ; l'un des deux, jamais les deux. Le solde après l'ouverture, et combien de trésors il
+ * reste à recevoir.
+ */
 export interface PochetteBannieresReponse {
   ok: true;
   solde: number;
-  banniere: { banniere: string; rarete: Rarete };
+  banniere: { banniere: string; rarete: Rarete } | null;
+  remboursement: { pourcent: number; rendu: number } | null;
   reste: number;
 }
 
