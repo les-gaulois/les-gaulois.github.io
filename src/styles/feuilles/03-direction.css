@@ -2581,6 +2581,28 @@
   }
 }
 
+/* Le don de statères : chaque champ sous son nom, jamais plus large que ce qu'on y tape. */
+.dir-village-don {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.25rem;
+  min-width: 0;
+  font-size: 0.9375rem;
+}
+.dir-village-don label {
+  font-weight: 600;
+}
+.dir-village-don label:not(:first-child) {
+  margin-top: 0.5rem;
+}
+.dir-village-don .field {
+  width: 100%;
+  max-width: 24rem;
+}
+.dir-village-don #village-don-montant {
+  max-width: 9rem;
+}
+
 /* Ce qu'on va enregistrer, à confirmer : un cadre jaune, « à regarder », avec son trait. */
 .dir-village-confirmation {
   display: grid;

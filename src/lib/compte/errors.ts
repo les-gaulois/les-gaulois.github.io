@@ -236,6 +236,9 @@ export const ERROR_MESSAGES: Record<string, string> = {
   mode_god: "Le mode GOD est allumé : le marché et les mises sont fermés pendant l'essai. Éteignez-le dans la Direction, onglet Village.",
   offres_ouvertes: "Vous avez une offre ouverte au marché : retirez-la avant d'allumer le mode GOD.",
 
+  // Le don de statères, le panneau d'un seul compte (migration 20261117000200_don_de_stateres).
+  unknown_member: "Ce membre n'a plus de compte validé. Actualisez la page.",
+
   // La vie du village : les bulles et l'état vocal (migration 20261113002300_village_vie).
   invalid_plafond: "Indiquez un plafond de 0 à 100 dollars, au centime près.",
   invalid_releve: "Le relevé de la vie du village est mal formé : rien n'a été noté.",

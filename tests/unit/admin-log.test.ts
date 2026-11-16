@@ -107,6 +107,9 @@ describe("le journal en clair", () => {
     expect(sentence(row("voice_channel_cleared", {}, "Chef", null))).toBe("Chef a retiré le lien du salon vocal.");
     expect(categoryOf("discord_salon_saved")).toBe("settings");
     expect(categoryOf("discord_calls_saved")).toBe("settings");
+    expect(categoryOf("stateres_don")).toBe("settings");
+    expect(sentence(row("stateres_don", { montant: 1500 }, "Chef", "Brennos"))).toMatch(/^Chef a donné 1\s500 statères à Brennos\.$/);
+    expect(sentence(row("stateres_don", {}, "Chef", "Brennos"))).toBe("Chef a donné des statères à Brennos.");
     // Les messages Discord de la Direction : le salon seulement, jamais le texte ni le lien du webhook.
     expect(sentence(row("discord_message_sent", { salon: "robot:nouvelles" }, "Chef", null))).toBe("Chef a envoyé un message dans le salon Discord des nouvelles.");
     expect(sentence(row("discord_message_sent", { salon: "appels" }, "Chef", null))).toBe("Chef a envoyé un message dans le salon Discord des appels.");
@@ -261,6 +264,7 @@ describe("l'écran du journal", () => {
     village_cap_set: "muted",
     village_god_on: "muted",
     village_god_off: "muted",
+    stateres_don: "muted",
     discord_message_sent: "muted",
     discord_message_removed: "muted",
     discord_message_salon_added: "muted",

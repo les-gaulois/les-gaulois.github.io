@@ -3,7 +3,7 @@
  * Le serveur garde les codes (`role_changed`…) et leurs détails. Rien n'est inventé ici :
  * un détail absent n'est pas écrit, et un code sans libellé reste affiché tel quel.
  */
-import { fmtCount } from "../format";
+import { fmtCount, fmtInt } from "../format";
 import { parisParts } from "../time";
 import { ROLE_LABELS, type LogRow, type Role } from "./types";
 
@@ -65,6 +65,7 @@ const CATEGORIES: Record<string, LogCategory> = {
   village_cap_set: "settings",
   village_god_on: "settings",
   village_god_off: "settings",
+  stateres_don: "settings",
   discord_message_sent: "news",
   discord_message_removed: "news",
   discord_message_salon_added: "settings",
@@ -269,6 +270,11 @@ export function describe(row: LogRow, when: (iso: string) => string): LogLine {
       return { who, what: "a allumé le mode GOD du village, pour un essai." };
     case "village_god_off":
       return { who, what: "a éteint le mode GOD du village : son Gaulois et ses statères sont redevenus ceux d'avant l'essai." };
+    // Le don de statères, le panneau d'un seul compte (migration 20261117000200_don_de_stateres).
+    case "stateres_don": {
+      const montant = details["montant"];
+      return { who, what: typeof montant === "number" && Number.isSafeInteger(montant) && montant > 0 ? `a donné ${fmtInt(montant)} statères à ${target}.` : `a donné des statères à ${target}.` };
+    }
     // Le lien du webhook n'est jamais dans le journal : seulement s'il y a un rôle pour les pings.
     case "discord_calls_saved": {
       const mention = details["mention"];

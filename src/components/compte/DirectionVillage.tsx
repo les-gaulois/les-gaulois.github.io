@@ -31,6 +31,7 @@ import {
   type ParRarete,
   type Saisie,
 } from "../../lib/village/direction";
+import { MOTIF_MAX, lireMontantDuDon, lirePanneauDuDon, nomDuMembre, type PanneauDuDon } from "../../lib/village/don";
 import { lireModeGod, type ModeGod } from "../../lib/village/god";
 import { Loading, Problem, Success, messageOf } from "./common";
 import { Pastille } from "./direction-kit";
@@ -155,6 +156,7 @@ export default function DirectionVillage({ rank }: { rank: number }) {
           </>
         )}
         <LeModeGod />
+        <LeDonDeStateres />
       </div>
     </section>
   );
@@ -233,6 +235,202 @@ function LeModeGod() {
         </button>
       </div>
       <Problem message={refus} />
+    </Bloc>
+  );
+}
+
+/**
+ * Le don de statères : le panneau d'un seul compte, que le serveur reconnaît à son identifiant Discord (migration
+ * `20261117000200_don_de_stateres.sql`). Pour tout autre compte, et tant que le serveur n'a pas répondu, rien ne s'affiche.
+ * Deux temps, comme les réglages : on prépare, on relit, on confirme. La clé de l'envoi est tirée à la préparation : un
+ * envoi répété, après une panne de réseau par exemple, ne donne pas deux fois.
+ */
+function LeDonDeStateres() {
+  const [etat, setEtat] = useState<PanneauDuDon | null>(null);
+  const [membre, setMembre] = useState("");
+  const [montant, setMontant] = useState("");
+  const [motif, setMotif] = useState("");
+  const [aConfirmer, setAConfirmer] = useState<{ id: string; nom: string; montant: number; motif: string; cle: string } | null>(null);
+  const [envoi, setEnvoi] = useState(false);
+  const [refus, setRefus] = useState<string | null>(null);
+  const [fait, setFait] = useState<string | null>(null);
+  const titreConfirmation = useRef<HTMLHeadingElement>(null);
+  // La clé d'un don dont l'envoi n'a pas abouti : le même don, préparé de nouveau, repart avec elle.
+  const enAttente = useRef<{ signature: string; cle: string } | null>(null);
+
+  useEffect(() => {
+    let vivant = true;
+    call<unknown>("get_stateres_don")
+      .then((raw) => {
+        if (vivant) setEtat(lirePanneauDuDon(raw));
+      })
+      .catch(() => undefined);
+    return () => {
+      vivant = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (aConfirmer) titreConfirmation.current?.focus();
+  }, [aConfirmer]);
+
+  if (!etat?.permis) return null;
+
+  const choisi = etat.membres.find((m) => m.id === membre) ?? null;
+  const lu = lireMontantDuDon(montant, etat.plafond);
+  const montantFaux = montant.trim() !== "" && lu === null;
+
+  const changer = (suite: () => void) => {
+    suite();
+    setAConfirmer(null);
+    setFait(null);
+    setRefus(null);
+  };
+
+  const preparer = () => {
+    if (!choisi || lu === null) return;
+    setRefus(null);
+    setFait(null);
+    const signature = JSON.stringify([choisi.id, lu, motif.trim()]);
+    if (enAttente.current?.signature !== signature) enAttente.current = { signature, cle: crypto.randomUUID() };
+    setAConfirmer({ id: choisi.id, nom: nomDuMembre(choisi), montant: lu, motif: motif.trim(), cle: enAttente.current.cle });
+  };
+
+  const donner = async () => {
+    if (!aConfirmer) return;
+    setEnvoi(true);
+    setRefus(null);
+    try {
+      const suite = lirePanneauDuDon(await call<unknown>("donner_stateres", { p_user: aConfirmer.id, p_montant: aConfirmer.montant, p_motif: aConfirmer.motif, p_cle: aConfirmer.cle }));
+      if (suite === null) setRefus("La réponse du serveur est illisible : actualisez la page avant de redonner.");
+      else {
+        setEtat(suite);
+        setFait(`${stateres(aConfirmer.montant)} donnés à ${aConfirmer.nom}.`);
+        enAttente.current = null;
+        setAConfirmer(null);
+        setMontant("");
+        setMotif("");
+      }
+    } catch (e) {
+      setRefus(messageOf(e));
+      // L'envoi a pu arriver au serveur malgré la panne : la liste des derniers dons est relue, pour le voir.
+      const relu = await call<unknown>("get_stateres_don").then(lirePanneauDuDon, () => null);
+      if (relu?.permis) setEtat(relu);
+    } finally {
+      setEnvoi(false);
+    }
+  };
+
+  return (
+    <Bloc id="village-don" titre="Donner des statères" testId="village-don">
+      <div class="dir-village-deux">
+        <div class="dir-village-don">
+          <label for="village-don-membre">Membre</label>
+          <select id="village-don-membre" class="field dir-champ" value={membre} disabled={envoi} onChange={(e) => changer(() => setMembre(e.currentTarget.value))} data-testid="village-don-membre">
+            <option value="">Choisir</option>
+            {etat.membres.map((m) => (
+              <option key={m.id} value={m.id}>
+                {nomDuMembre(m)}
+              </option>
+            ))}
+          </select>
+          <label for="village-don-montant">Statères</label>
+          <input
+            id="village-don-montant"
+            class="field dir-champ tnum"
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            spellcheck={false}
+            value={montant}
+            disabled={envoi}
+            aria-invalid={montantFaux ? "true" : undefined}
+            aria-describedby="village-don-regle"
+            onInput={(e) => changer(() => setMontant(e.currentTarget.value))}
+            data-testid="village-don-montant"
+          />
+          <label for="village-don-motif">Motif</label>
+          <input
+            id="village-don-motif"
+            class="field dir-champ"
+            type="text"
+            autoComplete="off"
+            maxLength={MOTIF_MAX}
+            value={motif}
+            disabled={envoi}
+            onInput={(e) => changer(() => setMotif(e.currentTarget.value))}
+            data-testid="village-don-motif"
+          />
+          <p id="village-don-regle" class={montantFaux ? "dir-note tnum font-semibold text-warn" : "dir-note tnum"}>
+            Un nombre entier, de 1 à {fmtInt(etat.plafond)} par don. Le motif est facultatif.
+          </p>
+        </div>
+        <div class="dir-village-agir">
+          {!aConfirmer && (
+            <div class="dir-village-boutons">
+              <button type="button" class="dir-bouton" disabled={!choisi || lu === null || envoi} onClick={preparer} data-testid="village-don-preparer">
+                Préparer le don
+              </button>
+            </div>
+          )}
+          {aConfirmer && (
+            <div class="dir-village-confirmation" data-testid="village-don-confirmation">
+              <h4 ref={titreConfirmation} tabIndex={-1}>
+                À donner
+              </h4>
+              <ul class="dir-village-lignes tnum">
+                <li>
+                  {stateres(aConfirmer.montant)} pour {aConfirmer.nom}.
+                </li>
+                {aConfirmer.motif && <li>Motif : {aConfirmer.motif}</li>}
+              </ul>
+              <p class="font-semibold text-warn">Un don ne se reprend pas ici.</p>
+              <div class="dir-village-boutons">
+                <button type="button" class="btn btn-primary" disabled={envoi} onClick={() => void donner()} data-testid="village-don-confirmer">
+                  Confirmer : donner
+                </button>
+                <button type="button" class="btn btn-ghost" disabled={envoi} onClick={() => setAConfirmer(null)}>
+                  Annuler
+                </button>
+              </div>
+            </div>
+          )}
+          {(refus || fait) && (
+            <div>
+              <Problem message={refus} />
+              {fait && <Success message={fait} />}
+            </div>
+          )}
+          <p class="dir-note">Vous seul voyez ce panneau. Chaque don est noté au journal de l'équipe.</p>
+        </div>
+      </div>
+      {etat.dons.length > 0 && (
+        <div class="mt-4">
+          <h4>Derniers dons</h4>
+          <Defile label="Les derniers dons">
+            <thead>
+            <tr>
+              <th scope="col">Le</th>
+              <th scope="col">Membre</th>
+              <th scope="col" class="dir-village-nombre">
+                Statères
+              </th>
+              <th scope="col">Motif</th>
+            </tr>
+          </thead>
+          <tbody data-testid="village-don-liste">
+            {etat.dons.map((d, i) => (
+              <tr key={`${d.le}-${i}`}>
+                <td>{fmtDateTime(d.le)}</td>
+                <td>{d.nom}</td>
+                <td class="dir-village-nombre">{fmtInt(d.montant)}</td>
+                <td>{d.motif ?? ""}</td>
+              </tr>
+            ))}
+          </tbody>
+          </Defile>
+        </div>
+      )}
     </Bloc>
   );
 }
