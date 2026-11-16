@@ -36,7 +36,7 @@ function Losanges({ rang, class: classe }: { rang: number; class: string }) {
 }
 
 /**
- * La pochette des familiers, sur « La boutique » : la seule façon d'avoir un familier. Son dessin, son prix (celui du
+ * La pochette des familiers, dans l'onglet « Pochettes » de « La boutique » : la seule façon d'avoir un familier. Son dessin, son prix (celui du
  * serveur), les chances de ce compte par rareté, toujours écrites avant d'ouvrir, combien de familiers il a, et le bouton
  * d'ouverture, ou la raison pour laquelle il ne peut pas ouvrir. Le dessin ouvre la ménagerie (l'album de la pochette,
  * `AlbumPochette.tsx`) : les cent familiers, ceux du compte en couleur, les autres en silhouette avec leur chance.
@@ -54,9 +54,9 @@ export function PochetteFamiliers({ mes, solde, onOuvrir }: { mes: MesFamiliers;
           <DessinPochetteFamiliers echelle={4} class="familiers-dessin" />
         </AlbumDePochette>
         <div class="familiers-nom">
-          <h3 id="familiers-titre" class="nom-champ familiers-titre">
+          <h4 id="familiers-titre" class="nom-champ familiers-titre">
             La pochette des familiers
-          </h3>
+          </h4>
           <Prix montant={mes.pochette.prix} class="familiers-prix" />
           <p class="familiers-compte" data-testid="familiers-compte">
             <strong class="tnum">{possedes.size}</strong> sur {FAMILIERS.length} familiers à vous

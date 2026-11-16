@@ -114,8 +114,12 @@ function CaseDeModele({ modele, etat, prix, essaye, onClick }: { modele: ModeleR
  * puis la pochette (son prix, les chances réelles de ce compte, ce qu'il lui reste à découvrir), puis les onze modèles,
  * famille par famille. `solde` : le dernier que le serveur a donné à la page. `essaye` : le modèle que le Gaulois de la
  * page essaie.
+ *
+ * `partie` (16 novembre 2026) : « modeles », l'onglet « Uniques », sans la pochette ; « pochette », la seule pochette, pour
+ * l'onglet « Pochettes » de la boutique, où le pilote a voulu toutes les pochettes. La section ne garde rien : la boutique
+ * la rend dans les deux onglets à partir de la même lecture.
  */
-export function SectionDesModeles({ etat, solde, essaye, occupe, onEssayer, onOuvrir, onHumain, onRelire }: { etat: EtatDesModeles; solde: number | null; essaye: string | null; occupe: boolean; onEssayer: (id: string | null) => void; onOuvrir: () => void; onHumain: () => void; onRelire: () => void }) {
+export function SectionDesModeles({ partie = "modeles", etat, solde, essaye, occupe, onEssayer, onOuvrir, onHumain, onRelire }: { partie?: "modeles" | "pochette"; etat: EtatDesModeles; solde: number | null; essaye: string | null; occupe: boolean; onEssayer: (id: string | null) => void; onOuvrir: () => void; onHumain: () => void; onRelire: () => void }) {
   if (etat.kind !== "pret") {
     return (
       <section class="uniques" aria-labelledby="uniques-titre" data-testid="uniques" data-etat={etat.kind}>
@@ -141,6 +145,53 @@ export function SectionDesModeles({ etat, solde, essaye, occupe, onEssayer, onOu
   const lignes = lignesDesChances(mes.pochette.chances, possedes);
   const raison = raisonPochetteFermee(mes, soldeConnu);
   const reste = resteADecouvrir(possedes);
+  const pochette = (
+    <section class="uniques-pochette" aria-labelledby="uniques-pochette-titre" data-testid="uniques-pochette">
+      <DessinDeLaPochette possedes={possedes} />
+      <div class="uniques-pochette-nom">
+        <h4 id="uniques-pochette-titre" class="nom-champ uniques-pochette-titre">
+          La pochette des Gaulois uniques
+        </h4>
+        <Prix montant={mes.pochette.prix} class="uniques-pochette-prix" />
+        {reste > 0 && (
+          <p class="uniques-compte" data-testid="uniques-reste">
+            <strong class="tnum">{reste}</strong> à découvrir
+          </p>
+        )}
+        {raison ? (
+          <p class="pochette-raison" data-testid="uniques-raison">
+            {raison}
+          </p>
+        ) : (
+          <div>
+            <button type="button" class="btn btn-primary" onClick={onOuvrir} data-testid="uniques-ouvrir">
+              Ouvrir une pochette
+            </button>
+          </div>
+        )}
+      </div>
+      {lignes && (
+        <ul class="pochette-chances uniques-chances" aria-label="Vos chances par rareté" data-testid="uniques-chances">
+          {lignes.map(({ rarete, nom, rang, chance, reste: aRecevoir }) => (
+            <li key={rarete} data-rarete={rarete}>
+              <Losanges rang={rang} />
+              <span class="pochette-rarete">{nom}</span>
+              {aRecevoir > 0 ? <span class="tnum">{pourcent(chance)}</span> : <span class="uniques-complet">tous à vous</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+      {lignes && <p class="pochette-note uniques-regle">Jamais deux fois le même.</p>}
+    </section>
+  );
+  // Dans l'onglet « Pochettes » : la pochette seule, déjà une région à son nom.
+  if (partie === "pochette") {
+    return (
+      <div class="uniques" data-testid="uniques-des-pochettes" data-etat="pret">
+        {pochette}
+      </div>
+    );
+  }
   return (
     <section class="uniques" aria-labelledby="uniques-titre" data-testid="uniques" data-etat="pret">
       <div class="uniques-tete">
@@ -160,42 +211,6 @@ export function SectionDesModeles({ etat, solde, essaye, occupe, onEssayer, onOu
         <p class="uniques-compte" data-testid="uniques-compte">
           <strong class="tnum">{possedes.size}</strong> sur {MODELES.length} à vous
         </p>
-      </div>
-
-      <div class="uniques-pochette" data-testid="uniques-pochette">
-        <DessinDeLaPochette possedes={possedes} />
-        <div class="uniques-pochette-nom">
-          <h5 class="nom-champ uniques-pochette-titre">La pochette des Gaulois uniques</h5>
-          <Prix montant={mes.pochette.prix} class="uniques-pochette-prix" />
-          {reste > 0 && (
-            <p class="uniques-compte" data-testid="uniques-reste">
-              <strong class="tnum">{reste}</strong> à découvrir
-            </p>
-          )}
-          {raison ? (
-            <p class="pochette-raison" data-testid="uniques-raison">
-              {raison}
-            </p>
-          ) : (
-            <div>
-              <button type="button" class="btn btn-primary" onClick={onOuvrir} data-testid="uniques-ouvrir">
-                Ouvrir une pochette
-              </button>
-            </div>
-          )}
-        </div>
-        {lignes && (
-          <ul class="pochette-chances uniques-chances" aria-label="Vos chances par rareté" data-testid="uniques-chances">
-            {lignes.map(({ rarete, nom, rang, chance, reste: aRecevoir }) => (
-              <li key={rarete} data-rarete={rarete}>
-                <Losanges rang={rang} />
-                <span class="pochette-rarete">{nom}</span>
-                {aRecevoir > 0 ? <span class="tnum">{pourcent(chance)}</span> : <span class="uniques-complet">tous à vous</span>}
-              </li>
-            ))}
-          </ul>
-        )}
-        {lignes && <p class="pochette-note uniques-regle">Jamais deux fois le même.</p>}
       </div>
 
       <div class="uniques-familles">

@@ -1,7 +1,8 @@
 /**
  * Le rangement de « La boutique » (15 novembre 2026 ; page `/boutique`, puis onglet de `/village` le même jour) : les achats en statères au même
  * endroit. Dans chaque rayon d'objets, ce que vend la boutique du clan et ce que vendent les membres au marché, l'un sous
- * l'autre, réduits ensemble à une rareté ; un seul Gaulois essaie l'un comme l'autre. Après l'arme, le rayon des bannières.
+ * l'autre, réduits ensemble à une rareté ; un seul Gaulois essaie l'un comme l'autre. Après l'arme, le rayon des bannières,
+ * puis celui des pochettes.
  *
  * Ici, seulement des calculs purs : ce qu'un rayon montre, combien d'offres de membres attendent dans chacun, ce qui
  * empêche d'acheter ce qu'on essaie. Rien ne décide d'un droit ni d'un prix : le serveur le fait (`contrat.ts`), et
@@ -38,22 +39,27 @@ export const RAYON_BANNIERE = "banniere";
 /** Le rayon des Gaulois uniques : leur pochette et les onze corps de créature (`modeles.ts`). */
 export const RAYON_UNIQUES = "uniques";
 
+/** Le rayon des pochettes : toutes les pochettes de la boutique (la surprise, les familiers, les bannières, les Gaulois uniques). */
+export const RAYON_POCHETTES = "pochettes";
+
 /**
  * Les rayons de la boutique, dans l'ordre de la barre. Le 15 novembre 2026, le pilote trouvait la page longue : les
  * bannières, jusque-là une section entière au-dessus du marché, sont devenues un onglet après l'arme (« ranger les
  * bannières et futur ajout dans la suite tête, haut, bas, pied, arme, bannière »). Ce qui s'ajoutera à la boutique
  * prendra de même un onglet à la suite, plutôt qu'une section de plus sur la page : les Gaulois uniques sont le septième.
+ * Le 16 novembre 2026, les pochettes (la surprise et celle des familiers, au-dessus des rayons, celle des bannières et
+ * celle des Gaulois uniques, en tête de leur onglet) ont pris le huitième, à la demande du pilote.
  */
-export const RAYONS_BOUTIQUE = [...RAYONS_OBJETS, RAYON_BANNIERE, RAYON_UNIQUES] as const;
+export const RAYONS_BOUTIQUE = [...RAYONS_OBJETS, RAYON_BANNIERE, RAYON_UNIQUES, RAYON_POCHETTES] as const;
 export type RayonBoutique = (typeof RAYONS_BOUTIQUE)[number];
 
-/** Le nom des onglets qui ne sont pas des rayons d'objets. « Uniques », pour « Gaulois uniques » : sept onglets tiennent sur un téléphone. */
-const NOMS_DES_AUTRES_RAYONS: Readonly<Record<string, string>> = { [RAYON_BANNIERE]: "Bannière", [RAYON_UNIQUES]: "Uniques" };
+/** Le nom des onglets qui ne sont pas des rayons d'objets. « Uniques », pour « Gaulois uniques ». */
+const NOMS_DES_AUTRES_RAYONS: Readonly<Record<string, string>> = { [RAYON_BANNIERE]: "Bannière", [RAYON_UNIQUES]: "Uniques", [RAYON_POCHETTES]: "Pochettes" };
 
 /** Le nom de chaque onglet de la barre. */
 export const NOMS_RAYONS = Object.fromEntries(RAYONS_BOUTIQUE.map((rayon) => [rayon, NOMS_DES_AUTRES_RAYONS[rayon] ?? NOMS_EMPLACEMENTS[rayon as RayonObjet]])) as Readonly<Record<RayonBoutique, string>>;
 
-/** Un rayon d'objets (la boutique du clan et le marché des membres), et non celui des bannières ou des Gaulois uniques ? */
+/** Un rayon d'objets (la boutique du clan et le marché des membres), et non celui des bannières, des Gaulois uniques ou des pochettes ? */
 export const estUnRayonDObjets = (rayon: RayonBoutique): rayon is RayonObjet => (RAYONS_OBJETS as readonly string[]).includes(rayon);
 
 /**
@@ -81,11 +87,37 @@ const DESSIN_ONGLET_BANNIERE = [
   "......k......",
 ] as const;
 const COULEURS_ONGLET_BANNIERE: Readonly<Record<string, string>> = { k: "#1a1410", f: "#9a6b3f", F: "#6e4a28", g: "#d4a017", y: "#ffe07a", r: "#e0283a", R: "#a51c2a" };
-export const IMAGE_DU_RAYON_BANNIERE: Vignette = {
-  largeur: DESSIN_ONGLET_BANNIERE[0].length,
-  hauteur: DESSIN_ONGLET_BANNIERE.length,
-  cases: DESSIN_ONGLET_BANNIERE.flatMap((ligne) => [...ligne].map((lettre) => COULEURS_ONGLET_BANNIERE[lettre] ?? null)),
-};
+const vignetteDOnglet = (dessin: readonly string[], couleurs: Readonly<Record<string, string>>): Vignette => ({
+  largeur: dessin[0]?.length ?? 0,
+  hauteur: dessin.length,
+  cases: dessin.flatMap((ligne) => [...ligne].map((lettre) => couleurs[lettre] ?? null)),
+});
+export const IMAGE_DU_RAYON_BANNIERE: Vignette = vignetteDOnglet(DESSIN_ONGLET_BANNIERE, COULEURS_ONGLET_BANNIERE);
+
+/**
+ * L'image de l'onglet des pochettes, décorative : la pochette surprise en petit, un sac de cuir noué d'un cordon rouge et
+ * frappé d'un losange doré, dans les couleurs de son grand dessin (`PochetteDessin.ts`).
+ */
+const DESSIN_ONGLET_POCHETTES = [
+  "....kkkkkkk....",
+  "...klcccccCk...",
+  "....klcccCk....",
+  "....krrrrrk....",
+  "...klcccccCk...",
+  "..klcccccccCk..",
+  ".klcccccccccCk.",
+  ".klccccyccccCk.",
+  "klccccyyyccccCk",
+  "klcccyyyyycccCk",
+  "klccccyyyccccCk",
+  "klcccccyccccCCk",
+  ".kcccccccccCCk.",
+  ".kCcccccccCCCk.",
+  "..kCCCCCCCCCk..",
+  "...kkkkkkkkk...",
+] as const;
+const COULEURS_ONGLET_POCHETTES: Readonly<Record<string, string>> = { k: "#3a2412", l: "#f0c27c", c: "#d99a55", C: "#8f5727", r: "#d81e33", y: "#f2b632" };
+export const IMAGE_DU_RAYON_POCHETTES: Vignette = vignetteDOnglet(DESSIN_ONGLET_POCHETTES, COULEURS_ONGLET_POCHETTES);
 
 /**
  * L'image de l'onglet des Gaulois uniques, décorative : une tête de créature à écailles vertes, deux cornes dorées, vue

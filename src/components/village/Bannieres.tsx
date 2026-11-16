@@ -252,7 +252,7 @@ function LosangesDeCase({ rang }: { rang: number }) {
 }
 
 /**
- * La pochette des bannières, en tête de l'onglet « Bannière » : la seule façon d'avoir un trésor de la pochette. Son
+ * La pochette des bannières, dans l'onglet « Pochettes » de la boutique : la seule façon d'avoir un trésor de la pochette. Son
  * dessin, son prix (celui du serveur), combien de trésors le compte a, ses chances par rareté, toujours écrites avant
  * d'ouvrir, et le bouton d'ouverture, ou la raison pour laquelle il ne peut pas ouvrir. Le dessin ouvre l'album de ses
  * trésors (`AlbumPochette.tsx`), chacun avec sa chance.
@@ -541,8 +541,12 @@ function DialogueBanniere({ lib, banniere, prix, solde, tenue, familier, acheter
  * lit qu'aux lecteurs d'écran. L'adresse des bannières (`#bannieres`) est suivie par la boutique, qui ouvre cet onglet.
  * `tenue` et `familier` : la tenue enregistrée et le familier montré. `solde` : le dernier que le serveur a donné à la
  * page ; `onSolde` le lui rend après un achat, `onRefus` après un refus (la bourse se relit).
+ *
+ * `partie` (16 novembre 2026) : ce que la section montre. « bannieres », l'onglet « Bannière » ; « pochette », la seule
+ * pochette des bannières, pour l'onglet « Pochettes ». La boutique ne garde qu'une section pour les deux onglets : le
+ * trésor sorti de la pochette est déjà dans la vitrine quand l'onglet « Bannière » se rouvre.
  */
-export function SectionDesBannieres({ tenue, familier, solde, onSolde, onRefus }: { tenue: Tenue; familier: Familier | null; solde: number | null; onSolde: (solde: number) => void; onRefus: () => void }) {
+export function SectionDesBannieres({ partie = "bannieres", tenue, familier, solde, onSolde, onRefus }: { partie?: "bannieres" | "pochette"; tenue: Tenue; familier: Familier | null; solde: number | null; onSolde: (solde: number) => void; onRefus: () => void }) {
   const { etat, lire, acheter, ouvrir, choisir } = useBannieres();
   const [famille, setFamille] = useState<ChoixDeFamille | null>(null);
   const [rarete, setRarete] = useState<Rarete | null>(null);
@@ -578,6 +582,7 @@ export function SectionDesBannieres({ tenue, familier, solde, onSolde, onRefus }
   }
 
   const { mes, lib } = etat;
+  const entiere = partie === "bannieres";
   const possedees = idsDesBannieres(mes);
   // Un serveur qui ne connaît pas encore la pochette (sa migration n'est pas collée) : ses trésors ne se montrent pas, sauf
   // ceux que le compte aurait déjà.
@@ -653,30 +658,47 @@ export function SectionDesBannieres({ tenue, familier, solde, onSolde, onRefus }
   const raisonPochette = pochette ? raisonDeLaPochetteDesBannieres(mes, soldeConnu, pochette.prix, lib.chancesDesTresorsPourMoi(pochette.chances, possedees) === null) : null;
   const chanceVue = vue && etatVu === "a-gagner" && pochette ? lib.chanceDuTresor(vue.id, pochette.chances, possedees) : 0;
 
+  // Dans l'onglet « Pochettes », un serveur qui ne connaît pas la pochette des bannières : rien à montrer.
+  if (!entiere && !pochette) return null;
+
+  // Dans l'onglet « Pochettes », la pochette est déjà une région à son nom : l'enveloppe n'en est pas une seconde.
+  const Enveloppe = entiere ? "section" : "div";
+
   return (
-    <section class="bannieres" aria-labelledby="bannieres-titre" data-testid="bannieres" data-etat="pret">
-      <div class="bannieres-tete">
-        <h4 id="bannieres-titre" class="sr-only">
-          Les bannières
-        </h4>
-        <p class="bannieres-compte" data-testid="bannieres-compte">
-          <strong class="tnum">{possedees.size}</strong> sur {liste.length} à vous
-        </p>
-      </div>
-      <p class="bannieres-porte" data-testid="bannieres-porte">
-        <span>
-          Sur /gaulois : <strong>{montree ? `« ${montree.nom} »` : "le décor de votre lieu"}</strong>
-        </span>
-        {montree && (
-          <button type="button" class="chip" disabled={occupe} onClick={() => void montrerIci(null)} data-testid="bannieres-decor">
-            Revenir au décor de mon lieu
-          </button>
-        )}
-      </p>
+    <Enveloppe class="bannieres" aria-labelledby={entiere ? "bannieres-titre" : undefined} data-testid="bannieres" data-etat="pret">
+      {entiere && (
+        <>
+          <div class="bannieres-tete">
+            <h4 id="bannieres-titre" class="sr-only">
+              Les bannières
+            </h4>
+            <p class="bannieres-compte" data-testid="bannieres-compte">
+              <strong class="tnum">{possedees.size}</strong> sur {liste.length} à vous
+            </p>
+          </div>
+          <p class="bannieres-porte" data-testid="bannieres-porte">
+            <span>
+              Sur /gaulois : <strong>{montree ? `« ${montree.nom} »` : "le décor de votre lieu"}</strong>
+            </span>
+            {montree && (
+              <button type="button" class="chip" disabled={occupe} onClick={() => void montrerIci(null)} data-testid="bannieres-decor">
+                Revenir au décor de mon lieu
+              </button>
+            )}
+          </p>
+        </>
+      )}
 
-      {pochette && <PochetteDesBannieres lib={lib} mes={{ ...mes, pochette }} possedees={possedees} raison={raisonPochette} onOuvrir={() => setPochetteOuverte(true)} />}
+      {pochette && !entiere && <PochetteDesBannieres lib={lib} mes={{ ...mes, pochette }} possedees={possedees} raison={raisonPochette} onOuvrir={() => setPochetteOuverte(true)} />}
+      {/* Sans la vitrine, qui le dit dans l'onglet « Bannière » : ce qui vient de se passer (trésor reçu, mis sur /gaulois). */}
+      {!entiere && (
+        <div class="banniere-avis" data-testid="bannieres-pochette-avis">
+          <Success message={pochetteOuverte ? null : reussite} />
+          <Problem message={pochetteOuverte ? null : probleme} />
+        </div>
+      )}
 
-      {vue && etatVu && (
+      {entiere && vue && etatVu && (
         <div ref={vitrine} class="banniere-vitrine" data-rarete={vue.rarete} data-testid="banniere-vitrine" data-banniere={vue.id} data-etat={etatVu}>
           <figure class="banniere-vue">
             <Scene lib={lib} banniere={vue} tenue={tenue} familier={familier} />
@@ -709,7 +731,7 @@ export function SectionDesBannieres({ tenue, familier, solde, onSolde, onRefus }
                 <>
                   <MotsDeLEtat etat={etatVu} />
                   <p class="banniere-pochette-mot" data-testid="banniere-pochette-mot">
-                    Ne s'achète pas : elle ne sort que de la pochette des bannières
+                    Ne s'achète pas : elle ne sort que de la pochette des bannières, dans l'onglet « Pochettes »
                     {chanceVue > 0 && (
                       <>
                         , <span class="tnum">{pourcent(chanceVue)}</span> de chance dans votre prochaine pochette
@@ -739,37 +761,40 @@ export function SectionDesBannieres({ tenue, familier, solde, onSolde, onRefus }
         </div>
       )}
 
-      <div class="bannieres-filtres">
-        <div class="vestiaire-filtre" role="group" aria-label="Montrer une famille" data-testid="bannieres-familles">
-          {familles.map((id) => (
-            <button key={id} type="button" class="chip filtre" aria-pressed={familleRetenue === id} onClick={() => setFamille(id)} data-testid={`bannieres-famille-${id}`}>
-              {lib.FAMILLES_DES_BANNIERES[id]}
+      {entiere && (
+        <div class="bannieres-filtres">
+          <div class="vestiaire-filtre" role="group" aria-label="Montrer une famille" data-testid="bannieres-familles">
+            {familles.map((id) => (
+              <button key={id} type="button" class="chip filtre" aria-pressed={familleRetenue === id} onClick={() => setFamille(id)} data-testid={`bannieres-famille-${id}`}>
+                {lib.FAMILLES_DES_BANNIERES[id]}
+              </button>
+            ))}
+            <button type="button" class="chip filtre" aria-pressed={familleRetenue === TOUTES} onClick={() => setFamille(TOUTES)} data-testid="bannieres-famille-toutes">
+              Toutes
+              <span class="filtre-nombre tnum">{liste.length}</span>
+              <span class="sr-only"> bannières</span>
             </button>
-          ))}
-          <button type="button" class="chip filtre" aria-pressed={familleRetenue === TOUTES} onClick={() => setFamille(TOUTES)} data-testid="bannieres-famille-toutes">
-            Toutes
-            <span class="filtre-nombre tnum">{liste.length}</span>
-            <span class="sr-only"> bannières</span>
-          </button>
-        </div>
-        <div class="vestiaire-filtre" role="group" aria-label="Montrer une rareté" data-testid="bannieres-raretes">
-          <button type="button" class="chip filtre" aria-pressed={rareteRetenue === null} onClick={() => setRarete(null)} data-testid="bannieres-rarete-tout">
-            Tout
-            <span class="filtre-nombre tnum">{total}</span>
-            <span class="sr-only"> {total > 1 ? "bannières" : "bannière"}</span>
-          </button>
-          {ORDRE_RARETES.map((r) => (
-            <button key={r} type="button" class="chip filtre" data-rarete={r} aria-pressed={rareteRetenue === r} disabled={comptes[r] === 0} onClick={() => setRarete(rareteRetenue === r ? null : r)} data-testid={`bannieres-rarete-${r}`}>
-              <Losanges rang={RARETES[r].rang} />
-              {RARETES[r].nom}
-              <span class="filtre-nombre tnum">{comptes[r]}</span>
-              <span class="sr-only"> {comptes[r] > 1 ? "bannières" : "bannière"}</span>
+          </div>
+          <div class="vestiaire-filtre" role="group" aria-label="Montrer une rareté" data-testid="bannieres-raretes">
+            <button type="button" class="chip filtre" aria-pressed={rareteRetenue === null} onClick={() => setRarete(null)} data-testid="bannieres-rarete-tout">
+              Tout
+              <span class="filtre-nombre tnum">{total}</span>
+              <span class="sr-only"> {total > 1 ? "bannières" : "bannière"}</span>
             </button>
-          ))}
+            {ORDRE_RARETES.map((r) => (
+              <button key={r} type="button" class="chip filtre" data-rarete={r} aria-pressed={rareteRetenue === r} disabled={comptes[r] === 0} onClick={() => setRarete(rareteRetenue === r ? null : r)} data-testid={`bannieres-rarete-${r}`}>
+                <Losanges rang={RARETES[r].rang} />
+                {RARETES[r].nom}
+                <span class="filtre-nombre tnum">{comptes[r]}</span>
+                <span class="sr-only"> {comptes[r] > 1 ? "bannières" : "bannière"}</span>
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      {rangees.map((rangee) => (
+      {entiere &&
+        rangees.map((rangee) => (
         <section key={rangee.famille} class="bannieres-famille" aria-labelledby={`bannieres-famille-${rangee.famille}`} data-testid="bannieres-famille">
           {/* Une seule famille : son nom est déjà celui du choix retenu, juste au-dessus. */}
           <h5 id={`bannieres-famille-${rangee.famille}`} class={filtreFamille ? "sr-only" : "vestiaire-boutique"}>
@@ -819,7 +844,7 @@ export function SectionDesBannieres({ tenue, familier, solde, onSolde, onRefus }
           }}
         />
       )}
-    </section>
+    </Enveloppe>
   );
 }
 

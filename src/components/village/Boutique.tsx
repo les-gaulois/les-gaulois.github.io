@@ -1,4 +1,4 @@
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { ServerError, basePath, call } from "../../lib/compte/api";
 import { fmtInt } from "../../lib/format";
 import { ADRESSE_VILLAGE, OBJETS, ORDRE_RARETES, RARETES, TENUE_DE_DEPART, changerObjet, tenueDuServeur, vignetteDeLObjet, type Emplacement, type Tenue } from "../../lib/gaulois";
@@ -6,10 +6,12 @@ import type { MesStateres } from "../../lib/stateres";
 import {
   ANCRE_MARCHE,
   IMAGE_DU_RAYON_BANNIERE,
+  IMAGE_DU_RAYON_POCHETTES,
   IMAGE_DU_RAYON_UNIQUES,
   NOMS_RAYONS,
   RAYONS_BOUTIQUE,
   RAYON_BANNIERE,
+  RAYON_POCHETTES,
   RAYON_UNIQUES,
   demandeLeMarche,
   essaiValide,
@@ -137,11 +139,13 @@ const ID_DES_RAYONS = "boutique-rayons-choix";
  * ensemble à une rareté. Le sixième onglet, « Bannière », tient les bannières de /gaulois (`Bannieres.tsx`). Jusqu'au 15
  * novembre 2026, elles formaient une section entière de la page ; le pilote trouvait la page trop longue, et elles sont
  * passées dans cet onglet. Le septième, « Uniques », tient les Gaulois uniques (`SectionModeles.tsx`). Ce qui s'ajoutera
- * prendra un onglet à la suite (`RAYONS_BOUTIQUE`). La pochette surprise,
- * « Vendre un objet » et « Vos offres » sont au-dessus des rayons.
+ * prendra un onglet à la suite (`RAYONS_BOUTIQUE`). « Vendre un objet » et « Vos offres » sont au-dessus des rayons.
  *
- * La pochette des familiers et la ménagerie (15 novembre 2026, `PochetteFamiliers.tsx`) sont entre la bourse et le marché :
- * un familier ne s'obtient que là. Le familier que le compte montre se tient à côté du Gaulois d'essayage. Leurs fonctions
+ * Le huitième onglet, « Pochettes » (16 novembre 2026, à la demande du pilote), tient les quatre pochettes : la surprise,
+ * celle des familiers avec sa ménagerie (`PochetteFamiliers.tsx`), celle des bannières (dans `Bannieres.tsx`) et celle des
+ * Gaulois uniques (dans `SectionModeles.tsx`). Jusque-là, les deux premières étaient au-dessus des rayons, les deux autres
+ * en tête de leur onglet. Un familier ne s'obtient
+ * que là ; `#familiers` ouvre l'onglet. Le familier que le compte montre se tient à côté du Gaulois d'essayage. Leurs fonctions
  * (`get_mes_familiers`, `ouvrir_pochette_familiers`, `choisir_familier`) sont à part : en panne, le reste de la page marche.
  *
  * Les Gaulois uniques (15 novembre 2026, `SectionModeles.tsx`) sont le septième onglet : leur pochette, puis les onze
@@ -169,8 +173,8 @@ export default function Boutique() {
   const [panne, setPanne] = useState(false);
   const [essai, setEssai] = useState<Essai | null>(null);
   const [rayon, setRayon] = useState<RayonBoutique>(RAYONS_BOUTIQUE[0]);
-  // Les bannières ne se lisent qu'au premier passage dans leur onglet (leurs dessins pèsent lourd) ; elles restent
-  // ensuite à la page, cachées dans un autre rayon, pour garder la vitrine et les filtres choisis.
+  // Les bannières ne se lisent qu'au premier passage dans leur onglet ou dans celui des pochettes (leurs dessins pèsent
+  // lourd) ; elles restent ensuite à la page, cachées dans un autre rayon, pour garder la vitrine et les filtres choisis.
   const [bannieresOuvertes, setBannieresOuvertes] = useState(false);
   // De même pour les Gaulois uniques, le septième onglet.
   const [uniquesOuverts, setUniquesOuverts] = useState(false);
@@ -192,6 +196,8 @@ export default function Boutique() {
   const [appelDuMarche, setAppelDuMarche] = useState(0);
   // De même pour les bannières (`#bannieres`, le lien de « Mon Gaulois ») : leur onglet s'ouvre, la page descend aux rayons.
   const [appelDesRayons, setAppelDesRayons] = useState(0);
+  // De même pour la pochette des familiers (`#familiers`) : l'onglet « Pochettes » s'ouvre, la page y descend.
+  const [appelDesFamiliers, setAppelDesFamiliers] = useState(0);
   const maintenant = useNow();
 
   /** La boutique et la bourse, relues ensemble : l'une sans l'autre ne bloque rien. */
@@ -241,6 +247,12 @@ export default function Boutique() {
     setAppelDesRayons((n) => n + 1);
   };
 
+  /** Arrivé par l'adresse de la pochette des familiers : l'onglet « Pochettes » s'ouvre, la page y descend. */
+  const allerAuxFamiliers = () => {
+    setRayon(RAYON_POCHETTES);
+    setAppelDesFamiliers((n) => n + 1);
+  };
+
   const lire = async () => {
     setEtat({ kind: "lecture" });
     try {
@@ -251,6 +263,7 @@ export default function Boutique() {
       if (demandeLeMarche(location.hash)) allerAuMarche(marche);
       if (demandeLesBannieres(location.hash)) allerAuxBannieres();
       if (demandeLesModeles(location.hash)) allerAuxUniques();
+      if (demandeLesFamiliers(location.hash)) allerAuxFamiliers();
     } catch (e) {
       setEtat({ kind: "erreur", message: messageOf(e) });
     }
@@ -263,12 +276,13 @@ export default function Boutique() {
   const marcheLu = etatMarche.kind === "pret" ? etatMarche.marche : null;
   const offres = marcheLu?.offres ?? SANS_OFFRE;
 
-  // Un lien vers le marché ou vers les bannières suivi dans la page elle-même.
+  // Un lien vers le marché, les bannières ou la pochette des familiers suivi dans la page elle-même.
   useEffect(() => {
     const surAdresse = () => {
       if (demandeLeMarche(location.hash)) allerAuMarche(marcheLu);
       if (demandeLesBannieres(location.hash)) allerAuxBannieres();
       if (demandeLesModeles(location.hash)) allerAuxUniques();
+      if (demandeLesFamiliers(location.hash)) allerAuxFamiliers();
     };
     window.addEventListener("hashchange", surAdresse);
     return () => window.removeEventListener("hashchange", surAdresse);
@@ -281,26 +295,18 @@ export default function Boutique() {
     if (appelDesRayons > 0) document.getElementById(ID_DES_RAYONS)?.scrollIntoView({ behavior: "instant", block: "start" });
   }, [appelDesRayons]);
 
+  // La pochette des familiers, si elle est dessinée ; sinon (sa fonction en panne), le haut des rayons.
   useEffect(() => {
-    if (rayon === RAYON_BANNIERE) setBannieresOuvertes(true);
-  }, [rayon]);
+    if (appelDesFamiliers > 0) (document.getElementById(ANCRE_FAMILIERS) ?? document.getElementById(ID_DES_RAYONS))?.scrollIntoView({ behavior: "instant", block: "start" });
+  }, [appelDesFamiliers]);
 
-  // Arrivé par l'adresse de la pochette des familiers (`#familiers`, le lien de « Mon Gaulois ») : la page y descend, une
-  // fois dessinée, et de nouveau si le lien est suivi dans la page.
-  const familiersPrets = etat.kind === "pret" && etat.enregistree !== null && familiers.etat.kind !== "lecture";
   useEffect(() => {
-    if (!familiersPrets) return;
-    const descendre = () => {
-      if (demandeLesFamiliers(location.hash)) document.getElementById(ANCRE_FAMILIERS)?.scrollIntoView({ behavior: "instant", block: "start" });
-    };
-    descendre();
-    window.addEventListener("hashchange", descendre);
-    return () => window.removeEventListener("hashchange", descendre);
-  }, [familiersPrets]);
+    if (rayon === RAYON_BANNIERE || rayon === RAYON_POCHETTES) setBannieresOuvertes(true);
+  }, [rayon]);
 
   // Les Gaulois uniques ne se lisent qu'au premier passage dans leur onglet, comme les bannières.
   useEffect(() => {
-    if (rayon !== RAYON_UNIQUES || uniquesOuverts) return;
+    if ((rayon !== RAYON_UNIQUES && rayon !== RAYON_POCHETTES) || uniquesOuverts) return;
     setUniquesOuverts(true);
     void modeles.lire();
   }, [rayon]);
@@ -544,6 +550,15 @@ export default function Boutique() {
     );
 
   const { racine, scene, barre, panneau } = useSceneCollee(rayon, etat.kind);
+  // Ce que la section des bannières montre : sa galerie dans « Bannière », sa seule pochette dans « Pochettes ». Cachée sous
+  // un autre rayon, elle garde sa dernière forme : la galerie ne se dessine pas pour rien.
+  const partieDesBannieres = useRef<"bannieres" | "pochette">("bannieres");
+  if (rayon === RAYON_BANNIERE) partieDesBannieres.current = "bannieres";
+  else if (rayon === RAYON_POCHETTES) partieDesBannieres.current = "pochette";
+  // De même pour les Gaulois uniques : leurs modèles dans « Uniques », leur seule pochette dans « Pochettes ».
+  const partieDesUniques = useRef<"modeles" | "pochette">("modeles");
+  if (rayon === RAYON_UNIQUES) partieDesUniques.current = "modeles";
+  else if (rayon === RAYON_POCHETTES) partieDesUniques.current = "pochette";
 
   if (etat.kind === "lecture") return <Loading label="Lecture de la boutique…" />;
   if (etat.kind === "erreur") return <Problem message={etat.message} onRetry={() => void lire()} />;
@@ -570,7 +585,7 @@ export default function Boutique() {
   const miennes = mesOffres(offres);
   const soldeConnu = solde ?? boutique?.solde ?? null;
   const fermee = boutique && !boutique.peut_acheter ? raisonBoutiqueFermee(true) : null;
-  // Le rayon d'objets ouvert, s'il en est un (et non celui des bannières).
+  // Le rayon d'objets ouvert, s'il en est un (et non celui des bannières ou des pochettes).
   const rayonObjets = estUnRayonDObjets(rayon) ? rayon : null;
   const possede = (id: string): number => (boutique && rayonObjets ? quantitePossedee(boutique.inventaire, rayonObjets, id) : 0);
   const range = rayonObjets ? rangerLaBoutique(rayonObjets, possede, offres, filtres[rayonObjets]) : null;
@@ -696,22 +711,14 @@ export default function Boutique() {
 
       <div class="vestiaire-colonne">
         <h3 class="sr-only">Vos statères</h3>
-        {(bourse || boutique) && (
+        {bourse && (
           <div class="boutique-tete">
-            {bourse && <Bourse bourse={bourse} solde={soldeConnu} />}
-            {boutique && <Pochette boutique={boutique} solde={soldeConnu ?? boutique.solde} fermee={fermee} onOuvrir={() => setFenetre({ kind: "pochette" })} />}
+            <Bourse bourse={bourse} solde={soldeConnu} />
           </div>
         )}
         {panne && (
           <div data-testid="boutique-panne">
             <Problem message={bourse || boutique ? "Une partie de la boutique ne répond pas pour l'instant." : "La bourse et la boutique ne répondent pas pour l'instant."} onRetry={() => void lireLaBoutique()} />
-          </div>
-        )}
-
-        {familiers.mes && <PochetteFamiliers mes={familiers.mes} solde={soldeConnu ?? familiers.mes.solde} onOuvrir={() => setFenetre({ kind: "familiers" })} />}
-        {familiers.etat.kind === "panne" && (
-          <div data-testid="familiers-panne">
-            <Problem message="La pochette des familiers ne répond pas pour l'instant." onRetry={() => void familiers.lire()} />
           </div>
         )}
 
@@ -772,7 +779,7 @@ export default function Boutique() {
               rayons={RAYONS_BOUTIQUE}
               noms={NOMS_RAYONS}
               rayon={rayon}
-              vignette={(id) => (estUnRayonDObjets(id) ? vignetteDeLObjet(id, tenue[id] ?? "", tenue) : id === RAYON_UNIQUES ? IMAGE_DU_RAYON_UNIQUES : IMAGE_DU_RAYON_BANNIERE)}
+              vignette={(id) => (estUnRayonDObjets(id) ? vignetteDeLObjet(id, tenue[id] ?? "", tenue) : id === RAYON_UNIQUES ? IMAGE_DU_RAYON_UNIQUES : id === RAYON_BANNIERE ? IMAGE_DU_RAYON_BANNIERE : IMAGE_DU_RAYON_POCHETTES)}
               mention={(id) => (estUnRayonDObjets(id) && comptesDesOffres[id] > 0 ? motsDesOffres(comptesDesOffres[id]) : null)}
               onChoisir={setRayon}
             />
@@ -833,12 +840,27 @@ export default function Boutique() {
                 </div>
               </div>
             )}
+            {/* Les pochettes : la surprise, puis celle des familiers ; celle des bannières vient juste dessous, de la
+                section des bannières. Une fonction en panne n'emporte pas les autres pochettes. */}
+            {rayon === RAYON_POCHETTES && (
+              <>
+                {boutique && <Pochette boutique={boutique} solde={soldeConnu ?? boutique.solde} fermee={fermee} onOuvrir={() => setFenetre({ kind: "pochette" })} />}
+                {familiers.mes && <PochetteFamiliers mes={familiers.mes} solde={soldeConnu ?? familiers.mes.solde} onOuvrir={() => setFenetre({ kind: "familiers" })} />}
+                {familiers.etat.kind === "panne" && (
+                  <div data-testid="familiers-panne">
+                    <Problem message="La pochette des familiers ne répond pas pour l'instant." onRetry={() => void familiers.lire()} />
+                  </div>
+                )}
+              </>
+            )}
             {/* Les bannières de /gaulois : derrière la tenue enregistrée, jamais derrière un essayage. Après un achat, la
                 bourse de la page prend le solde que le serveur a répondu ; après un refus, elle se relit. Lues à la
-                première ouverture de leur onglet, puis seulement cachées quand un autre rayon s'ouvre. */}
-            {(bannieresOuvertes || rayon === RAYON_BANNIERE) && (
-              <div hidden={rayon !== RAYON_BANNIERE}>
+                première ouverture de leur onglet ou de celui des pochettes, puis seulement cachées quand un autre rayon
+                s'ouvre. Une seule section pour les deux onglets : dans « Pochettes », elle ne montre que sa pochette. */}
+            {(bannieresOuvertes || rayon === RAYON_BANNIERE || rayon === RAYON_POCHETTES) && (
+              <div hidden={rayon !== RAYON_BANNIERE && rayon !== RAYON_POCHETTES}>
                 <SectionDesBannieres
+                  partie={partieDesBannieres.current}
                   tenue={etat.enregistree}
                   familier={familiers.montre}
                   solde={soldeConnu}
@@ -851,10 +873,12 @@ export default function Boutique() {
               </div>
             )}
             {/* Les Gaulois uniques : leur pochette et les onze modèles, qui s'essaient sur le Gaulois de la page. Lus à la
-                première ouverture de leur onglet, puis seulement cachés quand un autre rayon s'ouvre. */}
-            {(uniquesOuverts || rayon === RAYON_UNIQUES) && (
-              <div hidden={rayon !== RAYON_UNIQUES}>
+                première ouverture de leur onglet ou de celui des pochettes, puis seulement cachés quand un autre rayon
+                s'ouvre. Dans « Pochettes », la section ne montre que leur pochette. */}
+            {(uniquesOuverts || rayon === RAYON_UNIQUES || rayon === RAYON_POCHETTES) && (
+              <div hidden={rayon !== RAYON_UNIQUES && rayon !== RAYON_POCHETTES}>
                 <SectionDesModeles
+                  partie={partieDesUniques.current}
                   etat={modeles.etat}
                   solde={soldeConnu}
                   essaye={modeleEnEssai?.id ?? null}

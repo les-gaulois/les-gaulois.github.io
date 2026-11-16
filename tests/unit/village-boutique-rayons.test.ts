@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import { EMPLACEMENTS_OBJETS, OBJETS, type Emplacement, type Rarete } from "../../src/lib/gaulois";
 import {
   IMAGE_DU_RAYON_BANNIERE,
+  IMAGE_DU_RAYON_POCHETTES,
   IMAGE_DU_RAYON_UNIQUES,
   NOMS_RAYONS,
   RAYONS_BOUTIQUE,
   RAYONS_OBJETS,
   RAYON_BANNIERE,
+  RAYON_POCHETTES,
   RAYON_UNIQUES,
   demandeLeMarche,
   essaiValide,
@@ -41,14 +43,15 @@ function offre(emplacement: Emplacement, objet: string, plus: Partial<OffreLisib
 }
 
 describe("les rayons de la boutique", () => {
-  it("sont les emplacements d'objets, puis les bannières et les Gaulois uniques : le corps, gratuit, n'a pas de rayon", () => {
+  it("sont les emplacements d'objets, puis les bannières, les Gaulois uniques et les pochettes : le corps, gratuit, n'a pas de rayon", () => {
     // L'ordre voulu par le pilote le 15 novembre 2026 : tête, haut, bas, pieds, arme, bannière ; tout ajout à la suite.
     expect(RAYONS_OBJETS).toEqual(EMPLACEMENTS_OBJETS);
-    expect(RAYONS_BOUTIQUE).toEqual([...EMPLACEMENTS_OBJETS, RAYON_BANNIERE, RAYON_UNIQUES]);
-    expect(RAYONS_BOUTIQUE.map((rayon) => NOMS_RAYONS[rayon])).toEqual(["Tête", "Haut", "Bas", "Pieds", "Arme", "Bannière", "Uniques"]);
+    expect(RAYONS_BOUTIQUE).toEqual([...EMPLACEMENTS_OBJETS, RAYON_BANNIERE, RAYON_UNIQUES, RAYON_POCHETTES]);
+    expect(RAYONS_BOUTIQUE.map((rayon) => NOMS_RAYONS[rayon])).toEqual(["Tête", "Haut", "Bas", "Pieds", "Arme", "Bannière", "Uniques", "Pochettes"]);
     expect(RAYONS_BOUTIQUE.filter(estUnRayonDObjets)).toEqual(EMPLACEMENTS_OBJETS);
     expect(estUnRayonDObjets(RAYON_BANNIERE)).toBe(false);
     expect(estUnRayonDObjets(RAYON_UNIQUES)).toBe(false);
+    expect(estUnRayonDObjets(RAYON_POCHETTES)).toBe(false);
   });
 
   it("l'onglet des Gaulois uniques a son image, entière, aux rangées de même longueur", () => {
@@ -64,13 +67,17 @@ describe("les rayons de la boutique", () => {
     expect(rangees.some((y) => pleine(0, y)) && rangees.some((y) => pleine(largeur - 1, y))).toBe(true);
   });
 
-  it("l'onglet des bannières a son image, entière et dans les couleurs du Gaulois", () => {
-    const { largeur, hauteur, cases } = IMAGE_DU_RAYON_BANNIERE;
+  it.each([
+    ["bannières", IMAGE_DU_RAYON_BANNIERE],
+    ["pochettes", IMAGE_DU_RAYON_POCHETTES],
+  ])("l'onglet des %s a son image, entière et sans lettre oubliée", (_nom, { largeur, hauteur, cases }) => {
+    expect(largeur).toBeGreaterThan(0);
     expect(cases).toHaveLength(largeur * hauteur);
     // Assez petite pour l'onglet (44 pixels de haut), agrandie deux fois.
     expect(hauteur * 2).toBeLessThanOrEqual(44);
     expect(cases.every((couleur) => couleur === null || /^#[0-9a-f]{6}$/.test(couleur))).toBe(true);
-    expect(cases.some((couleur) => couleur !== null)).toBe(true);
+    // Le contour ferme le dessin : chaque rangée a des cases peintes.
+    for (let y = 0; y < hauteur; y++) expect(cases.slice(y * largeur, (y + 1) * largeur).some((couleur) => couleur !== null)).toBe(true);
   });
 
   it("le marché ne compte pas d'offre dans le rayon des bannières : une bannière ne se revend pas", () => {

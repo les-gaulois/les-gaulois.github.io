@@ -876,16 +876,16 @@
   color: var(--ecriture);
   white-space: nowrap;
 }
-/* En tête de la colonne des choix : la bourse et la pochette surprise, côte à côte quand la place le permet. */
+/* En tête de la colonne des choix : la bourse. La pochette surprise, à côté d'elle jusqu'au 16 novembre 2026, est dans
+   l'onglet « Pochettes » des rayons, première du panneau : sans le filet qui la séparait de ce qui était au-dessus. */
 .boutique-tete {
   display: grid;
   gap: 1.5rem 2.5rem;
   align-items: start;
 }
-@media (min-width: 1100px) {
-  .boutique-tete {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  }
+.vestiaire-panneau > .pochette {
+  padding-top: 0;
+  border-top: 0;
 }
 .bourse,
 .pochette {
@@ -1663,12 +1663,41 @@
    membres (la gravure de la forge, payée en statères elle aussi, reste sur /village). La page reprend la scène du vestiaire (le Gaulois à gauche, collé en haut sur téléphone), ses cases
    et sa barre de rayons ; ici, seulement ce qu'elle a de plus. */
 
-/* Sept rayons : tête, haut, bas, pieds, arme, puis les bannières et les Gaulois uniques ; le corps, gratuit, n'en a pas. Chaque onglet a au
-   moins la place de son nom (« Bannière », le plus long, ne déborde pas sur un téléphone de 360 px) et du plus long mot
-   de ses offres, qui passent à la ligne quand la place manque (« 10 / offres ») ; la place qui reste se partage à parts
-   égales, et sur grand écran les sept onglets ont la même largeur. */
+/* Huit rayons : tête, haut, bas, pieds, arme, puis les bannières, les Gaulois uniques et les pochettes ; le corps,
+   gratuit, n'en a pas. Chaque onglet a au moins la place de son nom et du plus long mot de ses offres, qui passent à la
+   ligne quand la place manque (« 10 / offres ») ; la place qui reste se partage à parts égales, et sur grand écran les
+   huit onglets ont la même largeur. Quand la barre est étroite (un téléphone, ou la colonne à côté du Gaulois sur un
+   écran moyen), huit noms ne tiennent pas sur une ligne : deux rangées, les cinq objets en haut, les bannières, les
+   Gaulois uniques et les pochettes dessous, sur toute la largeur. C'est la largeur de la barre qui en décide, pas celle
+   de l'écran. */
+.boutique-page .vestiaire-barre {
+  container: barre-boutique / inline-size;
+}
 .boutique-page .vestiaire-rayons {
-  grid-template-columns: repeat(7, minmax(min-content, 1fr));
+  grid-template-columns: repeat(8, minmax(min-content, 1fr));
+}
+@container barre-boutique (max-width: 52rem) {
+  .boutique-page .vestiaire-rayons {
+    grid-template-columns: repeat(15, minmax(0, 1fr));
+  }
+  .boutique-page .vestiaire-rayon-onglet {
+    grid-column: span 3;
+  }
+  .boutique-page .vestiaire-rayon-onglet:nth-child(n + 6) {
+    grid-column: span 5;
+  }
+}
+/* La barre collée a alors une rangée de plus : ce qui revient à l'écran s'arrête plus bas d'autant. Sur téléphone, sans
+   images, une rangée fait 2,5 rem ; au-delà, avec les images, 5 rem, tant que l'écran ne laisse pas 52 rem à la barre. */
+@media (max-width: 767px) and (min-height: 560px) {
+  .boutique-page .vestiaire-panneau :is(.case, .filtre, .marche-offre-essai, .marche-offre-bouton, .banniere-case, .banniere-vitrine, .familiers) {
+    scroll-margin-top: calc(11.5rem + var(--vestiaire-scene, 13.5rem));
+  }
+}
+@media (min-width: 768px) and (max-width: 1229px) {
+  .boutique-page .vestiaire-panneau :is(.case, .filtre, .marche-offre-essai, .marche-offre-bouton, .banniere-case, .banniere-vitrine, .familiers) {
+    scroll-margin-top: 16.5rem;
+  }
 }
 /* Sur téléphone, l'onglet ouvert garde un peu de fond de chaque côté de son nom. */
 @media (max-width: 767px) {
@@ -1876,16 +1905,17 @@
 
 /* La pochette des familiers : l'objet le plus rare de la boutique, dans un cadre doré comme une case légendaire. Son
    dessin et son nom, son prix, le nombre de familiers du compte et le bouton ; ses chances à côté sur un grand écran,
-   dessous sinon ; la règle au pied. Un lien vers elle (#familiers) s'arrête sous l'en-tête, et sous le Gaulois collé. */
+   dessous sinon ; la règle au pied. Un lien vers elle (#familiers) ouvre l'onglet « Pochettes » et s'arrête sous l'en-tête
+   et la barre des rayons, collée, et sous le Gaulois collé sur téléphone. */
 .familiers {
   display: grid;
   gap: 0.5rem;
   min-width: 0;
-  scroll-margin-top: 5.5rem;
+  scroll-margin-top: 11.5rem;
 }
 @media (max-width: 767px) and (min-height: 560px) {
   .familiers {
-    scroll-margin-top: calc(5.5rem + var(--vestiaire-scene, 13.5rem));
+    scroll-margin-top: calc(9rem + var(--vestiaire-scene, 13.5rem));
   }
 }
 .familiers-vitrine {
@@ -2414,7 +2444,7 @@
 }
 
 /* ---------- La pochette des bannières (16 novembre 2026) ---------- */
-/* En tête de l'onglet « Bannière » : la pochette des « trésors », les bannières qui ne s'achètent pas. Comme la pochette
+/* Dans l'onglet « Pochettes » (en tête de l'onglet « Bannière » jusqu'au 16 novembre 2026) : la pochette des « trésors », les bannières qui ne s'achètent pas. Comme la pochette
    des familiers, un cadre doré ; un fond de velours violet, la couleur de son dessin. Son dessin et son nom, son prix, les
    trésors du compte et le bouton ; ses chances à côté quand la colonne est large, dessous sinon ; la règle au pied. */
 .bannieres-pochette {

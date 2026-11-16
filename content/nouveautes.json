@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-16",
+    "kind": "ameliore",
+    "title": "Les pochettes dans leur onglet",
+    "body": "La pochette surprise, celle des familiers, celle des bannières et celle des Gaulois uniques sont réunies dans un onglet « Pochettes », au bout de la barre des rayons de la boutique.",
+    "link": {
+      "href": "/village#boutique",
+      "label": "Ouvrir la boutique"
+    }
+  },
+  {
+    "date": "2026-11-16",
     "kind": "nouveau",
     "title": "Les Gaulois uniques",
     "body": "11 corps de créature pour votre Gaulois, du lézard au dragon : dans l'onglet « Uniques » de la boutique, ou dans leur pochette, qui ne donne jamais deux fois le même. Vos objets se portent dessus.",
