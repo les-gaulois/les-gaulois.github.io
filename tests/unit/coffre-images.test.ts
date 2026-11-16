@@ -22,7 +22,9 @@ import {
   GARDIENS,
   GRANDE,
   HUMEURS,
+  ECHELLE_DU_PODIUM,
   IMAGE_DU_COFFRE,
+  MARCHES_DU_PODIUM,
   PETITE,
   SIGNES_DES_HUMEURS,
   casesDuCoffre,
@@ -163,6 +165,19 @@ describe("les images", () => {
       const image = await lirePng(png);
       expect(image).toMatchObject({ largeur: IMAGE_DU_COFFRE.largeur, hauteur: IMAGE_DU_COFFRE.hauteur });
     }
+  });
+
+  it("sur le podium, chaque Gaulois tient tout entier dans l'image, de la tête aux pieds", () => {
+    const scene = IMAGE_DU_COFFRE.hauteur - IMAGE_DU_COFFRE.bandeau;
+    for (const marche of MARCHES_DU_PODIUM) {
+      // Sa grille fait 48 cases sur 64 : rien ne dépasse en haut, sur les côtés, ni sous la scène, et sa marche garde la place de deux lignes.
+      expect(marche.haut).toBeGreaterThanOrEqual(0);
+      expect(marche.cx - 24 * ECHELLE_DU_PODIUM).toBeGreaterThanOrEqual(0);
+      expect(marche.cx + 24 * ECHELLE_DU_PODIUM).toBeLessThanOrEqual(IMAGE_DU_COFFRE.largeur);
+      expect(scene - (marche.haut + 63 * ECHELLE_DU_PODIUM)).toBeGreaterThanOrEqual(38);
+    }
+    expect(MARCHES_DU_PODIUM[0].haut).toBeLessThan(MARCHES_DU_PODIUM[1].haut);
+    expect(MARCHES_DU_PODIUM[1].haut).toBeLessThan(MARCHES_DU_PODIUM[2].haut);
   });
 
   it("l'humeur change vraiment l'image, et le coffre ouvert n'est pas le coffre fermé", async () => {

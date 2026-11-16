@@ -14,7 +14,7 @@
  */
 import { ecrirePng, type Image } from "./billets.ts";
 import { decorDe } from "./decors/index.ts";
-import { casesDuGaulois, GAULOIS_LARGEUR, lireTenue, TENUE_DE_DEPART, type Tenue } from "./gaulois.ts";
+import { casesDuGaulois, GAULOIS_HAUTEUR, GAULOIS_LARGEUR, lireTenue, TENUE_DE_DEPART, type Tenue } from "./gaulois.ts";
 import type { Lieu, Moment } from "./scene.ts";
 import { casesDuStatere } from "./statere.ts";
 
@@ -548,23 +548,32 @@ export interface Perceur {
   tenue: Tenue | null;
 }
 
+/** L'échelle des Gaulois du podium, et leurs marches : le milieu de chacune et le haut de son Gaulois, en pixels. */
+export const ECHELLE_DU_PODIUM = 4;
+export const MARCHES_DU_PODIUM = [
+  { cx: 310, haut: 6, mot: "1er" },
+  { cx: 112, haut: 32, mot: "2e" },
+  { cx: 508, haut: 44, mot: "3e" },
+] as const;
+
 /** L'image du podium de la semaine : trois membres au plus, le premier au milieu. */
 export function imageDuPalmares(perceurs: readonly Perceur[]): Image {
   const t = new Toile(L, IMAGE_DU_COFFRE.hauteur);
   const decor = decorDe("place", PLEIN_JOUR);
   t.cases(decor.cases.slice(HAUT * DECOR_L, BAS * DECOR_L), DECOR_L, 0, 0, E);
-  const marches: readonly [number, number, string][] = [[38, 12, "1er"], [-2, 9, "2e"], [78, 7, "3e"]];
+  // Les Gaulois du podium sont dessinés un peu plus petits que ceux d'une scène (échelle 4) : sur sa marche, le premier
+  // tient tout entier dans l'image, même coiffé d'un grand chapeau ou en Gaulois unique. Le 16 novembre 2026, à l'échelle
+  // de la scène, la tête du premier sortait de l'image.
   perceurs.slice(0, 3).forEach((perceur, rang) => {
-    const [ox, haut, mot] = marches[rang] ?? [38, 12, ""];
-    const y = (PIEDS - haut - HAUT) * E;
-    t.r((ox + 6) * E - 3, y - 3, 36 * E + 6, H_SCENE - y + 3, CONTOUR);
-    t.r((ox + 6) * E, y, 36 * E, H_SCENE - y, CASE);
-    t.r((ox + 6) * E, y, 36 * E, 5, OR);
-    t.r((ox + 6) * E, y + 5, 36 * E, 2, CASE_BORD);
-    t.cases(casesDuGaulois(perceur.tenue ?? TENUE_DE_DEPART), GAULOIS_LARGEUR, ox * E, -haut * E, E);
-    const cx = (ox + 24) * E;
+    const { cx, haut, mot } = MARCHES_DU_PODIUM[rang] ?? MARCHES_DU_PODIUM[0];
+    const y = haut + (GAULOIS_HAUTEUR - 1) * ECHELLE_DU_PODIUM;
+    t.r(cx - 78 - 3, y - 3, 156 + 6, H_SCENE - y + 3, CONTOUR);
+    t.r(cx - 78, y, 156, H_SCENE - y, CASE);
+    t.r(cx - 78, y, 156, 5, OR);
+    t.r(cx - 78, y + 5, 156, 2, CASE_BORD);
+    t.cases(casesDuGaulois(perceur.tenue ?? TENUE_DE_DEPART), GAULOIS_LARGEUR, cx - (GAULOIS_LARGEUR * ECHELLE_DU_PODIUM) / 2, haut, ECHELLE_DU_PODIUM);
     centrer(t, PETITE, cx, y + 12, `${mot} · ${perceur.coffres} coffre${perceur.coffres > 1 ? "s" : ""}`, rang === 0 ? OR : BLANC, 2);
-    centrer(t, PETITE, cx, y + 28, raccourci(PETITE, perceur.nom, 2, 36 * E - 12), OR_CLAIR, 2);
+    centrer(t, PETITE, cx, y + 27, raccourci(PETITE, perceur.nom, 2, 144), OR_CLAIR, 2);
   });
   const y = fondDuBandeau(t);
   centrer(t, GRANDE, L / 2, y + 13, "Les perceurs de coffres", OR, 3, OR_SOMBRE);
