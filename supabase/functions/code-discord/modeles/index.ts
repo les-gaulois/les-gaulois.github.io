@@ -8,12 +8,11 @@
  *
  * Ce fichier n'importe de `gaulois.ts` que des types : `gaulois.ts` l'importe pour dessiner le modèle porté.
  */
-import type { Rarete } from "../gaulois.ts";
 import { LOT_A } from "./lot-a.ts";
 import { LOT_B } from "./lot-b.ts";
 import { LOT_C } from "./lot-c.ts";
 import { LOT_D } from "./lot-d.ts";
-import type { ModeleDuGaulois } from "./modele.ts";
+import type { ModeleDuGaulois, RareteDUnique } from "./modele.ts";
 
 export type { ModeleDuGaulois };
 
@@ -28,7 +27,7 @@ export const FAMILLES_DES_MODELES: Readonly<Record<string, string>> = {
 };
 
 /** La rareté de chaque modèle : trois communs, trois peu communs, deux épiques, deux mystiques, un légendaire. */
-export const RARETES_DES_MODELES: Readonly<Record<string, Rarete>> = {
+export const RARETES_DES_MODELES: Readonly<Record<string, RareteDUnique>> = {
   lezard: "commun",
   loup: "commun",
   sanglier: "commun",
@@ -44,7 +43,7 @@ export const RARETES_DES_MODELES: Readonly<Record<string, Rarete>> = {
 
 /** Un modèle, avec sa rareté et sa famille. */
 export interface ModeleRange extends ModeleDuGaulois {
-  rarete: Rarete;
+  rarete: RareteDUnique;
   famille: string;
 }
 

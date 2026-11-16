@@ -4,18 +4,18 @@
  * calculs purs : les lignes des chances de la pochette, la bande de son tambour, les modèles du compte, l'essayage. Rien
  * ne décide d'un droit, d'un prix ni d'un tirage : le serveur le fait, et `modeles.ts` lit ses réponses.
  */
-import { ORDRE_RARETES, RARETES, type Rarete } from "../gaulois";
+import { RARETES, type Rarete } from "../gaulois";
 import { rognerLeDessin, type Album, type ElementDeLAlbum } from "./album-pochette";
 import type { MesModeles } from "./contrat";
 import type { DessinEnCases } from "./ecran-familiers";
-import { MODELES, chancesPourMoi, etatDuModele, modeleNu, modelesParRarete, restantsParRarete, type EtatDuModele, type ModeleRange } from "./modeles";
+import { MODELES, RARETES_DES_GAULOIS_UNIQUES, chancesPourMoi, type RareteDUnique, etatDuModele, modeleNu, modelesParRarete, restantsParRarete, type EtatDuModele, type ModeleRange } from "./modeles";
 import { bandeDuTambour, rangeeAuHasard, type Bande } from "./tambour";
 
-type Valeurs = Readonly<Record<Rarete, number>>;
+type Valeurs = Readonly<Record<RareteDUnique, number>>;
 
 /** Une ligne des chances de la pochette des Gaulois uniques, pour ce compte. */
 export interface LigneDeChance {
-  rarete: Rarete;
+  rarete: RareteDUnique;
   nom: string;
   rang: number;
   /** La chance réelle pour ce compte, en pour cent : 0 quand il a déjà tous les modèles de cette rareté. */
@@ -34,7 +34,7 @@ export function lignesDesChances(chances: Valeurs, possedes: ReadonlySet<string>
   if (!pourMoi) return null;
   const restants = restantsParRarete(possedes, liste);
   const totaux = modelesParRarete(liste);
-  return ORDRE_RARETES.map((rarete) => ({ rarete, nom: RARETES[rarete].nom, rang: RARETES[rarete].rang, chance: pourMoi[rarete], reste: restants[rarete], total: totaux[rarete] }));
+  return RARETES_DES_GAULOIS_UNIQUES.map((rarete) => ({ rarete, nom: RARETES[rarete].nom, rang: RARETES[rarete].rang, chance: pourMoi[rarete], reste: restants[rarete], total: totaux[rarete] }));
 }
 
 /** Combien de Gaulois uniques ce compte n'a pas encore. */
@@ -54,9 +54,9 @@ export function modelesPossedes(mes: Pick<MesModeles, "modeles"> | null, liste: 
  * d'ouvrir (la pochette ne donne jamais un modèle déjà reçu), aux chances qu'elle avait pour lui ; le modèle reçu au bout.
  */
 export function bandeDesModeles(recu: ModeleRange, chances: Valeurs, possedes: ReadonlySet<string>, hasard: () => number = Math.random, liste: readonly ModeleRange[] = MODELES): Bande<ModeleRange> {
-  const parRarete = Object.fromEntries(ORDRE_RARETES.map((rarete) => [rarete, liste.filter((m) => m.rarete === rarete && !possedes.has(m.id))])) as Record<Rarete, ModeleRange[]>;
+  const parRarete = Object.fromEntries(RARETES_DES_GAULOIS_UNIQUES.map((rarete) => [rarete, liste.filter((m) => m.rarete === rarete && !possedes.has(m.id))])) as Record<Rarete, ModeleRange[]>;
   const pourMoi = chancesPourMoi(chances, possedes, liste) ?? chances;
-  return bandeDuTambour({ valeur: recu, rarete: recu.rarete }, () => rangeeAuHasard(pourMoi, (rarete) => parRarete[rarete], hasard));
+  return bandeDuTambour({ valeur: recu, rarete: recu.rarete }, () => rangeeAuHasard(pourMoi, (rarete) => parRarete[rarete] ?? [], hasard));
 }
 
 /** Les silhouettes de la pochette : jusqu'à trois modèles que le compte n'a pas, ou les trois premiers s'il les a tous. */

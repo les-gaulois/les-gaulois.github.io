@@ -44,3 +44,10 @@ export const LETTRES_PARTAGEES = ["s", "S", "t", "T"] as const;
 
 /** La clé de la tenue qui porte le modèle ; absente, le Gaulois a le corps humain. */
 export const CLE_DU_MODELE = "modele";
+
+/**
+ * Les raretés des Gaulois uniques, de la plus courante à la plus rare : les cinq de la boutique. Une rareté ajoutée plus
+ * tard aux objets (comme le divin d'une autre session) ne change ni leurs prix, ni leur pochette, ni leur lecture.
+ */
+export const RARETES_DES_GAULOIS_UNIQUES = ["commun", "peu-commun", "epique", "mystique", "legendaire"] as const;
+export type RareteDUnique = (typeof RARETES_DES_GAULOIS_UNIQUES)[number];

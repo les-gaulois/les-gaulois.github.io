@@ -12,6 +12,16 @@
   {
     "date": "2026-11-16",
     "kind": "ameliore",
+    "title": "Gaulois uniques : nouveaux prix",
+    "body": "Leur pochette coûte 3 000 statères et le dragon y est plus rare. À la boutique, chacun coûte ce que coûtent en moyenne les pochettes pour le tirer : de 11 500 à 28 000.",
+    "link": {
+      "href": "/village#gaulois-uniques",
+      "label": "Voir les Gaulois uniques"
+    }
+  },
+  {
+    "date": "2026-11-16",
+    "kind": "ameliore",
     "title": "Les pochettes dans leur onglet",
     "body": "La pochette surprise, celle des familiers, celle des bannières et celle des Gaulois uniques sont réunies dans un onglet « Pochettes », au bout de la barre des rayons de la boutique.",
     "link": {

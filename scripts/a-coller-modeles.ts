@@ -19,7 +19,8 @@ const entete = `-- LES GAULOIS UNIQUES (15 novembre 2026), à coller en un seul 
 -- À coller EN ENTIER dans l'éditeur SQL de Supabase (SQL Editor), puis « Run ». Il contient la seule migration ${NOM}.sql,
 -- notée comme appliquée. Il ajoute trois tables et des fonctions ; il remplace la vérification de la tenue et la fonction
 -- de la sauvegarde par les mêmes, avec les Gaulois uniques en plus. Il n'efface rien et ne touche aucun Gaulois, aucun
--- objet, aucun familier, aucune bannière ni aucun statère. Collé une seconde fois, il ne change rien.
+-- objet, aucun familier, aucune bannière ni aucun statère. Collé une seconde fois, il ne change rien. Après le fichier des prix
+-- (.cache/a-coller-prix-modeles.sql), il s'arrête sans rien changer : il remettrait les prix du 15 novembre.
 -- Il suppose les bannières déjà collées (elles sont en ligne depuis le 15 novembre 2026) : sinon, il s'arrête sans rien changer.
 -- La dernière ligne doit dire : « ${ATTENDU} ».
 
@@ -29,6 +30,9 @@ do $$
 begin
   if to_regprocedure('public.choisir_banniere(text)') is null then
     raise exception 'Les bannières ne sont pas installées : collez d''abord .cache/a-coller-bannieres.sql. Rien n''a changé.';
+  end if;
+  if to_regclass('internal.modeles_prix') is not null then
+    raise exception 'Les Gaulois uniques sont déjà installés, avec leurs prix du 16 novembre : ne recollez pas ce fichier, il remettrait les anciens prix. Rien n''a changé.';
   end if;
 end $$;
 

@@ -9,6 +9,7 @@
  * la mesure de l'économie), et de rien d'autre :
  * ils ne s'achètent jamais.
  */
+import type { RareteDUnique } from "../../../supabase/functions/code-discord/modeles/modele";
 import type { Emplacement, Rarete, Tenue } from "../gaulois";
 
 /** Le prix d'un objet de la boutique, par rareté, en statères. */
@@ -459,34 +460,41 @@ export type RefusBannieres = "not_validated" | "no_gaulois" | "unknown_banniere"
  * `supabase/functions/code-discord/modeles/`, lecture et calculs dans `modeles.ts`.
  *
  * Un Gaulois unique remplace le corps humain du Gaulois par celui d'une créature ; tout le reste se porte dessus. Il
- * s'obtient de deux façons : à la boutique, au quintuple du prix d'un objet de sa rareté, ou dans la pochette des Gaulois
- * uniques, qui ne donne jamais un modèle déjà possédé (comme celle des familiers). Un seul exemplaire de chacun : ni
- * marché, ni forge. Le modèle porté est la clé `modele` de la tenue, enregistrée par `enregistrer_mon_gaulois`, qui vérifie
- * que le compte le possède.
+ * s'obtient de deux façons : à la boutique, ou dans la pochette des Gaulois uniques, qui ne donne jamais un modèle déjà
+ * possédé (comme celle des familiers). Un seul exemplaire de chacun : ni marché, ni forge. Le modèle porté est la clé
+ * `modele` de la tenue, enregistrée par `enregistrer_mon_gaulois`, qui vérifie que le compte le possède.
+ *
+ * Les prix et les chances depuis le 16 novembre 2026 (demande du pilote : « le prix n'est pas assez cher en boutique !
+ * Calcule bien les probabilités pour la pochette, et la pochette je veux qu'elle coûte 3 000 » ; migration
+ * 20261116000500_gaulois_uniques_prix) :
+ * - Les chances de la pochette font baisser la chance de chaque modèle d'une rareté à l'autre : 50, 30, 12, 6 et 2 pour cent
+ *   par rareté, soit, pour un compte qui n'a rien, 16,7 % pour chaque commun, 10 % pour chaque peu commun, 6 % pour chaque
+ *   épique, 3 % pour chaque mystique et 2 % pour le dragon. Avant, chaque mystique avait autant de chances que le dragon.
+ * - À la boutique, un modèle coûte ce que coûtent en moyenne les pochettes qu'il faut pour le tirer, arrondi aux 500
+ *   statères (`prixCalculesDeLaBoutique` de `modeles.ts`, calcul exact, testé) : 3,8 pochettes pour un commun, 5,1 pour un
+ *   peu commun, 6,7 pour un épique, 8,3 pour un mystique, 9,3 pour le dragon. Acheter, c'est payer le sûr ; la pochette
+ *   donne en chemin d'autres modèles. Onze pochettes donnent forcément les onze.
  */
 
-/** Combien de fois le prix d'un objet de la même rareté coûte un Gaulois unique à la boutique. Le même que le serveur. */
-export const FOIS_LE_PRIX_POUR_UN_MODELE = 5;
-
-/** Le prix de départ d'un Gaulois unique à la boutique, par rareté, en statères : le quintuple des prix des objets. */
-export const PRIX_MODELE_PAR_RARETE: Readonly<Record<Rarete, number>> = {
-  commun: PRIX_PAR_RARETE.commun * FOIS_LE_PRIX_POUR_UN_MODELE,
-  "peu-commun": PRIX_PAR_RARETE["peu-commun"] * FOIS_LE_PRIX_POUR_UN_MODELE,
-  epique: PRIX_PAR_RARETE.epique * FOIS_LE_PRIX_POUR_UN_MODELE,
-  mystique: PRIX_PAR_RARETE.mystique * FOIS_LE_PRIX_POUR_UN_MODELE,
-  legendaire: PRIX_PAR_RARETE.legendaire * FOIS_LE_PRIX_POUR_UN_MODELE,
+/** Le prix de chaque Gaulois unique à la boutique, par rareté, en statères (table `internal.modeles_prix` du serveur). */
+export const PRIX_MODELE_PAR_RARETE: Readonly<Record<RareteDUnique, number>> = {
+  commun: 11500,
+  "peu-commun": 15500,
+  epique: 20000,
+  mystique: 25000,
+  legendaire: 28000,
 };
 
-/** Le prix de départ de la pochette des Gaulois uniques, en statères (le serveur refuse moins de 500). */
-export const PRIX_POCHETTE_MODELES = 2000;
+/** Le prix de la pochette des Gaulois uniques, en statères (demande du pilote ; le serveur refuse moins de 500). */
+export const PRIX_POCHETTE_MODELES = 3000;
 
-/** Les chances de départ de la pochette des Gaulois uniques, en pour cent, par rareté : celles des familiers, 100 en tout. */
-export const CHANCES_POCHETTE_MODELES: Readonly<Record<Rarete, number>> = {
-  commun: 45,
-  "peu-commun": 28,
-  epique: 15,
-  mystique: 8,
-  legendaire: 4,
+/** Les chances de la pochette des Gaulois uniques, en pour cent, par rareté : 100 en tout. */
+export const CHANCES_POCHETTE_MODELES: Readonly<Record<RareteDUnique, number>> = {
+  commun: 50,
+  "peu-commun": 30,
+  epique: 12,
+  mystique: 6,
+  legendaire: 2,
 };
 
 /** Un Gaulois unique possédé, et quand il a été reçu. */
@@ -504,8 +512,8 @@ export interface MesModeles {
   ok: true;
   solde: number;
   peut_acheter: boolean;
-  prix: Record<Rarete, number>;
-  pochette: { prix: number; chances: Record<Rarete, number> };
+  prix: Record<RareteDUnique, number>;
+  pochette: { prix: number; chances: Record<RareteDUnique, number> };
   modeles: ModelePossede[];
   porte: string | null;
 }
@@ -514,14 +522,14 @@ export interface MesModeles {
 export interface AchatModeleReponse {
   ok: true;
   solde: number;
-  modele: { modele: string; rarete: Rarete };
+  modele: { modele: string; rarete: RareteDUnique };
 }
 
 /** `ouvrir_pochette_modeles(p_prix_vu)` : le modèle reçu, sa rareté, et combien il en reste à recevoir. */
 export interface PochetteModelesReponse {
   ok: true;
   solde: number;
-  modele: { modele: string; rarete: Rarete };
+  modele: { modele: string; rarete: RareteDUnique };
   reste: number;
 }
 

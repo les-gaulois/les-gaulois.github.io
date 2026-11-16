@@ -16,15 +16,7 @@ import {
 import { FAMILLES_DES_MODELES, LOTS_DE_MODELES, MODELES, RARETES_DES_MODELES, modeleParId } from "../../supabase/functions/code-discord/modeles/index";
 import { LETTRES_PARTAGEES, MODELE_COULEURS_MAX } from "../../supabase/functions/code-discord/modeles/modele";
 import { choseDe, lireReponseDesAchats, nouveautes, objetEnMots, origineDe, titreEnMots, vignetteDeLAchat } from "../../src/lib/achats-discord";
-import { ORDRE_RARETES } from "../../src/lib/gaulois";
-import {
-  CHANCES_POCHETTE_MODELES,
-  FOIS_LE_PRIX_POUR_UN_MODELE,
-  PRIX_MODELE_PAR_RARETE,
-  PRIX_PAR_RARETE,
-  PRIX_POCHETTE_MODELES,
-  type MesModeles,
-} from "../../src/lib/village/contrat";
+import { CHANCES_POCHETTE_MODELES, PRIX_MODELE_PAR_RARETE, PRIX_POCHETTE_MODELES, type MesModeles } from "../../src/lib/village/contrat";
 import {
   apercuDuModele,
   apresLAchat,
@@ -40,6 +32,9 @@ import {
   modeleNu,
   modelesParFamille,
   modelesParRarete,
+  pochettesEnMoyenne,
+  prixCalculesDeLaBoutique,
+  RARETES_DES_GAULOIS_UNIQUES,
   raisonDeLAchat,
   raisonPochetteFermee,
   silhouetteDuModele,
@@ -48,6 +43,7 @@ import {
 
 // Sous Windows, Git rend le fichier avec des fins de ligne CRLF : les motifs ci-dessous lisent des « \n ».
 const MIGRATION = readFileSync("supabase/migrations/20261115001000_gaulois_uniques.sql", "utf8").replace(/\r\n/g, "\n");
+const MIGRATION_PRIX = readFileSync("supabase/migrations/20261116000500_gaulois_uniques_prix.sql", "utf8").replace(/\r\n/g, "\n");
 const HEX = /^#[0-9a-f]{6}$/;
 const COMMUNES = couleursDeBase(TENUE_DE_DEPART);
 
@@ -168,20 +164,13 @@ describe("le serveur des Gaulois uniques", () => {
     expect(lignes).toEqual(Object.entries(RARETES_DES_MODELES));
   });
 
-  it("vend au quintuple du prix d'un objet, et règle la pochette comme le contrat", () => {
-    expect(FOIS_LE_PRIX_POUR_UN_MODELE).toBe(5);
-    expect(MIGRATION).toContain("select 5 * p.prix from internal.village_prix p where p.rarete = p_rarete");
-    expect(ORDRE_RARETES.map((r) => PRIX_MODELE_PAR_RARETE[r])).toEqual([500, 1250, 2500, 5000, 12500]);
-    for (const r of ORDRE_RARETES) expect(PRIX_MODELE_PAR_RARETE[r]).toBe(5 * PRIX_PAR_RARETE[r]);
-    const c = CHANCES_POCHETTE_MODELES;
-    expect(MIGRATION).toContain(`(true, ${PRIX_POCHETTE_MODELES}, ${c.commun}, ${c["peu-commun"]}, ${c.epique}, ${c.mystique}, ${c.legendaire})`);
-    expect(ORDRE_RARETES.reduce((s, r) => s + c[r], 0)).toBe(100);
+  it("débite la boutique et la pochette au prix du serveur, la pochette de départ venant de la première migration", () => {
+    expect(MIGRATION).toContain("(true, 2000, 45, 28, 15, 8, 4)");
     expect(MIGRATION).toContain("perform internal.village_debiter(v_uid, 'achat', v_prix, 'modele/' || p_modele);");
     expect(MIGRATION).toContain("perform internal.village_debiter(v_uid, 'pochette', v_prix, 'modele/' || v_modele);");
     expect(MIGRATION).toContain("if p_prix_vu is distinct from v_prix then perform internal.fail('prix_change'); end if;");
     expect(MIGRATION).toContain("perform internal.fail('tout_possede');");
   });
-
   it("garde ses tables privées et n'ouvre ses fonctions qu'aux comptes connectés", () => {
     for (const table of ["internal.modeles", "internal.modeles_pochette", "internal.gaulois_modeles"]) {
       expect(MIGRATION).toContain(`alter table ${table} enable row level security;`);
@@ -204,6 +193,59 @@ describe("le serveur des Gaulois uniques", () => {
   it("n'accepte dans la tenue qu'un modèle de la liste que le compte possède", () => {
     expect(MIGRATION).toContain("if p_tenue ? 'modele' then");
     expect(MIGRATION).toContain("where g.user_id = v_uid and g.modele = p_tenue ->> 'modele'");
+  });
+});
+
+describe("les prix et les chances des Gaulois uniques (16 novembre 2026)", () => {
+  const c = CHANCES_POCHETTE_MODELES;
+
+  it("calcule exactement le nombre moyen de pochettes pour tirer un modèle", () => {
+    // Deux communs seuls : la première pochette donne l'un ou l'autre, la seconde forcément l'autre ; 1,5 en moyenne.
+    const deux = MODELES.filter((m) => m.id === "lezard" || m.id === "loup");
+    expect(pochettesEnMoyenne(c, deux)).toEqual({ lezard: 1.5, loup: 1.5 });
+    // Un commun et le dragon, chances 50 et 2 : le dragon sort en premier 2 fois sur 52.
+    const duo = MODELES.filter((m) => m.id === "lezard" || m.id === "dragon");
+    expect(pochettesEnMoyenne(c, duo)["dragon"]).toBeCloseTo(1 + 50 / 52, 10);
+    const moyennes = pochettesEnMoyenne(c);
+    const attendues = { lezard: 3.8, axolotl: 5.11, givre: 6.66, magma: 8.3, dragon: 9.32 };
+    for (const [id, m] of Object.entries(attendues)) expect(moyennes[id], id).toBeCloseTo(m, 2);
+    // Onze pochettes donnent forcément les onze : aucune moyenne ne dépasse 11, et elles montent avec la rareté.
+    for (const m of MODELES) expect(moyennes[m.id], m.id).toBeLessThanOrEqual(11);
+  });
+
+  it("donne à chaque modèle moins de chances qu'à un modèle d'une rareté plus courante", () => {
+    const parRarete = chancesPourMoi(c, new Set())!;
+    const nombre = modelesParRarete();
+    const parModele = RARETES_DES_GAULOIS_UNIQUES.map((r) => parRarete[r] / nombre[r]);
+    for (let i = 1; i < parModele.length; i++) expect(parModele[i]!, RARETES_DES_GAULOIS_UNIQUES[i]).toBeLessThan(parModele[i - 1]!);
+    expect(parModele.map((p) => Math.round(p * 10) / 10)).toEqual([16.7, 10, 6, 3, 2]);
+    expect(RARETES_DES_GAULOIS_UNIQUES.reduce((s, r) => s + c[r], 0)).toBe(100);
+  });
+
+  it("vend chaque modèle ce que coûtent en moyenne les pochettes pour le tirer, comme le contrat et le serveur", () => {
+    expect(PRIX_POCHETTE_MODELES).toBe(3000);
+    expect(prixCalculesDeLaBoutique(PRIX_POCHETTE_MODELES, c)).toEqual(PRIX_MODELE_PAR_RARETE);
+    expect(RARETES_DES_GAULOIS_UNIQUES.map((r) => PRIX_MODELE_PAR_RARETE[r])).toEqual([11500, 15500, 20000, 25000, 28000]);
+    // Tout modèle coûte plus cher à la boutique qu'une pochette.
+    for (const r of RARETES_DES_GAULOIS_UNIQUES) expect(PRIX_MODELE_PAR_RARETE[r]).toBeGreaterThan(PRIX_POCHETTE_MODELES);
+    const bloc = MIGRATION_PRIX.slice(MIGRATION_PRIX.indexOf("-- <prix>"), MIGRATION_PRIX.indexOf("-- </prix>"));
+    const prixSql = Object.fromEntries([...bloc.matchAll(/\('([a-z-]+)', (\d+)\)/g)].map(([, r, p]) => [r, Number(p)]));
+    expect(prixSql).toEqual(PRIX_MODELE_PAR_RARETE);
+    expect(MIGRATION_PRIX).toContain(`set prix = ${PRIX_POCHETTE_MODELES}, commun = ${c.commun}, peu_commun = ${c["peu-commun"]}, epique = ${c.epique}, mystique = ${c.mystique}, legendaire = ${c.legendaire}, maj_le = now()`);
+    // Seul le réglage de départ change : un réglage déjà modifié reste.
+    expect(MIGRATION_PRIX).toContain("where id and prix = 2000 and commun = 45 and peu_commun = 28 and epique = 15 and mystique = 8 and legendaire = 4;");
+    expect(MIGRATION_PRIX).toContain("select p.prix from internal.modeles_prix p where p.rarete = p_rarete");
+  });
+
+  it("garde la table des prix privée et n'ouvre que get_mes_modeles, aux comptes connectés", () => {
+    expect(MIGRATION_PRIX).toContain("alter table internal.modeles_prix enable row level security;");
+    expect(MIGRATION_PRIX).toContain("revoke all on table internal.modeles_prix from public, anon, authenticated;");
+    expect(MIGRATION_PRIX).toContain("revoke all on function internal.modele_prix(text) from public, anon, authenticated;");
+    expect(MIGRATION_PRIX).not.toContain("grant execute on function internal.modele_prix");
+    expect(MIGRATION_PRIX).toContain("revoke all on function public.get_mes_modeles() from public, anon, authenticated;");
+    expect(MIGRATION_PRIX).toContain("grant execute on function public.get_mes_modeles() to authenticated;");
+    expect(MIGRATION_PRIX).toContain("'prix', (select jsonb_object_agg(p.rarete, p.prix) from internal.modeles_prix p),");
+    expect(MIGRATION_PRIX).not.toMatch(/raw_user_meta_data|drop table|drop column|truncate|delete from/i);
   });
 });
 
@@ -271,7 +313,7 @@ describe("ce que l'écran déduit", () => {
     const sansCommuns = chancesPourMoi(mes.pochette.chances, new Set(["lezard", "loup", "sanglier"]))!;
     expect(sansCommuns.commun).toBe(0);
     expect(sansCommuns.legendaire).toBeCloseTo((4 * 100) / 55);
-    expect(ORDRE_RARETES.reduce((s, r) => s + sansCommuns[r], 0)).toBeCloseTo(100);
+    expect(RARETES_DES_GAULOIS_UNIQUES.reduce((s, r) => s + sansCommuns[r], 0)).toBeCloseTo(100);
     expect(chancesPourMoi(mes.pochette.chances, new Set(MODELES.map((m) => m.id)))).toBeNull();
   });
 

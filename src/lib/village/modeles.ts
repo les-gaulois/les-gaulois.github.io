@@ -10,13 +10,14 @@
  */
 import { FAMILLES_DES_MODELES, MODELES, RARETES_DES_MODELES, modeleParId, type ModeleRange } from "../../../supabase/functions/code-discord/modeles/index";
 import { errorMessage } from "../compte/errors";
-import { GAULOIS_HAUTEUR, GAULOIS_LARGEUR, ORDRE_RARETES, RARETES, TENUE_NUE, casesDuGaulois, changerModele, modeleDuGaulois, type Rarete, type Tenue } from "../gaulois";
+import { RARETES_DES_GAULOIS_UNIQUES, type RareteDUnique } from "../../../supabase/functions/code-discord/modeles/modele";
+import { GAULOIS_HAUTEUR, GAULOIS_LARGEUR, RARETES, TENUE_NUE, casesDuGaulois, changerModele, modeleDuGaulois, type Tenue } from "../gaulois";
 import type { AchatModeleReponse, MesModeles, ModelePossede, PochetteModelesReponse } from "./contrat";
 import { manque, messageDuRefus, stateres } from "./ecran-boutique";
 
-export { FAMILLES_DES_MODELES, MODELES, RARETES_DES_MODELES, modeleParId, type ModeleRange };
+export { FAMILLES_DES_MODELES, MODELES, RARETES_DES_GAULOIS_UNIQUES, RARETES_DES_MODELES, modeleParId, type ModeleRange, type RareteDUnique };
 
-type Valeurs = Readonly<Record<Rarete, number>>;
+type Valeurs = Readonly<Record<RareteDUnique, number>>;
 
 /** L'ancre de la section des Gaulois uniques dans « La boutique » : `/village#gaulois-uniques` ouvre l'onglet et y descend. */
 export const ANCRE_MODELES = "gaulois-uniques";
@@ -26,7 +27,7 @@ export const demandeLesModeles = (hash: string): boolean => hash === `#${ANCRE_M
 
 const estObjetJson = (valeur: unknown): valeur is Record<string, unknown> => valeur !== null && typeof valeur === "object" && !Array.isArray(valeur);
 const entier = (valeur: unknown, min: number): valeur is number => typeof valeur === "number" && Number.isSafeInteger(valeur) && valeur >= min;
-const estRarete = (valeur: unknown): valeur is Rarete => typeof valeur === "string" && (ORDRE_RARETES as readonly string[]).includes(valeur);
+const estRarete = (valeur: unknown): valeur is RareteDUnique => typeof valeur === "string" && (RARETES_DES_GAULOIS_UNIQUES as readonly string[]).includes(valeur);
 
 /** Le texte d'un refus propre aux Gaulois uniques ; les autres ont ceux de tout le site. */
 export function messageDesModeles(code: string): string {
@@ -42,29 +43,29 @@ export function messageDuRefusDesModeles(code: string, contexte: { manque?: numb
 }
 
 /** Un entier d'au moins 1 statère pour chaque rareté ; sinon `null`. */
-function lirePrix(valeur: unknown): Record<Rarete, number> | null {
+function lirePrix(valeur: unknown): Record<RareteDUnique, number> | null {
   if (!estObjetJson(valeur)) return null;
-  const prix: Partial<Record<Rarete, number>> = {};
-  for (const rarete of ORDRE_RARETES) {
+  const prix: Partial<Record<RareteDUnique, number>> = {};
+  for (const rarete of RARETES_DES_GAULOIS_UNIQUES) {
     const p = valeur[rarete];
     if (!entier(p, 1)) return null;
     prix[rarete] = p;
   }
-  return prix as Record<Rarete, number>;
+  return prix as Record<RareteDUnique, number>;
 }
 
 /** Un nombre de 0 à 100 par rareté, 100 en tout ; sinon `null`. */
-function lireChances(valeur: unknown): Record<Rarete, number> | null {
+function lireChances(valeur: unknown): Record<RareteDUnique, number> | null {
   if (!estObjetJson(valeur)) return null;
-  const chances: Partial<Record<Rarete, number>> = {};
+  const chances: Partial<Record<RareteDUnique, number>> = {};
   let total = 0;
-  for (const rarete of ORDRE_RARETES) {
+  for (const rarete of RARETES_DES_GAULOIS_UNIQUES) {
     const c = valeur[rarete];
     if (typeof c !== "number" || !Number.isFinite(c) || c < 0 || c > 100) return null;
     chances[rarete] = c;
     total += c;
   }
-  return Math.abs(total - 100) < 1e-6 ? (chances as Record<Rarete, number>) : null;
+  return Math.abs(total - 100) < 1e-6 ? (chances as Record<RareteDUnique, number>) : null;
 }
 
 /**
@@ -107,7 +108,7 @@ export function lireMesModeles(reponse: unknown, liste: readonly ModeleRange[] =
 }
 
 /** Un modèle reçu, vérifié : connu, avec la rareté que la liste lui donne ; sinon `null`. */
-function lireRecu(recu: unknown, liste: readonly ModeleRange[]): { modele: string; rarete: Rarete } | null {
+function lireRecu(recu: unknown, liste: readonly ModeleRange[]): { modele: string; rarete: RareteDUnique } | null {
   if (!estObjetJson(recu) || typeof recu["modele"] !== "string" || !estRarete(recu["rarete"])) return null;
   const modele = liste.find((m) => m.id === recu["modele"]);
   return modele && modele.rarete === recu["rarete"] ? { modele: modele.id, rarete: modele.rarete } : null;
@@ -150,14 +151,14 @@ export function modelesParFamille(liste: readonly ModeleRange[] = MODELES): { fa
 }
 
 /** Le nombre de modèles de chaque rareté dans la liste. */
-export function modelesParRarete(liste: readonly ModeleRange[] = MODELES): Record<Rarete, number> {
-  const compte = Object.fromEntries(ORDRE_RARETES.map((rarete) => [rarete, 0])) as Record<Rarete, number>;
+export function modelesParRarete(liste: readonly ModeleRange[] = MODELES): Record<RareteDUnique, number> {
+  const compte = Object.fromEntries(RARETES_DES_GAULOIS_UNIQUES.map((rarete) => [rarete, 0])) as Record<RareteDUnique, number>;
   for (const modele of liste) compte[modele.rarete]++;
   return compte;
 }
 
 /** Les modèles qu'un compte n'a pas encore, par rareté : ceux que la pochette peut encore lui donner. */
-export function restantsParRarete(possedes: ReadonlySet<string>, liste: readonly ModeleRange[] = MODELES): Record<Rarete, number> {
+export function restantsParRarete(possedes: ReadonlySet<string>, liste: readonly ModeleRange[] = MODELES): Record<RareteDUnique, number> {
   return modelesParRarete(liste.filter((modele) => !possedes.has(modele.id)));
 }
 
@@ -166,14 +167,65 @@ export function restantsParRarete(possedes: ReadonlySet<string>, liste: readonly
  * qu'une rareté où il a déjà tout est sautée et que les autres se partagent ses chances à proportion, comme le fait le
  * tirage. `null` s'il n'y a plus rien à recevoir (ou plus aucune chance).
  */
-export function chancesPourMoi(chances: Valeurs, possedes: ReadonlySet<string>, liste: readonly ModeleRange[] = MODELES): Record<Rarete, number> | null {
+export function chancesPourMoi(chances: Valeurs, possedes: ReadonlySet<string>, liste: readonly ModeleRange[] = MODELES): Record<RareteDUnique, number> | null {
   const restants = restantsParRarete(possedes, liste);
-  const possibles = ORDRE_RARETES.filter((rarete) => chances[rarete] > 0 && restants[rarete] > 0);
+  const possibles = RARETES_DES_GAULOIS_UNIQUES.filter((rarete) => chances[rarete] > 0 && restants[rarete] > 0);
   const total = possibles.reduce((somme, rarete) => somme + chances[rarete], 0);
   if (!(total > 0)) return null;
-  const effectives = Object.fromEntries(ORDRE_RARETES.map((rarete) => [rarete, 0])) as Record<Rarete, number>;
+  const effectives = Object.fromEntries(RARETES_DES_GAULOIS_UNIQUES.map((rarete) => [rarete, 0])) as Record<RareteDUnique, number>;
   for (const rarete of possibles) effectives[rarete] = (chances[rarete] * 100) / total;
   return effectives;
+}
+
+/**
+ * Combien de pochettes il faut en moyenne, en partant de rien, pour tirer chaque modèle (par identifiant). Le calcul est
+ * exact : il suit la loi du tirage du serveur (une rareté selon ses chances parmi celles qui ont encore un modèle à donner,
+ * puis un modèle de cette rareté à chances égales, jamais deux fois le même) sur toutes les collections possibles, deux à
+ * la puissance du nombre de modèles. La moyenne est la somme, pour n de 0 au nombre de modèles moins un, de la chance de ne
+ * pas l'avoir après n pochettes : au-delà, il est forcément sorti, tant que chaque rareté a des chances (une rareté à 0 % ne
+ * sort jamais, et sa moyenne s'arrête au nombre de modèles). Au plus 30 modèles : un bit chacun.
+ */
+export function pochettesEnMoyenne(chances: Valeurs, liste: readonly ModeleRange[] = MODELES): Record<string, number> {
+  const n = liste.length;
+  if (n > 30) throw new Error("pochettesEnMoyenne : 30 modèles au plus");
+  const moyenne = new Array<number>(n).fill(0);
+  // La loi de la collection après k pochettes : chaque collection (un bit par modèle) et sa probabilité.
+  let loi = new Map<number, number>([[0, 1]]);
+  for (let k = 0; k < n; k++) {
+    for (let i = 0; i < n; i++) {
+      for (const [collection, p] of loi) if (!(collection & (1 << i))) moyenne[i] = (moyenne[i] ?? 0) + p;
+    }
+    const suivante = new Map<number, number>();
+    for (const [collection, p] of loi) {
+      const possedes = new Set(liste.filter((_, i) => collection & (1 << i)).map((modele) => modele.id));
+      const parRarete = chancesPourMoi(chances, possedes, liste);
+      if (!parRarete) continue;
+      const restants = restantsParRarete(possedes, liste);
+      liste.forEach((modele, i) => {
+        if (collection & (1 << i) || !restants[modele.rarete]) return;
+        const chance = parRarete[modele.rarete] / 100 / restants[modele.rarete];
+        if (chance > 0) suivante.set(collection | (1 << i), (suivante.get(collection | (1 << i)) ?? 0) + p * chance);
+      });
+    }
+    loi = suivante;
+  }
+  return Object.fromEntries(liste.map((modele, i) => [modele.id, moyenne[i] ?? 0]));
+}
+
+/**
+ * Le prix d'un Gaulois unique de chaque rareté à la boutique, d'après la règle choisie le 16 novembre 2026 : ce que coûtent
+ * en moyenne les pochettes qu'il faut pour tirer ce modèle-là (`pochettesEnMoyenne` fois le prix de la pochette), arrondi
+ * aux 500 statères. Acheter, c'est payer le sûr : autant, en moyenne, que le hasard, sans les autres modèles qu'il donne en
+ * chemin. Les modèles d'une même rareté ont la même moyenne : le premier de la liste la donne.
+ */
+export function prixCalculesDeLaBoutique(prixPochette: number, chances: Valeurs, liste: readonly ModeleRange[] = MODELES): Record<RareteDUnique, number> {
+  const moyennes = pochettesEnMoyenne(chances, liste);
+  const prix = {} as Record<RareteDUnique, number>;
+  for (const rarete of RARETES_DES_GAULOIS_UNIQUES) {
+    const premier = liste.find((modele) => modele.rarete === rarete);
+    prix[rarete] = premier ? Math.round(((moyennes[premier.id] ?? 0) * prixPochette) / 500) * 500 : 0;
+  }
+  return prix;
 }
 
 /**
