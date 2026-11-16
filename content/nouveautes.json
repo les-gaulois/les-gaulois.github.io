@@ -2,6 +2,16 @@
   {
     "date": "2026-11-16",
     "kind": "ameliore",
+    "title": "La pochette des bannières à 1 500 statères",
+    "body": "Elle coûtait 3 000. 60 pochettes sur 100 donnent un trésor ; les 40 autres rendent 20 à 60 % de leur prix, de 300 à 900 statères.",
+    "link": {
+      "href": "/village#boutique",
+      "label": "Ouvrir la boutique"
+    }
+  },
+  {
+    "date": "2026-11-16",
+    "kind": "ameliore",
     "title": "Les bannières de la boutique dans le livre",
     "body": "L'onglet « Bannière » de la boutique range toutes les bannières dans le livre, de la plus courante à la plus rare. Touchez-en une : elle se dresse derrière votre Gaulois, son prix à côté.",
     "link": {
