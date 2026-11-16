@@ -740,7 +740,7 @@ Demande du pilote, 16 novembre 2026 : le Gaulois d'un membre qui a créé le sie
 
 - **Le chemin** (`src/lib/gaulois-site.ts`) : les tenues de `.cache/gaulois-fiches.json`, écrites par l'étape « Lire les Gaulois des fiches » pour les membres au pseudo public, validés, qui ont enregistré leur Gaulois (le serveur en décide). Aucune migration, aucune lecture de plus. Rien n'est du temps réel : un Gaulois rhabillé paraît à la construction suivante. Sans le fichier, les pages s'affichent comme avant.
 - **Le dessin** : une image par membre, `/gaulois/<identifiant public>.png` (`src/pages/gaulois/[id].png.ts`), le Gaulois entier, une case par pixel. `GauloisPortrait.astro` l'agrandit d'un nombre entier, sans lissage, en pied ou en buste (le haut de la même image). Décoratif : `alt=""`, le pseudo est écrit à côté. Là où le Gaulois paraît, l'emplacement de la photo Discord (`.face-slot`) n'est pas écrit.
-- **Les cases de `/revoir`** : les membres au pseudo public qui ont joué la partie sous le tag d'après leur liste officielle (`.cache/member-games/results.json`, celle des podiums) et qui ont un Gaulois, six au plus, les autres comptés. Un membre dont la liste n'est pas encore lue n'y paraît pas.
+- **Les cases de `/revoir`** (`gauloisDeLaPartie`) : les membres au pseudo public qui ont un Gaulois et que nomme le film de la partie dans le camp du clan (`.cache/films/`, noms de `nomsPubliables` ; un pseudo porté par deux membres ne désigne personne), plus ceux de leur liste officielle (`.cache/member-games/results.json`, celle des podiums, relue environ une fois par jour). Six au plus, les autres comptés.
 - **Tests** : `tests/unit/gaulois-site.test.ts`.
 
 #### La bannière sur la liste des membres

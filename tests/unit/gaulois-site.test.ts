@@ -2,7 +2,8 @@ import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 import { tenueAuHasard, type Tenue } from "../../src/lib/gaulois";
 import { AUCUN_GAULOIS } from "../../src/lib/gaulois-joueurs";
-import { gauloisParPartie, pngDuGaulois, portraitDuGaulois } from "../../src/lib/gaulois-site";
+import { gauloisDesNoms, gauloisParPartie, pngDuGaulois, portraitDuGaulois } from "../../src/lib/gaulois-site";
+import { CLASSE } from "../../src/lib/rejeu/film";
 import { BUST_CUT } from "../../src/lib/gaulois-sprite";
 
 // Des valeurs d'essai, qui ne désignent personne.
@@ -58,6 +59,20 @@ describe("les Gaulois d'une partie", () => {
     expect(index.get("partie2")!.map((g) => g.id)).toEqual([A]);
     // Brennos n'a pas de Gaulois : sa partie n'a personne à montrer.
     expect(index.has("partie3")).toBe(false);
+  });
+
+  it("reconnaît dans les noms d'un film les membres du camp du clan, jamais un homonyme ni un autre camp", () => {
+    const noms = [
+      { texte: "Zoe", classe: CLASSE.gaulois },
+      { texte: "Alba", classe: CLASSE.equipe },
+      { texte: "Brennos", classe: CLASSE.gaulois },
+      { texte: "[UN]", classe: CLASSE.adverses },
+    ];
+    // Zoe a un Gaulois ; Alba n'est pas du camp du clan ; Brennos n'a pas de Gaulois.
+    expect(gauloisDesNoms(noms, membres, gaulois).map((g) => g.id)).toEqual([A]);
+    // Deux membres portent le même pseudo : le nom ne désigne personne.
+    expect(gauloisDesNoms(noms, [...membres, membre(B, "Zoe")], gaulois)).toEqual([]);
+    expect(gauloisDesNoms(noms, membres, AUCUN_GAULOIS)).toEqual([]);
   });
 
   it("ne montre personne sans relevé des Gaulois", () => {

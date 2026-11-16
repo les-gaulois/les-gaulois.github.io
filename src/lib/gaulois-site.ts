@@ -13,10 +13,15 @@
  * ou son buste, en ne laissant voir que le haut de la même image (`buste`, en pixels de l'image).
  */
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { gunzipSync } from "node:zlib";
 import sharp from "sharp";
 import { loadMemberResultsOnce, loadMembers } from "./data";
 import { GAULOIS_FICHES_FILE, gauloisDuCache, type GauloisParJoueur } from "./gaulois-joueurs";
 import { BUST_CUT, placeSprite, spritePixels, tenueOf, type SpritePlacement } from "./gaulois-sprite";
+import { CLASSE, lireFilm } from "./rejeu/film";
+import { DOSSIER_FILMS, MAX_OCTETS_FILM_DECOMPRESSE, nomDuFilm } from "./rejeu/films-index";
 import { nommesParPartie } from "./serie-en-cours";
 
 let lus: GauloisParJoueur | null = null;
@@ -107,6 +112,57 @@ export function gauloisParPartie(
     if (presents.length > 0) index.set(partie, presents.sort((a, b) => a.username.localeCompare(b.username, "fr")));
   }
   return index;
+}
+
+/**
+ * Les Gaulois d'une partie d'après les noms que son film pose sur les territoires du clan (`nomsPubliables` de
+ * `rejeu/film-brut.ts` : le pseudo des membres de la liste, reconnus par leur identifiant public au moment du film). Un nom
+ * ne désigne un membre que si un seul membre porte ce pseudo : jamais un homonyme. Par ordre de pseudo.
+ */
+export function gauloisDesNoms(
+  noms: readonly { texte: string; classe: number }[],
+  membres: readonly { publicId: string | null; username: string | null }[],
+  gaulois: GauloisParJoueur,
+): GauloisDePartie[] {
+  if (gaulois.size === 0) return [];
+  // Le pseudo tel que le film l'écrit : espaces réunis, quarante caractères au plus.
+  const ecrit = (pseudo: string) => pseudo.replace(/\s+/g, " ").trim().slice(0, 40);
+  const parNom = new Map<string, { id: string; username: string }[]>();
+  for (const m of membres) {
+    if (!m.username || !m.publicId) continue;
+    const cle = ecrit(m.username);
+    parNom.set(cle, [...(parNom.get(cle) ?? []), { id: m.publicId, username: m.username }]);
+  }
+  const presents = new Map<string, GauloisDePartie>();
+  for (const nom of noms) {
+    if (nom.classe !== CLASSE.gaulois) continue;
+    const porteurs = parNom.get(nom.texte);
+    if (!porteurs || porteurs.length !== 1) continue;
+    const { id, username } = porteurs[0]!;
+    const portrait = portraitDuGaulois(id, gaulois);
+    if (portrait) presents.set(id, { id, username, portrait });
+  }
+  return [...presents.values()].sort((a, b) => a.username.localeCompare(b.username, "fr"));
+}
+
+/**
+ * Les Gaulois à montrer sur la case d'une partie de « Revoir une partie » : ceux que nomme son film (`.cache/films/`, là dès
+ * que la partie est à revoir), et ceux des listes officielles des membres, relues environ une fois par jour. Film absent ou
+ * illisible : les listes seules.
+ */
+export function gauloisDeLaPartie(partie: string): GauloisDePartie[] {
+  const presents = new Map((gauloisDesParties().get(partie) ?? []).map((g) => [g.id, g]));
+  const gaulois = gauloisDuSite();
+  const nom = gaulois.size > 0 ? nomDuFilm(partie) : null;
+  if (nom) {
+    try {
+      const { entete } = lireFilm(gunzipSync(readFileSync(join(DOSSIER_FILMS, nom)), { maxOutputLength: MAX_OCTETS_FILM_DECOMPRESSE }));
+      if (entete.partie === partie) for (const g of gauloisDesNoms(entete.noms, loadMembers()?.members ?? [], gaulois)) presents.set(g.id, g);
+    } catch {
+      // Pas de film : rien de plus à montrer.
+    }
+  }
+  return [...presents.values()].sort((a, b) => a.username.localeCompare(b.username, "fr"));
 }
 
 /** Le même index, calculé une fois par construction. */

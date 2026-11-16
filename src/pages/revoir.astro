@@ -8,7 +8,7 @@ import ReadingNote from "../components/ReadingNote.astro";
 import RejeuPartie from "../components/RejeuPartie.tsx";
 import { loadFilms } from "../lib/data";
 import { fmtDayAndTime, fmtInt } from "../lib/format";
-import { gauloisDesParties } from "../lib/gaulois-site";
+import { gauloisDeLaPartie } from "../lib/gaulois-site";
 import { mapLabel } from "../lib/map-names";
 import { JOURS_DE_FILMS } from "../lib/rejeu/films-index";
 import { formatLabel } from "../lib/results";
@@ -17,14 +17,14 @@ import { formatLabel } from "../lib/results";
 const LISTES = 12;
 /** Les Gaulois montrés sur la case d'une partie ; les autres sont comptés à la suite. */
 const GAULOIS_PAR_CASE = 6;
-// Les membres au pseudo public de chaque partie qui ont créé leur Gaulois (src/lib/gaulois-site.ts).
-const gaulois = gauloisDesParties();
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const liste = loadFilms();
 // Le replay seul (demande du pilote, 16 novembre 2026 : « je veux plus de film mais uniquement le replay ») : seules les parties
 // qui ont le vrai lecteur du jeu sont proposées.
 const parties = (liste?.films ?? []).filter((f) => f.jeu);
+// Les membres au pseudo public de chaque partie listée qui ont créé leur Gaulois (src/lib/gaulois-site.ts).
+const gaulois = new Map(parties.slice(0, LISTES).flatMap((f) => { const presents = gauloisDeLaPartie(f.partie); return presents.length > 0 ? [[f.partie, presents] as const] : []; }));
 // Ce que le lecteur reçoit, écrit dans la page au build : pas de fichier lu au chargement, que le cache de GitHub Pages pourrait
 // servir en retard. Les parties rejouées sans replay prêt sont seulement nommées, pour le dire.
 const pourLeLecteur = parties.map(({ partie, debut, carte, victoire, equipes, gaulois, joueurs, secondes, forme, jeu }) => ({ partie, debut, carte, victoire, equipes, gaulois, joueurs, secondes, forme, jeu: jeu! }));
