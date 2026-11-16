@@ -31,6 +31,7 @@ import {
   type ParRarete,
   type Saisie,
 } from "../../lib/village/direction";
+import { lireModeGod, type ModeGod } from "../../lib/village/god";
 import { Loading, Problem, Success, messageOf } from "./common";
 import { Pastille } from "./direction-kit";
 import { PartieTete } from "./Onglets";
@@ -153,8 +154,86 @@ export default function DirectionVillage({ rank }: { rank: number }) {
             {rank >= 3 ? <Reglages data={data} relire={load} /> : <ReglagesLus data={data} />}
           </>
         )}
+        <LeModeGod />
       </div>
     </section>
+  );
+}
+
+/**
+ * Le mode GOD : l'essai sans trace d'un seul compte, que le serveur reconnaît à son identifiant Discord (migration
+ * `20261116000900_village_mode_god.sql`). Pour tout autre compte, et tant que le serveur n'a pas répondu, rien ne s'affiche.
+ */
+function LeModeGod() {
+  const [etat, setEtat] = useState<ModeGod | null>(null);
+  const [envoi, setEnvoi] = useState(false);
+  const [refus, setRefus] = useState<string | null>(null);
+
+  useEffect(() => {
+    let vivant = true;
+    call<unknown>("get_village_god")
+      .then((raw) => {
+        if (vivant) setEtat(lireModeGod(raw));
+      })
+      .catch(() => undefined);
+    return () => {
+      vivant = false;
+    };
+  }, []);
+
+  if (!etat?.permis) return null;
+
+  const basculer = async () => {
+    setEnvoi(true);
+    setRefus(null);
+    try {
+      const lu = lireModeGod(await call<unknown>(etat.actif ? "desactiver_village_god" : "activer_village_god"));
+      if (lu === null) setRefus("La réponse du serveur est illisible : actualisez la page.");
+      else setEtat(lu);
+    } catch (e) {
+      setRefus(messageOf(e));
+    } finally {
+      setEnvoi(false);
+    }
+  };
+
+  return (
+    <Bloc
+      id="village-god"
+      titre="Mode GOD"
+      trait={etat.actif ? "warn" : undefined}
+      testId="village-god"
+      aside={
+        <span role="status">
+          <Pastille ton={etat.actif ? "warn" : "muted"} testid="village-god-etat">
+            {etat.actif ? "Allumé" : "Éteint"}
+          </Pastille>
+        </span>
+      }
+    >
+      <ul class="dir-village-lignes tnum">
+        {etat.actif ? (
+          <>
+            {etat.depuis && <li>Allumé le {fmtDateTime(etat.depuis)}.</li>}
+            <li>Votre solde ne baisse pas : chaque dépense vous est rendue aussitôt.</li>
+            <li>Le marché et les mises sont fermés pendant l'essai.</li>
+            <li>En l'éteignant, votre Gaulois, vos objets et vos statères redeviennent ceux d'avant l'essai.</li>
+          </>
+        ) : (
+          <>
+            <li>{fmtInt(etat.somme)} statères d'essai, pour vous seul.</li>
+            <li>Rien n'est annoncé sur Discord, et les autres voient votre Gaulois d'avant.</li>
+            <li>En l'éteignant, tout redevient comme maintenant.</li>
+          </>
+        )}
+      </ul>
+      <div class="dir-village-boutons mt-3">
+        <button type="button" class={etat.actif ? "btn btn-primary" : "dir-bouton"} disabled={envoi} onClick={() => void basculer()} data-testid="village-god-bouton">
+          {etat.actif ? "Éteindre et tout remettre" : "Allumer le mode GOD"}
+        </button>
+      </div>
+      <Problem message={refus} />
+    </Bloc>
   );
 }
 

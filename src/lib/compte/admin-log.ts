@@ -63,6 +63,8 @@ const CATEGORIES: Record<string, LogCategory> = {
   village_pochette_saved: "settings",
   village_bubbles_set: "settings",
   village_cap_set: "settings",
+  village_god_on: "settings",
+  village_god_off: "settings",
   discord_message_sent: "news",
   discord_message_removed: "news",
   discord_message_salon_added: "settings",
@@ -262,6 +264,11 @@ export function describe(row: LogRow, when: (iso: string) => string): LogLine {
       const apres = details["apres"];
       return { who, what: typeof avant === "number" && typeof apres === "number" ? `a changé le plafond des bulles du village de ${avant} $ à ${apres} $.` : "a changé le plafond des bulles du village." };
     }
+    // Le mode GOD du village : l'essai sans trace du pilote (migration 20261116000900_village_mode_god).
+    case "village_god_on":
+      return { who, what: "a allumé le mode GOD du village, pour un essai." };
+    case "village_god_off":
+      return { who, what: "a éteint le mode GOD du village : son Gaulois et ses statères sont redevenus ceux d'avant l'essai." };
     // Le lien du webhook n'est jamais dans le journal : seulement s'il y a un rôle pour les pings.
     case "discord_calls_saved": {
       const mention = details["mention"];

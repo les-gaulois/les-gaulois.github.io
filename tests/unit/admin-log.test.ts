@@ -259,6 +259,8 @@ describe("l'écran du journal", () => {
     village_pochette_saved: "muted",
     village_bubbles_set: "muted",
     village_cap_set: "muted",
+    village_god_on: "muted",
+    village_god_off: "muted",
     discord_message_sent: "muted",
     discord_message_removed: "muted",
     discord_message_salon_added: "muted",
