@@ -6,10 +6,12 @@
  * Pas de String.replace sur le SQL : « $$ » y deviendrait « $ » (piège du dollar double).
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { BANNIERES } from "../supabase/functions/code-discord/bannieres/index";
+import { BANNIERES as TOUTES, estDeLaPochette } from "../supabase/functions/code-discord/bannieres/index";
 
 const NOM = "20261115000900_bannieres_du_gaulois";
 const migration = readFileSync(`supabase/migrations/${NOM}.sql`, "utf8").split("\r\n").join("\n").trimEnd();
+// Les bannières de la boutique seules : les trésors de la pochette arrivent avec leur propre migration (20261116000100).
+const BANNIERES = TOUTES.filter((b) => !estDeLaPochette(b));
 const ATTENDU = `bannières : ${BANNIERES.length} installées`;
 
 const entete = `-- LES BANNIÈRES DU GAULOIS (15 novembre 2026), à coller en un seul fichier.

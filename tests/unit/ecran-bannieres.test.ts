@@ -12,13 +12,14 @@ import {
   idsDesBannieres,
   messageDuRefusDAchat,
   raisonDeLaBanniere,
+  raisonDeLaPochetteDesBannieres,
   sansBanniere,
   surCombien,
 } from "../../src/lib/village/ecran-bannieres";
 
 const IDS = BANNIERES.map((b) => b.id);
 const [premiere, deuxieme, troisieme] = IDS as [string, string, string];
-const mes = (plus: Partial<MesBannieres> = {}): MesBannieres => ({ ok: true, solde: 1000, peut_acheter: true, prix: { ...PRIX_BANNIERE_PAR_RARETE }, bannieres: [], porte: null, ...plus });
+const mes = (plus: Partial<MesBannieres> = {}): MesBannieres => ({ ok: true, solde: 1000, peut_acheter: true, prix: { ...PRIX_BANNIERE_PAR_RARETE }, pochette: null, bannieres: [], porte: null, ...plus });
 const NBSP = String.fromCharCode(0xa0);
 const NNBSP = String.fromCharCode(0x202f);
 const lisible = (texte: string): string => texte.split(NBSP).join(" ").split(NNBSP).join(" ");
@@ -109,5 +110,14 @@ describe("les mots d'un refus d'achat", () => {
 describe("surCombien", () => {
   it("écrit « 3 sur 40 »", () => {
     expect(surCombien(3, 40)).toBe("3 sur 40");
+  });
+});
+
+describe("la pochette des bannières, ce qui empêche de l'ouvrir", () => {
+  it("dit, dans l'ordre du serveur : compte pas validé, tous les trésors déjà reçus, solde trop court", () => {
+    expect(raisonDeLaPochetteDesBannieres(mes({ peut_acheter: false }), 9000, 3000, false)).not.toBeNull();
+    expect(raisonDeLaPochetteDesBannieres(mes(), 9000, 3000, true)).toBe("Vous avez tous les trésors de la pochette.");
+    expect(lisible(raisonDeLaPochetteDesBannieres(mes(), 1000, 3000, false) ?? "")).toContain("Il vous manque 2 000");
+    expect(raisonDeLaPochetteDesBannieres(mes(), 3000, 3000, false)).toBeNull();
   });
 });

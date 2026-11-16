@@ -9,7 +9,8 @@
  * - **Ce qui est annoncé** : un objet acheté à la boutique, sorti d'une pochette surprise ou acheté au marché, et, depuis le
  *   15 novembre 2026, un familier sorti de la pochette des familiers (« familier/<identifiant> » au journal, migration
  *   `20261115000800_familiers_du_gaulois`) et une bannière achetée à la boutique (« banniere/<identifiant> », migration
- *   `20261115000900_bannieres_du_gaulois`), par un compte encore validé. C'est le serveur qui le lit, au journal des statères (migration `20261114001700_village_achats_sur_discord`,
+ *   `20261115000900_bannieres_du_gaulois`), ou, depuis le 16 novembre 2026, sortie de la pochette des bannières (migration
+ *   `20261116000100_pochette_des_bannieres`), par un compte encore validé. C'est le serveur qui le lit, au journal des statères (migration `20261114001700_village_achats_sur_discord`,
  *   `achats_du_village`, réservée à la clé de service). La forge grave une plaque, elle ne donne pas d'objet : rien à annoncer.
  * - **Ce qui ne l'est jamais** : un montant, un prix payé, un solde, un vendeur.
  * - **Le nom** : le nom d'utilisateur Discord de l'acheteur, précédé de « @ » (demande du pilote, 15 novembre 2026), tel que
@@ -32,7 +33,7 @@ import { looksLikeLink, MAX_NAME, tidyName } from "./arrivees";
 import { imageMessage, postWithImage, textMessage } from "./discord-post";
 import { familierAPoser } from "../../supabase/functions/code-discord/familiers/familier";
 import { familierDe } from "../../supabase/functions/code-discord/familiers/index";
-import { banniereParId, dessinDeLaBanniere } from "../../supabase/functions/code-discord/bannieres/index";
+import { banniereParId, dessinDeLaBanniere, estDeLaPochette } from "../../supabase/functions/code-discord/bannieres/index";
 import { EMPLACEMENTS_OBJETS, NOMS_EMPLACEMENTS, OBJETS, vignetteDeLObjet, type Objet, type Rarete, type Vignette } from "./gaulois";
 import { escapeDiscord, type RenderedImage } from "./gazette-discord";
 import { parseNoted, siteLink } from "./salon-discord";
@@ -187,9 +188,23 @@ export const ORIGINES: Readonly<Record<NatureDAchat, { phrase: string; court: st
   marche_achat: { phrase: "au marché", court: "Marché" },
 };
 
-/** D'où vient un achat : un familier ne sort que de la pochette des familiers. */
+/**
+ * D'où vient un achat : un familier ne sort que de la pochette des familiers, une bannière sortie d'une pochette que de la
+ * pochette des bannières (depuis le 16 novembre 2026).
+ */
 export function origineDe(achat: Pick<AchatDuVillage, "emplacement" | "nature">): { phrase: string; court: string } {
-  return achat.emplacement === FAMILIER ? { phrase: "dans la pochette des familiers", court: "Pochette des familiers" } : ORIGINES[achat.nature];
+  if (achat.emplacement === FAMILIER) return { phrase: "dans la pochette des familiers", court: "Pochette des familiers" };
+  if (achat.emplacement === BANNIERE && achat.nature === "pochette") return { phrase: "dans la pochette des bannières", court: "Pochette des bannières" };
+  return ORIGINES[achat.nature];
+}
+
+/**
+ * Une bannière vient-elle du bon endroit ? Celles de la boutique s'achètent (« achat »), les trésors de la pochette des
+ * bannières sortent d'une pochette (« pochette ») ; aucune ne passe par le marché.
+ */
+export function banniereBienVenue(nature: string, id: string): boolean {
+  const banniere = banniereParId(id);
+  return banniere !== null && nature === (estDeLaPochette(banniere) ? "pochette" : "achat");
 }
 
 /** La réserve de chaque annonce : ce qui a payé ces objets. */
@@ -323,10 +338,10 @@ export function lireReponseDesAchats(data: unknown): Extract<LectureDesAchats, {
     const ligne = LigneDuServeur.safeParse(brut);
     const nom = ligne.success ? nomPropre(ligne.data.nom) : "";
     const emplacement = ligne.success ? ([...EMPLACEMENTS_OBJETS, FAMILIER, BANNIERE] as readonly string[]).find((e) => e === ligne.data.emplacement) : undefined;
-    // Un familier ne sort que de la pochette des familiers, une bannière que de la boutique : sous une autre nature, la
-    // ligne est illisible.
+    // Un familier ne sort que de la pochette des familiers, une bannière que de la boutique ou, pour un trésor, de la
+    // pochette des bannières : sous une autre nature, la ligne est illisible.
     const familierHorsPochette = emplacement === FAMILIER && ligne.success && ligne.data.nature !== "pochette";
-    const banniereHorsBoutique = emplacement === BANNIERE && ligne.success && ligne.data.nature !== "achat";
+    const banniereHorsBoutique = emplacement === BANNIERE && ligne.success && !banniereBienVenue(ligne.data.nature, ligne.data.objet);
     if (!ligne.success || !emplacement || !nom || familierHorsPochette || banniereHorsBoutique || !choseDe({ emplacement: emplacement as EmplacementDAchat, objet: ligne.data.objet })) {
       inconnus++;
       continue;

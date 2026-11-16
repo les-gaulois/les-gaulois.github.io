@@ -3,8 +3,9 @@
  * comme Discord le montre, avec le Gaulois, les insignes et le logo par-dessus, et des contrôles de forme.
  *
  *   npx tsx scripts/atelier-gaulois/bannieres.ts            toutes les bannières
- *   npx tsx scripts/atelier-gaulois/bannieres.ts c          seulement le lot C (lettre a à e)
+ *   npx tsx scripts/atelier-gaulois/bannieres.ts c          seulement le lot C (lettre a à i ; f à i : les trésors de la pochette)
  *   npx tsx scripts/atelier-gaulois/bannieres.ts c un/dossier
+ *   CADRE_POCHETTE=1 npx tsx scripts/atelier-gaulois/bannieres.ts e   le lot E sous le cadre de la pochette, pour le dessiner
  *
  * Les images vont dans `.cache/atelier-bannieres/<lot>/` (ignoré par Git), pour chaque bannière :
  *   <id>.png        l'image de /gaulois avec cette bannière, à 4 pixels par case (496 × 320, la taille envoyée à Discord) :
@@ -18,17 +19,24 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { ecrirePng } from "../../supabase/functions/code-discord/billets";
 import { poserLeCadre } from "../../supabase/functions/code-discord/bannieres/cadres";
-import { HAUTEUR, LARGEUR, PIEDS, RARETES_DES_BANNIERES, type BanniereDuLot } from "../../supabase/functions/code-discord/bannieres/commun";
+import { poserLeCadreDeLaPochette } from "../../supabase/functions/code-discord/bannieres/cadres-pochette";
+import { HAUTEUR, LARGEUR, PIEDS, RARETES_DES_BANNIERES, estDeLaPochette, type BanniereDuLot } from "../../supabase/functions/code-discord/bannieres/commun";
 import { LOT_A } from "../../supabase/functions/code-discord/bannieres/lot-a";
 import { LOT_B } from "../../supabase/functions/code-discord/bannieres/lot-b";
 import { LOT_C } from "../../supabase/functions/code-discord/bannieres/lot-c";
 import { LOT_D } from "../../supabase/functions/code-discord/bannieres/lot-d";
 import { LOT_E } from "../../supabase/functions/code-discord/bannieres/lot-e";
+import { LOT_F } from "../../supabase/functions/code-discord/bannieres/lot-f";
+import { LOT_G } from "../../supabase/functions/code-discord/bannieres/lot-g";
+import { LOT_H } from "../../supabase/functions/code-discord/bannieres/lot-h";
+import { LOT_I } from "../../supabase/functions/code-discord/bannieres/lot-i";
 import { GAULOIS_LARGEUR, PLACE_DU_LOGO, TENUE_DE_DEPART, casesDuGaulois, type Tenue } from "../../supabase/functions/code-discord/gaulois";
 import { insignesDeLaScene, peindreLesRectangles } from "../../supabase/functions/code-discord/insignes";
 import { LOGO_DU_CLAN } from "../../supabase/functions/code-discord/logo-du-clan";
 
-const LOTS: Readonly<Record<string, readonly BanniereDuLot[]>> = { a: LOT_A, b: LOT_B, c: LOT_C, d: LOT_D, e: LOT_E };
+const LOTS: Readonly<Record<string, readonly BanniereDuLot[]>> = { a: LOT_A, b: LOT_B, c: LOT_C, d: LOT_D, e: LOT_E, f: LOT_F, g: LOT_G, h: LOT_H, i: LOT_I };
+/** Le cadre d'une bannière : celui de la pochette pour ses trésors (ou pour toutes, avec CADRE_POCHETTE=1), celui de la rareté sinon. */
+const cadreDe = (b: BanniereDuLot) => (estDeLaPochette(b) || process.env["CADRE_POCHETTE"] === "1" ? poserLeCadreDeLaPochette : poserLeCadre);
 const choix = (process.argv[2] ?? "").toLowerCase();
 const lots = choix && LOTS[choix] ? { [choix]: LOTS[choix] } : LOTS;
 
@@ -127,7 +135,7 @@ for (const [lettre, lot] of Object.entries(lots)) {
     const encore = b.dessiner();
     if (encore.cases.join() !== brut.cases.join()) faute("deux dessins différents : rien d'aléatoire");
     const cases = [...brut.cases];
-    poserLeCadre(cases, b.rarete);
+    cadreDe(b)(cases, b.rarete);
     if (mauvaise !== undefined || !HEX.test(brut.ombre) || cases.length !== LARGEUR * HAUTEUR) continue;
     writeFileSync(join(sortie, `${b.id}.png`), await ecrirePng(composer(cases, brut.ombre, 4, false)));
     writeFileSync(join(sortie, `${b.id}-seule.png`), await ecrirePng(composer(cases, brut.ombre, 4, true)));

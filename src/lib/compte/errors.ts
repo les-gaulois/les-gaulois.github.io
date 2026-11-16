@@ -193,6 +193,10 @@ export const ERROR_MESSAGES: Record<string, string> = {
   tout_possede: "Vous avez déjà tous les familiers : la pochette n'a plus rien à vous donner.",
   unknown_familier: "Ce familier n'existe pas. Rechargez la page.",
 
+  // La pochette des bannières (contrat : `RefusBannieres`, migration 20261116000100_pochette_des_bannieres). `tout_possede`
+  // y a ses propres mots, dans `bannieres.ts`.
+  pochette_seulement: "Cette bannière ne s'achète pas : elle ne sort que de la pochette des bannières.",
+
   // Les bannières du Gaulois (contrat : `RefusBannieres` de src/lib/village/contrat.ts, migration
   // 20261115000900_bannieres_du_gaulois). `deja_possede` et `pas_possede` ont leurs propres mots dans `bannieres.ts`.
   unknown_banniere: "Cette bannière n'existe pas. Rechargez la page.",

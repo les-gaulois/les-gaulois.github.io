@@ -380,18 +380,49 @@ export interface BannierePossedee {
   acquis_le: string;
 }
 
+/*
+ * La pochette des bannières (demande du pilote, 16 novembre 2026 : « 20 bannières différentes obtenables uniquement en
+ * pochette, encore plus stylées que celles en boutique ») ; migration 20261116000100_pochette_des_bannieres. Les 20
+ * « trésors de la pochette » (famille `tresors` des dessins) ne s'achètent pas : `acheter_banniere` les refuse
+ * (`pochette_seulement`). La pochette ne donne jamais une bannière déjà possédée : elle tire une rareté parmi celles où le
+ * compte a encore un trésor à recevoir (une rareté épuisée est sautée, les autres se partagent ses chances à proportion),
+ * puis un de ces trésors, à chances égales. Prix et chances sont fixés par la migration : aucun réglage dans la Direction.
+ */
+
+/** Le prix de la pochette des bannières, en statères : celui d'une bannière mystique de la boutique, au départ. */
+export const PRIX_POCHETTE_BANNIERES = 3000;
+
+/** Les chances de la pochette des bannières, en pour cent, par rareté : 100 en tout. Ses trésors sont épiques ou plus. */
+export const CHANCES_POCHETTE_BANNIERES: Readonly<Record<Rarete, number>> = {
+  commun: 0,
+  "peu-commun": 0,
+  epique: 60,
+  mystique: 30,
+  legendaire: 10,
+};
+
 /**
- * `get_mes_bannieres()`, pour un compte connecté : son solde, le prix d'une bannière de chaque rareté, ses bannières (les
- * plus récentes d'abord) et celle qu'il montre sur /gaulois (`porte`, ou `null` : le décor de son lieu). `peut_acheter` :
- * compte validé avec un Gaulois créé.
+ * `get_mes_bannieres()`, pour un compte connecté : son solde, le prix d'une bannière de chaque rareté, la pochette des
+ * bannières (`null` si le serveur ne la connaît pas encore), ses bannières (les plus récentes d'abord) et celle qu'il
+ * montre sur /gaulois (`porte`, ou `null` : le décor de son lieu). `peut_acheter` : compte validé avec un Gaulois créé ;
+ * il vaut aussi pour ouvrir la pochette.
  */
 export interface MesBannieres {
   ok: true;
   solde: number;
   peut_acheter: boolean;
   prix: Record<Rarete, number>;
+  pochette: { prix: number; chances: Record<Rarete, number> } | null;
   bannieres: BannierePossedee[];
   porte: string | null;
+}
+
+/** `ouvrir_pochette_bannieres(p_prix_vu)` : la bannière reçue, sa rareté, et combien de trésors il reste à recevoir. */
+export interface PochetteBannieresReponse {
+  ok: true;
+  solde: number;
+  banniere: { banniere: string; rarete: Rarete };
+  reste: number;
 }
 
 /** `acheter_banniere(p_banniere, p_prix_vu)` : la bannière achetée, sa rareté, et le solde après l'achat. */
@@ -409,7 +440,8 @@ export interface ChoixBanniereReponse {
 
 /**
  * Les refus des bannières, en plus de ceux de tout compte (`not_signed_in`, `suspended`, `rate_limited`) : `not_validated`,
- * `no_gaulois`, `unknown_banniere` (hors de la liste), `deja_possede`, `prix_change`, `solde_insuffisant` ; pour le choix,
- * `pas_possede`. Un refus ne débite rien.
+ * `no_gaulois`, `unknown_banniere` (hors de la liste), `pochette_seulement` (un trésor de la pochette ne s'achète pas),
+ * `deja_possede`, `prix_change`, `solde_insuffisant` ; pour la pochette, `tout_possede` (il a tous ses trésors : rien n'est
+ * débité) ; pour le choix, `pas_possede`. Un refus ne débite rien.
  */
-export type RefusBannieres = "not_validated" | "no_gaulois" | "unknown_banniere" | "deja_possede" | "prix_change" | "solde_insuffisant" | "pas_possede";
+export type RefusBannieres = "not_validated" | "no_gaulois" | "unknown_banniere" | "pochette_seulement" | "deja_possede" | "prix_change" | "solde_insuffisant" | "tout_possede" | "pas_possede";

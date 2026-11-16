@@ -2077,3 +2077,106 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* ---------- La pochette des bannières (16 novembre 2026) ---------- */
+/* En tête de l'onglet « Bannière » : la pochette des « trésors », les bannières qui ne s'achètent pas. Comme la pochette
+   des familiers, un cadre doré ; un fond de velours violet, la couleur de son dessin. Son dessin et son nom, son prix, les
+   trésors du compte et le bouton ; ses chances à côté quand la colonne est large, dessous sinon ; la règle au pied. */
+.bannieres-pochette {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 1rem 1.25rem;
+  padding: 1.25rem;
+  border: 2px solid transparent;
+  border-radius: 0.75rem;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--rarete-epique) 18%, var(--color-navy)), color-mix(in srgb, var(--rarete-legendaire) 10%, var(--color-navy)) 75%) padding-box,
+    var(--rarete-legendaire-degrade) border-box;
+}
+.bannieres-pochette-nom {
+  display: grid;
+  gap: 0.5rem;
+  justify-items: start;
+  min-width: 0;
+}
+.bannieres-pochette-titre {
+  font-size: 1.375rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+.bannieres-pochette-prix {
+  font-size: 1.5rem;
+}
+.bannieres-pochette-compte {
+  color: var(--texte-courant);
+}
+.bannieres-pochette-compte strong {
+  font-size: 1.25rem;
+  color: var(--ecriture);
+}
+.bannieres-pochette-chances,
+.bannieres-pochette-regle {
+  grid-column: 1 / -1;
+}
+.bannieres-pochette-chances {
+  width: 100%;
+}
+.bannieres-pochette .pochette-chances li {
+  border-top-color: var(--hairline);
+}
+/* Une rareté dont le compte a déjà tous les trésors : la pochette la saute. */
+.bannieres-pochette-complet {
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+.bannieres-pochette .pochette-note {
+  color: var(--texte-courant);
+}
+@media (max-width: 479px) {
+  .bannieres-pochette {
+    padding: 1rem 0.875rem;
+  }
+  /* 32 cases de 3 pixels au lieu de 4 : le nom garde sa place à côté. */
+  .bannieres-pochette-dessin {
+    width: 96px !important;
+    height: 96px !important;
+  }
+}
+@container bannieres (min-width: 46rem) {
+  .bannieres-pochette {
+    grid-template-columns: auto minmax(0, 1fr) minmax(0, 19rem);
+    gap: 1rem 2rem;
+    padding: 1.5rem;
+  }
+  .bannieres-pochette-chances {
+    grid-column: 3;
+  }
+}
+/* « Pochette » sur un trésor qu'on n'a pas : cerné et pointillé, comme une case qu'on ne peut pas acheter. */
+.banniere-etat[data-etat="a-gagner"] {
+  border-style: dashed;
+}
+.banniere-pochette-mot {
+  color: var(--texte-courant);
+}
+
+/* Le trésor reçu, dans la fenêtre de la pochette : la bannière derrière son Gaulois, son nom, sa rareté. */
+.banniere-recue {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-width: 0;
+  text-align: center;
+}
+.banniere-recue-nom {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--ecriture);
+  text-wrap: balance;
+}

@@ -55,6 +55,17 @@ export function raisonDeLaBanniere(mes: Pick<MesBannieres, "peut_acheter">, sold
 }
 
 /**
+ * Pourquoi ce compte ne peut pas ouvrir la pochette des bannières, dans l'ordre où le serveur refuserait ; `null` s'il le
+ * peut. `toutPossede` : il a déjà tous les trésors (calcul de `bannieres.ts`). Le serveur vérifie de toute façon.
+ */
+export function raisonDeLaPochetteDesBannieres(mes: Pick<MesBannieres, "peut_acheter">, solde: number, prix: number, toutPossede: boolean): string | null {
+  if (!mes.peut_acheter) return messageDuRefus("not_validated");
+  if (toutPossede) return "Vous avez tous les trésors de la pochette.";
+  const reste = manque(solde, prix);
+  return reste > 0 ? `Il vous manque ${stateres(reste)}.` : null;
+}
+
+/**
  * Les mots d'un refus d'achat. `manque` : ce qui manque d'après le solde relu au serveur, quand il a répondu. Les refus
  * propres aux bannières sont passés par `messageDesBannieres` avant d'arriver ici (`mots`).
  */

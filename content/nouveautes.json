@@ -2,6 +2,16 @@
   {
     "date": "2026-11-16",
     "kind": "nouveau",
+    "title": "La pochette des bannières",
+    "body": "20 nouvelles bannières sous un cadre d'or serti : les trésors de la pochette. Elles ne s'achètent pas : une pochette à 3 000 statères les donne, jamais une que vous avez déjà.",
+    "link": {
+      "href": "/village#bannieres",
+      "label": "Ouvrir la pochette"
+    }
+  },
+  {
+    "date": "2026-11-16",
+    "kind": "nouveau",
     "title": "Le vrai replay du jeu",
     "body": "Dans « Revoir une partie », « Voir le replay du jeu » ouvre le lecteur d'OpenFront lui-même : noms, troupes, constructions, attaques, comme dans le jeu, sans publicité.",
     "link": {

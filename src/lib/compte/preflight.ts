@@ -301,6 +301,13 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   if (bannieres.status === 404) add("Les bannières du Gaulois sont installées", "warn", "get_mes_bannieres est absente : collez le fichier .cache/a-coller-bannieres.sql (sa dernière ligne dit « bannières : 40 installées ») avant de mettre en ligne ce qui s'en sert.");
   else if (isClosed(bannieres.status) || (bannieres.ok && bannieresAnswer?.ok === false)) add("Un visiteur ne lit pas de bannières", "ok");
   else add("Un visiteur ne lit pas de bannières", "fail", `Réponse ${bannieres.status}. Ne mettez pas en ligne : seul un compte connecté lit ses bannières et son solde.`);
+  // La pochette des bannières (migration 20261116000100, collée par le fichier .cache/a-coller-pochette-bannieres.sql) :
+  // seul un compte validé avec son Gaulois l'ouvre. Absente : le site la cache, rien n'est cassé.
+  const pochetteBannieres = await rpc("ouvrir_pochette_bannieres", { p_prix_vu: 0 });
+  const pochetteBannieresAnswer = pochetteBannieres.ok ? ((await pochetteBannieres.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (pochetteBannieres.status === 404) add("La pochette des bannières est installée", "warn", "ouvrir_pochette_bannieres est absente : collez le fichier .cache/a-coller-pochette-bannieres.sql (sa dernière ligne dit « pochette des bannières : 20 trésors installés ») avant de mettre en ligne ce qui s'en sert.");
+  else if (isClosed(pochetteBannieres.status) || (pochetteBannieres.ok && pochetteBannieresAnswer?.ok === false)) add("Un visiteur n'ouvre pas de pochette des bannières", "ok");
+  else add("Un visiteur n'ouvre pas de pochette des bannières", "fail", `Réponse ${pochetteBannieres.status}. Ne mettez pas en ligne : seul un compte validé avec son Gaulois ouvre la pochette des bannières.`);
   const bannieresCalls = [
     ["acheter_banniere", { p_banniere: "", p_prix_vu: 0 }, "Un visiteur n'achète pas de bannière"],
     ["choisir_banniere", { p_banniere: null }, "Un visiteur ne choisit aucune bannière"],

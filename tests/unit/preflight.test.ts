@@ -29,6 +29,7 @@ const HEALTHY: Record<string, Route> = {
   "/rest/v1/rpc/get_ma_forge": { status: 401, body: {} },
   "/rest/v1/rpc/get_mes_familiers": { status: 401, body: {} },
   "/rest/v1/rpc/get_mes_bannieres": { status: 401, body: {} },
+  "/rest/v1/rpc/ouvrir_pochette_bannieres": { status: 401, body: {} },
   "/rest/v1/profiles": { status: 401, body: {} },
   "/rest/v1/private_links": { status: 401, body: {} },
   "/rest/v1/admin_log": { status: 401, body: {} },
@@ -576,5 +577,13 @@ describe("le contrôle de la mise en ligne, les bannières du Gaulois", () => {
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/acheter_banniere": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "n'achète pas de bannière")).toBe("ok");
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/acheter_banniere": { status: 200, body: { ok: true, solde: 0 } } }, "n'achète pas de bannière")).toBe("fail");
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/choisir_banniere": { status: 200, body: { ok: true, porte: null } } }, "ne choisit aucune bannière")).toBe("fail");
+  });
+
+  it("bloque si un visiteur ouvre la pochette des bannières, et la signale pas encore installée", async () => {
+    expect(await statusOf(HEALTHY, "n'ouvre pas de pochette des bannières")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/ouvrir_pochette_bannieres": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "n'ouvre pas de pochette des bannières")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/ouvrir_pochette_bannieres": { status: 200, body: { ok: true, solde: 0 } } }, "n'ouvre pas de pochette des bannières")).toBe("fail");
+    const absente = (await run({ ...HEALTHY, "/rest/v1/rpc/ouvrir_pochette_bannieres": { status: 404, body: {} } })).find((c) => c.label.includes("pochette des bannières est installée"));
+    expect(absente).toMatchObject({ status: "warn", detail: expect.stringContaining(".cache/a-coller-pochette-bannieres.sql") });
   });
 });

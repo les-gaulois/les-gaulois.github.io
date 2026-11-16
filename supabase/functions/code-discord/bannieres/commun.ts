@@ -25,15 +25,27 @@ export { GAULOIS, HAUTEUR, HORIZON, LARGEUR, LOGO, PIEDS, Toile, grain, melanger
 export const RARETES_DES_BANNIERES = ["commun", "peu-commun", "epique", "mystique", "legendaire"] as const;
 export type RareteDeBanniere = (typeof RARETES_DES_BANNIERES)[number];
 
-/** Les familles de bannières, dans l'ordre de la boutique, et leur nom à l'écran. */
+/**
+ * Les familles de bannières, dans l'ordre de la boutique, et leur nom à l'écran. La dernière, « Les trésors de la
+ * pochette » (16 novembre 2026, demande du pilote : « 20 bannières différentes obtenables uniquement en pochette, encore
+ * plus stylées que celles de la boutique »), ne s'achète pas : ses bannières ne sortent que de la pochette des bannières,
+ * et portent le cadre de la pochette (`cadres-pochette.ts`) au lieu de celui de leur rareté.
+ */
 export const FAMILLES_DES_BANNIERES = {
   front: "Le front",
   mers: "Les mers",
   cartes: "Les cartes du monde",
   saisons: "Ciel, saisons et fêtes",
   legendes: "Légendes et styles",
+  tresors: "Les trésors de la pochette",
 } as const;
 export type FamilleDeBanniere = keyof typeof FAMILLES_DES_BANNIERES;
+
+/** La famille des bannières qui ne sortent que de la pochette des bannières. */
+export const FAMILLE_DE_LA_POCHETTE = "tresors" satisfies FamilleDeBanniere;
+
+/** Une bannière de la pochette, et non de la boutique ? */
+export const estDeLaPochette = (banniere: { famille: FamilleDeBanniere }): boolean => banniere.famille === FAMILLE_DE_LA_POCHETTE;
 
 /**
  * Une bannière d'un lot.
