@@ -11,6 +11,7 @@ import {
   RAISON_DU_ROLE,
   ROLE_DU_CHAMPION,
   coffreCommand,
+  formeDite,
   lireLaReponse,
   motComplet,
   parsePerceurs,
@@ -143,6 +144,28 @@ describe("la réponse de Claude, lue sans rien croire", () => {
     // Un objet coupé ou sans parole ne se montre jamais tel quel au salon.
     expect(lireLaReponse(dire({ humeur: "confiant" }), "menhir")).toMatchObject({ reponse: "", humeur: "mefiant" });
     expect(lireLaReponse('{"reponse": "Non, vill', "menhir").reponse).toBe("");
+  });
+
+  it("le code lit lui-même, dans la réponse, la longueur et les lettres du bout, et ne garde que ce qui est vrai du mot", () => {
+    // La réponse vue par le pilote au premier essai en images : un rappel, que Claude n'avait pas signalé.
+    expect(formeDite("Tu as déjà six lettres, un T et une rime : à toi de faire chauffer ta cervelle.", "tamise")).toEqual({ longueurDite: true, lettres: [] });
+    expect(formeDite("Il a 6 lettres et commence par un T.", "tamise")).toEqual({ longueurDite: true, lettres: [1] });
+    expect(formeDite("Mon mot commence par la lettre « M » et se termine par R.", "menhir")).toEqual({ longueurDite: false, lettres: [1, 6] });
+    expect(formeDite("Il finit par un R, foi de gardien !", "menhir")).toEqual({ longueurDite: false, lettres: [6] });
+    // Un chiffre ou une lettre qui ne sont pas ceux du mot ne vont jamais au tableau.
+    expect(formeDite("Sept lettres ? Non ! Et il ne commence pas par un Z.", "menhir")).toEqual({ longueurDite: false, lettres: [] });
+    expect(formeDite("Je n'ai écrit que trois lettres à ma mère.", "menhir")).toEqual({ longueurDite: false, lettres: [] });
+    expect(formeDite("Passe ton chemin.", "menhir")).toEqual({ longueurDite: false, lettres: [] });
+  });
+
+  it("un rappel du gardien remplit le tableau, même si Claude ne l'a pas signalé", async () => {
+    const m = monde({ rpc: { coffre_ouvrir: () => ouverture({ manche: { id: 2, mot: "menhir", essais: 3, gardien: "druide", longueur_dite: false, lettres: [], indices: [] } }), coffre_clore: () => clos({ tableau: { longueur_dite: true, lettres: [1], indices: [] } }) }, claude: () => structure({ reponse: "Tu as déjà six lettres, et il commence par un M : à toi de jouer.", humeur: "confiant" }) });
+    await coffreCommand(interaction("salut"), m.deps);
+    await m.fini();
+    expect(m.calls.rpc[1]?.args).toMatchObject({ p_gagne: false, p_longueur: true, p_lettres: [1] });
+    const jointe = (dernier(m.calls.webhook).call?.body as { attachments: { description: string }[] }).attachments[0];
+    expect(jointe?.description).toContain("Le mot : M … … … … ….");
+    expect(jointe?.description).toContain("Indices : 6 lettres.");
   });
 
   it("la forme demandée à Claude ne propose pas « vaincu » et exige ses cinq parties", () => {

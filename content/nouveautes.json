@@ -2,6 +2,16 @@
   {
     "date": "2026-11-16",
     "kind": "ameliore",
+    "title": "Le coffre en images",
+    "body": "Sur Discord, chaque réponse du gardien a son image : son humeur, votre Gaulois, le mot en cases, les indices. Un gardien par manche. /perceurs montre le podium de la semaine.",
+    "link": {
+      "href": "/confidentialite#coffre",
+      "label": "Ce que le jeu garde"
+    }
+  },
+  {
+    "date": "2026-11-16",
+    "kind": "ameliore",
     "title": "Pochettes : une rareté terminée rend des statères",
     "body": "Dans la pochette des bannières et celle des Gaulois uniques, finir une rareté n'augmente plus la chance des autres. Sa chance passe aux statères rendus. Le légendaire garde sa chance de départ.",
     "link": {

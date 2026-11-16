@@ -356,10 +356,10 @@ export function consigneDuGardien(c: Consigne): string {
       "Ta réponse a cinq parties, que le jeu lit pour dessiner la scène et le tableau des indices que tout le village voit :",
       "- « reponse » : ce que tu dis au villageois.",
       "- « humeur » : ce que ton visage montre en disant cela. « confiant » : tu maîtrises ; « flatte » : un compliment t'a fait plaisir ; « mefiant » : tu flaires une ruse ; « agace » : on t'a vexé ou lassé ; « panique » : tu sens que tu en as trop dit, ou qu'on te serre de près.",
-      "- « longueur_dite » : vrai seulement si ta réponse vient de dire le nombre de lettres du mot.",
-      "- « lettres » : les places des lettres que ta réponse vient de donner (1 pour la première lettre) ; vide sinon.",
-      "- « indice » : si ta réponse vient de donner un indice vrai sur ce que le mot désigne, cet indice en 28 signes au plus, sans le mot lui-même (« un outil », « se mange », « pousse au jardin ») ; vide sinon.",
-      "Ces parties redisent seulement ce que ta réponse a vraiment donné : n'y ajoute rien.",
+      "- « longueur_dite » : vrai si ta réponse dit ou rappelle le nombre de lettres du mot.",
+      "- « lettres » : les places des lettres du mot que ta réponse donne ou rappelle (1 pour la première lettre ; « il commence par T » donne la place 1) ; vide sinon.",
+      "- « indice » : si ta réponse donne un indice vrai sur ce que le mot désigne, cet indice en 28 signes au plus, sans le mot lui-même (« un outil », « se mange », « pousse au jardin ») ; vide sinon.",
+      "Ces parties redisent ce que ta réponse dit vraiment, que ce soit nouveau ou un rappel de ce que tu avais déjà donné : n'y ajoute rien que ta réponse ne dise pas.",
     ].join("\n"),
   ];
   const connu = [
@@ -434,6 +434,28 @@ export function lireLaReponse(texte: string, mot: string): ReponseDuGardien {
     lettres: placesValides(lue["lettres"], mot.length),
     indice,
   };
+}
+
+const NOMBRES: Readonly<Record<string, number>> = { cinq: 5, six: 6, sept: 7, huit: 8, neuf: 9, dix: 10 };
+
+/**
+ * Ce que la réponse du gardien dit elle-même de la forme du mot, lu par le code et jamais cru sans contrôle : le nombre
+ * de lettres (« six lettres », « 6 lettres »), la première lettre (« commence par un T ») et la dernière (« finit par R »).
+ * Rien n'est retenu qui ne soit vrai du mot gardé par le serveur. Le 16 novembre 2026, au premier essai en images, le
+ * druide rappelait « six lettres, un T » et le tableau restait vide : Claude n'avait signalé que ce qui était nouveau.
+ */
+export function formeDite(reponse: string, mot: string): { longueurDite: boolean; lettres: number[] } {
+  const texte = plier(reponse);
+  let longueurDite = false;
+  for (const trouve of texte.matchAll(/\b(\d{1,2}|cinq|six|sept|huit|neuf|dix)\s+lettres\b/g)) {
+    const dit = trouve[1] ?? "";
+    if ((NOMBRES[dit] ?? Number(dit)) === mot.length) longueurDite = true;
+  }
+  const lettres: number[] = [];
+  const lettre = "(?:par|avec)\\s+(?:un\\s+|une\\s+|la\\s+lettre\\s+|le\\s+)?[«\"'\\s]*([a-z])\\b";
+  for (const trouve of texte.matchAll(new RegExp(`(?:commenc|debut)[a-z]*\\s+${lettre}`, "g"))) if (trouve[1] === mot[0]) lettres.push(1);
+  for (const trouve of texte.matchAll(new RegExp(`(?:fini|termin|achev)[a-z]*\\s+${lettre}`, "g"))) if (trouve[1] === mot[mot.length - 1]) lettres.push(mot.length);
+  return { longueurDite, lettres: placesValides(lettres, mot.length) };
 }
 
 /** Toutes les lettres du mot sont-elles sur le tableau ? Le mot est alors donné, autant que s'il était dit. */
@@ -695,7 +717,10 @@ async function jouer(interaction: Json, joueur: { id: string; nom: string }, mes
           forme: FORME_DE_LA_REPONSE,
         })
       : null;
-    const lue = appel ? lireLaReponse(appel.texte, manche.mot) : null;
+    const brute = appel ? lireLaReponse(appel.texte, manche.mot) : null;
+    // Ce que la réponse dit elle-même de la forme du mot s'ajoute à ce que Claude a signalé.
+    const dite = brute ? formeDite(brute.reponse, manche.mot) : null;
+    const lue = brute && dite ? { ...brute, longueurDite: brute.longueurDite || dite.longueurDite, lettres: placesValides([...brute.lettres, ...dite.lettres], manche.mot.length) } : brute;
     const ecrit = lue ? reponsePropre(lue.reponse) : "";
     // Le mot deviné gagne même si Claude ne répond pas : la victoire ne dépend pas de lui.
     const texte = ecrit === "" && devine ? COFFRE_MESSAGES.speechless : ecrit;
