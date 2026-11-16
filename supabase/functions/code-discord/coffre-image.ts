@@ -396,14 +396,18 @@ export interface Tableau {
   indices: readonly string[];
 }
 
-/** Les cases du mot, telles que le salon les voit : une lettre donnée, un « ? » pour une case inconnue. */
+/**
+ * Les cases du mot, telles que le salon les voit : une lettre donnée, « _ » pour une case vide. Sans longueur dite, un seul
+ * « ? » finit la liste : ce n'est pas une case, le dessin y écrit « longueur inconnue ». Jusqu'au 17 novembre 2026, trois
+ * cases « ? » se lisaient comme un mot de trois lettres (le mot était « montagne »).
+ */
 export function casesDuMot(tableau: Tableau): string[] {
   const lettres = new Set(tableau.lettres.filter((n) => Number.isInteger(n) && n >= 1 && n <= tableau.mot.length));
   if (tableau.longueurDite) return [...tableau.mot].map((lettre, i) => (lettres.has(i + 1) ? lettre : "_"));
-  // La longueur n'est pas dite : les cases s'arrêtent à la dernière lettre donnée, et un « ? » dit qu'il en reste.
+  // La longueur n'est pas dite : les cases s'arrêtent à la dernière lettre donnée, et le « ? » dit qu'on ne sait pas la suite.
   const derniere = Math.max(0, ...lettres);
   const cases = Array.from({ length: derniere }, (_, i) => (lettres.has(i + 1) ? (tableau.mot[i] ?? "_") : "_"));
-  return derniere === 0 ? ["?", "?", "?"] : [...cases, "?"];
+  return [...cases, "?"];
 }
 
 /** Les indices écrits sous le mot : le nombre de lettres s'il est dit, puis ceux du gardien. */
@@ -479,10 +483,15 @@ export function imageDeLEssai(d: DessinDeLEssai): Image {
   // Le mot, en cases.
   let x = 14;
   for (const lettre of casesDuMot(d.tableau)) {
+    // La suite inconnue n'a pas de case : des cases se compteraient.
+    if (lettre === "?") {
+      ecrire(t, PETITE, x + (x > 14 ? 4 : 0), y + 19, x > 14 ? "... longueur inconnue" : "Longueur inconnue", "#8E9BC9", 2);
+      break;
+    }
     t.r(x, y + 10, 22, 28, CASE);
     t.r(x, y + 10, 22, 2, CASE_BORD);
-    t.r(x, y + 36, 22, 2, lettre === "_" || lettre === "?" ? "#3A4A86" : OR);
-    if (lettre !== "_") ecrire(t, GRANDE, x + 6, y + 17, lettre, lettre === "?" ? "#6F7FB8" : BLANC, 2);
+    t.r(x, y + 36, 22, 2, lettre === "_" ? "#3A4A86" : OR);
+    if (lettre !== "_") ecrire(t, GRANDE, x + 6, y + 17, lettre, BLANC, 2);
     x += 25;
   }
   // Les indices, en pastilles : ceux qui ne tiennent plus ne s'écrivent pas.
@@ -683,7 +692,7 @@ const motEnMots = (tableau: Tableau): string => {
   const connues = cases.filter((c) => c !== "_" && c !== "?").length;
   if (!tableau.longueurDite && connues === 0) return "Rien n'est encore connu du mot.";
   const dit = cases.map((c) => (c === "_" || c === "?" ? "…" : c.toUpperCase())).join(" ");
-  return `Le mot : ${dit}.`;
+  return `Le mot : ${dit}.${tableau.longueurDite ? "" : " Sa longueur n'est pas connue."}`;
 };
 
 /** La description d'une image d'essai, lue par les lecteurs d'écran. */

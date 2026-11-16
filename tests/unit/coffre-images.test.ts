@@ -101,7 +101,7 @@ describe("l'écriture en cases", () => {
 
 describe("le tableau des indices", () => {
   it("sans longueur dite, les cases ne disent pas combien de lettres a le mot", () => {
-    expect(casesDuMot({ mot: "menhir", longueurDite: false, lettres: [], indices: [] })).toEqual(["?", "?", "?"]);
+    expect(casesDuMot({ mot: "menhir", longueurDite: false, lettres: [], indices: [] })).toEqual(["?"]);
     expect(casesDuMot({ mot: "menhir", longueurDite: false, lettres: [1], indices: [] })).toEqual(["m", "?"]);
     expect(casesDuMot({ mot: "menhir", longueurDite: false, lettres: [3], indices: [] })).toEqual(["_", "_", "n", "?"]);
   });
