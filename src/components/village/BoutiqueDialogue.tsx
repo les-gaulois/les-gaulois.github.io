@@ -1,5 +1,5 @@
-import type { ComponentChildren } from "preact";
-import { useEffect, useRef, useState } from "preact/hooks";
+import { createContext, type ComponentChildren } from "preact";
+import { useContext, useEffect, useRef, useState } from "preact/hooks";
 import { OBJETS, vignetteDeLObjet, type Objet, type RareteDObjet as Rarete, type Vignette } from "../../lib/gaulois";
 import type { PochetteReponse, RefObjet } from "../../lib/village/contrat";
 import { stateres } from "../../lib/village/ecran-boutique";
@@ -63,10 +63,33 @@ export function CaseMontree({ objet, rarete, vignette }: { objet: Objet; rarete:
 }
 
 /**
+ * La fenêtre ouvre-t-elle une pochette gagnée à la loterie du lundi, qui reste à ouvrir ? Posé par l'écran des pochettes
+ * autour de chaque fenêtre d'ouverture ; faux partout ailleurs (un achat se paie toujours).
+ */
+export const PochetteGagneeIci = createContext(false);
+
+/**
  * Le compte d'un achat : le prix, la bourse, ce qu'il restera. `auMoins` : la dépense peut rendre une part du prix (la
  * pochette des Gaulois uniques) ; ce qu'il restera est alors un minimum.
  */
 export function Compte({ prix, solde, auMoins = false }: { prix: number; solde: number; auMoins?: boolean }) {
+  // Une pochette gagnée à la loterie du lundi : le serveur ne retire rien, la fenêtre ne promet donc ni prix ni reste.
+  if (useContext(PochetteGagneeIci)) {
+    return (
+      <dl class="boutique-compte">
+        <div>
+          <dt>Gagnée à la loterie</dt>
+          <dd data-testid="boutique-gagnee">Rien à payer</dd>
+        </div>
+        <div>
+          <dt>Votre bourse</dt>
+          <dd>
+            <Prix montant={solde} />
+          </dd>
+        </div>
+      </dl>
+    );
+  }
   return (
     <dl class="boutique-compte">
       <div>

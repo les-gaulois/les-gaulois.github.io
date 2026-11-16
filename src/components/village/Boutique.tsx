@@ -25,7 +25,8 @@ import {
   type RayonBoutique,
   type RayonOuvert,
 } from "../../lib/village/boutique-rayons";
-import type { MaBoutique, PochetteFamiliersReponse, PochetteReponse, PochetteStateresReponse, RefObjet } from "../../lib/village/contrat";
+import type { MaBoutique, PochetteFamiliersReponse, PochetteGagnee, PochetteReponse, PochetteStateresReponse, RefObjet } from "../../lib/village/contrat";
+import { bonsEnMots, lirePochettesGagnees } from "../../lib/village/loterie";
 import { demandeLesBannieres } from "../../lib/village/ecran-bannieres";
 import { avecUnExemplaire, lireAchat, lireBoutique, lirePochette, lireStateres, manque, messageDuRefus, objetPayant, prixDeLObjet, quantitePossedee, raisonBoutiqueFermee, stateres } from "../../lib/village/ecran-boutique";
 import { ANCRE_FAMILIERS, demandeLesFamiliers, idsPossedes, tailleDeLApercu } from "../../lib/village/ecran-familiers";
@@ -37,7 +38,7 @@ import { TOUT, choisirFiltre, type Filtre, type Filtres } from "../../lib/villag
 import { Loading, Problem, Success, messageOf, useNow } from "../compte/common";
 import { SectionDesBannieres } from "./Bannieres";
 import { Bourse } from "./Bourse";
-import { DialogueAchat, DialoguePochette, type Issue } from "./BoutiqueDialogue";
+import { DialogueAchat, DialoguePochette, PochetteGagneeIci, type Issue } from "./BoutiqueDialogue";
 import { Prix } from "./BoutiquePixels";
 import { ApercuGaulois, BarreDesRayons, Case, useSceneCollee } from "./Cases";
 import { useFamiliers } from "./Familiers";
@@ -184,6 +185,23 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
   const [uniquesOuverts, setUniquesOuverts] = useState(false);
   const [filtres, setFiltres] = useState<Filtres>({});
   const [fenetre, setFenetre] = useState<Fenetre>(null);
+  // Les pochettes gagnées à la loterie du lundi, qui restent à ouvrir : relues à l'ouverture de l'onglet et à chaque
+  // fenêtre refermée. Une pochette gagnée s'ouvre sans rien payer : le serveur crédite son prix au moment de le débiter
+  // (internal.village_debiter), donc l'écran ne la ferme pas pour un solde trop court.
+  const [gagnees, setGagnees] = useState<Partial<Record<PochetteGagnee, number>>>({});
+  const relireLesGagnees = () =>
+    void call<unknown>("get_pochettes_gagnees")
+      .then(lirePochettesGagnees, () => null)
+      .then((bons) => {
+        if (bons) setGagnees(bons);
+      });
+  useEffect(() => {
+    if (pochettes && fenetre === null) relireLesGagnees();
+  }, [pochettes, fenetre]);
+  /** Après chaque ouverture, réussie ou refusée : un bon a pu partir, la fenêtre suivante doit le savoir. */
+  const puisRelire = <T,>(issue: Promise<Issue<T>>): Promise<Issue<T>> => issue.finally(relireLesGagnees);
+  const avecBon = (pochette: PochetteGagnee, solde: number, prix: number): number => (gagnees[pochette] ? Math.max(solde, prix) : solde);
+  const gagneesEnMots = bonsEnMots(gagnees);
   const [acquis, setAcquis] = useState<Acquis | null>(null);
   const familiers = useFamiliers();
   const pochetteStateres = usePochetteStateres();
@@ -881,13 +899,20 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
               <>
                 {/* Les deux petites pochettes, chacune dans son cadre, sur un tiers de la largeur : la place d'une troisième
                     reste libre à leur droite (demande du pilote, 16 novembre 2026). */}
+                {gagneesEnMots.length > 0 && (
+                  <p class="pochettes-gagnees" data-testid="pochettes-gagnees">
+                    Gagnées à la loterie, à ouvrir sans rien payer : {gagneesEnMots.join(", ")}.
+                  </p>
+                )}
                 {(boutique || pochetteStateres.ma) && (
                   <div class="pochettes-tiers" data-testid="pochettes-tiers">
-                    {boutique && <Pochette boutique={boutique} solde={soldeConnu ?? boutique.solde} fermee={fermee} onOuvrir={() => setFenetre({ kind: "pochette" })} />}
-                    {pochetteStateres.ma && <PochetteStateres ma={pochetteStateres.ma} solde={soldeConnu ?? pochetteStateres.ma.solde} onOuvrir={() => setFenetre({ kind: "stateres" })} />}
+                    {boutique && <Pochette boutique={boutique} solde={avecBon("surprise", soldeConnu ?? boutique.solde, boutique.pochette.prix)} fermee={fermee} onOuvrir={() => setFenetre({ kind: "pochette" })} />}
+                    {pochetteStateres.ma && (
+                      <PochetteStateres ma={pochetteStateres.ma} solde={avecBon("stateres", soldeConnu ?? pochetteStateres.ma.solde, pochetteStateres.ma.prix)} onOuvrir={() => setFenetre({ kind: "stateres" })} />
+                    )}
                   </div>
                 )}
-                {familiers.mes && <PochetteFamiliers mes={familiers.mes} solde={soldeConnu ?? familiers.mes.solde} onOuvrir={() => setFenetre({ kind: "familiers" })} />}
+                {familiers.mes && <PochetteFamiliers mes={familiers.mes} solde={avecBon("familiers", soldeConnu ?? familiers.mes.solde, familiers.mes.pochette.prix)} onOuvrir={() => setFenetre({ kind: "familiers" })} />}
                 {pochetteStateres.etat.kind === "panne" && (
                   <div data-testid="pochette-stateres-panne">
                     <Problem message="La pochette de statères ne répond pas pour l'instant." onRetry={() => void pochetteStateres.lire()} />
@@ -911,9 +936,12 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
                   tenue={etat.enregistree}
                   familier={familiers.montre}
                   solde={soldeConnu}
+                  pochetteGagnee={Boolean(gagnees.bannieres)}
                   onSolde={(reste) => {
                     setBoutique((b) => b && { ...b, solde: reste });
                     setSolde(reste);
+                    // Une pochette des bannières vient peut-être de s'ouvrir avec un bon de la loterie.
+                    if (pochettes) relireLesGagnees();
                   }}
                   onRefus={() => void lireLaBoutique()}
                 />
@@ -928,6 +956,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
                   partie={partieDesUniques.current}
                   etat={modeles.etat}
                   solde={soldeConnu}
+                  pochetteGagnee={Boolean(gagnees.modeles)}
                   essaye={modeleEnEssai?.id ?? null}
                   occupe={occupe}
                   onEssayer={essayerLeModele}
@@ -953,35 +982,46 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
           onFermer={fermerLaFenetre}
         />
       )}
+      {/* Chaque fenêtre d'ouverture sait si sa pochette a été gagnée à la loterie : elle ne promet alors ni prix ni reste. */}
       {fenetre?.kind === "pochette" && boutique && (
-        <DialoguePochette
-          prix={boutique.pochette.prix}
-          chances={boutique.pochette.chances}
-          solde={soldeConnu ?? boutique.solde}
-          ouvrir={() => ouvrirPochette(boutique.pochette.prix)}
-          objetDe={(tire) => OBJETS[tire.emplacement][tire.objet]}
-          vignetteDe={(tire) => vignetteDeLObjet(tire.emplacement, tire.objet, tenue)}
-          dejaPorte={(tire) => tenue[tire.emplacement] === tire.objet}
-          onPorter={(tire) => void porter({ emplacement: tire.emplacement, objet: tire.objet })}
-          onFermer={fermerLaFenetre}
-        />
+        <PochetteGagneeIci.Provider value={Boolean(gagnees.surprise)}>
+          <DialoguePochette
+            prix={boutique.pochette.prix}
+            chances={boutique.pochette.chances}
+            solde={soldeConnu ?? boutique.solde}
+            ouvrir={() => puisRelire(ouvrirPochette(boutique.pochette.prix))}
+            objetDe={(tire) => OBJETS[tire.emplacement][tire.objet]}
+            vignetteDe={(tire) => vignetteDeLObjet(tire.emplacement, tire.objet, tenue)}
+            dejaPorte={(tire) => tenue[tire.emplacement] === tire.objet}
+            onPorter={(tire) => void porter({ emplacement: tire.emplacement, objet: tire.objet })}
+            onFermer={fermerLaFenetre}
+          />
+        </PochetteGagneeIci.Provider>
       )}
       {fenetre?.kind === "familiers" && familiers.mes && (
-        <DialogueFamiliers
-          prix={familiers.mes.pochette.prix}
-          chances={familiers.mes.pochette.chances}
-          possedes={idsPossedes(familiers.mes)}
-          solde={soldeConnu ?? familiers.mes.solde}
-          village={village}
-          ouvrir={() => ouvrirPochetteFamiliers(familiers.mes?.pochette.prix ?? 0)}
-          dejaMontre={(id) => familiers.mes?.porte === id}
-          onMontrer={(id) => void montrerLeFamilier(id)}
-          onFermer={fermerLaFenetre}
-        />
+        <PochetteGagneeIci.Provider value={Boolean(gagnees.familiers)}>
+          <DialogueFamiliers
+            prix={familiers.mes.pochette.prix}
+            chances={familiers.mes.pochette.chances}
+            possedes={idsPossedes(familiers.mes)}
+            solde={soldeConnu ?? familiers.mes.solde}
+            village={village}
+            ouvrir={() => puisRelire(ouvrirPochetteFamiliers(familiers.mes?.pochette.prix ?? 0))}
+            dejaMontre={(id) => familiers.mes?.porte === id}
+            onMontrer={(id) => void montrerLeFamilier(id)}
+            onFermer={fermerLaFenetre}
+          />
+        </PochetteGagneeIci.Provider>
       )}
-      {fenetre?.kind === "stateres" && pochetteStateres.ma && <DialogueStateres ma={pochetteStateres.ma} solde={soldeConnu ?? pochetteStateres.ma.solde} ouvrir={() => ouvrirPochetteStateres(pochetteStateres.ma?.prix ?? 0)} onFermer={fermerLaFenetre} />}
+      {fenetre?.kind === "stateres" && pochetteStateres.ma && (
+        <PochetteGagneeIci.Provider value={Boolean(gagnees.stateres)}>
+          <DialogueStateres ma={pochetteStateres.ma} solde={soldeConnu ?? pochetteStateres.ma.solde} ouvrir={() => puisRelire(ouvrirPochetteStateres(pochetteStateres.ma?.prix ?? 0))} onFermer={fermerLaFenetre} />
+        </PochetteGagneeIci.Provider>
+      )}
       {fenetre?.kind === "modeles" && modeles.mes && (
-        <DialogueModeles mes={modeles.mes} solde={soldeConnu ?? modeles.mes.solde} tenue={tenue} ouvrir={(prixVu) => ouvrirPochetteModeles(prixVu)} onPorter={(id) => void porterLeModele(id)} onFermer={fermerLaFenetre} />
+        <PochetteGagneeIci.Provider value={Boolean(gagnees.modeles)}>
+          <DialogueModeles mes={modeles.mes} solde={soldeConnu ?? modeles.mes.solde} tenue={tenue} ouvrir={(prixVu) => puisRelire(ouvrirPochetteModeles(prixVu))} onPorter={(id) => void porterLeModele(id)} onFermer={fermerLaFenetre} />
+        </PochetteGagneeIci.Provider>
       )}
       {fenetre?.kind === "modele" && modeleAAcheter && modeles.mes && (
         <DialogueAchatModele

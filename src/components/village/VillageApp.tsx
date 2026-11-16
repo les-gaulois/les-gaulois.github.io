@@ -7,15 +7,17 @@ import Vestiaire from "../compte/Vestiaire";
 import { ANCRE_MARCHE, RAYON_POCHETTES } from "../../lib/village/boutique-rayons";
 import { ANCRE_BANNIERES } from "../../lib/village/ecran-bannieres";
 import { ANCRE_FAMILIERS } from "../../lib/village/ecran-familiers";
+import { ANCRE_LOTERIE } from "../../lib/village/loterie";
 import { ANCRE_MODELES } from "../../lib/village/modeles";
 import { ANCRE_SENTIER } from "../../lib/village/sentier";
 import Boutique from "./Boutique";
+import LoterieDuLundi from "./Loterie";
 import AtelierDeLaForge from "./Forge";
 import LeSentier, { objetsQuiAttendent, useSentier } from "./Sentier";
 import VitrineDuClan from "./Vitrine";
 
 /**
- * Les six parties de la page, dans l'ordre de la barre. « Le sentier » (`#sentier`, 16 novembre 2026, demande du pilote :
+ * Les sept parties de la page, dans l'ordre de la barre. « Le sentier » (`#sentier`, 16 novembre 2026, demande du pilote :
  * « un peu comme un passe de combat ») vient juste après « Mon Gaulois » : c'est ce qui change chaque jour ; son onglet dit
  * combien d'objets des paliers attendent d'être pris. L'onglet ouvert se retient dans l'adresse (`#forge`,
  * `#boutique`). « La boutique » (la bourse, la pochette surprise, les rayons et le marché des membres) a eu sa page,
@@ -25,7 +27,8 @@ import VitrineDuClan from "./Vitrine";
  * `#feu`, `#qui`, `#interieur-…`), ne nomment plus d'onglet : elles ouvrent « Mon Gaulois ». « La vitrine » (`#vitrine`, 16
  * novembre 2026, demande du pilote) montre tous les Gaulois du clan, chacun sur sa carte. « Les pochettes » (`#pochettes`,
  * le soir du 16 novembre 2026) ont quitté les rayons de la boutique pour leur partie, juste avant la vitrine ;
- * `#familiers` l'ouvre et descend à la pochette des familiers.
+ * `#familiers` l'ouvre et descend à la pochette des familiers. « La loterie » (`#loterie`, 16 novembre 2026, demande du
+ * pilote) vient à la suite : le tirage du lundi à 21 h 30 et la jauge des parts.
  */
 const ONGLETS: TabItem[] = [
   { id: "gaulois", label: "Mon Gaulois" },
@@ -34,6 +37,7 @@ const ONGLETS: TabItem[] = [
   { id: "boutique", label: "La boutique" },
   { id: RAYON_POCHETTES, label: "Les pochettes" },
   { id: "vitrine", label: "La vitrine" },
+  { id: ANCRE_LOTERIE, label: "La loterie" },
 ];
 const IDS = ONGLETS.map((onglet) => onglet.id);
 const ALIAS: Readonly<Record<string, string>> = { [ANCRE_MARCHE]: "boutique", [ANCRE_FAMILIERS]: RAYON_POCHETTES, [ANCRE_BANNIERES]: "boutique", [ANCRE_MODELES]: "boutique" };
@@ -44,9 +48,9 @@ const PREFIXE = "village";
  * du pilote (« enlève la partie villages ») : il garde le Gaulois et ses objets, qui paraissent sur les images du clan.
  * Un visiteur voit le Gaulois de départ et la porte. Un compte connecté finit d'abord son inscription
  * (src/lib/compte/arrivee.ts, 15 novembre 2026) : le lien de son profil OpenFront, puis son Gaulois, seul au vestiaire ;
- * la forge et la boutique attendent qu'il soit créé. Ensuite, cinq onglets, comme au QG : son Gaulois (le vestiaire : ce
- * qui est à lui), la forge, où l'on grave une de ses parties sur un objet, la boutique, où l'on achète, les pochettes, et la vitrine, où
- * paraissent tous les Gaulois du clan.
+ * la forge et la boutique attendent qu'il soit créé. Ensuite, sept onglets, comme au QG : son Gaulois (le vestiaire : ce
+ * qui est à lui), le sentier de la saison, la forge, où l'on grave une de ses parties sur un objet, la boutique, où l'on
+ * achète, les pochettes, la vitrine, où paraissent tous les Gaulois du clan, et la loterie du lundi.
  * Chaque onglet ne lit le serveur qu'à son ouverture ; la forge et la boutique se relisent à chaque retour, et le
  * vestiaire aussi : un objet acheté y paraît aussitôt.
  */
@@ -144,6 +148,12 @@ export default function VillageApp() {
         <Partie prefix={PREFIXE} id="vitrine" active={active} slide={slide}>
           <h2 class="sr-only">La vitrine</h2>
           <VitrineDuClan actif={active === "vitrine"} />
+        </Partie>
+      )}
+      {!aCreer && (
+        <Partie prefix={PREFIXE} id={ANCRE_LOTERIE} active={active} slide={slide}>
+          <h2 class="sr-only">La loterie</h2>
+          <LoterieDuLundi actif={active === ANCRE_LOTERIE} />
         </Partie>
       )}
     </div>

@@ -4156,3 +4156,168 @@ main:has(.album) {
   padding: 0.375rem 0.75rem;
   font-size: var(--text-sm);
 }
+
+/* La loterie du lundi (Loterie.tsx, 16 novembre 2026) : l'onglet « La loterie » de « Mon Gaulois ». La jauge des parts
+   est une toile sans fond, posée sur la page (choix du pilote : « pas de fond bleu derrière, mais rien »). */
+.loterie {
+  display: grid;
+  gap: 2rem;
+  min-width: 0;
+}
+.loterie > * {
+  min-width: 0;
+}
+.loterie-quand {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--ecriture);
+  text-wrap: balance;
+}
+.loterie-tete {
+  display: grid;
+  gap: 0.5rem;
+  max-width: 48rem;
+}
+/* Les trois lots : la marche, les statères, les pochettes. La couleur de la marche n'est jamais le seul repère : son nom
+   est écrit. */
+.loterie-lots {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: 1rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.loterie-lots li {
+  display: grid;
+  gap: 0.35rem;
+  align-content: start;
+  min-width: 0;
+  padding-top: 0.75rem;
+  border-top: 4px solid var(--loterie-marche);
+}
+.loterie-lots li[data-rang="1"],
+.loterie-podium li[data-rang="1"] {
+  --loterie-marche: var(--rarete-legendaire);
+}
+.loterie-lots li[data-rang="2"],
+.loterie-podium li[data-rang="2"] {
+  --loterie-marche: #c9d1e6;
+}
+.loterie-lots li[data-rang="3"],
+.loterie-podium li[data-rang="3"] {
+  --loterie-marche: #d98a4e;
+}
+.loterie-rang {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--ecriture);
+}
+.loterie-lots .prix {
+  font-size: var(--text-xl);
+  font-weight: 600;
+  color: var(--ecriture);
+}
+.loterie-lot-pochette {
+  color: var(--texte-courant);
+  font-size: var(--text-sm);
+}
+.loterie-gagnees {
+  font-weight: 600;
+  color: var(--ecriture);
+}
+.loterie-gagnees a {
+  color: var(--color-blue-text);
+  text-decoration: underline;
+}
+.loterie-bloc {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--hairline);
+}
+.loterie-bloc > * {
+  min-width: 0;
+}
+.loterie-bloc-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+.loterie-jauge {
+  width: 100%;
+  max-width: 80rem;
+}
+.loterie-toile {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.loterie-legende {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+.loterie-legende li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.loterie-puce {
+  width: 1.1rem;
+  height: 0.7rem;
+  border-radius: 3px;
+  background: var(--color-blue);
+}
+.loterie-puce-or {
+  background: var(--rarete-legendaire);
+}
+.loterie-mes-billets {
+  color: var(--texte-courant);
+}
+.loterie-achat {
+  display: grid;
+  gap: 0.5rem;
+}
+.loterie-achat-ligne {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+.loterie-podium {
+  display: grid;
+  gap: 0.35rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.loterie-podium li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  padding-left: 0.75rem;
+  border-left: 4px solid var(--loterie-marche);
+}
+.loterie-podium .loterie-rang {
+  min-width: 4.5rem;
+}
+.loterie-moi {
+  font-weight: 700;
+}
+/* Une pochette gagnée à la loterie, à l'onglet « Les pochettes ». */
+.pochettes-gagnees {
+  font-weight: 600;
+  color: var(--ecriture);
+}

@@ -2,6 +2,16 @@
   {
     "date": "2026-11-16",
     "kind": "nouveau",
+    "title": "La loterie du lundi",
+    "body": "Chaque lundi à 21 h 30, un tirage désigne l'or, l'argent et le bronze. Un billet par point rapporté au clan dans la semaine. À gagner : des statères et des pochettes. Premier tirage le 23 novembre.",
+    "link": {
+      "href": "/village#loterie",
+      "label": "La loterie"
+    }
+  },
+  {
+    "date": "2026-11-16",
+    "kind": "nouveau",
     "title": "Un thème sombre",
     "body": "Le site existe aussi en sombre. Un bouton en haut de chaque page, dans le menu sur téléphone, passe du clair au sombre. Sans choix de votre part, le site suit le réglage de votre appareil."
   },

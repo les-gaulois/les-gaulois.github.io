@@ -160,7 +160,7 @@ function CaseDeModele({ modele, etat, prix, essaye, onClick }: { modele: ModeleR
  * l'onglet « Pochettes » de la boutique, où le pilote a voulu toutes les pochettes. La section ne garde rien : la boutique
  * la rend dans les deux onglets à partir de la même lecture.
  */
-export function SectionDesModeles({ partie = "modeles", etat, solde, essaye, occupe, onEssayer, onOuvrir, onHumain, onRelire }: { partie?: "modeles" | "pochette"; etat: EtatDesModeles; solde: number | null; essaye: string | null; occupe: boolean; onEssayer: (id: string | null) => void; onOuvrir: () => void; onHumain: () => void; onRelire: () => void }) {
+export function SectionDesModeles({ partie = "modeles", etat, solde, pochetteGagnee = false, essaye, occupe, onEssayer, onOuvrir, onHumain, onRelire }: { partie?: "modeles" | "pochette"; etat: EtatDesModeles; solde: number | null; /** Une pochette des Gaulois uniques gagnée à la loterie attend : elle s'ouvre sans rien payer. */ pochetteGagnee?: boolean; essaye: string | null; occupe: boolean; onEssayer: (id: string | null) => void; onOuvrir: () => void; onHumain: () => void; onRelire: () => void }) {
   if (etat.kind !== "pret") {
     return (
       <section class="uniques" aria-labelledby="uniques-titre" data-testid="uniques" data-etat={etat.kind}>
@@ -185,7 +185,7 @@ export function SectionDesModeles({ partie = "modeles", etat, solde, essaye, occ
   const soldeConnu = solde ?? mes.solde;
   const lignes = lignesDesChances(mes.pochette, possedes);
   const rendus = rendusDeLaPochette(mes.pochette);
-  const raison = raisonPochetteFermee(mes, soldeConnu);
+  const raison = raisonPochetteFermee(mes, pochetteGagnee ? Math.max(soldeConnu, mes.pochette.prix) : soldeConnu);
   const reste = resteADecouvrir(possedes);
   // L'album de la pochette : les onze modèles, chacun avec sa chance (`albumDesModeles`). Calculé à l'ouverture, puis à
   // chaque rendu de la section tant qu'il est ouvert : onze cases aux dessins gardés, sans coût notable. Pas de

@@ -850,3 +850,80 @@ export interface PalierReponse {
  * pour l'étal. Un refus ne donne ni ne débite rien.
  */
 export type RefusDuSentier = "not_validated" | "no_gaulois" | "mode_god" | "saison_fermee" | "unknown_palier" | "palier_pas_atteint" | "deja_pris" | "etal_change" | "deja_possede" | "prix_change" | "solde_insuffisant";
+
+/* ---------- La loterie du lundi (supabase/migrations/20261116001200_loterie_du_lundi.sql) ---------- */
+
+/** Les pochettes qu'on gagne à la loterie, sous le nom que le serveur leur donne. */
+export const POCHETTES_GAGNEES = ["surprise", "familiers", "bannieres", "modeles", "stateres"] as const;
+export type PochetteGagnee = (typeof POCHETTES_GAGNEES)[number];
+
+/** Un lot du podium : 1 l'or, 2 l'argent, 3 le bronze ; ses statères et le nombre de pochettes de chaque sorte. */
+export interface LotDeLoterie {
+  rang: 1 | 2 | 3;
+  gain: number;
+  pochettes: Record<PochetteGagnee, number>;
+}
+
+/** Les lots fixés par le pilote le 16 novembre 2026, ceux de internal.loterie_lots() : un test les compare. */
+export const LOTS_LOTERIE: readonly LotDeLoterie[] = [
+  { rang: 1, gain: 3000, pochettes: { surprise: 1, familiers: 1, bannieres: 1, modeles: 1, stateres: 1 } },
+  { rang: 2, gain: 1500, pochettes: { surprise: 0, familiers: 1, bannieres: 1, modeles: 0, stateres: 0 } },
+  { rang: 3, gain: 750, pochettes: { surprise: 0, familiers: 0, bannieres: 1, modeles: 0, stateres: 5 } },
+];
+
+/** Le prix d'un billet acheté, en statères : ce que rapporte un point (internal.loterie_prix_billet). */
+export const PRIX_BILLET_LOTERIE = 30;
+/** Le lundi du premier tirage (internal.loterie_premier_tirage). */
+export const PREMIER_TIRAGE_LOTERIE = "2026-11-23";
+
+/**
+ * La part d'un Gaulois dans un tirage : ses billets gagnés (un par point rapporté au clan dans la semaine) et achetés.
+ * Dans un tirage fait, `rang` dit sa marche du podium et `billet` le billet tiré, compté dans les siens à partir de zéro,
+ * les billets gagnés d'abord ; sinon les deux sont null. Jamais un identifiant.
+ */
+export interface PartDeLoterie {
+  nom: string;
+  tenue: unknown;
+  moi: boolean;
+  gratuits: number;
+  achetes: number;
+  rang: 1 | 2 | 3 | null;
+  billet: number | null;
+}
+
+/**
+ * `get_loterie()`, pour un compte validé ou de l'équipe gauloise. `tirage` : le lundi du tirage à venir (AAAA-MM-JJ, à
+ * Paris) ; `heure` : son instant ; `close` : sa semaine est finie, les billets gagnés ne bougent plus. `peut_acheter` :
+ * compte validé avec un Gaulois créé. `solde` et `bons` (les pochettes gagnées qui restent à ouvrir) sont ceux de
+ * l'appelant seul. `dernier` : le dernier tirage fait, ou null.
+ */
+export interface MaLoterie {
+  ok: true;
+  tirage: string;
+  heure: string;
+  close: boolean;
+  prix: number;
+  lots: LotDeLoterie[];
+  parts: PartDeLoterie[];
+  peut_acheter: boolean;
+  solde: number;
+  bons: Partial<Record<PochetteGagnee, number>>;
+  dernier: { tirage: string; tire_le: string; parts: PartDeLoterie[] } | null;
+  releve: string | null;
+}
+
+/** `acheter_billets_loterie(p_nombre, p_prix_vu)` : le solde après l'achat, les billets gagnés et achetés du compte. */
+export interface AchatDeBillets {
+  ok: true;
+  solde: number;
+  gratuits: number;
+  achetes: number;
+}
+
+/**
+ * Les refus de l'achat de billets, en plus de ceux de tout compte : `invalid_request`, `mode_god` (pendant un essai du
+ * mode GOD), `tirage_fait`, `prix_change`, `aucun_billet` (aucun point rapporté dans la semaine du tirage),
+ * `plafond_billets` (jamais plus de billets achetés que de billets gagnés), `solde_insuffisant`, `not_validated`,
+ * `no_gaulois`. Un refus ne débite rien.
+ */
+export type RefusLoterie = "invalid_request" | "mode_god" | "tirage_fait" | "prix_change" | "aucun_billet" | "plafond_billets" | "solde_insuffisant" | "not_validated" | "no_gaulois";

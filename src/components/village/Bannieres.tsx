@@ -11,7 +11,7 @@ import { manque, motStatere, nombre, pourcent, stateres } from "../../lib/villag
 import type { Familier } from "../../lib/village/familiers";
 import { Problem, Success, messageOf } from "../compte/common";
 import { AlbumDePochette } from "./AlbumPochette";
-import { Compte, Dialogue, Refus, type BandeVue, type Issue } from "./BoutiqueDialogue";
+import { Compte, Dialogue, PochetteGagneeIci, Refus, type BandeVue, type Issue } from "./BoutiqueDialogue";
 import { MarqueDeRarete, Piece, Pixels, Prix, peindre } from "./BoutiquePixels";
 import { POCHETTE_BANNIERES_COTE, casesDeLaPochetteBannieres } from "./PochetteBannieresDessin";
 import { LivreDesBannieres } from "./LivreDesBannieres";
@@ -521,7 +521,24 @@ function DialogueBanniere({ lib, banniere, prix, solde, tenue, familier, acheter
  * pochette des bannières, pour l'onglet « Pochettes ». La boutique ne garde qu'une section pour les deux onglets : le
  * trésor sorti de la pochette est déjà dans la vitrine quand l'onglet « Bannière » se rouvre.
  */
-export function SectionDesBannieres({ partie = "bannieres", tenue, familier, solde, onSolde, onRefus }: { partie?: "bannieres" | "pochette"; tenue: Tenue; familier: Familier | null; solde: number | null; onSolde: (solde: number) => void; onRefus: () => void }) {
+export function SectionDesBannieres({
+  partie = "bannieres",
+  tenue,
+  familier,
+  solde,
+  pochetteGagnee = false,
+  onSolde,
+  onRefus,
+}: {
+  partie?: "bannieres" | "pochette";
+  tenue: Tenue;
+  familier: Familier | null;
+  solde: number | null;
+  /** Une pochette des bannières gagnée à la loterie attend : elle s'ouvre sans rien payer, quel que soit le solde. */
+  pochetteGagnee?: boolean;
+  onSolde: (solde: number) => void;
+  onRefus: () => void;
+}) {
   const { etat, lire, acheter, ouvrir, choisir } = useBannieres();
   const [rarete, setRarete] = useState<Rarete | null>(null);
   const [choisie, setChoisie] = useState<string | null>(null);
@@ -632,7 +649,7 @@ export function SectionDesBannieres({ partie = "bannieres", tenue, familier, sol
   const aAcheter = fenetre ? lib.banniereParId(fenetre) : null;
   // La pochette des bannières : seulement si le serveur la connaît, et s'il y a des trésors dessinés.
   const pochette = mes.pochette && lib.TRESORS.length > 0 ? mes.pochette : null;
-  const raisonPochette = pochette ? raisonDeLaPochetteDesBannieres(mes, soldeConnu, pochette.prix, lib.chancesDesTresorsPourMoi(pochette.chances, possedees) === null) : null;
+  const raisonPochette = pochette ? raisonDeLaPochetteDesBannieres(mes, pochetteGagnee ? Math.max(soldeConnu, pochette.prix) : soldeConnu, pochette.prix, lib.chancesDesTresorsPourMoi(pochette.chances, possedees) === null) : null;
   // La chance du trésor regardé à chaque pochette, remboursements comptés.
   const chanceVue = vue && etatVu === "a-gagner" && pochette ? lib.chanceDuTresor(vue.id, lib.chancesDUnTresor(pochette), possedees) : 0;
 
@@ -770,23 +787,25 @@ export function SectionDesBannieres({ partie = "bannieres", tenue, familier, sol
         />
       )}
       {pochetteOuverte && pochette && (
-        <DialoguePochetteBannieres
-          lib={lib}
-          prix={pochette.prix}
-          chances={pochette.chances}
-          possedees={possedees}
-          solde={soldeConnu}
-          tenue={tenue}
-          familier={familier}
-          ouvrir={() => ouvrirLaPochette(pochette.prix)}
-          montrer={montrer}
-          dejaMontree={(id) => mes.porte === id}
-          onFermer={(recue) => {
-            setPochetteOuverte(false);
-            // Le trésor reçu paraît dans la vitrine, dressé dans le livre.
-            if (recue) setChoisie(recue);
-          }}
-        />
+        <PochetteGagneeIci.Provider value={pochetteGagnee}>
+          <DialoguePochetteBannieres
+            lib={lib}
+            prix={pochette.prix}
+            chances={pochette.chances}
+            possedees={possedees}
+            solde={soldeConnu}
+            tenue={tenue}
+            familier={familier}
+            ouvrir={() => ouvrirLaPochette(pochette.prix)}
+            montrer={montrer}
+            dejaMontree={(id) => mes.porte === id}
+            onFermer={(recue) => {
+              setPochetteOuverte(false);
+              // Le trésor reçu paraît dans la vitrine, dressé dans le livre.
+              if (recue) setChoisie(recue);
+            }}
+          />
+        </PochetteGagneeIci.Provider>
       )}
     </Enveloppe>
   );

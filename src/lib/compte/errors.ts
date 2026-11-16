@@ -217,6 +217,11 @@ export const ERROR_MESSAGES: Record<string, string> = {
   deja_pris: "Vous avez déjà pris l'objet de ce palier.",
   etal_change: "L'étal a changé : il se renouvelle à minuit. Rechargez la page.",
 
+  // La loterie du lundi (contrat : `RefusLoterie`, migration 20261116001200_loterie_du_lundi).
+  aucun_billet: "Vous n'avez pas de billet pour ce tirage : il faut d'abord rapporter des points au clan dans sa semaine.",
+  plafond_billets: "Vous ne pouvez pas acheter plus de billets que vous n'en avez gagné.",
+  tirage_fait: "Le tirage vient d'avoir lieu. Rechargez la page.",
+
   // Les Gaulois uniques (contrat : `RefusModeles` de src/lib/village/contrat.ts, migration 20261115001000_gaulois_uniques).
   // `deja_possede` et `tout_possede` ont leurs propres mots dans `modeles.ts`.
   unknown_modele: "Ce Gaulois unique n'existe pas. Rechargez la page.",

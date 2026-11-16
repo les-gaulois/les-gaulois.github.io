@@ -329,6 +329,19 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   if (isClosed(partiesDuSentier.status) || partiesDuSentier.status === 404) add("Un visiteur ne note pas de parties pour le sentier", "ok");
   else add("Un visiteur ne note pas de parties pour le sentier", "fail", `Réponse ${partiesDuSentier.status}. Ne mettez pas en ligne : seule la clé de service note les parties du sentier.`);
 
+  // La loterie du lundi (migration 20261116001200, collée par le fichier .cache/a-coller-loterie.sql) : seul un compte
+  // validé la lit, avec la part de chacun ; seul un compte validé avec son Gaulois achète des billets. Absente : 404, le
+  // fichier n'est pas collé.
+  const loterie = await rpc("get_loterie");
+  const loterieAnswer = loterie.ok ? ((await loterie.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (loterie.status === 404) add("La loterie du lundi est installée", "warn", "get_loterie est absente : collez le fichier .cache/a-coller-loterie.sql (sa dernière ligne dit « loterie du lundi : installée ») avant de mettre en ligne ce qui s'en sert.");
+  else if (isClosed(loterie.status) || (loterie.ok && loterieAnswer?.ok === false)) add("Un visiteur ne lit pas la loterie", "ok");
+  else add("Un visiteur ne lit pas la loterie", "fail", `Réponse ${loterie.status}. Ne mettez pas en ligne : seul un compte validé lit la loterie et la part de chacun.`);
+  const billets = await rpc("acheter_billets_loterie", { p_nombre: 1, p_prix_vu: 0 });
+  const billetsAnswer = billets.ok ? ((await billets.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (isClosed(billets.status) || (billets.ok && billetsAnswer?.ok === false)) add("Un visiteur n'achète pas de billet de loterie", "ok");
+  else add("Un visiteur n'achète pas de billet de loterie", "fail", `Réponse ${billets.status}. Ne mettez pas en ligne : seul un compte validé avec son Gaulois achète des billets.`);
+
   // Les bannières du Gaulois (migration 20261115000900, collée par le fichier .cache/a-coller-bannieres.sql) : seul un compte
   // connecté lit ses bannières ; seul un compte validé avec son Gaulois en achète ou choisit celle de /gaulois. Absente : 404,
   // le fichier n'est pas collé.
