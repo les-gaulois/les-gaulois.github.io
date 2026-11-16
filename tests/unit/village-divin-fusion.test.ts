@@ -9,7 +9,6 @@ import { lireFusionReponse, lireMaForge } from "../../src/lib/village/forge";
 import {
   MESSAGES_DE_LA_FUSION,
   RARETES_A_FONDRE,
-  bandeDeLaFusion,
   creusetAJour,
   creusetPlein,
   dansLeCreuset,
@@ -321,16 +320,6 @@ describe("la fusion à la forge", () => {
     const garde = { ...B, libres: 0 };
     expect(objetsDeLaRarete({ objets: [garde, A, E] }, "commun")).toEqual([A, garde]);
     expect(objetsDeLaRarete(FUSION, "mystique")).toEqual([]);
-  });
-
-  it("fait défiler au tambour des objets de la rareté reçue, et s'arrête sur l'objet du serveur", () => {
-    const recu = { emplacement: "arme" as const, objet: epique, rarete: "epique" as const, double: false };
-    const bande = bandeDeLaFusion(recu, () => 0.37);
-    expect(bande.rangees[bande.cible]).toEqual({ valeur: { emplacement: "arme", objet: epique }, rarete: "epique" });
-    for (const rangee of bande.rangees) {
-      expect(rangee.rarete).toBe("epique");
-      expect(OBJETS[rangee.valeur.emplacement][rangee.valeur.objet]).toMatchObject({ rarete: "epique", gratuit: false });
-    }
   });
 
   it("a des mots pour chaque refus", () => {

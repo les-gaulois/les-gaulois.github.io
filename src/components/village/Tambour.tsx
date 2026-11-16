@@ -119,7 +119,7 @@ function note(frequence: number, dans: number, duree: number, volume: number, fo
 }
 
 /** Une note par rang de rareté, puis un accord tenu pour mystique, légendaire et divin ; une seule note basse hors rareté (rang 0). */
-function carillon(rang: number): void {
+export function carillon(rang: number): void {
   if (!contexte || contexte.state !== "running") return;
   if (rang === 0) note(392, 0.03, 0.6, 0.06, "triangle");
   const gamme = [523.25, 659.25, 783.99, 1046.5, 1318.5, 1567.98];
@@ -137,7 +137,7 @@ const lisse = (a: number, b: number, x: number): number => {
 };
 const sortie3 = (t: number): number => 1 - Math.pow(1 - clamp(t), 3);
 const rgb = (hex: string): [number, number, number] => [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
-const melange = (a: string, b: string, t: number): string => {
+export const melange = (a: string, b: string, t: number): string => {
   const A = rgb(a);
   const B = rgb(b);
   return `#${A.map((v, i) =>
@@ -160,7 +160,7 @@ const REPLI: Record<Rarete, string> = {
   legendaire: "#f2b632",
   divin: "#19d3c5",
 };
-function couleursDuSite(el: Element): Record<Rarete, string> {
+export function couleursDuSite(el: Element): Record<Rarete, string> {
   const style = getComputedStyle(el);
   return Object.fromEntries(
     ORDRE_RARETES.map((rarete) => {

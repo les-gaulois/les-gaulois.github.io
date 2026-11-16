@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-16",
+    "kind": "ameliore",
+    "title": "Le moule de la forge",
+    "body": "Quand vous fondez trois objets, un moule de pierre montre en creux la forme de l'objet reçu : le métal y coule, refroidit, puis le moule s'ouvre.",
+    "link": {
+      "href": "/village#forge",
+      "label": "Ouvrir la forge"
+    }
+  },
+  {
+    "date": "2026-11-16",
     "kind": "nouveau",
     "title": "La bannière sur la fiche de membre",
     "body": "La fiche d'un membre montre en tête la bannière de son Gaulois, relevée à chaque mise à jour du site. Dans le livre des bannières, un aperçu « Sur ma fiche » la montre avant de choisir.",

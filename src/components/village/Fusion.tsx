@@ -9,7 +9,6 @@ import { cleDeLObjet, nomDeLObjet } from "../../lib/village/ecran-forge";
 import { lireFusionReponse } from "../../lib/village/forge";
 import {
   RARETES_A_FONDRE,
-  bandeDeLaFusion,
   creusetAJour,
   creusetPlein,
   dansLeCreuset,
@@ -27,15 +26,17 @@ import {
   type Creuset,
 } from "../../lib/village/fusion";
 import { echelleEntiere } from "../../lib/village/vestiaire-rayons";
-import { Dialogue, type BandeVue, type Issue } from "./BoutiqueDialogue";
+import { Dialogue, type Issue } from "./BoutiqueDialogue";
 import { MarqueDeRarete, Pixels } from "./BoutiquePixels";
-import { BoutonSon, Tambour, preparerLeSon, useSonDuTambour } from "./Tambour";
+import { Moule, type DessinDuMoule } from "./Moule";
+import { BoutonSon, preparerLeSon, useSonDuTambour } from "./Tambour";
 
 /**
  * La fusion, première partie de l'onglet « La forge » (demande du pilote, 16 novembre 2026) : le membre choisit une rareté,
  * pose trois de ses objets dans le creuset, confirme, et reçoit un objet de la rareté suivante. Le serveur décide de tout
- * (`fusionner_objets`) : ce qui peut se fondre, le nombre d'objets et l'objet reçu viennent de lui. Le tambour ne fait que
- * montrer ce qu'il a déjà tiré, et ne tourne pas quand les animations sont coupées.
+ * (`fusionner_objets`) : ce qui peut se fondre, le nombre d'objets et l'objet reçu viennent de lui. Le moule (`Moule.tsx`,
+ * choix du pilote parmi dix animations d'essai) ne fait que montrer ce qu'il a déjà tiré : son creux a la forme de l'objet
+ * reçu. Il ne s'anime pas quand les animations sont coupées.
  */
 
 const ILLISIBLE = "La réponse du serveur est illisible. Rechargez la page.";
@@ -65,7 +66,7 @@ function DialogueFusion({ creuset, suivante, fondre, onFermer }: { creuset: Creu
   const [etape, setEtape] = useState<"confirmer" | "envoi" | "tourne" | "revele">("confirmer");
   const [refus, setRefus] = useState<string | null>(null);
   const [recu, setRecu] = useState<FusionReponse["recu"] | null>(null);
-  const [bande, setBande] = useState<BandeVue | null>(null);
+  const [moule, setMoule] = useState<DessinDuMoule | null>(null);
   const [passer, setPasser] = useState(false);
   const [son, basculerSon] = useSonDuTambour();
   // Ce que la fenêtre montre est ce qu'elle a vu en s'ouvrant : le creuset se vide derrière elle après la fusion.
@@ -77,26 +78,23 @@ function DialogueFusion({ creuset, suivante, fondre, onFermer }: { creuset: Creu
     const issue = await fondre();
     if (issue.ok) {
       const tire = issue.valeur.recu;
-      const tour = bandeDeLaFusion(tire);
-      setBande({
-        depart: tour.depart,
-        cible: tour.cible,
-        rangees: tour.rangees.map((rangee) => ({ nom: nomDeLObjet(rangee.valeur), rarete: rangee.rarete, dessin: vignetteDeLObjet(rangee.valeur.emplacement, rangee.valeur.objet) })),
-      });
+      const vignette = vignetteDeLObjet(tire.emplacement, tire.objet);
       setRecu(tire);
-      setEtape("tourne");
+      // Le creux du moule est le dessin de l'objet reçu. Sans dessin, pas de moule : le résultat s'écrit tout de suite.
+      setMoule(vignette);
+      setEtape(vignette ? "tourne" : "revele");
     } else {
       setRefus(issue.message);
       setEtape("confirmer");
     }
   };
-  const ouverte = (etape === "tourne" || etape === "revele") && recu !== null && bande !== null;
-  const titre = ouverte ? (etape === "revele" ? "Sorti de la forge" : "Le creuset chauffe…") : refus ? "Fusion impossible" : `Fondre ces ${donnes.length} objets ?`;
+  const ouverte = (etape === "tourne" || etape === "revele") && recu !== null;
+  const titre = ouverte ? (etape === "revele" ? "Sorti de la forge" : "Le métal coule…") : refus ? "Fusion impossible" : `Fondre ces ${donnes.length} objets ?`;
   return (
     <Dialogue titre={titre} etape={ouverte ? etape : "confirmer"} occupe={etape === "envoi" || etape === "tourne"} onFermer={onFermer} testid="dialogue-fusion">
-      {ouverte && recu && bande ? (
+      {ouverte && recu ? (
         <>
-          <Tambour rangees={bande.rangees} depart={bande.depart} cible={bande.cible} passer={passer} son={son} onArrive={() => setEtape((e) => (e === "tourne" ? "revele" : e))} />
+          {moule && <Moule dessin={moule} depuis={donnes[0]?.rarete ?? recu.rarete} vers={recu.rarete} passer={passer} son={son} onArrive={() => setEtape((e) => (e === "tourne" ? "revele" : e))} />}
           {etape === "tourne" ? (
             <div class="boutique-dialogue-actions">
               <button

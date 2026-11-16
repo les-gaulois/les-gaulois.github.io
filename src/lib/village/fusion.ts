@@ -7,9 +7,8 @@
  */
 import { ERROR_MESSAGES } from "../compte/errors";
 import { OBJETS, ORDRE_RARETES, RARETES, type Catalogue, type Emplacement, type Rarete } from "../gaulois";
-import { objetPayant, objetsDeLaPochette } from "./boutique";
+import { objetPayant } from "./boutique";
 import type { FusionDeLaForge, FusionRecu, ObjetAFondre, RefObjet, RefusFusion } from "./contrat";
-import { bandeDuTambour, type Bande } from "./tambour";
 
 const estObjet = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === "object" && !Array.isArray(v);
 const entier = (v: unknown, min: number, max: number): number | null => (typeof v === "number" && Number.isSafeInteger(v) && v >= min && v <= max ? v : null);
@@ -137,18 +136,6 @@ export const demandeDeFusion = (creuset: Creuset): RefObjet[] => creuset.map(({ 
 export function regleDeLaRarete(rarete: Rarete, nombre: number): string | null {
   const suivante = rareteSuivante(rarete);
   return suivante ? `${nombre} objets «${NBSP}${RARETES[rarete].nom}${NBSP}» donnent 1 objet «${NBSP}${RARETES[suivante].nom}${NBSP}», tiré au hasard.` : null;
-}
-
-/**
- * La bande du tambour d'une fusion : des objets de la rareté reçue, tous à chances égales, comme le serveur tire ; l'objet
- * reçu au bout. Le tambour ne fait que montrer ce que le serveur a déjà tiré.
- */
-export function bandeDeLaFusion(recu: FusionRecu, hasard: () => number = Math.random, catalogue: Catalogue = OBJETS): Bande<RefObjet> {
-  const possibles = objetsDeLaPochette(recu.rarete, catalogue);
-  return bandeDuTambour({ valeur: { emplacement: recu.emplacement, objet: recu.objet }, rarete: recu.rarete }, () => {
-    const valeur = possibles[Math.min(possibles.length - 1, Math.floor(hasard() * possibles.length))];
-    return valeur ? { valeur, rarete: recu.rarete } : null;
-  });
 }
 
 /** Les mots de la fusion pour chaque refus, en français simple, sans signes. */
