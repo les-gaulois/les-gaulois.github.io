@@ -182,6 +182,13 @@ export interface GauloisDeLaPlace {
   vocal?: boolean | null;
   replique?: string | null;
   gravures?: PlaqueVue[];
+  /**
+   * La vitrine (migration 20261116000200_vitrine_des_gaulois, 16 novembre 2026) : le familier montré à côté du Gaulois et la
+   * bannière montrée sur /gaulois, ou `null`. Des choix de tenue, que /gaulois montre déjà : donnés pour tous. Un serveur
+   * d'avant cette migration ne les donne pas. Lecture : `src/lib/village/vitrine.ts`.
+   */
+  familier?: string | null;
+  banniere?: string | null;
 }
 
 /**

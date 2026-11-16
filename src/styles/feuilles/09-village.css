@@ -2914,3 +2914,183 @@
     animation: none;
   }
 }
+
+/* ---------- La vitrine des Gaulois (16 novembre 2026) ---------- */
+/* L'onglet « La vitrine » de « Mon Gaulois » (Vitrine.tsx) : une carte par Gaulois du clan, avec sa tenue, son familier, sa
+   bannière et son nom ; dessin de Claude Fable 5.2, cartes choisies par le pilote parmi cinq dispositions. L'ordre est
+   celui du serveur ; la couleur d'un cadre est la rareté de l'objet le plus rare porté, jamais un score. Les dessins sont
+   peints case pour case (.village-pixels), agrandis d'un nombre entier de fois. */
+.vitrine-teinte {
+  --rarete: var(--color-line-strong);
+  --rarete-texte: var(--color-muted);
+  --rarete-cadre: var(--rarete);
+}
+.vitrine-teinte[data-rarete="commun"] {
+  --rarete: var(--rarete-commun);
+  --rarete-texte: var(--rarete-commun-texte);
+}
+.vitrine-teinte[data-rarete="peu-commun"] {
+  --rarete: var(--rarete-peu-commun);
+  --rarete-texte: var(--rarete-peu-commun-texte);
+}
+.vitrine-teinte[data-rarete="epique"] {
+  --rarete: var(--rarete-epique);
+  --rarete-texte: var(--rarete-epique-texte);
+}
+.vitrine-teinte[data-rarete="mystique"] {
+  --rarete: var(--rarete-mystique);
+  --rarete-texte: var(--rarete-mystique-texte);
+}
+.vitrine-teinte[data-rarete="legendaire"] {
+  --rarete: var(--rarete-legendaire);
+  --rarete-texte: var(--rarete-legendaire-texte);
+  --rarete-cadre: var(--rarete-legendaire-degrade);
+}
+/* Un pseudo s'écrit tel quel, dans la police du texte : jamais en onciale. */
+.vitrine-nom {
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--ecriture);
+  overflow-wrap: anywhere;
+}
+/* « Moi » : le Gaulois de qui regarde, en toutes lettres, sur le rouge du clan. */
+.vitrine-moi {
+  padding: 0.0625rem 0.4375rem;
+  border-radius: 0.25rem;
+  background: var(--color-red);
+  color: var(--sur-couleur);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+/* Les cartes : une carte par Gaulois, aussi large que lui et son familier, au cadre de la rareté la plus haute portée. */
+.vitrine-cartes {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+}
+.vitrine-carte {
+  position: relative;
+  flex: 1 1 calc(var(--vitrine-l) + 1.5rem);
+  display: grid;
+  grid-template-rows: 1fr auto;
+  min-width: 0;
+  max-width: calc(var(--vitrine-l) + 6rem);
+  border: 3px solid transparent;
+  border-radius: 0.75rem;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--rarete) 50%, var(--color-navy)), color-mix(in srgb, var(--rarete) 14%, var(--color-navy)) 78%) padding-box,
+    var(--rarete-cadre) border-box;
+  overflow: hidden;
+}
+.vitrine-carte-image {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  place-items: end center;
+  padding: 0.75rem 0.75rem 0.5rem;
+  overflow: hidden;
+}
+/* La bannière choisie pour /gaulois, derrière le Gaulois : sans son cadre, calée sur ses pieds comme sur /gaulois, pâle
+   sous un voile de la couleur de rareté. Elle paraît par un fondu lent une fois peinte ; sans elle, le fond de rareté seul. */
+.vitrine-carte-fond {
+  position: absolute;
+  z-index: 0;
+  bottom: calc(0.5rem - var(--vitrine-fond-bas, 0px));
+  left: 50%;
+  max-width: none;
+  translate: -50% 0;
+  opacity: 0;
+  transition: opacity 1.8s ease;
+}
+.vitrine-carte-fond[data-peinte] {
+  opacity: 0.58;
+}
+.vitrine-carte[data-banniere] .vitrine-carte-image::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--rarete) 28%, transparent), color-mix(in srgb, var(--rarete) 6%, transparent) 70%);
+  pointer-events: none;
+}
+/* L'ombre au sol, sous les pieds. */
+.vitrine-carte-image::before {
+  content: "";
+  position: absolute;
+  inset: auto 12% 0.125rem;
+  height: 0.875rem;
+  border-radius: 50%;
+  z-index: 1;
+  background: color-mix(in srgb, var(--ecriture) 20%, transparent);
+}
+.vitrine-carte-dessin {
+  position: relative;
+  z-index: 1;
+}
+/* Le pied et « Moi » passent devant le reflet d'une carte légendaire : il ne voile que le dessin, jamais un texte. */
+.vitrine-carte-pied {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 0.3125rem;
+  padding: 0.5rem 0.5rem 0.625rem;
+  background: var(--color-navy);
+  text-align: center;
+}
+.vitrine-carte > .vitrine-moi {
+  position: absolute;
+  z-index: 2;
+  top: 0.5rem;
+  left: 0.5rem;
+}
+.vitrine-carte[data-moi] {
+  box-shadow:
+    0 0 0 2px var(--color-navy),
+    0 0 0 5px var(--color-red);
+}
+/* Un reflet lent passe sur une carte légendaire, puis attend longtemps. */
+.vitrine-carte[data-rarete="legendaire"]::after {
+  content: "";
+  position: absolute;
+  inset: -20% auto -20% -60%;
+  width: 45%;
+  rotate: 18deg;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--color-navy) 60%, transparent), transparent);
+  animation: vitrine-reflet 11s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes vitrine-reflet {
+  0%,
+  78% {
+    translate: 0 0;
+  }
+  100% {
+    translate: 480% 0;
+  }
+}
+
+.fx-off .vitrine-carte::after {
+  animation: none;
+}
+.fx-off .vitrine-carte-fond {
+  transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .vitrine-carte[data-rarete="legendaire"]::after {
+    display: none;
+  }
+  .vitrine-carte-fond {
+    transition: none;
+  }
+}

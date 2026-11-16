@@ -29,7 +29,7 @@ type Lib = typeof import("../../lib/village/bannieres");
 
 let chargement: Promise<Lib> | null = null;
 /** Le code des bannières, chargé une seule fois pour la page ; un échec se retente à la lecture suivante. */
-function charger(): Promise<Lib> {
+export function charger(): Promise<Lib> {
   chargement ??= import("../../lib/village/bannieres").catch((e: unknown) => {
     chargement = null;
     throw e;

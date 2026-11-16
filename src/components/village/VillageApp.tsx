@@ -9,19 +9,22 @@ import { ANCRE_FAMILIERS } from "../../lib/village/ecran-familiers";
 import { ANCRE_MODELES } from "../../lib/village/modeles";
 import Boutique from "./Boutique";
 import AtelierDeLaForge from "./Forge";
+import VitrineDuClan from "./Vitrine";
 
 /**
- * Les trois parties de la page, dans l'ordre de la barre. L'onglet ouvert se retient dans l'adresse (`#forge`,
+ * Les quatre parties de la page, dans l'ordre de la barre. L'onglet ouvert se retient dans l'adresse (`#forge`,
  * `#boutique`). « La boutique » (la bourse, la pochette surprise, les rayons et le marché des membres) a eu sa page,
  * `/boutique`, le 15 novembre 2026 ; le même jour, le pilote l'a voulue ici, en onglet à côté de la forge (« déplace la
  * boutique »). `/boutique` renvoie à `#boutique` ; `#marche` (l'adresse de l'ancien onglet du marché) `#familiers`, `#bannieres` et `#gaulois-uniques` (les liens du
  * vestiaire vers la pochette des familiers, les bannières et les Gaulois uniques) ouvrent la boutique, qui y descend alors. Les adresses du monde du village, retiré le 15 novembre 2026 (`#place`, `#chantier`,
- * `#feu`, `#qui`, `#interieur-…`), ne nomment plus d'onglet : elles ouvrent « Mon Gaulois ».
+ * `#feu`, `#qui`, `#interieur-…`), ne nomment plus d'onglet : elles ouvrent « Mon Gaulois ». « La vitrine » (`#vitrine`, 16
+ * novembre 2026, demande du pilote) montre tous les Gaulois du clan, chacun sur sa carte.
  */
 const ONGLETS: TabItem[] = [
   { id: "gaulois", label: "Mon Gaulois" },
   { id: "forge", label: "La forge" },
   { id: "boutique", label: "La boutique" },
+  { id: "vitrine", label: "La vitrine" },
 ];
 const IDS = ONGLETS.map((onglet) => onglet.id);
 const ALIAS: Readonly<Record<string, string>> = { [ANCRE_MARCHE]: "boutique", [ANCRE_FAMILIERS]: "boutique", [ANCRE_BANNIERES]: "boutique", [ANCRE_MODELES]: "boutique" };
@@ -32,8 +35,9 @@ const PREFIXE = "village";
  * du pilote (« enlève la partie villages ») : il garde le Gaulois et ses objets, qui paraissent sur les images du clan.
  * Un visiteur voit le Gaulois de départ et la porte. Un compte connecté finit d'abord son inscription
  * (src/lib/compte/arrivee.ts, 15 novembre 2026) : le lien de son profil OpenFront, puis son Gaulois, seul au vestiaire ;
- * la forge et la boutique attendent qu'il soit créé. Ensuite, trois onglets, comme au QG : son Gaulois (le vestiaire : ce
- * qui est à lui), la forge, où l'on grave une de ses parties sur un objet, et la boutique, où l'on achète.
+ * la forge et la boutique attendent qu'il soit créé. Ensuite, quatre onglets, comme au QG : son Gaulois (le vestiaire : ce
+ * qui est à lui), la forge, où l'on grave une de ses parties sur un objet, la boutique, où l'on achète, et la vitrine, où
+ * paraissent tous les Gaulois du clan.
  * Chaque onglet ne lit le serveur qu'à son ouverture ; la forge et la boutique se relisent à chaque retour, et le
  * vestiaire aussi : un objet acheté y paraît aussitôt.
  */
@@ -99,6 +103,12 @@ export default function VillageApp() {
         <Partie prefix={PREFIXE} id="boutique" active={active} slide={slide}>
           <h2 class="sr-only">La boutique</h2>
           {active === "boutique" && <Boutique />}
+        </Partie>
+      )}
+      {!aCreer && (
+        <Partie prefix={PREFIXE} id="vitrine" active={active} slide={slide}>
+          <h2 class="sr-only">La vitrine</h2>
+          <VitrineDuClan actif={active === "vitrine"} />
         </Partie>
       )}
     </div>
