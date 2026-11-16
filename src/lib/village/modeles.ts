@@ -176,11 +176,23 @@ export function restantsParRarete(possedes: ReadonlySet<string>, liste: readonly
 }
 
 /**
- * Les chances réelles de la pochette des Gaulois uniques pour ce compte, en pour cent, par rareté : celles du serveur, sauf
- * qu'une rareté où il a déjà tout est sautée et que les autres se partagent ses chances à proportion, comme le fait le
- * tirage. `null` s'il n'y a plus rien à recevoir (ou plus aucune chance).
+ * Les chances réelles de la pochette des Gaulois uniques pour ce compte, en pour cent de la part qui donne un modèle, par
+ * rareté : celles du serveur, sauf qu'une rareté où il a déjà tout tombe à 0. Les autres gardent leur chance de départ :
+ * depuis le 16 novembre 2026 (migration 20261116001400), les chances d'une rareté terminée vont aux statères rendus,
+ * jamais aux autres raretés. Leur somme fait donc moins de 100 dès qu'une rareté est terminée. `null` s'il n'y a plus
+ * rien à recevoir (ou plus aucune chance).
  */
 export function chancesPourMoi(chances: Valeurs, possedes: ReadonlySet<string>, liste: readonly ModeleRange[] = MODELES): Record<RareteDUnique, number> | null {
+  const restants = restantsParRarete(possedes, liste);
+  const effectives = Object.fromEntries(RARETES_DES_GAULOIS_UNIQUES.map((rarete) => [rarete, restants[rarete] > 0 ? chances[rarete] : 0])) as Record<RareteDUnique, number>;
+  return RARETES_DES_GAULOIS_UNIQUES.some((rarete) => effectives[rarete] > 0) ? effectives : null;
+}
+
+/**
+ * Les chances d'avant le 16 novembre 2026 au soir : une rareté terminée était sautée, et les autres se partageaient ses
+ * chances à proportion. Ne sert plus qu'à `pochettesEnMoyenne`, le calcul qui a fixé les prix de la boutique ce jour-là.
+ */
+function chancesPartagees(chances: Valeurs, possedes: ReadonlySet<string>, liste: readonly ModeleRange[]): Record<RareteDUnique, number> | null {
   const restants = restantsParRarete(possedes, liste);
   const possibles = RARETES_DES_GAULOIS_UNIQUES.filter((rarete) => chances[rarete] > 0 && restants[rarete] > 0);
   const total = possibles.reduce((somme, rarete) => somme + chances[rarete], 0);
@@ -191,8 +203,9 @@ export function chancesPourMoi(chances: Valeurs, possedes: ReadonlySet<string>, 
 }
 
 /**
- * Combien de pochettes il faut en moyenne, en partant de rien, pour tirer chaque modèle (par identifiant). Le calcul est
- * exact : il suit la loi du tirage du serveur (une rareté selon ses chances parmi celles qui ont encore un modèle à donner,
+ * Combien de pochettes sans remboursement il fallait en moyenne, en partant de rien, pour tirer chaque modèle (par
+ * identifiant), sous la loi du tirage du 16 novembre 2026 au matin, celle qui a fixé les prix de la boutique
+ * (`chancesPartagees`). Le calcul est exact : il suit cette loi (une rareté selon ses chances parmi celles qui ont encore un modèle à donner,
  * puis un modèle de cette rareté à chances égales, jamais deux fois le même) sur toutes les collections possibles, deux à
  * la puissance du nombre de modèles. La moyenne est la somme, pour n de 0 au nombre de modèles moins un, de la chance de ne
  * pas l'avoir après n pochettes : au-delà, il est forcément sorti, tant que chaque rareté a des chances (une rareté à 0 % ne
@@ -211,7 +224,7 @@ export function pochettesEnMoyenne(chances: Valeurs, liste: readonly ModeleRange
     const suivante = new Map<number, number>();
     for (const [collection, p] of loi) {
       const possedes = new Set(liste.filter((_, i) => collection & (1 << i)).map((modele) => modele.id));
-      const parRarete = chancesPourMoi(chances, possedes, liste);
+      const parRarete = chancesPartagees(chances, possedes, liste);
       if (!parRarete) continue;
       const restants = restantsParRarete(possedes, liste);
       liste.forEach((modele, i) => {
@@ -235,16 +248,17 @@ export function remboursementMoyen(pochette: Pick<PochetteDesModeles, "prix" | "
 }
 
 /**
- * Les chances de la prochaine pochette pour ce compte, en pour cent de toutes les pochettes : la part des remboursements,
- * puis chaque rareté, prise dans la part qui donne un modèle (`chancesPourMoi`). `null` s'il n'y a plus rien à recevoir :
- * le serveur refuse alors d'ouvrir la pochette, remboursement compris.
+ * Les chances de la prochaine pochette pour ce compte, en pour cent de toutes les pochettes : chaque rareté, prise dans la
+ * part qui donne un modèle (`chancesPourMoi`), et la part des remboursements, qui est tout le reste : celle du serveur,
+ * plus les chances des raretés où il a déjà tout. `null` s'il n'y a plus rien à recevoir : le serveur refuse alors
+ * d'ouvrir la pochette, remboursement compris.
  */
 export function chancesDeLaPochetteDesModeles(pochette: Pick<PochetteDesModeles, "chances" | "remboursement">, possedes: ReadonlySet<string>, liste: readonly ModeleRange[] = MODELES): { remboursement: number; parRarete: Record<RareteDUnique, number> } | null {
   const parRarete = chancesPourMoi(pochette.chances, possedes, liste);
   if (!parRarete) return null;
   const part = (100 - pochette.remboursement) / 100;
   const toutes = Object.fromEntries(RARETES_DES_GAULOIS_UNIQUES.map((r) => [r, parRarete[r] * part])) as Record<RareteDUnique, number>;
-  return { remboursement: pochette.remboursement, parRarete: toutes };
+  return { remboursement: 100 - RARETES_DES_GAULOIS_UNIQUES.reduce((somme, r) => somme + toutes[r], 0), parRarete: toutes };
 }
 
 /**

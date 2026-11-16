@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-16",
+    "kind": "ameliore",
+    "title": "Pochettes : une rareté terminée rend des statères",
+    "body": "Dans la pochette des bannières et celle des Gaulois uniques, finir une rareté n'augmente plus la chance des autres. Sa chance passe aux statères rendus. Le légendaire garde sa chance de départ.",
+    "link": {
+      "href": "/village#pochettes",
+      "label": "Les pochettes"
+    }
+  },
+  {
+    "date": "2026-11-16",
     "kind": "nouveau",
     "title": "La loterie du lundi",
     "body": "Chaque lundi à 21 h 30, un tirage désigne l'or, l'argent et le bronze. Un billet par point rapporté au clan dans la semaine. À gagner : des statères et des pochettes. Premier tirage le 23 novembre.",

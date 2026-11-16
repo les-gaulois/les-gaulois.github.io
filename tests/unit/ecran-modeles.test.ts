@@ -41,15 +41,19 @@ describe("les chances de la pochette des Gaulois uniques, ligne par ligne", () =
     expect(depart?.map((ligne) => Math.round(ligne.chance * 100) / 100)).toEqual([7.5, 4.5, 1.8, 0.9, 0.3]);
   });
 
-  it("saute une rareté épuisée : les autres se partagent ses chances, cent en tout", () => {
-    const lignes = lignesDesChances(SANS_RENDU, ids("lezard", "loup", "sanglier", "dragon"));
+  it("met à zéro une rareté terminée : les autres gardent leur chance, la sienne va aux statères rendus", () => {
+    const possedes = ids("lezard", "loup", "sanglier", "dragon");
+    const lignes = lignesDesChances(SANS_RENDU, possedes);
     expect(lignes?.find((ligne) => ligne.rarete === "commun")).toMatchObject({ chance: 0, reste: 0 });
     expect(lignes?.find((ligne) => ligne.rarete === "legendaire")).toMatchObject({ chance: 0, reste: 0 });
-    expect(lignes?.find((ligne) => ligne.rarete === "peu-commun")?.chance).toBeCloseTo((28 * 100) / 51);
-    expect(lignes?.reduce((somme, ligne) => somme + ligne.chance, 0)).toBeCloseTo(100);
-    const avecRendus = lignesDesChances(POCHETTE, ids("lezard", "loup", "sanglier", "dragon"));
-    expect(avecRendus?.find((ligne) => ligne.rarete === "peu-commun")?.chance).toBeCloseTo((28 * 15) / 51);
-    expect(avecRendus?.reduce((somme, ligne) => somme + ligne.chance, 0)).toBeCloseTo(15);
+    expect(lignes?.find((ligne) => ligne.rarete === "peu-commun")?.chance).toBeCloseTo(28);
+    expect(lignes?.reduce((somme, ligne) => somme + ligne.chance, 0)).toBeCloseTo(51);
+    const avecRendus = lignesDesChances(POCHETTE, possedes);
+    expect(avecRendus?.find((ligne) => ligne.rarete === "peu-commun")?.chance).toBeCloseTo((28 * 15) / 100);
+    expect(avecRendus?.find((ligne) => ligne.rarete === "mystique")?.chance).toBeCloseTo((8 * 15) / 100);
+    // Communs (45) et légendaire (4) terminés : 49 % de la part des modèles passent aux statères rendus.
+    expect(rendusDeLaPochette(POCHETTE, possedes)?.chance).toBeCloseTo(85 + (49 * 15) / 100);
+    expect((avecRendus?.reduce((somme, ligne) => somme + ligne.chance, 0) ?? 0) + (rendusDeLaPochette(POCHETTE, possedes)?.chance ?? 0)).toBeCloseTo(100);
   });
 
   it("ne rend rien quand le compte les a tous", () => {
@@ -68,12 +72,12 @@ describe("les chances de la pochette des Gaulois uniques, ligne par ligne", () =
       ],
     });
     // Arrondi comme le serveur ; les paliers rangés même s'ils arrivent en désordre.
-    expect(rendusDeLaPochette({ prix: 2505, remboursement: 50, paliers: [30, 10] })?.paliers).toEqual([
+    expect(rendusDeLaPochette({ ...POCHETTE, prix: 2505, remboursement: 50, paliers: [30, 10] })?.paliers).toEqual([
       { pourcent: 10, rendu: 251 },
       { pourcent: 30, rendu: 752 },
     ]);
     expect(rendusDeLaPochette(SANS_RENDU)).toBeNull();
-    expect(rendusDeLaPochette({ prix: 3000, remboursement: 85, paliers: [] })).toBeNull();
+    expect(rendusDeLaPochette({ ...POCHETTE, paliers: [] })).toBeNull();
   });
 });
 
@@ -136,7 +140,15 @@ describe("le tambour de la pochette des Gaulois uniques", () => {
   it("suit les chances réelles du compte : les remboursements à leur part, chaque palier et chaque rareté à sa fréquence", () => {
     const possedes = ids("lezard", "loup", "sanglier");
     const attendues = lignesDesChances(POCHETTE, possedes);
-    const hasard = hasardFixe(2026);
+    // Un hasard fixe mais bien mélangé (mulberry32) : celui de `hasardFixe` lie trop deux tirages qui se suivent pour
+    // mesurer des fréquences à un point près quand la part des remboursements n'est pas ronde.
+    let graine = 2026;
+    const hasard = (): number => {
+      graine = (graine + 0x6d2b79f5) | 0;
+      let t = Math.imul(graine ^ (graine >>> 15), 1 | graine);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
     const sorties: Record<string, number> = {};
     let total = 0;
     for (let tour = 0; tour < 1200; tour++) {
@@ -151,7 +163,9 @@ describe("le tambour de la pochette des Gaulois uniques", () => {
     const part = (cle: string): number => ((sorties[cle] ?? 0) * 100) / total;
     expect(sorties["commun"]).toBeUndefined();
     // Quarante-huit mille rangées tirées : à un point près.
-    for (const palier of POCHETTE.paliers) expect(Math.abs(part(`rendu-${palier}`) - 85 / 5)).toBeLessThan(1);
+    const rendus = rendusDeLaPochette(POCHETTE, possedes)?.chance ?? 0;
+    expect(rendus).toBeGreaterThan(85);
+    for (const palier of POCHETTE.paliers) expect(Math.abs(part(`rendu-${palier}`) - rendus / 5)).toBeLessThan(1);
     for (const ligne of attendues ?? []) expect(Math.abs(part(ligne.rarete) - ligne.chance)).toBeLessThan(1);
   });
 

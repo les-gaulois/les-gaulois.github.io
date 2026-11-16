@@ -225,7 +225,9 @@ function PochetteDesBannieres({ lib, mes, possedees, raison, onOuvrir }: { lib: 
   const lignes = lib.lignesDesChancesDesTresors(chances, possedees);
   const aMoi = lib.TRESORS.filter((b) => possedees.has(b.id)).length;
   const rendus = lib.rendusDesPaliers(pochette.prix, pochette.paliers);
-  const rembourse = pochette.remboursement > 0 && rendus.length > 0;
+  // La part des statères rendus pour ce compte : celle du serveur, plus les chances des raretés où il a tout.
+  const chanceRendus = lib.chanceDesStateresRendus(pochette, possedees) ?? 0;
+  const rembourse = chanceRendus > 1e-9 && rendus.length > 0;
   // L'album se calcule sur les bannières reçues du serveur (un nouvel ensemble à chaque rendu ne le recalculerait pas).
   const lireAlbum = useCallback(() => lib.albumDesTresors(chances, idsDesBannieres(mes)), [lib, chances, mes]);
   // Les trésors se peignent en arrière-plan, un par tour de la boucle : au premier survol, l'album les trouve prêts. Les
@@ -269,7 +271,7 @@ function PochetteDesBannieres({ lib, mes, possedees, raison, onOuvrir }: { lib: 
                   de {nombre(Math.min(...rendus))} à {stateres(Math.max(...rendus))}
                 </small>
               </span>
-              <span class="tnum">{pourcent(pochette.remboursement)}</span>
+              <span class="tnum">{pourcent(chanceRendus)}</span>
             </li>
           )}
           {lignes.map(({ rarete, chance, reste }) => (

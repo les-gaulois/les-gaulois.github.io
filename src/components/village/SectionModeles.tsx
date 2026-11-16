@@ -184,7 +184,7 @@ export function SectionDesModeles({ partie = "modeles", etat, solde, pochetteGag
   const porte = modeleParId(mes.porte);
   const soldeConnu = solde ?? mes.solde;
   const lignes = lignesDesChances(mes.pochette, possedes);
-  const rendus = rendusDeLaPochette(mes.pochette);
+  const rendus = rendusDeLaPochette(mes.pochette, possedes);
   const raison = raisonPochetteFermee(mes, pochetteGagnee ? Math.max(soldeConnu, mes.pochette.prix) : soldeConnu);
   const reste = resteADecouvrir(possedes);
   // L'album de la pochette : les onze modèles, chacun avec sa chance (`albumDesModeles`). Calculé à l'ouverture, puis à

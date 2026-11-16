@@ -29,6 +29,7 @@ import {
   bandeDesTresors,
   chanceDuTresor,
   chancesDesTresorsPourMoi,
+  chanceDesStateresRendus,
   comptesParRarete,
   etatDeLaBanniere,
   lignesDesChancesDesTresors,
@@ -298,12 +299,19 @@ describe("le prix baissé et les remboursements de la pochette (migration 202611
     const chances = chancesDUnTresor({ chances: CHANCES_POCHETTE_BANNIERES, remboursement: REMBOURSEMENT_POCHETTE_BANNIERES });
     expect(ORDRE_RARETES.map((r) => chances[r])).toEqual([0, 0, 36, 18, 6]);
     expect(chancesDUnTresor({ chances: CHANCES_POCHETTE_BANNIERES, remboursement: 0 })).toEqual(CHANCES_POCHETTE_BANNIERES);
-    // Une rareté épuisée laisse ses chances aux autres : la part des trésors reste 60.
-    const sansLegendaire = new Set(TRESORS.filter((b) => b.rarete === "legendaire").map((b) => b.id));
-    const pourMoi = chancesDesTresorsPourMoi(chances, sansLegendaire)!;
-    expect(pourMoi.epique + pourMoi.mystique).toBeCloseTo(60, 9);
+    // Une rareté terminée laisse ses chances aux statères rendus : les autres raretés ne bougent pas.
+    const pochette = { chances: CHANCES_POCHETTE_BANNIERES, remboursement: REMBOURSEMENT_POCHETTE_BANNIERES };
+    const de = (...raretes: string[]) => new Set(TRESORS.filter((b) => raretes.includes(b.rarete)).map((b) => b.id));
+    const pourMoi = chancesDesTresorsPourMoi(chances, de("legendaire"))!;
     expect(pourMoi.legendaire).toBe(0);
-    expect(pourMoi.epique).toBeCloseTo(40, 9);
+    expect(pourMoi.epique).toBeCloseTo(36, 9);
+    expect(pourMoi.mystique).toBeCloseTo(18, 9);
+    expect(chanceDesStateresRendus(pochette, new Set())).toBeCloseTo(40, 9);
+    expect(chanceDesStateresRendus(pochette, de("legendaire"))).toBeCloseTo(46, 9);
+    // Le cas du pilote : épiques et mystiques terminés, le légendaire reste à 6, les statères rendus montent à 94.
+    expect(chancesDesTresorsPourMoi(chances, de("epique", "mystique"))!.legendaire).toBeCloseTo(6, 9);
+    expect(chanceDesStateresRendus(pochette, de("epique", "mystique"))).toBeCloseTo(94, 9);
+    expect(chanceDesStateresRendus(pochette, de("epique", "mystique", "legendaire"))).toBeNull();
   });
 });
 
@@ -459,12 +467,12 @@ describe("les chances de la pochette des bannières, pour un compte", () => {
   const chances = CHANCES_POCHETTE_BANNIERES;
   const ids = (rarete: string) => TRESORS.filter((b) => b.rarete === rarete).map((b) => b.id);
 
-  it("sont celles du serveur quand il n'a rien, puis sautent une rareté épuisée, comme le tirage", () => {
+  it("sont celles du serveur quand il n'a rien, puis mettent à zéro une rareté terminée, sans rien donner aux autres", () => {
     expect(chancesDesTresorsPourMoi(chances, new Set())).toEqual({ commun: 0, "peu-commun": 0, epique: 60, mystique: 30, legendaire: 10 });
     const sansLegendaire = chancesDesTresorsPourMoi(chances, new Set(ids("legendaire")))!;
     expect(sansLegendaire.legendaire).toBe(0);
-    expect(sansLegendaire.epique).toBeCloseTo(66.67, 1);
-    expect(sansLegendaire.mystique).toBeCloseTo(33.33, 1);
+    expect(sansLegendaire.epique).toBe(60);
+    expect(sansLegendaire.mystique).toBe(30);
     expect(chancesDesTresorsPourMoi(chances, new Set(TRESORS.map((b) => b.id)))).toBeNull();
     // Les bannières de la boutique ne comptent pas.
     expect(chancesDesTresorsPourMoi(chances, new Set(BOUTIQUE.map((b) => b.id)))).toEqual(chancesDesTresorsPourMoi(chances, new Set()));

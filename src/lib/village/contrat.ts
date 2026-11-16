@@ -459,9 +459,11 @@ export interface BannierePossedee {
  * La pochette des bannières (demande du pilote, 16 novembre 2026 : « 20 bannières différentes obtenables uniquement en
  * pochette, encore plus stylées que celles en boutique ») ; migration 20261116000100_pochette_des_bannieres. Les 20
  * « trésors de la pochette » (famille `tresors` des dessins) ne s'achètent pas : `acheter_banniere` les refuse
- * (`pochette_seulement`). La pochette ne donne jamais une bannière déjà possédée : elle tire une rareté parmi celles où le
- * compte a encore un trésor à recevoir (une rareté épuisée est sautée, les autres se partagent ses chances à proportion),
- * puis un de ces trésors, à chances égales. Prix et chances sont fixés par la migration : aucun réglage dans la Direction.
+ * (`pochette_seulement`). La pochette ne donne jamais une bannière déjà possédée : elle tire une rareté selon ses chances,
+ * puis un des trésors de cette rareté que le compte n'a pas, à chances égales. Une rareté où il a déjà tout garde sa
+ * chance, qui rend alors des statères comme un remboursement, sans rien ajouter aux autres raretés (le pilote, soir du
+ * 16 novembre 2026 : « je veux que ça augmente le % du statères » ; migration 20261116001400, qui fait de même pour la
+ * pochette des Gaulois uniques). Prix et chances sont fixés par la migration : aucun réglage dans la Direction.
  *
  * Le prix baissé et les remboursements, depuis le soir du 16 novembre 2026 (le pilote : « baisse le prix des pochettes de
  * bannière car c'est déséquilibré par rapport au prix des bannières dans l'ensemble, et instaure la possibilité de gagner

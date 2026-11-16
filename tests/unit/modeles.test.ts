@@ -294,8 +294,14 @@ describe("les remboursements de la pochette (16 novembre 2026, au soir)", () => 
     expect(Math.round(cout("magma") / 1000) * 1000).toBe(110000);
     expect(Math.round(cout("dragon") / 1000) * 1000).toBe(123000);
     expect(cout("dragon") / PRIX_MODELE_PAR_RARETE.legendaire).toBeGreaterThan(4);
-    // Les communs possédés, la pochette ne donne plus que des modèles plus chers : elle vaut davantage.
-    expect(valeurMoyenneDeLaPochette(pochette, PRIX_MODELE_PAR_RARETE, new Set(["lezard", "loup", "sanglier"]))!).toBeGreaterThan(valeur);
+    // Les communs possédés, leurs chances vont aux statères rendus, pas aux modèles plus chers : elle vaut moins.
+    const sansCommuns = new Set(["lezard", "loup", "sanglier"]);
+    expect(valeurMoyenneDeLaPochette(pochette, PRIX_MODELE_PAR_RARETE, sansCommuns)!).toBeLessThan(valeur);
+    const chances = chancesDeLaPochetteDesModeles(pochette, sansCommuns)!;
+    expect(chances.remboursement).toBeCloseTo(92.5, 10);
+    expect(chances.parRarete.commun).toBe(0);
+    // Le légendaire reste à sa chance du premier jour.
+    expect(chances.parRarete.legendaire).toBeCloseTo(chancesDeLaPochetteDesModeles(pochette, new Set())!.parRarete.legendaire, 10);
   });
 
   it("sont tirés par le serveur, sans annonce sur Discord ni modèle, et comptés en pochette nette", () => {
@@ -314,6 +320,25 @@ describe("les remboursements de la pochette (16 novembre 2026, au soir)", () => 
     expect(MIGRATION_REMBOURSEMENTS).toContain("grant execute on function public.ouvrir_pochette_modeles(integer) to authenticated;");
     expect(MIGRATION_REMBOURSEMENTS).toContain("grant execute on function public.get_mes_modeles() to authenticated;");
     expect(MIGRATION_REMBOURSEMENTS).not.toMatch(/raw_user_meta_data|drop table|drop column|truncate|delete from/i);
+  });
+
+  it("une rareté terminée rend des statères au serveur, pour les deux pochettes, sans rien donner aux autres raretés", () => {
+    const sql = readFileSync("supabase/migrations/20261116001400_raretes_completes_en_stateres.sql", "utf8").replace(/\r\n/g, "\n");
+    for (const [chances, ref, fonction] of [
+      ["internal.modeles_chances()", "modeles-rembourse", "public.ouvrir_pochette_modeles(integer)"],
+      ["internal.bannieres_pochette_chances()", "bannieres-rembourse", "public.ouvrir_pochette_bannieres(integer)"],
+    ] as const) {
+      // La rareté se tire parmi toutes celles qui ont des chances, sans regarder ce qu'il reste au compte.
+      expect(sql).toContain(`select sum(c.chance) into v_total from ${chances} c where c.chance > 0;`);
+      expect(sql).toContain(`select c.rarete, c.chance from ${chances} c where c.chance > 0 order by c.rang`);
+      expect(sql).toContain(`perform internal.village_debiter(v_uid, 'pochette', v_prix, '${ref}');`);
+      expect(sql).toContain(`insert into internal.stateres_mouvements (user_id, nature, montant, ref) values (v_uid, 'pochette', v_rendu, '${ref}');`);
+      expect(sql).toContain(`revoke all on function ${fonction} from public, anon, authenticated;`);
+      expect(sql).toContain(`grant execute on function ${fonction} to authenticated;`);
+    }
+    expect(sql.match(/if v_n = 0 then v_rend := true; end if;/g)).toHaveLength(2);
+    expect(sql.match(/perform internal\.fail\('tout_possede'\)/g)).toHaveLength(2);
+    expect(sql).not.toMatch(/raw_user_meta_data|drop table|drop column|truncate|delete from|alter table|update internal/i);
   });
 });
 
@@ -384,13 +409,13 @@ describe("ce que l'écran déduit", () => {
     expect(etatDuModele("dragon", null)).toBe("a-obtenir");
   });
 
-  it("donne les chances réelles : une rareté épuisée est sautée, les autres se partagent sa part", () => {
+  it("donne les chances réelles : une rareté terminée tombe à zéro, les autres gardent leur chance", () => {
     const neuf = chancesPourMoi(mes.pochette.chances, new Set());
     expect(neuf).toEqual(mes.pochette.chances);
     const sansCommuns = chancesPourMoi(mes.pochette.chances, new Set(["lezard", "loup", "sanglier"]))!;
     expect(sansCommuns.commun).toBe(0);
-    expect(sansCommuns.legendaire).toBeCloseTo((4 * 100) / 55);
-    expect(RARETES_DES_GAULOIS_UNIQUES.reduce((s, r) => s + sansCommuns[r], 0)).toBeCloseTo(100);
+    expect(sansCommuns.legendaire).toBe(mes.pochette.chances.legendaire);
+    expect(RARETES_DES_GAULOIS_UNIQUES.reduce((s, r) => s + sansCommuns[r], 0)).toBeCloseTo(100 - mes.pochette.chances.commun);
     expect(chancesPourMoi(mes.pochette.chances, new Set(MODELES.map((m) => m.id)))).toBeNull();
   });
 

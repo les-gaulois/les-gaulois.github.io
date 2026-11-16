@@ -20,12 +20,14 @@ export interface Rendu {
 /**
  * Ce que la pochette rend quand elle ne donne pas de Gaulois unique : la part des pochettes qui remboursent, en pour cent,
  * et chaque palier avec ses statères, du plus petit au plus grand (arrondis comme le serveur, `round(prix × palier / 100)`).
- * `null` pour une pochette sans remboursement.
+ * La part est celle de ce compte : celle du serveur, plus les chances des raretés où il a déjà tous les modèles
+ * (`chancesDeLaPochetteDesModeles`). `null` pour une pochette qui ne rend rien.
  */
-export function rendusDeLaPochette(pochette: Pick<PochetteDesModeles, "prix" | "remboursement" | "paliers">): { chance: number; paliers: Rendu[] } | null {
-  if (!(pochette.remboursement > 0) || pochette.paliers.length === 0) return null;
+export function rendusDeLaPochette(pochette: Pick<PochetteDesModeles, "prix" | "chances" | "remboursement" | "paliers">, possedes: ReadonlySet<string> = new Set(), liste: readonly ModeleRange[] = MODELES): { chance: number; paliers: Rendu[] } | null {
+  const chance = chancesDeLaPochetteDesModeles(pochette, possedes, liste)?.remboursement ?? pochette.remboursement;
+  if (!(chance > 0) || pochette.paliers.length === 0) return null;
   const paliers = [...pochette.paliers].sort((a, b) => a - b).map((pourcent) => ({ pourcent, rendu: Math.round((pochette.prix * pourcent) / 100) }));
-  return { chance: pochette.remboursement, paliers };
+  return { chance, paliers };
 }
 
 /** Une ligne des chances de la pochette des Gaulois uniques, pour ce compte. */
@@ -42,7 +44,7 @@ export interface LigneDeChance {
 
 /**
  * Les chances de la pochette pour ce compte, de la rareté la plus courante à la plus rare, en pour cent de toutes les
- * pochettes : celles du serveur, prises dans la part qui donne un modèle, une rareté où il a tout étant sautée
+ * pochettes : celles du serveur, prises dans la part qui donne un modèle, une rareté où il a tout tombant à 0 au profit des statères rendus
  * (`chancesDeLaPochetteDesModeles`). Avec la part des remboursements (`rendusDeLaPochette`), elles font cent. `null` quand il n'a
  * plus rien à recevoir.
  */
@@ -78,14 +80,14 @@ export interface BandeDesUniques {
 
 /**
  * La bande du tambour de la pochette des Gaulois uniques, pour un compte. Chaque rangée est tirée comme le serveur tire :
- * d'abord remboursement ou modèle, selon la part des remboursements ; un remboursement prend un palier à chances égales ;
+ * d'abord remboursement ou modèle, selon la part des remboursements de ce compte (raretés terminées comprises) ; un remboursement prend un palier à chances égales ;
  * un modèle, seulement parmi ceux que le compte n'avait pas avant d'ouvrir, aux chances que la pochette avait pour lui. Ce
  * que le serveur a répondu (`recu`) est posé à la rangée de l'arrêt : aucune autre rangée n'est choisie d'après lui.
  */
 export function bandeDesModeles(recu: SortieDeLaPochette, pochette: Pick<PochetteDesModeles, "prix" | "chances" | "remboursement" | "paliers">, possedes: ReadonlySet<string>, hasard: () => number = Math.random, liste: readonly ModeleRange[] = MODELES): BandeDesUniques {
   const parRarete = Object.fromEntries(RARETES_DES_GAULOIS_UNIQUES.map((rarete) => [rarete, liste.filter((m) => m.rarete === rarete && !possedes.has(m.id))])) as Partial<Record<string, ModeleRange[]>>;
   const pourMoi = chancesPourMoi(pochette.chances, possedes, liste) ?? pochette.chances;
-  const rendus = rendusDeLaPochette(pochette);
+  const rendus = rendusDeLaPochette(pochette, possedes, liste);
   const tirer = (): SortieDeLaPochette => {
     if (rendus && hasard() * 100 < rendus.chance) {
       const palier = rendus.paliers[Math.min(rendus.paliers.length - 1, Math.floor(hasard() * rendus.paliers.length))];

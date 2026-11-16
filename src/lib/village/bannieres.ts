@@ -210,19 +210,24 @@ export function valeurMoyenneDeLaPochetteDesBannieres(prix: number, chances: Rea
 
 /**
  * Les chances réelles de la pochette des bannières pour ce compte, en pour cent, par rareté : celles données, sauf
- * qu'une rareté où il a déjà tous les trésors est sautée et que les autres se partagent ses chances à proportion, comme le
- * fait le tirage. Leur somme reste celle des chances données : 100, ou la part des pochettes qui donnent un trésor
- * (`chancesDUnTresor`). `null` s'il n'y a plus rien à recevoir (ou plus aucune chance).
+ * qu'une rareté où il a déjà tous les trésors tombe à 0. Les autres gardent leur chance de départ : depuis le 16 novembre
+ * 2026 (migration 20261116001400), les chances d'une rareté terminée vont aux statères rendus, jamais aux autres raretés
+ * (`chanceDesStateresRendus`). `null` s'il n'y a plus rien à recevoir (ou plus aucune chance).
  */
 export function chancesDesTresorsPourMoi(chances: Readonly<Record<Rarete, number>>, possedees: ReadonlySet<string>, liste: readonly Banniere[] = BANNIERES): Record<Rarete, number> | null {
   const restants = tresorsParRarete(tresorsAGagner(possedees, liste));
-  const possibles = ORDRE_RARETES.filter((rarete) => chances[rarete] > 0 && restants[rarete] > 0);
-  const total = possibles.reduce((somme, rarete) => somme + chances[rarete], 0);
-  if (!(total > 0)) return null;
-  const part = ORDRE_RARETES.reduce((somme, rarete) => somme + chances[rarete], 0);
-  const effectives = Object.fromEntries(ORDRE_RARETES.map((rarete) => [rarete, 0])) as Record<Rarete, number>;
-  for (const rarete of possibles) effectives[rarete] = (chances[rarete] * part) / total;
-  return effectives;
+  const effectives = Object.fromEntries(ORDRE_RARETES.map((rarete) => [rarete, restants[rarete] > 0 ? chances[rarete] : 0])) as Record<Rarete, number>;
+  return ORDRE_RARETES.some((rarete) => effectives[rarete] > 0) ? effectives : null;
+}
+
+/**
+ * La chance, en pour cent, que la prochaine pochette de ce compte rende des statères : la part des remboursements du
+ * serveur, plus les chances des raretés où il a déjà tous les trésors. Avec les chances de `chancesDesTresorsPourMoi`
+ * (sur `chancesDUnTresor`), elle fait cent. `null` s'il n'y a plus rien à recevoir.
+ */
+export function chanceDesStateresRendus(pochette: Pick<NonNullable<MesBannieres["pochette"]>, "chances" | "remboursement">, possedees: ReadonlySet<string>, liste: readonly Banniere[] = BANNIERES): number | null {
+  const pourMoi = chancesDesTresorsPourMoi(chancesDUnTresor(pochette), possedees, liste);
+  return pourMoi ? 100 - ORDRE_RARETES.reduce((somme, rarete) => somme + pourMoi[rarete], 0) : null;
 }
 
 /** La chance, en pour cent, que la prochaine pochette donne ce trésor à ce compte : 0 s'il l'a déjà, ou si ce n'en est pas un. */
