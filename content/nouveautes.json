@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-16",
+    "kind": "nouveau",
+    "title": "Les Gaulois à côté des pseudos",
+    "body": "Le Gaulois d'un membre qui a créé le sien paraît à côté de son pseudo : dans la gazette, qui gagne un podium, sur les records, sur Membres et sur les dernières parties à revoir.",
+    "link": {
+      "href": "/gazette",
+      "label": "Lire la gazette"
+    }
+  },
+  {
+    "date": "2026-11-16",
     "kind": "ameliore",
     "title": "Le replay seul",
     "body": "Dans « Revoir une partie », seul le replay du jeu reste : le film n'est plus montré. Une partie dont le replay n'est pas encore prêt le dit, avec le lien vers OpenFront.",

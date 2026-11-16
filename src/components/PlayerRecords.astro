@@ -1,9 +1,11 @@
 ---
 import DataStatus from "./DataStatus.astro";
+import GauloisPortrait from "./GauloisPortrait.astro";
 import ReadingNote from "./ReadingNote.astro";
 import { clan } from "../../config/clan";
 import { loadMembers, loadMemberWeeks, loadMeta } from "../lib/data";
 import { fmtCount, fmtDate, fmtDay } from "../lib/format";
+import { portraitDuGaulois } from "../lib/gaulois-site";
 import { MAX_AGE_HOURS } from "../lib/freshness";
 import { singlePseudos } from "../lib/members";
 import { playerRecords, type RecordHolder, type WeekRecord } from "../lib/records-joueurs";
@@ -56,7 +58,9 @@ const Wrapper = rendu === "note" ? Fragment : "section";
                       {i > 0 && (i === t.holders.length - 1 ? " et " : ", ")}
                       {h.username ? (
                         <span class="inline-flex items-center gap-2">
-                          <span class="face-slot" aria-hidden="true" data-face={faces.has(h.username) ? h.username : undefined} hidden></span>
+                          {/* Le Gaulois de qui a créé le sien prend la place de la photo (src/lib/gaulois-site.ts). */}
+                          <GauloisPortrait portrait={portraitDuGaulois(h.id)} taille={2} />
+                          {!portraitDuGaulois(h.id) && <span class="face-slot" aria-hidden="true" data-face={faces.has(h.username) ? h.username : undefined} hidden />}
                           {/* À plusieurs, les pseudos forment une phrase (« A, B et C ») : chacun garde un trait pâle. */}
                           <a class:list={["pseudo", { "pseudo-phrase": t.holders.length > 1 }]} href={fiche(h.id)}>
                             {h.username}

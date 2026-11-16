@@ -17,6 +17,9 @@
  * Les fiches se dessinent à la construction du site, qui n'a pas la clé de service : une étape d'avant, dans la GitHub
  * Action, lit les Gaulois (`scripts/lire-gaulois-fiches.ts`) et les range dans `.cache/gaulois-fiches.json`, hors de Git
  * et de `dist/`, par empreinte et non par identifiant ; la construction les relit par `gauloisDuCache`.
+ *
+ * Depuis le 16 novembre 2026, la construction publie aussi le dessin de ces Gaulois, une image par membre au pseudo public,
+ * pour les pages qui le montrent à côté du pseudo (`gaulois-site.ts`) : le dessin, jamais la tenue ni le fichier.
  */
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";

@@ -173,6 +173,38 @@
 .revoir-liste a[aria-current] .revoir-ici {
   display: inline;
 }
+/* Les Gaulois de la partie (16 novembre 2026) : le buste de chaque membre au pseudo public qui l'a jouée et qui a créé
+   le sien, son pseudo dessous, sous un filet. */
+.revoir-gaulois {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.25rem;
+  padding-top: 0.625rem;
+  border-top: 1px solid var(--color-line);
+}
+.revoir-gaulois > span {
+  display: grid;
+  justify-items: center;
+  gap: 0.125rem;
+  min-width: 0;
+  max-width: 6rem;
+}
+.revoir-gaulois > span > span:last-child {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 0.8125rem;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.revoir-gaulois > .revoir-gaulois-reste {
+  align-self: flex-end;
+  max-width: none;
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
 
 /* Le vrai lecteur du jeu dans la page (16 novembre 2026), seul quand la partie l'a. Son cadre a la forme de la carte, que
    le lecteur montre entière et sans fond autour ; son classement en haut et sa frise en bas passent par-dessus elle, et

@@ -4,6 +4,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { clan } from "../../config/clan";
 import { accueilFacts, accueilImageAlt, accueilRanking } from "../../src/lib/accueil-image";
 import { GazetteFonts } from "../../src/lib/gazette-image";
+import { gauloisDuSite, portraitDuGaulois } from "../../src/lib/gaulois-site";
 import { worldTerritory } from "../../src/lib/carte-monde";
 import { loadClanMapFilm, loadTerritoryReadings, loadGames, loadHistory, loadMemberGames, loadMemberResults, loadMembers, loadMemberWeeks, loadMeta, loadNouveautes, loadCompagnonsDeFlamme, loadRecordsPersonnels, loadRivals, loadSeriesEnCours, loadSessions } from "../../src/lib/data";
 import { datesDeLaSerie, datesDuRecord, flammeAllumee, phraseDesCompagnons, serieEnMots } from "../../src/lib/serie-en-cours";
@@ -2568,6 +2569,26 @@ test("la gazette donne le bilan de la dernière semaine complète, et n'invente 
   await expect(home).toContainText(editionLead(latest, clan.tag, { standing: false }));
   await home.getByRole("link", { name: "Lire la gazette" }).click();
   await expect(page).toHaveURL(/gazette/);
+});
+
+test("le Gaulois d'un membre ne paraît qu'à côté de qui a créé le sien, jamais inventé", async ({ page }) => {
+  // Les Gaulois relevés avant la construction (.cache/gaulois-fiches.json) : sans eux, aucune page n'en montre.
+  const avec = gauloisDuSite();
+  const command = (loadMembers()?.members ?? []).filter((m) => m.role !== "member");
+  await page.goto("/membres");
+  await expect(page.getByTestId("command").locator(".gaulois-portrait")).toHaveCount(command.filter((m) => m.username && portraitDuGaulois(m.publicId)).length);
+  for (const path of ["/gazette", "/records", "/membres", "/revoir"]) {
+    await page.goto(path);
+    const portraits = page.locator(".gaulois-portrait");
+    if (avec.size === 0) await expect(portraits).toHaveCount(0);
+    // Décoratifs : le pseudo est écrit à côté. Chaque image est celle d'un membre qui a un Gaulois.
+    const images = await portraits.locator("img").evaluateAll((imgs) => imgs.map((img) => ({ alt: img.getAttribute("alt"), src: img.getAttribute("src") ?? "" })));
+    for (const image of images) {
+      expect(image.alt, path).toBe("");
+      const id = decodeURIComponent(image.src.split("/gaulois/")[1]?.split(".png")[0] ?? "");
+      expect(avec.has(id), `${path} : ${image.src}`).toBe(true);
+    }
+  }
 });
 
 test.describe("fiches des membres", () => {

@@ -1,9 +1,11 @@
 ---
 import DataStatus from "./DataStatus.astro";
+import GauloisPortrait from "./GauloisPortrait.astro";
 import ReadingNote from "./ReadingNote.astro";
 import { clan } from "../../config/clan";
 import { loadMemberResults, loadMembers, loadMeta, loadSessions, unreadableSessionFiles } from "../lib/data";
 import { fmtCount, fmtDate, fmtInt, fmtRank } from "../lib/format";
+import { portraitDuGaulois } from "../lib/gaulois-site";
 import { MAX_AGE_HOURS } from "../lib/freshness";
 import { singlePseudos } from "../lib/members";
 import { playerPodiums, podiumDates, PODIUM_SIZE, type PodiumPlace } from "../lib/podiums";
@@ -61,13 +63,17 @@ const Wrapper = rendu === "note" ? Fragment : "section";
                   {board.rows.map((row) => (
                     <li class="grid grid-cols-[3rem_minmax(0,1fr)_auto] items-center gap-x-2 sm:gap-x-3" data-testid="podium-row">
                       <span class="font-display text-xl font-extrabold">{fmtRank(row.place)}</span>
-                      <span class="min-w-0 [overflow-wrap:anywhere]">
-                        <span class="text-lg">
-                          {/* Vide pour un visiteur : la photo Discord d'un membre qui se montre, pour un membre validé connecté (src/scripts/visages.ts). */}
-                          <span class="face-slot mr-2" aria-hidden="true" data-face={faces.has(row.username) ? row.username : undefined} hidden></span>
-                          <a class="pseudo" href={fiche(row.id)}>{row.username}</a>
+                      {/* Le Gaulois de qui a créé le sien, debout à côté de son pseudo (src/lib/gaulois-site.ts). */}
+                      <span class="flex min-w-0 items-center gap-3">
+                        <GauloisPortrait portrait={portraitDuGaulois(row.id)} pose="pied" />
+                        <span class="min-w-0 [overflow-wrap:anywhere]">
+                          <span class="text-lg">
+                            {/* Vide pour un visiteur : la photo Discord d'un membre qui se montre, pour un membre validé connecté (src/scripts/visages.ts). */}
+                            {!portraitDuGaulois(row.id) && <span class="face-slot mr-2" aria-hidden="true" data-face={faces.has(row.username) ? row.username : undefined} hidden />}
+                            <a class="pseudo" href={fiche(row.id)}>{row.username}</a>
+                          </span>
+                          <span class="tnum block text-xs text-muted" data-testid="podium-dates">{podiumDates(row)}</span>
                         </span>
-                        <span class="tnum block text-xs text-muted" data-testid="podium-dates">{podiumDates(row)}</span>
                       </span>
                       {/* Le chiffre en grand, l'unité dessous : sur téléphone, la place reste au pseudo. */}
                       <span class="text-right leading-tight" data-testid="podium-value">

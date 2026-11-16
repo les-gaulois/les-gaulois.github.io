@@ -1,18 +1,24 @@
 ---
 import Base from "../layouts/Base.astro";
 import Empty from "../components/Empty.astro";
+import GauloisPortrait from "../components/GauloisPortrait.astro";
 import MapNamesCredit from "../components/MapNamesCredit.astro";
 import PageHeader from "../components/PageHeader.astro";
 import ReadingNote from "../components/ReadingNote.astro";
 import RejeuPartie from "../components/RejeuPartie.tsx";
 import { loadFilms } from "../lib/data";
 import { fmtDayAndTime, fmtInt } from "../lib/format";
+import { gauloisDesParties } from "../lib/gaulois-site";
 import { mapLabel } from "../lib/map-names";
 import { JOURS_DE_FILMS } from "../lib/rejeu/films-index";
 import { formatLabel } from "../lib/results";
 
 /** Les parties listées sous le lecteur ; les autres s'ouvrent depuis « Dernières parties ». */
 const LISTES = 12;
+/** Les Gaulois montrés sur la case d'une partie ; les autres sont comptés à la suite. */
+const GAULOIS_PAR_CASE = 6;
+// Les membres au pseudo public de chaque partie qui ont créé leur Gaulois (src/lib/gaulois-site.ts).
+const gaulois = gauloisDesParties();
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const liste = loadFilms();
@@ -67,6 +73,17 @@ const siteDuLecteur = parties[0]?.jeu ? new URL(parties[0].jeu).origin : null;
                   <span class="text-muted">
                     {fmtDayAndTime(f.debut)} · {formatLabel(f.equipes)} · {fmtInt(f.gaulois)} Gaulois
                   </span>
+                  {gaulois.has(f.partie) && (
+                    <span class="revoir-gaulois" data-testid="revoir-gaulois">
+                      {gaulois.get(f.partie)!.slice(0, GAULOIS_PAR_CASE).map((g) => (
+                        <span>
+                          <GauloisPortrait portrait={g.portrait} />
+                          <span>{g.username}</span>
+                        </span>
+                      ))}
+                      {gaulois.get(f.partie)!.length > GAULOIS_PAR_CASE && <span class="revoir-gaulois-reste">et {fmtInt(gaulois.get(f.partie)!.length - GAULOIS_PAR_CASE)} de plus</span>}
+                    </span>
+                  )}
                 </a>
               </li>
             ))}

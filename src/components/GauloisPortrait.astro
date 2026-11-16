@@ -1,0 +1,35 @@
+---
+import { portraitDuGaulois, type PortraitDeGaulois } from "../lib/gaulois-site";
+
+/**
+ * Le Gaulois d'un membre à côté de son pseudo (src/lib/gaulois-site.ts) : rien du tout s'il n'a pas créé le sien.
+ * Décoratif : le pseudo est écrit à côté. Du pixel art, agrandi d'un nombre entier, sans lissage.
+ */
+interface Props {
+  /** L'identifiant public du membre. */
+  id?: string | null;
+  /** Ou le portrait déjà lu. */
+  portrait?: PortraitDeGaulois | null;
+  /** « buste » (par défaut) : la tête et les épaules. « pied » : le Gaulois entier. */
+  pose?: "buste" | "pied";
+  /** Pixels d'écran par case du dessin. */
+  taille?: 1 | 2 | 3;
+  class?: string;
+}
+const { id = null, pose = "buste", taille = 1, class: classe } = Astro.props;
+const portrait = Astro.props.portrait ?? portraitDuGaulois(id);
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+---
+
+{
+  portrait && (
+    <span
+      class:list={["gaulois-portrait", classe]}
+      data-gaulois={pose}
+      aria-hidden="true"
+      style={`width:${portrait.largeur * taille}px;height:${(pose === "buste" ? portrait.buste : portrait.hauteur) * taille}px`}
+    >
+      <img src={`${base}${portrait.image}`} width={portrait.largeur * taille} height={portrait.hauteur * taille} alt="" loading="lazy" decoding="async" />
+    </span>
+  )
+}

@@ -1,8 +1,10 @@
 ---
+import GauloisPortrait from "./GauloisPortrait.astro";
 import ReadingNote from "./ReadingNote.astro";
 import { clan } from "../../config/clan";
 import { loadMembers } from "../lib/data";
 import { fmtCount } from "../lib/format";
+import { portraitDuGaulois } from "../lib/gaulois-site";
 import { tierRows, WIN_TIERS } from "../lib/paliers";
 
 interface Props {
@@ -16,6 +18,7 @@ const { rendu = "complet" } = Astro.props;
 const TITLE = "Les paliers du clan";
 // Les précisions ne s'écrivent qu'une fois : dans le bloc, ou seules (« note ») pour le repli unique de la page.
 const Wrapper = rendu === "note" ? Fragment : "section";
+// Le Gaulois de qui a créé le sien paraît devant son pseudo (`portraitDuGaulois`, src/lib/gaulois-site.ts).
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const rows = tierRows(loadMembers()?.members ?? []);
 /** Au-delà, les pseudos d'un palier se replient : ils prendraient toute la page. */
@@ -39,18 +42,18 @@ const profile = (publicId: string | null) => `${base}/membres/${encodeURICompone
             <div class="min-w-0 text-sm">
               {/* Des pseudos assez hauts pour le doigt : 32 px de haut au lieu de 17, l'écart entre les lignes est dans le lien. `.pseudo` leur donne l'allure des pseudos du site. */}
               {row.named.length > 0 && row.named.length <= OPEN_NAMES && (
-                <ul class="-my-1.5 flex flex-wrap gap-x-4">
+                <ul class="-my-1.5 flex flex-wrap items-center gap-x-4">
                   {row.named.map((m) => (
-                    <li class="min-w-0 [overflow-wrap:anywhere]"><a class="pseudo inline-block py-1.5" href={profile(m.publicId)}>{m.username}</a></li>
+                    <li class="min-w-0 [overflow-wrap:anywhere]"><a class="pseudo inline-flex items-center gap-1.5 py-1.5" href={profile(m.publicId)}><GauloisPortrait portrait={portraitDuGaulois(m.publicId)} />{m.username}</a></li>
                   ))}
                 </ul>
               )}
               {row.named.length > OPEN_NAMES && (
                 <details class="fold">
                   <summary>Voir les {row.named.length} pseudos</summary>
-                  <ul class="mt-0.5 flex flex-wrap gap-x-4">
+                  <ul class="mt-0.5 flex flex-wrap items-center gap-x-4">
                     {row.named.map((m) => (
-                      <li class="min-w-0 [overflow-wrap:anywhere]"><a class="pseudo inline-block py-1.5" href={profile(m.publicId)}>{m.username}</a></li>
+                      <li class="min-w-0 [overflow-wrap:anywhere]"><a class="pseudo inline-flex items-center gap-1.5 py-1.5" href={profile(m.publicId)}><GauloisPortrait portrait={portraitDuGaulois(m.publicId)} />{m.username}</a></li>
                     ))}
                   </ul>
                 </details>

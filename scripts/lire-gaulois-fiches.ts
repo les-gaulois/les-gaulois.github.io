@@ -7,6 +7,9 @@
  * Sans réglage, sans la migration ou en cas de panne, le fichier n'est pas écrit (un ancien est retiré) : les fiches se
  * dessinent comme avant. Voir `src/lib/gaulois-joueurs.ts`.
  *
+ * Depuis le 16 novembre 2026, la construction tire aussi de ce fichier l'image de chaque Gaulois, publiée sous
+ * `/gaulois/<identifiant public>.png` et montrée à côté du pseudo sur les pages (`src/lib/gaulois-site.ts`).
+ *
  * La même étape lit la bannière que ces membres montrent, pour leur ligne de la liste des membres (16 novembre 2026) :
  * `.cache/bannieres-membres.json`, de la même façon, relu par `bannieresDuCache` (`src/lib/bannieres-joueurs.ts`).
  */

@@ -606,6 +606,68 @@ main .card:hover::before {
   width: 3.5rem;
   height: 3.5rem;
 }
+/* Le Gaulois d'un membre à côté de son pseudo (GauloisPortrait.astro, 16 novembre 2026) : du pixel art, agrandi d'un
+   nombre entier, sans lissage. Le cadre a la taille du buste ou du Gaulois entier, et ne laisse voir que le haut de
+   l'image pour un buste. Décoratif : le pseudo est écrit à côté. */
+.gaulois-portrait {
+  display: inline-block;
+  flex: none;
+  overflow: hidden;
+  line-height: 0;
+  vertical-align: middle;
+}
+.gaulois-portrait > img {
+  display: block;
+  max-width: none;
+  image-rendering: pixelated;
+}
+/* Une ligne « rang, Gaulois, pseudo, chiffre ». */
+.gazette-ligne {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+}
+/* Le podium de la gazette : une marche par joueur, la plus haute pour le premier, et son Gaulois debout dessus. Sur
+   téléphone, les marches se suivent l'une sous l'autre. */
+.gazette-podium {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+  align-items: end;
+  gap: 1.25rem 1rem;
+}
+.gazette-marche {
+  display: grid;
+  justify-items: start;
+  min-width: 0;
+}
+.gazette-marche > .gaulois-portrait {
+  margin-left: 1rem;
+}
+.gazette-socle {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0.75rem 1rem;
+  border-top: 3px solid color-mix(in srgb, var(--ecriture) 45%, transparent);
+  border-radius: 0 0 0.375rem 0.375rem;
+  background: color-mix(in srgb, var(--ecriture) 7%, transparent);
+}
+.gazette-marche[data-place="1"] > .gazette-socle {
+  padding-block: 1.75rem;
+  border-top-color: var(--ecriture);
+}
+.gazette-marche[data-place="2"] > .gazette-socle {
+  padding-block: 1.25rem;
+}
+.gazette-rang {
+  flex: none;
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1;
+}
 
 .btn {
   position: relative;

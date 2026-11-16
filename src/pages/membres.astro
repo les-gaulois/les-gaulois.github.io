@@ -1,12 +1,14 @@
 ---
 import Base from "../layouts/Base.astro";
 import DataStatus from "../components/DataStatus.astro";
+import GauloisPortrait from "../components/GauloisPortrait.astro";
 import PageHeader from "../components/PageHeader.astro";
 import PageJumps from "../components/PageJumps.astro";
 import RankedPlayers from "../components/RankedPlayers.astro";
 import ReadingNote from "../components/ReadingNote.astro";
 import WinTiers from "../components/WinTiers.astro";
 import { loadMembers, loadMeta, loadRanked } from "../lib/data";
+import { portraitDuGaulois } from "../lib/gaulois-site";
 import { singlePseudos } from "../lib/members";
 import { tierRows } from "../lib/paliers";
 
@@ -51,7 +53,12 @@ const jumps = [
               command.map((m) => (
                 <li class="relative flex min-w-0 items-center gap-3" data-testid="command-member">
                   {/* La photo Discord d'un membre de l'encadrement qui a choisi de se montrer remplace son initiale, pour un membre validé connecté (src/scripts/visages.ts). Toute la ligne mène à la fiche : une cible pour le doigt, pas un mot de 17 pixels. */}
-                  <span class="avatar overflow-hidden" aria-hidden="true" data-face={m.username && faces.has(m.username) ? m.username : undefined}>{m.username?.charAt(0) ?? "?"}</span>
+                  {/* Le Gaulois de qui a créé le sien prend la place de l'initiale (src/lib/gaulois-site.ts). */}
+                  {m.username && portraitDuGaulois(m.publicId) ? (
+                    <GauloisPortrait portrait={portraitDuGaulois(m.publicId)} />
+                  ) : (
+                    <span class="avatar overflow-hidden" aria-hidden="true" data-face={m.username && faces.has(m.username) ? m.username : undefined}>{m.username?.charAt(0) ?? "?"}</span>
+                  )}
                   <span class="min-w-0">
                     {m.username && m.publicId ? (
                       <a class="pseudo block truncate after:absolute after:inset-0 after:content-['']" href={`${base}/membres/${encodeURIComponent(m.publicId)}`}>{m.username}</a>
