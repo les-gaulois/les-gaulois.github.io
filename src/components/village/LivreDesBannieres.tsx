@@ -2,7 +2,7 @@ import type { JSX } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { motionAllowed } from "../../lib/fx/motion";
 import { GAULOIS_HAUTEUR, GAULOIS_LARGEUR, RARETES, casesDuGaulois, type Tenue } from "../../lib/gaulois";
-import type { Banniere } from "../../lib/village/bannieres";
+import type { Banniere, EtatDeLaBanniere } from "../../lib/village/bannieres";
 import { BANNIERE_HAUTEUR, BANNIERE_LARGEUR } from "../../lib/village/ecran-bannieres";
 import type { Familier } from "../../lib/village/familiers";
 import { casesDuLivre, pageDeLaCase, pageVoisine, pagesDuLivre, sensDuGeste, volVersLeDecor, type CaseDuLivre } from "../../lib/village/livre-bannieres";
@@ -59,10 +59,31 @@ function ApercuDeGaulois({ lib, banniere, tenue, familier }: { lib: Lib; bannier
   return <canvas ref={toile} width={BANNIERE_LARGEUR} height={BANNIERE_HAUTEUR} class="pixels livre-apercu-scene" role="img" aria-label={`Votre Gaulois devant la bannière « ${banniere.nom} »`} data-testid="livre-apercu-scene" data-banniere={banniere.id} />;
 }
 
-export function LivreDesBannieres({ lib, miennes, montree, nom, tenue, familier, choisir }: { lib: Lib; miennes: readonly Banniere[]; montree: Banniere | null; nom: string; tenue: Tenue; familier: Familier | null; choisir: (id: string | null) => Promise<Issue<string | null>> }) {
+/**
+ * `mode` « choix » (« Mon Gaulois ») : `miennes` sont les bannières du compte, `montree` celle de /gaulois, `choisir`
+ * demande au serveur de la changer ; le décor du lieu a sa case et les aperçus suivent. `mode` « boutique » (l'onglet
+ * « Bannière ») : `miennes` sont toutes les bannières, `montree` celle que la fiche d'à côté décrit, `choisir` ne fait que
+ * la montrer ; `etatDe` marque celles du compte, `motDe` dit leur prix ou leur état à qui ne voit pas la vignette.
+ */
+export interface LivreDesBannieresProps {
+  lib: Lib;
+  mode?: "choix" | "boutique";
+  miennes: readonly Banniere[];
+  montree: Banniere | null;
+  /** Le nom du membre, pour sa carte de la vitrine (mode « choix »). */
+  nom?: string;
+  tenue: Tenue;
+  familier: Familier | null;
+  choisir: (id: string | null) => Promise<Issue<string | null>>;
+  etatDe?: (id: string) => EtatDeLaBanniere;
+  motDe?: (id: string) => string;
+}
+
+export function LivreDesBannieres({ lib, mode = "choix", miennes, montree, nom = "Moi", tenue, familier, choisir, etatDe, motDe }: LivreDesBannieresProps) {
+  const enBoutique = mode === "boutique";
   const actuel: CaseDuLivre = montree?.id ?? null;
   const parId = useMemo(() => new Map(miennes.map((b) => [b.id, b])), [miennes]);
-  const cases = useMemo(() => casesDuLivre(miennes.map((b) => b.id)), [miennes]);
+  const cases = useMemo(() => casesDuLivre(miennes.map((b) => b.id), !enBoutique), [miennes, enBoutique]);
   const pages = useMemo(() => pagesDuLivre(cases), [cases]);
   const [pageVoulue, setPage] = useState(() => pageDeLaCase(cases, actuel));
   const page = Math.min(pageVoulue, pages.length - 1);
@@ -72,6 +93,8 @@ export function LivreDesBannieres({ lib, miennes, montree, nom, tenue, familier,
   actuelVu.current = actuel;
   /** Ce que le décor dressé montre : la bannière du serveur, sauf le temps d'un changement. */
   const [dresse, setDresse] = useState<CaseDuLivre>(actuel);
+  const dresseVu = useRef(dresse);
+  dresseVu.current = dresse;
   const [enVol, setEnVol] = useState<CaseDuLivre | undefined>(undefined);
   const [essai, setEssai] = useState<CaseDuLivre | undefined>(undefined);
   const [leve, setLeve] = useState(false);
@@ -88,6 +111,7 @@ export function LivreDesBannieres({ lib, miennes, montree, nom, tenue, familier,
   const geste = useRef<{ x: number; glisse: boolean } | null>(null);
   const vientDeGlisser = useRef(false);
   const focusARendre = useRef(false);
+  const suivante = useRef<{ c: CaseDuLivre; bouton: HTMLElement } | null>(null);
 
   // À l'ouverture, le décor se dresse.
   useEffect(() => {
@@ -107,19 +131,33 @@ export function LivreDesBannieres({ lib, miennes, montree, nom, tenue, familier,
     focusARendre.current = false;
     grille.current?.querySelector<HTMLElement>("button")?.focus({ preventScroll: true });
   }, [page]);
+  // La liste change (une rareté choisie à la boutique ; dans « Mon Gaulois », une bannière achetée) : le livre s'ouvre à la
+  // page de la bannière montrée.
+  // Comparée par son contenu : la page qui porte le livre refait sa liste à chaque rendu, sans qu'elle ait changé.
+  const cleDesCases = cases.map((c) => c ?? "").join("|");
+  const cleVue = useRef(cleDesCases);
+  useEffect(() => {
+    if (cleVue.current === cleDesCases) return;
+    cleVue.current = cleDesCases;
+    setPage(pageDeLaCase(cases, enCours.current ? dresseVu.current : actuelVu.current));
+  }, [cleDesCases, cases]);
   // Une bannière choisie ailleurs (au retour de la boutique) : le livre la suit.
   useEffect(() => {
     if (!enCours.current) setDresse(actuel);
   }, [actuel]);
 
-  const nomDe = (c: CaseDuLivre): string => (c === null ? NOM_DU_LIEU : (parId.get(c)?.nom ?? "Cette bannière"));
+  /** La bannière de cet identifiant : dans la liste du livre, sinon au catalogue (une rareté filtrée l'a sortie de la liste). */
+  const banniereDe = (id: string): Banniere | null => parId.get(id) ?? lib.banniereParId(id);
+  const nomDe = (c: CaseDuLivre): string => (c === null ? NOM_DU_LIEU : (banniereDe(c)?.nom ?? "Cette bannière"));
   const nomEtRarete = (c: CaseDuLivre): string => {
-    const banniere = c === null ? null : parId.get(c);
+    const banniere = c === null ? null : banniereDe(c);
     return banniere ? `${banniere.nom}, ${RARETES[banniere.rarete].nom.toLowerCase()}` : nomDe(c);
   };
   const absente = enVol !== undefined ? enVol : dresse;
-  const dressee = dresse === null ? null : (parId.get(dresse) ?? null);
   const vue = essai !== undefined ? essai : dresse;
+  // À la boutique, le cartel suit la vignette survolée : son nom, sa rareté, son prix ou ce qu'elle est pour le compte.
+  const auCartel: CaseDuLivre = enBoutique ? vue : dresse;
+  const duCartel = auCartel === null ? null : banniereDe(auCartel);
 
   /** Tourne la page ; rend faux si elle ne peut pas tourner maintenant. */
   function tourner(sens: 1 | -1): boolean {
@@ -147,7 +185,7 @@ export function LivreDesBannieres({ lib, miennes, montree, nom, tenue, familier,
   }
 
   /** La vignette quitte sa case et vole jusqu'à la place du décor couché. */
-  async function voler(id: string, bouton: HTMLElement): Promise<void> {
+  async function voler(id: string, bouton: HTMLElement, duree: number): Promise<void> {
     const livre = corps.current;
     const vignette = lib.vignetteDeLaBanniere(id);
     if (!livre || !vignette || typeof livre.animate !== "function") return;
@@ -178,14 +216,19 @@ export function LivreDesBannieres({ lib, miennes, montree, nom, tenue, familier,
           { transform: `translate3d(${vol.dx * 0.5}px,${vol.dy * 0.5}px,${largeur * 0.2}px) rotate(5deg) scale(${(1 + vol.echelle) / 2})`, offset: 0.6 },
           { transform: `translate3d(${vol.dx}px,${vol.dy}px,3px) rotate(0deg) scale(${vol.echelle})` },
         ],
-        { duration: 1300, easing: "cubic-bezier(.45,.05,.35,1)" },
+        { duration: duree, easing: "cubic-bezier(.45,.05,.35,1)" },
       )
       .finished.catch(() => undefined);
     toile.remove();
   }
 
   async function dresser(c: CaseDuLivre, bouton: HTMLElement): Promise<void> {
-    if (enCours.current || c === dresse) return;
+    if (enCours.current) {
+      // À la boutique, la dernière bannière touchée pendant un vol se dresse ensuite : feuilleter ne perd aucun clic.
+      if (enBoutique) suivante.current = { c, bouton };
+      return;
+    }
+    if (c === dresseVu.current) return;
     enCours.current = true;
     setOccupe(true);
     setProbleme(null);
@@ -196,27 +239,31 @@ export function LivreDesBannieres({ lib, miennes, montree, nom, tenue, familier,
     // Le décor se couche pendant que le serveur répond.
     setLeve(false);
     setFete(false);
-    const [issue] = await Promise.all([choisir(c), attendre(anime ? 700 : 0)]);
+    const [issue] = await Promise.all([choisir(c), attendre(anime ? (enBoutique ? 320 : 700) : 0)]);
     if (!vivant.current) return;
     if (issue.ok) {
       if (anime && c !== null) {
         setEnVol(c);
-        await voler(c, bouton);
+        await voler(c, bouton, enBoutique ? 800 : 1300);
         if (!vivant.current) return;
       }
       setDresse(issue.valeur);
+      dresseVu.current = issue.valeur;
       setEnVol(undefined);
-      setAnnonce(issue.valeur ? `« ${nomDe(issue.valeur)} » est sur /gaulois.` : "Sur /gaulois, votre Gaulois retrouve le décor de son lieu.");
+      if (!enBoutique) setAnnonce(issue.valeur ? `« ${nomDe(issue.valeur)} » est sur /gaulois.` : "Sur /gaulois, votre Gaulois retrouve le décor de son lieu.");
     } else {
       setProbleme(issue.message);
       setDresse(actuelVu.current);
     }
     setLeve(true);
-    await attendre(anime ? 350 : 0);
+    await attendre(anime ? (enBoutique ? 150 : 350) : 0);
     enCours.current = false;
     if (!vivant.current) return;
     setFete(true);
     setOccupe(false);
+    const apres = suivante.current;
+    suivante.current = null;
+    if (apres && apres.c !== dresseVu.current && apres.bouton.isConnected) void dresser(apres.c, apres.bouton);
   }
 
   // Le livre se penche un peu sous la souris.
@@ -287,23 +334,24 @@ export function LivreDesBannieres({ lib, miennes, montree, nom, tenue, familier,
   const enEssai = essai !== undefined && essai !== dresse;
 
   return (
-    <div class="livre" data-testid="livre-bannieres" aria-busy={occupe}>
+    <div class="livre" data-testid="livre-bannieres" data-mode={mode} aria-busy={occupe}>
       <div class="livre-vue" onPointerMove={pencher} onPointerLeave={redresser} onKeyDown={auClavier}>
         <div ref={corps} class={`livre-corps${leve ? " leve" : ""}${fete ? " fete" : ""}${enVol !== undefined ? " vol" : ""}`}>
           <div class="livre-haut" />
           <div class="livre-bas">
-            <div ref={grille} class="livre-grille" role="group" aria-label="Mes bannières" onPointerDown={prendre} onPointerMove={tirer} onPointerUp={lacher} onPointerCancel={lacher} onClickCapture={retenirLeClic}>
+            <div ref={grille} class="livre-grille" role="group" aria-label={enBoutique ? "Les bannières" : "Mes bannières"} onPointerDown={prendre} onPointerMove={tirer} onPointerUp={lacher} onPointerCancel={lacher} onClickCapture={retenirLeClic}>
               {(pages[page] ?? []).map((c) => (
                 <button
                   key={c ?? "lieu"}
                   type="button"
                   class="livre-case"
                   data-vide={c === absente ? "" : undefined}
+                  data-etat={c !== null && etatDe ? etatDe(c) : undefined}
                   data-testid="livre-case"
                   data-banniere={c ?? "lieu"}
                   aria-pressed={c === dresse}
-                  aria-label={nomEtRarete(c)}
-                  title={nomDe(c)}
+                  aria-label={c !== null && motDe ? `${nomEtRarete(c)}, ${motDe(c)}` : nomEtRarete(c)}
+                  title={c !== null && motDe ? `${nomDe(c)}, ${motDe(c)}` : nomDe(c)}
                   onClick={(e) => void dresser(c, e.currentTarget)}
                   onPointerEnter={essayer(c)}
                   onPointerLeave={finDEssai}
@@ -317,12 +365,13 @@ export function LivreDesBannieres({ lib, miennes, montree, nom, tenue, familier,
               ))}
             </div>
             <p class="livre-cartel" data-testid="livre-cartel">
-              <b>{nomDe(dresse)}</b>
-              {dressee && (
-                <span class="banniere-rarete" data-rarete={dressee.rarete}>
-                  <MarqueDeRarete rarete={dressee.rarete} />
+              <b>{nomDe(auCartel)}</b>
+              {duCartel && !(enBoutique && motDe) && (
+                <span class="banniere-rarete" data-rarete={duCartel.rarete}>
+                  <MarqueDeRarete rarete={duCartel.rarete} />
                 </span>
               )}
+              {enBoutique && motDe && auCartel !== null && <span class="livre-cartel-mot">{motDe(auCartel)}</span>}
             </p>
             {pages.length > 1 && (
               <>
@@ -354,6 +403,7 @@ export function LivreDesBannieres({ lib, miennes, montree, nom, tenue, familier,
           </div>
         </div>
       </div>
+      {!enBoutique && (
       <div class="livre-apercus" data-essai={enEssai ? "" : undefined}>
         <p class="livre-apercus-titre" data-testid="livre-apercu-nom">
           {enEssai ? `Essai : « ${nomDe(vue)} »` : nomDe(vue)}
@@ -378,6 +428,7 @@ export function LivreDesBannieres({ lib, miennes, montree, nom, tenue, familier,
           <CartesDeLaVitrine gaulois={maCarte} testid="livre-apercu-vitrine" label="Ma carte de la vitrine" />
         </figure>
       </div>
+      )}
       <Problem message={probleme} />
       <p class="sr-only" role="status" data-testid="banniere-annonce">
         {annonce}

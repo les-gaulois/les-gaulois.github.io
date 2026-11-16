@@ -3599,6 +3599,11 @@ main:has(.album) {
 .livre-cartel .banniere-rarete {
   font-size: clamp(0.625rem, 1.7cqw, 0.9375rem);
 }
+.livre-cartel-mot {
+  font-size: clamp(0.625rem, 1.7cqw, 0.9375rem);
+  font-weight: 700;
+  color: var(--color-muted);
+}
 .livre-points {
   position: absolute;
   left: 0;
@@ -3682,6 +3687,45 @@ main:has(.album) {
   transform-origin: 0 0;
   border: 0.25cqw solid var(--livre-papier);
   box-shadow: 0 1cqw 2cqw -0.6cqw var(--ombre);
+}
+/* À la boutique : le livre prend la place de la scène dans la vitrine, la fiche de la bannière à côté dès qu'il y a la place.
+   Une bannière du compte porte un coin de la couleur du site, cerné de clair, sur sa vignette ; son nom lu le dit aussi (« à vous », « sur /gaulois »). */
+.banniere-vitrine-livre {
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: stretch;
+}
+.banniere-vitrine-livre .banniere-vue {
+  width: 100%;
+}
+@container bannieres (min-width: 56rem) {
+  .banniere-vitrine-livre {
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+  }
+}
+.livre-case {
+  position: relative;
+}
+.livre-case:is([data-etat="a-moi"], [data-etat="montree"])::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 30%;
+  aspect-ratio: 1;
+  background: linear-gradient(to bottom left, var(--color-blue) 0 42%, var(--color-navy) 42% 50%, transparent 50%);
+  pointer-events: none;
+}
+.livre-case[data-vide]::after {
+  display: none;
+}
+.bannieres-compte::before {
+  content: "";
+  display: inline-block;
+  width: 0.75rem;
+  aspect-ratio: 1;
+  margin-right: 0.375rem;
+  background: var(--color-blue);
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
 }
 /* Sous le livre : ce que /gaulois et la vitrine montreront, dès le survol d'une vignette. */
 .livre-apercus {

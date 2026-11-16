@@ -2,6 +2,16 @@
   {
     "date": "2026-11-16",
     "kind": "ameliore",
+    "title": "Les bannières de la boutique dans le livre",
+    "body": "L'onglet « Bannière » de la boutique range toutes les bannières dans le livre, de la plus courante à la plus rare. Touchez-en une : elle se dresse derrière votre Gaulois, son prix à côté.",
+    "link": {
+      "href": "/village#bannieres",
+      "label": "Voir les bannières"
+    }
+  },
+  {
+    "date": "2026-11-16",
+    "kind": "ameliore",
     "title": "Le replay part tout seul, en × 8",
     "body": "Dans « Revoir une partie », le replay du jeu démarre de lui-même, en accéléré × 8. Il reste en pause pour qui a demandé moins d'animations, et le bouton pause en haut de page l'arrête.",
     "link": {

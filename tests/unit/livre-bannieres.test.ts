@@ -1,10 +1,31 @@
 import { describe, expect, it } from "vitest";
-import { CASES_PAR_PAGE, DECOR_GAUCHE, DECOR_LARGEUR, SEUIL_DU_GESTE, casesDuLivre, pageDeLaCase, pageVoisine, pagesDuLivre, sensDuGeste, volVersLeDecor } from "../../src/lib/village/livre-bannieres";
+import { CASES_PAR_PAGE, DECOR_GAUCHE, DECOR_LARGEUR, SEUIL_DU_GESTE, casesDuLivre, pageDeLaCase, pageVoisine, pagesDuLivre, sensDuGeste, trierParRarete, volVersLeDecor } from "../../src/lib/village/livre-bannieres";
 
 describe("le livre des bannières", () => {
   it("met le décor du lieu en première case, puis les bannières dans l'ordre reçu", () => {
     expect(casesDuLivre([])).toEqual([null]);
     expect(casesDuLivre(["b", "a"])).toEqual([null, "b", "a"]);
+  });
+
+  it("n'a pas de case pour le décor du lieu à la boutique", () => {
+    expect(casesDuLivre([], false)).toEqual([]);
+    expect(casesDuLivre(["b", "a"], false)).toEqual(["b", "a"]);
+  });
+
+  it("trie par rareté, de la plus courante à la plus rare, sans changer l'ordre à rareté égale", () => {
+    const ordre = ["commun", "peu-commun", "epique", "mystique", "legendaire"];
+    const liste = [
+      { id: "a", rarete: "legendaire" },
+      { id: "b", rarete: "commun" },
+      { id: "c", rarete: "epique" },
+      { id: "d", rarete: "commun" },
+      { id: "e", rarete: "inconnue" },
+      { id: "f", rarete: "peu-commun" },
+    ];
+    const copie = [...liste];
+    expect(trierParRarete(liste, ordre).map((b) => b.id)).toEqual(["b", "d", "f", "c", "a", "e"]);
+    expect(liste).toEqual(copie);
+    expect(trierParRarete([], ordre)).toEqual([]);
   });
 
   it("range les cases en pages de huit, avec toujours une page", () => {

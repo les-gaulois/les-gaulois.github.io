@@ -2,7 +2,8 @@
  * Le livre des bannières de « Mon Gaulois » (16 novembre 2026, demande du pilote : « un livre avec des animations quand
  * on choisit sa bannière », puis « j'aime le 5 », « enlève page précédente et page suivante et fais un truc intuitif ») :
  * un album couché dont les vignettes sont les bannières du compte ; la vignette touchée se décolle, vole et se dresse en
- * décor derrière le Gaulois. Écran : `src/components/village/LivreDesBannieres.tsx`. Ici, des calculs purs : les pages,
+ * décor derrière le Gaulois. Le même livre montre toutes les bannières dans l'onglet « Bannière » de la boutique (« mets ça
+ * aussi à la boutique pour les bannières »). Écran : `src/components/village/LivreDesBannieres.tsx`. Ici, des calculs purs : les pages,
  * le geste qui les tourne, le vol de la vignette. Rien ne décide de la bannière montrée : le serveur le fait
  * (`choisir_banniere`, `contrat.ts`).
  */
@@ -13,8 +14,24 @@ export type CaseDuLivre = string | null;
 /** Vignettes par page : deux rangées de quatre. */
 export const CASES_PAR_PAGE = 8;
 
-/** Les cases de l'album : le décor du lieu d'abord, puis les bannières du compte dans l'ordre reçu. */
-export const casesDuLivre = (miennes: readonly string[]): CaseDuLivre[] => [null, ...miennes];
+/**
+ * Les cases de l'album : le décor du lieu d'abord (« Mon Gaulois »), puis les bannières dans l'ordre reçu. `avecLieu` faux,
+ * à la boutique : le décor du lieu ne s'y achète pas, il n'a pas de case.
+ */
+export const casesDuLivre = (bannieres: readonly string[], avecLieu = true): CaseDuLivre[] => (avecLieu ? [null, ...bannieres] : [...bannieres]);
+
+/**
+ * Les bannières triées par rareté (demande du pilote, 16 novembre 2026 : « je veux que ça soit trié par rareté »), de la
+ * plus courante à la plus rare, dans l'ordre de `ordre` ; à rareté égale, l'ordre reçu est gardé. Une rareté inconnue de
+ * `ordre` passe à la fin. Rien n'est modifié.
+ */
+export function trierParRarete<T extends { rarete: string }>(bannieres: readonly T[], ordre: readonly string[]): T[] {
+  const rang = (rarete: string): number => {
+    const i = ordre.indexOf(rarete);
+    return i < 0 ? ordre.length : i;
+  };
+  return bannieres.map((b, i) => ({ b, i })).sort((p, q) => rang(p.b.rarete) - rang(q.b.rarete) || p.i - q.i).map(({ b }) => b);
+}
 
 /** Les cases rangées en pages ; toujours au moins une page. */
 export function pagesDuLivre<T>(cases: readonly T[], parPage: number = CASES_PAR_PAGE): T[][] {

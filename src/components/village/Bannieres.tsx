@@ -2,10 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks"
 import { ServerError, basePath, call } from "../../lib/compte/api";
 import { motionAllowed } from "../../lib/fx/motion";
 import { ORDRE_RARETES, RARETES, type Rarete, type Tenue } from "../../lib/gaulois";
-import type { Banniere, EtatDeLaBanniere, FamilleDeBanniere } from "../../lib/village/bannieres";
+import type { Banniere, EtatDeLaBanniere } from "../../lib/village/bannieres";
 import { adresseDansLaBoutique } from "../../lib/village/boutique-rayons";
 import type { MesBannieres, PochetteBannieresReponse } from "../../lib/village/contrat";
-import { ANCRE_BANNIERES, BANNIERE_HAUTEUR, BANNIERE_LARGEUR, apresLAchat, banniereDOuverture, idsDesBannieres, messageDuRefusDAchat, raisonDeLaBanniere, raisonDeLaPochetteDesBannieres, sansBanniere, surCombien } from "../../lib/village/ecran-bannieres";
+import { trierParRarete } from "../../lib/village/livre-bannieres";
+import { ANCRE_BANNIERES, BANNIERE_HAUTEUR, BANNIERE_LARGEUR, apresLAchat, banniereDOuverture, idsDesBannieres, messageDuRefusDAchat, raisonDeLaBanniere, raisonDeLaPochetteDesBannieres, sansBanniere } from "../../lib/village/ecran-bannieres";
 import { manque, motStatere, nombre, pourcent, stateres } from "../../lib/village/ecran-boutique";
 import type { Familier } from "../../lib/village/familiers";
 import { Problem, Success, messageOf } from "../compte/common";
@@ -127,10 +128,7 @@ export function useBannieres({ leger = false }: { leger?: boolean } = {}) {
   return { etat, lire, acheter, ouvrir, choisir };
 }
 
-/*
- * Les vignettes se dessinent une à une, chacune dans son propre tour de la boucle du navigateur, et seulement quand elles
- * approchent de l'écran : peindre les soixante bannières d'un coup figerait la page une bonne demi-seconde.
- */
+/* Les dessins lourds se font un à un, chacun dans son propre tour de la boucle du navigateur : la page ne se fige pas. */
 const file: (() => void)[] = [];
 let enCours = false;
 function suivante(): void {
@@ -147,44 +145,6 @@ function plusTard(tache: () => void): void {
   if (enCours) return;
   enCours = true;
   setTimeout(suivante, 0);
-}
-
-/** La bannière seule, cadre compris (de sa rareté, ou de la pochette), décorative : son nom est toujours écrit à côté. */
-function Vignette({ lib, id }: { lib: Lib; id: string }) {
-  const toile = useRef<HTMLCanvasElement>(null);
-  const [peinte, setPeinte] = useState(false);
-  useEffect(() => {
-    const element = toile.current;
-    if (!element) return;
-    let vivante = true;
-    const dessiner = () =>
-      plusTard(() => {
-        const vignette = vivante ? lib.vignetteDeLaBanniere(id) : null;
-        if (!vignette) return;
-        peindre(element, vignette.largeur, vignette.hauteur, vignette.cases);
-        setPeinte(true);
-      });
-    if (typeof IntersectionObserver !== "function") {
-      dessiner();
-      return () => {
-        vivante = false;
-      };
-    }
-    const guetteur = new IntersectionObserver(
-      (entrees) => {
-        if (!entrees.some((entree) => entree.isIntersecting)) return;
-        guetteur.disconnect();
-        dessiner();
-      },
-      { rootMargin: "400px" },
-    );
-    guetteur.observe(element);
-    return () => {
-      vivante = false;
-      guetteur.disconnect();
-    };
-  }, [lib, id]);
-  return <canvas ref={toile} width={BANNIERE_LARGEUR} height={BANNIERE_HAUTEUR} class="pixels banniere-vignette" data-peinte={peinte ? "" : undefined} aria-hidden="true" />;
 }
 
 /**
@@ -474,30 +434,6 @@ function DialoguePochetteBannieres({ lib, prix, chances, possedees, solde, tenue
 }
 
 /**
- * Une case de la vitrine : la bannière seule, son nom, sa rareté, puis son prix, « À vous » ou « Sur /gaulois ». Un bouton :
- * il la montre en grand, avec son Gaulois devant.
- */
-function CaseDeBanniere({ lib, banniere, etat, prix, choisie, onClick }: { lib: Lib; banniere: Banniere; etat: EtatDeLaBanniere; prix: number; choisie: boolean; onClick: () => void }) {
-  return (
-    <li>
-      <button type="button" class="banniere-case" data-rarete={banniere.rarete} data-etat={etat} aria-pressed={choisie} onClick={onClick} data-testid="banniere-case" data-banniere={banniere.id}>
-        <span class="banniere-case-image">
-          <Vignette lib={lib} id={banniere.id} />
-        </span>
-        <span class="banniere-case-nom">{banniere.nom}</span>
-        <MarqueDeRarete rarete={banniere.rarete} />
-        <span class="sr-only">, </span>
-        {etat === "a-acheter" ? <Prix montant={prix} class="case-prix" /> : <MotsDeLEtat etat={etat} />}
-      </button>
-    </li>
-  );
-}
-
-/** « Toutes les familles », dans le filtre. */
-const TOUTES = "toutes";
-type ChoixDeFamille = FamilleDeBanniere | typeof TOUTES;
-
-/**
  * Acheter une bannière : la fenêtre la montre derrière le Gaulois du membre, dit son prix et ce qu'il restera, puis
  * demande au serveur. Après l'achat, elle se met sur /gaulois tout de suite si le membre le veut. Si le serveur refuse, le
  * compte de l'ouverture s'efface : il ne reste que la bannière, les mots du refus et « Fermer ».
@@ -573,9 +509,10 @@ function DialogueBanniere({ lib, banniere, prix, solde, tenue, familier, acheter
 
 /**
  * « Les bannières », l'onglet « Bannière » des rayons de « La boutique » : l'objet le plus cher de la boutique (le triple
- * d'un objet de la même rareté). En tête, la vitrine : la bannière choisie en grand, avec le Gaulois du membre devant, sa
- * description, son prix, et de quoi l'acheter ou la mettre sur /gaulois. Dessous, les bannières, une famille à
- * la fois (ou toutes), réduites à une rareté si on le veut. Le nom de l'onglet sert de titre : celui de la section ne se
+ * d'un objet de la même rareté). Depuis le 16 novembre 2026, à la demande du pilote, toutes les bannières sont dans le livre
+ * des bannières (`LivreDesBannieres.tsx`, mode « boutique »), triées par rareté, réduites à une rareté si on le veut : la
+ * bannière touchée s'y dresse derrière le Gaulois du membre, et la fiche d'à côté donne sa description, son prix, et de
+ * quoi l'acheter ou la mettre sur /gaulois. Le nom de l'onglet sert de titre : celui de la section ne se
  * lit qu'aux lecteurs d'écran. L'adresse des bannières (`#bannieres`) est suivie par la boutique, qui ouvre cet onglet.
  * `tenue` et `familier` : la tenue enregistrée et le familier montré. `solde` : le dernier que le serveur a donné à la
  * page ; `onSolde` le lui rend après un achat, `onRefus` après un refus (la bourse se relit).
@@ -586,7 +523,6 @@ function DialogueBanniere({ lib, banniere, prix, solde, tenue, familier, acheter
  */
 export function SectionDesBannieres({ partie = "bannieres", tenue, familier, solde, onSolde, onRefus }: { partie?: "bannieres" | "pochette"; tenue: Tenue; familier: Familier | null; solde: number | null; onSolde: (solde: number) => void; onRefus: () => void }) {
   const { etat, lire, acheter, ouvrir, choisir } = useBannieres();
-  const [famille, setFamille] = useState<ChoixDeFamille | null>(null);
   const [rarete, setRarete] = useState<Rarete | null>(null);
   const [choisie, setChoisie] = useState<string | null>(null);
   const [fenetre, setFenetre] = useState<string | null>(null);
@@ -594,7 +530,6 @@ export function SectionDesBannieres({ partie = "bannieres", tenue, familier, sol
   const [occupe, setOccupe] = useState(false);
   const [probleme, setProbleme] = useState<string | null>(null);
   const [reussite, setReussite] = useState<string | null>(null);
-  const vitrine = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     void lire();
@@ -625,15 +560,12 @@ export function SectionDesBannieres({ partie = "bannieres", tenue, familier, sol
   // Un serveur qui ne connaît pas encore la pochette (sa migration n'est pas collée) : ses trésors ne se montrent pas, sauf
   // ceux que le compte aurait déjà.
   const liste = mes.pochette ? lib.BANNIERES : lib.BANNIERES.filter((b) => !lib.estDeLaPochette(b) || possedees.has(b.id));
-  const familles = lib.FAMILLES.filter((f) => liste.some((b) => b.famille === f));
   const montree = lib.banniereParId(mes.porte);
   const vue = lib.banniereParId(choisie ?? banniereDOuverture(mes, liste.map((b) => b.id)));
-  // La famille ouverte à l'arrivée : celle de la bannière que la vitrine montre.
-  const familleRetenue: ChoixDeFamille = famille ?? vue?.famille ?? familles[0] ?? TOUTES;
-  const filtreFamille = familleRetenue === TOUTES ? null : familleRetenue;
-  const comptes = lib.comptesParRarete(filtreFamille, liste);
+  const comptes = lib.comptesParRarete(null, liste);
   const rareteRetenue = rarete && comptes[rarete] > 0 ? rarete : null;
-  const rangees = lib.rangerLesBannieres({ famille: filtreFamille, rarete: rareteRetenue }, possedees, liste);
+  // Le livre : toutes les bannières, de la plus courante à la plus rare, ou celles de la rareté retenue.
+  const duLivre = trierParRarete(rareteRetenue ? liste.filter((b) => b.rarete === rareteRetenue) : liste, ORDRE_RARETES);
   const total = ORDRE_RARETES.reduce((somme, r) => somme + comptes[r], 0);
   const soldeConnu = solde ?? mes.solde;
 
@@ -641,14 +573,20 @@ export function SectionDesBannieres({ partie = "bannieres", tenue, familier, sol
     setChoisie(id);
     setProbleme(null);
     setReussite(null);
-    // La vitrine est au-dessus des cases : si elle n'est pas toute à l'écran, sous ce qui est collé en haut (l'en-tête, et
-    // le Gaulois sur téléphone : la marge de défilement de la feuille de style), la page y revient.
-    const cadre = vitrine.current;
-    if (!cadre) return;
-    const { top, bottom } = cadre.getBoundingClientRect();
-    const marge = parseFloat(getComputedStyle(cadre).scrollMarginTop) || 0;
-    if (top >= marge - 1 && bottom <= window.innerHeight) return;
-    cadre.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches || document.documentElement.classList.contains("fx-off") ? "instant" : "smooth", block: "start" });
+  };
+  /** Le livre dresse la bannière touchée : rien n'est demandé au serveur, la fiche d'à côté la décrit. */
+  const voirDansLeLivre = (id: string | null): Promise<Issue<string | null>> => {
+    if (id) voir(id);
+    return Promise.resolve({ ok: true, valeur: id });
+  };
+  /** Ce qu'une bannière est pour ce compte, en mots, pour qui ne voit pas sa vignette. */
+  const motDe = (id: string): string => {
+    const e = lib.etatDeLaBanniere(id, mes);
+    const banniere = lib.banniereParId(id);
+    if (e === "montree") return "sur /gaulois";
+    if (e === "a-moi") return "à vous";
+    if (e === "a-gagner") return "dans la pochette des bannières";
+    return banniere ? stateres(mes.prix[banniere.rarete]) : "";
   };
 
   /** Mettre une bannière sur /gaulois, ou revenir au décor de son lieu (`null`) : le serveur répond ce qu'il montre. */
@@ -738,12 +676,29 @@ export function SectionDesBannieres({ partie = "bannieres", tenue, familier, sol
         </div>
       )}
 
+      {entiere && (
+        <div class="vestiaire-filtre" role="group" aria-label="Montrer une rareté" data-testid="bannieres-raretes">
+          <button type="button" class="chip filtre" aria-pressed={rareteRetenue === null} onClick={() => setRarete(null)} data-testid="bannieres-rarete-tout">
+            Tout
+            <span class="filtre-nombre tnum">{total}</span>
+            <span class="sr-only"> {total > 1 ? "bannières" : "bannière"}</span>
+          </button>
+          {ORDRE_RARETES.map((r) => (
+            <button key={r} type="button" class="chip filtre" data-rarete={r} aria-pressed={rareteRetenue === r} disabled={comptes[r] === 0} onClick={() => setRarete(rareteRetenue === r ? null : r)} data-testid={`bannieres-rarete-${r}`}>
+              <Losanges rang={RARETES[r].rang} />
+              {RARETES[r].nom}
+              <span class="filtre-nombre tnum">{comptes[r]}</span>
+              <span class="sr-only"> {comptes[r] > 1 ? "bannières" : "bannière"}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {entiere && vue && etatVu && (
-        <div ref={vitrine} class="banniere-vitrine" data-rarete={vue.rarete} data-testid="banniere-vitrine" data-banniere={vue.id} data-etat={etatVu}>
-          <figure class="banniere-vue">
-            <Scene lib={lib} banniere={vue} tenue={tenue} familier={familier} />
-            <figcaption>Comme sur /gaulois, sans le logo du clan ni vos insignes.</figcaption>
-          </figure>
+        <div class="banniere-vitrine banniere-vitrine-livre" data-rarete={vue.rarete} data-testid="banniere-vitrine" data-banniere={vue.id} data-etat={etatVu}>
+          <div class="banniere-vue">
+            <LivreDesBannieres mode="boutique" lib={lib} miennes={duLivre} montree={vue} tenue={tenue} familier={familier} choisir={voirDansLeLivre} etatDe={(id) => lib.etatDeLaBanniere(id, mes)} motDe={motDe} />
+          </div>
           <div class="banniere-fiche">
             <p class="banniere-famille">{lib.FAMILLES_DES_BANNIERES[vue.famille]}</p>
             <h5 class="banniere-nom" data-testid="banniere-nom">
@@ -801,54 +756,6 @@ export function SectionDesBannieres({ partie = "bannieres", tenue, familier, sol
         </div>
       )}
 
-      {entiere && (
-        <div class="bannieres-filtres">
-          <div class="vestiaire-filtre" role="group" aria-label="Montrer une famille" data-testid="bannieres-familles">
-            {familles.map((id) => (
-              <button key={id} type="button" class="chip filtre" aria-pressed={familleRetenue === id} onClick={() => setFamille(id)} data-testid={`bannieres-famille-${id}`}>
-                {lib.FAMILLES_DES_BANNIERES[id]}
-              </button>
-            ))}
-            <button type="button" class="chip filtre" aria-pressed={familleRetenue === TOUTES} onClick={() => setFamille(TOUTES)} data-testid="bannieres-famille-toutes">
-              Toutes
-              <span class="filtre-nombre tnum">{liste.length}</span>
-              <span class="sr-only"> bannières</span>
-            </button>
-          </div>
-          <div class="vestiaire-filtre" role="group" aria-label="Montrer une rareté" data-testid="bannieres-raretes">
-            <button type="button" class="chip filtre" aria-pressed={rareteRetenue === null} onClick={() => setRarete(null)} data-testid="bannieres-rarete-tout">
-              Tout
-              <span class="filtre-nombre tnum">{total}</span>
-              <span class="sr-only"> {total > 1 ? "bannières" : "bannière"}</span>
-            </button>
-            {ORDRE_RARETES.map((r) => (
-              <button key={r} type="button" class="chip filtre" data-rarete={r} aria-pressed={rareteRetenue === r} disabled={comptes[r] === 0} onClick={() => setRarete(rareteRetenue === r ? null : r)} data-testid={`bannieres-rarete-${r}`}>
-                <Losanges rang={RARETES[r].rang} />
-                {RARETES[r].nom}
-                <span class="filtre-nombre tnum">{comptes[r]}</span>
-                <span class="sr-only"> {comptes[r] > 1 ? "bannières" : "bannière"}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {entiere &&
-        rangees.map((rangee) => (
-        <section key={rangee.famille} class="bannieres-famille" aria-labelledby={`bannieres-famille-${rangee.famille}`} data-testid="bannieres-famille">
-          {/* Une seule famille : son nom est déjà celui du choix retenu, juste au-dessus. */}
-          <h5 id={`bannieres-famille-${rangee.famille}`} class={filtreFamille ? "sr-only" : "vestiaire-boutique"}>
-            {rangee.nom} <span class="tnum bannieres-famille-compte">{surCombien(rangee.possedees, rangee.total)}</span>
-            <span class="sr-only"> à vous</span>
-          </h5>
-          <ul class="banniere-cases">
-            {rangee.bannieres.map((banniere) => (
-              <CaseDeBanniere key={banniere.id} lib={lib} banniere={banniere} etat={lib.etatDeLaBanniere(banniere.id, mes)} prix={mes.prix[banniere.rarete]} choisie={vue?.id === banniere.id} onClick={() => voir(banniere.id)} />
-            ))}
-          </ul>
-        </section>
-      ))}
-
       {aAcheter && (
         <DialogueBanniere
           lib={lib}
@@ -876,11 +783,8 @@ export function SectionDesBannieres({ partie = "bannieres", tenue, familier, sol
           dejaMontree={(id) => mes.porte === id}
           onFermer={(recue) => {
             setPochetteOuverte(false);
-            // Le trésor reçu paraît dans la vitrine, et sa famille s'ouvre dessous.
-            if (recue) {
-              setChoisie(recue);
-              setFamille(null);
-            }
+            // Le trésor reçu paraît dans la vitrine, dressé dans le livre.
+            if (recue) setChoisie(recue);
           }}
         />
       )}
@@ -926,7 +830,7 @@ export function MaBanniere({ actif, nom, tenue, familier }: { actif?: boolean | 
   }
   const { mes, lib } = etat;
   const montree = lib.banniereParId(mes.porte);
-  const miennes = mes.bannieres.flatMap((ligne) => lib.banniereParId(ligne.banniere) ?? []);
+  const miennes = trierParRarete(mes.bannieres.flatMap((ligne) => lib.banniereParId(ligne.banniere) ?? []), ORDRE_RARETES);
   return (
     <details class="fold banniere-choix" open={ouvert} onToggle={(e) => setOuvert(e.currentTarget.open)} data-testid="banniere-choix">
       <summary>
