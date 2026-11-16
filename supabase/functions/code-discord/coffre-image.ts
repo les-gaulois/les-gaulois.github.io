@@ -12,6 +12,7 @@
  * Rien n'est inventé ici : chaque valeur dessinée est donnée par l'appelant, qui la tient du serveur. Dessiné case par
  * case pour ce site, sans emprunt à une œuvre existante. Design : Claude Fable 5.2.
  */
+import { banniereParId, dessinDeLaBanniere } from "./bannieres/index.ts";
 import { ecrirePng, type Image } from "./billets.ts";
 import { decorDe } from "./decors/index.ts";
 import { casesDuGaulois, GAULOIS_HAUTEUR, GAULOIS_LARGEUR, lireTenue, TENUE_DE_DEPART, type Tenue } from "./gaulois.ts";
@@ -166,6 +167,9 @@ export const GRANDE: Readonly<Record<string, readonly string[]>> = {
   W: ["#...#", "#...#", "#...#", "#.#.#", "#.#.#", "##.##", "#...#"], X: ["#...#", "#...#", ".#.#.", "..#..", ".#.#.", "#...#", "#...#"],
   Y: ["#...#", "#...#", ".#.#.", "..#..", "..#..", "..#..", "..#.."], Z: ["#####", "....#", "...#.", "..#..", ".#...", "#....", "#####"],
   "?": [".###.", "#...#", "....#", "...#.", "..#..", ".....", "..#.."],
+  "1": ["..#..", ".##..", "..#..", "..#..", "..#..", "..#..", ".###."],
+  "2": [".###.", "#...#", "....#", "...#.", "..#..", ".#...", "#####"],
+  "3": ["####.", "....#", "....#", ".###.", "....#", "....#", "####."],
   " ": ["...", "...", "...", "...", "...", "...", "..."],
 };
 
@@ -534,7 +538,7 @@ export function imageDeLaVictoire(d: DessinDeLaVictoire): Image {
     x += 33;
   }
   const droite = L - 14;
-  const titre = "Coffre ouvert";
+  const titre = "Le coffre a cédé";
   ecrire(t, GRANDE, droite - largeurDuTexte(GRANDE, titre, 2), y + 11, titre, OR, 2, OR_SOMBRE);
   const ligne = `Manche ${d.manche} · essai ${d.essai}`;
   ecrire(t, PETITE, droite - largeurDuTexte(PETITE, ligne, 2), y + 32, ligne, GRIS, 2);
@@ -546,6 +550,8 @@ export interface Perceur {
   nom: string;
   coffres: number;
   tenue: Tenue | null;
+  /** La bannière que ce membre montre derrière son Gaulois (son identifiant), ou rien : le décor de la place reste alors. */
+  banniere?: string | null;
 }
 
 /** L'échelle des Gaulois du podium, et leurs marches : le milieu de chacune et le haut de son Gaulois, en pixels. */
@@ -556,34 +562,119 @@ export const MARCHES_DU_PODIUM = [
   { cx: 508, haut: 44, mot: "3e" },
 ] as const;
 
-/** L'image du podium de la semaine : trois membres au plus, le premier au milieu. */
-export function imageDuPalmares(perceurs: readonly Perceur[]): Image {
+/**
+ * Le fond du podium se partage en trois (demande du pilote, 16 novembre 2026) : chaque tiers montre la bannière du membre
+ * posé devant. Ses bords, en pixels, dans l'ordre des marches : le premier au milieu, le deuxième à gauche, le troisième à
+ * droite.
+ */
+export const TIERS_DU_PODIUM = [
+  { gauche: 207, droite: 413 },
+  { gauche: 0, droite: 207 },
+  { gauche: 413, droite: 620 },
+] as const;
+
+/**
+ * Le tiers d'une bannière posé derrière une marche : le milieu de la bannière, là où elle est faite pour encadrer un
+ * Gaulois, sur toute la hauteur de la scène. Une bannière inconnue ne pose rien.
+ */
+function poserLeTiers(t: Toile, banniere: string | null | undefined, rang: number): void {
+  const dessin = dessinDeLaBanniere(banniere);
+  const tiers = TIERS_DU_PODIUM[rang];
+  if (!dessin || !tiers) return;
+  const colonnes = Math.ceil((tiers.droite - tiers.gauche) / E);
+  const depart = Math.floor((DECOR_L - colonnes) / 2);
+  for (let rangee = HAUT; rangee < BAS; rangee++) {
+    for (let i = 0; i < colonnes; i++) {
+      const couleur = dessin.cases[rangee * DECOR_L + depart + i];
+      const x = tiers.gauche + i * E;
+      if (couleur) t.r(x, (rangee - HAUT) * E, Math.min(E, tiers.droite - x), E, couleur);
+    }
+  }
+}
+
+/** L'or, l'argent et le bronze des trois marches, et leur pierre. */
+export const METAUX_DU_PODIUM = [
+  { fond: "#FFC857", clair: "#FFE9A8", sombre: "#B8862C" },
+  { fond: "#C3C9D6", clair: "#EEF1F7", sombre: "#8D95A6" },
+  { fond: "#D08A4A", clair: "#F3BD86", sombre: "#96592A" },
+] as const;
+const PIERRE = { fond: "#4B5468", sombre: "#363D4E", claire: "#7C869C", vive: "#A5AEC2" } as const;
+
+/**
+ * L'image du podium de la semaine : trois membres au plus, le premier au milieu, chacun sur sa marche de pierre, avec le
+ * médaillon de sa place, son nom et ses coffres. `semaine` : « semaine du 16 novembre », si le serveur l'a dite.
+ */
+export function imageDuPalmares(perceurs: readonly Perceur[], semaine: string | null = null): Image {
   const t = new Toile(L, IMAGE_DU_COFFRE.hauteur);
   const decor = decorDe("place", PLEIN_JOUR);
   t.cases(decor.cases.slice(HAUT * DECOR_L, BAS * DECOR_L), DECOR_L, 0, 0, E);
+  // Les bannières d'abord, chacune dans son tiers, puis un filet d'or entre deux tiers dont l'un au moins en porte une.
+  const portees = perceurs.slice(0, 3).map((perceur, rang) => {
+    poserLeTiers(t, perceur.banniere, rang);
+    return dessinDeLaBanniere(perceur.banniere) !== null;
+  });
+  if (portees[0] || portees[1]) {
+    t.r(TIERS_DU_PODIUM[0].gauche - 2, 0, 4, H_SCENE, CONTOUR);
+    t.r(TIERS_DU_PODIUM[0].gauche - 1, 0, 2, H_SCENE, OR);
+  }
+  if (portees[0] || portees[2]) {
+    t.r(TIERS_DU_PODIUM[0].droite - 2, 0, 4, H_SCENE, CONTOUR);
+    t.r(TIERS_DU_PODIUM[0].droite - 1, 0, 2, H_SCENE, OR);
+  }
   // Les Gaulois du podium sont dessinés un peu plus petits que ceux d'une scène (échelle 4) : sur sa marche, le premier
   // tient tout entier dans l'image, même coiffé d'un grand chapeau ou en Gaulois unique. Le 16 novembre 2026, à l'échelle
   // de la scène, la tête du premier sortait de l'image.
   perceurs.slice(0, 3).forEach((perceur, rang) => {
-    const { cx, haut, mot } = MARCHES_DU_PODIUM[rang] ?? MARCHES_DU_PODIUM[0];
+    const { cx, haut } = MARCHES_DU_PODIUM[rang] ?? MARCHES_DU_PODIUM[0];
+    const metal = METAUX_DU_PODIUM[rang] ?? METAUX_DU_PODIUM[0];
     const y = haut + (GAULOIS_HAUTEUR - 1) * ECHELLE_DU_PODIUM;
-    t.r(cx - 78 - 3, y - 3, 156 + 6, H_SCENE - y + 3, CONTOUR);
-    t.r(cx - 78, y, 156, H_SCENE - y, CASE);
-    t.r(cx - 78, y, 156, 5, OR);
-    t.r(cx - 78, y + 5, 156, 2, CASE_BORD);
+    // La marche : de la pierre taillée, coiffée d'une dalle claire et d'un filet du métal de la place.
+    t.r(cx - 82 - 3, y - 3, 164 + 6, H_SCENE - y + 3, CONTOUR);
+    t.r(cx - 82, y, 164, H_SCENE - y, PIERRE.fond);
+    for (let j = y + 14; j < H_SCENE; j += 14) {
+      t.r(cx - 82, j, 164, 2, PIERRE.sombre);
+      const decale = ((j - y) / 14) % 2 === 0 ? 0 : 27;
+      for (let i = cx - 82 + 27 + decale; i < cx + 82; i += 54) t.r(i, j - 12, 2, 12, PIERRE.sombre);
+    }
+    t.r(cx - 82, y, 164, 6, PIERRE.claire);
+    t.r(cx - 82, y, 164, 2, PIERRE.vive);
+    t.r(cx - 82, y + 6, 164, 3, metal.fond);
+    t.r(cx - 82, y + 9, 164, 1, metal.sombre);
     t.cases(casesDuGaulois(perceur.tenue ?? TENUE_DE_DEPART), GAULOIS_LARGEUR, cx - (GAULOIS_LARGEUR * ECHELLE_DU_PODIUM) / 2, haut, ECHELLE_DU_PODIUM);
-    centrer(t, PETITE, cx, y + 12, `${mot} · ${perceur.coffres} coffre${perceur.coffres > 1 ? "s" : ""}`, rang === 0 ? OR : BLANC, 2);
-    centrer(t, PETITE, cx, y + 27, raccourci(PETITE, perceur.nom, 2, 144), OR_CLAIR, 2);
+    // Le médaillon de la place, puis le nom et les coffres ouverts sur une plaque sombre.
+    const mx = cx - 76;
+    const my = y + 12;
+    t.r(mx + 3, my - 1, 20, 28, CONTOUR);
+    t.r(mx - 1, my + 3, 28, 20, CONTOUR);
+    t.r(mx + 3, my, 20, 26, metal.fond);
+    t.r(mx, my + 3, 26, 20, metal.fond);
+    t.r(mx + 3, my + 3, 20, 20, NUIT);
+    t.r(mx + 3, my, 20, 1, metal.clair);
+    ecrire(t, GRANDE, mx + 8, my + 6, String(rang + 1), metal.clair, 2);
+    t.r(cx - 44, y + 12, 122, 26, NUIT, 0.82);
+    ecrire(t, PETITE, cx - 38, y + 15, raccourci(PETITE, perceur.nom, 2, 110), BLANC, 2);
+    ecrire(t, PETITE, cx - 38, y + 27, `${perceur.coffres} coffre${perceur.coffres > 1 ? "s" : ""}`, metal.clair, 2);
   });
+  // Trois éclats d'or autour du premier.
+  if (perceurs.length > 0) {
+    const { cx, haut } = MARCHES_DU_PODIUM[0];
+    for (const [dx, dy] of [[-92, 34], [88, 62], [80, 14]] as const) {
+      t.r(cx + dx - 1, haut + dy - 7, 6, 18, CONTOUR);
+      t.r(cx + dx - 7, haut + dy - 1, 18, 6, CONTOUR);
+      t.r(cx + dx, haut + dy - 6, 4, 16, OR_CLAIR);
+      t.r(cx + dx - 6, haut + dy, 16, 4, OR_CLAIR);
+      t.r(cx + dx, haut + dy, 4, 4, BLANC);
+    }
+  }
   const y = fondDuBandeau(t);
   centrer(t, GRANDE, L / 2, y + 13, "Les perceurs de coffres", OR, 3, OR_SOMBRE);
-  centrer(t, PETITE, L / 2, y + 45, "Le podium de la semaine", BLANC, 2);
+  centrer(t, PETITE, L / 2, y + 45, semaine ? `Les plus rusés du village · ${semaine}` : "Les plus rusés du village, cette semaine", BLANC, 2);
   return t.image();
 }
 
 export const pngDeLEssai = (d: DessinDeLEssai): Promise<Uint8Array<ArrayBuffer>> => ecrirePng(imageDeLEssai(d));
 export const pngDeLaVictoire = (d: DessinDeLaVictoire): Promise<Uint8Array<ArrayBuffer>> => ecrirePng(imageDeLaVictoire(d));
-export const pngDuPalmares = (perceurs: readonly Perceur[]): Promise<Uint8Array<ArrayBuffer>> => ecrirePng(imageDuPalmares(perceurs));
+export const pngDuPalmares = (perceurs: readonly Perceur[], semaine: string | null = null): Promise<Uint8Array<ArrayBuffer>> => ecrirePng(imageDuPalmares(perceurs, semaine));
 
 /* ---------- Les images dites en mots, pour qui ne les voit pas ---------- */
 
@@ -618,5 +709,8 @@ export const decrireLaVictoire = (d: DessinDeLaVictoire): string =>
 export const decrireLePalmares = (perceurs: readonly Perceur[]): string =>
   `Les perceurs de coffres de la semaine : ${perceurs
     .slice(0, 3)
-    .map((p, i) => `${i + 1}. ${p.nom}, ${p.coffres} coffre${p.coffres > 1 ? "s" : ""}`)
+    .map((p, i) => {
+      const banniere = banniereParId(p.banniere);
+      return `${i + 1}. ${p.nom}, ${p.coffres} coffre${p.coffres > 1 ? "s" : ""}${banniere ? `, devant sa bannière « ${banniere.nom} »` : ""}`;
+    })
     .join(" ; ")}.`.slice(0, 1024);

@@ -159,7 +159,7 @@ export const COFFRE_COMMAND = {
 } as const;
 
 /** /perceurs (« Le coffre du druide ») : le podium de la semaine, en image. Son nom est celui qu'attend `coffre.ts`. */
-export const PERCEURS_COMMAND = { name: "perceurs", type: 1, description: "Le podium de la semaine du jeu du coffre : qui a ouvert le plus de coffres" } as const;
+export const PERCEURS_COMMAND = { name: "perceurs", type: 1, description: "Le podium de la semaine : les villageois qui ont fait céder le plus de coffres" } as const;
 
 /** Les commandes du serveur du clan : la fonction les crée ou les remet à jour, chacune à part (`inscription.ts`). */
 export const COMMANDS = [CODE_COMMAND, FICHE_COMMAND, CLAN_COMMAND, RECORDS_COMMAND, CARTE_COMMAND, GUIDE_COMMAND, RIVAL_COMMAND, MOI_COMMAND, GAULOIS_COMMAND, FEU_COMMAND, ROLES_COMMAND, TICKETS_COMMAND, CONCOURS_COMMAND, COFFRE_COMMAND, PERCEURS_COMMAND] as const;

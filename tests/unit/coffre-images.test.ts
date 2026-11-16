@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { BANNIERES } from "../../supabase/functions/code-discord/bannieres/index";
 import { lirePng } from "../../supabase/functions/code-discord/billets";
 import {
   COFFRE_FILE,
@@ -14,6 +15,7 @@ import {
   motComplet,
   parsePerceurs,
   perceursCommand,
+  semaineEnMots,
   placesValides,
 } from "../../supabase/functions/code-discord/coffre";
 import {
@@ -25,6 +27,7 @@ import {
   ECHELLE_DU_PODIUM,
   IMAGE_DU_COFFRE,
   MARCHES_DU_PODIUM,
+  TIERS_DU_PODIUM,
   PETITE,
   SIGNES_DES_HUMEURS,
   casesDuCoffre,
@@ -165,6 +168,39 @@ describe("les images", () => {
       const image = await lirePng(png);
       expect(image).toMatchObject({ largeur: IMAGE_DU_COFFRE.largeur, hauteur: IMAGE_DU_COFFRE.hauteur });
     }
+  });
+
+  it("le fond du podium se partage en trois tiers qui couvrent toute la largeur, chacun derrière sa marche", () => {
+    const bords = [...TIERS_DU_PODIUM].sort((a, b) => a.gauche - b.gauche);
+    expect(bords[0]?.gauche).toBe(0);
+    expect(bords[2]?.droite).toBe(IMAGE_DU_COFFRE.largeur);
+    expect(bords[0]?.droite).toBe(bords[1]?.gauche);
+    expect(bords[1]?.droite).toBe(bords[2]?.gauche);
+    MARCHES_DU_PODIUM.forEach((marche, rang) => {
+      expect(marche.cx).toBeGreaterThan(TIERS_DU_PODIUM[rang]?.gauche ?? Infinity);
+      expect(marche.cx).toBeLessThan(TIERS_DU_PODIUM[rang]?.droite ?? -Infinity);
+    });
+  });
+
+  it("la bannière d'un perceur change le fond de son tiers, et de lui seul ; une bannière inconnue ne change rien", async () => {
+    const [une, autre] = BANNIERES;
+    if (!une || !autre) throw new Error("le catalogue des bannières est vide");
+    const trois = (bannieres: (string | null)[]) => bannieres.map((banniere, i) => ({ nom: `M${i}`, coffres: 3 - i, tenue: null, banniere }));
+    const pixels = async (bannieres: (string | null)[]) => (await lirePng(await pngDuPalmares(trois(bannieres))))?.rgba ?? new Uint8Array();
+    const sans = await pixels([null, null, null]);
+    const premier = await pixels([une.id, null, null]);
+    const dernier = await pixels([null, null, autre.id]);
+    const inconnue = await pixels(["banniere-qui-n-existe-pas", null, null]);
+    // Un point en haut de chaque tiers, loin des Gaulois et du filet : (x, 3).
+    const point = (rgba: Uint8Array, x: number) => [...rgba.slice((3 * IMAGE_DU_COFFRE.largeur + x) * 4, (3 * IMAGE_DU_COFFRE.largeur + x) * 4 + 3)].join(",");
+    const [gauche, milieu, droite] = [20, 225, 600];
+    expect(point(premier, milieu)).not.toBe(point(sans, milieu));
+    expect(point(premier, gauche)).toBe(point(sans, gauche));
+    expect(point(premier, droite)).toBe(point(sans, droite));
+    expect(point(dernier, droite)).not.toBe(point(sans, droite));
+    expect(point(dernier, milieu)).toBe(point(sans, milieu));
+    expect(Buffer.from(inconnue).equals(Buffer.from(sans))).toBe(true);
+    expect(decrireLePalmares(trois([une.id, null, null]))).toContain(`1. M0, 3 coffres, devant sa bannière « ${une.nom} »`);
   });
 
   it("sur le podium, chaque Gaulois tient tout entier dans l'image, de la tête aux pieds", () => {
@@ -331,11 +367,21 @@ describe("/perceurs", () => {
 
   it("lit le podium sans rien croire : trois au plus, un nom propre, un compte de coffres", () => {
     expect(parsePerceurs({ perceurs: [{ nom: " [GAL]  Jod ", coffres: 3, tenue: { peau: "x" } }, { nom: "Sans coffre", coffres: 0 }, { coffres: 2 }, { nom: "B", coffres: 2, tenue: null }, { nom: "C", coffres: 1 }, { nom: "D", coffres: 1 }] })).toEqual([
-      { nom: "GAL Jod", coffres: 3, tenue: null },
-      { nom: "B", coffres: 2, tenue: null },
-      { nom: "C", coffres: 1, tenue: null },
+      { nom: "GAL Jod", coffres: 3, tenue: null, banniere: null },
+      { nom: "B", coffres: 2, tenue: null, banniere: null },
+      { nom: "C", coffres: 1, tenue: null, banniere: null },
     ]);
+    // La bannière : un identifiant de la forme de ceux du catalogue, sinon rien.
+    expect(parsePerceurs({ perceurs: [{ nom: "A", coffres: 1, banniere: BANNIERES[0]?.id }, { nom: "B", coffres: 1, banniere: "../secret" }, { nom: "C", coffres: 1, banniere: 4 }] }).map((p) => p.banniere)).toEqual([BANNIERES[0]?.id, null, null]);
     expect(parsePerceurs(null)).toEqual([]);
+  });
+
+  it("dit la semaine du podium d'après le lundi de Paris, été comme hiver", () => {
+    expect(semaineEnMots("2026-11-15T23:00:00+00:00")).toBe("semaine du 16 novembre");
+    expect(semaineEnMots("2026-05-31T22:00:00+00:00")).toBe("semaine du 1er juin");
+    expect(semaineEnMots("2026-08-02T22:00:00Z")).toBe("semaine du 3 août");
+    expect(semaineEnMots("pas une date")).toBeNull();
+    expect(semaineEnMots(null)).toBeNull();
   });
 
   it("montre le podium en image à tout le salon, sans mentionner personne", async () => {

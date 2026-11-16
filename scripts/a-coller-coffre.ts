@@ -100,4 +100,45 @@ select 'coffre en images : '
 
 const texte2 = entete2 + migration2 + fin2;
 writeFileSync(".cache/a-coller-coffre-images.sql", texte2);
+
+/* ---------- Les bannières du podium : la troisième migration, à coller après les deux autres ---------- */
+
+const NOM_3 = "20261116001500_coffre_bannieres_du_podium";
+const migration3 = readFileSync(`supabase/migrations/${NOM_3}.sql`, "utf8").split("\r\n").join("\n").trimEnd();
+const ATTENDU_3 = "bannières du podium : installé";
+
+const entete3 = `-- LES BANNIÈRES DU PODIUM (16 novembre 2026), à coller en un seul fichier, APRÈS le coffre en images.
+-- Le podium de /perceurs montre, derrière chaque membre, la bannière qu'il a choisie pour son Gaulois.
+--
+-- À coller EN ENTIER dans l'éditeur SQL de Supabase (SQL Editor), puis « Run ». Il contient la seule migration ${NOM_3}.sql,
+-- notée comme appliquée. Il remplace une fonction de lecture par la même avec un champ de plus. Il n'efface rien et ne
+-- touche à aucune donnée. Collé une seconde fois, il ne change rien.
+-- La dernière ligne doit dire : « ${ATTENDU_3} ».
+
+begin;
+
+`;
+
+const fin3 = `
+
+insert into supabase_migrations.schema_migrations (version, name, statements)
+values ('20261116001500', 'coffre_bannieres_du_podium', array[]::text[])
+on conflict (version) do nothing;
+
+commit;
+
+-- Le contrôle : la fonction rend-elle la bannière, reste-t-elle fermée à tous sauf au robot, la migration est-elle notée ?
+select 'bannières du podium : '
+  || case when (select p.prosrc like '%banniere%' from pg_proc p join pg_namespace s on s.oid = p.pronamespace where s.nspname = 'public' and p.proname = 'coffre_palmares')
+       and not has_function_privilege('anon', 'public.coffre_palmares()', 'execute')
+       and not has_function_privilege('authenticated', 'public.coffre_palmares()', 'execute')
+       and has_function_privilege('service_role', 'public.coffre_palmares()', 'execute')
+       and (public.coffre_palmares() ->> 'ok') = 'true'
+       and exists (select 1 from supabase_migrations.schema_migrations where version = '20261116001500')
+     then 'installé' else 'PAS INSTALLÉ' end as controle;
+`;
+
+const texte3 = entete3 + migration3 + fin3;
+writeFileSync(".cache/a-coller-coffre-podium.sql", texte3);
+console.log(`.cache/a-coller-coffre-podium.sql : ${texte3.split("\n").length} lignes`);
 console.log(`.cache/a-coller-coffre-images.sql : ${texte2.split("\n").length} lignes, ${(texte2.match(/\$\$/g) ?? []).length} « $$ » (la migration en a ${(migration2.match(/\$\$/g) ?? []).length})`);
