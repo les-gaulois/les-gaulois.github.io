@@ -2,6 +2,16 @@
   {
     "date": "2026-11-16",
     "kind": "nouveau",
+    "title": "Ce que contient une pochette, au survol",
+    "body": "Le curseur sur le dessin d'une pochette ouvre ce qu'elle contient, ménagerie comprise. Une loupe montre en grand la case survolée, sa rareté et sa chance. Sur téléphone, touchez le dessin.",
+    "link": {
+      "href": "/village#boutique",
+      "label": "Ouvrir la boutique"
+    }
+  },
+  {
+    "date": "2026-11-16",
+    "kind": "nouveau",
     "title": "La pochette des bannières",
     "body": "20 nouvelles bannières sous un cadre d'or serti : les trésors de la pochette. Elles ne s'achètent pas : une pochette à 3 000 statères les donne, jamais une que vous avez déjà.",
     "link": {

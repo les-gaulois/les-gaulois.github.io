@@ -1,14 +1,15 @@
-import { useEffect, useState } from "preact/hooks";
-import { ORDRE_RARETES, RARETES, type Rarete } from "../../lib/gaulois";
+import { useCallback, useEffect, useState } from "preact/hooks";
+import type { Rarete } from "../../lib/gaulois";
+import { albumDeLaMenagerie } from "../../lib/village/album-pochette";
 import type { MesFamiliers, PochetteFamiliersReponse } from "../../lib/village/contrat";
 import { pourcent, stateres } from "../../lib/village/ecran-boutique";
-import { ANCRE_FAMILIERS, idsPossedes, lignesDesChances, raisonPochetteFermee, rangerLaMenagerie, surCombien, vignetteDuFamilier } from "../../lib/village/ecran-familiers";
-import { FAMILIERS, chanceDuFamilier, familierDe, tailleDuFamilier, TAILLES, type Familier } from "../../lib/village/familiers";
+import { ANCRE_FAMILIERS, idsPossedes, lignesDesChances, raisonPochetteFermee, vignetteDuFamilier } from "../../lib/village/ecran-familiers";
+import { FAMILIERS, familierDe, tailleDuFamilier, TAILLES, type Familier } from "../../lib/village/familiers";
 import { motionAllowed } from "../../lib/fx/motion";
 import { bandeDesFamiliers } from "../../lib/village/tambour";
-import { TOUT, type Filtre } from "../../lib/village/vestiaire-rayons";
 import { Compte, Dialogue, Refus, type BandeVue, type Issue } from "./BoutiqueDialogue";
-import { MarqueDeRarete, Pixels, Prix } from "./BoutiquePixels";
+import { AlbumDePochette } from "./AlbumPochette";
+import { Pixels, Prix } from "./BoutiquePixels";
 import { DessinFamilier, RareteDuFamilier } from "./Familiers";
 import { POCHETTE_FAMILIERS_COTE, casesDeLaPochetteFamiliers } from "./PochetteFamiliersDessin";
 import { BoutonSon, Tambour, preparerLeSon, useSonDuTambour } from "./Tambour";
@@ -34,107 +35,24 @@ function Losanges({ rang, class: classe }: { rang: number; class: string }) {
   );
 }
 
-/** Un choix du filtre de la ménagerie : une rareté et le nombre de ses familiers. */
-function ChoixDeRarete({ filtre, nom, rang, nombre, choisi, onClick }: { filtre: Filtre; nom: string; rang: number; nombre: number; choisi: boolean; onClick: () => void }) {
-  return (
-    <button type="button" class="chip filtre" data-rarete={filtre} aria-pressed={choisi} disabled={nombre === 0} onClick={onClick} data-testid={`menagerie-filtre-${filtre}`}>
-      {rang > 0 && <Losanges rang={rang} class="filtre-rang" />}
-      {nom}
-      <span class="filtre-nombre tnum">{nombre}</span>
-      <span class="sr-only"> {nombre > 1 ? "familiers" : "familier"}</span>
-    </button>
-  );
-}
-
-/**
- * Une case de la ménagerie. Un familier qu'on a : son dessin en couleur et « à vous ». Un familier à recevoir : sa
- * silhouette, son nom, sa rareté, et sa chance dans la prochaine pochette de ce compte. La case ne se clique pas : un
- * familier ne s'achète pas, et se choisit dans « Mon Gaulois ».
- */
-function CaseDeMenagerie({ familier, possede, montre, chance }: { familier: Familier; possede: boolean; montre: boolean; chance: number }) {
-  return (
-    <li class="case familier-case" data-rarete={familier.rarete} data-possede={possede ? "" : undefined} data-testid="menagerie-case" data-familier={familier.id}>
-      <span class="case-image">
-        <DessinFamilier familier={familier} place={80} maximum={3} silhouette={!possede} />
-      </span>
-      <span class="case-nom">{familier.nom}</span>
-      <MarqueDeRarete rarete={familier.rarete} />
-      {possede ? (
-        <span class="case-marque">
-          <span class="sr-only">, </span>
-          {montre ? "montré" : "à vous"}
-        </span>
-      ) : (
-        <span class="familier-chance tnum">
-          <span class="sr-only">, à recevoir, </span>
-          {pourcent(chance)}
-          <span class="sr-only"> de chance dans votre prochaine pochette</span>
-        </span>
-      )}
-    </li>
-  );
-}
-
-/**
- * La ménagerie : les cent familiers, famille par famille, réduits à une rareté si on le veut. Ceux du compte en couleur,
- * les autres en silhouette : la ménagerie ne se montre qu'ici (le choix du familier montré, dans « Mon Gaulois », ne
- * liste que ceux qu'on a). Repliée à l'ouverture de la page : cent cases, avant le marché et les rayons.
- */
-function Menagerie({ mes }: { mes: MesFamiliers }) {
-  const [ouverte, setOuverte] = useState(false);
-  const [filtre, setFiltre] = useState<Filtre>(TOUT);
-  const possedes = idsPossedes(mes);
-  const range = rangerLaMenagerie(possedes, filtre);
-  return (
-    <details class="fold familiers-menagerie" open={ouverte} onToggle={(e) => setOuverte(e.currentTarget.open)} data-testid="menagerie">
-      <summary>
-        La ménagerie{" "}
-        <span class="info-discrete" data-testid="menagerie-compte">
-          {surCombien(range.possedes, range.total)}
-        </span>
-      </summary>
-      {/* Les cases ne se dessinent qu'une fois la ménagerie ouverte : cent toiles de moins à peindre à l'arrivée. */}
-      {ouverte && (
-        <div class="familiers-menagerie-corps">
-          <div class="vestiaire-filtre" role="group" aria-label="Montrer une rareté" data-testid="menagerie-filtre">
-            <ChoixDeRarete filtre={TOUT} nom="Tout" rang={0} nombre={range.total} choisi={range.retenu === TOUT} onClick={() => setFiltre(TOUT)} />
-            {ORDRE_RARETES.map((rarete) => (
-              <ChoixDeRarete key={rarete} filtre={rarete} nom={RARETES[rarete].nom} rang={RARETES[rarete].rang} nombre={range.comptes[rarete]} choisi={range.retenu === rarete} onClick={() => setFiltre(range.retenu === rarete ? TOUT : rarete)} />
-            ))}
-          </div>
-          {range.possedes < range.total && <p class="pochette-note">Sous une silhouette : sa chance de sortir de votre prochaine pochette.</p>}
-          {range.familles.map(({ famille, possedes: nombre, total, familiers }, index) => (
-            <section key={famille} class="familiers-famille" aria-labelledby={`menagerie-famille-${index}`} data-testid="menagerie-famille">
-              <h4 id={`menagerie-famille-${index}`} class="vestiaire-boutique">
-                {famille} <span class="tnum familiers-famille-compte">{surCombien(nombre, total)}</span>
-              </h4>
-              <ul class="cases familiers-cases">
-                {familiers.map((familier) => (
-                  <CaseDeMenagerie key={familier.id} familier={familier} possede={possedes.has(familier.id)} montre={mes.porte === familier.id} chance={chanceDuFamilier(familier.id, mes.pochette.chances, possedes)} />
-                ))}
-              </ul>
-            </section>
-          ))}
-        </div>
-      )}
-    </details>
-  );
-}
-
 /**
  * La pochette des familiers, sur « La boutique » : la seule façon d'avoir un familier. Son dessin, son prix (celui du
  * serveur), les chances de ce compte par rareté, toujours écrites avant d'ouvrir, combien de familiers il a, et le bouton
- * d'ouverture, ou la raison pour laquelle il ne peut pas ouvrir. Puis la ménagerie. `solde` : le dernier que le serveur a
- * donné à la page.
+ * d'ouverture, ou la raison pour laquelle il ne peut pas ouvrir. Le dessin ouvre la ménagerie (l'album de la pochette,
+ * `AlbumPochette.tsx`) : les cent familiers, ceux du compte en couleur, les autres en silhouette avec leur chance.
+ * `solde` : le dernier que le serveur a donné à la page.
  */
 export function PochetteFamiliers({ mes, solde, onOuvrir }: { mes: MesFamiliers; solde: number; onOuvrir: () => void }) {
   const possedes = idsPossedes(mes);
   const lignes = lignesDesChances(mes.pochette.chances, possedes);
   const raison = raisonPochetteFermee(mes, solde);
+  const lireAlbum = useCallback(() => albumDeLaMenagerie(mes), [mes]);
   return (
     <section id={ANCRE_FAMILIERS} class="familiers" aria-labelledby="familiers-titre" data-testid="familiers">
       <div class="familiers-vitrine">
-        <DessinPochetteFamiliers echelle={4} class="familiers-dessin" />
+        <AlbumDePochette lireAlbum={lireAlbum} nombre={FAMILIERS.length} nom="Voir la ménagerie : les familiers de cette pochette" testid="familiers">
+          <DessinPochetteFamiliers echelle={4} class="familiers-dessin" />
+        </AlbumDePochette>
         <div class="familiers-nom">
           <h3 id="familiers-titre" class="nom-champ familiers-titre">
             La pochette des familiers
@@ -168,7 +86,6 @@ export function PochetteFamiliers({ mes, solde, onOuvrir }: { mes: MesFamiliers;
         )}
         <p class="pochette-note familiers-regle">Un familier ne s'obtient qu'ici, jamais à la boutique ni au marché. La pochette ne donne jamais un familier que vous avez déjà.</p>
       </div>
-      <Menagerie mes={mes} />
     </section>
   );
 }

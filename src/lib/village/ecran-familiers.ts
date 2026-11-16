@@ -1,7 +1,7 @@
 /**
- * Ce que les écrans des familiers déduisent de ce qu'ils ont reçu (15 novembre 2026) : la pochette des familiers et la
- * ménagerie sur « La boutique » (`src/components/village/PochetteFamiliers.tsx`), le choix du familier montré dans « Mon
- * Gaulois » (`src/components/village/Familiers.tsx`). Des calculs purs : le rangement de la ménagerie, les lignes des
+ * Ce que les écrans des familiers déduisent de ce qu'ils ont reçu (15 novembre 2026) : la pochette des familiers sur « La
+ * boutique » (`src/components/village/PochetteFamiliers.tsx`, sa ménagerie dans `album-pochette.ts`), le choix du familier montré dans « Mon
+ * Gaulois » (`src/components/village/Familiers.tsx`). Des calculs purs : les lignes des
  * chances, la raison d'une pochette fermée, la taille de l'aperçu. Rien ne décide d'un droit, d'un prix ni d'un tirage :
  * le serveur le fait (`contrat.ts`, « Les familiers du Gaulois »), et `familiers.ts` lit ses réponses.
  */
@@ -9,8 +9,8 @@ import { ECART_DU_FAMILIER } from "../../../supabase/functions/code-discord/fami
 import { GAULOIS_LARGEUR, ORDRE_RARETES, RARETES, decrireGaulois, type Rarete, type Tenue } from "../gaulois";
 import type { MesFamiliers, PochetteFamiliersReponse } from "./contrat";
 import { manque, messageDuRefus, stateres } from "./ecran-boutique";
-import { FAMILIERS, FAMILLES, chancesPourMoi, familierAPoser, familierDe, familiersParRarete, messageDesFamiliers, restantsParRarete, type Familier } from "./familiers";
-import { TOUT, echelleEntiere, type Filtre } from "./vestiaire-rayons";
+import { FAMILIERS, chancesPourMoi, familierAPoser, familierDe, familiersParRarete, messageDesFamiliers, restantsParRarete, type Familier } from "./familiers";
+import { echelleEntiere } from "./vestiaire-rayons";
 
 /** L'espace qui ne se coupe pas, devant un deux-points. */
 const NBSP = String.fromCharCode(0xa0);
@@ -34,40 +34,6 @@ export const familierMontre = (mes: Pick<MesFamiliers, "porte"> | null): Familie
 
 /** « 12 sur 100 ». */
 export const surCombien = (nombre: number, total: number): string => `${nombre} sur ${total}`;
-
-/** Une famille de la ménagerie : ses familiers à montrer (pour le filtre retenu), et combien le compte en a, sans filtre. */
-export interface FamilleRangee {
-  famille: string;
-  possedes: number;
-  total: number;
-  familiers: Familier[];
-}
-
-/** La ménagerie rangée : famille par famille, avec de quoi la réduire à une rareté. */
-export interface MenagerieRangee {
-  familles: FamilleRangee[];
-  /** Combien de familiers par rareté, sans filtre. */
-  comptes: Record<Rarete, number>;
-  total: number;
-  possedes: number;
-  /** Le filtre qui s'applique vraiment. */
-  retenu: Filtre;
-}
-
-/**
- * La ménagerie : tous les familiers, famille par famille dans l'ordre des dessins, réduits à une rareté si le filtre le
- * demande. Une famille sans familier de cette rareté ne se montre pas. Une rareté inconnue montre tout.
- */
-export function rangerLaMenagerie(possedes: ReadonlySet<string>, filtre: Filtre | undefined, liste: readonly Familier[] = FAMILIERS, familles: readonly string[] = FAMILLES): MenagerieRangee {
-  const comptes = familiersParRarete(liste);
-  const retenu: Filtre = filtre && filtre !== TOUT && comptes[filtre] > 0 ? filtre : TOUT;
-  const rangees = familles.flatMap((famille) => {
-    const tous = liste.filter((familier) => familier.famille === famille);
-    const familiers = retenu === TOUT ? tous : tous.filter((familier) => familier.rarete === retenu);
-    return familiers.length ? [{ famille, possedes: tous.filter((familier) => possedes.has(familier.id)).length, total: tous.length, familiers }] : [];
-  });
-  return { familles: rangees, comptes, total: liste.length, possedes: liste.filter((familier) => possedes.has(familier.id)).length, retenu };
-}
 
 /** Une ligne des chances de la pochette des familiers, pour ce compte. */
 export interface LigneDeChance {

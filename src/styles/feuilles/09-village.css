@@ -1008,6 +1008,373 @@
   color: var(--rarete-texte);
 }
 
+/* L'album d'une pochette (16 novembre 2026, « l'album à loupe », AlbumPochette.tsx). Le dessin de la pochette devient un
+   bouton, qui se soulève un peu au survol et porte une pastille : combien la pochette contient. L'album s'ouvre près de
+   lui, posé sur la page : les puces et les petites cases à gauche, la loupe à droite. Sa place (à droite, dessous ou
+   dessus) est calculée par l'écran, la pointe vers le dessin. Sous 640 pixels de large, il monte du bas de l'écran. */
+/* Le fond du survol déborde un peu autour du dessin (marge négative) : la pochette garde sa place d'avant. */
+.album-declencheur {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  margin: -0.375rem;
+  padding: 0.375rem;
+  border: 0;
+  border-radius: 0.75rem;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background-color 0.2s,
+    translate 0.2s;
+}
+.album-declencheur:hover,
+.album-declencheur[aria-expanded="true"] {
+  background: color-mix(in srgb, var(--ecriture) 7%, transparent);
+  translate: 0 -2px;
+}
+.album-pastille {
+  position: absolute;
+  right: -0.25rem;
+  bottom: -0.25rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.0625rem 0.5rem;
+  border-radius: 999px;
+  background: var(--ecriture);
+  box-shadow: 0 0 0 2px var(--color-navy);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--color-navy);
+}
+.album-pastille svg {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+.album {
+  position: fixed;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--color-line);
+  border-radius: 0.875rem;
+  background: var(--color-navy);
+  box-shadow:
+    0 22px 56px -14px var(--ombre),
+    0 2px 6px color-mix(in srgb, var(--ecriture) 8%, transparent);
+  color: var(--ecriture);
+  animation: album-entree 0.16s ease-out;
+}
+@keyframes album-entree {
+  from {
+    opacity: 0;
+    translate: 0 6px;
+  }
+}
+/* La pointe vers le dessin de la pochette. */
+.album[data-cote]::before {
+  content: "";
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--color-line);
+  background: var(--color-navy);
+  rotate: 45deg;
+}
+.album[data-cote="droite"]::before {
+  top: var(--pointe, 40px);
+  left: -8px;
+  border-top: 0;
+  border-right: 0;
+}
+.album[data-cote="dessous"]::before {
+  top: -8px;
+  left: var(--pointe, 40px);
+  border-right: 0;
+  border-bottom: 0;
+}
+.album[data-cote="dessus"]::before {
+  bottom: -8px;
+  left: var(--pointe, 40px);
+  border-top: 0;
+  border-left: 0;
+}
+.album-tete {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.875rem 1rem 0.75rem;
+  border-bottom: 1px solid var(--color-line);
+}
+.album-titre {
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.album-sous {
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+.album-fermer {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin: -0.375rem -0.375rem 0 0;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--ecriture);
+  cursor: pointer;
+}
+.album-fermer:hover {
+  background: var(--color-surface-2);
+}
+.album-fermer svg {
+  width: 1rem;
+  height: 1rem;
+}
+.album-corps {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 15rem;
+  min-height: 0;
+}
+.album-gauche {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border-right: 1px solid var(--color-line);
+}
+.album-groupes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--color-line);
+}
+.album-groupes .filtre {
+  min-height: 2rem;
+}
+.album-cases {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(3rem, 1fr));
+  align-content: start;
+  gap: 0.3125rem;
+  min-height: 0;
+  padding: 0.75rem 1rem 1rem;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+/* Des pistes de taille fixe, jusque dans la case : un grand familier se réduit à sa case au lieu de l'élargir. */
+.album-cases li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+/* Une case : le dessin seul, sur le fond et dans le cadre de sa rareté, comme les cases des rayons. La loupe dit le reste. */
+.album-case {
+  --rarete: var(--color-line-strong);
+  --rarete-texte: var(--color-muted);
+  --rarete-cadre: var(--rarete);
+  position: relative;
+  display: grid;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  place-items: center;
+  width: 100%;
+  min-width: 0;
+  aspect-ratio: 1;
+  padding: 0.1875rem;
+  overflow: hidden;
+  border: 2px solid transparent;
+  border-radius: 0.375rem;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--rarete) 34%, var(--color-navy)), color-mix(in srgb, var(--rarete) 12%, var(--color-navy))) padding-box,
+    var(--rarete-cadre) border-box;
+  cursor: default;
+}
+.album-case:hover,
+.album-case[data-actif] {
+  outline: 2px solid var(--ecriture);
+  outline-offset: 1px;
+}
+.album-case-dessin,
+.album-loupe-dessin {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+/* La rareté d'une case en petits losanges au pied, comme partout dans la boutique : la couleur n'est jamais le seul repère. */
+.album-case-rang {
+  position: absolute;
+  bottom: 0.125rem;
+  left: 50%;
+  display: flex;
+  gap: 0.125rem;
+  translate: -50% 0;
+}
+.album-case-rang i {
+  width: 0.1875rem;
+  height: 0.1875rem;
+  rotate: 45deg;
+  background: var(--rarete-texte);
+}
+/* Ce que le compte a déjà : un point dans le coin, « à vous » à la loupe. */
+.album-case[data-possede]::after {
+  content: "";
+  position: absolute;
+  top: 0.1875rem;
+  right: 0.1875rem;
+  width: 0.4375rem;
+  height: 0.4375rem;
+  border-radius: 999px;
+  background: var(--ecriture);
+  box-shadow: 0 0 0 1.5px var(--color-navy);
+}
+/* Un dessin plus grand que sa place (un grand familier dans une petite case) : réduit en douceur, sans pixels perdus. */
+.album-reduit {
+  image-rendering: auto;
+}
+.album-silhouette {
+  opacity: 0.6;
+}
+:is(.album-case, .album-loupe)[data-rarete="commun"] {
+  --rarete: var(--rarete-commun);
+  --rarete-texte: var(--rarete-commun-texte);
+}
+:is(.album-case, .album-loupe)[data-rarete="peu-commun"] {
+  --rarete: var(--rarete-peu-commun);
+  --rarete-texte: var(--rarete-peu-commun-texte);
+}
+:is(.album-case, .album-loupe)[data-rarete="epique"] {
+  --rarete: var(--rarete-epique);
+  --rarete-texte: var(--rarete-epique-texte);
+}
+:is(.album-case, .album-loupe)[data-rarete="mystique"] {
+  --rarete: var(--rarete-mystique);
+  --rarete-texte: var(--rarete-mystique-texte);
+}
+:is(.album-case, .album-loupe)[data-rarete="legendaire"] {
+  --rarete: var(--rarete-legendaire);
+  --rarete-texte: var(--rarete-legendaire-texte);
+  --rarete-cadre: var(--rarete-legendaire-degrade);
+}
+/* La loupe : la case choisie en grand, son nom, sa rareté, son rayon ou sa famille, et sa chance pour ce compte. */
+.album-loupe {
+  --rarete: var(--color-line-strong);
+  --rarete-texte: var(--color-muted);
+  --rarete-cadre: var(--rarete);
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 1.25rem 1rem;
+  overflow: auto;
+  border-radius: 0 0 0.875rem 0;
+  background: var(--color-night);
+  text-align: center;
+}
+.album-loupe-cadre {
+  display: grid;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  place-items: center;
+  width: 10.5rem;
+  height: 10.5rem;
+  padding: 0.25rem;
+  border: 2px solid transparent;
+  border-radius: 0.75rem;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--rarete) 34%, var(--color-navy)), color-mix(in srgb, var(--rarete) 10%, var(--color-navy))) padding-box,
+    var(--rarete-cadre) border-box;
+}
+.album-loupe-nom {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.15;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+.album-loupe .case-rarete {
+  font-size: 0.8125rem;
+}
+.album-loupe-detail {
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+.album-a-vous {
+  padding: 0.0625rem 0.5rem;
+  border-radius: 999px;
+  background: var(--ecriture);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-navy);
+}
+.album-loupe-chance {
+  display: grid;
+  gap: 0.125rem;
+}
+.album-loupe-chance strong {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.album-loupe-chance span {
+  font-size: 0.75rem;
+  color: var(--color-muted);
+}
+/* Sur téléphone : l'album monte du bas de l'écran ; la loupe passe au-dessus des cases, sur une ligne. */
+.album.album-feuille {
+  top: auto;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  max-height: 82dvh;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  border-radius: 1rem 1rem 0 0;
+}
+.album-feuille .album-corps {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+}
+.album-feuille .album-gauche {
+  border-right: 0;
+}
+.album-feuille .album-loupe {
+  order: -1;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  justify-items: start;
+  gap: 0.25rem 0.875rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--color-line);
+  border-radius: 0;
+  text-align: left;
+}
+.album-feuille .album-loupe-cadre {
+  grid-row: span 5;
+  width: 5.5rem;
+  height: 5.5rem;
+}
+.album-feuille .album-loupe .case-rarete {
+  justify-items: start;
+}
+.album-feuille .album-loupe-chance strong {
+  font-size: 1.25rem;
+}
+
 /* Les fenêtres de confirmation (achat, pochette) : un vrai <dialog>, centré, sur un voile sombre. */
 .boutique-dialogue {
   width: min(26rem, calc(100vw - 2rem));
@@ -1459,8 +1826,8 @@
 }
 
 /* ---------- Les familiers du Gaulois (15 novembre 2026) ---------- */
-/* Les écrans des familiers : l'aperçu du Gaulois avec son familier, la pochette des familiers et la ménagerie sur « La
-   boutique », la révélation du familier reçu, et « Mon familier » dans « Mon Gaulois ». Les cases, les chances, les
+/* Les écrans des familiers : l'aperçu du Gaulois avec son familier, la pochette des familiers sur « La boutique » (sa
+   ménagerie est l'album de son dessin, section de l'album plus haut), la révélation du familier reçu, et « Mon familier » dans « Mon Gaulois ». Les cases, les chances, les
    fenêtres et le fondu de la révélation sont ceux du vestiaire et de la pochette surprise ; ici, seulement ce que les
    familiers ont de plus. */
 
@@ -1587,54 +1954,15 @@
   }
 }
 
-/* La ménagerie : les cent familiers dans un pli, famille par famille. Le filtre par rareté est celui des rayons. */
-.familiers-menagerie > summary,
+/* Le titre du pli « Mon familier » de « Mon Gaulois » : son nombre juste après le nom, la flèche au bout. */
 .familier-choix > summary {
   justify-content: flex-start;
 }
-.familiers-menagerie > summary::after,
 .familier-choix > summary::after {
   margin-left: auto;
 }
-.familiers-menagerie > summary .info-discrete,
 .familier-choix > summary .info-discrete {
   font-family: var(--font-sans);
-}
-.familiers-menagerie-corps {
-  display: grid;
-  gap: 1.25rem;
-  min-width: 0;
-  margin-top: 0.5rem;
-}
-.familiers-famille {
-  display: grid;
-  gap: 0.75rem;
-  min-width: 0;
-}
-.familiers-famille-compte {
-  margin-left: 0.375rem;
-  letter-spacing: 0;
-  color: var(--ecriture);
-}
-/* Une case de la ménagerie ne se clique pas : un familier ne s'achète pas. Celui qu'on n'a pas garde le cadre de sa
-   rareté, écrite dessous ; son dessin est une silhouette, adoucie. */
-.familier-case {
-  cursor: default;
-}
-.familier-case:hover {
-  box-shadow: none;
-}
-.familier-case:not([data-possede]) .familier-dessin {
-  opacity: 0.6;
-}
-.familier-chance {
-  margin-top: 0.125rem;
-  padding: 0.0625rem 0.5rem;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--ecriture) 10%, transparent);
-  font-size: 0.8125rem;
-  font-weight: 700;
-  color: var(--ecriture);
 }
 
 /* Le familier reçu, dans la fenêtre : en grand (jusqu'à 256 pixels de côté), puis son nom, sa rareté et sa taille. */

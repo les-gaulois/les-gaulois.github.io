@@ -4,7 +4,7 @@ import type { Objet, Rarete } from "../../lib/gaulois";
 import { adresseDansLaBoutique } from "../../lib/village/boutique-rayons";
 import type { MesFamiliers, PochetteFamiliersReponse } from "../../lib/village/contrat";
 import { manque } from "../../lib/village/ecran-boutique";
-import { ANCRE_FAMILIERS, apresLaPochette, echelleDuDessin, familierMontre, familiersPossedes, messageDuRefusDesFamiliers, silhouetteDuFamilier, vignetteDuFamilier } from "../../lib/village/ecran-familiers";
+import { ANCRE_FAMILIERS, apresLaPochette, echelleDuDessin, familierMontre, familiersPossedes, messageDuRefusDesFamiliers, vignetteDuFamilier } from "../../lib/village/ecran-familiers";
 import { lireChoixFamilier, lireMesFamiliers, lirePochetteFamiliers, messageDesFamiliers, type Familier } from "../../lib/village/familiers";
 import { Problem, messageOf } from "../compte/common";
 import type { Issue } from "./BoutiqueDialogue";
@@ -71,10 +71,10 @@ export function useFamiliers() {
 
 /**
  * Le dessin d'un familier, décoratif : son nom est toujours écrit à côté. Rogné à son cadre et agrandi d'un nombre entier
- * de fois dans `place` pixels. `silhouette` : un familier que le compte n'a pas, sa forme seule.
+ * de fois dans `place` pixels.
  */
-export function DessinFamilier({ familier, place, maximum, silhouette = false, class: classe = "" }: { familier: Familier; place: number; maximum: number; silhouette?: boolean; class?: string }) {
-  const dessin = silhouette ? silhouetteDuFamilier(familier) : vignetteDuFamilier(familier);
+export function DessinFamilier({ familier, place, maximum, class: classe = "" }: { familier: Familier; place: number; maximum: number; class?: string }) {
+  const dessin = vignetteDuFamilier(familier);
   if (!dessin) return null;
   return <Pixels largeur={dessin.largeur} hauteur={dessin.hauteur} cases={dessin.cases} echelle={echelleDuDessin(dessin, place, maximum)} class={`familier-dessin ${classe}`} />;
 }

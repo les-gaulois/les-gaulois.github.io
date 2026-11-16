@@ -16,13 +16,12 @@ import {
   lignesDesChances,
   messageDuRefusDesFamiliers,
   raisonPochetteFermee,
-  rangerLaMenagerie,
   silhouetteDuFamilier,
   surCombien,
   tailleDeLApercu,
   vignetteDuFamilier,
 } from "../../src/lib/village/ecran-familiers";
-import { FAMILIERS, FAMILLES, apercuAvecFamilier, tailleDuFamilier } from "../../src/lib/village/familiers";
+import { FAMILIERS, apercuAvecFamilier, tailleDuFamilier } from "../../src/lib/village/familiers";
 
 // Les écrans des familiers (15 novembre 2026) : ce qu'ils déduisent de ce que le serveur a donné. Les familiers nommés ici
 // sont ceux des dessins (`supabase/functions/code-discord/familiers/`), pris dans la liste : aucun n'est écrit en dur.
@@ -30,7 +29,6 @@ import { FAMILIERS, FAMILLES, apercuAvecFamilier, tailleDuFamilier } from "../..
 const NBSP = String.fromCharCode(0xa0);
 const deRarete = (rarete: string) => FAMILIERS.filter((familier) => familier.rarete === rarete);
 const communs = deRarete("commun");
-const legendaires = deRarete("legendaire");
 const petit = FAMILIERS.find((familier) => tailleDuFamilier(familier).largeur <= 20)!;
 const geant = FAMILIERS.find((familier) => tailleDuFamilier(familier).largeur >= 56)!;
 
@@ -80,34 +78,6 @@ describe("les familiers du compte", () => {
 
   it("écrit le compte en mots", () => {
     expect(surCombien(12, 100)).toBe("12 sur 100");
-  });
-});
-
-describe("la ménagerie", () => {
-  it("range tous les familiers, famille par famille, dans l'ordre des dessins", () => {
-    const range = rangerLaMenagerie(new Set(), undefined);
-    expect(range.familles.map((f) => f.famille)).toEqual([...FAMILLES]);
-    expect(range.familles.flatMap((f) => f.familiers)).toHaveLength(FAMILIERS.length);
-    expect(range.total).toBe(FAMILIERS.length);
-    expect(range.possedes).toBe(0);
-    expect(range.retenu).toBe("tout");
-    expect(ORDRE_RARETES.reduce((somme, rarete) => somme + range.comptes[rarete], 0)).toBe(FAMILIERS.length);
-  });
-
-  it("compte ce que le compte a dans chaque famille, même réduite à une rareté", () => {
-    const range = rangerLaMenagerie(new Set([petit.id, geant.id]), "legendaire");
-    expect(range.retenu).toBe("legendaire");
-    expect(range.possedes).toBe(2);
-    expect(range.familles.flatMap((f) => f.familiers).map((f) => f.id)).toEqual(legendaires.map((f) => f.id));
-    expect(range.familles.reduce((somme, f) => somme + f.possedes, 0)).toBe(2);
-    for (const f of range.familles) expect(f.total).toBe(FAMILIERS.filter((familier) => familier.famille === f.famille).length);
-  });
-
-  it("montre tout quand la rareté demandée n'a aucun familier, et cache une famille vide", () => {
-    const liste = [communs[0]!, legendaires[0]!];
-    expect(rangerLaMenagerie(new Set(), "epique", liste).retenu).toBe("tout");
-    const range = rangerLaMenagerie(new Set(), "commun", liste);
-    expect(range.familles.map((f) => f.famille)).toEqual([communs[0]!.famille]);
   });
 });
 
