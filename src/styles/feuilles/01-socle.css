@@ -98,6 +98,20 @@
   --page-marge: clamp(1rem, 4vw, 5rem);
   --wrap-max: var(--page-max);
   --wrap-marge: var(--page-marge);
+  /* La grille « Quand jouer » (/activite) : six bleus, du plus pâle au plus foncé, et la couleur du chiffre posé dessus,
+     marine sur les quatre premiers (7:1 au moins), blanc sur les deux plus foncés (5,7:1 au moins). */
+  --chaleur-1: #e8eefb;
+  --chaleur-2: #c9d8fb;
+  --chaleur-3: #a3bffb;
+  --chaleur-4: #739ff8;
+  --chaleur-5: #2360d0;
+  --chaleur-6: #173f96;
+  --chaleur-1-texte: #0a1230;
+  --chaleur-2-texte: #0a1230;
+  --chaleur-3-texte: #0a1230;
+  --chaleur-4-texte: #0a1230;
+  --chaleur-5-texte: var(--sur-couleur);
+  --chaleur-6-texte: var(--sur-couleur);
 }
 /* La Direction prend tout l'écran, en-tête et pied de page compris (pilote, 15 novembre 2026 : « pourquoi le panel MEE6
    prend tout l'écran tandis que le mien a la largeur d'une page A4 »). Jusqu'alors, elle gardait une colonne de 75 rem au
@@ -203,6 +217,116 @@
   --color-muted: #e2c0c6;
   --stage-muted: #e2c0c6;
   --texte-courant: #f4e4e7;
+}
+
+/* ---------- Le thème sombre « Nuit Marine » ---------- */
+/* Choisi par le pilote sur captures le 16 novembre 2026, parmi cinq (« beaucoup de personnes m'ont fait des retours
+   comme quoi c'était trop clair, avec la possibilité de choisir clair ou sombre », puis « le 1, Nuit Marine ») : le
+   bleu marine que le site avait avant le 14 novembre, l'envers de « Neige Marine ». Base.astro pose data-mode="sombre"
+   sur <html> avant le premier affichage, selon le bouton de l'en-tête (src/scripts/mode.ts) ou, sans choix du visiteur,
+   le réglage de son appareil. Chaque jeton garde son nom et son rôle, avec la valeur des îlots sombres : aucun
+   composant ne change. Un seul bleu de fond, celui de la page, au QG, au guide et à la Carte compris : les deux
+   dernières lignes du sélecteur passent devant la palette claire du Terminal (plus bas) et devant celle de 07-calme.css.
+   Le bleu des boutons (--color-blue) n'est pas repris : il est le même en clair. Contrastes dans docs/DESIGN.md,
+   « Le thème sombre », contrôlés par tests/unit/theme-sombre.test.ts. */
+:root[data-mode="sombre"],
+:root[data-mode="sombre"][data-ambiance="console"][data-console="terminal"],
+:root[data-mode="sombre"][data-lettres="onciale"][data-ambiance="console"][data-console="terminal"] {
+  color-scheme: dark;
+  --ecriture: #fff;
+  --color-navy: #0a1230;
+  --color-night: #081029;
+  --color-surface: #101b45;
+  --color-surface-2: #182658;
+  --color-line: #24346b;
+  --color-line-strong: #5469ae;
+  --color-blue-text: #9dbcff;
+  --color-red: #ff1a2e;
+  --color-muted: #c0c9e2;
+  --color-win: #4c86f5;
+  --color-loss: #d9742e;
+  --color-warn: #ffc857;
+  --color-ok: #a6e3b4;
+  --color-danger: #ff6b6b;
+  --color-ally: #9dbcff;
+  --rarete-commun-texte: #b5d8ff;
+  --rarete-peu-commun-texte: #bcc5ff;
+  --rarete-epique-texte: #dcbcff;
+  --rarete-mystique-texte: #ffb5bd;
+  --rarete-legendaire-texte: #ffdd80;
+  --rarete-divin-texte: #c4fff7;
+  --stage-muted: #c0c9e2;
+  --texte-courant: #e3e8f4;
+  --chart-trait-milieu: #8db0ff;
+  --glow: rgb(11 95 255 / 0.14);
+  --reflection: rgb(255 26 46 / 0.06);
+  --aurora: rgb(61 127 255 / 0.12);
+  --ombre: rgb(0 0 0 / 0.45);
+  /* La grille « Quand jouer », à l'envers du clair : du plus sombre au plus clair, l'heure la plus jouée ressort. */
+  --chaleur-1: #16254f;
+  --chaleur-2: #1c3478;
+  --chaleur-3: #2349a8;
+  --chaleur-4: #2f63d6;
+  --chaleur-5: #6f9bf5;
+  --chaleur-6: #b9cdfb;
+  --chaleur-1-texte: var(--sur-couleur);
+  --chaleur-2-texte: var(--sur-couleur);
+  --chaleur-3-texte: var(--sur-couleur);
+  --chaleur-4-texte: var(--sur-couleur);
+  --chaleur-5-texte: #0a1230;
+  --chaleur-6-texte: #0a1230;
+}
+/* Le vert d'un terminal, clair sur le marine (9,6:1 sur une carte) : au QG, à la Direction, au guide et sur la Carte
+   seulement, comme en clair. Posé sur toute la racine, il verdirait ce qui le lit avec un repli. */
+:root[data-mode="sombre"][data-ambiance="console"][data-console="terminal"] {
+  --console-vert: #4ade80;
+}
+/* Les pastilles des icônes (plus bas) : onze teintes claires, lisibles sur le marine et le bordeaux (4,5:1 sur une
+   carte, 3:1 sur leur case). Toujours du rouge au rose, toujours sans vert. */
+:root[data-mode="sombre"] {
+  --teinte-sombre-1: #ff8a94;
+  --teinte-sombre-2: #fb923c;
+  --teinte-sombre-3: #f59e0b;
+  --teinte-sombre-4: #facc15;
+  --teinte-sombre-5: #22d3ee;
+  --teinte-sombre-6: #38bdf8;
+  --teinte-sombre-7: #7aa8ff;
+  --teinte-sombre-8: #818cf8;
+  --teinte-sombre-9: #c084fc;
+  --teinte-sombre-10: #e879f9;
+  --teinte-sombre-11: #f472b6;
+}
+/* L'équipe gauloise en sombre : le bordeaux d'avant le 14 novembre, à la Direction et dans toute zone rouge posée sur
+   une page. Les deux dernières lignes passent devant la palette claire du Terminal rouge (plus bas). */
+:root[data-mode="sombre"][data-theme="rouge"],
+:root[data-mode="sombre"] [data-theme="rouge"],
+:root[data-mode="sombre"][data-ambiance="console"][data-console="terminal"][data-theme="rouge"],
+:root[data-mode="sombre"][data-ambiance="console"][data-console="terminal"] [data-theme="rouge"] {
+  --ecriture: #fff;
+  --color-navy: #300a10;
+  --color-night: #22060b;
+  --color-surface: #3f121a;
+  --color-surface-2: #501a23;
+  --color-line: #6b2c37;
+  --color-line-strong: #9e5d68;
+  --color-blue: #d4132f;
+  --color-blue-hover: #b00f27;
+  --color-blue-text: #ff9dad;
+  --color-muted: #e2c0c6;
+  --stage-muted: #e2c0c6;
+  --texte-courant: #f4e4e7;
+  --glow: rgb(255 26 46 / 0.14);
+  --reflection: rgb(11 95 255 / 0.06);
+  --aurora: rgb(255 61 90 / 0.12);
+  --ombre: rgb(0 0 0 / 0.45);
+}
+/* Le bouton de l'en-tête montre le thème où il mène : la lune en clair, le soleil en sombre. */
+.mode-toggle .mode-icone-soleil,
+:root[data-mode="sombre"] .mode-toggle .mode-icone-lune {
+  display: none;
+}
+:root[data-mode="sombre"] .mode-toggle .mode-icone-soleil {
+  display: block;
 }
 
 /* Variables non héritées : les modifier au survol ne recalcule pas tout le contenu d'un bloc. */
@@ -2447,6 +2571,40 @@ main:has(.onglets-menu-bouton[aria-expanded="true"]) {
 }
 [data-teinte="11"] {
   --teinte: #be185d;
+}
+/* En thème sombre, chaque teinte prend sa valeur claire (--teinte-sombre-N, posées avec le thème, plus haut). */
+:root[data-mode="sombre"] [data-teinte] {
+  --teinte: var(--teinte-sombre-1);
+}
+:root[data-mode="sombre"] [data-teinte="2"] {
+  --teinte: var(--teinte-sombre-2);
+}
+:root[data-mode="sombre"] [data-teinte="3"] {
+  --teinte: var(--teinte-sombre-3);
+}
+:root[data-mode="sombre"] [data-teinte="4"] {
+  --teinte: var(--teinte-sombre-4);
+}
+:root[data-mode="sombre"] [data-teinte="5"] {
+  --teinte: var(--teinte-sombre-5);
+}
+:root[data-mode="sombre"] [data-teinte="6"] {
+  --teinte: var(--teinte-sombre-6);
+}
+:root[data-mode="sombre"] [data-teinte="7"] {
+  --teinte: var(--teinte-sombre-7);
+}
+:root[data-mode="sombre"] [data-teinte="8"] {
+  --teinte: var(--teinte-sombre-8);
+}
+:root[data-mode="sombre"] [data-teinte="9"] {
+  --teinte: var(--teinte-sombre-9);
+}
+:root[data-mode="sombre"] [data-teinte="10"] {
+  --teinte: var(--teinte-sombre-10);
+}
+:root[data-mode="sombre"] [data-teinte="11"] {
+  --teinte: var(--teinte-sombre-11);
 }
 .pastille-icone {
   display: inline-flex;

@@ -64,6 +64,8 @@ const nouveautesMarker = newsMarker(loadNouveautes());
 // taillée (sans marches d'escalier) pour les petits textes. Le QG et la Direction gardent Outfit, dans leur style Terminal.
 // Voir « Typographie » dans docs/DESIGN.md.
 const lettresOnciale = !["/qg", "/direction"].includes(path);
+// La barre du navigateur en thème clair : le fond de la page (blanc, à peine bleuté au QG, à peine rosé à la Direction).
+const themeColorClair = theme === "rouge" ? (ambiance === "console" ? "#FFF9F9" : "#FFFFFF") : ambiance === "console" && !lettresOnciale ? "#F6F8FD" : "#FFFFFF";
 const onciale = lettresOnciale
   ? [
       { famille: "GAL Onciale", url: `${base}/generated/polices/onciale.woff2` },
@@ -94,7 +96,8 @@ const feuilles = feuillesDeLaPage(Astro.routePattern).map((fichier) => {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light" />
     {/* La barre du navigateur prend le fond de la page (thème clair du 14 novembre 2026) : le blanc du site, guide compris, l'écran à peine bleuté du Terminal au QG, à peine rosé à la Direction. */}
-    <meta name="theme-color" content={theme === "rouge" ? (ambiance === "console" ? "#FFF9F9" : "#FFFFFF") : ambiance === "console" && !lettresOnciale ? "#F6F8FD" : "#FFFFFF"} />
+    {/* En thème sombre « Nuit Marine » (16 novembre 2026), le script ci-dessous y met la valeur de data-sombre : le bleu marine de la page, le bordeaux sombre de la Direction. */}
+    <meta name="theme-color" content={themeColorClair} data-clair={themeColorClair} data-sombre={theme === "rouge" ? "#300A10" : "#0A1230"} />
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
     {noindex && <meta name="robots" content="noindex" />}
@@ -125,6 +128,28 @@ const feuilles = feuillesDeLaPage(Astro.routePattern).map((fichier) => {
     }
     <link rel="preload" href={interFont} as="font" type="font/woff2" crossorigin />
     <link rel="preload" href={consoleFont} as="font" type="font/woff2" crossorigin />
+    <script is:inline>
+      // Avant le premier affichage : le thème sombre « Nuit Marine », si le visiteur l'a choisi (bouton de l'en-tête,
+      // src/scripts/mode.ts) ou, sans choix de sa part, si son appareil est réglé en sombre. Posé ici, la page ne
+      // s'affiche jamais d'abord en clair.
+      try {
+        let mode = null;
+        try {
+          mode = localStorage.getItem("gal-mode");
+        } catch {
+          // Stockage indisponible : le réglage de l'appareil décide.
+        }
+        if (mode !== "clair" && mode !== "sombre") mode = matchMedia("(prefers-color-scheme: dark)").matches ? "sombre" : "clair";
+        if (mode === "sombre") {
+          document.documentElement.dataset.mode = "sombre";
+          document.querySelector('meta[name="color-scheme"]').content = "dark";
+          const barre = document.querySelector('meta[name="theme-color"]');
+          barre.content = barre.dataset.sombre;
+        }
+      } catch {
+        // Navigateur sans matchMedia : le site reste en clair.
+      }
+    </script>
     <script is:inline>
       // Avant le premier affichage : un visiteur ayant mis en pause ne voit aucune animation,
       // et les autres ne voient pas les blocs s'afficher puis disparaître avant leur apparition en fondu.
@@ -214,6 +239,20 @@ const feuilles = feuillesDeLaPage(Astro.routePattern).map((fichier) => {
               <path d="M4 2.500v11l9-5.500z"></path>
             </svg>
           </button>
+          {/* Clair ou sombre : le choix du visiteur, retenu dans son navigateur (src/scripts/mode.ts). Avec le bouton de
+              connexion, la place manque sur téléphone : le choix passe alors dans le menu, plus bas. Masqué par son
+              conteneur : .btn écrase la classe hidden. */}
+          <span class:list={[AUTH_ENABLED ? "hidden sm:inline-flex" : "inline-flex"]}>
+          <button type="button" class="btn btn-ghost mode-toggle !min-h-10 !px-2.5 !py-1.5" data-mode-toggle aria-pressed="false" aria-label="Thème sombre" title="Passer au thème sombre" hidden>
+            <svg class="mode-icone-lune" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true">
+              <path d="M6.200 1.300a6.800 6.800 0 1 0 8.500 8.500 5.600 5.600 0 0 1-8.500-8.500z"></path>
+            </svg>
+            <svg class="mode-icone-soleil" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+              <circle cx="8" cy="8" r="2.900" fill="currentColor" stroke="none"></circle>
+              <path d="M8 1.200v1.600M8 13.200v1.600M1.200 8h1.600M13.200 8h1.600M3.200 3.200l1.100 1.100M11.700 11.700l1.100 1.100M3.200 12.800l1.100-1.100M11.700 4.300l1.100-1.100"></path>
+            </svg>
+          </button>
+          </span>
           <details class:list={["relative", AUTH_ENABLED ? "xl:hidden" : "lg:hidden"]} data-menu>
             <summary class="btn btn-ghost !min-h-10 !py-1.5 cursor-pointer list-none text-sm" aria-label="Ouvrir le menu" data-nouveautes-described>
               Menu
@@ -237,6 +276,16 @@ const feuilles = feuillesDeLaPage(Astro.routePattern).map((fichier) => {
                   ))
                 }
               </ul>
+              {
+                AUTH_ENABLED && (
+                  <div class="mt-1 border-t border-line pt-1 sm:hidden">
+                    {/* Le choix du thème, sur téléphone : son texte dit où il mène (src/scripts/mode.ts). */}
+                    <button type="button" class="block w-full cursor-pointer rounded px-3 py-3 text-left font-semibold text-muted" data-mode-toggle data-testid="mode-menu" hidden>
+                      <span data-mode-texte>Passer au thème sombre</span>
+                    </button>
+                  </div>
+                )
+              }
               {
                 nouveautesMarker && (
                   <div class="mt-1 border-t border-line pt-1 lg:hidden">
@@ -339,6 +388,7 @@ const feuilles = feuillesDeLaPage(Astro.routePattern).map((fichier) => {
       // Le compte des visites. La page qu'il compte : `data-route` du <body>, le modèle d'adresse (`/membres/[id]`, jamais
       // l'identifiant). S'il est déjà venu : la note posée en tête de page.
       import "../scripts/visite";
+      import "../scripts/mode";
       import "../scripts/fx";
       import "../scripts/nouveautes";
       import "../scripts/visages";

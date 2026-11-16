@@ -2,6 +2,12 @@
   {
     "date": "2026-11-16",
     "kind": "nouveau",
+    "title": "Un thème sombre",
+    "body": "Le site existe aussi en sombre. Un bouton en haut de chaque page, dans le menu sur téléphone, passe du clair au sombre. Sans choix de votre part, le site suit le réglage de votre appareil."
+  },
+  {
+    "date": "2026-11-16",
+    "kind": "nouveau",
     "title": "Le coffre du druide, sur Discord",
     "body": "Dans le salon « coffre-du-druide » du Discord du clan, tapez /coffre : faites dire au druide son mot secret, par la ruse. Une intelligence artificielle le joue. Dix essais par jour.",
     "link": {

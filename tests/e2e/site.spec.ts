@@ -969,6 +969,75 @@ test("« Mon Gaulois » sans serveur garde sa porte fermée, sans le monde du vi
   await expect(pause).toHaveAttribute("aria-pressed", "true");
 });
 
+// Le thème sombre « Nuit Marine » (16 novembre 2026) : le bouton de l'en-tête passe du clair au sombre, le choix est retenu
+// d'une page à l'autre, et un appareil réglé en sombre l'ouvre sans rien demander. La barre du navigateur suit le fond.
+test("le bouton de l'en-tête passe du thème clair au thème sombre, et le choix est retenu", async ({ page }) => {
+  const rgbOf = (hex: string) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(", ")})`;
+  const etat = () =>
+    page.evaluate(() => ({
+      mode: document.documentElement.dataset.mode ?? null,
+      fond: getComputedStyle(document.body).backgroundColor,
+      ecriture: getComputedStyle(document.querySelector("h1")!).color,
+      barre: document.querySelector('meta[name="theme-color"]')?.getAttribute("content") ?? "",
+      schema: document.querySelector('meta[name="color-scheme"]')?.getAttribute("content") ?? "",
+    }));
+  await page.goto("/classement");
+  const bouton = page.getByRole("button", { name: "Thème sombre" });
+  await expect(bouton).toBeVisible();
+  await expect(bouton).toHaveAttribute("aria-pressed", "false");
+  const clair = await etat();
+  expect(clair.mode).toBeNull();
+  expect(clair.fond).toBe("rgb(255, 255, 255)");
+  expect(clair.schema).toBe("light");
+
+  await bouton.click();
+  await expect(bouton).toHaveAttribute("aria-pressed", "true");
+  const sombre = await etat();
+  expect(sombre.mode).toBe("sombre");
+  expect(sombre.fond).toBe("rgb(10, 18, 48)");
+  expect(sombre.ecriture).toBe("rgb(255, 255, 255)");
+  expect(sombre.fond).toBe(rgbOf(sombre.barre));
+  expect(sombre.schema).toBe("dark");
+
+  // Retenu : une autre page s'ouvre en sombre, au QG (palette du Terminal) et à la Direction (rouge) comme ailleurs.
+  for (const [chemin, fond] of [["/liste", "rgb(10, 18, 48)"], ["/carte", "rgb(10, 18, 48)"], ["/qg", "rgb(10, 18, 48)"], ["/direction", "rgb(48, 10, 16)"]] as const) {
+    await page.goto(chemin);
+    const vu = await etat();
+    expect(vu.mode, chemin).toBe("sombre");
+    expect(vu.fond, chemin).toBe(fond);
+    expect(vu.fond, chemin).toBe(rgbOf(vu.barre));
+  }
+
+  await page.getByRole("button", { name: "Thème sombre" }).click();
+  expect((await etat()).mode).toBeNull();
+  await page.goto("/");
+  expect((await etat()).fond).toBe("rgb(255, 255, 255)");
+});
+
+test("un appareil réglé en sombre ouvre le site en sombre, sauf si le visiteur a choisi le clair", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto("/");
+  await expect(page.locator("html")).toHaveAttribute("data-mode", "sombre");
+  const bouton = page.getByRole("button", { name: "Thème sombre" });
+  await expect(bouton).toHaveAttribute("aria-pressed", "true");
+  await bouton.click();
+  await page.goto("/classement");
+  await expect(page.locator("html")).not.toHaveAttribute("data-mode", "sombre");
+});
+
+test("en thème sombre, chaque page passe les contrôles d'accessibilité", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "Mêmes couleurs sur mobile.");
+  test.slow();
+  await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark" });
+  for (const path of [...PAGES, "/direction", "/compte", "/confidentialite"]) {
+    await page.goto(path);
+    await page.waitForLoadState("networkidle");
+    await expect(page.locator("html"), path).toHaveAttribute("data-mode", "sombre");
+    const { violations } = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+    expect(violations.map((v) => `${path} : ${v.id}: ${v.nodes.map((n) => n.target).join(" ; ")}`)).toEqual([]);
+  }
+});
+
 // « La boutique » (15 novembre 2026) : sa page est devenue, le même jour, un onglet de « Mon Gaulois », à la demande du
 // pilote. L'ancienne adresse y mène, et celle du marché aussi, sans aucun appel au serveur. Sans serveur, la porte fermée de
 // /village : ni onglets, ni bourse, ni rayons, ni marché. Ses écrans connectés sont essayés à part.
