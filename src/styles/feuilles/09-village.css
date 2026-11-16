@@ -1663,17 +1663,24 @@
    membres (la gravure de la forge, payée en statères elle aussi, reste sur /village). La page reprend la scène du vestiaire (le Gaulois à gauche, collé en haut sur téléphone), ses cases
    et sa barre de rayons ; ici, seulement ce qu'elle a de plus. */
 
-/* Six rayons : tête, haut, bas, pieds, arme, puis les bannières ; le corps, gratuit, n'en a pas. Chaque onglet a au
+/* Sept rayons : tête, haut, bas, pieds, arme, puis les bannières et les Gaulois uniques ; le corps, gratuit, n'en a pas. Chaque onglet a au
    moins la place de son nom (« Bannière », le plus long, ne déborde pas sur un téléphone de 360 px) et du plus long mot
    de ses offres, qui passent à la ligne quand la place manque (« 10 / offres ») ; la place qui reste se partage à parts
-   égales, et sur grand écran les six onglets ont la même largeur. */
+   égales, et sur grand écran les sept onglets ont la même largeur. */
 .boutique-page .vestiaire-rayons {
-  grid-template-columns: repeat(6, minmax(min-content, 1fr));
+  grid-template-columns: repeat(7, minmax(min-content, 1fr));
 }
 /* Sur téléphone, l'onglet ouvert garde un peu de fond de chaque côté de son nom. */
 @media (max-width: 767px) {
   .boutique-page .vestiaire-rayon-onglet {
     padding-inline: 0.1875rem;
+  }
+}
+/* Sept onglets sur un téléphone étroit (360 px) : les noms un peu plus petits, serrés d'un pixel, tiennent tous sans défiler. */
+@media (max-width: 479px) {
+  .boutique-page .vestiaire-rayon-onglet {
+    padding-inline: 0.125rem;
+    font-size: 0.8125rem;
   }
 }
 /* Sous le nom d'un rayon : le nombre d'offres que des membres y ont posées, en lettres courantes. */
@@ -2507,4 +2514,373 @@
   line-height: 1.2;
   color: var(--ecriture);
   text-wrap: balance;
+}
+
+/* ---------- Les Gaulois uniques (15 novembre 2026) ---------- */
+/* Les écrans des Gaulois uniques : l'onglet « Uniques » des rayons de « La boutique » (le corps porté, la pochette, la
+   vitrine des onze modèles par famille), les deux fenêtres (pochette, achat) et « Corps » dans « Mon Gaulois », qui
+   reprend les cases du vestiaire. Un modèle fait 48 cases sur 64 : il est toujours agrandi d'un nombre entier de fois
+   (--uniques-e), sans flou. Les couleurs sont celles des raretés du site (jetons --rarete-…) ; la rareté est aussi écrite
+   et comptée en losanges. */
+
+/* La section mesure sa propre largeur : dans la colonne de la boutique, la place dépend du Gaulois collé à côté. Elle
+   est le rayon ouvert : le nom de l'onglet, juste au-dessus, lui sert de titre. */
+.uniques {
+  container: uniques / inline-size;
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+.uniques-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 1.5rem;
+}
+.uniques-compte,
+.uniques-porte {
+  color: var(--texte-courant);
+}
+.uniques-compte strong {
+  font-size: 1.25rem;
+  color: var(--ecriture);
+}
+/* Le corps que le Gaulois porte, et de quoi revenir à l'humain : toujours au même endroit. */
+.uniques-porte {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  min-height: 2.5rem;
+}
+.uniques-porte strong {
+  color: var(--ecriture);
+}
+
+/* Un dessin de modèle : deux pixels par case, sauf où une règle en décide autrement. */
+.uniques-dessin {
+  --uniques-e: 2;
+  display: block;
+  width: calc(48px * var(--uniques-e));
+  height: calc(64px * var(--uniques-e));
+}
+
+/* La couleur d'une rareté, pour tout ce qui montre un modèle. */
+.uniques-case,
+.uniques-rarete,
+.uniques-scene {
+  --rarete: var(--color-line-strong);
+  --rarete-texte: var(--color-muted);
+  --rarete-cadre: var(--rarete);
+}
+:is(.uniques-case, .uniques-rarete, .uniques-scene)[data-rarete="commun"] {
+  --rarete: var(--rarete-commun);
+  --rarete-texte: var(--rarete-commun-texte);
+}
+:is(.uniques-case, .uniques-rarete, .uniques-scene)[data-rarete="peu-commun"] {
+  --rarete: var(--rarete-peu-commun);
+  --rarete-texte: var(--rarete-peu-commun-texte);
+}
+:is(.uniques-case, .uniques-rarete, .uniques-scene)[data-rarete="epique"] {
+  --rarete: var(--rarete-epique);
+  --rarete-texte: var(--rarete-epique-texte);
+}
+:is(.uniques-case, .uniques-rarete, .uniques-scene)[data-rarete="mystique"] {
+  --rarete: var(--rarete-mystique);
+  --rarete-texte: var(--rarete-mystique-texte);
+}
+:is(.uniques-case, .uniques-rarete, .uniques-scene)[data-rarete="legendaire"] {
+  --rarete: var(--rarete-legendaire);
+  --rarete-texte: var(--rarete-legendaire-texte);
+  --rarete-cadre: var(--rarete-legendaire-degrade);
+}
+.uniques-rarete .case-rarete {
+  font-size: 0.9375rem;
+}
+
+/* La pochette des Gaulois uniques : dans un cadre qui passe du rouge mystique au violet épique puis au bleu commun, les
+   couleurs de ce qu'elle peut donner. Ses silhouettes et son nom, son prix, ce qu'il reste à découvrir et le bouton ; ses
+   chances à côté quand la place le permet, dessous sinon ; la règle au pied. */
+.uniques-pochette {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 1rem 1.25rem;
+  padding: 1rem 0.875rem;
+  border: 2px solid transparent;
+  border-radius: 0.75rem;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--rarete-mystique) 12%, var(--color-navy)), color-mix(in srgb, var(--rarete-epique) 13%, var(--color-navy)) 55%, color-mix(in srgb, var(--rarete-commun) 16%, var(--color-navy))) padding-box,
+    linear-gradient(135deg, var(--rarete-mystique), var(--rarete-epique) 55%, var(--rarete-commun)) border-box;
+}
+.uniques-pochette-nom {
+  display: grid;
+  gap: 0.5rem;
+  justify-items: start;
+  min-width: 0;
+}
+.uniques-pochette-titre {
+  font-size: 1.375rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+.uniques-pochette-prix {
+  font-size: 1.5rem;
+}
+.uniques-chances,
+.uniques-regle {
+  grid-column: 1 / -1;
+}
+.uniques-chances {
+  width: 100%;
+}
+.uniques-pochette .pochette-chances li {
+  border-top-color: var(--hairline);
+}
+.uniques-pochette .pochette-note {
+  color: var(--texte-courant);
+}
+/* Une rareté dont le compte a déjà tous les modèles : la pochette la saute. */
+.uniques-complet {
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+/* Les silhouettes de la pochette : trois modèles encore à découvrir, l'un devant l'autre, de plus en plus pâles. On
+   devine la créature sans la voir. Une case vaut un pixel sur un écran étroit, deux dès que la place le permet. */
+.uniques-ombres {
+  --uniques-e: 1;
+  display: flex;
+  align-items: flex-end;
+  padding-left: calc(20px * var(--uniques-e));
+}
+.uniques-ombres .uniques-dessin {
+  --uniques-e: inherit;
+  position: relative;
+  margin-left: calc(-20px * var(--uniques-e));
+}
+.uniques-ombres .uniques-dessin:nth-child(1) {
+  z-index: 2;
+}
+.uniques-ombres .uniques-dessin:nth-child(2) {
+  z-index: 1;
+  opacity: 0.55;
+}
+.uniques-ombres .uniques-dessin:nth-child(3) {
+  opacity: 0.28;
+}
+.uniques-attente .uniques-ombres {
+  --uniques-e: 2;
+}
+/* Sur un écran étroit, les silhouettes se rangent dans le coin, à côté du nom : le bouton garde toute la largeur. */
+@container uniques (max-width: 29.99rem) {
+  .uniques-pochette {
+    position: relative;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .uniques-pochette > .uniques-ombres {
+    position: absolute;
+    top: 1rem;
+    right: 0.875rem;
+  }
+  .uniques-pochette-titre {
+    min-height: 4rem;
+    padding-right: 7.25rem;
+  }
+}
+@container uniques (min-width: 30rem) {
+  .uniques-pochette {
+    padding: 1.25rem;
+  }
+  .uniques-pochette .uniques-ombres {
+    --uniques-e: 2;
+  }
+}
+@container uniques (min-width: 54rem) {
+  .uniques-pochette {
+    grid-template-columns: auto minmax(0, 1fr) minmax(0, 19rem);
+    gap: 1rem 2rem;
+    padding: 1.5rem;
+  }
+  .uniques-chances {
+    grid-column: 3;
+  }
+}
+
+/* La vitrine : les onze modèles, famille par famille ; deux familles de front quand la place le permet. */
+.uniques-familles {
+  display: grid;
+  gap: 1.25rem;
+  min-width: 0;
+}
+@container uniques (min-width: 56rem) {
+  .uniques-familles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.5rem 2rem;
+  }
+}
+.uniques-famille {
+  display: grid;
+  align-content: start;
+  gap: 0.75rem;
+  min-width: 0;
+}
+.uniques-famille-compte {
+  margin-left: 0.375rem;
+  letter-spacing: 0;
+  color: var(--ecriture);
+}
+.uniques-cases {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(7.75rem, 9rem));
+  gap: 0.625rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+@media (max-width: 479px) {
+  .uniques-cases {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+/* Une case de la vitrine : le modèle seul sur le fond de sa rareté, son nom, sa rareté, puis son prix ou ce qu'il est
+   pour ce compte. Un bouton : il l'essaie sur le Gaulois de la page. */
+.uniques-case {
+  position: relative;
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 0.3125rem;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  padding: 0.5rem 0.375rem 0.625rem;
+  border: 2px solid transparent;
+  border-radius: 0.5rem;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--rarete) 34%, var(--color-navy)), color-mix(in srgb, var(--rarete) 10%, var(--color-navy))) padding-box,
+    var(--rarete-cadre) border-box;
+  color: var(--ecriture);
+  text-align: center;
+  cursor: pointer;
+  transition: box-shadow 0.2s;
+  /* Au clavier, la case qui prend le focus ne reste pas cachée sous la barre des rayons collée. */
+  scroll-margin-block: 11.5rem 2rem;
+}
+@media (max-width: 767px) and (min-height: 560px) {
+  .uniques-case {
+    scroll-margin-top: calc(9rem + var(--vestiaire-scene, 13.5rem));
+  }
+}
+.uniques-case:hover {
+  box-shadow: 0 0 0 2px var(--color-navy), 0 0 0 4px color-mix(in srgb, var(--ecriture) 55%, transparent);
+}
+.uniques-case-image {
+  display: grid;
+  place-items: center;
+  width: 100%;
+}
+.uniques-case-nom {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+/* Le modèle à l'essai : un cadre en pointillés, à lui seul, et le mot « essai » dans le coin, comme une case de la
+   boutique. Le modèle porté : l'anneau plein des choix retenus, et « porté » écrit dessous. */
+.uniques-case[data-etat="essaye"] {
+  box-shadow: 0 0 0 2px var(--color-navy);
+  outline: 3px dashed var(--ecriture);
+  outline-offset: 2px;
+}
+.uniques-case[data-etat="porte"] {
+  box-shadow: 0 0 0 2px var(--color-navy), 0 0 0 5px var(--ecriture);
+}
+/* « à vous » : cerné. « porté » : plein, de la couleur de l'écriture, comme tout choix retenu du site. */
+.uniques-etat {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 0.125rem;
+  padding: 0.0625rem 0.5rem;
+  border: 1px solid var(--ecriture);
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--ecriture);
+  white-space: nowrap;
+}
+.uniques-etat[data-etat="porte"] {
+  background: var(--ecriture);
+  color: var(--color-navy);
+}
+/* Le modèle à l'essai respire : il monte d'un pixel du dessin et redescend, lentement. Rien d'autre ne bouge. */
+.uniques-case[data-etat="essaye"] .uniques-dessin {
+  animation: uniques-souffle 4.8s ease-in-out infinite;
+}
+@keyframes uniques-souffle {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -2px;
+  }
+}
+
+/* Dans une fenêtre : le Gaulois du membre avec le modèle, en grand, sur le fond de sa rareté. Quatre pixels par case
+   quand la fenêtre a sa largeur et l'écran sa hauteur, trois sinon. */
+.uniques-dessin-grand {
+  --uniques-e: 3;
+}
+@media (min-width: 30rem) and (min-height: 46rem) {
+  .uniques-dessin-grand {
+    --uniques-e: 4;
+  }
+}
+.uniques-scene {
+  display: grid;
+  place-items: center;
+  padding: 0.75rem 1.5rem 0.5rem;
+  border: 2px solid transparent;
+  border-radius: 0.625rem;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--rarete) 30%, var(--color-navy)), color-mix(in srgb, var(--rarete) 8%, var(--color-navy))) padding-box,
+    var(--rarete-cadre) border-box;
+}
+/* Le modèle reçu de la pochette : le contenu ne s'élargit jamais au-delà de la fenêtre. */
+.uniques-recu {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  gap: 1rem;
+  width: 100%;
+  min-width: 0;
+}
+.uniques-revelation {
+  display: grid;
+  place-items: center;
+  padding: 0.5rem 1rem;
+}
+.uniques-recu-nom {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--ecriture);
+  text-wrap: balance;
+}
+
+/* « Corps », dans « Mon Gaulois » : les cases du vestiaire, l'humain puis les modèles du compte. */
+.uniques-corps .form-problem {
+  margin-top: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .uniques-case {
+    transition: none;
+  }
+  .uniques-case[data-etat="essaye"] .uniques-dessin {
+    animation: none;
+  }
 }

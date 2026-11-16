@@ -30,6 +30,8 @@ import type { FamilierAPoser } from "./familiers/familier.ts";
 import { GARDE_ROBE } from "./garde-robe/index.ts";
 import { peindreLesRectangles, type Rectangle } from "./insignes.ts";
 import { LOGO_DU_CLAN } from "./logo-du-clan.ts";
+import { modeleParId, type ModeleRange } from "./modeles/index.ts";
+import { CLE_DU_MODELE, LETTRES_PARTAGEES } from "./modeles/modele.ts";
 import { LIEUX_EN_MOTS, PHASES_EN_MOTS, type Scene } from "./scene.ts";
 
 export const GAULOIS_LARGEUR = 48;
@@ -1999,9 +2001,22 @@ export const TEINTE_CHEVEUX = "teinte_cheveux";
 /**
  * Une tenue : pour chaque emplacement, l'objet porté, et la couleur des cheveux sous `teinte_cheveux`. Rien d'autre : le
  * serveur refuse une clé en trop (`internal.gaulois_tenue_valide`). Les trois clés du visage peuvent manquer, dans une
- * tenue enregistrée avant le 14 novembre 2026 : `lireTenue` les remplit alors avec le visage d'avant.
+ * tenue enregistrée avant le 14 novembre 2026 : `lireTenue` les remplit alors avec le visage d'avant. Depuis le 15 novembre
+ * 2026, une tenue peut porter un Gaulois unique sous `modele` (`modeles/`) : absente, le Gaulois a le corps humain.
  */
 export type Tenue = Readonly<Record<string, string>>;
+
+/** La clé du Gaulois unique porté, dans une tenue. */
+export const CLE_MODELE = CLE_DU_MODELE;
+
+/** Le Gaulois unique que porte la tenue, ou `null` (le corps humain, ou un modèle inconnu de ce code). */
+export const modeleDuGaulois = (tenue: Tenue): ModeleRange | null => modeleParId(tenue[CLE_MODELE]);
+
+/** La tenue avec ce Gaulois unique (`null` : le corps humain) ; inchangée si le modèle n'existe pas. */
+export function changerModele(tenue: Tenue, id: string | null): Tenue {
+  if (id === null) return Object.fromEntries(Object.entries(tenue).filter(([cle]) => cle !== CLE_MODELE));
+  return modeleParId(id) ? { ...tenue, [CLE_MODELE]: id } : tenue;
+}
 
 /** Le Gaulois proposé à qui n'en a pas encore, tout en objets gratuits : roux, moustachu, en tunique bleue. */
 export const TENUE_DE_DEPART: Tenue = {
@@ -2017,11 +2032,26 @@ export const TENUE_DE_DEPART: Tenue = {
   arme: "gourdin",
 };
 
+/** Le Gaulois sans rien : ni cheveux, ni barbe, ni objet, le visage d'avant. Pour montrer un Gaulois unique seul. */
+export const TENUE_NUE: Tenue = {
+  peau: "claire",
+  cheveux: "aucun",
+  teinte_cheveux: "roux",
+  barbe: "aucune",
+  ...VISAGE_D_AVANT,
+  tete: "aucun",
+  haut: "aucun",
+  bas: "aucun",
+  pieds: "nus",
+  arme: "aucune",
+};
+
 const aCle = (objetJson: object, cle: string): boolean => Object.prototype.hasOwnProperty.call(objetJson, cle);
 
 /**
  * Une tenue complète, faite d'objets du catalogue et d'une couleur de cheveux, sans rien d'autre ; sinon `null`. Une clé
- * du visage absente prend le visage d'avant ; présente, elle doit nommer un objet du catalogue.
+ * du visage absente prend le visage d'avant ; présente, elle doit nommer un objet du catalogue. La clé du Gaulois unique
+ * peut manquer (le corps humain) ; présente, elle doit nommer un modèle (`modeles/`).
  */
 export function lireTenue(valeur: unknown): Tenue | null {
   if (valeur === null || typeof valeur !== "object" || Array.isArray(valeur)) return null;
@@ -2041,6 +2071,12 @@ export function lireTenue(valeur: unknown): Tenue | null {
   const teinte = brute[TEINTE_CHEVEUX];
   if (typeof teinte !== "string" || !aCle(POILS, teinte)) return null;
   tenue[TEINTE_CHEVEUX] = teinte;
+  if (aCle(brute, CLE_MODELE)) {
+    const modele = brute[CLE_MODELE];
+    if (typeof modele !== "string" || !modeleParId(modele)) return null;
+    tenue[CLE_MODELE] = modele;
+    lues++;
+  }
   return Object.keys(brute).length === lues + 1 ? tenue : null;
 }
 
@@ -2066,11 +2102,17 @@ export function tenueAuHasard(hasard: () => number): Tenue {
   return tenue;
 }
 
-/** Les couleurs communes à tous les calques d'un Gaulois : les fixes, sa peau, ses cheveux. */
+/**
+ * Les couleurs communes à tous les calques d'un Gaulois : les fixes, sa peau, ses cheveux. Un Gaulois unique donne sa peau
+ * et sa cicatrice (`LETTRES_PARTAGEES`) à la place de celles de la peau choisie.
+ */
 export function couleursDeBase(tenue: Tenue): Couleurs {
   const peau = PEAUX[tenue["peau"] as keyof typeof PEAUX]?.couleurs ?? PEAUX.claire.couleurs;
   const poils = POILS[tenue[TEINTE_CHEVEUX] as keyof typeof POILS]?.couleurs ?? POILS.roux.couleurs;
-  return { ...FIXES, ...peau, ...poils };
+  const modele = modeleDuGaulois(tenue);
+  const sienne: Record<string, string> = {};
+  if (modele) for (const lettre of LETTRES_PARTAGEES) if (modele.couleurs[lettre]) sienne[lettre] = modele.couleurs[lettre];
+  return { ...FIXES, ...peau, ...sienne, ...poils };
 }
 
 /**
@@ -2086,12 +2128,14 @@ export interface OptionsDuDessin {
 /**
  * Le Gaulois case par case, rangée par rangée : 48 × 64 couleurs « #rrggbb », `null` pour une case vide. La tenue doit
  * être lue par `lireTenue` ; une lettre sans couleur laisserait la case vide (un test l'interdit). Un visage absent ou
- * inconnu se dessine comme le visage d'avant.
+ * inconnu se dessine comme le visage d'avant. Un Gaulois unique (`modele`) remplace le corps humain par le sien, peint avec
+ * ses couleurs (le contour reste celui des objets) ; tout le reste se pose dessus de la même façon.
  */
 export function casesDuGaulois(tenue: Tenue, options: OptionsDuDessin = {}): (string | null)[] {
   const catalogue = options.catalogue ?? OBJETS;
   const cases: (string | null)[] = new Array<string | null>(GAULOIS_LARGEUR * GAULOIS_HAUTEUR).fill(null);
   const base = couleursDeBase(tenue);
+  const modele = modeleDuGaulois(tenue);
   const poser = (calque: Calque, couleurs: Couleurs, depuis = 0) => {
     calque.lignes.forEach((ligne, dy) => {
       if (calque.y + dy < depuis) return;
@@ -2103,7 +2147,10 @@ export function casesDuGaulois(tenue: Tenue, options: OptionsDuDessin = {}): (st
       }
     });
   };
-  if (!options.seulement) poser(CORPS, base);
+  if (!options.seulement) {
+    if (modele) poser(modele.corps, { ...base, ...modele.couleurs, k: FIXES["k"] as string });
+    else poser(CORPS, base);
+  }
   const coiffe = catalogue.tete[tenue["tete"] ?? ""]?.couvre === true;
   for (const emplacement of ORDRE) {
     if (options.seulement && !options.seulement.includes(emplacement)) continue;
@@ -2164,6 +2211,12 @@ export function decrireGaulois(tenue: Tenue): string {
     const mots = [porte.nom, teinte].filter(Boolean).join(", ").toLowerCase();
     return `${NOMS_EMPLACEMENTS[emplacement]}${NBSP}: ${mots}`;
   }).filter(Boolean);
+  const modele = modeleDuGaulois(tenue);
+  // Un Gaulois unique se dit d'abord, à la place de la peau, que son corps ne montre pas.
+  if (modele) {
+    const peau = `${NOMS_EMPLACEMENTS.peau}${NBSP}:`;
+    return `Gaulois en pixels, Gaulois unique${NBSP}: ${modele.nom.toLowerCase()}. ${parties.filter((p) => !p?.startsWith(peau)).join(". ")}.`;
+  }
   return `Gaulois en pixels. ${parties.join(". ")}.`;
 }
 

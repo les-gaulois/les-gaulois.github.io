@@ -10,7 +10,8 @@
  *   15 novembre 2026, un familier sorti de la pochette des familiers (« familier/<identifiant> » au journal, migration
  *   `20261115000800_familiers_du_gaulois`) et une bannière achetée à la boutique (« banniere/<identifiant> », migration
  *   `20261115000900_bannieres_du_gaulois`), ou, depuis le 16 novembre 2026, sortie de la pochette des bannières (migration
- *   `20261116000100_pochette_des_bannieres`), par un compte encore validé. C'est le serveur qui le lit, au journal des statères (migration `20261114001700_village_achats_sur_discord`,
+ *   `20261116000100_pochette_des_bannieres`), puis un Gaulois unique acheté à la boutique ou sorti de sa pochette
+ *   (« modele/<identifiant> », migration `20261115001000_gaulois_uniques`), par un compte encore validé. C'est le serveur qui le lit, au journal des statères (migration `20261114001700_village_achats_sur_discord`,
  *   `achats_du_village`, réservée à la clé de service). La forge grave une plaque, elle ne donne pas d'objet : rien à annoncer.
  * - **Ce qui ne l'est jamais** : un montant, un prix payé, un solde, un vendeur.
  * - **Le nom** : le nom d'utilisateur Discord de l'acheteur, précédé de « @ » (demande du pilote, 15 novembre 2026), tel que
@@ -34,7 +35,8 @@ import { imageMessage, postWithImage, textMessage } from "./discord-post";
 import { familierAPoser } from "../../supabase/functions/code-discord/familiers/familier";
 import { familierDe } from "../../supabase/functions/code-discord/familiers/index";
 import { banniereParId, dessinDeLaBanniere, estDeLaPochette } from "../../supabase/functions/code-discord/bannieres/index";
-import { EMPLACEMENTS_OBJETS, NOMS_EMPLACEMENTS, OBJETS, vignetteDeLObjet, type Objet, type Rarete, type Vignette } from "./gaulois";
+import { modeleParId } from "../../supabase/functions/code-discord/modeles/index";
+import { CLE_MODELE, EMPLACEMENTS_OBJETS, GAULOIS_LARGEUR, NOMS_EMPLACEMENTS, OBJETS, TENUE_NUE, casesDuGaulois, vignetteDeLObjet, type Objet, type Rarete, type Vignette } from "./gaulois";
 import { escapeDiscord, type RenderedImage } from "./gazette-discord";
 import { parseNoted, siteLink } from "./salon-discord";
 
@@ -95,10 +97,11 @@ export function mergeAchatsStates(...states: readonly (AchatsSendState | null)[]
 export const NATURES = ["achat", "pochette", "marche_achat"] as const;
 export type NatureDAchat = (typeof NATURES)[number];
 export type EmplacementDObjet = (typeof EMPLACEMENTS_OBJETS)[number];
-/** Ce que le journal peut donner : un objet, à l'un de ses cinq emplacements, un familier ou une bannière. */
+/** Ce que le journal peut donner : un objet, à l'un de ses cinq emplacements, un familier, une bannière ou un Gaulois unique. */
 export const FAMILIER = "familier";
 export const BANNIERE = "banniere";
-export type EmplacementDAchat = EmplacementDObjet | typeof FAMILIER | typeof BANNIERE;
+export const MODELE = "modele";
+export type EmplacementDAchat = EmplacementDObjet | typeof FAMILIER | typeof BANNIERE | typeof MODELE;
 
 /** Un objet reçu par un Gaulois, tel que le robot l'annonce. */
 export interface AchatDuVillage {
@@ -138,9 +141,9 @@ export function nomDiscord(brut: string | null | undefined): string | null {
 /** Le nom écrit dans la description et le texte de secours : « @nom Discord », sinon le nom de secours. */
 export const nomAffiche = (annonce: Pick<AnnonceDesAchats, "nom" | "discord">): string => (annonce.discord ? `@${annonce.discord}` : annonce.nom);
 
-/** L'objet du catalogue, s'il est payant : seuls ceux-là s'achètent. Un familier ou une bannière n'est pas un objet : `null`. */
+/** L'objet du catalogue, s'il est payant : seuls ceux-là s'achètent. Un familier, une bannière ou un Gaulois unique n'est pas un objet : `null`. */
 export function objetDe(achat: Pick<AchatDuVillage, "emplacement" | "objet">): (Objet & { rarete: Rarete }) | null {
-  if (achat.emplacement === FAMILIER || achat.emplacement === BANNIERE) return null;
+  if (achat.emplacement === FAMILIER || achat.emplacement === BANNIERE || achat.emplacement === MODELE) return null;
   const objet = OBJETS[achat.emplacement]?.[achat.objet];
   return objet && !objet.gratuit && objet.rarete ? (objet as Objet & { rarete: Rarete }) : null;
 }
@@ -152,8 +155,12 @@ export interface ChoseRecue {
   place: string;
 }
 
-/** L'objet payant, le familier ou la bannière reçus, tels que l'annonce les écrit. */
+/** L'objet payant, le familier, la bannière ou le Gaulois unique reçus, tels que l'annonce les écrit. */
 export function choseDe(achat: Pick<AchatDuVillage, "emplacement" | "objet">): ChoseRecue | null {
+  if (achat.emplacement === MODELE) {
+    const modele = modeleParId(achat.objet);
+    return modele ? { nom: modele.nom, rarete: modele.rarete, place: "Gaulois unique" } : null;
+  }
   if (achat.emplacement === BANNIERE) {
     const banniere = banniereParId(achat.objet);
     return banniere ? { nom: banniere.nom, rarete: banniere.rarete, place: "bannière" } : null;
@@ -166,8 +173,30 @@ export function choseDe(achat: Pick<AchatDuVillage, "emplacement" | "objet">): C
   return objet ? { nom: objet.nom, rarete: objet.rarete, place: NOMS_EMPLACEMENTS[achat.emplacement].toLocaleLowerCase("fr") } : null;
 }
 
-/** Le dessin d'un achat pour l'image : la vignette de l'objet, le familier rogné à son cadre, ou la bannière entière. */
+/** Le Gaulois unique seul, sans cheveux, barbe ni objet, rogné à son contour ; `null` pour un modèle inconnu. */
+function vignetteDuModele(id: string): Vignette | null {
+  if (!modeleParId(id)) return null;
+  const cases = casesDuGaulois({ ...TENUE_NUE, [CLE_MODELE]: id });
+  const hauteur = cases.length / GAULOIS_LARGEUR;
+  let [gauche, droite, haut, bas] = [GAULOIS_LARGEUR, -1, hauteur, -1];
+  cases.forEach((couleur, i) => {
+    if (!couleur) return;
+    const x = i % GAULOIS_LARGEUR;
+    const y = Math.floor(i / GAULOIS_LARGEUR);
+    [gauche, droite, haut, bas] = [Math.min(gauche, x), Math.max(droite, x), Math.min(haut, y), Math.max(bas, y)];
+  });
+  if (droite < gauche) return null;
+  const rognee: (string | null)[] = [];
+  for (let y = haut; y <= bas; y++) for (let x = gauche; x <= droite; x++) rognee.push(cases[y * GAULOIS_LARGEUR + x] ?? null);
+  return { largeur: droite - gauche + 1, hauteur: bas - haut + 1, cases: rognee };
+}
+
+/**
+ * Le dessin d'un achat pour l'image : la vignette de l'objet, le familier rogné à son cadre, la bannière entière, ou le
+ * Gaulois unique seul, rogné à son contour.
+ */
 export function vignetteDeLAchat(achat: Pick<AchatDuVillage, "emplacement" | "objet">): Vignette | null {
+  if (achat.emplacement === MODELE) return vignetteDuModele(achat.objet);
   if (achat.emplacement === BANNIERE) {
     const dessin = dessinDeLaBanniere(achat.objet);
     return dessin ? { largeur: 124, hauteur: 80, cases: [...dessin.cases] } : null;
@@ -190,11 +219,12 @@ export const ORIGINES: Readonly<Record<NatureDAchat, { phrase: string; court: st
 
 /**
  * D'où vient un achat : un familier ne sort que de la pochette des familiers, une bannière sortie d'une pochette que de la
- * pochette des bannières (depuis le 16 novembre 2026).
+ * pochette des bannières (depuis le 16 novembre 2026), un Gaulois unique de la boutique ou de sa pochette.
  */
 export function origineDe(achat: Pick<AchatDuVillage, "emplacement" | "nature">): { phrase: string; court: string } {
   if (achat.emplacement === FAMILIER) return { phrase: "dans la pochette des familiers", court: "Pochette des familiers" };
   if (achat.emplacement === BANNIERE && achat.nature === "pochette") return { phrase: "dans la pochette des bannières", court: "Pochette des bannières" };
+  if (achat.emplacement === MODELE && achat.nature === "pochette") return { phrase: "dans la pochette des Gaulois uniques", court: "Pochette des Gaulois uniques" };
   return ORIGINES[achat.nature];
 }
 
@@ -226,25 +256,36 @@ export const nouveauxFamiliers = (n: number) => (n >= 2 ? `${n} nouveaux familie
 /** « 1 nouvelle bannière », « 2 nouvelles bannières ». */
 export const nouvellesBannieres = (n: number) => (n >= 2 ? `${n} nouvelles bannières` : "1 nouvelle bannière");
 
+/** « 1 nouveau Gaulois unique », « 2 nouveaux Gaulois uniques ». */
+export const nouveauxModeles = (n: number) => (n >= 2 ? `${n} nouveaux Gaulois uniques` : "1 nouveau Gaulois unique");
+
 /**
  * Ce qu'un Gaulois a reçu, en mots : « 2 nouveaux objets », « 1 nouveau familier », « 1 nouvelle bannière », « 1 nouvel
- * objet et 1 nouveau familier », « 1 nouvel objet, 1 nouveau familier et 1 nouvelle bannière ».
+ * objet et 1 nouveau familier », « 1 nouvel objet, 1 nouveau familier et 1 nouvelle bannière », « 1 nouveau Gaulois unique ».
  */
 export function nouveautes(achats: readonly Pick<AchatDuVillage, "emplacement">[]): string {
   const familiers = achats.filter((a) => a.emplacement === FAMILIER).length;
   const bannieres = achats.filter((a) => a.emplacement === BANNIERE).length;
-  const objets = achats.length - familiers - bannieres;
-  const parties = [objets > 0 ? nouveauxObjets(objets) : null, familiers > 0 ? nouveauxFamiliers(familiers) : null, bannieres > 0 ? nouvellesBannieres(bannieres) : null].filter((p): p is string => p !== null);
+  const modeles = achats.filter((a) => a.emplacement === MODELE).length;
+  const objets = achats.length - familiers - bannieres - modeles;
+  const parties = [
+    objets > 0 ? nouveauxObjets(objets) : null,
+    familiers > 0 ? nouveauxFamiliers(familiers) : null,
+    bannieres > 0 ? nouvellesBannieres(bannieres) : null,
+    modeles > 0 ? nouveauxModeles(modeles) : null,
+  ].filter((p): p is string => p !== null);
   if (parties.length === 0) return nouveauxObjets(0);
   return parties.length === 1 ? parties[0]! : `${parties.slice(0, -1).join(", ")} et ${parties.at(-1)}`;
 }
 
 /**
  * Le titre d'une annonce : « @nom habille son Gaulois : 2 nouveaux objets », « @nom a un nouveau familier » s'il n'a reçu
- * que des familiers, « @nom a une nouvelle bannière » s'il n'a reçu que des bannières.
+ * que des familiers, « @nom a une nouvelle bannière » s'il n'a reçu que des bannières, « @nom a un nouveau Gaulois
+ * unique » s'il n'a reçu que des Gaulois uniques.
  */
 export function titreEnMots(annonce: AnnonceDesAchats, nom: string): string {
   const n = annonce.achats.length;
+  if (annonce.achats.every((a) => a.emplacement === MODELE)) return n >= 2 ? `${nom} a ${nouveauxModeles(n)}` : `${nom} a un nouveau Gaulois unique`;
   if (annonce.achats.every((a) => a.emplacement === FAMILIER)) return n >= 2 ? `${nom} a ${nouveauxFamiliers(n)}` : `${nom} a un nouveau familier`;
   if (annonce.achats.every((a) => a.emplacement === BANNIERE)) return n >= 2 ? `${nom} a ${nouvellesBannieres(n)}` : `${nom} a une nouvelle bannière`;
   return `${nom} habille son Gaulois : ${nouveautes(annonce.achats)}`;
@@ -337,12 +378,14 @@ export function lireReponseDesAchats(data: unknown): Extract<LectureDesAchats, {
   for (const brut of reponse.data.achats) {
     const ligne = LigneDuServeur.safeParse(brut);
     const nom = ligne.success ? nomPropre(ligne.data.nom) : "";
-    const emplacement = ligne.success ? ([...EMPLACEMENTS_OBJETS, FAMILIER, BANNIERE] as readonly string[]).find((e) => e === ligne.data.emplacement) : undefined;
+    const emplacement = ligne.success ? ([...EMPLACEMENTS_OBJETS, FAMILIER, BANNIERE, MODELE] as readonly string[]).find((e) => e === ligne.data.emplacement) : undefined;
     // Un familier ne sort que de la pochette des familiers, une bannière que de la boutique ou, pour un trésor, de la
-    // pochette des bannières : sous une autre nature, la ligne est illisible.
+    // pochette des bannières, un Gaulois unique que de la boutique ou de sa pochette (jamais du marché) : sous une autre
+    // nature, la ligne est illisible.
     const familierHorsPochette = emplacement === FAMILIER && ligne.success && ligne.data.nature !== "pochette";
     const banniereHorsBoutique = emplacement === BANNIERE && ligne.success && !banniereBienVenue(ligne.data.nature, ligne.data.objet);
-    if (!ligne.success || !emplacement || !nom || familierHorsPochette || banniereHorsBoutique || !choseDe({ emplacement: emplacement as EmplacementDAchat, objet: ligne.data.objet })) {
+    const modeleAuMarche = emplacement === MODELE && ligne.success && ligne.data.nature === "marche_achat";
+    if (!ligne.success || !emplacement || !nom || familierHorsPochette || banniereHorsBoutique || modeleAuMarche || !choseDe({ emplacement: emplacement as EmplacementDAchat, objet: ligne.data.objet })) {
       inconnus++;
       continue;
     }

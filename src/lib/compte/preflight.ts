@@ -319,6 +319,25 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
     else add(label, "fail", `Réponse ${res.status}. Ne mettez pas en ligne : seul un compte validé avec son Gaulois achète une bannière et choisit la sienne.`);
   }
 
+  // Les Gaulois uniques (migration 20261115001000, collée par le fichier .cache/a-coller-modeles.sql) : seul un compte
+  // connecté lit ses modèles ; seul un compte validé avec son Gaulois en achète ou ouvre leur pochette. Absente : 404, le
+  // fichier n'est pas collé.
+  const modeles = await rpc("get_mes_modeles");
+  const modelesAnswer = modeles.ok ? ((await modeles.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (modeles.status === 404) add("Les Gaulois uniques sont installés", "warn", "get_mes_modeles est absente : collez le fichier .cache/a-coller-modeles.sql (sa dernière ligne dit « Gaulois uniques : 11 installés ») avant de mettre en ligne ce qui s'en sert.");
+  else if (isClosed(modeles.status) || (modeles.ok && modelesAnswer?.ok === false)) add("Un visiteur ne lit pas de Gaulois uniques", "ok");
+  else add("Un visiteur ne lit pas de Gaulois uniques", "fail", `Réponse ${modeles.status}. Ne mettez pas en ligne : seul un compte connecté lit ses Gaulois uniques et son solde.`);
+  const modelesCalls = [
+    ["acheter_modele", { p_modele: "", p_prix_vu: 0 }, "Un visiteur n'achète pas de Gaulois unique"],
+    ["ouvrir_pochette_modeles", { p_prix_vu: 0 }, "Un visiteur n'ouvre pas de pochette des Gaulois uniques"],
+  ] as const;
+  for (const [fn, body, label] of modelesCalls) {
+    const res = await rpc(fn, body);
+    const answer = res.ok ? ((await res.json().catch(() => null)) as { ok?: boolean } | null) : null;
+    if (isClosed(res.status) || (res.ok && answer?.ok === false)) add(label, "ok");
+    else add(label, "fail", `Réponse ${res.status}. Ne mettez pas en ligne : seul un compte validé avec son Gaulois achète un Gaulois unique ou ouvre leur pochette.`);
+  }
+
   // Les Gaulois sur les images du robot (migration 20261114000400) : la tenue des membres, réservée à la clé de service, celle
   // des scripts du robot. Un visiteur doit être refusé par le droit d'appel lui-même. Une liste vide ne désigne personne.
   const gauloisImages = await rpc("gaulois_des_joueurs", { p_empreintes: [] });

@@ -35,19 +35,25 @@ export type RayonObjet = (typeof RAYONS_OBJETS)[number];
 /** Le rayon des bannières de /gaulois. */
 export const RAYON_BANNIERE = "banniere";
 
+/** Le rayon des Gaulois uniques : leur pochette et les onze corps de créature (`modeles.ts`). */
+export const RAYON_UNIQUES = "uniques";
+
 /**
  * Les rayons de la boutique, dans l'ordre de la barre. Le 15 novembre 2026, le pilote trouvait la page longue : les
  * bannières, jusque-là une section entière au-dessus du marché, sont devenues un onglet après l'arme (« ranger les
  * bannières et futur ajout dans la suite tête, haut, bas, pied, arme, bannière »). Ce qui s'ajoutera à la boutique
- * prendra de même un onglet à la suite, plutôt qu'une section de plus sur la page.
+ * prendra de même un onglet à la suite, plutôt qu'une section de plus sur la page : les Gaulois uniques sont le septième.
  */
-export const RAYONS_BOUTIQUE = [...RAYONS_OBJETS, RAYON_BANNIERE] as const;
+export const RAYONS_BOUTIQUE = [...RAYONS_OBJETS, RAYON_BANNIERE, RAYON_UNIQUES] as const;
 export type RayonBoutique = (typeof RAYONS_BOUTIQUE)[number];
 
-/** Le nom de chaque onglet de la barre. */
-export const NOMS_RAYONS = Object.fromEntries(RAYONS_BOUTIQUE.map((rayon) => [rayon, rayon === RAYON_BANNIERE ? "Bannière" : NOMS_EMPLACEMENTS[rayon]])) as Readonly<Record<RayonBoutique, string>>;
+/** Le nom des onglets qui ne sont pas des rayons d'objets. « Uniques », pour « Gaulois uniques » : sept onglets tiennent sur un téléphone. */
+const NOMS_DES_AUTRES_RAYONS: Readonly<Record<string, string>> = { [RAYON_BANNIERE]: "Bannière", [RAYON_UNIQUES]: "Uniques" };
 
-/** Un rayon d'objets (la boutique du clan et le marché des membres), et non celui des bannières ? */
+/** Le nom de chaque onglet de la barre. */
+export const NOMS_RAYONS = Object.fromEntries(RAYONS_BOUTIQUE.map((rayon) => [rayon, NOMS_DES_AUTRES_RAYONS[rayon] ?? NOMS_EMPLACEMENTS[rayon as RayonObjet]])) as Readonly<Record<RayonBoutique, string>>;
+
+/** Un rayon d'objets (la boutique du clan et le marché des membres), et non celui des bannières ou des Gaulois uniques ? */
 export const estUnRayonDObjets = (rayon: RayonBoutique): rayon is RayonObjet => (RAYONS_OBJETS as readonly string[]).includes(rayon);
 
 /**
@@ -79,6 +85,34 @@ export const IMAGE_DU_RAYON_BANNIERE: Vignette = {
   largeur: DESSIN_ONGLET_BANNIERE[0].length,
   hauteur: DESSIN_ONGLET_BANNIERE.length,
   cases: DESSIN_ONGLET_BANNIERE.flatMap((ligne) => [...ligne].map((lettre) => COULEURS_ONGLET_BANNIERE[lettre] ?? null)),
+};
+
+/**
+ * L'image de l'onglet des Gaulois uniques, décorative : une tête de créature à écailles vertes, deux cornes dorées, vue
+ * de face. Aucun des onze modèles en particulier : ce qu'on trouve dans l'onglet, des corps qui ne sont pas humains.
+ */
+const DESSIN_ONGLET_UNIQUES = [
+  "..kk.....kk..",
+  ".kok.....kok.",
+  ".kook...kook.",
+  "..kokkkkkok..",
+  "..kgggggggk..",
+  ".kgGgggggGgk.",
+  "kggggggggggGk",
+  "kgyykgggkyygk",
+  "kgykkgggkkygk",
+  "kggggggggggGk",
+  ".kggkgggkgGk.",
+  ".kGgggggggGk.",
+  "..kGvvvvvGk..",
+  "...kkvvvkk...",
+  ".....kkk.....",
+] as const;
+const COULEURS_ONGLET_UNIQUES: Readonly<Record<string, string>> = { k: "#1a1410", g: "#3fae5a", G: "#2a7d3f", o: "#d4a017", y: "#ffe07a", v: "#f1e3a0" };
+export const IMAGE_DU_RAYON_UNIQUES: Vignette = {
+  largeur: DESSIN_ONGLET_UNIQUES[0].length,
+  hauteur: DESSIN_ONGLET_UNIQUES.length,
+  cases: DESSIN_ONGLET_UNIQUES.flatMap((ligne) => [...ligne].map((lettre) => COULEURS_ONGLET_UNIQUES[lettre] ?? null)),
 };
 
 /** Un rayon rangé : ce que vend la boutique du clan, ce que vendent les membres, et de quoi les réduire à une rareté. */

@@ -445,3 +445,82 @@ export interface ChoixBanniereReponse {
  * débité) ; pour le choix, `pas_possede`. Un refus ne débite rien.
  */
 export type RefusBannieres = "not_validated" | "no_gaulois" | "unknown_banniere" | "pochette_seulement" | "deja_possede" | "prix_change" | "solde_insuffisant" | "tout_possede" | "pas_possede";
+
+/*
+ * Les Gaulois uniques (demande du pilote, 15 novembre 2026 : des Gaulois lézard, dragon, axolotl, ovni…, « tu peux les
+ * mettre en pochette dédiée et en boutique ») ; migration 20261115001000_gaulois_uniques, dessins et liste dans
+ * `supabase/functions/code-discord/modeles/`, lecture et calculs dans `modeles.ts`.
+ *
+ * Un Gaulois unique remplace le corps humain du Gaulois par celui d'une créature ; tout le reste se porte dessus. Il
+ * s'obtient de deux façons : à la boutique, au quintuple du prix d'un objet de sa rareté, ou dans la pochette des Gaulois
+ * uniques, qui ne donne jamais un modèle déjà possédé (comme celle des familiers). Un seul exemplaire de chacun : ni
+ * marché, ni forge. Le modèle porté est la clé `modele` de la tenue, enregistrée par `enregistrer_mon_gaulois`, qui vérifie
+ * que le compte le possède.
+ */
+
+/** Combien de fois le prix d'un objet de la même rareté coûte un Gaulois unique à la boutique. Le même que le serveur. */
+export const FOIS_LE_PRIX_POUR_UN_MODELE = 5;
+
+/** Le prix de départ d'un Gaulois unique à la boutique, par rareté, en statères : le quintuple des prix des objets. */
+export const PRIX_MODELE_PAR_RARETE: Readonly<Record<Rarete, number>> = {
+  commun: PRIX_PAR_RARETE.commun * FOIS_LE_PRIX_POUR_UN_MODELE,
+  "peu-commun": PRIX_PAR_RARETE["peu-commun"] * FOIS_LE_PRIX_POUR_UN_MODELE,
+  epique: PRIX_PAR_RARETE.epique * FOIS_LE_PRIX_POUR_UN_MODELE,
+  mystique: PRIX_PAR_RARETE.mystique * FOIS_LE_PRIX_POUR_UN_MODELE,
+  legendaire: PRIX_PAR_RARETE.legendaire * FOIS_LE_PRIX_POUR_UN_MODELE,
+};
+
+/** Le prix de départ de la pochette des Gaulois uniques, en statères (le serveur refuse moins de 500). */
+export const PRIX_POCHETTE_MODELES = 2000;
+
+/** Les chances de départ de la pochette des Gaulois uniques, en pour cent, par rareté : celles des familiers, 100 en tout. */
+export const CHANCES_POCHETTE_MODELES: Readonly<Record<Rarete, number>> = {
+  commun: 45,
+  "peu-commun": 28,
+  epique: 15,
+  mystique: 8,
+  legendaire: 4,
+};
+
+/** Un Gaulois unique possédé, et quand il a été reçu. */
+export interface ModelePossede {
+  modele: string;
+  acquis_le: string;
+}
+
+/**
+ * `get_mes_modeles()`, pour un compte connecté : son solde, le prix d'un Gaulois unique de chaque rareté à la boutique, la
+ * pochette, ses modèles (les plus récents d'abord) et celui qu'il porte (`porte`, ou `null` : le corps humain).
+ * `peut_acheter` : compte validé avec un Gaulois créé.
+ */
+export interface MesModeles {
+  ok: true;
+  solde: number;
+  peut_acheter: boolean;
+  prix: Record<Rarete, number>;
+  pochette: { prix: number; chances: Record<Rarete, number> };
+  modeles: ModelePossede[];
+  porte: string | null;
+}
+
+/** `acheter_modele(p_modele, p_prix_vu)` : le modèle acheté, sa rareté, et le solde après l'achat. */
+export interface AchatModeleReponse {
+  ok: true;
+  solde: number;
+  modele: { modele: string; rarete: Rarete };
+}
+
+/** `ouvrir_pochette_modeles(p_prix_vu)` : le modèle reçu, sa rareté, et combien il en reste à recevoir. */
+export interface PochetteModelesReponse {
+  ok: true;
+  solde: number;
+  modele: { modele: string; rarete: Rarete };
+  reste: number;
+}
+
+/**
+ * Les refus des Gaulois uniques, en plus de ceux de tout compte (`not_signed_in`, `suspended`, `rate_limited`) :
+ * `not_validated`, `no_gaulois`, `unknown_modele` (hors de la liste), `deja_possede`, `prix_change`, `tout_possede` (la
+ * pochette n'a plus rien à donner : rien n'est débité), `solde_insuffisant`. Un refus ne débite rien.
+ */
+export type RefusModeles = "not_validated" | "no_gaulois" | "unknown_modele" | "deja_possede" | "prix_change" | "tout_possede" | "solde_insuffisant";

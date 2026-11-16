@@ -14,6 +14,7 @@ import {
   casesDuGaulois,
   changerObjet,
   memeTenue,
+  modeleDuGaulois,
   objetPorte,
   tenueAuHasard,
   tenueDuServeur,
@@ -31,11 +32,13 @@ import { tailleDeLApercu } from "../../lib/village/ecran-familiers";
 import { PLAQUES_CHANGEES } from "../../lib/village/ecran-forge";
 import { familierDe } from "../../lib/village/familiers";
 import { lirePlaques, plaqueDe } from "../../lib/village/forge";
+import { tenueAvecModele } from "../../lib/village/modeles";
 import { NOMS_RAYONS, RAYONS, RAYON_CORPS, cadreDuVisage, grosPlan, rangerLeRayon, visageNu, type Rayon } from "../../lib/village/vestiaire-rayons";
 import { MaBanniere } from "../village/Bannieres";
 import { Piece } from "../village/BoutiquePixels";
 import { ApercuGaulois, BarreDesRayons, Case, noterLeRetour, useSceneCollee } from "../village/Cases";
 import { MonFamilier, useFamiliers } from "../village/Familiers";
+import { MonCorps, useModeles } from "../village/Modeles";
 import { CodeLogin, DiscordButton, Loading, Problem, Success, codeLoginShown, messageOf, useMe } from "./common";
 
 /** Le cadre des gros plans du visage, calculé une fois d'après les dessins du catalogue. */
@@ -82,8 +85,17 @@ function Partie({ emplacement, children }: { emplacement: Emplacement; children:
   );
 }
 
-/** La peau : une pastille par couleur. */
+/** La peau : une pastille par couleur. Sous un Gaulois unique, elle ne se voit pas : une ligne le dit, sans pastille. */
 function Peau({ tenue, onChange }: Choix) {
+  if (modeleDuGaulois(tenue)) {
+    return (
+      <Partie emplacement="peau">
+        <p class="familier-invite" data-testid="vestiaire-peau-cachee">
+          Cachée par votre Gaulois unique.
+        </p>
+      </Partie>
+    );
+  }
   return (
     <Partie emplacement="peau">
       <div class="vestiaire-pastilles" role="group" aria-labelledby="vestiaire-peau">
@@ -208,6 +220,10 @@ type Etat = { kind: "lecture" } | { kind: "erreur"; message: string } | { kind: 
  * (`choisir_familier`), sans passer par l'enregistrement de la tenue, qui ne change pas. Il ne s'annonce pas par
  * `gal:gaulois-enregistre` : cette annonce porte la tenue enregistrée, que le Gaulois compagnon garde, et le compagnon
  * n'a pas de familier.
+ *
+ * Le corps (15 novembre 2026) se choisit en tête du rayon du corps : l'humain, ou un des Gaulois uniques du compte
+ * (`MonCorps` de `src/components/village/Modeles.tsx`, lus par `get_mes_modeles`). C'est une clé de la tenue : il change
+ * l'aperçu et s'enregistre avec elle. « Au hasard » garde le corps choisi.
  */
 export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
   const { me, refresh } = useMe();
@@ -230,6 +246,8 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
   const [occupeFamilier, setOccupeFamilier] = useState(false);
   const [problemeFamilier, setProblemeFamilier] = useState<string | null>(null);
   const [annonceFamilier, setAnnonceFamilier] = useState<string | null>(null);
+  // Les Gaulois uniques du compte : les corps qu'il peut choisir.
+  const modeles = useModeles();
 
   /** L'inventaire (dans la réponse de la boutique) et l'état de la bourse, relus ensemble : sans eux, le vestiaire reste. */
   const lireLInventaire = async (): Promise<void> => {
@@ -242,7 +260,7 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
   const lire = async () => {
     setEtat({ kind: "lecture" });
     try {
-      const [reponse] = await Promise.all([call<unknown>("get_mon_gaulois"), lireLInventaire(), familiers.lire()]);
+      const [reponse] = await Promise.all([call<unknown>("get_mon_gaulois"), lireLInventaire(), familiers.lire(), modeles.lire()]);
       const enregistree = tenueDuServeur(reponse);
       setEtat({ kind: "pret", enregistree });
       setPlaques(lirePlaques((reponse as { gravures?: unknown } | null)?.gravures));
@@ -263,7 +281,11 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
   useEffect(() => {
     const revenu = actif === true && avant.current === false;
     avant.current = actif;
-    if (revenu && etat.kind === "pret") void lireLInventaire();
+    if (revenu && etat.kind === "pret") {
+      void lireLInventaire();
+      // Un Gaulois unique acheté à la boutique, l'onglet voisin, paraît aussitôt parmi les corps.
+      void modeles.lire(true);
+    }
   }, [actif]);
 
   // « Le porter », dans l'onglet « La boutique » voisin, enregistre une tenue et l'annonce : le vestiaire la prend,
@@ -365,7 +387,7 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
       <div ref={scene} class="vestiaire-scene" data-familier={tailleDeLApercu(familiers.montre) ?? undefined}>
         <ApercuGaulois tenue={tenue} familier={familiers.montre} />
         <div class="vestiaire-scene-actions">
-          <button type="button" class="btn btn-ghost" onClick={() => changer(tenueAuHasard(Math.random))}>
+          <button type="button" class="btn btn-ghost" onClick={() => changer(tenueAvecModele(tenueAuHasard(Math.random), modeleDuGaulois(tenue)?.id ?? null))}>
             Au hasard
           </button>
         </div>
@@ -405,6 +427,8 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
           <div ref={panneau} id="vestiaire-panneau" class="vestiaire-panneau" role="tabpanel" aria-labelledby={`vestiaire-rayon-${rayon}`}>
             {rayon === RAYON_CORPS ? (
               <>
+                {/* Le corps ne se choisit que pour un Gaulois qui existe : rien pendant l'inscription. */}
+                {existait && <MonCorps etat={modeles.etat} tenue={tenue} vignette={(id) => portrait(tenueAvecModele(tenue, id), 2)} onChange={changer} onRelire={() => void modeles.lire()} />}
                 <Peau {...choix} />
                 <Poils emplacement="cheveux" {...choix} />
                 <Poils emplacement="barbe" {...choix} />

@@ -6,6 +6,9 @@
 import { lireTenue, type Tenue } from "../../supabase/functions/code-discord/gaulois";
 
 export {
+  CLE_MODELE,
+  changerModele,
+  modeleDuGaulois,
   EMPLACEMENTS,
   EMPLACEMENTS_CORPS,
   EMPLACEMENTS_OBJETS,
@@ -24,6 +27,7 @@ export {
   RARETES,
   TEINTE_CHEVEUX,
   TENUE_DE_DEPART,
+  TENUE_NUE,
   casesDuGaulois,
   changerObjet,
   decrireGaulois,

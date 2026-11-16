@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 import { EMPLACEMENTS_OBJETS, OBJETS, type Emplacement, type Rarete } from "../../src/lib/gaulois";
 import {
   IMAGE_DU_RAYON_BANNIERE,
+  IMAGE_DU_RAYON_UNIQUES,
   NOMS_RAYONS,
   RAYONS_BOUTIQUE,
   RAYONS_OBJETS,
   RAYON_BANNIERE,
+  RAYON_UNIQUES,
   demandeLeMarche,
   essaiValide,
   estUnRayonDObjets,
@@ -39,13 +41,27 @@ function offre(emplacement: Emplacement, objet: string, plus: Partial<OffreLisib
 }
 
 describe("les rayons de la boutique", () => {
-  it("sont les emplacements d'objets, puis les bannières : le corps, gratuit, n'a pas de rayon", () => {
-    // L'ordre voulu par le pilote le 15 novembre 2026 : tête, haut, bas, pieds, arme, bannière.
+  it("sont les emplacements d'objets, puis les bannières et les Gaulois uniques : le corps, gratuit, n'a pas de rayon", () => {
+    // L'ordre voulu par le pilote le 15 novembre 2026 : tête, haut, bas, pieds, arme, bannière ; tout ajout à la suite.
     expect(RAYONS_OBJETS).toEqual(EMPLACEMENTS_OBJETS);
-    expect(RAYONS_BOUTIQUE).toEqual([...EMPLACEMENTS_OBJETS, RAYON_BANNIERE]);
-    expect(RAYONS_BOUTIQUE.map((rayon) => NOMS_RAYONS[rayon])).toEqual(["Tête", "Haut", "Bas", "Pieds", "Arme", "Bannière"]);
+    expect(RAYONS_BOUTIQUE).toEqual([...EMPLACEMENTS_OBJETS, RAYON_BANNIERE, RAYON_UNIQUES]);
+    expect(RAYONS_BOUTIQUE.map((rayon) => NOMS_RAYONS[rayon])).toEqual(["Tête", "Haut", "Bas", "Pieds", "Arme", "Bannière", "Uniques"]);
     expect(RAYONS_BOUTIQUE.filter(estUnRayonDObjets)).toEqual(EMPLACEMENTS_OBJETS);
     expect(estUnRayonDObjets(RAYON_BANNIERE)).toBe(false);
+    expect(estUnRayonDObjets(RAYON_UNIQUES)).toBe(false);
+  });
+
+  it("l'onglet des Gaulois uniques a son image, entière, aux rangées de même longueur", () => {
+    const { largeur, hauteur, cases } = IMAGE_DU_RAYON_UNIQUES;
+    expect(cases).toHaveLength(largeur * hauteur);
+    expect(hauteur * 2).toBeLessThanOrEqual(44);
+    expect(cases.every((couleur) => couleur === null || /^#[0-9a-f]{6}$/.test(couleur))).toBe(true);
+    // Le dessin touche ses quatre bords : aucune rangée ni colonne vide autour.
+    const pleine = (x: number, y: number): boolean => cases[y * largeur + x] != null;
+    const colonnes = Array.from({ length: largeur }, (_, x) => x);
+    const rangees = Array.from({ length: hauteur }, (_, y) => y);
+    expect(colonnes.some((x) => pleine(x, 0)) && colonnes.some((x) => pleine(x, hauteur - 1))).toBe(true);
+    expect(rangees.some((y) => pleine(0, y)) && rangees.some((y) => pleine(largeur - 1, y))).toBe(true);
   });
 
   it("l'onglet des bannières a son image, entière et dans les couleurs du Gaulois", () => {

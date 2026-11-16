@@ -201,6 +201,10 @@ export const ERROR_MESSAGES: Record<string, string> = {
   // 20261115000900_bannieres_du_gaulois). `deja_possede` et `pas_possede` ont leurs propres mots dans `bannieres.ts`.
   unknown_banniere: "Cette bannière n'existe pas. Rechargez la page.",
 
+  // Les Gaulois uniques (contrat : `RefusModeles` de src/lib/village/contrat.ts, migration 20261115001000_gaulois_uniques).
+  // `deja_possede` et `tout_possede` ont leurs propres mots dans `modeles.ts`.
+  unknown_modele: "Ce Gaulois unique n'existe pas. Rechargez la page.",
+
   // L'onglet « Village » de la Direction : les prix et les chances (migration 20261113002100_village_direction).
   prix_invalides: "Chaque prix est un nombre entier de statères, de 1 à 1 000 000, et chaque rareté coûte plus que la précédente.",
   prix_pochette_invalide: "Le prix de la pochette est un nombre entier de statères, de 1 à 1 000 000.",

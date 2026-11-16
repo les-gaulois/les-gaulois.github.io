@@ -30,6 +30,7 @@ const HEALTHY: Record<string, Route> = {
   "/rest/v1/rpc/get_mes_familiers": { status: 401, body: {} },
   "/rest/v1/rpc/get_mes_bannieres": { status: 401, body: {} },
   "/rest/v1/rpc/ouvrir_pochette_bannieres": { status: 401, body: {} },
+  "/rest/v1/rpc/get_mes_modeles": { status: 401, body: {} },
   "/rest/v1/profiles": { status: 401, body: {} },
   "/rest/v1/private_links": { status: 401, body: {} },
   "/rest/v1/admin_log": { status: 401, body: {} },
@@ -585,5 +586,20 @@ describe("le contrôle de la mise en ligne, les bannières du Gaulois", () => {
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/ouvrir_pochette_bannieres": { status: 200, body: { ok: true, solde: 0 } } }, "n'ouvre pas de pochette des bannières")).toBe("fail");
     const absente = (await run({ ...HEALTHY, "/rest/v1/rpc/ouvrir_pochette_bannieres": { status: 404, body: {} } })).find((c) => c.label.includes("pochette des bannières est installée"));
     expect(absente).toMatchObject({ status: "warn", detail: expect.stringContaining(".cache/a-coller-pochette-bannieres.sql") });
+  });
+});
+
+describe("le contrôle de la mise en ligne, les Gaulois uniques", () => {
+  it("bloque si un visiteur lit ses Gaulois uniques, en achète un ou ouvre leur pochette, et signale les Gaulois uniques pas encore installés", async () => {
+    expect(await statusOf(HEALTHY, "ne lit pas de Gaulois uniques")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_mes_modeles": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "ne lit pas de Gaulois uniques")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_mes_modeles": { status: 200, body: { ok: true, solde: 0 } } }, "ne lit pas de Gaulois uniques")).toBe("fail");
+    const absente = (await run({ ...HEALTHY, "/rest/v1/rpc/get_mes_modeles": { status: 404, body: {} } })).find((c) => c.label.includes("Gaulois uniques sont installés"));
+    expect(absente).toMatchObject({ status: "warn", detail: expect.stringContaining(".cache/a-coller-modeles.sql") });
+    expect(absente?.detail).toContain("Gaulois uniques : 11 installés");
+    for (const label of ["n'achète pas de Gaulois unique", "n'ouvre pas de pochette des Gaulois uniques"]) expect(await statusOf(HEALTHY, label)).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/acheter_modele": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "n'achète pas de Gaulois unique")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/acheter_modele": { status: 200, body: { ok: true, solde: 0 } } }, "n'achète pas de Gaulois unique")).toBe("fail");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/ouvrir_pochette_modeles": { status: 200, body: { ok: true, solde: 0 } } }, "n'ouvre pas de pochette des Gaulois uniques")).toBe("fail");
   });
 });
