@@ -207,6 +207,9 @@ export const ERROR_MESSAGES: Record<string, string> = {
   // 20261115000900_bannieres_du_gaulois). `deja_possede` et `pas_possede` ont leurs propres mots dans `bannieres.ts`.
   unknown_banniere: "Cette bannière n'existe pas. Rechargez la page.",
 
+  // La pochette de statères (contrat : `RefusPochetteStateres`, migration 20261116000800_pochette_de_stateres).
+  plafond_du_jour: "Vous avez ouvert vos dix pochettes de statères d'aujourd'hui. Revenez demain.",
+
   // Les Gaulois uniques (contrat : `RefusModeles` de src/lib/village/contrat.ts, migration 20261115001000_gaulois_uniques).
   // `deja_possede` et `tout_possede` ont leurs propres mots dans `modeles.ts`.
   unknown_modele: "Ce Gaulois unique n'existe pas. Rechargez la page.",

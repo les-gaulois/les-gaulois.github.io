@@ -12,6 +12,16 @@
   {
     "date": "2026-11-16",
     "kind": "nouveau",
+    "title": "La pochette de statères",
+    "body": "À la boutique, onglet « Pochettes » : pour 200 statères, elle rend des statères, de 60 à 13 100. Chaque gain est écrit avec sa chance. En moyenne, elle rend son prix. Dix par jour au plus.",
+    "link": {
+      "href": "/village#boutique",
+      "label": "Ouvrir la boutique"
+    }
+  },
+  {
+    "date": "2026-11-16",
+    "kind": "nouveau",
     "title": "La bannière sur la fiche de membre",
     "body": "La fiche d'un membre montre en tête la bannière de son Gaulois, relevée à chaque mise à jour du site. Dans le livre des bannières, un aperçu « Sur ma fiche » la montre avant de choisir.",
     "link": {

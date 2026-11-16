@@ -29,6 +29,8 @@ const HEALTHY: Record<string, Route> = {
   "/rest/v1/rpc/get_ma_forge": { status: 401, body: {} },
   "/rest/v1/rpc/fusionner_objets": { status: 401, body: {} },
   "/rest/v1/rpc/get_mes_familiers": { status: 401, body: {} },
+  "/rest/v1/rpc/get_pochette_stateres": { status: 401, body: {} },
+  "/rest/v1/rpc/ouvrir_pochette_stateres": { status: 401, body: {} },
   "/rest/v1/rpc/get_mes_bannieres": { status: 401, body: {} },
   "/rest/v1/rpc/ouvrir_pochette_bannieres": { status: 401, body: {} },
   "/rest/v1/rpc/get_mes_modeles": { status: 401, body: {} },
@@ -182,7 +184,8 @@ describe("le contrôle de la mise en ligne", () => {
   it("appelle les fonctions des statères sans rien pouvoir noter, et les trois à chaque contrôle", async () => {
     seen.length = 0;
     await run();
-    const appels = seen.filter((s) => /stateres/.test(s.url));
+    // La pochette de statères a son propre contrôle, plus bas.
+    const appels = seen.filter((s) => /stateres/.test(s.url) && !/pochette_stateres/.test(s.url));
     expect(appels.map((s) => new URL(s.url).pathname).sort()).toEqual(["/rest/v1/rpc/get_mes_stateres", "/rest/v1/rpc/noter_victoires_stateres", "/rest/v1/rpc/stateres_parties_notees"]);
     // Une partie sans début ni points : le serveur refuserait l'envoi entier, même si le droit était mal posé.
     const noter = appels.find((s) => s.url.endsWith("noter_victoires_stateres"));
@@ -590,6 +593,19 @@ describe("le contrôle de la mise en ligne, les familiers du Gaulois", () => {
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/ouvrir_pochette_familiers": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "n'ouvre pas de pochette des familiers")).toBe("ok");
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/ouvrir_pochette_familiers": { status: 200, body: { ok: true, solde: 0 } } }, "n'ouvre pas de pochette des familiers")).toBe("fail");
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/choisir_familier": { status: 200, body: { ok: true, porte: null } } }, "ne choisit aucun familier")).toBe("fail");
+  });
+});
+
+describe("le contrôle de la mise en ligne, la pochette de statères", () => {
+  it("bloque si un visiteur lit ou ouvre la pochette de statères, et signale qu'elle n'est pas encore installée", async () => {
+    expect(await statusOf(HEALTHY, "ne lit pas la pochette de statères")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_pochette_stateres": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "ne lit pas la pochette de statères")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/get_pochette_stateres": { status: 200, body: { ok: true, solde: 0 } } }, "ne lit pas la pochette de statères")).toBe("fail");
+    const absente = (await run({ ...HEALTHY, "/rest/v1/rpc/get_pochette_stateres": { status: 404, body: {} } })).find((c) => c.label.includes("pochette de statères est installée"));
+    expect(absente).toMatchObject({ status: "warn", detail: expect.stringContaining(".cache/a-coller-pochette-stateres.sql") });
+    expect(await statusOf(HEALTHY, "n'ouvre pas de pochette de statères")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/ouvrir_pochette_stateres": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "n'ouvre pas de pochette de statères")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/ouvrir_pochette_stateres": { status: 200, body: { ok: true, solde: 0 } } }, "n'ouvre pas de pochette de statères")).toBe("fail");
   });
 });
 

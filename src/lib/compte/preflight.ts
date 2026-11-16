@@ -300,6 +300,19 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
     else add(label, "fail", `Réponse ${res.status}. Ne mettez pas en ligne : seul un compte validé avec son Gaulois ouvre la pochette des familiers et choisit le sien.`);
   }
 
+  // La pochette de statères (migration 20261116000800, collée par le fichier .cache/a-coller-pochette-stateres.sql) : seul
+  // un compte connecté la lit ; seul un compte validé avec son Gaulois l'ouvre. Absente : 404, le fichier n'est pas collé.
+  // Un visiteur n'a pas de statères : même si le droit d'appel était mal posé, rien ne serait débité ni gagné.
+  const pochetteStateres = await rpc("get_pochette_stateres");
+  const pochetteStateresAnswer = pochetteStateres.ok ? ((await pochetteStateres.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (pochetteStateres.status === 404) add("La pochette de statères est installée", "warn", "get_pochette_stateres est absente : collez le fichier .cache/a-coller-pochette-stateres.sql (sa dernière ligne dit « pochette de statères : installée ») avant de mettre en ligne ce qui s'en sert.");
+  else if (isClosed(pochetteStateres.status) || (pochetteStateres.ok && pochetteStateresAnswer?.ok === false)) add("Un visiteur ne lit pas la pochette de statères", "ok");
+  else add("Un visiteur ne lit pas la pochette de statères", "fail", `Réponse ${pochetteStateres.status}. Ne mettez pas en ligne : seul un compte connecté lit la pochette de statères et son solde.`);
+  const ouvertureStateres = await rpc("ouvrir_pochette_stateres", { p_prix_vu: 0 });
+  const ouvertureStateresAnswer = ouvertureStateres.ok ? ((await ouvertureStateres.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (isClosed(ouvertureStateres.status) || (ouvertureStateres.ok && ouvertureStateresAnswer?.ok === false)) add("Un visiteur n'ouvre pas de pochette de statères", "ok");
+  else add("Un visiteur n'ouvre pas de pochette de statères", "fail", `Réponse ${ouvertureStateres.status}. Ne mettez pas en ligne : seul un compte validé avec son Gaulois ouvre la pochette de statères.`);
+
   // Les bannières du Gaulois (migration 20261115000900, collée par le fichier .cache/a-coller-bannieres.sql) : seul un compte
   // connecté lit ses bannières ; seul un compte validé avec son Gaulois en achète ou choisit celle de /gaulois. Absente : 404,
   // le fichier n'est pas collé.

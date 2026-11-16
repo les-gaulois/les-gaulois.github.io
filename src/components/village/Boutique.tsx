@@ -25,7 +25,7 @@ import {
   type Essai,
   type RayonBoutique,
 } from "../../lib/village/boutique-rayons";
-import type { MaBoutique, PochetteFamiliersReponse, PochetteReponse, RefObjet } from "../../lib/village/contrat";
+import type { MaBoutique, PochetteFamiliersReponse, PochetteReponse, PochetteStateresReponse, RefObjet } from "../../lib/village/contrat";
 import { demandeLesBannieres } from "../../lib/village/ecran-bannieres";
 import { avecUnExemplaire, lireAchat, lireBoutique, lirePochette, lireStateres, manque, messageDuRefus, objetPayant, prixDeLObjet, quantitePossedee, raisonBoutiqueFermee, stateres } from "../../lib/village/ecran-boutique";
 import { ANCRE_FAMILIERS, demandeLesFamiliers, idsPossedes, tailleDeLApercu } from "../../lib/village/ecran-familiers";
@@ -46,6 +46,7 @@ import { useModeles } from "./Modeles";
 import { DialogueAchat as DialogueOffre, DialogueVente } from "./MarcheDialogues";
 import { Pochette } from "./Pochette";
 import { DialogueFamiliers, PochetteFamiliers } from "./PochetteFamiliers";
+import { DialogueStateres, PochetteStateres, usePochetteStateres } from "./PochetteStateres";
 import { DialogueAchatModele, DialogueModeles, EssaiDuModele, SectionDesModeles } from "./SectionModeles";
 
 /** Le repère de forme d'une rareté, de un à cinq losanges : le même que sur les cases. */
@@ -115,7 +116,7 @@ function MonOffre({ offre, maintenant, occupe, onRetirer }: { offre: OffreLisibl
 type Etat = { kind: "lecture" } | { kind: "erreur"; message: string } | { kind: "pret"; enregistree: Tenue | null };
 /** Le marché des membres : fermé à un compte pas encore validé (la phrase du serveur), en panne, ou lu. */
 type EtatDuMarche = { kind: "lecture" } | { kind: "ferme"; message: string } | { kind: "panne"; message: string } | { kind: "pret"; marche: MarcheLu };
-type Fenetre = { kind: "achat"; emplacement: Emplacement; id: string; prix: number } | { kind: "pochette" } | { kind: "familiers" } | { kind: "modeles" } | { kind: "modele"; id: string; prix: number } | { kind: "offre"; offre: OffreLisible } | { kind: "vente" } | null;
+type Fenetre = { kind: "achat"; emplacement: Emplacement; id: string; prix: number } | { kind: "pochette" } | { kind: "familiers" } | { kind: "stateres" } | { kind: "modeles" } | { kind: "modele"; id: string; prix: number } | { kind: "offre"; offre: OffreLisible } | { kind: "vente" } | null;
 /** Le dernier objet reçu (boutique, pochette ou marché) : il se porte d'un clic. */
 type Acquis = RefObjet & { porte: boolean };
 /** Le dernier familier sorti de la pochette des familiers : il se montre d'un clic. */
@@ -182,6 +183,7 @@ export default function Boutique() {
   const [fenetre, setFenetre] = useState<Fenetre>(null);
   const [acquis, setAcquis] = useState<Acquis | null>(null);
   const familiers = useFamiliers();
+  const pochetteStateres = usePochetteStateres();
   const [familierRecu, setFamilierRecu] = useState<FamilierRecu | null>(null);
   const modeles = useModeles();
   // Le Gaulois unique que le Gaulois essaie : jamais en même temps qu'un objet.
@@ -256,7 +258,7 @@ export default function Boutique() {
   const lire = async () => {
     setEtat({ kind: "lecture" });
     try {
-      const [reponse, , marche] = await Promise.all([call<unknown>("get_mon_gaulois"), lireLaBoutique(), lireLeMarche(false), familiers.lire()]);
+      const [reponse, , marche] = await Promise.all([call<unknown>("get_mon_gaulois"), lireLaBoutique(), lireLeMarche(false), familiers.lire(), pochetteStateres.lire()]);
       const enregistree = tenueDuServeur(reponse);
       setEtat({ kind: "pret", enregistree });
       if (enregistree) setTenue(enregistree);
@@ -410,6 +412,22 @@ export default function Boutique() {
     setModeleRecu(null);
     setFamilierRecu({ id: recu.familier, montre: false });
     setReussite(`« ${familierDe(recu.familier)?.nom ?? "Ce familier"} » a rejoint vos familiers.`);
+    return issue;
+  };
+
+  /**
+   * Ouvrir une pochette de statères : le serveur tire, débite le prix, crédite le gain et répond le solde. La bourse de
+   * la page suit ; après un refus, la boutique se relit, pour que le solde affiché soit celui du serveur.
+   */
+  const ouvrirPochetteStateres = async (prix: number): Promise<Issue<PochetteStateresReponse>> => {
+    const issue = await pochetteStateres.ouvrir(prix);
+    if (!issue.ok) {
+      void lireLaBoutique();
+      return issue;
+    }
+    setBoutique((b) => b && { ...b, solde: issue.valeur.solde });
+    setSolde(issue.valeur.solde);
+    setProbleme(null);
     return issue;
   };
 
@@ -617,7 +635,7 @@ export default function Boutique() {
   const achat = fenetre?.kind === "achat" ? objetPayant(fenetre.emplacement, fenetre.id) : null;
   // Ce que les fenêtres du marché lisent de la boutique déjà lue (ses prix, l'inventaire avec le nom de chaque objet).
   const pourLeMarche = boutique && lireBoutiqueDuMarche(boutique);
-  const pochetteOuverte = fenetre?.kind === "pochette" || fenetre?.kind === "familiers" || fenetre?.kind === "modeles";
+  const pochetteOuverte = fenetre?.kind === "pochette" || fenetre?.kind === "familiers" || fenetre?.kind === "stateres" || fenetre?.kind === "modeles";
 
   // Le Gaulois unique à l'essai : ce qu'on peut en faire, son prix, et ce qui empêche de l'acheter.
   const modeleEnEssai = modeles.mes ? modeleParId(essaiModele) : null;
@@ -856,6 +874,7 @@ export default function Boutique() {
               <>
                 {boutique && <Pochette boutique={boutique} solde={soldeConnu ?? boutique.solde} fermee={fermee} onOuvrir={() => setFenetre({ kind: "pochette" })} />}
                 {familiers.mes && <PochetteFamiliers mes={familiers.mes} solde={soldeConnu ?? familiers.mes.solde} onOuvrir={() => setFenetre({ kind: "familiers" })} />}
+                {pochetteStateres.ma && <PochetteStateres ma={pochetteStateres.ma} solde={soldeConnu ?? pochetteStateres.ma.solde} onOuvrir={() => setFenetre({ kind: "stateres" })} />}
                 {familiers.etat.kind === "panne" && (
                   <div data-testid="familiers-panne">
                     <Problem message="La pochette des familiers ne répond pas pour l'instant." onRetry={() => void familiers.lire()} />
@@ -942,6 +961,7 @@ export default function Boutique() {
           onFermer={fermerLaFenetre}
         />
       )}
+      {fenetre?.kind === "stateres" && pochetteStateres.ma && <DialogueStateres ma={pochetteStateres.ma} solde={soldeConnu ?? pochetteStateres.ma.solde} ouvrir={() => ouvrirPochetteStateres(pochetteStateres.ma?.prix ?? 0)} onFermer={fermerLaFenetre} />}
       {fenetre?.kind === "modeles" && modeles.mes && (
         <DialogueModeles mes={modeles.mes} solde={soldeConnu ?? modeles.mes.solde} tenue={tenue} ouvrir={(prixVu) => ouvrirPochetteModeles(prixVu)} onPorter={(id) => void porterLeModele(id)} onFermer={fermerLaFenetre} />
       )}

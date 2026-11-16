@@ -632,3 +632,66 @@ export interface PochetteModelesReponse {
  * pochette n'a plus rien à donner : rien n'est débité), `solde_insuffisant`. Un refus ne débite rien.
  */
 export type RefusModeles = "not_validated" | "no_gaulois" | "unknown_modele" | "deja_possede" | "prix_change" | "tout_possede" | "solde_insuffisant";
+
+/*
+ * La pochette de statères (demande du pilote, 16 novembre 2026 : « des pochettes de statères (un casino) », « des
+ * probabilités justes » ; il a choisi la première de quatre idées) ; migration 20261116000800_pochette_de_stateres,
+ * calculs dans `pochette-stateres.ts`.
+ *
+ * Elle coûte des statères et rend des statères : un des six lots ci-dessous, tiré par le serveur. Le jeu est juste : en
+ * moyenne, elle rend exactement son prix (la somme des chances fois les gains vaut 200), donc elle ne crée ni ne détruit
+ * de statères. Un compte en ouvre dix par jour au plus (le jour de Paris). Prix, lots et plafond sont fixés par la
+ * migration : aucun réglage dans la Direction.
+ */
+
+/** Le prix de la pochette de statères. Le même que le serveur. */
+export const PRIX_POCHETTE_STATERES = 200;
+
+/** Le nombre de pochettes de statères qu'un compte ouvre par jour, au plus. Le même que le serveur. */
+export const PLAFOND_POCHETTE_STATERES = 10;
+
+/** Un lot de la pochette de statères : son rang (1, le plus courant), sa chance en pour cent, son gain en statères. */
+export interface LotDeStateres {
+  rang: number;
+  chance: number;
+  gain: number;
+}
+
+/** Les lots de la pochette de statères, du plus courant au plus rare : 100 pour cent en tout, 200 statères en moyenne. */
+export const LOTS_POCHETTE_STATERES: readonly LotDeStateres[] = [
+  { rang: 1, chance: 55, gain: 60 },
+  { rang: 2, chance: 28, gain: 160 },
+  { rang: 3, chance: 11, gain: 350 },
+  { rang: 4, chance: 4.5, gain: 700 },
+  { rang: 5, chance: 1.3, gain: 2000 },
+  { rang: 6, chance: 0.2, gain: 13100 },
+];
+
+/**
+ * `get_pochette_stateres()`, pour un compte connecté : son solde, la pochette (prix, lots, plafond du jour) et combien il
+ * en a ouvert aujourd'hui. `peut_ouvrir` : compte validé avec un Gaulois créé.
+ */
+export interface MaPochetteStateres {
+  ok: true;
+  solde: number;
+  peut_ouvrir: boolean;
+  prix: number;
+  plafond: number;
+  ouvertes: number;
+  lots: LotDeStateres[];
+}
+
+/** `ouvrir_pochette_stateres(p_prix_vu)` : le lot tiré, le solde après le prix payé et le gain reçu, les ouvertures du jour. */
+export interface PochetteStateresReponse {
+  ok: true;
+  solde: number;
+  lot: { rang: number; gain: number };
+  ouvertes: number;
+}
+
+/**
+ * Les refus de la pochette de statères, en plus de ceux de tout compte (`not_signed_in`, `suspended`, `rate_limited`) :
+ * `not_validated`, `no_gaulois`, `prix_change`, `plafond_du_jour` (dix pochettes déjà ouvertes aujourd'hui),
+ * `solde_insuffisant`. Un refus ne débite rien.
+ */
+export type RefusPochetteStateres = "not_validated" | "no_gaulois" | "prix_change" | "plafond_du_jour" | "solde_insuffisant";
