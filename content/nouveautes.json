@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-16",
+    "kind": "nouveau",
+    "title": "Le coffre du druide, sur Discord",
+    "body": "Dans le salon « coffre-du-druide » du Discord du clan, tapez /coffre : faites dire au druide son mot secret, par la ruse. Une intelligence artificielle le joue. Dix essais par jour.",
+    "link": {
+      "href": "/confidentialite#coffre",
+      "label": "Ce que le jeu garde"
+    }
+  },
+  {
+    "date": "2026-11-16",
     "kind": "ameliore",
     "title": "Les Gaulois sur l'accueil et les parties",
     "body": "Le Gaulois des membres paraît aussi sur l'accueil, devant les pseudos de la semaine, et dans « Dernières parties », sous chaque partie qui a son replay sur le site.",

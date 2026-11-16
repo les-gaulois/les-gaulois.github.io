@@ -5,6 +5,8 @@ import {
   COFFRE_MESSAGES,
   COFFRE_OPTION,
   COFFRE_SALON,
+  ENVOIS_MAX,
+  ENVOI_ATTENTE_MS,
   estLeSalonDuCoffre,
   CONSIGNE_DU_MOT,
   DRUIDE_MODELE,
@@ -231,8 +233,8 @@ describe("l'état rendu par le serveur", () => {
 });
 
 /** Un monde de test : le serveur et Claude répondent ce qu'on leur dit, et tout ce qui part est noté. */
-function monde(options: { rpc?: Record<string, (args: Record<string, unknown>) => Record<string, unknown> | null>; claude?: ((demande: DemandeClaude) => ReponseClaude | null) | null }) {
-  const calls = { rpc: [] as { name: string; args: Record<string, unknown> }[], webhook: [] as { method: string; path: string; call?: DiscordCall }[], claude: [] as DemandeClaude[], log: [] as string[] };
+function monde(options: { rpc?: Record<string, (args: Record<string, unknown>) => Record<string, unknown> | null>; claude?: ((demande: DemandeClaude) => ReponseClaude | null) | null; discord?: (envoi: number) => { status: number; body: unknown } | null }) {
+  const calls = { rpc: [] as { name: string; args: Record<string, unknown> }[], webhook: [] as { method: string; path: string; call?: DiscordCall }[], claude: [] as DemandeClaude[], log: [] as string[], sleep: [] as number[] };
   const tasks: Promise<unknown>[] = [];
   const claude = options.claude;
   const deps: Parameters<typeof coffreCommand>[1] = {
@@ -243,8 +245,9 @@ function monde(options: { rpc?: Record<string, (args: Record<string, unknown>) =
     },
     webhook: async (method, path, call) => {
       calls.webhook.push({ method, path, call });
-      return { status: 200, body: null };
+      return options.discord ? options.discord(calls.webhook.length) : { status: 200, body: null };
     },
+    sleep: async (ms) => void calls.sleep.push(ms),
     background: (task) => void tasks.push(task),
     log: (message) => void calls.log.push(message),
     ...(claude === null
@@ -339,6 +342,30 @@ describe("/coffre", () => {
     expect(ecrit(m)).toContain("Non, villageois.");
     expect(ecrit(m)).toContain("Manche 2, essai 4. Jod : 6 essais aujourd'hui.");
     expect(ecrit(m)).not.toContain("menhir");
+  });
+
+  it("Discord ne répond pas à l'envoi : le robot réessaie, et la réponse s'affiche", async () => {
+    const m = monde({ rpc: { coffre_ouvrir: () => ouverture(), coffre_clore: () => ({ ok: true, gagne: false, manche: 2, essai: 4 }) }, discord: (envoi) => (envoi === 1 ? null : envoi === 2 ? { status: 503, body: null } : { status: 200, body: null }) });
+    await coffreCommand(interaction("Bonjour druide"), m.deps);
+    await m.fini();
+    expect(m.calls.webhook).toHaveLength(3);
+    expect(m.calls.sleep).toEqual([ENVOI_ATTENTE_MS, ENVOI_ATTENTE_MS]);
+    expect(ecrit(m)).toContain("Non, villageois.");
+    // La réponse n'est demandée à Claude et gardée qu'une fois.
+    expect(m.calls.claude).toHaveLength(1);
+    expect(m.calls.rpc.map((c) => c.name)).toEqual(["coffre_ouvrir", "coffre_clore"]);
+  });
+
+  it("Discord reste injoignable : le robot s'arrête après ses essais, et le note ; un refus net n'est pas réessayé", async () => {
+    const m = monde({ rpc: { coffre_ouvrir: () => ouverture(), coffre_clore: () => ({ ok: true, gagne: false, manche: 2, essai: 4 }) }, discord: () => null });
+    await coffreCommand(interaction("Bonjour druide"), m.deps);
+    await m.fini();
+    expect(m.calls.webhook).toHaveLength(ENVOIS_MAX);
+    expect(m.calls.log).toEqual(["coffre : réponse non affichée, Discord injoignable"]);
+    const refus = monde({ rpc: { coffre_ouvrir: () => ouverture(), coffre_clore: () => ({ ok: true, gagne: false, manche: 2, essai: 4 }) }, discord: () => ({ status: 404, body: null }) });
+    await coffreCommand(interaction("Bonjour druide"), refus.deps);
+    await refus.fini();
+    expect(refus.calls.webhook).toHaveLength(1);
   });
 
   it("le druide lâche le mot : le membre gagne la manche", async () => {

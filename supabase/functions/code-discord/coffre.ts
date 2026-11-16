@@ -374,7 +374,15 @@ const json = (body: unknown): Response => new Response(JSON.stringify(body), { s
 const prive = (content: string): Response => json({ type: 4, data: { content, flags: EPHEMERAL, allowed_mentions: { parse: [] } } });
 const isId = (value: unknown): value is string => typeof value === "string" && /^[0-9]{17,20}$/.test(value);
 
-type CoffreDeps = Pick<Deps, "guildId" | "rpc" | "webhook" | "background" | "log" | "claude">;
+type CoffreDeps = Pick<Deps, "guildId" | "rpc" | "webhook" | "background" | "log" | "claude" | "sleep">;
+
+/**
+ * Combien de fois le robot essaie d'afficher la réponse, et ce qu'il attend entre deux essais. Le 16 novembre 2026, au
+ * premier soir du jeu, Discord n'a pas répondu à un envoi : la réponse du druide, déjà gardée et comptée, est restée
+ * cachée derrière « réfléchit… ».
+ */
+export const ENVOIS_MAX = 3;
+export const ENVOI_ATTENTE_MS = 1500;
 
 function optionDuMessage(data: Json | null): string {
   for (const option of Array.isArray(data?.["options"]) ? (data["options"] as unknown[]) : []) {
@@ -410,7 +418,13 @@ async function jouer(interaction: Json, joueur: { id: string; nom: string }, mes
   const token = interaction["token"];
   const repondre = async (body: Json): Promise<void> => {
     if (!isId(appId) || typeof token !== "string" || !/^[A-Za-z0-9._-]{20,500}$/.test(token)) return;
-    await deps.webhook("PATCH", `/webhooks/${appId}/${token}/messages/@original`, { body });
+    for (let envoi = 1; envoi <= ENVOIS_MAX; envoi++) {
+      const res = await deps.webhook("PATCH", `/webhooks/${appId}/${token}/messages/@original`, { body });
+      // Discord injoignable, ou en panne de son côté : on réessaie. Tout autre refus ne changerait pas au second envoi.
+      if (res && res.status < 500) return;
+      if (envoi < ENVOIS_MAX) await deps.sleep(ENVOI_ATTENTE_MS);
+    }
+    deps.log("coffre : réponse non affichée, Discord injoignable");
   };
   // Un essai abandonné reste compté dans les essais du jour, avec ce que l'appel a coûté : rien ne part sans limite.
   const abandonner = async (content: string, cout = 0): Promise<void> => {
