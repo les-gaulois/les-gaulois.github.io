@@ -51,6 +51,8 @@ export interface Album {
   /** Ce que disent les puces aux lecteurs d'écran : « Montrer un rayon », « Montrer une famille ». */
   libelleDesGroupes: string;
   elements: ElementDeLAlbum[];
+  /** Ce que la loupe écrit sous la chance ; sans lui, « dans votre prochaine pochette ». */
+  motDeLaChance?: string;
 }
 
 const DESSINS_D_OBJETS = new Map<string, DessinEnCases | null>();
@@ -131,6 +133,48 @@ export function albumDeLaPochetteSurprise(chances: Readonly<Record<RareteDObjet,
 /** Combien d'objets la pochette surprise peut donner : tous les objets payants, chacun une fois ; les divins, si elle peut les donner. */
 export const nombreDansLaPochetteSurprise = (chances: Readonly<Record<RareteDObjet, number>>, catalogue: Catalogue = OBJETS): number =>
   ORDRE_RARETES_DES_OBJETS.reduce((n, rarete) => n + (rarete === RARETE_DIVINE && !(chances[rarete] > 0) ? 0 : objetsDeLaPochette(rarete, catalogue).length), 0);
+
+/**
+ * Un palier du sentier des Gaulois (16 novembre 2026, `Sentier.tsx`) : les objets payants de sa rareté, rayon par rayon.
+ * La chance de chacun est celle du tirage du serveur (`prendre_palier`) : un objet que le compte n'a pas encore, au hasard
+ * entre ceux-là ; s'il les a tous, un double, au hasard entre tous. `inventaire` : ce que le compte possède, ou `null` tant
+ * que l'écran ne l'a pas lu ; l'album ne dit alors ni ce qui est à lui ni aucune chance.
+ */
+export function albumDuPalier(palier: number, rarete: Exclude<RareteDObjet, typeof RARETE_DIVINE>, inventaire: readonly ObjetPossede[] | null, catalogue: Catalogue = OBJETS): Album {
+  const refs = objetsDeLaPochette(rarete, catalogue);
+  const eus = new Set(inventaire ? refs.filter((ref) => quantitePossedee(inventaire, ref.emplacement, ref.objet) > 0).map((ref) => `${ref.emplacement}/${ref.objet}`) : []);
+  const manque = refs.length - eus.size;
+  const elements: ElementDeLAlbum[] = [];
+  for (const emplacement of EMPLACEMENTS_OBJETS) {
+    for (const ref of refs) {
+      const fiche = ref.emplacement === emplacement ? catalogue[emplacement][ref.objet] : undefined;
+      if (!fiche) continue;
+      const id = `${emplacement}/${ref.objet}`;
+      const possede = eus.has(id);
+      elements.push({
+        id,
+        nom: fiche.nom,
+        rarete,
+        groupe: NOMS_EMPLACEMENTS[emplacement],
+        detail: NOMS_EMPLACEMENTS[emplacement],
+        dessin: dessinDeLObjet(emplacement, ref.objet, catalogue),
+        silhouette: false,
+        possede,
+        montre: false,
+        chance: !inventaire ? 0 : manque > 0 ? (possede ? 0 : 100 / manque) : 100 / refs.length,
+      });
+    }
+  }
+  const nom = RARETES_DES_OBJETS[rarete].nom.toLowerCase();
+  const sous = !inventaire
+    ? `Un objet ${nom} de la boutique, parmi ${objets(refs.length)}`
+    : manque > 1
+      ? `Un objet ${nom} de la boutique, parmi les ${manque} que vous n'avez pas encore`
+      : manque === 1
+        ? `L'objet ${nom} de la boutique que vous n'avez pas encore`
+        : "Vous avez tous les objets de cette rareté : ce sera un double";
+  return { titre: `Palier ${palier}`, sous, libelleDesGroupes: "Montrer un rayon", elements, motDeLaChance: "à ce palier" };
+}
 
 /** Le nom d'une taille de familier : « Minuscule », « Géant »… */
 const nomDeLaTaille = (familier: Familier): string => TAILLES.find((taille) => taille.id === tailleDuFamilier(familier).classe)?.nom ?? "";

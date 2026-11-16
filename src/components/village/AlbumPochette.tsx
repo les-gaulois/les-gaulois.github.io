@@ -33,7 +33,7 @@ function DessinDeLAlbum({ dessin, place, maximum, silhouette, class: classe }: {
 }
 
 /** La loupe : la case choisie en grand, décorative ; chaque case dit aux lecteurs d'écran son nom, sa rareté, son rayon ou sa famille et sa chance. */
-function Loupe({ element }: { element: ElementDeLAlbum }) {
+function Loupe({ element, motDeLaChance = "dans votre prochaine pochette" }: { element: ElementDeLAlbum; motDeLaChance?: string | undefined }) {
   return (
     <div class="album-loupe" data-rarete={element.rarete} aria-hidden="true" data-testid="album-loupe" data-element={element.id}>
       <div class="album-loupe-cadre">
@@ -46,7 +46,7 @@ function Loupe({ element }: { element: ElementDeLAlbum }) {
       {element.chance > 0 && (
         <p class="album-loupe-chance">
           <strong class="tnum">{pourcent(element.chance)}</strong>
-          <span>dans votre prochaine pochette</span>
+          <span>{motDeLaChance}</span>
         </p>
       )}
     </div>
@@ -103,7 +103,7 @@ function Panneau({ album, id, entete, onFermer, onPlacer }: { album: Album; id: 
             ))}
           </ul>
         </div>
-        {choisi && <Loupe element={choisi} />}
+        {choisi && <Loupe element={choisi} motDeLaChance={album.motDeLaChance} />}
       </div>
     </>
   );

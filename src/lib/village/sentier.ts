@@ -149,6 +149,50 @@ export function casesDuCalendrier(visites: number, tousLes: number): { cochees: 
   return { cochees: reste === 0 ? tousLes : reste, cases: tousLes };
 }
 
+/**
+ * La part dorée du rail dans la case d'un palier, de 0 à 100. Chaque case porte sa dalle au milieu : le chemin entre deux
+ * paliers tient dans la moitié droite d'une case et la moitié gauche de la suivante. Avant le premier palier, le chemin
+ * tient dans la moitié gauche de la première case. `fait` sur `cible` : les pas faits vers le palier suivant.
+ */
+export function remplissageDuRail(palier: number, atteint: number, fait: number, cible: number): number {
+  if (palier < atteint) return 100;
+  const f = cible > 0 && Number.isFinite(fait) ? Math.min(Math.max(fait / cible, 0), 1) : 0;
+  if (palier === atteint) return Math.round((50 + Math.min(f, 0.5) * 100) * 10) / 10;
+  if (palier === atteint + 1) return Math.round((atteint === 0 ? f * 50 : Math.max(0, f - 0.5) * 100) * 10) / 10;
+  return 0;
+}
+
+/** Les paliers montrés tant que la piste est repliée : une rangée de dix. */
+export const PALIERS_PAR_RANGEE = 10;
+
+/**
+ * La rangée de paliers que la piste repliée montre : celle du premier objet à prendre, sinon celle du palier suivant.
+ * `ailleurs` : les objets à prendre dans les autres rangées, que la piste repliée cacherait ; l'écran s'ouvre alors en entier.
+ */
+export function rangeeMontree(paliers: readonly PalierDuSentier[], atteint: number): { debut: number; fin: number; ailleurs: number } {
+  const total = paliers.length;
+  if (total === 0) return { debut: 1, fin: 0, ailleurs: 0 };
+  const aPrendre = paliers.filter((p) => etatDuPalier(p, atteint) === "a-prendre");
+  const repere = aPrendre[0]?.palier ?? Math.min(atteint + 1, total);
+  const debut = Math.floor((repere - 1) / PALIERS_PAR_RANGEE) * PALIERS_PAR_RANGEE + 1;
+  const fin = Math.min(total, debut + PALIERS_PAR_RANGEE - 1);
+  return { debut, fin, ailleurs: aPrendre.filter((p) => p.palier < debut || p.palier > fin).length };
+}
+
+/** Les jours de la saison, et le rang d'aujourd'hui (1 pour le premier) ; `null` hors de la saison ou pour des dates illisibles. */
+export function joursDeLaSaison(saison: Pick<SaisonDuSentier, "debut" | "fin">, jour: string): { total: number; rang: number } | null {
+  const debut = Date.parse(`${saison.debut}T00:00:00Z`);
+  const total = Math.round((Date.parse(`${saison.fin}T00:00:00Z`) - debut) / 86_400_000) + 1;
+  const rang = Math.round((Date.parse(`${jour}T00:00:00Z`) - debut) / 86_400_000) + 1;
+  return Number.isFinite(total) && Number.isFinite(rang) && total >= 1 && rang >= 1 && rang <= total ? { total, rang } : null;
+}
+
+/** Les jours de visite qu'il reste avant le cadeau de la rangée du calendrier ; 0 le jour où elle est pleine. */
+export function avantLeCadeau(visites: number, tousLes: number): number {
+  const { cochees, cases } = casesDuCalendrier(visites, tousLes);
+  return cases - cochees;
+}
+
 /** La part faite, de 0 à 100, pour une barre. */
 export const part = (fait: number, cible: number): number => (cible > 0 ? Math.round(Math.min(Math.max(fait / cible, 0), 1) * 100) : 0);
 
@@ -188,6 +232,15 @@ export function joursRestants(jour: string, fin: string): number {
  * 16 novembre 2026) : l'écran dit « XP », le mot des passes de combat ; le serveur et le code gardent « pas ».
  */
 export const motPas = (n: number): string => `${n} XP`;
+
+/**
+ * La part faite du défi du clan, telle que l'écran l'écrit : un entier de 0 à 100, arrondi vers le bas, et jamais 100 avant
+ * que le défi soit rempli (84,7 sur 85 s'écrit « 99 % »).
+ */
+export function partDuDefi(points: number, cible: number): number {
+  if (!(cible > 0) || !Number.isFinite(points)) return 0;
+  return points >= cible ? 100 : Math.min(99, Math.max(0, Math.floor((points / cible) * 100)));
+}
 
 /** Le sentier après un palier pris : l'objet reçu à sa place. */
 export function apresLePalier(sentier: MonSentier, reponse: PalierReponse): MonSentier {

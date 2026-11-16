@@ -3907,49 +3907,33 @@ main:has(.album) {
   }
 }
 
-/* ---------- Le sentier des Gaulois (16 novembre 2026) : l'onglet « Le sentier » de « Mon Gaulois ». ---------- */
+/* ---------- Le sentier des Gaulois (16 novembre 2026) : l'onglet « Le sentier » de « Mon Gaulois ». ----------
+   Dessin choisi par le pilote sur maquettes : la bannière du membre pour seul décor, une route de pavés en pixels, une
+   pochette à la couleur de la rareté par palier, puis les quatre cartes d'« Aujourd'hui ». Les couleurs des pavés, des
+   dalles et des tuiles sont celles d'un dessin : elles ne changent pas avec le thème ; tout le reste suit les jetons. */
 .sentier {
+  /* Le vert des choses faites, celui d'un dessin : le même dans les deux thèmes, pour que la coche blanche s'y lise. */
+  --sentier-vert: #17743a;
   display: grid;
   gap: 2rem;
   min-width: 0;
 }
-/* La tête : la saison, les pas en grand, le palier, puis ce qui reste avant le suivant. */
-.sentier-tete {
-  display: grid;
-  gap: 0.625rem;
-  max-width: 44rem;
+.sentier > *,
+.sentier-scene > *,
+.sentier-jour > * {
+  min-width: 0;
 }
-.sentier-saison {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.125rem 0.75rem;
-  align-items: baseline;
+.sentier > .form-success:empty {
+  display: none;
+}
+.sentier-note {
   color: var(--color-muted);
+  font-size: var(--text-sm);
+  line-height: 1.45;
 }
-.sentier-saison strong {
-  font-family: var(--font-display);
-  font-size: 1.125rem;
-  color: var(--ecriture);
-}
-.sentier-pas {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.25rem 0.625rem;
-}
-.sentier-pas-mot {
-  font-weight: 600;
-  color: var(--color-blue-text);
-}
-.sentier-palier {
-  margin-left: auto;
-  font-weight: 700;
-  color: var(--ecriture);
-}
-/* Une barre d'avancée : un rail, et sa part faite. Ce qu'elle montre est toujours écrit à côté. */
 .sentier-barre {
   display: block;
-  height: 0.625rem;
+  height: 0.75rem;
   overflow: hidden;
   border: 1px solid var(--color-line-strong);
   border-radius: 999px;
@@ -3958,203 +3942,831 @@ main:has(.album) {
 .sentier-barre i {
   display: block;
   height: 100%;
+  border-radius: 999px;
   background: var(--color-blue);
 }
-/* Ce qui se fait aujourd'hui : quatre cadres, jamais moins de 17 rem de large. */
-.sentier-jour {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
-  gap: 1rem;
-  min-width: 0;
+
+/* La scène : la bannière du membre en haut, un voile à sa teinte sombre qui porte la piste. Sans bannière, un fond clair. */
+.sentier-scene {
+  --ciel: clamp(13.5rem, 27vw, 30rem);
+  --voile: 10, 18, 48;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 1rem;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--color-blue) 16%, var(--color-navy)), var(--color-surface) 60%);
+  box-shadow: 0 14px 34px rgb(10 18 48 / 0.14);
 }
-.sentier-jour:empty {
-  display: none;
+.sentier-scene[data-banniere] {
+  background: rgb(var(--voile));
 }
-.sentier-carte {
+/* L'album d'un palier s'ouvre par-dessus les cartes d'« Aujourd'hui », qui viennent après la scène. */
+.sentier-scene:has(.album) {
+  z-index: 2;
+}
+.sentier-fond {
+  position: absolute;
+  z-index: -2;
+  inset: 0 0 auto;
+  width: 100%;
+  height: auto;
+}
+.sentier-voile {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(var(--voile), 0) 0, rgba(var(--voile), 0) calc(var(--ciel) - 5rem), rgba(var(--voile), 0.55) calc(var(--ciel) + 3rem), rgba(var(--voile), 0.9) calc(var(--ciel) + 16rem), rgb(var(--voile)) 100%);
+}
+.sentier-haut {
   display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  min-width: 0;
-  padding: 1.25rem;
-  border: 2px solid color-mix(in srgb, var(--color-blue) 45%, var(--color-navy));
-  border-radius: 0.75rem;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--color-blue) 9%, var(--color-navy)), var(--color-navy) 75%);
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 13.5rem;
+  padding: 1.25rem 1.25rem 0;
 }
-.sentier-carte[data-rempli] {
-  border-color: var(--color-ok);
+.sentier-scene[data-banniere] .sentier-haut {
+  min-height: var(--ciel);
 }
-.sentier-carte > .pochette-note:last-child {
-  margin-top: auto;
-}
-/* Les missions : une puce cochée ou vide, le nom, les pas ; la barre, s'il y en a une, passe dessous. */
-.sentier-missions {
+/* La saison : les XP en grand, le palier, ce qui reste avant le suivant, puis un trait par jour de la saison. */
+.sentier-saison {
   display: grid;
-  gap: 0.75rem;
+  gap: 0.5rem;
+  width: min(100%, 23rem);
+  padding: 1.125rem 1.25rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.875rem;
+  background: color-mix(in srgb, var(--color-navy) 95%, transparent);
+  box-shadow: 0 8px 22px rgb(10 18 48 / 0.2);
 }
-.sentier-missions li {
-  display: grid;
-  grid-template-columns: 1.375rem 1fr auto;
-  gap: 0.375rem 0.625rem;
-  align-items: start;
+.sentier-etiquette {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-red);
 }
-.sentier-missions .sentier-barre {
-  grid-column: 2 / -1;
+.sentier-ligne {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
 }
-.sentier-puce {
-  display: grid;
-  place-items: center;
-  width: 1.375rem;
-  height: 1.375rem;
-  border: 2px solid var(--color-line-strong);
-  border-radius: 0.375rem;
-  color: var(--sur-couleur);
+.sentier-kpi {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-family: var(--font-display);
+  font-size: 3.75rem;
+  font-weight: 700;
+  line-height: 0.85;
+  color: var(--ecriture);
 }
-.sentier-missions li[data-faite] .sentier-puce {
-  border-color: var(--color-ok);
-  background: var(--color-ok);
+.sentier-kpi small {
+  font-size: 1.1rem;
+  color: var(--color-blue-text);
 }
-.sentier-missions li[data-faite] .sentier-mission-nom {
+.sentier-palier {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--ecriture);
+  text-align: right;
+}
+.sentier-palier small {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 600;
   color: var(--color-muted);
 }
-.sentier-coche {
-  width: 0.875rem;
-  height: 0.875rem;
+.sentier-jours {
+  display: grid;
+  grid-template-columns: repeat(var(--jours, 45), minmax(0, 1fr));
+  gap: 1px;
 }
-.sentier-mission-nom {
+.sentier-jours i {
+  height: 0.5rem;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--ecriture) 12%, transparent);
+}
+.sentier-jours i[data-passe] {
+  background: var(--color-blue);
+}
+.sentier-jours i[data-ici] {
+  background: var(--color-red);
+}
+.sentier-banniere {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-navy) 95%, transparent);
+  box-shadow: 0 4px 12px rgb(10 18 48 / 0.18);
+  font-size: 0.8125rem;
   font-weight: 600;
   color: var(--ecriture);
 }
-.sentier-ou {
-  font-weight: 400;
-  color: var(--color-muted);
+.sentier-banniere b {
+  font-family: var(--font-display);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+/* La piste : une route de pavés qui se dore jusqu'où le membre est arrivé, une dalle numérotée par palier, sa case
+   dessous. Trois colonnes sur téléphone, cinq, puis dix : les mêmes seuils que `useColonnes` de Sentier.tsx. */
+.sentier-piste {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2.5rem 0;
+  padding: 1.5rem 1rem;
+}
+@media (min-width: 560px) {
+  .sentier-piste {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1180px) {
+  .sentier-piste {
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+  }
+}
+/* `--decalage` : la hauteur laissée au Gaulois, dans toute la rangée où il se tient. */
+.sentier-pas {
+  --decalage: 0rem;
+  --rarete: var(--color-line-strong);
+  position: relative;
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 0.625rem;
+  padding: var(--decalage) 0.3125rem 0;
+}
+.sentier-pas[data-avec-moi] {
+  --decalage: 9.75rem;
+}
+.sentier-pas[data-rarete="commun"] {
+  --rarete: var(--rarete-commun);
+}
+.sentier-pas[data-rarete="peu-commun"] {
+  --rarete: var(--rarete-peu-commun);
+}
+.sentier-pas[data-rarete="epique"] {
+  --rarete: var(--rarete-epique);
+}
+.sentier-pas[data-rarete="mystique"] {
+  --rarete: var(--rarete-mystique);
+}
+.sentier-pas[data-rarete="legendaire"] {
+  --rarete: var(--rarete-legendaire);
+}
+.sentier-pas::before {
+  content: "";
+  position: absolute;
+  top: calc(var(--decalage) + 8px);
+  right: 0;
+  left: 0;
+  height: 24px;
+  border-block: 3px solid #0a1230;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 20px, #0a1230 20px 23px),
+    linear-gradient(180deg, #fff1a8 0 4px, #f2b632 4px 12px, #a86d0c 12px) 0 0 / var(--fait, 0%) 100% no-repeat,
+    linear-gradient(180deg, #f4f6fb 0 4px, #c3cbdd 4px 12px, #8690ab 12px);
+}
+.sentier-noeud {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  background: #0a1230;
+  clip-path: polygon(6px 0, calc(100% - 6px) 0, calc(100% - 6px) 3px, calc(100% - 3px) 3px, calc(100% - 3px) 6px, 100% 6px, 100% calc(100% - 6px), calc(100% - 3px) calc(100% - 6px), calc(100% - 3px) calc(100% - 3px), calc(100% - 6px) calc(100% - 3px), calc(100% - 6px) 100%, 6px 100%, 6px calc(100% - 3px), 3px calc(100% - 3px), 3px calc(100% - 6px), 0 calc(100% - 6px), 0 6px, 3px 6px, 3px 3px, 6px 3px);
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  font-weight: 800;
+  line-height: 1;
+  color: #0a1230;
+}
+.sentier-noeud > span {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  background: linear-gradient(180deg, var(--sur-couleur) 0 5px, #e6eaf3 5px 26px, #aab3c9 26px);
+  clip-path: polygon(3px 0, calc(100% - 3px) 0, calc(100% - 3px) 3px, 100% 3px, 100% calc(100% - 3px), calc(100% - 3px) calc(100% - 3px), calc(100% - 3px) 100%, 3px 100%, 3px calc(100% - 3px), 0 calc(100% - 3px), 0 3px, 3px 3px);
+}
+.sentier-pas[data-jalon][data-etat="ferme"] .sentier-noeud > span {
+  /* Sous une écriture blanche, la couleur de la rareté s'assombrit : 6 pour 1 au moins sur l'épique et le mystique. */
+  --dalle: color-mix(in srgb, var(--rarete) 72%, #0a1230);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--rarete) 45%, var(--sur-couleur)) 0 5px, var(--dalle) 5px 26px, color-mix(in srgb, var(--rarete) 50%, #0a1230) 26px);
+  color: var(--sur-couleur);
+}
+.sentier-pas[data-jalon][data-etat="ferme"]:is([data-rarete="legendaire"], [data-rarete="commun"]) .sentier-noeud > span {
+  --dalle: var(--rarete);
+  color: #0a1230;
+}
+.sentier-pas[data-etat="pris"] .sentier-noeud > span {
+  background: linear-gradient(180deg, #fff1a8 0 5px, #f2b632 5px 26px, #a86d0c 26px);
+}
+.sentier-pas[data-etat="a-prendre"] .sentier-noeud > span {
+  background: linear-gradient(180deg, #7fb0ff 0 5px, #0b5fff 5px 26px, #0a3fae 26px);
+  color: var(--sur-couleur);
+}
+/* Le Gaulois du membre, debout sur la route : ses pieds sur le pavé de son palier. */
+.sentier-moi-place {
+  position: absolute;
+  z-index: 2;
+  top: calc(var(--decalage) + 11px);
+  left: 50%;
+  translate: -50% -100%;
+  pointer-events: none;
+}
+.sentier-moi-place[data-depart] {
+  left: 1.25rem;
+}
+.sentier-moi {
+  display: grid;
+  justify-items: center;
+  gap: 0.125rem;
+}
+.sentier-moi b {
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  background: #d91228;
+  box-shadow: 0 0 0 2px var(--sur-couleur);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sur-couleur);
+}
+.sentier-moi canvas {
+  filter: drop-shadow(0 0.2rem 0 rgb(10 18 48 / 0.4));
+  animation: sentier-pas 2.8s ease-in-out infinite;
+}
+
+/* Les cases, comme à la boutique : la pochette à la couleur de la rareté, ses losanges, ce qu'il faut. */
+.sentier-case {
+  grid-template-rows: 4.5rem auto;
+  width: 100%;
+  max-width: 10rem;
+  box-shadow: 0 3px 0 rgb(10 18 48 / 0.28);
+  cursor: default;
+}
+.sentier-case .case-image {
+  height: 4.5rem;
+}
+/* Le dessin de la pochette ouvre l'album du palier ; sa pastille de la boutique encombrerait dix cases de front. */
+.sentier-case .album-declencheur {
+  margin: 0;
+  padding: 0.125rem;
+}
+.sentier-case .album-pastille {
+  display: none;
+}
+.sentier-seuil {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 0.125rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-navy) 75%, transparent);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--ecriture);
   white-space: nowrap;
 }
+.sentier-prendre {
+  margin-top: 0.125rem;
+  padding: 0.375rem 0.75rem;
+  font-size: var(--text-sm);
+}
+/* Un palier pris : la case et son objet grisés, et un sceau vert tamponné une fois. */
+.sentier-pas[data-etat="pris"] .sentier-case {
+  --rarete: var(--color-line-strong);
+  --rarete-texte: var(--color-muted);
+  --rarete-cadre: var(--color-line-strong);
+  box-shadow: 0 3px 0 rgb(10 18 48 / 0.18);
+}
+.sentier-pas[data-etat="pris"] .case-dessin {
+  filter: grayscale(1);
+  opacity: 0.45;
+}
+.sentier-sceau {
+  width: 1.75rem;
+  height: 1.75rem;
+  margin-top: 0.0625rem;
+  border-radius: 999px;
+  background: var(--sentier-vert) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.5 5 9l4.5-5.5' fill='none' stroke='%23fff' stroke-width='1.8'/%3E%3C/svg%3E") center / 1rem no-repeat;
+  box-shadow:
+    0 0 0 2px var(--color-navy),
+    0 2px 0 2px rgb(10 18 48 / 0.2);
+  rotate: -8deg;
+  animation: sentier-sceau 0.5s 0.6s cubic-bezier(0.2, 0.9, 0.3, 1.2) backwards;
+}
+.sentier-pas[data-etat="a-prendre"] .sentier-case {
+  box-shadow:
+    0 0 0 2px var(--color-navy),
+    0 0 0 5px #f2b632,
+    0 0 1.5rem 0.25rem rgb(242 182 50 / 0.55);
+}
+.sentier-pas[data-etat="a-prendre"] .sentier-sac {
+  animation: sentier-appel 3.2s ease-in-out infinite;
+}
+.sentier-pas[data-etat="ferme"] .sentier-sac {
+  filter: saturate(0.85);
+}
+/* Les paliers 10, 20, 30 : un cadre d'or et une étoile. */
+.sentier-pas[data-jalon]:not([data-etat="pris"]) .sentier-case {
+  border-width: 3px;
+  --rarete-cadre: var(--rarete-legendaire-degrade);
+}
+.sentier-pas[data-jalon]:not([data-etat="pris"]) .sentier-case::before {
+  content: "";
+  position: absolute;
+  top: -0.5rem;
+  right: -0.5rem;
+  width: 1.375rem;
+  height: 1.375rem;
+  background: #f2b632;
+  clip-path: polygon(50% 0, 62% 36%, 100% 38%, 70% 60%, 80% 100%, 50% 76%, 20% 100%, 30% 60%, 0 38%, 38% 36%);
+}
+/* La piste repliée : la rangée du membre, et un bouton pour voir tous les paliers. */
+.sentier-voir-tout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem 1rem;
+  padding: 0 1rem 1.25rem;
+}
+.sentier-voir-tout span {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-muted);
+}
+.sentier-scene[data-banniere] .sentier-voir-tout span {
+  color: var(--sur-couleur);
+  text-shadow: 0 1px 2px rgb(10 18 48 / 0.6);
+}
+.sentier-voir-tout .btn {
+  padding: 0.375rem 0.875rem;
+  background: var(--color-navy);
+  color: var(--ecriture);
+  font-size: var(--text-sm);
+}
+.sentier-legende {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.625rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--color-line);
+  background: color-mix(in srgb, var(--color-navy) 96%, transparent);
+}
+.sentier-puce {
+  --rarete-texte: var(--color-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.1875rem 0.625rem 0.1875rem 0.3125rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.375rem;
+  background: var(--color-navy);
+}
+.sentier-puce canvas {
+  width: 1.375rem !important;
+  height: 1.375rem !important;
+}
+.sentier-puce .case-rarete {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8125rem;
+}
+.sentier-puce[data-rarete="commun"] {
+  --rarete-texte: var(--rarete-commun-texte);
+}
+.sentier-puce[data-rarete="peu-commun"] {
+  --rarete-texte: var(--rarete-peu-commun-texte);
+}
+.sentier-puce[data-rarete="epique"] {
+  --rarete-texte: var(--rarete-epique-texte);
+}
+.sentier-puce[data-rarete="mystique"] {
+  --rarete-texte: var(--rarete-mystique-texte);
+}
+.sentier-puce[data-rarete="legendaire"] {
+  --rarete-texte: var(--rarete-legendaire-texte);
+}
+
+/* « Aujourd'hui » : quatre cartes teintées. */
+.sentier-titre {
+  margin-bottom: 1rem;
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--ecriture);
+}
+.sentier-titre::first-letter {
+  font-size: 1.25em;
+  color: var(--color-red);
+}
+.sentier-jour {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+}
+@media (min-width: 900px) {
+  .sentier-jour {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+  .sentier-jour > :nth-child(odd) {
+    grid-column: span 7;
+  }
+  .sentier-jour > :nth-child(even) {
+    grid-column: span 5;
+  }
+  /* Une carte seule sur sa rangée prend toute la largeur. */
+  .sentier-jour > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+}
+.sentier-carte {
+  --teinte: var(--color-blue);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  overflow: hidden;
+  padding: 1.25rem;
+  border: 2px solid color-mix(in srgb, var(--teinte) 70%, var(--color-navy));
+  border-radius: 0.75rem;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--teinte) 20%, var(--color-navy)), color-mix(in srgb, var(--teinte) 6%, var(--color-navy)) 75%);
+}
+.sentier-carte[data-ton="or"] {
+  --teinte: #f2b632;
+}
+.sentier-carte[data-ton="vert"] {
+  --teinte: #2f8a55;
+}
+.sentier-carte[data-ton="violet"] {
+  --teinte: var(--rarete-epique);
+}
+.sentier-carte > .sentier-note:last-child {
+  margin-top: auto;
+}
+.sentier-carte-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.875rem;
+}
+.sentier-carte-tete > div {
+  flex: 1 1 9rem;
+  min-width: 0;
+}
+.sentier-carte-dessin {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 4.25rem;
+  height: 4.25rem;
+}
+.sentier-carte h4 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--ecriture);
+}
+.sentier-carte-tete small {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-muted);
+}
 .sentier-gain {
+  align-self: center;
+  margin-left: auto;
+  padding: 0.25rem 0.625rem;
+  border: 1px solid color-mix(in srgb, var(--teinte) 55%, var(--color-navy));
+  border-radius: 999px;
+  background: var(--color-navy);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--ecriture);
+  white-space: nowrap;
+}
+
+/* Les missions : une tuile marine à son image en pixels, le nom, l'avancée, les XP. */
+.sentier-missions {
+  display: grid;
+  gap: 0.625rem;
+}
+.sentier-mission {
+  display: grid;
+  grid-template-columns: 3.25rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.25rem 0.875rem;
+  padding: 0.625rem 0.75rem 0.625rem 0.625rem;
+  border: 1px solid color-mix(in srgb, var(--color-blue) 26%, var(--color-navy));
+  border-radius: 0.625rem;
+  background: color-mix(in srgb, var(--color-navy) 82%, transparent);
+}
+.sentier-tuile {
+  position: relative;
+  display: grid;
+  grid-row: span 2;
+  place-items: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 0.625rem;
+  background: #0a1230;
+  box-shadow: 0 0 0 1px var(--color-line);
+}
+.sentier-mission[data-faite] .sentier-tuile {
+  background: var(--sentier-vert);
+}
+.sentier-mission[data-faite] .sentier-tuile::after {
+  content: "";
+  position: absolute;
+  right: -0.3125rem;
+  bottom: -0.3125rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid var(--color-navy);
+  border-radius: 999px;
+  background: #0a1230 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.5 5 9l4.5-5.5' fill='none' stroke='%23fff' stroke-width='1.8'/%3E%3C/svg%3E") center / 0.75rem no-repeat;
+}
+.sentier-mission-nom {
+  align-self: end;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--ecriture);
+}
+.sentier-mission[data-faite] .sentier-mission-nom {
+  color: var(--color-muted);
+}
+.sentier-mission-suite {
+  display: grid;
+  grid-column: 2;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  align-self: start;
+  gap: 0.625rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+.sentier-mission-suite .sentier-barre {
+  height: 0.5rem;
+}
+.sentier-xp {
+  grid-row: 1 / span 2;
+  grid-column: 3;
+  padding: 0.3125rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--color-blue) 40%, var(--color-navy));
+  border-radius: 999px;
+  background: var(--color-navy);
+  font-size: 0.9375rem;
   font-weight: 700;
   color: var(--color-blue-text);
   white-space: nowrap;
 }
-.sentier-missions li[data-faite] .sentier-gain {
-  color: var(--color-ok);
+.sentier-mission[data-faite] .sentier-xp {
+  border-color: var(--sentier-vert);
+  background: var(--sentier-vert);
+  color: var(--sur-couleur);
+}
+
+/* Le défi du clan : la carte de France du jeu se colore à mesure que le clan avance. */
+.sentier-defi-corps {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(7rem, 10.5rem);
+  align-items: center;
+  gap: 1rem;
 }
 .sentier-chiffre {
+  line-height: 1.35;
   color: var(--color-muted);
 }
 .sentier-chiffre strong {
+  display: block;
   font-family: var(--font-display);
-  font-size: 2rem;
-  line-height: 1;
+  font-size: 3rem;
+  font-weight: 700;
+  line-height: 0.95;
   color: var(--ecriture);
 }
-/* Le calendrier : sept cases, la dernière porte le cadeau. Une case cochée est pleine et porte sa coche. */
-.sentier-calendrier {
+.sentier-carte[data-ton="or"] .sentier-barre {
+  height: 0.625rem;
+  margin-top: 0.625rem;
+  border-color: #a86d0c;
+}
+.sentier-carte[data-ton="or"] .sentier-barre i {
+  background: #f2b632;
+}
+.sentier-gaule {
+  position: relative;
+  aspect-ratio: 1;
+}
+.sentier-gaule img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: saturate(0.45) brightness(0.9);
+}
+.sentier-gaule-prise {
+  position: absolute;
+  inset: 0;
+  background: var(--color-flag-blue);
+  opacity: 0.72;
+  -webkit-mask: var(--carte) center / contain no-repeat;
+  mask: var(--carte) center / contain no-repeat;
+  clip-path: inset(0 calc(100% - var(--part)) 0 0);
+}
+.sentier-gaule-front {
+  position: absolute;
+  top: 6%;
+  bottom: 6%;
+  left: clamp(12%, var(--part), 88%);
+  width: 0;
+  border-left: 2px dashed var(--ecriture);
+}
+.sentier-gaule-front b {
+  position: absolute;
+  top: -0.25rem;
+  left: 0;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  background: var(--ecriture);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--color-navy);
+  white-space: nowrap;
+  translate: -50% -100%;
+}
+
+/* Le calendrier : une tuile par jour de visite, la dernière porte le cadeau. */
+.sentier-semaine {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 0.375rem;
+  gap: 0.5rem;
+  padding-bottom: 0.625rem;
 }
-.sentier-calendrier li {
+.sentier-semaine li {
+  position: relative;
   display: grid;
   place-items: center;
   aspect-ratio: 1;
-  min-width: 0;
-  border: 2px solid var(--color-line-strong);
-  border-radius: 0.375rem;
-  font-size: var(--text-sm);
+  border: 2px solid color-mix(in srgb, #2f8a55 45%, var(--color-navy));
+  border-radius: 0.625rem;
+  background: color-mix(in srgb, var(--color-navy) 85%, transparent);
+  font-size: 1.0625rem;
   font-weight: 700;
   color: var(--color-muted);
 }
-.sentier-calendrier li[data-cadeau] {
-  border-color: var(--rarete-legendaire);
-  color: var(--rarete-legendaire-texte);
+.sentier-semaine li[data-cochee] {
+  border-color: var(--sentier-vert);
+  background: var(--sentier-vert);
 }
-.sentier-calendrier li[data-cochee] {
-  border-color: var(--color-blue);
-  background: var(--color-blue);
-  color: var(--sur-couleur);
+.sentier-semaine li[data-cochee]::after {
+  content: "";
+  width: 42%;
+  height: 22%;
+  border-bottom: 3px solid var(--sur-couleur);
+  border-left: 3px solid var(--sur-couleur);
+  rotate: -45deg;
+  translate: 0 -12%;
 }
-.sentier-calendrier li[data-cochee][data-cadeau] {
-  border-color: var(--rarete-legendaire-texte);
-  background: var(--rarete-legendaire-texte);
+.sentier-semaine li[data-cadeau]:not([data-cochee]) {
+  border-color: #f2b632;
+  background: linear-gradient(180deg, color-mix(in srgb, #f2b632 40%, var(--color-navy)), var(--color-navy));
 }
-/* L'étal : la case de l'objet, puis son prix, l'ancien barré, et le bouton. */
+.sentier-semaine li[data-cadeau] canvas {
+  max-width: 82%;
+  height: auto !important;
+}
+.sentier-semaine li[data-cadeau]:not([data-cochee]) > span {
+  position: absolute;
+  bottom: -0.625rem;
+  left: 50%;
+  padding: 0 0.3rem;
+  border: 1px solid #f2b632;
+  border-radius: 999px;
+  background: var(--color-navy);
+  font-size: 0.6875rem;
+  color: var(--ecriture);
+  white-space: nowrap;
+  translate: -50% 0;
+}
+.sentier-prochain {
+  align-self: flex-start;
+  padding: 0.375rem 0.75rem;
+  border: 1px solid color-mix(in srgb, #2f8a55 40%, var(--color-navy));
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--color-navy) 85%, transparent);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ecriture);
+}
+
+/* L'étal : son auvent rayé, l'objet du jour, le prix d'aujourd'hui en grand et celui de la boutique barré. */
+.sentier-etal {
+  padding-top: 2rem;
+}
+.sentier-etal::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 0.875rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-red) 40%, var(--color-navy));
+  background: repeating-linear-gradient(90deg, var(--color-red) 0 1.25rem, var(--sur-couleur) 1.25rem 2.5rem);
+}
 .sentier-etal-corps {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
   align-items: center;
+  gap: 1rem;
+}
+.sentier-etal-corps .case {
+  width: 7.25rem;
 }
 .sentier-etal-prix {
   display: grid;
   gap: 0.375rem;
   justify-items: start;
 }
+.sentier-etal-prix .pochette-prix {
+  font-size: 1.375rem;
+}
 .sentier-ancien-prix {
   color: var(--color-muted);
   font-size: var(--text-sm);
 }
-/* Les paliers : une case par palier, de la couleur de la rareté de son objet. */
-.sentier-chemin {
-  display: grid;
-  gap: 0.75rem;
-  min-width: 0;
-}
-.sentier-chemin h3 {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem 0.875rem;
-  align-items: baseline;
-}
-.sentier-attendent {
-  font-size: var(--text-sm);
-  color: var(--color-ok);
-}
-.sentier-paliers {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(6.25rem, 1fr));
-  gap: 0.75rem;
-  min-width: 0;
-}
-.sentier-paliers > .palier {
-  width: auto;
-  grid-template-rows: 5rem auto;
-}
-.palier-numero {
-  font-family: var(--font-display);
-  font-size: 2.5rem;
-  font-weight: 800;
-  line-height: 1;
-  color: var(--rarete-texte);
-}
-.palier-objet {
-  display: block;
-  font-weight: 600;
-}
-.palier-seuil {
-  font-size: var(--text-xs);
-  font-weight: 600;
+.sentier-credit {
+  margin-top: 0.875rem;
   color: var(--color-muted);
+  font-size: 0.8125rem;
 }
-/* Un palier pas encore atteint : ses couleurs s'éteignent, ses mots restent lisibles. */
-.palier[data-etat="ferme"] {
-  filter: grayscale(0.65);
+.sentier-credit a {
+  color: var(--color-blue-text);
+  text-decoration: underline;
 }
-.palier[data-etat="a-prendre"] {
-  box-shadow: 0 0 0 2px var(--color-navy), 0 0 0 5px var(--color-ok);
+
+@keyframes sentier-pas {
+  50% {
+    transform: translateY(-0.2rem);
+  }
 }
-.palier[data-etat="pris"]::after {
-  content: "";
-  position: absolute;
-  top: 0.3125rem;
-  left: 0.3125rem;
-  width: 1.125rem;
-  height: 1.125rem;
-  border-radius: 0.25rem;
-  background: var(--color-ok) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 6.5 5 9.5 10 3' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='square'/%3E%3C/svg%3E") center / 0.75rem no-repeat;
+@keyframes sentier-appel {
+  50% {
+    transform: scale(1.1) rotate(-3deg);
+  }
 }
-.palier-prendre {
-  margin-top: 0.25rem;
-  padding: 0.375rem 0.75rem;
-  font-size: var(--text-sm);
+@keyframes sentier-sceau {
+  from {
+    opacity: 0;
+    scale: 2.1;
+    rotate: -24deg;
+  }
+}
+@media (max-width: 559px) {
+  .sentier-haut {
+    min-height: 0;
+  }
+  .sentier-kpi {
+    font-size: 3rem;
+  }
+  .sentier-scene[data-banniere] {
+    --ciel: 54vw;
+  }
+  .sentier-scene[data-banniere] .sentier-haut {
+    min-height: 0;
+    padding-top: calc(var(--ciel) - 1.5rem);
+  }
+  .sentier-defi-corps {
+    grid-template-columns: minmax(0, 1fr) 6.5rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sentier-moi canvas,
+  .sentier-pas[data-etat="a-prendre"] .sentier-sac,
+  .sentier-sceau {
+    animation: none;
+  }
 }
 
 /* La loterie du lundi (Loterie.tsx, 16 novembre 2026) : l'onglet « La loterie » de « Mon Gaulois », dans la mise en

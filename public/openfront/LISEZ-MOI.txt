@@ -10,3 +10,15 @@ https://creativecommons.org/licenses/by-sa/4.0/deed.fr
 
 Copiées sans modification le 15 novembre 2026. La page les colore et les pose sur la carte comme le jeu (formes, couleurs
 des joueurs, contours), dans src/lib/rejeu/details.ts. Ces images restent sous la même licence.
+
+Carte de France du jeu OpenFront, reprise pour l'onglet « Le sentier » de « Mon Gaulois » (https://les-gaulois.github.io/village#sentier).
+
+france.webp : resources/maps/france/thumbnail.webp (la vignette de la carte « France »)
+
+Source : dépôt https://github.com/openfrontio/OpenFrontIO, commit b054b64d1073dec69fd3b713b432ab9a5bb5a791.
+© OpenFront and Contributors, sous licence Creative Commons Attribution - Partage dans les mêmes conditions 4.0 (CC BY-SA 4.0) :
+https://creativecommons.org/licenses/by-sa/4.0/deed.fr
+
+Copiée sans modification le 16 novembre 2026. La page la montre pâlie et la colore en bleu, de gauche à droite, à la part
+faite du défi du clan (src/components/village/Sentier.tsx, src/styles/feuilles/09-village.css). Cette image reste sous la
+même licence.
