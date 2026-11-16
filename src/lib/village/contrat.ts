@@ -881,11 +881,13 @@ export const PREMIER_TIRAGE_LOTERIE = "2026-11-23";
 /**
  * La part d'un Gaulois dans un tirage : ses billets gagnés (un par point rapporté au clan dans la semaine) et achetés.
  * Dans un tirage fait, `rang` dit sa marche du podium et `billet` le billet tiré, compté dans les siens à partir de zéro,
- * les billets gagnés d'abord ; sinon les deux sont null. Jamais un identifiant.
+ * les billets gagnés d'abord ; sinon les deux sont null. `banniere` : la bannière qu'il montre sur /gaulois, ou null (et
+ * null tant que la migration 20261116001600 n'est pas installée). Jamais un identifiant.
  */
 export interface PartDeLoterie {
   nom: string;
   tenue: unknown;
+  banniere: string | null;
   moi: boolean;
   gratuits: number;
   achetes: number;

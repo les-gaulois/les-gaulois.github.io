@@ -69,7 +69,8 @@ export function lireParts(valeur: unknown, fait: boolean): PartDeLoterie[] | nul
       rang = r;
       billet = b;
     }
-    parts.push({ nom, tenue: tenue ?? null, moi, gratuits, achetes, rang, billet });
+    const banniere = typeof ligne["banniere"] === "string" && ligne["banniere"] !== "" ? ligne["banniere"] : null;
+    parts.push({ nom, tenue: tenue ?? null, banniere, moi, gratuits, achetes, rang, billet });
   }
   if (parts.filter((part) => part.moi).length > 1) return null;
   // Jamais deux gagnants sur la même marche. Une marche peut manquer : moins de trois parts, ou un compte effacé depuis.

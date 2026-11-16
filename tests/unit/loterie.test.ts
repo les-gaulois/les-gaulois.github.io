@@ -34,7 +34,7 @@ const entre = (texte: string, debut: string, fin: string) => texte.slice(texte.i
 /** Le corps d'une fonction de la migration, de son `create` au `$$;` qui la ferme. */
 const fonction = (nom: string) => entre(SQL, `create or replace function ${nom}(`, "$$;\n");
 
-const part = (nom: string, gratuits: number, achetes = 0, plus: Partial<PartDeLoterie> = {}): PartDeLoterie => ({ nom, tenue: null, moi: false, gratuits, achetes, rang: null, billet: null, ...plus });
+const part = (nom: string, gratuits: number, achetes = 0, plus: Partial<PartDeLoterie> = {}): PartDeLoterie => ({ nom, tenue: null, banniere: null, moi: false, gratuits, achetes, rang: null, billet: null, ...plus });
 const reponse = (plus: Record<string, unknown> = {}) => ({
   ok: true,
   tirage: "2026-11-23",
@@ -157,6 +157,18 @@ describe("la loterie du lundi, côté serveur", () => {
     expect(ancien).toContain("'pronostic_rendu', 'marche_vente')");
   });
 
+  it("donne la bannière de chaque part par la fonction d'avant, ligne pour ligne, avec un champ en plus", () => {
+    const suite = readFileSync("supabase/migrations/20261116001600_loterie_bannieres.sql", "utf8").replace(/\r\n/g, "\n");
+    const apres = entre(suite, "create or replace function internal.loterie_parts_json(", "$$;\n");
+    const ajout = "        -- Ajout de 20261116001600 : la bannière qu'il montre sur /gaulois, pour la case de son lot.\n        'banniere', m.banniere,\n";
+    expect(apres).toBe(fonction("internal.loterie_parts_json").replace("        'tenue', m.tenue,\n", `        'tenue', m.tenue,\n${ajout}`));
+    expect(apres).toContain(ajout);
+    // Elle vient de internal.gaulois_montre, comme la tenue : la copie pendant un essai du mode GOD.
+    expect(apres).toContain("join lateral internal.gaulois_montre(x.user_id) m on true");
+    expect(suite).toContain("revoke all on function internal.loterie_parts_json(uuid, date, boolean) from public, anon, authenticated;");
+    expect(suite).not.toMatch(/\bdrop\b|\btruncate\b|\bdelete from\b|\bcreate table\b|\bgrant\b/i);
+  });
+
   it("ne donne ni identifiant ni solde d'un autre, et se ferme à qui n'est pas validé", () => {
     const lire = fonction("public.get_loterie");
     expect(lire).toContain("if v_status <> 'validated' and internal.rank_of(v_role) < 2 then return internal.error_json('not_validated', ''); end if;");
@@ -179,6 +191,10 @@ describe("la loterie du lundi, lecture des réponses", () => {
     expect(ma?.parts.map((p) => [p.nom, p.gratuits, p.achetes, p.moi, p.rang])).toEqual([["Alix", 6, 2, true, null], ["Bran", 3, 0, false, null]]);
     expect(ma?.bons).toEqual({ stateres: 2 });
     expect(ma?.dernier).toBeNull();
+    // La bannière de chacun, si le serveur la donne ; sinon null, et l'écran dessine le gagnant sans elle.
+    expect(ma?.parts.map((p) => p.banniere)).toEqual([null, null]);
+    const avec = lireLoterie(reponse({ parts: [{ nom: "Alix", tenue: null, banniere: "mer-de-nuages", moi: true, gratuits: 6, achetes: 2 }, { nom: "Bran", tenue: null, banniere: "", moi: false, gratuits: 3, achetes: 0 }] }));
+    expect(avec?.parts.map((p) => p.banniere)).toEqual(["mer-de-nuages", null]);
   });
 
   it("lit le dernier tirage, avec ses gagnants dans l'ordre", () => {

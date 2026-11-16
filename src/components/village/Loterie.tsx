@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
+import { GAULOIS as PLACE_DU_GAULOIS, HAUTEUR as DECOR_HAUTEUR, LARGEUR as DECOR_LARGEUR } from "../../../supabase/functions/code-discord/decors/commun";
+import { casesDuStatere } from "../../../supabase/functions/code-discord/statere";
 import { ServerError, call } from "../../lib/compte/api";
 import { motionAllowed } from "../../lib/fx/motion";
-import { GAULOIS_HAUTEUR, GAULOIS_LARGEUR, casesDuGaulois, lireTenue } from "../../lib/gaulois";
+import { CLE_MODELE, GAULOIS_HAUTEUR, GAULOIS_LARGEUR, TENUE_DE_DEPART, casesDuGaulois, lireTenue } from "../../lib/gaulois";
 import { addDays } from "../../lib/time";
-import { PREMIER_TIRAGE_LOTERIE, type MaLoterie, type PartDeLoterie } from "../../lib/village/contrat";
+import { POCHETTES_GAGNEES, PREMIER_TIRAGE_LOTERIE, type LotDeLoterie, type MaLoterie, type PartDeLoterie, type PochetteGagnee } from "../../lib/village/contrat";
 import { instant, manque, nombre, pourcent, stateres } from "../../lib/village/ecran-boutique";
 import {
   NOMS_DES_RANGS,
+  RANGS,
   abscisseDuBillet,
   achatPossible,
   apresLAchat,
-  billetsDe,
   bonsEnMots,
   bustesDeLaJauge,
   dispositionDeLaJauge,
@@ -21,6 +23,7 @@ import {
   jourEnMots,
   lireAchatDeBillets,
   lireLoterie,
+  lisse,
   maPart,
   messageDuRefusDeLoterie,
   ordreDeLaJauge,
@@ -32,8 +35,13 @@ import {
   type CadreDeJauge,
   type Rang,
 } from "../../lib/village/loterie";
+import { MODELES } from "../../lib/village/modeles";
 import { Loading, Problem, messageOf } from "../compte/common";
-import { Prix } from "./BoutiquePixels";
+import { charger as chargerLesBannieres } from "./Bannieres";
+import { casesDeLaPochetteBannieres } from "./PochetteBannieresDessin";
+import { POCHETTE_COTE, casesDeLaPochette } from "./PochetteDessin";
+import { casesDeLaPochetteFamiliers } from "./PochetteFamiliersDessin";
+import { casesDeLaPochetteDeStateres } from "./PochetteStateres";
 
 const ILLISIBLE = "La réponse du serveur est illisible. Rechargez la page.";
 /** Refus après lesquels réessayer ne sert à rien. */
@@ -41,41 +49,32 @@ const SANS_RETOUR = new Set(["not_signed_in", "suspended", "not_validated"]);
 /** Le dernier tirage dont ce navigateur a vu l'animation : elle ne se joue seule qu'une fois. */
 const CLE_VU = "gal-loterie-vu";
 
-/* ---------- Le dessin de la jauge ---------- */
+/* ---------- Les dessins ---------- */
 
-/** Les couleurs des marches : la face, son ombre, sa lumière. L'écriture y reste celle de la page. */
-const MEDAILLES: Readonly<Record<Rang, { face: string; ombre: string; lumiere: string }>> = {
-  1: { face: "#f2b632", ombre: "#a86d0c", lumiere: "#ffdd80" },
-  2: { face: "#c9d1e6", ombre: "#7a88b4", lumiere: "#f1f4fb" },
-  3: { face: "#d98a4e", ombre: "#8f4f1f", lumiere: "#f0b483" },
+/** Les couleurs des lots : la face et son ombre. L'écriture y reste le marine de la page claire : les faces sont claires. */
+const MEDAILLES: Readonly<Record<Rang, { face: string; ombre: string }>> = {
+  1: { face: "#f2b632", ombre: "#a86d0c" },
+  2: { face: "#c9d1e6", ombre: "#7a88b4" },
+  3: { face: "#d98a4e", ombre: "#8f4f1f" },
 };
-const HAUTEURS: Readonly<Record<Rang, number>> = { 1: 84, 2: 64, 3: 46 };
-/** L'or des billets achetés : celui du statère. */
-const OR = "#f2b632";
+const MARINE = "#0a1230";
 
-/** Les mesures de la toile : large (ordinateur) ou étroite (téléphone), avec ou sans podium. */
-interface Mesures {
-  largeur: number;
-  hauteur: number;
-  cadre: CadreDeJauge;
-  /** La taille d'une case des Gaulois du podium. */
-  echelle: number;
-  marche: number;
-  podium: boolean;
+/** Une grille de cases (« #rrggbb » ou vide) peinte une fois, à une case par pixel. */
+function toileDe(cases: readonly (string | null)[], largeur: number, hauteur: number): HTMLCanvasElement | null {
+  const toile = document.createElement("canvas");
+  toile.width = largeur;
+  toile.height = hauteur;
+  const contexte = toile.getContext("2d");
+  if (!contexte) return null;
+  const image = contexte.createImageData(largeur, hauteur);
+  cases.forEach((couleur, i) => {
+    if (!couleur || !/^#[0-9a-f]{6}$/i.test(couleur)) return;
+    const n = parseInt(couleur.slice(1), 16);
+    image.data.set([(n >> 16) & 255, (n >> 8) & 255, n & 255, 255], i * 4);
+  });
+  contexte.putImageData(image, 0, 0);
+  return toile;
 }
-const NOMS_Y = 40;
-const BUSTE_BAS = 128;
-const BARRE_Y = 136;
-const BARRE_H = 36;
-/** La taille de la toile selon la place : 0 le téléphone, 1 l'ordinateur, 2 le grand écran, où plus de Gaulois tiennent. */
-type Taille = 0 | 1 | 2;
-const tailleDe = (largeur: number): Taille => (largeur >= 1100 ? 2 : largeur >= 560 ? 1 : 0);
-const mesures = (taille: Taille, podium: boolean): Mesures =>
-  taille === 2
-    ? { largeur: 1200, hauteur: podium ? 500 : 190, cadre: { x: 30, largeur: 1140, joint: 4, buste: 66 }, echelle: 3, marche: 180, podium }
-    : taille === 1
-      ? { largeur: 800, hauteur: podium ? 500 : 190, cadre: { x: 30, largeur: 740, joint: 4, buste: 66 }, echelle: 3, marche: 180, podium }
-      : { largeur: 420, hauteur: podium ? 432 : 190, cadre: { x: 16, largeur: 388, joint: 3, buste: 66 }, echelle: 2, marche: 126, podium };
 
 interface Dessin {
   toile: HTMLCanvasElement;
@@ -83,67 +82,171 @@ interface Dessin {
   bas: number;
 }
 
-/** Le Gaulois d'une part, dessiné une fois à une case par pixel ; `null` si sa tenue est illisible. */
+/** Le Gaulois d'une part ; `null` si sa tenue est illisible. */
 function dessinDuGaulois(tenue: unknown): Dessin | null {
-  let lue = null;
+  let cases: (string | null)[] | null = null;
   try {
-    lue = lireTenue(tenue);
+    const lue = lireTenue(tenue);
+    cases = lue ? casesDuGaulois(lue) : null;
   } catch {
     return null;
   }
-  if (!lue) return null;
-  const toile = document.createElement("canvas");
-  toile.width = GAULOIS_LARGEUR;
-  toile.height = GAULOIS_HAUTEUR;
-  const contexte = toile.getContext("2d");
-  if (!contexte) return null;
-  const image = contexte.createImageData(GAULOIS_LARGEUR, GAULOIS_HAUTEUR);
+  if (!cases) return null;
   let bas = -1;
-  casesDuGaulois(lue).forEach((couleur, i) => {
-    if (!couleur || !/^#[0-9a-f]{6}$/i.test(couleur)) return;
-    const n = parseInt(couleur.slice(1), 16);
-    image.data.set([(n >> 16) & 255, (n >> 8) & 255, n & 255, 255], i * 4);
-    bas = Math.max(bas, Math.floor(i / GAULOIS_LARGEUR));
+  cases.forEach((couleur, i) => {
+    if (couleur) bas = Math.max(bas, Math.floor(i / GAULOIS_LARGEUR));
   });
-  if (bas < 0) return null;
-  contexte.putImageData(image, 0, 0);
-  return { toile, bas };
+  const toile = bas < 0 ? null : toileDe(cases, GAULOIS_LARGEUR, GAULOIS_HAUTEUR);
+  return toile ? { toile, bas } : null;
 }
 
+/** La pièce et les pochettes des lots, dessinées une fois par page avec les dessins du site. */
+interface Images {
+  piece: HTMLCanvasElement | null;
+  pochettes: Partial<Record<PochetteGagnee, HTMLCanvasElement | null>>;
+  /** La pochette des Gaulois uniques n'a pas de sac sur le site : la tête d'un Gaulois unique la dit. */
+  unique: HTMLCanvasElement | null;
+}
+let IMAGES: Images | null = null;
+function images(): Images {
+  if (IMAGES) return IMAGES;
+  const unique = MODELES[0] ? dessinDuGaulois({ ...TENUE_DE_DEPART, [CLE_MODELE]: MODELES[0].id }) : null;
+  IMAGES = {
+    piece: toileDe(casesDuStatere(16), 16, 16),
+    pochettes: {
+      surprise: toileDe(casesDeLaPochette(), POCHETTE_COTE, POCHETTE_COTE),
+      familiers: toileDe(casesDeLaPochetteFamiliers(), POCHETTE_COTE, POCHETTE_COTE),
+      bannieres: toileDe(casesDeLaPochetteBannieres(), POCHETTE_COTE, POCHETTE_COTE),
+      stateres: toileDe(casesDeLaPochetteDeStateres(), POCHETTE_COTE, POCHETTE_COTE),
+    },
+    unique: unique?.toile ?? null,
+  };
+  return IMAGES;
+}
+
+/** Les mesures de la scène : les trois cases des lots en haut, la ligne des parts dessous. */
+interface Mesures {
+  largeur: number;
+  hauteur: number;
+  carte: {
+    l: number;
+    h: number;
+    x: Readonly<Record<Rang, number>>;
+    haut: Readonly<Record<Rang, number>>;
+    bande: number;
+    titreY: number;
+    rang: number;
+    gain: number;
+    /** Le tableau du gagnant : sa bannière, `echelle` pixels par case, et lui devant. */
+    tableauY: number;
+    echelle: number;
+    nom: number;
+    nomY: number;
+    pochesY: number;
+    poche: number;
+    pas: number;
+    attente: string;
+  };
+  ligne: { cadre: CadreDeJauge; y: number; h: number; bas: number };
+}
+/** La taille de la scène selon la place : 0 le téléphone, 1 l'ordinateur, 2 le grand écran. */
+type Taille = 0 | 1 | 2;
+const tailleDe = (largeur: number): Taille => (largeur >= 1100 ? 2 : largeur >= 620 ? 1 : 0);
+const MESURES: Readonly<Record<Taille, Mesures>> = {
+  2: {
+    largeur: 1200,
+    hauteur: 624,
+    carte: { l: 340, h: 314, x: { 2: 60, 1: 430, 3: 800 }, haut: { 1: 8, 2: 30, 3: 50 }, bande: 12, titreY: 40, rang: 26, gain: 24, tableauY: 62, echelle: 2, nom: 15, nomY: 17, pochesY: 262, poche: 1.25, pas: 30, attente: "Le gagnant et sa bannière" },
+    ligne: { cadre: { x: 40, largeur: 1120, joint: 5, buste: 70 }, y: 522, h: 34, bas: 512 },
+  },
+  1: {
+    largeur: 800,
+    hauteur: 566,
+    carte: { l: 256, h: 276, x: { 2: 8, 1: 272, 3: 536 }, haut: { 1: 6, 2: 22, 3: 36 }, bande: 10, titreY: 32, rang: 20, gain: 18, tableauY: 50, echelle: 2, nom: 14, nomY: 15, pochesY: 238, poche: 1, pas: 30, attente: "Le gagnant et sa bannière" },
+    ligne: { cadre: { x: 30, largeur: 740, joint: 4, buste: 66 }, y: 468, h: 32, bas: 458 },
+  },
+  0: {
+    largeur: 420,
+    hauteur: 452,
+    carte: { l: 132, h: 172, x: { 2: 6, 1: 144, 3: 282 }, haut: { 1: 4, 2: 14, 3: 24 }, bande: 8, titreY: 22, rang: 13, gain: 12, tableauY: 34, echelle: 1, nom: 11, nomY: 13, pochesY: 142, poche: 0.75, pas: 22, attente: "Le gagnant" },
+    ligne: { cadre: { x: 16, largeur: 388, joint: 3, buste: 66 }, y: 356, h: 28, bas: 346 },
+  },
+};
+
+/** Les couleurs et les polices de la page, lues dans ses jetons au moment de peindre : le clair, le sombre, le thème rouge. */
 interface Encres {
   ecriture: string;
   discret: string;
   filet: string;
+  leger: string;
   bleu: string;
-  /** La police des titres (les marches, le lot en cours). */
+  /** Le second bleu du ruban : le bleu de la page, éclairci. */
+  clair: string;
+  page: string;
+  surface: string;
+  surface2: string;
+  /** La police des titres (le nom des lots). */
   police: string;
   /** La police du texte courant : un nom ne s'écrit jamais en onciale. */
   sans: string;
 }
+/** Un bleu éclairci d'un tiers vers le blanc ; la couleur d'origine si elle ne s'écrit pas « #rrggbb ». */
+function eclaircir(couleur: string): string {
+  const m = /^#([0-9a-f]{6})$/i.exec(couleur);
+  if (!m) return couleur;
+  const n = parseInt(m[1]!, 16);
+  const vers = (v: number) => Math.round(v + (255 - v) * 0.36);
+  return `rgb(${vers((n >> 16) & 255)} ${vers((n >> 8) & 255)} ${vers(n & 255)})`;
+}
+function encresDe(element: Element): Encres {
+  const style = getComputedStyle(element);
+  const jeton = (nom: string, secours: string) => style.getPropertyValue(nom).trim() || secours;
+  const bleu = jeton("--color-blue", "#0b5fff");
+  return {
+    ecriture: jeton("--ecriture", MARINE),
+    discret: jeton("--color-muted", "#4a5677"),
+    filet: jeton("--color-line-strong", "#7a88b4"),
+    leger: jeton("--color-line", "#d5dcee"),
+    bleu,
+    clair: eclaircir(bleu),
+    page: jeton("--color-navy", "#ffffff"),
+    surface: jeton("--color-surface", "#f5f7fc"),
+    surface2: jeton("--color-surface-2", "#e6ecf9"),
+    police: jeton("--font-display", "system-ui, sans-serif"),
+    sans: jeton("--font-sans", "system-ui, sans-serif"),
+  };
+}
 
-function ecrire(c: CanvasRenderingContext2D, police: string, texte: string, x: number, y: number, taille: number, couleur: string, alignement: CanvasTextAlign = "center", graisse = 600, largeurMax?: number, bords?: readonly [number, number]) {
-  c.font = `${graisse} ${taille}px ${police}`;
+interface Options {
+  align?: CanvasTextAlign;
+  graisse?: number;
+  /** La largeur au-delà de laquelle le texte est coupé, avec des points de suspension. */
+  max?: number;
+  /** Un texte centré près d'un bord glisse vers l'intérieur plutôt que d'être rogné. */
+  bords?: readonly [number, number];
+}
+function ecrire(c: CanvasRenderingContext2D, police: string, texte: string, x: number, y: number, taille: number, couleur: string, o: Options = {}) {
+  c.font = `${o.graisse ?? 600} ${taille}px ${police}`;
   c.fillStyle = couleur;
-  c.textAlign = alignement;
+  c.textAlign = o.align ?? "center";
   c.textBaseline = "middle";
   let ecrit = texte;
-  if (largeurMax !== undefined && c.measureText(ecrit).width > largeurMax) {
-    while (ecrit.length > 1 && c.measureText(`${ecrit}…`).width > largeurMax) ecrit = ecrit.slice(0, -1);
+  if (o.max !== undefined && c.measureText(ecrit).width > o.max) {
+    while (ecrit.length > 1 && c.measureText(`${ecrit}…`).width > o.max) ecrit = ecrit.slice(0, -1);
     ecrit = `${ecrit.trimEnd()}…`;
   }
-  // Un texte centré près d'un bord de la toile glisse vers l'intérieur plutôt que d'être rogné.
   let ou = x;
-  if (bords && alignement === "center") {
+  if (o.bords && (o.align ?? "center") === "center") {
     const demi = c.measureText(ecrit).width / 2;
-    ou = Math.min(Math.max(x, bords[0] + demi), bords[1] - demi);
+    ou = Math.min(Math.max(x, o.bords[0] + demi), o.bords[1] - demi);
   }
   c.fillText(ecrit, ou, y);
 }
 
-/** Un cadre de couleur cerné d'écriture, pour se lire sur la page blanche. */
-function cadreDeCouleur(c: CanvasRenderingContext2D, encres: Encres, x: number, y: number, largeur: number, hauteur: number, couleur: string) {
+/** Un cadre de couleur cerné d'écriture, pour se lire sur la page. */
+function cerne(c: CanvasRenderingContext2D, encres: Encres, x: number, y: number, largeur: number, hauteur: number, couleur: string, rayon: number) {
   c.beginPath();
-  c.roundRect(x, y, largeur, hauteur, 8);
+  c.roundRect(x, y, largeur, hauteur, rayon);
   c.strokeStyle = encres.ecriture;
   c.lineWidth = 7;
   c.stroke();
@@ -152,165 +255,235 @@ function cadreDeCouleur(c: CanvasRenderingContext2D, encres: Encres, x: number, 
   c.stroke();
 }
 
-/**
- * Peint la jauge à l'instant `t` du tirage (en secondes ; `Infinity` : le bilan), ou, sans tirage (`t` null), les parts
- * du tirage à venir. Rien n'est décidé ici : le billet tiré est celui que le serveur a noté.
- */
-function peindreLaJauge(c: CanvasRenderingContext2D, m: Mesures, encres: Encres, parts: readonly PartDeLoterie[], ordre: readonly number[], avecBuste: ReadonlySet<number>, dessins: ReadonlyMap<number, Dessin>, t: number | null) {
-  const podium = t === null ? [] : gagnants(parts);
-  const etat = t === null ? null : etatDuTirage(t, podium.length);
-  const fermetures = parts.map(() => 0);
-  if (etat) podium.forEach((g, k) => (fermetures[g.index] = etat.fermetures[k] ?? 0));
-  const segments = dispositionDeLaJauge(parts, ordre, fermetures, m.cadre, avecBuste);
-  const segmentDe = (index: number) => segments.find((s) => s.index === index);
-  c.imageSmoothingEnabled = false;
-
-  // Les noms sur deux rangées, une sur deux, d'après la place du Gaulois parmi tous ceux de la jauge, ouverts ou non : un
-  // nom ne change pas de rangée quand la part d'un voisin se referme. Chacun a la place qui le sépare du nom le plus
-  // proche de sa rangée, avant d'être coupé.
-  let place = 0;
-  const noms = new Map<number, { x: number; rangee: number }>();
-  for (const s of segments) {
-    if (s.buste === null) continue;
-    const rangee = place++ % 2;
-    if (s.ouverture > 0.01 && s.largeur > 0) noms.set(s.index, { x: s.buste, rangee });
-  }
-  const largeurDuNom = (index: number): number => {
-    const nom = noms.get(index)!;
-    let libre = 2 * m.cadre.buste;
-    for (const [autre, voisin] of noms) if (autre !== index && voisin.rangee === nom.rangee) libre = Math.min(libre, Math.abs(voisin.x - nom.x));
-    return Math.max(24, libre - 10);
-  };
-  for (const s of segments) {
-    if (s.ouverture <= 0.01 || s.largeur <= 0) continue;
-    const part = parts[s.index]!;
-    const n = billetsDe(part);
-    c.globalAlpha = s.ouverture;
-    if (s.buste !== null) {
-      c.strokeStyle = encres.filet;
-      c.lineWidth = 1.5;
-      c.beginPath();
-      c.moveTo(s.buste, BUSTE_BAS);
-      c.lineTo(s.x + s.largeur / 2, BARRE_Y);
-      c.stroke();
-      const dessin = dessins.get(s.index);
-      if (dessin) c.drawImage(dessin.toile, 8, 0, 32, 38, Math.round(s.buste - 32), BUSTE_BAS - 76, 64, 76);
-      ecrire(c, encres.sans, part.nom, s.buste, noms.get(s.index)?.rangee === 1 ? NOMS_Y - 15 : NOMS_Y, 12, part.moi ? encres.ecriture : encres.discret, "center", part.moi ? 700 : 500, largeurDuNom(s.index), [2, m.largeur - 2]);
-    }
-    c.save();
-    c.beginPath();
-    c.roundRect(s.x, BARRE_Y, s.largeur, BARRE_H, Math.min(6, s.largeur / 2));
-    c.clip();
-    c.fillStyle = encres.bleu;
-    c.fillRect(s.x, BARRE_Y, s.largeur, BARRE_H);
-    c.fillStyle = OR;
-    c.fillRect(s.x + s.gagnes, BARRE_Y, s.largeur - s.gagnes + 1, BARRE_H);
-    if (s.largeur / n > 5) {
-      c.fillStyle = "rgb(10 18 48 / 0.35)";
-      for (let k = 1; k < n; k++) c.fillRect(s.x + (s.largeur * k) / n - 0.5, BARRE_Y, 1, BARRE_H);
-    }
-    c.restore();
-    c.globalAlpha = 1;
-  }
-
-  if (etat) {
-    podium.forEach((g, k) => {
-      const s = segmentDe(g.index);
-      if (!s) return;
-      if (etat.arrives[k] && s.ouverture > 0.01) {
-        c.globalAlpha = s.ouverture;
-        cadreDeCouleur(c, encres, s.x - 3, BARRE_Y - 3, s.largeur + 6, BARRE_H + 6, MEDAILLES[g.rang].face);
-        c.globalAlpha = 1;
-      }
-      const avancee = etat.pointes[k];
-      const visible = etat.visibles[k] ?? 0;
-      if (avancee === null || avancee === undefined || visible <= 0) return;
-      const px = pointeDeLaJauge(abscisseDuBillet(s, g.part, g.billet), m.cadre, avancee);
-      c.globalAlpha = visible;
-      c.beginPath();
-      c.moveTo(px, BARRE_Y + BARRE_H + 8);
-      c.lineTo(px - 10, BARRE_Y + BARRE_H + 26);
-      c.lineTo(px + 10, BARRE_Y + BARRE_H + 26);
-      c.closePath();
-      c.fillStyle = MEDAILLES[g.rang].face;
-      c.fill();
-      c.strokeStyle = encres.ecriture;
-      c.lineWidth = 1.5;
-      c.lineJoin = "round";
-      c.stroke();
-      ecrire(c, encres.police, NOMS_DES_RANGS[g.rang], px, BARRE_Y + BARRE_H + 39, 12, encres.ecriture, "center", 700);
-      c.globalAlpha = 1;
-    });
-    if (etat.enCours !== null) {
-      const g = podium[etat.enCours]!;
-      c.beginPath();
-      c.arc(m.cadre.x + 7, 10, 6, 0, Math.PI * 2);
-      c.fillStyle = MEDAILLES[g.rang].face;
-      c.fill();
-      c.strokeStyle = encres.ecriture;
-      c.lineWidth = 1.5;
-      c.stroke();
-      ecrire(c, encres.police, `Tirage : ${NOMS_DES_RANGS[g.rang].toLowerCase()}`, m.cadre.x + 21, 10, 13, encres.ecriture, "left", 700);
-    }
-  }
-
-  if (!m.podium) return;
-  const sol = m.hauteur - 22;
-  const milieu = m.largeur / 2;
-  const gauche: Readonly<Record<Rang, number>> = { 1: milieu - m.marche / 2, 2: milieu - m.marche * 1.5, 3: milieu + m.marche / 2 };
-  c.fillStyle = encres.ecriture;
-  c.fillRect(gauche[2] - 16, sol, m.marche * 3 + 32, 2);
-  for (const rang of [2, 1, 3] as const) {
-    const medaille = MEDAILLES[rang];
-    const x = gauche[rang];
-    const haut = sol - HAUTEURS[rang];
-    const k = podium.findIndex((g) => g.rang === rang);
-    const g = k < 0 ? null : podium[k]!;
-    const montee = g && etat ? (etat.montees[k] ?? 0) : 0;
-    if (g && montee > 0) {
-      const dessin = dessins.get(g.index);
-      if (dessin) {
-        const pose = 1 - Math.pow(1 - montee, 3);
-        c.save();
-        c.beginPath();
-        c.rect(x - 30, 0, m.marche + 60, haut);
-        c.clip();
-        c.drawImage(dessin.toile, Math.round(x + m.marche / 2 - (GAULOIS_LARGEUR / 2) * m.echelle), Math.round(haut + (1 - pose) * (GAULOIS_HAUTEUR * m.echelle + 6) - (dessin.bas + 1) * m.echelle), GAULOIS_LARGEUR * m.echelle, GAULOIS_HAUTEUR * m.echelle);
-        c.restore();
-      }
-    }
-    c.fillStyle = medaille.face;
-    c.fillRect(x, haut, m.marche, HAUTEURS[rang]);
-    c.fillStyle = medaille.lumiere;
-    c.fillRect(x, haut, m.marche, 6);
-    c.fillStyle = medaille.ombre;
-    c.fillRect(x + m.marche - 8, haut + 6, 8, HAUTEURS[rang] - 6);
-    c.strokeStyle = encres.ecriture;
-    c.lineWidth = 2;
-    c.strokeRect(x, haut, m.marche, HAUTEURS[rang]);
-    // Sur les marches, l'écriture est le marine de la page, quel que soit le thème : les faces sont claires.
-    ecrire(c, encres.police, NOMS_DES_RANGS[rang].toUpperCase(), x + m.marche / 2 - 4, haut + 18, 11, "#0a1230", "center", 700);
-    if (g && montee > 0) {
-      c.globalAlpha = Math.min(1, montee * 2);
-      ecrire(c, encres.sans, g.part.nom, x + m.marche / 2 - 4, haut + 35, 14, "#0a1230", "center", 600, m.marche - 22);
-      c.globalAlpha = 1;
+/** Les pochettes d'un lot à la suite ; plusieurs de la même sorte se chevauchent, pour se compter sans chiffre. */
+function largeurDesPoches(lot: LotDeLoterie, e: number, pas: number): number {
+  return POCHETTES_GAGNEES.reduce((somme, sorte) => somme + (lot.pochettes[sorte] > 0 ? ((lot.pochettes[sorte] - 1) * 10 + pas) * e : 0), 0) - (pas - 32) * e;
+}
+function peindreLesPoches(c: CanvasRenderingContext2D, img: Images, lot: LotDeLoterie, x: number, y: number, e: number, pas: number) {
+  let px = x;
+  for (const sorte of POCHETTES_GAGNEES) {
+    for (let k = 0; k < lot.pochettes[sorte]; k++) {
+      const dessin = sorte === "modeles" ? img.unique : img.pochettes[sorte];
+      if (dessin && sorte === "modeles") c.drawImage(dessin, 6, 1, 34, 34, px, y, 32 * e, 32 * e);
+      else if (dessin) c.drawImage(dessin, px, y, 32 * e, 32 * e);
+      px += (k < lot.pochettes[sorte] - 1 ? 10 : pas) * e;
     }
   }
 }
 
+/** Ce que la scène dessine. */
+interface Scene {
+  parts: readonly PartDeLoterie[];
+  lots: readonly LotDeLoterie[];
+  ordre: readonly number[];
+  avecBuste: ReadonlySet<number>;
+  dessins: ReadonlyMap<number, Dessin>;
+  /** La bannière de chaque gagnant qui en montre une, par l'indice de sa part. */
+  fonds: ReadonlyMap<number, HTMLCanvasElement>;
+}
+
 /**
- * La jauge des parts, dessinée sur une toile. Sans `tirage` : les parts du tirage à venir, immobiles. Avec : le dernier
- * tirage et son podium ; chaque changement de `lecture` (au-dessus de zéro) rejoue l'animation, si les animations sont
- * permises (bouton pause de l'en-tête, réglage du système), sinon le bilan est posé tout de suite. Décorative : tout ce
- * qu'elle montre est écrit à côté.
+ * Peint la scène à l'instant `t` du tirage (en secondes ; `Infinity` : le bilan), ou, sans tirage (`t` null), les lots et
+ * les parts du tirage à venir. Rien n'est décidé ici : le billet tiré est celui que le serveur a noté.
  */
-function JaugeDesParts({ parts, tirage = false, lecture = 0, onFini }: { parts: readonly PartDeLoterie[]; tirage?: boolean; lecture?: number; onFini?: () => void }) {
+function peindreLaScene(c: CanvasRenderingContext2D, m: Mesures, encres: Encres, img: Images, s: Scene, t: number | null) {
+  const { parts } = s;
+  const podium = t === null ? [] : gagnants(parts);
+  const etat = t === null ? null : etatDuTirage(t, podium.length);
+  const fermetures = parts.map(() => 0);
+  if (etat) podium.forEach((g, k) => (fermetures[g.index] = etat.fermetures[k] ?? 0));
+  const k = m.carte;
+  const tableau = (rang: Rang) => ({ x: k.x[rang] + (k.l - DECOR_LARGEUR * k.echelle) / 2, y: k.haut[rang] + k.tableauY, l: DECOR_LARGEUR * k.echelle, h: DECOR_HAUTEUR * k.echelle });
+  c.imageSmoothingEnabled = false;
+
+  // Les trois cases : le lot, et la place du gagnant, vide et en pointillé tant qu'il n'est pas tiré.
+  for (const rang of [2, 1, 3] as const) {
+    const lot = s.lots.find((l) => l.rang === rang);
+    if (!lot) continue;
+    const x = k.x[rang];
+    const y = k.haut[rang];
+    const rayon = Math.min(18, k.l / 8);
+    const n = podium.findIndex((g) => g.rang === rang);
+    const g = n < 0 ? null : podium[n]!;
+    const arrivee = g && etat ? (etat.montees[n] ?? 0) : 0;
+    const tb = tableau(rang);
+    c.beginPath();
+    c.roundRect(x, y, k.l, k.h, rayon);
+    c.fillStyle = encres.surface;
+    c.fill();
+    c.save();
+    c.clip();
+    c.fillStyle = MEDAILLES[rang].face;
+    c.fillRect(x, y, k.l, k.bande);
+    c.restore();
+    c.beginPath();
+    c.roundRect(x, y, k.l, k.h, rayon);
+    c.strokeStyle = arrivee >= 1 ? MEDAILLES[rang].face : encres.leger;
+    c.lineWidth = arrivee >= 1 ? 4 : 1.5;
+    c.stroke();
+    // Le gain à droite, la pièce devant ; le nom du lot à gauche, dans la place qui reste.
+    c.font = `700 ${k.gain}px ${encres.sans}`;
+    const chiffres = nombre(lot.gain);
+    const largeurDuGain = c.measureText(chiffres).width;
+    const cote = Math.round(k.gain * 0.92);
+    const marge = Math.max(8, Math.round(k.l * 0.07));
+    if (img.piece) c.drawImage(img.piece, x + k.l - marge - largeurDuGain - cote - 5, y + k.titreY - cote / 2, cote, cote);
+    ecrire(c, encres.sans, chiffres, x + k.l - marge, y + k.titreY + 1, k.gain, encres.ecriture, { align: "right", graisse: 700 });
+    ecrire(c, encres.police, NOMS_DES_RANGS[rang], x + marge, y + k.titreY, k.rang, encres.ecriture, { align: "left", graisse: 700, max: k.l - 2 * marge - largeurDuGain - cote - 12 });
+    c.save();
+    c.beginPath();
+    c.roundRect(tb.x, tb.y, tb.l, tb.h, 10);
+    c.clip();
+    c.fillStyle = encres.page;
+    c.fillRect(tb.x, tb.y, tb.l, tb.h);
+    if (g && arrivee > 0) {
+      // Le gagnant paraît devant sa bannière, comme sur /gaulois ; sans bannière, devant un fond uni.
+      c.globalAlpha = lisse((arrivee - 0.45) / 0.55);
+      const fond = s.fonds.get(g.index);
+      if (fond) c.drawImage(fond, tb.x, tb.y, tb.l, tb.h);
+      else {
+        c.fillStyle = encres.surface2;
+        c.fillRect(tb.x, tb.y, tb.l, tb.h);
+      }
+      const dessin = s.dessins.get(g.index);
+      if (dessin) c.drawImage(dessin.toile, tb.x + PLACE_DU_GAULOIS.x * k.echelle, tb.y + PLACE_DU_GAULOIS.y * k.echelle, GAULOIS_LARGEUR * k.echelle, GAULOIS_HAUTEUR * k.echelle);
+      c.globalAlpha = 1;
+    }
+    c.restore();
+    c.beginPath();
+    c.roundRect(tb.x, tb.y, tb.l, tb.h, 10);
+    if (g && arrivee >= 1) {
+      c.strokeStyle = encres.ecriture;
+      c.lineWidth = 2;
+      c.stroke();
+      ecrire(c, encres.sans, g.part.nom, x + k.l / 2, tb.y + tb.h + k.nomY, k.nom, encres.ecriture, { graisse: 700, max: k.l - 16 });
+    } else {
+      c.setLineDash([6, 6]);
+      c.strokeStyle = encres.filet;
+      c.lineWidth = 1.5;
+      c.stroke();
+      c.setLineDash([]);
+      if (arrivee <= 0) ecrire(c, encres.sans, k.attente, tb.x + tb.l / 2, tb.y + tb.h / 2, Math.max(11, k.nom - 2), encres.discret, { graisse: 500, max: tb.l - 12 });
+    }
+    peindreLesPoches(c, img, lot, x + k.l / 2 - largeurDesPoches(lot, k.poche, k.pas) / 2, y + k.pochesY, k.poche, k.pas);
+  }
+
+  // La ligne des parts : un seul ruban arrondi aux deux bouts, deux bleus en alternance, une lumière en haut.
+  const { cadre, y: Y, h: H, bas: BAS } = m.ligne;
+  const segments = dispositionDeLaJauge(parts, s.ordre, fermetures, cadre, s.avecBuste);
+  const vus = segments.filter((seg) => seg.ouverture > 0.01 && seg.largeur > 0);
+  const joint = vus.length > 1 ? vus[1]!.x - vus[0]!.x - vus[0]!.largeur : 0;
+  c.save();
+  c.beginPath();
+  c.roundRect(cadre.x, Y + 2, cadre.largeur, H - 4, (H - 4) / 2);
+  c.clip();
+  vus.forEach((seg, n) => {
+    c.globalAlpha = seg.ouverture;
+    c.fillStyle = n % 2 ? encres.clair : encres.bleu;
+    c.fillRect(seg.x - joint / 2, Y, seg.largeur + joint, H);
+  });
+  c.globalAlpha = 1;
+  c.fillStyle = encres.page;
+  for (const seg of vus.slice(1)) c.fillRect(seg.x - joint / 2 - 1, Y, 2, H);
+  c.fillStyle = "rgb(255 255 255 / 0.22)";
+  c.fillRect(cadre.x, Y + 2, cadre.largeur, 5);
+  c.restore();
+
+  // Les Gaulois au-dessus de leur part. Les noms sur deux rangées, une sur deux, d'après la place du Gaulois parmi tous
+  // ceux de la ligne, ouverts ou non : un nom ne change pas de rangée quand la part d'un voisin se referme.
+  let place = 0;
+  const noms = new Map<number, { x: number; rangee: number }>();
+  for (const seg of segments) {
+    if (seg.buste === null) continue;
+    const rangee = place++ % 2;
+    if (seg.ouverture > 0.01 && seg.largeur > 0) noms.set(seg.index, { x: seg.buste, rangee });
+  }
+  const largeurDuNom = (index: number): number => {
+    const nom = noms.get(index)!;
+    let libre = 2 * cadre.buste;
+    for (const [autre, voisin] of noms) if (autre !== index && voisin.rangee === nom.rangee) libre = Math.min(libre, Math.abs(voisin.x - nom.x));
+    return Math.max(24, libre - 10);
+  };
+  const enVol = new Set<number>();
+  if (etat) podium.forEach((g, n) => (etat.montees[n] ?? 0) > 0 && enVol.add(g.index));
+  for (const seg of segments) {
+    if (seg.ouverture <= 0.01 || seg.largeur <= 0 || seg.buste === null) continue;
+    const part = parts[seg.index]!;
+    c.globalAlpha = seg.ouverture;
+    c.strokeStyle = encres.filet;
+    c.lineWidth = 1.5;
+    c.beginPath();
+    c.moveTo(seg.buste, BAS);
+    c.lineTo(seg.x + seg.largeur / 2, Y - 2);
+    c.stroke();
+    const dessin = s.dessins.get(seg.index);
+    if (dessin && !enVol.has(seg.index)) c.drawImage(dessin.toile, 8, 0, 32, 38, Math.round(seg.buste - 32), BAS - 76, 64, 76);
+    ecrire(c, encres.sans, part.nom, seg.buste, BAS - 76 - (noms.get(seg.index)?.rangee === 1 ? 26 : 11), 13, part.moi ? encres.ecriture : encres.discret, { graisse: part.moi ? 700 : 500, max: largeurDuNom(seg.index), bords: [2, m.largeur - 2] });
+    c.globalAlpha = 1;
+  }
+
+  if (!etat) return;
+  podium.forEach((g, n) => {
+    const seg = segments.find((x) => x.index === g.index);
+    if (!seg) return;
+    const medaille = MEDAILLES[g.rang];
+    const arrivee = etat.montees[n] ?? 0;
+    if (etat.arrives[n] && seg.ouverture > 0.01) {
+      c.globalAlpha = seg.ouverture;
+      cerne(c, encres, seg.x - 3, Y - 3, seg.largeur + 6, H + 6, medaille.face, H / 2);
+      c.globalAlpha = 1;
+    }
+    // Le gagnant quitte la ligne et rejoint son tableau, où il se fond dans sa bannière.
+    const dessin = s.dessins.get(g.index);
+    if (dessin && seg.buste !== null && arrivee > 0 && arrivee < 1) {
+      const tb = tableau(g.rang);
+      const u = lisse(arrivee);
+      const e = 2 + (k.echelle - 2) * u;
+      const x = seg.buste + (tb.x + (PLACE_DU_GAULOIS.x + GAULOIS_LARGEUR / 2) * k.echelle - seg.buste) * u;
+      const y = BAS + (tb.y + (PLACE_DU_GAULOIS.y + 38) * k.echelle - BAS) * u - Math.sin(Math.PI * arrivee) * 50;
+      c.globalAlpha = 1 - lisse((arrivee - 0.45) / 0.55);
+      c.drawImage(dessin.toile, 8, 0, 32, 38, x - 16 * e, y - 38 * e, 32 * e, 38 * e);
+      c.globalAlpha = 1;
+    }
+    const avancee = etat.pointes[n];
+    const visible = etat.visibles[n] ?? 0;
+    if (avancee === null || avancee === undefined || visible <= 0) return;
+    // L'épingle : une pastille à la couleur du lot, sa pointe vers la ligne.
+    const px = pointeDeLaJauge(abscisseDuBillet(seg, g.part, g.billet), cadre, avancee);
+    const py = Y + H + 30;
+    c.globalAlpha = visible;
+    c.beginPath();
+    c.moveTo(px, Y + H + 4);
+    c.lineTo(px + 9, py - 8);
+    c.arc(px, py, 13, -0.7, Math.PI + 0.7);
+    c.closePath();
+    c.fillStyle = medaille.face;
+    c.fill();
+    c.strokeStyle = encres.ecriture;
+    c.lineWidth = 2;
+    c.lineJoin = "round";
+    c.stroke();
+    ecrire(c, encres.sans, String(g.rang), px, py + 1, 14, MARINE, { graisse: 700 });
+    ecrire(c, encres.police, NOMS_DES_RANGS[g.rang], px, py + 27, 12, encres.ecriture, { graisse: 700 });
+    c.globalAlpha = 1;
+  });
+}
+
+/**
+ * La scène de la loterie, dessinée sur une toile sans fond : les trois cases des lots, puis la ligne des parts en ruban.
+ * Sans `tirage` : le tirage à venir, immobile, les places des gagnants vides. Avec : le dernier tirage ; chaque
+ * changement de `lecture` (au-dessus de zéro) rejoue l'animation, si les animations sont permises (bouton pause de
+ * l'en-tête, réglage du système), sinon le bilan est posé tout de suite. Décorative : ce qu'elle montre est écrit à côté.
+ */
+function SceneDeLoterie({ parts, lots, tirage = false, lecture = 0, onFini }: { parts: readonly PartDeLoterie[]; lots: readonly LotDeLoterie[]; tirage?: boolean; lecture?: number; onFini?: () => void }) {
   const boite = useRef<HTMLDivElement>(null);
   const toile = useRef<HTMLCanvasElement>(null);
   const [taille, setTaille] = useState<Taille>(1);
-  const m = useMemo(() => mesures(taille, tirage), [taille, tirage]);
+  const m = MESURES[taille];
+  // Sans tirage, pas d'épingle sous la ligne : la toile s'arrête juste dessous.
+  const hauteur = tirage ? m.hauteur : m.ligne.y + m.ligne.h + 10;
   const ordre = useMemo(() => ordreDeLaJauge(parts), [parts]);
-  const avecBuste = useMemo(() => bustesDeLaJauge(parts, Math.floor(m.cadre.largeur / m.cadre.buste)), [parts, m]);
+  const avecBuste = useMemo(() => bustesDeLaJauge(parts, Math.floor(m.ligne.cadre.largeur / m.ligne.cadre.buste)), [parts, m]);
   const dessins = useMemo(() => {
     const table = new Map<number, Dessin>();
     parts.forEach((part, i) => {
@@ -320,17 +493,51 @@ function JaugeDesParts({ parts, tirage = false, lecture = 0, onFini }: { parts: 
     });
     return table;
   }, [parts, avecBuste]);
+
+  // Les bannières des gagnants : leur code, lourd, ne se charge que s'il y en a une à montrer.
+  const [lib, setLib] = useState<Awaited<ReturnType<typeof chargerLesBannieres>> | null>(null);
+  const aMontrer = tirage && parts.some((part) => part.rang !== null && part.banniere !== null);
+  useEffect(() => {
+    if (!aMontrer || lib) return;
+    let vivant = true;
+    void chargerLesBannieres().then(
+      (charge) => vivant && setLib(charge),
+      () => undefined,
+    );
+    return () => {
+      vivant = false;
+    };
+  }, [aMontrer, lib]);
+  const fonds = useMemo(() => {
+    const table = new Map<number, HTMLCanvasElement>();
+    if (!lib) return table;
+    parts.forEach((part, i) => {
+      if (part.rang === null || !part.banniere) return;
+      const decor = lib.dessinDeLaBanniere(part.banniere);
+      const fond = decor ? toileDe(decor.cases, DECOR_LARGEUR, DECOR_HAUTEUR) : null;
+      if (fond) table.set(i, fond);
+    });
+    return table;
+  }, [parts, lib]);
+
   const fini = useRef(onFini);
   fini.current = onFini;
   // La dernière lecture déjà jouée : une relecture du serveur ou un changement de largeur ne rejoue pas le tirage.
   const jouee = useRef(0);
+  // Les bannières arrivent après le départ du tirage : le dessin les lit à chaque image, sans repartir ni s'arrêter.
+  const fondsLus = useRef(fonds);
+  fondsLus.current = fonds;
+  const anime = useRef(false);
+  const auRepos = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    if (!anime.current) auRepos.current?.();
+  }, [fonds]);
 
   // La largeur se mesure avant le premier dessin : sans cela, le premier passage de l'observateur changerait la toile
   // juste après le départ du tirage, et l'arrêterait.
   useLayoutEffect(() => {
     if (boite.current) setTaille(tailleDe(boite.current.clientWidth));
   }, []);
-
   useEffect(() => {
     const el = boite.current;
     if (!el || typeof ResizeObserver === "undefined") return;
@@ -358,30 +565,22 @@ function JaugeDesParts({ parts, tirage = false, lecture = 0, onFini }: { parts: 
     }
     const dpr = Math.min(3, window.devicePixelRatio || 1);
     el.width = m.largeur * dpr;
-    el.height = m.hauteur * dpr;
-    const style = getComputedStyle(el);
-    const jeton = (nom: string, secours: string) => style.getPropertyValue(nom).trim() || secours;
-    const encres: Encres = {
-      ecriture: jeton("--ecriture", "#0a1230"),
-      discret: jeton("--color-muted", "#4a5677"),
-      filet: jeton("--color-line-strong", "#7a88b4"),
-      bleu: jeton("--color-blue", "#0b5fff"),
-      police: jeton("--font-display", "system-ui, sans-serif"),
-      sans: jeton("--font-sans", "system-ui, sans-serif"),
-    };
-    // Faux si le navigateur ne sait pas dessiner la jauge (un très vieux navigateur) : le tirage s'arrête là, et le
+    el.height = hauteur * dpr;
+    const encres = encresDe(el);
+    // Faux si le navigateur ne sait pas dessiner la scène (un très vieux navigateur) : le tirage s'arrête là, et le
     // podium écrit dessous le dit quand même.
     const peindre = (t: number | null): boolean => {
       try {
         c.setTransform(dpr, 0, 0, dpr, 0, 0);
-        c.clearRect(0, 0, m.largeur, m.hauteur);
+        c.clearRect(0, 0, m.largeur, hauteur);
         c.globalAlpha = 1;
-        peindreLaJauge(c, m, encres, parts, ordre, avecBuste, dessins, t);
+        peindreLaScene(c, m, encres, images(), { parts, lots, ordre, avecBuste, dessins, fonds: fondsLus.current }, t);
         return true;
       } catch {
         return false;
       }
     };
+    auRepos.current = () => void peindre(tirage ? Infinity : null);
     if (!tirage) {
       peindre(null);
       return;
@@ -394,12 +593,14 @@ function JaugeDesParts({ parts, tirage = false, lecture = 0, onFini }: { parts: 
       return;
     }
     jouee.current = lecture;
+    anime.current = true;
     let image = 0;
     const debut = performance.now();
     const boucle = (maintenant: number) => {
       const t = (maintenant - debut) / 1000;
       // Mises en pause en cours de route (bouton de l'en-tête) : le bilan, tout de suite.
       if (t >= duree || !motionAllowed() || !peindre(t)) {
+        anime.current = false;
         peindre(Infinity);
         fini.current?.();
         return;
@@ -407,12 +608,15 @@ function JaugeDesParts({ parts, tirage = false, lecture = 0, onFini }: { parts: 
       image = requestAnimationFrame(boucle);
     };
     image = requestAnimationFrame(boucle);
-    return () => cancelAnimationFrame(image);
-  }, [m, parts, ordre, avecBuste, dessins, tirage, lecture, theme]);
+    return () => {
+      anime.current = false;
+      cancelAnimationFrame(image);
+    };
+  }, [m, hauteur, parts, lots, ordre, avecBuste, dessins, tirage, lecture, theme]);
 
   return (
-    <div ref={boite} class="loterie-jauge">
-      <canvas ref={toile} class="loterie-toile" style={{ aspectRatio: `${m.largeur} / ${m.hauteur}` }} aria-hidden="true" />
+    <div ref={boite} class="loterie-scene">
+      <canvas ref={toile} class="loterie-toile" style={{ aspectRatio: `${m.largeur} / ${hauteur}` }} aria-hidden="true" />
     </div>
   );
 }
@@ -421,7 +625,7 @@ function JaugeDesParts({ parts, tirage = false, lecture = 0, onFini }: { parts: 
 
 type Etat = { kind: "attente" } | { kind: "lecture" } | { kind: "erreur"; message: string; reessayer: boolean } | { kind: "prete"; ma: MaLoterie };
 
-/** Toutes les parts d'un tirage, en tableau : ce que la jauge dessine, en chiffres. */
+/** Toutes les parts d'un tirage, en tableau : ce que la ligne dessine, en chiffres. */
 function TableDesParts({ parts, fait }: { parts: readonly PartDeLoterie[]; fait: boolean }) {
   return (
     <details class="fold">
@@ -458,8 +662,13 @@ function TableDesParts({ parts, fait }: { parts: readonly PartDeLoterie[]; fait:
   );
 }
 
-/** L'achat de billets : le nombre, le prix, et une seconde pression pour confirmer. Rien ne part au premier clic. */
-function AchatDeBilletsDeLoterie({ ma, onAchete }: { ma: MaLoterie; onAchete: (apres: MaLoterie) => void }) {
+/**
+ * Le guichet : vos billets en trois chiffres d'un côté, l'achat de l'autre, séparés par une perforation. L'achat se fait
+ * en deux pressions : rien ne part à la première.
+ */
+function Guichet({ ma, onAchete }: { ma: MaLoterie; onAchete: (apres: MaLoterie) => void }) {
+  const moi = maPart(ma.parts);
+  const total = totalDesBillets(ma.parts);
   const { max, raison } = achatPossible(ma);
   const [voulu, setVoulu] = useState(1);
   const [etape, setEtape] = useState<"choix" | "confirme" | "envoi">("choix");
@@ -481,53 +690,77 @@ function AchatDeBilletsDeLoterie({ ma, onAchete }: { ma: MaLoterie; onAchete: (a
     setVoulu(1);
   };
 
-  if (raison) {
-    return (
-      <p class="pochette-note" data-testid="loterie-raison">
-        {raison}
-      </p>
-    );
-  }
   return (
-    <div class="loterie-achat" data-testid="loterie-achat">
-      <label class="nom-champ" for="loterie-nombre">
-        Billets à acheter, {stateres(ma.prix)} le billet ({nombre(max)} au plus)
-      </label>
-      <div class="loterie-achat-ligne">
-        <input
-          id="loterie-nombre"
-          class="field max-w-28"
-          type="number"
-          inputMode="numeric"
-          min={1}
-          max={max}
-          step={1}
-          value={n}
-          disabled={etape !== "choix"}
-          onInput={(e) => setVoulu(Math.floor(Number((e.currentTarget as HTMLInputElement).value)) || 1)}
-        />
-        {etape === "choix" ? (
-          <button type="button" class="btn btn-secondary" onClick={() => setEtape("confirme")} data-testid="loterie-acheter">
-            Acheter pour {stateres(n * ma.prix)}
-          </button>
+    <section class="loterie-guichet" aria-labelledby="loterie-guichet-titre" data-testid="loterie-guichet">
+      <h3 id="loterie-guichet-titre" class="sr-only">
+        Vos billets
+      </h3>
+      <dl class="loterie-chiffres" data-testid="loterie-mes-billets">
+        <div>
+          <dd class="tnum">{nombre(moi?.gratuits ?? 0)}</dd>
+          <dt>billets gagnés</dt>
+        </div>
+        <div>
+          <dd class="tnum">{nombre(moi?.achetes ?? 0)}</dd>
+          <dt>billets achetés</dt>
+        </div>
+        <div>
+          {/* Le signe « pour cent » s'écrit dans la police du texte : l'onciale des titres ne le dessine pas bien. */}
+          <dd class="tnum">
+            {String(moi ? Math.round(partEnPourcent(moi, ma.parts) * 10) / 10 : 0).replace(".", ",")}
+            <span class="loterie-pourcent">{" %"}</span>
+          </dd>
+          <dt>des {nombre(total)} billets du tirage</dt>
+        </div>
+      </dl>
+      <div class="loterie-perfo" aria-hidden="true" />
+      <div class="loterie-achat" data-testid="loterie-achat">
+        {raison ? (
+          <p class="pochette-note" data-testid="loterie-raison">
+            {raison}
+          </p>
         ) : (
           <>
-            <button type="button" class="btn btn-primary" disabled={etape === "envoi"} onClick={() => void acheter()} data-testid="loterie-confirmer">
-              {etape === "envoi" ? "Achat…" : `Confirmer : ${nombre(n)} ${n > 1 ? "billets" : "billet"}, ${stateres(n * ma.prix)}`}
-            </button>
-            <button type="button" class="btn btn-ghost" disabled={etape === "envoi"} onClick={() => setEtape("choix")}>
-              Annuler
-            </button>
+            <p class="pochette-note">
+              {stateres(ma.prix)} le billet, {nombre(max)} au plus.
+            </p>
+            <div class="loterie-achat-ligne">
+              <div class="loterie-pas" role="group" aria-label="Nombre de billets à acheter">
+                <button type="button" disabled={etape !== "choix" || n <= 1} onClick={() => setVoulu(n - 1)} aria-label="Un billet de moins" data-testid="loterie-moins">
+                  −
+                </button>
+                <output class="tnum" aria-live="polite" data-testid="loterie-nombre">
+                  {nombre(n)}
+                </output>
+                <button type="button" disabled={etape !== "choix" || n >= max} onClick={() => setVoulu(n + 1)} aria-label="Un billet de plus" data-testid="loterie-plus">
+                  +
+                </button>
+              </div>
+              {etape === "choix" ? (
+                <button type="button" class="btn btn-secondary" onClick={() => setEtape("confirme")} data-testid="loterie-acheter">
+                  Acheter {n > 1 ? `${nombre(n)} billets` : "un billet"}, {stateres(n * ma.prix)}
+                </button>
+              ) : (
+                <>
+                  <button type="button" class="btn btn-primary" disabled={etape === "envoi"} onClick={() => void acheter()} data-testid="loterie-confirmer">
+                    {etape === "envoi" ? "Achat…" : `Confirmer : ${stateres(n * ma.prix)}`}
+                  </button>
+                  <button type="button" class="btn btn-ghost" disabled={etape === "envoi"} onClick={() => setEtape("choix")}>
+                    Annuler
+                  </button>
+                </>
+              )}
+            </div>
+            <Problem message={refus} />
           </>
         )}
       </div>
-      <Problem message={refus} />
-    </div>
+    </section>
   );
 }
 
-/** Le dernier tirage : la jauge animée, son podium en toutes lettres, et le bouton pour le revoir. */
-function DernierTirage({ dernier }: { dernier: NonNullable<MaLoterie["dernier"]> }) {
+/** Le dernier tirage : la scène animée, son podium en toutes lettres, et le bouton pour le revoir. */
+function DernierTirage({ dernier, lots }: { dernier: NonNullable<MaLoterie["dernier"]>; lots: readonly LotDeLoterie[] }) {
   const [lecture, setLecture] = useState(0);
   const [enCours, setEnCours] = useState(false);
   const podium = gagnants(dernier.parts);
@@ -559,9 +792,15 @@ function DernierTirage({ dernier }: { dernier: NonNullable<MaLoterie["dernier"]>
   return (
     <section class="loterie-bloc" aria-labelledby="loterie-dernier-titre" data-testid="loterie-dernier">
       <div class="loterie-bloc-tete">
-        <h3 id="loterie-dernier-titre" class="nom-champ vestiaire-titre">
-          Tirage du {jourEnMots(dernier.tirage)}
-        </h3>
+        <div>
+          <p class="loterie-surtitre">Dernier tirage</p>
+          <h3 id="loterie-dernier-titre" class="loterie-titre">
+            {majuscule(jourEnMots(dernier.tirage))}
+          </h3>
+          <p class="pochette-note">
+            Points du {jourCourt(semaine.debut)} au {jourCourt(semaine.fin)}, {nombre(totalDesBillets(dernier.parts))} billets.
+          </p>
+        </div>
         <button
           type="button"
           class="btn btn-ghost"
@@ -575,11 +814,8 @@ function DernierTirage({ dernier }: { dernier: NonNullable<MaLoterie["dernier"]>
           Revoir le tirage
         </button>
       </div>
-      <p class="pochette-note">
-        Points du {jourCourt(semaine.debut)} au {jourCourt(semaine.fin)}, {nombre(totalDesBillets(dernier.parts))} billets.
-      </p>
-      <JaugeDesParts parts={dernier.parts} tirage lecture={lecture} onFini={() => setEnCours(false)} />
-      {/* Le podium en toutes lettres : caché pendant que la jauge le dévoile, pour ne pas le dire avant elle, puis
+      <SceneDeLoterie parts={dernier.parts} lots={lots} tirage lecture={lecture} onFini={() => setEnCours(false)} />
+      {/* Le podium en toutes lettres : caché pendant que la scène le dévoile, pour ne pas le dire avant elle, puis
           annoncé aux lecteurs d'écran quand il paraît. */}
       <div aria-live="polite">
         {!enCours && (
@@ -602,12 +838,14 @@ function DernierTirage({ dernier }: { dernier: NonNullable<MaLoterie["dernier"]>
   );
 }
 
+const majuscule = (texte: string): string => texte.charAt(0).toUpperCase() + texte.slice(1);
+
 /**
- * L'onglet « La loterie » de « Mon Gaulois » (16 novembre 2026). Chaque lundi à 21 h 30, le serveur tire l'or, l'argent
- * puis le bronze parmi les billets de la semaine passée : un billet par point rapporté au clan, plus ceux qu'on achète.
- * L'écran montre les lots, la jauge des parts du tirage à venir, ses propres billets, et rejoue le dernier tirage. Tout
- * vient de `get_loterie` ; rien n'est du temps réel : la page se relit à l'ouverture de l'onglet, après un achat, et
- * autour de l'heure du tirage.
+ * L'onglet « La loterie » de « Mon Gaulois » (16 novembre 2026), dans la mise en page choisie par le pilote, « le podium
+ * d'abord » : la date du tirage en grand, les trois cases des lots où chaque gagnant paraît devant sa bannière, la ligne
+ * des parts en ruban, sans or, puis le guichet (ses billets, l'achat). Chaque lundi à 21 h 30, le serveur tire l'or,
+ * l'argent puis le bronze parmi les billets de la semaine passée. Tout vient de `get_loterie` ; rien n'est du temps
+ * réel : la page se relit à l'ouverture de l'onglet, après un achat, et autour de l'heure du tirage.
  */
 export default function LoterieDuLundi({ actif }: { actif: boolean }) {
   const [etat, setEtat] = useState<Etat>({ kind: "attente" });
@@ -649,17 +887,16 @@ export default function LoterieDuLundi({ actif }: { actif: boolean }) {
 
   const { ma: loterie } = etat;
   const semaine = semaineDuTirage(loterie.tirage);
-  const moi = maPart(loterie.parts);
   const gagnees = bonsEnMots(loterie.bons);
   return (
     <div class="loterie" data-testid="loterie">
       <div class="loterie-tete">
+        <p class="loterie-surtitre">Prochain tirage</p>
         <p class="loterie-quand" data-testid="loterie-quand">
-          Tirage {jourEnMots(loterie.tirage)} à 21 h 30, heure de Paris
+          {majuscule(jourEnMots(loterie.tirage))}
         </p>
-        <p class="pochette-note">
-          Un billet par point rapporté au clan du {jourCourt(semaine.debut)} au {jourCourt(semaine.fin)}
-          {loterie.close ? " : la semaine est finie, seuls les billets achetés peuvent encore s'ajouter" : ""}. L'or est tiré d'abord, puis l'argent et le bronze ; un gagnant ne regagne pas.
+        <p class="loterie-heure">
+          <span class="loterie-pastille">21 h 30</span>heure de Paris
         </p>
         {loterie.releve && (
           <p class="info-discrete" data-testid="loterie-releve">
@@ -667,20 +904,6 @@ export default function LoterieDuLundi({ actif }: { actif: boolean }) {
           </p>
         )}
       </div>
-
-      <ol class="loterie-lots" aria-label="Les lots du podium" data-testid="loterie-lots">
-        {loterie.lots.map((lot) => (
-          <li key={lot.rang} data-rang={lot.rang}>
-            <span class="loterie-rang">{NOMS_DES_RANGS[lot.rang]}</span>
-            <Prix montant={lot.gain} />
-            {pochettesDuLot(lot).map((texte) => (
-              <span key={texte} class="loterie-lot-pochette">
-                {texte}
-              </span>
-            ))}
-          </li>
-        ))}
-      </ol>
 
       {gagnees.length > 0 && (
         <p class="loterie-gagnees" data-testid="loterie-gagnees">
@@ -694,42 +917,41 @@ export default function LoterieDuLundi({ actif }: { actif: boolean }) {
         </p>
       )}
 
-      <section class="loterie-bloc" aria-labelledby="loterie-parts-titre">
-        <h3 id="loterie-parts-titre" class="nom-champ vestiaire-titre">
-          Les parts du prochain tirage
+      <section aria-labelledby="loterie-parts-titre" class="loterie-prochain">
+        <h3 id="loterie-parts-titre" class="sr-only">
+          Les lots et les parts du prochain tirage
         </h3>
-        {loterie.parts.length > 0 && (
-          <>
-            <JaugeDesParts parts={loterie.parts} />
-            <ul class="loterie-legende">
-              <li>
-                <i class="loterie-puce" />
-                billets gagnés
-              </li>
-              <li>
-                <i class="loterie-puce loterie-puce-or" />
-                billets achetés
-              </li>
-            </ul>
-          </>
-        )}
-        <p class="loterie-mes-billets" data-testid="loterie-mes-billets">
-          {moi ? (
-            <>
-              Vos billets : <strong class="tnum">{nombre(moi.gratuits)}</strong> gagnés, <strong class="tnum">{nombre(moi.achetes)}</strong> achetés, soit <strong class="tnum">{pourcent(partEnPourcent(moi, loterie.parts))}</strong> des{" "}
-              <span class="tnum">{nombre(totalDesBillets(loterie.parts))}</span> billets.
-            </>
-          ) : (
-            <>
-              <span class="tnum">{nombre(totalDesBillets(loterie.parts))}</span> billets dans le tirage.
-            </>
-          )}
-        </p>
-        <AchatDeBilletsDeLoterie ma={loterie} onAchete={(apres) => setEtat({ kind: "prete", ma: apres })} />
+        <SceneDeLoterie parts={loterie.parts} lots={loterie.lots} />
+        <Guichet ma={loterie} onAchete={(apres) => setEtat({ kind: "prete", ma: apres })} />
         {loterie.parts.length > 0 && <TableDesParts parts={loterie.parts} fait={false} />}
       </section>
 
-      {loterie.dernier && <DernierTirage key={loterie.dernier.tirage} dernier={loterie.dernier} />}
+      {loterie.dernier && <DernierTirage key={loterie.dernier.tirage} dernier={loterie.dernier} lots={loterie.lots} />}
+
+      {/* Les règles et les lots en toutes lettres : la scène les dessine, ce pli les écrit. */}
+      <details class="fold" data-testid="loterie-regles">
+        <summary>Les règles et les lots</summary>
+        <div class="loterie-regles mt-3">
+          <p>
+            Un billet par point rapporté au clan du {jourCourt(semaine.debut)} au {jourCourt(semaine.fin)}
+            {loterie.close ? " : la semaine est finie, seuls les billets achetés peuvent encore s'ajouter" : ""}. On peut en acheter autant qu'on en a gagné, {stateres(loterie.prix)} le billet. L'or est tiré d'abord, puis l'argent
+            et le bronze ; un gagnant ne regagne pas.
+          </p>
+          <ol class="loterie-lots" aria-label="Les lots du podium" data-testid="loterie-lots">
+            {RANGS.map((rang) => {
+              const lot = loterie.lots.find((l) => l.rang === rang);
+              return (
+                lot && (
+                  <li key={rang} data-rang={rang}>
+                    <span class="loterie-rang">{NOMS_DES_RANGS[rang]}</span>
+                    <span>{[stateres(lot.gain), ...pochettesDuLot(lot)].join(", ")}</span>
+                  </li>
+                )
+              );
+            })}
+          </ol>
+        </div>
+      </details>
     </div>
   );
 }

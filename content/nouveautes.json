@@ -2,6 +2,16 @@
   {
     "date": "2026-11-16",
     "kind": "ameliore",
+    "title": "La loterie change d'écran",
+    "body": "L'onglet « La loterie » est refait : les trois lots en grand avec leurs pochettes, chaque gagnant devant sa bannière, la ligne des parts en ruban et un guichet pour vos billets.",
+    "link": {
+      "href": "/village#loterie",
+      "label": "La loterie"
+    }
+  },
+  {
+    "date": "2026-11-16",
+    "kind": "ameliore",
     "title": "Le coffre en images",
     "body": "Sur Discord, chaque réponse du gardien a son image : son humeur, votre Gaulois, le mot en cases, les indices. Un gardien par manche. /perceurs montre le podium de la semaine.",
     "link": {
