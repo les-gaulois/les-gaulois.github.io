@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { IMAGE_DE_LA_BANNIERE_DU_CLAN } from "../lib/banniere-clan";
 import { fmtInt, fmtPct, fmtScore } from "../lib/format";
 import { searchClans, winRate, type RankedClan } from "../lib/stats";
 
@@ -6,6 +7,10 @@ interface Props {
   clans: RankedClan[];
   tag: string;
 }
+
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+/** La bannière du clan, fond de sa ligne (« .ligne-clan » de 01-socle.css) : aucune autre ligne ne la porte. */
+const FOND_DU_CLAN = { "--banniere": `url("${BASE}${IMAGE_DE_LA_BANNIERE_DU_CLAN}")` };
 
 /** Sur téléphone, les 105 clans faisaient plus de 20 écrans : les suivants restent dans la page, repliés. */
 const FIRST_ROWS = 25;
@@ -38,7 +43,7 @@ function Rows({ clans, tag, share, caption }: { clans: RankedClan[]; tag: string
           </thead>
           <tbody>
             {clans.map((c) => (
-              <tr key={c.clanTag} class={c.clanTag === tag ? "row-highlight font-semibold" : ""} data-testid="leaderboard-row">
+              <tr key={c.clanTag} class={c.clanTag === tag ? "row-highlight ligne-clan font-semibold" : ""} style={c.clanTag === tag ? FOND_DU_CLAN : undefined} data-testid="leaderboard-row">
                 <td>{c.rank}</td>
                 <td class="font-display font-bold">[{c.clanTag}]</td>
                 <td class="num">
@@ -57,7 +62,7 @@ function Rows({ clans, tag, share, caption }: { clans: RankedClan[]; tag: string
 
       <ol class="mt-4 space-y-2 md:hidden" aria-label={caption}>
         {clans.map((c) => (
-          <li key={c.clanTag} class={`card tnum p-3 ${c.clanTag === tag ? "row-highlight" : ""}`} value={c.rank} data-testid="leaderboard-row">
+          <li key={c.clanTag} class={`card tnum p-3 ${c.clanTag === tag ? "row-highlight ligne-clan" : ""}`} style={c.clanTag === tag ? FOND_DU_CLAN : undefined} value={c.rank} data-testid="leaderboard-row">
             <div class="flex items-baseline justify-between gap-3">
               <p class="font-display text-lg font-bold">
                 <span class="mr-2 text-muted">{c.rank}</span>[{c.clanTag}]

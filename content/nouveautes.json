@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-17",
+    "kind": "nouveau",
+    "title": "Une bannière pour le clan",
+    "body": "Dans le classement des clans, la ligne [GAL] porte sa bannière, dessinée pour elle seule : une flotte aux voiles bleues et rouges sur une mer de nuit, sous la lune.",
+    "link": {
+      "href": "/classement",
+      "label": "Le classement"
+    }
+  },
+  {
+    "date": "2026-11-17",
     "kind": "corrige",
     "title": "Des replays qui ne s'ouvraient pas",
     "body": "Certains replays ne se chargeaient pas : le service qui donnait les cartes du jeu en refusait par moments. Le lecteur est refait pour les lire dans le dépôt du jeu, au prochain passage du robot.",

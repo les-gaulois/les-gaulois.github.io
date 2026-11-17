@@ -1387,6 +1387,64 @@ tr.ligne-banniere > td:last-child {
     -1.5px 1.5px var(--cerne),
     1.5px 1.5px var(--cerne);
 }
+/* La bannière du clan sur sa ligne du classement des clans (demande du pilote, 17 novembre 2026 : « une bannière créée
+   uniquement pour ça, comme ça on se distingue des autres clans » ; « La flotte de nuit », choisie parmi dix,
+   src/lib/banniere-clan.ts). Une bande de 240 cases sur 20 qui se raccorde : trois pixels par case, répétée sur toute la
+   ligne. Comme sur la ligne d'un membre à bannière, l'écriture est claire et cernée de marine : elle est toujours sur
+   l'image. Le reflet qui passait sur la ligne est retiré, le filet rouge reste. `--banniere` est posée par
+   LeaderboardTable.tsx. « :root » : la feuille 07 retire le fond de `.row-highlight` ; ce sélecteur passe devant. */
+:root :is(tr, li).row-highlight.ligne-clan {
+  --cerne: #0a1230;
+  /* Le tag du clan, écrit dans la police des titres, prend la couleur de l'écriture : claire ici aussi. */
+  --ecriture: var(--sur-couleur);
+  background-color: var(--cerne);
+  background-image: var(--banniere);
+  background-repeat: repeat-x;
+  background-position: left center;
+  background-size: 720px 60px;
+  image-rendering: pixelated;
+  color: var(--sur-couleur);
+  animation: none;
+  text-shadow:
+    -2px 0 var(--cerne),
+    2px 0 var(--cerne),
+    0 -2px var(--cerne),
+    0 2px var(--cerne),
+    -1.5px -1.5px var(--cerne),
+    1.5px -1.5px var(--cerne),
+    -1.5px 1.5px var(--cerne),
+    1.5px 1.5px var(--cerne),
+    0 3px 4px color-mix(in srgb, var(--cerne) 70%, transparent);
+}
+:root .data-table tbody tr.row-highlight.ligne-clan:hover {
+  background-color: var(--cerne);
+}
+tr.ligne-clan > td {
+  border-bottom-color: transparent;
+}
+.ligne-clan .score-bar {
+  background: color-mix(in srgb, var(--sur-couleur) 26%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sur-couleur) 45%, transparent);
+}
+/* Sur téléphone, la ligne est une carte : la bande la couvre en hauteur. */
+:root main li.card.row-highlight.ligne-clan,
+:root main li.card.row-highlight.ligne-clan:hover {
+  border-color: transparent;
+  background-image: var(--banniere);
+  background-size: auto 100%;
+  box-shadow: inset 4px 0 0 var(--color-red);
+  font-weight: 700;
+}
+.ligne-clan .text-muted {
+  color: inherit;
+}
+.ligne-clan .meter > i {
+  background: var(--sur-couleur);
+}
+.ligne-clan .meter {
+  background: color-mix(in srgb, var(--cerne) 70%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--sur-couleur) 45%, transparent);
+}
 /* La bannière en fond des scènes de la fiche d'un membre, à la place de leur bleu (demande du pilote, 17 novembre 2026 :
    « je veux que les parties bleues deviennent la bannière choisie par le joueur », « au lieu de la petite image carrée »).
    Comme sur sa ligne de la liste : l'image en pleine couleur, sans voile, l'écriture claire cernée de marine, la rareté
