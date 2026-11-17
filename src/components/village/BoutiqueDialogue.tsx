@@ -6,6 +6,7 @@ import { stateres } from "../../lib/village/ecran-boutique";
 import { bandeDeLaPochette, type Rangee } from "../../lib/village/tambour";
 import { MarqueDeRarete, Pixels, Prix } from "./BoutiquePixels";
 import { DessinPochette } from "./Pochette";
+import { feterLObjet } from "./Cases";
 import { BoutonSon, Tambour, carillonSiVoulu, preparerLeSon, preparerLeSonSiVoulu, useSonDuTambour, type RangeeVue } from "./Tambour";
 
 /** Ce que rend un achat : le résultat du serveur, ou les mots de son refus. */
@@ -68,8 +69,10 @@ export function CaseMontree({ objet, rarete, vignette }: { objet: Objet; rarete:
  * palier du sentier ; les pochettes ont leur tambour, la fusion son moule. Les rayons tournent très lentement, et pas du
  * tout quand les animations sont coupées. Décoratifs : le nom et la rareté sont écrits dans la case.
  */
-export function ObjetRecu({ objet, rarete, vignette }: { objet: Objet; rarete: Rarete; vignette: Vignette | null }) {
+export function ObjetRecu({ objet, rarete, vignette, palier = false }: { objet: Objet; rarete: Rarete; vignette: Vignette | null; palier?: boolean }) {
   useEffect(() => carillonSiVoulu(RARETES_DES_OBJETS[rarete].rang), [rarete]);
+  // Quand la fenêtre se ferme, le Gaulois de la page saute de joie : pour un objet épique ou plus, ou un palier du sentier.
+  useEffect(() => () => feterLObjet(rarete, palier), [rarete, palier]);
   return (
     <div class="objet-recu" data-rarete={rarete} data-testid="objet-recu">
       <span class="objet-recu-rayons" aria-hidden="true" />
@@ -231,6 +234,15 @@ export function DialoguePochette({ prix, chances, solde, ouvrir, objetDe, vignet
     }
   };
   const tire = tirage?.objet;
+  // L'objet tiré, une fois la fenêtre fermée : le Gaulois de la page saute de joie s'il est épique ou plus.
+  const tireVu = useRef<Rarete | null>(null);
+  tireVu.current = etape === "revele" && tire ? tire.rarete : null;
+  useEffect(
+    () => () => {
+      if (tireVu.current) feterLObjet(tireVu.current);
+    },
+    [],
+  );
   const objet = tire ? objetDe(tire) : undefined;
   const ouverte = etape === "tourne" || etape === "revele";
   return (

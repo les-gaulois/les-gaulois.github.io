@@ -30,14 +30,16 @@ import type { MaBoutique, PlaqueVue } from "../../lib/village/contrat";
 import { SOLDE_INCONNU, lireBoutique, lireStateres, motStatere, nombre, quantitePossedee, soldeAffiche } from "../../lib/village/ecran-boutique";
 import { tailleDeLApercu } from "../../lib/village/ecran-familiers";
 import { PLAQUES_CHANGEES } from "../../lib/village/ecran-forge";
-import { familierDe } from "../../lib/village/familiers";
+import { FAMILIERS, familierDe } from "../../lib/village/familiers";
 import { lirePlaques, plaqueDe } from "../../lib/village/forge";
-import { tenueAvecModele } from "../../lib/village/modeles";
+import { MODELES, tenueAvecModele } from "../../lib/village/modeles";
+import { cleDeLObjet, cleDesObjetsVus, ecrireLesVus, faireLePoint, lireLesVus, nouveauxDuRayon } from "../../lib/village/nouveaux-objets";
 import { lireMesTenues, type MesTenues } from "../../lib/village/tenues-gardees";
 import { NOMS_RAYONS, RAYONS, RAYON_CORPS, cadreDuVisage, collectionDuRayon, grosPlan, motsDeLaCollection, rangerLeRayon, visageNu, type Rayon } from "../../lib/village/vestiaire-rayons";
 import { MaBanniere, useDecorDuGaulois } from "../village/Bannieres";
 import { Piece } from "../village/BoutiquePixels";
 import { ApercuGaulois, BarreDesRayons, Case, noterLeRetour, useSceneCollee } from "../village/Cases";
+import { LivreDeLaCollection } from "../village/Collection";
 import { MonFamilier, useFamiliers } from "../village/Familiers";
 import { MonCorps, useModeles } from "../village/Modeles";
 import { TenuesGardees } from "../village/TenuesGardees";
@@ -72,6 +74,9 @@ interface Choix {
   boutique: MaBoutique | null;
   /** Les plaques de la forge sur ses objets. */
   plaques: readonly PlaqueVue[];
+  /** Les objets arrivés depuis la dernière visite (leurs clés), et ce qu'on fait quand l'un d'eux est essayé. */
+  nouveaux?: ReadonlySet<string>;
+  onVu?: (cle: string) => void;
   onChange: (tenue: Tenue) => void;
 }
 
@@ -150,7 +155,7 @@ function Visage({ emplacement, tenue, onChange }: Choix & { emplacement: Emplace
  * Le rayon d'un emplacement : ce qui se porte, les objets gratuits et ceux que le membre possède. Ce qui reste à acheter
  * est à la boutique (l'onglet « La boutique » de `/village`), plus ici, depuis le 15 novembre 2026.
  */
-function Objets({ emplacement, tenue, boutique, plaques, onChange }: Choix & { emplacement: Emplacement }) {
+function Objets({ emplacement, tenue, boutique, plaques, nouveaux, onVu, onChange }: Choix & { emplacement: Emplacement }) {
   const possede = (id: string): number => (boutique ? quantitePossedee(boutique.inventaire, emplacement, id) : 0);
   return (
     <div class="vestiaire-rayon" data-testid={`vestiaire-${emplacement}`}>
@@ -167,7 +172,11 @@ function Objets({ emplacement, tenue, boutique, plaques, onChange }: Choix & { e
             portee={tenue[emplacement] === id}
             vente={objet.gratuit ? undefined : { possede: possede(id) }}
             plaque={plaqueDe(plaques, { emplacement, objet: id })}
-            onClick={() => onChange(changerObjet(tenue, emplacement, id))}
+            nouveau={nouveaux?.has(cleDeLObjet({ emplacement, objet: id })) ?? false}
+            onClick={() => {
+              onVu?.(cleDeLObjet({ emplacement, objet: id }));
+              onChange(changerObjet(tenue, emplacement, id));
+            }}
           />
         ))}
       </div>
@@ -386,6 +395,34 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
     }
   };
 
+  // Les objets arrivés depuis la dernière visite portent « Nouveau » jusqu'à leur essai. La liste des objets déjà vus
+  // reste sur l'appareil, par compte ; un stockage refusé ne montre aucune pastille.
+  const [nouveaux, setNouveaux] = useState<ReadonlySet<string>>(new Set());
+  const compte = me?.number;
+  useEffect(() => {
+    if (!boutique || compte === undefined) return;
+    try {
+      const point = faireLePoint(lireLesVus(localStorage.getItem(cleDesObjetsVus(compte))), boutique.inventaire.map(cleDeLObjet));
+      localStorage.setItem(cleDesObjetsVus(compte), ecrireLesVus(point.vus));
+      setNouveaux(point.nouveaux);
+    } catch {
+      setNouveaux(new Set());
+    }
+  }, [boutique, compte]);
+  const noterVu = (cle: string): void => {
+    if (!nouveaux.has(cle) || compte === undefined) return;
+    const reste = new Set(nouveaux);
+    reste.delete(cle);
+    setNouveaux(reste);
+    try {
+      const vus = lireLesVus(localStorage.getItem(cleDesObjetsVus(compte))) ?? new Set<string>();
+      vus.add(cle);
+      localStorage.setItem(cleDesObjetsVus(compte), ecrireLesVus(vus));
+    } catch {
+      // Stockage refusé : la pastille reviendra à la prochaine visite, rien d'autre.
+    }
+  };
+
   if (me === null) return <Loading label="Lecture de votre compte…" />;
 
   if (!me.signed_in) {
@@ -413,7 +450,7 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
   if (etat.kind === "erreur") return <Problem message={etat.message} onRetry={() => void lire()} />;
 
   const change = !memeTenue(tenue, etat.enregistree);
-  const choix: Choix = { tenue, boutique, plaques, onChange: changer };
+  const choix: Choix = { tenue, boutique, plaques, nouveaux, onVu: noterVu, onChange: changer };
   const partieOuverte: PartieDuCorps = partieDuCorps === null || (partieDuCorps === "corps" && !existait) ? (existait ? "corps" : "peau") : partieDuCorps;
   return (
     <div ref={racine} class="vestiaire" data-testid="vestiaire">
@@ -441,6 +478,18 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
         {existait && <MaBanniere actif={actif} nom={me.name ?? "Moi"} tenue={etat.enregistree ?? tenue} familier={familiers.montre} />}
         {/* Trois tenues à garder et à remettre : elles ne se portent qu'une fois enregistrées, par le bouton du bas. */}
         {existait && tenuesGardees && <TenuesGardees mes={tenuesGardees} tenue={tenue} occupe={occupeTenues || occupe} onRemettre={changer} onGarder={(place) => void garderLaTenue(place)} />}
+        {/* Le livre de la collection : ce qu'il possède sur ce qui existe, partout. Une ligne de rayon ouvre ce rayon. */}
+        {existait && boutique && (
+          <LivreDeLaCollection
+            inventaire={boutique.inventaire}
+            familiers={familiers.etat.kind === "pret" ? { possedes: familiers.etat.mes.familiers.length, existants: FAMILIERS.length } : null}
+            modeles={modeles.etat.kind === "pret" ? { possedes: modeles.etat.mes.modeles.length, existants: MODELES.length } : null}
+            onRayon={(id) => {
+              setRayon(id);
+              document.getElementById(`vestiaire-rayon-${id}`)?.focus();
+            }}
+          />
+        )}
         <form
           class="vestiaire-choix"
           onSubmit={(e) => {
@@ -458,6 +507,7 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
               vignette={(id) => (id === RAYON_CORPS ? visageDuRayon(tenue) : vignetteDeLObjet(id, tenue[id] ?? "", tenue))}
               // La collection de chaque rayon : ce qu'il possède sur ce qui existe. Rien tant que l'inventaire n'est pas lu.
               mention={(id) => (id === RAYON_CORPS || !boutique ? null : motsDeLaCollection(collectionDuRayon(id, (objet) => quantitePossedee(boutique.inventaire, id, objet))))}
+              marque={(id) => (id !== RAYON_CORPS && nouveauxDuRayon(nouveaux, id) > 0 ? "Nouveau" : null)}
               onChoisir={setRayon}
             />
           </div>

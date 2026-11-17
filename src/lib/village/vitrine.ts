@@ -1,4 +1,4 @@
-import { CLE_MODELE, EMPLACEMENTS, EMPLACEMENTS_OBJETS, OBJETS, POILS, RARETES_DES_OBJETS as RARETES, TEINTE_CHEVEUX, TENUE_DE_DEPART, lireTenue, modeleDuGaulois, objetPorte, type RareteDObjet as Rarete, type Tenue } from "../gaulois";
+import { CLE_MODELE, EMPLACEMENTS, EMPLACEMENTS_OBJETS, NOMS_EMPLACEMENTS, OBJETS, POILS, RARETES_DES_OBJETS as RARETES, TEINTE_CHEVEUX, TENUE_DE_DEPART, lireTenue, modeleDuGaulois, objetPorte, type RareteDObjet as Rarete, type Tenue } from "../gaulois";
 import type { GauloisDeLaPlace } from "./contrat";
 
 /**
@@ -65,6 +65,29 @@ export function lireVitrine(reponse: unknown): GauloisVitrine[] | null {
     if (g) lus.push(g);
   }
   return lus;
+}
+
+/** Une ligne de ce que porte un Gaulois regardé en grand : la partie, le nom de l'objet et sa rareté s'il en a une. */
+export interface LignePortee {
+  partie: string;
+  nom: string;
+  rarete: Rarete | null;
+}
+
+/**
+ * Ce que porte un Gaulois, pour sa carte ouverte en grand (17 novembre 2026) : son Gaulois unique d'abord, puis ses objets
+ * de la tête à l'arme, dans l'ordre du vestiaire. Une case « rien » (sans dessin) ne se dit pas. Des faits du catalogue,
+ * dans l'ordre des emplacements : rien n'est trié ni compté.
+ */
+export function lignesPortees(tenue: Tenue): LignePortee[] {
+  const lignes: LignePortee[] = [];
+  const modele = modeleDuGaulois(tenue);
+  if (modele) lignes.push({ partie: "Gaulois unique", nom: modele.nom, rarete: modele.rarete });
+  for (const emplacement of EMPLACEMENTS_OBJETS) {
+    const objet = OBJETS[emplacement][objetPorte(tenue, emplacement)];
+    if (objet?.dessin) lignes.push({ partie: NOMS_EMPLACEMENTS[emplacement], nom: objet.nom, rarete: objet.rarete });
+  }
+  return lignes;
 }
 
 /**

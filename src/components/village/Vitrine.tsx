@@ -3,8 +3,9 @@ import { GAULOIS as PLACE_DU_GAULOIS, LARGEUR as DECOR_LARGEUR, HAUTEUR as DECOR
 import { decrireGaulois, type RareteDObjet as Rarete } from "../../lib/gaulois";
 import { ServerError, call } from "../../lib/compte/api";
 import { apercuAvecFamilier, familierDe } from "../../lib/village/familiers";
-import { lireVitrine, rareteDuCadre, type GauloisVitrine } from "../../lib/village/vitrine";
+import { lignesPortees, lireVitrine, rareteDuCadre, type GauloisVitrine } from "../../lib/village/vitrine";
 import { Loading, Problem, messageOf } from "../compte/common";
+import { Dialogue } from "./BoutiqueDialogue";
 import { charger as chargerLesBannieres } from "./Bannieres";
 import { MarqueDeRarete } from "./BoutiquePixels";
 import { Toile, peindre } from "./PlaceToile";
@@ -178,12 +179,16 @@ function useLibDesBannieres(utile: boolean): LibDesBannieres | null {
  * Les cartes : une par Gaulois, aussi large que lui et son familier, au cadre de la rareté la plus haute portée. Le livre
  * des bannières (`LivreDesBannieres.tsx`) s'en sert aussi pour montrer au membre sa propre carte avec la bannière qu'il essaie.
  */
-export function CartesDeLaVitrine({ gaulois, testid = "vitrine", label = "Les Gaulois du clan" }: { gaulois: readonly GauloisVitrine[]; testid?: string; label?: string }) {
+export function CartesDeLaVitrine({ gaulois, testid = "vitrine", label = "Les Gaulois du clan", enGrand = false }: { gaulois: readonly GauloisVitrine[]; testid?: string; label?: string; enGrand?: boolean }) {
   const fiches = useMemo(() => fichesDe(gaulois), [gaulois]);
+  // La carte ouverte en grand : sa place dans la liste ; rien tant qu'on n'a cliqué sur aucune.
+  const [ouverte, setOuverte] = useState<number | null>(null);
+  const enVue = ouverte === null ? null : (fiches[ouverte] ?? null);
   const echelle = useEcranDe(768) ? 3 : 2;
   const lib = useLibDesBannieres(fiches.some((f) => Boolean(f.gaulois.banniere)));
   if (fiches.length === 0) return null;
   return (
+    <>
     <ul class="vitrine-cartes" data-testid={testid} aria-label={label}>
       {fiches.map((f) => {
         const banniere = lib?.banniereParId(f.gaulois.banniere) ?? null;
@@ -202,10 +207,63 @@ export function CartesDeLaVitrine({ gaulois, testid = "vitrine", label = "Les Ga
               {f.rarete && <MarqueDeRarete rarete={f.rarete} />}
             </div>
             {f.gaulois.moi && <span class="vitrine-moi">Moi</span>}
+            {/* Toute la carte ouvre le Gaulois en grand : un bouton sans dessin, posé par-dessus. */}
+            {enGrand && <button type="button" class="vitrine-carte-ouvrir" aria-label={`Voir ${f.gaulois.nom} en grand`} onClick={() => setOuverte(f.cle)} data-testid="vitrine-ouvrir" />}
           </li>
         );
       })}
     </ul>
+    {enVue && <GauloisEnGrand fiche={enVue} lib={lib} onFermer={() => setOuverte(null)} />}
+    </>
+  );
+}
+
+/**
+ * Un Gaulois de la vitrine regardé en grand (17 novembre 2026, choix du pilote parmi cinq idées) : la même fenêtre que
+ * celles de la boutique, avec le Gaulois devant sa bannière, comme sur /gaulois, puis ce qu'il porte, ligne par ligne.
+ * Rien de plus que ce que la vitrine sait déjà : ni bourse, ni total, ni note.
+ */
+function GauloisEnGrand({ fiche, lib, onFermer }: { fiche: Fiche; lib: LibDesBannieres | null; onFermer: () => void }) {
+  const grandEcran = useEcranDe(480);
+  const g = fiche.gaulois;
+  const familier = familierDe(g.familier);
+  const banniere = lib?.banniereParId(g.banniere) ?? null;
+  const scene = useMemo(() => (lib && banniere ? lib.sceneDeLaBanniere(banniere.id, g.tenue, familier) : null), [lib, banniere, g.tenue, familier]);
+  const lignes = useMemo(() => lignesPortees(g.tenue), [g.tenue]);
+  return (
+    <Dialogue titre={g.nom} etape="vue" occupe={false} onFermer={onFermer} testid="vitrine-grand">
+      <div class="vitrine-grand-scene vitrine-teinte" data-rarete={fiche.rarete ?? undefined} data-banniere={scene ? "" : undefined} role="img" aria-label={fiche.description}>
+        {scene ? <Toile largeur={scene.largeur} hauteur={scene.hauteur} cases={scene.cases} echelle={grandEcran ? 3 : 2} /> : <Toile largeur={fiche.groupe.largeur} hauteur={fiche.groupe.hauteur} cases={fiche.groupe.cases} echelle={grandEcran ? 4 : 3} />}
+      </div>
+      <ul class="vitrine-grand-liste" data-testid="vitrine-grand-liste">
+        {lignes.map((ligne) => (
+          <li key={ligne.partie}>
+            <span class="vitrine-grand-partie">{ligne.partie}</span>
+            <span class="vitrine-grand-nom">{ligne.nom}</span>
+            {ligne.rarete && <MarqueDeRarete rarete={ligne.rarete} />}
+          </li>
+        ))}
+        {familier && (
+          <li>
+            <span class="vitrine-grand-partie">Familier</span>
+            <span class="vitrine-grand-nom">{familier.nom}</span>
+            <MarqueDeRarete rarete={familier.rarete} />
+          </li>
+        )}
+        {banniere && (
+          <li>
+            <span class="vitrine-grand-partie">Bannière</span>
+            <span class="vitrine-grand-nom">{banniere.nom}</span>
+            <MarqueDeRarete rarete={banniere.rarete} />
+          </li>
+        )}
+      </ul>
+      <div class="boutique-dialogue-actions">
+        <button type="button" class="btn btn-ghost" onClick={onFermer} data-testid="vitrine-grand-fermer">
+          Fermer
+        </button>
+      </div>
+    </Dialogue>
   );
 }
 
@@ -240,5 +298,5 @@ export default function VitrineDuClan({ actif }: { actif: boolean }) {
 
   if (lecture.kind === "attente" || lecture.kind === "lecture") return <Loading label="Lecture de la vitrine…" />;
   if (lecture.kind === "erreur") return <Problem message={lecture.message} onRetry={lecture.reessayer ? () => void lire(false) : undefined} />;
-  return <CartesDeLaVitrine gaulois={lecture.gaulois} />;
+  return <CartesDeLaVitrine gaulois={lecture.gaulois} enGrand />;
 }

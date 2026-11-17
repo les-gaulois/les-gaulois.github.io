@@ -34,6 +34,7 @@ import {
 import { AlbumDePochette } from "./AlbumPochette";
 import { useBannieres } from "./Bannieres";
 import { CaseMontree, Dialogue, DialogueAchat, ObjetRecu, type Issue } from "./BoutiqueDialogue";
+import { useJoie } from "./Cases";
 import { preparerLeSonSiVoulu } from "./Tambour";
 import { MarqueDeRarete, Pixels, Prix, peindre } from "./BoutiquePixels";
 import { sansCadre } from "../../lib/village/decor-banniere";
@@ -338,8 +339,11 @@ function Etal({ sentier, onAcheter }: { sentier: MonSentier; onAcheter: () => vo
 
 /** Le Gaulois du membre, debout sur la route à son palier. Décoratif : le palier atteint est écrit dans la tête du sentier. */
 function Moi({ gaulois }: { gaulois: DessinDuSentier | null }) {
+  // Il saute de joie quand un palier vient d'être pris (la fenêtre de l'objet reçu se ferme).
+  const moi = useRef<HTMLSpanElement>(null);
+  useJoie(moi, moi);
   return (
-    <span class="sentier-moi" aria-hidden="true">
+    <span ref={moi} class="sentier-moi" aria-hidden="true">
       <b>Vous</b>
       {gaulois && <Dessin dessin={gaulois} echelle={2} />}
     </span>
@@ -677,7 +681,7 @@ export default function LeSentier({ sentier: s }: { sentier: Sentier }) {
 
       {fenetre?.kind === "palier" && recu && (
         <Dialogue titre={`Palier ${fenetre.recu.palier} : ${recu.fiche.nom}`} etape="fait" occupe={false} onFermer={() => setFenetre(null)} testid="dialogue-palier">
-          <ObjetRecu objet={recu.fiche} rarete={recu.fiche.rarete} vignette={vignetteDeLObjet(recu.emplacement, recu.objet)} />
+          <ObjetRecu objet={recu.fiche} rarete={recu.fiche.rarete} vignette={vignetteDeLObjet(recu.emplacement, recu.objet)} palier />
           {fenetre.recu.objet.double && <p class="boutique-dialogue-texte">Un double : vous l'aviez déjà. Il se fond à la forge ou se vend au marché.</p>}
           <div class="boutique-dialogue-actions">
             <button type="button" class="btn btn-primary" onClick={() => void porter(fenetre.recu.objet)} data-testid="palier-porter">

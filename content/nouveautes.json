@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-17",
+    "kind": "nouveau",
+    "title": "La vitrine en grand et la collection",
+    "body": "Dans « Mon Gaulois » : un clic sur un Gaulois de la vitrine le montre en grand, « Nouveau » marque les objets tout juste reçus, « Ma collection » compte tout, et le Gaulois saute pour un objet épique.",
+    "link": {
+      "href": "/village",
+      "label": "Mon Gaulois"
+    }
+  },
+  {
+    "date": "2026-11-17",
     "kind": "ameliore",
     "title": "Les vrais pseudos dans le fil « Entre Gaulois »",
     "body": "À côté du replay, un Gaulois porte le pseudo qu'il avait dans la partie, au lieu de « Gaulois 1 ». Les parties déjà en ligne le reçoivent peu à peu.",

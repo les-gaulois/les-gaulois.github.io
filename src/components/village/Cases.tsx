@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from "preact/hooks";
-import type { Objet, Tenue, Vignette } from "../../lib/gaulois";
+import { RARETES_DES_OBJETS, type Objet, type RareteDObjet, type Tenue, type Vignette } from "../../lib/gaulois";
 import { motionAllowed } from "../../lib/fx/motion";
 import { tabKeyTarget } from "../../lib/onglets";
 import type { DecorDeBanniere } from "../../lib/village/decor-banniere";
@@ -16,6 +16,53 @@ import { MarqueDeRarete, PetitePlaque, Pixels, Prix, peindre } from "./BoutiqueP
  * boutique a pris sa propre page : rien n'y a changé d'apparence.
  */
 
+/** L'annonce d'une joie du Gaulois : son détail porte la rareté de l'objet reçu. */
+export const JOIE_DU_GAULOIS = "gal:gaulois-joie";
+/** Le rang de rareté à partir duquel un objet reçu le fait sauter de joie : l'épique. Un palier du sentier, toujours. */
+const RANG_DE_LA_JOIE = 3;
+
+/**
+ * Le Gaulois saute de joie (17 novembre 2026, choix du pilote parmi cinq idées) : à appeler quand la fenêtre d'un objet
+ * reçu se ferme, pour qu'on le voie. Deux petits sauts et quelques éclats de la couleur de la rareté, une fois ; rien pour
+ * un objet courant hors du sentier. De l'habillage : il ne dit rien de plus que la fenêtre qui vient de se fermer.
+ */
+export function feterLObjet(rarete: RareteDObjet, palier = false): void {
+  if (!palier && RARETES_DES_OBJETS[rarete].rang < RANG_DE_LA_JOIE) return;
+  window.dispatchEvent(new CustomEvent(JOIE_DU_GAULOIS, { detail: { rarete } }));
+}
+
+/**
+ * Fait jouer la joie sur un dessin quand elle est annoncée : la classe `gaulois-joie` le temps de l'animation, et la
+ * couleur des éclats (`--joie`) sur `cadre`. Rien quand les animations sont coupées.
+ */
+export function useJoie(dessin: { current: HTMLElement | null }, cadre: { current: HTMLElement | null }): void {
+  useEffect(() => {
+    const jouer = (e: Event): void => {
+      const el = dessin.current;
+      // Un Gaulois d'un onglet fermé ne joue rien : son animation ne finirait pas, et la classe lui resterait.
+      if (!el || el.offsetParent === null || !motionAllowed() || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      const rarete = (e as CustomEvent<{ rarete?: unknown }>).detail?.rarete;
+      const boite = cadre.current;
+      if (boite && typeof rarete === "string" && /^[a-z-]+$/.test(rarete)) {
+        boite.style.setProperty("--joie", `var(--rarete-${rarete})`);
+        boite.setAttribute("data-joie", "");
+      }
+      el.classList.remove("gaulois-joie");
+      void el.offsetWidth;
+      el.classList.add("gaulois-joie");
+      const finir = (): void => {
+        el.classList.remove("gaulois-joie");
+        boite?.removeAttribute("data-joie");
+      };
+      el.addEventListener("animationend", finir, { once: true });
+      // La pause pressée en plein saut arrête l'animation sans la finir : la classe ne doit pas rester.
+      window.setTimeout(finir, 1800);
+    };
+    window.addEventListener(JOIE_DU_GAULOIS, jouer);
+    return () => window.removeEventListener(JOIE_DU_GAULOIS, jouer);
+  }, [dessin, cadre]);
+}
+
 /**
  * Le Gaulois dessiné case par case, agrandi sans flou par la feuille de style. Son texte de remplacement le décrit. Avec le
  * familier qu'il montre (15 novembre 2026), une seule grille : le Gaulois à gauche, le familier à droite, les pieds sur la
@@ -26,6 +73,8 @@ import { MarqueDeRarete, PetitePlaque, Pixels, Prix, peindre } from "./BoutiqueP
 export function ApercuGaulois({ tenue, familier = null, decor = null, class: classe = "" }: { tenue: Tenue; familier?: Familier | null; decor?: DecorDeBanniere | null; class?: string }) {
   const toile = useRef<HTMLCanvasElement>(null);
   const fond = useRef<HTMLCanvasElement>(null);
+  const cadre = useRef<HTMLSpanElement>(null);
+  useJoie(toile, cadre);
   // Le contenu de la tenue, pas son objet : un écran qui la recompose à chaque dessin (un essayage) ne redessine rien.
   const signature = Object.keys(tenue)
     .sort()
@@ -75,7 +124,7 @@ export function ApercuGaulois({ tenue, familier = null, decor = null, class: cla
   }, [grille, signature, familier]);
   const taille = tailleDeLApercu(familier);
   return (
-    <span class="gaulois-cadre" data-decor={decor ? "" : undefined} data-testid="gaulois-cadre">
+    <span ref={cadre} class="gaulois-cadre" data-decor={decor ? "" : undefined} data-testid="gaulois-cadre">
       {/* La bannière qu'il montre sur /gaulois, derrière lui : décorative, son nom est écrit à l'onglet « Mon Gaulois ». */}
       {decor && <canvas ref={fond} width={decor.largeur} height={decor.hauteur} class="pixels gaulois-decor" aria-hidden="true" data-testid="gaulois-decor" />}
       <canvas
@@ -198,6 +247,7 @@ export function Case({
   enVente = false,
   visage = false,
   plaque = null,
+  nouveau = false,
   onClick,
 }: {
   objet: Objet;
@@ -210,12 +260,14 @@ export function Case({
   visage?: boolean;
   /** Le texte de sa plaque de la forge, s'il est gravé. */
   plaque?: string | null;
+  /** Arrivé depuis la dernière visite, pas encore essayé : la case porte « Nouveau ». */
+  nouveau?: boolean;
   onClick: () => void;
 }) {
   const aVendre = vente && "prix" in vente ? vente : null;
   const possede = vente && "possede" in vente ? vente.possede : 0;
   return (
-    <button type="button" class="case" data-rarete={objet.rarete ?? "aucune"} data-boutique={aVendre ? "" : undefined} data-etat={essayee ? "essayee" : portee ? "portee" : "libre"} aria-pressed={portee || essayee} data-grave={plaque ? "" : undefined} title={plaque ? motsDeLaPlaque(plaque) : undefined} onClick={onClick}>
+    <button type="button" class="case" data-rarete={objet.rarete ?? "aucune"} data-boutique={aVendre ? "" : undefined} data-etat={essayee ? "essayee" : portee ? "portee" : "libre"} aria-pressed={portee || essayee} data-grave={plaque ? "" : undefined} data-nouveau={nouveau ? "" : undefined} title={plaque ? motsDeLaPlaque(plaque) : undefined} onClick={onClick}>
       <span class="case-image">{vignette ? visage ? <ImageDeCase vignette={vignette} place={COTE_VISAGE} maximum={4} /> : <ImageDeCase vignette={vignette} /> : <span class="case-rien" aria-hidden="true" />}</span>
       <span class="case-nom">{objet.nom}</span>
       {objet.rarete && <MarqueDeRarete rarete={objet.rarete} />}
@@ -237,6 +289,11 @@ export function Case({
           {aVendre.prix === null ? <Cadenas /> : <Prix montant={aVendre.prix} class="case-prix" />}
           <span class="sr-only">, à essayer</span>
         </>
+      )}
+      {nouveau && !essayee && !portee && (
+        <span class="case-nouveau" data-testid="case-nouveau">
+          <span class="sr-only">, </span>Nouveau
+        </span>
       )}
       {essayee && (
         <span class="case-essai">
@@ -269,6 +326,7 @@ export function BarreDesRayons<R extends string>({
   rayon,
   vignette,
   mention,
+  marque,
   onChoisir,
 }: {
   prefixe: string;
@@ -278,6 +336,8 @@ export function BarreDesRayons<R extends string>({
   rayon: R;
   vignette: (rayon: R) => Vignette | null;
   mention?: (rayon: R) => string | null;
+  /** Quelques mots en pastille au coin d'un onglet (« Nouveau », au vestiaire). */
+  marque?: (rayon: R) => string | null;
   onChoisir: (rayon: R) => void;
 }) {
   const auClavier = (e: KeyboardEvent, index: number) => {
@@ -292,6 +352,7 @@ export function BarreDesRayons<R extends string>({
       {rayons.map((id, index) => {
         const image = vignette(id);
         const mots = mention?.(id) ?? null;
+        const pastille = marque?.(id) ?? null;
         return (
           <button
             key={id}
@@ -312,6 +373,12 @@ export function BarreDesRayons<R extends string>({
               <span class="vestiaire-rayon-mention tnum">
                 <span class="sr-only">, </span>
                 {mots}
+              </span>
+            )}
+            {pastille && (
+              <span class="vestiaire-rayon-marque" data-testid={`rayon-marque-${id}`}>
+                <span class="sr-only">, </span>
+                {pastille}
               </span>
             )}
           </button>
