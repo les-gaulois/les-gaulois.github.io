@@ -5,7 +5,7 @@ import { mapLabel } from "../lib/map-names";
 import { adresseEnLecture, ficheDuLecteur } from "../lib/rejeu/fiche-du-lecteur";
 import { dureeDite } from "../lib/rejeu/film";
 import { formatLabel } from "../lib/results";
-import JournalDeLaPartie, { type PortraitDuJournal } from "./JournalDeLaPartie";
+import JournalDeLaPartie, { type FlammesDuJournal, type InsignesDuJournal, type PortraitDuJournal } from "./JournalDeLaPartie";
 
 /** Une partie qui a son replay, telle que la page la reçoit de la liste publiée (`FilmPublie`, relue par Zod au build). */
 export interface PartieDuReplay {
@@ -34,6 +34,9 @@ interface Props {
   base: string;
   /** Les Gaulois des membres au pseudo public, par pseudo, pour le journal « Entre Gaulois ». */
   portraits: Record<string, PortraitDuJournal>;
+  /** Le niveau du compte et la flamme de série de ces membres, par pseudo, et les deux flammes en image. */
+  insignes: Record<string, InsignesDuJournal>;
+  flammes: FlammesDuJournal;
 }
 
 /** La partie demandée dans l'adresse (`?partie=…`), si elle a la forme d'un identifiant de partie. */
@@ -50,7 +53,7 @@ function partieDeLAdresse(): string | null {
  * replay n'est pas disponible le dit, avec le lien vers OpenFront. Les parties arrivent par la page, écrites au build : pas de
  * fichier lu au chargement, que le cache de GitHub Pages pourrait servir en retard.
  */
-export default function RejeuPartie({ parties, enAttente, jours, base, portraits }: Props) {
+export default function RejeuPartie({ parties, enAttente, jours, base, portraits, insignes, flammes }: Props) {
   const dernier = parties[0]?.partie ?? null;
   // Avant l'hydratation (et sans partie dans l'adresse), la plus récente : son titre et son cadre sont réservés d'emblée.
   const [partie, setPartie] = useState<string | null>(dernier);
@@ -177,35 +180,9 @@ export default function RejeuPartie({ parties, enAttente, jours, base, portraits
           {infos.victoire ? "Victoire" : "Défaite"}
         </span>
       </div>
-      {/* Le cadre d'un côté, les faits de la partie de l'autre (dessous quand la place manque). */}
+      {/* Sur un écran large : la fiche en une ligne sous le titre, puis le replay et, à sa droite, le fil « Entre Gaulois » sur
+          toute sa hauteur (demande du pilote, 17 novembre 2026). Plus étroit : le replay, la fiche, puis le fil. */}
       <div class="revoir-corps" style={infos.forme ? { "--revoir-forme": String(infos.forme) } : undefined}>
-        {/* Le vrai lecteur du jeu, dans un cadre à la forme de la carte : elle le remplit, sans fond autour. Il vient d'un autre
-            site : enfermé (`sandbox`), sans autre droit que ses scripts, son propre stockage et ses liens en nouvel onglet. Il
-            part de lui-même en × 8, sauf pour qui veut moins d'animations, à qui il s'ouvre en pause. */}
-        <div class="revoir-scene revoir-scene-jeu">
-          {/* Cadre vide le temps de vérifier que la fiche de la partie est bien sur le site du lecteur. Obstacle du compagnon : à
-              l'arrêt, il se tient à côté du lecteur et de son bandeau « © OpenFront and Contributors ». */}
-          <div class="revoir-cadre" aria-busy={jeuEtat !== "pret"} data-compagnon-obstacle>
-            {jeuEtat === "pret" && (
-              <iframe
-                key={partie}
-                ref={cadreDuJeu}
-                src={enLecture ? adresseEnLecture(jeu) : jeu}
-                title={`Replay du jeu OpenFront : ${titre}`}
-                sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-                allow="fullscreen"
-                allowFullScreen
-                referrerpolicy="no-referrer"
-                loading="lazy"
-                data-testid="rejeu-jeu-cadre"
-                onLoad={() => {
-                  if (coupees.current) pauseDuJeu();
-                }}
-              />
-            )}
-          </div>
-        </div>
-
         <div class="revoir-fiche">
           <dl class="revoir-faits tnum">
             <div>
@@ -235,11 +212,40 @@ export default function RejeuPartie({ parties, enAttente, jours, base, portraits
               Ouvrir la partie sur OpenFront
             </a>
           </p>
-          {/* Le journal « Entre Gaulois » de la partie, en fil qui suit le replay : seulement quand il a des faits. */}
-          {jeuEtat === "pret" && infos.faits !== null && infos.faits > 0 && (
-            <JournalDeLaPartie key={partie} partie={partie} victoire={infos.victoire} adresse={`${base}/films/${partie}.journal.json`} cadre={cadreDuJeu} origine={new URL(jeu).origin} portraits={portraits} />
-          )}
         </div>
+        {/* Le vrai lecteur du jeu, dans un cadre à la forme de la carte : elle le remplit, sans fond autour. Il vient d'un autre
+            site : enfermé (`sandbox`), sans autre droit que ses scripts, son propre stockage et ses liens en nouvel onglet. Il
+            part de lui-même en × 8, sauf pour qui veut moins d'animations, à qui il s'ouvre en pause. */}
+        <div class="revoir-scene revoir-scene-jeu">
+          {/* Cadre vide le temps de vérifier que la fiche de la partie est bien sur le site du lecteur. Obstacle du compagnon : à
+              l'arrêt, il se tient à côté du lecteur et de son bandeau « © OpenFront and Contributors ». */}
+          <div class="revoir-cadre" aria-busy={jeuEtat !== "pret"} data-compagnon-obstacle>
+            {jeuEtat === "pret" && (
+              <iframe
+                key={partie}
+                ref={cadreDuJeu}
+                src={enLecture ? adresseEnLecture(jeu) : jeu}
+                title={`Replay du jeu OpenFront : ${titre}`}
+                sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+                allow="fullscreen"
+                allowFullScreen
+                referrerpolicy="no-referrer"
+                loading="lazy"
+                data-testid="rejeu-jeu-cadre"
+                onLoad={() => {
+                  if (coupees.current) pauseDuJeu();
+                }}
+              />
+            )}
+          </div>
+        </div>
+
+        {/* Le journal « Entre Gaulois » de la partie, en fil qui suit le replay : seulement quand il a des faits. */}
+        {jeuEtat === "pret" && infos.faits !== null && infos.faits > 0 && (
+          <div class="revoir-fil">
+            <JournalDeLaPartie key={partie} partie={partie} victoire={infos.victoire} adresse={`${base}/films/${partie}.journal.json`} cadre={cadreDuJeu} origine={new URL(jeu).origin} portraits={portraits} insignes={insignes} flammes={flammes} />
+          </div>
+        )}
       </div>
     </section>
   );

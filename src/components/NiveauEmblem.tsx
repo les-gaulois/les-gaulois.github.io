@@ -8,10 +8,11 @@ import type { AccountLevel } from "../lib/schemas";
  * Rendu au build sur les fiches, dans le navigateur pour la liste des membres.
  */
 
-export function NiveauEmblem({ account, size = "sm" }: { account: AccountLevel; size?: "sm" | "lg" }) {
+export function NiveauEmblem({ account, size = "sm" }: { account: AccountLevel; size?: "xs" | "sm" | "lg" }) {
   const lit = segmentColors(account);
   const color = prestigeColor(account);
-  const px = size === "lg" ? 96 : 28;
+  // « xs » : à côté d'un nom, dans une ligne du fil « Entre Gaulois » de « Revoir une partie ».
+  const px = size === "lg" ? 96 : size === "xs" ? 18 : 28;
   return (
     <svg viewBox="0 0 100 100" width={px} height={px} aria-hidden="true" focusable="false" class="shrink-0 text-white">
       <polygon points={EMBLEME_HEXAGONE} fill="var(--color-surface-2)" stroke={color} stroke-width="4" stroke-linejoin="round" />

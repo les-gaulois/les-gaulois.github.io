@@ -51,35 +51,38 @@
   --revoir-ton: var(--color-loss);
 }
 
-/* Le cadre d'un côté, la fiche de l'autre. Le cadre a la forme de la carte (`--revoir-forme`, largeur sur hauteur, donnée
-   par la liste publiée ; 16 sur 9 sans elle) : la carte le remplit, sans bande autour. Il prend toute la
-   largeur que cette forme permet sans dépasser la hauteur de l'écran, en-tête du site déduit : une carte haute donne un
-   cadre moins large, une carte large un cadre bas (sur téléphone, 18 rem de haut au moins). Quand il ne reste pas la place d'une colonne, la
-   fiche passe dessous. */
+/* Le replay, sa fiche, puis le fil « Entre Gaulois », l'un sous l'autre ; sur un écran large, la fiche passe en une ligne
+   au-dessus du replay et le fil à sa droite (plus bas dans cette feuille). Le cadre a la forme de la carte
+   (`--revoir-forme`, largeur sur hauteur, donnée par la liste publiée ; 16 sur 9 sans elle) : la carte le remplit, sans
+   bande autour. Il prend toute la largeur que cette forme permet sans dépasser la hauteur de l'écran, en-tête du site
+   déduit : une carte haute donne un cadre moins large, une carte large un cadre bas (sur téléphone, 18 rem de haut au
+   moins). */
 .revoir-corps {
   --revoir-forme: 1.7778;
   --revoir-haut: max(15rem, 100svh - 7rem);
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 1.25rem clamp(1.25rem, 3vw, 2.5rem);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
   margin-top: 1.25rem;
 }
 .revoir-scene {
-  flex: 0 1 calc(var(--revoir-haut) * var(--revoir-forme));
-  min-width: min(100%, 17rem);
+  order: -1;
+  width: min(100%, var(--revoir-haut) * var(--revoir-forme));
 }
 /* La fiche : les faits de la partie (libellés en chasse fixe, comme ceux des chiffres clés) et les sorties, vers le replay
-   en grand et vers OpenFront. Une colonne à côté de la carte ; sous elle, les faits se rangent en ligne. */
+   en grand et vers OpenFront, en lignes qui se replient. */
 .revoir-fiche {
-  flex: 1 1 15rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.5rem 2rem;
   min-width: 0;
-  container: revoir-fiche / inline-size;
 }
 .revoir-faits {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem 2rem;
+  gap: 0.5rem 2rem;
 }
 .revoir-faits dt {
   font-family: var(--font-console);
@@ -92,29 +95,12 @@
   margin-top: 0.125rem;
   font-weight: 600;
 }
-
-.revoir-sortie {
-  margin-top: 1.25rem;
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--hairline);
-}
 /* Sur téléphone, le lien de sortie garde une cible de 44 px. */
 .revoir-sortie > a,
 .revoir-probleme a {
   display: inline-flex;
   align-items: center;
   min-height: 2.75rem;
-}
-/* Dans une colonne étroite, donc à côté de la carte : les faits l'un sous l'autre. La règle suit la
-   largeur de la fiche, pas celle de l'écran : sous une carte très large, la fiche reste en lignes, et sur un
-   téléphone aussi, pour rester courte. */
-@media (min-width: 40rem) and (max-width: 63.999rem) {
-  @container revoir-fiche (max-width: 30rem) {
-    .revoir-faits {
-      flex-direction: column;
-      gap: 0.75rem;
-    }
-  }
 }
 
 /* Pas de replay, replay pas disponible ou injoignable : la carte du site, centrée comme « Pas de données ». */
@@ -247,9 +233,9 @@
 }
 
 /* ---------- Entre Gaulois : le journal de la partie (17 novembre 2026) ---------- */
-/* Les faits de la partie où un Gaulois est en jeu (JournalDeLaPartie.tsx), sous les faits de la fiche, à côté du replay : un
-   fil de discussion qui se remplit avec lui. Chaque fait est une bulle : la case de son auteur, son nom, l'heure de la partie
-   (un bouton qui y mène le replay), puis ce qu'il a fait. Les classes gardent le nom du premier jet, « dons ». Le genre se
+/* Les faits de la partie où un Gaulois est en jeu (JournalDeLaPartie.tsx), à côté du replay (dessous sur un écran étroit) : un
+   fil de discussion qui se remplit avec lui. Chaque fait est une ligne : la case de son auteur, son nom, ce qu'il a fait,
+   puis l'heure de la partie (un bouton qui y mène le replay). Les classes gardent le nom du premier jet, « dons ». Le genre se
    lit aux mots et à l'icône ; la teinte (`data-ton` : bleu des troupes, ambre de l'or, rouge des combats, gris du chat, vert
    de la diplomatie) ne fait que le répéter. Tout se lit dans les deux thèmes : écriture et jetons seulement. */
 .dons {
@@ -257,7 +243,6 @@
   --dons-creux: var(--color-navy);
   display: flex;
   flex-direction: column;
-  margin-top: 1.25rem;
   border: 1px solid var(--color-line);
   border-radius: 0.75rem;
   background: var(--color-surface);
@@ -277,8 +262,8 @@
 }
 .dons-tete {
   display: grid;
-  gap: 0.625rem;
-  padding: 0.875rem 1rem;
+  gap: 0.4375rem;
+  padding: 0.625rem 0.75rem;
   border-bottom: 1px solid var(--color-line);
   background: var(--color-surface-2);
 }
@@ -340,8 +325,8 @@
 }
 .dons-icone {
   flex: none;
-  width: 1.125rem;
-  height: 1.125rem;
+  width: 0.9375rem;
+  height: 0.9375rem;
   color: var(--dons-ton);
 }
 /* Le fil : il ne dépasse pas la hauteur du replay à côté, et défile au-delà. */
@@ -350,7 +335,7 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
-  padding: 0.875rem 1rem 1rem;
+  padding: 0.5rem 0.625rem 0.625rem;
 }
 .dons-fil:focus-visible {
   outline: 2px solid var(--anneau);
@@ -364,17 +349,26 @@
 }
 .dons-liste {
   display: grid;
-  gap: 0.625rem;
+  gap: 0.1875rem;
 }
+/* Un fait par ligne (choix du pilote sur maquettes, 17 novembre 2026, pour voir deux à trois fois plus de lignes) : la case
+   de l'auteur, son nom et ce qu'il fait, puis l'heure. Le filet de gauche est à la teinte du fait. Une ligne trop longue
+   pour le fil passe à la ligne. */
 .dons-message {
   display: grid;
-  grid-template-columns: 3.25rem minmax(0, 1fr);
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.5rem;
+  padding: 0.125rem 0.5rem 0.125rem 0.25rem;
+  border-left: 3px solid var(--dons-ton);
+  border-radius: 0.125rem 0.375rem 0.375rem 0.125rem;
+  background: color-mix(in srgb, var(--dons-ton) 9%, var(--color-navy));
+  font-size: 0.8125rem;
+  line-height: 1.3;
 }
 /* La case du donneur (demande du pilote, 17 novembre 2026 : « un carré du gaulois à côté de la ligne ») : une carte de la
    vitrine en petit. Carrée, au fond et au cadre de la rareté la plus haute de ce qu'il porte (jetons du socle, cadre en
-   dégradé pour le légendaire et le divin) ; son Gaulois y tient de la tête au torse, peint case pour case, le bas coupé par
+   dégradé pour le légendaire et le divin) ; la tête de son Gaulois y tient, peinte case pour case, le bas coupé par
    la case. Sans Gaulois : la même case, neutre, à son initiale ou à son numéro. */
 .dons-case {
   --rarete: var(--color-line-strong);
@@ -382,21 +376,21 @@
   position: relative;
   display: grid;
   place-items: center;
-  width: 3.25rem;
-  height: 3.25rem;
+  width: 2rem;
+  height: 2rem;
   border: 2px solid transparent;
-  border-radius: 0.5rem;
+  border-radius: 0.3125rem;
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--rarete) 50%, var(--color-navy)), color-mix(in srgb, var(--rarete) 14%, var(--color-navy)) 78%) padding-box,
     var(--rarete-cadre) border-box;
   overflow: hidden;
-  font-size: 1rem;
+  font-size: 0.8125rem;
   font-weight: 700;
   line-height: 1;
 }
 .dons-case > img {
   position: absolute;
-  top: 0.1875rem;
+  top: 0;
   left: 50%;
   max-width: none;
   translate: -50% 0;
@@ -422,22 +416,6 @@
   --rarete: var(--rarete-divin);
   --rarete-cadre: var(--rarete-divin-degrade);
 }
-.dons-bulle {
-  min-width: 0;
-  padding: 0.5rem 0.75rem 0.5625rem;
-  border: 1px solid color-mix(in srgb, var(--dons-ton) 45%, var(--color-line));
-  border-left: 3px solid var(--dons-ton);
-  border-radius: 0.25rem 0.75rem 0.75rem 0.25rem;
-  background: color-mix(in srgb, var(--dons-ton) 9%, var(--color-navy));
-  font-size: 0.875rem;
-  line-height: 1.35;
-}
-.dons-qui {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
 .dons-nom {
   overflow-wrap: anywhere;
 }
@@ -446,7 +424,6 @@
   font-style: italic;
 }
 .dons-heure {
-  flex: none;
   font-family: var(--font-console);
   font-size: 0.75rem;
   color: var(--color-muted);
@@ -469,15 +446,30 @@ button.dons-heure:focus-visible {
   outline-offset: 1px;
 }
 .dons-quoi {
-  margin-top: 0.125rem;
+  min-width: 0;
   color: var(--color-muted);
 }
 .dons-quoi .dons-nom {
   color: var(--ecriture);
 }
+/* Après le nom d'un membre au pseudo public (demande du pilote, 17 novembre 2026) : l'emblème de son niveau, à la couleur de
+   son prestige, et son niveau ; puis sa flamme de série et son nombre de victoires d'affilée. */
+.dons-insigne {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  margin-left: 0.3125rem;
+  vertical-align: middle;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--ecriture);
+}
+.dons-insigne > img {
+  image-rendering: pixelated;
+}
 /* Un émoji du jeu, en grand ; une phrase toute faite du jeu, entre guillemets. */
 .dons-emoji {
-  font-size: 1.375rem;
+  font-size: 1.125rem;
   line-height: 1;
   vertical-align: middle;
 }
@@ -487,8 +479,8 @@ button.dons-heure:focus-visible {
   quotes: "« " " »";
 }
 .dons-case-sans > .dons-icone {
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 1rem;
+  height: 1rem;
   color: var(--color-muted);
 }
 /* La dernière ligne : la fin de la partie et son résultat, d'après la session du clan. */
@@ -518,8 +510,7 @@ button.dons-heure:focus-visible {
 .dons-montant {
   display: inline-flex;
   align-items: baseline;
-  gap: 0.375rem;
-  font-size: 1rem;
+  gap: 0.3125rem;
   font-weight: 700;
   color: var(--ecriture);
 }
@@ -536,42 +527,41 @@ button.dons-heure:focus-visible {
   }
 }
 
-/* Sur un écran large (17 novembre 2026, demande du pilote : « que tout rentre dans un écran, le replay et le texte à droite
-   du replay au lieu de dessous ») : le replay et sa fiche restent côte à côte, quelle que soit la forme de la carte, et le
-   titre, le replay et le fil tiennent ensemble dans la hauteur de l'écran, en-tête du site déduit. Le replay cède de la
-   largeur à la fiche ; la fiche prend la hauteur du replay, et le fil « Entre Gaulois » remplit ce qu'il en reste, puis
-   défile. */
+/* Sur un écran large (17 novembre 2026, demandes du pilote : « que tout rentre dans un écran, le replay et le texte à droite
+   du replay au lieu de dessous », puis, sur maquettes, « tout le haut pour le fil ») : la fiche tient en une ligne sous le
+   titre ; dessous, le replay et, à sa droite, le fil « Entre Gaulois » sur toute la hauteur du replay. Le titre, la fiche, le
+   replay et le fil tiennent ensemble dans la hauteur de l'écran, en-tête du site déduit. Le replay cède de la largeur au
+   fil ; le fil remplit sa colonne et défile. À côté d'une carte large, donc d'un replay bas, le fil descend plus bas que
+   lui, sans dépasser l'écran. Sans fil, le replay est seul sous la fiche. */
 @media (min-width: 64rem) {
   .revoir-corps {
-    --revoir-haut: max(18rem, 100svh - 11.5rem);
-    flex-wrap: nowrap;
-    align-items: stretch;
-    gap: 1.25rem;
+    --revoir-haut: max(18rem, 100svh - 14.5rem);
+    grid-template-columns: minmax(0, calc(var(--revoir-haut) * var(--revoir-forme)));
+    gap: 0.75rem 1.25rem;
   }
-  .revoir-scene {
-    min-width: 0;
+  .revoir-corps:has(> .revoir-fil) {
+    grid-template-columns: minmax(0, calc(var(--revoir-haut) * var(--revoir-forme))) minmax(clamp(20rem, 26vw, 27rem), 1fr);
   }
   .revoir-fiche {
-    display: flex;
-    flex: 1 0 clamp(20rem, 26vw, 27rem);
-    flex-direction: column;
+    grid-column: 1 / -1;
+  }
+  .revoir-scene {
+    order: 0;
+    width: auto;
+  }
+  .revoir-sortie > a {
+    min-height: 2rem;
+  }
+  .revoir-fil {
+    position: relative;
     max-width: 36rem;
-    /* À côté d'une carte large, donc d'un replay bas : la fiche descend plus bas que lui, sans dépasser l'écran. */
     min-height: min(var(--revoir-haut), 34rem);
   }
-  .revoir-faits {
-    gap: 0.5rem 1.5rem;
+  .revoir-fil > .dons {
+    position: absolute;
+    inset: 0;
   }
-  .revoir-sortie {
-    margin-top: 0.75rem;
-    padding-top: 0.5rem;
-  }
-  .revoir-fiche > .dons {
-    flex: 1 1 0;
-    min-height: 16rem;
-    margin-top: 0.75rem;
-  }
-  .revoir-fiche .dons-fil {
+  .revoir-fil .dons-fil {
     flex: 1 1 0;
     min-height: 0;
     max-height: none;

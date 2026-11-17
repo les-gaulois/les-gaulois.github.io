@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-17",
+    "kind": "ameliore",
+    "title": "Le fil « Entre Gaulois » en lignes serrées, avec niveau et flamme",
+    "body": "À côté du replay, le fil prend toute la hauteur et montre près de deux fois plus de lignes. Après le nom d'un membre au pseudo public : son niveau, à la couleur de son prestige, et sa flamme.",
+    "link": {
+      "href": "/revoir",
+      "label": "Revoir une partie"
+    }
+  },
+  {
+    "date": "2026-11-17",
     "kind": "nouveau",
     "title": "La vitrine en cases",
     "body": "Dans la vitrine, les objets d'un Gaulois se voient en cases, avec l'endroit où les trouver, et un champ cherche un nom. Les étiquettes sont redessinées, et la pochette se secoue avant le tambour.",

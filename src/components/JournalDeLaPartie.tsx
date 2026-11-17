@@ -1,6 +1,10 @@
 import type { ComponentChildren, RefObject } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { horloge } from "../lib/rejeu/film";
+import { accountLabel, accountShort } from "../lib/niveau";
+import type { Insignes as InsignesDuJournal } from "../lib/rejeu/insignes";
+import { serieEnMots } from "../lib/serie-en-cours";
+import { NiveauEmblem } from "./NiveauEmblem";
 import { BOMBES, CODES, FAMILLES, NOM_DE_FAMILLE, faitsJusquA, faitsParFamille, journalALEcran, montantAffiche, montantDit, nomDit, secondesDuFait, totauxDesDons, type FaitALEcran, type Famille, type JoueurDuJournal, type JournalALEcran } from "../lib/rejeu/journal-ecran";
 
 /** Le Gaulois d'un membre, tel que la page le passe (`PortraitDeGaulois`, src/lib/gaulois-site.ts), l'adresse déjà complète. */
@@ -13,8 +17,21 @@ export interface PortraitDuJournal {
   rarete: string | null;
 }
 
-/** Ce que le Gaulois peut prendre en largeur dans sa case de 52 pixels (`.dons-case`), cadre et marge déduits. */
-const LARGEUR_DU_GAULOIS = 44;
+/**
+ * Le côté libre de la case de 32 pixels (`.dons-case`), cadre déduit. Le Gaulois y est peint case pour case, sans réduction :
+ * plus large qu'elle, il y montre sa tête, cadrée d'après la hauteur de son buste.
+ */
+const COTE_DE_LA_CASE = 28;
+const LARGEUR_DU_GAULOIS = COTE_DE_LA_CASE;
+/** Ce que la case montre sous le visage : les épaules sont coupées un peu au-dessus du bas du buste. */
+const SOUS_LE_VISAGE = 6;
+
+export type { InsignesDuJournal };
+/** La flamme de série et la flamme d'or du record, en images prêtes (construites par la page, `flamme-serie.ts`). */
+export interface FlammesDuJournal {
+  normale: { image: string; largeur: number; hauteur: number };
+  doree: { image: string; largeur: number; hauteur: number };
+}
 
 interface Props {
   partie: string;
@@ -27,6 +44,38 @@ interface Props {
   origine: string;
   /** Les Gaulois des membres au pseudo public, par pseudo. */
   portraits: Record<string, PortraitDuJournal>;
+  insignes: Record<string, InsignesDuJournal>;
+  flammes: FlammesDuJournal;
+}
+
+/**
+ * Le niveau du compte (emblème à la couleur du prestige, comme sur la liste des membres) et la flamme de série, après le nom.
+ * Les dessins sont décoratifs : ce qu'ils disent est écrit pour les lecteurs d'écran et dans la bulle d'aide.
+ */
+function Insignes({ de, flammes }: { de: InsignesDuJournal; flammes: FlammesDuJournal }) {
+  const flamme = de.flamme ? (de.flamme.doree ? flammes.doree : flammes.normale) : null;
+  const serie = de.flamme ? `${serieEnMots(de.flamme)} aujourd'hui${de.flamme.doree ? ", son record" : ""}` : null;
+  return (
+    <>
+      {de.compte && (
+        <span class="dons-insigne tnum" title={`${accountLabel(de.compte)} (compte, tout le jeu, aujourd'hui)`}>
+          <NiveauEmblem account={de.compte} size="xs" />
+          <span aria-hidden="true">{accountShort(de.compte).level}</span>
+          <span class="sr-only">, {accountLabel(de.compte)} aujourd'hui, tout le jeu</span>
+        </span>
+      )}
+      {de.flamme && flamme && (
+        <span class="dons-insigne tnum" title={`Sa série sous le tag : ${serie}`}>
+          <img src={flamme.image} width={flamme.largeur} height={flamme.hauteur} alt="" />
+          <span aria-hidden="true">
+            {de.flamme.victoires}
+            {de.flamme.auMoins && " ou plus"}
+          </span>
+          <span class="sr-only">, {serie}</span>
+        </span>
+      )}
+    </>
+  );
 }
 
 /** Les dessins des lignes, en pixels, 12 cases de côté : dessins du site, décoratifs. `creux` : les cases évidées. */
@@ -61,7 +110,7 @@ const tonDuFait = (f: FaitALEcran) => (f.code === CODES.donOr ? "or" : f.famille
 
 /**
  * La case de l'auteur, carrée, comme une carte de la vitrine en petit (demande du pilote, 17 novembre 2026 : « un carré du
- * gaulois à côté de la ligne ») : son Gaulois, de la tête au torse, agrandi d'un nombre entier de fois, sur le fond et dans le
+ * gaulois à côté de la ligne ») : la tête de son Gaulois (case de 32 px des lignes serrées), peint case pour case, agrandi d'un nombre entier de fois, sur le fond et dans le
  * cadre de sa rareté. Un Gaulois sans dessin : la même case, à son initiale, ou à son numéro sans pseudo public. Un autre
  * joueur : la case neutre, au dessin du fait.
  */
@@ -70,7 +119,15 @@ function Visage({ qui, portrait, dessin }: { qui: JoueurDuJournal; portrait: Por
     const fois = Math.max(1, Math.floor(LARGEUR_DU_GAULOIS / portrait.largeur));
     return (
       <span class="dons-case" data-rarete={portrait.rarete ?? undefined} aria-hidden="true">
-        <img src={portrait.image} width={portrait.largeur * fois} height={portrait.hauteur * fois} alt="" loading="lazy" decoding="async" />
+        <img
+          src={portrait.image}
+          width={portrait.largeur * fois}
+          height={portrait.hauteur * fois}
+          style={{ top: `${-Math.max(0, (portrait.buste - SOUS_LE_VISAGE) * fois - COTE_DE_LA_CASE)}px` }}
+          alt=""
+          loading="lazy"
+          decoding="async"
+        />
       </span>
     );
   }
@@ -211,7 +268,7 @@ function ligneDuFait(f: FaitALEcran): { auteur: JoueurDuJournal; texte: Componen
  * le replay. Tant que le replay n'a rien dit, tout le journal est là. Des filtres par famille, quand il y en a plusieurs.
  * Rien n'est montré si le journal ne se lit pas.
  */
-export default function JournalDeLaPartie({ partie, victoire, adresse, cadre, origine, portraits }: Props) {
+export default function JournalDeLaPartie({ partie, victoire, adresse, cadre, origine, portraits, insignes, flammes }: Props) {
   const [journal, setJournal] = useState<JournalALEcran | null>(null);
   // L'étape où en est le replay ; `null` tant qu'il ne l'a pas dite.
   const [etape, setEtape] = useState<number | null>(null);
@@ -344,19 +401,18 @@ export default function JournalDeLaPartie({ partie, victoire, adresse, cadre, or
               return (
                 <li key={`${f.etape}-${f.code}-${i}`} class="dons-message" data-ton={tonDuFait(f)} data-famille={f.famille}>
                   <Visage qui={auteur} portrait={auteur.camp === "gaulois" && auteur.nom && !auteur.enPartie && Object.hasOwn(portraits, auteur.nom) ? portraits[auteur.nom] : undefined} dessin={dessinDuFait(f)} />
-                  <div class="dons-bulle">
-                    <p class="dons-qui">
-                      <Nom qui={auteur} debut />
-                      {etape !== null ? (
-                        <button type="button" class="dons-heure tnum" onClick={() => aller(f)} aria-label={`Aller à ${moment} dans le replay`}>
-                          {moment}
-                        </button>
-                      ) : (
-                        <span class="dons-heure tnum">{moment}</span>
-                      )}
-                    </p>
-                    <p class="dons-quoi">{texte}</p>
-                  </div>
+                  {/* Un fait par ligne (choix du pilote sur maquettes, 17 novembre 2026) : qui, ce qu'il fait, puis l'heure. */}
+                  <p class="dons-quoi">
+                    <Nom qui={auteur} debut />
+                    {auteur.nom && !auteur.enPartie && !auteur.nom.startsWith("[") && (auteur.camp === "gaulois" || auteur.camp === "equipe") && Object.hasOwn(insignes, auteur.nom) && <Insignes de={insignes[auteur.nom]!} flammes={flammes} />} {texte}
+                  </p>
+                  {etape !== null ? (
+                    <button type="button" class="dons-heure tnum" onClick={() => aller(f)} aria-label={`Aller à ${moment} dans le replay`}>
+                      {moment}
+                    </button>
+                  ) : (
+                    <span class="dons-heure tnum">{moment}</span>
+                  )}
                 </li>
               );
             })}
