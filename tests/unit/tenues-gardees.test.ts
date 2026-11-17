@@ -74,26 +74,27 @@ describe("la collection d'un rayon", () => {
   });
 });
 
-describe("les jours avant le tirage du lundi à 21 h 30, heure de Paris", () => {
-  it("compte de mardi à dimanche", () => {
-    expect(joursAvantLeTirage(new Date("2026-11-17T10:00:00Z"))).toBe(6); // mardi
-    expect(joursAvantLeTirage(new Date("2026-11-21T22:00:00Z"))).toBe(2); // samedi soir
-    expect(joursAvantLeTirage(new Date("2026-11-22T12:00:00Z"))).toBe(1); // dimanche
+describe("les jours avant le tirage du mardi à 21 h 30, heure de Paris", () => {
+  it("compte de mercredi à lundi", () => {
+    expect(joursAvantLeTirage(new Date("2026-11-18T10:00:00Z"))).toBe(6); // mercredi
+    expect(joursAvantLeTirage(new Date("2026-11-21T22:00:00Z"))).toBe(3); // samedi soir
+    expect(joursAvantLeTirage(new Date("2026-11-22T12:00:00Z"))).toBe(2); // dimanche
+    expect(joursAvantLeTirage(new Date("2026-11-23T12:00:00Z"))).toBe(1); // lundi
   });
 
-  it("vaut zéro le lundi avant le tirage, sept après", () => {
-    expect(joursAvantLeTirage(new Date("2026-11-23T08:00:00Z"))).toBe(0);
+  it("vaut zéro le mardi avant le tirage, sept après", () => {
+    expect(joursAvantLeTirage(new Date("2026-11-17T08:00:00Z"))).toBe(0);
     // 21 h 29 à Paris, en hiver : 20 h 29 UTC.
-    expect(joursAvantLeTirage(new Date("2026-11-23T20:29:00Z"))).toBe(0);
-    expect(joursAvantLeTirage(new Date("2026-11-23T20:30:00Z"))).toBe(7);
+    expect(joursAvantLeTirage(new Date("2026-11-17T20:29:00Z"))).toBe(0);
+    expect(joursAvantLeTirage(new Date("2026-11-17T20:30:00Z"))).toBe(7);
   });
 
   it("suit l'heure de Paris, pas celle de l'appareil", () => {
-    // Dimanche 23 h 30 UTC : déjà lundi 0 h 30 à Paris.
-    expect(joursAvantLeTirage(new Date("2026-11-22T23:30:00Z"))).toBe(0);
+    // Lundi 23 h 30 UTC : déjà mardi 0 h 30 à Paris.
+    expect(joursAvantLeTirage(new Date("2026-11-23T23:30:00Z"))).toBe(0);
     // En été, 21 h 30 à Paris tombe à 19 h 30 UTC.
-    expect(joursAvantLeTirage(new Date("2026-07-06T19:29:00Z"))).toBe(0);
-    expect(joursAvantLeTirage(new Date("2026-07-06T19:30:00Z"))).toBe(7);
+    expect(joursAvantLeTirage(new Date("2026-07-07T19:29:00Z"))).toBe(0);
+    expect(joursAvantLeTirage(new Date("2026-07-07T19:30:00Z"))).toBe(7);
   });
 
   it("s'écrit en mots", () => {

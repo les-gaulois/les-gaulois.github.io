@@ -30,6 +30,8 @@ import {
 
 // Sous Windows, Git rend les fichiers avec des fins de ligne CRLF : les motifs ci-dessous lisent des « \n ».
 const SQL = readFileSync("supabase/migrations/20261116001200_loterie_du_lundi.sql", "utf8").replace(/\r\n/g, "\n");
+/** Le passage au mardi (17 novembre 2026) : le calendrier remplacé, le reste gardé. */
+const MARDI = readFileSync("supabase/migrations/20261117001300_loterie_du_mardi.sql", "utf8").replace(/\r\n/g, "\n");
 const entre = (texte: string, debut: string, fin: string) => texte.slice(texte.indexOf(debut), texte.indexOf(fin, texte.indexOf(debut)));
 /** Le corps d'une fonction de la migration, de son `create` au `$$;` qui la ferme. */
 const fonction = (nom: string) => entre(SQL, `create or replace function ${nom}(`, "$$;\n");
@@ -60,10 +62,25 @@ describe("la loterie du lundi, côté serveur", () => {
     expect(fonction("internal.loterie_lots")).toContain(`values\n    ${lignes}\n`);
     expect(fonction("internal.loterie_lots")).toContain(`returns table (rang integer, gain integer, ${POCHETTES_GAGNEES.map((p) => `p_${p} integer`).join(", ")})`);
     expect(fonction("internal.loterie_prix_billet")).toContain(`select ${PRIX_BILLET_LOTERIE}\n`);
-    expect(fonction("internal.loterie_premier_tirage")).toContain(`select date '${PREMIER_TIRAGE_LOTERIE}'\n`);
     expect(SQL).toContain(`pochette text not null check (pochette in (${POCHETTES_GAGNEES.map((p) => `'${p}'`).join(", ")}))`);
-    // Le premier tirage est un lundi.
-    expect(new Date(`${PREMIER_TIRAGE_LOTERIE}T12:00:00Z`).getUTCDay()).toBe(1);
+  });
+
+  it("passe au mardi : le premier tirage, le tirage à venir, le réveil et pg_cron, sans rien effacer", () => {
+    const dans = (nom: string) => entre(MARDI, `create or replace function ${nom}(`, "$$;\n");
+    expect(dans("internal.loterie_premier_tirage")).toContain(`select date '${PREMIER_TIRAGE_LOTERIE}'\n`);
+    // Le premier tirage est un mardi.
+    expect(new Date(`${PREMIER_TIRAGE_LOTERIE}T12:00:00Z`).getUTCDay()).toBe(2);
+    expect(dans("internal.loterie_tirage_a_venir")).toContain("case when l.ici < l.mardi + time '21:30' then l.mardi else l.mardi + 7 end");
+    expect(dans("internal.loterie_tirage_a_venir")).toContain("date_trunc('week', p_at at time zone 'Europe/Paris')::date + 1 as mardi");
+    expect(dans("internal.loterie_reveil")).toContain("perform internal.loterie_tirer(v_mardi - 7);\n  perform internal.loterie_tirer(v_mardi);");
+    expect(MARDI).toContain("perform cron.schedule('gal-loterie', '* * * * 2', 'select internal.loterie_reveil()');");
+    // Les billets déjà achetés changent de tirage : aucun n'est effacé, aucun statère n'est créé.
+    expect(MARDI).not.toMatch(/\bdrop\b|\btruncate\b|\bdelete from\b|stateres_mouvements/i);
+    expect(MARDI).toContain("set tirage = date '2026-11-17', billets = least(a.billets, g.billets), maj_le = now()");
+    expect(MARDI).toContain("select date '2026-11-24', a.user_id, a.billets - g.billets");
+    // Seules les trois fonctions du calendrier sont remplacées, et refermées.
+    expect([...MARDI.matchAll(/create or replace function ([\w.]+)\(/g)].map((m) => m[1])).toEqual(["internal.loterie_premier_tirage", "internal.loterie_tirage_a_venir", "internal.loterie_reveil"]);
+    expect([...MARDI.matchAll(/revoke all on function ([\w.]+)\(/g)].map((m) => m[1])).toEqual(["internal.loterie_premier_tirage", "internal.loterie_tirage_a_venir", "internal.loterie_reveil"]);
   });
 
   it("n'ajoute que : ni table ni colonne retirée, et n'efface que ses propres tirages de plus de huit semaines", () => {

@@ -82,7 +82,7 @@ export function ObjetRecu({ objet, rarete, vignette, palier = false }: { objet: 
 }
 
 /**
- * La fenêtre ouvre-t-elle une pochette gagnée à la loterie du lundi, qui reste à ouvrir ? Posé par l'écran des pochettes
+ * La fenêtre ouvre-t-elle une pochette gagnée à la loterie du mardi, qui reste à ouvrir ? Posé par l'écran des pochettes
  * autour de chaque fenêtre d'ouverture ; faux partout ailleurs (un achat se paie toujours).
  */
 export const PochetteGagneeIci = createContext(false);
@@ -92,7 +92,7 @@ export const PochetteGagneeIci = createContext(false);
  * pochette des Gaulois uniques) ; ce qu'il restera est alors un minimum.
  */
 export function Compte({ prix, solde, auMoins = false }: { prix: number; solde: number; auMoins?: boolean }) {
-  // Une pochette gagnée à la loterie du lundi : le serveur ne retire rien, la fenêtre ne promet donc ni prix ni reste.
+  // Une pochette gagnée à la loterie du mardi : le serveur ne retire rien, la fenêtre ne promet donc ni prix ni reste.
   if (useContext(PochetteGagneeIci)) {
     return (
       <dl class="boutique-compte">

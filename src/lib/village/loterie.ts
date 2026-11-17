@@ -1,8 +1,8 @@
 /**
- * La loterie du lundi (16 novembre 2026, demande du pilote) : ce que son écran (`src/components/village/Loterie.tsx`) lit
+ * La loterie du mardi (16 novembre 2026, demande du pilote ; d'abord le lundi, passée au mardi le 17 novembre 2026) : ce que son écran (`src/components/village/Loterie.tsx`) lit
  * et déduit. Des calculs purs : la lecture des réponses du serveur, la part de chacun, ce qu'un membre peut encore
  * acheter, les mots des lots, et la mise en place de « la jauge des parts », l'animation choisie par le pilote parmi cinq.
- * Rien ne décide d'un droit, d'un prix ni d'un tirage : le serveur le fait (`contrat.ts`, « La loterie du lundi »).
+ * Rien ne décide d'un droit, d'un prix ni d'un tirage : le serveur le fait (`contrat.ts`, « La loterie du mardi »).
  *
  * La jauge : tous les billets du tirage sur une seule barre, une part par Gaulois, ses billets gagnés (bleu) puis ses
  * billets achetés (or). Une pointe la parcourt et s'arrête sur le billet tiré ; la part du gagnant se referme, celles des
@@ -167,8 +167,8 @@ export function partEnPourcent(part: PartDeLoterie, parts: readonly PartDeLoteri
 export function achatPossible(ma: Pick<MaLoterie, "peut_acheter" | "parts" | "solde" | "prix" | "close">): { max: number; raison: string | null } {
   if (!ma.peut_acheter) return { max: 0, raison: "Les billets s'achètent une fois votre compte validé et votre Gaulois créé." };
   const part = maPart(ma.parts);
-  // Le lundi avant 21 h 30, la semaine du tirage est finie : des points rapportés ce jour-là comptent pour le suivant.
-  if (!part) return { max: 0, raison: ma.close ? "Vous n'avez rapporté aucun point la semaine de ce tirage : vos points d'aujourd'hui comptent pour le suivant." : "Vos premiers billets viennent des points que vous rapportez au clan cette semaine." };
+  // Le mardi avant 21 h 30, la semaine du tirage est finie : des points rapportés ce jour-là comptent pour le suivant.
+  if (!part) return { max: 0, raison: ma.close ? "Vous n'avez rapporté aucun point la semaine de ce tirage, et on achète au plus autant de billets qu'on en a gagné : vos points d'aujourd'hui comptent pour le suivant." : "Vos premiers billets viennent des points que vous rapportez au clan cette semaine : on en achète au plus autant qu'on en a gagné." };
   const reste = part.gratuits - part.achetes;
   if (reste <= 0) return { max: 0, raison: "Vous avez acheté autant de billets que vous en avez gagné : c'est le plus permis." };
   const payes = Math.floor(ma.solde / ma.prix);
@@ -176,14 +176,14 @@ export function achatPossible(ma: Pick<MaLoterie, "peut_acheter" | "parts" | "so
   return { max: Math.min(reste, payes), raison: null };
 }
 
-/** La semaine d'un tirage : du lundi d'avant au dimanche, jours à Paris. */
+/** La semaine d'un tirage : les sept jours d'avant, du mardi au lundi, jours à Paris. */
 export function semaineDuTirage(tirage: string): { debut: string; fin: string } {
   return { debut: addDays(tirage, -7), fin: addDays(tirage, -1) };
 }
 
 const JOUR_EN_MOTS = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
 const JOUR_COURT = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", timeZone: "UTC" });
-/** « lundi 23 novembre » : un jour AAAA-MM-JJ, en mots. */
+/** « mardi 24 novembre » : un jour AAAA-MM-JJ, en mots. */
 export const jourEnMots = (jour: string): string => JOUR_EN_MOTS.format(new Date(`${jour}T12:00:00Z`)).replace(/^(\D+) 1 /, "$1 1er ");
 /** « 23 novembre ». */
 export const jourCourt = (jour: string): string => JOUR_COURT.format(new Date(`${jour}T12:00:00Z`)).replace(/^1 /, "1er ");
@@ -389,18 +389,20 @@ export function etatDuTirage(t: number, lots: number): EtatDuTirage {
 
 const HEURE_DE_PARIS = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Paris", weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 const JOURS_DE_LA_SEMAINE: Readonly<Record<string, number>> = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
+/** Le jour du tirage : le mardi (migration 20261117001300_loterie_du_mardi.sql). */
+const JOUR_DU_TIRAGE = 1;
 
 /**
- * Le nombre de jours avant le prochain tirage, à Paris : le lundi à 21 h 30. Zéro le lundi avant le tirage, sept le
- * lundi après. Pour la pastille de l'onglet « La loterie » : le serveur seul tire, ceci ne fait que compter les jours.
+ * Le nombre de jours avant le prochain tirage, à Paris : le mardi à 21 h 30. Zéro le mardi avant le tirage, sept le
+ * mardi après. Pour la pastille de l'onglet « La loterie » : le serveur seul tire, ceci ne fait que compter les jours.
  */
 export function joursAvantLeTirage(maintenant: Date): number {
   const parts: Record<string, string> = {};
   for (const { type, value } of HEURE_DE_PARIS.formatToParts(maintenant)) parts[type] = value;
   const jour = JOURS_DE_LA_SEMAINE[parts["weekday"] ?? ""] ?? 0;
   const minutes = Number(parts["hour"]) * 60 + Number(parts["minute"]);
-  if (jour === 0) return minutes < 21 * 60 + 30 ? 0 : 7;
-  return 7 - jour;
+  if (jour === JOUR_DU_TIRAGE) return minutes < 21 * 60 + 30 ? 0 : 7;
+  return (JOUR_DU_TIRAGE - jour + 7) % 7;
 }
 
 /** Ce délai en mots, pour la pastille : « ce soir », « demain », « 5 jours ». */

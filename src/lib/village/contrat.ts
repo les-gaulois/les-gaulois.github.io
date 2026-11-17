@@ -853,7 +853,7 @@ export interface PalierReponse {
  */
 export type RefusDuSentier = "not_validated" | "no_gaulois" | "mode_god" | "saison_fermee" | "unknown_palier" | "palier_pas_atteint" | "deja_pris" | "etal_change" | "deja_possede" | "prix_change" | "solde_insuffisant";
 
-/* ---------- La loterie du lundi (supabase/migrations/20261116001200_loterie_du_lundi.sql) ---------- */
+/* ---------- La loterie du mardi (supabase/migrations/20261116001200_loterie_du_lundi.sql, passée au mardi par la 20261117001300_loterie_du_mardi.sql) ---------- */
 
 /** Les pochettes qu'on gagne à la loterie, sous le nom que le serveur leur donne. */
 export const POCHETTES_GAGNEES = ["surprise", "familiers", "bannieres", "modeles", "stateres"] as const;
@@ -875,8 +875,8 @@ export const LOTS_LOTERIE: readonly LotDeLoterie[] = [
 
 /** Le prix d'un billet acheté, en statères : ce que rapporte un point (internal.loterie_prix_billet). */
 export const PRIX_BILLET_LOTERIE = 30;
-/** Le lundi du premier tirage (internal.loterie_premier_tirage). */
-export const PREMIER_TIRAGE_LOTERIE = "2026-11-23";
+/** Le mardi du premier tirage (internal.loterie_premier_tirage). */
+export const PREMIER_TIRAGE_LOTERIE = "2026-11-17";
 
 /**
  * La part d'un Gaulois dans un tirage : ses billets gagnés (un par point rapporté au clan dans la semaine) et achetés.
@@ -896,7 +896,7 @@ export interface PartDeLoterie {
 }
 
 /**
- * `get_loterie()`, pour un compte validé ou de l'équipe gauloise. `tirage` : le lundi du tirage à venir (AAAA-MM-JJ, à
+ * `get_loterie()`, pour un compte validé ou de l'équipe gauloise. `tirage` : le mardi du tirage à venir (AAAA-MM-JJ, à
  * Paris) ; `heure` : son instant ; `close` : sa semaine est finie, les billets gagnés ne bougent plus. `peut_acheter` :
  * compte validé avec un Gaulois créé. `solde` et `bons` (les pochettes gagnées qui restent à ouvrir) sont ceux de
  * l'appelant seul. `dernier` : le dernier tirage fait, ou null.

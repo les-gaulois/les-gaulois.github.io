@@ -1,6 +1,17 @@
 [
   {
     "date": "2026-11-17",
+    "kind": "ameliore",
+    "rank": "top",
+    "title": "La loterie passe au mardi, premier tirage ce soir",
+    "body": "Le tirage a lieu chaque mardi à 21 h 30, sur les points des sept jours d'avant, du mardi au lundi. Le premier est celui du mardi 17 novembre. Les billets déjà achetés restent valables.",
+    "link": {
+      "href": "/village#loterie",
+      "label": "La loterie"
+    }
+  },
+  {
+    "date": "2026-11-17",
     "kind": "nouveau",
     "title": "Le rayon Cartes de la boutique",
     "body": "Dans « La boutique », un nouvel onglet vend 33 finitions pour votre carte du podium de l'accueil : des reflets et des animations, à essayer avant l'achat, au prix d'une bannière.",

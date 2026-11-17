@@ -13,7 +13,7 @@ import { ANCRE_MODELES } from "../../lib/village/modeles";
 import { ANCRE_SENTIER } from "../../lib/village/sentier";
 import { BandeauDuJoueur } from "./BandeauDuJoueur";
 import Boutique from "./Boutique";
-import LoterieDuLundi from "./Loterie";
+import LoterieDuMardi from "./Loterie";
 import AtelierDeLaForge from "./Forge";
 import LeSentier, { objetsQuiAttendent, useSentier } from "./Sentier";
 import VitrineDuClan from "./Vitrine";
@@ -30,7 +30,7 @@ import VitrineDuClan from "./Vitrine";
  * novembre 2026, demande du pilote) montre tous les Gaulois du clan, chacun sur sa carte. « Les pochettes » (`#pochettes`,
  * le soir du 16 novembre 2026) ont quitté les rayons de la boutique pour leur partie, juste avant la vitrine ;
  * `#familiers` l'ouvre et descend à la pochette des familiers. « La loterie » (`#loterie`, 16 novembre 2026, demande du
- * pilote) vient à la suite : le tirage du lundi à 21 h 30 et la jauge des parts.
+ * pilote) vient à la suite : le tirage du mardi à 21 h 30 et la jauge des parts.
  */
 const ONGLETS: TabItem[] = [
   { id: "gaulois", label: "Mon Gaulois" },
@@ -52,7 +52,7 @@ const PREFIXE = "village";
  * (src/lib/compte/arrivee.ts, 15 novembre 2026) : le lien de son profil OpenFront, puis son Gaulois, seul au vestiaire ;
  * la forge et la boutique attendent qu'il soit créé. Ensuite, sept onglets, comme au QG : son Gaulois (le vestiaire : ce
  * qui est à lui), le sentier de la saison, la forge, où l'on grave une de ses parties sur un objet, la boutique, où l'on
- * achète, les pochettes, la vitrine, où paraissent tous les Gaulois du clan, et la loterie du lundi.
+ * achète, les pochettes, la vitrine, où paraissent tous les Gaulois du clan, et la loterie du mardi.
  * Chaque onglet ne lit le serveur qu'à son ouverture ; la forge et la boutique se relisent à chaque retour, et le
  * vestiaire aussi : un objet acheté y paraît aussitôt.
  */
@@ -115,7 +115,7 @@ export default function VillageApp() {
   // L'onglet du sentier ne paraît qu'une fois le sentier lu : tant que le serveur ne l'a pas (migration pas encore collée),
   // la barre reste celle d'avant. Une adresse `#sentier` l'ouvre quand même, et dit alors que le sentier ne répond pas.
   const sentierVisible = sentier.etat.kind === "pret" || active === ANCRE_SENTIER;
-  // Le tirage du lundi : les jours qui restent, en mots. Le serveur seul tire ; ceci ne fait que compter jusqu'à lundi.
+  // Le tirage du mardi : les jours qui restent, en mots. Le serveur seul tire ; ceci ne fait que compter jusqu'à mardi.
   const avantLeTirage = motsAvantLeTirage(joursAvantLeTirage(new Date()));
   const onglets = ONGLETS.filter((onglet) => onglet.id !== ANCRE_SENTIER || sentierVisible).map((onglet): TabItem => {
     if (onglet.id === ANCRE_SENTIER && attendent > 0) return { ...onglet, count: { value: attendent, words: `${attendent} ${attendent > 1 ? "objets" : "objet"} à prendre`, tone: "vif" } };
@@ -178,7 +178,7 @@ export default function VillageApp() {
       {!aCreer && (
         <Partie prefix={PREFIXE} id={ANCRE_LOTERIE} active={active} slide={slide}>
           <h2 class="sr-only">La loterie</h2>
-          <LoterieDuLundi actif={active === ANCRE_LOTERIE} />
+          <LoterieDuMardi actif={active === ANCRE_LOTERIE} />
         </Partie>
       )}
     </div>

@@ -716,9 +716,15 @@ function Guichet({ ma, onAchete }: { ma: MaLoterie; onAchete: (apres: MaLoterie)
       <div class="loterie-perfo" aria-hidden="true" />
       <div class="loterie-achat" data-testid="loterie-achat">
         {raison ? (
-          <p class="pochette-note" data-testid="loterie-raison">
-            {raison}
-          </p>
+          <>
+            {/* Le bouton reste en vue, éteint : sans lui, on cherche où s'achètent les billets. */}
+            <button type="button" class="btn btn-secondary" disabled data-testid="loterie-acheter-eteint">
+              Acheter un billet, {stateres(ma.prix)}
+            </button>
+            <p class="pochette-note" data-testid="loterie-raison">
+              {raison}
+            </p>
+          </>
         ) : (
           <>
             <p class="pochette-note">
@@ -843,11 +849,11 @@ const majuscule = (texte: string): string => texte.charAt(0).toUpperCase() + tex
 /**
  * L'onglet « La loterie » de « Mon Gaulois » (16 novembre 2026), dans la mise en page choisie par le pilote, « le podium
  * d'abord » : la date du tirage en grand, les trois cases des lots où chaque gagnant paraît devant sa bannière, la ligne
- * des parts en ruban, sans or, puis le guichet (ses billets, l'achat). Chaque lundi à 21 h 30, le serveur tire l'or,
- * l'argent puis le bronze parmi les billets de la semaine passée. Tout vient de `get_loterie` ; rien n'est du temps
+ * des parts en ruban, sans or, puis le guichet (ses billets, l'achat). Chaque mardi à 21 h 30 (le lundi jusqu'au
+ * 17 novembre 2026), le serveur tire l'or, l'argent puis le bronze parmi les billets des sept jours d'avant. Tout vient de `get_loterie` ; rien n'est du temps
  * réel : la page se relit à l'ouverture de l'onglet, après un achat, et autour de l'heure du tirage.
  */
-export default function LoterieDuLundi({ actif }: { actif: boolean }) {
+export default function LoterieDuMardi({ actif }: { actif: boolean }) {
   const [etat, setEtat] = useState<Etat>({ kind: "attente" });
 
   const lire = useCallback(async (discret: boolean) => {

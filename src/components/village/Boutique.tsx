@@ -209,7 +209,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
   const rayonsMontres = useMemo(() => (cartesInstallees ? RAYONS_BOUTIQUE : RAYONS_BOUTIQUE.filter((r) => r !== RAYON_CARTES)), [cartesInstallees]);
   const [filtres, setFiltres] = useState<Filtres>({});
   const [fenetre, setFenetre] = useState<Fenetre>(null);
-  // Les pochettes gagnées à la loterie du lundi, qui restent à ouvrir : relues à l'ouverture de l'onglet et à chaque
+  // Les pochettes gagnées à la loterie du mardi, qui restent à ouvrir : relues à l'ouverture de l'onglet et à chaque
   // fenêtre refermée. Une pochette gagnée s'ouvre sans rien payer : le serveur crédite son prix au moment de le débiter
   // (internal.village_debiter), donc l'écran ne la ferme pas pour un solde trop court.
   const [gagnees, setGagnees] = useState<Partial<Record<PochetteGagnee, number>>>({});
