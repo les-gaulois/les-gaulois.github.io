@@ -55,6 +55,23 @@ const DESSINS: Record<Axe, { plein: string; creux: string }> = {
   soutien: { plein: "M3 1h2v1h2V1h2v2h2v3h-1v5H2V6H1V3h2z", creux: "M5 3h2v8H5zM1 5h10v1H1z" },
 };
 
+/**
+ * Les dessins des trois titres (demande du pilote, 17 novembre 2026 : « un dessin par titre », à la place de la pastille de
+ * texte) : une couronne pour le Trésorier, un casque pour le Fer de lance, une main tendue pour le Ravitailleur.
+ */
+const TITRES: Record<Axe, string> = {
+  economie: chemin([...bloc(2, 6, 9, 9), [2, 4], [2, 5], [9, 4], [9, 5], ...bloc(5, 3, 6, 5), [1, 3], [10, 3], [5, 2], [6, 2]]),
+  combat: chemin([...bloc(4, 2, 7, 2), ...bloc(3, 3, 8, 7), ...bloc(2, 8, 9, 8), [3, 9], [3, 10], [8, 9], [8, 10], [5, 1], [6, 1], [5, 0], [1, 4], [1, 5], [2, 5], [10, 4], [10, 5], [9, 5]]),
+  soutien: chemin([...bloc(3, 6, 8, 9), ...bloc(3, 3, 3, 5), ...bloc(5, 2, 5, 5), ...bloc(7, 3, 7, 5), [9, 6], [10, 5], [9, 7], ...bloc(4, 10, 7, 11)]),
+};
+
+/** Le dessin du titre d'un axe. */
+export const IconeDeTitre = ({ axe }: { axe: Axe }) => (
+  <svg class="bilan-icone bilan-icone-titre" viewBox="0 0 12 12" aria-hidden="true" shape-rendering="crispEdges">
+    <path fill="currentColor" d={TITRES[axe]} />
+  </svg>
+);
+
 /** Le dessin d'un axe. */
 export const IconeDAxe = ({ axe }: { axe: Axe }) => (
   <svg class="bilan-icone" viewBox="0 0 12 12" aria-hidden="true" shape-rendering="crispEdges">
@@ -103,16 +120,19 @@ function Socle({ portrait }: { portrait: PortraitDuJournal | undefined }) {
   );
 }
 
-type Ligne = { g: GauloisDuBilan; score: ScoreDuGaulois; rang: number | null; portrait: PortraitDuJournal | undefined };
+/** `origine` : sa place dans le bilan publié, stable d'un tri à l'autre (la clé de sa carte). */
+type Ligne = { g: GauloisDuBilan; score: ScoreDuGaulois; rang: number | null; portrait: PortraitDuJournal | undefined; origine: number };
 
 function Carte({ g, score, rang, portrait }: Ligne) {
+  // La bannière que le membre a choisie pour son Gaulois ; sans elle, le haut de la carte est une case pâle semée de points
+  // d'interrogation (`.bilan-haut` d'une carte sans `data-banniere`).
   const banniere = portrait?.banniere ?? null;
   return (
     <li
       class="bilan-carte"
       data-rang={rang !== null && rang <= 3 ? rang : undefined}
       data-rarete={portrait?.rarete ?? undefined}
-      data-banniere={banniere ? "" : undefined}
+      data-banniere={banniere ? "membre" : undefined}
       style={banniere ? { "--banniere": `url("${banniere}")` } : undefined}
       data-testid="rejeu-bilan-carte"
     >
@@ -165,7 +185,12 @@ function Carte({ g, score, rang, portrait }: Ligne) {
                 )}
                 <span class="bilan-nombre">{grand}</span>
                 {petit && <span class="bilan-nombre">{petit}</span>}
-                {score.titres.includes(a) && <span class="bilan-titre-axe">{TITRE_DE_L_AXE[a]}</span>}
+                {score.titres.includes(a) && (
+                  <span class="bilan-titre-axe">
+                    <IconeDeTitre axe={a} />
+                    {TITRE_DE_L_AXE[a]}
+                  </span>
+                )}
               </dd>
             </div>
           );
@@ -180,7 +205,8 @@ function Carte({ g, score, rang, portrait }: Ligne) {
  * dans la partie », « en thème avec les personnages gaulois des joueurs » ; puis la bannière du joueur sur toute sa carte et
  * une mécanique qui se comprend « sans expliquer à partir de texte » ; puis la silhouette, le cadre de rareté sur toute la
  * carte et une animation douce ; les barres d'équipe, essayées le même jour, ont été retirées : « ça fait doublon avec le
- * reste »). Une carte par joueur au
+ * reste » ; puis des boutons pour retrier les cartes, un dessin par titre et la première carte en plus grand ; la bannière du
+ * clan par défaut, essayée, a été refusée : sans bannière choisie, une case pâle à points d'interrogation). Une carte par joueur au
  * tag du clan, la plus utile d'abord, sur le fond de sa bannière : son Gaulois en pied, son rang, son nom, son utilité sur
  * une jauge dont le milieu est la part moyenne ; trois cases, une par axe, avec son dessin, sa part de l'équipe en grand, sa
  * barre et les nombres du jeu d'où elle vient (`src/lib/rejeu/bilan.ts`). Le premier d'un axe y porte son titre. Les barres
@@ -189,6 +215,8 @@ function Carte({ g, score, rang, portrait }: Ligne) {
  */
 export default function BilanDesGaulois({ partie, adresse, portraits }: Props) {
   const [bilan, setBilan] = useState<BilanALEcran | null>(null);
+  // L'ordre des cartes : par utilité, ou par la part d'un axe (demande du pilote : « retrier les cartes »).
+  const [tri, setTri] = useState<Axe | null>(null);
   const [vu, setVu] = useState(false);
   const section = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -225,17 +253,30 @@ export default function BilanDesGaulois({ partie, adresse, portraits }: Props) {
   const scores = scoresDuBilan(bilan.gaulois);
   const rangs = rangsDesScores(scores);
   const lignes: Ligne[] = bilan.gaulois
-    .map((g, i) => ({ g, score: scores[i]!, rang: rangs[i]!, portrait: g.nom && !g.enPartie && Object.hasOwn(portraits, g.nom) ? portraits[g.nom] : undefined }))
-    .sort((a, b) => (b.score.utilite ?? -1) - (a.score.utilite ?? -1));
+    .map((g, i) => ({ g, score: scores[i]!, rang: rangs[i]!, origine: i, portrait: g.nom && !g.enPartie && Object.hasOwn(portraits, g.nom) ? portraits[g.nom] : undefined }))
+    .sort((a, b) => (tri === null ? (b.score.utilite ?? -1) - (a.score.utilite ?? -1) : (b.score.parts[tri] ?? -1) - (a.score.parts[tri] ?? -1) || (b.score.utilite ?? -1) - (a.score.utilite ?? -1)));
   const classes = lignes.some((x) => x.score.utilite !== null);
   return (
     <section ref={section} class={`bilan${vu ? " bilan-vu" : ""}`} aria-labelledby="rejeu-bilan-titre" data-testid="rejeu-bilan">
       <h3 id="rejeu-bilan-titre" class="bilan-titre">
         Bilan des Gaulois
       </h3>
-      <ol class="bilan-liste">
-        {lignes.map((l, i) => (
-          <Carte key={i} {...l} />
+      {classes && (
+        <div class="bilan-tris" role="group" aria-label="Classer les cartes">
+          <button type="button" class="bilan-tri" aria-pressed={tri === null} onClick={() => setTri(null)} data-testid="rejeu-bilan-tri-utilite">
+            Utilité
+          </button>
+          {AXES.map((a) => (
+            <button type="button" class="bilan-tri" data-axe={a} aria-pressed={tri === a} onClick={() => setTri(a)} data-testid={`rejeu-bilan-tri-${a}`}>
+              <IconeDAxe axe={a} />
+              {NOM_DE_L_AXE[a]}
+            </button>
+          ))}
+        </div>
+      )}
+      <ol class="bilan-liste" data-tri={tri ?? "utilite"}>
+        {lignes.map((l) => (
+          <Carte key={l.origine} {...l} />
         ))}
       </ol>
       <p class="bilan-note">

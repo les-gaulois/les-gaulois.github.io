@@ -4,6 +4,8 @@ import DataStatus from "../../components/DataStatus.astro";
 import FlammeSerie from "../../components/FlammeSerie.astro";
 import MapNamesCredit from "../../components/MapNamesCredit.astro";
 import { NiveauEmblem } from "../../components/NiveauEmblem";
+import { AXES, TITRE_DE_L_AXE } from "../../lib/rejeu/bilan-ecran";
+import { classementDuSite } from "../../lib/rejeu/utiles-site";
 import PageHeader from "../../components/PageHeader.astro";
 import ReadingNote from "../../components/ReadingNote.astro";
 import { clan } from "../../../config/clan";
@@ -83,6 +85,12 @@ const RARETE_DITE = { commun: "commune", "peu-commun": "peu commune", epique: "�
 const fond = banniere
   ? { classe: " stage-banniere", style: `--banniere: url("${base}/bannieres/${encodeURIComponent(banniere.id)}.png")`, id: banniere.id, rarete: banniere.rarete }
   : { classe: "", style: undefined, id: undefined, rarete: undefined };
+// Son utilité dans les parties à revoir (demande du pilote, 17 novembre 2026 : « l'utilité sur la fiche du membre, sa moyenne
+// et ses titres ») : sa ligne du classement « Les plus utiles » (src/lib/rejeu/utiles-site.ts), s'il y est. Le pseudo doit
+// désigner ce membre et lui seul : le classement est rangé par pseudo. Sans ligne : rien, ce n'est pas zéro.
+const utiles = classementDuSite();
+const utilite = member.publicId && utiles.ids.get(username) === member.publicId ? (utiles.lignes.find((l) => l.nom === username) ?? null) : null;
+const utiliteTitres = utilite ? AXES.filter((a) => utilite.titres[a] > 0).map((a) => `${TITRE_DE_L_AXE[a]} ${fmtInt(utilite.titres[a])} fois`) : [];
 const tiles = member.team
   ? [
       { label: "Victoires", value: fmtInt(member.team.wins) },
@@ -140,6 +148,21 @@ const tiles = member.team
             <p>
               <span class="block font-display text-2xl font-bold">{accountLabel(member.account)}</span>
               <span class="block text-sm text-muted">Son compte OpenFront, tout le jeu confondu</span>
+            </p>
+          </div>
+        )
+      }
+      {/* Son utilité dans les parties à revoir : à part des stats du clan, avec le lien vers le classement qui l'explique. */}
+      {
+        utilite && (
+          <div class="mt-4 flex items-center gap-4" data-testid="member-utilite">
+            <span class="flex w-24 shrink-0 justify-center font-display text-4xl font-bold tnum">{fmtInt(utilite.utilite)}</span>
+            <p class="min-w-0">
+              <span class="block font-display text-2xl font-bold">d'utilité, rang {fmtInt(utiles.rangs.get(username)!)} des plus utiles</span>
+              <span class="block text-sm text-muted">
+                Moyenne sur ses {fmtInt(utilite.parties)} parties à revoir, 100 étant la part moyenne d'un Gaulois{utiliteTitres.length > 0 && ` ; ${utiliteTitres.join(", ")}`}{utiles.fait && `, à jour du ${fmtDateTime(utiles.fait)}`}.{" "}
+                <a class="link" href={`${base}/utiles`}>Les plus utiles</a>
+              </span>
             </p>
           </div>
         )

@@ -2,6 +2,16 @@
   {
     "date": "2026-11-17",
     "kind": "ameliore",
+    "title": "Le score d'utilité sur les fiches, et un bilan à retrier",
+    "body": "La fiche d'un membre classé montre son utilité, son rang et ses titres. Sous un replay, quatre boutons retrient les cartes. « Les plus utiles » dit qui monte ou descend avec les parties du jour.",
+    "link": {
+      "href": "/utiles",
+      "label": "Les plus utiles"
+    }
+  },
+  {
+    "date": "2026-11-17",
+    "kind": "ameliore",
     "title": "Le coffre du druide : des mots à la hauteur du niveau",
     "body": "Sur Discord, le mot suit le niveau de la manche, ses première et dernière lettres sont données, le gardien se souvient de qui l'a battu, et un tableau d'honneur clôt les quinze manches.",
     "link": {

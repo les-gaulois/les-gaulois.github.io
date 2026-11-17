@@ -158,7 +158,20 @@ test.describe("le bilan des Gaulois", () => {
     await expect(page.getByTestId("rejeu-bilan").getByRole("heading", { name: "Bilan des Gaulois" })).toBeVisible();
     for (const axe of ["Économie", "Combat", "Soutien"]) await expect(cartes.first().getByText(axe, { exact: true })).toBeVisible();
     const meilleure = Math.max(...scores.map((s) => s.utilite ?? -1));
-    if (meilleure >= 0) await expect(cartes.first()).toContainText(`${meilleure} d'utilité`);
+    if (meilleure >= 0) {
+      await expect(cartes.first()).toContainText(`${meilleure} d'utilité`);
+      // Retriées par un axe : la première carte est celle qui en a la plus grande part ; puis l'ordre de l'utilité revient.
+      const parCombat = scores.map((s) => s.parts.combat ?? -1);
+      if (Math.max(...parCombat) > 0 && parCombat.filter((p) => p === Math.max(...parCombat)).length === 1) {
+        await page.getByTestId("rejeu-bilan-tri-combat").click();
+        await expect(page.getByTestId("rejeu-bilan-tri-combat")).toHaveAttribute("aria-pressed", "true");
+        await expect(cartes.first()).toContainText(`${Math.round(Math.max(...parCombat) * 100)} %`);
+        await page.getByTestId("rejeu-bilan-tri-utilite").click();
+        await expect(cartes.first()).toContainText(`${meilleure} d'utilité`);
+      }
+      // Une carte n'a de bannière que celle que le membre a choisie : jamais une bannière par défaut.
+      for (const fond of await cartes.evaluateAll((lis) => lis.map((li) => li.getAttribute("data-banniere")))) expect(["membre", null]).toContain(fond);
+    }
     else await expect(page.getByTestId("rejeu-bilan")).toContainText("pas de score d'utilité");
   });
 });
@@ -179,6 +192,18 @@ test("« Les plus utiles » montre le classement général des bilans publiés, 
     await expect(lignes.first()).toContainText(classement[0]!.nom);
     await expect(lignes.first()).toContainText("d'utilité");
     await expect(lignes.first().getByRole("link", { name: classement[0]!.nom })).toHaveAttribute("href", /\/membres\//);
+    // La fiche du premier montre son utilité moyenne et son rang ; celle d'un membre hors classement n'a pas ce bloc.
+    await lignes.first().getByRole("link", { name: classement[0]!.nom }).click();
+    await expect(page.getByTestId("member-utilite")).toContainText(`${classement[0]!.utilite}`);
+    await expect(page.getByTestId("member-utilite")).toContainText("rang 1 des plus utiles");
+    const classes = new Set(classement.map((l) => l.nom));
+    const autre = membres.find((m) => m.username && m.publicId && !classes.has(m.username.replace(/\s+/g, " ").trim().slice(0, 40)));
+    if (autre) {
+      await page.goto(`/membres/${autre.publicId}`);
+      await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+      await expect(page.getByTestId("member-utilite")).toHaveCount(0);
+    }
+    await page.goto("/utiles");
   }
   await expect(page.getByTestId("utiles-revoir")).toHaveAttribute("href", "/revoir");
 });

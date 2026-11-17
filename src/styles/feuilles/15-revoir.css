@@ -654,6 +654,31 @@ button.dons-heure:focus-visible {
   background-size: cover;
   image-rendering: pixelated;
 }
+/* Sans bannière choisie (demande du pilote, 17 novembre 2026 ; la bannière du clan par défaut, essayée, a été refusée) : le
+   haut de la carte est une case d'un gris-blanc très pâle, semée de points d'interrogation à peine visibles. Elle dit qu'il
+   n'y a pas de bannière, sans en inventer une. Le gris et les points sont l'écriture du thème, en transparence : ils se
+   lisent dans les deux. Les points sont un masque (un dessin SVG répété), décoratif. */
+.bilan-carte:not([data-banniere]) .bilan-haut {
+  position: relative;
+  margin: -0.25rem;
+  padding: 0.25rem;
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--ecriture) 5%, transparent);
+}
+.bilan-carte:not([data-banniere]) .bilan-haut::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--ecriture);
+  opacity: 0.09;
+  pointer-events: none;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56'%3E%3Ctext x='8' y='22' font-family='sans-serif' font-size='18' font-weight='700'%3E%3F%3C/text%3E%3Ctext x='36' y='48' font-family='sans-serif' font-size='14' font-weight='700'%3E%3F%3C/text%3E%3C/svg%3E") 0 0 / 3.5rem 3.5rem repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56'%3E%3Ctext x='8' y='22' font-family='sans-serif' font-size='18' font-weight='700'%3E%3F%3C/text%3E%3Ctext x='36' y='48' font-family='sans-serif' font-size='14' font-weight='700'%3E%3F%3C/text%3E%3C/svg%3E") 0 0 / 3.5rem 3.5rem repeat;
+}
+.bilan-carte:not([data-banniere]) .bilan-haut > * {
+  position: relative;
+}
 .bilan-carte[data-banniere] .bilan-identite {
   color: var(--sur-couleur);
   font-weight: 700;
@@ -862,14 +887,90 @@ button.dons-heure:focus-visible {
   line-height: 1.3;
   color: var(--color-muted);
 }
+/* Le titre du premier d'un axe : son dessin (couronne, casque, main tendue) et son nom, sans pastille. */
 .bilan-titre-axe {
-  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
   margin-top: 0.125rem;
-  padding: 0.0625rem 0.4375rem;
-  border: 1px solid var(--bilan-ton);
-  border-radius: 999px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
+}
+.bilan-icone-titre {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+/* Les boutons qui retrient les cartes : par utilité, ou par la part d'un axe. Enfoncé : l'ordre en cours. */
+.bilan-tris {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-top: 0.75rem;
+}
+.bilan-tri {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 2rem;
+  padding: 0.125rem 0.75rem;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 999px;
+  background: transparent;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-muted);
+  cursor: pointer;
+}
+.bilan-tri[aria-pressed="true"] {
+  border-color: var(--bilan-ton, var(--ecriture));
+  background: color-mix(in srgb, var(--bilan-ton, var(--ecriture)) 14%, var(--color-navy));
+  color: var(--ecriture);
+}
+.bilan-tri:focus-visible {
+  outline: 2px solid var(--anneau);
+  outline-offset: 2px;
+}
+.bilan-tri > .bilan-icone {
+  width: 1rem;
+  height: 1rem;
+}
+/* La première carte, un peu plus large que les autres quand la place le permet (demande du pilote : « le premier en plus
+   grand », sans marches ni podium) : deux colonnes, son utilité en plus gros. Seulement dans l'ordre de l'utilité. */
+@media (min-width: 52rem) {
+  .bilan-liste:not([data-tri]) > .bilan-carte[data-rang="1"]:first-child,
+  .bilan-liste[data-tri="utilite"] > .bilan-carte[data-rang="1"]:first-child {
+    grid-column: span 2;
+  }
+  .bilan-liste:not([data-tri]) > .bilan-carte[data-rang="1"]:first-child .bilan-utilite > b,
+  .bilan-liste[data-tri="utilite"] > .bilan-carte[data-rang="1"]:first-child .bilan-utilite > b {
+    font-size: 2.5rem;
+  }
+  .bilan-liste:not([data-tri]) > .bilan-carte[data-rang="1"]:first-child .bilan-nom,
+  .bilan-liste[data-tri="utilite"] > .bilan-carte[data-rang="1"]:first-child .bilan-nom {
+    font-size: 1.25rem;
+  }
+}
+/* Monte ou descend, sur « Les plus utiles » : une flèche et le nombre de places, à côté du rang, dans une pastille comme
+   lui (marine sur une bannière). Le sens se lit à la forme de la flèche, pas à une couleur. */
+.bilan-mouvement {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  padding: 0 0.3125rem;
+  border-radius: 0.375rem;
+  background: var(--color-surface-2);
+  font-family: var(--font-console);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.bilan-carte[data-banniere] .bilan-mouvement {
+  background: var(--bilan-cerne);
+  color: var(--sur-couleur);
+  text-shadow: none;
+}
+.bilan-mouvement > svg {
+  width: 0.75rem;
+  height: 0.75rem;
 }
 .bilan-note {
   max-width: 48rem;

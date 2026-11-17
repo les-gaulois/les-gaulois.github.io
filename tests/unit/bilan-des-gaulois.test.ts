@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { bilanALEcran, bilanDeLaPartie, bilanPublie, classementGeneral, lireBilan, rangsDesScores, scoresDuBilan, statsDuJoueur, type GauloisDuBilan } from "../../src/lib/rejeu/bilan";
+import { bilanALEcran, bilanDeLaPartie, bilansDAvant, bilanPublie, classementGeneral, lireBilan, mouvementsDuClassement, rangsDesScores, rangsDuClassement, scoresDuBilan, statsDuJoueur, type GauloisDuBilan } from "../../src/lib/rejeu/bilan";
 import { indexVide, nomDuBilan, noterFilm, partiesARefilmer } from "../../src/lib/rejeu/films-index";
+import { parisParts } from "../../src/lib/time";
 
 const PARTIE = "abc12345";
 const joueurs = [
@@ -114,6 +115,28 @@ describe("le classement général", () => {
     expect(classementGeneral(double)).toEqual([]);
     // Un pseudo public porté par plusieurs membres ne désigne personne, d'une partie à l'autre non plus.
     expect(classementGeneral(bilans, 5, (nom) => nom !== "Fort").map((l) => l.nom)).toEqual(["Faible"]);
+  });
+});
+
+describe("monte ou descend au classement", () => {
+  const ligne = (nom: string, utilite: number) => ({ nom, parties: 5, utilite, axes: { economie: utilite, combat: null, soutien: null }, titres: { economie: 0, combat: 0, soutien: 0 } });
+  it("donne le même rang à utilité égale, et compte les places gagnées ou perdues", () => {
+    const actuel = [ligne("A", 150), ligne("B", 120), ligne("C", 120), ligne("D", 90), ligne("E", 80)];
+    const avant = [ligne("B", 140), ligne("A", 130), ligne("D", 100), ligne("C", 95)];
+    expect([...rangsDuClassement(actuel)]).toEqual([["A", 1], ["B", 2], ["C", 2], ["D", 4], ["E", 5]]);
+    // A passe de 2 à 1, B de 1 à 2, C de 4 à 2, D de 3 à 4 ; E n'y était pas.
+    expect([...mouvementsDuClassement(actuel, avant)]).toEqual([["A", 1], ["B", -1], ["C", 2], ["D", -1], ["E", null]]);
+    expect([...mouvementsDuClassement(actuel, actuel).values()]).toEqual([0, 0, 0, 0, 0]);
+  });
+  it("le classement d'avant ne garde que les parties commencées avant le jour de la mise à jour, heure de Paris", () => {
+    const jourDe = (iso: string) => parisParts(iso).date;
+    // 23 h 30 à Greenwich le 16, c'est déjà le 17 à Paris ; 22 h 30, c'est encore le 16.
+    const bilans = [{ bilan: "veille", debut: "2026-11-16T22:30:00.000Z" }, { bilan: "minuit passé", debut: "2026-11-16T23:30:00.000Z" }, { bilan: "jour", debut: "2026-11-17T10:00:00.000Z" }];
+    expect(bilansDAvant(bilans, "2026-11-17T13:00:00.000Z", jourDe)).toEqual(["veille"]);
+    // Aucune partie du jour : les mêmes bilans, donc aucun mouvement.
+    expect(bilansDAvant(bilans, "2026-11-18T13:00:00.000Z", jourDe)).toEqual(["veille", "minuit passé", "jour"]);
+    // Sans heure de mise à jour : tous les bilans, rien à dire.
+    expect(bilansDAvant(bilans, null, jourDe)).toEqual(["veille", "minuit passé", "jour"]);
   });
 });
 

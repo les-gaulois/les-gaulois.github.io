@@ -156,3 +156,29 @@ export function classementGeneral(bilans: readonly BilanALEcran[], partiesMin = 
   }
   return lignes.sort((a, b) => b.utilite - a.utilite || b.parties - a.parties || a.nom.localeCompare(b.nom, "fr"));
 }
+
+/**
+ * Les bilans des parties commencées avant le jour de `fait`, heure de Paris (`jourDe` : le jour d'une heure ISO, comme
+ * `parisParts(...).date`) : la matière du classement « d'avant », pour dire qui monte ou descend avec les parties du jour.
+ * Sans `fait`, tous les bilans : aucun mouvement à dire.
+ */
+export function bilansDAvant<B>(bilans: readonly { bilan: B; debut: string }[], fait: string | null, jourDe: (iso: string) => string): B[] {
+  if (fait === null) return bilans.map((b) => b.bilan);
+  const jour = jourDe(fait);
+  return bilans.filter((b) => jourDe(b.debut) < jour).map((b) => b.bilan);
+}
+
+/** Le rang de chaque ligne du classement, par nom : à utilité égale, le même rang. */
+export function rangsDuClassement(lignes: readonly LigneDuClassement[]): Map<string, number> {
+  return new Map(lignes.map((l) => [l.nom, 1 + lignes.filter((autre) => autre.utilite > l.utilite).length]));
+}
+
+/**
+ * Les places gagnées (nombre positif) ou perdues (négatif) par chaque membre du classement d'aujourd'hui, par rapport à un
+ * classement d'avant ; 0 : même rang ; `null` : il n'y était pas.
+ */
+export function mouvementsDuClassement(actuel: readonly LigneDuClassement[], avant: readonly LigneDuClassement[]): Map<string, number | null> {
+  const rangs = rangsDuClassement(actuel);
+  const rangsAvant = rangsDuClassement(avant);
+  return new Map(actuel.map((l) => [l.nom, rangsAvant.has(l.nom) ? rangsAvant.get(l.nom)! - rangs.get(l.nom)! : null]));
+}

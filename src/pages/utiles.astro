@@ -1,54 +1,53 @@
 ---
 import Base from "../layouts/Base.astro";
-import { IconeDAxe, Silhouette } from "../components/BilanDesGaulois";
+import { IconeDAxe, IconeDeTitre, Silhouette } from "../components/BilanDesGaulois";
 import Empty from "../components/Empty.astro";
 import PageHeader from "../components/PageHeader.astro";
 import ReadingNote from "../components/ReadingNote.astro";
 import { BANNIERES_MEMBRES_FILE, bannieresDuCache, fondsDesLignes } from "../lib/bannieres-joueurs";
-import { loadBilan, loadFilms, loadMembers } from "../lib/data";
 import { fmtDayAndTime, fmtInt } from "../lib/format";
 import { gauloisDuSite, portraitDuGaulois } from "../lib/gaulois-site";
 import { tenueOf } from "../lib/gaulois-sprite";
-import { AXES, classementGeneral, NOM_DE_L_AXE, PARTIES_MIN_DU_CLASSEMENT, TITRE_DE_L_AXE } from "../lib/rejeu/bilan";
-import { porteursDesPseudos } from "../lib/rejeu/insignes";
+import { AXES, NOM_DE_L_AXE, PARTIES_MIN_DU_CLASSEMENT, TITRE_DE_L_AXE } from "../lib/rejeu/bilan";
+import { classementDuSite } from "../lib/rejeu/utiles-site";
 import { rareteDuCadre } from "../lib/village/vitrine";
 
 /**
  * « Les plus utiles » (demande du pilote, 17 novembre 2026 : un classement général du score d'utilité, « uniquement pour les
  * gaulois », puis « lui donner sa propre entrée dans le menu ») : la moyenne de l'utilité de chaque membre au pseudo public
- * sur les parties à revoir qui ont leur bilan (`classementGeneral`, src/lib/rejeu/bilan-ecran.ts). Le bilan de chaque partie
+ * sur les parties à revoir qui ont leur bilan (`classementDuSite`, src/lib/rejeu/utiles-site.ts). Le bilan de chaque partie
  * est sous son replay, dans « Revoir une partie ». Exception à `stats.team` voulue par le pilote (CLAUDE.md) : jamais mêlé aux
  * stats du clan ni au classé, jamais appelé Elo.
  */
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-const liste = loadFilms();
-const parties = (liste?.films ?? []).filter((f) => f.jeu && f.bilan);
-const bilans = parties.flatMap((f) => [loadBilan(f.partie)]).filter((b) => b !== null);
-// Les parties comptées : celles où deux Gaulois au moins ont un score.
-const partiesComptees = bilans.filter((b) => b.gaulois.length >= 2).length;
-// Un pseudo public porté par plusieurs membres ne désigne personne : ni ligne, ni fiche, ni Gaulois.
-const porteurs = porteursDesPseudos(loadMembers()?.members ?? []);
-const unSeul = (nom: string) => porteurs.get(nom)?.length === 1;
-const classement = classementGeneral(bilans, PARTIES_MIN_DU_CLASSEMENT, unSeul);
-// La bannière que chaque membre a choisie pour son Gaulois : le fond de sa carte, comme sur la liste des membres.
-const bannieres = fondsDesLignes(bannieresDuCache(BANNIERES_MEMBRES_FILE, classement.map((l) => porteurs.get(l.nom)![0]!)));
+const { lignes: classement, rangs, ids, mouvements, parties, depuis, fait } = classementDuSite();
+// La bannière que chaque membre a choisie pour son Gaulois, le fond de sa carte comme sur la liste des membres ; sans elle,
+// le haut de sa carte est une case pâle à points d'interrogation.
+const bannieres = fondsDesLignes(bannieresDuCache(BANNIERES_MEMBRES_FILE, ids.values()));
 const lignes = classement.map((l) => {
-  const id = porteurs.get(l.nom)![0]!;
+  const id = ids.get(l.nom)!;
   const portrait = portraitDuGaulois(id);
   const tenue = portrait ? tenueOf(gauloisDuSite(), id) : null;
-  return { ...l, fiche: `${base}/membres/${encodeURIComponent(id)}`, banniere: Object.hasOwn(bannieres, id) ? `${base}${bannieres[id]!.image}` : null, portrait: portrait ? { ...portrait, image: `${base}${portrait.image}`, rarete: tenue ? rareteDuCadre(tenue) : null } : null };
+  const mouvement = mouvements.get(l.nom) ?? null;
+  return {
+    ...l,
+    rang: rangs.get(l.nom)!,
+    // « Monte », « descend », « nouveau » au classement, ou rien à dire (même rang).
+    mouvement: mouvement === null ? { sens: "nouveau", places: 0 } : mouvement > 0 ? { sens: "monte", places: mouvement } : mouvement < 0 ? { sens: "descend", places: -mouvement } : null,
+    fiche: `${base}/membres/${encodeURIComponent(id)}`,
+    banniere: Object.hasOwn(bannieres, id) ? `${base}${bannieres[id]!.image}` : null,
+    portrait: portrait ? { ...portrait, image: `${base}${portrait.image}`, rarete: tenue ? rareteDuCadre(tenue) : null } : null,
+  };
 });
-// Le rang : à utilité égale, le même.
-const rang = (utilite: number) => 1 + classement.filter((l) => l.utilite > utilite).length;
-const plusAncienne = parties.at(-1)?.debut ?? null;
 /** La largeur d'une jauge : de 0 au double de la part moyenne (200), pleine au-delà. */
 const jauge = (valeur: number) => `width: ${Math.min(100, Math.round(valeur / 2))}%`;
+const places = (n: number) => (n > 1 ? `${fmtInt(n)} places` : "1 place");
 ---
 
 <Base title="Les plus utiles" description="Les Gaulois les plus utiles du clan GAL dans les parties à revoir : or produit, combat et dons, en parts de l'équipe.">
   <div class="wrap">
     <PageHeader title="Les plus utiles" intro="Qui pèse le plus dans l'effort des Gaulois, en moyenne sur les parties à revoir.">
-      {liste?.fait && <p class="info-discrete tnum mt-2" data-testid="utiles-date">À jour du {fmtDayAndTime(liste.fait)}.</p>}
+      {fait && <p class="info-discrete tnum mt-2" data-testid="utiles-date">À jour du {fmtDayAndTime(fait)}.</p>}
     </PageHeader>
 
     {
@@ -60,12 +59,12 @@ const jauge = (valeur: number) => `width: ${Math.min(100, Math.round(valeur / 2)
         <section class="bilan bilan-vu" aria-labelledby="utiles-titre" data-testid="utiles-classement">
           <h2 id="utiles-titre" class="sr-only">Le classement</h2>
           <p class="info-discrete tnum">
-            Sur {partiesComptees > 1 ? `les ${fmtInt(partiesComptees)} parties à revoir qui ont leur bilan` : "la partie à revoir qui a son bilan"}
-            {plusAncienne && `, depuis le ${fmtDayAndTime(plusAncienne)}`}, pour les membres au pseudo public qui en ont joué {PARTIES_MIN_DU_CLASSEMENT} au moins. 100 : la part moyenne d'un Gaulois de la partie.
+            Sur {parties > 1 ? `les ${fmtInt(parties)} parties à revoir qui ont leur bilan` : "la partie à revoir qui a son bilan"}
+            {depuis && `, depuis le ${fmtDayAndTime(depuis)}`}, pour les membres au pseudo public qui en ont joué {PARTIES_MIN_DU_CLASSEMENT} au moins. 100 : la part moyenne d'un Gaulois de la partie. La flèche : les places gagnées ou perdues avec les parties du jour.
           </p>
           <ol class="bilan-liste">
             {lignes.map((l) => (
-              <li class="bilan-carte" data-rang={rang(l.utilite) <= 3 ? rang(l.utilite) : undefined} data-rarete={l.portrait?.rarete ?? undefined} data-banniere={l.banniere ? "" : undefined} style={l.banniere ? `--banniere: url("${l.banniere}")` : undefined} data-testid="utiles-ligne">
+              <li class="bilan-carte" data-rang={l.rang <= 3 ? l.rang : undefined} data-rarete={l.portrait?.rarete ?? undefined} data-banniere={l.banniere ? "membre" : undefined} style={l.banniere ? `--banniere: url("${l.banniere}")` : undefined} data-testid="utiles-ligne">
                 <div class="bilan-haut">
                   {l.portrait ? (
                     <span class="bilan-socle" data-rarete={l.portrait.rarete ?? undefined} aria-hidden="true">
@@ -76,7 +75,22 @@ const jauge = (valeur: number) => `width: ${Math.min(100, Math.round(valeur / 2)
                   )}
                   <div class="bilan-identite">
                     <p class="bilan-tete">
-                      <span class="bilan-rang tnum">{rang(l.utilite)}</span>
+                      <span class="bilan-rang tnum">{l.rang}</span>
+                      {l.mouvement && (
+                        <span class="bilan-mouvement tnum" data-sens={l.mouvement.sens} data-testid="utiles-mouvement">
+                          {l.mouvement.sens === "nouveau" ? (
+                            "nouveau"
+                          ) : (
+                            <>
+                              <svg viewBox="0 0 8 8" aria-hidden="true" shape-rendering="crispEdges">
+                                <path fill="currentColor" d={l.mouvement.sens === "monte" ? "M3 0h2v1h1v1h1v1h1v1H5v4H3V4H0V3h1V2h1V1h1z" : "M3 0h2v4h3v1H7v1H6v1H5v1H3V7H2V6H1V5H0V4h3z"} />
+                              </svg>
+                              <span aria-hidden="true">{fmtInt(l.mouvement.places)}</span>
+                              <span class="sr-only">{l.mouvement.sens === "monte" ? "gagne" : "perd"} {places(l.mouvement.places)} avec les parties du jour</span>
+                            </>
+                          )}
+                        </span>
+                      )}
                       <a class="bilan-nom link" href={l.fiche}>{l.nom}</a>
                     </p>
                     <p class="bilan-utilite tnum"><b>{fmtInt(l.utilite)}</b> d'utilité</p>
@@ -101,7 +115,7 @@ const jauge = (valeur: number) => `width: ${Math.min(100, Math.round(valeur / 2)
                             <span class="bilan-barre" aria-hidden="true"><i style={jauge(l.axes[a]!)}></i></span>
                           </>
                         )}
-                        {l.titres[a] > 0 && <span class="bilan-nombre">{TITRE_DE_L_AXE[a]}, {fmtInt(l.titres[a])} fois</span>}
+                        {l.titres[a] > 0 && <span class="bilan-titre-axe"><IconeDeTitre axe={a} /><span>{`${TITRE_DE_L_AXE[a]}, ${fmtInt(l.titres[a])} fois`}</span></span>}
                       </dd>
                     </div>
                   ))}
@@ -122,6 +136,7 @@ const jauge = (valeur: number) => `width: ${Math.min(100, Math.round(valeur / 2)
       <p>Dans une partie, chaque axe est la part du joueur dans le total des Gaulois : Économie pour l'or produit, Combat pour la moyenne des troupes à l'attaque et des prises, Soutien pour la moyenne des troupes et de l'or donnés. L'utilité est la moyenne de ces parts, 100 étant la part moyenne d'un Gaulois de la partie. Ici, chaque nombre est la moyenne du membre sur ses parties.</p>
       <p>Ce classement compare les Gaulois entre eux, partie par partie. Il ne mesure pas le niveau d'un joueur : la place de départ, les dons reçus et une élimination précoce pèsent sur le score. Ce ne sont ni les stats du clan, ni le classé du jeu.</p>
       <p>Seuls les membres au pseudo public y sont, avec {PARTIES_MIN_DU_CLASSEMENT} parties au moins. Les parties à revoir sont les dernières du clan, sept jours au plus : le classement bouge avec elles.</p>
+      <p>La flèche à côté du rang compare ce classement à celui que donneraient les mêmes parties sans celles commencées le jour de la dernière mise à jour, heure de Paris : les places gagnées ou perdues avec elles. « Nouveau » : le membre n'avait pas ses {PARTIES_MIN_DU_CLASSEMENT} parties sans elles. Ce n'est pas un relevé de la veille : une partie sortie depuis de la liste à revoir n'y est plus.</p>
     </ReadingNote>
   </div>
 </Base>
