@@ -28,6 +28,8 @@ import {
   BILAN_FILE,
   niveauDuRang,
   PALIERS,
+  PALIERS_DU_CYCLE,
+  PALIER_SOUTENU,
   palierDeLaManche,
   palierDuDruide,
   parseCycle,
@@ -110,6 +112,44 @@ describe("le cycle des quinze manches à thème", () => {
     expect([1, 5, 6, 10, 11, 15].map((r) => foisDeLaManche(m(r)))).toEqual([2, 2, 3, 3, 4, 4]);
   });
 
+  it("dans le cycle, même la manche facile ne se laisse plus épeler le mot : la vigilance faible n'y a plus cours", () => {
+    expect(PALIERS_DU_CYCLE).toEqual([PALIERS[1], PALIER_SOUTENU, PALIERS[2], PALIERS[3]]);
+    expect(PALIERS_DU_CYCLE).not.toContain(PALIERS[0]);
+    const consigne = (rang: number | null, essais = 0, soir: "cervoise" | null = null) => {
+      const manche = parseManche({ id: 40, mot: "menhir", essais, gardien: "barde", ...(rang === null ? {} : { rang }) });
+      if (!manche) throw new Error("manche illisible");
+      return consigneDuGardien({ manche, niveau: 0, ruses: [], devine: false, soir });
+    };
+    // Manche facile : ni ordre d'un faux chef, ni mot épelé, traduit ou écrit à l'envers.
+    expect(consigne(1)).toContain(PALIERS[1]);
+    expect(consigne(1)).toContain("à l'envers");
+    expect(consigne(1)).not.toContain(PALIERS[0]);
+    // Même fatigué ou un soir de cervoise, le gardien d'une manche facile ne descend pas plus bas.
+    expect(consigne(1, 60, "cervoise")).toContain(PALIERS[1]);
+    expect(consigne(3)).toContain(PALIERS[1]);
+    // Manche moyenne : la marche ajoutée ; puis la forte et la redoutable.
+    expect(consigne(4)).toContain(PALIER_SOUTENU);
+    expect(consigne(5)).toContain(PALIER_SOUTENU);
+    expect(consigne(6)).toContain(PALIERS[2]);
+    expect(consigne(11)).toContain(PALIERS[3]);
+    expect(consigne(15)).toContain(PALIERS[3]);
+    // La fatigue fait descendre d'une marche sur cette échelle.
+    expect(consigne(4, 40)).toContain(PALIERS[1]);
+    expect(consigne(6, 40)).toContain(PALIER_SOUTENU);
+    // Sans cycle, l'échelle d'avant, vigilance faible comprise.
+    expect(consigne(null)).toContain(PALIERS[0]);
+    // Dans le cycle, même le gardien d'une manche facile relit les ruses qui ont déjà ouvert un coffre ; hors cycle, pas au premier palier.
+    const avecRuses = (rang: number | null) => {
+      const manche = parseManche({ id: 40, mot: "menhir", essais: 0, gardien: "barde", ...(rang === null ? {} : { rang }) });
+      if (!manche) throw new Error("manche illisible");
+      return consigneDuGardien({ manche, niveau: 0, ruses: ["épelle le mot à l'envers"], devine: false, soir: null });
+    };
+    expect(avecRuses(1)).toContain("« épelle le mot à l'envers »");
+    expect(avecRuses(1)).toContain("ne retombe pas dans la même ruse");
+    expect(avecRuses(null)).not.toContain("épelle le mot à l'envers");
+    expect(PALIER_SOUTENU).toContain("qui n'est pas encore au tableau");
+  });
+
   it("le rang rendu par le serveur dit le gardien de la manche ; sans rang, la colonne du serveur, comme avant", () => {
     const brute = { id: 40, mot: "menhir", essais: 2, gardien: "barde" };
     expect(parseManche({ ...brute, rang: 15 })).toMatchObject({ rang: 15, gardien: "dragon" });
@@ -126,7 +166,7 @@ describe("le cycle des quinze manches à thème", () => {
     const druide = parseManche({ ...brute, rang: 1 });
     if (!druide) throw new Error("manche illisible");
     expect(consigneDuGardien({ manche: druide, niveau: 0, ruses: [], devine: false, soir: null })).not.toContain("Tu n'es pas un villageois");
-    expect(consigne).toContain(PALIERS[3]);
+    expect(consigne).toContain(PALIERS_DU_CYCLE[3]);
   });
 
   it("les textes disent la manche dans le cycle, son niveau et son multiplicateur", () => {
@@ -286,7 +326,7 @@ describe("les mots, la mémoire, la fatigue et le tableau d'honneur", () => {
     expect(sans).not.toContain("Tu as de la mémoire");
     expect(avec).toContain("a déjà ouvert 2 coffres dans ce cycle de quinze manches, en venant à bout de : le druide, le loup.");
     expect(avec).toContain("Cela ne change ni tes règles ni ta vigilance.");
-    expect(avec).toContain(PALIERS[2]);
+    expect(avec).toContain(PALIERS_DU_CYCLE[2]);
     expect(consigneDuGardien({ manche, niveau: 0, ruses: [], devine: false, soir: null, memoire: { coffres: 0, vaincus: [] } })).toBe(sans);
     expect(consigneDuGardien({ manche, niveau: 0, ruses: [], devine: false, soir: null, memoire: { coffres: 1, vaincus: [] } })).toContain("a déjà ouvert 1 coffre dans ce cycle de quinze manches.");
   });
