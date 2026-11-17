@@ -2,6 +2,16 @@
   {
     "date": "2026-11-17",
     "kind": "nouveau",
+    "title": "Trois tenues gardées",
+    "body": "Dans « Mon Gaulois », trois places gardent une tenue complète. « Garder ici » range celle qui est à l'écran ; un clic sur une tenue gardée la remet, et « Enregistrer ma tenue » la fait porter.",
+    "link": {
+      "href": "/village",
+      "label": "Mon Gaulois"
+    }
+  },
+  {
+    "date": "2026-11-17",
+    "kind": "nouveau",
     "title": "Un fil « Entre Gaulois » à côté du replay",
     "body": "À droite du replay : dons entre Gaulois, éliminations, bombes, émojis, alliances, avec le Gaulois de chacun. Le fil suit le replay. Les parties en ligne le reçoivent peu à peu.",
     "link": {
