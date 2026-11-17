@@ -5,6 +5,7 @@ import { mapLabel } from "../lib/map-names";
 import { adresseEnLecture, ficheDuLecteur } from "../lib/rejeu/fiche-du-lecteur";
 import { dureeDite } from "../lib/rejeu/film";
 import { formatLabel } from "../lib/results";
+import BilanDesGaulois from "./BilanDesGaulois";
 import JournalDeLaPartie, { type FlammesDuJournal, type InsignesDuJournal, type PortraitDuJournal } from "./JournalDeLaPartie";
 
 /** Une partie qui a son replay, telle que la page la reçoit de la liste publiée (`FilmPublie`, relue par Zod au build). */
@@ -21,6 +22,8 @@ export interface PartieDuReplay {
   jeu: string;
   /** Les faits du journal « Entre Gaulois » publié pour cette partie ; `null` : pas relevés. */
   faits: number | null;
+  /** Le bilan des Gaulois de la partie est publié. */
+  bilan: boolean;
 }
 
 interface Props {
@@ -247,6 +250,8 @@ export default function RejeuPartie({ parties, enAttente, jours, base, portraits
           </div>
         )}
       </div>
+      {/* Le bilan des Gaulois de la partie, sous le replay : seulement quand il est publié. */}
+      {jeuEtat === "pret" && infos.bilan && <BilanDesGaulois key={partie} partie={partie} adresse={`${base}/films/${partie}.bilan.json`} portraits={portraits} />}
     </section>
   );
 }

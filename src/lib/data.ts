@@ -4,7 +4,8 @@ import type { z } from "zod";
 import { dayRows, territoryReadings, type TerritoryReading } from "./clanmap/days";
 import { GazetteSendState } from "./gazette-discord";
 import { compagnonsDeFlamme, nommesParPartie, recordPersonnel, serieEnCours, type CompagnonsDeFlamme, type RecordPersonnel, type SerieEnCours } from "./serie-en-cours";
-import { LISTE_DES_FILMS, ListeDesFilms } from "./rejeu/films-index";
+import { Bilan } from "./rejeu/bilan";
+import { DOSSIER_PUBLIC_FILMS, LISTE_DES_FILMS, ListeDesFilms } from "./rejeu/films-index";
 import { EMPTY_MEMBER_WEEKS } from "./week-players";
 import {
   Announcements,
@@ -69,6 +70,8 @@ export const loadMemberWeeks = () => read("data/member-weeks.json", StoredMember
 export const loadClanMapFilm = () => read("data/clanmap/film.json", StoredClanMapFilm);
 /** Les films des parties publiés avec le site, hors de Git : voir `src/lib/rejeu/films-index.ts`. `null` : aucun. */
 export const loadFilms = () => read(LISTE_DES_FILMS, ListeDesFilms);
+/** Le bilan des Gaulois publié pour une partie à revoir (`scripts/publier-films.ts`) ; `null` : pas de bilan. */
+export const loadBilan = (partie: string) => (/^[A-Za-z0-9]{1,32}$/.test(partie) ? read(`${DOSSIER_PUBLIC_FILMS}/${partie}.bilan.json`, Bilan) : null);
 export const loadClanMapJournal = () => read("data/clanmap/journal.json", ClanMapJournal) ?? [];
 /** Le territoire de GAL jour après jour, pour la gazette : voir `territoryReadings`. */
 export function loadTerritoryReadings(): TerritoryReading[] {

@@ -2,6 +2,16 @@
   {
     "date": "2026-11-17",
     "kind": "nouveau",
+    "title": "Le bilan des Gaulois sous chaque replay",
+    "body": "Qui a produit l'or, mené l'attaque, donné aux autres : une carte par Gaulois, avec son score d'utilité. Et le classement des plus utiles, en moyenne. Les parties le reçoivent peu à peu.",
+    "link": {
+      "href": "/revoir",
+      "label": "Revoir une partie"
+    }
+  },
+  {
+    "date": "2026-11-17",
+    "kind": "nouveau",
     "title": "Revendre un objet au jeu",
     "body": "À la boutique, « Revendre au jeu » rend un objet contre des statères : 70 % de son prix s'il y a été acheté, 50 % s'il vient d'une pochette payée. Un objet reçu sans payer ne se revend pas.",
     "link": {

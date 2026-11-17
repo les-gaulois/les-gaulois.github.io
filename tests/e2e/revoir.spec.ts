@@ -5,6 +5,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { fmtDayAndTime } from "../../src/lib/format";
 import { mapLabel } from "../../src/lib/map-names";
 import { lireFilm } from "../../src/lib/rejeu/film";
+import { bilanALEcran, scoresDuBilan } from "../../src/lib/rejeu/bilan-ecran";
 import { DOSSIER_FILMS, LISTE_DES_FILMS, ListeDesFilms, nomDuFilm } from "../../src/lib/rejeu/films-index";
 import { adresseEnLecture } from "../../src/lib/rejeu/fiche-du-lecteur";
 import { DOSSIER_DES_FICHES, DOSSIER_SITE_DU_LECTEUR } from "../../src/lib/rejeu/lecteur-jeu";
@@ -138,6 +139,26 @@ test.describe("le journal « Entre Gaulois »", () => {
     // L'heure de la première ligne ramène le replay juste avant elle : le fil se vide de nouveau.
     await dons.getByRole("button", { name: /^Aller à / }).first().click();
     await expect(dons.locator(".dons-message")).toHaveCount(0);
+  });
+});
+
+test.describe("le bilan des Gaulois", () => {
+  const avecBilan = parties.find((f) => f.bilan);
+  test.skip(!avecBilan, "Aucune partie de ce build n'a de bilan des Gaulois publié.");
+
+  test("montre une carte par Gaulois de la partie, la plus utile d'abord, avec ses trois axes", async ({ page }) => {
+    const bilan = bilanALEcran(JSON.parse(readFileSync(`${LISTE_DES_FILMS.replace(/liste\.json$/, "")}${avecBilan!.partie}.bilan.json`, "utf8")), avecBilan!.partie)!;
+    const scores = scoresDuBilan(bilan.gaulois);
+    await page.route(LECTEUR, (r) => r.fulfill({ status: 200, contentType: "text/html", body: `<!doctype html><html lang="fr"><title>Replay du jeu</title></html>` }));
+    await page.goto(`/revoir?partie=${avecBilan!.partie}`);
+    await hydrated(page);
+    const cartes = page.getByTestId("rejeu-bilan").getByTestId("rejeu-bilan-carte");
+    await expect(cartes).toHaveCount(bilan.gaulois.length);
+    await expect(page.getByTestId("rejeu-bilan").getByRole("heading", { name: "Bilan des Gaulois" })).toBeVisible();
+    for (const axe of ["Économie", "Combat", "Soutien"]) await expect(cartes.first().getByText(axe, { exact: true })).toBeVisible();
+    const meilleure = Math.max(...scores.map((s) => s.utilite ?? -1));
+    if (meilleure >= 0) await expect(cartes.first()).toContainText(`${meilleure} d'utilité`);
+    else await expect(page.getByTestId("rejeu-bilan")).toContainText("pas de score d'utilité");
   });
 });
 

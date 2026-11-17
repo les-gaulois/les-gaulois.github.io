@@ -13,10 +13,11 @@ import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { loadLeaderboard, loadMembers } from "../src/lib/data";
 import { MAX_OCTETS_FICHE } from "../src/lib/rejeu-openfront";
+import { bilanPublie, lireBilan } from "../src/lib/rejeu/bilan";
 import { journalPublie, lireJournal } from "../src/lib/rejeu/journal";
 import { lireFilm, secondesDeLImage } from "../src/lib/rejeu/film";
 import { adresseDuLecteur, DOSSIER_DES_DRAPEAUX, DOSSIER_DES_FICHES, DOSSIER_DES_LECTEURS, DOSSIER_SITE_DU_LECTEUR, dossierDuLecteur, drapeauxDeLaFiche, ficheNettoyee, lireRecette, manifesteDuLecteur, noticeDuLecteur, origineDuLecteur, pageDuLecteur, RECETTE_DU_LECTEUR, RECETTE_MINIMALE, recettePubliable, SITE_DU_CLAN, svgRepris } from "../src/lib/rejeu/lecteur-jeu";
-import { DOSSIER_FILMS, DOSSIER_PUBLIC_FILMS, INDEX_DES_FILMS, LISTE_DES_FILMS, ListeDesFilms, lireIndex, MAX_OCTETS_FILM, MAX_OCTETS_FILM_DECOMPRESSE, nomDeLaFiche, nomDuFilm, nomDuJournal, type FilmPublie } from "../src/lib/rejeu/films-index";
+import { DOSSIER_FILMS, DOSSIER_PUBLIC_FILMS, INDEX_DES_FILMS, LISTE_DES_FILMS, ListeDesFilms, lireIndex, MAX_OCTETS_FILM, MAX_OCTETS_FILM_DECOMPRESSE, nomDeLaFiche, nomDuBilan, nomDuFilm, nomDuJournal, type FilmPublie } from "../src/lib/rejeu/films-index";
 
 /**
  * Les noms qu'un film peut encore montrer : le pseudo d'un membre qui est toujours sur la liste du clan, avec ce pseudo, et le
@@ -95,6 +96,8 @@ if (lecteurs.size > 0) {
 const drapeaux = new Set<string>();
 /** Un journal plus lourd n'est pas lu : 20 000 faits pèsent moins de 2 Mo. */
 const MAX_OCTETS_JOURNAL = 2_000_000;
+/** Un bilan plus lourd n'est pas lu : 200 Gaulois pèsent moins de 40 Ko. */
+const MAX_OCTETS_BILAN = 100_000;
 
 const films: FilmPublie[] = [];
 let refuses = 0;
@@ -136,7 +139,20 @@ for (const { partie, commit } of index.films) {
         console.log(`::warning::Films : le journal de la partie ${partie} n'est pas publié (${err instanceof Error ? err.message : String(err)}).`);
       }
     }
-    films.push({ partie, faits, debut: e.debut, carte: e.carte, victoire: e.victoire, equipes: e.equipes, gaulois: e.gaulois, joueurs: e.joueurs, secondes: secondesDeLImage(e, e.images - 1), forme: Math.round((e.largeur / e.hauteur) * 10_000) / 10_000, octets: lu.size, jeu });
+    // Le bilan des Gaulois, relu, sans les pseudos qui ne sont plus sur la liste du clan. Absent ou refusé : pas de bilan
+    // pour cette partie, qui ne compte pas non plus au classement général.
+    let bilan = false;
+    const nomBilan = nomDuBilan(partie);
+    if (jeu && nomBilan && lstatSync(join(DOSSIER_FILMS, nomBilan), { throwIfNoEntry: false })?.isFile()) {
+      try {
+        if (lstatSync(join(DOSSIER_FILMS, nomBilan)).size > MAX_OCTETS_BILAN) throw new Error("trop lourd");
+        writeFileSync(join(DOSSIER_PUBLIC_FILMS, nomBilan), JSON.stringify(bilanPublie(lireBilan(readFileSync(join(DOSSIER_FILMS, nomBilan), "utf8"), partie), nomEncorePublie)));
+        bilan = true;
+      } catch (err) {
+        console.log(`::warning::Films : le bilan de la partie ${partie} n'est pas publié (${err instanceof Error ? err.message : String(err)}).`);
+      }
+    }
+    films.push({ partie, faits, bilan, debut: e.debut, carte: e.carte, victoire: e.victoire, equipes: e.equipes, gaulois: e.gaulois, joueurs: e.joueurs, secondes: secondesDeLImage(e, e.images - 1), forme: Math.round((e.largeur / e.hauteur) * 10_000) / 10_000, octets: lu.size, jeu });
   } catch (e) {
     refuses++;
     console.log(`::warning::Films : ${nom} n'est pas publié (${e instanceof Error ? e.message : String(e)}).`);

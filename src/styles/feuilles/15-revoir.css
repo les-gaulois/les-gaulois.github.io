@@ -396,23 +396,29 @@
   translate: -50% 0;
   image-rendering: pixelated;
 }
-.dons-case[data-rarete="commun"] {
+.dons-case[data-rarete="commun"],
+.bilan-socle[data-rarete="commun"] {
   --rarete: var(--rarete-commun);
 }
-.dons-case[data-rarete="peu-commun"] {
+.dons-case[data-rarete="peu-commun"],
+.bilan-socle[data-rarete="peu-commun"] {
   --rarete: var(--rarete-peu-commun);
 }
-.dons-case[data-rarete="epique"] {
+.dons-case[data-rarete="epique"],
+.bilan-socle[data-rarete="epique"] {
   --rarete: var(--rarete-epique);
 }
-.dons-case[data-rarete="mystique"] {
+.dons-case[data-rarete="mystique"],
+.bilan-socle[data-rarete="mystique"] {
   --rarete: var(--rarete-mystique);
 }
-.dons-case[data-rarete="legendaire"] {
+.dons-case[data-rarete="legendaire"],
+.bilan-socle[data-rarete="legendaire"] {
   --rarete: var(--rarete-legendaire);
   --rarete-cadre: var(--rarete-legendaire-degrade);
 }
-.dons-case[data-rarete="divin"] {
+.dons-case[data-rarete="divin"],
+.bilan-socle[data-rarete="divin"] {
   --rarete: var(--rarete-divin);
   --rarete-cadre: var(--rarete-divin-degrade);
 }
@@ -566,4 +572,190 @@ button.dons-heure:focus-visible {
     min-height: 0;
     max-height: none;
   }
+}
+
+/* ---------- Bilan des Gaulois et classement général (17 novembre 2026) ---------- */
+/* Sous le replay (BilanDesGaulois.tsx) et sous la liste des parties (revoir.astro), demande du pilote : le score de « celui
+   qui a été le plus utile dans la partie », « en thème avec les personnages gaulois des joueurs ». Une carte par joueur :
+   son Gaulois en pied sur un socle à la couleur de sa rareté (comme sa case du fil et sa carte de la vitrine), son rang, son
+   nom, son utilité, ses titres, puis ses trois axes. Les axes se lisent à leur nom et à leur nombre ; la teinte (ambre de
+   l'or, rouge des combats, bleu des dons) ne fait que les répéter. Les trois premiers ont un filet d'or, d'argent, de
+   bronze, que le rang écrit dit déjà. Écriture et jetons seulement : tout se lit dans les deux thèmes. */
+.bilan {
+  margin-top: 2rem;
+}
+.bilan-titre {
+  font-size: clamp(1.125rem, 2vw, 1.5rem);
+  line-height: 1.2;
+}
+.bilan-liste {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 21rem), 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+.bilan-carte {
+  --bilan-filet: var(--color-line);
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr);
+  gap: 0.875rem;
+  padding: 0.75rem;
+  border: 1px solid var(--color-line);
+  border-top: 3px solid var(--bilan-filet);
+  border-radius: 0.75rem;
+  background: var(--color-surface);
+}
+.bilan-carte[data-rang="1"] {
+  --bilan-filet: var(--rarete-legendaire);
+}
+.bilan-carte[data-rang="2"] {
+  --bilan-filet: var(--color-line-strong);
+}
+.bilan-carte[data-rang="3"] {
+  --bilan-filet: var(--color-loss);
+}
+.bilan-socle {
+  --rarete: var(--color-line-strong);
+  --rarete-cadre: var(--rarete);
+  position: relative;
+  display: grid;
+  place-items: end center;
+  align-self: start;
+  height: 9rem;
+  border: 2px solid transparent;
+  border-radius: 0.5rem;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--rarete) 50%, var(--color-navy)), color-mix(in srgb, var(--rarete) 14%, var(--color-navy)) 78%) padding-box,
+    var(--rarete-cadre) border-box;
+  overflow: hidden;
+  font-size: 2rem;
+  font-weight: 700;
+}
+.bilan-socle > img {
+  max-width: none;
+  margin-bottom: 0.25rem;
+  image-rendering: pixelated;
+}
+.bilan-socle-sans {
+  place-items: center;
+  color: var(--color-muted);
+}
+.bilan-corps {
+  display: grid;
+  align-content: start;
+  gap: 0.4375rem;
+  min-width: 0;
+  font-size: 0.875rem;
+}
+.bilan-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.5rem;
+}
+.bilan-rang {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 0.25rem;
+  border-radius: 0.375rem;
+  background: var(--color-surface-2);
+  font-family: var(--font-console);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+.bilan-nom {
+  font-size: 1rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.bilan-nom-sans {
+  font-weight: 400;
+  font-style: italic;
+  color: var(--color-muted);
+}
+.bilan-utilite {
+  margin-left: auto;
+  color: var(--color-muted);
+}
+.bilan-utilite > b {
+  font-size: 1.25rem;
+  color: var(--ecriture);
+}
+.bilan [data-axe="economie"] {
+  --bilan-ton: var(--color-warn);
+}
+.bilan [data-axe="combat"] {
+  --bilan-ton: var(--color-danger);
+}
+.bilan [data-axe="soutien"] {
+  --bilan-ton: var(--color-win);
+}
+.bilan-titres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.375rem;
+}
+.bilan-titres > span {
+  padding: 0.0625rem 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--bilan-ton) 60%, var(--color-line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bilan-ton) 14%, var(--color-navy));
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.bilan-axes {
+  display: grid;
+  gap: 0.25rem;
+}
+.bilan-axes > div {
+  display: grid;
+  grid-template-columns: 5.25rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.5rem;
+}
+.bilan-axes dt {
+  font-family: var(--font-console);
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.bilan-axes dd {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+.bilan-barre {
+  flex: 1 1 auto;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--color-line);
+  overflow: hidden;
+}
+.bilan-barre > i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--bilan-ton);
+}
+.bilan-sans {
+  font-weight: 400;
+  color: var(--color-muted);
+}
+.bilan-axes-nombres dd {
+  padding-left: 0.5rem;
+  border-left: 3px solid var(--bilan-ton);
+}
+.bilan-faits,
+.bilan-note {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+.bilan-note {
+  max-width: 48rem;
+  margin-top: 0.75rem;
 }

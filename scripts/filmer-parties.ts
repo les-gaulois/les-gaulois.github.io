@@ -22,10 +22,11 @@ import { loadLeaderboard, loadMembers, loadSessions } from "../src/lib/data";
 import { mapKey } from "../src/lib/map-names";
 import { dossierDeCarte } from "../src/lib/rejeu-openfront";
 import { lireFilm } from "../src/lib/rejeu/film";
+import { bilanDeLaPartie } from "../src/lib/rejeu/bilan";
 import { journalDeLaPartie, phrasesDuJeu, pseudoEnPartie, type Phrases } from "../src/lib/rejeu/journal";
 import { filmDeLaPartie, nomsPubliables } from "../src/lib/rejeu/film-brut";
 import { ficheNettoyee } from "../src/lib/rejeu/lecteur-jeu";
-import { DOSSIER_FILMS, INDEX_DES_FILMS, lireIndex, MAX_OCTETS_FILM, MAX_OCTETS_FILM_DECOMPRESSE, nomDeLaFiche, nomDuFilm, nomDuJournal, noterEchec, noterFilm, partiesAFilmer, partiesARefilmer, rangerLesFilms, type IndexDesFilms } from "../src/lib/rejeu/films-index";
+import { DOSSIER_FILMS, INDEX_DES_FILMS, lireIndex, MAX_OCTETS_FILM, MAX_OCTETS_FILM_DECOMPRESSE, nomDeLaFiche, nomDuBilan, nomDuFilm, nomDuJournal, noterEchec, noterFilm, partiesAFilmer, partiesARefilmer, rangerLesFilms, type IndexDesFilms } from "../src/lib/rejeu/films-index";
 import type { StoredSession } from "../src/lib/schemas";
 import { construireMoteur, FicheInattendue, lancerMoteur, lireCarte, lireFiche, lireLangueDuJeu, message, type Moteur, RACINE, rangerCartes, rangerMoteurs, TropLong } from "./rejeu-commun";
 
@@ -209,6 +210,23 @@ async function filmer(s: StoredSession, moteurs: Map<string, Promise<Moteur>>): 
         console.log(`::warning::Films : le journal de la partie ${s.gameId} n'est pas gardé (${message(e)}).`);
       }
     }
+    // Le bilan des Gaulois (src/lib/rejeu/bilan.ts) : les stats que le jeu écrit dans la fiche, et les dons du rejeu. Sans
+    // les faits du rejeu, ou refusé : pas de bilan, le film et le journal restent.
+    const nomBilan = nomDuBilan(s.gameId);
+    if (nomBilan) {
+      const cheminBilan = join(DOSSIER_FILMS, nomBilan);
+      rmSync(cheminBilan, { force: true });
+      try {
+        const stats = new Map(joueurs.data.info.players.flatMap((p) => (p.clientID ? [[p.clientID, p.stats] as const] : [])));
+        const bilan = bilanDeLaPartie(metaTexte, { partie: s.gameId, clients, noms, pseudos, stats });
+        if (bilan !== null) {
+          writeFileSync(`${cheminBilan}.partiel`, JSON.stringify(bilan));
+          renameSync(`${cheminBilan}.partiel`, cheminBilan);
+        }
+      } catch (e) {
+        console.log(`::warning::Films : le bilan de la partie ${s.gameId} n'est pas gardé (${message(e)}).`);
+      }
+    }
     index = noterFilm(index, s.gameId, s.gameStart, octets.length, commit, journalGarde);
     console.log(`Films : partie ${s.gameId} (${info.config.gameMap}, ${s.hasWon ? "victoire" : "défaite"}) filmée en ${Math.round((Date.now() - t0) / 1000)} s, ${Math.round(octets.length / 1024)} Ko.`);
   } finally {
@@ -224,7 +242,7 @@ function ranger() {
     const nom = nomDuFilm(partie);
     if (nom) rmSync(join(DOSSIER_FILMS, nom), { force: true });
   }
-  const connus = new Set(index.films.flatMap((f) => [nomDuFilm(f.partie), nomDeLaFiche(f.partie), nomDuJournal(f.partie)]));
+  const connus = new Set(index.films.flatMap((f) => [nomDuFilm(f.partie), nomDeLaFiche(f.partie), nomDuJournal(f.partie), nomDuBilan(f.partie)]));
   for (const nom of readdirSync(DOSSIER_FILMS)) if (nom !== "index.json" && !connus.has(nom)) rmSync(join(DOSSIER_FILMS, nom), { recursive: true, force: true });
 }
 
