@@ -6,13 +6,12 @@ import MapNamesCredit from "../components/MapNamesCredit.astro";
 import PageHeader from "../components/PageHeader.astro";
 import ReadingNote from "../components/ReadingNote.astro";
 import RejeuPartie from "../components/RejeuPartie.tsx";
-import { loadBilan, loadFilms, loadMembers, loadRecordsPersonnels, loadSeriesEnCours } from "../lib/data";
+import { loadFilms, loadMembers, loadRecordsPersonnels, loadSeriesEnCours } from "../lib/data";
 import { FLAMME, FLAMME_DOREE } from "../lib/flamme-serie";
 import { fmtDayAndTime, fmtInt } from "../lib/format";
 import { gauloisDeLaPartie, gauloisDuSite, portraitDuGaulois } from "../lib/gaulois-site";
 import { tenueOf } from "../lib/gaulois-sprite";
 import { mapLabel } from "../lib/map-names";
-import { AXES, classementGeneral, NOM_DE_L_AXE, PARTIES_MIN_DU_CLASSEMENT, TITRE_DE_L_AXE } from "../lib/rejeu/bilan";
 import { JOURS_DE_FILMS } from "../lib/rejeu/films-index";
 import { insignesParPseudo, porteursDesPseudos, type Insignes } from "../lib/rejeu/insignes";
 import type { Decor } from "../lib/village/decor";
@@ -39,15 +38,12 @@ const pourLeLecteur = parties.map(({ partie, debut, carte, victoire, equipes, ga
 // Sa case prend la couleur de la rareté la plus haute de ce qu'il porte, comme sa carte de la vitrine (`rareteDuCadre`).
 const portraits: Record<string, { image: string; largeur: number; hauteur: number; buste: number; rarete: string | null }> = {};
 let insignes: Record<string, Insignes> = {};
-// Les fiches des membres au pseudo public, par pseudo, pour les liens du classement général.
-const fiches: Record<string, string> = {};
 if (parties.some((f) => (f.faits ?? 0) > 0 || f.bilan)) {
   const membres = loadMembers()?.members ?? [];
   for (const [pseudo, ids] of porteursDesPseudos(membres)) {
     const portrait = ids.length === 1 ? portraitDuGaulois(ids[0]) : null;
     const tenue = portrait ? tenueOf(gauloisDuSite(), ids[0]) : null;
     if (portrait) portraits[pseudo] = { ...portrait, image: `${base}${portrait.image}`, rarete: tenue ? rareteDuCadre(tenue) : null };
-    if (ids.length === 1) fiches[pseudo] = `${base}/membres/${encodeURIComponent(ids[0]!)}`;
   }
   // À côté du nom (demande du pilote, 17 novembre 2026) : le niveau et le prestige du compte, « tout le jeu », tels que la liste
   // du clan les donne aujourd'hui, et la flamme de la série en cours, à partir de 5 victoires d'affilée (`serie-en-cours.ts`).
@@ -61,14 +57,6 @@ const flammeEnImage = ({ largeur, hauteur, cases }: Decor) => {
   return { image: `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${largeur} ${hauteur}" shape-rendering="crispEdges">${rects}</svg>`)}`, largeur, hauteur };
 };
 const flammes = { normale: flammeEnImage(FLAMME), doree: flammeEnImage(FLAMME_DOREE) };
-// Le classement général (demande du pilote, 17 novembre 2026 : « par partie et aussi classement général uniquement pour les
-// gaulois ») : la moyenne de l'utilité des membres au pseudo public sur les parties à revoir qui ont leur bilan
-// (`classementGeneral`, src/lib/rejeu/bilan-ecran.ts). Les dix premiers ; sans ligne, la section ne s'affiche pas.
-const bilans = parties.flatMap((f) => (f.bilan ? [loadBilan(f.partie)] : [])).filter((b) => b !== null);
-const classement = classementGeneral(bilans, PARTIES_MIN_DU_CLASSEMENT, (nom) => Object.hasOwn(fiches, nom)).slice(0, 10);
-const portraitDe = (nom: string) => (Object.hasOwn(portraits, nom) ? portraits[nom]! : null);
-// Les parties comptées : celles où deux Gaulois au moins ont un score.
-const partiesComptees = bilans.filter((b) => b.gaulois.length >= 2).length;
 const enAttente = (liste?.films ?? []).filter((f) => !f.jeu).map((f) => f.partie);
 const plusAncien = parties.at(-1)?.debut ?? null;
 const siteDuLecteur = parties[0]?.jeu ? new URL(parties[0].jeu).origin : null;
@@ -134,50 +122,9 @@ const siteDuLecteur = parties[0]?.jeu ? new URL(parties[0].jeu).origin : null;
               Les {fmtInt(parties.length - LISTES)} autres s'ouvrent par « Revoir » dans <a class="link" href={`${base}/parties`}>Dernières parties</a>.
             </p>
           )}
-          {classement.length > 0 && (
-            <section class="bilan" aria-labelledby="utiles-titre" data-testid="revoir-classement">
-              <h2 id="utiles-titre" class="section-title-sm mt-section">Les Gaulois les plus utiles</h2>
-              <p class="info-discrete tnum mt-2">
-                Sur {partiesComptees > 1 ? `les ${fmtInt(partiesComptees)} parties à revoir qui ont leur bilan` : "la partie à revoir qui a son bilan"}, pour les membres au pseudo public qui en ont joué {PARTIES_MIN_DU_CLASSEMENT} au moins. 100 d'utilité : la part moyenne d'un Gaulois de la partie.
-              </p>
-              <ol class="bilan-liste mt-4">
-                {classement.map((l, i) => (
-                  <li class="bilan-carte" data-rang={i < 3 ? i + 1 : undefined}>
-                    {portraitDe(l.nom) ? (
-                      <span class="bilan-socle" data-rarete={portraitDe(l.nom)!.rarete ?? undefined} aria-hidden="true">
-                        <img src={portraitDe(l.nom)!.image} width={portraitDe(l.nom)!.largeur * 2} height={portraitDe(l.nom)!.hauteur * 2} alt="" loading="lazy" decoding="async" />
-                      </span>
-                    ) : (
-                      <span class="bilan-socle bilan-socle-sans" aria-hidden="true">{[...l.nom][0]!.toLocaleUpperCase("fr")}</span>
-                    )}
-                    <div class="bilan-corps">
-                      <p class="bilan-tete">
-                        <span class="bilan-rang tnum">{i + 1}</span>
-                        <a class="bilan-nom link" href={fiches[l.nom]}>{l.nom}</a>
-                        <span class="bilan-utilite tnum"><b>{fmtInt(l.utilite)}</b> d'utilité</span>
-                      </p>
-                      <p class="bilan-faits tnum">Moyenne sur {fmtInt(l.parties)} parties</p>
-                      <dl class="bilan-axes bilan-axes-nombres tnum">
-                        {AXES.map((a) => (
-                          <div data-axe={a}>
-                            <dt>{NOM_DE_L_AXE[a]}</dt>
-                            <dd>{l.axes[a] === null ? "Pas de données" : fmtInt(l.axes[a]!)}</dd>
-                          </div>
-                        ))}
-                      </dl>
-                      {AXES.some((a) => l.titres[a] > 0) && (
-                        <p class="bilan-titres tnum">
-                          {AXES.filter((a) => l.titres[a] > 0).map((a) => (
-                            <span data-axe={a}>{TITRE_DE_L_AXE[a]}, {fmtInt(l.titres[a])} fois</span>
-                          ))}
-                        </p>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            </section>
-          )}
+          <p class="mt-6">
+            <a class="link" href={`${base}/utiles`} data-testid="revoir-utiles">Les Gaulois les plus utiles, en moyenne sur ces parties</a>
+          </p>
         </>
       )
     }
@@ -189,7 +136,7 @@ const siteDuLecteur = parties[0]?.jeu ? new URL(parties[0].jeu).origin : null;
     <ReadingNote label="Comment lire ce replay">
       <p>C'est le lecteur de replay d'OpenFront lui-même, légèrement modifié et construit par le site à partir de son code libre, sur un site du clan à part : sans publicité ni mesure, non officiel, avec tous les pseudos de la partie comme dans le jeu.</p>
       <p>Il part de lui-même en accéléré (× 8), sauf si vous avez demandé moins d'animations (bouton pause en haut de la page, ou réglage de l'appareil). « Ouvrir le replay en grand » l'ouvre dans un onglet ; « Ouvrir la partie sur OpenFront » mène à son propre site.</p>
-      <p>« Entre Gaulois » liste ce que le moteur du jeu a noté pendant ce rejeu : les dons réussis entre joueurs au tag du clan, aux montants de l'écran du jeu, puis les éliminations, bombes, cibles, émojis, messages rapides et alliances où un Gaulois est en jeu. Le joueur visé par une bombe est celui qui tenait la case visée au lancement. Un joueur sans pseudo public sur la liste du clan, Gaulois ou non, y porte le pseudo qu'il avait dans la partie, comme dans le replay ; le tag de son clan le précède s'il est au classement officiel. À côté du nom d'un membre au pseudo public : le niveau de son compte, tout le jeu, à la couleur de son prestige, et sa flamme à partir de 5 victoires d'affilée sous le tag, tels qu'ils sont aujourd'hui, pas le jour de la partie. « Bilan des Gaulois » compte, pour chaque joueur au tag du clan, ce que le jeu écrit à la fin de la partie (l'or produit par le travail, le commerce et les trains, les troupes envoyées à l'attaque, les unités et bâtiments ennemis détruits ou pris, les joueurs éliminés) et les dons relevés pendant ce rejeu, à tous ses alliés (le fil « Entre Gaulois » ne liste que ceux entre Gaulois : ses totaux peuvent être plus petits). Un Gaulois sans stats dans la fiche de la partie n'y est pas. Chaque barre est la part du joueur dans le total des Gaulois de la partie : Économie pour l'or produit, Combat pour la moyenne des troupes à l'attaque et des prises, Soutien pour la moyenne des troupes et de l'or donnés. L'utilité est la moyenne de ces parts, 100 étant la part moyenne d'un Gaulois de la partie. La place de départ, les dons reçus et une élimination précoce pèsent sur ce score : il compare les Gaulois d'une même partie, il ne mesure pas le niveau d'un joueur. « Les Gaulois les plus utiles » en fait la moyenne par membre au pseudo public. Les messages rapides sont les phrases toutes faites du jeu (© OpenFront and Contributors, CC BY-SA 4.0). Le fil suit le replay ; l'heure d'une ligne y mène.</p>
+      <p>« Entre Gaulois » liste ce que le moteur du jeu a noté pendant ce rejeu : les dons réussis entre joueurs au tag du clan, aux montants de l'écran du jeu, puis les éliminations, bombes, cibles, émojis, messages rapides et alliances où un Gaulois est en jeu. Le joueur visé par une bombe est celui qui tenait la case visée au lancement. Un joueur sans pseudo public sur la liste du clan, Gaulois ou non, y porte le pseudo qu'il avait dans la partie, comme dans le replay ; le tag de son clan le précède s'il est au classement officiel. À côté du nom d'un membre au pseudo public : le niveau de son compte, tout le jeu, à la couleur de son prestige, et sa flamme à partir de 5 victoires d'affilée sous le tag, tels qu'ils sont aujourd'hui, pas le jour de la partie. « Bilan des Gaulois » compte, pour chaque joueur au tag du clan, ce que le jeu écrit à la fin de la partie (l'or produit par le travail, le commerce et les trains, les troupes envoyées à l'attaque, les unités et bâtiments ennemis détruits ou pris, les joueurs éliminés) et les dons relevés pendant ce rejeu, à tous ses alliés (le fil « Entre Gaulois » ne liste que ceux entre Gaulois : ses totaux peuvent être plus petits). Un Gaulois sans stats dans la fiche de la partie n'y est pas. Chaque barre est la part du joueur dans le total des Gaulois de la partie : Économie pour l'or produit, Combat pour la moyenne des troupes à l'attaque et des prises, Soutien pour la moyenne des troupes et de l'or donnés. L'utilité est la moyenne de ces parts, 100 étant la part moyenne d'un Gaulois de la partie. La place de départ, les dons reçus et une élimination précoce pèsent sur ce score : il compare les Gaulois d'une même partie, il ne mesure pas le niveau d'un joueur. « Les plus utiles », dans Résultats, en fait la moyenne par membre au pseudo public. Les messages rapides sont les phrases toutes faites du jeu (© OpenFront and Contributors, CC BY-SA 4.0). Le fil suit le replay ; l'heure d'une ligne y mène.</p>
       <p>Une partie arrive ici environ une heure après sa fin, rejouée d'abord par le robot du site avec le moteur du jeu, à la version qui l'a jouée. Seules les plus récentes restent, {JOURS_DE_FILMS} jours au plus.</p>
     </ReadingNote>
   </div>

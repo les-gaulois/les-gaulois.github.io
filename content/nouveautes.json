@@ -12,6 +12,16 @@
   {
     "date": "2026-11-17",
     "kind": "nouveau",
+    "title": "Une page pour les Gaulois les plus utiles",
+    "body": "Le classement des plus utiles a sa page, dans Résultats : la moyenne de chaque membre au pseudo public sur les parties à revoir, avec son Gaulois. Il paraît dès qu'un membre a 5 parties.",
+    "link": {
+      "href": "/utiles",
+      "label": "Les plus utiles"
+    }
+  },
+  {
+    "date": "2026-11-17",
+    "kind": "nouveau",
     "title": "Le bilan des Gaulois sous chaque replay",
     "body": "Qui a produit l'or, mené l'attaque, donné aux autres : une carte par Gaulois, avec son score d'utilité. Et le classement des plus utiles, en moyenne. Les parties le reçoivent peu à peu.",
     "link": {

@@ -25,6 +25,9 @@ export const SECTIONS: NavSection[] = [
     { href: "/rivaux", label: "Nos rivaux" },
     { href: "/progression", label: "Progression" },
     { href: "/records", label: "Records" },
+    // « Les plus utiles » (17 novembre 2026, demande du pilote : « lui donner sa propre entrée dans le menu ») : le classement
+    // général du score d'utilité des Gaulois, tiré du bilan de chaque partie à revoir (src/lib/rejeu/bilan.ts).
+    { href: "/utiles", label: "Les plus utiles" },
   ),
   // La liste officielle a son onglet depuis le 12 novembre 2026, à la demande du pilote : la page Membres garde les paliers,
   // l'encadrement et le classé. Le QG : la face privée du site. Sa page ne montre que la porte tant que le serveur n'a pas

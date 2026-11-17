@@ -5,7 +5,8 @@ import { expect, test, type Page } from "@playwright/test";
 import { fmtDayAndTime } from "../../src/lib/format";
 import { mapLabel } from "../../src/lib/map-names";
 import { lireFilm } from "../../src/lib/rejeu/film";
-import { bilanALEcran, scoresDuBilan } from "../../src/lib/rejeu/bilan-ecran";
+import { bilanALEcran, classementGeneral, PARTIES_MIN_DU_CLASSEMENT, scoresDuBilan } from "../../src/lib/rejeu/bilan-ecran";
+import { porteursDesPseudos } from "../../src/lib/rejeu/insignes";
 import { DOSSIER_FILMS, LISTE_DES_FILMS, ListeDesFilms, nomDuFilm } from "../../src/lib/rejeu/films-index";
 import { adresseEnLecture } from "../../src/lib/rejeu/fiche-du-lecteur";
 import { DOSSIER_DES_FICHES, DOSSIER_SITE_DU_LECTEUR } from "../../src/lib/rejeu/lecteur-jeu";
@@ -160,6 +161,26 @@ test.describe("le bilan des Gaulois", () => {
     if (meilleure >= 0) await expect(cartes.first()).toContainText(`${meilleure} d'utilité`);
     else await expect(page.getByTestId("rejeu-bilan")).toContainText("pas de score d'utilité");
   });
+});
+
+test("« Les plus utiles » montre le classement général des bilans publiés, ou dit qu'il n'y a pas de données", async ({ page }) => {
+  const bilans = parties.flatMap((f) => (f.jeu && f.bilan ? [bilanALEcran(JSON.parse(readFileSync(`${LISTE_DES_FILMS.replace(/liste\.json$/, "")}${f.partie}.bilan.json`, "utf8")), f.partie)!] : []));
+  const membres = (JSON.parse(readFileSync("data/members.json", "utf8")) as { members: { username: string | null; publicId: string | null }[] }).members;
+  const porteurs = porteursDesPseudos(membres);
+  const classement = classementGeneral(bilans, PARTIES_MIN_DU_CLASSEMENT, (nom) => porteurs.get(nom)?.length === 1);
+  await page.goto("/utiles");
+  await expect(page.getByRole("heading", { level: 1, name: "Les plus utiles" })).toBeVisible();
+  if (classement.length === 0) {
+    await expect(page.getByTestId("utiles-classement")).toHaveCount(0);
+    await expect(page.getByText("Pas de données")).toBeVisible();
+  } else {
+    const lignes = page.getByTestId("utiles-ligne");
+    await expect(lignes).toHaveCount(classement.length);
+    await expect(lignes.first()).toContainText(classement[0]!.nom);
+    await expect(lignes.first()).toContainText("d'utilité");
+    await expect(lignes.first().getByRole("link", { name: classement[0]!.nom })).toHaveAttribute("href", /\/membres\//);
+  }
+  await expect(page.getByTestId("utiles-revoir")).toHaveAttribute("href", "/revoir");
 });
 
 /** La forme de la carte d'une partie, lue dans son film du cache (source indépendante de la liste publiée). */

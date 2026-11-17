@@ -1,0 +1,111 @@
+---
+import Base from "../layouts/Base.astro";
+import Empty from "../components/Empty.astro";
+import PageHeader from "../components/PageHeader.astro";
+import ReadingNote from "../components/ReadingNote.astro";
+import { loadBilan, loadFilms, loadMembers } from "../lib/data";
+import { fmtDayAndTime, fmtInt } from "../lib/format";
+import { gauloisDuSite, portraitDuGaulois } from "../lib/gaulois-site";
+import { tenueOf } from "../lib/gaulois-sprite";
+import { AXES, classementGeneral, NOM_DE_L_AXE, PARTIES_MIN_DU_CLASSEMENT, TITRE_DE_L_AXE } from "../lib/rejeu/bilan";
+import { porteursDesPseudos } from "../lib/rejeu/insignes";
+import { rareteDuCadre } from "../lib/village/vitrine";
+
+/**
+ * « Les plus utiles » (demande du pilote, 17 novembre 2026 : un classement général du score d'utilité, « uniquement pour les
+ * gaulois », puis « lui donner sa propre entrée dans le menu ») : la moyenne de l'utilité de chaque membre au pseudo public
+ * sur les parties à revoir qui ont leur bilan (`classementGeneral`, src/lib/rejeu/bilan-ecran.ts). Le bilan de chaque partie
+ * est sous son replay, dans « Revoir une partie ». Exception à `stats.team` voulue par le pilote (CLAUDE.md) : jamais mêlé aux
+ * stats du clan ni au classé, jamais appelé Elo.
+ */
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const liste = loadFilms();
+const parties = (liste?.films ?? []).filter((f) => f.jeu && f.bilan);
+const bilans = parties.flatMap((f) => [loadBilan(f.partie)]).filter((b) => b !== null);
+// Les parties comptées : celles où deux Gaulois au moins ont un score.
+const partiesComptees = bilans.filter((b) => b.gaulois.length >= 2).length;
+// Un pseudo public porté par plusieurs membres ne désigne personne : ni ligne, ni fiche, ni Gaulois.
+const porteurs = porteursDesPseudos(loadMembers()?.members ?? []);
+const unSeul = (nom: string) => porteurs.get(nom)?.length === 1;
+const classement = classementGeneral(bilans, PARTIES_MIN_DU_CLASSEMENT, unSeul);
+const lignes = classement.map((l) => {
+  const id = porteurs.get(l.nom)![0]!;
+  const portrait = portraitDuGaulois(id);
+  const tenue = portrait ? tenueOf(gauloisDuSite(), id) : null;
+  return { ...l, fiche: `${base}/membres/${encodeURIComponent(id)}`, portrait: portrait ? { ...portrait, image: `${base}${portrait.image}`, rarete: tenue ? rareteDuCadre(tenue) : null } : null };
+});
+// Le rang : à utilité égale, le même.
+const rang = (utilite: number) => 1 + classement.filter((l) => l.utilite > utilite).length;
+const plusAncienne = parties.at(-1)?.debut ?? null;
+---
+
+<Base title="Les plus utiles" description="Les Gaulois les plus utiles du clan GAL dans les parties à revoir : or produit, combat et dons, en parts de l'équipe.">
+  <div class="wrap">
+    <PageHeader title="Les plus utiles" intro="Qui pèse le plus dans l'effort des Gaulois, en moyenne sur les parties à revoir.">
+      {liste?.fait && <p class="info-discrete tnum mt-2" data-testid="utiles-date">À jour du {fmtDayAndTime(liste.fait)}.</p>}
+    </PageHeader>
+
+    {
+      lignes.length === 0 ? (
+        <Empty title="Pas de données" data-testid="utiles-vide">
+          Le classement paraît quand un membre au pseudo public a joué {PARTIES_MIN_DU_CLASSEMENT} parties à revoir qui ont leur bilan.
+        </Empty>
+      ) : (
+        <section class="bilan" aria-labelledby="utiles-titre" data-testid="utiles-classement">
+          <h2 id="utiles-titre" class="sr-only">Le classement</h2>
+          <p class="info-discrete tnum">
+            Sur {partiesComptees > 1 ? `les ${fmtInt(partiesComptees)} parties à revoir qui ont leur bilan` : "la partie à revoir qui a son bilan"}
+            {plusAncienne && `, depuis le ${fmtDayAndTime(plusAncienne)}`}, pour les membres au pseudo public qui en ont joué {PARTIES_MIN_DU_CLASSEMENT} au moins. 100 d'utilité : la part moyenne d'un Gaulois de la partie.
+          </p>
+          <ol class="bilan-liste mt-4">
+            {lignes.map((l) => (
+              <li class="bilan-carte" data-rang={rang(l.utilite) <= 3 ? rang(l.utilite) : undefined} data-testid="utiles-ligne">
+                {l.portrait ? (
+                  <span class="bilan-socle" data-rarete={l.portrait.rarete ?? undefined} aria-hidden="true">
+                    <img src={l.portrait.image} width={l.portrait.largeur * 2} height={l.portrait.hauteur * 2} alt="" loading="lazy" decoding="async" />
+                  </span>
+                ) : (
+                  <span class="bilan-socle bilan-socle-sans" aria-hidden="true">{[...l.nom][0]!.toLocaleUpperCase("fr")}</span>
+                )}
+                <div class="bilan-corps">
+                  <p class="bilan-tete">
+                    <span class="bilan-rang tnum">{rang(l.utilite)}</span>
+                    <a class="bilan-nom link" href={l.fiche}>{l.nom}</a>
+                    <span class="bilan-utilite tnum"><b>{fmtInt(l.utilite)}</b> d'utilité</span>
+                  </p>
+                  <p class="bilan-faits tnum">Moyenne sur {fmtInt(l.parties)} parties</p>
+                  <dl class="bilan-axes bilan-axes-nombres tnum">
+                    {AXES.map((a) => (
+                      <div data-axe={a}>
+                        <dt>{NOM_DE_L_AXE[a]}</dt>
+                        <dd>{l.axes[a] === null ? "Pas de données" : fmtInt(l.axes[a]!)}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                  {AXES.some((a) => l.titres[a] > 0) && (
+                    <p class="bilan-titres tnum">
+                      {AXES.filter((a) => l.titres[a] > 0).map((a) => (
+                        <span data-axe={a}>{TITRE_DE_L_AXE[a]}, {fmtInt(l.titres[a])} fois</span>
+                      ))}
+                    </p>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )
+    }
+
+    <p class="mt-6">
+      <a class="link" href={`${base}/revoir`} data-testid="utiles-revoir">Le bilan de chaque partie est sous son replay, dans « Revoir une partie »</a>
+    </p>
+
+    <ReadingNote page>
+      <p>Chaque partie à revoir a son bilan : pour chaque joueur au tag du clan, ce que le jeu écrit à la fin de la partie (l'or produit par le travail, le commerce et les trains, les troupes envoyées à l'attaque, les unités et bâtiments ennemis détruits ou pris) et les dons relevés quand le robot du site rejoue la partie.</p>
+      <p>Dans une partie, chaque axe est la part du joueur dans le total des Gaulois : Économie pour l'or produit, Combat pour la moyenne des troupes à l'attaque et des prises, Soutien pour la moyenne des troupes et de l'or donnés. L'utilité est la moyenne de ces parts, 100 étant la part moyenne d'un Gaulois de la partie. Ici, chaque nombre est la moyenne du membre sur ses parties.</p>
+      <p>Ce classement compare les Gaulois entre eux, partie par partie. Il ne mesure pas le niveau d'un joueur : la place de départ, les dons reçus et une élimination précoce pèsent sur le score. Ce ne sont ni les stats du clan, ni le classé du jeu.</p>
+      <p>Seuls les membres au pseudo public y sont, avec {PARTIES_MIN_DU_CLASSEMENT} parties au moins. Les parties à revoir sont les dernières du clan, sept jours au plus : le classement bouge avec elles.</p>
+    </ReadingNote>
+  </div>
+</Base>
