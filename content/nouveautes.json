@@ -2,6 +2,16 @@
   {
     "date": "2026-11-17",
     "kind": "ameliore",
+    "title": "Le coffre du druide récompense la ruse",
+    "body": "Sur Discord, la cagnotte n'est multipliée que si le gardien lâche le mot ; deviné, il la gagne sans plus. Un cinquième va aux autres joueurs de la manche. 20 secondes entre deux essais.",
+    "link": {
+      "href": "/confidentialite#coffre",
+      "label": "Ce que le jeu garde"
+    }
+  },
+  {
+    "date": "2026-11-17",
+    "kind": "ameliore",
     "title": "Le score d'utilité sur les fiches, et un bilan à retrier",
     "body": "La fiche d'un membre classé montre son utilité, son rang et ses titres. Sous un replay, quatre boutons retrient les cartes. « Les plus utiles » dit qui monte ou descend avec les parties du jour.",
     "link": {
