@@ -9,7 +9,7 @@ import { FINITIONS, HAUTEUR_DE_TOILE, LARGEUR_DE_TOILE, finitionAnimee, fusionDe
 import type { FinitionDuRayon } from "./cartes";
 
 /** L'instant où chaque animation est la plus parlante, en secondes : l'image fixe de sa case. Les autres sont prises à 2,4 s. */
-const INSTANT_DE_LA_VIGNETTE: Partial<Record<FinitionDeCarte, number>> = {
+export const INSTANT_DE_LA_VIGNETTE: Partial<Record<FinitionDeCarte, number>> = {
   "champignon-atomique": 4.2,
   explosion: 0.8,
   "feu-d-artifice": 1.9,

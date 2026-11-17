@@ -38,7 +38,15 @@ export interface CarteDuPodium {
   banniere: string | null;
   /** Le familier qu'il montre à côté de son Gaulois (`carte-familier.ts`), ou `null`. Jamais sans Gaulois. */
   familier: FamilierDeCarte | null;
+  /**
+   * La couronne du champion de la semaine : prêtée au premier du podium (deux premiers à égalité la portent tous deux),
+   * le temps que ce podium reste affiché. Elle se gagne, elle ne s'achète pas, et ne crée aucun statère.
+   */
+  champion: boolean;
 }
+
+/** La colonne où poser la couronne dans l'image du Gaulois : l'axe de son corps, sinon le milieu de l'image. */
+export const axeDeLaCouronne = (portrait: Pick<PortraitDeGaulois, "largeur" | "axe">): number => portrait.axe ?? portrait.largeur / 2;
 
 /** La carte fait 48 cases sur 80 : le Gaulois y tient dans 42 cases de large et 58 de haut, jamais plus grand que 0,78. */
 export function echelleDuGaulois({ largeur, hauteur }: Pick<PortraitDeGaulois, "largeur" | "hauteur">): number {
@@ -65,7 +73,7 @@ export function cartesDuPodium(
     const portrait = portraitDe(id);
     const metal = metalDeLaPlace(place);
     const finition = finitionParId(finitionDe(id)) ?? finitionParId(finitionDuMetal(metal))!;
-    return { id, username, place, wins, metal, finition: finition.id, animee: finition.animee, portrait, echelle: portrait ? echelleDuGaulois(portrait) : 0, banniere: banniereDe(id), familier: portrait ? familierDeCarte(familierDe(id)) : null };
+    return { id, username, place, wins, metal, finition: finition.id, animee: finition.animee, portrait, echelle: portrait ? echelleDuGaulois(portrait) : 0, banniere: banniereDe(id), familier: portrait ? familierDeCarte(familierDe(id)) : null, champion: place === 1 && portrait !== null };
   });
   return cartes.some((c) => c.portrait !== null) ? cartes : null;
 }

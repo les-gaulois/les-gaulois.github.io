@@ -6,7 +6,8 @@
  * du joueur. Les couches empilées du Gaulois sont décoratives : le pseudo, la place et les victoires sont écrits.
  */
 import { fmtCount, fmtRank } from "../lib/format";
-import type { CarteDuPodium } from "../lib/cartes-podium";
+import { axeDeLaCouronne, type CarteDuPodium } from "../lib/cartes-podium";
+import CouronneDuChampion from "./CouronneDuChampion.astro";
 import { HAUTEUR_DE_TOILE, LARGEUR_DE_TOILE } from "../lib/fx/finitions-carte";
 
 interface Props {
@@ -26,7 +27,7 @@ const COUCHES = [5, 4, 3, 2, 1, 0];
     {
       cartes.map((c) => (
         <li class="podium-carte-case">
-          <a class="podium-carte" data-metal={c.metal} data-finition={c.finition} data-reflet={c.animee ? undefined : ""} href={`${base}/membres/${encodeURIComponent(c.id)}`} data-testid="hero-card">
+          <a class="podium-carte" data-metal={c.metal} data-finition={c.finition} data-reflet={c.animee ? undefined : ""} data-champion={c.champion ? "" : undefined} href={`${base}/membres/${encodeURIComponent(c.id)}`} data-testid="hero-card">
             <span class="podium-carte-face" aria-hidden="true" style={c.banniere ? `--banniere:url("${base}${c.banniere}")` : undefined}>
               <canvas class="podium-carte-fx" data-toile="fond" width={LARGEUR_DE_TOILE} height={HAUTEUR_DE_TOILE} />
               <i class="podium-carte-holo" />
@@ -34,6 +35,7 @@ const COUCHES = [5, 4, 3, 2, 1, 0];
             </span>
             {c.portrait && (
               <span class="podium-carte-gaulois" aria-hidden="true" style={`--w:${c.portrait.largeur};--h:${c.portrait.hauteur};--e:${c.echelle.toFixed(3)}`}>
+                {c.champion && <CouronneDuChampion axe={axeDeLaCouronne(c.portrait)} />}
                 {COUCHES.map((k) => (
                   <img src={`${base}${c.portrait!.image}`} width={c.portrait!.largeur} height={c.portrait!.hauteur} alt="" decoding="async" draggable="false" style={`--k:${k}`} />
                 ))}

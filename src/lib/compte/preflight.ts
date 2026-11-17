@@ -390,11 +390,11 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
     }
   }
 
-  // Le familier sur la carte (migration 20261117001400, collée par .cache/a-coller-familiers-joueurs.sql) : la lecture du
+  // Le familier sur la carte (migration 20261117001400, collée par .cache/a-coller-cartes-suite.sql) : la lecture du
   // site n'est ouverte qu'à la clé de service. Absente : 404, les cartes n'ont pas de familier, rien n'est cassé.
   const familiersDesCartes = await rpc("familiers_des_joueurs", { p_empreintes: [] });
   const familiersDesCartesAnswer = familiersDesCartes.ok ? ((await familiersDesCartes.json().catch(() => null)) as { ok?: boolean } | null) : null;
-  if (familiersDesCartes.status === 404) add("Le familier des cartes est installé", "warn", "familiers_des_joueurs est absente : collez le fichier .cache/a-coller-familiers-joueurs.sql (sa dernière ligne dit « familiers des cartes : installés »).");
+  if (familiersDesCartes.status === 404) add("Le familier des cartes est installé", "warn", "familiers_des_joueurs est absente : collez le fichier .cache/a-coller-cartes-suite.sql (sa dernière ligne dit « suite des cartes : installée »).");
   else if (isClosed(familiersDesCartes.status) || (familiersDesCartes.ok && familiersDesCartesAnswer?.ok === false)) add("Un visiteur ne lit pas les familiers des joueurs", "ok");
   else add("Un visiteur ne lit pas les familiers des joueurs", "fail", `Réponse ${familiersDesCartes.status}. Ne mettez pas en ligne : seule la clé de service lit le familier que montre un membre.`);
 

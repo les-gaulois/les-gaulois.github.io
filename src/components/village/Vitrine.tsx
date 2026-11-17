@@ -5,6 +5,10 @@ import { decrireGaulois, vignetteDeLObjet, type RareteDObjet as Rarete } from ".
 import { modeleNu } from "../../lib/village/modeles";
 import { echelleEntiere } from "../../lib/village/vestiaire-rayons";
 import { ServerError, call } from "../../lib/compte/api";
+import { FINITIONS, HAUTEUR_DE_TOILE, LARGEUR_DE_TOILE, finitionAnimee, fusionDeLaFinition } from "../../lib/fx/finitions-carte";
+import { finitionParId } from "../../lib/village/cartes";
+import { INSTANT_DE_LA_VIGNETTE } from "../../lib/village/cartes-vignette";
+import { monterLesCartes } from "../../scripts/cartes-mouvement";
 import { apercuAvecFamilier, familierDe } from "../../lib/village/familiers";
 import { demanderLaPochette, demanderLeRayon } from "../../lib/village/boutique-rayons";
 import type { PochetteDeLEtal } from "../../lib/village/etal";
@@ -190,6 +194,61 @@ function useLibDesBannieres(utile: boolean): LibDesBannieres | null {
 }
 
 /**
+ * La finition de carte d'un Gaulois de la vitrine (rayon « Cartes ») : entre sa bannière et lui, sur toute l'image de sa
+ * carte. Au repos, rien ne bouge : un reflet, ou l'image fixe d'une animation en pixels. Seule la carte survolée (`vive`)
+ * s'anime et suit la souris : une page de dizaines de cartes ne doit pas ramer. Décorative.
+ */
+const REPOS_DU_REFLET = { mx: "0.3", my: "-0.15" } as const;
+
+function FinitionDeVitrine({ id, vive }: { id: string; vive: boolean }) {
+  const finition = finitionParId(id);
+  const racine = useRef<HTMLSpanElement>(null);
+  const fond = useRef<HTMLCanvasElement>(null);
+  const devant = useRef<HTMLCanvasElement>(null);
+  const cle = finition?.id ?? null;
+  useEffect(() => {
+    if (!cle || !racine.current) return undefined;
+    // En pause ou avec « réduire les animations », la carte survolée garde son image fixe : le script la viderait.
+    const anime = !document.documentElement.classList.contains("fx-off") && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (vive && anime) {
+      const carte = racine.current.querySelector<HTMLElement>(".podium-carte");
+      const demonter = monterLesCartes(racine.current, { immobile: true });
+      return () => {
+        demonter();
+        // Le reflet revient à sa place de repos, la même que sur les cartes jamais survolées.
+        carte?.style.setProperty("--carte-mx", REPOS_DU_REFLET.mx);
+        carte?.style.setProperty("--carte-my", REPOS_DU_REFLET.my);
+      };
+    }
+    const nom = finitionAnimee(cle);
+    const f = fond.current?.getContext("2d");
+    const d = devant.current?.getContext("2d");
+    if (!nom || !f || !d || !fond.current) return undefined;
+    fond.current.style.mixBlendMode = fusionDeLaFinition(nom);
+    for (const t of [f, d]) {
+      t.globalAlpha = 1;
+      t.globalCompositeOperation = "source-over";
+      t.clearRect(0, 0, LARGEUR_DE_TOILE, HAUTEUR_DE_TOILE);
+    }
+    FINITIONS[nom](f, d, INSTANT_DE_LA_VIGNETTE[nom] ?? 2.4, 0, 0);
+    return undefined;
+  }, [cle, vive]);
+  if (!finition) return null;
+  return (
+    <span ref={racine} class="bloc-effet vitrine-finition" aria-hidden="true" data-testid="vitrine-finition" data-finition={finition.id}>
+      <span class="podium-carte" data-finition={finition.id} data-reflet={finition.animee ? undefined : ""} style={`--carte-mx:${REPOS_DU_REFLET.mx};--carte-my:${REPOS_DU_REFLET.my}`}>
+        <span class="podium-carte-face">
+          <canvas ref={fond} class="podium-carte-fx" data-toile="fond" width={LARGEUR_DE_TOILE} height={HAUTEUR_DE_TOILE} />
+          <i class="podium-carte-holo" />
+          <i class="podium-carte-eclat" />
+        </span>
+        <canvas ref={devant} class="podium-carte-fx podium-carte-fx-devant" data-toile="devant" width={LARGEUR_DE_TOILE} height={HAUTEUR_DE_TOILE} />
+      </span>
+    </span>
+  );
+}
+
+/**
  * Les cartes : une par Gaulois, aussi large que lui et son familier, au cadre de la rareté la plus haute portée. Le livre
  * des bannières (`LivreDesBannieres.tsx`) s'en sert aussi pour montrer au membre sa propre carte avec la bannière qu'il essaie.
  */
@@ -197,6 +256,8 @@ export function CartesDeLaVitrine({ gaulois, testid = "vitrine", label = "Les Ga
   const fiches = useMemo(() => fichesDe(gaulois), [gaulois]);
   // La carte ouverte en grand : sa place dans la liste ; rien tant qu'on n'a cliqué sur aucune.
   const [ouverte, setOuverte] = useState<number | null>(null);
+  // La carte sous la souris ou au clavier : la seule dont la finition s'anime.
+  const [survolee, setSurvolee] = useState<string | null>(null);
   const enVue = ouverte === null ? null : (fiches[ouverte] ?? null);
   // « Où trouver cet objet » : pour dire « à vous », l'inventaire de qui regarde, lu une seule fois, à la première
   // fenêtre ouverte sur le Gaulois d'un autre. `undefined` : pas encore demandé ; `null` : en panne.
@@ -218,10 +279,11 @@ export function CartesDeLaVitrine({ gaulois, testid = "vitrine", label = "Les Ga
         const banniere = lib?.banniereParId(f.gaulois.banniere) ?? null;
         const large = f.groupe.largeur * echelle;
         return (
-          <li key={f.nomCle} class="vitrine-carte vitrine-teinte" data-rarete={f.rarete ?? undefined} data-moi={f.gaulois.moi || undefined} data-banniere={banniere?.id} style={{ "--vitrine-l": `${large}px` }}>
+          <li key={f.nomCle} class="vitrine-carte vitrine-teinte" onPointerEnter={() => setSurvolee(f.nomCle)} onPointerLeave={() => setSurvolee((c) => (c === f.nomCle ? null : c))} onFocusCapture={() => setSurvolee(f.nomCle)} onBlurCapture={() => setSurvolee((c) => (c === f.nomCle ? null : c))} data-rarete={f.rarete ?? undefined} data-moi={f.gaulois.moi || undefined} data-banniere={banniere?.id} style={{ "--vitrine-l": `${large}px` }}>
             <div class="vitrine-carte-image">
               {/* À l'échelle du Gaulois, ou d'un cran de plus si la carte peut être plus large que la bannière. */}
               {lib && banniere && <FondDeBanniere lib={lib} id={banniere.id} echelle={Math.max(echelle, Math.ceil((large + MARGE_DE_CARTE) / FOND.largeur))} />}
+              {f.gaulois.carte && <FinitionDeVitrine id={f.gaulois.carte} vive={survolee === f.nomCle} />}
               <Toile largeur={f.groupe.largeur} hauteur={f.groupe.hauteur} cases={f.groupe.cases} echelle={echelle} class="vitrine-carte-dessin" />
             </div>
             <div class="vitrine-carte-pied">

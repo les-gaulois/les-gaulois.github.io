@@ -29,7 +29,19 @@ describe("lireVitrine", () => {
 
   it("lit un serveur d'avant la vitrine : ni familier ni bannière", () => {
     const lus = lireVitrine({ ok: true, gaulois: [{ nom: "Brennos", tenue: TENUE_DE_DEPART, moi: false }] });
-    expect(lus).toEqual([{ nom: "Brennos", tenue: TENUE_DE_DEPART, moi: false, familier: null, banniere: null }]);
+    expect(lus).toEqual([{ nom: "Brennos", tenue: TENUE_DE_DEPART, moi: false, familier: null, banniere: null, carte: null }]);
+  });
+
+  it("lit la finition de carte de chacun, et ignore ce qui n'est pas un identifiant", () => {
+    const lus = lireVitrine({
+      ok: true,
+      gaulois: [
+        { nom: "Brennos", tenue: TENUE_DE_DEPART, moi: false, carte: "prisme" },
+        { nom: "Ambiorix", tenue: TENUE_DE_DEPART, moi: false, carte: 12 },
+        { nom: "Dumnorix", tenue: TENUE_DE_DEPART, moi: false, carte: null },
+      ],
+    });
+    expect(lus?.map((g) => g.carte)).toEqual(["prisme", null, null]);
   });
 
   it("laisse de côté un Gaulois sans nom ou sans tenue, sans cacher les autres", () => {

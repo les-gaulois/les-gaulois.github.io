@@ -13,6 +13,7 @@ import { clan } from "../../../config/clan";
 import { banniereParId } from "../../../supabase/functions/code-discord/bannieres/index";
 import { BANNIERES_MEMBRES_FILE, bannieresDuCache } from "../../lib/bannieres-joueurs";
 import { familierDeCarte } from "../../lib/carte-familier";
+import { championsDeLaSemaine } from "../../lib/champion-semaine";
 import { FAMILIERS_MEMBRES_FILE, familiersDuCache } from "../../lib/familiers-joueurs";
 import { FINITIONS_MEMBRES_FILE, finitionsDuCache } from "../../lib/finitions-joueurs";
 import { finitionParId } from "../../lib/village/cartes";
@@ -94,6 +95,8 @@ const fond = banniere
 // Sa carte (demande du pilote, 17 novembre 2026 : mettre en valeur les effets des cartes) : son Gaulois devant sa bannière
 // et la finition qu'il montre, relevés avant la construction (src/lib/finitions-joueurs.ts). Sans Gaulois créé : pas de carte.
 const portraitDeCarte = portraitDuGaulois(member.publicId);
+// Premier du podium de la semaine : sa carte porte la couronne du champion (`champion-semaine.ts`).
+const championDeLaSemaine = member.publicId !== null && member.publicId !== undefined && championsDeLaSemaine().has(member.publicId);
 const finitionDeCarte = member.publicId ? (finitionsDuCache(FINITIONS_MEMBRES_FILE, [member.publicId]).get(member.publicId) ?? null) : null;
 const familierDeLaCarte = member.publicId ? familierDeCarte(familiersDuCache(FAMILIERS_MEMBRES_FILE, [member.publicId]).get(member.publicId)) : null;
 // Le reflet de sa carte sur le premier bloc de la fiche (demande du pilote, 17 novembre 2026 : « ajouter l'effet aux bannières
@@ -129,6 +132,7 @@ const tiles = member.team
           banniere={banniere ? `/bannieres/${encodeURIComponent(banniere.id)}.png` : null}
           finition={finitionDeCarte}
           familier={familierDeLaCarte}
+          champion={championDeLaSemaine}
           nom={username}
           mot={member.team ? fmtCount(member.team.wins, "victoire") : null}
         />

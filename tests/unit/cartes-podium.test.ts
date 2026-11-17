@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { FINITIONS, type Toile } from "../../src/lib/fx/finitions-carte";
-import { cartesDuPodium, echelleDuGaulois, legendeDuPodium } from "../../src/lib/cartes-podium";
+import { axeDeLaCouronne, cartesDuPodium, echelleDuGaulois, legendeDuPodium } from "../../src/lib/cartes-podium";
+import { premiersDuPodium } from "../../src/lib/champion-semaine";
 import type { PortraitDeGaulois } from "../../src/lib/gaulois-site";
 
 const portrait = (largeur = 40, hauteur = 60): PortraitDeGaulois => ({ image: "/gaulois/a.png?v=1", largeur, hauteur, buste: 30 });
@@ -37,6 +38,20 @@ describe("les cartes du podium de l'accueil", () => {
   it("donne l'or à deux premiers à égalité", () => {
     const cartes = cartesDuPodium([{ ...podium[0]! }, { ...podium[1]!, place: 1 }], () => portrait(), () => null);
     expect(cartes?.map((c) => c.metal)).toEqual(["or", "or"]);
+    expect(cartes?.map((c) => c.champion)).toEqual([true, true]);
+  });
+
+  it("prête la couronne du champion au seul premier, et jamais sans Gaulois", () => {
+    expect(cartesDuPodium(podium, () => portrait(), () => null)?.map((c) => c.champion)).toEqual([true, false, false]);
+    expect(cartesDuPodium(podium, (id) => (id === "b" ? portrait() : null), () => null)?.map((c) => c.champion)).toEqual([false, false, false]);
+    expect([...premiersDuPodium(podium)]).toEqual(["a"]);
+    expect([...premiersDuPodium([{ id: "a", place: 1 }, { id: "b", place: 1 }, { id: "c", place: 3 }])]).toEqual(["a", "b"]);
+    expect(premiersDuPodium(null).size).toBe(0);
+  });
+
+  it("pose la couronne sur l'axe du corps, sinon au milieu de l'image", () => {
+    expect(axeDeLaCouronne({ largeur: 40, axe: 17 })).toBe(17);
+    expect(axeDeLaCouronne({ largeur: 40 })).toBe(20);
   });
 
   it("fait tenir le Gaulois dans sa carte : 42 cases de large, 58 de haut, jamais plus de 0,78", () => {

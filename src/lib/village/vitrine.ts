@@ -17,6 +17,8 @@ import type { PochetteDeLEtal } from "./etal";
 export interface GauloisVitrine extends Pick<GauloisDeLaPlace, "nom" | "tenue" | "moi"> {
   familier: string | null;
   banniere: string | null;
+  /** La finition de carte qu'il montre (rayon « Cartes ») ; absente ou `null` : aucune, ou un serveur d'avant la migration 20261117001500. */
+  carte?: string | null;
 }
 
 const estObjet = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === "object" && !Array.isArray(v);
@@ -50,7 +52,7 @@ function lireGaulois(v: unknown): GauloisVitrine | null {
   const nom = typeof v["nom"] === "string" ? v["nom"].trim() : "";
   const tenue = tenueDeLaVitrine(v["tenue"]);
   if (nom === "" || !tenue) return null;
-  return { nom, tenue, moi: v["moi"] === true, familier: identifiant(v["familier"]), banniere: identifiant(v["banniere"]) };
+  return { nom, tenue, moi: v["moi"] === true, familier: identifiant(v["familier"]), banniere: identifiant(v["banniere"]), carte: identifiant(v["carte"]) };
 }
 
 /**

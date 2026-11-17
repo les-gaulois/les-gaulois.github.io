@@ -389,7 +389,7 @@ export function LivreDesBannieres({ lib, dessin, mode = "choix", miennes, montre
   };
   const finDEssai = (): void => setEssai(undefined);
   /** Sa propre carte de la vitrine, avec la bannière vue : la même carte que dans l'onglet « La vitrine ». */
-  const maCarte = useMemo(() => [{ nom, tenue, moi: true, familier: familier?.id ?? null, banniere: vue }], [nom, tenue, familier, vue]);
+  const maCarte = useMemo(() => [{ nom, tenue, moi: true, familier: familier?.id ?? null, banniere: vue, carte: finition?.id ?? null }], [nom, tenue, familier, vue, finition]);
   const enEssai = essai !== undefined && essai !== dresse;
 
   return (

@@ -1,0 +1,43 @@
+---
+/**
+ * La couronne du champion de la semaine, en pixels : posée sur la tête du Gaulois, dans son cadre même
+ * (`.podium-carte-gaulois`), elle le suit dans son saut, sa profondeur et l'inclinaison de la carte. `axe` : la colonne
+ * de l'axe du corps dans l'image du Gaulois (`PortraitDeGaulois.axe`), sinon son milieu. Décorative : la place est déjà
+ * écrite sur la carte.
+ */
+interface Props {
+  axe: number;
+}
+const { axe } = Astro.props;
+const OR = [
+  [1, 0, 1, 1],
+  [6, 0, 1, 1],
+  [11, 0, 1, 1],
+  [0, 1, 3, 1],
+  [5, 1, 3, 1],
+  [10, 1, 3, 1],
+  [0, 2, 3, 1],
+  [4, 2, 5, 1],
+  [10, 2, 3, 1],
+  [0, 3, 13, 4],
+] as const;
+---
+
+<svg class="podium-carte-couronne" style={`--axe:${axe}`} viewBox="-1 -1 15 9" shape-rendering="crispEdges" aria-hidden="true" focusable="false">
+  <g fill="#3a2503" stroke="#3a2503" stroke-width="1.6" stroke-linejoin="miter">
+    {OR.map(([x, y, w, h]) => <rect x={x} y={y} width={w} height={h} />)}
+  </g>
+  <g fill="#ffcf4a">
+    {OR.map(([x, y, w, h]) => <rect x={x} y={y} width={w} height={h} />)}
+  </g>
+  <g fill="#fff3b0">
+    <rect x="1" y="0" width="1" height="1"></rect>
+    <rect x="6" y="0" width="1" height="1"></rect>
+    <rect x="11" y="0" width="1" height="1"></rect>
+    <rect x="0" y="3" width="13" height="1"></rect>
+  </g>
+  <rect x="0" y="6" width="13" height="1" fill="#c98f12"></rect>
+  <rect x="2" y="4" width="2" height="2" fill="#e0263a"></rect>
+  <rect x="6" y="4" width="1" height="2" fill="#2b6bff"></rect>
+  <rect x="9" y="4" width="2" height="2" fill="#e0263a"></rect>
+</svg>

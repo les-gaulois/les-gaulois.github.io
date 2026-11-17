@@ -6219,3 +6219,16 @@ button.tenue-gardee-remettre:disabled {
   box-shadow: 0 0 0 1px var(--color-line);
 }
 
+/* La finition de carte dans la vitrine (Vitrine.tsx) : le reflet d'un bloc (04-poste.css), posé entre la bannière et le
+   Gaulois, sur toute l'image de la carte ; les toiles d'une animation la couvrent sans se déformer. */
+.vitrine-finition {
+  z-index: 0;
+  opacity: 0.85;
+}
+.vitrine-finition .podium-carte-fx {
+  object-fit: cover;
+}
+.vitrine-finition .podium-carte-fx-devant {
+  transform: none;
+}
+

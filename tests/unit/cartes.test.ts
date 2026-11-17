@@ -205,6 +205,12 @@ describe("le familier sur la carte d'un membre", () => {
     expect(await pngDuFamilier("nexiste-pas")).toBeNull();
   });
 
+  it("ajoute la finition de carte à la vitrine sans rien retirer de ce qu'elle rendait", () => {
+    const vitrine = readFileSync("supabase/migrations/20261117001500_vitrine_des_cartes.sql", "utf8");
+    for (const cle of ["'nom'", "'tenue'", "'moi'", "'familier'", "'banniere'", "'carte', g.carte"]) expect(vitrine).toContain(cle);
+    expect(vitrine).not.toMatch(/drop table|truncate|delete from/i);
+  });
+
   it("ne lit que le familier montré, par empreinte, avec la clé de service", async () => {
     expect(MIGRATION_FAMILIERS).toContain("grant execute on function public.familiers_des_joueurs(text[]) to service_role;");
     expect(MIGRATION_FAMILIERS).toContain("revoke all on function public.familiers_des_joueurs(text[]) from public, anon, authenticated;");

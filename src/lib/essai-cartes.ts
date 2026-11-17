@@ -13,7 +13,7 @@ import { familierDeCarte, type FamilierDeCarte } from "./carte-familier";
 import { cartesDuPodium, type CarteDuPodium } from "./cartes-podium";
 import { tenueAuHasard, type Tenue } from "./gaulois";
 import type { PortraitDeGaulois } from "./gaulois-site";
-import { BUST_CUT, placeSprite, spritePixels } from "./gaulois-sprite";
+import { BUST_CUT, SPRITE_AXIS, placeSprite, spritePixels } from "./gaulois-sprite";
 
 /** La page d'essai est-elle demandée ? Seulement par `GAL_ESSAI=1`, à la construction. */
 export const essaiDemande = (): boolean => process.env["GAL_ESSAI"] === "1";
@@ -33,7 +33,7 @@ export async function portraitDEssai(tenue: Tenue): Promise<PortraitDeGaulois | 
     .png({ compressionLevel: 9 })
     .toBuffer();
   const buste = BUST_CUT - place.crop.top;
-  return { image: `data:image/png;base64,${png.toString("base64")}`, largeur: width, hauteur: height, buste: buste >= 1 && buste < height ? buste : height };
+  return { image: `data:image/png;base64,${png.toString("base64")}`, largeur: width, hauteur: height, buste: buste >= 1 && buste < height ? buste : height, axe: SPRITE_AXIS - place.crop.left };
 }
 
 export interface CartesDEssai {

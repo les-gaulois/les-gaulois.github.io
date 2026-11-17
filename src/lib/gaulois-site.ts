@@ -20,7 +20,7 @@ import { gunzipSync } from "node:zlib";
 import sharp from "sharp";
 import { loadMemberResultsOnce, loadMembers } from "./data";
 import { GAULOIS_FICHES_FILE, gauloisDuCache, type GauloisParJoueur } from "./gaulois-joueurs";
-import { BUST_CUT, placeSprite, spritePixels, tenueOf, type SpritePlacement } from "./gaulois-sprite";
+import { BUST_CUT, SPRITE_AXIS, placeSprite, spritePixels, tenueOf, type SpritePlacement } from "./gaulois-sprite";
 import { CLASSE, enteteDuFilm } from "./rejeu/film";
 import { DOSSIER_FILMS, MAX_OCTETS_FILM_DECOMPRESSE, nomDuFilm } from "./rejeu/films-index";
 import { nommesParPartie } from "./serie-en-cours";
@@ -42,6 +42,8 @@ export interface PortraitDeGaulois {
   hauteur: number;
   /** La hauteur du buste : le haut de l'image, jusque sous les épaules. */
   buste: number;
+  /** La colonne de l'axe du corps dans l'image : une arme tenue d'un côté décale la tête du milieu. Absente d'un vieux relevé. */
+  axe?: number;
 }
 
 /** Le Gaulois entier d'une tenue, une case par pixel, rogné à son contour. `null` : rien à dessiner. */
@@ -54,7 +56,7 @@ const enPied = (gaulois: GauloisParJoueur, id: string | null | undefined): Sprit
 export function portraitDuGaulois(id: string | null | undefined, gaulois: GauloisParJoueur = gauloisDuSite()): PortraitDeGaulois | null {
   const place = enPied(gaulois, id);
   if (!place || !id) return null;
-  const { width, height, top } = place.crop;
+  const { width, height, top, left } = place.crop;
   const buste = BUST_CUT - top;
   // L'adresse change avec la tenue : un Gaulois rhabillé ne reste pas dans le cache du navigateur.
   const version = createHash("sha256")
@@ -66,7 +68,7 @@ export function portraitDuGaulois(id: string | null | undefined, gaulois: Gauloi
     )
     .digest("hex")
     .slice(0, 8);
-  return { image: `/gaulois/${encodeURIComponent(id)}.png?v=${version}`, largeur: width, hauteur: height, buste: buste >= 1 && buste < height ? buste : height };
+  return { image: `/gaulois/${encodeURIComponent(id)}.png?v=${version}`, largeur: width, hauteur: height, buste: buste >= 1 && buste < height ? buste : height, axe: SPRITE_AXIS - left };
 }
 
 /** L'image d'un membre, en PNG. `null` : pas de Gaulois. */

@@ -1,6 +1,17 @@
 [
   {
     "date": "2026-11-17",
+    "kind": "nouveau",
+    "rank": "top",
+    "title": "La couronne du champion",
+    "body": "Le premier du podium de la semaine porte une couronne d'or sur la tête de son Gaulois, sur l'accueil et sur sa fiche. Elle se gagne en jouant, elle ne s'achète pas.",
+    "link": {
+      "href": "/",
+      "label": "L'accueil"
+    }
+  },
+  {
+    "date": "2026-11-17",
     "kind": "ameliore",
     "rank": "minor",
     "title": "Le familier sur la carte",

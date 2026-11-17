@@ -9,7 +9,7 @@
  * En pause (bouton de l'en-tête, `fx-off`), avec « réduire les animations », hors de l'écran ou dans un onglet caché,
  * les cartes reviennent à plat, les toiles sont effacées et le script ne dessine plus rien.
  */
-import { FINITIONS, HAUTEUR_DE_TOILE, LARGEUR_DE_TOILE, finitionAnimee, fusionDeLaFinition } from "../lib/fx/finitions-carte";
+import { FINITIONS, HAUTEUR_DE_TOILE, LARGEUR_DE_TOILE, etincellesDuChampion, finitionAnimee, fusionDeLaFinition } from "../lib/fx/finitions-carte";
 
 /*
  * Le régime économe (demande du pilote, 17 novembre 2026 : « je veux que ça déchire visuellement », sans faire ramer les
@@ -65,7 +65,8 @@ export function monterLesCartes(racine: HTMLElement, { sonde = false, immobile =
     const nom = finitionAnimee(el.dataset["finition"]);
     const fond = toile(el, "fond");
     if (fond) fond.canvas.style.mixBlendMode = nom ? fusionDeLaFinition(nom) : "";
-    return { el, i, mx: 0, my: 0, finition: nom ? FINITIONS[nom] : null, fond, devant: toile(el, "devant") };
+    // Le champion de la semaine : des étincelles d'or par-dessus sa finition (sa couronne est dans la page).
+    return { el, i, mx: 0, my: 0, finition: nom ? FINITIONS[nom] : null, fond, devant: toile(el, "devant"), champion: el.dataset["champion"] !== undefined };
   });
   let souris: [number, number] | null = null;
   let vue = -Infinity;
@@ -176,9 +177,14 @@ export function monterLesCartes(racine: HTMLElement, { sonde = false, immobile =
         c.my = my;
         poser(c);
       }
-      if (dessiner && c.finition && c.fond && c.devant) {
+      if (dessiner && c.devant && (c.finition || c.champion)) {
         effacer(c);
-        c.finition(c.fond, c.devant, t / 1000, c.mx, c.my);
+        if (c.finition && c.fond) c.finition(c.fond, c.devant, t / 1000, c.mx, c.my);
+        // Les étincelles du champion se posent par-dessus la finition, quelle qu'elle soit.
+        if (c.champion) {
+          c.devant.globalCompositeOperation = "source-over";
+          etincellesDuChampion(c.devant, t / 1000);
+        }
       }
     }
     image = requestAnimationFrame(tour);

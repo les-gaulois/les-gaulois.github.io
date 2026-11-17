@@ -80,7 +80,10 @@ describe("les Gaulois d'une partie", () => {
     const journal = gauloisDuJournal(["partie1", "partie2", "partie3", "inconnue"], (partie) => index.get(partie) ?? []);
     expect(journal.parties).toEqual({ partie1: [B, A], partie2: [A] });
     expect(Object.keys(journal.portraits).sort()).toEqual([A, B].sort());
-    expect(journal.portraits[A]).toEqual({ username: "Zoe", ...portraitDuGaulois(A, gaulois)! });
+    // Le journal ne garde que ce qu'il dessine : l'axe du corps, qui sert à la couronne des cartes, n'y entre pas.
+    const { axe, ...dessin } = portraitDuGaulois(A, gaulois)!;
+    expect(axe).toBeGreaterThan(0);
+    expect(journal.portraits[A]).toEqual({ username: "Zoe", ...dessin });
   });
 
   it("ne montre personne sans relevé des Gaulois", () => {

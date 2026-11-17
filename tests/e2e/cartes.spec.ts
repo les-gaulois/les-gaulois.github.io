@@ -157,6 +157,26 @@ test("le reflet d'un bloc de fiche reste sous l'écriture et ne bouge pas sans l
   expect(Math.abs(Number(await carte.evaluate((el: HTMLElement) => el.style.getPropertyValue("--carte-mx") || "0")))).toBeLessThan(0.05);
 });
 
+test("la couronne du champion est sur la tête du premier, et de lui seul", async ({ page }) => {
+  await page.locator("[data-fx-toggle]").click();
+  const podium = page.getByTestId("essai-podium");
+  await expect(podium.locator(".podium-carte-couronne")).toHaveCount(1);
+  const carte = podium.locator(".podium-carte").first();
+  await expect(carte).toHaveAttribute("data-champion", "");
+  const places = await carte.evaluate((el) => {
+    const face = el.querySelector(".podium-carte-face")!.getBoundingClientRect();
+    const c = el.querySelector(".podium-carte-couronne")!.getBoundingClientRect();
+    const g = el.querySelector(".podium-carte-gaulois")!.getBoundingClientRect();
+    return {
+      dedans: c.left >= face.left && c.right <= face.right && c.top >= face.top,
+      surLaTete: c.bottom >= g.top - 2 && c.bottom <= g.top + g.height * 0.2,
+      auDessusDuGaulois: c.left >= g.left - c.width * 0.5 && c.right <= g.right + c.width * 0.5,
+      lisible: c.width >= g.width * 0.3,
+    };
+  });
+  expect(places).toEqual({ dedans: true, surLaTete: true, auDessusDuGaulois: true, lisible: true });
+});
+
 test("le familier se pose en bas à droite de la carte, devant le Gaulois, sans en sortir", async ({ page }) => {
   await page.locator("[data-fx-toggle]").click();
   const carte = page.getByTestId("essai-podium").locator(".podium-carte").first();

@@ -561,3 +561,18 @@ export const FINITIONS: Readonly<Record<FinitionDeCarte, Dessin>> = {
 
 /** Une finition animée connue du dessin, ou `null` (une finition de reflet, sans toile, ou un nom inconnu). */
 export const finitionAnimee = (nom: string | null | undefined): FinitionDeCarte | null => (nom && Object.hasOwn(FINITIONS, nom) ? (nom as FinitionDeCarte) : null);
+
+/**
+ * Les étincelles du champion de la semaine (demande du pilote, 17 novembre 2026 : « une finition prêtée au champion de la
+ * semaine », qui se gagne et ne s'achète pas) : des étincelles d'or montent le long de la carte du premier du podium,
+ * par-dessus sa finition, quelle qu'elle soit. La couronne, elle, est posée sur la tête du Gaulois
+ * (`src/components/CouronneDuChampion.astro`).
+ */
+export function etincellesDuChampion(devant: Toile, t: number): void {
+  for (let i = 0; i < 14; i++) {
+    const cote = i % 2 ? 5 + hasard(i) * 9 : W - 5 - hasard(i) * 9;
+    const haut = H - reste(hasard(i + 20) * H + t * (9 + hasard(i + 5) * 9), H);
+    const gros = i % 4 === 0 ? 2 : 1;
+    pave(devant, cote + Math.sin(t + i) * 1.5, haut, i % 3 ? "#ffcf4a" : "#fff3b0", 0.35 + 0.5 * Math.abs(Math.sin(t * 1.3 + i)), gros, gros);
+  }
+}

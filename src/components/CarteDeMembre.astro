@@ -10,7 +10,8 @@
  */
 import { HAUTEUR_DE_TOILE, LARGEUR_DE_TOILE } from "../lib/fx/finitions-carte";
 import type { FamilierDeCarte } from "../lib/carte-familier";
-import { echelleDuGaulois } from "../lib/cartes-podium";
+import { axeDeLaCouronne, echelleDuGaulois } from "../lib/cartes-podium";
+import CouronneDuChampion from "./CouronneDuChampion.astro";
 import type { PortraitDeGaulois } from "../lib/gaulois-site";
 import { finitionParId } from "../lib/village/cartes";
 
@@ -22,12 +23,14 @@ interface Props {
   finition: string | null;
   /** Le familier qu'il montre à côté de son Gaulois, ou `null`. */
   familier?: FamilierDeCarte | null;
+  /** Premier du podium de la semaine : sa carte porte la couronne du champion. */
+  champion?: boolean;
   nom: string;
   /** La ligne sous le nom : « 212 victoires ». */
   mot?: string | null;
   class?: string;
 }
-const { portrait, banniere, finition, familier = null, nom, mot = null, class: classe } = Astro.props;
+const { portrait, banniere, finition, familier = null, champion = false, nom, mot = null, class: classe } = Astro.props;
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const choisie = finitionParId(finition);
 const echelle = echelleDuGaulois(portrait);
@@ -37,13 +40,14 @@ const COUCHES = [5, 4, 3, 2, 1, 0];
 
 <div class:list={["carte-membre", classe]} data-carte-membre aria-hidden="true" data-testid="member-card">
   <div class="podium-carte-case">
-    <div class="podium-carte" data-metal="aucun" data-finition={choisie?.id} data-reflet={choisie && !choisie.animee ? "" : undefined}>
+    <div class="podium-carte" data-metal="aucun" data-finition={choisie?.id} data-reflet={choisie && !choisie.animee ? "" : undefined} data-champion={champion ? "" : undefined}>
       <span class="podium-carte-face" style={banniere ? `--banniere:url("${base}${banniere}")` : undefined}>
         <canvas class="podium-carte-fx" data-toile="fond" width={LARGEUR_DE_TOILE} height={HAUTEUR_DE_TOILE}></canvas>
         <i class="podium-carte-holo"></i>
         <i class="podium-carte-eclat"></i>
       </span>
       <span class="podium-carte-gaulois" style={`--w:${portrait.largeur};--h:${portrait.hauteur};--e:${echelle.toFixed(3)}`}>
+        {champion && <CouronneDuChampion axe={axeDeLaCouronne(portrait)} />}
         {COUCHES.map((k) => <img src={`${base}${portrait.image}`} width={portrait.largeur} height={portrait.hauteur} alt="" decoding="async" draggable="false" style={`--k:${k}`} />)}
       </span>
       <canvas class="podium-carte-fx podium-carte-fx-devant" data-toile="devant" width={LARGEUR_DE_TOILE} height={HAUTEUR_DE_TOILE}></canvas>
