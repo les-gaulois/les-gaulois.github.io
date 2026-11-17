@@ -87,7 +87,7 @@ export const PERCEURS_COMMAND_NAME = "perceurs";
  * /perceurs et /help coffre ne jouent que là. Ailleurs, le membre est renvoyé vers ce salon, à lui seul, et rien n'est
  * demandé au serveur ni à Claude. Le numéro d'un salon n'est pas un secret : tout membre du serveur peut le lire.
  */
-export const COFFRE_SALON_ID = "1571987729095467049";
+export const COFFRE_SALON_ID = "1572249595004846081";
 
 /** Cette commande vient-elle du salon du jeu ? Discord donne le numéro du salon avec chaque commande ; un fil a le sien. */
 export const estLeSalonDuCoffre = (interaction: unknown): boolean => record(interaction)?.["channel_id"] === COFFRE_SALON_ID;

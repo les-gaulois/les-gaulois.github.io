@@ -445,7 +445,7 @@ describe("/coffre", () => {
   });
 
   it("ne joue que dans le salon du coffre, reconnu à son numéro et jamais à son nom", async () => {
-    expect(COFFRE_SALON_ID).toBe("1571987729095467049");
+    expect(COFFRE_SALON_ID).toBe("1572249595004846081");
     expect(estLeSalonDuCoffre({ channel_id: COFFRE_SALON_ID })).toBe(true);
     // Un autre salon, même au nom du jeu, et un fil ouvert dans le salon (il a son propre numéro) ne comptent pas.
     expect(estLeSalonDuCoffre({ channel_id: "555555555555555555", channel: { id: "555555555555555555", type: 0, name: "coffre-du-druide" } })).toBe(false);
