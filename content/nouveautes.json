@@ -2,6 +2,16 @@
   {
     "date": "2026-11-17",
     "kind": "ameliore",
+    "title": "Le Gaulois à la forge",
+    "body": "Votre Gaulois est à la forge, devant sa bannière, et saute quand vous l'habillez. Chaque rayon dit ce que vous possédez. Les onglets annoncent les pochettes à ouvrir et les jours avant le tirage.",
+    "link": {
+      "href": "/village",
+      "label": "Mon Gaulois"
+    }
+  },
+  {
+    "date": "2026-11-17",
+    "kind": "ameliore",
     "title": "La bannière en fond de la fiche",
     "body": "Sur la fiche d'un membre, les blocs bleus prennent la bannière choisie pour son Gaulois. La petite image du haut de la fiche est retirée.",
     "link": {

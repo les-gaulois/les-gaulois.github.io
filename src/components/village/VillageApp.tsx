@@ -1,4 +1,5 @@
-import { useEffect } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
+import { call as appeler } from "../../lib/compte/api";
 import { useArrivee } from "../compte/arrivee";
 import { DemandeLienOpenFront } from "../compte/LienOpenFront";
 import { Onglets, Partie, useTabs, type TabItem } from "../compte/Onglets";
@@ -7,7 +8,7 @@ import Vestiaire from "../compte/Vestiaire";
 import { ANCRE_MARCHE, RAYON_POCHETTES } from "../../lib/village/boutique-rayons";
 import { ANCRE_BANNIERES } from "../../lib/village/ecran-bannieres";
 import { ANCRE_FAMILIERS } from "../../lib/village/ecran-familiers";
-import { ANCRE_LOTERIE } from "../../lib/village/loterie";
+import { ANCRE_LOTERIE, joursAvantLeTirage, lirePochettesGagnees, motsAvantLeTirage } from "../../lib/village/loterie";
 import { ANCRE_MODELES } from "../../lib/village/modeles";
 import { ANCRE_SENTIER } from "../../lib/village/sentier";
 import { BandeauDuJoueur } from "./BandeauDuJoueur";
@@ -69,6 +70,20 @@ export default function VillageApp() {
     if (gauloisCree) void lireLeSentier();
   }, [gauloisCree, surLeSentier, lireLeSentier]);
 
+  // Les pochettes gagnées à la loterie qui restent à ouvrir : leur nombre, sur l'onglet « Les pochettes ». Relu quand on
+  // quitte cet onglet, où elles s'ouvrent ; tant qu'il est ouvert, la pastille ne paraît pas (son nombre y change à
+  // chaque ouverture, et l'onglet le dit lui-même). De l'habillage : une panne n'écrit rien.
+  const [aOuvrir, setAOuvrir] = useState(0);
+  const surLesPochettes = active === RAYON_POCHETTES;
+  useEffect(() => {
+    if (!gauloisCree || surLesPochettes) return;
+    void appeler<unknown>("get_pochettes_gagnees")
+      .then(lirePochettesGagnees, () => null)
+      .then((bons) => {
+        if (bons) setAOuvrir(Object.values(bons).reduce((somme: number, n) => somme + (n ?? 0), 0));
+      });
+  }, [gauloisCree, surLesPochettes]);
+
   if (me === null) return <Loading label="Lecture de votre compte…" />;
 
   if (!me.signed_in) {
@@ -100,7 +115,14 @@ export default function VillageApp() {
   // L'onglet du sentier ne paraît qu'une fois le sentier lu : tant que le serveur ne l'a pas (migration pas encore collée),
   // la barre reste celle d'avant. Une adresse `#sentier` l'ouvre quand même, et dit alors que le sentier ne répond pas.
   const sentierVisible = sentier.etat.kind === "pret" || active === ANCRE_SENTIER;
-  const onglets = ONGLETS.filter((onglet) => onglet.id !== ANCRE_SENTIER || sentierVisible).map((onglet) => (onglet.id === ANCRE_SENTIER && attendent > 0 ? { ...onglet, count: { value: attendent, words: `${attendent} ${attendent > 1 ? "objets" : "objet"} à prendre`, tone: "vif" as const } } : onglet));
+  // Le tirage du lundi : les jours qui restent, en mots. Le serveur seul tire ; ceci ne fait que compter jusqu'à lundi.
+  const avantLeTirage = motsAvantLeTirage(joursAvantLeTirage(new Date()));
+  const onglets = ONGLETS.filter((onglet) => onglet.id !== ANCRE_SENTIER || sentierVisible).map((onglet): TabItem => {
+    if (onglet.id === ANCRE_SENTIER && attendent > 0) return { ...onglet, count: { value: attendent, words: `${attendent} ${attendent > 1 ? "objets" : "objet"} à prendre`, tone: "vif" } };
+    if (onglet.id === RAYON_POCHETTES && aOuvrir > 0 && !surLesPochettes) return { ...onglet, count: { value: aOuvrir, words: `${aOuvrir} ${aOuvrir > 1 ? "pochettes gagnées" : "pochette gagnée"} à ouvrir`, tone: "vif" } };
+    if (onglet.id === ANCRE_LOTERIE) return { ...onglet, count: { value: 1, text: avantLeTirage, words: `tirage ${avantLeTirage === "ce soir" || avantLeTirage === "demain" ? avantLeTirage : `dans ${avantLeTirage}`}` } };
+    return onglet;
+  });
   return (
     <div class="village" data-testid="village">
       {aCreer ? (

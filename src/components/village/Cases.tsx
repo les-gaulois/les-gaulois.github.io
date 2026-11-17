@@ -26,8 +26,30 @@ import { MarqueDeRarete, PetitePlaque, Pixels, Prix, peindre } from "./BoutiqueP
 export function ApercuGaulois({ tenue, familier = null, decor = null, class: classe = "" }: { tenue: Tenue; familier?: Familier | null; decor?: DecorDeBanniere | null; class?: string }) {
   const toile = useRef<HTMLCanvasElement>(null);
   const fond = useRef<HTMLCanvasElement>(null);
-  const grille = useMemo(() => apercuAvecFamilier(tenue, familier), [tenue, familier]);
+  // Le contenu de la tenue, pas son objet : un écran qui la recompose à chaque dessin (un essayage) ne redessine rien.
+  const signature = Object.keys(tenue)
+    .sort()
+    .map((cle) => `${cle}=${tenue[cle] ?? ""}`)
+    .join("|");
+  const grille = useMemo(() => apercuAvecFamilier(tenue, familier), [signature, familier]);
   useEffect(() => peindre(toile.current, grille.largeur, grille.hauteur, grille.cases), [grille]);
+  // Il saute une fois quand on l'habille (17 novembre 2026) : un essayage, un objet porté. Pas au premier dessin, ni
+  // pour un familier qui arrive, ni quand les animations sont coupées.
+  const dessine = useRef<string | null>(null);
+  useEffect(() => {
+    const el = toile.current;
+    const avant = dessine.current;
+    dessine.current = signature;
+    if (avant === null || avant === signature) return;
+    if (!el || !motionAllowed()) return;
+    el.classList.remove("gaulois-saut");
+    // Relire la mise en page relance l'animation si elle tournait encore.
+    void el.offsetWidth;
+    el.classList.add("gaulois-saut");
+    const fini = (): void => el.classList.remove("gaulois-saut");
+    el.addEventListener("animationend", fini, { once: true });
+    return () => el.removeEventListener("animationend", fini);
+  }, [signature]);
   useEffect(() => {
     if (decor) peindre(fond.current, decor.largeur, decor.hauteur, decor.cases);
   }, [decor]);
@@ -50,7 +72,7 @@ export function ApercuGaulois({ tenue, familier = null, decor = null, class: cla
       window.clearTimeout(attente);
       window.clearTimeout(rouvre);
     };
-  }, [grille, tenue, familier]);
+  }, [grille, signature, familier]);
   const taille = tailleDeLApercu(familier);
   return (
     <span class="gaulois-cadre" data-decor={decor ? "" : undefined} data-testid="gaulois-cadre">

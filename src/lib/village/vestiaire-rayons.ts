@@ -161,3 +161,21 @@ export function echelleEntiere(largeur: number, hauteur: number, place: number, 
   const grand = Math.max(1, largeur, hauteur);
   return Math.max(1, Math.min(maximum, Math.floor(place / grand)));
 }
+
+/**
+ * La collection d'un rayon (17 novembre 2026) : combien d'objets payants le membre y possède, sur combien il en existe.
+ * Les objets gratuits n'y comptent pas : tout le monde les a. Un fait du catalogue et de l'inventaire, jamais un score.
+ */
+export function collectionDuRayon(emplacement: (typeof EMPLACEMENTS_OBJETS)[number], possede: (id: string) => number, catalogue: Catalogue = OBJETS): { possedes: number; existants: number } {
+  let possedes = 0;
+  let existants = 0;
+  for (const [id, objet] of Object.entries(catalogue[emplacement])) {
+    if (objet.gratuit || !objet.rarete) continue;
+    existants++;
+    if (possede(id) > 0) possedes++;
+  }
+  return { possedes, existants };
+}
+
+/** La collection en mots, sous le nom d'un rayon : « 12 sur 62 ». Rien pour un rayon sans objet payant. */
+export const motsDeLaCollection = ({ possedes, existants }: { possedes: number; existants: number }): string | null => (existants > 0 ? `${possedes} sur ${existants}` : null);

@@ -5047,7 +5047,7 @@ main:has(.album) {
    et la loterie donnent le ton ; ces règles l'étendent aux autres onglets. */
 
 /* Le cadre du Gaulois : la bannière qu'il montre sur /gaulois derrière lui, comme le décor du sentier. Sans bannière,
-   rien ne change : le Gaulois garde son fond uni. Il respire à peine, deux pixels, lentement. */
+   le Gaulois garde son fond uni. Avec ou sans elle, il respire à peine, deux pixels, lentement. */
 .gaulois-cadre {
   position: relative;
   isolation: isolate;
@@ -5064,14 +5064,34 @@ main:has(.album) {
   object-fit: cover;
   object-position: 50% 100%;
 }
+.gaulois-cadre {
+  border: 1px solid var(--color-line);
+  background: var(--color-surface);
+}
 .gaulois-cadre[data-decor] {
-  border: 1px solid var(--color-line-strong);
+  border-color: var(--color-line-strong);
   box-shadow: 0 5px 0 color-mix(in srgb, var(--ecriture) 20%, transparent);
 }
-.gaulois-cadre[data-decor] .gaulois-apercu {
+/* Le fond et le filet sont au cadre : la toile respire et saute sans l'emporter. */
+.gaulois-cadre .gaulois-apercu {
   border-color: transparent;
   background: transparent;
   animation: gaulois-souffle 3.8s ease-in-out infinite;
+}
+/* Un saut, une fois, quand on l'habille. */
+.gaulois-cadre .gaulois-apercu.gaulois-saut {
+  animation: gaulois-saut 0.42s ease-out;
+}
+@keyframes gaulois-saut {
+  0% {
+    transform: translateY(0);
+  }
+  35% {
+    transform: translateY(calc(-1 * var(--saut, 12px)));
+  }
+  100% {
+    transform: translateY(0);
+  }
 }
 @keyframes gaulois-souffle {
   0%,
@@ -5215,7 +5235,8 @@ button.case:not(.sentier-case):active {
   box-shadow: 0 1px 0 color-mix(in srgb, var(--ecriture) 26%, transparent);
 }
 @media (prefers-reduced-motion: reduce) {
-  .gaulois-cadre[data-decor] .gaulois-apercu,
+  .gaulois-cadre .gaulois-apercu,
+  .gaulois-cadre .gaulois-apercu.gaulois-saut,
   .case[data-rarete="legendaire"]:not(.sentier-case)::before {
     animation: none;
   }
@@ -5304,4 +5325,105 @@ button.case:not(.sentier-case):active {
 }
 .bandeau-son {
   flex: none;
+}
+
+/* Les tenues gardées du vestiaire : trois places, chacune avec son Gaulois en petit et de quoi y ranger la tenue. */
+.tenues-gardees {
+  display: grid;
+  gap: 0.625rem;
+  min-width: 0;
+}
+.tenues-gardees-places {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.tenue-gardee {
+  display: grid;
+  justify-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.625rem 0.625rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.625rem;
+  background: var(--color-surface);
+}
+.tenue-gardee-remettre {
+  display: grid;
+  place-items: center;
+  width: 4.5rem;
+  height: 5rem;
+  border: 2px solid var(--color-line-strong);
+  border-bottom-width: 5px;
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--color-blue) 10%, var(--color-navy));
+  cursor: pointer;
+  transition:
+    transform 0.14s ease,
+    border-bottom-width 0.14s ease;
+}
+button.tenue-gardee-remettre:not(:disabled):hover {
+  transform: translateY(-2px);
+  border-color: var(--ecriture);
+}
+button.tenue-gardee-remettre:not(:disabled):active {
+  transform: translateY(2px);
+  border-bottom-width: 3px;
+}
+button.tenue-gardee-remettre:disabled {
+  border-color: var(--color-blue);
+  cursor: default;
+}
+.tenue-gardee-libre {
+  border-style: dashed;
+  border-bottom-width: 2px;
+  background: transparent;
+  cursor: default;
+}
+.tenue-gardee-nom {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ecriture);
+}
+
+/* Le bandeau du joueur sur téléphone : une seule ligne, le palier au-dessus de sa barre, la bourse à droite. */
+@media (max-width: 639px) {
+  .bandeau-joueur {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 0.375rem 0.625rem;
+    padding: 0.5rem 0.625rem;
+  }
+  .bandeau-portrait {
+    grid-row: span 2;
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+  .bandeau-portrait .pixels {
+    top: -4px;
+    left: -26px;
+  }
+  .bandeau-sentier {
+    grid-column: 2 / -1;
+    gap: 0.25rem;
+  }
+  .bandeau-sentier-mots {
+    font-size: 0.8125rem;
+  }
+  .bandeau-sentier-mots > span {
+    display: none;
+  }
+  .bandeau-bourse {
+    grid-column: 2;
+    font-size: 1rem;
+  }
+  .bandeau-son {
+    grid-column: 3;
+    min-height: 2rem;
+    padding-inline: 0.625rem;
+  }
+}
+@media (max-width: 767px) and (min-height: 560px) {
+  .vestiaire-scene .gaulois-apercu {
+    --saut: 4px;
+  }
 }

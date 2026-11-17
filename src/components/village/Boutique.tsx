@@ -34,7 +34,7 @@ import { actionDeLEssai, essaiDuModeleValide } from "../../lib/village/ecran-mod
 import { finDeLOffre, lireBoutique as lireBoutiqueDuMarche, lireMarche, mesOffres, messageDuMarche, raisonDeLOffre, type MarcheLu, type OffreLisible, type PossedeLisible } from "../../lib/village/ecran-marche";
 import { familierDe } from "../../lib/village/familiers";
 import { demandeLesModeles, messageDuRefusDesModeles, modeleParId, raisonDeLAchat, tenueAvecModele } from "../../lib/village/modeles";
-import { TOUT, choisirFiltre, type Filtre, type Filtres } from "../../lib/village/vestiaire-rayons";
+import { TOUT, choisirFiltre, collectionDuRayon, motsDeLaCollection, type Filtre, type Filtres } from "../../lib/village/vestiaire-rayons";
 import { Loading, Problem, Success, messageOf, useNow } from "../compte/common";
 import { SectionDesBannieres, useDecorDuGaulois } from "./Bannieres";
 import { Bourse } from "./Bourse";
@@ -841,7 +841,8 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
               noms={NOMS_RAYONS}
               rayon={rayonChoisi}
               vignette={(id) => (estUnRayonDObjets(id) ? vignetteDeLObjet(id, tenue[id] ?? "", tenue) : id === RAYON_UNIQUES ? IMAGE_DU_RAYON_UNIQUES : IMAGE_DU_RAYON_BANNIERE)}
-              mention={(id) => (estUnRayonDObjets(id) && comptesDesOffres[id] > 0 ? motsDesOffres(comptesDesOffres[id]) : null)}
+              // Les offres des membres d'abord ; sinon la collection du rayon, ce qu'il possède sur ce qui existe.
+              mention={(id) => (!estUnRayonDObjets(id) ? null : comptesDesOffres[id] > 0 ? motsDesOffres(comptesDesOffres[id]) : boutique ? motsDeLaCollection(collectionDuRayon(id, (objet) => quantitePossedee(boutique.inventaire, id, objet))) : null)}
               onChoisir={setRayon}
             />
           </div>

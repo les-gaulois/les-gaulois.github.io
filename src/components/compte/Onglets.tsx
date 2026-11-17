@@ -21,7 +21,7 @@ export interface TabItem {
   /** La petite icône de la partie, dans le menu : devant son nom, dans le bouton et dans la liste. Décorative. */
   icon?: IconePartieNom;
   /** Ce qui attend sur cet onglet : un nombre, et ce qu'il compte pour un lecteur d'écran (« 2 demandes à traiter »). Rien à zéro. */
-  count?: { value: number; words: string; tone?: "alerte" | "vif" } | null;
+  count?: { value: number; words: string; tone?: "alerte" | "vif"; /** Des mots à écrire dans la pastille à la place du nombre (« 5 jours ») : `words` les redit en entier. */ text?: string } | null;
 }
 
 const SANS_ALIAS: Readonly<Record<string, string>> = {};
@@ -299,7 +299,7 @@ export function Onglets({
               {count && (
                 <>
                   <span class={`onglet-nombre tnum ${count.tone ? `onglet-nombre-${count.tone}` : ""}`} aria-hidden="true">
-                    {fmtInt(count.value)}
+                    {count.text ?? fmtInt(count.value)}
                   </span>
                   <span class="sr-only">, {count.words}</span>
                 </>
@@ -361,7 +361,7 @@ function Nombre({ count }: { count: TabItem["count"] | undefined }) {
   return (
     <>
       <span class={`onglet-nombre tnum ${count.tone ? `onglet-nombre-${count.tone}` : ""}`} aria-hidden="true">
-        {fmtInt(count.value)}
+        {count.text ?? fmtInt(count.value)}
       </span>
       <span class="sr-only">, {count.words}</span>
     </>

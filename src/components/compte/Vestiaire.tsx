@@ -33,12 +33,14 @@ import { PLAQUES_CHANGEES } from "../../lib/village/ecran-forge";
 import { familierDe } from "../../lib/village/familiers";
 import { lirePlaques, plaqueDe } from "../../lib/village/forge";
 import { tenueAvecModele } from "../../lib/village/modeles";
-import { NOMS_RAYONS, RAYONS, RAYON_CORPS, cadreDuVisage, grosPlan, rangerLeRayon, visageNu, type Rayon } from "../../lib/village/vestiaire-rayons";
+import { lireMesTenues, type MesTenues } from "../../lib/village/tenues-gardees";
+import { NOMS_RAYONS, RAYONS, RAYON_CORPS, cadreDuVisage, collectionDuRayon, grosPlan, motsDeLaCollection, rangerLeRayon, visageNu, type Rayon } from "../../lib/village/vestiaire-rayons";
 import { MaBanniere, useDecorDuGaulois } from "../village/Bannieres";
 import { Piece } from "../village/BoutiquePixels";
 import { ApercuGaulois, BarreDesRayons, Case, noterLeRetour, useSceneCollee } from "../village/Cases";
 import { MonFamilier, useFamiliers } from "../village/Familiers";
 import { MonCorps, useModeles } from "../village/Modeles";
+import { TenuesGardees } from "../village/TenuesGardees";
 import { CodeLogin, DiscordButton, Loading, Problem, Success, codeLoginShown, messageOf, useMe } from "./common";
 
 /** Le cadre des gros plans du visage, calculé une fois d'après les dessins du catalogue. */
@@ -361,6 +363,28 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
   const { racine, scene, barre, panneau } = useSceneCollee(rayon, etat.kind);
   // La bannière qu'il montre sur /gaulois, derrière son Gaulois : rien pour un visiteur.
   const decor = useDecorDuGaulois(me !== null && me.signed_in);
+  // Les tenues gardées : de l'habillage. Un serveur qui ne les connaît pas encore, ou en panne, n'en montre aucune.
+  const [tenuesGardees, setTenuesGardees] = useState<MesTenues | null>(null);
+  const [occupeTenues, setOccupeTenues] = useState(false);
+  useEffect(() => {
+    if (!existait) return;
+    void call<unknown>("get_mes_tenues")
+      .then(lireMesTenues, () => null)
+      .then(setTenuesGardees);
+  }, [existait]);
+  const garderLaTenue = async (place: number): Promise<void> => {
+    setOccupeTenues(true);
+    setProbleme(null);
+    try {
+      const mes = lireMesTenues(await call<unknown>("garder_tenue", { p_place: place, p_tenue: tenue }));
+      if (mes) setTenuesGardees(mes);
+      else setProbleme("La réponse du serveur est illisible. Rechargez la page.");
+    } catch (e) {
+      setProbleme(messageOf(e));
+    } finally {
+      setOccupeTenues(false);
+    }
+  };
 
   if (me === null) return <Loading label="Lecture de votre compte…" />;
 
@@ -415,6 +439,8 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
         {existait && <MonFamilier etat={familiers.etat} occupe={occupeFamilier} probleme={problemeFamilier} annonce={annonceFamilier} onChoisir={(id) => void choisirLeFamilier(id)} onRelire={() => void familiers.lire()} />}
         {/* La bannière montrée sur /gaulois, comme le familier : pour un Gaulois qui existe. */}
         {existait && <MaBanniere actif={actif} nom={me.name ?? "Moi"} tenue={etat.enregistree ?? tenue} familier={familiers.montre} />}
+        {/* Trois tenues à garder et à remettre : elles ne se portent qu'une fois enregistrées, par le bouton du bas. */}
+        {existait && tenuesGardees && <TenuesGardees mes={tenuesGardees} tenue={tenue} occupe={occupeTenues || occupe} onRemettre={changer} onGarder={(place) => void garderLaTenue(place)} />}
         <form
           class="vestiaire-choix"
           onSubmit={(e) => {
@@ -430,6 +456,8 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
               noms={NOMS_RAYONS}
               rayon={rayon}
               vignette={(id) => (id === RAYON_CORPS ? visageDuRayon(tenue) : vignetteDeLObjet(id, tenue[id] ?? "", tenue))}
+              // La collection de chaque rayon : ce qu'il possède sur ce qui existe. Rien tant que l'inventaire n'est pas lu.
+              mention={(id) => (id === RAYON_CORPS || !boutique ? null : motsDeLaCollection(collectionDuRayon(id, (objet) => quantitePossedee(boutique.inventaire, id, objet))))}
               onChoisir={setRayon}
             />
           </div>

@@ -386,3 +386,22 @@ export function etatDuTirage(t: number, lots: number): EtatDuTirage {
   }
   return etat;
 }
+
+const HEURE_DE_PARIS = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Paris", weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+const JOURS_DE_LA_SEMAINE: Readonly<Record<string, number>> = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
+
+/**
+ * Le nombre de jours avant le prochain tirage, à Paris : le lundi à 21 h 30. Zéro le lundi avant le tirage, sept le
+ * lundi après. Pour la pastille de l'onglet « La loterie » : le serveur seul tire, ceci ne fait que compter les jours.
+ */
+export function joursAvantLeTirage(maintenant: Date): number {
+  const parts: Record<string, string> = {};
+  for (const { type, value } of HEURE_DE_PARIS.formatToParts(maintenant)) parts[type] = value;
+  const jour = JOURS_DE_LA_SEMAINE[parts["weekday"] ?? ""] ?? 0;
+  const minutes = Number(parts["hour"]) * 60 + Number(parts["minute"]);
+  if (jour === 0) return minutes < 21 * 60 + 30 ? 0 : 7;
+  return 7 - jour;
+}
+
+/** Ce délai en mots, pour la pastille : « ce soir », « demain », « 5 jours ». */
+export const motsAvantLeTirage = (jours: number): string => (jours <= 0 ? "ce soir" : jours === 1 ? "demain" : `${jours} jours`);

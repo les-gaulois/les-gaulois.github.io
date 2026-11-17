@@ -3,9 +3,9 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { AUTH_ENABLED, ServerError, basePath, call } from "../../lib/compte/api";
 import { clicSurBoutonArme, desarmerALaPerte } from "../../lib/compte/discord-etat";
 import { errorMessage } from "../../lib/compte/errors";
-import { RETOUR_VILLAGE_KEY, vignetteDeLObjet } from "../../lib/gaulois";
+import { RETOUR_VILLAGE_KEY, changerObjet, tenueDuServeur, vignetteDeLObjet, type Tenue } from "../../lib/gaulois";
 import { ADRESSE_BOUTIQUE } from "../../lib/village/boutique-rayons";
-import { PLAQUE_GRANDE } from "../../lib/village/plaque";
+import { PLAQUE, PLAQUE_GRANDE } from "../../lib/village/plaque";
 import type { MaForge, ObjetGravable, PartieGravable } from "../../lib/village/contrat";
 import { motStatere, nombre, stateres } from "../../lib/village/ecran-boutique";
 import {
@@ -27,6 +27,8 @@ import { MESSAGES_DE_LA_FORGE, lireMaForge, messageDeLaForge } from "../../lib/v
 import { echelleEntiere } from "../../lib/village/vestiaire-rayons";
 import { CodeLogin, DiscordButton, Loading, Problem, codeLoginShown, useMe } from "../compte/common";
 import { MarqueDeRarete, PetitePlaque, Piece, Pixels } from "./BoutiquePixels";
+import { useDecorDuGaulois } from "./Bannieres";
+import { ApercuGaulois } from "./Cases";
 import { Fusion } from "./Fusion";
 
 /**
@@ -315,6 +317,24 @@ function Atelier() {
     if (connecte) void lire(lecture.kind === "prete");
   }, [connecte]);
 
+  // Le Gaulois à sa forge (17 novembre 2026) : sa tenue enregistrée, devant la bannière qu'il montre sur /gaulois, comme
+  // au vestiaire. De l'habillage : sans réponse, la forge reste comme avant, sans lui.
+  const decor = useDecorDuGaulois(connecte);
+  const [tenue, setTenue] = useState<Tenue | null>(null);
+  useEffect(() => {
+    if (!connecte) return;
+    void call<unknown>("get_mon_gaulois").then(
+      (reponse) => setTenue(tenueDuServeur(reponse)),
+      () => undefined,
+    );
+    const change = (e: Event): void => {
+      const nouvelle = (e as CustomEvent<{ tenue?: Tenue }>).detail?.tenue;
+      if (nouvelle) setTenue(nouvelle);
+    };
+    window.addEventListener("gal:gaulois-enregistre", change);
+    return () => window.removeEventListener("gal:gaulois-enregistre", change);
+  }, [connecte]);
+
   // Le focus suit le parcours : au titre de l'établi quand un objet est choisi, à la case quittée quand on en change.
   const avant = useRef(cle);
   useEffect(() => {
@@ -369,6 +389,21 @@ function Atelier() {
       });
     }
   };
+
+  // La gravure dans la même carte que la fusion et que le sentier : la plaque dorée pour dessin.
+  const enCarte = (contenu: ComponentChildren): ComponentChildren => (
+    <section class="forge-gravure sentier-carte" data-ton="or" data-testid="forge-gravure">
+      <div class="sentier-carte-tete">
+        <span class="sentier-carte-dessin" aria-hidden="true">
+          <Pixels largeur={PLAQUE.largeur} hauteur={PLAQUE.hauteur} cases={PLAQUE.cases} echelle={4} />
+        </span>
+        <div>
+          <h3>La gravure</h3>
+        </div>
+      </div>
+      {contenu}
+    </section>
+  );
 
   let corps: ComponentChildren;
   if (me === null) corps = <Loading label="Lecture de votre compte…" />;
@@ -451,10 +486,12 @@ function Atelier() {
       corps = (
         <>
           {ateliers}
+          {enCarte(
+            <>
           {tete}
-          <h3 id="forge-objets" class="forge-etape">
+          <h4 id="forge-objets" class="forge-etape">
             Choisissez un objet
-          </h3>
+          </h4>
           {objets.length > 0 ? (
             <div class="cases forge-cases" role="group" aria-labelledby="forge-objets" data-testid="forge-objets">
               {objets.map((o) => (
@@ -473,6 +510,8 @@ function Atelier() {
           <p class="info-discrete" data-testid="forge-vues">
             {phraseDesPlaquesVues(forge.plaques_vues)}
           </p>
+            </>,
+          )}
         </>
       );
     } else {
@@ -485,13 +524,15 @@ function Atelier() {
       corps = (
         <>
           {ateliers}
+          {enCarte(
+            <>
           {tete}
           <div class="forge-etabli" data-testid="forge-etabli">
             <div class="forge-etabli-tete">
-              <h3 ref={etabli} tabIndex={-1} class="forge-objet-nom" data-testid="forge-objet-nom">
+              <h4 ref={etabli} tabIndex={-1} class="forge-objet-nom" data-testid="forge-objet-nom">
                 {nomDeLObjet(objet)}
                 {objet.porte && <span class="forge-porte-mot"> (porté)</span>}
-              </h3>
+              </h4>
               <button type="button" class="forge-lien" onClick={() => choisir(null)} data-testid="forge-changer">
                 Changer d'objet
               </button>
@@ -548,6 +589,8 @@ function Atelier() {
             // Effacer ne se rattrape pas : à part, sous un filet, au second clic.
             <EffacerLaPlaque key={cleDeLObjet(objet)} occupe={occupe} onConfirmer={() => void effacer(objet)} />
           )}
+            </>,
+          )}
         </>
       );
     }
@@ -562,9 +605,19 @@ function Atelier() {
     });
   };
 
+  // Le Gaulois porte l'objet qu'on est en train de graver, pour le voir sur lui.
+  const forgePrete = lecture.kind === "prete" && lecture.forge.peut_graver ? lecture.forge : null;
+  const aLEtabli = forgePrete && !(forgePrete.fusion && atelier === "fusion") ? objetChoisi(forgePrete, cle) : null;
+  const tenueMontree = tenue && forgePrete ? (aLEtabli ? changerObjet(tenue, aLEtabli.emplacement, aLEtabli.objet) : tenue) : null;
+
   return (
-    <div ref={racine} class="forge" data-testid="forge">
-      {corps}
+    <div ref={racine} class="forge" data-scene={tenueMontree ? "" : undefined} data-testid="forge">
+      {tenueMontree && (
+        <div class="forge-scene" data-testid="forge-scene">
+          <ApercuGaulois tenue={tenueMontree} decor={decor} />
+        </div>
+      )}
+      <div class="forge-colonne">{corps}</div>
       {dialogue && lecture.kind === "prete" && (
         <DialogueGravure objet={dialogue.objet} partie={dialogue.partie} prix={dialogue.prix} solde={lecture.forge.solde} graver={() => graver(dialogue.objet, dialogue.partie, dialogue.prix)} onFermer={fermerLeDialogue} />
       )}
