@@ -248,6 +248,28 @@ describe("ce que le salon lit", () => {
     expect(separateurDeManche(6)["allowed_mentions"]).toEqual({ parse: [] });
   });
 
+  it("la remise des essais ne fait que déplacer le début du compte du jour", () => {
+    const lf = String.fromCharCode(10);
+    const lire = (nom: string) => readFileSync(`supabase/migrations/${nom}.sql`, "utf8").split(String.fromCharCode(13) + lf).join(lf);
+    const corps = (sql: string) => sql.slice(sql.indexOf("create or replace function public.coffre_ouvrir"), sql.indexOf("end $$;", sql.indexOf("create or replace function public.coffre_ouvrir")));
+    const avant = corps(lire("20261117000100_coffre_mise_dix_et_garde"));
+    const sql = lire("20261117000500_coffre_remise_des_essais");
+    const apres = corps(sql);
+    expect(sql).toContain("add column if not exists essais_depuis timestamptz;");
+    expect(apres).toContain("v_depuis := greatest(v_jour, coalesce(r.essais_depuis, v_jour));");
+    // Hors du repère, la fonction est celle d'avant, ligne pour ligne : mise, plafond, date de fin, refus.
+    const sansRepere = apres
+      .split(lf)
+      .filter((ligne) => !ligne.includes("v_depuis timestamptz;") && !ligne.includes("v_depuis := ") && !ligne.startsWith("  -- Les essais comptent depuis minuit"))
+      .join(lf)
+      .split("cree_le >= v_depuis")
+      .join("cree_le >= v_jour");
+    expect(sansRepere).toBe(avant);
+    // La migration ne remet rien elle-même et n'efface rien.
+    expect(sql).not.toMatch(/^(delete|truncate|drop|update)\b/im);
+    expect(sql).toContain("grant execute on function public.coffre_ouvrir(text, text, text, text, integer) to service_role;");
+  });
+
   it("chaque refus du serveur a sa phrase", () => {
     expect(refusDuCoffre("daily_limit")).toBe(COFFRE_MESSAGES.dailyLimit);
     expect(refusDuCoffre("daily_total")).toBe(COFFRE_MESSAGES.dailyTotal);
