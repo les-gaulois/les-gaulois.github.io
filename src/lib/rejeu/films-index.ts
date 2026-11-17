@@ -94,6 +94,11 @@ export function partiesAFilmer<S extends { gameId: string; gameStart: string }>(
   const abandonnees = new Set(index.ratees.filter((r) => r.definitive || r.essais >= ESSAIS_MAX).map((r) => r.partie));
   const total = index.films.reduce((s, f) => s + f.octets, 0);
   const plusAncien = index.films.reduce<string | null>((m, f) => (m === null || f.debut < m ? f.debut : m), null);
+  // Plein : un film de plus, du poids moyen des films gardés, ne tiendrait pas. Le rangement s'arrête juste sous le budget
+  // (`rangerLesFilms`), jamais dessus : comparer le total au budget seul laissait le robot filmer à chaque passage, pendant
+  // tout son temps, des parties anciennes aussitôt retirées (vu le 17 novembre 2026 : 4 minutes par heure pour rien, et les
+  // films à refaire pour leur journal n'étaient jamais atteints).
+  const plein = index.films.length > 0 && total + total / index.films.length > BUDGET_FILMS_OCTETS;
   const vues = new Set<string>();
   return sessions
     .filter((s) => {
@@ -101,7 +106,7 @@ export function partiesAFilmer<S extends { gameId: string; gameStart: string }>(
       vues.add(s.gameId);
       if (!Partie.safeParse(s.gameId).success || !Debut.safeParse(s.gameStart).success) return false;
       if (!recent(s.gameStart, now) || faites.has(s.gameId) || abandonnees.has(s.gameId)) return false;
-      return !(total >= BUDGET_FILMS_OCTETS && plusAncien !== null && s.gameStart < plusAncien);
+      return !(plein && plusAncien !== null && s.gameStart < plusAncien);
     })
     .sort((a, b) => b.gameStart.localeCompare(a.gameStart) || a.gameId.localeCompare(b.gameId));
 }

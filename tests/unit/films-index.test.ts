@@ -24,6 +24,18 @@ describe("les parties à filmer", () => {
     const sessions = [s("vieille", "2026-11-13T00:00:00.000Z"), s("neuve", "2026-11-15T10:00:00.000Z")];
     expect(partiesAFilmer(sessions, index, NOW).map((x) => x.gameId)).toEqual(["neuve"]);
   });
+  it("budget presque plein, tel que le rangement le laisse : pas de partie ancienne non plus, elle serait retirée aussitôt", () => {
+    // Le rangement s'arrête juste sous le budget : 21 films de 1,9 Mo font 39,9 Mo, un de plus ne tient pas.
+    let index: IndexDesFilms = { format: 2, films: [], ratees: [], passage: null };
+    for (let k = 0; k < 25; k++) index.films.push({ partie: `f${k}`, debut: `2026-11-15T00:00:${String(k).padStart(2, "0")}.000Z`, octets: 1_900_000 });
+    index = rangerLesFilms(index, NOW).index;
+    expect(index.films).toHaveLength(21);
+    expect(index.films.reduce((t, f) => t + f.octets, 0)).toBeLessThan(BUDGET_FILMS_OCTETS);
+    const sessions = [s("vieille", "2026-11-13T00:00:00.000Z"), s("neuve", "2026-11-15T10:00:00.000Z")];
+    expect(partiesAFilmer(sessions, index, NOW).map((x) => x.gameId)).toEqual(["neuve"]);
+    // Avec de la place pour un film de plus, la partie ancienne se filme.
+    expect(partiesAFilmer(sessions, { ...index, films: index.films.slice(0, 19) }, NOW).map((x) => x.gameId)).toEqual(["neuve", "vieille"]);
+  });
   it("écarte un identifiant ou une date étranges", () => {
     expect(partiesAFilmer([s("../x", "2026-11-15T09:00:00.000Z"), s("ok", "hier")], indexVide(), NOW)).toEqual([]);
     expect(nomDuFilm("../x")).toBeNull();
