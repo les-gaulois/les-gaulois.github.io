@@ -32,11 +32,12 @@ import { avecUnExemplaire, lireAchat, lireBoutique, lirePochette, lireStateres, 
 import { ANCRE_FAMILIERS, demandeLesFamiliers, idsPossedes, tailleDeLApercu } from "../../lib/village/ecran-familiers";
 import { actionDeLEssai, essaiDuModeleValide } from "../../lib/village/ecran-modeles";
 import { finDeLOffre, lireBoutique as lireBoutiqueDuMarche, lireMarche, mesOffres, messageDuMarche, raisonDeLOffre, type MarcheLu, type OffreLisible, type PossedeLisible } from "../../lib/village/ecran-marche";
+import { pochetteDOuverture, type PochetteDeLEtal } from "../../lib/village/etal";
 import { familierDe } from "../../lib/village/familiers";
 import { demandeLesModeles, messageDuRefusDesModeles, modeleParId, raisonDeLAchat, tenueAvecModele } from "../../lib/village/modeles";
 import { TOUT, choisirFiltre, collectionDuRayon, motsDeLaCollection, type Filtre, type Filtres } from "../../lib/village/vestiaire-rayons";
 import { Loading, Problem, Success, messageOf, useNow } from "../compte/common";
-import { SectionDesBannieres, useDecorDuGaulois } from "./Bannieres";
+import { DessinPochetteBannieres, SectionDesBannieres, useDecorDuGaulois } from "./Bannieres";
 import { Bourse } from "./Bourse";
 import { DialogueAchat, DialoguePochette, PochetteGagneeIci, type Issue } from "./BoutiqueDialogue";
 import { Pixels, Prix } from "./BoutiquePixels";
@@ -45,10 +46,11 @@ import { useFamiliers } from "./Familiers";
 import { CaseObjet, Prix as PrixDuMarche } from "./MarcheCase";
 import { useModeles } from "./Modeles";
 import { DialogueAchat as DialogueOffre, DialogueVente } from "./MarcheDialogues";
-import { Pochette } from "./Pochette";
-import { DialogueFamiliers, PochetteFamiliers } from "./PochetteFamiliers";
-import { DialogueStateres, PochetteStateres, usePochetteStateres } from "./PochetteStateres";
-import { DialogueAchatModele, DialogueModeles, EssaiDuModele, SectionDesModeles } from "./SectionModeles";
+import { EtalDesPochettes } from "./Etal";
+import { DessinPochette, Pochette } from "./Pochette";
+import { DessinPochetteFamiliers, DialogueFamiliers, PochetteFamiliers } from "./PochetteFamiliers";
+import { DessinPochetteStateres, DialogueStateres, PochetteStateres, usePochetteStateres } from "./PochetteStateres";
+import { DessinDeLaPochette, DialogueAchatModele, DialogueModeles, EssaiDuModele, SectionDesModeles } from "./SectionModeles";
 import { pochetteDeRarete } from "./SentierDessins";
 
 /** Le repère de forme d'une rareté, de un à cinq losanges : le même que sur les cases. */
@@ -205,6 +207,18 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
   const puisRelire = <T,>(issue: Promise<Issue<T>>): Promise<Issue<T>> => issue.finally(relireLesGagnees);
   const avecBon = (pochette: PochetteGagnee, solde: number, prix: number): number => (gagnees[pochette] ? Math.max(solde, prix) : solde);
   const gagneesEnMots = bonsEnMots(gagnees);
+  // L'étal : la pochette dont la carte est montrée. À l'arrivée, la première gagnée à la loterie, sinon la surprise. Le
+  // choix se fige dès qu'il est fait, par un clic ou par cette arrivée : il ne suit plus les pochettes gagnées, qui
+  // changent pendant qu'on en ouvre une (la carte, et la fenêtre des bannières qu'elle porte, disparaîtraient).
+  const [pochetteChoisie, setPochetteChoisie] = useState<PochetteDeLEtal | null>(null);
+  const pochetteSurLEtal = pochetteChoisie ?? "surprise";
+  useEffect(() => {
+    if (!pochettes || pochetteChoisie !== null || fenetre !== null) return;
+    const gagnee = pochetteDOuverture(gagnees);
+    if (gagnee !== "surprise") setPochetteChoisie(gagnee);
+  }, [pochettes, gagnees, pochetteChoisie, fenetre]);
+  // Le prix de la pochette des bannières, que leur section lit elle-même.
+  const [prixDesBannieres, setPrixDesBannieres] = useState<number | null>(null);
   const [acquis, setAcquis] = useState<Acquis | null>(null);
   const familiers = useFamiliers();
   const pochetteStateres = usePochetteStateres();
@@ -278,6 +292,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
   /** Arrivé par l'adresse de la pochette des familiers, dans la partie « Pochettes » : la page y descend. */
   const allerAuxFamiliers = () => {
     if (!pochettes) return;
+    setPochetteChoisie("familiers");
     setAppelDesFamiliers((n) => n + 1);
   };
 
@@ -903,32 +918,52 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
                 </div>
               </div>
             )}
-            {/* Les pochettes : la surprise, puis celle des familiers ; celle des bannières vient juste dessous, de la
-                section des bannières. Une fonction en panne n'emporte pas les autres pochettes. */}
+            {/* Les pochettes : l'étal, puis la carte de celle qui y est choisie ; celles des bannières et des Gaulois
+                uniques viennent de leurs sections, juste dessous. Une fonction en panne n'emporte pas les autres pochettes. */}
             {rayon === RAYON_POCHETTES && (
               <>
-                {/* Les deux petites pochettes, chacune dans son cadre, sur un tiers de la largeur : la place d'une troisième
-                    reste libre à leur droite (demande du pilote, 16 novembre 2026). */}
                 {gagneesEnMots.length > 0 && (
                   <p class="pochettes-gagnees" data-testid="pochettes-gagnees">
                     Gagnées à la loterie, à ouvrir sans rien payer : {gagneesEnMots.join(", ")}.
                   </p>
                 )}
-                {(boutique || pochetteStateres.ma) && (
-                  <div class="pochettes-tiers" data-testid="pochettes-tiers">
-                    {boutique && <Pochette boutique={boutique} solde={avecBon("surprise", soldeConnu ?? boutique.solde, boutique.pochette.prix)} fermee={fermee} onOuvrir={() => setFenetre({ kind: "pochette" })} />}
-                    {pochetteStateres.ma && (
+                {/* L'étal (17 novembre 2026, choix du pilote sur exemples : « une à la fois ») : les cinq pochettes devant sa
+                    bannière ; celle qui est choisie montre sa carte dessous, seule. */}
+                <EtalDesPochettes
+                  choisie={pochetteSurLEtal}
+                  decor={decor}
+                  gagnees={gagnees}
+                  prix={{
+                    surprise: boutique?.pochette.prix ?? null,
+                    stateres: pochetteStateres.ma?.prix ?? null,
+                    familiers: familiers.mes?.pochette.prix ?? null,
+                    bannieres: prixDesBannieres,
+                    modeles: modeles.etat.kind === "pret" ? modeles.etat.mes.pochette.prix : null,
+                  }}
+                  dessins={{
+                    surprise: <DessinPochette echelle={4} />,
+                    stateres: <DessinPochetteStateres echelle={4} />,
+                    familiers: <DessinPochetteFamiliers echelle={4} />,
+                    bannieres: <DessinPochetteBannieres echelle={4} />,
+                    modeles: <DessinDeLaPochette possedes={new Set(modeles.etat.kind === "pret" ? modeles.etat.mes.modeles.map((ligne) => ligne.modele) : [])} />,
+                  }}
+                  onChoisir={setPochetteChoisie}
+                />
+                {((pochetteSurLEtal === "surprise" && boutique) || (pochetteSurLEtal === "stateres" && pochetteStateres.ma)) && (
+                  <div class="pochettes-tiers" data-seule="" data-testid="pochettes-tiers">
+                    {pochetteSurLEtal === "surprise" && boutique && <Pochette boutique={boutique} solde={avecBon("surprise", soldeConnu ?? boutique.solde, boutique.pochette.prix)} fermee={fermee} onOuvrir={() => setFenetre({ kind: "pochette" })} />}
+                    {pochetteSurLEtal === "stateres" && pochetteStateres.ma && (
                       <PochetteStateres ma={pochetteStateres.ma} solde={avecBon("stateres", soldeConnu ?? pochetteStateres.ma.solde, pochetteStateres.ma.prix)} onOuvrir={() => setFenetre({ kind: "stateres" })} />
                     )}
                   </div>
                 )}
-                {familiers.mes && <PochetteFamiliers mes={familiers.mes} solde={avecBon("familiers", soldeConnu ?? familiers.mes.solde, familiers.mes.pochette.prix)} onOuvrir={() => setFenetre({ kind: "familiers" })} />}
-                {pochetteStateres.etat.kind === "panne" && (
+                {pochetteSurLEtal === "familiers" && familiers.mes && <PochetteFamiliers mes={familiers.mes} solde={avecBon("familiers", soldeConnu ?? familiers.mes.solde, familiers.mes.pochette.prix)} onOuvrir={() => setFenetre({ kind: "familiers" })} />}
+                {pochetteSurLEtal === "stateres" && pochetteStateres.etat.kind === "panne" && (
                   <div data-testid="pochette-stateres-panne">
                     <Problem message="La pochette de statères ne répond pas pour l'instant." onRetry={() => void pochetteStateres.lire()} />
                   </div>
                 )}
-                {familiers.etat.kind === "panne" && (
+                {pochetteSurLEtal === "familiers" && familiers.etat.kind === "panne" && (
                   <div data-testid="familiers-panne">
                     <Problem message="La pochette des familiers ne répond pas pour l'instant." onRetry={() => void familiers.lire()} />
                   </div>
@@ -940,8 +975,9 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
                 première ouverture de leur onglet ou de celui des pochettes, puis seulement cachées quand un autre rayon
                 s'ouvre. Une seule section pour les deux onglets : dans « Pochettes », elle ne montre que sa pochette. */}
             {(bannieresOuvertes || rayon === RAYON_BANNIERE || rayon === RAYON_POCHETTES) && (
-              <div hidden={rayon !== RAYON_BANNIERE && rayon !== RAYON_POCHETTES}>
+              <div hidden={rayon !== RAYON_BANNIERE && !(rayon === RAYON_POCHETTES && pochetteSurLEtal === "bannieres")}>
                 <SectionDesBannieres
+                  onPrixDeLaPochette={setPrixDesBannieres}
                   partie={partieDesBannieres.current}
                   tenue={etat.enregistree}
                   familier={familiers.montre}
@@ -961,7 +997,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
                 première ouverture de leur onglet ou de celui des pochettes, puis seulement cachés quand un autre rayon
                 s'ouvre. Dans « Pochettes », la section ne montre que leur pochette. */}
             {(uniquesOuverts || rayon === RAYON_UNIQUES || rayon === RAYON_POCHETTES) && (
-              <div hidden={rayon !== RAYON_UNIQUES && rayon !== RAYON_POCHETTES}>
+              <div hidden={rayon !== RAYON_UNIQUES && !(rayon === RAYON_POCHETTES && pochetteSurLEtal === "modeles")}>
                 <SectionDesModeles
                   partie={partieDesUniques.current}
                   etat={modeles.etat}

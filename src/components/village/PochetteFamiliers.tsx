@@ -17,7 +17,7 @@ import { BoutonSon, Tambour, preparerLeSon, useSonDuTambour } from "./Tambour";
 const CASES_POCHETTE = casesDeLaPochetteFamiliers();
 
 /** Le dessin de la pochette des familiers, décoratif : son nom est écrit à côté. */
-function DessinPochetteFamiliers({ echelle, class: classe = "" }: { echelle: number; class?: string }) {
+export function DessinPochetteFamiliers({ echelle, class: classe = "" }: { echelle: number; class?: string }) {
   return <Pixels largeur={POCHETTE_FAMILIERS_COTE} hauteur={POCHETTE_FAMILIERS_COTE} cases={CASES_POCHETTE} echelle={echelle} class={classe} />;
 }
 

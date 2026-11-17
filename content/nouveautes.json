@@ -2,6 +2,16 @@
   {
     "date": "2026-11-17",
     "kind": "nouveau",
+    "title": "Les pochettes sur un étal",
+    "body": "L'onglet « Les pochettes » s'ouvre sur un étal : les cinq pochettes, devant la bannière que vous montrez. Un clic sur l'une montre sa carte, avec ses chances, son album et son bouton comme avant.",
+    "link": {
+      "href": "/village#pochettes",
+      "label": "Les pochettes"
+    }
+  },
+  {
+    "date": "2026-11-17",
+    "kind": "nouveau",
     "title": "La vitrine en grand et la collection",
     "body": "Dans « Mon Gaulois » : un clic sur un Gaulois de la vitrine le montre en grand, « Nouveau » marque les objets tout juste reçus, « Ma collection » compte tout, et le Gaulois saute pour un objet épique.",
     "link": {

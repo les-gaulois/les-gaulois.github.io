@@ -69,7 +69,7 @@ function Losanges({ rang }: { rang: number }) {
 }
 
 /** Le dessin de la pochette : trois silhouettes de modèles que le compte n'a pas encore, l'une devant l'autre. */
-function DessinDeLaPochette({ possedes }: { possedes: ReadonlySet<string> }) {
+export function DessinDeLaPochette({ possedes }: { possedes: ReadonlySet<string> }) {
   return (
     <span class="uniques-ombres" aria-hidden="true">
       {modelesDeLaPochette(possedes).map((modele) => {

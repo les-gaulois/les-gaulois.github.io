@@ -45,7 +45,7 @@ const CASES_POCHETTE = casesDeLaPochette().map((couleur) => (couleur ? (TEINTES[
 export const casesDeLaPochetteDeStateres = (): readonly (string | null)[] => CASES_POCHETTE;
 
 /** Le dessin de la pochette de statères, décoratif : son nom est écrit à côté. */
-function DessinPochetteStateres({ echelle, class: classe = "" }: { echelle: number; class?: string }) {
+export function DessinPochetteStateres({ echelle, class: classe = "" }: { echelle: number; class?: string }) {
   return <Pixels largeur={POCHETTE_COTE} hauteur={POCHETTE_COTE} cases={CASES_POCHETTE} echelle={echelle} class={classe} />;
 }
 

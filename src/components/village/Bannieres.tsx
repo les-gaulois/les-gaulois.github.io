@@ -225,7 +225,7 @@ function MotsDeLEtat({ etat }: { etat: EtatDeLaBanniere }) {
 const CASES_POCHETTE = casesDeLaPochetteBannieres();
 
 /** Le dessin de la pochette des bannières, décoratif : son nom est écrit à côté. */
-function DessinPochetteBannieres({ echelle, class: classe = "" }: { echelle: number; class?: string }) {
+export function DessinPochetteBannieres({ echelle, class: classe = "" }: { echelle: number; class?: string }) {
   return <Pixels largeur={POCHETTE_BANNIERES_COTE} hauteur={POCHETTE_BANNIERES_COTE} cases={CASES_POCHETTE} echelle={echelle} class={classe} />;
 }
 
@@ -559,6 +559,7 @@ export function SectionDesBannieres({
   pochetteGagnee = false,
   onSolde,
   onRefus,
+  onPrixDeLaPochette,
 }: {
   partie?: "bannieres" | "pochette";
   tenue: Tenue;
@@ -568,8 +569,12 @@ export function SectionDesBannieres({
   pochetteGagnee?: boolean;
   onSolde: (solde: number) => void;
   onRefus: () => void;
+  /** Le prix de la pochette des bannières, dès qu'il est lu, pour l'étiquette de l'étal ; `null` tant qu'il ne l'est pas. */
+  onPrixDeLaPochette?: (prix: number | null) => void;
 }) {
   const { etat, lire, acheter, ouvrir, choisir } = useBannieres();
+  const prixDeLaPochette = etat.kind === "pret" ? (etat.mes.pochette?.prix ?? null) : null;
+  useEffect(() => onPrixDeLaPochette?.(prixDeLaPochette), [prixDeLaPochette]);
   const [rarete, setRarete] = useState<Rarete | null>(null);
   const [choisie, setChoisie] = useState<string | null>(null);
   const [fenetre, setFenetre] = useState<string | null>(null);
