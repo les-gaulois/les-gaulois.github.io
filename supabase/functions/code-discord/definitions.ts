@@ -60,9 +60,10 @@ export const RIVAL_COMMAND = {
 } as const;
 export const MOI_COMMAND = { name: "moi", type: 1, description: "Votre fiche, si le site vous a reconnu comme membre du clan" } as const;
 /** /gaulois (docs/DIRECTION.md, « Le village des Gaulois ») : le Gaulois en pixels de qui la tape, habillé sur « Mon Gaulois ». */
-export const GAULOIS_COMMAND = { name: "gaulois", type: 1, description: "Montrer à tous votre Gaulois en pixels, et votre niveau et votre flamme si votre fiche les montre" } as const;
+export const GAULOIS_COMMAND = { name: "gaulois", type: 1, description: "Montrer à tous votre Gaulois sur sa carte animée, avec niveau et flamme si votre fiche les montre" } as const;
 /** /feu (docs/DIRECTION.md, « Le village des Gaulois ») : le grand feu de la place, qui suit les points rapportés au clan sur 7 jours (`feu.ts`). */
 export const FEU_COMMAND = { name: "feu", type: 1, description: "Le grand feu du village : sa hauteur suit les points rapportés au clan sur 7 jours" } as const;
+
 /** /macarte (docs/DIRECTION.md, « La commande /macarte ») : la carte du membre en GIF, celle de sa fiche, filmée par le site (`macarte.ts`). */
 export const MACARTE_COMMAND = { name: "macarte", type: 1, description: "Montrer à tous votre carte animée : votre Gaulois, votre bannière et votre finition" } as const;
 

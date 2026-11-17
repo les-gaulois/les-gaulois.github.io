@@ -73,7 +73,7 @@ import { familierDe } from "./familiers/index.ts";
 import { banniereParId, dessinDeLaBanniere, type Banniere } from "./bannieres/index.ts";
 import { sceneDuGaulois, type Scene } from "./scene.ts";
 import { FEU_COMMAND, FEU_FILE, MONDE_PATH, parseMonde, releveEnMots, reponseDuFeu, type MondeLu } from "./feu.ts";
-import { CARTES_PATH, MACARTE_COMMAND, macarteMessage, macartePasPrete, parseCartes, type CartesLues } from "./macarte.ts";
+import { CARTES_PATH, carteGifUrl, carteMessage, descriptionDeLaCarte, MACARTE_COMMAND, macarteMessage, macartePasPrete, parseCartes, type CartesLues } from "./macarte.ts";
 import { AIDE_COMMAND_NAME, aideCommand, COFFRE_COMMAND_NAME, coffreCommand, DRUIDE_MODELE, INDICE_COMMAND_NAME, indiceCommand, INDICES_COMMAND_NAME, indicesCommand, JETONS_MAX, PERCEURS_COMMAND_NAME, perceursCommand, type Tour } from "./coffre.ts";
 
 /** Le nom de la commande, tel que le joueur la tape. `definitions.ts` la décrit ; la fonction la crée sur le serveur du clan (`inscription.ts`). */
@@ -823,7 +823,7 @@ async function macarteRoute(discordId: string, deps: Deps): Promise<Response> {
   if (!list || !cartes) return ephemeral(COMMAND_MESSAGES.down);
   const fiche = ficheDuMembre(found, list);
   if (!fiche) return ephemeral(COMMAND_MESSAGES.noFiche);
-  const v = cartes.get(fiche.id);
+  const v = cartes.cartes.get(fiche.id);
   return v ? json({ type: 4, data: macarteMessage(SITE_URL, fiche, v, COMPONENTS_V2) }) : ephemeral(macartePasPrete(SITE_URL));
 }
 
@@ -904,15 +904,19 @@ function fileReply(data: Record<string, unknown>, file: DiscordFile): Response {
 /**
  * /gaulois : le serveur donne la tenue du compte lié à ce Discord (`discord_gaulois`, clé de service seulement), la fonction
  * dessine le Gaulois et le montre à tout le salon. Sans compte ni Gaulois, elle dit au seul joueur où l'habiller.
+ * Depuis le 17 novembre 2026, quand le site a filmé la carte du membre en paysage, c'est ce GIF qui part, et l'image
+ * dessinée ici reste pour les autres (pas de pseudo public, carte pas encore filmée, site muet).
  * L'identifiant Discord vient de la commande signée par Discord, jamais d'autre chose.
  */
 async function gauloisRoute(discordId: string, deps: Deps): Promise<Response> {
   // La tenue, et, en même temps, le pseudo public du membre (`discord_moi`, celle de /moi) et les fiches du site : son niveau
   // et sa flamme. Une panne de ces deux-là ne retient jamais le Gaulois : l'image part sans insigne.
-  const [found, moi, fiches] = await Promise.all([
+  // Et les cartes en GIF du site (17 novembre 2026) : si celle du membre est filmée en paysage, elle part à la place de l'image.
+  const [found, moi, fiches, cartes] = await Promise.all([
     deps.rpc("discord_gaulois", { p_discord_id: discordId }),
     deps.rpc("discord_moi", { p_discord_id: discordId }).catch(() => null),
     deps.fiches().catch(() => null),
+    deps.cartes ? deps.cartes().catch(() => null) : Promise.resolve(null),
   ]);
   if (!found) return ephemeral(COMMAND_MESSAGES.down);
   if (found["ok"] !== true) {
@@ -924,6 +928,17 @@ async function gauloisRoute(discordId: string, deps: Deps): Promise<Response> {
   // Le décor : là où la place du village met ce Gaulois, au moment de la journée à Paris (scene.ts).
   const scene = sceneDuGaulois(found, new Date(deps.nowSeconds() * 1000));
   const fiche = ficheDuMembre(moi, fiches);
+  // Sa carte animée, en paysage, avec son niveau et sa flamme (`macarte.ts`) : le GIF que le site a filmé sur sa fiche.
+  // Dessous, la même ligne que sous l'image fixe : l'heure du relevé de la série, et la mention d'OpenFront.
+  const paysage = fiche ? cartes?.paysages.get(fiche.id) : undefined;
+  if (fiche && paysage) {
+    const gif = { url: carteGifUrl(SITE_URL, fiche.id, paysage, true), description: `${descriptionDeLaCarte(fiche.pseudo)} ${phrasesDesInsignes(fiche)}`.trim() };
+    const boutons = [
+      { label: "Habiller mon Gaulois", url: `${SITE_URL}/village` },
+      { label: `Voir la fiche de ${fiche.pseudo}`, url: ficheUrl(fiche.id) },
+    ];
+    return json({ type: 4, data: carteMessage(gif, ligneSousLImage(fiche), boutons, COMPONENTS_V2) });
+  }
   const insignes = insignesDeLaScene({ niveau: fiche?.niveau ?? null, serie: fiche?.flamme ? { victoires: fiche.flamme.victoires, doree: fiche.flamme.doree } : null });
   // Son familier, s'il en montre un (migration 20261115000800) ; un familier inconnu de ce dessin ne se montre pas.
   const familier = familierDe(found["familier"]);

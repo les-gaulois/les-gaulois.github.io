@@ -50,6 +50,7 @@ import {
   ficheUrl,
   formatCode,
   handle,
+  ligneSousLImage,
   liveDeps,
   newCode,
   normalizeCode,
@@ -58,6 +59,7 @@ import {
   parseFiches,
   pathForLog,
   permissionBits,
+  phrasesDesInsignes,
   roleSetup,
   setupLines,
   sha256Hex,
@@ -643,7 +645,7 @@ describe("les commandes du robot, envoyées par Discord", () => {
   });
 
   it("/macarte montre à tout le salon le GIF de la carte du membre, à l'adresse que publie le site, avec sa version", async () => {
-    const cartes = new Map([["Ab12Cd34", "0123456789ab"]]);
+    const cartes = { cartes: new Map([["Ab12Cd34", "0123456789ab"]]), paysages: new Map<string, string>() };
     const { deps, calls } = world({ discord_moi: () => ({ ok: true, pseudo: "Brennos" }) }, { cartes: async () => cartes });
     const body = await shown(await handle(await fromDiscord(run("macarte")), deps));
     expect(calls.rpc).toEqual([{ name: "discord_moi", args: { p_discord_id: PLAYER } }]);
@@ -656,7 +658,8 @@ describe("les commandes du robot, envoyées par Discord", () => {
   });
 
   it("/macarte dit au seul joueur qui la tape quand sa carte n'est pas filmée, qu'il n'est pas reconnu, ou que le site ne répond pas", async () => {
-    const cartes = new Map([["Uv12Wx34", "0123456789ab"]]);
+    // La carte d'un autre membre, et le paysage du membre sans sa carte en hauteur : rien à montrer pour /macarte.
+    const cartes = { cartes: new Map([["Uv12Wx34", "0123456789ab"]]), paysages: new Map([["Ab12Cd34", "0123456789ab"]]) };
     const moi = { discord_moi: () => ({ ok: true, pseudo: "Brennos" }) };
     for (const [answers, over, message] of [
       [moi, { cartes: async () => cartes }, macartePasPrete(SITE_URL)],
@@ -675,12 +678,46 @@ describe("les commandes du robot, envoyées par Discord", () => {
     expect(macartePasPrete(SITE_URL)).toContain(`<${SITE_URL}/village>`);
     // Deux membres au même pseudo : la carte de l'autre ne part jamais dans le salon.
     const twins: FicheList = { listedAt: LISTED_AT, fiches: [...FICHES.fiches, fiche("Zz99Yy88", "BRENNOS")] };
-    const partage = world(moi, { fiches: async () => twins, cartes: async () => new Map([["Ab12Cd34", "0123456789ab"]]) });
+    const partage = world(moi, { fiches: async () => twins, cartes: async () => ({ cartes: new Map([["Ab12Cd34", "0123456789ab"]]), paysages: new Map<string, string>() }) });
     expect((await content(await handle(await fromDiscord(run("macarte")), partage.deps))).data.content).toBe(COMMAND_MESSAGES.noFiche);
     // Hors du serveur du clan : rien n'est lu.
     const dehors = world(moi, { cartes: async () => cartes });
     expect((await content(await handle(await fromDiscord(run("macarte", [], { guild_id: "111111111111111111" })), dehors.deps))).data.content).toBe(COMMAND_MESSAGES.wrongPlace);
     expect(dehors.calls.rpc).toEqual([]);
+  });
+
+  it("/gaulois envoie la carte animée en paysage quand le site l'a filmée, avec l'heure du relevé de la série dessous, et garde son image sinon", async () => {
+    const flamme = { victoires: 7, auMoins: false, dates: "du 12 au 14 nov. 2026", doree: true, releve: "2026-11-14T12:53:28.840Z" };
+    const niveau = { level: 63, prestige: 2, legend: false };
+    const fiches: FicheList = { ...FICHES, fiches: FICHES.fiches.map((f) => (f.pseudo === "Brennos" ? { ...f, niveau, flamme } : f)) };
+    const brennos = fiches.fiches.find((f) => f.pseudo === "Brennos")!;
+    const answers = { discord_gaulois: () => ({ ok: true, tenue: { ...TENUE_DE_DEPART } }), discord_moi: () => ({ ok: true, pseudo: "Brennos" }) };
+    const paysages = { cartes: new Map<string, string>(), paysages: new Map([["Ab12Cd34", "0123456789ab"]]) };
+    const body = await shown(await handle(await fromDiscord(run("gaulois")), world(answers, { fiches: async () => fiches, cartes: async () => paysages }).deps));
+    expect(body.type).toBe(4);
+    expect(body.data.flags).toBe(32768);
+    expect(body.data.components[0]?.items?.[0]?.media.url).toBe("https://les-gaulois.github.io/cartes/Ab12Cd34-paysage.gif?v=0123456789ab");
+    expect(body.data.components[0]?.items?.[0]?.description).toBe(`${descriptionDeLaCarte("Brennos")} ${phrasesDesInsignes(brennos)}`);
+    // Le nombre de la flamme est sur le GIF : l'heure de son relevé est écrite dessous, avec la mention d'OpenFront.
+    expect(body.data.components[1]).toEqual({ type: 10, content: ligneSousLImage(brennos) });
+    expect(ligneSousLImage(brennos)).toContain("Série au relevé du");
+    expect(ligneSousLImage(brennos)).toContain("© OpenFront and Contributors");
+    expect(body.data.components[2]?.components?.map((b) => b.url)).toEqual([`${SITE_URL}/village`, ficheUrl("Ab12Cd34")]);
+    expect(body.data.allowed_mentions).toEqual({ parse: [] });
+    // Sans paysage filmé pour lui, sans pseudo public, ou quand la liste des cartes ne répond pas : l'image dessinée par la fonction.
+    for (const [reponses, over] of [
+      [answers, { fiches: async () => fiches, cartes: async () => ({ cartes: new Map([["Ab12Cd34", "0123456789ab"]]), paysages: new Map([["Uv12Wx34", "0123456789ab"]]) }) }],
+      [{ ...answers, discord_moi: () => ({ ok: false, error: "no_pseudo" }) }, { fiches: async () => fiches, cartes: async () => paysages }],
+      [answers, { fiches: async () => fiches, cartes: async () => null }],
+      [answers, { fiches: async () => fiches }],
+    ] as const) {
+      const res = await handle(await fromDiscord(run("gaulois")), world(reponses, over).deps);
+      expect(res.headers.get("content-type")).toMatch(/^multipart\/form-data; ?boundary=/);
+      expect((await res.formData()).get("files[0]")).toBeInstanceOf(Blob);
+    }
+    // Sans Gaulois, pas de GIF non plus : le serveur décide.
+    const sans = world({ ...answers, discord_gaulois: () => ({ ok: false, error: "no_gaulois" }) }, { fiches: async () => fiches, cartes: async () => paysages });
+    expect((await content(await handle(await fromDiscord(run("gaulois")), sans.deps))).data.content).toBe(GAULOIS_MESSAGES.none);
   });
 
   it("/moi ne prend l'identifiant que de la commande signée, ni hors du serveur du clan ni pour un robot", async () => {

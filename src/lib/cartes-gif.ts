@@ -57,26 +57,64 @@ export interface CarteGif {
   id: string;
   v: string;
 }
+/**
+ * Deux films par membre : `carte`, la carte en hauteur de /macarte, et `paysage`, la même carte élargie aux proportions
+ * de sa bannière (124 cases sur 80) pour /gaulois, avec le niveau du compte et la flamme de série dans ses coins (demandes
+ * du pilote, 17 novembre 2026 : « que /gaulois soit pareil », « je veux voir le niv et la flamme », « en mode paysage »).
+ */
+export const SORTES_DE_FILM = ["carte", "paysage"] as const;
+export type SorteDeFilm = (typeof SORTES_DE_FILM)[number];
+/** Le nom du GIF d'un membre : `<identifiant>.gif` pour la carte, `<identifiant>-paysage.gif` pour le paysage. */
+export const fichierDuGif = (id: string, sorte: SorteDeFilm): string => (sorte === "carte" ? `${id}.gif` : `${id}-paysage.gif`);
+
+/** Ce que le paysage montre dans ses coins : l'emblème du niveau, et la flamme de série avec son nombre. */
+export interface InsignesDuFilm {
+  niveau: boolean;
+  flamme: { victoires: number; doree: boolean } | null;
+}
+const entier = (v: unknown, min: number, max: number): v is number => typeof v === "number" && Number.isInteger(v) && v >= min && v <= max;
+/**
+ * Les insignes d'une fiche de `/fiches.json`, avec la règle du robot (`niveauDeLaFiche` et `flammeDeLaFiche` de
+ * `supabase/functions/code-discord/index.ts` ; un test compare les deux) : le GIF ne montre un insigne que si le robot
+ * écrit dessous la mention d'OpenFront, pour l'emblème, et l'heure du relevé, pour la flamme.
+ */
+export function insignesDuFilm(fiche: { niveau?: unknown; flamme?: unknown }): InsignesDuFilm {
+  const n = fiche.niveau && typeof fiche.niveau === "object" ? (fiche.niveau as Record<string, unknown>) : null;
+  const f = fiche.flamme && typeof fiche.flamme === "object" ? (fiche.flamme as Record<string, unknown>) : null;
+  const dates = f?.["dates"];
+  const releve = f?.["releve"];
+  const flamme =
+    f && entier(f["victoires"], 5, 99999) && typeof f["auMoins"] === "boolean" && typeof dates === "string" && dates.trim() !== "" && dates.length <= 80 && typeof f["doree"] === "boolean" && typeof releve === "string" && Number.isFinite(Date.parse(releve))
+      ? { victoires: f["victoires"], doree: f["doree"] }
+      : null;
+  return { niveau: n !== null && entier(n["level"], 1, 9999) && entier(n["prestige"], 0, 99) && typeof n["legend"] === "boolean", flamme };
+}
+
 export interface IndexDesCartes {
   cartes: CarteGif[];
+  paysages: CarteGif[];
 }
+/** La liste d'une sorte de film dans l'index. */
+export const listeDeLaSorte = (index: IndexDesCartes, sorte: SorteDeFilm): CarteGif[] => (sorte === "carte" ? index.cartes : index.paysages);
 
 const ID = /^[A-Za-z0-9]{1,32}$/;
 const VERSION = /^[0-9a-f]{12}$/;
 
+const lireListe = (liste: unknown): CarteGif[] =>
+  Array.isArray(liste)
+    ? liste.flatMap((c: unknown): CarteGif[] => {
+        const { id, v } = (c ?? {}) as { id?: unknown; v?: unknown };
+        return typeof id === "string" && ID.test(id) && typeof v === "string" && VERSION.test(v) ? [{ id, v }] : [];
+      })
+    : [];
+
 /** La liste gardée ou publiée, relue sans confiance : une entrée mal formée est écartée, un fichier illisible vaut une liste vide. */
 export function lireIndexDesCartes(texte: string | null): IndexDesCartes {
   try {
-    const cartes: unknown = texte === null ? null : (JSON.parse(texte) as { cartes?: unknown }).cartes;
-    if (!Array.isArray(cartes)) return { cartes: [] };
-    return {
-      cartes: cartes.flatMap((c: unknown): CarteGif[] => {
-        const { id, v } = (c ?? {}) as { id?: unknown; v?: unknown };
-        return typeof id === "string" && ID.test(id) && typeof v === "string" && VERSION.test(v) ? [{ id, v }] : [];
-      }),
-    };
+    const lu = texte === null ? null : (JSON.parse(texte) as { cartes?: unknown; paysages?: unknown } | null);
+    return { cartes: lireListe(lu?.cartes), paysages: lireListe(lu?.paysages) };
   } catch {
-    return { cartes: [] };
+    return { cartes: [], paysages: [] };
   }
 }
 
@@ -91,4 +129,4 @@ export function cartesAFilmer(voulues: readonly CarteGif[], gardees: readonly Ca
 }
 
 /** L'adresse du GIF d'une carte depuis la racine du site, avec sa version. */
-export const adresseDeLaCarte = (carte: CarteGif): string => `/${DOSSIER_DES_CARTES}/${carte.id}.gif?v=${carte.v}`;
+export const adresseDeLaCarte = (carte: CarteGif, sorte: SorteDeFilm = "carte"): string => `/${DOSSIER_DES_CARTES}/${fichierDuGif(carte.id, sorte)}?v=${carte.v}`;

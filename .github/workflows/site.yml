@@ -528,10 +528,10 @@ jobs:
           # Sans ces deux valeurs, la connexion n'apparaît pas et le site reste entièrement statique.
           PUBLIC_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
           PUBLIC_SUPABASE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
-      # Les cartes des membres en GIF, pour /macarte sur Discord (src/lib/cartes-gif.ts) : la carte de chaque fiche est filmée
+      # Les cartes des membres en GIF, pour /macarte et /gaulois sur Discord (src/lib/cartes-gif.ts) : la carte de chaque fiche est filmée, en hauteur et en paysage,
       # dans le Chromium de Playwright, sur les pages de dist/ et sans réseau, puis publiée sous dist/cartes/ avec sa liste.
       # Seules les cartes nouvelles ou changées sont filmées, quelques-unes par passage ; les autres viennent du cache, jamais
-      # de Git. Aucune de ces étapes ne retient le site : sans elles, /macarte dit que la carte n'est pas prête.
+      # de Git. Aucune de ces étapes ne retient le site : sans elles, /macarte dit que la carte n'est pas prête, et /gaulois envoie son image fixe.
       - name: Restaurer les cartes en GIF
         continue-on-error: true
         uses: actions/cache/restore@v6

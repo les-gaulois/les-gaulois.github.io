@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { adresseDeLaCarte, BOUCLE_ORDINAIRE_MS, cartesAFilmer, DOSSIER_DES_CARTES, dureeDeLaBoucle, imagesDeLaBoucle, INDEX_DES_CARTES, lireIndexDesCartes, pasDuFilm, versionDeLaCarte } from "../../src/lib/cartes-gif";
+import { adresseDeLaCarte, BOUCLE_ORDINAIRE_MS, cartesAFilmer, DOSSIER_DES_CARTES, dureeDeLaBoucle, fichierDuGif, imagesDeLaBoucle, INDEX_DES_CARTES, insignesDuFilm, lireIndexDesCartes, listeDeLaSorte, pasDuFilm, versionDeLaCarte } from "../../src/lib/cartes-gif";
 import { FINITIONS_ANIMEES } from "../../src/lib/fx/finitions-carte";
 import { MACARTE_COMMAND as MACARTE_DEFINITION } from "../../supabase/functions/code-discord/definitions";
+import { parseFiches } from "../../supabase/functions/code-discord/index";
 import { CARTES_PATH, carteGifUrl, MACARTE_COMMAND, parseCartes } from "../../supabase/functions/code-discord/macarte";
 
 const SITE = "https://les-gaulois.github.io";
@@ -49,21 +50,56 @@ describe("les cartes des membres en GIF", () => {
   });
 
   it("relit sa liste sans lui faire confiance : un fichier illisible vaut une liste vide, une entrée mal formée est écartée", () => {
-    expect(lireIndexDesCartes(null)).toEqual({ cartes: [] });
-    expect(lireIndexDesCartes("pas du JSON")).toEqual({ cartes: [] });
-    expect(lireIndexDesCartes('{"cartes":4}')).toEqual({ cartes: [] });
-    expect(lireIndexDesCartes(JSON.stringify({ cartes: [{ id: "Ab12Cd34", v: "0123456789ab" }, { id: "../x", v: "0123456789ab" }, { id: "Ef56Gh78", v: "trop-court" }, null, "rien"] }))).toEqual({ cartes: [{ id: "Ab12Cd34", v: "0123456789ab" }] });
+    const vide = { cartes: [], paysages: [] };
+    for (const faux of [null, "pas du JSON", "null", '{"cartes":4}']) expect(lireIndexDesCartes(faux)).toEqual(vide);
+    const carte = { id: "Ab12Cd34", v: "0123456789ab" };
+    const lu = lireIndexDesCartes(JSON.stringify({ cartes: [carte, { id: "../x", v: "0123456789ab" }, { id: "Ef56Gh78", v: "trop-court" }, null, "rien"], paysages: [{ id: "Ij90Kl12", v: "ba9876543210" }, { id: "Mn34Op56" }] }));
+    expect(lu).toEqual({ cartes: [carte], paysages: [{ id: "Ij90Kl12", v: "ba9876543210" }] });
+    expect(listeDeLaSorte(lu, "carte")).toBe(lu.cartes);
+    expect(listeDeLaSorte(lu, "paysage")).toBe(lu.paysages);
+    // Une liste d'avant les paysages se lit encore.
+    expect(lireIndexDesCartes(JSON.stringify({ cartes: [carte] }))).toEqual({ cartes: [carte], paysages: [] });
   });
 
   it("le robot lit la liste que le site écrit, et donne à Discord l'adresse que le site publie", () => {
     const carte = { id: "Ab12Cd34", v: "0123456789ab" };
-    const publie = JSON.parse(JSON.stringify({ cartes: [carte, { id: "../x", v: carte.v }, { id: "Ef56Gh78", v: 12 }] })) as unknown;
+    const paysage = { id: "Ij90Kl12", v: "ba9876543210" };
+    const publie = JSON.parse(JSON.stringify({ cartes: [carte, { id: "../x", v: carte.v }, { id: "Ef56Gh78", v: 12 }], paysages: [paysage, "rien"] })) as unknown;
     const lues = parseCartes(publie);
-    expect([...(lues ?? [])]).toEqual([[carte.id, carte.v]]);
+    expect([...(lues?.cartes ?? [])]).toEqual([[carte.id, carte.v]]);
+    expect([...(lues?.paysages ?? [])]).toEqual([[paysage.id, paysage.v]]);
     expect(carteGifUrl(SITE, carte.id, carte.v)).toBe(`${SITE}${adresseDeLaCarte(carte)}`);
+    expect(carteGifUrl(SITE, paysage.id, paysage.v, true)).toBe(`${SITE}${adresseDeLaCarte(paysage, "paysage")}`);
+    expect(fichierDuGif("Ab12Cd34", "carte")).toBe("Ab12Cd34.gif");
+    expect(fichierDuGif("Ab12Cd34", "paysage")).toBe("Ab12Cd34-paysage.gif");
+    // Une liste d'avant les paysages : les cartes se lisent, sans paysage.
+    expect(parseCartes({ cartes: [carte] })?.paysages.size).toBe(0);
     expect(CARTES_PATH).toBe(`/${DOSSIER_DES_CARTES}/${INDEX_DES_CARTES}`);
     for (const faux of [null, [], "cartes", { cartes: null }, {}]) expect(parseCartes(faux)).toBeNull();
-    expect(parseCartes({ cartes: [] })?.size).toBe(0);
+    expect(parseCartes({ cartes: [] })?.cartes.size).toBe(0);
+  });
+
+  it("le paysage ne montre un insigne que si le robot le lit aussi dans la même fiche : il écrit dessous sa date ou sa mention", () => {
+    const niveau = { level: 63, prestige: 2, legend: false };
+    const flamme = { victoires: 7, auMoins: false, dates: "du 12 au 14 nov. 2026", doree: true, releve: "2026-11-14T12:53:28.840Z" };
+    const fiches = [
+      { niveau, flamme },
+      { niveau: null, flamme: null },
+      {},
+      { niveau: { level: 63 }, flamme: { victoires: 7, doree: true } },
+      { niveau: { ...niveau, level: 0 }, flamme: { ...flamme, victoires: 4 } },
+      { niveau: { ...niveau, legend: "oui" }, flamme: { ...flamme, releve: "hier" } },
+      { niveau: "63", flamme: { ...flamme, dates: "  " } },
+      { niveau: { ...niveau, legend: true }, flamme: { ...flamme, auMoins: true, doree: false } },
+    ];
+    for (const fiche of fiches) {
+      const lue = parseFiches({ listedAt: "2026-11-12T10:53:37.089Z", fiches: [{ id: "Ab12Cd34", pseudo: "Brennos", ...fiche }] })!.fiches[0]!;
+      const film = insignesDuFilm(fiche);
+      expect(film.niveau, JSON.stringify(fiche)).toBe(lue.niveau !== null);
+      expect(film.flamme, JSON.stringify(fiche)).toEqual(lue.flamme ? { victoires: lue.flamme.victoires, doree: lue.flamme.doree } : null);
+    }
+    expect(insignesDuFilm(fiches[0]!)).toEqual({ niveau: true, flamme: { victoires: 7, doree: true } });
+    expect(insignesDuFilm(fiches[3]!)).toEqual({ niveau: false, flamme: null });
   });
 
   it("la commande porte le nom qu'attend la fonction, et tient dans les limites de Discord", () => {
