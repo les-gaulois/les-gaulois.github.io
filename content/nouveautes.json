@@ -2,6 +2,16 @@
   {
     "date": "2026-11-17",
     "kind": "nouveau",
+    "title": "Votre carte animée sur Discord",
+    "body": "Sur Discord, /macarte montre à tout le salon votre carte animée : votre Gaulois, sa bannière et sa finition. Elle est filmée après les mises à jour du site : si elle manque, réessayez plus tard.",
+    "link": {
+      "href": "/village",
+      "label": "Mon Gaulois"
+    }
+  },
+  {
+    "date": "2026-11-17",
+    "kind": "nouveau",
     "title": "Les cartes dans la vitrine",
     "body": "Dans « La vitrine », chaque Gaulois montre la finition de sa carte derrière lui. Survolez une carte pour la voir s'animer. Le familier paraît aussi sur les cartes de l'accueil et des fiches.",
     "link": {
