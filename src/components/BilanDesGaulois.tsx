@@ -68,18 +68,15 @@ export const IconeDAxe = ({ axe }: { axe: Axe }) => (
  * son initiale (demande du pilote, 17 novembre 2026). Le casque et la tête, les tresses, le torse, les bras, les jambes.
  */
 const SILHOUETTE = chemin([...bloc(7, 3, 12, 4), ...bloc(6, 5, 13, 12), ...bloc(5, 9, 5, 15), ...bloc(14, 9, 14, 15), ...bloc(8, 13, 11, 13), ...bloc(5, 14, 14, 22), ...bloc(3, 15, 4, 21), ...bloc(15, 15, 16, 21), ...bloc(6, 23, 9, 28), ...bloc(10, 23, 13, 28), ...bloc(5, 29, 9, 30), ...bloc(10, 29, 14, 30)]);
-/** La silhouette en pied (`tete: false`), ou sa tête seule. */
-export const Silhouette = ({ tete = false }: { tete?: boolean }) => (
-  <svg class="bilan-silhouette" viewBox={tete ? "3 2 14 14" : "0 0 20 32"} aria-hidden="true" shape-rendering="crispEdges">
+/** La silhouette, en pied. */
+export const Silhouette = () => (
+  <svg class="bilan-silhouette" viewBox="0 0 20 32" aria-hidden="true" shape-rendering="crispEdges">
     <path fill="currentColor" d={SILHOUETTE} />
   </svg>
 );
 
 /** L'échelle de la jauge d'utilité : 100, la part moyenne, est au milieu ; au-delà de 200, la jauge est pleine. */
 const JAUGE_MAX = 200;
-/** Le côté de la tête d'un Gaulois sur une barre d'équipe, et ce qu'elle montre sous le visage (comme la case du fil). */
-const COTE_DE_LA_TETE = 28;
-const SOUS_LE_VISAGE = 6;
 
 /** Les nombres du jeu derrière chaque axe : le premier en grand, le second dessous quand il y en a un. */
 function nombresDeLAxe(g: GauloisDuBilan, axe: Axe): { grand: string; petit: string | null } {
@@ -106,57 +103,7 @@ function Socle({ portrait }: { portrait: PortraitDuJournal | undefined }) {
   );
 }
 
-/** La tête du Gaulois, dans une petite case : celle des barres d'équipe. */
-function Tete({ portrait }: { portrait: PortraitDuJournal | undefined }) {
-  return (
-    <span class="bilan-tete-mini" data-rarete={portrait?.rarete ?? undefined} aria-hidden="true">
-      {portrait ? (
-        <img src={portrait.image} width={portrait.largeur} height={portrait.hauteur} style={{ top: `${-Math.max(0, portrait.buste - SOUS_LE_VISAGE - COTE_DE_LA_TETE)}px` }} alt="" loading="lazy" decoding="async" />
-      ) : (
-        <Silhouette tete />
-      )}
-    </span>
-  );
-}
-
 type Ligne = { g: GauloisDuBilan; score: ScoreDuGaulois; rang: number | null; portrait: PortraitDuJournal | undefined };
-
-/**
- * Les barres d'équipe (demande du pilote, 17 novembre 2026, sur ma proposition) : une grande barre par axe, découpée en
- * tranches, une par Gaulois, à la largeur de sa part, sa tête dessus. Qui a porté quoi, d'un coup d'œil. Les tranches vont de
- * la plus grande à la plus petite ; un axe sans rien à partager n'a pas de barre. Les mêmes parts sont écrites sur les cartes.
- */
-function BarresDEquipe({ lignes }: { lignes: readonly Ligne[] }) {
-  const axes = AXES.filter((a) => lignes.some((l) => (l.score.parts[a] ?? 0) > 0));
-  if (axes.length === 0 || lignes.length < 2) return null;
-  return (
-    <div class="bilan-equipe">
-      {axes.map((a) => (
-        <div class="bilan-equipe-axe" data-axe={a}>
-          <p class="bilan-equipe-nom">
-            <IconeDAxe axe={a} />
-            {NOM_DE_L_AXE[a]}
-          </p>
-          <ol class="bilan-equipe-barre tnum">
-            {lignes
-              .filter((l) => (l.score.parts[a] ?? 0) > 0)
-              .sort((x, y) => y.score.parts[a]! - x.score.parts[a]!)
-              .map((l) => {
-                const part = Math.round(l.score.parts[a]! * 100);
-                return (
-                  <li style={{ flexGrow: l.score.parts[a]! }} title={`${l.g.nom ?? "Un Gaulois"} : ${part} %`}>
-                    <Tete portrait={l.portrait} />
-                    <span class="bilan-equipe-part">{part} %</span>
-                    <span class="bilan-equipe-qui">{l.g.nom ?? "Un Gaulois"}</span>
-                  </li>
-                );
-              })}
-          </ol>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function Carte({ g, score, rang, portrait }: Ligne) {
   const banniere = portrait?.banniere ?? null;
@@ -231,8 +178,9 @@ function Carte({ g, score, rang, portrait }: Ligne) {
 /**
  * Le bilan des Gaulois, sous le replay (demandes du pilote, 17 novembre 2026 : le score de « celui qui a été le plus utile
  * dans la partie », « en thème avec les personnages gaulois des joueurs » ; puis la bannière du joueur sur toute sa carte et
- * une mécanique qui se comprend « sans expliquer à partir de texte » ; puis les barres d'équipe, la silhouette, le cadre de
- * rareté sur toute la carte et une animation douce). D'abord les barres d'équipe, une par axe. Puis une carte par joueur au
+ * une mécanique qui se comprend « sans expliquer à partir de texte » ; puis la silhouette, le cadre de rareté sur toute la
+ * carte et une animation douce ; les barres d'équipe, essayées le même jour, ont été retirées : « ça fait doublon avec le
+ * reste »). Une carte par joueur au
  * tag du clan, la plus utile d'abord, sur le fond de sa bannière : son Gaulois en pied, son rang, son nom, son utilité sur
  * une jauge dont le milieu est la part moyenne ; trois cases, une par axe, avec son dessin, sa part de l'équipe en grand, sa
  * barre et les nombres du jeu d'où elle vient (`src/lib/rejeu/bilan.ts`). Le premier d'un axe y porte son titre. Les barres
@@ -285,7 +233,6 @@ export default function BilanDesGaulois({ partie, adresse, portraits }: Props) {
       <h3 id="rejeu-bilan-titre" class="bilan-titre">
         Bilan des Gaulois
       </h3>
-      <BarresDEquipe lignes={lignes} />
       <ol class="bilan-liste">
         {lignes.map((l, i) => (
           <Carte key={i} {...l} />
