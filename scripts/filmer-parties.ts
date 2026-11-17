@@ -22,7 +22,7 @@ import { loadLeaderboard, loadMembers, loadSessions } from "../src/lib/data";
 import { mapKey } from "../src/lib/map-names";
 import { dossierDeCarte } from "../src/lib/rejeu-openfront";
 import { lireFilm } from "../src/lib/rejeu/film";
-import { journalDeLaPartie, phrasesDuJeu, type Phrases } from "../src/lib/rejeu/journal";
+import { journalDeLaPartie, phrasesDuJeu, pseudoEnPartie, type Phrases } from "../src/lib/rejeu/journal";
 import { filmDeLaPartie, nomsPubliables } from "../src/lib/rejeu/film-brut";
 import { ficheNettoyee } from "../src/lib/rejeu/lecteur-jeu";
 import { DOSSIER_FILMS, INDEX_DES_FILMS, lireIndex, MAX_OCTETS_FILM, MAX_OCTETS_FILM_DECOMPRESSE, nomDeLaFiche, nomDuFilm, nomDuJournal, noterEchec, noterFilm, partiesAFilmer, partiesARefilmer, rangerLesFilms, type IndexDesFilms } from "../src/lib/rejeu/films-index";
@@ -46,9 +46,10 @@ const readText = (path: string) => (existsSync(path) ? readFileSync(path, "utf8"
  * Les joueurs de la fiche, pour reconnaître les Gaulois (ceux qui portent le tag du clan et ont des stats, comme les compte la
  * session du clan, `clanPlayerCount`, affiché à côté du film, et le message des victoires) et choisir les noms publiables
  * (l'identifiant public relie un joueur à la liste du clan, le tag à la liste officielle : `nomsPubliables`). Rien d'autre n'en
- * est gardé : ni l'identifiant public ni le pseudo de la partie n'entrent dans le film.
+ * est gardé pour le film : ni l'identifiant public ni le pseudo de la partie n'y entrent. Le journal « Entre Gaulois », lui,
+ * nomme un Gaulois hors de la liste publique par le pseudo qu'il portait dans la partie (`pseudoEnPartie`, demande du pilote).
  */
-const JoueursDeLaFiche = z.object({ info: z.object({ players: z.array(z.object({ clientID: z.string().nullish(), publicID: z.string().nullish(), clanTag: z.string().nullish(), stats: z.unknown().optional() })).max(5_000) }) });
+const JoueursDeLaFiche = z.object({ info: z.object({ players: z.array(z.object({ clientID: z.string().nullish(), publicID: z.string().nullish(), clanTag: z.string().nullish(), username: z.string().max(200).nullish(), stats: z.unknown().optional() })).max(5_000) }) });
 
 /**
  * Les pseudos des membres de la liste du clan, par identifiant public, et les tags du classement officiel : les seuls noms que
@@ -149,6 +150,12 @@ async function filmer(s: StoredSession, moteurs: Map<string, Promise<Moteur>>): 
     let octets: Buffer;
     const metaTexte = readFileSync(metaChemin, "utf8");
     const noms = nomsPubliables(joueurs.data.info.players, pseudosDuClan, tagsOfficiels);
+    // Pour le journal seul : le pseudo que chaque Gaulois portait dans la partie (jamais celui d'un joueur d'un autre clan).
+    const pseudos = new Map<string, string>();
+    for (const p of joueurs.data.info.players) {
+      const porte = p.clientID && clients.has(p.clientID) ? pseudoEnPartie(p.username) : null;
+      if (porte !== null) pseudos.set(p.clientID!, porte);
+    }
     try {
       ({ octets } = filmDeLaPartie(metaTexte, readFileSync(filmChemin), {
         partie: s.gameId,
@@ -190,7 +197,7 @@ async function filmer(s: StoredSession, moteurs: Map<string, Promise<Moteur>>): 
       const cheminJournal = join(DOSSIER_FILMS, nomJournal);
       rmSync(cheminJournal, { force: true });
       try {
-        const journal = journalDeLaPartie(metaTexte, { partie: s.gameId, clients, noms, phrases: await phrasesDeLaVersion(commit) });
+        const journal = journalDeLaPartie(metaTexte, { partie: s.gameId, clients, noms, pseudos, phrases: await phrasesDeLaVersion(commit) });
         if (journal !== null) {
           writeFileSync(`${cheminJournal}.partiel`, JSON.stringify(journal));
           renameSync(`${cheminJournal}.partiel`, cheminJournal);

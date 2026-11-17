@@ -37,8 +37,8 @@ export const IndexDesFilms = z.object({
   // 2 depuis les films à noms et unités (version 2 de film.ts) : un index plus ancien repart de zéro, et ses films se refont.
   format: z.literal(2),
   /** `commit` : la version du jeu qui a joué la partie (depuis le vrai lecteur du jeu, 15 novembre 2026), pour lui trouver son lecteur. */
-  /** `journal` : le journal « Entre Gaulois » (17 novembre 2026, `journal.ts`) est gardé avec le film ; `false`, le moteur de cette version ne note pas les faits ; absent, le film date d'avant et se refait (`partiesARefilmer`). */
-  films: z.array(z.object({ partie: Partie, debut: Debut, octets: z.number().int().min(1).max(MAX_OCTETS_FILM), commit: z.string().regex(/^[0-9a-f]{40}$/).optional(), journal: z.boolean().optional() })).max(10_000),
+  /** `journal` : le journal « Entre Gaulois » (17 novembre 2026, `journal.ts`) est gardé avec le film ; `false`, le moteur de cette version ne note pas les faits ; absent, le film date d'avant et se refait (`partiesARefilmer`). `pseudos` : ce journal nomme les Gaulois par leur pseudo de la partie (17 novembre 2026, au soir) ; absent sur un journal gardé, il se refait aussi. */
+  films: z.array(z.object({ partie: Partie, debut: Debut, octets: z.number().int().min(1).max(MAX_OCTETS_FILM), commit: z.string().regex(/^[0-9a-f]{40}$/).optional(), journal: z.boolean().optional(), pseudos: z.literal(true).optional() })).max(10_000),
   /** Les parties qui n'ont pas pu être filmées : `definitive`, elles ne le seront jamais (fiche inutilisable, partie trop longue). */
   ratees: z.array(z.object({ partie: Partie, debut: Debut, raison: z.string().max(200), essais: z.number().int().min(1), definitive: z.boolean() })).max(10_000),
   /** La fin du dernier passage du robot des films allé à son terme : la date que la page montre. `null` : aucun encore. */
@@ -113,11 +113,11 @@ export function partiesAFilmer<S extends { gameId: string; gameStart: string }>(
 
 /**
  * Les parties déjà filmées à refaire pour leur journal « Entre Gaulois », de la plus récente à la plus ancienne : celles dont le film
- * date d'avant le journal (17 novembre 2026). Elles passent après les parties sans film, s'il reste du temps au passage, et
+ * date d'avant le journal (17 novembre 2026), ou dont le journal date d'avant les pseudos de la partie. Elles passent après les parties sans film, s'il reste du temps au passage, et
  * une partie qui échoue trop souvent n'est plus essayée : son film d'avant reste.
  */
 export function partiesARefilmer<S extends { gameId: string; gameStart: string }>(sessions: readonly S[], index: IndexDesFilms, now: Date): S[] {
-  const sansJournal = new Set(index.films.filter((f) => f.journal === undefined).map((f) => f.partie));
+  const sansJournal = new Set(index.films.filter((f) => f.journal === undefined || (f.journal && !f.pseudos)).map((f) => f.partie));
   const abandonnees = new Set(index.ratees.filter((r) => r.definitive || r.essais >= ESSAIS_MAX).map((r) => r.partie));
   const vues = new Set<string>();
   return sessions
@@ -138,7 +138,7 @@ export function noterEchec(index: IndexDesFilms, partie: string, debut: string, 
 
 /** Note un film fait : la partie sort des échecs. `journal` : son journal est gardé (`true`), ou le moteur ne note pas les faits (`false`). */
 export function noterFilm(index: IndexDesFilms, partie: string, debut: string, octets: number, commit?: string, journal?: boolean): IndexDesFilms {
-  return { ...index, films: [...index.films.filter((f) => f.partie !== partie), { partie, debut, octets, ...(commit ? { commit } : {}), ...(journal !== undefined ? { journal } : {}) }], ratees: index.ratees.filter((r) => r.partie !== partie) };
+  return { ...index, films: [...index.films.filter((f) => f.partie !== partie), { partie, debut, octets, ...(commit ? { commit } : {}), ...(journal !== undefined ? { journal } : {}), ...(journal ? { pseudos: true as const } : {}) }], ratees: index.ratees.filter((r) => r.partie !== partie) };
 }
 
 /**

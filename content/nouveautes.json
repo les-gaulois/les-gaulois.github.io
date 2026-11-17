@@ -2,6 +2,16 @@
   {
     "date": "2026-11-17",
     "kind": "ameliore",
+    "title": "Les vrais pseudos dans le fil « Entre Gaulois »",
+    "body": "À côté du replay, un Gaulois porte le pseudo qu'il avait dans la partie, au lieu de « Gaulois 1 ». Les parties déjà en ligne le reçoivent peu à peu.",
+    "link": {
+      "href": "/revoir",
+      "label": "Revoir une partie"
+    }
+  },
+  {
+    "date": "2026-11-17",
+    "kind": "ameliore",
     "title": "Le replay et son fil dans un seul écran",
     "body": "Sur un grand écran, le fil « Entre Gaulois » reste à droite du replay, à sa hauteur : tout se voit sans descendre dans la page.",
     "link": {

@@ -343,7 +343,7 @@ export default function JournalDeLaPartie({ partie, victoire, adresse, cadre, or
               const { auteur, texte } = ligneDuFait(f);
               return (
                 <li key={`${f.etape}-${f.code}-${i}`} class="dons-message" data-ton={tonDuFait(f)} data-famille={f.famille}>
-                  <Visage qui={auteur} portrait={auteur.camp === "gaulois" && auteur.nom && Object.hasOwn(portraits, auteur.nom) ? portraits[auteur.nom] : undefined} dessin={dessinDuFait(f)} />
+                  <Visage qui={auteur} portrait={auteur.camp === "gaulois" && auteur.nom && !auteur.enPartie && Object.hasOwn(portraits, auteur.nom) ? portraits[auteur.nom] : undefined} dessin={dessinDuFait(f)} />
                   <div class="dons-bulle">
                     <p class="dons-qui">
                       <Nom qui={auteur} debut />

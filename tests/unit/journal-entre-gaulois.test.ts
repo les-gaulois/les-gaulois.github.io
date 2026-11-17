@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { ESSAIS_MAX, indexVide, nomDuJournal, noterEchec, noterFilm, partiesARefilmer } from "../../src/lib/rejeu/films-index";
-import { CODES, FAITS_MAX, faitsJusquA, faitsParFamille, journalALEcran, journalDeLaPartie, journalPublie, lireJournal, montantAffiche, montantDit, nomDit, phrasesDuJeu, secondesDuFait, totauxDesDons } from "../../src/lib/rejeu/journal";
+import { CODES, FAITS_MAX, faitsJusquA, faitsParFamille, journalALEcran, journalDeLaPartie, journalPublie, lireJournal, montantAffiche, montantDit, nomDit, phrasesDuJeu, pseudoEnPartie, secondesDuFait, totauxDesDons } from "../../src/lib/rejeu/journal";
 import { pageDuLecteur } from "../../src/lib/rejeu/lecteur-jeu";
 
 const PARTIE = "abc12345";
@@ -117,23 +117,23 @@ describe("le journal à l'écran", () => {
   const lu = journalALEcran(publie, PARTIE)!;
   it("relit le journal publié, nomme chacun et numérote les Gaulois sans pseudo public", () => {
     expect(lu.fin).toBe(1000);
-    expect(lu.faits[0]).toEqual({ etape: 120, code: 0, famille: "dons", de: { nom: "Judom FR", camp: "gaulois", numero: 0 }, a: { nom: null, camp: "gaulois", numero: 1 }, cible: null, valeur: 1_250_000, texte: "" });
-    expect(lu.faits[1]!.de).toEqual({ nom: null, camp: "gaulois", numero: 2 });
+    expect(lu.faits[0]).toEqual({ etape: 120, code: 0, famille: "dons", de: { nom: "Judom FR", camp: "gaulois", enPartie: false, numero: 0 }, a: { nom: null, camp: "gaulois", enPartie: false, numero: 1 }, cible: null, valeur: 1_250_000, texte: "" });
+    expect(lu.faits[1]!.de).toEqual({ nom: null, camp: "gaulois", enPartie: false, numero: 2 });
     expect(lu.faits.map((f) => f.famille)).toEqual(["dons", "dons", "combats", "combats", "chat", "chat", "diplomatie"]);
     expect(lu.faits[4]!.a).toBeNull();
-    expect(lu.faits[5]!.cible).toEqual({ nom: "[UN]", camp: "adverse", numero: 0 });
+    expect(lu.faits[5]!.cible).toEqual({ nom: "[UN]", camp: "adverse", enPartie: false, numero: 0 });
     expect(faitsParFamille(lu.faits)).toEqual({ dons: 2, combats: 2, chat: 2, diplomatie: 1 });
     // Un seul Gaulois sans pseudo public : pas de numéro.
-    expect(journalALEcran({ ...publie, faits: [publie.faits[0]] }, PARTIE)!.faits[0]!.a).toEqual({ nom: null, camp: "gaulois", numero: 0 });
+    expect(journalALEcran({ ...publie, faits: [publie.faits[0]] }, PARTIE)!.faits[0]!.a).toEqual({ nom: null, camp: "gaulois", enPartie: false, numero: 0 });
   });
   it("dit chaque joueur par son nom publiable, sinon par son camp, en mots", () => {
-    expect(nomDit({ nom: "Judom FR", camp: "gaulois", numero: 0 })).toBe("Judom FR");
-    expect(nomDit({ nom: null, camp: "gaulois", numero: 0 }, true)).toBe("Un Gaulois");
-    expect(nomDit({ nom: null, camp: "gaulois", numero: 2 })).toBe("Gaulois 2");
-    expect(nomDit({ nom: null, camp: "equipe", numero: 0 })).toBe("un coéquipier");
-    expect(nomDit({ nom: null, camp: "adverse", numero: 0 }, true)).toBe("Un adversaire");
-    expect(nomDit({ nom: null, camp: "nation", numero: 0 })).toBe("une nation");
-    expect(nomDit({ nom: null, camp: "robot", numero: 0 })).toBe("un robot");
+    expect(nomDit({ nom: "Judom FR", camp: "gaulois", enPartie: false, numero: 0 })).toBe("Judom FR");
+    expect(nomDit({ nom: null, camp: "gaulois", enPartie: false, numero: 0 }, true)).toBe("Un Gaulois");
+    expect(nomDit({ nom: null, camp: "gaulois", enPartie: false, numero: 2 })).toBe("Gaulois 2");
+    expect(nomDit({ nom: null, camp: "equipe", enPartie: false, numero: 0 })).toBe("un coéquipier");
+    expect(nomDit({ nom: null, camp: "adverse", enPartie: false, numero: 0 }, true)).toBe("Un adversaire");
+    expect(nomDit({ nom: null, camp: "nation", enPartie: false, numero: 0 })).toBe("une nation");
+    expect(nomDit({ nom: null, camp: "robot", enPartie: false, numero: 0 })).toBe("un robot");
   });
   it("ne montre rien d'un journal qui ne convient pas", () => {
     expect(journalALEcran(publie, "autre")).toBeNull();
@@ -183,6 +183,48 @@ describe("les films à refaire pour leur journal", () => {
     expect(partiesARefilmer(sessions, index, now).map((p) => p.gameId)).toEqual(["vieux1"]);
     expect(nomDuJournal("abc")).toBe("abc.journal.json");
     expect(nomDuJournal("../x")).toBeNull();
+  });
+  it("un journal d'avant les pseudos de la partie se refait aussi", () => {
+    const index = noterFilm(indexVide(), "avec", "2026-11-16T11:00:00Z", 1000, "a".repeat(40), true);
+    expect(index.films[0]!.pseudos).toBe(true);
+    expect(partiesARefilmer([s("avec", "2026-11-16T11:00:00Z")], index, now)).toEqual([]);
+    const avant = { ...index, films: [{ partie: "avec", debut: "2026-11-16T11:00:00Z", octets: 1000, journal: true }] };
+    expect(partiesARefilmer([s("avec", "2026-11-16T11:00:00Z")], avant, now).map((p) => p.gameId)).toEqual(["avec"]);
+  });
+});
+
+describe("les pseudos de la partie", () => {
+  const pseudos = new Map([["g1", "Autre nom"], ["g2", "Chilimou FR"], ["a5", "Adversaire"], ["a6", "Vilain"]]);
+  const avec = (faits: unknown) => journalDeLaPartie(meta(faits), { ...partie, pseudos })!;
+  it("nomment un Gaulois hors de la liste publique, jamais un joueur d'un autre clan ; le pseudo public passe d'abord", () => {
+    const j = avec([[120, 0, 1, 2, 500], [130, 0, 3, 1, 70], [140, 2, 1, 5, 10], [150, 2, 6, 2, 10]]);
+    expect(j.joueurs).toEqual([["Judom FR", 0], ["Chilimou FR", 0, 1], [null, 0], ["[UN]", 2], [null, 2]]);
+    expect(JSON.stringify(j)).not.toMatch(/Adversaire|Vilain|Autre nom/);
+  });
+  it("restent à la publication, et se relisent à l'écran sans Gaulois dessiné ni numéro", () => {
+    const j = avec([[120, 0, 1, 2, 500], [130, 0, 3, 1, 70]]);
+    const publie = journalPublie(lireJournal(JSON.stringify(j), PARTIE), () => false);
+    expect(publie.joueurs).toEqual([[null, 0], ["Chilimou FR", 0, 1], [null, 0]]);
+    const lu = journalALEcran(JSON.parse(JSON.stringify(j)), PARTIE)!;
+    expect(lu.faits[0]!.de).toEqual({ nom: "Judom FR", camp: "gaulois", enPartie: false, numero: 0 });
+    expect(lu.faits[0]!.a).toEqual({ nom: "Chilimou FR", camp: "gaulois", enPartie: true, numero: 0 });
+    expect(nomDit(lu.faits[1]!.de, true)).toBe("Un Gaulois");
+    // Une troisième case inattendue, ou sur un joueur d'un autre camp : refusée.
+    expect(journalALEcran({ ...j, joueurs: [["Judom FR", 0], ["Chilimou FR", 0, 2], [null, 0]] }, PARTIE)).toBeNull();
+    expect(journalALEcran({ ...j, joueurs: [["Judom FR", 0], ["Chilimou FR", 2, 1], [null, 0]] }, PARTIE)).toBeNull();
+    expect(journalALEcran({ ...j, joueurs: [["Judom FR", 0], [null, 0, 1], [null, 0]] }, PARTIE)).toBeNull();
+    expect(() => lireJournal(JSON.stringify({ ...j, joueurs: [["Judom FR", 0], ["Chilimou FR", 2, 1], [null, 0]] }), PARTIE)).toThrow("mauvais format");
+  });
+  it("s'écrivent sans leur tag, sur une ligne, ou pas du tout", () => {
+    expect(pseudoEnPartie("[GAL] Chilimou FR")).toBe("Chilimou FR");
+    expect(pseudoEnPartie("  [GAL][FR]  Deux   mots ")).toBe("Deux mots");
+    expect(pseudoEnPartie("Sans tag")).toBe("Sans tag");
+    expect(pseudoEnPartie("[GAL]")).toBeNull();
+    expect(pseudoEnPartie("[GAL] <b>")).toBeNull();
+    expect(pseudoEnPartie("")).toBeNull();
+    expect(pseudoEnPartie(null)).toBeNull();
+    expect(pseudoEnPartie("x".repeat(60))).toBe("x".repeat(40));
+    expect(pseudoEnPartie("x".repeat(39) + String.fromCodePoint(0x1f600))).toBe("x".repeat(39));
   });
 });
 
