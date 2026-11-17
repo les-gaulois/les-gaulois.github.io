@@ -12,42 +12,68 @@
  * Rien n'est inventé ici : chaque valeur dessinée est donnée par l'appelant, qui la tient du serveur. Dessiné case par
  * case pour ce site, sans emprunt à une œuvre existante. Design : Claude Fable 5.2.
  */
-import { banniereParId, dessinDeLaBanniere } from "./bannieres/index.ts";
+import { banniereParId, dessinDeLaBanniere, fondDeLaBanniere } from "./bannieres/index.ts";
 import { ecrirePng, type Image } from "./billets.ts";
 import { decorDe } from "./decors/index.ts";
-import { casesDuGaulois, GAULOIS_HAUTEUR, GAULOIS_LARGEUR, lireTenue, TENUE_DE_DEPART, type Tenue } from "./gaulois.ts";
+import { casesDuGaulois, GAULOIS_HAUTEUR, GAULOIS_LARGEUR, lireTenue, TENUE_DE_DEPART, TENUE_NUE, type Tenue } from "./gaulois.ts";
 import type { Lieu, Moment } from "./scene.ts";
 import { casesDuStatere } from "./statere.ts";
 
 /* ---------- Les gardiens et leurs humeurs ---------- */
 
-export const GARDIENS = ["druide", "forgeron", "barde", "marchande"] as const;
+/**
+ * Les quinze gardiens (demande du pilote, 17 novembre 2026 : « un thème par round avec sa propre image et ses propres
+ * personnages, 15 rounds ») : les quatre villageois du début, puis les onze Gaulois uniques de la garde-robe, du plus
+ * commun au légendaire. Leur ordre est celui des manches du cycle (`MANCHES_DU_CYCLE` de `coffre.ts`).
+ */
+export const GARDIENS = ["druide", "forgeron", "barde", "marchande", "axolotl", "sanglier", "loup", "lezard", "corbeau", "squelette", "automate", "givre", "magma", "ovni", "dragon"] as const;
 export type Gardien = (typeof GARDIENS)[number];
 export const HUMEURS = ["confiant", "flatte", "mefiant", "agace", "panique", "vaincu"] as const;
 export type Humeur = (typeof HUMEURS)[number];
 export const SOIRS = ["cervoise", "veillee"] as const;
 export type Soir = (typeof SOIRS)[number];
 
-/** Le nom d'un gardien, son lieu, et sa tenue dans la garde-robe du site. */
-export const FICHES_DES_GARDIENS: Readonly<Record<Gardien, { nom: string; lieu: Lieu; tenue: Readonly<Record<string, string>> }>> = {
+/** Le corps d'un gardien qui est un Gaulois unique : rien d'autre sur lui que ce corps. */
+const unique = (modele: string): Readonly<Record<string, string>> => ({ ...TENUE_NUE, modele });
+
+/**
+ * Le nom d'un gardien, son lieu, et sa tenue dans la garde-robe du site. `fond` : la bannière du catalogue qui sert de
+ * décor à sa manche, sans son cadre ; sans elle, le décor est celui du lieu. `theme` : le nom de ce décor, en mots.
+ */
+export const FICHES_DES_GARDIENS: Readonly<Record<Gardien, { nom: string; lieu: Lieu; theme: string; fond?: string; tenue: Readonly<Record<string, string>> }>> = {
+  axolotl: { nom: "L'axolotl", lieu: "place", theme: "L'archipel turquoise", fond: "archipel-turquoise", tenue: unique("axolotl") },
+  sanglier: { nom: "Le sanglier", lieu: "place", theme: "La forêt dorée", fond: "foret-doree", tenue: unique("sanglier") },
+  loup: { nom: "Le loup", lieu: "place", theme: "La nuit de neige", fond: "nuit-de-neige", tenue: unique("loup") },
+  lezard: { nom: "Le lézard", lieu: "place", theme: "Les dunes et l'oasis", fond: "dunes-et-oasis", tenue: unique("lezard") },
+  corbeau: { nom: "Le corbeau", lieu: "place", theme: "La nuit des citrouilles", fond: "nuit-des-citrouilles", tenue: unique("corbeau") },
+  squelette: { nom: "Le squelette", lieu: "place", theme: "La grotte aux cristaux", fond: "grotte-aux-cristaux", tenue: unique("squelette") },
+  automate: { nom: "L'automate de bronze", lieu: "place", theme: "La forge du volcan", fond: "forge-du-volcan", tenue: unique("automate") },
+  givre: { nom: "Le Gaulois de givre", lieu: "place", theme: "La cathédrale de glace", fond: "cathedrale-de-glace", tenue: unique("givre") },
+  magma: { nom: "Le Gaulois de magma", lieu: "place", theme: "Les chutes de lave", fond: "chutes-de-lave", tenue: unique("magma") },
+  ovni: { nom: "Le visiteur des étoiles", lieu: "place", theme: "Sous la nébuleuse", fond: "sous-la-nebuleuse", tenue: unique("ovni") },
+  dragon: { nom: "Le dragon", lieu: "place", theme: "Le dragon de pierre", fond: "dragon-de-pierre", tenue: unique("dragon") },
   druide: {
     nom: "Le druide",
     lieu: "reunion",
+    theme: "La clairière du druide",
     tenue: { peau: "claire", cheveux: "longs", teinte_cheveux: "blanc", barbe: "fleuve", cicatrice: "aucune", tete: "capuche", haut: "cape-capuche", bas: "braies-grises", pieds: "sandales", arme: "sceptre-bois-flotte" },
   },
   forgeron: {
     nom: "Le forgeron",
     lieu: "maisons",
+    theme: "La forge du village",
     tenue: { peau: "mate", cheveux: "degarni", teinte_cheveux: "roux", barbe: "grande", cicatrice: "sourcil-fendu", tete: "lunettes-forgeron", haut: "tablier-forgeron", bas: "braies-cuir", pieds: "bottes-lacees", arme: "marteau-forgeron" },
   },
   barde: {
     nom: "Le barde",
     lieu: "taverne",
+    theme: "La taverne",
     tenue: { peau: "claire", cheveux: "boucles", teinte_cheveux: "blond", barbe: "bouc", cicatrice: "rousseur", tete: "chapeau-panache", haut: "tunique-brodee", bas: "braies-bicolores", pieds: "poulaines", arme: "harpe-or" },
   },
   marchande: {
     nom: "La marchande",
     lieu: "place",
+    theme: "La place du marché",
     tenue: { peau: "doree", cheveux: "chignon", teinte_cheveux: "gris", barbe: "aucune", cicatrice: "grain-de-beaute", tete: "foulard-noue", haut: "gilet-brocart", bas: "jupe-laine", pieds: "souliers-boucle", arme: "lanterne" },
   },
 };
@@ -415,6 +441,11 @@ export function indicesDuTableau(tableau: Tableau): string[] {
   return [...(tableau.longueurDite ? [`${tableau.mot.length} lettres`] : []), ...tableau.indices];
 }
 
+/** Une manche telle qu'on l'écrit : « 3/15 » dans un cycle de quinze, « 3 » sinon. */
+const numeroDe = (d: { manche: number; sur?: number | null }): string => (d.sur ? `${d.manche}/${d.sur}` : String(d.manche));
+/** Par combien la cagnotte sera multipliée : ce que le niveau de la manche dit, sinon la garde plus un. */
+const foisDe = (d: { garde: number; fois?: number | null }): number => (d.fois && d.fois > 1 ? Math.round(d.fois) : Math.max(1, Math.min(4, Math.round(d.garde))) + 1);
+
 export interface DessinDeLEssai {
   gardien: Gardien;
   humeur: Humeur;
@@ -427,12 +458,16 @@ export interface DessinDeLEssai {
   garde: number;
   cagnotte: number;
   soir: Soir | null;
+  /** Dans un cycle de manches à thème : le nombre de manches du cycle, et le multiplicateur du niveau de celle-ci. */
+  sur?: number | null;
+  fois?: number | null;
 }
 
 const TITRES_DES_SOIRS: Readonly<Record<Soir, string>> = { cervoise: "Soir de cervoise", veillee: "Veillée : essais doublés" };
 
 function poserLaScene(t: Toile, gardien: Gardien, humeur: Humeur, tenue: Tenue | null, moment: Moment, ouvert: boolean): void {
-  const decor = decorDe(FICHES_DES_GARDIENS[gardien].lieu, moment);
+  // Le décor de la manche : la bannière du thème, sans cadre, ou le lieu du village au moment donné.
+  const decor = fondDeLaBanniere(FICHES_DES_GARDIENS[gardien].fond) ?? decorDe(FICHES_DES_GARDIENS[gardien].lieu, moment);
   t.cases(decor.cases.slice(HAUT * DECOR_L, BAS * DECOR_L), DECOR_L, 0, 0, E);
   const gx = ouvert ? 3 : 8;
   const mx = ouvert ? 73 : 68;
@@ -507,7 +542,7 @@ export function imageDeLEssai(d: DessinDeLEssai): Image {
   }
   // À droite : la manche et l'essai, la garde, la cagnotte.
   const droite = L - 14;
-  const ligne = `Manche ${d.manche} · essai ${d.essai}`;
+  const ligne = `Manche ${numeroDe(d)} · essai ${d.essai}`;
   ecrire(t, PETITE, droite - largeurDuTexte(PETITE, ligne, 2), y + 11, ligne, GRIS, 2);
   const garde = Math.max(1, Math.min(4, Math.round(d.garde)));
   const gl = largeurDuTexte(PETITE, "Garde", 2) + 8 + 4 * 15;
@@ -520,7 +555,7 @@ export function imageDeLEssai(d: DessinDeLEssai): Image {
     t.r(px + 10, y + 37, 2, 2, NUIT);
   }
   // La cagnotte, et par combien le gagnant la verra multipliée : la garde plus un (FOIS_PAR_GARDE de coffre.ts), en mots.
-  cagnotte(t, droite, y + 49, `${Math.max(0, Math.round(d.cagnotte))} fois ${garde + 1}`);
+  cagnotte(t, droite, y + 49, `${Math.max(0, Math.round(d.cagnotte))} fois ${foisDe(d)}`);
   return t.image();
 }
 
@@ -532,6 +567,7 @@ export interface DessinDeLaVictoire {
   essai: number;
   /** Les statères gagnés : 0 si la cagnotte était vide, ou n'a pas été versée. */
   gain: number;
+  sur?: number | null;
 }
 
 /** L'image d'une victoire : le coffre ouvert sur son or, le gardien vaincu, le mot en lettres d'or. */
@@ -550,7 +586,7 @@ export function imageDeLaVictoire(d: DessinDeLaVictoire): Image {
   const droite = L - 14;
   const titre = "Le coffre a cédé";
   ecrire(t, GRANDE, droite - largeurDuTexte(GRANDE, titre, 2), y + 11, titre, OR, 2, OR_SOMBRE);
-  const ligne = `Manche ${d.manche} · essai ${d.essai}`;
+  const ligne = `Manche ${numeroDe(d)} · essai ${d.essai}`;
   ecrire(t, PETITE, droite - largeurDuTexte(PETITE, ligne, 2), y + 32, ligne, GRIS, 2);
   if (d.gain > 0) cagnotte(t, droite, y + 50, `+ ${Math.round(d.gain)}`);
   return t.image();
@@ -719,7 +755,7 @@ export function decrireLEssai(d: DessinDeLEssai): string {
     `${FICHES_DES_GARDIENS[d.gardien].nom}, ${FICHES_DES_HUMEURS[d.humeur].mot}, derrière son coffre fermé, face au Gaulois du membre.`,
     motEnMots(d.tableau),
     indices.length > 0 ? `Indices : ${indices.join(", ")}.` : "",
-    `Manche ${d.manche}, essai ${d.essai}. Garde du gardien : ${Math.max(1, Math.min(4, Math.round(d.garde)))} sur 4. Cagnotte : ${Math.max(0, Math.round(d.cagnotte))} statères, multipliée par ${Math.max(1, Math.min(4, Math.round(d.garde))) + 1} pour qui ouvre le coffre.`,
+    `${FICHES_DES_GARDIENS[d.gardien].theme}. Manche ${numeroDe(d)}, essai ${d.essai}. Garde du gardien : ${Math.max(1, Math.min(4, Math.round(d.garde)))} sur 4. Cagnotte : ${Math.max(0, Math.round(d.cagnotte))} statères, multipliée par ${foisDe(d)} pour qui ouvre le coffre.`,
     d.soir ? `${TITRES_DES_SOIRS[d.soir]}.` : "",
   ]
     .filter((phrase) => phrase !== "")
@@ -729,7 +765,7 @@ export function decrireLEssai(d: DessinDeLEssai): string {
 
 /** La description d'une image de victoire. */
 export const decrireLaVictoire = (d: DessinDeLaVictoire): string =>
-  `Le coffre est ouvert, plein d'or. ${FICHES_DES_GARDIENS[d.gardien].nom} est vaincu. Le mot était « ${d.mot} », trouvé à l'essai ${d.essai} de la manche ${d.manche}.${d.gain > 0 ? ` La cagnotte de ${Math.round(d.gain)} statères est gagnée.` : ""}`;
+  `Le coffre est ouvert, plein d'or. ${FICHES_DES_GARDIENS[d.gardien].nom} est vaincu. Le mot était « ${d.mot} », trouvé à l'essai ${d.essai} de la manche ${numeroDe(d)}.${d.gain > 0 ? ` La cagnotte de ${Math.round(d.gain)} statères est gagnée.` : ""}`;
 
 /** La description du podium. */
 export const decrireLePalmares = (perceurs: readonly Perceur[]): string =>
@@ -782,6 +818,8 @@ export interface DessinDuTableau {
   prixLettre: number | null;
   /** La lettre qu'un membre vient d'acheter : son nom, la place de la lettre, son prix. */
   achat?: { nom: string; place: number; prix: number } | null;
+  sur?: number | null;
+  fois?: number | null;
 }
 
 /**
@@ -793,10 +831,10 @@ export function imageDuTableau(d: DessinDuTableau): Image {
   fondDuPanneau(t, 132, 340);
   t.cases(casesDuGaulois(tenueDuGardien(d.gardien, d.achat ? "flatte" : "mefiant")), GAULOIS_LARGEUR, 8, 6, 2);
   ecrire(t, GRANDE, 118, 12, "Le tableau", OR, 3, OR_SOMBRE);
-  ecrire(t, PETITE, 118, 44, `${FICHES_DES_GARDIENS[d.gardien].nom} · manche ${d.manche} · ${d.essais} essai${d.essais > 1 ? "s" : ""}`, GRIS, 2);
+  ecrire(t, PETITE, 118, 44, raccourci(PETITE, `${FICHES_DES_GARDIENS[d.gardien].nom} · ${d.sur ? "" : "manche "}${numeroDe(d)} · ${d.essais} essai${d.essais > 1 ? "s" : ""}`, 2, 372), GRIS, 2);
   const droite = L - 14;
   const garde = Math.max(1, Math.min(4, Math.round(d.garde)));
-  cagnotte(t, droite, 20, `${enMilliers(d.cagnotte)} fois ${garde + 1}`);
+  cagnotte(t, droite, 20, `${enMilliers(d.cagnotte)} fois ${foisDe(d)}`);
   boucliers(t, droite, 40, garde);
   // Le nom seul cède la place : la lettre et son prix se lisent toujours.
   if (d.achat) ecrire(t, PETITE, 118, 62, `${raccourci(PETITE, d.achat.nom, 2, 170)} achète la lettre ${d.achat.place} : ${enMilliers(d.achat.prix)} statères`, OR_CLAIR, 2);
@@ -848,7 +886,7 @@ export function decrireLeTableau(d: DessinDuTableau): string {
   const indices = indicesDuTableau(d.tableau);
   return [
     d.achat ? `${d.achat.nom} achète la lettre ${d.achat.place} du mot pour ${enMilliers(d.achat.prix)} statères, versés dans la cagnotte.` : "",
-    `Le tableau de la manche ${d.manche}, gardée par ${FICHES_DES_GARDIENS[d.gardien].nom.toLowerCase()}, après ${d.essais} essai${d.essais > 1 ? "s" : ""}.`,
+    `Le tableau de la manche ${numeroDe(d)}, gardée par ${FICHES_DES_GARDIENS[d.gardien].nom.toLowerCase()}, après ${d.essais} essai${d.essais > 1 ? "s" : ""}.`,
     motEnMots(d.tableau),
     indices.length > 0 ? `Indices : ${indices.join(", ")}.` : "Aucun indice pour l'instant.",
     `Cagnotte : ${enMilliers(d.cagnotte)} statères.`,
@@ -865,6 +903,8 @@ export interface DessinDeLAide {
   prixDesLettres: readonly number[];
   /** Les essais par membre et par jour, si le serveur les a dits. */
   essais: number | null;
+  /** Le jeu tourne-t-il en cycle de quinze manches à thème ? Sinon, le multiplicateur suit la garde du gardien. */
+  cycle?: boolean;
 }
 
 /** Ce que l'aide écrit : les règles, puis chaque commande et ce qu'elle fait. Les mêmes lignes servent à l'image et à sa description. */
@@ -874,8 +914,8 @@ export function lignesDeLAide(d: DessinDeLAide): { regles: string[]; commandes: 
       "Un gardien cache un mot secret.",
       "Faites-le-lui dire, ou devinez-le.",
       `Chaque essai : ${d.mise} statères dans la cagnotte.`,
-      "Le coffre ouvert, elle est à vous :",
-      "fois 2 à fois 5, selon la garde du gardien.",
+      "Le coffre ouvert, elle est à vous.",
+      d.cycle ? "15 manches : fois 2, fois 3, puis fois 4." : "Plus le gardien se méfie, plus elle vaut.",
       ...(d.essais !== null ? [`${d.essais} essais par jour pour chacun.`] : []),
       "Vendredi soir : le gardien se méfie moins.",
       "Dimanche soir : essais doublés.",
@@ -925,6 +965,7 @@ export interface DessinDeLAlerte {
   seuil: number;
   cagnotte: number;
   garde: number;
+  fois?: number | null;
 }
 
 /** L'alerte de cagnotte : la scène du coffre, et la somme qu'elle vient de passer. */
@@ -936,14 +977,13 @@ export function imageDeLAlerte(d: DessinDeLAlerte): Image {
   const l = largeurDuTexte(PETITE, titre, 3);
   t.cases(casesDuStatere(12), 12, Math.round(L / 2 - l / 2) - 32, y + 7, 2);
   ecrire(t, PETITE, Math.round(L / 2 - l / 2), y + 12, titre, OR, 3);
-  const garde = Math.max(1, Math.min(4, Math.round(d.garde)));
-  centrer(t, PETITE, L / 2, y + 40, `Fois ${garde + 1} pour qui ouvre le coffre`, BLANC, 3);
+  centrer(t, PETITE, L / 2, y + 40, `Fois ${foisDe(d)} pour qui ouvre le coffre`, BLANC, 3);
   return t.image();
 }
 
 /** L'alerte, dite en mots. */
 export const decrireLAlerte = (d: DessinDeLAlerte): string =>
-  `La cagnotte du coffre passe ${enMilliers(d.seuil)} statères : elle est de ${enMilliers(d.cagnotte)} statères, multipliée par ${Math.max(1, Math.min(4, Math.round(d.garde))) + 1} pour qui ouvre le coffre.`;
+  `La cagnotte du coffre passe ${enMilliers(d.seuil)} statères : elle est de ${enMilliers(d.cagnotte)} statères, multipliée par ${foisDe(d)} pour qui ouvre le coffre.`;
 
 export interface DessinDuBilan {
   gardien: Gardien;
@@ -958,6 +998,7 @@ export interface DessinDuBilan {
   lettresAchetees: number;
   /** La durée de la manche, en minutes. */
   minutes: number;
+  sur?: number | null;
 }
 
 /** Une durée en mots : « 12 minutes », « 3 heures 05 », « 2 jours 4 heures ». */
@@ -977,7 +1018,7 @@ export function imageDuBilan(d: DessinDuBilan): Image {
   fondDuPanneau(t, 138, 340);
   t.cases(casesDuGaulois(tenueDuGardien(d.gardien, "vaincu")), GAULOIS_LARGEUR, 8, 6, 2);
   ecrire(t, GRANDE, 118, 12, "Le bilan", OR, 3, OR_SOMBRE);
-  ecrire(t, PETITE, 118, 44, `Manche ${d.manche} · ${FICHES_DES_GARDIENS[d.gardien].nom} est vaincu`, GRIS, 2);
+  ecrire(t, PETITE, 118, 44, raccourci(PETITE, `Manche ${numeroDe(d)} · ${FICHES_DES_GARDIENS[d.gardien].nom} est vaincu`, 2, 480), GRIS, 2);
   let x = 118;
   for (const lettre of d.mot.slice(0, 10)) {
     t.r(x, 70, 30, 42, OR);
@@ -1007,7 +1048,7 @@ export function imageDuBilan(d: DessinDuBilan): Image {
 
 /** Le bilan, dit en mots. */
 export const decrireLeBilan = (d: DessinDuBilan): string =>
-  `Bilan de la manche ${d.manche} : le mot « ${d.mot} », gardé par ${FICHES_DES_GARDIENS[d.gardien].nom.toLowerCase()}, a été trouvé par ${d.gagnant} en ${dureeEnMots(d.minutes)}. ${enMilliers(d.essais)} essai${d.essais > 1 ? "s" : ""}, ${enMilliers(d.joueurs)} villageois, ${enMilliers(d.lettresAchetees)} lettre${d.lettresAchetees > 1 ? "s" : ""} achetée${d.lettresAchetees > 1 ? "s" : ""}.${d.acharne ? ` Le plus acharné : ${d.acharne.nom}, ${d.acharne.essais} essai${d.acharne.essais > 1 ? "s" : ""}.` : ""}`.slice(0, 1024);
+  `Bilan de la manche ${numeroDe(d)} : le mot « ${d.mot} », gardé par ${FICHES_DES_GARDIENS[d.gardien].nom.toLowerCase()}, a été trouvé par ${d.gagnant} en ${dureeEnMots(d.minutes)}. ${enMilliers(d.essais)} essai${d.essais > 1 ? "s" : ""}, ${enMilliers(d.joueurs)} villageois, ${enMilliers(d.lettresAchetees)} lettre${d.lettresAchetees > 1 ? "s" : ""} achetée${d.lettresAchetees > 1 ? "s" : ""}.${d.acharne ? ` Le plus acharné : ${d.acharne.nom}, ${d.acharne.essais} essai${d.acharne.essais > 1 ? "s" : ""}.` : ""}`.slice(0, 1024);
 
 export const pngDuTableau = (d: DessinDuTableau): Promise<Uint8Array<ArrayBuffer>> => ecrirePng(imageDuTableau(d));
 export const pngDeLAide = (d: DessinDeLAide): Promise<Uint8Array<ArrayBuffer>> => ecrirePng(imageDeLAide(d));

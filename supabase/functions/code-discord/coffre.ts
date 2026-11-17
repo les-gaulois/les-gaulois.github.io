@@ -24,6 +24,11 @@
  * explique le jeu en image, une image annonce la cagnotte qui passe un seuil, et une autre fait le bilan de chaque manche.
  * Toutes les commandes du jeu ne jouent que dans un salon, reconnu à son numéro (`COFFRE_SALON_ID`).
  *
+ * Le même jour (migration `20261117000800_coffre_cycle_des_manches.sql`) : le jeu tourne en un cycle de quinze manches à
+ * thème (`MANCHES_DU_CYCLE`). Le serveur dit le rang de la manche ; ce fichier en tire son gardien, son décor, sa
+ * vigilance (`palierDeLaManche`) et son multiplicateur (fois 2, 3 ou 4, que le serveur applique). Sans rang, tout
+ * marche comme avant : quatre gardiens à tour de rôle, la garde qui monte avec les coffres ouverts.
+ *
  * Depuis la migration `20261116001700_coffre_mise_obligatoire.sql` (demande du pilote, 16 novembre 2026, après un coffre
  * ouvert sans que personne ait misé) : chaque essai coûte une mise, et il faut donc un compte validé avec son Gaulois.
  * Depuis `20261117000100_coffre_mise_dix_et_garde.sql` (choix du pilote, 17 novembre 2026), la mise est de 10 statères,
@@ -217,6 +222,9 @@ export function palierDuDruide(niveau: number, essais: number, soir: Soir | null
   return Math.max(0, base - (essais >= FATIGUE_ESSAIS ? 1 : 0) - (soir === "cervoise" ? 1 : 0));
 }
 
+/** Les quatre gardiens qui sont des habitants du village ; les autres vivent à ses abords, et la consigne le leur dit. */
+const VILLAGEOIS: readonly Gardien[] = ["druide", "forgeron", "barde", "marchande"];
+
 /** Le caractère de chaque gardien : qui il est, et la faiblesse par laquelle il cède. Aucun n'est tiré d'une œuvre existante. */
 export const CARACTERES: Readonly<Record<Gardien, { role: string; faiblesse: string }>> = {
   druide: {
@@ -235,6 +243,104 @@ export const CARACTERES: Readonly<Record<Gardien, { role: string; faiblesse: str
     role: "la marchande du village : une commerçante rusée, à qui on ne la fait pas, et pour qui tout se marchande",
     faiblesse: "l'appât du gain. Un troc alléchant, un compliment sur ta marchandise ou une bonne affaire promise te font baisser la garde.",
   },
+  axolotl: {
+    role: "l'axolotl de la lagune : une petite bête rose et rieuse, curieuse de tout, qui garde le coffre comme un jeu et s'émerveille d'un rien",
+    faiblesse: "la curiosité. Qu'on te promette une surprise, un secret ou une histoire que tu ne connais pas, et tu veux tant savoir la suite que tu en oublies de te taire.",
+  },
+  sanglier: {
+    role: "le sanglier de la forêt : une bête têtue et gourmande, qui grogne ses phrases et ne recule devant personne",
+    faiblesse: "la gourmandise. Qu'on te parle de glands, de truffes, d'un festin ou d'une bonne soupe, et tu n'écoutes plus que ton ventre.",
+  },
+  loup: {
+    role: "le loup des neiges : un solitaire fier, à la parole rare et posée, qui veille depuis la lisière et se dit le plus rusé de la meute",
+    faiblesse: "l'orgueil du chasseur. Qu'on doute de ton flair, de ta ruse ou de ton courage, et tu veux prouver que nul ne te vaut.",
+  },
+  lezard: {
+    role: "le lézard des dunes : un paresseux malin, qui se chauffe au soleil, parle lentement et aime les devinettes",
+    faiblesse: "la paresse. Tu préfères une réponse courte à un long refus : qu'on te lasse, qu'on te promette la paix ou une pierre bien chaude, et tu cèdes un bout de ce que tu sais.",
+  },
+  corbeau: {
+    role: "le corbeau de la nuit : un oiseau savant et moqueur, qui collectionne ce qui brille et parle par sentences",
+    faiblesse: "ce qui brille. Un trésor promis, un objet rare, un compliment sur ta mémoire ou sur ton plumage, et tu te rengorges au point d'en dire trop.",
+  },
+  squelette: {
+    role: "le squelette de la grotte : un vieux gardien farceur, qui a tout son temps, rit de ses propres bons mots et s'ennuie beaucoup",
+    faiblesse: "l'ennui. Qu'on te fasse rire, qu'on te propose un jeu neuf ou une bonne blague, et tu es prêt à payer ce plaisir d'un indice.",
+  },
+  automate: {
+    role: "l'automate de bronze : une machine à rouages que le forgeron a bâtie pour garder le coffre, qui parle avec ordre et méthode et suit ses règles à la lettre",
+    faiblesse: "la logique. Qu'on te montre que tes propres règles se contredisent, ou qu'on te pose un raisonnement bien construit, et tu te sens tenu d'y répondre avec exactitude.",
+  },
+  givre: {
+    role: "le Gaulois de givre : un être de glace, calme et distant, à la parole claire et froide, que rien ne presse",
+    faiblesse: "la chaleur. Une parole vraiment gentille, un souvenir de printemps ou un geste d'amitié te font fondre un peu, et ta réserve avec.",
+  },
+  magma: {
+    role: "le Gaulois de magma : un être de lave au sang chaud, qui gronde, s'emporte et se calme aussi vite",
+    faiblesse: "la colère. Qu'on te pique au vif, et tu t'emportes : dans ta fureur, tu en dis plus que tu ne voudrais.",
+  },
+  ovni: {
+    role: "le visiteur des étoiles : un voyageur tombé du ciel une nuit de veillée, poli et étonné de tout, qui étudie le village et ses coutumes",
+    faiblesse: "l'envie d'apprendre. Qu'on t'explique une coutume du village, un mot que tu ignores ou un jeu d'ici, et tu veux tant comprendre que tu donnes en échange ce que tu sais.",
+  },
+  dragon: {
+    role: "le dragon de la montagne : un très vieux gardien de trésors, majestueux et sûr de lui, qui parle peu et de haut",
+    faiblesse: "la fierté de ton trésor. Qu'on dise que ton coffre ne vaut rien, que d'autres gardent mieux que toi ou qu'on a déjà vu plus beau, et tu ne peux t'empêcher de vanter ce que tu gardes.",
+  },
+};
+
+/* ---------- Le cycle des quinze manches à thème ---------- */
+
+/**
+ * Les niveaux d'une manche (demande du pilote, 17 novembre 2026 : « 0 à 5 facile, medium, fois 2 ; 5 à 10 difficile,
+ * fois 3 ; 10 à 15 très difficile, extrême, fois 4 ») : le palier de vigilance du gardien (`PALIERS`), par combien la
+ * cagnotte est multipliée pour qui ouvre le coffre, et, pour l'extrême, une fatigue deux fois plus lente à venir. Le
+ * serveur décide du multiplicateur (`internal.coffre_fois_du_rang`) ; ceci sert à la consigne, aux images et aux textes.
+ */
+export const NIVEAUX = {
+  facile: { mot: "facile", palier: 0, fois: 2, endurance: 1 },
+  moyen: { mot: "moyenne", palier: 1, fois: 2, endurance: 1 },
+  difficile: { mot: "difficile", palier: 2, fois: 3, endurance: 1 },
+  "tres-difficile": { mot: "très difficile", palier: 3, fois: 4, endurance: 1 },
+  extreme: { mot: "extrême", palier: 3, fois: 4, endurance: 2 },
+} as const;
+export type Niveau = keyof typeof NIVEAUX;
+
+/** Le nombre de manches d'un cycle : après la dernière, on repart de la première, avec de nouveaux mots. */
+export const MANCHES_PAR_CYCLE = 15;
+
+/** Le niveau de chaque manche du cycle, par son rang (1 à 15) : trois faciles, deux moyennes, cinq difficiles, trois très difficiles, deux extrêmes. */
+export const niveauDuRang = (rang: number): Niveau => (rang <= 3 ? "facile" : rang <= 5 ? "moyen" : rang <= 10 ? "difficile" : rang <= 13 ? "tres-difficile" : "extreme");
+
+/** Les quinze manches du cycle, dans l'ordre : le gardien de chacune (son thème est dans sa fiche) et son niveau. */
+export const MANCHES_DU_CYCLE: readonly { gardien: Gardien; niveau: Niveau }[] = GARDIENS.map((gardien, i) => ({ gardien, niveau: niveauDuRang(i + 1) }));
+
+/** La manche du cycle de ce rang, ou `null` : le serveur ne dit pas encore de rang (migration du cycle non posée). */
+export const mancheDuCycle = (rang: number | null | undefined): { gardien: Gardien; niveau: Niveau } | null =>
+  typeof rang === "number" && Number.isInteger(rang) && rang >= 1 && rang <= MANCHES_PAR_CYCLE ? (MANCHES_DU_CYCLE[rang - 1] ?? null) : null;
+
+/**
+ * Le palier de vigilance pendant une manche. Dans le cycle, il vient du niveau de la manche ; sans rang, il monte avec
+ * les coffres déjà ouverts, comme avant (`palierDuDruide`). Dans les deux cas il baisse d'un cran quand la manche
+ * s'éternise (deux fois plus tard pour une manche extrême), et d'un cran encore le soir de cervoise.
+ */
+export function palierDeLaManche(manche: { rang: number | null; essais: number }, niveau: number, soir: Soir | null = null): number {
+  const duCycle = mancheDuCycle(manche.rang);
+  if (!duCycle) return palierDuDruide(niveau, manche.essais, soir);
+  const n = NIVEAUX[duCycle.niveau];
+  return Math.max(0, n.palier - (manche.essais >= FATIGUE_ESSAIS * n.endurance ? 1 : 0) - (soir === "cervoise" ? 1 : 0));
+}
+
+/** Par combien la cagnotte de cette manche est multipliée, d'après son niveau ; `null` sans rang : la garde plus un, comme avant. */
+export const foisDeLaManche = (manche: { rang: number | null }): number | null => {
+  const duCycle = mancheDuCycle(manche.rang);
+  return duCycle ? NIVEAUX[duCycle.niveau].fois : null;
+};
+
+/** À partir de combien d'essais le gardien laisse échapper un indice à chaque réponse : deux fois plus tard pour l'extrême. */
+export const essaisAvantIndices = (manche: { rang: number | null }): number => {
+  const duCycle = mancheDuCycle(manche.rang);
+  return INDICES_ESSAIS * (duCycle ? NIVEAUX[duCycle.niveau].endurance : 1);
 };
 
 /** Un échange déjà joué dans la manche. */
@@ -253,6 +359,8 @@ export interface MancheDuCoffre {
   longueurDite: boolean;
   lettres: number[];
   indices: string[];
+  /** Son rang dans le cycle des quinze manches à thème (1 à 15), ou `null` si le serveur ne le dit pas. */
+  rang: number | null;
 }
 
 /** L'état du jeu, tel que le serveur le donne à l'ouverture d'un essai. */
@@ -300,11 +408,15 @@ export function parseManche(value: unknown): MancheDuCoffre | null {
   const essais = entier(manche?.["essais"]);
   if (!manche || id === null || essais === null || typeof mot !== "string" || !MOT_FORME.test(mot)) return null;
   const gardien = manche["gardien"];
+  // Dans le cycle, le rang dit le gardien et son thème ; la colonne du serveur ne sert plus que sans rang.
+  const rang = entier(manche["rang"]);
+  const duCycle = mancheDuCycle(rang);
   return {
     id,
     mot,
     essais,
-    gardien: estGardien(gardien) ? gardien : "druide",
+    rang: duCycle ? rang : null,
+    gardien: duCycle ? duCycle.gardien : estGardien(gardien) ? gardien : "druide",
     longueurDite: manche["longueur_dite"] === true,
     lettres: placesValides(manche["lettres"], mot.length),
     indices: textes(manche["indices"]).slice(0, INDICES_GARDES),
@@ -351,10 +463,11 @@ export interface Consigne {
 /** Ce que Claude lit avant de répondre en gardien. */
 export function consigneDuGardien(c: Consigne): string {
   const { manche } = c;
-  const palier = palierDuDruide(c.niveau, manche.essais, c.soir);
+  const palier = palierDeLaManche(manche, c.niveau, c.soir);
   const caractere = CARACTERES[manche.gardien];
   const parties = [
     `Tu joues ${caractere.role}, gardien du coffre, dans un jeu du serveur Discord d'un clan de joueurs, « Les Gaulois ». Les membres, que tu appelles les villageois, viennent te parler un par un, devant tout le village : chacun essaie de te faire dire le mot secret qui ouvre le coffre. C'est un jeu de ruse, bon enfant, et tous savent que tu es une intelligence artificielle qui tient un rôle.`,
+    ...(VILLAGEOIS.includes(manche.gardien) ? [] : ["Tu n'es pas un villageois, mais tu vis aux abords du village depuis toujours : tu connais ses habitants, ses fêtes et ses saisons, et c'est d'eux que viennent tes images."]),
     `Le mot secret de cette manche : « ${manche.mot} ».`,
     `Ta faiblesse de caractère : ${caractere.faiblesse}`,
     [
@@ -390,7 +503,7 @@ export function consigneDuGardien(c: Consigne): string {
   }
   parties.push(PALIERS[palier] ?? PALIERS[0] ?? "");
   if (c.soir === "cervoise") parties.push("Ce soir est un soir de cervoise : tu as bu un peu trop, tu es jovial et moins sur tes gardes que d'habitude.");
-  if (manche.essais >= INDICES_ESSAIS) {
+  if (manche.essais >= essaisAvantIndices(manche)) {
     parties.push(`La manche dure depuis ${manche.essais} essais et la veillée te fatigue : à chaque réponse, tu laisses échapper un petit indice vrai et nouveau sur ce que le mot désigne, sans dire le mot.`);
   }
   if (palier > 0 && c.ruses.length > 0) {
@@ -610,6 +723,9 @@ export interface Tirage {
   garde?: number | null;
   /** Ce que les lettres achetées de la manche avaient mis dans la cagnotte : gagné, mais pas multiplié. */
   lettres?: number;
+  /** Dans le cycle : le nombre de manches du cycle, et le niveau de celle-ci, en un mot (« difficile »). */
+  sur?: number | null;
+  niveau?: string | null;
 }
 
 /**
@@ -623,7 +739,7 @@ export function messageDuCoffre(t: Tirage, image: string | null = null): Json {
     // Les lettres achetées sont gagnées sans être multipliées : gain = mises fois le multiplicateur, plus les lettres.
     const lettres = Math.max(0, t.lettres ?? 0);
     const mises = Math.round((t.gain - lettres) / fois);
-    const face = t.garde ? ` face à un gardien à ${t.garde} sur ${FOIS_PAR_GARDE.length} de garde` : "";
+    const face = t.niveau ? ` pour une manche ${t.niveau}` : t.garde ? ` face à un gardien à ${t.garde} sur ${FOIS_PAR_GARDE.length} de garde` : "";
     const cagnotte =
       t.gain > 0
         ? fois > 1 && mises > 0
@@ -634,9 +750,9 @@ export function messageDuCoffre(t: Tirage, image: string | null = null): Json {
         : t.cagnotte > 0
           ? ` La cagnotte de ${t.cagnotte} statères reste dans le coffre : pour la gagner, il faut un compte validé sur le site, avec son Gaulois.`
           : "";
-    lignes.push(`${COUPE} **<@${t.discordId}> a ouvert le coffre !** Le mot était « ${t.gagne} », trouvé à l'essai ${t.essai} de la manche ${t.manche}.${cagnotte} Tout le village l'acclame ! Un nouveau mot est déjà sous clé, et un autre gardien prend son tour de garde.`);
+    lignes.push(`${COUPE} **<@${t.discordId}> a ouvert le coffre !** Le mot était « ${t.gagne} », trouvé à l'essai ${t.essai} de la manche ${t.manche}${t.sur ? ` sur ${t.sur}` : ""}.${cagnotte} Tout le village l'acclame ! Un nouveau mot est déjà sous clé, et un autre gardien prend son tour de garde.`);
   } else {
-    const ou = image === null ? `Manche ${t.manche}, essai ${t.essai}. ` : "";
+    const ou = image === null ? `Manche ${t.manche}${t.sur ? ` sur ${t.sur}` : ""}, essai ${t.essai}. ` : "";
     const mise = t.mise > 0 ? ` Mise : ${t.mise} statères, dans la cagnotte.` : "";
     lignes.push(`-# ${ou}${sansForme(t.nom)} : ${essaisEnMots(t.restants)} aujourd'hui.${mise}`);
   }
@@ -655,9 +771,16 @@ export function messageDuCoffre(t: Tirage, image: string | null = null): Json {
  * qu'un écran, puis le titre de la manche qui commence. Rien n'est effacé : la manche d'avant reste au-dessus.
  */
 export const LIGNES_VIDES_ENTRE_MANCHES = 45;
-export function separateurDeManche(prochaine: number): Json {
+export function separateurDeManche(prochaine: number, duCycle: boolean = false): Json {
+  const suivante = duCycle ? mancheDuCycle(prochaine) : null;
+  const annonce = suivante
+    ? [
+        `# Manche ${prochaine} sur ${MANCHES_PAR_CYCLE} · ${NIVEAUX[suivante.niveau].mot}`,
+        `${FICHES_DES_GARDIENS[suivante.gardien].nom} garde le coffre : ${FICHES_DES_GARDIENS[suivante.gardien].theme.toLowerCase()}. Ici, la cagnotte vaut fois ${NIVEAUX[suivante.niveau].fois}. À vous, villageois : /coffre`,
+      ]
+    : [`# Manche ${prochaine}`, "Un nouveau mot est sous clé, et un autre gardien monte la garde. À vous, villageois : /coffre"];
   // « _ _ » : une ligne que Discord affiche vide, sans la retirer.
-  const lignes = [...Array.from({ length: LIGNES_VIDES_ENTRE_MANCHES }, () => "_ _"), `# Manche ${prochaine}`, "Un nouveau mot est sous clé, et un autre gardien monte la garde. À vous, villageois : /coffre"];
+  const lignes = [...Array.from({ length: LIGNES_VIDES_ENTRE_MANCHES }, () => "_ _"), ...annonce];
   return {
     content: lignes.join(String.fromCharCode(10)),
     allowed_mentions: { parse: [] },
@@ -799,6 +922,12 @@ async function jouer(interaction: Json, joueur: { id: string; nom: string }, mes
       return await abandonner(COFFRE_MESSAGES.failed, coutDe(appel));
     }
     const gagne = clos["gagne"] === true;
+    // Dans le cycle, la manche se dit par son rang (« 3 sur 15 »), et son niveau fixe le multiplicateur.
+    const duCycle = mancheDuCycle(manche.rang);
+    const noDeManche = manche.rang ?? numero;
+    const sur = duCycle ? MANCHES_PAR_CYCLE : null;
+    const fois = foisDeLaManche(manche);
+    const garde = palierDeLaManche(manche, etat.niveau, etat.soir) + 1;
     // Le mot a été dit ou deviné, mais un autre vient d'ouvrir le coffre : la réponse du gardien ne se montre pas.
     if ((devine || dit) && !gagne) return await repondre({ content: COFFRE_MESSAGES.tooLate, allowed_mentions: { parse: [] } });
     const cagnotte = entier(clos["cagnotte"]) ?? etat.cagnotte;
@@ -809,7 +938,9 @@ async function jouer(interaction: Json, joueur: { id: string; nom: string }, mes
       message,
       reponse: texte,
       gardien: manche.gardien,
-      manche: numero,
+      manche: noDeManche,
+      sur,
+      niveau: duCycle ? NIVEAUX[duCycle.niveau].mot : null,
       essai: rang,
       restants: Math.max(0, etat.restants - 1),
       mise: entier(clos["mise"]) ?? 0,
@@ -824,7 +955,7 @@ async function jouer(interaction: Json, joueur: { id: string; nom: string }, mes
     let image: { png: Uint8Array<ArrayBuffer>; description: string } | null = null;
     try {
       if (gagne) {
-        const dessin = { gardien: manche.gardien, tenue: etat.tenue, mot: manche.mot, manche: numero, essai: rang, gain };
+        const dessin = { gardien: manche.gardien, tenue: etat.tenue, mot: manche.mot, manche: noDeManche, sur, essai: rang, gain };
         image = { png: await pngDeLaVictoire(dessin), description: decrireLaVictoire(dessin) };
       } else {
         const secours: Tableau = { mot: manche.mot, longueurDite: manche.longueurDite || lue?.longueurDite === true, lettres, indices: manche.indices };
@@ -833,9 +964,11 @@ async function jouer(interaction: Json, joueur: { id: string; nom: string }, mes
           humeur: lue?.humeur ?? "mefiant",
           tenue: etat.tenue,
           tableau: tableauApres(clos["tableau"], manche.mot, secours),
-          manche: numero,
+          manche: noDeManche,
+          sur,
+          fois,
           essai: rang,
-          garde: palierDuDruide(etat.niveau, manche.essais, etat.soir) + 1,
+          garde,
           cagnotte,
           soir: etat.soir,
         };
@@ -846,12 +979,12 @@ async function jouer(interaction: Json, joueur: { id: string; nom: string }, mes
     }
     await repondre(messageDuCoffre(tirage, image?.description ?? null), image ? [{ name: COFFRE_FILE, type: "image/png", bytes: image.png }] : undefined);
     // La mise vient-elle de faire passer un seuil à la cagnotte ? Le salon l'apprend par une image.
-    if (!gagne) await alerterLaCagnotte(interaction, cagnotte - tirage.mise, cagnotte, { gardien: manche.gardien, tenue: etat.tenue, garde: palierDuDruide(etat.niveau, manche.essais, etat.soir) + 1 }, deps);
+    if (!gagne) await alerterLaCagnotte(interaction, cagnotte - tirage.mise, cagnotte, { gardien: manche.gardien, tenue: etat.tenue, garde, fois }, deps);
     if (gagne) {
       // Le bilan de la manche, avant le vide qui la sépare de la suivante.
-      await posterLeBilan(interaction, manche, numero, joueur.nom, deps);
+      await posterLeBilan(interaction, manche, noDeManche, joueur.nom, deps);
       // Le salon repart propre pour la manche suivante. Si ce message ne part pas, le jeu continue sans lui.
-      if (isId(appId) && typeof token === "string" && /^[A-Za-z0-9._-]{20,500}$/.test(token)) await deps.webhook("POST", `/webhooks/${appId}/${token}`, { body: separateurDeManche(numero + 1) });
+      if (isId(appId) && typeof token === "string" && /^[A-Za-z0-9._-]{20,500}$/.test(token)) await deps.webhook("POST", `/webhooks/${appId}/${token}`, { body: duCycle && manche.rang ? separateurDeManche((manche.rang % MANCHES_PAR_CYCLE) + 1, true) : separateurDeManche(numero + 1) });
       await passerLeRole(clos["champion"], clos["ancien_champion"], deps);
     }
   } catch (e) {
@@ -971,6 +1104,8 @@ export interface EtatDuTableau {
   cagnotte: number;
   essaisParMembre: number | null;
   prixLettre: number | null;
+  /** Le cycle des quinze manches à thème est-il lancé ? Le serveur le dit ; sinon, la manche ouverte, par son rang. */
+  cycle: boolean;
 }
 
 export function parseTableau(value: unknown): EtatDuTableau | null {
@@ -983,6 +1118,7 @@ export function parseTableau(value: unknown): EtatDuTableau | null {
   const essais = entier(lu["essais_par_membre"]);
   return {
     manche: parseManche(lu["manche"]),
+    cycle: lu["cycle"] === true || parseManche(lu["manche"])?.rang != null,
     numero,
     niveau,
     soir: estSoir(soir) ? soir : null,
@@ -995,9 +1131,11 @@ export function parseTableau(value: unknown): EtatDuTableau | null {
 const dessinDuTableau = (etat: EtatDuTableau, manche: MancheDuCoffre, achat: DessinDuTableau["achat"] = null): DessinDuTableau => ({
   gardien: manche.gardien,
   tableau: { mot: manche.mot, longueurDite: manche.longueurDite, lettres: manche.lettres, indices: manche.indices },
-  manche: Math.max(1, etat.numero),
+  manche: manche.rang ?? Math.max(1, etat.numero),
+  sur: manche.rang ? MANCHES_PAR_CYCLE : null,
+  fois: foisDeLaManche(manche),
   essais: manche.essais,
-  garde: palierDuDruide(etat.niveau, manche.essais, etat.soir) + 1,
+  garde: palierDeLaManche(manche, etat.niveau, etat.soir) + 1,
   cagnotte: etat.cagnotte,
   prixLettre: etat.prixLettre,
   achat,
@@ -1097,6 +1235,7 @@ async function posterLeBilan(interaction: Json, manche: MancheDuCoffre, numero: 
       gardien: manche.gardien,
       mot: manche.mot,
       manche: numero,
+      sur: manche.rang ? MANCHES_PAR_CYCLE : null,
       gagnant,
       essais,
       joueurs,
@@ -1132,7 +1271,7 @@ export async function indiceCommand(interaction: Json, deps: Pick<Deps, "guildId
   if (!etat || !etat.manche || place === null || prix === null) return prive(COFFRE_MESSAGES.down);
   const dessin = dessinDuTableau(etat, etat.manche, { nom, place, prix });
   const description = decrireLeTableau(dessin);
-  deps.background(alerterLaCagnotte(interaction, etat.cagnotte - prix, etat.cagnotte, { gardien: etat.manche.gardien, tenue: lireTenue(lu["tenue"]), garde: dessin.garde }, deps));
+  deps.background(alerterLaCagnotte(interaction, etat.cagnotte - prix, etat.cagnotte, { gardien: etat.manche.gardien, tenue: lireTenue(lu["tenue"]), garde: dessin.garde, fois: dessin.fois }, deps));
   try {
     return reponseEnImage(await pngDuTableau(dessin), TABLEAU_FILE, description, false);
   } catch (e) {
@@ -1146,7 +1285,7 @@ export async function aideCommand(interaction: Json, deps: Pick<Deps, "guildId" 
   const refus = horsDuSalon(interaction, deps);
   if (refus) return refus;
   const etat = parseTableau(await deps.rpc("coffre_tableau", {}));
-  const aide: DessinDeLAide = { mise: MISE_DU_COFFRE, prixDesLettres: PRIX_DES_LETTRES, essais: etat?.essaisParMembre ?? null };
+  const aide: DessinDeLAide = { mise: MISE_DU_COFFRE, prixDesLettres: PRIX_DES_LETTRES, essais: etat?.essaisParMembre ?? null, cycle: etat?.cycle === true };
   const description = decrireLAide(aide);
   try {
     return reponseEnImage(await pngDeLAide(aide), AIDE_FILE, description, false);

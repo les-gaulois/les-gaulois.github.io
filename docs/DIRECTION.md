@@ -713,6 +713,33 @@ Demandé par le pilote le 16 novembre 2026 : un jeu « trop rigolo » sur le ser
 - **Le bilan d'une manche** : quand un coffre s'ouvre, une image dit le mot, le nombre d'essais répondus, de villageois, de lettres vendues, la durée de la manche, qui l'a ouverte et qui a le plus essayé (`coffre_bilan`). Elle part avant le vide entre deux manches.
 - **Une écriture lisible** (remarque du pilote, 17 novembre 2026 : « que les lettres des images soient correctement lisibles ») : ces panneaux écrivent leur texte à la taille 3 de la petite écriture (15 pixels de haut), en phrases courtes. Le tableau ne repasse à la taille 2 que si tous ses indices ne tiennent pas autrement.
 
+**Le cycle des quinze manches à thème** (demande du pilote, 17 novembre 2026 : « un thème par round avec sa propre image et ses propres personnages, 15 rounds en tout, avec différentes difficultés : 0 à 5 facile, medium, fois 2 ; 5 à 10 difficile, fois 3 ; 10 à 15 très difficile, extrême, fois 4 » ; migration `20261117000800_coffre_cycle_des_manches.sql`, à coller par `.cache/a-coller-coffre-cycle.sql`, `npx tsx scripts/a-coller-coffre-cycle.ts`, dernière ligne « cycle des manches du coffre : lancé »). **Ordre de mise en ligne : la fonction d'abord, le SQL ensuite.** Sans rang, le nouveau robot se comporte comme l'ancien ; mais l'ancien robot, lui, ne connaît ni les quinze gardiens ni leur multiplicateur, et annoncerait « fois 5 » là où le serveur verse fois 4. Ce fichier se colle après celui de la lettre et du tableau :
+
+| Manche | Gardien | Décor | Niveau | Cagnotte |
+|---|---|---|---|---|
+| 1 | Le druide | La clairière du druide | facile | fois 2 |
+| 2 | Le forgeron | La forge du village | facile | fois 2 |
+| 3 | Le barde | La taverne | facile | fois 2 |
+| 4 | La marchande | La place du marché | moyenne | fois 2 |
+| 5 | L'axolotl | L'archipel turquoise | moyenne | fois 2 |
+| 6 | Le sanglier | La forêt dorée | difficile | fois 3 |
+| 7 | Le loup | La nuit de neige | difficile | fois 3 |
+| 8 | Le lézard | Les dunes et l'oasis | difficile | fois 3 |
+| 9 | Le corbeau | La nuit des citrouilles | difficile | fois 3 |
+| 10 | Le squelette | La grotte aux cristaux | difficile | fois 3 |
+| 11 | L'automate de bronze | La forge du volcan | très difficile | fois 4 |
+| 12 | Le Gaulois de givre | La cathédrale de glace | très difficile | fois 4 |
+| 13 | Le Gaulois de magma | Les chutes de lave | très difficile | fois 4 |
+| 14 | Le visiteur des étoiles | Sous la nébuleuse | extrême | fois 4 |
+| 15 | Le dragon | Le dragon de pierre | extrême | fois 4 |
+
+- **Rien de neuf n'est dessiné** : les quatre premiers gardiens sont ceux d'avant, dans leur lieu du village ; les onze suivants sont les Gaulois uniques de la garde-robe (`modeles/`), du plus commun au légendaire, chacun devant une bannière du catalogue montrée sans son cadre (`fondDeLaBanniere`). Chacun a son caractère et sa faiblesse, écrits dans `CARACTERES` de `coffre.ts` ; aucun n'est tiré d'une œuvre existante. La liste est `MANCHES_DU_CYCLE` (l'ordre de `GARDIENS`).
+- **Le niveau fait la vigilance** (`NIVEAUX`, `palierDeLaManche`) : facile, moyenne, difficile, très difficile et extrême donnent les paliers 1, 2, 3, 4 et 4 du tableau plus haut. Le nombre de coffres déjà ouverts ne compte plus. La fatigue (un palier de moins après 40 essais, un indice à chaque réponse après 80) et le soir de cervoise jouent comme avant ; dans une manche extrême, la fatigue vient deux fois plus tard (80 et 160 essais) : c'est ce qui la distingue de « très difficile ».
+- **Le niveau fait le multiplicateur**, plus la garde : le serveur multiplie les mises par 2, 3 ou 4 selon le rang de la manche (`internal.coffre_fois_du_rang`), au lieu de la garde plus un (fois 2 à fois 5). Les lettres achetées restent hors de la prime. L'image de chaque essai écrit « manche 7/15 » et « fois 3 » ; ses boucliers montrent toujours la vigilance du moment. À savoir : le soir de cervoise et après la fatigue, la vigilance baisse mais plus le multiplicateur.
+- **Après la quinzième manche, le cycle repart de la première**, avec de nouveaux mots (choix de Claude, que le pilote n'a pas tranché : le jeu dure jusqu'au 15 décembre). Le vide entre deux manches annonce la suivante : son rang, son niveau, son gardien, son décor et son multiplicateur.
+- **Le serveur ne garde que le début du cycle** : `internal.coffre_reglages.cycle_base`, le numéro de la dernière manche d'avant. Le rang d'une manche est sa place après ce numéro, de 1 à 15 puis de nouveau 1 (`internal.coffre_rang`), que `coffre_manche_ouverte` rend au robot. Vide, il n'y a pas de cycle et tout marche comme avant : le robot peut passer avant le SQL. Le fichier à coller le remplit une seule fois, avec le numéro de la dernière manche qui existe : le cycle commence à la manche suivante, et la manche en cours finit comme elle a commencé (même gardien, même garde, même multiplicateur), pour que personne n'ouvre à vigilance faible un coffre rempli sous une garde dure. `coffre_tableau` dit au robot si le cycle est lancé (« cycle »), pour que l'aide n'annonce les quinze manches que s'il tourne.
+- **Relancer le cycle à la manche 1, à la prochaine manche**, dans l'éditeur SQL : `update internal.coffre_reglages set cycle_base = (select coalesce(max(id), 0) from internal.coffre_manches) where id;`. **Arrêter le cycle** et revenir aux quatre gardiens : `update internal.coffre_reglages set cycle_base = null where id;`.
+
 **Ce qui est gardé** (page Confidentialité, « Sur le serveur Discord du clan ») : chaque essai (identifiant et nom Discord, message, réponse, heure) pendant 30 jours, effacé ensuite chaque nuit par pg_cron (tâche `gal-coffre`) ; le gagnant de chaque manche et, quand le druide a lâché le mot, le message qui l'a fait tomber. Anthropic reçoit le message, le nom porté sur le serveur et les derniers échanges, jamais l'identifiant Discord.
 
 **Installer le jeu**, une fois, par le pilote, dans cet ordre :

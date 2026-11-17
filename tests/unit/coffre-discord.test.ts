@@ -52,7 +52,7 @@ const JOUEUR = "111111111111111111";
 const APP = "222222222222222222";
 const INTERACTION = "333333333333333333";
 const TOKEN = "jeton-de-l-interaction-0123456789";
-const manche = (extra: Partial<MancheDuCoffre> = {}): MancheDuCoffre => ({ id: 2, mot: "menhir", essais: 0, gardien: "druide", longueurDite: false, lettres: [], indices: [], ...extra });
+const manche = (extra: Partial<MancheDuCoffre> = {}): MancheDuCoffre => ({ id: 2, mot: "menhir", essais: 0, gardien: "druide", longueurDite: false, lettres: [], indices: [], rang: null, ...extra });
 
 describe("le mot : deviné par le membre", () => {
   it("compte le mot entier, à l'accent, à la majuscule et au pluriel près", () => {
@@ -168,7 +168,7 @@ describe("la vigilance du druide", () => {
     expect(connu).toContain("ses lettres aux places 1, 4");
     expect(connu).toContain("« une pierre »");
     expect(connu).toContain("soir de cervoise");
-    expect(new Set(Object.values(CARACTERES).map((c) => c.faiblesse)).size).toBe(4);
+    expect(new Set(Object.values(CARACTERES).map((c) => c.faiblesse)).size).toBe(15);
   });
 
   it("la conversation rejoue les derniers échanges, chaque membre nommé", () => {
@@ -326,7 +326,7 @@ describe("l'état rendu par le serveur", () => {
   it("se lit sans rien croire", () => {
     expect(parseEtat({ essai: 5, manche: { id: 2, mot: "menhir", essais: 3 }, niveau: 1, passes: ["enclume", 4], ruses: ["x"], historique: [{ nom: "A", message: "m", reponse: "r" }, { nom: "B" }], restants: 7 })).toEqual({
       essai: 5,
-      manche: { id: 2, mot: "menhir", essais: 3, gardien: "druide", longueurDite: false, lettres: [], indices: [] },
+      manche: { id: 2, mot: "menhir", essais: 3, gardien: "druide", longueurDite: false, lettres: [], indices: [], rang: null },
       niveau: 1,
       passes: ["enclume"],
       ruses: ["x"],
@@ -338,9 +338,9 @@ describe("l'état rendu par le serveur", () => {
     });
     // Le gardien, le tableau, le soir et la cagnotte de la seconde migration ; rien n'est cru sans contrôle.
     const complet = parseEtat({ essai: 5, manche: { id: 2, mot: "menhir", essais: 3, gardien: "barde", longueur_dite: true, lettres: [4, 1, 1, 9, "x"], indices: ["une pierre", 3] }, niveau: 1, restants: 7, soir: "veillee", cagnotte: 120, tenue: { peau: "x" } });
-    expect(complet?.manche).toEqual({ id: 2, mot: "menhir", essais: 3, gardien: "barde", longueurDite: true, lettres: [1, 4], indices: ["une pierre"] });
+    expect(complet?.manche).toEqual({ id: 2, mot: "menhir", essais: 3, gardien: "barde", longueurDite: true, lettres: [1, 4], indices: ["une pierre"], rang: null });
     expect(complet).toMatchObject({ soir: "veillee", cagnotte: 120, tenue: null });
-    expect(parseManche({ id: 2, mot: "menhir", essais: 0, gardien: "dragon" })?.gardien).toBe("druide");
+    expect(parseManche({ id: 2, mot: "menhir", essais: 0, gardien: "licorne" })?.gardien).toBe("druide");
     expect(parseEtat({ essai: 5, manche: null, niveau: 0, restants: 10, soir: "noel" })?.soir).toBeNull();
     expect(parseEtat({ essai: 5, manche: null, niveau: 0, restants: 10 })?.manche).toBeNull();
     expect(parseEtat({ essai: 5, manche: { id: 2, mot: "Pas Un Mot", essais: 0 }, niveau: 0, restants: 10 })?.manche).toBeNull();

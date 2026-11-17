@@ -53,7 +53,7 @@ select 'lettre, tableau et bilan du coffre : '
        and has_function_privilege('service_role', 'public.coffre_tableau()', 'execute')
        and has_function_privilege('service_role', 'public.coffre_indice(text, text)', 'execute')
        and has_function_privilege('service_role', 'public.coffre_bilan(bigint)', 'execute')
-       and (select p.prosrc like '%cardinality(indices) < 12%' from pg_proc p join pg_namespace s on s.oid = p.pronamespace where s.nspname = 'public' and p.proname = 'coffre_clore')
+       and (select p.prosrc like '%cardinality(indices) < 12%' from pg_proc p join pg_namespace s on s.oid = p.pronamespace where s.nspname = 'public' and p.proname = 'coffre_clore' and p.pronargs = 10)
        and exists (select 1 from supabase_migrations.schema_migrations where version = '20261117000700')
      then 'installé' else 'PAS INSTALLÉ' end as controle;
 `;
