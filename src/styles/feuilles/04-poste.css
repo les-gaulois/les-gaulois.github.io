@@ -663,6 +663,26 @@ footer h2 {
 .podium-carte[data-metal="argent"] {
   --metal: #aab4c8;
 }
+/* Hors du podium (la fiche d'un membre) : pas de métal, un liseré marine clair. */
+.podium-carte[data-metal="aucun"] {
+  --metal: #7d8fd0;
+}
+/* La carte d'un membre sur sa fiche (CarteDeMembre.astro) : à droite de ses informations, trois pixels la case ; au
+   milieu, au-dessus d'elles, sur téléphone. */
+.carte-membre {
+  --px: 3px;
+  float: right;
+  margin: 0 0 1rem 2rem;
+}
+@media (max-width: 47.99rem) {
+  .carte-membre {
+    --px: 2.5px;
+    float: none;
+    display: flex;
+    justify-content: center;
+    margin: 0 0 1.25rem;
+  }
+}
 /* L'anneau du site (var(--anneau)), un peu écarté : l'or et l'argent seraient trop pâles sur la page blanche. */
 .podium-carte:focus-visible {
   outline: 3px solid var(--anneau);

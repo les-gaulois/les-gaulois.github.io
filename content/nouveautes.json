@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-17",
+    "kind": "nouveau",
+    "title": "La carte du membre sur sa fiche",
+    "body": "Sur la fiche d'un membre qui a créé son Gaulois, sa carte paraît en haut : son Gaulois devant sa bannière, avec la finition qu'il a choisie au rayon Cartes de la boutique.",
+    "link": {
+      "href": "/membres",
+      "label": "Membres"
+    }
+  },
+  {
+    "date": "2026-11-17",
     "kind": "ameliore",
     "rank": "top",
     "title": "La loterie passe au mardi, premier tirage ce soir",

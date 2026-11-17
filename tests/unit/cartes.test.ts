@@ -7,6 +7,8 @@ import { FINITIONS, FINITIONS_ANIMEES } from "../../src/lib/fx/finitions-carte";
 import { empreinte } from "../../src/lib/gaulois-joueurs";
 import { CARTES, REFLETS, finitionParId, lireMesCartes, refusDeCarte } from "../../src/lib/village/cartes";
 import { PLACE_DE_LA_BANNIERE, volVersLeDecor } from "../../src/lib/village/livre-bannieres";
+import { VIGNETTE_HAUTEUR, VIGNETTE_LARGEUR, lireLePng, vignetteDeLaCarte } from "../../src/lib/village/cartes-vignettes";
+import { lireReponseDesAchats, nouveautes, titreEnMots, vignetteDeLAchat, choseDe } from "../../src/lib/achats-discord";
 
 const MIGRATION = readFileSync("supabase/migrations/20261117001200_cartes_du_gaulois.sql", "utf8").replace(/\r\n/g, "\n");
 const FEUILLE = readFileSync("src/styles/feuilles/04-poste.css", "utf8");
@@ -129,5 +131,32 @@ describe("le livre des bannières avec un autre dessin", () => {
     expect(vol?.echelle).toBeCloseTo(2.5);
     expect(vol?.dx).toBeCloseTo(275);
     expect(vol?.dy).toBeCloseTo(400 - 250 * (160 / 96) - 500);
+  });
+});
+
+describe("les images fixes des finitions, pour l'annonce des achats sur Discord", () => {
+  it("a une image de 48 sur 80 pour chacune des trente-trois finitions, sans case vide", () => {
+    for (const c of CARTES) {
+      const v = vignetteDeLaCarte(c.id);
+      expect(v, c.id).not.toBeNull();
+      expect([v?.largeur, v?.hauteur], c.id).toEqual([VIGNETTE_LARGEUR, VIGNETTE_HAUTEUR]);
+      expect(v?.cases.every((couleur) => couleur !== null && /^#[0-9a-f]{6}$/.test(couleur)), c.id).toBe(true);
+    }
+    expect(vignetteDeLaCarte("nexiste-pas")).toBeNull();
+    expect(vignetteDeLaCarte("radar", "dossier/absent")).toBeNull();
+    expect(lireLePng(new Uint8Array([1, 2, 3]))).toBeNull();
+  });
+
+  it("annonce une finition achetée à la boutique, avec son image, son nom et sa rareté", () => {
+    const achat = { emplacement: "carte", objet: "champignon-atomique" } as const;
+    expect(choseDe(achat)).toEqual({ nom: "Champignon atomique", rarete: "legendaire", place: "finition de carte" });
+    expect(vignetteDeLAchat(achat)?.largeur).toBe(VIGNETTE_LARGEUR);
+    expect(nouveautes([achat])).toBe("1 nouvelle finition de carte");
+    expect(nouveautes([achat, achat])).toBe("2 nouvelles finitions de carte");
+    const ligne = { id: 1, nature: "achat", emplacement: "carte", objet: "radar", compte: 7, nom: "Gaulois n° 7", discord: "Exemple", le: "2026-11-17T20:05:00.000Z" };
+    expect(titreEnMots({ nom: "Gaulois n° 7", discord: "Exemple", achats: [{ ...ligne, nature: "achat", emplacement: "carte" }] }, "@Exemple")).toBe("@Exemple a une nouvelle finition de carte");
+    // Le serveur : la finition est lue ; sous une autre nature, ou inconnue du rayon, la ligne est écartée.
+    const lue = lireReponseDesAchats({ ok: true, jusqu_a: 3, achats: [ligne, { ...ligne, id: 2, nature: "pochette" }, { ...ligne, id: 3, objet: "nexiste-pas" }] });
+    expect(lue?.achats.map((a) => [a.id, a.emplacement, a.objet])).toEqual([[1, "carte", "radar"]]);
   });
 });

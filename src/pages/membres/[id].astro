@@ -6,11 +6,14 @@ import MapNamesCredit from "../../components/MapNamesCredit.astro";
 import { NiveauEmblem } from "../../components/NiveauEmblem";
 import { AXES, TITRE_DE_L_AXE } from "../../lib/rejeu/bilan-ecran";
 import { classementDuSite } from "../../lib/rejeu/utiles-site";
+import CarteDeMembre from "../../components/CarteDeMembre.astro";
 import PageHeader from "../../components/PageHeader.astro";
 import ReadingNote from "../../components/ReadingNote.astro";
 import { clan } from "../../../config/clan";
 import { banniereParId } from "../../../supabase/functions/code-discord/bannieres/index";
 import { BANNIERES_MEMBRES_FILE, bannieresDuCache } from "../../lib/bannieres-joueurs";
+import { FINITIONS_MEMBRES_FILE, finitionsDuCache } from "../../lib/finitions-joueurs";
+import { portraitDuGaulois } from "../../lib/gaulois-site";
 import { loadCompagnonsDeFlamme, loadMemberGames, loadMemberResultsOnce, loadMembers, loadMeta, loadRecordsPersonnels, loadSeriesEnCours, loadSessionIndex } from "../../lib/data";
 import { fmtCount, fmtDate, fmtDateTime, fmtInt, fmtPct } from "../../lib/format";
 import { ficheFacts, ficheImageAlt } from "../../lib/fiche-image";
@@ -85,6 +88,10 @@ const RARETE_DITE = { commun: "commune", "peu-commun": "peu commune", epique: "�
 const fond = banniere
   ? { classe: " stage-banniere", style: `--banniere: url("${base}/bannieres/${encodeURIComponent(banniere.id)}.png")`, id: banniere.id, rarete: banniere.rarete }
   : { classe: "", style: undefined, id: undefined, rarete: undefined };
+// Sa carte (demande du pilote, 17 novembre 2026 : mettre en valeur les effets des cartes) : son Gaulois devant sa bannière
+// et la finition qu'il montre, relevés avant la construction (src/lib/finitions-joueurs.ts). Sans Gaulois créé : pas de carte.
+const portraitDeCarte = portraitDuGaulois(member.publicId);
+const finitionDeCarte = member.publicId ? (finitionsDuCache(FINITIONS_MEMBRES_FILE, [member.publicId]).get(member.publicId) ?? null) : null;
 // Son utilité dans les parties à revoir (demande du pilote, 17 novembre 2026 : « l'utilité sur la fiche du membre, sa moyenne
 // et ses titres ») : sa ligne du classement « Les plus utiles » (src/lib/rejeu/utiles-site.ts), s'il y est. Le pseudo doit
 // désigner ce membre et lui seul : le classement est rangé par pseudo. Sans ligne : rien, ce n'est pas zéro.
@@ -104,6 +111,16 @@ const tiles = member.team
 <Base title={username} description={`Fiche de ${username}, membre du clan ${clan.tag} : ses parties d'équipe sous le tag.`} noindex image={image} imageAlt={imageAlt}>
   <div class="wrap">
     <PageHeader title={username} lettrine={false} intro={`Membre de [${clan.tag}] depuis le ${fmtDate(member.joinedAt)}.`}>
+      {/* Sa carte, décorative : à droite de ses informations, comme sur le podium de l'accueil. */}
+      {portraitDeCarte && (
+        <CarteDeMembre
+          portrait={portraitDeCarte}
+          banniere={banniere ? `/bannieres/${encodeURIComponent(banniere.id)}.png` : null}
+          finition={finitionDeCarte}
+          nom={username}
+          mot={member.team ? fmtCount(member.team.wins, "victoire") : null}
+        />
+      )}
       {/* Vide pour un visiteur : sa photo Discord, s'il a choisi de se montrer, pour un membre validé connecté (src/scripts/visages.ts). */}
       <span class="face-slot face-slot-lg mt-4" aria-hidden="true" data-face={face} hidden></span>
       {ROLE[member.role] && <p class="mt-2 font-semibold" data-testid="member-role">{ROLE[member.role]}</p>}

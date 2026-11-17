@@ -1,0 +1,58 @@
+---
+/**
+ * La carte d'un membre, seule (17 novembre 2026, sur sa fiche, à la demande du pilote : « mettre en valeur les effets des
+ * cartes ») : la même carte que celles du podium de l'accueil (`CartesPodium.astro`, styles de `04-poste.css`), sans place
+ * ni liseré de métal. Son Gaulois sort de la carte, devant la bannière qu'il montre et la finition qu'il a choisie au rayon
+ * « Cartes » de la boutique ; sans finition, le reflet offert. Décorative : le pseudo et ses chiffres sont écrits sur la page.
+ *
+ * À prévoir (demande du pilote, même jour : « faut qu'on puisse un jour ajouter le familier s'ils en ont ») : le familier
+ * du membre aura sa place sur la carte, à côté du Gaulois, dans `.podium-carte-gaulois` ou juste après lui. Toute retouche
+ * de la carte doit garder cette place libre, en bas à droite du Gaulois.
+ */
+import { HAUTEUR_DE_TOILE, LARGEUR_DE_TOILE } from "../lib/fx/finitions-carte";
+import { echelleDuGaulois } from "../lib/cartes-podium";
+import type { PortraitDeGaulois } from "../lib/gaulois-site";
+import { finitionParId } from "../lib/village/cartes";
+
+interface Props {
+  portrait: PortraitDeGaulois;
+  /** L'adresse de l'image de sa bannière (sans la base du site), ou `null`. */
+  banniere: string | null;
+  /** La finition qu'il montre, ou `null` : le reflet offert. Un nom inconnu est ignoré. */
+  finition: string | null;
+  nom: string;
+  /** La ligne sous le nom : « 212 victoires ». */
+  mot?: string | null;
+  class?: string;
+}
+const { portrait, banniere, finition, nom, mot = null, class: classe } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const choisie = finitionParId(finition);
+const echelle = echelleDuGaulois(portrait);
+// Quatre couches de la même image, de la plus lointaine à la plus proche : l'épaisseur du Gaulois.
+const COUCHES = [3, 2, 1, 0];
+---
+
+<div class:list={["carte-membre", classe]} data-carte-membre aria-hidden="true" data-testid="member-card">
+  <div class="podium-carte-case">
+    <div class="podium-carte" data-metal="aucun" data-finition={choisie?.id} data-reflet={choisie && !choisie.animee ? "" : undefined}>
+      <span class="podium-carte-face" style={banniere ? `--banniere:url("${base}${banniere}")` : undefined}>
+        <canvas class="podium-carte-fx" data-toile="fond" width={LARGEUR_DE_TOILE} height={HAUTEUR_DE_TOILE}></canvas>
+        <i class="podium-carte-holo"></i>
+        <i class="podium-carte-eclat"></i>
+      </span>
+      <span class="podium-carte-gaulois" style={`--w:${portrait.largeur};--h:${portrait.hauteur};--e:${echelle.toFixed(3)}`}>
+        {COUCHES.map((k) => <img src={`${base}${portrait.image}`} width={portrait.largeur} height={portrait.hauteur} alt="" decoding="async" draggable="false" style={`--k:${k}`} />)}
+      </span>
+      <canvas class="podium-carte-fx podium-carte-fx-devant" data-toile="devant" width={LARGEUR_DE_TOILE} height={HAUTEUR_DE_TOILE}></canvas>
+      <span class="podium-carte-bas">
+        <span class="podium-carte-nom">{nom}</span>{" "}
+        {mot && <span class="podium-carte-score tnum">{mot}</span>}
+      </span>
+    </div>
+  </div>
+</div>
+
+<script>
+  import "../scripts/cartes-podium";
+</script>

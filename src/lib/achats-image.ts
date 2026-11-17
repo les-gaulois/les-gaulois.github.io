@@ -15,7 +15,7 @@
  */
 import sharp, { type OverlayOptions } from "sharp";
 import type { Decor } from "./village/decor";
-import { annonceEnMots, BANNIERE, choseDe, dateLongue, FAMILIER, heureEnMots, MODELE, nouveautes, origineDe, PAYE_EN_STATERES, type AchatDuVillage, type AnnonceDesAchats, type ChoseRecue } from "./achats-discord";
+import { annonceEnMots, BANNIERE, CARTE, choseDe, dateLongue, FAMILIER, heureEnMots, MODELE, nouveautes, origineDe, PAYE_EN_STATERES, type AchatDuVillage, type AnnonceDesAchats, type ChoseRecue } from "./achats-discord";
 import { RARETES_DES_OBJETS as RARETES, type RareteDObjet as Rarete, type Vignette } from "./gaulois";
 import { CARD_COLORS as C, fitted, kpiParts, LOGO, MARGIN, pageFoot, pageHead, renderGazetteCard, type CardRect, type CardText, type GazetteCard, type GazetteFonts, type Measure } from "./gazette-image";
 import { shownAddress } from "./salon-discord";
@@ -154,12 +154,13 @@ const DETAIL_ORIGINE = { achat: "au prix de sa rareté", pochette: "un objet tir
 function detailDeLOrigine(achat: AchatDuVillage): string {
   if (achat.emplacement === FAMILIER) return "un familier tiré au sort";
   if (achat.emplacement === BANNIERE) return "le fond de son image /gaulois";
+  if (achat.emplacement === CARTE) return "la finition de sa carte du podium";
   if (achat.emplacement === MODELE) return achat.nature === "pochette" ? "un Gaulois unique tiré au sort" : "un corps de créature pour son Gaulois";
   return DETAIL_ORIGINE[achat.nature];
 }
 
 /** Le nom de ce qui a été reçu, au-dessus de son nom : « Objet », « Familier », « Bannière » ou « Gaulois unique ». */
-const SORTES: Readonly<Record<string, string>> = { [FAMILIER]: "Familier", [BANNIERE]: "Bannière", [MODELE]: "Gaulois unique" };
+const SORTES: Readonly<Record<string, string>> = { [FAMILIER]: "Familier", [BANNIERE]: "Bannière", [MODELE]: "Gaulois unique", [CARTE]: "Finition de carte" };
 const sorteDeLAchat = (achat: AchatDuVillage): string => SORTES[achat.emplacement] ?? "Objet";
 
 /**
@@ -186,8 +187,9 @@ export function achatsCard(annonce: AnnonceDesAchats, vignettes: readonly (Vigne
   const { achats } = annonce;
   const n = achats.length;
   const seul = achats[0]?.emplacement;
-  const UN_SEUL: Readonly<Record<string, string>> = { [FAMILIER]: "Nouveau familier pour son Gaulois", [BANNIERE]: "Nouvelle bannière pour son Gaulois", [MODELE]: "Nouveau Gaulois unique" };
-  const kicker = n === 1 ? (UN_SEUL[seul ?? ""] ?? "Nouvel objet pour son Gaulois") : `${nouveautes(achats)} pour son Gaulois`;
+  const UN_SEUL: Readonly<Record<string, string>> = { [FAMILIER]: "Nouveau familier pour son Gaulois", [BANNIERE]: "Nouvelle bannière pour son Gaulois", [MODELE]: "Nouveau Gaulois unique", [CARTE]: "Nouvelle finition pour sa carte" };
+  // Plusieurs finitions de carte seules : « 2 nouvelles finitions de carte », sans « pour son Gaulois ».
+  const kicker = n === 1 ? (UN_SEUL[seul ?? ""] ?? "Nouvel objet pour son Gaulois") : achats.every((a) => a.emplacement === CARTE) ? nouveautes(achats) : `${nouveautes(achats)} pour son Gaulois`;
   // Un nom Discord peut compter 32 lettres larges : le titre descend jusqu'à 22 pixels plutôt que d'être coupé.
   const head = pageHead({ path: "/village", title: nomSurLImage(annonce, draws), name: true, titleMin: 22, kicker, period: periodeDesAchats(achats) }, measure);
   const rects: CardRect[] = [...head.rects];

@@ -39,6 +39,8 @@ import { modeleParId } from "../../supabase/functions/code-discord/modeles/index
 import { CLE_MODELE, EMPLACEMENTS_OBJETS, GAULOIS_LARGEUR, NOMS_EMPLACEMENTS, OBJETS, TENUE_NUE, casesDuGaulois, vignetteDeLObjet, type Objet, type RareteDObjet as Rarete, type Vignette } from "./gaulois";
 import { escapeDiscord, type RenderedImage } from "./gazette-discord";
 import { parseNoted, siteLink } from "./salon-discord";
+import { finitionParId } from "./village/cartes";
+import { vignetteDeLaCarte } from "./village/cartes-vignettes";
 
 const isoDate = z.iso.datetime();
 
@@ -97,11 +99,13 @@ export function mergeAchatsStates(...states: readonly (AchatsSendState | null)[]
 export const NATURES = ["achat", "pochette", "marche_achat"] as const;
 export type NatureDAchat = (typeof NATURES)[number];
 export type EmplacementDObjet = (typeof EMPLACEMENTS_OBJETS)[number];
-/** Ce que le journal peut donner : un objet, à l'un de ses cinq emplacements, un familier, une bannière ou un Gaulois unique. */
+/** Ce que le journal peut donner : un objet, à l'un de ses cinq emplacements, un familier, une bannière, un Gaulois unique ou une finition de carte. */
 export const FAMILIER = "familier";
 export const BANNIERE = "banniere";
 export const MODELE = "modele";
-export type EmplacementDAchat = EmplacementDObjet | typeof FAMILIER | typeof BANNIERE | typeof MODELE;
+/** Une finition de carte achetée au rayon « Cartes » (« carte/<identifiant> » au journal, migration `20261117001200_cartes_du_gaulois`). */
+export const CARTE = "carte";
+export type EmplacementDAchat = EmplacementDObjet | typeof FAMILIER | typeof BANNIERE | typeof MODELE | typeof CARTE;
 
 /** Un objet reçu par un Gaulois, tel que le robot l'annonce. */
 export interface AchatDuVillage {
@@ -143,7 +147,7 @@ export const nomAffiche = (annonce: Pick<AnnonceDesAchats, "nom" | "discord">): 
 
 /** L'objet du catalogue, s'il est payant : seuls ceux-là s'achètent. Un familier, une bannière ou un Gaulois unique n'est pas un objet : `null`. */
 export function objetDe(achat: Pick<AchatDuVillage, "emplacement" | "objet">): (Objet & { rarete: Rarete }) | null {
-  if (achat.emplacement === FAMILIER || achat.emplacement === BANNIERE || achat.emplacement === MODELE) return null;
+  if (achat.emplacement === FAMILIER || achat.emplacement === BANNIERE || achat.emplacement === MODELE || achat.emplacement === CARTE) return null;
   const objet = OBJETS[achat.emplacement]?.[achat.objet];
   return objet && !objet.gratuit && objet.rarete ? (objet as Objet & { rarete: Rarete }) : null;
 }
@@ -164,6 +168,10 @@ export function choseDe(achat: Pick<AchatDuVillage, "emplacement" | "objet">): C
   if (achat.emplacement === BANNIERE) {
     const banniere = banniereParId(achat.objet);
     return banniere ? { nom: banniere.nom, rarete: banniere.rarete, place: "bannière" } : null;
+  }
+  if (achat.emplacement === CARTE) {
+    const finition = finitionParId(achat.objet);
+    return finition ? { nom: finition.nom, rarete: finition.rarete, place: "finition de carte" } : null;
   }
   if (achat.emplacement === FAMILIER) {
     const familier = familierDe(achat.objet);
@@ -197,6 +205,8 @@ function vignetteDuModele(id: string): Vignette | null {
  */
 export function vignetteDeLAchat(achat: Pick<AchatDuVillage, "emplacement" | "objet">): Vignette | null {
   if (achat.emplacement === MODELE) return vignetteDuModele(achat.objet);
+  // La finition d'une carte : son image fixe, dessinée d'avance (scripts/atelier-cartes.ts).
+  if (achat.emplacement === CARTE) return vignetteDeLaCarte(achat.objet);
   if (achat.emplacement === BANNIERE) {
     const dessin = dessinDeLaBanniere(achat.objet);
     return dessin ? { largeur: 124, hauteur: 80, cases: [...dessin.cases] } : null;
@@ -256,6 +266,9 @@ export const nouveauxFamiliers = (n: number) => (n >= 2 ? `${n} nouveaux familie
 /** « 1 nouvelle bannière », « 2 nouvelles bannières ». */
 export const nouvellesBannieres = (n: number) => (n >= 2 ? `${n} nouvelles bannières` : "1 nouvelle bannière");
 
+/** « 1 nouvelle finition de carte », « 2 nouvelles finitions de carte ». */
+export const nouvellesCartes = (n: number) => (n >= 2 ? `${n} nouvelles finitions de carte` : "1 nouvelle finition de carte");
+
 /** « 1 nouveau Gaulois unique », « 2 nouveaux Gaulois uniques ». */
 export const nouveauxModeles = (n: number) => (n >= 2 ? `${n} nouveaux Gaulois uniques` : "1 nouveau Gaulois unique");
 
@@ -267,12 +280,14 @@ export function nouveautes(achats: readonly Pick<AchatDuVillage, "emplacement">[
   const familiers = achats.filter((a) => a.emplacement === FAMILIER).length;
   const bannieres = achats.filter((a) => a.emplacement === BANNIERE).length;
   const modeles = achats.filter((a) => a.emplacement === MODELE).length;
-  const objets = achats.length - familiers - bannieres - modeles;
+  const cartes = achats.filter((a) => a.emplacement === CARTE).length;
+  const objets = achats.length - familiers - bannieres - modeles - cartes;
   const parties = [
     objets > 0 ? nouveauxObjets(objets) : null,
     familiers > 0 ? nouveauxFamiliers(familiers) : null,
     bannieres > 0 ? nouvellesBannieres(bannieres) : null,
     modeles > 0 ? nouveauxModeles(modeles) : null,
+    cartes > 0 ? nouvellesCartes(cartes) : null,
   ].filter((p): p is string => p !== null);
   if (parties.length === 0) return nouveauxObjets(0);
   return parties.length === 1 ? parties[0]! : `${parties.slice(0, -1).join(", ")} et ${parties.at(-1)}`;
@@ -288,6 +303,7 @@ export function titreEnMots(annonce: AnnonceDesAchats, nom: string): string {
   if (annonce.achats.every((a) => a.emplacement === MODELE)) return n >= 2 ? `${nom} a ${nouveauxModeles(n)}` : `${nom} a un nouveau Gaulois unique`;
   if (annonce.achats.every((a) => a.emplacement === FAMILIER)) return n >= 2 ? `${nom} a ${nouveauxFamiliers(n)}` : `${nom} a un nouveau familier`;
   if (annonce.achats.every((a) => a.emplacement === BANNIERE)) return n >= 2 ? `${nom} a ${nouvellesBannieres(n)}` : `${nom} a une nouvelle bannière`;
+  if (annonce.achats.every((a) => a.emplacement === CARTE)) return n >= 2 ? `${nom} a ${nouvellesCartes(n)}` : `${nom} a une nouvelle finition de carte`;
   return `${nom} habille son Gaulois : ${nouveautes(annonce.achats)}`;
 }
 
@@ -377,18 +393,17 @@ export function lireReponseDesAchats(data: unknown): Extract<LectureDesAchats, {
   let inconnus = 0;
   for (const brut of reponse.data.achats) {
     const ligne = LigneDuServeur.safeParse(brut);
-    // Une finition de carte achetée au rayon « Cartes » (« carte/<identifiant> », migration 20261117001200) : pas encore
-    // dessinée ici. Elle est écartée sans avertissement : ce n'est pas un objet inconnu.
-    if (ligne.success && ligne.data.emplacement === "carte") continue;
     const nom = ligne.success ? nomPropre(ligne.data.nom) : "";
-    const emplacement = ligne.success ? ([...EMPLACEMENTS_OBJETS, FAMILIER, BANNIERE, MODELE] as readonly string[]).find((e) => e === ligne.data.emplacement) : undefined;
+    const emplacement = ligne.success ? ([...EMPLACEMENTS_OBJETS, FAMILIER, BANNIERE, MODELE, CARTE] as readonly string[]).find((e) => e === ligne.data.emplacement) : undefined;
     // Un familier ne sort que de la pochette des familiers, une bannière que de la boutique ou, pour un trésor, de la
     // pochette des bannières, un Gaulois unique que de la boutique ou de sa pochette (jamais du marché) : sous une autre
     // nature, la ligne est illisible.
     const familierHorsPochette = emplacement === FAMILIER && ligne.success && ligne.data.nature !== "pochette";
     const banniereHorsBoutique = emplacement === BANNIERE && ligne.success && !banniereBienVenue(ligne.data.nature, ligne.data.objet);
     const modeleAuMarche = emplacement === MODELE && ligne.success && ligne.data.nature === "marche_achat";
-    if (!ligne.success || !emplacement || !nom || familierHorsPochette || banniereHorsBoutique || modeleAuMarche || !choseDe({ emplacement: emplacement as EmplacementDAchat, objet: ligne.data.objet })) {
+    // Une finition de carte ne s'achète qu'à la boutique, et n'est annoncée que si son image fixe est là.
+    const carteHorsBoutique = emplacement === CARTE && ligne.success && (ligne.data.nature !== "achat" || vignetteDeLaCarte(ligne.data.objet) === null);
+    if (!ligne.success || !emplacement || !nom || familierHorsPochette || banniereHorsBoutique || modeleAuMarche || carteHorsBoutique || !choseDe({ emplacement: emplacement as EmplacementDAchat, objet: ligne.data.objet })) {
       inconnus++;
       continue;
     }
