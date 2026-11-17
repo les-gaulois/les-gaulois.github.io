@@ -12,6 +12,16 @@
   {
     "date": "2026-11-17",
     "kind": "ameliore",
+    "title": "Tous les pseudos dans le fil « Entre Gaulois »",
+    "body": "Coéquipiers et adversaires y portent aussi le pseudo qu'ils avaient dans la partie, comme dans le replay. Les parties déjà en ligne le reçoivent peu à peu.",
+    "link": {
+      "href": "/revoir",
+      "label": "Revoir une partie"
+    }
+  },
+  {
+    "date": "2026-11-17",
+    "kind": "ameliore",
     "title": "Les vrais pseudos dans le fil « Entre Gaulois »",
     "body": "À côté du replay, un Gaulois porte le pseudo qu'il avait dans la partie, au lieu de « Gaulois 1 ». Les parties déjà en ligne le reçoivent peu à peu.",
     "link": {

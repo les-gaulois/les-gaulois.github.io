@@ -186,20 +186,35 @@ describe("les films à refaire pour leur journal", () => {
   });
   it("un journal d'avant les pseudos de la partie se refait aussi", () => {
     const index = noterFilm(indexVide(), "avec", "2026-11-16T11:00:00Z", 1000, "a".repeat(40), true);
-    expect(index.films[0]!.pseudos).toBe(true);
+    expect(index.films[0]!.pseudos).toBe(2);
     expect(partiesARefilmer([s("avec", "2026-11-16T11:00:00Z")], index, now)).toEqual([]);
     const avant = { ...index, films: [{ partie: "avec", debut: "2026-11-16T11:00:00Z", octets: 1000, journal: true }] };
     expect(partiesARefilmer([s("avec", "2026-11-16T11:00:00Z")], avant, now).map((p) => p.gameId)).toEqual(["avec"]);
+    // Le premier jet, qui ne nommait que les Gaulois, se refait de même.
+    const premierJet = { ...index, films: [{ ...avant.films[0]!, pseudos: true as const }] };
+    expect(partiesARefilmer([s("avec", "2026-11-16T11:00:00Z")], premierJet, now).map((p) => p.gameId)).toEqual(["avec"]);
   });
 });
 
 describe("les pseudos de la partie", () => {
-  const pseudos = new Map([["g1", "Autre nom"], ["g2", "Chilimou FR"], ["a5", "Adversaire"], ["a6", "Vilain"]]);
+  const pseudos = new Map([["g1", "Autre nom"], ["g2", "Chilimou FR"], ["e4", "Ami"], ["a5", "Adversaire"], ["a6", "Sans clan"]]);
   const avec = (faits: unknown) => journalDeLaPartie(meta(faits), { ...partie, pseudos })!;
-  it("nomment un Gaulois hors de la liste publique, jamais un joueur d'un autre clan ; le pseudo public passe d'abord", () => {
-    const j = avec([[120, 0, 1, 2, 500], [130, 0, 3, 1, 70], [140, 2, 1, 5, 10], [150, 2, 6, 2, 10]]);
-    expect(j.joueurs).toEqual([["Judom FR", 0], ["Chilimou FR", 0, 1], [null, 0], ["[UN]", 2], [null, 2]]);
-    expect(JSON.stringify(j)).not.toMatch(/Adversaire|Vilain|Autre nom/);
+  it("nomment chaque joueur humain hors de la liste publique, le tag officiel devant ; le pseudo public passe d'abord", () => {
+    const j = avec([[120, 0, 1, 2, 500], [130, 0, 3, 1, 70], [140, 2, 1, 5, 10], [150, 2, 6, 2, 10], [160, 7, 4, 1], [170, 2, 1, 7, 10]]);
+    expect(j.joueurs).toEqual([["Judom FR", 0], ["Chilimou FR", 0, 1], [null, 0], ["[UN] Adversaire", 2, 1], ["Sans clan", 2, 1], ["Ami", 1, 1], [null, 3]]);
+    // Ni le pseudo de partie d'un membre de la liste publique, ni un identifiant.
+    expect(JSON.stringify(j)).not.toMatch(/Autre nom|"g1"|"a5"|"a6"|"e4"/);
+  });
+  it("un membre de la liste publique hors du tag garde son pseudo public seul ; le tag sorti du classement part à la publication", () => {
+    const j = journalDeLaPartie(meta([[140, 2, 1, 5, 10], [160, 7, 4, 1]]), { ...partie, noms: new Map([...partie.noms, ["e4", "Membre Public"]]), pseudos })!;
+    expect(j.joueurs).toEqual([["Judom FR", 0], ["[UN] Adversaire", 2, 1], ["Membre Public", 1]]);
+    expect(journalPublie(j, () => false).joueurs).toEqual([[null, 0], ["Adversaire", 2, 1], [null, 1]]);
+    expect(journalPublie(j, () => true).joueurs).toEqual(j.joueurs);
+    expect(pseudoEnPartie("[UN] " + "x".repeat(60), false)).toBe("[UN] " + "x".repeat(35));
+  });
+  it("sans pseudo lisible, un autre joueur garde le tag officiel de son clan, ou son camp", () => {
+    const j = journalDeLaPartie(meta([[140, 2, 1, 5, 10], [150, 2, 6, 2, 10]]), { ...partie, pseudos: new Map([["a5", "[UN]"], ["a6", "<b>"]]) })!;
+    expect(j.joueurs).toEqual([["Judom FR", 0], ["[UN]", 2], [null, 2], [null, 0]]);
   });
   it("restent à la publication, et se relisent à l'écran sans Gaulois dessiné ni numéro", () => {
     const j = avec([[120, 0, 1, 2, 500], [130, 0, 3, 1, 70]]);
@@ -211,9 +226,9 @@ describe("les pseudos de la partie", () => {
     expect(nomDit(lu.faits[1]!.de, true)).toBe("Un Gaulois");
     // Une troisième case inattendue, ou sur un joueur d'un autre camp : refusée.
     expect(journalALEcran({ ...j, joueurs: [["Judom FR", 0], ["Chilimou FR", 0, 2], [null, 0]] }, PARTIE)).toBeNull();
-    expect(journalALEcran({ ...j, joueurs: [["Judom FR", 0], ["Chilimou FR", 2, 1], [null, 0]] }, PARTIE)).toBeNull();
+    expect(journalALEcran({ ...j, joueurs: [["Judom FR", 0], ["Chilimou FR", 3, 1], [null, 0]] }, PARTIE)).toBeNull();
     expect(journalALEcran({ ...j, joueurs: [["Judom FR", 0], [null, 0, 1], [null, 0]] }, PARTIE)).toBeNull();
-    expect(() => lireJournal(JSON.stringify({ ...j, joueurs: [["Judom FR", 0], ["Chilimou FR", 2, 1], [null, 0]] }), PARTIE)).toThrow("mauvais format");
+    expect(() => lireJournal(JSON.stringify({ ...j, joueurs: [["Judom FR", 0], ["Chilimou FR", 3, 1], [null, 0]] }), PARTIE)).toThrow("mauvais format");
   });
   it("s'écrivent sans leur tag, sur une ligne, ou pas du tout", () => {
     expect(pseudoEnPartie("[GAL] Chilimou FR")).toBe("Chilimou FR");

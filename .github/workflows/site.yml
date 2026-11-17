@@ -302,7 +302,7 @@ jobs:
     needs: update-data
     if: ${{ !cancelled() && github.event_name != 'push' && github.ref_name == 'main' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     permissions:
       contents: read
     steps:
@@ -334,7 +334,7 @@ jobs:
           restore-keys: moteurs-films-
       - name: Filmer les nouvelles parties
         continue-on-error: true
-        timeout-minutes: 7
+        timeout-minutes: 12
         run: npm run parties:filmer
       - name: Conserver les moteurs du jeu
         if: ${{ !cancelled() && hashFiles('.cache/openfront/moteurs/*.mjs') != '' }}

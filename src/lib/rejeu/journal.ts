@@ -12,12 +12,14 @@
  * Ce que le site en garde (`FILTRES`) : un fait n'entre au journal que si un joueur au tag du clan (`clients`) y tient le rôle
  * dit pour son code ; les robots du jeu, éliminés par dizaines, n'y sont jamais.
  *
- * Qui est nommé : un membre au pseudo public de la liste du clan, par ce pseudo ; un autre Gaulois (au tag du clan dans la
- * partie), par le pseudo qu'il y portait, sans son tag (`pseudoEnPartie` ; demande du pilote du 17 novembre 2026 : « tu peux
- * pas mettre les vrais pseudos, au lieu d'afficher Gaulois 1 » ; le replay d'à côté les montre déjà) ; un autre joueur, par le
- * tag de son clan s'il est au classement officiel (`nomsPubliables`, film-brut.ts). Tous les autres n'ont que leur camp : « un
- * coéquipier », « un adversaire », « une nation », « un robot » : jamais le pseudo d'un joueur d'un autre clan (on y trouve
- * des injures), jamais un identifiant. Un pseudo lu dans la partie n'est relié ni à une fiche ni à un Gaulois dessiné.
+ * Qui est nommé : un membre au pseudo public de la liste du clan, par ce pseudo ; tout autre joueur humain, Gaulois ou non,
+ * par le pseudo qu'il portait dans la partie, sans son tag (`pseudoEnPartie` ; demandes du pilote du 17 novembre 2026 : « tu
+ * peux pas mettre les vrais pseudos, au lieu d'afficher Gaulois 1 », puis « il y a tous les noms sur le replay et je veux aussi
+ * les noms de ceux qui ne sont pas dans l'équipe gauloise » ; le replay d'à côté les montre déjà tous). Le tag du clan d'un
+ * autre joueur précède son pseudo seulement s'il est au classement officiel (`nomsPubliables`, film-brut.ts) : un tag libre
+ * n'est jamais écrit. Ces pseudos sont libres : le site les écrit tels que le jeu les donne, sans les trier. Une nation et un
+ * robot n'ont que leur camp, en mots ; jamais un identifiant. Un pseudo lu dans la partie n'est relié ni à une fiche ni à un
+ * Gaulois dessiné.
  *
  * Les messages rapides sont des phrases toutes faites du jeu, choisies dans une liste : le moteur n'en annonce que la clé. Leur
  * texte français vient de `resources/lang/fr.json` d'OpenFront, au commit de la partie (© OpenFront and Contributors,
@@ -51,7 +53,7 @@ export const Journal = z
     format: z.literal(FORMAT_DU_JOURNAL),
     partie: z.string().regex(/^[A-Za-z0-9]{1,32}$/),
     fin: Entier.min(1),
-    joueurs: z.array(z.union([z.tuple([z.string().regex(NOM_PERMIS).nullable(), Entier.max(CAMPS.length - 1)]), z.tuple([z.string().regex(NOM_PERMIS), z.literal(CAMPS.indexOf("gaulois")), z.literal(PSEUDO_EN_PARTIE)])])).max(2_000),
+    joueurs: z.array(z.union([z.tuple([z.string().regex(NOM_PERMIS).nullable(), Entier.max(CAMPS.length - 1)]), z.tuple([z.string().regex(NOM_PERMIS), Entier.max(CAMPS.indexOf("adverse")), z.literal(PSEUDO_EN_PARTIE)])])).max(2_000),
     faits: z.array(z.array(z.union([z.number().int().min(-1).max(Number.MAX_SAFE_INTEGER), z.string().max(200)])).min(4).max(6)).max(FAITS_MAX),
   })
   .refine((j) => j.faits.every((f) => ligneValable(f, j.joueurs.length)), "fait au mauvais format")
@@ -96,26 +98,26 @@ export interface PartieDuJournal {
   partie: string;
   clients: ReadonlySet<string>;
   noms: ReadonlyMap<string, string>;
-  /** Le pseudo que chaque Gaulois portait dans la partie, par identifiant en partie (`pseudoEnPartie`). Absent : aucun. */
+  /** Le pseudo que chaque joueur portait dans la partie, par identifiant en partie (`pseudoEnPartie`). Absent : aucun. */
   pseudos?: ReadonlyMap<string, string>;
   phrases: Phrases;
 }
 
 /**
  * Le pseudo qu'un joueur portait dans la partie, tel que le journal peut l'écrire : sans le tag de clan en tête (« [GAL] »),
- * sur une ligne, 40 caractères au plus. `null` : rien d'écrivable (vide, ou seulement un tag).
+ * sur une ligne, 40 caractères au plus. `null` : rien d'écrivable (vide, ou seulement un tag). `sansTag: false` : le texte
+ * est gardé avec son tag en tête (le tag officiel que le site vient d'y mettre).
  */
-export function pseudoEnPartie(pseudo: string | null | undefined): string | null {
+export function pseudoEnPartie(pseudo: string | null | undefined, sansTag = true): string | null {
   if (typeof pseudo !== "string") return null;
   let net = pseudo
     .replace(/\s+/g, " ")
-    .trim()
-    .replace(/^(\[[^\]]{0,12}\]\s*)+/, "")
     .trim();
+  if (sansTag) net = net.replace(/^(\[[^\]]{0,12}\]\s*)+/, "").trim();
   // Coupé par caractères entiers : un émoji ne se casse pas en deux.
   net = [...net].slice(0, 40).join("").trim();
   while (net.length > 40) net = [...net].slice(0, -1).join("").trim();
-  return net !== "" && !net.startsWith("[") && NOM_PERMIS.test(net) ? net : null;
+  return net !== "" && !(sansTag && net.startsWith("[")) && NOM_PERMIS.test(net) ? net : null;
 }
 
 /**
@@ -181,9 +183,13 @@ export function journalDeLaPartie(metaTexte: string, partie: PartieDuJournal): J
       const nom = j.client !== null ? partie.noms.get(j.client) : undefined;
       // Un Gaulois n'est nommé que par son pseudo : un tag (« [GAL] ») n'en est pas un.
       const publiable = nom && NOM_PERMIS.test(nom) && (camp === "gaulois" ? !nom.startsWith("[") : camp === "equipe" || camp === "adverse") ? nom : null;
-      // Un Gaulois hors de la liste publique du clan : le pseudo qu'il portait dans la partie.
-      const porte = publiable === null && camp === "gaulois" && j.client !== null ? pseudoEnPartie(partie.pseudos?.get(j.client)) : null;
-      r = joueurs.push(porte !== null ? [porte, CAMPS.indexOf("gaulois"), PSEUDO_EN_PARTIE] : [publiable, CAMPS.indexOf(camp)]) - 1;
+      // Hors de la liste publique du clan : le pseudo porté dans la partie, après le tag officiel de son clan pour un autre joueur.
+      const humain = camp === "gaulois" || camp === "equipe" || camp === "adverse";
+      // Un membre de la liste publique garde son pseudo public seul, même sans le tag dans cette partie : jamais relié à un autre nom.
+      const tag = publiable !== null && publiable.startsWith("[") ? publiable : null;
+      const pseudo = humain && j.client !== null && (publiable === null || tag !== null) ? pseudoEnPartie(partie.pseudos?.get(j.client)) : null;
+      const porte = pseudo !== null && tag !== null ? pseudoEnPartie(`${tag} ${pseudo}`, false) : pseudo;
+      r = joueurs.push(porte !== null ? [porte, CAMPS.indexOf(camp), PSEUDO_EN_PARTIE] : [publiable, CAMPS.indexOf(camp)]) - 1;
       rangs.set(n, r);
     }
     return r;
@@ -237,8 +243,16 @@ export function lireJournal(texte: string, partie: string): Journal {
 
 /**
  * Le journal à publier : un pseudo qui n'est plus sur la liste du clan, ou un tag qui n'est plus au classement officiel, n'y
- * reste pas ; son joueur n'a plus que son camp. Le pseudo porté dans la partie par un Gaulois reste : il ne vient pas de la liste.
+ * reste pas ; son joueur n'a plus que son camp. Un pseudo porté dans la partie reste, il ne vient pas de la liste ; le tag qui le
+ * précède, lui, part s'il n'est plus au classement officiel.
  */
 export function journalPublie(journal: Journal, encorePublie: (nom: string) => boolean): Journal {
-  return { ...journal, joueurs: journal.joueurs.map((j) => (j.length === 3 ? j : [j[0] !== null && encorePublie(j[0]) ? j[0] : null, j[1]])) };
+  return {
+    ...journal,
+    joueurs: journal.joueurs.map((j) => {
+      if (j.length !== 3) return [j[0] !== null && encorePublie(j[0]) ? j[0] : null, j[1]];
+      const tag = /^(\[[^\]]{1,12}\]) (.+)$/.exec(j[0]);
+      return tag && !encorePublie(tag[1]!) ? [tag[2]!, j[1], j[2]] : j;
+    }),
+  };
 }

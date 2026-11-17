@@ -30,10 +30,12 @@ import type { StoredSession } from "../src/lib/schemas";
 import { construireMoteur, FicheInattendue, lancerMoteur, lireCarte, lireFiche, lireLangueDuJeu, message, type Moteur, RACINE, rangerCartes, rangerMoteurs, TropLong } from "./rejeu-commun";
 
 /**
- * Le job a 12 minutes, et le site attend sa fin pour se publier : le rejeu cesse de commencer des parties au bout de 4, et une
- * partie n'en prend jamais plus de 4. Le clan joue environ 3 parties par heure, filmées en 10 à 50 s chacune.
+ * Le site attend la fin du job pour se publier : le rejeu cesse de commencer des parties au bout de 9 minutes (4 jusqu'au
+ * 17 novembre 2026 : relevé pour refaire plus vite les journaux « Entre Gaulois », le pilote ne voulant pas attendre un jour
+ * et demi), et une partie n'en prend jamais plus de 4. Le clan joue environ 3 parties par heure, filmées en 10 à 50 s chacune :
+ * sans arriéré, le passage finit bien avant.
  */
-const BUDGET_MS = 4 * 60_000;
+const BUDGET_MS = 9 * 60_000;
 const PAR_PARTIE_MS = 4 * 60_000;
 /** Le film brut compressé que le conteneur peut laisser : quelques centaines de kilo-octets pour une partie d'une heure. */
 const MAX_OCTETS_FILM_BRUT_GZ = 32_000_000;
@@ -47,7 +49,7 @@ const readText = (path: string) => (existsSync(path) ? readFileSync(path, "utf8"
  * session du clan, `clanPlayerCount`, affiché à côté du film, et le message des victoires) et choisir les noms publiables
  * (l'identifiant public relie un joueur à la liste du clan, le tag à la liste officielle : `nomsPubliables`). Rien d'autre n'en
  * est gardé pour le film : ni l'identifiant public ni le pseudo de la partie n'y entrent. Le journal « Entre Gaulois », lui,
- * nomme un Gaulois hors de la liste publique par le pseudo qu'il portait dans la partie (`pseudoEnPartie`, demande du pilote).
+ * nomme chaque joueur hors de la liste publique par le pseudo qu'il portait dans la partie (`pseudoEnPartie`, demande du pilote).
  */
 const JoueursDeLaFiche = z.object({ info: z.object({ players: z.array(z.object({ clientID: z.string().nullish(), publicID: z.string().nullish(), clanTag: z.string().nullish(), username: z.string().max(200).nullish(), stats: z.unknown().optional() })).max(5_000) }) });
 
@@ -150,10 +152,10 @@ async function filmer(s: StoredSession, moteurs: Map<string, Promise<Moteur>>): 
     let octets: Buffer;
     const metaTexte = readFileSync(metaChemin, "utf8");
     const noms = nomsPubliables(joueurs.data.info.players, pseudosDuClan, tagsOfficiels);
-    // Pour le journal seul : le pseudo que chaque Gaulois portait dans la partie (jamais celui d'un joueur d'un autre clan).
+    // Pour le journal seul : le pseudo que chaque joueur portait dans la partie, comme le replay les montre.
     const pseudos = new Map<string, string>();
     for (const p of joueurs.data.info.players) {
-      const porte = p.clientID && clients.has(p.clientID) ? pseudoEnPartie(p.username) : null;
+      const porte = p.clientID ? pseudoEnPartie(p.username) : null;
       if (porte !== null) pseudos.set(p.clientID!, porte);
     }
     try {

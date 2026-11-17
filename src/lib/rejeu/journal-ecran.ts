@@ -7,7 +7,7 @@ import { frNumber } from "../nombre";
 /** Au-delà, le rejeu ne note aucun fait (`FAITS_MAX` de entree.ts) : aucune partie relevée n'approche ce nombre. */
 export const FAITS_MAX = 20_000;
 export const FORMAT_DU_JOURNAL = 1;
-/** Troisième case d'un joueur du journal : son nom est le pseudo qu'il portait dans la partie (un Gaulois hors de la liste publique du clan). */
+/** Troisième case d'un joueur du journal : son nom est le pseudo qu'il portait dans la partie (un Gaulois hors de la liste publique du clan, un coéquipier, un adversaire). */
 export const PSEUDO_EN_PARTIE = 1;
 /** Les étapes du jeu par seconde, comme la frise du replay (`TICKS_PER_SECOND`, src/client/replay/ReplayPlayback.ts). */
 export const ETAPES_PAR_SECONDE = 10;
@@ -70,7 +70,7 @@ export function familleDuCode(code: number): Famille {
 export interface JoueurDuJournal {
   nom: string | null;
   camp: Camp;
-  /** Le nom est le pseudo que ce Gaulois portait dans la partie, pas un pseudo de la liste du clan : pas de Gaulois dessiné pour lui. */
+  /** Le nom est le pseudo que ce joueur portait dans la partie, pas un pseudo de la liste du clan : pas de Gaulois dessiné pour lui. */
   enPartie: boolean;
   numero: number;
 }
@@ -151,8 +151,8 @@ export function journalALEcran(brut: unknown, partie: string): JournalALEcran | 
   if (j.format !== FORMAT_DU_JOURNAL || j.partie !== partie || !entier(j.fin, 1) || !Array.isArray(j.joueurs) || !Array.isArray(j.faits) || j.faits.length > FAITS_MAX) return null;
   const lus: { nom: string | null; camp: Camp; enPartie: boolean }[] = [];
   for (const q of j.joueurs as unknown[]) {
-    // Trois cases : seulement un Gaulois nommé, comme le schéma du journal (`Journal`, journal.ts).
-    if (!Array.isArray(q) || (q.length !== 2 && !(q.length === 3 && q[2] === PSEUDO_EN_PARTIE && q[1] === CAMPS.indexOf("gaulois") && q[0] !== null)) || !entier(q[1], 0) || q[1] >= CAMPS.length) return null;
+    // Trois cases : seulement un joueur humain nommé (Gaulois, coéquipier, adversaire), comme le schéma du journal (`Journal`, journal.ts).
+    if (!Array.isArray(q) || (q.length !== 2 && !(q.length === 3 && q[2] === PSEUDO_EN_PARTIE && entier(q[1], 0) && q[1] <= CAMPS.indexOf("adverse") && q[0] !== null)) || !entier(q[1], 0) || q[1] >= CAMPS.length) return null;
     const nom: unknown = q[0];
     if (nom !== null && (typeof nom !== "string" || nom.length < 1 || nom.length > 40)) return null;
     lus.push({ nom, camp: CAMPS[q[1]]!, enPartie: q.length === 3 && nom !== null });

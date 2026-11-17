@@ -37,8 +37,8 @@ export const IndexDesFilms = z.object({
   // 2 depuis les films à noms et unités (version 2 de film.ts) : un index plus ancien repart de zéro, et ses films se refont.
   format: z.literal(2),
   /** `commit` : la version du jeu qui a joué la partie (depuis le vrai lecteur du jeu, 15 novembre 2026), pour lui trouver son lecteur. */
-  /** `journal` : le journal « Entre Gaulois » (17 novembre 2026, `journal.ts`) est gardé avec le film ; `false`, le moteur de cette version ne note pas les faits ; absent, le film date d'avant et se refait (`partiesARefilmer`). `pseudos` : ce journal nomme les Gaulois par leur pseudo de la partie (17 novembre 2026, au soir) ; absent sur un journal gardé, il se refait aussi. */
-  films: z.array(z.object({ partie: Partie, debut: Debut, octets: z.number().int().min(1).max(MAX_OCTETS_FILM), commit: z.string().regex(/^[0-9a-f]{40}$/).optional(), journal: z.boolean().optional(), pseudos: z.literal(true).optional() })).max(10_000),
+  /** `journal` : le journal « Entre Gaulois » (17 novembre 2026, `journal.ts`) est gardé avec le film ; `false`, le moteur de cette version ne note pas les faits ; absent, le film date d'avant et se refait (`partiesARefilmer`). `pseudos` : `2`, ce journal nomme chaque joueur humain par son pseudo de la partie (17 novembre 2026) ; absent ou `true` (les Gaulois seuls, premier jet du même jour) sur un journal gardé, il se refait aussi. */
+  films: z.array(z.object({ partie: Partie, debut: Debut, octets: z.number().int().min(1).max(MAX_OCTETS_FILM), commit: z.string().regex(/^[0-9a-f]{40}$/).optional(), journal: z.boolean().optional(), pseudos: z.union([z.literal(true), z.literal(2)]).optional() })).max(10_000),
   /** Les parties qui n'ont pas pu être filmées : `definitive`, elles ne le seront jamais (fiche inutilisable, partie trop longue). */
   ratees: z.array(z.object({ partie: Partie, debut: Debut, raison: z.string().max(200), essais: z.number().int().min(1), definitive: z.boolean() })).max(10_000),
   /** La fin du dernier passage du robot des films allé à son terme : la date que la page montre. `null` : aucun encore. */
@@ -60,7 +60,7 @@ export function lireIndex(texte: string | null): IndexDesFilms {
   const lu = IndexDesFilms.safeParse(brut);
   if (lu.success) return lu.data;
   // Un index de la version 1 : ses films se refont, mais ses échecs pour de bon restent (une partie trop longue ne reprend pas
-  // les 4 minutes d'un passage), comme la date de son dernier passage.
+  // les 9 minutes d'un passage), comme la date de son dernier passage.
   const ancien = IndexDesFilms.extend({ format: z.literal(1) }).safeParse(brut);
   if (ancien.success) return { ...indexVide(), ratees: ancien.data.ratees.filter((r) => r.definitive), passage: ancien.data.passage };
   return indexVide();
@@ -117,7 +117,7 @@ export function partiesAFilmer<S extends { gameId: string; gameStart: string }>(
  * une partie qui échoue trop souvent n'est plus essayée : son film d'avant reste.
  */
 export function partiesARefilmer<S extends { gameId: string; gameStart: string }>(sessions: readonly S[], index: IndexDesFilms, now: Date): S[] {
-  const sansJournal = new Set(index.films.filter((f) => f.journal === undefined || (f.journal && !f.pseudos)).map((f) => f.partie));
+  const sansJournal = new Set(index.films.filter((f) => f.journal === undefined || (f.journal && f.pseudos !== 2)).map((f) => f.partie));
   const abandonnees = new Set(index.ratees.filter((r) => r.definitive || r.essais >= ESSAIS_MAX).map((r) => r.partie));
   const vues = new Set<string>();
   return sessions
@@ -138,7 +138,7 @@ export function noterEchec(index: IndexDesFilms, partie: string, debut: string, 
 
 /** Note un film fait : la partie sort des échecs. `journal` : son journal est gardé (`true`), ou le moteur ne note pas les faits (`false`). */
 export function noterFilm(index: IndexDesFilms, partie: string, debut: string, octets: number, commit?: string, journal?: boolean): IndexDesFilms {
-  return { ...index, films: [...index.films.filter((f) => f.partie !== partie), { partie, debut, octets, ...(commit ? { commit } : {}), ...(journal !== undefined ? { journal } : {}), ...(journal ? { pseudos: true as const } : {}) }], ratees: index.ratees.filter((r) => r.partie !== partie) };
+  return { ...index, films: [...index.films.filter((f) => f.partie !== partie), { partie, debut, octets, ...(commit ? { commit } : {}), ...(journal !== undefined ? { journal } : {}), ...(journal ? { pseudos: 2 as const } : {}) }], ratees: index.ratees.filter((r) => r.partie !== partie) };
 }
 
 /**
