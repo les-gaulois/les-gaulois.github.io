@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-17",
+    "kind": "nouveau",
+    "title": "Le coffre du druide en quinze manches",
+    "body": "Sur Discord, chaque manche a son gardien, son décor et son niveau : la cagnotte vaut fois 2, fois 3, puis fois 4. /help coffre explique le jeu, /indice vend une lettre du mot.",
+    "link": {
+      "href": "/confidentialite#coffre",
+      "label": "Ce que le jeu garde"
+    }
+  },
+  {
+    "date": "2026-11-17",
     "kind": "ameliore",
     "title": "Le bilan des Gaulois, plus clair, sur la bannière de chacun",
     "body": "Chaque carte a pour fond la bannière du membre. Une jauge montre son utilité face à la moyenne, et trois cases à dessins remplacent le texte : or, combat, dons.",
